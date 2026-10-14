@@ -26,9 +26,12 @@ LICENSE_SERVER=
 TARGET_DIR=
 HOST_BINDS=auto
 DRY_RUN=0
-ASSUME_YES=0
-APP_EXTRA_FILES=
-STORE_EXTRA_FILES=
+# 叠加文件词列表（`-f docker-compose.store.public.yml` 之类）。用数组而不是字符串：
+# 展开时才能原样交给 docker compose，不必依赖 shell 分词（unquoted 展开正是 shellcheck
+# SC2086 揪出来的那类隐患）。空数组在 `set -u` 下的展开统一写成
+# `${arr[@]+"${arr[@]}"}` —— 直接写 `"${arr[@]}"` 会在 bash 3.2（macOS 自带）上报 unbound。
+APP_EXTRA_FILES=()
+STORE_EXTRA_FILES=()
 
 LOG_FILE=$(mktemp 2>/dev/null || printf '/tmp/homeos-deploy.$$')
 trap 'rm -f "$LOG_FILE"' EXIT
@@ -59,8 +62,12 @@ usage() {
   --dir DIR             compose 与 .env 所在目录（默认：脚本所在的仓库根）
   --host-binds MODE     宿主标识符号链接：auto | force | skip（默认 auto）
   --dry-run             只打印将要执行的命令，不写文件、不调用 docker
-  --yes                 非交互（CI 用）：不提问，sudo 只用 sudo -n
+  --yes, -y             已废弃的空开关，仅为兼容旧调用而接受（见下）
   -h, --help            显示本帮助
+
+非交互：本脚本没有任何提问，sudo 一律走 `sudo -n`（拿不到免密权限就降级并提示），
+所以 `--yes` 已无可关的动作；保留它只是免得旧客户机脚本（install.sh 会转发参数）
+在升级后按「未知参数」退出 2。
 
 反代（Caddy）内置在镜像里，没有开关可关；它的上游固定是同容器回环，不可覆盖。
 宿主发布端口改 .env：APP_PUBLISH_PORT（默认 8801）、APP_PROXY_PUBLISH_PORT（8803）、
@@ -101,7 +108,10 @@ while [ $# -gt 0 ]; do
     --host-binds)    [ $# -ge 2 ] || die "--host-binds 缺少取值"; HOST_BINDS=$2; shift 2 ;;
     --host-binds=*)  HOST_BINDS=${1#*=}; shift ;;
     --dry-run)       DRY_RUN=1; shift ;;
-    --yes|-y)        ASSUME_YES=1; shift ;;
+    # 兼容旧调用：本脚本全程非交互（无提问，sudo 一律 `sudo -n`），所以这个开关
+    # 没有可关的动作。显式接受它而不是落到下面的「未知参数」，是为了不让旧客户机
+    # 脚本（install.sh 会转发参数）在升级后突然装不上。见 usage 里的说明。
+    --yes|-y)        shift ;;
     -h|--help)       usage; exit 0 ;;
     *)               printf '未知参数：%s\n' "$1" >&2; usage >&2; exit 2 ;;
   esac
@@ -275,6 +285,37 @@ ensure_env() {
     fi
   else
     warn "既没有 .env 也没有 .env.example：按 compose 内置默认值启动"
+  fi
+}
+
+# 生产标记必须落到 .env。运行镜像已在 Dockerfile 内置 APP_ENVIRONMENT=production，
+# 但 .env 是 deploy.sh / upgrade.sh / 手工 `docker compose up -d` 的共同真源：
+# 只要有人在 .env 里写了别的值，宿主层就覆盖镜像层。这里把「未设置」显式钉成 production，
+# 并拦下「生产镜像 + 显式关掉授权门禁」这种最容易被误当成省事的组合。
+ensure_production_env() {
+  current=$(env_value APP_ENVIRONMENT)
+  if [ -z "$current" ]; then
+    env_set APP_ENVIRONMENT production
+    # dry-run 下 env_set 只打印不落盘，别在这里声称「已写入」。
+    if [ "$DRY_RUN" -eq 1 ]; then
+      info "生产标记：将写入 APP_ENVIRONMENT=production（授权门禁与 5xx 脱敏据此生效）"
+    else
+      info "生产标记：APP_ENVIRONMENT=production（已写入 .env；授权门禁与 5xx 脱敏据此生效）"
+    fi
+  else
+    info "生产标记：APP_ENVIRONMENT=$current（沿用 .env / 环境变量）"
+  fi
+
+  case "$(printf '%s' "$current" | tr '[:upper:]' '[:lower:]')" in
+    production|prod|'') ;;
+    *)
+      warn "APP_ENVIRONMENT=$current 不是生产取值：授权门禁默认关闭（LICENSE_REQUIRED 未显式设置时）。生产部署请用 production。"
+      ;;
+  esac
+
+  license_explicit=$(env_value LICENSE_REQUIRED)
+  if [ "$license_explicit" = "0" ]; then
+    warn "LICENSE_REQUIRED=0：授权门禁被显式关闭，未激活也能使用全部功能 —— 仅限排障，勿在客户机长期保留。"
   fi
 }
 
@@ -559,7 +600,7 @@ validate_public_env() {
 }
 
 resolve_store_overlay() {
-  STORE_EXTRA_FILES=""
+  STORE_EXTRA_FILES=()
   [ "$ROLE" = "app" ] && return 0
   overlay=docker-compose.store.public.yml
   [ -f "$COMPOSE_DIR/$overlay" ] || return 0
@@ -572,7 +613,7 @@ resolve_store_overlay() {
       warn "设置了 STORE_DOMAIN 但缺少 ${caddyfile}：本次不加载 ${overlay}（否则容器会因挂载源缺失而起不来）。请补齐该文件，或用 git pull 更新部署目录。"
       return 0
     fi
-    STORE_EXTRA_FILES="-f $overlay"
+    STORE_EXTRA_FILES=(-f "$overlay")
     validate_public_env "$domain"
     info "公网接入叠加：${overlay}（STORE_DOMAIN=${domain}）"
     warn_public_exposure
@@ -625,8 +666,8 @@ wait_healthy() {
 
 deploy_store() {
   log "① 授权商店（homeos-store）"
-  if ! run_log docker compose -f docker-compose.store.yml $STORE_EXTRA_FILES pull; then diagnose_pull_failure; return 1; fi
-  run docker compose -f docker-compose.store.yml $STORE_EXTRA_FILES up -d
+  if ! run_log docker compose -f docker-compose.store.yml ${STORE_EXTRA_FILES[@]+"${STORE_EXTRA_FILES[@]}"} pull; then diagnose_pull_failure; return 1; fi
+  run docker compose -f docker-compose.store.yml ${STORE_EXTRA_FILES[@]+"${STORE_EXTRA_FILES[@]}"} up -d
   wait_healthy homeos-store 180 || return 1
   store_http=$(publish_port STORE_PUBLISH_PORT 8802)
   store_https=$(publish_port STORE_PROXY_PUBLISH_PORT 8804)
@@ -656,17 +697,17 @@ deploy_store() {
 deploy_app() {
   log "② 主应用（homeos）"
   if [ "$ROLE" = "app" ]; then
-    APP_EXTRA_FILES=""
+    APP_EXTRA_FILES=()
     if [ "$DRY_RUN" -eq 0 ]; then
       if docker network inspect homeos-net >/dev/null 2>&1 || docker volume inspect homeos-client-keys >/dev/null 2>&1; then
         warn "这台机器上有商店的共享网络 / 公钥卷：如果商店也在本机，请改用 --role all"
       fi
     fi
   else
-    APP_EXTRA_FILES="-f docker-compose.app.shared.yml"
+    APP_EXTRA_FILES=(-f docker-compose.app.shared.yml)
   fi
-  if ! run_log docker compose -f docker-compose.app.yml $APP_EXTRA_FILES pull; then diagnose_pull_failure; return 1; fi
-  run docker compose -f docker-compose.app.yml $APP_EXTRA_FILES up -d
+  if ! run_log docker compose -f docker-compose.app.yml ${APP_EXTRA_FILES[@]+"${APP_EXTRA_FILES[@]}"} pull; then diagnose_pull_failure; return 1; fi
+  run docker compose -f docker-compose.app.yml ${APP_EXTRA_FILES[@]+"${APP_EXTRA_FILES[@]}"} up -d
   wait_healthy homeos 300 || return 1
   return 0
 }
@@ -677,11 +718,11 @@ summary() {
   # 只列本次真正部署过的那一侧，避免 --role store 时打印空的 app 项目。
   if [ "$DRY_RUN" -eq 0 ]; then
     case "$ROLE" in
-      store) docker compose -f docker-compose.store.yml $STORE_EXTRA_FILES ps 2>/dev/null || true ;;
-      app)   docker compose -f docker-compose.app.yml $APP_EXTRA_FILES ps 2>/dev/null || true ;;
+      store) docker compose -f docker-compose.store.yml ${STORE_EXTRA_FILES[@]+"${STORE_EXTRA_FILES[@]}"} ps 2>/dev/null || true ;;
+      app)   docker compose -f docker-compose.app.yml ${APP_EXTRA_FILES[@]+"${APP_EXTRA_FILES[@]}"} ps 2>/dev/null || true ;;
       all)
-        docker compose -f docker-compose.store.yml $STORE_EXTRA_FILES ps 2>/dev/null || true
-        docker compose -f docker-compose.app.yml $APP_EXTRA_FILES ps 2>/dev/null || true
+        docker compose -f docker-compose.store.yml ${STORE_EXTRA_FILES[@]+"${STORE_EXTRA_FILES[@]}"} ps 2>/dev/null || true
+        docker compose -f docker-compose.app.yml ${APP_EXTRA_FILES[@]+"${APP_EXTRA_FILES[@]}"} ps 2>/dev/null || true
         ;;
     esac
   fi
@@ -724,6 +765,7 @@ info "角色：$ROLE"
 
 preflight
 ensure_env
+ensure_production_env
 setup_images
 info "镜像 tag：$TAG"
 if [ "$ROLE" != "store" ] && [ -n "${HOMEOS_IMAGE:-}" ]; then info "主应用镜像：$HOMEOS_IMAGE"; fi

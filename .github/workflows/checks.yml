@@ -1,6 +1,7 @@
 name: Checks
 
-# 轻检查（不构建镜像、不推 GHCR）：类型检查、ruff、pyright、库结构、端到端冒烟。
+# 轻检查（不构建镜像、不推 GHCR）：类型检查、前端产物构建、ruff、pyright、库结构、
+# 端到端冒烟，以及 shell / workflow / compose / Caddyfile 的静态校验。
 # 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
 # 触发：main 的 push 与全部 PR 自动跑（门禁必须自动生效，否则等于形同虚设）；
 # 另保留 workflow_call（被 docker.yml 构建前复用）与手动 dispatch。
@@ -49,10 +50,16 @@ jobs:
           # 根 `typecheck` 先跑 `build:shared`：dist/ 被 gitignore，干净检出上不先建就是一片 TS2307。
           bun run typecheck
           # ESLint：两前端共用规则核（ops/eslint/frontend-core.mjs）；--max-warnings 0 让风格问题也硬失败。
+          # 两前端的 lint 脚本已改成 `eslint .`：由各自的 eslint.config.js 决定文件范围，
+          # 不再在 CLI 里另写一份 glob（此前只写 `src/**/*.{ts,vue}`，两边的 `scripts/**`
+          # 门禁脚本因此从没被 lint 过 —— 判据本身写错没人拦）。
           bun run --cwd homeos/frontend lint:ci
           bun run --cwd homeos-store lint:ci
           # 共享契约包 @homeos/shared 的 lint 此前从未进 CI（只 lint 了两个前端）。
           bun run lint:shared
+          # 仓库根配置（ops/**）：有配置但零执行入口，等于没配。修好两处存量（一个从未
+          # 被读的常量、一个未使用的 caught error）后纳入。
+          bun run lint:ops
           # 三条 vite 配置用根 tsconfig.node.json 单独 strict 检查。
           bun run typecheck:node
 
@@ -137,9 +144,129 @@ jobs:
           bun run knip
           bun run verify:features
           bun run verify:scene
+          bun run verify:assets
+          bun run verify:env
           bun run verify:contracts
           # studio 度量 KPI：防拆分成果悄悄退化。
           bun run kpi:studio
+
+  # 前端产物构建 + 结构断言。
+  # 此前**没有任何自动门禁**会跑构建：checks 系列全是「只读源码」的静态门禁，
+  # 唯一会构建的两处是 docker.yml（同时推 GHCR，等于把「会不会构建挂」和「要不要发版」
+  # 绑成同一件事）和 build-check.yml（纯手动）。于是构建类改动的红灯只能靠人工发现 ——
+  # 2026-10-10 的构建锁 ENOENT 就是这样漏到 main 上的：本地有历史 dist/ 兜着是绿的，
+  # 干净检出才炸。这里补上，PR 上就能拦住。
+  #
+  # 与上面三个 job 并行、互不阻塞；`rm -rf dist` 是这一步的关键，
+  # dist/ 被 gitignore，不删就复现不出「干净检出」那种状态，等于没测。
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Build frontend and assert artifacts
+        # 单一来源：与 docker.yml 的 build job、build-check.yml 共用同一份脚本
+        # （含 6 条产物结构断言），避免「一处改了另一处没改」。
+        run: |
+          rm -rf dist
+          bash ops/ci/build_frontend_verify.sh
+
+  # 基础设施配置的静态校验：shell / workflow / compose / Caddyfile。
+  #
+  # 这四类文件此前**完全没有门禁**，写错只会在部署机（或 Actions 自己）现场炸。加进来后
+  # 首轮就抓到：
+  #   - shellcheck 在 ops/deploy/deploy.sh 上 1 处真 bug —— `ASSUME_YES` 从未被读，
+  #     即 `--yes` 是个空开关（文档还写着「不提问，sudo 只用 sudo -n」，而那些行为
+  #     本来就无条件成立）；另有 8 处未加引号的词列表展开（SC2086）。
+  #   - 版本全部钉死：shellcheck / actionlint 与本地核对过；caddy 版本**从 Dockerfile 的
+  #     CADDY_IMAGE 派生**，不在这里写第二份，Caddyfile 的语法随大版本变，用别的版本
+  #     校验等于没验。
+  # 不起容器、不拉业务镜像：compose 只做客户端侧的 `config`，caddy 只下静态二进制。
+  lint-infra:
+    runs-on: ubuntu-24.04
+    env:
+      SHELLCHECK_VERSION: v0.11.0
+      ACTIONLINT_VERSION: 1.7.12
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install shellcheck and actionlint
+        run: |
+          curl -sSL -o /tmp/shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          tar -xJf /tmp/shellcheck.tar.xz -C /tmp
+          sudo install -m 0755 "/tmp/shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version | head -n 3
+
+          curl -sSL -o /tmp/actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+          actionlint --version
+
+      - name: Shell check
+        # 刻意逐个列文件而不是 glob：新增脚本时若没登记进来，`shellcheck <不存在的文件>`
+        # 会硬失败，而不是静默少扫一个（glob 展开漏项的教训见 verify:features 的历史）。
+        run: |
+          shellcheck \
+            homeos/deploy/run-backend.sh \
+            ops/ci/build_frontend_verify.sh \
+            ops/deploy/deploy.sh \
+            ops/deploy/pack-customer.sh \
+            ops/deploy/upgrade.sh
+
+      - name: Actionlint
+        # 本工作流自己也在被检查之列（workflow 文件写错时 Actions 只会给一条含糊的报错）。
+        run: actionlint -color
+
+      - name: Compose config
+        # 四种真实形态。两个 overlay 文件**单独** `config` 必然报「既无 image 也无 build」，
+        # 所以按部署脚本的真实用法与基础文件叠加；public 形态还要求三个占位变量
+        # （Caddy 的 email 指令不接受空值，STORE_DOMAIN / STORE_BASE_URL 同理）。
+        run: |
+          docker compose -f docker-compose.app.yml config -q
+          docker compose -f docker-compose.store.yml config -q
+          docker compose -f docker-compose.app.yml -f docker-compose.app.shared.yml config -q
+          STORE_DOMAIN=store.example.com \
+            STORE_BASE_URL=https://store.example.com \
+            ACME_EMAIL=ops@example.com \
+            docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml config -q
+
+      - name: Caddy validate
+        run: |
+          caddy_image="$(sed -n 's/^ARG CADDY_IMAGE=//p' Dockerfile | head -n1)"
+          if [ -z "$caddy_image" ]; then
+            echo "::error::Dockerfile 里读不到 CADDY_IMAGE —— 版本单一来源断了，请修复本步骤的取值方式"
+            exit 1
+          fi
+          caddy_version="${caddy_image#caddy:}"
+          caddy_version="${caddy_version%%-*}"
+          echo "caddy 版本（取自 Dockerfile）：${caddy_version}"
+
+          curl -sSL -o /tmp/caddy.tar.gz \
+            "https://github.com/caddyserver/caddy/releases/download/v${caddy_version}/caddy_${caddy_version}_linux_amd64.tar.gz"
+          tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
+          /tmp/caddy version
+
+          # 进镜像的两份（反代与应用同容器，本文件由 Dockerfile COPY 进去）。
+          /tmp/caddy validate --config ops/caddy/app.Caddyfile --adapter caddyfile
+          /tmp/caddy validate --config ops/caddy/store.Caddyfile --adapter caddyfile
+          # 部署目录里的两个示例：public 那份的 `email {$ACME_EMAIL}` 在变量为空时
+          # **必然**解析失败（Caddy 的 email 不接受空值），故按示例里的用法给占位值。
+          /tmp/caddy validate --config ops/deploy/Caddyfile.intranet.example --adapter caddyfile
+          ACME_EMAIL=ops@example.com STORE_DOMAIN=store.example.com \
+            /tmp/caddy validate --config ops/deploy/Caddyfile.public.example --adapter caddyfile
 
   # Python 静态检查硬门禁（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
   ruff:
@@ -156,8 +283,12 @@ jobs:
         run: pip install "ruff==0.16.8"
 
       - name: Ruff check
-        run: |
-          ruff check --select F,E9,I,RET501,PLR1711,RUF059 .
+        # 走 `ruff.toml` 的完整规则集（E,F,I,UP,B,SIM,PIE,RET,RUF,C4,FURB,ISC,PL + bandit S）。
+        # 此前这里写的是 `--select F,E9,I,RET501,PLR1711,RUF059`，**覆盖掉**了 ruff.toml ——
+        # 于是 `UP/B/SIM/PIE/C4/FURB` 与 bandit `S` 从未在 CI 生效，规则集只剩个零头。
+        # 全量首轮共 28 处（19 处 RUF100 陈旧 noqa + 9 处真实问题），已逐条清零，
+        # 故这里不再需要基线棘轮：新增一处即红。
+        run: ruff check .
 
   # 类型检查门禁（basedpyright）。存量误报未清零，只把「一定会炸」的三条规则当硬失败，
   # 其余打成直方图；口径见 ops/ci/pyright_gate.py 顶部。
@@ -194,7 +325,7 @@ jobs:
           basedpyright --outputjson > basedpyright.json || true
           python ops/ci/pyright_gate.py basedpyright.json
 
-  # 库结构门禁（ops/check_schema.py）：验证迁移脚本 = ORM 元数据 = 实际结构。
+  # 库结构门禁（ops/check/check_schema.py）：验证迁移脚本 = ORM 元数据 = 实际结构。
   # 放在 build 之前：结构漂移只在存量部署暴露，坏迁移必须在推镜像前拦下。
   schema:
     runs-on: ubuntu-24.04
@@ -258,9 +389,7 @@ jobs:
                       -r homeos-store/backend/requirements.txt
 
       # 走根 package.json 的 `verify:smoke:*` 单一来源，杜绝手抄清单漂移
-      # （此前 `_go2rtc_relay_smoke.py` 就没进 CI）。全部离线自足；需要运行中商店的
-      # `_license_activation_e2e_smoke.py` **不在** `verify:smoke:app` 里
-      # （它在 CI 只会 SKIP，SKIP 不是覆盖），单列 `verify:smoke:license` 供本地跑。
+      # （此前 `_go2rtc_relay_smoke.py` 就没进 CI）。全部离线自足（不联网、不依赖外部服务）。
       - name: App smokes
         env:
           PYTHON: python
@@ -270,3 +399,11 @@ jobs:
         env:
           PYTHON: python
         run: bun run verify:smoke
+
+      # 授权激活闭环：夹具用临时 data/密钥目录 + 随机端口现起一个商店、走 HTTP 建管理员与
+      # 顾客、后台签发真授权，再驱动主应用 e2e 并断言日志里**没有** SKIP —— 此前这条脚本
+      # 在 CI 只会 SKIP（SKIP 不是覆盖），等于全仓最关键的授权闭环从未被验证过。
+      - name: License activation e2e
+        env:
+          PYTHON: python
+        run: bun run verify:smoke:license

@@ -4,8 +4,8 @@
 -->
 <script setup>
 import { Monitor, Plus, Smartphone, Tablet, Trash2 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
+import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import ClientPowerBatteryBar from './ClientPowerBatteryBar.vue'
 
 defineProps({

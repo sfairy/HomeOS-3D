@@ -154,8 +154,8 @@
 
 <script setup>
 import { Maximize2, Info } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
+import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import { SETTINGS_RANGE_STEP } from '@/shared/utils/settings/range-steps.util'

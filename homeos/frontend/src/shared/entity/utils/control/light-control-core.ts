@@ -141,15 +141,6 @@ export function rgbToHs(r: number, g: number, b: number): { h: number; s: number
   return { h: Math.round(h), s: Math.round(s * 100) }
 }
 
-export function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const clean = hex.replace('#', '')
-  return {
-    r: parseInt(clean.substring(0, 2), 16),
-    g: parseInt(clean.substring(2, 4), 16),
-    b: parseInt(clean.substring(4, 6), 16),
-  }
-}
-
 /** 构建 light.turn_on 的 data（亮度百分比可选） */
 export function buildLightTurnOnData(options: {
   brightnessPct?: number

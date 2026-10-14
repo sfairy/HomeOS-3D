@@ -1,4 +1,4 @@
-import { clampNumber, normalizeCssColor, applyTextOutline, resolveMdiIconUrl, resolveStatePayload, createSvgElement } from "./_shared";
+import { clampNumberWithFallback, normalizeCssColor, applyTextOutline, resolveMdiIconUrl, resolveStatePayload, appendSvgElement } from "./_shared";
 import {
   formatEntityState,
   isCoverComponentActive,
@@ -22,24 +22,24 @@ export const buttonComponentRenderers = {
       ),
       cornerCutSize =
         (Math.min(buttonWidthPx, buttonHeightPx) *
-          clampNumber(buttonProperties.cutCorner, 0, 50, 20)) /
+          clampNumberWithFallback(buttonProperties.cutCorner, 0, 50, 20)) /
         100,
-      frameStrokeWidth = clampNumber(buttonProperties.frameWidth, 0, 12, 1),
-      frameGradientAngle = clampNumber(buttonProperties.frameAngle, 0, 360, 45),
-      frameOnOpacity = clampNumber(
+      frameStrokeWidth = clampNumberWithFallback(buttonProperties.frameWidth, 0, 12, 1),
+      frameGradientAngle = clampNumberWithFallback(buttonProperties.frameAngle, 0, 360, 45),
+      frameOnOpacity = clampNumberWithFallback(
         isButtonActive ? buttonProperties.frameOnOpacity : buttonProperties.frameOffOpacity,
         0,
         1,
         isButtonActive ? 1 : 0.8,
       ),
       softLightColor = normalizeCssColor(buttonProperties.softLightColor, "#ffffff"),
-      softLightStrength = clampNumber(buttonProperties.softLightStrength, 0, 5, 1),
-      softLightSize = clampNumber(buttonProperties.softLightSize, 0, 3, 1),
-      softLightAngle = clampNumber(buttonProperties.softLightAngle, 0, 360, 45),
+      softLightStrength = clampNumberWithFallback(buttonProperties.softLightStrength, 0, 5, 1),
+      softLightSize = clampNumberWithFallback(buttonProperties.softLightSize, 0, 3, 1),
+      softLightAngle = clampNumberWithFallback(buttonProperties.softLightAngle, 0, 360, 45),
       buttonGlowColor = normalizeCssColor(buttonProperties.glowColor, "#ffffff"),
-      glowStrength = clampNumber(buttonProperties.glowStrength, 0, 5, 1),
-      glowSize = clampNumber(buttonProperties.glowSize, 0, 3, 1),
-      buttonGlowAngle = clampNumber(buttonProperties.glowAngle, 0, 360, 220),
+      glowStrength = clampNumberWithFallback(buttonProperties.glowStrength, 0, 5, 1),
+      glowSize = clampNumberWithFallback(buttonProperties.glowSize, 0, 3, 1),
+      buttonGlowAngle = clampNumberWithFallback(buttonProperties.glowAngle, 0, 360, 220),
       buttonCenterX = buttonWidthPx / 2,
       buttonCenterY = buttonHeightPx / 2,
       glowAngleRadians = (buttonGlowAngle * Math.PI) / 180,
@@ -54,27 +54,27 @@ export const buttonComponentRenderers = {
       ((deviceButtonElement.className = "hb-icon-button" + (isButtonActive ? " active" : "")),
       deviceButtonElement.style.setProperty(
         "--icon-button-main-left",
-        clampNumber(buttonProperties.mainTextLeft, -100, 200, 9) + "%",
+        clampNumberWithFallback(buttonProperties.mainTextLeft, -100, 200, 9) + "%",
       ),
       deviceButtonElement.style.setProperty(
         "--icon-button-main-top",
-        clampNumber(buttonProperties.mainTextTop, -100, 200, 78) + "%",
+        clampNumberWithFallback(buttonProperties.mainTextTop, -100, 200, 78) + "%",
       ),
       deviceButtonElement.style.setProperty(
         "--icon-button-secondary-left",
-        clampNumber(buttonProperties.secondaryTextLeft, -100, 200, 9) + "%",
+        clampNumberWithFallback(buttonProperties.secondaryTextLeft, -100, 200, 9) + "%",
       ),
       deviceButtonElement.style.setProperty(
         "--icon-button-secondary-top",
-        clampNumber(buttonProperties.secondaryTextTop, -100, 200, 91) + "%",
+        clampNumberWithFallback(buttonProperties.secondaryTextTop, -100, 200, 91) + "%",
       ),
       deviceButtonElement.style.setProperty(
         "--icon-button-icon-left",
-        clampNumber(buttonProperties.iconLeft, -100, 200, 50) + "%",
+        clampNumberWithFallback(buttonProperties.iconLeft, -100, 200, 50) + "%",
       ),
       deviceButtonElement.style.setProperty(
         "--icon-button-icon-top",
-        clampNumber(buttonProperties.iconTop, -100, 200, 34) + "%",
+        clampNumberWithFallback(buttonProperties.iconTop, -100, 200, 34) + "%",
       ),
       deviceButtonElement.style.setProperty(
         "--icon-button-icon-glow-size",
@@ -90,16 +90,16 @@ export const buttonComponentRenderers = {
       ),
       deviceButtonElement.style.setProperty(
         "--hb-on-fill-fade-duration",
-        clampNumber(buttonProperties.onFillFadeDuration, 0, 3, 0.3) + "s",
+        clampNumberWithFallback(buttonProperties.onFillFadeDuration, 0, 3, 0.3) + "s",
       ),
       !isDeviceButton)
     ) {
-      const buttonSvgElement = createSvgElement(deviceButtonElement, "svg", {
+      const buttonSvgElement = appendSvgElement(deviceButtonElement, "svg", {
           viewBox: "0 0 " + buttonWidthPx + " " + buttonHeightPx,
           preserveAspectRatio: "none",
           "aria-hidden": "true",
         }),
-        svgDefsElement = createSvgElement(buttonSvgElement, "defs"),
+        svgDefsElement = appendSvgElement(buttonSvgElement, "defs"),
         clipPolygonPoints =
           "0,0 " +
           (buttonWidthPx - cornerCutSize) +
@@ -113,14 +113,14 @@ export const buttonComponentRenderers = {
           buttonHeightPx +
           " 0," +
           buttonHeightPx,
-        clipPathElement = createSvgElement(svgDefsElement, "clipPath", {
+        clipPathElement = appendSvgElement(svgDefsElement, "clipPath", {
           id: filterIdPrefix + "-clip",
         });
-      createSvgElement(clipPathElement, "polygon", {
+      appendSvgElement(clipPathElement, "polygon", {
         points: clipPolygonPoints,
       });
       const softLightRadius = buttonWidthPx * 0.5 * softLightSize,
-        softLightGradientElement = createSvgElement(svgDefsElement, "linearGradient", {
+        softLightGradientElement = appendSvgElement(svgDefsElement, "linearGradient", {
           id: filterIdPrefix + "-soft-light",
           gradientUnits: "userSpaceOnUse",
           x1: buttonCenterX - softLightRadius,
@@ -130,22 +130,22 @@ export const buttonComponentRenderers = {
           gradientTransform:
             "rotate(" + softLightAngle + " " + buttonCenterX + " " + buttonCenterY + ")",
         });
-      (createSvgElement(softLightGradientElement, "stop", {
+      (appendSvgElement(softLightGradientElement, "stop", {
         offset: 0,
         "stop-color": softLightColor,
         "stop-opacity": Math.min(1, 0.055 * softLightStrength),
       }),
-        createSvgElement(softLightGradientElement, "stop", {
+        appendSvgElement(softLightGradientElement, "stop", {
           offset: 0.55,
           "stop-color": softLightColor,
           "stop-opacity": Math.min(1, 0.018 * softLightStrength),
         }),
-        createSvgElement(softLightGradientElement, "stop", {
+        appendSvgElement(softLightGradientElement, "stop", {
           offset: 1,
           "stop-color": softLightColor,
           "stop-opacity": Math.min(1, 0.085 * softLightStrength),
         }));
-      const edgeGradientElement = createSvgElement(svgDefsElement, "linearGradient", {
+      const edgeGradientElement = appendSvgElement(svgDefsElement, "linearGradient", {
         id: filterIdPrefix + "-edge",
         gradientUnits: "userSpaceOnUse",
         x1: 0,
@@ -155,72 +155,72 @@ export const buttonComponentRenderers = {
         gradientTransform:
           "rotate(" + frameGradientAngle + " " + buttonCenterX + " " + buttonCenterY + ")",
       });
-      (createSvgElement(edgeGradientElement, "stop", {
+      (appendSvgElement(edgeGradientElement, "stop", {
         offset: 0,
         "stop-color": "#ffffff",
         "stop-opacity": frameOnOpacity,
       }),
-        createSvgElement(edgeGradientElement, "stop", {
+        appendSvgElement(edgeGradientElement, "stop", {
           offset: 0.48,
           "stop-color": "#ffffff",
           "stop-opacity": frameOnOpacity * 0.49,
         }),
-        createSvgElement(edgeGradientElement, "stop", {
+        appendSvgElement(edgeGradientElement, "stop", {
           offset: 1,
           "stop-color": "#ffffff",
           "stop-opacity": frameOnOpacity * 0.66,
         }));
-      const glowGradientElement = createSvgElement(svgDefsElement, "radialGradient", {
+      const glowGradientElement = appendSvgElement(svgDefsElement, "radialGradient", {
         id: filterIdPrefix + "-glow",
         gradientUnits: "userSpaceOnUse",
         cx: glowCenterX,
         cy: glowCenterY,
         r: Math.min(buttonWidthPx, buttonHeightPx) * 0.42 * glowSize,
       });
-      (createSvgElement(glowGradientElement, "stop", {
+      (appendSvgElement(glowGradientElement, "stop", {
         offset: 0,
         "stop-color": buttonGlowColor,
         "stop-opacity": Math.min(1, 0.12 * glowStrength),
       }),
-        createSvgElement(glowGradientElement, "stop", {
+        appendSvgElement(glowGradientElement, "stop", {
           offset: 0.52,
           "stop-color": buttonGlowColor,
           "stop-opacity": Math.min(1, 0.025 * glowStrength),
         }),
-        createSvgElement(glowGradientElement, "stop", {
+        appendSvgElement(glowGradientElement, "stop", {
           offset: 1,
           "stop-color": buttonGlowColor,
           "stop-opacity": 0,
         }));
-      const glowFilterElement = createSvgElement(svgDefsElement, "filter", {
+      const glowFilterElement = appendSvgElement(svgDefsElement, "filter", {
         id: filterIdPrefix + "-glow-blur",
         x: "-40%",
         y: "-40%",
         width: "180%",
         height: "180%",
       });
-      createSvgElement(glowFilterElement, "feGaussianBlur", {
+      appendSvgElement(glowFilterElement, "feGaussianBlur", {
         stdDeviation: Math.min(buttonWidthPx, buttonHeightPx) * 0.03,
       });
-      const glowGroupElement = createSvgElement(buttonSvgElement, "g", {
+      const glowGroupElement = appendSvgElement(buttonSvgElement, "g", {
         "clip-path": "url(#" + filterIdPrefix + "-clip)",
       });
       (buttonProperties.onFillVisible !== false &&
-        createSvgElement(glowGroupElement, "polygon", {
+        appendSvgElement(glowGroupElement, "polygon", {
           class: "hb-icon-button-on-fill",
           points: clipPolygonPoints,
           fill: normalizeCssColor(buttonProperties.onFillColor, "#dfb64f"),
-          "fill-opacity": clampNumber(buttonProperties.onFillStrength, 0, 1, 1),
+          "fill-opacity": clampNumberWithFallback(buttonProperties.onFillStrength, 0, 1, 1),
         }),
         buttonProperties.softLightVisible !== false &&
           softLightSize > 0 &&
-          createSvgElement(glowGroupElement, "polygon", {
+          appendSvgElement(glowGroupElement, "polygon", {
             points: clipPolygonPoints,
             fill: "url(#" + filterIdPrefix + "-soft-light)",
           }),
         buttonProperties.glowVisible !== false &&
           glowSize > 0 &&
-          createSvgElement(glowGroupElement, "ellipse", {
+          appendSvgElement(glowGroupElement, "ellipse", {
             cx: glowCenterX,
             cy: glowCenterY,
             rx: buttonWidthPx * 0.42 * glowSize,
@@ -230,7 +230,7 @@ export const buttonComponentRenderers = {
           }),
         buttonProperties.frameVisible !== false &&
           frameStrokeWidth > 0 &&
-          createSvgElement(glowGroupElement, "polygon", {
+          appendSvgElement(glowGroupElement, "polygon", {
             points: clipPolygonPoints,
             fill: "none",
             stroke: "url(#" + filterIdPrefix + "-edge)",
@@ -255,9 +255,9 @@ export const buttonComponentRenderers = {
           : "hb-icon-button-icon"),
         isDeviceButton ||
           ((buttonIconElement.style.width =
-            clampNumber(buttonProperties.iconSize, 1, 100, 42) + "%"),
+            clampNumberWithFallback(buttonProperties.iconSize, 1, 100, 42) + "%"),
           (buttonIconElement.style.height =
-            clampNumber(buttonProperties.iconSize, 1, 100, 42) + "%")),
+            clampNumberWithFallback(buttonProperties.iconSize, 1, 100, 42) + "%")),
         (buttonIconElement.style.backgroundColor =
           isDeviceButton && isButtonActive
             ? normalizeCssColor(buttonProperties.iconOnColor, "#379bff")
@@ -270,7 +270,7 @@ export const buttonComponentRenderers = {
         (buttonIconElement.style.opacity = isDeviceButton
           ? "1"
           : String(
-              clampNumber(
+              clampNumberWithFallback(
                 isButtonActive ? buttonProperties.iconOnOpacity : buttonProperties.iconOffOpacity,
                 0,
                 1,
@@ -281,15 +281,15 @@ export const buttonComponentRenderers = {
         buttonIconElement.style.setProperty("-webkit-mask-image", 'url("' + iconUrl + '")'),
         isDeviceButton)
       ) {
-        const baseIconSize = clampNumber(buttonProperties.iconSize, 1, 100, 28),
-          badgeSize = clampNumber(buttonProperties.badgeSize ?? baseIconSize, 1, 100, baseIconSize),
-          symbolSize = clampNumber(
+        const baseIconSize = clampNumberWithFallback(buttonProperties.iconSize, 1, 100, 28),
+          badgeSize = clampNumberWithFallback(buttonProperties.badgeSize ?? baseIconSize, 1, 100, baseIconSize),
+          symbolSize = clampNumberWithFallback(
             buttonProperties.symbolSize ?? baseIconSize * 0.5,
             1,
             100,
             baseIconSize * 0.5,
           ),
-          symbolScale = clampNumber((symbolSize / badgeSize) * 100, 1, 100, 50);
+          symbolScale = clampNumberWithFallback((symbolSize / badgeSize) * 100, 1, 100, 50);
         ((buttonIconElement.style.width = symbolScale + "%"),
           (buttonIconElement.style.height = symbolScale + "%"));
         const badgeElement = document.createElement("span");
@@ -304,7 +304,7 @@ export const buttonComponentRenderers = {
           ),
           badgeElement.style.setProperty(
             "--device-badge-opacity",
-            clampNumber(buttonProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%",
+            clampNumberWithFallback(buttonProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%",
           ),
           badgeElement.append(buttonIconElement),
           deviceButtonElement.append(badgeElement));
@@ -312,7 +312,7 @@ export const buttonComponentRenderers = {
     }
     const buttonTextElement = document.createElement("span");
     buttonTextElement.className = "hb-icon-button-text";
-    const mainTextSize = clampNumber(buttonProperties.mainSize, 6, 120, 25),
+    const mainTextSize = clampNumberWithFallback(buttonProperties.mainSize, 6, 120, 25),
       primaryTextElement = document.createElement("strong");
     ((primaryTextElement.textContent = isDeviceButton
       ? String(buttonProperties.mainText || "").trim() ||
@@ -325,7 +325,7 @@ export const buttonComponentRenderers = {
       (primaryTextElement.style.opacity = isDeviceButton
         ? "1"
         : String(
-            clampNumber(
+            clampNumberWithFallback(
               isButtonActive ? buttonProperties.mainOnOpacity : buttonProperties.mainOffOpacity,
               0,
               1,
@@ -334,7 +334,7 @@ export const buttonComponentRenderers = {
           )),
       (primaryTextElement.style.fontSize = mainTextSize * buttonUnitHeight + "px"),
       (primaryTextElement.style.letterSpacing =
-        clampNumber(buttonProperties.mainSpacing, -20, 100, 1) * buttonUnitHeight + "px"),
+        clampNumberWithFallback(buttonProperties.mainSpacing, -20, 100, 1) * buttonUnitHeight + "px"),
       applyTextOutline(primaryTextElement, buttonProperties.mainWeight, mainTextSize),
       (primaryTextElement.hidden =
         isDeviceButton &&
@@ -344,7 +344,7 @@ export const buttonComponentRenderers = {
         buttonProperties.mainTextVisible === false &&
         buttonProperties.hiddenContentClickable === true &&
         (primaryTextElement.style.visibility = "hidden"));
-    const secondaryTextSize = clampNumber(buttonProperties.secondarySize, 5, 80, 10),
+    const secondaryTextSize = clampNumberWithFallback(buttonProperties.secondarySize, 5, 80, 10),
       secondaryLabelElement = document.createElement("small");
     return (
       (secondaryLabelElement.textContent = isDeviceButton
@@ -365,7 +365,7 @@ export const buttonComponentRenderers = {
       (secondaryLabelElement.style.opacity = isDeviceButton
         ? "1"
         : String(
-            clampNumber(
+            clampNumberWithFallback(
               isButtonActive
                 ? buttonProperties.secondaryOnOpacity
                 : buttonProperties.secondaryOffOpacity,
@@ -376,7 +376,7 @@ export const buttonComponentRenderers = {
           )),
       (secondaryLabelElement.style.fontSize = secondaryTextSize * buttonUnitHeight + "px"),
       (secondaryLabelElement.style.letterSpacing =
-        clampNumber(buttonProperties.secondarySpacing, -20, 100, 0.7) * buttonUnitHeight + "px"),
+        clampNumberWithFallback(buttonProperties.secondarySpacing, -20, 100, 0.7) * buttonUnitHeight + "px"),
       applyTextOutline(secondaryLabelElement, buttonProperties.secondaryWeight, secondaryTextSize),
       (secondaryLabelElement.hidden =
         isDeviceButton &&

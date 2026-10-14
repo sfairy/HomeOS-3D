@@ -6,7 +6,7 @@ export function rememberEditorProject(
 ) {
   try {
     getSessionStorage()?.setItem(selectedProjectStorageKey, projectId);
-  } catch {}
+  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 }
 export function restoredEditorProject(
   projects: any,
@@ -17,7 +17,7 @@ export function restoredEditorProject(
   let storedProjectId: any;
   try {
     storedProjectId = readSessionStorage()?.getItem(selectedProjectStorageKey);
-  } catch {}
+  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   return (
     projects.find((matchedProject: any) => matchedProject.id === storedProjectId)?.id ??
     projects[0]?.id ??

@@ -135,7 +135,7 @@
 import { computed, unref } from 'vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { Bell, Filter, MessageSquare, Plus, Trash2, Volume2 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import VoiceSpeechComposer from '@/features/settings/interact/voice/SpeechComposer.vue'

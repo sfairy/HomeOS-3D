@@ -109,8 +109,7 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
 #: 智能管家额外放行的 ``toggle`` 域：工具 schema 明确告诉 LLM
 #: 「input_boolean 类开关用 service=toggle」，且前端实体面板对可切换域也走 toggle。
 #: 仅对下列域放行，避免 toggle 变成绕过 turn_on/turn_off 语义的通用开关。
-AGENT_TOGGLE_DOMAINS = frozenset(
-    {
+AGENT_TOGGLE_DOMAINS = frozenset(    {
         'homeassistant',
         'input_boolean',
         'light',
@@ -118,6 +117,26 @@ AGENT_TOGGLE_DOMAINS = frozenset(
         'fan',
         'media_player',
         'vacuum',
+    }
+)
+
+#: 前端实体面板「可切换」域（``homeassistant.toggle`` 只对这些域放行）。
+#: 原先住在 ``panel/action_rules.py``：那是面板动作规则的名字，但 ``/ha/services/call``
+#: 与 3D 模块的校验都要用它 —— 一次 toggle 判定不该把 ``api``/``modules`` 拉去 import ``panel``。
+TOGGLE_ENTITY_DOMAINS = frozenset(
+    {
+        'fan',
+        'cover',
+        'light',
+        'button',
+        'remote',
+        'script',
+        'switch',
+        'climate',
+        'automation',
+        'media_player',
+        'water_heater',
+        'input_boolean',
     }
 )
 
@@ -159,6 +178,7 @@ __all__ = [
     'AGENT_EXTRA_SERVICES',
     'AGENT_TOGGLE_DOMAINS',
     'ALLOWED_SERVICES',
+    'TOGGLE_ENTITY_DOMAINS',
     'agent_service_allowed',
     'service_allowed',
 ]

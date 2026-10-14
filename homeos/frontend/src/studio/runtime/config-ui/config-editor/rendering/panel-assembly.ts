@@ -2082,7 +2082,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       method: "DELETE",
                       credentials: "same-origin",
                     });
-                  } catch {}
+                  } catch { /* 网络副作用失败不影响本地状态：调用方会在下一轮刷新或用户重试时收敛 */ }
                   delete vector.screenImage;
                   delete vector.posterAssetId;
                   refreshPosterAssetUi();

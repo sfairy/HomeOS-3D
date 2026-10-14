@@ -6,7 +6,6 @@ SQLite 适配：无 ``date_trunc``，按 ``substr(createdAt, 1, 13|10)`` 分桶�
 
 from __future__ import annotations
 
-import json
 import math
 from datetime import UTC, datetime
 from typing import Any
@@ -19,21 +18,9 @@ from ..alerts.sources import (
     build_notification_source_db_filter,
     normalize_notification_source,
 )
+from ...platform.core.json_field import parse_json_array
 
 ALERT_LEVELS = ("info", "warn", "danger")
-
-
-def parse_json_array(raw: Any) -> list[Any]:
-    """解析 JSON 数组文本；失败或非数组时返回空数组（对齐 ``parseJsonArray``）。"""
-    if isinstance(raw, list):
-        return raw
-    if not raw:
-        return []
-    try:
-        value = json.loads(raw)
-    except (TypeError, ValueError):
-        return []
-    return value if isinstance(value, list) else []
 
 
 def iso_or_none(value: datetime | None) -> str | None:

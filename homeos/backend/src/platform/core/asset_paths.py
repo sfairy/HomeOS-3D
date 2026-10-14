@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from .errors import api_error, bad_request
@@ -14,6 +15,47 @@ from ...config import PROJECT_ROOT, REPO_ROOT
 
 #: 允许上传的图片扩展名。
 ALLOWED_IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"})
+
+#: 用户上传目录里接受的图片扩展名（比 ``ALLOWED_IMAGE_EXTS`` 宽：历史数据里有这些格式，
+#: 读取侧不能因为换了白名单就读不出旧素材）。原先住在 ``api/assets.py``，
+#: 但 3D 模块也要按它判素材文件，于是模块层不得不 import ``api`` —— 这里下沉为平台叶子。
+UPLOAD_IMAGE_SUFFIXES = frozenset(
+    {
+        ".jpg",
+        ".png",
+        ".svg",
+        ".jpeg",
+        ".webp",
+        ".gif",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".ico",
+        ".avif",
+        ".heic",
+        ".heif",
+    }
+)
+
+#: 上传图片扩展名 → HTTP ``Content-Type``。
+UPLOAD_CONTENT_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+    ".ico": "image/x-icon",
+    ".avif": "image/avif",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+}
+
+#: 用户素材目录名（32 位十六进制），同时是防目录穿越的第一道形状校验。
+ASSET_ID = re.compile("^[0-9a-f]{32}$")
 
 #: 仓库级资源目录（monorepo 开发态）。
 _REPO_ASSETS = REPO_ROOT / "assets"
@@ -101,8 +143,29 @@ def sanitize_uploaded_svg(raw: bytes) -> bytes:
     return text.encode("utf-8")
 
 
+def user_asset_file(root: Path, asset_id: str) -> Path | None:
+    """用户上传素材的单一文件：目录名形状合法、落在根内、且目录里只有一个受支持的图片。
+
+    形状校验（``ASSET_ID``）+ ``is_relative_to`` 两道都在，防目录穿越。
+    """
+    if not ASSET_ID.fullmatch(asset_id):
+        return None
+    directory = (root / asset_id).resolve()
+    if not directory.is_relative_to(root) or not directory.is_dir():
+        return None
+    matches = [
+        item
+        for item in directory.iterdir()
+        if item.is_file() and not item.name.startswith(".") and item.suffix.lower() in UPLOAD_IMAGE_SUFFIXES
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
 __all__ = [
     "ALLOWED_IMAGE_EXTS",
+    "ASSET_ID",
+    "UPLOAD_CONTENT_TYPES",
+    "UPLOAD_IMAGE_SUFFIXES",
     "get_backgrounds_dir",
     "get_icons_dir",
     "get_logo_dir",
@@ -110,4 +173,5 @@ __all__ = [
     "public_asset_url",
     "resolve_safe_path",
     "sanitize_uploaded_svg",
+    "user_asset_file",
 ]

@@ -249,8 +249,7 @@ def _apply_cache_headers(request: Request, response: Response) -> None:
     # 校验：一方面统一口径，另一方面让「旧外壳引用已删除 chunk」得到明确 404，而不是
     # 从 HTTP 缓存里取到一份陈旧副本。代价是每次多一次 304 往返。
     if response.status_code in {200, 304} and (
-        path.startswith("/static/")
-        or path.startswith("/modules/")
+        path.startswith(("/static/", "/modules/"))
         or (path.startswith("/assets/") and not path.startswith("/assets/builtin/"))
         or interaction_module
     ):

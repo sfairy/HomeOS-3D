@@ -1519,6 +1519,7 @@ body.interaction3d-stage.is-background-hidden,
   display: grid;
   gap: 2px;
   max-height: min(320px, calc(100vh - 16px));
+  max-height: min(320px, calc(100dvh - 16px));
   padding: 6px;
   overflow: auto;
   border: 1px solid #505a63;

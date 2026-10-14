@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- 冒烟脚本的唯一交付物就是控制台 PASS/FAIL 记录 */
+ 
 /**
  * 前端冒烟脚本共用夹具：断言收尾 + Bun 里缺的浏览器环境桩。
  *
@@ -22,7 +22,12 @@
  * check('同源 wss 地址', relayUrl === expected, relayUrl)
  * report('go2rtc MSE 传输回归')
  * ```
+ *
+ * 本文件豁免 `@typescript-eslint/no-explicit-any`：三个 `createFake*` 是「万能桩」——
+ * 各控件取用的字段互不相同（`closest` / `srcObject` / `fire` …），写死接口等于让被测代码
+ * 迁就夹具。规则本身在其余位置仍是 **error**，只在这里按文件豁免。
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export { check, counts, failed, report, section } from './_smoke_harness.mjs'
 

@@ -664,7 +664,7 @@ export function createSpotShadowAtlasController({
                     },
                     error?.stack || String(error),
                   );
-              } catch {}
+              } catch { /* 诊断上报 best-effort：上报失败不应掩盖后面的渲染回退（真正的 console.error 在 catch 之外） */ }
               (console.error(error), (renderer.domElement.dataset.spotShadowMode = "fallback"));
             }
           });

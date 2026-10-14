@@ -5,7 +5,7 @@ import {
 } from "../../shared/util/number";
 
 /** 带 fallback 的夹取：非有限输入先落到 fallback，再夹到区间（口径统一到 app/utils/number）。 */
-export function clampNumber(rawNumber: any, lowerBound: any, upperBound: any, fallbackNumber: any) {
+export function clampNumberWithFallback(rawNumber: any, lowerBound: any, upperBound: any, fallbackNumber: any) {
   return clampNumberCore(finiteNumberOrCoerced(rawNumber, fallbackNumber), lowerBound, upperBound);
 }
 export function normalizeCssColor(colorInput: any, fallbackColor: any) {
@@ -18,8 +18,8 @@ export function applyTextOutline(textElement: any, fontWeightInput: any, fontSiz
   const numericWeight = Number(fontWeightInput),
     strokeRatio =
       Number.isFinite(numericWeight) && numericWeight > 1
-        ? clampNumber((numericWeight - 1) / 899, 0, 1, 0.4)
-        : clampNumber(numericWeight, 0, 1, 0.4),
+        ? clampNumberWithFallback((numericWeight - 1) / 899, 0, 1, 0.4)
+        : clampNumberWithFallback(numericWeight, 0, 1, 0.4),
     fontSizePixels = Math.max(1, Number(fontSizeInput || 16)),
     strokeWidthPixels = strokeRatio * fontSizePixels * 0.05;
   ((textElement.style.fontWeight = "100"),
@@ -40,7 +40,7 @@ export function isActiveStateText(statePayload: any) {
     .toLowerCase();
   return ["on", "open", "true", "home"].includes(stateText);
 }
-export function createSvgElement(svgParentElement: any, svgTagName: any, svgAttributes: Record<string, any> = {}) {
+export function appendSvgElement(svgParentElement: any, svgTagName: any, svgAttributes: Record<string, any> = {}) {
   const createdSvgElement = document.createElementNS("http://www.w3.org/2000/svg", svgTagName);
   for (const [svgAttributeName, svgAttributeValue] of Object.entries(svgAttributes))
     createdSvgElement.setAttribute(svgAttributeName, String(svgAttributeValue));
@@ -81,7 +81,7 @@ export function buildHistorySeries(historySource: any, historyEntityId: any, liv
       candidateHistoryPoint.value !== historyPoints[candidatePointIndex - 1].value,
   );
   if (!dedupedPoints.length) return [];
-  const requestedHours = Math.round(clampNumber(hoursWindow, 1, 168, 24)),
+  const requestedHours = Math.round(clampNumberWithFallback(hoursWindow, 1, 168, 24)),
     HOUR_IN_MILLISECONDS = 3600 * 1000,
     windowStartTimestamp = nowTimestamp - requestedHours * HOUR_IN_MILLISECONDS,
     seriesPoints: any[] = [];
@@ -210,7 +210,7 @@ export function createHoverLineChart(
     const chartBounds = chartContainer.getBoundingClientRect();
     if (!chartBounds.width) return;
     const pointerRatioX = (pointerEvent.clientX - chartBounds.left) / chartBounds.width,
-      windowRatio = clampNumber(
+      windowRatio = clampNumberWithFallback(
         (pointerRatioX - windowRange.start) /
           Math.max(0.001, windowRange.end - windowRange.start),
         0,

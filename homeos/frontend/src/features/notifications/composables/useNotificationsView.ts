@@ -10,7 +10,7 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 import {
   computeNotificationAnalyticsSummary,
-  formatHourOption,
+  formatNotificationHourOption,
   formatNotificationCount,
   formatPercent,
   levelFilterLabel,
@@ -83,7 +83,7 @@ export function useNotificationsView() {
   )
 
   const pageHint = computed(() => {
-    const parts = [`分析近 ${formatHourOption(hours.value)} 内持久化通知（SQLite）与实时消息`]
+    const parts = [`分析近 ${formatNotificationHourOption(hours.value)} 内持久化通知（SQLite）与实时消息`]
     const dnd = dndSettings.value as
       | { dndActive?: boolean; dndStart?: number | string; dndEnd?: number | string }
       | null
@@ -125,7 +125,7 @@ export function useNotificationsView() {
   const resultSummary = computed(() => {
     const total = displayNotifications.value.length
     const unread = unreadCount.value
-    const parts = [`近 ${formatHourOption(hours.value)}`]
+    const parts = [`近 ${formatNotificationHourOption(hours.value)}`]
     if (activeSource.value !== 'all') {
       const row = sourceFilters.value.find((f) => f.key === activeSource.value)
       parts.push(row?.label || notificationSourceLabel(activeSource.value))
@@ -184,6 +184,6 @@ export function useNotificationsView() {
     filterBySource,
     filterByLevel,
     formatCount: formatNotificationCount,
-    formatHourOption,
+    formatNotificationHourOption,
   }
 }

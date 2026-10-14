@@ -140,8 +140,8 @@
  */
 import { computed, ref } from 'vue'
 import { Lock, ShieldCheck } from '@lucide/vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 import { useAccessPanel } from '@/features/settings/composables/system/access-panel.internals'
 

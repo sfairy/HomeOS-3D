@@ -6,7 +6,7 @@
 import { Clock, Filter } from '@lucide/vue'
 
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import ListPageQueryToolbar from '@/components/page-shell/ListPageQueryToolbar.vue'
+import ListPageQueryToolbar from '@/components/list-page-shell/ListPageQueryToolbar.vue'
 
 defineProps({
   hours: { type: Number, required: true },

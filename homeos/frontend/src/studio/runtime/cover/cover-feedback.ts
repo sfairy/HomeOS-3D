@@ -33,7 +33,7 @@ export function createCoverFeedback({
     try {
       const storageKey = storageKeyFor(clearedEntityId);
       storageKey && storage?.removeItem(storageKey);
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
   function savePresentation(savedEntityId: any, savedEntry: any) {
     if (!shouldPersist(savedEntry) || !savedEntry.estimated || savedEntry.position === null) return;
@@ -51,7 +51,7 @@ export function createCoverFeedback({
     try {
       const writeStorageKey = storageKeyFor(savedEntityId);
       writeStorageKey && storage?.setItem(writeStorageKey, JSON.stringify(payload));
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
   function restorePresentation(restoredEntityId: any, restoredEntry: any) {
     if (!shouldPersist(restoredEntry)) {
@@ -96,7 +96,7 @@ export function createCoverFeedback({
             }));
       }
       ((restoredEntry.estimated = true), (restoredEntry.railUnconfirmed = true));
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
   function trackProgress(trackedEntry: any, nextActual: any) {
     if (!nextActual.moving) {

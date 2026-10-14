@@ -288,7 +288,7 @@ import {
   drawDoor as drawDoorCore,
   drawCourtyardArea as drawCourtyardAreaCore,
 } from "../plan/studio-plan-item-drawing";
-import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from "./scene/studio-walls";
+import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from "./scene/studio-walls";
 
 let disposeActiveStudio: (() => void) | null = null;
 
@@ -970,7 +970,7 @@ function emitRuntimeDiagnostic(eventName: any, timingRecord: Record<string, any>
         },
         window.location.origin,
       ));
-  } catch {}
+  } catch { /* Worker / 广播通道不可用（环境不支持或扩展未加载）：功能降级为单通道，不影响主流程 */ }
 }
 function updateModelLoadIndicator(loadStateSnapshot: any, isPresentationPending: any) {
   try {
@@ -989,7 +989,7 @@ function updateModelLoadIndicator(loadStateSnapshot: any, isPresentationPending:
       replacementPending: isModelLoadPending,
       replacementFrames: replacementFrameCount,
     });
-  } catch {}
+  } catch { /* 诊断上报 best-effort：加载状态快照上报失败不应中断加载流程 */ }
 }
 const floorGroupCacheByKey = new Map(),
   materialCacheByKey = new Map(),
@@ -1293,7 +1293,7 @@ let exportAspectRatio = defaultExportWidth / defaultExportHeight,
 try {
   typeof BroadcastChannel == "function" &&
     (lightPreviewWorker = new BroadcastChannel("homeos-studio3d-base-lighting-v1"));
-} catch {}
+} catch { /* Worker / 广播通道不可用（环境不支持或扩展未加载）：功能降级为单通道，不影响主流程 */ }
 let isLightCacheReady = true,
   isLightCacheDeferred = false,
   compiledShaderCache: any = null,
@@ -2180,9 +2180,7 @@ function activateListDrag(listDragSession: any) {
     (listDragSession.ghostElement = dragGhostElement));
   try {
     listDragSession.rowElement.setPointerCapture(listDragSession.pointerId);
-  } catch {
-
-  }
+  } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
 }
 function handleListDragPointerMove(listDragPointerMoveEvent: any) {
   const listDragSession = activeListDragSession;
@@ -2388,9 +2386,7 @@ function persistLightAreaOrder() {
       LIGHT_AREA_ORDER_STORAGE_KEY,
       JSON.stringify(lightAreaRecords.map((areaRecord) => areaRecord.areaId)),
     );
-  } catch (lightAreaOrderError: any) {
-
-  }
+  } catch(lightAreaOrderError: any) { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 }
 /** 按本地记录的 areaId 顺序重排 HA 区域； */
 function applySavedLightAreaOrder(areaRecords: { areaId: string; name: string }[]) {
@@ -5141,9 +5137,7 @@ function readInspectorGroupCollapseState() {
 function writeInspectorGroupCollapseState(collapseState: any) {
   try {
     window.localStorage.setItem(INSPECTOR_GROUP_STORAGE_KEY, JSON.stringify(collapseState));
-  } catch {
-
-  }
+  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 }
 let inspectorGroupCollapseState = readInspectorGroupCollapseState();
 /** 组内是否还有可见字段。 */
@@ -5936,9 +5930,7 @@ function ensureCustomMaterialStylesLoaded() {
 function writeStoredCustomMaterialStyles(records: any) {
   try {
     window.localStorage.setItem(MATERIAL_STYLE_CUSTOM_STORAGE_KEY, JSON.stringify(records));
-  } catch {
-
-  }
+  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 }
 /** 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。 */
 function saveCurrentItemMaterialStyle(label: any) {
@@ -13581,9 +13573,7 @@ async function waitForSceneReady(sceneWaitTimeout: any = null) {
       visibleOnly: true,
       pollInterval: 16,
     });
-  } catch {
-
-  }
+  } catch { /* 着色器预编译是预热优化：失败时退回按需编译，不影响渲染正确性 */ }
 }
 function* buildFloorsAsync({
   preserveLightCache: preserveLightCacheSnapshot = false,
@@ -14972,7 +14962,7 @@ function finishPointerDrag(pointerCancelEvent: any) {
     const { start: finishPointerDragDragStart, current: dragCurrent } = marqueeBox;
     try {
       planCanvasElement.releasePointerCapture(pointerCancelEvent.pointerId);
-    } catch {}
+    } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
     ((marqueeBox = null), endStudioGesture());
     const dragDeltaXMeters =
         Math.abs(dragCurrent.x - finishPointerDragDragStart.x) / getPixelsPerMeter(),
@@ -15014,7 +15004,7 @@ function finishPointerDrag(pointerCancelEvent: any) {
       : ((selectedItem = null), (selectedItems = dragMergedEntries));
     try {
       planCanvasElement.releasePointerCapture(pointerCancelEvent.pointerId);
-    } catch {}
+    } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
     ((marqueeBox = null),
       refreshStudioUi(),
       refreshStudioView(),
@@ -15079,7 +15069,7 @@ function finishPointerDrag(pointerCancelEvent: any) {
   marqueeBox.type === "pan" && planCanvasElement.classList.remove("panning");
   try {
     planCanvasElement.releasePointerCapture(pointerCancelEvent.pointerId);
-  } catch {}
+  } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
   ((marqueeBox = null),
     activeDragGesture.type === "pan" && refreshStudioView(),
     endStudioGesture());
@@ -16505,7 +16495,7 @@ const finishPanelResize = (panelPointerUpEvent: any = null, shouldPersistPanelSi
     try {
       detailsResizerElement.hasPointerCapture(qn4.pointerId) &&
         detailsResizerElement.releasePointerCapture(qn4.pointerId);
-    } catch {}
+    } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
   didPanelSizeChange && markDocumentDirty();
 };
 (detailsResizerElement.addEventListener("pointerup", finishPanelResize),
@@ -16628,7 +16618,7 @@ for (const cameraActionButton of openBaseLightingButtons)
     };
     try {
       baseLightHeaderElement.setPointerCapture(viewportPointerDownEvent.pointerId);
-    } catch {}
+    } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
   }),
   baseLightHeaderElement?.addEventListener("pointermove", (viewportPointerMoveEvent: any) => {
     if (!pointerDragState || viewportPointerMoveEvent.pointerId !== pointerDragState.pointerId)
@@ -17154,7 +17144,7 @@ if (
         if ((windowKeyDownEvent.preventDefault(), marqueeBox?.type === "draw-flooropening")) {
           try {
             planCanvasElement.releasePointerCapture(marqueeBox.pointerId);
-          } catch {}
+          } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
           ((marqueeBox = null), endStudioGesture());
         }
         selectStudioTool("select");
@@ -20505,14 +20495,14 @@ startupStudio(studioBootDeps());
     if (step === "items") {
       try {
         setAssetCategory?.("home");
-      } catch {}
+      } catch { /* 可选注入钩子未提供或抛错：调用方继续后续流程 */ }
       selectStudioTool("select");
       return;
     }
     if (step === "lights") {
       try {
         setAssetCategory?.("light");
-      } catch {}
+      } catch { /* 可选注入钩子未提供或抛错：调用方继续后续流程 */ }
       selectStudioTool("select");
       return;
     }
@@ -20575,16 +20565,16 @@ startupStudio(studioBootDeps());
     if (!isEmbeddedStage && !isLeavingStudio && hasUnsavedChanges()) {
       try {
         void flushAutosave()
-      } catch {}
+      } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     }
     // 灯光渲染缓存写入器（嵌入式 stage 的 WebSocket 通道）
     try {
       renderCacheWriter?.close?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     // 渲染循环：取消当前长任务（其内部会摘掉 pagehide/pointerdown/wheel 与控制器监听）
     try {
       activeLongTask?.cancel?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     activeLongTask = null
     if (renderLoopFrameId) cancelAnimationFrame(renderLoopFrameId)
     renderLoopFrameId = 0
@@ -20596,22 +20586,22 @@ startupStudio(studioBootDeps());
     // 尺寸观察者与 three.js 资源
     try {
       resizeObserverInstance?.disconnect?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       lightPreviewWorker?.close?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       lightPrecompileController?.dispose?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       backgroundController?.dispose?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       lightingScheduler?.dispose?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       planPainter?.dispose?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     // 模块级状态声明在引导函数之外（跨次引导存活），这里复位到声明时的默认值，
     // 避免下一次进入 /3d-studio 时带着上一次的画笔/围栏选择。
     planPainter = null
@@ -20619,13 +20609,13 @@ startupStudio(studioBootDeps());
     gardenGateSnapCandidate = null
     try {
       orbitControls?.dispose?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       threeRenderer?.dispose?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       threeRenderer?.forceContextLoss?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     threeRenderer = null
     threeScene = null
     threeCamera = null

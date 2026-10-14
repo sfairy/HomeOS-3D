@@ -1,0 +1,80 @@
+{
+  "host": "homeos/frontend/src/studio/entries/EditorView.vue",
+  "outDir": "homeos/frontend/src/studio/chrome/editor",
+  "note": "EditorView.vue 模板 2,630 行里，除顶栏/左栏/画布外几乎全是引擎命令式填充的静态 DOM（inspector 表单 + dialog 壳），零 Vue 指令。按域整段切进 chrome/editor/ 子组件，宿主只留装配；子组件用多根模板渲染，DOM 不新增包裹元素。",
+  "groups": [
+    {
+      "component": "EditorMediaInspectors",
+      "desc": "媒体类检查器（图片 / 摄像头）",
+      "ids": ["image-inspector", "camera-inspector"]
+    },
+    {
+      "component": "EditorChartInspectors",
+      "desc": "数据与图表类检查器（灯光统计 / 折线图 / 事件流 / 时间 / 日期 / 天气）",
+      "ids": [
+        "light-statistics-inspector",
+        "line-chart-inspector",
+        "event-log-wall-inspector",
+        "time-inspector",
+        "date-inspector",
+        "weather-inspector"
+      ]
+    },
+    {
+      "component": "EditorDeviceInspectors",
+      "desc": "设备类检查器（空调 / 扫地机地图 / 窗帘设置）",
+      "ids": ["air-conditioner-inspector", "vacuum-map-inspector", "cover-settings-inspector"]
+    },
+    {
+      "component": "EditorButtonInspectors",
+      "desc": "按钮与标题类检查器（图标按钮 / 图标特效 / 标题按钮）",
+      "ids": ["icon-button-effect-inspector", "icon-button-inspector", "title-button-inspector"]
+    },
+    {
+      "component": "EditorLayoutInspectors",
+      "desc": "布局类检查器（导航 / 面板框 / 户型图自动导图）",
+      "ids": [
+        "navigation-inspector",
+        "panel-frame-inspector",
+        "floorplan-auto-diagram-inspector"
+      ]
+    },
+    {
+      "component": "EditorDialogs",
+      "desc": "编辑器对话框壳（弹出模块 / 项目 / 页面 / 复制 / 删除 / 错误与恢复）",
+      "ids": [
+        "popup-name-dialog",
+        "popup-module-dialog",
+        "delete-popup-dialog",
+        "component-template-dialog",
+        "floorplan-auto-diagram-dialog",
+        "navigation-style-apply-dialog",
+        "effect-image-align-dialog",
+        "project-dialog",
+        "project-resize-warning-dialog",
+        "project-preview-dialog",
+        "page-dialog",
+        "component-group-rename-dialog",
+        "delete-project-dialog",
+        "delete-page-dialog",
+        "delete-component-dialog",
+        "copy-component-page-dialog",
+        "copy-component-success-dialog",
+        "delete-asset-dialog",
+        "delete-asset-folder-dialog",
+        "error-dialog",
+        "recovery-dialog"
+      ]
+    },
+    {
+      "component": "EditorOverlays",
+      "desc": "编辑器浮层壳（右键菜单 / 大图预览 / 全局取色器 / 户型图自动灯光面板）",
+      "ids": [
+        "component-context-menu",
+        "image-asset-large-preview",
+        "global-color-picker",
+        "floorplan-auto-lighting-panel"
+      ]
+    }
+  ]
+}

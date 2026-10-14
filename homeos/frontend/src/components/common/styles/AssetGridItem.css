@@ -15,6 +15,34 @@
   overflow: hidden;
 }
 
+/*
+ * 主操作按钮（进入目录 / 选择文件）：撑满卡片剩余高度，内部仍是
+ * 「图标/预览（flex:1）+ 文件名（flex-shrink:0）」的纵向布局，
+ * 视觉与改造前的 div 一致；差别是它现在可聚焦、可 Enter/Space 触发。
+ */
+.agi-item__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 焦点环内收，避免被卡片圆角裁掉 */
+.agi-item__main:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
 .agi-item:hover {
   background: var(--premium-glass-bg-hover);
   border-color: rgba(59, 130, 246, 0.25);
@@ -126,6 +154,14 @@
 }
 
 .agi-item:hover .agi-actions {
+  display: flex;
+}
+
+/*
+ * 键盘用户 Tab 到主按钮或操作按钮时同样显形 —— 否则「复制/删除」只在
+ * 悬停时出现，键盘用户根本看不到自己已经聚焦到的按钮。
+ */
+.agi-item:focus-within .agi-actions {
   display: flex;
 }
 

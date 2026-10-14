@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- 冒烟脚本的唯一交付物就是控制台 PASS/FAIL 记录 */
+ 
 /**
  * 摄像头检查器控件回归（`studio/app/editor/home-camera-inspector.ts`）。
  *
@@ -20,7 +20,12 @@
  * 运行环境说明：Bun 里没有 DOM —— `window` 与元素桩都来自 `_smoke_harness`
  * （`createFakeElement` / `createFakeOptionElement` 只实现控件真正用到的面，事件直接跑监听）。
  * 用法：`bun run scripts/_camera_inspector_controls_smoke.ts`。
+ *
+ * 本文件豁免 `@typescript-eslint/no-explicit-any`：它是「假对象拼装」代码 —— 元素桩要能接住
+ * 任意形状的 `target`，而这里的 `context` 就是控件的 deps bag（其真实类型属于
+ * MONOLITH_BASELINE 的「deps bag 接口化」范围）。全仓其余位置该规则仍是 **error**。
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   CAMERA_GO2RTC_NOTE_TEXT,
   installCameraInspectorControls,

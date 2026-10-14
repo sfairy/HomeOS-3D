@@ -95,7 +95,7 @@ export function buildShapesWithHoles(deps: StudioWallsDeps, polygonLoopList: any
   });
 }
 
-export function createWallSideMaterial(deps: StudioWallsDeps, 
+export function createSceneWallSideMaterial(deps: StudioWallsDeps, 
   wallSideColor: any,
   wallSideOpacity: any,
   wallSideOptions: WallSurfaceMaterialOptions = {},
@@ -250,7 +250,7 @@ export function buildWallBandMesh(deps: StudioWallsDeps,
           ], buildWallBandGeometry)
         : buildWallBandGeometry();
     const hiddenWallBandMaterial = createHiddenBasicMaterial(deps),
-      hg3 = createWallSideMaterial(deps, wallBandColor, wallBandOpacity, resolvedWallBandOptions),
+      hg3 = createSceneWallSideMaterial(deps, wallBandColor, wallBandOpacity, resolvedWallBandOptions),
       wallBandMesh = new ns2.Mesh(wallBandGeometry, [hiddenWallBandMaterial, hg3]);
     ((wallBandMesh.userData.hbMergeWallBand =
       wallBandOptions.polygonOffset !== true && (wallBandOptions.renderOrder ?? 4) === 4),

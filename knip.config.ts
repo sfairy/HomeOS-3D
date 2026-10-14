@@ -39,6 +39,12 @@ const config: KnipConfig = {
     'ops/cleanup-reports/**',
   ],
   ignoreDependencies: ['javascript-obfuscator'],
+  // ops/chains/*.mjs 是「清单文件」：`default` 导出被 run-chain.mjs 用**动态 import 的
+  // 路径字符串**消费（`node ops/lib/run-chain.mjs ops/chains/smoke-app.mjs`），knip 静态
+  // 看不到。挂在顶层而不是 workspaces['.'] 下：根工作区的 ignoreIssues 不生效（实测）。
+  ignoreIssues: {
+    'ops/chains/**': ['exports'],
+  },
   workspaces: {
     '.': {
       // ops/** 下的脚本是「手工运行的 CLI」：没有被任何模块 import，而 knip 只把
@@ -99,7 +105,7 @@ const config: KnipConfig = {
         'src/studio/engine/index.ts': ['exports', 'types'],
         'src/studio/engine/facade-runtime.ts': ['exports', 'types'],
         'src/composables/ui/useBodyScrollLock.ts': ['exports'],
-        'src/utils/ui/screensaver-background-idle.util.ts': ['exports'],
+        'src/shared/utils/ui/screensaver-background-idle.util.ts': ['exports'],
         'src/studio/shims/**': ['exports', 'types', 'nsExports', 'duplicates'],
         // renderer 拆分子模块：导出通过 Object.assign(PanelRenderer.prototype, …)
         // 运行时挂载（import * as … + Object.assign），knip 不识别此消费模式
@@ -118,8 +124,13 @@ const config: KnipConfig = {
         'frontend/vite.config.ts',
         // P5 新加的 eslint 配置：不列进来，它 import 的 7 个 eslint 包会被误报成未使用的 devDependency。
         'eslint.config.js',
+        // 商店的冒烟脚本与主应用同地位：它们是「唯一消费某些前端导出」的入口
+        // （例如 `router/admin-guard.ts` 的 `STORE_LOGIN_PATH` 只被
+        // `scripts/_store_admin_guard_smoke.mjs` 断言）。不列进来，这些导出会被报成
+        // unused export，而唯一的修法会是把断言目标降级成私有常量 —— 等于用「少一份护栏」换绿。
+        'scripts/**/*.{mjs,js,ts}',
       ],
-      project: ['frontend/src/**/*.{ts,vue,js}', 'frontend/*.ts'],
+      project: ['frontend/src/**/*.{ts,vue,js}', 'frontend/*.ts', 'scripts/**/*.{mjs,js,ts}'],
       ignore: ['frontend/public/**', 'dist/**'],
     },
   },

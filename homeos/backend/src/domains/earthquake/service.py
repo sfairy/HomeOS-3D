@@ -54,6 +54,11 @@ logger = logging.getLogger("homeos.earthquake")
 DEDUPE_CLEAR_DELAY_MS = 120_000
 LATEST_ALERT_TTL_MS = 5 * 60 * 1000
 CONFIG_CACHE_MS = 5_000
+#: 已关闭预警事件 id 的保留条数。id 来自外部推送，旧实现只增不减（进程活得越久越大）；
+#: 只需要记住「最近关掉的那些」——更早的预警连 payload 都过了 TTL，不可能再被展示。
+DISMISSED_EVENT_IDS_MAX = 200
+#: 后台补任务的在途上限：同一秒里连来几次配置变更只需补一次，堆积起来只是白烧 CPU。
+SPAWN_INFLIGHT_MAX = 8
 #: SYSTEM_CONFIG_UPDATED / layout.config.updated 事件名
 SYSTEM_CONFIG_UPDATED_EVENT = "SYSTEM_CONFIG_UPDATED"
 LAYOUT_CONFIG_UPDATED_EVENT = "layout.config.updated"
@@ -93,7 +98,10 @@ class EarthquakeService:
 
         self._latest_alert_payload: EarthquakeAlertPayload | None = None
         self._latest_alert_time = 0.0
-        self._dismissed_event_ids: set[str] = set()
+        #: 已关闭（用户确认过）的预警事件 id，插入序即新旧序；超上限丢最旧的。
+        self._dismissed_event_ids: dict[str, None] = {}
+        #: 后台补任务的强引用集合：丢掉引用会让任务在执行途中被 GC 回收（asyncio 官方警告）。
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
         self._runtime = EarthquakeRuntimeConfig()
         self._config_loaded_at = 0.0
@@ -139,6 +147,10 @@ class EarthquakeService:
         if self._dedupe_clear_handle is not None:
             self._dedupe_clear_handle.cancel()
             self._dedupe_clear_handle = None
+        # 在途的后台补任务一并取消：它们持有强引用，留着会在停机后继续跑（并可能再次写状态）。
+        for task in list(self._background_tasks):
+            task.cancel()
+        self._background_tasks.clear()
         self._wolfx.mark_destroyed()
         await self._wolfx.disconnect()
 
@@ -158,12 +170,36 @@ class EarthquakeService:
         self._config_loaded_at = 0.0
         self._spawn(self.ensure_runtime_config(force=True))
 
-    @staticmethod
-    def _spawn(coro: Any) -> None:
+    def _spawn(self, coro: Any) -> None:
+        """把协程挂到事件循环上，**持有引用并回收异常**，且在途数量有上限。
+
+        旧实现直接 `create_task(coro)` 后丢掉返回值：没有强引用时任务可能在执行途中被 GC
+        回收（asyncio 官方文档专门警告过），而任务里的异常也永远没人取 —— 配置探测失败只剩
+        一句 `Task exception was never retrieved` 的噪声，看不出是哪次配置变更挂的。
+        """
         try:
-            asyncio.get_running_loop().create_task(coro)
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            pass
+            return
+        if len(self._background_tasks) >= SPAWN_INFLIGHT_MAX:
+            # 丢弃前必须 close，否则会多一条 "coroutine ... was never awaited" 警告。
+            logger.warning("后台补任务已达在途上限 %s，丢弃本次", SPAWN_INFLIGHT_MAX)
+            close = getattr(coro, "close", None)
+            if callable(close):
+                close()
+            return
+        task = loop.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._reap_background)
+
+    def _reap_background(self, task: asyncio.Task[Any]) -> None:
+        """任务收尾：解除引用并取走异常（不取会让 asyncio 在 GC 时告警且丢失原因）。"""
+        self._background_tasks.discard(task)
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            logger.warning("后台补任务失败：%s", error)
 
     def _touch_leader_active(self) -> None:
         self._diagnostics.touch_wolfx_activity(True)
@@ -548,7 +584,11 @@ class EarthquakeService:
         normalized = str(event_id or "").strip()
         if not normalized:
             return {"success": False, "message": "缺少 eventId"}
-        self._dismissed_event_ids.add(normalized)
+        dismissed = self._dismissed_event_ids
+        dismissed[normalized] = None
+        # 只保留最近关掉的那些：id 由外部推送，无上界就会随进程寿命一直涨。
+        while len(dismissed) > DISMISSED_EVENT_IDS_MAX:
+            dismissed.pop(next(iter(dismissed)), None)
         if self._latest_alert_payload is not None and self._latest_alert_payload.eventId == normalized:
             self._latest_alert_payload = None
             self._latest_alert_time = 0.0
@@ -690,7 +730,7 @@ class EarthquakeService:
                 clear_ids.append(self._active_event_id)
 
         for cid in dict.fromkeys([cid for cid in clear_ids if cid]):
-            self._dismissed_event_ids.discard(cid)
+            self._dismissed_event_ids.pop(cid, None)
             if self._latest_alert_payload is not None and self._latest_alert_payload.eventId == cid:
                 self._latest_alert_payload = None
                 self._latest_alert_time = 0.0

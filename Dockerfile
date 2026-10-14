@@ -1,11 +1,42 @@
 # 刻意不写 `# syntax=docker/dockerfile:1`：会额外出网拉前端镜像，且本文件未用到超出内置的语法。
 
-# 基础镜像：两个 ARG 可整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）。
-ARG PYTHON_IMAGE=python:3.14-slim-bookworm
-ARG CADDY_IMAGE=caddy:2.11.4-alpine
+# 基础镜像：**按 digest 钉死**（tag 后面跟 @sha256:<manifest-list 摘要>）。
+#
+# 只写 tag（`python:3.14-slim-bookworm`）是**可变引用**：上游随时重推同一个 tag，同一份
+# 源码在不同时间构建出的镜像不同，且此前构建过的产物无法复现 —— 对「出货给客户的私有化
+# 部署」是实打实的供应链风险（也是 .github/workflows/docker.yml 里 release 必须在
+# 不可取消的 concurrency group 里跑的原因：单架构镜像已推、manifest list 没合成，就会留下
+# 一个谁也说不清成分的镜像）。
+#
+# 钉的是 **manifest list 的摘要**，不是某个架构的镜像摘要 —— 这样 amd64 / arm64 各自
+# 仍从同一个多架构清单里解析，构建矩阵照旧（钉单架构摘要会让另一个架构直接拉不到）。
+# 换版本时必须同步改 tag 与摘要，`ops/check/check_docker_pins.py` 会拦住「只改一半」。
+#
+# **apt 级版本不再逐个钉**：摘要已经把 apt 包索引钉在同一个 Debian 快照上，`ca-certificates` /
+# `curl` / `tini` 每次拿到的都是那一份（`apt-get update` 读的就是该快照里的索引）；反过来写死
+# `apt-get install ca-certificates=<版本>` 会在 bookworm 发小版本后**直接装不上**。真需要换 apt
+# 包版本时，正确动作是升级上面的 digest。
+#
+# **Python 侧构建工具单独钉**（顶部 PIP_VERSION / SETUPTOOLS_VERSION / CYTHON_VERSION）：它们
+# 来自 PyPI 而不是这个 Debian 快照，基础镜像摘要管不到，`pip install cython setuptools` 这类
+# 裸包名会随上游滚动（见下方 ARG 处的说明）。
+#
+# 两个 ARG 整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）：镜像站是**另一个仓库**，
+# 摘要必然不同，所以走镜像站时会显式去掉 `@sha256:…` 并在构建期打印警告（见 ops/build.py）。
+ARG PYTHON_IMAGE=python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83
+ARG CADDY_IMAGE=caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
 
 #: 版本号来自仓库根 package.json，构建期写成 <包>/_version.py 随源码编译。
 ARG CYTHON_VERSION=3.2.9
+#: 构建期工具链版本。与基础镜像摘要同理：裸写包名（更别说 `pip install --upgrade pip`）
+#: 会让「同一份源码、不同时间构建」装上不同版本的 pip / setuptools，而这两者恰恰是
+#: 「昨天能编、今天编不过」的常客（setuptools 收紧过 `setuptools.command.*` 的兼容面，
+#: 而 ops/docker/compile_python.py 直接用 `setuptools.command.build_ext`；
+#: pip 大版本也会改依赖解析与元数据校验口径）。
+#: 升级方式：改这里的默认值 —— 四个值都在构建日志里可见，且被
+#: ops/check/check_docker_pins.py 的第 6 条判据钉成「必须 == 精确版本」。
+ARG PIP_VERSION=26.2.1
+ARG SETUPTOOLS_VERSION=84.0.0
 
 # ─── 内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
 FROM ${CADDY_IMAGE} AS caddy-bin
@@ -36,7 +67,13 @@ COPY homeos/backend/requirements.txt /tmp/requirements-app.txt
 COPY homeos-store/backend/requirements.txt /tmp/requirements-store.txt
 #: 构建容器连不上 pypi.org 时，由 ops/build.py 的 --pip-index 换成可达镜像。
 ARG PIP_INDEX_URL=""
-RUN pip install --upgrade pip ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
+#: 复用顶部 ARG 的默认值（Docker 的规则：FROM 之前的 ARG 要在阶段内重新声明才能用）。
+ARG PIP_VERSION
+#: 运行期依赖装进 base：两个运行镜像共用这一层缓存。
+#: pip 本身**钉版本**再 --upgrade：裸 `--upgrade pip` 每次构建都可能换一个 pip 大版本，
+#: 而 pip 换版本会改依赖解析与元数据校验的口径 —— 那是「同一份源码、不同时间构建出不同
+#: 镜像」的另一个入口，与基础镜像摘要漂移同类。
+RUN pip install --upgrade "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
     && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
         -r /tmp/requirements-app.txt -r /tmp/requirements-store.txt \
     && rm /tmp/requirements-app.txt /tmp/requirements-store.txt
@@ -50,12 +87,16 @@ RUN if [ -n "$APT_MIRROR" ]; then \
 
 # 后端保护：Cython 编译成 .so 后删除 .py 源码。
 # 主应用与商店共用这段流程，差异（源码目录、启动器、遗留目录）全部由 ARG PROJECT 派生；
-# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表与 ops/check_deploy_independence.py 对账。
+# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表与 ops/check/check_deploy_independence.py 对账。
 # 产物经 --target backend-export 导出到根 dist/ 再 COPY 回运行阶段；前端不在本文件构建。
 FROM base AS backend-build
 #: 必传、无默认值：漏传时下面的 COPY 找不到源而失败；给默认值会静默编出另一个项目的后端。
 ARG PROJECT
 ARG CYTHON_VERSION
+#: 同 CYTHON_VERSION：编译后端要用，**必须**精确版本（见顶部关于「同一份源码不同时间
+#: 构建出不同产物」的说明）。`setuptools.command.build_ext` 是 compile_python.py 的直接依赖，
+#: setuptools 一收兼容面就会在构建期炸。
+ARG SETUPTOOLS_VERSION
 #: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
 ARG HOMEOS_VERSION=""
 
@@ -69,7 +110,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 update \
     && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" setuptools
+    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" "setuptools==${SETUPTOOLS_VERSION}"
 
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
@@ -81,14 +122,14 @@ COPY package.json /tmp/package.json
 COPY ${PROJECT}/backend/src ./app
 # 共享 Python 包（真源 packages/shared-py，见其 README）：本阶段自己 COPY 一份再编译，
 # 于是两个镜像里各有一份自己编译的 homeos_shared/*.so —— 是「源码共享 + 各自内联」，
-# 不是运行期跨镜像依赖（ops/check_deploy_independence.py 的第 5 项钉死这一点）。
+# 不是运行期跨镜像依赖（ops/check/check_deploy_independence.py 的第 5 项钉死这一点）。
 # 源写 <目录>/homeos_shared 而不是 <目录>：COPY 复制的是目录**内容**，写后者会多出一层
 # /app/homeos_shared/homeos_shared/。
 # 落点是 ./homeos_shared（而非 ./app 下）：PYTHONPATH=/app，包名要能在该根下直接解析。
 COPY packages/shared-py/homeos_shared ./homeos_shared
 # 迁移脚本（主应用的 migrations/ 与 alembic.ini、商店的 db/）**不进产物**：发行版里没有
 # Alembic，新库由 app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
-# ops/check_schema.py 会比对结构指纹）。位置与两个项目一致：后端落在 /app/app，
+# ops/check/check_schema.py 会比对结构指纹）。位置与两个项目一致：后端落在 /app/app，
 # PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。该禁哪个目录由下面的 case 给出。
 # /app/image：内置素材目录（settings.built_in_assets_dir，由 HOMEOS_IMAGE_DIR 指到此处），
 # 默认空，可另行挂载增删。
@@ -138,7 +179,11 @@ COPY --from=backend-build /app/ /
 FROM base AS app
 
 #: HOMEOS_BACKUPS_DIR：备份包落到数据卷 /data，重建容器不丢。
-ENV APP_DATA_DIR=/data \
+#: APP_ENVIRONMENT=production：运行镜像即生产（授权门禁、5xx 脱敏、MCP fail-closed 都读它，
+#: 见 backend/src/config.py 的 environment_is_production）。这是**镜像层**的默认，宿主要覆盖
+#: 可在 .env / compose 里显式改；LICENSE_REQUIRED 仍可单独覆盖（显式值优先）。
+ENV APP_ENVIRONMENT=production \
+    APP_DATA_DIR=/data \
     HOMEOS_DATA_DIR=/data \
     HOMEOS_BACKUPS_DIR=/data/backups \
     HOMEOS_PORT=8801 \
@@ -176,7 +221,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 CMD curl 
 
 FROM base AS store
 
-ENV STORE_DATA_DIR=/data \
+ENV APP_ENVIRONMENT=production \
+    STORE_DATA_DIR=/data \
     STORE_LICENSE_KEYS_DIR=/data/license-keys \
     APP_CLIENT_KEYS_DIR=/data/client-keys \
     STORE_HOST=0.0.0.0 \

@@ -28,15 +28,15 @@ import {
   clone as clone2,
   newId as newId2,
   normalizedHexColor as normalizedHexColor2,
-  hexToRgb as hexToRgb2,
   rgbToHex as rgbToHex2,
   rgbToHsv as rgbToHsv2,
-  hsvToRgb as hsvToRgb2,
+  hsvToRgb255 as hsvToRgb2,
   roundField as roundField2,
   clampNumber as clampNumber2,
   normalizedFontWeight as normalizedFontWeight2,
   visibilityIconSvg as visibilityIconSvg2,
 } from "./editor-utils";
+import { hexToRgbOrBlack as hexToRgb2 } from "@/shared/utils/ui/color.util"; // 3/6 位校验 + 非法回落黑（原 studio 副本不校验输入，非法值产 NaN 通道，已删）
 import {
   packPopupModules as packPopupModules2,
 } from "../shared/popup-layout";
@@ -2017,7 +2017,7 @@ function setPageControlsEnabled(controlsEnabled: any) {
 }
 function resizeWorkspaceCanvas() {
   if (!activeProject) return;
-  const computedStyle = getComputedStyle(displayDeviceCountElement),
+  const computedStyle = window.getComputedStyle(displayDeviceCountElement),
     availableWidthPx =
       displayDeviceCountElement.clientWidth -
       Number.parseFloat(computedStyle.paddingLeft) -
@@ -6878,7 +6878,7 @@ function discardRecoverySnapshot(recoveryProjectId = activeProject?.projectId) {
     recoveryWriter.cancel(recoveryProjectId);
     try {
       sessionStorage.removeItem(recoveryStorageKey2(RECOVERY_STORAGE_PREFIX, recoveryProjectId));
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
 }
 function readRecoverySnapshot(snapshotProjectId: any) {
@@ -6939,7 +6939,7 @@ function persistRecoverySnapshot(recoveryState: any) {
           savedAt: recoveryState.savedAt,
         }),
       );
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
 }
 function writeError({
@@ -8890,7 +8890,7 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
         floorplanAutoLightingHandleElement.setPointerCapture(
           onFloorplanAutoLightingHandlePointermove.pointerId,
         );
-      } catch {}
+      } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
     },
   ),
   floorplanAutoLightingHandleElement.addEventListener("pointermove", (lightingDragMoveEvent: any) => {
@@ -16927,12 +16927,12 @@ function mutationRecord() {
     // 3D 渲染器：负责释放 WebGL 上下文、渲染循环、WebSocket 与所有运行时监听
     try {
       editorRenderer?.destroy?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     editorRenderer = null
     // 画布尺寸观察者与文档级定尺残留
     try {
       workspaceResizeObserver?.disconnect?.()
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     document.documentElement.classList.remove('editor-viewport-fit')
     document.documentElement.style.removeProperty('--editor-layout-height')
     document.documentElement.style.removeProperty('--editor-viewport-scale')

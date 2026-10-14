@@ -1001,7 +1001,7 @@ export async function openPresenceEditor({
       }),
       controlsPanel.querySelector(".presence-character-preview")?.append(webglRenderer.domElement),
       startCharacterAnimation());
-  } catch {}
+  } catch { /* 预览挂载 best-effort：控制面板结构变化或动画启动失败时仍返回可用的编辑器 */ }
   return {
     close: closeEditor,
   };

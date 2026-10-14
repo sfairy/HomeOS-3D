@@ -6,7 +6,7 @@
 「现在一共几个码」—— 最典型的是 ``all`` 的展开表漏了 ``module.3d_interaction``，
 于是拿 ``all`` 的客户在 UI 上看到 3D 交互是关的、后端却按 ``editor`` 放行。
 
-现在码目录的**唯一真源是仓库根的 ``ops/feature_codes.json``**（商店项目也从同一份
+现在码目录的**唯一真源是仓库根的 ``ops/check/feature_codes.json``**（商店项目也从同一份
 派生），本模块只负责把它加载进来并派生判定需要的数据结构：
 
 1. ``FEATURE_*`` 各码的字面量（调用方一律引用常量，不再写字面串）；
@@ -14,9 +14,9 @@
 3. :func:`granted`：唯一的判定实现 —— 租约 ``features`` + 未过期 ``entitlements`` →
    某个码是否可用。``LicenseService`` 与路由门禁都走它，避免再出现「两处判定、结果不同」。
 
-运行期加载：优先读磁盘 ``ops/feature_codes.json``（开发/测试），读不到则回退内嵌副本
+运行期加载：优先读磁盘 ``ops/check/feature_codes.json``（开发/测试），读不到则回退内嵌副本
 ``EMBEDDED_CATALOG``（发行的加密镜像里没有 ``ops/`` 目录，见根 Dockerfile）。
-``ops/check_feature_codes.py`` 会校验内嵌副本与 JSON 逐字段一致。
+``ops/check/check_feature_codes.py`` 会校验内嵌副本与 JSON 逐字段一致。
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ FEATURE_AGENT = "module.agent"
 #: 影视媒体增量包。
 FEATURE_MEDIA = "module.media"
 
-# 目录加载（真源 ops/feature_codes.json，回退内嵌副本）
-#: 内嵌的能力码目录（与 ``ops/feature_codes.json`` 逐字段一致；见模块注释）。
+# 目录加载（真源 ops/check/feature_codes.json，回退内嵌副本）
+#: 内嵌的能力码目录（与 ``ops/check/feature_codes.json`` 逐字段一致；见模块注释）。
 _CATALOG_JSON = """
 {
   "version": 1,
@@ -102,7 +102,7 @@ EMBEDDED_CATALOG: dict = json.loads(_CATALOG_JSON)
 
 
 def _find_catalog_file() -> Path | None:
-    """从环境变量或逐级上溯定位 ``ops/feature_codes.json``；找不到返回 ``None``。"""
+    """从环境变量或逐级上溯定位 ``ops/check/feature_codes.json``；找不到返回 ``None``。"""
     override = os.getenv("HOMEOS_FEATURE_CODES_PATH", "").strip()
     if override:
         candidate = Path(override)

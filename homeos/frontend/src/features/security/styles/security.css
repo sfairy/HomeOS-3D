@@ -3133,16 +3133,12 @@
   padding: 4px 0;
 }
 
-/* 手机 / 触控端：关闭毛玻璃与光晕以减轻性能负担 */
+/* 手机 / 触控端：关闭毛玻璃与光晕以减轻性能负担。
+   `.sov-panel` / `.sec-hub` / `.sov-zones` 的 backdrop-filter 关闭**已由 main.css 的
+   「毛玻璃禁用组」覆盖**（同一组媒体条件 `(pointer: coarse), (hover: none), (max-width: 900px)`，
+   且清单里就有这三项）—— 这里曾手抄一份子集，属于典型的「两份清单迟早分叉」，
+   已删除；新增 blur 使用点只需登记到 main.css 的禁用组。下面保留的只是本模块独有的光晕 / 阴影降级。 */
 @media (max-width: 900px), (pointer: coarse), (hover: none) {
-  .sov-panel,
-  .sec-hub,
-  .sov-zones,
-  .security-view .list-page__panel,
-  .security-view .premium-head--card {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
   .sov-zones__glow,
   .sec-hub-status-glow,
   .sec-dash-hazard__glow {

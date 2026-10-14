@@ -129,7 +129,7 @@
 <script setup>
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsVoiceOverviewSection from '@/features/settings/interact/voice/SettingsVoiceOverviewSection.vue'

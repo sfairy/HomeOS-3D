@@ -10,7 +10,7 @@ import {
   resolveStateSnapshot,
 } from "../controls/event-log-runtime";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
-import { clampNumber, normalizeCssColor } from "./_shared";
+import { clampNumberWithFallback, normalizeCssColor } from "./_shared";
 import { componentContentUnitsPx } from "./content-units";
 
 type ComponentControllerHooks = {
@@ -24,10 +24,10 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
       eventLogWallRenderEnvironment,
     ),
     eventLogWallEditable = !!eventLogWallRenderEnvironment.editable,
-    eventLogWallMaxEntries = clampNumber(eventLogWallProperties.maxEntries, 1, 200, 20),
+    eventLogWallMaxEntries = clampNumberWithFallback(eventLogWallProperties.maxEntries, 1, 200, 20),
     eventLogWallBuffer = new EventLogWallBuffer(eventLogWallMaxEntries),
     eventLogWallFontSizePx =
-      clampNumber(eventLogWallProperties.fontSize, 8, 200, 21) * eventLogWallUnitHeight,
+      clampNumberWithFallback(eventLogWallProperties.fontSize, 8, 200, 21) * eventLogWallUnitHeight,
     eventLogWallRootElement: HTMLDivElement & ComponentControllerHooks =
       document.createElement("div");
   eventLogWallRootElement.className = "hb-event-log-wall";
@@ -37,7 +37,7 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
   );
   eventLogWallRootElement.style.setProperty(
     "--hb-event-log-wall-title-font-size",
-    (eventLogWallFontSizePx * clampNumber(eventLogWallProperties.titleSize, 40, 300, 72)) / 100 +
+    (eventLogWallFontSizePx * clampNumberWithFallback(eventLogWallProperties.titleSize, 40, 300, 72)) / 100 +
       "px",
   );
   eventLogWallRootElement.style.setProperty(
@@ -54,15 +54,15 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
   );
   eventLogWallRootElement.style.setProperty(
     "--hb-event-log-wall-bg-opacity",
-    String(clampNumber(eventLogWallProperties.panelBgOpacity, 0, 1, 0.3)),
+    String(clampNumberWithFallback(eventLogWallProperties.panelBgOpacity, 0, 1, 0.3)),
   );
   eventLogWallRootElement.style.setProperty(
     "--hb-event-log-wall-blur",
-    clampNumber(eventLogWallProperties.panelBlur, 0, 40, 8) + "px",
+    clampNumberWithFallback(eventLogWallProperties.panelBlur, 0, 40, 8) + "px",
   );
   eventLogWallRootElement.style.setProperty(
     "--hb-event-log-wall-radius",
-    clampNumber(eventLogWallProperties.cornerRadius, 0, 50, 12) + "px",
+    clampNumberWithFallback(eventLogWallProperties.cornerRadius, 0, 50, 12) + "px",
   );
   for (const [eventLogWallColorKey, eventLogWallColorFallback] of [
     ["on", "#fb923c"],

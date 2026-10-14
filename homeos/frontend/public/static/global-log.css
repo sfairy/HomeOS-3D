@@ -11,6 +11,7 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: min(680px, calc(100vh - 116px));
+  height: min(680px, calc(100dvh - 116px));
   min-height: 420px;
 }
 .global-log-toolbar {

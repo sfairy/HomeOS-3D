@@ -1,0 +1,102 @@
+{
+  "$comment": "`@deprecated` 转发桩退役登记表（门禁见 ops/check/check_deprecated_stubs.py）。每条要么给 `retire_by`（临时桩，到期必须删桩或续期），要么 `status: \"retained\"` 并说明为什么长期保留。新增桩必须在此登记，否则门禁失败。",
+  "$scope": "homeos/frontend/src",
+  "stubs": [
+    {
+      "path": "studio/runtime/editor/batch-apply.ts",
+      "target": "../config-ui/batch-apply",
+      "reason": "studio 收敛把编辑器工具从 runtime/editor/ 搬进 runtime/config-ui/，旧路径保留转发以免一次改完所有调用方",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/config-editor.ts",
+      "target": "../config-ui/config-editor",
+      "reason": "config-editor 目录化（单文件 → 目录）后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/config-editor/_shared.ts",
+      "target": "../../config-ui/config-editor/_shared",
+      "reason": "config-editor 目录化后旧目录内的转发桩（真实体已移出 runtime/editor/）",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/config-editor/appearance-editor.ts",
+      "target": "../../config-ui/config-editor/appearance-editor",
+      "reason": "config-editor 目录化后旧目录内的转发桩（真实体已移出 runtime/editor/）",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/config-editor/panel-rendering.ts",
+      "target": "../../config-ui/config-editor/panel-rendering",
+      "reason": "config-editor 目录化后旧目录内的转发桩（真实体已移出 runtime/editor/）",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/device-entity-config.ts",
+      "target": "../config-ui/device-entity-config",
+      "reason": "设备/实体配置工具迁入 runtime/config-ui/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/light-range-editor.ts",
+      "target": "../config-ui/light-range-editor",
+      "reason": "灯光区间编辑器迁入 runtime/config-ui/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/editor/range-dialog.ts",
+      "target": "../config-ui/range-dialog",
+      "reason": "区间对话框迁入 runtime/config-ui/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/security/security-alarm-profile.ts",
+      "target": "../../platform/security-alarm-profile",
+      "reason": "安防域剖面逻辑下沉 runtime/platform/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/shell-chrome.ts",
+      "target": "../platform/shell-chrome",
+      "reason": "外壳 chrome 平台原语下沉 runtime/platform/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/shell-navigation.ts",
+      "target": "../platform/shell-navigation",
+      "reason": "外壳导航平台原语下沉 runtime/platform/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    },
+    {
+      "path": "studio/runtime/legacy-scope.ts",
+      "target": "../platform/legacy-scope",
+      "reason": "legacy 作用域适配下沉 runtime/platform/ 后的旧路径转发",
+      "since": "2026-10-11",
+      "retire_by": "2026-12-31",
+      "status": "active"
+    }
+  ]
+}

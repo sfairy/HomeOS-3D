@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from .router import NestRouter
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
+from ..domains.security.service import resolve_events_limit
 from ..platform.core.errors import bad_request
 from ..platform.security.auth_context import require_user
 
@@ -45,8 +46,13 @@ def _hazard_drill(request: Request):
     return request.app.state.hazard_drill
 
 @router.get("/events")
-async def get_events(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return await _security_service(request).fetch_events()
+async def get_events(
+    request: Request,
+    limit: str | None = Query(default=None),
+    user: dict[str, Any] = Depends(require_user),
+):
+    # 事件文件行数没有上界，条数上限只在服务端裁决（`limit` 只能往下调，不能放大）。
+    return await _security_service(request).fetch_events(resolve_events_limit(limit))
 
 @router.get("/events/validate")
 async def validate_events(request: Request, user: dict[str, Any] = Depends(require_user)):

@@ -38,6 +38,11 @@ from ..dependencies import (
 )
 from ..domains.license import features as feature_codes
 from ..domains.ui_config.global_popups import global_popups
+from ..platform.core.asset_paths import (
+    UPLOAD_CONTENT_TYPES,
+    UPLOAD_IMAGE_SUFFIXES,
+    user_asset_file,
+)
 from ..platform.core.models import Project, ProjectDraft
 
 router = APIRouter(prefix = '/assets', tags = [
@@ -56,34 +61,6 @@ SUPPORTED_IMAGE_SUFFIXES = {
     '.avif',
     '.heic',
     '.heif'}
-UPLOAD_IMAGE_SUFFIXES = {
-    '.jpg',
-    '.png',
-    '.svg',
-    '.jpeg',
-    '.webp',
-    '.gif',
-    '.bmp',
-    '.tif',
-    '.tiff',
-    '.ico',
-    '.avif',
-    '.heic',
-    '.heif'}
-UPLOAD_CONTENT_TYPES = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.webp': 'image/webp',
-    '.svg': 'image/svg+xml',
-    '.gif': 'image/gif',
-    '.bmp': 'image/bmp',
-    '.tif': 'image/tiff',
-    '.tiff': 'image/tiff',
-    '.ico': 'image/x-icon',
-    '.avif': 'image/avif',
-    '.heic': 'image/heic',
-    '.heif': 'image/heif'}
 NORMALIZE_UPLOAD_SUFFIXES = {
     '.gif',
     '.bmp',
@@ -100,7 +77,6 @@ MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
 EFFECT_VARIANT_PADDING = 2
 EFFECT_VARIANT_MAX_AREA_RATIO = 0.98
-ASSET_ID = re.compile('^[0-9a-f]{32}$')
 SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
 SVG_LENGTH = re.compile('^\\s*([+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?)\\s*(px|pt|pc|mm|cm|in)?\\s*$', re.IGNORECASE)
@@ -131,15 +107,6 @@ SVG_LENGTH_FACTORS = {
     'in': 96 }
 ElementTree.register_namespace('', SVG_NAMESPACE)
 ElementTree.register_namespace('xlink', XLINK_NAMESPACE)
-
-def user_asset_file(root: Path, asset_id: str) -> Path | None:
-    if not ASSET_ID.fullmatch(asset_id):
-        return None
-    directory = (root / asset_id).resolve()
-    if not directory.is_relative_to(root) or not directory.is_dir():
-        return None
-    matches = [item for item in directory.iterdir() if item.is_file() and not item.name.startswith('.') and item.suffix.lower() in UPLOAD_IMAGE_SUFFIXES]
-    return matches[0] if len(matches) == 1 else None
 
 def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[int, int] | None = None) -> dict:
     stat = path.stat()

@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- 冒烟脚本的唯一交付物就是控制台 PASS/FAIL 记录 */
+ 
 /**
  * 实体控制 / 状态合并纯逻辑回归（P4 前端业务逻辑修复）。
  *

@@ -68,7 +68,7 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsBindingsAccountSection from '@/features/settings/connect/bindings/SettingsBindingsAccountSection.vue'
 import { useSettingsLifeAccountsHub } from '@/features/settings/composables/connect/bindings.internals'

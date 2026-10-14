@@ -478,11 +478,14 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   --z-max: 2147483647;    /* 绝对顶层：下拉选择器/拾色器/输入联想等浮层 */
 
   /* 7.10 圆角半径（Border Radius）
-     真源在 hos-design-system.css（--hos-radius-control / card / panel / shell），该表后加载。
+     真源在 hos-design-system.css（--hos-radius-control / input / card / panel / shell），该表后加载。
      --radius-md / --radius-lg 原先在此别名到 card / panel，但同一份 hos-design-system 又
-     把它们定义为 16px / var(--hos-radius-panel)——后者胜，别名从未生效，故删去重复声明。 */
-  --radius-xs: 8px;                                         /* 极小圆角——按钮/标签 */
-  --radius-sm: 12px;                                        /* 小圆角——输入框 */
+     把它们定义为 16px / var(--hos-radius-panel)——后者胜，别名从未生效，故删去重复声明。
+     下面这一族是**兼容别名**：只允许写 `var(--hos-radius-*)`，不得再出现裸长度
+     （`--radius-xs: 8px` / `--radius-sm: 12px` / `--radius-ipad-pill: 9999px` 就是这样长出了
+     契约之外的第四档尺度）。这条现在由令牌契约门禁的「圆角尺度单一化」判据钉住。 */
+  --radius-xs: var(--hos-radius-control);                   /* 极小圆角——按钮/标签 */
+  --radius-sm: var(--hos-radius-input);                     /* 小圆角——输入框 */
   --radius-xl: var(--hos-radius-shell);                     /* 超大圆角——大卡片 */
   --radius-2xl: var(--hos-radius-shell);                    /* 极大圆角——主卡片（.ios-card） */
 
@@ -494,41 +497,18 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   --radius-ipad-lg: var(--hos-radius-panel);
   --radius-ipad-xl: var(--hos-radius-shell);
   --radius-ipad-2xl: var(--hos-radius-shell);
-  --radius-ipad-pill: 9999px;
+  --radius-ipad-pill: var(--hos-radius-pill);
 
-  /* 7.10e 毛玻璃禁用组共享选择器（单一来源）
-     coarse 触屏 与 html[data-glass-effect="static"] 两组共用，
-     新增 blur 使用点只需登记在此，两组同步生效
-     */
-  --glass-fallback-selectors:
-    .ios-card,
-    .climate-card,
-    .glass-panel,
-    .tab-bar,
-    .power-panel,
-    .premium-glass-surface--elevated,
-    .premium-glass-surface--panel,
-    .premium-head--card,
-    .list-page__panel,
-    .list-page__pager,
-    .list-page__hero.premium-head--card,
-    .hos-panel--glass,
-    .premium-backdrop,
-    .popup-shell,
-    .info-panel,
-    .panel-collapse-btn,
-    .notification-drawer,
-    .device-group-modal,
-    .dgm-shell,
-    .linkage-hub__drawer,
-    .linkage-hub__nav-wrap,
-    .linkage-builder-drawer-panel,
-    .linkage-builder-drawer-backdrop,
-    .orch-premium-shell,
-    .settings-popout-menu__scrim,
-    .sov-panel,
-    .sec-hub,
-    .sov-zones;
+  /* 7.10e 毛玻璃禁用组
+     ⚠️ 选择器清单**必须字面量内联**，不能写成 `:is(var(--glass-fallback-selectors))`：
+     `var()` 只在**声明值**位置被替换，出现在**选择器**位置时整条规则解析失败、被静默丢弃。
+     这条规则曾因此整段失效（低性能模式下约 30 个组件的 backdrop-filter 没被关掉），
+     而两条令牌门禁都看不见这类错误 —— 现在由 `ops/tokens/check-token-contract.mjs`
+     的「选择器位置禁用 var()」项拦下。
+
+     下面这份清单在 main.css 里出现**两次**（这里的 coarse 触屏组，以及文件末尾的
+     `html[data-glass-effect="static"]` 组），两处必须逐项一致；
+    门禁会比对这两份清单，新增 blur 使用点时两处都要登记。 */
 
   /* 7.10c iPad 增强阴影
      更细腻的多层阴影，模拟物理抬升感
@@ -949,9 +929,38 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   }
 
   /* 禁用耗性能 / 易渗色毛玻璃（卡片/面板/弹层/独立页统一）
-     选择器清单单一来源：--glass-fallback-selectors（与 data-glass-effect="static" 组共享） */
+     清单字面量内联（`var()` 在选择器位置不生效）——详见 :root 里 7.10e 的说明 */
   .widget-wrapper { will-change: auto !important; }
-  :is(var(--glass-fallback-selectors)) {
+  :is(
+    .ios-card,
+    .climate-card,
+    .glass-panel,
+    .tab-bar,
+    .power-panel,
+    .premium-glass-surface--elevated,
+    .premium-glass-surface--panel,
+    .premium-head--card,
+    .list-page__panel,
+    .list-page__pager,
+    .list-page__hero.premium-head--card,
+    .hos-panel--glass,
+    .premium-backdrop,
+    .popup-shell,
+    .info-panel,
+    .panel-collapse-btn,
+    .notification-drawer,
+    .device-group-modal,
+    .dgm-shell,
+    .linkage-hub__drawer,
+    .linkage-hub__nav-wrap,
+    .linkage-builder-drawer-panel,
+    .linkage-builder-drawer-backdrop,
+    .orch-premium-shell,
+    .settings-popout-menu__scrim,
+    .sov-panel,
+    .sec-hub,
+    .sov-zones
+  ) {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -1046,9 +1055,39 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
 }
 
 /* 专家配置 / 自适应：强制静态毛玻璃（无 backdrop-filter）
-   选择器清单单一来源：--glass-fallback-selectors（与上方 coarse 触屏禁用组共享），
+   选择器清单与上面的 coarse 触屏禁用组**必须逐项一致**（两处都是字面量内联，
+   门禁会比对；新增 blur 使用点时两处都要登记），
    确保低性能模式下弹窗 / 信息栏 / 抽屉同样无 backdrop-filter */
-html[data-glass-effect="static"] :is(var(--glass-fallback-selectors)) {
+html[data-glass-effect="static"] :is(
+    .ios-card,
+    .climate-card,
+    .glass-panel,
+    .tab-bar,
+    .power-panel,
+    .premium-glass-surface--elevated,
+    .premium-glass-surface--panel,
+    .premium-head--card,
+    .list-page__panel,
+    .list-page__pager,
+    .list-page__hero.premium-head--card,
+    .hos-panel--glass,
+    .premium-backdrop,
+    .popup-shell,
+    .info-panel,
+    .panel-collapse-btn,
+    .notification-drawer,
+    .device-group-modal,
+    .dgm-shell,
+    .linkage-hub__drawer,
+    .linkage-hub__nav-wrap,
+    .linkage-builder-drawer-panel,
+    .linkage-builder-drawer-backdrop,
+    .orch-premium-shell,
+    .settings-popout-menu__scrim,
+    .sov-panel,
+    .sec-hub,
+    .sov-zones
+  ) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -1164,6 +1203,29 @@ html[data-glass-effect="static"] .popup-shell {
 :where(input, select, textarea):focus-visible {
   outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
   outline-offset: 1px;
+}
+
+/**
+ * 高对比（forced-colors）模式：系统用自己的调色板替换颜色，**`box-shadow` 会被整个
+ * 丢掉** —— 上面那套 `box-shadow` 焦点环、以及 `.focus-ring` / `.icon-btn` 的环在这里
+ * 全部不可见。焦点只能用 `outline`（系统保留的绘制属性）并以 `Highlight` 取色，
+ * 这既保证可见性，也跟随用户在系统里选择的强调色。
+ * 同理，玻璃卡片被抹平成同色背景后靠描边保持形状可辨。
+ */
+@media (forced-colors: active) {
+  :where(a, button, [role="button"], summary, [tabindex]:not([tabindex="-1"])):focus-visible,
+  :where(input, select, textarea):focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  /* 玻璃态/渐变容器：高对比下背景被抹平，用系统色描边保证边界可辨。
+     这里刻意不用 :where()（0 特异性）—— 要压过上面 `.icon-btn { border: none }`。 */
+  .ios-card,
+  .icon-btn,
+  .focus-ring {
+    border: 1px solid CanvasText;
+  }
 }
 
 /* ==========================================================================

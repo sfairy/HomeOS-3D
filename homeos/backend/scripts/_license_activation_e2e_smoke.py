@@ -16,13 +16,23 @@
    （启动期会先进入 ``STARTUP_VALIDATION_REQUIRED``，联网确认后转 ``ACTIVE``，脚本按此轮询）；
 5. 反例：错误激活码不得把状态推进成已授权。
 
-需要在**本机商店已运行**的前提下执行；商店不可达时打印 SKIP 并以 0 退出，
-因此可以安全地挂在任何位置而不会在 CI 里无故变红。
+本脚本**自身只要求「能连上一个商店」**，前置条件由调用方提供，三种用法：
+
+- CI / 无商店的本机：跑 ``homeos-store/scripts/_license_e2e_fixture.py``（``bun run
+  verify:smoke:license``）。夹具用临时 data/密钥目录 + 随机端口现起一个商店、走 HTTP 建
+  管理员与顾客、后台签发一条真授权，再驱动本脚本，并断言输出里没有 SKIP；
+- 本机已有开发商店：直接跑本脚本，用 ``LICENSE_E2E_CODE`` / ``LICENSE_E2E_EMAIL`` 指定
+  一条授权，或用 ``LICENSE_E2E_STORE_URL`` / ``LICENSE_E2E_KEYS_DIR`` 指到别的商店与公钥；
+- 商店不可达时打印 SKIP 并以 0 退出（**SKIP 不代表通过**：夹具的存在就是为了在门禁里
+  把这条 SKIP 变成真跑）。
 
 激活码来源（按优先级）：
     ``LICENSE_E2E_CODE`` / ``LICENSE_E2E_EMAIL`` 环境变量；
     否则从 ``LICENSE_E2E_STORE_DB``（默认 ``homeos-store/data/store.db``）里挑一条
     **本冒烟可以安全占用**的授权（见 ``_pick_credentials``）。
+
+公钥来源：``LICENSE_E2E_KEYS_DIR``（默认仓库根 ``keys/``）—— 必须与目标商店的
+``STORE_LICENSE_KEYS_DIR`` 是同一对公钥，否则验签不过会把「闭环通」误判成「不通」。
 
 设备身份隔离（**这个脚本曾经的坑**）：
     主应用的 instanceId 由**宿主机的硬件指纹**派生（machine-id + 主板 DMI），
@@ -56,7 +66,10 @@ from _smoke_harness import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-KEYS_DIR = REPO_ROOT / "keys"
+#: 公钥目录：默认取仓库根 ``keys/``（由商店公钥镜像而来）。CI 里由夹具起临时商店、密钥
+#: 也生成在临时目录，此时用 ``LICENSE_E2E_KEYS_DIR`` 指过去 —— 主应用必须用**同一对**公钥
+#: 验签，否则「闭环通」会被误判成「签名不过」。
+KEYS_DIR = Path(os.getenv("LICENSE_E2E_KEYS_DIR") or (REPO_ROOT / "keys"))
 STORE_URL = os.getenv("LICENSE_E2E_STORE_URL", "http://127.0.0.1:8802").rstrip("/")
 STORE_DB = Path(
     os.getenv("LICENSE_E2E_STORE_DB", str(REPO_ROOT / "homeos-store" / "data" / "store.db"))
@@ -80,7 +93,8 @@ def _apply_key_env() -> None:
     """按实际公钥文件现算指纹注入——与 ``ops/license_keys.py`` / ``ops/dev.mjs`` 同口径。
 
     主应用启动期会无条件核对 transport 公钥的 sha256，写死常量必然对不上；
-    所以这里读仓库根 ``keys/``（由商店公钥镜像而来），从字节算指纹。
+    所以这里读 :data:`KEYS_DIR`（本地默认是仓库根 ``keys/``，由商店公钥镜像而来），
+    从字节算指纹。
     """
     signing = KEYS_DIR / "license-public.pem"
     transport = KEYS_DIR / "license-transport-public.pem"
@@ -98,8 +112,8 @@ def _apply_key_env() -> None:
 
 _apply_key_env()
 
-import httpx  # noqa: E402
-from src.domains.license import features as feature_codes  # noqa: E402
+import httpx
+from src.domains.license import features as feature_codes
 
 #: 目录里全部增量模块码：featureAccess 必须逐个下发，前端才能按标志显隐入口。
 MODULE_FEATURE_CODES = sorted(feature_codes.MODULE_FEATURES)

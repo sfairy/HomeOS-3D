@@ -27,10 +27,10 @@ from _smoke_harness import (
 
 bootstrap_env(prefix="homeos-feature-gate-smoke-")
 
-from datetime import UTC, datetime  # noqa: E402
+from datetime import UTC, datetime
 
-from src.api import ha_proxy  # noqa: E402
-from src.domains.license import features as feature_codes  # noqa: E402
+from src.api import ha_proxy
+from src.domains.license import features as feature_codes
 
 USERNAME = "gateuser"
 EMAIL = "gate@example.com"

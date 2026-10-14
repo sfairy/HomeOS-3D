@@ -95,8 +95,10 @@
   --accent-soft: #f2a20d18;
   width: min(1600px, calc(100vw - 32px));
   height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--line, #303840);
@@ -622,6 +624,7 @@
   width: min(360px, calc(100vw - 16px));
   height: max-content;
   max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
   margin: auto 22px auto auto;
   font-size: 11px;
 }

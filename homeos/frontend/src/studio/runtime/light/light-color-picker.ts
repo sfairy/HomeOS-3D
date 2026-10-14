@@ -36,7 +36,7 @@ export function createLightColorPicker({
     if (((activePointerId = null), releasedPointerId !== null))
       try {
         pickerElement.releasePointerCapture?.(releasedPointerId);
-      } catch {}
+      } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
   }
   function cancelPicker() {
     releasePointer();

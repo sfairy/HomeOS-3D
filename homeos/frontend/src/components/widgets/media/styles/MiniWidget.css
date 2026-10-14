@@ -65,6 +65,17 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
   transition: all 0.4s var(--ease-bounce);
+  /* 分页点现在是真的 <button>（键盘可达），复位原生外观 */
+  border: none;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mm-dot:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.85);
+  outline-offset: 3px;
 }
 
 .mm-dot--active {
@@ -131,7 +142,33 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/*
+ * 「打开播放器」主操作：原来整块 .mm-controls 带 @click，键盘不可达。
+ * 现在封面 + 曲目信息是这枚按钮，右侧三个传输按钮是它的同级（禁止按钮嵌套），
+ * 视觉与改造前一致（gap 12px、曲目信息 flex:1）。
+ */
+.mm-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mm-open:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline-offset: 2px;
+  border-radius: var(--hos-radius-card);
 }
 
 .mm-cover {

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 import traceback
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -24,20 +23,17 @@ from ..dependencies import (
     viewer_entity_ids,
 )
 from ..domains.ha.integration.client import HAClientError
+from ..domains.ha.integration.connection_query import active_connection, load_active_connection_snapshot
 from ..domains.ha.integration.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
 from ..domains.ha.integration.crypto import CredentialCipherError
 from ..domains.ha.integration.endpoints import endpoint_candidates
 from ..domains.ha.integration.errors import connection_error_message
 from ..domains.ha.integration.numeric_sources import numeric_sources
 from ..domains.ha.integration.percentage_sources import percentage_sources
+from ..domains.ha.integration.service_call import ServiceCallRejected, execute_service_call
 from ..domains.license import features as feature_codes
 from ..domains.logs.global_log import event_context
-from ..domains.proxy.command_proxy import build_service_call_dto, dispatch_service_call
-from ..domains.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
-from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
 from ..platform.core.database import Database
-from ..platform.core.errors import BusinessException
-from ..platform.core.ha_service_catalog import ALLOWED_SERVICES
 from ..platform.core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ..platform.security.session_store import session_token_hash
 from ..schemas import (
@@ -53,18 +49,6 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
-
-
-def active_connection(database: DatabaseSession) -> HAConnection | None:
-    return database.scalar(select(HAConnection).where(HAConnection.is_active.is_(True)))
-
-
-def load_active_connection_snapshot(database_manager: Database) -> HAConnection | None:
-    with database_manager.session_factory() as database:
-        connection = active_connection(database)
-        if connection is not None:
-            database.expunge(connection)
-        return connection
 
 
 def load_translation_context(database_manager: Database) -> tuple[HAConnection | None, set[str]]:
@@ -666,116 +650,16 @@ async def call_service(
     _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
-    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
-    allowed_fields = ALLOWED_SERVICES.get((payload.domain, payload.service))
-    if allowed_fields is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='该 Home Assistant 服务不在允许列表中。',
-        )
-    unknown_fields = set(payload.data) - allowed_fields
-    if unknown_fields:
-        unknown = ', '.join(sorted(unknown_fields))
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f'服务参数不允许：{unknown}',
-        )
-    if payload.domain == 'light' and payload.service == 'turn_on':
-        color_fields = {'white', 'hs_color', 'rgb_color', 'color_temp_kelvin'} & set(payload.data)
-        if len(color_fields) > 1:
-            raise HTTPException(422, detail='一次灯光指令只能指定一种颜色或色温。')
-        if 'white' in payload.data:
-            white = payload.data['white']
-            if not (isinstance(white, bool) or (isinstance(white, int) and 0 <= white <= 255)):
-                raise HTTPException(422, detail='白光亮度参数无效。')
-        for field, bounds in (('hs_color', (360, 100)), ('rgb_color', (255, 255, 255))):
-            if field not in payload.data:
-                continue
-            values = payload.data[field]
-            if (
-                not isinstance(values, list)
-                or len(values) != len(bounds)
-                or any(
-                    isinstance(v, bool)
-                    or not isinstance(v, (int, float))
-                    or not math.isfinite(v)
-                    or not (0 <= v <= bound)
-                    for v, bound in zip(values, bounds, strict=True)
-                )
-            ):
-                raise HTTPException(422, detail=f'灯光颜色参数无效：{field}')
-
-    entity_domain = payload.entity_id.partition('.')[0]
-    if payload.domain == 'homeassistant' and payload.service == 'toggle' and entity_domain not in TOGGLE_ENTITY_DOMAINS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail='该实体类型不支持切换动作。',
-        )
-    if payload.domain != 'homeassistant' and entity_domain != payload.domain:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail='服务域与实体域不匹配。',
-        )
-    connection, entity_exists = await asyncio.to_thread(
-        load_authorized_entity_context,
-        request.app.state.database,
-        viewer,
-        payload.entity_id,
-    )
-    if connection is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
-    if not entity_exists:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
-    # A6 收敛：与 ``/services/call`` 共用 homeos 实体级白名单（当前恒为空 → 恒放行）。
-    await assert_command_proxy_authorized(
-        {
-            'domain': payload.domain,
-            'service': payload.service,
-            'entity_id': payload.entity_id,
-            'service_data': payload.data,
-        },
-        None,
-        RegistryTargetResolver(request),
-    )
+    # 校验与下发全部住在 ``domains/ha/integration/service_call.py``（唯一出口）：
+    # HTTP 语义只在这一行转换，状态码与 detail 文案保持字节级不变。
     try:
-        # A6 收敛：唯一执行出口 —— CommandProxyService（幂等去重 → 高风险拦截 → HA 下发）。
-        envelope = await dispatch_service_call(
-            request.app.state.command_proxy,
-            build_service_call_dto(
-                domain=payload.domain,
-                service=payload.service,
-                entity_id=payload.entity_id,
-                service_data=payload.data,
-            ),
+        return await execute_service_call(
+            request,
+            payload,
+            access_check=lambda database, entity_id: require_viewer_entity(database, viewer, entity_id),
         )
-        result = envelope.get('data') if isinstance(envelope, dict) else envelope
-    except (BusinessException, HAClientError, CredentialCipherError) as error:
-        request.state.diagnostic_error_logged = True
-        request.app.state.global_log.append(
-            'error',
-            '仪表盘编辑器',
-            '设备操作',
-            f'操作失败：{payload.entity_id} · {payload.domain}.{payload.service} · {error}',
-            context={
-                'entityId': payload.entity_id,
-                'service': f'{payload.domain}.{payload.service}',
-                'status': 502,
-            },
-            details=traceback.format_exc(),
-        )
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
-    request.app.state.global_log.append(
-        'success',
-        '仪表盘编辑器',
-        '设备操作',
-        f'操作成功：{payload.entity_id} · {payload.domain}.{payload.service}',
-        context={
-            'entityId': payload.entity_id,
-            'service': f'{payload.domain}.{payload.service}',
-        },
-    )
-    return {'ok': True, 'result': result}
+    except ServiceCallRejected as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 @router.post('/media/browse')

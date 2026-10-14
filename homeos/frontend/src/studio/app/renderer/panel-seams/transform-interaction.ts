@@ -336,7 +336,7 @@ export function startComponentMove(self: PanelRenderer, movePointerEvent: any,
         )
           try {
             pointerTargetElement.setPointerCapture(pointerId3);
-          } catch {}
+          } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
         !hasGestureStarted &&
           isPrimaryModifierPressed(dragMoveEvent) &&
           ((hasGestureStarted = true), (isOptimisticToggled = false));
@@ -643,7 +643,7 @@ export function startAirflowMove(self: PanelRenderer, airflowMovePointerEvent: a
         )
           try {
             airflowMoveCaptureElement.setPointerCapture(pointerId5);
-          } catch {}
+          } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
         let airflowDeltaX = airflowMovePointer.clientX - clientX3,
           airflowDeltaY = airflowMovePointer.clientY - clientY3;
         airflowMovePointer.shiftKey

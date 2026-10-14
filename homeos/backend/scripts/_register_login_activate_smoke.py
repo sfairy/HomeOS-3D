@@ -47,7 +47,7 @@ frontend_dir.mkdir()
 )
 os.environ["HOMEOS_FRONTEND_DIR"] = str(frontend_dir)
 
-from src.domains.license import LicenseService  # noqa: E402
+from src.domains.license import LicenseService
 
 USERNAME = "actuser"
 EMAIL = "act@example.com"

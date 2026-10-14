@@ -7,7 +7,7 @@ import {
   climateSwingModeLabel as climateSwingModeLabel2,
   createClimateModeHistory as createClimateModeHistory2,
   createWaterHeaterFeedback as createWaterHeaterFeedback2,
-  waterHeaterStatusLabel as waterHeaterStatusLabel2,
+  waterHeaterCapabilityStatusLabel as waterHeaterStatusLabel2,
 } from "./climate-state";
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
@@ -70,7 +70,7 @@ function createPicker(panelRoot: any, createPickerElement: any) {
       (repositionFrameId = null));
     try {
       closingPicker.menu.hidePopover?.();
-    } catch {}
+    } catch { /* Popover API 在元素已关闭或旧内核上不可用，失败不影响状态机 */ }
     ((closingPicker.menu.hidden = true),
       closingPicker.picker.append(closingPicker.menu),
       closingPicker.element.setAttribute("aria-expanded", "false"),
@@ -233,7 +233,7 @@ function createPicker(panelRoot: any, createPickerElement: any) {
       targetPicker.element.setAttribute("aria-expanded", "true"));
     try {
       targetPicker.menu.showPopover?.();
-    } catch {}
+    } catch { /* Popover API 在元素已关闭或旧内核上不可用，失败不影响状态机 */ }
     if ((positionPicker(), !value)) return;
     (ownerDocument.addEventListener?.("pointerdown", handleDocumentPointerDown, true),
       ownerDocument.addEventListener?.("scroll", handleDocumentScroll, true),

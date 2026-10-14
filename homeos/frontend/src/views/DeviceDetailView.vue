@@ -131,8 +131,8 @@
 
 <script setup lang="ts">
 import { ChevronLeft, Cpu } from '@lucide/vue'
-import ListPageHero from '@/components/page-shell/ListPageHero.vue'
-import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
+import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
+import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import {

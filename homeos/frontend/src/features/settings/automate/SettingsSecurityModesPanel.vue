@@ -148,7 +148,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsSecurityModesEmergencySection from '@/features/settings/automate/SettingsSecurityModesEmergencySection.vue'
 import SettingsSecurityModesModeCard from '@/features/settings/automate/SettingsSecurityModesModeCard.vue'
 import SettingsSecurityModesLinkageSection from '@/features/settings/automate/SettingsSecurityModesLinkageSection.vue'

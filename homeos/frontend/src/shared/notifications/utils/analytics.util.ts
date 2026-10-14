@@ -109,7 +109,7 @@ function levelChartColor(level: string) {
   return LEVEL_COLORS[level] || '#94a3b8'
 }
 
-export function formatHourOption(hours: number) {
+export function formatNotificationHourOption(hours: number) {
   if (hours >= 168 && hours % 168 === 0) return `${hours / 168} 周`
   if (hours >= 24 && hours % 24 === 0) return `${hours / 24} 天`
   return `${hours} 小时`

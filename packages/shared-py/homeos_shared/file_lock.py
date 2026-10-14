@@ -5,7 +5,7 @@
 「同机上两个进程同时拿到写锁」这类极难复现的数据损坏 —— 而它不会在任何单测里露头。
 
 为什么不做成运行期依赖对方的包：两端**运行期互不 import**（由
-``ops/check_deploy_independence.py`` 钉死），构建期各自把这一个文件内联编译进自己的
+``ops/check/check_deploy_independence.py`` 钉死），构建期各自把这一个文件内联编译进自己的
 ``.so`` 才是允许的形态（见 ``packages/shared-py/README.md``）。
 """
 from __future__ import annotations

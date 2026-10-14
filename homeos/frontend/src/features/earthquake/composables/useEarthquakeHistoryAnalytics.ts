@@ -13,7 +13,7 @@ import {
   buildDepthBuckets,
   buildDistanceBuckets,
   buildMagBuckets,
-  buildTimeBuckets,
+  buildPeriodTimeBuckets,
   buildTopPlaces,
   computeAnalyticsSummary,
   shortenPlace,
@@ -106,7 +106,7 @@ export function useEarthquakeHistoryAnalytics(
     buildDistanceBuckets(items.value, accessors.value.getDistanceKm),
   )
   const timeBuckets = computed(() =>
-    buildTimeBuckets(items.value, accessors.value.getTimeMs, period.value),
+    buildPeriodTimeBuckets(items.value, accessors.value.getTimeMs, period.value),
   )
   const depthBuckets = computed(() => buildDepthBuckets(items.value, accessors.value.getDepth))
   const topPlaces = computed(() => buildTopPlaces(items.value, accessors.value.getPlace, 5))

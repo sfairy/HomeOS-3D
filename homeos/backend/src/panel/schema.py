@@ -7,9 +7,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .action_rules import POPUP_SOURCES, valid_entity_id, valid_ha_entity_id
+from ..platform.core.entity_ids import valid_entity_id, valid_ha_entity_id
 
 IDENTIFIER = re.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$")
+
+#: ``more-info`` 动作的弹窗来源枚举（只有面板 schema 用它，故随 schema 同住）。
+POPUP_SOURCES = frozenset({"custom", "entity", "current"})
 
 
 class ExtensibleModel(BaseModel):

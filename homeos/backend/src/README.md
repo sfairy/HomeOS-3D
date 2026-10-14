@@ -42,7 +42,7 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 > `migrations_core`（读写 `alembic_version` / 迁移前快照 / 升级后核对等**与库结构和 ORM 无关**的迁移叶子逻辑）——
 > **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包的
 > `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README 与
-> `ops/check_deploy_independence.py` 第 5 项）。原先两端「各存一份 + `backendTwinModules` 比对」的形态已收拢。
+> `ops/check/check_deploy_independence.py` 第 5 项）。原先两端「各存一份 + `backendTwinModules` 比对」的形态已收拢。
 > `platform/core/migrations.py` 的**编排**（退役列清理、数据兼容地板、脚本目录布局、报错文案）两边确有差异，
 > 留在各自包内；同批复核过的 `platform/core/database.py` 与 `run.py` 也已判定「不共享」，理由见该 README 的「分诊台账」。
 
@@ -80,7 +80,7 @@ bootstrap  →  全部（仅装配，不含业务逻辑）
 
 - **POST 默认状态码 201**：全站用 `api/router.py` 的 `NestRouter` 对齐 NestJS，前端依赖该契约做「零改动透明替换」。
 - **路由注册顺序不可改**：业务路由必须在 SPA catch-all 之前，3D 数据面紧随 `/api/v1` 之后（见 `bootstrap/router_registry.py` 顶部说明）。
-- **迁移不进产物**：发行版没有 Alembic，新库由 `app.migrations` 按 ORM 元数据直接建；`migrations/` 与 `alembic.ini` 不 COPY 进镜像，由 [ops/check_schema.py](../../../ops/check_schema.py) 比对结构指纹。
+- **迁移不进产物**：发行版没有 Alembic，新库由 `app.migrations` 按 ORM 元数据直接建；`migrations/` 与 `alembic.ini` 不 COPY 进镜像，由 [ops/check/check_schema.py](../../../ops/check/check_schema.py) 比对结构指纹。
 - **能力码**：与 `homeos-store` 通过 `verify:features` 门禁对账，新增能力先改主应用再补商店。
 
 ## 本地启动

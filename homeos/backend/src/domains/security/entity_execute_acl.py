@@ -15,7 +15,7 @@ from typing import Any
 
 from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.errors import api_error, forbidden
-from ...realtime.access import is_entity_allowed
+from ...platform.security.entity_access import is_entity_allowed
 
 
 def _dedup_targets(targets: list[dict[str, Any]] | None) -> list[tuple[str, str]]:

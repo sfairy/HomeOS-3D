@@ -8,11 +8,11 @@ import {
 
 
 import {
-  clampNumber,
+  clampNumberWithFallback,
   normalizeCssColor,
   applyTextOutline,
   resolveMdiIconUrl,
-  createSvgElement,
+  appendSvgElement,
   resolveStatePayload,
   buildHistorySeries,
   createHoverLineChart,
@@ -280,7 +280,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         ),
         iconButtonElement.style.setProperty(
           "--effect-button-opacity",
-          clampNumber(iconButtonProperties.buttonOpacity, 0, 1, 0.92) * 100 + "%",
+          clampNumberWithFallback(iconButtonProperties.buttonOpacity, 0, 1, 0.92) * 100 + "%",
         ),
         iconButtonElement.style.setProperty(
           "--effect-frame-color",
@@ -288,21 +288,21 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         ),
         iconButtonElement.style.setProperty(
           "--effect-frame-width",
-          clampNumber(iconButtonProperties.frameWidth, 0, 20, 1.5) + "px",
+          clampNumberWithFallback(iconButtonProperties.frameWidth, 0, 20, 1.5) + "px",
         ),
         iconButtonElement.style.setProperty(
           "--effect-frame-opacity",
-          clampNumber(iconButtonProperties.frameOpacity, 0, 1, 0.72) * 100 + "%",
+          clampNumberWithFallback(iconButtonProperties.frameOpacity, 0, 1, 0.72) * 100 + "%",
         ),
         iconButtonElement.style.setProperty(
           "--effect-radius",
-          clampNumber(iconButtonProperties.radius, 0, 50, 50) + "%",
+          clampNumberWithFallback(iconButtonProperties.radius, 0, 50, 50) + "%",
         ),
         iconButtonElement.style.setProperty(
           "--effect-glow-color",
           normalizeCssColor(iconButtonProperties.glowColor, "#43c8f0"),
         ));
-      const glowIntensityScale = clampNumber(
+      const glowIntensityScale = clampNumberWithFallback(
         isIconButtonActive
           ? iconButtonProperties.glowOnStrength
           : iconButtonProperties.glowOffStrength,
@@ -333,8 +333,8 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             isIconButtonActive ? iconButtonProperties.iconOnColor : iconButtonProperties.iconOffColor,
             isIconButtonActive ? "#ffffff" : "#9aa5ad",
           )),
-          (iconElement.style.width = clampNumber(iconButtonProperties.iconSize, 1, 100, 44) + "%"),
-          (iconElement.style.height = clampNumber(iconButtonProperties.iconSize, 1, 100, 44) + "%"),
+          (iconElement.style.width = clampNumberWithFallback(iconButtonProperties.iconSize, 1, 100, 44) + "%"),
+          (iconElement.style.height = clampNumberWithFallback(iconButtonProperties.iconSize, 1, 100, 44) + "%"),
           iconElement.style.setProperty("mask-image", 'url("' + iconMaskUrl + '")'),
           iconElement.style.setProperty("-webkit-mask-image", 'url("' + iconMaskUrl + '")'),
           iconButtonElement.append(iconElement));
@@ -361,94 +361,94 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           ),
           titleButtonElement.style.setProperty(
             "--title-frame-width",
-            clampNumber(titleButtonProperties.frameWidth, 0, 12, 1.5) + "px",
+            clampNumberWithFallback(titleButtonProperties.frameWidth, 0, 12, 1.5) + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-frame-offset-x",
-            clampNumber(titleButtonProperties.frameOffsetX, -100, 100, 0) + "%",
+            clampNumberWithFallback(titleButtonProperties.frameOffsetX, -100, 100, 0) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-frame-offset-y",
-            clampNumber(titleButtonProperties.frameOffsetY, -100, 100, 0) + "%",
+            clampNumberWithFallback(titleButtonProperties.frameOffsetY, -100, 100, 0) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-main-size",
-            clampNumber(titleButtonProperties.mainSize, 8, 200, 34) * titleUnitHeight + "px",
+            clampNumberWithFallback(titleButtonProperties.mainSize, 8, 200, 34) * titleUnitHeight + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-secondary-size",
-            clampNumber(titleButtonProperties.secondarySize, 6, 100, 12) * titleUnitHeight + "px",
+            clampNumberWithFallback(titleButtonProperties.secondarySize, 6, 100, 12) * titleUnitHeight + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-main-spacing",
-            clampNumber(titleButtonProperties.mainSpacing, -20, 100, 1) * titleUnitHeight + "px",
+            clampNumberWithFallback(titleButtonProperties.mainSpacing, -20, 100, 1) * titleUnitHeight + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-secondary-spacing",
-            clampNumber(titleButtonProperties.secondarySpacing, -20, 100, 2) * titleUnitHeight + "px",
+            clampNumberWithFallback(titleButtonProperties.secondarySpacing, -20, 100, 2) * titleUnitHeight + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-secondary-line-gap",
-            clampNumber(titleButtonProperties.secondaryLineGap, 0, 100, 2) * titleUnitHeight + "px",
+            clampNumberWithFallback(titleButtonProperties.secondaryLineGap, 0, 100, 2) * titleUnitHeight + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-main-left",
-            clampNumber(titleButtonProperties.mainTextLeft, -100, 200, 5.5) + "%",
+            clampNumberWithFallback(titleButtonProperties.mainTextLeft, -100, 200, 5.5) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-main-top",
-            clampNumber(titleButtonProperties.mainTextTop, -100, 200, 45) + "%",
+            clampNumberWithFallback(titleButtonProperties.mainTextTop, -100, 200, 45) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-secondary-left",
-            clampNumber(titleButtonProperties.secondaryTextLeft, -100, 200, 54) + "%",
+            clampNumberWithFallback(titleButtonProperties.secondaryTextLeft, -100, 200, 54) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-secondary-top",
-            clampNumber(titleButtonProperties.secondaryTextTop, -100, 200, 43) + "%",
+            clampNumberWithFallback(titleButtonProperties.secondaryTextTop, -100, 200, 43) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-icon-size",
-            clampNumber(titleButtonProperties.iconSize, 1, 100, 30) * titleUnitHeight + "px",
+            clampNumberWithFallback(titleButtonProperties.iconSize, 1, 100, 30) * titleUnitHeight + "px",
           ),
           titleButtonElement.style.setProperty(
             "--title-icon-left",
-            clampNumber(titleButtonProperties.iconLeft, -100, 200, 50) + "%",
+            clampNumberWithFallback(titleButtonProperties.iconLeft, -100, 200, 50) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-icon-top",
-            clampNumber(titleButtonProperties.iconTop, -100, 200, 45) + "%",
+            clampNumberWithFallback(titleButtonProperties.iconTop, -100, 200, 45) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-marker-left",
-            clampNumber(titleButtonProperties.markerLeft, -100, 200, 1.8) + "%",
+            clampNumberWithFallback(titleButtonProperties.markerLeft, -100, 200, 1.8) + "%",
           ),
           titleButtonElement.style.setProperty(
             "--title-marker-top",
-            clampNumber(titleButtonProperties.markerTop, -100, 200, 84) + "%",
+            clampNumberWithFallback(titleButtonProperties.markerTop, -100, 200, 84) + "%",
           ),
           titleButtonProperties.frameVisible !== false || isHiddenContentClickable)
         ) {
-          const frameSizeRatio = clampNumber(titleButtonProperties.frameSize, 10, 300, 100) / 100,
+          const frameSizeRatio = clampNumberWithFallback(titleButtonProperties.frameSize, 10, 300, 100) / 100,
             frameHeight = titleButtonHeightPx * 0.45 * frameSizeRatio,
             frameOffsetXPx =
-              (titleButtonWidthPx * clampNumber(titleButtonProperties.frameOffsetX, -100, 100, 0)) /
+              (titleButtonWidthPx * clampNumberWithFallback(titleButtonProperties.frameOffsetX, -100, 100, 0)) /
               100,
             frameOffsetYPx =
-              (titleButtonHeightPx * clampNumber(titleButtonProperties.frameOffsetY, -100, 100, 0)) /
+              (titleButtonHeightPx * clampNumberWithFallback(titleButtonProperties.frameOffsetY, -100, 100, 0)) /
               100,
             frameHalfSpacing =
-              (titleButtonWidthPx * clampNumber(titleButtonProperties.frameSpacing, 0, 300, 100)) /
+              (titleButtonWidthPx * clampNumberWithFallback(titleButtonProperties.frameSpacing, 0, 300, 100)) /
               200,
             frameCenterX = titleButtonWidthPx / 2 + frameOffsetXPx,
             frameCenterY = titleButtonHeightPx / 2 + frameOffsetYPx,
             frameTopEdge = frameCenterY - frameHeight / 2,
             frameBottomEdge = frameCenterY + frameHeight / 2,
             frameCornerInset = titleButtonHeightPx * 0.12,
-            frameHalfWidth = clampNumber(titleButtonProperties.frameWidth, 0, 12, 1.5) / 2,
+            frameHalfWidth = clampNumberWithFallback(titleButtonProperties.frameWidth, 0, 12, 1.5) / 2,
             frameLeftEdge = frameCenterX - frameHalfSpacing + frameHalfWidth,
             frameRightEdge = frameCenterX + frameHalfSpacing - frameHalfWidth,
-            bracketsSvgElement = createSvgElement(titleButtonElement, "svg", {
+            bracketsSvgElement = appendSvgElement(titleButtonElement, "svg", {
               viewBox: "0 0 " + titleButtonWidthPx + " " + titleButtonHeightPx,
               preserveAspectRatio: "none",
               "aria-hidden": "true",
@@ -459,13 +459,13 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           const bracketPathAttributes = {
             fill: "none",
             stroke: normalizeCssColor(titleButtonProperties.frameColor, "#60636a"),
-            "stroke-width": clampNumber(titleButtonProperties.frameWidth, 0, 12, 1.5),
+            "stroke-width": clampNumberWithFallback(titleButtonProperties.frameWidth, 0, 12, 1.5),
             "stroke-opacity": 1,
             "stroke-linecap": "butt",
             "stroke-linejoin": "miter",
             "vector-effect": "non-scaling-stroke",
           };
-          (createSvgElement(bracketsSvgElement, "path", {
+          (appendSvgElement(bracketsSvgElement, "path", {
             ...bracketPathAttributes,
             d:
               "M " +
@@ -479,7 +479,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               " H " +
               (frameLeftEdge + frameCornerInset),
           }),
-            createSvgElement(bracketsSvgElement, "path", {
+            appendSvgElement(bracketsSvgElement, "path", {
               ...bracketPathAttributes,
               d:
                 "M " +
@@ -507,7 +507,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             applyTextOutline(
               mainTextElement,
               titleButtonProperties.mainWeight,
-              clampNumber(titleButtonProperties.mainSize, 8, 200, 34),
+              clampNumberWithFallback(titleButtonProperties.mainSize, 8, 200, 34),
             ),
             titleButtonElement.append(mainTextElement));
         }
@@ -531,7 +531,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             applyTextOutline(
               secondaryTextElement,
               titleButtonProperties.secondaryWeight,
-              clampNumber(titleButtonProperties.secondarySize, 6, 100, 12),
+              clampNumberWithFallback(titleButtonProperties.secondarySize, 6, 100, 12),
             ),
             titleButtonElement.append(secondaryTextElement));
         }
@@ -566,7 +566,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             )),
             markerIconElement.style.setProperty(
               "--title-marker-size",
-              clampNumber(titleButtonProperties.markerSize, 2, 60, 10) * titleUnitHeight + "px",
+              clampNumberWithFallback(titleButtonProperties.markerSize, 2, 60, 10) * titleUnitHeight + "px",
             ),
             titleButtonElement.append(markerIconElement));
         }
@@ -594,36 +594,36 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           (statisticsElement.dataset.abnormal = String(lightStatisticsTotals.abnormal)),
           statisticsElement.style.setProperty(
             "--light-statistics-icon-size",
-            clampNumber(lightStatisticsProperties.iconSize, 1, 100, 42) * statisticsUnitHeight + "px",
+            clampNumberWithFallback(lightStatisticsProperties.iconSize, 1, 100, 42) * statisticsUnitHeight + "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-title-size",
-            clampNumber(lightStatisticsProperties.titleSize, 8, 200, 32) * statisticsUnitHeight +
+            clampNumberWithFallback(lightStatisticsProperties.titleSize, 8, 200, 32) * statisticsUnitHeight +
               "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-title-spacing",
-            clampNumber(lightStatisticsProperties.titleSpacing, -20, 100, 1.2) *
+            clampNumberWithFallback(lightStatisticsProperties.titleSpacing, -20, 100, 1.2) *
               statisticsUnitHeight +
               "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-count-size",
-            clampNumber(lightStatisticsProperties.countSize, 8, 200, 34) * statisticsUnitHeight +
+            clampNumberWithFallback(lightStatisticsProperties.countSize, 8, 200, 34) * statisticsUnitHeight +
               "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-count-spacing",
-            clampNumber(lightStatisticsProperties.countSpacing, -20, 100, 0) * statisticsUnitHeight +
+            clampNumberWithFallback(lightStatisticsProperties.countSpacing, -20, 100, 0) * statisticsUnitHeight +
               "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-icon-gap",
-            clampNumber(lightStatisticsProperties.iconGap, 0, 40, 4.5) * statisticsUnitWidth + "px",
+            clampNumberWithFallback(lightStatisticsProperties.iconGap, 0, 40, 4.5) * statisticsUnitWidth + "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-count-gap",
-            clampNumber(lightStatisticsProperties.countGap, 0, 40, 4.5) * statisticsUnitWidth + "px",
+            clampNumberWithFallback(lightStatisticsProperties.countGap, 0, 40, 4.5) * statisticsUnitWidth + "px",
           ),
           statisticsElement.style.setProperty(
             "--light-statistics-icon-color",
@@ -674,7 +674,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             applyTextOutline(
               statisticsTitleElement,
               lightStatisticsProperties.titleWeight,
-              clampNumber(lightStatisticsProperties.titleSize, 8, 200, 32),
+              clampNumberWithFallback(lightStatisticsProperties.titleSize, 8, 200, 32),
             ),
             statisticsElement.append(statisticsTitleElement));
         }
@@ -689,7 +689,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             applyTextOutline(
               activeCountElement,
               lightStatisticsProperties.countWeight,
-              clampNumber(lightStatisticsProperties.countSize, 8, 200, 34),
+              clampNumberWithFallback(lightStatisticsProperties.countSize, 8, 200, 34),
             ),
             statisticsCountElement.append(activeCountElement),
             lightStatisticsTotals.total)
@@ -760,16 +760,16 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         (presenceSensorElement.dataset.presenceState = presencePresentation.key),
         presenceSensorElement.style.setProperty("--hb-presence-occupied", occupiedAccentColor),
         presenceSensorElement.style.setProperty("--hb-presence-clear", clearAccentColor));
-      const animationStrength = clampNumber(sensorProperties.animationStrength, 0, 1, 0.72),
-        haloScale = clampNumber(sensorProperties.haloScale, 0.2, 3, 1),
-        haloScaleX = clampNumber(sensorProperties.haloScaleX, 0.2, 3, haloScale),
-        haloScaleY = clampNumber(sensorProperties.haloScaleY, 0.2, 3, haloScale),
-        haloRotation = clampNumber(sensorProperties.haloRotation, -360, 360, 0),
-        haloOpacity = clampNumber(sensorProperties.haloOpacity, 0, 1, 1),
-        personScale = clampNumber(sensorProperties.personScale, 0.2, 3, 1),
-        personRotation = clampNumber(sensorProperties.personRotation, -360, 360, 0),
-        personOpacity = clampNumber(sensorProperties.personOpacity, 0, 1, 1),
-        orbitDuration = clampNumber(sensorProperties.orbitDuration, 2, 60, 8);
+      const animationStrength = clampNumberWithFallback(sensorProperties.animationStrength, 0, 1, 0.72),
+        haloScale = clampNumberWithFallback(sensorProperties.haloScale, 0.2, 3, 1),
+        haloScaleX = clampNumberWithFallback(sensorProperties.haloScaleX, 0.2, 3, haloScale),
+        haloScaleY = clampNumberWithFallback(sensorProperties.haloScaleY, 0.2, 3, haloScale),
+        haloRotation = clampNumberWithFallback(sensorProperties.haloRotation, -360, 360, 0),
+        haloOpacity = clampNumberWithFallback(sensorProperties.haloOpacity, 0, 1, 1),
+        personScale = clampNumberWithFallback(sensorProperties.personScale, 0.2, 3, 1),
+        personRotation = clampNumberWithFallback(sensorProperties.personRotation, -360, 360, 0),
+        personOpacity = clampNumberWithFallback(sensorProperties.personOpacity, 0, 1, 1),
+        orbitDuration = clampNumberWithFallback(sensorProperties.orbitDuration, 2, 60, 8);
       presenceSensorElement.style.setProperty("--hb-presence-motion", String(animationStrength));
       const waveDurationSeconds = Number((3.2 - animationStrength * 0.8).toFixed(2));
       if (
@@ -949,9 +949,10 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           presenceMotionConfig.motionEvent &&
           presencePresentation.key === "occupied")
       ) {
-        const stateTimestamp = presenceStateTimestamp(sensorEntityState),
+        const motionTimeoutSeconds = presenceMotionConfig.motionTimeoutSeconds ?? 0,
+          stateTimestamp = presenceStateTimestamp(sensorEntityState),
           motionTimeoutRemainingMs = Number.isFinite(stateTimestamp)
-            ? presenceMotionConfig.motionTimeoutSeconds * 1000 - (Date.now() - stateTimestamp!)
+            ? motionTimeoutSeconds * 1000 - (Date.now() - stateTimestamp!)
             : 0;
         if (motionTimeoutRemainingMs > 0) {
           const motionTimeoutHandle = window.setTimeout(
@@ -989,27 +990,27 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           "hb-air-conditioner" + (isClimatePowered ? " active" : "")),
           airConditionerElement.style.setProperty(
             "--climate-icon-left",
-            clampNumber(airConditionerProperties.iconLeft, -100, 200, 20) + "%",
+            clampNumberWithFallback(airConditionerProperties.iconLeft, -100, 200, 20) + "%",
           ),
           airConditionerElement.style.setProperty(
             "--climate-icon-top",
-            clampNumber(airConditionerProperties.iconTop, -100, 200, 50) + "%",
+            clampNumberWithFallback(airConditionerProperties.iconTop, -100, 200, 50) + "%",
           ),
           airConditionerElement.style.setProperty(
             "--climate-main-left",
-            clampNumber(airConditionerProperties.mainTextLeft, -100, 200, 39) + "%",
+            clampNumberWithFallback(airConditionerProperties.mainTextLeft, -100, 200, 39) + "%",
           ),
           airConditionerElement.style.setProperty(
             "--climate-main-top",
-            clampNumber(airConditionerProperties.mainTextTop, -100, 200, 40) + "%",
+            clampNumberWithFallback(airConditionerProperties.mainTextTop, -100, 200, 40) + "%",
           ),
           airConditionerElement.style.setProperty(
             "--climate-secondary-left",
-            clampNumber(airConditionerProperties.secondaryTextLeft, -100, 200, 39) + "%",
+            clampNumberWithFallback(airConditionerProperties.secondaryTextLeft, -100, 200, 39) + "%",
           ),
           airConditionerElement.style.setProperty(
             "--climate-secondary-top",
-            clampNumber(airConditionerProperties.secondaryTextTop, -100, 200, 67) + "%",
+            clampNumberWithFallback(airConditionerProperties.secondaryTextTop, -100, 200, 67) + "%",
           ),
           airConditionerElement.style.setProperty(
             "--climate-badge-color",
@@ -1017,7 +1018,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           ),
           airConditionerElement.style.setProperty(
             "--climate-badge-opacity",
-            clampNumber(airConditionerProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%",
+            clampNumberWithFallback(airConditionerProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%",
           ));
         const airConditionerIconColor = normalizeCssColor(
           isClimatePowered
@@ -1030,8 +1031,8 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             "--climate-icon-glow-size",
             7 * contentUnitHeight + "px",
           ));
-        const badgeSizePx = clampNumber(airConditionerProperties.badgeSize, 1, 100, 28),
-          symbolSizePx = clampNumber(airConditionerProperties.symbolSize, 1, 100, 14);
+        const badgeSizePx = clampNumberWithFallback(airConditionerProperties.badgeSize, 1, 100, 28),
+          symbolSizePx = clampNumberWithFallback(airConditionerProperties.symbolSize, 1, 100, 14);
         if (airConditionerProperties.iconVisible !== false) {
           const iconBadgeElement = document.createElement("span");
           ((iconBadgeElement.className = "hb-air-conditioner-icon-badge"),
@@ -1047,7 +1048,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           if (resolvedIconUrl) {
             const airConditionerIconElement = document.createElement("i");
             airConditionerIconElement.className = "hb-air-conditioner-icon";
-            const iconScalePercent = clampNumber((symbolSizePx / badgeSizePx) * 100, 1, 100, 50);
+            const iconScalePercent = clampNumberWithFallback((symbolSizePx / badgeSizePx) * 100, 1, 100, 50);
             ((airConditionerIconElement.style.width = iconScalePercent + "%"),
               (airConditionerIconElement.style.height = iconScalePercent + "%"),
               (airConditionerIconElement.style.backgroundColor = airConditionerIconColor),
@@ -1065,7 +1066,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         }
         const airConditionerTextElement = document.createElement("span");
         airConditionerTextElement.className = "hb-air-conditioner-text";
-        const mainTextSizePx = clampNumber(airConditionerProperties.mainSize, 6, 120, 21),
+        const mainTextSizePx = clampNumberWithFallback(airConditionerProperties.mainSize, 6, 120, 21),
           airConditionerMainTextElement = document.createElement("strong");
         ((airConditionerMainTextElement.textContent =
           String(airConditionerProperties.mainText || "").trim() ||
@@ -1080,14 +1081,14 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           )),
           (airConditionerMainTextElement.style.fontSize = mainTextSizePx * contentUnitHeight + "px"),
           (airConditionerMainTextElement.style.letterSpacing =
-            clampNumber(airConditionerProperties.mainSpacing, -20, 100, 0.5) * contentUnitHeight +
+            clampNumberWithFallback(airConditionerProperties.mainSpacing, -20, 100, 0.5) * contentUnitHeight +
             "px"),
           applyTextOutline(
             airConditionerMainTextElement,
             airConditionerProperties.mainWeight,
             mainTextSizePx,
           ));
-        const secondaryTextSizePx = clampNumber(airConditionerProperties.secondarySize, 5, 80, 12),
+        const secondaryTextSizePx = clampNumberWithFallback(airConditionerProperties.secondarySize, 5, 80, 12),
           airConditionerSecondaryTextElement = document.createElement("small");
         return (
           (airConditionerSecondaryTextElement.textContent = airConditionerEntityId
@@ -1100,7 +1101,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           (airConditionerSecondaryTextElement.style.fontSize =
             secondaryTextSizePx * contentUnitHeight + "px"),
           (airConditionerSecondaryTextElement.style.letterSpacing =
-            clampNumber(airConditionerProperties.secondarySpacing, -20, 100, 0.3) *
+            clampNumberWithFallback(airConditionerProperties.secondarySpacing, -20, 100, 0.3) *
               contentUnitHeight +
             "px"),
           applyTextOutline(
@@ -1202,7 +1203,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         if (
           ((vacuumMapComponentElement.className = "hb-vacuum-map-component"),
           (vacuumMapComponentElement.style.opacity = String(
-            clampNumber(vacuumMapProperties.opacity, 0, 1, 0.5),
+            clampNumberWithFallback(vacuumMapProperties.opacity, 0, 1, 0.5),
           )),
           vacuumMapComponentElement.setAttribute(
             "aria-label",
@@ -1273,15 +1274,15 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
     registerComponent("time", {
       render(timeComponent: any, timeRenderEnvironment: any) {
         const timeProperties = timeComponent.properties || {},
-          timeFontSize = clampNumber(timeProperties.fontSize, 12, 500, 96),
+          timeFontSize = clampNumberWithFallback(timeProperties.fontSize, 12, 500, 96),
           timeComponentElement = document.createElement("time");
         ((timeComponentElement.className = "hb-time-component"),
           (timeComponentElement.style.color = normalizeCssColor(timeProperties.color, "#248eb2")),
           (timeComponentElement.style.fontSize = timeFontSize + "px"),
           (timeComponentElement.style.letterSpacing =
-            clampNumber(timeProperties.letterSpacing, -20, 100, 2.2) + "px"),
+            clampNumberWithFallback(timeProperties.letterSpacing, -20, 100, 2.2) + "px"),
           (timeComponentElement.style.opacity = String(
-            clampNumber(timeProperties.opacity, 0, 1, 1),
+            clampNumberWithFallback(timeProperties.opacity, 0, 1, 1),
           )));
         const timeValueElement = document.createElement("span");
         ((timeValueElement.className = "hb-time-value"),
@@ -1314,30 +1315,30 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         const dateProperties = dateComponent.properties || {},
           dateComponentElement = document.createElement("div");
         ((dateComponentElement.className = "hb-date-component"),
-          (dateComponentElement.style.opacity = String(clampNumber(dateProperties.opacity, 0, 1, 1))),
-          (dateComponentElement.style.gap = clampNumber(dateProperties.lineGap, 0, 200, 8) + "px"));
+          (dateComponentElement.style.opacity = String(clampNumberWithFallback(dateProperties.opacity, 0, 1, 1))),
+          (dateComponentElement.style.gap = clampNumberWithFallback(dateProperties.lineGap, 0, 200, 8) + "px"));
         const datePrimaryElement = document.createElement("strong");
         ((datePrimaryElement.className = "hb-date-primary"),
           (datePrimaryElement.style.color = normalizeCssColor(
             dateProperties.primaryColor,
             "#8d9296",
           )));
-        const primaryFontSize = clampNumber(dateProperties.primarySize, 12, 500, 36);
+        const primaryFontSize = clampNumberWithFallback(dateProperties.primarySize, 12, 500, 36);
         ((datePrimaryElement.style.fontSize = primaryFontSize + "px"),
           applyTextOutline(datePrimaryElement, dateProperties.primaryWeight, primaryFontSize),
           (datePrimaryElement.style.letterSpacing =
-            clampNumber(dateProperties.primarySpacing, -20, 100, 1) + "px"),
+            clampNumberWithFallback(dateProperties.primarySpacing, -20, 100, 1) + "px"),
           dateComponentElement.append(datePrimaryElement));
         let lunarElement: any = null;
         if (dateProperties.showLunar === true) {
           ((lunarElement = document.createElement("small")),
             (lunarElement.className = "hb-date-lunar"),
             (lunarElement.style.color = normalizeCssColor(dateProperties.lunarColor, "#7f878c")));
-          const lunarFontSize = clampNumber(dateProperties.lunarSize, 10, 500, 24);
+          const lunarFontSize = clampNumberWithFallback(dateProperties.lunarSize, 10, 500, 24);
           ((lunarElement.style.fontSize = lunarFontSize + "px"),
             applyTextOutline(lunarElement, dateProperties.lunarWeight, lunarFontSize),
             (lunarElement.style.letterSpacing =
-              clampNumber(dateProperties.lunarSpacing, -20, 100, 1) + "px"),
+              clampNumberWithFallback(dateProperties.lunarSpacing, -20, 100, 1) + "px"),
             dateComponentElement.append(lunarElement));
         }
         const updateDateDisplay = () => {
@@ -1369,9 +1370,9 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         if (
           ((weatherComponentElement.className = "hb-weather-component"),
           (weatherComponentElement.style.gap =
-            clampNumber(weatherProperties.iconGap, 0, 300, 22) + "px"),
+            clampNumberWithFallback(weatherProperties.iconGap, 0, 300, 22) + "px"),
           (weatherComponentElement.style.opacity = String(
-            clampNumber(weatherProperties.opacity, 0, 1, 1),
+            clampNumberWithFallback(weatherProperties.opacity, 0, 1, 1),
           )),
           weatherProperties.iconVisible !== false)
         ) {
@@ -1381,16 +1382,16 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             (weatherIconElement.alt = weatherConditionLabel),
             (weatherIconElement.draggable = false),
             (weatherIconElement.style.width =
-              clampNumber(weatherProperties.iconSize, 12, 500, 64) + "px"),
+              clampNumberWithFallback(weatherProperties.iconSize, 12, 500, 64) + "px"),
             (weatherIconElement.style.height =
-              clampNumber(weatherProperties.iconSize, 12, 500, 64) + "px"),
+              clampNumberWithFallback(weatherProperties.iconSize, 12, 500, 64) + "px"),
             weatherComponentElement.append(weatherIconElement));
         }
         const weatherContentElement = document.createElement("span");
         if (
           ((weatherContentElement.className = "hb-weather-content"),
           (weatherContentElement.style.gap =
-            clampNumber(weatherProperties.lineGap, 0, 200, 7) + "px"),
+            clampNumberWithFallback(weatherProperties.lineGap, 0, 200, 7) + "px"),
           weatherProperties.temperatureVisible !== false)
         ) {
           const temperatureElement = document.createElement("strong"),
@@ -1405,7 +1406,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               weatherProperties.temperatureColor,
               "#aeb3b7",
             )));
-          const temperatureFontSize = clampNumber(weatherProperties.temperatureSize, 12, 500, 32);
+          const temperatureFontSize = clampNumberWithFallback(weatherProperties.temperatureSize, 12, 500, 32);
           ((temperatureElement.style.fontSize = temperatureFontSize + "px"),
             applyTextOutline(
               temperatureElement,
@@ -1413,7 +1414,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               temperatureFontSize,
             ),
             (temperatureElement.style.letterSpacing =
-              clampNumber(weatherProperties.temperatureSpacing, -20, 100, 1) + "px"),
+              clampNumberWithFallback(weatherProperties.temperatureSpacing, -20, 100, 1) + "px"),
             weatherContentElement.append(temperatureElement));
         }
         if (
@@ -1434,7 +1435,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               weatherProperties.secondaryColor,
               "#8d9296",
             )));
-          const weatherDetailFontSize = clampNumber(weatherProperties.secondarySize, 10, 500, 18);
+          const weatherDetailFontSize = clampNumberWithFallback(weatherProperties.secondarySize, 10, 500, 18);
           ((weatherDetailElement.style.fontSize = weatherDetailFontSize + "px"),
             applyTextOutline(
               weatherDetailElement,
@@ -1442,7 +1443,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               weatherDetailFontSize,
             ),
             (weatherDetailElement.style.letterSpacing =
-              clampNumber(weatherProperties.secondarySpacing, -20, 100, 1) + "px"),
+              clampNumberWithFallback(weatherProperties.secondarySpacing, -20, 100, 1) + "px"),
             weatherContentElement.append(weatherDetailElement));
         }
         return (
@@ -1473,7 +1474,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           lineChartComponentElement: HTMLDivElement & ComponentControllerHooks = document.createElement("div");
         ((lineChartComponentElement.className = "hb-line-chart-component"),
           (lineChartComponentElement.style.borderRadius =
-            clampNumber(lineChartProperties.cornerRadius, 0, 50, 10) + "%"));
+            clampNumberWithFallback(lineChartProperties.cornerRadius, 0, 50, 10) + "%"));
         const lineChartValueElement = document.createElement("span");
         ((lineChartValueElement.className = "hb-line-chart-value"),
           (lineChartValueElement.hidden = lineChartProperties.valueVisible === false),
@@ -1486,13 +1487,13 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               10,
               (Number(lineChartComponent.position?.height || 300) *
                 0.12 *
-                clampNumber(lineChartProperties.valueScale, 10, 500, 100)) /
+                clampNumberWithFallback(lineChartProperties.valueScale, 10, 500, 100)) /
                 100,
             ) + "px"),
           (lineChartValueElement.style.left =
-            95 + clampNumber(lineChartProperties.valueOffsetX, -100, 100, 0) + "%"),
+            95 + clampNumberWithFallback(lineChartProperties.valueOffsetX, -100, 100, 0) + "%"),
           (lineChartValueElement.style.top =
-            8 + clampNumber(lineChartProperties.valueOffsetY, -100, 100, 0) + "%"));
+            8 + clampNumberWithFallback(lineChartProperties.valueOffsetY, -100, 100, 0) + "%"));
         const stateValueElement = document.createElement("strong");
         stateValueElement.textContent = formatLineChartValue(
           lineChartStateValue,
@@ -1518,7 +1519,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
                   : "#68cc3e",
               ));
           }));
-        const lineChartSvgElement = createSvgElement(lineChartComponentElement, "svg", {
+        const lineChartSvgElement = appendSvgElement(lineChartComponentElement, "svg", {
           viewBox: "0 0 100 70",
           preserveAspectRatio: "none",
           "aria-hidden": "true",
@@ -1536,8 +1537,8 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
               (lineChartRenderEnvironment.renderNamespace || "renderer") +
               "-chart-" +
               String(lineChartComponent.id || "").replace(/[^a-z0-9_-]/gi, ""),
-            chartDefsElement = createSvgElement(lineChartSvgElement, "defs"),
-            gradientElement = createSvgElement(chartDefsElement, "linearGradient", {
+            chartDefsElement = appendSvgElement(lineChartSvgElement, "defs"),
+            gradientElement = appendSvgElement(chartDefsElement, "linearGradient", {
               id: lineChartGradientId + "-line",
               gradientUnits: "userSpaceOnUse",
               x1: 0,
@@ -1556,19 +1557,19 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           for (const thresholdEntry of [...thresholdEntries].sort(
             (leftThreshold, rightThreshold) => rightThreshold.value - leftThreshold.value,
           ))
-            createSvgElement(gradientElement, "stop", {
+            appendSvgElement(gradientElement, "stop", {
               offset:
-                clampNumber(((maximumValue - thresholdEntry.value) / valueSpan) * 100, 0, 100, 0) +
+                clampNumberWithFallback(((maximumValue - thresholdEntry.value) / valueSpan) * 100, 0, 100, 0) +
                 "%",
               "stop-color": thresholdEntry.color,
             });
           if (
-            (createSvgElement(lineChartSvgElement, "path", {
+            (appendSvgElement(lineChartSvgElement, "path", {
               d: chartPathDefinition + " L100 70 L0 70 Z",
               fill: "url(#" + lineChartGradientId + "-line)",
               opacity: 0.18,
             }),
-            createSvgElement(lineChartSvgElement, "path", {
+            appendSvgElement(lineChartSvgElement, "path", {
               d: chartPathDefinition,
               fill: "none",
               stroke: "url(#" + lineChartGradientId + "-line)",
@@ -1610,16 +1611,16 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
       const panelFrameProperties = panelFrameComponent.properties || {},
         panelFrameWidth = Math.max(20, Number(panelFrameComponent.position?.width || 528)),
         panelFrameHeight = Math.max(20, Number(panelFrameComponent.position?.height || 300)),
-        edgeStrokeWidth = clampNumber(panelFrameProperties.edgeWidth, 0, 20, 0.9),
+        edgeStrokeWidth = clampNumberWithFallback(panelFrameProperties.edgeWidth, 0, 20, 0.9),
         edgeInset = Math.max(0.5, edgeStrokeWidth / 2 + 0.5),
         innerFrameWidth = Math.max(1, panelFrameWidth - edgeInset * 2),
         innerFrameHeight = Math.max(1, panelFrameHeight - edgeInset * 2),
         panelCornerRadius =
           Math.min(innerFrameWidth, innerFrameHeight) *
-          clampNumber(panelFrameProperties.radius, 0, 0.5, 0.195),
-        edgeOpacity = clampNumber(panelFrameProperties.edgeOpacity, 0, 1, 1),
-        panelGlowStrength = clampNumber(panelFrameProperties.glowStrength, 0, 5, 0.5),
-        panelGlowSize = clampNumber(panelFrameProperties.glowSize, 0, 3, 1.5),
+          clampNumberWithFallback(panelFrameProperties.radius, 0, 0.5, 0.195),
+        edgeOpacity = clampNumberWithFallback(panelFrameProperties.edgeOpacity, 0, 1, 1),
+        panelGlowStrength = clampNumberWithFallback(panelFrameProperties.glowStrength, 0, 5, 0.5),
+        panelGlowSize = clampNumberWithFallback(panelFrameProperties.glowSize, 0, 3, 1.5),
         panelGlowRadius = Math.min(innerFrameWidth, innerFrameHeight) * 0.22 * panelGlowSize,
         panelGlowBlur = Math.min(innerFrameWidth, innerFrameHeight) * 0.06 * panelGlowSize,
         edgeStrokeColor = normalizeCssColor(panelFrameProperties.edgeColor, "#d4d4d4"),
@@ -1630,35 +1631,35 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           String(panelFrameComponent.id || "").replace(/[^a-z0-9_-]/gi, ""),
         panelFrameElement = document.createElement("div");
       panelFrameElement.className = "hb-panel-frame-component";
-      const panelFrameSvgElement = createSvgElement(panelFrameElement, "svg", {
+      const panelFrameSvgElement = appendSvgElement(panelFrameElement, "svg", {
           viewBox: "0 0 " + panelFrameWidth + " " + panelFrameHeight,
           preserveAspectRatio: "none",
           "aria-hidden": "true",
         }),
-        panelFrameDefsElement = createSvgElement(panelFrameSvgElement, "defs"),
-        panelGlowGradientElement = createSvgElement(panelFrameDefsElement, "linearGradient", {
+        panelFrameDefsElement = appendSvgElement(panelFrameSvgElement, "defs"),
+        panelGlowGradientElement = appendSvgElement(panelFrameDefsElement, "linearGradient", {
           id: panelFrameId + "-glass",
           x1: 0,
           y1: 0,
           x2: 1,
           y2: 1,
         });
-      (createSvgElement(panelGlowGradientElement, "stop", {
+      (appendSvgElement(panelGlowGradientElement, "stop", {
         offset: 0,
         "stop-color": panelGlowColor,
         "stop-opacity": Math.min(0.35, 0.035 * panelGlowStrength),
       }),
-        createSvgElement(panelGlowGradientElement, "stop", {
+        appendSvgElement(panelGlowGradientElement, "stop", {
           offset: 0.52,
           "stop-color": panelGlowColor,
           "stop-opacity": Math.min(0.12, 0.01 * panelGlowStrength),
         }),
-        createSvgElement(panelGlowGradientElement, "stop", {
+        appendSvgElement(panelGlowGradientElement, "stop", {
           offset: 1,
           "stop-color": panelGlowColor,
           "stop-opacity": Math.min(0.25, 0.025 * panelGlowStrength),
         }));
-      const panelEdgeGradientElement = createSvgElement(panelFrameDefsElement, "linearGradient", {
+      const panelEdgeGradientElement = appendSvgElement(panelFrameDefsElement, "linearGradient", {
         id: panelFrameId + "-edge",
         gradientUnits: "userSpaceOnUse",
         x1: 0,
@@ -1667,7 +1668,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         y2: panelFrameHeight / 2,
         gradientTransform:
           "rotate(" +
-          clampNumber(panelFrameProperties.edgeAngle, 0, 360, 45) +
+          clampNumberWithFallback(panelFrameProperties.edgeAngle, 0, 360, 45) +
           " " +
           panelFrameWidth / 2 +
           " " +
@@ -1681,12 +1682,12 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         [0.78, 0.66],
         [1, 0.42],
       ])
-        createSvgElement(panelEdgeGradientElement, "stop", {
+        appendSvgElement(panelEdgeGradientElement, "stop", {
           offset: panelStopOffset,
           "stop-color": edgeStrokeColor,
           "stop-opacity": panelStopOpacity * edgeOpacity,
         });
-      const panelGlassGradientElement = createSvgElement(panelFrameDefsElement, "linearGradient", {
+      const panelGlassGradientElement = appendSvgElement(panelFrameDefsElement, "linearGradient", {
         id: panelFrameId + "-glow",
         gradientUnits: "userSpaceOnUse",
         x1: 0,
@@ -1695,7 +1696,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         y2: panelFrameHeight / 2,
         gradientTransform:
           "rotate(" +
-          clampNumber(panelFrameProperties.glowAngle, 0, 360, 242) +
+          clampNumberWithFallback(panelFrameProperties.glowAngle, 0, 360, 242) +
           " " +
           panelFrameWidth / 2 +
           " " +
@@ -1708,22 +1709,22 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         [0.72, 0.05],
         [1, 0.22],
       ])
-        createSvgElement(panelGlassGradientElement, "stop", {
+        appendSvgElement(panelGlassGradientElement, "stop", {
           offset: panelGlassStopOffset,
           "stop-color": panelGlowColor,
           "stop-opacity": Math.min(1, panelGlassStopOpacity * panelGlowStrength),
         });
-      const panelClipPathElement = createSvgElement(panelFrameDefsElement, "clipPath", {
+      const panelClipPathElement = appendSvgElement(panelFrameDefsElement, "clipPath", {
         id: panelFrameId + "-clip",
       });
-      createSvgElement(panelClipPathElement, "rect", {
+      appendSvgElement(panelClipPathElement, "rect", {
         x: edgeInset,
         y: edgeInset,
         width: innerFrameWidth,
         height: innerFrameHeight,
         rx: panelCornerRadius,
       });
-      const panelGlowFilterElement = createSvgElement(panelFrameDefsElement, "filter", {
+      const panelGlowFilterElement = appendSvgElement(panelFrameDefsElement, "filter", {
         id: panelFrameId + "-blur",
         x: "-35%",
         y: "-55%",
@@ -1731,15 +1732,15 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         height: "210%",
       });
       if (
-        (createSvgElement(panelGlowFilterElement, "feGaussianBlur", {
+        (appendSvgElement(panelGlowFilterElement, "feGaussianBlur", {
           stdDeviation: panelGlowBlur,
         }),
         panelFrameProperties.glowVisible !== false)
       ) {
-        const panelEdgeGroupElement = createSvgElement(panelFrameSvgElement, "g", {
+        const panelEdgeGroupElement = appendSvgElement(panelFrameSvgElement, "g", {
           "clip-path": "url(#" + panelFrameId + "-clip)",
         });
-        (createSvgElement(panelEdgeGroupElement, "rect", {
+        (appendSvgElement(panelEdgeGroupElement, "rect", {
           x: edgeInset,
           y: edgeInset,
           width: innerFrameWidth,
@@ -1749,7 +1750,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
         }),
           panelGlowRadius > 0 &&
             panelGlowStrength > 0 &&
-            createSvgElement(panelEdgeGroupElement, "rect", {
+            appendSvgElement(panelEdgeGroupElement, "rect", {
               x: edgeInset,
               y: edgeInset,
               width: innerFrameWidth,
@@ -1762,7 +1763,7 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
             }));
       }
       panelFrameProperties.edgeVisible !== false &&
-        createSvgElement(panelFrameSvgElement, "rect", {
+        appendSvgElement(panelFrameSvgElement, "rect", {
           x: edgeInset,
           y: edgeInset,
           width: innerFrameWidth,
@@ -1772,45 +1773,45 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           stroke: "url(#" + panelFrameId + "-edge)",
           "stroke-width": edgeStrokeWidth,
         });
-      const textLeftPercent = clampNumber(panelFrameProperties.textLeft, -100, 200, 5.2),
-        textTopPercent = clampNumber(panelFrameProperties.textTop, -100, 200, 28),
+      const textLeftPercent = clampNumberWithFallback(panelFrameProperties.textLeft, -100, 200, 5.2),
+        textTopPercent = clampNumberWithFallback(panelFrameProperties.textTop, -100, 200, 28),
         mainTextX =
           (panelFrameWidth *
-            clampNumber(panelFrameProperties.mainTextLeft, -100, 200, textLeftPercent)) /
+            clampNumberWithFallback(panelFrameProperties.mainTextLeft, -100, 200, textLeftPercent)) /
           100,
         mainTextY =
           (panelFrameHeight *
-            clampNumber(
+            clampNumberWithFallback(
               panelFrameProperties.mainTextTop,
               -100,
               200,
               textTopPercent -
-                (clampNumber(panelFrameProperties.lineGap, 0, 500, 24) / panelFrameHeight) * 100,
+                (clampNumberWithFallback(panelFrameProperties.lineGap, 0, 500, 24) / panelFrameHeight) * 100,
             )) /
           100,
         secondaryTextX =
           (panelFrameWidth *
-            clampNumber(panelFrameProperties.secondaryTextLeft, -100, 200, textLeftPercent)) /
+            clampNumberWithFallback(panelFrameProperties.secondaryTextLeft, -100, 200, textLeftPercent)) /
           100,
         secondaryTextY =
           (panelFrameHeight *
-            clampNumber(panelFrameProperties.secondaryTextTop, -100, 200, textTopPercent)) /
+            clampNumberWithFallback(panelFrameProperties.secondaryTextTop, -100, 200, textTopPercent)) /
           100,
-        mainTextOpacity = clampNumber(panelFrameProperties.mainOpacity, 0, 1, 0.72),
-        secondaryTextOpacity = clampNumber(panelFrameProperties.secondaryOpacity, 0, 1, 0.36);
+        mainTextOpacity = clampNumberWithFallback(panelFrameProperties.mainOpacity, 0, 1, 0.72),
+        secondaryTextOpacity = clampNumberWithFallback(panelFrameProperties.secondaryOpacity, 0, 1, 0.36);
       if (panelFrameProperties.mainTextVisible !== false) {
-        const panelMainTextElement = createSvgElement(panelFrameSvgElement, "text", {
+        const panelMainTextElement = appendSvgElement(panelFrameSvgElement, "text", {
             x: mainTextX,
             y: mainTextY,
             "text-anchor": "start",
             fill: normalizeCssColor(panelFrameProperties.mainColor, "#ffffff"),
             "fill-opacity": mainTextOpacity,
             "font-family": "PingFang SC,Noto Sans SC,Microsoft YaHei,sans-serif",
-            "font-size": clampNumber(panelFrameProperties.mainSize, 8, 500, 30),
+            "font-size": clampNumberWithFallback(panelFrameProperties.mainSize, 8, 500, 30),
             "font-weight": 300,
-            "letter-spacing": clampNumber(panelFrameProperties.mainSpacing, -20, 100, 2),
+            "letter-spacing": clampNumberWithFallback(panelFrameProperties.mainSpacing, -20, 100, 2),
           }),
-          mainTextWeight = clampNumber(panelFrameProperties.mainWeight, 0, 3, 0);
+          mainTextWeight = clampNumberWithFallback(panelFrameProperties.mainWeight, 0, 3, 0);
         (mainTextWeight > 0 &&
           Object.entries({
             stroke: normalizeCssColor(panelFrameProperties.mainColor, "#ffffff"),
@@ -1823,18 +1824,18 @@ export function installRegistryComponents(registerComponent: (type: any, def: an
           (panelMainTextElement.textContent = String(panelFrameProperties.mainText || "")));
       }
       if (panelFrameProperties.secondaryTextVisible !== false) {
-        const panelSecondaryTextElement = createSvgElement(panelFrameSvgElement, "text", {
+        const panelSecondaryTextElement = appendSvgElement(panelFrameSvgElement, "text", {
             x: secondaryTextX,
             y: secondaryTextY,
             "text-anchor": "start",
             fill: normalizeCssColor(panelFrameProperties.secondaryColor, "#ffffff"),
             "fill-opacity": secondaryTextOpacity,
             "font-family": "Helvetica Neue,Arial,sans-serif",
-            "font-size": clampNumber(panelFrameProperties.secondarySize, 6, 500, 15),
+            "font-size": clampNumberWithFallback(panelFrameProperties.secondarySize, 6, 500, 15),
             "font-weight": 300,
-            "letter-spacing": clampNumber(panelFrameProperties.secondarySpacing, -20, 100, 2.1),
+            "letter-spacing": clampNumberWithFallback(panelFrameProperties.secondarySpacing, -20, 100, 2.1),
           }),
-          secondaryTextWeight = clampNumber(panelFrameProperties.secondaryWeight, 0, 3, 0);
+          secondaryTextWeight = clampNumberWithFallback(panelFrameProperties.secondaryWeight, 0, 3, 0);
         (secondaryTextWeight > 0 &&
           Object.entries({
             stroke: normalizeCssColor(panelFrameProperties.secondaryColor, "#ffffff"),

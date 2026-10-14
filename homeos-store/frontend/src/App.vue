@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, watch } from "vue";
 import { useRoute } from "vue-router";
-import AdminToastHost from "./components/AdminToastHost.vue";
-import ConfirmDialog from "./components/ConfirmDialog.vue";
+import AdminToastHost from "@store/shared/components/AdminToastHost.vue";
+import ConfirmDialog from "@store/shared/components/ConfirmDialog.vue";
+import { useStoreToast } from "@store/shared/stores/toast";
 
 const route = useRoute();
+const storeToast = useStoreToast();
 
 const isAdmin = computed(() => route.path === "/admin" || route.path.startsWith("/admin/"));
 const isStore = computed(
@@ -44,4 +46,17 @@ onBeforeUnmount(() => setAdminStylesheet(false));
   <router-view />
   <AdminToastHost />
   <ConfirmDialog :variant="isAdmin ? 'admin' : 'store'" />
+  <!-- 轻提示挂在这里（应用根），而不是 `StoreLayout` 里：全局错误兜底
+       （`main.ts` 的 `errorHandler` / `unhandledrejection`）在登录页、`/setup`
+       这些**不经过 StoreLayout** 的页面上也要能说话，否则最该报错的路径恰好没有嘴。
+       元素位置对这层提示没有影响：`.hb-toast` 是 `position: fixed`。 -->
+  <div
+    id="store-toast"
+    class="hb-toast"
+    :class="{ show: storeToast.visible, 'is-err': storeToast.tone === 'err' }"
+    :role="storeToast.tone === 'err' ? 'alert' : 'status'"
+    :aria-live="storeToast.tone === 'err' ? 'assertive' : 'polite'"
+  >
+    {{ storeToast.message }}
+  </div>
 </template>

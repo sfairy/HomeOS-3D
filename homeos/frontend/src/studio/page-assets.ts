@@ -111,6 +111,15 @@ const MANAGED_ATTR = "data-spa-managed";
 // 用 href 后缀而不是全等：入口里的 href 可能带查询串或片段，全等匹配会落空。
 // 后缀匹配把受管样式表锚定在 SPA 外壳样式之后，两种环境下顺序都成立。
 const ANCHOR_SELECTOR = 'link[href$="/static/spa-shell.css"]';
+/**
+ * 锚点缺失时的兜底落点：第一张**非受管**样式表（即 Vite 打包进来的那张）。
+ *
+ * 路线由外观（app.css / display.css / 3d-studio/studio.css…）必须排在打包 CSS **之前**：
+ * 一旦被追加到 `<head>` 末尾，它们就晚于 Vite CSS，于是「后加载的赢」反过来成立，
+ * studio-chrome.css 只能靠 52 条 `!important` 硬压（历史上正是如此）。宁可排前面，
+ * 也不要制造这种隐式优先级倒挂。
+ */
+const UNMANAGED_STYLESHEET_SELECTOR = `link[rel="stylesheet"]:not([${MANAGED_ATTR}])`;
 
 /** 当前 <head> 里由本模块挂载的受管样式表 href 列表（文档顺序）。 */
 export function listManagedStylesheets(): string[] {
@@ -128,6 +137,11 @@ function applyStylesheets(urls: readonly string[]): void {
   ]) {
     if (!desired.has(el.getAttribute("href") || "")) el.remove();
   }
+  /**
+   * 兜底边界：`spa-shell.css` 不在（精简入口 / 独立页）时插到第一张非受管样式表**之前**，
+   * 而不是 `appendChild` 到 `<head>` 末尾 —— 见 UNMANAGED_STYLESHEET_SELECTOR 的说明。
+   */
+  const boundary = anchor ?? document.head.querySelector(UNMANAGED_STYLESHEET_SELECTOR);
   let cursor: Element | null = anchor;
   for (const url of urls) {
     // 预装表可能已在 index.html 中（同 href）；复用节点，避免重复 <link> 与二次下载闪烁。
@@ -145,6 +159,7 @@ function applyStylesheets(urls: readonly string[]): void {
     }
     el.setAttribute(MANAGED_ATTR, "css");
     if (cursor) cursor.after(el);
+    else if (boundary) boundary.before(el);
     else document.head.appendChild(el);
     cursor = el;
   }

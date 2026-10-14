@@ -476,7 +476,10 @@
 .i3d-extra-gesture-hint {
   position: fixed;
   pointer-events: none;
-  z-index: 10000;
+  /* 原为裸值 10000：夹在 --z-modal(1000) 与 --z-drawer(11000) 之间，既盖不住抽屉、
+     又比模态高一个数量级，任何一层改 token 都会互相打架。手势提示只需要压住舞台与面板、
+     让位于模态，故走 --z-toast 档。 */
+  z-index: var(--z-toast);
   padding: 6px 9px;
   border-radius: 6px;
   background: #202932;
@@ -543,7 +546,8 @@
     sans-serif;
 }
 .i3d-extra-select-menu {
-  z-index: 10010;
+  /* 下拉浮层：令牌表里归「绝对顶层」（下拉选择器/拾色器/输入联想），替换原裸值 10010 */
+  z-index: var(--z-max);
 }
 .i3d-extra-select-menu[hidden] {
   display: none !important;

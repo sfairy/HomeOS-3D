@@ -713,6 +713,23 @@
   min-width: 0;
 }
 
+/*
+ * 卡片根元素是 <button>（键盘 / 读屏可达），这里复位原生按钮外观：
+ * 背景、边框、内边距、对齐全部由 .dgm-light-card 提供，视觉与改造前一致。
+ */
+button.dgm-light-card {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.dgm-light-card:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline-offset: 2px;
+}
+
 .dgm-light-card:hover {
   background: rgba(255, 255, 255, 0.045);
   border-color: rgba(255, 255, 255, 0.12);

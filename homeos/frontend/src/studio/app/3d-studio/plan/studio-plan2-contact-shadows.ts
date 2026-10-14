@@ -977,7 +977,7 @@ export function createContactShadowController({
           [bufferGeometry.type, bufferGeometry.parameters],
           (jsonKey, jsonValue) => (jsonKey === "uuid" ? undefined : jsonValue),
         );
-      } catch {}
+      } catch { /* 序列化失败（循环引用 / BigInt）按「无缓存数据」处理，不阻断草稿保存 */ }
     if (!geometryKey) {
       const hashAttribute = (attribute: any) => {
         if (!attribute) return null;

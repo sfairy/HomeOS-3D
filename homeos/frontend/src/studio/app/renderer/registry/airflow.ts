@@ -1,4 +1,4 @@
-import { clampNumber, normalizeCssColor } from "./_shared";
+import { clampNumberWithFallback, normalizeCssColor } from "./_shared";
 import { isClimatePoweredOn, resolveAirflowMotionKind } from "./cover-climate-state";
 
 type RenderPropertyBag = any;
@@ -11,19 +11,19 @@ function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeK
         : airflowModeKind === "heat"
           ? normalizeCssColor(airflowProperties.airflowHeatColor, "#ff8a65")
           : normalizeCssColor(airflowProperties.airflowOtherColor, "#ffffff"),
-    airflowAngleDegrees = clampNumber(airflowProperties.airflowAngle, -360, 360, 7),
-    airflowLengthRatio = clampNumber(airflowProperties.airflowLength, 10, 300, 200) / 100,
-    airflowFadeRatio = clampNumber(airflowProperties.airflowFadePosition, 15, 100, 50) / 100,
-    airflowSpreadValue = clampNumber(airflowProperties.airflowSpread, 10, 300, 100),
+    airflowAngleDegrees = clampNumberWithFallback(airflowProperties.airflowAngle, -360, 360, 7),
+    airflowLengthRatio = clampNumberWithFallback(airflowProperties.airflowLength, 10, 300, 200) / 100,
+    airflowFadeRatio = clampNumberWithFallback(airflowProperties.airflowFadePosition, 15, 100, 50) / 100,
+    airflowSpreadValue = clampNumberWithFallback(airflowProperties.airflowSpread, 10, 300, 100),
     airflowCurveFactor = Math.tanh(
-      clampNumber(airflowProperties.airflowCurve, -200, 200, 20) / 140,
+      clampNumberWithFallback(airflowProperties.airflowCurve, -200, 200, 20) / 140,
     ),
-    airflowDensityRatio = clampNumber(airflowProperties.airflowDensity, 20, 200, 60) / 100,
-    airflowIrregularityRatio = clampNumber(airflowProperties.airflowIrregularity, 0, 200, 50) / 100,
-    airflowThicknessRatio = clampNumber(airflowProperties.airflowThickness, 5, 300, 40) / 100,
-    airflowStrengthRatio = clampNumber(airflowProperties.airflowStrength, 0, 500, 200) / 100,
-    airflowBlurValue = clampNumber(airflowProperties.airflowBlur, 0, 30, 6),
-    airflowSpeedValue = clampNumber(airflowProperties.airflowSpeed, 0.3, 12, 1),
+    airflowDensityRatio = clampNumberWithFallback(airflowProperties.airflowDensity, 20, 200, 60) / 100,
+    airflowIrregularityRatio = clampNumberWithFallback(airflowProperties.airflowIrregularity, 0, 200, 50) / 100,
+    airflowThicknessRatio = clampNumberWithFallback(airflowProperties.airflowThickness, 5, 300, 40) / 100,
+    airflowStrengthRatio = clampNumberWithFallback(airflowProperties.airflowStrength, 0, 500, 200) / 100,
+    airflowBlurValue = clampNumberWithFallback(airflowProperties.airflowBlur, 0, 30, 6),
+    airflowSpeedValue = clampNumberWithFallback(airflowProperties.airflowSpeed, 0.3, 12, 1),
     streamBaseOffset = 6,
     streamFarOffset = streamBaseOffset + (228 - streamBaseOffset) * airflowFadeRatio,
     streamMidOffset = streamBaseOffset + (streamFarOffset - streamBaseOffset) * 0.63,

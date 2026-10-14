@@ -19,8 +19,8 @@ import ssl
 from collections.abc import Callable
 from typing import Any
 
-from ...realtime.access import is_entity_allowed_by_restrictions
-from ...realtime.ws_auth import extract_auth_token_from_cookie, resolve_ws_user
+from ...platform.security.entity_access import is_entity_allowed_by_restrictions
+from ...platform.security.ws_auth import extract_auth_token_from_cookie, resolve_ws_user
 
 logger = logging.getLogger("homeos.ws-proxy")
 

@@ -72,7 +72,7 @@ export function createLightStream({
     ((activeSocket = null), removeSocketListeners?.(), (removeSocketListeners = null));
     try {
       socketToClose?.close();
-    } catch {}
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
   }
   function scheduleReconnect() {
     if (isDisposed || !isStreamActive || !subscribedEntityIds.length || reconnectTimerId !== null)

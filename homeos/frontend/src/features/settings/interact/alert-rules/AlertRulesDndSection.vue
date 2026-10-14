@@ -251,7 +251,7 @@
 import { computed } from 'vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { BellOff, Clock, Filter, Moon, ShieldAlert, Sun } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'

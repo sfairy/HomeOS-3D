@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- 冒烟脚本的唯一交付物就是控制台 PASS/FAIL 记录 */
+ 
 /**
  * 全局 Esc 层级栈（useEscStack）回归。
  *

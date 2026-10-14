@@ -22,7 +22,7 @@ export function createButtonSound() {
         soundEnabled = !!nextEnabledValue;
         try {
           window.localStorage.setItem(ENABLED_STORAGE_KEY, soundEnabled ? "1" : "0");
-        } catch {}
+        } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
         return soundEnabled;
       },
       toggle() {

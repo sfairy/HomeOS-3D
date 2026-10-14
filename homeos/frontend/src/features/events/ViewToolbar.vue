@@ -8,7 +8,7 @@ import { Activity, Clock, Flame, Search, Layers } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import SearchableSelect from '@/components/common/base/SearchableSelect.vue'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
-import ListPageQueryToolbar from '@/components/page-shell/ListPageQueryToolbar.vue'
+import ListPageQueryToolbar from '@/components/list-page-shell/ListPageQueryToolbar.vue'
 import './styles/events-toolbar.css'
 
 const props = defineProps({

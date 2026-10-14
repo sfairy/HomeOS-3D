@@ -103,6 +103,27 @@ def expect_true(condition: object, message: str) -> None:
         raise AssertionError(message)
 
 
+def check_calls(label: str, fn) -> None:
+    """跑一段**可能抛错**的断言体，并记录一项检查（fn 式 check）。
+
+    存在的理由：``check(label, condition)`` 的第二个参数是**真值**。把函数对象传进去
+    （``check("某断言", some_assertion_fn)``）永远为真 —— ``bool(function) is True`` ——
+    于是一条「永远 PASS 的假断言」就混进了门禁，而且它比没有断言更糟：报告上它是绿的。
+    这个坑本项目真踩过（``_home_mode_validation_smoke.py`` 首版整节都是这么写的，
+    因为商店侧夹具恰好是 fn 式 ``check``，照抄过来就静默失效了）。
+
+    所以：断言体要抛错时用本函数；只是比对布尔值时才用 :func:`check`。
+    """
+    try:
+        fn()
+    except AssertionError as error:
+        check(label, False, str(error))
+    except Exception as error:
+        check(label, False, f"{type(error).__name__}: {error}")
+    else:
+        check(label, True)
+
+
 def section(title: str) -> None:
     print(f"\n{title}")
 
@@ -229,6 +250,7 @@ __all__ = [
     "FakeStoreVerificationClient",
     "bootstrap_env",
     "check",
+    "check_calls",
     "csrf_headers",
     "ensure_backend_on_path",
     "expect",

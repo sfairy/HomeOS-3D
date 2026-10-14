@@ -230,9 +230,10 @@ import Overview from '@/features/security/Overview.vue'
 | 入户页场景壳 / 密码框（与授权商店共用一份） | 壳在 `@homeos/shared/components/`；本应用的取数适配层是 `components/common/{SceneStage.vue,scene-values.ts}`，四个视图 `views/auth/*` 只传 `page` |
 | 设备域（2D 控制 UI） | `features/device/`（13 组件 + `analytics/` + `styles/` + `composables/{useDevicesView,useDeviceDetailView}` 两个视图模型） |
 | 设备/实体纯逻辑 | `shared/device/utils/`、`shared/entity/utils/`（含 `control/` 控制内核与 `popup-registry.util` 纯判定）；store/Vue 耦合件留 `composables/{device,entity}/` |
-| 实体共享 UI | `components/entities/`（含 `popups/`、`device-group/`、`styles/`）。**这是设计内的正确位置**，不是待迁遗留：`views/features → components → composables → …` 的 DAG 里 `components/` 就是「共享 UI 层」，且明禁 `components → features`。归位准则：UI 桶的外部消费者**全在 `views/`** → 叶子域 → `features/<域>/`（如 `components/devices → features/device/`）；外部消费者**含 `components/` 或 `composables/`** → 共享 UI → 留 `components/`（本桶与 `components/widgets`、`components/modals` 皆属此类）；外部消费者是**壳层装配点**（`layouts/MainLayout.vue`、`layouts/shell-overlays.ts`）或**跨多个视图 + 多个域** → 也是共享 UI，留 `components/`（`components/dashboard`、`components/setup`、`components/page-shell` 三条即按此判）；反之**唯一消费者落在某个 feature 内部** → **域内自持**，不挂 `components/`（`components/backup/BackupRestoreDialog.vue → features/settings/system/profiles/`）。`shared/` 不能承接：它是最底层，禁反向依赖 stores/composables/components |
+| 实体共享 UI | `components/entities/`（含 `popups/`、`device-group/`、`styles/`）。**这是设计内的正确位置**，不是待迁遗留：`views/features → components → composables → …` 的 DAG 里 `components/` 就是「共享 UI 层」，且明禁 `components → features`。归位准则：UI 桶的外部消费者**全在 `views/`** → 叶子域 → `features/<域>/`（如 `components/devices → features/device/`）；外部消费者**含 `components/` 或 `composables/`** → 共享 UI → 留 `components/`（本桶与 `components/widgets`、`components/modals` 皆属此类）；外部消费者是**壳层装配点**（`layouts/MainLayout.vue`、`layouts/shell-overlays.ts`）或**跨多个视图 + 多个域** → 也是共享 UI，留 `components/`（`components/dashboard`、`components/setup`、`components/list-page-shell` 三条即按此判）；反之**唯一消费者落在某个 feature 内部** → **域内自持**，不挂 `components/`（`components/backup/BackupRestoreDialog.vue → features/settings/system/profiles/`）。`shared/` 不能承接：它是最底层，禁反向依赖 stores/composables/components |
 | 桌面微件 | `components/widgets/`（见上「微件系统」行） |
-| 页面外壳（列表 / hero） | `components/page-shell/`（`ListPageHero`、`ListPageMetrics`、`ListPageQueryToolbar`）；消费者是 5 个视图 + `features/{events,notifications}` 两个域 → 共享 UI，不入 `features/` |
+| 页面外壳（列表 / hero） | `components/list-page-shell/`（`ListPageHero`、`ListPageMetrics`、`ListPageQueryToolbar`）；消费者是 5 个视图 + `features/{events,notifications}` 两个域 → 共享 UI，不入 `features/` |
+| 页面外壳（设置页 / 卡片） | `components/common/settings-page-shell/`（`SettingsPageShell`、`SettingsPageHeader`、`SettingsCard`、`SettingsCardIntro`）；与上面的**列表**壳是两件事，故目录名各自显式（此前两者都叫 `page-shell`，同名不同义） |
 | 主屏壳层 UI（页脚 / 右栏 / 卡片体 / 部件槽） | `components/dashboard/`（`Footer`、`RightSidebar`、`WidgetPanelSlot`、`PowerCardBody` + 3 张同域样式表）。唯一装配点是 `layouts/MainLayout.vue`，`views/` 里没有对应视图 → 共享壳层 UI，不入 `features/`（本批删掉该目录 11 张宿主已不存在的零引用样式表，共 4,115 行） |
 | 首装引导横幅 | `components/setup/`（`ChecklistBanner`、`ColdEntityPerfBanner`），唯一装配点是 `layouts/shell-overlays.ts`；数据来自 `shared/status/` |
 | 生活指数 / 图表宿主 composable | `composables/life/`（**留原位**：`useLifeIndices` 依赖 `useEntitiesStore` 与 `@/composables/entity/*` → 进不了 `shared/`；消费者含 `components/widgets/weather/LifeIndices.vue` → 也进不了 `features/`） |
@@ -262,7 +263,7 @@ import Overview from '@/features/security/Overview.vue'
 
 `.md` 只走「`@/` 字样」这一遍，**不解析文档里的 `import` 示例** —— 示例是示意，不是真引用。
 `src/**/*.md` 与本包根级 `*.md` 都在扫描面内（当前 4 个：`src/README.md`、
-`src/components/page-shell/README.md`、`src/studio/README.md`、`src/studio/MONOLITH_BASELINE.md`）。
+`src/components/list-page-shell/README.md`、`src/studio/README.md`、`src/studio/MONOLITH_BASELINE.md`）。
 
 ### 样式表卫生
 
@@ -334,7 +335,7 @@ import Overview from '@/features/security/Overview.vue'
 |---|---|---|
 | 纯逻辑池 | `@homeos/shared`（bare，`src/index.ts`） | 常量 / 类型 / 纯函数。主应用 100+ 处使用；商店目前不用 |
 | 场景壳契约 | `@homeos/shared/scene/scene-values` | `SceneShell` / `SceneValues` / `resolveSceneValues`：两侧字典**形状**单点化，文案各留各的（本应用 `components/common/scene-values.ts` ↔ 商店 `components/scene-values.ts`，兜底页各点名 `login` / `store`） |
-| 手持档判据 | `@homeos/shared/scene/touch-profile` | `isTouchProfile` / `applyTouchProfile`；本应用经 `studio/platform/scene-depth.ts` 进 `index.html` 的经典阻塞入口，商店在 `main.ts` import。**手抄兜底件** `public/static/auth/scene/scene-depth.js` 无法 import，由 `ops/check_shared_contracts.py` 比对信号面 |
+| 手持档判据 | `@homeos/shared/scene/touch-profile` | `isTouchProfile` / `applyTouchProfile`；本应用经 `studio/platform/scene-depth.ts` 进 `index.html` 的经典阻塞入口，商店在 `main.ts` import。**手抄兜底件** `public/static/auth/scene/scene-depth.js` 无法 import，由 `ops/check/check_shared_contracts.py` 比对信号面 |
 | 共享 SFC | `@homeos/shared/components/{SceneStage,PasswordField}.vue` | 本包承载的第一批 `.vue`：两侧逐字同构的展示件，旧副本已删 |
 | 剪贴板内核 | `@homeos/shared/utils/clipboard` | 纯拷贝（安全上下文走 Clipboard API，HTTP 降级 `execCommand`）；提示文案留各应用（本应用接 `services/notify`，商店接 `useToast`）。商店 4 处消费**全部**走本店 `utils/clipboard` 包装：`LicensesView` 一直如此，`ItemView` / `AccountView` / `ReferralsView` 三个视图原先裸调 `navigator.clipboard.writeText`（**HTTP 非安全上下文下必抛**，正是该内核存在的理由），本轮并入 |
 
@@ -342,7 +343,7 @@ import Overview from '@/features/security/Overview.vue'
 WS 事件名、可控实体域、通知来源与过滤优先级、实体引用种类、语音告警规则、系统配置字段白名单，
 外加商店配色令牌名（`homeos-store` 的 TS 生成 ↔ Python 校验器）。它们登记在
 `ops/contracts/shared-twins.json`，由 `bun run verify:contracts` 按**字面量集合**对账；口径与
-「抽取不到就判解析失败」的取舍见 `ops/check_shared_contracts.py` 的模块说明。**改这些常量等于改契约**，
+「抽取不到就判解析失败」的取舍见 `ops/check/check_shared_contracts.py` 的模块说明。**改这些常量等于改契约**，
 两处一起改或登记豁免（豁免必须写理由）。本轮清掉了 WS 事件名孪生里**唯一一条**真实豁免：`child_mode`
 全仓只剩定义处（前端无读取、后端无发射、Python 无孪生项），确认死常量后连常量带豁免一起删除；
 该孪生的 `ignore` 用例随之改为**自检自带豁免**，不再依赖黄金文件里真有豁免。

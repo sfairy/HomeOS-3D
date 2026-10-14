@@ -4,6 +4,7 @@
 body.hb-store-body {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh; /* dvh 在后：移动端地址栏收起/展开时按可视高度铺满，vh 兜底老浏览器 */
   flex-direction: column;
 }
 

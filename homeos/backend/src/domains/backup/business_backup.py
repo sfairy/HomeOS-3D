@@ -481,7 +481,7 @@ def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
     stats_path = directory / f"inspect-{uuid4().hex}.db"
     try:
         with ZipFile(payload, "r") as archive, archive.open(DB_NAME) as source, stats_path.open("wb") as target:
-            shutil.copyfileobj(source, target)
+            _copy_bounded(source, target, limit=MAX_EXPANDED, what="数据库快照")
         _validate_database_file(stats_path)
         counts = _database_counts(stats_path)
     finally:
@@ -557,17 +557,46 @@ def _write_journal(rollback_dir: Path, journal: dict[str, Any]) -> None:
     )
 
 
+def _copy_bounded(source: Any, destination: Any, *, limit: int, what: str) -> int:
+    """按块把 zip 条目写到目标，**实际写出的字节数**超过 ``limit`` 即中止，返回总字节数。
+
+    `ZipInfo.file_size` 是压缩包头里的自述值，可以撒谎；`shutil.copyfileobj` 又是无上限的，
+    所以解包侧必须自己数一遍 —— 否则一个几十 KB 的 zip bomb 就能在恢复/预览时把磁盘写满。
+    """
+    total = 0
+    while True:
+        chunk = source.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > limit:
+            raise BackupError(f"{what}展开后超过上限（{limit // (1024 * 1024)} MB），已中止。")
+        destination.write(chunk)
+    return total
+
+
 def _extract_data_files(archive: ZipFile, extract_root: Path) -> None:
+    """把归档里的数据文件解到 ``extract_root``，并在此**重新**校验规模上限。
+
+    写入侧（``create_payload``）有 4 GB / 50000 文件的上限，但那只约束「我们自己造包时」；
+    恢复入口接受外部上传的 zip，条目数与解压后体积都由上传方说了算，所以这里必须再数一遍。
+    """
+    total = 0
+    count = 0
     for info in archive.infolist():
         name = info.filename
         if name.endswith("/") or name in {DB_NAME, MANIFEST_NAME}:
             continue
         if _safe_relative(name) is None:
             raise BackupError("备份含非法路径，已中止恢复。")
+        count += 1
+        if count > MAX_FILES:
+            raise BackupError(f"备份条目数超过上限（{MAX_FILES} 个），已中止恢复。")
         target = extract_root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         with archive.open(info) as source, target.open("wb") as destination:
-            shutil.copyfileobj(source, destination)
+            total += _copy_bounded(source, destination, limit=MAX_EXPANDED - total, what="备份数据")
+
 
 
 def _restore_data_files(
@@ -696,7 +725,7 @@ def restore_business(
             archive.open(DB_NAME) as source,
             restored_db.open("wb") as destination,
         ):
-            shutil.copyfileobj(source, destination)
+            _copy_bounded(source, destination, limit=MAX_EXPANDED, what="数据库快照")
         _validate_database_file(restored_db)
         os.chmod(restored_db, 0o600)
         if dispose is not None:

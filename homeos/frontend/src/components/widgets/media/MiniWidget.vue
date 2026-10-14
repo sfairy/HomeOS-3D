@@ -25,10 +25,14 @@
       <template v-else>
         <div v-if="albumBg" class="mm-album-bg" :style="{ backgroundImage: `url(${albumBg})` }" />
         <div v-if="playerIds.length > 1" class="mm-dots">
-          <div
+          <!-- 分页点必须是真按钮：原来是无键盘路径的 div，键盘用户无法切换播放器 -->
+          <button
             v-for="(eid, idx) in playerIds"
             :key="eid"
+            type="button"
             :class="['mm-dot', { 'mm-dot--active': idx === activeSlide }]"
+            :aria-label="`切换到播放器 ${getEntityDisplayName(eid, entitiesStore.entities[eid])}`"
+            :aria-current="idx === activeSlide ? 'true' : undefined"
             @click="scrollToSlide(idx)"
           />
         </div>
@@ -55,20 +59,32 @@
                     <span class="sr-only">{{ stateDotLabel(eid) }}</span>
                   </div>
                 </div>
-                <div class="mm-controls" @mousedown.stop @click.stop="openPlayer(eid)">
-                  <div class="mm-cover">
-                    <img
-                      v-if="entityArt(eid)"
-                      :src="entityArt(eid)"
-                      class="w-full h-full object-cover"
-                      alt=""
-                    />
-                    <div v-else class="mm-cover-fallback"><Music :size="18" /></div>
-                  </div>
-                  <div class="mm-track-info">
-                    <div class="mm-title">{{ mediaTitle(eid) }}</div>
-                    <div class="mm-subtitle">{{ mediaSubtitle(eid) }}</div>
-                  </div>
+                <!--
+                  「打开播放器」原来是 .mm-controls 上的 @click，键盘不可达。
+                  这里把封面 + 曲目信息包成真按钮，三个传输控制是它的同级按钮
+                  （HTML 不允许按钮嵌套）。
+                -->
+                <div class="mm-controls" @mousedown.stop>
+                  <button
+                    type="button"
+                    class="mm-open"
+                    :aria-label="`打开播放器 ${mediaTitle(eid)}`"
+                    @click.stop="openPlayer(eid)"
+                  >
+                    <div class="mm-cover">
+                      <img
+                        v-if="entityArt(eid)"
+                        :src="entityArt(eid)"
+                        class="w-full h-full object-cover"
+                        alt=""
+                      />
+                      <div v-else class="mm-cover-fallback"><Music :size="18" /></div>
+                    </div>
+                    <div class="mm-track-info">
+                      <div class="mm-title">{{ mediaTitle(eid) }}</div>
+                      <div class="mm-subtitle">{{ mediaSubtitle(eid) }}</div>
+                    </div>
+                  </button>
                   <div class="mm-actions" @click.stop>
                     <button
                       type="button"

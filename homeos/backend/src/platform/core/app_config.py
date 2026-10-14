@@ -1,38 +1,20 @@
 """AppConfig 只读访问器（SystemConfig 单例）。
 
-完整的分区校验/写入属 Phase 5；此处仅提供 auth 分区读取，供认证链路取
-``lockoutMaxAttempts`` / ``lockoutMinutes`` / ``sessionExpireDays``，
-缺省值与 ``@homeos/shared`` 的 ``DEFAULT_AUTH_SECURITY`` 完全一致。
+**通用原语**：读整表（``load_raw_config``）与写/合并分区（``write_raw_config_section`` /
+``merge_raw_config_section``）。分区**语义**不在这里 —— 例如 ``auth`` 分区的缺省值与
+强类型读法在 ``platform/security/auth_config.py``，否则每个分区都要往这个底层文件里长。
+
+完整的分区校验/写入属 ``domains/app_config``；本模块刻意保持「不认识任何业务字段」。
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from .models import SystemConfig
-
-DEFAULT_AUTH_CONFIG: dict[str, Any] = {
-    "lockoutMaxAttempts": 5,
-    "lockoutMinutes": 15,
-    "sessionExpireDays": 30,
-    "loginAlertEnabled": True,
-    "newDeviceAlertCooldownMin": 1440,
-    "bruteForceAlertEnabled": True,
-}
-
-
-@dataclass(frozen=True)
-class AuthConfig:
-    lockout_max_attempts: int
-    lockout_minutes: int
-    session_expire_days: int
-    login_alert_enabled: bool
-    new_device_alert_cooldown_min: int
-    brute_force_alert_enabled: bool
 
 
 def load_raw_config(session: Session) -> dict[str, Any]:
@@ -65,17 +47,3 @@ def merge_raw_config_section(session_factory, section: str, partial: dict[str, A
         raw = load_raw_config(session)
     current = raw.get(section) if isinstance(raw.get(section), dict) else {}
     write_raw_config_section(session_factory, section, {**current, **partial})
-
-
-def get_auth_config(session: Session) -> AuthConfig:
-    raw = load_raw_config(session)
-    auth = raw.get("auth") if isinstance(raw.get("auth"), dict) else {}
-    merged = {**DEFAULT_AUTH_CONFIG, **auth}
-    return AuthConfig(
-        lockout_max_attempts=int(merged["lockoutMaxAttempts"]),
-        lockout_minutes=int(merged["lockoutMinutes"]),
-        session_expire_days=int(merged["sessionExpireDays"]),
-        login_alert_enabled=bool(merged["loginAlertEnabled"]),
-        new_device_alert_cooldown_min=int(merged["newDeviceAlertCooldownMin"]),
-        brute_force_alert_enabled=bool(merged["bruteForceAlertEnabled"]),
-    )

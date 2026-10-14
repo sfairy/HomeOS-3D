@@ -70,11 +70,39 @@
   gap: 10px;
   padding: 8px 12px;
   border-radius: var(--hos-radius-card);
-  cursor: pointer;
   transition: all 0.15s;
 }
 .asset-list-item:hover {
   background: rgba(255,255,255,0.05);
+}
+
+/*
+ * 条目主操作（进入目录 / 选择文件）。历史上这一层是带 @click 的 div，键盘完全不可达；
+ * 现在是真 <button>：Tab 可聚焦、Enter/Space 原生触发，且焦点落上时
+ * .asset-list-item:focus-within 会把右侧 复制/删除 按钮显形。
+ * 按钮不能包住右侧那两个按钮（HTML 禁止嵌套 button），所以它们是同级元素。
+ */
+.asset-list-item__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 焦点环内收，避免被条目圆角裁掉；其余焦点可见性交给全局 :where(button):focus-visible */
+.asset-list-item__main:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline-offset: -2px;
+  border-radius: 6px;
 }
 
 .asset-list-item__icon {

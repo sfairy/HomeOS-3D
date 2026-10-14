@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from ..app_config.constants import CONFIG_MASK_PLACEHOLDER
 from ..app_config.mask import is_masked_value
+from ...config import environment_is_production_from
 from ...platform.core.json_field import read_json_object
 from ...platform.core.models import ProjectConfig
 
@@ -75,7 +76,7 @@ def is_mock_allowed(env: Mapping[str, str] | None = None) -> bool:
         return True
     if flag == "false":
         return False
-    return str(source.get("NODE_ENV", "")).strip().lower() != "production"
+    return not environment_is_production_from(source)
 
 
 class AgentConfigService:

@@ -315,7 +315,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Sparkles, Trash2, Leaf, Loader2 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import EntityInput from '@/components/common/EntityInput.vue'

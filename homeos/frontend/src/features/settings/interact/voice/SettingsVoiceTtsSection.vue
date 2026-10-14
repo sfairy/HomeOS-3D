@@ -233,7 +233,7 @@
 import { computed } from 'vue'
 import { Volume2, Loader2, Speaker, Timer, MessageSquare } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'

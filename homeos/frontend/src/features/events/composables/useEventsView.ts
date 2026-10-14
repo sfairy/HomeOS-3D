@@ -423,10 +423,19 @@ export function useEventsView() {
     try {
       const { data } = await clearEvents()
       const deleted = Number(data?.deleted ?? 0)
-      chrome.notify(
-        deleted > 0 ? `已清除 ${formatCount(deleted)} 条记录` : '记录已清空',
-        'success',
-      )
+      // `complete: false` 表示后端触到批数上限、库里还有残留：此时提示「已清空」是在骗用户
+      // （他会看到列表里仍有数据），所以退化成警告并说明「可再次清除」。
+      if (data?.complete === false) {
+        chrome.notify(
+          `已清除 ${formatCount(deleted)} 条记录，仍有剩余记录未删完，请再次执行清除`,
+          'warning',
+        )
+      } else {
+        chrome.notify(
+          deleted > 0 ? `已清除 ${formatCount(deleted)} 条记录` : '记录已清空',
+          'success',
+        )
+      }
       page.value = 1
       await Promise.all([loadEvents(), loadStats()])
     } catch (e) {

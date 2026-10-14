@@ -47,7 +47,7 @@ class Database:
 
     库结构由 ``core/migrations.py`` 负责：开发期跑 Alembic 迁移，发行产物里没有迁移
     脚本，改为按 ORM 元数据建库（基线 ``0001`` 与 ``Base.metadata`` 等价，见
-    ``ops/check_schema.py`` 的结构指纹比对）。这里不暴露 create_all，是为了避免有人
+    ``ops/check/check_schema.py`` 的结构指纹比对）。这里不暴露 create_all，是为了避免有人
     绕过 ``run_migrations`` 建库、让缺表被悄悄兜住 —— 本地看起来正常，换台机器就少一张表。
     """
 

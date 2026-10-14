@@ -137,7 +137,7 @@ import {
   LayoutTemplate,
   CheckCircle,
 } from '@lucide/vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SetupWizardProgress from '@/features/settings/connect/setup-wizard/SetupWizardProgress.vue'

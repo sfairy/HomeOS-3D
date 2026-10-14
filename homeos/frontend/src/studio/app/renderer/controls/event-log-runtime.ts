@@ -33,14 +33,39 @@ export const EVENT_LOG_WALL_DEDUP_MAX_KEYS = 200;
 /** 自动监听模式下最多订阅的实体数量（避免逼近渲染器 1000 订阅上限）。 */
 export const EVENT_LOG_WALL_AUTO_ENTITY_LIMIT = 400;
 
-/** 从实体对象或实体 id 解析域名。 */
+/**
+ * 即时消息墙的实体引用：宿主既传字符串 id，也传对象，且两种字段名（`entityId` / `entity_id`）并存。
+ * 这里写成显式形状，替代原先三处 `as any` 直穿 —— 非法形状会在下面两个收窄点被挡掉。
+ */
+export interface EventLogEntityRef {
+  entityId?: unknown;
+  entity_id?: unknown;
+  domain?: unknown;
+}
+
+/** 把未知入参收窄成实体引用：非对象一律当空引用处理。 */
+function toEventLogEntityRef(value: unknown): EventLogEntityRef {
+  return value !== null && typeof value === "object" ? (value as EventLogEntityRef) : {};
+}
+
+/** 取第一个非空字符串字段（`entityId` / `entity_id` 两种写法混用，按声明顺序兜底）。 */
+function firstEntityRefText(source: EventLogEntityRef, keys: readonly (keyof EventLogEntityRef)[]): string {
+  for (const key of keys) {
+    const raw = source[key];
+    if (typeof raw === "string" && raw) return raw;
+  }
+  return "";
+}
+
+/** 从实体对象或实体 id 解析域名（对象优先取显式 `domain`，否则取 id 前缀）。 */
 export function eventLogWallDomainOf(entityRef: unknown): string {
-  const entityId =
-    typeof entityRef === "string"
-      ? entityRef
-      : String((entityRef as any)?.entityId || (entityRef as any)?.entity_id || "");
-  const declaredDomain = typeof entityRef === "string" ? "" : String((entityRef as any)?.domain || "");
-  return declaredDomain.trim().toLowerCase() || entityId.split(".", 1)[0].toLowerCase();
+  if (typeof entityRef === "string") {
+    return entityRef.split(".", 1)[0].toLowerCase();
+  }
+  const ref = toEventLogEntityRef(entityRef);
+  const declaredDomain = firstEntityRefText(ref, ["domain"]).trim().toLowerCase();
+  if (declaredDomain) return declaredDomain;
+  return firstEntityRefText(ref, ["entityId", "entity_id"]).split(".", 1)[0].toLowerCase();
 }
 
 /** 该实体是否属于即时消息墙监听的域。 */
@@ -49,54 +74,19 @@ export function isEventLogWallDomain(entityRef: unknown): boolean {
 }
 
 /**
- * 各域「控制 / 设定类」属性白名单：state 未变但这些属性变化时也应记录为一条事件
- * （与源 control-attr-change.util 的 ATTR_CHANGE_TRIGGERS 保持一致）。
+ * 属性白名单与「首处变更 → 文案」的控制流**只在** `@/shared/entity/utils/control-attr-change.util` 一份：
+ * 本文件此前抄了同一张 `ATTR_CHANGE_TRIGGERS` / `ATTR_CHANGE_LABELS` 与同一段循环（文件头注释也写着
+ * 「与源保持一致」），任一边改动就会分叉。这里改为注入本文件自己的紧凑值格式化口径。
  */
-export const ATTR_CHANGE_TRIGGERS: Record<string, readonly string[]> = {
-  climate: [
-    "temperature",
-    "target_temp_high",
-    "target_temp_low",
-    "humidity",
-    "fan_mode",
-    "preset_mode",
-    "swing_mode",
-    "hvac_mode",
-  ],
-  light: ["brightness", "color_temp", "color_temp_kelvin", "rgb_color", "hs_color", "effect"],
-  fan: ["percentage", "preset_mode", "oscillating", "direction"],
-  cover: ["current_position", "current_tilt_position"],
-  media_player: ["volume_level", "source"],
-  water_heater: ["temperature", "operation_mode"],
-  vacuum: ["fan_speed"],
-};
+import {
+  ATTR_CHANGE_TRIGGERS,
+  describeAttrChange as describeAttrChangeCore,
+} from "@/shared/entity/utils/control-attr-change.util";
 
-/** 属性 key → 中文标签。 */
-export const ATTR_CHANGE_LABELS: Record<string, string> = {
-  temperature: "目标温度",
-  target_temp_high: "温度上限",
-  target_temp_low: "温度下限",
-  humidity: "目标湿度",
-  fan_mode: "风速",
-  preset_mode: "模式",
-  swing_mode: "摆风",
-  hvac_mode: "运行模式",
-  brightness: "亮度",
-  color_temp: "色温",
-  color_temp_kelvin: "色温",
-  rgb_color: "颜色",
-  hs_color: "颜色",
-  effect: "灯效",
-  percentage: "风速",
-  oscillating: "摆头",
-  direction: "风向",
-  current_position: "位置",
-  current_tilt_position: "角度",
-  volume_level: "音量",
-  source: "输入源",
-  operation_mode: "模式",
-  fan_speed: "吸力",
-};
+/** 该域是否有属性白名单（无 → 共享实现必返回 null，可提前跳过 JSON 深比较）。 */
+export function hasEventLogAttrTriggers(domain: string): boolean {
+  return Boolean(ATTR_CHANGE_TRIGGERS[domain]);
+}
 
 /** 常见枚举属性值 → 中文标签。 */
 const ATTR_VALUE_LABELS: Record<string, string> = {
@@ -212,38 +202,44 @@ function roundNumber(value: number): number {
 
 /**
  * 比较新旧属性，返回首个变化的控制属性描述（如「风速 自动 → 高」）。
- * 无白名单域 / 无变化时返回 null。
+ * 白名单与控制流复用共享实现，仅注入本文件的紧凑值格式化口径；无白名单域 / 无变化返回 null。
  */
-export function describeAttrChange(
+function describeEventLogAttrChange(
   entityId: string,
   oldAttributes: Record<string, unknown> | undefined | null,
   newAttributes: Record<string, unknown> | undefined | null,
 ): string | null {
-  const triggers = ATTR_CHANGE_TRIGGERS[eventLogWallDomainOf(entityId)];
-  if (!triggers || !oldAttributes || !newAttributes) return null;
-  for (const key of triggers) {
-    if (JSON.stringify(oldAttributes[key]) !== JSON.stringify(newAttributes[key])) {
-      const label = ATTR_CHANGE_LABELS[key] || key;
-      return `${label} ${formatAttrValueText(key, oldAttributes[key])} → ${formatAttrValueText(
-        key,
-        newAttributes[key],
-      )}`;
-    }
-  }
-  return null;
+  if (!hasEventLogAttrTriggers(eventLogWallDomainOf(entityId))) return null;
+  return describeAttrChangeCore(
+    entityId,
+    oldAttributes ?? undefined,
+    newAttributes ?? undefined,
+    formatAttrValueText,
+  );
 }
 
 /** 状态快照最小形状：运行时 states Map 中可能包裹一层 newState。 */
 type StateSnapshot = { state?: unknown; attributes?: Record<string, unknown> } | null | undefined;
 
-/** 从运行时状态记录中取出真正的状态快照（兼容 { newState } 包裹）。 */
-export function resolveStateSnapshot(stateEntry: unknown): { state?: unknown; attributes?: Record<string, unknown> } | null {
-  if (!stateEntry || typeof stateEntry !== "object") return null;
-  const wrapped = (stateEntry as any).newState;
-  return (wrapped && typeof wrapped === "object" ? wrapped : stateEntry) as {
-    state?: unknown;
-    attributes?: Record<string, unknown>;
-  };
+/** 运行时状态记录：宿主两处写法并存 —— 直接一层 `state`，或包一层 `newState`。 */
+interface StateRecordEntry {
+  newState?: unknown;
+  state?: unknown;
+  attributes?: Record<string, unknown>;
+}
+
+/** 把未知入参收窄成状态记录（非对象 → null，不再 `as any` 直穿）。 */
+function toStateRecordEntry(value: unknown): StateRecordEntry | null {
+  return value !== null && typeof value === "object" ? (value as StateRecordEntry) : null;
+}
+
+/** 从运行时状态记录中取出真正的状态快照（兼容 `{ newState }` 包裹）。 */
+export function resolveStateSnapshot(stateEntry: unknown): StateSnapshot {
+  const entry = toStateRecordEntry(stateEntry);
+  if (!entry) return null;
+  const wrapped = toStateRecordEntry(entry.newState);
+  if (wrapped) return wrapped;
+  return { state: entry.state, attributes: entry.attributes };
 }
 
 /** 状态变更解析结果。 */
@@ -269,13 +265,13 @@ export function resolveEntityStateChangeMessage(
   const oldStateValue = oldState?.state == null ? undefined : String(oldState.state);
 
   if (oldState && oldStateValue === newStateValue) {
-    const attrText = describeAttrChange(entityId, oldState.attributes, newState.attributes);
+    const attrText = describeEventLogAttrChange(entityId, oldState.attributes, newState.attributes);
     if (!attrText) return null;
     return { state: newStateValue, attrText, label: attrText };
   }
 
   if (!newStateValue) return null;
-  return { state: newStateValue, attrText: null as any, label: resolveEventLogStateLabel(newStateValue) };
+  return { state: newStateValue, attrText: null, label: resolveEventLogStateLabel(newStateValue) };
 }
 
 /** 构建事件指纹（属性变更：entity|attr|text；状态变更：entity|state|old|new）。 */
@@ -297,17 +293,20 @@ export function eventLogWallDeviceId(metadata: Record<string, unknown> | null | 
   return typeof deviceId === "string" ? deviceId.trim() : "";
 }
 
-/**
- * 窗口期去重键：同一实体、同一设备、同一展示名在短时间内的相同标签只保留一条。
- * 灯实体常与同设备 switch 各推一次 state_changed，仅按 entityId 会显示成两行。
- */
-export function eventLogWallDedupKeys(options: {
+/** 去重键入参：一条事件墙条目参与去重所需的字段。 */
+export interface EventLogWallDedupOptions {
   entityId: string;
   label: string;
   fingerprint: string | null;
   displayName: string;
   deviceId?: string;
-}): string[] {
+}
+
+/**
+ * 窗口期去重键：同一实体、同一设备、同一展示名在短时间内的相同标签只保留一条。
+ * 灯实体常与同设备 switch 各推一次 state_changed，仅按 entityId 会显示成两行。
+ */
+export function eventLogWallDedupKeys(options: EventLogWallDedupOptions): string[] {
   const keys: string[] = [];
   const label = String(options.label || "").trim();
   if (options.fingerprint) keys.push(options.fingerprint);
@@ -353,6 +352,28 @@ export function formatEventLogTime(date: Date): string {
   return `${hours}:${minutes}:${seconds}`;
 }
 
+/** 实体元数据：宿主传 `name` / `originalName` / `deviceId` 等，值类型不定。 */
+export interface EventLogEntityMetadata {
+  name?: unknown;
+  originalName?: unknown;
+  deviceId?: unknown;
+  device_id?: unknown;
+}
+
+/** 把未知入参收窄成元数据对象；非对象 → 空对象（调用方不必再判空）。 */
+export function toEventLogEntityMetadata(value: unknown): EventLogEntityMetadata {
+  return value !== null && typeof value === "object" ? (value as EventLogEntityMetadata) : {};
+}
+
+/** 取第一个非空字符串字段（元数据的同义字段名混用，按声明顺序兜底）。 */
+function firstMetadataText(source: EventLogEntityMetadata, keys: readonly (keyof EventLogEntityMetadata)[]): string {
+  for (const key of keys) {
+    const raw = source[key];
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+  }
+  return "";
+}
+
 /** 解析实体显示名，依次回退：friendly_name → 元数据名 → 实体 id 主体。 */
 export function eventLogWallEntityName(
   entityId: string,
@@ -362,8 +383,7 @@ export function eventLogWallEntityName(
   const friendlyName = stateSnapshot?.attributes?.friendly_name;
   const label =
     (typeof friendlyName === "string" && friendlyName.trim()) ||
-    String((metadata as any)?.name || "").trim() ||
-    String((metadata as any)?.originalName || "").trim() ||
+    firstMetadataText(toEventLogEntityMetadata(metadata), ["name", "originalName"]) ||
     entityId.split(".", 2)[1] ||
     entityId;
   return String(label).replace(/_/g, " ").trim();

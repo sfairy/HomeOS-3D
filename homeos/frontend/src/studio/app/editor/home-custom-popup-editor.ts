@@ -14,7 +14,24 @@ import {
 } from "../shared/popup-layout";
 import { syncedLineChartProperties as syncedLineChartProperties2 } from "../renderer/panel-renderer";
 
-export interface CustomPopupEditorContext { [key: string]: any }
+export interface CustomPopupEditorContext {
+  /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构），由
+   *  `ops/studio/studio_context_bag_typing.mjs` 从**真实使用**生成，一个不多一个不少。
+   *
+   * 类型暂为 `any`：宿主 `home.ts` 的 `findElement()` 仍返回宽类型，控件语义（`.value` /
+   * `.checked` / `.options`）由注入点保证。**但开放索引签名已去掉** —— 键名拼错、宿主漏传
+   * 一个键现在会被 `tsc` 拦下。下一步是给 `findElement` 建「选择器 → 元素类型」映射，
+   * 再把这批字段换成具体类型。 */
+  activeProject: any;
+  currentPage: any;
+  customPopupEditorElement: any;
+  deviceNameValue: any;
+  editorMode: any;
+  handleOperationError: any;
+  mutateDocument: any;
+  openPopupModuleDialog: any;
+  selectedPopupId: any;
+}
 
 let customPopupEditorCtx: CustomPopupEditorContext;
 

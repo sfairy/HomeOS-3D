@@ -9,8 +9,26 @@ name: Build Check
 # 2026-10-10 的构建锁 ENOENT 就卡在这条缝里：本地有历史 dist/ 兜着所以是绿的，干净检出
 # 才炸；`verify:*` 那些门禁不跑构建，Docker 又太重。这个工作流把那一步单独拎出来。
 #
-# 刻意**不挂** push / pull_request，只在 Actions 页面手动 Run workflow 时执行。
+# 触发：
+# - `pull_request`：构建输入相关的路径一改就跑（见下方 paths）。**只做构建、不推镜像**，
+#   所以放进 PR 没有发布副作用；`checks.yml` 里那个 `build` job 是同一份脚本的常驻版本，
+#   这里额外覆盖「手动重跑一次」「只改构建相关文件时单独验证」两种场景。
+# - `workflow_dispatch`：Actions 页面手动 Run workflow。
 on:
+  pull_request:
+    # 只列会改变前端产物或构建过程的路径，避免纯文档/后端改动白跑一次全量构建。
+    paths:
+      - 'Dockerfile'
+      - 'ops/**'
+      - 'homeos/frontend/**'
+      - 'homeos-store/frontend/**'
+      - 'packages/**'
+      # 根级构建输入：锁文件/工作区清单/三条 vite 配置所依赖的 tsconfig。
+      - 'package.json'
+      - 'bun.lock'
+      - 'bunfig.toml'
+      - 'tsconfig*.json'
+      - '.github/workflows/build-check.yml'
   workflow_dispatch:
 
 permissions:
@@ -32,5 +50,8 @@ jobs:
 
       # 与 docker.yml build job 的对应步骤共用同一份定义，包括那 6 条产物结构断言。
       # checkout 出来就是干净树（没有 gitignore 的 dist/），正是当年出错的那种状态。
+      # 仍显式 `rm -rf dist`：万一 dist/ 被缓存或误提交，也能复现「干净检出」的失败面。
       - name: Build frontend to workspace dist
-        run: bash ops/ci/build_frontend_verify.sh
+        run: |
+          rm -rf dist
+          bash ops/ci/build_frontend_verify.sh

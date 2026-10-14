@@ -1,9 +1,15 @@
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal">
-      <div v-if="isOpen" class="hos-modal-root">
+      <div v-if="isOpen" ref="rootRef" class="hos-modal-root">
         <div class="hos-modal-backdrop" @click="$emit('close')" />
-        <div class="hos-modal-panel hos-modal-panel--lg">
+        <div
+          ref="panelRef"
+          class="hos-modal-panel hos-modal-panel--lg"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="asset-picker-title"
+        >
           <!-- 头部 -->
           <div class="hos-modal-head">
             <div class="hos-modal-head-left">
@@ -17,7 +23,7 @@
                 <Sparkles v-else class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="hos-modal-title">{{
+                <h3 id="asset-picker-title" class="hos-modal-title">{{
                   type === 'icon' ? '图标拾取器' : type === 'background' ? '背景图拾取器' : '素材拾取器'
                 }}</h3>
                 <p class="hos-modal-subtitle">
@@ -79,6 +85,10 @@ import { ref, computed, defineAsyncComponent, watch } from 'vue'
 import { X, Images, Sparkles, MousePointer2 } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 
 // 异步加载 AssetManager，避免首屏打包体积过大
 const AssetManager = defineAsyncComponent(() => import('@/components/common/AssetManager.vue'))
@@ -99,6 +109,18 @@ const teleportDisabled = computed(
 watch(keepAliveTeleportDisabled, (disabled) => {
   if (disabled && props.isOpen) emit('close')
 })
+
+/** 浮层最外层节点与面板：焦点陷阱管面板，背景隔离要的是整层（含背板）。 */
+const rootRef = ref(null)
+const panelRef = ref(null)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁共用同一判据。 */
+const isActive = computed(() => !!props.isOpen)
+
+useFocusTrap(panelRef, isActive)
+// Esc 关掉拾取器：它是「选素材」的中途步骤，取消入口只有右上角那个关闭按钮。
+useEscLayer(isActive, '素材拾取器', () => emit('close'))
+useBackgroundInert(rootRef, isActive, '素材拾取器')
+useBodyScrollLock(isActive, '素材拾取器')
 
 /** 已选项目数量（每次 AssetManager 触发 select 时累加） */
 const selectedCount = ref(0)

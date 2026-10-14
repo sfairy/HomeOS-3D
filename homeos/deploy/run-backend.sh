@@ -1,14 +1,18 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # 源码态启动主应用后端（非 Docker 生产路径）。
 # Docker 一键部署请用仓库根：./ops/deploy/deploy.sh
 #
 # 用法：
-#   sh deploy/run-backend.sh           # 或：bun run --cwd homeos start:prod
+#   bash deploy/run-backend.sh         # 或：bun run --cwd homeos start:prod
+#
+# 为什么是 bash 而不是 sh：`set -o pipefail` 不是 POSIX，dash（Debian 系 /bin/sh）会直接
+# 报「Illegal option」并退出 —— 用 `sh 本脚本` 调用时 shebang 被忽略，脚本当场失效。
+# 冒烟里的一条管线（`... | head`）在没有 pipefail 时会把上游失败吞掉，所以这行是必须的。
 #
 # 环境变量：
 #   PORT             监听端口，缺省 8801（与镜像内置反代 :8803 → 127.0.0.1:8801 一致）
 #   HOMEOS_ENV_FILE  额外 env 文件路径（缺省自动加载 backend/.env、.env）
-set -eu
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 

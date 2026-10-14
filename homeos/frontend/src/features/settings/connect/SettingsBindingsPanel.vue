@@ -135,7 +135,7 @@
 
 <script setup>
 import { ref, shallowRef, computed, watch, onMounted } from 'vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import { Video, Plus } from '@lucide/vue'
 import SettingsBindingsOverviewSection from '@/features/settings/connect/bindings/SettingsBindingsOverviewSection.vue'
 import SettingsBindingsWeatherSection from '@/features/settings/connect/bindings/SettingsBindingsWeatherSection.vue'

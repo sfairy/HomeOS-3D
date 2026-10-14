@@ -175,8 +175,8 @@ import {
   X,
   Eye,
 } from '@lucide/vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { fetchActiveHomeMode } from '@/services/api/home-modes'
 import { fetchNotificationSettings } from '@/services/api/notifications'

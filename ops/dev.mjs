@@ -15,6 +15,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { BACKEND_PORT_LIST, DEBUG_PORT_LIST, FRONTEND_PORT_LIST, port as portOf, waitForPort } from "./ports.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -28,24 +29,17 @@ const STORE_FRONTEND = path.join(DIST_ROOT, "homeos-store", "frontend");
 
 const IS_WINDOWS = process.platform === "win32";
 
-const APP_PORT = "8801";
-const STORE_PORT = "8802";
-const VITE_3D_PORT = "8805";
-const VITE_STORE_PORT = "8806";
-const DEBUG_APP_PORT = "8811";
-const DEBUG_STORE_PORT = "8812";
-const BACKEND_PORTS = [
-  [APP_PORT, "主应用 API"],
-  [STORE_PORT, "授权商店 API"],
-];
-const FRONTEND_PORTS = [
-  [VITE_3D_PORT, "主应用 Vite"],
-  [VITE_STORE_PORT, "授权商店 Vite"],
-];
-const DEBUG_PORTS = [
-  [DEBUG_APP_PORT, "主应用调试器"],
-  [DEBUG_STORE_PORT, "授权商店调试器"],
-];
+// 端口全部来自 `ops/ports.mjs`（唯一真源，门禁 `ops/check/check_ports.py` 守住它与
+// compose / 镜像启动器 / 两个 vite 配置的一致）；这里只留「启动器要用的那几个」的别名。
+const APP_PORT = String(portOf("appApi"));
+const STORE_PORT = String(portOf("storeApi"));
+const VITE_3D_PORT = String(portOf("viteApp"));
+const VITE_STORE_PORT = String(portOf("viteStore"));
+const DEBUG_APP_PORT = String(portOf("debugApp"));
+const DEBUG_STORE_PORT = String(portOf("debugStore"));
+const BACKEND_PORTS = BACKEND_PORT_LIST;
+const FRONTEND_PORTS = FRONTEND_PORT_LIST;
+const DEBUG_PORTS = DEBUG_PORT_LIST;
 const HOST = "127.0.0.1";
 const LAN_HOST = "0.0.0.0";
 const LOOPBACK_BIND_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -61,7 +55,6 @@ const VENV_DIR = path.join(ROOT, ".venv-store");
 const VENV_PYTHON = IS_WINDOWS
   ? path.join(VENV_DIR, "Scripts", "python.exe")
   : path.join(VENV_DIR, "bin", "python");
-const CLIENT_KEYS_DIR = path.join(ROOT, "keys");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -166,7 +159,8 @@ function ensureLicenseKeys(python) {
   if (!line) throw new Error("授权公钥同步没有返回 JSON。");
   try {
     return JSON.parse(line);
-  } catch (error) {
+  } catch {
+    // 只做「不是 JSON」的归因；原始解析错误对使用者没有信息量（下一行的正文才是）。
     throw new Error(`授权公钥同步返回的不是 JSON：${line}`);
   }
 }
@@ -710,6 +704,34 @@ async function main() {
     if (options.debug) {
       console.log(`调试器    主应用   ${DEBUG_APP_PORT}（IDE attach，热重载保留）`);
       console.log(`          授权商店 ${DEBUG_STORE_PORT}（IDE attach，热重载保留）`);
+    }
+    // 就绪确认：端口进入监听态即返回，而不是等一个固定时长 —— 依赖安装 / alembic 迁移 /
+    // reload 守护启动各自耗时不同，固定 sleep 只能靠猜（猜短了后续步骤偶发失败，猜长了白等）。
+    // 打印在 URL 之后：用户看到地址却连不上时，能直接分清「还没起来」与「起错了」。
+    {
+      const expected = [
+        [Number(APP_PORT), "主应用 API"],
+        [Number(STORE_PORT), "授权商店 API"],
+      ];
+      if (!options.backendOnly) {
+        expected.push([Number(VITE_3D_PORT), "主应用 Vite"], [Number(VITE_STORE_PORT), "授权商店 Vite"]);
+      }
+      const ready = await Promise.all(
+        expected.map(async ([portNumber, name]) => [
+          portNumber,
+          name,
+          await waitForPort(portNumber, { timeoutMs: 20_000, shouldStop: () => interrupted }),
+        ]),
+      );
+      const pending = ready.filter(([, , ok]) => !ok);
+      if (interrupted) {
+        // 用户按了 Ctrl-C：不追加噪声，直接走退出路径。
+      } else if (pending.length) {
+        console.log(`⚠ 20 秒内未进入监听态：${pending.map(([p, name]) => `${p}（${name}）`).join("、")}`);
+        console.log("  子进程日志在上面；常见原因是依赖未装全或端口被上一次的残留进程占住。");
+      } else {
+        console.log("✓ 服务已就绪。");
+      }
     }
     if (!options.backendOnly) {
       console.log("改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos dev:runtime");

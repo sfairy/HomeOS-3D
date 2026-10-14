@@ -459,8 +459,8 @@ import {
   Maximize2,
   X,
 } from '@lucide/vue'
-import ListPageHero from '@/components/page-shell/ListPageHero.vue'
-import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
+import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
+import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
 import HaDegradeBanner from '@/components/common/HaDegradeBanner.vue'
 import {
   MediaPagerControls,

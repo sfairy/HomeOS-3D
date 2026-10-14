@@ -13,8 +13,8 @@
     "dev:runtime": "vite build --config vite.runtime.config.ts --watch",
     "build:analyze": "set ANALYZE=1&& vite build",
     "preview": "vite preview",
-    "lint": "eslint \"src/**/*.{ts,vue}\" --fix",
-    "lint:ci": "eslint \"src/**/*.{ts,vue}\" --max-warnings 0",
+    "lint": "eslint . --fix",
+    "lint:ci": "eslint . --max-warnings 0",
     "check:studio-deps": "node scripts/gates/check-studio-deps.mjs",
     "check:frontend-deps": "node scripts/gates/check-frontend-deps.mjs",
     "check:refs": "node scripts/gates/check-import-refs.mjs",
@@ -26,7 +26,7 @@
     "check:deps-bag:selftest": "node scripts/gates/_deps_bag_lazy_selftest.mjs",
     "check:chunk-groups:selftest": "node scripts/gates/_vite_chunk_groups_selftest.mjs",
     "check:deps": "node ../../ops/lib/run-chain.mjs scripts/deps-gates.mjs",
-    "typecheck": "node ../../ops/run-vue-tsc.mjs -p tsconfig.json --noEmit"
+    "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",

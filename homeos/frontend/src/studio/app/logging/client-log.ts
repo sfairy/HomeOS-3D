@@ -104,7 +104,7 @@
       let normalizedPath = parsedUrl.pathname;
       try {
         normalizedPath = decodeURIComponent(normalizedPath);
-      } catch {}
+      } catch { /* 非法 URL / 编码：按原值继续（不因脏输入中断流程） */ }
       return normalizedPath
         .split(/[?#]/, 1)[0]
         .replace(/(\/api\/hls\/)[^/]+(?:\/.*)?/gi, "$1[stream]")
@@ -195,7 +195,7 @@
       eventQueue.length
         ? bridgeWindow.sessionStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(eventQueue))
         : bridgeWindow.sessionStorage.removeItem(LOG_STORAGE_KEY);
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
   function scheduleFlush(delayMs = 100) {
     flushTimer ||
@@ -663,6 +663,6 @@ type ResourceErrorTarget = EventTarget & {
           continue;
         }
       }
-  } catch {}
+  } catch { /* 日志持久化是 best-effort：存储不可用时只丢日志，不影响页面 */ }
   (persistQueue(), scheduleFlush());
 })(window);

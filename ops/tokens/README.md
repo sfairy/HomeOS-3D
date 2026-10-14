@@ -8,11 +8,17 @@
 bun run verify:tokens                # 令牌契约门禁：var() 引用必须可解析（CI 友好，失败退出码 1）
 bun run verify:tokenmap              # 令牌映射棘轮门禁：漂移/分歧/越界只减不增
 node ops/tokens/collect-token-map.mjs  # 重新生成映射契约（verify:tokenmap 的入参）
+node ops/tokens/check-token-contract.mjs --update   # 收紧「有回退」容忍档基线（只在真降下来之后跑）
+node ops/tokens/_token_contract_selftest.mjs        # 令牌契约门禁自检（判据注入 + 真实基线形状）
 ```
 
 | 脚本 | 产出 | 说明 |
 | --- | --- | --- |
-| `check-token-contract.mjs` | `ops/tokens/reports/token-contract.json` | **门禁**：`var(--x)` 是否都能解析到定义（未解析且无回退 → 退出码 1） |
+| `check-token-contract.mjs` | `ops/tokens/reports/token-contract.json` | **门禁**：`var(--x)` 是否都能解析到定义（未解析且无回退 → 退出码 1）；选择器位置的 `var()`；毛玻璃禁用组两份清单一致；「有回退」容忍档**逐项棘轮**（基线见下） |
+| `_token_contract_selftest.mjs` | — | **自检**：把四类缺陷注入合成样式断言判据会红，并断言真实 `main.css` / 真实基线形状正确（判据写法一变就静默变瞎，正是这里要拦的失效方式） |
+| `baseline-ratchet.mjs` | — | 容忍档棘轮的纯函数与读写（`compareRatchet` / `readBaseline` / `writeBaseline`），门禁与自检共用一份 |
+| `token-contract-baseline.json` | — | 容忍档基线：`{ "toleratedWithFallback": ["<file>|<name>", …] }`，**只减不增**（新增必红、失效必删） |
+| `selector-var.mjs` | — | 选择器位置 `var()` 的解析引擎 + 毛玻璃禁用组两份清单的对账锚点（自检直接调这里的纯函数） |
 | `collect-token-map.mjs` | `ops/contracts/ui-token-map.json` | 令牌映射契约：别名链、同名分歧、值同构镜像、命名空间遮蔽、区域身份色越界、命名漂移 |
 | `check-token-map.mjs` | — | **门禁**：映射棘轮（漂移/分歧/越界只减不增），基线在 `ops/contracts/ui-token-map.baseline.json` |
 | `targets.mjs` | — | 审计目标根（`REPO_ROOT` / `TARGETS` / `scanDirs` / `OUT_DIR`）与输出目录，各脚本共用一份避免漂移 |

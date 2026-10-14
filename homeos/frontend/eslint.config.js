@@ -62,7 +62,9 @@ const crossDomainBlocks = FEATURE_DOMAINS.map((domain) => ({
 
 export default [
   {
-    ignores: ['dist', 'node_modules', '.vite'],
+    // `public/` 是原样拷贝的静态资源（`vendor/**` 三方产物 + 用 `<script>` 直挂的
+    // boot-guard/sw），不参与 lint —— 与商店配置的 `frontend/public/**` 同一口径。
+    ignores: ['dist', 'node_modules', '.vite', 'public/**'],
   },
   recommendedBlock({ files: APP_FILES, ignores: APP_IGNORES }),
   ...vueEssentialBlocks({ ignores: APP_IGNORES }),
@@ -101,6 +103,16 @@ export default [
     ignores: APP_IGNORES,
     style: APP_STYLE,
   }),
+  // `scripts/**` 是仓库自己的门禁/冒烟入口（与 `ops/**` 同一定位）：console 就是它的
+  // 输出通道，不是遗留调试语句。此前这批文件虽在 APP_FILES 里，但 CLI glob 只写了
+  // `src/**/*.{ts,vue}`，所以从没被 lint 过；随 glob 补齐一并声明这条豁免。
+  {
+    files: ['scripts/**/*.{js,ts,mjs}'],
+    ignores: APP_IGNORES,
+    rules: {
+      'no-console': 'off',
+    },
+  },
   {
     files: [
       'src/components/**/*.{ts,vue}',

@@ -7,8 +7,8 @@
 <script setup>
 import { computed } from 'vue'
 import { LayoutGrid, Monitor, Puzzle, Sidebar } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
+import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsPopoutMenu from '@/features/settings/shared/layout/SettingsPopoutMenu.vue'

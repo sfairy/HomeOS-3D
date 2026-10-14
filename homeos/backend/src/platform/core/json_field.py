@@ -10,8 +10,26 @@ from typing import Any
 
 
 def parse_json_array(value: Any) -> list[Any]:
-    """将任意值规范为 JSON 数组（非数组 → ``[]``）。"""
-    return list(value) if isinstance(value, list) else []
+    """将任意值规范为 JSON 数组。
+
+    数组直通；**JSON 文本**（数据库里以 TEXT 存的 JSON 列）解析成数组；
+    非数组 / 解析失败 / 空值一律 → ``[]``（调用方不需要自己判类型）。
+
+    单一真源：``domains/notification/stats.py`` 与 ``realtime/gateway.py`` 原先各写一份
+    （一份只认 list、一份只认文本），同名不同义 —— 通知回写与实时推送用错版本就会静默丢字段。
+    """
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except (TypeError, ValueError):
+            return []
+        return parsed if isinstance(parsed, list) else []
+    return []
 
 
 def to_input_json(value: Any, fallback: Any = None) -> Any:

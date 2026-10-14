@@ -1,4 +1,4 @@
-import { clampNumber } from "./_shared";
+import { clampNumberWithFallback } from "./_shared";
 import { effectVariantByAssetId, resolveAssetSource } from "./asset-state";
 import {
   iconButtonEffectLightVisualAwaiting,
@@ -34,10 +34,10 @@ export function renderIconButtonEffectLayer(effectLayerComponent: any, effectLay
     effectLayerElement.style.setProperty(
       "--hb-effect-image-opacity",
       String(
-        clampNumber(effectLayerProperties.effectOpacity, 0, 1, 1) * effectLightVisualState.opacity,
+        clampNumberWithFallback(effectLayerProperties.effectOpacity, 0, 1, 1) * effectLightVisualState.opacity,
       ),
     ));
-  const effectFadeDuration = clampNumber(effectLayerProperties.effectFadeDuration, 0, 3, 0.52);
+  const effectFadeDuration = clampNumberWithFallback(effectLayerProperties.effectFadeDuration, 0, 3, 0.52);
   (effectLayerElement.style.setProperty("--hb-effect-fade-duration", effectFadeDuration + "s"),
     effectLayerElement.style.setProperty(
       "--hb-effect-visual-transition-duration",

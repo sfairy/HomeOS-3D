@@ -299,7 +299,7 @@ export function renderInteraction3d(
             },
             "3D 户型运行模块载入失败",
           )!;
-        } catch {}
+        } catch { /* 错误上报 best-effort：上报失败不应掩盖原始加载失败 */ }
         (styleLinkElement?.remove(), (styleLinkElement = null));
         const errorElement = document.createElement("div");
         ((errorElement.className = "i3d-access-pending"),

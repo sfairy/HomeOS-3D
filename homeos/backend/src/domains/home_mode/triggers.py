@@ -37,13 +37,23 @@ class HomeModeTriggersState:
     pre_away_mode_id: str | None = None
 
 
-def _read_json_array(raw: Any) -> list[Any]:
+def _read_json_array(raw: Any, *, mode_id: str = "") -> list[Any]:
+    """把 triggers 列解析成数组；解析失败**留日志**而不是静默当成空触发列表。
+
+    静默返回 `[]` 的后果是「这个模式的自动化从此再也不会触发」，而界面上它看起来一切正常
+    （触发器还在那里、开关也是开的）——用户只会觉得「不灵了」，排查时没有任何线索。
+    """
     if raw is None:
         return []
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as error:
+            logger.error(
+                "家庭模式 %s 的 triggers 字段不是合法 JSON（%s），已按空触发处理：该模式的自动化不会生效",
+                mode_id or "<unknown>",
+                error,
+            )
             return []
     else:
         parsed = raw
@@ -84,7 +94,7 @@ def parse_home_mode_trigger_bindings(
         raw_triggers = mode.get("triggers")
         if not raw_triggers:
             continue
-        triggers = _read_json_array(raw_triggers)
+        triggers = _read_json_array(raw_triggers, mode_id=str(mode.get("id") or ""))
         for trigger in triggers:
             if not isinstance(trigger, dict) or not trigger.get("type"):
                 continue
@@ -103,7 +113,7 @@ def parse_home_mode_trigger_bindings(
 def resolve_calendar_away_mode(modes: list[dict[str, Any]]) -> dict[str, Any] | None:
     marked = None
     for mode in modes:
-        triggers = _read_json_array(mode.get("triggers"))
+        triggers = _read_json_array(mode.get("triggers"), mode_id=str(mode.get("id") or ""))
         if any(
             isinstance(t, dict)
             and t.get("enabled") is not False
@@ -146,7 +156,7 @@ async def _fire_triggered_home_mode(
             mark_home_mode_trigger_fired(state.trigger_cooldown, key)
             return
     deps.log(f"触发器激活模式 [{binding.mode_name}]: {reason}")
-    await deps.activate(
+    await deps.request_activate(
         binding.mode_id,
         {
             "source": (meta or {}).get("source", "trigger"),
@@ -263,13 +273,13 @@ async def handle_home_mode_calendar_away(
                 )
                 if pre_mode:
                     deps.log(f"日历外出结束,恢复先前模式: {pre_mode['name']}")
-                    await deps.activate(
+                    await deps.request_activate(
                         pre_mode["id"],
                         {"source": "calendar", "reason": "日历外出结束，恢复先前模式"},
                     )
                 else:
                     deps.log(f"日历外出结束,停用模式: {away_mode['name']}")
-                    await deps.deactivate()
+                    await deps.request_deactivate()
             state.pre_away_mode_id = None
     except Exception as exc:
         deps.warn(f"日历联动模式失败: {exc}")

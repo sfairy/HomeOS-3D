@@ -18,10 +18,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from .ha import active_connection
 from .ha_proxy import _camera_license_allows
 from ..dependencies import ShortLivedLicensedViewer
 from ..domains.ha.integration.client import HAClientError
+from ..domains.ha.integration.connection_query import active_connection
 from ..domains.ha.integration.crypto import CredentialCipherError
 
 logger = logging.getLogger('homeos.ha_webrtc')

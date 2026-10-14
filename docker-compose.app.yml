@@ -22,6 +22,11 @@ services:
       - "${APP_PUBLISH_PORT:-8801}:8801"
       - "${APP_PROXY_PUBLISH_PORT:-8803}:8803"
     environment:
+      # 生产标记与授权门禁：镜像已内置 APP_ENVIRONMENT=production，这里显式透出，
+      # 让宿主可以用 .env 覆盖（例如拿生产镜像跑演示）。
+      # LICENSE_REQUIRED 留空即按环境标记取默认（生产=授权门禁开启）；置 0 可临时关闭排障。
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
+      LICENSE_REQUIRED: ${LICENSE_REQUIRED:-}
       APP_DATA_DIR: /data
       # homeos 后端读 HOMEOS_* 口径；APP_* 是镜像内启动器与 compose 的既有变量名，
       # 两者指向同一处，避免升级时因为改名而换错数据目录。

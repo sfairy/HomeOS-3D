@@ -59,15 +59,16 @@ textarea {
 html.editor-viewport-fit {
   overflow: hidden;
 }
-html.editor-viewport-fit body {
-  width: 1020px;
-  min-width: 1020px;
-  height: var(--editor-layout-height, 612px);
-  min-height: 0;
-  overflow: visible;
-  transform: scale(var(--editor-viewport-scale, 1));
-  transform-origin: top left;
-}
+/*
+ * 旧的「整页 1020px 基准缩放」已废除：壳层（`.editor-chrome-root` / `.studio-chrome-root`）
+ * 自适应视口，画布自己在 `#preview-3d` 内做 letterbox。
+ *
+ * 这条规则曾把 body 钉成 1020×612 再 `scale(var(--editor-viewport-scale))`，而
+ * `studio-chrome.css` 必须用 `transform: none !important` 等三条 `!important` 反制 ——
+ * 加载顺序（page-assets 把本文件挂在 Vite CSS 之后）让本文件总能赢，于是形成了长期对峙。
+ * 现在只留一处：本文件不再缩放，`studio/chrome/studio-chrome.css` 也不再需要 `!important`。
+ * `html.editor-viewport-fit` 自身（进入编辑器时的 `overflow: hidden`）保留不动。
+ */
 .editor-header {
   position: relative;
   z-index: 40;
@@ -258,41 +259,22 @@ button.danger-quiet {
   display: grid;
   grid-template-columns: 250px minmax(520px, 1fr) 250px;
   height: calc(100vh - 52px);
+  height: calc(100dvh - 52px);
   min-height: 560px;
   overflow: hidden;
 }
-/* Vue 壳层：固定三区 + 折叠只压列宽（勿 display:none） */
-.editor-chrome-root .editor-shell {
-  grid-template-areas: "nav workspace inspector";
-}
-.editor-chrome-root .editor-shell > .panel.navigator {
-  grid-area: nav;
-}
-.editor-chrome-root .editor-shell > .workspace-panel {
-  grid-area: workspace;
-}
-.editor-chrome-root .editor-shell > .panel.inspector {
-  grid-area: inspector;
-}
-.editor-chrome-root.sc-shell--left-collapsed .editor-shell {
-  grid-template-columns: 0 minmax(0, 1fr) var(--sc-right, 280px);
-}
-.editor-chrome-root.sc-shell--right-collapsed .editor-shell {
-  grid-template-columns: var(--sc-left, 260px) minmax(0, 1fr) 0;
-}
-.editor-chrome-root.sc-shell--left-collapsed.sc-shell--right-collapsed .editor-shell {
-  grid-template-columns: 0 minmax(0, 1fr) 0;
-}
-.editor-chrome-root .panel.navigator.is-collapsed,
-.editor-chrome-root .panel.inspector.is-collapsed {
-  display: block !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  padding: 0 !important;
-  border: 0 !important;
-  opacity: 0 !important;
-}
+/*
+ * Vue 壳层（`.editor-chrome-root`）的三区网格 / 折叠 / 侧栏压扁规则**不再在这里定义**。
+ *
+ * 它们曾经在这份文件里有一份完整副本，而 `studio/chrome/studio-chrome.css`（Vite 侧）
+ * 必须有 `!important` 才能压过它 —— 因为 page-assets 会把这份 `/static/app.css` 挂在
+ * Vite CSS 之后。两侧还出现过「值相同却各带 !important」的对峙。现在单一真源留在
+ * `studio-chrome.css`（壳层的所有者），本文件只保留 `app.css` 独占的旧面板内部样式
+ * （`.panel` / `.panel-heading` / `.inspector-*` 等）。
+ *
+ * 注意：`/static/app.css` 仍随 editor 档位加载 —— `.inspector-section` 等旧面板内部
+ * 样式只有这里有（EditorView 有 136 处 `inspector-section`），撤掉整份文件会让面板裸奔。
+ */
 .panel {
   min-width: 0;
   overflow: auto;

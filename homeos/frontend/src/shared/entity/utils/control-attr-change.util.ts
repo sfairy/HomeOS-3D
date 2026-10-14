@@ -7,9 +7,10 @@ type EntityAttributes = NonNullable<EntitySnapshot['attributes']>
 
 /**
  * 各域「控制/设定类」属性白名单：state 未变但这些属性变化时也应记录为一条事件
- * （与后端 event-log-tier.util.ts ATTR_CHANGE_TRIGGERS 保持一致）
+ * （与后端 event-log-tier.util.ts ATTR_CHANGE_TRIGGERS 保持一致）。
+ * 导出给 studio 即时消息墙派生「有白名单的域」清单用 —— 域名单只有这一份，不再各抄一张。
  */
-const ATTR_CHANGE_TRIGGERS: Record<string, readonly string[]> = {
+export const ATTR_CHANGE_TRIGGERS: Record<string, readonly string[]> = {
   climate: [
     'temperature',
     'target_temp_high',
@@ -68,15 +69,22 @@ function formatAttrValue(key: string, val: unknown): string {
  * 仅检查当前实体域的 ATTR_CHANGE_TRIGGERS 白名单属性，
  * 使用 JSON 序列化做深比较，返回首个变化属性的描述。
  *
+ * `formatValue` 可注入：主应用用默认的 `formatEntityAttrValueText`（带实体上下文的完整口径），
+ * studio 即时消息墙注入自己的紧凑口径（`/255`、`%`、`°C` 等不带上文即可读）。
+ * 注入点存在的原因是「属性白名单 + 首处变更 + 文案拼接」这段控制流此前被整段抄进了 studio，
+ * 两份表与两份循环任意一边改动就会分叉 —— 现在只留一处。
+ *
  * @param entityId 实体 ID。
  * @param oldAttrs 旧属性对象。
  * @param newAttrs 新属性对象。
+ * @param formatValue 属性值 → 文案（可选）。
  * @returns 属性变更描述；无变化或域无白名单时返回 null。
  */
 export function describeAttrChange(
   entityId: string,
   oldAttrs: EntityAttributes | undefined,
   newAttrs: EntityAttributes | undefined,
+  formatValue: (key: string, value: unknown) => string = formatAttrValue,
 ): string | null {
   const domain = getEntityDomain(entityId)
   const triggers = ATTR_CHANGE_TRIGGERS[domain]
@@ -84,7 +92,7 @@ export function describeAttrChange(
   for (const key of triggers) {
     if (JSON.stringify(oldAttrs[key]) !== JSON.stringify(newAttrs[key])) {
       const label = ATTR_CHANGE_LABELS[key] || key
-      return `${label} ${formatAttrValue(key, oldAttrs[key])} → ${formatAttrValue(key, newAttrs[key])}`
+      return `${label} ${formatValue(key, oldAttrs[key])} → ${formatValue(key, newAttrs[key])}`
     }
   }
   return null

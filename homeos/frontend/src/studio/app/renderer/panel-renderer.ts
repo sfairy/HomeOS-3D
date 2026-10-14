@@ -1621,7 +1621,7 @@ export class PanelRenderer {
           attributes: lightAttributesRecord,
         }),
       );
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
   ["optimisticStateIsConfirmed"](optimisticEntityId: any, optimisticInputPayload: any) { return optimisticStateIsConfirmed(this, optimisticEntityId, optimisticInputPayload); }
   ["updateOptimisticToggleVisuals"](optimisticToggleEntityId: any, componentIdFilterSet: any = null) { return updateOptimisticToggleVisuals(this, optimisticToggleEntityId, componentIdFilterSet); }

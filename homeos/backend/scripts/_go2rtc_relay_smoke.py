@@ -35,10 +35,10 @@ from _smoke_harness import check, ensure_backend_on_path, report
 
 ensure_backend_on_path()
 
-import src.api.go2rtc as relay  # noqa: E402
-from fastapi import FastAPI  # noqa: E402
-from starlette.testclient import TestClient  # noqa: E402
-from starlette.websockets import WebSocketDisconnect  # noqa: E402
+import src.api.go2rtc as relay
+from fastapi import FastAPI
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 CAMERA_URL = "http://192.168.1.5:1984/stream.html?src=cam1"
 EXPECTED_TARGET = "ws://192.168.1.5:1984/api/ws?src=cam1"

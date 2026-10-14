@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import heapq
 import json
 import logging
 import time
@@ -10,12 +11,25 @@ from typing import Any
 
 import httpx
 
-from .config import load_security_config
+from .config import load_security_config, parse_optional_int
 from ..ha.config.ha_config import load_active_ha_endpoints
 from ...platform.core.app_config import load_raw_config
 from ...platform.core.models import ProjectConfig
 
 logger = logging.getLogger("homeos.security.service")
+
+#: 单次返回的事件条数上限。HA 侧的 `events.jsonl` 行数**没有上界**（它是滚动追加的文件），
+#: 而这条路由是同步解析 + 排序的：全量进出会把 worker 的 CPU 与内存吃满，同进程的实时通道
+#: 也跟着卡。上限既约束返回值，也约束解析期内存（用定长小顶堆，只留最新的 N 条）。
+MAX_EVENTS = 500
+
+
+def resolve_events_limit(raw: Any) -> int:
+    """把查询参数解析成 ``[1, MAX_EVENTS]`` 内的条数上限（缺省/非法 = 上限）。"""
+    parsed = parse_optional_int(raw, MAX_EVENTS)
+    if parsed is None:
+        return MAX_EVENTS
+    return max(1, min(parsed, MAX_EVENTS))
 
 
 class SecurityService:
@@ -78,7 +92,13 @@ class SecurityService:
         async with httpx.AsyncClient(timeout=10) as client:
             return await client.get(url, headers=headers)
 
-    async def fetch_events(self) -> list[dict[str, Any]]:
+    async def fetch_events(self, limit: int = MAX_EVENTS) -> list[dict[str, Any]]:
+        """拉取门禁事件，按时间倒序返回**最多** ``limit`` 条。
+
+        解析期只保留最新的 ``limit`` 条（定长小顶堆），所以内存与返回量都跟上限挂钩，
+        与上游文件行数无关。
+        """
+        effective = max(1, min(int(limit), MAX_EVENTS))
         try:
             config = await asyncio.to_thread(self._dynamic_config)
             ha_url = config["haUrl"]
@@ -91,9 +111,27 @@ class SecurityService:
                 logger.warning("在 HA 中未找到 events.jsonl.假设尚无事件.")
                 return []
             if response.status_code != 200:
+                # 旧实现这里静默返回空列表：上游 5xx / 反代 502 时界面显示「路径可读但暂无事件」，
+                # 用户被引去改 eventsPath，真正的原因却没有任何地方留下痕迹。
+                logger.warning(
+                    "从 HA 获取事件返回非 200：HTTP %s（%s）", response.status_code, events_url
+                )
                 return []
             text = response.text
-            events: list[dict[str, Any]] = []
+
+            def _sort_key(item: dict[str, Any]) -> float:
+                from datetime import datetime
+
+                try:
+                    return datetime.fromisoformat(
+                        f"{item.get('date')}T{item.get('time')}"
+                    ).timestamp()
+                except (TypeError, ValueError):
+                    return 0.0
+
+            # 小顶堆：(排序键, 行号, 事件)。行号只做同键时的确定性兜底，避免堆比较落到 dict 上。
+            newest: list[tuple[float, int, dict[str, Any]]] = []
+            index = 0
             for line in text.split("\n"):
                 if not line.strip():
                     continue
@@ -113,20 +151,14 @@ class SecurityService:
                     event["video"] = event["mp4"]
                 if not event.get("video") and event.get("recording"):
                     event["video"] = event["recording"]
-                events.append(event)
+                index += 1
+                heapq.heappush(newest, (_sort_key(event), index, event))
+                if len(newest) > effective:
+                    heapq.heappop(newest)
 
-            def _sort_key(item: dict[str, Any]) -> float:
-                from datetime import datetime
-
-                try:
-                    return datetime.fromisoformat(
-                        f"{item.get('date')}T{item.get('time')}"
-                    ).timestamp()
-                except (TypeError, ValueError):
-                    return 0.0
-
-            events.sort(key=_sort_key, reverse=True)
-            return events
+            # 同键时按行号升序（= 文件里的先后），保持与旧「稳定排序」一致的展示顺序。
+            ordered = sorted(newest, key=lambda item: (-item[0], item[1]))
+            return [event for _key, _index, event in ordered]
         except Exception as exc:
             logger.error("从 HA 获取事件失败:%s", exc)
             return []

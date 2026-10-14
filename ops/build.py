@@ -19,7 +19,7 @@
       Linux 容器内按目标架构编译（宿主是 macOS 时尤其如此）。
       Dockerfile 里两个项目共用同一个构建阶段，靠 ``--build-arg PROJECT=<项目目录>``
       选源码；这里的 ``Project.source`` 就是那个值，与项目目录同名（写错即编出另一个
-      项目的后端，``ops/check_deploy_independence.py`` 第 4 项会拦）。
+      项目的后端，``ops/check/check_deploy_independence.py`` 第 4 项会拦）。
 
   image [--arch ARCH] [--project app|store|all] [--tag TAG] [--push]
       从工作区根 ``dist/`` 组装运行镜像（``--target app`` / ``--target store``）。
@@ -46,11 +46,21 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST_ROOT = ROOT / 'dist'
 DOCKERFILE = ROOT / 'Dockerfile'
 
-DEFAULT_PYTHON_IMAGE = 'python:3.14-slim-bookworm'
-DEFAULT_CADDY_IMAGE = 'caddy:2.11.4-alpine'
+PINS_FILE = ROOT / 'ops' / 'docker-pins.json'
 BASE_MIRROR_ENV = 'HOMEOS_BASE_MIRROR'
 PIP_INDEX_ENV = 'HOMEOS_PIP_INDEX'
 APT_MIRROR_ENV = 'HOMEOS_APT_MIRROR'
+
+
+def base_image(key: str) -> str:
+    """基础镜像的官方引用（``<tag>@sha256:<digest>``），真源是 ``ops/docker-pins.json``。
+
+    刻意**不在本文件重写一遍** tag 与摘要：写第二遍就等于给了它第二个漂移点，而
+    ``ops/check/check_docker_pins.py`` 现在拿真源与 Dockerfile / compose 对账，本函数只是
+    复用同一份真源（该门禁会连同镜像站改写逻辑一起做行为测试）。
+    """
+    pins = json.loads(PINS_FILE.read_text(encoding='utf-8'))['images']
+    return f"{pins[key]['upstream_tag']}@{pins[key]['digest']}"
 
 
 def load_env_file(path: Path) -> None:
@@ -157,17 +167,31 @@ def buildx_cache_args(args: argparse.Namespace) -> list[str]:
 
 
 def _mirrored(mirror: str, official_image: str) -> str:
+    """把官方镜像换成镜像站的同名引用。
+
+    官方引用带 ``@sha256:…`` 摘要（Dockerfile 里两个 ARG 就是这么钉的）。镜像站是**另一个
+    仓库**，摘要必然与之不同 —— 照搬过去不是「更严格」而是**直接拉不到**。所以这里显式去掉
+    摘要并打印警告：走镜像站就等于主动放弃这层供应链钉版，必须看得见，不能静默降级。
+    """
     host = mirror.strip().rstrip('/')
     if not host:
         return official_image
     name, _, tag = official_image.partition(':')
-    return f'{host}/library/{name}:{tag}' if tag else f'{host}/library/{name}'
+    digestless = tag.split('@', 1)[0]
+    if digestless != tag:
+        print(
+            f'[build] 警告：--base-mirror 生效，{name} 的基础镜像摘要被丢弃'
+            f'（{tag.split("@", 1)[1][:19]}…）—— 镜像站摘要与上游不同，无法复用。'
+            ' 只有在完全信任镜像站时才这样构建。',
+            file=sys.stderr,
+        )
+    return f'{host}/library/{name}:{digestless}' if digestless else f'{host}/library/{name}'
 
 
 def base_image_args(args: argparse.Namespace, *, with_build_mirrors: bool = False) -> list[str]:
     mirror = (getattr(args, 'base_mirror', None) or os.getenv(BASE_MIRROR_ENV, '')).strip()
-    python_image = args.python_image or (_mirrored(mirror, DEFAULT_PYTHON_IMAGE) if mirror else '')
-    caddy_image = args.caddy_image or (_mirrored(mirror, DEFAULT_CADDY_IMAGE) if mirror else '')
+    python_image = args.python_image or (_mirrored(mirror, base_image('python')) if mirror else '')
+    caddy_image = args.caddy_image or (_mirrored(mirror, base_image('caddy')) if mirror else '')
     extra: list[str] = []
     if python_image:
         extra += ['--build-arg', f'PYTHON_IMAGE={python_image}']
@@ -269,8 +293,8 @@ def _add_base_image_options(parser: argparse.ArgumentParser) -> None:
         help=f'基础镜像镜像站，如 docker.m.daocloud.io；也可用环境变量 {BASE_MIRROR_ENV}。'
         'Docker Hub 拉不动时用它把 python / caddy 基础镜像整体切到镜像站',
     )
-    parser.add_argument('--python-image', metavar='REF', help=f'直接指定 Python 基础镜像（默认 {DEFAULT_PYTHON_IMAGE}）')
-    parser.add_argument('--caddy-image', metavar='REF', help=f'直接指定 Caddy 基础镜像（默认 {DEFAULT_CADDY_IMAGE}）')
+    parser.add_argument('--python-image', metavar='REF', help=f'直接指定 Python 基础镜像（默认 {base_image("python")}）')
+    parser.add_argument('--caddy-image', metavar='REF', help=f'直接指定 Caddy 基础镜像（默认 {base_image("caddy")}）')
     parser.add_argument(
         '--pip-index',
         metavar='URL',

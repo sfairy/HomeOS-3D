@@ -117,7 +117,7 @@ export async function prepareModelTextures(gltf: any) {
             );
           const textureImage = await imagePromiseBySourceId.get(textureDefinition.source);
           textureImage && rememberTexture(texture, textureImage);
-        } catch {}
+        } catch { /* 贴图缓存写入 best-effort：条目已失效或解码器已释放时跳过，不影响本次渲染 */ }
       }),
     ));
 }

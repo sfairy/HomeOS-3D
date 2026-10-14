@@ -46,7 +46,7 @@
 
 <script setup>
 import { computed, provide } from 'vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import WidgetsHubSection from './widgets/WidgetsHubSection.vue'
 import { useLayoutConfigRef } from '@/composables/ui/useLayoutConfigRef'
 import { usePanelWidgets } from '@/features/settings/composables/display/layout-panel-widgets.internals'

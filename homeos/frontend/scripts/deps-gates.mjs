@@ -21,5 +21,20 @@ export default [
   { name: '死 CSS 类名', cmd: ['node', 'scripts/gates/check-css-classes.mjs'] },
   { name: '死 CSS 类名自检', cmd: ['node', 'scripts/gates/_css_classes_selftest.mjs'] },
   { name: '令牌契约（var() 可解析）', cmd: ['node', '../../ops/tokens/check-token-contract.mjs'] },
+  // 自检证明三条判据真会红（选择器 var() / 毛玻璃两份清单 / 容忍档棘轮），并断言真实基线形状正确 ——
+  // 这条此前只存在于仓库里、没人跑：判据写法一变就静默变瞎，正是自检要拦的失效方式。
+  { name: '令牌契约自检（选择器 var() / 毛玻璃清单 / 容忍档棘轮）', cmd: ['node', '../../ops/tokens/_token_contract_selftest.mjs'] },
   { name: '令牌映射契约（棘轮）', cmd: ['node', '../../ops/tokens/check-token-map.mjs'] },
+  // 切片工具链自检：这两条是「解析型工具」的护栏，必须在链上，否则工具一改就静默变瞎。
+  { name: '切片区间自检（--range 边界对账）', cmd: ['node', 'scripts/gates/_studio_slice_range_selftest.mjs'] },
+  { name: '切片包装自检（attach 工厂契约）', cmd: ['node', 'scripts/gates/_studio_slice_wrap_selftest.mjs'] },
+  // 模板切片自检：id 丢失 / 段落改序 / 多加包裹元素都不让 tsc 变红，只能靠注入式对账兜住。
+  { name: '模板切片自检（id 不丢不重 / 不新增包裹 / 幂等保护）', cmd: ['node', 'scripts/gates/_studio_template_seam_selftest.mjs'] },
+  // 类型/吞错债（棘轮）：`as any` 与空 catch 恰恰是「让类型系统闭嘴」的手段，tsc/eslint 都看不见，
+  // 而拆分宿主时它们会被顺手重新生产出来 —— 这条是 P2 拆分过程的护栏，不是事后体检。
+  { name: 'studio 类型/吞错债（棘轮 + 开放袋子硬零）', cmd: ['node', 'scripts/gates/check-studio-type-debt.mjs'] },
+  { name: '类型/吞错债门禁自检（基线保护 / 注释豁免 / 每文件口径）', cmd: ['node', 'scripts/gates/_studio_type_debt_selftest.mjs'] },
+  // 同名导出：口径分叉后的两份 helper 都「能跑」也不会让 tsc 变红，只能靠这条固定「一名一实现」。
+  { name: '同名导出全仓唯一（值导出，含对象常量）', cmd: ['node', 'scripts/gates/check-unique-exports.mjs'] },
+  { name: '同名导出门禁自检（重载 / barrel / 类型豁免）', cmd: ['node', 'scripts/gates/_unique_exports_selftest.mjs'] },
 ]

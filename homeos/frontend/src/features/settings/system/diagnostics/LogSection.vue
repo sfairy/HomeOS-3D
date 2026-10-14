@@ -128,8 +128,8 @@
 <script setup>
 import { RefreshCw, Copy, FileText, AlertTriangle, Download, Link2 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
+import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import { useDiagnosticsSection } from './useDiagnosticsSection'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 

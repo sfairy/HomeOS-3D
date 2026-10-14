@@ -222,7 +222,7 @@ function enhanceNumberInput(numberInput: any) {
           stepButton.addEventListener("lostpointercapture", handlePointerRelease));
         try {
           stepButton.setPointerCapture(buttonPointerDownEvent.pointerId);
-        } catch {}
+        } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
       }),
       buttonGroupElement.append(stepButton),
       stepButton

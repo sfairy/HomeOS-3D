@@ -15,10 +15,14 @@
   --hos-space-3xl: 32px;
 
   /* ── 圆角（控制件 + 两级容器 + 胶囊） ──
-     control：按钮 / 输入 / 下拉等控制件；card：卡片 / 列表项；
+     control：按钮 / 下拉等控制件；card：卡片 / 列表项；
      panel：面板 / 弹窗 / 抽屉 / 侧栏。
-     shell 为兼容别名，统一折叠到 panel，避免出现第三档容器圆角。 */
+     shell 为兼容别名，统一折叠到 panel，避免出现第三档容器圆角。
+     input：输入框专用的 12px 档 —— 它原先只以裸字面量 `--radius-sm: 12px` 存在于
+     main.css，成了契约之外的「幽灵尺度」；收进这里后全站圆角只有一个命名族（`--hos-radius-*`），
+     旧族（`--radius-*` / `--radius-ipad-*`）一律只能写成指向本族的别名。 */
   --hos-radius-control: 8px;
+  --hos-radius-input: 12px;
   --hos-radius-card: 14px;
   --hos-radius-panel: 20px;
   --hos-radius-shell: var(--hos-radius-panel);

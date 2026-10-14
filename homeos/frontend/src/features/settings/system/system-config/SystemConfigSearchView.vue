@@ -51,7 +51,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Search } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SystemConfigFieldCell from '@/features/settings/shared/system-config/SystemConfigFieldCell.vue'
 import { groupSearchResultsBySection } from '@/features/settings/shared/system-config/field-groups.util'
 

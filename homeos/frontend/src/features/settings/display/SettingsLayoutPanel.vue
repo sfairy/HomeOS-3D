@@ -20,7 +20,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useLayoutConfigRef } from '@/composables/ui/useLayoutConfigRef'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
 import SettingsLayoutEditSection from '@/features/settings/display/layout/SettingsLayoutEditSection.vue'
 

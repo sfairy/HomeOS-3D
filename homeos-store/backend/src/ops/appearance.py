@@ -12,7 +12,7 @@ from pathlib import Path
 # `_TOKEN_NAME` 描述的是「接口**接受**哪些名字」，不是「存下来叫什么」：规范化在匹配之前，
 # 存下来的始终是 --hb-*。`--hos-*` 是 0.6.2 的原始命名，前端 `appearance.ts` 至今仍作为
 # 兼容镜像一并生成（商店侧已无消费者，但对外生成的 CSS 可能有引用方），故必须继续接受。
-# 这条正则同时是 `ops/check_shared_contracts.py` 第 8 条门禁的判据（TS 生成得出来 ↔ 后端
+# 这条正则同时是 `ops/check/check_shared_contracts.py` 第 8 条门禁的判据（TS 生成得出来 ↔ 后端
 # 必须认得出）：删掉 `hos` 分支会让门禁报出 16 枚「后端不认」的假漂移，而它们在运行时
 # 本可正常保存。要真正下线 --hos-*，得先让前端停止生成，再删这里的分支与上面的改写。
 _LEGACY_HOS_PREFIX = re.compile(r'^--hos-(?=(?:accent|lumen|aura|eco)(?:-|$))')

@@ -31,9 +31,9 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.requests import ClientDisconnect
 
-from .ha import active_connection
 from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..domains.ha.integration.client import HAClientError
+from ..domains.ha.integration.connection_query import active_connection
 from ..domains.ha.integration.crypto import CredentialCipherError
 from ..domains.license import features as feature_codes
 from ..platform.core.database import Database

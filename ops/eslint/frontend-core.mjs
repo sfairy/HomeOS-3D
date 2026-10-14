@@ -25,7 +25,9 @@ const coreRules = {
   "no-console": ["warn", { allow: ["warn", "error"] }],
   "comma-dangle": ["warn", "always-multiline"],
   indent: "off",
-  "no-empty": ["error", { allowEmptyCatch: true }],
+  // `/^\/\*[\s\S]*\*\/$/` 这种「空体里只写一句中文理由」的写法是**允许**的
+  // （eslint 的 no-empty 本身忽略含注释的块，这正是我们要的：拦「什么都不说」而不是「不许忽略」）。
+  "no-empty": ["error", { allowEmptyCatch: false }],
   // 这两条是 eslint 10 的新规则，存量代码命中即为噪音，显式关掉（关掉也是一种声明）。
   "no-useless-assignment": "off",
   "preserve-caught-error": "off",
@@ -34,7 +36,13 @@ const coreRules = {
 /** 主应用风格：单引号、无分号（`homeos/frontend` 全树既有约定）。 */
 export const APP_STYLE = {
   semi: ["warn", "never"],
-  quotes: ["warn", "single"],
+  // `allowTemplateLiterals` 必须是 true：这条规则的 `--fix` 默认会把**不含插值**
+  // 的模板串改写成普通字符串，而 `scripts/**` 里有大量「被测代码的源码片段」夹具
+  // （例如 `_import_refs_selftest.mjs` 的 S10 场景专门验证「模板串里的 import spec
+  // 视为数据、不参与解析」）。改写外层引号会连夹具的**语义**一起改掉，让自检静默失效 ——
+  // 实测：`--fix` 一跑，引用可解析性门禁立刻在自己身上报 2 处假违规。
+  // `avoidEscape` 同理：字符串里带单引号时允许换用双引号，免得为风格制造一串转义。
+  quotes: ["warn", "single", { avoidEscape: true, allowTemplateLiterals: true }],
 };
 
 /** 商店风格：双引号、带分号（`homeos-store/frontend` 全树既有约定，见文件头实测数据）。 */
@@ -80,6 +88,19 @@ export function recommendedBlock({ files, ignores = [] }) {
 
 /**
  * 裸 `.js` / `.mjs` 块：只上 coreRules 风格规则，不引入 TS parser。
+ *
+ * 与 tsBlock 的关键差异是 `no-unused-vars` 用**内核版**、不用插件版：插件版的这条规则
+ * 建在 TS 的类型信息上，对没有类型可言的 `.js/.mjs` 会把「函数体里的值引用」误判成
+ * 「只被当作类型使用」，于是每一个被函数用到的常量都被报一遍未使用。
+ * 最小复现（本仓库实测，eslint-plugin-unused-imports）：
+ *
+ *     const foo = 1;
+ *     function bar() { return foo + 1 }
+ *     // → 'foo' is assigned a value but only used as a type.
+ *
+ * 内核版没有这个问题；`unused-imports/no-unused-imports`（未使用 import）在 `.mjs` 上
+ * 实测正常，故保留。这条差异此前被「CLI glob 只写 src 下的 ts/vue」掩盖着：
+ * 两端的 `scripts/` 虽在各自 APP_FILES 里，却从没真正被 lint 过。
  * @param {BlockOptions} options
  */
 export function jsBlock({ files, ignores = [], style, rules = {} }) {
@@ -91,7 +112,16 @@ export function jsBlock({ files, ignores = [], style, rules = {} }) {
       globals: { ...globals.browser, ...globals.node },
     },
     plugins: { "unused-imports": unusedImports },
-    rules: { ...coreRules, ...style, ...rules },
+    rules: {
+      ...coreRules,
+      "unused-imports/no-unused-vars": "off",
+      "no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+      ...style,
+      ...rules,
+    },
   };
 }
 

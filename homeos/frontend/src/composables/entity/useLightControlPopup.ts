@@ -24,9 +24,11 @@ import {
   lightBrightnessFromPct,
   hsvToRgb,
   rgbToHs,
-  hexToRgb,
   buildLightTurnOnData,
 } from '@/shared/entity/utils/control/light-control-core'
+// `hexToRgb` 的**唯一实现**在 `@/shared/utils/ui/color.util`（3/6 位校验 + 非法回落黑）；
+// `light-control-core` 里那份不校验的副本已删（非法输入会产出 NaN 通道）。
+import { hexToRgbOrBlack as hexToRgb } from '@/shared/utils/ui/color.util'
 
 /**
  * 灯光控制弹窗组合式函数。

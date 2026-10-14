@@ -41,11 +41,11 @@ const usedChunkNames = new Set<string>();
 
 /** 共享 chunk 输出名：优先取源文件相对 ``src`` 的路径。
  *
- * 商店存在同名不同源的模块（``views/admin/ProductsView.vue`` 与
- * ``views/store/ProductsView.vue``），以及 Vite 会自加后缀去重的 ``useApi``，
+ * 商店存在同名不同源的模块（``features/admin/views/ProductsView.vue`` 与
+ * ``features/storefront/views/ProductsView.vue``），以及 Vite 会自加后缀去重的 ``useApi``，
  * 只取 basename 时产物会退化成 ``ProductsView-<hash>.js`` 两份、
- * ``useApi-<hash>-<hash>.js`` 双哈希。带路径后成为 ``views/admin/ProductsView-<hash>.js``
- * 与 ``views/store/ProductsView-<hash>.js``，名与源一一对应。
+ * ``useApi-<hash>-<hash>.js`` 双哈希。带路径后成为 ``features/admin/views/ProductsView-<hash>.js``
+ * 与 ``features/storefront/views/ProductsView-<hash>.js``，名与源一一对应。
  */
 function chunkBaseName(chunk: {
   name?: string;

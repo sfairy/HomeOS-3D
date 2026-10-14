@@ -39,6 +39,18 @@ export function hexToRgb(hex: string | undefined | null): Rgb | null {
 }
 
 /**
+ * HEX（3/6 位）→ RGB 分量，**永不返回 null**：非法输入回落黑。
+ *
+ * 存在的理由是「调用方拿不到颜色就用黑」这一类分支。这类分支此前在 `light-control-core` 与
+ * studio 的 `editor-utils` 里各自抄了一份**不校验**的解析（`parseInt` 直接切字符串），
+ * 非法输入会产出 `NaN` 通道 —— 写进 `style` 后整条声明静默失效（CSS 不报错，界面只是不生效）。
+ * 统一到这里后既保留校验，又不逼每个调用方写 null 分支。
+ */
+export function hexToRgbOrBlack(hex: string | undefined | null): Rgb {
+  return hexToRgb(normalizeHexColor(hex) ?? hex ?? '') ?? { r: 0, g: 0, b: 0 }
+}
+
+/**
  * 把 HEX 转为 CSS `r, g, b` 通道串，供 `--accent-rgb` 使用。
  */
 export function hexToRgbChannels(

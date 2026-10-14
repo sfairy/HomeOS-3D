@@ -157,7 +157,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Power, Layers, ShieldOff, ListFilter, Mic } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'

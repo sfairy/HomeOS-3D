@@ -66,8 +66,8 @@
 <script setup>
 import { computed } from 'vue'
 import { Grip } from '@lucide/vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import FloatingPanelHeaderSection from './floating/PanelHeaderSection.vue'
 import FloatingWidgetRow from './floating/WidgetRow.vue'
 import { useLayoutConfigRef } from '@/composables/ui/useLayoutConfigRef'

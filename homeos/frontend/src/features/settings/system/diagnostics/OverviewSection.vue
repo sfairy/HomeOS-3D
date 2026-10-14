@@ -460,7 +460,7 @@ import {
   Copy,
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'

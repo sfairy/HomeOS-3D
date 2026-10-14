@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 from ...platform.core.errors import api_error, bad_request, forbidden
-from ...realtime.access import is_entity_allowed
+from ...platform.security.entity_access import is_entity_allowed
 
 _MEDIA_PATTERNS = (
     re.compile(r"^/api/camera_proxy(?:_stream)?/(.+)$"),

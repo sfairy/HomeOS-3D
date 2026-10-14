@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import time
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -233,6 +234,26 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         "ha.initial_states": _handle_initial_states,
     }
 
+
+
+SHUTDOWN_TIMEOUT = 5.0
+
+
+async def _shutdown(what: str, stopper: Callable[[], Awaitable[Any]]) -> None:
+    """停机一个组件：超时/异常只记日志，绝不打断停机流程。
+
+    旧写法是十几段复制粘贴的 `try: await asyncio.wait_for(x.stop(), timeout=5) except
+    Exception: pass`，两个问题：
+
+    1. `pass` 把失败彻底吞掉 —— 停机为什么慢、哪个组件卡住，日志里一点痕迹都没有；
+    2. 地震那组把四个组件塞进同一个 `try`，第一个失败会让后面三个**根本不执行**。
+    """
+    try:
+        await asyncio.wait_for(stopper(), SHUTDOWN_TIMEOUT)
+    except TimeoutError:
+        logger.warning("%s停机超时（%ss），已放弃等待", what, SHUTDOWN_TIMEOUT)
+    except Exception as exc:
+        logger.warning("%s停机失败: %s", what, exc)
 
 
 def create_lifespan(app_settings: Settings, version: str):
@@ -643,6 +664,7 @@ def create_lifespan(app_settings: Settings, version: str):
             app.state.database.session_factory,
             env=os.environ,
             server_version=version,
+            is_production=app_settings.is_production,
         )
 
         # 消息通道：Email / WebPush / 企业微信（Phase 6）
@@ -852,61 +874,27 @@ def create_lifespan(app_settings: Settings, version: str):
         try:
             yield
         finally:
-            try:
-                await studio3d_plane.shutdown(app)
-            except Exception as exc:
-                logger.warning("3D 平面停机失败: %s", exc)
-            try:
-                await asyncio.wait_for(app.state.update_checker.stop(), timeout=5)
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(license_service.stop(), timeout=5)
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(database_retention.stop_schedule(), timeout=5)
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(external_api.stop(), timeout=5)
-            except Exception:
-                pass
-            for service in (presence, mmwave, away_sim):
-                try:
-                    await asyncio.wait_for(service.stop(), timeout=5)
-                except Exception:
-                    pass
-            try:
-                await asyncio.wait_for(home_mode.stop(), timeout=5)
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(notification.stop(), timeout=5)
-            except Exception:
-                pass
-            try:
-                for service in (catalog_notify, eew_poll, earthquake, eew_leader):
-                    await asyncio.wait_for(service.stop(), timeout=5)
-            except Exception:
-                pass
-            for service in (weather_watch, advisor_usage):
-                try:
-                    await asyncio.wait_for(service.stop(), timeout=5)
-                except Exception:
-                    pass
-            try:
-                await asyncio.wait_for(ha_connector.stop(), timeout=5)
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(state_ingress_coalesce.close(), timeout=5)
-            except Exception:
-                pass
-            try:
-                await asyncio.wait_for(event_log_service.flush(), timeout=5)
-            except Exception:
-                pass
+            await _shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
+            await _shutdown("更新检查器", app.state.update_checker.stop)
+            await _shutdown("授权服务", license_service.stop)
+            await _shutdown("数据库保留调度", database_retention.stop_schedule)
+            await _shutdown("外部 API", external_api.stop)
+            for service, label in ((presence, "在场检测"), (mmwave, "毫米波"), (away_sim, "离家模拟")):
+                await _shutdown(label, service.stop)
+            await _shutdown("家庭模式", home_mode.stop)
+            await _shutdown("通知", notification.stop)
+            for service, label in (
+                (catalog_notify, "目录通知"),
+                (eew_poll, "地震预警轮询"),
+                (earthquake, "地震服务"),
+                (eew_leader, "地震预警主节点"),
+            ):
+                await _shutdown(label, service.stop)
+            for service, label in ((weather_watch, "天气监视"), (advisor_usage, "顾问用量")):
+                await _shutdown(label, service.stop)
+            await _shutdown("HA 连接器", ha_connector.stop)
+            await _shutdown("状态汇聚", state_ingress_coalesce.close)
+            await _shutdown("事件日志刷盘", event_log_service.flush)
             auto_backup.stop()
             database = getattr(app.state, "database", None)
             if database is not None:

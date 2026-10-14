@@ -2,53 +2,35 @@
 """
 from __future__ import annotations
 
-import ipaddress
 import secrets
-from dataclasses import dataclass
-from functools import lru_cache
 from urllib.parse import urlsplit
 
 from fastapi import Request
 
+from homeos_shared.client_ip import (
+    ClientAddress,
+    parse_trusted_proxies,
+    resolve_client_address,
+)
+from homeos_shared.client_ip import (
+    normalize_ip as _normalize_ip,
+)
+
 FORWARDED_HEADERS = ("x-forwarded-for", "x-forwarded-proto", "x-real-ip", "forwarded")
 
-
-@lru_cache(maxsize=32)
-def parse_trusted_proxies(values: tuple[str, ...]) -> tuple:
-    """把 ``STORE_TRUSTED_PROXIES`` 解析成网段元组。
-    """
-    networks = []
-    for raw in values:
-        candidate = (raw or "").strip()
-        if not candidate:
-            continue
-        try:
-            networks.append(ipaddress.ip_network(candidate, strict=False))
-        except ValueError as error:
-            raise ValueError(
-                f"STORE_TRUSTED_PROXIES 里的 {candidate!r} 不是合法的 IP 或 CIDR 网段。"
-            ) from error
-    return tuple(networks)
-
-
-@dataclass(frozen=True)
-class ClientAddress:
-    """一次请求的来源地址判定结果。"""
-
-    ip: str
-    per_client: bool
-    via_proxy: bool
-
-
-def _normalize_ip(value: str) -> str:
-    """把 IP 字面量规范化（去掉 IPv6 方括号、统一压缩形式）；不是 IP 时返回空串。"""
-    candidate = (value or "").strip().strip("[]")
-    if not candidate:
-        return ""
-    try:
-        return str(ipaddress.ip_address(candidate))
-    except ValueError:
-        return ""
+__all__ = [
+    "FORWARDED_HEADERS",
+    "ClientAddress",
+    "error_page_html",
+    "expected_request_scheme",
+    "forwarded_headers_present",
+    "new_csp_nonce",
+    "parse_trusted_proxies",
+    "request_is_https",
+    "resolve_client_ip",
+    "same_origin_request",
+    "secure_cookies_required",
+]
 
 
 def _peer_host(request: Request) -> str:
@@ -58,32 +40,6 @@ def _peer_host(request: Request) -> str:
     return _normalize_ip(raw) or raw.lower()
 
 
-def _is_trusted(host: str, networks) -> bool:
-    """该地址是否落在可信代理网段内。"""
-    if not host or not networks:
-        return False
-    address = _normalize_ip(host)
-    if not address:
-        return False
-    parsed = ipaddress.ip_address(address)
-    return any(parsed in network for network in networks)
-
-
-def _forwarded_chain(request: Request) -> list[str]:
-    """从转发头里取出地址链（左起第一个是原始客户端，最不可信）。
-    """
-    chain = []
-    for piece in request.headers.get("x-forwarded-for", "").split(","):
-        address = _normalize_ip(piece)
-        if address:
-            chain.append(address)
-    if not chain:
-        single = _normalize_ip(request.headers.get("x-real-ip", ""))
-        if single:
-            chain.append(single)
-    return chain
-
-
 def _settings(request: Request):
     """取出应用配置；测试里可能用 SimpleNamespace 造请求，因此用 getattr 兜底。"""
     return getattr(getattr(getattr(request, "app", None), "state", None), "settings", None)
@@ -91,19 +47,19 @@ def _settings(request: Request):
 
 def resolve_client_ip(request: Request) -> ClientAddress:
     """解析本次请求的真实来源地址。
+
+    判定逻辑（「先验 TCP 对端是否可信、再回退转发链」）的真源在
+    ``homeos_shared.client_ip.resolve_client_address``，与主应用共用同一份实现 ——
+    这是安全判据，两份副本迟早会分叉，且分叉方向一定是某一侧被放松。
+    本函数只做 ``Request`` → 纯函数入参的映射。
     """
     settings = _settings(request)
-    networks = parse_trusted_proxies(tuple(getattr(settings, "trusted_proxies", ()) or ()))
-    peer = _peer_host(request)
-    if not _is_trusted(peer, networks):
-        return ClientAddress(ip=peer, per_client=True, via_proxy=False)
-    chain = _forwarded_chain(request)
-    for candidate in reversed(chain):
-        if not _is_trusted(candidate, networks):
-            return ClientAddress(ip=candidate, per_client=True, via_proxy=True)
-    if chain:
-        return ClientAddress(ip=chain[0], per_client=True, via_proxy=True)
-    return ClientAddress(ip=peer, per_client=False, via_proxy=True)
+    return resolve_client_address(
+        peer=_peer_host(request),
+        trusted_proxies=tuple(getattr(settings, "trusted_proxies", ()) or ()),
+        forwarded_for=request.headers.get("x-forwarded-for", ""),
+        real_ip=request.headers.get("x-real-ip", ""),
+    )
 
 
 def secure_cookies_required(request: Request) -> bool:

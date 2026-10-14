@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -36,6 +37,25 @@ def _environment_bool(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "on", "yes", "true"}
+
+
+#: 生产环境标记的**唯一真源**：``APP_ENVIRONMENT``（推荐，显式、与 Node 语义解耦）。
+#: 兼容回退 ``NODE_ENV=production`` —— 迁移前的历史口径，避免存量部署一夜之间改行为。
+#: 两个后端、容器启动器、部署脚本与门禁都读这一个函数，不再各写一份字符串比较。
+PRODUCTION_ENV_VALUES = {"production", "prod"}
+
+
+def environment_is_production() -> bool:
+    """是否生产环境（单一真源，``APP_ENVIRONMENT`` 优先，``NODE_ENV`` 兼容回退）。"""
+    return environment_is_production_from(os.environ)
+
+
+def environment_is_production_from(source: Mapping[str, str]) -> bool:
+    """``environment_is_production`` 的映射版：供持有自定义 env 映射的调用方复用同一口径。"""
+    explicit = str(source.get("APP_ENVIRONMENT", "") or "").strip().lower()
+    if explicit:
+        return explicit in PRODUCTION_ENV_VALUES
+    return str(source.get("NODE_ENV", "") or "").strip().lower() == "production"
 
 
 def _environment_path(name: str) -> Path | None:
@@ -115,13 +135,13 @@ def _read_package_version() -> str:
 def _license_required_from_env() -> bool:
     """是否启用商业授权门禁（与迁移前口径一致）。
 
-    ``LICENSE_REQUIRED`` 显式取值优先；未设置时 ``NODE_ENV=production`` 默认开启，
-    其它环境默认关闭（开发态不强制激活）。
+    ``LICENSE_REQUIRED`` 显式取值优先；未设置时按生产环境标记默认开启
+    （见 ``environment_is_production``），其它环境默认关闭（开发态不强制激活）。
     """
     raw = os.getenv("LICENSE_REQUIRED")
     if raw is not None:
         return _environment_bool("LICENSE_REQUIRED", default=False)
-    return os.getenv("NODE_ENV", "").strip().lower() == "production"
+    return environment_is_production()
 
 
 @dataclass(frozen=True)
@@ -150,7 +170,11 @@ class Settings:
     is_production: bool = False
     # 接入层
     allowed_origins: tuple[str, ...] = ()
-    trust_proxy: bool = False
+    #: 可信反向代理网段（``APP_TRUSTED_PROXIES``，IP 或 CIDR，逗号分隔）。
+    #: **唯一消费者**是 ``platform/security/client_address.py``：只有当 TCP 对端落在这些网段内，
+    #: 才采信 ``X-Forwarded-For``。留空 = 不信任任何代理 = 转发头一律忽略（安全默认）。
+    #: 镜像内置反代就在同容器回环上，故发行默认 ``127.0.0.1,::1``（见 ``load_settings``）。
+    trusted_proxies: tuple[str, ...] = ()
     public_body_limit_bytes: int = 1 * 1024 * 1024
     authenticated_body_limit_bytes: int = 50 * 1024 * 1024
     # HA
@@ -416,9 +440,15 @@ def load_settings() -> Settings:
         csrf_header_name=os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token").strip() or "X-CSRF-Token",
         cookie_secure=_environment_bool("COOKIE_SECURE"),
         metrics_token=os.getenv("METRICS_TOKEN", "").strip(),
-        is_production=os.getenv("NODE_ENV", "").strip().lower() == "production",
+        is_production=environment_is_production(),
         allowed_origins=_environment_csv("CORS_ORIGINS"),
-        trust_proxy=_environment_bool("TRUST_PROXY"),
+        # 默认信回环（镜像内置反代就在同容器回环上）。留空字符串会显式关掉代理信任，
+        # 因此这里只在**未设置**时才用默认值 —— `_environment_csv` 对空串返回 ()，故手动兜底。
+        trusted_proxies=(
+            _environment_csv("APP_TRUSTED_PROXIES")
+            if os.getenv("APP_TRUSTED_PROXIES") is not None
+            else ("127.0.0.1", "::1")
+        ),
         public_body_limit_bytes=int(os.getenv("PUBLIC_BODY_LIMIT_BYTES", str(1 * 1024 * 1024))),
         authenticated_body_limit_bytes=int(
             os.getenv("AUTHENTICATED_BODY_LIMIT_BYTES", str(50 * 1024 * 1024))

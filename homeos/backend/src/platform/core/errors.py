@@ -6,6 +6,11 @@
 
 - 响应体结构与中文文案与 Nest 版逐字节一致；
 - ``apiErrorCode`` 正查表命中结果一致（前端 i18n 依赖此稳定码）。
+
+**码表已收敛为「有真实失败点」的集合**：Nest 侧退役后，角色 / MFA / 访客账户 / 旧 HA
+直连（``HA_*``）等能力一并下线，其错误码在四个项目里**零引用**却仍留在表里，既误导调用方
+（以为有分支可走），也让前端 i18n 表无法判断哪些码是活的。本轮删除 98 个零引用码，
+只保留在真实失败点抛出的 90 个；``ops/check/check_error_codes.py`` 逐码校验引用率，新增死码即红。
 """
 
 from __future__ import annotations
@@ -207,45 +212,13 @@ _F = Callable[..., str]
 #: 不要直接 ``API_ERROR[key]`` 下标——联合类型会破坏静态检查，且工厂需传参。
 API_ERROR: dict[str, str | _F] = {
     # auth
-    "AUTH_ACCOUNT_LOCKED": "账户已锁定，请稍后再试",
-    "AUTH_CANNOT_DELETE_LAST_ADMIN": "不能删除最后一个管理员",
-    "AUTH_CANNOT_DELETE_SELF": "不能删除当前登录用户",
-    "AUTH_CANNOT_MODIFY_ADMIN": "无权修改管理员账户",
-    "AUTH_GUEST_TOKEN_INVALID": "访客凭证无效或已过期",
-    "AUTH_GUEST_SHARE_CODE_MISSING": "缺少访客短码",
-    "AUTH_GUEST_SHARE_CODE_INVALID": "访客短码无效或已过期",
-    "AUTH_GUEST_SHARE_CODE_PAYLOAD_INVALID": "访客短码数据无效",
-    "AUTH_GUEST_SHARE_CODE_REVOKED": "访客短码已失效，请重新获取",
-    "AUTH_INVALID_CREDENTIALS": "凭据无效",
-    "AUTH_INVALID_ROLE": "无效角色",
-    "AUTH_MFA_ADMIN_ONLY": "仅管理员可配置 MFA",
-    "AUTH_MFA_NOT_ENABLED": "该账户未启用 MFA",
-    "AUTH_MFA_SETUP_REQUIRED": "请先发起 MFA 设置",
-    "AUTH_MFA_TOTP_INVALID": "验证码无效",
-    "AUTH_MFA_RELOGIN_REQUIRED": "已启用 MFA，请使用验证码重新登录",
-    "AUTH_NEED_CURRENT_PASSWORD": "修改密码需提供当前密码",
-    "AUTH_NOT_GUEST_TOKEN": "非访客凭证",
-    "AUTH_PASSWORD_WRONG": "当前密码不正确",
     "AUTH_SESSION_EXPIRED": "会话已失效，请重新登录",
-    "AUTH_SYSTEM_INITIALIZED": "系统已初始化",
-    "AUTH_USER_EXISTS": "用户名已存在",
-    "AUTH_USER_NOT_FOUND": "用户不存在",
-    "AUTH_USER_OR_SESSION_INVALID": "用户不存在或会话已失效",
-    "AUTH_USERNAME_REQUIRED": "用户名不能为空",
     # access / guards
-    "ACCESS_CHILD_NO_WHITELIST": "儿童账户未配置设备白名单，无法操作设备",
     "ACCESS_ENTITY_DENIED": "当前账户无权操作该设备",
     "TARGET_LABEL_UNRESOLVED": lambda ids: f"未能通过标签 ID（{ids}）解析到实体，请改用 entity_id，或确认 HA 实体已打上对应标签",
     "ACCESS_ENTITY_FORBIDDEN": "无权访问该实体",
-    "ACCESS_GUEST_DEVICE_DENIED": "访客账户无权控制设备",
-    "ACCESS_GUEST_READ_ONLY": "访客账户仅可查看，无权修改",
-    "ACCESS_GUEST_SCENE_DENIED": "访客无权执行该场景",
-    "ACCESS_GROUP_PARTIAL_DENIED": "当前账户无权操作分组内部分设备",
     "ACCESS_LOGIN_REQUIRED": "需要登录用户",
-    "ACCESS_NOTIFY_DND_ADMIN": "仅管理员可修改免打扰时段",
-    "ACCESS_ROLE_DEVICE_DENIED": "当前角色无权操作此设备类型",
     # config / backup
-    "CONFIG_JSON_OBJECT_REQUIRED": "配置须为 JSON 对象",
     "RETENTION_KEYS_INVALID": "包含无效的数据保留策略配置项",
     "BACKUP_CONFIRM_REQUIRED": "全量备份还原需 confirm: true",
     "BACKUP_FILE_INVALID_NAME": "无效的备份文件名（仅允许 homeos-full-*.zip）",
@@ -260,25 +233,7 @@ API_ERROR: dict[str, str | _F] = {
     "UI_CONFIG_FILE_TYPE_DENIED": lambda ext: f'不允许的文件类型 "{ext}"。',
     "UI_CONFIG_FILE_NOT_FOUND": "文件或目录未找到",
     "UI_CONFIG_ICON_NOT_FOUND": "图标文件不存在",
-    "HA_NOT_CONFIGURED": "HA 未配置",
     "HA_NOT_CONNECTED": "HA 未连接",
-    "HA_BATCH_NOT_CONNECTED": "HA 未连接，无法执行批量控制",
-    "HA_MEDIA_PATH_INVALID": "非法的媒体路径",
-    "HA_REST_API_FAILED": lambda status, detail: f"HA REST 接口 {status}: {detail}",
-    "HA_REST_RESPONSE_FAILED": lambda status: f"HA 返回 {status}",
-    "HA_WS_NOT_CONNECTED": "WebSocket 未连接",
-    "HA_COMMAND_BRIDGE_TIMEOUT": "HA 命令桥接超时",
-    "HA_CONFIG_SYNC_FAILED": lambda component, status, detail: f"HA {component} 同步失败 {status}: {detail}",
-    "HA_CONFIG_DELETE_FAILED": lambda component, status, hint="": f"HA {component} 删除失败 {status}{hint}",
-    "HA_FLOW_FAILED": lambda status, message: f"HA Flow 失败 {status}: {message}",
-    "HA_TEMPLATE_OPTIONS_FLOW_START_FAILED": "无法启动 template options flow",
-    "HA_TEMPLATE_CONFIG_FLOW_START_FAILED": "无法启动 template config flow",
-    "HA_TEMPLATE_ENTRY_ID_MISSING": "template helper 创建完成但未返回 entry_id",
-    "HA_FLOW_ABORTED": lambda reason: f"HA Flow 已中止: {reason}",
-    "HA_FLOW_STEP_UNSUPPORTED": lambda type_: f"不支持的 Flow 步骤类型: {type_}",
-    "HA_FLOW_MAX_STEPS": lambda max_steps: f"HA Flow 超过 {max_steps} 步仍未完成",
-    "HA_FLOW_MENU_CHOICE_REQUIRED": lambda options: f"需要选择实体类型 (next_step_id)，可选: {options}",
-    "HA_FLOW_FORM_VALIDATION_FAILED": lambda detail: f"表单校验失败: {detail}",
     "TTS_XIAOMI_PLAY_TEXT_NOT_FOUND": "未找到「播放文本」实体，请在 HA → Xiaomi Home 集成配置中开启 Action 调试模式",
     # alerts
     "ALERT_RULE_NAME_REQUIRED": "规则名称不能为空",
@@ -303,12 +258,11 @@ API_ERROR: dict[str, str | _F] = {
     "HOME_MODE_PRESET_ACTIONS_EMPTY": "预设动作为空，请检查实体映射",
     "HOME_MODE_PRESET_NOT_FOUND": "预设不存在",
     "HOME_MODE_LINKAGE_BLOCKED": lambda reason: f"家庭模式联动已拦截：{reason}" if reason else "家庭模式联动已拦截",
-    # system / proxy
+    # system
     "SYSTEM_CONFIG_NOT_FOUND": "未找到系统配置",
     "SYSTEM_INVALID_API_PATH": "无效的 API 路径",
     "SYSTEM_INVALID_IMAGE_URL": "无效或不安全的图片 URL",
     "SYSTEM_INVALID_LAYOUT": "无效的布局配置",
-    "SYSTEM_PAGINATION_REQUIRED": "请提供 page 与 limit 查询参数",
     # ui-config (data/project/profile)
     "UI_CONFIG_DATA_INVALID": "无效的配置数据",
     "UI_CONFIG_FILE_REQUIRED": "没有上传文件",
@@ -318,26 +272,11 @@ API_ERROR: dict[str, str | _F] = {
     "UI_CONFIG_PROFILE_ID_REQUIRED": "profileId 不能为空",
     "UI_CONFIG_TERMINAL_DEFAULT_INVALID": "newTerminalDefault 须为 activeProfile 或 default",
     "UI_CONFIG_PROFILE_NOT_FOUND": lambda project_id: f'配置方案 "{project_id}" 不存在',
-    "UI_CONFIG_TERMINAL_BINDING_FORBIDDEN": "无权修改该终端绑定",
-    # command proxy
-    "PROXY_ENTITY_IDS_REQUIRED": "需要提供 entity_ids 查询参数",
-    "PROXY_ENTITY_IDS_MAX": "entity_ids 最多 15 个",
-    "PROXY_ENTITY_ID_REQUIRED": "entity_id 必填",
-    "PROXY_HOURS_RANGE": "hours 须在 1–168 之间",
-    "PROXY_PATH_REQUIRED": "需要提供 path 查询参数",
-    "PROXY_TOKEN_REQUIRED": "需要提供 token",
-    "PROXY_URL_REQUIRED": "需要提供 url",
+    # command proxy（HA 服务调用失败的统一文案）
     "PROXY_HA_SERVICE_FAILED": lambda detail: f"Home Assistant 服务错误：{detail or '未知错误'}",
     # common validation
-    "VALIDATION_ENTITY_ID_QUERY_REQUIRED": "缺少 entityId 查询参数",
-    "VALIDATION_ENTITY_ID_REQUIRED": "缺少 entityId 参数",
-    "VALIDATION_PARAMS_REQUIRED": "缺少参数",
-    "VALIDATION_ID_REQUIRED": "缺少 id",
-    "VALIDATION_CAMERA_ENTITY_REQUIRED": "entity_id 须为 camera 实体",
-    "VALIDATION_OFFER_REQUIRED": "offer 不能为空",
     "PAYLOAD_TOO_LARGE": "请求体过大",
     "VALIDATION_CONFIG_SECTION_INVALID": lambda section: f"无效的配置分区: {section}",
-    "VALIDATION_JSON_ARRAY_REQUIRED": lambda label: f"{label} 须为合法 JSON 数组",
     "VALIDATION_JSON_ARRAY_TYPE": lambda label: f"{label} 须为 JSON 数组",
     "VALIDATION_ARRAY_ITEM_INVALID": lambda label, index: f"{label} 第 {index + 1} 项无效",
     "VALIDATION_ARRAY_ITEM_ENTITY_ID": lambda label, index: f"{label} 第 {index + 1} 项缺少 entity_id",
@@ -346,9 +285,8 @@ API_ERROR: dict[str, str | _F] = {
     "VALIDATION_ARRAY_ITEM_LOCK_ENTITY": lambda label, index: f"{label} 第 {index + 1} 项门锁触发需指定 entityId",
     "VALIDATION_ARRAY_ITEM_STATE_ENTITY": lambda label, index: f"{label} 第 {index + 1} 项状态触发需指定 entityId",
     "VALIDATION_ARRAY_ITEM_STATE_TO": lambda label, index: f"{label} 第 {index + 1} 项状态触发需指定 to",
-    # domain not-found / auth extras
+    # domain not-found
     "ENTITY_NOT_FOUND": lambda entity_id: f"实体未找到: {entity_id}",
-    "AUTH_CANNOT_DEMOTE_LAST_ADMIN": "不能降级最后一个管理员",
     "SECURITY_ZONE_ID_NAME_REQUIRED": "安防区域 id 与 name 不能为空",
     "SECURITY_ZONE_ID_DUPLICATE": lambda zone_id: f"安防区域 id 重复: {zone_id}",
     "SECURITY_ZONE_NOT_FOUND": "布防区域未匹配到任何已配置区域",
@@ -365,14 +303,8 @@ API_ERROR: dict[str, str | _F] = {
     "MOVIEPILOT_URL_NOT_CONFIGURED": "MoviePilot URL 未在仪表板设置中配置",
     "MOVIEPILOT_PROXY_IMAGE_FAILED": "无法通过 MoviePilot 代理获取远程图像",
     "SETUP_WIZARD_STEPS_PENDING": lambda pending: f"请先完成向导步骤：{pending}",
-    "GUEST_PASS_LIMIT": lambda max_: f"临时密码数量已达上限 ({max_})，请先撤销旧密码",
-    "GUEST_PASS_CRYPTO_SECRET_MISSING": "GUEST_PASS_SECRET 或 JWT_SECRET 未配置，无法加密访客密码",
-    "GUEST_PASS_CRYPTO_DECRYPT_FAILED": "访客密码解密失败",
-    "GUEST_PASS_LOCK_WRITE_FAILED": "门锁写入临时密码失败，请检查门锁集成是否支持 set_usercode，未创建访客通行",
-    "DEVICE_GROUP_DOMAIN_SERVICE_REQUIRED": "必须指定 domain 和 service",
     "CSRF_INVALID": "CSRF token 无效或缺失",
     "LICENSE_INACTIVE": "系统未激活，请导入商业授权许可证。",
-    "LICENSE_BYPASS_FORBIDDEN_IN_PRODUCTION": "HOMEOS_LICENSE_BYPASS 禁止在 production 使用。请移除该环境变量。",
     "WECOM_CREDENTIALS_MISSING": "企业微信 CorpId/CorpSecret 未配置",
     "WECOM_GET_TOKEN_FAILED": lambda detail: f"企业微信获取 access_token 失败: {detail}",
     "WECOM_SEND_FAILED": lambda detail: f"企业微信发送消息失败: {detail}",
@@ -380,32 +312,7 @@ API_ERROR: dict[str, str | _F] = {
     "CHANNEL_WEBPUSH_ENDPOINT_INVALID": "WebPush 订阅地址无效（须为 https 公网推送服务地址）",
     "LOCK_BUSY": "资源正在被其他同步任务占用，请稍后重试",
     "BACKUP_SCHEMA_TOO_NEW": lambda payload_version, current_version: f"备份 schema {payload_version} 高于当前 {current_version}",
-    "BUNDLE_SCHEMA_TOO_NEW": lambda bundle_version, current_version: f"备份包 schema {bundle_version} 高于当前 {current_version}",
-    "HA_CALL_SERVICE_TIMEOUT": lambda domain, service: f"服务调用超时：{domain}.{service}",
-    "HA_CALL_SERVICE_DEPS_NOT_READY": "HA call_service 依赖未初始化",
-    "HA_COMMAND_QUEUE_FULL": "HA 未连接且命令队列已满",
-    "HA_COMMAND_QUEUE_TTL_EXPIRED": "HA 命令队列已过期（TTL）",
-    "HA_COMMAND_QUEUE_EMPTY": "没有可重试的丢弃指令",
-    "HA_COMMAND_QUEUE_INSTANCE_STOPPING": "实例关闭，未下发指令已转入可重试列表",
-    "HA_COMMAND_BRIDGE_FAILED": "HA 命令桥接失败",
-    "HA_COMMAND_BRIDGE_PUBLISH_FAILED": lambda detail: f"HA 命令桥接请求发布失败: {detail}",
-    "HA_COMMAND_BRIDGE_SUBSCRIBE_FAILED": lambda detail: f"HA 命令桥接订阅失败: {detail}",
-    "HA_WS_CONNECTION_CLOSED": "WebSocket 连接已关闭",
-    "HA_WS_REQUEST_TIMEOUT": lambda type_: f"WebSocket 请求超时：{type_}",
-    "HA_WS_REQUEST_FAILED": "HA WebSocket 请求失败",
-    "HA_GET_STATES_TIMEOUT": "get_states 请求超时",
-    "HA_GET_STATES_INVALID_RESPONSE": "get_states 返回无效响应",
-    "HA_SUBSCRIBE_EVENTS_TIMEOUT": "subscribe_events 超时",
-    "HA_SUBSCRIBE_ENTITY_REGISTRY_TIMEOUT": "subscribe_events（entity_registry_updated）超时",
-    "HA_SUBSCRIBE_AUTOMATION_TIMEOUT": "subscribe_events（automation.triggered）超时",
-    "HA_WEBRTC_NO_RESULT": "WebRTC 协商无结果",
-    "HA_WEBRTC_TIMEOUT": "WebRTC 协商超时",
-    "HA_WEBRTC_ERROR": "WebRTC 错误",
-    "HA_WEBRTC_OFFER_ACK_TIMEOUT": "WebRTC offer 确认超时",
-    "HA_UNSUBSCRIBE_TIMEOUT": "unsubscribe 超时",
-    "HA_WEBRTC_NOT_CONNECTED": "Home Assistant 未连接，无法建立 WebRTC",
     "HA_STATE_RESYNC_FAILED": lambda detail: f"HA 状态同步失败: {detail or '未知错误'}",
-    "AREA_NOT_FOUND": lambda area_id: f"区域 {area_id} 不存在",
     "UI_CONFIG_LOAD_FAILED": lambda detail: f"无法加载配置。请确认已执行数据库初始化：{detail}",
 }
 
@@ -419,12 +326,9 @@ _PREFIX_SENTINEL = "\x00HOMEOS_PREFIX_SENTINEL\x00"
 #: 工厂含非插值逻辑无法用哨兵提取时的手工兜底前缀表。
 _MANUAL_DYNAMIC_PREFIXES: list[tuple[str, str]] = [
     ("备份 schema ", "BACKUP_SCHEMA_TOO_NEW"),
-    ("备份包 schema ", "BUNDLE_SCHEMA_TOO_NEW"),
     ("企业微信获取 access_token 失败: ", "WECOM_GET_TOKEN_FAILED"),
     ("企业微信发送消息失败: ", "WECOM_SEND_FAILED"),
     ("实体未找到: ", "ENTITY_NOT_FOUND"),
-    ("区域 ", "AREA_NOT_FOUND"),
-    ("WebSocket 请求超时：", "HA_WS_REQUEST_TIMEOUT"),
     ("Home Assistant 服务错误：", "PROXY_HA_SERVICE_FAILED"),
     ("内嵌页「", "EMBED_NOT_FOUND"),
 ]

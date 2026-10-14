@@ -17,7 +17,12 @@ permissions:
 
 concurrency:
   group: docker-${{ github.ref }}
-  cancel-in-progress: true
+  # 发布路径**不得取消**：两个架构各自先推 `<tag>-amd64` / `<tag>-arm64` 单架构镜像，
+  # 再由 merge job 合成 manifest list。中途取消会留下「单架构已推、manifest list 还是旧版本」
+  # 的半成品，而 `latest` 指针可能已指向其中之一 —— 这种状态在 `docker pull` 端表现为
+  # 「拉到的镜像与标签承诺的版本不一致」，且只能靠人工重跑发布修复。
+  # 非默认分支（`sha-<short>` 的测试构建，见 meta job 的 release 判定）仍允许取消，省 runner。
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
 
 env:
   REGISTRY: ghcr.io
@@ -97,30 +102,41 @@ jobs:
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
-            smoke_module: app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: app
             project: app
             suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
-            smoke_module: app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: store
             project: store
             suffix: "-store"
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
-            smoke_module: app.app
           - target: store
             project: store
             suffix: "-store"
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
-            smoke_module: app.app
     steps:
       - uses: actions/checkout@v7
+
+      # 联网核对真源里的 tag 与摘要是否**仍然配对**（判据与放置位置的理由见下）。
+      #
+      # 为什么单独一条：`checks.yml` 里跑的 `verify:contracts` 已经覆盖了「四个镜像面写法一致」，
+      # 但「tag 现在解析到的还是那个 digest 吗」只有问 registry 才知道。上游重推同名 tag 后，
+      # 本仓库钉住的 digest 仍然可复现，可 `tag@digest` 这句话已经不成立 —— 恰好是「同一份源码
+      # 不同时间构建出不同产物」的前夜，也就是这层钉版存在的理由。
+      #
+      # 为什么放在最前：它只读源码 + 联网，几十毫秒；放在几分钟的前端构建**之前**才能省下
+      # 一个 runner 周期。为什么发布路径硬失败：发版前必须把 digest 刷新成新值（`python3
+      # ops/check/check_docker_pins.py --verify-remote` 会打印新旧摘要）。非发布分支只作提示，
+      # 不让上游动一下 tag 就把所有人的功能分支构建堵死。
+      - name: Verify base image pins against the registry
+        continue-on-error: ${{ needs.meta.outputs.release != 'true' }}
+        run: python3 ops/check/check_docker_pins.py --verify-remote
 
       # 前端产物由宿主机构建并混淆，落到工作区根 dist/。
       - uses: oven-sh/setup-bun@v2
@@ -173,13 +189,25 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
           provenance: false
 
-      # 镜像冒烟：把「镜像能起来」纳入门禁。这里只做一次 import（不连库、不跑服务），
-      # 但足以挡住「构建期少 COPY 了东西 / 版本模块没烘进去」这类只在运行容器时才暴露的问题
-      # —— 源码在宿主上跑得通，镜像里 .so 的包名与路径写错是看不出来的。
-      - name: Smoke test image import (${{ matrix.target }} / ${{ matrix.arch }})
+      # 镜像冒烟：把「镜像能起来」纳入门禁。单架构镜像就在这里验（不必等 manifest list 合成）。
+      # 覆盖范围与「为什么 app 只做静态校验」见 `ops/docker/image_smoke.py` 顶部表格：
+      #   version        —— 构建期 HOMEOS_VERSION 真烘进了 `app._version`
+      #   caddy-config   —— 镜像内 Caddyfile 语法/指令合法
+      #   store-liveness —— 真 entrypoint + 真启动器跑起来并等 HEALTHCHECK 健康
+      #                     （由此覆盖 lifespan、启动期建库、内置反代起来并反代成功）
+      #   key-sync-contract —— 商店私钥**绝不**被同步进主应用公钥目录
+      #   caddy-restart  —— 杀掉容器内 caddy，验证守护重启状态机（`ops/docker/proxy.py`）能自愈
+      # 这一步在推到 GHCR **之后**：顺带证明「推上去的那份镜像」是可启动的，而不只是本地构建产物。
+      - name: Smoke test image (${{ matrix.target }} / ${{ matrix.arch }})
         run: |
           image="${{ needs.meta.outputs.image }}${{ matrix.suffix }}:${{ needs.meta.outputs.tag }}-${{ matrix.arch }}"
-          docker run --rm --entrypoint python "$image" -c "import ${{ matrix.smoke_module }}; print('import ok')"
+          python3 ops/docker/image_smoke.py \
+            --image "$image" \
+            --project "${{ matrix.project }}" \
+            --version "${{ needs.meta.outputs.version }}" \
+            --require-docker
+        env:
+          PYTHONUNBUFFERED: "1"
 
   # 把 <tag>-amd64 与 <tag>-arm64 合成为一个 manifest list：docker pull 时按宿主架构自动选。
   merge:

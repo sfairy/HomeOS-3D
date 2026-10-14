@@ -62,6 +62,9 @@ from ..security.security import (
 
 router = APIRouter()
 
+#: 订单号唯一约束撞车时的重试次数（含首次）。撞号是服务端随机数的概率事件，重试几次即可。
+_ORDER_NO_ATTEMPTS = 3
+
 
 def _resolve_requested_channel(setting, payload, request) -> str:
     """顾客在收银台选的渠道 → 渠道名；留空返回空串（表示「用默认渠道」）。
@@ -245,6 +248,14 @@ def create_order(
     )
     session.add(order)
     outcome = _flush_order(session, order)
+    for _ in range(_ORDER_NO_ATTEMPTS - 1):
+        if outcome != "retry":
+            break
+        # 订单号撞车：换一个号重试。旧实现把它直接当成「请求过于频繁」抛给顾客，
+        # 但撞号是服务端随机数的事，跟顾客的请求频率没有关系；换号重试才是正确处置。
+        logger.warning("订单号 %s 冲突，重新生成后重试", order.order_no)
+        order.order_no = new_order_no(account.email)
+        outcome = _flush_order(session, order)
     if outcome == "pending":
         session.rollback()
         raise HTTPException(
@@ -255,19 +266,26 @@ def create_order(
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="下单请求过于频繁，请稍后重试。",
+            detail="订单号生成冲突，请重试。",
             headers={"Retry-After": "1"},
         )
 
+    # 顺序很重要：**先占库存，再核销优惠码**。
+    # 反过来的话，「库存不足 → 409」这条最常走的失败路径会在已经扣掉一个优惠码名额
+    # **之后**才抛出：请求级会话虽然会回滚，但名额计数是 `UPDATE … SET count = count + 1`
+    # 直接写的，中途任何一次 flush / 新会话（`record_attempt_in_new_session` 那类）都可能
+    # 把它落库，回滚就救不回来了 —— 用户看到「已售罄」，码却已经废掉。
+    if not fulfill.reserve_stock(session, product, 1):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
     if coupon is not None:
         try:
             coupons.redeem_coupon(session, order, coupon, account, discount)
         except coupons.CouponUnavailable as error:
+            # 核销失败在这里同样是干净的：整个请求回滚，上面刚占的库存一起释放
+            #（`reserve_stock` 与优惠码都在同一个请求级事务里）。
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
             ) from error
-    if not fulfill.reserve_stock(session, product, 1):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
     if amount <= 0:
         order.status = "paid"

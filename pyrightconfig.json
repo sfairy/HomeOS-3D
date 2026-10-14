@@ -52,12 +52,11 @@
   // `packages/shared-py` 同理：两个后端导入的 homeos_shared 由 src/__init__.py 在运行期挂上
   // sys.path（镜像态则靠 PYTHONPATH=/app 里那份内联产物），静态分析同样看不到，故逐个执行
   // 环境点名。它不属于任何一方，所以每个环境都要挂，不存在「两边同名撞车」的问题。
+  // 环境是**从头到尾按顺序**比的：每个文件只归属一条 —— `root` 包含该文件的**第一条**
+  // （官方口径 "the first one whose root directory contains that file"，不是最长 / 最具体那条）。
+  // 所以兜底环境 `root: "."` 必须排在最后：它一旦在前面，下面每条专用环境都轮不到生效，
+  // 「运行期才注入 import 根」的文件照样全量报 reportMissingImports（实测全仓 53 条）。
   "executionEnvironments": [
-    {
-      // 默认环境：两个后端源码与 packages/** 都落在这里（下面几条只覆盖脚本 / 迁移目录）。
-      "root": ".",
-      "extraPaths": ["packages/shared-py"]
-    },
     {
       "root": "ops",
       "extraPaths": [".", "homeos-store/backend", "packages/shared-py"]
@@ -75,6 +74,12 @@
     {
       "root": "homeos/backend/migrations",
       "extraPaths": ["homeos/backend", "packages/shared-py"]
+    },
+    {
+      // 兜底环境：两个后端源码与 packages/** 都落在这里（上面几条只覆盖脚本 / 迁移目录）。
+      // **必须留在最后** —— 匹配规则见上，它排在前会让上面几条全部失效。
+      "root": ".",
+      "extraPaths": ["packages/shared-py"]
     }
   ]
 }

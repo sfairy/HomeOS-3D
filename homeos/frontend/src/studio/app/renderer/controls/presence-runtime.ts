@@ -1,35 +1,141 @@
 import type { HaEntityEntry } from "@app/shared/util/ha-entity";
-function resolveStateEntry(stateOrChange: any) {
-  return stateOrChange?.newState || stateOrChange || null;
+
+/**
+ * HA 状态记录：一层 `{ state, attributes, lastChanged, … }`，或宿主包一层 `newState`（两处写法并存）。
+ * 显式列字段，替代原先的 `any` 直穿 —— 不认识的字段读出来就是 `undefined`，不再是「随便点」。
+ */
+export interface PresenceStateEntry {
+  state?: unknown;
+  attributes?: Record<string, unknown>;
+  lastChanged?: unknown;
+  last_changed?: unknown;
+  updatedAt?: unknown;
+  lastUpdated?: unknown;
+  last_updated?: unknown;
 }
+
+/** 状态来源的包裹形态（宿主 `states` 表里可能存 `{ newState }`）。 */
+export interface PresenceStateWrapper {
+  newState?: unknown;
+}
+
 /** 人在传感器运动事件解析所需的选项。 */
-type PresenceEventOptions = {
+export interface PresenceEventOptions {
   /** 运动超时时间（秒）。 */
   motionTimeoutSeconds?: number | null;
-  [optionName: string]: any;
-};
+}
 
 /** 人在传感器展示状态计算所需的选项。 */
-type PresencePresentationOptions = {
-  /** 触发动画的运动事件实体 id。 */
-  motionEvent?: any;
-  entityId?: string;
+export interface PresencePresentationOptions {
+  /** 触发动画的运动事件实体 id（只做真值判断，形状不定）。 */
+  motionEvent?: unknown;
+  entityId?: unknown;
   /** 显式注入当前时间，便于测试。 */
-  now?: number;
+  now?: unknown;
   motionTimeoutSeconds?: number | null;
   noMotionSeconds?: number | null;
   noMotionStateTimestamp?: number | null;
-  [optionName: string]: any;
-};
+}
 
 /** 人形动画各段时长（秒）。 */
-type PresenceAnimationDurations = {
+export interface PresenceAnimationDurations {
   orbit?: number;
   wave?: number;
   floor?: number;
   step?: number;
-  [animationName: string]: any;
-};
+}
+
+/** 人在传感器展示结果（渲染器据此上色）。 */
+export interface PresencePresentationResult {
+  key: string;
+  label: string;
+  active: boolean;
+  available: boolean;
+}
+
+/** 运动事件判定结果：`motionEvent` 是判别字段 —— 命中时超时参数已解析成数值。 */
+export interface PresenceMotionEventConfigInactive {
+  entityId: unknown;
+  motionEvent: false;
+  motionTimeoutSeconds: null;
+  noMotionSeconds: null;
+  noMotionStateTimestamp: null;
+  companionEntityIds: string[];
+}
+
+/** 运动事件命中：`motionTimeoutSeconds` 必有值（渲染器据此排重绘定时器）。 */
+export interface PresenceMotionEventConfigActive {
+  entityId: unknown;
+  motionEvent: true;
+  motionTimeoutSeconds: number;
+  noMotionSeconds: number | null;
+  noMotionStateTimestamp: number | null;
+  companionEntityIds: string[];
+}
+
+export type PresenceMotionEventConfig =
+  | PresenceMotionEventConfigInactive
+  | PresenceMotionEventConfigActive;
+
+/** 人形动画各段延迟（CSS 负延迟字符串）。 */
+export interface PresenceAnimationDelays {
+  orbitDelay: string;
+  waveDelay: string;
+  floorDelay: string;
+  stepDelay: string;
+}
+
+/** 历史条目（`presenceHistoryBuckets` 入参形状）。 */
+export interface PresenceHistoryEntry {
+  timestamp?: unknown;
+  value?: unknown;
+}
+
+/** 实体注册表条目（即时消息墙 / 人在传感器只用到这几个字段）。 */
+export interface PresenceRegistryEntry {
+  entityId?: string;
+  name?: string;
+  originalName?: string;
+  translationKey?: string;
+  deviceId?: string;
+  domain?: string;
+  status?: string;
+  disabledBy?: string;
+}
+
+/** 注册表 / 状态表的最小接口：宿主可能传 Map，也可能传 undefined。 */
+export interface PresenceEntityLookup {
+  get?: (key: string) => unknown;
+  values?: () => Iterable<unknown>;
+}
+
+/** 运动伴随传感器：超时传感器与「无移动时长」传感器。 */
+export interface PresenceCompanionSensors {
+  timeout: PresenceRegistryEntry | null;
+  noMotion: PresenceRegistryEntry | null;
+}
+
+/** 收窄成状态记录；非对象 → null。 */
+function toPresenceStateEntry(value: unknown): PresenceStateEntry | null {
+  return value && typeof value === "object" ? (value as PresenceStateEntry) : null;
+}
+
+/** 收窄成注册表条目；非对象 → 空条目（调用方不必再判空）。 */
+function toPresenceRegistryEntry(value: unknown): PresenceRegistryEntry {
+  return value && typeof value === "object" ? (value as PresenceRegistryEntry) : {};
+}
+
+/** 取出状态记录：兼容 `newState` 包裹，保持原 `||` 回退语义。 */
+function resolveStateEntry(stateOrChange: unknown): PresenceStateEntry | null {
+  const wrapper = toPresenceStateEntry(stateOrChange) as PresenceStateWrapper | null;
+  if (wrapper?.newState) return toPresenceStateEntry(wrapper.newState);
+  return toPresenceStateEntry(stateOrChange);
+}
+
+/** 取出状态记录并保证可读（非法入参 → 空条目，替代原先的 `|| {}`）。 */
+function resolveStateEntryOrEmpty(value: unknown): PresenceStateEntry {
+  return resolveStateEntry(value) ?? {};
+}
 
 function entitySearchTextOf(entity: HaEntityEntry = {}) {
   return (
@@ -42,8 +148,8 @@ function entitySearchTextOf(entity: HaEntityEntry = {}) {
     (entity.translationKey || "")
   ).trim();
 }
-function durationSecondsFromState(stateEntity: any, defaultUnit = "s") {
-  const entityState = resolveStateEntry(stateEntity) || {},
+function durationSecondsFromState(stateEntity: unknown, defaultUnit = "s") {
+  const entityState = resolveStateEntryOrEmpty(stateEntity),
     rawSeconds = Number(entityState.state);
   if (!Number.isFinite(rawSeconds) || rawSeconds < 0) return null;
   const unit = String(entityState.attributes?.unit_of_measurement || defaultUnit)
@@ -55,20 +161,21 @@ function durationSecondsFromState(stateEntity: any, defaultUnit = "s") {
       ? rawSeconds * 3600
       : rawSeconds;
 }
-function findMotionCompanionSensors(entitiesById: any, targetEntityId: any) {
-  const entityMetadata = entitiesById?.get?.(targetEntityId);
-  if (!entityMetadata?.deviceId)
-    return {
-      timeout: null as any,
-      noMotion: null as any,
-    };
-  const deviceSensorEntities = [...entitiesById.values()].filter(
-      (candidateSensor) =>
-        candidateSensor.deviceId === entityMetadata.deviceId &&
-        candidateSensor.domain === "sensor" &&
-        candidateSensor.status !== "missing" &&
-        !candidateSensor.disabledBy,
-    ),
+function findMotionCompanionSensors(
+  entitiesById: PresenceEntityLookup,
+  targetEntityId: string,
+): PresenceCompanionSensors {
+  const entityMetadata = toPresenceRegistryEntry(entitiesById.get?.(targetEntityId));
+  if (!entityMetadata.deviceId) return { timeout: null, noMotion: null };
+  const deviceSensorEntities = [...(entitiesById.values?.() ?? [])]
+      .map((candidateSensor) => toPresenceRegistryEntry(candidateSensor))
+      .filter(
+        (candidateSensor) =>
+          candidateSensor.deviceId === entityMetadata.deviceId &&
+          candidateSensor.domain === "sensor" &&
+          candidateSensor.status !== "missing" &&
+          !candidateSensor.disabledBy,
+      ),
     timeoutSensor =
       deviceSensorEntities.find((timeoutCandidate) =>
         /custom[_ -]?no[_ -]?motion[_ -]?time|no[_ -]?motion[_ -]?timeout|自定义超时无人移动时间/i.test(
@@ -87,23 +194,23 @@ function findMotionCompanionSensors(entitiesById: any, targetEntityId: any) {
   };
 }
 export function presenceMotionEventConfig(
-  entityId: any,
-  eventState: any = null,
-  entityRegistry = new Map(),
-  statesByEntityId = new Map(),
+  entityId: string,
+  eventState: unknown = null,
+  entityRegistry: PresenceEntityLookup = new Map(),
+  statesByEntityId: PresenceEntityLookup = new Map(),
   eventOptions: PresenceEventOptions = {},
-) {
-  const registryEntry = entityRegistry?.get?.(entityId) || {},
-    stateObject = resolveStateEntry(eventState) || {},
+): PresenceMotionEventConfig {
+  const registryEntry = toPresenceRegistryEntry(entityRegistry?.get?.(entityId)),
+    stateObject = resolveStateEntryOrEmpty(eventState),
     searchText =
       entitySearchTextOf({
         ...registryEntry,
         entityId: entityId,
       }) +
       " " +
-      (stateObject.attributes?.device_class || "") +
+      String(stateObject.attributes?.device_class || "") +
       " " +
-      (stateObject.attributes?.event_type || "");
+      String(stateObject.attributes?.event_type || "");
   if (!(
     String(entityId || "").startsWith("event.") &&
     /motion|occupancy|presence|pir|moving|移动|运动|人体|有人/i.test(searchText)
@@ -111,10 +218,10 @@ export function presenceMotionEventConfig(
     return {
       entityId: entityId,
       motionEvent: false,
-      motionTimeoutSeconds: null as any,
-      noMotionSeconds: null as any,
-      noMotionStateTimestamp: null as any,
-      companionEntityIds: [] as any[],
+      motionTimeoutSeconds: null,
+      noMotionSeconds: null,
+      noMotionStateTimestamp: null,
+      companionEntityIds: [],
     };
   const companionSensors = findMotionCompanionSensors(entityRegistry, entityId),
     optionsTimeoutSeconds = Number(eventOptions.motionTimeoutSeconds),
@@ -142,17 +249,16 @@ export function presenceMotionEventConfig(
     motionTimeoutSeconds: resolvedTimeoutSeconds,
     noMotionSeconds: durationSecondsFromState(noMotionState),
     noMotionStateTimestamp: presenceStateTimestamp(noMotionState),
-    companionEntityIds: [
-      companionSensors.timeout?.entityId,
-      companionSensors.noMotion?.entityId,
-    ].filter(Boolean),
+    companionEntityIds: [companionSensors.timeout?.entityId, companionSensors.noMotion?.entityId].filter(
+      (companionEntityId): companionEntityId is string => Boolean(companionEntityId),
+    ),
   };
 }
 export function presenceSensorPresentation(
-  stateSource: any,
+  stateSource: unknown,
   overrideState = "auto",
   presentationOptions: PresencePresentationOptions = {},
-) {
+): PresencePresentationResult {
   if (overrideState === "on")
     return {
       key: "occupied",
@@ -290,8 +396,8 @@ export function presenceSensorPresentation(
         available: false,
       };
 }
-export function presenceStateTimestamp(stateRecord: any) {
-  const resolvedState = resolveStateEntry(stateRecord) || {},
+export function presenceStateTimestamp(stateRecord: unknown): number | null {
+  const resolvedState = resolveStateEntryOrEmpty(stateRecord),
     rawTimestamp =
       resolvedState.lastChanged ||
       resolvedState.last_changed ||
@@ -300,19 +406,19 @@ export function presenceStateTimestamp(stateRecord: any) {
       resolvedState.last_updated ||
       resolvedState.state ||
       "",
-    parsedTimestamp = Date.parse(rawTimestamp);
+    parsedTimestamp = Date.parse(String(rawTimestamp ?? ""));
   return Number.isFinite(parsedTimestamp) ? parsedTimestamp : null;
 }
 export function presenceAnimationPhase(
-  stateInput: any,
+  stateInput: unknown,
   durations: PresenceAnimationDurations = {},
   animationNowMs = Date.now(),
-) {
+): PresenceAnimationDelays {
   const stateTimestamp = presenceStateTimestamp(stateInput),
     elapsedMs = Number.isFinite(stateTimestamp)
       ? Math.max(0, Number(animationNowMs) - stateTimestamp!)
       : 0,
-    formatDelayForPeriod = (durationSeconds: any, defaultSeconds: any) => {
+    formatDelayForPeriod = (durationSeconds: number | undefined, defaultSeconds: number) => {
       const periodMs = Math.max(0.001, Number(durationSeconds) || defaultSeconds) * 1000,
         delayMs = Math.round(elapsedMs % periodMs);
       return delayMs > 0 ? "-" + delayMs + "ms" : "0ms";
@@ -324,7 +430,7 @@ export function presenceAnimationPhase(
     stepDelay: formatDelayForPeriod(durations.step, 0.72),
   };
 }
-export function formatPresenceDuration(timestamp: any, referenceNowMs = Date.now()) {
+export function formatPresenceDuration(timestamp: unknown, referenceNowMs = Date.now()): string {
   const timestampValue = Number(timestamp);
   if (!Number.isFinite(timestampValue)) return "--";
   const elapsedSeconds = Math.max(0, Math.floor((Number(referenceNowMs) - timestampValue) / 1000));
@@ -343,23 +449,23 @@ export function formatPresenceDuration(timestamp: any, referenceNowMs = Date.now
   return remainingHours ? elapsedDays + " 天 " + remainingHours + " 小时" : elapsedDays + " 天";
 }
 export function presenceHistoryBuckets(
-  historyEntries: any[] = [],
-  currentState: any = null,
+  historyEntries: readonly PresenceHistoryEntry[] = [],
+  currentState: unknown = null,
   nowTimestampMs = Date.now(),
   windowHours = 24,
   bucketCount = 48,
-  bucketOptions: Record<string, any> = {},
-) {
+  bucketOptions: PresencePresentationOptions = {},
+): string[] {
   const nowValue = Number(nowTimestampMs),
     windowMs = Math.max(1, Number(windowHours) || 24) * 60 * 60 * 1000,
     windowStartMs = nowValue - windowMs,
     entries = (Array.isArray(historyEntries) ? historyEntries : [])
       .map((historyEntry) => ({
-        timestamp: Date.parse(historyEntry?.timestamp),
+        timestamp: Date.parse(String(historyEntry?.timestamp ?? "")),
         state: {
           state: historyEntry?.value,
           lastChanged: historyEntry?.timestamp,
-        },
+        } as PresenceStateEntry,
       }))
       .filter((validEntry) => Number.isFinite(validEntry.timestamp))
       .sort((firstEntry, secondEntry) => firstEntry.timestamp - secondEntry.timestamp),
@@ -368,13 +474,13 @@ export function presenceHistoryBuckets(
     Number.isFinite(currentTimestamp) &&
     entries.push({
       timestamp: currentTimestamp!,
-      state: resolveStateEntry(currentState),
+      state: resolveStateEntryOrEmpty(currentState),
     }),
     entries.sort((leftEntry, rightEntry) => leftEntry.timestamp - rightEntry.timestamp));
-  const bucketStates: any[] = [],
+  const bucketStates: string[] = [],
     bucketCountClamped = Math.max(1, Math.min(288, Math.round(Number(bucketCount) || 48)));
   let entryIndex = 0,
-    previousEntry: any = null;
+    previousEntry: { timestamp: number; state: PresenceStateEntry } | null = null;
   for (let bucketIndex = 0; bucketIndex < bucketCountClamped; bucketIndex += 1) {
     const bucketEndMs = windowStartMs + (windowMs * (bucketIndex + 1)) / bucketCountClamped;
     for (; entryIndex < entries.length && entries[entryIndex].timestamp <= bucketEndMs;)
@@ -384,8 +490,8 @@ export function presenceHistoryBuckets(
       presenceSensorPresentation(entryAtBucket?.state, "auto", {
         ...bucketOptions,
         now: bucketEndMs,
-        noMotionSeconds: null as any,
-        noMotionStateTimestamp: null as any,
+        noMotionSeconds: null,
+        noMotionStateTimestamp: null,
       }).key,
     );
   }

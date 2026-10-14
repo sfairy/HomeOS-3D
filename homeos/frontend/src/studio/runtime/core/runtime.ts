@@ -164,7 +164,7 @@ function createBreadcrumbStore() {
           const trimmedBreadcrumbs = remainingBreadcrumbs.slice(-16);
           for (; JSON.stringify(trimmedBreadcrumbs).length > 32768;) trimmedBreadcrumbs.shift();
           window.sessionStorage?.setItem(breadcrumbStorageKey, JSON.stringify(trimmedBreadcrumbs));
-        } catch {}
+        } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
     },
   };
 }
@@ -265,7 +265,7 @@ function createLifecycleReporter(projectId: any, componentId: any) {
               JSON.stringify(reportPayload),
             ),
           ).catch(() => {});
-        } catch {}
+        } catch { /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */ }
       };
     return (
       reportLifecycleEvent(mountCount === 1 ? "mount-initial" : "mount-repeat"),
@@ -386,7 +386,7 @@ export function mountInteraction3d(
             const contentDocument = frameElement.contentDocument;
             if (contentDocument && contentDocument === lastContentDocument) return;
             lastContentDocument = contentDocument;
-          } catch {}
+          } catch { /* 跨域 iframe 读取 document / window 会抛 SecurityError：属预期路径，按「无 document」处理 */ }
           ++frameLoadCount > 1 &&
             reportRuntimeLifecycle("iframe-load-unexpected", {
               frameLoads: frameLoadCount,
@@ -763,8 +763,7 @@ export function mountInteraction3d(
         ((temperatureUnit = normalizedTemperatureUnit),
         (lastPublishedStates = null),
         publishStates());
-    } catch {
-    } finally {
+    } catch { /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */ } finally {
       (clearTimeout(capabilityTimeoutId),
         activeRequestsSet.delete(capabilityAbortController),
         (isFetchingCapabilities = false));

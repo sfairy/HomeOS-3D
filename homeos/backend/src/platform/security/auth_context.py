@@ -19,7 +19,6 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from .session_store import resolve_login_session
-from ..core.app_config import get_auth_config
 from ..core.deps import get_session
 from ..core.errors import unauthorized
 
@@ -78,7 +77,6 @@ async def require_user(
 
 
 __all__ = [
-    "get_auth_config",
     "get_current_user",
     "require_user",
 ]

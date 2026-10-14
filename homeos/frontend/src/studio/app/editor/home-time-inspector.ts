@@ -2,7 +2,34 @@
 import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "./editor-utils";
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "./editor-basic-inspectors";
 
-export interface TimeInspectorContext { [key: string]: any }
+export interface TimeInspectorContext {
+  /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构），由
+   *  `ops/studio/studio_context_bag_typing.mjs` 从**真实使用**生成，一个不多一个不少。
+   *
+   * 类型暂为 `any`：宿主 `home.ts` 的 `findElement()` 仍返回宽类型，控件语义（`.value` /
+   * `.checked` / `.options`）由注入点保证。**但开放索引签名已去掉** —— 键名拼错、宿主漏传
+   * 一个键现在会被 `tsc` 拦下。下一步是给 `findElement` 建「选择器 → 元素类型」映射，
+   * 再把这批字段换成具体类型。 */
+  activeProject: any;
+  dateLabelElement: any;
+  dateLeftElement: any;
+  dateLineGapElement: any;
+  dateLunarColorElement: any;
+  dateLunarElement: any;
+  dateLunarSizeElement: any;
+  dateLunarSpacingElement: any;
+  dateLunarWeightElement: any;
+  dateOpacityElement: any;
+  datePrimaryColorElement: any;
+  datePrimarySizeElement: any;
+  datePrimarySpacingElement: any;
+  datePrimaryWeightElement: any;
+  dateRotationElement: any;
+  dateScaleElement: any;
+  dateTopElement: any;
+  dateTypeElement: any;
+  dateWeekdayElement: any;
+}
 
 export function syncTimeInspector(ctx: TimeInspectorContext, timeComponent: any) {
   const availablePropertiesRef = timeComponent.properties || {},

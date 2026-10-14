@@ -2,7 +2,7 @@
   <!-- MediaPlayerModal 媒体播放器模态框：全屏的媒体播放控制器 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
   <Transition name="hos-modal">
-    <div v-if="isOpen && entityId" class="hos-modal-root" @click.self="closeAll">
+    <div v-if="isOpen && entityId" ref="rootRef" class="hos-modal-root" @click.self="closeAll">
       <div class="hos-modal-backdrop">
         <div
           v-if="albumArt"
@@ -122,6 +122,9 @@ import { useMediaPlayerControls } from '@/composables/entity/useMediaPlayerContr
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 import { useMediaPlayerModalDisplay } from '@/composables/entity/useMediaPlayerModalDisplay'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import './media-player/modal.css'
 
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
@@ -135,14 +138,21 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const panelRef = ref(null)
+/** 浮层最外层节点：焦点陷阱管的是面板，背景隔离与滚动锁要的是整层（含背板）。 */
+const rootRef = ref(null)
 const showMore = ref(false)
 const viewMode = ref('cover')
 const ttsText = ref('')
 
-useFocusTrap(
-  panelRef,
-  computed(() => props.isOpen && !!props.entityId),
-)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁四处共用同一个判据。 */
+const isActive = computed(() => props.isOpen && !!props.entityId)
+
+useFocusTrap(panelRef, isActive)
+// Esc 走全局层级栈：播放器会叠在抽屉 / 确认框之上，各自监听 window 会让一次 Esc 关掉多层。
+useEscLayer(isActive, '媒体播放器', () => closeAll())
+// 背景隔离 + 滚动锁：关掉之后焦点陷阱只剩「浮层内循环 Tab」，背景在无障碍树里仍然可用。
+useBackgroundInert(rootRef, isActive, '媒体播放器')
+useBodyScrollLock(isActive, '媒体播放器')
 
 const {
   entityId,

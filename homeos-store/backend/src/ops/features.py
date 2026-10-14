@@ -1,15 +1,15 @@
 """客户端能力码目录（中文名 + 说明）。
 
-**唯一真源是仓库根的 ``ops/feature_codes.json``**：主应用（``homeos``）与本商店项目都从
+**唯一真源是仓库根的 ``ops/check/feature_codes.json``**：主应用（``homeos``）与本商店项目都从
 它派生同一份能力码目录，因此商店签进租约的码与主应用门禁用的码永远一一对应。
 
 运行期加载策略（两段，缺一不可）：
 
-1. 优先读取磁盘上的 ``ops/feature_codes.json``（开发 / 测试 / 源码部署）。路径从本文件
+1. 优先读取磁盘上的 ``ops/check/feature_codes.json``（开发 / 测试 / 源码部署）。路径从本文件
    逐级上溯查找，也可用环境变量 ``HOMEOS_FEATURE_CODES_PATH`` 显式指定。
 2. 读不到时回退到下方 ``_CATALOG_JSON`` —— **发行的加密镜像里没有 ``ops/`` 目录**
    （见根 Dockerfile：产物只允许 ``.so``），所以这份内嵌副本必须与 JSON 一致。
-   ``ops/check_feature_codes.py`` 会强制校验两者逐字段相等，防止它悄悄漂移。
+   ``ops/check/check_feature_codes.py`` 会强制校验两者逐字段相等，防止它悄悄漂移。
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import json
 import os
 from pathlib import Path
 
-#: 内嵌的能力码目录（与 ``ops/feature_codes.json`` 逐字段一致；见模块注释）。
+#: 内嵌的能力码目录（与 ``ops/check/feature_codes.json`` 逐字段一致；见模块注释）。
 _CATALOG_JSON = """
 {
   "version": 1,
@@ -54,7 +54,7 @@ EMBEDDED_CATALOG: dict = json.loads(_CATALOG_JSON)
 
 
 def _find_catalog_file() -> Path | None:
-    """从环境变量或逐级上溯定位 ``ops/feature_codes.json``；找不到返回 ``None``。"""
+    """从环境变量或逐级上溯定位 ``ops/check/feature_codes.json``；找不到返回 ``None``。"""
     override = os.getenv("HOMEOS_FEATURE_CODES_PATH", "").strip()
     if override:
         candidate = Path(override)

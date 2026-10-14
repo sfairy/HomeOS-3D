@@ -183,7 +183,7 @@
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { ref, computed, unref } from 'vue'
 import { Trash2, MapPin, Activity, Filter, Volume2 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'

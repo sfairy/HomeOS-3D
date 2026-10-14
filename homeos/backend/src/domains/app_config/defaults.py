@@ -10,7 +10,7 @@ from typing import Any
 
 from .rooms import DEFAULT_ROOM_CATALOG
 from ...platform.core.retention import DEFAULT_RETENTION
-from ...realtime.access import WS_PUSH_CRITICAL_DOMAINS
+from ...platform.security.entity_access import WS_PUSH_CRITICAL_DOMAINS
 
 #: 认证安全默认值（对齐 ``@homeos/shared`` DEFAULT_AUTH_SECURITY）。
 DEFAULT_AUTH_SECURITY: dict[str, int] = {

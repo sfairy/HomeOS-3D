@@ -1,4 +1,4 @@
-import { clampNumber, normalizeCssColor } from "./_shared";
+import { clampNumberWithFallback, normalizeCssColor } from "./_shared";
 import { randomUuid } from "../../shared/util/random-id";
 
 export function createNavigationEffectsSvg(
@@ -12,12 +12,12 @@ export function createNavigationEffectsSvg(
   const viewWidth = Math.max(1, Number(navigationComponent.position?.width || 236)),
     viewHeight = Math.max(1, Number(navigationComponent.position?.height || 100)),
     svgHeight = Math.max(8, (236 * viewHeight) / viewWidth),
-    frameWidth = clampNumber(visualProperties.frameWidth, 0, 20, 2),
+    frameWidth = clampNumberWithFallback(visualProperties.frameWidth, 0, 20, 2),
     frameInset = Math.max(0.5, frameWidth / 2 + 0.5),
     innerWidth = Math.max(1, 236 - frameInset * 2),
     innerHeight = Math.max(1, svgHeight - frameInset * 2),
     cornerRadius =
-      Math.min(innerWidth, innerHeight) * clampNumber(visualProperties.radius, 0, 0.5, 0.5),
+      Math.min(innerWidth, innerHeight) * clampNumberWithFallback(visualProperties.radius, 0, 0.5, 0.5),
     glowOpacity = Math.min(1, 0.38 * glowIntensity),
     edgeGlowSpread = Math.max(0, Math.min(innerWidth, innerHeight) * 0.42 * glowSpreadScale),
     innerGlowSpread = Math.max(0, Math.min(innerWidth, innerHeight) * 0.095 * glowSpreadScale),
@@ -25,8 +25,8 @@ export function createNavigationEffectsSvg(
     centerY = svgHeight / 2,
     frameColor = normalizeCssColor(visualProperties.frameColor, "#d9e0e6"),
     glowColor = normalizeCssColor(visualProperties.glowColor, "#f2f6fa"),
-    frameAngle = clampNumber(visualProperties.frameAngle, 0, 360, 45),
-    glowAngle = clampNumber(visualProperties.glowAngle, 0, 360, 45),
+    frameAngle = clampNumberWithFallback(visualProperties.frameAngle, 0, 360, 45),
+    glowAngle = clampNumberWithFallback(visualProperties.glowAngle, 0, 360, 45),
     intensityDivisor = isActiveState ? 0.98 : 0.48,
     scaleOpacity = (opacityInput: any) =>
       Math.max(0, Math.min(1, (opacityInput * intensityMultiplier) / intensityDivisor)),

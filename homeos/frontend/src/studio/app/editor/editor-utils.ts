@@ -28,14 +28,6 @@ export function normalizedHexColor(colorInput: any) {
         ).toLowerCase()
       : "";
 }
-export function hexToRgb(hexColor: any) {
-  const validHexColor = normalizedHexColor(hexColor) || "#000000";
-  return {
-    r: Number.parseInt(validHexColor.slice(1, 3), 16),
-    g: Number.parseInt(validHexColor.slice(3, 5), 16),
-    b: Number.parseInt(validHexColor.slice(5, 7), 16),
-  };
-}
 export function rgbToHex(redChannel: any, greenChannel: any, blueChannel: any) {
   const channelToHex = (channelNumber: any) =>
     Math.round(clampNumber(Number(channelNumber) || 0, 0, 255))
@@ -66,7 +58,14 @@ export function rgbToHsv({ r: redComponent, g: greenComponent, b: blueComponent 
     }
   );
 }
-export function hsvToRgb(hueInput: any, saturationInput: any, brightnessInput: any) {
+/**
+ * HSV → RGB 0–255 分量（色相为角度，饱和度/明度为 0–1）。
+ *
+ * 与 `@/shared/entity/utils/control/light-control-core` 的 `hsvToRgb` **不是**同一口径：
+ * 那边收的是 HA 的 `hs_color`（饱和度按百分比），返回 0–1 分量；这边收 0–1 饱和度并直接给
+ * 0–255 通道。两者此前同名，取色盘与弹窗各用一份、极易串用，故此处按量纲改名。
+ */
+export function hsvToRgb255(hueInput: any, saturationInput: any, brightnessInput: any) {
   const normalizedHue = ((Number(hueInput) % 360) + 360) % 360,
     saturationRatio = clampNumber(Number(saturationInput), 0, 1),
     brightnessRatio = clampNumber(Number(brightnessInput), 0, 1),

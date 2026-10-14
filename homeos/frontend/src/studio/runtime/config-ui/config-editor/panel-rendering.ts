@@ -58,8 +58,8 @@ export function attachEditorPanelRendering(e: any) {
    * 面板分区渲染的外部句柄（见 `rendering/panel-sections`）：上下文对象 `e` + 12 个兄弟函数
    * （6c 的 4 项 + 6d-2 新增 8 项；只被部分分区用到的那几项由各函数自行解构子集）。
    *
-   * 这些兄弟都是本函数体内的**函数声明**（提升到函数体顶部），且本工厂只在被调用时才求值 ——
-   * 放在函数体首行是为了让体内第一处调用（紧随其后）也不撞 TDZ。
+   * 这些兄弟都是本函数体内的**函数声明**（提升到函数体顶部；声明晚于本袋定义的那 6 个成员一律写成
+   * 访问器，裸值简写 = 提前构造即 TDZ），放在函数体首行是为了让体内第一处调用也不撞 TDZ。
    */
   const panelSectionsDeps = () => ({
     e,
@@ -77,7 +77,7 @@ export function attachEditorPanelRendering(e: any) {
     openLabelBatchApplyDialog,
     switchEditorKind,
     openAddDialog,
-    editorSession,
+    get editorSession() { return editorSession },
     refreshBatchButtonsCell,
   });
   /** 条目集合规整（原 panel-rendering 直系声明，P4 搬进 `rendering/panel-sections`）。 */
@@ -123,9 +123,9 @@ export function attachEditorPanelRendering(e: any) {
     switchEditorKind,
     createSettingRow,
     closeAuxDialog,
-    editorSession,
-    saveStatusElement,
-    buildEditableFieldList,
+    get editorSession() { return editorSession },
+    get saveStatusElement() { return saveStatusElement },
+    get buildEditableFieldList() { return buildEditableFieldList },
     buildItemPayload,
     listChangedFields,
   });
@@ -163,12 +163,12 @@ export function attachEditorPanelRendering(e: any) {
    */
   const panelSessionDeps = () => ({
     e,
-    editorSession,
-    kindSessionsByKind,
+    get editorSession() { return editorSession },
+    get kindSessionsByKind() { return kindSessionsByKind },
     closeAddDialog,
     closeAuxDialog,
     ensureItemCollections,
-    buildEditableFieldList,
+    get buildEditableFieldList() { return buildEditableFieldList },
     renderPanel,
     refreshEditorPreview,
     openAddDialog,
@@ -208,7 +208,7 @@ export function attachEditorPanelRendering(e: any) {
     listChangedFields,
     renderVacuumShortcutPanel,
     renderExtraControlsSection,
-    buildRuntimeProperties,
+    get buildRuntimeProperties() { return buildRuntimeProperties },
     listAddableModels,
     openAddDialog,
     renderCurtainGroupSection,
@@ -217,8 +217,7 @@ export function attachEditorPanelRendering(e: any) {
     openCurtainGroupDialog,
     syncLinkedIconSize,
     renderStatusRuleSection,
-    saveButtonElement,
-  });
+    get saveButtonElement() { return saveButtonElement },});
   /** 面板总装（P4 搬进 `rendering/panel-assembly`，此处只转发句柄）。 */
   function renderPanel() {
     return renderPanelCore(panelAssemblyDeps());

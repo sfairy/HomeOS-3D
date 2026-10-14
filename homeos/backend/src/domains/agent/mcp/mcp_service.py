@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
 from ..agent_actor import AgentActor
+from ....config import environment_is_production_from
 from ....platform.core.json_field import read_json_object
 from ....platform.core.models import User
 from ....platform.security.auth_context import resolve_restrictions
@@ -61,16 +62,26 @@ class McpGatewayService:
         session_factory: Any,
         env: Mapping[str, str] | None = None,
         server_version: str = "",
+        is_production: bool | None = None,
     ) -> None:
         self._agent_service = agent_service
         self._tools = tools
         self._agent_config = agent_config
         self._session_factory = session_factory
         self._env = env
+        #: 生产标记：优先用应用装配注入的 ``settings.is_production``（唯一真源）；
+        #: 未注入时按同一口径从 env 映射推导，避免这里再写一份「NODE_ENV == production」。
+        self._is_production = (
+            is_production
+            if is_production is not None
+            else environment_is_production_from(env if env is not None else os.environ)
+        )
         #: serverInfo.version（缺省 0.0.0，由 app 装配时注入应用版本）
         self._server_version = server_version
         #: 密钥轮换提醒只输出一次，避免每个请求刷告警
         self._key_reminder_logged = False
+        #: 「白名单未配置」告警同样只输出一次（非生产放行分支）。
+        self._allowlist_warning_logged = False
 
     @property
     def _env_map(self) -> Mapping[str, str]:
@@ -86,20 +97,26 @@ class McpGatewayService:
         return [entry.strip() for entry in raw.split(",") if entry.strip()]
 
     def assert_ip_allowed(self, ip: str | None) -> None:
-        """IP 白名单校验。
+        """IP 白名单校验（**fail-closed**）。
 
-        生产环境必须配置 MCP_GATEWAY_ALLOW_IPS，否则拒绝全部 MCP 请求。
-        配置后仅放行白名单来源（精确 IP 或网段前缀，如 192.168.1.）。
+        生产环境必须配置 ``MCP_GATEWAY_ALLOW_IPS``，否则拒绝全部 MCP 请求 ——
+        留空即「谁都能访问 MCP 网关」，那不是宽容而是把网关变成未鉴权入口。
+
+        非生产环境未配置白名单时放行（本地开发便利），但仍打一条告警：这个分支曾经因为
+        ``NODE_ENV`` 在容器里从未设置而**在生产里也生效**，静默地把网关敞开。告警让
+        「以为配了、其实没配」在日志里可见。
         """
         allow = self._resolve_ip_allowlist()
-        is_prod = (
-            self._env_get("NODE_ENV") == "production"
-            or os.environ.get("NODE_ENV") == "production"
-        )
         if not allow:
-            if is_prod:
+            if self._is_production:
                 raise _forbidden(
                     "生产环境必须配置 MCP_GATEWAY_ALLOW_IPS（逗号分隔的 IP 或网段前缀）"
+                )
+            if not self._allowlist_warning_logged:
+                self._allowlist_warning_logged = True
+                logger.warning(
+                    "MCP 网关未配置 MCP_GATEWAY_ALLOW_IPS：非生产环境放行全部来源。"
+                    "生产环境（APP_ENVIRONMENT=production）下这一项未配置会直接拒绝全部请求。"
                 )
             return
         normalized = (ip or "").strip()

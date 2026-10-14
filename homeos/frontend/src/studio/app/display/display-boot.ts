@@ -26,7 +26,7 @@ export function bootDisplayBoot(): void {
   let isWarmStart = false;
   try {
     isWarmStart = !isCapturePreview && localStorage.getItem(warmStorageKey) === "1";
-  } catch {}
+  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   const isAppleUserAgent = /\bHomeOS-Apple\/\d/.test(globalThis.navigator?.userAgent || ""),
     isWarmBoot = isWarmStart || isAppleUserAgent,
     isPerfDiagnosticsEnabled =
@@ -49,7 +49,7 @@ export function bootDisplayBoot(): void {
     const storedTheme = localStorage.getItem(themeStorageKey);
     (storedTheme === "dark" || storedTheme === "light") &&
       (documentElement.dataset.displayTheme = storedTheme);
-  } catch {}
+  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   let splashPhase: SplashPhase = isCapturePreview ? "done" : SPLASH_PHASE_LOADING,
     pollTimer: any,
     loadingTimeoutTimer: any,
@@ -105,7 +105,7 @@ export function bootDisplayBoot(): void {
       themeName
         ? localStorage.setItem(themeStorageKey, themeName)
         : localStorage.removeItem(themeStorageKey);
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   }
   function showError(error: any, canEnter = false) {
     if (splashPhase === "done" || splashPhase === "error") return;
@@ -154,7 +154,7 @@ export function bootDisplayBoot(): void {
                 if (isFirstScreenReady) {
                   try {
                     localStorage.setItem(warmStorageKey, "1");
-                  } catch {}
+                  } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
                 }
                 (imageByUrl.clear(),
                   hadFocusInside &&
@@ -185,7 +185,7 @@ export function bootDisplayBoot(): void {
       ancestorElement && ancestorElement !== shellElement;
       ancestorElement = ancestorElement.parentElement
     ) {
-      const computedStyle = getComputedStyle(ancestorElement);
+      const computedStyle = window.getComputedStyle(ancestorElement);
       if (
         computedStyle.visibility === "hidden" ||
         computedStyle.display === "none" ||

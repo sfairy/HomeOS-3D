@@ -8,7 +8,7 @@ import {
 const climateRendererModule = await (import("@app/renderer/controls/climate")),
   waterHeaterRendererModule = await (import("@app/renderer/controls/water-heater"));
 export const { createWaterHeaterFeedback, waterHeaterCapabilities } = waterHeaterRendererModule;
-export function waterHeaterStatusLabel(entityState: any) {
+export function waterHeaterCapabilityStatusLabel(entityState: any) {
   const capabilities = waterHeaterRendererModule.waterHeaterCapabilities(entityState);
   if (!capabilities.available)
     return entityState?.state === "unavailable" || entityState?.available === false

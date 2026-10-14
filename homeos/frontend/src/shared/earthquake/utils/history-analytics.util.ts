@@ -135,7 +135,7 @@ function simplifyPlaceLabel(place: string): string {
     .slice(0, 8)
 }
 
-export function buildTimeBuckets(
+export function buildPeriodTimeBuckets(
   items: unknown[],
   getTimeMs: (row: unknown) => number | null | undefined,
   period: string,

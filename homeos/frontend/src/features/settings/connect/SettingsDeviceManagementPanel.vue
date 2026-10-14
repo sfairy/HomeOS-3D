@@ -104,8 +104,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { RefreshCw, AlertCircle, CheckSquare, Trash2 } from '@lucide/vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { fetchDevicesOverview, unbindZombieBindings } from '@/services/api/system'

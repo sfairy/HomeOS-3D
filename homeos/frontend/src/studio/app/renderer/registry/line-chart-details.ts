@@ -3,8 +3,8 @@ import {
   buildHistorySeries,
   formatTimestamp,
   createHoverLineChart,
-  clampNumber,
-  createSvgElement,
+  clampNumberWithFallback,
+  appendSvgElement,
 } from "./_shared";
 import {
   resolvedThresholds,
@@ -89,7 +89,7 @@ export function renderLineChartDetails(
       plotRect.width,
       plotRect.height,
     ),
-    detailsSvgElement = createSvgElement(lineChartDetailsElement, "svg", {
+    detailsSvgElement = appendSvgElement(lineChartDetailsElement, "svg", {
       viewBox: "0 0 " + detailsViewWidth + " " + detailsViewHeight,
       preserveAspectRatio: "xMidYMid meet",
       role: "img",
@@ -99,8 +99,8 @@ export function renderLineChartDetails(
       (lineChartDetailsRenderEnvironment.renderNamespace || "renderer") +
       "-chart-details-" +
       String(lineChartDetailsComponent.id || "").replace(/[^a-z0-9_-]/gi, ""),
-    detailsDefsElement = createSvgElement(detailsSvgElement, "defs"),
-    detailsGradientElement = createSvgElement(detailsDefsElement, "linearGradient", {
+    detailsDefsElement = appendSvgElement(detailsSvgElement, "defs"),
+    detailsGradientElement = appendSvgElement(detailsDefsElement, "linearGradient", {
       id: detailsGradientId + "-line",
       gradientUnits: "userSpaceOnUse",
       x1: 0,
@@ -120,9 +120,9 @@ export function renderLineChartDetails(
     (leftDetailsThreshold, rightDetailsThreshold) =>
       rightDetailsThreshold.value - leftDetailsThreshold.value,
   ))
-    createSvgElement(detailsGradientElement, "stop", {
+    appendSvgElement(detailsGradientElement, "stop", {
       offset:
-        clampNumber(
+        clampNumberWithFallback(
           ((detailsGeometry.maximum - detailsThresholdEntry.value) / detailsGeometry.span) * 100,
           0,
           100,
@@ -134,14 +134,14 @@ export function renderLineChartDetails(
     const gridTickRatio = gridTickIndex / 4,
       gridLineY = plotRect.top + gridTickRatio * plotRect.height,
       gridTickValue = detailsGeometry.maximum - gridTickRatio * detailsGeometry.span;
-    createSvgElement(detailsSvgElement, "line", {
+    appendSvgElement(detailsSvgElement, "line", {
       x1: plotRect.left,
       y1: gridLineY,
       x2: plotRect.left + plotRect.width,
       y2: gridLineY,
       class: "hb-line-chart-details-grid",
     });
-    const axisLabelElement = createSvgElement(detailsSvgElement, "text", {
+    const axisLabelElement = appendSvgElement(detailsSvgElement, "text", {
       x: plotRect.left - (isCompactDetailsHorizontal ? 8 : 12),
       y: gridLineY + 4,
       "text-anchor": "end",
@@ -159,14 +159,14 @@ export function renderLineChartDetails(
       tickTimestamp =
         detailsGeometry.firstTime +
         timeTickRatio * (detailsGeometry.lastTime - detailsGeometry.firstTime);
-    createSvgElement(detailsSvgElement, "line", {
+    appendSvgElement(detailsSvgElement, "line", {
       x1: timeTickX,
       y1: plotRect.top,
       x2: timeTickX,
       y2: plotRect.top + plotRect.height,
       class: "hb-line-chart-details-grid vertical",
     });
-    const timeAxisLabelElement = createSvgElement(detailsSvgElement, "text", {
+    const timeAxisLabelElement = appendSvgElement(detailsSvgElement, "text", {
       x: timeTickX,
       y: plotRect.top + plotRect.height + 25,
       "text-anchor": "middle",
@@ -174,28 +174,28 @@ export function renderLineChartDetails(
     });
     timeAxisLabelElement.textContent = formatTimestamp(tickTimestamp, hasTimeAxis);
   }
-  (createSvgElement(detailsSvgElement, "line", {
+  (appendSvgElement(detailsSvgElement, "line", {
     x1: plotRect.left,
     y1: plotRect.top,
     x2: plotRect.left,
     y2: plotRect.top + plotRect.height,
     class: "hb-line-chart-details-axis",
   }),
-    createSvgElement(detailsSvgElement, "line", {
+    appendSvgElement(detailsSvgElement, "line", {
       x1: plotRect.left,
       y1: plotRect.top + plotRect.height,
       x2: plotRect.left + plotRect.width,
       y2: plotRect.top + plotRect.height,
       class: "hb-line-chart-details-axis",
     }));
-  const unitLabelElement = createSvgElement(detailsSvgElement, "text", {
+  const unitLabelElement = appendSvgElement(detailsSvgElement, "text", {
     x: plotRect.left,
     y: 20,
     class: "hb-line-chart-details-axis-title",
   });
   unitLabelElement.textContent = detailsUnit || "数值";
   const detailsChartPath = smoothChartPath(detailsGeometry.points);
-  (createSvgElement(detailsSvgElement, "path", {
+  (appendSvgElement(detailsSvgElement, "path", {
     d:
       detailsChartPath +
       " L" +
@@ -211,7 +211,7 @@ export function renderLineChartDetails(
     opacity: 0.12,
     class: "hb-line-chart-details-fill",
   }),
-    createSvgElement(detailsSvgElement, "path", {
+    appendSvgElement(detailsSvgElement, "path", {
       d: detailsChartPath,
       fill: "none",
       stroke: "url(#" + detailsGradientId + "-line)",
@@ -220,7 +220,7 @@ export function renderLineChartDetails(
       "vector-effect": "non-scaling-stroke",
       class: "hb-line-chart-details-line",
     }));
-  const movingDotElement = createSvgElement(detailsSvgElement, "circle", {
+  const movingDotElement = appendSvgElement(detailsSvgElement, "circle", {
     cx: 0,
     cy: 0,
     r: 4.2,
@@ -228,7 +228,7 @@ export function renderLineChartDetails(
   });
   return (
     lineChartDetailsRenderEnvironment.animate !== false &&
-      createSvgElement(movingDotElement, "animateMotion", {
+      appendSvgElement(movingDotElement, "animateMotion", {
         path: detailsChartPath,
         dur: "1.1s",
         begin: ".28s",

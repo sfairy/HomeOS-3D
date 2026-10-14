@@ -23,7 +23,6 @@ from typing import Any
 
 import socketio
 
-from .access import filter_entities_by_access, sort_entities_by_sync_priority
 from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import (
     parse_state_replay_params,
@@ -32,11 +31,12 @@ from .payloads import (
 )
 from .state_store import StateStore
 from .subscription import is_entity_visible_to_client, resolve_user_room_key
-from .ws_auth import extract_auth_token_from_cookie, resolve_ws_user
 from .ws_buffer import resolve_ws_max_buffer_bytes
 from .ws_config import load_state_store_config, load_ws_push_config
 from ..platform.core.entity_domain import get_entity_domain
 from ..platform.core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
+from ..platform.security.entity_access import filter_entities_by_access, sort_entities_by_sync_priority
+from ..platform.security.ws_auth import extract_auth_token_from_cookie, resolve_ws_user
 
 _SERVER_TOKEN = "server"
 
@@ -592,7 +592,7 @@ class RealtimeGateway:
         """通知送达回写（失败静默；对齐 ``markNotificationDelivered``）。"""
         from datetime import UTC, datetime
 
-        from ..domains.notification.stats import parse_json_array
+        from ..platform.core.json_field import parse_json_array
         from ..platform.core.models import Notification
 
         def _write() -> None:
@@ -760,7 +760,7 @@ class RealtimeGateway:
 
 
 def _entity_visible(user: dict[str, Any], entity_id: str) -> bool:
-    from .access import is_entity_allowed
+    from ..platform.security.entity_access import is_entity_allowed
 
     return is_entity_allowed(entity_id, user)
 
@@ -774,7 +774,7 @@ def _visibility_cache_for(
     每次都要重新解析用户的 restrictions 列表，按批次复用可省掉重复解析与正则式前缀比较。
     分桶键用限制列表的不可变指纹：无限制 / 无可见实体 / 具体前缀集合。
     """
-    from .access import resolve_entity_restrictions
+    from ..platform.security.entity_access import resolve_entity_restrictions
 
     restrictions = resolve_entity_restrictions(user)
     key: Any = None if restrictions is None else (() if not restrictions else tuple(restrictions))

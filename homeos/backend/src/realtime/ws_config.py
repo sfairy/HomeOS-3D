@@ -11,8 +11,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .access import WS_PUSH_CRITICAL_DOMAINS
 from ..platform.core.app_config import load_raw_config
+from ..platform.security.entity_access import WS_PUSH_CRITICAL_DOMAINS
 
 
 @dataclass(frozen=True)

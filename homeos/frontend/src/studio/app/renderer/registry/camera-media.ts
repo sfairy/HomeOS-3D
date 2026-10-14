@@ -6,7 +6,7 @@ import {
   GO2RTC_TRANSPORT_NAME,
   type Go2RtcMseTransportHandle,
 } from "@/shared/camera/composables/useGo2RtcMseTransport";
-import { clampNumber, normalizeCssColor, createSvgElement, createCameraVisualState } from "./_shared";
+import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from "./_shared";
 
 /**
  * Studio 侧复用共享的 go2rtc MSE 实现（`shared/camera/composables/useGo2RtcMseTransport`），
@@ -39,7 +39,7 @@ type HlsRuntime = {
 export function cameraRadiusRatio(rawRadiusRatio: any, fallbackRadiusRatio = 0.04) {
   const numericRadiusRatio = Number(rawRadiusRatio);
   return Number.isFinite(numericRadiusRatio)
-    ? clampNumber(
+    ? clampNumberWithFallback(
         numericRadiusRatio > 0.5 ? numericRadiusRatio / 100 : numericRadiusRatio,
         0,
         0.5,
@@ -62,27 +62,27 @@ export function appendCameraFrame(
       20,
       Number(targetEntityFrame?.position?.height || frameHostElement.clientHeight || 180),
     ),
-    cameraFrameStrokeWidth = clampNumber(cameraFrameOptions.frameWidth, 0, 20, 1);
+    cameraFrameStrokeWidth = clampNumberWithFallback(cameraFrameOptions.frameWidth, 0, 20, 1);
   if (cameraFrameStrokeWidth <= 0) return null;
   const frameStrokeInset = Math.max(0.5, cameraFrameStrokeWidth / 2 + 0.5),
     frameInnerWidth = Math.max(1, viewportPixelWidth - frameStrokeInset * 2),
     frameInnerHeight = Math.max(1, viewportPixelHeight - frameStrokeInset * 2),
     cornerRadiusRatio = cameraRadiusRatio(cameraFrameOptions.radius),
     frameCornerRadius = Math.min(frameInnerWidth, frameInnerHeight) * cornerRadiusRatio,
-    cameraFrameOpacity = clampNumber(cameraFrameOptions.frameOpacity, 0, 1, 0.9),
+    cameraFrameOpacity = clampNumberWithFallback(cameraFrameOptions.frameOpacity, 0, 1, 0.9),
     cameraFrameColor = normalizeCssColor(cameraFrameOptions.frameColor, "#d4d4d4"),
     cameraFrameId =
       frameIdPrefix +
       "-camera-frame-" +
       String(targetEntityFrame?.id || "").replace(/[^a-z0-9_-]/gi, ""),
-    cameraFrameSvgElement = createSvgElement(frameHostElement, "svg", {
+    cameraFrameSvgElement = appendSvgElement(frameHostElement, "svg", {
       class: "hb-camera-frame",
       viewBox: "0 0 " + viewportPixelWidth + " " + viewportPixelHeight,
       preserveAspectRatio: "none",
       "aria-hidden": "true",
     }),
-    cameraFrameDefsElement = createSvgElement(cameraFrameSvgElement, "defs"),
-    cameraFrameGradientElement = createSvgElement(cameraFrameDefsElement, "linearGradient", {
+    cameraFrameDefsElement = appendSvgElement(cameraFrameSvgElement, "defs"),
+    cameraFrameGradientElement = appendSvgElement(cameraFrameDefsElement, "linearGradient", {
       id: cameraFrameId + "-edge",
       gradientUnits: "userSpaceOnUse",
       x1: 0,
@@ -91,7 +91,7 @@ export function appendCameraFrame(
       y2: viewportPixelHeight / 2,
       gradientTransform:
         "rotate(" +
-        clampNumber(cameraFrameOptions.frameAngle, 0, 360, 45) +
+        clampNumberWithFallback(cameraFrameOptions.frameAngle, 0, 360, 45) +
         " " +
         viewportPixelWidth / 2 +
         " " +
@@ -105,13 +105,13 @@ export function appendCameraFrame(
     [0.78, 0.66],
     [1, 0.42],
   ])
-    createSvgElement(cameraFrameGradientElement, "stop", {
+    appendSvgElement(cameraFrameGradientElement, "stop", {
       offset: gradientStopOffset,
       "stop-color": cameraFrameColor,
       "stop-opacity": gradientStopOpacity * cameraFrameOpacity,
     });
   return (
-    createSvgElement(cameraFrameSvgElement, "rect", {
+    appendSvgElement(cameraFrameSvgElement, "rect", {
       x: frameStrokeInset,
       y: frameStrokeInset,
       width: frameInnerWidth,

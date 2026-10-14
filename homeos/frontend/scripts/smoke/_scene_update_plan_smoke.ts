@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- 冒烟脚本的唯一交付物就是控制台 PASS/FAIL 记录 */
+ 
 /**
  * 场景更新计划（sceneUpdatePlan）纯逻辑回归（P5 性能优化）。
  *

@@ -83,9 +83,9 @@ export function fetchEventMeta(config?: AxiosRequestConfig) {
   return apiGet('/events/meta', config)
 }
 
-/** 清空事件记录。 */
+/** 清空事件记录；`complete=false` 表示后端触到批数上限、仍有残留，需要再清一次。 */
 export function clearEvents(config?: AxiosRequestConfig) {
-  return apiDelete('/events', config)
+  return apiDelete<{ deleted: number; complete: boolean }>('/events', config)
 }
 
 

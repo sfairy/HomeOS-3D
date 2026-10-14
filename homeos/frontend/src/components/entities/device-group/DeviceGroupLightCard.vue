@@ -1,8 +1,15 @@
 <template>
-  <!-- 紧凑网格卡片：light/switch 域使用，点击直接切换开关（静态网格与虚拟滚动共用） -->
-  <div
+  <!--
+    紧凑网格卡片：light/switch 域使用，点击直接切换开关（静态网格与虚拟滚动共用）。
+    根元素是 <button>（原来是带 @click 的 div，键盘与读屏都拿不到）：
+    aria-pressed 表达开 / 关，aria-label 用实体名（可见的「开启/关闭」是状态而非名称）。
+  -->
+  <button
+    type="button"
     class="group transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] tap-active dgm-light-card cursor-pointer"
     :class="isOn ? 'is-active' : ''"
+    :aria-label="name"
+    :aria-pressed="isOn"
     @click="$emit('toggle')"
   >
     <div
@@ -32,7 +39,7 @@
       :class="isOn ? (domain === 'switch' ? 'dgm-light-dot--switch' : 'dgm-light-dot--on') : ''"
       aria-hidden="true"
     />
-  </div>
+  </button>
 </template>
 
 <script setup>

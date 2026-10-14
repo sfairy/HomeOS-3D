@@ -347,7 +347,7 @@ import {
   Wand2,
   Zap,
 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import AlertRulesEarthquakeHero from './AlertRulesEarthquakeHero.vue'
 import AlertRulesEarthquakeConnPanel from './AlertRulesEarthquakeConnPanel.vue'

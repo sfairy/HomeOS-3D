@@ -74,12 +74,20 @@
     <AlertRulesDndSection v-show="alertSection === 'dnd'" />
 
     <template #overlay>
-      <div v-if="editing" class="settings-modal-overlay" @click.self="closeEditing">
-        <div class="settings-modal-panel alert-edit-modal">
+      <div v-if="editing" ref="editOverlayRef" class="settings-modal-overlay" @click.self="closeEditing">
+        <!-- role/aria-modal 与 Esc、焦点陷阱、背景隔离成套存在：只加 Esc 的浮层在读屏里
+             仍与背景连成一片，只加 role 的浮层键盘 Tab 会跑到后面的设置项上去。 -->
+        <div
+          ref="editPanelRef"
+          class="settings-modal-panel alert-edit-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="alert-edit-title"
+        >
           <header class="alert-edit-modal__head">
             <div>
               <p class="alert-edit-modal__eyebrow">{{ editing.id ? '编辑规则' : '新建规则' }}</p>
-              <h3 class="alert-edit-modal__title">
+              <h3 id="alert-edit-title" class="alert-edit-modal__title">
                 {{ editing.id ? '编辑应用内规则' : '新建应用内规则' }}
               </h3>
             </div>
@@ -495,7 +503,7 @@
 <script setup>
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { toRef, ref, watch, computed, provide } from 'vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
@@ -507,6 +515,10 @@ import AlertRulesVoiceSection from './alert-rules/AlertRulesVoiceSection.vue'
 import AlertRulesDndSection from './alert-rules/AlertRulesDndSection.vue'
 import AlertRulesEarthquakeSection from './alert-rules/AlertRulesEarthquakeSection.vue'
 import { ALERT_RULES_KEY } from './alert-rules/context'
+import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 
 const props = defineProps({ activeTab: { type: String, default: '' } })
 
@@ -590,6 +602,18 @@ const {
 } = panel
 
 useRegisterSettingsTabPending('alerts', () => hasPendingChanges.value)
+
+/** 规则编辑浮层的最外层节点与面板：焦点陷阱管面板，背景隔离要的是整层（含遮罩）。 */
+const editOverlayRef = ref(null)
+const editPanelRef = ref(null)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁共用同一判据。 */
+const editActive = computed(() => !!editing.value)
+
+useFocusTrap(editPanelRef, editActive)
+// Esc 关掉规则编辑：它铺满设置页，取消入口只有底部那个按钮与点遮罩。
+useEscLayer(editActive, '告警规则编辑', () => closeEditing())
+useBackgroundInert(editOverlayRef, editActive, '告警规则编辑')
+useBodyScrollLock(editActive, '告警规则编辑')
 
 // 语音告警/免打扰/自定义播报的当前子 Tab
 const alertVoiceTab = ref('security')

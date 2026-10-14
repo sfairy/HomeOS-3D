@@ -5,8 +5,8 @@
 -->
 <script setup>
 import { Loader2, Monitor, Plus, PlugZap, Save, Smartphone, Tablet, Trash2 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
+import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import ClientPowerBatteryBar from './ClientPowerBatteryBar.vue'
 

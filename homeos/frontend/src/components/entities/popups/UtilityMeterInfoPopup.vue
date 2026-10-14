@@ -111,7 +111,7 @@ import UtilityMeterTierSection from '@/components/entities/popups/UtilityMeterTi
 import UtilityMeterExpandPanel from '@/components/entities/popups/UtilityMeterExpandPanel.vue'
 import { useUtilityMeterPopup } from '@/composables/energy/useUtilityMeterPopup'
 import { useUtilityBalanceFields, parseJsonAttr } from '@/shared/energy'
-import { readPopupAttr } from '@/shared/energy/utils/popup-read.util'
+import { readEnergyPopupAttr } from '@/shared/energy/utils/popup-read.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { resolveUtilityMeterPreset } from '@/shared/constants/utility-meter-presets'
@@ -232,7 +232,7 @@ const {
 const resolvedBalanceLabel = computed(() => {
   if (resolvedKind !== 'grid') return preset.value.balanceLabel
   const prepaid =
-    readPopupAttr(
+    readEnergyPopupAttr(
       'grid',
       'is_prepaid',
       layout.layoutConfig.statsSensors,

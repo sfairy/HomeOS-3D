@@ -1,7 +1,7 @@
 <template>
   <!-- SettingsLockModal 设置锁弹窗：访客模式下访问受限设置时弹出 PIN 验证 -->
   <Transition name="hos-modal">
-    <div v-if="isOpen" class="hos-modal-root">
+    <div v-if="isOpen" ref="rootRef" class="hos-modal-root">
       <div class="hos-modal-backdrop" />
       <div
         ref="panelRef"
@@ -127,15 +127,24 @@
 import { ref, watch, computed, onUnmounted } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 const props = defineProps({ isOpen: { type: Boolean } })
 const emit = defineEmits(['close', 'success'])
 
 const layoutStore = useLayoutStore()
 const panelRef = ref(null)
-useFocusTrap(
-  panelRef,
-  computed(() => !!props.isOpen),
-)
+/** 浮层最外层节点：焦点陷阱管面板，背景隔离要的是整层（含背板）。 */
+const rootRef = ref(null)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁共用同一判据。 */
+const isActive = computed(() => !!props.isOpen)
+
+useFocusTrap(panelRef, isActive)
+// Esc 关掉设置锁：不接层级栈的话，访客被 PIN 弹窗挡住时连 Esc 都退不出去。
+useEscLayer(isActive, '设置锁验证', () => emit('close'))
+useBackgroundInert(rootRef, isActive, '设置锁验证')
+useBodyScrollLock(isActive, '设置锁验证')
 const pin = ref('')
 const isError = ref(false)
 const isSuccess = ref(false)

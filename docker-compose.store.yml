@@ -15,6 +15,8 @@ services:
       - "${STORE_PUBLISH_PORT:-8802}:8802"
       - "${STORE_PROXY_PUBLISH_PORT:-8804}:8804"
     environment:
+      # 生产标记：与主应用同一真源（镜像已内置 production），宿主可用 .env 覆盖。
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
       STORE_DATA_DIR: /data
       STORE_LICENSE_KEYS_DIR: /data/license-keys
       # 公钥镜像目录：只读挂给主应用（同机部署），分拆部署则由主应用向 /v2/keys 取回。

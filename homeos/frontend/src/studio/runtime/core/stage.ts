@@ -1,4 +1,4 @@
-import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
+
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
 import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";
@@ -62,9 +62,6 @@ import {
   vacuumStatusPresentation as vacuumStatusPresentation2,
   vacuumBindingsForMap as vacuumBindingsForMap2,
 } from "../vacuum/vacuum-map";
-import {
-  televisionPower as televisionPower2,
-} from "../television/television-state";
 import { createTelevisionPanel as createTelevisionPanel2 } from "../television/television-panel";
 import { createTelevisionScreens as createTelevisionScreens2 } from "../television/television-screen";
 import { createDevicePanel as createDevicePanel2 } from "../device/device-panel";
@@ -83,7 +80,6 @@ import {
 } from "../camera/camera-status";
 import {
   coverState as coverState2,
-  coverControl as coverControl2,
   coverIconIsOn as coverIconIsOn2,
   coverCanAdjustBlades as coverCanAdjustBlades2,
 } from "../cover/cover-state";
@@ -98,16 +94,12 @@ import {
 import { createCurtainMotion as createCurtainMotion2 } from "../cover/curtain-motion";
 import { createEnvironmentAirflow as createEnvironmentAirflow2 } from "../environment/environment-airflow";
 import { createScreenOutlines as createScreenOutlines2 } from "../environment/environment-halos";
-import { mountRegionRangeEditor as mountRegionRangeEditor2 } from "../editor/light-range-editor";
 import {
-  climateState as climateState2,
   createClimateModeHistory as createClimateModeHistory2,
 } from "../climate/climate-state";
 import { createClimatePanel as createClimatePanel2 } from "../climate/climate-panel";
 import {
   createEnvironmentScene as createEnvironmentScene2,
-  pageDimming as pageDimming2,
-  pageModelBindings as pageModelBindings2,
 } from "../environment/environment-scene";
 import { startSceneSync as startSceneSync2 } from "./scene-sync";
 import {
@@ -119,16 +111,12 @@ import {
   createLightModeMenu as createLightModeMenu2,
 } from "../light/light-color-picker";
 import {
-  hsToRgbColor as hsToRgbColor2,
-  lightCommand as lightCommand2,
   createLightPreview as createLightPreview2,
   createLightStateCache as createLightStateCache2,
   lightRenderState as lightRenderState2,
 } from "../light/light-state";
 import {
   createDampedCameraMotion as createDampedCameraMotion2,
-  automaticLightCamera as automaticLightCamera2,
-  automaticAirConditionerCamera as automaticAirConditionerCamera2,
 } from "../camera/camera-motion";
 import {
   resolvePageBehavior as resolvePageBehavior2,
@@ -158,6 +146,23 @@ import {
   type StageHandlersHost,
 } from "./stage/stage-handlers";
 import { buildFloorCameraConfig as buildFloorCameraConfigExternal } from "./stage/floor-camera-config";
+import { updateLampButtonCore, runLightCommandCore } from "./stage/lighting";
+import { buildSliderControlCore, updateEditorSelectionCore, collectClimateBindingsCore, collectModuleBindingsCore, toggleModuleTabsCore, runModuleSwitchAnimationCore } from "./stage/controls";
+import { syncCameraInteractionCore, advanceCameraMotionCore, exitFocusModeCore, focusMarkerByIdCore, activateMarkerCore, beginMarkerDragCore, endMarkerDragCore } from "./stage/camera-motion";
+import { syncNasOverlayCore, syncEnvironmentLayersCore, syncLayoutMetricsCore, syncStageVisibilityCore } from "./stage/layers-sync";
+import { selectFloorCore, openRangeEditorCore, refreshStageUiCore, adoptSceneUpdateCore } from "./stage/refresh";
+import { rebuildCurtainMotionCore } from "./stage/curtain-motion";
+import { bindNavigationDragCore } from "./stage/navigation-drag";
+
+/**
+ * 注入依赖袋的 `getComputedStyle` 必须**钉死接收者**：消费者写成 `deps.getComputedStyle(el)` 时
+ * 接收者是袋对象本身，而 WebIDL 只认 Window，普通对象直接 `TypeError: Illegal invocation`
+ * （真踩过：`syncPanelChrome → refreshStageUi → toggleModuleTabsCore` 断在这里，而 `stage-handlers.ts`
+ * 里的裸调用反而没事）。包一层钉成 window，与 `climate-panel` 用 `defaultView.getComputedStyle` 同理。
+ */
+const getComputedStyleForDeps = (measurementTarget: Element) =>
+  window.getComputedStyle(measurementTarget);
+
 export function mountStage(mountOptions: any) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions;
   let value: any = null;
@@ -236,7 +241,7 @@ export function mountStage(mountOptions: any) {
   if (lightHistoryScope)
     try {
       lightHistoryStorage = window.localStorage;
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 
 
   const lightStateCacheOptions = {
@@ -409,63 +414,160 @@ export function mountStage(mountOptions: any) {
       },
     });
   lightControlsElement.append(lightColorPicker.root);
+  function stageControlsDeps() {
+    return ({
+      get getFocusedEntry() {
+        return getFocusedEntry;
+      },
+      get isEditing() {
+        return isEditing;
+      },
+      get resolveLightState() {
+        return resolveLightState;
+      },
+      get vector() {
+        return vector;
+      },
+      get wakeSceneBackground() {
+        return wakeSceneBackground;
+      },
+      get updateDevicePanel() {
+        return updateDevicePanel;
+      },
+      get applyLightStates() {
+        return applyLightStates;
+      },
+      get runLightCommand() {
+        return runLightCommand;
+      },
+      get lightControlsElement() {
+        return lightControlsElement;
+      },
+      get currentModuleBindings() {
+        return currentModuleBindings;
+      },
+      get text() {
+        return text;
+      },
+      get editorSelectionElement() {
+        return editorSelectionElement;
+      },
+      get activeModule() {
+        return activeModule;
+      },
+      get selectedSecurityKind() {
+        return selectedSecurityKind;
+      },
+      get mountOptions() {
+        return mountOptions;
+      },
+      get editorSelectionOutlines() {
+        return editorSelectionOutlines;
+      },
+      get options() {
+        return options;
+      },
+      get stageModelIndex() {
+        return stageModelIndex;
+      },
+      get isOverviewOrAllFloors() {
+        return isOverviewOrAllFloors;
+      },
+      get collectSecurityBindings() {
+        return collectSecurityBindings;
+      },
+      get collectVacuumShortcuts() {
+        return collectVacuumShortcuts;
+      },
+      get editingVacuumId() {
+        return editingVacuumId;
+      },
+      get collectGenericDeviceBindings() {
+        return collectGenericDeviceBindings;
+      },
+      get collectNasBindings() {
+        return collectNasBindings;
+      },
+      get collectVacuumBindings() {
+        return collectVacuumBindings;
+      },
+      get collectSpeakerBindings() {
+        return collectSpeakerBindings;
+      },
+      get collectTelevisionBindings() {
+        return collectTelevisionBindings;
+      },
+      get collectCoverBindings() {
+        return collectCoverBindings;
+      },
+      get collectGroupedCovers() {
+        return collectGroupedCovers;
+      },
+      get isModuleTabsHidden() {
+        return isModuleTabsHidden;
+      },
+      set isModuleTabsHidden(v) {
+        isModuleTabsHidden = v;
+      },
+      get moduleTabsElement() {
+        return moduleTabsElement;
+      },
+      get getComputedStyle() {
+        return getComputedStyleForDeps;
+      },
+      get moduleTabsAnimation() {
+        return moduleTabsAnimation;
+      },
+      set moduleTabsAnimation(v) {
+        moduleTabsAnimation = v;
+      },
+      get restoreFocusWithin() {
+        return restoreFocusWithin;
+      },
+      get moduleTabsByKind() {
+        return moduleTabsByKind;
+      },
+      get configuredModuleKinds2() {
+        return configuredModuleKinds2;
+      },
+      get markerLayerElement() {
+        return markerLayerElement;
+      },
+      get cancelGhostAnimation() {
+        return cancelGhostAnimation;
+      },
+      get map() {
+        return map;
+      },
+      get outgoingGhostAnimation() {
+        return outgoingGhostAnimation;
+      },
+      set outgoingGhostAnimation(v) {
+        outgoingGhostAnimation = v;
+      },
+      get syncStageVisibility() {
+        return syncStageVisibility;
+      },
+    });
+  }
+
   function buildSliderControl(sliderLabelText: any, sliderKey: any, sliderMin: any, sliderMax: any) {
-    const sliderFieldLabel = createStageElement("label", "i3d-slider i3d-" + sliderKey),
-      sliderNameElement = createStageElement("span", "", sliderLabelText),
-      sliderOutputElement = createStageElement("output"),
-      rangeInput = createStageElement("input");
-    ((rangeInput.name = "i3d-light-" + sliderKey),
-      (rangeInput.type = "range"),
-      rangeInput.classList.add("i3d-control-range"),
-      (rangeInput.min = sliderMin),
-      (rangeInput.max = sliderMax),
-      (rangeInput.step = sliderKey === "temperature" ? "10" : "1"),
-      rangeInput.setAttribute("aria-label", sliderLabelText));
-    const syncSliderProgress = () => {
-      const progressCss = syncHtmlRangeProgress(rangeInput);
-      if (sliderKey === "brightness") {
-        rangeInput.style.background = `linear-gradient(90deg, #d6ae65 0%, #d6ae65 ${progressCss}, #3a342c ${progressCss}, #3a342c 100%)`;
-      } else if (sliderKey === "temperature") {
-        rangeInput.style.background = `linear-gradient(90deg, transparent 0%, transparent ${progressCss}, #3a342c ${progressCss}, #3a342c 100%), linear-gradient(90deg, #eaa95b, #f1e1bf, #b8d6f4)`;
-      }
-    };
-    const sliderHeadingElement = createStageElement("div", "i3d-slider-heading");
-    sliderHeadingElement.append(sliderNameElement, sliderOutputElement);
-    const sliderLegendElement = createStageElement("span", "i3d-slider-legend");
-    return (
-      sliderLegendElement.append(
-        createStageElement("small", "", sliderKey === "temperature" ? "暖色" : "暗"),
-        createStageElement("small", "", sliderKey === "temperature" ? "冷色" : "亮"),
-      ),
-      sliderFieldLabel.append(sliderHeadingElement, rangeInput, sliderLegendElement),
-      rangeInput.addEventListener("input", () => {
-        (syncSliderProgress(),
-          (sliderOutputElement.value =
-            "" + rangeInput.value + (sliderKey === "temperature" ? " K" : "%")));
-        const interactiveLightEntry = getFocusedEntry();
-        !interactiveLightEntry ||
-          isEditing ||
-          !resolveLightState(interactiveLightEntry).available ||
-          (vector.set(interactiveLightEntry.entityId, sliderKey, Number(rangeInput.value)),
-          wakeSceneBackground(),
-          updateDevicePanel(),
-          applyLightStates({
-            preview: true,
-          }));
-      }),
-      rangeInput.addEventListener(
-        "change",
-        () => void runLightCommand(sliderKey, Number(rangeInput.value)),
-      ),
-      syncSliderProgress(),
-      lightControlsElement.append(sliderFieldLabel),
-      {
-        root: sliderFieldLabel,
-        input: rangeInput,
-        value: sliderOutputElement,
-        syncProgress: syncSliderProgress,
-      }
-    );
+    return buildSliderControlCore(stageControlsDeps(), sliderLabelText, sliderKey, sliderMin, sliderMax);
+  }
+  function updateEditorSelection() {
+    return updateEditorSelectionCore(stageControlsDeps());
+  }
+  function collectClimateBindings() {
+    return collectClimateBindingsCore(stageControlsDeps());
+  }
+  function collectModuleBindings() {
+    return collectModuleBindingsCore(stageControlsDeps());
+  }
+  function toggleModuleTabs(shouldHideTabs: any) {
+    return toggleModuleTabsCore(stageControlsDeps(), shouldHideTabs);
+  }
+  function runModuleSwitchAnimation(switchContent: any) {
+    return runModuleSwitchAnimationCore(stageControlsDeps(), switchContent);
   }
   const temperatureSlider = buildSliderControl("色温", "temperature", "2000", "6500"),
     brightnessSlider = buildSliderControl("亮度", "brightness", "1", "100"),
@@ -615,7 +717,7 @@ export function mountStage(mountOptions: any) {
   if (lightHistoryScope)
     try {
       coverFeedbackStorage = window.sessionStorage;
-    } catch {}
+    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   const coverControlRequestsByRequestId = new Map(),
     coverFeedback = createCoverFeedback2({
       commandPreview: true,
@@ -1113,74 +1215,73 @@ export function mountStage(mountOptions: any) {
         });
     }
   }
+  function stageCurtainMotionDeps() {
+    return ({
+      get mountOptions() {
+        return mountOptions;
+      },
+      get curtainSyncSnapshot() {
+        return curtainSyncSnapshot;
+      },
+      set curtainSyncSnapshot(v) {
+        curtainSyncSnapshot = v;
+      },
+      get options() {
+        return options;
+      },
+      get deviceStates() {
+        return deviceStates;
+      },
+      get syncCoverIconStates() {
+        return syncCoverIconStates;
+      },
+      get collectCoverBindings() {
+        return collectCoverBindings;
+      },
+      get collectPreviewCovers() {
+        return collectPreviewCovers;
+      },
+      get trackedCoverBindings() {
+        return trackedCoverBindings;
+      },
+      set trackedCoverBindings(v) {
+        trackedCoverBindings = v;
+      },
+      get list() {
+        return list;
+      },
+      set list(v) {
+        list = v;
+      },
+      get curtainMotion() {
+        return curtainMotion;
+      },
+      get coverFeedback() {
+        return coverFeedback;
+      },
+      get computeCoverKey() {
+        return computeCoverKey;
+      },
+      get dreamTiltFeedback() {
+        return dreamTiltFeedback;
+      },
+      get tiltPreviewByCoverKey() {
+        return tiltPreviewByCoverKey;
+      },
+      get pruneTiltPreviews() {
+        return pruneTiltPreviews;
+      },
+      get startupProgress() {
+        return startupProgress;
+      },
+      get nextCoverFeedbackDelay() {
+        return nextCoverFeedbackDelay;
+      },
+    });
+  }
+
   function rebuildCurtainMotion() {
-    const modelRoot = mountOptions.modelRoot,
-      sceneRevision = mountOptions.sceneRevision,
-      document2 = mountOptions.document;
-    if (
-      curtainSyncSnapshot?.config === options &&
-      curtainSyncSnapshot.states === deviceStates &&
-      curtainSyncSnapshot.root === modelRoot &&
-      curtainSyncSnapshot.revision === sceneRevision &&
-      curtainSyncSnapshot.source === document2
-    ) {
-      syncCoverIconStates();
-      return;
-    }
-    curtainSyncSnapshot = {
-      config: options,
-      states: deviceStates,
-      root: modelRoot,
-      revision: sceneRevision,
-      source: document2,
-    };
-    const coverBindings = [...collectCoverBindings(), ...collectPreviewCovers()];
-    ((trackedCoverBindings = coverBindings),
-      (list = [
-        ...new Set(coverBindings.map((coverBinding) => coverBinding.floorId).filter(Boolean)),
-      ]),
-      curtainMotion.setBindings(
-        modelRoot,
-        coverBindings.filter((airerFilterBinding) => !airerFilterBinding.airer),
-        sceneRevision,
-      ),
-      coverFeedback.retain(coverBindings.map(computeCoverKey)));
-    const dreamCoverKeys = coverBindings
-      .filter((dreamBinding) => dreamBinding.coverKind === "dream")
-      .map(computeCoverKey);
-    dreamTiltFeedback.retain(dreamCoverKeys);
-    for (const staleCoverKey of tiltPreviewByCoverKey.keys())
-      dreamCoverKeys.includes(staleCoverKey) || tiltPreviewByCoverKey.delete(staleCoverKey);
-    for (const coverBindingForSync of coverBindings) {
-      const coverStateSnapshot = coverState2(
-        coverBindingForSync.entityId,
-        (deviceStates as any)[coverBindingForSync.entityId],
-        coverBindingForSync,
-      );
-      (coverBindingForSync.coverKind === "dream" &&
-        dreamTiltFeedback.sync(computeCoverKey(coverBindingForSync), {
-          ...coverStateSnapshot,
-          dream: false,
-          overallFeedbackAvailable: true,
-          axis: "blade",
-          state: "open",
-          position: coverStateSnapshot.tiltPosition,
-          opening: false,
-          closing: false,
-          moving: false,
-        }),
-        coverFeedback.sync(computeCoverKey(coverBindingForSync), coverStateSnapshot));
-    }
-    (pruneTiltPreviews(),
-      syncCoverIconStates(),
-      mountOptions.curtainFrame?.({
-        key: curtainMotion.poseKey(),
-        structure: curtainMotion.structureKey(),
-        floorIds: list,
-        moving:
-          startupProgress > 0 &&
-          (curtainMotion.isMoving() || nextCoverFeedbackDelay() <= 1000 / 30),
-      }));
+    return rebuildCurtainMotionCore(stageCurtainMotionDeps());
   }
   mountOptions.setCurtainSync?.(rebuildCurtainMotion);
   const nasStatus = createNasStatus2({
@@ -1266,66 +1367,238 @@ export function mountStage(mountOptions: any) {
       brightness: cameraBrightnessScale,
     });
   }
+  function stageLayersSyncDeps() {
+    return ({
+      get startupProgress() {
+        return startupProgress;
+      },
+      get isAwaitingFloorViewAdjust() {
+        return isAwaitingFloorViewAdjust;
+      },
+      get isRangeEditorOpen() {
+        return isRangeEditorOpen;
+      },
+      get mountOptions() {
+        return mountOptions;
+      },
+      get selectedFloorId() {
+        return selectedFloorId;
+      },
+      get activeModule() {
+        return activeModule;
+      },
+      get nasSyncSnapshot() {
+        return nasSyncSnapshot;
+      },
+      set nasSyncSnapshot(v) {
+        nasSyncSnapshot = v;
+      },
+      get options() {
+        return options;
+      },
+      get deviceStates() {
+        return deviceStates;
+      },
+      get nasStatus() {
+        return nasStatus;
+      },
+      get collectNasBindings() {
+        return collectNasBindings;
+      },
+      get waterHeaterStatusByModelType() {
+        return waterHeaterStatusByModelType;
+      },
+      get entries() {
+        return entries;
+      },
+      get collectGenericDeviceBindings() {
+        return collectGenericDeviceBindings;
+      },
+      get environmentSyncSnapshot() {
+        return environmentSyncSnapshot;
+      },
+      set environmentSyncSnapshot(v) {
+        environmentSyncSnapshot = v;
+      },
+      get speakerRings() {
+        return speakerRings;
+      },
+      get collectSpeakerBindings() {
+        return collectSpeakerBindings;
+      },
+      get carCharging() {
+        return carCharging;
+      },
+      get airerMotion() {
+        return airerMotion;
+      },
+      get collectCoverBindings() {
+        return collectCoverBindings;
+      },
+      get fanMotion() {
+        return fanMotion;
+      },
+      get isEditing() {
+        return isEditing;
+      },
+      get text() {
+        return text;
+      },
+      get focusedItemId() {
+        return focusedItemId;
+      },
+      get televisionSyncSnapshot() {
+        return televisionSyncSnapshot;
+      },
+      set televisionSyncSnapshot(v) {
+        televisionSyncSnapshot = v;
+      },
+      get televisionScreens() {
+        return televisionScreens;
+      },
+      get collectTelevisionBindings() {
+        return collectTelevisionBindings;
+      },
+      get element() {
+        return element;
+      },
+      get mediaViewportSize() {
+        return mediaViewportSize;
+      },
+      get containerViewportSize() {
+        return containerViewportSize;
+      },
+      set containerViewportSize(v) {
+        containerViewportSize = v;
+      },
+      get mediaScale() {
+        return mediaScale;
+      },
+      set mediaScale(v) {
+        mediaScale = v;
+      },
+      get value() {
+        return value;
+      },
+      set value(v) {
+        value = v;
+      },
+      get configuredModuleKinds2() {
+        return configuredModuleKinds2;
+      },
+      get navigationLayerElement() {
+        return navigationLayerElement;
+      },
+      get floorTabsElement() {
+        return floorTabsElement;
+      },
+      get toolbarElement() {
+        return toolbarElement;
+      },
+      get lightPanelSection() {
+        return lightPanelSection;
+      },
+      get speakerPanel() {
+        return speakerPanel;
+      },
+      get getComputedStyle() {
+        return getComputedStyleForDeps;
+      },
+      get presentationLayerElement() {
+        return presentationLayerElement;
+      },
+      get computePopupPlacement() {
+        return computePopupPlacement;
+      },
+      get presentationUiSignatureCache() {
+        return presentationUiSignatureCache;
+      },
+      set presentationUiSignatureCache(v) {
+        presentationUiSignatureCache = v;
+      },
+      get cameraMotionSnapshot() {
+        return cameraMotionSnapshot;
+      },
+      get computeFocusInset() {
+        return computeFocusInset;
+      },
+      get panelDisplayMode() {
+        return panelDisplayMode;
+      },
+      get focusInset() {
+        return focusInset;
+      },
+      set focusInset(v) {
+        focusInset = v;
+      },
+      get renderMarkerPositions() {
+        return renderMarkerPositions;
+      },
+      get currentModuleBindings() {
+        return currentModuleBindings;
+      },
+      get hasPendingStageRefresh() {
+        return hasPendingStageRefresh;
+      },
+      get hasIdleIconActivity() {
+        return hasIdleIconActivity;
+      },
+      get isIdleIconHidden() {
+        return isIdleIconHidden;
+      },
+      get isUserActive() {
+        return isUserActive;
+      },
+      get isCameraRotating() {
+        return isCameraRotating;
+      },
+      get pageBehavior() {
+        return pageBehavior;
+      },
+      get map() {
+        return map;
+      },
+      get findBindingById() {
+        return findBindingById;
+      },
+      get isOverviewOrAllFloors() {
+        return isOverviewOrAllFloors;
+      },
+      get vacuumWorkingLayerElement() {
+        return vacuumWorkingLayerElement;
+      },
+      get markerLayerElement() {
+        return markerLayerElement;
+      },
+      get restoreFocusWithin() {
+        return restoreFocusWithin;
+      },
+      get canvasElement() {
+        return canvasElement;
+      },
+      get outgoingGhostAnimation() {
+        return outgoingGhostAnimation;
+      },
+      get lastInteractionMs() {
+        return lastInteractionMs;
+      },
+      set lastInteractionMs(v) {
+        lastInteractionMs = v;
+      },
+    });
+  }
+
   function syncNasOverlay() {
-    const isNasOverlayEnabled =
-        startupProgress > 0 && !isAwaitingFloorViewAdjust && !isRangeEditorOpen,
-      modelRoot3 = mountOptions.modelRoot,
-      sceneRevision3 = mountOptions.sceneRevision,
-      nasSizeScale = selectedFloorId === "all" ? 0.75 : 1,
-      nasBrightnessScale =
-        selectedFloorId !== "all" &&
-        (["devices", "nas", "television", "speaker", "water-heater"].includes(activeModule) ||
-          isGenericDeviceKind2(activeModule))
-          ? 1
-          : 0.6;
-    if (!(
-      nasSyncSnapshot?.root === modelRoot3 &&
-      nasSyncSnapshot.revision === sceneRevision3 &&
-      nasSyncSnapshot.config === options &&
-      nasSyncSnapshot.states === deviceStates &&
-      nasSyncSnapshot.enabled === isNasOverlayEnabled &&
-      nasSyncSnapshot.sizeScale === nasSizeScale &&
-      nasSyncSnapshot.brightness === nasBrightnessScale
-    )) {
-      ((nasSyncSnapshot = {
-        root: modelRoot3,
-        revision: sceneRevision3,
-        config: options,
-        states: deviceStates,
-        enabled: isNasOverlayEnabled,
-        sizeScale: nasSizeScale,
-        brightness: nasBrightnessScale,
-      }),
-        nasStatus.sync({
-          root: modelRoot3,
-          revision: sceneRevision3,
-          bindings: collectNasBindings(),
-          states: deviceStates,
-          enabled: isNasOverlayEnabled,
-          sizeScale: nasSizeScale,
-          brightness: nasBrightnessScale,
-        }));
-      for (const waterHeaterStatus of Object.values(waterHeaterStatusByModelType))
-        waterHeaterStatus.sync({
-          root: modelRoot3,
-          revision: sceneRevision3,
-          bindings: options.environment?.waterHeaters || [],
-          states: deviceStates,
-          enabled: isNasOverlayEnabled,
-          sizeScale: nasSizeScale,
-          brightness: nasBrightnessScale,
-        });
-      for (const statusGenericDeviceKind of GENERIC_DEVICE_KINDS2)
-        entries[statusGenericDeviceKind].sync({
-          root: modelRoot3,
-          revision: sceneRevision3,
-          bindings: collectGenericDeviceBindings(statusGenericDeviceKind),
-          states: deviceStates,
-          enabled: isNasOverlayEnabled,
-          sizeScale: nasSizeScale,
-          brightness: nasBrightnessScale,
-        });
-    }
+    return syncNasOverlayCore(stageLayersSyncDeps());
+  }
+  function syncEnvironmentLayers() {
+    return syncEnvironmentLayersCore(stageLayersSyncDeps());
+  }
+  function syncLayoutMetrics() {
+    return syncLayoutMetricsCore(stageLayersSyncDeps());
+  }
+  function syncStageVisibility() {
+    return syncStageVisibilityCore(stageLayersSyncDeps());
   }
   const televisionScreens = createTelevisionScreens2({
       THREE: three,
@@ -1375,81 +1648,6 @@ export function mountStage(mountOptions: any) {
     },
   });
   let televisionSyncSnapshot: any, environmentSyncSnapshot: any;
-  function syncEnvironmentLayers() {
-    if (startupProgress === 0) return;
-    const modelRoot4 = mountOptions.modelRoot,
-      sceneRevision4 = mountOptions.sceneRevision,
-      environmentRevision = mountOptions.environmentRevision ?? sceneRevision4,
-      document3 = mountOptions.document;
-    (!environmentSyncSnapshot ||
-      environmentSyncSnapshot.root !== modelRoot4 ||
-      environmentSyncSnapshot.revision !== sceneRevision4 ||
-      environmentSyncSnapshot.environmentRevision !== environmentRevision ||
-      environmentSyncSnapshot.source !== document3 ||
-      environmentSyncSnapshot.config !== options ||
-      environmentSyncSnapshot.states !== deviceStates) &&
-      (speakerRings.sync({
-        root: modelRoot4,
-        revision: sceneRevision4,
-        bindings: collectSpeakerBindings(),
-        states: deviceStates,
-      }),
-      carCharging.sync({
-        root: modelRoot4,
-        revision: environmentRevision,
-        retainedRoots: mountOptions.retainedModelRoots || [],
-        bindings: options.devices?.cars || [],
-        states: deviceStates,
-      }),
-      airerMotion.sync({
-        root: modelRoot4,
-        revision: environmentRevision,
-        bindings: collectCoverBindings().filter((airerSyncBinding) => airerSyncBinding.airer),
-        states: deviceStates,
-      }),
-      fanMotion.sync({
-        root: modelRoot4,
-        revision: environmentRevision,
-        bindings: options.environment?.fans || [],
-        states: deviceStates,
-      }),
-      (environmentSyncSnapshot = {
-        root: modelRoot4,
-        revision: sceneRevision4,
-        environmentRevision: environmentRevision,
-        source: document3,
-        config: options,
-        states: deviceStates,
-      }));
-    const focusedModelKey =
-      activeModule !== "light" && !isAwaitingFloorViewAdjust && !isRangeEditorOpen
-        ? isEditing
-          ? text
-          : focusedItemId
-        : "";
-    (televisionSyncSnapshot?.root === modelRoot4 &&
-      televisionSyncSnapshot.revision === sceneRevision4 &&
-      televisionSyncSnapshot.config === options &&
-      televisionSyncSnapshot.states === deviceStates &&
-      televisionSyncSnapshot.focused === focusedModelKey &&
-      televisionSyncSnapshot.module === activeModule) ||
-      ((televisionSyncSnapshot = {
-        root: modelRoot4,
-        revision: sceneRevision4,
-        config: options,
-        states: deviceStates,
-        focused: focusedModelKey,
-        module: activeModule,
-      }),
-      televisionScreens.sync({
-        root: modelRoot4,
-        revision: sceneRevision4,
-        bindings: collectTelevisionBindings(),
-        states: deviceStates,
-        focusedModel: "",
-        dimStrength: 0,
-      }));
-  }
   let startupDeviceSyncSnapshot: any;
   function syncStartupDeviceLayers() {
     if (startupProgress > 0) return;
@@ -1558,136 +1756,6 @@ export function mountStage(mountOptions: any) {
   (editorSelectionElement.setAttribute("role", "status"),
     (editorSelectionElement.hidden = true),
     presentationLayerElement.append(editorSelectionElement));
-  function updateEditorSelection() {
-    const editorSelectionEntry = isEditing
-      ? currentModuleBindings().find(
-          (editorTargetEntry: any) =>
-            editorTargetEntry.id === text || editorTargetEntry.entryId === text,
-        )
-      : null;
-    editorSelectionElement.hidden = !isEditing;
-    const deviceKindLabels = {
-        light: "灯光",
-        climate: "空调/浴霸",
-        fan: "电风扇",
-        purifier: "空气净化器",
-        "water-heater": "热水器",
-        airer: "晾衣架",
-        cover: "窗帘",
-        nas: "NAS",
-        speaker: "智能音响",
-        television: "电视",
-        vacuum: "扫地机",
-        "vacuum-shortcut": "快捷按钮",
-        "temperature-humidity": "环境标签",
-        lock: "门",
-        camera: "摄像头",
-        presence: "人体传感器",
-        alarm: "安防传感器",
-        moisture: "水浸",
-        smoke: "烟雾",
-        gas: "天然气",
-      },
-      editorSelectionKind = activeModule === "security" ? selectedSecurityKind : activeModule,
-      editorSelectionFloor = mountOptions.document.floors.find(
-        (editorSelectionFloorModel: any) =>
-          editorSelectionFloorModel.id === editorSelectionEntry?.floorId,
-      ),
-      editorSelectionModels = editorSelectionEntry
-        ? activeModule === "light"
-          ? (editorSelectionFloor?.scene?.items || [])
-              .filter(
-                (editorLightItem: any) => editorLightItem.lightGroupId === editorSelectionEntry.groupId,
-              )
-              .map((editorModelItem: any) => ({
-                floorId: editorSelectionFloor.id,
-                modelId: editorModelItem.id,
-              }))
-          : expandGroupMembers([editorSelectionEntry]).filter(
-              (editorModelCandidate: any) => editorModelCandidate.modelId,
-            )
-        : [];
-    ((editorSelectionElement.textContent = editorSelectionEntry
-      ? "正在配置：" +
-        ((deviceKindLabels as any)[editorSelectionKind] ||
-          genericDeviceProfile2(editorSelectionKind)?.label ||
-          "设备") +
-        " · " +
-        (editorSelectionEntry.label ||
-          editorSelectionEntry.deviceName ||
-          editorSelectionEntry.entityId ||
-          "未命名") +
-        (editorSelectionFloor?.name ? " · " + editorSelectionFloor.name : "") +
-        (editorSelectionModels.length > 1 ? " · " + editorSelectionModels.length + " 个模型" : "")
-      : "请选择要配置的对象"),
-      editorSelectionOutlines.sync(
-        mountOptions.modelRoot,
-        mountOptions.environmentRevision ?? mountOptions.sceneRevision,
-        editorSelectionModels,
-        !!(
-          isEditing &&
-          editorSelectionEntry &&
-          editorSelectionEntry.deviceKind !== "smallcar" &&
-          !mountOptions.floorTransitionActive
-        ),
-      ),
-      editorSelectionOutlines.update());
-  }
-  function collectClimateBindings() {
-    return [
-      ...(options.environment?.airConditioners || []),
-      ...(options.environment?.fans || []),
-      ...(options.environment?.airPurifiers || []),
-      ...(options.environment?.waterHeaters || []),
-    ].map((climateSourceEntry) => {
-      const isFanBinding = (options.environment?.fans || []).includes(climateSourceEntry),
-        climateModel = stageModelIndex.item(
-          climateSourceEntry.floorId,
-          climateSourceEntry.modelId,
-          options.environment?.waterHeaters?.includes(climateSourceEntry)
-            ? ["storagewaterheater", "gaswaterheater"]
-            : isFanBinding
-              ? ["fan", "ceiling-fan"]
-              : options.environment?.airPurifiers?.includes(climateSourceEntry)
-                ? ["airpurifier"]
-                : ["wallac", "floorac", "airoutlet"],
-        ),
-        isCeilingFan =
-          isFanBinding &&
-          (climateModel?.type === "ceiling-fan" ||
-            climateSourceEntry.visualMode === "ceiling");
-      return {
-        ...climateSourceEntry,
-        pedestalFan: isFanBinding,
-        ceilingFan: isCeilingFan,
-        waterHeater: (options.environment?.waterHeaters || []).includes(climateSourceEntry),
-        airPurifier: (options.environment?.airPurifiers || []).includes(climateSourceEntry),
-        deviceKind: "climate",
-        x: Number.isFinite(climateSourceEntry.x) ? climateSourceEntry.x : (climateModel?.x ?? 0),
-        y: Number.isFinite(climateSourceEntry.y) ? climateSourceEntry.y : (climateModel?.y ?? 0),
-        height: Number.isFinite(climateSourceEntry.height)
-          ? climateSourceEntry.height
-          : climateModel
-            ? (Number(climateModel.elevation) || 0) +
-              (climateModel.type === "ceiling-fan" ? -1 : 1) *
-                (Number(climateModel.height) || 0.28) /
-                2
-            : 0,
-        modelAvailable: !!climateModel,
-        icon:
-          climateSourceEntry.icon ||
-          (options.environment?.waterHeaters?.includes(climateSourceEntry)
-            ? "mdi:water-boiler"
-            : isCeilingFan
-              ? "mdi:ceiling-fan"
-              : isFanBinding
-                ? "mdi:fan"
-                : options.environment?.airPurifiers?.includes(climateSourceEntry)
-                  ? "mdi:air-purifier"
-                  : "mdi:air-conditioner"),
-      };
-    });
-  }
   function collectCoverBindings() {
     return [...(options.environment?.curtains || []), ...(options.environment?.airers || [])].map(
       (coverSourceEntry) => {
@@ -2290,106 +2358,6 @@ export function mountStage(mountOptions: any) {
         })),
     );
   }
-  function collectModuleBindings() {
-    const temperatureHumidityBindings = (options.environment?.temperatureHumidity || []).map(
-      (temperatureHumidityEntry: any) => ({
-        ...temperatureHumidityEntry,
-        deviceKind: "temperature-humidity",
-      }),
-    );
-    return isOverviewOrAllFloors()
-      ? []
-      : activeModule === "security"
-        ? collectSecurityBindings()
-        : activeModule === "vacuum-shortcut"
-          ? collectVacuumShortcuts().filter(
-              (vacuumShortcutBinding: any) => vacuumShortcutBinding.vacuumId === editingVacuumId,
-            )
-          : isGenericDeviceKind2(activeModule)
-            ? collectGenericDeviceBindings(activeModule)
-            : activeModule === "nas"
-              ? collectNasBindings()
-              : activeModule === "vacuum"
-                ? collectVacuumBindings()
-                    .filter((visibleVacuumBinding: any) => isEditing || visibleVacuumBinding.entityId)
-                    .map((vacuumModuleBinding: any) => ({
-                      ...vacuumModuleBinding,
-                      id: isEditing ? vacuumModuleBinding.id : "vacuum:" + vacuumModuleBinding.id,
-                    }))
-                : activeModule === "speaker"
-                  ? collectSpeakerBindings()
-                  : activeModule === "television"
-                    ? collectTelevisionBindings()
-                    : activeModule === "devices"
-                      ? [
-                          ...collectCoverBindings().filter(
-                            (airerModuleBinding) => airerModuleBinding.airer,
-                          ),
-                          ...collectClimateBindings().filter(
-                            (waterHeaterModuleBinding) => waterHeaterModuleBinding.waterHeater,
-                          ),
-                          ...collectNasBindings(),
-                          ...collectSpeakerBindings(),
-                          ...collectTelevisionBindings(),
-                          ...GENERIC_DEVICE_KINDS2.flatMap((genericModuleDeviceKind) =>
-                            collectGenericDeviceBindings(genericModuleDeviceKind),
-                          ),
-                        ].map((genericModuleBinding) => ({
-                          ...genericModuleBinding,
-                          id: genericModuleBinding.deviceKind + ":" + genericModuleBinding.id,
-                        }))
-                      : activeModule === "airer"
-                        ? collectCoverBindings().filter(
-                            (airerFilteredBinding) => airerFilteredBinding.airer,
-                          )
-                        : activeModule === "cover"
-                          ? collectGroupedCovers().filter(
-                              (coverFilteredBinding) => !coverFilteredBinding.airer,
-                            )
-                          : activeModule === "climate"
-                            ? collectClimateBindings().filter((climateFilteredBinding) =>
-                                (options.environment?.airConditioners || []).some(
-                                  (climateFilterSource: any) =>
-                                    climateFilterSource.id === climateFilteredBinding.id,
-                                ),
-                              )
-                            : activeModule === "water-heater"
-                              ? collectClimateBindings().filter((waterHeaterFilteredBinding) =>
-                                  (options.environment?.waterHeaters || []).some(
-                                    (waterHeaterFilterSource: any) =>
-                                      waterHeaterFilterSource.id === waterHeaterFilteredBinding.id,
-                                  ),
-                                )
-                              : activeModule === "fan"
-                                ? collectClimateBindings().filter(
-                                    (fanFilteredBinding) => fanFilteredBinding.pedestalFan,
-                                  )
-                                : activeModule === "purifier"
-                                  ? collectClimateBindings().filter((purifierFilteredBinding) =>
-                                      (options.environment?.airPurifiers || []).some(
-                                        (purifierFilterSource: any) =>
-                                          purifierFilterSource.id === purifierFilteredBinding.id,
-                                      ),
-                                    )
-                                  : activeModule === "temperature-humidity"
-                                    ? temperatureHumidityBindings
-                                    : [
-                                        ...collectClimateBindings().filter(
-                                          (fallbackClimateBinding) =>
-                                            !fallbackClimateBinding.waterHeater,
-                                        ),
-                                        ...collectGroupedCovers().filter(
-                                          (fallbackCoverBinding) => !fallbackCoverBinding.airer,
-                                        ),
-                                        ...temperatureHumidityBindings,
-                                      ].map((fallbackModuleBinding) => ({
-                                        ...fallbackModuleBinding,
-                                        id:
-                                          fallbackModuleBinding.deviceKind +
-                                          ":" +
-                                          fallbackModuleBinding.id,
-                                      }));
-  }
   const currentModuleBindings = () =>
     (activeModule === "security"
       ? collectSecurityBindings()
@@ -2444,179 +2412,338 @@ export function mountStage(mountOptions: any) {
         String(floorTabElement.dataset.floor === selectedFloorId),
       );
   }
+  function stageRefreshDeps() {
+    return ({
+      get isEditing() {
+        return isEditing;
+      },
+      get isAwaitingFloorViewAdjust() {
+        return isAwaitingFloorViewAdjust;
+      },
+      get isRangeEditorOpen() {
+        return isRangeEditorOpen;
+      },
+      set isRangeEditorOpen(v) {
+        isRangeEditorOpen = v;
+      },
+      get isCameraMoving() {
+        return isCameraMoving;
+      },
+      set isCameraMoving(v) {
+        isCameraMoving = v;
+      },
+      get selectedFloorId() {
+        return selectedFloorId;
+      },
+      set selectedFloorId(v) {
+        selectedFloorId = v;
+      },
+      get mountOptions() {
+        return mountOptions;
+      },
+      get stopVacuumFollow() {
+        return stopVacuumFollow;
+      },
+      get exitFocusMode() {
+        return exitFocusMode;
+      },
+      get cancelMarkerDrag() {
+        return cancelMarkerDrag;
+      },
+      get pendingFloorId() {
+        return pendingFloorId;
+      },
+      set pendingFloorId(v) {
+        pendingFloorId = v;
+      },
+      get runModuleSwitchAnimation() {
+        return runModuleSwitchAnimation;
+      },
+      get syncLockMotion() {
+        return syncLockMotion;
+      },
+      get transformFloorCamera() {
+        return transformFloorCamera;
+      },
+      get baseStageConfig() {
+        return baseStageConfig;
+      },
+      get activeCameraPose() {
+        return activeCameraPose;
+      },
+      set activeCameraPose(v) {
+        activeCameraPose = v;
+      },
+      get options() {
+        return options;
+      },
+      set options(v) {
+        options = v;
+      },
+      get buildFloorCameraConfig() {
+        return buildFloorCameraConfig;
+      },
+      get activeModule() {
+        return activeModule;
+      },
+      set activeModule(v) {
+        activeModule = v;
+      },
+      get pendingModule() {
+        return pendingModule;
+      },
+      set pendingModule(v) {
+        pendingModule = v;
+      },
+      get syncNasOverlay() {
+        return syncNasOverlay;
+      },
+      get startCameraMotion() {
+        return startCameraMotion;
+      },
+      get applyLightStates() {
+        return applyLightStates;
+      },
+      get syncVacuumMap() {
+        return syncVacuumMap;
+      },
+      get syncStageVisibility() {
+        return syncStageVisibility;
+      },
+      get sceneCacheByKey() {
+        return sceneCacheByKey;
+      },
+      get syncMarkers() {
+        return syncMarkers;
+      },
+      get syncPanelChrome() {
+        return syncPanelChrome;
+      },
+      get syncAvailability() {
+        return syncAvailability;
+      },
+      get canEditLightRange() {
+        return canEditLightRange;
+      },
+      get isStagePresented() {
+        return isStagePresented;
+      },
+      get isRangeEditorSuppressingClose() {
+        return isRangeEditorSuppressingClose;
+      },
+      set isRangeEditorSuppressingClose(v) {
+        isRangeEditorSuppressingClose = v;
+      },
+      get syncCameraInteraction() {
+        return syncCameraInteraction;
+      },
+      get presentationLayerElement() {
+        return presentationLayerElement;
+      },
+      get focusVignetteElement() {
+        return focusVignetteElement;
+      },
+      get rangeEditorHandle() {
+        return rangeEditorHandle;
+      },
+      set rangeEditorHandle(v) {
+        rangeEditorHandle = v;
+      },
+      get isRangeEditorOnly() {
+        return isRangeEditorOnly;
+      },
+      get wakeSceneBackground() {
+        return wakeSceneBackground;
+      },
+      get renderMarkerPositions() {
+        return renderMarkerPositions;
+      },
+      get updateEditorSelection() {
+        return updateEditorSelection;
+      },
+      get configureIdleBehaviors() {
+        return configureIdleBehaviors;
+      },
+      get syncPresenceScene() {
+        return syncPresenceScene;
+      },
+      get presenceWaves() {
+        return presenceWaves;
+      },
+      get text() {
+        return text;
+      },
+      get stageModelIndex() {
+        return stageModelIndex;
+      },
+      get deviceStates() {
+        return deviceStates;
+      },
+      get startupProgress() {
+        return startupProgress;
+      },
+      get focusedItemId() {
+        return focusedItemId;
+      },
+      get panelDisplayMode() {
+        return panelDisplayMode;
+      },
+      get cameraMotionSnapshot() {
+        return cameraMotionSnapshot;
+      },
+      get carCharging() {
+        return carCharging;
+      },
+      get environmentScene() {
+        return environmentScene;
+      },
+      get rebuildCurtainMotion() {
+        return rebuildCurtainMotion;
+      },
+      get syncCameraOverlay() {
+        return syncCameraOverlay;
+      },
+      get syncEnvironmentLayers() {
+        return syncEnvironmentLayers;
+      },
+      get syncVacuumMotion() {
+        return syncVacuumMotion;
+      },
+      get collectModuleBindings() {
+        return collectModuleBindings;
+      },
+      get matchesSelectedFloor() {
+        return matchesSelectedFloor;
+      },
+      get collectPreviewCovers() {
+        return collectPreviewCovers;
+      },
+      get collectClimateBindings() {
+        return collectClimateBindings;
+      },
+      get collectGroupedCovers() {
+        return collectGroupedCovers;
+      },
+      get collectNasBindings() {
+        return collectNasBindings;
+      },
+      get collectSpeakerBindings() {
+        return collectSpeakerBindings;
+      },
+      get collectTelevisionBindings() {
+        return collectTelevisionBindings;
+      },
+      get collectGenericDeviceBindings() {
+        return collectGenericDeviceBindings;
+      },
+      get collectVacuumBindings() {
+        return collectVacuumBindings;
+      },
+      get lockBindings() {
+        return lockBindings;
+      },
+      get securityCameraBindings() {
+        return securityCameraBindings;
+      },
+      get presenceBindings() {
+        return presenceBindings;
+      },
+      get screenOutlines() {
+        return screenOutlines;
+      },
+      get environmentAirflow() {
+        return environmentAirflow;
+      },
+      get syncFloorTabs() {
+        return syncFloorTabs;
+      },
+      get navigationEditing() {
+        return navigationEditing;
+      },
+      get isNavigationVisible() {
+        return isNavigationVisible;
+      },
+      get moduleTabsElement() {
+        return moduleTabsElement;
+      },
+      get floorTabsElement() {
+        return floorTabsElement;
+      },
+      get toggleModuleTabs() {
+        return toggleModuleTabs;
+      },
+      get configuredModuleKinds2() {
+        return configuredModuleKinds2;
+      },
+      get moduleTabsByKind() {
+        return moduleTabsByKind;
+      },
+      get restoreFocusWithin() {
+        return restoreFocusWithin;
+      },
+      get moduleEmptyElement() {
+        return moduleEmptyElement;
+      },
+      get applyDefaultCamera() {
+        return applyDefaultCamera;
+      },
+      get hasIdleIconActivity() {
+        return hasIdleIconActivity;
+      },
+      set hasIdleIconActivity(v) {
+        hasIdleIconActivity = v;
+      },
+      get isCameraRotating() {
+        return isCameraRotating;
+      },
+      get pageBehavior() {
+        return pageBehavior;
+      },
+      get isUserActive() {
+        return isUserActive;
+      },
+      get idleRotationControl() {
+        return idleRotationControl;
+      },
+      get isControlBusy() {
+        return isControlBusy;
+      },
+      get applyRegionLightingPreset() {
+        return applyRegionLightingPreset;
+      },
+      get lastRenderSignature() {
+        return lastRenderSignature;
+      },
+      set lastRenderSignature(v) {
+        lastRenderSignature = v;
+      },
+      get pendingEditorAction() {
+        return pendingEditorAction;
+      },
+      set pendingEditorAction(v) {
+        pendingEditorAction = v;
+      },
+      get handleHostMessage() {
+        return handleHostMessage;
+      },
+    });
+  }
+
   function selectFloor(targetFloorId: any) {
-    if (
-      isEditing ||
-      isAwaitingFloorViewAdjust ||
-      isRangeEditorOpen ||
-      isCameraMoving ||
-      targetFloorId === selectedFloorId ||
-      (targetFloorId !== "all" &&
-        !mountOptions.document.floors.some((existingFloor: any) => existingFloor.id === targetFloorId))
-    )
-      return;
-    (stopVacuumFollow(false),
-      exitFocusMode({
-        immediate: true,
-        preserveCamera: true,
-      }),
-      cancelMarkerDrag());
-    const cameraState = mountOptions.cameraState(true),
-      orbitCenter = mountOptions.getOrbitCenter?.(),
-      cameraMotionState = mountOptions.getCameraMotionState?.();
-    ((pendingFloorId = targetFloorId),
-      runModuleSwitchAnimation(() => {
-        (syncLockMotion(), (selectedFloorId = targetFloorId));
-        const transitionFloor = mountOptions.transitionFloor
-            ? mountOptions.transitionFloor(targetFloorId)
-            : (mountOptions.setFloor(targetFloorId), mountOptions.getOrbitCenter?.()),
-          floorCameraPose = transformFloorCamera(
-            baseStageConfig.floorCameras?.[targetFloorId] ||
-              (targetFloorId === baseStageConfig.floorSelection ? baseStageConfig.camera : null),
-            targetFloorId,
-          ),
-          cameraState2 =
-            floorCameraPose ||
-            mountOptions.floorDefaultCamera?.(targetFloorId) ||
-            mountOptions.cameraState();
-        ((activeCameraPose = floorCameraPose || cameraState2),
-          (options = buildFloorCameraConfig({
-            ...baseStageConfig,
-            floorSelection: targetFloorId,
-          })),
-          (options.camera = activeCameraPose),
-          targetFloorId === "all"
-            ? ((activeModule = "overview"), (pendingModule = ""))
-            : pendingModule && ((activeModule = pendingModule), (pendingModule = "")),
-          syncLockMotion(),
-          syncNasOverlay(),
-          mountOptions.restoreCamera(cameraState, cameraMotionState),
-          startCameraMotion(
-            cameraState2,
-            false,
-            false,
-            () => {
-              (mountOptions.finishFloorTransition?.(),
-                syncLockMotion(),
-                applyLightStates(),
-                refreshStageUi(),
-                syncVacuumMap(),
-                syncStageVisibility());
-            },
-            "floor",
-            {
-              fromPivot: orbitCenter,
-              toPivot: transitionFloor,
-            },
-          ),
-          sceneCacheByKey.clear(),
-          applyLightStates({
-            immediate: true,
-          }),
-          syncMarkers(),
-          syncPanelChrome(),
-          syncAvailability());
-      }));
+    return selectFloorCore(stageRefreshDeps(), targetFloorId);
+  }
+  function openRangeEditor(rangeEditorRequestId: any) {
+    return openRangeEditorCore(stageRefreshDeps(), rangeEditorRequestId);
+  }
+  function refreshStageUi() {
+    return refreshStageUiCore(stageRefreshDeps());
+  }
+  function adoptSceneUpdate(sceneUpdateInput: any) {
+    return adoptSceneUpdateCore(stageRefreshDeps(), sceneUpdateInput);
   }
   function syncLockMotion() {
     const lockMotionPlan = buildLockMotionInput();
     mountOptions.setLockMoving?.(lockMotion.sync(lockMotionPlan.bindings, lockMotionPlan.states));
-  }
-  function openRangeEditor(rangeEditorRequestId: any) {
-    const postRangeEditorState = (isEditorActiveState: any, rangeEditorErrorMessage = "") =>
-        postHostMessage({
-          type: "range-editor-state",
-          active: isEditorActiveState,
-          ...(rangeEditorRequestId
-            ? {
-                requestId: rangeEditorRequestId,
-              }
-            : {}),
-          ...(rangeEditorErrorMessage
-            ? {
-                error: rangeEditorErrorMessage,
-              }
-            : {}),
-        }),
-      rangeEditorBlockReason = canEditLightRange
-        ? mountOptions.regionLighting
-          ? isStagePresented
-            ? isCameraMoving
-              ? "户型正在同步，请稍候再调整照射范围。"
-              : isAwaitingFloorViewAdjust
-                ? "请先完成户型视角调整，再编辑照射范围。"
-                : ""
-            : "户型还在加载，请稍候再调整照射范围。"
-          : "请先选择轻量柔光模式。"
-        : "请在已授权的控件编辑器中调整照射范围。";
-    if (rangeEditorBlockReason) {
-      postRangeEditorState(false, rangeEditorBlockReason);
-      return;
-    }
-    if (isRangeEditorOpen) {
-      postRangeEditorState(true);
-      return;
-    }
-    (exitFocusMode({
-      immediate: true,
-    }),
-      (isRangeEditorOpen = true),
-      (isRangeEditorSuppressingClose = true),
-      syncAvailability(),
-      syncCameraInteraction(),
-      refreshStageUi(),
-      (presentationLayerElement.style.display = "none"),
-      presentationLayerElement.setAttribute("inert", ""),
-      (focusVignetteElement.style.display = "none"));
-    try {
-      ((rangeEditorHandle ||= mountRegionRangeEditor2(mountOptions, {
-        getConfig: () => options,
-        standalone: isRangeEditorOnly,
-        wake: wakeSceneBackground,
-        onChange(rangeOverrides: any = null) {
-          canEditLightRange &&
-            ((options.lightRegionOverrides = structuredClone(rangeOverrides)),
-            (baseStageConfig.lightRegionOverrides = structuredClone(rangeOverrides)),
-            postHostMessage({
-              type: "range-overrides",
-              overrides: rangeOverrides,
-            }));
-        },
-        onClose() {
-          ((isRangeEditorOpen = false),
-            (presentationLayerElement.style.display = ""),
-            presentationLayerElement.removeAttribute("inert"),
-            (focusVignetteElement.style.display = ""),
-            applyLightStates({
-              immediate: true,
-            }),
-            syncCameraInteraction(),
-            refreshStageUi(),
-            syncPanelChrome(),
-            renderMarkerPositions(true),
-            syncAvailability(),
-            isRangeEditorSuppressingClose ||
-              postHostMessage({
-                type: "range-editor-state",
-                active: false,
-              }));
-        },
-      })),
-        rangeEditorHandle.open(),
-        postRangeEditorState(true));
-    } catch (rangeEditorError: any) {
-      (rangeEditorHandle?.close(),
-        (isRangeEditorOpen = false),
-        (presentationLayerElement.style.display = ""),
-        presentationLayerElement.removeAttribute("inert"),
-        (focusVignetteElement.style.display = ""),
-        syncCameraInteraction(),
-        refreshStageUi(),
-        syncAvailability(),
-        postRangeEditorState(false, rangeEditorError.message || "范围编辑暂时不可用"));
-    } finally {
-      isRangeEditorSuppressingClose = false;
-    }
   }
   const lockBindings = () =>
       (options.security?.locks || [])
@@ -2803,307 +2930,6 @@ export function mountStage(mountOptions: any) {
       (presenceLookupBinding: any) => presenceLookupBinding.id === bindingLookupId,
     ) ||
     alarmBindings().find((alarmLookupBinding: any) => alarmLookupBinding.id === bindingLookupId);
-  function refreshStageUi() {
-    (updateEditorSelection(),
-      configureIdleBehaviors(),
-      syncPresenceScene(),
-      presenceWaves.sync({
-        bindings: (options.security?.presenceSensors || [])
-          .filter((presenceSyncEntry: any) => !isEditing || "presence:" + presenceSyncEntry.id === text)
-          .map((presenceSyncSensor: any) => {
-            const presenceLayerItem = stageModelIndex.item(
-              presenceSyncSensor.floorId,
-              presenceSyncSensor.modelId,
-            );
-            return {
-              ...presenceSyncSensor,
-              width: presenceLayerItem?.width,
-              height: presenceLayerItem?.height,
-              depth: presenceLayerItem?.depth,
-            };
-          }),
-        states: deviceStates,
-        floorId: selectedFloorId,
-        preview: isEditing,
-        enabled:
-          startupProgress > 0 &&
-          activeModule === "security" &&
-          !focusedItemId &&
-          !panelDisplayMode &&
-          !isAwaitingFloorViewAdjust &&
-          !isRangeEditorOpen &&
-          !mountOptions.floorTransitionActive &&
-          cameraMotionSnapshot?.owner !== "floor",
-      }),
-      syncVacuumMap());
-    const floorTransitionActive =
-      mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor";
-    if (
-      (carCharging.sync({
-        root: mountOptions.modelRoot,
-        revision: mountOptions.environmentRevision ?? mountOptions.sceneRevision,
-        retainedRoots: mountOptions.retainedModelRoots || [],
-        bindings: options.devices?.cars || [],
-        states: deviceStates,
-      }),
-      environmentScene.setRoot(
-        mountOptions.modelRoot,
-        mountOptions.environmentRevision ?? mountOptions.sceneRevision,
-      ),
-      !floorTransitionActive || cameraMotionSnapshot?.presentationRevealed)
-    ) {
-      floorTransitionActive ||
-        (rebuildCurtainMotion(),
-        syncNasOverlay(),
-        syncCameraOverlay(),
-        syncEnvironmentLayers(),
-        syncVacuumMotion());
-      const navigationBindings = collectModuleBindings().filter(matchesSelectedFloor),
-        modelBindings = expandGroupMembers(
-          isEditing
-            ? [
-                ...navigationBindings,
-                ...([
-                  "climate",
-                  "water-heater",
-                  "devices",
-                  "nas",
-                  "television",
-                  "speaker",
-                  "vacuum",
-                  ...GENERIC_DEVICE_KINDS2,
-                ].includes(activeModule)
-                  ? []
-                  : collectPreviewCovers()),
-              ]
-            : [
-                ...collectClimateBindings(),
-                ...collectGroupedCovers(),
-                ...collectNasBindings(),
-                ...collectSpeakerBindings(),
-                ...collectTelevisionBindings(),
-                ...GENERIC_DEVICE_KINDS2.flatMap((deviceKindForBinding) =>
-                  collectGenericDeviceBindings(deviceKindForBinding),
-                ),
-                ...collectVacuumBindings(),
-                ...lockBindings(),
-                ...securityCameraBindings(),
-                ...presenceBindings(),
-              ]
-                .map((stageBinding) => ({
-                  ...stageBinding,
-                  id: ["lock", "camera", "presence"].includes(stageBinding.deviceKind)
-                    ? stageBinding.id
-                    : stageBinding.deviceKind + ":" + stageBinding.id,
-                }))
-                .concat(collectPreviewCovers()),
-        ).filter(
-          (availableStageBinding: any) =>
-            availableStageBinding.modelAvailable && matchesSelectedFloor(availableStageBinding),
-        ),
-        pageDimming = pageDimming2(
-          options,
-          activeModule,
-          !!focusedItemId && panelDisplayMode !== "panel",
-        ),
-        enabled = !isAwaitingFloorViewAdjust && !isRangeEditorOpen && pageDimming.enabled,
-        isTemperatureHumidityPreview = isEditing && activeModule === "temperature-humidity",
-        sceneBindings = isTemperatureHumidityPreview
-          ? []
-          : pageModelBindings2(
-              mountOptions.document.floors,
-              modelBindings,
-              pageDimming.page,
-              selectedFloorId,
-            );
-      if (isEditing && !isTemperatureHumidityPreview && text) {
-        for (const sceneBinding of modelBindings)
-          (sceneBinding.id === text || sceneBinding.entryId === text) &&
-            !sceneBindings.some(
-              (sceneBindingMatch: any) =>
-                sceneBindingMatch.floorId === sceneBinding.floorId &&
-                sceneBindingMatch.modelId === sceneBinding.modelId,
-            ) &&
-            sceneBindings.push({
-              ...sceneBinding,
-              visible: true,
-            });
-      }
-      (screenOutlines.sync(
-        mountOptions.modelRoot,
-        mountOptions.environmentRevision ?? mountOptions.sceneRevision,
-        sceneBindings.filter(
-          (sceneBindingFilter: any) =>
-            sceneBindingFilter.deviceKind !== "smallcar" &&
-            (!text || sceneBindingFilter.id === text || sceneBindingFilter.entryId === text),
-        ),
-        !isEditing &&
-          !focusedItemId &&
-          !isAwaitingFloorViewAdjust &&
-          !isRangeEditorOpen &&
-          selectedFloorId !== "all" &&
-          ["environment", "devices", "vacuum", "security"].includes(pageDimming.page),
-      ),
-        environmentAirflow.setRoot(mountOptions.modelRoot, mountOptions.sceneRevision),
-        environmentScene.setMode({
-          enabled: enabled,
-          saturation: pageDimming.saturation,
-          dimStrength: enabled ? pageDimming.strength : 0,
-          bindings: sceneBindings,
-          animateBindings: !isEditing && !isAwaitingFloorViewAdjust,
-          states: deviceStates,
-          focusedId: focusedItemId,
-          selectedId: isEditing ? text : "",
-        }),
-        environmentAirflow.setState({
-          enabled:
-            startupProgress > 0 &&
-            !isAwaitingFloorViewAdjust &&
-            !isRangeEditorOpen &&
-            !isTemperatureHumidityPreview,
-          bindings: modelBindings.filter(
-            (climateEnvironmentBinding: any) =>
-              climateEnvironmentBinding.deviceKind === "climate" &&
-              !climateEnvironmentBinding.waterHeater,
-          ),
-          states: deviceStates,
-          focusedId: focusedItemId,
-          overview: !focusedItemId || panelDisplayMode === "panel",
-        }),
-        mountOptions.setEnvironmentActive?.(enabled || environmentScene.isActive));
-    }
-    const fallbackBindings = collectModuleBindings().filter(matchesSelectedFloor);
-    syncFloorTabs();
-
-    const isNavigationDraggable = navigationEditing && isNavigationVisible;
-    (moduleTabsElement.classList.toggle("is-navigation-draggable", isNavigationDraggable),
-      floorTabsElement.classList.toggle("is-navigation-draggable", isNavigationDraggable),
-      !isNavigationDraggable &&
-        (moduleTabsElement.classList.remove("is-navigation-dragging"),
-        floorTabsElement.classList.remove("is-navigation-dragging")));
-    const isAllFloorsSelected = selectedFloorId === "all";
-    toggleModuleTabs(
-      !isNavigationVisible &&
-        (isEditing || isAwaitingFloorViewAdjust || isRangeEditorOpen || isAllFloorsSelected),
-    );
-    const normalizedModule = ["water-heater", "airer"].includes(activeModule)
-      ? "devices"
-      : ["overview", "security", "light", "devices", "vacuum"].includes(activeModule)
-        ? activeModule
-        : "environment";
-    (moduleTabsElement.classList.toggle("is-all-floors", isAllFloorsSelected),
-      moduleTabsElement.style.setProperty("--i3d-tab-count", String(configuredModuleKinds2.length)),
-      moduleTabsElement.style.setProperty(
-        "--i3d-selected-tab",
-        String(Math.max(0, configuredModuleKinds2.indexOf(normalizedModule))),
-      ));
-    for (const [tabModuleKind, moduleTabElement] of moduleTabsByKind) {
-      const indexOf = configuredModuleKinds2.indexOf(tabModuleKind),
-        isModuleTabDisabled = isAllFloorsSelected || indexOf < 0;
-      (isModuleTabDisabled && restoreFocusWithin(moduleTabElement),
-        (moduleTabElement.hidden = moduleTabsElement.hidden || indexOf < 0),
-        (moduleTabElement.disabled = isModuleTabDisabled),
-        moduleTabElement.style.setProperty("--i3d-tab-index", String(Math.max(0, indexOf))),
-        moduleTabElement.setAttribute("aria-pressed", String(tabModuleKind === normalizedModule)));
-    }
-    ((moduleEmptyElement.hidden =
-      isAllFloorsSelected ||
-      moduleTabsElement.hidden ||
-      (!pendingModule &&
-        (activeModule === "security"
-          ? [
-              ...(options.security?.locks || []),
-              ...(options.security?.presenceSensors || []),
-              ...(options.security?.cameras || []),
-              ...(options.security?.alarms || []),
-            ].some(matchesSelectedFloor)
-          : activeModule === "overview" ||
-            activeModule === "light" ||
-            fallbackBindings.length > 0))),
-      (moduleEmptyElement.textContent = pendingModule
-        ? "请选择楼层，再使用" + (moduleTabsByKind.get(pendingModule)?.textContent || "控制") + "。"
-        : activeModule === "security"
-          ? "尚未配置安防相关设备"
-          : activeModule === "vacuum"
-            ? "尚未配置扫地机相关设备"
-            : activeModule === "devices"
-              ? "尚未配置相关设备"
-              : "尚未配置环境相关设备"));
-  }
-  function toggleModuleTabs(shouldHideTabs: any) {
-    if (isModuleTabsHidden === shouldHideTabs) return;
-    const isModuleTabsInitial = isModuleTabsHidden === null,
-      computedStyle =
-        !moduleTabsElement.hidden &&
-        moduleTabsElement.animate &&
-        typeof getComputedStyle == "function"
-          ? getComputedStyle(moduleTabsElement)
-          : null,
-      moduleTabsBaseKeyframe = {
-        clipPath: moduleTabsElement.hidden
-          ? "inset(0 100% 0 0 round 12px)"
-          : computedStyle?.clipPath && computedStyle.clipPath !== "none"
-            ? computedStyle.clipPath
-            : "inset(0 0% 0 0 round 12px)",
-        opacity: moduleTabsElement.hidden ? 0 : Number(computedStyle?.opacity ?? 1),
-        transform: moduleTabsElement.hidden
-          ? "translateX(-6px)"
-          : computedStyle?.transform || "none",
-      };
-    if (
-      (moduleTabsAnimation?.cancel(),
-      (moduleTabsAnimation = null),
-      (isModuleTabsHidden = shouldHideTabs),
-      (moduleTabsElement.inert = shouldHideTabs),
-      moduleTabsElement.setAttribute("aria-hidden", String(shouldHideTabs)),
-      shouldHideTabs && restoreFocusWithin(moduleTabsElement),
-      isModuleTabsInitial ||
-        !moduleTabsElement.animate ||
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
-    ) {
-      moduleTabsElement.hidden = shouldHideTabs;
-      return;
-    }
-    moduleTabsElement.hidden = false;
-    const moduleTabsKeyframes = shouldHideTabs
-        ? [
-            moduleTabsBaseKeyframe,
-            {
-              clipPath: "inset(0 100% 0 0 round 12px)",
-              opacity: 0,
-              transform: "translateX(-4px)",
-            },
-          ]
-        : [
-            moduleTabsBaseKeyframe,
-            {
-              clipPath: "inset(0 0% 0 0 round 12px)",
-              opacity: 1,
-              transform: "translateX(2px)",
-              offset: 0.8,
-            },
-            {
-              clipPath: "inset(0 0% 0 0 round 12px)",
-              opacity: 1,
-              transform: "translateX(0)",
-            },
-          ],
-      animate = moduleTabsElement.animate(moduleTabsKeyframes, {
-        duration: shouldHideTabs ? 380 : 480,
-        easing: "cubic-bezier(.2,.7,.2,1)",
-        fill: "both",
-      });
-    ((moduleTabsAnimation = animate),
-      (animate.onfinish = () => {
-        if (moduleTabsAnimation === animate) {
-          ((moduleTabsAnimation = null), (moduleTabsElement.hidden = shouldHideTabs));
-          for (const [finishedModuleKind, finishedModuleTabElement] of moduleTabsByKind)
-            finishedModuleTabElement.hidden =
-              shouldHideTabs || !configuredModuleKinds2.includes(finishedModuleKind);
-          animate.cancel();
-        }
-      }));
-  }
   let outgoingGhostAnimation: any = null;
   function cancelGhostAnimation() {
     const ghostAnimation = outgoingGhostAnimation;
@@ -3111,101 +2937,6 @@ export function mountStage(mountOptions: any) {
       for (const ghostAnimationEntry of ghostAnimation.animations) ghostAnimationEntry.cancel();
       (ghostAnimation.ghost.remove(), markerLayerElement.removeAttribute("inert"));
     }
-  }
-  function runModuleSwitchAnimation(switchContent: any) {
-    const previousOpacityList = markerLayerElement.animate
-      ? [...markerLayerElement.children].map((opacityChild) =>
-          Number(getComputedStyle(opacityChild).opacity),
-        )
-      : [];
-    if (
-      (cancelGhostAnimation(),
-      !markerLayerElement.animate ||
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
-    ) {
-      switchContent();
-      return;
-    }
-    const childIndexByNode = new Map(
-        [...markerLayerElement.children].map((indexedChild, indexedChildIndex) => [
-          indexedChild,
-          indexedChildIndex,
-        ]),
-      ),
-      outgoingEntries = currentModuleBindings()
-        .map((outgoingBinding: any) => ({
-          ...outgoingBinding,
-          index: childIndexByNode.get(map.get(outgoingBinding.id)) ?? -1,
-        }))
-        .filter((outgoingEntry: any) => outgoingEntry.index >= 0),
-      cloneNode = markerLayerElement.cloneNode(true);
-    (cloneNode.setAttribute("aria-hidden", "true"),
-      cloneNode.setAttribute("inert", ""),
-      cloneNode.classList.add("i3d-module-outgoing"),
-      (cloneNode.style.pointerEvents = "none"));
-    for (const ghostButton of cloneNode.querySelectorAll("button"))
-      ((ghostButton.style.pointerEvents = "none"), ghostButton.removeAttribute("id"));
-    (markerLayerElement.parentNode.append(cloneNode),
-      switchContent(),
-      markerLayerElement.setAttribute("inert", ""));
-    const ghostAnimationState = (outgoingGhostAnimation = {
-      ghost: cloneNode,
-      animations: [] as any[],
-      outgoing: outgoingEntries.map((ghostOutgoingEntry: any) => ({
-        ...ghostOutgoingEntry,
-        node: cloneNode.children[ghostOutgoingEntry.index],
-      })),
-    });
-    for (const [ghostChildIndex, ghostChildElement] of [...cloneNode.children].entries())
-      ghostChildElement.hidden ||
-        ghostAnimationState.animations.push(
-          ghostChildElement.animate(
-            [
-              {
-                opacity: previousOpacityList[ghostChildIndex] ?? 1,
-              },
-              {
-                opacity: 0,
-              },
-            ],
-            {
-              duration: 240,
-              easing: "linear",
-              fill: "both",
-            },
-          ),
-        );
-    if (!markerLayerElement.classList.contains("is-concealed")) {
-      for (const stageChildElement of markerLayerElement.children)
-        if (!stageChildElement.hidden) {
-          const childOpacity = Number(getComputedStyle(stageChildElement).opacity);
-          ghostAnimationState.animations.push(
-            stageChildElement.animate(
-              [
-                {
-                  opacity: 0,
-                },
-                {
-                  opacity: childOpacity,
-                },
-              ],
-              {
-                duration: 240,
-                easing: "linear",
-                fill: "backwards",
-              },
-            ),
-          );
-        }
-    }
-    Promise.all(
-      ghostAnimationState.animations.map((ghostAnimationHandle) => ghostAnimationHandle.finished),
-    )
-      .then(() => {
-        outgoingGhostAnimation === ghostAnimationState &&
-          (cancelGhostAnimation(), syncStageVisibility());
-      })
-      .catch(() => {});
   }
   function reportModuleSwitch(lifecycleEventName: any, fromModuleName: any, toModuleName: any) {
     try {
@@ -3222,7 +2953,7 @@ export function mountStage(mountOptions: any) {
         toCategory: moduleOrderEntries.indexOf(toModuleName),
         ...vacuumMaps.diagnostics?.(),
       });
-    } catch {}
+    } catch { /* 上报 / 观测类调用是 best-effort：观测通道失败不应中断业务主流程 */ }
   }
   function selectModule(targetModule: any) {
     if (
@@ -3345,63 +3076,244 @@ export function mountStage(mountOptions: any) {
           : lightStateOptions,
     );
   }
-  function syncCameraInteraction() {
-    if (isRangeEditorOpen && rangeEditorHandle?.syncCameraInteraction) {
-      rangeEditorHandle.syncCameraInteraction();
-      return;
-    }
-    if (isRangeEditorOpen || followVacuumId) {
-      mountOptions.setCameraInteraction({
-        enabled: false,
-        panEnabled: false,
-        zoomEnabled: false,
-      });
-      return;
-    }
-    const cameraInteractionConfig = {
-        ...options.camera,
-        ...resolvePageBehavior2(options, activeModule).interaction,
+  function stageCameraMotionDeps() {
+    return ({
+      get isRangeEditorOpen() {
+        return isRangeEditorOpen;
       },
-      isFreeCameraMode =
-        isAwaitingFloorViewAdjust ||
-        panelDisplayMode === "edit" ||
-        (isEditing && !panelDisplayMode && !cameraMotionSnapshot),
-      editedEntry = panelDisplayMode === "edit" ? getFocusedEntry() : null,
-      anchor =
-        editedEntry &&
-        (editedEntry.isCurtainGroup
-          ? computeGroupBounds(editedEntry)
-          : editedEntry.deviceKind === "presence"
-            ? presenceScene.anchor(editedEntry.id.slice(9))
-            : editedEntry.modelId
-              ? mountOptions.environmentModelPose?.(editedEntry.floorId, editedEntry.modelId)
-              : null),
-      editFocusPoint = editedEntry
-        ? anchor?.center ||
-          mountOptions
-            .worldPoint(editedEntry.floorId, editedEntry.x, editedEntry.y, editedEntry.height)
-            ?.toArray()
-        : null;
-    const documentPanEnabled = cameraInteractionConfig.panEnabled !== false;
-    const documentZoomEnabled = cameraInteractionConfig.zoomEnabled !== false;
-    // Vue 总览条经 window 旗标切换「视角锁定」，避免 runtime 包与 SPA facade 交叉依赖
-    const facadeViewLocked = !!(globalThis as any).__homeosDisplayViewLocked;
-    const viewLocked = cameraInteractionConfig.viewLocked === true || facadeViewLocked;
-    mountOptions.setCameraInteraction({
-      enabled:
-        !activePointerDrag &&
-        (isFreeCameraMode ||
-          (isControlReady &&
-            (!panelDisplayMode || panelDisplayMode === "panel") &&
-            !cameraMotionSnapshot &&
-            !isIdleRotationRunning)),
-      rotationMode: isFreeCameraMode ? "free" : cameraInteractionConfig.rotationMode,
-      // 总览尊重文档 interaction 配置；编辑/调层模式始终可平移缩放；显式锁定时关闭
-      panEnabled: !viewLocked && (isFreeCameraMode || documentPanEnabled),
-      zoomEnabled: !viewLocked && (isFreeCameraMode || documentZoomEnabled),
-      focusEditing: panelDisplayMode === "edit",
-      focusPoint: editFocusPoint,
+      get rangeEditorHandle() {
+        return rangeEditorHandle;
+      },
+      get followVacuumId() {
+        return followVacuumId;
+      },
+      get mountOptions() {
+        return mountOptions;
+      },
+      get options() {
+        return options;
+      },
+      get activeModule() {
+        return activeModule;
+      },
+      get isAwaitingFloorViewAdjust() {
+        return isAwaitingFloorViewAdjust;
+      },
+      get panelDisplayMode() {
+        return panelDisplayMode;
+      },
+      set panelDisplayMode(v) {
+        panelDisplayMode = v;
+      },
+      get isEditing() {
+        return isEditing;
+      },
+      get cameraMotionSnapshot() {
+        return cameraMotionSnapshot;
+      },
+      set cameraMotionSnapshot(v) {
+        cameraMotionSnapshot = v;
+      },
+      get getFocusedEntry() {
+        return getFocusedEntry;
+      },
+      get computeGroupBounds() {
+        return computeGroupBounds;
+      },
+      get presenceScene() {
+        return presenceScene;
+      },
+      get activePointerDrag() {
+        return activePointerDrag;
+      },
+      set activePointerDrag(v) {
+        activePointerDrag = v;
+      },
+      get isControlReady() {
+        return isControlReady;
+      },
+      get isIdleRotationRunning() {
+        return isIdleRotationRunning;
+      },
+      get focusInset() {
+        return focusInset;
+      },
+      set focusInset(v) {
+        focusInset = v;
+      },
+      get refreshStageUi() {
+        return refreshStageUi;
+      },
+      get syncStageVisibility() {
+        return syncStageVisibility;
+      },
+      get renderMarkerPositions() {
+        return renderMarkerPositions;
+      },
+      get exitFollowMode() {
+        return exitFollowMode;
+      },
+      get syncAvailability() {
+        return syncAvailability;
+      },
+      get climatePanel() {
+        return climatePanel;
+      },
+      get lightModeMenu() {
+        return lightModeMenu;
+      },
+      get lightColorPicker() {
+        return lightColorPicker;
+      },
+      get coverPanel() {
+        return coverPanel;
+      },
+      get coverGroupPanel() {
+        return coverGroupPanel;
+      },
+      get televisionPanel() {
+        return televisionPanel;
+      },
+      get speakerPanel() {
+        return speakerPanel;
+      },
+      get focusedItemId() {
+        return focusedItemId;
+      },
+      set focusedItemId(v) {
+        focusedItemId = v;
+      },
+      get idleReturnCamera() {
+        return idleReturnCamera;
+      },
+      set idleReturnCamera(v) {
+        idleReturnCamera = v;
+      },
+      get lightEditPreview() {
+        return lightEditPreview;
+      },
+      set lightEditPreview(v) {
+        lightEditPreview = v;
+      },
+      get hasPendingStageRefresh() {
+        return hasPendingStageRefresh;
+      },
+      set hasPendingStageRefresh(v) {
+        hasPendingStageRefresh = v;
+      },
+      get restoreFocusWithin() {
+        return restoreFocusWithin;
+      },
+      get lightPanelSection() {
+        return lightPanelSection;
+      },
+      get syncPanelChrome() {
+        return syncPanelChrome;
+      },
+      get startCameraMotion() {
+        return startCameraMotion;
+      },
+      get applyLightStates() {
+        return applyLightStates;
+      },
+      get findBindingById() {
+        return findBindingById;
+      },
+      get isOverviewOrAllFloors() {
+        return isOverviewOrAllFloors;
+      },
+      get idleFocusExitControl() {
+        return idleFocusExitControl;
+      },
+      get controlErrorElement() {
+        return controlErrorElement;
+      },
+      get updateDevicePanel() {
+        return updateDevicePanel;
+      },
+      get handleMarkerActivate() {
+        return handleMarkerActivate;
+      },
+      get isPanelDeviceKind() {
+        return isPanelDeviceKind;
+      },
+      get activeCameraPose() {
+        return activeCameraPose;
+      },
+      get three() {
+        return three;
+      },
+      get canvasElement() {
+        return canvasElement;
+      },
+      get text() {
+        return text;
+      },
+      set text(v) {
+        text = v;
+      },
+      get syncMarkers() {
+        return syncMarkers;
+      },
+      get vacuumOverlayByKey() {
+        return vacuumOverlayByKey;
+      },
+      get map() {
+        return map;
+      },
+      get isControlBusy() {
+        return isControlBusy;
+      },
+      get deviceStates() {
+        return deviceStates;
+      },
+      get mediaControlRequestsByRequestId() {
+        return mediaControlRequestsByRequestId;
+      },
+      get controlMediaDevice() {
+        return controlMediaDevice;
+      },
+      get readCoverFeedback() {
+        return readCoverFeedback;
+      },
+      get coverPanelOptions() {
+        return coverPanelOptions;
+      },
+      get readLightState() {
+        return readLightState;
+      },
+      get runLightCommand() {
+        return runLightCommand;
+      },
+      get screenPointToFloor() {
+        return screenPointToFloor;
+      },
+      get stageModelIndex() {
+        return stageModelIndex;
+      },
     });
+  }
+
+  function syncCameraInteraction() {
+    return syncCameraInteractionCore(stageCameraMotionDeps());
+  }
+  function advanceCameraMotion(frameTimestampInput: any) {
+    return advanceCameraMotionCore(stageCameraMotionDeps(), frameTimestampInput);
+  }
+  function exitFocusMode(exitOptions: { immediate?: boolean; preserveCamera?: boolean } = {}) {
+    return exitFocusModeCore(stageCameraMotionDeps(), exitOptions);
+  }
+  function focusMarkerById(targetMarkerId: any, focusMode = "runtime", isImmediate = false) {
+    return focusMarkerByIdCore(stageCameraMotionDeps(), targetMarkerId, focusMode, isImmediate);
+  }
+  function activateMarker(activatedMarkerId: any, isShortcut = false) {
+    return activateMarkerCore(stageCameraMotionDeps(), activatedMarkerId, isShortcut);
+  }
+  function beginMarkerDrag(dragStartEvent: any, dragMarkerId: any) {
+    return beginMarkerDragCore(stageCameraMotionDeps(), dragStartEvent, dragMarkerId);
+  }
+  function endMarkerDrag(dragEndEvent: any) {
+    return endMarkerDragCore(stageCameraMotionDeps(), dragEndEvent);
   }
   let presentationUiSignatureCache = "";
   const computeFocusInset = () => {
@@ -3420,315 +3332,33 @@ export function mountStage(mountOptions: any) {
         lightPanelSection.getBoundingClientRect().width / Math.max(mediaScale, 0.0001);
     return Math.min(0.7, (lightPanelScale + 24) / Math.max(clientWidth, 1));
   };
-  function syncLayoutMetrics() {
-    const stageBoundingRect = element.getBoundingClientRect(),
-      width2 = mediaViewportSize?.width || stageBoundingRect.width,
-      height = mediaViewportSize?.height || stageBoundingRect.height;
-    if (!(width2 > 0 && height > 0 && stageBoundingRect.width > 0 && stageBoundingRect.height > 0))
-      return;
-    ((containerViewportSize = {
-      width: stageBoundingRect.width,
-      height: stageBoundingRect.height,
-    }),
-      (mediaScale = stageBoundingRect.width / width2));
-    const stageScaleY = stageBoundingRect.height / height,
-      // 触控缩放用等比 fit，避免横向/纵向非均匀 stretch 造成 UI 变形。
-      uniformMediaScale = Math.min(mediaScale, stageScaleY),
-      hasMediaViewport = !!mediaViewportSize,
-      isTouchScalingEnabled = typeof mountOptions < "u" && hasMediaViewport,
-      width3 = isTouchScalingEnabled ? width2 : stageBoundingRect.width,
-      height2 = isTouchScalingEnabled ? height : stageBoundingRect.height,
-      uiScaleX = hasMediaViewport ? uniformMediaScale : 1,
-      uiScaleY = hasMediaViewport ? uniformMediaScale : 1;
-    ((value = hasMediaViewport
-      ? {
-          x: uiScaleX,
-          y: uiScaleY,
-          width: width2,
-          height: height,
-        }
-      : null));
-    const moduleTabStride = configuredModuleKinds2.length * 50 + 6,
-      navigationConfig = options.navigation || {},
-      normalizeNavigationScale = (navigationScaleConfig: any) =>
-        Number.isFinite(navigationScaleConfig?.scale)
-          ? Math.max(0.5, Math.min(10, navigationScaleConfig.scale))
-          : 1,
-      categoryScaleFactor = 2 * normalizeNavigationScale(navigationConfig.categories),
-      floorScaleFactor = 2 * normalizeNavigationScale(navigationConfig.floors),
-      navigationLayerHeight = navigationLayerElement.offsetHeight || 36,
-      floorTabsWidth = floorTabsElement.offsetWidth || 80,
-      floorTabsHeight = floorTabsElement.offsetHeight || 120,
-      toolbarHeight = toolbarElement.offsetHeight || 30,
-      lightPanelWidth = lightPanelSection.offsetWidth || 360,
-      lightPanelHeight = lightPanelSection.offsetHeight || 400,
-      speakerPanelReservedHeight = speakerPanel.root.hidden
-        ? lightPanelHeight
-        : lightPanelHeight +
-          Math.max(
-            0,
-            parseFloat(getComputedStyle(speakerPanel.root).maxHeight) -
-              speakerPanel.root.offsetHeight,
-          );
-    (presentationLayerElement.style.setProperty("--i3d-presentation-width", width3 + "px"),
-      presentationLayerElement.style.setProperty("--i3d-presentation-height", height2 + "px"),
-      presentationLayerElement.style.setProperty("--i3d-touch-hit-width", 44 / uiScaleX + "px"),
-      presentationLayerElement.style.setProperty("--i3d-touch-hit-height", 44 / uiScaleY + "px"),
-      presentationLayerElement.style.setProperty("--i3d-media-canvas-width", width2 + "px"),
-      presentationLayerElement.style.setProperty("--i3d-media-canvas-height", height + "px"),
-      presentationLayerElement.style.setProperty("--i3d-media-scale-x", String(uiScaleX)),
-      presentationLayerElement.style.setProperty("--i3d-media-scale-y", String(uiScaleY)),
-      presentationLayerElement.style.setProperty(
-        "--i3d-navigation-scale",
-        String(categoryScaleFactor),
-      ),
-      presentationLayerElement.style.setProperty("--i3d-floor-scale", String(floorScaleFactor)),
-
-
-      presentationLayerElement.style.setProperty(
-        "--i3d-help-scale",
-        String(Math.min(4, Math.max(1, 1 / Math.max(mediaScale, 0.01)))),
-      ));
-    const placeNavigationGroup = (
-        navigationTargetElement: any,
-        placementConfig: any,
-        placementPercentPair: any,
-        placementCenterScale: any,
-        placementSpanPx: any,
-        placementItemPx: any,
-      ) => {
-        const groupSpanX = placementSpanPx * placementCenterScale,
-          groupSpanY = placementItemPx * placementCenterScale,
-          clampPercent = (percentCoordinateKey: any, percentFallback: any) =>
-            Number.isFinite(placementConfig?.[percentCoordinateKey])
-              ? Math.max(0, Math.min(100, placementConfig[percentCoordinateKey]))
-              : percentFallback,
-          max = Math.max(
-            12 + groupSpanX / 2,
-            Math.min(
-              width3 - 12 - groupSpanX / 2,
-              (width3 * clampPercent("x", placementPercentPair[0])) / 100,
-            ),
-          ),
-          navigationTopPosition = Math.max(
-            12 + groupSpanY / 2,
-            Math.min(
-              height2 - 12 - groupSpanY / 2,
-              (height2 * clampPercent("y", placementPercentPair[1])) / 100,
-            ),
-          );
-        return (
-          (navigationTargetElement.style.left = max + "px"),
-          (navigationTargetElement.style.top = navigationTopPosition + "px"),
-          navigationTopPosition - groupSpanY / 2
-        );
-      },
-      navigationBottomOffset = placeNavigationGroup(
-        navigationLayerElement,
-        navigationConfig.categories,
-        [50, 94],
-        categoryScaleFactor,
-        moduleTabStride,
-        navigationLayerHeight,
-      ),
-      followOffsetClamp = Number.isFinite(navigationConfig.followOffset)
-        ? Math.max(0, Math.min(300, navigationConfig.followOffset))
-        : 16,
-      toolbarThreshold = toolbarHeight * categoryScaleFactor,
-      isToolbarAboveNavigation = navigationBottomOffset >= toolbarThreshold + 12;
-    ((toolbarElement.style.bottom = isToolbarAboveNavigation
-      ? "calc(100% + " +
-        Math.min(followOffsetClamp, navigationBottomOffset - toolbarThreshold - 12) /
-          categoryScaleFactor +
-        "px)"
-      : "auto"),
-      (toolbarElement.style.top = isToolbarAboveNavigation ? "auto" : "calc(100% + 8px)"),
-      placeNavigationGroup(
-        floorTabsElement,
-        navigationConfig.floors,
-        [96, 50],
-        floorScaleFactor,
-        floorTabsWidth,
-        floorTabsHeight,
-      ));
-    const popupDefaultTop = Math.max(12, Math.min(height * 0.56 - 400, height - 812));
-    presentationLayerElement.style.setProperty(
-      "--i3d-navigation-bottom",
-      Math.max(12, navigationBottomOffset - 50 * categoryScaleFactor) + "px",
-    );
-    const us2 = computePopupPlacement({
-      width: width3,
-      height: height2,
-      panelWidth: lightPanelWidth,
-      panelHeight: speakerPanelReservedHeight,
-      defaultTop: popupDefaultTop,
-      defaultScale: 2,
-      settings: options.popupLayout?.general,
-    });
-    (lightPanelSection.style.setProperty("--i3d-control-top", us2.top + "px"),
-      lightPanelSection.style.setProperty("--i3d-control-scale", String(us2.scale)),
-      (lightPanelSection.style.right = us2.right + "px"),
-      Object.assign(presentationLayerElement.style, {
-        width: width3 + "px",
-        height: height2 + "px",
-        transform: isTouchScalingEnabled
-          ? "scale(" + uniformMediaScale + "," + uniformMediaScale + ")"
-          : "none",
-      }));
-    const presentationUiSignature = JSON.stringify({
-      fixedUi: hasMediaViewport,
-      width: width3,
-      height: height2,
-      uiScaleX: uiScaleX,
-      uiScaleY: uiScaleY,
-    });
-    (typeof presentationUiSignatureCache < "u" &&
-      presentationUiSignature !== presentationUiSignatureCache &&
-      ((presentationUiSignatureCache = presentationUiSignature),
-      postHostMessage({
-        type: "presentation-ui",
-        fixedUi: hasMediaViewport,
-        width: width3,
-        height: height2,
-        uiScaleX: uiScaleX,
-        uiScaleY: uiScaleY,
-        sourceWidth: width2,
-        sourceHeight: height,
-      })),
-      cameraMotionSnapshot?.focused && (cameraMotionSnapshot.targetInset = computeFocusInset()),
-      panelDisplayMode &&
-        panelDisplayMode !== "panel" &&
-        !cameraMotionSnapshot &&
-        ((focusInset = computeFocusInset()), mountOptions.setFocusViewport(focusInset)),
-      renderMarkerPositions(true));
-  }
 
   const NAVIGATION_DRAG_THRESHOLD = 4;
-  /** 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效。
- *
- * @param {HTMLElement} dragElement 接收指针的元素：分类栏整条轨道 / 楼层栏整列。
- * @param {"categories"|"floors"} navigationKey 写回配置里的哪一条导航。
- * @param {[number, number]} fallbackPosition 配置缺省时的兜底中心点百分比，与布局取法一致。
- */
+  function stageNavigationDragDeps() {
+    return ({
+      get options() {
+        return options;
+      },
+      set options(v) {
+        options = v;
+      },
+      get navigationEditing() {
+        return navigationEditing;
+      },
+      get element() {
+        return element;
+      },
+      get NAVIGATION_DRAG_THRESHOLD() {
+        return NAVIGATION_DRAG_THRESHOLD;
+      },
+      get syncLayoutMetrics() {
+        return syncLayoutMetrics;
+      },
+    });
+  }
+
   function bindNavigationDrag(dragElement: any, navigationKey: any, fallbackPosition: any) {
-
-    let navigationDrag: any = null;
-
-    const readOffsetPercent = (axisName: any) => {
-      const configuredPercent = options.navigation?.[navigationKey]?.[axisName];
-      return Number.isFinite(configuredPercent)
-        ? Math.max(0, Math.min(100, configuredPercent))
-        : fallbackPosition[axisName === "x" ? 0 : 1];
-    };
-
-    const writeOffsetPercent = (percentX: any, percentY: any) => {
-      options = {
-        ...options,
-        navigation: {
-          ...(options.navigation || {}),
-          [navigationKey]: {
-            ...(options.navigation?.[navigationKey] || {}),
-            x: Math.round(percentX * 100) / 100,
-            y: Math.round(percentY * 100) / 100,
-          },
-        },
-      };
-    };
-    const stopNavigationDrag = () => {
-      if (!navigationDrag) return;
-      navigationDrag = null;
-      dragElement.classList.remove("is-navigation-dragging");
-    };
-    dragElement.addEventListener("pointerdown", (dragStartEvent: any) => {
-
-      if (!navigationEditing || dragStartEvent.button !== 0 || dragStartEvent.isPrimary === false)
-        return;
-
-
-      if (navigationDrag?.pointerId === dragStartEvent.pointerId) return;
-      const containerRect = element.getBoundingClientRect();
-      if (!(containerRect.width > 0) || !(containerRect.height > 0)) return;
-
-      dragElement.dataset.dragged = "";
-      dragStartEvent.preventDefault();
-
-      dragStartEvent.stopPropagation();
-      navigationDrag = {
-        pointerId: dragStartEvent.pointerId,
-        clientX: dragStartEvent.clientX,
-        clientY: dragStartEvent.clientY,
-        startPercentX: readOffsetPercent("x"),
-        startPercentY: readOffsetPercent("y"),
-        percentPerClientPxX: 100 / containerRect.width,
-        percentPerClientPxY: 100 / containerRect.height,
-        moved: false,
-      };
-      dragElement.setPointerCapture?.(dragStartEvent.pointerId);
-      dragElement.classList.add("is-navigation-dragging");
-    });
-    dragElement.addEventListener("pointermove", (dragMoveEvent: any) => {
-      if (!navigationDrag || navigationDrag.pointerId !== dragMoveEvent.pointerId) return;
-
-      if (!navigationEditing) {
-        (stopNavigationDrag(), (dragElement.dataset.dragged = ""));
-        return;
-      }
-      const movedClientX = dragMoveEvent.clientX - navigationDrag.clientX,
-        movedClientY = dragMoveEvent.clientY - navigationDrag.clientY;
-      if (
-        !navigationDrag.moved &&
-        Math.hypot(movedClientX, movedClientY) < NAVIGATION_DRAG_THRESHOLD
-      )
-        return;
-      navigationDrag.moved = true;
-
-
-      const nextPercentX = Math.max(
-          0,
-          Math.min(
-            100,
-            navigationDrag.startPercentX + movedClientX * navigationDrag.percentPerClientPxX,
-          ),
-        ),
-        nextPercentY = Math.max(
-          0,
-          Math.min(
-            100,
-            navigationDrag.startPercentY + movedClientY * navigationDrag.percentPerClientPxY,
-          ),
-        );
-      if (nextPercentX === readOffsetPercent("x") && nextPercentY === readOffsetPercent("y"))
-        return;
-      (writeOffsetPercent(nextPercentX, nextPercentY), syncLayoutMetrics());
-    });
-    dragElement.addEventListener("pointerup", (dragEndEvent: any) => {
-      if (!navigationDrag || navigationDrag.pointerId !== dragEndEvent.pointerId) return;
-      const finishedDrag = navigationDrag;
-      stopNavigationDrag();
-      if (!finishedDrag.moved) {
-
-        return;
-      }
-
-      dragElement.dataset.dragged = "true";
-      postHostMessage({
-        type: "edit",
-        action: "navigation-position",
-        target: navigationKey,
-        x: readOffsetPercent("x"),
-        y: readOffsetPercent("y"),
-      });
-    });
-
-    dragElement.addEventListener("pointercancel", () => {
-      if (!navigationDrag) return;
-      const cancelledDrag = navigationDrag;
-      stopNavigationDrag();
-      if (cancelledDrag.moved) {
-        (writeOffsetPercent(cancelledDrag.startPercentX, cancelledDrag.startPercentY),
-          syncLayoutMetrics());
-      }
-    });
+    return bindNavigationDragCore(stageNavigationDragDeps(), dragElement, navigationKey, fallbackPosition);
   }
 
 
@@ -3749,85 +3379,6 @@ export function mountStage(mountOptions: any) {
           preventScroll: true,
         })),
       focusScopeElement.contains(document.activeElement) && (activeElement as HTMLElement).blur());
-  }
-  function syncStageVisibility() {
-    const isFloorMotionUnrevealed =
-        cameraMotionSnapshot?.owner === "floor" && !cameraMotionSnapshot.markersRevealed,
-      stageMarkerItems = currentModuleBindings(),
-      stageMarkersByIdMap = new Map(
-        stageMarkerItems.map((stageMarkerEntry: any) => [stageMarkerEntry.id, stageMarkerEntry]),
-      ),
-      some =
-        !isEditing &&
-        !isAwaitingFloorViewAdjust &&
-        stageMarkerItems.some(
-          (visibilityMarker: any) =>
-            visibilityMarker.visible !== false &&
-            visibilityMarker.buttonHidden !== true &&
-            visibilityMarker.hiddenClickable === true,
-        ),
-      isStageConcealed =
-        isFloorMotionUnrevealed ||
-        hasPendingStageRefresh ||
-        hasIdleIconActivity ||
-        isIdleIconHidden ||
-        (isUserActive && !some) ||
-        (isCameraRotating && pageBehavior.hideIconsWhileRotating === true) ||
-        !!(panelDisplayMode && !["edit", "panel"].includes(panelDisplayMode));
-    for (const [stageMarkerId, stageMarkerElement] of map) {
-      const stageMarkerItem =
-          stageMarkersByIdMap.get(stageMarkerId) || findBindingById(stageMarkerId),
-        isStageButtonHidden = !isEditing && stageMarkerItem?.buttonHidden === true,
-        isStageHiddenClickable =
-          !isEditing &&
-          !isAwaitingFloorViewAdjust &&
-          !isStageButtonHidden &&
-          stageMarkerItem?.hiddenClickable === true;
-      stageMarkerElement.disabled =
-        cameraMotionSnapshot?.owner === "floor" ||
-        isStageButtonHidden ||
-        (!isEditing && (isOverviewOrAllFloors() || stageMarkerItem?.overviewQuip === true));
-      const active =
-          !isEditing &&
-          (stageMarkerItem?.passiveSensor ||
-            (stageMarkerItem?.deviceKind === "vacuum" &&
-              vacuumStatusPresentation2(stageMarkerItem, deviceStates).active)),
-        stageMarkerHostElement = active ? vacuumWorkingLayerElement : markerLayerElement;
-      stageMarkerElement.parentElement !== stageMarkerHostElement &&
-        stageMarkerHostElement.append(stageMarkerElement);
-      const isStageMarkerIdleHidden =
-        (isFloorMotionUnrevealed && active) ||
-        (!active &&
-          (isUserActive || isIdleIconHidden) &&
-          !isStageHiddenClickable &&
-          !isEditing &&
-          !isAwaitingFloorViewAdjust);
-      (stageMarkerElement.classList.toggle("is-hidden-clickable", isStageHiddenClickable),
-        stageMarkerElement.classList.toggle("is-idle-hidden", isStageMarkerIdleHidden),
-        isStageMarkerIdleHidden ||
-        isStageButtonHidden ||
-        (!isEditing && (isOverviewOrAllFloors() || stageMarkerItem?.overviewQuip === true))
-          ? (restoreFocusWithin(stageMarkerElement), stageMarkerElement.setAttribute("inert", ""))
-          : stageMarkerElement.removeAttribute("inert"),
-        (stageMarkerElement.title = isStageHiddenClickable
-          ? ""
-          : stageMarkerElement.getAttribute("aria-label") || ""));
-    }
-    (isStageConcealed
-      ? (restoreFocusWithin(
-          markerLayerElement,
-          lightPanelSection.classList.contains("is-open") ? lightPanelSection : canvasElement,
-        ),
-        markerLayerElement.setAttribute("inert", ""))
-      : outgoingGhostAnimation
-        ? markerLayerElement.setAttribute("inert", "")
-        : markerLayerElement.removeAttribute("inert"),
-      markerLayerElement.removeAttribute("aria-hidden"),
-      isStageConcealed && lastInteractionMs === null
-        ? (lastInteractionMs = performance.now())
-        : isStageConcealed || (lastInteractionMs = null),
-      markerLayerElement.classList.toggle("is-floor-concealed", isFloorMotionUnrevealed),
-      markerLayerElement.classList.toggle("is-concealed", isStageConcealed));
   }
   function syncFocusHidden() {
     (moduleTabsElement.classList.toggle("is-follow-hidden", !!followVacuumId),
@@ -3894,61 +3445,6 @@ export function mountStage(mountOptions: any) {
       lightPanelSection.classList.toggle("is-preview", isEditing),
       refreshStageUi(),
       syncStageVisibility());
-  }
-  function advanceCameraMotion(frameTimestampInput: any) {
-    if (!cameraMotionSnapshot) return;
-    const now = performance.now(),
-      sampledFrameTimestamp = now - frameTimestampInput > 50 ? now : frameTimestampInput,
-      clampedFrameTimestamp = Math.max(
-        sampledFrameTimestamp,
-        cameraMotionSnapshot.lastFrame ?? cameraMotionSnapshot.started,
-      );
-    (cameraMotionSnapshot.firstFrame &&
-      ((cameraMotionSnapshot.lastFrame = clampedFrameTimestamp),
-      (cameraMotionSnapshot.firstFrame = false)),
-      (cameraMotionSnapshot.elapsed += Math.min(
-        50,
-        Math.max(
-          0,
-          clampedFrameTimestamp - (cameraMotionSnapshot.lastFrame ?? clampedFrameTimestamp),
-        ),
-      )),
-      (cameraMotionSnapshot.lastFrame = clampedFrameTimestamp));
-    const trackedCameraMotion = cameraMotionSnapshot,
-      elapsed = cameraMotionSnapshot.elapsed,
-      progress = cameraMotionSnapshot.transition.progress(elapsed);
-    ((cameraMotionSnapshot.amount = progress),
-      (focusInset =
-        cameraMotionSnapshot.inset +
-        (cameraMotionSnapshot.targetInset - cameraMotionSnapshot.inset) * progress));
-    const sample = cameraMotionSnapshot.transition.sample(elapsed);
-    (cameraMotionSnapshot.owner === "floor" &&
-      mountOptions.advanceFloorTransition?.(progress, sample),
-      mountOptions.applyCameraFrame
-        ? mountOptions.applyCameraFrame(sample, progress, focusInset)
-        : (mountOptions.applyCameraPose(sample, progress),
-          mountOptions.setFocusViewport(focusInset)),
-      cameraMotionSnapshot.owner === "floor" &&
-        progress >= 0.9 &&
-        !cameraMotionSnapshot.presentationRevealed &&
-        ((cameraMotionSnapshot.presentationRevealed = true), refreshStageUi()),
-      cameraMotionSnapshot.owner === "floor" &&
-        progress >= 0.9 &&
-        !cameraMotionSnapshot.markersRevealed &&
-        ((cameraMotionSnapshot.markersRevealed = true),
-        syncStageVisibility(),
-        renderMarkerPositions(true)),
-      cameraMotionSnapshot.owner === "focus" &&
-        !cameraMotionSnapshot.focused &&
-        progress >= 0.99 &&
-        exitFollowMode(),
-      cameraMotionSnapshot.transition.settled(elapsed) &&
-        cameraMotionSnapshot === trackedCameraMotion &&
-        ((cameraMotionSnapshot = null),
-        mountOptions.endCameraMotion(),
-        syncCameraInteraction(),
-        trackedCameraMotion.done?.(),
-        syncAvailability()));
   }
   function normalizeCameraPose(rawCameraPose: any) {
     if (!rawCameraPose) return rawCameraPose;
@@ -4172,170 +3668,6 @@ export function mountStage(mountOptions: any) {
   }
   document.addEventListener &&
     document.addEventListener("visibilitychange", handleVisibilityChange);
-  function exitFocusMode(exitOptions: { immediate?: boolean; preserveCamera?: boolean } = {}) {
-    if (
-      (climatePanel.cancelPending?.(),
-      lightModeMenu.close(),
-      lightColorPicker.cancel(),
-      coverPanel.deactivate(),
-      typeof coverGroupPanel < "u" && coverGroupPanel.deactivate(),
-      getFocusedEntry()?.deviceKind === "vacuum" &&
-        postHostMessage({
-          type: "vacuum-popup-close",
-        }),
-      getFocusedEntry()?.deviceKind === "camera" &&
-        postHostMessage({
-          type: "camera-popup-close",
-        }),
-      televisionPanel.hide(),
-      speakerPanel.hide(),
-      !focusedItemId && !panelDisplayMode && (!idleReturnCamera || exitOptions.immediate !== true))
-    )
-      return;
-    const hasLightEffectPreview = !!lightEditPreview;
-    lightEditPreview = null;
-    const hasEditFocus = !!(panelDisplayMode && isEditing);
-    ((hasPendingStageRefresh = !!(
-      idleReturnCamera &&
-      !isEditing &&
-      panelDisplayMode !== "panel" &&
-      exitOptions.immediate !== true &&
-      !exitOptions.preserveCamera
-    )),
-      (focusedItemId = ""),
-      (panelDisplayMode = ""),
-      restoreFocusWithin(lightPanelSection),
-      lightPanelSection.classList.remove("is-open"),
-      lightPanelSection.setAttribute("inert", ""),
-      syncPanelChrome(),
-      postHostMessage({
-        type: "focus-state",
-        active: false,
-      }),
-      exitOptions.preserveCamera
-        ? ((cameraMotionSnapshot = null),
-          (idleReturnCamera = null),
-          mountOptions.setOrbitPivot(null))
-        : idleReturnCamera &&
-          startCameraMotion(idleReturnCamera, false, exitOptions.immediate === true, () => {
-            ((idleReturnCamera = null), mountOptions.setOrbitPivot(null));
-          }),
-      syncAvailability(),
-      hasEditFocus &&
-        postHostMessage({
-          type: "edit",
-          action: "focus-exited",
-        }),
-      hasLightEffectPreview && applyLightStates(),
-      syncCameraInteraction());
-  }
-  function focusMarkerById(targetMarkerId: any, focusMode = "runtime", isImmediate = false) {
-    const targetMarkerItem = findBindingById(targetMarkerId);
-    // 门锁与其它 panel 设备一致：直播允许 focus / panel（lock-panel 负责控制）
-    if (!targetMarkerItem || targetMarkerItem.modelAvailable === false) return;
-    if (focusedItemId !== targetMarkerId) {
-      lightModeMenu.close();
-      lightColorPicker.cancel();
-    }
-    if (
-      (lightEditPreview && ((lightEditPreview = null), applyLightStates()),
-      focusedItemId === targetMarkerId && panelDisplayMode === focusMode && focusMode === "runtime")
-    ) {
-      exitFocusMode();
-      return;
-    }
-    if (
-      !isEditing &&
-      ["runtime", "panel"].includes(focusMode) &&
-      (!isControlReady || isOverviewOrAllFloors())
-    )
-      return;
-    if ((idleFocusExitControl.activity(), focusMode === "panel")) {
-      ((idleReturnCamera || cameraMotionSnapshot) &&
-        exitFocusMode({
-          immediate: true,
-        }),
-        (focusedItemId = targetMarkerId),
-        (panelDisplayMode = "panel"),
-        (controlErrorElement.textContent = ""),
-        lightPanelSection.removeAttribute("inert"),
-        lightPanelSection.classList.add("is-open"),
-        syncPanelChrome(),
-        updateDevicePanel(),
-        syncCameraInteraction(),
-        syncAvailability(),
-        postHostMessage({
-          type: "focus-state",
-          active: false,
-          panelOpen: true,
-          id: targetMarkerId,
-        }),
-        handleMarkerActivate(targetMarkerItem));
-      return;
-    }
-    idleReturnCamera ||= mountOptions.cameraState(true);
-    const anchor2 = targetMarkerItem.isCurtainGroup
-        ? computeGroupBounds(targetMarkerItem)
-        : targetMarkerItem.deviceKind === "presence"
-          ? presenceScene.anchor(targetMarkerItem.id.slice(9))
-          : targetMarkerItem.modelId
-            ? mountOptions.environmentModelPose?.(
-                targetMarkerItem.floorId,
-                targetMarkerItem.modelId,
-              )
-            : null,
-      focusWorldPoint =
-        anchor2?.center ||
-        mountOptions
-          .worldPoint(
-            targetMarkerItem.floorId,
-            targetMarkerItem.x,
-            targetMarkerItem.y,
-            targetMarkerItem.height,
-          )
-          ?.toArray();
-    if (!focusWorldPoint) return;
-    ((focusedItemId = targetMarkerId),
-      (panelDisplayMode = focusMode),
-      (controlErrorElement.textContent = ""),
-      isEditing || !isPanelDeviceKind(targetMarkerItem) || targetMarkerItem.clickAction !== "focus"
-        ? (lightPanelSection.removeAttribute("inert"), lightPanelSection.classList.add("is-open"))
-        : (lightPanelSection.setAttribute("inert", ""),
-          lightPanelSection.classList.remove("is-open")),
-      mountOptions.setOrbitPivot(null),
-      syncPanelChrome(),
-      updateDevicePanel());
-    const camera = options.camera || activeCameraPose || idleReturnCamera,
-      focusCamera =
-        targetMarkerItem.focusCamera ||
-        (targetMarkerItem.modelId
-          ? automaticAirConditionerCamera2(
-              three,
-              {
-                ...camera,
-                viewportAspect: canvasElement.clientWidth / Math.max(1, canvasElement.clientHeight),
-              },
-              focusWorldPoint,
-              anchor2?.forward,
-              anchor2?.size,
-              targetMarkerItem.deviceKind === "nas"
-                ? {
-                    minimumFrameSize: 0.7,
-                    minimumDistance: 0.6,
-                  }
-                : {},
-            )
-          : automaticLightCamera2(three, camera, focusWorldPoint));
-    (isEditing ||
-      postHostMessage({
-        type: "focus-state",
-        active: true,
-        id: targetMarkerId,
-      }),
-      startCameraMotion(focusCamera, true, isImmediate, () => {}),
-      (targetMarkerItem.deviceKind === "camera" || targetMarkerItem.deviceKind === "vacuum") &&
-        handleMarkerActivate(targetMarkerItem));
-  }
   (restoreViewButton.addEventListener("click", () => {
     panelDisplayMode || idleReturnCamera || cameraMotionSnapshot
       ? exitFocusMode()
@@ -4345,58 +3677,49 @@ export function mountStage(mountOptions: any) {
       const clickedLightItem = getFocusedEntry();
       clickedLightItem && runLightCommand("power", !readLightState(clickedLightItem.entityId).on);
     }));
+  function stageLightingDeps() {
+    return ({
+      get powerButton() {
+        return powerButton;
+      },
+      get getFocusedEntry() {
+        return getFocusedEntry;
+      },
+      get isEditing() {
+        return isEditing;
+      },
+      get isControlBusy() {
+        return isControlBusy;
+      },
+      get resolveLightState() {
+        return resolveLightState;
+      },
+      get vector() {
+        return vector;
+      },
+      get applyLightStates() {
+        return applyLightStates;
+      },
+      get enqueueControlCommand() {
+        return enqueueControlCommand;
+      },
+      get controlErrorElement() {
+        return controlErrorElement;
+      },
+      get syncMarkers() {
+        return syncMarkers;
+      },
+      get updateDevicePanel() {
+        return updateDevicePanel;
+      },
+    });
+  }
+
   function updateLampButton(mountOptionsLightState: any) {
-    const brightnessPercent = Math.max(
-        1,
-        Math.min(
-          100,
-          Number(mountOptionsLightState.brightness) ||
-            (mountOptionsLightState.brightnessSupported ? 1 : 100),
-        ),
-      ),
-      kelvinRatio =
-        (Math.max(2000, Math.min(6500, Number(mountOptionsLightState.kelvin) || 3000)) - 2000) /
-        4500,
-      warmColorRgb = [255, 132, 42],
-      coolColorRgb = [172, 225, 255],
-      lampColorRgb =
-        mountOptionsLightState.colorMode === "white"
-          ? [255, 255, 255]
-          : mountOptionsLightState.colorSupported &&
-              !["color_temp", "onoff", "brightness", "unknown"].includes(
-                mountOptionsLightState.colorMode,
-              ) &&
-              mountOptionsLightState.colorHs
-            ? mountOptionsLightState.colorRgb || hsToRgbColor2(mountOptionsLightState.colorHs)
-            : warmColorRgb.map((warmChannelBase, colorChannelIndex) =>
-                Math.round(
-                  warmChannelBase +
-                    (coolColorRgb[colorChannelIndex] - warmChannelBase) * kelvinRatio,
-                ),
-              );
-    (powerButton.classList.toggle("is-on", mountOptionsLightState.on),
-      powerButton.setAttribute("aria-pressed", String(mountOptionsLightState.on)),
-      powerButton.setAttribute(
-        "aria-label",
-        "" +
-          (getFocusedEntry()?.label || mountOptionsLightState.name) +
-          (mountOptionsLightState.available
-            ? mountOptionsLightState.on
-              ? "已开启，点击关闭"
-              : "已关闭，点击开启"
-            : "当前不可用"),
-      ),
-      powerButton.style.setProperty("--i3d-lamp-color", "rgb(" + lampColorRgb.join(",") + ")"),
-      powerButton.style.setProperty(
-        "--i3d-lamp-opacity",
-        mountOptionsLightState.on && brightnessPercent > 0
-          ? String(0.08 + (brightnessPercent / 100) * 0.92)
-          : "0",
-      ),
-      powerButton.style.setProperty(
-        "--i3d-lamp-scale",
-        String(0.62 + (brightnessPercent / 100) * 1.05),
-      ));
+    return updateLampButtonCore(stageLightingDeps(), mountOptionsLightState);
+  }
+  function runLightCommand(serviceName: any, serviceValue: any, commandTargetItem = getFocusedEntry()) {
+    return runLightCommandCore(stageLightingDeps(), serviceName, serviceValue, commandTargetItem);
   }
   function dispatchControlCommand(controlCommand: any, previewToken: any) {
     const requestId = String(++num),
@@ -4481,292 +3804,6 @@ export function mountStage(mountOptions: any) {
         (controlErrorElement.textContent = available ? "" : errorMessage),
       syncMarkers());
   }
-  async function runLightCommand(serviceName: any, serviceValue: any, commandTargetItem = getFocusedEntry()) {
-    if (!(!commandTargetItem || isEditing || isControlBusy))
-      try {
-        const commandLightState = resolveLightState(commandTargetItem);
-        let commandPayload,
-          commandValue = serviceValue;
-        if (serviceName === "preset") {
-          if (!lightPresetEntries.includes(serviceValue)) throw new Error("灯光预设无效。");
-          const presetFieldPairs: any[] = [];
-          if (
-            ((commandValue = {}),
-            commandLightState.brightnessSupported &&
-              (presetFieldPairs.push(["brightness", serviceValue.brightness]),
-              (commandValue.brightness = serviceValue.brightness)),
-            commandLightState.temperatureSupported &&
-              ((commandValue.kelvin = Math.round(
-                commandLightState.minimum +
-                  ((commandLightState.maximum - commandLightState.minimum) *
-                    serviceValue.temperaturePercent) /
-                    100,
-              )),
-              presetFieldPairs.push(["temperature", commandValue.kelvin])),
-            !presetFieldPairs.length)
-          )
-            throw new Error("此设备不支持灯光预设。");
-          const presetFieldCommands = presetFieldPairs.map(([presetFieldName, presetFieldValue]) =>
-            lightCommand2(
-              commandTargetItem.entityId,
-              presetFieldName,
-              presetFieldValue,
-              commandLightState,
-            ),
-          );
-          ((commandPayload = {
-            ...presetFieldCommands[0],
-            data: Object.assign(
-              {},
-              ...presetFieldCommands.map((presetFieldCommand) => presetFieldCommand.data),
-            ),
-          }),
-            commandLightState.brightnessSupported &&
-              serviceValue.brightness < 100 &&
-              (delete commandPayload.data.brightness,
-              (commandPayload.data.brightness_pct = serviceValue.brightness)));
-        } else
-          commandPayload = lightCommand2(
-            commandTargetItem.entityId,
-            serviceName,
-            serviceValue,
-            commandLightState,
-          );
-        const previewTokenFromSet = vector.set(
-          commandTargetItem.entityId,
-          serviceName,
-          commandValue,
-          true,
-        );
-        (applyLightStates({
-          preview: serviceName !== "power",
-        }),
-          enqueueControlCommand(commandPayload, previewTokenFromSet),
-          (controlErrorElement.textContent = ""),
-          syncMarkers());
-      } catch (lightCommandError: any) {
-        ((controlErrorElement.textContent = lightCommandError.message), updateDevicePanel());
-      }
-  }
-  function activateMarker(activatedMarkerId: any, isShortcut = false) {
-    if (!isEditing && isOverviewOrAllFloors()) return;
-    const activatedMarkerItem = findBindingById(activatedMarkerId);
-    if (
-      !activatedMarkerItem ||
-      activatedMarkerItem.modelAvailable === false ||
-      (!isEditing && (activatedMarkerItem.overviewQuip || activatedMarkerItem.passiveSensor)) ||
-      (followVacuumId && !isEditing) ||
-      (!isEditing &&
-        ["temperature-humidity", "smallcar"].includes(activatedMarkerItem.deviceKind))
-    )
-      return;
-    const markerClickAction = activatedMarkerItem.clickAction || "focus";
-    if (isEditing) {
-      ((text = activatedMarkerId),
-        postHostMessage({
-          type: "edit",
-          action: "select",
-          id: activatedMarkerId,
-        }),
-        syncMarkers());
-      return;
-    }
-    if (activatedMarkerItem.deviceKind === "camera") {
-      isControlReady && activatedMarkerItem.entityId && focusMarkerById(activatedMarkerId);
-      return;
-    }
-    if (activatedMarkerItem.deviceKind === "vacuum-room") {
-      if (
-        !isControlReady ||
-        !activatedMarkerItem.entityId ||
-        vacuumOverlayByKey.has(activatedMarkerId)
-      )
-        return;
-      const roomTimeoutHandle = setTimeout(() => {
-        vacuumOverlayByKey.delete(activatedMarkerId);
-        const roomMarkerElement = map.get(activatedMarkerId);
-        roomMarkerElement &&
-          ((roomMarkerElement.disabled = false),
-          (roomMarkerElement.title = "请求超时，请检查设备状态"));
-      }, 14000);
-      (vacuumOverlayByKey.set(activatedMarkerId, roomTimeoutHandle),
-        map.get(activatedMarkerId) && (map.get(activatedMarkerId).disabled = true),
-        postHostMessage({
-          type: "vacuum-room",
-          id: activatedMarkerId,
-          vacuumId: activatedMarkerItem.vacuumId,
-          shortcutId: activatedMarkerItem.shortcutId,
-        }));
-      return;
-    }
-    const isTurnOnAction = ["turn-on", "turn-on-focus", "turn-on-panel"].includes(
-        markerClickAction,
-      ),
-      openPanelOrRuntime = () => {
-        const targetFocusMode = markerClickAction === "turn-on-panel" ? "panel" : "runtime";
-        (focusedItemId === activatedMarkerId && panelDisplayMode === targetFocusMode) ||
-          focusMarkerById(activatedMarkerId, targetFocusMode);
-      },
-      reportMarkerError = (markerError: any) => {
-        if (isControlBusy) return;
-        const roomMarkerElementRef = map.get(activatedMarkerId);
-        (roomMarkerElementRef && (roomMarkerElementRef.title = markerError.message),
-          focusedItemId === activatedMarkerId &&
-            ((controlErrorElement.textContent = markerError.message), updateDevicePanel()));
-      };
-    if (activatedMarkerItem.deviceKind === "television" && isTurnOnAction) {
-      if (!isControlReady) return;
-      const televisionPowerState = televisionPower2(activatedMarkerItem, deviceStates);
-      if (
-        (markerClickAction !== "turn-on" && !televisionPowerState.on && openPanelOrRuntime(),
-        !televisionPowerState.available ||
-          !televisionPowerState.supported ||
-          [...mediaControlRequestsByRequestId.values()].some(
-            (powerCommandEntry) => powerCommandEntry.entityId === televisionPowerState.entityId,
-          ))
-      )
-        return;
-      controlMediaDevice(televisionPowerState.command, activatedMarkerItem).catch(
-        reportMarkerError,
-      );
-      return;
-    }
-    if (isPanelDeviceKind(activatedMarkerItem)) {
-      const active2 =
-        isShortcut &&
-        activatedMarkerItem.deviceKind === "vacuum" &&
-        vacuumStatusPresentation2(activatedMarkerItem, deviceStates).active;
-      focusMarkerById(
-        activatedMarkerId,
-        active2 || activatedMarkerItem.clickAction === "panel" ? "panel" : "runtime",
-      );
-      return;
-    }
-    if (activatedMarkerItem.deviceKind === "cover") {
-      if (isTurnOnAction) {
-        if (!isControlReady) return;
-        const coverEntryList = (
-            activatedMarkerItem.isCurtainGroup
-              ? activatedMarkerItem.memberItems
-              : [activatedMarkerItem]
-          )
-            .filter((coverFilterItem: any) => coverFilterItem.modelAvailable !== false)
-            .map((coverMapItem: any) => ({
-              item: coverMapItem,
-              state: readCoverFeedback(coverMapItem),
-            }))
-            .filter(({ state: availableCoverState }: any) => availableCoverState.available),
-          some3 = coverEntryList.some(({ state: movingCoverState }: any) => movingCoverState.moving),
-          some4 = coverEntryList.some(
-            ({ state: openCoverState }: any) =>
-              openCoverState.on || openCoverState.position > 0 || openCoverState.state === "open",
-          ),
-          coverServiceName = some3 ? "stop_cover" : some4 ? "close_cover" : "open_cover";
-        markerClickAction !== "turn-on" && !some3 && !some4 && openPanelOrRuntime();
-        const commandedEntityIdSet = new Set();
-        for (const { item: coverCommandItem, state: coverCommandState } of coverEntryList)
-          if (!(
-            (coverServiceName === "open_cover" && !coverCommandState.closedConfirmed) ||
-            (some3 && !coverCommandState.moving) ||
-            commandedEntityIdSet.has(coverCommandItem.entityId)
-          ))
-            try {
-              const coverControlCommand = coverControl2(
-                coverCommandState,
-                coverServiceName,
-                undefined,
-              );
-              (commandedEntityIdSet.add(coverCommandItem.entityId),
-                coverPanelOptions
-                  .onControl(coverControlCommand, coverCommandItem)
-                  .catch(reportMarkerError));
-            } catch (coverCommandError: any) {
-              reportMarkerError(coverCommandError);
-            }
-        return;
-      }
-      focusMarkerById(activatedMarkerId, markerClickAction === "panel" ? "panel" : "runtime");
-      return;
-    }
-    if (activatedMarkerItem.modelId) {
-      const markerClimateState = climateState2(
-        activatedMarkerItem.entityId,
-        (deviceStates as any)[activatedMarkerItem.entityId],
-      );
-      if (
-        (activatedMarkerItem.climateType === "bath-heater" ||
-          activatedMarkerItem.airPurifier ||
-          activatedMarkerItem.waterHeater) &&
-        !activatedMarkerItem.entityId
-      ) {
-        focusMarkerById(
-          activatedMarkerId,
-          markerClickAction === "turn-on-panel" ? "panel" : "runtime",
-        );
-        return;
-      }
-      const isFocusTurnOn = ["turn-on-focus", "turn-on-panel"].includes(markerClickAction);
-      if (
-        markerClickAction === "turn-on" ||
-        (isFocusTurnOn && markerClimateState.available && markerClimateState.on)
-      ) {
-        (climatePanel.update({
-          item: activatedMarkerItem,
-          state: markerClimateState,
-          states: deviceStates,
-          editing: isEditing || !isControlReady || !activatedMarkerItem.modelAvailable,
-        }),
-          climatePanel.power?.({
-            toggle: true,
-          }));
-        return;
-      }
-      ((markerClickAction === "turn-on-focus" &&
-        focusedItemId === activatedMarkerId &&
-        panelDisplayMode === "runtime") ||
-        focusMarkerById(
-          activatedMarkerId,
-          markerClickAction === "turn-on-panel" ? "panel" : "runtime",
-        ),
-        markerClickAction !== "focus" &&
-          focusedItemId === activatedMarkerId &&
-          climatePanel.power?.({
-            toggle: false,
-          }));
-      return;
-    }
-    const markerLightState = readLightState(activatedMarkerItem.entityId);
-    if (markerClickAction === "turn-on") {
-      markerLightState.available &&
-        runLightCommand("power", !markerLightState.on, activatedMarkerItem);
-      return;
-    }
-    if (
-      ["turn-on-focus", "turn-on-panel"].includes(markerClickAction) &&
-      markerLightState.available &&
-      markerLightState.on
-    ) {
-      runLightCommand("power", false, activatedMarkerItem);
-      return;
-    }
-    if (markerClickAction === "turn-on-panel") {
-      (focusMarkerById(activatedMarkerId, "panel"),
-        markerLightState.available &&
-          !markerLightState.on &&
-          runLightCommand("power", true, activatedMarkerItem));
-      return;
-    }
-    ((markerClickAction === "turn-on-focus" &&
-      focusedItemId === activatedMarkerId &&
-      panelDisplayMode === "runtime") ||
-      focusMarkerById(activatedMarkerId),
-      focusedItemId === activatedMarkerId &&
-        panelDisplayMode === "runtime" &&
-        markerClickAction === "turn-on-focus" &&
-        markerLightState.available &&
-        !markerLightState.on &&
-        runLightCommand("power", true));
-  }
   function screenPointToFloor(floorPointerEvent: any, floorMarkerItem: any) {
     const worldPoint = mountOptions.worldPoint(
       floorMarkerItem.floorId,
@@ -4801,57 +3838,6 @@ export function mountStage(mountOptions: any) {
       y: Math.round((sub3.dot(sub2) / sub2.lengthSq()) * 100) / 100,
     };
   }
-  function beginMarkerDrag(dragStartEvent: any, dragMarkerId: any) {
-    if (!isEditing || panelDisplayMode || dragStartEvent.button !== 0) return;
-    (dragStartEvent.preventDefault(), dragStartEvent.stopPropagation());
-    const dragMarkerItem = findBindingById(dragMarkerId);
-    if (!dragMarkerItem) return;
-    if (dragMarkerItem.deviceKind === "presence") {
-      ((text = dragMarkerId),
-        refreshStageUi(),
-        postHostMessage({
-          type: "edit",
-          action: "select",
-          id: dragMarkerId,
-        }));
-      return;
-    }
-    ((text = dragMarkerId),
-      refreshStageUi(),
-      postHostMessage({
-        type: "edit",
-        action: "select",
-        id: dragMarkerId,
-      }));
-    const dragStartFloorPoint = screenPointToFloor(dragStartEvent, dragMarkerItem);
-    ((activePointerDrag = {
-      id: dragMarkerId,
-      pointerId: dragStartEvent.pointerId,
-      clientX: dragStartEvent.clientX,
-      clientY: dragStartEvent.clientY,
-      original: {
-        x: dragMarkerItem.x,
-        y: dragMarkerItem.y,
-      },
-      point: {
-        x: dragMarkerItem.x,
-        y: dragMarkerItem.y,
-      },
-      height: dragMarkerItem.height,
-      offset: dragStartFloorPoint
-        ? {
-            x: dragMarkerItem.x - dragStartFloorPoint.x,
-            y: dragMarkerItem.y - dragStartFloorPoint.y,
-          }
-        : {
-            x: 0,
-            y: 0,
-          },
-      moved: false,
-    }),
-      dragStartEvent.currentTarget.setPointerCapture(dragStartEvent.pointerId),
-      (mountOptions.controls.enabled = false));
-  }
   function moveMarkerDrag(dragMovePointerEvent: any) {
     if (
       !activePointerDrag ||
@@ -4876,97 +3862,6 @@ export function mountStage(mountOptions: any) {
       activeModule === "light" &&
         Object.assign(findBindingById(activePointerDrag.id), activePointerDrag.point),
       renderMarkerPositions(true));
-  }
-  function endMarkerDrag(dragEndEvent: any) {
-    if (!(!activePointerDrag || activePointerDrag.pointerId !== dragEndEvent.pointerId)) {
-      if (activePointerDrag.moved) {
-        dragEndEvent.currentTarget.dataset.dragged = "true";
-        const draggedMarkerItem = findBindingById(activePointerDrag.id),
-          draggedTargetEntry =
-            draggedMarkerItem.deviceKind === "temperature-humidity"
-              ? options.environment?.temperatureHumidity?.find(
-                  (humidityCollectionItem: any) => humidityCollectionItem.id === draggedMarkerItem.id,
-                )
-              : draggedMarkerItem.isCurtainGroup
-                ? options.environment?.curtainGroups?.find(
-                    (curtainGroupCollectionItem: any) =>
-                      curtainGroupEntryId2(curtainGroupCollectionItem) === draggedMarkerItem.id,
-                  )
-                : draggedMarkerItem.securityAlarm
-                  ? options.security?.alarms?.find(
-                      (alarmCollectionItem: any) =>
-                        (alarmCollectionItem.kind || "smoke") +
-                          ":" +
-                          alarmCollectionItem.id ===
-                        draggedMarkerItem.id,
-                    )
-                  : draggedMarkerItem.deviceKind === "camera"
-                  ? options.security?.cameras?.find(
-                      (cameraCollectionItem: any) =>
-                        "camera:" + cameraCollectionItem.id === draggedMarkerItem.id,
-                    )
-                  : draggedMarkerItem.deviceKind === "vacuum-room"
-                    ? options.devices?.vacuums
-                        ?.find(
-                          (vacuumCollectionItem: any) =>
-                            vacuumCollectionItem.id === draggedMarkerItem.vacuumId,
-                        )
-                        ?.shortcuts?.find(
-                          (shortcutCollectionItem: any) =>
-                            shortcutCollectionItem.id === draggedMarkerItem.shortcutId,
-                        )
-                    : activeModule === "light"
-                      ? draggedMarkerItem
-                      : (isGenericDeviceKind2(activeModule)
-                          ? options.devices?.[genericDeviceProfile2(activeModule).collection] || []
-                          : ["nas", "television", "speaker", "vacuum"].includes(activeModule)
-                            ? options.devices?.[
-                                activeModule === "vacuum"
-                                  ? "vacuums"
-                                  : activeModule === "speaker"
-                                    ? "speakers"
-                                    : activeModule === "television"
-                                      ? "televisions"
-                                      : "nas"
-                              ] || []
-                            : options.environment?.[
-                                activeModule === "airer"
-                                  ? "airers"
-                                  : activeModule === "cover"
-                                    ? "curtains"
-                                    : activeModule === "water-heater"
-                                      ? "waterHeaters"
-                                      : activeModule === "fan"
-                                        ? "fans"
-                                        : activeModule === "purifier"
-                                          ? "airPurifiers"
-                                          : "airConditioners"
-                              ] || []
-                        ).find(
-                          (deviceCollectionItem: any) =>
-                            deviceCollectionItem.id === activePointerDrag.id,
-                        ),
-          nextMarkerPosition = {
-            ...activePointerDrag.point,
-          };
-        if (draggedMarkerItem.deviceKind === "smallcar") {
-          const smallcarSceneItem = stageModelIndex.item(
-            draggedMarkerItem.floorId,
-            draggedMarkerItem.modelId,
-          );
-          ((nextMarkerPosition.x -= smallcarSceneItem?.x ?? 0),
-            (nextMarkerPosition.y -= smallcarSceneItem?.y ?? 0));
-        }
-        (draggedTargetEntry && Object.assign(draggedTargetEntry, nextMarkerPosition),
-          postHostMessage({
-            type: "edit",
-            action: "position",
-            id: draggedMarkerItem.id,
-            ...nextMarkerPosition,
-          }));
-      }
-      ((activePointerDrag = null), syncCameraInteraction());
-    }
   }
   function cancelMarkerDrag() {
     (activePointerDrag &&
@@ -5471,108 +4366,6 @@ export function mountStage(mountOptions: any) {
     resizeObserver.observe(lightPanelSection),
     resizeObserver.observe(navigationLayerElement),
     resizeObserver.observe(floorTabsElement));
-  async function adoptSceneUpdate(sceneUpdateInput: any) {
-    const savedScene = mountOptions.savedScene,
-      currentCameraSnapshot = applyDefaultCamera(),
-      sceneAdoptStartTime = performance.now(),
-      reportLifecycle = (lifecyclePhase: any) => {
-        try {
-          Promise.resolve(
-            mountOptions.reportLifecycle?.(lifecyclePhase, {
-              sourceRevision: sceneUpdateInput?.revision,
-              floorCount: sceneUpdateInput?.scene?.floors?.length,
-              durationMs: Math.max(0, performance.now() - sceneAdoptStartTime),
-            }),
-          ).catch(() => {});
-        } catch {}
-      };
-    (reportLifecycle("source-adopt-start"),
-      (hasIdleIconActivity =
-        hasIdleIconActivity ||
-        (isCameraRotating && pageBehavior.hideIconsWhileRotating === true) ||
-        isUserActive),
-      (isCameraMoving = true),
-      idleRotationControl.activity(),
-      syncStageVisibility());
-    let releaseSceneCover = () => {},
-      hasCoveredScene = false;
-    const applySceneUpdate = async (nextSceneUpdate: any) => {
-      if (
-        (mountOptions.finishFloorTransition?.(),
-        await mountOptions.replaceScene(nextSceneUpdate),
-        isControlBusy)
-      )
-        return;
-      (mountOptions.setFloorGap?.(baseStageConfig.floorGap),
-        mountOptions.setUniformOverviewStack?.(baseStageConfig.uniformOverviewStack));
-      const floorSelection2 = pendingFloorId || baseStageConfig.floorSelection,
-        resolvedFloorId =
-          mountOptions.document.floors.some(
-            (resolvedFloorEntry: any) => resolvedFloorEntry.id === floorSelection2,
-          ) || floorSelection2 === "all"
-            ? floorSelection2
-            : mountOptions.document.floors[0].id;
-      (pendingFloorId && (pendingFloorId = resolvedFloorId),
-        (options = buildFloorCameraConfig({
-          ...baseStageConfig,
-          floorSelection: resolvedFloorId,
-        })),
-        (selectedFloorId = resolvedFloorId),
-        resolvedFloorId === "all" && (activeModule = "overview"),
-        mountOptions.setFloor(resolvedFloorId),
-        mountOptions.appearance(applyRegionLightingPreset(options)),
-        (activeCameraPose = transformFloorCamera(
-          baseStageConfig.floorCameras?.[resolvedFloorId] ||
-            baseStageConfig.camera ||
-            currentCameraSnapshot,
-          resolvedFloorId,
-        )),
-        mountOptions.restoreCamera(transformFloorCamera(currentCameraSnapshot, resolvedFloorId)),
-        applyLightStates({
-          immediate: true,
-        }),
-        await mountOptions.whenPresented(),
-        isControlBusy ||
-          applyLightStates({
-            immediate: true,
-          }));
-    };
-    try {
-      ((releaseSceneCover = mountOptions.coverSceneUpdate()),
-        mountOptions.setCameraInteraction({
-          enabled: false,
-        }),
-        (hasCoveredScene = true),
-        await applySceneUpdate(sceneUpdateInput),
-        isControlBusy ||
-          (postHostMessage({
-            type: "model-metadata",
-            metadata: buildMetadata(mountOptions, transformFloorCamera, options.floorSelection),
-          }),
-          reportLifecycle("source-adopt-complete")));
-    } catch (sceneAdoptError: any) {
-      throw (
-        reportLifecycle("source-adopt-failed"),
-        hasCoveredScene && !isControlBusy && (await applySceneUpdate(savedScene)),
-        sceneAdoptError
-      );
-    } finally {
-      if (
-        (releaseSceneCover(),
-        (isCameraMoving = false),
-        sceneCacheByKey.clear(),
-        (lastRenderSignature = ""),
-        !isControlBusy &&
-          (syncCameraInteraction(),
-          syncMarkers(),
-          renderMarkerPositions(true),
-          pendingEditorAction))
-      ) {
-        const pendingHostMessage = pendingEditorAction;
-        ((pendingEditorAction = null), handleHostMessage(pendingHostMessage));
-      }
-    }
-  }
   const sceneSync = mountOptions.readSceneUpdate
     ? startSceneSync2({
         eligible: () =>

@@ -27,15 +27,13 @@ from _smoke_harness import check, ensure_backend_on_path, report
 
 ensure_backend_on_path()
 
-import httpx  # noqa: E402
-from src.domains.ha.integration import client as client_mod  # noqa: E402
-from src.domains.ha.integration import service as service_mod  # noqa: E402
-from src.domains.ha.integration.client import HAClient, HAClientError  # noqa: E402
-from src.domains.ha.integration.service import (  # noqa: E402
-    STATE_FETCH_RETRY_DELAYS,
-    HAConnectorService,
-)
-from src.domains.ha.integration.state_hub import StateHub  # noqa: E402
+import httpx
+from src.domains.ha.integration import client as client_mod
+from src.domains.ha.integration import service_sync as service_sync_mod
+from src.domains.ha.integration.client import HAClient, HAClientError
+from src.domains.ha.integration.service import HAConnectorService
+from src.domains.ha.integration.service_support import STATE_FETCH_RETRY_DELAYS
+from src.domains.ha.integration.state_hub import StateHub
 
 #: 真实退避序列（下面「跑满重试」的用例会把它 patch 成 0，省掉约 1.6s 真实 sleep）。
 #: 常量本身另有独立断言 —— 否则把退避清成 0 一起改掉就没人拦了。
@@ -52,7 +50,15 @@ class _Response:
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            raise httpx.HTTPStatusError("boom", request=self.request, response=self)
+            # `HTTPStatusError` 把 `response` 声明成 `httpx.Response`，本替身只做鸭子类型、
+            # 不是它的子类，于是静态分析判不合格。这里按同样状态码现造一个真 Response 挂上：
+            # 上层只读 `error.response.status_code`（client.py 各处 except 都是这么用的），
+            # 行为与替身一致；也不为此把真实构造链拖进这个最小替身。
+            raise httpx.HTTPStatusError(
+                "boom",
+                request=self.request,
+                response=httpx.Response(self.status_code, request=self.request),
+            )
 
     def json(self) -> dict | None:
         return self._payload
@@ -110,6 +116,15 @@ class _ServiceShim:
     async def client_for(self, _connection) -> HAClient:
         return self._client
 
+    async def ensure_entity_states(self, entity_ids: set[str]) -> None:
+        """以「假 self」调用真实实现。
+
+        本类刻意**不**继承 ``HAConnectorService``：那会连真实 ``__init__`` 与整条数据库 /
+        连接池构造链一起拖进来，而这里要的就是「只补协作对象」。于是静态分析按声明类型判
+        不合格 —— 这是刻意的鸭子类型替身，只在这一处显式声明；调用方按普通方法调用即可。
+        """
+        await HAConnectorService.ensure_entity_states(self, entity_ids)  # pyright: ignore[reportArgumentType]
+
 
 def _timeout(*_args: object, **_kwargs: object):
     raise httpx.ReadTimeout("模拟读超时")
@@ -163,14 +178,15 @@ async def _main() -> None:
         # 4) ensure_entity_states 不抛异常，且退避重试真的跑满（旧实现只跑 1 轮）。
         #    本用例要断的是「重试了几轮」，不是「睡够没有」：退避数值本身已由上面第 0 条
         #    独立钉住，所以这里把退避清零 —— 否则两轮退避 = 1.6s 真实 sleep，白等。
-        service_mod.STATE_FETCH_RETRY_DELAYS = (0.0, 0.0)
+        # patch 目标是 `service_sync` 而不是 `service`：`service.py` 拆分后不再转出这个常量，
+        # 且 `service_sync` 是 `from .service_support import STATE_FETCH_RETRY_DELAYS`
+        # —— 它拿到的是**自己的模块级绑定**，改 `service` 只会凭空造一个属性、退避照旧生效。
+        service_sync_mod.STATE_FETCH_RETRY_DELAYS = (0.0, 0.0)
         attempts: list[str] = []
         client_mod.httpx = _HttpxProxy(
             lambda **kw: _FakeAsyncClient(_timeout, counter=attempts, **kw)
         )
-        await HAConnectorService.ensure_entity_states(
-            _ServiceShim(StateHub(), _client()), {"light.x"}
-        )
+        await _ServiceShim(StateHub(), _client()).ensure_entity_states({"light.x"})
         check(
             f"ensure_entity_states 不抛异常且重试跑满 {expected_attempts} 轮",
             len(attempts) == expected_attempts,
@@ -188,9 +204,7 @@ async def _main() -> None:
                 **kw,
             )
         )
-        await HAConnectorService.ensure_entity_states(
-            _ServiceShim(StateHub(), _client()), {"sensor.temp"}
-        )
+        await _ServiceShim(StateHub(), _client()).ensure_entity_states({"sensor.temp"})
         check(
             f"sensor 的 unknown 占位状态仍会退避重试到 {expected_attempts} 轮",
             len(sensor_attempts) == expected_attempts,
@@ -204,9 +218,7 @@ async def _main() -> None:
                 lambda entity_id: _Response(200, _state(entity_id)), counter=ok_attempts, **kw
             )
         )
-        await HAConnectorService.ensure_entity_states(
-            _ServiceShim(StateHub(), _client()), {"light.one", "light.two"}
-        )
+        await _ServiceShim(StateHub(), _client()).ensure_entity_states({"light.one", "light.two"})
         check(
             "状态齐全时只请求一轮（无多余重试）",
             len(ok_attempts) == 2,
@@ -232,7 +244,7 @@ async def _main() -> None:
         check("对照：旧的裸 gather 写法会冒泡异常（故障确实存在）", ok_legacy, legacy_detail)
     finally:
         client_mod.httpx = real_httpx
-        service_mod.STATE_FETCH_RETRY_DELAYS = REAL_RETRY_DELAYS
+        service_sync_mod.STATE_FETCH_RETRY_DELAYS = REAL_RETRY_DELAYS
 
 
 if __name__ == "__main__":

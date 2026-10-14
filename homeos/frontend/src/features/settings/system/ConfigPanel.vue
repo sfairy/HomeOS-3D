@@ -157,7 +157,7 @@
 <script setup>
 import { ref, toRef } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
 import { SlidersHorizontal, RotateCcw } from '@lucide/vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useSystemConfigPanel } from '@/features/settings/composables/system/system-config-panel.internals'

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import Depends, Query, Request
@@ -11,7 +12,7 @@ from ..dependencies import require_license_feature
 from ..domains.license import features as feature_codes
 from ..platform.core.errors import forbidden
 from ..platform.security.auth_context import require_user
-from ..realtime.access import is_entity_allowed, resolve_entity_restrictions
+from ..platform.security.entity_access import is_entity_allowed, resolve_entity_restrictions
 
 router = NestRouter(prefix="/events", tags=["connect"])
 
@@ -131,4 +132,6 @@ async def get_report_compare(
 async def clear_all(
     request: Request, user: dict[str, Any] = Depends(require_user)
 ):
-    return _service(request).clear_all_records()
+    # 清空是全表分批删除（上限 500 批 × 默认 800 行），在事件循环里同步跑会把其它请求
+    # 一起卡住（这与 ui_config / license 等路由的做法一致，统一走线程池）。
+    return await asyncio.to_thread(_service(request).clear_all_records)

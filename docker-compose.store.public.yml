@@ -33,7 +33,11 @@ services:
 
   # 只做 TLS 终止与转发，不碰商店数据；证书落在自己的卷里。
   caddy-public:
-    image: ${CADDY_IMAGE:-caddy:2.11.4-alpine}
+    # 按 digest 钉死（真源 ops/docker-pins.json，门禁 ops/check/check_docker_pins.py 对账）。
+    # 这个容器在**公网**上（80/443），并且握着 ACME 账号与证书：只写 `caddy:2.11.4-alpine`
+    # 是可变引用，上游重推 tag 后同一份 compose 会拉起成分不同的入口进程。
+    # 钉的是多架构清单摘要，amd64 / arm64 的宿主都照旧能解析。
+    image: ${CADDY_IMAGE:-caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b}
     container_name: homeos-store-caddy
     restart: unless-stopped
     depends_on:

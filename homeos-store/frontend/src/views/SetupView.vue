@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import SceneStage from "../components/SceneStage.vue";
-import DeckTiles from "../components/DeckTiles.vue";
+import SceneStage from "@store/shared/components/SceneStage.vue";
+import DeckTiles from "@store/shared/components/DeckTiles.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
-import { fromResponse } from "../api-error.js";
+import { fromResponse } from "@store/shared/api/error";
+import { reportBestEffort, runBestEffort } from "@store/shared/utils/best-effort";
 
 const email = ref("");
 const password = ref("");
@@ -18,7 +19,10 @@ function tokenFromFragment() {
   if (!match) return "";
   try {
     return decodeURIComponent(match[1] ?? "").trim();
-  } catch {
+  } catch (error) {
+    // 片段里的 token 被手工改坏（非法 % 转义）时会抛。可降级：当作没带 token，
+    // 用户仍可手填。留痕以便区分「没带 token」与「token 坏了」。
+    reportBestEffort("解析引导密钥片段", error);
     return "";
   }
 }
@@ -27,11 +31,10 @@ onMounted(async () => {
   const fragmentToken = tokenFromFragment();
   if (fragmentToken) {
     setupToken.value = fragmentToken;
-    try {
+    // 把 token 从地址栏抹掉（避免留在历史/截图里）。可降级：抹不掉不影响初始化。
+    runBestEffort("清理地址栏中的引导密钥", () => {
       history.replaceState(null, "", location.pathname + location.search);
-    } catch {
-      /* 忽略。 */
-    }
+    });
   }
   try {
     const response = await fetch("/store/v1/setup/status", {
@@ -46,8 +49,9 @@ onMounted(async () => {
         window.location.assign("/admin");
       }, 1500);
     }
-  } catch {
-    /* 状态读取失败时仍允许尝试初始化。 */
+  } catch (error) {
+    // 可降级：读不到状态就照常让用户尝试初始化，服务端会给出权威判定（409 → 已初始化）。
+    reportBestEffort("初始化状态 /setup/status（仍允许尝试初始化）", error);
   }
 });
 
@@ -83,6 +87,7 @@ async function submit() {
         setup_token: setupToken.value.trim(),
       }),
     });
+    // 空体或 HTML 错误页时保持空对象：只为了拿到 `detail`，真正的判定看状态码。
     const body = await response.json().catch(() => ({}));
     if (response.status === 201) {
       window.location.assign("/admin");

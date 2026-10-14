@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | 主应用冒烟 | `bun run verify:smoke:app` | 9 脚本 + [`_smoke_harness.py`](../../homeos/backend/scripts/_smoke_harness.py) | 临时数据目录 + 进程内 fastapi `TestClient`（**真跑 lifespan**） |
 | 商店冒烟 | `bun run verify:smoke` | 3 脚本 + [`_smoke_harness.py`](../../homeos-store/scripts/_smoke_harness.py) | 临时 sqlite（**硬设** `STORE_DATA_DIR`，不碰真实 `data/`） |
-| 前端冒烟 | `bun run verify:smoke:frontend` | 6 个 `.ts` + [`_smoke_harness.ts`](../../homeos/frontend/scripts/_smoke_harness.ts) / `.mjs` | bun 直跑源码，自带 window / DOM / WebSocket / timer 桩 |
+| 前端冒烟 | `bun run verify:smoke:frontend` | 7 个脚本式 `.ts` + 2 个 `*.test.ts`（`bun test`）+ [`_smoke_harness.ts`](../../homeos/frontend/scripts/_smoke_harness.ts) / `.mjs` | bun 直跑源码，自带 window / DOM / WebSocket / timer 桩（两批共用同一份桩） |
 | 授权 e2e | `bun run verify:smoke:license` | 1 脚本，需**运行中的本地商店** | 商店不可达则打框状 `SKIP`；故**不在**默认冒烟里（SKIP ≠ 覆盖） |
 | 静态门禁 | `verify:*`、`check:deps` | `ops/check_*.py`(7) + `ops/lib/*.mjs`(2) + `ops/tokens/*.mjs`(4) + `scripts/gates/check-*.mjs`(7) | 纯文件扫描，共享 [`ops/lib/scan.mjs`](../../ops/lib/scan.mjs) |
 | 门禁自检 | 随各门禁 | 7 个 `*_selftest.mjs` + 若干 `*_selftest.py` | 注入式用例表，证明「门禁本身会红」 |
@@ -19,7 +19,7 @@
 
 ## ADR-0001：冒烟脚本要不要换成测试框架（pytest / `bun test`）
 
-- **状态**：评估完成，**本轮不落地**（按计划阶段 3「仅评估，单独 PR 决策」）
+- **状态**：评估完成；**P3-a 与 P3-b 已落地**（P3-a：`&&` 链 → `run-chain.mjs`；P3-b：两个假时钟用例迁 `bun test`，见文末「落地记录」）
 - **日期**：2026-10-13
 - **范围**：`homeos/backend/scripts/**`、`homeos-store/scripts/**`、`homeos/frontend/scripts/**` 的冒烟脚本，以及 `ops/**` 的静态门禁自检
 - **相关**：[`_smoke_harness.py`](../../homeos/backend/scripts/_smoke_harness.py)、[`_smoke_harness.ts`](../../homeos/frontend/scripts/_smoke_harness.ts)、[`.github/workflows/checks.yml`](../../.github/workflows/checks.yml)
@@ -126,8 +126,22 @@ _license_activation_e2e_smoke.py       0.90s
 | 阶段 | 内容 | 前置 | 收益 |
 | --- | --- | --- | --- |
 | P3-a（低风险） | 不改框架，先拿 [`run-chain.mjs`](../../ops/lib/run-chain.mjs) 替掉 `verify:smoke:app` 的 `&&` 链，让一次运行报出全部失败 | 无 | 直接消除「第一个脚本失败掩盖后续」 |
-| P3-b（可选） | 把 `_go2rtc_mse_smoke.ts` / `_request_json_smoke.ts` 迁 `bun test`：加 `@types/bun`、补 knip 入口、保留 DOM 桩 | P3-a 完成后 | 假时钟与参数化，失败定位 |
+| P3-b ✅ 已落地 | 把 `_go2rtc_mse_smoke.ts` / `_request_json_smoke.ts` 迁 `bun test`：补 knip 入口、保留 DOM 桩（`@types/bun` 改为本地 `.d.ts`，见落地记录） | P3-a 完成后 | 假时钟与参数化，失败定位 |
 | P3-c（不建议） | Python 冒烟整体迁 pytest + `conftest.py` | 说服自己接受「多套 app 配置合并成一个 session app」 | 省约 1.8s 固定税，代价见上 |
+
+## 落地记录（P3-b）
+
+| 项 | 实际做法 | 与原方案的差异及理由 |
+| --- | --- | --- |
+| 载体 | `homeos/frontend/scripts/smoke/request-json.test.ts`（13 个用例）、`go2rtc-mse.test.ts`（9 个用例，含 4 组 `test.each` 参数） | 原脚本式冒烟的两个文件已删除；断言逐条保留（26 + 31 次 `expect`） |
+| 类型 | 新增 [`scripts/smoke/bun-test.d.ts`](../../homeos/frontend/scripts/smoke/bun-test.d.ts)：只声明本次用到的 `test` / `test.each` / `expect` / `beforeEach` 与 4 个断言方法 | **不装 `@types/bun`**：它会把 `Bun`/`process`/`Buffer` 等全局类型注入，而 `scripts/**` 本就不在任何 typecheck project 里（只影响编辑器），为此改全局类型环境不划算；真要让脚本进类型检查，应单开 `tsconfig.scripts.json` 把 7 个脚本一起纳入（独立改造） |
+| 假时钟 | 仍用 `_smoke_harness` 的 `FakeTimers`（可列出「当前排了哪些延时」，退避序列 3000→6000→12000→24000→30000→30000 靠它断言） | 原方案建议 `jest.useFakeTimers()`；两者都能推进虚拟时钟，但 harness 版多一个「排程延时列表」能力，且与其余 7 个冒烟共用一份，换掉反而是拆分口径 |
+| DOM 桩 | `installWindow` / `FakeWebSocket` / `FakeMediaSource` / `createFakeVideo` 原样复用 | 与 ADR 结论一致：`bun test` 不带 DOM 环境，桩不迁 |
+| 执行位置 | 仍在 `verify:smoke:frontend` 同一条链上（`ops/chains/smoke-frontend.mjs` 新增一步，`cwd: homeos/frontend` + `./` 前缀路径） | 不另开 CI job：改了被测模块只跑脚本式冒烟、漏掉测试文件，正是「迁完就没人跑」的形态 |
+| 隔离 | 每个用例 `beforeEach` 重建状态（`FakeTimers` / 静态记录 / `fetchPlan` / 全局桩） | 脚本版靠模块级可变状态串行推进，顺序一改就互相污染 |
+
+坑（已写进链清单注释）：`bun test <arg>` 不带 `./` 时参数是**子串过滤**——路径写错可能匹配到别的文件；带 `./` 才按路径解析，找不到时报 `had no matches` 并以 1 退出（两种形态实测都不会静默变绿，但子串语义会「跑错文件而不报错」）。
+
 
 ## 本轮明确不做
 

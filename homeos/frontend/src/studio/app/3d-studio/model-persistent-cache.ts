@@ -133,7 +133,7 @@ export function createModelPersistentCache({
         ((cleanup.onerror = () => {}),
           cleanup.objectStore(TEMPLATE_STORE).delete(restoreKey),
           cleanup.objectStore(METADATA_STORE).delete(restoreKey));
-      } catch {}
+      } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
       return null;
     }
   }

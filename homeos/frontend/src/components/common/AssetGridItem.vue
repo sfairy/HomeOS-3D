@@ -5,37 +5,48 @@
       'agi-item--picker': isPicker,
       'agi-item--image': type === 'background',
     }"
-    @click="$emit('click')"
   >
-    <!-- 文件夹图标 -->
-    <FolderOpen v-if="item.type === 'dir'" class="agi-icon agi-icon--dir" />
+    <!--
+      主操作（进入目录 / 选择文件）必须是真 <button>：原来 @click 挂在根 div 上，
+      键盘完全不可达。右侧的复制/删除是绝对定位的同级按钮，不能塞进主按钮里
+      （HTML 禁止按钮嵌套），所以拆成「主按钮 + 操作层」两段。
+    -->
+    <button
+      type="button"
+      class="agi-item__main"
+      :aria-label="mainLabel"
+      @click="$emit('click')"
+    >
+      <!-- 文件夹图标 -->
+      <FolderOpen v-if="item.type === 'dir'" class="agi-icon agi-icon--dir" />
 
-    <!-- 图片文件预览 -->
-    <div v-else class="agi-preview">
-      <div class="agi-preview__inner">
-        <img
-          v-if="canPreview"
-          :key="`${item.name}-${item.url}`"
-          :src="item.url"
-          :alt="`${item.name} 预览`"
-          decoding="async"
-          class="agi-preview__img"
-          @error="$emit('previewError', item.name)"
-        />
-        <FileImage v-else class="agi-preview__fallback" />
+      <!-- 图片文件预览 -->
+      <div v-else class="agi-preview">
+        <div class="agi-preview__inner">
+          <img
+            v-if="canPreview"
+            :key="`${item.name}-${item.url}`"
+            :src="item.url"
+            :alt="`${item.name} 预览`"
+            decoding="async"
+            class="agi-preview__img"
+            @error="$emit('previewError', item.name)"
+          />
+          <FileImage v-else class="agi-preview__fallback" />
+        </div>
       </div>
-    </div>
 
-    <!-- 文件名 -->
-    <span class="agi-name">{{ item.name }}</span>
+      <!-- 文件名 -->
+      <span class="agi-name">{{ item.name }}</span>
+    </button>
 
-    <!-- 悬停操作按钮 -->
+    <!-- 悬停操作按钮（焦点在主按钮上时也显形，见 CSS 的 :focus-within） -->
     <div class="agi-actions">
       <button
         v-if="item.type === 'file' && item.url"
         type="button"
         class="agi-actions__btn agi-actions__btn--copy"
-        :aria-label="'复制'"
+        :aria-label="`复制 ${item.name}`"
         @click.stop="$emit('copy')"
       >
         <Copy class="w-3 h-3" />
@@ -43,7 +54,7 @@
       <button
         type="button"
         class="agi-actions__btn agi-actions__btn--delete"
-        :aria-label="'删除'"
+        :aria-label="`删除 ${item.name}`"
         @click.stop="$emit('delete')"
       >
         <Trash2 class="w-3 h-3" />
@@ -81,6 +92,17 @@ const canPreview = computed(() => {
   // 正则匹配常见图片扩展名（不区分大小写）
   return /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(props.item.name)
 })
+
+/**
+ * 主操作按钮的无障碍名称：视觉上只有图标 / 缩略图和文件名，
+ * 读屏需要「进入文件夹 X / 选择文件 X」才说得清这一格是干什么的。
+ * @returns {string}
+ */
+const mainLabel = computed(() =>
+  props.item?.type === 'dir'
+    ? `进入文件夹 ${props.item?.name ?? ''}`
+    : `选择文件 ${props.item?.name ?? ''}`,
+)
 </script>
 
 <style scoped src="./styles/AssetGridItem.css"></style>

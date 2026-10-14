@@ -11,7 +11,6 @@
         ? 'sct-focused-border ring-2 sct-focused-ring scale-[1.02] z-10'
         : 'border-white/5 sct-hover-border',
     ]"
-    @click="emit('select', camId)"
   >
     <HaCameraStream
       v-if="active && hasSource && !streamErrors[camId]"
@@ -27,24 +26,45 @@
       object-fit="cover"
       @error="emit('stream-error', camId)"
     />
-    <div
-      v-else-if="!active || streamErrors[camId]"
-      class="w-full h-full flex flex-col items-center justify-center gap-1 bg-[#111] text-[12px] sct-text-muted"
-      @click.stop="emit('retry', camId)"
+    <!--
+      键盘可达性：整格点击（select）与「点击加载/重试」原来是 div 上的 @click，
+      键盘完全不可达。两者互斥，各自落成真 <button>：
+        · 拉流中 → 覆盖整格的透明按钮 = 选中该摄像头
+        · 未拉流 / 流失败 → 占位按钮本身即操作（加载 / 重试）
+      覆盖层不会挡住下面已挂载的流：HaCameraStream 内部没有任何可交互元素。
+    -->
+    <button
+      v-if="active && !streamErrors[camId]"
+      type="button"
+      class="sct-select-layer"
+      :aria-label="`查看摄像头 ${cameraName}`"
+      @click="emit('select', camId)"
+    ></button>
+    <button
+      v-else
+      type="button"
+      class="w-full h-full flex flex-col items-center justify-center gap-1 bg-[#111] text-[12px] sct-text-muted sct-placeholder-btn"
+      :aria-label="
+        streamErrors[camId]
+          ? `重试加载摄像头 ${cameraName}`
+          : `加载摄像头 ${cameraName}`
+      "
+      @click="emit('retry', camId)"
     >
       <template v-if="streamErrors[camId]"
         >{{ '流离线' }} <span class="text-[12px] sct-text-info">{{ '点击重试' }}</span></template
       >
       <template v-else>{{ '点击加载' }}</template>
-    </div>
+    </button>
+    <!-- 名称条：装饰层，pointer-events:none 让点击落到上面的按钮；键盘聚焦时同样显形 -->
     <div
-      class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4 opacity-0 hover:opacity-100 transition-opacity"
+      class="sct-name-bar absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4 opacity-0 transition-opacity"
     >
       <span class="text-xs text-white font-bold">{{ cameraName }}</span>
     </div>
     <div
       v-if="active && hasSource && !streamErrors[camId]"
-      class="absolute top-4 left-4 px-3 py-1 rounded-full sct-live-bg text-[12px] font-bold text-white uppercase tracking-widest shadow-lg"
+      class="pointer-events-none absolute top-4 left-4 px-3 py-1 rounded-full sct-live-bg text-[12px] font-bold text-white uppercase tracking-widest shadow-lg"
     >
       <div class="w-1.5 h-1.5 rounded-full bg-white animate-pulse inline-block mr-1.5" />
       {{ '直播' }}
@@ -146,5 +166,52 @@ onUnmounted(() => {
 }
 .sct-live-bg {
   background: rgba(var(--set-danger-rgb), 0.9);
+}
+
+/* 整格选中按钮：透明覆盖层，保持「点整格即选中」的既有行为 */
+.sct-select-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sct-select-layer:focus-visible {
+  outline: 2px solid rgba(var(--set-info-rgb), 0.85);
+  outline-offset: -3px;
+  border-radius: inherit;
+}
+
+/* 名称条与直播徽标是装饰层：z-index 抬到按钮之上只影响绘制，点击仍穿透到按钮 */
+.sct-name-bar {
+  z-index: 2;
+  pointer-events: none;
+}
+.sct-name-bar > span {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+/* 触屏没有 hover：只在真有指针悬停能力时才挂 hover 规则，避免「点了之后卡住显示」 */
+@media (hover: hover) {
+  .security-camera-tile:hover .sct-name-bar {
+    opacity: 1;
+  }
+}
+/* 键盘用户靠这一条：焦点进到整格按钮 / 占位按钮时同样显示名称 */
+.security-camera-tile:focus-within .sct-name-bar {
+  opacity: 1;
+}
+
+/* 占位按钮（点击加载 / 点击重试）：重置原生按钮外观，视觉与改造前的 div 一致 */
+.sct-placeholder-btn {
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sct-placeholder-btn:hover {
+  background: #16181d;
 }
 </style>

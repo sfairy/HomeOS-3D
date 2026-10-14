@@ -17,6 +17,7 @@ from fastapi import Body, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from .router import NestRouter
+from ..platform.security.client_address import resolve_client_address_from_request
 from ..platform.security.limiter import rate_limit
 
 router = NestRouter(prefix="/mcp", tags=["mcp"])
@@ -32,11 +33,20 @@ def _service(request: Request):
 
 
 def _client_ip(request: Request) -> str | None:
-    """与 Express ``req.ip`` 对齐的客户端 IP（优先 X-Forwarded-For 首个地址）。"""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else None
+    """MCP 用途的客户端 IP：**只采信**能确定到具体客户端的那一种判定。
+
+    修复前这里直接取 ``X-Forwarded-For`` 第一个地址 —— 客户端自己写一个请求头就能伪装成
+    白名单内的 IP，IP 白名单形同虚设。现在走 ``resolve_client_address``（先验 TCP 对端是否
+    可信、再回退转发链），并且：
+
+    * 判不出具体客户端（对端可信但没有任何转发头）→ 返回 ``None``。
+      返回 ``None`` 会让 ``assert_ip_allowed`` 走「不匹配任何白名单项」的分支，即**拒绝**。
+      这里必须 fail-closed：拿反代地址去比对白名单等于把白名单放宽成「谁能连上反代谁就过」。
+    """
+    address = resolve_client_address_from_request(request)
+    if not address.per_client or not address.ip:
+        return None
+    return address.ip
 
 
 @router.post("", status_code=200, dependencies=[Depends(rate_limit(60))])

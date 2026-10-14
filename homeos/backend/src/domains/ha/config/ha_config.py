@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..integration.crypto import CredentialCipher, CredentialCipherError
 from ..integration.endpoints import ENDPOINT_EXTERNAL
+from ....config import environment_is_production
 from ....platform.core.models import HAConnection
 
 
@@ -71,7 +72,7 @@ def allow_ha_localhost() -> bool:
     try:
         return not Path("/.dockerenv").exists()
     except OSError:
-        return os.getenv("NODE_ENV", "development") != "production"
+        return not environment_is_production()
 
 
 def describe_ha_url_for_deploy_error(url: str) -> str | None:

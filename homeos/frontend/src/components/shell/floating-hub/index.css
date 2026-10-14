@@ -164,6 +164,24 @@
   background: rgba(255,255,255,0.03);
 }
 
+/*
+ * 可点击实体部件现在是真的 <button>（键盘可达），这里复位原生按钮外观，
+ * 保持与改造前的 div 完全一致的视觉（继承字号/颜色、无边框/底色、左对齐）。
+ * .afh-content 已有 display/width/height/padding，按钮沿用同一套盒模型。
+ */
+.afh-content--btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.afh-content--btn:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248, 0.75));
+  outline-offset: -2px;
+}
+
 .afh-theme-glass {
   overflow: hidden;
   -webkit-backdrop-filter: var(--premium-blur);

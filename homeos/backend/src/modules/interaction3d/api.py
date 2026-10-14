@@ -20,10 +20,17 @@ from .access import access_grant, is_scene_id, module_components, require_access
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
-from ...api.assets import UPLOAD_CONTENT_TYPES, user_asset_file
-from ...api.ha import active_connection, call_service
 from ...config import Settings
-from ...dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
+from ...dependencies import (
+    DatabaseSession,
+    LicensedUser,
+    LicensedViewer,
+    require_viewer_entity,
+    require_viewer_project,
+)
+from ...domains.ha.integration.connection_query import active_connection
+from ...domains.ha.integration.service_call import ServiceCallRejected, execute_service_call
+from ...platform.core.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
 from ...platform.core.models import HAEntity, ProjectDraft
 from ...platform.security.request_origin import require_same_origin_write
 from ...schemas import HAServiceCallRequest
@@ -39,6 +46,25 @@ _runtime_media_type_cache: dict[tuple[str, int], dict[str, str]] = {}
 
 def find_module_component(document: dict, component_id: str) -> dict | None:
     return next((item for _, item in module_components(document) if item.get('id') == component_id), None)
+
+
+async def call_service(payload: HAServiceCallRequest, request: Request, database, viewer) -> dict:
+    """本模块的 HA 服务调用入口：转调域内唯一出口，把域内拒绝映射成 ``HTTPException``。
+
+    参数顺序与原先 ``api/ha.py`` 的同名函数一致，故 6 个控制分支无需改动；
+    差别在于这里不再复用「带 FastAPI 依赖注入签名的路由处理函数」，而是走
+    ``domains/ha/integration/service_call.py``（校验 + 下发 + 日志的唯一实现）。
+    ``database`` 入参保留是为了不换调用点签名，实际由域内按 ``request`` 自取。
+    """
+    del database  # 连接/实体读取在域内按同一 request 作用域完成，避免两次开库。
+    try:
+        return await execute_service_call(
+            request,
+            payload,
+            access_check=lambda session, entity_id: require_viewer_entity(session, viewer, entity_id),
+        )
+    except ServiceCallRejected as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 def component_properties(database, project_id: str | None, component_id: str | None) -> dict:

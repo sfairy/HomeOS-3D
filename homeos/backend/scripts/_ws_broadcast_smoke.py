@@ -28,9 +28,9 @@ from _smoke_harness import check, ensure_backend_on_path, report
 
 ensure_backend_on_path()
 
-from src.realtime.access import is_entity_allowed  # noqa: E402
-from src.realtime.gateway import RealtimeGateway  # noqa: E402
-from src.realtime.subscription import is_entity_visible_to_client  # noqa: E402
+from src.platform.security.entity_access import is_entity_allowed
+from src.realtime.gateway import RealtimeGateway
+from src.realtime.subscription import is_entity_visible_to_client
 
 #: 与 build_gateway 预置的 critical 域保持一致（light/switch/cover/climate/media_player/fan/lock）
 HOT_DOMAINS = ("light", "switch", "cover", "climate", "media_player", "fan", "lock")

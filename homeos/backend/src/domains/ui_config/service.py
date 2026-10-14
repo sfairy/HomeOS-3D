@@ -381,11 +381,11 @@ class UiConfigService:
 
     def list_profiles(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
+            # 不设 limit：profile 列表是「切换/删除」界面的真源，截断后界面上消失的 profile
+            # 依然在库里生效（用户会以为它已被删除），而这是唯一能列出它们的地方。
             rows = (
                 session.execute(
-                    select(ProjectConfig)
-                    .order_by(ProjectConfig.updated_at.desc())
-                    .limit(100)
+                    select(ProjectConfig).order_by(ProjectConfig.updated_at.desc())
                 )
                 .scalars()
                 .all()
@@ -398,11 +398,11 @@ class UiConfigService:
 
     def export_all_configs(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
+            # 导出是「备份全部配置」的语义：limit 会让备份悄悄丢掉第 101 个 profile 之后的全部
+            # 内容，而备份文件看上去是完整的（恢复时才发现少了一半）。
             rows = (
                 session.execute(
-                    select(ProjectConfig)
-                    .order_by(ProjectConfig.updated_at.desc())
-                    .limit(100)
+                    select(ProjectConfig).order_by(ProjectConfig.updated_at.desc())
                 )
                 .scalars()
                 .all()
@@ -427,23 +427,17 @@ class UiConfigService:
         if valid:
             ids = [str(item["projectId"]) for item in valid]
             with self._session_factory() as session:
+                # 这里**不能**加 limit：密钥兜底合并依赖「这些 profile 在库里长什么样」，
+                # 漏掉一个 profile 就会把它的密钥字段当成「没有旧值」而写空（或写进别人的值）。
                 rows = (
                     session.execute(
-                        select(ProjectConfig).where(ProjectConfig.project_id.in_(ids)).limit(100)
+                        select(ProjectConfig).where(ProjectConfig.project_id.in_(ids))
                     )
                     .scalars()
                     .all()
                 )
                 for row in rows:
                     existing[row.project_id] = row.layout
-
-        active_profile_id = str(self._profiles().get("activeProfileId") or "").strip()
-        active_layout: Any = None
-        if active_profile_id:
-            with self._session_factory() as session:
-                active_row = self._find(session, active_profile_id)
-                if active_row is not None and active_row.layout:
-                    active_layout = active_row.layout
 
         rows_to_write: list[dict[str, Any]] = []
         for item in valid:
@@ -452,8 +446,11 @@ class UiConfigService:
                 logger.warning("跳过损坏的布局配置 projectId=%s", item.get("projectId"))
                 continue
             project_id = str(item["projectId"])
-            layout_for_merge = existing.get(project_id) or active_layout
-            merged = merge_layout_secrets_on_save(layout_obj, layout_for_merge)
+            # 只在「该 profile 本来就在库里」时做密钥兜底合并。
+            # 旧实现写成 `existing.get(...) or active_layout`：导入一个全新 profile 时会把
+            # **当前激活 profile** 的密钥（HA 令牌 / MCP 网关密钥 / SMTP / VAPID 私钥）
+            # 一并写进这份导入的配置里 —— 跨 profile 泄漏，且导入方完全看不出来。
+            merged = merge_layout_secrets_on_save(layout_obj, existing.get(project_id))
             rows_to_write.append({"projectId": project_id, "layout": merged})
 
         now = datetime.now(UTC)

@@ -3,7 +3,7 @@
   <!-- DeviceGroupModal 设备组模态框：管理和查看设备组详情 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal" appear>
-      <div v-if="isOpen" class="hos-modal-root" @click.self="$emit('close')">
+      <div v-if="isOpen" ref="rootRef" class="hos-modal-root" @click.self="$emit('close')">
         <div class="hos-modal-backdrop" @click="$emit('close')" />
         <div
           ref="panelRef"
@@ -116,6 +116,9 @@
 <script setup>
 import { computed, watch, ref } from 'vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { RouterLink } from 'vue-router'
 import {
   X,
@@ -170,10 +173,16 @@ watch(keepAliveTeleportDisabled, (disabled) => {
 const entitiesStore = useEntitiesStore()
 const layoutStore = useLayoutStore()
 const panelRef = ref(null)
-useFocusTrap(
-  panelRef,
-  computed(() => !!props.isOpen),
-)
+/** 浮层最外层节点：焦点陷阱管面板，背景隔离要的是整层（含背板）。 */
+const rootRef = ref(null)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁共用同一判据。 */
+const isActive = computed(() => !!props.isOpen)
+
+useFocusTrap(panelRef, isActive)
+// Esc 走全局层级栈：设备组会叠在抽屉之上，各自监听 window 会让一次 Esc 关掉多层。
+useEscLayer(isActive, '设备组弹窗', () => emit('close'))
+useBackgroundInert(rootRef, isActive, '设备组弹窗')
+useBodyScrollLock(isActive, '设备组弹窗')
 
 const domainMap = computed(() => {
   const base = getDomainMap()

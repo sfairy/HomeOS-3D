@@ -261,7 +261,7 @@ class NotificationService:
         source: str | None = None,
         restrictions: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        from ...realtime.access import is_entity_allowed_by_restrictions
+        from ...platform.security.entity_access import is_entity_allowed_by_restrictions
 
         def _query() -> list[dict[str, Any]]:
             with self._session_factory() as session:

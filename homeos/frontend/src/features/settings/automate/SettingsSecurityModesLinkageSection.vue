@@ -21,7 +21,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { Users, Home, Link2 } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import { usePresenceEntityConfig } from '@/features/settings/composables/automate/presence-linkage.internals'
 import { useSecurityLinkage, useSettingsSecurityModesLinkageDisplay } from '@/features/settings/composables/automate/security-modes-core.internals'

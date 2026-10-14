@@ -3,7 +3,7 @@ function applyUpdateNotice(noticeLink: any, noticeBadge: any, notice: any) {
   let logUrl;
   try {
     logUrl = new URL(notice?.logUrl);
-  } catch {}
+  } catch { /* 非法 URL / 编码：按原值继续（不因脏输入中断流程） */ }
   const isTrustedNotice =
     notice?.updateAvailable === true &&
     typeof notice.latestVersion == "string" &&

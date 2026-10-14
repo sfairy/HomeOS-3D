@@ -106,7 +106,7 @@ export function readPopupField(
  * @param cfgOverride 已规范化的能源配置；传入时可跳过重复 normalize。
  * @returns 属性值；无法读取时返回 undefined。
  */
-export function readPopupAttr(
+export function readEnergyPopupAttr(
   cat: EnergyCategory | string,
   attrName: string,
   statsSensors: StatsSensors | null | undefined,

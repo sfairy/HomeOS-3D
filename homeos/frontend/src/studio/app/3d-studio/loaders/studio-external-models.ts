@@ -424,7 +424,7 @@ export function createExternalModelManager({
     )
       try {
         persistentCache.schedule(loadResult.preparedCacheKey, loadedModelEntry);
-      } catch {}
+      } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     return (
       isModelInUse(loadedItemType) &&
         requestRender({

@@ -151,15 +151,15 @@ bun run dev:runtime
 | `bun run typecheck:py` | 只跑 Python 静态检查（`ops/ci/pyright_gate.py`） |
 | `bun run knip` | JS/TS 未使用文件/导出/依赖扫描（`knip.config.ts`，含动态入口白名单） |
 | `bun run --cwd homeos/frontend lint` / `--cwd homeos-store lint` | 前端 ESLint（`--fix`）。规则核只有一份（`ops/eslint/frontend-core.mjs`）：parser/插件装配与「抓 bug」那批规则（未使用 import、`any`、vue 陷阱）两个前端逐条一致；分离出来的只有**风格两条**，各自按既有约定给 —— 主应用单引号无分号、商店双引号带分号（实测 5789 条存量差异全是这两条，整树 `--fix` 等于重写商店前端且抓不出一个 bug，理由写在该文件头）。`lint:ci` 是 `--max-warnings 0`，两个应用都已进 CI |
-| `bun run kpi:studio` | studio 收敛 KPI 三件套：单体行数（`ops/studio_monolith_kpi.py`，含桩检测 + ratchet）、域清单与平铺面（`ops/studio_domains_kpi.py`）、根↔studio 同名冲突（`ops/studio_layout_kpi.py`）。**P4 拆 studio 的双门槛之一**（另一半是 `homeos/frontend` 侧的 `check:deps` 域边界门禁）；已进 CI —— 不进就等于「拆分成果没有护栏」 |
+| `bun run kpi:studio` | studio 收敛 KPI 三件套：单体行数（`ops/kpi/studio_monolith_kpi.py`，含桩检测 + ratchet）、域清单与平铺面（`ops/kpi/studio_domains_kpi.py`）、根↔studio 同名冲突（`ops/kpi/studio_layout_kpi.py`）。**P4 拆 studio 的双门槛之一**（另一半是 `homeos/frontend` 侧的 `check:deps` 域边界门禁）；已进 CI —— 不进就等于「拆分成果没有护栏」 |
 | `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run verify:scene` | 校验 `design/scene` 与两端 `public/static/**/scene` 逐字节一致 |
-| `bun run verify:features` | 校验功能码真源（`ops/feature_codes.json`）与两端后端 + 前端镜像一致 |
-| `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id、常量块字面量集；`ops/contracts/shared-twins.json`）+ 共享 Python 真源唯一（后端不得再存 `packages/shared-py` 模块的副本）+ 门禁自检（`ops/check_shared_contracts_selftest.py`）+ 独立部署护栏（见下一行） |
-| `bun run verify:independence` | 独立部署护栏（`ops/check_deploy_independence.py`）：两后端源码/两前端源码/两份 `package.json` 互不引用（跨界只允许 `@homeos/shared`）、Dockerfile 只有一个构建阶段且源码只能由 `--build-arg PROJECT` 选（`ARG PROJECT` 不许有默认值）、`ops/build.py` 的 PROJECTS 表与 Dockerfile 的 `case "$PROJECT"` 双向对账、运行阶段各装各的产物与两个构建阶段各自内联 `packages/shared-py`；含 33 项注入式自检 |
-| `bun run verify:schema` | 库结构门禁（`ops/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
-| `bun run verify:database` | 库结构医生（`ops/check_database.py`）：完整性检查 / 外键 / 结构漂移。此前只在本地跑，现已进 CI |
+| `bun run verify:features` | 校验功能码真源（`ops/check/feature_codes.json`）与两端后端 + 前端镜像一致 |
+| `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id、常量块字面量集；`ops/contracts/shared-twins.json`）+ 共享 Python 真源唯一（后端不得再存 `packages/shared-py` 模块的副本）+ 门禁自检（`ops/check/check_shared_contracts_selftest.py`）+ 独立部署护栏（见下一行） |
+| `bun run verify:independence` | 独立部署护栏（`ops/check/check_deploy_independence.py`）：两后端源码/两前端源码/两份 `package.json` 互不引用（跨界只允许 `@homeos/shared`）、Dockerfile 只有一个构建阶段且源码只能由 `--build-arg PROJECT` 选（`ARG PROJECT` 不许有默认值）、`ops/build.py` 的 PROJECTS 表与 Dockerfile 的 `case "$PROJECT"` 双向对账、运行阶段各装各的产物与两个构建阶段各自内联 `packages/shared-py`；含 33 项注入式自检 |
+| `bun run verify:schema` | 库结构门禁（`ops/check/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
+| `bun run verify:database` | 库结构医生（`ops/check/check_database.py`）：完整性检查 / 外键 / 结构漂移。此前只在本地跑，现已进 CI |
 | `bun run verify:smoke` | 商店侧冒烟（3 个脚本）：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏（`_schema_drift_guard_smoke.py`）+ 计数列重算（`_commerce_recount_smoke.py`） |
 | `bun run verify:smoke:app` | 主应用侧冒烟（9 个脚本）：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + WS 广播 + 全量备份 + go2rtc 中继。全部离线自足（进程内假商店、假 httpx、临时数据目录） |
 | `bun run verify:smoke:frontend` | 前端纯逻辑冒烟（6 个脚本）：Esc 层级栈回归 + 实体控制逻辑 + 场景更新计划 + `requestJson` 请求面 + 摄像头检查器控件 + go2rtc MSE over WebSocket |
@@ -374,7 +374,7 @@ Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只�
 
 **产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，构建阶段用 `COPY homeos/backend/src ./app` 把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。主应用与商店用**同一条**映射（`.../src → ./app`），镜像里都是 `/app/app`，区别只在装什么、以什么入口启动。
 
-产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见主应用 `backend/src/platform/core/migrations.py` 与商店 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
+产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见主应用 `backend/src/platform/core/migrations.py` 与商店 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
 
 编译后编译脚本会自动对每个 `.so` 执行 `strip --strip-all`（见 `ops/docker/compile_python.py` 的 `_strip_extensions`）：去掉 DWARF 调试信息与 `.symtab` 静态符号，保留 `.dynsym`（动态加载靠它，删了 `import` 就失败）。这样 `strings` 里不再出现 `__pyx_pf_*` 内部函数名与原始路径。
 
@@ -393,7 +393,18 @@ bun run build
 
 也可以直接把基础镜像钉到任意镜像站 / 私有仓库：`--python-image <ref>`、`--caddy-image <ref>`。
 
-可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
+> ⚠ 走 `--base-mirror`（或上面两个 `--*-image`）会**丢掉基础镜像的摘要钉版**：镜像站/私有仓库是另一个仓库，`@sha256:…` 摘要必然与上游不同，照搬会直接拉不到，所以 `ops/build.py` 只保留 `tag` 并在构建期打印警告。正式产物走 CI —— CI 的工作流被 `ops/check/check_docker_pins.py` 禁止传这三个参数，用的就是真源里钉死的 `tag@digest`。
+
+默认的基础镜像写在**唯一真源** [`ops/docker-pins.json`](ops/docker-pins.json)（`upstream_tag` 与 `digest` 分开两行），由 `ops/check/check_docker_pins.py` 与各处逐字对账：`Dockerfile` 的两个 `ARG` 默认值、`docker-compose.store.public.yml` 里公网 Caddy 的兜底值，加上对 `ops/build.py` 的**行为测试**（镜像站改写只丢摘要、不设镜像站时不得注入 build-arg），另有「`Dockerfile` 的每个 `FROM` 都必须走登记的镜像」「`pip install` 的构建期工具必须 `==` 精确版本」「工作流不得传基础镜像覆盖参数」三条硬规则。升级基础镜像时改真源，然后：
+
+```bash
+python3 ops/check/check_docker_pins.py --verify-remote   # 联网核对 tag 与 digest 是否仍然配对
+```
+
+`--verify-remote` 在发布路径（`.github/workflows/docker.yml` 的默认分支构建）是**硬门禁**：上游重推同名 tag 后，本仓库钉住的摘要仍然可复现，但 `tag@digest` 这句话已经不成立，必须显式刷新成新摘要。非发布分支只作提示。
+
+可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PIP_VERSION=26.2.1`、`--build-arg SETUPTOOLS_VERSION=84.0.0`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
+前三个是**构建期工具**的精确版本（`ops/check/check_docker_pins.py` 的第 6 条判据要求 `pip install` 的包参数必须写成 `name==版本`）：`pip install --upgrade pip` / `pip install setuptools` 这类裸写法会让同一份源码随时间装出不同产物，而 `setuptools` 一收 `setuptools.command.*` 的兼容面就会让 `ops/docker/compile_python.py` 直接编不过。
 不传 `--build-arg HOMEOS_VERSION=0.7.5` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ### 七、数据卷与备份

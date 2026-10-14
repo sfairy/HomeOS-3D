@@ -235,17 +235,26 @@ def _evaluate_coupon_limited(
     password_gate.clear(session, scope)
     return coupon, discount
 def _flush_order(session, order: Order) -> str:
+    """把订单写进库，并按**唯一约束冲突的种类**给出结论（`ok` / `pending` / `retry`）。
+
+    旧实现把「订单号撞车」和「其它任何完整性错误」都压成同一个 `retry`，调用方再把
+    `retry` 一律报成「请求过于频繁」—— 一次纯服务端的随机碰撞被说成用户被限流，
+    顾客照着提示重试只会再撞一次；而真正的结构性问题（NOT NULL / 外键）连日志都没有。
+    现在只有 `orders.order_no` 撞车才算 `retry`（调用方会换号重试），其余原样抛出并留痕。
+    """
     try:
         with session.no_autoflush, session.begin_nested():
             session.flush()
     except IntegrityError as error:
         message = str(getattr(error, "orig", error))
         if "UNIQUE constraint failed" not in message:
+            logger.warning("下单遇到非唯一约束的完整性错误，原样抛出: %s", message)
             raise
         if "orders.account_id" in message:
             return "pending"
         if "orders.order_no" in message:
             return "retry"
+        logger.warning("下单遇到未归类的唯一约束冲突，原样抛出: %s", message)
         raise
     return "ok"
 def _license_meta(session, licenses: list[License]) -> dict[str, dict]:

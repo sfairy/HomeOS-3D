@@ -90,7 +90,7 @@
 <script setup>
 import { provide, ref, computed } from 'vue'
 import { CloudRain, Map, Monitor, SlidersHorizontal, Sparkles } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'

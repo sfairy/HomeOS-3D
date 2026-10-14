@@ -1,4 +1,4 @@
-import { clampNumber, normalizeCssColor, resolveMdiIconUrl } from "./_shared";
+import { clampNumberWithFallback, normalizeCssColor, resolveMdiIconUrl } from "./_shared";
 import { navigationButtonIsActive, createNavigationEffectsSvg } from "./navigation-effects";
 import { navigationContentUnitPx } from "./content-units";
 import { isEntityComponentActive } from "./cover-climate-state";
@@ -35,7 +35,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       entityActive: isBoundEntityActive,
       previewState: navigationPreviewState,
     }),
-    textOpacity = clampNumber(
+    textOpacity = clampNumberWithFallback(
       isNavigationButtonActive
         ? (navigationButtonProperties.textActiveOpacity ?? navigationButtonProperties.activeOpacity)
         : (navigationButtonProperties.textIdleOpacity ?? navigationButtonProperties.idleOpacity),
@@ -43,7 +43,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       1,
       isNavigationButtonActive ? 0.96 : 0.3,
     ),
-    iconOpacity = clampNumber(
+    iconOpacity = clampNumberWithFallback(
       isNavigationButtonActive
         ? (navigationButtonProperties.iconActiveOpacity ?? navigationButtonProperties.activeOpacity)
         : (navigationButtonProperties.iconIdleOpacity ?? navigationButtonProperties.idleOpacity),
@@ -51,7 +51,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       1,
       isNavigationButtonActive ? 0.96 : 0.3,
     ),
-    navigationIntensityMultiplier = clampNumber(
+    navigationIntensityMultiplier = clampNumberWithFallback(
       isNavigationButtonActive
         ? navigationButtonProperties.frameActiveOpacity
         : navigationButtonProperties.frameIdleOpacity,
@@ -59,7 +59,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       1,
       isNavigationButtonActive ? 0.98 : 0.48,
     ),
-    navigationGlowIntensity = clampNumber(
+    navigationGlowIntensity = clampNumberWithFallback(
       isNavigationButtonActive
         ? navigationButtonProperties.glowActiveStrength
         : navigationButtonProperties.glowIdleStrength,
@@ -67,7 +67,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       5,
       isNavigationButtonActive ? 2.2 : 0.5,
     ),
-    navigationGlowSpreadScale = clampNumber(
+    navigationGlowSpreadScale = clampNumberWithFallback(
       isNavigationButtonActive
         ? navigationButtonProperties.glowActiveSize
         : navigationButtonProperties.glowIdleSize,
@@ -82,27 +82,27 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       navigationButtonComponent,
       navigationButtonRenderEnvironment,
     ),
-    navigationTextLeft = clampNumber(navigationButtonProperties.textLeft, -100, 200, 27.5),
-    navigationTextTop = clampNumber(navigationButtonProperties.textTop, -100, 200, 81.5),
-    mainTextLeft = clampNumber(
+    navigationTextLeft = clampNumberWithFallback(navigationButtonProperties.textLeft, -100, 200, 27.5),
+    navigationTextTop = clampNumberWithFallback(navigationButtonProperties.textTop, -100, 200, 81.5),
+    mainTextLeft = clampNumberWithFallback(
       navigationButtonProperties.mainTextLeft,
       -100,
       200,
       navigationTextLeft,
     ),
-    mainTextTop = clampNumber(
+    mainTextTop = clampNumberWithFallback(
       navigationButtonProperties.mainTextTop,
       -100,
       200,
       navigationTextTop - 18 * navigationUnitScale,
     ),
-    secondaryTextLeft = clampNumber(
+    secondaryTextLeft = clampNumberWithFallback(
       navigationButtonProperties.secondaryTextLeft,
       -100,
       200,
       navigationTextLeft,
     ),
-    secondaryTextTop = clampNumber(
+    secondaryTextTop = clampNumberWithFallback(
       navigationButtonProperties.secondaryTextTop,
       -100,
       200,
@@ -117,31 +117,31 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
     navigationButtonElement.style.setProperty("--navigation-icon-opacity", String(iconOpacity)),
     navigationButtonElement.style.setProperty(
       "--navigation-icon-size",
-      clampNumber(navigationButtonProperties.iconSize, 1, 500, 50) * contentUnitScale + "px",
+      clampNumberWithFallback(navigationButtonProperties.iconSize, 1, 500, 50) * contentUnitScale + "px",
     ),
     navigationButtonElement.style.setProperty(
       "--navigation-icon-left",
-      clampNumber(navigationButtonProperties.iconLeft, -100, 200, 14) + "%",
+      clampNumberWithFallback(navigationButtonProperties.iconLeft, -100, 200, 14) + "%",
     ),
     navigationButtonElement.style.setProperty(
       "--navigation-icon-top",
-      clampNumber(navigationButtonProperties.iconTop, -100, 200, 50) + "%",
+      clampNumberWithFallback(navigationButtonProperties.iconTop, -100, 200, 50) + "%",
     ),
     navigationButtonElement.style.setProperty(
       "--navigation-main-size",
-      clampNumber(navigationButtonProperties.mainSize, 1, 500, 30) * contentUnitScale + "px",
+      clampNumberWithFallback(navigationButtonProperties.mainSize, 1, 500, 30) * contentUnitScale + "px",
     ),
     navigationButtonElement.style.setProperty(
       "--navigation-secondary-size",
-      clampNumber(navigationButtonProperties.secondarySize, 1, 500, 11) * contentUnitScale + "px",
+      clampNumberWithFallback(navigationButtonProperties.secondarySize, 1, 500, 11) * contentUnitScale + "px",
     ),
     navigationButtonElement.style.setProperty(
       "--navigation-main-spacing",
-      clampNumber(navigationButtonProperties.mainSpacing, -20, 100, 8) * contentUnitScale + "px",
+      clampNumberWithFallback(navigationButtonProperties.mainSpacing, -20, 100, 8) * contentUnitScale + "px",
     ),
     navigationButtonElement.style.setProperty(
       "--navigation-secondary-spacing",
-      clampNumber(navigationButtonProperties.secondarySpacing, -20, 100, 3) * contentUnitScale +
+      clampNumberWithFallback(navigationButtonProperties.secondarySpacing, -20, 100, 3) * contentUnitScale +
         "px",
     ),
     navigationButtonElement.style.setProperty("--navigation-main-left", mainTextLeft + "%"),
@@ -194,7 +194,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       (navigationMainTextElement.style.color = mainTextColor),
       (navigationMainTextElement.style.webkitTextStrokeColor = mainTextColor),
       (navigationMainTextElement.style.webkitTextStrokeWidth =
-        clampNumber(navigationButtonProperties.mainWeight, 0, 3, 0) * contentUnitScale + "px"),
+        clampNumberWithFallback(navigationButtonProperties.mainWeight, 0, 3, 0) * contentUnitScale + "px"),
       navigationTextElement.append(navigationMainTextElement));
   }
   if (navigationButtonProperties.secondaryTextVisible !== false) {
@@ -204,7 +204,7 @@ export function navigationComponentRenderer(navigationButtonComponent: any, navi
       (navigationSecondaryTextElement.style.color = secondaryTextColor),
       (navigationSecondaryTextElement.style.webkitTextStrokeColor = secondaryTextColor),
       (navigationSecondaryTextElement.style.webkitTextStrokeWidth =
-        clampNumber(navigationButtonProperties.secondaryWeight, 0, 3, 0) * contentUnitScale + "px"),
+        clampNumberWithFallback(navigationButtonProperties.secondaryWeight, 0, 3, 0) * contentUnitScale + "px"),
       navigationTextElement.append(navigationSecondaryTextElement));
   }
   return (

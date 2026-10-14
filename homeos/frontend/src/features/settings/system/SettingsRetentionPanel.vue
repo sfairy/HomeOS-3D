@@ -186,8 +186,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RefreshCw, AlertCircle, Save, Layers } from '@lucide/vue'
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { fetchRetentionConfig, updateRetentionConfig } from '@/services/api/system'

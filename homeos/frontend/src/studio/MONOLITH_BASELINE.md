@@ -1,27 +1,31 @@
 # Studio monolith line-count baseline
 
-> **⚠️ 切片工具链已退役（拆分流程暂停）。** 本文件第 6 节起描述的 `ops/studio_slice_analyze.mjs` /
-> `studio_slice_extract.mjs` / `studio_slice_wrap.mjs` / `restore_import_formatting.mjs` 与它们的注入式自检
-> （`homeos/frontend/scripts/_studio_slice_*_selftest.mjs`）已随脚本体系清理**整体移除**，
-> 对应的根脚本 `slice:studio*` 与 `check:deps` 里的两步自检也已删除。
-> 下文保留这些命令与数值，是作为**这套拆分方法的执行记录与设计理由**（尤其是工具缺口、护栏口径、
-> 判据来源），不再可直接运行。若要继续做 studio 收敛，需先按同一 § 描述重建工具；
-> 在此之前，**只有 KPI 门禁（`kpi:studio`）与 `check-host-bindings` 仍在 CI 里生效**。
-> 第 6 节里 `check-host-bindings.mjs` 已移到 `scripts/gates/`。
+> **切片工具链已重建（2026-10-13，P2）。** `ops/studio/studio_slice_analyze.mjs` / `studio_slice_extract.mjs` /
+> `studio_slice_wrap.mjs` / `restore_import_formatting.mjs` 与它们的注入式自检
+> （`homeos/frontend/scripts/gates/_studio_slice_*_selftest.mjs`）已按本文描述收回，并新增两件：
+>
+> - `ops/studio/studio_slice_apply.mjs`：一条命令跑完「AST 提取 → 依赖袋包装 → import 归位 → 锚点插入」，
+>   宿主侧自动留同名转发器 / 状态袋；
+> - `ops/studio/studio_template_seam.mjs`：**模板**维度的整段切片（Vue SFC 里零指令的静态 DOM 契约段，
+>   按 `#id` / `.class` 锚点整段搬进子组件，见 `ops/plans/studio/*.json` 的可复现计划）。
+>
+> 根脚本 `slice:studio*` / `seam:studio*` 与 `check:deps` 里的三条自检（区间 / 包装 / 模板）都已接回，
+> 所以下面第 6 节起的命令与口径**可以照旧直接跑**；自检本身也在 CI 里（解析型工具一改就静默变瞎，
+> 这三条是它们唯一的护栏）。
 
 **度量口径已可执行**：以 KPI 脚本为准（本文件只讲口径与理由，数值别从这里抄 —— 脚本会自己量）。
 
 ```bash
 # 仓库根执行：单体行数（本文件主线）+ 域清单/平铺面
-python3 ops/studio_monolith_kpi.py
-python3 ops/studio_domains_kpi.py
+python3 ops/kpi/studio_monolith_kpi.py
+python3 ops/kpi/studio_domains_kpi.py
 
 # 或一次跑完 studio 三件套（含根↔studio 同名冲突）
 bun run kpi:studio
 
 # 收敛后重记基线
-python3 ops/studio_monolith_kpi.py --update
-python3 ops/studio_domains_kpi.py --update
+python3 ops/kpi/studio_monolith_kpi.py --update
+python3 ops/kpi/studio_domains_kpi.py --update
 ```
 
 门禁口径：
@@ -54,15 +58,19 @@ python3 ops/studio_domains_kpi.py --update
 
 照旧文档复测会得到「7188 → 3」这种**假收敛**，而真正 35k 行的 `studio-app.ts` 没人盯。所以路径与数值改为固化在脚本里，并由脚本自己检测桩 —— 同一个失效模式不会再发生第二次。
 
-## 单体目标（2026-10-11 实测）
+## 单体目标（2026-10-13 实测）
 
 | 单体 | 路径（相对 `src/studio/`） | 当前 | 目标 |
 |------|---------------------------|-----:|-----:|
 | creator 编排宿主 | `app/3d-studio/authoring/studio-app.ts` | 20681 | < 3000 |
 | panel 编排宿主 | `app/editor/home.ts` | 16784 | < 3000 |
 | 面板渲染器 | `app/renderer/panel-renderer.ts` | 1888 | < 3000 |
-| 舞台宿主 | `runtime/core/stage.ts` | 5702 | < 3000 |
+| 舞台宿主 | `runtime/core/stage.ts` | 4485 | < 3000 |
 | 舞台配置渲染 | `runtime/config-ui/config-editor/panel-rendering.ts` | 590 | < 3000 |
+
+`stage.ts` 本轮已按 seam 切出 7 个文件（`lighting` / `controls` / `camera-motion` / `layers-sync` /
+`refresh` / `curtain-motion` / `navigation-drag`，各带显式依赖袋接口），5,702 → 4,485 行；
+余量集中在 `mountStage()` 里的 300 余个小声明与 73 个可变捕获的同步块，按 `--list` 的 `成本` 排序继续切。
 
 `panel-renderer-bulk-methods.ts`（原本 10,889 行）已随 **7b** 按 seam 拆成 `app/renderer/panel-seams/` 下 12 个文件
 （最大 2,567 行，宿主文件删除），所以它**不再是单体目标** —— 但行数没有「消失」：该目录已登记为域，
@@ -76,7 +84,7 @@ python3 ops/studio_domains_kpi.py --update
 
 ## 单体的真实形状（先看这个，再看任何预算表）
 
-用 `node ops/studio_slice_analyze.mjs <file> --list` 量出来的事实：
+用 `node ops/studio/studio_slice_analyze.mjs <file> --list` 量出来的事实：
 
 | 文件 | 顶层语句 | 其中 import | 巨型宿主 | 宿主内直系声明 | 函数总数 |
 |------|---------:|------------:|---------|---------------:|---------:|
@@ -107,12 +115,12 @@ python3 ops/studio_domains_kpi.py --update
 所以本批次先量代价再动手，量代价的工具进了仓库：
 
 ```bash
-node ops/studio_slice_analyze.mjs <file> --list              # 真实形状 + 宿主链
-node ops/studio_slice_analyze.mjs <file> --rank              # 直系声明按搬走成本排序
-node ops/studio_slice_analyze.mjs <file> --seeds=<函数名>     # 单个函数的捕获清单 + 残留依赖
-node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --names=a,b [--also=h] [--apply]
-node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --names=a,b --method-form [--apply]   # 类方法
-node ops/restore_import_formatting.mjs <file>                # 还原被早期清理压成单行的 import 排版
+node ops/studio/studio_slice_analyze.mjs <file> --list              # 真实形状 + 宿主链
+node ops/studio/studio_slice_analyze.mjs <file> --rank              # 直系声明按搬走成本排序
+node ops/studio/studio_slice_analyze.mjs <file> --seeds=<函数名>     # 单个函数的捕获清单 + 残留依赖
+node ops/studio/studio_slice_extract.mjs --file=<源> --out=<目标> --names=a,b [--also=h] [--apply]
+node ops/studio/studio_slice_extract.mjs --file=<源> --out=<目标> --names=a,b --method-form [--apply]   # 类方法
+node ops/studio/restore_import_formatting.mjs <file>                # 还原被早期清理压成单行的 import 排版
 ```
 
 > 别指望 `--seeds` 的「闭包展开」能闭合：深度 3 的兄弟图几乎全连通，展开几轮就吃掉整份文件。
@@ -392,7 +400,7 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
 **已实测它是承重的**：把闩改成模块作用域后立刻 2 项 FAIL，改回即绿。
 脚本已进根 `package.json` 的 `verify:smoke:frontend` 与 `checks.yml`（两处同组，只加一半会留缺口）。
 
-**工具侧的一个坑（`--header`）**：`ops/studio_slice_extract.mjs --header=` 是**原样插入**目标文件头部，
+**工具侧的一个坑（`--header`）**：`ops/studio/studio_slice_extract.mjs --header=` 是**原样插入**目标文件头部，
 不带注释标记 —— 传 `"说明文字"` 会得到两行裸文本（TS1443/TS1127），必须自己写 `/** … */`。
 
 #### 6f~6i 纯叶子档（成本 20~140）：属性元数据表按族落地 + 两条薄绑定的分化
@@ -532,8 +540,8 @@ TS2556，要写显式形参（照抄 `HEAD` 原签名，默认值留在模块侧
 裸名必被 `TS2304` 抓住），改错的方向都不安全。
 
 工具侧补了两个入口，都带自检并已进 `check:deps`：
-`ops/studio_slice_extract.mjs --range=START-END`（区间必须**正好**框住一条 AST 语句，否则拒绝执行；
-19 项断言）与 **`ops/studio_slice_wrap.mjs`**（把切片模块包成 `attachX(deps)` 工厂 + 打印宿主该写的
+`ops/studio/studio_slice_extract.mjs --range=START-END`（区间必须**正好**框住一条 AST 语句，否则拒绝执行；
+19 项断言）与 **`ops/studio/studio_slice_wrap.mjs`**（把切片模块包成 `attachX(deps)` 工厂 + 打印宿主该写的
 getter 调用片段；22 项断言）。注册成根脚本 `slice:studio:wrap`，与 `slice:studio` / `slice:studio:extract` 同列。
 
 **自己踩的两个工具 bug（都是「写错了但不报错」型，值得记）：**
@@ -557,7 +565,7 @@ KPI 基线的 19,367，且语句级成本表的四条区间/行数（`9494~9794`
   `activeProject` / `selectedComponentId` / `entryStateRecord` 这类宿主单例），那是与 6d 的「单元」
   同一族的前置工程，不是一个切片。
 
-`app/editor/bindings` 已登记进 `ops/studio_domains_kpi.py`（域覆盖 68,322 → **70,009**，23 个域）。
+`app/editor/bindings` 已登记进 `ops/kpi/studio_domains_kpi.py`（域覆盖 68,322 → **70,009**，23 个域）。
 顺带按 knip 口径收敛了 `features/security/index.ts` 的 12 个死 barrel 导出（存量，非本批引入）。
 
 #### 6m（P4 续）：声明级切片升级 —— 4 族 10 个函数声明，第一次搬「会被宿主反复调用」的函数
@@ -600,7 +608,7 @@ function titleButtonMenuDeps() {
 调 `iconTooltipElementValue`、6m-3 里四条互调）必须改写成 `xxxCore(deps, …)` —— 否则要么丢掉袋上下文，
 要么白建一份袋。工具按 AST 找 `xxxCore(` 调用点、按实参个数 splice 进 `deps, `（本批命中 3 处）。
 
-**工具侧补了三个入口**（`ops/studio_slice_wrap.mjs` 自检 22 → **39** 项，已进 `check:deps`）：
+**工具侧补了三个入口**（`ops/studio/studio_slice_wrap.mjs` 自检 22 → **39** 项，已进 `check:deps`）：
 `--mode=fn`（N 个函数声明 + 1 份共享袋，默认的 `stmt` 模式是给 6l 那种单条语句用的）、
 `--host-only`（只重生成宿主转发器区、不碰已落地的模块 —— 模块侧改完依赖袋后重生成宿主用，
 重跑幂等）、以及上面的 `stateWrites` → `get/set` 自动生成。
@@ -615,7 +623,7 @@ function titleButtonMenuDeps() {
 | 外层赋值被静默丢弃 | 见上「硬约束 4」 | 袋成员是只读快照 | 检测外层写入 → `get/set` 访问器 |
 | 转发器写成 `const` | 调用点在切片区上方时 TDZ 抛错 | `const` 不提升 | 转发器 / thunk 一律 `function` 声明（工具强制） |
 
-`app/editor/{copy-backup,menus,selection}` 已登记进 `ops/studio_domains_kpi.py`（域覆盖 70,009 → **71,664**，26 个域）。
+`app/editor/{copy-backup,menus,selection}` 已登记进 `ops/kpi/studio_domains_kpi.py`（域覆盖 70,009 → **71,664**，26 个域）。
 本批之后 `home.ts` 的 **0 写入语句（6l）** 与 **0 可变捕获的函数声明族** 都已摘完，再往下就进
 「显式化 `activeProject` / `selectedComponentId` / `entryStateRecord` 这类宿主单例」的前置工程
 （与 6d 的「单元」同一族），或者转去 `studio-app.ts` / `panel-renderer*` / `stage.ts` 三条宿主线。
@@ -633,7 +641,7 @@ function titleButtonMenuDeps() {
 | **「还在用吗」用正则判** | `this.connectRuntime()` 的属性名被 `\b` 匹配成引用 → 回引一条没人用的 `import`：typecheck 过、**lint 必红** | 改按 AST 引用位判；重扫必须用 `n.parent`（`parentOf` 的 map 只对源文件那棵树有效，否则全判 false → 静默丢回引） |
 | **同目录搬运改坏 specifier** | `import type { PanelRenderer } from "../renderer"` 被重算成 `"./"`（TS 里是「当前目录的 index」，TS2307） | 相对路径为空即**原样保留**：目标目录没变，原 specifier 必然成立 |
 
-三条都进了 `homeos/frontend/scripts/_studio_slice_range_selftest.mjs`（19 → **24** 项断言）。
+三条都进了 `homeos/frontend/scripts/gates/_studio_slice_range_selftest.mjs`（19 → **24** 项断言）。
 
 12 刀全部「零残留依赖 / 零外层写入」→ 不需要依赖袋、不需要 state 袋，函数连同 `this: PanelRenderer` 首参逐字搬走：
 
@@ -653,7 +661,7 @@ function titleButtonMenuDeps() {
 | 7b-12 | `connectRuntime` | 491 | `runtime-connect.ts` |
 
 **宿主文件被删掉，而不是留成桶。** 12 刀之后 `panel-renderer-bulk-methods.ts` 只剩 24 行纯 re-export，
-`ops/studio_monolith_kpi.py` 的桩检测立刻判它「compat 桩 / 硬失败」—— 这是**对的**：一个只为 `Object.assign`
+`ops/kpi/studio_monolith_kpi.py` 的桩检测立刻判它「compat 桩 / 硬失败」—— 这是**对的**：一个只为 `Object.assign`
 存在的桶，漏一个名字时 `as any` 不会报错（和上面第一条同一类静默失效）。改成调用方显式 import 12 个名字 +
 一个 `Object.assign(PanelRenderer.prototype, { …12 个名字… } as any)`：漏项在 typecheck 阶段就显形，
 顺带把「谁在原型上」这件事写在调用点。
@@ -711,7 +719,7 @@ function titleButtonMenuDeps() {
 | 不可外迁的形态 | `static` / 生成器 / 泛型方法 / 计算名不是合法标识符（`["a-b"]`）/ 形参无类型可推 | **硬失败**并指名方法，不许猜（`--names` 清单里的方法必须全部搬走，静默跳过正是要防的失效模式） |
 | 模块签名的类型 import | `self: PanelRenderer` 里的宿主类不会出现在正文里 → 自由引用扫描看不见它 | 工具按宿主类名自动补 `import type { PanelRenderer } from "./panel-renderer";` |
 
-自检 `homeos/frontend/scripts/_studio_slice_range_selftest.mjs` 24 → **36** 项（新增方法形态 10 项 +
+自检 `homeos/frontend/scripts/gates/_studio_slice_range_selftest.mjs` 24 → **36** 项（新增方法形态 10 项 +
 形参默认值 `this` 1 项 + 回引清单 1 项）。分析器 `--rank` 也认类方法（报告里的名字还原成方法名，
 不再是一片 `<MethodDeclaration>`）。
 
@@ -737,7 +745,7 @@ function titleButtonMenuDeps() {
 | **源文件侧的死导入没人管** | 上面的判据只管**回引**要不要带某个名字，源文件**自己原有**的 import 谁都不碰 —— 切片独占的 import（尤其 `normalizeCameraSettings as normalizeCameraSettings2` 这种**别名**，只出现在被搬走的正文里）每片都会漏 2~5 条，靠 lint 兜底 | 5x 新增：把 srcNew 的 import 声明全部挖空后逐条判本地名是否还在正文里出现，整条没人用就删整条、部分用就重建该条（副作用 `import "x"` 不动） |
 | **回引插入位置用了清理前的偏移** | 删字符后偏移整体前移，实测把 `import { sliceFn } from "./out"` 插进函数体中间（TS1232 之外还能静默错位） | 插入前**重新解析** srcNew 取「最末一条 import 的 end」，不再复用清理前的 AST 偏移 |
 | **死导入清理把多行 import 压成单行** | 「按 specifier 重建整条声明」的写法把源码里成片的多行 import 压成 800+ 字符单行 —— 一次切片冲掉约 225 行**无关排版**，与「逐字复制、零无关改动」的口径相悖 | 改成**按 specifier 粒度抠文本**（四种形态：独立成行带后随逗号 / 末项独立成行 / 同行带后随逗号 / 同行末项）；正则全不命中时**宁可留着**并在报告里点名（`抠不掉、保留原样`），交给 lint 兜底；单行花括号列表顺手抹平空格 |
-| **已发生的排版坍塌要能回滚** | 上面那条修复改的是「以后」，已经被压掉的 27 条声明得还原 | 新增 `ops/restore_import_formatting.mjs`：以 `git show HEAD:<file>` 的同名声明为**格式真源**，把「当前已没有的名字」按 specifier 粒度从 HEAD 文本里抠掉、其余逐字沿用；HEAD 里没有的声明（本次新增的回引）保持现状 |
+| **已发生的排版坍塌要能回滚** | 上面那条修复改的是「以后」，已经被压掉的 27 条声明得还原 | 新增 `ops/studio/restore_import_formatting.mjs`：以 `git show HEAD:<file>` 的同名声明为**格式真源**，把「当前已没有的名字」按 specifier 粒度从 HEAD 文本里抠掉、其余逐字沿用；HEAD 里没有的声明（本次新增的回引）保持现状 |
 
 另新增 `--whole-statement`：`const a = {...}, b = {...};` 这种多声明语句没法只搬一条（会留 `const ;` 碎片），
 此开关把同语句声明整条搬走并把它们一并纳入回引 —— `home.ts` 里成片的属性元数据表正是这么写的。
@@ -848,7 +856,7 @@ function titleButtonMenuDeps() {
   它的宿主自由变量只有 **1 个**（`findElement`），看着最划算；但这些名字在宿主里被引用上千处，
   搬走就必须让宿主重新解构 661 个名字（净收益 ≈ 0），或者把全宿主 `x` 改写成 `els.x`（数千处改写）。
   **判据：看「搬走后宿主还要不要这些名字」**，而不是看残留依赖数。
-- 语句级切片工具**已支持**：`--range=START-END`（区间必须正好框住一条语句）+ `ops/studio_slice_wrap.mjs`
+- 语句级切片工具**已支持**：`--range=START-END`（区间必须正好框住一条语句）+ `ops/studio/studio_slice_wrap.mjs`
   （工厂包装 + 宿主 getter 调用片段），两条自检已进 `check:deps`；语义约束（依赖必须惰性注入、
   改写只在引用位）与两个工具 bug 记在 6l 小节。
 - `studio-app.ts`（20,681 行）剩下的形态是**函数声明**，`--rank` 给的便宜档（成本 1010~1080）全是
@@ -862,7 +870,9 @@ function titleButtonMenuDeps() {
   → **7c 已完成**：8 刀搬走 70 个方法（零残留依赖），7,154 → **1,888 行**，已达 <3000 目标；剩下的是
   类自己的状态机与渲染核心（`setDocument` / `renderComponents` / `syncSelection` / 生命周期）。见 7c 小节。
 - `stage.ts`（5,702 行）是同 6c 的「巨型宿主 + 嵌套声明」形态，先按 `--rank` 复量再定
-  （它已有 4 个 seam 文件拆出去过）。
+  （它已有 4 个 seam 文件拆出去过）→ **8a 已落地 7 刀**（5,702 → 4,485，见第 8 节）；
+  余量按 `--rank` 的「成本」列继续，最大两块是 `stageHandlersHost`（240 行 / 63 个可变捕获）
+  与 `mountStage` 内的状态同步块（73 个可变捕获，与 `runStudioRenderLoop` 同一类问题，先显式化再切）。
 
 再往上就进「可变捕获」区（成本 1000+，如 `navigationIconCopyError` 牵 `activeProject`、
 `onWindowMessage` 牵 `lightingPanelDragState`）：按 6d/6e 的口径先判「整体重绑 → 单元」还是
@@ -875,3 +885,32 @@ function titleButtonMenuDeps() {
 - `drawDoor` + `drawCourtyardArea`（1,725 行）：**已完成**（见 6b，落在 `app/3d-studio/plan/studio-plan-item-drawing.ts`）。
 - `runStudioRenderLoop`：可变捕获 **73** 个（`threeCamera`、`studioProject`、`sceneRootNode`…）→ **最后再动**；
   先把状态收进显式 context，否则每搬一次都要重连一堆渲染循环状态。
+
+---
+
+## 8. 模板切片（模板维度，2026-10-13）
+
+`stage.ts` 的前 7 刀（8a）走的是既有 AST 通道：`lighting` / `controls` / `camera-motion` /
+`layers-sync` / `refresh` / `curtain-motion` / `navigation-drag`，5,702 → **4,485 行**，每刀都带显式
+依赖袋接口（`StageLightingDeps` … `StageNavigationDragDeps`），宿主侧留同名转发器与状态 get/set 访问器。
+
+但**行数余量的大头不在 `.ts`**：`entries/EditorView.vue` 的模板 2,630 行、`entries/StudioView.vue` 的模板
+1,514 行，其中绝大部分是**引擎命令式填充的静态 DOM 契约** —— inspector 表单、对话框、浮层壳，
+零 Vue 指令（`{{ }}` / `v-*` / `@` / `:` 一个都没有），由旧引擎用 `getElementById()` 取到后自己填自己读。
+
+所以新增了第三个切片维度（与「声明切片」「语句切片」并列）：`ops/studio/studio_template_seam.mjs`。
+
+- 计划是**可复现文件**（`ops/plans/studio/editor-view-template.json`、`studio-view-template.json`），
+  锚点用 `#id` 或 `.class`（`.plan-panel` 这种没有 id 的静态栏只能按 class 定位，按空格切令牌整词比较，
+  `\b` 会把 `plan-panel--collapsed` 误吃成同一段）。
+- 子组件用**多根模板**（fragment）渲染 → 不新增包裹元素，DOM 结构与切片前逐字节一致，
+  不会打断 `.panel > .inspector-form` 这类子选择器。
+- 紧贴段落上方的单行 HTML 注释**跟段落一起搬**（否则挂载点插在第一个段落处，注释会被孤立在原地）。
+- 对账四条（不通过就不写盘）：id/class 锚点在宿主里消失、在子组件里恰好一次、组件模板配平、
+  跨组段落不重叠；另有「段落不连续 → 渲染位置前移」告警（DOM 顺序有语义，不硬拦但必须报）。
+- 自检 `scripts/gates/_studio_template_seam_selftest.mjs`（28 项断言，含 6 个负向用例）在 `check:deps` 链上。
+
+结果：`EditorView.vue` 2,717 → **291 行**（7 个子组件落在 `chrome/editor/`）；
+`StudioView.vue` 1,599 → **1,228 行**（3 个子组件落在 `chrome/creator/`）。
+两个目录已登记为 `chrome` 层域，`kpi:studio` 的域覆盖随之从 87,934 → 93,881 行（只增不减）。
+

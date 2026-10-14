@@ -80,8 +80,8 @@
 </template>
 
 <script setup>
-import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsPageShell from '@/components/common/settings-page-shell/SettingsPageShell.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import ConnectionOverviewSection from './connection/OverviewSection.vue'

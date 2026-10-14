@@ -5,9 +5,9 @@
 <script setup>
 import { Bell } from '@lucide/vue'
 
-import ListPageHero from '@/components/page-shell/ListPageHero.vue'
+import ListPageHero from '@/components/list-page-shell/ListPageHero.vue'
 
-import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
+import ListPageMetrics from '@/components/list-page-shell/ListPageMetrics.vue'
 
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 

@@ -5,13 +5,19 @@
 -->
 <template>
   <Transition name="hos-modal">
-    <div v-if="isOpen" class="hos-modal-root">
+    <div v-if="isOpen" ref="rootRef" class="hos-modal-root">
       <div class="hos-modal-backdrop" @click="$emit('close')" />
-      <div class="hos-modal-panel hos-modal-panel--md">
+      <div
+        ref="panelRef"
+        class="hos-modal-panel hos-modal-panel--md"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="epm-title"
+      >
         <div class="hos-modal-head">
           <div class="hos-modal-head-left">
             <div>
-              <h2 class="hos-modal-title">{{ `选择常用 ${domainLabelText}` }}</h2>
+              <h2 id="epm-title" class="hos-modal-title">{{ `选择常用 ${domainLabelText}` }}</h2>
               <p class="hos-modal-subtitle">{{ `已选择 ${selectedIds.length} 个设备` }}</p>
             </div>
           </div>
@@ -52,6 +58,9 @@
             v-if="filteredEntities.length > 0"
             ref="listEl"
             :class="['hos-modal-list', useVirtualScroll && 'hos-modal-list--virtual']"
+            role="listbox"
+            aria-multiselectable="true"
+            :aria-label="`常用${domainLabelText}列表`"
             @scroll="useVirtualScroll ? onListScroll : undefined"
           >
             <div v-if="useVirtualScroll" :style="{ height: `${virtualPaddingTop}px` }" />
@@ -60,7 +69,14 @@
               :key="entity.entity_id"
               class="hos-modal-list-row"
               :class="{ 'hos-modal-list-row--selected': selectedSet.has(entity.entity_id) }"
+              role="option"
+              tabindex="0"
+              :aria-selected="selectedSet.has(entity.entity_id)"
               @click="toggleEntity(entity.entity_id)"
+              @keydown.enter.prevent="toggleEntity(entity.entity_id)"
+              @keydown.space.prevent="toggleEntity(entity.entity_id)"
+              @keydown.down.prevent="moveRowFocus($event, 1)"
+              @keydown.up.prevent="moveRowFocus($event, -1)"
             >
               <div class="flex items-center gap-4 min-w-0">
                 <div
@@ -115,6 +131,10 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { X, Search, CheckCircle, Circle } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
+import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { fetchEntities } from '@/services/api/entities'
 import { collectIndexedEntityIds, getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { getLargeEntityThreshold } from '@/shared/utils/config/frontend-config'
@@ -139,6 +159,34 @@ const effectiveDomains = computed(() => {
 })
 const entitiesStore = useEntitiesStore()
 const layoutStore = useLayoutStore()
+
+/** 浮层最外层节点与面板：焦点陷阱管面板，背景隔离要的是整层（含背板）。 */
+const rootRef = ref(null)
+const panelRef = ref(null)
+/** 浮层可见性：焦点陷阱 / Esc 层级 / 背景隔离 / 滚动锁共用同一判据。 */
+const isActive = computed(() => !!props.isOpen)
+
+useFocusTrap(panelRef, isActive)
+// Esc 关掉选择器：它是上面「常用设备」设置项的编辑入口，没有 Esc 就只能靠点关闭按钮。
+useEscLayer(isActive, '实体选择器', () => emit('close'))
+useBackgroundInert(rootRef, isActive, '实体选择器')
+useBodyScrollLock(isActive, '实体选择器')
+
+/**
+ * 方向键在列表内移动焦点。
+ *
+ * 用事件现场的 DOM 兄弟节点找下一行、不维护「当前行索引」：虚拟滚动会随滚动
+ * 增删行元素，索引状态一旦与 DOM 不同步，方向键就会跳到看不见的行上。
+ *
+ * @param event - 行上的 keydown 事件（`currentTarget` 即当前行）
+ * @param delta - +1 下一行 / -1 上一行
+ */
+function moveRowFocus(event, delta) {
+  const row = event.currentTarget
+  const rows = [...row.parentElement.querySelectorAll('[role="option"]')]
+  const next = rows[rows.indexOf(row) + delta]
+  if (next instanceof HTMLElement) next.focus()
+}
 
 const query = ref('')
 const selectedIds = ref([])

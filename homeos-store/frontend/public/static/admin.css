@@ -115,6 +115,7 @@ body {
 .admin-shell {
   display: flex;
   height: 100vh;
+  height: 100dvh; /* dvh 在后：后台是跨屏布局，移动端地址栏收起时不能留白也不能溢出 */
   min-height: 0;
   overflow: hidden;
   background: var(--hb-bg);
@@ -2716,6 +2717,7 @@ body {
 /* 启动占位 */
 .admin-boot {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;

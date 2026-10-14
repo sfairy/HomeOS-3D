@@ -1,4 +1,4 @@
-/* eslint-disable no-console -- 冒烟脚本的唯一交付物就是控制台 PASS/FAIL 记录 */
+ 
 /**
  * 断言核心（跨运行时共用）：`.ts` 冒烟与 `.mjs` 门禁自检都用这一份。
  *

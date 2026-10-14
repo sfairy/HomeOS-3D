@@ -12,6 +12,7 @@ import ipaddress
 import json
 import logging
 import secrets
+import socket
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -125,7 +126,37 @@ def is_safe_webpush_endpoint(endpoint: str) -> bool:
         return False
     if parsed.scheme != "https":
         return False
+    # 注意：这里只看**字面**主机名，挡不住 DNS rebinding（注册时解析到公网、投递时改解析到
+    # 内网）。真正投递前还要过一次 `resolve_public_endpoint`。
     return not is_blocked_webpush_host(parsed.hostname or "")
+
+
+def resolve_public_endpoint(endpoint: str) -> tuple[bool, str]:
+    """解析 endpoint 主机名，确认它**只**指向公网地址（防 DNS rebinding），返回 ``(放行, 说明)``。
+
+    为什么注册期的检查不够：`evil.example.com` 可以先解析到公网地址通过注册，投递时再改解析
+    到 `127.0.0.1` 或 `169.254.169.254`（云元数据）—— 服务端就替攻击者打了内网。解析失败
+    也不放行：把「解析不出来」当成「公网」正是 rebinding 想要的状态。
+    """
+    try:
+        parsed = urlparse(str(endpoint or ""))
+        host = parsed.hostname or ""
+        port = parsed.port or 443
+    except ValueError as error:
+        return False, f"endpoint 无法解析：{error}"
+    if not host or is_blocked_webpush_host(host):
+        return False, "endpoint 主机名不合法"
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except OSError as error:
+        return False, f"DNS 解析失败：{error}"
+    addresses = {str(info[4][0]) for info in infos}
+    if not addresses:
+        return False, "DNS 未返回任何地址"
+    blocked = sorted(address for address in addresses if is_blocked_webpush_host(address))
+    if blocked:
+        return False, f"解析到内网/回环地址 {blocked}"
+    return True, ""
 
 
 def _hkdf(salt: bytes, ikm: bytes, info: bytes, length: int) -> bytes:
@@ -443,6 +474,11 @@ class WebPushService:
 
     async def _send_one(self, sub: PushSubscription, payload: bytes) -> None:
         try:
+            # 投递前再解析一次：注册期的字面检查挡不住 DNS rebinding，这里是最后一道门。
+            allowed, reason = await asyncio.to_thread(resolve_public_endpoint, sub.endpoint)
+            if not allowed:
+                logger.error("跳过 WebPush 投递（%s）：%s", reason, sub.endpoint[:80])
+                return
             body, _ = await asyncio.to_thread(
                 encrypt_webpush_payload, payload, sub.p256dh, sub.auth
             )
@@ -496,4 +532,5 @@ __all__ = [
     "is_blocked_webpush_host",
     "is_private_ipv4",
     "is_safe_webpush_endpoint",
+    "resolve_public_endpoint",
 ]

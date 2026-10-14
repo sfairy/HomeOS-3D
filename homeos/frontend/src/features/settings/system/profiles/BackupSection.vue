@@ -192,7 +192,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { Upload, Loader2, Settings, Package, HardDrive, Save, Clock, Archive } from '@lucide/vue'
-import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
+import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import BackupRestoreDialog from './BackupRestoreDialog.vue'

@@ -26,7 +26,7 @@ from ..platform.core.booleans import parse_boolean_query
 from ..platform.core.errors import api_error, forbidden, not_found
 from ..platform.core.pagination import parse_crud_pagination
 from ..platform.security.auth_context import require_user
-from ..realtime.access import (
+from ..platform.security.entity_access import (
     filter_entities_by_access,
     is_entity_allowed,
     resolve_entity_restrictions,

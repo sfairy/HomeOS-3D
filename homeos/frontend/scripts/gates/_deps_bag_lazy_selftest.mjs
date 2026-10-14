@@ -17,7 +17,18 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { GATE_NAME, bagLiterals, collectBagWrites, findBagViolations, findSetterGaps, findUnresolvedBagHosts } from './check-deps-bag-lazy.mjs'
+import {
+  GATE_NAME,
+  arrowBagLiterals,
+  bagLiterals,
+  collectBagWrites,
+  findBagViolations,
+  findLateDeclMembers,
+  findNativeForwardMembers,
+  findSetterGaps,
+  findUnresolvedBagHosts,
+  functionBagLiterals,
+} from './check-deps-bag-lazy.mjs'
 import { check, report } from '../_smoke_harness.mjs'
 
 /** 造一个依赖袋宿主片段（`body` 为袋字面量内部文本） */
@@ -40,7 +51,7 @@ function numbers(src) {
   const multiline = numbers(bagSrc('    patchProjectionsFromChanges: (changes) =>\n      patchProjectionsFromChanges(changes, entities),'))
   check('1c 跨行属性值拦下（只按单行扫描会静默漏掉）', multiline.names.join(',') === 'patchProjectionsFromChanges', JSON.stringify(multiline))
 
-  const inline = numbers(bagSrc('', { ret: '({', })) // 空袋
+  const inline = numbers(bagSrc('', { ret: '({' })) // 空袋
   check('1d 空袋不报', inline.members === 0 && inline.names.length === 0, JSON.stringify(inline))
 
   const oneLine = numbers('function aDeps() {\n  return ({ a, b, c, d });\n}\n')
@@ -103,22 +114,126 @@ function numbers(src) {
   let members = 0
   const problems = []
   for (const f of files) {
-    const r = findBagViolations(fs.readFileSync(f, 'utf8'), path.relative(root, f))
-    bags += r.bags
-    members += r.members
-    problems.push(...r.problems)
+    const text = fs.readFileSync(f, 'utf8')
+    const rel = path.relative(root, f)
+    const r = findBagViolations(text, rel)
+    const l = findLateDeclMembers(text, rel)
+    bags += r.bags + l.bags
+    members += r.members + l.members
+    problems.push(...r.problems, ...l.problems, ...findNativeForwardMembers(text, rel))
   }
 
   check('4a 真实源码树解析出依赖袋（防「解析器空转 → 全绿」）', bags > 0, `bags=${bags}`)
   check('4b 真实源码树解析出袋成员（防「成员切块失效 → 无违规可报」）', members > 100, `members=${members}`)
-  check('4c 真实源码树当前 0 违规', problems.length === 0, problems.map((p) => `${p.file}:${p.line} ${p.bag}.${p.member}`).join('; '))
+  check('4c 真实源码树当前 0 违规（惰性 + 晚声明 + 裸转发）', problems.length === 0, problems.map((p) => `${p.file}:${p.line} ${p.bag}.${p.member}`).join('; '))
+
+  // 两种形态都要真的解析出来（第二种曾被整体漏掉，判据形同不存在）
+  let fnBags = 0
+  let arrowBags = 0
+  for (const f of files) {
+    const ls = fs.readFileSync(f, 'utf8').split('\n')
+    fnBags += functionBagLiterals(ls).length
+    arrowBags += arrowBagLiterals(ls).length
+  }
+  check('4c2 两种形态都解析到袋（防「只认函数形态 → 箭头形态静默漏检」）', fnBags > 0 && arrowBags > 0, `fn=${fnBags} arrow=${arrowBags}`)
 
   // 解析器本身：袋定位必须落在 `*Deps` 工厂上，且确实切出了字面量行范围
-  // ⚠ 8a（stage.ts）已回滚，切片袋现存的宿主改成 home.ts（4 个袋），别再指向单体文件
+  // ⚠ 8a（stage.ts）已回滚，切片袋现存的宿主改成 home.ts（4 个函数形态袋 + 3 个箭头形态袋），别再指向单体文件
   const sample = fs.readFileSync(path.join(srcDir, 'studio/app/editor/home.ts'), 'utf8')
-  const ranges = bagLiterals(sample.split('\n'))
-  check('4d 定位到 home.ts 的 4 个依赖袋', ranges.length === 4, JSON.stringify(ranges.map((r) => r.bag)))
+  const ranges = functionBagLiterals(sample.split('\n'))
+  check('4d 定位到 home.ts 的 4 个函数形态依赖袋', ranges.length === 4, JSON.stringify(ranges.map((r) => r.bag)))
   check('4e 袋字面量行范围有效（endLine 不早于 openLine）', ranges.every((r) => r.endLine >= r.openLine), JSON.stringify(ranges))
+  const arrowRanges = arrowBagLiterals(sample.split('\n'))
+  check('4f 同一文件的箭头形态袋也要定位到', arrowRanges.length === 3, JSON.stringify(arrowRanges.map((r) => r.bag)))
+  check(
+    '4g bagLiterals = 两种形态之和（合计口径别漏形态）',
+    bagLiterals(sample.split('\n')).length === ranges.length + arrowRanges.length,
+    JSON.stringify(bagLiterals(sample.split('\n')).map((r) => `${r.form}:${r.bag}`)),
+  )
+}
+
+// ---- 6. 箭头形态袋（不提升）：判据是**声明顺序**，不是「一律访问器」 ----------------------
+{
+  /** 造一个箭头形态袋宿主：`body` 为成员文本，`after` 追加到袋之后（放声明），`before` 放前面 */
+  const arrowSrc = (body, { after = '', before = '', name = 'thingDeps' } = {}) =>
+    `${before}const ${name} = () => ({\n${body}\n});\n${after}function use() {\n  return ${name}();\n}\n`
+
+  const late = findLateDeclMembers(arrowSrc('  editorSession,', { after: 'const editorSession = { a: 1 };\n' }), 'case.ts')
+  check('6a 裸值成员 + 声明在袋定义之后 → 拦下（本仓真踩的 `Cannot access F`）', late.problems.length === 1 && late.problems[0].member === 'editorSession', JSON.stringify(late.problems))
+
+  const early = findLateDeclMembers(arrowSrc('  editorSession,', { before: 'const editorSession = { a: 1 };\n' }), 'case.ts')
+  check('6b 声明在袋定义之前 → 放行（袋不提升，构造时名字必然已初始化）', early.problems.length === 0, JSON.stringify(early.problems))
+
+  const earlyArrow = findLateDeclMembers(arrowSrc('  saveStatusElement,', { before: 'const saveStatusElement = doc.createElement("span");\n' }), 'case.ts')
+  check('6c 提前声明 + 裸值 → 放行（不为天然安全的成员白改访问器）', earlyArrow.problems.length === 0, JSON.stringify(earlyArrow.problems))
+
+  const accessorLate = findLateDeclMembers(arrowSrc('  get editorSession() {\n    return editorSession;\n  },', { after: 'const editorSession = { a: 1 };\n' }), 'case.ts')
+  check('6d 访问器成员一律放行（哪怕声明在后面）', accessorLate.problems.length === 0, JSON.stringify(accessorLate.problems))
+
+  const hoisted = findLateDeclMembers(arrowSrc('  helper,', { after: 'function helper() {}\n' }), 'case.ts')
+  check('6e 后面是**函数声明** → 放行（提升，永不 TDZ）', hoisted.problems.length === 0, JSON.stringify(hoisted.problems))
+
+  const blockBody = findLateDeclMembers('const thingDeps = () => {\n  return ({\n    editorSession,\n  });\n};\nconst editorSession = 1;\n', 'case.ts')
+  check('6f 块体形态 `() => { return ({…}) }` 也要认', blockBody.bags === 1 && blockBody.problems.length === 1, JSON.stringify(blockBody))
+
+  const param = findLateDeclMembers('function host(e) {\n  const thingDeps = () => ({ e });\n  e = 1;\n  return thingDeps;\n}\n', 'case.ts')
+  check('6g 宿主形参不算「晚声明」（`e` 这类上下文对象最容易误报）', param.problems.length === 0, JSON.stringify(param.problems))
+
+  const cont = findLateDeclMembers('const thingDeps = () => ({ editorSession });\nconst a = 1,\n  editorSession = 2;\n', 'case.ts')
+  check('6h 多声明符换行（`const a = 1,` 换行后的 `  x = …`）也要认成声明', cont.problems.length === 1, JSON.stringify(cont.problems))
+
+  const selfArrow = findLateDeclMembers('const thingDeps = () => ({\n  normalizeDocument: (raw: any) => raw,\n});\n', 'case.ts')
+  check('6i 成员值里的 `=>` 不能被当成「声明在自己那一行」（实测假阳）', selfArrow.problems.length === 0, JSON.stringify(selfArrow.problems))
+
+  // 严格判据不能被新判据削弱：函数形态袋的裸值成员（哪怕声明在前面）依然要拦
+  const fnLate = findBagViolations(bagSrc('    renderMarkerPositions,'), 'case.ts')
+  check('6j 函数形态袋仍是「一律访问器」严格判据（提升形态不受新判据影响）', fnLate.problems.length === 1, JSON.stringify(fnLate.problems))
+
+  // 第二类（缺 setter）对箭头形态袋同样生效
+  const host = 'import { applyThingCore } from "./consumer";\nconst thingDeps = () => ({\n  get widget() {\n    return widget;\n  },\n});\nfunction forward() {\n  return applyThingCore(thingDeps(), extra);\n}\n'
+  const gaps = findSetterGaps(
+    host,
+    collectBagWrites(host, {
+      resolveSpecifier: () => '/w/consumer.ts',
+      readModule: () => 'export function applyThingCore(deps) { deps.widget = 1; }',
+    }),
+    'case.ts',
+  )
+  check('6k 箭头形态袋一样查「被写入却没有 setter」', gaps.length === 1, JSON.stringify(gaps))
+}
+
+// ---- 7. 第三类：直接转发同名全局函数（接收者会变成袋对象 → Illegal invocation） -----------
+{
+  const fnBag = (body) => `function thingDeps() {\n  return ({\n${body}\n  });\n}\n`
+
+  check(
+    '7a 裸值简写转发 `getComputedStyle,` → 拦下（本仓真踩的 Illegal invocation）',
+    findNativeForwardMembers(fnBag('    getComputedStyle,'), 'case.ts').length === 1,
+  )
+  check(
+    '7b 访问器转发 `get x() { return x; }` 一样拦（接收者仍是袋对象，与惰性无关）',
+    findNativeForwardMembers(fnBag('    get getComputedStyle() {\n      return getComputedStyle;\n    },'), 'case.ts').length === 1,
+  )
+  check(
+    '7c 箭头形态袋同样拦（该缺陷与袋形态无关）',
+    findNativeForwardMembers('const thingDeps = () => ({\n  setTimeout,\n});\n', 'case.ts').length === 1,
+  )
+  check(
+    '7d 钉死接收者的包装写法放行（名字 ≠ 返回标识符）',
+    findNativeForwardMembers(fnBag('    get getComputedStyle() {\n      return getComputedStyleForDeps;\n    },'), 'case.ts').length === 0,
+  )
+  check(
+    '7e 包一层箭头也放行（`k: (el) => window.k(el)`）',
+    findNativeForwardMembers(fnBag('    getComputedStyle: (el) => window.getComputedStyle(el),'), 'case.ts').length === 0,
+  )
+  check(
+    '7f 不在实测名单里的全局不拦（fetch / scrollTo 接收者校验放宽，拦了就是误报）',
+    findNativeForwardMembers(fnBag('    fetch,\n    scrollTo,'), 'case.ts').length === 0,
+  )
+  check(
+    '7g 只拦「同名转发」：换了名字的业务函数不拦',
+    findNativeForwardMembers(fnBag('    getComputedStyle2,'), 'case.ts').length === 0,
+  )
 }
 
 // ---- 5. 第二类：被写入的成员必须有 setter（且判定要按袋、不能在空转） ---------------------

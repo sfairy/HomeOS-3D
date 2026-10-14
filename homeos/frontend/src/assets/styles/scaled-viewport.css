@@ -7,6 +7,15 @@
   width: 100vw;
   height: 100vh;
   height: 100dvh;
+  /*
+   * 视口安全区：整个壳层是「等比缩放画布」，被系统区域（刘海 / 圆角 / 底部手势条）
+   * 裁掉的边角会连带画布一起丢内容。用 env() 把画布往里让，box-sizing 保证 padding
+   * 不额外撑大 100vw/100dvh。非异形屏 insets 为 0，等于没改。
+   * （`viewport-fit=cover` 由各页面资产声明，否则 env() 恒为 0。）
+   */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   align-items: center;

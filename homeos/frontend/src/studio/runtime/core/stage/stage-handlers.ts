@@ -552,7 +552,7 @@ export function createPickMarkerAtPoint(host: StageHandlersHost) {
         candidateMarkerElement.closest("[inert]")
       )
         continue;
-      const computedStyle2 = getComputedStyle(candidateMarkerElement);
+      const computedStyle2 = window.getComputedStyle(candidateMarkerElement);
       if (computedStyle2.pointerEvents === "none" || computedStyle2.visibility === "hidden")
         continue;
       const candidateMarkerRect = candidateMarkerElement.getBoundingClientRect();

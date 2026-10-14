@@ -50,12 +50,20 @@ def ensure_backend_on_path() -> None:
         sys.path.insert(0, str(BACKEND))
 
 
-def bootstrap_env(prefix: str = "homeos-store-smoke-", data_dir: Path | None = None) -> Path:
+def bootstrap_env(
+    prefix: str = "homeos-store-smoke-",
+    data_dir: Path | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> Path:
     """硬设 ``STORE_DATA_DIR`` 到临时目录，并把 ``backend/`` 加入 ``sys.path``。
 
     必须**硬赋值**而非 ``setdefault``：若外部（开发者 shell / CI）已经把 STORE_DATA_DIR
     导出成真实 data/，``setdefault`` 会原样保留它，冒烟就会往真实库里写。宁可显式报错，
     也不要静默污染。
+
+    ``extra_env`` 用于脚本专属变量（授权密钥目录、端口、引导密钥等）—— 必须在
+    ``import src.*`` **之前**落位（``StoreSettings`` 在导入期构造），所以由本函数代劳，
+    而不是让每个脚本自己写一段「先 os.environ[...] 再 import」的样板。
     """
     if data_dir is not None:
         resolved = Path(data_dir)
@@ -70,6 +78,9 @@ def bootstrap_env(prefix: str = "homeos-store-smoke-", data_dir: Path | None = N
             " 为免冒烟写进真实 data/，请先 `unset STORE_DATA_DIR` 再跑。"
         )
     os.environ["STORE_DATA_DIR"] = str(resolved)
+    if extra_env:
+        for key, value in extra_env.items():
+            os.environ[key] = value
     ensure_backend_on_path()
     return resolved
 

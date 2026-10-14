@@ -632,6 +632,10 @@
 .device-analytics__rank-scroll {
   flex: 1;
   min-height: 0;
+  /* 横向显式声明：表格首列被钉宽、其余列 white-space: nowrap，窄容器只能横向滚动。
+     只写 overflow-y 时，`overflow-x: visible` 会被 CSS 规范悄悄改成 auto —— 那是规范的
+     隐式结果，改一次 overflow 简写就会静默丢失横向可滚，故这里写死。 */
+  overflow-x: auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: 0 -4px;
@@ -1514,6 +1518,8 @@
 .device-detail-tab__rank-scroll {
   flex: 1;
   min-height: 0;
+  /* 同 .device-analytics__rank-scroll：横向可滚必须显式，不靠规范的 visible→auto 隐式转换 */
+  overflow-x: auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: 0 -2px;
@@ -1737,6 +1743,22 @@
   }
 }
 
+/* 窄屏收敛：以下网格原先只有固定列数（4 列 KPI / 2 列分析面板），640px 以下既不换行也不
+   降列，靠 minmax(0, 1fr) 把四张卡片各挤到 ~70px —— 指标标题先断字、数值再看不清。
+   与 .dev-metric-grid / .device-analytics__kpi-strip 既有的 900px 降列保持同一套「先 2 后 1」口径。 */
+@media (max-width: 639px) {
+  .dev-analytics-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .device-analytics__usage-metrics,
+  .device-analytics__usage-metrics--3,
+  .device-overview__kpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .device-analytics-tab__compare-chip {
   display: inline-flex;
   align-items: center;
@@ -1853,6 +1875,8 @@
   flex: 1;
   min-height: 120px;
   max-height: 360px;
+  /* 历史表与使用排行同源：横向可滚显式声明 */
+  overflow-x: auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: 0 -2px;
@@ -1973,6 +1997,10 @@
 
 .device-row-menu {
   position: fixed;
+  /* 菜单是遮罩（--z-modal-root 层）的子节点，自身的 z-index 只在遮罩这个层叠上下文内
+     排序；不写时它是 auto，同层内的兄弟（遮罩背景层）就按 DOM 顺序决定上下。
+     显式声明 1，保证菜单永远压在自己的遮罩之上，而不是「碰巧因为排在后面」。 */
+  z-index: 1;
   min-width: 168px;
   padding: 6px;
   border-radius: var(--hos-radius-card);

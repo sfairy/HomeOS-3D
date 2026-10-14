@@ -66,7 +66,7 @@ import {
   buildEntityBuckets,
   buildTimeBuckets,
   computeEventAnalyticsSummary,
-} from '@/features/events/analytics.util'
+} from '@/shared/events/utils/analytics.util'
 
 const props = defineProps({
   stats: { type: [Object, null], default: null },

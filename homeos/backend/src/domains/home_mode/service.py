@@ -29,7 +29,7 @@ from .triggers import (
     prune_home_mode_trigger_cooldown,
 )
 from ...platform.core.app_config import load_raw_config
-from ...platform.core.errors import api_error, not_found
+from ...platform.core.errors import api_error, bad_request, not_found
 from ...platform.core.models import HomeMode
 
 logger = logging.getLogger("homeos.home_mode")
@@ -71,13 +71,57 @@ def _parse_json(raw: Any, fallback: Any) -> Any:
         return fallback
 
 
+def _parse_json_loud(raw: Any, fallback: Any, *, field: str, mode_id: str) -> Any:
+    """与 :func:`_parse_json` 同口径，但解析失败会**留下日志**，不再静默返回兜底值。
+
+    `config` 解析失败 = 这个模式的动作全丢了（激活后什么都不会发生）；`triggers` 解析失败 =
+    自动化静默失效。旧实现两者都悄悄变成 `[]`/`None`，界面上完全看不出异常，用户只会觉得
+    「这个模式坏了」却拿不到任何线索。
+
+    这里刻意**不抛异常**：列表接口会被一行脏数据整体打挂（连删掉它的机会都没有），
+    所以改成点名 id 与字段的错误日志 —— 真要在写前拦，走 `normalize_home_mode_json_array`。
+    """
+    if raw is None or raw == "":
+        return fallback
+    if isinstance(raw, (list, dict)):
+        return raw
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError) as error:
+        logger.error(
+            "家庭模式 %s 的 %s 字段不是合法 JSON（%s），已按空值处理：请修复或重建该模式",
+            mode_id,
+            field,
+            error,
+        )
+        return fallback
+
+
+def _coerce_int_field(payload: dict[str, Any], key: str, default: int) -> int:
+    """把请求体里的可选整数字段解析成 int；非法值给 **400** 而不是让 `int()` 炸成 500。
+
+    旧实现是裸 `int(payload.get("sortOrder") or 0)`：客户端传 `"abc"`（或对象、小数串）时
+    在服务里抛 ValueError，被全局处理器当未知异常 —— 一个「参数不对」的错误看起来像服务端崩了。
+    """
+    raw = payload.get(key)
+    if raw is None or raw == "":
+        return default
+    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+        bad_request(f"{key} 须为整数")
+    try:
+        return int(str(raw).strip()) if isinstance(raw, str) else int(raw)
+    except (TypeError, ValueError):
+        bad_request(f"{key} 须为整数")
+    return default
+
+
 def mode_to_dict(row: HomeMode) -> dict[str, Any]:
     return {
         "id": row.id,
         "name": row.name,
         "icon": row.icon,
-        "config": _parse_json(row.config, []),
-        "triggers": _parse_json(row.triggers, None),
+        "config": _parse_json_loud(row.config, [], field="config", mode_id=str(row.id)),
+        "triggers": _parse_json_loud(row.triggers, None, field="triggers", mode_id=str(row.id)),
         "isActive": bool(row.is_active),
         "deviceSnapshot": _parse_json(row.device_snapshot, None),
         "sortOrder": row.sort_order,
@@ -89,6 +133,12 @@ def mode_to_dict(row: HomeMode) -> dict[str, Any]:
 
 
 class HomeModeService:
+    """家庭模式服务 —— 本域**唯一的对外门面**。
+
+    API 路由、agent 工具、realtime 事件都从这里进；域内 `actions` / `triggers` 拿到的
+    `_HomeModeDeps` 是服务给出的窄接口（见其 docstring），不是第二条入口。
+    状态真源只有一处：`_active_mode_id` + `HomeMode` 表。
+    """
     def __init__(
         self,
         session_factory,
@@ -266,9 +316,9 @@ class HomeModeService:
                 if payload.get("triggers") is not None
                 else None
             ),
-            sort_order=int(payload.get("sortOrder") or 0),
+            sort_order=_coerce_int_field(payload, "sortOrder", 0),
             exclusive_group=payload.get("exclusiveGroup") or "default",
-            priority=int(payload.get("priority") if payload.get("priority") is not None else 50),
+            priority=_coerce_int_field(payload, "priority", 50),
         )
         with self._session_factory() as session:
             session.add(row)
@@ -301,11 +351,11 @@ class HomeModeService:
                     else None
                 )
             if "sortOrder" in payload:
-                row.sort_order = int(payload["sortOrder"] or 0)
+                row.sort_order = _coerce_int_field(payload, "sortOrder", 0)
             if "exclusiveGroup" in payload:
                 row.exclusive_group = payload["exclusiveGroup"] or "default"
             if "priority" in payload:
-                row.priority = int(payload["priority"] if payload["priority"] is not None else 50)
+                row.priority = _coerce_int_field(payload, "priority", 50)
             session.commit()
             session.refresh(row)
             result = mode_to_dict(row)
@@ -349,9 +399,9 @@ class HomeModeService:
         # 一次性 IN 查询取回全部目标模式：原实现按条目逐个 `session.get`，
         # 拖拽排序 N 个模式就是 N 次往返（N+1）。
         order_by_id = {
-            str(item.get('id')): int(item.get('sortOrder') or 0)
+            str(item.get('id')): _coerce_int_field(item, "sortOrder", 0)
             for item in items
-            if item.get('id')
+            if isinstance(item, dict) and item.get('id')
         }
         if order_by_id:
             with self._session_factory() as session:
@@ -627,18 +677,16 @@ class HomeModeService:
         if asyncio.iscoroutine(result):
             await result
 
-    # deps 视图
-    @property
-    def deps(self) -> _HomeModeDeps:
-        return self._deps
-
-    @property
-    def trigger_state(self) -> HomeModeTriggersState:
-        return self._trigger_state
-
-
 class _HomeModeDeps:
-    """激活 / 触发编排所需依赖集合（对齐 actions.internals / triggers.internals 的 deps）。"""
+    """激活 / 触发编排所需依赖集合（对齐 actions.internals / triggers.internals 的 deps）。
+
+    它不是第二个服务门面，而是 `HomeModeService` 交给 actions / triggers 的**窄接口**：
+    需要的动作以具名方法暴露，状态读写仍然只有服务一个真源。
+
+    `request_activate` / `request_deactivate` 是**回调进服务**（转换锁与「同组互斥 +
+    快照恢复」那套编排只在服务里）：命名刻意带 `request_` —— 写成 `activate` 时，调用方
+    很容易以为这是「另一条独立的激活通路」。
+    """
 
     def __init__(self, service: HomeModeService) -> None:
         self._service = service
@@ -731,8 +779,10 @@ class _HomeModeDeps:
     def is_leader(self) -> bool:
         return bool(self._service._is_leader())
 
-    async def activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> Any:
+    async def request_activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> Any:
+        """触发器路径请求激活：回调进服务的 `activate`（那里有转换锁与同组互斥编排）。"""
         return await self._service.activate(mode_id, meta)
 
-    async def deactivate(self) -> Any:
+    async def request_deactivate(self) -> Any:
+        """触发器路径请求停用：回调进服务的 `deactivate`。"""
         return await self._service.deactivate()
