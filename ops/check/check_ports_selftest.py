@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO))
 
 from ops.check import check_ports as gate
+from ops.check._selftest_harness import Selftest
 
 #: 需要复制进 fixture 的端口面文件（与 gate.SURFACES / NAME_ONLY_FILES 对齐）。
 SURFACE_FILES = [
@@ -31,15 +32,10 @@ SURFACE_FILES = [
     *gate.NAME_ONLY_FILES,
 ]
 
-failures: list[str] = []
-checked = 0
-
-
-def check(label: str, condition: bool, detail: str = "") -> None:
-    global checked
-    checked += 1
-    if not condition:
-        failures.append(f"{label}{f'（{detail}）' if detail else ''}")
+# 记账/收尾统一走公共骨架（夹具与注入手法留在本文件），调用点写法不变。
+_SELFTEST = Selftest("端口一致性门禁自检")
+failures = _SELFTEST.failures
+check = _SELFTEST.check
 
 
 def build_fixture(root: Path) -> None:
@@ -79,17 +75,7 @@ def run_case(mutate_fn, fragment: str | None) -> None:
 
 
 def run(name: str, fn) -> None:
-    global checked
-    checked += 1
-    try:
-        fn()
-    # 自检自身的用例体不许把整轮炸掉：任何异常都记成一条失败，让 19 个用例的结果一次看全。
-    # （这里刻意捕获 `Exception` 而非更窄的类型，且 ruff 的 BLE001 未启用，故不写 noqa。）
-    except Exception as error:
-        failures.append(f"{name} —— {type(error).__name__}: {error}")
-        print(f"  FAIL {name} —— {type(error).__name__}: {error}")
-    else:
-        print(f"  OK   {name}")
+    _SELFTEST.case(name, fn)
 
 
 def main() -> int:
@@ -254,13 +240,7 @@ def main() -> int:
     # ── 与真实仓库对齐 ──────────────────────────────────────────────────────
     run("真实仓库当前为绿", lambda: check("真实仓库端口一致", not gate.collect_problems(REPO), "；".join(gate.collect_problems(REPO))))
 
-    if failures:
-        print("端口一致性门禁自检失败：")
-        for item in failures:
-            print(f"  - {item}")
-        return 1
-    print(f"端口一致性门禁自检通过（{checked} 项断言）")
-    return 0
+    return _SELFTEST.report()
 
 
 if __name__ == "__main__":

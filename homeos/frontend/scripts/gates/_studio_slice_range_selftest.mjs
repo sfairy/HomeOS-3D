@@ -25,18 +25,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { check, report } from '../_smoke_harness.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '..', '..', '..', '..')
 const EXTRACT = path.join(REPO_ROOT, 'ops', 'studio', 'studio_slice_extract.mjs')
 
-let passed = 0
-const failures = []
-
-function check(label, condition, detail = '') {
-  if (condition) passed++
-  else failures.push(`${label}${detail ? ` —— ${detail}` : ''}`)
-}
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'slice-range-'))
 
@@ -362,9 +356,4 @@ check(
 
 fs.rmSync(tmp, { recursive: true, force: true })
 
-if (failures.length) {
-  console.error(`\n✗ slice --range 自检失败 ${failures.length} 项（通过 ${passed}）：`)
-  for (const f of failures) console.error(`   - ${f}`)
-  process.exit(1)
-}
-console.log(`✓ slice --range 自检通过：${passed} 项断言`)
+report('slice --range 自检')

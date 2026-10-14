@@ -33,9 +33,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ops.check import check_error_codes as gate
+from ops.check._selftest_harness import Selftest
 
-failures: list[str] = []
-checked = 0
+# 记账/收尾统一走公共骨架（夹具与注入手法留在本文件），调用点写法不变。
+_SELFTEST = Selftest("错误码门禁自检")
+failures = _SELFTEST.failures
 
 #: 合成码名（刻意不出现在真源里）：``ALIVE`` 被两处代码引用，``COMMENT_ONLY`` 只被商店前端
 #: 按码分派、后端仅在一句注释里提到它（用来验证「注释不算引用」）。
@@ -119,15 +121,7 @@ def case(mutate, fragment: str | None) -> None:
 
 def run(name: str, fn) -> None:
     """跑一项检查并打印一行；异常一律算失败，不让自检半路炸掉。"""
-    global checked
-    checked += 1
-    try:
-        fn()
-    except Exception as error:
-        failures.append(f"{name} —— {type(error).__name__}: {error}")
-        print(f"  FAIL {name} —— {type(error).__name__}: {error}")
-    else:
-        print(f"  OK   {name}")
+    _SELFTEST.case(name, fn)
 
 
 def main() -> int:
@@ -199,14 +193,7 @@ def main() -> int:
     run("表内重复键：报重复键", lambda: case(duplicate_key, "重复键"))
     run("真源写成解析不出的形态：报解析失败", lambda: case(unparsable_dict, "解析失败"))
 
-    print()
-    if failures:
-        print(f"错误码门禁自检失败：{len(failures)}/{checked} 项")
-        for entry in failures:
-            print(f"  - {entry}")
-        return 1
-    print(f"错误码门禁自检全部通过（{checked} 项）。")
-    return 0
+    return _SELFTEST.report()
 
 
 if __name__ == "__main__":

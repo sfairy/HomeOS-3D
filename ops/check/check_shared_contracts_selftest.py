@@ -68,28 +68,22 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ops.check import check_shared_contracts as gate
+from ops.check._selftest_harness import Selftest
 
 GOLDEN = ROOT / "ops" / "contracts" / "shared-twins.json"
 
-failures: list[str] = []
-checked = 0
+# 记账/收尾统一走公共骨架（夹具与注入手法留在本文件），调用点写法不变。
+_SELFTEST = Selftest("共享契约门禁自检", note="：注入的漂移均被拦下。")
+failures = _SELFTEST.failures
 
 
 def check(name: str, fn) -> None:
-    """跑一项检查并打印一行 OK / FAIL；任何异常都算失败，不让脚本半路炸掉。"""
-    global checked
-    checked += 1
-    try:
-        fn()
-    except AssertionError as error:
-        failures.append(f"{name} —— {error}")
-        print(f"  FAIL {name} —— {error}")
-    except Exception as error:
-        # 未预期异常同样算失败，但要看清类型：它通常意味着环境问题而非判定口径。
-        failures.append(f"{name} —— {type(error).__name__}: {error}")
-        print(f"  FAIL {name} —— {type(error).__name__}: {error}")
-    else:
-        print(f"  OK   {name}")
+    """跑一项检查并打印一行 OK / FAIL；任何异常都算失败，不让脚本半路炸掉。
+
+    未预期异常会和 `AssertionError` 一样算失败，但正文里带上类型
+    （`TypeError: …`）—— 那通常意味着环境问题而非判定口径。
+    """
+    _SELFTEST.case(name, fn)
 
 
 def _load_spec() -> dict:
@@ -543,14 +537,7 @@ def main() -> int:
     check("后端副本已改过：报最容易漂移", lambda: shared_case(shared_drifted_copy, "最容易开始漂移"))
     check("共享包被搬空：报解析失败而非放行", lambda: shared_case(shared_package_emptied, "解析失败"))
 
-    print()
-    if failures:
-        print(f"共享契约门禁自检失败：{len(failures)}/{checked} 项")
-        for entry in failures:
-            print(f"  - {entry}")
-        return 1
-    print(f"共享契约门禁自检全部通过（{checked} 项）：注入的漂移均被拦下。")
-    return 0
+    return _SELFTEST.report()
 
 
 if __name__ == "__main__":

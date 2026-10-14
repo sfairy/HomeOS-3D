@@ -15,21 +15,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { check, report } from '../_smoke_harness.mjs'
 
 // 与 `_studio_slice_range_selftest.mjs` 同口径：脚本在 homeos/frontend/scripts/gates/，仓库根要上四级
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '..', '..', '..', '..')
 const TOOL = path.join(ROOT, 'ops/studio/studio_slice_wrap.mjs')
-let pass = 0
-const check = (name, cond, detail = '') => {
-  if (cond) {
-    pass += 1
-    console.log(`  [PASS] ${name}`)
-  } else {
-    console.log(`  [FAIL] ${name}${detail ? `\n         ${detail}` : ''}`)
-    process.exitCode = 1
-  }
-}
+
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'slice-wrap-'))
 /** 造一个「切片模块」：文件头 + import + 一条事件注册语句（形态与 extract 产物一致）。 */
@@ -216,4 +208,4 @@ const wrapFn = (decls, { iface = 'ThingDeps', thunk = 'thingDeps', hostOnly = fa
   check('6q host-only 不写盘（模块字节不变）', fs.readFileSync(file2, 'utf8') === text)
 }
 
-console.log(process.exitCode ? `\n✗ slice wrap 自检失败（通过 ${pass} 项）` : `\n✓ slice wrap 自检通过：${pass} 项断言`)
+report('slice wrap 自检')

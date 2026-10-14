@@ -26,6 +26,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 GATE = HERE / "check_deprecated_stubs.py"
 
+# 公共骨架按包路径导入：本文件自己用 importlib 直接加载门禁（见 `load_gate`），
+# 但记账层是个正常模块，走包导入才与其它自检一致 —— 所以先把仓库根放上 sys.path。
+REPO_ROOT = HERE.parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from ops.check._selftest_harness import Selftest
+
 
 def load_gate():
     spec = importlib.util.spec_from_file_location("check_deprecated_stubs", GATE)
@@ -113,14 +121,12 @@ def scenario_missing_registry(root_files: dict[str, str]) -> tuple[int, str, str
 
 
 def main() -> int:
-    failures: list[str] = []
-    checks = 0
-
-    def expect(condition: bool, label: str) -> None:
-        nonlocal checks
-        checks += 1
-        if not condition:
-            failures.append(label)
+    # 记账/收尾统一走公共骨架（夹具与注入手法留在本文件），调用点写法不变。
+    st = Selftest(
+        "`@deprecated` 转发桩门禁自检",
+        note="（断链 / 自指 / 桩链 / 未登记 / 死登记 / 过期 / 别名解析 / 登记表缺失）",
+    )
+    expect = st.expect
 
     # ① 干净树 + 空登记：绿。
     code, out, err = scenario({}, [])
@@ -202,16 +208,7 @@ def main() -> int:
     expect(code != 0, "⑮ 登记表缺失必须报红")
     expect("退役登记表缺失" in err, "⑮ 应指出登记表缺失")
 
-    if failures:
-        print("✗ `@deprecated` 转发桩门禁自检失败：")
-        for item in failures:
-            print(f"  - {item}")
-        return 1
-    print(
-        f"✓ `@deprecated` 转发桩门禁自检通过：{checks} 项断言"
-        "（断链 / 自指 / 桩链 / 未登记 / 死登记 / 过期 / 别名解析 / 登记表缺失）"
-    )
-    return 0
+    return st.report()
 
 
 if __name__ == "__main__":

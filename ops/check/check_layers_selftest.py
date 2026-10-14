@@ -27,6 +27,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 GATE = HERE / "check_layers.py"
 
+# 公共骨架按包路径导入：本文件自己用 importlib 直接加载门禁（见 `load_gate`），
+# 但记账层是个正常模块，走包导入才与其它自检一致 —— 所以先把仓库根放上 sys.path。
+REPO_ROOT = HERE.parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from ops.check._selftest_harness import Selftest
+
 
 def load_gate():
     spec = importlib.util.spec_from_file_location("check_layers", GATE)
@@ -84,14 +92,12 @@ def scenario_missing_root() -> tuple[int, str, str]:
 
 
 def main() -> int:
-    failures: list[str] = []
-    checks = 0
-
-    def expect(condition: bool, label: str) -> None:
-        nonlocal checks
-        checks += 1
-        if not condition:
-            failures.append(label)
+    # 记账/收尾统一走公共骨架（夹具与注入手法留在本文件），调用点写法不变。
+    st = Selftest(
+        "后端分层门禁自检",
+        note="（反向依赖 / 根模块越权 / 未登记层 / 深度解析 / 注释误报 / 同层放行）",
+    )
+    expect = st.expect
 
     def case(label: str, files: dict[str, str], *, needle: str, must_fail: bool = True) -> None:
         """在干净树上叠一条边，断言红/绿与提示文案。"""
@@ -200,16 +206,7 @@ def main() -> int:
     expect(code != 0, "⑰ 源码根不存在必须报红")
     expect("源码根不存在" in err, "⑰ 应指出根目录不存在")
 
-    if failures:
-        print("✗ 后端分层门禁自检失败：")
-        for item in failures:
-            print(f"  - {item}")
-        return 1
-    print(
-        f"✓ 后端分层门禁自检通过：{checks} 项断言"
-        "（反向依赖 / 根模块越权 / 未登记层 / 深度解析 / 注释误报 / 同层放行）"
-    )
-    return 0
+    return st.report()
 
 
 if __name__ == "__main__":

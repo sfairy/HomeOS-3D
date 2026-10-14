@@ -33,24 +33,31 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ops.check import check_deploy_independence as gate
+from ops.check._selftest_harness import Selftest
 
-failures: list[str] = []
-checked = 0
+# 记账/收尾统一走公共骨架；下面的 `check()` 策略属于本文件（见其 docstring）。
+_SELFTEST = Selftest("独立部署护栏自检")
+failures = _SELFTEST.failures
 
 
 def check(name: str, fn) -> None:
-    """跑一项检查并打印一行 OK / FAIL；任何异常都算失败，不让脚本半路炸掉。"""
-    global checked
-    checked += 1
+    """跑一项检查并打印一行 OK / FAIL；任何异常都算失败，不让脚本半路炸掉。
+
+    本文件刻意把 `AssertionError`（= 判据没拦住 / 期望不满足）与其它异常
+    （= 自检自身炸了）分开报，输出成 `[FAIL]` 与 `[FAIL] …（意外异常）` 两种 ——
+    这能一眼分辨「门禁漏了」还是「夹具坏了」。这条策略留在本文件；
+    计数与收尾交给 `ops/check/_selftest_harness.py`。
+    """
     try:
         fn()
     except AssertionError as error:
-        failures.append(f"{name}: {error}")
+        _SELFTEST.fail(f"{name}: {error}")
         print(f"[FAIL] {name}")
     except Exception as error:  # 自检要如实报出任何异常，不做类型收窄
-        failures.append(f"{name}: 意外异常 {type(error).__name__}: {error}")
+        _SELFTEST.fail(f"{name}: 意外异常 {type(error).__name__}: {error}")
         print(f"[FAIL] {name}（意外异常）")
     else:
+        _SELFTEST.bump()
         print(f"[  OK] {name}")
 
 
@@ -474,14 +481,7 @@ def main() -> int:
 
     check("6e. 共享包 src 目录缺失 → 自身报错（而非静默通过）", lambda: with_replica(shared_boundary_missing))
 
-    print()
-    if failures:
-        print(f"独立部署护栏自检未通过（{len(failures)}/{checked}）：")
-        for failure in failures:
-            print(f"  - {failure}")
-        return 1
-    print(f"独立部署护栏自检全部通过（{checked} 项断言）")
-    return 0
+    return _SELFTEST.report()
 
 
 if __name__ == "__main__":

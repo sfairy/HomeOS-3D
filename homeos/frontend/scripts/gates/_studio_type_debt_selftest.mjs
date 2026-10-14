@@ -17,17 +17,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { check, report } from '../_smoke_harness.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const GATE = path.join(HERE, 'check-studio-type-debt.mjs')
-
-let passed = 0
-const failures = []
-
-function check(label, condition, detail = '') {
-  if (condition) passed++
-  else failures.push(`${label}${detail ? ` —— ${detail}` : ''}`)
-}
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-type-debt-'))
 const fixtureRoot = path.join(tmp, 'src', 'studio')
@@ -172,14 +165,9 @@ check(
 
 // ------------------------------------------------ 8. `--report` 不判成败
 writeFixture('g.ts', 'export const g = (x: unknown) => (x as any).c\n')
-const report = runGate(['--report'])
-check('`--report` 只打印分布、退出码 0', report.code === 0 && /as any/.test(report.out), report.out.slice(-200))
+const reportRun = runGate(['--report'])
+check('`--report` 只打印分布、退出码 0', reportRun.code === 0 && /as any/.test(reportRun.out), reportRun.out.slice(-200))
 
 fs.rmSync(tmp, { recursive: true, force: true })
 
-if (failures.length) {
-  console.error(`\n✗ studio 类型/吞错债门禁自检失败 ${failures.length} 项（通过 ${passed}）：`)
-  for (const f of failures) console.error(`   - ${f}`)
-  process.exit(1)
-}
-console.log(`✓ studio 类型/吞错债门禁自检通过：${passed} 项断言`)
+report('studio 类型/吞错债门禁自检')

@@ -27,6 +27,18 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 GATE = HERE / "verify_assets.py"
 
+# 公共骨架按包路径导入：本文件自己用 importlib 直接加载门禁（见 `load_gate`），
+# 但记账层是个正常模块，走包导入才与其它自检一致 —— 所以先把仓库根放上 sys.path。
+REPO_ROOT = HERE.parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from ops.check._selftest_harness import Selftest
+
+#: 记账/收尾统一走公共骨架。本文件的用例是「表驱动 + 期望片段」形态（见 `CASES`），
+#: 与其余自检的 `check/expect` 不同，故保留自己的循环与逐行打印，只把清单与收尾交出去。
+_SELFTEST = Selftest("静态资源门禁自检")
+
 
 def load_gate():
     spec = importlib.util.spec_from_file_location("verify_assets", GATE)
@@ -238,7 +250,6 @@ def run_gate(tree: Path) -> tuple[int, str]:
 
 
 def main() -> int:
-    failures: list[str] = []
     greens = 0
     for name, expect, apply_fixture in CASES:
         with fixture() as tree:
@@ -254,16 +265,14 @@ def main() -> int:
             ok = code != 0 and expect in output
             detail = f"期望红且输出含「{expect}」"
         print(f"{'✓' if ok else '✗'} {name}（{detail}）")
-        if not ok:
-            failures.append(f"{name}：exit={code}\n{output}")
+        if ok:
+            _SELFTEST.bump()
+        else:
+            _SELFTEST.fail(f"{name}：exit={code}\n{output}")
 
-    if failures:
-        print("\n✗ 静态资源门禁自检失败：", file=sys.stderr)
-        for item in failures:
-            print(item, file=sys.stderr)
-        return 1
-    print(f"\n✓ 静态资源门禁自检通过：{len(CASES)} 个用例（含 {greens} 个绿档）。")
-    return 0
+    # 收尾行沿用本文件原有的信息量（用例数与绿档数），只是换了统一的记账实现。
+    _SELFTEST.note = f"：{len(CASES)} 个用例（含 {greens} 个绿档）。"
+    return _SELFTEST.report()
 
 
 if __name__ == "__main__":
