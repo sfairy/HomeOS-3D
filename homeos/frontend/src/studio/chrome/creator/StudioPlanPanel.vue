@@ -94,8 +94,9 @@
                                         checked><span>网格</span></label> <label
                                     title="新增或单独拖动桌面物件时自动贴合台面"><input type="checkbox" data-snap-setting="snapSurfaces"
                                         name="snap-setting-snapSurfaces" checked><span>台面</span></label>
-                            </div> <label class="snap-distance"><span>吸附距离</span><input id="snap-tolerance" type="range"
-                                    min="6" max="24" step="1" value="13"><output id="snap-tolerance-value">13
+                            </div> <label class="snap-distance"><span>吸附距离</span><input id="snap-tolerance"
+                                    class="hos-range-ui" type="range" min="6" max="24" step="1" value="13"><output
+                                    id="snap-tolerance-value">13
                                     px</output></label>
                         </div>
                     </div> <button id="finish-wall" type="button" title="未闭合的墙线不会生成地面" hidden>结束绘制</button> <button

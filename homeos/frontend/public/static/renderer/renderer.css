@@ -2898,11 +2898,9 @@
   font-size: 14px;
   font-weight: 650;
 }
+/* 电动床角度滑条挂 `hos-range-ui`；几何与强调色都交给共用配方。 */
 .hb-electric-bed-capability .hb-capability-range-group input[type="range"] {
   width: 100%;
-  height: 8px;
-  border-radius: 99px;
-  accent-color: var(--hb-bed-accent);
 }
 .hb-electric-bed-capability .hb-capability-option-group {
   gap: 7px;
@@ -8915,9 +8913,10 @@
   font-size: 14px;
   font-weight: 650;
 }
+/* 能力条滑条（风速 / 数值）挂 `hos-range-ui`（main.css 的统一自绘配方）。
+   原先的 `accent-color` 是死声明 —— 被 main.css 权重 0,13,1 的全局 range 规则遮掉。 */
 .hb-capability-range-group input[type="range"] {
   width: 100%;
-  accent-color: #80c8e7;
 }
 .hb-capability-select {
   width: 100%;
@@ -10673,17 +10672,12 @@
   color: var(--hb-air-purifier-ui-accent);
   font-size: 12px;
 }
+/* 净化器详情的能力条挂 `hos-range-ui`（main.css 的统一自绘配方）。
+   这里原先自己画了一份渐变轨道 + `accent-color`，但两份声明都不生效：`background` 被
+   main.css 全局规则的 `background: transparent` 盖掉、`accent-color` 被 `appearance:none`
+   废掉，只剩下 24px 白点。几何与配色统一交给共用配方，这里不再重复。 */
 .air-purifier-details .hb-capability-range-group input[type="range"] {
-  height: 8px;
-  border-radius: 99px;
-  background: linear-gradient(
-    90deg,
-    var(--hb-air-purifier-ui-accent) 0%,
-    var(--hb-air-purifier-ui-accent) var(--progress-pct, 0%),
-    #343d44 var(--progress-pct, 0%),
-    #343d44 100%
-  );
-  accent-color: var(--hb-air-purifier-ui-accent);
+  width: 100%;
 }
 .air-purifier-details .hb-capability-options {
   height: 100%;

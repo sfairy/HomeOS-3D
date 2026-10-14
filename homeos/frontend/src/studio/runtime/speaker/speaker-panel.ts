@@ -38,7 +38,7 @@ export function createSpeakerPanel({
     timeElement = createElement("span", "i3d-tv-time");
   ((artworkImage.alt = "正在播放的内容封面"), (artworkImage.hidden = true));
   const progressElement = createElement("progress"),
-    seekInput = createElement("input");
+    seekInput = createElement("input", "hos-range-ui");
   ((seekInput.type = "range"),
     (seekInput.min = "0"),
     (seekInput.step = "1"),

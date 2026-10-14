@@ -2158,6 +2158,8 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                           );
                           const popupMediaVolumeSlider = document.createElement("input");
                           ((popupMediaVolumeSlider.type = "range"),
+                            /* 统一滑条观感由 main.css 的 `hos-range-ui` 提供。 */
+                            popupMediaVolumeSlider.classList.add("hos-range-ui"),
                             (popupMediaVolumeSlider.min = "0"),
                             (popupMediaVolumeSlider.max = "1"),
                             (popupMediaVolumeSlider.step = ".01"),

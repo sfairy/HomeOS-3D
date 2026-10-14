@@ -1283,12 +1283,12 @@ body.interaction3d-stage.is-background-hidden,
   margin: 0;
   flex: none;
 }
+/* 柔和度滑条挂 `hos-range-ui`（main.css 的统一自绘配方）：这里只留布局，
+   原先的 `accent-color` / `height: 22px` 都已被 main.css 的全局 range 规则吞掉。 */
 .plan2-range-editor input[type="range"] {
   padding: 0;
-  accent-color: #e5ad63;
   width: 100%;
   min-width: 0;
-  height: 22px;
 }
 .plan2-range-editor .p2r-softness {
   display: flex;
@@ -3861,10 +3861,10 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-speaker-panel .i3d-speaker-actions:not(:has(button:not([hidden]))) {
   display: none;
 }
+/* 播放进度滑条挂 `hos-range-ui`；原先的 `accent-color` 是死声明（被 main.css 全局规则遮掉）。 */
 .i3d-speaker-panel .i3d-tv-details input[type="range"] {
   width: 100%;
   min-width: 0;
-  accent-color: #b39a6f;
 }
 .i3d-speaker-settings {
   display: flex;

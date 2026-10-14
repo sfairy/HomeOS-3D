@@ -462,6 +462,8 @@ export function createCapabilityDetailsControls(this: PanelRenderer,
         fanSpeedRangeHeading.append(fanSpeedRangeTitle, fanSpeedRangeOutputElement);
         const fanSpeedRangeSlider = document.createElement("input");
         ((fanSpeedRangeSlider.type = "range"),
+          /* 统一滑条观感由 main.css 的 `hos-range-ui` 提供（胶囊轨道 + 16px 圆点）。 */
+          fanSpeedRangeSlider.classList.add("hos-range-ui"),
           (fanSpeedRangeSlider.min = "0"),
           (fanSpeedRangeSlider.max = "100"),
           (fanSpeedRangeSlider.step = "1"),
@@ -548,6 +550,8 @@ export function createCapabilityDetailsControls(this: PanelRenderer,
       numericRangeHeading.append(numericRangeTitle, numericRangeOutputElement);
       const numericRangeSlider = document.createElement("input");
       ((numericRangeSlider.type = "range"),
+        /* 统一滑条观感由 main.css 的 `hos-range-ui` 提供（胶囊轨道 + 16px 圆点）。 */
+        numericRangeSlider.classList.add("hos-range-ui"),
         (numericRangeSlider.min = String(rangeMinimum)),
         (numericRangeSlider.max = String(rangeMaximum)),
         (numericRangeSlider.step = String(rangeStep)),

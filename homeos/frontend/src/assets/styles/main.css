@@ -149,7 +149,7 @@ input:-webkit-autofill:focus { transition: background-color 5000s ease-in-out 0s
  */
 /* hb-range / i3d-control-range / i3d-opacity-range：studio 灯光/窗帘/配置面板自带轨道样式，
    勿套全局蓝条默认 50% 与白点拇指（样式分别见 stage.css、runtime.css、cover-panel.css） */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range) {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range) {
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
@@ -160,7 +160,7 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
   cursor: pointer;
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-runnable-track {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-runnable-track {
   appearance: none;
   height: 6px;
   border-radius: var(--hos-radius-pill);
@@ -171,14 +171,14 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
     var(--track-bg, rgba(255, 255, 255, 0.04)) 100%);
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-track {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-track {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: var(--track-bg, rgba(255, 255, 255, 0.04));
   border: none;
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-progress {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-progress {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
@@ -190,7 +190,7 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
  * WebKit 滑块拖拽手柄（thumb）
  * 24x24 白色圆形 + 蓝色光晕 ring + 弹性缩放过渡
  */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb {
   appearance: none; cursor: pointer; background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */ border: none;
   border-radius: 50%; width: 24px; height: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 0 0 4px rgba(var(--accent-rgb), 0.15);
@@ -199,10 +199,10 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
 }
 
 /** thumb 悬停：放大 1.1 倍 + 光晕扩展 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
 
 /** thumb 拖拽中：放大 1.18 倍 + 光晕进一步扩大 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
 
 /* ---- 6b. 共享紧凑滑块（设置页 / 媒体音量等） ---- */
 input[type="range"].hos-range,
@@ -279,6 +279,97 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
 }
 
 
+/* ---- 6c. 统一自绘滑条（hos-range-ui） ---- */
+
+/**
+ * `hos-range-ui` —— 全站统一的「胶囊轨道 + 圆点拇指」滑条。宿主只要在 `input[type="range"]`
+ * 上挂这个类，就自动得到与外置检查器 / 材质槽面板一致的观感，不必各自重写一遍伪元素。
+ *
+ * 为什么必须挤进上面那条 `:not()` 排除链：全局 range 规则权重是 0,13,1，而路线样式表
+ * （app.css / renderer.css / 3d-studio/studio.css …）按 `page-assets.ts` 的约定排在本文件
+ * **之前**，于是宿主里任何 `accent-color` / `height` 级别的声明都会被整段吞掉 —— 历史上
+ * 「吸附距离」「边缘柔和度」以及详情页那批能力条，就是这样渲染成 24px 白点 + 无左侧填充的。
+ *
+ * 配色：槽色 `--line`、描边 `--muted`、填充与圆点取 `--hos-range-ui-accent`（`:root` 里缺省
+ * 金色，与检查器 / 材质面板同源）。宿主若想保留自己的色相，只要在宿主规则里加一行
+ * `--hos-range-ui-accent: <自己的令牌>` 即可 —— 几何不必再碰。
+ *
+ * 填充画在 input 自身的背景上、`runnable-track` 保持透明：Chromium 下
+ * `::-webkit-slider-runnable-track` 里的 var() 进度裁切不可靠，会出现整段留灰。
+ * 进度由 `--progress-pct` 裁切，由 `syncHtmlRangeProgress()` 在初值与 `input` 事件里写入。
+ *
+ * 间距不在这里定：全局默认滑条同样不写 `margin`，行距交给宿主的 grid/flex gap，
+ * 各宿主原有的大边距（例如 `.i3d-climate-option-group > input` 的 14px）继续由宿主保留。
+ */
+input[type="range"].hos-range-ui {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  /* 1px 描边正好吃掉轨道上下沿，填充 / 灰槽画满 6px 内容盒 */
+  height: 8px;
+  padding: 0;
+  border: 1px solid var(--muted);
+  border-radius: var(--hos-radius-pill);
+  outline: none;
+  background: linear-gradient(
+    to right,
+    var(--hos-range-ui-accent) 0,
+    var(--hos-range-ui-accent) var(--progress-pct, 0%),
+    var(--line) var(--progress-pct, 0%),
+    var(--line) 100%
+  );
+  cursor: pointer;
+}
+
+input[type="range"].hos-range-ui::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 0;
+  border-radius: var(--hos-radius-pill);
+  background: transparent;
+}
+
+input[type="range"].hos-range-ui::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  /* 轨道内容盒 6px，圆点 16px：上移 (16 - 6) / 2 才正好居中 8px 轨道 */
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--hos-range-ui-accent);
+}
+
+input[type="range"].hos-range-ui::-moz-range-track {
+  box-sizing: border-box;
+  height: 6px;
+  border: 0;
+  border-radius: var(--hos-radius-pill);
+  background: var(--line);
+}
+
+input[type="range"].hos-range-ui::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--hos-range-ui-accent);
+}
+
+input[type="range"].hos-range-ui::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--hos-range-ui-accent);
+}
+
+/* 原生滑块禁用时会整体压暗；自绘轨道没有这层默认表现，必须自己补，
+   否则「范围=关闭」这类禁用态看起来仍可拖动。 */
+input[type="range"].hos-range-ui:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 /* ==========================================================================
    7. :root —— 全局 CSS 设计令牌（Design Tokens）
    整个应用的视觉语言体系，所有组件通过 var() 引用这些变量
@@ -308,6 +399,14 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
      通过 .color-accent-* 工具类可动态切换 --accent 变量
      */
   --accent: #0A84FF;                                        /* 主色调——系统蓝（交互可读） */
+  /**
+   * `hos-range-ui` 统一滑条的强调色（填充 + 圆点）。
+   *
+   * 这里钉金色而不是跟随 `--accent`：本文件的 `:root` 排在路线样式表之后，会把 studio /
+   * display 各自的 `--accent` 覆盖成系统蓝，滑条跟着变蓝就与检查器、材质槽面板那两处
+   * 已经过审的观感割裂。宿主若要自己的色相，在宿主规则里写一行覆盖即可。
+   */
+  --hos-range-ui-accent: #f2a20d;
   --accent-rgb: 10, 132, 255;                               /* 主色调 RGB，供 rgba() 使用 */
   --accent-secondary: #5fd4ff;                              /* 次要色调——登录青（品牌中性强调） */
   --accent-tertiary: #7eb8ff;                               /* 第三色调——冰蓝（替代默认紫光晕） */

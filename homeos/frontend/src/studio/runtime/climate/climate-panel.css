@@ -167,9 +167,9 @@
   color: #20272b;
   background: #f5f6f7;
 }
+/* 风速条挂 `hos-range-ui`（main.css 的统一自绘配方）；原先的 `accent-color` 是死声明。 */
 .i3d-climate-panel input[type="range"] {
   width: 100%;
-  accent-color: var(--i3d-climate-accent);
 }
 .i3d-climate-option-group > p {
   margin: 2px 0;
@@ -718,10 +718,10 @@
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
+/* 风速条挂 `hos-range-ui`（main.css 的统一自绘配方）；行距仍由宿主保留。 */
 .i3d-climate-option-group > input[type="range"] {
   width: 100%;
   margin: 14px 0;
-  accent-color: var(--i3d-climate-accent);
   cursor: pointer;
 }
 .i3d-climate-feedback {

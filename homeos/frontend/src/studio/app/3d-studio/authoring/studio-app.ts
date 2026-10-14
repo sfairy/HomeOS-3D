@@ -4372,6 +4372,9 @@ function syncSnapControls() {
     snapToleranceInput,
     clamp2(Math.round(finite2(appCtx.studioState.settings.snapTolerance, 13)), 6, 24),
   ),
+    /* `hos-range-ui` 的左侧金色段靠 `--progress-pct` 裁切：每次回填数值都要同步一次，
+       否则改档位后条子还停在旧进度。 */
+    syncHtmlRangeProgress2(snapToleranceInput),
     (snapToleranceValueElement.textContent = snapToleranceInput.value + " px"),
     appCtx.activeSnapTarget ||
       (snapIndicatorElement.textContent = isSnapOn ? "吸附：开启" : "吸附：关闭"));
@@ -5552,6 +5555,8 @@ function createMaterialSlotSurfacePanel(slotEntry: any, isSurfaceExpanded: any) 
       )),
       (rangeInputElement.dataset.materialSlotSurfaceKey = surfaceField.key),
       (rangeInputElement.dataset.materialSlotSurfaceName = slotEntry.name),
+      /* 统一滑条观感（几何/配色）由 main.css 的 `hos-range-ui` 提供，本处不再写几何。 */
+      rangeInputElement.classList.add("hos-range-ui"),
       (outputElement.textContent = Number(rangeInputElement.value).toFixed(2)),
       /* 自绘轨道靠 `--progress-pct` 铺左侧金色段：初值先写一次，否则整条都是灰槽。 */
       syncHtmlRangeProgress2(rangeInputElement),
@@ -16484,7 +16489,8 @@ for (const settingsPanelPointerDownEventSnapSettingInput of snapSettingControls)
       markDocumentDirty());
   });
 (snapToleranceInput.addEventListener("input", () => {
-  snapToleranceValueElement.textContent = snapToleranceInput.value + " px";
+  (snapToleranceValueElement.textContent = snapToleranceInput.value + " px"),
+    syncHtmlRangeProgress2(snapToleranceInput);
 }),
   snapToleranceInput.addEventListener("change", () => {
     const snapToleranceValue = clamp2(Math.round(finite2(snapToleranceInput.value, 13)), 6, 24);

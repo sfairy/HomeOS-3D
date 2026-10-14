@@ -458,7 +458,7 @@ export function createClimatePanel({
     errorElement = createElement("p", "i3d-climate-error"),
     fanSpeedGroupElement = createElement("section", "i3d-climate-option-group"),
     fanSpeedLabelElement = createElement("span", "", "风速"),
-    fanSpeedRangeElement = createElement("input", "");
+    fanSpeedRangeElement = createElement("input", "hos-range-ui");
   ((fanSpeedRangeElement.type = "range"),
     (fanSpeedRangeElement.min = "0"),
     (fanSpeedRangeElement.max = "100"),
