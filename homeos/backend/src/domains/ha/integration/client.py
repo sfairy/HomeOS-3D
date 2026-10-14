@@ -107,7 +107,7 @@ def _response_reports_unavailable(body: Any, entity_id: str) -> bool:
     return False
 
 
-def bypass_env_proxy(base_url: str) -> bool:
+def bypass_environment_proxy(base_url: str) -> bool:
     """返回该目标是否必须绕过环境代理直连。
 
     本机 / 局域网内的 Home Assistant 不应经由为公网设计的环境代理访问：环境里配置的
@@ -168,7 +168,7 @@ class HAClient:
         self.verify_tls = verify_tls
         self.timeout = timeout
         self.websocket_max_size_bytes = max(int(websocket_max_size_bytes), 8388608)
-        self._bypass_env_proxy = bypass_env_proxy(self.base_url)
+        self._bypass_environment_proxy = bypass_environment_proxy(self.base_url)
         # WebSocket 应用层心跳（秒），由 haConnector 高级参数注入
         # （wsPingIntervalMs / wsPongTimeoutMs，见 HAConnectorService.client_for）。
         # None 表示沿用 websockets 库默认（20s / 20s）。
@@ -195,7 +195,7 @@ class HAClient:
                 verify=self.verify_tls,
                 timeout=self.timeout,
                 headers=self.headers,
-                trust_env=not self._bypass_env_proxy,
+                trust_env=not self._bypass_environment_proxy,
             ) as client:
                 response = await client.get(f'{self.base_url}/api/config')
                 response.raise_for_status()
@@ -252,7 +252,7 @@ class HAClient:
                     verify=self.verify_tls,
                     timeout=self.timeout,
                     headers=self.headers,
-                    trust_env=not self._bypass_env_proxy,
+                    trust_env=not self._bypass_environment_proxy,
                 ) as client:
                     response = await client.get(f'{self.base_url}/api/states')
                     if response.status_code in {401, 403}:
@@ -275,7 +275,7 @@ class HAClient:
             verify=self.verify_tls,
             timeout=self.timeout,
             headers=self.headers,
-            trust_env=not self._bypass_env_proxy,
+            trust_env=not self._bypass_environment_proxy,
         ) as client:
 
             async def fetch_one(entity_id: str) -> dict[str, Any] | None:
@@ -339,7 +339,7 @@ class HAClient:
             websocket = await websockets.connect(
                 websocket_url(self.base_url),
                 ssl=self._ssl_context(),
-                proxy=None if self._bypass_env_proxy else True,
+                proxy=None if self._bypass_environment_proxy else True,
                 open_timeout=self.timeout,
                 ping_interval=20 if self.ws_ping_interval is None else self.ws_ping_interval,
                 ping_timeout=20 if self.ws_ping_timeout is None else self.ws_ping_timeout,
@@ -347,7 +347,7 @@ class HAClient:
                 max_queue=4,
             )
         except ImportError as error:
-            # 命中 SOCKS 代理但环境缺 python-socks（见 bypass_env_proxy 的说明）。
+            # 命中 SOCKS 代理但环境缺 python-socks（见 bypass_environment_proxy 的说明）。
             raise HAClientError(
                 '当前环境通过 SOCKS 代理连接 Home Assistant，但缺少 python-socks 依赖；'
                 '内网地址应直连，请检查代理设置。'
@@ -540,7 +540,7 @@ class HAClient:
             access_token=self.access_token,
             verify_tls=self.verify_tls,
             timeout=self.timeout,
-            trust_env=not self._bypass_env_proxy,
+            trust_env=not self._bypass_environment_proxy,
         )
 
     @asynccontextmanager
@@ -554,7 +554,7 @@ class HAClient:
             verify=self.verify_tls,
             timeout=self.timeout,
             headers=self.headers,
-            trust_env=not self._bypass_env_proxy,
+            trust_env=not self._bypass_environment_proxy,
         ) as client:
             yield client
 
@@ -640,7 +640,7 @@ class HAClient:
                 verify=self.verify_tls,
                 timeout=self.timeout,
                 headers=self.headers,
-                trust_env=not self._bypass_env_proxy,
+                trust_env=not self._bypass_environment_proxy,
             ) as client:
                 response = await client.get(
                     f'{self.base_url}/api/history/period/{encoded_start}',

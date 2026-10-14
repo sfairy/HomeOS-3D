@@ -9,7 +9,7 @@ from typing import Any
 from .client import (
     HAClient,
     HAClientError,
-    bypass_env_proxy,
+    bypass_environment_proxy,
 )
 from .connection_setup import HA_ENDPOINT_PROBE_TIMEOUT_SECONDS
 from .control_pool import HAControlConfiguration
@@ -166,7 +166,7 @@ class HAEndpointMixin(HAConnectorHost):
         等值比较；只要 ``base_url`` / ``verify_tls`` / ``trust_env`` 有一项对不上，池就判定
         「配置已变化」，把**每一次**设备控制都拒掉。所以端点取最近一次探测出的
         ``self._endpoint``（即 ``client_for`` 实际使用的那一侧），``trust_env`` 也与
-        ``HAClient.__init__`` 用同一个 ``bypass_env_proxy`` 推导 —— 内网地址要绕开环境代理，
+        ``HAClient.__init__`` 用同一个 ``bypass_environment_proxy`` 推导 —— 内网地址要绕开环境代理，
         外网地址才允许走代理。
         """
         connection = self.active_connection()
@@ -187,7 +187,7 @@ class HAEndpointMixin(HAConnectorHost):
             access_token = token,
             verify_tls = verify_tls,
             timeout = self.settings.ha_request_timeout_seconds,
-            trust_env = not bypass_env_proxy(base_url),
+            trust_env = not bypass_environment_proxy(base_url),
         )
 
     async def entity_translations(
