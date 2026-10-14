@@ -58,15 +58,15 @@ python3 ops/kpi/studio_domains_kpi.py --update
 
 照旧文档复测会得到「7188 → 3」这种**假收敛**，而真正 35k 行的 `studio-app.ts` 没人盯。所以路径与数值改为固化在脚本里，并由脚本自己检测桩 —— 同一个失效模式不会再发生第二次。
 
-## 单体目标（2026-10-13 实测）
+## 单体目标（与 `ops/kpi/studio_monolith_kpi.py` 的 `TARGETS` 同源，2026-10-15 重记）
 
 | 单体 | 路径（相对 `src/studio/`） | 当前 | 目标 |
 |------|---------------------------|-----:|-----:|
-| creator 编排宿主 | `app/3d-studio/authoring/studio-app.ts` | 20681 | < 3000 |
-| panel 编排宿主 | `app/editor/home.ts` | 16784 | < 3000 |
-| 面板渲染器 | `app/renderer/panel-renderer.ts` | 1888 | < 3000 |
-| 舞台宿主 | `runtime/core/stage.ts` | 4485 | < 3000 |
-| 舞台配置渲染 | `runtime/config-ui/config-editor/panel-rendering.ts` | 590 | < 3000 |
+| creator 编排宿主 | `app/3d-studio/authoring/studio-app.ts` | 20221 | < 3000 |
+| panel 编排宿主 | `app/editor/home.ts` | 16854 | < 3000 |
+| 面板渲染器 | `app/renderer/panel-renderer.ts` | 1886 | < 3000 |
+| 舞台宿主 | `runtime/core/stage.ts` | 4404 | < 3000 |
+| 舞台配置渲染 | `runtime/config-ui/config-editor/panel-rendering.ts` | 589 | < 3000 |
 
 `stage.ts` 本轮已按 seam 切出 7 个文件（`lighting` / `controls` / `camera-motion` / `layers-sync` /
 `refresh` / `curtain-motion` / `navigation-drag`，各带显式依赖袋接口），5,702 → 4,485 行；
@@ -160,6 +160,7 @@ node ops/studio/restore_import_formatting.mjs <file>                # 还原被�
 | 6d-3 | 面板弹窗 3 条：`openMetricsDialog` / `openCurtainGroupBatchApplyDialog` / `openLabelBatchApplyDialog` | `runtime/config-ui/config-editor/rendering/panel-dialogs.ts`（**追加**） | +524 | 复用 `PanelDialogsDeps`（8 → 14 项）；`auxDialogElement` 走宿主既有访问器，零新增 dep |
 | 6d-3 | 吸尘器快捷模式面板 `renderVacuumShortcutPanel`（264 行） | `runtime/config-ui/config-editor/rendering/panel-sections.ts`（**追加**） | +290 | 复用 `PanelSectionsDeps`（12 → 18 项：多 `editorSession` + `refreshBatchButtonsCell`） |
 | 6e | **`home.ts` 第一刀**：请求封装 `requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转 `startAuthRedirect` + `DEFAULT_REQUEST_TIMEOUT_MS`（100 行） | `app/editor/net/request-json.ts`（新域） | 121 | `RequestJsonDeps`（1 项：`authRedirectState` —— 原 `let authRedirectStarted` 改成宿主每实例创建的**对象单元**，见 6e 小节） |
+| 7a | 静态物品网格合批 `mergeStaticItemMeshes`（材质键 + 几何签名一致的一组网格压成一个合批网格，回收几何 / 材质并写 dataset 统计） | `app/3d-studio/authoring/items/studio-static-item-meshes.ts` | 219 | `StudioStaticItemMeshesDeps`（4 项，全只读：`appCtx` 按引用传入 —— 本族只读它的 `threeRenderer` / `isEmbeddedStage` / `instanceTestTypeSet` / `createSelectionRef`）；顺带把集合显式标成 `Set<{ dispose?: () => void }>`，去掉使用点的 `as any`（见下） |
 
 结果：`studio-app.ts` 35231 → **21773**（-13458，-38.2%；其中 5x 批 -4181、6a 单刀 -7520、6b -1757）；
 `home.ts` 22976 → **21405**（-1571；6e 切出请求面 -90）；`panel-rendering.ts` 5234 → **590**（-4644；6c -473 首次离开 0%，
@@ -168,6 +169,17 @@ node ops/studio/restore_import_formatting.mjs <file>                # 还原被�
 **「零成本档」已清空**：全仓库 ≥50 行的直系声明里，成本 < 1,000 的只剩 `createNumberRow`（50 行，成本 20）一条。
 搬运是**逐字复制**（脚本断言：整块缩进 ≥ 2 空格、首尾行文本匹配、行数账目对得上），
 零表达式改动 —— 唯一的人工改动是搬完后清理失效 import、把残留依赖显式化。
+
+**7a（2026-10-15）**：合入 0.7.6 版本时 `kpi:studio` 的 creator 单体门禁红了 —— 文件停在 20422
+（基线 20415，超 7 行）。按老办法落这一刀：`mergeStaticItemMeshes`（219 行）搬进
+`items/studio-static-item-meshes.ts`，宿主只留 12 行（deps 工厂 + 转发），`studio-app.ts`
+20422 → **20221**，KPI 基线随之收紧到 20221（`--update`）。
+
+这一刀还示范了「搬出去」要过的**第二道门**：`check-studio-type-debt` 按**每文件**记 `as any`，
+原代码里有一处 `(disposableMaterial as any).dispose?.()`。若照搬，它就只是从 `studio-app.ts`
+平移到新文件（0 → 1），照样判回归。所以顺手把被吃掉材质的集合显式标成
+`Set<{ dispose?: () => void }>`（真话是「这里只需要 `dispose`」），使用点随之去掉强转 ——
+`as any` 全仓 625 → **619**，新文件零登记。单体行数只是第一道门，拆出来还得自己站得住。
 
 #### 5x 的「显式传参」形态：deps 对象 + 源侧薄绑定
 

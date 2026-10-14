@@ -72,7 +72,7 @@ class Target:
 #: 度量目标 —— 与 studio/MONOLITH_BASELINE.md 的表格一一对应，改这里同时改文档。
 #: baseline 由 2026-10-11 实测；`--update` 可重记。
 TARGETS = [
-    Target("creator 编排宿主", "app/3d-studio/authoring/studio-app.ts", 20415, 3000),
+    Target("creator 编排宿主", "app/3d-studio/authoring/studio-app.ts", 20221, 3000),
     Target("panel 编排宿主", "app/editor/home.ts", 16854, 3000),
     Target("面板渲染器", "app/renderer/panel-renderer.ts", 1886, 3000),
     Target("舞台宿主", "runtime/core/stage.ts", 4404, 3000),

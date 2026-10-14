@@ -274,7 +274,7 @@ import {
 } from './lights/studio-app-light-data';
 import { addBoxMesh } from "./items/studio-mesh-primitives";
 import { resolveListDragDrop } from "./ui/studio-list-drag-drop";
-import { buildGeometryKey, collectChildMeshes } from "./items/studio-furniture-batching";
+import { collectChildMeshes } from "./items/studio-furniture-batching";
 import { precompileShaderPrograms } from "./scene/studio-shader-precompile";
 import { resolveInteractionCleanup } from "./ui/studio-interaction-cleanup";
 import { buildMaterialSignature, collectSharedMeshRecords } from "./items/studio-shared-mesh-records";
@@ -294,6 +294,10 @@ import {
 import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from "./scene/studio-walls";
 import { createStudioRenderContext } from "./studio-app/studio-render-context";
 import { createStudioAppContext } from "./studio-app/studio-app-context";
+import {
+  mergeStaticItemMeshesCore,
+  type StudioStaticItemMeshesDeps,
+} from "./items/studio-static-item-meshes";
 
 let disposeActiveStudio: (() => void) | null = null;
 
@@ -11972,224 +11976,19 @@ function batchSharedMeshes(batchSceneRoot: any, batchItemEntries: any) {
     instanceBatchStats
   );
 }
+/**
+ * 静态合批句柄（同族转发见 `items/studio-static-item-meshes`）：`appCtx` 按引用传（本族只读它的
+ * `threeRenderer`），其余三项是宿主闭包里的常量与判定句柄。工厂每次调用现取，快照不外溢。
+ */
+const studioStaticItemMeshesDeps = (): StudioStaticItemMeshesDeps => ({
+  appCtx,
+  isEmbeddedStage,
+  instanceTestTypeSet,
+  createSelectionRef,
+});
+/** 静态物品网格合批（原 studio-app 直系声明，P4 搬进 `items/studio-static-item-meshes`，此处只转发句柄）。 */
 function mergeStaticItemMeshes(mergeSceneRoot: any, mergeItemEntries: any) {
-  const staticGroupsBySignature = new Map(),
-    attributeNamesOf = (mergeItemEntriesSourceMesh: any) => {
-      const sort3 = Object.keys(mergeItemEntriesSourceMesh.geometry.attributes)
-        .filter(
-          (mergeItemEntriesSourceMeshAttributeName) =>
-            mergeItemEntriesSourceMeshAttributeName !== "color" ||
-            mergeItemEntriesSourceMesh.material.vertexColors,
-        )
-        .sort();
-      return !isEmbeddedStage ||
-        Object.values(mergeItemEntriesSourceMesh.material).some(
-          (mergeItemEntriesSourceMeshMaterialValue: any) =>
-            mergeItemEntriesSourceMeshMaterialValue?.isTexture,
-        )
-        ? sort3
-        : sort3.filter(
-            (textureAttributeName) =>
-              textureAttributeName === "position" ||
-              textureAttributeName === "normal" ||
-              (textureAttributeName === "color" &&
-                mergeItemEntriesSourceMesh.material.vertexColors),
-          );
-    };
-  mergeSceneRoot.updateMatrixWorld(true);
-  for (const { item: staticItem, group: staticItemGroup } of mergeItemEntries)
-    staticItemGroup.parent !== mergeSceneRoot ||
-      staticItemGroup.userData?.courtyardSurface === true ||
-      instanceTestTypeSet.has(staticItem.type) ||
-      (isEmbeddedStage &&
-        [
-          "airer",
-          "fan",
-          "storagewaterheater",
-          "gaswaterheater",
-          "airpurifier",
-          "wallac",
-          "floorac",
-          "airoutlet",
-          "curtain",
-          "nas",
-          "fridge",
-          "freezer",
-          "dishwasher",
-          "washer",
-          "dryer",
-          "plant",
-          "camera",
-          "presence",
-          "speaker",
-          "tv",
-          "robotvacuum",
-          "smallcar",
-          "suv",
-          "scooter",
-        ].includes(staticItem.type)) ||
-      createSelectionRef("item", staticItem.id) ||
-      staticItemGroup.traverse((staticMesh: any) => {
-        if (
-          !staticMesh.isMesh ||
-          staticMesh.isInstancedMesh ||
-          staticMesh.geometry.drawRange.start !== 0 ||
-          staticMesh.geometry.drawRange.count !== Infinity
-        )
-          return;
-        for (
-          let ancestorNode = staticMesh;
-          ancestorNode && ancestorNode !== mergeSceneRoot;
-          ancestorNode = ancestorNode.parent
-        )
-          if (!ancestorNode.visible) return;
-        const isEmulatedVertexColor = isEmbeddedStage && !staticMesh.material?.vertexColors,
-          ra3 = buildStaticMaterialKey(staticMesh, isEmbeddedStage, isEmulatedVertexColor);
-        if (!ra3 || staticMesh.matrixWorld.determinant() < 0) return;
-        const attributeSizePairs = attributeNamesOf(staticMesh).map((signatureAttributeName) => [
-          signatureAttributeName,
-          staticMesh.geometry.attributes[signatureAttributeName].itemSize,
-        ]);
-        isEmulatedVertexColor && attributeSizePairs.push(["color", 3]);
-        const attributeSignatureJson = isEmbeddedStage
-            ? JSON.stringify(attributeSizePairs)
-            : buildGeometryKey(staticMesh),
-          staticBatchKey = ra3 + ":" + attributeSignatureJson + ":" + isEmulatedVertexColor;
-        (staticGroupsBySignature.has(staticBatchKey) ||
-          staticGroupsBySignature.set(staticBatchKey, []),
-          staticGroupsBySignature.get(staticBatchKey).push(staticMesh));
-      });
-  const invert4 = mergeSceneRoot.matrixWorld.clone().invert(),
-    staticBatchStats: any[] = [],
-    disposableMaterialSet = new Set();
-  for (const staticGroup of staticGroupsBySignature.values()) {
-    if (staticGroup.length < 2) continue;
-    const clonedGeometries = staticGroup.map((mergedSourceMesh: any) => {
-        const multiplyMatrices4 = new ns2.Matrix4().multiplyMatrices(
-            invert4,
-            mergedSourceMesh.matrixWorld,
-          ),
-          clone5 = mergedSourceMesh.geometry.clone();
-        if (isEmbeddedStage) {
-          const keptAttributeNames = attributeNamesOf(mergedSourceMesh);
-          for (const mergedAttributeName of Object.keys(clone5.attributes))
-            keptAttributeNames.includes(mergedAttributeName) ||
-              clone5.deleteAttribute(mergedAttributeName);
-          for (const keptAttribute of keptAttributeNames) {
-            const sourceAttribute = mergedSourceMesh.geometry.attributes[keptAttribute];
-            if (
-              !sourceAttribute.isInterleavedBufferAttribute &&
-              !sourceAttribute.normalized &&
-              sourceAttribute.array instanceof Float32Array
-            )
-              continue;
-            const float32Array = new Float32Array(sourceAttribute.count * sourceAttribute.itemSize),
-              componentAccessors = ["getX", "getY", "getZ", "getW"];
-            for (let vertexIndex = 0; vertexIndex < sourceAttribute.count; vertexIndex++)
-              for (
-                let componentIndex = 0;
-                componentIndex < sourceAttribute.itemSize;
-                componentIndex++
-              )
-                float32Array[vertexIndex * sourceAttribute.itemSize + componentIndex] =
-                  componentIndex < 4
-                    ? sourceAttribute[componentAccessors[componentIndex]](vertexIndex)
-                    : sourceAttribute.getComponent(vertexIndex, componentIndex);
-            clone5.setAttribute(
-              keptAttribute,
-              new ns2.BufferAttribute(float32Array, sourceAttribute.itemSize),
-            );
-          }
-          if (!mergedSourceMesh.material.vertexColors) {
-            const count2 = clone5.attributes.position.count,
-              componentArray = new Float32Array(count2 * 3),
-              color2 = mergedSourceMesh.material.color;
-            for (let colorVertexIndex = 0; colorVertexIndex < count2; colorVertexIndex++)
-              ((componentArray[colorVertexIndex * 3] = color2.r),
-                (componentArray[colorVertexIndex * 3 + 1] = color2.g),
-                (componentArray[colorVertexIndex * 3 + 2] = color2.b));
-            clone5.setAttribute("color", new ns2.BufferAttribute(componentArray, 3));
-          }
-          if (!clone5.index) {
-            const count3 = clone5.attributes.position.count,
-              uint16Array = count3 <= 65536 ? new Uint16Array(count3) : new Uint32Array(count3);
-            for (let indexVertex = 0; indexVertex < count3; indexVertex++)
-              uint16Array[indexVertex] = indexVertex;
-            clone5.setIndex(new ns2.BufferAttribute(uint16Array, 1));
-          }
-        }
-        return clone5.applyMatrix4(multiplyMatrices4);
-      }),
-      mergedGeometry = mergeGeometries2(clonedGeometries);
-    if ((clonedGeometries.forEach((clonedGeometry: any) => clonedGeometry.dispose()), !mergedGeometry))
-      continue;
-    const representativeMesh = staticGroup[0],
-      isVertexColorInjected = isEmbeddedStage && !representativeMesh.material.vertexColors,
-      clone6 = isVertexColorInjected
-        ? representativeMesh.material.clone()
-        : representativeMesh.material;
-    isVertexColorInjected && (clone6.color.setRGB(1, 1, 1), (clone6.vertexColors = true));
-    const mergedMesh = new ns2.Mesh(mergedGeometry, clone6);
-    (isEmbeddedStage && (mergedMesh.matrixAutoUpdate = false),
-      (mergedMesh.castShadow = representativeMesh.castShadow),
-      (mergedMesh.receiveShadow = representativeMesh.receiveShadow),
-      (mergedMesh.renderOrder = representativeMesh.renderOrder),
-      (mergedMesh.layers.mask = representativeMesh.layers.mask),
-      (mergedMesh.userData.externalModelSharedTextures =
-        representativeMesh.userData.externalModelSharedTextures === true),
-      (mergedMesh.userData.externalModelSharedMaterial =
-        !isVertexColorInjected && representativeMesh.userData.externalModelSharedMaterial === true),
-      (mergedMesh.userData.reflectionSimplifiable = isEmbeddedStage),
-      (mergedMesh.userData.modelLayer = "items"),
-      (mergedMesh.userData.exportRole = "plan"));
-    for (const consumedMesh of staticGroup)
-      (consumedMesh.parent?.remove(consumedMesh),
-        consumedMesh.userData.externalModelSharedGeometry || consumedMesh.geometry.dispose(),
-        consumedMesh.userData.externalModelSharedMaterial ||
-          disposableMaterialSet.add(consumedMesh.material));
-    (mergeSceneRoot.add(mergedMesh),
-      staticBatchStats.push({
-        before: staticGroup.length,
-        after: 1,
-      }));
-  }
-  for (const { group: leftoverGroup } of mergeItemEntries) {
-    let hasRenderableChild = false;
-    (leftoverGroup.traverse((leftoverChild: any) => {
-      (leftoverChild.isMesh ||
-        leftoverChild.isLine ||
-        leftoverChild.isPoints ||
-        leftoverChild.isSprite) &&
-        (hasRenderableChild = true);
-    }),
-      leftoverGroup.parent === mergeSceneRoot &&
-        !hasRenderableChild &&
-        mergeSceneRoot.remove(leftoverGroup));
-  }
-  const retainedMaterialSet = new Set();
-  mergeSceneRoot.traverse((materialHolder: any) => {
-    for (const retainedMaterial of Array.isArray(materialHolder.material)
-      ? materialHolder.material
-      : materialHolder.material
-        ? [materialHolder.material]
-        : [])
-      retainedMaterialSet.add(retainedMaterial);
-  });
-  for (const disposableMaterial of disposableMaterialSet)
-    retainedMaterialSet.has(disposableMaterial) || (disposableMaterial as any).dispose?.();
-  return (
-    (mergeSceneRoot.userData.staticItemBatchStats = staticBatchStats),
-    appCtx.threeRenderer?.domElement &&
-      ((appCtx.threeRenderer.domElement.dataset.staticItemBatchCount = String(staticBatchStats.length)),
-      (appCtx.threeRenderer.domElement.dataset.staticItemDrawCallsSaved = String(
-        staticBatchStats.reduce(
-          (savedAccumulator, staticBatchStat) =>
-            savedAccumulator + staticBatchStat.before - staticBatchStat.after,
-          0,
-        ),
-      ))),
-    staticBatchStats
-  );
+  return mergeStaticItemMeshesCore(studioStaticItemMeshesDeps(), mergeSceneRoot, mergeItemEntries);
 }
 function collectSharedMaterials() {
   const sharedMaterialSet = new Set();
