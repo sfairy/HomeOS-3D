@@ -9,26 +9,11 @@ name: Build Check
 # 2026-10-10 的构建锁 ENOENT 就卡在这条缝里：本地有历史 dist/ 兜着所以是绿的，干净检出
 # 才炸；`verify:*` 那些门禁不跑构建，Docker 又太重。这个工作流把那一步单独拎出来。
 #
-# 触发：
-# - `pull_request`：构建输入相关的路径一改就跑（见下方 paths）。**只做构建、不推镜像**，
-#   所以放进 PR 没有发布副作用；`checks.yml` 里那个 `build` job 是同一份脚本的常驻版本，
-#   这里额外覆盖「手动重跑一次」「只改构建相关文件时单独验证」两种场景。
-# - `workflow_dispatch`：Actions 页面手动 Run workflow。
+# 触发（2026-10-15 起改为**只手动**）：
+# - `workflow_dispatch`：Actions 页面 Run workflow。此前还带 `pull_request` + `paths`，
+#   每次推 PR 都会自动构建一遍；现在自动触发全部移除，只在需要时手动跑。
+#   `checks.yml` 里那个 `build` job 是同一份脚本的常驻版本（同样改为手动）。
 on:
-  pull_request:
-    # 只列会改变前端产物或构建过程的路径，避免纯文档/后端改动白跑一次全量构建。
-    paths:
-      - 'Dockerfile'
-      - 'ops/**'
-      - 'homeos/frontend/**'
-      - 'homeos-store/frontend/**'
-      - 'packages/**'
-      # 根级构建输入：锁文件/工作区清单/三条 vite 配置所依赖的 tsconfig。
-      - 'package.json'
-      - 'bun.lock'
-      - 'bunfig.toml'
-      - 'tsconfig*.json'
-      - '.github/workflows/build-check.yml'
   workflow_dispatch:
 
 permissions:

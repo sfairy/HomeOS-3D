@@ -351,7 +351,7 @@ docker logs homeos | head
 
 CI 通过 GitHub Actions **手动 `workflow_dispatch`** 构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）。默认分支 push **不会**自动触发镜像构建（镜像推送保持手动，避免每次提交都推 GHCR）。
 
-但**轻检查会自动跑**：`.github/workflows/checks.yml`（typecheck+lint / 前端门禁 / 契约与度量 / ruff / pyright / 库结构 / 端到端冒烟）挂在 `push(main)` 与全部 PR 上，`docker.yml` 构建前也复用它（`uses:`）。门禁清单只此一处，改检查只改这一个文件。
+轻检查**也已改为手动**：`.github/workflows/checks.yml`（typecheck+lint / 前端门禁 / 契约与度量 / ruff / pyright / 库结构 / 端到端冒烟）不再挂在 `push(main)` 或 PR 上，只在 Actions 页面 Run workflow；`docker.yml` 构建前仍复用它（`uses:`，这条不能断）。门禁清单只此一处，改检查只改这一个文件。`.github/workflows/build-check.yml`（只构建、不推镜像）同样只手动触发。
 
 本地构建是**两阶段**：先把前端与加密后端产出到工作区根 `dist/`，再从 `dist/` 组装运行镜像（镜像内不再编译后端，见 `Dockerfile` 的 app / store 目标与 `ops/build.py`）：
 

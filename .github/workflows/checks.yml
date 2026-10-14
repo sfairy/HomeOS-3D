@@ -3,16 +3,15 @@ name: Checks
 # 轻检查（不构建镜像、不推 GHCR）：类型检查、前端产物构建、ruff、pyright、库结构、
 # 端到端冒烟，以及 shell / workflow / compose / Caddyfile 的静态校验。
 # 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
-# 触发：main 的 push 与全部 PR 自动跑（门禁必须自动生效，否则等于形同虚设）；
-# 另保留 workflow_call（被 docker.yml 构建前复用）与手动 dispatch。
+# 触发（2026-10-15 起改为**只手动**）：push 与 PR 的自动触发都已移除，避免「一推送就跑
+# 一整套门禁」；需要时在 Actions 页面 Run workflow（workflow_dispatch）。
+# 仍保留 workflow_call：docker.yml 构建镜像前必须复用同一份检查，这条不能被切断
+# —— 删掉它 docker.yml 会直接报「workflow not found」，等于把推镜像前的门禁一起弄没。
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_call:
   workflow_dispatch:
 
-# 同组并发只保留最新一次：PR 连续推送时取消上一轮，避免排队。
+# 同组并发只保留最新一次：手动连点 Run workflow 时取消上一轮，避免排队。
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -173,7 +172,7 @@ jobs:
   # 唯一会构建的两处是 docker.yml（同时推 GHCR，等于把「会不会构建挂」和「要不要发版」
   # 绑成同一件事）和 build-check.yml（纯手动）。于是构建类改动的红灯只能靠人工发现 ——
   # 2026-10-10 的构建锁 ENOENT 就是这样漏到 main 上的：本地有历史 dist/ 兜着是绿的，
-  # 干净检出才炸。这里补上，PR 上就能拦住。
+  # 干净检出才炸。这里补上，手动跑一轮 checks 就能拦住。
   #
   # 与上面三个 job 并行、互不阻塞；`rm -rf dist` 是这一步的关键，
   # dist/ 被 gitignore，不删就复现不出「干净检出」那种状态，等于没测。
