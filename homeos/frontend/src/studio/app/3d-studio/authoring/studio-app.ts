@@ -118,6 +118,7 @@ import { normalizeGroundReflection as normalizeGroundReflection2 } from "../../b
 import { sceneUpdatePlan as sceneUpdatePlan2 } from "../../bridge/scene/scene-update";
 import { createDemandFrameLoop as createDemandFrameLoop2 } from "../../bridge/scene/frame-loop";
 import { cacheObjectTransforms as cacheObjectTransforms2 } from "../../bridge/scene/scene-matrices";
+import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../shared/util/range-progress";
 import { withRequestTimeout as withRequestTimeout2 } from "../../shared/util/request-timeout";
 import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
 import { OrbitControls as OrbitControls2 } from "/static/vendor/three/0.186.0/OrbitControls.js";
@@ -5552,6 +5553,8 @@ function createMaterialSlotSurfacePanel(slotEntry: any, isSurfaceExpanded: any) 
       (rangeInputElement.dataset.materialSlotSurfaceKey = surfaceField.key),
       (rangeInputElement.dataset.materialSlotSurfaceName = slotEntry.name),
       (outputElement.textContent = Number(rangeInputElement.value).toFixed(2)),
+      /* 自绘轨道靠 `--progress-pct` 铺左侧金色段：初值先写一次，否则整条都是灰槽。 */
+      syncHtmlRangeProgress2(rangeInputElement),
       fieldLabelElement.append(rangeInputElement, outputElement),
       surfacePanelElement.append(fieldLabelElement));
   }
@@ -16639,6 +16642,8 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
         ?.querySelector("output");
       materialSurfaceOutput &&
         (materialSurfaceOutput.textContent = Number(materialSurfaceRange.value).toFixed(2));
+      /* 拖拽时轨道上的金色段要跟着圆点走，否则读数变了、填充还停在旧位置。 */
+      syncHtmlRangeProgress2(materialSurfaceRange);
     }
   }),
   materialSlotListElement.addEventListener("change", (materialSlotChangeEvent: any) => {

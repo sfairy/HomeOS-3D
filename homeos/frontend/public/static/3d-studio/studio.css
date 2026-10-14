@@ -4298,10 +4298,88 @@ body.auto-diagram-embedded .export-preview-frame {
     monospace;
   text-align: right;
 }
-.material-slot-surface-field input[type="range"] {
+/*
+ * 表面参数滑块（粗糙度 / 金属度）：胶囊轨道 + 圆点拇指，与检查器里的强度条是同一套观感
+ * —— 8px 轨道（含 1px 描边、6px 内容槽）、16px 圆点、金色填充，左段随进度铺满。
+ *
+ * 为什么整段从 `#material-slot-list` 起头重画：main.css 的全局 range 规则在 `:not()` 链上
+ * 叠了 12 个类（权重 0,13,1），本文件原先只声明 `height` / `accent-color` 时会被它整段盖住
+ * —— `accent-color` 在 `appearance:none` 下根本不生效，于是渲染成「24px 白圆点 + 灰色槽、
+ * 没有左侧填充」，正是这次要修的样子。带 ID 前缀后权重 1,2,1，稳稳压过它。
+ *
+ * 填充画在 input 自身的背景上、`runnable-track` 保持透明：Chromium 下
+ * `::-webkit-slider-runnable-track` 里的 var() 进度裁切不可靠，会出现整段留灰。
+ * `--progress-pct` 由 studio-app.ts 调 syncHtmlRangeProgress 写入（初值一次 + 拖拽时实时）。
+ *
+ * 金色钉在这里而不是用 `var(--accent)`：这一层的 `--accent` 是宿主应用的蓝色，直接用会把
+ * 滑块染蓝、与既有的强度条观感割裂（同 bridge.css 里检查器的处理）。取值与 app.css
+ * 的 `--accent` 一致。
+ */
+#material-slot-list .material-slot-surface {
+  --material-surface-accent: #f2a20d;
+}
+#material-slot-list .material-slot-surface-field input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
   width: 100%;
-  height: 14px;
-  accent-color: var(--accent);
+  /* 1px 描边正好吃掉轨道上下沿，填充 / 灰槽画满 6px 内容盒 */
+  height: 8px;
+  margin: 4px 0;
+  padding: 0;
+  border: 1px solid var(--muted);
+  border-radius: 99px;
+  outline: none;
+  background: linear-gradient(
+    to right,
+    var(--material-surface-accent) 0,
+    var(--material-surface-accent) var(--progress-pct, 0%),
+    var(--line) var(--progress-pct, 0%),
+    var(--line) 100%
+  );
+  cursor: pointer;
+}
+#material-slot-list .material-slot-surface-field input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+}
+#material-slot-list .material-slot-surface-field input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  /* 轨道内容盒 6px，圆点 16px：上移 (16 - 6) / 2 才正好居中 8px 轨道 */
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--material-surface-accent);
+}
+/* 两个内核的槽色各画一次：`--line` 在 studio 主题里是半透明白，不能复用 main.css 的实色兜底。 */
+#material-slot-list .material-slot-surface-field input[type="range"]::-moz-range-track {
+  box-sizing: border-box;
+  height: 6px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--line);
+}
+#material-slot-list .material-slot-surface-field input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--material-surface-accent);
+}
+#material-slot-list .material-slot-surface-field input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--material-surface-accent);
+}
+/* 原生滑块禁用时会整体压暗；自绘轨道没有这层默认表现，必须自己补。 */
+#material-slot-list .material-slot-surface-field input[type="range"]:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .material-slot-surface-reset {
   justify-self: start;
