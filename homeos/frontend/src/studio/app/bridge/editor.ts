@@ -1864,7 +1864,7 @@ type PopupPresetConfig = {
   const renderScaleSelect = createElement("select");
   renderScaleSelect.name = "i3d-render-scale";
   for (const [renderScaleValue, renderScaleLabel] of [
-    [1.5, "高清 150%（桌面推荐）"],
+    [1.5, "高清 150%（桌面）"],
     [1, "标准 100%"],
     [0.8, "均衡 80%（墙板）"],
     [0.75, "均衡 75%"],
@@ -1876,6 +1876,7 @@ type PopupPresetConfig = {
       renderScaleSelect.append(renderScaleOptionElement));
   }
   const renderScaleSection = createSection("渲染分辨率");
+  renderScaleSection.classList.add("i3d-render-scale-section");
   (renderScaleSelect.setAttribute("aria-label", "渲染分辨率"),
     (renderScaleSelect.value = String(properties.renderScale ?? 1)),
     renderScaleSelect.addEventListener("change", async () => {
@@ -1897,7 +1898,8 @@ type PopupPresetConfig = {
       }
     }),
     renderScaleSection.append(renderScaleSelect),
-    (renderScaleSelect.title = "画面卡顿时，可降低渲染分辨率。"));
+    (renderScaleSelect.title =
+      "高清 150% 适合桌面电脑（推荐）；墙板等低性能设备建议均衡 80%。画面卡顿时，可降低渲染分辨率。"));
   const restoreClarityButton = createElement("button", "inspector-secondary-button", "一键恢复清晰");
   ((restoreClarityButton.type = "button"),
     (restoreClarityButton.title = "将渲染分辨率恢复为标准 100%（清晰优先）"),

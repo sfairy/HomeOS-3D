@@ -431,10 +431,16 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/*
+ * 交互行为面板的三个子段（自动旋转 / 闲置退出聚焦 / 图标显示）不再画分隔线。
+ * 这三条线的来源有两个，都在这一片：① 本规则原本的上边框（每段头顶一条）；② 闲置段
+ * 被搬进 `.i3d-behavior-row` 后丢了 `i3d-inspector-subsection` 类，于是继承到
+ * app.css 的 `.inspector-section:after`（段尾又一条）。面板里「段标题 + 开关」已经
+ * 自带层级，再加线只是噪声，所以这里去掉上边框，段间节奏交给 padding 承担。
+ */
 #interaction3d-inspector .i3d-inspector-subsection {
   margin: 0;
   padding: 10px 0 0;
-  border-top: 1px solid var(--line, #303840);
 }
 #interaction3d-inspector .i3d-popup-settings {
   display: flex;
@@ -545,6 +551,20 @@
 }
 #interaction3d-inspector .i3d-light-effects-row > button {
   flex: 0 0 auto;
+}
+/*
+ * 渲染分辨率行：标题留在首行，下拉吃满剩余宽度，「一键恢复清晰」整行换行。
+ * 这个下拉的选项是最长的一类文案（「高清 150%（桌面）」），先前与按钮平分宽度
+ * （各 flex: 1）时，原生 select 会把正在使用的值截成「高清 1…」；按钮换行后
+ * 下拉可稳定拿到 ≥150px，窄面板下还会自动再折一行拿到整宽。
+ */
+#interaction3d-inspector .i3d-render-scale-section > select {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-render-scale-section > button {
+  flex: 0 0 100%;
+  padding: 6px 10px;
 }
 /* 段标题由上面的三列行自述（文案里已含「闲置 / 图标显示」语义），不再单独占一行。 */
 #interaction3d-inspector .i3d-idle-inline > h3 {
@@ -710,9 +730,14 @@
 .i3d-page-dim-row > * {
   min-width: 0;
 }
+/*
+ * 范围行整宽：这一行只承载「范围」下拉，第二个格子是「页面」下拉、仅当选了「单页面」
+ * 才出现。原先按两列平分时，默认的「全部页面」只占左半列、右半列留空，看起来像
+ * 一个没铺满的窄控件；改单列后「全部页面」吃满整宽，选「单页面」时页面下拉另起一行。
+ */
 #interaction3d-inspector .i3d-behavior-scope-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -741,6 +766,11 @@
   border-top: 1px solid var(--line, #303840);
 }
 #interaction3d-inspector .i3d-inspector-group > .inspector-section:after {
+  display: none;
+}
+/* 段内嵌套的子段同样不画段尾分隔线（否则 `闲置退出聚焦` 这类子段会在段尾多一条线，
+   与上面去掉的子段上边框凑成「一行一条线」的观感）。 */
+#interaction3d-inspector .inspector-section .inspector-section:after {
   display: none;
 }
 #interaction3d-inspector .i3d-behavior-row .i3d-setting-toggle,

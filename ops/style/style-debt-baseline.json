@@ -1,5 +1,5 @@
 {
-  "$comment": "样式债基线（棘轮：只减不增；`zIndexValues` 是硬规则——出现未登记的新裸 z-index 数值即红）。由 `node scripts/gates/check-style-debt.mjs --update` 重记。",
+  "$comment": "样式债基线（棘轮：只减不增；`zIndexValues` 是硬规则——出现未登记的新裸 z-index 数值即红）。由 `node ops/style/check-style-debt.mjs --update` 重记。",
   "$scope": [
     "homeos/frontend/src",
     "homeos/frontend/public/static",
@@ -92,7 +92,7 @@
     "homeos/frontend/public/static/embed-offline.css": 5,
     "homeos/frontend/public/static/flow-line-editor.css": 13,
     "homeos/frontend/public/static/global-log.css": 35,
-    "homeos/frontend/public/static/modules/interaction3d/bridge.css": 24,
+    "homeos/frontend/public/static/modules/interaction3d/bridge.css": 23,
     "homeos/frontend/public/static/modules/interaction3d/controls.css": 7,
     "homeos/frontend/public/static/renderer/percentage-bar.css": 9,
     "homeos/frontend/public/static/renderer/renderer.css": 1358,
