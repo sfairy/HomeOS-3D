@@ -84,13 +84,17 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 
 ## 拆分单体（`studio-app.ts` / `home.ts` / `panel-renderer.ts` / `stage.ts`）
 
-> **⚠️ 切片工具已退役，流程暂停。** 原来「先量再拆」用的 `ops/studio/studio_slice_analyze.mjs`
+> **切片工具链可用（2026-10-13 P2 重建）。** `ops/studio/studio_slice_analyze.mjs`
 > （`--list|--rank|--seeds`）、`studio_slice_extract.mjs`、`studio_slice_wrap.mjs`、
-> `restore_import_formatting.mjs` 与它们的自检已随脚本体系清理整体移除，`slice:studio*` 脚本别名也已删除。
-> 下面这段是从前的工作流记录；要恢复拆分需先重建这些工具（口径见 [`MONOLITH_BASELINE.md`](./MONOLITH_BASELINE.md)）。
-> 目前仍生效的是 KPI 门禁 `bun run kpi:studio` 与宿主薄绑定门禁 `scripts/gates/check-host-bindings.mjs`。
+> `studio_slice_apply.mjs`（一条命令跑完 AST 提取 → 依赖袋包装 → import 归位 → 锚点插入）、
+> `restore_import_formatting.mjs`，以及模板维度工具 `studio_template_seam.mjs`、状态显式化工具
+> `studio_state_context.mjs`（宿主闭包 `let x` → `ctx.x`，跳过 `get`/`set` 键名，简写属性展开回
+> `x: ctx.x`）都在，
+> 根别名 `slice:studio*` / `seam:studio*` 有效，注入式自检均挂在 `check:deps` 链上。
+> 与 KPI 门禁 `bun run kpi:studio`、宿主薄绑定门禁 `scripts/gates/check-host-bindings.mjs` 配合使用。
+> 口径、已落地切片日志与下一批目标见 [`MONOLITH_BASELINE.md`](./MONOLITH_BASELINE.md)。
 
-**先量再拆**，别按行号猜。工具（已移除）：`node ops/studio/studio_slice_analyze.mjs <file> [--list|--rank|--seeds=A,B]`（TS 编译器 API，认缩进、认闭包捕获）。
+**先量再拆**，别按行号猜。工具：`node ops/studio/studio_slice_analyze.mjs <file> [--list|--rank|--seeds=A,B]`（TS 编译器 API，认缩进、认闭包捕获）。
 
 - `--list`：顶层声明 + 巨型宿主函数 + >800 行的函数；`--rank`：按**搬迁成本**给宿主内声明排序（`muts*1000 + outs*100 + sibs*10`）；`--seeds=名1,名2`：算出这几个声明的自由引用与传递闭包。
 - `studio-app.ts` / `home.ts` 的真实形状是「一个 `bootX()` 里套一个巨型箭头函数」，声明不在顶层、缩进不统一 —— 所以**不要**按行首缩进切。

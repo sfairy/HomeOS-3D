@@ -914,3 +914,88 @@ function titleButtonMenuDeps() {
 `StudioView.vue` 1,599 → **1,228 行**（3 个子组件落在 `chrome/creator/`）。
 两个目录已登记为 `chrome` 层域，`kpi:studio` 的域覆盖随之从 87,934 → 93,881 行（只增不减）。
 
+---
+
+## 9. 状态显式化（三宿主全量清零，2026-10-14）
+
+切片进「可变捕获区」（成本 1000+）就搬不动了：宿主闭包里的 `let` 被搬走的声明逐个重新捕获，
+每切一刀都要重连一堆渲染循环状态。`state-context` 这一步先把状态收进带**显式字段类型**的对象
+（禁止 `{[key:string]: any}` 开放袋子），再切。试点选 `stage.ts`，一路迁到顶层 `let` 清零。
+
+- 工具 `ops/studio/studio_state_context.mjs`（`--file` `--fn` `--names` `--ctx` `--list`
+  `--dry-run` `--drop-let` `--keep-init=`）按**符号**改写引用，不按名字 ——
+  `noResolve` 本地 Program + 类型检查器，只改**确指宿主那个 `let` 绑定**的标识符；宿主里
+  `options` / `text` / `num` / `list` 这类常见名极易被同名参数或内层局部变量遮蔽，按名字改会误伤。
+  它只改**引用**：跳过 `get x(){}` / `set x(v){}` 的键名与对象属性键，把简写属性 `x,` 展开成
+  `x: ctx.x,`，改写后带语法自检，不过不写盘。
+  `--drop-let` 顺带删掉这些绑定的 `let` 声明**整行**；初值不是字面量的（`startupProgress` /
+  `configuredModuleKinds2`）用 `--keep-init=` 声明，声明**原位**改成 `ctx.x = <初值>`，
+  语义与位置都不变（不会出现「先读到默认值」的窗口）。
+- 上下文类型与工厂落在**域目录**（`runtime/core/stage/stage-context.ts`：`StageContext` +
+  `createStageContext()`，按族分组的 91 个显式字段），宿主只留一行
+  `const ctx = createStageContext();` —— 宿主因此**净减**，符合 `kpi:studio` 的「单体只减不增」。
+- 迁移批次（每批都跑 `typecheck` + `check:deps`（22 步）+ `check-studio-type-debt` + `kpi:studio`，
+  然后 `--update` 收紧基线）：
+  1. 闲置旋转 4 项 → 2. 光线范围编辑器 5 项 → 3. 编辑/导航/模块主状态 24 项 →
+  4. 舞台呈现/背景/焦点/视口 + 各域同步快照/指纹/指针手势 58 项。
+- 结果：`stage.ts` 4,495 → **4,404 行**，`mountStage` 顶层 `let` **清零**（`rg '^  let '` 无命中），
+  `as any` 9 → 7。基线已收紧（`kpi:studio` 舞台宿主 4,404；`as any` 625）。
+
+### 9.1 三宿主全量（`EditorContext` / `StudioRenderContext` / `StudioAppContext`）
+
+同一口径复用到另外三个宿主，共 **461 个可变捕获**清零：
+
+| 宿主 | 上下文（域目录） | 字段 | 宿主行数 | 收敛 |
+|---|---|---|---|---|
+| `runtime/core/stage.ts` `mountStage` | `StageContext` 91 | 91 | 4,495 → **4,404** | 基线收紧 |
+| `app/editor/home.ts` `bootEditor` 内箭头 | `EditorContext` 102 | 102 | 16,958 → **16,854** | 基线收紧 |
+| `app/3d-studio/authoring/studio-app.ts` `runStudioRenderLoop` | `StudioRenderContext` 72 | 72 | （见下） | — |
+| 同上 `bootStudio` 外层箭头 | `StudioAppContext` 196 | 196 | 20,671 → **20,415** | 基线 20,610 → **20,415** |
+
+合计 44,148 行；`kpi:studio` / `check:deps`（22 步）/ `check-studio-type-debt` /
+`verify:contracts`（15 步）/ `typecheck` 全绿。
+
+### 9.2 类型携带：退化成 `any` 的 receiver 会静默抹掉上下文推断
+
+第一版生成器把「无法自足表达的类型」一律退 `any`（461 个字段里 238 个）。
+`studio-app.ts` 因此一次冒出 **107 个 `TS7006`**（`appCtx.studioState.items.map((x) => …)`
+的 `x` 退化成隐式 `any`）——**基线对照实验**：把迁移前文件换回去，`typecheck` 是 **0 错误**，
+所以这 107 个全是这一步引入的。教训：`{ [key: string]: any }` 硬零只是第一道，**字段级 `any`
+同样会吃掉类型**，只是报错位置在宿主而不是上下文模块里。
+
+现在按「能精确就精确」推导（461 个字段里 **232 个精确**）：
+
+1. **显式注解**：用 TS AST 收「类型引用名」（`TypeLiteral` 的**属性名不算**，所以
+   `{ areaId: string; name: string }[]` 这种内联结构类型是自足的，能原样搬）；
+2. **无注解但初值是 `import f` 调用** → `ReturnType<typeof f>`（`studioState = createStudioDocument()`
+   的匿名大对象只靠这条才精确）；`new X()` → `InstanceType<typeof X>`；
+3. 纯字面量初值 → `string` / `number` / `boolean`；
+4. 本地私有类型 / 跨文件不可导出者 → 仍退 `any`（**登记在生成的接口头注释里**，不是悄悄退）。
+
+用到宿主 `import` 的类型会按**相对上下文模块**的路径补 `import type`；别名导入必须带
+`as`（宿主的 `normalizeBaseLighting as normalizeBaseLighting2` 若只写 `normalizeBaseLighting2`
+会 `TS2724`）。
+
+### 9.3 值级不变量：「搬不动」的初值必须有写回，否则是**静默语义变更**
+
+`isPureLiteral` 判「可搬进工厂」时漏掉两类形态，初值就被静默丢掉（既没进工厂、宿主也没写回，
+字段停在占位值上）：`{ lights: [] as any[] }`（**类型断言**）与 `furthestFloorOrder = -Infinity`
+（`-` 作用于模块级常量，是 `PrefixUnaryExpression` 的 Identifier 操作数，不是 NumericLiteral）。
+实测 `options` / `baseStageConfig` / `furthestFloorOrder` 三个字段真丢了值，靠校验器抓出来。
+
+- 断言不影响运行时值 → 判纯度时**拆掉**继续判定；复制进工厂时再用 AST 删掉
+  `x as any` / `x as any[]`（不删会把 `as any` 记账搬进新模块，`check-studio-type-debt` 立即棘轮回退：
+  实测 stage-context +2、editor-context +1）。
+- 不变量校验器 `ops/studio/verify_ctx_values.mjs`：占位（搬不动）字段必须在宿主里存在
+  `ctx.x = <原初值>`，且**初值文本逐字相等**（引用到已迁移变量时按 `ctx.` 归一化）。
+  弱一档的「宿主里存在 `ctx.x = …` 就算写回」会**假阴性** —— 依赖袋的
+  `set x(v) { ctx.x = v }` 长得就像写回。四宿主 × 0 违规。
+- **生成器只能用真正的迁移前源**：`git show HEAD:<path>`。会话中途的 `/tmp` 快照是**部分迁移态**
+  （`mountStage` 只剩 58 个 `let`），拿它生成会得到一个 58 字段的**静默截断**上下文。
+  且必须**在宿主原位**跑 `--emit-ctx`（它只读宿主、只写上下文模块），否则相对路径会算成
+  `../../../tmp/scene/…`。
+
+- 后续：现在四个宿主的状态都能按字段名逐个搬走，「状态同步块」与 `runStudioRenderLoop`
+  的每切一刀只需重连 `ctx.x` 名字，不再是重连一堆闭包变量。下一步按
+  `stage.ts`（离目标最近）→ `home.ts` → `studio-app.ts` 的顺序开切，目标各 3,000 行。
+

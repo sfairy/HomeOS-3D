@@ -153,6 +153,7 @@ import { syncNasOverlayCore, syncEnvironmentLayersCore, syncLayoutMetricsCore, s
 import { selectFloorCore, openRangeEditorCore, refreshStageUiCore, adoptSceneUpdateCore } from "./stage/refresh";
 import { rebuildCurtainMotionCore } from "./stage/curtain-motion";
 import { bindNavigationDragCore } from "./stage/navigation-drag";
+import { createStageContext } from "./stage/stage-context";
 
 /**
  * 注入依赖袋的 `getComputedStyle` 必须**钉死接收者**：消费者写成 `deps.getComputedStyle(el)` 时
@@ -165,119 +166,61 @@ const getComputedStyleForDeps = (measurementTarget: Element) =>
 
 export function mountStage(mountOptions: any) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions;
-  let value: any = null;
-  const hasStageRect = () => !!value,
+  const ctx = createStageContext();
+  ctx.pageBehavior = resolvePageBehavior2();
+  const hasStageRect = () => !!ctx.value,
     noopStageCallback = () => {};
 
   const stateUpdatePlanner = createStateUpdatePlanner2(),
     stageModelIndex = createStageModelIndex(mountOptions);
-  let options: Record<string, any> = {
-      lights: [] as any[],
-    },
-    deviceStates: Record<string, any> = {},
-    isEditing = false,
-    isAwaitingFloorViewAdjust = false,
-    isControlReady = false,
-    text = "",
-    focusedItemId = "",
-    selectedFloorId = "",
-    isControlBusy = false,
-    isNavigationVisible = false,
-    navigationEditing = false,
-    num = 0,
-    activePointerDrag: any = null,
-    activeCameraPose: any = null,
-    isStagePresented = false,
-    animationFrameRequestId = 0,
-    pageBehavior = resolvePageBehavior2(),
-
-    activeModule = "overview",
-    selectedSecurityKind = "",
-    editingVacuumId = "",
-    pendingFloorId = "",
-    pendingModule = "",
-    hasAutoSelectedFloors = false;
   const isOverviewOrAllFloors = () =>
-      activeModule === "overview" || (!isEditing && selectedFloorId === "all"),
+      ctx.activeModule === "overview" || (!ctx.isEditing && ctx.selectedFloorId === "all"),
     matchesSelectedFloor = (floorBinding: any) =>
-      selectedFloorId === "all" || floorBinding.floorId === selectedFloorId;
-  let panelDisplayMode = "",
-    idleReturnCamera: any = null,
-    cameraMotionSnapshot: any = null,
-    focusInset = 0,
-    hasPendingStageRefresh = false,
-    isStageVisible = false,
-    isIdleRotationRunning = false,
-    isCameraRotating = false,
-    idleRotationCameraPose: any = null,
-    sceneBackground: any = null,
-    hasPresentedOnce = false,
-    isPresentedVisible = true,
-    isRangeEditorOpen = false,
-    rangeEditorHandle: any = null,
-    canEditLightRange = false,
-    isRangeEditorSuppressingClose = false,
-    isRangeEditorOnly = false;
-  const wakeSceneBackground = () => sceneBackground?.wake(),
-    wakeBackgroundAnimation = () => sceneBackground?.wakeAnimation(),
+      ctx.selectedFloorId === "all" || floorBinding.floorId === ctx.selectedFloorId;
+  const wakeSceneBackground = () => ctx.sceneBackground?.wake(),
+    wakeBackgroundAnimation = () => ctx.sceneBackground?.wakeAnimation(),
     sceneBackgroundController = createSceneBackground2(mountOptions, wakeSceneBackground),
     lockMotion = createLockMotion2(mountOptions);
-  let selectedLockEntry: any = null;
   mountOptions.setBackgroundTheme?.(sceneBackgroundController);
-  let isUserActive = false,
-    isPointerHeld = false;
   const set = new Set(),
     lightSyncKeySet = new Set(),
     map = new Map(),
     lightGroupByKey = new Map(),
     sceneCacheByKey = new Map(),
     scratchVector = new three.Vector3();
-  let cachedDocumentSource: any,
-    cachedDocumentFloorId: any,
-    lastInteractionMs: any = null;
   const vector = createLightPreview2(),
     lightHistoryScope = document.body?.dataset?.i3dLightHistoryScope;
-  let lightHistoryStorage;
   if (lightHistoryScope)
     try {
-      lightHistoryStorage = window.localStorage;
+      ctx.lightHistoryStorage = window.localStorage;
     } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 
 
   const lightStateCacheOptions = {
-      storage: lightHistoryStorage,
+      storage: ctx.lightHistoryStorage,
       scope: lightHistoryScope,
     },
     lightStateCache = createLightStateCache2(lightStateCacheOptions),
     climateModeHistory = createClimateModeHistory2({
-      storage: lightHistoryStorage,
+      storage: ctx.lightHistoryStorage,
       scope: lightHistoryScope,
     });
   function syncAirConditionerHistory(changedAirConditionerState: any = null) {
-    if (!isEditing) {
-      for (const airConditionerEntry of options.environment?.airConditioners || [])
+    if (!ctx.isEditing) {
+      for (const airConditionerEntry of ctx.options.environment?.airConditioners || [])
         (!changedAirConditionerState ||
           changedAirConditionerState.changed.has(airConditionerEntry.entityId)) &&
           climateModeHistory.observe(
             airConditionerEntry.entityId,
-            (deviceStates as any)[airConditionerEntry.entityId],
+            (ctx.deviceStates as any)[airConditionerEntry.entityId],
           );
     }
   }
   const resolveDeviceState = (resolvedEntityId: any) =>
-    lightStateCache.resolve(resolvedEntityId || "", (deviceStates as any)[resolvedEntityId]);
-  let lightEditPreview: any = null,
-
-    baseStageConfig: Record<string, any> = {
-      lights: [] as any[],
-    },
-    isCameraMoving = false,
-    hasIdleIconActivity = false,
-    pendingEditorAction: any = null,
-    furthestFloorOrder = -Infinity;
+    lightStateCache.resolve(resolvedEntityId || "", (ctx.deviceStates as any)[resolvedEntityId]);
   const transformFloorCamera = (
       transformedFloorCameraPose: any,
-      floorSelectionId = options.floorSelection,
+      floorSelectionId = ctx.options.floorSelection,
       isImmediateCamera = false,
     ) =>
       mountOptions.transformCamera?.(
@@ -286,7 +229,7 @@ export function mountStage(mountOptions: any) {
         isImmediateCamera,
       ) ?? transformedFloorCameraPose,
     applyDefaultCamera = () =>
-      transformFloorCamera(mountOptions.cameraState(true), options.floorSelection, true);
+      transformFloorCamera(mountOptions.cameraState(true), ctx.options.floorSelection, true);
   function buildFloorCameraConfig(rawFloorConfig: any) {
     return buildFloorCameraConfigExternal(
       rawFloorConfig,
@@ -294,37 +237,22 @@ export function mountStage(mountOptions: any) {
       transformFloorCamera,
     );
   }
-  let startupProgress = mountOptions.onStartupEffectsProgress ? 0 : 1;
+  ctx.startupProgress = mountOptions.onStartupEffectsProgress ? 0 : 1;
   const markerLayerElement = createStageElement("div", "i3d-markers"),
     vacuumWorkingLayerElement = createStageElement("div", "i3d-vacuum-working-layer");
-  let idleIconDelayUntilMs = 0,
-    cameraQuaternionKey = "",
-    isIdleIconHidden = false,
-    lastIdleFrameMs = 0,
-    lastIdleFloorId = -1,
-    followVacuumId = "",
-    followReturnCamera: any = null,
-    followCameraPose: any = null;
   const scratchQuaternion = new three.Quaternion();
-  let lastQuaternionMs: any = null;
   const presentationLayerElement = createStageElement("div", "i3d-presentation");
   const securityAlarmOverlay = createSecurityAlarmOverlay(presentationLayerElement);
-  let mediaViewportSize: any = null,
-    containerViewportSize: any = null,
-    mediaScale = 1;
   const focusVignetteElement = createStageElement("div", "i3d-focus-vignette");
   focusVignetteElement.setAttribute("aria-hidden", "true");
   const toolbarElement = createStageElement("nav", "i3d-toolbar"),
     navigationLayerElement = createStageElement("div", "i3d-navigation"),
     floorTabsElement = createStageElement("nav", "i3d-floor-tabs");
   floorTabsElement.setAttribute("aria-label", "选择楼层");
-  let floorTabsSignature = "";
   const moduleTabsElement = createStageElement("nav", "i3d-module-tabs");
   moduleTabsElement.setAttribute("aria-label", "3D 控制模块");
-  let isModuleTabsHidden: any = null,
-    moduleTabsAnimation: any = null;
   const moduleTabsByKind = new Map();
-  let configuredModuleKinds2 = configuredModuleKinds(options);
+  ctx.configuredModuleKinds2 = configuredModuleKinds(ctx.options);
   for (const [moduleKind, moduleLabel] of [
     ["overview", "3D"],
     ["light", "灯光"],
@@ -392,7 +320,7 @@ export function mountStage(mountOptions: any) {
     lightColorPicker = createLightColorPicker2({
       onPreview(previewColor: any) {
         const previewLightEntry = getFocusedEntry();
-        if (!previewLightEntry || isEditing || !resolveLightState(previewLightEntry).available)
+        if (!previewLightEntry || ctx.isEditing || !resolveLightState(previewLightEntry).available)
           return null;
         const colorValue = vector.set(previewLightEntry.entityId, "color", previewColor);
         return (
@@ -420,7 +348,7 @@ export function mountStage(mountOptions: any) {
         return getFocusedEntry;
       },
       get isEditing() {
-        return isEditing;
+        return ctx.isEditing;
       },
       get resolveLightState() {
         return resolveLightState;
@@ -447,16 +375,16 @@ export function mountStage(mountOptions: any) {
         return currentModuleBindings;
       },
       get text() {
-        return text;
+        return ctx.text;
       },
       get editorSelectionElement() {
         return editorSelectionElement;
       },
       get activeModule() {
-        return activeModule;
+        return ctx.activeModule;
       },
       get selectedSecurityKind() {
-        return selectedSecurityKind;
+        return ctx.selectedSecurityKind;
       },
       get mountOptions() {
         return mountOptions;
@@ -465,7 +393,7 @@ export function mountStage(mountOptions: any) {
         return editorSelectionOutlines;
       },
       get options() {
-        return options;
+        return ctx.options;
       },
       get stageModelIndex() {
         return stageModelIndex;
@@ -480,7 +408,7 @@ export function mountStage(mountOptions: any) {
         return collectVacuumShortcuts;
       },
       get editingVacuumId() {
-        return editingVacuumId;
+        return ctx.editingVacuumId;
       },
       get collectGenericDeviceBindings() {
         return collectGenericDeviceBindings;
@@ -504,10 +432,10 @@ export function mountStage(mountOptions: any) {
         return collectGroupedCovers;
       },
       get isModuleTabsHidden() {
-        return isModuleTabsHidden;
+        return ctx.isModuleTabsHidden;
       },
       set isModuleTabsHidden(v) {
-        isModuleTabsHidden = v;
+        ctx.isModuleTabsHidden = v;
       },
       get moduleTabsElement() {
         return moduleTabsElement;
@@ -516,10 +444,10 @@ export function mountStage(mountOptions: any) {
         return getComputedStyleForDeps;
       },
       get moduleTabsAnimation() {
-        return moduleTabsAnimation;
+        return ctx.moduleTabsAnimation;
       },
       set moduleTabsAnimation(v) {
-        moduleTabsAnimation = v;
+        ctx.moduleTabsAnimation = v;
       },
       get restoreFocusWithin() {
         return restoreFocusWithin;
@@ -528,7 +456,7 @@ export function mountStage(mountOptions: any) {
         return moduleTabsByKind;
       },
       get configuredModuleKinds2() {
-        return configuredModuleKinds2;
+        return ctx.configuredModuleKinds2;
       },
       get markerLayerElement() {
         return markerLayerElement;
@@ -540,10 +468,10 @@ export function mountStage(mountOptions: any) {
         return map;
       },
       get outgoingGhostAnimation() {
-        return outgoingGhostAnimation;
+        return ctx.outgoingGhostAnimation;
       },
       set outgoingGhostAnimation(v) {
-        outgoingGhostAnimation = v;
+        ctx.outgoingGhostAnimation = v;
       },
       get syncStageVisibility() {
         return syncStageVisibility;
@@ -610,8 +538,8 @@ export function mountStage(mountOptions: any) {
     climatePanel = createClimatePanel2({
       modeHistory: climateModeHistory,
       onLayout: (climateLayout: any = null) => {
-        isEditing &&
-          ["climate", "fan", "purifier", "water-heater"].includes(activeModule) &&
+        ctx.isEditing &&
+          ["climate", "fan", "purifier", "water-heater"].includes(ctx.activeModule) &&
           getFocusedEntry() &&
           postHostMessage({
             type: "edit",
@@ -647,20 +575,20 @@ export function mountStage(mountOptions: any) {
               : climateBinding?.entityId === climateControl.entityId &&
                 !!climateBinding?.pedestalFan == (climateControl.deviceKind === "fan");
           if (
-            !isControlReady ||
-            isEditing ||
-            isControlBusy ||
+            !ctx.isControlReady ||
+            ctx.isEditing ||
+            ctx.isControlBusy ||
             !isExtraControlMatch ||
             !matchesSelectedFloor(climateBinding || {}) ||
             climateBinding?.visible === false ||
-            activeModule !== (climateBinding?.waterHeater ? "devices" : "environment") ||
+            ctx.activeModule !== (climateBinding?.waterHeater ? "devices" : "environment") ||
             !climateBinding?.modelId ||
             !climateBinding.modelAvailable
           ) {
             climateReject(new Error("当前设备不可控制。"));
             return;
           }
-          const climateRequestId = "climate-" + ++num,
+          const climateRequestId = "climate-" + ++ctx.num,
             climateRequestTimeoutId = setTimeout(
               () => settleClimateRequest(climateRequestId, "请求超时，请检查设备状态。"),
               14000,
@@ -713,15 +641,14 @@ export function mountStage(mountOptions: any) {
             coverLookupCandidate.id === coverLookupBinding.id ||
             "cover:" + coverLookupCandidate.id === coverLookupBinding.id),
       );
-  let coverFeedbackStorage;
   if (lightHistoryScope)
     try {
-      coverFeedbackStorage = window.sessionStorage;
+      ctx.coverFeedbackStorage = window.sessionStorage;
     } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
   const coverControlRequestsByRequestId = new Map(),
     coverFeedback = createCoverFeedback2({
       commandPreview: true,
-      storage: coverFeedbackStorage,
+      storage: ctx.coverFeedbackStorage,
       scope: lightHistoryScope,
     }),
     dreamTiltFeedback = createCoverFeedback2({
@@ -754,7 +681,7 @@ export function mountStage(mountOptions: any) {
     feedbackBinding: any,
     initialCoverState = coverState2(
       feedbackBinding.entityId,
-      (deviceStates as any)[feedbackBinding.entityId],
+      (ctx.deviceStates as any)[feedbackBinding.entityId],
       feedbackBinding,
     ),
   ) {
@@ -794,7 +721,7 @@ export function mountStage(mountOptions: any) {
             !coverCanAdjustBlades2(
               coverState2(
                 previewCoverBinding.entityId,
-                (deviceStates as any)[previewCoverBinding.entityId],
+                (ctx.deviceStates as any)[previewCoverBinding.entityId],
                 previewCoverBinding,
               ),
               readCoverFeedback(previewCoverBinding),
@@ -818,10 +745,10 @@ export function mountStage(mountOptions: any) {
             coverControlBinding,
           );
           if (
-            !isControlReady ||
-            isEditing ||
-            isControlBusy ||
-            activeModule !== (coverActionBinding?.airer ? "devices" : "environment") ||
+            !ctx.isControlReady ||
+            ctx.isEditing ||
+            ctx.isControlBusy ||
+            ctx.activeModule !== (coverActionBinding?.airer ? "devices" : "environment") ||
             !coverActionBinding?.modelId ||
             !coverActionBinding.modelAvailable ||
             !matchesSelectedFloor(coverActionBinding)
@@ -832,7 +759,7 @@ export function mountStage(mountOptions: any) {
             return;
           }
           if (coverActionBinding.airer) {
-            const airerRequestId = "airer-" + ++num,
+            const airerRequestId = "airer-" + ++ctx.num,
               airerRequestTimeoutId = setTimeout(
                 () => settleMediaRequest(airerRequestId, "请求超时，请检查设备状态。"),
                 14000,
@@ -857,7 +784,7 @@ export function mountStage(mountOptions: any) {
               ...coverControlRequest,
               entityId: coverEntryKey,
             },
-            coverRequestId = "cover-" + ++num,
+            coverRequestId = "cover-" + ++ctx.num,
             coverRequestTimeoutId = setTimeout(
               () => failCoverRequest(coverRequestId, "请求超时，请检查设备状态。"),
               14000,
@@ -871,7 +798,7 @@ export function mountStage(mountOptions: any) {
             !coverCanAdjustBlades2(
               coverState2(
                 coverActionBinding.entityId,
-                (deviceStates as any)[coverActionBinding.entityId],
+                (ctx.deviceStates as any)[coverActionBinding.entityId],
                 coverActionBinding,
               ),
               readCoverFeedback(coverActionBinding),
@@ -944,8 +871,8 @@ export function mountStage(mountOptions: any) {
     coverPanel = createCoverPanel2({
       ...coverPanelOptions,
       onLayout: (coverLayout) => {
-        isEditing &&
-          activeModule === "airer" &&
+        ctx.isEditing &&
+          ctx.activeModule === "airer" &&
           getFocusedEntry() &&
           postHostMessage({
             type: "edit",
@@ -958,10 +885,10 @@ export function mountStage(mountOptions: any) {
         new Promise((coverExtraResolve, coverExtraReject) => {
           const extraControlEntry = getFocusedEntry();
           if (
-            !isControlReady ||
-            isEditing ||
-            isControlBusy ||
-            activeModule !== "devices" ||
+            !ctx.isControlReady ||
+            ctx.isEditing ||
+            ctx.isControlBusy ||
+            ctx.activeModule !== "devices" ||
             !extraControlEntry?.airer ||
             !extraControlEntry.modelAvailable ||
             !matchesSelectedFloor(extraControlEntry) ||
@@ -973,7 +900,7 @@ export function mountStage(mountOptions: any) {
             coverExtraReject(new Error("当前晾衣架不可控制。"));
             return;
           }
-          const airerExtraRequestId = "airer-extra-" + ++num,
+          const airerExtraRequestId = "airer-extra-" + ++ctx.num,
             airerExtraRequestTimeoutId = setTimeout(
               () => settleMediaRequest(airerExtraRequestId, "请求超时，请检查设备状态。"),
               14000,
@@ -1026,10 +953,10 @@ export function mountStage(mountOptions: any) {
     controlMediaDevice = (mediaCommand: any = null, mediaTargetEntry = getFocusedEntry()) =>
       new Promise<void>((mediaResolve, mediaReject) => {
         if (
-          !isControlReady ||
-          isEditing ||
-          isControlBusy ||
-          activeModule !== "devices" ||
+          !ctx.isControlReady ||
+          ctx.isEditing ||
+          ctx.isControlBusy ||
+          ctx.activeModule !== "devices" ||
           !["television", "speaker"].includes(mediaTargetEntry?.deviceKind) ||
           mediaCommand.deviceKind !== mediaTargetEntry.deviceKind ||
           !mediaTargetEntry.modelAvailable ||
@@ -1041,7 +968,7 @@ export function mountStage(mountOptions: any) {
           mediaReject(new Error("当前媒体设备不可控制。"));
           return;
         }
-        const mediaRequestId = "television-" + ++num,
+        const mediaRequestId = "television-" + ++ctx.num,
           mediaRequestTimeoutId = setTimeout(
             () => settleMediaRequest(mediaRequestId, "请求超时，请检查设备状态。"),
             14000,
@@ -1067,8 +994,8 @@ export function mountStage(mountOptions: any) {
     }),
     devicePanel = createDevicePanel2({
       onLayout: (genericDeviceLayout: any = null) => {
-        isEditing &&
-          isGenericDeviceKind2(activeModule) &&
+        ctx.isEditing &&
+          isGenericDeviceKind2(ctx.activeModule) &&
           getFocusedEntry() &&
           postHostMessage({
             type: "edit",
@@ -1081,10 +1008,10 @@ export function mountStage(mountOptions: any) {
         new Promise((genericDeviceResolve, genericDeviceReject) => {
           const genericDeviceEntry = getFocusedEntry();
           if (
-            !isControlReady ||
-            isEditing ||
-            isControlBusy ||
-            activeModule !== "devices" ||
+            !ctx.isControlReady ||
+            ctx.isEditing ||
+            ctx.isControlBusy ||
+            ctx.activeModule !== "devices" ||
             !isGenericDeviceKind2(genericDeviceEntry?.deviceKind) ||
             !genericDeviceEntry.modelAvailable ||
             !(genericDeviceEntry.extraControls || []).some(
@@ -1095,7 +1022,7 @@ export function mountStage(mountOptions: any) {
             genericDeviceReject(new Error("当前设备不可控制。"));
             return;
           }
-          const deviceRequestId = "device-" + ++num,
+          const deviceRequestId = "device-" + ++ctx.num,
             deviceRequestTimeoutId = setTimeout(
               () => settleMediaRequest(deviceRequestId, "请求超时，请检查设备状态。"),
               14000,
@@ -1126,10 +1053,10 @@ export function mountStage(mountOptions: any) {
       new Promise((lockResolve, lockReject) => {
         const lockEntry = getFocusedEntry();
         if (
-          !isControlReady ||
-          isEditing ||
-          isControlBusy ||
-          activeModule !== "security" ||
+          !ctx.isControlReady ||
+          ctx.isEditing ||
+          ctx.isControlBusy ||
+          ctx.activeModule !== "security" ||
           lockEntry?.deviceKind !== "lock" ||
           !lockEntry.modelAvailable ||
           lockControl.entityId !== lockEntry.entityId
@@ -1137,7 +1064,7 @@ export function mountStage(mountOptions: any) {
           lockReject(new Error("当前门锁不可控制。"));
           return;
         }
-        const lockRequestId = "lock-" + ++num,
+        const lockRequestId = "lock-" + ++ctx.num,
           lockRequestTimeoutId = setTimeout(
             () => settleMediaRequest(lockRequestId, "请求超时，请检查门锁状态。"),
             14000,
@@ -1171,11 +1098,8 @@ export function mountStage(mountOptions: any) {
     THREE: three,
     requestRender: () => wakeBackgroundAnimation(),
   });
-  let curtainSyncSnapshot: any = null,
-    list: any = [],
-    trackedCoverBindings: any = [];
   function syncCoverIconStates() {
-    for (const trackedCoverBinding of trackedCoverBindings) {
+    for (const trackedCoverBinding of ctx.trackedCoverBindings) {
       const trackedCoverState = readCoverFeedback(trackedCoverBinding);
       trackedCoverBinding.airer ||
         curtainMotion.setState(trackedCoverBinding.id, trackedCoverState, {
@@ -1190,7 +1114,7 @@ export function mountStage(mountOptions: any) {
     }
     for (const curtainGroupBinding of buildCurtainGroups()) {
       const coverGroupElement = map.get(
-        isEditing
+        ctx.isEditing
           ? curtainGroupBinding!.id
           : curtainGroupBinding!.isCurtainGroup
             ? "cover:" + curtainGroupBinding!.id
@@ -1207,7 +1131,7 @@ export function mountStage(mountOptions: any) {
           ),
             memberCoverElement?.classList.toggle(
               "is-offline",
-              !isEditing &&
+              !ctx.isEditing &&
                 (!groupMemberBinding.entityId ||
                   !groupMemberBinding.modelAvailable ||
                   !memberCoverState?.available),
@@ -1221,16 +1145,16 @@ export function mountStage(mountOptions: any) {
         return mountOptions;
       },
       get curtainSyncSnapshot() {
-        return curtainSyncSnapshot;
+        return ctx.curtainSyncSnapshot;
       },
       set curtainSyncSnapshot(v) {
-        curtainSyncSnapshot = v;
+        ctx.curtainSyncSnapshot = v;
       },
       get options() {
-        return options;
+        return ctx.options;
       },
       get deviceStates() {
-        return deviceStates;
+        return ctx.deviceStates;
       },
       get syncCoverIconStates() {
         return syncCoverIconStates;
@@ -1242,16 +1166,16 @@ export function mountStage(mountOptions: any) {
         return collectPreviewCovers;
       },
       get trackedCoverBindings() {
-        return trackedCoverBindings;
+        return ctx.trackedCoverBindings;
       },
       set trackedCoverBindings(v) {
-        trackedCoverBindings = v;
+        ctx.trackedCoverBindings = v;
       },
       get list() {
-        return list;
+        return ctx.list;
       },
       set list(v) {
-        list = v;
+        ctx.list = v;
       },
       get curtainMotion() {
         return curtainMotion;
@@ -1272,7 +1196,7 @@ export function mountStage(mountOptions: any) {
         return pruneTiltPreviews;
       },
       get startupProgress() {
-        return startupProgress;
+        return ctx.startupProgress;
       },
       get nextCoverFeedbackDelay() {
         return nextCoverFeedbackDelay;
@@ -1316,36 +1240,34 @@ export function mountStage(mountOptions: any) {
         }),
       ]),
     );
-  let nasSyncSnapshot: any;
   const cameraStatus = createCameraStatus2({
     THREE: three,
     requestFrame: () => mountOptions.requestRender?.(),
   });
-  let cameraSyncSnapshot: any;
   function syncCameraOverlay() {
-    if (startupProgress === 0) return;
+    if (ctx.startupProgress === 0) return;
     const modelRoot2 = mountOptions.modelRoot,
       sceneRevision2 = mountOptions.sceneRevision,
-      isCameraOverlayEnabled = !isAwaitingFloorViewAdjust && !isRangeEditorOpen,
-      cameraBrightnessScale = activeModule === "security" && selectedFloorId !== "all" ? 1 : 0.55;
+      isCameraOverlayEnabled = !ctx.isAwaitingFloorViewAdjust && !ctx.isRangeEditorOpen,
+      cameraBrightnessScale = ctx.activeModule === "security" && ctx.selectedFloorId !== "all" ? 1 : 0.55;
     if (
-      cameraSyncSnapshot?.root === modelRoot2 &&
-      cameraSyncSnapshot.revision === sceneRevision2 &&
-      cameraSyncSnapshot.config === options &&
-      cameraSyncSnapshot.states === deviceStates &&
-      cameraSyncSnapshot.enabled === isCameraOverlayEnabled &&
-      cameraSyncSnapshot.brightness === cameraBrightnessScale
+      ctx.cameraSyncSnapshot?.root === modelRoot2 &&
+      ctx.cameraSyncSnapshot.revision === sceneRevision2 &&
+      ctx.cameraSyncSnapshot.config === ctx.options &&
+      ctx.cameraSyncSnapshot.states === ctx.deviceStates &&
+      ctx.cameraSyncSnapshot.enabled === isCameraOverlayEnabled &&
+      ctx.cameraSyncSnapshot.brightness === cameraBrightnessScale
     )
       return;
-    cameraSyncSnapshot = {
+    ctx.cameraSyncSnapshot = {
       root: modelRoot2,
       revision: sceneRevision2,
-      config: options,
-      states: deviceStates,
+      config: ctx.options,
+      states: ctx.deviceStates,
       enabled: isCameraOverlayEnabled,
       brightness: cameraBrightnessScale,
     };
-    const cameraSceneBindings = (options.security?.cameras || []).map((cameraSceneBinding: any) => {
+    const cameraSceneBindings = (ctx.options.security?.cameras || []).map((cameraSceneBinding: any) => {
       const cameraSceneModel = stageModelIndex.item(
         cameraSceneBinding.floorId,
         cameraSceneBinding.modelId,
@@ -1362,7 +1284,7 @@ export function mountStage(mountOptions: any) {
       root: modelRoot2,
       revision: sceneRevision2,
       bindings: cameraSceneBindings,
-      states: deviceStates,
+      states: ctx.deviceStates,
       enabled: isCameraOverlayEnabled,
       brightness: cameraBrightnessScale,
     });
@@ -1370,34 +1292,34 @@ export function mountStage(mountOptions: any) {
   function stageLayersSyncDeps() {
     return ({
       get startupProgress() {
-        return startupProgress;
+        return ctx.startupProgress;
       },
       get isAwaitingFloorViewAdjust() {
-        return isAwaitingFloorViewAdjust;
+        return ctx.isAwaitingFloorViewAdjust;
       },
       get isRangeEditorOpen() {
-        return isRangeEditorOpen;
+        return ctx.isRangeEditorOpen;
       },
       get mountOptions() {
         return mountOptions;
       },
       get selectedFloorId() {
-        return selectedFloorId;
+        return ctx.selectedFloorId;
       },
       get activeModule() {
-        return activeModule;
+        return ctx.activeModule;
       },
       get nasSyncSnapshot() {
-        return nasSyncSnapshot;
+        return ctx.nasSyncSnapshot;
       },
       set nasSyncSnapshot(v) {
-        nasSyncSnapshot = v;
+        ctx.nasSyncSnapshot = v;
       },
       get options() {
-        return options;
+        return ctx.options;
       },
       get deviceStates() {
-        return deviceStates;
+        return ctx.deviceStates;
       },
       get nasStatus() {
         return nasStatus;
@@ -1415,10 +1337,10 @@ export function mountStage(mountOptions: any) {
         return collectGenericDeviceBindings;
       },
       get environmentSyncSnapshot() {
-        return environmentSyncSnapshot;
+        return ctx.environmentSyncSnapshot;
       },
       set environmentSyncSnapshot(v) {
-        environmentSyncSnapshot = v;
+        ctx.environmentSyncSnapshot = v;
       },
       get speakerRings() {
         return speakerRings;
@@ -1439,19 +1361,19 @@ export function mountStage(mountOptions: any) {
         return fanMotion;
       },
       get isEditing() {
-        return isEditing;
+        return ctx.isEditing;
       },
       get text() {
-        return text;
+        return ctx.text;
       },
       get focusedItemId() {
-        return focusedItemId;
+        return ctx.focusedItemId;
       },
       get televisionSyncSnapshot() {
-        return televisionSyncSnapshot;
+        return ctx.televisionSyncSnapshot;
       },
       set televisionSyncSnapshot(v) {
-        televisionSyncSnapshot = v;
+        ctx.televisionSyncSnapshot = v;
       },
       get televisionScreens() {
         return televisionScreens;
@@ -1463,28 +1385,28 @@ export function mountStage(mountOptions: any) {
         return element;
       },
       get mediaViewportSize() {
-        return mediaViewportSize;
+        return ctx.mediaViewportSize;
       },
       get containerViewportSize() {
-        return containerViewportSize;
+        return ctx.containerViewportSize;
       },
       set containerViewportSize(v) {
-        containerViewportSize = v;
+        ctx.containerViewportSize = v;
       },
       get mediaScale() {
-        return mediaScale;
+        return ctx.mediaScale;
       },
       set mediaScale(v) {
-        mediaScale = v;
+        ctx.mediaScale = v;
       },
       get value() {
-        return value;
+        return ctx.value;
       },
       set value(v) {
-        value = v;
+        ctx.value = v;
       },
       get configuredModuleKinds2() {
-        return configuredModuleKinds2;
+        return ctx.configuredModuleKinds2;
       },
       get navigationLayerElement() {
         return navigationLayerElement;
@@ -1511,25 +1433,25 @@ export function mountStage(mountOptions: any) {
         return computePopupPlacement;
       },
       get presentationUiSignatureCache() {
-        return presentationUiSignatureCache;
+        return ctx.presentationUiSignatureCache;
       },
       set presentationUiSignatureCache(v) {
-        presentationUiSignatureCache = v;
+        ctx.presentationUiSignatureCache = v;
       },
       get cameraMotionSnapshot() {
-        return cameraMotionSnapshot;
+        return ctx.cameraMotionSnapshot;
       },
       get computeFocusInset() {
         return computeFocusInset;
       },
       get panelDisplayMode() {
-        return panelDisplayMode;
+        return ctx.panelDisplayMode;
       },
       get focusInset() {
-        return focusInset;
+        return ctx.focusInset;
       },
       set focusInset(v) {
-        focusInset = v;
+        ctx.focusInset = v;
       },
       get renderMarkerPositions() {
         return renderMarkerPositions;
@@ -1538,22 +1460,22 @@ export function mountStage(mountOptions: any) {
         return currentModuleBindings;
       },
       get hasPendingStageRefresh() {
-        return hasPendingStageRefresh;
+        return ctx.hasPendingStageRefresh;
       },
       get hasIdleIconActivity() {
-        return hasIdleIconActivity;
+        return ctx.hasIdleIconActivity;
       },
       get isIdleIconHidden() {
-        return isIdleIconHidden;
+        return ctx.isIdleIconHidden;
       },
       get isUserActive() {
-        return isUserActive;
+        return ctx.isUserActive;
       },
       get isCameraRotating() {
-        return isCameraRotating;
+        return ctx.isCameraRotating;
       },
       get pageBehavior() {
-        return pageBehavior;
+        return ctx.pageBehavior;
       },
       get map() {
         return map;
@@ -1577,13 +1499,13 @@ export function mountStage(mountOptions: any) {
         return canvasElement;
       },
       get outgoingGhostAnimation() {
-        return outgoingGhostAnimation;
+        return ctx.outgoingGhostAnimation;
       },
       get lastInteractionMs() {
-        return lastInteractionMs;
+        return ctx.lastInteractionMs;
       },
       set lastInteractionMs(v) {
-        lastInteractionMs = v;
+        ctx.lastInteractionMs = v;
       },
     });
   }
@@ -1623,11 +1545,10 @@ export function mountStage(mountOptions: any) {
         (mountOptions.requestRender?.(), wakeBackgroundAnimation());
       },
     });
-  let hasStartupProgressListener = false;
   const startupEffectsUnsubscribe = mountOptions.onStartupEffectsProgress?.(
     (startupProgressValue: any) => {
-      const isStartupBeforeFirstFrame = startupProgress === 0;
-      ((startupProgress = startupProgressValue),
+      const isStartupBeforeFirstFrame = ctx.startupProgress === 0;
+      ((ctx.startupProgress = startupProgressValue),
         carCharging.setPresentationGain(startupProgressValue),
         (markerLayerElement.style.opacity = vacuumWorkingLayerElement.style.opacity =
           String(startupProgressValue)),
@@ -1635,60 +1556,58 @@ export function mountStage(mountOptions: any) {
           "i3d-startup-effects-pending",
           startupProgressValue === 0,
         ),
-        hasStartupProgressListener &&
+        ctx.hasStartupProgressListener &&
           isStartupBeforeFirstFrame &&
           startupProgressValue > 0 &&
-          ((lastIdleFrameMs = 0), syncLockMotion(), syncMarkers(), wakeSceneBackground()));
+          ((ctx.lastIdleFrameMs = 0), syncLockMotion(), syncMarkers(), wakeSceneBackground()));
     },
   );
-  hasStartupProgressListener = true;
+  ctx.hasStartupProgressListener = true;
   const speakerRings = createSpeakerRings2({
     requestFrame: () => {
       (mountOptions.requestRender?.(), wakeBackgroundAnimation());
     },
   });
-  let televisionSyncSnapshot: any, environmentSyncSnapshot: any;
-  let startupDeviceSyncSnapshot: any;
   function syncStartupDeviceLayers() {
-    if (startupProgress > 0) return;
+    if (ctx.startupProgress > 0) return;
     syncNasOverlay();
     const modelRoot4 = mountOptions.modelRoot,
       sceneRevision4 = mountOptions.sceneRevision,
       environmentRevision = mountOptions.environmentRevision ?? sceneRevision4,
       document4 = mountOptions.document;
-    (startupDeviceSyncSnapshot?.root === modelRoot4 &&
-      startupDeviceSyncSnapshot.revision === sceneRevision4 &&
-      startupDeviceSyncSnapshot.environmentRevision === environmentRevision &&
-      startupDeviceSyncSnapshot.source === document4 &&
-      startupDeviceSyncSnapshot.config === options &&
-      startupDeviceSyncSnapshot.states === deviceStates) ||
+    (ctx.startupDeviceSyncSnapshot?.root === modelRoot4 &&
+      ctx.startupDeviceSyncSnapshot.revision === sceneRevision4 &&
+      ctx.startupDeviceSyncSnapshot.environmentRevision === environmentRevision &&
+      ctx.startupDeviceSyncSnapshot.source === document4 &&
+      ctx.startupDeviceSyncSnapshot.config === ctx.options &&
+      ctx.startupDeviceSyncSnapshot.states === ctx.deviceStates) ||
       (carCharging.sync({
         root: modelRoot4,
         revision: environmentRevision,
         retainedRoots: mountOptions.retainedModelRoots || [],
-        bindings: options.devices?.cars || [],
-        states: deviceStates,
+        bindings: ctx.options.devices?.cars || [],
+        states: ctx.deviceStates,
       }),
       airerMotion.sync({
         root: modelRoot4,
         revision: environmentRevision,
         bindings: collectCoverBindings().filter((airerSyncBinding) => airerSyncBinding.airer),
-        states: deviceStates,
+        states: ctx.deviceStates,
         preparing: true,
       }),
       fanMotion.sync({
         root: modelRoot4,
         revision: environmentRevision,
-        bindings: options.environment?.fans || [],
-        states: deviceStates,
+        bindings: ctx.options.environment?.fans || [],
+        states: ctx.deviceStates,
       }),
-      (startupDeviceSyncSnapshot = {
+      (ctx.startupDeviceSyncSnapshot = {
         root: modelRoot4,
         revision: sceneRevision4,
         environmentRevision: environmentRevision,
         source: document4,
-        config: options,
-        states: deviceStates,
+        config: ctx.options,
+        states: ctx.deviceStates,
       }));
   }
   const environmentScene = createEnvironmentScene2({
@@ -1757,9 +1676,9 @@ export function mountStage(mountOptions: any) {
     (editorSelectionElement.hidden = true),
     presentationLayerElement.append(editorSelectionElement));
   function collectCoverBindings() {
-    return [...(options.environment?.curtains || []), ...(options.environment?.airers || [])].map(
+    return [...(ctx.options.environment?.curtains || []), ...(ctx.options.environment?.airers || [])].map(
       (coverSourceEntry) => {
-        const isAirer = (options.environment?.airers || []).includes(coverSourceEntry),
+        const isAirer = (ctx.options.environment?.airers || []).includes(coverSourceEntry),
           coverModel = stageModelIndex.item(
             coverSourceEntry.floorId,
             coverSourceEntry.modelId,
@@ -1795,7 +1714,7 @@ export function mountStage(mountOptions: any) {
   }
   function buildCurtainGroups() {
     const sourceCoverBindings = collectCoverBindings();
-    return validCurtainGroups2(options.environment)
+    return validCurtainGroups2(ctx.options.environment)
       .map((curtainGroupSource: CurtainGroupLike & {
         x?: number;
         y?: number;
@@ -1840,7 +1759,7 @@ export function mountStage(mountOptions: any) {
   }
   function collectGroupedCovers() {
     const groupMemberIdSet = new Set(
-      validCurtainGroups2(options.environment).flatMap(
+      validCurtainGroups2(ctx.options.environment).flatMap(
         (groupMemberIdList) => groupMemberIdList.memberIds,
       ),
     );
@@ -1874,7 +1793,7 @@ export function mountStage(mountOptions: any) {
   function collectGenericDeviceBindings(collectDeviceKind: any) {
     const deviceProfile = genericDeviceProfile2(collectDeviceKind);
     return deviceProfile
-      ? (options.devices?.[deviceProfile.collection] || []).map((profileDeviceEntry: any) => {
+      ? (ctx.options.devices?.[deviceProfile.collection] || []).map((profileDeviceEntry: any) => {
           const deviceModel = stageModelIndex.item(
             profileDeviceEntry.floorId,
             profileDeviceEntry.modelId,
@@ -1910,7 +1829,7 @@ export function mountStage(mountOptions: any) {
       : [];
   }
   function collectNasBindings() {
-    return (options.devices?.nas || []).map((nasSourceEntry: any) => {
+    return (ctx.options.devices?.nas || []).map((nasSourceEntry: any) => {
       const nasModel = stageModelIndex.item(
         nasSourceEntry.floorId,
         nasSourceEntry.modelId,
@@ -1936,11 +1855,11 @@ export function mountStage(mountOptions: any) {
     (followToggleButton.title = "以鸟瞰视角跟随扫地机"),
     toolbarElement.append(followToggleButton));
   function stopVacuumFollow(shouldRestoreCamera = true) {
-    if (!followVacuumId) return;
-    const returnCameraSnapshot = followReturnCamera;
-    ((followVacuumId = ""),
-      (followReturnCamera = null),
-      (followCameraPose = null),
+    if (!ctx.followVacuumId) return;
+    const returnCameraSnapshot = ctx.followReturnCamera;
+    ((ctx.followVacuumId = ""),
+      (ctx.followReturnCamera = null),
+      (ctx.followCameraPose = null),
       vacuumFollowCamera.reset(),
       postHostMessage({
         type: "vacuum-follow-state",
@@ -1963,22 +1882,22 @@ export function mountStage(mountOptions: any) {
       syncAvailability());
   }
   followToggleButton.addEventListener("click", () => {
-    if (followVacuumId) {
+    if (ctx.followVacuumId) {
       stopVacuumFollow();
       return;
     }
-    if (mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor") return;
-    const followableVacuums = (options.devices?.vacuums || []).filter(
+    if (mountOptions.floorTransitionActive || ctx.cameraMotionSnapshot?.owner === "floor") return;
+    const followableVacuums = (ctx.options.devices?.vacuums || []).filter(
         (followableVacuum: any) =>
           matchesSelectedFloor(followableVacuum) && vacuumMotion.hasTracking(followableVacuum.id),
       ),
       followVacuum =
         followableVacuums.find(
-          (followCandidateVacuum: any) => "vacuum:" + followCandidateVacuum.id === focusedItemId,
+          (followCandidateVacuum: any) => "vacuum:" + followCandidateVacuum.id === ctx.focusedItemId,
         ) ||
         followableVacuums.find(
           (activeFollowVacuum: any) =>
-            vacuumStatusPresentation2(activeFollowVacuum, deviceStates).active,
+            vacuumStatusPresentation2(activeFollowVacuum, ctx.deviceStates).active,
         ) ||
         followableVacuums[0];
     if (!followVacuum) return;
@@ -1993,20 +1912,20 @@ export function mountStage(mountOptions: any) {
       exitFocusMode({
         immediate: true,
       }),
-      (cameraMotionSnapshot = null),
+      (ctx.cameraMotionSnapshot = null),
       mountOptions.endCameraMotion(),
-      (followReturnCamera = structuredClone2),
-      (followVacuumId = followVacuum.id),
-      (followCameraPose = structuredClone(
+      (ctx.followReturnCamera = structuredClone2),
+      (ctx.followVacuumId = followVacuum.id),
+      (ctx.followCameraPose = structuredClone(
         followVacuum.followCamera ||
           vacuumBirdCamera2(
-            options.camera || structuredClone2,
+            ctx.options.camera || structuredClone2,
             mountOptions.environmentModelPose(followVacuum.floorId, followVacuum.modelId)?.center ||
               structuredClone2.target,
           ),
       )),
       mountOptions.setFocusViewport(0),
-      mountOptions.beginCameraMotion(followCameraPose.mode),
+      mountOptions.beginCameraMotion(ctx.followCameraPose.mode),
       (followToggleButton.textContent = "退出跟随"),
       followToggleButton.setAttribute("aria-pressed", "true"),
       syncFocusHidden(),
@@ -2016,10 +1935,10 @@ export function mountStage(mountOptions: any) {
   });
   const vacuumFollowCamera = createVacuumFollowCamera2(three);
   function revealFollowCamera() {
-    if (!followVacuumId) return;
-    const worldPosition = vacuumMotion.worldPosition(followVacuumId),
-      followVacuumBinding = (options.devices?.vacuums || []).find(
-        (followVacuumMatch: any) => followVacuumMatch.id === followVacuumId,
+    if (!ctx.followVacuumId) return;
+    const worldPosition = vacuumMotion.worldPosition(ctx.followVacuumId),
+      followVacuumBinding = (ctx.options.devices?.vacuums || []).find(
+        (followVacuumMatch: any) => followVacuumMatch.id === ctx.followVacuumId,
       );
     if (!worldPosition || !followVacuumBinding) {
       stopVacuumFollow();
@@ -2032,7 +1951,7 @@ export function mountStage(mountOptions: any) {
       add = (vacuumCenter ? new three.Vector3(...vacuumCenter) : worldPosition.clone()).add(
         new three.Vector3(0, 0.05, 0),
       ),
-      followPose = vacuumFollowPose2(followCameraPose, add.toArray()),
+      followPose = vacuumFollowPose2(ctx.followCameraPose, add.toArray()),
       followTargetVector = new three.Vector3(...followPose.position);
     (vacuumFollowCamera.reveal(mountOptions, followVacuumBinding, add, followTargetVector),
       mountOptions.setFocusViewport(0),
@@ -2048,31 +1967,28 @@ export function mountStage(mountOptions: any) {
     vacuumMotion = createVacuumMotion2(mountOptions, wakeSceneBackground),
     presenceScene = createPresenceScene2(mountOptions, wakeSceneBackground, undefined),
     presenceWaves = createPresenceWaves2(mountOptions, wakeBackgroundAnimation);
-  let presenceSyncSignature: any = null,
-    isPresencePressed = false,
-    isPresenceEditing = false;
   const presenceHitLayerElement = createStageElement("div", "i3d-presence-hit-layer");
   (presenceHitLayerElement.setAttribute("aria-hidden", "true"),
     presentationLayerElement.append(presenceHitLayerElement));
   const presenceHitBoxesByRectId = new Map();
   function layoutPresenceHitBoxes() {
-    if ((!isEditing || !isPresenceEditing) && !presenceHitBoxesByRectId.size) return;
+    if ((!ctx.isEditing || !ctx.isPresenceEditing) && !presenceHitBoxesByRectId.size) return;
     const hitRects =
-        isEditing && isPresenceEditing
+        ctx.isEditing && ctx.isPresenceEditing
           ? presenceScene.hitRects(
               mountOptions.camera,
               canvasElement,
-              selectedSecurityKind === "presence" ? options.security?.presenceSensors || [] : [],
-              mediaViewportSize,
+              ctx.selectedSecurityKind === "presence" ? ctx.options.security?.presenceSensors || [] : [],
+              ctx.mediaViewportSize,
             )
           : [],
       activeHitRectIdSet = new Set(hitRects.map((hitRectEntry) => hitRectEntry.id)),
       boundingClientRect = element.getBoundingClientRect(),
-      presenceHitScaleX = mediaViewportSize
-        ? boundingClientRect.width / mediaViewportSize.width
+      presenceHitScaleX = ctx.mediaViewportSize
+        ? boundingClientRect.width / ctx.mediaViewportSize.width
         : 1,
-      presenceHitScaleY = mediaViewportSize
-        ? boundingClientRect.height / mediaViewportSize.height
+      presenceHitScaleY = ctx.mediaViewportSize
+        ? boundingClientRect.height / ctx.mediaViewportSize.height
         : 1;
     if (presenceHitScaleX > 0 && presenceHitScaleY > 0) {
       for (const [staleHitRectId, staleHitBoxElement] of presenceHitBoxesByRectId)
@@ -2101,114 +2017,112 @@ export function mountStage(mountOptions: any) {
     }
   }
   function syncPresenceScene() {
-    if (startupProgress === 0) return;
+    if (ctx.startupProgress === 0) return;
     const isPresenceVisualsEnabled =
-        isStagePresented &&
-        (!isNavigationVisible || (isEditing && activeModule === "security")) &&
-        (!isEditing || activeModule === "security") &&
-        !isAwaitingFloorViewAdjust &&
-        !isRangeEditorOpen &&
-        isPresentedVisible &&
+        ctx.isStagePresented &&
+        (!ctx.isNavigationVisible || (ctx.isEditing && ctx.activeModule === "security")) &&
+        (!ctx.isEditing || ctx.activeModule === "security") &&
+        !ctx.isAwaitingFloorViewAdjust &&
+        !ctx.isRangeEditorOpen &&
+        ctx.isPresentedVisible &&
         !document.hidden &&
         !mountOptions.floorTransitionActive &&
-        cameraMotionSnapshot?.owner !== "floor",
+        ctx.cameraMotionSnapshot?.owner !== "floor",
       presenceBindingList =
-        isEditing && activeModule !== "security" && selectedSecurityKind !== "presence"
+        ctx.isEditing && ctx.activeModule !== "security" && ctx.selectedSecurityKind !== "presence"
           ? []
-          : options.security?.presenceSensors || [],
+          : ctx.options.security?.presenceSensors || [],
       presenceSyncSignatureParts = [
-        options,
-        deviceStates,
+        ctx.options,
+        ctx.deviceStates,
         mountOptions.sceneRevision,
-        selectedFloorId,
+        ctx.selectedFloorId,
         isPresenceVisualsEnabled,
-        isPresencePressed,
-        activeModule,
-        selectedSecurityKind,
+        ctx.isPresencePressed,
+        ctx.activeModule,
+        ctx.selectedSecurityKind,
       ];
-    (presenceSyncSignature &&
+    (ctx.presenceSyncSignature &&
       presenceSyncSignatureParts.every(
         (presenceSignatureValue, presenceSignatureIndex) =>
-          presenceSignatureValue === presenceSyncSignature[presenceSignatureIndex],
+          presenceSignatureValue === ctx.presenceSyncSignature[presenceSignatureIndex],
       )) ||
-      ((presenceSyncSignature = presenceSyncSignatureParts),
+      ((ctx.presenceSyncSignature = presenceSyncSignatureParts),
       presenceScene.sync(
         presenceBindingList,
-        deviceStates,
+        ctx.deviceStates,
         isPresenceVisualsEnabled,
-        selectedFloorId,
-        isEditing,
-        isPresencePressed,
-        activeModule,
+        ctx.selectedFloorId,
+        ctx.isEditing,
+        ctx.isPresencePressed,
+        ctx.activeModule,
       ));
   }
-  let vacuumSyncSignature: any = null;
   function syncVacuumMotion() {
-    if (startupProgress === 0) return;
+    if (ctx.startupProgress === 0) return;
     const isVacuumSyncEnabled =
-        isStagePresented &&
-        !isEditing &&
-        !isAwaitingFloorViewAdjust &&
-        isPresentedVisible &&
+        ctx.isStagePresented &&
+        !ctx.isEditing &&
+        !ctx.isAwaitingFloorViewAdjust &&
+        ctx.isPresentedVisible &&
         !document.hidden,
       vacuumSyncSignatureParts = [
-        options,
-        deviceStates,
+        ctx.options,
+        ctx.deviceStates,
         mountOptions.sceneRevision,
         isVacuumSyncEnabled,
       ];
-    (vacuumSyncSignature &&
+    (ctx.vacuumSyncSignature &&
       vacuumSyncSignatureParts.every(
         (vacuumSignatureValue, vacuumSignatureIndex) =>
-          vacuumSignatureValue === vacuumSyncSignature[vacuumSignatureIndex],
+          vacuumSignatureValue === ctx.vacuumSyncSignature[vacuumSignatureIndex],
       )) ||
-      ((vacuumSyncSignature = vacuumSyncSignatureParts),
+      ((ctx.vacuumSyncSignature = vacuumSyncSignatureParts),
       vacuumMotion.sync(
-        vacuumBindingsForMap2(options.devices?.vacuums || [], deviceStates),
-        deviceStates,
+        vacuumBindingsForMap2(ctx.options.devices?.vacuums || [], ctx.deviceStates),
+        ctx.deviceStates,
         isVacuumSyncEnabled,
       ));
   }
   const vacuumOverlayByKey = new Map();
-  let vacuumMapSignature: any = null;
   function syncVacuumMap() {
     const isVacuumMapVisible =
-        activeModule === "vacuum" &&
-        !isAwaitingFloorViewAdjust &&
-        !isRangeEditorOpen &&
+        ctx.activeModule === "vacuum" &&
+        !ctx.isAwaitingFloorViewAdjust &&
+        !ctx.isRangeEditorOpen &&
         !mountOptions.floorTransitionActive &&
-        cameraMotionSnapshot?.owner !== "floor" &&
-        isPresentedVisible &&
+        ctx.cameraMotionSnapshot?.owner !== "floor" &&
+        ctx.isPresentedVisible &&
         !document.hidden,
       vacuumMapSignatureParts = [
-        options,
-        deviceStates,
+        ctx.options,
+        ctx.deviceStates,
         mountOptions.sceneRevision,
-        selectedFloorId,
+        ctx.selectedFloorId,
         isVacuumMapVisible,
       ];
-    (vacuumMapSignature &&
+    (ctx.vacuumMapSignature &&
       vacuumMapSignatureParts.every(
         (vacuumMapSignatureValue, vacuumMapSignatureIndex) =>
-          vacuumMapSignatureValue === vacuumMapSignature[vacuumMapSignatureIndex],
+          vacuumMapSignatureValue === ctx.vacuumMapSignature[vacuumMapSignatureIndex],
       )) ||
-      ((vacuumMapSignature = vacuumMapSignatureParts),
+      ((ctx.vacuumMapSignature = vacuumMapSignatureParts),
       vacuumMaps.sync(
-        vacuumBindingsForMap2(collectVacuumBindings(), deviceStates),
+        vacuumBindingsForMap2(collectVacuumBindings(), ctx.deviceStates),
         isVacuumMapVisible,
-        selectedFloorId,
-        deviceStates,
+        ctx.selectedFloorId,
+        ctx.deviceStates,
       ));
   }
   document.addEventListener("visibilitychange", syncVacuumMap);
   function collectVacuumBindings() {
-    return (options.devices?.vacuums || []).map((vacuumSourceEntry: any) => {
+    return (ctx.options.devices?.vacuums || []).map((vacuumSourceEntry: any) => {
       const vacuumModel = stageModelIndex.item(
         vacuumSourceEntry.floorId,
         vacuumSourceEntry.modelId,
         "robotvacuum",
       ),
-        vacuumMapOffset = (!isEditing && vacuumMotion.offset(vacuumSourceEntry.id)) || {
+        vacuumMapOffset = (!ctx.isEditing && vacuumMotion.offset(vacuumSourceEntry.id)) || {
           x: 0,
           y: 0,
         };
@@ -2235,14 +2149,14 @@ export function mountStage(mountOptions: any) {
       .filter(
         (vacuumShortcutEntry: any) =>
           vacuumShortcutEntry.visible !== false &&
-          (isEditing || vacuumShortcutEntry.entityId) &&
-          (isEditing ||
-            (!vacuumStatusPresentation2(vacuumShortcutEntry, deviceStates).active &&
-              !vacuumStatusPresentation2(vacuumShortcutEntry, deviceStates).paused)),
+          (ctx.isEditing || vacuumShortcutEntry.entityId) &&
+          (ctx.isEditing ||
+            (!vacuumStatusPresentation2(vacuumShortcutEntry, ctx.deviceStates).active &&
+              !vacuumStatusPresentation2(vacuumShortcutEntry, ctx.deviceStates).paused)),
       )
       .flatMap((vacuumShortcutSource: any) =>
         (vacuumShortcutSource.shortcuts || [])
-          .filter((vacuumShortcut: any) => isEditing || vacuumShortcut.entityId)
+          .filter((vacuumShortcut: any) => ctx.isEditing || vacuumShortcut.entityId)
           .map((vacuumShortcutRoom: any) => ({
             ...vacuumShortcutRoom,
             id: "vacuum-room:" + vacuumShortcutSource.id + ":" + vacuumShortcutRoom.id,
@@ -2261,12 +2175,12 @@ export function mountStage(mountOptions: any) {
   }
   function handleMarkerActivate(markerEntry: any) {
     if (
-      !isEditing &&
-      isControlReady &&
+      !ctx.isEditing &&
+      ctx.isControlReady &&
       markerEntry.deviceKind === "camera" &&
       markerEntry.entityId &&
-      focusedItemId === markerEntry.id &&
-      panelDisplayMode !== "edit"
+      ctx.focusedItemId === markerEntry.id &&
+      ctx.panelDisplayMode !== "edit"
     ) {
       postHostMessage({
         type: "camera-popup",
@@ -2274,20 +2188,20 @@ export function mountStage(mountOptions: any) {
       });
       return;
     }
-    !followVacuumId &&
-      !isEditing &&
-      isControlReady &&
+    !ctx.followVacuumId &&
+      !ctx.isEditing &&
+      ctx.isControlReady &&
       markerEntry.deviceKind === "vacuum" &&
       markerEntry.entityId &&
-      (panelDisplayMode === "panel" || markerEntry.clickAction !== "focus") &&
-      focusedItemId === markerEntry.id &&
+      (ctx.panelDisplayMode === "panel" || markerEntry.clickAction !== "focus") &&
+      ctx.focusedItemId === markerEntry.id &&
       postHostMessage({
         type: "vacuum-popup",
         id: markerEntry.id,
       });
   }
   function collectSpeakerBindings() {
-    return (options.devices?.speakers || []).map((speakerSourceEntry: any) => {
+    return (ctx.options.devices?.speakers || []).map((speakerSourceEntry: any) => {
       const speakerModel = stageModelIndex.item(
         speakerSourceEntry.floorId,
         speakerSourceEntry.modelId,
@@ -2308,7 +2222,7 @@ export function mountStage(mountOptions: any) {
     });
   }
   function collectTelevisionBindings() {
-    return (options.devices?.televisions || []).map((televisionSourceEntry: any) => {
+    return (ctx.options.devices?.televisions || []).map((televisionSourceEntry: any) => {
       const televisionModel = stageModelIndex.item(
         televisionSourceEntry.floorId,
         televisionSourceEntry.modelId,
@@ -2359,36 +2273,36 @@ export function mountStage(mountOptions: any) {
     );
   }
   const currentModuleBindings = () =>
-    (activeModule === "security"
+    (ctx.activeModule === "security"
       ? collectSecurityBindings()
-      : activeModule === "light"
-        ? options.lights || []
+      : ctx.activeModule === "light"
+        ? ctx.options.lights || []
         : [
             ...collectModuleBindings(),
-            ...(activeModule === "vacuum" && !isEditing ? collectVacuumShortcuts() : []),
+            ...(ctx.activeModule === "vacuum" && !ctx.isEditing ? collectVacuumShortcuts() : []),
           ]
     ).filter(matchesSelectedFloor);
   function syncFloorTabs() {
     ((navigationLayerElement.hidden =
-      !isNavigationVisible && (isEditing || isAwaitingFloorViewAdjust || isRangeEditorOpen)),
+      !ctx.isNavigationVisible && (ctx.isEditing || ctx.isAwaitingFloorViewAdjust || ctx.isRangeEditorOpen)),
       (floorTabsElement.hidden =
-        isEditing ||
-        isAwaitingFloorViewAdjust ||
-        isRangeEditorOpen ||
+        ctx.isEditing ||
+        ctx.isAwaitingFloorViewAdjust ||
+        ctx.isRangeEditorOpen ||
         mountOptions.document.floors.length < 2));
     const floorChoices = floorNavigationChoices2(
         mountOptions.document.floors,
-        options.floorNumbers,
+        ctx.options.floorNumbers,
       ),
       outsideFloorId =
-        selectedFloorId === "all"
+        ctx.selectedFloorId === "all"
           ? floorChoices.filter(([floorChoiceId]) => floorChoiceId !== "all").at(-1)?.[0] || ""
           : null;
     (mountOptions.groundReflections?.setOutsideFloor?.(outsideFloorId),
       mountOptions.groundReflections?.setVisibleFloor?.(null));
     const stringify = JSON.stringify(floorChoices);
-    if (stringify !== floorTabsSignature) {
-      ((floorTabsSignature = stringify), floorTabsElement.replaceChildren());
+    if (stringify !== ctx.floorTabsSignature) {
+      ((ctx.floorTabsSignature = stringify), floorTabsElement.replaceChildren());
       for (const [floorChoiceKey, floorChoiceLabel, floorChoiceTitle] of floorChoices) {
         const floorTabButton = createStageElement("button", "", floorChoiceLabel);
         ((floorTabButton.type = "button"),
@@ -2409,34 +2323,34 @@ export function mountStage(mountOptions: any) {
     for (const floorTabElement of floorTabsElement.children)
       floorTabElement.setAttribute(
         "aria-pressed",
-        String(floorTabElement.dataset.floor === selectedFloorId),
+        String(floorTabElement.dataset.floor === ctx.selectedFloorId),
       );
   }
   function stageRefreshDeps() {
     return ({
       get isEditing() {
-        return isEditing;
+        return ctx.isEditing;
       },
       get isAwaitingFloorViewAdjust() {
-        return isAwaitingFloorViewAdjust;
+        return ctx.isAwaitingFloorViewAdjust;
       },
       get isRangeEditorOpen() {
-        return isRangeEditorOpen;
+        return ctx.isRangeEditorOpen;
       },
       set isRangeEditorOpen(v) {
-        isRangeEditorOpen = v;
+        ctx.isRangeEditorOpen = v;
       },
       get isCameraMoving() {
-        return isCameraMoving;
+        return ctx.isCameraMoving;
       },
       set isCameraMoving(v) {
-        isCameraMoving = v;
+        ctx.isCameraMoving = v;
       },
       get selectedFloorId() {
-        return selectedFloorId;
+        return ctx.selectedFloorId;
       },
       set selectedFloorId(v) {
-        selectedFloorId = v;
+        ctx.selectedFloorId = v;
       },
       get mountOptions() {
         return mountOptions;
@@ -2451,10 +2365,10 @@ export function mountStage(mountOptions: any) {
         return cancelMarkerDrag;
       },
       get pendingFloorId() {
-        return pendingFloorId;
+        return ctx.pendingFloorId;
       },
       set pendingFloorId(v) {
-        pendingFloorId = v;
+        ctx.pendingFloorId = v;
       },
       get runModuleSwitchAnimation() {
         return runModuleSwitchAnimation;
@@ -2466,34 +2380,34 @@ export function mountStage(mountOptions: any) {
         return transformFloorCamera;
       },
       get baseStageConfig() {
-        return baseStageConfig;
+        return ctx.baseStageConfig;
       },
       get activeCameraPose() {
-        return activeCameraPose;
+        return ctx.activeCameraPose;
       },
       set activeCameraPose(v) {
-        activeCameraPose = v;
+        ctx.activeCameraPose = v;
       },
       get options() {
-        return options;
+        return ctx.options;
       },
       set options(v) {
-        options = v;
+        ctx.options = v;
       },
       get buildFloorCameraConfig() {
         return buildFloorCameraConfig;
       },
       get activeModule() {
-        return activeModule;
+        return ctx.activeModule;
       },
       set activeModule(v) {
-        activeModule = v;
+        ctx.activeModule = v;
       },
       get pendingModule() {
-        return pendingModule;
+        return ctx.pendingModule;
       },
       set pendingModule(v) {
-        pendingModule = v;
+        ctx.pendingModule = v;
       },
       get syncNasOverlay() {
         return syncNasOverlay;
@@ -2523,16 +2437,16 @@ export function mountStage(mountOptions: any) {
         return syncAvailability;
       },
       get canEditLightRange() {
-        return canEditLightRange;
+        return ctx.canEditLightRange;
       },
       get isStagePresented() {
-        return isStagePresented;
+        return ctx.isStagePresented;
       },
       get isRangeEditorSuppressingClose() {
-        return isRangeEditorSuppressingClose;
+        return ctx.isRangeEditorSuppressingClose;
       },
       set isRangeEditorSuppressingClose(v) {
-        isRangeEditorSuppressingClose = v;
+        ctx.isRangeEditorSuppressingClose = v;
       },
       get syncCameraInteraction() {
         return syncCameraInteraction;
@@ -2544,13 +2458,13 @@ export function mountStage(mountOptions: any) {
         return focusVignetteElement;
       },
       get rangeEditorHandle() {
-        return rangeEditorHandle;
+        return ctx.rangeEditorHandle;
       },
       set rangeEditorHandle(v) {
-        rangeEditorHandle = v;
+        ctx.rangeEditorHandle = v;
       },
       get isRangeEditorOnly() {
-        return isRangeEditorOnly;
+        return ctx.isRangeEditorOnly;
       },
       get wakeSceneBackground() {
         return wakeSceneBackground;
@@ -2571,25 +2485,25 @@ export function mountStage(mountOptions: any) {
         return presenceWaves;
       },
       get text() {
-        return text;
+        return ctx.text;
       },
       get stageModelIndex() {
         return stageModelIndex;
       },
       get deviceStates() {
-        return deviceStates;
+        return ctx.deviceStates;
       },
       get startupProgress() {
-        return startupProgress;
+        return ctx.startupProgress;
       },
       get focusedItemId() {
-        return focusedItemId;
+        return ctx.focusedItemId;
       },
       get panelDisplayMode() {
-        return panelDisplayMode;
+        return ctx.panelDisplayMode;
       },
       get cameraMotionSnapshot() {
-        return cameraMotionSnapshot;
+        return ctx.cameraMotionSnapshot;
       },
       get carCharging() {
         return carCharging;
@@ -2658,10 +2572,10 @@ export function mountStage(mountOptions: any) {
         return syncFloorTabs;
       },
       get navigationEditing() {
-        return navigationEditing;
+        return ctx.navigationEditing;
       },
       get isNavigationVisible() {
-        return isNavigationVisible;
+        return ctx.isNavigationVisible;
       },
       get moduleTabsElement() {
         return moduleTabsElement;
@@ -2673,7 +2587,7 @@ export function mountStage(mountOptions: any) {
         return toggleModuleTabs;
       },
       get configuredModuleKinds2() {
-        return configuredModuleKinds2;
+        return ctx.configuredModuleKinds2;
       },
       get moduleTabsByKind() {
         return moduleTabsByKind;
@@ -2688,40 +2602,40 @@ export function mountStage(mountOptions: any) {
         return applyDefaultCamera;
       },
       get hasIdleIconActivity() {
-        return hasIdleIconActivity;
+        return ctx.hasIdleIconActivity;
       },
       set hasIdleIconActivity(v) {
-        hasIdleIconActivity = v;
+        ctx.hasIdleIconActivity = v;
       },
       get isCameraRotating() {
-        return isCameraRotating;
+        return ctx.isCameraRotating;
       },
       get pageBehavior() {
-        return pageBehavior;
+        return ctx.pageBehavior;
       },
       get isUserActive() {
-        return isUserActive;
+        return ctx.isUserActive;
       },
       get idleRotationControl() {
         return idleRotationControl;
       },
       get isControlBusy() {
-        return isControlBusy;
+        return ctx.isControlBusy;
       },
       get applyRegionLightingPreset() {
         return applyRegionLightingPreset;
       },
       get lastRenderSignature() {
-        return lastRenderSignature;
+        return ctx.lastRenderSignature;
       },
       set lastRenderSignature(v) {
-        lastRenderSignature = v;
+        ctx.lastRenderSignature = v;
       },
       get pendingEditorAction() {
-        return pendingEditorAction;
+        return ctx.pendingEditorAction;
       },
       set pendingEditorAction(v) {
-        pendingEditorAction = v;
+        ctx.pendingEditorAction = v;
       },
       get handleHostMessage() {
         return handleHostMessage;
@@ -2746,7 +2660,7 @@ export function mountStage(mountOptions: any) {
     mountOptions.setLockMoving?.(lockMotion.sync(lockMotionPlan.bindings, lockMotionPlan.states));
   }
   const lockBindings = () =>
-      (options.security?.locks || [])
+      (ctx.options.security?.locks || [])
         .map((lockSourceEntry: any) => {
           const lockFloor = mountOptions.document.floors.find(
               (lockFloorModel: any) => lockFloorModel.id === lockSourceEntry.floorId,
@@ -2773,7 +2687,7 @@ export function mountStage(mountOptions: any) {
         })
         .filter(
           (lockFilterEntry: any) =>
-            isEditing ||
+            ctx.isEditing ||
             lockFilterEntry.doorEntityId ||
             lockFilterEntry.doorEventEntityId ||
             lockFilterEntry.doorOpenEntityId ||
@@ -2793,7 +2707,7 @@ export function mountStage(mountOptions: any) {
       labelModeOf(lockLabelEntry) === "always" ||
       (labelModeOf(lockLabelEntry) === "open" && lockLabelState?.doorOpen === true),
     securityCameraBindings = () =>
-      (options.security?.cameras || []).map((securityCameraSourceEntry: any) => {
+      (ctx.options.security?.cameras || []).map((securityCameraSourceEntry: any) => {
         const securityCameraModel = stageModelIndex.item(
           securityCameraSourceEntry.floorId,
           securityCameraSourceEntry.modelId,
@@ -2819,7 +2733,7 @@ export function mountStage(mountOptions: any) {
         };
       }),
     alarmBindings = () =>
-      (options.security?.alarms || []).map((alarmSourceEntry: any) => {
+      (ctx.options.security?.alarms || []).map((alarmSourceEntry: any) => {
         const kind = isSecurityAlarmKind(alarmSourceEntry.kind)
           ? alarmSourceEntry.kind
           : "smoke";
@@ -2843,7 +2757,7 @@ export function mountStage(mountOptions: any) {
         };
       }),
     presenceBindings = () =>
-      (options.security?.presenceSensors || []).map((presenceSourceEntry: any) => {
+      (ctx.options.security?.presenceSensors || []).map((presenceSourceEntry: any) => {
         const presenceModel = stageModelIndex.item(
           presenceSourceEntry.floorId,
           presenceSourceEntry.modelId,
@@ -2870,37 +2784,37 @@ export function mountStage(mountOptions: any) {
       ...securityCameraBindings(),
       ...alarmBindings(),
       ...presenceBindings().filter(
-        (securityBinding: any) => (isEditing && securityBinding.modelId) || !isEditing,
+        (securityBinding: any) => (ctx.isEditing && securityBinding.modelId) || !ctx.isEditing,
       ),
     ];
-    return isEditing && selectedSecurityKind
+    return ctx.isEditing && ctx.selectedSecurityKind
       ? securityBindingEntries.filter(
           (filteredSecurityBinding) =>
-            filteredSecurityBinding.deviceKind === selectedSecurityKind ||
-            (isSecurityAlarmKind(selectedSecurityKind) &&
+            filteredSecurityBinding.deviceKind === ctx.selectedSecurityKind ||
+            (isSecurityAlarmKind(ctx.selectedSecurityKind) &&
               filteredSecurityBinding.securityAlarm &&
-              filteredSecurityBinding.kind === selectedSecurityKind),
+              filteredSecurityBinding.kind === ctx.selectedSecurityKind),
         )
       : securityBindingEntries;
   }
   function buildLockMotionInput() {
-    const lockBindingList = options.security?.locks || [];
-    if (isEditing && !selectedLockEntry)
+    const lockBindingList = ctx.options.security?.locks || [];
+    if (ctx.isEditing && !ctx.selectedLockEntry)
       return {
         bindings: [] as any[],
         states: {} as Record<string, any>,
       };
-    if (!isEditing || selectedSecurityKind !== "lock" || !selectedLockEntry?.id)
+    if (!ctx.isEditing || ctx.selectedSecurityKind !== "lock" || !ctx.selectedLockEntry?.id)
       return {
         bindings: lockBindingList,
-        states: deviceStates,
+        states: ctx.deviceStates,
       };
-    const replace = selectedLockEntry.id.replace(/^lock:/, ""),
+    const replace = ctx.selectedLockEntry.id.replace(/^lock:/, ""),
       selectedLockBinding = lockBindingList.find((matchedLock: any) => matchedLock.id === replace);
     if (!selectedLockBinding)
       return {
         bindings: lockBindingList,
-        states: deviceStates,
+        states: ctx.deviceStates,
       };
     const lockPreviewEntityId = selectedLockBinding.doorEntityId || "__hb_lock_motion_preview__",
       lockPreviewEntry = {
@@ -2912,9 +2826,9 @@ export function mountStage(mountOptions: any) {
         lockPreviewBinding === selectedLockBinding ? lockPreviewEntry : lockPreviewBinding,
       ),
       states: {
-        ...deviceStates,
+        ...ctx.deviceStates,
         [lockPreviewEntityId]: {
-          state: selectedLockEntry.open ? "open" : "closed",
+          state: ctx.selectedLockEntry.open ? "open" : "closed",
           available: true,
         },
       },
@@ -2930,10 +2844,9 @@ export function mountStage(mountOptions: any) {
       (presenceLookupBinding: any) => presenceLookupBinding.id === bindingLookupId,
     ) ||
     alarmBindings().find((alarmLookupBinding: any) => alarmLookupBinding.id === bindingLookupId);
-  let outgoingGhostAnimation: any = null;
   function cancelGhostAnimation() {
-    const ghostAnimation = outgoingGhostAnimation;
-    if (((outgoingGhostAnimation = null), !!ghostAnimation)) {
+    const ghostAnimation = ctx.outgoingGhostAnimation;
+    if (((ctx.outgoingGhostAnimation = null), !!ghostAnimation)) {
       for (const ghostAnimationEntry of ghostAnimation.animations) ghostAnimationEntry.cancel();
       (ghostAnimation.ghost.remove(), markerLayerElement.removeAttribute("inert"));
     }
@@ -2957,24 +2870,24 @@ export function mountStage(mountOptions: any) {
   }
   function selectModule(targetModule: any) {
     if (
-      isEditing ||
-      isAwaitingFloorViewAdjust ||
-      isRangeEditorOpen ||
-      isCameraMoving ||
-      !configuredModuleKinds2.includes(targetModule) ||
-      selectedFloorId === "all"
+      ctx.isEditing ||
+      ctx.isAwaitingFloorViewAdjust ||
+      ctx.isRangeEditorOpen ||
+      ctx.isCameraMoving ||
+      !ctx.configuredModuleKinds2.includes(targetModule) ||
+      ctx.selectedFloorId === "all"
     )
       return;
-    if (((pendingModule = ""), targetModule === activeModule)) {
+    if (((ctx.pendingModule = ""), targetModule === ctx.activeModule)) {
       refreshStageUi();
       return;
     }
-    const previousModule = activeModule;
+    const previousModule = ctx.activeModule;
     (reportModuleSwitch("category-switch-start", previousModule, targetModule),
-      followVacuumId && stopVacuumFollow(),
+      ctx.followVacuumId && stopVacuumFollow(),
       exitFocusMode(),
       runModuleSwitchAnimation(() => {
-        ((activeModule = targetModule),
+        ((ctx.activeModule = targetModule),
           idleRotationControl.activity(),
           idleIconVisibilityControl.activity(),
           idleFocusExitControl.activity(),
@@ -2984,7 +2897,7 @@ export function mountStage(mountOptions: any) {
           reportModuleSwitch("category-switch-applied", previousModule, targetModule));
       }));
   }
-  const getFocusedEntry = () => findBindingById(focusedItemId),
+  const getFocusedEntry = () => findBindingById(ctx.focusedItemId),
     readLightState = (lightEntityId: any) =>
       vector.state(lightEntityId, resolveDeviceState(lightEntityId));
   function resolveLightState(lightEntry: any) {
@@ -3013,37 +2926,37 @@ export function mountStage(mountOptions: any) {
   function previewEditedLight(editedLightBinding: any) {
     const editedLightState = readLightState(editedLightBinding.entityId);
     return (
-      isEditing &&
-        lightEditPreview?.id === editedLightBinding.id &&
+      ctx.isEditing &&
+        ctx.lightEditPreview?.id === editedLightBinding.id &&
         ((editedLightState.on = true),
         (editedLightState.available = true),
-        lightEditPreview.kind !== "defaults" &&
-          (editedLightState.brightness = lightEditPreview.kind === "brightnessMin" ? 1 : 100),
-        lightEditPreview.kind.startsWith("brightness") &&
+        ctx.lightEditPreview.kind !== "defaults" &&
+          (editedLightState.brightness = ctx.lightEditPreview.kind === "brightnessMin" ? 1 : 100),
+        ctx.lightEditPreview.kind.startsWith("brightness") &&
           (editedLightState.brightnessSupported = true),
-        lightEditPreview.kind.startsWith("temperature") &&
+        ctx.lightEditPreview.kind.startsWith("temperature") &&
           ((editedLightState.temperatureSupported = true),
-          (editedLightState.kelvin = lightEditPreview.kind.endsWith("Min")
+          (editedLightState.kelvin = ctx.lightEditPreview.kind.endsWith("Min")
             ? editedLightState.minimum
             : editedLightState.maximum))),
       editedLightState
     );
   }
   function applyLightStates(lightStateOptions: any = undefined, lightStatePatch: any = null) {
-    const isEditorActive = isEditing || isAwaitingFloorViewAdjust,
+    const isEditorActive = ctx.isEditing || ctx.isAwaitingFloorViewAdjust,
       editedLightEntityId =
-        isEditorActive && !isAwaitingFloorViewAdjust && panelDisplayMode !== "edit"
-          ? lightEditPreview?.id
+        isEditorActive && !ctx.isAwaitingFloorViewAdjust && ctx.panelDisplayMode !== "edit"
+          ? ctx.lightEditPreview?.id
           : null;
     if (
       (mountOptions.setEditorEffects?.(isEditorActive, !!editedLightEntityId),
-      (mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor") &&
+      (mountOptions.floorTransitionActive || ctx.cameraMotionSnapshot?.owner === "floor") &&
         !mountOptions.floorEffectsFollow)
     )
       return;
     const isPartialLightPatch =
         !isEditorActive && lightStatePatch && mountOptions.lightStatePatchReady === true,
-      lightBindingList = (options.lights || []).filter((lightBinding: any) => lightBinding.entityId),
+      lightBindingList = (ctx.options.lights || []).filter((lightBinding: any) => lightBinding.entityId),
       targetLightBindings = isPartialLightPatch
         ? lightBindingsForUpdate2(lightBindingList, lightStatePatch)
         : lightBindingList;
@@ -3052,7 +2965,7 @@ export function mountStage(mountOptions: any) {
         const targetLightStateView = previewEditedLight(targetLightBinding);
         return {
           ...applyFixedLightEffects(targetLightBinding),
-          ...(isEditing && lightEditPreview?.id === targetLightBinding.id
+          ...(ctx.isEditing && ctx.lightEditPreview?.id === targetLightBinding.id
             ? targetLightStateView
             : lightRenderState2(targetLightStateView)),
           ...(isEditorActive && targetLightBinding.id !== editedLightEntityId
@@ -3079,40 +2992,40 @@ export function mountStage(mountOptions: any) {
   function stageCameraMotionDeps() {
     return ({
       get isRangeEditorOpen() {
-        return isRangeEditorOpen;
+        return ctx.isRangeEditorOpen;
       },
       get rangeEditorHandle() {
-        return rangeEditorHandle;
+        return ctx.rangeEditorHandle;
       },
       get followVacuumId() {
-        return followVacuumId;
+        return ctx.followVacuumId;
       },
       get mountOptions() {
         return mountOptions;
       },
       get options() {
-        return options;
+        return ctx.options;
       },
       get activeModule() {
-        return activeModule;
+        return ctx.activeModule;
       },
       get isAwaitingFloorViewAdjust() {
-        return isAwaitingFloorViewAdjust;
+        return ctx.isAwaitingFloorViewAdjust;
       },
       get panelDisplayMode() {
-        return panelDisplayMode;
+        return ctx.panelDisplayMode;
       },
       set panelDisplayMode(v) {
-        panelDisplayMode = v;
+        ctx.panelDisplayMode = v;
       },
       get isEditing() {
-        return isEditing;
+        return ctx.isEditing;
       },
       get cameraMotionSnapshot() {
-        return cameraMotionSnapshot;
+        return ctx.cameraMotionSnapshot;
       },
       set cameraMotionSnapshot(v) {
-        cameraMotionSnapshot = v;
+        ctx.cameraMotionSnapshot = v;
       },
       get getFocusedEntry() {
         return getFocusedEntry;
@@ -3124,22 +3037,22 @@ export function mountStage(mountOptions: any) {
         return presenceScene;
       },
       get activePointerDrag() {
-        return activePointerDrag;
+        return ctx.activePointerDrag;
       },
       set activePointerDrag(v) {
-        activePointerDrag = v;
+        ctx.activePointerDrag = v;
       },
       get isControlReady() {
-        return isControlReady;
+        return ctx.isControlReady;
       },
       get isIdleRotationRunning() {
-        return isIdleRotationRunning;
+        return ctx.isIdleRotationRunning;
       },
       get focusInset() {
-        return focusInset;
+        return ctx.focusInset;
       },
       set focusInset(v) {
-        focusInset = v;
+        ctx.focusInset = v;
       },
       get refreshStageUi() {
         return refreshStageUi;
@@ -3178,28 +3091,28 @@ export function mountStage(mountOptions: any) {
         return speakerPanel;
       },
       get focusedItemId() {
-        return focusedItemId;
+        return ctx.focusedItemId;
       },
       set focusedItemId(v) {
-        focusedItemId = v;
+        ctx.focusedItemId = v;
       },
       get idleReturnCamera() {
-        return idleReturnCamera;
+        return ctx.idleReturnCamera;
       },
       set idleReturnCamera(v) {
-        idleReturnCamera = v;
+        ctx.idleReturnCamera = v;
       },
       get lightEditPreview() {
-        return lightEditPreview;
+        return ctx.lightEditPreview;
       },
       set lightEditPreview(v) {
-        lightEditPreview = v;
+        ctx.lightEditPreview = v;
       },
       get hasPendingStageRefresh() {
-        return hasPendingStageRefresh;
+        return ctx.hasPendingStageRefresh;
       },
       set hasPendingStageRefresh(v) {
-        hasPendingStageRefresh = v;
+        ctx.hasPendingStageRefresh = v;
       },
       get restoreFocusWithin() {
         return restoreFocusWithin;
@@ -3238,7 +3151,7 @@ export function mountStage(mountOptions: any) {
         return isPanelDeviceKind;
       },
       get activeCameraPose() {
-        return activeCameraPose;
+        return ctx.activeCameraPose;
       },
       get three() {
         return three;
@@ -3247,10 +3160,10 @@ export function mountStage(mountOptions: any) {
         return canvasElement;
       },
       get text() {
-        return text;
+        return ctx.text;
       },
       set text(v) {
-        text = v;
+        ctx.text = v;
       },
       get syncMarkers() {
         return syncMarkers;
@@ -3262,10 +3175,10 @@ export function mountStage(mountOptions: any) {
         return map;
       },
       get isControlBusy() {
-        return isControlBusy;
+        return ctx.isControlBusy;
       },
       get deviceStates() {
-        return deviceStates;
+        return ctx.deviceStates;
       },
       get mediaControlRequestsByRequestId() {
         return mediaControlRequestsByRequestId;
@@ -3315,21 +3228,20 @@ export function mountStage(mountOptions: any) {
   function endMarkerDrag(dragEndEvent: any) {
     return endMarkerDragCore(stageCameraMotionDeps(), dragEndEvent);
   }
-  let presentationUiSignatureCache = "";
   const computeFocusInset = () => {
     const insetFocusedEntry = getFocusedEntry(),
       popupPlacementConfig =
-        options.popupLayout?.[insetFocusedEntry?.deviceKind === "camera" ? "camera" : "general"];
+        ctx.options.popupLayout?.[insetFocusedEntry?.deviceKind === "camera" ? "camera" : "general"];
     if (
       (Number.isFinite(popupPlacementConfig?.x) && popupPlacementConfig.x < 75) ||
-      (!isEditing &&
+      (!ctx.isEditing &&
         isPanelDeviceKind(insetFocusedEntry) &&
         insetFocusedEntry?.clickAction === "focus")
     )
       return 0;
-    const clientWidth = mediaViewportSize?.width || element.clientWidth,
+    const clientWidth = ctx.mediaViewportSize?.width || element.clientWidth,
       lightPanelScale =
-        lightPanelSection.getBoundingClientRect().width / Math.max(mediaScale, 0.0001);
+        lightPanelSection.getBoundingClientRect().width / Math.max(ctx.mediaScale, 0.0001);
     return Math.min(0.7, (lightPanelScale + 24) / Math.max(clientWidth, 1));
   };
 
@@ -3337,13 +3249,13 @@ export function mountStage(mountOptions: any) {
   function stageNavigationDragDeps() {
     return ({
       get options() {
-        return options;
+        return ctx.options;
       },
       set options(v) {
-        options = v;
+        ctx.options = v;
       },
       get navigationEditing() {
-        return navigationEditing;
+        return ctx.navigationEditing;
       },
       get element() {
         return element;
@@ -3381,68 +3293,68 @@ export function mountStage(mountOptions: any) {
       focusScopeElement.contains(document.activeElement) && (activeElement as HTMLElement).blur());
   }
   function syncFocusHidden() {
-    (moduleTabsElement.classList.toggle("is-follow-hidden", !!followVacuumId),
-      (moduleTabsElement.inert = !!(followVacuumId || isModuleTabsHidden)),
+    (moduleTabsElement.classList.toggle("is-follow-hidden", !!ctx.followVacuumId),
+      (moduleTabsElement.inert = !!(ctx.followVacuumId || ctx.isModuleTabsHidden)),
       moduleTabsElement.setAttribute(
         "aria-hidden",
-        String(!!(followVacuumId || isModuleTabsHidden)),
+        String(!!(ctx.followVacuumId || ctx.isModuleTabsHidden)),
       ));
     const isFocusHidden =
-      hasPendingStageRefresh ||
-      !!(focusedItemId && panelDisplayMode && panelDisplayMode !== "panel");
+      ctx.hasPendingStageRefresh ||
+      !!(ctx.focusedItemId && ctx.panelDisplayMode && ctx.panelDisplayMode !== "panel");
     for (const focusTabElement of [navigationLayerElement, floorTabsElement]) {
       const isTabFocusHidden =
-        (isFocusHidden || (!!followVacuumId && focusTabElement === floorTabsElement)) &&
-        !(isNavigationVisible && focusTabElement === navigationLayerElement);
+        (isFocusHidden || (!!ctx.followVacuumId && focusTabElement === floorTabsElement)) &&
+        !(ctx.isNavigationVisible && focusTabElement === navigationLayerElement);
       (focusTabElement.classList.toggle("is-focus-hidden", isTabFocusHidden),
         (focusTabElement.inert = isTabFocusHidden),
         focusTabElement.setAttribute("aria-hidden", String(isTabFocusHidden)));
     }
   }
   function exitFollowMode() {
-    hasPendingStageRefresh &&
-      ((hasPendingStageRefresh = false),
+    ctx.hasPendingStageRefresh &&
+      ((ctx.hasPendingStageRefresh = false),
       syncStageVisibility(),
       renderMarkerPositions(true),
       syncFocusHidden());
   }
   function syncPanelChrome() {
     syncFocusHidden();
-    const panelOpacityPercent = Number.isFinite(options.popupOpacity)
-      ? Math.max(0, Math.min(100, options.popupOpacity))
+    const panelOpacityPercent = Number.isFinite(ctx.options.popupOpacity)
+      ? Math.max(0, Math.min(100, ctx.options.popupOpacity))
       : 74;
     lightPanelSection.style.setProperty("--i3d-panel-opacity", String(panelOpacityPercent / 100));
-    const focusVignettePercent = Number.isFinite(options.focusVignetteStrength)
-      ? Math.max(0, Math.min(60, options.focusVignetteStrength))
+    const focusVignettePercent = Number.isFinite(ctx.options.focusVignetteStrength)
+      ? Math.max(0, Math.min(60, ctx.options.focusVignetteStrength))
       : 14;
     (focusVignetteElement.style.setProperty(
       "--i3d-vignette-opacity",
       String(focusVignettePercent / 100),
     ),
       (focusVignetteElement.hidden =
-        isAwaitingFloorViewAdjust || panelDisplayMode === "edit" || panelDisplayMode === "panel"),
+        ctx.isAwaitingFloorViewAdjust || ctx.panelDisplayMode === "edit" || ctx.panelDisplayMode === "panel"),
       focusVignetteElement.classList.toggle(
         "is-active",
         focusVignettePercent > 0 &&
-          !!focusedItemId &&
-          !!panelDisplayMode &&
+          !!ctx.focusedItemId &&
+          !!ctx.panelDisplayMode &&
           !focusVignetteElement.hidden,
       ),
       (viewHelpElement.hidden =
-        !isAwaitingFloorViewAdjust &&
-        panelDisplayMode !== "edit" &&
-        !(isEditing && !panelDisplayMode)),
+        !ctx.isAwaitingFloorViewAdjust &&
+        ctx.panelDisplayMode !== "edit" &&
+        !(ctx.isEditing && !ctx.panelDisplayMode)),
       (viewHelpElement.textContent =
-        panelDisplayMode === "edit"
+        ctx.panelDisplayMode === "edit"
           ? "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后保存视角。"
-          : isEditing && !isAwaitingFloorViewAdjust
+          : ctx.isEditing && !ctx.isAwaitingFloorViewAdjust
             ? "拖动空白处旋转 · 右键平移 · 滚轮缩放。临时查看不改变已保存视角。"
             : "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后固定视角。"),
       markerLayerElement.classList.toggle(
         "is-view-editing",
-        isAwaitingFloorViewAdjust || panelDisplayMode === "edit",
+        ctx.isAwaitingFloorViewAdjust || ctx.panelDisplayMode === "edit",
       ),
-      lightPanelSection.classList.toggle("is-preview", isEditing),
+      lightPanelSection.classList.toggle("is-preview", ctx.isEditing),
       refreshStageUi(),
       syncStageVisibility());
   }
@@ -3492,10 +3404,10 @@ export function mountStage(mountOptions: any) {
       mountOptions.setFloorSlideCameras?.(beginCameraMotion, normalizedCameraPose);
     const isReducedMotion =
       isImmediateMotion || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    ((cameraMotionSnapshot = {
+    ((ctx.cameraMotionSnapshot = {
       from: beginCameraMotion,
       to: structuredClone(normalizedCameraPose),
-      inset: focusInset,
+      inset: ctx.focusInset,
       targetInset: isFocused ? computeFocusInset() : 0,
       transition: createDampedCameraMotion2(three, beginCameraMotion, normalizedCameraPose, {
         immediate: isReducedMotion,
@@ -3511,25 +3423,25 @@ export function mountStage(mountOptions: any) {
       (motionOwner !== "focus" || isFocused) && exitFollowMode(),
       syncAvailability(),
       syncCameraInteraction(),
-      advanceCameraMotion(cameraMotionSnapshot.started),
-      cameraMotionSnapshot && (cameraMotionSnapshot.firstFrame = true),
+      advanceCameraMotion(ctx.cameraMotionSnapshot.started),
+      ctx.cameraMotionSnapshot && (ctx.cameraMotionSnapshot.firstFrame = true),
       wakeSceneBackground());
   }
   const idleRotationControl = createIdleRotation2({
       returnToBase(returnCallback: any) {
-        ((isCameraRotating = true),
-          (idleRotationCameraPose = structuredClone(
-            pageBehavior.autoRotate.returnToDefault === true
+        ((ctx.isCameraRotating = true),
+          (ctx.idleRotationCameraPose = structuredClone(
+            ctx.pageBehavior.autoRotate.returnToDefault === true
               ? normalizeCameraPose(
-                  options.camera || activeCameraPose || mountOptions.cameraState(),
+                  ctx.options.camera || ctx.activeCameraPose || mountOptions.cameraState(),
                 )
               : mountOptions.cameraState(true),
           )));
-        const hasActiveFocus = !!(focusedItemId || panelDisplayMode);
-        ((focusedItemId = ""),
-          (panelDisplayMode = ""),
-          (idleReturnCamera = null),
-          (hasPendingStageRefresh = false),
+        const hasActiveFocus = !!(ctx.focusedItemId || ctx.panelDisplayMode);
+        ((ctx.focusedItemId = ""),
+          (ctx.panelDisplayMode = ""),
+          (ctx.idleReturnCamera = null),
+          (ctx.hasPendingStageRefresh = false),
           restoreFocusWithin(lightPanelSection),
           lightPanelSection.classList.remove("is-open"),
           lightPanelSection.setAttribute("inert", ""),
@@ -3540,98 +3452,98 @@ export function mountStage(mountOptions: any) {
               active: false,
             }),
           mountOptions.setOrbitPivot(null),
-          !cameraMotionSnapshot &&
-          !focusInset &&
-          isSameCameraPose(mountOptions.cameraState(), idleRotationCameraPose)
+          !ctx.cameraMotionSnapshot &&
+          !ctx.focusInset &&
+          isSameCameraPose(mountOptions.cameraState(), ctx.idleRotationCameraPose)
             ? returnCallback()
-            : startCameraMotion(idleRotationCameraPose, false, false, returnCallback, "idle"));
+            : startCameraMotion(ctx.idleRotationCameraPose, false, false, returnCallback, "idle"));
       },
       start() {
-        ((isIdleRotationRunning = true),
-          mountOptions.beginCameraMotion(idleRotationCameraPose.mode),
+        ((ctx.isIdleRotationRunning = true),
+          mountOptions.beginCameraMotion(ctx.idleRotationCameraPose.mode),
           syncCameraInteraction());
       },
       rotate(rotationDelta: any) {
         mountOptions.applyCameraPose(
-          mountOptions.orbitCameraPose(idleRotationCameraPose, rotationDelta),
+          mountOptions.orbitCameraPose(ctx.idleRotationCameraPose, rotationDelta),
         );
       },
       stop() {
-        const isIdleMotionOwned = cameraMotionSnapshot?.owner === "idle",
-          isIdleRotationStopping = isIdleRotationRunning;
-        ((isIdleRotationRunning = false),
-          (isCameraRotating = false),
-          (isIdleIconHidden = false),
-          (idleIconDelayUntilMs = 0),
-          (cameraQuaternionKey = mountOptions.camera.quaternion?.toArray?.().join(",") || ""),
+        const isIdleMotionOwned = ctx.cameraMotionSnapshot?.owner === "idle",
+          isIdleRotationStopping = ctx.isIdleRotationRunning;
+        ((ctx.isIdleRotationRunning = false),
+          (ctx.isCameraRotating = false),
+          (ctx.isIdleIconHidden = false),
+          (ctx.idleIconDelayUntilMs = 0),
+          (ctx.cameraQuaternionKey = mountOptions.camera.quaternion?.toArray?.().join(",") || ""),
           syncStageVisibility(),
-          isIdleMotionOwned && (cameraMotionSnapshot = null),
+          isIdleMotionOwned && (ctx.cameraMotionSnapshot = null),
           (isIdleMotionOwned || isIdleRotationStopping) && mountOptions.endCameraMotion(),
           syncCameraInteraction());
       },
     }),
     idleIconVisibilityControl = createIdleIconVisibility2({
       onChange(isIconVisible) {
-        ((isUserActive = isIconVisible), syncStageVisibility());
+        ((ctx.isUserActive = isIconVisible), syncStageVisibility());
       },
     }),
     idleFocusExitControl = createIdleFocusExit2({
       onExit: () => exitFocusMode(),
     });
   function configureIdleBehaviors() {
-    ((pageBehavior = resolvePageBehavior2(options, activeModule)),
-      idleRotationControl.configure(pageBehavior.autoRotate),
-      idleIconVisibilityControl.configure(pageBehavior.idleHideIcons),
-      idleFocusExitControl.configure(pageBehavior.idleExitFocus),
+    ((ctx.pageBehavior = resolvePageBehavior2(ctx.options, ctx.activeModule)),
+      idleRotationControl.configure(ctx.pageBehavior.autoRotate),
+      idleIconVisibilityControl.configure(ctx.pageBehavior.idleHideIcons),
+      idleFocusExitControl.configure(ctx.pageBehavior.idleExitFocus),
       syncCameraInteraction(),
-      pageBehavior.hideIconsWhileRotating ||
-        ((isIdleIconHidden = false), (idleIconDelayUntilMs = 0)));
+      ctx.pageBehavior.hideIconsWhileRotating ||
+        ((ctx.isIdleIconHidden = false), (ctx.idleIconDelayUntilMs = 0)));
   }
   function syncAvailability() {
     const isIdleRotationAvailable =
-      isStagePresented &&
-      isStageVisible &&
-      isControlReady &&
-      !isEditing &&
-      !isAwaitingFloorViewAdjust &&
-      !isRangeEditorOpen &&
+      ctx.isStagePresented &&
+      ctx.isStageVisible &&
+      ctx.isControlReady &&
+      !ctx.isEditing &&
+      !ctx.isAwaitingFloorViewAdjust &&
+      !ctx.isRangeEditorOpen &&
       !document.hidden &&
-      !isControlBusy;
+      !ctx.isControlBusy;
     (isIdleRotationAvailable || clearActivityState(),
       idleRotationControl.setAvailable(
         isIdleRotationAvailable &&
-          !followVacuumId &&
-          !focusedItemId &&
-          !panelDisplayMode &&
-          !(cameraMotionSnapshot && cameraMotionSnapshot.owner !== "idle"),
+          !ctx.followVacuumId &&
+          !ctx.focusedItemId &&
+          !ctx.panelDisplayMode &&
+          !(ctx.cameraMotionSnapshot && ctx.cameraMotionSnapshot.owner !== "idle"),
       ),
       idleFocusExitControl.setAvailable(
         isIdleRotationAvailable &&
-          !!focusedItemId &&
-          ["runtime", "panel"].includes(panelDisplayMode) &&
-          !cameraMotionSnapshot,
+          !!ctx.focusedItemId &&
+          ["runtime", "panel"].includes(ctx.panelDisplayMode) &&
+          !ctx.cameraMotionSnapshot,
       ),
       idleIconVisibilityControl.setAvailable(isIdleRotationAvailable));
     const isFrameLoopAvailable =
-      !isControlBusy && !document.hidden && (!hasPresentedOnce || isPresentedVisible);
-    (sceneBackground?.setAvailable(isFrameLoopAvailable),
+      !ctx.isControlBusy && !document.hidden && (!ctx.hasPresentedOnce || ctx.isPresentedVisible);
+    (ctx.sceneBackground?.setAvailable(isFrameLoopAvailable),
       screenOutlines.setAvailable(isFrameLoopAvailable),
       editorSelectionOutlines.setAvailable(isFrameLoopAvailable),
       document.body?.classList.toggle("is-render-suspended", !isFrameLoopAvailable),
-      (document.hidden || !isPresentedVisible) && sceneBackgroundController.suspend(),
+      (document.hidden || !ctx.isPresentedVisible) && sceneBackgroundController.suspend(),
       wakeSceneBackground());
   }
   function syncIdleHold() {
-    const isIdleHeld = isPointerHeld || set.size > 0 || lightSyncKeySet.size > 0;
+    const isIdleHeld = ctx.isPointerHeld || set.size > 0 || lightSyncKeySet.size > 0;
     (idleRotationControl.hold(isIdleHeld),
       idleIconVisibilityControl.hold(isIdleHeld),
       idleFocusExitControl.hold(isIdleHeld),
       wakeSceneBackground());
   }
   function handleActivityInput(inputEvent: any) {
-    (followVacuumId && inputEvent.key === "Escape" && stopVacuumFollow(),
-      (furthestFloorOrder = performance.now()),
-      (hasIdleIconActivity = false),
+    (ctx.followVacuumId && inputEvent.key === "Escape" && stopVacuumFollow(),
+      (ctx.furthestFloorOrder = performance.now()),
+      (ctx.hasIdleIconActivity = false),
       syncStageVisibility(),
       inputEvent.type === "pointerdown" && set.add(inputEvent.pointerId),
       (inputEvent.type === "pointerup" || inputEvent.type === "pointercancel") &&
@@ -3655,23 +3567,23 @@ export function mountStage(mountOptions: any) {
       passive: true,
     });
   function clearActivityState() {
-    (set.clear(), lightSyncKeySet.clear(), (isPointerHeld = false), syncIdleHold());
+    (set.clear(), lightSyncKeySet.clear(), (ctx.isPointerHeld = false), syncIdleHold());
   }
   window.addEventListener("blur", clearActivityState);
   function handleVisibilityChange() {
     (document.hidden &&
-      focusExitPointer &&
+      ctx.focusExitPointer &&
       releaseFocusExit({
-        pointerId: focusExitPointer.pointerId,
+        pointerId: ctx.focusExitPointer.pointerId,
       }),
       syncAvailability());
   }
   document.addEventListener &&
     document.addEventListener("visibilitychange", handleVisibilityChange);
   (restoreViewButton.addEventListener("click", () => {
-    panelDisplayMode || idleReturnCamera || cameraMotionSnapshot
+    ctx.panelDisplayMode || ctx.idleReturnCamera || ctx.cameraMotionSnapshot
       ? exitFocusMode()
-      : mountOptions.restoreCamera(normalizeCameraPose(options.camera || activeCameraPose));
+      : mountOptions.restoreCamera(normalizeCameraPose(ctx.options.camera || ctx.activeCameraPose));
   }),
     powerButton.addEventListener("click", () => {
       const clickedLightItem = getFocusedEntry();
@@ -3686,10 +3598,10 @@ export function mountStage(mountOptions: any) {
         return getFocusedEntry;
       },
       get isEditing() {
-        return isEditing;
+        return ctx.isEditing;
       },
       get isControlBusy() {
-        return isControlBusy;
+        return ctx.isControlBusy;
       },
       get resolveLightState() {
         return resolveLightState;
@@ -3722,7 +3634,7 @@ export function mountStage(mountOptions: any) {
     return runLightCommandCore(stageLightingDeps(), serviceName, serviceValue, commandTargetItem);
   }
   function dispatchControlCommand(controlCommand: any, previewToken: any) {
-    const requestId = String(++num),
+    const requestId = String(++ctx.num),
       entityId2 = controlCommand.entityId;
     vector.retain(entityId2, previewToken);
     const commandTimeoutHandle = setTimeout(
@@ -3783,12 +3695,12 @@ export function mountStage(mountOptions: any) {
       available =
         next &&
         !isTimedOut &&
-        !isControlBusy &&
-        !isEditing &&
-        isControlReady &&
-        activeModule === "light" &&
-        selectedFloorId !== "all" &&
-        (options.lights || []).some(
+        !ctx.isControlBusy &&
+        !ctx.isEditing &&
+        ctx.isControlReady &&
+        ctx.activeModule === "light" &&
+        ctx.selectedFloorId !== "all" &&
+        (ctx.options.lights || []).some(
           (boundLightItem: any) =>
             matchesSelectedFloor(boundLightItem) &&
             boundLightItem.entityId === settledEntry.entityId,
@@ -3840,39 +3752,37 @@ export function mountStage(mountOptions: any) {
   }
   function moveMarkerDrag(dragMovePointerEvent: any) {
     if (
-      !activePointerDrag ||
-      activePointerDrag.pointerId !== dragMovePointerEvent.pointerId ||
+      !ctx.activePointerDrag ||
+      ctx.activePointerDrag.pointerId !== dragMovePointerEvent.pointerId ||
       (Math.hypot(
-        dragMovePointerEvent.clientX - activePointerDrag.clientX,
-        dragMovePointerEvent.clientY - activePointerDrag.clientY,
+        dragMovePointerEvent.clientX - ctx.activePointerDrag.clientX,
+        dragMovePointerEvent.clientY - ctx.activePointerDrag.clientY,
       ) < 4 &&
-        !activePointerDrag.moved)
+        !ctx.activePointerDrag.moved)
     )
       return;
     const dragCurrentFloorPoint = screenPointToFloor(
       dragMovePointerEvent,
-      findBindingById(activePointerDrag.id),
+      findBindingById(ctx.activePointerDrag.id),
     );
     dragCurrentFloorPoint &&
-      ((activePointerDrag.moved = true),
-      (activePointerDrag.point = {
-        x: Math.round((dragCurrentFloorPoint.x + activePointerDrag.offset.x) * 100) / 100,
-        y: Math.round((dragCurrentFloorPoint.y + activePointerDrag.offset.y) * 100) / 100,
+      ((ctx.activePointerDrag.moved = true),
+      (ctx.activePointerDrag.point = {
+        x: Math.round((dragCurrentFloorPoint.x + ctx.activePointerDrag.offset.x) * 100) / 100,
+        y: Math.round((dragCurrentFloorPoint.y + ctx.activePointerDrag.offset.y) * 100) / 100,
       }),
-      activeModule === "light" &&
-        Object.assign(findBindingById(activePointerDrag.id), activePointerDrag.point),
+      ctx.activeModule === "light" &&
+        Object.assign(findBindingById(ctx.activePointerDrag.id), ctx.activePointerDrag.point),
       renderMarkerPositions(true));
   }
   function cancelMarkerDrag() {
-    (activePointerDrag &&
-      activeModule === "light" &&
-      Object.assign(findBindingById(activePointerDrag.id), activePointerDrag.original),
-      (activePointerDrag = null),
+    (ctx.activePointerDrag &&
+      ctx.activeModule === "light" &&
+      Object.assign(findBindingById(ctx.activePointerDrag.id), ctx.activePointerDrag.original),
+      (ctx.activePointerDrag = null),
       syncCameraInteraction(),
       renderMarkerPositions(true));
   }
-  let pointerGesture: any,
-    focusExitPointer: any = null;
   const getPointerSlop = (slopPointerEvent: any) => (slopPointerEvent.pointerType === "touch" ? 8 : 5);
   (canvasElement.addEventListener(
     "pointerdown",
@@ -3880,22 +3790,22 @@ export function mountStage(mountOptions: any) {
       if (!(
         stageDownEvent.isPrimary === false ||
         (stageDownEvent.button != null && stageDownEvent.button !== 0) ||
-        isRangeEditorOpen ||
-        followVacuumId ||
-        activePointerDrag ||
-        (!isControlReady && !isEditing && !isAwaitingFloorViewAdjust) ||
-        focusedItemId ||
-        panelDisplayMode
+        ctx.isRangeEditorOpen ||
+        ctx.followVacuumId ||
+        ctx.activePointerDrag ||
+        (!ctx.isControlReady && !ctx.isEditing && !ctx.isAwaitingFloorViewAdjust) ||
+        ctx.focusedItemId ||
+        ctx.panelDisplayMode
       )) {
-        if (cameraMotionSnapshot?.owner === "floor") {
+        if (ctx.cameraMotionSnapshot?.owner === "floor") {
           if (
-            !(cameraMotionSnapshot.amount >= 0.999) ||
-            !cameraMotionSnapshot.presentationRevealed ||
-            !cameraMotionSnapshot.markersRevealed
+            !(ctx.cameraMotionSnapshot.amount >= 0.999) ||
+            !ctx.cameraMotionSnapshot.presentationRevealed ||
+            !ctx.cameraMotionSnapshot.markersRevealed
           )
             return;
-          const closingCameraMotion = cameraMotionSnapshot;
-          ((cameraMotionSnapshot = null),
+          const closingCameraMotion = ctx.cameraMotionSnapshot;
+          ((ctx.cameraMotionSnapshot = null),
             mountOptions.advanceFloorTransition?.(1, mountOptions.cameraState()),
             mountOptions.endCameraMotion(),
             closingCameraMotion.done?.(),
@@ -3905,17 +3815,17 @@ export function mountStage(mountOptions: any) {
             wakeSceneBackground());
           return;
         }
-        cameraMotionSnapshot?.owner !== "focus" ||
-          cameraMotionSnapshot.focused ||
-          ((focusExitPointer = {
-            motion: cameraMotionSnapshot,
+        ctx.cameraMotionSnapshot?.owner !== "focus" ||
+          ctx.cameraMotionSnapshot.focused ||
+          ((ctx.focusExitPointer = {
+            motion: ctx.cameraMotionSnapshot,
             pointerId: stageDownEvent.pointerId,
             x: stageDownEvent.clientX,
             y: stageDownEvent.clientY,
             slop: getPointerSlop(stageDownEvent),
-            returnCamera: idleReturnCamera,
+            returnCamera: ctx.idleReturnCamera,
           }),
-          (cameraMotionSnapshot = null),
+          (ctx.cameraMotionSnapshot = null),
           mountOptions.endCameraMotion(),
           syncCameraInteraction(),
           wakeSceneBackground());
@@ -3928,18 +3838,18 @@ export function mountStage(mountOptions: any) {
     canvasElement.addEventListener(
       "pointermove",
       (stageMoveEvent: any) => {
-        const pendingFocusExitPointer = focusExitPointer;
+        const pendingFocusExitPointer = ctx.focusExitPointer;
         !pendingFocusExitPointer ||
           stageMoveEvent.pointerId !== pendingFocusExitPointer.pointerId ||
           Math.hypot(
             stageMoveEvent.clientX - pendingFocusExitPointer.x,
             stageMoveEvent.clientY - pendingFocusExitPointer.y,
           ) < pendingFocusExitPointer.slop ||
-          ((focusExitPointer = null),
-          !cameraMotionSnapshot &&
-            !panelDisplayMode &&
-            idleReturnCamera === pendingFocusExitPointer.returnCamera &&
-            ((idleReturnCamera = null),
+          ((ctx.focusExitPointer = null),
+          !ctx.cameraMotionSnapshot &&
+            !ctx.panelDisplayMode &&
+            ctx.idleReturnCamera === pendingFocusExitPointer.returnCamera &&
+            ((ctx.idleReturnCamera = null),
             mountOptions.setOrbitPivot(null),
             exitFollowMode(),
             syncAvailability()));
@@ -3949,13 +3859,13 @@ export function mountStage(mountOptions: any) {
       },
     ));
   const releaseFocusExit = (releasePointerEvent: any) => {
-    const releasedFocusExitPointer = focusExitPointer;
+    const releasedFocusExitPointer = ctx.focusExitPointer;
     !releasedFocusExitPointer ||
       releasePointerEvent.pointerId !== releasedFocusExitPointer.pointerId ||
-      ((focusExitPointer = null),
-      !cameraMotionSnapshot &&
-        !panelDisplayMode &&
-        idleReturnCamera === releasedFocusExitPointer.returnCamera &&
+      ((ctx.focusExitPointer = null),
+      !ctx.cameraMotionSnapshot &&
+        !ctx.panelDisplayMode &&
+        ctx.idleReturnCamera === releasedFocusExitPointer.returnCamera &&
         startCameraMotion(
           releasedFocusExitPointer.motion.to,
           false,
@@ -3970,9 +3880,9 @@ export function mountStage(mountOptions: any) {
       capture: true,
     }),
     window.addEventListener("blur", () => {
-      focusExitPointer &&
+      ctx.focusExitPointer &&
         releaseFocusExit({
-          pointerId: focusExitPointer.pointerId,
+          pointerId: ctx.focusExitPointer.pointerId,
         });
     }),
     window.addEventListener("homeos:display-view-lock", () => {
@@ -3987,7 +3897,7 @@ export function mountStage(mountOptions: any) {
       syncCameraInteraction();
     }),
     canvasElement.addEventListener("pointerdown", (gestureStartEvent: any) => {
-      pointerGesture =
+      ctx.pointerGesture =
         (gestureStartEvent.button == null || gestureStartEvent.button === 0) &&
         gestureStartEvent.isPrimary !== false
           ? {
@@ -4000,56 +3910,56 @@ export function mountStage(mountOptions: any) {
           : null;
     }),
     canvasElement.addEventListener("pointermove", (gestureMoveEvent: any) => {
-      (pointerGesture &&
-        (gestureMoveEvent.pointerId !== pointerGesture.id ||
+      (ctx.pointerGesture &&
+        (gestureMoveEvent.pointerId !== ctx.pointerGesture.id ||
           Math.hypot(
-            gestureMoveEvent.clientX - pointerGesture.x,
-            gestureMoveEvent.clientY - pointerGesture.y,
-          ) >= pointerGesture.slop) &&
-        (pointerGesture.moved = true),
-        pointerGesture?.moved &&
-          !isRangeEditorOpen &&
+            gestureMoveEvent.clientX - ctx.pointerGesture.x,
+            gestureMoveEvent.clientY - ctx.pointerGesture.y,
+          ) >= ctx.pointerGesture.slop) &&
+        (ctx.pointerGesture.moved = true),
+        ctx.pointerGesture?.moved &&
+          !ctx.isRangeEditorOpen &&
           sceneBackgroundController.interact(gestureMoveEvent, undefined));
     }),
     canvasElement.addEventListener(
       "wheel",
       (stageWheelEvent: any) => {
-        isRangeEditorOpen || sceneBackgroundController.interact(stageWheelEvent, undefined);
+        ctx.isRangeEditorOpen || sceneBackgroundController.interact(stageWheelEvent, undefined);
       },
       {
         passive: true,
       },
     ),
     canvasElement.addEventListener("pointercancel", () => {
-      pointerGesture = null;
+      ctx.pointerGesture = null;
     }),
     canvasElement.addEventListener("pointerup", (stageUpEvent: any) => {
       const isTap =
-        pointerGesture &&
-        !pointerGesture.moved &&
-        pointerGesture.id === stageUpEvent.pointerId &&
+        ctx.pointerGesture &&
+        !ctx.pointerGesture.moved &&
+        ctx.pointerGesture.id === stageUpEvent.pointerId &&
         Math.hypot(
-          stageUpEvent.clientX - pointerGesture.x,
-          stageUpEvent.clientY - pointerGesture.y,
-        ) < pointerGesture.slop;
-      if (((pointerGesture = null), !isTap || followVacuumId || panelDisplayMode === "edit"))
+          stageUpEvent.clientX - ctx.pointerGesture.x,
+          stageUpEvent.clientY - ctx.pointerGesture.y,
+        ) < ctx.pointerGesture.slop;
+      if (((ctx.pointerGesture = null), !isTap || ctx.followVacuumId || ctx.panelDisplayMode === "edit"))
         return;
-      if (panelDisplayMode && panelDisplayMode !== "panel" && !isEditing) {
+      if (ctx.panelDisplayMode && ctx.panelDisplayMode !== "panel" && !ctx.isEditing) {
         exitFocusMode();
         return;
       }
-      if (!isEditing && isOverviewOrAllFloors()) return;
+      if (!ctx.isEditing && isOverviewOrAllFloors()) return;
       const isScenePickable =
-        !cameraMotionSnapshot ||
-        (cameraMotionSnapshot.owner === "focus" &&
-          !cameraMotionSnapshot.focused &&
-          !focusedItemId &&
-          !panelDisplayMode);
+        !ctx.cameraMotionSnapshot ||
+        (ctx.cameraMotionSnapshot.owner === "focus" &&
+          !ctx.cameraMotionSnapshot.focused &&
+          !ctx.focusedItemId &&
+          !ctx.panelDisplayMode);
       if (
-        activeModule === "security" &&
-        !isEditing &&
-        !isAwaitingFloorViewAdjust &&
-        isControlReady &&
+        ctx.activeModule === "security" &&
+        !ctx.isEditing &&
+        !ctx.isAwaitingFloorViewAdjust &&
+        ctx.isControlReady &&
         isScenePickable
       ) {
         const pick = presenceScene.pick(
@@ -4057,8 +3967,8 @@ export function mountStage(mountOptions: any) {
           stageUpEvent.clientY,
           mountOptions.camera,
           canvasElement,
-          options.security?.presenceSensors || [],
-          mediaViewportSize,
+          ctx.options.security?.presenceSensors || [],
+          ctx.mediaViewportSize,
         );
         if (pick) {
           focusMarkerById("presence:" + pick);
@@ -4067,17 +3977,17 @@ export function mountStage(mountOptions: any) {
       }
       if (
         !isOverviewOrAllFloors() &&
-        activeModule !== "light" &&
-        !isAwaitingFloorViewAdjust &&
+        ctx.activeModule !== "light" &&
+        !ctx.isAwaitingFloorViewAdjust &&
         isScenePickable &&
-        (isEditing || isControlReady)
+        (ctx.isEditing || ctx.isControlReady)
       ) {
         const pickedEnvironmentModel = mountOptions.pickEnvironmentModel?.(
             stageUpEvent.clientX,
             stageUpEvent.clientY,
             expandGroupMembers(currentModuleBindings()),
             (stageUpEvent.pointerType === "touch" ? 10 : 5) *
-              Math.min(value?.x || 1, value?.y || 1),
+              Math.min(ctx.value?.x || 1, ctx.value?.y || 1),
           ),
           matchedMarkerItem =
             pickedEnvironmentModel &&
@@ -4098,44 +4008,43 @@ export function mountStage(mountOptions: any) {
     window.addEventListener("keydown", (stageKeydownEvent) => {
       stageKeydownEvent.key === "Escape" && exitFocusMode();
     }));
-  let lastRenderSignature = "";
   const stageHandlersHost: StageHandlersHost = {
     activateMarker,
-    get activeCameraPose() { return activeCameraPose; },
-    set activeCameraPose(v: any) { activeCameraPose = v; },
-    get activeModule() { return activeModule; },
-    set activeModule(v: any) { activeModule = v; },
-    activePointerDrag,
+    get activeCameraPose() { return ctx.activeCameraPose; },
+    set activeCameraPose(v: any) { ctx.activeCameraPose = v; },
+    get activeModule() { return ctx.activeModule; },
+    set activeModule(v: any) { ctx.activeModule = v; },
+    activePointerDrag: ctx.activePointerDrag,
     advanceCameraMotion,
     airerMotion,
-    animationFrameRequestId,
+    animationFrameRequestId: ctx.animationFrameRequestId,
     applyDefaultCamera,
     applyLightStates,
-    get baseStageConfig() { return baseStageConfig; },
-    set baseStageConfig(v: any) { baseStageConfig = v; },
+    get baseStageConfig() { return ctx.baseStageConfig; },
+    set baseStageConfig(v: any) { ctx.baseStageConfig = v; },
     beginMarkerDrag,
     brightnessSlider,
     buildFloorCameraConfig,
     buildLockMotionInput,
-    get cachedDocumentFloorId() { return cachedDocumentFloorId; },
-    set cachedDocumentFloorId(v: any) { cachedDocumentFloorId = v; },
-    get cachedDocumentSource() { return cachedDocumentSource; },
-    set cachedDocumentSource(v: any) { cachedDocumentSource = v; },
-    get cameraMotionSnapshot() { return cameraMotionSnapshot; },
-    set cameraMotionSnapshot(v: any) { cameraMotionSnapshot = v; },
-    get cameraQuaternionKey() { return cameraQuaternionKey; },
-    set cameraQuaternionKey(v: any) { cameraQuaternionKey = v; },
-    get canEditLightRange() { return canEditLightRange; },
-    set canEditLightRange(v: any) { canEditLightRange = v; },
+    get cachedDocumentFloorId() { return ctx.cachedDocumentFloorId; },
+    set cachedDocumentFloorId(v: any) { ctx.cachedDocumentFloorId = v; },
+    get cachedDocumentSource() { return ctx.cachedDocumentSource; },
+    set cachedDocumentSource(v: any) { ctx.cachedDocumentSource = v; },
+    get cameraMotionSnapshot() { return ctx.cameraMotionSnapshot; },
+    set cameraMotionSnapshot(v: any) { ctx.cameraMotionSnapshot = v; },
+    get cameraQuaternionKey() { return ctx.cameraQuaternionKey; },
+    set cameraQuaternionKey(v: any) { ctx.cameraQuaternionKey = v; },
+    get canEditLightRange() { return ctx.canEditLightRange; },
+    set canEditLightRange(v: any) { ctx.canEditLightRange = v; },
     cancelGhostAnimation,
     cancelMarkerDrag,
     canvasElement,
     carCharging,
     climatePanel,
     configureIdleBehaviors,
-    get configuredModuleKinds2() { return configuredModuleKinds2; },
-    set configuredModuleKinds2(v: any) { configuredModuleKinds2 = v; },
-    containerViewportSize,
+    get configuredModuleKinds2() { return ctx.configuredModuleKinds2; },
+    set configuredModuleKinds2(v: any) { ctx.configuredModuleKinds2 = v; },
+    containerViewportSize: ctx.containerViewportSize,
     controlErrorElement,
     coverControlRequestsByRequestId,
     coverFeedback,
@@ -4144,12 +4053,12 @@ export function mountStage(mountOptions: any) {
     currentModuleBindings,
     curtainMotion,
     devicePanel,
-    get deviceStates() { return deviceStates; },
-    set deviceStates(v: any) { deviceStates = v; },
+    get deviceStates() { return ctx.deviceStates; },
+    set deviceStates(v: any) { ctx.deviceStates = v; },
     deviceStatusElement,
     dreamTiltFeedback,
-    get editingVacuumId() { return editingVacuumId; },
-    set editingVacuumId(v: any) { editingVacuumId = v; },
+    get editingVacuumId() { return ctx.editingVacuumId; },
+    set editingVacuumId(v: any) { ctx.editingVacuumId = v; },
     editorSelectionOutlines,
     element,
     endMarkerDrag,
@@ -4160,72 +4069,72 @@ export function mountStage(mountOptions: any) {
     failCoverRequest,
     fanMotion,
     findBindingById,
-    focusExitPointer,
+    focusExitPointer: ctx.focusExitPointer,
     focusMarkerById,
-    focusedItemId,
+    focusedItemId: ctx.focusedItemId,
     followToggleButton,
-    followVacuumId,
-    get furthestFloorOrder() { return furthestFloorOrder; },
-    set furthestFloorOrder(v: any) { furthestFloorOrder = v; },
+    followVacuumId: ctx.followVacuumId,
+    get furthestFloorOrder() { return ctx.furthestFloorOrder; },
+    set furthestFloorOrder(v: any) { ctx.furthestFloorOrder = v; },
     getFocusedEntry,
-    get hasAutoSelectedFloors() { return hasAutoSelectedFloors; },
-    set hasAutoSelectedFloors(v: any) { hasAutoSelectedFloors = v; },
-    get hasIdleIconActivity() { return hasIdleIconActivity; },
-    set hasIdleIconActivity(v: any) { hasIdleIconActivity = v; },
-    get hasPresentedOnce() { return hasPresentedOnce; },
-    set hasPresentedOnce(v: any) { hasPresentedOnce = v; },
+    get hasAutoSelectedFloors() { return ctx.hasAutoSelectedFloors; },
+    set hasAutoSelectedFloors(v: any) { ctx.hasAutoSelectedFloors = v; },
+    get hasIdleIconActivity() { return ctx.hasIdleIconActivity; },
+    set hasIdleIconActivity(v: any) { ctx.hasIdleIconActivity = v; },
+    get hasPresentedOnce() { return ctx.hasPresentedOnce; },
+    set hasPresentedOnce(v: any) { ctx.hasPresentedOnce = v; },
     hasStageRect,
     idleFocusExitControl,
-    get idleIconDelayUntilMs() { return idleIconDelayUntilMs; },
-    set idleIconDelayUntilMs(v: any) { idleIconDelayUntilMs = v; },
+    get idleIconDelayUntilMs() { return ctx.idleIconDelayUntilMs; },
+    set idleIconDelayUntilMs(v: any) { ctx.idleIconDelayUntilMs = v; },
     idleIconVisibilityControl,
-    idleReturnCamera,
+    idleReturnCamera: ctx.idleReturnCamera,
     idleRotationControl,
-    get isAwaitingFloorViewAdjust() { return isAwaitingFloorViewAdjust; },
-    set isAwaitingFloorViewAdjust(v: any) { isAwaitingFloorViewAdjust = v; },
-    isCameraMoving,
-    isControlBusy,
-    get isControlReady() { return isControlReady; },
-    set isControlReady(v: any) { isControlReady = v; },
-    get isEditing() { return isEditing; },
-    set isEditing(v: any) { isEditing = v; },
-    get isIdleIconHidden() { return isIdleIconHidden; },
-    set isIdleIconHidden(v: any) { isIdleIconHidden = v; },
-    isIdleRotationRunning,
+    get isAwaitingFloorViewAdjust() { return ctx.isAwaitingFloorViewAdjust; },
+    set isAwaitingFloorViewAdjust(v: any) { ctx.isAwaitingFloorViewAdjust = v; },
+    isCameraMoving: ctx.isCameraMoving,
+    isControlBusy: ctx.isControlBusy,
+    get isControlReady() { return ctx.isControlReady; },
+    set isControlReady(v: any) { ctx.isControlReady = v; },
+    get isEditing() { return ctx.isEditing; },
+    set isEditing(v: any) { ctx.isEditing = v; },
+    get isIdleIconHidden() { return ctx.isIdleIconHidden; },
+    set isIdleIconHidden(v: any) { ctx.isIdleIconHidden = v; },
+    isIdleRotationRunning: ctx.isIdleRotationRunning,
     isLockLabelShown,
-    get isNavigationVisible() { return isNavigationVisible; },
-    set isNavigationVisible(v: any) { isNavigationVisible = v; },
-    get isPointerHeld() { return isPointerHeld; },
-    set isPointerHeld(v: any) { isPointerHeld = v; },
-    get isPresenceEditing() { return isPresenceEditing; },
-    set isPresenceEditing(v: any) { isPresenceEditing = v; },
-    get isPresencePressed() { return isPresencePressed; },
-    set isPresencePressed(v: any) { isPresencePressed = v; },
-    get isPresentedVisible() { return isPresentedVisible; },
-    set isPresentedVisible(v: any) { isPresentedVisible = v; },
-    get isRangeEditorOnly() { return isRangeEditorOnly; },
-    set isRangeEditorOnly(v: any) { isRangeEditorOnly = v; },
-    isRangeEditorOpen,
-    get isRangeEditorSuppressingClose() { return isRangeEditorSuppressingClose; },
-    set isRangeEditorSuppressingClose(v: any) { isRangeEditorSuppressingClose = v; },
-    get isStagePresented() { return isStagePresented; },
-    set isStagePresented(v: any) { isStagePresented = v; },
-    get isStageVisible() { return isStageVisible; },
-    set isStageVisible(v: any) { isStageVisible = v; },
-    get lastIdleFloorId() { return lastIdleFloorId; },
-    set lastIdleFloorId(v: any) { lastIdleFloorId = v; },
-    get lastIdleFrameMs() { return lastIdleFrameMs; },
-    set lastIdleFrameMs(v: any) { lastIdleFrameMs = v; },
-    lastInteractionMs,
-    get lastQuaternionMs() { return lastQuaternionMs; },
-    set lastQuaternionMs(v: any) { lastQuaternionMs = v; },
-    get lastRenderSignature() { return lastRenderSignature; },
-    set lastRenderSignature(v: any) { lastRenderSignature = v; },
+    get isNavigationVisible() { return ctx.isNavigationVisible; },
+    set isNavigationVisible(v: any) { ctx.isNavigationVisible = v; },
+    get isPointerHeld() { return ctx.isPointerHeld; },
+    set isPointerHeld(v: any) { ctx.isPointerHeld = v; },
+    get isPresenceEditing() { return ctx.isPresenceEditing; },
+    set isPresenceEditing(v: any) { ctx.isPresenceEditing = v; },
+    get isPresencePressed() { return ctx.isPresencePressed; },
+    set isPresencePressed(v: any) { ctx.isPresencePressed = v; },
+    get isPresentedVisible() { return ctx.isPresentedVisible; },
+    set isPresentedVisible(v: any) { ctx.isPresentedVisible = v; },
+    get isRangeEditorOnly() { return ctx.isRangeEditorOnly; },
+    set isRangeEditorOnly(v: any) { ctx.isRangeEditorOnly = v; },
+    isRangeEditorOpen: ctx.isRangeEditorOpen,
+    get isRangeEditorSuppressingClose() { return ctx.isRangeEditorSuppressingClose; },
+    set isRangeEditorSuppressingClose(v: any) { ctx.isRangeEditorSuppressingClose = v; },
+    get isStagePresented() { return ctx.isStagePresented; },
+    set isStagePresented(v: any) { ctx.isStagePresented = v; },
+    get isStageVisible() { return ctx.isStageVisible; },
+    set isStageVisible(v: any) { ctx.isStageVisible = v; },
+    get lastIdleFloorId() { return ctx.lastIdleFloorId; },
+    set lastIdleFloorId(v: any) { ctx.lastIdleFloorId = v; },
+    get lastIdleFrameMs() { return ctx.lastIdleFrameMs; },
+    set lastIdleFrameMs(v: any) { ctx.lastIdleFrameMs = v; },
+    lastInteractionMs: ctx.lastInteractionMs,
+    get lastQuaternionMs() { return ctx.lastQuaternionMs; },
+    set lastQuaternionMs(v: any) { ctx.lastQuaternionMs = v; },
+    get lastRenderSignature() { return ctx.lastRenderSignature; },
+    set lastRenderSignature(v: any) { ctx.lastRenderSignature = v; },
     layoutPresenceHitBoxes,
     lightColorPicker,
     lightControlsElement,
-    get lightEditPreview() { return lightEditPreview; },
-    set lightEditPreview(v: any) { lightEditPreview = v; },
+    get lightEditPreview() { return ctx.lightEditPreview; },
+    set lightEditPreview(v: any) { ctx.lightEditPreview = v; },
     lightGroupByKey,
     lightModeMenu,
     lightPanelHeader,
@@ -4233,44 +4142,44 @@ export function mountStage(mountOptions: any) {
     lightPresetRecords,
     lightPresetsElement,
     lightTitleElement,
-    list,
+    list: ctx.list,
     lockMotion,
     lockPanel,
     map,
     markerLayerElement,
     matchesSelectedFloor,
     mediaControlRequestsByRequestId,
-    get mediaViewportSize() { return mediaViewportSize; },
-    set mediaViewportSize(v: any) { mediaViewportSize = v; },
+    get mediaViewportSize() { return ctx.mediaViewportSize; },
+    set mediaViewportSize(v: any) { ctx.mediaViewportSize = v; },
     moduleEmptyElement,
     mountOptions,
     moveMarkerDrag,
     nasPanel,
     nasStatus,
-    get navigationEditing() { return navigationEditing; },
-    set navigationEditing(v: any) { navigationEditing = v; },
+    get navigationEditing() { return ctx.navigationEditing; },
+    set navigationEditing(v: any) { ctx.navigationEditing = v; },
     nextCoverFeedbackDelay,
     noopStageCallback,
     normalizeCameraPose,
     openRangeEditor,
-    get options() { return options; },
-    set options(v: any) { options = v; },
-    outgoingGhostAnimation,
-    pageBehavior,
-    get panelDisplayMode() { return panelDisplayMode; },
-    set panelDisplayMode(v: any) { panelDisplayMode = v; },
+    get options() { return ctx.options; },
+    set options(v: any) { ctx.options = v; },
+    outgoingGhostAnimation: ctx.outgoingGhostAnimation,
+    pageBehavior: ctx.pageBehavior,
+    get panelDisplayMode() { return ctx.panelDisplayMode; },
+    set panelDisplayMode(v: any) { ctx.panelDisplayMode = v; },
     pendingControlRequestsByRequestId,
-    get pendingEditorAction() { return pendingEditorAction; },
-    set pendingEditorAction(v: any) { pendingEditorAction = v; },
-    get pendingFloorId() { return pendingFloorId; },
-    set pendingFloorId(v: any) { pendingFloorId = v; },
-    get pendingModule() { return pendingModule; },
-    set pendingModule(v: any) { pendingModule = v; },
+    get pendingEditorAction() { return ctx.pendingEditorAction; },
+    set pendingEditorAction(v: any) { ctx.pendingEditorAction = v; },
+    get pendingFloorId() { return ctx.pendingFloorId; },
+    set pendingFloorId(v: any) { ctx.pendingFloorId = v; },
+    get pendingModule() { return ctx.pendingModule; },
+    set pendingModule(v: any) { ctx.pendingModule = v; },
     powerButton,
     presenceScene,
     presenceWaves,
     pruneTiltPreviews,
-    rangeEditorHandle,
+    rangeEditorHandle: ctx.rangeEditorHandle,
     readCoverFeedback,
     readLightState,
     rebuildCurtainMotion,
@@ -4281,10 +4190,10 @@ export function mountStage(mountOptions: any) {
     restoreFocusWithin,
     revealFollowCamera,
     get sceneBackground() {
-      return sceneBackground;
+      return ctx.sceneBackground;
     },
     set sceneBackground(v: any) {
-      sceneBackground = v;
+      ctx.sceneBackground = v;
     },
     sceneBackgroundController,
     sceneCacheByKey,
@@ -4292,12 +4201,12 @@ export function mountStage(mountOptions: any) {
     scratchVector,
     screenOutlines,
     securityAlarmOverlay,
-    get selectedFloorId() { return selectedFloorId; },
-    set selectedFloorId(v: any) { selectedFloorId = v; },
-    get selectedLockEntry() { return selectedLockEntry; },
-    set selectedLockEntry(v: any) { selectedLockEntry = v; },
-    get selectedSecurityKind() { return selectedSecurityKind; },
-    set selectedSecurityKind(v: any) { selectedSecurityKind = v; },
+    get selectedFloorId() { return ctx.selectedFloorId; },
+    set selectedFloorId(v: any) { ctx.selectedFloorId = v; },
+    get selectedLockEntry() { return ctx.selectedLockEntry; },
+    set selectedLockEntry(v: any) { ctx.selectedLockEntry = v; },
+    get selectedSecurityKind() { return ctx.selectedSecurityKind; },
+    set selectedSecurityKind(v: any) { ctx.selectedSecurityKind = v; },
     set,
     settleClimateRequest,
     settleControlCommand,
@@ -4306,8 +4215,8 @@ export function mountStage(mountOptions: any) {
     speakerRings,
     stageModelIndex,
     startCameraMotion,
-    get startupProgress() { return startupProgress; },
-    set startupProgress(v: any) { startupProgress = v; },
+    get startupProgress() { return ctx.startupProgress; },
+    set startupProgress(v: any) { ctx.startupProgress = v; },
     stateUpdatePlanner,
     stopVacuumFollow,
     syncAirConditionerHistory,
@@ -4326,8 +4235,8 @@ export function mountStage(mountOptions: any) {
     syncVacuumMotion,
     televisionPanel,
     temperatureSlider,
-    get text() { return text; },
-    set text(v: any) { text = v; },
+    get text() { return ctx.text; },
+    set text(v: any) { ctx.text = v; },
     toolbarElement,
     transformFloorCamera,
     updateLampButton,
@@ -4358,7 +4267,7 @@ export function mountStage(mountOptions: any) {
       const cameraChanged = screenOutlines.cameraChanged();
       (renderMarkerPositions(),
         layoutPresenceHitBoxes(),
-        (cameraChanged || pageBehavior.hideIconsWhileRotating === true) && wakeSceneBackground());
+        (cameraChanged || ctx.pageBehavior.hideIconsWhileRotating === true) && wakeSceneBackground());
     });
   cameraChangeUnsubscribe || controls.addEventListener("change", renderMarkerPositions);
   const resizeObserver = new ResizeObserver(syncLayoutMetrics);
@@ -4369,34 +4278,34 @@ export function mountStage(mountOptions: any) {
   const sceneSync = mountOptions.readSceneUpdate
     ? startSceneSync2({
         eligible: () =>
-          !isControlBusy &&
-          isStagePresented &&
-          isStageVisible &&
+          !ctx.isControlBusy &&
+          ctx.isStagePresented &&
+          ctx.isStageVisible &&
           !document.hidden &&
-          !isEditing &&
-          !isAwaitingFloorViewAdjust &&
-          !isNavigationVisible &&
-          !panelDisplayMode &&
-          !followVacuumId &&
-          !cameraMotionSnapshot &&
-          !activePointerDrag &&
-          !isRangeEditorOpen &&
-          !isCameraMoving &&
+          !ctx.isEditing &&
+          !ctx.isAwaitingFloorViewAdjust &&
+          !ctx.isNavigationVisible &&
+          !ctx.panelDisplayMode &&
+          !ctx.followVacuumId &&
+          !ctx.cameraMotionSnapshot &&
+          !ctx.activePointerDrag &&
+          !ctx.isRangeEditorOpen &&
+          !ctx.isCameraMoving &&
           !lightGroupByKey.size &&
           !pendingControlRequestsByRequestId.size &&
           !coverControlRequestsByRequestId.size &&
           !mediaControlRequestsByRequestId.size &&
           !curtainMotion.isMoving() &&
           nextCoverFeedbackDelay() === Infinity &&
-          !isPointerHeld &&
+          !ctx.isPointerHeld &&
           !set.size &&
           !lightSyncKeySet.size &&
-          performance.now() - furthestFloorOrder > 1200,
+          performance.now() - ctx.furthestFloorOrder > 1200,
         read: (sceneReadRequest: any) => mountOptions.readSceneUpdate(sceneReadRequest),
         apply: adoptSceneUpdate,
       })
     : () => {};
-  ((sceneBackground = mountOptions.createFrameLoop({
+  ((ctx.sceneBackground = mountOptions.createFrameLoop({
     step: (frameStepTimestamp: any) =>
       mountOptions.profileFrameWork
         ? mountOptions.profileFrameWork("stage-updates", () => runFrame(frameStepTimestamp))
@@ -4412,20 +4321,20 @@ export function mountStage(mountOptions: any) {
         securityAlarmOverlay.dispose(),
         sceneBackgroundController.dispose(),
         mountOptions.setBackgroundTheme?.(null),
-        moduleTabsAnimation?.cancel(),
-        (moduleTabsAnimation = null),
+        ctx.moduleTabsAnimation?.cancel(),
+        (ctx.moduleTabsAnimation = null),
         cancelGhostAnimation(),
         document.removeEventListener("visibilitychange", syncVacuumMap),
         vacuumMaps.dispose(),
         vacuumMotion.dispose(),
         presenceScene.dispose(),
         presenceWaves.dispose(),
-        followVacuumId && stopVacuumFollow(false));
+        ctx.followVacuumId && stopVacuumFollow(false));
       for (const roomTimeoutHandleRef of vacuumOverlayByKey.values())
         clearTimeout(roomTimeoutHandleRef);
       (vacuumOverlayByKey.clear(),
-        (canEditLightRange = false),
-        rangeEditorHandle?.dispose(),
+        (ctx.canEditLightRange = false),
+        ctx.rangeEditorHandle?.dispose(),
         mountOptions.setCurtainSync?.(null),
         mountOptions.setTelevisionSync?.(null),
         mountOptions.setStartupDeviceSync?.(null),
@@ -4467,11 +4376,11 @@ export function mountStage(mountOptions: any) {
       for (const pendingSyncRequestId of pendingControlRequestsByRequestId.keys())
         settleClimateRequest(pendingSyncRequestId, "页面已关闭。");
       (mountOptions.finishFloorTransition?.(),
-        (isControlBusy = true),
+        (ctx.isControlBusy = true),
         idleRotationControl.dispose(),
         idleIconVisibilityControl.dispose(),
         idleFocusExitControl.dispose(),
-        (cameraMotionSnapshot = null),
+        (ctx.cameraMotionSnapshot = null),
         postHostMessage({
           type: "focus-state",
           active: false,
@@ -4480,7 +4389,7 @@ export function mountStage(mountOptions: any) {
         window.removeEventListener(activityEventNameRef, handleActivityInput, true);
       (window.removeEventListener("blur", clearActivityState),
         document.removeEventListener?.("visibilitychange", handleVisibilityChange),
-        sceneBackground.dispose(),
+        ctx.sceneBackground.dispose(),
         cameraChangeUnsubscribe?.(),
         cameraChangeUnsubscribe || controls.removeEventListener("change", renderMarkerPositions),
         resizeObserver.disconnect(),
@@ -4490,6 +4399,6 @@ export function mountStage(mountOptions: any) {
   postHostMessage({
     type: "ready",
     statePatches: true,
-    metadata: buildMetadata(mountOptions, transformFloorCamera, options.floorSelection),
+    metadata: buildMetadata(mountOptions, transformFloorCamera, ctx.options.floorSelection),
   });
 }

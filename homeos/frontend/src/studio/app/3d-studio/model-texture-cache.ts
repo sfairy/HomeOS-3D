@@ -162,14 +162,14 @@ export function packModelTextures(textureSet: any, serializationMeta: any) {
     const record = originalTextureRecordFor(texture);
     if (!record) throw Error("Texture needs the original loader");
     const sourceUuid = texture.source.uuid;
-    ((textureImagesBySourceUuid as any)[sourceUuid] ||
-      (((textureImagesBySourceUuid as any)[sourceUuid] = record.image),
+    (textureImagesBySourceUuid[sourceUuid] ||
+      ((textureImagesBySourceUuid[sourceUuid] = record.image),
       (totalTextureBytes += record.image.data.byteLength),
       (totalTexturePixels += record.image.width * record.image.height)),
       (serializationMeta.images[sourceUuid] = {
         uuid: sourceUuid,
       }),
-      ((textureMatricesByTextureUuid as any)[texture.uuid] = {
+      (textureMatricesByTextureUuid[texture.uuid] = {
         autoUpdate: texture.matrixAutoUpdate,
         elements: texture.matrix.toArray(),
       }));

@@ -289,6 +289,8 @@ import {
   drawCourtyardArea as drawCourtyardAreaCore,
 } from "../plan/studio-plan-item-drawing";
 import { createOutlinePath as createOutlinePathCore, buildShapesWithHoles as buildShapesWithHolesCore, createSceneWallSideMaterial as createWallSideMaterialCore, createWallTopMaterial as createWallTopMaterialCore, expandPolygonOutward as expandPolygonOutwardCore, buildInteriorScene as buildInteriorSceneCore } from "./scene/studio-walls";
+import { createStudioRenderContext } from "./studio-app/studio-render-context";
+import { createStudioAppContext } from "./studio-app/studio-app-context";
 
 let disposeActiveStudio: (() => void) | null = null;
 
@@ -303,6 +305,7 @@ let disposeActiveStudio: (() => void) | null = null;
 export function bootStudio(): void {
   const scope = createLegacyScope('studio-app');
   const innerCleanup = scope.run(() => {
+  const appCtx = createStudioAppContext();
 
 // 路由 fade 过渡期间编辑器与户型页会短暂共存；必须限定在本页根节点内查询，
   // 否则 #inspector-empty / #backup-open 等撞 id 会拿到对方 DOM（例如编辑器空态没有 <strong>）。
@@ -319,27 +322,6 @@ export function bootStudio(): void {
     new URLSearchParams(window.location.search).get("lighting") === "region",
   defaultWallRuntimeProfile = "shader";
 window.__homeosWallRuntimeProfile = defaultWallRuntimeProfile || "baseline";
-let regionLightController: any = null,
-  contactShadowController: any = null,
-  overviewStackController: any = null,
-  animatedTransitionValue: any = null,
-  basePixelRatio = 1,
-  adaptivePixelRatio: any = null,
-  reflectionSettingsJson = "off",
-  isEnvironmentActive = false,
-  sceneRevisionCount = 0,
-  isVacuumMoving = false,
-  vacuumMoveCount = 0,
-  isLockMoving = false,
-  lockMoveCount = 0,
-  sceneStyle = "default",
-  wallOpacityValue: any = null,
-  isBackgroundMoving = false,
-  backgroundThemeName = "grid",
-  isCurtainMoving = false,
-  curtainStructureJson = "[]",
-  curtainFrameKey = "[]",
-  isHighDetailQuality = true;
 const renderCacheWriter = isEmbeddedStage
   ? createRenderCache2({
       sceneId: new URLSearchParams(window.location.search).get("sceneId"),
@@ -353,15 +335,15 @@ window.addEventListener("pagehide", () => renderCacheWriter?.close(), {
   once: true,
 });
 function sceneCacheDescriptor(descriptorWidth: any, descriptorHeight: any) {
-  const floors = getPreviewFloorMode() === "all" ? studioProject.floors : [getActiveFloor()];
-  threeCamera.updateMatrixWorld();
+  const floors = getPreviewFloorMode() === "all" ? appCtx.studioProject.floors : [getActiveFloor()];
+  appCtx.threeCamera.updateMatrixWorld();
   const roundMatrixNumbers = (matrixElements: any) =>
       matrixElements.map(
         (matrixElementValue: any) => Math.round(matrixElementValue * 100000000) / 100000000,
       ),
     list: any = [];
   return (
-    sceneRootNode.traverse((sceneObject: any) => {
+    appCtx.sceneRootNode.traverse((sceneObject: any) => {
       ["background", "grid"].includes(sceneObject.userData?.exportRole) &&
         list.push([sceneObject.userData.exportRole, sceneObject.visible]);
     }),
@@ -379,42 +361,42 @@ function sceneCacheDescriptor(descriptorWidth: any, descriptorHeight: any) {
         wallUnion: "v3-near-collinear",
         scene: cacheSceneDescriptor2(floors),
         mode: getPreviewFloorMode(),
-        gap: studioProject.previewFloorGap,
-        uniformOverviewStack: studioProject.uniformOverviewStack === true,
-        ...(studioProject.uniformOverviewStack === true
+        gap: appCtx.studioProject.previewFloorGap,
+        uniformOverviewStack: appCtx.studioProject.uniformOverviewStack === true,
+        ...(appCtx.studioProject.uniformOverviewStack === true
           ? {
               overviewProjection: "saved-camera-v1",
             }
           : {}),
-        ...(isEmbedStageMode && sceneStyle === "warm-wood"
+        ...(isEmbedStageMode && appCtx.sceneStyle === "warm-wood"
           ? {
               warmRegionLighting: "v13-balanced-wash",
             }
           : {}),
-        lighting: baseLightingSettings,
+        lighting: appCtx.baseLightingSettings,
         style: backgroundSettings(),
-        wallOpacity: wallOpacityValue,
+        wallOpacity: appCtx.wallOpacityValue,
         visibility: list,
-        reflections: reflectionSettingsJson,
-        curtains: curtainStructureJson,
-        ...(backgroundThemeName !== "grid"
+        reflections: appCtx.reflectionSettingsJson,
+        curtains: appCtx.curtainStructureJson,
+        ...(appCtx.backgroundThemeName !== "grid"
           ? {
-              backgroundTheme: "v6:" + backgroundThemeName,
+              backgroundTheme: "v6:" + appCtx.backgroundThemeName,
             }
           : {}),
         models: externalModelRegistry.cacheRepresentation(
           floors.flatMap((sceneItem: any) => sceneItem.scene.items),
         ),
         camera: {
-          world: roundMatrixNumbers(threeCamera.matrixWorld.elements),
-          projection: roundMatrixNumbers(threeCamera.projectionMatrix.elements),
+          world: roundMatrixNumbers(appCtx.threeCamera.matrixWorld.elements),
+          projection: roundMatrixNumbers(appCtx.threeCamera.projectionMatrix.elements),
         },
         width: descriptorWidth,
         height: descriptorHeight,
-        toneMapping: threeRenderer.toneMapping,
-        exposure: threeRenderer.toneMappingExposure,
-        colorSpace: threeRenderer.outputColorSpace,
-        shadows: threeRenderer.shadowMap.type,
+        toneMapping: appCtx.threeRenderer.toneMapping,
+        exposure: appCtx.threeRenderer.toneMappingExposure,
+        colorSpace: appCtx.threeRenderer.outputColorSpace,
+        shadows: appCtx.threeRenderer.shadowMap.type,
       }),
     )
   );
@@ -560,7 +542,6 @@ const planCanvasElement = selectElement("#plan-canvas"),
   modelLoadingStatusElement = selectElement("#model-loading-status");
 const previewLightCacheCanvasElement = selectElement("#preview-light-cache"),
   previewRenderShieldElement = selectElement("#preview-render-shield");
-let previewShieldTimeoutId: any = null;
 const cameraViewControls = [...document.querySelectorAll<StudioControlElement>("[data-camera-view]")],
   cameraRotateTopControls = [...document.querySelectorAll<StudioControlElement>("[data-camera-rotate-top]")],
   cameraModeControls = [...document.querySelectorAll<StudioControlElement>("[data-camera-mode]")],
@@ -643,7 +624,7 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   lightGroupAreaNameElement = selectElement("#light-group-area-name"),
   lampsLayerIndex = 2;
 function checkModelInUse(modelKey: any) {
-  return !!studioProject?.floors?.some((floorSelection: any) =>
+  return !!appCtx.studioProject?.floors?.some((floorSelection: any) =>
     floorSelection.scene?.items?.some((floorItem: any) => {
       if (modelKey.startsWith("tv_")) {
         const tvMountStyle = tvMountStyleSet.has(floorItem.tvMountStyle)
@@ -680,7 +661,7 @@ function collectScenePayload(
 function collectSelectedFloors() {
   const activeFloorRecords =
     getPreviewFloorMode() === "all"
-      ? studioProject?.floors || []
+      ? appCtx.studioProject?.floors || []
       : [getActiveFloor()].filter(Boolean);
   return collectScenePayload(activeFloorRecords);
 }
@@ -702,17 +683,10 @@ const modelAssetLoader = createModelAssetLoader2({
     );
   },
 });
-let modelLoadTimeoutId: any = null,
-  isModelLoadPending = false,
-  replacementFrameCount = 0,
-  isModelLoadActive = false;
 const modelPresentationState = {
   presented: false,
   pending: false,
 };
-let isModelLoadDeferred = false,
-  isExternalModelPending = false,
-  isSceneStillLoading = false;
 const assetLoaderState = {
   revision: 0,
   disposed: false,
@@ -726,36 +700,33 @@ window.addEventListener(
     once: true,
   },
 );
-let isExternalModelLoadDeferred = false,
-  deferredModelTypes: any = [],
-  modelLoadDebounceId: any = null;
 ((window.externalModelLoadsDeferred = false),
   (window.__homeosDeferExternalModel = (modelTypeName) => {
     modelTypeName &&
-      (deferredModelTypes.includes(modelTypeName) || deferredModelTypes.push(modelTypeName),
+      (appCtx.deferredModelTypes.includes(modelTypeName) || appCtx.deferredModelTypes.push(modelTypeName),
       scheduleModelLoadFlush());
   }));
 function scheduleModelLoadFlush(flushDelayMs = 900) {
-  (window.clearTimeout(modelLoadDebounceId),
-    (modelLoadDebounceId = window.setTimeout(
+  (window.clearTimeout(appCtx.modelLoadDebounceId),
+    (appCtx.modelLoadDebounceId = window.setTimeout(
       () => {
         if (
-          ((modelLoadDebounceId = null),
-          !isExternalModelLoadDeferred || document.hidden || isWindowHidden || isRenderSuppressed)
+          ((appCtx.modelLoadDebounceId = null),
+          !appCtx.isExternalModelLoadDeferred || document.hidden || appCtx.isWindowHidden || appCtx.isRenderSuppressed)
         ) {
-          isExternalModelLoadDeferred && scheduleModelLoadFlush(300);
+          appCtx.isExternalModelLoadDeferred && scheduleModelLoadFlush(300);
           return;
         }
-        const uniqueModelTypes = [...new Set(deferredModelTypes)];
-        ((deferredModelTypes = []), Promise.allSettled(loadModelsForTypes(uniqueModelTypes)));
+        const uniqueModelTypes = [...new Set(appCtx.deferredModelTypes)];
+        ((appCtx.deferredModelTypes = []), Promise.allSettled(loadModelsForTypes(uniqueModelTypes)));
       },
       Math.max(0, flushDelayMs),
     )));
 }
 function loadModelsForTypes(requestedModelTypes: any[] = []) {
-  (window.clearTimeout(modelLoadDebounceId),
-    (modelLoadDebounceId = null),
-    (isExternalModelLoadDeferred = false),
+  (window.clearTimeout(appCtx.modelLoadDebounceId),
+    (appCtx.modelLoadDebounceId = null),
+    (appCtx.isExternalModelLoadDeferred = false),
     (window.externalModelLoadsDeferred = false));
   const filter = [...new Set(requestedModelTypes)].filter(
     (modelTypeFilterKey) => (ALL_ITEM_MODELS2 as any)[modelTypeFilterKey],
@@ -769,43 +740,43 @@ function preloadDefaultModels() {
   return loadModelsForTypes(collectSelectedFloors());
 }
 function requestSceneRender() {
-  if (typeof isExternalModelPending < "u" && isExternalModelPending) {
-    isModelLoadPending = true;
+  if (typeof appCtx.isExternalModelPending < "u" && appCtx.isExternalModelPending) {
+    appCtx.isModelLoadPending = true;
     return;
   }
-  if (isAutoDiagramEmbed || isModelLoadDeferred) {
+  if (isAutoDiagramEmbed || appCtx.isModelLoadDeferred) {
     publishModelLoadState();
     return;
   }
-  ((isModelLoadPending = true),
+  ((appCtx.isModelLoadPending = true),
     publishModelLoadState(),
-    isModelLoadPending &&
-      (isWindowHidden ||
-        isRenderSuppressed ||
-        (modelLoadTimeoutId === null &&
-          (modelLoadTimeoutId = window.setTimeout(() => {
-            ((modelLoadTimeoutId = null),
-              !(isWindowHidden || isRenderSuppressed) && finishModelLoad());
+    appCtx.isModelLoadPending &&
+      (appCtx.isWindowHidden ||
+        appCtx.isRenderSuppressed ||
+        (appCtx.modelLoadTimeoutId === null &&
+          (appCtx.modelLoadTimeoutId = window.setTimeout(() => {
+            ((appCtx.modelLoadTimeoutId = null),
+              !(appCtx.isWindowHidden || appCtx.isRenderSuppressed) && finishModelLoad());
           }, 500)))));
 }
 function finishModelLoad() {
-  (!isModelLoadPending && !isAutoDiagramEmbed && !isModelLoadDeferred) ||
-    ((isModelLoadPending = false),
-    window.clearTimeout(modelLoadTimeoutId),
-    (modelLoadTimeoutId = null),
-    (replacementFrameCount += 1),
+  (!appCtx.isModelLoadPending && !isAutoDiagramEmbed && !appCtx.isModelLoadDeferred) ||
+    ((appCtx.isModelLoadPending = false),
+    window.clearTimeout(appCtx.modelLoadTimeoutId),
+    (appCtx.modelLoadTimeoutId = null),
+    (appCtx.replacementFrameCount += 1),
     publishModelLoadState(),
-    typeof isRuntimeWarmupDone < "u" &&
+    typeof appCtx.isRuntimeWarmupDone < "u" &&
       isEmbeddedStage &&
-      sceneRootNode?.children?.length &&
-      (isRuntimeWarmupDone = true),
+      appCtx.sceneRootNode?.children?.length &&
+      (appCtx.isRuntimeWarmupDone = true),
     requestSceneRebuild({
       force: true,
       precompile: true,
       externalModelsOnly: true,
     }),
     window.requestAnimationFrame(() => {
-      ((replacementFrameCount -= 1), publishModelLoadState());
+      ((appCtx.replacementFrameCount -= 1), publishModelLoadState());
     }));
 }
 const externalModelRegistry = createExternalModelManager2({
@@ -830,40 +801,32 @@ const externalModelRegistry = createExternalModelManager2({
 const studioDocumentDeps = () => ({
   externalModelRegistry,
   get studioProject() {
-    return studioProject;
+    return appCtx.studioProject;
   },
 });
 /** 「材质属性」检查面板的运行态。 */
-let materialSlotPanelSignature = "",
-  /** 「材质风格」色卡条的签名（模型类型 + 档位表长度）：变了才重建色卡，避免打断点击。 */
-  materialStyleOptionSignature = "",
-  /** 面板正在等模型加载（此时显示「模型加载中」）； */
-  isMaterialSlotPanelPending = false,
-  /** 槽位筛选：当前选中的角色族（空串 = 全部）； */
-  materialSlotGroupFilter = "",
-  /** 展开表面参数的槽位集合（按 GLB 材质名）； */
-  expandedMaterialSurfaceSlots = new Set();
+appCtx.expandedMaterialSurfaceSlots = new Set();
 function publishModelLoadState(modelLoaderEntry = externalModelRegistry.modelLoadState()) {
   const pending = modelLoaderEntry.pending ?? modelLoaderEntry.active + modelLoaderEntry.queued,
-    isModelLoadSettled = isModelLoadActive && pending === 0;
+    isModelLoadSettled = appCtx.isModelLoadActive && pending === 0;
   if (
-    ((isModelLoadActive = pending > 0),
+    ((appCtx.isModelLoadActive = pending > 0),
     !pending &&
-      isModelLoadPending &&
+      appCtx.isModelLoadPending &&
       !isAutoDiagramEmbed &&
-      !isModelLoadDeferred &&
-      !isWindowHidden &&
-      !isRenderSuppressed &&
-      (typeof isExternalModelPending > "u" || !isExternalModelPending))
+      !appCtx.isModelLoadDeferred &&
+      !appCtx.isWindowHidden &&
+      !appCtx.isRenderSuppressed &&
+      (typeof appCtx.isExternalModelPending > "u" || !appCtx.isExternalModelPending))
   ) {
     finishModelLoad();
     return;
   }
-  isModelLoadSettled && !isModelLoadPending && replacementFrameCount === 0 && renderStudioFrame();
-  const hn2 = pending > 0 || isModelLoadPending || replacementFrameCount > 0;
+  isModelLoadSettled && !appCtx.isModelLoadPending && appCtx.replacementFrameCount === 0 && renderStudioFrame();
+  const hn2 = pending > 0 || appCtx.isModelLoadPending || appCtx.replacementFrameCount > 0;
   (updateModelLoadIndicator(modelLoaderEntry, hn2),
     modelLoadingStatusElement &&
-      (orbitControls && !isInteractionLocked && (orbitControls.enabled = !hn2),
+      (appCtx.orbitControls && !appCtx.isInteractionLocked && (appCtx.orbitControls.enabled = !hn2),
       (modelLoadingStatusElement.hidden = !hn2),
       modelLoadingStatusElement
         .querySelector("span:last-child")
@@ -873,15 +836,15 @@ function publishModelLoadState(modelLoaderEntry = externalModelRegistry.modelLoa
           ),
         )));
 
-  isMaterialSlotPanelPending &&
-    selectedItem?.kind === "item" &&
+  appCtx.isMaterialSlotPanelPending &&
+    appCtx.selectedItem?.kind === "item" &&
     renderMaterialSlotPanel(getSelectedObject());
 }
 function emitRuntimeDiagnostic(eventName: any, timingRecord: Record<string, any> = {}) {
   try {
     if (!isEmbeddedStage && ["gpu-lost", "gpu-restored"].includes(eventName)) {
       const isContextRestored = eventName === "gpu-restored",
-        contextCanvas = threeRenderer?.domElement;
+        contextCanvas = appCtx.threeRenderer?.domElement;
       (window.HomeOSLog?.report as any)?.(
         isContextRestored ? "success" : "warning",
         "3D 图形",
@@ -897,7 +860,7 @@ function emitRuntimeDiagnostic(eventName: any, timingRecord: Record<string, any>
           " × " +
           (contextCanvas?.height || 0) +
           "\n像素比：" +
-          (threeRenderer?.getPixelRatio?.() || 1),
+          (appCtx.threeRenderer?.getPixelRatio?.() || 1),
       );
       return;
     }
@@ -936,10 +899,10 @@ function emitRuntimeDiagnostic(eventName: any, timingRecord: Record<string, any>
         (options[timingKey] = Math.max(0, Math.min(1000000000, timingRecord[timingKey])));
     if (
       (eventName.startsWith("gpu-") || eventName.startsWith("category-switch-")) &&
-      typeof threeRenderer < "u"
+      typeof appCtx.threeRenderer < "u"
     ) {
       if (eventName.startsWith("category-switch-")) {
-        const rendererSnapshot = threeRenderer?.info;
+        const rendererSnapshot = appCtx.threeRenderer?.info;
         for (const [metricKey, metricValue] of Object.entries({
           geometries: rendererSnapshot?.memory?.geometries,
           textures: rendererSnapshot?.memory?.textures,
@@ -950,9 +913,9 @@ function emitRuntimeDiagnostic(eventName: any, timingRecord: Record<string, any>
             (options[metricKey] = Math.max(0, Math.min(1000000000, metricValue)));
       }
       const runtimeStatsReport = {
-        width: threeRenderer?.domElement?.width,
-        height: threeRenderer?.domElement?.height,
-        dpr: threeRenderer?.getPixelRatio?.(),
+        width: appCtx.threeRenderer?.domElement?.width,
+        height: appCtx.threeRenderer?.domElement?.height,
+        dpr: appCtx.threeRenderer?.getPixelRatio?.(),
       };
       for (const [statKey, statValue] of Object.entries(runtimeStatsReport))
         typeof statValue == "number" &&
@@ -986,8 +949,8 @@ function updateModelLoadIndicator(loadStateSnapshot: any, isPresentationPending:
       pending: pending3,
       active: loadStateSnapshot.active,
       queued: loadStateSnapshot.queued,
-      replacementPending: isModelLoadPending,
-      replacementFrames: replacementFrameCount,
+      replacementPending: appCtx.isModelLoadPending,
+      replacementFrames: appCtx.replacementFrameCount,
     });
   } catch { /* 诊断上报 best-effort：加载状态快照上报失败不应中断加载流程 */ }
 }
@@ -1178,185 +1141,47 @@ const toolHelpMessages = {
     screenToPlan: screenToPlan,
     pixelsPerMeter: getPixelsPerMeter,
     getCanvasSize: () => ({
-      width: planViewWidth,
-      height: planViewHeight,
+      width: appCtx.planViewWidth,
+      height: appCtx.planViewHeight,
     }),
-    getViewZoom: () => planView.zoom,
+    getViewZoom: () => appCtx.planView.zoom,
   });
-let loadedDraft: any = null,
-  draftLoadRequestId = 0,
-  backgroundLoadRequestId = 0,
-  studioState = createStudioDocument(),
-  studioProject: any = null,
-  activeFloorId = "",
-  overriddenFloorIds: any = null,
-  backgroundImageSource: any = null,
-  activeToolName = "select";
+appCtx.studioState = createStudioDocument();
 const activeDoorType = "solid";
-let activeLibraryCategory = "home",
-  activeLightGroupId = "",
-  pendingLightGroupId = "",
-  renamingLightGroupId = "",
-  areaAssignGroupId = "",
-  expandedAreaIds = new Set(),
-  movingFloorId = "",
-  pendingLightPropertyApply: any = null,
-  clipboardItems: any = [],
-  clipboardSourceFloor: any = null,
-  pasteOffsetFactor = 0,
-  selectedItem: any = null,
-  selectedItems: any = [],
-  segmentStartPoint: any = null,
-  snapEndpointPoint: any = null,
-  wallSegmentCount = 0,
-  previewEndPoint: any = null,
-  measureSpan: any = null,
-  alignmentState: any = null,
-  floorSelectionRequestId = 0,
-  pendingFloorMenuId = "",
-  pendingFloorDeleteId = "",
-  hoverPoint: any = null,
-  activeSnapTarget: any = null,
-  snapHit: any = null,
-  windowPlacement: any = null,
-  doorPlacement: any = null,
-  railingPlacement: any = null,
-  marqueeBox: any = null,
-  isMiddleButtonPanning = false,
-  isForceSnapDisabled = false,
-  isSnapTemporarilyOff = false,
-  planViewWidth = 1,
-  planViewHeight = 1,
-  isAutoFitRequested = false,
-  planView = {
-    zoom: 1,
-    offsetX: 0,
-    offsetY: 0,
-    rotation: 0,
-  },
-  undoRecords: any = [],
-  redoRecords: any = [],
-  localSaveRevision = 0,
-  remoteSaveRevision = 0,
-  autosaveTimeoutId: any = null,
-  isSaveInFlight = false,
-  pendingConflict: any = null,
-  toastTimeoutId: any = null,
-  isPrecompileBlocked = false,
-  isMaterialPrecompilePending = false,
-  isRuntimeWarmupDone = false,
-  hasAllFloorsSelected = false,
-  isLightCachePreserved = false,
-  isRendererLost = false;
+appCtx.expandedAreaIds = new Set();
 /** 灯光面板的区域改为只读，唯一来源是 HA 区域注册表（后端 /ha/areas 已同步的数据）。 */
-let lightAreaRecords: { areaId: string; name: string }[] = [];
 const dirtyFloorIdSet = new Set();
-let isSceneDirty = false,
-  dragStart: any = null,
-  activePointerId: any = null,
-  pointerReleaseTimeoutId: any = null,
-  pointerMoveCount = 0;
 const wallJoinCacheByWall = new WeakMap();
-let activePointerState: any = null,
-  pointerFrameId = 0,
-  pinchStartDistance = 1,
-  pinchStartCenter: any = null,
-  renderLoopFrameId = 0,
-  renderLoopTimeoutId: any = null,
-  pendingRuntimeSettings: any = null,
-  isInteractionLocked = false,
-  isExporting = false,
-  isExportPresetDirty = false,
-  exportPreviewTimeoutId: any = null,
-  overwriteResolver: any = null,
-  isGroundShadowEnabled = false,
-  savedShadowCamera: any = null;
 const defaultExportWidth = 1852,
   defaultExportHeight = 1293;
-let exportAspectRatio = defaultExportWidth / defaultExportHeight,
-  threeScene: any = null,
-  threeCamera: any = null,
-  threeRenderer: any = null,
-  orbitControls: any = null,
-  sceneRootNode: any = null,
-  sceneModelOrigin: any = null,
-  resizeObserverInstance: any = null,
-  hemisphereLight: any = null,
-  ambientLight: any = null,
-  mainDirectionalLight: any = null,
-  fillDirectionalLight: any = null,
-  topDirectionalLight: any = null,
-  lightPrecompileController: any = null,
-  baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2),
-  pointerDragState: any = null,
-  lightPreviewWorker: any = null;
+appCtx.exportAspectRatio = defaultExportWidth / defaultExportHeight;
+appCtx.baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2);
 try {
   typeof BroadcastChannel == "function" &&
-    (lightPreviewWorker = new BroadcastChannel("homeos-studio3d-base-lighting-v1"));
+    (appCtx.lightPreviewWorker = new BroadcastChannel("homeos-studio3d-base-lighting-v1"));
 } catch { /* Worker / 广播通道不可用（环境不支持或扩展未加载）：功能降级为单通道，不影响主流程 */ }
-let isLightCacheReady = true,
-  isLightCacheDeferred = false,
-  compiledShaderCache: any = null,
-  backgroundController: any = null,
-  isLightCachePending = false,
-  lightingScheduler: any = null,
-  isDisposed = false,
-  rendererLossHandler: any = null,
-  rendererRestoreTimeoutId: any = null,
-  renderCommitTimeoutId: any = null,
-  isCapturingLights = false,
-  isLightOverrideOn = false,
-  isResidentCacheMode = false,
-  modelRevisionCounter = 0,
-  isCacheReady = false,
-  isFrameDirty = false,
-  lightGroupCacheByFloor = new Map(),
-  lightGainByFloor = new Map(),
-  lightCaptureFrameId = 0,
-  cacheWarmFrameId = 0,
-  prewarmState: any = null,
-  isPrewarming = false,
-  isPrecompilePending = false,
-  isRenderSuppressed = false,
-  isAdaptiveRenderPaused = false,
-  isWindowHidden = false,
-  deferredRenderTimeoutId: any = null,
-  isAdaptiveRenderActive = false,
-  hasAdaptiveRenderStarted = false,
-  adaptiveRenderCostBudget = 0,
-  frameDurationSamples: any = [],
-  samplingWindowStartMs = 0,
-  slowFrameStreak = 0;
+appCtx.lightGroupCacheByFloor = new Map();
+appCtx.lightGainByFloor = new Map();
 const disposedMaterialSet = new WeakSet();
-let isRendererUnavailable = false,
-  isRecoveryRender = false,
-  externalPrecompilePassCount = 0,
-  precompileTimeoutId: any = null,
-  isLightPrecompileRunning = false,
-  isEnvironmentLoading = false,
-  lightPrecompilePassCount = 0,
-  precompileDebounceId: any = null,
-  isPageHidden = false,
-  currentPrecompileSignature = "";
 const precompiledMaterialKeySet = new Set(),
   maxPrecompileBatchSize = 16;
 function getActiveFloor() {
-  const oe2 = pendingRuntimeSettings?.selectedFloorId || activeFloorId;
+  const oe2 = appCtx.pendingRuntimeSettings?.selectedFloorId || appCtx.activeFloorId;
   return (
-    studioProject?.floors.find((floorMatch: any) => floorMatch.id === oe2) ||
-    studioProject?.floors[0] ||
+    appCtx.studioProject?.floors.find((floorMatch: any) => floorMatch.id === oe2) ||
+    appCtx.studioProject?.floors[0] ||
     null
   );
 }
 function captureStudioSnapshot() {
-  return structuredClone(studioProject || normalizeStudioDocument(studioState, studioDocumentDeps()));
+  return structuredClone(appCtx.studioProject || normalizeStudioDocument(appCtx.studioState, studioDocumentDeps()));
 }
 function getLocalSaveRevision() {
   const runtimeSnapshot = captureStudioSnapshot();
-  if (!pendingRuntimeSettings) return runtimeSnapshot;
-  runtimeSnapshot.previewFloorMode = pendingRuntimeSettings.floorMode;
+  if (!appCtx.pendingRuntimeSettings) return runtimeSnapshot;
+  runtimeSnapshot.previewFloorMode = appCtx.pendingRuntimeSettings.floorMode;
   for (const snapshotFloor of runtimeSnapshot.floors || []) {
-    const floorCameraSetting = pendingRuntimeSettings.floorCameraSettings.get(snapshotFloor.id);
+    const floorCameraSetting = appCtx.pendingRuntimeSettings.floorCameraSettings.get(snapshotFloor.id);
     floorCameraSetting &&
       ((snapshotFloor.scene.settings.cameraMode = floorCameraSetting.mode),
       (snapshotFloor.scene.settings.cameraView = floorCameraSetting.view),
@@ -1365,14 +1190,14 @@ function getLocalSaveRevision() {
   }
   return (
     (runtimeSnapshot.combinedCameraSettings = {
-      ...pendingRuntimeSettings.combinedCameraSettings,
+      ...appCtx.pendingRuntimeSettings.combinedCameraSettings,
     }),
     runtimeSnapshot
   );
 }
 function uniqueFloorName(baseName: any, currentFloorId = "") {
   const set = new Set(
-    (studioProject?.floors || [])
+    (appCtx.studioProject?.floors || [])
       .filter((otherFloor: any) => otherFloor.id !== currentFloorId)
       .map((otherFloorName: any) => otherFloorName.name),
   );
@@ -1382,12 +1207,12 @@ function uniqueFloorName(baseName: any, currentFloorId = "") {
   return baseName + " " + num;
 }
 function hideFloorActionMenu() {
-  ((floorActionMenuElement.hidden = true), (pendingFloorMenuId = ""));
+  ((floorActionMenuElement.hidden = true), (appCtx.pendingFloorMenuId = ""));
 }
 function showFloorActionMenu(floorRow: any, menuOpenEvent: any) {
-  pendingFloorMenuId = floorRow.id;
+  appCtx.pendingFloorMenuId = floorRow.id;
   const selector = floorActionMenuElement.querySelector('[data-floor-action="delete"]');
-  ((selector.disabled = studioProject.floors.length <= 1),
+  ((selector.disabled = appCtx.studioProject.floors.length <= 1),
     (floorActionMenuElement.hidden = false),
     (floorActionMenuElement.style.left =
       Math.min(menuOpenEvent.clientX, window.innerWidth - 116) + "px"),
@@ -1396,28 +1221,28 @@ function showFloorActionMenu(floorRow: any, menuOpenEvent: any) {
 }
 function floorActionHandler(floorToDelete: any) {
   !floorToDelete ||
-    studioProject.floors.length <= 1 ||
-    ((pendingFloorDeleteId = floorToDelete.id),
+    appCtx.studioProject.floors.length <= 1 ||
+    ((appCtx.pendingFloorDeleteId = floorToDelete.id),
     (floorDeleteNameElement.textContent = floorToDelete.name),
     floorDeleteDialogElement.showModal());
 }
 function closeFloorDeleteDialog() {
-  ((pendingFloorDeleteId = ""), floorDeleteDialogElement.open && floorDeleteDialogElement.close());
+  ((appCtx.pendingFloorDeleteId = ""), floorDeleteDialogElement.open && floorDeleteDialogElement.close());
 }
 async function confirmFloorDelete() {
-  const deletedFloor = studioProject.floors.find(
-    (floorEntryMatch: any) => floorEntryMatch.id === pendingFloorDeleteId,
+  const deletedFloor = appCtx.studioProject.floors.find(
+    (floorEntryMatch: any) => floorEntryMatch.id === appCtx.pendingFloorDeleteId,
   );
-  if ((closeFloorDeleteDialog(), !deletedFloor || studioProject.floors.length <= 1)) return;
-  const deletedFloorIndex = studioProject.floors.findIndex(
+  if ((closeFloorDeleteDialog(), !deletedFloor || appCtx.studioProject.floors.length <= 1)) return;
+  const deletedFloorIndex = appCtx.studioProject.floors.findIndex(
     (floorIndexMatch: any) => floorIndexMatch.id === deletedFloor.id,
   );
-  (studioProject.floors.splice(deletedFloorIndex, 1),
-    studioProject.floors.forEach((elevationFloor: any, floorOrderIndex: any) => {
-      elevationFloor.elevation = floorOrderIndex * studioProject.defaultFloorHeight;
+  (appCtx.studioProject.floors.splice(deletedFloorIndex, 1),
+    appCtx.studioProject.floors.forEach((elevationFloor: any, floorOrderIndex: any) => {
+      elevationFloor.elevation = floorOrderIndex * appCtx.studioProject.defaultFloorHeight;
     }));
   const nextActiveFloor =
-    studioProject.floors[Math.max(0, deletedFloorIndex - 1)] || studioProject.floors[0];
+    appCtx.studioProject.floors[Math.max(0, deletedFloorIndex - 1)] || appCtx.studioProject.floors[0];
   (await selectFloor(nextActiveFloor.id, {
     persist: false,
   }),
@@ -1427,19 +1252,19 @@ async function confirmFloorDelete() {
 }
 function openFloorRenameDialog(floorToRename: any) {
   floorToRename &&
-    ((pendingFloorMenuId = floorToRename.id),
+    ((appCtx.pendingFloorMenuId = floorToRename.id),
     (floorRenameInputElement.value = floorToRename.name),
     floorRenameDialogElement.showModal(),
     requestAnimationFrame(() => floorRenameInputElement.select()));
 }
 function syncGlobalControls() {
-  if (studioProject) {
+  if (appCtx.studioProject) {
     floorListElement.replaceChildren();
-    for (const floorRowRecord of studioProject.floors) {
+    for (const floorRowRecord of appCtx.studioProject.floors) {
       const element = document.createElement("div");
       ((element.className =
         "floor-row" +
-        (floorRowRecord.id === activeFloorId ? " active" : "") +
+        (floorRowRecord.id === appCtx.activeFloorId ? " active" : "") +
         (floorRowRecord.aligned ? "" : " unaligned")),
         (element.dataset.floorId = floorRowRecord.id),
         (element.draggable = true),
@@ -1447,7 +1272,7 @@ function syncGlobalControls() {
           "aria-label",
           floorRowRecord.name +
             "，" +
-            (floorRowRecord.id === activeFloorId ? "当前楼层，" : "") +
+            (floorRowRecord.id === appCtx.activeFloorId ? "当前楼层，" : "") +
             "长按拖动排序，右键可重命名或删除",
         ));
       let isFloorDropAfter = false,
@@ -1476,7 +1301,7 @@ function syncGlobalControls() {
             (dragStartEvent.preventDefault(), cancelLongPress());
             return;
           }
-          ((movingFloorId = floorRowRecord.id),
+          ((appCtx.movingFloorId = floorRowRecord.id),
             element.classList.remove("drag-ready"),
             element.classList.add("dragging"),
             (dragStartEvent.dataTransfer!.effectAllowed = "move"),
@@ -1486,13 +1311,13 @@ function syncGlobalControls() {
             ));
         }),
         element.addEventListener("dragend", () => {
-          ((movingFloorId = ""),
+          ((appCtx.movingFloorId = ""),
             element.classList.remove("dragging"),
             cancelLongPress(),
             clearDropIndicator());
         }),
         element.addEventListener("dragover", (dragOverEvent) => {
-          if (!movingFloorId || movingFloorId === floorRowRecord.id) return;
+          if (!appCtx.movingFloorId || appCtx.movingFloorId === floorRowRecord.id) return;
           (dragOverEvent.preventDefault(), clearDropIndicator());
           const isDropAfterPointer =
             dragOverEvent.clientY >=
@@ -1502,17 +1327,17 @@ function syncGlobalControls() {
             dragOverEvent.dataTransfer && (dragOverEvent.dataTransfer.dropEffect = "move"));
         }),
         element.addEventListener("drop", (dropEvent) => {
-          if (!movingFloorId || movingFloorId === floorRowRecord.id) return;
+          if (!appCtx.movingFloorId || appCtx.movingFloorId === floorRowRecord.id) return;
           dropEvent.preventDefault();
-          const rr2 = movingFloorId,
+          const rr2 = appCtx.movingFloorId,
             isDropPositionAfter = element.dataset.dropPosition === "after";
-          ((movingFloorId = ""),
+          ((appCtx.movingFloorId = ""),
             clearDropIndicator(),
             moveFloorRow(rr2, floorRowRecord.id, isDropPositionAfter));
         }));
       const floorSwitchButton = document.createElement("button");
       ((floorSwitchButton.type = "button"),
-        (floorSwitchButton.textContent = floorRowRecord.id === activeFloorId ? "●" : "○"),
+        (floorSwitchButton.textContent = floorRowRecord.id === appCtx.activeFloorId ? "●" : "○"),
         (floorSwitchButton.title = "切换到" + floorRowRecord.name),
         floorSwitchButton.addEventListener("click", (switchClickEvent) => {
           (switchClickEvent.stopPropagation(),
@@ -1524,7 +1349,7 @@ function syncGlobalControls() {
       ((floorNameLabel.textContent = floorRowRecord.name),
         (floorNameLabel.title = "长按后拖动可调整楼层顺序，右键可重命名或删除楼层"));
       const floorStatusNote = document.createElement("small"),
-        floorRowIndex = studioProject.floors.findIndex(
+        floorRowIndex = appCtx.studioProject.floors.findIndex(
           (floorIndexEntry: any) => floorIndexEntry.id === floorRowRecord.id,
         );
       ((floorStatusNote.textContent =
@@ -1551,17 +1376,17 @@ function clearDropIndicator() {
 }
 function moveFloorRow(draggedFloorId: any, targetFloorId: any, dropAfterFlag: any) {
   const reorderedFloors = reorderFloors2(
-    studioProject.floors,
+    appCtx.studioProject.floors,
     draggedFloorId,
     targetFloorId,
     dropAfterFlag,
-    studioProject.defaultFloorHeight,
+    appCtx.studioProject.defaultFloorHeight,
   );
-  if (reorderedFloors === studioProject.floors) return;
-  const movedFloor = studioProject.floors.find(
+  if (reorderedFloors === appCtx.studioProject.floors) return;
+  const movedFloor = appCtx.studioProject.floors.find(
     (movedFloorMatch: any) => movedFloorMatch.id === draggedFloorId,
   );
-  ((studioProject.floors = reorderedFloors),
+  ((appCtx.studioProject.floors = reorderedFloors),
     syncGlobalControls(),
     updateFloorPreviewButtons(),
     renderFloorList(),
@@ -1574,56 +1399,56 @@ function moveFloorRow(draggedFloorId: any, targetFloorId: any, dropAfterFlag: an
 function renderFloorList() {
   const ae2 = getActiveFloor(),
     activeFloorIndex = ae2
-      ? studioProject.floors.findIndex((activeFloorMatch: any) => activeFloorMatch.id === ae2.id)
+      ? appCtx.studioProject.floors.findIndex((activeFloorMatch: any) => activeFloorMatch.id === ae2.id)
       : -1,
-    canAlignFloor = studioProject.floors.length > 1 && activeFloorIndex > 0;
+    canAlignFloor = appCtx.studioProject.floors.length > 1 && activeFloorIndex > 0;
   ((alignFloorButton.hidden = !canAlignFloor),
     (alignFloorButton.disabled = !canAlignFloor || !ae2?.scene?.calibration),
     (alignFloorButton.textContent = ae2?.aligned ? "重新对齐" : "对齐楼层"),
-    alignmentState?.stage === "reference"
+    appCtx.alignmentState?.stage === "reference"
       ? ((activeToolLabel.textContent = "楼层对齐 · 参照层"),
         (toolHelpElement.textContent =
-          "点击" + alignmentState.referenceFloor.name + "上的楼梯角、墙角或柱点；Esc 取消"))
-      : alignmentState?.stage === "current" &&
+          "点击" + appCtx.alignmentState.referenceFloor.name + "上的楼梯角、墙角或柱点；Esc 取消"))
+      : appCtx.alignmentState?.stage === "current" &&
         ((activeToolLabel.textContent = "楼层对齐 · 当前层"),
         (toolHelpElement.textContent =
           "点击" + ae2.name + "上的相同位置；系统会自动重合上下楼层")));
 }
 async function selectFloor(targetFloorIdSelection: any, { persist: didFloorChange = false } = {}) {
-  const targetFloor = studioProject?.floors.find(
+  const targetFloor = appCtx.studioProject?.floors.find(
     (floorLookup: any) => floorLookup.id === targetFloorIdSelection,
   );
   if (!targetFloor) return;
-  const selectionRequestId = ++floorSelectionRequestId,
+  const selectionRequestId = ++appCtx.floorSelectionRequestId,
     tu2 = getPreviewFloorMode() === "all" ? captureOverviewCamera() : null;
-  (alignmentState?.floorId !== targetFloor.id && (alignmentState = null),
-    (activeFloorId = targetFloor.id),
-    (studioProject.activeFloorId = targetFloor.id),
-    (studioState = targetFloor.scene),
-    (activeLightGroupId = ""),
+  (appCtx.alignmentState?.floorId !== targetFloor.id && (appCtx.alignmentState = null),
+    (appCtx.activeFloorId = targetFloor.id),
+    (appCtx.studioProject.activeFloorId = targetFloor.id),
+    (appCtx.studioState = targetFloor.scene),
+    (appCtx.activeLightGroupId = ""),
     refreshSelection(),
     refreshPreviewScene(),
-    planPainter?.setTool(activeToolName),
-    (previewEndPoint = null),
-    (undoRecords = []),
-    (redoRecords = []),
-    (planView.rotation = studioState.settings.planViewRotation),
+    planPainter?.setTool(appCtx.activeToolName),
+    (appCtx.previewEndPoint = null),
+    (appCtx.undoRecords = []),
+    (appCtx.redoRecords = []),
+    (appCtx.planView.rotation = appCtx.studioState.settings.planViewRotation),
     Promise.allSettled(preloadDefaultModels()));
   const gu2 = loadBackgroundImage();
   (isEmbeddedStage || (await gu2),
-    !(selectionRequestId !== floorSelectionRequestId || activeFloorId !== targetFloor.id) &&
+    !(selectionRequestId !== appCtx.floorSelectionRequestId || appCtx.activeFloorId !== targetFloor.id) &&
       (refreshScopeItems(),
       renderFloorList(),
       resetView(),
       requestAnimationFrame(() => {
-        if (!(selectionRequestId !== floorSelectionRequestId || activeFloorId !== targetFloor.id)) {
+        if (!(selectionRequestId !== appCtx.floorSelectionRequestId || appCtx.activeFloorId !== targetFloor.id)) {
           if (getPreviewFloorMode() === "all") {
             (tu2 && applyCameraState(tu2, tu2.viewportAspect),
               syncCameraModeControls(getCameraMode()),
               syncCameraViewControls(getCameraView()));
             return;
           }
-          if (studioState.settings.fixedCameraView) {
+          if (appCtx.studioState.settings.fixedCameraView) {
             applyCameraSnapshot({
               recordChange: false,
               silent: true,
@@ -1639,9 +1464,9 @@ async function selectFloor(targetFloorIdSelection: any, { persist: didFloorChang
       didFloorChange && markDocumentDirty()));
 }
 async function addNewFloor() {
-  const newFloorRecord = createFloorRecord(studioDocumentDeps(), studioProject.floors.length);
+  const newFloorRecord = createFloorRecord(studioDocumentDeps(), appCtx.studioProject.floors.length);
   ((newFloorRecord.name = uniqueFloorName(newFloorRecord.name)),
-    studioProject.floors.push(newFloorRecord),
+    appCtx.studioProject.floors.push(newFloorRecord),
     updateFloorPreviewButtons(),
     await selectFloor(newFloorRecord.id, {
       persist: false,
@@ -1686,27 +1511,27 @@ function worldPointForFloor(sourcePoint: any, sourceFloorArg: any, calibratedFlo
   return worldToPlanPoint(calibratedFloor, planToWorldPoint(sourceFloorArg, sourcePoint));
 }
 function getActiveWalls() {
-  if (!alignmentState) return [];
+  if (!appCtx.alignmentState) return [];
   const ae3 = getActiveFloor();
-  return alignmentState.referenceFloor.scene.walls.map((segmentRecord: any) => ({
+  return appCtx.alignmentState.referenceFloor.scene.walls.map((segmentRecord: any) => ({
     ...segmentRecord,
-    start: worldPointForFloor(segmentRecord.start, alignmentState.referenceFloor, ae3),
-    end: worldPointForFloor(segmentRecord.end, alignmentState.referenceFloor, ae3),
+    start: worldPointForFloor(segmentRecord.start, appCtx.alignmentState.referenceFloor, ae3),
+    end: worldPointForFloor(segmentRecord.end, appCtx.alignmentState.referenceFloor, ae3),
   }));
 }
 function startFloorAlign() {
   const ae4 = getActiveFloor(),
     activeFloorSequenceIndex =
-      studioProject?.floors.findIndex((activeFloorLookup: any) => activeFloorLookup.id === ae4?.id) ??
+      appCtx.studioProject?.floors.findIndex((activeFloorLookup: any) => activeFloorLookup.id === ae4?.id) ??
       -1,
     previousFloor =
-      activeFloorSequenceIndex > 0 ? studioProject.floors[activeFloorSequenceIndex - 1] : null;
+      activeFloorSequenceIndex > 0 ? appCtx.studioProject.floors[activeFloorSequenceIndex - 1] : null;
   if (!(!ae4 || !previousFloor)) {
     if (!ae4.scene.calibration || !previousFloor.scene.calibration) {
       showToast("当前层和参照层都需要先完成比例校准。", "error");
       return;
     }
-    ((alignmentState = {
+    ((appCtx.alignmentState = {
       floorId: ae4.id,
       referenceFloor: previousFloor,
       stage: "reference",
@@ -1721,8 +1546,8 @@ function startFloorAlign() {
   }
 }
 function cancelFloorAlign() {
-  alignmentState &&
-    ((alignmentState = null),
+  appCtx.alignmentState &&
+    ((appCtx.alignmentState = null),
     (planCanvasElement.style.cursor = ""),
     selectStudioTool("select"),
     renderFloorList(),
@@ -1730,21 +1555,21 @@ function cancelFloorAlign() {
     showToast("已取消楼层对齐。", "success"));
 }
 function isSameAlignmentFloor(clickedPlanPoint: any) {
-  if (!alignmentState) return false;
+  if (!appCtx.alignmentState) return false;
   const ae5 = getActiveFloor();
-  if (!ae5 || ae5.id !== alignmentState.floorId) return (cancelFloorAlign(), true);
-  if (alignmentState.stage === "reference") {
+  if (!ae5 || ae5.id !== appCtx.alignmentState.floorId) return (cancelFloorAlign(), true);
+  if (appCtx.alignmentState.stage === "reference") {
     const activeWallList = getActiveWalls(),
       snappedPoint =
-        nearestWall2(clickedPlanPoint, activeWallList, 18 / planView.zoom)?.point ||
+        nearestWall2(clickedPlanPoint, activeWallList, 18 / appCtx.planView.zoom)?.point ||
         clickedPlanPoint;
     return (
-      (alignmentState.referencePoint = worldPointForFloor(
+      (appCtx.alignmentState.referencePoint = worldPointForFloor(
         snappedPoint,
         ae5,
-        alignmentState.referenceFloor,
+        appCtx.alignmentState.referenceFloor,
       )),
-      (alignmentState.stage = "current"),
+      (appCtx.alignmentState.stage = "current"),
       renderFloorList(),
       refreshStudioView(),
       showToast("现在点击" + ae5.name + "上的同一个位置。"),
@@ -1752,28 +1577,28 @@ function isSameAlignmentFloor(clickedPlanPoint: any) {
     );
   }
   const vector =
-      nearestWall2(clickedPlanPoint, ae5.scene.walls, 18 / planView.zoom)?.point ||
+      nearestWall2(clickedPlanPoint, ae5.scene.walls, 18 / appCtx.planView.zoom)?.point ||
       clickedPlanPoint,
-    $a2 = planToWorldPoint(alignmentState.referenceFloor, alignmentState.referencePoint);
+    $a2 = planToWorldPoint(appCtx.alignmentState.referenceFloor, appCtx.alignmentState.referencePoint);
   return (
     (ae5.originX = vector.x),
     (ae5.originY = vector.y),
     (ae5.originInitialized = true),
     (ae5.offsetX = $a2.x),
     (ae5.offsetZ = $a2.z),
-    (ae5.rotation = alignmentState.referenceFloor.rotation || 0),
+    (ae5.rotation = appCtx.alignmentState.referenceFloor.rotation || 0),
     (ae5.aligned = true),
     (ae5.alignmentPending = false),
     (ae5.alignment = {
-      referenceFloorId: alignmentState.referenceFloor.id,
+      referenceFloorId: appCtx.alignmentState.referenceFloor.id,
       referencePoint: {
-        ...alignmentState.referencePoint,
+        ...appCtx.alignmentState.referencePoint,
       },
       currentPoint: {
         ...vector,
       },
     }),
-    (alignmentState = null),
+    (appCtx.alignmentState = null),
     (planCanvasElement.style.cursor = ""),
     selectStudioTool("select"),
     syncGlobalControls(),
@@ -1788,18 +1613,18 @@ function isSameAlignmentFloor(clickedPlanPoint: any) {
 }
 function updatePreviewFloorGap() {
   const previewFloorGapSize = clamp2(
-    finite2(previewFloorGapInput.value, studioProject?.previewFloorGap || 3),
+    finite2(previewFloorGapInput.value, appCtx.studioProject?.previewFloorGap || 3),
     0,
     20,
   );
-  Math.abs(previewFloorGapSize - finite2(studioProject?.previewFloorGap, 3)) < 0.000001 ||
-    ((studioProject.previewFloorGap = previewFloorGapSize),
+  Math.abs(previewFloorGapSize - finite2(appCtx.studioProject?.previewFloorGap, 3)) < 0.000001 ||
+    ((appCtx.studioProject.previewFloorGap = previewFloorGapSize),
     (previewFloorGapInput.value = previewFloorGapSize.toFixed(1)),
     rebuildFloorLayers(),
     markDocumentDirty());
 }
 function updateUniformOverviewStack() {
-  ((studioProject.uniformOverviewStack = previewFloorUniformInput.checked),
+  ((appCtx.studioProject.uniformOverviewStack = previewFloorUniformInput.checked),
     refreshSceneRender({
       scene: true,
     }),
@@ -1807,31 +1632,31 @@ function updateUniformOverviewStack() {
 }
 function updateExportFloorGap() {
   const exportFloorGap = clamp2(
-    finite2(exportFloorGapInput.value, studioProject?.exportFloorGap || 3),
+    finite2(exportFloorGapInput.value, appCtx.studioProject?.exportFloorGap || 3),
     0,
     20,
   );
-  Math.abs(exportFloorGap - finite2(studioProject?.exportFloorGap, 3)) < 0.000001 ||
-    ((studioProject.exportFloorGap = exportFloorGap),
+  Math.abs(exportFloorGap - finite2(appCtx.studioProject?.exportFloorGap, 3)) < 0.000001 ||
+    ((appCtx.studioProject.exportFloorGap = exportFloorGap),
     (exportFloorGapInput.value = exportFloorGap.toFixed(1)),
     rebuildFloorLayers(),
     (exportStatusElement.textContent = "全楼层间距已设为 " + exportFloorGap.toFixed(1) + " m"),
     markDocumentDirty());
 }
 /** 逐槽表面参数的**入库净化**：只接受 `{ "<GLB 材质名>": { roughness?, metalness? } }`，两个值都规整到 0–1 并按两位小数定下来（避免浮点尾数让产物不稳定）。 */
-function captureUndoSnapshot(snapshotSource = studioState) {
+function captureUndoSnapshot(snapshotSource = appCtx.studioState) {
   return structuredClone(snapshotSource);
 }
 function resolveLightGroup(lightGroupOwner: any) {
   return (
-    studioState.lightGroups?.find(
+    appCtx.studioState.lightGroups?.find(
       (matchedLightGroup) => matchedLightGroup.id === lightGroupOwner?.lightGroupId,
     ) ||
-    studioState.lightGroups?.[0] ||
+    appCtx.studioState.lightGroups?.[0] ||
     null
   );
 }
-function resolveFloorDefaultGroup(lightGroupOwnerItem: any, ownerScene = studioState) {
+function resolveFloorDefaultGroup(lightGroupOwnerItem: any, ownerScene = appCtx.studioState) {
   return (
     ownerScene?.lightGroups?.find(
       (lightGroupMatch) => lightGroupMatch.id === lightGroupOwnerItem?.lightGroupId,
@@ -1841,31 +1666,31 @@ function resolveFloorDefaultGroup(lightGroupOwnerItem: any, ownerScene = studioS
   );
 }
 function isLampEnabled(lampStateRef: any) {
-  return overriddenFloorIds !== null
-    ? overriddenFloorIds.has(lampStateRef.id)
+  return appCtx.overriddenFloorIds !== null
+    ? appCtx.overriddenFloorIds.has(lampStateRef.id)
     : resolveLightGroup(lampStateRef)?.enabled === false
       ? false
-      : pendingRuntimeSettings || isLightOverrideOn || !areLightsEnabled();
+      : appCtx.pendingRuntimeSettings || appCtx.isLightOverrideOn || !areLightsEnabled();
 }
 function getScreenLightGroups() {
-  return studioState.items.filter((tvItem) => tvItem.type === "tv");
+  return appCtx.studioState.items.filter((tvItem) => tvItem.type === "tv");
 }
 function getChargingLightGroups() {
-  return studioState.items.filter((vehicleItem) =>
+  return appCtx.studioState.items.filter((vehicleItem) =>
     ["smallcar", "suv", "scooter"].includes(vehicleItem.type),
   );
 }
 function getOrderedFloorList() {
   return getPreviewFloorMode() === "all"
-    ? studioProject.floors
+    ? appCtx.studioProject.floors
     : [getActiveFloor()].filter(Boolean);
 }
 function floorElevationFor(elevationFloorRef: any) {
   if (getPreviewFloorMode() !== "all") return 0;
-  const elevationFloorIndex = studioProject.floors.findIndex(
+  const elevationFloorIndex = appCtx.studioProject.floors.findIndex(
     (elevationFloorMatch: any) => elevationFloorMatch.id === elevationFloorRef?.id,
   );
-  return Math.max(elevationFloorIndex, 0) * finite2(studioProject.exportFloorGap, 3);
+  return Math.max(elevationFloorIndex, 0) * finite2(appCtx.studioProject.exportFloorGap, 3);
 }
 function composeLightGroupKey(groupKeyFloor: any, groupKeyGroup: any) {
   return getPreviewFloorMode() === "all" ? composeKey(groupKeyFloor, groupKeyGroup) : groupKeyGroup;
@@ -1873,7 +1698,7 @@ function composeLightGroupKey(groupKeyFloor: any, groupKeyGroup: any) {
 function collectLampEntries() {
   return (
     getPreviewFloorMode() === "all"
-      ? studioProject?.floors || []
+      ? appCtx.studioProject?.floors || []
       : [getActiveFloor()].filter(Boolean)
   ).flatMap((floorEntryLamp: any) =>
     floorEntryLamp.scene.items
@@ -1890,7 +1715,7 @@ function collectLampEntries() {
       }),
   );
 }
-function listLightGroupRows(lightGroupFloors = studioProject?.floors || []) {
+function listLightGroupRows(lightGroupFloors = appCtx.studioProject?.floors || []) {
   return lightGroupFloors.flatMap((lightGroupFloor: any) =>
     lightGroupFloor.scene.lightGroups.map((lightGroupRecord: any, lightGroupIndex: any) => ({
       floor: lightGroupFloor,
@@ -1905,7 +1730,7 @@ function listLightGroupRows(lightGroupFloors = studioProject?.floors || []) {
     })),
   );
 }
-function listScreenRows(screenFloors = studioProject?.floors || []) {
+function listScreenRows(screenFloors = appCtx.studioProject?.floors || []) {
   return screenFloors.flatMap((screenFloor: any) =>
     screenFloor.scene.items
       .filter((tvItemCandidate: any) => tvItemCandidate.type === "tv")
@@ -1917,7 +1742,7 @@ function listScreenRows(screenFloors = studioProject?.floors || []) {
       })),
   );
 }
-function listChargingRows(chargingFloors = studioProject?.floors || []) {
+function listChargingRows(chargingFloors = appCtx.studioProject?.floors || []) {
   return chargingFloors.flatMap((chargingFloor: any) =>
     chargingFloor.scene.items
       .filter((vehicleItemCandidate: any) =>
@@ -1963,7 +1788,7 @@ function pushUndoEntry(undoSnapshotArg: any) {
   (syncScreenLayers(undoSnapshotArg), syncChargingLayers(undoSnapshotArg));
 }
 function getLightGroups() {
-  const lightGroups = studioState.lightGroups || (studioState.lightGroups = []);
+  const lightGroups = appCtx.studioState.lightGroups || (appCtx.studioState.lightGroups = []);
   return (
     lightGroups.length ||
       lightGroups.push({
@@ -1972,16 +1797,16 @@ function getLightGroups() {
         enabled: true,
         areaId: null as any,
       }),
-    lightGroups.some((lightGroupIdMatch) => lightGroupIdMatch.id === activeLightGroupId) ||
-      (activeLightGroupId = lightGroups[0].id),
-    lightGroups.find((lightGroupByName) => lightGroupByName.id === activeLightGroupId) ||
+    lightGroups.some((lightGroupIdMatch) => lightGroupIdMatch.id === appCtx.activeLightGroupId) ||
+      (appCtx.activeLightGroupId = lightGroups[0].id),
+    lightGroups.find((lightGroupByName) => lightGroupByName.id === appCtx.activeLightGroupId) ||
       lightGroups[0]
   );
 }
 function syncLightGroupSelect(lightGroupSourceItem: any) {
   const lightGroupSelectElement = selectElement("#light-group");
   lightGroupSelectElement.replaceChildren();
-  for (const lightGroupOption of studioState.lightGroups || []) {
+  for (const lightGroupOption of appCtx.studioState.lightGroups || []) {
     const lightGroupOptionElement = document.createElement("option");
     ((lightGroupOptionElement.value = lightGroupOption.id),
       (lightGroupOptionElement.textContent = lightGroupOption.name),
@@ -1992,16 +1817,16 @@ function syncLightGroupSelect(lightGroupSourceItem: any) {
     syncStudioSelect2(lightGroupSelectElement));
 }
 function hideLightGroupActionMenu() {
-  ((lightGroupActionMenuElement.hidden = true), (pendingLightGroupId = ""));
+  ((lightGroupActionMenuElement.hidden = true), (appCtx.pendingLightGroupId = ""));
 }
 function showLightGroupActionMenu(lightGroupRow: any, lightGroupMenuEvent: any) {
-  ((pendingLightGroupId = lightGroupRow.id),
-    (activeLightGroupId = lightGroupRow.id),
+  ((appCtx.pendingLightGroupId = lightGroupRow.id),
+    (appCtx.activeLightGroupId = lightGroupRow.id),
     syncLightGroupList());
   const lightGroupDeleteControl = lightGroupActionMenuElement.querySelector(
     '[data-light-group-action="delete"]',
   );
-  ((lightGroupDeleteControl.disabled = studioState.lightGroups.length <= 1),
+  ((lightGroupDeleteControl.disabled = appCtx.studioState.lightGroups.length <= 1),
     (lightGroupActionMenuElement.hidden = false),
     (lightGroupActionMenuElement.style.left =
       Math.min(lightGroupMenuEvent.clientX, window.innerWidth - 116) + "px"),
@@ -2009,13 +1834,13 @@ function showLightGroupActionMenu(lightGroupRow: any, lightGroupMenuEvent: any) 
       Math.min(lightGroupMenuEvent.clientY, window.innerHeight - 148) + "px"));
 }
 function deleteLightGroup(lightGroupToDelete: any) {
-  if (!lightGroupToDelete || studioState.lightGroups.length <= 1) return;
+  if (!lightGroupToDelete || appCtx.studioState.lightGroups.length <= 1) return;
   deselectAll();
-  const fallbackLightGroup = studioState.lightGroups.find(
+  const fallbackLightGroup = appCtx.studioState.lightGroups.find(
       (otherLightGroup) => otherLightGroup.id !== lightGroupToDelete.id,
     ),
     deletedLampIdSet = new Set(
-      studioState.items
+      appCtx.studioState.items
         .filter(
           (lampInGroup) =>
             lampItemTypeSet.has(lampInGroup.type) &&
@@ -2023,18 +1848,18 @@ function deleteLightGroup(lightGroupToDelete: any) {
         )
         .map((lampInGroupId) => lampInGroupId.id),
     );
-  ((studioState.items = studioState.items.filter(
+  ((appCtx.studioState.items = appCtx.studioState.items.filter(
     (remainingItem) => !deletedLampIdSet.has(remainingItem.id),
   )),
-    (studioState.lightGroups = studioState.lightGroups.filter(
+    (appCtx.studioState.lightGroups = appCtx.studioState.lightGroups.filter(
       (remainingLightGroup) => remainingLightGroup.id !== lightGroupToDelete.id,
     )),
-    selectedItem?.kind === "item" && deletedLampIdSet.has(selectedItem.id) && (selectedItem = null),
-    (selectedItems = selectedItems.filter(
+    appCtx.selectedItem?.kind === "item" && deletedLampIdSet.has(appCtx.selectedItem.id) && (appCtx.selectedItem = null),
+    (appCtx.selectedItems = appCtx.selectedItems.filter(
       (remainingSelection: any) =>
         remainingSelection.kind !== "item" || !deletedLampIdSet.has(remainingSelection.id),
     )),
-    activeLightGroupId === lightGroupToDelete.id && (activeLightGroupId = fallbackLightGroup!.id),
+    appCtx.activeLightGroupId === lightGroupToDelete.id && (appCtx.activeLightGroupId = fallbackLightGroup!.id),
     refreshScopeItems("lights"),
     markDocumentDirty(),
     showToast(
@@ -2044,7 +1869,7 @@ function deleteLightGroup(lightGroupToDelete: any) {
 }
 function uniqueLightGroupName(lightGroupBaseName: any) {
   const lightGroupNameSet = new Set(
-    studioState.lightGroups.map((existingGroupName) => existingGroupName.name),
+    appCtx.studioState.lightGroups.map((existingGroupName) => existingGroupName.name),
   );
   if (!lightGroupNameSet.has(lightGroupBaseName)) return lightGroupBaseName;
   let duplicateNameSuffix = 2;
@@ -2060,11 +1885,11 @@ function duplicateLightGroup(lightGroupToDuplicate: any) {
       id: generateId("light-group"),
       name: uniqueLightGroupName(lightGroupToDuplicate.name + " 副本"),
     },
-    sourceLightGroupIndex = studioState.lightGroups.findIndex(
+    sourceLightGroupIndex = appCtx.studioState.lightGroups.findIndex(
       (sourceGroupMatch) => sourceGroupMatch.id === lightGroupToDuplicate.id,
     );
-  studioState.lightGroups.splice(sourceLightGroupIndex + 1, 0, duplicatedLightGroup);
-  const clonedLampItems = studioState.items
+  appCtx.studioState.lightGroups.splice(sourceLightGroupIndex + 1, 0, duplicatedLightGroup);
+  const clonedLampItems = appCtx.studioState.items
     .filter(
       (lampInSourceGroup) =>
         lampItemTypeSet.has(lampInSourceGroup.type) &&
@@ -2075,16 +1900,16 @@ function duplicateLightGroup(lightGroupToDuplicate: any) {
       id: generateId("item"),
       lightGroupId: duplicatedLightGroup.id,
     }));
-  (studioState.items.push(...clonedLampItems),
-    (activeLightGroupId = duplicatedLightGroup.id),
-    (selectedItem =
+  (appCtx.studioState.items.push(...clonedLampItems),
+    (appCtx.activeLightGroupId = duplicatedLightGroup.id),
+    (appCtx.selectedItem =
       clonedLampItems.length === 1
         ? {
             kind: "item",
             id: clonedLampItems[0].id,
           }
         : null),
-    (selectedItems =
+    (appCtx.selectedItems =
       clonedLampItems.length > 1
         ? clonedLampItems.map((relinkedLamp) => ({
             kind: "item",
@@ -2113,8 +1938,6 @@ const LIST_DRAG_TOUCH_HOLD_MS = 280,
   LIST_DRAG_START_DISTANCE = 6,
   LIST_DRAG_TOUCH_GIVE_UP_DISTANCE = 8,
   LIST_DRAG_CLICK_SUPPRESS_MS = 240;
-let activeListDragSession: (ListDragRowSession) | null = null,
-  listDragEndedAt = 0;
 /** 起拖瞬间把所有落点的矩形抓一份快照，之后拖动过程中不再读 DOM：这样即使源行被重绘（同一帧内不会），本次拖动的判定也不会错位。 */
 function collectListDragDropTargets() {
   const listDragDropTargets: any[] = [];
@@ -2183,7 +2006,7 @@ function activateListDrag(listDragSession: any) {
   } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
 }
 function handleListDragPointerMove(listDragPointerMoveEvent: any) {
-  const listDragSession = activeListDragSession;
+  const listDragSession = appCtx.activeListDragSession;
   if (!listDragSession || listDragPointerMoveEvent.pointerId !== listDragSession.pointerId) return;
   const movedDistance = Math.hypot(
     listDragPointerMoveEvent.clientX - listDragSession.startX,
@@ -2210,7 +2033,7 @@ function handleListDragPointerMove(listDragPointerMoveEvent: any) {
     applyListDragDropIndicator(listDragSession, listDragSession.pendingDrop));
 }
 function handleListDragPointerUp(listDragPointerUpEvent: any) {
-  const listDragSession = activeListDragSession;
+  const listDragSession = appCtx.activeListDragSession;
   if (!listDragSession || listDragPointerUpEvent.pointerId !== listDragSession.pointerId) return;
   finishListDrag(true);
 }
@@ -2219,14 +2042,14 @@ function handleListDragPointerCancel() {
 }
 /** 触摸拖动期间必须吃掉 touchmove，否则面板会跟着手指一起滚动。 */
 function handleListDragTouchMove(listDragTouchMoveEvent: any) {
-  activeListDragSession?.active &&
+  appCtx.activeListDragSession?.active &&
     listDragTouchMoveEvent.cancelable &&
     listDragTouchMoveEvent.preventDefault();
 }
 function finishListDrag(commitListDropFlag: any) {
-  const listDragSession = activeListDragSession;
+  const listDragSession = appCtx.activeListDragSession;
   if (!listDragSession) return;
-  (activeListDragSession = null),
+  (appCtx.activeListDragSession = null),
     listDragSession.holdTimeoutId && clearTimeout(listDragSession.holdTimeoutId),
     window.removeEventListener("pointermove", handleListDragPointerMove),
     window.removeEventListener("pointerup", handleListDragPointerUp),
@@ -2238,7 +2061,7 @@ function finishListDrag(commitListDropFlag: any) {
     clearLightGroupDropIndicator();
 
   if (!listDragSession.active) return;
-  listDragEndedAt = Date.now();
+  appCtx.listDragEndedAt = Date.now();
   const pendingListDrop = listDragSession.pendingDrop;
   pendingListDrop &&
     commitListDropFlag &&
@@ -2256,7 +2079,7 @@ function beginListRowDrag(
   listDragRowSession: ListDragRowSession | null,
   listDragPointerDownEvent: any,
 ) {
-  activeListDragSession && finishListDrag(false);
+  appCtx.activeListDragSession && finishListDrag(false);
   ((listDragRowSession!.pointerId = listDragPointerDownEvent.pointerId),
     (listDragRowSession!.pointerType = listDragPointerDownEvent.pointerType || "mouse"),
     (listDragRowSession!.startX = listDragPointerDownEvent.clientX),
@@ -2267,11 +2090,11 @@ function beginListRowDrag(
     (listDragRowSession!.ghostElement = null),
     (listDragRowSession!.dropTargets = []),
     (listDragRowSession!.holdTimeoutId = null),
-    (activeListDragSession = listDragRowSession));
+    (appCtx.activeListDragSession = listDragRowSession));
   listDragRowSession!.armed ||
     (listDragRowSession!.holdTimeoutId = setTimeout(() => {
       ((listDragRowSession!.holdTimeoutId = null),
-        activeListDragSession === listDragRowSession &&
+        appCtx.activeListDragSession === listDragRowSession &&
           ((listDragRowSession!.armed = true),
           listDragRowSession!.rowElement.classList.add("drag-ready")));
     }, LIST_DRAG_TOUCH_HOLD_MS));
@@ -2282,14 +2105,14 @@ function beginListRowDrag(
 }
 /** 按区域头的拖放结果重排区域顺序。 */
 function moveAreaRow(draggedAreaId: any, targetAreaId: any, insertAfterFlag: any) {
-  const draggedAreaIndex = lightAreaRecords.findIndex(
+  const draggedAreaIndex = appCtx.lightAreaRecords.findIndex(
       (draggedAreaMatch) => draggedAreaMatch.areaId === draggedAreaId,
     ),
-    targetAreaIndex = lightAreaRecords.findIndex(
+    targetAreaIndex = appCtx.lightAreaRecords.findIndex(
       (targetAreaMatch) => targetAreaMatch.areaId === targetAreaId,
     );
   if (draggedAreaIndex < 0 || targetAreaIndex < 0 || draggedAreaIndex === targetAreaIndex) return;
-  const reorderedAreas = [...lightAreaRecords],
+  const reorderedAreas = [...appCtx.lightAreaRecords],
     [draggedArea] = reorderedAreas.splice(draggedAreaIndex, 1),
     insertAreaIndex = reorderedAreas.findIndex(
       (insertTargetMatch) => insertTargetMatch.areaId === targetAreaId,
@@ -2299,11 +2122,11 @@ function moveAreaRow(draggedAreaId: any, targetAreaId: any, insertAfterFlag: any
   if (
     reorderedAreas.every(
       (orderedArea, orderedAreaIndex) =>
-        orderedArea.areaId === lightAreaRecords[orderedAreaIndex]?.areaId,
+        orderedArea.areaId === appCtx.lightAreaRecords[orderedAreaIndex]?.areaId,
     )
   )
     return;
-  lightAreaRecords = reorderedAreas;
+  appCtx.lightAreaRecords = reorderedAreas;
   persistLightAreaOrder();
   syncLightGroupList();
 }
@@ -2314,15 +2137,15 @@ function moveLightGroupToArea(
   targetGroupId: any = null,
   insertAfterFlag = false,
 ) {
-  const movedLightGroup = studioState.lightGroups.find(
+  const movedLightGroup = appCtx.studioState.lightGroups.find(
     (draggedGroupMatch) => draggedGroupMatch.id === draggedGroupId,
   );
   if (!movedLightGroup) return;
   const nextAreaId = targetAreaId || null,
     areaChanged = (movedLightGroup.areaId || null) !== nextAreaId;
-  let reorderedLightGroups = studioState.lightGroups;
+  let reorderedLightGroups = appCtx.studioState.lightGroups;
   if (targetGroupId) {
-    const remainingLightGroups = studioState.lightGroups.filter(
+    const remainingLightGroups = appCtx.studioState.lightGroups.filter(
         (remainingGroupMatch) => remainingGroupMatch.id !== draggedGroupId,
       ),
       anchorGroupIndex = remainingLightGroups.findIndex(
@@ -2339,13 +2162,13 @@ function moveLightGroupToArea(
   }
   const orderChanged = reorderedLightGroups.some(
     (orderedGroup, orderedGroupIndex) =>
-      orderedGroup.id !== studioState.lightGroups[orderedGroupIndex]?.id,
+      orderedGroup.id !== appCtx.studioState.lightGroups[orderedGroupIndex]?.id,
   );
   if (!areaChanged && !orderChanged) return;
   (deselectAll(),
     (movedLightGroup.areaId = nextAreaId),
-    orderChanged && (studioState.lightGroups = reorderedLightGroups),
-    nextAreaId && expandedAreaIds.add(nextAreaId),
+    orderChanged && (appCtx.studioState.lightGroups = reorderedLightGroups),
+    nextAreaId && appCtx.expandedAreaIds.add(nextAreaId),
     syncLightGroupList(),
     refreshStudioUi(),
     markDocumentDirty());
@@ -2365,7 +2188,7 @@ async function refreshLightAreasFromHa() {
   } catch (lightAreaError: any) {
     fetchedAreaRecords = [];
   }
-  lightAreaRecords = applySavedLightAreaOrder(fetchedAreaRecords);
+  appCtx.lightAreaRecords = applySavedLightAreaOrder(fetchedAreaRecords);
   syncLightGroupList();
 }
 /** 灯光面板区域顺序的本地记录：HA 提供区域集合，顺序只是前端展示偏好，不写回 HA / 文档。 */
@@ -2384,7 +2207,7 @@ function persistLightAreaOrder() {
   try {
     window.localStorage.setItem(
       LIGHT_AREA_ORDER_STORAGE_KEY,
-      JSON.stringify(lightAreaRecords.map((areaRecord) => areaRecord.areaId)),
+      JSON.stringify(appCtx.lightAreaRecords.map((areaRecord) => areaRecord.areaId)),
     );
   } catch(lightAreaOrderError: any) { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 }
@@ -2403,7 +2226,7 @@ function applySavedLightAreaOrder(areaRecords: { areaId: string; name: string }[
 }
 /** 该 areaId 是否为当前 HA 里的有效区域（渲染分组 / 分配校验用）。 */
 function isKnownLightAreaId(areaId: any) {
-  return !!areaId && lightAreaRecords.some((areaRecord) => areaRecord.areaId === areaId);
+  return !!areaId && appCtx.lightAreaRecords.some((areaRecord) => areaRecord.areaId === areaId);
 }
 /** 重建「所属区域」下拉框：「未分类」恒在首位，其后是 HA 区域注册表里的全部区域。 */
 function syncAreaAssignOptions(selectedAreaId: any) {
@@ -2413,7 +2236,7 @@ function syncAreaAssignOptions(selectedAreaId: any) {
       label: "未分类",
     },
   ];
-  for (const listedArea of lightAreaRecords)
+  for (const listedArea of appCtx.lightAreaRecords)
     areaOptionRecords.push({
       value: listedArea.areaId,
       label: listedArea.name,
@@ -2438,26 +2261,26 @@ function syncAreaAssignOptions(selectedAreaId: any) {
 /** 打开灯组的「设置区域」对话框，按该灯组当前所属区域回填下拉框。 */
 function openLightGroupAreaDialog(assignTargetGroup: any) {
   assignTargetGroup &&
-    ((areaAssignGroupId = assignTargetGroup.id),
+    ((appCtx.areaAssignGroupId = assignTargetGroup.id),
     (lightGroupAreaNameElement.textContent = assignTargetGroup.name),
     syncAreaAssignOptions(assignTargetGroup.areaId || ""),
     lightGroupAreaDialogElement.showModal());
 }
 function closeLightGroupAreaDialog() {
-  ((areaAssignGroupId = ""), lightGroupAreaDialogElement.close());
+  ((appCtx.areaAssignGroupId = ""), lightGroupAreaDialogElement.close());
 }
 /** 展开 / 收起某个区域。 */
 function toggleAreaExpanded(toggledAreaId: any) {
-  (expandedAreaIds.has(toggledAreaId)
-    ? expandedAreaIds.delete(toggledAreaId)
-    : expandedAreaIds.add(toggledAreaId),
+  (appCtx.expandedAreaIds.has(toggledAreaId)
+    ? appCtx.expandedAreaIds.delete(toggledAreaId)
+    : appCtx.expandedAreaIds.add(toggledAreaId),
     syncLightGroupList());
 }
 /** 创建一个灯组列表行（长按拖动排序 / 移入区域 + 右键菜单）。 */
 function createLightGroupRow(listedLightGroup: any) {
   const lightGroupRowElement = document.createElement("div");
   ((lightGroupRowElement.className =
-    "light-group-row" + (listedLightGroup.id === activeLightGroupId ? " active" : "")),
+    "light-group-row" + (listedLightGroup.id === appCtx.activeLightGroupId ? " active" : "")),
     (lightGroupRowElement.dataset.lightGroupId = listedLightGroup.id),
     (lightGroupRowElement.dataset.lightGroupAreaId = listedLightGroup.areaId || ""),
     lightGroupRowElement.setAttribute(
@@ -2489,7 +2312,7 @@ function createLightGroupRow(listedLightGroup: any) {
       beginListRowDrag(listDragRowSession, groupPointerDownEvent);
   }),
     lightGroupRowElement.addEventListener("click", () => {
-      ((activeLightGroupId = listedLightGroup.id), syncLightGroupList());
+      ((appCtx.activeLightGroupId = listedLightGroup.id), syncLightGroupList());
     }),
     lightGroupRowElement.addEventListener("contextmenu", (groupActionMenuEvent) => {
       (groupActionMenuEvent.preventDefault(),
@@ -2513,7 +2336,7 @@ function createLightGroupRow(listedLightGroup: any) {
     (groupNameLabel.title = "拖动灯组可排序或移入区域，右键可设置区域、重命名、复制或删除"));
   const groupLampCountNote = document.createElement("small");
   ((groupLampCountNote.textContent = String(
-    studioState.items.filter(
+    appCtx.studioState.items.filter(
       (lampInRowGroup) =>
         lampItemTypeSet.has(lampInRowGroup.type) &&
         lampInRowGroup.lightGroupId === listedLightGroup.id,
@@ -2524,7 +2347,7 @@ function createLightGroupRow(listedLightGroup: any) {
 }
 /** 创建一个「区域」区块：区域来自 HA，可折叠、可拖动排序，也是拖放目标（灯组拖到头上即挂进该区域）。 */
 function createAreaSection(listedArea: any, memberLightGroups: any) {
-  const isAreaExpanded = expandedAreaIds.has(listedArea.areaId),
+  const isAreaExpanded = appCtx.expandedAreaIds.has(listedArea.areaId),
     areaSectionElement = document.createElement("div");
   ((areaSectionElement.className = "light-area-section"),
     (areaSectionElement.dataset.areaId = listedArea.areaId));
@@ -2593,15 +2416,15 @@ function createAreaSection(listedArea: any, memberLightGroups: any) {
 }
 function syncLightGroupList() {
   if (
-    ((lightLayerPanelElement.hidden = activeLibraryCategory !== "light"),
+    ((lightLayerPanelElement.hidden = appCtx.activeLibraryCategory !== "light"),
     !lightLayerPanelElement.hidden)
   ) {
     (getLightGroups(), lightGroupListElement.replaceChildren());
-    const sceneAreas = lightAreaRecords,
+    const sceneAreas = appCtx.lightAreaRecords,
       knownAreaIdSet = new Set(sceneAreas.map((areaRef) => areaRef.areaId)),
       areaMemberGroupMap = new Map(),
       unassignedLightGroups: any[] = [];
-    for (const listedLightGroup of studioState.lightGroups) {
+    for (const listedLightGroup of appCtx.studioState.lightGroups) {
       const listedAreaId = knownAreaIdSet.has(listedLightGroup.areaId)
         ? listedLightGroup.areaId
         : null;
@@ -2682,7 +2505,7 @@ function setAllLightGroupsEnabled(enabledFlag: any) {
   const bl2 = getScreenLightGroups(),
     gl2 = getChargingLightGroups();
   if (!(
-    (studioState.lightGroups || []).every(
+    (appCtx.studioState.lightGroups || []).every(
       (lightGroupEnabledCheck) => lightGroupEnabledCheck.enabled === enabledFlag,
     ) &&
     bl2.every(
@@ -2693,11 +2516,11 @@ function setAllLightGroupsEnabled(enabledFlag: any) {
     )
   )) {
     deselectAll();
-    for (const lightGroupToggleTarget of studioState.lightGroups)
+    for (const lightGroupToggleTarget of appCtx.studioState.lightGroups)
       lightGroupToggleTarget.enabled = enabledFlag;
     for (const screenToggleTarget of bl2) screenToggleTarget.screenEnabled = enabledFlag;
     for (const chargingToggleTarget of gl2) chargingToggleTarget.chargingEnabled = enabledFlag;
-    (transitionLightGroups(studioState.lightGroups.map((lightGroupIdItem) => lightGroupIdItem.id)),
+    (transitionLightGroups(appCtx.studioState.lightGroups.map((lightGroupIdItem) => lightGroupIdItem.id)),
       (bl2.length || gl2.length) &&
         requestSceneRebuild({
           scope: "items",
@@ -2708,43 +2531,43 @@ function setAllLightGroupsEnabled(enabledFlag: any) {
 }
 function createSelectionRef(selectionKind: any, selectionId: any) {
   return (
-    (selectedItem?.kind === selectionKind && selectedItem.id === selectionId) ||
-    selectedItems.some(
+    (appCtx.selectedItem?.kind === selectionKind && appCtx.selectedItem.id === selectionId) ||
+    appCtx.selectedItems.some(
       (selectionCandidate: any) =>
         selectionCandidate.kind === selectionKind && selectionCandidate.id === selectionId,
     )
   );
 }
 function refreshSelection() {
-  ((selectedItem = null), (selectedItems = []));
+  ((appCtx.selectedItem = null), (appCtx.selectedItems = []));
 }
 function isPlanItemVisible(planItemRef: any) {
-  return activeLibraryCategory === "courtyard"
+  return appCtx.activeLibraryCategory === "courtyard"
     ? isCourtyardPlanItem2(planItemRef)
-    : lampItemTypeSet.has(planItemRef.type) === (activeLibraryCategory === "light");
+    : lampItemTypeSet.has(planItemRef.type) === (appCtx.activeLibraryCategory === "light");
 }
 function isSelectionAllowed(selectionObject: any) {
   return selectionObject
     ? selectionObject.kind === "item"
       ? isPlanItemVisible(
-          studioState.items.find((itemLookupMatch) => itemLookupMatch.id === selectionObject.id) ||
+          appCtx.studioState.items.find((itemLookupMatch) => itemLookupMatch.id === selectionObject.id) ||
             {},
         )
-      : !["courtyard", "light"].includes(activeLibraryCategory)
+      : !["courtyard", "light"].includes(appCtx.activeLibraryCategory)
     : false;
 }
 function selectSceneObject(objectKind: any, objectId: any) {
-  ((selectedItem =
+  ((appCtx.selectedItem =
     objectKind && objectId
       ? {
           kind: objectKind,
           id: objectId,
         }
       : null),
-    (selectedItems = []));
+    (appCtx.selectedItems = []));
 }
 function getDefaultSelectionScope() {
-  return studioState.walls?.length >= 3 && closedWallLoops(getPixelsPerMeter()).length
+  return appCtx.studioState.walls?.length >= 3 && closedWallLoops(getPixelsPerMeter()).length
     ? "items"
     : "all";
 }
@@ -2771,7 +2594,7 @@ function classifySelectionScope(selectionList: any) {
   )
     return "all";
   const selectedIdSet = new Set(selectionList.map((selectionIdEntry: any) => selectionIdEntry.id)),
-    scopedSelectedItems = studioState.items.filter((selectedItemRef) =>
+    scopedSelectedItems = appCtx.studioState.items.filter((selectedItemRef) =>
       selectedIdSet.has(selectedItemRef.id),
     );
   if (
@@ -2796,7 +2619,7 @@ function classifySelectionScope(selectionList: any) {
 }
 function getCurrentPreviewScope() {
   return classifySelectionScope(
-    selectedItems.length ? selectedItems : selectedItem ? [selectedItem] : [],
+    appCtx.selectedItems.length ? appCtx.selectedItems : appCtx.selectedItem ? [appCtx.selectedItem] : [],
   );
 }
 function classifyLightingScope(lightSelectionList: any) {
@@ -2811,7 +2634,7 @@ function classifyLightingScope(lightSelectionList: any) {
   const lightSelectionIdSet = new Set(
       lightSelectionList.map((lightSelectionIdEntry: any) => lightSelectionIdEntry.id),
     ),
-    lightSelectedItems = studioState.items.filter((lightSelectedRef) =>
+    lightSelectedItems = appCtx.studioState.items.filter((lightSelectedRef) =>
       lightSelectionIdSet.has(lightSelectedRef.id),
     );
   if (!lightSelectedItems.length) return null;
@@ -2831,7 +2654,7 @@ function classifyLightingScope(lightSelectionList: any) {
 }
 function getPreviewScopeSelection() {
   return classifyLightingScope(
-    selectedItems.length ? selectedItems : selectedItem ? [selectedItem] : [],
+    appCtx.selectedItems.length ? appCtx.selectedItems : appCtx.selectedItem ? [appCtx.selectedItem] : [],
   );
 }
 function setPreviewScope(scopeRequest: any) {
@@ -2854,23 +2677,23 @@ function setPreviewScope(scopeRequest: any) {
 }
 function markWallsChanged() {
   const tf3 = remapOpeningsToWalls(
-    studioState.walls,
-    studioState.windows,
-    studioState.doors,
+    appCtx.studioState.walls,
+    appCtx.studioState.windows,
+    appCtx.studioState.doors,
     getPixelsPerMeter() || 1,
-    studioState.railings,
+    appCtx.studioState.railings,
   );
-  ((studioState.walls = tf3.walls),
-    (studioState.windows = tf3.windows),
-    (studioState.doors = tf3.doors),
-    (studioState.railings = tf3.railings));
+  ((appCtx.studioState.walls = tf3.walls),
+    (appCtx.studioState.windows = tf3.windows),
+    (appCtx.studioState.doors = tf3.doors),
+    (appCtx.studioState.railings = tf3.railings));
 }
 function rebuildWallIndex() {
   const wallByIdBeforeMerge = new Map(
-      studioState.walls.map((wallEntry) => [wallEntry.id, wallEntry]),
+      appCtx.studioState.walls.map((wallEntry) => [wallEntry.id, wallEntry]),
     ),
-    mergedWallResult = mergeCollinearWallSegments2(studioState.walls, 0.000001);
-  if (mergedWallResult.walls.length === studioState.walls.length) return 0;
+    mergedWallResult = mergeCollinearWallSegments2(appCtx.studioState.walls, 0.000001);
+  if (mergedWallResult.walls.length === appCtx.studioState.walls.length) return 0;
   const wallByIdAfterMerge = new Map(
       mergedWallResult.walls.map((mergedWallEntry: any) => [mergedWallEntry.id, mergedWallEntry]),
     ),
@@ -2893,17 +2716,17 @@ function rebuildWallIndex() {
         remappedAttachment
       );
     },
-    removedWallCount = studioState.walls.length - mergedWallResult.walls.length;
+    removedWallCount = appCtx.studioState.walls.length - mergedWallResult.walls.length;
   return (
-    (studioState.walls = mergedWallResult.walls),
-    (studioState.windows = studioState.windows.map(remapWallAttachment)),
-    (studioState.doors = studioState.doors.map(remapWallAttachment)),
-    (studioState.railings = studioState.railings.map(remapWallAttachment)),
+    (appCtx.studioState.walls = mergedWallResult.walls),
+    (appCtx.studioState.windows = appCtx.studioState.windows.map(remapWallAttachment)),
+    (appCtx.studioState.doors = appCtx.studioState.doors.map(remapWallAttachment)),
+    (appCtx.studioState.railings = appCtx.studioState.railings.map(remapWallAttachment)),
     removedWallCount
   );
 }
 function getPixelsPerMeter() {
-  return studioState.calibration?.pixelsPerMeter || 0;
+  return appCtx.studioState.calibration?.pixelsPerMeter || 0;
 }
 class StudioApiError extends Error {
   /** HTTP 状态码，调用方按它分支（409 冲突 / 428 需要交互确认）。 */
@@ -2984,63 +2807,63 @@ function showSaveState(saveStateText: any, saveStateKind = "") {
     dirty: mapped === "dirty" || mapped === "saving",
     saveState: mapped as any,
     history: {
-      canUndo: undoRecords.length > 0,
-      canRedo: redoRecords.length > 0,
-      undoDepth: undoRecords.length,
-      redoDepth: redoRecords.length,
+      canUndo: appCtx.undoRecords.length > 0,
+      canRedo: appCtx.redoRecords.length > 0,
+      undoDepth: appCtx.undoRecords.length,
+      redoDepth: appCtx.redoRecords.length,
     },
-    activeTool: activeToolName,
+    activeTool: appCtx.activeToolName,
   });
 }
 
 function syncStudioHistoryFacade() {
   patchStudioFacadeState({
-    history: buildStudioHistoryPatch(undoRecords.length, redoRecords.length),
-    activeTool: activeToolName,
+    history: buildStudioHistoryPatch(appCtx.undoRecords.length, appCtx.redoRecords.length),
+    activeTool: appCtx.activeToolName,
   });
 }
 
 /** 语义正确的撤销 / 重做（旧名 deleteSelectedObjects / duplicateSelectedObjects 易误导）。 */
 async function undoStudioHistory() {
-  if (!undoRecords.length) return;
-  redoRecords.push(captureUndoSnapshot());
-  const pop = undoRecords.pop();
+  if (!appCtx.undoRecords.length) return;
+  appCtx.redoRecords.push(captureUndoSnapshot());
+  const pop = appCtx.undoRecords.pop();
   await restoreSnapshot(pop);
   syncStudioHistoryFacade();
 }
 async function redoStudioHistory() {
-  if (!redoRecords.length) return;
-  undoRecords.push(captureUndoSnapshot());
-  const pop2 = redoRecords.pop();
+  if (!appCtx.redoRecords.length) return;
+  appCtx.undoRecords.push(captureUndoSnapshot());
+  const pop2 = appCtx.redoRecords.pop();
   await restoreSnapshot(pop2);
   syncStudioHistoryFacade();
 }
 function validateSelectionChange(placementChange: any) {
   const placementError = validatePlacementChange2(
     placementChange,
-    studioState,
+    appCtx.studioState,
     getPixelsPerMeter() || 100,
   );
   return placementError
     ? (showToast(placementError, "error"),
-      selectedItem && !getSelectedObject() && refreshSelection(),
-      (selectedItems = selectedItems.filter(
+      appCtx.selectedItem && !getSelectedObject() && refreshSelection(),
+      (appCtx.selectedItems = appCtx.selectedItems.filter(
         (selectionEntry: any) =>
           selectionEntry.kind !== "item" ||
-          studioState.items.some((selectedItemMatch) => selectedItemMatch.id === selectionEntry.id),
+          appCtx.studioState.items.some((selectedItemMatch) => selectedItemMatch.id === selectionEntry.id),
       )),
       false)
     : true;
 }
 function deselectAll() {
-  (undoRecords.push(captureUndoSnapshot()),
-    undoRecords.length > 40 && undoRecords.shift(),
-    (redoRecords = []));
+  (appCtx.undoRecords.push(captureUndoSnapshot()),
+    appCtx.undoRecords.length > 40 && appCtx.undoRecords.shift(),
+    (appCtx.redoRecords = []));
 }
 function applyPlacementChange(undoSnapshot: any) {
-  (undoRecords.push(undoSnapshot),
-    undoRecords.length > 40 && undoRecords.shift(),
-    (redoRecords = []));
+  (appCtx.undoRecords.push(undoSnapshot),
+    appCtx.undoRecords.length > 40 && appCtx.undoRecords.shift(),
+    (appCtx.redoRecords = []));
 }
 async function restoreSnapshot(snapshotDocument: any) {
   /**
@@ -3052,7 +2875,7 @@ async function restoreSnapshot(snapshotDocument: any) {
       (snapshotDocument.walls || []).map((backupWall: any) => [backupWall.id, backupWall]),
     ),
     changedWallIds = new Set(
-      (studioState.walls || [])
+      (appCtx.studioState.walls || [])
         .filter((currentWall) => {
           const backupWall = backupWallById.get(currentWall.id);
           return (
@@ -3071,7 +2894,7 @@ async function restoreSnapshot(snapshotDocument: any) {
         (snapshotDocument[attachmentKey] || []).map((attachmentRecord: any) => attachmentRecord.id),
       );
       if (
-        ((studioState as any)[attachmentKey] || []).some(
+        ((appCtx.studioState as any)[attachmentKey] || []).some(
           (attachmentRecord: any) =>
             changedWallIds.has(attachmentRecord.wallId) &&
             !backupAttachmentIds.has(attachmentRecord.id),
@@ -3079,10 +2902,10 @@ async function restoreSnapshot(snapshotDocument: any) {
       )
         throw new Error("合并墙上已有新增门窗或栏杆，请先撤销这些改动，再撤销删除。");
     }
-  (selectStudioTool("select"), (studioState = normalizeScenePayload(snapshotDocument, externalModelRegistry)));
+  (selectStudioTool("select"), (appCtx.studioState = normalizeScenePayload(snapshotDocument, externalModelRegistry)));
   const ae6 = getActiveFloor();
-  (ae6 && (ae6.scene = studioState),
-    (planView.rotation = studioState.settings.planViewRotation),
+  (ae6 && (ae6.scene = appCtx.studioState),
+    (appCtx.planView.rotation = appCtx.studioState.settings.planViewRotation),
     refreshSelection(),
     refreshPreviewScene(),
     await loadBackgroundImage(),
@@ -3099,62 +2922,62 @@ async function duplicateSelectedObjects() {
 }
 function markDocumentDirty() {
   isEmbeddedStage ||
-    (syncCourtyardGates2(studioState.items, getPixelsPerMeter() || 100),
-    (isExporting = false),
-    (localSaveRevision += 1),
-    (firstLocalChangeAt ??= Date.now()),
-    (lastLocalChangeAt = Date.now()),
+    (syncCourtyardGates2(appCtx.studioState.items, getPixelsPerMeter() || 100),
+    (appCtx.isExporting = false),
+    (appCtx.localSaveRevision += 1),
+    (appCtx.firstLocalChangeAt ??= Date.now()),
+    (appCtx.lastLocalChangeAt = Date.now()),
     showSaveState("有未保存修改", "saving"),
     scheduleAutosave(),
     refreshStepChecklist());
 }
 async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
   stageLoadTiming("draft-normalize-start");
-  const draftApplyRequestId = ++draftLoadRequestId;
+  const draftApplyRequestId = ++appCtx.draftLoadRequestId;
   if (
-    (window.clearTimeout(modelLoadDebounceId),
-    (modelLoadDebounceId = null),
-    (deferredModelTypes = []),
-    (isExternalModelLoadDeferred = false),
+    (window.clearTimeout(appCtx.modelLoadDebounceId),
+    (appCtx.modelLoadDebounceId = null),
+    (appCtx.deferredModelTypes = []),
+    (appCtx.isExternalModelLoadDeferred = false),
     (window.externalModelLoadsDeferred = false),
-    (loadedDraft = draftPayload),
-    (isSceneStillLoading = isEmbeddedStage),
-    (studioProject = draftScene || normalizeStudioDocument(draftPayload.scene, studioDocumentDeps())),
+    (appCtx.loadedDraft = draftPayload),
+    (appCtx.isSceneStillLoading = isEmbeddedStage),
+    (appCtx.studioProject = draftScene || normalizeStudioDocument(draftPayload.scene, studioDocumentDeps())),
     isEmbeddedStage)
   ) {
-    for (const livePreviewFloor of studioProject.floors)
+    for (const livePreviewFloor of appCtx.studioProject.floors)
       livePreviewFloor.scene.settings.livePreviewEnabled = true;
   }
   if (
-    (applyBaseLighting(studioProject.baseLighting),
-    (activeFloorId = studioProject.activeFloorId),
+    (applyBaseLighting(appCtx.studioProject.baseLighting),
+    (appCtx.activeFloorId = appCtx.studioProject.activeFloorId),
     isAutoDiagramEmbed &&
-      studioProject.floors.length > 1 &&
-      (studioProject.previewFloorMode = "all"),
+      appCtx.studioProject.floors.length > 1 &&
+      (appCtx.studioProject.previewFloorMode = "all"),
     isAutoDiagramEmbed && floorSelectionId !== null)
   ) {
-    const floorSelectionRecord = studioProject.floors.find(
+    const floorSelectionRecord = appCtx.studioProject.floors.find(
       (floorSelectionMatch: any) => floorSelectionMatch.id === floorSelectionId,
     );
-    floorSelectionId === "all" && studioProject.floors.length > 1
-      ? (studioProject.previewFloorMode = "all")
+    floorSelectionId === "all" && appCtx.studioProject.floors.length > 1
+      ? (appCtx.studioProject.previewFloorMode = "all")
       : floorSelectionRecord &&
-        ((studioProject.previewFloorMode = "active"),
-        (studioProject.activeFloorId = floorSelectionRecord.id),
-        (activeFloorId = floorSelectionRecord.id));
+        ((appCtx.studioProject.previewFloorMode = "active"),
+        (appCtx.studioProject.activeFloorId = floorSelectionRecord.id),
+        (appCtx.activeFloorId = floorSelectionRecord.id));
   }
-  ((studioState = getActiveFloor().scene),
-    (activeLightGroupId = ""),
+  ((appCtx.studioState = getActiveFloor().scene),
+    (appCtx.activeLightGroupId = ""),
     refreshSelection(),
     refreshPreviewScene(),
-    (undoRecords = []),
-    (redoRecords = []));
+    (appCtx.undoRecords = []),
+    (appCtx.redoRecords = []));
 
   await refreshLightAreasFromHa();
   const selectedFloorRecords = collectSelectedFloors();
   if (isEmbeddedStage) {
-    isExternalModelPending = true;
-    const sceneModelPayload = collectScenePayload(studioProject.floors, {
+    appCtx.isExternalModelPending = true;
+    const sceneModelPayload = collectScenePayload(appCtx.studioProject.floors, {
       includeCurtains: true,
     });
     (preloadPersistentModels(sceneModelPayload),
@@ -3164,20 +2987,20 @@ async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
       stageLoadTiming("initial-models-start"));
   }
   const Qe2 = isAutoDiagramEmbed;
-  Qe2 && (isModelLoadDeferred = true);
+  Qe2 && (appCtx.isModelLoadDeferred = true);
   let preloadModelPromises: any[] = [];
   (Qe2 &&
     (preloadModelPromises = selectedFloorRecords.map((modelRecord) =>
       ensureExternalModelLoaded(modelRecord),
     )),
-    (isExternalModelLoadDeferred = !Qe2 && !isEmbeddedStage),
-    (window.externalModelLoadsDeferred = isExternalModelLoadDeferred),
-    (deferredModelTypes = Qe2 ? [] : selectedFloorRecords),
-    isExternalModelLoadDeferred && scheduleModelLoadFlush(),
+    (appCtx.isExternalModelLoadDeferred = !Qe2 && !isEmbeddedStage),
+    (window.externalModelLoadsDeferred = appCtx.isExternalModelLoadDeferred),
+    (appCtx.deferredModelTypes = Qe2 ? [] : selectedFloorRecords),
+    appCtx.isExternalModelLoadDeferred && scheduleModelLoadFlush(),
     publishModelLoadState(),
     updateFloorPreviewButtons(),
     renderFloorList(),
-    (planView.rotation = studioState.settings.planViewRotation),
+    (appCtx.planView.rotation = appCtx.studioState.settings.planViewRotation),
     stageLoadTiming("background-start"));
   const gu3 = loadBackgroundImage();
   if (
@@ -3194,13 +3017,13 @@ async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
         new Promise((raceTimeoutResolve) => window.setTimeout(raceTimeoutResolve, 3500)),
       ]),
         Promise.allSettled(preloadModelPromises).then(() => {
-          draftApplyRequestId === draftLoadRequestId && finishModelLoad();
+          draftApplyRequestId === appCtx.draftLoadRequestId && finishModelLoad();
         }));
     } finally {
-      draftApplyRequestId === draftLoadRequestId &&
-        (window.clearTimeout(modelLoadTimeoutId),
-        (modelLoadTimeoutId = null),
-        (isModelLoadDeferred = false),
+      draftApplyRequestId === appCtx.draftLoadRequestId &&
+        (window.clearTimeout(appCtx.modelLoadTimeoutId),
+        (appCtx.modelLoadTimeoutId = null),
+        (appCtx.isModelLoadDeferred = false),
         publishModelLoadState());
     }
   else
@@ -3209,7 +3032,7 @@ async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
     }),
       preloadModelPromises.length &&
         Promise.allSettled(preloadModelPromises).then(() => {
-          draftApplyRequestId === draftLoadRequestId && finishModelLoad();
+          draftApplyRequestId === appCtx.draftLoadRequestId && finishModelLoad();
         }));
   (resizePlanStage(),
     resetView(),
@@ -3228,7 +3051,7 @@ async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
       }));
 }
 function recordSaveConflict(conflictLatest: any, conflictLocalScene: any, conflictTargetVersion: any) {
-  ((pendingConflict = {
+  ((appCtx.pendingConflict = {
     latest: conflictLatest,
     localScene: conflictLocalScene,
     targetVersion: conflictTargetVersion,
@@ -3237,17 +3060,6 @@ function recordSaveConflict(conflictLatest: any, conflictLocalScene: any, confli
     saveConflictDialogElement.open || saveConflictDialogElement.showModal());
 }
 /** 0.6.8 退出保护：非重试性保存失败后锁定的版本；自动保存重试状态与退出请求状态。 */
-let blockedSaveRevision = -1,
-  failedSaveRevision = -1,
-  saveRetryDueAt = 0,
-  saveFailureRetryCount = 0,
-  firstLocalChangeAt: any = null,
-  lastLocalChangeAt: any = null,
-  isInteractionDeferredSave = false,
-  isExitSaveInFlight = false,
-  exitSaveRequestId = 0,
-  isLeavingStudio = false,
-  isPageSuspended = false;
 /** 自动保存节奏：最后一次修改后 3s 合并保存，首次修改后最多 15s 兜底。 */
 const AUTOSAVE_DEBOUNCE_MS = 3000,
   AUTOSAVE_MAX_DELAY_MS = 15000;
@@ -3256,67 +3068,67 @@ const saveWaiterResolvers = new Set<() => void>(),
   exitWaiterResolvers = new Set<() => void>();
 /** 保存失败后的重试状态复位（重试次数、重试到期时间、非重试性失败锁定版本）。 */
 function resetSaveRetryState() {
-  ((saveFailureRetryCount = 0), (saveRetryDueAt = 0), (failedSaveRevision = -1));
+  ((appCtx.saveFailureRetryCount = 0), (appCtx.saveRetryDueAt = 0), (appCtx.failedSaveRevision = -1));
 }
 /** 自动保存调度：合并 3s 内的多次修改，首次修改后最多 15s 兜底；失败重试按退避到期时间。 */
 function scheduleAutosave(explicitDelayMs?: number) {
   if (
-    (window.clearTimeout(autosaveTimeoutId),
-    (autosaveTimeoutId = null),
+    (window.clearTimeout(appCtx.autosaveTimeoutId),
+    (appCtx.autosaveTimeoutId = null),
     isEmbeddedStage ||
-      isPageSuspended ||
-      (document.hidden && saveRetryDueAt > 0) ||
+      appCtx.isPageSuspended ||
+      (document.hidden && appCtx.saveRetryDueAt > 0) ||
       navigator.onLine === false ||
-      !loadedDraft ||
-      isSaveInFlight ||
+      !appCtx.loadedDraft ||
+      appCtx.isSaveInFlight ||
       studioExitDialogElement.open ||
-      pendingConflict ||
-      localSaveRevision === remoteSaveRevision ||
-      localSaveRevision === blockedSaveRevision ||
-      localSaveRevision === failedSaveRevision)
+      appCtx.pendingConflict ||
+      appCtx.localSaveRevision === appCtx.remoteSaveRevision ||
+      appCtx.localSaveRevision === appCtx.blockedSaveRevision ||
+      appCtx.localSaveRevision === appCtx.failedSaveRevision)
   )
     return;
   const now = Date.now(),
     dueAt =
-      saveRetryDueAt > 0
-        ? saveRetryDueAt
+      appCtx.saveRetryDueAt > 0
+        ? appCtx.saveRetryDueAt
         : explicitDelayMs !== undefined
           ? now + explicitDelayMs
           : Math.min(
-              (lastLocalChangeAt ?? now) + AUTOSAVE_DEBOUNCE_MS,
-              (firstLocalChangeAt ?? now) + AUTOSAVE_MAX_DELAY_MS,
+              (appCtx.lastLocalChangeAt ?? now) + AUTOSAVE_DEBOUNCE_MS,
+              (appCtx.firstLocalChangeAt ?? now) + AUTOSAVE_MAX_DELAY_MS,
             );
-  autosaveTimeoutId = window.setTimeout(flushAutosave, Math.max(0, dueAt - now));
+  appCtx.autosaveTimeoutId = window.setTimeout(flushAutosave, Math.max(0, dueAt - now));
 }
 /** 交互（平面拖拽 / 渲染抑制 / 庭院绘制）结束后：释放退出等待者，并补一次被推迟的自动保存。 */
 function handleInteractionEnded() {
   if (!isInteractionBusy()) {
     for (const exitWaiter of exitWaiterResolvers) exitWaiter();
     (exitWaiterResolvers.clear(),
-      isInteractionDeferredSave && ((isInteractionDeferredSave = false), scheduleAutosave()));
+      appCtx.isInteractionDeferredSave && ((appCtx.isInteractionDeferredSave = false), scheduleAutosave()));
   }
 }
 function isInteractionBusy() {
-  return isWindowHidden || isRenderSuppressed || !!planPainter?.isDragging?.();
+  return appCtx.isWindowHidden || appCtx.isRenderSuppressed || !!planPainter?.isDragging?.();
 }
 /** 退出前的未保存判定：进行中保存、版本差、导出存档脏、平面拖拽或庭院绘制待提交。 */
 function hasUnsavedChanges() {
   return (
-    isSaveInFlight ||
-    localSaveRevision !== remoteSaveRevision ||
-    isExportPresetDirty ||
-    !!marqueeBox?.moved ||
+    appCtx.isSaveInFlight ||
+    appCtx.localSaveRevision !== appCtx.remoteSaveRevision ||
+    appCtx.isExportPresetDirty ||
+    !!appCtx.marqueeBox?.moved ||
     !!planPainter?.hasPendingChange?.()
   );
 }
 function refreshExitDialogButtons() {
-  ((studioExitSaveButton.disabled = isExitSaveInFlight),
-    (studioExitDiscardButton.disabled = isSaveInFlight || isExitSaveInFlight),
-    (studioExitSaveButton.textContent = isExitSaveInFlight ? "正在保存…" : "保存并退出"));
+  ((studioExitSaveButton.disabled = appCtx.isExitSaveInFlight),
+    (studioExitDiscardButton.disabled = appCtx.isSaveInFlight || appCtx.isExitSaveInFlight),
+    (studioExitSaveButton.textContent = appCtx.isExitSaveInFlight ? "正在保存…" : "保存并退出"));
 }
 /** 「继续编辑」/ Esc：作废当前退出请求，释放等待者并关闭对话框。 */
 function closeExitDialog() {
-  ((exitSaveRequestId += 1), (isExitSaveInFlight = false));
+  ((appCtx.exitSaveRequestId += 1), (appCtx.isExitSaveInFlight = false));
   for (const exitWaiter of exitWaiterResolvers) exitWaiter();
   (exitWaiterResolvers.clear(),
     studioExitDialogElement.close(),
@@ -3325,38 +3137,38 @@ function closeExitDialog() {
 }
 /** 「不保存并退出」：标记离开状态并跳转回编辑器。 */
 function leaveStudio() {
-  ((isLeavingStudio = true),
-    window.clearTimeout(autosaveTimeoutId),
-    (autosaveTimeoutId = null),
+  ((appCtx.isLeavingStudio = true),
+    window.clearTimeout(appCtx.autosaveTimeoutId),
+    (appCtx.autosaveTimeoutId = null),
     navigateInShell(studioBackLinkElement.href));
 }
 async function flushAutosave() {
   if (
     isEmbeddedStage ||
-    isPageSuspended ||
-    (document.hidden && saveRetryDueAt > 0) ||
+    appCtx.isPageSuspended ||
+    (document.hidden && appCtx.saveRetryDueAt > 0) ||
     navigator.onLine === false ||
-    !loadedDraft ||
-    isSaveInFlight ||
-    pendingConflict ||
-    localSaveRevision === remoteSaveRevision ||
-    localSaveRevision === failedSaveRevision
+    !appCtx.loadedDraft ||
+    appCtx.isSaveInFlight ||
+    appCtx.pendingConflict ||
+    appCtx.localSaveRevision === appCtx.remoteSaveRevision ||
+    appCtx.localSaveRevision === appCtx.failedSaveRevision
   )
     return;
-  if (Date.now() < saveRetryDueAt) {
+  if (Date.now() < appCtx.saveRetryDueAt) {
     scheduleAutosave();
     return;
   }
-  if (localSaveRevision === blockedSaveRevision) return;
+  if (appCtx.localSaveRevision === appCtx.blockedSaveRevision) return;
   if (isInteractionBusy()) {
-    isInteractionDeferredSave = true;
+    appCtx.isInteractionDeferredSave = true;
     return;
   }
-  (window.clearTimeout(autosaveTimeoutId), (autosaveTimeoutId = null), (isInteractionDeferredSave = false));
-  const previousFirstLocalChangeAt = firstLocalChangeAt,
-    previousLastLocalChangeAt = lastLocalChangeAt;
-  ((firstLocalChangeAt = lastLocalChangeAt = null), (isSaveInFlight = true), refreshExitDialogButtons());
-  const saveRevisionAtStart = localSaveRevision;
+  (window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null), (appCtx.isInteractionDeferredSave = false));
+  const previousFirstLocalChangeAt = appCtx.firstLocalChangeAt,
+    previousLastLocalChangeAt = appCtx.lastLocalChangeAt;
+  ((appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null), (appCtx.isSaveInFlight = true), refreshExitDialogButtons());
+  const saveRevisionAtStart = appCtx.localSaveRevision;
   showSaveState("正在保存…", "saving");
   const saveStudioDraft = async (draftToSave: any) => {
     const latestLocalRevision = getLocalSaveRevision(),
@@ -3380,16 +3192,16 @@ async function flushAutosave() {
         throw saveError;
       return (await resolveInteractionCleanup(saveErrorDetail, deleteSelectedObjects, showToast))
         ? putStudioDraft(saveErrorDetail.token)
-        : ((blockedSaveRevision = saveRevisionAtStart),
+        : ((appCtx.blockedSaveRevision = saveRevisionAtStart),
           showSaveState("删除未确认，尚未保存", "error"),
           null);
     }
   };
   try {
     try {
-      const savedDraft = await saveStudioDraft(loadedDraft);
+      const savedDraft = await saveStudioDraft(appCtx.loadedDraft);
       if (!savedDraft) return;
-      loadedDraft = savedDraft;
+      appCtx.loadedDraft = savedDraft;
     } catch (conflictError: any) {
       if (conflictError.status !== 409) throw conflictError;
       const xa2 = await fetchStudioApi("/studio3d");
@@ -3397,34 +3209,34 @@ async function flushAutosave() {
       return;
     }
     (resetSaveRetryState(),
-      (remoteSaveRevision = Math.max(remoteSaveRevision, saveRevisionAtStart)),
-      localSaveRevision === remoteSaveRevision && showSaveState("已自动保存", "saved"));
+      (appCtx.remoteSaveRevision = Math.max(appCtx.remoteSaveRevision, saveRevisionAtStart)),
+      appCtx.localSaveRevision === appCtx.remoteSaveRevision && showSaveState("已自动保存", "saved"));
   } catch (saveFailure: any) {
     (window.HomeOSLog?.error!(saveFailure, {
       phase: "studio-save",
     }),
-      (saveFailureRetryCount += 1));
+      (appCtx.saveFailureRetryCount += 1));
     const isRetryableFailure =
       !saveFailure.status ||
       [408, 425, 429].includes(saveFailure.status) ||
       saveFailure.status >= 500;
     (isRetryableFailure
-      ? ((saveRetryDueAt =
-          Date.now() + Math.min(30000, 2000 * 2 ** Math.min(saveFailureRetryCount - 1, 4))),
+      ? ((appCtx.saveRetryDueAt =
+          Date.now() + Math.min(30000, 2000 * 2 ** Math.min(appCtx.saveFailureRetryCount - 1, 4))),
         showSaveState("保存失败，稍后自动重试", "error"))
-      : ((failedSaveRevision = saveRevisionAtStart),
-        (saveRetryDueAt = 0),
+      : ((appCtx.failedSaveRevision = saveRevisionAtStart),
+        (appCtx.saveRetryDueAt = 0),
         showSaveState("保存失败，修改后重试", "error")),
-      (saveFailureRetryCount === 1 || !isRetryableFailure) &&
+      (appCtx.saveFailureRetryCount === 1 || !isRetryableFailure) &&
         showToast(saveFailure.message || "3D 草稿保存失败。", "error"));
   } finally {
-    (remoteSaveRevision < saveRevisionAtStart &&
-      ((firstLocalChangeAt = Math.min(
+    (appCtx.remoteSaveRevision < saveRevisionAtStart &&
+      ((appCtx.firstLocalChangeAt = Math.min(
         previousFirstLocalChangeAt ?? Date.now(),
-        firstLocalChangeAt ?? Date.now(),
+        appCtx.firstLocalChangeAt ?? Date.now(),
       )),
-      (lastLocalChangeAt = Math.max(previousLastLocalChangeAt ?? 0, lastLocalChangeAt ?? 0))),
-      (isSaveInFlight = false),
+      (appCtx.lastLocalChangeAt = Math.max(previousLastLocalChangeAt ?? 0, appCtx.lastLocalChangeAt ?? 0))),
+      (appCtx.isSaveInFlight = false),
       refreshExitDialogButtons());
     for (const saveWaiter of saveWaiterResolvers) saveWaiter();
     (saveWaiterResolvers.clear(), scheduleAutosave());
@@ -3434,17 +3246,17 @@ async function flushAutosave() {
   dialogCancelEvent.preventDefault(),
 ),
   saveConflictLoadButton.addEventListener("click", async () => {
-    const Vr2 = pendingConflict;
+    const Vr2 = appCtx.pendingConflict;
     if (Vr2) {
-      ((pendingConflict = null),
-        window.clearTimeout(autosaveTimeoutId),
+      ((appCtx.pendingConflict = null),
+        window.clearTimeout(appCtx.autosaveTimeoutId),
         resetSaveRetryState(),
-        (blockedSaveRevision = -1),
-        (firstLocalChangeAt = lastLocalChangeAt = null),
+        (appCtx.blockedSaveRevision = -1),
+        (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
         saveConflictDialogElement.close());
       try {
         (await applyLoadedDraft(Vr2.latest),
-          (remoteSaveRevision = localSaveRevision),
+          (appCtx.remoteSaveRevision = appCtx.localSaveRevision),
           showSaveState("已加载服务器版本", "saved"),
           showToast("已加载另一页面保存的户型，当前页面没有执行覆盖。", "success"),
           scheduleAutosave(0));
@@ -3455,17 +3267,17 @@ async function flushAutosave() {
     }
   }),
   saveConflictOverwriteButton.addEventListener("click", () => {
-    const Vr3 = pendingConflict;
+    const Vr3 = appCtx.pendingConflict;
     Vr3 &&
       (resetSaveRetryState(),
-      (studioProject = normalizeStudioDocument(Vr3.localScene, studioDocumentDeps())),
-      (activeFloorId = studioProject.activeFloorId),
-      (studioState = getActiveFloor().scene),
-      (loadedDraft = Vr3.latest),
-      (pendingConflict = null),
+      (appCtx.studioProject = normalizeStudioDocument(Vr3.localScene, studioDocumentDeps())),
+      (appCtx.activeFloorId = appCtx.studioProject.activeFloorId),
+      (appCtx.studioState = getActiveFloor().scene),
+      (appCtx.loadedDraft = Vr3.latest),
+      (appCtx.pendingConflict = null),
       saveConflictDialogElement.close(),
       showSaveState("正在确认覆盖…", "saving"),
-      window.clearTimeout(autosaveTimeoutId),
+      window.clearTimeout(appCtx.autosaveTimeoutId),
       scheduleAutosave(0));
   }));
 // 退出保护三态对话框：返回编辑器前的未保存拦截、等待保存完成后再退出、不保存直接退出。
@@ -3484,9 +3296,9 @@ studioBackLinkElement.addEventListener("click", (studioBackLinkEvent: any) => {
     return;
   }
   (studioBackLinkEvent.preventDefault(),
-    window.clearTimeout(autosaveTimeoutId),
-    (autosaveTimeoutId = null),
-    (studioExitMessageElement.textContent = isSaveInFlight
+    window.clearTimeout(appCtx.autosaveTimeoutId),
+    (appCtx.autosaveTimeoutId = null),
+    (studioExitMessageElement.textContent = appCtx.isSaveInFlight
       ? "户型正在保存。可以等待保存完成后退出，或继续编辑。"
       : "户型还有未保存的修改。保存成功后再退出，或不保存本次待提交的修改。已保存的内容会保留。"),
     refreshExitDialogButtons(),
@@ -3500,29 +3312,29 @@ studioExitDialogElement.addEventListener("cancel", (studioExitCancelEvent: any) 
   (studioExitCancelEvent.preventDefault(), closeExitDialog());
 });
 studioExitDiscardButton.addEventListener("click", () => {
-  if (!isSaveInFlight && !isExitSaveInFlight) leaveStudio();
+  if (!appCtx.isSaveInFlight && !appCtx.isExitSaveInFlight) leaveStudio();
 });
 studioExitSaveButton.addEventListener("click", async () => {
-  if (isExitSaveInFlight) return;
-  const exitSaveRequestToken = ++exitSaveRequestId;
-  ((isExitSaveInFlight = true),
+  if (appCtx.isExitSaveInFlight) return;
+  const exitSaveRequestToken = ++appCtx.exitSaveRequestId;
+  ((appCtx.isExitSaveInFlight = true),
     refreshExitDialogButtons(),
     (studioExitMessageElement.textContent = "正在保存，成功后将返回编辑器。你也可以继续编辑。"));
   try {
     if (
-      (isSaveInFlight && (await new Promise<void>((resolve) => saveWaiterResolvers.add(resolve))),
-      exitSaveRequestToken !== exitSaveRequestId ||
+      (appCtx.isSaveInFlight && (await new Promise<void>((resolve) => saveWaiterResolvers.add(resolve))),
+      exitSaveRequestToken !== appCtx.exitSaveRequestId ||
         (isInteractionBusy() &&
           (await new Promise<void>((resolve) => exitWaiterResolvers.add(resolve))),
-        exitSaveRequestToken !== exitSaveRequestId) ||
+        exitSaveRequestToken !== appCtx.exitSaveRequestId) ||
         (resetSaveRetryState(),
-        (blockedSaveRevision = -1),
+        (appCtx.blockedSaveRevision = -1),
         saveExportPreset(),
         await flushAutosave(),
-        exitSaveRequestToken !== exitSaveRequestId))
+        exitSaveRequestToken !== appCtx.exitSaveRequestId))
     )
       return;
-    if (pendingConflict) {
+    if (appCtx.pendingConflict) {
       (closeExitDialog(), showToast("请先处理保存冲突，再返回编辑器。", "error"));
       return;
     }
@@ -3535,26 +3347,26 @@ studioExitSaveButton.addEventListener("click", async () => {
         ? "当前网络不可用，修改还未保存。请恢复连接后重试，或继续编辑。"
         : "修改尚未全部保存，已留在当前页面。请重试保存，或继续编辑处理提示。";
   } catch (exitSaveFailure: any) {
-    (exitSaveRequestToken === exitSaveRequestId &&
+    (exitSaveRequestToken === appCtx.exitSaveRequestId &&
       (studioExitMessageElement.textContent = "保存未完成，已留在当前页面。请重试或继续编辑。"),
       window.HomeOSLog?.error!(exitSaveFailure, {
         phase: "studio-exit-save",
       })!);
   } finally {
-    exitSaveRequestToken === exitSaveRequestId &&
-      ((isExitSaveInFlight = false), refreshExitDialogButtons());
+    exitSaveRequestToken === appCtx.exitSaveRequestId &&
+      ((appCtx.isExitSaveInFlight = false), refreshExitDialogButtons());
   }
 });
 function planToScreen(planPointInput: any) {
   return {
-    x: planPointInput.x * planView.zoom + planView.offsetX,
-    y: planPointInput.y * planView.zoom + planView.offsetY,
+    x: planPointInput.x * appCtx.planView.zoom + appCtx.planView.offsetX,
+    y: planPointInput.y * appCtx.planView.zoom + appCtx.planView.offsetY,
   };
 }
 function screenToPlanPoint(screenPointInput: any) {
-  const halfViewWidth = planViewWidth / 2,
-    halfViewHeight = planViewHeight / 2,
-    viewRotationRadians = (-planView.rotation * Math.PI) / 180,
+  const halfViewWidth = appCtx.planViewWidth / 2,
+    halfViewHeight = appCtx.planViewHeight / 2,
+    viewRotationRadians = (-appCtx.planView.rotation * Math.PI) / 180,
     cos = Math.cos(viewRotationRadians),
     sin = Math.sin(viewRotationRadians),
     centeredX = screenPointInput.x - halfViewWidth,
@@ -3567,8 +3379,8 @@ function screenToPlanPoint(screenPointInput: any) {
 function screenToPlan(screenPoint: any) {
   const nl2 = screenToPlanPoint(screenPoint);
   return {
-    x: (nl2.x - planView.offsetX) / planView.zoom,
-    y: (nl2.y - planView.offsetY) / planView.zoom,
+    x: (nl2.x - appCtx.planView.offsetX) / appCtx.planView.zoom,
+    y: (nl2.y - appCtx.planView.offsetY) / appCtx.planView.zoom,
   };
 }
 function eventToLocalPoint(pointerEventArg: any) {
@@ -3579,55 +3391,55 @@ function eventToLocalPoint(pointerEventArg: any) {
   };
 }
 function getCanvasSize() {
-  return sceneContentBounds2(studioState);
+  return sceneContentBounds2(appCtx.studioState);
 }
 function resetView() {
   const ey2 = getCanvasSize(),
-    viewPadding = clamp2(Math.min(planViewWidth, planViewHeight) * 0.045, 18, 34),
-    availableWidth = Math.max(planViewWidth - viewPadding * 2, 80),
-    availableHeight = Math.max(planViewHeight - viewPadding * 2, 80),
-    isQuarterTurn = Math.abs(planView.rotation / 90) % 2 === 1,
+    viewPadding = clamp2(Math.min(appCtx.planViewWidth, appCtx.planViewHeight) * 0.045, 18, 34),
+    availableWidth = Math.max(appCtx.planViewWidth - viewPadding * 2, 80),
+    availableHeight = Math.max(appCtx.planViewHeight - viewPadding * 2, 80),
+    isQuarterTurn = Math.abs(appCtx.planView.rotation / 90) % 2 === 1,
     height2 = isQuarterTurn ? ey2.height : ey2.width,
     width2 = isQuarterTurn ? ey2.width : ey2.height;
-  ((planView.zoom = clamp2(Math.min(availableWidth / height2, availableHeight / width2), 0.03, 8)),
-    (planView.offsetX = planViewWidth / 2 - (ey2.minX + ey2.width / 2) * planView.zoom),
-    (planView.offsetY = planViewHeight / 2 - (ey2.minY + ey2.height / 2) * planView.zoom),
-    (isAutoFitRequested = true),
+  ((appCtx.planView.zoom = clamp2(Math.min(availableWidth / height2, availableHeight / width2), 0.03, 8)),
+    (appCtx.planView.offsetX = appCtx.planViewWidth / 2 - (ey2.minX + ey2.width / 2) * appCtx.planView.zoom),
+    (appCtx.planView.offsetY = appCtx.planViewHeight / 2 - (ey2.minY + ey2.height / 2) * appCtx.planView.zoom),
+    (appCtx.isAutoFitRequested = true),
     refreshStudioView());
 }
 function zoomByScale(
   zoomScale: any,
   zoomScreenPoint = {
-    x: planViewWidth / 2,
-    y: planViewHeight / 2,
+    x: appCtx.planViewWidth / 2,
+    y: appCtx.planViewHeight / 2,
   },
 ) {
   const pr2 = screenToPlan(zoomScreenPoint),
     nl3 = screenToPlanPoint(zoomScreenPoint);
-  ((planView.zoom = clamp2(planView.zoom * zoomScale, 0.03, 12)),
-    (planView.offsetX = nl3.x - pr2.x * planView.zoom),
-    (planView.offsetY = nl3.y - pr2.y * planView.zoom),
+  ((appCtx.planView.zoom = clamp2(appCtx.planView.zoom * zoomScale, 0.03, 12)),
+    (appCtx.planView.offsetX = nl3.x - pr2.x * appCtx.planView.zoom),
+    (appCtx.planView.offsetY = nl3.y - pr2.y * appCtx.planView.zoom),
     refreshStudioView());
 }
 function rotatePlanView() {
-  ((planView.rotation = (planView.rotation + 90) % 360),
-    (studioState.settings.planViewRotation = planView.rotation),
+  ((appCtx.planView.rotation = (appCtx.planView.rotation + 90) % 360),
+    (appCtx.studioState.settings.planViewRotation = appCtx.planView.rotation),
     resetView(),
     markDocumentDirty());
 }
 function resizePlanStage() {
   const planStageRect = planStageElement.getBoundingClientRect();
-  ((planViewWidth = Math.max(Math.round(planStageRect.width), 1)),
-    (planViewHeight = Math.max(Math.round(planStageRect.height), 1)));
+  ((appCtx.planViewWidth = Math.max(Math.round(planStageRect.width), 1)),
+    (appCtx.planViewHeight = Math.max(Math.round(planStageRect.height), 1)));
   const min = Math.min(window.devicePixelRatio || 1, 2);
-  ((planCanvasElement.width = Math.round(planViewWidth * min)),
-    (planCanvasElement.height = Math.round(planViewHeight * min)),
+  ((planCanvasElement.width = Math.round(appCtx.planViewWidth * min)),
+    (planCanvasElement.height = Math.round(appCtx.planViewHeight * min)),
     planCanvasRenderer.setTransform(min, 0, 0, min, 0, 0),
-    isAutoFitRequested ? refreshStudioView() : resetView());
+    appCtx.isAutoFitRequested ? refreshStudioView() : resetView());
 }
 function buildSnapIndex(snapTolerancePx: any) {
   const snapTolerance = Math.max(1, snapTolerancePx * 0.01),
-    join = studioState.walls
+    join = appCtx.studioState.walls
       .map(
         (snapWallRecord) =>
           snapWallRecord.id +
@@ -3645,7 +3457,7 @@ function buildSnapIndex(snapTolerancePx: any) {
           (snapWallRecord.allowOpenEnd === true ? 1 : 0),
       )
       .join(";");
-  let cachedSnapIndex = wallJoinCacheByWall.get(studioState);
+  let cachedSnapIndex = wallJoinCacheByWall.get(appCtx.studioState);
   return (
     (!cachedSnapIndex || cachedSnapIndex.signature !== snapTolerance + "|" + join) &&
       ((cachedSnapIndex = {
@@ -3656,30 +3468,30 @@ function buildSnapIndex(snapTolerancePx: any) {
         joinExtensions: null as any,
         unclosedEndpoints: null as any,
       }),
-      wallJoinCacheByWall.set(studioState, cachedSnapIndex)),
+      wallJoinCacheByWall.set(appCtx.studioState, cachedSnapIndex)),
     cachedSnapIndex
   );
 }
 function closedWallLoops(wallLoopList: any) {
   const _l2 = buildSnapIndex(wallLoopList);
   return (
-    (_l2.floorPolygons ||= closedWallFloorPolygons2(studioState.walls, _l2.tolerance)),
+    (_l2.floorPolygons ||= closedWallFloorPolygons2(appCtx.studioState.walls, _l2.tolerance)),
     _l2.floorPolygons
   );
 }
 function computeWallIntersections(intersectWallList: any) {
   const _l3 = buildSnapIndex(intersectWallList);
-  return ((_l3.intersections ||= wallIntersections2(studioState.walls)), _l3.intersections);
+  return ((_l3.intersections ||= wallIntersections2(appCtx.studioState.walls)), _l3.intersections);
 }
 function computeSurfaceExclusions(exclusionWallList: any) {
   const _l4 = buildSnapIndex(exclusionWallList);
-  return ((_l4.joinExtensions ||= wallJoinExtensions2(studioState.walls)), _l4.joinExtensions);
+  return ((_l4.joinExtensions ||= wallJoinExtensions2(appCtx.studioState.walls)), _l4.joinExtensions);
 }
 function computeWallPolygons(polygonWallList: any) {
   const _l5 = buildSnapIndex(polygonWallList);
   return (
     (_l5.unclosedEndpoints ||= unclosedWallEndpoints2(
-      studioState.walls,
+      appCtx.studioState.walls,
       _l5.tolerance,
       closedWallLoops(polygonWallList),
     )),
@@ -3687,7 +3499,7 @@ function computeWallPolygons(polygonWallList: any) {
   );
 }
 function wallWindowSpan(windowRecord: any) {
-  const owningWall = studioState.walls.find((wallMatch) => wallMatch.id === windowRecord.wallId);
+  const owningWall = appCtx.studioState.walls.find((wallMatch) => wallMatch.id === windowRecord.wallId);
   if (!owningWall) return null;
   const wallDeltaX = owningWall.end.x - owningWall.start.x,
     wallDeltaY = owningWall.end.y - owningWall.start.y,
@@ -3728,7 +3540,7 @@ function drawRailing(railingRecord: any, railingView: PlanEditPreviewFlags = {})
         : "#8bd7e8",
     railingLineWidth = Math.max(
       10,
-      xo2.wall.thickness * (getPixelsPerMeter() || 100) * planView.zoom + 5,
+      xo2.wall.thickness * (getPixelsPerMeter() || 100) * appCtx.planView.zoom + 5,
     );
   (drawGuideSegment(xo2.start, xo2.end, {
     color: "rgba(7, 16, 21, .94)",
@@ -3805,17 +3617,17 @@ function buildHandleGeometry(geometryItem: any) {
     rotationHandle: rotateLocalPoint(
       geometryItem,
       0,
-      -halfItemDepth - 17 / Math.max(planView.zoom, 0.01),
+      -halfItemDepth - 17 / Math.max(appCtx.planView.zoom, 0.01),
     ),
   };
 }
 function hitTestHandle(pointerPoint: any) {
-  if (activeToolName !== "select" || selectedItem?.kind !== "item" || selectedItems.length)
+  if (appCtx.activeToolName !== "select" || appCtx.selectedItem?.kind !== "item" || appCtx.selectedItems.length)
     return null;
   const at3 = getSelectedObject();
   if (!at3 || isCourtyardDrawing2(at3)) return null;
   const ky2 = buildHandleGeometry(at3),
-    handleHitRadius = 9 / Math.max(planView.zoom, 0.01);
+    handleHitRadius = 9 / Math.max(appCtx.planView.zoom, 0.01);
   if (distance2(pointerPoint, ky2.rotationHandle) <= handleHitRadius)
     return {
       type: "rotate-item",
@@ -3824,7 +3636,7 @@ function hitTestHandle(pointerPoint: any) {
     };
   if (
     at3.type === "smart-socket-86" &&
-    Math.min(at3.width, at3.depth) * getPixelsPerMeter() * planView.zoom < 18
+    Math.min(at3.width, at3.depth) * getPixelsPerMeter() * appCtx.planView.zoom < 18
   )
     return null;
   const hitCorner = ky2.corners.find(
@@ -3891,14 +3703,14 @@ function marqueeDelta(marqueeStartPoint: any, marqueeCurrentPoint: any) {
   const ry2 = boundsFromCorners(marqueeStartPoint, marqueeCurrentPoint),
     scenePixelsPerMeter = getPixelsPerMeter() || 100,
     intersectingWalls: any[] = [];
-  if (!(activeLibraryCategory === "light") && activeLibraryCategory !== "courtyard") {
-    for (const wallHit of studioState.walls)
+  if (!(appCtx.activeLibraryCategory === "light") && appCtx.activeLibraryCategory !== "courtyard") {
+    for (const wallHit of appCtx.studioState.walls)
       boundsIntersectSegment(wallHit.start, wallHit.end, ry2) &&
         intersectingWalls.push({
           kind: "wall",
           id: wallHit.id,
         });
-    for (const windowHit of studioState.windows) {
+    for (const windowHit of appCtx.studioState.windows) {
       const xo4 = wallWindowSpan(windowHit);
       xo4 &&
         boundsIntersectSegment(xo4.start, xo4.end, ry2) &&
@@ -3907,7 +3719,7 @@ function marqueeDelta(marqueeStartPoint: any, marqueeCurrentPoint: any) {
           id: windowHit.id,
         });
     }
-    for (const doorHit of studioState.doors) {
+    for (const doorHit of appCtx.studioState.doors) {
       const xo5 = wallWindowSpan(doorHit);
       xo5 &&
         boundsIntersectSegment(xo5.start, xo5.end, ry2) &&
@@ -3916,7 +3728,7 @@ function marqueeDelta(marqueeStartPoint: any, marqueeCurrentPoint: any) {
           id: doorHit.id,
         });
     }
-    for (const railingHit of studioState.railings) {
+    for (const railingHit of appCtx.studioState.railings) {
       const xo6 = wallWindowSpan(railingHit);
       xo6 &&
         boundsIntersectSegment(xo6.start, xo6.end, ry2) &&
@@ -3944,7 +3756,7 @@ function marqueeDelta(marqueeStartPoint: any, marqueeCurrentPoint: any) {
       y: ry2.maxY,
     },
   ];
-  for (const itemBoundsRecord of studioState.items) {
+  for (const itemBoundsRecord of appCtx.studioState.items) {
     if (!isPlanItemVisible(itemBoundsRecord)) continue;
     const itemRotationRad = (itemBoundsRecord.rotation * Math.PI) / 180,
       cos2 = Math.cos(itemRotationRad),
@@ -4002,8 +3814,8 @@ function drawMarqueeOverlay({ offsetX: overlayDrawX = 0, offsetY: overlayDrawY =
     overlayCanvasElement.height !== planCanvasElement.height
   )
     return false;
-  const overlayScaleX = planCanvasElement.width / Math.max(planViewWidth, 1),
-    overlayScaleY = planCanvasElement.height / Math.max(planViewHeight, 1);
+  const overlayScaleX = planCanvasElement.width / Math.max(appCtx.planViewWidth, 1),
+    overlayScaleY = planCanvasElement.height / Math.max(appCtx.planViewHeight, 1);
   return (
     planCanvasRenderer.save(),
     planCanvasRenderer.setTransform(1, 0, 0, 1, 0, 0),
@@ -4019,17 +3831,17 @@ function drawMarqueeOverlay({ offsetX: overlayDrawX = 0, offsetY: overlayDrawY =
   );
 }
 function renderPlanScene() {
-  if (marqueeBox?.type !== "marquee") return;
-  const zr4 = planToScreen(marqueeBox.start),
-    zr5 = planToScreen(marqueeBox.current),
+  if (appCtx.marqueeBox?.type !== "marquee") return;
+  const zr4 = planToScreen(appCtx.marqueeBox.start),
+    zr5 = planToScreen(appCtx.marqueeBox.current),
     marqueeLeft = Math.min(zr4.x, zr5.x),
     marqueeTop = Math.min(zr4.y, zr5.y),
     abs = Math.abs(zr5.x - zr4.x),
     abs2 = Math.abs(zr5.y - zr4.y);
   (planCanvasRenderer.save(),
-    planCanvasRenderer.translate(planViewWidth / 2, planViewHeight / 2),
-    planCanvasRenderer.rotate((planView.rotation * Math.PI) / 180),
-    planCanvasRenderer.translate(-planViewWidth / 2, -planViewHeight / 2),
+    planCanvasRenderer.translate(appCtx.planViewWidth / 2, appCtx.planViewHeight / 2),
+    planCanvasRenderer.rotate((appCtx.planView.rotation * Math.PI) / 180),
+    planCanvasRenderer.translate(-appCtx.planViewWidth / 2, -appCtx.planViewHeight / 2),
     (planCanvasRenderer.fillStyle = "rgba(255, 157, 46, .10)"),
     (planCanvasRenderer.strokeStyle = "rgba(255, 176, 74, .92)"),
     (planCanvasRenderer.lineWidth = 1),
@@ -4044,16 +3856,16 @@ function renderPlanScene() {
     planCanvasRenderer.restore());
 }
 function refreshStudioView() {
-  const isLightCategory = activeLibraryCategory === "light";
+  const isLightCategory = appCtx.activeLibraryCategory === "light";
   if (
-    (planCanvasRenderer.clearRect(0, 0, planViewWidth, planViewHeight),
+    (planCanvasRenderer.clearRect(0, 0, appCtx.planViewWidth, appCtx.planViewHeight),
     (planCanvasRenderer.fillStyle = "#0d1319"),
-    planCanvasRenderer.fillRect(0, 0, planViewWidth, planViewHeight),
+    planCanvasRenderer.fillRect(0, 0, appCtx.planViewWidth, appCtx.planViewHeight),
     planCanvasRenderer.save(),
-    planCanvasRenderer.translate(planViewWidth / 2, planViewHeight / 2),
-    planCanvasRenderer.rotate((planView.rotation * Math.PI) / 180),
-    planCanvasRenderer.translate(-planViewWidth / 2, -planViewHeight / 2),
-    backgroundImageSource && studioState.background && studioState.settings.backgroundVisible)
+    planCanvasRenderer.translate(appCtx.planViewWidth / 2, appCtx.planViewHeight / 2),
+    planCanvasRenderer.rotate((appCtx.planView.rotation * Math.PI) / 180),
+    planCanvasRenderer.translate(-appCtx.planViewWidth / 2, -appCtx.planViewHeight / 2),
+    appCtx.backgroundImageSource && appCtx.studioState.background && appCtx.studioState.settings.backgroundVisible)
   ) {
     const zr6 = planToScreen({
       x: 0,
@@ -4062,40 +3874,40 @@ function refreshStudioView() {
     (planCanvasRenderer.save(),
       (planCanvasRenderer.globalAlpha = isLightCategory ? 0.3 : 0.54),
       planCanvasRenderer.drawImage(
-        backgroundImageSource,
+        appCtx.backgroundImageSource,
         zr6.x,
         zr6.y,
-        studioState.background.width * planView.zoom,
-        studioState.background.height * planView.zoom,
+        appCtx.studioState.background.width * appCtx.planView.zoom,
+        appCtx.studioState.background.height * appCtx.planView.zoom,
       ),
       planCanvasRenderer.restore());
   }
   drawSelectionRect();
   const wallPixelsPerMeter = getPixelsPerMeter() || 100;
-  if (alignmentState) {
+  if (appCtx.alignmentState) {
     (planCanvasRenderer.save(), (planCanvasRenderer.globalAlpha = 0.58));
     for (const wallHitRef of getActiveWalls())
       drawGuideSegment(wallHitRef.start, wallHitRef.end, {
         color: "#52cfe0",
-        width: Math.max(2, wallHitRef.thickness * wallPixelsPerMeter * planView.zoom),
+        width: Math.max(2, wallHitRef.thickness * wallPixelsPerMeter * appCtx.planView.zoom),
         dash: [7, 5],
         cap: "square",
       });
-    if ((planCanvasRenderer.restore(), alignmentState.referencePoint)) {
+    if ((planCanvasRenderer.restore(), appCtx.alignmentState.referencePoint)) {
       const ji2 = worldPointForFloor(
-        alignmentState.referencePoint,
-        alignmentState.referenceFloor,
+        appCtx.alignmentState.referencePoint,
+        appCtx.alignmentState.referenceFloor,
         getActiveFloor(),
       );
       (drawPointMarker(ji2, "#ffb14f", 4.5), drawLabelText(ji2, "参照点", "#ffb14f"));
     }
   }
   (planCanvasRenderer.save(), isLightCategory && (planCanvasRenderer.globalAlpha = 0.48));
-  for (const courtyardAreaItem of studioState.items)
+  for (const courtyardAreaItem of appCtx.studioState.items)
     courtyardAreaItem.type === "courtyard-area" && drawCourtyardArea(courtyardAreaItem);
-  for (const hitWallRecord of studioState.walls) {
+  for (const hitWallRecord of appCtx.studioState.walls) {
     const ne4 = createSelectionRef("wall", hitWallRecord.id),
-      wallLineWidth = Math.max(hitWallRecord.thickness * wallPixelsPerMeter * planView.zoom, 4);
+      wallLineWidth = Math.max(hitWallRecord.thickness * wallPixelsPerMeter * appCtx.planView.zoom, 4);
     (ne4 &&
       drawGuideSegment(hitWallRecord.start, hitWallRecord.end, {
         color: "rgba(255, 157, 46, .38)",
@@ -4111,11 +3923,11 @@ function refreshStudioView() {
         color: "rgba(39, 51, 61, .82)",
         width: 1,
       }),
-      (activeToolName === "wall" || ne4) &&
+      (appCtx.activeToolName === "wall" || ne4) &&
         (drawPointMarker(hitWallRecord.start, ne4 ? "#ff9d2e" : "#6c7c88", 3.5),
         drawPointMarker(hitWallRecord.end, ne4 ? "#ff9d2e" : "#6c7c88", 3.5)),
       ne4 &&
-        selectedItems.length <= 1 &&
+        appCtx.selectedItems.length <= 1 &&
         drawLabelText(
           {
             x: (hitWallRecord.start.x + hitWallRecord.end.x) / 2,
@@ -4125,14 +3937,14 @@ function refreshStudioView() {
           "#ffb14f",
         ));
   }
-  for (const windowHitRecord of studioState.windows) {
+  for (const windowHitRecord of appCtx.studioState.windows) {
     const xo7 = wallWindowSpan(windowHitRecord);
     if (!xo7) continue;
     const ne5 = createSelectionRef("window", windowHitRecord.id);
     if (
       (drawGuideSegment(xo7.start, xo7.end, {
         color: "rgba(7, 16, 21, .9)",
-        width: Math.max(10, xo7.wall.thickness * wallPixelsPerMeter * planView.zoom + 5),
+        width: Math.max(10, xo7.wall.thickness * wallPixelsPerMeter * appCtx.planView.zoom + 5),
         cap: "butt",
       }),
       drawGuideSegment(xo7.start, xo7.end, {
@@ -4152,8 +3964,8 @@ function refreshStudioView() {
           y: xo7.unit.x,
         },
         windowFrameOffset = Math.max(
-          xo7.wall.thickness * wallPixelsPerMeter * planView.zoom * 0.72,
-          5 / planView.zoom,
+          xo7.wall.thickness * wallPixelsPerMeter * appCtx.planView.zoom * 0.72,
+          5 / appCtx.planView.zoom,
         );
       drawGuideSegment(
         {
@@ -4172,13 +3984,13 @@ function refreshStudioView() {
       );
     }
     ne5 &&
-      selectedItems.length <= 1 &&
+      appCtx.selectedItems.length <= 1 &&
       drawLabelText(xo7.center, windowHitRecord.width.toFixed(2) + " m", "#43d2e6");
   }
-  for (const doorHitRecord of studioState.doors) drawDoor(doorHitRecord);
-  for (const railingHitRecord of studioState.railings) drawRailing(railingHitRecord);
-  if (marqueeBox?.type === "draw-flooropening") {
-    const { start: marqueeMinPoint, current: marqueeMaxPoint } = marqueeBox;
+  for (const doorHitRecord of appCtx.studioState.doors) drawDoor(doorHitRecord);
+  for (const railingHitRecord of appCtx.studioState.railings) drawRailing(railingHitRecord);
+  if (appCtx.marqueeBox?.type === "draw-flooropening") {
+    const { start: marqueeMinPoint, current: marqueeMaxPoint } = appCtx.marqueeBox;
     drawCourtyardArea({
       ...itemTypeCatalog.flooropening,
       type: "flooropening",
@@ -4190,23 +4002,23 @@ function refreshStudioView() {
       depth: Math.abs(marqueeMaxPoint.y - marqueeMinPoint.y) / wallPixelsPerMeter,
     });
   }
-  for (const nonLampItem of studioState.items)
+  for (const nonLampItem of appCtx.studioState.items)
     !lampItemTypeSet.has(nonLampItem.type) &&
       nonLampItem.type !== "courtyard-area" &&
       drawCourtyardArea(nonLampItem);
-  if (!alignmentState) {
+  if (!appCtx.alignmentState) {
     const ty2 = computeWallPolygons(wallPixelsPerMeter);
     for (const openLoop of ty2)
       (drawPolygonPath(openLoop), ty2.length <= 3 && drawLabelText(openLoop, "未闭合", "#ff766e"));
   }
   if ((planCanvasRenderer.restore(), isLightCategory)) {
-    for (const litLampItem of studioState.items)
+    for (const litLampItem of appCtx.studioState.items)
       lampItemTypeSet.has(litLampItem.type) && drawCourtyardArea(litLampItem);
   }
-  const calibrationReference = studioState.calibration?.reference;
+  const calibrationReference = appCtx.studioState.calibration?.reference;
   if (
     (calibrationReference &&
-      activeToolName === "scale" &&
+      appCtx.activeToolName === "scale" &&
       (drawGuideSegment(calibrationReference.start, calibrationReference.end, {
         color: "rgba(255, 157, 46, .72)",
         width: 2,
@@ -4222,48 +4034,48 @@ function refreshStudioView() {
         calibrationReference.meters.toFixed(2) + " m 参考",
         "#ffad45",
       )),
-    previewEndPoint &&
-      hoverPoint &&
-      (drawGuideSegment(previewEndPoint, hoverPoint, {
+    appCtx.previewEndPoint &&
+      appCtx.hoverPoint &&
+      (drawGuideSegment(appCtx.previewEndPoint, appCtx.hoverPoint, {
         color: "#ff9d2e",
         width: 2,
         dash: [7, 5],
       }),
-      drawPointMarker(previewEndPoint, "#ff9d2e"),
-      drawPointMarker(hoverPoint, "#ff9d2e")),
-    segmentStartPoint && snapHit)
+      drawPointMarker(appCtx.previewEndPoint, "#ff9d2e"),
+      drawPointMarker(appCtx.hoverPoint, "#ff9d2e")),
+    appCtx.segmentStartPoint && appCtx.snapHit)
   ) {
-    const eg2 = formatMeasurement(snapHit);
-    (drawGuideSegment(segmentStartPoint, snapHit.point, {
+    const eg2 = formatMeasurement(appCtx.snapHit);
+    (drawGuideSegment(appCtx.segmentStartPoint, appCtx.snapHit.point, {
       color: "#ff9d2e",
       width: 2,
       dash: [7, 5],
     }),
-      drawPointMarker(segmentStartPoint, "#ff9d2e"),
+      drawPointMarker(appCtx.segmentStartPoint, "#ff9d2e"),
       drawPointMarker(
-        snapHit.point,
-        eg2 ? "#76cfa1" : snapHit.kind ? "#43d2e6" : "#ff9d2e",
+        appCtx.snapHit.point,
+        eg2 ? "#76cfa1" : appCtx.snapHit.kind ? "#43d2e6" : "#ff9d2e",
         eg2 ? 5 : 3.5,
       ));
-    const segmentLengthMeters = distance2(segmentStartPoint, snapHit.point) / wallPixelsPerMeter;
+    const segmentLengthMeters = distance2(appCtx.segmentStartPoint, appCtx.snapHit.point) / wallPixelsPerMeter;
     (drawLabelText(
       {
-        x: (segmentStartPoint.x + snapHit.point.x) / 2,
-        y: (segmentStartPoint.y + snapHit.point.y) / 2,
+        x: (appCtx.segmentStartPoint.x + appCtx.snapHit.point.x) / 2,
+        y: (appCtx.segmentStartPoint.y + appCtx.snapHit.point.y) / 2,
       },
       segmentLengthMeters.toFixed(2) + " m",
       "#ffb04a",
     ),
-      eg2 && drawLabelText(snapHit.point, "点击闭合空间", "#76cfa1"));
+      eg2 && drawLabelText(appCtx.snapHit.point, "点击闭合空间", "#76cfa1"));
   } else
-    snapHit?.kind &&
-      ["wall", "scale"].includes(activeToolName) &&
-      (drawPointMarker(snapHit.point, "#43d2e6"),
-      drawLabelText(snapHit.point, snapHit.label, "#43d2e6"));
-  if (activeToolName === "window" && windowPlacement) {
+    appCtx.snapHit?.kind &&
+      ["wall", "scale"].includes(appCtx.activeToolName) &&
+      (drawPointMarker(appCtx.snapHit.point, "#43d2e6"),
+      drawLabelText(appCtx.snapHit.point, appCtx.snapHit.label, "#43d2e6"));
+  if (appCtx.activeToolName === "window" && appCtx.windowPlacement) {
     const windowPlacementRecord = {
-        wallId: windowPlacement.wall.id,
-        t: windowPlacement.t,
+        wallId: appCtx.windowPlacement.wall.id,
+        t: appCtx.windowPlacement.t,
         width: 1.4,
       },
       xo8 = wallWindowSpan(windowPlacementRecord);
@@ -4275,12 +4087,12 @@ function refreshStudioView() {
         cap: "butt",
       });
   }
-  if (activeToolName === "door" && doorPlacement) {
+  if (appCtx.activeToolName === "door" && appCtx.doorPlacement) {
     const solid = doorTypeCatalog[activeDoorType] || doorTypeCatalog.solid;
     drawDoor(
       {
-        wallId: doorPlacement.wall.id,
-        t: doorPlacement.t,
+        wallId: appCtx.doorPlacement.wall.id,
+        t: appCtx.doorPlacement.t,
         width: solid.width,
         height: solid.height,
         doorType: activeDoorType,
@@ -4292,12 +4104,12 @@ function refreshStudioView() {
       },
     );
   }
-  (activeToolName === "railing" &&
-    railingPlacement &&
+  (appCtx.activeToolName === "railing" &&
+    appCtx.railingPlacement &&
     drawRailing(
       {
-        wallId: railingPlacement.wall.id,
-        t: railingPlacement.t,
+        wallId: appCtx.railingPlacement.wall.id,
+        t: appCtx.railingPlacement.t,
         width: 2,
         height: 1.1,
       },
@@ -4307,7 +4119,7 @@ function refreshStudioView() {
     ),
     planCanvasRenderer.restore(),
     renderPlanScene(),
-    activeToolName === "courtyard-gate" &&
+    appCtx.activeToolName === "courtyard-gate" &&
       gardenGateSnapCandidate &&
       (planCanvasRenderer.save(),
       (planCanvasRenderer.globalAlpha = 0.65),
@@ -4316,38 +4128,38 @@ function refreshStudioView() {
       drawPointMarker(gardenGateSnapCandidate, "#43d2e6"),
       drawLabelText(gardenGateSnapCandidate, "点击放置庭院门", "#43d2e6")),
     planPainter?.draw(planCanvasRenderer),
-    (zoomValueElement.textContent = Math.round(planView.zoom * 100) + "%"));
+    (zoomValueElement.textContent = Math.round(appCtx.planView.zoom * 100) + "%"));
 }
 function getSelectedObject() {
-  if (!selectedItem) return null;
+  if (!appCtx.selectedItem) return null;
   const selectedObjectRecord = (
     ({
-      wall: studioState.walls,
-      window: studioState.windows,
-      door: studioState.doors,
-      railing: studioState.railings,
-      item: studioState.items,
-    } as any)[selectedItem.kind] || []
-  ).find((selectedMatch: any) => selectedMatch.id === selectedItem.id);
-  return (selectedObjectRecord || (selectedItem = null), selectedObjectRecord || null);
+      wall: appCtx.studioState.walls,
+      window: appCtx.studioState.windows,
+      door: appCtx.studioState.doors,
+      railing: appCtx.studioState.railings,
+      item: appCtx.studioState.items,
+    } as any)[appCtx.selectedItem.kind] || []
+  ).find((selectedMatch: any) => selectedMatch.id === appCtx.selectedItem.id);
+  return (selectedObjectRecord || (appCtx.selectedItem = null), selectedObjectRecord || null);
 }
 function hitTestPlanItem(planHitPoint: any) {
   const itemPixelsPerMeter = getPixelsPerMeter() || 100,
-    isLightCategoryHit = activeLibraryCategory === "light";
-  for (const hitCandidateItem of [...studioState.items].reverse()) {
+    isLightCategoryHit = appCtx.activeLibraryCategory === "light";
+  for (const hitCandidateItem of [...appCtx.studioState.items].reverse()) {
     if (!isPlanItemVisible(hitCandidateItem) || hitCandidateItem.type === "courtyard-area")
       continue;
     const hitTestRect =
       hitCandidateItem.type === "smart-socket-86"
         ? {
             ...hitCandidateItem,
-            width: Math.max(hitCandidateItem.width, 12 / (itemPixelsPerMeter * planView.zoom)),
-            depth: Math.max(hitCandidateItem.depth, 12 / (itemPixelsPerMeter * planView.zoom)),
+            width: Math.max(hitCandidateItem.width, 12 / (itemPixelsPerMeter * appCtx.planView.zoom)),
+            depth: Math.max(hitCandidateItem.depth, 12 / (itemPixelsPerMeter * appCtx.planView.zoom)),
           }
         : itemWithPlanFootprint2(hitCandidateItem);
     if (
       isCourtyardDrawing2(hitCandidateItem)
-        ? hitDrawing2(hitCandidateItem, planHitPoint, itemPixelsPerMeter, 9 / planView.zoom)
+        ? hitDrawing2(hitCandidateItem, planHitPoint, itemPixelsPerMeter, 9 / appCtx.planView.zoom)
         : pointInRotatedRectangle2(planHitPoint, hitTestRect, itemPixelsPerMeter)
     )
       return {
@@ -4355,20 +4167,20 @@ function hitTestPlanItem(planHitPoint: any) {
         id: hitCandidateItem.id,
       };
   }
-  if (activeLibraryCategory === "courtyard") {
-    for (const surfaceCandidate of [...studioState.items].reverse())
+  if (appCtx.activeLibraryCategory === "courtyard") {
+    for (const surfaceCandidate of [...appCtx.studioState.items].reverse())
       if (
         surfaceCandidate.type === "courtyard-area" &&
         hitDrawing2(
           surfaceCandidate,
           planHitPoint,
           itemPixelsPerMeter,
-          9 / planView.zoom,
+          9 / appCtx.planView.zoom,
           surfaceExclusions2(
             surfaceCandidate,
-            studioState.items,
+            appCtx.studioState.items,
             buildingFootprints2(
-              studioState.walls,
+              appCtx.studioState.walls,
               closedWallLoops(itemPixelsPerMeter),
               itemPixelsPerMeter,
             ),
@@ -4383,45 +4195,45 @@ function hitTestPlanItem(planHitPoint: any) {
     return null;
   }
   if (isLightCategoryHit) return null;
-  for (const windowSurfaceRecord of [...studioState.windows].reverse()) {
+  for (const windowSurfaceRecord of [...appCtx.studioState.windows].reverse()) {
     const xo9 = wallWindowSpan(windowSurfaceRecord);
     if (
       xo9 &&
-      projectPointToSegment2(planHitPoint, xo9.start, xo9.end).distance <= 10 / planView.zoom
+      projectPointToSegment2(planHitPoint, xo9.start, xo9.end).distance <= 10 / appCtx.planView.zoom
     )
       return {
         kind: "window",
         id: windowSurfaceRecord.id,
       };
   }
-  for (const doorSurfaceRecord of [...studioState.doors].reverse()) {
+  for (const doorSurfaceRecord of [...appCtx.studioState.doors].reverse()) {
     const doorSpan = wallWindowSpan(doorSurfaceRecord);
     if (
       doorSpan &&
       projectPointToSegment2(planHitPoint, doorSpan.start, doorSpan.end).distance <=
-        12 / planView.zoom
+        12 / appCtx.planView.zoom
     )
       return {
         kind: "door",
         id: doorSurfaceRecord.id,
       };
   }
-  for (const railingSurfaceRecord of [...studioState.railings].reverse()) {
+  for (const railingSurfaceRecord of [...appCtx.studioState.railings].reverse()) {
     const railingSpan = wallWindowSpan(railingSurfaceRecord);
     if (
       railingSpan &&
       projectPointToSegment2(planHitPoint, railingSpan.start, railingSpan.end).distance <=
-        12 / planView.zoom
+        12 / appCtx.planView.zoom
     )
       return {
         kind: "railing",
         id: railingSurfaceRecord.id,
       };
   }
-  for (const wallSurfaceRecord of [...studioState.walls].reverse()) {
+  for (const wallSurfaceRecord of [...appCtx.studioState.walls].reverse()) {
     const wallHitPadding = Math.max(
       (wallSurfaceRecord.thickness * itemPixelsPerMeter) / 2,
-      8 / planView.zoom,
+      8 / appCtx.planView.zoom,
     );
     if (
       projectPointToSegment2(planHitPoint, wallSurfaceRecord.start, wallSurfaceRecord.end)
@@ -4432,19 +4244,19 @@ function hitTestPlanItem(planHitPoint: any) {
         id: wallSurfaceRecord.id,
       };
   }
-  for (const surfaceExclusionItem of [...studioState.items].reverse())
+  for (const surfaceExclusionItem of [...appCtx.studioState.items].reverse())
     if (
       surfaceExclusionItem.type === "courtyard-area" &&
       hitDrawing2(
         surfaceExclusionItem,
         planHitPoint,
         itemPixelsPerMeter,
-        9 / planView.zoom,
+        9 / appCtx.planView.zoom,
         surfaceExclusions2(
           surfaceExclusionItem,
-          studioState.items,
+          appCtx.studioState.items,
           buildingFootprints2(
-            studioState.walls,
+            appCtx.studioState.walls,
             closedWallLoops(itemPixelsPerMeter),
             itemPixelsPerMeter,
           ),
@@ -4460,14 +4272,14 @@ function hitTestPlanItem(planHitPoint: any) {
 }
 function refreshStepChecklist() {
   const stepCompletionFlags = {
-      background: !!studioState.background,
-      scale: !!studioState.calibration,
-      walls: studioState.walls.length > 0 || studioState.items.some(isCourtyardDrawing2),
-      items: studioState.items.some(
+      background: !!appCtx.studioState.background,
+      scale: !!appCtx.studioState.calibration,
+      walls: appCtx.studioState.walls.length > 0 || appCtx.studioState.items.some(isCourtyardDrawing2),
+      items: appCtx.studioState.items.some(
         (nonLampCheckItem) => !lampItemTypeSet.has(nonLampCheckItem.type),
       ),
-      lights: studioState.items.some((lampCheckItem) => lampItemTypeSet.has(lampCheckItem.type)),
-      export: isExporting,
+      lights: appCtx.studioState.items.some((lampCheckItem) => lampItemTypeSet.has(lampCheckItem.type)),
+      export: appCtx.isExporting,
     },
     activeStepName =
       ["background", "scale", "walls", "items", "lights", "export"].find(
@@ -4506,11 +4318,11 @@ function getPanelRatioLimits() {
 function applyPanelRatios() {
   const yl2 = getPanelRatioLimits(),
     previewPanelRatio = clamp2(
-      finite2(studioState.settings?.previewPanelRatio, 0.52),
+      finite2(appCtx.studioState.settings?.previewPanelRatio, 0.52),
       yl2.minimumHeightRatio,
       yl2.maximumHeightRatio,
     );
-  ((studioState.settings.previewPanelRatio = previewPanelRatio),
+  ((appCtx.studioState.settings.previewPanelRatio = previewPanelRatio),
     detailsPanelElement.style.setProperty(
       "--preview-panel-height",
       (previewPanelRatio * 100).toFixed(2) + "%",
@@ -4531,57 +4343,57 @@ function applyPanelRatios() {
 function applyDetailsRatio() {
   const yl3 = getPanelRatioLimits(),
     detailsPanelWidthRatio = clamp2(
-      finite2(studioState.settings?.detailsPanelWidthRatio, 0.29),
+      finite2(appCtx.studioState.settings?.detailsPanelWidthRatio, 0.29),
       yl3.minimumWidthRatio,
       yl3.maximumWidthRatio,
     );
-  ((studioState.settings.detailsPanelWidthRatio = detailsPanelWidthRatio),
+  ((appCtx.studioState.settings.detailsPanelWidthRatio = detailsPanelWidthRatio),
     studioShellElement.style.setProperty(
       "--details-panel-width",
       (detailsPanelWidthRatio * 100).toFixed(2) + "%",
     ));
 }
 function isSnapEnabled() {
-  return studioState.settings.snapEnabled !== false && !isSnapTemporarilyOff;
+  return appCtx.studioState.settings.snapEnabled !== false && !appCtx.isSnapTemporarilyOff;
 }
 function setSnapSettingsOpen(settingsOpen: any) {
   ((snapSettingsPanel.hidden = !settingsOpen),
     snapSettingsToggleButton.setAttribute("aria-expanded", String(settingsOpen)));
 }
 function syncSnapControls() {
-  const isSnapOn = studioState.settings.snapEnabled !== false;
+  const isSnapOn = appCtx.studioState.settings.snapEnabled !== false;
   (snapToggleButton.classList.toggle("active", isSnapOn),
     snapToggleButton.setAttribute("aria-pressed", String(isSnapOn)),
     (snapToggleStateElement.textContent = isSnapOn ? "开" : "关"));
   for (const snapSettingInput of snapSettingControls)
-    snapSettingInput.checked = (studioState.settings as any)[snapSettingInput.dataset.snapSetting!] !== false;
+    snapSettingInput.checked = (appCtx.studioState.settings as any)[snapSettingInput.dataset.snapSetting!] !== false;
   (syncControlValue2(
     snapToleranceInput,
-    clamp2(Math.round(finite2(studioState.settings.snapTolerance, 13)), 6, 24),
+    clamp2(Math.round(finite2(appCtx.studioState.settings.snapTolerance, 13)), 6, 24),
   ),
     (snapToleranceValueElement.textContent = snapToleranceInput.value + " px"),
-    activeSnapTarget ||
+    appCtx.activeSnapTarget ||
       (snapIndicatorElement.textContent = isSnapOn ? "吸附：开启" : "吸附：关闭"));
 }
 function applySnapTolerance(resizeMoveEvent: any) {
-  if (!dragStart) return;
+  if (!appCtx.dragStart) return;
   const draggedDetailsPanelRect = detailsPanelElement.getBoundingClientRect(),
     draggedStudioShellRect = studioShellElement.getBoundingClientRect();
   if (draggedDetailsPanelRect.height <= 0 || draggedStudioShellRect.width <= 0) return;
   const yl4 = getPanelRatioLimits(),
-    dragDeltaX = resizeMoveEvent.clientX - dragStart.startX,
-    dragDeltaY = resizeMoveEvent.clientY - dragStart.startY;
+    dragDeltaX = resizeMoveEvent.clientX - appCtx.dragStart.startX,
+    dragDeltaY = resizeMoveEvent.clientY - appCtx.dragStart.startY;
   if (Math.hypot(dragDeltaX, dragDeltaY) < 2) return;
   detailsResizerElement.dataset.resizeAxis = "both";
   const heightRatioDelta = dragDeltaY / draggedDetailsPanelRect.height,
     widthRatioDelta = dragDeltaX / draggedStudioShellRect.width;
-  ((studioState.settings.previewPanelRatio = clamp2(
-    dragStart.startPreviewRatio + heightRatioDelta,
+  ((appCtx.studioState.settings.previewPanelRatio = clamp2(
+    appCtx.dragStart.startPreviewRatio + heightRatioDelta,
     yl4.minimumHeightRatio,
     yl4.maximumHeightRatio,
   )),
-    (studioState.settings.detailsPanelWidthRatio = clamp2(
-      dragStart.startWidthRatio - widthRatioDelta,
+    (appCtx.studioState.settings.detailsPanelWidthRatio = clamp2(
+      appCtx.dragStart.startWidthRatio - widthRatioDelta,
       yl4.minimumWidthRatio,
       yl4.maximumWidthRatio,
     )),
@@ -4589,10 +4401,10 @@ function applySnapTolerance(resizeMoveEvent: any) {
     applyDetailsRatio());
 }
 function refreshBackground() {
-  const planTitleText = studioState.items.some(
+  const planTitleText = appCtx.studioState.items.some(
     (drawingItem) => isCourtyardDrawing2(drawingItem) || drawingItem.type.startsWith("garden-"),
   )
-    ? studioState.walls.length
+    ? appCtx.studioState.walls.length
       ? "户型与庭院绘制"
       : "庭院绘制"
     : "户型图绘制";
@@ -4600,33 +4412,33 @@ function refreshBackground() {
     (document.title = planTitleText),
     syncSnapControls(),
     syncGlobalControls(),
-    (toggleBackgroundButton.disabled = !studioState.background),
-    (toggleBackgroundButton.textContent = studioState.settings.backgroundVisible ? "隐藏" : "显示"),
-    (removePlanButton.disabled = !studioState.background),
-    syncControlValue2(globalWallHeightInput, studioState.settings.wallHeight.toFixed(2)),
-    syncControlValue2(globalWallThicknessInput, studioState.settings.wallThickness.toFixed(2)),
-    syncControlValue2(globalWallOpacityInput, Math.round(studioState.settings.wallOpacity * 100)),
+    (toggleBackgroundButton.disabled = !appCtx.studioState.background),
+    (toggleBackgroundButton.textContent = appCtx.studioState.settings.backgroundVisible ? "隐藏" : "显示"),
+    (removePlanButton.disabled = !appCtx.studioState.background),
+    syncControlValue2(globalWallHeightInput, appCtx.studioState.settings.wallHeight.toFixed(2)),
+    syncControlValue2(globalWallThicknessInput, appCtx.studioState.settings.wallThickness.toFixed(2)),
+    syncControlValue2(globalWallOpacityInput, Math.round(appCtx.studioState.settings.wallOpacity * 100)),
     (toggleFloorEdgeButton.textContent =
-      studioState.settings.floorEdgeVisible === false ? "隐藏" : "显示"),
+      appCtx.studioState.settings.floorEdgeVisible === false ? "隐藏" : "显示"),
     toggleFloorEdgeButton.setAttribute(
       "aria-pressed",
-      String(studioState.settings.floorEdgeVisible !== false),
+      String(appCtx.studioState.settings.floorEdgeVisible !== false),
     ),
     (canvasEmptyElement.hidden = !!(
-      studioState.background ||
-      studioState.walls.length ||
-      studioState.items.length
+      appCtx.studioState.background ||
+      appCtx.studioState.walls.length ||
+      appCtx.studioState.items.length
     )),
     (sceneCountsElement.textContent =
-      studioState.walls.length +
+      appCtx.studioState.walls.length +
       " 墙 · " +
-      studioState.windows.length +
+      appCtx.studioState.windows.length +
       " 窗 · " +
-      studioState.doors.length +
+      appCtx.studioState.doors.length +
       " 门 · " +
-      studioState.railings.length +
+      appCtx.studioState.railings.length +
       " 栏杆 · " +
-      studioState.items.length +
+      appCtx.studioState.items.length +
       " 物件"),
     syncLightGroupList(),
     applyPanelRatios(),
@@ -4646,7 +4458,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
         shouldClearActiveElement ? null : document.activeElement,
       ),
     at4 = getSelectedObject(),
-    selectionCount = selectedItems.length;
+    selectionCount = appCtx.selectedItems.length;
   if (
     (planPainter?.refresh(at4),
     (inspectorEmptyElement.hidden = !!at4),
@@ -4670,17 +4482,17 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
     isCourtyardGate2(at4) &&
       ((selectElement("#courtyard-gate-style").value = at4.type),
       syncStudioSelect2(selectElement("#courtyard-gate-style"))),
-    !(!at4 || !selectedItem))
+    !(!at4 || !appCtx.selectedItem))
   ) {
     if (
       ((lightPreviewNoteElement.hidden = true),
       selectionHeadingElement.classList.remove("light-selected"),
-      (wallFieldsElement.hidden = selectedItem.kind !== "wall"),
-      (windowFieldsElement.hidden = selectedItem.kind !== "window"),
-      (doorFieldsElement.hidden = selectedItem.kind !== "door"),
-      (railingFieldsElement.hidden = selectedItem.kind !== "railing"),
-      (itemFieldsElement.hidden = selectedItem.kind !== "item"),
-      (selectionIdElement.hidden = selectedItem.kind === "item"),
+      (wallFieldsElement.hidden = appCtx.selectedItem.kind !== "wall"),
+      (windowFieldsElement.hidden = appCtx.selectedItem.kind !== "window"),
+      (doorFieldsElement.hidden = appCtx.selectedItem.kind !== "door"),
+      (railingFieldsElement.hidden = appCtx.selectedItem.kind !== "railing"),
+      (itemFieldsElement.hidden = appCtx.selectedItem.kind !== "item"),
+      (selectionIdElement.hidden = appCtx.selectedItem.kind === "item"),
       (selectionIdElement.textContent = selectionIdElement.hidden ? "" : at4.id),
       isCourtyardDrawing2(at4))
     ) {
@@ -4690,10 +4502,10 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
     }
 
 
-    selectedItem.kind === "door"
+    appCtx.selectedItem.kind === "door"
       ? renderDoorMaterialPanel(at4)
       : renderMaterialSlotPanel(at4);
-    if (selectedItem.kind === "wall") {
+    if (appCtx.selectedItem.kind === "wall") {
       ((selectElement("#selection-title").textContent = "墙体"),
         setControlValue(
           selectElement("#wall-length"),
@@ -4704,12 +4516,12 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
       const customWallOpacity =
         at4.opacity === null || at4.opacity === undefined
           ? null
-          : clamp2(finite2(at4.opacity, studioState.settings.wallOpacity), 0, 1);
+          : clamp2(finite2(at4.opacity, appCtx.studioState.settings.wallOpacity), 0, 1);
       ((selectElement("#wall-opacity-mode").value =
         customWallOpacity === null ? "global" : "custom"),
         setControlValue(
           selectElement("#wall-opacity"),
-          Math.round((customWallOpacity ?? studioState.settings.wallOpacity) * 100),
+          Math.round((customWallOpacity ?? appCtx.studioState.settings.wallOpacity) * 100),
         ),
         (selectElement("#wall-opacity").disabled = customWallOpacity === null),
         syncStudioSelect2(selectElement("#wall-opacity-mode")),
@@ -4717,7 +4529,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
           at4.allowOpenEnd === true ? "allowed" : "auto"),
         syncStudioSelect2(selectElement("#wall-open-end-mode")));
     } else {
-      if (selectedItem.kind === "window")
+      if (appCtx.selectedItem.kind === "window")
         ((selectElement("#selection-title").textContent = "窗户"),
           setControlValue(selectElement("#window-width"), at4.width.toFixed(2)),
           setControlValue(selectElement("#window-height"), at4.height.toFixed(2)),
@@ -4726,7 +4538,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
           syncStudioSelect2(selectElement("#window-divider")),
           setControlValue(selectElement("#window-position"), Math.round(at4.t * 100) + "%"));
       else {
-        if (selectedItem.kind === "door")
+        if (appCtx.selectedItem.kind === "door")
           ((selectElement("#selection-title").textContent =
             ({
               solid: "普通平开门",
@@ -4760,7 +4572,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
                   ? "内外侧"
                   : "内外翻转"));
         else {
-          if (selectedItem.kind === "railing")
+          if (appCtx.selectedItem.kind === "railing")
             ((selectElement("#selection-title").textContent = "玻璃栏杆"),
               setControlValue(selectElement("#railing-width"), at4.width.toFixed(2)),
               setControlValue(selectElement("#railing-height"), at4.height.toFixed(2)),
@@ -4925,7 +4737,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
               isLightItem)
             ) {
               const downlight2 = (lightPresetCatalog as any)[at4.type] || lightPresetCatalog.downlight;
-              ((activeLightGroupId = resolveLightGroup(at4)?.id || getLightGroups().id),
+              ((appCtx.activeLightGroupId = resolveLightGroup(at4)?.id || getLightGroups().id),
                 syncLightGroupList(),
                 syncLightGroupSelect(at4),
                 setControlValue(
@@ -5139,7 +4951,7 @@ function writeInspectorGroupCollapseState(collapseState: any) {
     window.localStorage.setItem(INSPECTOR_GROUP_STORAGE_KEY, JSON.stringify(collapseState));
   } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
 }
-let inspectorGroupCollapseState = readInspectorGroupCollapseState();
+appCtx.inspectorGroupCollapseState = readInspectorGroupCollapseState();
 /** 组内是否还有可见字段。 */
 function inspectorGroupHasVisibleField(inspectorGroupElement: any) {
   const groupBodyElement = inspectorGroupElement.querySelector(".inspector-group-body");
@@ -5166,12 +4978,12 @@ function countInspectorGroupFields(inspectorGroupElement: any) {
 }
 /** 收敛分组：空组整组隐藏、组标题随选中类型换说法、折叠态回放、计数徽标只在折叠时出现。 */
 function syncInspectorGroups() {
-  const architectureKind = (INSPECTOR_GROUP_TITLE_BY_ARCHITECTURE_KIND as any)[selectedItem?.kind]
-    ? selectedItem.kind
+  const architectureKind = (INSPECTOR_GROUP_TITLE_BY_ARCHITECTURE_KIND as any)[appCtx.selectedItem?.kind]
+    ? appCtx.selectedItem.kind
     : "";
   for (const inspectorGroupElement of inspectorGroupsElement) {
     const groupName = inspectorGroupElement.dataset.inspectorGroup,
-      isCollapsed = inspectorGroupCollapseState[groupName!] === true,
+      isCollapsed = appCtx.inspectorGroupCollapseState[groupName!] === true,
       hasVisibleField = inspectorGroupHasVisibleField(inspectorGroupElement);
     inspectorGroupElement.hidden = !hasVisibleField;
     inspectorGroupElement.classList.toggle("is-collapsed", isCollapsed);
@@ -5199,23 +5011,23 @@ function syncInspectorGroups() {
 function toggleInspectorGroup(inspectorGroupElement: any) {
   const groupName = inspectorGroupElement?.dataset.inspectorGroup;
   if (!groupName) return;
-  inspectorGroupCollapseState = {
-    ...inspectorGroupCollapseState,
+  appCtx.inspectorGroupCollapseState = {
+    ...appCtx.inspectorGroupCollapseState,
     [groupName]: !inspectorGroupElement.classList.contains("is-collapsed"),
   };
-  writeInspectorGroupCollapseState(inspectorGroupCollapseState);
+  writeInspectorGroupCollapseState(appCtx.inspectorGroupCollapseState);
   syncInspectorGroups();
 }
 function materialSlotPanelSignatureFor(modelItem: any, materialSlotEntries: any) {
   return [
     modelItem?.id || "",
-    sceneStyle,
+    appCtx.sceneStyle,
     materialSlotEntries === null ? "pending" : "ready",
     JSON.stringify(modelItem?.materialOverrides || {}),
     JSON.stringify(normalizeMaterialSurfaceOverrides(modelItem?.materialSurfaceOverrides)),
     String(modelItem?.materialStyle || ""),
-    materialSlotGroupFilter,
-    materialStyleOptionSignature,
+    appCtx.materialSlotGroupFilter,
+    appCtx.materialStyleOptionSignature,
     materialSlotEntries ? materialSlotEntries.map((slotEntry: any) => slotEntry.name).join(",") : "",
   ].join("|");
 }
@@ -5236,8 +5048,8 @@ function syncMaterialStyleStrip(modelItem: any, modelType: any, slotRoles: any) 
     roleSignature = (slotRoles || []).filter(Boolean).join(","),
     optionSignature = modelType + ":" + presetOptions.length + ":" + roleSignature,
     itemPalette = backgroundSettings();
-  if (optionSignature !== materialStyleOptionSignature) {
-    materialStyleOptionSignature = optionSignature;
+  if (optionSignature !== appCtx.materialStyleOptionSignature) {
+    appCtx.materialStyleOptionSignature = optionSignature;
     const chipFragment = document.createDocumentFragment(),
       autoChip = createMaterialStyleChip(
         MATERIAL_STYLE_AUTO,
@@ -5308,8 +5120,8 @@ function materialSlotGroupView(materialSlotEntries: any) {
   }
   const isFilterable = groupsInOrder.length > 1,
     activeGroupId =
-      isFilterable && groupsInOrder.some((groupEntry: any) => groupEntry.id === materialSlotGroupFilter)
-        ? materialSlotGroupFilter
+      isFilterable && groupsInOrder.some((groupEntry: any) => groupEntry.id === appCtx.materialSlotGroupFilter)
+        ? appCtx.materialSlotGroupFilter
         : "";
   return {
     groups: groupsInOrder,
@@ -5345,9 +5157,9 @@ function renderMaterialSlotGroupChips(groupView: any) {
 }
 /** 切槽位筛选：清面板签名逼下一次刷新重画（筛选是纯展示状态，不进文档、不进撤销）。 */
 function setMaterialSlotGroupFilter(groupId: any) {
-  groupId === materialSlotGroupFilter ||
-    ((materialSlotGroupFilter = groupId),
-    (materialSlotPanelSignature = ""),
+  groupId === appCtx.materialSlotGroupFilter ||
+    ((appCtx.materialSlotGroupFilter = groupId),
+    (appCtx.materialSlotPanelSignature = ""),
     refreshStudioUi());
 }
 /** 一行只读表面参数：粗糙 / 金属 / 透明 / 自发光。 */
@@ -5501,13 +5313,13 @@ function renderDoorMaterialPanel(doorRecord: any) {
   syncMaterialStyleStrip(doorRecord, "door", doorPartRoles);
   const materialSlotEntries = describeDoorMaterials(doorRecord),
     panelSignature = materialSlotPanelSignatureFor(doorRecord, materialSlotEntries);
-  if (panelSignature === materialSlotPanelSignature) return;
-  materialSlotPanelSignature = panelSignature;
-  isMaterialSlotPanelPending = false;
+  if (panelSignature === appCtx.materialSlotPanelSignature) return;
+  appCtx.materialSlotPanelSignature = panelSignature;
+  appCtx.isMaterialSlotPanelPending = false;
 
-  for (const expandedSlotName of [...expandedMaterialSurfaceSlots])
+  for (const expandedSlotName of [...appCtx.expandedMaterialSurfaceSlots])
     materialSlotEntries.some((slotEntry) => slotEntry.name === expandedSlotName) ||
-      expandedMaterialSurfaceSlots.delete(expandedSlotName);
+      appCtx.expandedMaterialSurfaceSlots.delete(expandedSlotName);
   const overrideCount = materialSlotEntries.filter((slotEntry) => Boolean(slotEntry.overrideColor))
       .length,
     surfaceOverrideCount = materialSlotEntries.filter((slotEntry) =>
@@ -5548,8 +5360,8 @@ function renderMaterialSlotPanel(modelItem: any) {
   );
   materialFieldsElement.hidden = !hasExternalModel;
   if (!hasExternalModel) {
-    ((materialSlotPanelSignature = ""),
-      (materialStyleOptionSignature = ""),
+    ((appCtx.materialSlotPanelSignature = ""),
+      (appCtx.materialStyleOptionSignature = ""),
       materialSlotListElement.replaceChildren());
     return;
   }
@@ -5564,10 +5376,10 @@ function renderMaterialSlotPanel(modelItem: any) {
       : null;
   syncMaterialStyleStrip(modelItem, itemModelType, slotRoles);
   const panelSignature = materialSlotPanelSignatureFor(modelItem, materialSlotEntries);
-  if (panelSignature === materialSlotPanelSignature) return;
-  materialSlotPanelSignature = panelSignature;
+  if (panelSignature === appCtx.materialSlotPanelSignature) return;
+  appCtx.materialSlotPanelSignature = panelSignature;
   if (!materialSlotEntries) {
-    ((isMaterialSlotPanelPending = true),
+    ((appCtx.isMaterialSlotPanelPending = true),
       (materialSummaryElement.textContent = "模型加载中，稍后自动刷新…"),
       materialSlotListElement.replaceChildren(),
       (materialResetAllButton.disabled = true),
@@ -5576,11 +5388,11 @@ function renderMaterialSlotPanel(modelItem: any) {
       materialSlotGroupsElement && (materialSlotGroupsElement.hidden = true));
     return;
   }
-  isMaterialSlotPanelPending = false;
+  appCtx.isMaterialSlotPanelPending = false;
 
-  for (const expandedSlotName of [...expandedMaterialSurfaceSlots])
+  for (const expandedSlotName of [...appCtx.expandedMaterialSurfaceSlots])
     materialSlotEntries.some((slotEntry: any) => slotEntry.name === expandedSlotName) ||
-      expandedMaterialSurfaceSlots.delete(expandedSlotName);
+      appCtx.expandedMaterialSurfaceSlots.delete(expandedSlotName);
   const overrideCount = materialSlotEntries.filter(
       (slotEntry: any) => Boolean(slotEntry.overrideColor),
     ).length,
@@ -5641,7 +5453,7 @@ function createMaterialSlotRow(slotEntry: any) {
     surfaceOverride = slotEntry.surfaceOverride || null,
     hasOverride = Boolean(slotEntry.overrideColor),
     hasSurfaceOverride = Boolean(surfaceOverride),
-    isSurfaceExpanded = expandedMaterialSurfaceSlots.has(slotEntry.name),
+    isSurfaceExpanded = appCtx.expandedMaterialSurfaceSlots.has(slotEntry.name),
     slotRow = document.createElement("div"),
     slotLineElement = document.createElement("div"),
     slotTextElement = document.createElement("span"),
@@ -5764,9 +5576,9 @@ function materialEditModelType(record: any, kind: any) {
 /** 当前选中对象里那一个「可做材质编辑」的：家具（GLB 模型）或门（户型洞口）。 */
 function selectedMaterialEditTarget() {
   const selectedObject = getSelectedObject();
-  if (!selectedObject || !isSelectionAllowed(selectedItem)) return null;
-  if (selectedItem?.kind === "item") return { kind: "item", record: selectedObject };
-  if (selectedItem?.kind === "door") return { kind: "door", record: selectedObject };
+  if (!selectedObject || !isSelectionAllowed(appCtx.selectedItem)) return null;
+  if (appCtx.selectedItem?.kind === "item") return { kind: "item", record: selectedObject };
+  if (appCtx.selectedItem?.kind === "door") return { kind: "door", record: selectedObject };
   return null;
 }
 /** 同款物件的其它成员：家具按 itemType 比，门按 **doorType** 比 —— 门的「同款」就是同一种门型（实木门与推拉门的部件都不一样，互相套用材质只会套出一堆无主的覆盖色）。 */
@@ -5774,13 +5586,13 @@ function materialSameModelPeerRecords(target: any) {
   if (!target) return [];
   if (target.kind === "door") {
     const doorType = target.record?.doorType || "solid";
-    return studioState.doors.filter(
+    return appCtx.studioState.doors.filter(
       (sceneDoor) => sceneDoor.id !== target.record.id && (sceneDoor.doorType || "solid") === doorType,
     );
   }
   const modelType = materialEditModelType(target.record, target.kind);
   if (!modelType) return [];
-  return studioState.items.filter(
+  return appCtx.studioState.items.filter(
     (sceneItem) =>
       sceneItem !== target.record &&
       sceneItem?.id !== target.record?.id &&
@@ -5794,7 +5606,7 @@ function commitItemMaterialEdit(mutationFunction: any) {
   const undoSnapshot = captureUndoSnapshot();
   if (!mutationFunction(materialEditTarget.record, materialEditTarget.kind)) return false;
   return (
-    (materialSlotPanelSignature = ""),
+    (appCtx.materialSlotPanelSignature = ""),
     applyPlacementChange(undoSnapshot),
     refreshScopeItems(
       materialEditTarget.kind === "door"
@@ -5922,10 +5734,9 @@ function loadCustomMaterialStyles() {
   return acceptedRecords;
 }
 /** 个人预设只装一次：档位表的查询是热路径（每次刷新面板都要走），不能每次读 localStorage。 */
-let areCustomMaterialStylesLoaded = false;
 function ensureCustomMaterialStylesLoaded() {
-  areCustomMaterialStylesLoaded ||
-    ((areCustomMaterialStylesLoaded = true), loadCustomMaterialStyles());
+  appCtx.areCustomMaterialStylesLoaded ||
+    ((appCtx.areCustomMaterialStylesLoaded = true), loadCustomMaterialStyles());
 }
 function writeStoredCustomMaterialStyles(records: any) {
   try {
@@ -5971,8 +5782,8 @@ function saveCurrentItemMaterialStyle(label: any) {
   const nextRecords = [...remainingRecords, customRecord];
   (writeStoredCustomMaterialStyles(nextRecords),
     loadCustomMaterialStyles(),
-    (materialStyleOptionSignature = ""),
-    (materialSlotPanelSignature = ""));
+    (appCtx.materialStyleOptionSignature = ""),
+    (appCtx.materialSlotPanelSignature = ""));
 
   setItemMaterialStyle(customId);
   return label;
@@ -5985,17 +5796,17 @@ function deleteCustomMaterialStyle(styleId: any) {
   );
   (writeStoredCustomMaterialStyles(nextRecords),
     loadCustomMaterialStyles(),
-    (materialStyleOptionSignature = ""));
+    (appCtx.materialStyleOptionSignature = ""));
 
 
-  const affectedItems = studioState.items.filter(
+  const affectedItems = appCtx.studioState.items.filter(
       (sceneItem) => sceneItem.materialStyle === styleId,
     ),
-    affectedDoors = studioState.doors.filter(
+    affectedDoors = appCtx.studioState.doors.filter(
       (sceneDoor) => sceneDoor.materialStyle === styleId,
     );
   if (!affectedItems.length && !affectedDoors.length)
-    return void (materialSlotPanelSignature = "");
+    return void (appCtx.materialSlotPanelSignature = "");
   const undoSnapshot = captureUndoSnapshot();
   for (const affectedItem of affectedItems) delete affectedItem.materialStyle;
   for (const affectedDoor of affectedDoors) delete affectedDoor.materialStyle;
@@ -6032,7 +5843,7 @@ function applyMaterialToSameModelItems() {
         ? (peerItem.materialSurfaceOverrides = { ...materialSurfaceOverrides })
         : delete peerItem.materialSurfaceOverrides);
   return (
-    (materialSlotPanelSignature = ""),
+    (appCtx.materialSlotPanelSignature = ""),
     applyPlacementChange(undoSnapshot),
     refreshScopeItems(
       materialEditTarget.kind === "door"
@@ -6088,20 +5899,20 @@ function selectStudioTool(toolId: any) {
   if (!(toolHelpMessages as any)[toolId]) return;
   if (
     (toolId.startsWith("courtyard-") &&
-      activeLibraryCategory !== "courtyard" &&
+      appCtx.activeLibraryCategory !== "courtyard" &&
       setAssetCategory("courtyard"),
-    activeLibraryCategory === "courtyard" && !courtyardToolAllowed2(toolId))
+    appCtx.activeLibraryCategory === "courtyard" && !courtyardToolAllowed2(toolId))
   ) {
     showToast("庭院编辑中户型已锁定，请先切回家居或电器。");
     return;
   }
 
-  if (activeLibraryCategory === "light" && toolId !== "select" && toolId !== "pan") {
+  if (appCtx.activeLibraryCategory === "light" && toolId !== "select" && toolId !== "pan") {
     showToast("灯光编辑中户型已锁定，请先切回家居、电器或庭院。");
     return;
   }
-  const shouldWarnOpenWall = activeToolName === "wall" && toolId !== "wall" && wallSegmentCount > 0;
-  ((activeToolName = toolId),
+  const shouldWarnOpenWall = appCtx.activeToolName === "wall" && toolId !== "wall" && appCtx.wallSegmentCount > 0;
+  ((appCtx.activeToolName = toolId),
     planPainter?.setTool(toolId),
     (planCanvasElement.dataset.tool = toolId),
     (planCanvasElement.style.cursor = ""));
@@ -6113,18 +5924,18 @@ function selectStudioTool(toolId: any) {
   (closeDrawingToolGroups(),
     syncDrawingToolGroupStates(),
     ([activeToolLabel.textContent, toolHelpElement.textContent] =
-    activeLibraryCategory === "light" && toolId === "select"
+    appCtx.activeLibraryCategory === "light" && toolId === "select"
       ? ["灯光编辑", "户型已锁定；框选多盏灯后可整体拖动，Shift 锁轴，Option/Alt 复制"]
-      : activeLibraryCategory === "courtyard" && toolId === "select"
+      : appCtx.activeLibraryCategory === "courtyard" && toolId === "select"
         ? ["庭院编辑", "其他对象已锁定；可选择、移动、框选庭院对象，切换分类恢复编辑"]
         : (toolHelpMessages as any)[toolId]),
-    (finishWallButton.hidden = toolId !== "wall" || !segmentStartPoint),
+    (finishWallButton.hidden = toolId !== "wall" || !appCtx.segmentStartPoint),
     toolId !== "wall" && refreshPreviewScene(),
-    toolId !== "scale" && (previewEndPoint = null),
-    (snapHit = null),
-    (windowPlacement = null),
-    (doorPlacement = null),
-    (railingPlacement = null),
+    toolId !== "scale" && (appCtx.previewEndPoint = null),
+    (appCtx.snapHit = null),
+    (appCtx.windowPlacement = null),
+    (appCtx.doorPlacement = null),
+    (appCtx.railingPlacement = null),
     refreshStudioView(),
     shouldWarnOpenWall &&
       showToast("当前墙线未闭合，不会生成地面；如果绘制的是隔墙，可以忽略此提醒。", "warning"));
@@ -6138,52 +5949,52 @@ function ensureCalibrationReady(fallbackToolId = "scale") {
 }
 function clearSelection() {
   if (
-    ((selectedItems = selectedItems.filter(isSelectionAllowed)),
-    selectedItem && !isSelectionAllowed(selectedItem) && refreshSelection(),
-    selectedItems.length)
+    ((appCtx.selectedItems = appCtx.selectedItems.filter(isSelectionAllowed)),
+    appCtx.selectedItem && !isSelectionAllowed(appCtx.selectedItem) && refreshSelection(),
+    appCtx.selectedItems.length)
   ) {
     const qa2 = getCurrentPreviewScope();
     deselectAll();
     const clearSelectionWallIdSet = new Set(
-        selectedItems
+        appCtx.selectedItems
           .filter((wallDrawingEntry: any) => wallDrawingEntry.kind === "wall")
           .map((wallDrawing: any) => wallDrawing.id),
       ),
       windowIdSet = new Set(
-        selectedItems
+        appCtx.selectedItems
           .filter((windowDrawingEntry: any) => windowDrawingEntry.kind === "window")
           .map((windowDrawing: any) => windowDrawing.id),
       ),
       doorIdSet = new Set(
-        selectedItems
+        appCtx.selectedItems
           .filter((doorDrawingEntry: any) => doorDrawingEntry.kind === "door")
           .map((doorDrawing: any) => doorDrawing.id),
       ),
       railingIdSet = new Set(
-        selectedItems
+        appCtx.selectedItems
           .filter((railingDrawingEntry: any) => railingDrawingEntry.kind === "railing")
           .map((railingDrawing: any) => railingDrawing.id),
       ),
       itemIdSet = new Set(
-        selectedItems
+        appCtx.selectedItems
           .filter((itemDrawingEntry: any) => itemDrawingEntry.kind === "item")
           .map((itemDrawing: any) => itemDrawing.id),
       );
-    ((studioState.walls = studioState.walls.filter(
+    ((appCtx.studioState.walls = appCtx.studioState.walls.filter(
       (removedWall) => !clearSelectionWallIdSet.has(removedWall.id),
     )),
-      (studioState.windows = studioState.windows.filter(
+      (appCtx.studioState.windows = appCtx.studioState.windows.filter(
         (windowItem) =>
           !windowIdSet.has(windowItem.id) && !clearSelectionWallIdSet.has(windowItem.wallId),
       )),
-      (studioState.doors = studioState.doors.filter(
+      (appCtx.studioState.doors = appCtx.studioState.doors.filter(
         (doorItem) => !doorIdSet.has(doorItem.id) && !clearSelectionWallIdSet.has(doorItem.wallId),
       )),
-      (studioState.railings = studioState.railings.filter(
+      (appCtx.studioState.railings = appCtx.studioState.railings.filter(
         (railingItem) =>
           !railingIdSet.has(railingItem.id) && !clearSelectionWallIdSet.has(railingItem.wallId),
       )),
-      (studioState.items = studioState.items.filter(
+      (appCtx.studioState.items = appCtx.studioState.items.filter(
         (removedItem) => !itemIdSet.has(removedItem.id),
       )),
       clearSelectionWallIdSet.size && rebuildWallIndex(),
@@ -6193,32 +6004,32 @@ function clearSelection() {
     return;
   }
   const at5 = getSelectedObject();
-  if (!at5 || !selectedItem) return;
+  if (!at5 || !appCtx.selectedItem) return;
   const qa3 = getCurrentPreviewScope();
   (deselectAll(),
-    selectedItem.kind === "wall"
-      ? ((studioState.walls = studioState.walls.filter((wallById) => wallById.id !== at5.id)),
-        (studioState.windows = studioState.windows.filter(
+    appCtx.selectedItem.kind === "wall"
+      ? ((appCtx.studioState.walls = appCtx.studioState.walls.filter((wallById) => wallById.id !== at5.id)),
+        (appCtx.studioState.windows = appCtx.studioState.windows.filter(
           (windowByWallId) => windowByWallId.wallId !== at5.id,
         )),
-        (studioState.doors = studioState.doors.filter(
+        (appCtx.studioState.doors = appCtx.studioState.doors.filter(
           (doorByWallId) => doorByWallId.wallId !== at5.id,
         )),
-        (studioState.railings = studioState.railings.filter(
+        (appCtx.studioState.railings = appCtx.studioState.railings.filter(
           (railingByWallId) => railingByWallId.wallId !== at5.id,
         )),
         rebuildWallIndex())
-      : selectedItem.kind === "window"
-        ? (studioState.windows = studioState.windows.filter(
+      : appCtx.selectedItem.kind === "window"
+        ? (appCtx.studioState.windows = appCtx.studioState.windows.filter(
             (windowById) => windowById.id !== at5.id,
           ))
-        : selectedItem.kind === "door"
-          ? (studioState.doors = studioState.doors.filter((doorById) => doorById.id !== at5.id))
-          : selectedItem.kind === "railing"
-            ? (studioState.railings = studioState.railings.filter(
+        : appCtx.selectedItem.kind === "door"
+          ? (appCtx.studioState.doors = appCtx.studioState.doors.filter((doorById) => doorById.id !== at5.id))
+          : appCtx.selectedItem.kind === "railing"
+            ? (appCtx.studioState.railings = appCtx.studioState.railings.filter(
                 (railingById) => railingById.id !== at5.id,
               ))
-            : (studioState.items = studioState.items.filter(
+            : (appCtx.studioState.items = appCtx.studioState.items.filter(
                 (excludedItem) => excludedItem.id !== at5.id,
               )),
     refreshSelection(),
@@ -6229,9 +6040,9 @@ function finalizeAddedItem(addedItem: any, movingIds = [addedItem.id]) {
   return snapItemToSurface2({
     THREE: ns2,
     item: addedItem,
-    items: studioState.items,
+    items: appCtx.studioState.items,
     pixelsPerMeter: getPixelsPerMeter(),
-    enabled: isSnapEnabled() && studioState.settings.snapSurfaces !== false,
+    enabled: isSnapEnabled() && appCtx.studioState.settings.snapSurfaces !== false,
     movingIds: movingIds,
     mountModel: (mountedModelItem: any, externalModel: any) =>
       externalModelRegistry.addExternalItemModel(
@@ -6249,7 +6060,7 @@ function createSceneItem(
   const typeDefinition = (itemTypeCatalog as any)[sceneItemType];
   if (!typeDefinition || !ensureCalibrationReady()) return;
   if (
-    activeLibraryCategory === "courtyard" &&
+    appCtx.activeLibraryCategory === "courtyard" &&
     !isCourtyardPlanItem2({
       type: sceneItemType,
     })
@@ -6363,24 +6174,24 @@ function createSceneItem(
     };
   (pushUndoEntry([createdItem]),
     finalizeAddedItem(createdItem),
-    anchorGate2(createdItem, studioState.items, getPixelsPerMeter(), 24 / planView.zoom),
-    studioState.items.push(createdItem),
-    syncCourtyardGates2(studioState.items, getPixelsPerMeter()),
+    anchorGate2(createdItem, appCtx.studioState.items, getPixelsPerMeter(), 24 / appCtx.planView.zoom),
+    appCtx.studioState.items.push(createdItem),
+    syncCourtyardGates2(appCtx.studioState.items, getPixelsPerMeter()),
     validateSelectionChange(ft2) &&
       (applyPlacementChange(ft2),
       selectSceneObject("item", createdItem.id),
-      activeToolName !== "courtyard-gate" && selectStudioTool("select"),
+      appCtx.activeToolName !== "courtyard-gate" && selectStudioTool("select"),
       refreshScopeItems(resolvePreviewScope(createdItem)),
       markDocumentDirty()));
 }
 function duplicateSelection() {
   const duplicateSourceIdSet = new Set([
-      ...(selectedItem?.kind === "item" ? [selectedItem.id] : []),
-      ...selectedItems
+      ...(appCtx.selectedItem?.kind === "item" ? [appCtx.selectedItem.id] : []),
+      ...appCtx.selectedItems
         .filter((duplicateDrawingEntry: any) => duplicateDrawingEntry.kind === "item")
         .map((duplicateDrawing: any) => duplicateDrawing.id),
     ]),
-    duplicateItems = studioState.items.filter(
+    duplicateItems = appCtx.studioState.items.filter(
       (filteredSceneItem) =>
         duplicateSourceIdSet.has(filteredSceneItem.id) && isPlanItemVisible(filteredSceneItem),
     );
@@ -6398,13 +6209,13 @@ function duplicateSelection() {
     }));
   (remapCourtyardAttachments2(duplicateItems, duplicateClones),
     pushUndoEntry(duplicateClones),
-    studioState.items.push(...duplicateClones),
+    appCtx.studioState.items.push(...duplicateClones),
     validateSelectionChange(ft3) &&
       (applyPlacementChange(ft3),
       duplicateClones.length === 1
         ? selectSceneObject("item", duplicateClones[0].id)
-        : ((selectedItem = null),
-          (selectedItems = duplicateClones.map((clonedItem) => ({
+        : ((appCtx.selectedItem = null),
+          (appCtx.selectedItems = duplicateClones.map((clonedItem) => ({
             kind: "item",
             id: clonedItem.id,
           })))),
@@ -6421,12 +6232,12 @@ function duplicateSelection() {
 }
 function collectSelectedPlanItems() {
   const planItemIdSet = new Set([
-      ...(selectedItem?.kind === "item" ? [selectedItem.id] : []),
-      ...selectedItems
+      ...(appCtx.selectedItem?.kind === "item" ? [appCtx.selectedItem.id] : []),
+      ...appCtx.selectedItems
         .filter((planDrawingEntry: any) => planDrawingEntry.kind === "item")
         .map((planDrawing: any) => planDrawing.id),
     ]);
-  return studioState.items.filter(
+  return appCtx.studioState.items.filter(
     (candidateSceneItem) =>
       planItemIdSet.has(candidateSceneItem.id) && isPlanItemVisible(candidateSceneItem),
   );
@@ -6437,9 +6248,9 @@ function mirrorSelection() {
     showToast("请先选择要复制的灯具、家具或电器。");
     return;
   }
-  clipboardItems = zy2.map((mirroredSourceItem) => structuredClone(mirroredSourceItem));
+  appCtx.clipboardItems = zy2.map((mirroredSourceItem) => structuredClone(mirroredSourceItem));
   const ae7 = getActiveFloor();
-  ((clipboardSourceFloor = {
+  ((appCtx.clipboardSourceFloor = {
     id: ae7.id,
     originX: ae7.originX,
     originY: ae7.originY,
@@ -6447,19 +6258,19 @@ function mirrorSelection() {
     offsetZ: ae7.offsetZ,
     rotation: ae7.rotation,
     scene: {
-      calibration: structuredClone(studioState.calibration),
+      calibration: structuredClone(appCtx.studioState.calibration),
     },
   }),
-    (pasteOffsetFactor = 0),
-    showToast("已复制 " + clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。"));
+    (appCtx.pasteOffsetFactor = 0),
+    showToast("已复制 " + appCtx.clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。"));
 }
 function rotateSelection() {
-  if (!clipboardItems.length) {
+  if (!appCtx.clipboardItems.length) {
     showToast("暂无可粘贴的物件。");
     return;
   }
   if (
-    clipboardItems.some(
+    appCtx.clipboardItems.some(
       (validatedPlanItem: any) =>
         validatedPlanItem.type === "flooropening" || isCourtyardDrawing2(validatedPlanItem),
     ) &&
@@ -6467,20 +6278,20 @@ function rotateSelection() {
   )
     return;
   if (
-    activeLibraryCategory === "courtyard" &&
-    clipboardItems.some((courtyardPlanItem: any) => !isCourtyardPlanItem2(courtyardPlanItem))
+    appCtx.activeLibraryCategory === "courtyard" &&
+    appCtx.clipboardItems.some((courtyardPlanItem: any) => !isCourtyardPlanItem2(courtyardPlanItem))
   ) {
     showToast("庭院编辑中只能粘贴庭院对象，请先切换分类。");
     return;
   }
-  const every = clipboardItems.every((planItemEntry: any) => lampItemTypeSet.has(planItemEntry.type));
-  every && activeLibraryCategory !== "light"
+  const every = appCtx.clipboardItems.every((planItemEntry: any) => lampItemTypeSet.has(planItemEntry.type));
+  every && appCtx.activeLibraryCategory !== "light"
     ? setAssetCategory("light")
-    : !every && activeLibraryCategory === "light" && setAssetCategory("home");
+    : !every && appCtx.activeLibraryCategory === "light" && setAssetCategory("home");
   const ft4 = captureUndoSnapshot();
-  pasteOffsetFactor += 1;
-  const selectionOffset = (getPixelsPerMeter() || 100) * 0.12 * pasteOffsetFactor,
-    movedClones = clipboardItems.map((movedSourceItem: any) => ({
+  appCtx.pasteOffsetFactor += 1;
+  const selectionOffset = (getPixelsPerMeter() || 100) * 0.12 * appCtx.pasteOffsetFactor,
+    movedClones = appCtx.clipboardItems.map((movedSourceItem: any) => ({
       ...structuredClone(movedSourceItem),
       id: generateId("item"),
       x: movedSourceItem.x + selectionOffset,
@@ -6488,32 +6299,32 @@ function rotateSelection() {
       ...((movedSourceItem.type === "flooropening" ||
         isCourtyardDrawing2(movedSourceItem) ||
         movedSourceItem.courtyardGate) &&
-      clipboardSourceFloor &&
-      clipboardSourceFloor.id !== getActiveFloor().id
+      appCtx.clipboardSourceFloor &&
+      appCtx.clipboardSourceFloor.id !== getActiveFloor().id
         ? {
-            ...worldPointForFloor(movedSourceItem, clipboardSourceFloor, getActiveFloor()),
+            ...worldPointForFloor(movedSourceItem, appCtx.clipboardSourceFloor, getActiveFloor()),
             rotation:
               movedSourceItem.rotation +
-              finite2(clipboardSourceFloor.rotation, 0) -
+              finite2(appCtx.clipboardSourceFloor.rotation, 0) -
               finite2(getActiveFloor().rotation, 0),
           }
         : {}),
       ...(lampItemTypeSet.has(movedSourceItem.type) &&
-      !studioState.lightGroups.some((lightGroup) => lightGroup.id === movedSourceItem.lightGroupId)
+      !appCtx.studioState.lightGroups.some((lightGroup) => lightGroup.id === movedSourceItem.lightGroupId)
         ? {
             lightGroupId: getLightGroups().id,
           }
         : {}),
     }));
-  (remapCourtyardAttachments2(clipboardItems, movedClones),
+  (remapCourtyardAttachments2(appCtx.clipboardItems, movedClones),
     pushUndoEntry(movedClones),
-    studioState.items.push(...movedClones),
+    appCtx.studioState.items.push(...movedClones),
     validateSelectionChange(ft4) &&
       (applyPlacementChange(ft4),
       movedClones.length === 1
         ? selectSceneObject("item", movedClones[0].id)
-        : ((selectedItem = null),
-          (selectedItems = movedClones.map((movedItem: any) => ({
+        : ((appCtx.selectedItem = null),
+          (appCtx.selectedItems = movedClones.map((movedItem: any) => ({
             kind: "item",
             id: movedItem.id,
           })))),
@@ -6529,9 +6340,9 @@ function rotateSelection() {
       showToast("已粘贴 " + movedClones.length + " 个物件。")));
 }
 async function loadBackgroundImage() {
-  const backgroundLoadToken = ++backgroundLoadRequestId;
-  if (((backgroundImageSource = null), !studioState.background?.url)) return;
-  const url = studioState.background.url;
+  const backgroundLoadToken = ++appCtx.backgroundLoadRequestId;
+  if (((appCtx.backgroundImageSource = null), !appCtx.studioState.background?.url)) return;
+  const url = appCtx.studioState.background.url;
   await new Promise<void>((resolveLoad) => {
     let isLoadResolved = false;
     const handleLoadTimeout = () => {
@@ -6543,13 +6354,13 @@ async function loadBackgroundImage() {
       "load",
       () => {
         if (
-          backgroundLoadToken !== backgroundLoadRequestId ||
-          studioState.background?.url !== url
+          backgroundLoadToken !== appCtx.backgroundLoadRequestId ||
+          appCtx.studioState.background?.url !== url
         ) {
           handleLoadTimeout();
           return;
         }
-        ((backgroundImageSource = image),
+        ((appCtx.backgroundImageSource = image),
           window.clearTimeout(loadTimeoutId),
           isLoadResolved ? refreshStudioView() : handleLoadTimeout());
       },
@@ -6561,7 +6372,7 @@ async function loadBackgroundImage() {
         "error",
         () => {
           (window.clearTimeout(loadTimeoutId),
-            backgroundLoadToken === backgroundLoadRequestId &&
+            backgroundLoadToken === appCtx.backgroundLoadRequestId &&
               showToast("底图加载失败，请重新导入。", "error"),
             handleLoadTimeout());
         },
@@ -6576,7 +6387,7 @@ async function importBackgroundFile(backgroundFile: any) {
   if (!backgroundFile || importPlanButton.disabled) return;
   const importOptions: BackgroundImportDiagnostics = {},
     ae8 = getActiveFloor(),
-    background = studioState.background,
+    background = appCtx.studioState.background,
     backgroundImportErrorElement = selectElement("#background-import-error");
   ((backgroundImportErrorElement.hidden = true),
     (importPlanButton.disabled = true),
@@ -6601,12 +6412,12 @@ async function importBackgroundFile(backgroundFile: any) {
     const importedImage = await loadImportedImage2(uploadResponse.url),
       width3 = importedImage.naturalWidth || uploadResponse.width,
       height3 = importedImage.naturalHeight || uploadResponse.height;
-    if (getActiveFloor() !== ae8 || studioState.background !== background) {
+    if (getActiveFloor() !== ae8 || appCtx.studioState.background !== background) {
       showToast("当前户型已切换或底图已改变，请重新导入。", "warning");
       return;
     }
     (deselectAll(),
-      (studioState.background = {
+      (appCtx.studioState.background = {
         assetId: uploadResponse.assetId,
         url: uploadResponse.url,
         name: uploadResponse.name,
@@ -6617,9 +6428,9 @@ async function importBackgroundFile(backgroundFile: any) {
     (ae9 &&
       !ae9.originInitialized &&
       ((ae9.originX = width3 / 2), (ae9.originY = height3 / 2), (ae9.originInitialized = true)),
-      (studioState.settings.backgroundVisible = true),
-      ++backgroundLoadRequestId,
-      (backgroundImageSource = importedImage),
+      (appCtx.studioState.settings.backgroundVisible = true),
+      ++appCtx.backgroundLoadRequestId,
+      (appCtx.backgroundImageSource = importedImage),
       resetView(),
       refreshScopeItems(),
       markDocumentDirty(),
@@ -6643,7 +6454,7 @@ async function importBackgroundFile(backgroundFile: any) {
 type BackgroundViewSettings = typeof defaultViewSettings & Record<string, any>;
 
 function backgroundSettings(): BackgroundViewSettings {
-  return sceneStyle === "warm-wood"
+  return appCtx.sceneStyle === "warm-wood"
     ? {
         ...defaultViewSettings,
         ...WARM_WOOD_STYLE2,
@@ -6663,48 +6474,48 @@ function positionLightFromAngles(lightObject: any, azimuthDegrees: any, elevatio
 }
 function refreshBaseLighting() {
   const yt2 = backgroundSettings(),
-    vn2 = baseLightingSettings;
-  if (!threeScene || !threeRenderer) return;
-  ((threeScene.background = null),
-    threeRenderer.setClearColor(yt2.background, 0),
-    (threeScene.fog = null),
-    (threeRenderer.toneMappingExposure = vn2.exposure));
+    vn2 = appCtx.baseLightingSettings;
+  if (!appCtx.threeScene || !appCtx.threeRenderer) return;
+  ((appCtx.threeScene.background = null),
+    appCtx.threeRenderer.setClearColor(yt2.background, 0),
+    (appCtx.threeScene.fog = null),
+    (appCtx.threeRenderer.toneMappingExposure = vn2.exposure));
 
 
   const intensityScale = isEmbedStageMode ? 0.5 : 1;
-  (hemisphereLight &&
-    (hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14606046),
-    hemisphereLight.groundColor.setHex(yt2.warmWood ? 10524035 : 2236962),
-    (hemisphereLight.intensity = vn2.hemisphereIntensity * intensityScale)),
-    ambientLight &&
-      (ambientLight.color.setHex(yt2.warmWood ? 15592162 : 10132122),
-      (ambientLight.intensity = vn2.ambientIntensity * intensityScale)),
-    mainDirectionalLight &&
-      (mainDirectionalLight.color.setHex(yt2.warmWood ? 16774367 : 16053492),
-      (mainDirectionalLight.intensity = vn2.mainIntensity * intensityScale),
-      positionLightFromAngles(mainDirectionalLight, vn2.mainAzimuth, vn2.mainElevation, 18.4),
-      (mainDirectionalLight.shadow.bias = -0.00012),
-      (mainDirectionalLight.shadow.normalBias = 0.016),
-      (mainDirectionalLight.shadow.radius = 1.75),
-      (mainDirectionalLight.shadow.blurSamples = 4),
-      isGroundShadowEnabled &&
-        ((mainDirectionalLight.shadow.radius = 1.2), (mainDirectionalLight.shadow.blurSamples = 8)),
-      (mainDirectionalLight.shadow.intensity = vn2.mainShadowIntensity)),
-    fillDirectionalLight &&
-      (fillDirectionalLight.color.setHex(yt2.warmWood ? 14346221 : 10921638),
-      (fillDirectionalLight.intensity = vn2.fillIntensity * intensityScale),
-      positionLightFromAngles(fillDirectionalLight, vn2.fillAzimuth, vn2.fillElevation, 15.2)),
-    topDirectionalLight &&
-      (topDirectionalLight.color.setHex(yt2.warmWood ? 16776693 : 16250871),
-      (topDirectionalLight.intensity = vn2.topIntensity * intensityScale),
-      positionLightFromAngles(topDirectionalLight, vn2.topAzimuth, vn2.topElevation, 16.1)));
+  (appCtx.hemisphereLight &&
+    (appCtx.hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14606046),
+    appCtx.hemisphereLight.groundColor.setHex(yt2.warmWood ? 10524035 : 2236962),
+    (appCtx.hemisphereLight.intensity = vn2.hemisphereIntensity * intensityScale)),
+    appCtx.ambientLight &&
+      (appCtx.ambientLight.color.setHex(yt2.warmWood ? 15592162 : 10132122),
+      (appCtx.ambientLight.intensity = vn2.ambientIntensity * intensityScale)),
+    appCtx.mainDirectionalLight &&
+      (appCtx.mainDirectionalLight.color.setHex(yt2.warmWood ? 16774367 : 16053492),
+      (appCtx.mainDirectionalLight.intensity = vn2.mainIntensity * intensityScale),
+      positionLightFromAngles(appCtx.mainDirectionalLight, vn2.mainAzimuth, vn2.mainElevation, 18.4),
+      (appCtx.mainDirectionalLight.shadow.bias = -0.00012),
+      (appCtx.mainDirectionalLight.shadow.normalBias = 0.016),
+      (appCtx.mainDirectionalLight.shadow.radius = 1.75),
+      (appCtx.mainDirectionalLight.shadow.blurSamples = 4),
+      appCtx.isGroundShadowEnabled &&
+        ((appCtx.mainDirectionalLight.shadow.radius = 1.2), (appCtx.mainDirectionalLight.shadow.blurSamples = 8)),
+      (appCtx.mainDirectionalLight.shadow.intensity = vn2.mainShadowIntensity)),
+    appCtx.fillDirectionalLight &&
+      (appCtx.fillDirectionalLight.color.setHex(yt2.warmWood ? 14346221 : 10921638),
+      (appCtx.fillDirectionalLight.intensity = vn2.fillIntensity * intensityScale),
+      positionLightFromAngles(appCtx.fillDirectionalLight, vn2.fillAzimuth, vn2.fillElevation, 15.2)),
+    appCtx.topDirectionalLight &&
+      (appCtx.topDirectionalLight.color.setHex(yt2.warmWood ? 16776693 : 16250871),
+      (appCtx.topDirectionalLight.intensity = vn2.topIntensity * intensityScale),
+      positionLightFromAngles(appCtx.topDirectionalLight, vn2.topAzimuth, vn2.topElevation, 16.1)));
 }
 function setShadowQualityHigh(isHighQuality: any) {
   const isHighQualityEnabled = isHighQuality === true;
-  if (isHighQualityEnabled !== isGroundShadowEnabled) {
-    if (isHighQualityEnabled && mainDirectionalLight?.shadow?.camera) {
-      const camera = mainDirectionalLight.shadow.camera;
-      savedShadowCamera = {
+  if (isHighQualityEnabled !== appCtx.isGroundShadowEnabled) {
+    if (isHighQualityEnabled && appCtx.mainDirectionalLight?.shadow?.camera) {
+      const camera = appCtx.mainDirectionalLight.shadow.camera;
+      appCtx.savedShadowCamera = {
         left: camera.left,
         right: camera.right,
         top: camera.top,
@@ -6714,33 +6525,33 @@ function setShadowQualityHigh(isHighQuality: any) {
       };
     }
     if (
-      ((isGroundShadowEnabled = isHighQualityEnabled),
+      ((appCtx.isGroundShadowEnabled = isHighQualityEnabled),
       refreshBaseLighting(),
-      !isHighQualityEnabled && savedShadowCamera && mainDirectionalLight?.shadow?.camera)
+      !isHighQualityEnabled && appCtx.savedShadowCamera && appCtx.mainDirectionalLight?.shadow?.camera)
     ) {
-      const camera2 = mainDirectionalLight.shadow.camera;
-      (Object.assign(camera2, savedShadowCamera),
+      const camera2 = appCtx.mainDirectionalLight.shadow.camera;
+      (Object.assign(camera2, appCtx.savedShadowCamera),
         camera2.updateProjectionMatrix(),
-        (savedShadowCamera = null));
+        (appCtx.savedShadowCamera = null));
     }
-    (mainDirectionalLight?.shadow && (mainDirectionalLight.shadow.needsUpdate = true),
-      threeRenderer?.domElement &&
-        (threeRenderer.domElement.dataset.exportShadowQuality = isHighQualityEnabled
+    (appCtx.mainDirectionalLight?.shadow && (appCtx.mainDirectionalLight.shadow.needsUpdate = true),
+      appCtx.threeRenderer?.domElement &&
+        (appCtx.threeRenderer.domElement.dataset.exportShadowQuality = isHighQualityEnabled
           ? "high"
           : "realtime"));
   }
 }
 function clampShadowMapSize(shadowMapSize: any) {
-  if (!isGroundShadowEnabled) return shadowMapSize;
+  if (!appCtx.isGroundShadowEnabled) return shadowMapSize;
   const maxTextureSize = Math.max(
     1,
-    Math.floor(finite2(threeRenderer?.capabilities?.maxTextureSize, minTextureSize)),
+    Math.floor(finite2(appCtx.threeRenderer?.capabilities?.maxTextureSize, minTextureSize)),
   );
   return Math.min(maxTextureSize, Math.max(shadowMapSize, minTextureSize));
 }
 function syncBaseLightingControls() {
   for (const baseLightControlInput of baseLightControlInputs) {
-    const baseLightValue = (baseLightingSettings as any)[baseLightControlInput.dataset.baseLightControl!],
+    const baseLightValue = (appCtx.baseLightingSettings as any)[baseLightControlInput.dataset.baseLightControl!],
       isIntegerStep = baseLightControlInput.step === "5";
     syncControlValue2(
       baseLightControlInput,
@@ -6749,21 +6560,21 @@ function syncBaseLightingControls() {
   }
 }
 function applyBaseLighting(baseLightingConfig: any) {
-  const vn3 = baseLightingSettings;
-  ((baseLightingSettings = normalizeBaseLighting2(baseLightingConfig)),
+  const vn3 = appCtx.baseLightingSettings;
+  ((appCtx.baseLightingSettings = normalizeBaseLighting2(baseLightingConfig)),
     syncBaseLightingControls(),
     refreshBaseLighting(),
     refreshSceneRender({
       shadows: Object.keys(DEFAULT_BASE_LIGHTING2).some(
-        (lightingKey) => (vn3 as any)[lightingKey] !== (baseLightingSettings as any)[lightingKey],
+        (lightingKey) => (vn3 as any)[lightingKey] !== (appCtx.baseLightingSettings as any)[lightingKey],
       ),
     }));
 }
 function saveBaseLightingEdit() {
-  if (!studioProject || !baseLightControlsElement) return;
+  if (!appCtx.studioProject || !baseLightControlsElement) return;
   const en2 = exportDialogElement?.open ? exportDialogElement : document.body;
   (baseLightControlsElement.parentElement !== en2 && en2.append(baseLightControlsElement),
-    baseLightControlsElement.hidden && applyBaseLighting(studioProject.baseLighting),
+    baseLightControlsElement.hidden && applyBaseLighting(appCtx.studioProject.baseLighting),
     (baseLightControlsElement.hidden = false));
   const panelBoundingRect = baseLightControlsElement.getBoundingClientRect();
   (panelBoundingRect.right > window.innerWidth - 8 ||
@@ -6786,16 +6597,16 @@ function saveBaseLightingEdit() {
 }
 function openLightingDialog() {
   baseLightControlsElement &&
-    (studioProject && applyBaseLighting(studioProject.baseLighting),
+    (appCtx.studioProject && applyBaseLighting(appCtx.studioProject.baseLighting),
     (baseLightControlsElement.hidden = true));
 }
 function confirmLightingDialog() {
-  if (!studioProject) return;
-  const normalizedBaseLighting = normalizeBaseLighting2(baseLightingSettings);
-  ((studioProject.baseLighting = normalizedBaseLighting),
+  if (!appCtx.studioProject) return;
+  const normalizedBaseLighting = normalizeBaseLighting2(appCtx.baseLightingSettings);
+  ((appCtx.studioProject.baseLighting = normalizedBaseLighting),
     applyBaseLighting(normalizedBaseLighting),
     markDocumentDirty(),
-    lightPreviewWorker?.postMessage({
+    appCtx.lightPreviewWorker?.postMessage({
       type: "base-lighting-saved",
       lighting: normalizedBaseLighting,
     }),
@@ -6804,10 +6615,10 @@ function confirmLightingDialog() {
 }
 function updateBaseLightingFromInput(lightingInput: any) {
   const baseLightControl = lightingInput.dataset.baseLightControl;
-  baseLightControl in baseLightingSettings &&
-    ((baseLightingSettings = normalizeBaseLighting2({
-      ...baseLightingSettings,
-      [baseLightControl]: finite2(lightingInput.value, (baseLightingSettings as any)[baseLightControl]),
+  baseLightControl in appCtx.baseLightingSettings &&
+    ((appCtx.baseLightingSettings = normalizeBaseLighting2({
+      ...appCtx.baseLightingSettings,
+      [baseLightControl]: finite2(lightingInput.value, (appCtx.baseLightingSettings as any)[baseLightControl]),
     })),
     refreshBaseLighting(),
     refreshSceneRender({
@@ -6816,8 +6627,8 @@ function updateBaseLightingFromInput(lightingInput: any) {
 }
 function cameraSettings() {
   return getPreviewFloorMode() === "all"
-    ? studioProject.combinedCameraSettings
-    : studioState.settings;
+    ? appCtx.studioProject.combinedCameraSettings
+    : appCtx.studioState.settings;
 }
 function getCameraMode() {
   return cameraSettings()?.cameraMode === "perspective" ? "perspective" : "orthographic";
@@ -6847,7 +6658,7 @@ function collectActiveLightEntries() {
 }
 function assessRenderBudget() {
   const bf2 = collectActiveLightEntries(),
-    rendererCanvas = threeRenderer?.domElement,
+    rendererCanvas = appCtx.threeRenderer?.domElement,
     previewPixelCount =
       rendererCanvas?.width && rendererCanvas?.height
         ? rendererCanvas.width * rendererCanvas.height
@@ -6872,8 +6683,8 @@ function assessRenderBudget() {
 function canRenderScene() {
   if (isEmbeddedStage)
     return (
-      (isAdaptiveRenderActive = true),
-      (hasAdaptiveRenderStarted = true),
+      (appCtx.isAdaptiveRenderActive = true),
+      (appCtx.hasAdaptiveRenderStarted = true),
       {
         count: 0,
         cost: 0,
@@ -6881,20 +6692,20 @@ function canRenderScene() {
       }
     );
   const zl2 = assessRenderBudget(),
-    Yn2 = isAdaptiveRenderActive;
+    Yn2 = appCtx.isAdaptiveRenderActive;
   return (
-    hasAdaptiveRenderStarted
-      ? isAdaptiveRenderActive &&
-        zl2.cost < Math.min(zl2.budget * 0.68, Math.max(adaptiveRenderCostBudget * 0.55, 1)) &&
-        ((isAdaptiveRenderActive = false),
-        (adaptiveRenderCostBudget = 0),
-        (slowFrameStreak = 0))
-      : (hasAdaptiveRenderStarted = true),
+    appCtx.hasAdaptiveRenderStarted
+      ? appCtx.isAdaptiveRenderActive &&
+        zl2.cost < Math.min(zl2.budget * 0.68, Math.max(appCtx.adaptiveRenderCostBudget * 0.55, 1)) &&
+        ((appCtx.isAdaptiveRenderActive = false),
+        (appCtx.adaptiveRenderCostBudget = 0),
+        (appCtx.slowFrameStreak = 0))
+      : (appCtx.hasAdaptiveRenderStarted = true),
     Yn2 &&
-      !isAdaptiveRenderActive &&
-      ((modelRevisionCounter += 1),
-      (isCacheReady = false),
-      (isFrameDirty = false),
+      !appCtx.isAdaptiveRenderActive &&
+      ((appCtx.modelRevisionCounter += 1),
+      (appCtx.isCacheReady = false),
+      (appCtx.isFrameDirty = false),
       setFadeOverlay(false)),
     zl2
   );
@@ -6903,59 +6714,59 @@ function areLightsEnabled() {
   return isEmbedStageMode
     ? false
     : (canRenderScene(),
-      isAdaptiveRenderActive &&
-        !isEnvironmentActive &&
-        !isCurtainMoving &&
-        !isVacuumMoving &&
-        !isLockMoving &&
-        !isBackgroundMoving);
+      appCtx.isAdaptiveRenderActive &&
+        !appCtx.isEnvironmentActive &&
+        !appCtx.isCurtainMoving &&
+        !appCtx.isVacuumMoving &&
+        !appCtx.isLockMoving &&
+        !appCtx.isBackgroundMoving);
 }
 function applyAdaptiveQuality(frameAssessment: any) {
-  isAdaptiveRenderActive ||
+  appCtx.isAdaptiveRenderActive ||
     !frameAssessment?.sufficient ||
-    ((isAdaptiveRenderActive = true),
-    (hasAdaptiveRenderStarted = true),
-    (adaptiveRenderCostBudget = assessRenderBudget().cost),
-    (modelRevisionCounter += 1),
-    (isFrameDirty = true),
+    ((appCtx.isAdaptiveRenderActive = true),
+    (appCtx.hasAdaptiveRenderStarted = true),
+    (appCtx.adaptiveRenderCostBudget = assessRenderBudget().cost),
+    (appCtx.modelRevisionCounter += 1),
+    (appCtx.isFrameDirty = true),
     requestStudioRender());
 }
 function resetFrameSamples() {
-  if (isAdaptiveRenderActive) return;
-  const renderFrameAssessment = assessAdaptiveRenderFrames2(frameDurationSamples);
+  if (appCtx.isAdaptiveRenderActive) return;
+  const renderFrameAssessment = assessAdaptiveRenderFrames2(appCtx.frameDurationSamples);
   if (!renderFrameAssessment.sufficient) return;
   const zl3 = assessRenderBudget(),
     renderCostRatio = zl3.cost / Math.max(zl3.budget, 1),
     qualityStepLimit = renderCostRatio >= 1.8 ? 3 : renderCostRatio >= 1 ? 4 : 5;
   (renderFrameAssessment.severe
-      ? (slowFrameStreak = qualityStepLimit)
+      ? (appCtx.slowFrameStreak = qualityStepLimit)
       : renderFrameAssessment.slow
-        ? (slowFrameStreak += 1)
-        : renderFrameAssessment.smooth && (slowFrameStreak = 0),
-    slowFrameStreak >= qualityStepLimit && applyAdaptiveQuality(renderFrameAssessment));
+        ? (appCtx.slowFrameStreak += 1)
+        : renderFrameAssessment.smooth && (appCtx.slowFrameStreak = 0),
+    appCtx.slowFrameStreak >= qualityStepLimit && applyAdaptiveQuality(renderFrameAssessment));
 }
 function recordFrameTime(frameTimestamp = performance.now()) {
   if (
-    (!isRenderSuppressed && !(isEmbeddedStage && isPrewarming)) ||
-    pendingRuntimeSettings ||
-    isAdaptiveRenderActive ||
+    (!appCtx.isRenderSuppressed && !(isEmbeddedStage && appCtx.isPrewarming)) ||
+    appCtx.pendingRuntimeSettings ||
+    appCtx.isAdaptiveRenderActive ||
     !collectActiveLightEntries().length
   ) {
-    samplingWindowStartMs = 0;
+    appCtx.samplingWindowStartMs = 0;
     return;
   }
-  if (samplingWindowStartMs > 0) {
-    const frameDeltaMs = frameTimestamp - samplingWindowStartMs;
+  if (appCtx.samplingWindowStartMs > 0) {
+    const frameDeltaMs = frameTimestamp - appCtx.samplingWindowStartMs;
     frameDeltaMs >= 8 &&
       (frameDeltaMs <= 120 || (isEmbeddedStage && frameDeltaMs <= 2000)) &&
-      frameDurationSamples.push(Math.min(frameDeltaMs, 120));
+      appCtx.frameDurationSamples.push(Math.min(frameDeltaMs, 120));
   }
-  ((samplingWindowStartMs = frameTimestamp),
-    !(frameDurationSamples.length < 24) &&
-      (resetFrameSamples(), frameDurationSamples.splice(0, 12)));
+  ((appCtx.samplingWindowStartMs = frameTimestamp),
+    !(appCtx.frameDurationSamples.length < 24) &&
+      (resetFrameSamples(), appCtx.frameDurationSamples.splice(0, 12)));
 }
 function getPreviewSyncMode() {
-  return studioState.settings?.livePreviewEnabled !== false;
+  return appCtx.studioState.settings?.livePreviewEnabled !== false;
 }
 function refreshPreviewSync() {
   const kl2 = getPreviewSyncMode();
@@ -6965,9 +6776,9 @@ function refreshPreviewSync() {
       previewSyncButton.setAttribute("aria-pressed", String(isPreviewSyncActive)));
   }
   ((refreshPreviewButton.hidden = kl2),
-    (refreshPreviewButton.disabled = !isSceneDirty),
-    refreshPreviewButton.classList.toggle("is-dirty", isSceneDirty),
-    (refreshPreviewButton.textContent = isSceneDirty ? "待更新 · 更新" : "已更新"));
+    (refreshPreviewButton.disabled = !appCtx.isSceneDirty),
+    refreshPreviewButton.classList.toggle("is-dirty", appCtx.isSceneDirty),
+    (refreshPreviewButton.textContent = appCtx.isSceneDirty ? "待更新 · 更新" : "已更新"));
 }
 function syncCameraModeControls(cameraMode = getCameraMode()) {
   for (const cameraModeButton of cameraModeControls)
@@ -6992,18 +6803,18 @@ function syncCameraFocalLengthControl(cameraModeName = getCameraMode()) {
         ?.classList.toggle("is-disabled", focalLengthInput.disabled));
 }
 function applyCameraFocalLength(
-  targetCamera = threeCamera,
+  targetCamera = appCtx.threeCamera,
   focalLengthValue = getCameraFocalLength(),
 ) {
   targetCamera?.isPerspectiveCamera &&
     targetCamera.setFocalLength(clamp2(finite2(focalLengthValue, 50), 18, 120));
 }
 function requestStudioRender() {
-  if (!orbitControls) return;
+  if (!appCtx.orbitControls) return;
   const ht2 = areLightsEnabled(),
-    at6 = isEmbeddedStage && prewarmState && !isCapturingLights;
-  (lightPrecompileController?.setEnabled(isEmbeddedStage || !ht2 || !!at6),
-    (orbitControls.enableRotate = getCameraView() !== "top"),
+    at6 = isEmbeddedStage && appCtx.prewarmState && !appCtx.isCapturingLights;
+  (appCtx.lightPrecompileController?.setEnabled(isEmbeddedStage || !ht2 || !!at6),
+    (appCtx.orbitControls.enableRotate = getCameraView() !== "top"),
     previewQualityStatusElement &&
       ((previewQualityStatusElement.hidden = true),
       (previewQualityStatusElement.title = ""),
@@ -7014,20 +6825,20 @@ function requestStudioRender() {
 function computeRenderPixelRatio(isMotionQuality = false) {
   // 参数名历史遗留：true = 运动/交互中的质量档，false = 静置高清档。
   const dprCap = Math.min(window.devicePixelRatio || 1, 1.6);
-  const idleRatio = dprCap * (isEmbeddedStage ? basePixelRatio : 1);
+  const idleRatio = dprCap * (isEmbeddedStage ? appCtx.basePixelRatio : 1);
   if (
     isEmbeddedStage &&
     isMotionQuality &&
-    adaptivePixelRatio !== null &&
-    (!isPrewarming || isRenderSuppressed)
+    appCtx.adaptivePixelRatio !== null &&
+    (!appCtx.isPrewarming || appCtx.isRenderSuppressed)
   )
-    return Math.max(idleRatio * adaptivePixelRatio, Math.min(idleRatio, 1));
+    return Math.max(idleRatio * appCtx.adaptivePixelRatio, Math.min(idleRatio, 1));
   if (isEmbedStageMode) {
     return isMotionQuality
       ? Math.min(idleRatio, interactionResourcePolicy.motion.maxPixelRatio)
       : idleRatio;
   }
-  const Kt2 = isEmbeddedStage && isPrewarming;
+  const Kt2 = isEmbeddedStage && appCtx.isPrewarming;
   let ratio = idleRatio;
   // 运动期不再把 DPR 硬砍到 1；仅在超预算时温和下调，地板不低于 0.85×idle。
   if (isEmbeddedStage && (isMotionQuality || Kt2)) {
@@ -7060,9 +6871,9 @@ const isRenderStatsTest = new URLSearchParams(window.location.search).has("rende
     gpuStatus: "未初始化",
   };
 function updateRenderStatsHud() {
-  if (!isRenderStatsTest || !threeRenderer) return;
+  if (!isRenderStatsTest || !appCtx.threeRenderer) return;
   updateExternalModelDataset();
-  const domElement = threeRenderer.domElement,
+  const domElement = appCtx.threeRenderer.domElement,
     renderStatsPayload = {
       calls: Number(domElement.dataset.renderCalls || 0),
       triangles: Number(domElement.dataset.renderTriangles || 0),
@@ -7113,7 +6924,7 @@ function roundToDigits(numericValue: any, digitCount = 1) {
   return Number.isFinite(numericValue) ? Number(numericValue.toFixed(digitCount)) : null;
 }
 function ensureDiagnosticsHud() {
-  if (!isPerformanceDiagnostics || !threeRenderer || diagnosticsState.hud) return;
+  if (!isPerformanceDiagnostics || !appCtx.threeRenderer || diagnosticsState.hud) return;
   const diagnosticsOutputElement = document.createElement("output");
   ((diagnosticsOutputElement.id = "performance-diagnostics"),
     (diagnosticsOutputElement.className = "performance-diagnostics"),
@@ -7122,7 +6933,7 @@ function ensureDiagnosticsHud() {
     (diagnosticsOutputElement.textContent = "性能诊断初始化中…"),
     selectElement("#preview-3d")?.append(diagnosticsOutputElement),
     (diagnosticsState.hud = diagnosticsOutputElement),
-    (diagnosticsState.gpuContext = threeRenderer.getContext?.() || null),
+    (diagnosticsState.gpuContext = appCtx.threeRenderer.getContext?.() || null),
     (diagnosticsState.gpuExtension =
       diagnosticsState.gpuContext?.getExtension?.("EXT_disjoint_timer_query_webgl2") || null),
     (diagnosticsState.gpuStatus = diagnosticsState.gpuExtension ? "等待样本" : "不可用"));
@@ -7244,11 +7055,11 @@ function recordRenderTiming(renderTimestamp: any, cpuRenderMs: any, motionActive
           phases: {
             ...floorSwitch3.pendingPhases,
           },
-          programs: threeRenderer.info.programs?.length,
-          geometries: threeRenderer.info.memory.geometries,
-          contact: contactShadowController
+          programs: appCtx.threeRenderer.info.programs?.length,
+          geometries: appCtx.threeRenderer.info.memory.geometries,
+          contact: appCtx.contactShadowController
             ? {
-                ...contactShadowController.stats,
+                ...appCtx.contactShadowController.stats,
               }
             : null,
         }),
@@ -7274,7 +7085,7 @@ function snapshotRenderStats() {
   const materialSet = new Set(),
     meshTypeStats: Record<string, { meshes: number; triangles: number }> = {},
     itemTypeByModelId = new Map(
-      (studioProject?.floors || []).flatMap((sceneFloor: any) =>
+      (appCtx.studioProject?.floors || []).flatMap((sceneFloor: any) =>
         (sceneFloor.scene?.items || []).map((snapshotRenderStatsSceneItem: any) => [
           snapshotRenderStatsSceneItem.id,
           snapshotRenderStatsSceneItem.type,
@@ -7290,7 +7101,7 @@ function snapshotRenderStats() {
     lightCount = 0,
     visibleLightCount = 0,
     activeSpotShadowCount = 0;
-  (threeScene?.traverse((snapshotRenderStatsSceneObject: any) => {
+  (appCtx.threeScene?.traverse((snapshotRenderStatsSceneObject: any) => {
     if (snapshotRenderStatsSceneObject.isMesh) {
       meshCount += 1;
       let instanceItemType = snapshotRenderStatsSceneObject.userData.instanceItemType;
@@ -7340,10 +7151,10 @@ function snapshotRenderStats() {
         snapshotRenderStatsSceneObject.visible !== false &&
         (activeSpotShadowCount += 1));
   }),
-    threeRenderer?.domElement?.dataset.spotShadowMode === "atlas" &&
+    appCtx.threeRenderer?.domElement?.dataset.spotShadowMode === "atlas" &&
       (activeSpotShadowCount = Math.max(
         activeSpotShadowCount,
-        Math.floor(finite2(threeRenderer.domElement.dataset.activeSpotShadows, 0)),
+        Math.floor(finite2(appCtx.threeRenderer.domElement.dataset.activeSpotShadows, 0)),
       )));
   const activeUserLightEntries = collectLampEntries().filter(
     ({ item: lightItemEntry, group: lightGroupEntry }: any) =>
@@ -7361,15 +7172,15 @@ function snapshotRenderStats() {
   };
 }
 function publishRenderStats(publishTimestamp = performance.now(), shouldForcePublish = false) {
-  if (!isPerformanceDiagnostics || !threeRenderer || !diagnosticsState.hud) return;
+  if (!isPerformanceDiagnostics || !appCtx.threeRenderer || !diagnosticsState.hud) return;
   const xt6 = diagnosticsState;
   if (!shouldForcePublish && publishTimestamp - xt6.lastPublishAt < publishIntervalMs) return;
   xt6.lastPublishAt = publishTimestamp;
-  const domElement2 = threeRenderer.domElement,
+  const domElement2 = appCtx.threeRenderer.domElement,
     bu2 = computeAverage(xt6.frameIntervals),
     ql2 = computePercentile(xt6.frameIntervals, 0.5),
     jy2 = snapshotRenderStats(),
-    shaderProgramCount = threeRenderer.info.programs?.length,
+    shaderProgramCount = appCtx.threeRenderer.info.programs?.length,
     statsPublishPayload = {
       enabled: true,
       floorSwitch: xt6.floorSwitch
@@ -7414,31 +7225,31 @@ function publishRenderStats(publishTimestamp = performance.now(), shouldForcePub
         lines: Number(domElement2.dataset.renderLines || 0),
       },
       memory: {
-        geometries: Number(threeRenderer.info.memory.geometries || 0),
-        textures: Number(threeRenderer.info.memory.textures || 0),
+        geometries: Number(appCtx.threeRenderer.info.memory.geometries || 0),
+        textures: Number(appCtx.threeRenderer.info.memory.textures || 0),
         programs: Number.isFinite(shaderProgramCount) ? shaderProgramCount : null,
       },
       scene: jy2,
       models: {
         loads: externalModelRegistry.modelLoadState(),
         templates: externalModelRegistry.cacheRepresentation(
-          (studioProject?.floors || []).flatMap(
+          (appCtx.studioProject?.floors || []).flatMap(
             (shouldForcePublishFloorEntry: any) => shouldForcePublishFloorEntry.scene?.items || [],
           ),
         ),
         built: Object.fromEntries(meshStatsByType),
       },
       viewport: {
-        devicePixelRatio: roundToDigits(threeRenderer.getPixelRatio(), 2),
+        devicePixelRatio: roundToDigits(appCtx.threeRenderer.getPixelRatio(), 2),
         canvasWidth: domElement2.width,
         canvasHeight: domElement2.height,
         cssWidth: Math.round(domElement2.clientWidth),
         cssHeight: Math.round(domElement2.clientHeight),
       },
       lighting: {
-        adaptiveCacheEnabled: isAdaptiveRenderActive,
-        residentCacheMode: isResidentCacheMode,
-        cacheReady: isCacheReady,
+        adaptiveCacheEnabled: appCtx.isAdaptiveRenderActive,
+        residentCacheMode: appCtx.isResidentCacheMode,
+        cacheReady: appCtx.isCacheReady,
       },
     },
     frameStatsText = statsPublishPayload.frame.samples
@@ -7515,51 +7326,51 @@ function updateMotionStats(motionTimestamp: any, isMotionActive: any) {
 }
 const lightTransitionMs = 150;
 function renderStudioFrame() {
-  ((isLightCacheReady = true), (isLightCachePending = false), lightingScheduler?.wake());
+  ((appCtx.isLightCacheReady = true), (appCtx.isLightCachePending = false), appCtx.lightingScheduler?.wake());
 }
 function needsMotionPresentation() {
-  return !isDisposed && !document.hidden && isHighDetailQuality;
+  return !appCtx.isDisposed && !document.hidden && appCtx.isHighDetailQuality;
 }
 function bindFrameDriver(frameCallback: any) {
-  const domElement3 = threeRenderer.domElement,
+  const domElement3 = appCtx.threeRenderer.domElement,
     handleRendererLost = (rendererLostEvent: any) => {
       (rendererLostEvent.preventDefault(),
-        !isDisposed &&
-          ((isDisposed = true),
+        !appCtx.isDisposed &&
+          ((appCtx.isDisposed = true),
           emitRuntimeDiagnostic("gpu-lost"),
-          lightingScheduler?.setAvailable(false),
-          (modelRevisionCounter += 1),
-          (isFrameDirty = true),
-          window.clearTimeout(renderCommitTimeoutId),
-          (renderCommitTimeoutId = null),
-          activeLongTask?.cancel(),
+          appCtx.lightingScheduler?.setAvailable(false),
+          (appCtx.modelRevisionCounter += 1),
+          (appCtx.isFrameDirty = true),
+          window.clearTimeout(appCtx.renderCommitTimeoutId),
+          (appCtx.renderCommitTimeoutId = null),
+          appCtx.activeLongTask?.cancel(),
           disposeShadowAtlas(),
-          compiledShaderCache?.clear(),
-          window.clearTimeout(precompileDebounceId),
-          (precompileDebounceId = null),
-          window.clearTimeout(precompileTimeoutId),
-          (precompileTimeoutId = null),
-          (isEnvironmentLoading = true),
-          lightPrecompileController?.setContextLost(true)));
+          appCtx.compiledShaderCache?.clear(),
+          window.clearTimeout(appCtx.precompileDebounceId),
+          (appCtx.precompileDebounceId = null),
+          window.clearTimeout(appCtx.precompileTimeoutId),
+          (appCtx.precompileTimeoutId = null),
+          (appCtx.isEnvironmentLoading = true),
+          appCtx.lightPrecompileController?.setContextLost(true)));
     },
     handleRendererRestored = () => {
-      isDisposed &&
-        ((isDisposed = false),
+      appCtx.isDisposed &&
+        ((appCtx.isDisposed = false),
         emitRuntimeDiagnostic("gpu-restored"),
         disposeShadowAtlas(),
-        compiledShaderCache?.clear(),
-        (isCacheReady = false),
-        (isFrameDirty = true),
+        appCtx.compiledShaderCache?.clear(),
+        (appCtx.isCacheReady = false),
+        (appCtx.isFrameDirty = true),
         setFadeOverlay(false),
-        contactShadowController?.invalidateContext(),
-        rendererLossHandler?.invalidateContext(),
-        threeScene?.traverse((traversedLight: any) => {
+        appCtx.contactShadowController?.invalidateContext(),
+        appCtx.rendererLossHandler?.invalidateContext(),
+        appCtx.threeScene?.traverse((traversedLight: any) => {
           traversedLight.isLight &&
             traversedLight.castShadow &&
             traversedLight.shadow &&
             (traversedLight.shadow.needsUpdate = true);
         }),
-        (currentPrecompileSignature = ""),
+        (appCtx.currentPrecompileSignature = ""),
         precompiledMaterialKeySet.clear(),
         renderStudioFrame(),
         frameCallback(),
@@ -7577,26 +7388,25 @@ function bindFrameDriver(frameCallback: any) {
 function setFadeOverlay(isOverlayVisible: any) {
   ((previewLightCacheCanvasElement.hidden = !isOverlayVisible),
     isEmbeddedStage &&
-      threeRenderer &&
-      (threeRenderer.domElement.style.opacity = isOverlayVisible ? "0" : "1"));
+      appCtx.threeRenderer &&
+      (appCtx.threeRenderer.domElement.style.opacity = isOverlayVisible ? "0" : "1"));
 }
 function hasPendingSceneWork() {
   const modelLoadState = externalModelRegistry.modelLoadState();
   return (
     (modelLoadState.pending ?? modelLoadState.active + modelLoadState.queued) > 0 ||
-    isModelLoadPending ||
-    replacementFrameCount > 0 ||
-    modelLoadTimeoutId !== null ||
-    isPrecompileBlocked
+    appCtx.isModelLoadPending ||
+    appCtx.replacementFrameCount > 0 ||
+    appCtx.modelLoadTimeoutId !== null ||
+    appCtx.isPrecompileBlocked
   );
 }
 function canBuildScene() {
-  return !(isEmbeddedStage && isExternalModelPending) && !hasPendingSceneWork();
+  return !(isEmbeddedStage && appCtx.isExternalModelPending) && !hasPendingSceneWork();
 }
-let activeLongTask: any = null;
 function drawToActiveSurface(drawingTargetCanvas: any, drawingSourceImage: any, isCancelled: any) {
-  activeLongTask?.cancel();
-  const studioOrbitControls = orbitControls,
+  appCtx.activeLongTask?.cancel();
+  const studioOrbitControls = appCtx.orbitControls,
     renderTaskOptions = {
       cancelled: false,
       frame: null as any,
@@ -7618,9 +7428,9 @@ function drawToActiveSurface(drawingTargetCanvas: any, drawingSourceImage: any, 
         studioOrbitControls?.removeEventListener("change", cancelRenderTask),
         drawingSourceImage &&
           ((drawingSourceImage.width = drawingSourceImage.height = 0), (drawingSourceImage = null)),
-        activeLongTask === renderTaskOptions && (activeLongTask = null));
+        appCtx.activeLongTask === renderTaskOptions && (appCtx.activeLongTask = null));
     };
-  ((renderTaskOptions.cancel = cancelRenderTask), (activeLongTask = renderTaskOptions));
+  ((renderTaskOptions.cancel = cancelRenderTask), (appCtx.activeLongTask = renderTaskOptions));
   const handleRenderTaskError = (renderError: any) =>
       window.HomeOSLog?.error!(renderError, {
         phase: "interaction3d-cache-write",
@@ -7678,52 +7488,52 @@ function drawToActiveSurface(drawingTargetCanvas: any, drawingSourceImage: any, 
 }
 async function acquireRenderSurface() {
   if (
-    ((renderCommitTimeoutId = null),
-    isDisposed ||
-      !isHighDetailQuality ||
+    ((appCtx.renderCommitTimeoutId = null),
+    appCtx.isDisposed ||
+      !appCtx.isHighDetailQuality ||
       renderCacheWriter?.closed ||
-      !threeRenderer ||
-      pendingRuntimeSettings ||
-      isRenderSuppressed ||
-      isWindowHidden ||
-      isCapturingLights ||
-      prewarmState ||
-      isPrewarming ||
-      isCurtainMoving ||
-      isVacuumMoving ||
-      isBackgroundMoving ||
-      isPrecompilePending)
+      !appCtx.threeRenderer ||
+      appCtx.pendingRuntimeSettings ||
+      appCtx.isRenderSuppressed ||
+      appCtx.isWindowHidden ||
+      appCtx.isCapturingLights ||
+      appCtx.prewarmState ||
+      appCtx.isPrewarming ||
+      appCtx.isCurtainMoving ||
+      appCtx.isVacuumMoving ||
+      appCtx.isBackgroundMoving ||
+      appCtx.isPrecompilePending)
   )
     return;
   if (
     hasPendingSceneWork() ||
-    lightPrecompileController?.isBuilding() ||
-    lightPrecompileController?.isPending()
+    appCtx.lightPrecompileController?.isBuilding() ||
+    appCtx.lightPrecompileController?.isPending()
   ) {
     scheduleStudioRender(120);
     return;
   }
-  const domElement4 = threeRenderer.domElement,
+  const domElement4 = appCtx.threeRenderer.domElement,
     width4 = domElement4.width,
     height4 = domElement4.height;
   if (!width4 || !height4) return;
-  const Et2 = modelRevisionCounter,
+  const Et2 = appCtx.modelRevisionCounter,
     shouldAbortSurface = () =>
-      !isDisposed &&
-      isHighDetailQuality &&
+      !appCtx.isDisposed &&
+      appCtx.isHighDetailQuality &&
       !renderCacheWriter?.closed &&
       !hasPendingSceneWork() &&
-      Et2 === modelRevisionCounter &&
-      !pendingRuntimeSettings &&
-      !isRenderSuppressed &&
-      !isWindowHidden &&
-      !prewarmState &&
-      !isPrewarming &&
-      !isCurtainMoving &&
-      !isVacuumMoving &&
-      !isBackgroundMoving &&
-      !isPrecompilePending;
-  isCapturingLights = true;
+      Et2 === appCtx.modelRevisionCounter &&
+      !appCtx.pendingRuntimeSettings &&
+      !appCtx.isRenderSuppressed &&
+      !appCtx.isWindowHidden &&
+      !appCtx.prewarmState &&
+      !appCtx.isPrewarming &&
+      !appCtx.isCurtainMoving &&
+      !appCtx.isVacuumMoving &&
+      !appCtx.isBackgroundMoving &&
+      !appCtx.isPrecompilePending;
+  appCtx.isCapturingLights = true;
   let acquiredSurfaceCanvas: any,
     previousSurfaceCanvas: any = null,
     surfaceKey,
@@ -7760,7 +7570,7 @@ async function acquireRenderSurface() {
       const jl2 = ensureLightCache(fr2);
       (showCachedLights(jl2),
         requestStudioRender(),
-        threeRenderer.render(threeScene, threeCamera),
+        appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
         (acquiredSurfaceCanvas = document.createElement("canvas")),
         (previousSurfaceCanvas = acquiredSurfaceCanvas),
         (acquiredSurfaceCanvas.width = width4),
@@ -7776,10 +7586,10 @@ async function acquireRenderSurface() {
       (previewLightCacheCanvasElement.height = height4),
       snapshotSurfacePainter.clearRect(0, 0, width4, height4),
       snapshotSurfacePainter.drawImage(acquiredSurfaceCanvas.image || acquiredSurfaceCanvas, 0, 0),
-      lightGroupCacheByFloor.clear(),
-      lightGainByFloor.clear(),
-      (isCacheReady = true),
-      (isFrameDirty = false),
+      appCtx.lightGroupCacheByFloor.clear(),
+      appCtx.lightGainByFloor.clear(),
+      (appCtx.isCacheReady = true),
+      (appCtx.isFrameDirty = false),
       (domElement4.dataset.lightCachePixels = String(width4 * height4)),
       (domElement4.dataset.lightCacheRetainedGroups = "complete-frame"),
       setFadeOverlay(true),
@@ -7797,15 +7607,15 @@ async function acquireRenderSurface() {
       (acquiredSurfaceCanvas?.close?.(),
         previousSurfaceCanvas && (previousSurfaceCanvas.width = previousSurfaceCanvas.height = 0));
     } finally {
-      isCapturingLights = false;
+      appCtx.isCapturingLights = false;
     }
-    isFrameDirty &&
-      (!isSurfaceSuspended || Et2 !== modelRevisionCounter) &&
+    appCtx.isFrameDirty &&
+      (!isSurfaceSuspended || Et2 !== appCtx.modelRevisionCounter) &&
       scheduleStudioRender(420);
   }
 }
 function restoreLightVisibility() {
-  if (!isCacheReady || previewLightCacheCanvasElement.hidden) return;
+  if (!appCtx.isCacheReady || previewLightCacheCanvasElement.hidden) return;
   const overlaySurfacePainter = previewLightCacheCanvasElement.getContext("2d");
   if (overlaySurfacePainter) {
     overlaySurfacePainter.clearRect(
@@ -7814,8 +7624,8 @@ function restoreLightVisibility() {
       previewLightCacheCanvasElement.width,
       previewLightCacheCanvasElement.height,
     );
-    for (const [overlayGroupId, overlayImage] of lightGroupCacheByFloor) {
-      const overlayAlpha = clamp2(finite2(lightGainByFloor.get(overlayGroupId), 0), 0, 1);
+    for (const [overlayGroupId, overlayImage] of appCtx.lightGroupCacheByFloor) {
+      const overlayAlpha = clamp2(finite2(appCtx.lightGainByFloor.get(overlayGroupId), 0), 0, 1);
       overlayAlpha <= 0.001 ||
         (overlaySurfacePainter.save(),
         (overlaySurfacePainter.globalAlpha = overlayAlpha),
@@ -7828,10 +7638,10 @@ function fadeLightsIn(lightGroupIdList: any, fadeDurationMs = lightTransitionMs)
   const uniqueLightGroupIds = [...new Set(lightGroupIdList)].filter(Boolean);
   if (!uniqueLightGroupIds.length) return;
   const lightFadeEntries = uniqueLightGroupIds.map((fadeGroupId) => ({
-    groupId: composeLightGroupKey(activeFloorId, fadeGroupId),
+    groupId: composeLightGroupKey(appCtx.activeFloorId, fadeGroupId),
     from: clamp2(
       finite2(
-        lightGainByFloor.get(composeLightGroupKey(activeFloorId, fadeGroupId)),
+        appCtx.lightGainByFloor.get(composeLightGroupKey(appCtx.activeFloorId, fadeGroupId)),
         findLightGroup(fadeGroupId)?.enabled === false ? 0 : 1,
       ),
       0,
@@ -7839,10 +7649,10 @@ function fadeLightsIn(lightGroupIdList: any, fadeDurationMs = lightTransitionMs)
     ),
     to: findLightGroup(fadeGroupId)?.enabled === false ? 0 : 1,
   }));
-  if ((cancelAnimationFrame(lightCaptureFrameId), !isCacheReady)) {
+  if ((cancelAnimationFrame(appCtx.lightCaptureFrameId), !appCtx.isCacheReady)) {
     for (const lightFadeEntry of lightFadeEntries)
-      lightGainByFloor.set(lightFadeEntry.groupId, lightFadeEntry.to);
-    isCapturingLights || scheduleStudioRender(0);
+      appCtx.lightGainByFloor.set(lightFadeEntry.groupId, lightFadeEntry.to);
+    appCtx.isCapturingLights || scheduleStudioRender(0);
     return;
   }
   const fadeStartMs = performance.now(),
@@ -7850,31 +7660,31 @@ function fadeLightsIn(lightGroupIdList: any, fadeDurationMs = lightTransitionMs)
       const fadeProgress = clamp2((fadeTimestamp - fadeStartMs) / fadeDurationMs, 0, 1),
         easedFadeProgress = fadeProgress * fadeProgress * (3 - 2 * fadeProgress);
       for (const lightFadeTarget of lightFadeEntries)
-        lightGainByFloor.set(
+        appCtx.lightGainByFloor.set(
           lightFadeTarget.groupId,
           lightFadeTarget.from + (lightFadeTarget.to - lightFadeTarget.from) * easedFadeProgress,
         );
       (restoreLightVisibility(),
         fadeProgress < 1
-          ? (lightCaptureFrameId = requestAnimationFrame(fadeFrameStep))
-          : (lightCaptureFrameId = 0));
+          ? (appCtx.lightCaptureFrameId = requestAnimationFrame(fadeFrameStep))
+          : (appCtx.lightCaptureFrameId = 0));
     };
-  lightCaptureFrameId = requestAnimationFrame(fadeFrameStep);
+  appCtx.lightCaptureFrameId = requestAnimationFrame(fadeFrameStep);
 }
 function findLightGroup(lightGroupId: any) {
   return (
-    studioState.lightGroups?.find(
+    appCtx.studioState.lightGroups?.find(
       (candidateLightGroup) => candidateLightGroup.id === lightGroupId,
     ) || null
   );
 }
 function fadeLightsOut(fadeGroupIdList: any, fadeOutDurationMs = lightTransitionMs) {
-  if (!sceneRootNode) return false;
+  if (!appCtx.sceneRootNode) return false;
   const fadeGroupIdSet = new Set(fadeGroupIdList),
-    ht3 = areLightsEnabled() && !pendingRuntimeSettings,
+    ht3 = areLightsEnabled() && !appCtx.pendingRuntimeSettings,
     fadeLightEntries: any = [];
   if (
-    (sceneRootNode.traverse((fadeLightObject: any) => {
+    (appCtx.sceneRootNode.traverse((fadeLightObject: any) => {
       if (!fadeLightObject.isLight || !fadeGroupIdSet.has(fadeLightObject.userData?.lightGroupId))
         return;
       const targetLightIntensity =
@@ -7892,10 +7702,10 @@ function fadeLightsOut(fadeGroupIdList: any, fadeOutDurationMs = lightTransition
   )
     return false;
   (fadeLightEntries.some(({ to: fadeListEntry }: any) => fadeListEntry > 0) &&
-    setupSceneShadows(sceneRootNode, {
+    setupSceneShadows(appCtx.sceneRootNode, {
       rebuildAtlas: false,
     }),
-    cancelAnimationFrame(cacheWarmFrameId));
+    cancelAnimationFrame(appCtx.cacheWarmFrameId));
   const fadeOutStartMs = performance.now(),
     fadeOutFrameStep = (fadeOutTimestamp: any) => {
       const fadeOutProgress = clamp2((fadeOutTimestamp - fadeOutStartMs) / fadeOutDurationMs, 0, 1),
@@ -7905,24 +7715,24 @@ function fadeLightsOut(fadeGroupIdList: any, fadeOutDurationMs = lightTransition
           fadeOutLightEntry.from +
           (fadeOutLightEntry.to - fadeOutLightEntry.from) * easedFadeOutProgress;
       if ((renderStudioFrame(), fadeOutProgress < 1))
-        cacheWarmFrameId = requestAnimationFrame(fadeOutFrameStep);
+        appCtx.cacheWarmFrameId = requestAnimationFrame(fadeOutFrameStep);
       else {
-        cacheWarmFrameId = 0;
+        appCtx.cacheWarmFrameId = 0;
         let hasVisibilityChange = false;
         for (const fadeOutTarget of fadeLightEntries)
           fadeOutTarget.to > 0 ||
             ((fadeOutTarget.object.visible = false), (hasVisibilityChange = true));
         hasVisibilityChange &&
-          setupSceneShadows(sceneRootNode, {
+          setupSceneShadows(appCtx.sceneRootNode, {
             rebuildAtlas: false,
           });
       }
     };
-  return ((cacheWarmFrameId = requestAnimationFrame(fadeOutFrameStep)), true);
+  return ((appCtx.cacheWarmFrameId = requestAnimationFrame(fadeOutFrameStep)), true);
 }
 function transitionLightGroups(transitionGroupIds: any) {
   const uniqueTransitionGroupIds = [...new Set(transitionGroupIds)].filter(Boolean);
-  (areLightsEnabled() && !pendingRuntimeSettings
+  (areLightsEnabled() && !appCtx.pendingRuntimeSettings
     ? fadeLightsIn(uniqueTransitionGroupIds)
     : fadeLightsOut(uniqueTransitionGroupIds) ||
       requestSceneRebuild({
@@ -7939,46 +7749,46 @@ function refreshSceneRender(refreshOptions: SceneRefreshOptions = {}) {
   if (
     (isEmbeddedStage &&
       (refreshOptions.scene === true || refreshOptions.shadows === true) &&
-      sceneRevisionCount++,
-    (isLightCacheReady = true),
-    (isLightCachePending = false),
-    lightingScheduler?.wake(),
+      appCtx.sceneRevisionCount++,
+    (appCtx.isLightCacheReady = true),
+    (appCtx.isLightCachePending = false),
+    appCtx.lightingScheduler?.wake(),
     isEmbeddedStage &&
       (refreshOptions.scene === true || refreshOptions.shadows === true) &&
-      cacheObjectTransforms2(threeScene, ns2.Object3D),
+      cacheObjectTransforms2(appCtx.threeScene, ns2.Object3D),
     refreshOptions.shadows === true &&
-      threeScene?.traverse((shadowLightObject: any) => {
+      appCtx.threeScene?.traverse((shadowLightObject: any) => {
         shadowLightObject.isLight &&
           shadowLightObject.castShadow &&
           shadowLightObject.shadow &&
           (shadowLightObject.shadow.needsUpdate = true);
       }),
-    !isLightOverrideOn)
+    !appCtx.isLightOverrideOn)
   ) {
     if (
       refreshOptions.preserveLightCache === true &&
       areLightsEnabled() &&
-      !pendingRuntimeSettings
+      !appCtx.pendingRuntimeSettings
     ) {
-      !isCacheReady && !isCapturingLights && scheduleStudioRender();
+      !appCtx.isCacheReady && !appCtx.isCapturingLights && scheduleStudioRender();
       return;
     }
-    areLightsEnabled() && !pendingRuntimeSettings
-      ? ((modelRevisionCounter += 1),
-        (isFrameDirty = true),
-        (isEmbeddedStage || refreshOptions.scene === true || !isCacheReady) &&
+    areLightsEnabled() && !appCtx.pendingRuntimeSettings
+      ? ((appCtx.modelRevisionCounter += 1),
+        (appCtx.isFrameDirty = true),
+        (isEmbeddedStage || refreshOptions.scene === true || !appCtx.isCacheReady) &&
           setFadeOverlay(false),
         scheduleStudioRender(),
         requestStudioRender())
-      : (window.clearTimeout(renderCommitTimeoutId),
-        (renderCommitTimeoutId = null),
-        (isCacheReady = false),
-        (isFrameDirty = false),
+      : (window.clearTimeout(appCtx.renderCommitTimeoutId),
+        (appCtx.renderCommitTimeoutId = null),
+        (appCtx.isCacheReady = false),
+        (appCtx.isFrameDirty = false),
         setFadeOverlay(false));
   }
 }
 function syncLightCache() {
-  isLightOverrideOn = true;
+  appCtx.isLightOverrideOn = true;
   try {
     getPreviewFloorMode() === "all"
       ? rebuildFloorLayers({
@@ -7988,13 +7798,13 @@ function syncLightCache() {
           preserveLightCache: true,
         });
   } finally {
-    isLightOverrideOn = false;
+    appCtx.isLightOverrideOn = false;
   }
 }
 function buildLightCacheMap() {
   const lightsByItemKey = new Map();
   return (
-    sceneRootNode?.traverse((cacheLightObject: any) => {
+    appCtx.sceneRootNode?.traverse((cacheLightObject: any) => {
       const cachedLightItemId = cacheLightObject.userData?.lightItemId;
       if (!cacheLightObject.isLight || !cachedLightItemId) return;
       const ji3 = composeItemKey(cacheLightObject.userData?.lightFloorId, cachedLightItemId);
@@ -8009,21 +7819,21 @@ function ensureLightCache(lightEntries: any) {
   if (lightEntries.every((lightCacheEntry: any) => lightCacheMap.has(lightCacheEntry.itemKey)))
     return lightCacheMap;
   if (isEmbeddedStage) return updateLightCache(lightEntries, lightCacheMap);
-  ((isResidentCacheMode = true), (overriddenFloorIds = new Set()));
+  ((appCtx.isResidentCacheMode = true), (appCtx.overriddenFloorIds = new Set()));
   try {
     syncLightCache();
   } finally {
-    ((overriddenFloorIds = null), (isResidentCacheMode = false));
+    ((appCtx.overriddenFloorIds = null), (appCtx.isResidentCacheMode = false));
   }
   return ((lightCacheMap = buildLightCacheMap()), lightCacheMap);
 }
 function updateLightCache(incrementalLightEntries: any, lightCacheTarget: any) {
-  const sceneSnapshot = studioState,
-    oe3 = activeFloorId,
-    Xr2 = isResidentCacheMode,
+  const sceneSnapshot = appCtx.studioState,
+    oe3 = appCtx.activeFloorId,
+    Xr2 = appCtx.isResidentCacheMode,
     isAllFloorsView = getPreviewFloorMode() === "all";
   try {
-    isResidentCacheMode = true;
+    appCtx.isResidentCacheMode = true;
     for (const {
       floor: cacheFloor,
       item: cacheLightItem,
@@ -8032,12 +7842,12 @@ function updateLightCache(incrementalLightEntries: any, lightCacheTarget: any) {
       if (lightCacheTarget.has(cacheItemKey) || (!isAllFloorsView && cacheFloor.id !== oe3))
         continue;
       const floorGroup = isAllFloorsView
-        ? sceneRootNode?.children.find(
+        ? appCtx.sceneRootNode?.children.find(
             (floorChildGroup: any) => floorChildGroup.userData?.floorId === cacheFloor.id,
           )
-        : sceneRootNode;
+        : appCtx.sceneRootNode;
       if (!floorGroup) continue;
-      ((studioState = cacheFloor.scene), (activeFloorId = cacheFloor.id));
+      ((appCtx.studioState = cacheFloor.scene), (appCtx.activeFloorId = cacheFloor.id));
       const lightCacheTargetPixelsPerMeter = getPixelsPerMeter();
       if (!lightCacheTargetPixelsPerMeter) continue;
       const floorModelOrigin = sceneModelOrigin2(cacheFloor.scene, cacheFloor),
@@ -8062,10 +7872,10 @@ function updateLightCache(incrementalLightEntries: any, lightCacheTarget: any) {
         proxyLights.length && lightCacheTarget.set(cacheItemKey, proxyLights));
     }
   } finally {
-    ((studioState = sceneSnapshot), (activeFloorId = oe3), (isResidentCacheMode = Xr2));
+    ((appCtx.studioState = sceneSnapshot), (appCtx.activeFloorId = oe3), (appCtx.isResidentCacheMode = Xr2));
   }
   return (
-    setupSceneShadows(sceneRootNode, {
+    setupSceneShadows(appCtx.sceneRootNode, {
       rebuildAtlas: false,
     }),
     lightCacheTarget
@@ -8086,7 +7896,7 @@ function showLightCacheFor(cacheMapSource: any, activeCacheKey = "") {
             !cacheTargetLight.shadow.map &&
             (cacheTargetLight.shadow.needsUpdate = true)));
   }
-  (isEmbeddedStage || lightPrecompileController?.syncRenderUniforms(threeScene, threeCamera),
+  (isEmbeddedStage || appCtx.lightPrecompileController?.syncRenderUniforms(appCtx.threeScene, appCtx.threeCamera),
     renderStudioFrame());
 }
 function collectActiveLightGroupKeys() {
@@ -8110,16 +7920,16 @@ function showCachedLights(cacheMapForDisplay: any) {
           : 0),
         displayLightObject.isSpotLight && (displayLightObject.castShadow = false));
   }
-  (isEmbeddedStage || lightPrecompileController?.syncRenderUniforms(threeScene, threeCamera),
+  (isEmbeddedStage || appCtx.lightPrecompileController?.syncRenderUniforms(appCtx.threeScene, appCtx.threeCamera),
     renderStudioFrame());
 }
 function captureLightSnapshot() {
-  if (!previewRenderShieldElement || !threeRenderer?.domElement) return;
-  const domElement5 = threeRenderer.domElement;
+  if (!previewRenderShieldElement || !appCtx.threeRenderer?.domElement) return;
+  const domElement5 = appCtx.threeRenderer.domElement;
   if (!domElement5.width || !domElement5.height) return;
   (isEmbeddedStage &&
-    (window.clearTimeout(previewShieldTimeoutId),
-    (previewShieldTimeoutId = null),
+    (window.clearTimeout(appCtx.previewShieldTimeoutId),
+    (appCtx.previewShieldTimeoutId = null),
     (previewRenderShieldElement.style.transition = "none"),
     (previewRenderShieldElement.style.opacity = "1")),
     (previewRenderShieldElement.width = domElement5.width),
@@ -8136,7 +7946,7 @@ function captureLightSnapshot() {
       previewRenderShieldElement.width,
       previewRenderShieldElement.height,
     ),
-    isEmbeddedStage && threeRenderer.render(threeScene, threeCamera),
+    isEmbeddedStage && appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
     compositeSurfacePainter.drawImage(domElement5, 0, 0),
     previewLightCacheCanvasElement.hidden ||
       (isEmbeddedStage
@@ -8154,14 +7964,14 @@ function restorePreviewAfterFade({ smooth: isSmoothRestore = false } = {}) {
   if (previewRenderShieldElement) {
     if (isEmbeddedStage) {
       if (
-        (window.clearTimeout(previewShieldTimeoutId),
-        (previewShieldTimeoutId = null),
+        (window.clearTimeout(appCtx.previewShieldTimeoutId),
+        (appCtx.previewShieldTimeoutId = null),
         isSmoothRestore && !previewRenderShieldElement.hidden)
       ) {
         ((previewRenderShieldElement.style.transition = "opacity 180ms ease-out"),
           (previewRenderShieldElement.style.opacity = "0"),
-          (previewShieldTimeoutId = window.setTimeout(() => {
-            ((previewShieldTimeoutId = null),
+          (appCtx.previewShieldTimeoutId = window.setTimeout(() => {
+            ((appCtx.previewShieldTimeoutId = null),
               (previewRenderShieldElement.hidden = true),
               (previewRenderShieldElement.style.transition = "none"),
               (previewRenderShieldElement.style.opacity = "1"));
@@ -8190,13 +8000,13 @@ function captureFramePixels(captureWidth: any, captureHeight: any) {
   });
   if (!capturePixelPainter) throw new Error("当前浏览器无法创建多灯缓存画布。");
   return (
-    capturePixelPainter.drawImage(threeRenderer.domElement, 0, 0, captureWidth, captureHeight),
+    capturePixelPainter.drawImage(appCtx.threeRenderer.domElement, 0, 0, captureWidth, captureHeight),
     capturePixelPainter.getImageData(0, 0, captureWidth, captureHeight)
   );
 }
 function rerenderScene() {
   for (let renderPassIndex = 0; renderPassIndex < 3; renderPassIndex += 1)
-    threeRenderer.render(threeScene, threeCamera);
+    appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera);
 }
 function ensureRenderReady() {
   return globalThis.scheduler?.yield
@@ -8216,23 +8026,23 @@ function waitForIdleFrame() {
           requestAnimationFrame(() => resolveAnimationWait()));
 }
 function scheduleStudioRender(renderDelayMs = 420) {
-  isDisposed ||
-    (isEmbeddedStage && !isHighDetailQuality) ||
+  appCtx.isDisposed ||
+    (isEmbeddedStage && !appCtx.isHighDetailQuality) ||
     (isEmbeddedStage && renderCacheWriter?.closed) ||
-    !threeRenderer ||
-    !sceneRootNode ||
-    pendingRuntimeSettings ||
-    isRenderSuppressed ||
-    isWindowHidden ||
-    isCapturingLights ||
-    prewarmState ||
-    isPrewarming ||
+    !appCtx.threeRenderer ||
+    !appCtx.sceneRootNode ||
+    appCtx.pendingRuntimeSettings ||
+    appCtx.isRenderSuppressed ||
+    appCtx.isWindowHidden ||
+    appCtx.isCapturingLights ||
+    appCtx.prewarmState ||
+    appCtx.isPrewarming ||
     !areLightsEnabled() ||
-    (window.clearTimeout(renderCommitTimeoutId),
-    (renderCommitTimeoutId = window.setTimeout(() => {
+    (window.clearTimeout(appCtx.renderCommitTimeoutId),
+    (appCtx.renderCommitTimeoutId = window.setTimeout(() => {
       const modelLoadState2 = externalModelRegistry.modelLoadState();
       if ((modelLoadState2.pending ?? modelLoadState2.active + modelLoadState2.queued) > 0) {
-        ((renderCommitTimeoutId = null), scheduleStudioRender(240));
+        ((appCtx.renderCommitTimeoutId = null), scheduleStudioRender(240));
         return;
       }
       beginLightingPreview();
@@ -8240,35 +8050,35 @@ function scheduleStudioRender(renderDelayMs = 420) {
 }
 function discardLightingEdit() {
   !areLightsEnabled() ||
-    pendingRuntimeSettings ||
-    isCapturingLights ||
-    ((isFrameDirty = true), scheduleStudioRender(0), requestStudioRender());
+    appCtx.pendingRuntimeSettings ||
+    appCtx.isCapturingLights ||
+    ((appCtx.isFrameDirty = true), scheduleStudioRender(0), requestStudioRender());
 }
 async function beginLightingPreview() {
   if (isEmbeddedStage) return acquireRenderSurface();
   if (
-    ((renderCommitTimeoutId = null),
-    !threeRenderer ||
-      pendingRuntimeSettings ||
-      isRenderSuppressed ||
-      isWindowHidden ||
-      isCapturingLights ||
-      prewarmState ||
-      isPrewarming ||
+    ((appCtx.renderCommitTimeoutId = null),
+    !appCtx.threeRenderer ||
+      appCtx.pendingRuntimeSettings ||
+      appCtx.isRenderSuppressed ||
+      appCtx.isWindowHidden ||
+      appCtx.isCapturingLights ||
+      appCtx.prewarmState ||
+      appCtx.isPrewarming ||
       !areLightsEnabled())
   )
     return;
-  const Et3 = modelRevisionCounter,
+  const Et3 = appCtx.modelRevisionCounter,
     previewLightEntries = collectLampEntries().filter(
       ({ item: previewLightItem, group: _previewLightGroup }: any) =>
         finite2(previewLightItem.lightBrightness, 0) > 0,
     ),
-    domElement6 = threeRenderer.domElement;
+    domElement6 = appCtx.threeRenderer.domElement;
   let width5 = domElement6.width,
     height5 = domElement6.height;
   if (!width5 || !height5 || !previewLightEntries.length) return;
-  ((isCapturingLights = true), (isFrameDirty = true));
-  const enabled = orbitControls.enabled,
+  ((appCtx.isCapturingLights = true), (appCtx.isFrameDirty = true));
+  const enabled = appCtx.orbitControls.enabled,
     previewVisibilityByObject = new Map();
   let isPreviewLocked = false;
   requestStudioRender();
@@ -8276,7 +8086,7 @@ async function beginLightingPreview() {
     const previewSurfacePainter = previewLightCacheCanvasElement.getContext("2d");
     if (!previewSurfacePainter) throw new Error("当前浏览器无法显示多灯缓存。");
     (previewLightCacheCanvasElement.hidden ||
-      !isCacheReady ||
+      !appCtx.isCacheReady ||
       previewLightCacheCanvasElement.width !== width5 ||
       previewLightCacheCanvasElement.height !== height5) &&
       ((previewLightCacheCanvasElement.width = width5),
@@ -8293,16 +8103,16 @@ async function beginLightingPreview() {
       jl3 = ensureLightCache(previewLightEntries);
     if (
       (await awaitNextFramePair(),
-      Et3 !== modelRevisionCounter ||
-        pendingRuntimeSettings ||
-        isRenderSuppressed ||
-        isWindowHidden ||
+      Et3 !== appCtx.modelRevisionCounter ||
+        appCtx.pendingRuntimeSettings ||
+        appCtx.isRenderSuppressed ||
+        appCtx.isWindowHidden ||
         !areLightsEnabled())
     )
       return;
     (showLightCacheFor(jl3),
       compositePainter.clearRect(0, 0, width5, height5),
-      sceneRootNode.traverse((gridObject: any) => {
+      appCtx.sceneRootNode.traverse((gridObject: any) => {
         gridObject.userData?.exportRole === "grid" &&
           (previewVisibilityByObject.set(gridObject, gridObject.visible),
           (gridObject.visible = false));
@@ -8311,10 +8121,10 @@ async function beginLightingPreview() {
     for (const previewEntry of previewLightEntries) {
       if (
         (await waitForIdleFrame(),
-        Et3 !== modelRevisionCounter ||
-          pendingRuntimeSettings ||
-          isRenderSuppressed ||
-          isWindowHidden ||
+        Et3 !== appCtx.modelRevisionCounter ||
+          appCtx.pendingRuntimeSettings ||
+          appCtx.isRenderSuppressed ||
+          appCtx.isWindowHidden ||
           !areLightsEnabled())
       )
         break;
@@ -8348,20 +8158,20 @@ async function beginLightingPreview() {
           lightLayerCanvasByKey.set(previewGroupKey, lightLayerCanvas)),
         lightLayerCanvas.getContext("2d")?.drawImage(lightDeltaCanvas, 0, 0),
         await ensureRenderReady(),
-        Et3 !== modelRevisionCounter ||
-          pendingRuntimeSettings ||
-          isRenderSuppressed ||
-          isWindowHidden ||
+        Et3 !== appCtx.modelRevisionCounter ||
+          appCtx.pendingRuntimeSettings ||
+          appCtx.isRenderSuppressed ||
+          appCtx.isWindowHidden ||
           !areLightsEnabled())
       )
         break;
     }
-    if (Et3 === modelRevisionCounter && !pendingRuntimeSettings && areLightsEnabled()) {
-      lightGroupCacheByFloor = lightLayerCanvasByKey;
+    if (Et3 === appCtx.modelRevisionCounter && !appCtx.pendingRuntimeSettings && areLightsEnabled()) {
+      appCtx.lightGroupCacheByFloor = lightLayerCanvasByKey;
       for (const [lightLayerKey, lightLayerTarget] of lightLayerCanvasByKey)
-        lightGainByFloor.set(lightLayerKey, lightLayerTarget.userData?.enabled === false ? 0 : 1);
-      ((isCacheReady = true),
-        (isFrameDirty = false),
+        appCtx.lightGainByFloor.set(lightLayerKey, lightLayerTarget.userData?.enabled === false ? 0 : 1);
+      ((appCtx.isCacheReady = true),
+        (appCtx.isFrameDirty = false),
         setFadeOverlay(true),
         restoreLightVisibility(),
         (isPreviewLocked = true));
@@ -8371,197 +8181,193 @@ async function beginLightingPreview() {
       phase: "studio-light-cache",
     }),
       console.error(previewCaptureError),
-      (isCacheReady = !previewLightCacheCanvasElement.hidden));
+      (appCtx.isCacheReady = !previewLightCacheCanvasElement.hidden));
   } finally {
     for (const [restoreObject, restoreVisibility] of previewVisibilityByObject)
       restoreObject.visible = restoreVisibility;
     const restoredLightCache = buildLightCacheMap();
-    (prewarmState
-      ? prewarmState.restore()
-      : isRenderSuppressed
+    (appCtx.prewarmState
+      ? appCtx.prewarmState.restore()
+      : appCtx.isRenderSuppressed
         ? showCachedLights(restoredLightCache)
         : showLightCacheFor(restoredLightCache),
       rerenderScene(),
       isPreviewLocked
         ? requestAnimationFrame(() => restorePreviewAfterFade())
         : restorePreviewAfterFade(),
-      (orbitControls.enabled = enabled),
-      (isCapturingLights = false),
+      (appCtx.orbitControls.enabled = enabled),
+      (appCtx.isCapturingLights = false),
       requestStudioRender(),
-      isFrameDirty && areLightsEnabled() && !pendingRuntimeSettings && scheduleStudioRender());
+      appCtx.isFrameDirty && areLightsEnabled() && !appCtx.pendingRuntimeSettings && scheduleStudioRender());
   }
 }
 function resetPlanInteraction() {
-  (window.clearTimeout(deferredRenderTimeoutId),
-    (deferredRenderTimeoutId = null),
-    (isWindowHidden = true),
-    window.clearTimeout(renderCommitTimeoutId),
-    (renderCommitTimeoutId = null),
-    isCapturingLights && ((modelRevisionCounter += 1), (isFrameDirty = true)));
+  (window.clearTimeout(appCtx.deferredRenderTimeoutId),
+    (appCtx.deferredRenderTimeoutId = null),
+    (appCtx.isWindowHidden = true),
+    window.clearTimeout(appCtx.renderCommitTimeoutId),
+    (appCtx.renderCommitTimeoutId = null),
+    appCtx.isCapturingLights && ((appCtx.modelRevisionCounter += 1), (appCtx.isFrameDirty = true)));
 }
 function endStudioGesture() {
-  (window.clearTimeout(deferredRenderTimeoutId),
-    (deferredRenderTimeoutId = window.setTimeout(() => {
+  (window.clearTimeout(appCtx.deferredRenderTimeoutId),
+    (appCtx.deferredRenderTimeoutId = window.setTimeout(() => {
       if (
-        ((deferredRenderTimeoutId = null),
-        (isWindowHidden = false),
+        ((appCtx.deferredRenderTimeoutId = null),
+        (appCtx.isWindowHidden = false),
         handleInteractionEnded(),
-        dirtyFloorIdSet.size && !isPrecompileBlocked)
+        dirtyFloorIdSet.size && !appCtx.isPrecompileBlocked)
       ) {
         const activeScopes = [...dirtyFloorIdSet],
           activeScopeName = activeScopes.includes("all") ? "all" : activeScopes[0];
         requestSceneRebuild({
           scope: activeScopeName as string,
-          preserveLightCache: !isLightCachePreserved,
+          preserveLightCache: !appCtx.isLightCachePreserved,
         });
       }
-      (isFrameDirty && scheduleStudioRender(420), isModelLoadPending && requestSceneRender());
+      (appCtx.isFrameDirty && scheduleStudioRender(420), appCtx.isModelLoadPending && requestSceneRender());
     }, 120)));
 }
-let shadowAtlasCanvas: any = null,
-  shadowPrepareTimeoutId: any = null,
-  isShadowPreparing = false,
-  isShadowFrozen = false;
 function disposeShadowAtlas() {
-  (window.clearTimeout(shadowPrepareTimeoutId),
-    (shadowPrepareTimeoutId = null),
-    (isShadowPreparing = isShadowFrozen = false),
-    shadowAtlasCanvas?.clear());
+  (window.clearTimeout(appCtx.shadowPrepareTimeoutId),
+    (appCtx.shadowPrepareTimeoutId = null),
+    (appCtx.isShadowPreparing = appCtx.isShadowFrozen = false),
+    appCtx.shadowAtlasCanvas?.clear());
 }
 function prepareShadowAtlas() {
   if (
-    !shadowAtlasCanvas ||
-    shadowPrepareTimeoutId !== null ||
-    isRenderSuppressed ||
-    isShadowPreparing ||
+    !appCtx.shadowAtlasCanvas ||
+    appCtx.shadowPrepareTimeoutId !== null ||
+    appCtx.isRenderSuppressed ||
+    appCtx.isShadowPreparing ||
     document.hidden ||
-    !isHighDetailQuality ||
-    isExternalModelPending
+    !appCtx.isHighDetailQuality ||
+    appCtx.isExternalModelPending
   )
     return;
   const zn2 = computeRenderPixelRatio(true);
   zn2 >= computeRenderPixelRatio(false) ||
-    shadowAtlasCanvas.matches(zn2) ||
-    (shadowPrepareTimeoutId = window.setTimeout(() => {
-      ((shadowPrepareTimeoutId = null),
-        !isRenderSuppressed &&
-          !isShadowPreparing &&
+    appCtx.shadowAtlasCanvas.matches(zn2) ||
+    (appCtx.shadowPrepareTimeoutId = window.setTimeout(() => {
+      ((appCtx.shadowPrepareTimeoutId = null),
+        !appCtx.isRenderSuppressed &&
+          !appCtx.isShadowPreparing &&
           !document.hidden &&
-          isHighDetailQuality &&
-          shadowAtlasCanvas.prepare(computeRenderPixelRatio(true)));
+          appCtx.isHighDetailQuality &&
+          appCtx.shadowAtlasCanvas.prepare(computeRenderPixelRatio(true)));
     }, 250));
 }
 function setShadowFreeze(isFrozen = true) {
-  (isShadowFrozen &&
+  (appCtx.isShadowFrozen &&
     (!isEmbedStageMode ||
-      Math.abs(threeRenderer.getPixelRatio() - computeRenderPixelRatio(false)) > 0.000001 ||
-      !shadowAtlasCanvas?.matches(computeRenderPixelRatio(true))) &&
+      Math.abs(appCtx.threeRenderer.getPixelRatio() - computeRenderPixelRatio(false)) > 0.000001 ||
+      !appCtx.shadowAtlasCanvas?.matches(computeRenderPixelRatio(true))) &&
     updateShadowState(true, {
       preserveLightCache: true,
     }),
-    isShadowFrozen
-      ? (compiledShaderCache?.clear(), shadowAtlasCanvas.render(threeScene, threeCamera))
-      : compiledShaderCache
-        ? compiledShaderCache.render(threeScene, threeCamera, {
-            background: backgroundController?.cacheBackground,
+    appCtx.isShadowFrozen
+      ? (appCtx.compiledShaderCache?.clear(), appCtx.shadowAtlasCanvas.render(appCtx.threeScene, appCtx.threeCamera))
+      : appCtx.compiledShaderCache
+        ? appCtx.compiledShaderCache.render(appCtx.threeScene, appCtx.threeCamera, {
+            background: appCtx.backgroundController?.cacheBackground,
             changed: isFrozen,
-            enabled: isBackgroundMoving && !isRenderSuppressed && !pendingRuntimeSettings,
+            enabled: appCtx.isBackgroundMoving && !appCtx.isRenderSuppressed && !appCtx.pendingRuntimeSettings,
           })
-        : threeRenderer.render(threeScene, threeCamera),
+        : appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
     prepareShadowAtlas());
 }
 function updateShadowState(
   isShadowsEnabled: any,
   { preserveLightCache: shouldPreserveLightCache = false } = {},
 ) {
-  if (!threeRenderer || (pendingRuntimeSettings && !isAutoDiagramEmbed)) return;
+  if (!appCtx.threeRenderer || (appCtx.pendingRuntimeSettings && !isAutoDiagramEmbed)) return;
   const zn3 = computeRenderPixelRatio(false),
-    isPixelRatioStable = Math.abs(threeRenderer.getPixelRatio() - zn3) < 0.000001;
+    isPixelRatioStable = Math.abs(appCtx.threeRenderer.getPixelRatio() - zn3) < 0.000001;
   if (
-    (!isShadowPreparing &&
+    (!appCtx.isShadowPreparing &&
       isShadowsEnabled &&
-      isRenderSuppressed &&
+      appCtx.isRenderSuppressed &&
       isEmbeddedStage &&
       isEmbedStageMode &&
       isPixelRatioStable &&
       computeRenderPixelRatio(true) < zn3 &&
-      shadowAtlasCanvas?.matches(computeRenderPixelRatio(true)) &&
-      (isShadowPreparing = true),
-    isShadowPreparing)
+      appCtx.shadowAtlasCanvas?.matches(computeRenderPixelRatio(true)) &&
+      (appCtx.isShadowPreparing = true),
+    appCtx.isShadowPreparing)
   ) {
     if (
       isEmbedStageMode &&
       isPixelRatioStable &&
-      (!isShadowsEnabled || shadowAtlasCanvas?.matches(computeRenderPixelRatio(true)))
+      (!isShadowsEnabled || appCtx.shadowAtlasCanvas?.matches(computeRenderPixelRatio(true)))
     ) {
-      ((isShadowFrozen = isShadowsEnabled),
-        isShadowsEnabled || (isShadowPreparing = false),
+      ((appCtx.isShadowFrozen = isShadowsEnabled),
+        isShadowsEnabled || (appCtx.isShadowPreparing = false),
         refreshSceneRender({
           preserveLightCache: shouldPreserveLightCache,
         }));
       return;
     }
-    isShadowPreparing = isShadowFrozen = false;
+    appCtx.isShadowPreparing = appCtx.isShadowFrozen = false;
   }
-  const $f2 = pendingRuntimeSettings
+  const $f2 = appCtx.pendingRuntimeSettings
     ? resolvePixelRatio(isShadowsEnabled)
     : computeRenderPixelRatio(isShadowsEnabled);
-  (Math.abs(threeRenderer.getPixelRatio() - $f2) > 0.000001 && threeRenderer.setPixelRatio($f2),
+  (Math.abs(appCtx.threeRenderer.getPixelRatio() - $f2) > 0.000001 && appCtx.threeRenderer.setPixelRatio($f2),
     refreshSceneRender({
       preserveLightCache: shouldPreserveLightCache,
     }));
 }
 function handleOrbitStart() {
-  const hasShadowPreparePending = rendererRestoreTimeoutId !== null;
-  (window.clearTimeout(rendererRestoreTimeoutId),
-    (rendererRestoreTimeoutId = null),
-    (isRenderSuppressed = true),
-    (isAdaptiveRenderPaused = hasShadowPreparePending || isShadowFrozen),
-    (frameDurationSamples = []),
-    (samplingWindowStartMs = 0),
+  const hasShadowPreparePending = appCtx.rendererRestoreTimeoutId !== null;
+  (window.clearTimeout(appCtx.rendererRestoreTimeoutId),
+    (appCtx.rendererRestoreTimeoutId = null),
+    (appCtx.isRenderSuppressed = true),
+    (appCtx.isAdaptiveRenderPaused = hasShadowPreparePending || appCtx.isShadowFrozen),
+    (appCtx.frameDurationSamples = []),
+    (appCtx.samplingWindowStartMs = 0),
     requestStudioRender());
 }
 function handleOrbitChange() {
-  isAdaptiveRenderPaused ||
-    ((isAdaptiveRenderPaused = true),
+  appCtx.isAdaptiveRenderPaused ||
+    ((appCtx.isAdaptiveRenderPaused = true),
     requestStudioRender(),
     updateShadowState(true, {
       preserveLightCache: true,
     }));
 }
 function handleOrbitEnd() {
-  const Xi2 = isAdaptiveRenderPaused;
+  const Xi2 = appCtx.isAdaptiveRenderPaused;
   if (
     (resetFrameSamples(),
-    (isRenderSuppressed = false),
+    (appCtx.isRenderSuppressed = false),
     handleInteractionEnded(),
-    (isAdaptiveRenderPaused = false),
-    (samplingWindowStartMs = 0),
+    (appCtx.isAdaptiveRenderPaused = false),
+    (appCtx.samplingWindowStartMs = 0),
     requestStudioRender(),
-    window.clearTimeout(rendererRestoreTimeoutId),
+    window.clearTimeout(appCtx.rendererRestoreTimeoutId),
     !Xi2)
   ) {
-    pendingRuntimeSettings && !isInteractionLocked && syncExportControls();
+    appCtx.pendingRuntimeSettings && !appCtx.isInteractionLocked && syncExportControls();
     return;
   }
   // 立即恢复全质量像素比，避免拖转结束后再糊 140ms。
-  ((rendererRestoreTimeoutId = null),
+  ((appCtx.rendererRestoreTimeoutId = null),
     updateShadowState(false, {
       preserveLightCache: true,
     }),
-    pendingRuntimeSettings && !isInteractionLocked && syncExportControls());
+    appCtx.pendingRuntimeSettings && !appCtx.isInteractionLocked && syncExportControls());
 }
 function refreshFloorControls() {
-  const hasMultipleFloors = (studioProject?.floors.length || 0) > 1,
+  const hasMultipleFloors = (appCtx.studioProject?.floors.length || 0) > 1,
     isOverviewMode = getPreviewFloorMode() === "all";
   ((floorCameraActionsElement.hidden = isOverviewMode),
     (overviewCameraActionsElement.hidden = !hasMultipleFloors || !isOverviewMode),
     (previewFloorGapControlElement.hidden = !hasMultipleFloors || !isOverviewMode),
-    syncControlValue2(previewFloorGapInput, finite2(studioProject?.previewFloorGap, 3).toFixed(1)),
+    syncControlValue2(previewFloorGapInput, finite2(appCtx.studioProject?.previewFloorGap, 3).toFixed(1)),
     (previewFloorUniformControlElement.hidden = !hasMultipleFloors || !isOverviewMode),
-    (previewFloorUniformInput.checked = studioProject?.uniformOverviewStack === true));
-  const hasSavedFloorView = !!studioState.settings?.fixedCameraView,
-    hasSavedOverviewView = !!studioProject?.combinedFixedCameraView;
+    (previewFloorUniformInput.checked = appCtx.studioProject?.uniformOverviewStack === true));
+  const hasSavedFloorView = !!appCtx.studioState.settings?.fixedCameraView,
+    hasSavedOverviewView = !!appCtx.studioProject?.combinedFixedCameraView;
   ((fixedCameraViewButton.disabled = !hasSavedFloorView),
     fixedCameraViewButton.classList.toggle("has-saved-view", hasSavedFloorView),
     (fixedOverviewViewButton.disabled = !hasSavedOverviewView),
@@ -8575,21 +8381,21 @@ function refreshFloorControls() {
     (selectElement("#export-use-fixed").title = isOverviewMode
       ? "恢复已保存的全楼总览视角"
       : "恢复当前楼层已保存的视角"),
-    (selectElement("#export-use-fixed").disabled = !!isInteractionLocked || !hasSavedCameraView),
+    (selectElement("#export-use-fixed").disabled = !!appCtx.isInteractionLocked || !hasSavedCameraView),
     selectElement("#export-use-fixed").classList.toggle("has-saved-view", hasSavedCameraView));
 }
 function captureCameraView() {
   return getPreviewFloorMode() === "all"
-    ? studioProject?.combinedFixedCameraView
-    : studioState.settings?.fixedCameraView;
+    ? appCtx.studioProject?.combinedFixedCameraView
+    : appCtx.studioState.settings?.fixedCameraView;
 }
 function storeFixedCameraView(cameraViewSnapshot: any) {
   getPreviewFloorMode() === "all"
-    ? (studioProject.combinedFixedCameraView = cameraViewSnapshot)
-    : (studioState.settings.fixedCameraView = cameraViewSnapshot);
+    ? (appCtx.studioProject.combinedFixedCameraView = cameraViewSnapshot)
+    : (appCtx.studioState.settings.fixedCameraView = cameraViewSnapshot);
 }
 function createOrbitControls(orbitCamera: any) {
-  const orbitControlsHandle = new OrbitControls2(orbitCamera, threeRenderer.domElement);
+  const orbitControlsHandle = new OrbitControls2(orbitCamera, appCtx.threeRenderer.domElement);
   ((orbitControlsHandle.touchDragThreshold = isEmbeddedStage ? 8 : 0),
     (orbitControlsHandle.enableDamping = true),
     (orbitControlsHandle.rotateSmoothing = 8),
@@ -8642,7 +8448,7 @@ function createOrbitControls(orbitCamera: any) {
     orbitControlsHandle.addEventListener("start", handleOrbitStart),
     orbitControlsHandle.addEventListener("change", () => {
       (updateCameraPlanes(orbitCamera, orbitControlsHandle.target),
-        isRenderSuppressed
+        appCtx.isRenderSuppressed
           ? (handleOrbitChange(),
             refreshSceneRender({
               preserveLightCache: true,
@@ -8650,14 +8456,14 @@ function createOrbitControls(orbitCamera: any) {
           : refreshSceneRender());
     }),
     orbitControlsHandle.addEventListener("change", () => {
-      if (!pendingRuntimeSettings || isInteractionLocked) return;
+      if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return;
       const activePresetSlot = normalizeActiveExportPresetSlot2(
-        studioProject?.activeExportPresetSlot,
-        studioProject?.exportPresets?.length,
+        appCtx.studioProject?.activeExportPresetSlot,
+        appCtx.studioProject?.exportPresets?.length,
       );
-      isExportPresetDirty ||
-        studioProject?.exportPresets?.[activePresetSlot] ||
-        ((isExportPresetDirty = true), renderExportPresetSlots());
+      appCtx.isExportPresetDirty ||
+        appCtx.studioProject?.exportPresets?.[activePresetSlot] ||
+        ((appCtx.isExportPresetDirty = true), renderExportPresetSlots());
     }),
     orbitControlsHandle.addEventListener("end", handleOrbitEnd),
     orbitControlsHandle
@@ -8666,7 +8472,7 @@ function createOrbitControls(orbitCamera: any) {
 const minCameraNear = 0.02,
   maxCameraNear = 0.6,
   cameraNearFactor = 0.01;
-function updateCameraPlanes(planeCamera = threeCamera, planeTarget = orbitControls?.target) {
+function updateCameraPlanes(planeCamera = appCtx.threeCamera, planeTarget = appCtx.orbitControls?.target) {
   if (!planeCamera || !planeTarget) return false;
   const cameraTargetDistance = Math.max(planeCamera.position.distanceTo(planeTarget), 1),
     computedCameraNear = planeCamera.isPerspectiveCamera
@@ -8725,32 +8531,32 @@ function resolveFrameSize(cameraViewSettings: any, targetAspect: any, targetZoom
     : adjustFrameSize(cameraViewSettings?.visibleHeight, targetAspect, targetZoom);
 }
 async function saveCameraView() {
-  if (!threeCamera || !orbitControls) return;
+  if (!appCtx.threeCamera || !appCtx.orbitControls) return;
   const cameraViewLabel = getPreviewFloorMode() === "all" ? "总览视角" : "当前层视角";
-  pendingRuntimeSettings || deselectAll();
-  const target = orbitControls.target;
+  appCtx.pendingRuntimeSettings || deselectAll();
+  const target = appCtx.orbitControls.target;
   if (
     (storeFixedCameraView({
-      mode: threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+      mode: appCtx.threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
       view: getCameraView(),
       topRotation: getCameraTopRotation(),
       position: {
-        x: threeCamera.position.x,
-        y: threeCamera.position.y,
-        z: threeCamera.position.z,
+        x: appCtx.threeCamera.position.x,
+        y: appCtx.threeCamera.position.y,
+        z: appCtx.threeCamera.position.z,
       },
       target: {
         x: target.x,
         y: target.y,
         z: target.z,
       },
-      visibleHeight: computeVisibleHeight(threeCamera, target),
-      frameSize: computeOrthoFrameSize(threeCamera, target),
-      fov: threeCamera.isPerspectiveCamera ? threeCamera.fov : 36,
-      focalLength: threeCamera.isPerspectiveCamera ? getCameraFocalLength() : null,
+      visibleHeight: computeVisibleHeight(appCtx.threeCamera, target),
+      frameSize: computeOrthoFrameSize(appCtx.threeCamera, target),
+      fov: appCtx.threeCamera.isPerspectiveCamera ? appCtx.threeCamera.fov : 36,
+      focalLength: appCtx.threeCamera.isPerspectiveCamera ? getCameraFocalLength() : null,
     }),
     refreshFloorControls(),
-    pendingRuntimeSettings)
+    appCtx.pendingRuntimeSettings)
   ) {
     ((exportStatusElement.textContent = cameraViewLabel + "已保存"),
       await flushAutosave(),
@@ -8758,18 +8564,18 @@ async function saveCameraView() {
     return;
   }
   (markDocumentDirty(),
-    window.clearTimeout(autosaveTimeoutId),
-    (autosaveTimeoutId = null),
+    window.clearTimeout(appCtx.autosaveTimeoutId),
+    (appCtx.autosaveTimeoutId = null),
     await flushAutosave(),
     showToast(
-      localSaveRevision === remoteSaveRevision
+      appCtx.localSaveRevision === appCtx.remoteSaveRevision
         ? cameraViewLabel + "已保存。"
         : cameraViewLabel + "已记录，正在保存…",
     ));
 }
 function applyCameraSnapshot(snapshotOptions: CameraSnapshotOptions = {}) {
   const cs2 = captureCameraView();
-  if (!cs2 || !threeCamera || !orbitControls) return;
+  if (!cs2 || !appCtx.threeCamera || !appCtx.orbitControls) return;
   const hasModeChanged = cs2.mode !== getCameraMode(),
     hasViewChanged = cs2.view !== getCameraView(),
     hasRotationChanged = cs2.topRotation !== getCameraTopRotation(),
@@ -8788,35 +8594,35 @@ function applyCameraSnapshot(snapshotOptions: CameraSnapshotOptions = {}) {
       preserveView: false,
     }));
   const snapshotTargetVector = new ns2.Vector3(cs2.target.x, cs2.target.y, cs2.target.z);
-  (threeCamera.position.set(cs2.position.x, cs2.position.y, cs2.position.z),
-    threeCamera.up.copy(
+  (appCtx.threeCamera.position.set(cs2.position.x, cs2.position.y, cs2.position.z),
+    appCtx.threeCamera.up.copy(
       cs2.view === "top" ? buildCameraUpVector(cs2.topRotation) : new ns2.Vector3(0, 1, 0),
     ),
-    (threeCamera.userData.viewportAspect ||= Math.max(
+    (appCtx.threeCamera.userData.viewportAspect ||= Math.max(
       selectElement("#preview-3d").clientWidth /
         Math.max(selectElement("#preview-3d").clientHeight, 1),
       0.1,
     )));
-  const ds2 = resolveFrameSize(cs2, threeCamera.userData.viewportAspect);
+  const ds2 = resolveFrameSize(cs2, appCtx.threeCamera.userData.viewportAspect);
   if (
-    ((threeCamera.userData.frameSize = ds2),
-    (threeCamera.userData.cameraView = cs2.view),
-    (threeCamera.userData.topRotation = cs2.topRotation),
-    (threeCamera.zoom = 1),
-    threeCamera.isPerspectiveCamera
-      ? ((threeCamera.aspect = threeCamera.userData.viewportAspect),
+    ((appCtx.threeCamera.userData.frameSize = ds2),
+    (appCtx.threeCamera.userData.cameraView = cs2.view),
+    (appCtx.threeCamera.userData.topRotation = cs2.topRotation),
+    (appCtx.threeCamera.zoom = 1),
+    appCtx.threeCamera.isPerspectiveCamera
+      ? ((appCtx.threeCamera.aspect = appCtx.threeCamera.userData.viewportAspect),
         cs2.focalLength !== null
-          ? applyCameraFocalLength(threeCamera, cs2.focalLength)
-          : ((threeCamera.fov = cs2.fov),
-            threeCamera.updateProjectionMatrix(),
-            (ut2.cameraFocalLength = clamp2(threeCamera.getFocalLength(), 18, 120))))
-      : applyOrthoFrame(ds2, threeCamera.userData.viewportAspect, threeCamera),
-    updateCameraPlanes(threeCamera, snapshotTargetVector),
-    threeCamera.lookAt(snapshotTargetVector),
-    threeCamera.updateProjectionMatrix(),
-    orbitControls.target.copy(snapshotTargetVector),
+          ? applyCameraFocalLength(appCtx.threeCamera, cs2.focalLength)
+          : ((appCtx.threeCamera.fov = cs2.fov),
+            appCtx.threeCamera.updateProjectionMatrix(),
+            (ut2.cameraFocalLength = clamp2(appCtx.threeCamera.getFocalLength(), 18, 120))))
+      : applyOrthoFrame(ds2, appCtx.threeCamera.userData.viewportAspect, appCtx.threeCamera),
+    updateCameraPlanes(appCtx.threeCamera, snapshotTargetVector),
+    appCtx.threeCamera.lookAt(snapshotTargetVector),
+    appCtx.threeCamera.updateProjectionMatrix(),
+    appCtx.orbitControls.target.copy(snapshotTargetVector),
     requestStudioRender(),
-    orbitControls.update(),
+    appCtx.orbitControls.update(),
     syncCameraModeControls(cs2.mode),
     syncCameraViewControls(cs2.view),
     (hasModeChanged || hasViewChanged || hasRotationChanged || hasFocalLengthChanged) &&
@@ -8831,10 +8637,10 @@ function applyCameraSnapshot(snapshotOptions: CameraSnapshotOptions = {}) {
 function setCameraView(requestedCameraView: any, viewChangeOptions: CameraViewChangeOptions = {}) {
   const cameraViewName = requestedCameraView === "top" ? "top" : "free",
     qn2 = getCameraTopRotation();
-  if ((syncCameraViewControls(cameraViewName), !threeCamera || !orbitControls)) return;
+  if ((syncCameraViewControls(cameraViewName), !appCtx.threeCamera || !appCtx.orbitControls)) return;
   if (
-    threeCamera.userData.cameraView === cameraViewName &&
-    (cameraViewName !== "top" || threeCamera.userData.topRotation === qn2) &&
+    appCtx.threeCamera.userData.cameraView === cameraViewName &&
+    (cameraViewName !== "top" || appCtx.threeCamera.userData.topRotation === qn2) &&
     viewChangeOptions.force !== true
   ) {
     requestStudioRender();
@@ -8846,38 +8652,38 @@ function setCameraView(requestedCameraView: any, viewChangeOptions: CameraViewCh
     });
     return;
   }
-  const clone = orbitControls.target.clone(),
-    bo2 = computeVisibleHeight(threeCamera, clone),
-    wf2 = computeFrameSize(threeCamera, clone),
-    cameraTopDistance = Math.max(threeCamera.position.distanceTo(clone), 8);
-  if ((threeCamera.up.copy(buildCameraUpVector(qn2)), threeCamera.isPerspectiveCamera)) {
+  const clone = appCtx.orbitControls.target.clone(),
+    bo2 = computeVisibleHeight(appCtx.threeCamera, clone),
+    wf2 = computeFrameSize(appCtx.threeCamera, clone),
+    cameraTopDistance = Math.max(appCtx.threeCamera.position.distanceTo(clone), 8);
+  if ((appCtx.threeCamera.up.copy(buildCameraUpVector(qn2)), appCtx.threeCamera.isPerspectiveCamera)) {
     applyCameraFocalLength();
-    const degToRad5 = ns2.MathUtils.degToRad(threeCamera.getEffectiveFOV()),
+    const degToRad5 = ns2.MathUtils.degToRad(appCtx.threeCamera.getEffectiveFOV()),
       cameraFreeDistance = Math.max(bo2 / (2 * Math.tan(degToRad5 / 2)), 8);
-    threeCamera.position.set(clone.x, clone.y + cameraFreeDistance, clone.z);
+    appCtx.threeCamera.position.set(clone.x, clone.y + cameraFreeDistance, clone.z);
   } else
-    (applyOrthoFrame(wf2, threeCamera.userData.viewportAspect || 1, threeCamera),
-      threeCamera.position.set(clone.x, clone.y + cameraTopDistance, clone.z));
-  ((threeCamera.userData.frameSize = wf2),
-    (threeCamera.userData.cameraView = "top"),
-    (threeCamera.userData.topRotation = qn2),
-    updateCameraPlanes(threeCamera, clone),
-    threeCamera.lookAt(clone),
-    threeCamera.updateProjectionMatrix(),
-    orbitControls.target.copy(clone),
+    (applyOrthoFrame(wf2, appCtx.threeCamera.userData.viewportAspect || 1, appCtx.threeCamera),
+      appCtx.threeCamera.position.set(clone.x, clone.y + cameraTopDistance, clone.z));
+  ((appCtx.threeCamera.userData.frameSize = wf2),
+    (appCtx.threeCamera.userData.cameraView = "top"),
+    (appCtx.threeCamera.userData.topRotation = qn2),
+    updateCameraPlanes(appCtx.threeCamera, clone),
+    appCtx.threeCamera.lookAt(clone),
+    appCtx.threeCamera.updateProjectionMatrix(),
+    appCtx.orbitControls.target.copy(clone),
     requestStudioRender(),
-    orbitControls.update());
+    appCtx.orbitControls.update());
 }
 function setCameraMode(requestedCameraMode: any, modeChangeOptions: CameraModeOptions = {}) {
   const cameraModeValue = requestedCameraMode === "perspective" ? "perspective" : "orthographic";
-  if ((syncCameraModeControls(cameraModeValue), !threeRenderer)) return;
-  if ((cameraModeValue === "perspective") == !!threeCamera?.isPerspectiveCamera) {
+  if ((syncCameraModeControls(cameraModeValue), !appCtx.threeRenderer)) return;
+  if ((cameraModeValue === "perspective") == !!appCtx.threeCamera?.isPerspectiveCamera) {
     (applyCameraFocalLength(), requestStudioRender());
     return;
   }
   const shouldPreserveView = modeChangeOptions.preserveView !== false,
-    previousCamera = threeCamera,
-    previousCameraTarget = orbitControls?.target.clone() || new ns2.Vector3(0, 0.6, 0),
+    previousCamera = appCtx.threeCamera,
+    previousCameraTarget = appCtx.orbitControls?.target.clone() || new ns2.Vector3(0, 0.6, 0),
     sub = previousCamera
       ? previousCamera.position.clone().sub(previousCameraTarget)
       : new ns2.Vector3(1.12, 1.42, 1.2),
@@ -8899,128 +8705,128 @@ function setCameraMode(requestedCameraMode: any, modeChangeOptions: CameraModeOp
       shouldPreserveView && previousCamera
         ? adjustFrameSize(bo3, newCameraAspect)
         : previousCamera?.userData.frameSize || 10;
-  if ((orbitControls?.dispose(), cameraModeValue === "perspective")) {
-    ((threeCamera = new ns2.PerspectiveCamera(36, newCameraAspect, 0.02, 200)),
-      applyCameraFocalLength(threeCamera));
+  if ((appCtx.orbitControls?.dispose(), cameraModeValue === "perspective")) {
+    ((appCtx.threeCamera = new ns2.PerspectiveCamera(36, newCameraAspect, 0.02, 200)),
+      applyCameraFocalLength(appCtx.threeCamera));
     const computedCameraDistance =
-        bo3 / (2 * Math.tan(ns2.MathUtils.degToRad(threeCamera.getEffectiveFOV()) / 2)),
+        bo3 / (2 * Math.tan(ns2.MathUtils.degToRad(appCtx.threeCamera.getEffectiveFOV()) / 2)),
       cameraPlacementDistance = shouldPreserveView ? computedCameraDistance : defaultCameraDistance;
-    threeCamera.position
+    appCtx.threeCamera.position
       .copy(previousCameraTarget)
       .addScaledVector(normalize, Math.max(cameraPlacementDistance, 2));
   } else
-    ((threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.02, 200)),
-      threeCamera.position
+    ((appCtx.threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.02, 200)),
+      appCtx.threeCamera.position
         .copy(previousCameraTarget)
         .addScaledVector(normalize, defaultCameraDistance),
-      applyOrthoFrame(oc2, newCameraAspect, threeCamera));
-  (threeCamera.layers.enable(lampsLayerIndex),
-    (threeCamera.userData.viewportAspect = newCameraAspect),
-    (threeCamera.userData.frameSize = oc2),
-    (threeCamera.userData.cameraView = previousCamera?.userData.cameraView || "free"),
-    (threeCamera.userData.topRotation = previousCamera?.userData.topRotation || 0),
-    threeCamera.up.copy(previousCamera?.up || new ns2.Vector3(0, 1, 0)),
-    updateCameraPlanes(threeCamera, previousCameraTarget),
-    threeCamera.lookAt(previousCameraTarget),
-    threeCamera.updateProjectionMatrix(),
-    (orbitControls = createOrbitControls(threeCamera)),
-    orbitControls.target.copy(previousCameraTarget),
+      applyOrthoFrame(oc2, newCameraAspect, appCtx.threeCamera));
+  (appCtx.threeCamera.layers.enable(lampsLayerIndex),
+    (appCtx.threeCamera.userData.viewportAspect = newCameraAspect),
+    (appCtx.threeCamera.userData.frameSize = oc2),
+    (appCtx.threeCamera.userData.cameraView = previousCamera?.userData.cameraView || "free"),
+    (appCtx.threeCamera.userData.topRotation = previousCamera?.userData.topRotation || 0),
+    appCtx.threeCamera.up.copy(previousCamera?.up || new ns2.Vector3(0, 1, 0)),
+    updateCameraPlanes(appCtx.threeCamera, previousCameraTarget),
+    appCtx.threeCamera.lookAt(previousCameraTarget),
+    appCtx.threeCamera.updateProjectionMatrix(),
+    (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
+    appCtx.orbitControls.target.copy(previousCameraTarget),
     requestStudioRender(),
-    (isEmbeddedStage && modeChangeOptions.deferControlUpdate === true) || orbitControls.update());
+    (isEmbeddedStage && modeChangeOptions.deferControlUpdate === true) || appCtx.orbitControls.update());
 }
 function createStudioRenderer() {
   const previewViewportElement = selectElement("#preview-3d");
   try {
-    ((threeScene = new ns2.Scene()),
-      (threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.05, 200)),
-      threeCamera.layers.enable(lampsLayerIndex),
-      (threeRenderer = new ns2.WebGLRenderer({
+    ((appCtx.threeScene = new ns2.Scene()),
+      (appCtx.threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.05, 200)),
+      appCtx.threeCamera.layers.enable(lampsLayerIndex),
+      (appCtx.threeRenderer = new ns2.WebGLRenderer({
         antialias: true,
         alpha: true,
         powerPreference: "high-performance",
       })),
-      isEmbeddedStage && threeRenderer.debug && (threeRenderer.debug.checkShaderErrors = false),
-      threeRenderer.setPixelRatio(computeRenderPixelRatio()),
-      (threeRenderer.outputColorSpace = ns2.SRGBColorSpace),
-      (threeRenderer.toneMapping = ns2.NeutralToneMapping),
-      (threeRenderer.toneMappingExposure = 1.04),
+      isEmbeddedStage && appCtx.threeRenderer.debug && (appCtx.threeRenderer.debug.checkShaderErrors = false),
+      appCtx.threeRenderer.setPixelRatio(computeRenderPixelRatio()),
+      (appCtx.threeRenderer.outputColorSpace = ns2.SRGBColorSpace),
+      (appCtx.threeRenderer.toneMapping = ns2.NeutralToneMapping),
+      (appCtx.threeRenderer.toneMappingExposure = 1.04),
       isEmbeddedStage &&
         isEmbedStageMode &&
-        ((shadowAtlasCanvas = createMotionBuffer2({
+        ((appCtx.shadowAtlasCanvas = createMotionBuffer2({
           THREE: ns2,
-          renderer: threeRenderer,
+          renderer: appCtx.threeRenderer,
           maxSamples: interactionResourcePolicy.motion.maxSamples,
         })),
         window.addEventListener(
           "pagehide",
           () => {
-            (disposeShadowAtlas(), shadowAtlasCanvas.dispose());
+            (disposeShadowAtlas(), appCtx.shadowAtlasCanvas.dispose());
           },
           {
             once: true,
           },
         )),
-      (threeRenderer.shadowMap.enabled = !isEmbedStageMode),
-      (threeRenderer.shadowMap.type = ns2.VSMShadowMap),
-      previewViewportElement.append(threeRenderer.domElement),
+      (appCtx.threeRenderer.shadowMap.enabled = !isEmbedStageMode),
+      (appCtx.threeRenderer.shadowMap.type = ns2.VSMShadowMap),
+      previewViewportElement.append(appCtx.threeRenderer.domElement),
       isEmbeddedStage &&
-        ((compiledShaderCache = createBackgroundCache2({
+        ((appCtx.compiledShaderCache = createBackgroundCache2({
           THREE: ns2,
-          renderer: threeRenderer,
+          renderer: appCtx.threeRenderer,
         })),
-        window.addEventListener("pagehide", () => compiledShaderCache.dispose(), {
+        window.addEventListener("pagehide", () => appCtx.compiledShaderCache.dispose(), {
           once: true,
         })),
       ensureDiagnosticsHud(),
-      (orbitControls = createOrbitControls(threeCamera)),
+      (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
       publishModelLoadState(),
       syncCameraModeControls("orthographic"),
       syncCameraViewControls(),
-      (hemisphereLight = new ns2.HemisphereLight(12504556, 1515053, 1.12)),
-      hemisphereLight.layers.enable(lampsLayerIndex),
-      threeScene.add(hemisphereLight),
-      (ambientLight = new ns2.AmbientLight(7175581, 0.42)),
-      ambientLight.layers.enable(lampsLayerIndex),
-      threeScene.add(ambientLight),
-      (mainDirectionalLight = new ns2.DirectionalLight(14543103, 2.05)),
-      mainDirectionalLight.position.set(-7, 22, 6),
-      (mainDirectionalLight.castShadow = true),
-      mainDirectionalLight.shadow.mapSize.set(2048, 2048),
-      (mainDirectionalLight.shadow.camera.left = -20),
-      (mainDirectionalLight.shadow.camera.right = 20),
-      (mainDirectionalLight.shadow.camera.top = 20),
-      (mainDirectionalLight.shadow.camera.bottom = -20),
-      (mainDirectionalLight.shadow.autoUpdate = false),
-      (mainDirectionalLight.shadow.needsUpdate = true),
-      mainDirectionalLight.layers.enable(lampsLayerIndex),
-      threeScene.add(mainDirectionalLight),
-      (fillDirectionalLight = new ns2.DirectionalLight(8886724, 0.72)),
-      fillDirectionalLight.position.set(9, 7, -10),
-      fillDirectionalLight.layers.enable(lampsLayerIndex),
-      threeScene.add(fillDirectionalLight),
-      (topDirectionalLight = new ns2.DirectionalLight(15791103, 0.68)),
-      topDirectionalLight.position.set(0, 16, 1),
-      topDirectionalLight.layers.enable(lampsLayerIndex),
-      threeScene.add(topDirectionalLight),
-      (sceneRootNode = new ns2.Group()),
-      threeScene.add(sceneRootNode));
+      (appCtx.hemisphereLight = new ns2.HemisphereLight(12504556, 1515053, 1.12)),
+      appCtx.hemisphereLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.hemisphereLight),
+      (appCtx.ambientLight = new ns2.AmbientLight(7175581, 0.42)),
+      appCtx.ambientLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.ambientLight),
+      (appCtx.mainDirectionalLight = new ns2.DirectionalLight(14543103, 2.05)),
+      appCtx.mainDirectionalLight.position.set(-7, 22, 6),
+      (appCtx.mainDirectionalLight.castShadow = true),
+      appCtx.mainDirectionalLight.shadow.mapSize.set(2048, 2048),
+      (appCtx.mainDirectionalLight.shadow.camera.left = -20),
+      (appCtx.mainDirectionalLight.shadow.camera.right = 20),
+      (appCtx.mainDirectionalLight.shadow.camera.top = 20),
+      (appCtx.mainDirectionalLight.shadow.camera.bottom = -20),
+      (appCtx.mainDirectionalLight.shadow.autoUpdate = false),
+      (appCtx.mainDirectionalLight.shadow.needsUpdate = true),
+      appCtx.mainDirectionalLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.mainDirectionalLight),
+      (appCtx.fillDirectionalLight = new ns2.DirectionalLight(8886724, 0.72)),
+      appCtx.fillDirectionalLight.position.set(9, 7, -10),
+      appCtx.fillDirectionalLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.fillDirectionalLight),
+      (appCtx.topDirectionalLight = new ns2.DirectionalLight(15791103, 0.68)),
+      appCtx.topDirectionalLight.position.set(0, 16, 1),
+      appCtx.topDirectionalLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.topDirectionalLight),
+      (appCtx.sceneRootNode = new ns2.Group()),
+      appCtx.threeScene.add(appCtx.sceneRootNode));
     let previousOverviewSource: any,
       previousOverviewGap: any,
       overviewStackCenter = [0, 0, 0],
       floorBoundsById = new Map();
-    ((overviewStackController = createOverviewStack2({
+    ((appCtx.overviewStackController = createOverviewStack2({
       THREE: ns2,
-      renderer: threeRenderer,
-      scene: threeScene,
-      getCamera: () => threeCamera,
+      renderer: appCtx.threeRenderer,
+      scene: appCtx.threeScene,
+      getCamera: () => appCtx.threeCamera,
       getLayout: () => {
-        const overviewFloors = studioProject?.floors || [],
-          overviewFloorGap = pendingRuntimeSettings
-            ? finite2(studioProject?.exportFloorGap, 3)
-            : finite2(studioProject?.previewFloorGap, 3);
+        const overviewFloors = appCtx.studioProject?.floors || [],
+          overviewFloorGap = appCtx.pendingRuntimeSettings
+            ? finite2(appCtx.studioProject?.exportFloorGap, 3)
+            : finite2(appCtx.studioProject?.previewFloorGap, 3);
         if (
-          studioProject?.uniformOverviewStack &&
-          (previousOverviewSource !== studioProject || previousOverviewGap !== sceneRevisionCount)
+          appCtx.studioProject?.uniformOverviewStack &&
+          (previousOverviewSource !== appCtx.studioProject || previousOverviewGap !== appCtx.sceneRevisionCount)
         ) {
           const overviewBoundsBox = new ns2.Box3();
           floorBoundsById = new Map();
@@ -9042,11 +8848,11 @@ function createStudioRenderer() {
               ? new ns2.Vector3()
               : overviewBoundsBox.getCenter(new ns2.Vector3())
           ).toArray()),
-            (previousOverviewSource = studioProject),
-            (previousOverviewGap = sceneRevisionCount));
+            (previousOverviewSource = appCtx.studioProject),
+            (previousOverviewGap = appCtx.sceneRevisionCount));
         }
         return {
-          enabled: studioProject?.uniformOverviewStack === true,
+          enabled: appCtx.studioProject?.uniformOverviewStack === true,
           floors: overviewFloors,
           gap: overviewFloorGap,
           bounds: floorBoundsById,
@@ -9055,20 +8861,20 @@ function createStudioRenderer() {
             ((overviewFloors.length - 1) * overviewFloorGap) / 2,
             overviewStackCenter[2],
           ],
-          amount: animatedTransitionValue ?? (getPreviewFloorMode() === "all" ? 1 : 0),
+          amount: appCtx.animatedTransitionValue ?? (getPreviewFloorMode() === "all" ? 1 : 0),
         };
       },
     })),
-      window.addEventListener("pagehide", () => overviewStackController?.dispose(), {
+      window.addEventListener("pagehide", () => appCtx.overviewStackController?.dispose(), {
         once: true,
       }),
       isEmbedStageMode
-        ? ((contactShadowController = createContactShadowController2({
+        ? ((appCtx.contactShadowController = createContactShadowController2({
             THREE: ns2,
-            renderer: threeRenderer,
+            renderer: appCtx.threeRenderer,
             ...(isEmbeddedStage ? interactionResourcePolicy.contactShadows : {}),
             persistentCache: isEmbeddedStage ? stageStartup2?.shadowCache : null,
-            getRoot: () => sceneRootNode,
+            getRoot: () => appCtx.sceneRootNode,
             requestFrame: renderStudioFrame,
             followMotion: true,
             maxCapturesPerSync: isEmbeddedStage ? 1 : Infinity,
@@ -9077,63 +8883,63 @@ function createStudioRenderer() {
             surfaceBatchSize: isEmbeddedStage ? 4 : 2,
             canBuild: canBuildScene,
           })),
-          (regionLightController = createRegionLightController2({
+          (appCtx.regionLightController = createRegionLightController2({
             THREE: ns2,
-            renderer: threeRenderer,
+            renderer: appCtx.threeRenderer,
             reuseRendererMatrices: isEmbeddedStage && interactionResourcePolicy.reuseLightMatrices,
-            scene: threeScene,
-            getRoot: () => sceneRootNode,
-            contactShadows: contactShadowController,
+            scene: appCtx.threeScene,
+            getRoot: () => appCtx.sceneRootNode,
+            contactShadows: appCtx.contactShadowController,
             requestFrame: renderStudioFrame,
           })))
-        : (lightPrecompileController = createSpotShadowAtlasController2({
+        : (appCtx.lightPrecompileController = createSpotShadowAtlasController2({
             THREE: ns2,
-            renderer: threeRenderer,
-            scene: threeScene,
-            camera: threeCamera,
+            renderer: appCtx.threeRenderer,
+            scene: appCtx.threeScene,
+            camera: appCtx.threeCamera,
             syncBeforeRender: isEmbeddedStage,
             requestFrame: renderStudioFrame,
             canBuild: () =>
               !document.hidden &&
-              !pendingRuntimeSettings &&
-              !isRenderSuppressed &&
-              !isPrewarming &&
-              !isCurtainMoving &&
-              !isVacuumMoving &&
-              !isBackgroundMoving &&
-              !isWindowHidden &&
-              !isCapturingLights &&
+              !appCtx.pendingRuntimeSettings &&
+              !appCtx.isRenderSuppressed &&
+              !appCtx.isPrewarming &&
+              !appCtx.isCurtainMoving &&
+              !appCtx.isVacuumMoving &&
+              !appCtx.isBackgroundMoving &&
+              !appCtx.isWindowHidden &&
+              !appCtx.isCapturingLights &&
               !hasPendingSceneWork(),
           })),
       refreshBaseLighting(),
-      (resizeObserverInstance = new ResizeObserver(() => resizeStudioRenderer())),
-      resizeObserverInstance.observe(previewViewportElement),
+      (appCtx.resizeObserverInstance = new ResizeObserver(() => resizeStudioRenderer())),
+      appCtx.resizeObserverInstance.observe(previewViewportElement),
       updateCameraView());
     let lastStatsPublishMs = performance.now(),
       lastMotionMs = -Infinity;
     const runStudioFrameStep = (frameStepTimestamp = performance.now()) => {
-      if (!threeRenderer) return;
+      if (!appCtx.threeRenderer) return;
       const frameStepDelta = Math.min(
         Math.max((frameStepTimestamp - lastStatsPublishMs) / 1000, 0),
         0.05,
       );
       if (
         ((lastStatsPublishMs = frameStepTimestamp),
-        document.hidden || (isEmbeddedStage && isExternalModelPending))
+        document.hidden || (isEmbeddedStage && appCtx.isExternalModelPending))
       )
         return Infinity;
-      const didControlsUpdate = orbitControls.update(frameStepDelta);
+      const didControlsUpdate = appCtx.orbitControls.update(frameStepDelta);
       didControlsUpdate && (lastMotionMs = frameStepTimestamp);
       const renderWakeValue = frameStepTimestamp - lastMotionMs < 600 ? 0 : Infinity;
-      didControlsUpdate && (isLightCacheReady = true);
-      const Kt3 = isRenderSuppressed || didControlsUpdate || isPrewarming;
+      didControlsUpdate && (appCtx.isLightCacheReady = true);
+      const Kt3 = appCtx.isRenderSuppressed || didControlsUpdate || appCtx.isPrewarming;
       if (
         (updateMotionStats(frameStepTimestamp, Kt3),
-        !isLightCacheReady && !isLightCacheDeferred && isLightCachePending)
+        !appCtx.isLightCacheReady && !appCtx.isLightCacheDeferred && appCtx.isLightCachePending)
       )
         return renderWakeValue;
-      const qr2 = isLightCacheReady || !isLightCachePending;
-      isLightCacheReady = isLightCacheDeferred = false;
+      const qr2 = appCtx.isLightCacheReady || !appCtx.isLightCachePending;
+      appCtx.isLightCacheReady = appCtx.isLightCacheDeferred = false;
       const yy2 = beginMotionMeasurement(Kt3),
         motionMeasureStartMs = isPerformanceDiagnostics ? performance.now() : 0;
       setShadowFreeze(qr2);
@@ -9145,31 +8951,31 @@ function createStudioRenderer() {
         isPerformanceDiagnostics &&
           renderWakeValue === Infinity &&
           publishRenderStats(frameStepTimestamp, true));
-      const render = threeRenderer.info.render;
+      const render = appCtx.threeRenderer.info.render;
       if (
-        ((threeRenderer.domElement.dataset.renderCalls = String(render.calls)),
-        (threeRenderer.domElement.dataset.renderTriangles = String(render.triangles)),
-        (threeRenderer.domElement.dataset.renderLines = String(render.lines)),
+        ((appCtx.threeRenderer.domElement.dataset.renderCalls = String(render.calls)),
+        (appCtx.threeRenderer.domElement.dataset.renderTriangles = String(render.triangles)),
+        (appCtx.threeRenderer.domElement.dataset.renderLines = String(render.lines)),
         isEmbeddedStage && (isPerformanceDiagnostics || isRenderStatsTest))
       ) {
         const stringify = JSON.stringify({
-          ...threeRenderer.info.memory,
-          programs: threeRenderer.info.programs?.length,
-          contact: contactShadowController?.stats,
+          ...appCtx.threeRenderer.info.memory,
+          programs: appCtx.threeRenderer.info.programs?.length,
+          contact: appCtx.contactShadowController?.stats,
         });
-        threeRenderer.domElement.dataset.renderResources !== stringify &&
-          (threeRenderer.domElement.dataset.renderResources = stringify);
+        appCtx.threeRenderer.domElement.dataset.renderResources !== stringify &&
+          (appCtx.threeRenderer.domElement.dataset.renderResources = stringify);
       }
       return (
         updateRenderStatsHud(),
         recordFrameTime(),
-        (isLightCachePending = true),
-        isEmbeddedStage && threeRenderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame")),
+        (appCtx.isLightCachePending = true),
+        isEmbeddedStage && appCtx.threeRenderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame")),
         renderWakeValue
       );
     };
     {
-      lightingScheduler = createDemandFrameLoop2({
+      appCtx.lightingScheduler = createDemandFrameLoop2({
         onWake() {
           const publishNowMs = performance.now();
           publishNowMs - lastStatsPublishMs > 50 && (lastStatsPublishMs = publishNowMs);
@@ -9177,34 +8983,34 @@ function createStudioRenderer() {
         step(frameStepSeconds: any) {
           const frameStepResult = runStudioFrameStep(frameStepSeconds);
           return (
-            (threeRenderer.domElement.dataset.renderFrameChecks = String(
-              lightingScheduler.stats.frames,
+            (appCtx.threeRenderer.domElement.dataset.renderFrameChecks = String(
+              appCtx.lightingScheduler.stats.frames,
             )),
             frameStepResult
           );
         },
       });
-      const wakeStudio = () => lightingScheduler.wake(),
+      const wakeStudio = () => appCtx.lightingScheduler.wake(),
         handlePageVisibility = () => {
           lastStatsPublishMs = performance.now();
           const tf4 = needsMotionPresentation();
-          (lightingScheduler.setAvailable(tf4),
+          (appCtx.lightingScheduler.setAvailable(tf4),
             tf4
-              ? (lightPrecompileController?.setContextLost(false),
+              ? (appCtx.lightPrecompileController?.setContextLost(false),
                 renderStudioFrame(),
-                isFrameDirty && scheduleStudioRender())
+                appCtx.isFrameDirty && scheduleStudioRender())
               : (disposeShadowAtlas(),
-                compiledShaderCache?.clear(),
-                window.clearTimeout(renderCommitTimeoutId),
-                (renderCommitTimeoutId = null)));
+                appCtx.compiledShaderCache?.clear(),
+                window.clearTimeout(appCtx.renderCommitTimeoutId),
+                (appCtx.renderCommitTimeoutId = null)));
         },
         handleParentVisibility = (visibilityEvent: any) => {
-          ((isHighDetailQuality = visibilityEvent.detail === true),
+          ((appCtx.isHighDetailQuality = visibilityEvent.detail === true),
             handlePageVisibility(),
-            isHighDetailQuality && isEnvironmentLoading && scheduleLightPrecompile());
+            appCtx.isHighDetailQuality && appCtx.isEnvironmentLoading && scheduleLightPrecompile());
         },
         ev2 = bindFrameDriver(handlePageVisibility);
-      threeRenderer.domElement.addEventListener("hb-i3d-parent-visibility", handleParentVisibility);
+      appCtx.threeRenderer.domElement.addEventListener("hb-i3d-parent-visibility", handleParentVisibility);
       for (const visibilityEventName of [
         "pointerdown",
         "pointermove",
@@ -9214,7 +9020,7 @@ function createStudioRenderer() {
         "keydown",
         "keyup",
       ])
-        threeRenderer.domElement.addEventListener(visibilityEventName, wakeStudio, {
+        appCtx.threeRenderer.domElement.addEventListener(visibilityEventName, wakeStudio, {
           passive: true,
         });
       (document.addEventListener("visibilitychange", handlePageVisibility),
@@ -9222,12 +9028,12 @@ function createStudioRenderer() {
           "pagehide",
           () => {
             (ev2(),
-              lightingScheduler.dispose(),
+              appCtx.lightingScheduler.dispose(),
               document.removeEventListener("visibilitychange", handlePageVisibility),
-              lightPrecompileController?.dispose?.(),
-              regionLightController?.dispose(),
-              contactShadowController?.dispose(),
-              threeRenderer.domElement.removeEventListener(
+              appCtx.lightPrecompileController?.dispose?.(),
+              appCtx.regionLightController?.dispose(),
+              appCtx.contactShadowController?.dispose(),
+              appCtx.threeRenderer.domElement.removeEventListener(
                 "hb-i3d-parent-visibility",
                 handleParentVisibility,
               ));
@@ -9240,7 +9046,7 @@ function createStudioRenderer() {
               "keydown",
               "keyup",
             ])
-              threeRenderer.domElement.removeEventListener(removeEventName, wakeStudio);
+              appCtx.threeRenderer.domElement.removeEventListener(removeEventName, wakeStudio);
           },
           {
             once: true,
@@ -9257,7 +9063,7 @@ function createStudioRenderer() {
       console.error(frameDriverError));
   }
 }
-function applyOrthoFrame(orthoFrameSize: any, orthoFrameAspect: any, orthoFrameCamera = threeCamera) {
+function applyOrthoFrame(orthoFrameSize: any, orthoFrameAspect: any, orthoFrameCamera = appCtx.threeCamera) {
   if (!orthoFrameCamera?.isOrthographicCamera) return;
   const frameHalfHeight = Math.max(orthoFrameSize, 1) / 2;
   (orthoFrameAspect >= 1
@@ -9272,13 +9078,13 @@ function applyOrthoFrame(orthoFrameSize: any, orthoFrameAspect: any, orthoFrameC
     orthoFrameCamera.updateProjectionMatrix());
 }
 function resizeStudioRenderer({ preserveCanvasSize: shouldPreserveCanvasSize = false } = {}) {
-  if (!threeRenderer) return;
-  if (pendingRuntimeSettings) {
+  if (!appCtx.threeRenderer) return;
+  if (appCtx.pendingRuntimeSettings) {
     resizeRenderCanvas();
     return;
   }
   const previewStageElement = selectElement("#preview-3d"),
-    size = isEmbeddedStage ? threeRenderer.getSize(new ns2.Vector2()) : null,
+    size = isEmbeddedStage ? appCtx.threeRenderer.getSize(new ns2.Vector2()) : null,
     viewportWidth = Math.max(
       shouldPreserveCanvasSize && size ? size.x : previewStageElement.clientWidth,
       1,
@@ -9288,32 +9094,32 @@ function resizeStudioRenderer({ preserveCanvasSize: shouldPreserveCanvasSize = f
       1,
     ),
     isViewportSizeUnchanged = size?.x === viewportWidth && size?.y === viewportHeight,
-    join3 = isEmbeddedStage ? threeCamera.projectionMatrix.elements.join(",") : "";
-  (isViewportSizeUnchanged || threeRenderer.setSize(viewportWidth, viewportHeight, false),
-    (threeCamera.userData.viewportAspect = viewportWidth / viewportHeight),
-    threeCamera.isOrthographicCamera
-      ? applyOrthoFrame(threeCamera.userData.frameSize || 10, threeCamera.userData.viewportAspect)
-      : ((threeCamera.aspect = threeCamera.userData.viewportAspect), applyCameraFocalLength()),
-    (!isViewportSizeUnchanged || join3 !== threeCamera.projectionMatrix.elements.join(",")) &&
+    join3 = isEmbeddedStage ? appCtx.threeCamera.projectionMatrix.elements.join(",") : "";
+  (isViewportSizeUnchanged || appCtx.threeRenderer.setSize(viewportWidth, viewportHeight, false),
+    (appCtx.threeCamera.userData.viewportAspect = viewportWidth / viewportHeight),
+    appCtx.threeCamera.isOrthographicCamera
+      ? applyOrthoFrame(appCtx.threeCamera.userData.frameSize || 10, appCtx.threeCamera.userData.viewportAspect)
+      : ((appCtx.threeCamera.aspect = appCtx.threeCamera.userData.viewportAspect), applyCameraFocalLength()),
+    (!isViewportSizeUnchanged || join3 !== appCtx.threeCamera.projectionMatrix.elements.join(",")) &&
       refreshSceneRender());
 }
 function captureOverviewCamera() {
-  return !threeCamera || !orbitControls
+  return !appCtx.threeCamera || !appCtx.orbitControls
     ? null
     : {
-        mode: threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
-        cameraView: threeCamera.userData.cameraView || getCameraView(),
-        topRotation: threeCamera.userData.topRotation || 0,
-        position: threeCamera.position.clone(),
-        target: orbitControls.target.clone(),
-        up: threeCamera.up.clone(),
-        zoom: threeCamera.zoom,
-        visibleHeight: computeVisibleHeight(threeCamera, orbitControls.target),
-        frameSize: computeFrameSize(threeCamera, orbitControls.target),
-        viewportAspect: threeCamera.userData.viewportAspect || 1,
-        fov: threeCamera.isPerspectiveCamera ? threeCamera.fov : 36,
-        near: threeCamera.near,
-        far: threeCamera.far,
+        mode: appCtx.threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+        cameraView: appCtx.threeCamera.userData.cameraView || getCameraView(),
+        topRotation: appCtx.threeCamera.userData.topRotation || 0,
+        position: appCtx.threeCamera.position.clone(),
+        target: appCtx.orbitControls.target.clone(),
+        up: appCtx.threeCamera.up.clone(),
+        zoom: appCtx.threeCamera.zoom,
+        visibleHeight: computeVisibleHeight(appCtx.threeCamera, appCtx.orbitControls.target),
+        frameSize: computeFrameSize(appCtx.threeCamera, appCtx.orbitControls.target),
+        viewportAspect: appCtx.threeCamera.userData.viewportAspect || 1,
+        fov: appCtx.threeCamera.isPerspectiveCamera ? appCtx.threeCamera.fov : 36,
+        near: appCtx.threeCamera.near,
+        far: appCtx.threeCamera.far,
       };
 }
 function applyCameraState(
@@ -9321,31 +9127,31 @@ function applyCameraState(
   stateViewportAspect = cameraStateSnapshot?.viewportAspect || 1,
 ) {
   !cameraStateSnapshot ||
-    !threeRenderer ||
+    !appCtx.threeRenderer ||
     (setCameraMode(cameraStateSnapshot.mode, {
       preserveView: false,
     }),
-    threeCamera.position.copy(cameraStateSnapshot.position),
-    threeCamera.up.copy(cameraStateSnapshot.up),
-    (threeCamera.zoom = cameraStateSnapshot.zoom || 1),
-    (threeCamera.near = cameraStateSnapshot.near),
-    (threeCamera.far = cameraStateSnapshot.far),
-    (threeCamera.userData.frameSize = resolveFrameSize(
+    appCtx.threeCamera.position.copy(cameraStateSnapshot.position),
+    appCtx.threeCamera.up.copy(cameraStateSnapshot.up),
+    (appCtx.threeCamera.zoom = cameraStateSnapshot.zoom || 1),
+    (appCtx.threeCamera.near = cameraStateSnapshot.near),
+    (appCtx.threeCamera.far = cameraStateSnapshot.far),
+    (appCtx.threeCamera.userData.frameSize = resolveFrameSize(
       cameraStateSnapshot,
       stateViewportAspect,
       cameraStateSnapshot.zoom || 1,
     )),
-    (threeCamera.userData.viewportAspect = stateViewportAspect),
-    (threeCamera.userData.cameraView = cameraStateSnapshot.cameraView || getCameraView()),
-    (threeCamera.userData.topRotation = cameraStateSnapshot.topRotation || 0),
-    threeCamera.isPerspectiveCamera
-      ? ((threeCamera.fov = cameraStateSnapshot.fov), (threeCamera.aspect = stateViewportAspect))
-      : applyOrthoFrame(threeCamera.userData.frameSize, stateViewportAspect, threeCamera),
-    threeCamera.lookAt(cameraStateSnapshot.target),
-    threeCamera.updateProjectionMatrix(),
-    orbitControls.target.copy(cameraStateSnapshot.target),
+    (appCtx.threeCamera.userData.viewportAspect = stateViewportAspect),
+    (appCtx.threeCamera.userData.cameraView = cameraStateSnapshot.cameraView || getCameraView()),
+    (appCtx.threeCamera.userData.topRotation = cameraStateSnapshot.topRotation || 0),
+    appCtx.threeCamera.isPerspectiveCamera
+      ? ((appCtx.threeCamera.fov = cameraStateSnapshot.fov), (appCtx.threeCamera.aspect = stateViewportAspect))
+      : applyOrthoFrame(appCtx.threeCamera.userData.frameSize, stateViewportAspect, appCtx.threeCamera),
+    appCtx.threeCamera.lookAt(cameraStateSnapshot.target),
+    appCtx.threeCamera.updateProjectionMatrix(),
+    appCtx.orbitControls.target.copy(cameraStateSnapshot.target),
     requestStudioRender(),
-    orbitControls.update());
+    appCtx.orbitControls.update());
 }
 function stateViewportAspectGetCanvasSize() {
   return {
@@ -9383,19 +9189,19 @@ function resolvePixelRatio(isExportMode = false) {
   return Math.min(cappedPixelRatio, isExportMode ? 2 : 4);
 }
 function resizeRenderCanvas() {
-  if (!pendingRuntimeSettings || isInteractionLocked || !threeRenderer || !threeCamera) return;
+  if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked || !appCtx.threeRenderer || !appCtx.threeCamera) return;
   const { width: wn6, height: wn7 } = stateViewportAspectGetCanvasSize(),
     canvasAspect = wn6 / wn7,
     canvasClientWidth = Math.max(exportPreviewStageElement.clientWidth, 1),
     canvasClientHeight = Math.max(exportPreviewStageElement.clientHeight, 1),
     $f3 = isAutoDiagramEmbed ? resolvePixelRatio(false) : Math.min(window.devicePixelRatio || 1, 2);
-  (threeRenderer.setPixelRatio($f3),
-    threeRenderer.setSize(canvasClientWidth, canvasClientHeight, false),
-    (threeCamera.userData.viewportAspect = canvasAspect),
-    threeCamera.isOrthographicCamera
-      ? applyOrthoFrame(threeCamera.userData.frameSize || 10, canvasAspect, threeCamera)
-      : ((threeCamera.aspect = canvasAspect), applyCameraFocalLength()),
-    orbitControls.update(),
+  (appCtx.threeRenderer.setPixelRatio($f3),
+    appCtx.threeRenderer.setSize(canvasClientWidth, canvasClientHeight, false),
+    (appCtx.threeCamera.userData.viewportAspect = canvasAspect),
+    appCtx.threeCamera.isOrthographicCamera
+      ? applyOrthoFrame(appCtx.threeCamera.userData.frameSize || 10, canvasAspect, appCtx.threeCamera)
+      : ((appCtx.threeCamera.aspect = canvasAspect), applyCameraFocalLength()),
+    appCtx.orbitControls.update(),
     refreshSceneRender());
 }
 function syncCanvasSizeInputs() {
@@ -9420,25 +9226,25 @@ function handleCanvasSizeInput(dimensionName: any, shouldCommitSize = false) {
       (dimensionName === "width"
         ? shouldCommitSize
           ? ((nextCanvasWidth = clamp2(nextCanvasWidth, 320, 4096)),
-            (nextCanvasHeight = Math.round(nextCanvasWidth / exportAspectRatio)),
+            (nextCanvasHeight = Math.round(nextCanvasWidth / appCtx.exportAspectRatio)),
             nextCanvasHeight < 320 &&
               ((nextCanvasHeight = 320),
-              (nextCanvasWidth = Math.round(nextCanvasHeight * exportAspectRatio))),
+              (nextCanvasWidth = Math.round(nextCanvasHeight * appCtx.exportAspectRatio))),
             nextCanvasHeight > 4096 &&
               ((nextCanvasHeight = 4096),
-              (nextCanvasWidth = Math.round(nextCanvasHeight * exportAspectRatio))))
-          : (nextCanvasHeight = Math.round(clamp2(nextCanvasWidth / exportAspectRatio, 320, 4096)))
+              (nextCanvasWidth = Math.round(nextCanvasHeight * appCtx.exportAspectRatio))))
+          : (nextCanvasHeight = Math.round(clamp2(nextCanvasWidth / appCtx.exportAspectRatio, 320, 4096)))
         : shouldCommitSize
           ? ((nextCanvasHeight = clamp2(nextCanvasHeight, 320, 4096)),
-            (nextCanvasWidth = Math.round(nextCanvasHeight * exportAspectRatio)),
+            (nextCanvasWidth = Math.round(nextCanvasHeight * appCtx.exportAspectRatio)),
             nextCanvasWidth < 320 &&
               ((nextCanvasWidth = 320),
-              (nextCanvasHeight = Math.round(nextCanvasWidth / exportAspectRatio))),
+              (nextCanvasHeight = Math.round(nextCanvasWidth / appCtx.exportAspectRatio))),
             nextCanvasWidth > 4096 &&
               ((nextCanvasWidth = 4096),
-              (nextCanvasHeight = Math.round(nextCanvasWidth / exportAspectRatio))))
+              (nextCanvasHeight = Math.round(nextCanvasWidth / appCtx.exportAspectRatio))))
           : (nextCanvasWidth = Math.round(
-              clamp2(nextCanvasHeight * exportAspectRatio, 320, 4096),
+              clamp2(nextCanvasHeight * appCtx.exportAspectRatio, 320, 4096),
             ))),
     shouldCommitSize
       ? ((nextCanvasWidth = Math.round(clamp2(nextCanvasWidth, 320, 4096))),
@@ -9453,7 +9259,7 @@ function handleCanvasSizeInput(dimensionName: any, shouldCommitSize = false) {
 }
 function openExportDialog(exportDialogOptions: ExportDialogOptions = {}) {
   const cs3 = captureCameraView();
-  if (!cs3 || !pendingRuntimeSettings) return;
+  if (!cs3 || !appCtx.pendingRuntimeSettings) return;
   const exportAspect =
       stateViewportAspectGetCanvasSize().width / stateViewportAspectGetCanvasSize().height,
     ut3 = cameraSettings();
@@ -9495,15 +9301,15 @@ function openExportDialog(exportDialogOptions: ExportDialogOptions = {}) {
   }
 }
 function renderExportPresetSlots() {
-  const normalizedExportPresets = normalizeExportPresetSlots2(studioProject?.exportPresets),
+  const normalizedExportPresets = normalizeExportPresetSlots2(appCtx.studioProject?.exportPresets),
     normalizedActiveSlot = normalizeActiveExportPresetSlot2(
-      studioProject?.activeExportPresetSlot,
+      appCtx.studioProject?.activeExportPresetSlot,
       normalizedExportPresets.length,
     );
-  ((studioProject.exportPresets = normalizedExportPresets),
-    (studioProject.activeExportPresetSlot = normalizedActiveSlot));
+  ((appCtx.studioProject.exportPresets = normalizedExportPresets),
+    (appCtx.studioProject.activeExportPresetSlot = normalizedActiveSlot));
   const floorNameById = new Map(
-    (studioProject?.floors || []).map((presetFloor: any) => [presetFloor.id, presetFloor.name]),
+    (appCtx.studioProject?.floors || []).map((presetFloor: any) => [presetFloor.id, presetFloor.name]),
   );
   exportPresetSlotsElement.replaceChildren(
     ...normalizedExportPresets.map((exportPreset, presetSlotIndex) => {
@@ -9533,14 +9339,14 @@ function renderExportPresetSlots() {
   ((exportPresetAddButton.disabled = normalizedExportPresets.length >= MAX_EXPORT_PRESET_COUNT2),
     (exportPresetRenameButton.disabled = !activePreset),
     (exportPresetDeleteButton.disabled = normalizedExportPresets.length <= 1));
-  const isPresetEmpty = exportPresetIsEmpty2(activePreset, isExportPresetDirty);
+  const isPresetEmpty = exportPresetIsEmpty2(activePreset, appCtx.isExportPresetDirty);
   ((exportPresetEmptyStateElement.hidden = !isPresetEmpty),
     (exportPresetEmptyTitleElement.textContent = activePreset
       ? formatPresetLabel(activePreset, normalizedActiveSlot) + "已设置"
       : "当前存档尚未设置"));
 }
 function buildExportPreset({ name: presetName = "" } = {}) {
-  if (threeCamera.isPerspectiveCamera) {
+  if (appCtx.threeCamera.isPerspectiveCamera) {
     const cameraFocalLengthInput = selectElement("#camera-focal-length"),
       inputFocalLength = clamp2(
         finite2(cameraFocalLengthInput?.value, getCameraFocalLength()),
@@ -9550,36 +9356,36 @@ function buildExportPreset({ name: presetName = "" } = {}) {
     cameraSettings().cameraFocalLength = inputFocalLength;
     for (const focalLengthControl of cameraFocalLengthControls)
       focalLengthControl.value = String(Math.round(inputFocalLength));
-    applyCameraFocalLength(threeCamera, inputFocalLength);
+    applyCameraFocalLength(appCtx.threeCamera, inputFocalLength);
   }
   const { width: wn8, height: wn9 } = stateViewportAspectGetCanvasSize(),
-    exportCameraTarget = orbitControls.target;
+    exportCameraTarget = appCtx.orbitControls.target;
   return normalizeExportPreset2({
     name: presetName,
     width: wn8,
     height: wn9,
     lockRatio: exportLockRatioInput.checked,
     floorMode: getPreviewFloorMode() === "all" ? "all" : "floor",
-    floorId: getActiveFloor()?.id || activeFloorId,
-    floorGap: finite2(studioProject.exportFloorGap, 3),
+    floorId: getActiveFloor()?.id || appCtx.activeFloorId,
+    floorGap: finite2(appCtx.studioProject.exportFloorGap, 3),
     camera: {
-      mode: threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+      mode: appCtx.threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
       view: getCameraView(),
       topRotation: getCameraTopRotation(),
       position: {
-        x: threeCamera.position.x,
-        y: threeCamera.position.y,
-        z: threeCamera.position.z,
+        x: appCtx.threeCamera.position.x,
+        y: appCtx.threeCamera.position.y,
+        z: appCtx.threeCamera.position.z,
       },
       target: {
         x: exportCameraTarget.x,
         y: exportCameraTarget.y,
         z: exportCameraTarget.z,
       },
-      visibleHeight: computeVisibleHeight(threeCamera, exportCameraTarget),
-      frameSize: computeOrthoFrameSize(threeCamera, exportCameraTarget),
-      fov: threeCamera.isPerspectiveCamera ? threeCamera.fov : 36,
-      focalLength: threeCamera.isPerspectiveCamera ? getCameraFocalLength() : null,
+      visibleHeight: computeVisibleHeight(appCtx.threeCamera, exportCameraTarget),
+      frameSize: computeOrthoFrameSize(appCtx.threeCamera, exportCameraTarget),
+      fov: appCtx.threeCamera.isPerspectiveCamera ? appCtx.threeCamera.fov : 36,
+      focalLength: appCtx.threeCamera.isPerspectiveCamera ? getCameraFocalLength() : null,
     },
     folderName: exportFolderNameInput.value,
     selectedFiles: [...collectSelectedExportFiles()],
@@ -9633,21 +9439,21 @@ function importCameraPreset(cameraPresetSpec: any) {
 }
 function applyExportPreset(presetSlotIndexToApply: any, applyOptions: ApplyExportOptions = {}) {
   const appliedPreset = normalizeExportPreset2(
-    studioProject?.exportPresets?.[presetSlotIndexToApply],
+    appCtx.studioProject?.exportPresets?.[presetSlotIndexToApply],
   );
-  if (!appliedPreset || !pendingRuntimeSettings) return false;
+  if (!appliedPreset || !appCtx.pendingRuntimeSettings) return false;
   ((exportWidthInput.value = String(appliedPreset.width)),
     (exportHeightInput.value = String(appliedPreset.height)),
     (exportLockRatioInput.checked = appliedPreset.lockRatio),
-    (exportAspectRatio = appliedPreset.width / appliedPreset.height),
-    (studioProject.exportFloorGap = appliedPreset.floorGap));
-  const presetFloorEntry = studioProject.floors.find(
+    (appCtx.exportAspectRatio = appliedPreset.width / appliedPreset.height),
+    (appCtx.studioProject.exportFloorGap = appliedPreset.floorGap));
+  const presetFloorEntry = appCtx.studioProject.floors.find(
       (applyOptionsMatchedFloor: any) => applyOptionsMatchedFloor.id === appliedPreset.floorId,
     ),
     presetFloorId =
-      appliedPreset.floorMode === "all" && studioProject.floors.length > 1
+      appliedPreset.floorMode === "all" && appCtx.studioProject.floors.length > 1
         ? "all"
-        : presetFloorEntry?.id || getActiveFloor()?.id || activeFloorId;
+        : presetFloorEntry?.id || getActiveFloor()?.id || appCtx.activeFloorId;
   (selectPreviewFloor(presetFloorId),
     (exportFloorGapInput.value = appliedPreset.floorGap.toFixed(1)),
     (exportFolderNameInput.value = appliedPreset.folderName));
@@ -9677,17 +9483,17 @@ function applyExportPreset(presetSlotIndexToApply: any, applyOptions: ApplyExpor
   );
 }
 function selectExportPresetSlot(slotIndex: any) {
-  const exportPresetCount = studioProject?.exportPresets?.length || 0;
+  const exportPresetCount = appCtx.studioProject?.exportPresets?.length || 0;
   if (
     !Number.isInteger(slotIndex) ||
     slotIndex < 0 ||
     slotIndex >= exportPresetCount ||
-    isInteractionLocked
+    appCtx.isInteractionLocked
   )
     return;
-  (saveExportPreset(), (studioProject.activeExportPresetSlot = slotIndex));
+  (saveExportPreset(), (appCtx.studioProject.activeExportPresetSlot = slotIndex));
   const du2 = applyExportPreset(slotIndex);
-  ((isExportPresetDirty = false),
+  ((appCtx.isExportPresetDirty = false),
     renderExportPresetSlots(),
     markDocumentDirty(),
     du2 ||
@@ -9696,39 +9502,39 @@ function selectExportPresetSlot(slotIndex: any) {
 }
 function saveExportPreset() {
   if (
-    (window.clearTimeout(exportPreviewTimeoutId),
-    (exportPreviewTimeoutId = null),
-    !isExportPresetDirty)
+    (window.clearTimeout(appCtx.exportPreviewTimeoutId),
+    (appCtx.exportPreviewTimeoutId = null),
+    !appCtx.isExportPresetDirty)
   )
     return false;
   const targetPresetSlot = normalizeActiveExportPresetSlot2(
-    studioProject?.activeExportPresetSlot,
-    studioProject?.exportPresets?.length,
+    appCtx.studioProject?.activeExportPresetSlot,
+    appCtx.studioProject?.exportPresets?.length,
   );
-  if (!pendingRuntimeSettings || isInteractionLocked) return false;
-  studioProject.exportPresets = normalizeExportPresetSlots2(studioProject.exportPresets);
-  const currentPresetName = studioProject.exportPresets[targetPresetSlot]?.name || "";
+  if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return false;
+  appCtx.studioProject.exportPresets = normalizeExportPresetSlots2(appCtx.studioProject.exportPresets);
+  const currentPresetName = appCtx.studioProject.exportPresets[targetPresetSlot]?.name || "";
   return (
-    (studioProject.exportPresets[targetPresetSlot] = buildExportPreset({
+    (appCtx.studioProject.exportPresets[targetPresetSlot] = buildExportPreset({
       name: currentPresetName,
     })),
-    (isExportPresetDirty = false),
+    (appCtx.isExportPresetDirty = false),
     renderExportPresetSlots(),
     markDocumentDirty(),
     true
   );
 }
 function syncExportControls() {
-  !pendingRuntimeSettings ||
-    isInteractionLocked ||
-    ((isExportPresetDirty = true),
+  !appCtx.pendingRuntimeSettings ||
+    appCtx.isInteractionLocked ||
+    ((appCtx.isExportPresetDirty = true),
     renderExportPresetSlots(),
-    window.clearTimeout(exportPreviewTimeoutId),
-    (exportPreviewTimeoutId = window.setTimeout(saveExportPreset, 360)));
+    window.clearTimeout(appCtx.exportPreviewTimeoutId),
+    (appCtx.exportPreviewTimeoutId = window.setTimeout(saveExportPreset, 360)));
 }
 function formatPresetLabel(labelPreset: any, labelSlotIndex: any) {
   if (!labelPreset) return "存档 " + String(labelSlotIndex + 1).padStart(2, "0");
-  const presetFloorName = (studioProject?.floors || []).find(
+  const presetFloorName = (appCtx.studioProject?.floors || []).find(
     (labelFloor: any) => labelFloor.id === labelPreset.floorId,
   )?.name;
   return (
@@ -9738,7 +9544,7 @@ function formatPresetLabel(labelPreset: any, labelSlotIndex: any) {
 function makeUniquePresetName(basePresetName: any, ignoredSlotIndex = -1) {
   const normalizedPresetName = normalizeLabelText2(basePresetName, "导出视角", 24),
     presetNameSet = new Set(
-      (studioProject?.exportPresets || [])
+      (appCtx.studioProject?.exportPresets || [])
         .map((nameSlotPreset: any, nameSlotIndex: any) =>
           nameSlotIndex === ignoredSlotIndex
             ? ""
@@ -9753,22 +9559,22 @@ function makeUniquePresetName(basePresetName: any, ignoredSlotIndex = -1) {
   return (normalizedPresetName + " " + ignoredSlotIndexDuplicateNameSuffix).slice(0, 24);
 }
 function saveAsNewPreset() {
-  if (!pendingRuntimeSettings || isInteractionLocked) return;
+  if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return;
   if (
     (saveExportPreset(),
-    (studioProject.exportPresets = normalizeExportPresetSlots2(studioProject.exportPresets)),
-    studioProject.exportPresets.length >= MAX_EXPORT_PRESET_COUNT2)
+    (appCtx.studioProject.exportPresets = normalizeExportPresetSlots2(appCtx.studioProject.exportPresets)),
+    appCtx.studioProject.exportPresets.length >= MAX_EXPORT_PRESET_COUNT2)
   ) {
     showToast("最多可以保存 8 个导出存档。");
     return;
   }
-  const nextPresetSlotIndex = studioProject.exportPresets.length,
+  const nextPresetSlotIndex = appCtx.studioProject.exportPresets.length,
     newPresetName =
       getPreviewFloorMode() === "all"
         ? "全楼"
         : getActiveFloor()?.name || "存档 " + (nextPresetSlotIndex + 1),
     hf2 = makeUniquePresetName(newPresetName + "视角"),
-    lastExportPreset = studioProject.exportPresets
+    lastExportPreset = appCtx.studioProject.exportPresets
       .slice(0, nextPresetSlotIndex)
       .reverse()
       .find(Boolean),
@@ -9779,9 +9585,9 @@ function saveAsNewPreset() {
     ((vf2!.width = lastExportPreset.width),
     (vf2!.height = lastExportPreset.height),
     (vf2!.lockRatio = lastExportPreset.lockRatio)),
-    studioProject.exportPresets.push(vf2),
-    (studioProject.activeExportPresetSlot = nextPresetSlotIndex),
-    (isExportPresetDirty = false),
+    appCtx.studioProject.exportPresets.push(vf2),
+    (appCtx.studioProject.activeExportPresetSlot = nextPresetSlotIndex),
+    (appCtx.isExportPresetDirty = false),
     renderExportPresetSlots(),
     markDocumentDirty(),
     (exportStatusElement.textContent = "已新增“" + hf2 + "”"),
@@ -9791,11 +9597,11 @@ function closePresetRenameDialog() {
   exportPresetRenameDialogElement.open && exportPresetRenameDialogElement.close();
 }
 function openPresetRenameDialog() {
-  if (isInteractionLocked) return;
+  if (appCtx.isInteractionLocked) return;
   saveExportPreset();
-  const renamePresetSlots = normalizeExportPresetSlots2(studioProject?.exportPresets),
+  const renamePresetSlots = normalizeExportPresetSlots2(appCtx.studioProject?.exportPresets),
     renameActiveSlot = normalizeActiveExportPresetSlot2(
-      studioProject?.activeExportPresetSlot,
+      appCtx.studioProject?.activeExportPresetSlot,
       renamePresetSlots.length,
     );
   renamePresetSlots[renameActiveSlot] &&
@@ -9810,11 +9616,11 @@ function closePresetDeleteDialog() {
   exportPresetDeleteDialogElement.open && exportPresetDeleteDialogElement.close();
 }
 function openPresetDeleteDialog() {
-  if (isInteractionLocked) return;
-  const deletePresetSlots = normalizeExportPresetSlots2(studioProject?.exportPresets);
+  if (appCtx.isInteractionLocked) return;
+  const deletePresetSlots = normalizeExportPresetSlots2(appCtx.studioProject?.exportPresets);
   if (deletePresetSlots.length <= 1) return;
   const deleteActiveSlot = normalizeActiveExportPresetSlot2(
-    studioProject?.activeExportPresetSlot,
+    appCtx.studioProject?.activeExportPresetSlot,
     deletePresetSlots.length,
   );
   ((exportPresetDeleteNameElement.textContent = formatPresetLabel(
@@ -9824,24 +9630,24 @@ function openPresetDeleteDialog() {
     exportPresetDeleteDialogElement.showModal());
 }
 function confirmDeletePreset() {
-  const updatedPresetSlots = normalizeExportPresetSlots2(studioProject?.exportPresets);
+  const updatedPresetSlots = normalizeExportPresetSlots2(appCtx.studioProject?.exportPresets);
   if (updatedPresetSlots.length <= 1) return;
   const deletedSlotIndex = normalizeActiveExportPresetSlot2(
-      studioProject?.activeExportPresetSlot,
+      appCtx.studioProject?.activeExportPresetSlot,
       updatedPresetSlots.length,
     ),
     ja2 = formatPresetLabel(updatedPresetSlots[deletedSlotIndex], deletedSlotIndex);
-  (window.clearTimeout(exportPreviewTimeoutId),
-    (exportPreviewTimeoutId = null),
-    (isExportPresetDirty = false),
+  (window.clearTimeout(appCtx.exportPreviewTimeoutId),
+    (appCtx.exportPreviewTimeoutId = null),
+    (appCtx.isExportPresetDirty = false),
     updatedPresetSlots.splice(deletedSlotIndex, 1),
-    (studioProject.exportPresets = updatedPresetSlots),
-    (studioProject.activeExportPresetSlot = Math.min(
+    (appCtx.studioProject.exportPresets = updatedPresetSlots),
+    (appCtx.studioProject.activeExportPresetSlot = Math.min(
       deletedSlotIndex,
       updatedPresetSlots.length - 1,
     )),
     closePresetDeleteDialog());
-  const du3 = applyExportPreset(studioProject.activeExportPresetSlot, {
+  const du3 = applyExportPreset(appCtx.studioProject.activeExportPresetSlot, {
     silent: true,
   });
   (renderExportPresetSlots(),
@@ -9855,32 +9661,32 @@ function ensureSceneRendered(renderAttempt = 0) {
     window.parent === window ||
     requestAnimationFrame(() => {
       if (
-        !pendingRuntimeSettings ||
-        !threeRenderer ||
-        !threeScene ||
-        !threeCamera ||
-        !orbitControls
+        !appCtx.pendingRuntimeSettings ||
+        !appCtx.threeRenderer ||
+        !appCtx.threeScene ||
+        !appCtx.threeCamera ||
+        !appCtx.orbitControls
       )
         return;
-      (resizeRenderCanvas(), sceneRootNode?.children?.length || rebuildFloorLayers());
+      (resizeRenderCanvas(), appCtx.sceneRootNode?.children?.length || rebuildFloorLayers());
       const hasUsableViewport =
           exportPreviewStageElement.clientWidth > 1 && exportPreviewStageElement.clientHeight > 1,
-        hasSceneChildren = !!sceneRootNode?.children?.length;
+        hasSceneChildren = !!appCtx.sceneRootNode?.children?.length;
       let isSceneReady = false;
       if (hasUsableViewport && hasSceneChildren) {
         (refreshSceneRender({
           shadows: true,
         }),
-          orbitControls.update());
+          appCtx.orbitControls.update());
         for (let renderRetryIndex = 0; renderRetryIndex < 2; renderRetryIndex += 1)
-          threeRenderer.render(threeScene, threeCamera);
-        const render2 = threeRenderer.info.render;
+          appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera);
+        const render2 = appCtx.threeRenderer.info.render;
         ((isSceneReady = render2.calls > 0 && render2.triangles > 0),
-          (threeRenderer.domElement.dataset.renderCalls = String(render2.calls)),
-          (threeRenderer.domElement.dataset.renderTriangles = String(render2.triangles)),
-          (threeRenderer.domElement.dataset.renderLines = String(render2.lines)),
-          (isLightCacheReady = false),
-          (isLightCachePending = isSceneReady),
+          (appCtx.threeRenderer.domElement.dataset.renderCalls = String(render2.calls)),
+          (appCtx.threeRenderer.domElement.dataset.renderTriangles = String(render2.triangles)),
+          (appCtx.threeRenderer.domElement.dataset.renderLines = String(render2.lines)),
+          (appCtx.isLightCacheReady = false),
+          (appCtx.isLightCachePending = isSceneReady),
           updateRenderStatsHud());
       }
       if (!isSceneReady && renderAttempt < 7) {
@@ -9902,40 +9708,40 @@ function ensureSceneRendered(renderAttempt = 0) {
         {
           type: "homeos-floorplan-auto-diagram-ready",
           componentId: autoDiagramComponentId,
-          floors: studioProject.floors.map((exportFloorEntry: any) => ({
+          floors: appCtx.studioProject.floors.map((exportFloorEntry: any) => ({
             id: exportFloorEntry.id,
             name: exportFloorEntry.name,
           })),
           floorSelection:
-            getPreviewFloorMode() === "all" ? "all" : getActiveFloor()?.id || activeFloorId,
+            getPreviewFloorMode() === "all" ? "all" : getActiveFloor()?.id || appCtx.activeFloorId,
         },
         window.location.origin,
       );
     });
 }
 function openExportPanel() {
-  if (pendingRuntimeSettings || !threeRenderer || !threeCamera || !orbitControls) return;
-  (window.clearTimeout(exportPreviewTimeoutId),
-    (exportPreviewTimeoutId = null),
-    (isExportPresetDirty = false));
+  if (appCtx.pendingRuntimeSettings || !appCtx.threeRenderer || !appCtx.threeCamera || !appCtx.orbitControls) return;
+  (window.clearTimeout(appCtx.exportPreviewTimeoutId),
+    (appCtx.exportPreviewTimeoutId = null),
+    (appCtx.isExportPresetDirty = false));
   const va2 = listLightGroupRows(),
     televisionEntries = listScreenRows(),
     na2 = listChargingRows();
-  ((pendingRuntimeSettings = {
-    canvasParent: threeRenderer.domElement.parentElement,
+  ((appCtx.pendingRuntimeSettings = {
+    canvasParent: appCtx.threeRenderer.domElement.parentElement,
     camera: captureOverviewCamera(),
-    selected: selectedItem
+    selected: appCtx.selectedItem
       ? {
-          ...selectedItem,
+          ...appCtx.selectedItem,
         }
       : null,
-    selectedMany: selectedItems.map((selectedSceneItem: any) => ({
+    selectedMany: appCtx.selectedItems.map((selectedSceneItem: any) => ({
       ...selectedSceneItem,
     })),
     floorMode: getPreviewFloorMode(),
-    selectedFloorId: activeFloorId,
+    selectedFloorId: appCtx.activeFloorId,
     floorCameraSettings: new Map(
-      studioProject.floors.map((floorCameraEntry: any) => [
+      appCtx.studioProject.floors.map((floorCameraEntry: any) => [
         floorCameraEntry.id,
         {
           mode: floorCameraEntry.scene.settings.cameraMode,
@@ -9946,7 +9752,7 @@ function openExportPanel() {
       ]),
     ),
     combinedCameraSettings: {
-      ...studioProject.combinedCameraSettings,
+      ...appCtx.studioProject.combinedCameraSettings,
     },
     groupStates: new Map(
       va2.map(({ key: groupStateKey, group: groupStateGroup }: any) => [
@@ -9972,9 +9778,9 @@ function openExportPanel() {
       topRotation: getCameraTopRotation(),
       focalLength: getCameraFocalLength(),
     },
-    pixelRatio: threeRenderer.getPixelRatio(),
+    pixelRatio: appCtx.threeRenderer.getPixelRatio(),
   }),
-    lightPrecompileController?.setEnabled(false));
+    appCtx.lightPrecompileController?.setEnabled(false));
   for (const { group: disabledGroup } of va2) disabledGroup.enabled = false;
   if (
     (refreshSelection(),
@@ -10011,10 +9817,10 @@ function openExportPanel() {
       exportFolderQueryValue && (exportFolderNameInput.value = exportFolderQueryValue),
       refreshCanvasSizeUi());
   }
-  (exportDialogElement.showModal(), exportPreviewStageElement.append(threeRenderer.domElement));
+  (exportDialogElement.showModal(), exportPreviewStageElement.append(appCtx.threeRenderer.domElement));
   const resolvedPresetSlot = normalizeActiveExportPresetSlot2(
-      studioProject.activeExportPresetSlot,
-      studioProject.exportPresets.length,
+      appCtx.studioProject.activeExportPresetSlot,
+      appCtx.studioProject.exportPresets.length,
     ),
     du4 =
       resolvedPresetSlot !== null &&
@@ -10022,13 +9828,13 @@ function openExportPanel() {
         silent: true,
       });
   if (isAutoDiagramEmbed && floorSelectionId !== null) {
-    const exportFloorMatch = studioProject.floors.find(
+    const exportFloorMatch = appCtx.studioProject.floors.find(
         (exportFloorCandidate: any) => exportFloorCandidate.id === floorSelectionId,
       ),
       exportFloorId =
-        floorSelectionId === "all" && studioProject.floors.length > 1
+        floorSelectionId === "all" && appCtx.studioProject.floors.length > 1
           ? "all"
-          : exportFloorMatch?.id || getActiveFloor()?.id || activeFloorId;
+          : exportFloorMatch?.id || getActiveFloor()?.id || appCtx.activeFloorId;
     selectPreviewFloor(exportFloorId);
   }
   (du4 ||
@@ -10042,7 +9848,7 @@ function openExportPanel() {
           preserveView: false,
         }),
         updateCameraView())),
-    (exportAspectRatio =
+    (appCtx.exportAspectRatio =
       stateViewportAspectGetCanvasSize().width / stateViewportAspectGetCanvasSize().height),
     renderExportPresetSlots(),
     syncCanvasSizeInputs(),
@@ -10050,9 +9856,9 @@ function openExportPanel() {
 }
 function prepareFreeCameraCapture() {
   const isExportAllFloors = getPreviewFloorMode() === "all",
-    captureFloorId = isExportAllFloors ? "all" : getActiveFloor()?.id || activeFloorId;
+    captureFloorId = isExportAllFloors ? "all" : getActiveFloor()?.id || appCtx.activeFloorId;
   (exportFloorSelectElement.replaceChildren(
-    ...studioProject.floors.map((captureFloor: any) => {
+    ...appCtx.studioProject.floors.map((captureFloor: any) => {
       const floorOptionElement = document.createElement("option");
       return (
         (floorOptionElement.value = captureFloor.id),
@@ -10060,7 +9866,7 @@ function prepareFreeCameraCapture() {
         floorOptionElement
       );
     }),
-    ...(studioProject.floors.length > 1
+    ...(appCtx.studioProject.floors.length > 1
       ? [
           Object.assign(document.createElement("option"), {
             value: "all",
@@ -10071,22 +9877,22 @@ function prepareFreeCameraCapture() {
   ),
     (exportFloorSelectElement.value = captureFloorId),
     syncStudioSelect2(exportFloorSelectElement),
-    (exportFloorGapControlElement.hidden = !isExportAllFloors || studioProject.floors.length <= 1),
-    syncControlValue2(exportFloorGapInput, finite2(studioProject.exportFloorGap, 3).toFixed(1)),
+    (exportFloorGapControlElement.hidden = !isExportAllFloors || appCtx.studioProject.floors.length <= 1),
+    syncControlValue2(exportFloorGapInput, finite2(appCtx.studioProject.exportFloorGap, 3).toFixed(1)),
     refreshFloorControls());
 }
 function selectPreviewFloor(selectedFloorId: any) {
-  if (!pendingRuntimeSettings || isInteractionLocked) return;
-  const isAllFloorsPreview = selectedFloorId === "all" && studioProject.floors.length > 1;
+  if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return;
+  const isAllFloorsPreview = selectedFloorId === "all" && appCtx.studioProject.floors.length > 1;
   if (!isAllFloorsPreview) {
-    const selectedFloor = studioProject.floors.find(
+    const selectedFloor = appCtx.studioProject.floors.find(
       (floorCandidate: any) => floorCandidate.id === selectedFloorId,
     );
     if (!selectedFloor) return;
-    ((pendingRuntimeSettings.selectedFloorId = selectedFloor.id),
-      (studioState = selectedFloor.scene));
+    ((appCtx.pendingRuntimeSettings.selectedFloorId = selectedFloor.id),
+      (appCtx.studioState = selectedFloor.scene));
   }
-  ((studioProject.previewFloorMode = isAllFloorsPreview ? "all" : "active"),
+  ((appCtx.studioProject.previewFloorMode = isAllFloorsPreview ? "all" : "active"),
     prepareFreeCameraCapture(),
     updateFloorPreviewButtons(),
     refreshFloorControls(),
@@ -10114,13 +9920,13 @@ function collectSelectedExportFiles() {
   );
 }
 function restorePreviewAfterExport() {
-  if (!pendingRuntimeSettings || isInteractionLocked) return;
+  if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return;
   (openLightingDialog(),
     baseLightControlsElement?.parentElement !== document.body &&
       document.body.append(baseLightControlsElement),
     saveExportPreset());
-  const exportSessionState = pendingRuntimeSettings;
-  for (const sessionFloor of studioProject.floors) {
+  const exportSessionState = appCtx.pendingRuntimeSettings;
+  for (const sessionFloor of appCtx.studioProject.floors) {
     const floorCameraSettings = exportSessionState.floorCameraSettings.get(sessionFloor.id);
     floorCameraSettings &&
       ((sessionFloor.scene.settings.cameraMode = floorCameraSettings.mode),
@@ -10128,16 +9934,16 @@ function restorePreviewAfterExport() {
       (sessionFloor.scene.settings.cameraTopRotation = floorCameraSettings.topRotation),
       (sessionFloor.scene.settings.cameraFocalLength = floorCameraSettings.focalLength));
   }
-  ((studioProject.combinedCameraSettings = {
+  ((appCtx.studioProject.combinedCameraSettings = {
     ...exportSessionState.combinedCameraSettings,
   }),
-    (pendingRuntimeSettings = null),
-    (studioProject.previewFloorMode = exportSessionState.floorMode),
-    (studioState =
-      studioProject.floors.find(
-        (sessionFloorCandidate: any) => sessionFloorCandidate.id === activeFloorId,
-      )?.scene || studioProject.floors[0].scene),
-    exportSessionState.canvasParent?.append(threeRenderer.domElement));
+    (appCtx.pendingRuntimeSettings = null),
+    (appCtx.studioProject.previewFloorMode = exportSessionState.floorMode),
+    (appCtx.studioState =
+      appCtx.studioProject.floors.find(
+        (sessionFloorCandidate: any) => sessionFloorCandidate.id === appCtx.activeFloorId,
+      )?.scene || appCtx.studioProject.floors[0].scene),
+    exportSessionState.canvasParent?.append(appCtx.threeRenderer.domElement));
   const ut5 = cameraSettings();
   ((ut5.cameraMode = exportSessionState.cameraSettings.mode),
     (ut5.cameraView = exportSessionState.cameraSettings.view),
@@ -10146,8 +9952,8 @@ function restorePreviewAfterExport() {
     applyCameraState(exportSessionState.camera, exportSessionState.camera.viewportAspect),
     syncCameraModeControls(exportSessionState.cameraSettings.mode),
     syncCameraViewControls(exportSessionState.cameraSettings.view),
-    (selectedItem = exportSessionState.selected),
-    (selectedItems = exportSessionState.selectedMany));
+    (appCtx.selectedItem = exportSessionState.selected),
+    (appCtx.selectedItems = exportSessionState.selectedMany));
   for (const { key: sessionGroupKey, group: sessionGroup } of listLightGroupRows())
     exportSessionState.groupStates.has(sessionGroupKey) &&
       (sessionGroup.enabled = exportSessionState.groupStates.get(sessionGroupKey));
@@ -10158,7 +9964,7 @@ function restorePreviewAfterExport() {
     exportSessionState.carChargingStates.has(sessionChargingKey) &&
       (sessionChargingItem.chargingEnabled =
         exportSessionState.carChargingStates.get(sessionChargingKey));
-  (threeRenderer.setPixelRatio(exportSessionState.pixelRatio),
+  (appCtx.threeRenderer.setPixelRatio(exportSessionState.pixelRatio),
     rebuildFloorLayers(),
     requestStudioRender(),
     resizeStudioRenderer(),
@@ -10166,7 +9972,7 @@ function restorePreviewAfterExport() {
     refreshStudioView());
 }
 function setExportBusy(isBusy: any) {
-  isInteractionLocked = isBusy;
+  appCtx.isInteractionLocked = isBusy;
   const exportBusyNoticeElement = selectElement("#export-busy-notice");
   (exportBusyNoticeElement && (exportBusyNoticeElement.hidden = !isBusy),
     (exportPackageButton.disabled = isBusy),
@@ -10176,12 +9982,12 @@ function setExportBusy(isBusy: any) {
       exportControl.id !== "export-package" &&
       (exportControl.disabled = isBusy);
   (isBusy || (refreshFloorControls(), renderExportPresetSlots()),
-    (orbitControls.enabled = !isBusy));
+    (appCtx.orbitControls.enabled = !isBusy));
 }
 function prepareExportRender() {
-  orbitControls.update();
+  appCtx.orbitControls.update();
   for (let exportRenderPassIndex = 0; exportRenderPassIndex < 3; exportRenderPassIndex += 1)
-    threeRenderer.render(threeScene, threeCamera);
+    appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera);
 }
 function canvasToBlob(blobCanvas: any): Promise<Blob> {
   return new Promise((resolveBlob, rejectBlob) => {
@@ -10206,7 +10012,7 @@ async function renderExportImage(
     willReadFrequently: renderImageOptions.pixels === true,
   });
   if (!exportCanvasPainter) throw new Error("当前浏览器无法创建导出画布。");
-  exportCanvasPainter.drawImage(threeRenderer.domElement, 0, 0, imageWidth, imageHeight);
+  exportCanvasPainter.drawImage(appCtx.threeRenderer.domElement, 0, 0, imageWidth, imageHeight);
   const exportImageResult: ExportImageResult = {};
   return (
     renderImageOptions.pixels &&
@@ -10273,7 +10079,7 @@ async function renderLightShadowLayer(
         "/" +
         shadowLightList.length +
         "）"),
-        (overriddenFloorIds = new Set([shadowLightItem.id])),
+        (appCtx.overriddenFloorIds = new Set([shadowLightItem.id])),
         getPreviewFloorMode() === "all"
           ? rebuildFloorLayers({
               preserveLightCache: true,
@@ -10295,7 +10101,7 @@ async function renderLightShadowLayer(
         await ensureRenderReady());
     }
   } finally {
-    overriddenFloorIds = null;
+    appCtx.overriddenFloorIds = null;
   }
   return canvasToBlob(lightShadowCanvas);
 }
@@ -10339,13 +10145,13 @@ function makeUniqueFileName(
   return (usedFileNameSet.add(candidateFileName.toLocaleLowerCase()), candidateFileName);
 }
 function buildExportCamera(cameraWidth: any, cameraHeight: any) {
-  const exportTargetVector = orbitControls.target;
+  const exportTargetVector = appCtx.orbitControls.target;
   return {
-    mode: threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+    mode: appCtx.threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
     position: {
-      x: threeCamera.position.x,
-      y: threeCamera.position.y,
-      z: threeCamera.position.z,
+      x: appCtx.threeCamera.position.x,
+      y: appCtx.threeCamera.position.y,
+      z: appCtx.threeCamera.position.z,
     },
     target: {
       x: exportTargetVector.x,
@@ -10353,9 +10159,9 @@ function buildExportCamera(cameraWidth: any, cameraHeight: any) {
       z: exportTargetVector.z,
     },
     aspect: cameraWidth / cameraHeight,
-    visibleHeight: computeVisibleHeight(threeCamera, exportTargetVector),
-    frameSize: computeOrthoFrameSize(threeCamera, exportTargetVector),
-    fov: threeCamera.isPerspectiveCamera ? threeCamera.fov : null,
+    visibleHeight: computeVisibleHeight(appCtx.threeCamera, exportTargetVector),
+    frameSize: computeOrthoFrameSize(appCtx.threeCamera, exportTargetVector),
+    fov: appCtx.threeCamera.isPerspectiveCamera ? appCtx.threeCamera.fov : null,
   };
 }
 function buildLightExportEntry(exportLightItem: any, exportLightFloor = getActiveFloor()) {
@@ -10389,7 +10195,7 @@ function buildLightExportEntry(exportLightItem: any, exportLightFloor = getActiv
   };
 }
 function projectItemAnchor(anchorItem: any, anchorFloor: any, anchorFloors = getOrderedFloorList()) {
-  if (!anchorItem || !anchorFloor || !threeCamera) return null;
+  if (!anchorItem || !anchorFloor || !appCtx.threeCamera) return null;
   const anchorPixelsPerMeter = anchorFloor.scene?.calibration?.pixelsPerMeter || 1;
   let anchorLocalX = 0,
     anchorElevationY =
@@ -10421,15 +10227,15 @@ function projectItemAnchor(anchorItem: any, anchorFloor: any, anchorFloors = get
         0,
         sort2.findIndex((indexItem) => indexItem.id === anchorFloor.id),
       );
-    anchorElevationY += floorGapOffset * finite2(studioProject.exportFloorGap, 3);
+    anchorElevationY += floorGapOffset * finite2(appCtx.studioProject.exportFloorGap, 3);
   } else {
     const anchorModelOrigin = sceneModelOrigin2(anchorFloor.scene, anchorFloor);
     ((anchorLocalX = (finite2(anchorItem.x, 0) - anchorModelOrigin.x) / anchorPixelsPerMeter),
       (anchorLocalZ = (finite2(anchorItem.y, 0) - anchorModelOrigin.y) / anchorPixelsPerMeter));
   }
-  threeCamera.updateMatrixWorld(true);
+  appCtx.threeCamera.updateMatrixWorld(true);
   const project = new ns2.Vector3(anchorLocalX, anchorElevationY, anchorLocalZ).project(
-    threeCamera,
+    appCtx.threeCamera,
   );
   return ![project.x, project.y, project.z].every(Number.isFinite) ||
     project.z < -1 ||
@@ -10467,8 +10273,8 @@ function applyExportVisibility(groupKeyFilter = "", screenKeyFilter = "", vehicl
 }
 const exportVisibilityByObject = new WeakMap();
 function setExportRoleVisibility(exportRole: any, isRoleVisible: any) {
-  sceneRootNode &&
-    (sceneRootNode.traverse((roleObject: any) => {
+  appCtx.sceneRootNode &&
+    (appCtx.sceneRootNode.traverse((roleObject: any) => {
       roleObject.userData?.exportRole === exportRole &&
         (isRoleVisible
           ? exportVisibilityByObject.has(roleObject) &&
@@ -10483,8 +10289,8 @@ function setExportRoleVisibility(exportRole: any, isRoleVisible: any) {
     }));
 }
 function resolveOverwriteChoice(overwriteChoice = "cancel") {
-  const bl3 = overwriteResolver;
-  ((overwriteResolver = null),
+  const bl3 = appCtx.overwriteResolver;
+  ((appCtx.overwriteResolver = null),
     exportOverwriteDialogElement.open && exportOverwriteDialogElement.close(),
     bl3?.(overwriteChoice));
 }
@@ -10536,13 +10342,13 @@ function showConflictDialog(dialogWindowHost: any, conflictFolderName: any) {
 }
 function beginExportFlow(exportFolderName: any) {
   return (
-    overwriteResolver && resolveOverwriteChoice("cancel"),
+    appCtx.overwriteResolver && resolveOverwriteChoice("cancel"),
     isAutoDiagramEmbed && autoDiagramComponentId && window.parent !== window
       ? showConflictDialog(window.parent, exportFolderName)
       : ((exportOverwriteNameElement.textContent = exportFolderName),
         exportOverwriteDialogElement.showModal(),
         new Promise((resolveOverwrite) => {
-          overwriteResolver = resolveOverwrite;
+          appCtx.overwriteResolver = resolveOverwrite;
         }))
   );
 }
@@ -10571,7 +10377,7 @@ function showExportResult(exportResult: any) {
     exportCompleteDialogElement.open || exportCompleteDialogElement.showModal());
 }
 async function generateExportBundle() {
-  if (!pendingRuntimeSettings || isInteractionLocked) return;
+  if (!appCtx.pendingRuntimeSettings || appCtx.isInteractionLocked) return;
   saveExportPreset();
   const trim = exportFolderNameInput.value.trim();
   if (
@@ -10619,7 +10425,7 @@ async function generateExportBundle() {
           groupId: exportGroup.id,
           floor: exportGroupFloor,
           name: wl3.length > 1 ? exportGroupFloor.name + "-" + exportGroup.name : exportGroup.name,
-          enabledInEditor: pendingRuntimeSettings.groupStates.get(exportGroupKey) !== false,
+          enabledInEditor: appCtx.pendingRuntimeSettings.groupStates.get(exportGroupKey) !== false,
           file: makeUniqueFileName(
             wl3.length > 1 ? exportGroupFloor.name + "-" + exportGroup.name : exportGroup.name,
             exportGroupIndex,
@@ -10648,7 +10454,7 @@ async function generateExportBundle() {
           "" +
           (wl3.length > 1 ? generateExportBundleScreenFloor.name + "-" : "") +
           (screenEntryItem.screenLayerName || "电视画面 " + (screenEntryIndex + 1)),
-        enabledInEditor: pendingRuntimeSettings.tvStates.get(screenEntryKey) !== false,
+        enabledInEditor: appCtx.pendingRuntimeSettings.tvStates.get(screenEntryKey) !== false,
         floor: generateExportBundleScreenFloor,
         item: screenEntryItem,
         file: null as any,
@@ -10669,7 +10475,7 @@ async function generateExportBundle() {
           "" +
           (wl3.length > 1 ? vehicleFloor.name + "-" : "") +
           (vehicleEntryItem.chargingLayerName || "汽车充电 " + (vehicleEntryIndex + 1)),
-        chargingInEditor: pendingRuntimeSettings.carChargingStates.get(vehicleEntryKey) === true,
+        chargingInEditor: appCtx.pendingRuntimeSettings.carChargingStates.get(vehicleEntryKey) === true,
         floor: vehicleFloor,
         item: vehicleEntryItem,
         file: null as any,
@@ -10741,8 +10547,8 @@ async function generateExportBundle() {
       }
       isOverwriting = true;
     }
-    (threeRenderer.setPixelRatio(1),
-      threeRenderer.setSize(exportTargetWidth, exportTargetHeight, false),
+    (appCtx.threeRenderer.setPixelRatio(1),
+      appCtx.threeRenderer.setSize(exportTargetWidth, exportTargetHeight, false),
       applyCameraState(tu3, exportTargetWidth / exportTargetHeight),
       setShadowQualityHigh(true),
       (exportStatusElement.textContent = "正在生成精细阴影导出图层…"),
@@ -10864,7 +10670,7 @@ async function generateExportBundle() {
       exportName: trim,
       floorMode: getPreviewFloorMode(),
       floorPresentationGap:
-        getPreviewFloorMode() === "all" ? finite2(studioProject.exportFloorGap, 3) : 0,
+        getPreviewFloorMode() === "all" ? finite2(appCtx.studioProject.exportFloorGap, 3) : 0,
       floors: wl3.map((manifestFloor: any) => ({
         id: manifestFloor.id,
         name: manifestFloor.name,
@@ -11013,7 +10819,7 @@ async function generateExportBundle() {
         },
         window.location.origin,
       ),
-      (isExporting = true),
+      (appCtx.isExporting = true),
       refreshStepChecklist(),
       showExportResult(saveResult));
   } catch (exportFlowError: any) {
@@ -11038,15 +10844,15 @@ async function generateExportBundle() {
   } finally {
     setShadowQualityHigh(false);
     for (const { key: restoreGroupKey, group: restoreGroup } of listLightGroupRows())
-      pendingRuntimeSettings?.groupStates.has(restoreGroupKey) &&
-        (restoreGroup.enabled = pendingRuntimeSettings.groupStates.get(restoreGroupKey));
+      appCtx.pendingRuntimeSettings?.groupStates.has(restoreGroupKey) &&
+        (restoreGroup.enabled = appCtx.pendingRuntimeSettings.groupStates.get(restoreGroupKey));
     for (const { key: restoreScreenKey, item: restoreScreenItem } of listScreenRows())
-      pendingRuntimeSettings?.tvStates.has(restoreScreenKey) &&
-        (restoreScreenItem.screenEnabled = pendingRuntimeSettings.tvStates.get(restoreScreenKey));
+      appCtx.pendingRuntimeSettings?.tvStates.has(restoreScreenKey) &&
+        (restoreScreenItem.screenEnabled = appCtx.pendingRuntimeSettings.tvStates.get(restoreScreenKey));
     for (const { key: restoreVehicleKey, item: restoreVehicleItem } of listChargingRows())
-      pendingRuntimeSettings?.carChargingStates.has(restoreVehicleKey) &&
+      appCtx.pendingRuntimeSettings?.carChargingStates.has(restoreVehicleKey) &&
         (restoreVehicleItem.chargingEnabled =
-          pendingRuntimeSettings.carChargingStates.get(restoreVehicleKey));
+          appCtx.pendingRuntimeSettings.carChargingStates.get(restoreVehicleKey));
     (rebuildFloorLayers(),
       applyCameraState(tu3, exportTargetWidth / exportTargetHeight),
       setExportBusy(false),
@@ -11099,15 +10905,15 @@ function disposeObjectTree(disposedRoot: any) {
   });
 }
 function disposeFloorScene() {
-  if (sceneRootNode) {
-    for (const floorChildObject of [...sceneRootNode.children])
-      (sceneRootNode.remove(floorChildObject), disposeObjectTree(floorChildObject));
+  if (appCtx.sceneRootNode) {
+    for (const floorChildObject of [...appCtx.sceneRootNode.children])
+      (appCtx.sceneRootNode.remove(floorChildObject), disposeObjectTree(floorChildObject));
   }
 }
 /** 盒子网格构件的外部状态（见 `scene/studio-box-mesh`）：两个缓存 + 主题视图设置。 */
 const studioBoxMeshDeps = () => ({ geometryCacheByKey, textureCacheByKey, backgroundSettings });
 /** 电视模型构件的外部状态（见 `items/studio-television-model`）：嵌入舞台标记 + 渲染器（只读）+ 主题视图设置。 */
-const studioTelevisionDeps = () => ({ isEmbeddedStage, threeRenderer, backgroundSettings });
+const studioTelevisionDeps = () => ({ isEmbeddedStage, threeRenderer: appCtx.threeRenderer, backgroundSettings });
 /**
  * 物品模型总装的外部句柄（见 `items/studio-item-model`）：13 个宿主兄弟构件
  * （圆柱网格 / 灯具 / 铭牌 / 墙面材质 / 释放 / 合批 / 优化 …）+ 12 项只读状态
@@ -11119,7 +10925,7 @@ const studioTelevisionDeps = () => ({ isEmbeddedStage, threeRenderer, background
  */
 /** 墙体构件族的外部状态（见 `scene/studio-walls`）。 */
 const studioWallsDeps = () => ({
-  activeFloorId,
+  activeFloorId: appCtx.activeFloorId,
   addArchitectureMesh,
   addWindowFrames,
   backgroundSettings,
@@ -11134,10 +10940,10 @@ const studioWallsDeps = () => ({
   isEmbeddedStage,
   lampsLayerIndex,
   resolveDoorPartMaterials,
-  sceneRootNode,
-  sceneStyle,
-  studioState,
-  wallOpacityValue,
+  sceneRootNode: appCtx.sceneRootNode,
+  sceneStyle: appCtx.sceneStyle,
+  studioState: appCtx.studioState,
+  wallOpacityValue: appCtx.wallOpacityValue,
 });
 
 /** 墙体构件（原 studio-app 直系声明，P4 搬进 `scene/studio-walls`，此处绑定外部状态）。 */
@@ -11180,9 +10986,9 @@ const studioItemModelDeps = () => ({
   getPixelsPerMeter,
   closedWallLoops,
   backgroundSettings,
-  studioState,
+  studioState: appCtx.studioState,
   studioTelevisionDeps,
-  activeFloorId,
+  activeFloorId: appCtx.activeFloorId,
   isEmbeddedStage,
   isPerformanceDiagnostics,
   lampsLayerIndex,
@@ -11205,7 +11011,7 @@ function buildItemModel(modelItem: any, modelShadowIds: any = null) {
  */
 const studioPlanItemDrawingDeps = () => ({
   planCanvasRenderer,
-  planView,
+  planView: appCtx.planView,
   planPainter,
   drawGuideSegment,
   drawPointMarker,
@@ -11449,7 +11255,7 @@ function addStripLightPreview(stripPreviewParent: any, stripLightItem: any) {
     (stripPreviewGroup.userData.lightSourcePreview = true),
     (stripPreviewGroup.visible =
       stripLightItem.lightSourceVisible !== false &&
-      !pendingRuntimeSettings &&
+      !appCtx.pendingRuntimeSettings &&
       createSelectionRef("item", stripLightItem.id)));
   const stripLightColorHex = kelvinToRgbHex2(stripLightItem.lightTemperature) || 16762219,
     stripLightDepth = clamp2(finite2(stripLightItem.depth, 0.28), 0.1, 8),
@@ -11642,7 +11448,7 @@ function createPlanLabel(labelSpec: any) {
     labelCanvasPainter!.stroke());
   const labelTexture = new ns2.CanvasTexture(labelCanvas);
   ((labelTexture.colorSpace = ns2.SRGBColorSpace),
-    (labelTexture.anisotropy = Math.min(threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1, 8)),
+    (labelTexture.anisotropy = Math.min(appCtx.threeRenderer?.capabilities?.getMaxAnisotropy?.() || 1, 8)),
     (labelTexture.needsUpdate = true));
   const labelPlaneMesh = new ns2.Mesh(
     new ns2.PlaneGeometry(labelSpec.width, labelSpec.depth),
@@ -11668,7 +11474,7 @@ function createPlanLabel(labelSpec: any) {
 function collectLightSourceSpecs() {
   return new Set(
     selectShadowCastingLightIds2(
-      studioState.items.map((lightSourceItem) => ({
+      appCtx.studioState.items.map((lightSourceItem) => ({
         id: lightSourceItem.id,
         groupId: lightSourceItem.lightGroupId,
         type: lightSourceItem.type,
@@ -11695,7 +11501,7 @@ function countMaterialTextures(countedMaterial: any) {
     textureCount
   );
 }
-function findMaxMaterialTextures(textureSearchRoot = sceneRootNode) {
+function findMaxMaterialTextures(textureSearchRoot = appCtx.sceneRootNode) {
   let maxTextureUnits = 0;
   return (
     textureSearchRoot?.traverse((textureSearchMesh: any) => {
@@ -11708,19 +11514,19 @@ function findMaxMaterialTextures(textureSearchRoot = sceneRootNode) {
       for (const searchMaterial of searchMaterials)
         maxTextureUnits = Math.max(maxTextureUnits, countMaterialTextures(searchMaterial));
     }),
-    threeScene?.environment?.isTexture && (maxTextureUnits += 1),
+    appCtx.threeScene?.environment?.isTexture && (maxTextureUnits += 1),
     maxTextureUnits
   );
 }
 function getMaxTextureUnits() {
-  const glHandle = threeRenderer?.getContext?.(),
+  const glHandle = appCtx.threeRenderer?.getContext?.(),
     maxTextureImageUnits = glHandle?.getParameter?.(glHandle.MAX_TEXTURE_IMAGE_UNITS);
   return Math.max(
     1,
-    Math.floor(finite2(maxTextureImageUnits, threeRenderer?.capabilities?.maxTextures || 16)),
+    Math.floor(finite2(maxTextureImageUnits, appCtx.threeRenderer?.capabilities?.maxTextures || 16)),
   );
 }
-function collectShadowCandidates(shadowSearchRoot = sceneRootNode) {
+function collectShadowCandidates(shadowSearchRoot = appCtx.sceneRootNode) {
   const shadowCandidates: any = [];
   return (
     shadowSearchRoot?.traverse((shadowCandidateLight: any) => {
@@ -11745,7 +11551,7 @@ function collectShadowCandidates(shadowSearchRoot = sceneRootNode) {
   );
 }
 function setupSceneShadows(
-  shadowSetupRoot = sceneRootNode,
+  shadowSetupRoot = appCtx.sceneRootNode,
   { rebuildAtlas: shouldRebuildAtlas = true } = {},
 ) {
   if (isEmbedStageMode)
@@ -11755,16 +11561,16 @@ function setupSceneShadows(
           atlasLightObject.userData?.lightItemId &&
           ((atlasLightObject.castShadow = false), atlasLightObject.layers.set(30));
       }),
-      threeRenderer &&
-        ((threeRenderer.domElement.dataset.spotShadowMode = "region"),
-        (threeRenderer.domElement.dataset.activeSpotShadows = "0")),
+      appCtx.threeRenderer &&
+        ((appCtx.threeRenderer.domElement.dataset.spotShadowMode = "region"),
+        (appCtx.threeRenderer.domElement.dataset.activeSpotShadows = "0")),
       0
     );
-  if (!shadowSetupRoot || !threeRenderer) return 0;
+  if (!shadowSetupRoot || !appCtx.threeRenderer) return 0;
   const xv2 = getMaxTextureUnits(),
     qv2 = findMaxMaterialTextures(shadowSetupRoot);
   let nonSpotShadowUnitCount = 0;
-  threeScene?.traverse((nonSpotLightObject: any) => {
+  appCtx.threeScene?.traverse((nonSpotLightObject: any) => {
     nonSpotLightObject.visible !== false &&
       nonSpotLightObject.isLight &&
       !nonSpotLightObject.isSpotLight &&
@@ -11780,20 +11586,20 @@ function setupSceneShadows(
   const Gw2 = hasRectAreaLight ? shadowTextureUnits : 0,
     availableShadowUnits = xv2 - qv2 - nonSpotShadowUnitCount - Gw2 - reservedTextureUnits,
     shadowAtlasUnits =
-      lightPrecompileController?.textureUnitsFor?.(
+      appCtx.lightPrecompileController?.textureUnitsFor?.(
         collectShadowCandidates(shadowSetupRoot).filter(
           (shadowCandidateLight: any) => shadowCandidateLight.enabled,
         ).length,
       ) || 1,
-    shadowBudgetChanged = lightPrecompileController?.setBudgetAvailable?.(
+    shadowBudgetChanged = appCtx.lightPrecompileController?.setBudgetAvailable?.(
       availableShadowUnits >= shadowAtlasUnits,
     );
-  if (!pendingRuntimeSettings && lightPrecompileController && availableShadowUnits >= shadowAtlasUnits) {
+  if (!appCtx.pendingRuntimeSettings && appCtx.lightPrecompileController && availableShadowUnits >= shadowAtlasUnits) {
     const schedule = shouldRebuildAtlas || shadowBudgetChanged
-        ? lightPrecompileController.schedule(shadowSetupRoot)
+        ? appCtx.lightPrecompileController.schedule(shadowSetupRoot)
         : collectShadowCandidates(shadowSetupRoot).length,
-      sync = lightPrecompileController.sync(shadowSetupRoot),
-      domElement7 = threeRenderer.domElement;
+      sync = appCtx.lightPrecompileController.sync(shadowSetupRoot),
+      domElement7 = appCtx.threeRenderer.domElement;
     ((domElement7.dataset.fragmentTextureUnits = String(xv2)),
       (domElement7.dataset.materialTextureUnits = String(qv2)),
       (domElement7.dataset.spotShadowLimit = String(schedule)),
@@ -11815,14 +11621,14 @@ function setupSceneShadows(
     materialTextureUnits: qv2,
     nonSpotShadowTextureUnits: nonSpotShadowUnitCount,
     rectAreaLightTextureUnits: Gw2,
-    reservedTextureUnits: lightPrecompileController
+    reservedTextureUnits: appCtx.lightPrecompileController
       ? Math.max(reservedTextureUnits, shadowAtlasUnits)
       : reservedTextureUnits,
     hardLimit: maxTextureUnitLimit,
   });
-  lightPrecompileController &&
-    (pendingRuntimeSettings && lightPrecompileController.setEnabled(false),
-    lightPrecompileController.sync(shadowSetupRoot));
+  appCtx.lightPrecompileController &&
+    (appCtx.pendingRuntimeSettings && appCtx.lightPrecompileController.setEnabled(false),
+    appCtx.lightPrecompileController.sync(shadowSetupRoot));
   const castShadowLightIdSet = new Set(
     selectShadowCastingLightIds2(collectShadowCandidates(shadowSetupRoot), spotShadowLimit),
   );
@@ -11841,7 +11647,7 @@ function setupSceneShadows(
           !spotShadowLight.shadow.map &&
           (spotShadowLight.shadow.needsUpdate = true)));
   });
-  const domElement8 = threeRenderer.domElement;
+  const domElement8 = appCtx.threeRenderer.domElement;
   ((domElement8.dataset.spotShadowMode = "individual"),
     (domElement8.dataset.fragmentTextureUnits = String(xv2)),
     (domElement8.dataset.materialTextureUnits = String(qv2)),
@@ -11865,10 +11671,10 @@ function addLightModel(lightModelParent: any, lightModelItem: any, shadowLightId
       : kelvinToRgbHex2(lightModelItem.lightTemperature),
     eu3 = isLampEnabled(lightModelItem) && finite2(lightModelItem.lightBrightness, 0) > 0,
     isLightPreviewEnabled =
-      !pendingRuntimeSettings &&
-      overriddenFloorIds === null &&
+      !appCtx.pendingRuntimeSettings &&
+      appCtx.overriddenFloorIds === null &&
       (isEmbeddedStage || !areLightsEnabled()),
-    Xr3 = !pendingRuntimeSettings && isResidentCacheMode;
+    Xr3 = !appCtx.pendingRuntimeSettings && appCtx.isResidentCacheMode;
   if (!eu3 && !isLightPreviewEnabled && !Xr3) return;
   const downlight4 = (lightPresetCatalog as any)[lightModelItem.type] || lightPresetCatalog.downlight,
     lightBrightnessRatio =
@@ -11910,13 +11716,13 @@ function addLightModel(lightModelParent: any, lightModelItem: any, shadowLightId
       (rectAreaLight.rotation.x = -Math.PI / 2),
       (rectAreaLight.userData.lightItemId = lightModelItem.id),
       (rectAreaLight.userData.lightGroupId = zl6?.id || ""),
-      (rectAreaLight.userData.lightFloorId = activeFloorId),
+      (rectAreaLight.userData.lightFloorId = appCtx.activeFloorId),
       (rectAreaLight.userData.lightSourceType = "continuous-area-strip"),
       (rectAreaLight.userData.lightOnIntensity = lightOnIntensity),
       isEmbedStageMode &&
         ((rectAreaLight.userData.regionFullIntensity =
           48 * lightRangeFactor * lightElevationFactor * lightTypeIntensityFactor),
-        regionLightController?.register(rectAreaLight, lightModelItem)),
+        appCtx.regionLightController?.register(rectAreaLight, lightModelItem)),
       lightRollGroup.add(rectAreaLight),
       lightRotationGroup.add(lightRollGroup));
     lightModelParent.add(lightRotationGroup);
@@ -11972,7 +11778,7 @@ function addLightModel(lightModelParent: any, lightModelItem: any, shadowLightId
         (spotLight.shadow.bias = -0.00005),
         (spotLight.shadow.normalBias = spotShadowSettings.normalBias),
         (spotLight.shadow.radius = spotShadowSettings.radius),
-        (spotLight.shadow.blurSamples = isGroundShadowEnabled
+        (spotLight.shadow.blurSamples = appCtx.isGroundShadowEnabled
           ? Math.max(8, spotShadowSettings.blurSamples)
           : spotShadowSettings.blurSamples),
         (spotLight.shadow.autoUpdate = false),
@@ -11980,7 +11786,7 @@ function addLightModel(lightModelParent: any, lightModelItem: any, shadowLightId
     }
     ((spotLight.userData.lightItemId = lightModelItem.id),
       (spotLight.userData.lightGroupId = zl6?.id || ""),
-      (spotLight.userData.lightFloorId = activeFloorId),
+      (spotLight.userData.lightFloorId = appCtx.activeFloorId),
       (spotLight.userData.lightType = lightModelItem.type),
       (spotLight.userData.lightBrightness = finite2(
         lightModelItem.lightBrightness,
@@ -11992,7 +11798,7 @@ function addLightModel(lightModelParent: any, lightModelItem: any, shadowLightId
       isEmbedStageMode &&
         ((spotLight.userData.regionFullIntensity =
           (lightModelItem.type === "ceilinglight" ? 680 : 520) * lightTypeIntensityFactor),
-        regionLightController?.register(spotLight, lightModelItem)));
+        appCtx.regionLightController?.register(spotLight, lightModelItem)));
     const spotLightTarget = new ns2.Object3D();
     (spotLightTarget.position.set(
       spotLightX,
@@ -12137,15 +11943,15 @@ function batchSharedMeshes(batchSceneRoot: any, batchItemEntries: any) {
   }
   return (
     (batchSceneRoot.userData.instanceBatchStats = instanceBatchStats),
-    threeRenderer?.domElement &&
-      ((threeRenderer.domElement.dataset.instanceBatchCount = String(instanceBatchStats.length)),
-      (threeRenderer.domElement.dataset.instanceCount = String(
+    appCtx.threeRenderer?.domElement &&
+      ((appCtx.threeRenderer.domElement.dataset.instanceBatchCount = String(instanceBatchStats.length)),
+      (appCtx.threeRenderer.domElement.dataset.instanceCount = String(
         instanceBatchStats.reduce(
           (instanceCountAccumulator, batchStat) => instanceCountAccumulator + batchStat.instances,
           0,
         ),
       )),
-      (threeRenderer.domElement.dataset.instanceDrawCallsSaved = String(
+      (appCtx.threeRenderer.domElement.dataset.instanceDrawCallsSaved = String(
         instanceBatchStats.reduce(
           (savedCountAccumulator, savedStat) =>
             savedCountAccumulator + savedStat.before - savedStat.after,
@@ -12362,9 +12168,9 @@ function mergeStaticItemMeshes(mergeSceneRoot: any, mergeItemEntries: any) {
     retainedMaterialSet.has(disposableMaterial) || (disposableMaterial as any).dispose?.();
   return (
     (mergeSceneRoot.userData.staticItemBatchStats = staticBatchStats),
-    threeRenderer?.domElement &&
-      ((threeRenderer.domElement.dataset.staticItemBatchCount = String(staticBatchStats.length)),
-      (threeRenderer.domElement.dataset.staticItemDrawCallsSaved = String(
+    appCtx.threeRenderer?.domElement &&
+      ((appCtx.threeRenderer.domElement.dataset.staticItemBatchCount = String(staticBatchStats.length)),
+      (appCtx.threeRenderer.domElement.dataset.staticItemDrawCallsSaved = String(
         staticBatchStats.reduce(
           (savedAccumulator, staticBatchStat) =>
             savedAccumulator + staticBatchStat.before - staticBatchStat.after,
@@ -12377,7 +12183,7 @@ function mergeStaticItemMeshes(mergeSceneRoot: any, mergeItemEntries: any) {
 function collectSharedMaterials() {
   const sharedMaterialSet = new Set();
   return (
-    sceneRootNode?.traverse((sharedMesh: any) => {
+    appCtx.sceneRootNode?.traverse((sharedMesh: any) => {
       if (!sharedMesh.isMesh || !sharedMesh.userData.externalModelSharedGeometry) return;
       const meshMaterials = Array.isArray(sharedMesh.material)
         ? sharedMesh.material
@@ -12393,18 +12199,18 @@ function collectSharedMaterials() {
   );
 }
 function updateExternalModelDataset() {
-  if (!threeRenderer?.domElement) return;
+  if (!appCtx.threeRenderer?.domElement) return;
   const modelLoadState3 = externalModelRegistry.modelLoadState();
-  ((threeRenderer.domElement.dataset.externalSharedMaterialCount = String(
+  ((appCtx.threeRenderer.domElement.dataset.externalSharedMaterialCount = String(
     modelLoadState3.materials,
   )),
-    (threeRenderer.domElement.dataset.externalMaterialReuseCount = String(
+    (appCtx.threeRenderer.domElement.dataset.externalMaterialReuseCount = String(
       modelLoadState3.materialReuses,
     )),
-    (threeRenderer.domElement.dataset.externalPrecompilePassCount = String(
-      externalPrecompilePassCount,
+    (appCtx.threeRenderer.domElement.dataset.externalPrecompilePassCount = String(
+      appCtx.externalPrecompilePassCount,
     )),
-    (threeRenderer.domElement.dataset.lightPrecompilePassCount = String(lightPrecompilePassCount)));
+    (appCtx.threeRenderer.domElement.dataset.lightPrecompilePassCount = String(appCtx.lightPrecompilePassCount)));
 }
 function lightSignatureOf(lightList: any) {
   let lightListSpotLightCount = 0,
@@ -12430,10 +12236,10 @@ function lightSignatureOf(lightList: any) {
   );
 }
 function planLightPrecompileBatches() {
-  if (!sceneRootNode) return [];
+  if (!appCtx.sceneRootNode) return [];
   const visibleLights: any = [],
     lightsByGroupId = new Map();
-  sceneRootNode.traverse((sceneLight: any) => {
+  appCtx.sceneRootNode.traverse((sceneLight: any) => {
     if (
       !sceneLight.isLight ||
       !sceneLight.userData?.lightItemId ||
@@ -12451,9 +12257,9 @@ function planLightPrecompileBatches() {
     processedSignatureSet = new Set(),
     lightBatches: any = [],
     lg2 = lightSignatureOf(visibleLights),
-    lightCacheKey = sceneRootNode.uuid + ":" + externalPrecompilePassCount;
-  currentPrecompileSignature !== lightCacheKey &&
-    ((currentPrecompileSignature = lightCacheKey), precompiledMaterialKeySet.clear());
+    lightCacheKey = appCtx.sceneRootNode.uuid + ":" + appCtx.externalPrecompilePassCount;
+  appCtx.currentPrecompileSignature !== lightCacheKey &&
+    ((appCtx.currentPrecompileSignature = lightCacheKey), precompiledMaterialKeySet.clear());
   const addLightBatch = (
     planLightPrecompileBatchesLightEntries: any,
     lightChanges: any,
@@ -12522,72 +12328,72 @@ function planLightPrecompileBatches() {
 }
 function shouldSuspendSceneWork() {
   return (
-    isPageHidden ||
-    isDisposed ||
+    appCtx.isPageHidden ||
+    appCtx.isDisposed ||
     document.hidden ||
-    (isEmbeddedStage && (!isHighDetailQuality || renderCacheWriter?.closed))
+    (isEmbeddedStage && (!appCtx.isHighDetailQuality || renderCacheWriter?.closed))
   );
 }
 function shouldDeferSceneWork() {
   return (
-    pendingRuntimeSettings ||
-    isRenderSuppressed ||
-    isWindowHidden ||
-    isCapturingLights ||
-    isRendererUnavailable ||
-    (isEmbeddedStage && (isPrewarming || prewarmState)) ||
+    appCtx.pendingRuntimeSettings ||
+    appCtx.isRenderSuppressed ||
+    appCtx.isWindowHidden ||
+    appCtx.isCapturingLights ||
+    appCtx.isRendererUnavailable ||
+    (isEmbeddedStage && (appCtx.isPrewarming || appCtx.prewarmState)) ||
     (!isEmbeddedStage && areLightsEnabled())
   );
 }
 function scheduleLightPrecompile(delayMs = 360) {
   isEmbedStageMode ||
     isAutoDiagramEmbed ||
-    isPageHidden ||
-    ((isEnvironmentLoading = true),
-    window.clearTimeout(precompileDebounceId),
-    !(isLightPrecompileRunning || shouldSuspendSceneWork()) &&
-      (precompileDebounceId = window.setTimeout(async () => {
-        if (((precompileDebounceId = null), shouldSuspendSceneWork())) return;
+    appCtx.isPageHidden ||
+    ((appCtx.isEnvironmentLoading = true),
+    window.clearTimeout(appCtx.precompileDebounceId),
+    !(appCtx.isLightPrecompileRunning || shouldSuspendSceneWork()) &&
+      (appCtx.precompileDebounceId = window.setTimeout(async () => {
+        if (((appCtx.precompileDebounceId = null), shouldSuspendSceneWork())) return;
         const modelLoadState4 = externalModelRegistry.modelLoadState();
         if (
-          !threeRenderer ||
-          !threeScene ||
-          !threeCamera ||
-          !sceneRootNode ||
+          !appCtx.threeRenderer ||
+          !appCtx.threeScene ||
+          !appCtx.threeCamera ||
+          !appCtx.sceneRootNode ||
           shouldDeferSceneWork() ||
-          isExternalModelLoadDeferred ||
-          modelLoadDebounceId ||
+          appCtx.isExternalModelLoadDeferred ||
+          appCtx.modelLoadDebounceId ||
           (modelLoadState4.pending ?? modelLoadState4.active + modelLoadState4.queued) > 0
         ) {
           scheduleLightPrecompile(240);
           return;
         }
         const qv3 = planLightPrecompileBatches(),
-          lightSceneRoot = sceneRootNode,
-          ue2 = threeScene,
-          activeRenderer = threeRenderer;
+          lightSceneRoot = appCtx.sceneRootNode,
+          ue2 = appCtx.threeScene,
+          activeRenderer = appCtx.threeRenderer;
         if (!qv3.length) {
-          ((isEnvironmentLoading = false),
+          ((appCtx.isEnvironmentLoading = false),
             (activeRenderer.domElement.dataset.lightPrecompileState = "ready"),
             updateExternalModelDataset());
           return;
         }
-        ((isLightPrecompileRunning = true),
-          (isEnvironmentLoading = false),
+        ((appCtx.isLightPrecompileRunning = true),
+          (appCtx.isEnvironmentLoading = false),
           (activeRenderer.domElement.dataset.lightPrecompileState = "working"),
           (activeRenderer.domElement.dataset.lightPrecompilePlanCount = String(qv3.length)));
         const shouldAbortPrecompile = () =>
-          sceneRootNode === lightSceneRoot &&
-          threeScene === ue2 &&
-          threeRenderer === activeRenderer &&
-          !isEnvironmentLoading &&
+          appCtx.sceneRootNode === lightSceneRoot &&
+          appCtx.threeScene === ue2 &&
+          appCtx.threeRenderer === activeRenderer &&
+          !appCtx.isEnvironmentLoading &&
           !shouldSuspendSceneWork() &&
           !shouldDeferSceneWork();
         let isPrecompileComplete = true;
         try {
           for (const pendingLightBatch of qv3) {
             if ((await waitForIdleFrame(), !shouldAbortPrecompile())) {
-              ((isPrecompileComplete = false), (isEnvironmentLoading = true));
+              ((isPrecompileComplete = false), (appCtx.isEnvironmentLoading = true));
               break;
             }
             const lightChangeRecords = pendingLightBatch.changes.map(
@@ -12609,7 +12415,7 @@ function scheduleLightPrecompile(delayMs = 360) {
                 (compilePromise = precompileShaderPrograms(
                   activeRenderer,
                   ue2,
-                  threeCamera,
+                  appCtx.threeCamera,
                   shouldAbortPrecompile,
                 )));
             } finally {
@@ -12623,10 +12429,10 @@ function scheduleLightPrecompile(delayMs = 360) {
             if (!(await compilePromise) || !shouldAbortPrecompile()) {
               ((isPrecompileComplete = false),
                 (activeRenderer.domElement.dataset.lightPrecompileDeferred = "true"),
-                (isEnvironmentLoading ||= !shouldAbortPrecompile()));
+                (appCtx.isEnvironmentLoading ||= !shouldAbortPrecompile()));
               break;
             }
-            ((lightPrecompilePassCount += 1),
+            ((appCtx.lightPrecompilePassCount += 1),
               precompiledMaterialKeySet.add(pendingLightBatch.signature));
           }
           isPrecompileComplete
@@ -12636,19 +12442,19 @@ function scheduleLightPrecompile(delayMs = 360) {
         } catch {
           activeRenderer.domElement.dataset.lightPrecompileState = "fallback";
         } finally {
-          ((isLightPrecompileRunning = false),
+          ((appCtx.isLightPrecompileRunning = false),
             updateExternalModelDataset(),
-            isEnvironmentLoading && scheduleLightPrecompile(240));
+            appCtx.isEnvironmentLoading && scheduleLightPrecompile(240));
         }
       }, delayMs)));
 }
 (document.addEventListener("visibilitychange", () => {
-  !document.hidden && isEnvironmentLoading && scheduleLightPrecompile();
+  !document.hidden && appCtx.isEnvironmentLoading && scheduleLightPrecompile();
 }),
   window.addEventListener(
     "pagehide",
     () => {
-      ((isPageHidden = true), window.clearTimeout(precompileDebounceId));
+      ((appCtx.isPageHidden = true), window.clearTimeout(appCtx.precompileDebounceId));
     },
     {
       once: true,
@@ -12656,52 +12462,52 @@ function scheduleLightPrecompile(delayMs = 360) {
   ));
 function scheduleExternalPrecompile(initialDelayMs = 0) {
   isEmbedStageMode ||
-    ((isRecoveryRender = true),
-    window.clearTimeout(precompileTimeoutId),
-    !(isRendererUnavailable || isDisposed) &&
-      (precompileTimeoutId = window.setTimeout(async () => {
+    ((appCtx.isRecoveryRender = true),
+    window.clearTimeout(appCtx.precompileTimeoutId),
+    !(appCtx.isRendererUnavailable || appCtx.isDisposed) &&
+      (appCtx.precompileTimeoutId = window.setTimeout(async () => {
         if (
-          ((precompileTimeoutId = null),
-          !threeRenderer ||
-            !threeScene ||
-            !threeCamera ||
-            !sceneRootNode ||
-            pendingRuntimeSettings ||
+          ((appCtx.precompileTimeoutId = null),
+          !appCtx.threeRenderer ||
+            !appCtx.threeScene ||
+            !appCtx.threeCamera ||
+            !appCtx.sceneRootNode ||
+            appCtx.pendingRuntimeSettings ||
             document.hidden ||
-            isRenderSuppressed ||
-            isWindowHidden ||
-            isCapturingLights)
+            appCtx.isRenderSuppressed ||
+            appCtx.isWindowHidden ||
+            appCtx.isCapturingLights)
         ) {
           scheduleExternalPrecompile(240);
           return;
         }
         const sg2 = collectSharedMaterials();
         if (!sg2.length) {
-          ((isRecoveryRender = false), updateExternalModelDataset(), scheduleLightPrecompile());
+          ((appCtx.isRecoveryRender = false), updateExternalModelDataset(), scheduleLightPrecompile());
           return;
         }
-        ((isRendererUnavailable = true),
-          (isRecoveryRender = false),
-          (threeRenderer.domElement.dataset.externalPrecompileState = "working"));
+        ((appCtx.isRendererUnavailable = true),
+          (appCtx.isRecoveryRender = false),
+          (appCtx.threeRenderer.domElement.dataset.externalPrecompileState = "working"));
         try {
-          (setupSceneShadows(sceneRootNode, {
+          (setupSceneShadows(appCtx.sceneRootNode, {
             rebuildAtlas: false,
           }),
-            threeRenderer.compile(threeScene, threeCamera),
+            appCtx.threeRenderer.compile(appCtx.threeScene, appCtx.threeCamera),
             sg2.forEach((materialToCache) => disposedMaterialSet.add(materialToCache as object)),
-            (externalPrecompilePassCount += 1),
-            (threeRenderer.domElement.dataset.externalPrecompileState = "ready"));
+            (appCtx.externalPrecompilePassCount += 1),
+            (appCtx.threeRenderer.domElement.dataset.externalPrecompileState = "ready"));
         } catch {
-          threeRenderer.domElement.dataset.externalPrecompileState = "fallback";
+          appCtx.threeRenderer.domElement.dataset.externalPrecompileState = "fallback";
         } finally {
-          ((isRendererUnavailable = false),
+          ((appCtx.isRendererUnavailable = false),
             updateExternalModelDataset(),
-            isRecoveryRender ? scheduleExternalPrecompile(120) : scheduleLightPrecompile());
+            appCtx.isRecoveryRender ? scheduleExternalPrecompile(120) : scheduleLightPrecompile());
         }
       }, initialDelayMs)));
 }
 function requestSceneRebuild(rebuildOptions: SceneRebuildOptions = {}) {
-  if (typeof isSceneStillLoading < "u" && isSceneStillLoading) {
+  if (typeof appCtx.isSceneStillLoading < "u" && appCtx.isSceneStillLoading) {
     assetLoaderState.revision++;
     return;
   }
@@ -12713,39 +12519,39 @@ function requestSceneRebuild(rebuildOptions: SceneRebuildOptions = {}) {
         ? rebuildOptions.scope
         : "all";
   if (!getPreviewSyncMode() && !isForcedRebuild) {
-    (rebuildOptions.transient !== true && (isSceneDirty = true), refreshPreviewSync());
+    (rebuildOptions.transient !== true && (appCtx.isSceneDirty = true), refreshPreviewSync());
     return;
   }
   (isForcedRebuild
-    ? ((isMaterialPrecompilePending = true),
-      isExternalOnlyRebuild || (dirtyFloorIdSet.add("all"), (hasAllFloorsSelected = true)))
-    : (dirtyFloorIdSet.add(scope), scope === "all" && (hasAllFloorsSelected = true)),
-    isExternalOnlyRebuild && (isRuntimeWarmupDone = true),
-    rebuildOptions.precompile === true && (isRendererLost = true),
-    rebuildOptions.preserveLightCache !== true && (isLightCachePreserved = true),
-    !isPrecompileBlocked &&
-      ((isPrecompileBlocked = true),
+    ? ((appCtx.isMaterialPrecompilePending = true),
+      isExternalOnlyRebuild || (dirtyFloorIdSet.add("all"), (appCtx.hasAllFloorsSelected = true)))
+    : (dirtyFloorIdSet.add(scope), scope === "all" && (appCtx.hasAllFloorsSelected = true)),
+    isExternalOnlyRebuild && (appCtx.isRuntimeWarmupDone = true),
+    rebuildOptions.precompile === true && (appCtx.isRendererLost = true),
+    rebuildOptions.preserveLightCache !== true && (appCtx.isLightCachePreserved = true),
+    !appCtx.isPrecompileBlocked &&
+      ((appCtx.isPrecompileBlocked = true),
       requestAnimationFrame(() => {
-        if (((isPrecompileBlocked = false), isWindowHidden && !isMaterialPrecompilePending)) return;
-        const wl4 = getPreviewSyncMode() || isMaterialPrecompilePending;
-        if (((isMaterialPrecompilePending = false), !wl4)) {
-          ((isSceneDirty = true), refreshPreviewSync());
+        if (((appCtx.isPrecompileBlocked = false), appCtx.isWindowHidden && !appCtx.isMaterialPrecompilePending)) return;
+        const wl4 = getPreviewSyncMode() || appCtx.isMaterialPrecompilePending;
+        if (((appCtx.isMaterialPrecompilePending = false), !wl4)) {
+          ((appCtx.isSceneDirty = true), refreshPreviewSync());
           return;
         }
         const rebuildScopeSet = new Set(dirtyFloorIdSet);
         dirtyFloorIdSet.clear();
-        const yl5 = hasAllFloorsSelected || rebuildScopeSet.has("all");
-        hasAllFloorsSelected = false;
-        const shouldPreserveLightCacheOnRebuild = !isLightCachePreserved;
-        isLightCachePreserved = false;
-        const Hr2 = typeof isRuntimeWarmupDone < "u" && isRuntimeWarmupDone;
-        (typeof isRuntimeWarmupDone < "u" && (isRuntimeWarmupDone = false),
+        const yl5 = appCtx.hasAllFloorsSelected || rebuildScopeSet.has("all");
+        appCtx.hasAllFloorsSelected = false;
+        const shouldPreserveLightCacheOnRebuild = !appCtx.isLightCachePreserved;
+        appCtx.isLightCachePreserved = false;
+        const Hr2 = typeof appCtx.isRuntimeWarmupDone < "u" && appCtx.isRuntimeWarmupDone;
+        (typeof appCtx.isRuntimeWarmupDone < "u" && (appCtx.isRuntimeWarmupDone = false),
           typeof stageLoadTiming == "function" && stageLoadTiming("rebuild-start"),
           Hr2 &&
           !yl5 &&
           !rebuildScopeSet.has("architecture") &&
           !rebuildScopeSet.has("lights") &&
-          sceneRootNode?.children?.length
+          appCtx.sceneRootNode?.children?.length
             ? (getPreviewFloorMode() === "all"
                 ? buildLayerForFloor("items", {
                     preserveLightCache: false,
@@ -12757,7 +12563,7 @@ function requestSceneRebuild(rebuildOptions: SceneRebuildOptions = {}) {
               rebuildFloorLayers({
                 preserveLightCache: shouldPreserveLightCacheOnRebuild,
               })
-            : yl5 || !studioState.walls.length
+            : yl5 || !appCtx.studioState.walls.length
               ? rebuildFloorLayers({
                   preserveLightCache: shouldPreserveLightCacheOnRebuild,
                 })
@@ -12766,24 +12572,24 @@ function requestSceneRebuild(rebuildOptions: SceneRebuildOptions = {}) {
                   allowTransforms: !Hr2 && rebuildScopeSet.size === 1 && rebuildScopeSet.has("items"),
                 }),
           typeof stageLoadTiming == "function" && stageLoadTiming("rebuild-end"));
-        const zd2 = isRendererLost;
-        ((isRendererLost = false),
+        const zd2 = appCtx.isRendererLost;
+        ((appCtx.isRendererLost = false),
           updateExternalModelDataset(),
           (zd2 || collectSharedMaterials().length) && scheduleExternalPrecompile(),
-          (isSceneDirty = false),
+          (appCtx.isSceneDirty = false),
           refreshPreviewSync());
       })));
 }
 function getSceneContentBounds() {
-  return sceneContentBounds2(studioState);
+  return sceneContentBounds2(appCtx.studioState);
 }
 function computeCourtyardBounds({ physicalStack: isPhysicalStack = false } = {}) {
-  if (!studioProject?.floors?.length) return null;
+  if (!appCtx.studioProject?.floors?.length) return null;
   const isAllFloors = getPreviewFloorMode() === "all",
     sort4 = isAllFloors
-      ? [...studioProject.floors].sort((floorA, floorB) => floorA.elevation - floorB.elevation)
-      : studioProject.floors.filter(
-          (isPhysicalStackFloorMatch: any) => isPhysicalStackFloorMatch.id === activeFloorId,
+      ? [...appCtx.studioProject.floors].sort((floorA, floorB) => floorA.elevation - floorB.elevation)
+      : appCtx.studioProject.floors.filter(
+          (isPhysicalStackFloorMatch: any) => isPhysicalStackFloorMatch.id === appCtx.activeFloorId,
         );
   if (
     !sort4.some((isPhysicalStackFloorCandidate: any) =>
@@ -12792,9 +12598,9 @@ function computeCourtyardBounds({ physicalStack: isPhysicalStack = false } = {})
   )
     return null;
   const courtyardBoundsBox = new ns2.Box3(),
-    floorGapMeters = pendingRuntimeSettings
-      ? finite2(studioProject.exportFloorGap, 3)
-      : finite2(studioProject.previewFloorGap, 3);
+    floorGapMeters = appCtx.pendingRuntimeSettings
+      ? finite2(appCtx.studioProject.exportFloorGap, 3)
+      : finite2(appCtx.studioProject.previewFloorGap, 3);
   return (
     sort4.forEach((isPhysicalStackFloorEntry: any, isPhysicalStackFloorIndex: any) => {
       const isPhysicalStackPixelsPerMeter =
@@ -12898,7 +12704,7 @@ function buildFloorEdgeOutline(floorEdgePointList: any, floorEdgeColor: any, flo
     ((floorOutlineMesh.renderOrder = 3),
       (floorOutlineMesh.userData.exportRole = "outline"),
       (floorOutlineMesh.userData.batchedFloorEdgeCount = floorEdgePointList.length),
-      sceneRootNode.add(floorOutlineMesh));
+      appCtx.sceneRootNode.add(floorOutlineMesh));
   }
   if (shadowMergedGeometry) {
     const floorShadowMesh = new ns2.Mesh(
@@ -12915,7 +12721,7 @@ function buildFloorEdgeOutline(floorEdgePointList: any, floorEdgeColor: any, flo
     ((floorShadowMesh.renderOrder = 2),
       (floorShadowMesh.userData.exportRole = "outline"),
       (floorShadowMesh.userData.batchedFloorEdgeCount = floorEdgePointList.length),
-      sceneRootNode.add(floorShadowMesh));
+      appCtx.sceneRootNode.add(floorShadowMesh));
   }
 }
 function createFloorMaterial() {
@@ -12930,9 +12736,9 @@ function createFloorMaterial() {
   return (decorateWarmFloor2(floorMaterial, yt5), floorMaterial);
 }
 function buildCourtyardFoundation({ ppm: courtyardPixelsPerMeter, toWorld: courtyardToWorld }: any) {
-  const floorEdgeIndoorLoops = sceneRootNode.userData.floorEdgeIndoorLoops;
+  const floorEdgeIndoorLoops = appCtx.sceneRootNode.userData.floorEdgeIndoorLoops;
   if (!floorEdgeIndoorLoops) return;
-  const courtyardDrawingList = studioState.items.filter(
+  const courtyardDrawingList = appCtx.studioState.items.filter(
       (courtyardDrawingItem) =>
         courtyardDrawingItem.type === "courtyard-area" ||
         courtyardDrawingItem.type === "courtyard-fence",
@@ -12955,21 +12761,21 @@ function buildCourtyardFoundation({ ppm: courtyardPixelsPerMeter, toWorld: court
       ]),
       courtyardPixelsPerMeter,
       floorEdge,
-      studioState.settings.floorEdgeVisible,
+      appCtx.studioState.settings.floorEdgeVisible,
     ]);
-  if (sceneRootNode.userData.floorEdgeKey === courtyardSignature) return;
-  for (const foundationChildObject of [...sceneRootNode.children])
+  if (appCtx.sceneRootNode.userData.floorEdgeKey === courtyardSignature) return;
+  for (const foundationChildObject of [...appCtx.sceneRootNode.children])
     (foundationChildObject.userData.exportRole === "outline" ||
       foundationChildObject.userData.courtyardFoundation) &&
-      (sceneRootNode.remove(foundationChildObject), disposeObjectTree(foundationChildObject));
-  sceneRootNode.userData.floorEdgeKey = courtyardSignature;
+      (appCtx.sceneRootNode.remove(foundationChildObject), disposeObjectTree(foundationChildObject));
+  appCtx.sceneRootNode.userData.floorEdgeKey = courtyardSignature;
   const courtyardFootprintLoops = courtyardDrawingList.length
       ? courtyardFootprintLoops2(
           floorEdgeIndoorLoops,
           courtyardDrawingList,
           courtyardPixelsPerMeter,
           courtyardToWorld,
-          studioState.walls,
+          appCtx.studioState.walls,
         )
       : floorEdgeIndoorLoops.map((indoorLoopGroup: any) =>
           indoorLoopGroup.map((indoorLoopPoint: any) => ({
@@ -12991,7 +12797,7 @@ function buildCourtyardFoundation({ ppm: courtyardPixelsPerMeter, toWorld: court
         ...courtyardFootprintLoops.filter(
           (holeFootprintLoop: any) => polygonArea2(holeFootprintLoop) < 0,
         ),
-        ...(sceneRootNode.userData.floorEdgeOpenings || []),
+        ...(appCtx.sceneRootNode.userData.floorEdgeOpenings || []),
       ],
       holedFootprintLoops = subtractPolygonLoops2(outerFootprintLoops, cutoutLoops, 0.00001),
       ms4 = buildShapesWithHoles(holedFootprintLoops);
@@ -13011,12 +12817,12 @@ function buildCourtyardFoundation({ ppm: courtyardPixelsPerMeter, toWorld: court
           courtyardFoundation: true,
           exportRole: "plan",
           regionReceiverKind: "floor",
-          regionFloorId: activeFloorId,
+          regionFloorId: appCtx.activeFloorId,
         }),
-        sceneRootNode.add(foundationMesh));
+        appCtx.sceneRootNode.add(foundationMesh));
     }
   }
-  if (studioState.settings.floorEdgeVisible !== false) {
+  if (appCtx.studioState.settings.floorEdgeVisible !== false) {
     for (const closedFootprintLoop of outerFootprintLoops)
       buildFloorEdgeOutline(
         courtyardDrawingList.length
@@ -13081,7 +12887,7 @@ function createGroundGrid(groundGridSize: any, groundGridTheme: any, groundGridH
       if (!depthFadeShader) return;
       groundGrid.getWorldPosition(cameraWorldPosition);
       const cameraDistanceToOrigin = Math.max(
-          gridCamera.position.distanceTo(orbitControls?.target || cameraWorldPosition),
+          gridCamera.position.distanceTo(appCtx.orbitControls?.target || cameraWorldPosition),
           1,
         ),
         cameraViewHeight = gridCamera.isOrthographicCamera
@@ -13101,7 +12907,7 @@ function createGroundGrid(groundGridSize: any, groundGridTheme: any, groundGridH
     (groundGrid.position.y = groundGridHeight + 0.012),
     (groundGrid.renderOrder = 2),
     (groundGrid.userData.exportRole = "grid"),
-    sceneRootNode.add(groundGrid));
+    appCtx.sceneRootNode.add(groundGrid));
 }
 function buildGroundShadow(groundShadowLoopList: any, groundShadowHeight: any, groundShadowHoles: any[] = []) {
   if (!Array.isArray(groundShadowLoopList) || groundShadowLoopList.length < 3) return;
@@ -13155,16 +12961,16 @@ function buildGroundShadow(groundShadowLoopList: any, groundShadowHeight: any, g
       (groundShadowMesh.position.y = groundShadowHeight + 0.001 + shadowLayerIndex * 0.00015),
       (groundShadowMesh.userData.floorPlanGroundShadow = true),
       (groundShadowMesh.userData.exportRole = "background"),
-      (groundShadowMesh.visible = sceneStyle !== "warm-wood"),
+      (groundShadowMesh.visible = appCtx.sceneStyle !== "warm-wood"),
       (groundShadowMesh.renderOrder = 1 + shadowLayerIndex),
-      sceneRootNode.add(groundShadowMesh));
+      appCtx.sceneRootNode.add(groundShadowMesh));
   });
 }
 function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {}) {
   if (
-    (contactShadowController?.invalidate(),
-    isEmbedStageMode && sceneRootNode && (sceneRootNode.userData.regionFloorId = activeFloorId),
-    !sceneRootNode)
+    (appCtx.contactShadowController?.invalidate(),
+    isEmbedStageMode && appCtx.sceneRootNode && (appCtx.sceneRootNode.userData.regionFloorId = appCtx.activeFloorId),
+    !appCtx.sceneRootNode)
   )
     return;
   (refreshBaseLighting(),
@@ -13178,7 +12984,7 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
   if (!buildStudioSceneScenePixelsPerMeter) return;
   const yt7 = backgroundSettings(),
     qu2 = getSceneContentBounds(),
-    nn2 = sceneModelOrigin || sceneModelOrigin2(studioState, getActiveFloor()),
+    nn2 = appCtx.sceneModelOrigin || sceneModelOrigin2(appCtx.studioState, getActiveFloor()),
     planOriginX = nn2.x,
     planOriginY = nn2.y,
     planPointToWorld = (buildStudioScenePlanPoint: any) => ({
@@ -13203,13 +13009,13 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
     (groundPlane.receiveShadow = false),
     (groundPlane.userData.exportRole = "background"),
     (groundPlane.userData.groundReflectionReceiver = true),
-    (groundPlane.userData.regionFloorId = activeFloorId),
-    sceneRootNode.add(groundPlane),
+    (groundPlane.userData.regionFloorId = appCtx.activeFloorId),
+    appCtx.sceneRootNode.add(groundPlane),
     createGroundGrid(groundPlaneSize, yt7, groundShadowPlaneY));
   const mg2 = createFloorMaterial(),
     mr2 = closedWallLoops(buildStudioSceneScenePixelsPerMeter);
-  ((sceneRootNode.userData.floorEdgeIndoorLoops = []), delete sceneRootNode.userData.floorEdgeKey);
-  const floorOpeningLoops = studioState.items
+  ((appCtx.sceneRootNode.userData.floorEdgeIndoorLoops = []), delete appCtx.sceneRootNode.userData.floorEdgeKey);
+  const floorOpeningLoops = appCtx.studioState.items
     .filter(
       (buildStudioSceneFloorOpeningItem) =>
         buildStudioSceneFloorOpeningItem.type === "flooropening",
@@ -13225,10 +13031,10 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
         },
       ),
     );
-  sceneRootNode.userData.floorEdgeOpenings = floorOpeningLoops;
+  appCtx.sceneRootNode.userData.floorEdgeOpenings = floorOpeningLoops;
   const addFloorIndoorLoop = (floorOpeningIndoorLoop: any) => {
       (buildGroundShadow(floorOpeningIndoorLoop, groundShadowPlaneY),
-        sceneRootNode.userData.floorEdgeIndoorLoops.push(floorOpeningIndoorLoop));
+        appCtx.sceneRootNode.userData.floorEdgeIndoorLoops.push(floorOpeningIndoorLoop));
     },
     addGroundPlateMesh = (floorPlateGeometry: any, groundPlateGeometry: any, isVerticalFloorPlate: any) => {
       const groundPlateMesh = new ns2.Mesh(groundPlateGeometry, mg2);
@@ -13240,8 +13046,8 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
         (groundPlateMesh.receiveShadow = true),
         (groundPlateMesh.userData.exportRole = "plan"),
         (groundPlateMesh.userData.regionReceiverKind = "floor"),
-        (groundPlateMesh.userData.regionFloorId = activeFloorId),
-        sceneRootNode.add(groundPlateMesh),
+        (groundPlateMesh.userData.regionFloorId = appCtx.activeFloorId),
+        appCtx.sceneRootNode.add(groundPlateMesh),
         floorOpeningLoops.length || addFloorIndoorLoop(floorPlateGeometry));
     };
   if (floorOpeningLoops.length) {
@@ -13303,7 +13109,7 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
         z: differenceLoopPoint.y,
       }));
       (buildGroundShadow(openingDifferenceWorldLoop, groundShadowPlaneY, floorOpeningLoops),
-        sceneRootNode.userData.floorEdgeIndoorLoops.push(openingDifferenceWorldLoop));
+        appCtx.sceneRootNode.userData.floorEdgeIndoorLoops.push(openingDifferenceWorldLoop));
     }
   } else {
     if (mr2.length) {
@@ -13332,7 +13138,7 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
       for (const extraModelLoop of modelWorldLoops.slice(1)) addFloorIndoorLoop(extraModelLoop);
     } else {
       if (
-        studioState.items.some(
+        appCtx.studioState.items.some(
           (gardenOrCourtyardItem) =>
             isCourtyardDrawing2(gardenOrCourtyardItem) ||
             gardenOrCourtyardItem.type.startsWith("garden-"),
@@ -13377,7 +13183,7 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
     }));
   const $u2 = collectLightSourceSpecs(),
     placedItemRecords: any[] = [];
-  for (const placedItem of studioState.items) {
+  for (const placedItem of appCtx.studioState.items) {
     const placedItemWorldPoint = planPointToWorld(placedItem);
     if (placedItem.type === "flooropening") continue;
     const vu2 = buildItemModel(placedItem, $u2);
@@ -13387,7 +13193,7 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
       isEmbeddedStage &&
         Object.assign(vu2.userData, {
           editorModelId: placedItem.id,
-          editorFloorId: activeFloorId,
+          editorFloorId: appCtx.activeFloorId,
         }),
       isEmbedStageMode &&
         ["smallcar", "suv", "scooter"].includes(placedItem.type) &&
@@ -13426,28 +13232,28 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
         )
           ? "smallcar"
           : placedItem.type),
-        (vu2.userData.environmentFloorId = activeFloorId)),
+        (vu2.userData.environmentFloorId = appCtx.activeFloorId)),
       vu2.position.set(placedItemWorldPoint.x, placedItem.elevation || 0, placedItemWorldPoint.z),
       applyItemOrientation(vu2, placedItem),
       (vu2.userData.modelLayer = lampItemTypeSet.has(placedItem.type) ? "lights" : "items"),
       (vu2.userData.exportRole = placedItem.type === "planlabel" ? "label" : "plan"),
-      sceneRootNode.add(vu2),
+      appCtx.sceneRootNode.add(vu2),
       lampItemTypeSet.has(placedItem.type) ||
         placedItemRecords.push({
           item: placedItem,
           group: vu2,
         }));
   }
-  (batchSharedMeshes(sceneRootNode, placedItemRecords),
+  (batchSharedMeshes(appCtx.sceneRootNode, placedItemRecords),
     isEmbedStageMode &&
       (new URLSearchParams(window.location.search).get("wall-trial") ?? defaultWallRuntimeProfile)
         .split(",")
         .includes("merge") &&
-      mergeWallBands2(ns2, sceneRootNode, mergeGeometries2),
+      mergeWallBands2(ns2, appCtx.sceneRootNode, mergeGeometries2),
     isEmbeddedStage &&
       new URLSearchParams(window.location.search).get("furniture-runtime") !== "baseline" &&
       compactRuntimeFurniture2(
-        sceneRootNode,
+        appCtx.sceneRootNode,
         placedItemRecords.filter(
           ({ item: locatedItemRef }) => !createSelectionRef("item", locatedItemRef.id),
         ),
@@ -13457,18 +13263,18 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
           materialKey: buildStaticMaterialKey,
         },
       ),
-    mergeStaticItemMeshes(sceneRootNode, placedItemRecords),
-    sceneRootNode.traverse((sceneNodeForFlags: any) => {
-      sceneNodeForFlags !== sceneRootNode &&
+    mergeStaticItemMeshes(appCtx.sceneRootNode, placedItemRecords),
+    appCtx.sceneRootNode.traverse((sceneNodeForFlags: any) => {
+      sceneNodeForFlags !== appCtx.sceneRootNode &&
         !sceneNodeForFlags.userData.exportRole &&
         (sceneNodeForFlags.userData.exportRole = "plan");
     }),
-    setupSceneShadows(sceneRootNode, {
+    setupSceneShadows(appCtx.sceneRootNode, {
       rebuildAtlas: !preserveLightCache,
     }),
-    isEmbeddedStage && cacheObjectTransforms2(sceneRootNode, ns2.Object3D),
-    sceneStyle === "warm-wood" &&
-      sceneRootNode.traverse((sceneNodeVisibility: any) => {
+    isEmbeddedStage && cacheObjectTransforms2(appCtx.sceneRootNode, ns2.Object3D),
+    appCtx.sceneStyle === "warm-wood" &&
+      appCtx.sceneRootNode.traverse((sceneNodeVisibility: any) => {
         (["background", "grid"].includes(sceneNodeVisibility.userData?.exportRole) ||
           sceneNodeVisibility.userData?.floorPlanGroundShadow === true ||
           sceneNodeVisibility.userData?.batchedWallContactShadowCount != null) &&
@@ -13477,13 +13283,13 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
       }));
 }
 function getPreviewFloorMode() {
-  return studioProject?.previewFloorMode === "all" && studioProject.floors.length > 1
+  return appCtx.studioProject?.previewFloorMode === "all" && appCtx.studioProject.floors.length > 1
     ? "all"
     : "active";
 }
 function updateFloorPreviewButtons() {
   const le2 = getPreviewFloorMode(),
-    shouldEnableFloorPreview = (studioProject?.floors.length || 0) > 1;
+    shouldEnableFloorPreview = (appCtx.studioProject?.floors.length || 0) > 1;
   for (const floorPreviewButton of previewFloorControls) {
     const isActiveFloorPreviewButton = floorPreviewButton.dataset.previewFloor === le2;
     (floorPreviewButton.classList.toggle("active", isActiveFloorPreviewButton),
@@ -13493,9 +13299,9 @@ function updateFloorPreviewButtons() {
   }
 }
 function setPreviewFloor(previewFloorId: any, { persist: shouldPersistPreview = true } = {}) {
-  studioProject &&
-    ((studioProject.previewFloorMode =
-      previewFloorId === "all" && studioProject.floors.length > 1 ? "all" : "active"),
+  appCtx.studioProject &&
+    ((appCtx.studioProject.previewFloorMode =
+      previewFloorId === "all" && appCtx.studioProject.floors.length > 1 ? "all" : "active"),
     updateFloorPreviewButtons(),
     refreshFloorControls(),
     setCameraMode(getCameraMode(), {
@@ -13507,17 +13313,17 @@ function setPreviewFloor(previewFloorId: any, { persist: shouldPersistPreview = 
     shouldPersistPreview && markDocumentDirty());
 }
 function rebuildFloorLayers(floorRebuildOptions: Record<string, any> = {}) {
-  if (isSceneStillLoading) {
+  if (appCtx.isSceneStillLoading) {
     assetLoaderState.revision++;
     return;
   }
   for (const _floorLayerEntry of buildFloorsAsync(floorRebuildOptions));
 }
 async function waitForSceneRevision() {
-  const sceneAtStart = studioProject,
-    rootAtStart = sceneRootNode,
+  const sceneAtStart = appCtx.studioProject,
+    rootAtStart = appCtx.sceneRootNode,
     isSceneRevisionCurrent = () =>
-      !assetLoaderState.disposed && sceneAtStart === studioProject && rootAtStart === sceneRootNode;
+      !assetLoaderState.disposed && sceneAtStart === appCtx.studioProject && rootAtStart === appCtx.sceneRootNode;
   for (; isSceneRevisionCurrent();) {
     const revision = assetLoaderState.revision,
       bg2 = buildFloorsAsync();
@@ -13532,10 +13338,10 @@ async function waitForSceneRevision() {
       }
       if (shouldWaitForScene)
         return (
-          (isSceneStillLoading = false),
+          (appCtx.isSceneStillLoading = false),
           updateExternalModelDataset(),
           scheduleExternalPrecompile(),
-          (isSceneDirty = false),
+          (appCtx.isSceneDirty = false),
           refreshPreviewSync(),
           true
         );
@@ -13546,27 +13352,27 @@ async function waitForSceneRevision() {
   return false;
 }
 async function waitForSceneReady(sceneWaitTimeout: any = null) {
-  if (!isEmbedStageMode || !regionLightController || !threeRenderer) return;
-  const sceneSnapshotRef = sceneRootNode,
-    floorsSnapshotRef = threeRenderer,
-    ue3 = threeScene,
-    cameraSnapshotRef = threeCamera,
-    Gt2 = sceneRevisionCount,
+  if (!isEmbedStageMode || !appCtx.regionLightController || !appCtx.threeRenderer) return;
+  const sceneSnapshotRef = appCtx.sceneRootNode,
+    floorsSnapshotRef = appCtx.threeRenderer,
+    ue3 = appCtx.threeScene,
+    cameraSnapshotRef = appCtx.threeCamera,
+    Gt2 = appCtx.sceneRevisionCount,
     isSceneStable = () =>
       !assetLoaderState.disposed &&
-      !isDisposed &&
+      !appCtx.isDisposed &&
       !document.hidden &&
-      isHighDetailQuality &&
-      sceneRootNode === sceneSnapshotRef &&
-      threeRenderer === floorsSnapshotRef &&
-      threeScene === ue3 &&
-      threeCamera === cameraSnapshotRef &&
-      sceneRevisionCount === Gt2;
+      appCtx.isHighDetailQuality &&
+      appCtx.sceneRootNode === sceneSnapshotRef &&
+      appCtx.threeRenderer === floorsSnapshotRef &&
+      appCtx.threeScene === ue3 &&
+      appCtx.threeCamera === cameraSnapshotRef &&
+      appCtx.sceneRevisionCount === Gt2;
   (ue3.updateMatrixWorld(true),
-    regionLightController.sync(cameraSnapshotRef),
+    appCtx.regionLightController.sync(cameraSnapshotRef),
     sceneWaitTimeout?.preparePresentationMaterials?.(
       sceneSnapshotRef,
-      Gt2 + ":" + curtainFrameKey,
+      Gt2 + ":" + appCtx.curtainFrameKey,
     ));
   try {
     await precompileShaderPrograms(floorsSnapshotRef, ue3, cameraSnapshotRef, isSceneStable, {
@@ -13578,7 +13384,7 @@ async function waitForSceneReady(sceneWaitTimeout: any = null) {
 function* buildFloorsAsync({
   preserveLightCache: preserveLightCacheSnapshot = false,
 } = {}): Generator<any, void, unknown> {
-  if (!sceneRootNode) return;
+  if (!appCtx.sceneRootNode) return;
   if ((stageLoadTiming("model-build"), getPreviewFloorMode() !== "all")) {
     (buildStudioScene({
       preserveLightCache: preserveLightCacheSnapshot,
@@ -13586,10 +13392,10 @@ function* buildFloorsAsync({
       computeSceneExtent());
     return;
   }
-  const rootForFloors = sceneRootNode,
-    viewModelForFloors = studioState,
-    oe5 = activeFloorId,
-    nn3 = sceneModelOrigin;
+  const rootForFloors = appCtx.sceneRootNode,
+    viewModelForFloors = appCtx.studioState,
+    oe5 = appCtx.activeFloorId,
+    nn3 = appCtx.sceneModelOrigin;
   (refreshBaseLighting(),
     disposeFloorScene(),
     refreshSceneRender({
@@ -13597,21 +13403,21 @@ function* buildFloorsAsync({
       scene: true,
       preserveLightCache: preserveLightCacheSnapshot,
     }));
-  const sort6 = [...studioProject.floors].sort(
+  const sort6 = [...appCtx.studioProject.floors].sort(
       (firstFloor, secondFloor) => firstFloor.elevation - secondFloor.elevation,
     ),
-    floorGap = pendingRuntimeSettings
-      ? finite2(studioProject.exportFloorGap, 3)
-      : finite2(studioProject.previewFloorGap, 3);
+    floorGap = appCtx.pendingRuntimeSettings
+      ? finite2(appCtx.studioProject.exportFloorGap, 3)
+      : finite2(appCtx.studioProject.previewFloorGap, 3);
   for (const [floorSortIndex, preserveLightCacheSnapshotFloorRecord] of sort6.entries()) {
     const floorGroupContainer = new ns2.Group();
     ((floorGroupContainer.name = "floor-" + preserveLightCacheSnapshotFloorRecord.id),
       (floorGroupContainer.userData.floorId = preserveLightCacheSnapshotFloorRecord.id));
     try {
-      ((sceneRootNode = floorGroupContainer),
-        (studioState = preserveLightCacheSnapshotFloorRecord.scene),
-        (activeFloorId = preserveLightCacheSnapshotFloorRecord.id),
-        (sceneModelOrigin = {
+      ((appCtx.sceneRootNode = floorGroupContainer),
+        (appCtx.studioState = preserveLightCacheSnapshotFloorRecord.scene),
+        (appCtx.activeFloorId = preserveLightCacheSnapshotFloorRecord.id),
+        (appCtx.sceneModelOrigin = {
           x: finite2(preserveLightCacheSnapshotFloorRecord.originX, 0),
           y: finite2(preserveLightCacheSnapshotFloorRecord.originY, 0),
         }),
@@ -13621,10 +13427,10 @@ function* buildFloorsAsync({
     } catch (floorBuildError: any) {
       throw (disposeObjectTree(floorGroupContainer), floorBuildError);
     } finally {
-      ((sceneRootNode = rootForFloors),
-        (studioState = viewModelForFloors),
-        (activeFloorId = oe5),
-        (sceneModelOrigin = nn3));
+      ((appCtx.sceneRootNode = rootForFloors),
+        (appCtx.studioState = viewModelForFloors),
+        (appCtx.activeFloorId = oe5),
+        (appCtx.sceneModelOrigin = nn3));
     }
     if (floorSortIndex > 0) {
       for (const preserveLightCacheSnapshotFloorChildObject of [...floorGroupContainer.children])
@@ -13653,11 +13459,11 @@ function* buildFloorsAsync({
       rootForFloors.add(floorGroupContainer),
       floorSortIndex < sort6.length - 1 && (yield));
   }
-  ((sceneRootNode = rootForFloors),
-    (studioState = viewModelForFloors),
-    (activeFloorId = oe5),
-    (sceneModelOrigin = nn3),
-    setupSceneShadows(sceneRootNode, {
+  ((appCtx.sceneRootNode = rootForFloors),
+    (appCtx.studioState = viewModelForFloors),
+    (appCtx.activeFloorId = oe5),
+    (appCtx.sceneModelOrigin = nn3),
+    setupSceneShadows(appCtx.sceneRootNode, {
       rebuildAtlas: !preserveLightCacheSnapshot,
     }),
     computeSceneExtent(),
@@ -13668,16 +13474,16 @@ function* buildFloorsAsync({
     }));
 }
 function syncFloorGroups(layerKeySet: any) {
-  if (!layerKeySet.size || !sceneRootNode) return;
+  if (!layerKeySet.size || !appCtx.sceneRootNode) return;
   if (getPreviewFloorMode() !== "all") {
-    layerKeySet.has(activeFloorId) && rebuildFloorLayers();
+    layerKeySet.has(appCtx.activeFloorId) && rebuildFloorLayers();
     return;
   }
-  const rootForFloorSync = sceneRootNode,
-    viewModelForFloorSync = studioState,
-    oe6 = activeFloorId,
-    nn4 = sceneModelOrigin,
-    sort7 = [...studioProject.floors].sort(
+  const rootForFloorSync = appCtx.sceneRootNode,
+    viewModelForFloorSync = appCtx.studioState,
+    oe6 = appCtx.activeFloorId,
+    nn4 = appCtx.sceneModelOrigin,
+    sort7 = [...appCtx.studioProject.floors].sort(
       (firstSortFloor, secondSortFloor) => firstSortFloor.elevation - secondSortFloor.elevation,
     );
   if (
@@ -13695,51 +13501,51 @@ function syncFloorGroups(layerKeySet: any) {
     for (const [floorSyncIndex, syncFloorRecord] of sort7.entries())
       if (
         layerKeySet.has(syncFloorRecord.id) &&
-        ((sceneRootNode = rootForFloorSync.children.find(
+        ((appCtx.sceneRootNode = rootForFloorSync.children.find(
           (matchingFloorChild: any) => matchingFloorChild.userData?.floorId === syncFloorRecord.id,
         )),
-        (studioState = syncFloorRecord.scene),
-        (activeFloorId = syncFloorRecord.id),
-        (sceneModelOrigin = {
+        (appCtx.studioState = syncFloorRecord.scene),
+        (appCtx.activeFloorId = syncFloorRecord.id),
+        (appCtx.sceneModelOrigin = {
           x: finite2(syncFloorRecord.originX, 0),
           y: finite2(syncFloorRecord.originY, 0),
         }),
-        sceneRootNode.position.set(
+        appCtx.sceneRootNode.position.set(
           finite2(syncFloorRecord.offsetX, 0),
-          floorSyncIndex * studioProject.previewFloorGap,
+          floorSyncIndex * appCtx.studioProject.previewFloorGap,
           finite2(syncFloorRecord.offsetZ, 0),
         ),
-        sceneRootNode.rotation.set(
+        appCtx.sceneRootNode.rotation.set(
           0,
           -ns2.MathUtils.degToRad(finite2(syncFloorRecord.rotation, 0)),
           0,
         ),
-        sceneRootNode.scale.set(1, 1, 1),
+        appCtx.sceneRootNode.scale.set(1, 1, 1),
         buildStudioScene(),
         floorSyncIndex > 0)
       ) {
-        for (const staleFloorChild of [...sceneRootNode.children])
+        for (const staleFloorChild of [...appCtx.sceneRootNode.children])
           if (["background", "grid"].includes(staleFloorChild.userData?.exportRole)) {
             if (isEmbeddedStage) {
               ((staleFloorChild.userData.floorBackgroundHidden = true),
                 (staleFloorChild.visible = false));
               continue;
             }
-            (sceneRootNode.remove(staleFloorChild), disposeObjectTree(staleFloorChild));
+            (appCtx.sceneRootNode.remove(staleFloorChild), disposeObjectTree(staleFloorChild));
           }
       }
   } finally {
-    ((sceneRootNode = rootForFloorSync),
-      (studioState = viewModelForFloorSync),
-      (activeFloorId = oe6),
-      (sceneModelOrigin = nn4));
+    ((appCtx.sceneRootNode = rootForFloorSync),
+      (appCtx.studioState = viewModelForFloorSync),
+      (appCtx.activeFloorId = oe6),
+      (appCtx.sceneModelOrigin = nn4));
   }
   (setupSceneShadows(rootForFloorSync), computeSceneExtent());
 }
 function createFloorWorldMapper() {
   const floorMapperPpm = getPixelsPerMeter();
   if (!floorMapperPpm) return null;
-  const nn5 = sceneModelOrigin || sceneModelOrigin2(studioState, getActiveFloor()),
+  const nn5 = appCtx.sceneModelOrigin || sceneModelOrigin2(appCtx.studioState, getActiveFloor()),
     floorMapperOriginX = nn5.x,
     floorMapperOriginY = nn5.y;
   return {
@@ -13754,21 +13560,21 @@ function createFloorWorldMapper() {
 }
 const previewTransformCache = createPreviewTransformCache();
 function previewTransformContext() {
-  const previewTransformOrigin = sceneModelOrigin || sceneModelOrigin2(studioState, getActiveFloor());
+  const previewTransformOrigin = appCtx.sceneModelOrigin || sceneModelOrigin2(appCtx.studioState, getActiveFloor());
   return {
-    items: studioState.items,
+    items: appCtx.studioState.items,
     contextKey: JSON.stringify([
-      activeFloorId,
+      appCtx.activeFloorId,
       getPreviewFloorMode(),
       previewTransformOrigin,
       backgroundSettings(),
-      baseLightingSettings,
-      studioState.settings,
-      studioState.background,
-      studioState.walls,
-      studioState.windows,
-      studioState.doors,
-      studioState.railings,
+      appCtx.baseLightingSettings,
+      appCtx.studioState.settings,
+      appCtx.studioState.background,
+      appCtx.studioState.walls,
+      appCtx.studioState.windows,
+      appCtx.studioState.doors,
+      appCtx.studioState.railings,
     ]),
     isEligible: (previewCandidate: any) =>
       !lampItemTypeSet.has(previewCandidate.type) &&
@@ -13780,8 +13586,8 @@ function previewTransformContext() {
 function capturePreviewTransforms(layerItemRecords: any) {
   isEmbeddedStage ||
     isEmbedStageMode ||
-    !sceneRootNode ||
-    previewTransformCache.capture(sceneRootNode, {
+    !appCtx.sceneRootNode ||
+    previewTransformCache.capture(appCtx.sceneRootNode, {
       ...previewTransformContext(),
       groups: layerItemRecords,
     });
@@ -13790,8 +13596,8 @@ function applyPreviewTransforms(
   worldMapper: any,
   { preserveLightCache: shouldPreservePreviewLightCache, shadowRoot: previewShadowRoot }: any,
 ) {
-  if (isEmbeddedStage || isEmbedStageMode || !sceneRootNode) return false;
-  const movedTransforms = previewTransformCache.plan(sceneRootNode, previewTransformContext());
+  if (isEmbeddedStage || isEmbedStageMode || !appCtx.sceneRootNode) return false;
+  const movedTransforms = previewTransformCache.plan(appCtx.sceneRootNode, previewTransformContext());
   if (!movedTransforms) return false;
   for (const { item: movedItem, group: movedGroup } of movedTransforms) {
     const world = worldMapper.toWorld(movedItem);
@@ -13799,7 +13605,7 @@ function applyPreviewTransforms(
       applyItemOrientation(movedGroup, movedItem));
   }
   return (
-    previewTransformCache.commit(sceneRootNode, movedTransforms),
+    previewTransformCache.commit(appCtx.sceneRootNode, movedTransforms),
     movedTransforms.length &&
       (setupSceneShadows(previewShadowRoot, {
         rebuildAtlas: !shouldPreservePreviewLightCache,
@@ -13812,21 +13618,21 @@ function applyPreviewTransforms(
   );
 }
 function buildSceneLayers(layerKeyList: any) {
-  if (sceneRootNode) {
-    for (const layerChildObject of [...sceneRootNode.children])
+  if (appCtx.sceneRootNode) {
+    for (const layerChildObject of [...appCtx.sceneRootNode.children])
       layerChildObject.userData.modelLayer === layerKeyList &&
-        (sceneRootNode.remove(layerChildObject), disposeObjectTree(layerChildObject));
+        (appCtx.sceneRootNode.remove(layerChildObject), disposeObjectTree(layerChildObject));
   }
 }
 function buildLayerGroup(
   layerKey: any,
   {
     preserveLightCache: preserveLayerLightCache = false,
-    shadowRoot: layerShadowRoot = sceneRootNode,
+    shadowRoot: layerShadowRoot = appCtx.sceneRootNode,
     allowTransforms: allowLayerTransforms = false,
   } = {},
 ) {
-  if (!sceneRootNode) return;
+  if (!appCtx.sceneRootNode) return;
   const mg3 = createFloorWorldMapper();
   if (!mg3) return;
   if (layerKey === "items" && allowLayerTransforms && applyPreviewTransforms(mg3, {
@@ -13838,7 +13644,7 @@ function buildLayerGroup(
   const isLightsLayer = layerKey === "lights",
     $u3 = isLightsLayer ? collectLightSourceSpecs() : null,
     layerItemRecords: any[] = [];
-  for (const layerItem of studioState.items) {
+  for (const layerItem of appCtx.studioState.items) {
     if (lampItemTypeSet.has(layerItem.type) !== isLightsLayer) continue;
     const world = mg3.toWorld(layerItem);
     if (layerItem.type === "flooropening") continue;
@@ -13849,7 +13655,7 @@ function buildLayerGroup(
       isEmbeddedStage &&
         Object.assign(vu3.userData, {
           editorModelId: layerItem.id,
-          editorFloorId: activeFloorId,
+          editorFloorId: appCtx.activeFloorId,
         }),
       isEmbedStageMode &&
         ["smallcar", "suv", "scooter"].includes(layerItem.type) &&
@@ -13886,11 +13692,11 @@ function buildLayerGroup(
         (vu3.userData.environmentModelType = ["smallcar", "suv", "scooter"].includes(layerItem.type)
           ? "smallcar"
           : layerItem.type),
-        (vu3.userData.environmentFloorId = activeFloorId)),
+        (vu3.userData.environmentFloorId = appCtx.activeFloorId)),
       vu3.position.set(world.x, layerItem.elevation || 0, world.z),
       applyItemOrientation(vu3, layerItem),
       (vu3.userData.modelLayer = layerKey),
-      sceneRootNode.add(vu3),
+      appCtx.sceneRootNode.add(vu3),
       isLightsLayer ||
         layerItemRecords.push({
           item: layerItem,
@@ -13898,11 +13704,11 @@ function buildLayerGroup(
         }));
   }
   (isLightsLayer ||
-    (batchSharedMeshes(sceneRootNode, layerItemRecords),
+    (batchSharedMeshes(appCtx.sceneRootNode, layerItemRecords),
     isEmbeddedStage &&
       new URLSearchParams(window.location.search).get("furniture-runtime") !== "baseline" &&
       compactRuntimeFurniture2(
-        sceneRootNode,
+        appCtx.sceneRootNode,
         layerItemRecords.filter(
           ({ item: layerItemRef }) => !createSelectionRef("item", layerItemRef.id),
         ),
@@ -13912,12 +13718,12 @@ function buildLayerGroup(
           materialKey: buildStaticMaterialKey,
         },
       ),
-    mergeStaticItemMeshes(sceneRootNode, layerItemRecords),
+    mergeStaticItemMeshes(appCtx.sceneRootNode, layerItemRecords),
     buildCourtyardFoundation(mg3)),
     setupSceneShadows(layerShadowRoot, {
       rebuildAtlas: !preserveLayerLightCache,
     }),
-    isEmbeddedStage && cacheObjectTransforms2(sceneRootNode, ns2.Object3D),
+    isEmbeddedStage && cacheObjectTransforms2(appCtx.sceneRootNode, ns2.Object3D),
     isLightsLayer && requestStudioRender(),
     refreshSceneRender({
       shadows: !isLightsLayer && !preserveLayerLightCache,
@@ -13927,14 +13733,14 @@ function buildLayerGroup(
 }
 function buildArchitectureLayer({
   preserveLightCache: preserveArchitectureLightCache = false,
-  shadowRoot: architectureShadowRoot = sceneRootNode,
+  shadowRoot: architectureShadowRoot = appCtx.sceneRootNode,
 } = {}) {
   const mg4 = createFloorWorldMapper();
-  !sceneRootNode ||
+  !appCtx.sceneRootNode ||
     !mg4 ||
     (buildSceneLayers("architecture"),
     buildInteriorScene(mg4),
-    preserveArchitectureLightCache || contactShadowController?.invalidate(),
+    preserveArchitectureLightCache || appCtx.contactShadowController?.invalidate(),
     setupSceneShadows(architectureShadowRoot, {
       rebuildAtlas: !preserveArchitectureLightCache,
     }),
@@ -13951,21 +13757,21 @@ function buildLightsLayer(lightsLayerOptions: Record<string, any> = {}) {
   buildLayerGroup("lights", lightsLayerOptions);
 }
 function buildFloorAtIndex(requestedLayerSet: any, sceneLayerOptions: any) {
-  const floorBuildRoot = sceneRootNode,
-    nn6 = sceneModelOrigin;
+  const floorBuildRoot = appCtx.sceneRootNode,
+    nn6 = appCtx.sceneModelOrigin;
   if (getPreviewFloorMode() === "all") {
-    const floorRecordAtId = studioProject.floors.find(
-        (candidateFloor: any) => candidateFloor.id === activeFloorId,
+    const floorRecordAtId = appCtx.studioProject.floors.find(
+        (candidateFloor: any) => candidateFloor.id === appCtx.activeFloorId,
       ),
       floorGroupAtId = floorBuildRoot?.children.find(
-        (floorGroupChild: any) => floorGroupChild.userData?.floorId === activeFloorId,
+        (floorGroupChild: any) => floorGroupChild.userData?.floorId === appCtx.activeFloorId,
       );
     if (!floorRecordAtId || !floorGroupAtId) {
       rebuildFloorLayers(sceneLayerOptions);
       return;
     }
-    ((sceneRootNode = floorGroupAtId),
-      (sceneModelOrigin = {
+    ((appCtx.sceneRootNode = floorGroupAtId),
+      (appCtx.sceneModelOrigin = {
         x: finite2(floorRecordAtId.originX, 0),
         y: finite2(floorRecordAtId.originY, 0),
       }));
@@ -13979,15 +13785,15 @@ function buildFloorAtIndex(requestedLayerSet: any, sceneLayerOptions: any) {
       requestedLayerSet.has("items") && buildItemsLayer(floorBuildOptions),
       requestedLayerSet.has("lights") && buildLightsLayer(floorBuildOptions));
   } finally {
-    ((sceneRootNode = floorBuildRoot), (sceneModelOrigin = nn6));
+    ((appCtx.sceneRootNode = floorBuildRoot), (appCtx.sceneModelOrigin = nn6));
   }
 }
 function buildLayerForFloor(floorLayerKey: any, layerFloorOptions: Record<string, any> = {}) {
-  const layerFloorRoot = sceneRootNode,
-    viewModelForLayer = studioState,
-    oe7 = activeFloorId,
-    nn7 = sceneModelOrigin,
-    sort8 = [...(studioProject?.floors || [])].sort(
+  const layerFloorRoot = appCtx.sceneRootNode,
+    viewModelForLayer = appCtx.studioState,
+    oe7 = appCtx.activeFloorId,
+    nn7 = appCtx.sceneModelOrigin,
+    sort8 = [...(appCtx.studioProject?.floors || [])].sort(
       (firstLayerFloor, secondLayerFloor) => firstLayerFloor.elevation - secondLayerFloor.elevation,
     );
   if (!layerFloorRoot || !sort8.length) return false;
@@ -13997,10 +13803,10 @@ function buildLayerForFloor(floorLayerKey: any, layerFloorOptions: Record<string
         (layerFloorChild: any) => layerFloorChild.userData?.floorId === layerFloorRecord.id,
       );
       if (!layerFloorGroup) return false;
-      ((sceneRootNode = layerFloorGroup),
-        (studioState = layerFloorRecord.scene),
-        (activeFloorId = layerFloorRecord.id),
-        (sceneModelOrigin = {
+      ((appCtx.sceneRootNode = layerFloorGroup),
+        (appCtx.studioState = layerFloorRecord.scene),
+        (appCtx.activeFloorId = layerFloorRecord.id),
+        (appCtx.sceneModelOrigin = {
           x: finite2(layerFloorRecord.originX, 0),
           y: finite2(layerFloorRecord.originY, 0),
         }),
@@ -14010,17 +13816,17 @@ function buildLayerForFloor(floorLayerKey: any, layerFloorOptions: Record<string
         }));
     }
   } finally {
-    ((sceneRootNode = layerFloorRoot),
-      (studioState = viewModelForLayer),
-      (activeFloorId = oe7),
-      (sceneModelOrigin = nn7));
+    ((appCtx.sceneRootNode = layerFloorRoot),
+      (appCtx.studioState = viewModelForLayer),
+      (appCtx.activeFloorId = oe7),
+      (appCtx.sceneModelOrigin = nn7));
   }
   return (computeSceneExtent(), true);
 }
 function isDescendantOfRoot(ancestorStartNode: any, ancestorStopSet: any) {
   for (
     let isDescendantOfRootAncestorNode = ancestorStartNode;
-    isDescendantOfRootAncestorNode && isDescendantOfRootAncestorNode !== sceneRootNode;
+    isDescendantOfRootAncestorNode && isDescendantOfRootAncestorNode !== appCtx.sceneRootNode;
     isDescendantOfRootAncestorNode = isDescendantOfRootAncestorNode.parent
   )
     if (ancestorStopSet.has(isDescendantOfRootAncestorNode.userData?.modelLayer)) return true;
@@ -14029,8 +13835,8 @@ function isDescendantOfRoot(ancestorStartNode: any, ancestorStopSet: any) {
 function computeSceneBounds({ excludeModelLayers: excludeModelLayers = null }: any = {}) {
   const sceneBoundsBox = new ns2.Box3();
   return (
-    sceneRootNode.updateWorldMatrix(true, true),
-    sceneRootNode.traverse((boundsMeshNode: any) => {
+    appCtx.sceneRootNode.updateWorldMatrix(true, true),
+    appCtx.sceneRootNode.traverse((boundsMeshNode: any) => {
       if (
         !(
           !boundsMeshNode.isMesh ||
@@ -14059,19 +13865,19 @@ function computeSceneBounds({ excludeModelLayers: excludeModelLayers = null }: a
   );
 }
 function computeSceneExtent() {
-  if (!isGroundShadowEnabled || !mainDirectionalLight?.shadow?.camera || !sceneRootNode)
+  if (!appCtx.isGroundShadowEnabled || !appCtx.mainDirectionalLight?.shadow?.camera || !appCtx.sceneRootNode)
     return false;
   const qu4 = computeSceneBounds();
   if (qu4.isEmpty()) return false;
-  (sceneRootNode.updateWorldMatrix(true, true),
-    mainDirectionalLight.updateWorldMatrix(true, false),
-    mainDirectionalLight.target.updateWorldMatrix(true, false));
-  const camera3 = mainDirectionalLight.shadow.camera,
+  (appCtx.sceneRootNode.updateWorldMatrix(true, true),
+    appCtx.mainDirectionalLight.updateWorldMatrix(true, false),
+    appCtx.mainDirectionalLight.target.updateWorldMatrix(true, false));
+  const camera3 = appCtx.mainDirectionalLight.shadow.camera,
     setFromMatrixPosition = new ns2.Vector3().setFromMatrixPosition(
-      mainDirectionalLight.matrixWorld,
+      appCtx.mainDirectionalLight.matrixWorld,
     ),
     setFromMatrixPosition2 = new ns2.Vector3().setFromMatrixPosition(
-      mainDirectionalLight.target.matrixWorld,
+      appCtx.mainDirectionalLight.target.matrixWorld,
     );
   (camera3.position.copy(setFromMatrixPosition),
     camera3.lookAt(setFromMatrixPosition2),
@@ -14103,12 +13909,12 @@ function computeSceneExtent() {
     (camera3.near = Math.max(0.1, sceneMinDepth - shadowExtent)),
     (camera3.far = Math.max(camera3.near + 1, sceneMaxDepth + shadowExtent)),
     camera3.updateProjectionMatrix(),
-    (mainDirectionalLight.shadow.needsUpdate = true),
+    (appCtx.mainDirectionalLight.shadow.needsUpdate = true),
     true
   );
 }
 function updateCameraView(cameraViewOptions: UpdateCameraViewOptions = {}) {
-  if (!threeCamera || !orbitControls) return;
+  if (!appCtx.threeCamera || !appCtx.orbitControls) return;
   const viewMode =
       cameraViewOptions.view === "top"
         ? "top"
@@ -14132,46 +13938,46 @@ function updateCameraView(cameraViewOptions: UpdateCameraViewOptions = {}) {
       : clamp2(Math.max(qu5.width, qu5.height) / cameraViewPpm, 5, 35),
     sceneHeight = size2
       ? size2.y
-      : Math.max(0, ...studioState.walls.map((viewWall) => viewWall.height || 0)),
+      : Math.max(0, ...appCtx.studioState.walls.map((viewWall) => viewWall.height || 0)),
     cameraViewOptionsCameraDistance = Math.max(
       cameraTargetRadius * 1.18,
       cameraTargetRadius + sceneHeight * 0.32,
     );
-  ((threeCamera.userData.frameSize = cameraViewOptionsCameraDistance),
-    (threeCamera.userData.cameraView = viewMode),
-    (threeCamera.userData.topRotation = qn3));
+  ((appCtx.threeCamera.userData.frameSize = cameraViewOptionsCameraDistance),
+    (appCtx.threeCamera.userData.cameraView = viewMode),
+    (appCtx.threeCamera.userData.topRotation = qn3));
   const cameraTarget = sceneCenterVector
     ? new ns2.Vector3(sceneCenterVector.x, sceneCenterVector.y, sceneCenterVector.z)
     : new ns2.Vector3(0, Math.min(0.78, cameraTargetRadius * 0.055), 0);
   let cameraDistanceResult;
-  if (threeCamera.isPerspectiveCamera) {
-    ((threeCamera.aspect = threeCamera.userData.viewportAspect || 1), applyCameraFocalLength());
+  if (appCtx.threeCamera.isPerspectiveCamera) {
+    ((appCtx.threeCamera.aspect = appCtx.threeCamera.userData.viewportAspect || 1), applyCameraFocalLength());
     const cameraFovDistance =
       cameraViewOptionsCameraDistance /
-      (2 * Math.tan(ns2.MathUtils.degToRad(threeCamera.getEffectiveFOV()) / 2));
+      (2 * Math.tan(ns2.MathUtils.degToRad(appCtx.threeCamera.getEffectiveFOV()) / 2));
     cameraDistanceResult = Math.max(cameraFovDistance * 1.04, cameraTargetRadius * 1.65, 8);
   } else
-    (applyOrthoFrame(cameraViewOptionsCameraDistance, threeCamera.userData.viewportAspect || 1),
+    (applyOrthoFrame(cameraViewOptionsCameraDistance, appCtx.threeCamera.userData.viewportAspect || 1),
       (cameraDistanceResult = Math.max(cameraTargetRadius * 3.2, 18)));
   if (viewMode === "top")
-    (threeCamera.up.copy(buildCameraUpVector(qn3)),
-      threeCamera.position.set(
+    (appCtx.threeCamera.up.copy(buildCameraUpVector(qn3)),
+      appCtx.threeCamera.position.set(
         cameraTarget.x,
         cameraTarget.y + cameraDistanceResult,
         cameraTarget.z,
       ));
   else {
-    threeCamera.up.set(0, 1, 0);
+    appCtx.threeCamera.up.set(0, 1, 0);
     const normalize2 = new ns2.Vector3(1.08, 1.7, 1.12).normalize();
-    threeCamera.position.copy(cameraTarget).addScaledVector(normalize2, cameraDistanceResult);
+    appCtx.threeCamera.position.copy(cameraTarget).addScaledVector(normalize2, cameraDistanceResult);
   }
-  (updateCameraPlanes(threeCamera, cameraTarget),
-    (threeCamera.zoom = 1),
-    threeCamera.lookAt(cameraTarget),
-    threeCamera.updateProjectionMatrix(),
-    orbitControls.target.copy(cameraTarget),
+  (updateCameraPlanes(appCtx.threeCamera, cameraTarget),
+    (appCtx.threeCamera.zoom = 1),
+    appCtx.threeCamera.lookAt(cameraTarget),
+    appCtx.threeCamera.updateProjectionMatrix(),
+    appCtx.orbitControls.target.copy(cameraTarget),
     requestStudioRender(),
-    orbitControls.update());
+    appCtx.orbitControls.update());
 }
 function axisLockedDistance(dragStartPoint: any, dragEndPoint: any, isShiftPressed = false) {
   const measurePpm = getPixelsPerMeter() || 100;
@@ -14193,9 +13999,9 @@ function axisLockedDistance(dragStartPoint: any, dragEndPoint: any, isShiftPress
       distance: 0,
     };
   }
-  const settings = studioState.settings;
-  return snapPoint2(dragStartPoint, studioState.walls, {
-    zoom: planView.zoom,
+  const settings = appCtx.studioState.settings;
+  return snapPoint2(dragStartPoint, appCtx.studioState.walls, {
+    zoom: appCtx.planView.zoom,
     screenTolerance: clamp2(Math.round(finite2(settings.snapTolerance, 13)), 6, 24),
     anchor: dragEndPoint,
     forceOrthogonalAxis: isShiftPressed,
@@ -14211,103 +14017,103 @@ function axisLockedDistance(dragStartPoint: any, dragEndPoint: any, isShiftPress
     snapGrid: settings.snapGrid !== false,
   });
 }
-function formatMeasurement(measurementRecord = snapHit) {
-  if (!snapEndpointPoint || wallSegmentCount < 2 || !measurementRecord?.point) return false;
+function formatMeasurement(measurementRecord = appCtx.snapHit) {
+  if (!appCtx.snapEndpointPoint || appCtx.wallSegmentCount < 2 || !measurementRecord?.point) return false;
   const measurementTolerance = Math.max(1, (getPixelsPerMeter() || 100) * 0.01);
   return (
     measurementRecord.kind === "endpoint" &&
-    distance2(measurementRecord.point, snapEndpointPoint) <= measurementTolerance
+    distance2(measurementRecord.point, appCtx.snapEndpointPoint) <= measurementTolerance
   );
 }
-function updateSnapIndicator(snapWallTarget = isForceSnapDisabled) {
-  if (!activeSnapTarget) return;
-  hoverPoint = {
-    ...activeSnapTarget,
+function updateSnapIndicator(snapWallTarget = appCtx.isForceSnapDisabled) {
+  if (!appCtx.activeSnapTarget) return;
+  appCtx.hoverPoint = {
+    ...appCtx.activeSnapTarget,
   };
   const snapPpm = getPixelsPerMeter() || 100,
-    snapStatusLabel = isSnapTemporarilyOff ? "吸附：临时关闭" : "吸附：关闭";
-  if (activeToolName === "scale" && previewEndPoint && snapWallTarget) {
-    const snapGuidePoint = axisLockedPoint2(activeSnapTarget, previewEndPoint);
-    ((hoverPoint = snapGuidePoint.point),
-      (snapHit = null),
+    snapStatusLabel = appCtx.isSnapTemporarilyOff ? "吸附：临时关闭" : "吸附：关闭";
+  if (appCtx.activeToolName === "scale" && appCtx.previewEndPoint && snapWallTarget) {
+    const snapGuidePoint = axisLockedPoint2(appCtx.activeSnapTarget, appCtx.previewEndPoint);
+    ((appCtx.hoverPoint = snapGuidePoint.point),
+      (appCtx.snapHit = null),
       (snapIndicatorElement.textContent = "吸附：" + snapGuidePoint.label));
   } else
-    activeToolName === "scale" &&
-      ((snapHit = null), (snapIndicatorElement.textContent = "吸附：自由"));
+    appCtx.activeToolName === "scale" &&
+      ((appCtx.snapHit = null), (snapIndicatorElement.textContent = "吸附：自由"));
   if (
     ((cursorPositionElement.textContent =
       "X " +
-      (hoverPoint.x / snapPpm).toFixed(2) +
+      (appCtx.hoverPoint.x / snapPpm).toFixed(2) +
       " m · Y " +
-      (hoverPoint.y / snapPpm).toFixed(2) +
+      (appCtx.hoverPoint.y / snapPpm).toFixed(2) +
       " m"),
-    activeToolName === "wall")
+    appCtx.activeToolName === "wall")
   )
-    ((snapHit = axisLockedDistance(activeSnapTarget, segmentStartPoint, snapWallTarget)),
-      (snapIndicatorElement.textContent = formatMeasurement(snapHit)
+    ((appCtx.snapHit = axisLockedDistance(appCtx.activeSnapTarget, appCtx.segmentStartPoint, snapWallTarget)),
+      (snapIndicatorElement.textContent = formatMeasurement(appCtx.snapHit)
         ? "闭合：点击闭合空间"
-        : snapHit.kind
-          ? (!isSnapEnabled() && snapWallTarget ? "锁定" : "吸附") + "：" + snapHit.label
+        : appCtx.snapHit.kind
+          ? (!isSnapEnabled() && snapWallTarget ? "锁定" : "吸附") + "：" + appCtx.snapHit.label
           : isSnapEnabled()
             ? "吸附：自由"
             : snapStatusLabel));
   else {
-    if (activeToolName === "courtyard-gate")
+    if (appCtx.activeToolName === "courtyard-gate")
       ((gardenGateSnapCandidate = {
         ...(itemTypeCatalog as any)[gardenGateItemType],
         type: gardenGateItemType,
-        ...hoverPoint,
+        ...appCtx.hoverPoint,
         rotation: 0,
       }),
-        anchorGate2(gardenGateSnapCandidate, studioState.items, snapPpm, 24 / planView.zoom) ||
+        anchorGate2(gardenGateSnapCandidate, appCtx.studioState.items, snapPpm, 24 / appCtx.planView.zoom) ||
           (gardenGateSnapCandidate = null),
         (snapIndicatorElement.textContent = gardenGateSnapCandidate
           ? "吸附：围挡门洞"
           : "吸附：请靠近足够宽的围挡"));
     else {
-      if (["window", "door", "railing"].includes(activeToolName)) {
-        const nearestSnapWall = nearestWall2(hoverPoint, studioState.walls, 16 / planView.zoom);
+      if (["window", "door", "railing"].includes(appCtx.activeToolName)) {
+        const nearestSnapWall = nearestWall2(appCtx.hoverPoint, appCtx.studioState.walls, 16 / appCtx.planView.zoom);
         if (nearestSnapWall) {
           const solid2 = doorTypeCatalog[activeDoorType] || doorTypeCatalog.solid,
             snapProbeOptions = {
               width:
-                activeToolName === "door" ? solid2.width : activeToolName === "railing" ? 2 : 1.4,
+                appCtx.activeToolName === "door" ? solid2.width : appCtx.activeToolName === "railing" ? 2 : 1.4,
               t: nearestSnapWall.t,
             },
             snapResolvedProbe = {
               wall: nearestSnapWall.wall,
               t: clampWindowT2(nearestSnapWall.wall, snapProbeOptions, snapPpm),
             };
-          ((windowPlacement = activeToolName === "window" ? snapResolvedProbe : null),
-            (doorPlacement = activeToolName === "door" ? snapResolvedProbe : null),
-            (railingPlacement = activeToolName === "railing" ? snapResolvedProbe : null),
+          ((appCtx.windowPlacement = appCtx.activeToolName === "window" ? snapResolvedProbe : null),
+            (appCtx.doorPlacement = appCtx.activeToolName === "door" ? snapResolvedProbe : null),
+            (appCtx.railingPlacement = appCtx.activeToolName === "railing" ? snapResolvedProbe : null),
             (snapIndicatorElement.textContent =
-              activeToolName === "door"
+              appCtx.activeToolName === "door"
                 ? "吸附：墙体门洞"
-                : activeToolName === "railing"
+                : appCtx.activeToolName === "railing"
                   ? "吸附：墙体栏杆"
                   : "吸附：墙体"));
         } else
-          ((windowPlacement = null),
-            (doorPlacement = null),
-            (railingPlacement = null),
+          ((appCtx.windowPlacement = null),
+            (appCtx.doorPlacement = null),
+            (appCtx.railingPlacement = null),
             (snapIndicatorElement.textContent = "吸附：未找到墙体"));
-      } else if (activeToolName === "pan") {
+      } else if (appCtx.activeToolName === "pan") {
 
-        ((snapHit = null),
-          (windowPlacement = null),
-          (doorPlacement = null),
-          (railingPlacement = null),
+        ((appCtx.snapHit = null),
+          (appCtx.windowPlacement = null),
+          (appCtx.doorPlacement = null),
+          (appCtx.railingPlacement = null),
           (snapIndicatorElement.textContent = isSnapEnabled() ? "吸附：开启" : snapStatusLabel),
           (planCanvasElement.style.cursor = ""));
       } else {
-        if (activeToolName !== "scale") {
-          ((snapHit = null),
-            (windowPlacement = null),
-            (doorPlacement = null),
-            (railingPlacement = null),
+        if (appCtx.activeToolName !== "scale") {
+          ((appCtx.snapHit = null),
+            (appCtx.windowPlacement = null),
+            (appCtx.doorPlacement = null),
+            (appCtx.railingPlacement = null),
             (snapIndicatorElement.textContent = isSnapEnabled() ? "吸附：开启" : snapStatusLabel));
-          const df2 = hitTestHandle(hoverPoint);
+          const df2 = hitTestHandle(appCtx.hoverPoint);
           planCanvasElement.style.cursor =
             df2?.type === "rotate-item" ? "grab" : df2?.type === "resize-item" ? "nwse-resize" : "";
         }
@@ -14316,8 +14122,8 @@ function updateSnapIndicator(snapWallTarget = isForceSnapDisabled) {
   }
 }
 function toggleSnapSetting(snapToggleEvent: any) {
-  ((isForceSnapDisabled = snapToggleEvent.shiftKey),
-    (activeSnapTarget = screenToPlan(eventToLocalPoint(snapToggleEvent))),
+  ((appCtx.isForceSnapDisabled = snapToggleEvent.shiftKey),
+    (appCtx.activeSnapTarget = screenToPlan(eventToLocalPoint(snapToggleEvent))),
     updateSnapIndicator());
 }
 function handlePointerDown(handlePointerDownPointerDownEvent: any) {
@@ -14333,30 +14139,30 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
     pr3 = screenToPlan(pointerDownPoint);
   if (
     handlePointerDownPointerDownEvent.button === 1 ||
-    isMiddleButtonPanning ||
-    activeToolName === "pan"
+    appCtx.isMiddleButtonPanning ||
+    appCtx.activeToolName === "pan"
   ) {
     (handlePointerDownPointerDownEvent.preventDefault(),
       resetPlanInteraction(),
-      (marqueeBox = {
+      (appCtx.marqueeBox = {
         type: "pan",
         pointerId: handlePointerDownPointerDownEvent.pointerId,
         screen: screenToPlanPoint(pointerDownPoint),
         visibleScreen: pointerDownPoint,
-        offsetX: planView.offsetX,
-        offsetY: planView.offsetY,
+        offsetX: appCtx.planView.offsetX,
+        offsetY: appCtx.planView.offsetY,
       }),
       planCanvasElement.classList.add("panning"),
       updateMarqueeOverlay(),
       planCanvasElement.setPointerCapture(handlePointerDownPointerDownEvent.pointerId));
     return;
   }
-  if (alignmentState && isSameAlignmentFloor(pr3)) return;
-  if (activeToolName === "flooropening") {
+  if (appCtx.alignmentState && isSameAlignmentFloor(pr3)) return;
+  if (appCtx.activeToolName === "flooropening") {
     if (!ensureCalibrationReady()) return;
     (handlePointerDownPointerDownEvent.preventDefault(),
       resetPlanInteraction(),
-      (marqueeBox = {
+      (appCtx.marqueeBox = {
         type: "draw-flooropening",
         pointerId: handlePointerDownPointerDownEvent.pointerId,
         start: pr3,
@@ -14365,73 +14171,73 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       planCanvasElement.setPointerCapture(handlePointerDownPointerDownEvent.pointerId));
     return;
   }
-  if (activeToolName === "scale") {
-    if (!previewEndPoint) {
-      ((previewEndPoint = pr3), refreshStudioView());
+  if (appCtx.activeToolName === "scale") {
+    if (!appCtx.previewEndPoint) {
+      ((appCtx.previewEndPoint = pr3), refreshStudioView());
       return;
     }
     const point = handlePointerDownPointerDownEvent.shiftKey
-      ? axisLockedPoint2(pr3, previewEndPoint).point
+      ? axisLockedPoint2(pr3, appCtx.previewEndPoint).point
       : pr3;
-    if (distance2(previewEndPoint, point) < 12 / planView.zoom) {
+    if (distance2(appCtx.previewEndPoint, point) < 12 / appCtx.planView.zoom) {
       showToast("参考线太短，请重新选择终点。", "error");
       return;
     }
-    ((measureSpan = {
-      start: previewEndPoint,
+    ((appCtx.measureSpan = {
+      start: appCtx.previewEndPoint,
       end: point,
     }),
-      (previewEndPoint = null),
+      (appCtx.previewEndPoint = null),
       (referencePixelsElement.textContent =
-        Math.round(distance2(measureSpan.start, measureSpan.end)) + " px"),
-      (referenceMetersInput.value = studioState.calibration?.reference?.meters || 3),
+        Math.round(distance2(appCtx.measureSpan.start, appCtx.measureSpan.end)) + " px"),
+      (referenceMetersInput.value = appCtx.studioState.calibration?.reference?.meters || 3),
       scaleDialogElement.showModal(),
       requestAnimationFrame(() => referenceMetersInput.select()),
       refreshStudioView());
     return;
   }
-  if (activeToolName === "wall") {
+  if (appCtx.activeToolName === "wall") {
     if (!ensureCalibrationReady()) return;
     const ju2 = axisLockedDistance(
       pr3,
-      segmentStartPoint,
+      appCtx.segmentStartPoint,
       handlePointerDownPointerDownEvent.shiftKey,
     );
-    if (!segmentStartPoint) {
-      ((segmentStartPoint = {
+    if (!appCtx.segmentStartPoint) {
+      ((appCtx.segmentStartPoint = {
         ...ju2.point,
       }),
-        (snapEndpointPoint = {
+        (appCtx.snapEndpointPoint = {
           ...ju2.point,
         }),
-        (wallSegmentCount = 0),
+        (appCtx.wallSegmentCount = 0),
         (finishWallButton.hidden = false),
         refreshStudioView());
       return;
     }
-    if (distance2(segmentStartPoint, ju2.point) < getPixelsPerMeter() * 0.08) {
+    if (distance2(appCtx.segmentStartPoint, ju2.point) < getPixelsPerMeter() * 0.08) {
       showToast("墙段太短，请选择更远的终点。", "error");
       return;
     }
     const wallDraft = {
         id: generateId("wall"),
         start: {
-          ...segmentStartPoint,
+          ...appCtx.segmentStartPoint,
         },
         end: {
           ...ju2.point,
         },
-        height: studioState.settings.wallHeight,
-        thickness: studioState.settings.wallThickness,
+        height: appCtx.studioState.settings.wallHeight,
+        thickness: appCtx.studioState.settings.wallThickness,
       },
       minWallLength = Math.max(0.75, getPixelsPerMeter() * 0.01),
       uncoveredWallSegments = uncoveredCollinearWallSegments2(
         wallDraft,
-        studioState.walls,
+        appCtx.studioState.walls,
         minWallLength,
       );
     if (!uncoveredWallSegments.length) {
-      ((segmentStartPoint = {
+      ((appCtx.segmentStartPoint = {
         ...ju2.point,
       }),
         showToast("该位置已有墙体，已跳过重复墙段。"),
@@ -14444,19 +14250,19 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       distance2(uncoveredWallSegments[0].end, wallDraft.end) > minWallLength;
     deselectAll();
     const wallMergeTolerance = Math.max(1, getPixelsPerMeter() * 0.01),
-      closedWallCount = closedWallPolygons2(studioState.walls, wallMergeTolerance).length,
+      closedWallCount = closedWallPolygons2(appCtx.studioState.walls, wallMergeTolerance).length,
       splitWallSegments = uncoveredWallSegments.map((wallSegmentPiece, wallSegmentIndex) => ({
         ...wallDraft,
         id: wallSegmentIndex === 0 ? wallDraft.id : generateId("wall"),
         start: wallSegmentPiece.start,
         end: wallSegmentPiece.end,
       }));
-    (studioState.walls.push(...splitWallSegments), markWallsChanged(), (wallSegmentCount += 1));
+    (appCtx.studioState.walls.push(...splitWallSegments), markWallsChanged(), (appCtx.wallSegmentCount += 1));
     const hasWallPolygonGrown =
-      closedWallPolygons2(studioState.walls, wallMergeTolerance).length > closedWallCount;
+      closedWallPolygons2(appCtx.studioState.walls, wallMergeTolerance).length > closedWallCount;
     (hasWallPolygonGrown
       ? refreshPreviewScene()
-      : (segmentStartPoint = {
+      : (appCtx.segmentStartPoint = {
           ...ju2.point,
         }),
       selectSceneObject("wall", splitWallSegments[0].id),
@@ -14468,7 +14274,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
         : isWallSplitAmbiguous && showToast("已跳过与现有墙体重合的部分。", "success"));
     return;
   }
-  if (activeToolName === "courtyard-gate") {
+  if (appCtx.activeToolName === "courtyard-gate") {
     if (!ensureCalibrationReady()) return;
     const placedElementRecord = {
       ...(itemTypeCatalog as any)[gardenGateItemType],
@@ -14476,7 +14282,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       ...pr3,
     };
     if (
-      !anchorGate2(placedElementRecord, studioState.items, getPixelsPerMeter(), 24 / planView.zoom)
+      !anchorGate2(placedElementRecord, appCtx.studioState.items, getPixelsPerMeter(), 24 / appCtx.planView.zoom)
     ) {
       showToast("请靠近一段足够宽的围挡放置庭院门。", "error");
       return;
@@ -14484,9 +14290,9 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
     createSceneItem(gardenGateItemType, placedElementRecord);
     return;
   }
-  if (activeToolName === "window") {
+  if (appCtx.activeToolName === "window") {
     if (!ensureCalibrationReady()) return;
-    const nearestWindowWall = nearestWall2(pr3, studioState.walls, 18 / planView.zoom);
+    const nearestWindowWall = nearestWall2(pr3, appCtx.studioState.walls, 18 / appCtx.planView.zoom);
     if (!nearestWindowWall) {
       showToast("请靠近一段墙体放置窗户。", "error");
       return;
@@ -14506,7 +14312,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
         newWindowRecord,
         getPixelsPerMeter(),
       )),
-      studioState.windows.push(newWindowRecord),
+      appCtx.studioState.windows.push(newWindowRecord),
       !validateSelectionChange(ft5))
     )
       return;
@@ -14518,9 +14324,9 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       markDocumentDirty());
     return;
   }
-  if (activeToolName === "door") {
+  if (appCtx.activeToolName === "door") {
     if (!ensureCalibrationReady()) return;
-    const nearestDoorWall = nearestWall2(pr3, studioState.walls, 18 / planView.zoom);
+    const nearestDoorWall = nearestWall2(pr3, appCtx.studioState.walls, 18 / appCtx.planView.zoom);
     if (!nearestDoorWall) {
       showToast("请靠近一段墙体放置门。", "error");
       return;
@@ -14540,7 +14346,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       };
     if (
       ((newDoorRecord.t = clampWindowT2(nearestDoorWall.wall, newDoorRecord, getPixelsPerMeter())),
-      studioState.doors.push(newDoorRecord),
+      appCtx.studioState.doors.push(newDoorRecord),
       !validateSelectionChange(ft6))
     )
       return;
@@ -14552,9 +14358,9 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       markDocumentDirty());
     return;
   }
-  if (activeToolName === "railing") {
+  if (appCtx.activeToolName === "railing") {
     if (!ensureCalibrationReady()) return;
-    const nearestRailingWall = nearestWall2(pr3, studioState.walls, 18 / planView.zoom);
+    const nearestRailingWall = nearestWall2(pr3, appCtx.studioState.walls, 18 / appCtx.planView.zoom);
     if (!nearestRailingWall) {
       showToast("请靠近一段墙体放置栏杆。", "error");
       return;
@@ -14574,7 +14380,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
         newRailingRecord,
         getPixelsPerMeter(),
       )),
-      studioState.railings.push(newRailingRecord),
+      appCtx.studioState.railings.push(newRailingRecord),
       !validateSelectionChange(ft7))
     )
       return;
@@ -14586,7 +14392,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       markDocumentDirty());
     return;
   }
-  if (activeToolName === "label") {
+  if (appCtx.activeToolName === "label") {
     createSceneItem("planlabel", pr3);
     return;
   }
@@ -14596,7 +14402,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
     const newItemRecord = {
       ...df3.item,
     };
-    ((marqueeBox =
+    ((appCtx.marqueeBox =
       df3.type === "resize-item"
         ? {
             type: "resize-item",
@@ -14634,7 +14440,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
   if (!fy2) {
     (resetPlanInteraction(),
       handlePointerDownPointerDownEvent.shiftKey || refreshSelection(),
-      (marqueeBox = {
+      (appCtx.marqueeBox = {
         type: "marquee",
         pointerId: handlePointerDownPointerDownEvent.pointerId,
         start: pr3,
@@ -14651,22 +14457,22 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
   }
   resetPlanInteraction();
   const ft8 = fy2.kind === "item" ? captureUndoSnapshot() : null,
-    ne9 = fy2.kind === "item" && selectedItems.length > 0 && createSelectionRef("item", fy2.id);
+    ne9 = fy2.kind === "item" && appCtx.selectedItems.length > 0 && createSelectionRef("item", fy2.id);
   let placedItems: any = [],
     shouldRebuildItems = false;
   if (fy2.kind === "item") {
     if (ne9) {
       const existingItemIdSet = new Set(
-        selectedItems
+        appCtx.selectedItems
           .filter((itemHistoryEntry: any) => itemHistoryEntry.kind === "item")
           .map((itemIdEntry: any) => itemIdEntry.id),
       );
-      placedItems = studioState.items.filter((historyItem) =>
+      placedItems = appCtx.studioState.items.filter((historyItem) =>
         existingItemIdSet.has(historyItem.id),
       );
     } else {
       selectSceneObject("item", fy2.id);
-      const foundPlacementItem = studioState.items.find(
+      const foundPlacementItem = appCtx.studioState.items.find(
         (matchingItem) => matchingItem.id === fy2.id,
       );
       foundPlacementItem && (placedItems = [foundPlacementItem]);
@@ -14678,12 +14484,12 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
       }));
       (remapCourtyardAttachments2(placedItems, clonedItems),
         pushUndoEntry(clonedItems),
-        studioState.items.push(...clonedItems),
+        appCtx.studioState.items.push(...clonedItems),
         (placedItems = clonedItems),
         clonedItems.length === 1
           ? selectSceneObject("item", clonedItems[0].id)
-          : ((selectedItem = null),
-            (selectedItems = clonedItems.map((publishedItem: any) => ({
+          : ((appCtx.selectedItem = null),
+            (appCtx.selectedItems = clonedItems.map((publishedItem: any) => ({
               kind: "item",
               id: publishedItem.id,
             })))),
@@ -14693,7 +14499,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
   (refreshStudioUi(), refreshStudioView(), setPreviewScope(ao5));
   const qa4 = getCurrentPreviewScope();
   (fy2.kind === "item"
-    ? (marqueeBox = {
+    ? (appCtx.marqueeBox = {
         type: "move-items",
         pointerId: handlePointerDownPointerDownEvent.pointerId,
         start: pr3,
@@ -14708,7 +14514,7 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
         moved: false,
       })
     : ["window", "door", "railing"].includes(fy2.kind) &&
-      (marqueeBox = {
+      (appCtx.marqueeBox = {
         type: "move-opening",
         pointerId: handlePointerDownPointerDownEvent.pointerId,
         start: pr3,
@@ -14716,62 +14522,62 @@ function handlePointerDown(handlePointerDownPointerDownEvent: any) {
         previewScope: "architecture",
         moved: false,
       }),
-    marqueeBox
+    appCtx.marqueeBox
       ? planCanvasElement.setPointerCapture(handlePointerDownPointerDownEvent.pointerId)
       : endStudioGesture());
 }
 function handlePointerUp(pointerUpEvent: any) {
   const ya2 = eventToLocalPoint(pointerUpEvent),
     pr4 = screenToPlan(ya2);
-  if (marqueeBox?.pointerId === pointerUpEvent.pointerId) {
-    if (marqueeBox.type === "draw-flooropening") {
-      ((marqueeBox.current = pointerUpEvent.shiftKey
+  if (appCtx.marqueeBox?.pointerId === pointerUpEvent.pointerId) {
+    if (appCtx.marqueeBox.type === "draw-flooropening") {
+      ((appCtx.marqueeBox.current = pointerUpEvent.shiftKey
         ? (() => {
-            const cornerDeltaX = pr4.x - marqueeBox.start.x,
-              cornerDeltaY = pr4.y - marqueeBox.start.y,
+            const cornerDeltaX = pr4.x - appCtx.marqueeBox.start.x,
+              cornerDeltaY = pr4.y - appCtx.marqueeBox.start.y,
               cornerDragMagnitude = Math.max(Math.abs(cornerDeltaX), Math.abs(cornerDeltaY));
             return {
-              x: marqueeBox.start.x + Math.sign(cornerDeltaX || 1) * cornerDragMagnitude,
-              y: marqueeBox.start.y + Math.sign(cornerDeltaY || 1) * cornerDragMagnitude,
+              x: appCtx.marqueeBox.start.x + Math.sign(cornerDeltaX || 1) * cornerDragMagnitude,
+              y: appCtx.marqueeBox.start.y + Math.sign(cornerDeltaY || 1) * cornerDragMagnitude,
             };
           })()
         : pr4),
         refreshStudioView());
       return;
     }
-    if (marqueeBox.type === "marquee") {
-      ((marqueeBox.current = pr4),
-        (marqueeBox.moved = distance2(marqueeBox.start, pr4) * planView.zoom >= 4),
+    if (appCtx.marqueeBox.type === "marquee") {
+      ((appCtx.marqueeBox.current = pr4),
+        (appCtx.marqueeBox.moved = distance2(appCtx.marqueeBox.start, pr4) * appCtx.planView.zoom >= 4),
         drawMarqueeOverlay() ? renderPlanScene() : refreshStudioView());
       return;
     }
-    if (marqueeBox.type === "pan") {
+    if (appCtx.marqueeBox.type === "pan") {
       const nl4 = screenToPlanPoint(ya2);
-      ((planView.offsetX = marqueeBox.offsetX + nl4.x - marqueeBox.screen.x),
-        (planView.offsetY = marqueeBox.offsetY + nl4.y - marqueeBox.screen.y));
-      const handleDeltaX = ya2.x - marqueeBox.visibleScreen.x,
-        handleDeltaY = ya2.y - marqueeBox.visibleScreen.y;
+      ((appCtx.planView.offsetX = appCtx.marqueeBox.offsetX + nl4.x - appCtx.marqueeBox.screen.x),
+        (appCtx.planView.offsetY = appCtx.marqueeBox.offsetY + nl4.y - appCtx.marqueeBox.screen.y));
+      const handleDeltaX = ya2.x - appCtx.marqueeBox.visibleScreen.x,
+        handleDeltaY = ya2.y - appCtx.marqueeBox.visibleScreen.y;
       drawMarqueeOverlay({
         offsetX: handleDeltaX,
         offsetY: handleDeltaY,
       }) || refreshStudioView();
       return;
     }
-    if (marqueeBox.type === "move-items") {
-      if (!marqueeBox.moved && distance2(pr4, marqueeBox.start) * planView.zoom < 3) return;
+    if (appCtx.marqueeBox.type === "move-items") {
+      if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.start) * appCtx.planView.zoom < 3) return;
       const moveThreshold = getPixelsPerMeter() * 0.05,
-        wr2 = isSnapEnabled() && studioState.settings.snapGrid !== false;
-      let dragOffsetX = pr4.x - marqueeBox.start.x,
-        dragOffsetY = pr4.y - marqueeBox.start.y;
+        wr2 = isSnapEnabled() && appCtx.studioState.settings.snapGrid !== false;
+      let dragOffsetX = pr4.x - appCtx.marqueeBox.start.x,
+        dragOffsetY = pr4.y - appCtx.marqueeBox.start.y;
       pointerUpEvent.shiftKey &&
         (Math.abs(dragOffsetX) >= Math.abs(dragOffsetY) ? (dragOffsetY = 0) : (dragOffsetX = 0));
       const itemsByItemId = new Map(
-        studioState.items.map((handlePointerUpItemEntry) => [
+        appCtx.studioState.items.map((handlePointerUpItemEntry) => [
           handlePointerUpItemEntry.id,
           handlePointerUpItemEntry,
         ]),
       );
-      for (const originalItemSnapshot of marqueeBox.originals) {
+      for (const originalItemSnapshot of appCtx.marqueeBox.originals) {
         const currentItemEntry = itemsByItemId.get(originalItemSnapshot.id);
         currentItemEntry &&
           ((currentItemEntry.x = wr2
@@ -14781,17 +14587,17 @@ function handlePointerUp(pointerUpEvent: any) {
             ? Math.round((originalItemSnapshot.y + dragOffsetY) / moveThreshold) * moveThreshold
             : originalItemSnapshot.y + dragOffsetY));
       }
-      if (marqueeBox.originals.length === 1) {
-        const firstOriginalItem = itemsByItemId.get(marqueeBox.originals[0].id);
+      if (appCtx.marqueeBox.originals.length === 1) {
+        const firstOriginalItem = itemsByItemId.get(appCtx.marqueeBox.originals[0].id);
         isCourtyardGate2(firstOriginalItem) &&
           anchorGate2(
             firstOriginalItem,
-            studioState.items,
+            appCtx.studioState.items,
             getPixelsPerMeter(),
-            24 / planView.zoom,
+            24 / appCtx.planView.zoom,
           );
       }
-      ((marqueeBox.moved = marqueeBox.originals.some((movedOriginalItem: any) => {
+      ((appCtx.marqueeBox.moved = appCtx.marqueeBox.originals.some((movedOriginalItem: any) => {
         const movedItemEntry = itemsByItemId.get(movedOriginalItem.id);
         return (
           movedItemEntry &&
@@ -14802,26 +14608,26 @@ function handlePointerUp(pointerUpEvent: any) {
         refreshStudioView());
       return;
     }
-    if (marqueeBox.type === "resize-item") {
-      if (!marqueeBox.moved && distance2(pr4, marqueeBox.handle) * planView.zoom < 3) return;
+    if (appCtx.marqueeBox.type === "resize-item") {
+      if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.handle) * appCtx.planView.zoom < 3) return;
       const at7 = getSelectedObject();
       if (!at7) return;
-      const itemHeightMeters = Math.max(finite2(marqueeBox.originalItem.height, 0.05), 0.001),
+      const itemHeightMeters = Math.max(finite2(appCtx.marqueeBox.originalItem.height, 0.05), 0.001),
 
-        resizeSourceItem = itemWithPlanFootprint2(marqueeBox.originalItem),
-        itemMinimumFootprint = itemMinimumFootprint2(marqueeBox.originalItem.type),
+        resizeSourceItem = itemWithPlanFootprint2(appCtx.marqueeBox.originalItem),
+        itemMinimumFootprint = itemMinimumFootprint2(appCtx.marqueeBox.originalItem.type),
         itemResizeLimits =
           at7.type === "fan"
             ? {
-                minimum: 0.6 / fanDimensions2(marqueeBox.originalItem).fanScale,
-                maximum: 1.6 / fanDimensions2(marqueeBox.originalItem).fanScale,
+                minimum: 0.6 / fanDimensions2(appCtx.marqueeBox.originalItem).fanScale,
+                maximum: 1.6 / fanDimensions2(appCtx.marqueeBox.originalItem).fanScale,
               }
             : pointerUpEvent.shiftKey
               ? {
                   minimum: Math.max(
                     itemMinimumFootprint / Math.max(resizeSourceItem.width, itemMinimumFootprint),
                     itemMinimumFootprint / Math.max(resizeSourceItem.depth, itemMinimumFootprint),
-                    itemMinimumHeight2(marqueeBox.originalItem.type) / itemHeightMeters,
+                    itemMinimumHeight2(appCtx.marqueeBox.originalItem.type) / itemHeightMeters,
                   ),
                   maximum: Math.min(
                     8 / Math.max(resizeSourceItem.width, itemMinimumFootprint),
@@ -14832,8 +14638,8 @@ function handlePointerUp(pointerUpEvent: any) {
               : undefined,
         resizedItemResult = resizeRotatedItemFromCorner2(
           resizeSourceItem,
-          marqueeBox.handle,
-          marqueeBox.anchor,
+          appCtx.marqueeBox.handle,
+          appCtx.marqueeBox.anchor,
           pr4,
           getPixelsPerMeter() || 1,
           pointerUpEvent.shiftKey || at7.type === "fan",
@@ -14843,18 +14649,18 @@ function handlePointerUp(pointerUpEvent: any) {
           },
         );
       if (
-        (Object.assign(at7, itemFromPlanFootprintResize2(marqueeBox.originalItem, resizedItemResult)),
+        (Object.assign(at7, itemFromPlanFootprintResize2(appCtx.marqueeBox.originalItem, resizedItemResult)),
         at7.type === "fan" &&
           Object.assign(
             at7,
             fanDimensions2({
-              ...marqueeBox.originalItem,
+              ...appCtx.marqueeBox.originalItem,
               fanScale: resizedItemResult.width / 0.434,
             }),
           ),
         at7.type === "curtain" && normalizeCurtainTrack2(at7).curtainTrack !== "straight")
       ) {
-        const originalItem = marqueeBox.originalItem,
+        const originalItem = appCtx.marqueeBox.originalItem,
           normalizedCurtainConfig = normalizeCurtainTrack2(originalItem),
           curtainDepthRatio =
             Math.max(0.2, at7.depth - 0.18) / Math.max(0.2, originalItem.depth - 0.18);
@@ -14868,34 +14674,34 @@ function handlePointerUp(pointerUpEvent: any) {
         ),
           (at7.depth = curtainFootprintDepth2(at7)));
       }
-      ((marqueeBox.moved =
-        Math.abs(at7.x - marqueeBox.originalItem.x) > 0.000001 ||
-        Math.abs(at7.y - marqueeBox.originalItem.y) > 0.000001 ||
-        Math.abs(at7.width - marqueeBox.originalItem.width) > 0.000001 ||
-        Math.abs(at7.depth - marqueeBox.originalItem.depth) > 0.000001 ||
-        Math.abs(at7.height - marqueeBox.originalItem.height) > 0.000001),
+      ((appCtx.marqueeBox.moved =
+        Math.abs(at7.x - appCtx.marqueeBox.originalItem.x) > 0.000001 ||
+        Math.abs(at7.y - appCtx.marqueeBox.originalItem.y) > 0.000001 ||
+        Math.abs(at7.width - appCtx.marqueeBox.originalItem.width) > 0.000001 ||
+        Math.abs(at7.depth - appCtx.marqueeBox.originalItem.depth) > 0.000001 ||
+        Math.abs(at7.height - appCtx.marqueeBox.originalItem.height) > 0.000001),
         refreshStudioView());
       return;
     }
-    if (marqueeBox.type === "rotate-item") {
-      if (!marqueeBox.moved && distance2(pr4, marqueeBox.startPointer) * planView.zoom < 3) return;
+    if (appCtx.marqueeBox.type === "rotate-item") {
+      if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.startPointer) * appCtx.planView.zoom < 3) return;
       const at8 = getSelectedObject();
       if (!at8) return;
       ((at8.rotation = itemRotationFromPointers2(
-        marqueeBox.originalItem.rotation,
-        marqueeBox.center,
-        marqueeBox.startPointer,
+        appCtx.marqueeBox.originalItem.rotation,
+        appCtx.marqueeBox.center,
+        appCtx.marqueeBox.startPointer,
         pr4,
         pointerUpEvent.shiftKey ? 15 : 0,
       )),
-        (marqueeBox.moved = Math.abs(at8.rotation - marqueeBox.originalItem.rotation) > 0.000001),
+        (appCtx.marqueeBox.moved = Math.abs(at8.rotation - appCtx.marqueeBox.originalItem.rotation) > 0.000001),
         refreshStudioView());
       return;
     }
-    if (marqueeBox.type === "move-opening") {
-      if (!marqueeBox.moved && distance2(pr4, marqueeBox.start) * planView.zoom < 3) return;
+    if (appCtx.marqueeBox.type === "move-opening") {
+      if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.start) * appCtx.planView.zoom < 3) return;
       const at9 = getSelectedObject(),
-        itemWallRecord = studioState.walls.find((itemWall) => itemWall.id === at9?.wallId);
+        itemWallRecord = appCtx.studioState.walls.find((itemWall) => itemWall.id === at9?.wallId);
       if (!at9 || !itemWallRecord) return;
       at9.t = clampWindowT2(
         itemWallRecord,
@@ -14905,65 +14711,65 @@ function handlePointerUp(pointerUpEvent: any) {
         },
         getPixelsPerMeter(),
       );
-      const beforeItemRecord = marqueeBox.before?.[selectedItem?.kind + "s"]?.find?.(
+      const beforeItemRecord = appCtx.marqueeBox.before?.[appCtx.selectedItem?.kind + "s"]?.find?.(
         (beforeItem: any) => beforeItem.id === at9.id,
       );
-      ((marqueeBox.moved = !beforeItemRecord || Math.abs(at9.t - beforeItemRecord.t) > 0.000001),
+      ((appCtx.marqueeBox.moved = !beforeItemRecord || Math.abs(at9.t - beforeItemRecord.t) > 0.000001),
         refreshStudioView());
       return;
     }
   }
   (toggleSnapSetting(pointerUpEvent),
-    (alignmentState || ["scale", "wall", "window", "door", "railing"].includes(activeToolName)) &&
+    (appCtx.alignmentState || ["scale", "wall", "window", "door", "railing"].includes(appCtx.activeToolName)) &&
       refreshStudioView());
 }
 function schedulePointerMove() {
-  pointerFrameId = 0;
-  const Hi2 = activePointerState;
-  ((activePointerState = null), Hi2 && handlePointerUp(Hi2));
+  appCtx.pointerFrameId = 0;
+  const Hi2 = appCtx.activePointerState;
+  ((appCtx.activePointerState = null), Hi2 && handlePointerUp(Hi2));
 }
 function handlePointerMove(pointerMoveEvent: any) {
-  ((activePointerState = {
+  ((appCtx.activePointerState = {
     clientX: pointerMoveEvent.clientX,
     clientY: pointerMoveEvent.clientY,
     pointerId: pointerMoveEvent.pointerId,
     shiftKey: pointerMoveEvent.shiftKey,
   }),
-    pointerFrameId || (pointerFrameId = requestAnimationFrame(schedulePointerMove)));
+    appCtx.pointerFrameId || (appCtx.pointerFrameId = requestAnimationFrame(schedulePointerMove)));
 }
 function cancelPointerDrag(cancelPointerDragActivePointerId: any) {
-  !activePointerState ||
-    activePointerState.pointerId !== cancelPointerDragActivePointerId ||
-    (pointerFrameId && cancelAnimationFrame(pointerFrameId), schedulePointerMove());
+  !appCtx.activePointerState ||
+    appCtx.activePointerState.pointerId !== cancelPointerDragActivePointerId ||
+    (appCtx.pointerFrameId && cancelAnimationFrame(appCtx.pointerFrameId), schedulePointerMove());
 }
 function scheduleDragUpdate() {
-  renderLoopFrameId = 0;
-  const Gd2 = pinchStartDistance,
-    Wd2 = pinchStartCenter;
-  ((pinchStartDistance = 1),
-    (pinchStartCenter = null),
+  appCtx.renderLoopFrameId = 0;
+  const Gd2 = appCtx.pinchStartDistance,
+    Wd2 = appCtx.pinchStartCenter;
+  ((appCtx.pinchStartDistance = 1),
+    (appCtx.pinchStartCenter = null),
     Wd2 && Math.abs(Gd2 - 1) > 1e-8 && zoomByScale(Gd2, Wd2));
 }
 function handleCanvasWheel(wheelEvent: any) {
-  ((pinchStartDistance *= Math.exp(-wheelEvent.deltaY * 0.0012)),
-    (pinchStartCenter = eventToLocalPoint(wheelEvent)),
+  ((appCtx.pinchStartDistance *= Math.exp(-wheelEvent.deltaY * 0.0012)),
+    (appCtx.pinchStartCenter = eventToLocalPoint(wheelEvent)),
     resetPlanInteraction(),
-    renderLoopFrameId || (renderLoopFrameId = requestAnimationFrame(scheduleDragUpdate)),
-    window.clearTimeout(renderLoopTimeoutId),
-    (renderLoopTimeoutId = window.setTimeout(() => {
-      ((renderLoopTimeoutId = null),
-        renderLoopFrameId && (cancelAnimationFrame(renderLoopFrameId), scheduleDragUpdate()),
+    appCtx.renderLoopFrameId || (appCtx.renderLoopFrameId = requestAnimationFrame(scheduleDragUpdate)),
+    window.clearTimeout(appCtx.renderLoopTimeoutId),
+    (appCtx.renderLoopTimeoutId = window.setTimeout(() => {
+      ((appCtx.renderLoopTimeoutId = null),
+        appCtx.renderLoopFrameId && (cancelAnimationFrame(appCtx.renderLoopFrameId), scheduleDragUpdate()),
         endStudioGesture());
     }, 90)));
 }
 function finishPointerDrag(pointerCancelEvent: any) {
-  if (!marqueeBox || marqueeBox.pointerId !== pointerCancelEvent.pointerId) return;
-  if (marqueeBox.type === "draw-flooropening") {
-    const { start: finishPointerDragDragStart, current: dragCurrent } = marqueeBox;
+  if (!appCtx.marqueeBox || appCtx.marqueeBox.pointerId !== pointerCancelEvent.pointerId) return;
+  if (appCtx.marqueeBox.type === "draw-flooropening") {
+    const { start: finishPointerDragDragStart, current: dragCurrent } = appCtx.marqueeBox;
     try {
       planCanvasElement.releasePointerCapture(pointerCancelEvent.pointerId);
     } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
-    ((marqueeBox = null), endStudioGesture());
+    ((appCtx.marqueeBox = null), endStudioGesture());
     const dragDeltaXMeters =
         Math.abs(dragCurrent.x - finishPointerDragDragStart.x) / getPixelsPerMeter(),
       dragDeltaYMeters =
@@ -14985,12 +14791,12 @@ function finishPointerDrag(pointerCancelEvent: any) {
       : refreshStudioView();
     return;
   }
-  if (marqueeBox.type === "marquee") {
+  if (appCtx.marqueeBox.type === "marquee") {
     const ao6 = getPreviewScopeSelection(),
-      dragAdditionEntries = marqueeBox.additive
-        ? [...(selectedItem ? [selectedItem] : []), ...selectedItems]
+      dragAdditionEntries = appCtx.marqueeBox.additive
+        ? [...(appCtx.selectedItem ? [appCtx.selectedItem] : []), ...appCtx.selectedItems]
         : [],
-      dy3 = marqueeBox.moved ? marqueeDelta(marqueeBox.start, marqueeBox.current) : [],
+      dy3 = appCtx.marqueeBox.moved ? marqueeDelta(appCtx.marqueeBox.start, appCtx.marqueeBox.current) : [],
       dragMergedEntries = [
         ...new Map(
           [...dragAdditionEntries, ...dy3].map((dragEntry) => [
@@ -15001,26 +14807,26 @@ function finishPointerDrag(pointerCancelEvent: any) {
       ];
     dragMergedEntries.length === 1
       ? selectSceneObject(dragMergedEntries[0].kind, dragMergedEntries[0].id)
-      : ((selectedItem = null), (selectedItems = dragMergedEntries));
+      : ((appCtx.selectedItem = null), (appCtx.selectedItems = dragMergedEntries));
     try {
       planCanvasElement.releasePointerCapture(pointerCancelEvent.pointerId);
     } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
-    ((marqueeBox = null),
+    ((appCtx.marqueeBox = null),
       refreshStudioUi(),
       refreshStudioView(),
       setPreviewScope(ao6),
       endStudioGesture());
     return;
   }
-  const activeDragGesture = marqueeBox;
+  const activeDragGesture = appCtx.marqueeBox;
   let copied = activeDragGesture.moved || activeDragGesture.copied;
   if (copied && activeDragGesture.type === "move-items")
     for (const draggedOriginal of activeDragGesture.originals) {
-      const draggedItemRecord = studioState.items.find(
+      const draggedItemRecord = appCtx.studioState.items.find(
         (draggedItem) => draggedItem.id === draggedOriginal.id,
       );
       draggedItemRecord &&
-        anchorGate2(draggedItemRecord, studioState.items, getPixelsPerMeter(), 24 / planView.zoom);
+        anchorGate2(draggedItemRecord, appCtx.studioState.items, getPixelsPerMeter(), 24 / appCtx.planView.zoom);
     }
   if (
     copied &&
@@ -15031,7 +14837,7 @@ function finishPointerDrag(pointerCancelEvent: any) {
       (draggedOriginalItem: any) => draggedOriginalItem.id,
     );
     if (draggedOriginalIds.length === 1) {
-      const firstDraggedItemRecord = studioState.items.find(
+      const firstDraggedItemRecord = appCtx.studioState.items.find(
         (firstDraggedItem) => firstDraggedItem.id === draggedOriginalIds[0],
       );
       firstDraggedItemRecord && finalizeAddedItem(firstDraggedItemRecord, draggedOriginalIds);
@@ -15039,14 +14845,14 @@ function finishPointerDrag(pointerCancelEvent: any) {
   }
   if (
     (activeDragGesture.before && pointerCancelEvent.type === "pointercancel"
-      ? (restorePlacementScene2(studioState, activeDragGesture.before),
-        selectedItem && !getSelectedObject() && refreshSelection(),
+      ? (restorePlacementScene2(appCtx.studioState, activeDragGesture.before),
+        appCtx.selectedItem && !getSelectedObject() && refreshSelection(),
         (copied = false),
         refreshStudioView())
       : copied &&
         !validateSelectionChange(activeDragGesture.before) &&
         ((copied = false), refreshStudioView()),
-    copied && (applyPlacementChange(marqueeBox.before), markDocumentDirty()),
+    copied && (applyPlacementChange(appCtx.marqueeBox.before), markDocumentDirty()),
     ["move-items", "resize-item", "rotate-item", "move-opening"].includes(activeDragGesture.type) &&
       refreshStudioUi(),
     copied && activeDragGesture.type === "move-opening")
@@ -15066,11 +14872,11 @@ function finishPointerDrag(pointerCancelEvent: any) {
       });
     }
   }
-  marqueeBox.type === "pan" && planCanvasElement.classList.remove("panning");
+  appCtx.marqueeBox.type === "pan" && planCanvasElement.classList.remove("panning");
   try {
     planCanvasElement.releasePointerCapture(pointerCancelEvent.pointerId);
   } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
-  ((marqueeBox = null),
+  ((appCtx.marqueeBox = null),
     activeDragGesture.type === "pan" && refreshStudioView(),
     endStudioGesture());
 }
@@ -15081,8 +14887,8 @@ function applyToolSetting(selectedToolName: any) {
   const toolPlacedElement = getSelectedObject();
   if (
     !toolPlacedElement ||
-    selectedItem?.kind !== selectedToolName ||
-    !isSelectionAllowed(selectedItem)
+    appCtx.selectedItem?.kind !== selectedToolName ||
+    !isSelectionAllowed(appCtx.selectedItem)
   )
     return;
   const yr2 =
@@ -15106,14 +14912,14 @@ function applyToolSetting(selectedToolName: any) {
       (toolPlacedElement.opacity =
         selectElement("#wall-opacity-mode").value === "custom"
           ? clamp2(
-              finite2(selectElement("#wall-opacity").value, studioState.settings.wallOpacity * 100),
+              finite2(selectElement("#wall-opacity").value, appCtx.studioState.settings.wallOpacity * 100),
               0,
               100,
             ) / 100
           : null),
       (toolPlacedElement.allowOpenEnd = selectElement("#wall-open-end-mode").value === "allowed"),
-      (studioState.settings.wallHeight = toolPlacedElement.height),
-      (studioState.settings.wallThickness = toolPlacedElement.thickness));
+      (appCtx.studioState.settings.wallHeight = toolPlacedElement.height),
+      (appCtx.studioState.settings.wallThickness = toolPlacedElement.thickness));
   else {
     if (selectedToolName === "window") {
       ((toolPlacedElement.width = clamp2(
@@ -15132,7 +14938,7 @@ function applyToolSetting(selectedToolName: any) {
           20,
         )),
         (toolPlacedElement.hasDivider = selectElement("#window-divider").value !== "without"));
-      const toolAnchorWallRecord = studioState.walls.find(
+      const toolAnchorWallRecord = appCtx.studioState.walls.find(
         (toolAnchorWall) => toolAnchorWall.id === toolPlacedElement.wallId,
       );
       toolAnchorWallRecord &&
@@ -15159,7 +14965,7 @@ function applyToolSetting(selectedToolName: any) {
             1.8,
             20,
           )));
-        const toolWindowWallRecord = studioState.walls.find(
+        const toolWindowWallRecord = appCtx.studioState.walls.find(
           (toolWindowWall) => toolWindowWall.id === toolPlacedElement.wallId,
         );
         toolWindowWallRecord &&
@@ -15180,7 +14986,7 @@ function applyToolSetting(selectedToolName: any) {
               0.5,
               3,
             )));
-          const toolDoorWallRecord = studioState.walls.find(
+          const toolDoorWallRecord = appCtx.studioState.walls.find(
             (toolDoorWall) => toolDoorWall.id === toolPlacedElement.wallId,
           );
           toolDoorWallRecord &&
@@ -15390,7 +15196,7 @@ function applyToolSetting(selectedToolName: any) {
                   toolPlacedElement.stripRollRotation || 0,
                 )),
                 (toolPlacedElement.lightSourceVisible = itemLightSourceVisibleInput.checked)),
-              (toolPlacedElement.lightGroupId = studioState.lightGroups.some(
+              (toolPlacedElement.lightGroupId = appCtx.studioState.lightGroups.some(
                 (matchingLightGroup) =>
                   matchingLightGroup.id === selectElement("#light-group").value,
               )
@@ -15434,8 +15240,8 @@ function applyToolSetting(selectedToolName: any) {
   if (
     (selectedToolName === "item" &&
       toolPlacedElement.type.startsWith("garden-gate") &&
-      (anchorGate2(toolPlacedElement, studioState.items, getPixelsPerMeter(), 24 / planView.zoom),
-      syncCourtyardGates2(studioState.items, getPixelsPerMeter())),
+      (anchorGate2(toolPlacedElement, appCtx.studioState.items, getPixelsPerMeter(), 24 / appCtx.planView.zoom),
+      syncCourtyardGates2(appCtx.studioState.items, getPixelsPerMeter())),
     !validateSelectionChange(ft9))
   ) {
     (refreshStudioUi(true), refreshScopeItems(yr2));
@@ -15444,9 +15250,9 @@ function applyToolSetting(selectedToolName: any) {
   (applyPlacementChange(ft9), refreshScopeItems(yr2), markDocumentDirty());
 }
 function refreshPreviewScene() {
-  ((segmentStartPoint = null),
-    (snapEndpointPoint = null),
-    (wallSegmentCount = 0),
+  ((appCtx.segmentStartPoint = null),
+    (appCtx.snapEndpointPoint = null),
+    (appCtx.wallSegmentCount = 0),
     (finishWallButton.hidden = true));
 }
 function resetCameraView() {
@@ -15495,42 +15301,42 @@ for (const previewFloorButton of previewFloorControls)
     (await importBackgroundFile(planFileInput.files?.[0]), (planFileInput.value = ""));
   }),
   toggleBackgroundButton.addEventListener("click", () => {
-    studioState.background &&
+    appCtx.studioState.background &&
       (deselectAll(),
-      (studioState.settings.backgroundVisible = !studioState.settings.backgroundVisible),
+      (appCtx.studioState.settings.backgroundVisible = !appCtx.studioState.settings.backgroundVisible),
       refreshBackground(),
       refreshStudioView(),
       markDocumentDirty());
   }),
   removePlanButton.addEventListener("click", () => {
-    studioState.background &&
+    appCtx.studioState.background &&
       (deselectAll(),
-      (studioState.background = null),
-      (backgroundImageSource = null),
+      (appCtx.studioState.background = null),
+      (appCtx.backgroundImageSource = null),
       refreshScopeItems(),
       resetView(),
       markDocumentDirty(),
       showToast("底图引用已移除，现在可以在编辑器中删除这张图片。", "success"));
   }));
 function applyWallHeightInput(wallHeightValue: any) {
-  (activePointerId && activePointerId !== wallHeightValue && applyWallOpacityInput(),
-    !activePointerId &&
-      (deselectAll(), (activePointerId = wallHeightValue), resetPlanInteraction()));
+  (appCtx.activePointerId && appCtx.activePointerId !== wallHeightValue && applyWallOpacityInput(),
+    !appCtx.activePointerId &&
+      (deselectAll(), (appCtx.activePointerId = wallHeightValue), resetPlanInteraction()));
 }
 function applyWallThicknessInput() {
-  pointerMoveCount ||
-    (pointerMoveCount = requestAnimationFrame(() => {
-      ((pointerMoveCount = 0), refreshStudioView());
+  appCtx.pointerMoveCount ||
+    (appCtx.pointerMoveCount = requestAnimationFrame(() => {
+      ((appCtx.pointerMoveCount = 0), refreshStudioView());
     }));
 }
 function applyWallOpacityInput() {
-  (window.clearTimeout(pointerReleaseTimeoutId),
-    (pointerReleaseTimeoutId = null),
-    activePointerId &&
-      ((activePointerId = null),
-      syncControlValue2(globalWallHeightInput, studioState.settings.wallHeight.toFixed(2)),
-      syncControlValue2(globalWallThicknessInput, studioState.settings.wallThickness.toFixed(2)),
-      syncControlValue2(globalWallOpacityInput, Math.round(studioState.settings.wallOpacity * 100)),
+  (window.clearTimeout(appCtx.pointerReleaseTimeoutId),
+    (appCtx.pointerReleaseTimeoutId = null),
+    appCtx.activePointerId &&
+      ((appCtx.activePointerId = null),
+      syncControlValue2(globalWallHeightInput, appCtx.studioState.settings.wallHeight.toFixed(2)),
+      syncControlValue2(globalWallThicknessInput, appCtx.studioState.settings.wallThickness.toFixed(2)),
+      syncControlValue2(globalWallOpacityInput, Math.round(appCtx.studioState.settings.wallOpacity * 100)),
       refreshStudioUi(),
       requestSceneRebuild({
         scope: "all",
@@ -15538,55 +15344,55 @@ function applyWallOpacityInput() {
       endStudioGesture()));
 }
 function scheduleWallApply(wallApplyDelayMs = 80) {
-  (window.clearTimeout(pointerReleaseTimeoutId),
-    (pointerReleaseTimeoutId = window.setTimeout(applyWallOpacityInput, wallApplyDelayMs)));
+  (window.clearTimeout(appCtx.pointerReleaseTimeoutId),
+    (appCtx.pointerReleaseTimeoutId = window.setTimeout(applyWallOpacityInput, wallApplyDelayMs)));
 }
 function commitWallHeight() {
   const committedWallHeight = clamp2(
-    finite2(globalWallHeightInput.value, studioState.settings.wallHeight),
+    finite2(globalWallHeightInput.value, appCtx.studioState.settings.wallHeight),
     0.01,
     6,
   );
   if (!(
-    Math.abs(committedWallHeight - studioState.settings.wallHeight) < 1e-8 &&
-    studioState.walls.every(
+    Math.abs(committedWallHeight - appCtx.studioState.settings.wallHeight) < 1e-8 &&
+    appCtx.studioState.walls.every(
       (checkedWallHeightTarget) =>
         Math.abs(checkedWallHeightTarget.height - committedWallHeight) < 1e-8,
     )
   )) {
     (applyWallHeightInput(globalWallHeightInput),
-      (studioState.settings.wallHeight = committedWallHeight));
-    for (const heightUpdateWall of studioState.walls) heightUpdateWall.height = committedWallHeight;
+      (appCtx.studioState.settings.wallHeight = committedWallHeight));
+    for (const heightUpdateWall of appCtx.studioState.walls) heightUpdateWall.height = committedWallHeight;
     markDocumentDirty();
   }
 }
 function commitWallThickness() {
   const committedWallThickness = clamp2(
-    finite2(globalWallThicknessInput.value, studioState.settings.wallThickness),
+    finite2(globalWallThicknessInput.value, appCtx.studioState.settings.wallThickness),
     0.01,
     3,
   );
   if (!(
-    Math.abs(committedWallThickness - studioState.settings.wallThickness) < 1e-8 &&
-    studioState.walls.every(
+    Math.abs(committedWallThickness - appCtx.studioState.settings.wallThickness) < 1e-8 &&
+    appCtx.studioState.walls.every(
       (checkedWallThicknessTarget) =>
         Math.abs(checkedWallThicknessTarget.thickness - committedWallThickness) < 1e-8,
     )
   )) {
     (applyWallHeightInput(globalWallThicknessInput),
-      (studioState.settings.wallThickness = committedWallThickness));
-    for (const thicknessUpdateWall of studioState.walls)
+      (appCtx.studioState.settings.wallThickness = committedWallThickness));
+    for (const thicknessUpdateWall of appCtx.studioState.walls)
       thicknessUpdateWall.thickness = committedWallThickness;
     (applyWallThicknessInput(), markDocumentDirty());
   }
 }
 function commitWallOpacity() {
   const committedWallOpacity =
-    clamp2(finite2(globalWallOpacityInput.value, studioState.settings.wallOpacity * 100), 0, 100) /
+    clamp2(finite2(globalWallOpacityInput.value, appCtx.studioState.settings.wallOpacity * 100), 0, 100) /
     100;
-  Math.abs(committedWallOpacity - studioState.settings.wallOpacity) < 1e-8 ||
+  Math.abs(committedWallOpacity - appCtx.studioState.settings.wallOpacity) < 1e-8 ||
     (applyWallHeightInput(globalWallOpacityInput),
-    (studioState.settings.wallOpacity = committedWallOpacity),
+    (appCtx.studioState.settings.wallOpacity = committedWallOpacity),
     markDocumentDirty());
 }
 for (const [wallOpacityInput, wallOpacitySetting] of [
@@ -15601,7 +15407,7 @@ for (const [wallOpacityInput, wallOpacitySetting] of [
     wallOpacityInput.addEventListener("blur", () => scheduleWallApply(0)));
 toggleFloorEdgeButton.addEventListener("click", () => {
   (deselectAll(),
-    (studioState.settings.floorEdgeVisible = studioState.settings.floorEdgeVisible === false),
+    (appCtx.studioState.settings.floorEdgeVisible = appCtx.studioState.settings.floorEdgeVisible === false),
     refreshScopeItems(),
     markDocumentDirty());
 });
@@ -15613,11 +15419,11 @@ function filterAssetList() {
       isSelectableAssetType = lampItemTypeSet.has(itemType!),
       isModelAssetType = applianceItemTypeSet.has(itemType!),
       startsWith =
-        activeLibraryCategory === "light"
+        appCtx.activeLibraryCategory === "light"
           ? isSelectableAssetType
-          : activeLibraryCategory === "appliance"
+          : appCtx.activeLibraryCategory === "appliance"
             ? isModelAssetType
-            : activeLibraryCategory === "courtyard"
+            : appCtx.activeLibraryCategory === "courtyard"
               ? itemType!.startsWith("garden-") &&
                 !isCourtyardGate2({
                   type: itemType,
@@ -15637,7 +15443,7 @@ function filterAssetList() {
   for (const searchResultRow of assetHeadingCategoryControls)
     if (
       ((searchResultRow.hidden =
-        searchResultRow.dataset.assetHeadingCategory !== activeLibraryCategory),
+        searchResultRow.dataset.assetHeadingCategory !== appCtx.activeLibraryCategory),
       !searchResultRow.hidden && replace2)
     ) {
       let nextElementSibling = searchResultRow.nextElementSibling as StudioControlElement,
@@ -15656,7 +15462,7 @@ function setAssetCategory(assetCategory: any) {
       ? assetCategory
       : "home",
     ao7 = getPreviewScopeSelection();
-  (hideLightGroupActionMenu(), (activeLibraryCategory = selectedAssetCategory));
+  (hideLightGroupActionMenu(), (appCtx.activeLibraryCategory = selectedAssetCategory));
   for (const assetCategoryButton of assetCategoryButtons) {
     const isActiveAssetCategory =
       assetCategoryButton.dataset.assetCategory === selectedAssetCategory;
@@ -15679,8 +15485,8 @@ function setAssetCategory(assetCategory: any) {
   }
   ((assetGridElement.hidden = selectedAssetCategory === "light"),
     (lightAssetRowElement.hidden = selectedAssetCategory !== "light"));
-  (selectedItem && !isSelectionAllowed(selectedItem) && refreshSelection(),
-    selectedItems.length && refreshSelection(),
+  (appCtx.selectedItem && !isSelectionAllowed(appCtx.selectedItem) && refreshSelection(),
+    appCtx.selectedItems.length && refreshSelection(),
     selectStudioTool("select"),
     syncLightGroupList(),
     refreshStudioUi(),
@@ -15697,11 +15503,11 @@ for (const assetCategoryClickButton of assetCategoryButtons)
   addLightGroupButton.addEventListener("click", () => {
     deselectAll();
     const assetCategoryClickButtonLightGroupNameSet = new Set(
-      studioState.lightGroups.map(
+      appCtx.studioState.lightGroups.map(
         (lightGroupNameSetExistingLightGroup) => lightGroupNameSetExistingLightGroup.name,
       ),
     );
-    let nextLightGroupIndex = studioState.lightGroups.length + 1;
+    let nextLightGroupIndex = appCtx.studioState.lightGroups.length + 1;
     for (; assetCategoryClickButtonLightGroupNameSet.has("灯组 " + nextLightGroupIndex);)
       nextLightGroupIndex += 1;
     const nextLightGroupIndexNewLightGroupRecord = {
@@ -15710,8 +15516,8 @@ for (const assetCategoryClickButton of assetCategoryButtons)
       enabled: true,
       areaId: null as any,
     };
-    (studioState.lightGroups.push(nextLightGroupIndexNewLightGroupRecord),
-      (activeLightGroupId = nextLightGroupIndexNewLightGroupRecord.id),
+    (appCtx.studioState.lightGroups.push(nextLightGroupIndexNewLightGroupRecord),
+      (appCtx.activeLightGroupId = nextLightGroupIndexNewLightGroupRecord.id),
       syncLightGroupList(),
       refreshStudioUi(),
       markDocumentDirty());
@@ -15721,8 +15527,8 @@ for (const lightGroupActionButton of lightGroupActionMenuElement.querySelectorAl
   "[data-light-group-action]",
 ))
   lightGroupActionButton.addEventListener("click", () => {
-    const selectedLightGroup = studioState.lightGroups.find(
-        (targetLightGroup) => targetLightGroup.id === pendingLightGroupId,
+    const selectedLightGroup = appCtx.studioState.lightGroups.find(
+        (targetLightGroup) => targetLightGroup.id === appCtx.pendingLightGroupId,
       ),
       lightGroupAction = lightGroupActionButton.dataset.lightGroupAction;
     (hideLightGroupActionMenu(),
@@ -15730,7 +15536,7 @@ for (const lightGroupActionButton of lightGroupActionMenuElement.querySelectorAl
         (lightGroupAction === "area"
           ? openLightGroupAreaDialog(selectedLightGroup)
           : lightGroupAction === "rename"
-            ? ((renamingLightGroupId = selectedLightGroup.id),
+            ? ((appCtx.renamingLightGroupId = selectedLightGroup.id),
               (lightGroupRenameInputElement.value = selectedLightGroup.name),
               lightGroupRenameDialogElement.showModal(),
               requestAnimationFrame(() => lightGroupRenameInputElement.select()))
@@ -15743,7 +15549,7 @@ for (const lightGroupActionButton of lightGroupActionMenuElement.querySelectorAl
 lightGroupListElement.addEventListener(
   "click",
   (listClickEvent: any) => {
-    Date.now() - listDragEndedAt < LIST_DRAG_CLICK_SUPPRESS_MS &&
+    Date.now() - appCtx.listDragEndedAt < LIST_DRAG_CLICK_SUPPRESS_MS &&
       (listClickEvent.stopPropagation(), listClickEvent.preventDefault());
   },
   true,
@@ -15751,8 +15557,8 @@ lightGroupListElement.addEventListener(
 lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent: any) => {
   lightGroupAreaSubmitEvent.preventDefault();
 
-  const assignTargetGroup = (studioState.lightGroups || []).find(
-    (groupLookupEntry) => groupLookupEntry.id === areaAssignGroupId,
+  const assignTargetGroup = (appCtx.studioState.lightGroups || []).find(
+    (groupLookupEntry) => groupLookupEntry.id === appCtx.areaAssignGroupId,
   );
   if (assignTargetGroup) {
     const nextAreaId = lightGroupAreaSelectElement.value || null;
@@ -15760,7 +15566,7 @@ lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent:
       (assignTargetGroup.areaId || null) !== nextAreaId &&
         (deselectAll(),
         (assignTargetGroup.areaId = nextAreaId),
-        nextAreaId && expandedAreaIds.add(nextAreaId),
+        nextAreaId && appCtx.expandedAreaIds.add(nextAreaId),
         syncLightGroupList(),
         markDocumentDirty());
   }
@@ -15769,12 +15575,12 @@ lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent:
 selectElement("#light-group-area-close").addEventListener("click", closeLightGroupAreaDialog);
 selectElement("#light-group-area-cancel").addEventListener("click", closeLightGroupAreaDialog);
 lightGroupAreaDialogElement.addEventListener("cancel", () => {
-  areaAssignGroupId = "";
+  appCtx.areaAssignGroupId = "";
 });
 for (const floorActionButton of floorActionMenuElement.querySelectorAll("[data-floor-action]"))
   floorActionButton.addEventListener("click", () => {
-    const floorActionButtonSelectedFloor = studioProject.floors.find(
-        (selectedFloorTargetFloor: any) => selectedFloorTargetFloor.id === pendingFloorMenuId,
+    const floorActionButtonSelectedFloor = appCtx.studioProject.floors.find(
+        (selectedFloorTargetFloor: any) => selectedFloorTargetFloor.id === appCtx.pendingFloorMenuId,
       ),
       floorAction = floorActionButton.dataset.floorAction;
     (hideFloorActionMenu(),
@@ -15797,17 +15603,17 @@ document.addEventListener("pointerdown", (documentPointerDownEvent) => {
       closeDrawingToolGroups());
 });
 function closeOpenPopovers() {
-  ((pendingFloorMenuId = ""), floorRenameDialogElement.close());
+  ((appCtx.pendingFloorMenuId = ""), floorRenameDialogElement.close());
 }
 (selectElement("#floor-rename-close").addEventListener("click", closeOpenPopovers),
   selectElement("#floor-rename-cancel").addEventListener("click", closeOpenPopovers),
   floorRenameDialogElement.addEventListener("cancel", () => {
-    pendingFloorMenuId = "";
+    appCtx.pendingFloorMenuId = "";
   }),
   floorRenameFormElement.addEventListener("submit", (floorRenameSubmitEvent: any) => {
     floorRenameSubmitEvent.preventDefault();
-    const renamedFloor = studioProject.floors.find(
-      (renameFloorTarget: any) => renameFloorTarget.id === pendingFloorMenuId,
+    const renamedFloor = appCtx.studioProject.floors.find(
+      (renameFloorTarget: any) => renameFloorTarget.id === appCtx.pendingFloorMenuId,
     );
     if (!renamedFloor) {
       closeOpenPopovers();
@@ -15834,17 +15640,17 @@ function closeOpenPopovers() {
     (lightGroupRenameSubmitEvent.preventDefault(), confirmFloorDelete());
   }));
 function applyLightGroupRename() {
-  ((renamingLightGroupId = ""), lightGroupRenameDialogElement.close());
+  ((appCtx.renamingLightGroupId = ""), lightGroupRenameDialogElement.close());
 }
 (selectElement("#light-group-rename-close").addEventListener("click", applyLightGroupRename),
   selectElement("#light-group-rename-cancel").addEventListener("click", applyLightGroupRename),
   lightGroupRenameDialogElement.addEventListener("cancel", () => {
-    renamingLightGroupId = "";
+    appCtx.renamingLightGroupId = "";
   }),
   lightGroupRenameFormElement.addEventListener("submit", (lightGroupCreateSubmitEvent: any) => {
     lightGroupCreateSubmitEvent.preventDefault();
-    const createdLightGroup = studioState.lightGroups.find(
-      (createLightGroupTarget) => createLightGroupTarget.id === renamingLightGroupId,
+    const createdLightGroup = appCtx.studioState.lightGroups.find(
+      (createLightGroupTarget) => createLightGroupTarget.id === appCtx.renamingLightGroupId,
     );
     if (!createdLightGroup) {
       applyLightGroupRename();
@@ -15863,7 +15669,7 @@ function applyLightGroupRename() {
       applyLightGroupRename());
   }));
 function createLightGroup() {
-  ((pendingLightPropertyApply = null), lightPropertyApplyDialogElement.close());
+  ((appCtx.pendingLightPropertyApply = null), lightPropertyApplyDialogElement.close());
 }
 function collectLightTargetInputs(lightTargetRoot = lightPropertyTargetListElement) {
   return [...lightTargetRoot.querySelectorAll("[data-light-target-item-id]")];
@@ -15894,8 +15700,8 @@ function syncLightTargetGroups() {
 function buildLightGroupList(listedLightGroup: any) {
   lightPropertyTargetListElement.replaceChildren();
   let lightGroupListIndex = 0;
-  for (const listedGroup of studioState.lightGroups) {
-    const lightGroupItems = studioState.items.filter(
+  for (const listedGroup of appCtx.studioState.lightGroups) {
+    const lightGroupItems = appCtx.studioState.items.filter(
       (lightGroupItem) =>
         lampItemTypeSet.has(lightGroupItem.type) && lightGroupItem.lightGroupId === listedGroup.id,
     );
@@ -15946,7 +15752,7 @@ function buildLightGroupList(listedLightGroup: any) {
           indexedLightItem.type,
         );
       ((lightTargetDetailNote.textContent =
-        (indexedLightItem.id === selectedItem?.id ? "当前灯 · " : "") +
+        (indexedLightItem.id === appCtx.selectedItem?.id ? "当前灯 · " : "") +
         "当前 " +
         formatLightPropertyValue(listedLightGroup, kd3)),
         lightTargetNameLabel.append(lightTargetItemTitle, lightTargetDetailNote),
@@ -15971,7 +15777,7 @@ for (const lightTargetToggleRow of applyLightPropertyControls)
       lightPropertyBinding = (lightPropertyFields as any)[applyLightProperty!];
     if (
       !lightTargetPlacedElement ||
-      selectedItem?.kind !== "item" ||
+      appCtx.selectedItem?.kind !== "item" ||
       !lampItemTypeSet.has(lightTargetPlacedElement.type) ||
       !lightPropertyBinding
     )
@@ -15981,7 +15787,7 @@ for (const lightTargetToggleRow of applyLightPropertyControls)
       selectElement(lightPropertyBinding.input).value,
       lightTargetPlacedElement.type,
     );
-    ((pendingLightPropertyApply = {
+    ((appCtx.pendingLightPropertyApply = {
       property: applyLightProperty,
       label: lightPropertyBinding.label,
       value: kd4,
@@ -16016,20 +15822,20 @@ for (const lightTargetToggleRow of applyLightPropertyControls)
   selectElement("#light-property-apply-close").addEventListener("click", createLightGroup),
   selectElement("#light-property-apply-cancel").addEventListener("click", createLightGroup),
   lightPropertyApplyDialogElement.addEventListener("cancel", () => {
-    pendingLightPropertyApply = null;
+    appCtx.pendingLightPropertyApply = null;
   }),
   lightPropertyApplyFormElement.addEventListener("submit", (lightTargetSubmitEvent: any) => {
-    if ((lightTargetSubmitEvent.preventDefault(), !pendingLightPropertyApply)) {
+    if ((lightTargetSubmitEvent.preventDefault(), !appCtx.pendingLightPropertyApply)) {
       createLightGroup();
       return;
     }
-    const { property: Oi2, label: Oi3, value: Oi4 } = pendingLightPropertyApply,
+    const { property: Oi2, label: Oi3, value: Oi4 } = appCtx.pendingLightPropertyApply,
       lightTargetItemIdSet = new Set(
         collectLightTargetInputs()
           .filter((checkedTargetInput) => checkedTargetInput.checked)
           .map((targetItemInput) => targetItemInput.dataset.lightTargetItemId),
       ),
-      lightTargetItems = studioState.items.filter(
+      lightTargetItems = appCtx.studioState.items.filter(
         (lightTargetItem) =>
           lampItemTypeSet.has(lightTargetItem.type) && lightTargetItemIdSet.has(lightTargetItem.id),
       );
@@ -16087,8 +15893,8 @@ for (const assetToolbarDragButton of itemTypeButtons)
         return;
       }
       const pr5 = screenToPlan({
-        x: planViewWidth / 2,
-        y: planViewHeight / 2,
+        x: appCtx.planViewWidth / 2,
+        y: appCtx.planViewHeight / 2,
       });
       createSceneItem(assetToolbarDragButton.dataset.itemType, pr5);
     }));
@@ -16115,12 +15921,12 @@ for (const assetToolbarDragButton of itemTypeButtons)
     canvas: planCanvasElement,
     toolbar: document.querySelector(".plan-toolbar"),
     inspector: selectionInspectorElement,
-    scene: () => studioState,
-    selected: () => (selectedItem?.kind === "item" ? getSelectedObject() : null),
+    scene: () => appCtx.studioState,
+    selected: () => (appCtx.selectedItem?.kind === "item" ? getSelectedObject() : null),
     point: (pointerPlanPoint: any) => screenToPlan(eventToLocalPoint(pointerPlanPoint)),
     screen: planToScreen,
     ppm: () => getPixelsPerMeter() || 100,
-    zoom: () => planView.zoom,
+    zoom: () => appCtx.planView.zoom,
     feedback: (toolFeedback: any) => {
       ((snapIndicatorElement.textContent = toolFeedback?.kind
         ? "吸附：" + toolFeedback.label
@@ -16138,11 +15944,11 @@ for (const assetToolbarDragButton of itemTypeButtons)
     snap: axisLockedDistance,
     snapping: isSnapEnabled,
     calibrated: ensureCalibrationReady,
-    panning: () => isMiddleButtonPanning,
+    panning: () => appCtx.isMiddleButtonPanning,
     planColor: (courtyardPlanColor: any) => courtyardPlanColor2(courtyardPlanColor, itemTypeCatalog),
     buildings: () =>
       buildingFootprints2(
-        studioState.walls,
+        appCtx.studioState.walls,
         closedWallLoops(getPixelsPerMeter()),
         getPixelsPerMeter(),
       ),
@@ -16187,10 +15993,10 @@ for (const assetToolbarDragButton of itemTypeButtons)
   exportSaveViewButton.addEventListener("click", saveCameraView),
   selectElement("#open-export").addEventListener("click", openExportPanel),
   selectElement("#export-close").addEventListener("click", () => {
-    isInteractionLocked || exportDialogElement.close();
+    appCtx.isInteractionLocked || exportDialogElement.close();
   }),
   exportDialogElement.addEventListener("cancel", (exportDialogCancelEvent: any) => {
-    (exportDialogCancelEvent.preventDefault(), isInteractionLocked || exportDialogElement.close());
+    (exportDialogCancelEvent.preventDefault(), appCtx.isInteractionLocked || exportDialogElement.close());
   }),
   exportDialogElement.addEventListener("close", restorePreviewAfterExport),
   selectElement("#export-overwrite-close").addEventListener("click", () =>
@@ -16231,10 +16037,10 @@ const closeExportCompleteDialog = () => {
   exportPresetRenameFormElement.addEventListener("submit", (presetRenameSubmitEvent: any) => {
     presetRenameSubmitEvent.preventDefault();
     const presetRenameSubmitEventExportPresetSlots = normalizeExportPresetSlots2(
-        studioProject?.exportPresets,
+        appCtx.studioProject?.exportPresets,
       ),
       activePresetSlotIndex = normalizeActiveExportPresetSlot2(
-        studioProject?.activeExportPresetSlot,
+        appCtx.studioProject?.activeExportPresetSlot,
         presetRenameSubmitEventExportPresetSlots.length,
       ),
       activePresetSlotIndexActivePresetSlot =
@@ -16246,7 +16052,7 @@ const closeExportCompleteDialog = () => {
     const ja7 = formatPresetLabel(activePresetSlotIndexActivePresetSlot, activePresetSlotIndex),
       hf3 = makeUniquePresetName(exportPresetRenameInputElement.value, activePresetSlotIndex);
     ((activePresetSlotIndexActivePresetSlot.name = hf3),
-      (studioProject.exportPresets = presetRenameSubmitEventExportPresetSlots),
+      (appCtx.studioProject.exportPresets = presetRenameSubmitEventExportPresetSlots),
       closePresetRenameDialog(),
       renderExportPresetSlots(),
       markDocumentDirty(),
@@ -16278,7 +16084,7 @@ const closeExportCompleteDialog = () => {
   exportLockRatioInput.addEventListener("change", () => {
     const { width: viewportPixelWidth, height: viewportPixelHeight } =
       stateViewportAspectGetCanvasSize();
-    (exportLockRatioInput.checked && (exportAspectRatio = viewportPixelWidth / viewportPixelHeight),
+    (exportLockRatioInput.checked && (appCtx.exportAspectRatio = viewportPixelWidth / viewportPixelHeight),
       refreshCanvasSizeUi());
   }),
   selectElement("#export-use-fixed").addEventListener("click", openExportDialog),
@@ -16290,14 +16096,14 @@ function postBridgeState(bridgeStateName = "ready") {
   !isAutoDiagramEmbed ||
     !autoDiagramComponentId ||
     window.parent === window ||
-    !studioProject ||
+    !appCtx.studioProject ||
     window.parent.postMessage(
       {
         type: "homeos-floorplan-auto-diagram-base-lighting-state",
         componentId: autoDiagramComponentId,
         status: bridgeStateName,
-        lighting: normalizeBaseLighting2(baseLightingSettings),
-        savedLighting: normalizeBaseLighting2(studioProject.baseLighting),
+        lighting: normalizeBaseLighting2(appCtx.baseLightingSettings),
+        savedLighting: normalizeBaseLighting2(appCtx.studioProject.baseLighting),
         defaults: normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2),
       },
       window.location.origin,
@@ -16307,17 +16113,17 @@ function postBridgeFloors() {
   !isAutoDiagramEmbed ||
     !autoDiagramComponentId ||
     window.parent === window ||
-    !studioProject ||
+    !appCtx.studioProject ||
     window.parent.postMessage(
       {
         type: "homeos-floorplan-auto-diagram-floor-state",
         componentId: autoDiagramComponentId,
-        floors: studioProject.floors.map((bridgeFloorEntry: any) => ({
+        floors: appCtx.studioProject.floors.map((bridgeFloorEntry: any) => ({
           id: bridgeFloorEntry.id,
           name: bridgeFloorEntry.name,
         })),
         floorSelection:
-          getPreviewFloorMode() === "all" ? "all" : getActiveFloor()?.id || activeFloorId,
+          getPreviewFloorMode() === "all" ? "all" : getActiveFloor()?.id || appCtx.activeFloorId,
       },
       window.location.origin,
     );
@@ -16333,13 +16139,13 @@ window.addEventListener("message", (bridgeMessageEvent) => {
   if (!(!data2 || data2.componentId !== autoDiagramComponentId)) {
     if (data2.type === "homeos-floorplan-auto-diagram-floor") {
       if (data2.command === "set-floor") {
-        const bridgeFloorRecord = studioProject.floors.find(
+        const bridgeFloorRecord = appCtx.studioProject.floors.find(
             (bridgeFloor: any) => bridgeFloor.id === data2.value,
           ),
           bridgeFloorId =
-            data2.value === "all" && studioProject.floors.length > 1
+            data2.value === "all" && appCtx.studioProject.floors.length > 1
               ? "all"
-              : bridgeFloorRecord?.id || getActiveFloor()?.id || activeFloorId;
+              : bridgeFloorRecord?.id || getActiveFloor()?.id || appCtx.activeFloorId;
         (selectPreviewFloor(bridgeFloorId), postBridgeFloors());
       }
       return;
@@ -16347,7 +16153,7 @@ window.addEventListener("message", (bridgeMessageEvent) => {
     if (data2.type === "homeos-floorplan-auto-diagram-base-lighting") {
       data2.command === "request-state"
         ? ((baseLightControlsElement.hidden = true),
-          applyBaseLighting(studioProject.baseLighting),
+          applyBaseLighting(appCtx.studioProject.baseLighting),
           postBridgeState("ready"))
         : data2.command === "preview"
           ? ((baseLightControlsElement.hidden = true),
@@ -16413,7 +16219,7 @@ window.addEventListener("message", (bridgeMessageEvent) => {
       refreshSceneRender();
       return;
     }
-    if (data2.type === "homeos-floorplan-auto-diagram-generate" && !isInteractionLocked) {
+    if (data2.type === "homeos-floorplan-auto-diagram-generate" && !appCtx.isInteractionLocked) {
       for (const bridgeCameraStateExportFileCheckbox of exportDialogElement.querySelectorAll(
         "input[data-export-file]",
       ))
@@ -16436,7 +16242,7 @@ for (const previewSyncMenuRow of previewSyncControls)
     const isPreviewSyncEnabled = previewSyncMenuRow.dataset.previewSync !== "manual";
     isPreviewSyncEnabled !== getPreviewSyncMode() &&
       (deselectAll(),
-      (studioState.settings.livePreviewEnabled = isPreviewSyncEnabled),
+      (appCtx.studioState.settings.livePreviewEnabled = isPreviewSyncEnabled),
       markDocumentDirty(),
       refreshPreviewSync(),
       isPreviewSyncEnabled
@@ -16453,12 +16259,12 @@ for (const previewSyncMenuRow of previewSyncControls)
   refreshLightPreviewButton?.addEventListener("click", discardLightingEdit),
   detailsResizerElement.addEventListener("pointerdown", (panelPointerDownEvent: any) => {
     panelPointerDownEvent.button === 0 &&
-      ((dragStart = {
+      ((appCtx.dragStart = {
         pointerId: panelPointerDownEvent.pointerId,
         startX: panelPointerDownEvent.clientX,
         startY: panelPointerDownEvent.clientY,
-        startPreviewRatio: studioState.settings.previewPanelRatio,
-        startWidthRatio: studioState.settings.detailsPanelWidthRatio,
+        startPreviewRatio: appCtx.studioState.settings.previewPanelRatio,
+        startWidthRatio: appCtx.studioState.settings.detailsPanelWidthRatio,
       }),
       detailsPanelElement.classList.add("resizing"),
       studioShellElement.classList.add("resizing"),
@@ -16466,7 +16272,7 @@ for (const previewSyncMenuRow of previewSyncControls)
       detailsResizerElement.setPointerCapture(panelPointerDownEvent.pointerId));
   }),
   detailsResizerElement.addEventListener("pointermove", (panelPointerMoveEvent: any) => {
-    if (dragStart?.pointerId === panelPointerMoveEvent.pointerId) {
+    if (appCtx.dragStart?.pointerId === panelPointerMoveEvent.pointerId) {
       if ((panelPointerMoveEvent.buttons & 1) === 0) {
         finishPanelResize(panelPointerMoveEvent);
         return;
@@ -16476,16 +16282,16 @@ for (const previewSyncMenuRow of previewSyncControls)
   }));
 const finishPanelResize = (panelPointerUpEvent: any = null, shouldPersistPanelSize = true) => {
   if (
-    !dragStart ||
+    !appCtx.dragStart ||
     (panelPointerUpEvent?.pointerId !== undefined &&
-      dragStart.pointerId !== panelPointerUpEvent.pointerId)
+      appCtx.dragStart.pointerId !== panelPointerUpEvent.pointerId)
   )
     return;
-  const qn4 = dragStart;
-  dragStart = null;
+  const qn4 = appCtx.dragStart;
+  appCtx.dragStart = null;
   const didPanelSizeChange =
-    Math.abs(studioState.settings.previewPanelRatio - qn4.startPreviewRatio) > 0.0001 ||
-    Math.abs(studioState.settings.detailsPanelWidthRatio - qn4.startWidthRatio) > 0.0001;
+    Math.abs(appCtx.studioState.settings.previewPanelRatio - qn4.startPreviewRatio) > 0.0001 ||
+    Math.abs(appCtx.studioState.settings.detailsPanelWidthRatio - qn4.startWidthRatio) > 0.0001;
   if (
     (detailsPanelElement.classList.remove("resizing"),
     studioShellElement.classList.remove("resizing"),
@@ -16522,13 +16328,13 @@ const finishPanelResize = (panelPointerUpEvent: any = null, shouldPersistPanelSi
     if (!panelVerticalDelta && !panelHorizontalDelta) return;
     panelKeyDownEvent.preventDefault();
     const yl6 = getPanelRatioLimits();
-    ((studioState.settings.previewPanelRatio = clamp2(
-      studioState.settings.previewPanelRatio + panelVerticalDelta,
+    ((appCtx.studioState.settings.previewPanelRatio = clamp2(
+      appCtx.studioState.settings.previewPanelRatio + panelVerticalDelta,
       yl6.minimumHeightRatio,
       yl6.maximumHeightRatio,
     )),
-      (studioState.settings.detailsPanelWidthRatio = clamp2(
-        studioState.settings.detailsPanelWidthRatio + panelHorizontalDelta,
+      (appCtx.studioState.settings.detailsPanelWidthRatio = clamp2(
+        appCtx.studioState.settings.detailsPanelWidthRatio + panelHorizontalDelta,
         yl6.minimumWidthRatio,
         yl6.maximumWidthRatio,
       )),
@@ -16541,10 +16347,10 @@ for (const cameraModeOptionRow of cameraModeControls)
     const cameraProjectionMode =
       cameraModeOptionRow.dataset.cameraMode === "perspective" ? "perspective" : "orthographic";
     cameraProjectionMode !== getCameraMode() &&
-      (pendingRuntimeSettings || deselectAll(),
+      (appCtx.pendingRuntimeSettings || deselectAll(),
       (cameraSettings().cameraMode = cameraProjectionMode),
       setCameraMode(cameraProjectionMode),
-      pendingRuntimeSettings
+      appCtx.pendingRuntimeSettings
         ? (exportStatusElement.textContent =
             cameraProjectionMode === "perspective" ? "已切换为透视构图" : "已切换为正交构图")
         : markDocumentDirty());
@@ -16553,10 +16359,10 @@ for (const cameraViewOptionRow of cameraViewControls)
   cameraViewOptionRow.addEventListener("click", () => {
     const cameraViewDirection = cameraViewOptionRow.dataset.cameraView === "top" ? "top" : "free";
     cameraViewDirection !== getCameraView() &&
-      (pendingRuntimeSettings || deselectAll(),
+      (appCtx.pendingRuntimeSettings || deselectAll(),
       (cameraSettings().cameraView = cameraViewDirection),
       setCameraView(cameraViewDirection),
-      pendingRuntimeSettings
+      appCtx.pendingRuntimeSettings
         ? (exportStatusElement.textContent =
             cameraViewDirection === "top" ? "已切换为顶视构图" : "已切换为自由构图")
         : markDocumentDirty());
@@ -16564,12 +16370,12 @@ for (const cameraViewOptionRow of cameraViewControls)
 for (const cameraPresetButton of cameraRotateTopControls)
   cameraPresetButton.addEventListener("click", () => {
     getCameraView() === "top" &&
-      (pendingRuntimeSettings || deselectAll(),
+      (appCtx.pendingRuntimeSettings || deselectAll(),
       (cameraSettings().cameraTopRotation = (getCameraTopRotation() + 90) % 360),
       setCameraView("top", {
         force: true,
       }),
-      pendingRuntimeSettings
+      appCtx.pendingRuntimeSettings
         ? (exportStatusElement.textContent = "顶视已旋转 " + getCameraTopRotation() + "°")
         : markDocumentDirty());
   });
@@ -16583,10 +16389,10 @@ for (const cameraPresetButtonFocalLengthInput of cameraFocalLengthControls)
     for (const focalLengthInputField of cameraFocalLengthControls)
       focalLengthInputField.value = String(Math.round(clampedFocalLength));
     Math.abs(clampedFocalLength - getCameraFocalLength()) < 1e-8 ||
-      (pendingRuntimeSettings || deselectAll(),
+      (appCtx.pendingRuntimeSettings || deselectAll(),
       (cameraSettings().cameraFocalLength = clampedFocalLength),
       applyCameraFocalLength(),
-      pendingRuntimeSettings
+      appCtx.pendingRuntimeSettings
         ? (exportStatusElement.textContent = "焦段已设为 " + Math.round(clampedFocalLength) + " mm")
         : markDocumentDirty());
   });
@@ -16608,7 +16414,7 @@ for (const cameraActionButton of openBaseLightingButtons)
     if (viewportPointerDownEvent.button !== 0 || viewportPointerDownEvent.target.closest("button"))
       return;
     const viewportRectBox = baseLightControlsElement.getBoundingClientRect();
-    pointerDragState = {
+    appCtx.pointerDragState = {
       pointerId: viewportPointerDownEvent.pointerId,
       startX: viewportPointerDownEvent.clientX,
       startY: viewportPointerDownEvent.clientY,
@@ -16621,39 +16427,39 @@ for (const cameraActionButton of openBaseLightingButtons)
     } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
   }),
   baseLightHeaderElement?.addEventListener("pointermove", (viewportPointerMoveEvent: any) => {
-    if (!pointerDragState || viewportPointerMoveEvent.pointerId !== pointerDragState.pointerId)
+    if (!appCtx.pointerDragState || viewportPointerMoveEvent.pointerId !== appCtx.pointerDragState.pointerId)
       return;
-    const viewportDragDeltaX = viewportPointerMoveEvent.clientX - pointerDragState.startX,
-      viewportDragDeltaY = viewportPointerMoveEvent.clientY - pointerDragState.startY;
-    if (!pointerDragState.moved && Math.hypot(viewportDragDeltaX, viewportDragDeltaY) < 4) return;
-    ((pointerDragState.moved = true), viewportPointerMoveEvent.preventDefault());
+    const viewportDragDeltaX = viewportPointerMoveEvent.clientX - appCtx.pointerDragState.startX,
+      viewportDragDeltaY = viewportPointerMoveEvent.clientY - appCtx.pointerDragState.startY;
+    if (!appCtx.pointerDragState.moved && Math.hypot(viewportDragDeltaX, viewportDragDeltaY) < 4) return;
+    ((appCtx.pointerDragState.moved = true), viewportPointerMoveEvent.preventDefault());
     const dragViewportRectBox = baseLightControlsElement.getBoundingClientRect(),
       maxViewportLeft = Math.max(8, window.innerWidth - dragViewportRectBox.width - 8),
       maxViewportTop = Math.max(8, window.innerHeight - dragViewportRectBox.height - 8);
     ((baseLightControlsElement.style.right = "auto"),
       (baseLightControlsElement.style.left =
-        clamp2(pointerDragState.startLeft + viewportDragDeltaX, 8, maxViewportLeft) + "px"),
+        clamp2(appCtx.pointerDragState.startLeft + viewportDragDeltaX, 8, maxViewportLeft) + "px"),
       (baseLightControlsElement.style.top =
-        clamp2(pointerDragState.startTop + viewportDragDeltaY, 8, maxViewportTop) + "px"));
+        clamp2(appCtx.pointerDragState.startTop + viewportDragDeltaY, 8, maxViewportTop) + "px"));
   }));
 const finishViewportDrag = (viewportPointerUpEvent: any) => {
-  !pointerDragState ||
-    viewportPointerUpEvent.pointerId !== pointerDragState.pointerId ||
-    (pointerDragState = null);
+  !appCtx.pointerDragState ||
+    viewportPointerUpEvent.pointerId !== appCtx.pointerDragState.pointerId ||
+    (appCtx.pointerDragState = null);
 };
 (baseLightHeaderElement?.addEventListener("pointerup", finishViewportDrag),
   baseLightHeaderElement?.addEventListener("pointercancel", finishViewportDrag),
-  lightPreviewWorker?.addEventListener("message", (lightingMessageEvent: any) => {
+  appCtx.lightPreviewWorker?.addEventListener("message", (lightingMessageEvent: any) => {
     if (lightingMessageEvent.data?.type !== "base-lighting-saved") return;
     const lightingMessageEventNormalizedBaseLighting = normalizeBaseLighting2(
       lightingMessageEvent.data.lighting,
     );
-    (studioProject && (studioProject.baseLighting = lightingMessageEventNormalizedBaseLighting),
+    (appCtx.studioProject && (appCtx.studioProject.baseLighting = lightingMessageEventNormalizedBaseLighting),
       applyBaseLighting(lightingMessageEventNormalizedBaseLighting));
   }),
   snapToggleButton.addEventListener("click", () => {
     (deselectAll(),
-      (studioState.settings.snapEnabled = studioState.settings.snapEnabled === false),
+      (appCtx.studioState.settings.snapEnabled = appCtx.studioState.settings.snapEnabled === false),
       syncSnapControls(),
       updateSnapIndicator(),
       refreshStudioView(),
@@ -16668,7 +16474,7 @@ const finishViewportDrag = (viewportPointerUpEvent: any) => {
 for (const settingsPanelPointerDownEventSnapSettingInput of snapSettingControls)
   settingsPanelPointerDownEventSnapSettingInput.addEventListener("change", () => {
     (deselectAll(),
-      ((studioState.settings as any)[settingsPanelPointerDownEventSnapSettingInput.dataset.snapSetting!] =
+      ((appCtx.studioState.settings as any)[settingsPanelPointerDownEventSnapSettingInput.dataset.snapSetting!] =
         settingsPanelPointerDownEventSnapSettingInput.checked),
       updateSnapIndicator(),
       refreshStudioView(),
@@ -16679,9 +16485,9 @@ for (const settingsPanelPointerDownEventSnapSettingInput of snapSettingControls)
 }),
   snapToleranceInput.addEventListener("change", () => {
     const snapToleranceValue = clamp2(Math.round(finite2(snapToleranceInput.value, 13)), 6, 24);
-    snapToleranceValue !== studioState.settings.snapTolerance &&
+    snapToleranceValue !== appCtx.studioState.settings.snapTolerance &&
       (deselectAll(),
-      (studioState.settings.snapTolerance = snapToleranceValue),
+      (appCtx.studioState.settings.snapTolerance = snapToleranceValue),
       syncSnapControls(),
       updateSnapIndicator(),
       refreshStudioView(),
@@ -16690,35 +16496,35 @@ for (const settingsPanelPointerDownEventSnapSettingInput of snapSettingControls)
   finishWallButton.addEventListener("click", () => resetCameraView()),
   deleteSelectionButton.addEventListener("click", clearSelection),
   selectElement("#scale-close").addEventListener("click", () => {
-    ((measureSpan = null), scaleDialogElement.close(), refreshStudioView());
+    ((appCtx.measureSpan = null), scaleDialogElement.close(), refreshStudioView());
   }),
   selectElement("#scale-cancel").addEventListener("click", () => {
-    ((measureSpan = null), scaleDialogElement.close(), selectStudioTool("scale"));
+    ((appCtx.measureSpan = null), scaleDialogElement.close(), selectStudioTool("scale"));
   }),
   scaleFormElement.addEventListener("submit", (alignmentSubmitEvent: any) => {
-    if ((alignmentSubmitEvent.preventDefault(), !measureSpan)) return;
+    if ((alignmentSubmitEvent.preventDefault(), !appCtx.measureSpan)) return;
     const floorOffsetValue = finite2(referenceMetersInput.value, 0),
-      floorReferenceDistance = distance2(measureSpan.start, measureSpan.end);
+      floorReferenceDistance = distance2(appCtx.measureSpan.start, appCtx.measureSpan.end);
     if (floorOffsetValue <= 0 || floorReferenceDistance <= 0) {
       showToast("请输入有效的真实长度。", "error");
       return;
     }
     (deselectAll(),
-      (studioState.calibration = {
+      (appCtx.studioState.calibration = {
         pixelsPerMeter: floorReferenceDistance / floorOffsetValue,
         reference: {
-          ...measureSpan,
+          ...appCtx.measureSpan,
           meters: floorOffsetValue,
         },
       }),
-      (measureSpan = null),
+      (appCtx.measureSpan = null),
       scaleDialogElement.close(),
       selectStudioTool("wall"),
       refreshScopeItems(),
       updateCameraView(),
       markDocumentDirty());
     const floorReferenceDistanceActiveFloorRecord = getActiveFloor();
-    studioProject.floors.findIndex(
+    appCtx.studioProject.floors.findIndex(
       (alignmentCandidateFloor: any) =>
         alignmentCandidateFloor.id === floorReferenceDistanceActiveFloorRecord?.id,
     ) > 0 && floorReferenceDistanceActiveFloorRecord?.alignmentPending
@@ -16900,12 +16706,12 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
     if (!materialSurfaceToggle) return;
 
     const surfaceToggleSlotName = materialSurfaceToggle.dataset.materialSlotSurfaceToggle;
-    expandedMaterialSurfaceSlots.has(surfaceToggleSlotName)
-      ? expandedMaterialSurfaceSlots.delete(surfaceToggleSlotName)
-      : expandedMaterialSurfaceSlots.add(surfaceToggleSlotName);
+    appCtx.expandedMaterialSurfaceSlots.has(surfaceToggleSlotName)
+      ? appCtx.expandedMaterialSurfaceSlots.delete(surfaceToggleSlotName)
+      : appCtx.expandedMaterialSurfaceSlots.add(surfaceToggleSlotName);
     const materialSlotRow = materialSurfaceToggle.closest(".material-slot"),
       materialSurfacePanel = materialSlotRow?.querySelector("[data-material-slot-surface]"),
-      isSurfaceExpanded = expandedMaterialSurfaceSlots.has(surfaceToggleSlotName);
+      isSurfaceExpanded = appCtx.expandedMaterialSurfaceSlots.has(surfaceToggleSlotName);
     (materialSurfaceToggle.setAttribute("aria-expanded", String(isSurfaceExpanded)),
       materialSurfacePanel && (materialSurfacePanel.hidden = !isSurfaceExpanded));
   }),
@@ -16971,7 +16777,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   shoeCabinetMirrorButton.addEventListener("click", () => {
     const shoeCabinetElement = getSelectedObject();
     !shoeCabinetElement ||
-      selectedItem?.kind !== "item" ||
+      appCtx.selectedItem?.kind !== "item" ||
       shoeCabinetElement.type !== "shoecabinet" ||
       (deselectAll(),
       (shoeCabinetElement.shoeCabinetMirrored = shoeCabinetElement.shoeCabinetMirrored !== true),
@@ -16984,7 +16790,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   selectElement("#door-hinge").addEventListener("click", () => {
     const doorElement = getSelectedObject();
     !doorElement ||
-      selectedItem?.kind !== "door" ||
+      appCtx.selectedItem?.kind !== "door" ||
       ["double", "roller-shutter", "frame-only"].includes(doorElement.doorType) ||
       (deselectAll(),
       (doorElement.hinge = doorElement.hinge === "right" ? "left" : "right"),
@@ -16994,7 +16800,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   selectElement("#door-swing").addEventListener("click", () => {
     const swingDoorElement = getSelectedObject();
     !swingDoorElement ||
-      selectedItem?.kind !== "door" ||
+      appCtx.selectedItem?.kind !== "door" ||
       ["sliding-glass", "frame-only"].includes(swingDoorElement.doorType) ||
       (deselectAll(),
       (swingDoorElement.swing = swingDoorElement.swing === -1 ? 1 : -1),
@@ -17004,7 +16810,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
 for (const rotateControlButton of document.querySelectorAll<StudioControlElement>("[data-rotate]"))
   rotateControlButton.addEventListener("click", () => {
     const rotatePlacedElement = getSelectedObject();
-    if (!rotatePlacedElement || selectedItem?.kind !== "item") return;
+    if (!rotatePlacedElement || appCtx.selectedItem?.kind !== "item") return;
     const elementSnapshot = captureUndoSnapshot(),
       nextRotation = rotatePlacedElement.rotation + Number(rotateControlButton.dataset.rotate);
     if (
@@ -17042,17 +16848,17 @@ if (
     if (
       (windowKeyDownEvent.code === "Space" &&
         !open &&
-        ((isMiddleButtonPanning = true), windowKeyDownEvent.preventDefault()),
+        ((appCtx.isMiddleButtonPanning = true), windowKeyDownEvent.preventDefault()),
       windowKeyDownEvent.key.toLowerCase() === "s" &&
         !open &&
-        ((isSnapTemporarilyOff = true), updateSnapIndicator(), refreshStudioView()),
+        ((appCtx.isSnapTemporarilyOff = true), updateSnapIndicator(), refreshStudioView()),
       open)
     )
       return;
     windowKeyDownEvent.key === "Shift" &&
-      !marqueeBox &&
-      (activeToolName === "scale" || activeToolName === "wall") &&
-      ((isForceSnapDisabled = true), updateSnapIndicator(), refreshStudioView());
+      !appCtx.marqueeBox &&
+      (appCtx.activeToolName === "scale" || appCtx.activeToolName === "wall") &&
+      ((appCtx.isForceSnapDisabled = true), updateSnapIndicator(), refreshStudioView());
     const ctrlKey = windowKeyDownEvent.metaKey || windowKeyDownEvent.ctrlKey;
     const keyLowerStudio = windowKeyDownEvent.key.toLowerCase();
     if (ctrlKey && keyLowerStudio === "z") {
@@ -17101,9 +16907,9 @@ if (
     }[windowKeyDownEvent.key];
     if (arrowKeyDirections && !ctrlKey) {
       const selectedItemIds =
-        selectedItem?.kind === "item"
-          ? [selectedItem.id]
-          : selectedItems
+        appCtx.selectedItem?.kind === "item"
+          ? [appCtx.selectedItem.id]
+          : appCtx.selectedItems
               .filter((selectedHistoryEntry: any) => selectedHistoryEntry.kind === "item")
               .map((selectedItemEntry: any) => selectedItemEntry.id);
       if (selectedItemIds.length) {
@@ -17113,7 +16919,7 @@ if (
             (windowKeyDownEvent.altKey ? 0.01 : windowKeyDownEvent.shiftKey ? 0.25 : 0.05) *
             (getPixelsPerMeter() || 1),
           selectedItemIdSet = new Set(selectedItemIds);
-        for (const movedSceneItem of studioState.items)
+        for (const movedSceneItem of appCtx.studioState.items)
           selectedItemIdSet.has(movedSceneItem.id) &&
             ((movedSceneItem.x += arrowKeyDirections.x * nudgeStep),
             (movedSceneItem.y += arrowKeyDirections.y * nudgeStep),
@@ -17121,9 +16927,9 @@ if (
               isCourtyardGate2(movedSceneItem) &&
               anchorGate2(
                 movedSceneItem,
-                studioState.items,
+                appCtx.studioState.items,
                 getPixelsPerMeter(),
-                24 / planView.zoom,
+                24 / appCtx.planView.zoom,
               ));
         if (!validateSelectionChange(elementSnapshotBeforeMove)) {
           refreshScopeItems(getCurrentPreviewScope());
@@ -17137,20 +16943,20 @@ if (
     }
     if (windowKeyDownEvent.key === "Escape") {
       if (
-        activeToolName === "courtyard-gate" ||
-        activeToolName === "flooropening" ||
-        marqueeBox?.type === "draw-flooropening"
+        appCtx.activeToolName === "courtyard-gate" ||
+        appCtx.activeToolName === "flooropening" ||
+        appCtx.marqueeBox?.type === "draw-flooropening"
       ) {
-        if ((windowKeyDownEvent.preventDefault(), marqueeBox?.type === "draw-flooropening")) {
+        if ((windowKeyDownEvent.preventDefault(), appCtx.marqueeBox?.type === "draw-flooropening")) {
           try {
-            planCanvasElement.releasePointerCapture(marqueeBox.pointerId);
+            planCanvasElement.releasePointerCapture(appCtx.marqueeBox.pointerId);
           } catch { /* 指针捕获：指针已失效（pointercancel / 元素已卸载）时规范要求抛错，忽略即可 */ }
-          ((marqueeBox = null), endStudioGesture());
+          ((appCtx.marqueeBox = null), endStudioGesture());
         }
         selectStudioTool("select");
         return;
       }
-      if (alignmentState) {
+      if (appCtx.alignmentState) {
         (windowKeyDownEvent.preventDefault(), cancelFloorAlign());
         return;
       }
@@ -17160,32 +16966,32 @@ if (
     }
   }),
   window.addEventListener("keyup", (windowKeyUpEvent) => {
-    (windowKeyUpEvent.code === "Space" && (isMiddleButtonPanning = false),
+    (windowKeyUpEvent.code === "Space" && (appCtx.isMiddleButtonPanning = false),
       windowKeyUpEvent.key.toLowerCase() === "s" &&
-        ((isSnapTemporarilyOff = false), updateSnapIndicator(), refreshStudioView()),
+        ((appCtx.isSnapTemporarilyOff = false), updateSnapIndicator(), refreshStudioView()),
       windowKeyUpEvent.key === "Shift" &&
-        ((isForceSnapDisabled = false), updateSnapIndicator(), refreshStudioView()));
+        ((appCtx.isForceSnapDisabled = false), updateSnapIndicator(), refreshStudioView()));
   }),
   window.addEventListener("blur", () => {
-    ((isMiddleButtonPanning = false),
-      (isForceSnapDisabled = false),
-      (isSnapTemporarilyOff = false));
+    ((appCtx.isMiddleButtonPanning = false),
+      (appCtx.isForceSnapDisabled = false),
+      (appCtx.isSnapTemporarilyOff = false));
   }),
   window.addEventListener("online", () => {
-    ((saveRetryDueAt = 0), scheduleAutosave(0));
+    ((appCtx.saveRetryDueAt = 0), scheduleAutosave(0));
   }),
   window.addEventListener("offline", () => {
-    (window.clearTimeout(autosaveTimeoutId), (autosaveTimeoutId = null));
+    (window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null));
   }),
   window.addEventListener("pagehide", () => {
-    ((isPageSuspended = true), window.clearTimeout(autosaveTimeoutId), (autosaveTimeoutId = null));
+    ((appCtx.isPageSuspended = true), window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null));
   }),
   window.addEventListener("pageshow", () => {
-    ((isPageSuspended = false), (isLeavingStudio = false), scheduleAutosave());
+    ((appCtx.isPageSuspended = false), (appCtx.isLeavingStudio = false), scheduleAutosave());
   }),
   window.addEventListener("beforeunload", (beforeUnloadEvent) => {
     isEmbeddedStage ||
-      isLeavingStudio ||
+      appCtx.isLeavingStudio ||
       !hasUnsavedChanges() ||
       (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = ""));
   }),
@@ -17285,11 +17091,11 @@ materialTestType &&
       document.documentElement.dataset.materialTestStage = "renderer";
       for (
         let materialLoadFrameIndex = 0;
-        !threeRenderer && materialLoadFrameIndex < 120;
+        !appCtx.threeRenderer && materialLoadFrameIndex < 120;
         materialLoadFrameIndex += 1
       )
         await ensureRenderReady();
-      if (!threeRenderer || !threeCamera || !threeScene)
+      if (!appCtx.threeRenderer || !appCtx.threeCamera || !appCtx.threeScene)
         throw new Error("Material test renderer was not initialized");
       const materialTestResults: any = [];
       for (let materialTestIndex = 0; materialTestIndex < 3; materialTestIndex += 1) {
@@ -17315,7 +17121,7 @@ materialTestType &&
           materialTestGroup.add(materialTestNode));
       }
       ((document.documentElement.dataset.materialTestStage = "compiling"),
-        threeRenderer.compile(materialTestGroup, threeCamera, threeScene));
+        appCtx.threeRenderer.compile(materialTestGroup, appCtx.threeCamera, appCtx.threeScene));
       const size3 = new Set(materialTestResults).size;
       for (
         let materialWaitFrameIndex = 0;
@@ -17419,43 +17225,38 @@ async function waitForStageReady() {
   for (
     ;
     areLightsEnabled() &&
-    (!isCacheReady || isFrameDirty || previewLightCacheCanvasElement.hidden) &&
+    (!appCtx.isCacheReady || appCtx.isFrameDirty || previewLightCacheCanvasElement.hidden) &&
     performance.now() < stageReadyDeadline;
   )
     await new Promise(requestAnimationFrame);
 }
 function runStudioRenderLoop() {
+  const ctx = createStudioRenderContext();
   const zn4 = normalizeStudioDocument(
-    loadedDraft.referenceScene || loadedDraft.scene,
+    appCtx.loadedDraft.referenceScene || appCtx.loadedDraft.scene,
     studioDocumentDeps(),
   );
-  let unusedRenderHandle: any = null;
   const retainedFloorsByKey = new Map(),
     renderLoopStats = {
       reusedTransitions: 0,
       rebuiltTransitions: 0,
       reusedFloors: 0,
     };
-  let lastRenderSignature = "",
-    cacheEpoch = 0,
-    lastStateJson = "{}",
-    unusedRenderState: any = null,
-    unusedRenderCounter = 1;
   const disposeRetainedNode = (releaseEntry: any) => {
-      (floorRetentionService?.releaseRoot?.(releaseEntry.node, {
+      (ctx.floorRetentionService?.releaseRoot?.(releaseEntry.node, {
         dispose: true,
       }),
-        regionLightController?.releaseRoot?.(releaseEntry.node),
+        appCtx.regionLightController?.releaseRoot?.(releaseEntry.node),
         disposeObjectTree(releaseEntry.node));
     },
     trimRetainedFloors = (keepKeySet: any = null) => {
-      keepKeySet || cacheEpoch++;
+      keepKeySet || ctx.cacheEpoch++;
       for (const [retainedKey, retainedEntry] of retainedFloorsByKey)
         (keepKeySet && !keepKeySet.has(retainedKey)) ||
           (disposeRetainedNode(retainedEntry), retainedFloorsByKey.delete(retainedKey));
     };
   function retainFloorNode(retainRequest: any) {
-    if (!retainRequest.cacheKey || retainRequest.cacheEpoch !== cacheEpoch) return false;
+    if (!retainRequest.cacheKey || retainRequest.cacheEpoch !== ctx.cacheEpoch) return false;
     const retainFloorId = retainRequest.id,
       previousRetainedEntry = retainedFloorsByKey.get(retainFloorId);
     return (
@@ -17468,53 +17269,15 @@ function runStudioRenderLoop() {
       retainRequest.node.updateMatrixWorld(true),
       retainedFloorsByKey.delete(retainFloorId),
       retainedFloorsByKey.set(retainFloorId, retainRequest),
-      regionLightController?.retainRoot?.(retainRequest.node),
-      floorRetentionService?.retainRoot?.(retainRequest.node),
+      appCtx.regionLightController?.retainRoot?.(retainRequest.node),
+      ctx.floorRetentionService?.retainRoot?.(retainRequest.node),
       trimRetainedFloors2(retainedFloorsByKey, disposeRetainedNode),
       true
     );
   }
-  (lightPreviewWorker?.close(), (lightPreviewWorker = null));
-  let floorRetentionService: any = null,
-    sceneRetentionService: any = null,
-    releaseCurtains: any = null,
-    releaseTelevisionScreens: any = null,
-    releaseStartupDeviceSync: any = null,
-    shouldRefreshGeometry = false,
-    geometryRootRef: any,
-    geometryKeyRef: any,
-    shadowLights: any = [],
-    geometryBoxes: any = [],
-    backgroundBoundaries: any = [],
-    invalidationBounds: any = [],
-    isBackgroundVisible = !isEmbeddedStage,
-    isOrbitEnabled = false,
-    cameraRootRef: any,
-    cameraFirstChildRef: any,
-    syncTargets: any = [],
-    cameraRestoreState,
-    savedCameraState: any,
-    orbitTargetVector: any,
-    orbitTargetAnchor: any,
-    hasBaseLightingApplied = false,
-    renderRootRef: any,
-    renderKeyRef: any,
-    renderViewRef: any,
-    viewportBaseCamera: any = null,
-    overviewStackOption: any,
-    transitionRange: any = null;
+  (appCtx.lightPreviewWorker?.close(), (appCtx.lightPreviewWorker = null));
+  ctx.isBackgroundVisible = !isEmbeddedStage;
   const retainedLayerKeySet = new Set(["items", "lights"]);
-  let cameraViewMode = "free",
-    shouldEnablePan = true,
-    shouldEnableZoom = true,
-    isPerspectiveCameraMode = false,
-    cameraForwardVector: any = null,
-    isSnapshotMode = false,
-    isRenderLoopOverviewMode = false,
-    isViewTransitioning = false,
-    stereoSampleIndex = 0,
-    lastViewOffsetSignature = "",
-    cameraMotionSpec: any = null;
   const snapshotOrthoCamera = new ns2.OrthographicCamera(),
     snapshotPerspectiveCamera = new ns2.PerspectiveCamera(),
     cameraSyncState = {
@@ -17534,8 +17297,8 @@ function runStudioRenderLoop() {
     return cameraFrameSpec.mode !== "perspective"
       ? Math.max(1, cameraFrameSpec.frameSize || 10) /
           cameraFrameSpec.zoom /
-          Math.min(1, Math.max(0.1, threeCamera.userData.viewportAspect || 1))
-      : ((snapshotPerspectiveCamera.aspect = threeCamera.userData.viewportAspect || 1),
+          Math.min(1, Math.max(0.1, appCtx.threeCamera.userData.viewportAspect || 1))
+      : ((snapshotPerspectiveCamera.aspect = appCtx.threeCamera.userData.viewportAspect || 1),
         (snapshotPerspectiveCamera.zoom = cameraFrameSpec.zoom),
         snapshotPerspectiveCamera.setFocalLength(cameraFrameSpec.focalLength || 50),
         2 *
@@ -17545,15 +17308,15 @@ function runStudioRenderLoop() {
           Math.tan(ns2.MathUtils.degToRad(snapshotPerspectiveCamera.getEffectiveFOV()) / 2));
   }
   function syncSnapshotCamera() {
-    if (!cameraMotionSpec) return;
+    if (!ctx.cameraMotionSpec) return;
     const syncSnapshotCameraCameraTargetDistance = Math.max(
         0.000001,
-        threeCamera.position.distanceTo(orbitControls.target),
+        appCtx.threeCamera.position.distanceTo(appCtx.orbitControls.target),
       ),
-      snapshotSceneHeight = Math.max(0.000001, cameraMotionSpec.height),
-      viewportAspect = threeCamera.userData.viewportAspect || 1,
-      weight = cameraMotionSpec.weight,
-      view = threeCamera.view,
+      snapshotSceneHeight = Math.max(0.000001, ctx.cameraMotionSpec.height),
+      viewportAspect = appCtx.threeCamera.userData.viewportAspect || 1,
+      weight = ctx.cameraMotionSpec.weight,
+      view = appCtx.threeCamera.view,
       view2 = snapshotOrthoCamera.view,
       isViewEqual =
         view === view2 ||
@@ -17567,16 +17330,16 @@ function runStudioRenderLoop() {
           view.width === view2.width &&
           view.height === view2.height);
     if (
-      cameraSyncState.motion === cameraMotionSpec &&
-      cameraSyncState.camera === threeCamera &&
+      cameraSyncState.motion === ctx.cameraMotionSpec &&
+      cameraSyncState.camera === appCtx.threeCamera &&
       cameraSyncState.distance === syncSnapshotCameraCameraTargetDistance &&
       cameraSyncState.height === snapshotSceneHeight &&
       cameraSyncState.aspect === viewportAspect &&
       cameraSyncState.weight === weight &&
-      cameraSyncState.near === threeCamera.near &&
-      cameraSyncState.far === threeCamera.far &&
+      cameraSyncState.near === appCtx.threeCamera.near &&
+      cameraSyncState.far === appCtx.threeCamera.far &&
       isViewEqual &&
-      cameraSyncState.matrix.equals(threeCamera.projectionMatrix)
+      cameraSyncState.matrix.equals(appCtx.threeCamera.projectionMatrix)
     )
       return;
     (Object.assign(snapshotOrthoCamera, {
@@ -17584,8 +17347,8 @@ function runStudioRenderLoop() {
       right: (snapshotSceneHeight * viewportAspect) / 2,
       top: snapshotSceneHeight / 2,
       bottom: -snapshotSceneHeight / 2,
-      near: threeCamera.near,
-      far: threeCamera.far,
+      near: appCtx.threeCamera.near,
+      far: appCtx.threeCamera.far,
       zoom: 1,
     }),
       Object.assign(snapshotPerspectiveCamera, {
@@ -17593,71 +17356,61 @@ function runStudioRenderLoop() {
           2 * Math.atan(snapshotSceneHeight / (2 * syncSnapshotCameraCameraTargetDistance)),
         ),
         aspect: viewportAspect,
-        near: threeCamera.near,
-        far: threeCamera.far,
+        near: appCtx.threeCamera.near,
+        far: appCtx.threeCamera.far,
         zoom: 1,
       }));
     for (const cameraForProjection of [snapshotOrthoCamera, snapshotPerspectiveCamera])
-      ((cameraForProjection.view = threeCamera.view
+      ((cameraForProjection.view = appCtx.threeCamera.view
         ? {
-            ...threeCamera.view,
+            ...appCtx.threeCamera.view,
           }
         : null),
         cameraForProjection.updateProjectionMatrix());
     const elements = snapshotOrthoCamera.projectionMatrix.elements,
       elements2 = snapshotPerspectiveCamera.projectionMatrix.elements;
     for (let matrixUpdateIndex = 0; matrixUpdateIndex < 16; matrixUpdateIndex++)
-      threeCamera.projectionMatrix.elements[matrixUpdateIndex] =
+      appCtx.threeCamera.projectionMatrix.elements[matrixUpdateIndex] =
         elements[matrixUpdateIndex] * (1 - weight) +
         (elements2[matrixUpdateIndex] / syncSnapshotCameraCameraTargetDistance) * weight;
-    (threeCamera.projectionMatrixInverse.copy(threeCamera.projectionMatrix).invert(),
-      (cameraSyncState.motion = cameraMotionSpec),
-      (cameraSyncState.camera = threeCamera),
+    (appCtx.threeCamera.projectionMatrixInverse.copy(appCtx.threeCamera.projectionMatrix).invert(),
+      (cameraSyncState.motion = ctx.cameraMotionSpec),
+      (cameraSyncState.camera = appCtx.threeCamera),
       (cameraSyncState.distance = syncSnapshotCameraCameraTargetDistance),
       (cameraSyncState.height = snapshotSceneHeight),
       (cameraSyncState.aspect = viewportAspect),
       (cameraSyncState.weight = weight),
-      (cameraSyncState.near = threeCamera.near),
-      (cameraSyncState.far = threeCamera.far),
-      cameraSyncState.matrix.copy(threeCamera.projectionMatrix));
+      (cameraSyncState.near = appCtx.threeCamera.near),
+      (cameraSyncState.far = appCtx.threeCamera.far),
+      cameraSyncState.matrix.copy(appCtx.threeCamera.projectionMatrix));
   }
   const lightTransitionsByLight = new Map(),
     lightTransitionsByKey = new Map();
-  let renderTickCounter = 0,
-    reflectionPassCounter = 0,
-    overviewTimeoutHandle: any = null,
-    isEntranceComplete = false,
-    hasControlsRestored = false,
-    isPresentationRunning = false,
-    presentationHandle: any = null,
-    pendingCameraState: any,
-    pendingTransitionSpec: any,
-    shouldResetCamera = false,
-    runStudioRenderLoopLightsByItemKey = new Map(),
-    lightRecordsByItemKey = new Map();
+  ctx.runStudioRenderLoopLightsByItemKey = new Map();
+  ctx.lightRecordsByItemKey = new Map();
   const controlsRestoreOptions = {
     restore: () => sampleLightTransitions(performance.now(), true),
   };
   function applyLightTransitionFrame(runStudioRenderLoopFrameTimestamp: any) {
     if (
-      (presentationHandle !== null && window.clearTimeout(presentationHandle),
-      (presentationHandle = null),
+      (ctx.presentationHandle !== null && window.clearTimeout(ctx.presentationHandle),
+      (ctx.presentationHandle = null),
       runStudioRenderLoopFrameTimestamp)
     ) {
-      if (isPrewarming) return;
-      ((isPrewarming = true),
-        (samplingWindowStartMs = 0),
+      if (appCtx.isPrewarming) return;
+      ((appCtx.isPrewarming = true),
+        (appCtx.samplingWindowStartMs = 0),
         updateShadowState(true, {
           preserveLightCache: true,
         }));
     } else
-      isPrewarming &&
-        (presentationHandle = window.setTimeout(() => {
-          ((presentationHandle = null),
-            (isPrewarming = false),
+      appCtx.isPrewarming &&
+        (ctx.presentationHandle = window.setTimeout(() => {
+          ((ctx.presentationHandle = null),
+            (appCtx.isPrewarming = false),
             resetFrameSamples(),
-            (samplingWindowStartMs = 0),
-            updateShadowState(isRenderSuppressed, {
+            (appCtx.samplingWindowStartMs = 0),
+            updateShadowState(appCtx.isRenderSuppressed, {
               preserveLightCache: true,
             }));
         }, 140));
@@ -17701,24 +17454,24 @@ function runStudioRenderLoop() {
       (spotLightUpdater.visible = spotLightState.intensity > 0.000001 || !spotLightState.complete));
   }
   function sampleLightTransitions(transitionTimestamp: any, immediateTransition = false) {
-    if (prewarmState === controlsRestoreOptions) {
+    if (appCtx.prewarmState === controlsRestoreOptions) {
       if (
-        ((pendingCameraState !== sceneRootNode ||
-          pendingTransitionSpec !== sceneRootNode?.children[0]) &&
-          ((pendingCameraState = sceneRootNode),
-          (pendingTransitionSpec = sceneRootNode?.children[0]),
-          (runStudioRenderLoopLightsByItemKey = buildLightCacheMap()),
-          (lightRecordsByItemKey = new Map(
+        ((ctx.pendingCameraState !== appCtx.sceneRootNode ||
+          ctx.pendingTransitionSpec !== appCtx.sceneRootNode?.children[0]) &&
+          ((ctx.pendingCameraState = appCtx.sceneRootNode),
+          (ctx.pendingTransitionSpec = appCtx.sceneRootNode?.children[0]),
+          (ctx.runStudioRenderLoopLightsByItemKey = buildLightCacheMap()),
+          (ctx.lightRecordsByItemKey = new Map(
             collectLampEntries().map((lightRecordEntry: any) => [
               lightRecordEntry.itemKey,
               lightRecordEntry,
             ]),
           )),
-          (shouldResetCamera = true)),
-        immediateTransition || shouldResetCamera)
+          (ctx.shouldResetCamera = true)),
+        immediateTransition || ctx.shouldResetCamera)
       )
-        for (const [lightItemKey, groupedLights] of runStudioRenderLoopLightsByItemKey) {
-          const lightRecord = lightRecordsByItemKey.get(lightItemKey);
+        for (const [lightItemKey, groupedLights] of ctx.runStudioRenderLoopLightsByItemKey) {
+          const lightRecord = ctx.lightRecordsByItemKey.get(lightItemKey);
           if (!lightRecord) continue;
           const shouldLightBeOn =
             lightRecord.group?.enabled !== false && lightRecord.item.lightBrightness > 0;
@@ -17734,7 +17487,7 @@ function runStudioRenderLoop() {
                 ),
               ));
         }
-      shouldResetCamera = false;
+      ctx.shouldResetCamera = false;
     }
     for (const [transitionLight, lightTransition] of lightTransitionsByLight)
       applySpotLightState(
@@ -17755,45 +17508,45 @@ function runStudioRenderLoop() {
     );
   }
   function onLightsChanged() {
-    (renderTickCounter && cancelAnimationFrame(renderTickCounter),
-      (renderTickCounter = 0),
+    (ctx.renderTickCounter && cancelAnimationFrame(ctx.renderTickCounter),
+      (ctx.renderTickCounter = 0),
       lightTransitionsByKey.clear(),
-      (isPrecompilePending = false));
+      (appCtx.isPrecompilePending = false));
   }
   function resetLightTransitions(changedTimestamp: any) {
     if (
-      ((renderTickCounter = 0),
-      !isCacheReady || isFrameDirty || previewLightCacheCanvasElement.hidden || prewarmState)
+      ((ctx.renderTickCounter = 0),
+      !appCtx.isCacheReady || appCtx.isFrameDirty || previewLightCacheCanvasElement.hidden || appCtx.prewarmState)
     ) {
       onLightsChanged();
       return;
     }
     for (const [resetLight, resetTransition] of lightTransitionsByKey)
-      (lightGainByFloor.set(
+      (appCtx.lightGainByFloor.set(
         resetLight,
         sampleTransitionProgress(resetTransition, changedTimestamp),
       ),
         changedTimestamp >= resetTransition.started + resetTransition.duration &&
           lightTransitionsByKey.delete(resetLight));
-    ((isPrecompilePending = lightTransitionsByKey.size > 0),
+    ((appCtx.isPrecompilePending = lightTransitionsByKey.size > 0),
       restoreLightVisibility(),
       lightTransitionsByKey.size &&
-        (renderTickCounter = requestAnimationFrame(resetLightTransitions)));
+        (ctx.renderTickCounter = requestAnimationFrame(resetLightTransitions)));
   }
   function applyLightStates(lightStateMap: any, applyTimestamp: any, lightApplyOptions: any) {
     if (
-      !isCacheReady ||
-      isFrameDirty ||
-      isCapturingLights ||
+      !appCtx.isCacheReady ||
+      appCtx.isFrameDirty ||
+      appCtx.isCapturingLights ||
       previewLightCacheCanvasElement.hidden ||
-      prewarmState ||
-      isSnapshotMode ||
-      isViewTransitioning
+      appCtx.prewarmState ||
+      ctx.isSnapshotMode ||
+      ctx.isViewTransitioning
     )
       return false;
     const visibleLightEntries = [...lightStateMap.values()].filter(
       (floorLightEntry) =>
-        getPreviewFloorMode() === "all" || floorLightEntry.floorId === activeFloorId,
+        getPreviewFloorMode() === "all" || floorLightEntry.floorId === appCtx.activeFloorId,
     );
     if (
       !visibleLightEntries.every(
@@ -17801,7 +17554,7 @@ function runStudioRenderLoop() {
           !lightStateEntry.colorChanged &&
           lightStateEntry.previousBrightness === lightStateEntry.item.lightBrightness &&
           lightStateEntry.previousKelvin === lightStateEntry.item.lightTemperature &&
-          lightGroupCacheByFloor.has(
+          appCtx.lightGroupCacheByFloor.has(
             composeLightGroupKey(lightStateEntry.floorId, lightStateEntry.item.lightGroupId),
           ),
       )
@@ -17816,7 +17569,7 @@ function runStudioRenderLoop() {
         existingLightTransition = lightTransitionsByKey.get(es2),
         lightOnProgress = existingLightTransition
           ? sampleTransitionProgress(existingLightTransition, applyNow)
-          : finite2(lightGainByFloor.get(es2), appliedLightState.wasOn ? 1 : 0);
+          : finite2(appCtx.lightGainByFloor.get(es2), appliedLightState.wasOn ? 1 : 0);
       lightTransitionsByKey.set(es2, {
         from: lightOnProgress,
         to: appliedLightState.isOn ? 1 : 0,
@@ -17833,7 +17586,7 @@ function runStudioRenderLoop() {
       });
     }
     return (
-      renderTickCounter && cancelAnimationFrame(renderTickCounter),
+      ctx.renderTickCounter && cancelAnimationFrame(ctx.renderTickCounter),
       resetLightTransitions(applyNow),
       true
     );
@@ -17841,29 +17594,29 @@ function runStudioRenderLoop() {
   function resetLightEffectStates() {
     const previousTransitionsByKey = new Map(lightTransitionsByKey);
     (onLightsChanged(),
-      (prewarmState = controlsRestoreOptions),
-      overviewTimeoutHandle !== null && window.clearTimeout(overviewTimeoutHandle),
-      (overviewTimeoutHandle = null),
-      window.clearTimeout(renderCommitTimeoutId),
-      (renderCommitTimeoutId = null),
-      (modelRevisionCounter += 1),
-      (isFrameDirty = true),
-      isCapturingLights || restorePreviewAfterFade(),
+      (appCtx.prewarmState = controlsRestoreOptions),
+      ctx.overviewTimeoutHandle !== null && window.clearTimeout(ctx.overviewTimeoutHandle),
+      (ctx.overviewTimeoutHandle = null),
+      window.clearTimeout(appCtx.renderCommitTimeoutId),
+      (appCtx.renderCommitTimeoutId = null),
+      (appCtx.modelRevisionCounter += 1),
+      (appCtx.isFrameDirty = true),
+      appCtx.isCapturingLights || restorePreviewAfterFade(),
       setFadeOverlay(false));
     const fr3 = collectLampEntries();
-    ((runStudioRenderLoopLightsByItemKey = ensureLightCache(fr3)),
-      (lightRecordsByItemKey = new Map(
+    ((ctx.runStudioRenderLoopLightsByItemKey = ensureLightCache(fr3)),
+      (ctx.lightRecordsByItemKey = new Map(
         fr3.map((resetRecordEntry: any) => [resetRecordEntry.itemKey, resetRecordEntry]),
       )),
-      (pendingCameraState = sceneRootNode),
-      (pendingTransitionSpec = sceneRootNode?.children[0]),
-      (shouldResetCamera = true));
+      (ctx.pendingCameraState = appCtx.sceneRootNode),
+      (ctx.pendingTransitionSpec = appCtx.sceneRootNode?.children[0]),
+      (ctx.shouldResetCamera = true));
     const resetNow = performance.now();
     for (const resetRecord of fr3) {
       const previousTransition = previousTransitionsByKey.get(resetRecord.groupKey);
       if (!previousTransition) continue;
       const resetProgress = sampleTransitionProgress(previousTransition, resetNow);
-      for (const restoredLight of runStudioRenderLoopLightsByItemKey.get(resetRecord.itemKey) ||
+      for (const restoredLight of ctx.runStudioRenderLoopLightsByItemKey.get(resetRecord.itemKey) ||
         []) {
         const resetLightEffectStatesLightOnIntensity = finite2(
             restoredLight.userData.lightOnIntensity,
@@ -17889,72 +17642,72 @@ function runStudioRenderLoop() {
     }
     return (
       lightTransitionsByLight.size &&
-        !reflectionPassCounter &&
-        (reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled)),
+        !ctx.reflectionPassCounter &&
+        (ctx.reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled)),
       requestStudioRender(),
-      runStudioRenderLoopLightsByItemKey
+      ctx.runStudioRenderLoopLightsByItemKey
     );
   }
   function scheduleControlsRestore() {
     if (
-      ((overviewTimeoutHandle = null),
+      ((ctx.overviewTimeoutHandle = null),
       !(
-        isEnvironmentActive ||
-        isCurtainMoving ||
-        isVacuumMoving ||
-        isBackgroundMoving ||
-        isSnapshotMode ||
-        isViewTransitioning ||
+        appCtx.isEnvironmentActive ||
+        appCtx.isCurtainMoving ||
+        appCtx.isVacuumMoving ||
+        appCtx.isBackgroundMoving ||
+        ctx.isSnapshotMode ||
+        ctx.isViewTransitioning ||
         lightTransitionsByLight.size ||
-        prewarmState !== controlsRestoreOptions
+        appCtx.prewarmState !== controlsRestoreOptions
       ))
     ) {
-      if (isCapturingLights || isPrewarming) {
-        overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 60);
+      if (appCtx.isCapturingLights || appCtx.isPrewarming) {
+        ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 60);
         return;
       }
-      ((prewarmState = null),
-        areLightsEnabled() && ((isFrameDirty = true), scheduleStudioRender(0)));
+      ((appCtx.prewarmState = null),
+        areLightsEnabled() && ((appCtx.isFrameDirty = true), scheduleStudioRender(0)));
     }
   }
   function checkTransitionsSettled(controlsTimestamp: any) {
-    ((reflectionPassCounter = 0), sampleLightTransitions(controlsTimestamp));
+    ((ctx.reflectionPassCounter = 0), sampleLightTransitions(controlsTimestamp));
     let hasPendingTransition = false;
     for (const [pendingLight, pendingTransition] of lightTransitionsByLight)
       controlsTimestamp - pendingTransition.started < pendingTransition.duration ||
         (lightTransitionsByLight.delete(pendingLight),
         pendingLight.visible || (hasPendingTransition = true));
     (hasPendingTransition &&
-      (setupSceneShadows(sceneRootNode, {
+      (setupSceneShadows(appCtx.sceneRootNode, {
         rebuildAtlas: false,
       }),
       scheduleLightPrecompile()),
       renderStudioFrame(),
       lightTransitionsByLight.size
-        ? (reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled))
+        ? (ctx.reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled))
         : (applyLightTransitionFrame(false),
-          prewarmState === controlsRestoreOptions &&
-            (overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180))));
+          appCtx.prewarmState === controlsRestoreOptions &&
+            (ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180))));
   }
   function hasActiveLightTransition() {
     (onLightsChanged(),
-      reflectionPassCounter && cancelAnimationFrame(reflectionPassCounter),
-      overviewTimeoutHandle !== null && window.clearTimeout(overviewTimeoutHandle),
-      presentationHandle !== null && window.clearTimeout(presentationHandle),
-      (reflectionPassCounter = 0),
-      (overviewTimeoutHandle = null),
-      (presentationHandle = null),
-      (isPrewarming = false));
+      ctx.reflectionPassCounter && cancelAnimationFrame(ctx.reflectionPassCounter),
+      ctx.overviewTimeoutHandle !== null && window.clearTimeout(ctx.overviewTimeoutHandle),
+      ctx.presentationHandle !== null && window.clearTimeout(ctx.presentationHandle),
+      (ctx.reflectionPassCounter = 0),
+      (ctx.overviewTimeoutHandle = null),
+      (ctx.presentationHandle = null),
+      (appCtx.isPrewarming = false));
     for (const [activeLight, activeTransition] of lightTransitionsByLight)
       applySpotLightState(activeLight, {
         ...activeTransition.to,
         complete: true,
       });
     (lightTransitionsByLight.clear(),
-      (isViewTransitioning = false),
-      runStudioRenderLoopLightsByItemKey.clear(),
-      lightRecordsByItemKey.clear(),
-      prewarmState === controlsRestoreOptions && (prewarmState = null));
+      (ctx.isViewTransitioning = false),
+      ctx.runStudioRenderLoopLightsByItemKey.clear(),
+      ctx.lightRecordsByItemKey.clear(),
+      appCtx.prewarmState === controlsRestoreOptions && (appCtx.prewarmState = null));
   }
   const weakMap = new WeakMap();
   function applyLightEffects(
@@ -17970,7 +17723,7 @@ function runStudioRenderLoop() {
       isPartialUpdate = lightEffectOptions.partial === true;
     ((lightEffectEntries = isPartialUpdate
       ? [...lightEffectsByKey.values()]
-      : studioProject.floors.flatMap((effectFloor: any) =>
+      : appCtx.studioProject.floors.flatMap((effectFloor: any) =>
           (effectFloor.scene.lightGroups || []).map(
             (effectGroup: any) =>
               lightEffectsByKey.get(composeItemKey(effectFloor.id, effectGroup.id)) || {
@@ -17982,18 +17735,18 @@ function runStudioRenderLoop() {
               },
           ),
         )),
-      isPresentationRunning ||
-        ((isPresentationRunning = true),
+      ctx.isPresentationRunning ||
+        ((ctx.isPresentationRunning = true),
         window.addEventListener("pagehide", hasActiveLightTransition, {
           once: true,
         })));
     const isImmediateTransition =
         lightEffectOptions.immediate === true ||
-        !isEntranceComplete ||
+        !ctx.isEntranceComplete ||
         window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
       pendingEffectsByKey = new Map(),
       floorsByFloorId = new Map(
-        studioProject.floors.map((lightEffectOptionsFloorEntry: any) => [
+        appCtx.studioProject.floors.map((lightEffectOptionsFloorEntry: any) => [
           lightEffectOptionsFloorEntry.id,
           lightEffectOptionsFloorEntry,
         ]),
@@ -18048,7 +17801,7 @@ function runStudioRenderLoop() {
           (effectLightItem.lightColorRgb = lightEffectState.colorRgb || null));
         const hasLightColorChanged =
           String(lightColorRgb || []) !== String(effectLightItem.lightColorRgb || []);
-        (!hasControlsRestored &&
+        (!ctx.hasControlsRestored &&
           !hasLightColorChanged &&
           isLightGroupEnabled === isLightOn &&
           lightBrightness === effectLightItem.lightBrightness &&
@@ -18067,7 +17820,7 @@ function runStudioRenderLoop() {
       }
     }
     if (
-      (isPartialUpdate || ((isEntranceComplete = true), (hasControlsRestored = false)),
+      (isPartialUpdate || ((ctx.isEntranceComplete = true), (ctx.hasControlsRestored = false)),
       !pendingEffectsByKey.size)
     )
       return;
@@ -18089,7 +17842,7 @@ function runStudioRenderLoop() {
     let shouldRefreshLights = false;
     const effectNow = performance.now();
     for (const [effectKey, effectState] of pendingEffectsByKey) {
-      if (getPreviewFloorMode() !== "all" && effectState.floorId !== activeFloorId) continue;
+      if (getPreviewFloorMode() !== "all" && effectState.floorId !== appCtx.activeFloorId) continue;
       const affectedLights = lightsByKey.get(effectKey);
       if (affectedLights?.length)
         for (const affectedLight of affectedLights) {
@@ -18175,48 +17928,48 @@ function runStudioRenderLoop() {
     }
     (ht4 && sampleLightTransitions(effectNow),
       (shouldRefreshLights || ht4) &&
-        setupSceneShadows(sceneRootNode, {
+        setupSceneShadows(appCtx.sceneRootNode, {
           rebuildAtlas: false,
         }),
       shouldRefreshLights && scheduleLightPrecompile(),
       applyLightTransitionFrame(lightTransitionsByLight.size > 0),
       renderStudioFrame(),
-      reflectionPassCounter ||
+      ctx.reflectionPassCounter ||
         (lightTransitionsByLight.size
-          ? (reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled))
-          : ht4 && (overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 100))));
+          ? (ctx.reflectionPassCounter = requestAnimationFrame(checkTransitionsSettled))
+          : ht4 && (ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 100))));
   }
   function syncViewOffset() {
-    threeRenderer.getSize(projectedScreenPoint);
+    appCtx.threeRenderer.getSize(projectedScreenPoint);
     const viewOffsetWidth = Math.max(projectedScreenPoint.x || 1, 1),
       viewOffsetHeight = Math.max(projectedScreenPoint.y || 1, 1),
       viewOffsetSignature =
-        viewOffsetWidth + "/" + viewOffsetHeight + "/" + stereoSampleIndex + "/" + threeCamera.uuid;
-    if (viewOffsetSignature === lastViewOffsetSignature) {
+        viewOffsetWidth + "/" + viewOffsetHeight + "/" + ctx.stereoSampleIndex + "/" + appCtx.threeCamera.uuid;
+    if (viewOffsetSignature === ctx.lastViewOffsetSignature) {
       syncSnapshotCamera();
       return;
     }
-    ((lastViewOffsetSignature = viewOffsetSignature),
-      stereoSampleIndex
-        ? threeCamera.setViewOffset(
+    ((ctx.lastViewOffsetSignature = viewOffsetSignature),
+      ctx.stereoSampleIndex
+        ? appCtx.threeCamera.setViewOffset(
             viewOffsetWidth,
             viewOffsetHeight,
-            (viewOffsetWidth * stereoSampleIndex) / 2,
+            (viewOffsetWidth * ctx.stereoSampleIndex) / 2,
             0,
             viewOffsetWidth,
             viewOffsetHeight,
           )
-        : threeCamera.clearViewOffset(),
+        : appCtx.threeCamera.clearViewOffset(),
       syncSnapshotCamera());
   }
   function applyOrbitControlSettings() {
-    ((orbitControls.enablePan = shouldEnablePan),
-      (orbitControls.enableZoom = shouldEnableZoom),
-      cameraViewMode === "horizontal" &&
-        (orbitControls.minPolarAngle = orbitControls.maxPolarAngle = orbitControls.getPolarAngle()),
-      cameraViewMode === "vertical" &&
-        (orbitControls.minAzimuthAngle = orbitControls.maxAzimuthAngle =
-          orbitControls.getAzimuthalAngle()));
+    ((appCtx.orbitControls.enablePan = ctx.shouldEnablePan),
+      (appCtx.orbitControls.enableZoom = ctx.shouldEnableZoom),
+      ctx.cameraViewMode === "horizontal" &&
+        (appCtx.orbitControls.minPolarAngle = appCtx.orbitControls.maxPolarAngle = appCtx.orbitControls.getPolarAngle()),
+      ctx.cameraViewMode === "vertical" &&
+        (appCtx.orbitControls.minAzimuthAngle = appCtx.orbitControls.maxAzimuthAngle =
+          appCtx.orbitControls.getAzimuthalAngle()));
   }
   function planToWorldForFloor(
     runStudioRenderLoopTargetFloorId: any,
@@ -18224,14 +17977,14 @@ function runStudioRenderLoop() {
     targetPlanY: any,
     floorElevation = 0.1,
   ) {
-    const targetFloorRecord = studioProject.floors.find(
+    const targetFloorRecord = appCtx.studioProject.floors.find(
       (matchingFloor: any) => matchingFloor.id === runStudioRenderLoopTargetFloorId,
     );
     if (!targetFloorRecord) return null;
     const floorElevationFloorPixelsPerMeter =
       targetFloorRecord.scene.calibration?.pixelsPerMeter || 1;
     if (getPreviewFloorMode() === "all") {
-      const sort9 = [...studioProject.floors].sort(
+      const sort9 = [...appCtx.studioProject.floors].sort(
           (firstElevationFloor, secondElevationFloor) =>
             firstElevationFloor.elevation - secondElevationFloor.elevation,
         ),
@@ -18241,7 +17994,7 @@ function runStudioRenderLoop() {
         });
       return new ns2.Vector3(
         $a5.x,
-        sort9.indexOf(targetFloorRecord) * studioProject.previewFloorGap + floorElevation,
+        sort9.indexOf(targetFloorRecord) * appCtx.studioProject.previewFloorGap + floorElevation,
         $a5.z,
       );
     }
@@ -18256,10 +18009,10 @@ function runStudioRenderLoop() {
     );
   }
   function cameraTargetForFloor(lookupFloorId: any) {
-    if (!studioProject.floors.some((presentFloor: any) => presentFloor.id === lookupFloorId))
+    if (!appCtx.studioProject.floors.some((presentFloor: any) => presentFloor.id === lookupFloorId))
       return null;
     const targetFloorPpm =
-        studioProject.floors.find((targetFloorEntry: any) => targetFloorEntry.id === lookupFloorId)
+        appCtx.studioProject.floors.find((targetFloorEntry: any) => targetFloorEntry.id === lookupFloorId)
           ?.scene.calibration?.pixelsPerMeter || 1,
       floorTargetPoint = planToWorldForFloor(lookupFloorId, 0, 0, 0);
     return new ns2.Matrix4()
@@ -18272,14 +18025,14 @@ function runStudioRenderLoop() {
   }
   function computeOverviewBox() {
     const ug3 = computeCourtyardBounds({
-      physicalStack: studioProject.uniformOverviewStack === true,
+      physicalStack: appCtx.studioProject.uniformOverviewStack === true,
     });
     if (ug3) return ug3.getCenter(new ns2.Vector3());
     const isOverviewAllFloorsView = getPreviewFloorMode() === "all";
-    if (isOverviewAllFloorsView && studioProject.floors.length < 2) return null;
+    if (isOverviewAllFloorsView && appCtx.studioProject.floors.length < 2) return null;
     const floors3 = isOverviewAllFloorsView
-        ? studioProject.floors
-        : studioProject.floors.filter((includedFloor: any) => includedFloor.id === activeFloorId),
+        ? appCtx.studioProject.floors
+        : appCtx.studioProject.floors.filter((includedFloor: any) => includedFloor.id === appCtx.activeFloorId),
       computeOverviewBoxOverviewBoundsBox = new ns2.Box3();
     let maxFloorElevation = 0;
     for (const computeOverviewBoxOverviewFloor of floors3)
@@ -18312,19 +18065,19 @@ function runStudioRenderLoop() {
     if (isOverviewAllFloorsView) {
       const floorElevations = floors3.map((stackFloor: any) => stackFloor.elevation),
         overviewStackGap =
-          studioProject.uniformOverviewStack === true
+          appCtx.studioProject.uniformOverviewStack === true
             ? Math.max(...floorElevations) - Math.min(...floorElevations)
-            : (studioProject.floors.length - 1) * studioProject.previewFloorGap;
+            : (appCtx.studioProject.floors.length - 1) * appCtx.studioProject.previewFloorGap;
       return ((center.y = overviewStackGap / 2 + maxFloorElevation / 2), center);
     }
-    return planToWorldForFloor(activeFloorId, center.x, center.z, maxFloorElevation / 2);
+    return planToWorldForFloor(appCtx.activeFloorId, center.x, center.z, maxFloorElevation / 2);
   }
   function computeCameraTarget(targetVector: any) {
-    const targetScopeKey = getPreviewFloorMode() === "all" ? "all" : activeFloorId;
+    const targetScopeKey = getPreviewFloorMode() === "all" ? "all" : appCtx.activeFloorId;
     if (
-      renderRootRef !== sceneRootNode ||
-      renderKeyRef !== sceneRevisionCount ||
-      renderViewRef !== targetScopeKey
+      ctx.renderRootRef !== appCtx.sceneRootNode ||
+      ctx.renderKeyRef !== appCtx.sceneRevisionCount ||
+      ctx.renderViewRef !== targetScopeKey
     ) {
       const floorOverviewBox = computeOverviewBox(),
         computedSceneBounds = floorOverviewBox
@@ -18332,27 +18085,27 @@ function runStudioRenderLoop() {
           : computeSceneBounds({
               excludeModelLayers: retainedLayerKeySet,
             });
-      ((renderRootRef = sceneRootNode),
-        (renderKeyRef = sceneRevisionCount),
-        (renderViewRef = targetScopeKey),
-        (viewportBaseCamera =
+      ((ctx.renderRootRef = appCtx.sceneRootNode),
+        (ctx.renderKeyRef = appCtx.sceneRevisionCount),
+        (ctx.renderViewRef = targetScopeKey),
+        (ctx.viewportBaseCamera =
           floorOverviewBox ||
           (computedSceneBounds.isEmpty()
             ? null
             : computedSceneBounds.getCenter(new ns2.Vector3()))));
     }
-    return (viewportBaseCamera || targetVector).clone();
+    return (ctx.viewportBaseCamera || targetVector).clone();
   }
   function configureOrbitControls() {
     if (
-      (orbitTargetVector || (orbitTargetVector = computeCameraTarget(orbitControls.target)),
-      orbitTargetAnchor === orbitControls)
+      (ctx.orbitTargetVector || (ctx.orbitTargetVector = computeCameraTarget(appCtx.orbitControls.target)),
+      ctx.orbitTargetAnchor === appCtx.orbitControls)
     )
       return;
-    const configureOrbitControlsOrbitControls = orbitControls,
-      activeCamera = threeCamera,
+    const configureOrbitControlsOrbitControls = appCtx.orbitControls,
+      activeCamera = appCtx.threeCamera,
       bind2 = configureOrbitControlsOrbitControls.update.bind(configureOrbitControlsOrbitControls);
-    orbitTargetAnchor = configureOrbitControlsOrbitControls;
+    ctx.orbitTargetAnchor = configureOrbitControlsOrbitControls;
     let cachedOrbitShiftPivot: any = null,
       cachedOrbitShiftProject: any = null,
       cachedOrbitShiftScope: any = null,
@@ -18361,17 +18114,17 @@ function runStudioRenderLoop() {
       cachedOrbitShiftOverview: any = null;
     const panCameraForward = () => {
         if (
-          !isPerspectiveCameraMode ||
+          !ctx.isPerspectiveCameraMode ||
           !activeCamera.isPerspectiveCamera ||
-          !cameraForwardVector ||
-          isSnapshotMode
+          !ctx.cameraForwardVector ||
+          ctx.isSnapshotMode
         )
           return;
         const normalize3 = configureOrbitControlsOrbitControls.target
             .clone()
             .sub(activeCamera.position)
             .normalize(),
-          dot = cameraForwardVector.clone().sub(activeCamera.position).dot(normalize3);
+          dot = ctx.cameraForwardVector.clone().sub(activeCamera.position).dot(normalize3);
         !Number.isFinite(dot) ||
           dot <= configureOrbitControlsOrbitControls.minDistance ||
           configureOrbitControlsOrbitControls.target
@@ -18382,7 +18135,7 @@ function runStudioRenderLoop() {
     configureOrbitControlsOrbitControls._pan = (panDeltaX: any, panDeltaY: any) => {
       panCameraForward();
       const zoom =
-        isPerspectiveCameraMode && activeCamera.isPerspectiveCamera ? activeCamera.zoom : 1;
+        ctx.isPerspectiveCameraMode && activeCamera.isPerspectiveCamera ? activeCamera.zoom : 1;
       return bind3(panDeltaX / zoom, panDeltaY / zoom);
     };
     for (const dollyMethodName of ["_dollyIn", "_dollyOut"]) {
@@ -18395,34 +18148,34 @@ function runStudioRenderLoop() {
       );
     }
     const queueControlsRestore = () => {
-      prewarmState === controlsRestoreOptions &&
-        (overviewTimeoutHandle !== null && window.clearTimeout(overviewTimeoutHandle),
-        (overviewTimeoutHandle = null),
-        isViewTransitioning ||
-          (overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180)));
+      appCtx.prewarmState === controlsRestoreOptions &&
+        (ctx.overviewTimeoutHandle !== null && window.clearTimeout(ctx.overviewTimeoutHandle),
+        (ctx.overviewTimeoutHandle = null),
+        ctx.isViewTransitioning ||
+          (ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180)));
     };
     (configureOrbitControlsOrbitControls.addEventListener("start", () => {
-      isSnapshotMode || (isViewTransitioning = true);
+      ctx.isSnapshotMode || (ctx.isViewTransitioning = true);
     }),
       configureOrbitControlsOrbitControls.addEventListener("change", () => {
-        isSnapshotMode ||
-          (isViewTransitioning &&
+        ctx.isSnapshotMode ||
+          (ctx.isViewTransitioning &&
             areLightsEnabled() &&
-            prewarmState !== controlsRestoreOptions &&
+            appCtx.prewarmState !== controlsRestoreOptions &&
             (resetLightEffectStates(),
             sampleLightTransitions(performance.now()),
-            setupSceneShadows(sceneRootNode, {
+            setupSceneShadows(appCtx.sceneRootNode, {
               rebuildAtlas: false,
             })),
           queueControlsRestore());
       }),
       configureOrbitControlsOrbitControls.addEventListener("end", () => {
-        isSnapshotMode || ((isViewTransitioning = false), queueControlsRestore());
+        ctx.isSnapshotMode || ((ctx.isViewTransitioning = false), queueControlsRestore());
       }));
     let enabled2 = configureOrbitControlsOrbitControls.enabled;
     (Object.defineProperty(configureOrbitControlsOrbitControls, "enabled", {
       configurable: true,
-      get: () => isOrbitEnabled && !isSnapshotMode && enabled2,
+      get: () => ctx.isOrbitEnabled && !ctx.isSnapshotMode && enabled2,
       set: (controlsSetState) => {
         enabled2 = controlsSetState === true;
       },
@@ -18434,13 +18187,13 @@ function runStudioRenderLoop() {
       }),
       (configureOrbitControlsOrbitControls.update = (controlsDeltaTime: any) => {
         if (
-          isSnapshotMode ||
-          configureOrbitControlsOrbitControls !== orbitControls ||
-          activeCamera !== threeCamera
+          ctx.isSnapshotMode ||
+          configureOrbitControlsOrbitControls !== appCtx.orbitControls ||
+          activeCamera !== appCtx.threeCamera
         )
           return false;
-        (orbitTargetVector ||
-          (orbitTargetVector = computeCameraTarget(configureOrbitControlsOrbitControls.target)));
+        (ctx.orbitTargetVector ||
+          (ctx.orbitTargetVector = computeCameraTarget(configureOrbitControlsOrbitControls.target)));
         const clone7 = activeCamera.quaternion.clone();
         if (
           getCameraView() === "top" &&
@@ -18476,35 +18229,35 @@ function runStudioRenderLoop() {
         }
         const controlsUpdate = bind2(controlsDeltaTime);
         if (
-          isSnapshotMode ||
-          configureOrbitControlsOrbitControls !== orbitControls ||
-          activeCamera !== threeCamera
+          ctx.isSnapshotMode ||
+          configureOrbitControlsOrbitControls !== appCtx.orbitControls ||
+          activeCamera !== appCtx.threeCamera
         )
           return controlsUpdate;
-        if (isOrbitEnabled && clone7.angleTo(activeCamera.quaternion) > 1e-7) {
+        if (ctx.isOrbitEnabled && clone7.angleTo(activeCamera.quaternion) > 1e-7) {
           const orbitShiftScope = getPreviewFloorMode(),
-            orbitShiftFloorGap = pendingRuntimeSettings
-              ? studioProject?.exportFloorGap
-              : studioProject?.previewFloorGap,
+            orbitShiftFloorGap = appCtx.pendingRuntimeSettings
+              ? appCtx.studioProject?.exportFloorGap
+              : appCtx.studioProject?.previewFloorGap,
             isOverviewOrbitShift =
-              !!(pendingRuntimeSettings && orbitShiftScope === "all" &&
-                studioProject?.uniformOverviewStack);
+              !!(appCtx.pendingRuntimeSettings && orbitShiftScope === "all" &&
+                appCtx.studioProject?.uniformOverviewStack);
           if (
             !cachedOrbitShiftPivot ||
-            cachedOrbitShiftProject !== studioProject ||
+            cachedOrbitShiftProject !== appCtx.studioProject ||
             cachedOrbitShiftScope !== orbitShiftScope ||
             cachedOrbitShiftFloorGap !== orbitShiftFloorGap ||
-            cachedOrbitShiftRuntimeSettings !== pendingRuntimeSettings ||
+            cachedOrbitShiftRuntimeSettings !== appCtx.pendingRuntimeSettings ||
             cachedOrbitShiftOverview !== isOverviewOrbitShift
           ) {
             const overviewOrbitPivot = isOverviewOrbitShift
-                ? overviewStackController?.getOrbitPivot?.()
+                ? appCtx.overviewStackController?.getOrbitPivot?.()
                 : null,
               fallbackPivotCenter = overviewOrbitPivot ? null : computeOverviewBox(),
               fallbackPivotBounds =
                 overviewOrbitPivot || fallbackPivotCenter
                   ? null
-                  : sceneRootNode
+                  : appCtx.sceneRootNode
                     ? computeSceneBounds({
                         excludeModelLayers: new Set(["items", "lights"]),
                       })
@@ -18515,10 +18268,10 @@ function runStudioRenderLoop() {
               (fallbackPivotBounds && !fallbackPivotBounds.isEmpty()
                 ? fallbackPivotBounds.getCenter(new ns2.Vector3())
                 : configureOrbitControlsOrbitControls.target.clone())),
-              (cachedOrbitShiftProject = studioProject),
+              (cachedOrbitShiftProject = appCtx.studioProject),
               (cachedOrbitShiftScope = orbitShiftScope),
               (cachedOrbitShiftFloorGap = orbitShiftFloorGap),
-              (cachedOrbitShiftRuntimeSettings = pendingRuntimeSettings),
+              (cachedOrbitShiftRuntimeSettings = appCtx.pendingRuntimeSettings),
               (cachedOrbitShiftOverview = isOverviewOrbitShift));
           }
           const multiply = activeCamera.quaternion.clone().multiply(clone7.invert()),
@@ -18542,12 +18295,12 @@ function runStudioRenderLoop() {
         return controlsUpdate;
       }));
   }
-  let reflectionModeIndex = isEmbeddedStage ? 0 : 1;
+  ctx.reflectionModeIndex = isEmbeddedStage ? 0 : 1;
   const reflectionMaterialsByMesh = new WeakMap();
-  let isReflectionEnabled = !isEmbeddedStage;
+  ctx.isReflectionEnabled = !isEmbeddedStage;
   function applyReflectionVisibility() {
-    if (!isReflectionEnabled) {
-      for (const reflectionTarget of syncTargets)
+    if (!ctx.isReflectionEnabled) {
+      for (const reflectionTarget of ctx.syncTargets)
         if (!(
           !reflectionTarget.userData?.floorPlanGroundShadow &&
           reflectionTarget.userData?.batchedWallContactShadowCount == null
@@ -18556,26 +18309,26 @@ function runStudioRenderLoop() {
             (reflectionMaterialsByMesh.has(reflectionMaterial) ||
               reflectionMaterialsByMesh.set(reflectionMaterial, reflectionMaterial.opacity),
               (reflectionMaterial.opacity =
-                reflectionMaterialsByMesh.get(reflectionMaterial) * reflectionModeIndex));
+                reflectionMaterialsByMesh.get(reflectionMaterial) * ctx.reflectionModeIndex));
         }
-      reflectionModeIndex === 1 && (isReflectionEnabled = true);
+      ctx.reflectionModeIndex === 1 && (ctx.isReflectionEnabled = true);
     }
   }
   function prepareReflectionTargets() {
-    ((cameraRootRef !== sceneRootNode || cameraFirstChildRef !== sceneRootNode?.children[0]) &&
-      ((cameraRootRef = sceneRootNode),
-      (cameraFirstChildRef = sceneRootNode?.children[0]),
-      (syncTargets = []),
-      sceneRootNode?.traverse((reflectionNode: any) => {
+    ((ctx.cameraRootRef !== appCtx.sceneRootNode || ctx.cameraFirstChildRef !== appCtx.sceneRootNode?.children[0]) &&
+      ((ctx.cameraRootRef = appCtx.sceneRootNode),
+      (ctx.cameraFirstChildRef = appCtx.sceneRootNode?.children[0]),
+      (ctx.syncTargets = []),
+      appCtx.sceneRootNode?.traverse((reflectionNode: any) => {
         (["background", "grid"].includes(reflectionNode.userData?.exportRole) ||
           reflectionNode.userData?.floorPlanGroundShadow === true ||
           reflectionNode.userData?.batchedWallContactShadowCount != null) &&
-          syncTargets.push(reflectionNode);
+          ctx.syncTargets.push(reflectionNode);
       })),
-      backgroundController?.sync(syncTargets, isBackgroundVisible));
-    for (const preparedReflectionTarget of syncTargets)
+      appCtx.backgroundController?.sync(ctx.syncTargets, ctx.isBackgroundVisible));
+    for (const preparedReflectionTarget of ctx.syncTargets)
       preparedReflectionTarget.visible =
-        isBackgroundVisible &&
+        ctx.isBackgroundVisible &&
         (!preparedReflectionTarget.userData.floorBackgroundHidden ||
           preparedReflectionTarget.userData.backgroundThemeKeepVisible === true) &&
         !preparedReflectionTarget.userData.backgroundThemeHidden;
@@ -18609,42 +18362,39 @@ function runStudioRenderLoop() {
     new URLSearchParams(globalThis.window?.location?.search || "").get(
       "performance-diagnostics",
     ) === "1" && new URLSearchParams(window.location.search).get("reflection-work") === "baseline";
-  let previousReflectionEnabled = isEmbeddedStage,
-    isReflectionDisabled = !isEmbeddedStage,
-    reflectionDetailMode = isEmbeddedStage ? 0 : 1,
-    isShadowReady = false,
-    hasEffectsPrepared = false,
-    isStartupPresentationDone = false,
-    shouldStartPresentation = !isEmbeddedStage;
-  (regionLightController?.setPresentationGain(reflectionDetailMode),
-    regionLightController?.setShadowPresentationGain(reflectionModeIndex));
+  ctx.previousReflectionEnabled = isEmbeddedStage;
+  ctx.isReflectionDisabled = !isEmbeddedStage;
+  ctx.reflectionDetailMode = isEmbeddedStage ? 0 : 1;
+  ctx.shouldStartPresentation = !isEmbeddedStage;
+  (appCtx.regionLightController?.setPresentationGain(ctx.reflectionDetailMode),
+    appCtx.regionLightController?.setShadowPresentationGain(ctx.reflectionModeIndex));
   const progressListenerSet = new Set<(progress: number) => void>(),
     startupPresentation = createStartupPresentation2({
       coverWindow: window.parent,
       waitForEffects: true,
       onPreparationFrame: (preparationFrame: any) =>
-        contactShadowController?.prepareDuringEntrance?.(preparationFrame),
+        appCtx.contactShadowController?.prepareDuringEntrance?.(preparationFrame),
       onProgress: (startupProgress: any) => {
-        (overviewStackController?.setEntryProgress(startupProgress),
-          regionLightController?.setPresentationGain(startupProgress),
+        (appCtx.overviewStackController?.setEntryProgress(startupProgress),
+          appCtx.regionLightController?.setPresentationGain(startupProgress),
           renderStudioFrame());
       },
       onShadowsProgress: (shadowsProgress: any) => {
         (shadowsProgress > 0 &&
-          !hasEffectsPrepared &&
-          ((hasEffectsPrepared = true), stageLoadTiming("shadows-reveal-start")),
-          (reflectionModeIndex = shadowsProgress),
-          regionLightController?.setShadowPresentationGain(shadowsProgress),
+          !ctx.hasEffectsPrepared &&
+          ((ctx.hasEffectsPrepared = true), stageLoadTiming("shadows-reveal-start")),
+          (ctx.reflectionModeIndex = shadowsProgress),
+          appCtx.regionLightController?.setShadowPresentationGain(shadowsProgress),
           applyReflectionVisibility(),
           renderStudioFrame());
       },
       onEffectsProgress: (effectsProgress: any) => {
         (effectsProgress > 0 &&
-          !isStartupPresentationDone &&
-          ((isStartupPresentationDone = true), stageLoadTiming("effects-reveal-start")),
+          !ctx.isStartupPresentationDone &&
+          ((ctx.isStartupPresentationDone = true), stageLoadTiming("effects-reveal-start")),
 
 
-          (reflectionDetailMode = effectsProgress));
+          (ctx.reflectionDetailMode = effectsProgress));
         for (const progressListener of progressListenerSet) progressListener(effectsProgress);
       },
       onComplete: () => {
@@ -18652,8 +18402,8 @@ function runStudioRenderLoop() {
       },
       onMotionComplete: () => {
         (stageLoadTiming("entry-motion-finished"),
-          (isReflectionDisabled = true),
-          contactShadowController?.finishDeferredSurfaceBake?.(),
+          (ctx.isReflectionDisabled = true),
+          appCtx.contactShadowController?.finishDeferredSurfaceBake?.(),
           renderStudioFrame());
       },
     });
@@ -18666,97 +18416,92 @@ function runStudioRenderLoop() {
       once: true,
     },
   );
-  const groundReflections = (rendererLossHandler = createGroundReflections2({
+  const groundReflections = (appCtx.rendererLossHandler = createGroundReflections2({
       passes: reflectionPasses,
       detail: reflectionDetail,
       THREE: ns2,
-      renderer: threeRenderer,
-      scene: threeScene,
+      renderer: appCtx.threeRenderer,
+      scene: appCtx.threeScene,
       ...interactionResourcePolicy.reflections,
-      getRoot: () => sceneRootNode,
-      getSceneRevision: () => sceneRevisionCount + ":" + curtainFrameKey,
+      getRoot: () => appCtx.sceneRootNode,
+      getSceneRevision: () => appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey,
       floorLighting: isEmbedStageMode,
       persistentCache: isEmbedStageMode ? stageStartup2?.reflectionCache : null,
-      getPersistentState: (floorId: any) => regionLightController?.persistentKey?.(floorId),
+      getPersistentState: (floorId: any) => appCtx.regionLightController?.persistentKey?.(floorId),
       getPersistentMaterialState: (material: any) =>
-        floorRetentionService?.persistentMaterialKey?.(material),
+        ctx.floorRetentionService?.persistentMaterialKey?.(material),
       getFloorCamera: (floorCamera: any, cameraFloorId: any) =>
-        overviewStackController?.reflectionCamera(floorCamera, cameraFloorId) || floorCamera,
+        appCtx.overviewStackController?.reflectionCamera(floorCamera, cameraFloorId) || floorCamera,
       cull: !isReflectionDiagnosticsMode,
       maxResumeCapturesPerFrame: 1,
       syncLighting: (lightingCamera: any) =>
         isReflectionDiagnosticsMode
-          ? regionLightController?.sync(lightingCamera, true)
-          : regionLightController?.syncCamera(lightingCamera),
+          ? appCtx.regionLightController?.sync(lightingCamera, true)
+          : appCtx.regionLightController?.syncCamera(lightingCamera),
       requestFrame: () => renderStudioFrame(),
       getStateKey: () =>
         [
-          sceneRevisionCount,
-          isEnvironmentActive,
-          studioProject.uniformOverviewStack === true,
-          isEmbedStageMode ? "" : modelRevisionCounter,
-          isCacheReady,
-          threeRenderer.toneMappingExposure,
+          appCtx.sceneRevisionCount,
+          appCtx.isEnvironmentActive,
+          appCtx.studioProject.uniformOverviewStack === true,
+          isEmbedStageMode ? "" : appCtx.modelRevisionCounter,
+          appCtx.isCacheReady,
+          appCtx.threeRenderer.toneMappingExposure,
         ].join("|"),
     })),
     floorEffectsQuery = new URLSearchParams(globalThis.window?.location?.search || "").get(
       "floorEffects",
     );
-  let isReflectionsSuspended = false,
-    shouldSuspendReflections = false;
-  previousReflectionEnabled && groundReflections.setSuspended(true);
+  ctx.previousReflectionEnabled && groundReflections.setSuspended(true);
   const motionPresentation = createMotionPresentation2({
     reflections(reflectionsSuspended: any) {
-      ((shouldSuspendReflections = reflectionsSuspended),
+      ((ctx.shouldSuspendReflections = reflectionsSuspended),
         groundReflections.setSuspended?.(
-          previousReflectionEnabled || isReflectionsSuspended || reflectionsSuspended,
+          ctx.previousReflectionEnabled || ctx.isReflectionsSuspended || reflectionsSuspended,
           {
-            fade: !isReflectionsSuspended && !previousReflectionEnabled,
+            fade: !ctx.isReflectionsSuspended && !ctx.previousReflectionEnabled,
           },
         ));
     },
     shadows(shadowsEnabled: any) {
-      (contactShadowController?.setVisibleFloor?.(
-        getPreviewFloorMode() === "all" ? null : activeFloorId,
+      (appCtx.contactShadowController?.setVisibleFloor?.(
+        getPreviewFloorMode() === "all" ? null : appCtx.activeFloorId,
       ),
-        contactShadowController?.setMotion?.(shadowsEnabled));
+        appCtx.contactShadowController?.setMotion?.(shadowsEnabled));
     },
   });
   function applyShadowSettings(nextShadowsEnabled: any, prevShadowsEnabled: any) {
     const shadowSettingsChanged = nextShadowsEnabled && !prevShadowsEnabled;
-    ((threeRenderer.domElement.dataset.editorEffects = nextShadowsEnabled
+    ((appCtx.threeRenderer.domElement.dataset.editorEffects = nextShadowsEnabled
       ? prevShadowsEnabled
         ? "light-preview"
         : "paused"
       : "runtime"),
-      isReflectionsSuspended !== shadowSettingsChanged &&
-        ((isReflectionsSuspended = shadowSettingsChanged),
+      ctx.isReflectionsSuspended !== shadowSettingsChanged &&
+        ((ctx.isReflectionsSuspended = shadowSettingsChanged),
         groundReflections.setSuspended?.(
-          previousReflectionEnabled || isReflectionsSuspended || shouldSuspendReflections,
+          ctx.previousReflectionEnabled || ctx.isReflectionsSuspended || ctx.shouldSuspendReflections,
         ),
         renderStudioFrame()));
   }
   const We3 =
     (isEmbedStageMode || floorEffectsQuery === "follow") && floorEffectsQuery !== "deferred";
-  let hasShadowBoost = false,
-    shadowBoostStart: any = null,
-    isShadowBoostActive = true;
   const shadowIntensitiesByLight = new Map();
   function setShadowsEnabled(shadowEnabledFlag: any) {
-    if (hasShadowBoost !== shadowEnabledFlag) {
-      if (((hasShadowBoost = shadowEnabledFlag), We3)) {
-        (shadowEnabledFlag && (isShadowBoostActive = threeRenderer.shadowMap.autoUpdate),
-          (threeRenderer.shadowMap.autoUpdate = shadowEnabledFlag || isShadowBoostActive),
-          (threeRenderer.shadowMap.needsUpdate = true),
-          regionLightController?.setMotion?.(shadowEnabledFlag, true));
+    if (ctx.hasShadowBoost !== shadowEnabledFlag) {
+      if (((ctx.hasShadowBoost = shadowEnabledFlag), We3)) {
+        (shadowEnabledFlag && (ctx.isShadowBoostActive = appCtx.threeRenderer.shadowMap.autoUpdate),
+          (appCtx.threeRenderer.shadowMap.autoUpdate = shadowEnabledFlag || ctx.isShadowBoostActive),
+          (appCtx.threeRenderer.shadowMap.needsUpdate = true),
+          appCtx.regionLightController?.setMotion?.(shadowEnabledFlag, true));
         return;
       }
       (shadowEnabledFlag
-        ? ((shadowBoostStart = null),
-          (isShadowBoostActive = threeRenderer.shadowMap.autoUpdate),
-          (threeRenderer.shadowMap.autoUpdate = false),
-          (threeRenderer.shadowMap.needsUpdate = false),
-          threeScene.traverse((shadowNode: any) => {
+        ? ((ctx.shadowBoostStart = null),
+          (ctx.isShadowBoostActive = appCtx.threeRenderer.shadowMap.autoUpdate),
+          (appCtx.threeRenderer.shadowMap.autoUpdate = false),
+          (appCtx.threeRenderer.shadowMap.needsUpdate = false),
+          appCtx.threeScene.traverse((shadowNode: any) => {
             !shadowNode.isLight ||
               !shadowNode.castShadow ||
               !shadowNode.shadow ||
@@ -18764,20 +18509,20 @@ function runStudioRenderLoop() {
                 shadowIntensitiesByLight.set(shadowNode.shadow, shadowNode.shadow.intensity ?? 1),
               (shadowNode.shadow.intensity = 0));
           }))
-        : ((threeRenderer.shadowMap.autoUpdate = isShadowBoostActive),
-          (threeRenderer.shadowMap.needsUpdate = true),
-          (shadowBoostStart = performance.now())),
-        regionLightController?.setMotion?.(shadowEnabledFlag));
+        : ((appCtx.threeRenderer.shadowMap.autoUpdate = ctx.isShadowBoostActive),
+          (appCtx.threeRenderer.shadowMap.needsUpdate = true),
+          (ctx.shadowBoostStart = performance.now())),
+        appCtx.regionLightController?.setMotion?.(shadowEnabledFlag));
     }
   }
   function updateShadowBoost() {
-    if (hasShadowBoost || shadowBoostStart === null) return;
-    const shadowBoostProgress = Math.min(1, (performance.now() - shadowBoostStart) / 280);
+    if (ctx.hasShadowBoost || ctx.shadowBoostStart === null) return;
+    const shadowBoostProgress = Math.min(1, (performance.now() - ctx.shadowBoostStart) / 280);
     for (const [boostedLight, baselineIntensity] of shadowIntensitiesByLight)
       boostedLight.intensity = baselineIntensity * shadowBoostProgress;
     shadowBoostProgress < 1
       ? renderStudioFrame()
-      : (shadowIntensitiesByLight.clear(), (shadowBoostStart = null));
+      : (shadowIntensitiesByLight.clear(), (ctx.shadowBoostStart = null));
   }
   const scheduleTask = (schedulerKey: any, schedulerWork: any) =>
     typeof measureFloorSwitchPhase == "function"
@@ -18788,16 +18533,16 @@ function runStudioRenderLoop() {
   }
   const floorTransition = createFloorTransition2({
       THREE: ns2,
-      getRoot: () => sceneRootNode,
+      getRoot: () => appCtx.sceneRootNode,
       dispose: disposeObjectTree,
       release: retainFloorNode,
       suspendReflections: suspendReflections,
       invalidate: (invalidatedFloorId) => {
         (invalidatedFloorId &&
-          ((orbitTargetVector = null),
-          (renderRootRef = null),
-          (renderKeyRef = undefined),
-          (viewportBaseCamera = null),
+          ((ctx.orbitTargetVector = null),
+          (ctx.renderRootRef = null),
+          (ctx.renderKeyRef = undefined),
+          (ctx.viewportBaseCamera = null),
           configureOrbitControls()),
           We3 && !invalidatedFloorId && computeSceneExtent(),
           refreshSceneRender(
@@ -18813,7 +18558,6 @@ function runStudioRenderLoop() {
       },
     }),
     recordsByFloorId = new Map();
-  let previousSceneSnapshot: any = [];
   function invalidateFloorTransition(resolvedFloorId: any) {
     const floorTransitionRecord = floorTransition.records.find(
       (transitionRecord: any) => transitionRecord.id === resolvedFloorId,
@@ -18824,23 +18568,23 @@ function runStudioRenderLoop() {
         floorTransitionRecord.node.matrixWorld.clone().multiply(floorTransitionRecord.baseFrame)
       );
     const sceneSnapshotKeys = [
-      sceneRootNode,
-      studioProject,
-      sceneRevisionCount,
+      appCtx.sceneRootNode,
+      appCtx.studioProject,
+      appCtx.sceneRevisionCount,
       getPreviewFloorMode(),
-      studioProject.previewFloorGap,
+      appCtx.studioProject.previewFloorGap,
     ];
     return (
       sceneSnapshotKeys.some(
-        (snapshotItem, snapshotIndex) => snapshotItem !== previousSceneSnapshot[snapshotIndex],
-      ) && ((previousSceneSnapshot = sceneSnapshotKeys), recordsByFloorId.clear()),
+        (snapshotItem, snapshotIndex) => snapshotItem !== ctx.previousSceneSnapshot[snapshotIndex],
+      ) && ((ctx.previousSceneSnapshot = sceneSnapshotKeys), recordsByFloorId.clear()),
       recordsByFloorId.has(resolvedFloorId) ||
         recordsByFloorId.set(resolvedFloorId, cameraTargetForFloor(resolvedFloorId)),
       recordsByFloorId.get(resolvedFloorId)
     );
   }
-  (contactShadowController?.setFrameProvider?.(invalidateFloorTransition),
-    regionLightController?.setMotionTransformProvider?.((motionNode: any) => {
+  (appCtx.contactShadowController?.setFrameProvider?.(invalidateFloorTransition),
+    appCtx.regionLightController?.setMotionTransformProvider?.((motionNode: any) => {
       const motionRecord = floorTransition.records.find(
         (motionRecordEntry: any) => motionRecordEntry.id === motionNode,
       );
@@ -18849,7 +18593,7 @@ function runStudioRenderLoop() {
           (motionRecord.lightingTransform ||= new ns2.Matrix4())
             .copy(motionRecord.node.matrixWorld)
             .invert()
-            .premultiply(sceneRootNode.matrixWorld))
+            .premultiply(appCtx.sceneRootNode.matrixWorld))
         : null;
     }),
     globalThis.window?.addEventListener(
@@ -18864,7 +18608,7 @@ function runStudioRenderLoop() {
     globalThis.window?.addEventListener("pagehide", () => groundReflections.dispose(), {
       once: true,
     }));
-  const onBeforeRender = threeScene.onBeforeRender,
+  const onBeforeRender = appCtx.threeScene.onBeforeRender,
     reflectionProbeMesh = new ns2.Mesh(
       new ns2.BufferGeometry().setAttribute("position", new ns2.Float32BufferAttribute([], 3)),
       new ns2.MeshBasicMaterial({
@@ -18878,13 +18622,13 @@ function runStudioRenderLoop() {
     (reflectionProbeMesh.renderOrder = -1000000000),
     reflectionProbeMesh.layers.enableAll(),
     (reflectionProbeMesh.onBeforeRender = () => {
-      shouldRefreshGeometry &&
-        !hasShadowBoost &&
-        (shouldRefreshGeometry = lightPrecompileController
-          ? !lightPrecompileController.refreshGeometry(sceneRootNode, geometryBoxes)
+      ctx.shouldRefreshGeometry &&
+        !ctx.hasShadowBoost &&
+        (ctx.shouldRefreshGeometry = appCtx.lightPrecompileController
+          ? !appCtx.lightPrecompileController.refreshGeometry(appCtx.sceneRootNode, ctx.geometryBoxes)
           : false);
     }),
-    threeScene.add(reflectionProbeMesh),
+    appCtx.threeScene.add(reflectionProbeMesh),
     globalThis.window?.addEventListener(
       "pagehide",
       () => {
@@ -18896,77 +18640,77 @@ function runStudioRenderLoop() {
         once: true,
       },
     ),
-    (threeScene.onBeforeRender = function (...renderArgs: any[]) {
+    (appCtx.threeScene.onBeforeRender = function (...renderArgs: any[]) {
       if (groundReflections.stats.inCapture) {
-        isReflectionDiagnosticsMode && regionLightController?.sync(renderArgs[2], true);
+        isReflectionDiagnosticsMode && appCtx.regionLightController?.sync(renderArgs[2], true);
         return;
       }
       groundReflections.setInsideEnabled?.(getPreviewFloorMode() !== "all");
       if (
         (updateShadowBoost(),
-        reflectionDetailMode === 0 && releaseStartupDeviceSync?.(),
-        hasShadowBoost || scheduleTask("curtains", () => releaseCurtains?.()),
-        scheduleTask("television-screens", () => releaseTelevisionScreens?.()),
-        shouldRefreshGeometry && !hasShadowBoost)
+        ctx.reflectionDetailMode === 0 && ctx.releaseStartupDeviceSync?.(),
+        ctx.hasShadowBoost || scheduleTask("curtains", () => ctx.releaseCurtains?.()),
+        scheduleTask("television-screens", () => ctx.releaseTelevisionScreens?.()),
+        ctx.shouldRefreshGeometry && !ctx.hasShadowBoost)
       ) {
-        (geometryRootRef !== sceneRootNode || geometryKeyRef !== sceneRevisionCount) &&
-          ((geometryRootRef = sceneRootNode),
-          (geometryKeyRef = sceneRevisionCount),
-          (shadowLights = []),
-          (geometryBoxes = []),
-          sceneRootNode?.updateWorldMatrix(true, true),
-          sceneRootNode?.traverse((probeNode: any) => {
+        (ctx.geometryRootRef !== appCtx.sceneRootNode || ctx.geometryKeyRef !== appCtx.sceneRevisionCount) &&
+          ((ctx.geometryRootRef = appCtx.sceneRootNode),
+          (ctx.geometryKeyRef = appCtx.sceneRevisionCount),
+          (ctx.shadowLights = []),
+          (ctx.geometryBoxes = []),
+          appCtx.sceneRootNode?.updateWorldMatrix(true, true),
+          appCtx.sceneRootNode?.traverse((probeNode: any) => {
             probeNode.userData?.environmentModelType === "curtain" &&
-              geometryBoxes.push(new ns2.Box3().setFromObject(probeNode));
+              ctx.geometryBoxes.push(new ns2.Box3().setFromObject(probeNode));
           }),
-          threeScene.traverse((sceneShadowNode: any) => {
+          appCtx.threeScene.traverse((sceneShadowNode: any) => {
             sceneShadowNode.isLight &&
               sceneShadowNode.castShadow &&
               sceneShadowNode.shadow &&
-              shadowLights.push(sceneShadowNode);
+              ctx.shadowLights.push(sceneShadowNode);
           }));
-        for (const shadowUpdateLight of shadowLights) shadowUpdateLight.shadow.needsUpdate = true;
-        contactShadowController?.invalidate(invalidationBounds, true);
+        for (const shadowUpdateLight of ctx.shadowLights) shadowUpdateLight.shadow.needsUpdate = true;
+        appCtx.contactShadowController?.invalidate(ctx.invalidationBounds, true);
       }
       if (
         (scheduleTask("lighting-and-contact", () => onBeforeRender?.apply(this, renderArgs)),
-        hasShadowBoost ||
-          (floorRetentionService?.setRoot(
-            sceneRootNode,
-            sceneRevisionCount + ":" + curtainFrameKey,
+        ctx.hasShadowBoost ||
+          (ctx.floorRetentionService?.setRoot(
+            appCtx.sceneRootNode,
+            appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey,
           ),
-          sceneRetentionService?.setRoot(sceneRootNode, sceneRevisionCount)),
+          ctx.sceneRetentionService?.setRoot(appCtx.sceneRootNode, appCtx.sceneRevisionCount)),
         prepareReflectionTargets(),
         syncViewOffset(),
-        previousReflectionEnabled &&
-          isReflectionDisabled &&
-          !contactShadowController?.isPending?.() &&
-          !contactShadowController?.hasPendingSurfaces?.() &&
-          ((previousReflectionEnabled = false),
-          groundReflections.setSuspended(isReflectionsSuspended || shouldSuspendReflections, {
+        ctx.previousReflectionEnabled &&
+          ctx.isReflectionDisabled &&
+          !appCtx.contactShadowController?.isPending?.() &&
+          !appCtx.contactShadowController?.hasPendingSurfaces?.() &&
+          ((ctx.previousReflectionEnabled = false),
+          groundReflections.setSuspended(ctx.isReflectionsSuspended || ctx.shouldSuspendReflections, {
 
             fadeIn: true,
           }),
           groundReflections.changed(),
           stageLoadTiming("surface-shadows-ready"),
           startupPresentation.shadowsReady()),
-        !previousReflectionEnabled &&
+        !ctx.previousReflectionEnabled &&
 
 
-          (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass) &&
+          (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
           (scheduleTask("reflections", () => {
             const renderGroundReflections = () =>
               groundReflections.render(renderArgs[2], {
                 worldMatricesCurrent: true,
               });
-            reflectionDetailMode < 1 && regionLightController
-              ? regionLightController.withPresentationGain(1, renderGroundReflections)
+            ctx.reflectionDetailMode < 1 && appCtx.regionLightController
+              ? appCtx.regionLightController.withPresentationGain(1, renderGroundReflections)
               : renderGroundReflections();
           }),
-          isReflectionDisabled &&
-            !isShadowReady &&
+          ctx.isReflectionDisabled &&
+            !ctx.isShadowReady &&
             groundReflections.isPrepared() &&
-            ((isShadowReady = true),
+            ((ctx.isShadowReady = true),
             stageLoadTiming("reflections-ready"),
             startupPresentation.effectsReady()),
           isRenderLoopPerformanceDiagnostics || isRenderStatsTest))
@@ -18975,85 +18719,85 @@ function runStudioRenderLoop() {
           ...groundReflections.stats,
           detail: reflectionDetail?.stats,
         });
-        threeRenderer.domElement.dataset.reflectionStats !== reflectionStatsJson &&
-          (threeRenderer.domElement.dataset.reflectionStats = reflectionStatsJson);
+        appCtx.threeRenderer.domElement.dataset.reflectionStats !== reflectionStatsJson &&
+          (appCtx.threeRenderer.domElement.dataset.reflectionStats = reflectionStatsJson);
       }
-      renderArgs[2] === threeCamera &&
-        (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass) &&
-        (overviewDetail.prepare(sceneRootNode, sceneRevisionCount),
+      renderArgs[2] === appCtx.threeCamera &&
+        (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
+        (overviewDetail.prepare(appCtx.sceneRootNode, appCtx.sceneRevisionCount),
         overviewDetail.begin(renderArgs[2]),
         isRenderLoopPerformanceDiagnostics &&
-          (threeRenderer.domElement.dataset.overviewDetailStats = JSON.stringify(
+          (appCtx.threeRenderer.domElement.dataset.overviewDetailStats = JSON.stringify(
             overviewDetail.stats,
           )));
     }));
   const overviewDetail = createOverviewDetail2({
     THREE: ns2,
-    renderer: threeRenderer,
-    scene: threeScene,
-    getCamera: () => threeCamera,
+    renderer: appCtx.threeRenderer,
+    scene: appCtx.threeScene,
+    getCamera: () => appCtx.threeCamera,
     getFloorId: overviewFloorId2,
     getFloorCamera: (overviewCamera, overviewFloorId) =>
-      overviewStackController?.cameraForFloor(overviewFloorId2(overviewCamera), overviewFloorId) ||
+      appCtx.overviewStackController?.cameraForFloor(overviewFloorId2(overviewCamera), overviewFloorId) ||
       overviewFloorId,
     enabled: () =>
       !isBaselineGeometryMode &&
       getPreviewFloorMode() === "all" &&
-      !isPerspectiveCameraMode &&
-      !stereoSampleIndex &&
-      !isRenderLoopOverviewMode &&
-      !hasShadowBoost &&
-      isReflectionDisabled &&
-      reflectionDetailMode === 1 &&
-      !pendingRuntimeSettings &&
-      (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass),
+      !ctx.isPerspectiveCameraMode &&
+      !ctx.stereoSampleIndex &&
+      !ctx.isRenderLoopOverviewMode &&
+      !ctx.hasShadowBoost &&
+      ctx.isReflectionDisabled &&
+      ctx.reflectionDetailMode === 1 &&
+      !appCtx.pendingRuntimeSettings &&
+      (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass),
     requestFrame: () => {
-      (compiledShaderCache?.clear(), renderStudioFrame());
+      (appCtx.compiledShaderCache?.clear(), renderStudioFrame());
     },
   });
   window.addEventListener("pagehide", () => overviewDetail.dispose(), {
     once: true,
   });
-  const onAfterRender = threeScene.onAfterRender;
-  threeScene.onAfterRender = function (...afterRenderArgs: any[]) {
+  const onAfterRender = appCtx.threeScene.onAfterRender;
+  appCtx.threeScene.onAfterRender = function (...afterRenderArgs: any[]) {
     (onAfterRender?.apply(this, afterRenderArgs),
-      isShadowReady &&
-        reflectionDetailMode === 1 &&
-        afterRenderArgs[2] === threeCamera &&
-        (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass) &&
-        (contactShadowController?.allowPersistence?.(),
+      ctx.isShadowReady &&
+        ctx.reflectionDetailMode === 1 &&
+        afterRenderArgs[2] === appCtx.threeCamera &&
+        (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
+        (appCtx.contactShadowController?.allowPersistence?.(),
         groundReflections.allowPersistence()),
-      !shouldStartPresentation &&
-        afterRenderArgs[2] === threeCamera &&
-        reflectionModeIndex > 0 &&
-        ((shouldStartPresentation = true), renderStudioFrame()));
+      !ctx.shouldStartPresentation &&
+        afterRenderArgs[2] === appCtx.threeCamera &&
+        ctx.reflectionModeIndex > 0 &&
+        ((ctx.shouldStartPresentation = true), renderStudioFrame()));
   };
-  function buildCameraPose(poseTarget = orbitControls.target.clone()) {
-    const clone8 = threeCamera.position.clone();
-    (orbitControls.dispose(),
-      (orbitControls = createOrbitControls(threeCamera)),
-      threeCamera.position.copy(clone8),
-      orbitControls.target.copy(poseTarget));
+  function buildCameraPose(poseTarget = appCtx.orbitControls.target.clone()) {
+    const clone8 = appCtx.threeCamera.position.clone();
+    (appCtx.orbitControls.dispose(),
+      (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
+      appCtx.threeCamera.position.copy(clone8),
+      appCtx.orbitControls.target.copy(poseTarget));
     const poseDistance = Math.max(clone8.distanceTo(poseTarget), 0.001);
-    ((orbitControls.minDistance = Math.min(isPerspectiveCameraMode ? 0.1 : 2, poseDistance)),
-      (orbitControls.maxDistance = Math.max(100, poseDistance * 2)),
-      (orbitControls.minZoom = Math.min(0.35, threeCamera.zoom)),
-      (orbitControls.maxZoom = Math.max(isPerspectiveCameraMode ? 100 : 6, threeCamera.zoom)),
-      (orbitControls.maxPolarAngle = MAX_CAMERA_POLAR_ANGLE2),
-      (orbitControls.enableRotate = true),
-      (orbitControls.enabled = isOrbitEnabled),
-      orbitControls.update(),
+    ((appCtx.orbitControls.minDistance = Math.min(ctx.isPerspectiveCameraMode ? 0.1 : 2, poseDistance)),
+      (appCtx.orbitControls.maxDistance = Math.max(100, poseDistance * 2)),
+      (appCtx.orbitControls.minZoom = Math.min(0.35, appCtx.threeCamera.zoom)),
+      (appCtx.orbitControls.maxZoom = Math.max(ctx.isPerspectiveCameraMode ? 100 : 6, appCtx.threeCamera.zoom)),
+      (appCtx.orbitControls.maxPolarAngle = MAX_CAMERA_POLAR_ANGLE2),
+      (appCtx.orbitControls.enableRotate = true),
+      (appCtx.orbitControls.enabled = ctx.isOrbitEnabled),
+      appCtx.orbitControls.update(),
       applyOrbitControlSettings(),
       configureOrbitControls(),
       syncViewOffset(),
-      threeCamera.updateMatrixWorld());
+      appCtx.threeCamera.updateMatrixWorld());
   }
   return {
     reportLifecycle(lifecycleEvent: any, lifecycleDetail: any) {
       emitRuntimeDiagnostic(lifecycleEvent, lifecycleDetail);
     },
     onCameraChange(changedCamera: any) {
-      const domElement9 = threeRenderer.domElement;
+      const domElement9 = appCtx.threeRenderer.domElement;
       return (
         domElement9.addEventListener("hb-i3d-camera-frame", changedCamera),
         () => domElement9.removeEventListener("hb-i3d-camera-frame", changedCamera)
@@ -19061,7 +18805,7 @@ function runStudioRenderLoop() {
     },
     createFrameLoop: (frameLoopCallback: any) => createDemandFrameLoop2(frameLoopCallback),
     setPresentedVisible(presentedVisible: any) {
-      threeRenderer.domElement.dispatchEvent?.(
+      appCtx.threeRenderer.domElement.dispatchEvent?.(
         new CustomEvent("hb-i3d-parent-visibility", {
           detail: presentedVisible === true,
         }),
@@ -19070,7 +18814,7 @@ function runStudioRenderLoop() {
     THREE: ns2,
     constrainCameraPose: constrainCameraPose2,
     container: selectElement("#preview-3d"),
-    canvas: threeRenderer.domElement,
+    canvas: appCtx.threeRenderer.domElement,
     get groundReflections() {
       return groundReflections;
     },
@@ -19078,48 +18822,48 @@ function runStudioRenderLoop() {
       groundReflections.changed(reflectionInvalidateReason);
     },
     get modelRoot() {
-      return sceneRootNode;
+      return appCtx.sceneRootNode;
     },
     get retainedModelRoots() {
       return [...retainedFloorsByKey.values()].map((environmentEntry) => environmentEntry.node);
     },
     get overlayScene() {
-      return threeScene;
+      return appCtx.threeScene;
     },
     get backgroundFloor() {
-      return getPreviewFloorMode() === "all" ? "all" : activeFloorId;
+      return getPreviewFloorMode() === "all" ? "all" : appCtx.activeFloorId;
     },
     get backgroundFloorTransition() {
-      return floorTransition.active && unusedRenderState
+      return floorTransition.active && ctx.unusedRenderState
         ? {
-            from: unusedRenderState,
-            amount: unusedRenderCounter,
+            from: ctx.unusedRenderState,
+            amount: ctx.unusedRenderCounter,
           }
         : null;
     },
     get sceneRevision() {
-      return sceneRevisionCount;
+      return appCtx.sceneRevisionCount;
     },
     get environmentRevision() {
-      return sceneRevisionCount + ":" + curtainFrameKey;
+      return appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey;
     },
     prepareEnvironmentMaterials() {
-      regionLightController?.prepareMaterials();
+      appCtx.regionLightController?.prepareMaterials();
     },
     setEnvironmentScene(environmentScene: any) {
-      floorRetentionService = environmentScene;
+      ctx.floorRetentionService = environmentScene;
     },
     setEnvironmentAirflow(environmentAirflow: any) {
-      sceneRetentionService = environmentAirflow;
+      ctx.sceneRetentionService = environmentAirflow;
     },
     setCurtainSync(curtainSync: any) {
-      releaseCurtains = curtainSync;
+      ctx.releaseCurtains = curtainSync;
     },
     setTelevisionSync(televisionSync: any) {
-      releaseTelevisionScreens = televisionSync;
+      ctx.releaseTelevisionScreens = televisionSync;
     },
     setStartupDeviceSync(startupDeviceSync: any) {
-      releaseStartupDeviceSync = startupDeviceSync;
+      ctx.releaseStartupDeviceSync = startupDeviceSync;
     },
     curtainFrame({
       key: curtainKey,
@@ -19127,8 +18871,8 @@ function runStudioRenderLoop() {
       floorIds: curtainFloorIds = [],
       moving: runStudioRenderLoopIsCurtainMoving,
     }: any) {
-      const hasCurtainKeyChanged = curtainKey !== curtainStructureJson,
-        Dr2 = isCurtainMoving;
+      const hasCurtainKeyChanged = curtainKey !== appCtx.curtainStructureJson,
+        Dr2 = appCtx.isCurtainMoving;
       if (!(!hasCurtainKeyChanged && Dr2 === runStudioRenderLoopIsCurtainMoving)) {
         if (hasCurtainKeyChanged)
           try {
@@ -19142,7 +18886,7 @@ function runStudioRenderLoop() {
                 }
                 return curtainPanelsByKey;
               },
-              previousCurtainPanels = parseCurtainFrame(curtainStructureJson),
+              previousCurtainPanels = parseCurtainFrame(appCtx.curtainStructureJson),
               currentCurtainPanels = parseCurtainFrame(curtainKey);
             groundReflections.changed(
               [
@@ -19156,20 +18900,20 @@ function runStudioRenderLoop() {
           } catch {
             groundReflections.changed(curtainFloorIds);
           }
-        (curtainStructure !== curtainFrameKey &&
-          (lightPrecompileController?.prepareRoot(sceneRootNode),
-          regionLightController?.invalidate()),
-          (invalidationBounds = [...new Set([...backgroundBoundaries, ...curtainFloorIds])]),
-          (backgroundBoundaries = curtainFloorIds),
+        (curtainStructure !== appCtx.curtainFrameKey &&
+          (appCtx.lightPrecompileController?.prepareRoot(appCtx.sceneRootNode),
+          appCtx.regionLightController?.invalidate()),
+          (ctx.invalidationBounds = [...new Set([...ctx.backgroundBoundaries, ...curtainFloorIds])]),
+          (ctx.backgroundBoundaries = curtainFloorIds),
           (hasCurtainKeyChanged || runStudioRenderLoopIsCurtainMoving) &&
             (Dr2 || (resetLightEffectStates(), sampleLightTransitions(performance.now(), true)),
-            hasCurtainKeyChanged && (shouldRefreshGeometry = true),
-            (modelRevisionCounter += 1),
-            (isFrameDirty = true),
+            hasCurtainKeyChanged && (ctx.shouldRefreshGeometry = true),
+            (appCtx.modelRevisionCounter += 1),
+            (appCtx.isFrameDirty = true),
             setFadeOverlay(false)),
-          (curtainStructureJson = curtainKey),
-          (isCurtainMoving = runStudioRenderLoopIsCurtainMoving),
-          (curtainFrameKey = curtainStructure),
+          (appCtx.curtainStructureJson = curtainKey),
+          (appCtx.isCurtainMoving = runStudioRenderLoopIsCurtainMoving),
+          (appCtx.curtainFrameKey = curtainStructure),
           runStudioRenderLoopIsCurtainMoving || scheduleControlsRestore(),
           renderStudioFrame());
       }
@@ -19180,44 +18924,44 @@ function runStudioRenderLoop() {
       });
     },
     setBackgroundTheme(backgroundTheme: any) {
-      ((backgroundController = backgroundTheme), prepareReflectionTargets());
+      ((appCtx.backgroundController = backgroundTheme), prepareReflectionTargets());
     },
     backgroundFrame(backgroundValue: any, { separate: separateBackground = false } = {}) {
       const isBackgroundEnabled = backgroundValue === true;
-      (isBackgroundEnabled !== isBackgroundMoving &&
-        ((isBackgroundMoving = isBackgroundEnabled),
+      (isBackgroundEnabled !== appCtx.isBackgroundMoving &&
+        ((appCtx.isBackgroundMoving = isBackgroundEnabled),
         isEmbedStageMode ||
           (isBackgroundEnabled
             ? (resetLightEffectStates(), sampleLightTransitions(performance.now(), true))
-            : (modelRevisionCounter++, (isFrameDirty = true), scheduleControlsRestore()))),
+            : (appCtx.modelRevisionCounter++, (appCtx.isFrameDirty = true), scheduleControlsRestore()))),
         separateBackground && isBackgroundEnabled
-          ? ((isLightCacheDeferred = true), lightingScheduler?.wake())
+          ? ((appCtx.isLightCacheDeferred = true), appCtx.lightingScheduler?.wake())
           : renderStudioFrame());
     },
     setVacuumMoving(vacuumMoving: any) {
       const isVacuumMovingRequested = vacuumMoving === true;
-      isVacuumMovingRequested !== isVacuumMoving &&
-        ((isVacuumMoving = isVacuumMovingRequested),
-        vacuumMoveCount++,
+      isVacuumMovingRequested !== appCtx.isVacuumMoving &&
+        ((appCtx.isVacuumMoving = isVacuumMovingRequested),
+        appCtx.vacuumMoveCount++,
         isVacuumMovingRequested
           ? (resetLightEffectStates(), sampleLightTransitions(performance.now(), true))
-          : (modelRevisionCounter++, (isFrameDirty = true), scheduleControlsRestore()),
+          : (appCtx.modelRevisionCounter++, (appCtx.isFrameDirty = true), scheduleControlsRestore()),
         renderStudioFrame());
     },
     setLockMoving(lockMoving: any) {
       const isLockMovingRequested = lockMoving === true;
-      isLockMovingRequested !== isLockMoving &&
-        ((isLockMoving = isLockMovingRequested),
-        lockMoveCount++,
+      isLockMovingRequested !== appCtx.isLockMoving &&
+        ((appCtx.isLockMoving = isLockMovingRequested),
+        appCtx.lockMoveCount++,
         isLockMovingRequested
           ? (resetLightEffectStates(), sampleLightTransitions(performance.now(), true))
-          : (modelRevisionCounter++, (isFrameDirty = true), scheduleControlsRestore()),
+          : (appCtx.modelRevisionCounter++, (appCtx.isFrameDirty = true), scheduleControlsRestore()),
         renderStudioFrame());
     },
     environmentModelPose(environmentPose: any, poseFloorId: any) {
       let poseRoot: any;
       if (
-        (sceneRootNode?.traverse((poseCandidateNode: any) => {
+        (appCtx.sceneRootNode?.traverse((poseCandidateNode: any) => {
           poseCandidateNode.userData?.environmentFloorId === environmentPose &&
             poseCandidateNode.userData?.environmentModelId === poseFloorId &&
             (poseRoot = poseCandidateNode);
@@ -19258,10 +19002,10 @@ function runStudioRenderLoop() {
     },
     setEnvironmentActive(environmentActive: any) {
       const isEnvironmentActiveRequested = environmentActive === true;
-      isEnvironmentActiveRequested !== isEnvironmentActive &&
+      isEnvironmentActiveRequested !== appCtx.isEnvironmentActive &&
         (isEnvironmentActiveRequested &&
           (resetLightEffectStates(), sampleLightTransitions(performance.now(), true)),
-        (isEnvironmentActive = isEnvironmentActiveRequested),
+        (appCtx.isEnvironmentActive = isEnvironmentActiveRequested),
         isEnvironmentActiveRequested || scheduleControlsRestore(),
         refreshSceneRender());
     },
@@ -19271,8 +19015,8 @@ function runStudioRenderLoop() {
       pickFloorEntries: any[] = [],
       pickSpreadRadius = 0,
     ) {
-      if (!sceneRootNode || !pickFloorEntries.length) return null;
-      const canvasClientRect = threeRenderer.domElement.getBoundingClientRect();
+      if (!appCtx.sceneRootNode || !pickFloorEntries.length) return null;
+      const canvasClientRect = appCtx.threeRenderer.domElement.getBoundingClientRect();
       if (!canvasClientRect.width || !canvasClientRect.height) return null;
       const usedModelKeySet = new Set(
           pickFloorEntries.map((usedModelEntry) =>
@@ -19282,9 +19026,9 @@ function runStudioRenderLoop() {
         entriesByMesh = new Map(),
         pickableMeshes: any = [],
         visitedModelKeySet = new Set();
-      (sceneRootNode.updateWorldMatrix(true, true),
-        threeCamera.updateMatrixWorld(),
-        sceneRootNode.traverse((pickMesh: any) => {
+      (appCtx.sceneRootNode.updateWorldMatrix(true, true),
+        appCtx.threeCamera.updateMatrixWorld(),
+        appCtx.sceneRootNode.traverse((pickMesh: any) => {
           if (!pickMesh.isMesh) return;
           let currentPickEntry: any = null;
           for (
@@ -19354,9 +19098,9 @@ function runStudioRenderLoop() {
         );
         let nearestHit: any = null;
         for (const [raycastObject, raycastTargets] of objectsByMesh) {
-          overviewStackController
-            ? overviewStackController.rayForFloor(raycastObject, sampleNdcPoint, pickRaycaster)
-            : pickRaycaster.setFromCamera(sampleNdcPoint, threeCamera);
+          appCtx.overviewStackController
+            ? appCtx.overviewStackController.rayForFloor(raycastObject, sampleNdcPoint, pickRaycaster)
+            : pickRaycaster.setFromCamera(sampleNdcPoint, appCtx.threeCamera);
           for (const rayIntersection of pickRaycaster.intersectObjects(raycastTargets, false)) {
             const hitMaterial = Array.isArray(rayIntersection.object.material)
               ? rayIntersection.object.material[rayIntersection.face?.materialIndex || 0]
@@ -19372,7 +19116,7 @@ function runStudioRenderLoop() {
       return null;
     },
     get camera() {
-      return threeCamera;
+      return appCtx.threeCamera;
     },
     presentationCamera(presentationCameraRoot: any) {
       if (typeof presentationCameraRoot != "string")
@@ -19390,33 +19134,33 @@ function runStudioRenderLoop() {
             break;
           }
         }
-      return overviewStackController?.cameraForFloor(presentationCameraRoot) || threeCamera;
+      return appCtx.overviewStackController?.cameraForFloor(presentationCameraRoot) || appCtx.threeCamera;
     },
     presentationRay(rayCamera: any, rayClientX: any, rayClientY: any) {
-      return overviewStackController
-        ? overviewStackController.rayForFloor(rayCamera, rayClientX, rayClientY)
-        : (rayClientY.setFromCamera(rayClientX, threeCamera), rayClientY);
+      return appCtx.overviewStackController
+        ? appCtx.overviewStackController.rayForFloor(rayCamera, rayClientX, rayClientY)
+        : (rayClientY.setFromCamera(rayClientX, appCtx.threeCamera), rayClientY);
     },
     get controls() {
-      return orbitControls;
+      return appCtx.orbitControls;
     },
     get document() {
-      return studioProject;
+      return appCtx.studioProject;
     },
     get defaults() {
       return DEFAULT_BASE_LIGHTING2;
     },
     get regionLighting() {
-      return regionLightController;
+      return appCtx.regionLightController;
     },
     invalidateRegionLighting() {
-      (regionLightController?.sync(threeCamera), renderStudioFrame());
+      (appCtx.regionLightController?.sync(appCtx.threeCamera), renderStudioFrame());
     },
     transformCamera(cameraFromState: any, cameraToState: any, immediateCameraTransform = false) {
       return transformSceneCamera2(
         cameraFromState,
         zn4,
-        studioProject,
+        appCtx.studioProject,
         cameraToState,
         immediateCameraTransform,
       );
@@ -19425,7 +19169,7 @@ function runStudioRenderLoop() {
       const sceneUpdateParams = new URLSearchParams(window.location.search),
         sceneUpdateQuery = new URLSearchParams({
           projectId: sceneUpdateParams.get("projectId") || "",
-          since: loadedDraft.syncKey || "",
+          since: appCtx.loadedDraft.syncKey || "",
         }),
         sceneUpdateResponse = await withRequestTimeout2(
           15000,
@@ -19448,34 +19192,34 @@ function runStudioRenderLoop() {
         );
       if (!sceneUpdateResponse) return null;
       const sceneUpdatePlan = sceneUpdatePlan2(
-        normalizeStudioDocument(loadedDraft.scene, studioDocumentDeps()),
+        normalizeStudioDocument(appCtx.loadedDraft.scene, studioDocumentDeps()),
         normalizeStudioDocument(sceneUpdateResponse.scene, studioDocumentDeps()),
       );
       if (!sceneUpdatePlan.full && !sceneUpdatePlan.floors.length) {
         const zn5 = normalizeStudioDocument(sceneUpdateResponse.scene, studioDocumentDeps());
-        studioProject.baseLighting = zn5.baseLighting;
+        appCtx.studioProject.baseLighting = zn5.baseLighting;
         for (const updatedFloorEntry of zn5.floors) {
-          const localFloorRecord = studioProject.floors.find(
+          const localFloorRecord = appCtx.studioProject.floors.find(
             (existingFloorRecord: any) => existingFloorRecord.id === updatedFloorEntry.id,
           );
           localFloorRecord && (localFloorRecord.name = updatedFloorEntry.name);
         }
         return (
           sceneUpdatePlan.lighting &&
-            !hasBaseLightingApplied &&
+            !ctx.hasBaseLightingApplied &&
             (trimRetainedFloors(), applyBaseLighting(zn5.baseLighting)),
-          (loadedDraft = sceneUpdateResponse),
+          (appCtx.loadedDraft = sceneUpdateResponse),
           null
         );
       }
       return sceneUpdateResponse;
     },
     get savedScene() {
-      return loadedDraft;
+      return appCtx.loadedDraft;
     },
     async replaceScene(replacementScene: any) {
       const zn6 = normalizeStudioDocument(replacementScene.scene, studioDocumentDeps()),
-        replaceScenePlan = sceneUpdatePlan2(normalizeStudioDocument(loadedDraft.scene, studioDocumentDeps()), zn6);
+        replaceScenePlan = sceneUpdatePlan2(normalizeStudioDocument(appCtx.loadedDraft.scene, studioDocumentDeps()), zn6);
       if (
         (floorTransition.finish(),
         trimRetainedFloors(
@@ -19484,23 +19228,23 @@ function runStudioRenderLoop() {
             : new Set(replaceScenePlan.floors),
         ),
         hasActiveLightTransition(),
-        (cameraRestoreState = null),
-        (orbitTargetVector = null),
-        (renderRootRef = null),
-        (renderKeyRef = undefined),
-        (viewportBaseCamera = null),
-        (isEntranceComplete = false),
-        (hasControlsRestored = true),
-        (cameraRootRef = null),
-        (cameraFirstChildRef = null),
+        (ctx.cameraRestoreState = null),
+        (ctx.orbitTargetVector = null),
+        (ctx.renderRootRef = null),
+        (ctx.renderKeyRef = undefined),
+        (ctx.viewportBaseCamera = null),
+        (ctx.isEntranceComplete = false),
+        (ctx.hasControlsRestored = true),
+        (ctx.cameraRootRef = null),
+        (ctx.cameraFirstChildRef = null),
         !replaceScenePlan.full)
       ) {
-        ((zn6.activeFloorId = activeFloorId),
-          (zn6.previewFloorMode = studioProject.previewFloorMode),
-          (zn6.previewFloorGap = studioProject.previewFloorGap));
+        ((zn6.activeFloorId = appCtx.activeFloorId),
+          (zn6.previewFloorMode = appCtx.studioProject.previewFloorMode),
+          (zn6.previewFloorGap = appCtx.studioProject.previewFloorGap));
         for (const replacedFloorEntry of zn6.floors) {
           replacedFloorEntry.scene.settings.livePreviewEnabled = true;
-          const localReplacedFloor = studioProject.floors.find(
+          const localReplacedFloor = appCtx.studioProject.floors.find(
             (replacementSceneMatchedFloor: any) =>
               replacementSceneMatchedFloor.id === replacedFloorEntry.id,
           );
@@ -19524,27 +19268,27 @@ function runStudioRenderLoop() {
             }
           }
         }
-        ((studioProject = zn6),
-          (loadedDraft = replacementScene),
-          overviewStackOption !== undefined &&
-            (studioProject.uniformOverviewStack = overviewStackOption),
-          (studioState = getActiveFloor().scene),
+        ((appCtx.studioProject = zn6),
+          (appCtx.loadedDraft = replacementScene),
+          ctx.overviewStackOption !== undefined &&
+            (appCtx.studioProject.uniformOverviewStack = ctx.overviewStackOption),
+          (appCtx.studioState = getActiveFloor().scene),
           syncFloorGroups(new Set(replaceScenePlan.floors)),
           Promise.allSettled(preloadDefaultModels()));
         return;
       }
       (await applyLoadedDraft(replacementScene),
-        overviewStackOption !== undefined &&
-          (studioProject.uniformOverviewStack = overviewStackOption));
+        ctx.overviewStackOption !== undefined &&
+          (appCtx.studioProject.uniformOverviewStack = ctx.overviewStackOption));
     },
     coverSceneUpdate() {
-      compiledShaderCache?.clear();
+      appCtx.compiledShaderCache?.clear();
       const thumbnailCanvas = document.createElement("canvas");
-      ((thumbnailCanvas.width = threeRenderer.domElement.width),
-        (thumbnailCanvas.height = threeRenderer.domElement.height),
-        threeRenderer.render(threeScene, threeCamera));
+      ((thumbnailCanvas.width = appCtx.threeRenderer.domElement.width),
+        (thumbnailCanvas.height = appCtx.threeRenderer.domElement.height),
+        appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera));
       const thumbnailPainter = thumbnailCanvas.getContext("2d");
-      (thumbnailPainter!.drawImage(threeRenderer.domElement, 0, 0),
+      (thumbnailPainter!.drawImage(appCtx.threeRenderer.domElement, 0, 0),
         previewLightCacheCanvasElement.hidden ||
           thumbnailPainter!.drawImage(
             previewLightCacheCanvasElement,
@@ -19553,10 +19297,10 @@ function runStudioRenderLoop() {
             thumbnailCanvas.width,
             thumbnailCanvas.height,
           ));
-      const visibility = threeRenderer.domElement.style.visibility,
+      const visibility = appCtx.threeRenderer.domElement.style.visibility,
         visibility2 = previewLightCacheCanvasElement.style.visibility;
       return (
-        (threeRenderer.domElement.style.visibility = "hidden"),
+        (appCtx.threeRenderer.domElement.style.visibility = "hidden"),
         (previewLightCacheCanvasElement.style.visibility = "hidden"),
         Object.assign(thumbnailCanvas.style, {
           position: "absolute",
@@ -19569,17 +19313,17 @@ function runStudioRenderLoop() {
         thumbnailCanvas.setAttribute("aria-label", "正在同步户型"),
         selectElement("#preview-3d").append(thumbnailCanvas),
         () => {
-          ((threeRenderer.domElement.style.visibility = visibility),
+          ((appCtx.threeRenderer.domElement.style.visibility = visibility),
             (previewLightCacheCanvasElement.style.visibility = visibility2),
             thumbnailCanvas.remove());
         }
       );
     },
     getOrbitCenter() {
-      return computeCameraTarget(orbitControls.target).toArray();
+      return computeCameraTarget(appCtx.orbitControls.target).toArray();
     },
     setOrbitPivot(orbitPivot: any) {
-      ((orbitTargetVector = orbitPivot ? new ns2.Vector3().fromArray(orbitPivot) : null),
+      ((ctx.orbitTargetVector = orbitPivot ? new ns2.Vector3().fromArray(orbitPivot) : null),
         configureOrbitControls());
     },
     orbitCameraPose(orbitPose: any, topRotation: any) {
@@ -19590,8 +19334,8 @@ function runStudioRenderLoop() {
         Math.abs(Math.abs(normalizedTopRotation) - Math.PI * 2) < 1e-12
       )
         return structuredClone2;
-      orbitTargetVector ||
-        (orbitTargetVector = computeCameraTarget(new ns2.Vector3().fromArray(orbitPose.target)));
+      ctx.orbitTargetVector ||
+        (ctx.orbitTargetVector = computeCameraTarget(new ns2.Vector3().fromArray(orbitPose.target)));
       const setFromAxisAngle = new ns2.Quaternion().setFromAxisAngle(
         new ns2.Vector3(0, 1, 0),
         normalizedTopRotation,
@@ -19599,9 +19343,9 @@ function runStudioRenderLoop() {
       for (const cameraPoseKey of ["position", "target"])
         structuredClone2[cameraPoseKey] = new ns2.Vector3()
           .fromArray(orbitPose[cameraPoseKey])
-          .sub(orbitTargetVector)
+          .sub(ctx.orbitTargetVector)
           .applyQuaternion(setFromAxisAngle)
-          .add(orbitTargetVector)
+          .add(ctx.orbitTargetVector)
           .toArray();
       let array2 = new ns2.Vector3().fromArray(orbitPose.up || [0, 1, 0]);
       const sub5 = new ns2.Vector3()
@@ -19619,8 +19363,8 @@ function runStudioRenderLoop() {
     },
     setFocusViewport(focusViewport: any) {
       const focusWeight = clamp2(finite2(focusViewport, 0), 0, 0.7);
-      focusWeight !== stereoSampleIndex &&
-        ((stereoSampleIndex = focusWeight),
+      focusWeight !== ctx.stereoSampleIndex &&
+        ((ctx.stereoSampleIndex = focusWeight),
         syncViewOffset(),
         refreshSceneRender({
           preserveLightCache: false,
@@ -19637,21 +19381,21 @@ function runStudioRenderLoop() {
       const cameraState = this.cameraState(),
         shouldAnimateCamera =
           cameraAnimationEnabled &&
-          (cameraMotionSpec || cameraState.mode !== runStudioRenderLoopCameraMode),
+          (ctx.cameraMotionSpec || cameraState.mode !== runStudioRenderLoopCameraMode),
         bo4 = shouldAnimateCamera
-          ? (cameraMotionSpec?.height ?? computeVisibleHeight(threeCamera, orbitControls.target))
+          ? (ctx.cameraMotionSpec?.height ?? computeVisibleHeight(appCtx.threeCamera, appCtx.orbitControls.target))
           : 0,
         startCameraWeight =
-          cameraMotionSpec?.weight ?? (cameraState.mode === "perspective" ? 1 : 0);
+          ctx.cameraMotionSpec?.weight ?? (cameraState.mode === "perspective" ? 1 : 0);
       return (
-        (cameraMotionSpec = null),
-        (isSnapshotMode = true),
-        (isRenderLoopOverviewMode = !!cameraAnimationEnabled),
-        (isViewTransitioning = false),
+        (ctx.cameraMotionSpec = null),
+        (ctx.isSnapshotMode = true),
+        (ctx.isRenderLoopOverviewMode = !!cameraAnimationEnabled),
+        (ctx.isViewTransitioning = false),
         areLightsEnabled() &&
           (resetLightEffectStates(),
           sampleLightTransitions(performance.now()),
-          setupSceneShadows(sceneRootNode, {
+          setupSceneShadows(appCtx.sceneRootNode, {
             rebuildAtlas: false,
           }),
           renderStudioFrame()),
@@ -19664,7 +19408,7 @@ function runStudioRenderLoop() {
         // 自动旋转 / idle 回位保持静置像素比；仅用户 focus / 交互走运动降采样。
         motionReason !== "idle" && handleOrbitStart(),
         shouldAnimateCamera
-          ? ((cameraMotionSpec = {
+          ? ((ctx.cameraMotionSpec = {
               fromHeight: bo4,
               toHeight: computeCameraFrameDistance(cameraAnimationEnabled),
               height: bo4,
@@ -19678,43 +19422,43 @@ function runStudioRenderLoop() {
     },
     applyCameraFrame(targetCameraMode: any, targetCameraPose: any, cameraBlendWeight: any) {
       const cameraBlendValue = clamp2(finite2(cameraBlendWeight, 0), 0, 0.7),
-        isCameraWeightEqual = cameraBlendValue === stereoSampleIndex;
-      ((stereoSampleIndex = cameraBlendValue),
+        isCameraWeightEqual = cameraBlendValue === ctx.stereoSampleIndex;
+      ((ctx.stereoSampleIndex = cameraBlendValue),
         this.applyCameraPose(targetCameraMode, targetCameraPose, isCameraWeightEqual),
         motionPresentation.advance(targetCameraPose));
     },
     applyCameraPose(cameraViewState: any, poseWeight = 1, applyPoseImmediately = true) {
       ((cameraViewState = constrainCameraPose2(cameraViewState)),
-        cameraMotionSpec &&
+        ctx.cameraMotionSpec &&
           (poseWeight >= 1
-            ? (cameraMotionSpec = null)
-            : ((cameraMotionSpec.height =
-                cameraMotionSpec.fromHeight +
-                (cameraMotionSpec.toHeight - cameraMotionSpec.fromHeight) * poseWeight),
-              (cameraMotionSpec.weight =
-                cameraMotionSpec.fromWeight +
-                (cameraMotionSpec.toWeight - cameraMotionSpec.fromWeight) * poseWeight))),
+            ? (ctx.cameraMotionSpec = null)
+            : ((ctx.cameraMotionSpec.height =
+                ctx.cameraMotionSpec.fromHeight +
+                (ctx.cameraMotionSpec.toHeight - ctx.cameraMotionSpec.fromHeight) * poseWeight),
+              (ctx.cameraMotionSpec.weight =
+                ctx.cameraMotionSpec.fromWeight +
+                (ctx.cameraMotionSpec.toWeight - ctx.cameraMotionSpec.fromWeight) * poseWeight))),
         handleOrbitChange());
       const ut7 = cameraSettings();
       ((ut7.cameraView = cameraViewState.view || "free"),
         (ut7.cameraTopRotation = cameraViewState.topRotation || 0),
         (ut7.cameraFocalLength = cameraViewState.focalLength || 50),
-        threeCamera.position.fromArray(cameraViewState.position),
-        orbitControls.target.fromArray(cameraViewState.target),
-        threeCamera.up.fromArray(cameraViewState.up || [0, 1, 0]),
-        (threeCamera.zoom = cameraViewState.zoom),
-        (threeCamera.userData.frameSize = cameraViewState.frameSize || 10),
-        (threeCamera.userData.cameraView = ut7.cameraView),
-        (threeCamera.userData.topRotation = ut7.cameraTopRotation),
-        threeCamera.isOrthographicCamera
+        appCtx.threeCamera.position.fromArray(cameraViewState.position),
+        appCtx.orbitControls.target.fromArray(cameraViewState.target),
+        appCtx.threeCamera.up.fromArray(cameraViewState.up || [0, 1, 0]),
+        (appCtx.threeCamera.zoom = cameraViewState.zoom),
+        (appCtx.threeCamera.userData.frameSize = cameraViewState.frameSize || 10),
+        (appCtx.threeCamera.userData.cameraView = ut7.cameraView),
+        (appCtx.threeCamera.userData.topRotation = ut7.cameraTopRotation),
+        appCtx.threeCamera.isOrthographicCamera
           ? applyOrthoFrame(
-              threeCamera.userData.frameSize,
-              threeCamera.userData.viewportAspect || 1,
+              appCtx.threeCamera.userData.frameSize,
+              appCtx.threeCamera.userData.viewportAspect || 1,
             )
           : applyCameraFocalLength(),
-        threeCamera.lookAt(orbitControls.target),
-        updateCameraPlanes(threeCamera, orbitControls.target),
-        threeCamera.updateMatrixWorld(),
+        appCtx.threeCamera.lookAt(appCtx.orbitControls.target),
+        updateCameraPlanes(appCtx.threeCamera, appCtx.orbitControls.target),
+        appCtx.threeCamera.updateMatrixWorld(),
         syncViewOffset(),
         refreshSceneRender({
           preserveLightCache: applyPoseImmediately,
@@ -19722,27 +19466,27 @@ function runStudioRenderLoop() {
     },
     endCameraMotion() {
       (motionPresentation.camera(false),
-        (isSnapshotMode = false),
-        (isRenderLoopOverviewMode = false),
+        (ctx.isSnapshotMode = false),
+        (ctx.isRenderLoopOverviewMode = false),
         buildCameraPose(),
         handleOrbitEnd(),
         refreshSceneRender(),
-        typeof prewarmState < "u" &&
-          prewarmState === controlsRestoreOptions &&
+        typeof appCtx.prewarmState < "u" &&
+          appCtx.prewarmState === controlsRestoreOptions &&
           !lightTransitionsByLight.size &&
-          (overviewTimeoutHandle !== null && window.clearTimeout(overviewTimeoutHandle),
-          (overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180))));
+          (ctx.overviewTimeoutHandle !== null && window.clearTimeout(ctx.overviewTimeoutHandle),
+          (ctx.overviewTimeoutHandle = window.setTimeout(scheduleControlsRestore, 180))));
     },
     setUniformOverviewStack(uniformOverviewEnabled: any) {
-      overviewStackOption =
+      ctx.overviewStackOption =
         typeof uniformOverviewEnabled == "boolean" ? uniformOverviewEnabled : undefined;
       const resolvedUniformOverview =
-        overviewStackOption ?? loadedDraft.scene.uniformOverviewStack === true;
-      studioProject.uniformOverviewStack !== resolvedUniformOverview &&
+        ctx.overviewStackOption ?? appCtx.loadedDraft.scene.uniformOverviewStack === true;
+      appCtx.studioProject.uniformOverviewStack !== resolvedUniformOverview &&
         (this.finishFloorTransition(),
-        (studioProject.uniformOverviewStack = resolvedUniformOverview),
-        (orbitTargetVector = null),
-        (renderRootRef = null),
+        (appCtx.studioProject.uniformOverviewStack = resolvedUniformOverview),
+        (ctx.orbitTargetVector = null),
+        (ctx.renderRootRef = null),
         groundReflections.changed(),
         refreshSceneRender({
           scene: true,
@@ -19750,21 +19494,21 @@ function runStudioRenderLoop() {
     },
     setFloorGap(floorGapValue: any) {
       const clampedFloorGap = Number.isFinite(floorGapValue) ? clamp2(floorGapValue, 0, 20) : null;
-      if (clampedFloorGap !== null || unusedRenderHandle !== null) {
+      if (clampedFloorGap !== null || ctx.unusedRenderHandle !== null) {
         const previewFloorGap =
-          clampedFloorGap ?? normalizeStudioDocument(loadedDraft.scene, studioDocumentDeps()).previewFloorGap;
-        if (Math.abs(studioProject.previewFloorGap - previewFloorGap) > 0.000001) {
+          clampedFloorGap ?? normalizeStudioDocument(appCtx.loadedDraft.scene, studioDocumentDeps()).previewFloorGap;
+        if (Math.abs(appCtx.studioProject.previewFloorGap - previewFloorGap) > 0.000001) {
           floorTransition.finish();
           const isOverviewAllFloors = getPreviewFloorMode() === "all",
             take = isOverviewAllFloors
               ? floorTransition.take(
-                  studioProject.floors.map((overviewFloorEntry: any) => overviewFloorEntry.id),
+                  appCtx.studioProject.floors.map((overviewFloorEntry: any) => overviewFloorEntry.id),
                   cameraTargetForFloor,
                   true,
                 )
               : [];
           try {
-            studioProject.previewFloorGap = previewFloorGap;
+            appCtx.studioProject.previewFloorGap = previewFloorGap;
             for (const reusableTransition of take)
               floorTransition.reuse(
                 reusableTransition,
@@ -19774,8 +19518,8 @@ function runStudioRenderLoop() {
             isOverviewAllFloors && suspendReflections(false);
           }
           isOverviewAllFloors &&
-            ((orbitTargetVector = null),
-            (renderRootRef = null),
+            ((ctx.orbitTargetVector = null),
+            (ctx.renderRootRef = null),
             computeSceneExtent(),
             refreshSceneRender({
               scene: true,
@@ -19783,7 +19527,7 @@ function runStudioRenderLoop() {
             }));
         }
       }
-      unusedRenderHandle = clampedFloorGap;
+      ctx.unusedRenderHandle = clampedFloorGap;
     },
     appearance(appearanceSettings: any) {
       const appearanceSceneStyle =
@@ -19794,16 +19538,16 @@ function runStudioRenderLoop() {
             ? clamp2(appearanceSettings.wallOpacity, 0, 1)
             : null;
       if (
-        (regionLightController?.setSceneStyle?.(appearanceSceneStyle),
-        appearanceSceneStyle !== sceneStyle || appearanceWallOpacity !== wallOpacityValue)
+        (appCtx.regionLightController?.setSceneStyle?.(appearanceSceneStyle),
+        appearanceSceneStyle !== appCtx.sceneStyle || appearanceWallOpacity !== appCtx.wallOpacityValue)
       ) {
         (this.finishFloorTransition(), trimRetainedFloors());
         const cameraState2 = this.cameraState();
-        ((sceneStyle = appearanceSceneStyle),
-          (wallOpacityValue = appearanceWallOpacity),
+        ((appCtx.sceneStyle = appearanceSceneStyle),
+          (appCtx.wallOpacityValue = appearanceWallOpacity),
           rebuildFloorLayers(),
-          (orbitTargetVector = null),
-          (renderRootRef = null),
+          (ctx.orbitTargetVector = null),
+          (ctx.renderRootRef = null),
           this.restoreCamera(cameraState2));
       }
       const appearanceSignatureJson = JSON.stringify([
@@ -19812,52 +19556,52 @@ function runStudioRenderLoop() {
         appearanceSceneStyle,
         appearanceWallOpacity,
       ]);
-      appearanceSignatureJson !== lastRenderSignature &&
+      appearanceSignatureJson !== ctx.lastRenderSignature &&
         (trimRetainedFloors(),
-        (lastRenderSignature = appearanceSignatureJson),
+        (ctx.lastRenderSignature = appearanceSignatureJson),
         groundReflections.changed());
       const normalizedGroundReflection = normalizeGroundReflection2(
         appearanceSettings.groundReflection,
       );
       groundReflections.configure(normalizedGroundReflection) &&
-        ((reflectionSettingsJson = JSON.stringify(groundReflections.settings)),
+        ((appCtx.reflectionSettingsJson = JSON.stringify(groundReflections.settings)),
         refreshSceneRender());
       const lightRegionOverrides =
-          regionLightController?.setOverrides(appearanceSettings.lightRegionOverrides || {}) ??
+          appCtx.regionLightController?.setOverrides(appearanceSettings.lightRegionOverrides || {}) ??
           appearanceSettings.lightRegionOverrides ??
           {},
         lightRegionOverridesJson = JSON.stringify(lightRegionOverrides);
-      (lightRegionOverridesJson !== lastStateJson &&
-        ((lastStateJson = lightRegionOverridesJson),
+      (lightRegionOverridesJson !== ctx.lastStateJson &&
+        ((ctx.lastStateJson = lightRegionOverridesJson),
         groundReflections.changed(),
         refreshSceneRender()),
-        (hasBaseLightingApplied = !!appearanceSettings.baseLighting));
+        (ctx.hasBaseLightingApplied = !!appearanceSettings.baseLighting));
       const clampedRenderScale = clamp2(finite2(appearanceSettings.renderScale, 1), 0.25, 2),
         clampedMotionRenderScale =
           typeof appearanceSettings.motionRenderScale == "number" &&
           Number.isFinite(appearanceSettings.motionRenderScale)
             ? clamp2(appearanceSettings.motionRenderScale, 0.25, 1)
             : null;
-      (clampedRenderScale !== basePixelRatio || clampedMotionRenderScale !== adaptivePixelRatio) &&
-        ((basePixelRatio = clampedRenderScale),
-        (adaptivePixelRatio = clampedMotionRenderScale),
-        threeRenderer.setPixelRatio(computeRenderPixelRatio(isRenderSuppressed)),
+      (clampedRenderScale !== appCtx.basePixelRatio || clampedMotionRenderScale !== appCtx.adaptivePixelRatio) &&
+        ((appCtx.basePixelRatio = clampedRenderScale),
+        (appCtx.adaptivePixelRatio = clampedMotionRenderScale),
+        appCtx.threeRenderer.setPixelRatio(computeRenderPixelRatio(appCtx.isRenderSuppressed)),
         resizeStudioRenderer(),
         refreshSceneRender());
       const hasBackgroundVisibilityChanged =
-          isBackgroundVisible !== (appearanceSettings.backgroundVisible !== false),
-        resolvedBackgroundTheme = backgroundController?.theme || "grid",
-        hasBackgroundThemeChanged = backgroundThemeName !== resolvedBackgroundTheme;
-      ((backgroundThemeName = resolvedBackgroundTheme),
-        (isBackgroundVisible = appearanceSettings.backgroundVisible !== false),
-        document.body.classList.toggle("is-background-hidden", !isBackgroundVisible),
+          ctx.isBackgroundVisible !== (appearanceSettings.backgroundVisible !== false),
+        resolvedBackgroundTheme = appCtx.backgroundController?.theme || "grid",
+        hasBackgroundThemeChanged = appCtx.backgroundThemeName !== resolvedBackgroundTheme;
+      ((appCtx.backgroundThemeName = resolvedBackgroundTheme),
+        (ctx.isBackgroundVisible = appearanceSettings.backgroundVisible !== false),
+        document.body.classList.toggle("is-background-hidden", !ctx.isBackgroundVisible),
         prepareReflectionTargets());
       const normalizedAppearanceLighting = normalizeBaseLighting2(
-        appearanceSettings.baseLighting || studioProject.baseLighting,
+        appearanceSettings.baseLighting || appCtx.studioProject.baseLighting,
       );
-      (regionLightController?.setFloorBrightness(normalizedAppearanceLighting.floorBrightness) &&
+      (appCtx.regionLightController?.setFloorBrightness(normalizedAppearanceLighting.floorBrightness) &&
         refreshSceneRender(),
-        JSON.stringify(normalizedAppearanceLighting) !== JSON.stringify(baseLightingSettings) &&
+        JSON.stringify(normalizedAppearanceLighting) !== JSON.stringify(appCtx.baseLightingSettings) &&
           applyBaseLighting(normalizedAppearanceLighting),
         (hasBackgroundVisibilityChanged || hasBackgroundThemeChanged) && refreshSceneRender());
     },
@@ -19869,7 +19613,7 @@ function runStudioRenderLoop() {
               ?.scene.settings?.fixedCameraView;
       if (!fixedCameraView) return null;
       const resolvedPreviewAspect =
-          threeCamera.userData.viewportAspect ||
+          appCtx.threeCamera.userData.viewportAspect ||
           Math.max(
             selectElement("#preview-3d").clientWidth /
               Math.max(selectElement("#preview-3d").clientHeight, 1),
@@ -19892,7 +19636,7 @@ function runStudioRenderLoop() {
       return transformSceneCamera2(
         floorDefaultCameraOptions,
         zn4,
-        studioProject,
+        appCtx.studioProject,
         defaultCameraFloorId,
       );
     },
@@ -19900,20 +19644,20 @@ function runStudioRenderLoop() {
       return floorTransition.active;
     },
     advanceFloorTransition(transitionProgressRatio: any, transitionFrame: any) {
-      ((unusedRenderCounter = clamp2(transitionProgressRatio, 0, 1)),
-        transitionRange &&
-          (animatedTransitionValue =
-            transitionRange.from +
-            (transitionRange.to - transitionRange.from) * transitionProgressRatio));
+      ((ctx.unusedRenderCounter = clamp2(transitionProgressRatio, 0, 1)),
+        ctx.transitionRange &&
+          (appCtx.animatedTransitionValue =
+            ctx.transitionRange.from +
+            (ctx.transitionRange.to - ctx.transitionRange.from) * transitionProgressRatio));
       const floorTransitionFrameOptions = transitionFrame
         ? {
-            height: cameraMotionSpec
-              ? cameraMotionSpec.fromHeight +
-                (cameraMotionSpec.toHeight - cameraMotionSpec.fromHeight) * transitionProgressRatio
+            height: ctx.cameraMotionSpec
+              ? ctx.cameraMotionSpec.fromHeight +
+                (ctx.cameraMotionSpec.toHeight - ctx.cameraMotionSpec.fromHeight) * transitionProgressRatio
               : computeCameraFrameDistance(transitionFrame),
-            weight: cameraMotionSpec
-              ? cameraMotionSpec.fromWeight +
-                (cameraMotionSpec.toWeight - cameraMotionSpec.fromWeight) * transitionProgressRatio
+            weight: ctx.cameraMotionSpec
+              ? ctx.cameraMotionSpec.fromWeight +
+                (ctx.cameraMotionSpec.toWeight - ctx.cameraMotionSpec.fromWeight) * transitionProgressRatio
               : transitionFrame.mode === "perspective"
                 ? 1
                 : 0,
@@ -19930,7 +19674,7 @@ function runStudioRenderLoop() {
         ),
       ),
         transitionProgressRatio >= 1 &&
-          ((transitionRange = null), (animatedTransitionValue = null)));
+          ((ctx.transitionRange = null), (appCtx.animatedTransitionValue = null)));
     },
     setFloorSlideCameras(floorSlideCameras: any, floorSlideViews: any) {
       const measureCameraDistance = (slidePose: any) =>
@@ -19939,9 +19683,9 @@ function runStudioRenderLoop() {
           .distanceTo(new ns2.Vector3().fromArray(slidePose.target));
       floorTransition.setSlideCameras(floorSlideCameras, floorSlideViews, {
         from: {
-          height: cameraMotionSpec?.fromHeight ?? computeCameraFrameDistance(floorSlideCameras),
+          height: ctx.cameraMotionSpec?.fromHeight ?? computeCameraFrameDistance(floorSlideCameras),
           weight:
-            cameraMotionSpec?.fromWeight ?? (floorSlideCameras.mode === "perspective" ? 1 : 0),
+            ctx.cameraMotionSpec?.fromWeight ?? (floorSlideCameras.mode === "perspective" ? 1 : 0),
           distance: measureCameraDistance(floorSlideCameras),
         },
         to: {
@@ -19953,8 +19697,8 @@ function runStudioRenderLoop() {
     },
     finishFloorTransition() {
       (floorTransition.finish(),
-        (transitionRange = null),
-        (animatedTransitionValue = null),
+        (ctx.transitionRange = null),
+        (appCtx.animatedTransitionValue = null),
         typeof isPerformanceDiagnostics < "u" &&
           isPerformanceDiagnostics &&
           diagnosticsState.floorSwitch &&
@@ -19972,8 +19716,8 @@ function runStudioRenderLoop() {
       return We3;
     },
     transitionFloor(transitionFloorId: any) {
-      ((unusedRenderState = getPreviewFloorMode() === "all" ? "all" : activeFloorId),
-        (unusedRenderCounter = 0),
+      ((ctx.unusedRenderState = getPreviewFloorMode() === "all" ? "all" : appCtx.activeFloorId),
+        (ctx.unusedRenderCounter = 0),
         typeof isPerformanceDiagnostics < "u" &&
           isPerformanceDiagnostics &&
           (diagnosticsState.floorSwitch = {
@@ -19985,7 +19729,7 @@ function runStudioRenderLoop() {
             longFrames: 0,
             cpuMs: 0,
           }));
-      const sortedFloorIds = [...studioProject.floors]
+      const sortedFloorIds = [...appCtx.studioProject.floors]
           .sort(
             (firstSortedFloor, secondSortedFloor) =>
               firstSortedFloor.elevation - secondSortedFloor.elevation,
@@ -19996,7 +19740,7 @@ function runStudioRenderLoop() {
           const frameCacheKey = JSON.stringify([getPreviewFloorMode(), cacheFloorId]);
           if (capturedFramesByKey.has(frameCacheKey))
             return capturedFramesByKey.get(frameCacheKey).clone();
-          const cachedFloor = studioProject.floors.find(
+          const cachedFloor = appCtx.studioProject.floors.find(
               (cachedFloorRecord: any) => cachedFloorRecord.id === cacheFloorId,
             ),
             cachedFloorPpm = cachedFloor.scene.calibration?.pixelsPerMeter || 1,
@@ -20011,26 +19755,26 @@ function runStudioRenderLoop() {
           return (capturedFramesByKey.set(frameCacheKey, setPosition), setPosition.clone());
         },
         isTransitionAllFloors = getPreviewFloorMode() === "all";
-      ((transitionRange = {
-        from: animatedTransitionValue ?? (isTransitionAllFloors ? 1 : 0),
+      ((ctx.transitionRange = {
+        from: appCtx.animatedTransitionValue ?? (isTransitionAllFloors ? 1 : 0),
         to: transitionFloorId === "all" ? 1 : 0,
       }),
-        (animatedTransitionValue = transitionRange.from));
-      const transitionScopeKey = isTransitionAllFloors ? "all" : activeFloorId,
+        (appCtx.animatedTransitionValue = ctx.transitionRange.from));
+      const transitionScopeKey = isTransitionAllFloors ? "all" : appCtx.activeFloorId,
         detachedRecords = scheduleTask("detach-source", () =>
           floorTransition.take(
-            isTransitionAllFloors ? sortedFloorIds : [activeFloorId],
+            isTransitionAllFloors ? sortedFloorIds : [appCtx.activeFloorId],
             frameForFloor,
             isTransitionAllFloors,
           ),
         );
       for (const detachedRecord of detachedRecords)
         ((detachedRecord.cacheKey ||= transitionScopeKey),
-          (detachedRecord.cacheEpoch ??= cacheEpoch));
+          (detachedRecord.cacheEpoch ??= ctx.cacheEpoch));
       const isSingleFloorTransition = !isTransitionAllFloors && transitionFloorId !== "all";
       let unionBounds;
       if (isSingleFloorTransition)
-        unionBounds = computeVisibleHeight(threeCamera, orbitControls.target) * 1.2;
+        unionBounds = computeVisibleHeight(appCtx.threeCamera, appCtx.orbitControls.target) * 1.2;
       else {
         const floorBoundsBox = new ns2.Box3();
         for (const capturedRecord of detachedRecords)
@@ -20058,7 +19802,7 @@ function runStudioRenderLoop() {
         unionBounds = Math.max(20, size4.x, size4.z) * 1.5;
       }
       const normalize4 = isSingleFloorTransition
-          ? new ns2.Vector3(0, 1, 0).applyQuaternion(threeCamera.quaternion).normalize()
+          ? new ns2.Vector3(0, 1, 0).applyQuaternion(appCtx.threeCamera.quaternion).normalize()
           : null,
         indexOf =
           detachedRecords.find((scrollRecord: any) => Number.isFinite(scrollRecord.scrollPosition))
@@ -20082,7 +19826,7 @@ function runStudioRenderLoop() {
             detachedRecords.find(
               (capturedFloorRecord: any) =>
                 capturedFloorRecord.id === destFloorId &&
-                capturedFloorRecord.cacheEpoch === cacheEpoch,
+                capturedFloorRecord.cacheEpoch === ctx.cacheEpoch,
             ) || retainedFloorsByKey.get(destFloorId),
         ),
         readyRecordCount = orderedRecords.filter(Boolean).length;
@@ -20097,7 +19841,7 @@ function runStudioRenderLoop() {
           )[0];
           ((singleCaptureRecord.frame = singleCaptureRecord.baseFrame.clone()),
             (singleCaptureRecord.cacheKey = transitionFloorOrder[captureIndex]),
-            (singleCaptureRecord.cacheEpoch = cacheEpoch),
+            (singleCaptureRecord.cacheEpoch = ctx.cacheEpoch),
             singleCaptureRecord.node.removeFromParent(),
             (orderedRecords[captureIndex] = singleCaptureRecord));
         }
@@ -20107,12 +19851,12 @@ function runStudioRenderLoop() {
           ? renderLoopStats.reusedTransitions++
           : renderLoopStats.rebuiltTransitions++,
         allCapturedRecords && (renderLoopStats.reusedFloors += readyRecordCount),
-        (threeRenderer.domElement.dataset.floorReuseStats = JSON.stringify(renderLoopStats)),
+        (appCtx.threeRenderer.domElement.dataset.floorReuseStats = JSON.stringify(renderLoopStats)),
         allCapturedRecords)
       ) {
         for (const capturedFloorEntry of allCapturedRecords)
-          (floorRetentionService?.releaseRoot?.(capturedFloorEntry.node),
-            regionLightController?.releaseRoot?.(capturedFloorEntry.node),
+          (ctx.floorRetentionService?.releaseRoot?.(capturedFloorEntry.node),
+            appCtx.regionLightController?.releaseRoot?.(capturedFloorEntry.node),
             retainedFloorsByKey.delete(capturedFloorEntry.id));
       } else trimRetainedFloors(new Set(transitionFloorOrder));
       scheduleTask("set-destination", () =>
@@ -20128,7 +19872,7 @@ function runStudioRenderLoop() {
         );
       for (const destinationRecord of destinationRecords)
         ((destinationRecord.cacheKey = transitionFloorId),
-          (destinationRecord.cacheEpoch = cacheEpoch));
+          (destinationRecord.cacheEpoch = ctx.cacheEpoch));
       return (
         scheduleTask("begin-motion", () =>
           floorTransition.begin(
@@ -20141,39 +19885,39 @@ function runStudioRenderLoop() {
             transitionFloorId,
           ),
         ),
-        contactShadowController?.prepareMotion?.(),
-        releaseCurtains?.(),
-        releaseTelevisionScreens?.(),
+        appCtx.contactShadowController?.prepareMotion?.(),
+        ctx.releaseCurtains?.(),
+        ctx.releaseTelevisionScreens?.(),
         orbitCenter
       );
     },
     setFloor(appliedFloorId: any, reusedFloorIds: any = null, resolveFloorTarget = cameraTargetForFloor) {
       const appliedFloor =
-          studioProject.floors.find(
+          appCtx.studioProject.floors.find(
             (appliedFloorRecord: any) => appliedFloorRecord.id === appliedFloorId,
-          ) || studioProject.floors[0],
+          ) || appCtx.studioProject.floors[0],
         appliedFloorMode =
-          appliedFloorId === "all" && studioProject.floors.length > 1 ? "all" : "active";
+          appliedFloorId === "all" && appCtx.studioProject.floors.length > 1 ? "all" : "active";
       if (!(
         !reusedFloorIds &&
-        activeFloorId === appliedFloor.id &&
+        appCtx.activeFloorId === appliedFloor.id &&
         getPreviewFloorMode() === appliedFloorMode
       )) {
         if (
           ((lightTransitionsByLight.size ||
-            (typeof prewarmState < "u" && prewarmState === controlsRestoreOptions)) &&
+            (typeof appCtx.prewarmState < "u" && appCtx.prewarmState === controlsRestoreOptions)) &&
             hasActiveLightTransition(),
-          (isEntranceComplete = false),
-          (hasControlsRestored = true),
-          (activeFloorId = appliedFloor.id),
-          (studioProject.activeFloorId = appliedFloor.id),
-          (studioState = appliedFloor.scene),
+          (ctx.isEntranceComplete = false),
+          (ctx.hasControlsRestored = true),
+          (appCtx.activeFloorId = appliedFloor.id),
+          (appCtx.studioProject.activeFloorId = appliedFloor.id),
+          (appCtx.studioState = appliedFloor.scene),
           reusedFloorIds)
         ) {
-          ((studioProject.previewFloorMode = appliedFloorMode),
+          ((appCtx.studioProject.previewFloorMode = appliedFloorMode),
             updateFloorPreviewButtons(),
             refreshFloorControls());
-          const lowestFloorId = [...studioProject.floors].sort(
+          const lowestFloorId = [...appCtx.studioProject.floors].sort(
             (firstSortedElevationFloor, secondSortedElevationFloor) =>
               firstSortedElevationFloor.elevation - secondSortedElevationFloor.elevation,
           )[0].id;
@@ -20185,16 +19929,16 @@ function runStudioRenderLoop() {
                   ((reusedFloorNode.userData.floorBackgroundHidden =
                     appliedFloorMode === "all" && reusedFloorId.id !== lowestFloorId),
                   (reusedFloorNode.visible =
-                    isBackgroundVisible &&
+                    ctx.isBackgroundVisible &&
                     (!reusedFloorNode.userData.floorBackgroundHidden ||
                       reusedFloorNode.userData.backgroundThemeKeepVisible === true) &&
                     !reusedFloorNode.userData.backgroundThemeHidden));
               });
-          ((sceneRootNode.userData.regionFloorId = appliedFloor.id),
-            regionLightController &&
-              sceneRootNode.traverse((sceneLightNode: any) => {
+          ((appCtx.sceneRootNode.userData.regionFloorId = appliedFloor.id),
+            appCtx.regionLightController &&
+              appCtx.sceneRootNode.traverse((sceneLightNode: any) => {
                 if (!sceneLightNode.isLight || !sceneLightNode.userData.lightItemId) return;
-                const matchedLightItem = studioProject.floors
+                const matchedLightItem = appCtx.studioProject.floors
                   .find(
                     (lightFloorRecord: any) =>
                       lightFloorRecord.id === sceneLightNode.userData.lightFloorId,
@@ -20203,9 +19947,9 @@ function runStudioRenderLoop() {
                     (lightItemRecord: any) => lightItemRecord.id === sceneLightNode.userData.lightItemId,
                   );
                 matchedLightItem &&
-                  regionLightController.register(sceneLightNode, matchedLightItem);
+                  appCtx.regionLightController.register(sceneLightNode, matchedLightItem);
               }),
-            setupSceneShadows(sceneRootNode),
+            setupSceneShadows(appCtx.sceneRootNode),
             setCameraMode(getCameraMode(), {
               preserveView: false,
             }),
@@ -20219,7 +19963,7 @@ function runStudioRenderLoop() {
           setPreviewFloor(appliedFloorId === "all" ? "all" : "active", {
             persist: false,
           });
-        orbitTargetVector = null;
+        ctx.orbitTargetVector = null;
       }
     },
     worldPoint: planToWorldForFloor,
@@ -20228,14 +19972,14 @@ function runStudioRenderLoop() {
           (pointRecordEntry: any) => pointRecordEntry.id === pointFloorId,
         ),
         transformPresentationPoint = (transformedPoint: any) =>
-          transformedPoint && overviewStackController
-            ? overviewStackController.presentationPoint(pointFloorId, transformedPoint)
+          transformedPoint && appCtx.overviewStackController
+            ? appCtx.overviewStackController.presentationPoint(pointFloorId, transformedPoint)
             : transformedPoint;
       if (!pointFloorRecord)
         return transformPresentationPoint(
           planToWorldForFloor(pointFloorId, pointPlanX, pointPlanY, pointElevation),
         );
-      const pointFloor = studioProject.floors.find(
+      const pointFloor = appCtx.studioProject.floors.find(
         (pointFloorEntry: any) => pointFloorEntry.id === pointFloorId,
       );
       if (!pointFloor) return null;
@@ -20248,13 +19992,13 @@ function runStudioRenderLoop() {
       );
     },
     get lightStatePatchReady() {
-      return isEntranceComplete && !hasControlsRestored;
+      return ctx.isEntranceComplete && !ctx.hasControlsRestored;
     },
     setLightStates: applyLightEffects,
     onStartupEffectsProgress(startupEffectsProgress: any) {
       return (
         progressListenerSet.add(startupEffectsProgress),
-        startupEffectsProgress(reflectionDetailMode),
+        startupEffectsProgress(ctx.reflectionDetailMode),
         () => progressListenerSet.delete(startupEffectsProgress)
       );
     },
@@ -20265,12 +20009,12 @@ function runStudioRenderLoop() {
       return (
         applyCameraStateImmediately && buildCameraPose(),
         {
-          position: threeCamera.position.toArray(),
-          target: orbitControls.target.toArray(),
-          zoom: threeCamera.zoom,
-          mode: threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
-          up: threeCamera.up.toArray(),
-          frameSize: threeCamera.userData.frameSize || 10,
+          position: appCtx.threeCamera.position.toArray(),
+          target: appCtx.orbitControls.target.toArray(),
+          zoom: appCtx.threeCamera.zoom,
+          mode: appCtx.threeCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+          up: appCtx.threeCamera.up.toArray(),
+          frameSize: appCtx.threeCamera.userData.frameSize || 10,
           view: getCameraView(),
           topRotation: getCameraTopRotation(),
           focalLength: getCameraFocalLength(),
@@ -20302,17 +20046,17 @@ function runStudioRenderLoop() {
         isZoomEnabled = cameraInteractionOptions.zoomEnabled !== false,
         isFocusEditingEnabled = cameraInteractionOptions.focusEditing === true,
         cameraInteractionChanged =
-          isOrbitEnabled !== isCameraInteractionEnabled ||
-          cameraViewMode !== rotationMode ||
-          shouldEnablePan !== isPanEnabled ||
-          shouldEnableZoom !== isZoomEnabled ||
-          isPerspectiveCameraMode !== isFocusEditingEnabled;
-      ((isOrbitEnabled = isCameraInteractionEnabled),
-        (cameraViewMode = rotationMode!),
-        (shouldEnablePan = isPanEnabled),
-        (shouldEnableZoom = isZoomEnabled),
-        (isPerspectiveCameraMode = isFocusEditingEnabled),
-        (cameraForwardVector =
+          ctx.isOrbitEnabled !== isCameraInteractionEnabled ||
+          ctx.cameraViewMode !== rotationMode ||
+          ctx.shouldEnablePan !== isPanEnabled ||
+          ctx.shouldEnableZoom !== isZoomEnabled ||
+          ctx.isPerspectiveCameraMode !== isFocusEditingEnabled;
+      ((ctx.isOrbitEnabled = isCameraInteractionEnabled),
+        (ctx.cameraViewMode = rotationMode!),
+        (ctx.shouldEnablePan = isPanEnabled),
+        (ctx.shouldEnableZoom = isZoomEnabled),
+        (ctx.isPerspectiveCameraMode = isFocusEditingEnabled),
+        (ctx.cameraForwardVector =
           isFocusEditingEnabled &&
           Array.isArray(cameraInteractionOptions.focusPoint) &&
           cameraInteractionOptions.focusPoint.length === 3 &&
@@ -20321,19 +20065,19 @@ function runStudioRenderLoop() {
             : null),
         cameraInteractionChanged
           ? buildCameraPose()
-          : (orbitControls.enabled = isCameraInteractionEnabled),
+          : (appCtx.orbitControls.enabled = isCameraInteractionEnabled),
         configureOrbitControls());
     },
     whenPresented() {
       return (
-        (cameraRestoreState ||= (async () => {
-          const appInstance = studioProject,
+        (ctx.cameraRestoreState ||= (async () => {
+          const appInstance = appCtx.studioProject,
             isCurrentAppInstance = () =>
-              !assetLoaderState.disposed && studioProject === appInstance;
+              !assetLoaderState.disposed && appCtx.studioProject === appInstance;
           (stageLoadTiming("presentation-start"),
-            (isExternalModelPending = true),
-            window.clearTimeout(modelLoadTimeoutId),
-            (modelLoadTimeoutId = null));
+            (appCtx.isExternalModelPending = true),
+            window.clearTimeout(appCtx.modelLoadTimeoutId),
+            (appCtx.modelLoadTimeoutId = null));
           const cl2 = preloadDefaultModels();
           let settledTimerHandle;
           const modelsSettledPromise = Promise.allSettled(cl2).then(
@@ -20352,40 +20096,40 @@ function runStudioRenderLoop() {
             )
               return;
             cameraReadyResolve || stageLoadTiming("model-wait-timeout");
-            const jo2 = isSceneStillLoading;
+            const jo2 = appCtx.isSceneStillLoading;
             if (jo2) {
-              if (((isModelLoadPending = false), isEmbeddedStage)) {
+              if (((appCtx.isModelLoadPending = false), isEmbeddedStage)) {
                 if (!(await waitForSceneRevision())) return;
               } else
-                ((isSceneStillLoading = false),
+                ((appCtx.isSceneStillLoading = false),
                   requestSceneRebuild({
                     force: true,
                     precompile: true,
                   }));
-            } else isModelLoadPending && finishModelLoad();
+            } else appCtx.isModelLoadPending && finishModelLoad();
             if (
               (await new Promise(requestAnimationFrame),
               !isCurrentAppInstance() ||
                 (jo2 &&
                   (this.restoreCamera(
-                    savedCameraState?.value || null,
-                    savedCameraState?.projection || null,
+                    ctx.savedCameraState?.value || null,
+                    ctx.savedCameraState?.projection || null,
                   ),
-                  (savedCameraState = null),
-                  await waitForSceneReady(floorRetentionService)),
+                  (ctx.savedCameraState = null),
+                  await waitForSceneReady(ctx.floorRetentionService)),
                 !isCurrentAppInstance()))
             )
               return;
             stageLoadTiming("replacement-frame");
           } finally {
             (window.clearTimeout(settledTimerHandle),
-              studioProject === appInstance &&
-                ((isExternalModelPending = false),
-                isCurrentAppInstance() && isModelLoadPending && requestSceneRender()));
+              appCtx.studioProject === appInstance &&
+                ((appCtx.isExternalModelPending = false),
+                isCurrentAppInstance() && appCtx.isModelLoadPending && requestSceneRender()));
           }
           for (
             renderStudioFrame(), await new Promise(requestAnimationFrame);
-            !isEmbeddedStage && contactShadowController?.isPending() && canBuildScene();
+            !isEmbeddedStage && appCtx.contactShadowController?.isPending() && canBuildScene();
           )
             await new Promise(requestAnimationFrame);
           isCurrentAppInstance() &&
@@ -20396,7 +20140,7 @@ function runStudioRenderLoop() {
             isCurrentAppInstance() &&
               (stageLoadTiming(isEmbedStageMode ? "light-cache-not-required" : "light-cache-ready"),
               stageLoadTiming("final-render-start"),
-              threeRenderer.render(threeScene, threeCamera),
+              appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
               stageLoadTiming("final-render-end"),
               await new Promise(requestAnimationFrame),
               isCurrentAppInstance() &&
@@ -20409,7 +20153,7 @@ function runStudioRenderLoop() {
                 startupPresentation.start(),
                 (modelPresentationState.presented = true))));
         })()),
-        cameraRestoreState
+        ctx.cameraRestoreState
       );
     },
     setCameraView(runStudioRenderLoopCameraView: any) {
@@ -20419,21 +20163,21 @@ function runStudioRenderLoop() {
         }));
     },
     getCameraMotionState() {
-      return cameraMotionSpec
+      return ctx.cameraMotionSpec
         ? {
-            ...cameraMotionSpec,
+            ...ctx.cameraMotionSpec,
           }
         : null;
     },
     restoreCamera(restoredCameraState: any, cameraRestoreOptions: any = null) {
       if (
-        (isSceneStillLoading &&
-          (savedCameraState = {
+        (appCtx.isSceneStillLoading &&
+          (ctx.savedCameraState = {
             value: restoredCameraState,
             projection: cameraRestoreOptions,
           }),
         (restoredCameraState = constrainCameraPose2(restoredCameraState)),
-        (cameraMotionSpec = null),
+        (ctx.cameraMotionSpec = null),
         !restoredCameraState)
       ) {
         (updateCameraView(), buildCameraPose());
@@ -20447,20 +20191,20 @@ function runStudioRenderLoop() {
         setCameraMode(restoredCameraState.mode, {
           preserveView: false,
         }),
-        threeCamera.position.fromArray(restoredCameraState.position),
-        restoredCameraState.up && threeCamera.up.fromArray(restoredCameraState.up),
-        orbitControls.target.fromArray(restoredCameraState.target),
-        (threeCamera.zoom = restoredCameraState.zoom),
+        appCtx.threeCamera.position.fromArray(restoredCameraState.position),
+        restoredCameraState.up && appCtx.threeCamera.up.fromArray(restoredCameraState.up),
+        appCtx.orbitControls.target.fromArray(restoredCameraState.target),
+        (appCtx.threeCamera.zoom = restoredCameraState.zoom),
         restoredCameraState.frameSize &&
-          (threeCamera.userData.frameSize = restoredCameraState.frameSize),
-        (threeCamera.userData.cameraView = ut8.cameraView),
-        (threeCamera.userData.topRotation = ut8.cameraTopRotation),
-        updateCameraPlanes(threeCamera, orbitControls.target),
+          (appCtx.threeCamera.userData.frameSize = restoredCameraState.frameSize),
+        (appCtx.threeCamera.userData.cameraView = ut8.cameraView),
+        (appCtx.threeCamera.userData.topRotation = ut8.cameraTopRotation),
+        updateCameraPlanes(appCtx.threeCamera, appCtx.orbitControls.target),
         resizeStudioRenderer({
           preserveCanvasSize: true,
         }),
-        buildCameraPose(orbitControls.target.clone()),
-        (cameraMotionSpec = cameraRestoreOptions
+        buildCameraPose(appCtx.orbitControls.target.clone()),
+        (ctx.cameraMotionSpec = cameraRestoreOptions
           ? {
               ...cameraRestoreOptions,
             }
@@ -20562,7 +20306,7 @@ startupStudio(studioBootDeps());
     registerStudioCommandHandler(null);
     // SPA 内路由不会触发 pagehide / beforeunload（那是整页导航的路径），所以在拆场景之前
     // 尽力提交一次未保存修改；「不保存并退出」（isLeavingStudio）时按用户意愿跳过。
-    if (!isEmbeddedStage && !isLeavingStudio && hasUnsavedChanges()) {
+    if (!isEmbeddedStage && !appCtx.isLeavingStudio && hasUnsavedChanges()) {
       try {
         void flushAutosave()
       } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
@@ -20573,31 +20317,31 @@ startupStudio(studioBootDeps());
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     // 渲染循环：取消当前长任务（其内部会摘掉 pagehide/pointerdown/wheel 与控制器监听）
     try {
-      activeLongTask?.cancel?.()
+      appCtx.activeLongTask?.cancel?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    activeLongTask = null
-    if (renderLoopFrameId) cancelAnimationFrame(renderLoopFrameId)
-    renderLoopFrameId = 0
-    window.clearTimeout(renderLoopTimeoutId)
-    window.clearTimeout(pointerReleaseTimeoutId)
-    window.clearTimeout(exportPreviewTimeoutId)
-    window.clearTimeout(previewShieldTimeoutId)
-    window.clearTimeout(modelLoadTimeoutId)
+    appCtx.activeLongTask = null
+    if (appCtx.renderLoopFrameId) cancelAnimationFrame(appCtx.renderLoopFrameId)
+    appCtx.renderLoopFrameId = 0
+    window.clearTimeout(appCtx.renderLoopTimeoutId)
+    window.clearTimeout(appCtx.pointerReleaseTimeoutId)
+    window.clearTimeout(appCtx.exportPreviewTimeoutId)
+    window.clearTimeout(appCtx.previewShieldTimeoutId)
+    window.clearTimeout(appCtx.modelLoadTimeoutId)
     // 尺寸观察者与 three.js 资源
     try {
-      resizeObserverInstance?.disconnect?.()
+      appCtx.resizeObserverInstance?.disconnect?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      lightPreviewWorker?.close?.()
+      appCtx.lightPreviewWorker?.close?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      lightPrecompileController?.dispose?.()
+      appCtx.lightPrecompileController?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      backgroundController?.dispose?.()
+      appCtx.backgroundController?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      lightingScheduler?.dispose?.()
+      appCtx.lightingScheduler?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
       planPainter?.dispose?.()
@@ -20608,19 +20352,19 @@ startupStudio(studioBootDeps());
     gardenGateItemType = "garden-gate"
     gardenGateSnapCandidate = null
     try {
-      orbitControls?.dispose?.()
+      appCtx.orbitControls?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      threeRenderer?.dispose?.()
+      appCtx.threeRenderer?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     try {
-      threeRenderer?.forceContextLoss?.()
+      appCtx.threeRenderer?.forceContextLoss?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    threeRenderer = null
-    threeScene = null
-    threeCamera = null
-    orbitControls = null
-    sceneRootNode = null
+    appCtx.threeRenderer = null
+    appCtx.threeScene = null
+    appCtx.threeCamera = null
+    appCtx.orbitControls = null
+    appCtx.sceneRootNode = null
     // 文档级残留（嵌入式 stage 的 body 类与诊断用 dataset）
     document.body.classList.remove('auto-diagram-embedded')
     document.documentElement.classList.remove('list-drag-active')

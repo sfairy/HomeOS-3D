@@ -143,7 +143,7 @@
       !allowedPayloadKeySet.has(detailKey) ||
         detailValue == null ||
         !["string", "number", "boolean"].includes(typeof detailValue) ||
-        ((pickedPayload as any)[detailKey] = ["path", "page"].includes(detailKey)
+        (pickedPayload[detailKey] = ["path", "page"].includes(detailKey)
           ? sanitizePath(detailValue)
           : typeof detailValue == "number" && Number.isFinite(detailValue)
             ? detailValue

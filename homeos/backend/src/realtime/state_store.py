@@ -71,10 +71,6 @@ class StateStore:
     def get(self, entity_id: str) -> dict[str, Any] | None:
         return self._states.get(entity_id)
 
-    def get_by_id(self, entity_id: str) -> dict[str, Any] | None:
-        """等价 Nest ``StateStoreService#getById``。"""
-        return self._states.get(entity_id)
-
     def set_all(self, entities: list[dict[str, Any]]) -> None:
         self._states = {
             str(entity["entity_id"]): entity for entity in entities if entity.get("entity_id")

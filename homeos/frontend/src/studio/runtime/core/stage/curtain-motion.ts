@@ -71,7 +71,7 @@ export function rebuildCurtainMotionCore(deps: StageCurtainMotionDeps) {
     for (const coverBindingForSync of coverBindings) {
       const coverStateSnapshot = coverState2(
         coverBindingForSync.entityId,
-        (deps.deviceStates as any)[coverBindingForSync.entityId],
+        deps.deviceStates[coverBindingForSync.entityId],
         coverBindingForSync,
       );
       (coverBindingForSync.coverKind === "dream" &&

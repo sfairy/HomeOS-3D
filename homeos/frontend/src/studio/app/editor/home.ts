@@ -201,6 +201,7 @@ import { runCopyBackupCore } from "./copy-backup/run-copy-backup";
 import { loadNavigationIconOptionsCore, positionTitleButtonIconMenuCore, stopHoverScrollCore, iconTooltipElementValueCore } from "./menus/title-button-menu";
 import { syncComponentActionControlsCore, applyTransformToInspectorCore, previewModeForIconCore, sharedReferenceIdCore } from "./inspectors/inspector-sync";
 import { nudgeDeltaXCore } from "./selection/nudge";
+import { createEditorContext } from "./home/editor-context";
 
 let disposeActiveEditor: (() => void) | null = null;
 
@@ -215,6 +216,7 @@ let disposeActiveEditor: (() => void) | null = null;
 export function bootEditor(): void {
   const scope = createLegacyScope('editor-home');
   const innerCleanup = scope.run(() => {
+  const editorCtx = createEditorContext();
 
 // 路由 fade 过渡期间户型页与编辑器会短暂共存；限定在本页根节点内查询，避免撞 id。
   const editorRootElement =
@@ -359,13 +361,13 @@ const showEditorPreviewButtonElement = findElement("#show-editor-preview"),
   buttonSoundController = createButtonSound2();
 function refreshSoundToggle() {
   if (!soundToggleButtonElement) return;
-  const isEditMode = editorMode === "edit";
+  const isEditMode = editorCtx.editorMode === "edit";
   ((soundToggleButtonElement.hidden = !isEditMode),
-    (soundToggleButtonElement.disabled = !activeProject),
-    activeProject &&
-      typeof activeProject.document?.soundEnabled == "boolean" &&
-      buttonSoundController.isEnabled() !== activeProject.document.soundEnabled &&
-      buttonSoundController.setEnabled(activeProject.document.soundEnabled),
+    (soundToggleButtonElement.disabled = !editorCtx.activeProject),
+    editorCtx.activeProject &&
+      typeof editorCtx.activeProject.document?.soundEnabled == "boolean" &&
+      buttonSoundController.isEnabled() !== editorCtx.activeProject.document.soundEnabled &&
+      buttonSoundController.setEnabled(editorCtx.activeProject.document.soundEnabled),
     soundToggleButtonElement.setAttribute(
       "aria-pressed",
       String(buttonSoundController.isEnabled()),
@@ -487,14 +489,7 @@ const deleteProjectDialogElement = findElement("#delete-project-dialog"),
   floorplanAutoLightingSaveButtonElement = findElement("#floorplan-auto-lighting-save"),
   floorplanAutoLightingStatusElement = findElement("#floorplan-auto-lighting-status"),
   floorplanBaseLightElements = [...document.querySelectorAll<HTMLInputElement>("[data-floorplan-base-light]")];
-let baseLightingComponentId = "",
-  baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2),
-  lightingPanelDragStateState: any = null,
-  lightingPanelDragState: any = null,
-  // 光照面板拖拽：pointermove 只记录目标坐标，真正写样式合并到每帧一次（rAF），
-  // 面板尺寸与视口上限在 pointerdown 量一次，避免每次移动都强制一次同步布局。
-  lightingPanelDragFrame: number | null = null,
-  lightingPanelDragPending: { x: number; y: number } | null = null;
+editorCtx.baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2);
 const componentActionControlsElement = findElement("#component-action-controls"),
   floorplanAutoDiagramDialogElement = findElement("#floorplan-auto-diagram-dialog"),
   floorplanAutoDiagramCloseButtonElement = findElement("#floorplan-auto-diagram-close"),
@@ -1169,85 +1164,14 @@ const componentActionControlsElement = findElement("#component-action-controls")
   deleteAssetFolderConfirmButtonElement = findElement("#delete-asset-folder-confirm"),
   deleteAssetFolderNameElement = findElement("#delete-asset-folder-name"),
   deleteAssetFolderCountElement = findElement("#delete-asset-folder-count");
-let editorRenderer: any = null,
-  dashboardPreviewRenderer: any = null;
 const historySeriesCacheById = new Map(),
   runtimeStateCacheById = new Map(),
   virtualEntityStateCacheById = new Map();
-let editorMode = "edit",
-  projects: any = [],
-  activeProject: any = null,
-  activeProjectState = 0,
-  componentScopeState = 0,
-  componentScope = "shared",
-  projectDialogMode = "create",
-  resizeWarningResolve: any = null,
-  resizeWarningResolveState = "homeos",
-  isAspectLockedState = 2778,
-  isAspectLockedValue = 1940,
-  isAspectLocked = false,
-  lockedCanvasWidthState = 2778,
-  lockedCanvasWidth = 1940,
-  lockedCanvasWidthValue: any = [],
-  lockedCanvasHeightState: any = [],
-  lockedCanvasHeight = 0,
-  pageDialogMode = "create",
-  selectedComponentId: any = null,
-  activeGroupId: any = null,
-  lastComponentClick = {
-    componentId: null as any,
-    at: 0,
-  },
-  selectedPopupId: any = null,
-  popupDialogMode = "create",
-  selectedPopupModuleId: any = null,
-  moduleDialogPopupId: any = null,
-  popupModuleDraft: any = null,
-  pendingDeleteAssetId: any = null,
-  pendingDeleteAssetFolder: any = null,
-  userAssetsState: any = [],
-  userAssets: any = [],
-  catalogVersionSignature: any = null,
-  entities: any = [],
-  devices: any = [],
-  deviceNamesByDeviceId = new Map(),
-  entityResourcesByDeviceId: Record<string, any> = {},
-  entitiesLoadPromise: any = null,
-  isAreEntitiesLoaded = false,
-  lastConnectedSignature: any = null,
-  writeQueuePromise = Promise.resolve(),
-  imageAssetFolderState = "",
-  effectAssetFolderState = "",
-  imageAssetFolder = "builtin",
-  effectAssetFolder = "builtin",
-  assetPreviewTimeoutId: any = null,
-  navigationIconSearchDebounceTimeoutId: any = null,
-  navigationIconCopiedTimeoutId: any = null,
-  effectIconSearchDebounceTimeoutId: any = null,
-  effectIconCopiedTimeoutId: any = null,
-  deviceIconSearchDebounceTimeoutId: any = null,
-  deviceIconCopiedTimeoutId: any = null,
-  titleButtonIconSearchDebounceTimeoutId: any = null,
-  titleButtonIconCopiedTimeoutId: any = null,
-  lightStatisticsIconSearchDebounceTimeoutId: any = null,
-  lightStatisticsIconCopiedTimeoutId: any = null,
-  statisticsEntityId = "",
-  statisticsReplaceIndex = -1,
-  statisticsComponentId = "",
-  navigationApplyFeedbackTimeoutId: any = null,
-  panelFrameApplyFeedbackTimeoutId: any = null,
-  lineChartApplyFeedbackTimeoutId: any = null,
-  effectApplyFeedbackTimeoutId: any = null,
-  titleButtonApplyFeedbackTimeoutId: any = null,
-  deviceButtonApplyFeedbackTimeoutId: any = null,
-  cameraApplyFeedbackTimeoutId: any = null,
-  airConditionerApplyFeedbackTimeoutId: any = null,
-  appliedStyleRecord: any = null,
-  imageAlignSourceComponentId: any = null;
+editorCtx.lastComponentClick = { componentId: null as any, at: 0, };
+editorCtx.deviceNamesByDeviceId = new Map();
+editorCtx.writeQueuePromise = Promise.resolve();
 const pendingAssetProbeKeysSet = new Set();
-let selectedComponentIdsSet = new Set<string>(),
-  selectionAnchorComponentId: any = null,
-  coverMotorDirectionValue: any = null;
+editorCtx.selectedComponentIdsSet = new Set<string>();
 const { syncEventLogWallInspector } = setupEventLogWallInspector({
   eventLogWallInspectorElement, eventLogWallTypeElement, eventLogWallLabelElement,
   eventLogWallEnabledElement, eventLogWallTitleElement, eventLogWallTitleVisibleElement,
@@ -1258,8 +1182,8 @@ const { syncEventLogWallInspector } = setupEventLogWallInspector({
   eventLogWallFooterTextElement, eventLogWallShowFooterElement, eventLogWallOnColorElement,
   eventLogWallOffColorElement, eventLogWallAttrColorElement, eventLogWallClimateColorElement,
   eventLogWallAlertColorElement, eventLogWallMutedColorElement,
-  getSelectedComponentId: () => selectedComponentId,
-  getEditorRenderer: () => editorRenderer,
+  getSelectedComponentId: () => editorCtx.selectedComponentId,
+  getEditorRenderer: () => editorCtx.editorRenderer,
   mutateDocument,
   removedComponent,
 });
@@ -1278,10 +1202,10 @@ const { syncPanelFrameInspector } = setupPanelFrameInspector({
   panelFrameTopInputElement, panelFrameWidthInputElement, panelFrameHeightInputElement,
   panelFrameScaleInputElement, panelFrameRotationInputElement, panelFrameApplyStyleButtonElement,
   panelFrameApplyCountElement,
-  getSelectedComponentId: () => selectedComponentId,
-  getSelectedComponentIdsSet: () => selectedComponentIdsSet,
-  getActiveProject: () => activeProject,
-  getEditorRenderer: () => editorRenderer,
+  getSelectedComponentId: () => editorCtx.selectedComponentId,
+  getSelectedComponentIdsSet: () => editorCtx.selectedComponentIdsSet,
+  getActiveProject: () => editorCtx.activeProject,
+  getEditorRenderer: () => editorCtx.editorRenderer,
   removedComponent,
   mutateDocument,
   findReplaceableComponents,
@@ -1296,18 +1220,6 @@ const historyState = {
   },
   MAX_HISTORY_ENTRIES = 50,
   RECOVERY_STORAGE_PREFIX = "homeos:unsaved:";
-let savedDocumentSignature = "",
-  baselineDocument: any = null,
-  hasUnsavedChanges = false,
-  copyTargetDraft: any = null,
-  copyTargetLoadToken = 0,
-  copySuccessNavigationTarget: any = null,
-  isSaving = false,
-  recoverySnapshot: any = null,
-  menuComponentId: any = null,
-  editorClipboardComponentIds: string[] = [],
-  editorCanvasZoom = 1,
-  editorSpacePanning = false;
 const navigationPreviewStateByComponentId = new Map(),
   iconButtonEffectPreviewStateByComponentId = new Map(),
   iconButtonPreviewStateByComponentId = new Map(),
@@ -1327,15 +1239,15 @@ const navigationPreviewStateByComponentId = new Map(),
   enhancedNumberInputsSet = new WeakSet();
 const iconButtonInspectorContext: IconButtonInspectorContext = {
   get activeProject() {
-    return activeProject;
+    return editorCtx.activeProject;
   },
   get selectedComponentIdsSet() {
-    return selectedComponentIdsSet;
+    return editorCtx.selectedComponentIdsSet;
   },
   doorWindowPerspectiveEditIdsSet,
   iconButtonPreviewStateByComponentId,
   get editorRenderer() {
-    return editorRenderer;
+    return editorCtx.editorRenderer;
   },
   findReplaceableComponents,
   appliedStylePropertyKey,
@@ -1457,7 +1369,7 @@ function syncIconButtonInspector(iconButtonComponent: any) {
 }
 const navigationInspectorContext: NavigationInspectorContext = {
   get activeProject() {
-    return activeProject;
+    return editorCtx.activeProject;
   },
   findReplaceableComponents,
   navigationActionControlsElement,
@@ -1520,7 +1432,7 @@ const navigationInspectorContext: NavigationInspectorContext = {
   sceneModeControlElement,
   sceneModeHintElement,
   get selectedComponentIdsSet() {
-    return selectedComponentIdsSet;
+    return editorCtx.selectedComponentIdsSet;
   },
   syncComponentActionControls,
 };
@@ -1529,7 +1441,7 @@ function syncNavigationInspector(navigationComponent: any) {
 }
 const lineChartInspectorContext: LineChartInspectorContext = {
   get activeProject() {
-    return activeProject;
+    return editorCtx.activeProject;
   },
   findReplaceableComponents,
   lineChartActionControlsElement,
@@ -1557,7 +1469,7 @@ const lineChartInspectorContext: LineChartInspectorContext = {
   runAltBackup,
   runExtraFallback,
   get selectedComponentIdsSet() {
-    return selectedComponentIdsSet;
+    return editorCtx.selectedComponentIdsSet;
   },
   syncComponentActionControls,
 };
@@ -1566,7 +1478,7 @@ function syncLineChartInspector(lineChartComponent: any) {
 }
 const airConditionerInspectorContext: AirConditionerInspectorContext = {
   get activeProject() {
-    return activeProject;
+    return editorCtx.activeProject;
   },
   airConditionerActionControlsElement,
   airConditionerActionSectionElement,
@@ -1636,28 +1548,19 @@ const airConditionerInspectorContext: AirConditionerInspectorContext = {
   airConditionerTransformSectionElement,
   airConditionerWidthElement,
   get editorRenderer() {
-    return editorRenderer;
+    return editorCtx.editorRenderer;
   },
   findReplaceableComponents,
   runAltLeft,
   runExtraFallback,
   get selectedComponentIdsSet() {
-    return selectedComponentIdsSet;
+    return editorCtx.selectedComponentIdsSet;
   },
   syncComponentActionControls,
 };
 function syncAirConditionerInspector(airConditionerComponent: any) {
   syncAirConditionerInspectorExternal(airConditionerInspectorContext, airConditionerComponent);
 }
-let openCustomSelect: any = null,
-  activeColorInputElement: any = null,
-  activeColorHex = "",
-  colorPickerHue = 0,
-  colorPickerSaturation = 0,
-  colorPickerBrightness = 1,
-  colorPickerDragPointerId: any = null,
-  colorPickerCopyResetTimer: any = null,
-  lastLicenseFeatureSignature: any = null;
 
 
 /** 认证跳转闩（原 `let authRedirectStarted`）：每实例一份，交给 `net/request-json` 读写。 */
@@ -1687,8 +1590,8 @@ function setSettingsMessage(messageElement: any, messageText: any, toneClass = "
 }
 function handleOperationError(operationError: any) {
   (window.HomeOSLog?.error!(operationError, {
-    projectId: activeProject?.projectId || "",
-    componentId: selectedComponentId || "",
+    projectId: editorCtx.activeProject?.projectId || "",
+    componentId: editorCtx.selectedComponentId || "",
     phase: "editor-operation",
   }),
     (errorDialogMessageElement.textContent = operationError?.message || "操作失败。"),
@@ -1705,13 +1608,13 @@ function value() {
 function run() {
   ((popupActionsMenuElement.hidden = true),
     popupActionsButtonElement.setAttribute("aria-expanded", "false"),
-    (moduleDialogPopupId = null));
+    (editorCtx.moduleDialogPopupId = null));
 }
-function runState(runValue = openCustomSelect) {
+function runState(runValue = editorCtx.openCustomSelect) {
   runValue &&
     ((runValue.menu.hidden = true),
     runValue.button.setAttribute("aria-expanded", "false"),
-    openCustomSelect === runValue && (openCustomSelect = null));
+    editorCtx.openCustomSelect === runValue && (editorCtx.openCustomSelect = null));
 }
 function runConfig(runRef: any) {
   if (runRef.menu.hidden) return;
@@ -1741,30 +1644,30 @@ function selectableEntities(setLightStatisticsMessage: Document | HTMLElement = 
 }
 function openEntityPicker(openIconPicker: any, openLightStatisticsEntityPicker = false) {
   const closeColorPicker = normalizedHexColor2(openIconPicker);
-  if (!closeColorPicker || !activeColorInputElement) return;
+  if (!closeColorPicker || !editorCtx.activeColorInputElement) return;
   const commitColorPickerFromRgb = hexToRgb2(closeColorPicker),
     commitColorPickerHsv = rgbToHsv2(commitColorPickerFromRgb);
-  ((colorPickerHue = commitColorPickerHsv.s > 0 ? commitColorPickerHsv.h : colorPickerHue),
-    (colorPickerSaturation = commitColorPickerHsv.s),
-    (colorPickerBrightness = commitColorPickerHsv.v),
+  ((editorCtx.colorPickerHue = commitColorPickerHsv.s > 0 ? commitColorPickerHsv.h : editorCtx.colorPickerHue),
+    (editorCtx.colorPickerSaturation = commitColorPickerHsv.s),
+    (editorCtx.colorPickerBrightness = commitColorPickerHsv.v),
     globalColorPickerElement.style.setProperty(
       "--picker-hue",
-      "hsl(" + colorPickerHue + " 100% 50%)",
+      "hsl(" + editorCtx.colorPickerHue + " 100% 50%)",
     ),
     globalColorPickerElement.style.setProperty("--picker-color", closeColorPicker),
-    (globalColorPickerMarkerElement.style.left = colorPickerSaturation * 100 + "%"),
-    (globalColorPickerMarkerElement.style.top = (1 - colorPickerBrightness) * 100 + "%"),
-    (globalColorPickerHueRangeInputElement.value = String(Math.round(colorPickerHue))),
+    (globalColorPickerMarkerElement.style.left = editorCtx.colorPickerSaturation * 100 + "%"),
+    (globalColorPickerMarkerElement.style.top = (1 - editorCtx.colorPickerBrightness) * 100 + "%"),
+    (globalColorPickerHueRangeInputElement.value = String(Math.round(editorCtx.colorPickerHue))),
     document.activeElement !== globalColorPickerHexTextInputElement &&
       (globalColorPickerHexTextInputElement.value = closeColorPicker.toUpperCase()),
     (globalColorPickerRedInputElement.value = String(Math.round(commitColorPickerFromRgb.r))),
     (globalColorPickerGreenInputElement.value = String(Math.round(commitColorPickerFromRgb.g))),
     (globalColorPickerBlueInputElement.value = String(Math.round(commitColorPickerFromRgb.b))),
     (globalColorPickerSwatchElement.style.background = closeColorPicker),
-    activeColorInputElement.value !== closeColorPicker &&
-      ((activeColorInputElement.value = closeColorPicker),
+    editorCtx.activeColorInputElement.value !== closeColorPicker &&
+      ((editorCtx.activeColorInputElement.value = closeColorPicker),
       openLightStatisticsEntityPicker &&
-        activeColorInputElement.dispatchEvent(
+        editorCtx.activeColorInputElement.dispatchEvent(
           new Event("input", {
             bubbles: true,
           }),
@@ -1772,9 +1675,9 @@ function openEntityPicker(openIconPicker: any, openLightStatisticsEntityPicker =
 }
 function closeAllDropdownMenus() {
   const enhanceColorInputsIn = hsvToRgb2(
-    colorPickerHue,
-    colorPickerSaturation,
-    colorPickerBrightness,
+    editorCtx.colorPickerHue,
+    editorCtx.colorPickerSaturation,
+    editorCtx.colorPickerBrightness,
   );
   openEntityPicker(
     rgbToHex2(enhanceColorInputsIn.r, enhanceColorInputsIn.g, enhanceColorInputsIn.b),
@@ -1782,8 +1685,8 @@ function closeAllDropdownMenus() {
   );
 }
 function closeDropdownMenu() {
-  if (globalColorPickerElement.hidden || !activeColorInputElement) return;
-  const positionColorPicker = activeColorInputElement.getBoundingClientRect(),
+  if (globalColorPickerElement.hidden || !editorCtx.activeColorInputElement) return;
+  const positionColorPicker = editorCtx.activeColorInputElement.getBoundingClientRect(),
     syncColorPickerFromHex = globalColorPickerElement.getBoundingClientRect(),
     num = 9,
     closeProjectActionsState = 8,
@@ -1809,26 +1712,26 @@ function closeDropdownMenu() {
 }
 function runEntry(commitColorPickerFromRgbElement: any) {
   if (!commitColorPickerFromRgbElement || commitColorPickerFromRgbElement.disabled) return;
-  (activeColorInputElement &&
-    activeColorInputElement !== commitColorPickerFromRgbElement &&
+  (editorCtx.activeColorInputElement &&
+    editorCtx.activeColorInputElement !== commitColorPickerFromRgbElement &&
     setWorkspaceHasProject(),
-    (activeColorInputElement = commitColorPickerFromRgbElement),
-    (activeColorHex = normalizedHexColor2(commitColorPickerFromRgbElement.value) || "#000000"));
-  const updateColorPickerFromPointer = rgbToHsv2(hexToRgb2(activeColorHex));
-  ((colorPickerHue = updateColorPickerFromPointer.h),
-    (colorPickerSaturation = updateColorPickerFromPointer.s),
-    (colorPickerBrightness = updateColorPickerFromPointer.v),
+    (editorCtx.activeColorInputElement = commitColorPickerFromRgbElement),
+    (editorCtx.activeColorHex = normalizedHexColor2(commitColorPickerFromRgbElement.value) || "#000000"));
+  const updateColorPickerFromPointer = rgbToHsv2(hexToRgb2(editorCtx.activeColorHex));
+  ((editorCtx.colorPickerHue = updateColorPickerFromPointer.h),
+    (editorCtx.colorPickerSaturation = updateColorPickerFromPointer.s),
+    (editorCtx.colorPickerBrightness = updateColorPickerFromPointer.v),
     (globalColorPickerElement.hidden = false),
-    openEntityPicker(activeColorHex),
+    openEntityPicker(editorCtx.activeColorHex),
     window.requestAnimationFrame(closeDropdownMenu));
 }
 function setWorkspaceHasProject() {
-  if (!activeColorInputElement) return;
-  const he2 = activeColorInputElement,
-    isPositionColorPicker = normalizedHexColor2(he2.value) !== activeColorHex;
+  if (!editorCtx.activeColorInputElement) return;
+  const he2 = editorCtx.activeColorInputElement,
+    isPositionColorPicker = normalizedHexColor2(he2.value) !== editorCtx.activeColorHex;
   ((globalColorPickerElement.hidden = true),
-    (activeColorInputElement = null),
-    (colorPickerDragPointerId = null),
+    (editorCtx.activeColorInputElement = null),
+    (editorCtx.colorPickerDragPointerId = null),
     isPositionColorPicker &&
       he2.dispatchEvent(
         new Event("change", {
@@ -1839,8 +1742,8 @@ function setWorkspaceHasProject() {
 }
 function hasActiveProject() {
   !globalColorPickerElement.hidden &&
-    activeColorInputElement?.isConnected &&
-    openEntityPicker(activeColorInputElement.value);
+    editorCtx.activeColorInputElement?.isConnected &&
+    openEntityPicker(editorCtx.activeColorInputElement.value);
 }
 function destroyDashboardPreview(renderDashboardPreview: Document | HTMLElement = document) {
   (renderDashboardPreview instanceof HTMLInputElement && renderDashboardPreview.type === "color"
@@ -1880,23 +1783,23 @@ function runKey(runPath: any) {
     refreshSoundToggle());
 }
 function runSlot() {
-  (dashboardPreviewRenderer?.destroy(), (dashboardPreviewRenderer = null));
+  (editorCtx.dashboardPreviewRenderer?.destroy(), (editorCtx.dashboardPreviewRenderer = null));
 }
 function runCase(displayDeviceUnbindButtonElement = pageSelectElement.value) {
-  if (editorMode !== "dashboard") {
+  if (editorCtx.editorMode !== "dashboard") {
     runSlot();
     return;
   }
-  if (!activeProject?.document?.pages?.length) {
+  if (!editorCtx.activeProject?.document?.pages?.length) {
     (runSlot(),
       (dashboardPreviewElement.innerHTML =
         '<div class="canvas-message"><strong>' +
-        (activeProject ? "请从左侧新建页面。" : "请从左侧新建仪表盘。") +
+        (editorCtx.activeProject ? "请从左侧新建页面。" : "请从左侧新建仪表盘。") +
         "</strong></div>"));
     return;
   }
-  (dashboardPreviewRenderer ||
-    ((dashboardPreviewRenderer = new PanelRenderer2(dashboardPreviewElement, {
+  (editorCtx.dashboardPreviewRenderer ||
+    ((editorCtx.dashboardPreviewRenderer = new PanelRenderer2(dashboardPreviewElement, {
       editable: false,
       historySeriesCache: historySeriesCacheById,
       runtimeStateCache: runtimeStateCacheById,
@@ -1910,12 +1813,12 @@ function runCase(displayDeviceUnbindButtonElement = pageSelectElement.value) {
           loadNavigationIconOptions(pageSelectElement));
       },
     })),
-    dashboardPreviewRenderer.setEntityCatalog(entities, entityResourcesByDeviceId, devices)),
-    dashboardPreviewRenderer.setDocument(activeProject.document, displayDeviceUnbindButtonElement));
+    editorCtx.dashboardPreviewRenderer.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices)),
+    editorCtx.dashboardPreviewRenderer.setDocument(editorCtx.activeProject.document, displayDeviceUnbindButtonElement));
 }
 function unbindDisplayDeviceError() {
-  const trim = String(activeProject?.document?.name || "").trim(),
-    openDisplayDevicesDialogState = editorMode === "dashboard" && !!trim;
+  const trim = String(editorCtx.activeProject?.document?.name || "").trim(),
+    openDisplayDevicesDialogState = editorCtx.editorMode === "dashboard" && !!trim;
   if (
     ((dashboardDisplayHintElement.hidden = !openDisplayDevicesDialogState),
     !openDisplayDevicesDialogState)
@@ -1932,11 +1835,11 @@ function unbindDisplayDeviceError() {
     (dashboardDisplayLinkElement.title = uRL.href));
 }
 function renderWorkspaceResolution() {
-  const documentCanvas = activeProject?.document?.canvas,
+  const documentCanvas = editorCtx.activeProject?.document?.canvas,
     canvasWidthValue = Number(documentCanvas?.width),
     canvasHeightValue = Number(documentCanvas?.height),
     finite =
-      editorMode !== "popup" &&
+      editorCtx.editorMode !== "popup" &&
       Number.isFinite(canvasWidthValue) &&
       canvasWidthValue > 0 &&
       Number.isFinite(canvasHeightValue) &&
@@ -1947,10 +1850,10 @@ function renderWorkspaceResolution() {
       : ""));
 }
 function setEditorMode(editorModeValue: any) {
-  editorMode = ["edit", "dashboard", "popup"].includes(editorModeValue) ? editorModeValue : "edit";
-  const isEditingPage = editorMode === "edit",
-    isDashboardMode = editorMode === "dashboard",
-    isPopupMode = editorMode === "popup";
+  editorCtx.editorMode = ["edit", "dashboard", "popup"].includes(editorModeValue) ? editorModeValue : "edit";
+  const isEditingPage = editorCtx.editorMode === "edit",
+    isDashboardMode = editorCtx.editorMode === "dashboard",
+    isPopupMode = editorCtx.editorMode === "popup";
   ((showPopupEditorButtonElement.hidden = isPopupMode),
     (pageNewButtonElement.hidden = !isPopupMode),
     navigatorContentElement.classList.toggle("popup-mode", isPopupMode),
@@ -1962,7 +1865,7 @@ function setEditorMode(editorModeValue: any) {
     (editorCanvasElement.hidden = !isEditingPage),
     (dashboardPreviewElement.hidden = !isDashboardMode),
     (customPopupEditorElement.hidden = !isPopupMode),
-    displayDeviceCountElement.classList.toggle("empty", !activeProject),
+    displayDeviceCountElement.classList.toggle("empty", !editorCtx.activeProject),
     (workspaceTitleElement.textContent = isDashboardMode
       ? "仪表盘"
       : isPopupMode
@@ -1979,28 +1882,28 @@ function setEditorMode(editorModeValue: any) {
       modeToggleButton.setAttribute("aria-selected", String(modeToggleActive)));
   isEditingPage
     ? (runSlot(),
-      activeProject?.document?.pages?.length &&
-        (ensureEditorRenderer().setDocument(activeProject.document, pageSelectElement.value),
-        editorRenderer.setSelectedComponents([...selectedComponentIdsSet], selectedComponentId)),
+      editorCtx.activeProject?.document?.pages?.length &&
+        (ensureEditorRenderer().setDocument(editorCtx.activeProject.document, pageSelectElement.value),
+        editorCtx.editorRenderer.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId)),
       window.requestAnimationFrame(resizeWorkspaceCanvas))
     : isDashboardMode
-      ? (editorRenderer?.destroy(),
-        (editorRenderer = null),
+      ? (editorCtx.editorRenderer?.destroy(),
+        (editorCtx.editorRenderer = null),
         runCase(),
-        window.requestAnimationFrame(() => dashboardPreviewRenderer?.resize()))
+        window.requestAnimationFrame(() => editorCtx.dashboardPreviewRenderer?.resize()))
       : isPopupMode &&
         (clearComponentSelection(),
         renderComponentLists(),
         coverMotorButtonElement(),
-        editorRenderer?.destroy(),
-        (editorRenderer = null),
+        editorCtx.editorRenderer?.destroy(),
+        (editorCtx.editorRenderer = null),
         runSlot(),
         renderCustomPopupEditor());
 }
-function syncDefaultPageAction(hasPages = !!activeProject?.document?.pages?.length) {
+function syncDefaultPageAction(hasPages = !!editorCtx.activeProject?.document?.pages?.length) {
   if (defaultPageActionElement) {
     const ct2 = currentPage(),
-      isCurrentDefaultPage = !!(ct2 && activeProject?.document?.defaultPagePath === ct2.path);
+      isCurrentDefaultPage = !!(ct2 && editorCtx.activeProject?.document?.defaultPagePath === ct2.path);
     ((defaultPageActionElement.textContent = isCurrentDefaultPage
       ? "已是默认首屏"
       : "设为默认首屏"),
@@ -2016,7 +1919,7 @@ function setPageControlsEnabled(controlsEnabled: any) {
     controlsEnabled || value());
 }
 function resizeWorkspaceCanvas() {
-  if (!activeProject) return;
+  if (!editorCtx.activeProject) return;
   const computedStyle = window.getComputedStyle(displayDeviceCountElement),
     availableWidthPx =
       displayDeviceCountElement.clientWidth -
@@ -2026,8 +1929,8 @@ function resizeWorkspaceCanvas() {
       displayDeviceCountElement.clientHeight -
       Number.parseFloat(computedStyle.paddingTop) -
       Number.parseFloat(computedStyle.paddingBottom),
-    canvasWidthPx = activeProject.document.canvas.width || 2778,
-    canvasHeightPx = activeProject.document.canvas.height || 1940,
+    canvasWidthPx = editorCtx.activeProject.document.canvas.width || 2778,
+    canvasHeightPx = editorCtx.activeProject.document.canvas.height || 1940,
     canvasAspectRatio = canvasWidthPx / canvasHeightPx,
     isHeightLimited = availableWidthPx / availableHeightPx > canvasAspectRatio,
     renderWidthPx = isHeightLimited ? availableHeightPx * canvasAspectRatio : availableWidthPx,
@@ -2037,20 +1940,15 @@ function resizeWorkspaceCanvas() {
     (dashboardPreviewElement.style.width = Math.max(1, renderWidthPx) + "px"),
     (dashboardPreviewElement.style.height = Math.max(1, renderHeightPx) + "px"),
     window.requestAnimationFrame(() => {
-      (editorRenderer?.resize(), dashboardPreviewRenderer?.resize());
+      (editorCtx.editorRenderer?.resize(), editorCtx.dashboardPreviewRenderer?.resize());
     }));
 }
 const workspaceResizeObserver = new ResizeObserver(() => {
-  (resizeWorkspaceCanvas(), syncCustomPopupStage(), dashboardPreviewRenderer?.resize());
+  (resizeWorkspaceCanvas(), syncCustomPopupStage(), editorCtx.dashboardPreviewRenderer?.resize());
 });
 workspaceResizeObserver.observe(displayDeviceCountElement);
 
 /** 空白画布框选 */
-let marqueeState: {
-  startX: number;
-  startY: number;
-  overlay: HTMLDivElement;
-} | null = null;
 function ensureMarqueeOverlay() {
   let overlay = editorCanvasElement.querySelector(".sc-marquee") as HTMLDivElement | null;
   if (!overlay) {
@@ -2063,16 +1961,16 @@ function ensureMarqueeOverlay() {
 }
 editorCanvasElement.addEventListener("pointerdown", (marqueeDownEvent: PointerEvent) => {
   if (
-    editorMode !== "edit" ||
+    editorCtx.editorMode !== "edit" ||
     marqueeDownEvent.button !== 0 ||
-    editorSpacePanning ||
+    editorCtx.editorSpacePanning ||
     (marqueeDownEvent.target as Element).closest(
       ".editable, .hb-transform-handle, .hb-multi-selection, button, input, select, a",
     )
   )
     return;
-  const canvasWidth = Number(activeProject?.document?.canvas?.width || 2778);
-  const canvasHeight = Number(activeProject?.document?.canvas?.height || 1940);
+  const canvasWidth = Number(editorCtx.activeProject?.document?.canvas?.width || 2778);
+  const canvasHeight = Number(editorCtx.activeProject?.document?.canvas?.height || 1940);
   const start = clientPointToCanvas(
     marqueeDownEvent.clientX,
     marqueeDownEvent.clientY,
@@ -2081,7 +1979,7 @@ editorCanvasElement.addEventListener("pointerdown", (marqueeDownEvent: PointerEv
     canvasHeight,
   );
   const overlay = ensureMarqueeOverlay();
-  marqueeState = { startX: start.x, startY: start.y, overlay };
+  editorCtx.marqueeState = { startX: start.x, startY: start.y, overlay };
   overlay.hidden = false;
   overlay.style.cssText = "left:0;top:0;width:0;height:0;";
   try {
@@ -2092,9 +1990,9 @@ editorCanvasElement.addEventListener("pointerdown", (marqueeDownEvent: PointerEv
   marqueeDownEvent.preventDefault();
 });
 editorCanvasElement.addEventListener("pointermove", (marqueeMoveEvent: PointerEvent) => {
-  if (!marqueeState || !activeProject) return;
-  const canvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const canvasHeight = Number(activeProject.document.canvas.height || 1940);
+  if (!editorCtx.marqueeState || !editorCtx.activeProject) return;
+  const canvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778);
+  const canvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940);
   const current = clientPointToCanvas(
     marqueeMoveEvent.clientX,
     marqueeMoveEvent.clientY,
@@ -2103,22 +2001,22 @@ editorCanvasElement.addEventListener("pointermove", (marqueeMoveEvent: PointerEv
     canvasHeight,
   );
   const box = normalizeMarquee(
-    marqueeState.startX,
-    marqueeState.startY,
+    editorCtx.marqueeState.startX,
+    editorCtx.marqueeState.startY,
     current.x,
     current.y,
   );
   const scaleX = editorCanvasElement.clientWidth / canvasWidth;
   const scaleY = editorCanvasElement.clientHeight / canvasHeight;
-  marqueeState.overlay.style.left = box.x * scaleX + "px";
-  marqueeState.overlay.style.top = box.y * scaleY + "px";
-  marqueeState.overlay.style.width = box.width * scaleX + "px";
-  marqueeState.overlay.style.height = box.height * scaleY + "px";
+  editorCtx.marqueeState.overlay.style.left = box.x * scaleX + "px";
+  editorCtx.marqueeState.overlay.style.top = box.y * scaleY + "px";
+  editorCtx.marqueeState.overlay.style.width = box.width * scaleX + "px";
+  editorCtx.marqueeState.overlay.style.height = box.height * scaleY + "px";
 });
 editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent) => {
-  if (!marqueeState || !activeProject) return;
-  const canvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const canvasHeight = Number(activeProject.document.canvas.height || 1940);
+  if (!editorCtx.marqueeState || !editorCtx.activeProject) return;
+  const canvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778);
+  const canvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940);
   const end = clientPointToCanvas(
     marqueeUpEvent.clientX,
     marqueeUpEvent.clientY,
@@ -2126,9 +2024,9 @@ editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent)
     canvasWidth,
     canvasHeight,
   );
-  const box = normalizeMarquee(marqueeState.startX, marqueeState.startY, end.x, end.y);
-  marqueeState.overlay.hidden = true;
-  marqueeState = null;
+  const box = normalizeMarquee(editorCtx.marqueeState.startX, editorCtx.marqueeState.startY, end.x, end.y);
+  editorCtx.marqueeState.overlay.hidden = true;
+  editorCtx.marqueeState = null;
   try {
     editorCanvasElement.releasePointerCapture(marqueeUpEvent.pointerId);
   } catch {
@@ -2142,9 +2040,9 @@ editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent)
     return;
   }
   const hitIds = pickComponentsInMarquee(collectPageComponentBounds(), box);
-  selectedComponentIdsSet = new Set(hitIds);
-  selectedComponentId = hitIds[0] || null;
-  selectionAnchorComponentId = selectedComponentId;
+  editorCtx.selectedComponentIdsSet = new Set(hitIds);
+  editorCtx.selectedComponentId = hitIds[0] || null;
+  editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId;
   syncRendererSelection();
   renderComponentLists();
   coverMotorButtonElement();
@@ -2152,25 +2050,25 @@ editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent)
 });
 function currentPage() {
   return (
-    activeProject?.document?.pages?.find(
+    editorCtx.activeProject?.document?.pages?.find(
       (pageEntryCandidate: any) => pageEntryCandidate.path === pageSelectElement.value,
     ) ||
-    activeProject?.document?.pages?.[0] ||
+    editorCtx.activeProject?.document?.pages?.[0] ||
     null
   );
 }
 function groupSelectedComponents(requestedComponentIds: any) {
   const groupedComponentIds = [...new Set(requestedComponentIds || [])];
-  if (!canGroupComponents2(groupedComponentIds, activeProject?.document)) {
+  if (!canGroupComponents2(groupedComponentIds, editorCtx.activeProject?.document)) {
     handleOperationError(new Error("请选择同一页面或同一侧边栏中的两个或更多控件后再成组。"));
     return;
   }
   const newGroupId = newId2("group");
   return (
-    (selectedComponentId = newGroupId),
-    (selectedComponentIdsSet = new Set([newGroupId])),
-    (selectionAnchorComponentId = newGroupId),
-    (activeGroupId = null),
+    (editorCtx.selectedComponentId = newGroupId),
+    (editorCtx.selectedComponentIdsSet = new Set([newGroupId])),
+    (editorCtx.selectionAnchorComponentId = newGroupId),
+    (editorCtx.activeGroupId = null),
     mutateDocument((groupDocument: any) => {
       const groupComponentLocations = groupedComponentIds.map((groupIdItem) =>
         componentDirectLocation2(groupDocument, groupIdItem),
@@ -2250,15 +2148,15 @@ function groupSelectedComponents(requestedComponentIds: any) {
   );
 }
 function ungroupComponent(groupIdToUngroup: any) {
-  const groupLocationEntry = findComponentLocation2(activeProject?.document, groupIdToUngroup);
+  const groupLocationEntry = findComponentLocation2(editorCtx.activeProject?.document, groupIdToUngroup);
   if (!groupLocationEntry || groupLocationEntry.component.type !== "group") return;
   const groupChildIds = (groupLocationEntry.component.children || []).map(
     (groupChildComponent: any) => groupChildComponent.id,
   );
-  ((selectedComponentId = groupChildIds[0] || null),
-    (selectedComponentIdsSet = new Set(groupChildIds)),
-    (selectionAnchorComponentId = selectedComponentId),
-    (activeGroupId = null),
+  ((editorCtx.selectedComponentId = groupChildIds[0] || null),
+    (editorCtx.selectedComponentIdsSet = new Set(groupChildIds)),
+    (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
+    (editorCtx.activeGroupId = null),
     mutateDocument((ungroupDocument: any) => {
       const ungroupLocation = findComponentLocation2(ungroupDocument, groupIdToUngroup);
       if (!ungroupLocation || ungroupLocation.component.type !== "group") return;
@@ -2328,7 +2226,7 @@ function ungroupComponent(groupIdToUngroup: any) {
     }));
 }
 function openGroupRenameDialog(renameGroupId: any) {
-  const groupComponentForRename = findComponent2(activeProject?.document, renameGroupId)?.component;
+  const groupComponentForRename = findComponent2(editorCtx.activeProject?.document, renameGroupId)?.component;
   !groupComponentForRename ||
     groupComponentForRename.type !== "group" ||
     ((componentGroupRenameDialogElement.dataset.groupId = renameGroupId),
@@ -2344,20 +2242,20 @@ function runStore(runCache: any) {
   return /^#[\da-f]{6}$/.test(lowerCase) ? lowerCase : "";
 }
 function removedComponent() {
-  return findComponent2(activeProject?.document, selectedComponentId)?.component || null;
+  return findComponent2(editorCtx.activeProject?.document, editorCtx.selectedComponentId)?.component || null;
 }
 function removalPageEntry(remainingSharedId: any) {
   return [...new Set(remainingSharedId || [])].filter(
-    (selectedComponent) => !!findComponent2(activeProject?.document, selectedComponent)?.component,
+    (selectedComponent) => !!findComponent2(editorCtx.activeProject?.document, selectedComponent)?.component,
   );
 }
 function componentListForScope(groupListScope: any) {
-  if (activeGroupId) {
-    const groupScopeComponent = findComponent2(activeProject?.document, activeGroupId)?.component;
+  if (editorCtx.activeGroupId) {
+    const groupScopeComponent = findComponent2(editorCtx.activeProject?.document, editorCtx.activeGroupId)?.component;
     if (groupScopeComponent?.type === "group") return groupScopeComponent.children || [];
   }
   return groupListScope === "shared"
-    ? activeProject?.document?.sharedComponents || []
+    ? editorCtx.activeProject?.document?.sharedComponents || []
     : currentPage()?.components || [];
 }
 function collectComponentsByType(componentTreeNode: any, componentTypeFilter: any, collectedComponents: any[] = []) {
@@ -2367,7 +2265,7 @@ function collectComponentsByType(componentTreeNode: any, componentTypeFilter: an
   return collectedComponents;
 }
 function findPageComponentsByType(typeFilter: any) {
-  return (activeProject?.document?.pages || []).flatMap((typeMatchPage: any) =>
+  return (editorCtx.activeProject?.document?.pages || []).flatMap((typeMatchPage: any) =>
     collectComponentsByType(typeMatchPage.components, typeFilter).map((matchedComponent) => ({
       component: matchedComponent,
       page: typeMatchPage,
@@ -2378,7 +2276,7 @@ function findReplaceableComponents(sourceComponent: any) {
   if (!sourceComponent) return [];
   const rr2 = runAuxBackup(sourceComponent);
   return [
-    ...collectComponentsByType(activeProject?.document?.sharedComponents, sourceComponent.type).map(
+    ...collectComponentsByType(editorCtx.activeProject?.document?.sharedComponents, sourceComponent.type).map(
       (sharedComponent) => ({
         component: sharedComponent,
         scope: "shared",
@@ -2395,14 +2293,14 @@ function findReplaceableComponents(sourceComponent: any) {
   );
 }
 function syncRendererSelection() {
-  (editorRenderer?.setActiveGroup(activeGroupId),
-    editorRenderer?.setSelectedComponents([...selectedComponentIdsSet], selectedComponentId));
+  (editorCtx.editorRenderer?.setActiveGroup(editorCtx.activeGroupId),
+    editorCtx.editorRenderer?.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId));
 }
 function clearComponentSelection() {
   (resetPreviewStates(),
-    (selectedComponentId = null),
-    (selectedComponentIdsSet = new Set()),
-    (selectionAnchorComponentId = null));
+    (editorCtx.selectedComponentId = null),
+    (editorCtx.selectedComponentIdsSet = new Set()),
+    (editorCtx.selectionAnchorComponentId = null));
 }
 function resetPreviewStates() {
   for (const previewStateMap of [
@@ -2412,7 +2310,7 @@ function resetPreviewStates() {
     airConditionerPreviewStateByComponentId,
   ]) {
     for (const previewStateComponentId of previewStateMap.keys())
-      editorRenderer?.setComponentPreviewState(previewStateComponentId, "auto");
+      editorCtx.editorRenderer?.setComponentPreviewState(previewStateComponentId, "auto");
     previewStateMap.clear();
   }
 }
@@ -2424,7 +2322,7 @@ function selectComponent(
     preserveGroup: preserveGroupSelection = false,
   } = {},
 ) {
-  const clickedLocation = findComponent2(activeProject?.document, clickedComponentId);
+  const clickedLocation = findComponent2(editorCtx.activeProject?.document, clickedComponentId);
   if (!clickedLocation) {
     (clearComponentSelection(),
       syncRendererSelection(),
@@ -2432,18 +2330,18 @@ function selectComponent(
       coverMotorButtonElement());
     return;
   }
-  const anchorComponentLocation = findComponent2(activeProject?.document, selectedComponentId),
+  const anchorComponentLocation = findComponent2(editorCtx.activeProject?.document, editorCtx.selectedComponentId),
     isSameComponentScope =
       anchorComponentLocation?.scope === clickedLocation.scope &&
       (clickedLocation.scope !== "page" ||
         anchorComponentLocation.page?.path === clickedLocation.page?.path);
-  if (preserveGroupSelection && selectedComponentIdsSet.has(clickedComponentId))
-    selectedComponentId = clickedComponentId;
+  if (preserveGroupSelection && editorCtx.selectedComponentIdsSet.has(clickedComponentId))
+    editorCtx.selectedComponentId = clickedComponentId;
   else {
-    if (rangeSelection && isSameComponentScope && selectionAnchorComponentId) {
+    if (rangeSelection && isSameComponentScope && editorCtx.selectionAnchorComponentId) {
       const bE2 = componentListForScope(clickedLocation.scope),
         index = bE2.findIndex(
-          (anchorListComponent: any) => anchorListComponent.id === selectionAnchorComponentId,
+          (anchorListComponent: any) => anchorListComponent.id === editorCtx.selectionAnchorComponentId,
         ),
         clickedIndexInList = bE2.findIndex(
           (clickedListComponent: any) => clickedListComponent.id === clickedComponentId,
@@ -2451,44 +2349,44 @@ function selectComponent(
       if (index >= 0 && clickedIndexInList >= 0) {
         const [rangeStartIndex, rangeEndIndex] =
           index <= clickedIndexInList ? [index, clickedIndexInList] : [clickedIndexInList, index];
-        ((selectedComponentIdsSet = new Set(
+        ((editorCtx.selectedComponentIdsSet = new Set(
           bE2
             .slice(rangeStartIndex, rangeEndIndex + 1)
             .map((rangedComponent: any) => rangedComponent.id),
         )),
-          (selectedComponentId = clickedComponentId));
+          (editorCtx.selectedComponentId = clickedComponentId));
       } else
-        ((selectedComponentIdsSet = new Set([clickedComponentId])),
-          (selectedComponentId = clickedComponentId),
-          (selectionAnchorComponentId = clickedComponentId));
+        ((editorCtx.selectedComponentIdsSet = new Set([clickedComponentId])),
+          (editorCtx.selectedComponentId = clickedComponentId),
+          (editorCtx.selectionAnchorComponentId = clickedComponentId));
     } else {
       if (toggleSelection && isSameComponentScope) {
-        const toggledSelectionSet = new Set(selectedComponentIdsSet);
+        const toggledSelectionSet = new Set(editorCtx.selectedComponentIdsSet);
         (toggledSelectionSet.has(clickedComponentId)
           ? toggledSelectionSet.delete(clickedComponentId)
           : toggledSelectionSet.add(clickedComponentId),
-          (selectedComponentIdsSet = toggledSelectionSet),
-          (selectedComponentId = toggledSelectionSet.has(clickedComponentId)
+          (editorCtx.selectedComponentIdsSet = toggledSelectionSet),
+          (editorCtx.selectedComponentId = toggledSelectionSet.has(clickedComponentId)
             ? clickedComponentId
             : toggledSelectionSet.values().next().value || null),
-          (selectionAnchorComponentId = clickedComponentId));
+          (editorCtx.selectionAnchorComponentId = clickedComponentId));
       } else
         !toggleSelection &&
         !rangeSelection &&
-        selectedComponentIdsSet.size === 1 &&
-        selectedComponentIdsSet.has(clickedComponentId)
+        editorCtx.selectedComponentIdsSet.size === 1 &&
+        editorCtx.selectedComponentIdsSet.has(clickedComponentId)
           ? clearComponentSelection()
-          : ((selectedComponentIdsSet = new Set([clickedComponentId])),
-            (selectedComponentId = clickedComponentId),
-            (selectionAnchorComponentId = clickedComponentId));
+          : ((editorCtx.selectedComponentIdsSet = new Set([clickedComponentId])),
+            (editorCtx.selectedComponentId = clickedComponentId),
+            (editorCtx.selectionAnchorComponentId = clickedComponentId));
     }
   }
   if (clickedLocation.scope === "shared" && currentPage()?.path) {
-    const pendingDocument = clone2(activeProject.document);
+    const pendingDocument = clone2(editorCtx.activeProject.document);
     ensureSharedComponentReference2(pendingDocument, clickedComponentId, currentPage().path) &&
       projectSummary(pendingDocument, currentPage().path).catch(handleOperationError);
   }
-  (selectedComponentId && setComponentScope(clickedLocation.scope),
+  (editorCtx.selectedComponentId && setComponentScope(clickedLocation.scope),
     syncRendererSelection(),
     renderComponentLists(),
     coverMotorButtonElement());
@@ -2498,17 +2396,17 @@ function mutateDocument(
   writePagePath = pageSelectElement.value,
   { throwOnError: throwOnWriteError = false } = {},
 ) {
-  const throwOnWriteErrorState = activeProject?.projectId,
-    Ie2 = componentScopeState,
+  const throwOnWriteErrorState = editorCtx.activeProject?.projectId,
+    Ie2 = editorCtx.componentScopeState,
     queuedWriteHandler = () =>
-      componentScopeState === Ie2 && activeProject?.projectId === throwOnWriteErrorState,
-    caughtError = writeQueuePromise
+      editorCtx.componentScopeState === Ie2 && editorCtx.activeProject?.projectId === throwOnWriteErrorState,
+    caughtError = editorCtx.writeQueuePromise
       .catch(() => {})
       .then(async () => {
         if (!queuedWriteHandler()) return;
-        if (!activeProject) throw new Error("请先选择仪表盘。");
-        const queuedWrite = documentSignature2(activeProject.document),
-          workingDocument = clone2(activeProject.document),
+        if (!editorCtx.activeProject) throw new Error("请先选择仪表盘。");
+        const queuedWrite = documentSignature2(editorCtx.activeProject.document),
+          workingDocument = clone2(editorCtx.activeProject.document),
           mutatorResult = await documentMutator(workingDocument);
         if (!(
           !queuedWriteHandler() ||
@@ -2518,41 +2416,41 @@ function mutateDocument(
         ))
           return mutatorResult;
       })
-      .catch((nudgeSelectedComponents) => {
+      .catch((nudgeSelectedComponents: any) => {
         if (queuedWriteHandler()) throw nudgeSelectedComponents;
       });
   return (
-    (writeQueuePromise = caughtError.catch(handleOperationError)),
-    throwOnWriteError ? caughtError : writeQueuePromise
+    (editorCtx.writeQueuePromise = caughtError.catch(handleOperationError)),
+    throwOnWriteError ? caughtError : editorCtx.writeQueuePromise
   );
 }
 setupRelatedPopup({
   get entities() {
-    return entities;
+    return editorCtx.entities;
   },
   get devices() {
-    return devices;
+    return editorCtx.devices;
   },
-  getSelectedComponentId: () => selectedComponentId,
+  getSelectedComponentId: () => editorCtx.selectedComponentId,
   removedComponent,
   mutateDocument,
   runAlt,
   runSnapshot,
 });
 function scaledSelectionPlacements(targetSelectionScale: any) {
-  if (selectedComponentIdsSet.size < 2 || !activeProject || !selectedComponentId) return [];
-  const selectedComponentsList = [...selectedComponentIdsSet]
+  if (editorCtx.selectedComponentIdsSet.size < 2 || !editorCtx.activeProject || !editorCtx.selectedComponentId) return [];
+  const selectedComponentsList = [...editorCtx.selectedComponentIdsSet]
       .map(
         (selectedComponentIdItem) =>
-          findComponent2(activeProject.document, selectedComponentIdItem)?.component,
+          findComponent2(editorCtx.activeProject.document, selectedComponentIdItem)?.component,
       )
       .filter(Boolean),
     primarySelectedComponent = selectedComponentsList.find(
-      (primaryCandidateComponent) => primaryCandidateComponent.id === selectedComponentId,
+      (primaryCandidateComponent) => primaryCandidateComponent.id === editorCtx.selectedComponentId,
     );
   if (
     !primarySelectedComponent ||
-    selectedComponentsList.length !== selectedComponentIdsSet.size ||
+    selectedComponentsList.length !== editorCtx.selectedComponentIdsSet.size ||
     selectedComponentsList.some(
       (fillModeComponent) => fillModeComponent.properties?.layoutMode === "fill",
     )
@@ -2611,7 +2509,7 @@ function selectedComponentIdsFromDom() {
   const domSelectedIds = [...document.querySelectorAll<HTMLElement>(".element-item.selected[data-component-id]")]
     .map((elementItemElement) => elementItemElement.dataset.componentId)
     .filter(Boolean);
-  return selectedComponentIdsSet.size > 1 ? [...selectedComponentIdsSet] : domSelectedIds;
+  return editorCtx.selectedComponentIdsSet.size > 1 ? [...editorCtx.selectedComponentIdsSet] : domSelectedIds;
 }
 function setComponentsRotation(
   rotationDocument: any,
@@ -2648,16 +2546,16 @@ function setComponentsVisibility(visibilityComponentIds: any, visibilityTarget: 
     });
 }
 function closeComponentMenu() {
-  ((componentMenuElement.hidden = true), (menuComponentId = null));
+  ((componentMenuElement.hidden = true), (editorCtx.menuComponentId = null));
 }
 function openComponentMenu(menuEvent: any, openedMenuComponentId: any) {
   (menuEvent.preventDefault(), menuEvent.stopPropagation());
   (selectComponent(openedMenuComponentId, {
     preserveGroup: true,
   }),
-    (menuComponentId = openedMenuComponentId));
-  const menuCount = selectedComponentIdsSet.has(openedMenuComponentId)
-      ? [...selectedComponentIdsSet]
+    (editorCtx.menuComponentId = openedMenuComponentId));
+  const menuCount = editorCtx.selectedComponentIdsSet.has(openedMenuComponentId)
+      ? [...editorCtx.selectedComponentIdsSet]
       : [openedMenuComponentId],
     copyMenuButtonElement = menuCount.length,
     selector = componentMenuElement.querySelector('[data-component-action="copy"]'),
@@ -2680,11 +2578,11 @@ function openComponentMenu(menuEvent: any, openedMenuComponentId: any) {
     menuTitleTextElement = componentMenuElement.querySelector(":scope > strong");
   selector.textContent =
     copyMenuButtonElement > 1 ? "复制 " + copyMenuButtonElement + " 个控件" : "复制控件";
-  const menuComponent = findComponent2(activeProject?.document, openedMenuComponentId)?.component,
+  const menuComponent = findComponent2(editorCtx.activeProject?.document, openedMenuComponentId)?.component,
     menuVisibilityList = menuCount
       .map(
         (menuComponentIdItem) =>
-          findComponent2(activeProject?.document, menuComponentIdItem)?.component,
+          findComponent2(editorCtx.activeProject?.document, menuComponentIdItem)?.component,
       )
       .filter(Boolean)
       .map((menuComponentItem) => menuComponentItem.style?.visible !== false),
@@ -2704,17 +2602,17 @@ function openComponentMenu(menuEvent: any, openedMenuComponentId: any) {
     (visibilityMenuButtonElement.title = every
       ? ""
       : "选中的控件包含隐藏和显示状态，无法批量处理"));
-  const hasOtherProject = canGroupComponents2(menuCount, activeProject?.document);
+  const hasOtherProject = canGroupComponents2(menuCount, editorCtx.activeProject?.document);
   ((groupMenuButtonElement.hidden = !hasOtherProject),
     (ungroupMenuButtonElement.hidden =
       menuComponent?.type !== "group" || copyMenuButtonElement !== 1),
     (renameGroupMenuButtonElement.hidden =
       menuComponent?.type !== "group" || copyMenuButtonElement !== 1),
     (copyToPageMenuButtonElement.textContent = "复制到其他区域"));
-  const some = projects.some(
-      (menuProjectEntry: any) => menuProjectEntry.id !== activeProject?.projectId,
+  const some = editorCtx.projects.some(
+      (menuProjectEntry: any) => menuProjectEntry.id !== editorCtx.activeProject?.projectId,
     ),
-    copyTargets = findCommonCopyTargets(activeProject?.document, menuCount);
+    copyTargets = findCommonCopyTargets(editorCtx.activeProject?.document, menuCount);
   ((copyToPageMenuButtonElement.disabled = copyTargets.length === 0 && !some),
     (copyToPageMenuButtonElement.title = copyToPageMenuButtonElement.disabled
       ? "当前没有可复制的目标区域"
@@ -2727,7 +2625,7 @@ function openComponentMenu(menuEvent: any, openedMenuComponentId: any) {
       copyMenuButtonElement > 1 ? "颜色标签（" + copyMenuButtonElement + " 个控件）" : "颜色标签"));
   const labelColorValues = menuCount.map((labelColorComponentId) => {
       const labelColorComponent = findComponent2(
-        activeProject?.document,
+        editorCtx.activeProject?.document,
         labelColorComponentId,
       )?.component;
       return runStore(labelColorComponent?.style?.editorLabelColor);
@@ -2785,30 +2683,30 @@ function findCommonCopyTargets(copyTargetDocument: any, copySourceComponentIds: 
     .filter(Boolean);
 }
 function showCopySuccessDialog(copySuccessMessage: any, copySuccessTarget: any) {
-  ((copySuccessNavigationTarget = copySuccessTarget || null),
+  ((editorCtx.copySuccessNavigationTarget = copySuccessTarget || null),
     (copyComponentSuccessMessageElement.textContent = copySuccessMessage),
     copyComponentSuccessDialogElement.showModal());
 }
 async function handleCopySuccessConfirm() {
-  const Ha2 = copySuccessNavigationTarget;
-  ((copySuccessNavigationTarget = null),
+  const Ha2 = editorCtx.copySuccessNavigationTarget;
+  ((editorCtx.copySuccessNavigationTarget = null),
     copyComponentSuccessDialogElement.close(),
     Ha2 &&
-      (Ha2.projectId && Ha2.projectId !== activeProject?.projectId
+      (Ha2.projectId && Ha2.projectId !== editorCtx.activeProject?.projectId
         ? await historyEntry(Ha2.projectId, Ha2.pagePath)
         : Ha2.pagePath &&
           Ha2.pagePath !== pageSelectElement.value &&
           ((pageSelectElement.value = Ha2.pagePath),
           loadNavigationIconOptions(pageSelectElement),
-          editorRenderer?.navigate(Ha2.pagePath),
-          dashboardPreviewRenderer?.navigate(Ha2.pagePath),
+          editorCtx.editorRenderer?.navigate(Ha2.pagePath),
+          editorCtx.dashboardPreviewRenderer?.navigate(Ha2.pagePath),
           renderComponentLists(),
           coverMotorButtonElement()),
       setComponentScope(Ha2.scope)));
 }
 function duplicateComponents(
   duplicatedComponentIds: any,
-  duplicateFocusComponentId = selectedComponentId,
+  duplicateFocusComponentId = editorCtx.selectedComponentId,
 ) {
   const nl4 = removalPageEntry(duplicatedComponentIds);
   nl4.length &&
@@ -2837,10 +2735,10 @@ function duplicateComponents(
         tp2 && (createdDuplicateIds.push(tp2.id), newIdBySourceId.set(duplicateSourceId, tp2.id));
       }
       createdDuplicateIds.length &&
-        ((selectedComponentId =
+        ((editorCtx.selectedComponentId =
           newIdBySourceId.get(duplicateFocusComponentId) || createdDuplicateIds[0]),
-        (selectedComponentIdsSet = new Set(createdDuplicateIds)),
-        (selectionAnchorComponentId = selectedComponentId));
+        (editorCtx.selectedComponentIdsSet = new Set(createdDuplicateIds)),
+        (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId));
     });
 }
 function copyTargetsForDocument(
@@ -2887,13 +2785,13 @@ function getDocumentCanvasSize(canvasSizeDocument: any) {
   };
 }
 function renderCopyScaleOptions() {
-  if (!(copyComponentPageScopeSelectElement.value === "other" && copyTargetDraft)) {
+  if (!(copyComponentPageScopeSelectElement.value === "other" && editorCtx.copyTargetDraft)) {
     ((copyComponentScaleOptionsElement.hidden = true),
       (copyComponentResolutionSummaryElement.textContent = ""));
     return;
   }
-  const sourceCanvasSize = getDocumentCanvasSize(activeProject?.document),
-    targetCanvasSize = getDocumentCanvasSize(copyTargetDraft.document),
+  const sourceCanvasSize = getDocumentCanvasSize(editorCtx.activeProject?.document),
+    targetCanvasSize = getDocumentCanvasSize(editorCtx.copyTargetDraft.document),
     canvasSizeMismatch =
       sourceCanvasSize.width !== targetCanvasSize.width ||
       sourceCanvasSize.height !== targetCanvasSize.height;
@@ -2919,7 +2817,7 @@ async function renderCopyComponentDialog() {
     copyDialogComponentIds = [];
   }
   const copyDialogFirstLocation = findComponent2(
-      activeProject?.document,
+      editorCtx.activeProject?.document,
       copyDialogComponentIds[0],
     ),
     copyDialogComponentCount = copyDialogComponentIds.length,
@@ -2945,12 +2843,12 @@ async function renderCopyComponentDialog() {
         : "将选中的 " +
           copyDialogComponentCount +
           " 个控件完整复制到侧边栏或其他主页面，保留位置、尺寸、样式、实体绑定和动作配置。"),
-    (copyTargetDraft = null),
+    (editorCtx.copyTargetDraft = null),
     (copyComponentScaleOptionsElement.hidden = true),
     setSettingsMessage(copyComponentPageMessageElement, ""),
     !isOtherProjectTarget)
   ) {
-    const localCopyTargets = findCommonCopyTargets(activeProject?.document, copyDialogComponentIds);
+    const localCopyTargets = findCommonCopyTargets(editorCtx.activeProject?.document, copyDialogComponentIds);
     (renderCopyTargetOptions(localCopyTargets),
       (copyComponentPageSubmitElement.disabled = !localCopyTargets.length));
     return;
@@ -2962,7 +2860,7 @@ async function renderCopyComponentDialog() {
       setSettingsMessage(copyComponentPageMessageElement, "当前没有其他仪表盘可以复制。"));
     return;
   }
-  const copyTargetLoadTokenSnapshot = ++copyTargetLoadToken;
+  const copyTargetLoadTokenSnapshot = ++editorCtx.copyTargetLoadToken;
   (renderCopyTargetOptions([]),
     (copyComponentPageSubmitElement.disabled = true),
     setSettingsMessage(copyComponentPageMessageElement, "正在读取目标仪表盘…"));
@@ -2971,11 +2869,11 @@ async function renderCopyComponentDialog() {
       "/projects/" + encodeURIComponent(targetProjectId) + "/draft",
     );
     if (
-      copyTargetLoadTokenSnapshot !== copyTargetLoadToken ||
+      copyTargetLoadTokenSnapshot !== editorCtx.copyTargetLoadToken ||
       copyComponentPageScopeSelectElement.value !== "other"
     )
       return;
-    copyTargetDraft = targetDraftResponse;
+    editorCtx.copyTargetDraft = targetDraftResponse;
     const wE2 = copyTargetsForDocument(targetDraftResponse.document);
     (renderCopyTargetOptions(wE2),
       renderCopyScaleOptions(),
@@ -2985,12 +2883,12 @@ async function renderCopyComponentDialog() {
       ),
       (copyComponentPageSubmitElement.disabled = !wE2.length));
   } catch (copyTargetLoadError: any) {
-    if (copyTargetLoadTokenSnapshot !== copyTargetLoadToken) return;
+    if (copyTargetLoadTokenSnapshot !== editorCtx.copyTargetLoadToken) return;
     setSettingsMessage(copyComponentPageMessageElement, copyTargetLoadError.message, "error");
   }
 }
 function openCopyComponentDialog(copyComponentSelectionIds: any) {
-  const copySourceDocument = activeProject?.document,
+  const copySourceDocument = editorCtx.activeProject?.document,
     validCopyComponentIds = [...new Set(copyComponentSelectionIds || [])].filter(
       (copyComponentId) => findComponent2(copySourceDocument, copyComponentId),
     ),
@@ -3012,8 +2910,8 @@ function openCopyComponentDialog(copyComponentSelectionIds: any) {
           : "将当前控件完整复制到侧边栏或其他主页面，保留位置、尺寸、样式、实体绑定和动作配置。"),
     (copyComponentPageScopeSelectElement.value = "current"),
     loadNavigationIconOptions(copyComponentPageScopeSelectElement));
-  const otherProjectList = projects.filter(
-    (otherProjectOption: any) => otherProjectOption.id !== activeProject.projectId,
+  const otherProjectList = editorCtx.projects.filter(
+    (otherProjectOption: any) => otherProjectOption.id !== editorCtx.activeProject.projectId,
   );
   (copyComponentPageProjectSelectElement.replaceChildren(
     ...otherProjectList.map(
@@ -3036,7 +2934,7 @@ function deleteComponentIds(deleteComponentId: any) {
   if (((deleteComponentDialogElement.dataset.componentIds = JSON.stringify(nl5)), nl5.length > 1))
     deleteComponentNameElement.textContent = "“已选择的 " + nl5.length + " 个控件”";
   else {
-    const deleteAnchorComponent = findComponent2(activeProject?.document, nl5[0])?.component;
+    const deleteAnchorComponent = findComponent2(editorCtx.activeProject?.document, nl5[0])?.component;
     deleteComponentNameElement.textContent =
       "“" +
       componentLabel2(
@@ -3081,14 +2979,14 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
     ((componentItemElement.className = "element-item"),
       (componentItemElement.dataset.componentId = listComponent.id),
       (componentItemElement.dataset.scope = listScope),
-      (componentItemElement.draggable = !activeGroupId),
+      (componentItemElement.draggable = !editorCtx.activeGroupId),
       componentItemElement.classList.toggle(
         "selected",
-        selectedComponentIdsSet.has(listComponent.id),
+        editorCtx.selectedComponentIdsSet.has(listComponent.id),
       ),
       componentItemElement.classList.toggle(
         "selection-primary",
-        listComponent.id === selectedComponentId,
+        listComponent.id === editorCtx.selectedComponentId,
       ),
       componentItemElement.classList.toggle("group-item", listComponent.type === "group"));
     const pp3 = runStore(listComponent.style?.editorLabelColor);
@@ -3116,7 +3014,7 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
       ),
       (itemVisibilityButtonElement.innerHTML = visibilityIconSvg2(isItemIsVisible)));
     const stopItemEventPropagation = (itemEvent: any) => {
-      ((lastComponentClick = {
+      ((editorCtx.lastComponentClick = {
         componentId: listComponent.id,
         at: Date.now(),
       }),
@@ -3124,7 +3022,7 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
     };
     (itemVisibilityButtonElement.addEventListener("pointerdown", stopItemEventPropagation),
       itemVisibilityButtonElement.addEventListener("click", (visibilityClickEvent) => {
-        ((lastComponentClick = {
+        ((editorCtx.lastComponentClick = {
           componentId: listComponent.id,
           at: Date.now(),
         }),
@@ -3149,15 +3047,15 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
         )
           return;
         if (
-          lastComponentClick.componentId === listComponent.id &&
-          Date.now() - lastComponentClick.at < 600
+          editorCtx.lastComponentClick.componentId === listComponent.id &&
+          Date.now() - editorCtx.lastComponentClick.at < 600
         ) {
           (itemDoubleClickEvent.preventDefault(), itemDoubleClickEvent.stopPropagation());
           return;
         }
         (itemDoubleClickEvent.preventDefault(),
           itemDoubleClickEvent.stopPropagation(),
-          (activeGroupId = listComponent.id),
+          (editorCtx.activeGroupId = listComponent.id),
           clearComponentSelection(),
           renderComponentLists(),
           syncRendererSelection(),
@@ -3167,12 +3065,12 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
         openComponentMenu(itemMenuEvent, listComponent.id),
       ),
       componentItemElement.addEventListener("dragstart", (itemDragStartEvent) => {
-        selectedComponentIdsSet.has(listComponent.id)
-          ? (selectedComponentId = listComponent.id)
-          : ((selectedComponentIdsSet = new Set([listComponent.id])),
-            (selectedComponentId = listComponent.id),
-            (selectionAnchorComponentId = listComponent.id));
-        const draggingComponentIds = [...selectedComponentIdsSet];
+        editorCtx.selectedComponentIdsSet.has(listComponent.id)
+          ? (editorCtx.selectedComponentId = listComponent.id)
+          : ((editorCtx.selectedComponentIdsSet = new Set([listComponent.id])),
+            (editorCtx.selectedComponentId = listComponent.id),
+            (editorCtx.selectionAnchorComponentId = listComponent.id));
+        const draggingComponentIds = [...editorCtx.selectedComponentIdsSet];
         ((itemDragStartEvent.dataTransfer!.effectAllowed = "move"),
           itemDragStartEvent.dataTransfer!.setData(
             "text/plain",
@@ -3231,8 +3129,8 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
             !payloadMovingIds ||
             movingIds.includes(listComponent.id)
           ) &&
-            ((selectedComponentId = payloadMovingIds),
-            (selectedComponentIdsSet = new Set(movingIds)),
+            ((editorCtx.selectedComponentId = payloadMovingIds),
+            (editorCtx.selectedComponentIdsSet = new Set(movingIds)),
             mutateDocument((dropDocument: any) => {
               const sharedComponents =
                 listScope === "shared"
@@ -3275,7 +3173,7 @@ function prependGroupBackButton(groupBackListElement: any, groupBackComponent: a
     (groupBackButtonElement.className = "element-group-back"),
     (groupBackButtonElement.textContent = "← 返回" + componentLabel2(groupBackComponent)),
     groupBackButtonElement.addEventListener("click", () => {
-      ((activeGroupId = null),
+      ((editorCtx.activeGroupId = null),
         clearComponentSelection(),
         renderComponentLists(),
         syncRendererSelection(),
@@ -3285,16 +3183,16 @@ function prependGroupBackButton(groupBackListElement: any, groupBackComponent: a
 }
 function renderComponentLists() {
   const ct3 = currentPage(),
-    activeGroupComponent = activeGroupId
-      ? findComponent2(activeProject?.document, activeGroupId)
+    activeGroupComponent = editorCtx.activeGroupId
+      ? findComponent2(editorCtx.activeProject?.document, editorCtx.activeGroupId)
       : null,
     component2 =
       activeGroupComponent?.component?.type === "group" ? activeGroupComponent.component : null;
-  activeGroupId && !component2 && (activeGroupId = null);
+  editorCtx.activeGroupId && !component2 && (editorCtx.activeGroupId = null);
   const sharedListComponents =
       component2 && activeGroupComponent!.scope === "shared"
         ? component2.children || []
-        : activeProject?.document?.sharedComponents || [],
+        : editorCtx.activeProject?.document?.sharedComponents || [],
     pageListComponents =
       component2 && activeGroupComponent!.scope === "page"
         ? component2.children || []
@@ -3315,8 +3213,8 @@ function renderComponentLists() {
       ));
 }
 function setComponentScope(componentScopeName: any) {
-  componentScope = componentScopeName === "page" ? "page" : "shared";
-  const isSharedScope = componentScope === "shared";
+  editorCtx.componentScope = componentScopeName === "page" ? "page" : "shared";
+  const isSharedScope = editorCtx.componentScope === "shared";
   (showSharedComponentsElement.classList.toggle("active", isSharedScope),
     showPageComponentsElement.classList.toggle("active", !isSharedScope),
     (sharedComponentListElement.hidden = !isSharedScope),
@@ -3346,7 +3244,7 @@ function renderComponentTemplates() {
     );
   if (
     ((componentTemplateScopeElement.textContent =
-      componentScope === "shared"
+      editorCtx.componentScope === "shared"
         ? "当前添加到侧边栏，添加后会在所有页面显示。"
         : "当前添加到主页面，仅在“" + (currentPage()?.name || "当前页面") + "”显示。"),
     !componentTemplates.length)
@@ -3471,7 +3369,7 @@ function runCursor(runPointer: any) {
     .trim();
 }
 function navigationIconValue(runTarget: any) {
-  return runCursor(deviceNamesByDeviceId.get(String(runTarget?.deviceId || "")));
+  return runCursor(editorCtx.deviceNamesByDeviceId.get(String(runTarget?.deviceId || "")));
 }
 function runSource(runOrigin: any, runDraft = navigationIconValue(runOrigin)) {
   const ja2 = runCursor(runOrigin?.name),
@@ -3525,7 +3423,7 @@ function runRange(runSpan: any, runOffset: any = null) {
       label: "实体已删除",
       tone: "missing",
     };
-  const navigationIconLabelElementState = editorRenderer?.states?.get?.(runSpan),
+  const navigationIconLabelElementState = editorCtx.editorRenderer?.states?.get?.(runSpan),
     navigationIconLabelElementValue =
       navigationIconLabelElementState?.newState || navigationIconLabelElementState,
     lowerCase2 = String(navigationIconLabelElementValue?.state ?? "")
@@ -3572,9 +3470,9 @@ function runDelta(runFactor = "", runScale = false) {
 }
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
 function runLimit({ clearMessage: runBound = true } = {}) {
-  ((statisticsEntityId = ""),
-    (statisticsReplaceIndex = -1),
-    (statisticsComponentId = ""),
+  ((editorCtx.statisticsEntityId = ""),
+    (editorCtx.statisticsReplaceIndex = -1),
+    (editorCtx.statisticsComponentId = ""),
     (lightStatisticsEntityPendingElement.hidden = true),
     runBackup(lightStatisticsEntityButtonElement, "选择一个实体"),
     runBound && runDelta(""));
@@ -3612,12 +3510,12 @@ function runAmount(runSize = "") {
         ((navigationIconUrlElement.type = "button"),
           (navigationIconUrlElement.className =
             "inspector-entity-option" +
-            (mappedItemsRef.entityId === statisticsEntityId ? " selected" : "")),
+            (mappedItemsRef.entityId === editorCtx.statisticsEntityId ? " selected" : "")),
           (navigationIconUrlElement.dataset.lightStatisticsEntityId = mappedItemsRef.entityId),
           navigationIconUrlElement.setAttribute("role", "option"),
           navigationIconUrlElement.setAttribute(
             "aria-selected",
-            String(mappedItemsRef.entityId === statisticsEntityId),
+            String(mappedItemsRef.entityId === editorCtx.statisticsEntityId),
           ));
         const navigationIconUrlElementElement = document.createElement("span");
         ((navigationIconUrlElementElement.className = "inspector-entity-option-content"),
@@ -3659,7 +3557,7 @@ function runAmount(runSize = "") {
   (lightStatisticsEntityOptionsElement.replaceChildren(...navigationIconLabelElementConfig),
     (lightStatisticsEntityOptionsElement.scrollTop = 0));
 }
-function runLength(runDepth: any, runPosition = statisticsReplaceIndex) {
+function runLength(runDepth: any, runPosition = editorCtx.statisticsReplaceIndex) {
   const navigationIconUrl = removedComponent();
   if (
     navigationIconUrl?.type !== "light-statistics" ||
@@ -3675,17 +3573,17 @@ function runLength(runDepth: any, runPosition = statisticsReplaceIndex) {
     return;
   }
   return (
-    (statisticsEntityId = runDepth),
-    (statisticsReplaceIndex = Number.isInteger(runPosition) ? runPosition : -1),
-    (statisticsComponentId = navigationIconUrl.id),
+    (editorCtx.statisticsEntityId = runDepth),
+    (editorCtx.statisticsReplaceIndex = Number.isInteger(runPosition) ? runPosition : -1),
+    (editorCtx.statisticsComponentId = navigationIconUrl.id),
     effectIconName()
   );
 }
 function effectIconName() {
-  const effectIconValueState = selectedComponentId,
-    tn2 = statisticsEntityId,
-    Ko2 = statisticsReplaceIndex,
-    effectIconValue = entities.find(
+  const effectIconValueState = editorCtx.selectedComponentId,
+    tn2 = editorCtx.statisticsEntityId,
+    Ko2 = editorCtx.statisticsReplaceIndex,
+    effectIconValue = editorCtx.entities.find(
       (effectIconPreviewElementState: any) => effectIconPreviewElementState.entityId === tn2,
     );
   if (!effectIconValueState || !tn2 || !effectIconValue) return;
@@ -3727,7 +3625,7 @@ function effectIconName() {
       }),
       effectIconPreviewElementRef ? "replaced" : "added"
     );
-  }).then((effectIconPreviewElementEntry) =>
+  }).then((effectIconPreviewElementEntry: any) =>
     effectIconPreviewElementEntry === "limit-reached"
       ? (runDelta("每个统计控件最多添加 " + MAX_LIGHT_STATISTICS_ENTITIES + " 个实体。", true),
         effectIconPreviewElementEntry)
@@ -3749,7 +3647,7 @@ function effectIconName() {
   );
 }
 function runLocation(runRegion: any) {
-  const effectIconPreviewElementRecord = selectedComponentId;
+  const effectIconPreviewElementRecord = editorCtx.selectedComponentId;
   !effectIconPreviewElementRecord ||
     !Number.isInteger(runRegion) ||
     runRegion < 0 ||
@@ -3827,9 +3725,9 @@ function runGroup(runPair: any, runBatch: any[] = []) {
   return runBatch;
 }
 function runChunk(runBlock = currentPage()) {
-  if (!runBlock || !activeProject?.document) return [];
+  if (!runBlock || !editorCtx.activeProject?.document) return [];
   const mappedItemById = new Map(
-      (activeProject.document.sharedComponents || []).map((mappedItemsPath: any) => [
+      (editorCtx.activeProject.document.sharedComponents || []).map((mappedItemsPath: any) => [
         mappedItemsPath.id,
         mappedItemsPath,
       ]),
@@ -3847,7 +3745,7 @@ function runSegment(runSlice = currentPage()) {
     : [];
 }
 function runPortion(runExtra = "image") {
-  return runExtra === "scene-mode" ? entities : [...entities, ...runSegment()];
+  return runExtra === "scene-mode" ? editorCtx.entities : [...editorCtx.entities, ...runSegment()];
 }
 const effectIconLabelElementById = new WeakMap(),
   effectIconLabelElementByIdById = new WeakMap(),
@@ -4165,9 +4063,8 @@ function runOuter(runUpper: any) {
     iconTooltipElementState
   );
 }
-let iconTooltipElement: any = null;
 function runLower() {
-  (iconTooltipElement?.remove(), (iconTooltipElement = null));
+  (editorCtx.iconTooltipElement?.remove(), (editorCtx.iconTooltipElement = null));
 }
 function runLeft(iconTooltipElementElement: any, runRight: any) {
   runLower();
@@ -4187,7 +4084,7 @@ function runLeft(iconTooltipElementElement: any, runRight: any) {
   (measuredBounds < 8 && (measuredBounds = targetBounds.bottom + 8),
     (iconTooltipElementSection.style.left = clampedUpper + "px"),
     (iconTooltipElementSection.style.top = measuredBounds + "px"),
-    (iconTooltipElement = iconTooltipElementSection));
+    (editorCtx.iconTooltipElement = iconTooltipElementSection));
 }
 function runFirst(runSecond: any, runThird: any) {
   (runSecond.addEventListener("pointerenter", () => runLeft(runSecond, runThird)),
@@ -4918,7 +4815,7 @@ const {
     entityDomain: renderNavigationIconPreview,
   }),
   editorPickers = createInteraction3dEditorPickers2({
-    getState: (stateEntityId) => editorRenderer?.states?.get(stateEntityId),
+    getState: (stateEntityId) => editorCtx.editorRenderer?.states?.get(stateEntityId),
     openPicker: (pickerPayload) => runCopyBackup(pickerPayload),
     fetchIcons: (iconQuery, iconLimit, iconOffset) =>
       requestJson(
@@ -4929,9 +4826,9 @@ const {
           "&offset=" +
           iconOffset,
       ),
-    getEntities: () => entities,
+    getEntities: () => editorCtx.entities,
     ensureEntities: () =>
-      isAreEntitiesLoaded ? Promise.resolve() : entitiesLoadPromise || ensureEntitiesLoaded(),
+      editorCtx.isAreEntitiesLoaded ? Promise.resolve() : editorCtx.entitiesLoadPromise || ensureEntitiesLoaded(),
     entityPickerText: runMode,
     elements: {
       createEditorPickerCurrentIcon: createIconPickerClearOption,
@@ -4942,30 +4839,30 @@ const {
     },
   }),
   editorAssetMatcher = createEditorAssetMatcher2({
-    getImageSource: () => imageAssetFolder,
-    getImageFolder: () => imageAssetFolderState,
-    getIbeSource: () => effectAssetFolder,
-    getIbeFolder: () => effectAssetFolderState,
-    getUserAssets: () => userAssets,
-    getBuiltinAssets: () => userAssetsState,
+    getImageSource: () => editorCtx.imageAssetFolder,
+    getImageFolder: () => editorCtx.imageAssetFolderState,
+    getIbeSource: () => editorCtx.effectAssetFolder,
+    getIbeFolder: () => editorCtx.effectAssetFolderState,
+    getUserAssets: () => editorCtx.userAssets,
+    getBuiltinAssets: () => editorCtx.userAssetsState,
   }),
   editorAssetToolbar = createEditorAssetToolbar2({
     documentObject: document,
     getSource: (editorAssetToolbarState: any) =>
-      editorAssetToolbarState === "image" ? imageAssetFolder : effectAssetFolder,
+      editorAssetToolbarState === "image" ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder,
     setSource: (editorAssetToolbarValue: any, folderKeyState: any) => {
       editorAssetToolbarValue === "image"
-        ? (imageAssetFolder = folderKeyState)
-        : (effectAssetFolder = folderKeyState);
+        ? (editorCtx.imageAssetFolder = folderKeyState)
+        : (editorCtx.effectAssetFolder = folderKeyState);
     },
     getFolder: (folderKeyValue: any) =>
-      folderKeyValue === "image" ? imageAssetFolderState : effectAssetFolderState,
+      folderKeyValue === "image" ? editorCtx.imageAssetFolderState : editorCtx.effectAssetFolderState,
     setFolder: (folderKey: any, nextFolderKey: any) => {
       folderKey === "image"
-        ? (imageAssetFolderState = nextFolderKey)
-        : (effectAssetFolderState = nextFolderKey);
+        ? (editorCtx.imageAssetFolderState = nextFolderKey)
+        : (editorCtx.effectAssetFolderState = nextFolderKey);
     },
-    getAssets: (folderValue: any) => (folderValue === "user" ? userAssets : userAssetsState),
+    getAssets: (folderValue: any) => (folderValue === "user" ? editorCtx.userAssets : editorCtx.userAssetsState),
     getUploadInput: (uploadSourceKey: any) =>
       uploadSourceKey === "image" ? imageAssetUploadInputElement : ibeAssetUploadInputElement,
     canDeleteFolder: (deleteSourceKey: any, folderToDelete: any) =>
@@ -4978,7 +4875,7 @@ function assetMatchesId(assetRecord: any, targetAssetId: any) {
   return assetRecord?.assetId === targetAssetId;
 }
 function allAssets() {
-  return [...userAssetsState, ...userAssets];
+  return [...editorCtx.userAssetsState, ...editorCtx.userAssets];
 }
 function findAssetById(wantedAssetId: any) {
   return allAssets().find((assetCandidate) => assetMatchesId(assetCandidate, wantedAssetId));
@@ -4990,14 +4887,14 @@ function assetDisplayName(namedAsset: any) {
   );
 }
 function exportedAssetsInFolder(targetFolderName: any) {
-  return userAssets.filter(
+  return editorCtx.userAssets.filter(
     (folderAsset: any) =>
       folderAsset.folder === targetFolderName && folderAsset.source === "studio3d-export",
   );
 }
 function canDeleteAssetFolder(folderSource: any, assetFolderName: any) {
   if (folderSource !== "user" || !assetFolderName) return false;
-  const folderAssets = userAssets.filter(
+  const folderAssets = editorCtx.userAssets.filter(
     (folderAssetRecord: any) => folderAssetRecord.folder === assetFolderName,
   );
   return (
@@ -5007,7 +4904,7 @@ function canDeleteAssetFolder(folderSource: any, assetFolderName: any) {
 }
 function syncAssetFolderOptions(assetSourceKind: any) {
   const isImageKind = assetSourceKind === "image",
-    Zt3 = isImageKind ? imageAssetFolder : effectAssetFolder,
+    Zt3 = isImageKind ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder,
     et2 = isImageKind ? imageAssetMenuElement : ibeAssetMenuElement,
     Ao2 = isImageKind ? imageAssetFolderSelectElement : ibeAssetFolderElement,
     folderSelectInputElement = isImageKind
@@ -5021,7 +4918,7 @@ function syncAssetFolderOptions(assetSourceKind: any) {
     );
   const folderNames = customSelectsBySelectElement.get(Ao2);
   if (folderNames) {
-    const Nt2 = Zt3 === "user" ? userAssets : userAssetsState;
+    const Nt2 = Zt3 === "user" ? editorCtx.userAssets : editorCtx.userAssetsState;
     ((folderNames.wrapper.hidden = !Nt2.some((sourceAssetItem: any) => sourceAssetItem.folder)),
       folderNames.wrapper.hidden && runState(folderNames));
   }
@@ -5029,9 +4926,9 @@ function syncAssetFolderOptions(assetSourceKind: any) {
 }
 function leftFolderName(rightFolderName: any) {
   const isCurrentFolder = rightFolderName === "image",
-    Zt4 = isCurrentFolder ? imageAssetFolder : effectAssetFolder,
+    Zt4 = isCurrentFolder ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder,
     Ao3 = isCurrentFolder ? imageAssetFolderSelectElement : ibeAssetFolderElement,
-    Nt3 = Zt4 === "user" ? userAssets : userAssetsState,
+    Nt3 = Zt4 === "user" ? editorCtx.userAssets : editorCtx.userAssetsState,
     sort3 = [
       ...new Set<string>(
         Nt3.map((mappedItemsView: any) => String(mappedItemsView.folder ?? "")).filter(Boolean),
@@ -5039,9 +4936,9 @@ function leftFolderName(rightFolderName: any) {
     ].sort((leftFolderLabel: string, rightFolderLabel: string) =>
       leftFolderLabel.localeCompare(rightFolderLabel, "zh-CN"),
     ),
-    xn2 = isCurrentFolder ? imageAssetFolderState : effectAssetFolderState,
+    xn2 = isCurrentFolder ? editorCtx.imageAssetFolderState : editorCtx.effectAssetFolderState,
     nextFolder = sort3.includes(xn2) ? xn2 : sort3[0] || "";
-  (isCurrentFolder ? (imageAssetFolderState = nextFolder) : (effectAssetFolderState = nextFolder),
+  (isCurrentFolder ? (editorCtx.imageAssetFolderState = nextFolder) : (editorCtx.effectAssetFolderState = nextFolder),
     Ao3.replaceChildren(
       ...sort3.map(
         (folderNameToOption) =>
@@ -5155,7 +5052,7 @@ function probeAssetNaturalSize(probedComponent: any, probedAsset: any) {
     measureAssetImageSize(probedAsset)
       .then((measuredSize) => {
         const liveComponent = findComponent2(
-          activeProject?.document,
+          editorCtx.activeProject?.document,
           probedComponent.id,
         )?.component;
         !liveComponent ||
@@ -5239,8 +5136,8 @@ function scheduleAssetPreview(
 ) {
   !previewAsset ||
     !previewAnchorElement ||
-    (clearTimeout(assetPreviewTimeoutId),
-    (assetPreviewTimeoutId = window.setTimeout(() => {
+    (clearTimeout(editorCtx.assetPreviewTimeoutId),
+    (editorCtx.assetPreviewTimeoutId = window.setTimeout(() => {
       const jp2 = resolveEffectAssetUrl(previewAsset);
       !jp2 ||
         previewMenuElement.hidden ||
@@ -5257,8 +5154,8 @@ function scheduleAssetPreview(
     }, 300)));
 }
 function hideAssetLargePreview() {
-  (clearTimeout(assetPreviewTimeoutId),
-    (assetPreviewTimeoutId = null),
+  (clearTimeout(editorCtx.assetPreviewTimeoutId),
+    (editorCtx.assetPreviewTimeoutId = null),
     (imageAssetLargePreviewImageElement.hidden = true),
     (imageAssetLargePreviewImageElementElement.onload = null));
 }
@@ -5306,14 +5203,14 @@ function renderImageAssetOptions(assetSearchQuery = "") {
   hideAssetLargePreview();
   const boundAssetId = removedComponent()?.properties?.assetId || "",
     normalizedAssetQuery = assetSearchQuery.trim().toLocaleLowerCase("zh-CN"),
-    filteredAssets = (imageAssetFolder === "user" ? userAssets : userAssetsState).filter(
+    filteredAssets = (editorCtx.imageAssetFolder === "user" ? editorCtx.userAssets : editorCtx.userAssetsState).filter(
       (matchingAsset: any) => {
         const matchesQuery =
             !normalizedAssetQuery ||
             (matchingAsset.name + " " + matchingAsset.relativePath)
               .toLocaleLowerCase("zh-CN")
               .includes(normalizedAssetQuery),
-          matchesFolder = !!normalizedAssetQuery || matchingAsset.folder === imageAssetFolderState;
+          matchesFolder = !!normalizedAssetQuery || matchingAsset.folder === editorCtx.imageAssetFolderState;
         return matchesQuery && matchesFolder;
       },
     ),
@@ -5343,11 +5240,11 @@ function renderImageAssetOptions(assetSearchQuery = "") {
 function syncImageAssetSelection(imageComponent: any) {
   const currentAssetId = imageComponent.properties?.assetId || "",
     sn2 = findAssetById(currentAssetId);
-  ((imageAssetFolder =
-    ["user", "studio3d-export"].includes(sn2?.source) || (userAssets.length && !sn2)
+  ((editorCtx.imageAssetFolder =
+    ["user", "studio3d-export"].includes(sn2?.source) || (editorCtx.userAssets.length && !sn2)
       ? "user"
       : "builtin"),
-    (imageAssetFolderState = sn2?.folder || "" || imageAssetFolderState),
+    (editorCtx.imageAssetFolderState = sn2?.folder || "" || editorCtx.imageAssetFolderState),
     leftFolderName("image"),
     syncAssetFolderOptions("image"),
     (imageAssetButtonElement.textContent = sn2?.name || currentAssetId || "不使用图片"),
@@ -5396,13 +5293,13 @@ function renderEffectAssetOptions(effectAssetSearchQuery = "") {
   hideAssetLargePreview();
   const boundEffectAssetId = removedComponent()?.properties?.effectAssetId || "",
     normalizedEffectQuery = effectAssetSearchQuery.trim().toLocaleLowerCase("zh-CN"),
-    filteredEffectAssets = (effectAssetFolder === "user" ? userAssets : userAssetsState).filter(
+    filteredEffectAssets = (editorCtx.effectAssetFolder === "user" ? editorCtx.userAssets : editorCtx.userAssetsState).filter(
       (effectMatchingAsset: any) =>
         (!normalizedEffectQuery ||
           (effectMatchingAsset.name + " " + effectMatchingAsset.relativePath)
             .toLocaleLowerCase("zh-CN")
             .includes(normalizedEffectQuery)) &&
-        (!!normalizedEffectQuery || effectMatchingAsset.folder === effectAssetFolderState),
+        (!!normalizedEffectQuery || effectMatchingAsset.folder === editorCtx.effectAssetFolderState),
     ),
     effectClearAssetButton = document.createElement("button");
   ((effectClearAssetButton.type = "button"),
@@ -5427,11 +5324,11 @@ function renderEffectAssetOptions(effectAssetSearchQuery = "") {
 function syncEffectAssetSelection(effectOwnerComponent: any) {
   const currentEffectAssetId = effectOwnerComponent.properties?.effectAssetId || "",
     sn3 = findAssetById(currentEffectAssetId);
-  ((effectAssetFolder =
-    ["user", "studio3d-export"].includes(sn3?.source) || (userAssets.length && !sn3)
+  ((editorCtx.effectAssetFolder =
+    ["user", "studio3d-export"].includes(sn3?.source) || (editorCtx.userAssets.length && !sn3)
       ? "user"
       : "builtin"),
-    (effectAssetFolderState = sn3?.folder || effectAssetFolderState),
+    (editorCtx.effectAssetFolderState = sn3?.folder || editorCtx.effectAssetFolderState),
     leftFolderName("ibe"),
     syncAssetFolderOptions("ibe"),
     (ibeAssetButtonElement.textContent = sn3?.name || currentEffectAssetId || "不使用图片"),
@@ -5496,7 +5393,7 @@ function closePopupEntityMenus(activeTriggerElement: any = null) {
 }
 function syncPopupEntityButton(configElement: any) {
   const popupEntityId = configElement?.querySelector("[data-popup-entity]")?.value || "",
-    popupEntity = entities.find(
+    popupEntity = editorCtx.entities.find(
       (popupCandidateEntity: any) => popupCandidateEntity.entityId === popupEntityId,
     ),
     popupPickerButtonElement = configElement?.querySelector("[data-popup-entity-button]");
@@ -5515,7 +5412,7 @@ function renderPopupEntityOptions(popupConfigElement: any, popupSearchQuery = ""
   const normalizedPopupQuery = String(popupSearchQuery || "")
       .trim()
       .toLocaleLowerCase("zh-CN"),
-    filteredEntities = entities.filter(
+    filteredEntities = editorCtx.entities.filter(
       (listedPopupEntity: any) =>
         !normalizedPopupQuery ||
         (runMode(listedPopupEntity) + " " + listedPopupEntity.entityId)
@@ -5601,7 +5498,7 @@ function runExtraPeer(dateProperties: any) {
       top: DATE_INSPECTOR_FIELDS,
       scale: DATE_INSPECTOR_TOGGLES,
       rotation: datePropertiesValue,
-    }: any = inspectorComponentMetrics2(dateProperties, activeProject.document);
+    }: any = inspectorComponentMetrics2(dateProperties, editorCtx.activeProject.document);
   ((timeTypeElement.value = "时间"),
     (timeLabelElement.value = availablePropertiesState.label || ""));
   for (const datePropertiesElement of timeHourFormatElement.querySelectorAll(
@@ -5660,14 +5557,14 @@ function fitWeatherComponentToDimensions(
 }
 function entitiesByEntityId() {
   return new Map(
-    entities
+    editorCtx.entities
       .map((entityRecord: any) => [String(entityRecord.entityId || ""), entityRecord] as const)
       .filter(([entityValue]: any) => entityValue),
   );
 }
 function devicesByDeviceId() {
   return new Map(
-    devices
+    editorCtx.devices
       .map((deviceRecord: any) => [String(deviceRecord.deviceId || ""), deviceRecord] as const)
       .filter(([deviceValue]: any) => deviceValue),
   );
@@ -5675,13 +5572,13 @@ function devicesByDeviceId() {
 function buildCustomPopupEditorContext(): CustomPopupEditorContext {
   return {
     get editorMode() {
-      return editorMode;
+      return editorCtx.editorMode;
     },
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     get selectedPopupId() {
-      return selectedPopupId;
+      return editorCtx.selectedPopupId;
     },
     customPopupEditorElement,
     mutateDocument,
@@ -5700,7 +5597,7 @@ function syncCustomPopupStage() {
 function buildTimeInspectorContext() {
   return {
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     dateTypeElement,
     dateLabelElement,
@@ -5728,7 +5625,7 @@ function syncTimeInspector(timeComponent: any) {
 function buildWeatherInspectorContext() {
   return {
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     runExtraFallback,
     weatherTypeElement,
@@ -5761,10 +5658,10 @@ function syncWeatherInspector(weatherComponent: any) {
 function buildTitleButtonInspectorContext() {
   return {
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     get selectedComponentIdsSet() {
-      return selectedComponentIdsSet;
+      return editorCtx.selectedComponentIdsSet;
     },
     titleButtonLabelElement,
     runExtraFallback,
@@ -5824,13 +5721,13 @@ function syncTitleButtonInspector(titleButtonComponent: any) {
 function buildLightStatisticsInspectorContext() {
   return {
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     get statisticsComponentId() {
-      return statisticsComponentId;
+      return editorCtx.statisticsComponentId;
     },
     set statisticsComponentId(value: any) {
-      statisticsComponentId = value;
+      editorCtx.statisticsComponentId = value;
     },
     runLimit,
     lightStatisticsLabelElement,
@@ -5861,11 +5758,11 @@ function buildLightStatisticsInspectorContext() {
     lightStatisticsScaleElement,
     lightStatisticsRotationElement,
     get selectedComponentIdsSet() {
-      return selectedComponentIdsSet;
+      return editorCtx.selectedComponentIdsSet;
     },
     runBackup,
     lightStatisticsEntityButtonElement,
-    statisticsReplaceIndex,
+    statisticsReplaceIndex: editorCtx.statisticsReplaceIndex,
     runZone,
     lightStatisticsEntityMenuElement,
     runAmount,
@@ -5883,7 +5780,7 @@ function syncLightStatisticsInspector(lightStatisticsComponent: any) {
 function buildCameraInspectorContext() {
   return {
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     cameraLabelElement,
     runExtraFallback,
@@ -5910,7 +5807,7 @@ function buildCameraInspectorContext() {
     cameraScaleElement,
     cameraRotationElement,
     get selectedComponentIdsSet() {
-      return selectedComponentIdsSet;
+      return editorCtx.selectedComponentIdsSet;
     },
     findReplaceableComponents,
     runAuxLower,
@@ -5921,7 +5818,7 @@ function buildCameraInspectorContext() {
     // 摄像头检查器的写属性控件交互在 `home-camera-inspector.ts` 里挂（宿主只减不增）。
     mutateDocument,
     findComponent: findComponent2,
-    getSelectedComponentId: () => selectedComponentId,
+    getSelectedComponentId: () => editorCtx.selectedComponentId,
   };
 }
 function syncCameraInspector(cameraComponent: any) {
@@ -5930,7 +5827,7 @@ function syncCameraInspector(cameraComponent: any) {
 function buildVacuumMapInspectorContext() {
   return {
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     vacuumMapLabelElement,
     runExtraFallback,
@@ -5946,7 +5843,7 @@ function syncVacuumMapInspector(vacuumMapComponent: any) {
 }
 function buildCoverMotorInspectorContext(): CoverMotorInspectorContext {
   return {
-    activeProject,
+    activeProject: editorCtx.activeProject,
     airConditionerEntityMenuElement,
     airConditionerInspectorElement,
     airConditionerPreviewStateByComponentId,
@@ -5961,10 +5858,10 @@ function buildCoverMotorInspectorContext(): CoverMotorInspectorContext {
     destroyDashboardPreview,
     displayDeviceCountElement,
     editorCanvasElement,
-    editorMode,
+    editorMode: editorCtx.editorMode,
     editorPickers,
-    editorRenderer,
-    entities,
+    editorRenderer: editorCtx.editorRenderer,
+    entities: editorCtx.entities,
     eventLogWallInspectorElement,
     findReplaceableComponents,
     floorplanAutoDiagramBindingListElement,
@@ -6083,7 +5980,7 @@ function buildCoverMotorInspectorContext(): CoverMotorInspectorContext {
     runMode,
     runShadow,
     selectableEntities,
-    selectedComponentIdsSet,
+    selectedComponentIdsSet: editorCtx.selectedComponentIdsSet,
     setComponentsRotation,
     setEditorMode,
     stopHoverScroll,
@@ -6123,13 +6020,13 @@ async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } 
     requestJson("/assets/builtin?_=" + Date.now()),
     requestJson("/assets/user?_=" + Date.now()),
   ]);
-  ((userAssetsState = all.items || []),
-    (userAssets = all2.items || []),
-    (catalogVersionSignature = (all.catalogVersion || "") + ":" + (all2.catalogVersion || "")));
+  ((editorCtx.userAssetsState = all.items || []),
+    (editorCtx.userAssets = all2.items || []),
+    (editorCtx.catalogVersionSignature = (all.catalogVersion || "") + ":" + (all2.catalogVersion || "")));
   const didVersionsChange = setBuiltinAssetVersions2(allAssets());
   return (
     didVersionsChange &&
-      (editorRenderer?.renderComponents(true), dashboardPreviewRenderer?.renderComponents(true)),
+      (editorCtx.editorRenderer?.renderComponents(true), editorCtx.dashboardPreviewRenderer?.renderComponents(true)),
     refreshInspector && coverMotorButtonElement(),
     didVersionsChange
   );
@@ -6137,17 +6034,17 @@ async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } 
 async function pollAssetCatalogVersion() {
   const versionResponse = await requestJson("/assets/version"),
     versionSignature = (versionResponse.builtin || "") + ":" + (versionResponse.user || "");
-  catalogVersionSignature !== versionSignature &&
+  editorCtx.catalogVersionSignature !== versionSignature &&
     (await reloadAssetCatalog({
       refreshInspector: true,
     }));
 }
 async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {}): Promise<any> {
-  return entitiesLoadPromise
+  return editorCtx.entitiesLoadPromise
     ? waitForCurrent
-      ? (await entitiesLoadPromise, ensureEntitiesLoaded())
-      : entitiesLoadPromise
-    : ((entitiesLoadPromise = (async () => {
+      ? (await editorCtx.entitiesLoadPromise, ensureEntitiesLoaded())
+      : editorCtx.entitiesLoadPromise
+    : ((editorCtx.entitiesLoadPromise = (async () => {
         const collectedEntities: any[] = [];
         let entityOffset = 0,
           entityTotal = 0;
@@ -6159,7 +6056,7 @@ async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {
             (entityTotal = Number(entitiesResponse.total || 0)),
             (entityOffset += Number(entitiesResponse.limit || 500)));
         } while (collectedEntities.length < entityTotal);
-        entities = collectedEntities.filter(
+        editorCtx.entities = collectedEntities.filter(
           (filteredItemsConfig) => filteredItemsConfig.status !== "missing",
         );
         const [all3, all4] = await Promise.all([
@@ -6170,9 +6067,9 @@ async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {
             resources: {} as Record<string, any>,
           })),
         ]);
-        ((devices = all3?.items || []),
-          (deviceNamesByDeviceId = new Map(
-            devices
+        ((editorCtx.devices = all3?.items || []),
+          (editorCtx.deviceNamesByDeviceId = new Map(
+            editorCtx.devices
               .map((mappedItemsCache: any) => [
                 String(mappedItemsCache.deviceId || ""),
                 runCursor(mappedItemsCache.name),
@@ -6182,28 +6079,28 @@ async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {
                   entitiesResponseState && entitiesResponseValue,
               ),
           )),
-          (entityResourcesByDeviceId = all4?.resources || {}),
-          (isAreEntitiesLoaded = true));
+          (editorCtx.entityResourcesByDeviceId = all4?.resources || {}),
+          (editorCtx.isAreEntitiesLoaded = true));
         const mappedItemByIdById = new Map(
-            nasProfiles2(entities, devices).map((mappedItemsQueue) => [
+            nasProfiles2(editorCtx.entities, editorCtx.devices).map((mappedItemsQueue) => [
               mappedItemsQueue.deviceId,
               mappedItemsQueue,
             ]),
           ),
           entitiesResponseConfig = reconcileNasDocument2(
-            activeProject?.document,
+            editorCtx.activeProject?.document,
             mappedItemByIdById,
           ),
-          devicesResponseState = reconcileNasDocument2(baselineDocument, mappedItemByIdById);
-        savedDocumentSignature = documentSignature2(baselineDocument);
+          devicesResponseState = reconcileNasDocument2(editorCtx.baselineDocument, mappedItemByIdById);
+        editorCtx.savedDocumentSignature = documentSignature2(editorCtx.baselineDocument);
         for (const translationsResponse of [...historyState.undo, ...historyState.redo])
           for (const deviceState of ["document", "beforeSavedDocument", "afterSavedDocument"])
             reconcileNasDocument2(translationsResponse[deviceState], mappedItemByIdById);
-        if (recoverySnapshot) {
-          reconcileNasDocument2(recoverySnapshot.document, mappedItemByIdById);
+        if (editorCtx.recoverySnapshot) {
+          reconcileNasDocument2(editorCtx.recoverySnapshot.document, mappedItemByIdById);
           for (const deviceIdKey of [
-            ...(recoverySnapshot.undo || []),
-            ...(recoverySnapshot.redo || []),
+            ...(editorCtx.recoverySnapshot.undo || []),
+            ...(editorCtx.recoverySnapshot.redo || []),
           ])
             for (const deviceNameValueState of [
               "document",
@@ -6211,32 +6108,32 @@ async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {
               "afterSavedDocument",
             ])
               reconcileNasDocument2(deviceIdKey[deviceNameValueState], mappedItemByIdById);
-          documentSignature2(recoverySnapshot.document) === savedDocumentSignature &&
-            (discardRecoverySnapshot(activeProject.projectId),
-            (recoverySnapshot = null),
+          documentSignature2(editorCtx.recoverySnapshot.document) === editorCtx.savedDocumentSignature &&
+            (discardRecoverySnapshot(editorCtx.activeProject.projectId),
+            (editorCtx.recoverySnapshot = null),
             recoveryDialogElement.open && recoveryDialogElement.close());
         }
-        (editorRenderer?.setEntityCatalog(entities, entityResourcesByDeviceId, devices),
-          dashboardPreviewRenderer?.setEntityCatalog(entities, entityResourcesByDeviceId, devices),
+        (editorCtx.editorRenderer?.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices),
+          editorCtx.dashboardPreviewRenderer?.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices),
           runExtraLower(),
           (entitiesResponseConfig || devicesResponseState) &&
             writeError({
-              preserveRecovery: !!recoverySnapshot,
+              preserveRecovery: !!editorCtx.recoverySnapshot,
             }),
           document.activeElement?.closest?.(".inspector-form") || coverMotorButtonElement());
       })().finally(() => {
-        entitiesLoadPromise = null;
+        editorCtx.entitiesLoadPromise = null;
       })),
-      entitiesLoadPromise);
+      editorCtx.entitiesLoadPromise);
 }
-function runExtraOuter(runExtraUpper: any, catalogEntityRecord = selectedPopupId) {
+function runExtraOuter(runExtraUpper: any, catalogEntityRecord = editorCtx.selectedPopupId) {
   const devicesResponse = runExtraUpper?.customPopups || [];
   if (
     (popupSelectElement.replaceChildren(),
     popupListElement.replaceChildren(),
     !devicesResponse.length)
   ) {
-    ((selectedPopupId = null),
+    ((editorCtx.selectedPopupId = null),
       popupSelectElement.append(new Option("暂无组合弹窗", "")),
       (popupSelectElement.disabled = true),
       (popupActionsButtonElement.disabled = true),
@@ -6249,12 +6146,12 @@ function runExtraOuter(runExtraUpper: any, catalogEntityRecord = selectedPopupId
   }
   for (const popupEntryState of devicesResponse)
     popupSelectElement.append(new Option(popupEntryState.name, popupEntryState.id));
-  ((selectedPopupId = devicesResponse.some(
+  ((editorCtx.selectedPopupId = devicesResponse.some(
     (candidatePopupState: any) => candidatePopupState.id === catalogEntityRecord,
   )
     ? catalogEntityRecord
     : devicesResponse[0].id),
-    (popupSelectElement.value = selectedPopupId),
+    (popupSelectElement.value = editorCtx.selectedPopupId),
     (popupSelectElement.disabled = false),
     (popupActionsButtonElement.disabled = false),
     loadNavigationIconOptions(popupSelectElement));
@@ -6262,12 +6159,12 @@ function runExtraOuter(runExtraUpper: any, catalogEntityRecord = selectedPopupId
     const popupItemButtonElement = document.createElement("button");
     ((popupItemButtonElement.type = "button"),
       (popupItemButtonElement.className =
-        "popup-list-item" + (popupItemState.id === selectedPopupId ? " selected" : "")),
+        "popup-list-item" + (popupItemState.id === editorCtx.selectedPopupId ? " selected" : "")),
       (popupItemButtonElement.dataset.popupId = popupItemState.id),
       popupItemButtonElement.setAttribute("role", "option"),
       popupItemButtonElement.setAttribute(
         "aria-selected",
-        String(popupItemState.id === selectedPopupId),
+        String(popupItemState.id === editorCtx.selectedPopupId),
       ));
     const popupItemNameElementElement = document.createElement("span");
     popupItemNameElementElement.textContent = popupItemState.name;
@@ -6284,8 +6181,8 @@ function runExtraLower() {
     const translationsResponseElementPanel =
       translationsResponseElementElement.closest("[data-action-trigger]");
     (!translationsResponseElementElement.value &&
-      entities[0]?.entityId &&
-      (translationsResponseElementElement.value = entities[0].entityId),
+      editorCtx.entities[0]?.entityId &&
+      (translationsResponseElementElement.value = editorCtx.entities[0].entityId),
       syncPopupEntityButton(translationsResponseElementPanel));
     const translationsResponseElement = translationsResponseElementPanel?.querySelector<HTMLElement>(
       "[data-popup-entity-menu]",
@@ -6313,14 +6210,14 @@ function runExtraLeft(device = popupModuleFormElement.elements.deviceType.value)
 }
 function deviceNameValue(renderPopupList: any) {
   return (
-    entities.find((sourceDocument: any) => sourceDocument.entityId === renderPopupList)?.name ||
+    editorCtx.entities.find((sourceDocument: any) => sourceDocument.entityId === renderPopupList)?.name ||
     renderPopupList ||
     "未选择实体"
   );
 }
 function initialPopupId() {
   const customPopupList = popupModuleFormElement.elements.entityId.value,
-    customPopupListState = entities.find(
+    customPopupListState = editorCtx.entities.find(
       (renderPopupListState: any) => renderPopupListState.entityId === customPopupList,
     ),
     customPopupListValue = customPopupListState
@@ -6339,7 +6236,7 @@ function runExtraRight(runExtraFirst = popupModuleEntitySearchElement.value) {
     popupEmptyElementState = String(runExtraFirst || "")
       .trim()
       .toLocaleLowerCase("zh-CN"),
-    mappedItemsBuffer = entities
+    mappedItemsBuffer = editorCtx.entities
       .map((mappedItemsCursor: any, mappedItemsPointer: any) => ({
         entity: mappedItemsCursor,
         index: mappedItemsPointer,
@@ -6411,8 +6308,8 @@ function closePopupModuleEntityMenu() {
     popupModuleEntityButtonElement.setAttribute("aria-expanded", "false"));
 }
 function openPopupModuleDialog(popupModule: any = null) {
-  if (!findCustomPopup2(activeProject?.document, selectedPopupId)) return;
-  ((selectedPopupModuleId = popupModule?.id || null),
+  if (!findCustomPopup2(editorCtx.activeProject?.document, editorCtx.selectedPopupId)) return;
+  ((editorCtx.selectedPopupModuleId = popupModule?.id || null),
     (popupModuleDialogTitleElement.textContent = popupModule ? "编辑弹窗模块" : "添加弹窗模块"));
   const moduleTypeName = popupModule?.type === "capability-device" ? "generic" : popupModule?.type;
   ((popupModuleFormElement.elements.type.value = [
@@ -6432,9 +6329,9 @@ function openPopupModuleDialog(popupModule: any = null) {
     : "light"),
     loadNavigationIconOptions(popupModuleFormElement.elements.type));
   const defaultEntity =
-    entities.find((entityCandidate: any) =>
+    editorCtx.entities.find((entityCandidate: any) =>
       popupModuleEntityRecommended2(entityCandidate, popupModuleFormElement.elements.type.value),
-    ) || entities[0];
+    ) || editorCtx.entities[0];
   ((popupModuleFormElement.elements.entityId.value =
     popupModule?.entityId || defaultEntity?.entityId || ""),
     (popupModuleFormElement.elements.title.value = popupModule?.title || ""),
@@ -6475,12 +6372,12 @@ function renderPageSelect(projectDocument: any, preferredPagePath: any = null) {
   );
 }
 function retainExistingSelection(documentToCheck: any, pagePathFilter: any) {
-  const candidateSelectionIds = selectedComponentIdsSet.size
-    ? [...selectedComponentIdsSet]
-    : selectedComponentId
-      ? [selectedComponentId]
+  const candidateSelectionIds = editorCtx.selectedComponentIdsSet.size
+    ? [...editorCtx.selectedComponentIdsSet]
+    : editorCtx.selectedComponentId
+      ? [editorCtx.selectedComponentId]
       : [];
-  ((selectedComponentIdsSet = new Set(
+  ((editorCtx.selectedComponentIdsSet = new Set(
     candidateSelectionIds.filter((componentIdCandidate) => {
       const candidateComponent = findComponent2(documentToCheck, componentIdCandidate);
       return (
@@ -6489,16 +6386,16 @@ function retainExistingSelection(documentToCheck: any, pagePathFilter: any) {
       );
     }),
   )),
-    selectedComponentIdsSet.has(selectedComponentId) ||
-      (selectedComponentId = selectedComponentIdsSet.values().next().value || null),
-    selectedComponentId || (selectionAnchorComponentId = null));
+    editorCtx.selectedComponentIdsSet.has(editorCtx.selectedComponentId) ||
+      (editorCtx.selectedComponentId = editorCtx.selectedComponentIdsSet.values().next().value || null),
+    editorCtx.selectedComponentId || (editorCtx.selectionAnchorComponentId = null));
 }
 const structureVolatileTypesSet = new Set();
 function collectChangedComponents(previousDocument: any, nextDocument: any, runExtraSecond: any) {
   if (
-    editorMode !== "edit" ||
-    !editorRenderer ||
-    editorRenderer.page?.path !== runExtraSecond ||
+    editorCtx.editorMode !== "edit" ||
+    !editorCtx.editorRenderer ||
+    editorCtx.editorRenderer.page?.path !== runExtraSecond ||
     editorDocumentFrameSignature2(previousDocument) !== editorDocumentFrameSignature2(nextDocument)
   )
     return null;
@@ -6528,13 +6425,13 @@ function collectChangedComponents(previousDocument: any, nextDocument: any, runE
     const { children: component3, ...component4 } = previousEntry.component,
       { children: component5, ...component6 } = nextEntry.component;
     if (JSON.stringify(component4) !== JSON.stringify(component6)) {
-      if (!editorRenderer.componentHosts.has(componentIdKey)) {
+      if (!editorCtx.editorRenderer.componentHosts.has(componentIdKey)) {
         let ancestorEntry = nextEntry;
         for (; ancestorEntry.parentId;)
           ancestorEntry = nextEntries.entries.get(ancestorEntry.parentId);
         if (
           nextEntry.scope === "shared"
-            ? (editorRenderer.page.sharedComponentIds || []).includes(ancestorEntry.component.id)
+            ? (editorCtx.editorRenderer.page.sharedComponentIds || []).includes(ancestorEntry.component.id)
             : nextEntry.pagePath === runExtraSecond
         )
           return null;
@@ -6569,7 +6466,7 @@ function collectPageComponentBounds(): Array<{
 
 function alignSelectedComponents(mode: AlignMode) {
   const selectedBounds = collectPageComponentBounds().filter((bounds) =>
-    selectedComponentIdsSet.has(bounds.id),
+    editorCtx.selectedComponentIdsSet.has(bounds.id),
   );
   const nextPositions = computeAlignedPositions(selectedBounds, mode);
   if (!nextPositions.length) return;
@@ -6588,23 +6485,23 @@ function alignSelectedComponents(mode: AlignMode) {
 
 function ensureEditorRenderer() {
   return (
-    editorRenderer ||
-    ((editorRenderer = new PanelRenderer2(editorCanvasElement, {
+    editorCtx.editorRenderer ||
+    ((editorCtx.editorRenderer = new PanelRenderer2(editorCanvasElement, {
       editable: true,
       historySeriesCache: historySeriesCacheById,
       runtimeStateCache: runtimeStateCacheById,
       virtualEntityStateCache: virtualEntityStateCacheById,
       onSelectionChange(nextIds: string[], primaryId: string | null) {
-        selectedComponentIdsSet = new Set(nextIds || []);
-        selectedComponentId = primaryId || null;
-        selectionAnchorComponentId = selectedComponentId;
+        editorCtx.selectedComponentIdsSet = new Set(nextIds || []);
+        editorCtx.selectedComponentId = primaryId || null;
+        editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId;
         renderComponentLists();
         coverMotorButtonElement();
         syncHistoryButtons();
       },
       onComponentTransform(transformedComponentId: any, componentTransform: any) {
-        ((selectedComponentId = transformedComponentId),
-          (selectedComponentIdsSet = new Set([transformedComponentId])),
+        ((editorCtx.selectedComponentId = transformedComponentId),
+          (editorCtx.selectedComponentIdsSet = new Set([transformedComponentId])),
           mutateDocument((transformDocument: any) => {
             const draftComponent = findComponent2(
               transformDocument,
@@ -6680,7 +6577,7 @@ function ensureEditorRenderer() {
           }));
       },
       onComponentsTransform(leadComponentId: any, transformDraftDocument: any) {
-        ((selectedComponentId = transformDraftDocument),
+        ((editorCtx.selectedComponentId = transformDraftDocument),
           mutateDocument((transformEntry: any) => {
             for (const vector of leadComponentId) {
               const entryComponent = findComponent2(transformEntry, vector.componentId)?.component;
@@ -6712,9 +6609,9 @@ function ensureEditorRenderer() {
           }));
       },
       onComponentDuplicate(sourceComponentIdState: any, sourceComponentId: any) {
-        ((selectedComponentId = sourceComponentId.id),
-          (selectedComponentIdsSet = new Set([sourceComponentId.id])),
-          (selectionAnchorComponentId = sourceComponentId.id),
+        ((editorCtx.selectedComponentId = sourceComponentId.id),
+          (editorCtx.selectedComponentIdsSet = new Set([sourceComponentId.id])),
+          (editorCtx.selectionAnchorComponentId = sourceComponentId.id),
           mutateDocument((copiedComponent: any) => {
             duplicateComponent(copiedComponent, sourceComponentIdState, sourceComponentId, false);
           }));
@@ -6723,9 +6620,9 @@ function ensureEditorRenderer() {
         const copiedComponentIds = duplicateDraftDocument.map(
           (copiedComponentEntry: any) => copiedComponentEntry.copiedComponent.id,
         );
-        ((selectedComponentId = draggedCopyId || copiedComponentIds[0] || null),
-          (selectedComponentIdsSet = new Set(copiedComponentIds)),
-          (selectionAnchorComponentId = selectedComponentId),
+        ((editorCtx.selectedComponentId = draggedCopyId || copiedComponentIds[0] || null),
+          (editorCtx.selectedComponentIdsSet = new Set(copiedComponentIds)),
+          (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
           mutateDocument((duplicateApplyDocument: any) => {
             for (const duplicateEntry of duplicateDraftDocument)
               duplicateComponent(
@@ -6756,7 +6653,7 @@ function ensureEditorRenderer() {
         });
       },
       onComponentPropertiesPreview(previewPropertyComponentId: any, previewPropertyPatch: any) {
-        previewPropertyComponentId === selectedComponentId &&
+        previewPropertyComponentId === editorCtx.selectedComponentId &&
           (Number.isFinite(previewPropertyPatch.airflowScale) &&
             (airConditionerAirflowScaleElement.value = roundField2(
               previewPropertyPatch.airflowScale * 100,
@@ -6775,7 +6672,7 @@ function ensureEditorRenderer() {
             )));
       },
       onComponentsTransformPreview(previewTransformList: any, previewLeadComponentId: any) {
-        selectedComponentId = previewLeadComponentId;
+        editorCtx.selectedComponentId = previewLeadComponentId;
         const matchedTransformPreview = previewTransformList.find(
           (candidateTransformEntry: any) =>
             candidateTransformEntry.componentId === previewLeadComponentId,
@@ -6791,59 +6688,59 @@ function ensureEditorRenderer() {
       onPageChange(pageSelection: any) {
         ((pageSelectElement.value = pageSelection.path),
           loadNavigationIconOptions(pageSelectElement),
-          retainExistingSelection(activeProject?.document, pageSelection.path),
-          editorRenderer?.setSelectedComponents([...selectedComponentIdsSet], selectedComponentId),
+          retainExistingSelection(editorCtx.activeProject?.document, pageSelection.path),
+          editorCtx.editorRenderer?.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId),
           renderComponentLists(),
           coverMotorButtonElement());
       },
     })),
-    editorRenderer.setEntityCatalog(entities, entityResourcesByDeviceId, devices),
-    editorRenderer)
+    editorCtx.editorRenderer.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices),
+    editorCtx.editorRenderer)
   );
 }
 function renderEditorWorkspace(activePagePath: any = null) {
   (refreshSoundToggle(),
     renderWorkspaceResolution(),
-    runExtraOuter(activeProject.document, selectedPopupId));
-  const dL2 = renderPageSelect(activeProject.document, activePagePath);
+    runExtraOuter(editorCtx.activeProject.document, editorCtx.selectedPopupId));
+  const dL2 = renderPageSelect(editorCtx.activeProject.document, activePagePath);
   if ((setPageControlsEnabled(dL2), resizeWorkspaceCanvas(), !dL2)) {
     (clearComponentSelection(),
-      editorRenderer?.destroy(),
-      (editorRenderer = null),
+      editorCtx.editorRenderer?.destroy(),
+      (editorCtx.editorRenderer = null),
       (editorCanvasElement.innerHTML =
         '<div class="canvas-message"><strong>请从左侧新建页面。</strong></div>'),
       renderComponentLists(),
       coverMotorButtonElement(),
       runCase(activePagePath),
-      editorMode === "popup" && renderCustomPopupEditor());
+      editorCtx.editorMode === "popup" && renderCustomPopupEditor());
     return;
   }
-  (retainExistingSelection(activeProject.document, pageSelectElement.value),
-    editorMode === "edit"
-      ? (ensureEditorRenderer().setDocument(activeProject.document, pageSelectElement.value),
-        editorRenderer.setActiveGroup(activeGroupId),
-        editorRenderer.setSelectedComponents([...selectedComponentIdsSet], selectedComponentId))
-      : (editorRenderer?.destroy(), (editorRenderer = null)),
+  (retainExistingSelection(editorCtx.activeProject.document, pageSelectElement.value),
+    editorCtx.editorMode === "edit"
+      ? (ensureEditorRenderer().setDocument(editorCtx.activeProject.document, pageSelectElement.value),
+        editorCtx.editorRenderer.setActiveGroup(editorCtx.activeGroupId),
+        editorCtx.editorRenderer.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId))
+      : (editorCtx.editorRenderer?.destroy(), (editorCtx.editorRenderer = null)),
     renderComponentLists(),
     coverMotorButtonElement(),
-    editorMode === "dashboard"
+    editorCtx.editorMode === "dashboard"
       ? runCase(pageSelectElement.value)
-      : editorMode === "popup"
+      : editorCtx.editorMode === "popup"
         ? renderCustomPopupEditor()
         : runSlot());
 }
 function syncHistoryButtons() {
   ((undoElement.disabled =
-    isSaving || historyState.busy || !historyState.undo.length || !activeProject),
+    editorCtx.isSaving || historyState.busy || !historyState.undo.length || !editorCtx.activeProject),
     (redoElement.disabled =
-      isSaving || historyState.busy || !historyState.redo.length || !activeProject));
+      editorCtx.isSaving || historyState.busy || !historyState.redo.length || !editorCtx.activeProject));
   patchEditorFacadeState({
-    dirty: hasUnsavedChanges,
-    saveState: isSaving ? "saving" : hasUnsavedChanges ? "dirty" : "idle",
-    projectId: activeProject?.projectId || null,
-    projectName: activeProject?.name || activeProject?.title || "",
+    dirty: editorCtx.hasUnsavedChanges,
+    saveState: editorCtx.isSaving ? "saving" : editorCtx.hasUnsavedChanges ? "dirty" : "idle",
+    projectId: editorCtx.activeProject?.projectId || null,
+    projectName: editorCtx.activeProject?.name || editorCtx.activeProject?.title || "",
     pagePath: pageSelectElement?.value || null,
-    canvasZoom: editorCanvasZoom,
+    canvasZoom: editorCtx.editorCanvasZoom,
     history: {
       canUndo: !undoElement.disabled,
       canRedo: !redoElement.disabled,
@@ -6851,15 +6748,15 @@ function syncHistoryButtons() {
       redoDepth: historyState.redo.length,
     },
     selection: {
-      ids: [...selectedComponentIdsSet],
-      primaryId: selectedComponentId || null,
+      ids: [...editorCtx.selectedComponentIdsSet],
+      primaryId: editorCtx.selectedComponentId || null,
     },
   });
 }
 
 function applyEditorCanvasZoom(nextZoom: number) {
-  editorCanvasZoom = applyEditorZoomCss(nextZoom, [editorCanvasElement, dashboardPreviewElement]);
-  patchEditorFacadeState({ canvasZoom: editorCanvasZoom });
+  editorCtx.editorCanvasZoom = applyEditorZoomCss(nextZoom, [editorCanvasElement, dashboardPreviewElement]);
+  patchEditorFacadeState({ canvasZoom: editorCtx.editorCanvasZoom });
   resizeWorkspaceCanvas();
 }
 
@@ -6867,13 +6764,13 @@ function selectAllPageComponents() {
   const page = currentPage();
   const ids = (page?.components || []).map((componentEntry: any) => componentEntry.id).filter(Boolean);
   if (!ids.length) return;
-  selectedComponentIdsSet = new Set(ids);
-  selectedComponentId = ids[0];
-  selectionAnchorComponentId = selectedComponentId;
+  editorCtx.selectedComponentIdsSet = new Set(ids);
+  editorCtx.selectedComponentId = ids[0];
+  editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId;
   coverMotorButtonElement();
   syncHistoryButtons();
 }
-function discardRecoverySnapshot(recoveryProjectId = activeProject?.projectId) {
+function discardRecoverySnapshot(recoveryProjectId = editorCtx.activeProject?.projectId) {
   if (recoveryProjectId) {
     recoveryWriter.cancel(recoveryProjectId);
     try {
@@ -6903,14 +6800,14 @@ const recoveryWriter = createRecoveryWriter2(persistRecoverySnapshot);
     document.hidden && recoveryWriter.flush();
   }));
 function scheduleRecoverySnapshot() {
-  if (!activeProject || !hasUnsavedChanges) return;
+  if (!editorCtx.activeProject || !editorCtx.hasUnsavedChanges) return;
   const recoveryFailureNotifiedProjectId = {
-    projectId: activeProject.projectId,
-    revision: activeProject.revision,
-    document: activeProject.document,
+    projectId: editorCtx.activeProject.projectId,
+    revision: editorCtx.activeProject.revision,
+    document: editorCtx.activeProject.document,
     selectedPath: pageSelectElement.value,
-    selectedComponentId: selectedComponentId,
-    selectedComponentIds: [...selectedComponentIdsSet],
+    selectedComponentId: editorCtx.selectedComponentId,
+    selectedComponentIds: [...editorCtx.selectedComponentIdsSet],
     undo: [...historyState.undo],
     redo: [...historyState.redo],
     savedAt: new Date().toISOString(),
@@ -6946,11 +6843,11 @@ function writeError({
   preserveRecovery: notifyRecoveryWriteFailure = false,
   signature: runExtraLast = null,
 }: any = {}) {
-  ((hasUnsavedChanges =
-    !!activeProject &&
-    (runExtraLast ?? documentSignature2(activeProject.document)) !== savedDocumentSignature),
-    (saveButtonElement.disabled = !activeProject || !hasUnsavedChanges || isSaving),
-    hasUnsavedChanges
+  ((editorCtx.hasUnsavedChanges =
+    !!editorCtx.activeProject &&
+    (runExtraLast ?? documentSignature2(editorCtx.activeProject.document)) !== editorCtx.savedDocumentSignature),
+    (saveButtonElement.disabled = !editorCtx.activeProject || !editorCtx.hasUnsavedChanges || editorCtx.isSaving),
+    editorCtx.hasUnsavedChanges
       ? scheduleRecoverySnapshot()
       : notifyRecoveryWriteFailure || discardRecoverySnapshot());
 }
@@ -6978,29 +6875,29 @@ function refreshDirtyState(keepRecovery: any, signatureOverride: any) {
 function historyEntries() {
   return {
     kind: "edit",
-    document: clone2(activeProject.document),
+    document: clone2(editorCtx.activeProject.document),
     selectedPath: pageSelectElement.value,
-    selectedComponentId: selectedComponentId,
-    selectedComponentIds: [...selectedComponentIdsSet],
+    selectedComponentId: editorCtx.selectedComponentId,
+    selectedComponentIds: [...editorCtx.selectedComponentIdsSet],
   };
 }
 async function historyEntry(prunedEntry: any, pruneCandidate: any = null) {
-  const createEditHistoryEntryState = ++activeProjectState;
+  const createEditHistoryEntryState = ++editorCtx.activeProjectState;
   recoveryWriter.flush();
   let createEditHistoryEntry;
   try {
     if (
       ((createEditHistoryEntry = await requestJson("/projects/" + prunedEntry + "/draft")),
-      createEditHistoryEntryState !== activeProjectState)
+      createEditHistoryEntryState !== editorCtx.activeProjectState)
     )
       return;
   } catch (openProjectDraft: any) {
-    if (createEditHistoryEntryState !== activeProjectState) return;
+    if (createEditHistoryEntryState !== editorCtx.activeProjectState) return;
     throw openProjectDraft;
   }
   (recoveryWriter.flush(),
-    (activeProject = createEditHistoryEntry),
-    (componentScopeState += 1),
+    (editorCtx.activeProject = createEditHistoryEntry),
+    (editorCtx.componentScopeState += 1),
     window.HomeOSLog?.setContext!({
       projectId: prunedEntry,
     })!,
@@ -7012,49 +6909,49 @@ async function historyEntry(prunedEntry: any, pruneCandidate: any = null) {
     iconButtonBaselineByComponentId.clear(),
     airConditionerBaselineByComponentId.clear());
   const mappedItemByIdByKey = new Map(
-    nasProfiles2(entities, devices).map((requestedProjectId) => [
+    nasProfiles2(editorCtx.entities, editorCtx.devices).map((requestedProjectId) => [
       requestedProjectId.deviceId,
       requestedProjectId,
     ]),
   );
-  (reconcileNasDocument2(activeProject.document, mappedItemByIdByKey),
-    (baselineDocument = clone2(activeProject.document)),
-    (savedDocumentSignature = documentSignature2(activeProject.document)),
-    (recoverySnapshot = readRecoverySnapshot(prunedEntry)),
-    recoverySnapshot && reconcileNasDocument2(recoverySnapshot.document, mappedItemByIdByKey),
-    recoverySnapshot &&
-      (recoverySnapshot.revision !== activeProject.revision ||
-        documentSignature2(recoverySnapshot.document) === savedDocumentSignature) &&
-      (discardRecoverySnapshot(prunedEntry), (recoverySnapshot = null)),
+  (reconcileNasDocument2(editorCtx.activeProject.document, mappedItemByIdByKey),
+    (editorCtx.baselineDocument = clone2(editorCtx.activeProject.document)),
+    (editorCtx.savedDocumentSignature = documentSignature2(editorCtx.activeProject.document)),
+    (editorCtx.recoverySnapshot = readRecoverySnapshot(prunedEntry)),
+    editorCtx.recoverySnapshot && reconcileNasDocument2(editorCtx.recoverySnapshot.document, mappedItemByIdByKey),
+    editorCtx.recoverySnapshot &&
+      (editorCtx.recoverySnapshot.revision !== editorCtx.activeProject.revision ||
+        documentSignature2(editorCtx.recoverySnapshot.document) === editorCtx.savedDocumentSignature) &&
+      (discardRecoverySnapshot(prunedEntry), (editorCtx.recoverySnapshot = null)),
     clearComponentSelection(),
     runExtraOld(),
     writeError({
-      preserveRecovery: !!recoverySnapshot,
+      preserveRecovery: !!editorCtx.recoverySnapshot,
     }),
     runKey(true),
     (projectSelectElement.value = prunedEntry),
     loadNavigationIconOptions(projectSelectElement),
     renderEditorWorkspace(pruneCandidate),
     rememberEditorProject2(prunedEntry),
-    recoverySnapshot && !isAreEntitiesLoaded && (await ensureEntitiesLoaded().catch(() => {})),
-    createEditHistoryEntryState === activeProjectState &&
-      recoverySnapshot &&
-      activeProject?.projectId === prunedEntry &&
+    editorCtx.recoverySnapshot && !editorCtx.isAreEntitiesLoaded && (await ensureEntitiesLoaded().catch(() => {})),
+    createEditHistoryEntryState === editorCtx.activeProjectState &&
+      editorCtx.recoverySnapshot &&
+      editorCtx.activeProject?.projectId === prunedEntry &&
       !recoveryDialogElement.open &&
       recoveryDialogElement.showModal());
 }
 async function initialPagePath(loadProjects: any = null) {
   if (
-    ((projects = (await requestJson("/projects")).items || []),
+    ((editorCtx.projects = (await requestJson("/projects")).items || []),
     projectSelectElement.replaceChildren(),
-    !projects.length)
+    !editorCtx.projects.length)
   ) {
-    ((activeProjectState += 1),
-      (componentScopeState += 1),
-      editorRenderer?.destroy(),
-      (editorRenderer = null),
+    ((editorCtx.activeProjectState += 1),
+      (editorCtx.componentScopeState += 1),
+      editorCtx.editorRenderer?.destroy(),
+      (editorCtx.editorRenderer = null),
       runSlot(),
-      (activeProject = null),
+      (editorCtx.activeProject = null),
       navigationButtonSavedSettingsByComponentId.clear(),
       clearCoverMotorDirectionValueById(),
       panelFrameBaselineByComponentId.clear(),
@@ -7063,9 +6960,9 @@ async function initialPagePath(loadProjects: any = null) {
       iconButtonBaselineByComponentId.clear(),
       airConditionerBaselineByComponentId.clear(),
       clearComponentSelection(),
-      (baselineDocument = null),
-      (savedDocumentSignature = ""),
-      (recoverySnapshot = null),
+      (editorCtx.baselineDocument = null),
+      (editorCtx.savedDocumentSignature = ""),
+      (editorCtx.recoverySnapshot = null),
       runExtraOld(),
       writeError(),
       runKey(false),
@@ -7085,10 +6982,10 @@ async function initialPagePath(loadProjects: any = null) {
       runCase());
     return;
   }
-  for (const preferredProjectId of projects)
+  for (const preferredProjectId of editorCtx.projects)
     projectSelectElement.append(new Option(preferredProjectId.name, preferredProjectId.id));
   ((projectSelectElement.disabled = false), loadNavigationIconOptions(projectSelectElement));
-  const projectSummaryState = restoredEditorProject2(projects, loadProjects);
+  const projectSummaryState = restoredEditorProject2(editorCtx.projects, loadProjects);
   await historyEntry(projectSummaryState);
 }
 async function projectSummary(
@@ -7096,49 +6993,49 @@ async function projectSummary(
   updatedDocument = pageSelectElement.value,
   { recordHistory: targetPagePath = true, expectedSignature: shouldRecordHistory = null }: any = {},
 ) {
-  if (!activeProject) throw new Error("请先选择仪表盘。");
-  const projectId = activeProject.projectId,
-    Ie3 = componentScopeState,
-    document2 = activeProject.document,
+  if (!editorCtx.activeProject) throw new Error("请先选择仪表盘。");
+  const projectId = editorCtx.activeProject.projectId,
+    Ie3 = editorCtx.componentScopeState,
+    document2 = editorCtx.activeProject.document,
     currentDocument = shouldRecordHistory ?? documentSignature2(document2),
     updatedSignature = () => {
-      if (documentSignature2(activeProject.document) !== currentDocument)
+      if (documentSignature2(editorCtx.activeProject.document) !== currentDocument)
         throw new Error("等待期间产生了新编辑，已保留最新内容，请重试刚才的操作。");
     };
   updatedSignature();
   const editHistoryEntry = documentSignature2(applyDocumentChange);
-  if (currentDocument === editHistoryEntry) return activeProject;
+  if (currentDocument === editHistoryEntry) return editorCtx.activeProject;
   try {
     await guardInteraction3dChanges2(document2, applyDocumentChange);
   } catch (caughtErrorValue: any) {
-    if (componentScopeState !== Ie3 || activeProject?.projectId !== projectId) return null;
+    if (editorCtx.componentScopeState !== Ie3 || editorCtx.activeProject?.projectId !== projectId) return null;
     throw caughtErrorValue;
   }
-  if (componentScopeState !== Ie3 || activeProject?.projectId !== projectId) return null;
+  if (editorCtx.componentScopeState !== Ie3 || editorCtx.activeProject?.projectId !== projectId) return null;
   updatedSignature();
   const vL2 = collectChangedComponents(document2, applyDocumentChange, updatedDocument),
     hl2 = historyEntries();
-  ((activeProject = {
-    ...activeProject,
+  ((editorCtx.activeProject = {
+    ...editorCtx.activeProject,
     document: clone2(applyDocumentChange),
   }),
     targetPagePath && (refreshDirtyState(historyState.undo, hl2), (historyState.redo = [])));
-  const matchingProject = projects.find(
-    (candidateProject: any) => candidateProject.id === activeProject.projectId,
+  const matchingProject = editorCtx.projects.find(
+    (candidateProject: any) => candidateProject.id === editorCtx.activeProject.projectId,
   );
-  matchingProject && (matchingProject.name = activeProject.document.name);
+  matchingProject && (matchingProject.name = editorCtx.activeProject.document.name);
   const selectedProjectOption = projectSelectElement.selectedOptions[0];
   return (
-    selectedProjectOption && (selectedProjectOption.textContent = activeProject.document.name),
+    selectedProjectOption && (selectedProjectOption.textContent = editorCtx.activeProject.document.name),
     loadNavigationIconOptions(projectSelectElement),
-    vL2 && editorRenderer?.applyEditorComponentUpdates(activeProject.document, updatedDocument, vL2)
+    vL2 && editorCtx.editorRenderer?.applyEditorComponentUpdates(editorCtx.activeProject.document, updatedDocument, vL2)
       ? (renderComponentLists(), coverMotorButtonElement())
       : renderEditorWorkspace(updatedDocument),
     writeError({
       signature: editHistoryEntry,
     }),
     syncHistoryButtons(),
-    activeProject
+    editorCtx.activeProject
   );
 }
 async function recoverDraftConflict(projectId2: any) {
@@ -7149,7 +7046,7 @@ async function recoverDraftConflict(projectId2: any) {
     handleOperationError(refreshLatestError);
     return;
   }
-  if (!activeProject || activeProject.projectId !== projectId2) return;
+  if (!editorCtx.activeProject || editorCtx.activeProject.projectId !== projectId2) return;
   const useRemote = await confirmAction({
     kicker: "REVISION CONFLICT",
     title: "草稿已在其它页面被更新",
@@ -7159,59 +7056,59 @@ async function recoverDraftConflict(projectId2: any) {
     cancelLabel: "保留本地并重试",
     tone: "warning",
   });
-  if (!activeProject || activeProject.projectId !== projectId2) return;
+  if (!editorCtx.activeProject || editorCtx.activeProject.projectId !== projectId2) return;
   if (useRemote) {
     await historyEntry(projectId2);
     return;
   }
 
-  activeProject = {
-    ...activeProject,
+  editorCtx.activeProject = {
+    ...editorCtx.activeProject,
     revision: latestDraft.revision,
     globalPopupRevision: latestDraft.globalPopupRevision,
   };
-  ((isSaving = false), writeError(), syncHistoryButtons());
+  ((editorCtx.isSaving = false), writeError(), syncHistoryButtons());
   await saveDraft();
 }
 async function saveDraft() {
-  if (!activeProject || !hasUnsavedChanges || isSaving || historyState.busy) return;
-  const projectId2 = activeProject.projectId,
-    Ie4 = componentScopeState,
-    baselineBeforeSave = clone2(baselineDocument),
-    draftBeforeSave = clone2(activeProject.document),
+  if (!editorCtx.activeProject || !editorCtx.hasUnsavedChanges || editorCtx.isSaving || historyState.busy) return;
+  const projectId2 = editorCtx.activeProject.projectId,
+    Ie4 = editorCtx.componentScopeState,
+    baselineBeforeSave = clone2(editorCtx.baselineDocument),
+    draftBeforeSave = clone2(editorCtx.activeProject.document),
     draftSignatureBeforeSave = documentSignature2(draftBeforeSave),
     isPopupsDirty =
       documentSignature2(draftBeforeSave.customPopups || []) !==
-      documentSignature2(baselineDocument.customPopups || []);
-  ((isSaving = true), writeError(), syncHistoryButtons());
+      documentSignature2(editorCtx.baselineDocument.customPopups || []);
+  ((editorCtx.isSaving = true), writeError(), syncHistoryButtons());
   try {
     const saveResponse = await requestJson("/projects/" + projectId2 + "/draft", {
       method: "PUT",
       hbLogContext: {
-        projectId: activeProject.projectId,
+        projectId: editorCtx.activeProject.projectId,
         phase: "save-draft",
       },
       body: JSON.stringify({
-        revision: activeProject.revision,
-        globalPopupRevision: activeProject.globalPopupRevision,
+        revision: editorCtx.activeProject.revision,
+        globalPopupRevision: editorCtx.activeProject.globalPopupRevision,
         globalPopupsDirty: isPopupsDirty,
         document: draftBeforeSave,
       }),
     });
-    if (componentScopeState !== Ie4 || activeProject?.projectId !== projectId2) return;
-    const savedProjectSummary = documentSignature2(activeProject.document),
+    if (editorCtx.componentScopeState !== Ie4 || editorCtx.activeProject?.projectId !== projectId2) return;
+    const savedProjectSummary = documentSignature2(editorCtx.activeProject.document),
       isPopupsChanged = savedProjectSummary !== draftSignatureBeforeSave,
-      document3 = isPopupsChanged ? clone2(activeProject.document) : saveResponse.document;
+      document3 = isPopupsChanged ? clone2(editorCtx.activeProject.document) : saveResponse.document;
     (isPopupsChanged &&
       documentSignature2(document3.customPopups || []) ===
         documentSignature2(draftBeforeSave.customPopups || []) &&
       (document3.customPopups = clone2(saveResponse.document.customPopups || [])),
-      (activeProject = {
+      (editorCtx.activeProject = {
         ...saveResponse,
         document: document3,
       }),
-      (baselineDocument = clone2(saveResponse.document)),
-      (savedDocumentSignature = documentSignature2(saveResponse.document)),
+      (editorCtx.baselineDocument = clone2(saveResponse.document)),
+      (editorCtx.savedDocumentSignature = documentSignature2(saveResponse.document)),
       isPopupsChanged ||
         (panelFrameBaselineByComponentId.clear(),
         lineChartBaselineByComponentId.clear(),
@@ -7224,14 +7121,14 @@ async function saveDraft() {
         afterSavedDocument: clone2(saveResponse.document),
       }),
       (historyState.redo = []));
-    const currentDraftDocument = projects.find(
-      (historyStepDirection: any) => historyStepDirection.id === activeProject.projectId,
+    const currentDraftDocument = editorCtx.projects.find(
+      (historyStepDirection: any) => historyStepDirection.id === editorCtx.activeProject.projectId,
     );
-    currentDraftDocument && (currentDraftDocument.name = activeProject.document.name);
+    currentDraftDocument && (currentDraftDocument.name = editorCtx.activeProject.document.name);
     const validComponentIds = projectSelectElement.selectedOptions[0];
-    (validComponentIds && (validComponentIds.textContent = activeProject.document.name),
+    (validComponentIds && (validComponentIds.textContent = editorCtx.activeProject.document.name),
       loadNavigationIconOptions(projectSelectElement),
-      documentSignature2(activeProject.document) !== savedProjectSummary &&
+      documentSignature2(editorCtx.activeProject.document) !== savedProjectSummary &&
         renderEditorWorkspace(pageSelectElement.value));
   } catch (refreshAuthSession: any) {
     if (refreshAuthSession?.code === "PROJECT_REVISION_CONFLICT") {
@@ -7240,40 +7137,40 @@ async function saveDraft() {
     }
     handleOperationError(refreshAuthSession);
   } finally {
-    ((isSaving = false), writeError(), syncHistoryButtons());
+    ((editorCtx.isSaving = false), writeError(), syncHistoryButtons());
   }
 }
 async function loadHaConnection(keepHaForm: any, refreshHaSyncStatus: any) {
-  const projectId3 = activeProject.projectId,
-    Ie5 = componentScopeState,
+  const projectId3 = editorCtx.activeProject.projectId,
+    Ie5 = editorCtx.componentScopeState,
     beforeSavedDocument =
       refreshHaSyncStatus === "undo"
         ? keepHaForm.beforeSavedDocument
         : keepHaForm.afterSavedDocument,
     isPopupsChangedActive =
       documentSignature2(beforeSavedDocument.customPopups || []) !==
-      documentSignature2(baselineDocument.customPopups || []),
-    connectedSignature = documentSignature2(activeProject.document.customPopups || []),
+      documentSignature2(editorCtx.baselineDocument.customPopups || []),
+    connectedSignature = documentSignature2(editorCtx.activeProject.document.customPopups || []),
     previousConnectedSignature = await requestJson("/projects/" + projectId3 + "/draft", {
       method: "PUT",
       body: JSON.stringify({
-        revision: activeProject.revision,
-        globalPopupRevision: activeProject.globalPopupRevision,
+        revision: editorCtx.activeProject.revision,
+        globalPopupRevision: editorCtx.activeProject.globalPopupRevision,
         globalPopupsDirty: isPopupsChangedActive,
         document: beforeSavedDocument,
       }),
     });
-  if (componentScopeState !== Ie5 || activeProject?.projectId !== projectId3) return false;
-  const entityLoadErrorState = clone2(activeProject.document);
+  if (editorCtx.componentScopeState !== Ie5 || editorCtx.activeProject?.projectId !== projectId3) return false;
+  const entityLoadErrorState = clone2(editorCtx.activeProject.document);
   return (
-    (baselineDocument = clone2(previousConnectedSignature.document)),
-    (savedDocumentSignature = documentSignature2(previousConnectedSignature.document)),
+    (editorCtx.baselineDocument = clone2(previousConnectedSignature.document)),
+    (editorCtx.savedDocumentSignature = documentSignature2(previousConnectedSignature.document)),
     !isPopupsChangedActive &&
       documentSignature2(entityLoadErrorState.customPopups || []) === connectedSignature &&
       (entityLoadErrorState.customPopups = clone2(
         previousConnectedSignature.document.customPopups || [],
       )),
-    (activeProject = {
+    (editorCtx.activeProject = {
       ...previousConnectedSignature,
       document: entityLoadErrorState,
     }),
@@ -7283,13 +7180,13 @@ async function loadHaConnection(keepHaForm: any, refreshHaSyncStatus: any) {
   );
 }
 async function entityLoadError(syncHaConnectionUi: any) {
-  const haActiveUrl = activeProject?.projectId,
-    Ie6 = componentScopeState,
+  const haActiveUrl = editorCtx.activeProject?.projectId,
+    Ie6 = editorCtx.componentScopeState,
     haDetailWarningHandler = () =>
-      componentScopeState === Ie6 && activeProject?.projectId === haActiveUrl;
+      editorCtx.componentScopeState === Ie6 && editorCtx.activeProject?.projectId === haActiveUrl;
   if (
-    (await writeQueuePromise.catch(() => {}),
-    !haDetailWarningHandler() || isSaving || historyState.busy || !activeProject)
+    (await editorCtx.writeQueuePromise.catch(() => {}),
+    !haDetailWarningHandler() || editorCtx.isSaving || historyState.busy || !editorCtx.activeProject)
   )
     return;
   const undo = syncHaConnectionUi === "undo" ? historyState.undo : historyState.redo,
@@ -7315,13 +7212,13 @@ async function entityLoadError(syncHaConnectionUi: any) {
               )
             : [];
         if (
-          ((selectedComponentId = findComponent2(pop.document, pop.selectedComponentId)
+          ((editorCtx.selectedComponentId = findComponent2(pop.document, pop.selectedComponentId)
             ? pop.selectedComponentId
             : deadlineTime[0] || null),
-          (selectedComponentIdsSet = new Set(
-            deadlineTime.length ? deadlineTime : selectedComponentId ? [selectedComponentId] : [],
+          (editorCtx.selectedComponentIdsSet = new Set(
+            deadlineTime.length ? deadlineTime : editorCtx.selectedComponentId ? [editorCtx.selectedComponentId] : [],
           )),
-          (selectionAnchorComponentId = selectedComponentId),
+          (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
           !(await projectSummary(pop.document, pop.selectedPath, {
             recordHistory: false,
           })))
@@ -7340,7 +7237,7 @@ async function entityLoadError(syncHaConnectionUi: any) {
       haDetailWarningHandler() &&
         ((historyState.busy = false),
         syncHistoryButtons(),
-        hasUnsavedChanges && scheduleRecoverySnapshot());
+        editorCtx.hasUnsavedChanges && scheduleRecoverySnapshot());
     }
   }
 }
@@ -7355,15 +7252,15 @@ async function syncAspectLockButton() {
     areas: 0,
   };
   if (!isAspectLockActive.configured) {
-    ((lastConnectedSignature = null),
-      (isAreEntitiesLoaded = false),
-      (entities.length || devices.length || Object.keys(entityResourcesByDeviceId).length) &&
-        ((entities = []),
-        (devices = []),
-        (deviceNamesByDeviceId = new Map()),
-        (entityResourcesByDeviceId = {}),
-        editorRenderer?.setEntityCatalog([], {}, []),
-        dashboardPreviewRenderer?.setEntityCatalog([], {}, []),
+    ((editorCtx.lastConnectedSignature = null),
+      (editorCtx.isAreEntitiesLoaded = false),
+      (editorCtx.entities.length || editorCtx.devices.length || Object.keys(editorCtx.entityResourcesByDeviceId).length) &&
+        ((editorCtx.entities = []),
+        (editorCtx.devices = []),
+        (editorCtx.deviceNamesByDeviceId = new Map()),
+        (editorCtx.entityResourcesByDeviceId = {}),
+        editorCtx.editorRenderer?.setEntityCatalog([], {}, []),
+        editorCtx.dashboardPreviewRenderer?.setEntityCatalog([], {}, []),
         runExtraLower(),
         document.activeElement?.closest?.(".inspector-form") || coverMotorButtonElement()));
     return;
@@ -7378,17 +7275,17 @@ async function syncAspectLockButton() {
   ]);
   if (
     (isAspectLockActive.connected || isAspectLockActive.status === "connected") &&
-    stringify !== lastConnectedSignature
+    stringify !== editorCtx.lastConnectedSignature
   ) {
-    const Gi2 = lastConnectedSignature;
-    lastConnectedSignature = stringify;
+    const Gi2 = editorCtx.lastConnectedSignature;
+    editorCtx.lastConnectedSignature = stringify;
     try {
       await ensureEntitiesLoaded({
         afterCurrent: true,
       });
     } catch (openPageDialog: any) {
       throw (
-        lastConnectedSignature === stringify && (lastConnectedSignature = Gi2),
+        editorCtx.lastConnectedSignature === stringify && (editorCtx.lastConnectedSignature = Gi2),
         openPageDialog
       );
     }
@@ -7398,7 +7295,7 @@ async function actionDraftDocument() {
   return syncAspectLockButton();
 }
 function targetPageCandidate() {
-  resizeWarningResolveState = "";
+  editorCtx.resizeWarningResolveState = "";
   const cameraCommandState = [
     {
       id: "",
@@ -7413,14 +7310,14 @@ function targetPageCandidate() {
   syncProjectTemplateOptions({
   get projectTemplateOptionsElement() { return projectTemplateOptionsElement; },
   get cameraCommandState() { return cameraCommandState; },
-  get resizeWarningResolveState() { return resizeWarningResolveState; },
+  get resizeWarningResolveState() { return editorCtx.resizeWarningResolveState; },
   get projectCanvasFieldsElement() { return projectCanvasFieldsElement; },
-  get projectDialogMode() { return projectDialogMode; },
+  get projectDialogMode() { return editorCtx.projectDialogMode; },
   get projectFormElement() { return projectFormElement; },
   get projectCanvasWidthElement() { return projectCanvasWidthElement; },
   get projectCanvasHeightElement() { return projectCanvasHeightElement; },
-  get isAspectLockedState() { return isAspectLockedState; },
-  get isAspectLockedValue() { return isAspectLockedValue; },
+  get isAspectLockedState() { return editorCtx.isAspectLockedState; },
+  get isAspectLockedValue() { return editorCtx.isAspectLockedValue; },
   get projectCanvasHintElement() { return projectCanvasHintElement; },
   get lightStatisticsEntityListClickEvent() { return lightStatisticsEntityListClickEvent; },
   get imageEntityDraftDocument() { return imageEntityDraftDocument; },
@@ -7441,31 +7338,31 @@ function buttonVisibilityDraftDocument(iconPreviewStateClickEventElement: any) {
   }
 }
 function titleButtonIconOptionClickEvent() {
-  lockedCanvasWidthValue.length &&
-    ((lockedCanvasHeight =
-      ((lockedCanvasHeight % lockedCanvasWidthValue.length) + lockedCanvasWidthValue.length) %
-      lockedCanvasWidthValue.length),
-    (projectPreviewImageElement.src = lockedCanvasWidthValue[lockedCanvasHeight]),
+  editorCtx.lockedCanvasWidthValue.length &&
+    ((editorCtx.lockedCanvasHeight =
+      ((editorCtx.lockedCanvasHeight % editorCtx.lockedCanvasWidthValue.length) + editorCtx.lockedCanvasWidthValue.length) %
+      editorCtx.lockedCanvasWidthValue.length),
+    (projectPreviewImageElement.src = editorCtx.lockedCanvasWidthValue[editorCtx.lockedCanvasHeight]),
     (projectPreviewImageElement.alt =
-      lockedCanvasHeightState[lockedCanvasHeight] || "HomeOS预览 " + (lockedCanvasHeight + 1)),
+      editorCtx.lockedCanvasHeightState[editorCtx.lockedCanvasHeight] || "HomeOS预览 " + (editorCtx.lockedCanvasHeight + 1)),
     (projectPreviewTitleElement.textContent =
-      lockedCanvasHeightState[lockedCanvasHeight] || "HomeOS预览"),
+      editorCtx.lockedCanvasHeightState[editorCtx.lockedCanvasHeight] || "HomeOS预览"),
     (projectPreviewCountElement.textContent =
-      lockedCanvasHeight + 1 + " / " + lockedCanvasWidthValue.length));
+      editorCtx.lockedCanvasHeight + 1 + " / " + editorCtx.lockedCanvasWidthValue.length));
 }
 function titleButtonIconDraftDocument(lightStatisticsIconClickEventElement: any) {
   const { urls: qw4, labels: qw5 } = buttonVisibilityDraftDocument(
     lightStatisticsIconClickEventElement,
   );
   qw4.length &&
-    ((lockedCanvasWidthValue = qw4),
-    (lockedCanvasHeightState = qw5),
-    (lockedCanvasHeight = Number(lightStatisticsIconClickEventElement.dataset.previewIndex || 0)),
+    ((editorCtx.lockedCanvasWidthValue = qw4),
+    (editorCtx.lockedCanvasHeightState = qw5),
+    (editorCtx.lockedCanvasHeight = Number(lightStatisticsIconClickEventElement.dataset.previewIndex || 0)),
     titleButtonIconOptionClickEvent(),
     projectPreviewDialogElement.showModal());
 }
 function lightStatisticsIconCopyError(lightStatisticsIconOptionClickEvent = "create") {
-  projectDialogMode = lightStatisticsIconOptionClickEvent;
+  editorCtx.projectDialogMode = lightStatisticsIconOptionClickEvent;
   const isClosed = lightStatisticsIconOptionClickEvent === "edit",
     isPreviewActiveActive = lightStatisticsIconOptionClickEvent === "resize";
   if (
@@ -7486,7 +7383,7 @@ function lightStatisticsIconCopyError(lightStatisticsIconOptionClickEvent = "cre
         ? "保存修改"
         : "创建项目"),
     (projectFormElement.elements.name.value =
-      isClosed || isPreviewActiveActive ? activeProject?.document?.name || "" : "我的仪表盘"),
+      isClosed || isPreviewActiveActive ? editorCtx.activeProject?.document?.name || "" : "我的仪表盘"),
     (projectTemplateFieldsElement.hidden = isClosed || isPreviewActiveActive),
     (projectCanvasWidthElement.readOnly = false),
     (projectCanvasHeightElement.readOnly = false),
@@ -7495,11 +7392,11 @@ function lightStatisticsIconCopyError(lightStatisticsIconOptionClickEvent = "cre
     projectCanvasFieldsElement.classList.remove("fixed", "name-only"),
     !isClosed && !isPreviewActiveActive)
   )
-    ((isAspectLockedState = 2778),
-      (isAspectLockedValue = 1940),
-      (isAspectLocked = false),
-      (lockedCanvasWidthState = 2778),
-      (lockedCanvasWidth = 1940),
+    ((editorCtx.isAspectLockedState = 2778),
+      (editorCtx.isAspectLockedValue = 1940),
+      (editorCtx.isAspectLocked = false),
+      (editorCtx.lockedCanvasWidthState = 2778),
+      (editorCtx.lockedCanvasWidth = 1940),
       (projectCanvasWidthElement.value = "2778"),
       (projectCanvasHeightElement.value = "1940"),
       lightStatisticsEntityListClickEvent(),
@@ -7509,18 +7406,18 @@ function lightStatisticsIconCopyError(lightStatisticsIconOptionClickEvent = "cre
       ((projectCanvasFieldsElement.hidden = false),
         projectCanvasFieldsElement.classList.add("name-only"));
     else {
-      resizeWarningResolveState = "";
+      editorCtx.resizeWarningResolveState = "";
       const lightStatisticsIconOptionElement = Number(
-          activeProject?.document?.canvas?.width || 2778,
+          editorCtx.activeProject?.document?.canvas?.width || 2778,
         ),
         lightStatisticsEntityOptionElement = Number(
-          activeProject?.document?.canvas?.height || 1940,
+          editorCtx.activeProject?.document?.canvas?.height || 1940,
         );
-      ((isAspectLockedState = lightStatisticsIconOptionElement),
-        (isAspectLockedValue = lightStatisticsEntityOptionElement),
-        (isAspectLocked = true),
-        (lockedCanvasWidthState = lightStatisticsIconOptionElement),
-        (lockedCanvasWidth = lightStatisticsEntityOptionElement),
+      ((editorCtx.isAspectLockedState = lightStatisticsIconOptionElement),
+        (editorCtx.isAspectLockedValue = lightStatisticsEntityOptionElement),
+        (editorCtx.isAspectLocked = true),
+        (editorCtx.lockedCanvasWidthState = lightStatisticsIconOptionElement),
+        (editorCtx.lockedCanvasWidth = lightStatisticsEntityOptionElement),
         (projectCanvasFieldsElement.hidden = false),
         (projectCanvasWidthElement.value = String(lightStatisticsIconOptionElement)),
         (projectCanvasHeightElement.value = String(lightStatisticsEntityOptionElement)),
@@ -7545,17 +7442,17 @@ function lightStatisticsEntityListClickEvent() {
     return;
   }
   const $a2 =
-      !resizeWarningResolveState && isAspectLocked
-        ? lockedCanvasWidthState
+      !editorCtx.resizeWarningResolveState && editorCtx.isAspectLocked
+        ? editorCtx.lockedCanvasWidthState
         : statisticsReplaceElement,
     Fa2 =
-      !resizeWarningResolveState && isAspectLocked ? lockedCanvasWidth : statisticsRemoveElement,
+      !editorCtx.resizeWarningResolveState && editorCtx.isAspectLocked ? editorCtx.lockedCanvasWidth : statisticsRemoveElement,
     imageEntityOptionElement = greatestCommonDivisor2($a2, Fa2);
   projectAspectRatioElement.textContent =
     $a2 / imageEntityOptionElement + " : " + Fa2 / imageEntityOptionElement;
 }
-function imageEntityDraftDocument(imageActionKey = !!resizeWarningResolveState) {
-  const Sn2 = imageActionKey || isAspectLocked;
+function imageEntityDraftDocument(imageActionKey = !!editorCtx.resizeWarningResolveState) {
+  const Sn2 = imageActionKey || editorCtx.isAspectLocked;
   ((projectAspectLockElement.disabled = imageActionKey),
     projectAspectLockElement.setAttribute("aria-pressed", String(Sn2)),
     projectAspectLockElement.classList.toggle("locked", Sn2),
@@ -7567,9 +7464,9 @@ function imageEntityDraftDocument(imageActionKey = !!resizeWarningResolveState) 
         : "锁定当前画布比例"));
 }
 function openAssetPicker(assetTriggerButton: any) {
-  if (resizeWarningResolveState || !isAspectLocked) return;
-  const assetCurrentRecord = Number(lockedCanvasWidthState),
-    assetInitialIndex = Number(lockedCanvasWidth);
+  if (editorCtx.resizeWarningResolveState || !editorCtx.isAspectLocked) return;
+  const assetCurrentRecord = Number(editorCtx.lockedCanvasWidthState),
+    assetInitialIndex = Number(editorCtx.lockedCanvasWidth);
   if (!(!assetCurrentRecord || !assetInitialIndex)) {
     if (assetTriggerButton === "width") {
       let assetMatches = Number(projectCanvasWidthElement.value);
@@ -7614,19 +7511,19 @@ function assetIdToDelete(assetDocumentNode: any, requestDeleteAssetFolder: any, 
       assetDocumentNode +
       " 个控件会部分或全部位于画布范围之外。"),
     new Promise((folderName) => {
-      ((resizeWarningResolve = folderName), projectResizeWarningDialogElement.showModal());
+      ((editorCtx.resizeWarningResolve = folderName), projectResizeWarningDialogElement.showModal());
     })
   );
 }
 function folderDocumentNode(refreshAssetPickerViews: any) {
-  const rp2 = resizeWarningResolve;
-  ((resizeWarningResolve = null),
+  const rp2 = editorCtx.resizeWarningResolve;
+  ((editorCtx.resizeWarningResolve = null),
     projectResizeWarningDialogElement.open && projectResizeWarningDialogElement.close(),
     rp2?.(refreshAssetPickerViews));
 }
 function closeDeletePopupDialog(popupDeleteUsageEntries = "create") {
-  if (!activeProject) return;
-  pageDialogMode = popupDeleteUsageEntries;
+  if (!editorCtx.activeProject) return;
+  editorCtx.pageDialogMode = popupDeleteUsageEntries;
   const isImageAssetPicker = popupDeleteUsageEntries === "rename";
   (pageFormElement.reset(),
     (pageDialogKickerElement.textContent = isImageAssetPicker ? "EDIT PAGE" : "NEW PAGE"),
@@ -7637,7 +7534,7 @@ function closeDeletePopupDialog(popupDeleteUsageEntries = "create") {
     pageDialogElement.showModal());
 }
 function documentSource() {
-  return hasUnsavedChanges
+  return editorCtx.hasUnsavedChanges
     ? (handleOperationError(new Error("当前有未保存修改，请先点击顶部的“保存”。")), true)
     : false;
 }
@@ -7649,8 +7546,8 @@ async function triggerKey() {
     return (navigateInShell("/activate"), documentPages);
   const sharedUsages = JSON.stringify([...(documentPages?.features || [])].sort()),
     sharedScopeText =
-      lastLicenseFeatureSignature !== null && lastLicenseFeatureSignature !== sharedUsages;
-  lastLicenseFeatureSignature = sharedUsages;
+      editorCtx.lastLicenseFeatureSignature !== null && editorCtx.lastLicenseFeatureSignature !== sharedUsages;
+  editorCtx.lastLicenseFeatureSignature = sharedUsages;
   return (
     sharedScopeText && (await reloadAssetCatalog({ refreshInspector: false })),
     popupId(documentPages),
@@ -7674,7 +7571,7 @@ async function triggerKey() {
     const deleteHaSubmitButtonElement = projectBackdropEvent.target.closest(
       "[data-project-template-id]",
     );
-    if (!deleteHaSubmitButtonElement || projectDialogMode !== "create") return;
+    if (!deleteHaSubmitButtonElement || editorCtx.projectDialogMode !== "create") return;
     const onProjectDialogClickState = projectBackdropEvent.target.closest(
       "[data-project-preview-action]",
     )?.dataset.projectPreviewAction;
@@ -7687,10 +7584,10 @@ async function triggerKey() {
   }),
   projectPreviewCloseElement.addEventListener("click", () => projectPreviewDialogElement.close()),
   projectPreviewPreviousElement.addEventListener("click", () => {
-    ((lockedCanvasHeight -= 1), titleButtonIconOptionClickEvent());
+    ((editorCtx.lockedCanvasHeight -= 1), titleButtonIconOptionClickEvent());
   }),
   projectPreviewNextElement.addEventListener("click", () => {
-    ((lockedCanvasHeight += 1), titleButtonIconOptionClickEvent());
+    ((editorCtx.lockedCanvasHeight += 1), titleButtonIconOptionClickEvent());
   }),
   projectPreviewDialogElement.addEventListener("click", (onProjectCanvasHeightInputInput: any) => {
     onProjectCanvasHeightInputInput.target === projectPreviewDialogElement &&
@@ -7698,26 +7595,26 @@ async function triggerKey() {
   }),
   projectPreviewDialogElement.addEventListener("keydown", (onProjectAspectLockButtonClick: any) => {
     (onProjectAspectLockButtonClick.key === "ArrowLeft" &&
-      ((lockedCanvasHeight -= 1), titleButtonIconOptionClickEvent()),
+      ((editorCtx.lockedCanvasHeight -= 1), titleButtonIconOptionClickEvent()),
       onProjectAspectLockButtonClick.key === "ArrowRight" &&
-        ((lockedCanvasHeight += 1), titleButtonIconOptionClickEvent()));
+        ((editorCtx.lockedCanvasHeight += 1), titleButtonIconOptionClickEvent()));
   }),
   projectCanvasWidthElement.addEventListener("input", () => {
     (openAssetPicker("width"),
-      resizeWarningResolveState ||
-        ((isAspectLockedState = Number(projectCanvasWidthElement.value) || 2778),
-        (isAspectLockedValue = Number(projectCanvasHeightElement.value) || 1940)),
+      editorCtx.resizeWarningResolveState ||
+        ((editorCtx.isAspectLockedState = Number(projectCanvasWidthElement.value) || 2778),
+        (editorCtx.isAspectLockedValue = Number(projectCanvasHeightElement.value) || 1940)),
       lightStatisticsEntityListClickEvent());
   }),
   projectCanvasHeightElement.addEventListener("input", () => {
     (openAssetPicker("height"),
-      resizeWarningResolveState ||
-        ((isAspectLockedState = Number(projectCanvasWidthElement.value) || 2778),
-        (isAspectLockedValue = Number(projectCanvasHeightElement.value) || 1940)),
+      editorCtx.resizeWarningResolveState ||
+        ((editorCtx.isAspectLockedState = Number(projectCanvasWidthElement.value) || 2778),
+        (editorCtx.isAspectLockedValue = Number(projectCanvasHeightElement.value) || 1940)),
       lightStatisticsEntityListClickEvent());
   }),
   projectAspectLockElement.addEventListener("click", () => {
-    if (resizeWarningResolveState || !["create", "resize"].includes(projectDialogMode)) return;
+    if (editorCtx.resizeWarningResolveState || !["create", "resize"].includes(editorCtx.projectDialogMode)) return;
     const inputWidthValue = Number(projectCanvasWidthElement.value),
       inputHeightValue = Number(projectCanvasHeightElement.value);
     if (
@@ -7731,9 +7628,9 @@ async function triggerKey() {
       setSettingsMessage(projectMessageElement, "请先输入有效的宽度和高度后再锁定比例。", "error");
       return;
     }
-    ((isAspectLocked = !isAspectLocked),
-      isAspectLocked &&
-        ((lockedCanvasWidthState = inputWidthValue), (lockedCanvasWidth = inputHeightValue)),
+    ((editorCtx.isAspectLocked = !editorCtx.isAspectLocked),
+      editorCtx.isAspectLocked &&
+        ((editorCtx.lockedCanvasWidthState = inputWidthValue), (editorCtx.lockedCanvasWidth = inputHeightValue)),
       setSettingsMessage(projectMessageElement, ""),
       imageEntityDraftDocument(false));
   }),
@@ -7749,15 +7646,15 @@ async function triggerKey() {
       projectNameInput = String(projectForm.get("name") || "").trim(),
       formCanvasWidth = Number(projectForm.get("canvasWidth")),
       formCanvasHeight = Number(projectForm.get("canvasHeight")),
-      checked = projectDialogMode === "resize" && projectContentLockElement.checked;
-    if (projectDialogMode === "resize" && checked) {
-      const currentCanvasWidth = Number(activeProject?.document?.canvas?.width || 2778),
-        currentCanvasHeight = Number(activeProject?.document?.canvas?.height || 1940),
+      checked = editorCtx.projectDialogMode === "resize" && projectContentLockElement.checked;
+    if (editorCtx.projectDialogMode === "resize" && checked) {
+      const currentCanvasWidth = Number(editorCtx.activeProject?.document?.canvas?.width || 2778),
+        currentCanvasHeight = Number(editorCtx.activeProject?.document?.canvas?.height || 1940),
         outsideComponentCount =
           formCanvasWidth !== currentCanvasWidth || formCanvasHeight !== currentCanvasHeight
             ? countComponentsOutsideCanvas2(
                 resizeDashboardDocument2(
-                  activeProject.document,
+                  editorCtx.activeProject.document,
                   formCanvasWidth,
                   formCanvasHeight,
                   {
@@ -7777,18 +7674,18 @@ async function triggerKey() {
     ((projectSubmitElement.disabled = true),
       setSettingsMessage(
         projectMessageElement,
-        projectDialogMode === "resize"
+        editorCtx.projectDialogMode === "resize"
           ? "正在调整整个仪表盘…"
-          : projectDialogMode === "edit"
+          : editorCtx.projectDialogMode === "edit"
             ? "正在保存仪表盘名称…"
-            : resizeWarningResolveState
+            : editorCtx.resizeWarningResolveState
               ? "正在套用HomeOS整套模板…"
               : "正在创建空白仪表盘…",
       ));
     try {
-      if (projectDialogMode === "resize") {
+      if (editorCtx.projectDialogMode === "resize") {
         const resizedDocument = resizeDashboardDocument2(
-          activeProject.document,
+          editorCtx.activeProject.document,
           formCanvasWidth,
           formCanvasHeight,
           {
@@ -7799,8 +7696,8 @@ async function triggerKey() {
           return;
         projectDialogElement.close();
       } else {
-        if (projectDialogMode === "edit") {
-          const renamedDocument = clone2(activeProject.document);
+        if (editorCtx.projectDialogMode === "edit") {
+          const renamedDocument = clone2(editorCtx.activeProject.document);
           if (((renamedDocument.name = projectNameInput), !(await projectSummary(renamedDocument))))
             return;
           projectDialogElement.close();
@@ -7837,7 +7734,7 @@ async function triggerKey() {
   projectActionsMenuElement.addEventListener("click", async (projectActionsClickEvent: any) => {
     const projectAction =
       projectActionsClickEvent.target.closest("[data-project-action]")?.dataset.projectAction;
-    if (!(!projectAction || !activeProject) && (errorPhase(), !documentSource())) {
+    if (!(!projectAction || !editorCtx.activeProject) && (errorPhase(), !documentSource())) {
       if (projectAction === "edit") {
         lightStatisticsIconCopyError("edit");
         return;
@@ -7847,9 +7744,9 @@ async function triggerKey() {
         return;
       }
       if (projectAction === "duplicate") {
-        const sourceProjectName = activeProject.document.name,
+        const sourceProjectName = editorCtx.activeProject.document.name,
           existingProjectNamesSet = new Set(
-            projects.map((projectNameCandidate: any) => projectNameCandidate.name),
+            editorCtx.projects.map((projectNameCandidate: any) => projectNameCandidate.name),
           );
         let copyName = sourceProjectName + " 副本",
           copyIndex = 2;
@@ -7857,7 +7754,7 @@ async function triggerKey() {
           copyName = sourceProjectName + " 副本 " + copyIndex++;
         try {
           const duplicatedProject = await requestJson(
-            "/projects/" + activeProject.projectId + "/duplicate",
+            "/projects/" + editorCtx.activeProject.projectId + "/duplicate",
             {
               method: "POST",
               body: JSON.stringify({
@@ -7872,8 +7769,8 @@ async function triggerKey() {
         return;
       }
       if (projectAction === "delete") {
-        const projectToDelete = projects.find(
-          (deleteProjectBackdropEvent: any) => deleteProjectBackdropEvent.id === activeProject.projectId,
+        const projectToDelete = editorCtx.projects.find(
+          (deleteProjectBackdropEvent: any) => deleteProjectBackdropEvent.id === editorCtx.activeProject.projectId,
         );
         if (!projectToDelete) return;
         (deleteProjectFormElement.reset(),
@@ -7923,9 +7820,9 @@ async function triggerKey() {
       }),
         discardRecoverySnapshot(projectId4),
         deleteProjectDialogElement.close(),
-        editorRenderer?.destroy(),
-        (editorRenderer = null),
-        (activeProject = null),
+        editorCtx.editorRenderer?.destroy(),
+        (editorCtx.editorRenderer = null),
+        (editorCtx.activeProject = null),
         clearComponentSelection(),
         await initialPagePath());
     } catch (pageBackdropEvent: any) {
@@ -7943,15 +7840,15 @@ async function triggerKey() {
   pageFormElement.addEventListener("submit", async (pageSubmitEvent: any) => {
     pageSubmitEvent.preventDefault();
     const pageNameInput = String(new FormData(pageFormElement).get("name") || "").trim(),
-      pageDraftDocument = clone2(activeProject.document),
+      pageDraftDocument = clone2(editorCtx.activeProject.document),
       pageSelectPath = pageSelectElement.value;
     ((pageSubmitElement.disabled = true),
       setSettingsMessage(
         pageMessageElement,
-        pageDialogMode === "rename" ? "正在保存页面名称…" : "正在创建页面…",
+        editorCtx.pageDialogMode === "rename" ? "正在保存页面名称…" : "正在创建页面…",
       ));
     try {
-      if (pageDialogMode === "rename") {
+      if (editorCtx.pageDialogMode === "rename") {
         const renamedPage = pageDraftDocument.pages.find(
           (pageCandidate: any) => pageCandidate.path === pageSelectPath,
         );
@@ -7964,7 +7861,7 @@ async function triggerKey() {
         const newPageObject = {
             id: newId2("page"),
             name: pageNameInput,
-            path: uniquePagePath2(activeProject?.document?.pages, pageNameInput),
+            path: uniquePagePath2(editorCtx.activeProject?.document?.pages, pageNameInput),
             sharedComponentIds: pageDraftDocument.sharedComponents.map(
               (bindDialogSection: any) => bindDialogSection.id,
             ),
@@ -8006,7 +7903,7 @@ async function triggerKey() {
   componentGroupRenameFormElement.addEventListener("submit", (groupRenameSubmitEvent: any) => {
     groupRenameSubmitEvent.preventDefault();
     const groupComponentId = componentGroupRenameDialogElement.dataset.groupId || "",
-      renamedGroupComponent = findComponent2(activeProject?.document, groupComponentId)?.component;
+      renamedGroupComponent = findComponent2(editorCtx.activeProject?.document, groupComponentId)?.component;
     if (!renamedGroupComponent || renamedGroupComponent.type !== "group") {
       componentGroupRenameDialogElement.close();
       return;
@@ -8048,12 +7945,12 @@ async function triggerKey() {
     const pageAction =
         pageActionsClickEvent.target.closest("[data-page-action]")?.dataset.pageAction,
       ct4 = currentPage();
-    if (!pageAction || !ct4 || !activeProject) return;
+    if (!pageAction || !ct4 || !editorCtx.activeProject) return;
     if ((value(), pageAction === "rename")) {
       closeDeletePopupDialog("rename");
       return;
     }
-    const pageActionDocument = clone2(activeProject.document),
+    const pageActionDocument = clone2(editorCtx.activeProject.document),
       pageIndex = pageActionDocument.pages.findIndex(
         (pageIndexCandidate: any) => pageIndexCandidate.path === ct4.path,
       );
@@ -8072,7 +7969,7 @@ async function triggerKey() {
       const duplicatedPage = clonePageWithFreshIds2(
         ct4,
         ct4.name + " 副本",
-        activeProject.document.pages,
+        editorCtx.activeProject.document.pages,
       );
       pageActionDocument.pages.splice(pageIndex + 1, 0, duplicatedPage);
       try {
@@ -8096,7 +7993,7 @@ async function triggerKey() {
   }),
   deletePageConfirmButtonElement.addEventListener("click", async () => {
     const pagePath = deletePageDialogElement.dataset.pagePath,
-      deletePageDocument = clone2(activeProject.document),
+      deletePageDocument = clone2(editorCtx.activeProject.document),
       deletedPageIndex = deletePageDocument.pages.findIndex(
         (deletedPageCandidate: any) => deletedPageCandidate.path === pagePath,
       );
@@ -8168,13 +8065,13 @@ async function triggerKey() {
     }
   }),
   componentMenuElement.addEventListener("click", (menuClickEvent: any) => {
-    const hp2 = menuComponentId,
+    const hp2 = editorCtx.menuComponentId,
       componentAction =
         menuClickEvent.target.closest("[data-component-action]")?.dataset.componentAction,
       labelColorElement = menuClickEvent.target.closest("[data-label-color]");
     if (!hp2 || (!componentAction && !labelColorElement)) return;
-    const actionComponentIds = selectedComponentIdsSet.has(hp2)
-      ? [...selectedComponentIdsSet]
+    const actionComponentIds = editorCtx.selectedComponentIdsSet.has(hp2)
+      ? [...editorCtx.selectedComponentIdsSet]
       : [hp2];
     if ((closeComponentMenu(), componentAction === "copy")) {
       duplicateComponents(actionComponentIds, hp2);
@@ -8200,7 +8097,7 @@ async function triggerKey() {
       const visibilityFlags = actionComponentIds
         .map(
           (onCopyComponentSuccessGoButtonClick) =>
-            findComponent2(activeProject?.document, onCopyComponentSuccessGoButtonClick)?.component,
+            findComponent2(editorCtx.activeProject?.document, onCopyComponentSuccessGoButtonClick)?.component,
         )
         .filter(Boolean)
         .map(
@@ -8249,14 +8146,14 @@ async function triggerKey() {
     },
   ),
   copyComponentSuccessStayElement.addEventListener("click", () => {
-    ((copySuccessNavigationTarget = null), copyComponentSuccessDialogElement.close());
+    ((editorCtx.copySuccessNavigationTarget = null), copyComponentSuccessDialogElement.close());
   }),
   copyComponentSuccessGoElement.addEventListener("click", () => {
     handleCopySuccessConfirm().catch(handleOperationError);
   }),
   copyComponentSuccessDialogElement.addEventListener("click", (onCopyComponentPageFormSubmit: any) => {
     onCopyComponentPageFormSubmit.target === copyComponentSuccessDialogElement &&
-      ((copySuccessNavigationTarget = null), copyComponentSuccessDialogElement.close());
+      ((editorCtx.copySuccessNavigationTarget = null), copyComponentSuccessDialogElement.close());
   }),
   copyComponentPageScopeSelectElement.addEventListener("change", () => {
     renderCopyComponentDialog();
@@ -8274,7 +8171,7 @@ async function triggerKey() {
     }
     const copyTargetValue = copyComponentPageTargetElement.value,
       isCrossProjectCopy = copyComponentPageScopeSelectElement.value === "other";
-    if (!(!activeProject || !componentIdsToCopy.length || !copyTargetValue)) {
+    if (!(!editorCtx.activeProject || !componentIdsToCopy.length || !copyTargetValue)) {
       ((copyComponentPageSubmitElement.disabled = true),
         setSettingsMessage(copyComponentPageMessageElement, "正在复制控件…"));
       try {
@@ -8282,17 +8179,17 @@ async function triggerKey() {
           const copyTargetProjectId = copyComponentPageProjectSelectElement.value;
           if (
             !copyTargetProjectId ||
-            !copyTargetDraft ||
-            copyTargetDraft.projectId !== copyTargetProjectId
+            !editorCtx.copyTargetDraft ||
+            editorCtx.copyTargetDraft.projectId !== copyTargetProjectId
           )
             throw new Error("目标仪表盘尚未加载完成，请稍后重试。");
-          const targetProjectDraftDocument = clone2(copyTargetDraft.document),
+          const targetProjectDraftDocument = clone2(editorCtx.copyTargetDraft.document),
             copyScaleMode = copyComponentScaleOptionsElement.hidden
               ? "none"
               : copyComponentPageFormElement.elements.copyScaleMode.value;
           let droppedActionCount = 0;
           const copiedComponents = copyComponentsAcrossDocuments2(
-            activeProject.document,
+            editorCtx.activeProject.document,
             targetProjectDraftDocument,
             componentIdsToCopy,
             copyTargetValue,
@@ -8312,15 +8209,15 @@ async function triggerKey() {
             {
               method: "PUT",
               body: JSON.stringify({
-                revision: copyTargetDraft.revision,
-                globalPopupRevision: copyTargetDraft.globalPopupRevision,
+                revision: editorCtx.copyTargetDraft.revision,
+                globalPopupRevision: editorCtx.copyTargetDraft.globalPopupRevision,
                 globalPopupsDirty: false,
                 document: targetProjectDraftDocument,
               }),
             },
           );
-          copyTargetDraft = copyDraftResponse;
-          const copyTargetProject = projects.find(
+          editorCtx.copyTargetDraft = copyDraftResponse;
+          const copyTargetProject = editorCtx.projects.find(
             (copyTargetCandidate: any) => copyTargetCandidate.id === copyTargetProjectId,
           );
           copyTargetProject && (copyTargetProject.draftRevision = copyDraftResponse.revision);
@@ -8345,14 +8242,14 @@ async function triggerKey() {
                 projectId: copyTargetProjectId,
                 pagePath:
                   copyTargetValue === "shared"
-                    ? copyTargetDraft.document.pages?.[0]?.path
+                    ? editorCtx.copyTargetDraft.document.pages?.[0]?.path
                     : copyTargetValue.replace(/^page:/, ""),
                 scope: copyTargetValue === "shared" ? "shared" : "page",
               },
             ));
           return;
         }
-        const localDraftDocument = clone2(activeProject.document),
+        const localDraftDocument = clone2(editorCtx.activeProject.document),
           copiedLocalComponents = copyComponentsToTarget2(
             localDraftDocument,
             componentIdsToCopy,
@@ -8365,11 +8262,11 @@ async function triggerKey() {
           );
         if (!copiedLocalComponents.length)
           throw new Error("目标页面或源控件已发生变化，请重新操作。");
-        ((selectedComponentId = copiedLocalComponents[0].id),
-          (selectedComponentIdsSet = new Set(
+        ((editorCtx.selectedComponentId = copiedLocalComponents[0].id),
+          (editorCtx.selectedComponentIdsSet = new Set(
             copiedLocalComponents.map((copiedComponentItem) => copiedComponentItem.id),
           )),
-          (selectionAnchorComponentId = copiedLocalComponents[0].id));
+          (editorCtx.selectionAnchorComponentId = copiedLocalComponents[0].id));
         const replace4 =
             copyTargetValue === "shared"
               ? pageSelectElement.value
@@ -8385,7 +8282,7 @@ async function triggerKey() {
               localCopyTargetLabel +
               "”，并已保存。",
             {
-              projectId: activeProject.projectId,
+              projectId: editorCtx.activeProject.projectId,
               pagePath: replace4,
               scope: copyTargetValue === "shared" ? "shared" : "page",
             },
@@ -8414,15 +8311,15 @@ async function triggerKey() {
     if (!pendingDeleteComponentIds.length) return;
     deleteComponentDialogElement.close();
     const deleteIdSet = new Set(pendingDeleteComponentIds);
-    ((selectedComponentIdsSet = new Set(
-      [...selectedComponentIdsSet].filter(
+    ((editorCtx.selectedComponentIdsSet = new Set(
+      [...editorCtx.selectedComponentIdsSet].filter(
         (deletedComponentId) => !deleteIdSet.has(deletedComponentId),
       ),
     )),
-      deleteIdSet.has(selectedComponentId) &&
-        (selectedComponentId = selectedComponentIdsSet.values().next().value || null),
-      deleteIdSet.has(selectionAnchorComponentId) &&
-        (selectionAnchorComponentId = selectedComponentId),
+      deleteIdSet.has(editorCtx.selectedComponentId) &&
+        (editorCtx.selectedComponentId = editorCtx.selectedComponentIdsSet.values().next().value || null),
+      deleteIdSet.has(editorCtx.selectionAnchorComponentId) &&
+        (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
       mutateDocument((onImageInspectorFormSubmit: any) => {
         for (const imageInspectorSubmitEvent of pendingDeleteComponentIds)
           removeComponent(onImageInspectorFormSubmit, imageInspectorSubmitEvent);
@@ -8507,19 +8404,19 @@ for (const [
   timeInspectorSubmitEvent,
 ] of airConditionerInspectorSubmitEventById)
   (onTimeInspectorFormSubmit.addEventListener("focus", () => {
-    !activeProject ||
-      !selectedComponentId ||
+    !editorCtx.activeProject ||
+      !editorCtx.selectedComponentId ||
       onTimeInspectorFormSubmitById.set(onTimeInspectorFormSubmit, {
-        componentId: selectedComponentId,
+        componentId: editorCtx.selectedComponentId,
         before: historyEntries(),
         historyRecorded: false,
       });
   }),
     onTimeInspectorFormSubmit.addEventListener("input", () => {
-      if (!activeProject || !selectedComponentId) return;
+      if (!editorCtx.activeProject || !editorCtx.selectedComponentId) return;
       const timeInspectorSubmitEventState = findComponent2(
-          activeProject.document,
-          selectedComponentId,
+          editorCtx.activeProject.document,
+          editorCtx.selectedComponentId,
         ),
         timeInspectorSubmitEventValue = timeInspectorSubmitEvent.componentTypes || [
           timeInspectorSubmitEvent.componentType,
@@ -8545,9 +8442,9 @@ for (const [
       let onDateInspectorFormSubmitConfig =
         onTimeInspectorFormSubmitById.get(onTimeInspectorFormSubmit);
       ((!onDateInspectorFormSubmitConfig ||
-        onDateInspectorFormSubmitConfig.componentId !== selectedComponentId) &&
+        onDateInspectorFormSubmitConfig.componentId !== editorCtx.selectedComponentId) &&
         ((onDateInspectorFormSubmitConfig = {
-          componentId: selectedComponentId,
+          componentId: editorCtx.selectedComponentId,
           before: historyEntries(),
           historyRecorded: false,
         }),
@@ -8565,10 +8462,10 @@ for (const [
         }),
         timeInspectorSubmitEvent.property === "label" &&
           (renderComponentLists(),
-          editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
+          editorCtx.editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
             label: onDateInspectorFormSubmitValue,
           }),
-          dashboardPreviewRenderer?.previewComponentProperties(
+          editorCtx.dashboardPreviewRenderer?.previewComponentProperties(
             timeInspectorSubmitEventState.component.id,
             {
               label: onDateInspectorFormSubmitValue,
@@ -8576,24 +8473,24 @@ for (const [
           )),
         timeInspectorSubmitEvent.componentType === "navigation-button" &&
           timeInspectorSubmitEvent.property !== "label" &&
-          editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
+          editorCtx.editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
             [timeInspectorSubmitEvent.property]: onDateInspectorFormSubmitValue,
           }),
         timeInspectorSubmitEvent.componentType === "panel-frame" &&
           timeInspectorSubmitEvent.property !== "label" &&
-          editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
+          editorCtx.editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
             [timeInspectorSubmitEvent.property]: onDateInspectorFormSubmitValue,
           }),
         timeInspectorSubmitEvent.componentType === "icon-button-effect" &&
           timeInspectorSubmitEvent.property !== "label" &&
-          editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
+          editorCtx.editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
             [timeInspectorSubmitEvent.property]: onDateInspectorFormSubmitValue,
           }),
         ["title-button", "light-statistics", "icon-button", "air-conditioner"].includes(
           timeInspectorSubmitEvent.componentType,
         ) &&
           timeInspectorSubmitEvent.property !== "label" &&
-          editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
+          editorCtx.editorRenderer?.previewComponentProperties(timeInspectorSubmitEventState.component.id, {
             [timeInspectorSubmitEvent.property]: onDateInspectorFormSubmitValue,
           }),
         writeError(),
@@ -8604,14 +8501,14 @@ for (const [
     ));
 initActionPopupConfig();
 attachDateInspectorSubmit({
-  get selectedComponentId() { return selectedComponentId; },
+  get selectedComponentId() { return editorCtx.selectedComponentId; },
   get mutateDocument() { return mutateDocument; },
-  get entities() { return entities; },
+  get entities() { return editorCtx.entities; },
   get pageSelectElement() { return pageSelectElement; },
   get entitiesByEntityId() { return entitiesByEntityId; },
   get devicesByDeviceId() { return devicesByDeviceId; },
   get removedComponent() { return removedComponent; },
-  get editorMode() { return editorMode; },
+  get editorMode() { return editorCtx.editorMode; },
   get handleOperationError() { return handleOperationError; },
   get ensureEditorRenderer() { return ensureEditorRenderer; },
 });
@@ -8627,12 +8524,12 @@ attachDocumentEntityPickerDismiss({
   get handleOperationError() { return handleOperationError; },
   get airConditionerPreviewDetailsElement() { return airConditionerPreviewDetailsElement; },
   get imageLayoutOptionsElement() { return imageLayoutOptionsElement; },
-  get selectedComponentId() { return selectedComponentId; },
+  get selectedComponentId() { return editorCtx.selectedComponentId; },
   get mutateDocument() { return mutateDocument; },
   get imageInspectorElement() { return imageInspectorElement; },
-  get activeProject() { return activeProject; },
+  get activeProject() { return editorCtx.activeProject; },
   get imageOpacityInputElement() { return imageOpacityInputElement; },
-  get editorRenderer() { return editorRenderer; },
+  get editorRenderer() { return editorCtx.editorRenderer; },
   get imageLeftInputElement() { return imageLeftInputElement; },
   get imageTopInputElement() { return imageTopInputElement; },
   get imageScaleInputElement() { return imageScaleInputElement; },
@@ -8654,15 +8551,15 @@ attachFloorplanDiagramInspectorInput({
   get floorplanAutoDiagramInspectorFormElement() { return floorplanAutoDiagramInspectorFormElement; },
   get removedComponent() { return removedComponent; },
   get floorplanDiagramInputSet() { return floorplanDiagramInputSet; },
-  get activeProject() { return activeProject; },
+  get activeProject() { return editorCtx.activeProject; },
   get floorplanAutoDiagramLeftInputElement() { return floorplanAutoDiagramLeftInputElement; },
-  get editorRenderer() { return editorRenderer; },
+  get editorRenderer() { return editorCtx.editorRenderer; },
   get floorplanAutoDiagramTopInputElement() { return floorplanAutoDiagramTopInputElement; },
   get floorplanAutoDiagramWidthInputElement() { return floorplanAutoDiagramWidthInputElement; },
   get floorplanAutoDiagramHeightInputElement() { return floorplanAutoDiagramHeightInputElement; },
   get floorplanAutoDiagramScaleInputElement() { return floorplanAutoDiagramScaleInputElement; },
   get floorplanAutoDiagramRotationInputElement() { return floorplanAutoDiagramRotationInputElement; },
-  get selectedComponentId() { return selectedComponentId; },
+  get selectedComponentId() { return editorCtx.selectedComponentId; },
   get floorplanAutoDiagramLabelTextInputElement() { return floorplanAutoDiagramLabelTextInputElement; },
   get floorplanAutoDiagramFolderTextInputElement() { return floorplanAutoDiagramFolderTextInputElement; },
   get coverMotorButtonElement() { return coverMotorButtonElement; },
@@ -8732,7 +8629,7 @@ function cancelRemovesComponent(bindFloorplanSection: any) {
 attachPageshowDiagramPreviewRestore({
   get cancelRemovesComponent() { return cancelRemovesComponent; },
   get floorplanAutoDiagramCameraViewElement() { return floorplanAutoDiagramCameraViewElement; },
-  get selectedComponentId() { return selectedComponentId; },
+  get selectedComponentId() { return editorCtx.selectedComponentId; },
   get mutateDocument() { return mutateDocument; },
   get findDiagramPreviewFrame() { return findDiagramPreviewFrame; },
   get floorplanAutoDiagramFloorSelectElement() { return floorplanAutoDiagramFloorSelectElement; },
@@ -8744,7 +8641,7 @@ attachPageshowDiagramPreviewRestore({
   get floorplanAutoDiagramRotateTopButtonElement() { return floorplanAutoDiagramRotateTopButtonElement; },
 });
 
-function lightingPayload(readBaseLightingFromPanel = baseLightingComponentId) {
+function lightingPayload(readBaseLightingFromPanel = editorCtx.baseLightingComponentId) {
   return readBaseLightingFromPanel
     ? document.querySelector<HTMLIFrameElement>(
         '.hb-component[data-component-id="' +
@@ -8759,7 +8656,7 @@ function lightFieldElement(closeLightingPanel: any, cancelLightingPreview: any =
     ? (gm2.contentWindow.postMessage(
         {
           type: "homeos-floorplan-auto-diagram-base-lighting",
-          componentId: baseLightingComponentId,
+          componentId: editorCtx.baseLightingComponentId,
           command: closeLightingPanel,
           ...(cancelLightingPreview
             ? {
@@ -8799,13 +8696,13 @@ function onFloorplanAutoLightingResetButtonClick({
     (onFloorplanAutoLightingSaveButtonClick && lightFieldElement("cancel"),
     (floorplanAutoLightingPanelElement.hidden = true),
     floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false"),
-    (baseLightingComponentId = ""),
-    (lightingPanelDragStateState = null));
+    (editorCtx.baseLightingComponentId = ""),
+    (editorCtx.lightingPanelDragStateState = null));
 }
 function onFloorplanAutoLightingCloseButtonClick(onFloorplanAutoLightingHandlePointerdown: any) {
   const gm3 = lightingPayload(onFloorplanAutoLightingHandlePointerdown);
   if (!onFloorplanAutoLightingHandlePointerdown || !gm3?.contentWindow) return;
-  ((baseLightingComponentId = onFloorplanAutoLightingHandlePointerdown),
+  ((editorCtx.baseLightingComponentId = onFloorplanAutoLightingHandlePointerdown),
     gm3.classList.remove("is-position-mode"),
     gm3.classList.add("is-view-mode"),
     mutateDocument((lightingDragEvent: any) => {
@@ -8819,7 +8716,7 @@ function onFloorplanAutoLightingCloseButtonClick(onFloorplanAutoLightingHandlePo
           interactionMode: "view",
         });
     }),
-    openLightingPanel(baseLightingSettings),
+    openLightingPanel(editorCtx.baseLightingSettings),
     (floorplanAutoLightingStatusElement.textContent = "正在读取当前光照设置…"),
     (floorplanAutoLightingPanelElement.hidden = false),
     floorplanAutoLightingPanelElement.setAttribute("aria-busy", "true"));
@@ -8844,7 +8741,7 @@ function onFloorplanAutoLightingCloseButtonClick(onFloorplanAutoLightingHandlePo
     lightFieldElement("request-state"));
 }
 floorplanAutoDiagramOpenBaseLightingButtonElement.addEventListener("click", () => {
-  onFloorplanAutoLightingCloseButtonClick(selectedComponentId);
+  onFloorplanAutoLightingCloseButtonClick(editorCtx.selectedComponentId);
 });
 for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightElements)
   onFloorplanAutoLightingHandlePointermoveState.addEventListener("input", () => {
@@ -8875,7 +8772,7 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
       )
         return;
       const targetBoundsEntry = floorplanAutoLightingPanelElement.getBoundingClientRect();
-      lightingPanelDragStateState = {
+      editorCtx.lightingPanelDragStateState = {
         pointerId: onFloorplanAutoLightingHandlePointermove.pointerId,
         startX: onFloorplanAutoLightingHandlePointermove.clientX,
         startY: onFloorplanAutoLightingHandlePointermove.clientY,
@@ -8895,55 +8792,55 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
   ),
   floorplanAutoLightingHandleElement.addEventListener("pointermove", (lightingDragMoveEvent: any) => {
     if (
-      !lightingPanelDragStateState ||
-      lightingDragMoveEvent.pointerId !== lightingPanelDragStateState.pointerId
+      !editorCtx.lightingPanelDragStateState ||
+      lightingDragMoveEvent.pointerId !== editorCtx.lightingPanelDragStateState.pointerId
     )
       return;
     lightingDragMoveEvent.preventDefault();
     // 只登记目标坐标；实际写样式在下一帧统一执行 —— pointermove 一帧可触发多次，
     // 每次都写样式+读布局会让拖拽跟随变卡（每次两趟布局）。
-    lightingPanelDragPending = {
+    editorCtx.lightingPanelDragPending = {
       x: clampNumber2(
-        lightingPanelDragStateState.startLeft +
+        editorCtx.lightingPanelDragStateState.startLeft +
           lightingDragMoveEvent.clientX -
-          lightingPanelDragStateState.startX,
+          editorCtx.lightingPanelDragStateState.startX,
         8,
-        lightingPanelDragStateState.maxLeft,
+        editorCtx.lightingPanelDragStateState.maxLeft,
       ),
       y: clampNumber2(
-        lightingPanelDragStateState.startTop +
+        editorCtx.lightingPanelDragStateState.startTop +
           lightingDragMoveEvent.clientY -
-          lightingPanelDragStateState.startY,
+          editorCtx.lightingPanelDragStateState.startY,
         8,
-        lightingPanelDragStateState.maxTop,
+        editorCtx.lightingPanelDragStateState.maxTop,
       ),
     };
-    if (lightingPanelDragFrame !== null) return;
-    lightingPanelDragFrame = requestAnimationFrame(() => {
-      lightingPanelDragFrame = null;
+    if (editorCtx.lightingPanelDragFrame !== null) return;
+    editorCtx.lightingPanelDragFrame = requestAnimationFrame(() => {
+      editorCtx.lightingPanelDragFrame = null;
       applyLightingPanelDragMove();
     });
   }));
 function applyLightingPanelDragMove() {
-  if (!lightingPanelDragPending) return;
+  if (!editorCtx.lightingPanelDragPending) return;
   (floorplanAutoLightingPanelElement.style.right = "auto"),
-    (floorplanAutoLightingPanelElement.style.left = lightingPanelDragPending.x + "px"),
-    (floorplanAutoLightingPanelElement.style.top = lightingPanelDragPending.y + "px");
+    (floorplanAutoLightingPanelElement.style.left = editorCtx.lightingPanelDragPending.x + "px"),
+    (floorplanAutoLightingPanelElement.style.top = editorCtx.lightingPanelDragPending.y + "px");
 }
 const endLightingPanelDrag = (dragEndEvent: any) => {
   if (
-    !lightingPanelDragStateState ||
-    dragEndEvent.pointerId !== lightingPanelDragStateState.pointerId
+    !editorCtx.lightingPanelDragStateState ||
+    dragEndEvent.pointerId !== editorCtx.lightingPanelDragStateState.pointerId
   )
     return;
   // 收尾：把还没落地的那一帧补上，否则松手位置与视觉位置会差一帧。
-  if (lightingPanelDragFrame !== null) {
-    cancelAnimationFrame(lightingPanelDragFrame);
-    lightingPanelDragFrame = null;
+  if (editorCtx.lightingPanelDragFrame !== null) {
+    cancelAnimationFrame(editorCtx.lightingPanelDragFrame);
+    editorCtx.lightingPanelDragFrame = null;
   }
   applyLightingPanelDragMove();
-  lightingPanelDragPending = null;
-  lightingPanelDragStateState = null;
+  editorCtx.lightingPanelDragPending = null;
+  editorCtx.lightingPanelDragStateState = null;
 };
 (floorplanAutoLightingHandleElement.addEventListener("pointerup", endLightingPanelDrag),
   floorplanAutoLightingHandleElement.addEventListener("pointercancel", endLightingPanelDrag));
@@ -8969,11 +8866,11 @@ function cancelRemoveDraftDocument() {
       floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent === "true";
   (closeAutoDiagramDialog(),
     !(!shouldRemoveOnCancel || !componentId) &&
-      (selectedComponentIdsSet.delete(componentId),
-      selectedComponentId === componentId &&
-        (selectedComponentId = selectedComponentIdsSet.values().next().value || null),
-      selectionAnchorComponentId === componentId &&
-        (selectionAnchorComponentId = selectedComponentId),
+      (editorCtx.selectedComponentIdsSet.delete(componentId),
+      editorCtx.selectedComponentId === componentId &&
+        (editorCtx.selectedComponentId = editorCtx.selectedComponentIdsSet.values().next().value || null),
+      editorCtx.selectionAnchorComponentId === componentId &&
+        (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
       mutateDocument((onFloorplanAutoDiagramOpenStudioButtonClick: any) => {
         removeComponent(onFloorplanAutoDiagramOpenStudioButtonClick, componentId);
       })));
@@ -9021,7 +8918,7 @@ function cancelRemoveDraftDocument() {
     return;
   }
   const sourceComponentPosition = diagramStudioComponent.position || {},
-    projectCanvas = activeProject.document.canvas || {},
+    projectCanvas = editorCtx.activeProject.document.canvas || {},
     exportResolution = floorplanAutoDiagramExportResolution2(
       sourceComponentPosition,
       projectCanvas,
@@ -9042,7 +8939,7 @@ function cancelRemoveDraftDocument() {
     ));
 }),
   floorplanAutoDiagramViewToggleButtonElement.addEventListener("click", () => {
-    const interactionModeComponentId = selectedComponentId;
+    const interactionModeComponentId = editorCtx.selectedComponentId;
     interactionModeComponentId &&
       mutateDocument((toggleModeDraftDocument: any) => {
         const toggleModeComponent = findComponent2(
@@ -9084,7 +8981,7 @@ function cancelRemoveDraftDocument() {
     const lightGroupSelect = lightGroupChangeEvent.target.closest(
         "[data-floorplan-light-group-id]",
       ),
-      lightGroupId = selectedComponentId;
+      lightGroupId = editorCtx.selectedComponentId;
     if (!lightGroupSelect || !lightGroupId) return;
     const floorplanLightGroupId = lightGroupSelect.dataset.floorplanLightGroupId;
     mutateDocument((lightGroupDraftDocument: any) => {
@@ -9102,8 +8999,8 @@ function cancelRemoveDraftDocument() {
     });
   }));
 function bindMessageSection() {
-  const zr2 = lightingPanelDragState;
-  zr2 && ((lightingPanelDragState = null), zr2.remove());
+  const zr2 = editorCtx.lightingPanelDragState;
+  zr2 && ((editorCtx.lightingPanelDragState = null), zr2.remove());
 }
 function onWindowMessage(
   messageEvent: any,
@@ -9136,8 +9033,8 @@ function onWindowMessage(
         window.removeEventListener("pagehide", lightingStateComponentId),
         document.removeEventListener("keydown", lightingStateComponentIdHandler, true),
         lightingStateComponentIdElement.remove(),
-        lightingPanelDragState === lightingStateComponentIdElement &&
-          (lightingPanelDragState = null));
+        editorCtx.lightingPanelDragState === lightingStateComponentIdElement &&
+          (editorCtx.lightingPanelDragState = null));
     },
     lightingStateComponentIdHandler = (lightingStateComponentIdState: any) => {
       lightingStateComponentIdState.key === "Escape" &&
@@ -9152,7 +9049,7 @@ function onWindowMessage(
     messageEventState.addEventListener("click", lightingStateComponentId);
   (window.addEventListener("pagehide", lightingStateComponentId),
     document.addEventListener("keydown", lightingStateComponentIdHandler, true),
-    (lightingPanelDragState = lightingStateComponentIdElement),
+    (editorCtx.lightingPanelDragState = lightingStateComponentIdElement),
     document.body.append(lightingStateComponentIdElement),
     lightingStateComponentIdElement.querySelector<HTMLElement>("[data-export-complete-confirm]")?.focus());
 }
@@ -9165,12 +9062,12 @@ window.addEventListener("message", (lightingStateFrameState) => {
     if (
       !gm4 ||
       lightingStateFrameState.source !== gm4.contentWindow ||
-      lightingStateFrame !== baseLightingComponentId
+      lightingStateFrame !== editorCtx.baseLightingComponentId
     )
       return;
     ((data.status === "ready" || data.status === "saved") &&
-      ((baseLightingSettings = normalizeBaseLighting2(data.savedLighting || data.lighting)),
-      openLightingPanel(data.lighting || baseLightingSettings)),
+      ((editorCtx.baseLightingSettings = normalizeBaseLighting2(data.savedLighting || data.lighting)),
+      openLightingPanel(data.lighting || editorCtx.baseLightingSettings)),
       floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false"),
       data.status === "saved"
         ? (floorplanAutoLightingStatusElement.textContent =
@@ -9189,7 +9086,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
     if (!readyFrame || lightingStateFrameState.source !== readyFrame.contentWindow) return;
     (readyFrame.classList.add("is-ready"),
       readyFrame.parentElement?.querySelector(".hb-floorplan-auto-diagram-loading")?.remove());
-    const readyComponent = findComponent2(activeProject?.document, readyComponentId)?.component;
+    const readyComponent = findComponent2(editorCtx.activeProject?.document, readyComponentId)?.component;
     if (readyComponent?.type === "floorplan-auto-diagram") {
       const reportedFloors = (Array.isArray(data.floors) ? data.floors : [])
           .map((floorEntry: any) => ({
@@ -9256,7 +9153,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
       selected: floorStateSelection,
     });
     const floorStateComponent = findComponent2(
-      activeProject?.document,
+      editorCtx.activeProject?.document,
       floorStateComponentId,
     )?.component;
     (floorStateComponent?.type === "floorplan-auto-diagram" &&
@@ -9273,7 +9170,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
             floorSelection: floorStateSelection,
           });
       }),
-      floorStateComponentId === selectedComponentId && coverMotorButtonElement());
+      floorStateComponentId === editorCtx.selectedComponentId && coverMotorButtonElement());
     return;
   }
   if (data?.type === "homeos-floorplan-auto-diagram-stopped") {
@@ -9285,7 +9182,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
       );
     if (!stoppedFrame || lightingStateFrameState.source !== stoppedFrame.contentWindow) return;
     ((floorplanAutoDiagramOpenStudioButtonElement.disabled = false),
-      stoppedComponentId === selectedComponentId &&
+      stoppedComponentId === editorCtx.selectedComponentId &&
         (floorplanAutoDiagramFloorSelectElement.disabled = false),
       (floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成"),
       (floorplanAutoDiagramStatusElement.textContent = data.message || "已停止本次生成。"),
@@ -9301,7 +9198,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
       );
     if (!errorFrame || lightingStateFrameState.source !== errorFrame.contentWindow) return;
     ((floorplanAutoDiagramOpenStudioButtonElement.disabled = false),
-      errorComponentId === selectedComponentId &&
+      errorComponentId === editorCtx.selectedComponentId &&
         (floorplanAutoDiagramFloorSelectElement.disabled = false),
       (floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成"),
       (floorplanAutoDiagramStatusElement.textContent = data.message || "后台生成失败，请重试。"));
@@ -9795,7 +9692,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
         throwOnError: true,
       },
     )
-      .then((selectedPlacedIdState) => {
+      .then((selectedPlacedIdState: any) => {
         if (!selectedPlacedIdState?.removed) {
           (exportComponentElement?.isConnected && (exportComponentElement.hidden = false),
             (floorplanAutoDiagramStatusElement.textContent =
@@ -9803,15 +9700,15 @@ window.addEventListener("message", (lightingStateFrameState) => {
           return;
         }
         const selectedId = selectedPlacedIdState.selectedId;
-        ((selectedComponentId = selectedId),
-          (selectedComponentIdsSet = selectedId ? new Set([selectedId]) : new Set()),
-          (selectionAnchorComponentId = selectedId),
-          editorRenderer?.setSelectedComponents(selectedId ? [selectedId] : [], selectedId),
+        ((editorCtx.selectedComponentId = selectedId),
+          (editorCtx.selectedComponentIdsSet = selectedId ? new Set([selectedId]) : new Set()),
+          (editorCtx.selectionAnchorComponentId = selectedId),
+          editorCtx.editorRenderer?.setSelectedComponents(selectedId ? [selectedId] : [], selectedId),
           renderComponentLists(),
           coverMotorButtonElement(),
           onWindowMessage(exportComponentElementState, selectedPlacedIdState));
       })
-      .catch((caughtErrorEntry) => {
+      .catch((caughtErrorEntry: any) => {
         (exportComponentElement?.isConnected && (exportComponentElement.hidden = false),
           (floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。"),
           handleOperationError(caughtErrorEntry));
@@ -9855,7 +9752,7 @@ function exportSpliceError(bindIconButtonEffectSection: any) {
     entryStateConfig = removedComponent();
   if (!(!entryStateValue || entryStateConfig?.type !== "icon-button-effect")) {
     (iconButtonEffectPreviewStateByComponentId.set(entryStateConfig.id, entryStateValue),
-      editorRenderer?.setComponentPreviewState(entryStateConfig.id, entryStateValue));
+      editorCtx.editorRenderer?.setComponentPreviewState(entryStateConfig.id, entryStateValue));
     for (const onElementElement of ibePreviewStateElement.querySelectorAll("[data-ibe-preview]")) {
       const isOnIconButtonEffectInspectorFormInput =
         onElementElement.dataset.ibePreview === entryStateValue;
@@ -9891,7 +9788,7 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
         clampNumber2(checked2, propertyConfig.min!, propertyConfig.max!) /
         (propertyConfig.divisor || 1);
     }
-    editorRenderer?.previewComponentProperties(inspectedEffectComponent.id, {
+    editorCtx.editorRenderer?.previewComponentProperties(inspectedEffectComponent.id, {
       [propertyConfig.property]: checked2,
     });
     return;
@@ -9902,36 +9799,36 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
   )
     return;
   const transformInputValue = Number(effectInputEvent.target.value),
-    effectCanvasWidth = Number(activeProject.document.canvas.width || 2778),
-    effectCanvasHeight = Number(activeProject.document.canvas.height || 1940),
+    effectCanvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
+    effectCanvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
     effectPositionWidth = Number(inspectedEffectComponent.position?.width || 100),
     effectPositionHeight = Number(inspectedEffectComponent.position?.height || 100);
   effectInputEvent.target === ibeLeftElement
-    ? editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+    ? editorCtx.editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
         x:
           (effectCanvasWidth * clampNumber2(transformInputValue, 0, 100)) / 100 -
           effectPositionWidth / 2,
       })
     : effectInputEvent.target === ibeTopElement
-      ? editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+      ? editorCtx.editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
           y:
             (effectCanvasHeight * clampNumber2(transformInputValue, 0, 100)) / 100 -
             effectPositionHeight / 2,
         })
       : effectInputEvent.target === ibeWidthElement
-        ? editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        ? editorCtx.editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
             width: (effectCanvasWidth * clampNumber2(transformInputValue, 0.1, 100)) / 100,
           })
         : effectInputEvent.target === ibeHeightElement
-          ? editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+          ? editorCtx.editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
               height: (effectCanvasHeight * clampNumber2(transformInputValue, 0.1, 100)) / 100,
             })
           : effectInputEvent.target === ibeScaleElement
-            ? editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+            ? editorCtx.editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
                 scale: clampNumber2(transformInputValue, 1, 500) / 100,
               })
             : effectInputEvent.target === ibeRotationElement &&
-              editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+              editorCtx.editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
                 rotation: clampNumber2(transformInputValue, -360, 360),
               });
 }),
@@ -9946,7 +9843,7 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
       coverMotorButtonElement();
       return;
     }
-    const effectComponentId = selectedComponentId;
+    const effectComponentId = editorCtx.selectedComponentId;
     mutateDocument((effectChangeDraftDocument: any) => {
       const effectComponentInDraft = findComponent2(
         effectChangeDraftDocument,
@@ -10008,7 +9905,7 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
   ibeEffectLayoutOptionsElement.addEventListener("click", (effectLayoutClickEvent: any) => {
     const effectLayoutOptionElementElement =
         effectLayoutClickEvent.target.closest("[data-ibe-layout]"),
-      effectLayoutComponentId = selectedComponentId;
+      effectLayoutComponentId = editorCtx.selectedComponentId;
     !effectLayoutOptionElementElement ||
       !effectLayoutComponentId ||
       mutateDocument((effectLayoutDraftDocument: any) => {
@@ -10059,8 +9956,8 @@ function createImageAlignOption(imageComponentOption: any, isChosenImage: any) {
   const optionLayoutElement = document.createElement("small"),
     isFillLayout = imageComponentOption.properties?.layoutMode === "fill",
     visibilityLabel = imageComponentOption.style?.visible === false ? "隐藏" : "显示",
-    optionCanvasWidth = Number(activeProject?.document?.canvas?.width || 2778),
-    optionCanvasHeight = Number(activeProject?.document?.canvas?.height || 1940),
+    optionCanvasWidth = Number(editorCtx.activeProject?.document?.canvas?.width || 2778),
+    optionCanvasHeight = Number(editorCtx.activeProject?.document?.canvas?.height || 1940),
     optionPosition = imageComponentOption.position || {},
     optionWidth = Number(optionPosition.width || 100),
     optionHeight = Number(optionPosition.height || 100),
@@ -10100,7 +9997,7 @@ function openImageAlignDialog() {
       ),
     ),
   ),
-    (imageAlignSourceComponentId = alignableImages.id),
+    (editorCtx.imageAlignSourceComponentId = alignableImages.id),
     (effectImageAlignMessageElement.hidden = aI2.length > 0),
     (effectImageAlignMessageElement.textContent = aI2.length
       ? ""
@@ -10123,13 +10020,13 @@ function openImageAlignDialog() {
     },
   ),
   effectImageAlignDialogElement.addEventListener("close", () => {
-    imageAlignSourceComponentId = null;
+    editorCtx.imageAlignSourceComponentId = null;
   }),
   effectImageAlignConfirmElement.addEventListener("click", () => {
     const pendingAlignComponentId = effectImageAlignOptionsElement.querySelector(
         'input[name="effect-image-align-target"]:checked',
       )?.value,
-      pp4 = imageAlignSourceComponentId;
+      pp4 = editorCtx.imageAlignSourceComponentId;
     if (!pp4 || !pendingAlignComponentId) {
       ((effectImageAlignMessageElement.textContent = "请选择一张本页面图片。"),
         (effectImageAlignMessageElement.hidden = false));
@@ -10184,32 +10081,32 @@ function openImageAlignDialog() {
   }),
   ibePreviewStateElement.addEventListener("click", (previewStateClickEvent: any) => {
     const previewStateOptionElement = previewStateClickEvent.target.closest("[data-ibe-preview]"),
-      requestedPreviewState = selectedComponentId;
+      requestedPreviewState = editorCtx.selectedComponentId;
     if (!previewStateOptionElement || !requestedPreviewState) return;
     const ibePreview = ["on", "off"].includes(previewStateOptionElement.dataset.ibePreview)
       ? previewStateOptionElement.dataset.ibePreview
       : "auto";
     (iconButtonEffectPreviewStateByComponentId.set(requestedPreviewState, ibePreview),
-      editorRenderer?.setComponentPreviewState(requestedPreviewState, ibePreview),
+      editorCtx.editorRenderer?.setComponentPreviewState(requestedPreviewState, ibePreview),
       coverMotorButtonElement());
   }),
   ibeLayerOptionsElement.addEventListener("click", (layerOptionsClickEvent: any) => {
     const effectLayerOptionElementElement =
         layerOptionsClickEvent.target.closest("[data-ibe-layer]"),
-      layerComponentId = selectedComponentId;
+      layerComponentId = editorCtx.selectedComponentId;
     if (!effectLayerOptionElementElement || !layerComponentId) return;
     const requestedLayer =
         effectLayerOptionElementElement.dataset.ibeLayer === "effect" ? "effect" : "button",
       layerPreviewStatus = requestedLayer === "effect" ? "on" : "off";
     (iconButtonEffectLayerByComponentId.set(layerComponentId, requestedLayer),
       iconButtonEffectPreviewStateByComponentId.set(layerComponentId, layerPreviewStatus),
-      editorRenderer?.setComponentPreviewState(layerComponentId, layerPreviewStatus),
-      editorRenderer?.setComponentSelectionLayer(layerComponentId, requestedLayer),
+      editorCtx.editorRenderer?.setComponentPreviewState(layerComponentId, layerPreviewStatus),
+      editorCtx.editorRenderer?.setComponentSelectionLayer(layerComponentId, requestedLayer),
       runShadow(),
       coverMotorButtonElement());
   }),
   ibeButtonVisibleElement.addEventListener("click", () => {
-    const buttonVisibleComponentId = selectedComponentId;
+    const buttonVisibleComponentId = editorCtx.selectedComponentId;
     buttonVisibleComponentId &&
       mutateDocument((buttonVisibleDraftDocument: any) => {
         const buttonVisibleComponent = findComponent2(
@@ -10225,7 +10122,7 @@ function openImageAlignDialog() {
       });
   }),
   ibeEffectVisibleElement.addEventListener("click", () => {
-    const effectVisibleComponentId = selectedComponentId;
+    const effectVisibleComponentId = editorCtx.selectedComponentId;
     effectVisibleComponentId &&
       mutateDocument((effectVisibleDraftDocument: any) => {
         const effectVisibleComponent = findComponent2(
@@ -10464,7 +10361,7 @@ const {
     previewModeForIconByIdByKey,
   ),
   deviceButtonStatePrecisionElement.addEventListener("change", () => {
-    const statePrecisionComponentIdState = selectedComponentId;
+    const statePrecisionComponentIdState = editorCtx.selectedComponentId;
     statePrecisionComponentIdState &&
       mutateDocument((onDoorWindowPerspectiveResetButtonClick: any) => {
         const statePrecisionComponentValue = findComponent2(
@@ -10485,7 +10382,7 @@ const {
       });
   }),
   presenceSensorKindElement.addEventListener("change", () => {
-    const perspectiveResetComponentId = selectedComponentId;
+    const perspectiveResetComponentId = editorCtx.selectedComponentId;
     perspectiveResetComponentId &&
       mutateDocument((perspectiveResetDraftDocument: any) => {
         const sensorKindComponentState = findComponent2(
@@ -10509,7 +10406,7 @@ const {
         }),
           requestedSensorKindState !== "door-window" &&
             (doorWindowPerspectiveEditIdsSet.delete(perspectiveResetComponentId),
-            editorRenderer?.setComponentSelectionLayer(perspectiveResetComponentId, "button")));
+            editorCtx.editorRenderer?.setComponentSelectionLayer(perspectiveResetComponentId, "button")));
       });
   }),
   doorWindowPerspectiveEditElement.addEventListener("click", () => {
@@ -10521,7 +10418,7 @@ const {
       doorWindowPerspectiveEditElement.classList.add("active"),
       doorWindowPerspectiveEditElement.setAttribute("aria-pressed", "true"),
       (doorWindowPerspectiveSaveElement.disabled = false),
-      editorRenderer?.setComponentSelectionLayer(createdInstanceEntry.id, "perspective"));
+      editorCtx.editorRenderer?.setComponentSelectionLayer(createdInstanceEntry.id, "perspective"));
   }),
   doorWindowPerspectiveSaveElement.addEventListener("click", () => {
     const createdInstanceRecord = removedComponent();
@@ -10532,10 +10429,10 @@ const {
       doorWindowPerspectiveEditElement.classList.remove("active"),
       doorWindowPerspectiveEditElement.setAttribute("aria-pressed", "false"),
       (doorWindowPerspectiveSaveElement.disabled = true),
-      editorRenderer?.setComponentSelectionLayer(createdInstanceRecord.id, "button"));
+      editorCtx.editorRenderer?.setComponentSelectionLayer(createdInstanceRecord.id, "button"));
   }),
   doorWindowPerspectiveResetElement.addEventListener("click", () => {
-    const perspectiveResetComponent = selectedComponentId;
+    const perspectiveResetComponent = editorCtx.selectedComponentId;
     perspectiveResetComponent &&
       mutateDocument((onCameraFitOptionsClick: any) => {
         const perspectiveResetComponentState = findComponent2(
@@ -10557,16 +10454,16 @@ function applyAirConditionerPreviewState(previewTargetComponentId: any, previewM
     ? previewModeRequest
     : "auto";
   (airConditionerPreviewStateByComponentId.set(previewTargetComponentId, resolvedPreviewMode),
-    editorRenderer?.setComponentPreviewState(previewTargetComponentId, resolvedPreviewMode));
+    editorCtx.editorRenderer?.setComponentPreviewState(previewTargetComponentId, resolvedPreviewMode));
 }
 (airConditionerPreviewStateElement.addEventListener("click", (acPreviewStateClickEvent: any) => {
   const acPreviewStateOptionElement = acPreviewStateClickEvent.target.closest(
     "[data-air-conditioner-preview]",
   );
   !acPreviewStateOptionElement ||
-    !selectedComponentId ||
+    !editorCtx.selectedComponentId ||
     (applyAirConditionerPreviewState(
-      selectedComponentId,
+      editorCtx.selectedComponentId,
       acPreviewStateOptionElement.dataset.airConditionerPreview,
     ),
     coverMotorButtonElement());
@@ -10575,7 +10472,7 @@ function applyAirConditionerPreviewState(previewTargetComponentId: any, previewM
     const acDeviceTypeOptionElement = acDeviceTypeClickEvent.target.closest(
         "[data-air-conditioner-device-type]",
       ),
-      requestedAcDeviceType = selectedComponentId;
+      requestedAcDeviceType = editorCtx.selectedComponentId;
     if (!acDeviceTypeOptionElement || !requestedAcDeviceType) return;
     const airConditionerDeviceType = ["air-conditioner", "bath-heater"].includes(
       acDeviceTypeOptionElement.dataset.airConditionerDeviceType,
@@ -10597,20 +10494,20 @@ function applyAirConditionerPreviewState(previewTargetComponentId: any, previewM
   }),
   airConditionerLayerOptionsElement.addEventListener("click", (acLayerClickEvent: any) => {
     const acLayerOptionElement = acLayerClickEvent.target.closest("[data-air-conditioner-layer]");
-    if (!acLayerOptionElement || !selectedComponentId) return;
+    if (!acLayerOptionElement || !editorCtx.selectedComponentId) return;
     const requestedAcLayer =
       acLayerOptionElement.dataset.airConditionerLayer === "airflow" ? "airflow" : "button";
-    (airConditionerLayerByComponentId.set(selectedComponentId, requestedAcLayer),
+    (airConditionerLayerByComponentId.set(editorCtx.selectedComponentId, requestedAcLayer),
       applyAirConditionerPreviewState(
-        selectedComponentId,
+        editorCtx.selectedComponentId,
         requestedAcLayer === "airflow" ? "on" : "off",
       ),
-      editorRenderer?.setComponentSelectionLayer(selectedComponentId, requestedAcLayer),
+      editorCtx.editorRenderer?.setComponentSelectionLayer(editorCtx.selectedComponentId, requestedAcLayer),
       runShadow(),
       coverMotorButtonElement());
   }),
   airConditionerAirflowVisibleElement.addEventListener("click", () => {
-    const airflowVisibleComponentId = selectedComponentId;
+    const airflowVisibleComponentId = editorCtx.selectedComponentId;
     airflowVisibleComponentId &&
       (applyAirConditionerPreviewState(airflowVisibleComponentId, "on"),
       mutateDocument((airflowVisibleDraftDocument: any) => {
@@ -10632,7 +10529,7 @@ for (const [visibilityPropertyKey, onVisibilityToggleClick] of [
   [airConditionerSecondaryVisibleElement, "secondaryTextVisible"],
 ])
   visibilityPropertyKey.addEventListener("click", () => {
-    const visibilityToggleComponentId = selectedComponentId;
+    const visibilityToggleComponentId = editorCtx.selectedComponentId;
     visibilityToggleComponentId &&
       mutateDocument((acVisibilityDraftDocument: any) => {
         const acVisibilityComponent = findComponent2(
@@ -10651,7 +10548,7 @@ for (const [visibilityPropertyKey, onVisibilityToggleClick] of [
 airConditionerAirflowMotionElement.addEventListener("click", (airflowMotionClickEvent: any) => {
   const airflowMotionOptionElement =
       airflowMotionClickEvent.target.closest("[data-airflow-motion]"),
-    airflowMotionComponentId = selectedComponentId;
+    airflowMotionComponentId = editorCtx.selectedComponentId;
   !airflowMotionOptionElement ||
     !airflowMotionComponentId ||
     (applyAirConditionerPreviewState(airflowMotionComponentId, "on"),
@@ -10675,7 +10572,7 @@ for (const airflowSectionEventName of ["focusin", "pointerdown", "input"])
     (onAirConditionerAirflowSection: any) => {
       previewStateByInputElementByName.has(onAirConditionerAirflowSection.target) &&
         removedComponent()?.type === "air-conditioner" &&
-        applyAirConditionerPreviewState(selectedComponentId, "on");
+        applyAirConditionerPreviewState(editorCtx.selectedComponentId, "on");
     },
   );
 const airflowSectionEventById = new Map([
@@ -10713,11 +10610,11 @@ function previewSyncEventName(onIconButtonInspectorForm: any, previewSyncEvent =
         onIconButtonInspectorForm,
         onCoverSettingsKindClickState,
       ),
-    editorRenderer?.setComponentPreviewState(
+    editorCtx.editorRenderer?.setComponentPreviewState(
       onIconButtonInspectorForm,
       onCoverSettingsKindClickState,
     ),
-    onIconButtonInspectorForm === selectedComponentId &&
+    onIconButtonInspectorForm === editorCtx.selectedComponentId &&
       airflowSectionEvent(onCoverSettingsKindClickState));
 }
 function onCoverSettingsKindClick(coverKindClickEvent: any) {
@@ -10749,7 +10646,7 @@ for (const previewSyncEventState of ["focusin", "pointerdown", "input"])
   );
 (coverSettingsKindElement.addEventListener("click", (coverDirectionClickEvent: any) => {
   const coverDirectionOptionElement = coverDirectionClickEvent.target.closest("[data-cover-kind]"),
-    requestedCoverDirection = selectedComponentId;
+    requestedCoverDirection = editorCtx.selectedComponentId;
   if (!coverDirectionOptionElement || !requestedCoverDirection) return;
   const coverKind2 = ["standard", "dream", "airer"].includes(
     coverDirectionOptionElement.dataset.coverKind,
@@ -10772,7 +10669,7 @@ for (const previewSyncEventState of ["focusin", "pointerdown", "input"])
   coverSettingsDirectionElement.addEventListener("click", (motorDirectionClickEvent: any) => {
     const motorDirectionOptionElement =
         motorDirectionClickEvent.target.closest("[data-cover-direction]"),
-      motorDirectionComponentId = selectedComponentId;
+      motorDirectionComponentId = editorCtx.selectedComponentId;
     if (!motorDirectionOptionElement || !motorDirectionComponentId) return;
     const coverDirection2 = ["left", "right"].includes(
       motorDirectionOptionElement.dataset.coverDirection,
@@ -10796,7 +10693,7 @@ for (const previewSyncEventState of ["focusin", "pointerdown", "input"])
     const motorDirectionOptionElementElement = motorDirectionDraftDocument.target.closest(
         "[data-cover-motor-direction]",
       ),
-      motorDirectionComponent = selectedComponentId;
+      motorDirectionComponent = editorCtx.selectedComponentId;
     if (!motorDirectionOptionElementElement || !motorDirectionComponent) return;
     const coverMotorDirection2 = ["normal", "reversed"].includes(
       motorDirectionOptionElementElement.dataset.coverMotorDirection,
@@ -10829,7 +10726,7 @@ for (const previewSyncEventState of ["focusin", "pointerdown", "input"])
         iconButtonPreviewStateElement.contains(previewFocusOutEvent.relatedTarget)) ||
       window.requestAnimationFrame(() => {
         if (
-          activeColorInputElement === previewFocusOutEvent.target &&
+          editorCtx.activeColorInputElement === previewFocusOutEvent.target &&
           !globalColorPickerElement.hidden
         )
           return;
@@ -10850,7 +10747,7 @@ for (const [areComponentValuesEqual, firstComponentValue] of [
   [titleButtonMarkerVisibleElement, "markerVisible"],
 ])
   areComponentValuesEqual.addEventListener("click", () => {
-    const secondComponentValueState = selectedComponentId;
+    const secondComponentValueState = editorCtx.selectedComponentId;
     mutateDocument((secondComponentValue: any) => {
       const rememberNavigationStyleChangeState = findComponent2(
         secondComponentValue,
@@ -10871,7 +10768,7 @@ for (const [rememberNavigationStyleChange, navigationComponentId] of [
   [lightStatisticsCountVisibleElement, "countVisible"],
 ])
   rememberNavigationStyleChange.addEventListener("click", () => {
-    const navigationPropertyKeyState = selectedComponentId;
+    const navigationPropertyKeyState = editorCtx.selectedComponentId;
     navigationPropertyKeyState &&
       mutateDocument((navigationPropertyKey: any) => {
         const previousPropertyValueState = findComponent2(
@@ -10899,7 +10796,7 @@ for (const [previousPropertyValue, updatedPropertyValue] of [
   [presencePersonVisibleElement, "personVisible"],
 ])
   previousPropertyValue.addEventListener("click", () => {
-    const navigationSavedPropertyValues = selectedComponentId;
+    const navigationSavedPropertyValues = editorCtx.selectedComponentId;
     mutateDocument((pruneNavigationSavedSettings: any) => {
       const navigationSettingsComponentState = findComponent2(
         pruneNavigationSavedSettings,
@@ -10927,7 +10824,7 @@ iconButtonPreviewStateElement.addEventListener("click", (navigationSettingsCompo
   const navigationSavedSettingsElement = navigationSettingsComponent.target.closest(
       "[data-icon-button-preview]",
     ),
-    navigationSavedSettings = selectedComponentId;
+    navigationSavedSettings = editorCtx.selectedComponentId;
   if (!navigationSavedSettingsElement || !navigationSavedSettings) return;
   const iconButtonPreview = ["on", "off"].includes(
     navigationSavedSettingsElement.dataset.iconButtonPreview,
@@ -10993,7 +10890,7 @@ function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFo
     timeInputEventState = Number(bindInspectorSection.position?.y || 0) + measuredBoundsCase / 2,
     { width: timeInputEventValue, height: onTimeInspectorFormInputValue } =
       timeComponentDimensions2(onTimeInspectorFormInput);
-  editorRenderer?.previewComponentTransform(bindInspectorSection.id, {
+  editorCtx.editorRenderer?.previewComponentTransform(bindInspectorSection.id, {
     x: onTimeInspectorFormInputState - timeInputEventValue / 2,
     y: timeInputEventState - onTimeInspectorFormInputValue / 2,
     width: timeInputEventValue,
@@ -11006,7 +10903,7 @@ function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFo
   const timeInputElement = timeInputEvent.target,
     colorPropertyKey = navigationSavedSettingById.get(timeInputElement);
   if (colorPropertyKey) {
-    editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
+    editorCtx.editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
       [colorPropertyKey]: timeInputElement.value,
     });
     return;
@@ -11025,7 +10922,7 @@ function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFo
         ...(timeInspectorComponent.properties || {}),
         [timeConfig.property]: timePropertyValue,
       };
-    (editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
+    (editorCtx.editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
       [timeConfig.property]: timePropertyValue,
     }),
       timeConfig.resizes && navigationSavedPropertyKey(timeInspectorComponent, nextTimeProperties));
@@ -11038,31 +10935,31 @@ function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFo
   )
     return;
   const timeNumericValue = Number(timeInputElement.value),
-    timeCanvasWidth = Number(activeProject.document.canvas.width || 2778),
-    timeCanvasHeight = Number(activeProject.document.canvas.height || 1940),
+    timeCanvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
+    timeCanvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
     timePositionWidth = Number(timeInspectorComponent.position?.width || 100),
     timePositionHeight = Number(timeInspectorComponent.position?.height || 100);
   if (timeInputElement === timeLeftElement) {
     const clampedTimeLeft = clampNumber2(timeNumericValue, 0, 100);
-    editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+    editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
       x: (timeCanvasWidth * clampedTimeLeft) / 100 - timePositionWidth / 2,
     });
   } else {
     if (timeInputElement === timeTopElement) {
       const clampedTimeTop = clampNumber2(timeNumericValue, 0, 100);
-      editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+      editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
         y: (timeCanvasHeight * clampedTimeTop) / 100 - timePositionHeight / 2,
       });
     } else {
       if (timeInputElement === timeScaleElement) {
         const clampedTimeScale = clampNumber2(timeNumericValue, 1, 500);
-        editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+        editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
           scale: clampedTimeScale / 100,
         });
       } else {
         if (timeInputElement === timeRotationElement) {
           const clampedTimeRotation = clampNumber2(timeNumericValue, -360, 360);
-          editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+          editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
             rotation: clampedTimeRotation,
           });
         }
@@ -11072,7 +10969,7 @@ function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFo
 }),
   timeInspectorElement.addEventListener("change", (timeChangeEvent: any) => {
     const changedTimeInput = timeChangeEvent.target,
-      timeChangeComponentId = selectedComponentId;
+      timeChangeComponentId = editorCtx.selectedComponentId;
     if (!timeChangeComponentId) return;
     const timeColorKey = navigationSavedSettingById.get(changedTimeInput),
       timeChangeConfig = navigationSavedPropertyKeyById.get(changedTimeInput);
@@ -11136,7 +11033,7 @@ function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFo
   }));
 for (const onTimeToggleClick of [timeHourFormatElement, timeSecondsElement])
   onTimeToggleClick.addEventListener("click", (timeToggleClickEvent: any) => {
-    const timeToggleComponentId = selectedComponentId,
+    const timeToggleComponentId = editorCtx.selectedComponentId,
       hourFormatOptionElement = timeToggleClickEvent.target.closest("[data-time-hour-format]"),
       secondsOptionElement = timeToggleClickEvent.target.closest("[data-time-seconds]");
     !timeToggleComponentId ||
@@ -11224,7 +11121,7 @@ function previewDateResize(resizedDateComponent: any, dateDimensionProperties: a
     dateCenterY = Number(resizedDateComponent.position?.y || 0) + dateHeight / 2,
     { width: nextDateWidth, height: nextDateHeight } =
       dateComponentDimensions2(dateDimensionProperties);
-  editorRenderer?.previewComponentTransform(resizedDateComponent.id, {
+  editorCtx.editorRenderer?.previewComponentTransform(resizedDateComponent.id, {
     x: dateCenterX - nextDateWidth / 2,
     y: dateCenterY - nextDateHeight / 2,
     width: nextDateWidth,
@@ -11237,7 +11134,7 @@ function previewDateResize(resizedDateComponent: any, dateDimensionProperties: a
   const dateInputElement = dateInputEvent.target,
     dateColorKey = dateColorPropertyByElement.get(dateInputElement);
   if (dateColorKey) {
-    editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
+    editorCtx.editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
       [dateColorKey]: dateInputElement.value,
     });
     return;
@@ -11256,7 +11153,7 @@ function previewDateResize(resizedDateComponent: any, dateDimensionProperties: a
         ...(dateInspectorComponent.properties || {}),
         [dateConfig.property]: dateColorClampedValue,
       };
-    (editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
+    (editorCtx.editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
       [dateConfig.property]: dateColorClampedValue,
     }),
       dateConfig.resizes && previewDateResize(dateInspectorComponent, dateColorPropertyPatch));
@@ -11269,31 +11166,31 @@ function previewDateResize(resizedDateComponent: any, dateDimensionProperties: a
   )
     return;
   const dateTransformInputNumber = Number(dateInputElement.value),
-    dateTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778),
-    dateTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940),
+    dateTransformCanvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
+    dateTransformCanvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
     dateTransformComponentWidth = Number(dateInspectorComponent.position?.width || 100),
     dateTransformComponentHeight = Number(dateInspectorComponent.position?.height || 100);
   if (dateInputElement === dateLeftElement) {
     const dateLeftPercent = clampNumber2(dateTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+    editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
       x: (dateTransformCanvasWidth * dateLeftPercent) / 100 - dateTransformComponentWidth / 2,
     });
   } else {
     if (dateInputElement === dateTopElement) {
       const dateTopPercent = clampNumber2(dateTransformInputNumber, 0, 100);
-      editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+      editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
         y: (dateTransformCanvasHeight * dateTopPercent) / 100 - dateTransformComponentHeight / 2,
       });
     } else {
       if (dateInputElement === dateScaleElement) {
         const dateScalePercent = clampNumber2(dateTransformInputNumber, 1, 500);
-        editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+        editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
           scale: dateScalePercent / 100,
         });
       } else {
         if (dateInputElement === dateRotationElement) {
           const dateRotationDegrees = clampNumber2(dateTransformInputNumber, -360, 360);
-          editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+          editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
             rotation: dateRotationDegrees,
           });
         }
@@ -11303,7 +11200,7 @@ function previewDateResize(resizedDateComponent: any, dateDimensionProperties: a
 }),
   dateInspectorElement.addEventListener("change", (dateChangeEvent: any) => {
     const dateChangeInputElement = dateChangeEvent.target,
-      dateChangeComponentId = selectedComponentId;
+      dateChangeComponentId = editorCtx.selectedComponentId;
     if (!dateChangeComponentId) return;
     const dateChangeColorProperty = dateColorPropertyByElement.get(dateChangeInputElement),
       dateChangePropertyConfig = datePropertyConfigsByElement.get(dateChangeInputElement);
@@ -11371,7 +11268,7 @@ function previewDateResize(resizedDateComponent: any, dateDimensionProperties: a
   }));
 for (const onDateVisibilityClick of [dateWeekdayElement, dateLunarElement])
   onDateVisibilityClick.addEventListener("click", (dateVisibilityEvent: any) => {
-    const dateVisibilityComponentId = selectedComponentId,
+    const dateVisibilityComponentId = editorCtx.selectedComponentId,
       weekdayToggleElement = dateVisibilityEvent.target.closest("[data-date-weekday]"),
       dateLunarToggleElement = dateVisibilityEvent.target.closest("[data-date-lunar]");
     !dateVisibilityComponentId ||
@@ -11403,7 +11300,7 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
       Number(weatherResizeComponent.position?.y || 0) + weatherResizeHeight / 2,
     { width: weatherResizeTargetWidth, height: weatherResizeTargetHeight } =
       weatherComponentDimensions2(weatherResizeProperties);
-  editorRenderer?.previewComponentTransform(weatherResizeComponent.id, {
+  editorCtx.editorRenderer?.previewComponentTransform(weatherResizeComponent.id, {
     x: weatherResizeCenterX - weatherResizeTargetWidth / 2,
     y: weatherResizeCenterY - weatherResizeTargetHeight / 2,
     width: weatherResizeTargetWidth,
@@ -11416,7 +11313,7 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
   const weatherInputElement = weatherInputEvent.target,
     weatherInputColorProperty = weatherColorPropertiesByElement.get(weatherInputElement);
   if (weatherInputColorProperty) {
-    editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
+    editorCtx.editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
       [weatherInputColorProperty]: weatherInputElement.value,
     });
     return;
@@ -11438,7 +11335,7 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
         ...(weatherInputComponent.properties || {}),
         [weatherInputPropertyConfig.property]: weatherInputPropertyValue,
       };
-    (editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
+    (editorCtx.editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
       [weatherInputPropertyConfig.property]: weatherInputPropertyValue,
     }),
       weatherInputPropertyConfig.resizes &&
@@ -11452,13 +11349,13 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
   )
     return;
   const weatherTransformInputNumber = Number(weatherInputElement.value),
-    weatherTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778),
-    weatherTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940),
+    weatherTransformCanvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
+    weatherTransformCanvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
     weatherTransformComponentWidth = Number(weatherInputComponent.position?.width || 100),
     weatherTransformComponentHeight = Number(weatherInputComponent.position?.height || 100);
   if (weatherInputElement === weatherLeftElement) {
     const weatherLeftPercent = clampNumber2(weatherTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+    editorCtx.editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
       x:
         (weatherTransformCanvasWidth * weatherLeftPercent) / 100 -
         weatherTransformComponentWidth / 2,
@@ -11466,7 +11363,7 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
   } else {
     if (weatherInputElement === weatherTopElement) {
       const weatherTopPercent = clampNumber2(weatherTransformInputNumber, 0, 100);
-      editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+      editorCtx.editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
         y:
           (weatherTransformCanvasHeight * weatherTopPercent) / 100 -
           weatherTransformComponentHeight / 2,
@@ -11474,13 +11371,13 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
     } else {
       if (weatherInputElement === weatherScaleElement) {
         const weatherScalePercent = clampNumber2(weatherTransformInputNumber, 1, 500);
-        editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+        editorCtx.editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
           scale: weatherScalePercent / 100,
         });
       } else {
         if (weatherInputElement === weatherRotationElement) {
           const weatherRotationDegrees = clampNumber2(weatherTransformInputNumber, -360, 360);
-          editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+          editorCtx.editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
             rotation: weatherRotationDegrees,
           });
         }
@@ -11490,7 +11387,7 @@ function previewWeatherComponentResize(weatherResizeComponent: any, weatherResiz
 }),
   weatherInspectorElement.addEventListener("change", (weatherChangeEvent: any) => {
     const weatherChangeInputElement = weatherChangeEvent.target,
-      weatherChangeComponentId = selectedComponentId;
+      weatherChangeComponentId = editorCtx.selectedComponentId;
     if (!weatherChangeComponentId) return;
     const weatherChangeColorProperty =
         weatherColorPropertiesByElement.get(weatherChangeInputElement),
@@ -11570,7 +11467,7 @@ for (const onWeatherVisibilityClick of [
   weatherHumidityVisibleElement,
 ])
   onWeatherVisibilityClick.addEventListener("click", (weatherVisibilityEvent: any) => {
-    const weatherVisibilityComponentId = selectedComponentId,
+    const weatherVisibilityComponentId = editorCtx.selectedComponentId,
       weatherVisibilityButtonElement = weatherVisibilityEvent.target.closest("button");
     if (!weatherVisibilityComponentId || !weatherVisibilityButtonElement) return;
     const weatherVisibilityEntry = [
@@ -11607,17 +11504,17 @@ attachLineChartInspectorInput({
   get removedComponent() { return removedComponent; },
   get lineChartColorPropertiesByElement() { return lineChartColorPropertiesByElement; },
   get lineChartPropertyConfigsByElement() { return lineChartPropertyConfigsByElement; },
-  get editorRenderer() { return editorRenderer; },
+  get editorRenderer() { return editorCtx.editorRenderer; },
   get lineChartThresholdInputs() { return lineChartThresholdInputs; },
   get lineChartTransformInputSet() { return lineChartTransformInputSet; },
-  get activeProject() { return activeProject; },
+  get activeProject() { return editorCtx.activeProject; },
   get lineChartLeftInputElement() { return lineChartLeftInputElement; },
   get lineChartTopInputElement() { return lineChartTopInputElement; },
   get lineChartWidthInputElement() { return lineChartWidthInputElement; },
   get lineChartHeightInputElement() { return lineChartHeightInputElement; },
   get lineChartScaleInputElement() { return lineChartScaleInputElement; },
   get lineChartRotationInputElement() { return lineChartRotationInputElement; },
-  get selectedComponentId() { return selectedComponentId; },
+  get selectedComponentId() { return editorCtx.selectedComponentId; },
   get coverMotorButtonElement() { return coverMotorButtonElement; },
   get mutateDocument() { return mutateDocument; },
   get lineChartThresholdModeSelectElement() { return lineChartThresholdModeSelectElement; },
@@ -11693,11 +11590,11 @@ function applyNavigationPreviewState(navigationPreviewComponentId: any, navigati
         navigationPreviewComponentId,
         navigationNormalizedPreviewState,
       ),
-    editorRenderer?.setComponentPreviewState(
+    editorCtx.editorRenderer?.setComponentPreviewState(
       navigationPreviewComponentId,
       navigationNormalizedPreviewState,
     ),
-    navigationPreviewComponentId === selectedComponentId &&
+    navigationPreviewComponentId === editorCtx.selectedComponentId &&
       setNavigationPreviewState(navigationNormalizedPreviewState));
 }
 function syncNavigationPreviewFromElement(navigationPreviewInputElement: any) {
@@ -11743,18 +11640,18 @@ attachNavigationInspectorInput({
   get navigationLabelTextInputElement() { return navigationLabelTextInputElement; },
   get navigationColorPropertiesByElement() { return navigationColorPropertiesByElement; },
   get airConditionerInspectorSubmitEventById() { return airConditionerInspectorSubmitEventById; },
-  get editorRenderer() { return editorRenderer; },
+  get editorRenderer() { return editorCtx.editorRenderer; },
   get navigationPropertyConfigsByElement() { return navigationPropertyConfigsByElement; },
   get syncNavigationPreviewFromElement() { return syncNavigationPreviewFromElement; },
   get navigationTransformInputSet() { return navigationTransformInputSet; },
-  get activeProject() { return activeProject; },
+  get activeProject() { return editorCtx.activeProject; },
   get navigationLeftElement() { return navigationLeftElement; },
   get navigationTopElement() { return navigationTopElement; },
   get navigationWidthElement() { return navigationWidthElement; },
   get navigationHeightElement() { return navigationHeightElement; },
   get navigationScaleElement() { return navigationScaleElement; },
   get navigationRotationElement() { return navigationRotationElement; },
-  get selectedComponentId() { return selectedComponentId; },
+  get selectedComponentId() { return editorCtx.selectedComponentId; },
   get navigationToggleStateByElement() { return navigationToggleStateByElement; },
   get navigationPropertyNameFromElement() { return navigationPropertyNameFromElement; },
   get navigationLabelElement() { return navigationLabelElement; },
@@ -11770,7 +11667,7 @@ for (const [
   navigationVisibilityProperty,
 ] of navigationVisibilityPropertiesByButton)
   navigationVisibilityButton.addEventListener("click", () => {
-    const onNavigationVisibilityButtonClickState = selectedComponentId;
+    const onNavigationVisibilityButtonClickState = editorCtx.selectedComponentId;
     onNavigationVisibilityButtonClickState &&
       mutateDocument((onNavigationVisibilityButtonClick: any) => {
         const navigationVisibilityComponentId = findComponent2(
@@ -11800,7 +11697,7 @@ navigationPreviewStateElement.addEventListener("click", (navigationVisibilityDra
   const navigationVisibilityComponentElement = navigationVisibilityDraftDocument.target.closest(
       "[data-navigation-preview]",
     ),
-    navigationVisibilityComponent = selectedComponentId;
+    navigationVisibilityComponent = editorCtx.selectedComponentId;
   if (!navigationVisibilityComponentElement || !navigationVisibilityComponent) return;
   const navigationPreview = ["off", "on"].includes(
     navigationVisibilityComponentElement.dataset.navigationPreview,
@@ -11826,7 +11723,7 @@ function runAltBackup(runAltShadow: any) {
   return (
     navigationPreviousVisibility ||
       ((navigationPreviousVisibility = clone2(
-        findComponent2(baselineDocument, runAltShadow.id)?.component || runAltShadow,
+        findComponent2(editorCtx.baselineDocument, runAltShadow.id)?.component || runAltShadow,
       )),
       lineChartBaselineByComponentId.set(runAltShadow.id, navigationPreviousVisibility)),
     Object.keys(navigationVisibilityComponentValue).filter(
@@ -11839,7 +11736,7 @@ function runAltBackup(runAltShadow: any) {
 function runAltTwin(
   runAltBranch: any,
   onNavigationPreviewStateClick: any,
-  navigationPreviewClickEvent = activeProject?.document,
+  navigationPreviewClickEvent = editorCtx.activeProject?.document,
 ) {
   if (typeof onNavigationPreviewStateClick == "boolean")
     return onNavigationPreviewStateClick ? "显示" : "隐藏";
@@ -11884,7 +11781,7 @@ function runAltPeer(runAltLocal: any, runAltInner: any) {
 function runAltOuter(runAltUpper: any) {
   if (!runAltUpper || runAltUpper.type !== "title-button") return [];
   const navigationPreviewDatasetState =
-    findComponent2(baselineDocument, runAltUpper.id)?.component || runAltUpper;
+    findComponent2(editorCtx.baselineDocument, runAltUpper.id)?.component || runAltUpper;
   return Object.keys(navigationPreviewClickComponentIdState).filter(
     (onNavigationStyleApplyCloseButtonClick) =>
       JSON.stringify(runAltPeer(runAltUpper, onNavigationStyleApplyCloseButtonClick)) !==
@@ -11896,7 +11793,7 @@ function runAltOuter(runAltUpper: any) {
 function onNavigationStyleApplyCancelButtonClick(
   onNavigationStyleApplyDialogClick: any,
   styleDialogClickEvent: any,
-  onNavigationStyleApplyDialogClose = activeProject?.document,
+  onNavigationStyleApplyDialogClose = editorCtx.activeProject?.document,
 ) {
   if (typeof styleDialogClickEvent == "boolean") return styleDialogClickEvent ? "显示" : "隐藏";
   if (
@@ -11958,7 +11855,7 @@ function runAltLeft(runAltRight: any) {
   return (
     selectedStylePropertyKeys ||
       ((selectedStylePropertyKeys = clone2(
-        findComponent2(baselineDocument, runAltRight.id)?.component || runAltRight,
+        findComponent2(editorCtx.baselineDocument, runAltRight.id)?.component || runAltRight,
       )),
       airConditionerBaselineByComponentId.set(runAltRight.id, selectedStylePropertyKeys)),
     Object.keys(onNavigationStyleApplyConfirmButtonClickValue).filter(
@@ -11978,7 +11875,7 @@ function runAltLeft(runAltRight: any) {
     )
   );
 }
-function runAltFirst(runAltSecond: any, runAltLast: any, runAltOld = activeProject?.document) {
+function runAltFirst(runAltSecond: any, runAltLast: any, runAltOld = editorCtx.activeProject?.document) {
   if (typeof runAltLast == "boolean") return runAltLast ? "显示" : "隐藏";
   if (runAltSecond === "width" || runAltSecond === "height") {
     const selectedTargetComponentIdsState = Number(
@@ -12015,7 +11912,7 @@ function runAuxAlt(runAuxAux: any) {
   return (
     navigationPreviousVisibilityValue ||
       ((navigationPreviousVisibilityValue = clone2(
-        findComponent2(baselineDocument, runAuxAux.id)?.component || runAuxAux,
+        findComponent2(editorCtx.baselineDocument, runAuxAux.id)?.component || runAuxAux,
       )),
       iconButtonEffectBaselineByComponentId.set(runAuxAux.id, navigationPreviousVisibilityValue)),
     Object.keys(styleSourceComponentIdState).filter(
@@ -12025,7 +11922,7 @@ function runAuxAlt(runAuxAux: any) {
     )
   );
 }
-function runAuxVariant(runAuxCopy: any, runAuxAlias: any, runAuxFallback = activeProject?.document) {
+function runAuxVariant(runAuxCopy: any, runAuxAlias: any, runAuxFallback = editorCtx.activeProject?.document) {
   if (typeof runAuxAlias == "boolean") return runAuxAlias ? "显示" : "隐藏";
   if (runAuxCopy === "width" || runAuxCopy === "height") {
     const navigationPreviewButtonElementState = Number(
@@ -12142,7 +12039,7 @@ function appliedStylePropertyKey(styleApplyButton: any) {
   return (
     styleFeedbackTimeoutId ||
       ((styleFeedbackTimeoutId = clone2(
-        findComponent2(baselineDocument, styleApplyButton.id)?.component || styleApplyButton,
+        findComponent2(editorCtx.baselineDocument, styleApplyButton.id)?.component || styleApplyButton,
       )),
       iconButtonBaselineByComponentId.set(styleApplyButton.id, styleFeedbackTimeoutId)),
     (styleApplyButton.type === "presence-sensor"
@@ -12208,7 +12105,7 @@ function onNavigationIconCopyButtonClick(navigationSelectedIconName: any, runAux
 function navigationIconCopyError(
   onNavigationIconSearchInputInput: any,
   onNavigationIconOptionsClick: any,
-  navigationIconOptionClickEvent = activeProject?.document,
+  navigationIconOptionClickEvent = editorCtx.activeProject?.document,
 ) {
   if (typeof onNavigationIconOptionsClick == "boolean")
     return onNavigationIconOptionsClick ? "显示" : "隐藏";
@@ -12317,14 +12214,14 @@ function runAuxInner(runAuxOuter: any, runAuxUpper: any) {
 function runAuxLower(runAuxLeft: any) {
   if (!runAuxLeft || runAuxLeft.type !== "camera") return [];
   const navigationIconDatasetName =
-    findComponent2(baselineDocument, runAuxLeft.id)?.component || runAuxLeft;
+    findComponent2(editorCtx.baselineDocument, runAuxLeft.id)?.component || runAuxLeft;
   return Object.keys(navigationIconOptionStateState).filter(
     (navigationIconDatasetNameState) =>
       JSON.stringify(runAuxInner(runAuxLeft, navigationIconDatasetNameState)) !==
       JSON.stringify(runAuxInner(navigationIconDatasetName, navigationIconDatasetNameState)),
   );
 }
-function runAuxRight(runAuxFirst: any, runAuxSecond: any, runAuxLast = activeProject?.document) {
+function runAuxRight(runAuxFirst: any, runAuxSecond: any, runAuxLast = editorCtx.activeProject?.document) {
   if (typeof runAuxSecond == "boolean") return runAuxSecond ? "显示" : "隐藏";
   if (runAuxFirst === "displayMode") return runAuxSecond === "snapshot" ? "快照" : "实时";
   if (runAuxFirst === "refreshInterval") return roundField2(Number(runAuxSecond || 10)) + " 秒";
@@ -12378,7 +12275,7 @@ function runVariantExtra(runVariantAlt: any) {
   return (
     navigationIconVisiblePreviousValue ||
       ((navigationIconVisiblePreviousValue = clone2(
-        findComponent2(baselineDocument, runVariantAlt.id)?.component || runVariantAlt,
+        findComponent2(editorCtx.baselineDocument, runVariantAlt.id)?.component || runVariantAlt,
       )),
       panelFrameBaselineByComponentId.set(runVariantAlt.id, navigationIconVisiblePreviousValue)),
     Object.keys(navigationIconDraftDocumentConfig).filter((filteredItemsEntry) =>
@@ -12393,7 +12290,7 @@ function runVariantExtra(runVariantAlt: any) {
 function runVariantAux(
   runVariantVariant: any,
   runVariantCopy: any,
-  bindAssetSection = activeProject?.document,
+  bindAssetSection = editorCtx.activeProject?.document,
 ) {
   if (typeof runVariantCopy == "boolean") return runVariantCopy ? "显示" : "隐藏";
   if (runVariantVariant === "width" || runVariantVariant === "height") {
@@ -12518,7 +12415,7 @@ function runVariantTwin(runVariantBranch: any) {
 function onDeleteAssetCancelButtonClick(
   onDeleteAssetDialogClick: any,
   deleteAssetDialogClickEvent: any,
-  onDeleteAssetConfirmButtonClick = activeProject?.document,
+  onDeleteAssetConfirmButtonClick = editorCtx.activeProject?.document,
 ) {
   if (typeof deleteAssetDialogClickEvent == "boolean")
     return deleteAssetDialogClickEvent ? "显示" : "隐藏";
@@ -12604,7 +12501,7 @@ function runVariantFirst() {
           onImageAssetButtonClick.properties?.targetPage ||
           onImageAssetButtonClick.actions?.tap?.target ||
           "",
-        imageAssetCatalogErrorState = activeProject.document.pages.find(
+        imageAssetCatalogErrorState = editorCtx.activeProject.document.pages.find(
           (imageAssetCatalogError: any) => imageAssetCatalogError.path === isImageAssetMenuHidden,
         );
       return createdInstanceName.type === "scene-mode"
@@ -12615,7 +12512,7 @@ function runVariantFirst() {
     }),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstanceName.id,
       type: createdInstanceName.type,
     }),
@@ -12682,7 +12579,7 @@ function imageAssetPointerOverEvent() {
     ),
     runVariantLower(pe2, "流水线条"),
     (navigationStyleApplyMessageElement.hidden = true),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: imageAssetHoverElement.id,
       type: "flow-line",
     }),
@@ -12716,7 +12613,7 @@ function imageAssetClickEvent() {
     runVariantLower(pe3, "底图框"),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: imageAssetElement.id,
       type: "panel-frame",
     }),
@@ -12750,7 +12647,7 @@ function runVariantSecond() {
     runVariantLower(pe4, "摄像头实时预览"),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstanceKey.id,
       type: "camera",
     }),
@@ -12787,7 +12684,7 @@ function runVariantLast() {
     runVariantLower(pe5, "标题按钮"),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstancePath.id,
       type: "title-button",
     }),
@@ -12821,7 +12718,7 @@ function runVariantOld() {
     runVariantLower(pe6, "图标按钮（效果）"),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: imageAssetRecord.id,
       type: "icon-button-effect",
     }),
@@ -12860,7 +12757,7 @@ function runVariantNew() {
     runVariantLower(pe7, "空调"),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstanceText.id,
       type: "air-conditioner",
     }),
@@ -12906,7 +12803,7 @@ function runCopyExtra() {
     runVariantLower(pe8, fI2),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstanceCount.id,
       type: createdInstanceCount.type,
     }),
@@ -12948,7 +12845,7 @@ function imageAssetMeasureError() {
     ),
     (navigationStyleApplyMessageElement.hidden = true),
     (navigationStyleApplyMessageElement.textContent = ""),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstanceIndex.id,
       type: "line-chart",
     }),
@@ -13349,11 +13246,11 @@ function onComponentTemplateDialogClick(
       navigationStyleApplyDialogElement.close();
   }),
   navigationStyleApplyDialogElement.addEventListener("close", () => {
-    appliedStyleRecord = null;
+    editorCtx.appliedStyleRecord = null;
   }),
   navigationStyleApplyConfirmElement.addEventListener("click", () => {
-    const templateItemElementState = appliedStyleRecord?.sourceId,
-      isImageAssetMenuHiddenState = appliedStyleRecord?.type,
+    const templateItemElementState = editorCtx.appliedStyleRecord?.sourceId,
+      isImageAssetMenuHiddenState = editorCtx.appliedStyleRecord?.type,
       mappedItemsMode = [
         ...navigationStyleApplyPropertiesElement.querySelectorAll(
           "[data-navigation-style-property]:checked",
@@ -13494,11 +13391,11 @@ function onComponentTemplateDialogClick(
       }).then(() => {
         if (isImageAssetMenuHiddenState === "flow-line") {
           const flowLineApplyStyleElement = findElement("#flow-line-apply-style");
-          (window.clearTimeout(coverMotorDirectionValue),
+          (window.clearTimeout(editorCtx.coverMotorDirectionValue),
             flowLineApplyStyleElement?.classList.add("applied"),
-            (coverMotorDirectionValue = window.setTimeout(() => {
+            (editorCtx.coverMotorDirectionValue = window.setTimeout(() => {
               (flowLineApplyStyleElement?.classList.remove("applied"),
-                selectedComponentId === templateItemElementState && coverMotorButtonElement());
+                editorCtx.selectedComponentId === templateItemElementState && coverMotorButtonElement());
             }, 1800)));
           return;
         }
@@ -13525,44 +13422,44 @@ function onComponentTemplateDialogClick(
                         ? iconButtonApplyStyleElement
                         : navigationApplyStyleElement;
         (isImageAssetMenuHiddenState === "panel-frame"
-          ? window.clearTimeout(panelFrameApplyFeedbackTimeoutId)
+          ? window.clearTimeout(editorCtx.panelFrameApplyFeedbackTimeoutId)
           : isImageAssetMenuHiddenState === "camera"
-            ? window.clearTimeout(cameraApplyFeedbackTimeoutId)
+            ? window.clearTimeout(editorCtx.cameraApplyFeedbackTimeoutId)
             : isImageAssetMenuHiddenState === "title-button"
-              ? window.clearTimeout(titleButtonApplyFeedbackTimeoutId)
+              ? window.clearTimeout(editorCtx.titleButtonApplyFeedbackTimeoutId)
               : isImageAssetMenuHiddenState === "air-conditioner"
-                ? window.clearTimeout(airConditionerApplyFeedbackTimeoutId)
+                ? window.clearTimeout(editorCtx.airConditionerApplyFeedbackTimeoutId)
                 : isImageAssetMenuHiddenState === "line-chart"
-                  ? window.clearTimeout(lineChartApplyFeedbackTimeoutId)
+                  ? window.clearTimeout(editorCtx.lineChartApplyFeedbackTimeoutId)
                   : isImageAssetMenuHiddenState === "icon-button-effect"
-                    ? window.clearTimeout(effectApplyFeedbackTimeoutId)
+                    ? window.clearTimeout(editorCtx.effectApplyFeedbackTimeoutId)
                     : ["icon-button", "device-button", "presence-sensor"].includes(
                           isImageAssetMenuHiddenState,
                         )
-                      ? window.clearTimeout(deviceButtonApplyFeedbackTimeoutId)
-                      : window.clearTimeout(navigationApplyFeedbackTimeoutId),
+                      ? window.clearTimeout(editorCtx.deviceButtonApplyFeedbackTimeoutId)
+                      : window.clearTimeout(editorCtx.navigationApplyFeedbackTimeoutId),
           $c2.classList.add("applied"));
         const hoveredAssetState = window.setTimeout(() => {
           ($c2.classList.remove("applied"),
-            selectedComponentId === templateItemElementState && coverMotorButtonElement());
+            editorCtx.selectedComponentId === templateItemElementState && coverMotorButtonElement());
         }, 1800);
         isImageAssetMenuHiddenState === "panel-frame"
-          ? (panelFrameApplyFeedbackTimeoutId = hoveredAssetState)
+          ? (editorCtx.panelFrameApplyFeedbackTimeoutId = hoveredAssetState)
           : isImageAssetMenuHiddenState === "camera"
-            ? (cameraApplyFeedbackTimeoutId = hoveredAssetState)
+            ? (editorCtx.cameraApplyFeedbackTimeoutId = hoveredAssetState)
             : isImageAssetMenuHiddenState === "title-button"
-              ? (titleButtonApplyFeedbackTimeoutId = hoveredAssetState)
+              ? (editorCtx.titleButtonApplyFeedbackTimeoutId = hoveredAssetState)
               : isImageAssetMenuHiddenState === "air-conditioner"
-                ? (airConditionerApplyFeedbackTimeoutId = hoveredAssetState)
+                ? (editorCtx.airConditionerApplyFeedbackTimeoutId = hoveredAssetState)
                 : isImageAssetMenuHiddenState === "line-chart"
-                  ? (lineChartApplyFeedbackTimeoutId = hoveredAssetState)
+                  ? (editorCtx.lineChartApplyFeedbackTimeoutId = hoveredAssetState)
                   : isImageAssetMenuHiddenState === "icon-button-effect"
-                    ? (effectApplyFeedbackTimeoutId = hoveredAssetState)
+                    ? (editorCtx.effectApplyFeedbackTimeoutId = hoveredAssetState)
                     : ["icon-button", "device-button", "presence-sensor"].includes(
                           isImageAssetMenuHiddenState,
                         )
-                      ? (deviceButtonApplyFeedbackTimeoutId = hoveredAssetState)
-                      : (navigationApplyFeedbackTimeoutId = hoveredAssetState);
+                      ? (editorCtx.deviceButtonApplyFeedbackTimeoutId = hoveredAssetState)
+                      : (editorCtx.navigationApplyFeedbackTimeoutId = hoveredAssetState);
       }));
   }),
   navigationIconButtonElement.addEventListener("click", () => {
@@ -13585,9 +13482,9 @@ function onComponentTemplateDialogClick(
     if (activeGroupEntry)
       try {
         (await copyTextToClipboard(activeGroupEntry),
-          window.clearTimeout(navigationIconCopiedTimeoutId),
+          window.clearTimeout(editorCtx.navigationIconCopiedTimeoutId),
           navigationIconCopyElement.classList.add("copied"),
-          (navigationIconCopiedTimeoutId = window.setTimeout(
+          (editorCtx.navigationIconCopiedTimeoutId = window.setTimeout(
             () => navigationIconCopyElement.classList.remove("copied"),
             1200,
           )));
@@ -13596,15 +13493,15 @@ function onComponentTemplateDialogClick(
       }
   }),
   navigationIconSearchElement.addEventListener("input", () => {
-    (window.clearTimeout(navigationIconSearchDebounceTimeoutId),
-      (navigationIconSearchDebounceTimeoutId = window.setTimeout(() => {
+    (window.clearTimeout(editorCtx.navigationIconSearchDebounceTimeoutId),
+      (editorCtx.navigationIconSearchDebounceTimeoutId = window.setTimeout(() => {
         iconTooltipElementCount(navigationIconSearchElement.value).catch(handleOperationError);
       }, 160)));
   }),
   navigationIconOptionsElement.addEventListener("click", (onImageAssetOptionsClickState: any) => {
     const activeGroupChildComponentElement =
         onImageAssetOptionsClickState.target.closest("[data-icon-name]"),
-      activeGroupChildComponent = selectedComponentId;
+      activeGroupChildComponent = editorCtx.selectedComponentId;
     if (!activeGroupChildComponentElement || !activeGroupChildComponent) return;
     const iconName = activeGroupChildComponentElement.dataset.iconName;
     (runShadow(),
@@ -13655,9 +13552,9 @@ function onComponentTemplateDialogClick(
     if (createdInstanceTotal)
       try {
         (await copyTextToClipboard(createdInstanceTotal),
-          window.clearTimeout(effectIconCopiedTimeoutId),
+          window.clearTimeout(editorCtx.effectIconCopiedTimeoutId),
           ibeIconCopyElement.classList.add("copied"),
-          (effectIconCopiedTimeoutId = window.setTimeout(
+          (editorCtx.effectIconCopiedTimeoutId = window.setTimeout(
             () => ibeIconCopyElement.classList.remove("copied"),
             1200,
           )));
@@ -13666,8 +13563,8 @@ function onComponentTemplateDialogClick(
       }
   }),
   ibeIconSearchElement.addEventListener("input", () => {
-    (window.clearTimeout(effectIconSearchDebounceTimeoutId),
-      (effectIconSearchDebounceTimeoutId = window.setTimeout(
+    (window.clearTimeout(editorCtx.effectIconSearchDebounceTimeoutId),
+      (editorCtx.effectIconSearchDebounceTimeoutId = window.setTimeout(
         () => iconTooltipElementFlag(ibeIconSearchElement.value).catch(handleOperationError),
         160,
       )));
@@ -13675,7 +13572,7 @@ function onComponentTemplateDialogClick(
   ibeIconOptionsElement.addEventListener("click", (createComponentPromiseState: any) => {
     const createComponentPromiseElement =
         createComponentPromiseState.target.closest("[data-icon-name]"),
-      imageAssetIdState = selectedComponentId;
+      imageAssetIdState = editorCtx.selectedComponentId;
     if (!createComponentPromiseElement || !imageAssetIdState) return;
     const iconName2 = createComponentPromiseElement.dataset.iconName;
     (runShadow(),
@@ -13712,9 +13609,9 @@ function onComponentTemplateDialogClick(
     if (createdInstanceFlag)
       try {
         (await copyTextToClipboard(createdInstanceFlag),
-          window.clearTimeout(deviceIconCopiedTimeoutId),
+          window.clearTimeout(editorCtx.deviceIconCopiedTimeoutId),
           iconButtonIconCopyElement.classList.add("copied"),
-          (deviceIconCopiedTimeoutId = window.setTimeout(
+          (editorCtx.deviceIconCopiedTimeoutId = window.setTimeout(
             () => iconButtonIconCopyElement.classList.remove("copied"),
             1200,
           )));
@@ -13723,15 +13620,15 @@ function onComponentTemplateDialogClick(
       }
   }),
   iconButtonIconSearchElement.addEventListener("input", () => {
-    (window.clearTimeout(deviceIconSearchDebounceTimeoutId),
-      (deviceIconSearchDebounceTimeoutId = window.setTimeout(
+    (window.clearTimeout(editorCtx.deviceIconSearchDebounceTimeoutId),
+      (editorCtx.deviceIconSearchDebounceTimeoutId = window.setTimeout(
         () => iconTooltipElementStep(iconButtonIconSearchElement.value).catch(handleOperationError),
         160,
       )));
   }),
   iconButtonIconOptionsElement.addEventListener("click", (templateDraftDocument: any) => {
     const templateTargetPageElement = templateDraftDocument.target.closest("[data-icon-name]"),
-      templatePageMatchState = selectedComponentId;
+      templatePageMatchState = editorCtx.selectedComponentId;
     if (!templateTargetPageElement || !templatePageMatchState) return;
     const iconName3 = templateTargetPageElement.dataset.iconName;
     (runShadow(),
@@ -13775,9 +13672,9 @@ function onComponentTemplateDialogClick(
     if (draftGroupComponent)
       try {
         (await copyTextToClipboard(draftGroupComponent),
-          window.clearTimeout(titleButtonIconCopiedTimeoutId),
+          window.clearTimeout(editorCtx.titleButtonIconCopiedTimeoutId),
           titleButtonIconCopyElement.classList.add("copied"),
-          (titleButtonIconCopiedTimeoutId = window.setTimeout(
+          (editorCtx.titleButtonIconCopiedTimeoutId = window.setTimeout(
             () => titleButtonIconCopyElement.classList.remove("copied"),
             1200,
           )));
@@ -13786,8 +13683,8 @@ function onComponentTemplateDialogClick(
       }
   }),
   titleButtonIconSearchElement.addEventListener("input", () => {
-    (window.clearTimeout(titleButtonIconSearchDebounceTimeoutId),
-      (titleButtonIconSearchDebounceTimeoutId = window.setTimeout(
+    (window.clearTimeout(editorCtx.titleButtonIconSearchDebounceTimeoutId),
+      (editorCtx.titleButtonIconSearchDebounceTimeoutId = window.setTimeout(
         () =>
           iconTooltipElementStore(titleButtonIconSearchElement.value).catch(handleOperationError),
         160,
@@ -13796,7 +13693,7 @@ function onComponentTemplateDialogClick(
   titleButtonIconOptionsElement.addEventListener("click", (imageAssetSizeDraftDocumentState: any) => {
     const targetComponentCollectionElement =
         imageAssetSizeDraftDocumentState.target.closest("[data-icon-name]"),
-      targetComponentCollection = selectedComponentId;
+      targetComponentCollection = editorCtx.selectedComponentId;
     if (!targetComponentCollectionElement || !targetComponentCollection) return;
     const iconName4 = targetComponentCollectionElement.dataset.iconName;
     (runShadow(),
@@ -13845,9 +13742,9 @@ function onComponentTemplateDialogClick(
     if (templateLabel)
       try {
         (await copyTextToClipboard(templateLabel),
-          window.clearTimeout(lightStatisticsIconCopiedTimeoutId),
+          window.clearTimeout(editorCtx.lightStatisticsIconCopiedTimeoutId),
           lightStatisticsIconCopyElement.classList.add("copied"),
-          (lightStatisticsIconCopiedTimeoutId = window.setTimeout(
+          (editorCtx.lightStatisticsIconCopiedTimeoutId = window.setTimeout(
             () => lightStatisticsIconCopyElement.classList.remove("copied"),
             1200,
           )));
@@ -13856,8 +13753,8 @@ function onComponentTemplateDialogClick(
       }
   }),
   lightStatisticsIconSearchElement.addEventListener("input", () => {
-    (window.clearTimeout(lightStatisticsIconSearchDebounceTimeoutId),
-      (lightStatisticsIconSearchDebounceTimeoutId = window.setTimeout(
+    (window.clearTimeout(editorCtx.lightStatisticsIconSearchDebounceTimeoutId),
+      (editorCtx.lightStatisticsIconSearchDebounceTimeoutId = window.setTimeout(
         () =>
           iconTooltipElementBuffer(lightStatisticsIconSearchElement.value).catch(
             handleOperationError,
@@ -13872,7 +13769,7 @@ function onComponentTemplateDialogClick(
           onIconButtonEffectAssetFolderSelectChangeState.target.closest(
             "[data-light-statistics-icon-name]",
           ),
-        templateInstanceName = selectedComponentId;
+        templateInstanceName = editorCtx.selectedComponentId;
       if (!templateInstanceNameElement || !templateInstanceName) return;
       const lightStatisticsIconName = templateInstanceNameElement.dataset.lightStatisticsIconName;
       (runShadow(),
@@ -13944,9 +13841,9 @@ function onComponentTemplateDialogClick(
         return;
       }
       groupWidthElement &&
-        ((statisticsEntityId = ""),
-        (statisticsReplaceIndex = Number(groupWidthElement.dataset.lightStatisticsReplaceIndex)),
-        (statisticsComponentId = selectedComponentId || ""),
+        ((editorCtx.statisticsEntityId = ""),
+        (editorCtx.statisticsReplaceIndex = Number(groupWidthElement.dataset.lightStatisticsReplaceIndex)),
+        (editorCtx.statisticsComponentId = editorCtx.selectedComponentId || ""),
         (lightStatisticsEntityPendingElement.hidden = true),
         runDelta("请选择新的实体。"),
         runBackup(lightStatisticsEntityButtonElement, "选择替换实体"),
@@ -13973,8 +13870,8 @@ function onComponentTemplateDialogClick(
   ),
   imageEntityOptionsElement.addEventListener("click", (effectAssetClickEventState: any) => {
     const createdWidthElement = effectAssetClickEventState.target.closest("[data-entity-id]");
-    if (!createdWidthElement || !selectedComponentId) return;
-    const createdWidth = selectedComponentId,
+    if (!createdWidthElement || !editorCtx.selectedComponentId) return;
+    const createdWidth = editorCtx.selectedComponentId,
       entityId = createdWidthElement.dataset.entityId;
     (runShadow(),
       mutateDocument((createdHeightState: any) => {
@@ -14029,7 +13926,7 @@ function onComponentTemplateDialogClick(
       "[data-scene-control-mode]",
     );
     if (!openPopupNameDialogElement) return;
-    const recoveredSnapshotValue = selectedComponentId,
+    const recoveredSnapshotValue = editorCtx.selectedComponentId,
       sceneControlMode = openPopupNameDialogElement.dataset.sceneControlMode;
     ["switch", "scene"].includes(sceneControlMode) &&
       mutateDocument((popupNameMode: any) => {
@@ -14042,15 +13939,14 @@ function onComponentTemplateDialogClick(
       });
   }));
 const popupBeingRenamedState = "推荐去 HA 复制实体 ID，粘贴搜索。可精准选择。";
-let popupBeingRenamedValue: any = null;
 const { deferUntilEntitiesLoaded: popupBeingRenamed }: any = createEditorPickerLifecycle2({
-  getEntitiesLoaded: () => isAreEntitiesLoaded,
-  getEntityLoadPromise: () => entitiesLoadPromise,
+  getEntitiesLoaded: () => editorCtx.isAreEntitiesLoaded,
+  getEntityLoadPromise: () => editorCtx.entitiesLoadPromise,
   loadEntities: ensureEntitiesLoaded,
   reportError: handleOperationError,
 });
 function runCopyFallback() {
-  popupBeingRenamedValue?.close();
+  editorCtx.popupBeingRenamedValue?.close();
 }
 // ── P4 切片转发器（声明级切片：宿主侧薄转发器 + 依赖袋，都是函数声明 → 提升，位置无关）──
 function runCopyBackupDeps() {
@@ -14065,10 +13961,10 @@ function runCopyBackupDeps() {
       return imageAssetLargePreviewImageElement;
     },
     get popupBeingRenamedValue() {
-      return popupBeingRenamedValue;
+      return editorCtx.popupBeingRenamedValue;
     },
     set popupBeingRenamedValue(v) {
-      popupBeingRenamedValue = v;
+      editorCtx.popupBeingRenamedValue = v;
     },
     get hideAssetLargePreview() {
       return hideAssetLargePreview;
@@ -14095,10 +13991,10 @@ function titleButtonMenuDeps() {
       return ibeAssetFolderElement;
     },
     get imageAssetFolder() {
-      return imageAssetFolder;
+      return editorCtx.imageAssetFolder;
     },
     get effectAssetFolder() {
-      return effectAssetFolder;
+      return editorCtx.effectAssetFolder;
     },
     get canDeleteAssetFolder() {
       return canDeleteAssetFolder;
@@ -14116,10 +14012,10 @@ function titleButtonMenuDeps() {
       return value;
     },
     get openCustomSelect() {
-      return openCustomSelect;
+      return editorCtx.openCustomSelect;
     },
     set openCustomSelect(v) {
-      openCustomSelect = v;
+      editorCtx.openCustomSelect = v;
     },
     get runCopyLast() {
       return runCopyLast;
@@ -14164,7 +14060,7 @@ function inspectorSyncDeps() {
       return lightStatisticsActionNoteElement;
     },
     get activeProject() {
-      return activeProject;
+      return editorCtx.activeProject;
     },
     get Option() {
       return Option;
@@ -14176,7 +14072,7 @@ function inspectorSyncDeps() {
       return loadNavigationIconOptions;
     },
     get entities() {
-      return entities;
+      return editorCtx.entities;
     },
     get syncPopupEntityButton() {
       return syncPopupEntityButton;
@@ -14188,7 +14084,7 @@ function inspectorSyncDeps() {
       return positionPopupEntityMenu;
     },
     get selectedComponentId() {
-      return selectedComponentId;
+      return editorCtx.selectedComponentId;
     },
     get navigatorElement() {
       return navigatorElement;
@@ -14422,7 +14318,7 @@ function inspectorSyncDeps() {
       return removedComponent;
     },
     get editorRenderer() {
-      return editorRenderer;
+      return editorCtx.editorRenderer;
     },
     get selectedComponentIdsFromDom() {
       return selectedComponentIdsFromDom;
@@ -14478,7 +14374,7 @@ function nudgeDeps() {
       return removalPageEntry;
     },
     get selectedComponentIdsSet() {
-      return selectedComponentIdsSet;
+      return editorCtx.selectedComponentIdsSet;
     },
     get mutateDocument() {
       return mutateDocument;
@@ -14626,12 +14522,12 @@ function runCopyLocal(runCopyInner: any) {
                   runExtraAlt(templatePageMatchValue).button === runCopyInner,
               );
   if (!duplicatedPopupIdValue) return false;
-  const draftGroupEntryState = selectedComponentId;
+  const draftGroupEntryState = editorCtx.selectedComponentId;
   if (
     popupBeingRenamed(
       runCopyInner,
       () => runCopyLocal(runCopyInner),
-      () => selectedComponentId === draftGroupEntryState,
+      () => editorCtx.selectedComponentId === draftGroupEntryState,
     )
   )
     return true;
@@ -14684,13 +14580,13 @@ function runCopyLocal(runCopyInner: any) {
 }
 function runCopyOuter() {
   if (removedComponent()?.type !== "light-statistics") return false;
-  const templateLabelState = selectedComponentId;
+  const templateLabelState = editorCtx.selectedComponentId;
   if (
     popupBeingRenamed(
       lightStatisticsEntityButtonElement,
       runCopyOuter,
       () =>
-        selectedComponentId === templateLabelState &&
+        editorCtx.selectedComponentId === templateLabelState &&
         removedComponent()?.type === "light-statistics",
     )
   )
@@ -14727,18 +14623,18 @@ function runCopyOuter() {
         .map(({ entity: popupModuleCopy }: any) => popupModuleCopy);
     },
     popupToDelete = popupDuplicateMatchHandler("").findIndex(
-      (popupToDeleteState: any) => popupToDeleteState.entityId === statisticsEntityId,
+      (popupToDeleteState: any) => popupToDeleteState.entityId === editorCtx.statisticsEntityId,
     ),
     popupDeleteCandidateState = runSegment()[0] || null;
     runCopyBackup({
       kind: "entity",
-      title: statisticsReplaceIndex >= 0 ? "选择替换实体" : "添加统计实体",
+      title: editorCtx.statisticsReplaceIndex >= 0 ? "选择替换实体" : "添加统计实体",
       subtitle: popupBeingRenamedState,
       searchPlaceholder: "搜索实体名称或 ID",
       triggerButton: lightStatisticsEntityButtonElement,
       pageSize: EDITOR_PICKER_PAGE_SIZES2.entity,
       initialPage: editorEntityPickerInitialPage2(popupToDelete, popupDeleteCandidateState),
-      selectedText: statisticsEntityId || "不使用实体",
+      selectedText: editorCtx.statisticsEntityId || "不使用实体",
       emptyText: "没有匹配的实体",
       itemClass: "entity-list",
       closeLegacyPickers: false,
@@ -14752,10 +14648,10 @@ function runCopyOuter() {
       },
       renderLeadingItems: (onDeletePopupDialogClose: any) =>
         onDeletePopupDialogClose.page === 1 && popupDeleteCandidateState
-          ? [createIconPickerOption(popupDeleteCandidateState, statisticsEntityId)]
+          ? [createIconPickerOption(popupDeleteCandidateState, editorCtx.statisticsEntityId)]
           : [],
       renderItem: (onDeletePopupConfirmButtonClick: any) =>
-        createIconPickerOption(onDeletePopupConfirmButtonClick, statisticsEntityId),
+        createIconPickerOption(onDeletePopupConfirmButtonClick, editorCtx.statisticsEntityId),
       onSelect: (popupIdToDelete: any) =>
         runCopyTwin(
           lightStatisticsEntityOptionsElement,
@@ -14780,13 +14676,13 @@ function runCopyUpper(popupDeleteDraftDocumentElement: any) {
     return true;
   const popupIdMatchValue = popupDeleteDraftDocument.value || "",
     popupIdMatchConfig =
-      entities.find((popupIdMatch: any) => popupIdMatch.entityId === popupIdMatchValue) || null,
+      editorCtx.entities.find((popupIdMatch: any) => popupIdMatch.entityId === popupIdMatchValue) || null,
     clearPopupModuleReferencesState = runSegment()[0] || null,
     clearPopupModuleReferences = (clearPopupModuleReferencesValue: any) => {
       const groupHeight = String(clearPopupModuleReferencesValue || "")
         .trim()
         .toLocaleLowerCase("zh-CN");
-      return entities.filter(
+      return editorCtx.entities.filter(
         (componentNodesState: any) =>
           !componentNodesState.virtual &&
           (!groupHeight ||
@@ -14849,7 +14745,7 @@ function onPopupModuleCancelButtonClick() {
     return true;
   const onPopupModuleCancelButtonClickState = popupModuleFormElement.elements.entityId.value || "",
     onPopupModuleEntityButtonClickState =
-      entities.find(
+      editorCtx.entities.find(
         (onPopupModuleEntityButtonClick: any) =>
           onPopupModuleEntityButtonClick.entityId === onPopupModuleCancelButtonClickState,
       ) || null,
@@ -14858,7 +14754,7 @@ function onPopupModuleCancelButtonClick() {
       const soundToggleDocument = String(onSoundToggleButtonClickState || "")
         .trim()
         .toLocaleLowerCase("zh-CN");
-      return entities
+      return editorCtx.entities
         .map((mappedItemsRange: any, mappedItemsSpan: any) => ({
           entity: mappedItemsRange,
           index: mappedItemsSpan,
@@ -14966,8 +14862,8 @@ function onPopupModuleClimateDeviceTypeClick(climateDeviceTypeClickEvent: any) {
     refreshInspector: false,
   })
     .then(() => {
-      popupBeingRenamedValue?.triggerButton === climateDeviceTypeClickEvent &&
-        (popupBeingRenamedValue.syncAssetToolbar?.(), popupBeingRenamedValue.refresh());
+      editorCtx.popupBeingRenamedValue?.triggerButton === climateDeviceTypeClickEvent &&
+        (editorCtx.popupBeingRenamedValue.syncAssetToolbar?.(), editorCtx.popupBeingRenamedValue.refresh());
     })
     .catch(handleOperationError);
   const climateDeviceTypeElement = editorAssetMatcher(climateDeviceTypeClickEventState).findIndex(
@@ -15026,7 +14922,7 @@ function onPopupModuleClimateDeviceTypeClick(climateDeviceTypeClickEvent: any) {
         scheduleAssetPreview(
           findAssetById(popupModuleTargetPopupIdState),
           popupModuleTargetPopupIdValue,
-          popupBeingRenamedValue?.dialog,
+          editorCtx.popupBeingRenamedValue?.dialog,
         ),
       onDelete: runCopyFirst,
       onSelect: (popupModuleTypeState: any) =>
@@ -15042,23 +14938,23 @@ function onPopupModuleClimateDeviceTypeClick(climateDeviceTypeClickEvent: any) {
 function runCopyLower(runCopyLeft: any, runCopyRight: any) {
   const popupModuleType = runCopyRight === "user" ? "user" : "builtin";
   runCopyLeft === "image"
-    ? ((imageAssetFolder = popupModuleType),
+    ? ((editorCtx.imageAssetFolder = popupModuleType),
       (imageAssetSearchInputElement.value = ""),
       leftFolderName("image"),
       syncAssetFolderOptions("image"),
-      popupBeingRenamedValue?.kind === "image-asset"
-        ? (popupBeingRenamedValue.rebuildToolbar(),
-          popupBeingRenamedValue.refresh({
+      editorCtx.popupBeingRenamedValue?.kind === "image-asset"
+        ? (editorCtx.popupBeingRenamedValue.rebuildToolbar(),
+          editorCtx.popupBeingRenamedValue.refresh({
             resetPage: true,
           }))
         : (renderImageAssetOptions(), positionImageAssetMenu()))
-    : ((effectAssetFolder = popupModuleType),
+    : ((editorCtx.effectAssetFolder = popupModuleType),
       (ibeAssetSearchElement.value = ""),
       leftFolderName("ibe"),
       syncAssetFolderOptions("ibe"),
-      popupBeingRenamedValue?.kind === "ibe-asset"
-        ? (popupBeingRenamedValue.rebuildToolbar(),
-          popupBeingRenamedValue.refresh({
+      editorCtx.popupBeingRenamedValue?.kind === "ibe-asset"
+        ? (editorCtx.popupBeingRenamedValue.rebuildToolbar(),
+          editorCtx.popupBeingRenamedValue.refresh({
             resetPage: true,
           }))
         : (renderEffectAssetOptions(), positionEffectAssetMenu()));
@@ -15112,21 +15008,21 @@ function runCopyFirst(runCopySecond: any) {
       : popupModuleSubmitEntityIdState && typeof popupModuleSubmitEntityIdState == "object"
         ? Object.values(popupModuleSubmitEntityIdState).some(popupModuleSubmitEntityIdHandler)
         : popupModuleSubmitEntityIdState === sn6.assetId;
-  if (popupModuleSubmitEntityIdHandler(activeProject?.document)) {
+  if (popupModuleSubmitEntityIdHandler(editorCtx.activeProject?.document)) {
     (runShadow(),
       handleOperationError(
         new Error("这张图片正在被当前仪表盘或弹窗使用，请先替换或移除后再删除。"),
       ));
     return;
   }
-  ((pendingDeleteAssetId = sn6.assetId),
+  ((editorCtx.pendingDeleteAssetId = sn6.assetId),
     (deleteAssetNameElement.textContent = "“" + sn6.name + "”"),
     runShadow(),
     deleteAssetDialogElement.showModal());
 }
 function runCopyLast(runCopyOld: any, runCopyNew: any) {
   if (
-    !canDeleteAssetFolder(runCopyOld === "image" ? imageAssetFolder : effectAssetFolder, runCopyNew)
+    !canDeleteAssetFolder(runCopyOld === "image" ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder, runCopyNew)
   )
     return;
   const hL2 = exportedAssetsInFolder(runCopyNew),
@@ -15138,13 +15034,13 @@ function runCopyLast(runCopyOld: any, runCopyNew: any) {
           ? Object.values(popupModuleSubmitEntityIdValue).some(popupModuleSubmitEntityIdCallback)
           : typeof popupModuleSubmitEntityIdValue == "string" &&
             popupModuleSubmitEntityIdValue.startsWith(popupModuleSubmitEntityId);
-  if (popupModuleSubmitEntityIdCallback(activeProject?.document)) {
+  if (popupModuleSubmitEntityIdCallback(editorCtx.activeProject?.document)) {
     handleOperationError(
       new Error("这个文件夹中的图片正在被当前仪表盘或弹窗使用，请先替换或移除后再删除。"),
     );
     return;
   }
-  ((pendingDeleteAssetFolder = {
+  ((editorCtx.pendingDeleteAssetFolder = {
     kind: runCopyOld,
     folderName: runCopyNew,
   }),
@@ -15157,10 +15053,10 @@ function runAliasExtra() {
     leftFolderName("ibe"),
     renderImageAssetOptions(imageAssetSearchInputElement.value),
     renderEffectAssetOptions(ibeAssetSearchElement.value),
-    (popupBeingRenamedValue?.kind === "image-asset" ||
-      popupBeingRenamedValue?.kind === "ibe-asset") &&
-      (popupBeingRenamedValue.syncAssetToolbar?.(),
-      popupBeingRenamedValue.refresh({
+    (editorCtx.popupBeingRenamedValue?.kind === "image-asset" ||
+      editorCtx.popupBeingRenamedValue?.kind === "ibe-asset") &&
+      (editorCtx.popupBeingRenamedValue.syncAssetToolbar?.(),
+      editorCtx.popupBeingRenamedValue.refresh({
         resetPage: true,
       })),
     imageAssetMenuElement.hidden || positionImageAssetMenu(),
@@ -15204,14 +15100,14 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
     popupModuleDraftEntry.target === deleteAssetDialogElement && deleteAssetDialogElement.close();
   }),
   deleteAssetConfirmButtonElement.addEventListener("click", async () => {
-    const replace5 = String(pendingDeleteAssetId || "").replace(/^user:/, "");
+    const replace5 = String(editorCtx.pendingDeleteAssetId || "").replace(/^user:/, "");
     if (/^[0-9a-f]{32}$/.test(replace5)) {
       deleteAssetConfirmButtonElement.disabled = true;
       try {
         (await requestJson("/assets/user/" + replace5, {
           method: "DELETE",
         }),
-          (pendingDeleteAssetId = null),
+          (editorCtx.pendingDeleteAssetId = null),
           deleteAssetDialogElement.close(),
           await reloadAssetCatalog());
       } catch (caughtErrorIndex: any) {
@@ -15236,10 +15132,10 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       deleteAssetFolderDialogElement.close();
   }),
   deleteAssetFolderDialogElement.addEventListener("close", () => {
-    deleteAssetFolderConfirmButtonElement.disabled || (pendingDeleteAssetFolder = null);
+    deleteAssetFolderConfirmButtonElement.disabled || (editorCtx.pendingDeleteAssetFolder = null);
   }),
   deleteAssetFolderConfirmButtonElement.addEventListener("click", async () => {
-    const Uc2 = pendingDeleteAssetFolder;
+    const Uc2 = editorCtx.pendingDeleteAssetFolder;
     if (Uc2?.folderName) {
       deleteAssetFolderConfirmButtonElement.disabled = true;
       try {
@@ -15249,7 +15145,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
             "X-Export-Folder": encodeURIComponent(Uc2.folderName),
           },
         }),
-          (pendingDeleteAssetFolder = null),
+          (editorCtx.pendingDeleteAssetFolder = null),
           deleteAssetFolderDialogElement.close(),
           await reloadAssetCatalog({
             refreshInspector: false,
@@ -15295,7 +15191,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
     }
   }),
   imageAssetFolderSelectElement.addEventListener("change", () => {
-    ((imageAssetFolderState = imageAssetFolderSelectElement.value),
+    ((editorCtx.imageAssetFolderState = imageAssetFolderSelectElement.value),
       (imageAssetSearchInputElement.value = ""),
       syncAssetFolderOptions("image"),
       renderImageAssetOptions());
@@ -15317,8 +15213,8 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   imageAssetOptionsElement.addEventListener("scroll", hideAssetLargePreview),
   imageAssetOptionsElement.addEventListener("click", async (popupModulePopupMatch: any) => {
     const popupModuleExistingElement = popupModulePopupMatch.target.closest("[data-asset-id]");
-    if (!popupModuleExistingElement || !selectedComponentId) return;
-    const popupModuleMatchState = selectedComponentId,
+    if (!popupModuleExistingElement || !editorCtx.selectedComponentId) return;
+    const popupModuleMatchState = editorCtx.selectedComponentId,
       assetId = popupModuleExistingElement.dataset.assetId;
     if ((hideAssetLargePreview(), runShadow(), !assetId)) {
       mutateDocument((popupModuleMatch: any) => {
@@ -15382,7 +15278,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
     }
   }),
   ibeAssetFolderElement.addEventListener("change", () => {
-    ((effectAssetFolderState = ibeAssetFolderElement.value),
+    ((editorCtx.effectAssetFolderState = ibeAssetFolderElement.value),
       (ibeAssetSearchElement.value = ""),
       syncAssetFolderOptions("ibe"),
       renderEffectAssetOptions());
@@ -15406,7 +15302,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   ibeAssetOptionsElement.addEventListener("click", async (bindDocumentPointerSection: any) => {
     const popupMenuRectElementElement =
         bindDocumentPointerSection.target.closest("[data-asset-id]"),
-      entryStateKey = selectedComponentId;
+      entryStateKey = editorCtx.selectedComponentId;
     if (!popupMenuRectElementElement || !entryStateKey) return;
     const assetId2 = popupMenuRectElementElement.dataset.assetId;
     (hideAssetLargePreview(), runShadow());
@@ -15440,32 +15336,32 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   undoElement.addEventListener("click", () => entityLoadError("undo")),
   redoElement.addEventListener("click", () => entityLoadError("redo")),
   recoveryRestoreElement.addEventListener("click", () => {
-    if (!recoverySnapshot || !activeProject) {
+    if (!editorCtx.recoverySnapshot || !editorCtx.activeProject) {
       recoveryDialogElement.close();
       return;
     }
-    const Ne2 = recoverySnapshot;
-    ((recoverySnapshot = null),
-      (activeProject = {
-        ...activeProject,
+    const Ne2 = editorCtx.recoverySnapshot;
+    ((editorCtx.recoverySnapshot = null),
+      (editorCtx.activeProject = {
+        ...editorCtx.activeProject,
         document: clone2(Ne2.document),
       }),
-      (selectedComponentId = findComponent2(activeProject.document, Ne2.selectedComponentId)
+      (editorCtx.selectedComponentId = findComponent2(editorCtx.activeProject.document, Ne2.selectedComponentId)
         ? Ne2.selectedComponentId
         : null));
     const onDocumentPointerdownValue = Array.isArray(Ne2.selectedComponentIds)
       ? Ne2.selectedComponentIds.filter((filteredItemsKey: any) =>
-          findComponent2(activeProject.document, filteredItemsKey),
+          findComponent2(editorCtx.activeProject.document, filteredItemsKey),
         )
       : [];
-    ((selectedComponentIdsSet = new Set(
+    ((editorCtx.selectedComponentIdsSet = new Set(
       onDocumentPointerdownValue.length
         ? onDocumentPointerdownValue
-        : selectedComponentId
-          ? [selectedComponentId]
+        : editorCtx.selectedComponentId
+          ? [editorCtx.selectedComponentId]
           : [],
     )),
-      (selectionAnchorComponentId = selectedComponentId),
+      (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
       (historyState.undo = Array.isArray(Ne2.undo) ? clone2(Ne2.undo) : []),
       (historyState.redo = Array.isArray(Ne2.redo) ? clone2(Ne2.redo) : []),
       recoveryDialogElement.close(),
@@ -15474,8 +15370,8 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       syncHistoryButtons());
   }),
   recoveryDiscardElement.addEventListener("click", () => {
-    (discardRecoverySnapshot(activeProject?.projectId),
-      (recoverySnapshot = null),
+    (discardRecoverySnapshot(editorCtx.activeProject?.projectId),
+      (editorCtx.recoverySnapshot = null),
       recoveryDialogElement.close(),
       writeError(),
       syncHistoryButtons());
@@ -15514,10 +15410,10 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       !imageAssetFolderMenuElement
     )
       return;
-    const Ie7 = componentScopeState,
-      jc5 = componentScope,
-      effectAssetFolderMenuElement = activeGroupId
-        ? findComponent2(activeProject?.document, activeGroupId)
+    const Ie7 = editorCtx.componentScopeState,
+      jc5 = editorCtx.componentScope,
+      effectAssetFolderMenuElement = editorCtx.activeGroupId
+        ? findComponent2(editorCtx.activeProject?.document, editorCtx.activeGroupId)
         : null,
       component7 =
         effectAssetFolderMenuElement?.component?.type === "group"
@@ -15526,9 +15422,9 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       scope3 = component7 ? effectAssetFolderMenuElement!.scope : jc5,
       scaleInputElements = newId2("component");
     (componentTemplateDialogElement.close(),
-      (selectedComponentId = scaleInputElements),
-      (selectedComponentIdsSet = new Set([scaleInputElements])),
-      (selectionAnchorComponentId = scaleInputElements));
+      (editorCtx.selectedComponentId = scaleInputElements),
+      (editorCtx.selectedComponentIdsSet = new Set([scaleInputElements])),
+      (editorCtx.selectionAnchorComponentId = scaleInputElements));
     const scaleInputElementsState = mutateDocument((onPopupActionsMenuClickState: any) => {
       const scaleInputCaptureEventState = onPopupActionsMenuClickState.pages.find(
         (scaleInputCaptureEvent: any) => scaleInputCaptureEvent.path === imageAssetFolderMenuElement,
@@ -15641,8 +15537,8 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
     }, imageAssetFolderMenuElement);
     deleteAssetFolderClosestElement.dataset.templateId === "floorplan-auto-diagram" &&
       scaleInputElementsState.then(() => {
-        componentScopeState === Ie7 &&
-          findComponent2(activeProject?.document, scaleInputElements) &&
+        editorCtx.componentScopeState === Ie7 &&
+          findComponent2(editorCtx.activeProject?.document, scaleInputElements) &&
           settleAutoDiagramDialog(scaleInputElements, {
             cancelRemovesComponent: true,
           });
@@ -15651,9 +15547,9 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   showEditorPreviewButtonElement.addEventListener("click", () => setEditorMode("edit")),
   showDashboardPreviewButtonElement.addEventListener("click", () => setEditorMode("dashboard")),
   soundToggleButtonElement.addEventListener("click", async () => {
-    if (!activeProject) return;
-    const changeInputValue = clone2(activeProject.document);
-    changeInputValue.soundEnabled = activeProject.document.soundEnabled === false;
+    if (!editorCtx.activeProject) return;
+    const changeInputValue = clone2(editorCtx.activeProject.document);
+    changeInputValue.soundEnabled = editorCtx.activeProject.document.soundEnabled === false;
     try {
       if (!(await projectSummary(changeInputValue))) return;
       await saveDraft();
@@ -15666,9 +15562,9 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   projectSelectElement.addEventListener("change", () => {
     if (
       (errorPhase(),
-      hasUnsavedChanges && activeProject && projectSelectElement.value !== activeProject.projectId)
+      editorCtx.hasUnsavedChanges && editorCtx.activeProject && projectSelectElement.value !== editorCtx.activeProject.projectId)
     ) {
-      ((projectSelectElement.value = activeProject.projectId),
+      ((projectSelectElement.value = editorCtx.activeProject.projectId),
         loadNavigationIconOptions(projectSelectElement),
         documentSource());
       return;
@@ -15679,11 +15575,11 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   pageSelectElement.addEventListener("change", () => {
     (value(),
       syncDefaultPageAction(),
-      (activeGroupId = null),
-      editorMode === "popup" && setEditorMode("edit"),
-      editorRenderer?.navigate(pageSelectElement.value),
-      dashboardPreviewRenderer?.navigate(pageSelectElement.value));
-    const changedScaledPlacements = findComponent2(activeProject?.document, selectedComponentId);
+      (editorCtx.activeGroupId = null),
+      editorCtx.editorMode === "popup" && setEditorMode("edit"),
+      editorCtx.editorRenderer?.navigate(pageSelectElement.value),
+      editorCtx.dashboardPreviewRenderer?.navigate(pageSelectElement.value));
+    const changedScaledPlacements = findComponent2(editorCtx.activeProject?.document, editorCtx.selectedComponentId);
     (changedScaledPlacements?.scope === "page" &&
       changedScaledPlacements.page?.path !== pageSelectElement.value &&
       selectComponent(null),
@@ -15691,8 +15587,8 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       coverMotorButtonElement());
   }));
 function scaleDraftDocument(scaledPlacement: any) {
-  popupDialogMode = scaledPlacement;
-  const popupToDuplicateEntry = findCustomPopup2(activeProject?.document, selectedPopupId);
+  editorCtx.popupDialogMode = scaledPlacement;
+  const popupToDuplicateEntry = findCustomPopup2(editorCtx.activeProject?.document, editorCtx.selectedPopupId);
   ((popupNameDialogTitleElement.textContent =
     scaledPlacement === "rename" ? "重命名组合弹窗" : "新建组合弹窗"),
     (popupNameFormElement.elements.name.value =
@@ -15707,15 +15603,15 @@ function scaleDraftDocument(scaledPlacement: any) {
     onDocumentKeydown.preventDefault();
     const duplicatedPopupState = popupNameFormElement.elements.name.value.trim();
     if (!duplicatedPopupState) return;
-    const ce2 = popupDialogMode === "create" ? newId2("custom-popup") : selectedPopupId;
+    const ce2 = editorCtx.popupDialogMode === "create" ? newId2("custom-popup") : editorCtx.selectedPopupId;
     (popupNameDialogElement.close(),
       mutateDocument((documentKeydownEvent: any) => {
         if (
           ((documentKeydownEvent.customPopups = documentKeydownEvent.customPopups || []),
-          popupDialogMode === "rename")
+          editorCtx.popupDialogMode === "rename")
         ) {
           const keyboardTargetElement = documentKeydownEvent.customPopups.find(
-            (popupDeleteCandidateValue: any) => popupDeleteCandidateValue.id === selectedPopupId,
+            (popupDeleteCandidateValue: any) => popupDeleteCandidateValue.id === editorCtx.selectedPopupId,
           );
           keyboardTargetElement && (keyboardTargetElement.name = duplicatedPopupState);
           return;
@@ -15732,20 +15628,20 @@ function scaleDraftDocument(scaledPlacement: any) {
           },
           modules: [] as any[],
         }),
-          (selectedPopupId = ce2),
+          (editorCtx.selectedPopupId = ce2),
           setEditorMode("popup"));
       }));
   }),
   popupSelectElement.addEventListener("change", () => {
-    (run(), (selectedPopupId = popupSelectElement.value || null), setEditorMode("popup"));
+    (run(), (editorCtx.selectedPopupId = popupSelectElement.value || null), setEditorMode("popup"));
   }),
   popupListElement.addEventListener("click", (bindPopupModuleSectionState: any) => {
     const enterTargetElement = bindPopupModuleSectionState.target.closest("[data-popup-id]");
     enterTargetElement &&
       (run(),
-      (selectedPopupId = enterTargetElement.dataset.popupId),
-      (popupSelectElement.value = selectedPopupId),
-      runExtraOuter(activeProject.document, selectedPopupId),
+      (editorCtx.selectedPopupId = enterTargetElement.dataset.popupId),
+      (popupSelectElement.value = editorCtx.selectedPopupId),
+      runExtraOuter(editorCtx.activeProject.document, editorCtx.selectedPopupId),
       setEditorMode("popup"));
   }),
   popupListElement.addEventListener("contextmenu", (invalidateEditorLayoutMetrics: any) => {
@@ -15753,11 +15649,11 @@ function scaleDraftDocument(scaledPlacement: any) {
       invalidateEditorLayoutMetrics.target.closest("[data-popup-id]");
     if (!invalidateEditorLayoutMetricsElement) return;
     (invalidateEditorLayoutMetrics.preventDefault(),
-      (selectedPopupId = invalidateEditorLayoutMetricsElement.dataset.popupId),
-      (popupSelectElement.value = selectedPopupId),
-      runExtraOuter(activeProject.document, selectedPopupId),
+      (editorCtx.selectedPopupId = invalidateEditorLayoutMetricsElement.dataset.popupId),
+      (popupSelectElement.value = editorCtx.selectedPopupId),
+      runExtraOuter(editorCtx.activeProject.document, editorCtx.selectedPopupId),
       setEditorMode("popup"),
-      (moduleDialogPopupId = selectedPopupId),
+      (editorCtx.moduleDialogPopupId = editorCtx.selectedPopupId),
       (popupActionsMenuElement.hidden = false),
       (popupActionsMenuElement.style.left = "0px"),
       (popupActionsMenuElement.style.top = "0px"));
@@ -15786,7 +15682,7 @@ function scaleDraftDocument(scaledPlacement: any) {
   popupActionsMenuElement.addEventListener("click", (readEditorLayoutPx: any) => {
     const popupIdToDeleteState =
         readEditorLayoutPx.target.closest("[data-popup-action]")?.dataset.popupAction,
-      ce3 = moduleDialogPopupId || selectedPopupId;
+      ce3 = editorCtx.moduleDialogPopupId || editorCtx.selectedPopupId;
     if ((run(), !(!popupIdToDeleteState || !ce3))) {
       if (popupIdToDeleteState === "rename") {
         scaleDraftDocument("rename");
@@ -15794,7 +15690,7 @@ function scaleDraftDocument(scaledPlacement: any) {
       }
       if (popupIdToDeleteState === "duplicate") {
         const cssVarNameState = newId2("custom-popup");
-        ((selectedPopupId = cssVarNameState),
+        ((editorCtx.selectedPopupId = cssVarNameState),
           mutateDocument((cssVarName: any) => {
             const fallbackPxState = (cssVarName.customPopups || []).find(
               (fallbackPx: any) => fallbackPx.id === ce3,
@@ -15812,28 +15708,28 @@ function scaleDraftDocument(scaledPlacement: any) {
         return;
       }
       if (popupIdToDeleteState === "delete") {
-        const numericValue = (activeProject?.document?.customPopups || []).find(
+        const numericValue = (editorCtx.activeProject?.document?.customPopups || []).find(
           (componentNodeState: any) => componentNodeState.id === ce3,
         );
         if (!numericValue) return;
-        ((popupModuleDraft = ce3),
+        ((editorCtx.popupModuleDraft = ce3),
           (deletePopupNameElement.textContent = numericValue.name),
           deletePopupDialogElement.showModal());
       }
     }
   }));
 function runAliasAlt() {
-  ((popupModuleDraft = null), deletePopupDialogElement.close());
+  ((editorCtx.popupModuleDraft = null), deletePopupDialogElement.close());
 }
 (deletePopupCloseElement.addEventListener("click", runAliasAlt),
   deletePopupCancelElement.addEventListener("click", runAliasAlt),
   deletePopupDialogElement.addEventListener("close", () => {
-    popupModuleDraft = null;
+    editorCtx.popupModuleDraft = null;
   }),
   deletePopupConfirmElement.addEventListener("click", () => {
-    const Va2 = popupModuleDraft;
+    const Va2 = editorCtx.popupModuleDraft;
     Va2 &&
-      ((popupModuleDraft = null),
+      ((editorCtx.popupModuleDraft = null),
       deletePopupDialogElement.close(),
       (deletePopupConfirmElement.disabled = true),
       mutateDocument((componentActionValueState: any) => {
@@ -15864,8 +15760,8 @@ function runAliasAlt() {
         numericValueHandler(componentActionValueState.sharedComponents);
         for (const onPopupModuleEntityOptionsClickState of componentActionValueState.pages || [])
           numericValueHandler(onPopupModuleEntityOptionsClickState.components);
-        ((selectedPopupId = componentActionValueState.customPopups[0]?.id || null),
-          selectedPopupId || setEditorMode("edit"));
+        ((editorCtx.selectedPopupId = componentActionValueState.customPopups[0]?.id || null),
+          editorCtx.selectedPopupId || setEditorMode("edit"));
       }).finally(() => {
         deletePopupConfirmElement.disabled = false;
       }));
@@ -15915,7 +15811,7 @@ function runAliasAlt() {
   }),
   popupModuleFormElement.addEventListener("submit", (readEditorLayoutMetrics: any) => {
     readEditorLayoutMetrics.preventDefault();
-    const ce4 = selectedPopupId,
+    const ce4 = editorCtx.selectedPopupId,
       popupModuleTypeKey = popupModuleFormElement.elements.type.value,
       shellWidth = popupModuleFormElement.elements.entityId.value,
       popupModuleTitleValue = popupModuleFormElement.elements.title.value.trim(),
@@ -15923,9 +15819,9 @@ function runAliasAlt() {
         popupModuleFormElement.elements.deviceType.value,
       );
     if (!ce4 || !shellWidth) return;
-    const columnGapWidth = findCustomPopup2(activeProject?.document, selectedPopupId),
+    const columnGapWidth = findCustomPopup2(editorCtx.activeProject?.document, editorCtx.selectedPopupId),
       popupModuleDraftEntryState = {
-        id: selectedPopupModuleId || "candidate",
+        id: editorCtx.selectedPopupModuleId || "candidate",
         type: popupModuleTypeKey,
         entityId: shellWidth,
         ...(popupModuleTitleValue
@@ -15941,9 +15837,9 @@ function runAliasAlt() {
             }
           : {}),
       },
-      overheadWidth = selectedPopupModuleId
+      overheadWidth = editorCtx.selectedPopupModuleId
         ? (columnGapWidth?.modules || []).map((mappedItemsFactor: any) =>
-            mappedItemsFactor.id === selectedPopupModuleId
+            mappedItemsFactor.id === editorCtx.selectedPopupModuleId
               ? {
                   ...mappedItemsFactor,
                   ...popupModuleDraftEntryState,
@@ -15963,7 +15859,7 @@ function runAliasAlt() {
         );
         if (!popupModuleExisting) return;
         const editorRenderedPanelWidthState = popupModuleExisting.modules.find(
-          (editorRenderedPanelWidth: any) => editorRenderedPanelWidth.id === selectedPopupModuleId,
+          (editorRenderedPanelWidth: any) => editorRenderedPanelWidth.id === editorCtx.selectedPopupModuleId,
         );
         if (editorRenderedPanelWidthState) {
           if (
@@ -16015,9 +15911,9 @@ function runAliasAlt() {
     );
     (componentMenuElement.contains(panelId.target) || closeComponentMenu(),
       !deleteAssetFolderClosestElementState &&
-        openCustomSelect &&
-        !openCustomSelect.button.contains(panelId.target) &&
-        !openCustomSelect.menu.contains(panelId.target) &&
+        editorCtx.openCustomSelect &&
+        !editorCtx.openCustomSelect.button.contains(panelId.target) &&
+        !editorCtx.openCustomSelect.menu.contains(panelId.target) &&
         runState(),
       (panelId.target as Element).closest(".dashboard-select-row") || errorPhase(),
       (panelId.target as Element).closest(".page-control .page-select-row") || value(),
@@ -16102,7 +15998,7 @@ const scaleInputElementsSet = new Set([
   "input",
   (editorPanelLimits) => {
     if (
-      selectedComponentIdsSet.size < 2 ||
+      editorCtx.selectedComponentIdsSet.size < 2 ||
       !(
         scaleInputElementsSet.has(editorPanelLimits.target) ||
         (editorPanelLimits.target as Element).id === "flow-line-scale"
@@ -16116,7 +16012,7 @@ const scaleInputElementsSet = new Set([
       clampNumber2(scaleInputValueValue, 1, 500) / 100,
     );
     scaledPlacementsState.length &&
-      editorRenderer?.previewComponentsTransform(scaledPlacementsState, selectedComponentId);
+      editorCtx.editorRenderer?.previewComponentsTransform(scaledPlacementsState, editorCtx.selectedComponentId);
   },
   true,
 ),
@@ -16124,7 +16020,7 @@ const scaleInputElementsSet = new Set([
     "change",
     (documentChangeEventValue) => {
       if (
-        selectedComponentIdsSet.size < 2 ||
+        editorCtx.selectedComponentIdsSet.size < 2 ||
         !(
           scaleInputElementsSet.has(documentChangeEventValue.target) ||
           (documentChangeEventValue.target as Element).id === "flow-line-scale"
@@ -16137,7 +16033,7 @@ const scaleInputElementsSet = new Set([
         coverMotorButtonElement();
         return;
       }
-      const selectedComponentIdIndexSet = new Set(selectedComponentIdsSet),
+      const selectedComponentIdIndexSet = new Set(editorCtx.selectedComponentIdsSet),
         changedScaledPlacementsState = scaledSelectionPlacements(
           clampNumber2(changeInputValueState, 1, 500) / 100,
         );
@@ -16188,30 +16084,30 @@ const scaleInputElementsSet = new Set([
         void saveDraft();
         return;
       }
-      if (keyLower === "a" && editorMode === "edit") {
+      if (keyLower === "a" && editorCtx.editorMode === "edit") {
         documentKeydownEventState.preventDefault();
         selectAllPageComponents();
         return;
       }
-      if (keyLower === "c" && editorMode === "edit" && selectedComponentIdsSet.size) {
+      if (keyLower === "c" && editorCtx.editorMode === "edit" && editorCtx.selectedComponentIdsSet.size) {
         documentKeydownEventState.preventDefault();
-        editorClipboardComponentIds = [...selectedComponentIdsSet];
+        editorCtx.editorClipboardComponentIds = [...editorCtx.selectedComponentIdsSet];
         return;
       }
-      if (keyLower === "v" && editorMode === "edit" && editorClipboardComponentIds.length) {
+      if (keyLower === "v" && editorCtx.editorMode === "edit" && editorCtx.editorClipboardComponentIds.length) {
         documentKeydownEventState.preventDefault();
-        duplicateComponents(editorClipboardComponentIds, editorClipboardComponentIds[0]);
+        duplicateComponents(editorCtx.editorClipboardComponentIds, editorCtx.editorClipboardComponentIds[0]);
         return;
       }
     }
 
     if (documentKeydownEventState.code === "Space" && !keyboardTargetElementState && !modKey) {
-      editorSpacePanning = true;
+      editorCtx.editorSpacePanning = true;
       documentKeydownEventState.preventDefault();
       return;
     }
 
-    if (editorMode === "edit" && selectedComponentIdsSet.size && !keyboardTargetElementState) {
+    if (editorCtx.editorMode === "edit" && editorCtx.selectedComponentIdsSet.size && !keyboardTargetElementState) {
       if (
         modKey &&
         !documentKeydownEventState.altKey &&
@@ -16219,7 +16115,7 @@ const scaleInputElementsSet = new Set([
         keyLower === "d"
       ) {
         (documentKeydownEventState.preventDefault(),
-          duplicateComponents([...selectedComponentIdsSet], selectedComponentId));
+          duplicateComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId));
         return;
       }
       if (
@@ -16229,7 +16125,7 @@ const scaleInputElementsSet = new Set([
           documentKeydownEventState.key === "Backspace")
       ) {
         (documentKeydownEventState.preventDefault(),
-          deleteComponentIds([...selectedComponentIdsSet]));
+          deleteComponentIds([...editorCtx.selectedComponentIdsSet]));
         return;
       }
     }
@@ -16241,8 +16137,8 @@ const scaleInputElementsSet = new Set([
     };
     if (
       (arrowKeyDeltas as any)[documentKeydownEventState.key] &&
-      editorMode === "edit" &&
-      selectedComponentIdsSet.size &&
+      editorCtx.editorMode === "edit" &&
+      editorCtx.selectedComponentIdsSet.size &&
       !documentKeydownEventState.metaKey &&
       !documentKeydownEventState.ctrlKey &&
       !documentKeydownEventState.altKey &&
@@ -16262,7 +16158,7 @@ const scaleInputElementsSet = new Set([
       (documentKeydownEventState.preventDefault(), enterTargetElementElement.blur());
   }),
   document.addEventListener("keyup", (keyupEvent) => {
-    if (keyupEvent.code === "Space") editorSpacePanning = false;
+    if (keyupEvent.code === "Space") editorCtx.editorSpacePanning = false;
   }),
   navigatorElement.addEventListener("scroll", () => {
     (hideAssetLargePreview(),
@@ -16302,10 +16198,10 @@ const scaleInputElementsSet = new Set([
       closeDropdownMenu());
   }),
   saveButtonElement.addEventListener("click", async () => {
-    const otherWidth = activeProject?.projectId,
-      Ie8 = componentScopeState;
-    (await writeQueuePromise.catch(() => {}),
-      !(componentScopeState !== Ie8 || activeProject?.projectId !== otherWidth) &&
+    const otherWidth = editorCtx.activeProject?.projectId,
+      Ie8 = editorCtx.componentScopeState;
+    (await editorCtx.writeQueuePromise.catch(() => {}),
+      !(editorCtx.componentScopeState !== Ie8 || editorCtx.activeProject?.projectId !== otherWidth) &&
         (await saveDraft()));
   }),
   selectableEntities(),
@@ -16313,12 +16209,12 @@ const scaleInputElementsSet = new Set([
   formatLastSeen(document));
 const entryStateHandler = (runEditorLayoutAction: any) => {
   const targetBoundsName = globalColorPickerSvElement.getBoundingClientRect();
-  ((colorPickerSaturation = clampNumber2(
+  ((editorCtx.colorPickerSaturation = clampNumber2(
     (runEditorLayoutAction.clientX - targetBoundsName.left) / Math.max(1, targetBoundsName.width),
     0,
     1,
   )),
-    (colorPickerBrightness =
+    (editorCtx.colorPickerBrightness =
       1 -
       clampNumber2(
         (runEditorLayoutAction.clientY - targetBoundsName.top) /
@@ -16329,24 +16225,24 @@ const entryStateHandler = (runEditorLayoutAction: any) => {
     closeAllDropdownMenus());
 };
 (globalColorPickerSvElement.addEventListener("pointerdown", (layoutAction: any) => {
-  activeColorInputElement &&
+  editorCtx.activeColorInputElement &&
     (layoutAction.preventDefault(),
-    (colorPickerDragPointerId = layoutAction.pointerId),
+    (editorCtx.colorPickerDragPointerId = layoutAction.pointerId),
     globalColorPickerSvElement.setPointerCapture(layoutAction.pointerId),
     entryStateHandler(layoutAction));
 }),
   globalColorPickerSvElement.addEventListener("pointermove", (onEditorLayoutWindowResize: any) => {
-    onEditorLayoutWindowResize.pointerId === colorPickerDragPointerId &&
+    onEditorLayoutWindowResize.pointerId === editorCtx.colorPickerDragPointerId &&
       entryStateHandler(onEditorLayoutWindowResize);
   }),
   globalColorPickerSvElement.addEventListener("pointerup", (bindInspectorScrollSection: any) => {
-    bindInspectorScrollSection.pointerId === colorPickerDragPointerId &&
-      ((colorPickerDragPointerId = null),
+    bindInspectorScrollSection.pointerId === editorCtx.colorPickerDragPointerId &&
+      ((editorCtx.colorPickerDragPointerId = null),
       globalColorPickerSvElement.releasePointerCapture(bindInspectorScrollSection.pointerId));
   }),
   globalColorPickerHueRangeInputElement.addEventListener("input", () => {
-    activeColorInputElement &&
-      ((colorPickerHue = clampNumber2(Number(globalColorPickerHueRangeInputElement.value), 0, 360)),
+    editorCtx.activeColorInputElement &&
+      ((editorCtx.colorPickerHue = clampNumber2(Number(globalColorPickerHueRangeInputElement.value), 0, 360)),
       closeAllDropdownMenus());
   }),
   globalColorPickerHexTextInputElement.addEventListener("input", () => {
@@ -16357,13 +16253,13 @@ const entryStateHandler = (runEditorLayoutAction: any) => {
     const numericValueState = normalizedHexColor2(globalColorPickerHexTextInputElement.value);
     numericValueState
       ? openEntityPicker(numericValueState, true)
-      : activeColorInputElement &&
+      : editorCtx.activeColorInputElement &&
         (globalColorPickerHexTextInputElement.value = String(
-          activeColorInputElement.value || "",
+          editorCtx.activeColorInputElement.value || "",
         ).toUpperCase());
   }));
 const readEditorLayoutMetricsHandler = () => {
-  if (!activeColorInputElement) return;
+  if (!editorCtx.activeColorInputElement) return;
   const shellWidthState = clampNumber2(Number(globalColorPickerRedInputElement.value), 0, 255),
     columnGapWidthState = clampNumber2(Number(globalColorPickerGreenInputElement.value), 0, 255),
     overheadWidthState = clampNumber2(Number(globalColorPickerBlueInputElement.value), 0, 255);
@@ -16378,12 +16274,12 @@ for (const onInspectorScroll of [
   (onInspectorScroll.addEventListener("input", readEditorLayoutMetricsHandler),
     onInspectorScroll.addEventListener("change", readEditorLayoutMetricsHandler));
 (globalColorPickerCopyButtonElement.addEventListener("click", async () => {
-  if (activeColorInputElement)
+  if (editorCtx.activeColorInputElement)
     try {
-      (await copyTextToClipboard(String(activeColorInputElement.value || "").toUpperCase()),
-        window.clearTimeout(colorPickerCopyResetTimer),
+      (await copyTextToClipboard(String(editorCtx.activeColorInputElement.value || "").toUpperCase()),
+        window.clearTimeout(editorCtx.colorPickerCopyResetTimer),
         globalColorPickerCopyButtonElement.classList.add("copied"),
-        (colorPickerCopyResetTimer = window.setTimeout(
+        (editorCtx.colorPickerCopyResetTimer = window.setTimeout(
           () => globalColorPickerCopyButtonElement.classList.remove("copied"),
           1200,
         )));
@@ -16392,7 +16288,7 @@ for (const onInspectorScroll of [
     }
 }),
   globalColorPickerPasteButtonElement.addEventListener("click", async () => {
-    if (activeColorInputElement)
+    if (editorCtx.activeColorInputElement)
       try {
         const panelElementState = await navigator.clipboard.readText(),
           panelWidthState = normalizedHexColor2(panelElementState);
@@ -16439,7 +16335,7 @@ for (const onInspectorScroll of [
   document.addEventListener("pointerdown", (onDisplayDevicesCloseButtonClick) => {
     globalColorPickerElement.hidden ||
       globalColorPickerElement.contains(onDisplayDevicesCloseButtonClick.target) ||
-      onDisplayDevicesCloseButtonClick.target === activeColorInputElement ||
+      onDisplayDevicesCloseButtonClick.target === editorCtx.activeColorInputElement ||
       setWorkspaceHasProject();
   }),
   new MutationObserver((onSessionsCloseButtonClick) => {
@@ -16484,24 +16380,24 @@ async function onSessionsRevokeOthersConfirmButtonClick(
   onSessionsRevokeCancelButtonClick: any,
   onSessionsRevokeConfirmButtonClick: any,
 ) {
-  const Ie9 = componentScopeState,
-    onSessionsRevokeConfirmButtonClickState = activeProject?.projectId,
+  const Ie9 = editorCtx.componentScopeState,
+    onSessionsRevokeConfirmButtonClickState = editorCtx.activeProject?.projectId,
     revokedSessionIdHandler = () =>
-      componentScopeState === Ie9 &&
-      activeProject?.projectId === onSessionsRevokeConfirmButtonClickState &&
-      selectedComponentId === onSessionsRevokeCloseButtonClick &&
+      editorCtx.componentScopeState === Ie9 &&
+      editorCtx.activeProject?.projectId === onSessionsRevokeConfirmButtonClickState &&
+      editorCtx.selectedComponentId === onSessionsRevokeCloseButtonClick &&
       removedComponent()?.properties?.controlMode === "entity-sign";
   revokeOtherSessionsError.disabled = true;
   try {
     if (
-      (isAreEntitiesLoaded || (await ensureEntitiesLoaded()),
+      (editorCtx.isAreEntitiesLoaded || (await ensureEntitiesLoaded()),
       !revokedSessionIdHandler() || !revokeOtherSessionsError.isConnected)
     )
       return;
     const revokedSessionId = await requestJson("/ha/numeric-sources");
     if (!revokedSessionIdHandler() || !revokeOtherSessionsError.isConnected) return;
     const mappedItemByIdByName = new Map(
-        entities.map((revokeSessionError: any) => [revokeSessionError.entityId, revokeSessionError]),
+        editorCtx.entities.map((revokeSessionError: any) => [revokeSessionError.entityId, revokeSessionError]),
       ),
       availableItemsValue = (revokedSessionId.items || []).map(
         (onDisplayPairingCustomCodeTextInputInput: any) => ({
@@ -16583,8 +16479,8 @@ async function onSessionsRevokeOthersConfirmButtonClick(
 function onGlobalColorPickerHexTextInputInput(runAliasAux: any) {
   const hexColorInputValue = runAliasAux?.id;
   return {
-    document: activeProject?.document,
-    entities: entities,
+    document: editorCtx.activeProject?.document,
+    entities: editorCtx.entities,
     entityName: runSnapshot,
     enhance: (onSessionsRevokeCloseButtonClickState: any) => {
       (selectableEntities(onSessionsRevokeCloseButtonClickState),
@@ -16630,16 +16526,16 @@ function onGlobalColorPickerHexTextInputInput(runAliasAux: any) {
           property: onGlobalColorPickerHexTextInputChangeState,
           value: onGlobalColorPickerHexTextInputChange,
         },
-        activeProject.document.canvas,
+        editorCtx.activeProject.document.canvas,
       ),
-        editorRenderer?.previewComponentTransform(hexColorInputValue, hexColorChangeInput.position),
-        editorRenderer?.previewComponentProperties(
+        editorCtx.editorRenderer?.previewComponentTransform(hexColorInputValue, hexColorChangeInput.position),
+        editorCtx.editorRenderer?.previewComponentProperties(
           hexColorInputValue,
           hexColorChangeInput.properties,
         ));
     },
     previewGeometry: (onDisplayPairingCustomCodeTextInputInputState: any, onLogoutButtonClickState: any) => {
-      const canvas = activeProject.document.canvas,
+      const canvas = editorCtx.activeProject.document.canvas,
         position = runAliasAux.position;
       if (
         onDisplayPairingCustomCodeTextInputInputState === "rotation" &&
@@ -16662,7 +16558,7 @@ function onGlobalColorPickerHexTextInputInput(runAliasAux: any) {
               : {
                   rotation: onLogoutButtonClickState,
                 };
-      editorRenderer?.previewComponentTransform(hexColorInputValue, hexColorChangeInputState);
+      editorCtx.editorRenderer?.previewComponentTransform(hexColorInputValue, hexColorChangeInputState);
     },
     pickEntity: (
       onGlobalColorPickerSaturationValuePointerdownState: any,
@@ -16683,17 +16579,17 @@ async function saturationPointerMoveEventState(
   copyColorError: any,
   onGlobalColorPickerPasteButtonClick: any,
 ) {
-  const clipboardRawText = componentScopeState,
-    clipboardRawTextState = activeProject?.projectId,
+  const clipboardRawText = editorCtx.componentScopeState,
+    clipboardRawTextState = editorCtx.activeProject?.projectId,
     clipboardHexColor = () =>
-      componentScopeState === clipboardRawText &&
-      activeProject?.projectId === clipboardRawTextState &&
-      selectedComponentId === onGlobalColorPickerCopyButtonClick;
+      editorCtx.componentScopeState === clipboardRawText &&
+      editorCtx.activeProject?.projectId === clipboardRawTextState &&
+      editorCtx.selectedComponentId === onGlobalColorPickerCopyButtonClick;
   colorChannelInput.disabled = true;
   const textContent = colorChannelInput.textContent;
   colorChannelInput.textContent = "正在筛选百分比实体…";
   try {
-    if (!isAreEntitiesLoaded) {
+    if (!editorCtx.isAreEntitiesLoaded) {
       if ((await ensureEntitiesLoaded(), !clipboardHexColor())) return;
       colorChannelInput =
         document.querySelector('#percentage-bar-inspector button[aria-label="选择百分比实体"]') ||
@@ -16702,7 +16598,7 @@ async function saturationPointerMoveEventState(
     const clipboardRawTextValue = await requestJson("/ha/percentage-sources");
     if (!clipboardHexColor() || !colorChannelInput.isConnected) return;
     const mappedItemByIdByCode = new Map(
-        entities.map((pasteColorError: any) => [pasteColorError.entityId, pasteColorError]),
+        editorCtx.entities.map((pasteColorError: any) => [pasteColorError.entityId, pasteColorError]),
       ),
       availableItemsConfig = (clipboardRawTextValue.items || []).map((pickerGuardClickEvent: any) => ({
         ...pickerGuardClickEvent,
@@ -16852,7 +16748,7 @@ function mutationRecord() {
     ),
     runVariantLower(mutationRecordState, "百分比柱状图"),
     (navigationStyleApplyMessageElement.hidden = true),
-    (appliedStyleRecord = {
+    (editorCtx.appliedStyleRecord = {
       sourceId: createdInstanceSlot.id,
       type: "percentage-bar",
     }),
@@ -16875,16 +16771,16 @@ function mutationRecord() {
         selectAllPageComponents();
         break;
       case "copy":
-        editorClipboardComponentIds = [...selectedComponentIdsSet];
+        editorCtx.editorClipboardComponentIds = [...editorCtx.selectedComponentIdsSet];
         break;
       case "paste":
-        if (editorClipboardComponentIds.length) {
-          duplicateComponents(editorClipboardComponentIds, editorClipboardComponentIds[0]);
+        if (editorCtx.editorClipboardComponentIds.length) {
+          duplicateComponents(editorCtx.editorClipboardComponentIds, editorCtx.editorClipboardComponentIds[0]);
         }
         break;
       case "delete":
-        if (selectedComponentIdsSet.size) {
-          deleteComponentIds([...selectedComponentIdsSet]);
+        if (editorCtx.selectedComponentIdsSet.size) {
+          deleteComponentIds([...editorCtx.selectedComponentIdsSet]);
         }
         break;
       case "setZoom":
@@ -16926,9 +16822,9 @@ function mutationRecord() {
     registerEditorCommandHandler(null);
     // 3D 渲染器：负责释放 WebGL 上下文、渲染循环、WebSocket 与所有运行时监听
     try {
-      editorRenderer?.destroy?.()
+      editorCtx.editorRenderer?.destroy?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
-    editorRenderer = null
+    editorCtx.editorRenderer = null
     // 画布尺寸观察者与文档级定尺残留
     try {
       workspaceResizeObserver?.disconnect?.()
