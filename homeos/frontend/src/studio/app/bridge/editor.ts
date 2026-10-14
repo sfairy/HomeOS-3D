@@ -24,6 +24,8 @@ import {
 } from "./definition";
 import type { DomControl } from "@app/shared/util/dom-control";
 import { domElement } from "@app/shared/util/dom-factory";
+import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
+import { WEATHER_PREVIEWS } from "@/studio/platform/weather-settings";
 function interaction3dEntries(componentTree: any, pathSegments: any[] = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree))
     componentTree.forEach((arrayItem, arrayIndex) =>
@@ -1718,6 +1720,76 @@ type PopupPresetConfig = {
   backgroundThemeSelect.title = isWarmWood
     ? "随材质风格切换，亮区跟随当前楼层底部；ALL 时跟随最底层。"
     : "微光围绕户型中心渐隐，随视角呈现远近层次。";
+  // 天气效果：绑一个 `weather.*` 实体让 3D 场景跟着下雨/下雪，外加「先试看」的预览组。
+  // 预览只影响 3D 画面、不动配置，12 秒后自动回到真实天气（见 runtime 的 previewWeather）。
+  const weatherSection = createSection("天气效果"),
+    weatherEntityId = String(properties.weather?.entityId || ""),
+    weatherEntityButton = createElement("button", "secondary-button", weatherEntityId || "绑定天气实体");
+  // 0.7.6 把这一组的标题隐藏：分组靠下面「天气实体 / 天气预览」两行自述。
+  (weatherSection.children[0] as HTMLElement).hidden = true;
+  ((weatherEntityButton.type = "button"),
+    (weatherEntityButton.name = "i3d-weather-entity"),
+    weatherEntityButton.setAttribute("aria-label", "绑定天气实体"),
+    createLabeledField(weatherSection, "天气实体", weatherEntityButton),
+    weatherEntityButton.addEventListener("click", async () => {
+      try {
+        await editorOptions.pickers?.entity?.({
+          trigger: weatherEntityButton,
+          current: weatherEntityId,
+          deviceKind: "weather",
+          title: "绑定天气实体",
+          onSelect: (selectedWeatherEntityId: any) => {
+            (getInteraction3dEditorView(targetComponent.id)?.closeWeatherPreview?.(),
+              commitChange({
+                properties: {
+                  weather: {
+                    entityId: selectedWeatherEntityId,
+                  },
+                },
+              }));
+          },
+        });
+      } catch (weatherPickerError: any) {
+        editorOptions.onError?.(weatherPickerError);
+      }
+    }));
+  const weatherPreviewGroupElement = createElement("div", "navigation-segmented-options"),
+    weatherPreviewNoteElement = createElement(
+      "p",
+      "inspector-section-note",
+      "仅跟随天气状态；预览 12 秒后恢复实际天气。",
+    );
+  (weatherPreviewGroupElement.setAttribute("role", "group"),
+    weatherPreviewGroupElement.setAttribute("aria-label", "天气预览"));
+  for (const [weatherPreviewState, weatherPreviewLabel] of WEATHER_PREVIEWS) {
+    const weatherPreviewButton = createElement("button", "", weatherPreviewLabel);
+    ((weatherPreviewButton.type = "button"),
+      (weatherPreviewButton.dataset.weatherPreview = weatherPreviewState),
+      weatherPreviewButton.addEventListener("click", async () => {
+        try {
+          const weatherEditorView = await ensureEditorView();
+          if (!weatherEditorView) return;
+          if (!weatherEditorView.previewWeather?.(weatherPreviewState))
+            throw new Error("当前户型暂不可预览，请退出视角或范围调整后重试。");
+          weatherPreviewNoteElement.textContent =
+            "预览" + weatherPreviewLabel + "持续 12 秒，随后恢复实际天气。";
+        } catch (weatherPreviewError: any) {
+          editorOptions.onError?.(weatherPreviewError);
+        }
+      }),
+      weatherPreviewGroupElement.append(weatherPreviewButton));
+  }
+  const stopWeatherPreviewButton = createElement("button", "secondary-button", "结束预览");
+  ((stopWeatherPreviewButton.type = "button"),
+    stopWeatherPreviewButton.addEventListener("click", () => {
+      (getInteraction3dEditorView(targetComponent.id)?.closeWeatherPreview?.(),
+        (weatherPreviewNoteElement.textContent = "仅跟随天气状态；预览 12 秒后恢复实际天气。"));
+    }),
+    weatherSection.append(
+      weatherPreviewGroupElement,
+      stopWeatherPreviewButton,
+      weatherPreviewNoteElement,
+    ));
   const wallOpacityModeSelect = createElement("select");
   ((wallOpacityModeSelect.name = "i3d-wall-opacity-mode"),
     wallOpacityModeSelect.setAttribute("aria-label", "墙体透明度模式"));
@@ -1763,11 +1835,14 @@ type PopupPresetConfig = {
         "aria-label",
         opacityInputType === "range" ? "墙体透明度" : "墙体透明度百分比",
       ),
+      /* 自绘轨道的左侧填充靠 `--progress-pct` 裁切，初值必须自己写一次，否则条子整段留灰。 */
+      opacityInputType === "range" && syncHtmlRangeProgress(opacityInput as any),
       opacityInput.addEventListener("input", () => {
         (opacityInput === wallOpacityRangeInput
           ? wallOpacityNumberInput
           : wallOpacityRangeInput
         ).value = opacityInput.value;
+        opacityInput === wallOpacityRangeInput && syncHtmlRangeProgress(wallOpacityRangeInput);
       }),
       opacityInput.addEventListener("change", () => {
         const nextOpacityPercent = Number(opacityInput.value);
@@ -1973,6 +2048,8 @@ type PopupPresetConfig = {
   }),
     reflectionStrengthInput.setAttribute("aria-label", "反射强度"),
     (reflectionStrengthOutputElement.textContent = reflectionStrengthInput.value + "%"),
+    /* 滑条填充 = `--progress-pct`，初值、禁用态恢复、拖动三处都要同步。 */
+    syncHtmlRangeProgress(reflectionStrengthInput),
     reflectionStrengthSettingElement.append(
       reflectionStrengthInput,
       reflectionStrengthOutputElement,
@@ -1997,6 +2074,7 @@ type PopupPresetConfig = {
           Math.round(groundReflectionSettings.strength * 100),
         )),
         (reflectionStrengthOutputElement.textContent = reflectionStrengthInput.value + "%"),
+        syncHtmlRangeProgress(reflectionStrengthInput),
         (reflectionModeSelect.disabled =
           reflectionResolutionSelect.disabled =
           reflectionStrengthInput.disabled =
@@ -2022,7 +2100,8 @@ type PopupPresetConfig = {
   (reflectionModeSelect.addEventListener("change", commitGroundReflection),
     reflectionResolutionSelect.addEventListener("change", commitGroundReflection),
     reflectionStrengthInput.addEventListener("input", () => {
-      reflectionStrengthOutputElement.textContent = reflectionStrengthInput.value + "%";
+      (syncHtmlRangeProgress(reflectionStrengthInput),
+        (reflectionStrengthOutputElement.textContent = reflectionStrengthInput.value + "%"));
     }),
     reflectionStrengthInput.addEventListener("change", commitGroundReflection),
     syncReflectionControls());
@@ -2067,6 +2146,7 @@ type PopupPresetConfig = {
     }),
       popupScaleInput.setAttribute("aria-label", popupPresetLabel + "大小"),
       (popupScaleOutputElement.textContent = popupScaleInput.value + "%"),
+      syncHtmlRangeProgress(popupScaleInput),
       popupScaleSettingElement.append(popupScaleInput, popupScaleOutputElement),
       createLabeledField(popupGroupSection, "等比例大小", popupScaleSettingElement));
     const popupCustomPositionInput = createElement("input");
@@ -2119,10 +2199,12 @@ type PopupPresetConfig = {
       const popupAxisOutputElement = createElement("output"),
         popupAxisSettingElement = createElement("div", "i3d-vignette-setting");
       ((popupAxisOutputElement.textContent = popupAxisInput.value + "%"),
+        syncHtmlRangeProgress(popupAxisInput),
         popupAxisSettingElement.append(popupAxisInput, popupAxisOutputElement),
         popupAxisInput.addEventListener("input", () => {
           popupAxisInput.disabled ||
-            ((popupAxisOutputElement.textContent = popupAxisInput.value + "%"),
+            (syncHtmlRangeProgress(popupAxisInput),
+            (popupAxisOutputElement.textContent = popupAxisInput.value + "%"),
             previewPopupLayout({
               ...popupPresetConfig,
               [popupAxisKey]: Number(popupAxisInput.value),
@@ -2139,6 +2221,7 @@ type PopupPresetConfig = {
           ((popupPresetConfig[popupAxisKey] = Math.max(0, Math.min(100, typedPopupPosition))),
             (popupAxisInput.value = String(popupPresetConfig[popupAxisKey])),
             (popupAxisOutputElement.textContent = popupAxisInput.value + "%"),
+            syncHtmlRangeProgress(popupAxisInput),
             commitPopupLayout());
         }),
         createLabeledField(popupPositionElement, popupAxisLabel, popupAxisSettingElement));
@@ -2153,7 +2236,8 @@ type PopupPresetConfig = {
         commitPopupLayout());
     }),
       popupScaleInput.addEventListener("input", () => {
-        ((popupScaleOutputElement.textContent = popupScaleInput.value + "%"),
+        (syncHtmlRangeProgress(popupScaleInput),
+          (popupScaleOutputElement.textContent = popupScaleInput.value + "%"),
           popupScaleInput.disabled ||
             previewPopupLayout({
               ...popupPresetConfig,
@@ -2181,10 +2265,13 @@ type PopupPresetConfig = {
             delete popupPresetConfig.x,
             delete popupPresetConfig.y,
             (popupScaleInput.value = "100"),
+            syncHtmlRangeProgress(popupScaleInput),
             (popupScaleOutputElement.textContent = "100%"),
             (popupCustomPositionInput.checked = false),
             (popupPositionInputsByAxis.x.value = "100"),
             (popupPositionInputsByAxis.y.value = "0"),
+            syncHtmlRangeProgress(popupPositionInputsByAxis.x as any),
+            syncHtmlRangeProgress(popupPositionInputsByAxis.y as any),
             syncPopupPositionControls());
           for (const popupAxisControl of Object.values(popupPositionInputsByAxis))
             popupAxisControl.parentElement!.children[1].textContent = popupAxisControl.value + "%";
@@ -2332,6 +2419,7 @@ type PopupPresetConfig = {
       motionResolutionSection,
       groundReflectionSection,
     ]),
+    appendInspectorGroup("weather", "天气效果", [weatherSection]),
     appendInspectorGroup("view", "视角与导航", [viewSection, navigationSection]),
     appendInspectorGroup("popups", "弹窗大小与位置", [popupSettingsSection]),
     (behaviorSection.children[0].hidden = true),
