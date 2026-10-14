@@ -361,6 +361,12 @@ def load_settings(**overrides) -> StoreSettings:
 
     values: dict[str, Any] = {
         "data_dir": _env_path("STORE_DATA_DIR", PROJECT_ROOT / "data"),
+        # 静态/外壳目录默认指向构建产物（`dist/static`）。可覆盖是为了让**不需要构建产物**
+        # 的冒烟（如 `_store_api_smoke.py`）把挂载点指到自己的临时目录：
+        # `create_app()` 对不存在的静态目录是**硬报错**（生产上这是对的，构建缺失必须响亮），
+        # 但干净检出上没跑过构建就是没有这个目录 —— 冒烟不该因此依赖一次前端构建。
+        "static_dir": _env_path("STORE_STATIC_DIR", FRONTEND_ROOT / "static"),
+        "shell_dir": _env_path("STORE_SHELL_DIR", FRONTEND_ROOT),
         "host": _env_str("STORE_HOST", DEFAULT_HOST) or DEFAULT_HOST,
         "port": _env_int("STORE_PORT", DEFAULT_PORT, minimum=1, maximum=65535),
         "base_url": _env_str("STORE_BASE_URL"),

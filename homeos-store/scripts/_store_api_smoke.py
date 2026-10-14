@@ -39,6 +39,13 @@ from _smoke_harness import (
 # ── 1) 环境必须在 import src.* 之前落位（StoreSettings 在导入期构造）──────────────
 DATA_DIR = bootstrap_env(prefix="homeos-store-api-smoke-")
 
+# 静态挂载点：`create_app()` 会 mount `static_dir` 与 `static_dir/fonts`，目录必须存在。
+# 默认指向构建产物（`dist/static`），本冒烟不依赖构建，故建在临时目录里（见下面的 env 块）。
+_STATIC_DIR = DATA_DIR / "static"
+_SHELL_DIR = DATA_DIR / "shell"
+(_STATIC_DIR / "fonts").mkdir(parents=True, exist_ok=True)
+_SHELL_DIR.mkdir(parents=True, exist_ok=True)
+
 ORIGIN = "http://testserver"
 SETUP_TOKEN = "smoke-setup-token"
 ADMIN_EMAIL = "smoke-admin@example.test"
@@ -100,6 +107,11 @@ os.environ.update(
         "STORE_MAIL_MODE": "log",
         # 授权密钥写临时目录：默认值指向仓库的 keys/local，冒烟不该往里写。
         "STORE_LICENSE_KEYS_DIR": str(DATA_DIR / "keys"),
+        # `create_app()` 会按 `settings.static_dir` mount `StaticFiles` / `fonts`，目录不存在就**硬报错**
+        # （生产上这是对的：构建缺失必须响亮）。但本冒烟测的是端点层，不该顺带要求先构建一次商店前端 ——
+        # 干净检出（CI）上 `dist/static` 本来就不存在。把两个挂载点指到临时目录，冒烟自足。
+        "STORE_STATIC_DIR": str(_STATIC_DIR),
+        "STORE_SHELL_DIR": str(_SHELL_DIR),
         # 后台循环只制造噪声（真实网络请求），这里让它们在这轮里不会触发。
         "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS": "3600",
         "STORE_RELEASE_SYNC_INTERVAL_SECONDS": "0",

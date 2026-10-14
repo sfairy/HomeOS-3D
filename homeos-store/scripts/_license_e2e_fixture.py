@@ -66,6 +66,13 @@ def _free_port() -> int:
 
 DATA_DIR = temp_dir("homeos-store-license-e2e-data-")
 KEYS_DIR = temp_dir("homeos-store-license-e2e-keys-")
+# `create_app()` 按 `static_dir` mount `StaticFiles` / `fonts`，目录不存在就硬报错
+# （生产上这是对的：构建缺失必须响亮）。本 e2e 验的是授权激活闭环，不是静态文件服务，
+# 不该顺带要求先构建一次商店前端 —— 干净检出（CI）上 `dist/static` 本来就不存在。
+# 把两个挂载点指到临时目录：in-process 的 lifespan 与子进程都读同一份 env。
+STATIC_DIR = temp_dir("homeos-store-license-e2e-static-")
+SHELL_DIR = temp_dir("homeos-store-license-e2e-shell-")
+(STATIC_DIR / "fonts").mkdir(parents=True, exist_ok=True)
 PORT = _free_port()
 ORIGIN = f"http://127.0.0.1:{PORT}"
 STORE_API = "/store/v1"
@@ -80,6 +87,9 @@ DATA_DIR = bootstrap_env(
         "STORE_PORT": str(PORT),
         "STORE_SETUP_TOKEN": SETUP_TOKEN,
         "STORE_LICENSE_KEYS_DIR": str(KEYS_DIR),
+        # 静态/外壳挂载点指向临时目录（见上方 STATIC_DIR 的说明）：本 e2e 不依赖前端构建产物。
+        "STORE_STATIC_DIR": str(STATIC_DIR),
+        "STORE_SHELL_DIR": str(SHELL_DIR),
         "STORE_MAIL_MODE": "log",
         "STORE_PAYMENT_PROVIDER": "",
         # 关掉热重载：开发机 shell 里若开着 STORE_RELOAD，uvicorn 会 fork 一个 reloader，

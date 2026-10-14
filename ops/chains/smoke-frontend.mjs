@@ -2,7 +2,12 @@
  * 前端纯逻辑冒烟链清单（`bun run verify:smoke:frontend`）。
  *
  * 改动原因见 `ops/chains/common.mjs` 顶部（`&&` 短路 + 参数展开）。
- * 这些冒烟只读源码、不依赖构建产物，故 CI 的 frontend-gates job 能直接跑。
+ *
+ * 前置条件：**需要先 `bun run build:shared`**。多数步骤只扫源码，但
+ * `_entity_control_logic_smoke.ts` / `_camera_inspector_controls_smoke.ts` 会经被测模块
+ * 间接 import `@homeos/shared` —— 解析到被 gitignore 的 `packages/shared/dist`，
+ * 干净检出上不先建就是 `Cannot find module '@homeos/shared'`。
+ * 所以 CI 的 frontend-gates job 在跑本链之前有一步 `build:shared`（本机跑过一次构建就感知不到）。
  */
 import { bun } from './common.mjs'
 

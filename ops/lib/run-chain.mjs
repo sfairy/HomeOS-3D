@@ -72,6 +72,35 @@ for (const [i, step] of steps.entries()) {
   }
 }
 
+/**
+ * 解析一个可执行文件是否真的能在给定 cwd 下起来。
+ *
+ * 为什么需要预检：`spawn` 的 `ENOENT` 是**每步各报一次**的，链条会把同一句
+ * `spawn .venv-store/bin/python ENOENT` 打印 N 遍，失败汇总里也只是 N 条同名步骤 ——
+ * 看起来像「N 个门禁坏了」，实际是「解释器不存在」这一件事。真实事故：CI 的 `verify` job
+ * 忘了设 `PYTHON=python`，于是 9 条 Python 门禁全红，而真因藏在第 1 条的输出里。
+ *
+ * 只在**启动前**判一次「解释器在不在」，就能把这个类别从「N 条假故障」压成「一条真故障」。
+ */
+function resolveExecutable(bin, cwd) {
+  const probe = (candidate) => {
+    try {
+      return fs.statSync(candidate).isFile()
+    } catch {
+      return false
+    }
+  }
+  // 带路径分隔符的按路径判定（相对路径按**该步的 cwd** 解析，与 spawn 一致）。
+  if (bin.includes('/') || bin.includes('\\')) {
+    return probe(path.resolve(cwd, bin)) ? path.resolve(cwd, bin) : null
+  }
+  // 裸名字按 PATH 找（`python` / `node` / `bun` 这类）。
+  for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
+    if (dir && probe(path.join(dir, bin))) return path.join(dir, bin)
+  }
+  return null
+}
+
 /** 跑一步并抓完整输出；不继承 stdio，避免并发时输出交错。 */
 function spawnCapture(cmd, cwd) {
   return new Promise((resolve) => {
@@ -89,6 +118,47 @@ function spawnCapture(cmd, cwd) {
     child.on('close', (code, signal) => resolve({ code: code ?? (signal ? 1 : 0), out }))
   })
 }
+
+/**
+ * 启动前预检：所有步骤的**可执行文件**必须解析得到，缺失就只报一次并退出。
+ *
+ * 步骤脚本本身按设计不预检（门禁会自己报「读不到」，那属于被测语义）；
+ * 这里只拦「连进程都起不来」—— 那一定不是门禁的问题，重跑也不会变。
+ */
+function preflight() {
+  const missing = new Map()
+  for (const step of steps) {
+    const cwd = step.cwd ? path.resolve(baseCwd, step.cwd) : baseCwd
+    if (!resolveExecutable(step.cmd[0], cwd)) {
+      const key = step.cmd[0]
+      if (!missing.has(key)) missing.set(key, [])
+      missing.get(key).push(step.name)
+    }
+  }
+  if (missing.size === 0) return
+  console.error('✗ 门禁链未启动：可执行文件不存在（不是门禁失败，重跑不会变）\n')
+  for (const [bin, names] of missing) {
+    console.error(`  · ${bin} —— 影响 ${names.length} 步：${names.slice(0, 3).join(' / ')}${names.length > 3 ? ` 等 ${names.length} 步` : ''}`)
+  }
+  const pythonish = [...missing.keys()].some((bin) => bin.includes('python'))
+  if (pythonish) {
+    console.error(
+      [
+        '',
+        '  解释器解析规则（见 ops/chains/common.mjs）：未设 PYTHON 时回落仓库约定的 `.venv-store/bin/python`。',
+        '    · 本机：先建共用 venv —— `bun run dev:prepare`（或临时 `PYTHON=python3 bun run verify:contracts`）',
+        '    · CI  ：该 job 必须显式 `env: PYTHON: python`，并先 `actions/setup-python`（schema / smoke job 即如此）',
+      ].join('\n'),
+    )
+  }
+  console.error(
+    `\n  另：若确实是 interpreter/PATH 之外的原因（例如相对路径写错），` +
+      `可用 --cwd 覆盖调用目录；步骤相对路径按调用者 cwd 解析。`,
+  )
+  process.exit(1)
+}
+
+preflight()
 
 const pad = (n) => String(n).padStart(String(steps.length).length, '0')
 const results = new Array(steps.length).fill(null)

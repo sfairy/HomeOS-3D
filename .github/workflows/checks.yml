@@ -64,8 +64,11 @@ jobs:
           bun run typecheck:node
 
   # 前端静态门禁：分层依赖方向 + 引用可解析性（含注释里的 `@/`）+ 纯逻辑冒烟。
-  # 这些脚本只读源码（唯一例外 check-host-bindings.mjs 需要 `typescript` 包），
-  # 因此只需 `bun install`，**不需要** build:shared（依赖门禁扫的是源码，不是产物）。
+  # 依赖门禁扫源码，**不需要** `build:shared`；但 `verify:smoke:frontend` 里的
+  # `_entity_control_logic` / `_camera_inspector_controls` 两条冒烟会经被测模块
+  # 间接 import `@homeos/shared`（解析到 `packages/shared/dist`，被 gitignore），
+  # 干净检出上就是 `Cannot find module '@homeos/shared'` —— 所以本 job 仍要先 build:shared。
+  # （真因见 2026-10-14 的 CI 红灯：本机有历史 dist/ 兜着，只有干净检出才炸。）
   frontend-gates:
     runs-on: ubuntu-24.04
     steps:
@@ -83,7 +86,11 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
 
       - name: Install
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          # 依赖门禁只需源码，但 Frontend smoke 有两条冒烟会间接 import `@homeos/shared`
+          # → 解析到被 gitignore 的 `packages/shared/dist`，不先建就是 `Cannot find module`。
+          bun run build:shared
 
       - name: Dependency gates
         run: |
@@ -94,8 +101,9 @@ jobs:
           bun run --cwd homeos-store check:deps
 
       - name: Frontend smoke
-        # 前端纯逻辑冒烟：走 `verify:smoke:frontend` 单一来源（纯源码扫描，不需构建/后端），
-        # 避免手抄清单漏项 —— 此前 _camera_inspector_controls / _go2rtc_mse 两个冒烟就没进 CI。
+        # 前端纯逻辑冒烟：走 `verify:smoke:frontend` 单一来源，避免手抄清单漏项 ——
+        # 此前 _camera_inspector_controls / _go2rtc_mse 两个冒烟就没进 CI。
+        # **前提是上一步的 `build:shared`**：其中两条冒烟会间接 import `@homeos/shared`。
         run: bun run verify:smoke:frontend
 
       - name: No @ts-nocheck
@@ -122,6 +130,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # 门禁链里的 Python 步骤走 `${PYTHON:-.venv-store/bin/python}`（见 ops/chains/common.mjs）：
+      # 干净检出没有 `.venv-store`，不显式给 PYTHON 就是 `spawn … ENOENT` × 12 步。
+      # 这些门禁只用标准库（不用装 requirements），但解释器必须存在 —— 与 schema/smoke 同款。
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -140,6 +155,9 @@ jobs:
           bun run build:shared
 
       - name: Verify
+        env:
+          # 显式给出解释器：不设时门禁链会回落 `.venv-store/bin/python`，CI 上没有这个 venv。
+          PYTHON: python
         run: |
           bun run knip
           bun run verify:features
