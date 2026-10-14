@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import re
+
 from .config_ctx import (
     ValidationContext,
 )
+
+#: 0.7.6 天气实体：只接受 ``weather.*``，长度上限 200 与其它实体校验保持同一档。
+WEATHER_ENTITY_PATTERN = 'weather\\.[a-z0-9_]{1,200}'
 
 
 def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
@@ -18,6 +23,7 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'sceneId',
         'floorGap',
         'security',
+        'weather',
         'autoRotate',
         'layoutMode',
         'navigation',
@@ -52,6 +58,15 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'uniformOverviewStack',
         'focusVignetteStrength',
         'hideIconsWhileRotating'}:
+        ctx.fail()
+    # 0.7.6：天气实体绑定。空表示不绑定（现场天气仍可用），只接受 weather.* 实体。
+    weather = properties.get('weather', {})
+    if not isinstance(weather, dict) or set(weather) - {'entityId'}:
+        ctx.fail()
+    weather_entity = weather.get('entityId', '')
+    if not isinstance(weather_entity, str) or (
+        weather_entity and not re.fullmatch(WEATHER_ENTITY_PATTERN, weather_entity)
+    ):
         ctx.fail()
     if 'templateReadonly' in properties and not isinstance(properties['templateReadonly'], bool):
         ctx.fail()

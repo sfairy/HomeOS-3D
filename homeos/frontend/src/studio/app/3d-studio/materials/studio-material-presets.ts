@@ -97,7 +97,7 @@ const STYLE_ROLE_DERIVATIONS: ReadonlyArray<{
 
 
   { role: "surface", from: ["top", "upholstery", "fabric", "body"], inheritSlab: true },
-  { role: "seat", from: ["upholstery", "fabric"] },
+  { role: "seat", from: ["upholstery", "fabric", "body", "top"] },
   { role: "fabric", from: ["upholstery", "cushion", "stash", "top", "body"] },
   { role: "linen", from: ["fabric", "upholstery", "cushion"] },
   { role: "sage", from: ["fabric", "upholstery", "cushion"] },
@@ -131,6 +131,62 @@ const STYLE_ROLE_DERIVATIONS: ReadonlyArray<{
   { role: "fish", from: ["accent", "body", "pot"] },
   { role: "ceramic", from: ["pot", "top"] },
   { role: "foliage", from: ["interior", "frame"], surface: "foliage" },
+
+  /* ------------------------------------------------------------------ *
+   * 0.7.6 恢复出来的**真实构件角色**（`model-slot-roles.ts` / `studio-semantic-roles.ts`）：
+   * 各档位组合（combo）里没有这些角色，于是「选了档位却不改变任何槽位」（空转）或只改一半
+   * （半生效）。这里按**语义近邻**把它们挂到档位已有的角色上，档位才能真正接管配色。
+   * ------------------------------------------------------------------ */
+
+  /* 摆件 / 花艺：器身 / 花头 / 枝干 / 干燥花束 */
+  { role: "vase", from: ["accent", "body", "base"], surface: "ceramic" },
+  { role: "flower", from: ["accent", "leaf", "light"], surface: "foliage" },
+  { role: "stem", from: ["frame", "body"], surface: "wood" },
+  { role: "pot", from: ["body", "base"], surface: "ceramic" },
+  { role: "driedBouquet", from: ["accent", "leaf"], surface: "foliage" },
+  { role: "plate", from: ["body", "surface", "light"] },
+  { role: "candle", from: ["light", "accent"] },
+  { role: "soapTray", from: ["accent", "light"] },
+
+  /* 小家电 / 灶具 / 厨具 */
+  { role: "grille", from: ["metal", "dark", "panel"], surface: "metal" },
+  { role: "hobFrame", from: ["panel", "body", "dark"] },
+  { role: "cooktop", from: ["dark", "panel"], surface: "lacquer" },
+  { role: "burner", from: ["metal", "trim"], surface: "metal" },
+  { role: "faucet", from: ["metal", "trim"], surface: "metal" },
+
+  /* 软装 / 宠物 / 儿童 / 灯具 */
+  { role: "throwBlanket", from: ["fabric", "upholstery", "accent"], surface: "fabric" },
+  { role: "board", from: ["top", "body", "surface"], surface: "wood" },
+  { role: "rope", from: ["accent", "trim"], surface: "fabric" },
+  { role: "petPad", from: ["cushion", "fabric", "upholstery", "accent"], surface: "fabric" },
+  { role: "petBase", from: ["base", "body", "frame"] },
+  { role: "petFrame", from: ["frame", "body"] },
+  { role: "shell", from: ["body", "panel"] },
+  { role: "glow", from: ["indicator", "lit", "accent"] },
+
+  /* 通用件：`leg` 之前完全没有派生，缺 `leg` 的档位会让支腿掉回 GLB 占位色（半生效）。 */
+  { role: "leg", from: ["trim", "frame", "body"] },
+  { role: "interior", from: ["body", "panel", "shadow"] },
+  { role: "carcass", from: ["body", "frame", "panel"] },
+  { role: "lid", from: ["top", "panel", "body"] },
+  { role: "panelSlat", from: ["panel", "door", "body"] },
+  { role: "mattress", from: ["upholstery", "cushion", "fabric", "top"], surface: "fabric" },
+
+  /* 木作 / 地毯：`cabinetBody` / `cabinetDoor` 是**调色板语义键**，它们同时也会作为角色出现
+   * （`home-network-cabinet` 的柜体 / 柜门、`storage-box` 的盒盖、`round-rug` 的毯面 / 包边）。 */
+  { role: "cabinetBody", from: ["body", "carcass"] },
+  { role: "cabinetDoor", from: ["door", "panel", "drawer"] },
+  { role: "rugPile", from: ["fabric", "upholstery"], surface: "fabric" },
+  { role: "rugBorder", from: ["trim", "base"], surface: "fabric" },
+
+  /* 家族 token 兜底出来的「写实中性件」也要能跟着档位走（否则这些槽位同样是档位空转）。 */
+  { role: "bodyNeutral", from: ["body", "surface"] },
+  { role: "darkNeutral", from: ["dark", "shadow", "base"] },
+  { role: "lightNeutral", from: ["light", "surface"] },
+  { role: "softNeutral", from: ["soft", "surface"] },
+  { role: "accentNeutral", from: ["accent", "trim"] },
+  { role: "glassNeutral", from: ["glass"] },
 ];
 
 /** 按上面的规则把 combo 没给出的角色派生出来（只补空缺，不覆盖 combo 的显式配方）。 */
@@ -182,14 +238,125 @@ const MODEL_STYLE_ROLE_OVERRIDES: Readonly<
   },
 });
 
-/** 取某角色在某档位下的配方：逐模型覆写优先，其次档位自己的配方。 */
+/** 取某角色在某档位下的配方：逐模型覆写优先，其次档位自己的配方，最后按**档位组**补全。 */
 function styleRoleRecipeFor(
   modelType: string | undefined,
   role: string,
   preset: MaterialStylePreset,
 ): RoleRecipe | undefined {
-  return (modelType ? MODEL_STYLE_ROLE_OVERRIDES[modelType]?.[role] : undefined) ?? preset.roles[role];
+  const modelOverride = modelType ? MODEL_STYLE_ROLE_OVERRIDES[modelType]?.[role] : undefined;
+  if (modelOverride) return modelOverride;
+  const presetRecipe = preset.roles[role];
+  if (presetRecipe) return presetRecipe;
+  const presetGroup = modelType ? presetGroupFor(modelType) : null;
+  return (presetGroup ? STYLE_ROLE_RECIPES_BY_GROUP[presetGroup]?.[role] : undefined) ?? undefined;
 }
+
+/**
+ * 逐**档位组**的语义角色补全：档位表里没写、但该品类一定会出现的构件角色。
+ *
+ * 背景：档位是按组下料的，组里各件模型的构件并不一样 —— 鲜绿档位只写了「叶 / 盆」，
+ * 可绿植模型还有接水盘（`saucer`）、浅色叶（`foliageLight`）；卫浴档位没写牙杯（`mug`）与
+ * 毛巾杆（`towel`）。这些槽位以前在选中档位后**原样不动**（「档位半生效」），
+ * 现在补成该品类的真实构件材质。
+ *
+ * 只在档位自身没写该角色时生效（不覆盖档位作者的显式设计）；颜色优先走主题语义键
+ * （`leafColor` / `showerMetal` / `decorAccent`…），语义键缺省时由 `resolveMaterialPaletteColor`
+ * 回落到写实默认色，绝不塌成 `furniture` 蓝灰。
+ */
+
+/**
+ * 「台面」这个面的配方：台盆的那张台面板（`basin` 的 `light` 槽位 → 角色 `rim`）与台面素材
+ * （`countertop` 的 `light` 槽位 → 同一个角色）**共用同一份** —— 台面这件素材的全部意义就是
+ * 「和台盆那张台面一模一样」，写成两份迟早会走偏，所以只留这一个来源。
+ */
+const RIM_RECIPE: RoleRecipe = Object.freeze({ surface: "ceramic", color: "furniture" });
+
+const STYLE_ROLE_RECIPES_BY_GROUP: Readonly<Record<string, Readonly<Record<string, RoleRecipe>>>> =
+  Object.freeze({
+    /** 绿植 / 花艺：浅色叶 + 接水盘 + 花朵 + 花蕊。 */
+    decor: {
+      foliageLight: { surface: "foliage", color: "leafColorLight" },
+      saucer: { surface: "ceramic", color: "decorAccent", multiply: 0.88 },
+      flower: { surface: "paint", color: 0xe0a8bd },
+      flowerCenter: { surface: "paint", color: 0xe8c169 },
+    },
+
+    /** 摆件 / 挂饰：画框、装饰面、花枝、垂布、镜面、抱枕、雕件、奖杯、摆件。 */
+    ornament: {
+      frame: { surface: "wood", color: "furnitureDark" },
+      surface: { surface: "paint", color: "furnitureLight" },
+      stem: { surface: "wood", color: "furnitureDark" },
+      drape: { surface: "fabric", color: "decorAccent" },
+      /** 全身镜：镜面不是「透明玻璃」，是高金属度低粗糙度的反射面。 */
+      glass: { surface: "glass", color: "glass", metalness: 0.92, roughness: 0.05 },
+      pillow: { surface: "fabric", color: "furnitureLight" },
+      fabric: { surface: "fabric", color: "furnitureSoft" },
+      sculpture: { surface: "stone", color: "decorAccent" },
+      shell: { surface: "paint", color: "furniture" },
+      trophyMetal: { surface: "metal", color: 0xcdaa63 },
+      figurine: { surface: "ceramic", color: "furnitureLight" },
+    },
+    /** 灯具：灯体 / 灯饰金属 / 灯罩 / 透光罩。 */
+    lamp: {
+      lampBody: { surface: "metal", color: "floorLampBody" },
+      lampAccent: { surface: "metal", color: "furnitureDark" },
+      lampShade: { surface: "fabric", color: "furnitureLight" },
+      diffuser: {
+        surface: "glass",
+        color: 0xe9e6df,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+      },
+    },
+    /** 家电：视窗 / 杯体 / 容器盖 / 置物盘。 */
+    steelAppliance: {
+      window: { surface: "glass", color: "glass", transparent: true, opacity: 0.42, depthWrite: false },
+      container: {
+        surface: "glass",
+        color: "glass",
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      },
+      containerLid: { surface: "metal", color: "furnitureDark" },
+      soapTray: { surface: "metal", color: "metal" },
+    },
+    /** 洁具 / 卫浴：池沿、盆体、牙杯、毛巾杆、置物盘、收纳罐。 */
+    ceramic: {
+      rim: { surface: "ceramic", color: "furniture" },
+      bowl: { surface: "ceramic", color: "furnitureLight" },
+      mug: { surface: "ceramic", color: "furnitureLight" },
+      container: { surface: "ceramic", color: "furnitureLight" },
+      containerLid: { surface: "ceramic", color: "furnitureLight" },
+      rack: { surface: "metal", color: "showerMetal" },
+      towel: { surface: "fabric", color: "diningLinen" },
+    },
+    /** 台盆：盆体 / 池沿 / 置物盘。台面素材（`countertop`）直接挂这一组，`rim` 是两边共用的那条。 */
+    basin: {
+      rim: RIM_RECIPE,
+      bowl: { surface: "ceramic", color: "furnitureLight" },
+      soapTray: { surface: "ceramic", color: "furnitureLight" },
+    },
+    /** 木作：台面 / 桶体 / 木架。 */
+    woodwork: {
+      countertop: { surface: "stone", color: "countertop" },
+      container: { surface: "wood", color: "cabinetBody" },
+      rackWood: { surface: "wood", color: "wood" },
+    },
+    /** 宠物：干粮 / 水盆（`pet-dryer` / `pet-bed-bowls` 的真实构件）。 */
+    pet: {
+      petFood: { surface: "paint", color: 0xb08148 },
+      water: { surface: "glass", color: 0xa9c5d3, transparent: true, opacity: 0.62, depthWrite: false },
+    },
+    /** 数码 / 影音：机身边框 / 支架 / 纸张。 */
+    device: {
+      bezel: { surface: "lacquer", color: "furnitureDark" },
+      stand: { surface: "metal", color: "furnitureDark" },
+      paperSheet: { surface: "paint", color: 0xf3f1ea },
+    },
+  });
 
 
 type Recipe = RoleRecipe;
@@ -499,6 +666,12 @@ function sanitaryCombo({
       ? { surface: body.surface, color: shadeColor(body.color as number, -0.18) }
       : null);
   const joineryRecipe = frame ?? top ?? body;
+  /**
+   * 洁具的五金（拉手 / 挡水 / 毛巾杆 / 台盆龙头）以前是**写死的 0xbfc6cc**，任何陶瓷档位都刷不动它，
+   * 于是像 `heated-towel-rail`（全机只有杆 / 龙头 / 毛巾 / 装饰条）这种模型选遍档位**毫无变化**。
+   * 改成主题语义键 `showerMetal`：档位没写该键时回落主题值（= 原来的 0xbfc6cc，行为不变），
+   * 陶瓷档位自己写了该键（见 `CERAMIC_STYLES`）时就随档位走「亮白 / 哑光 / 岩灰」。
+   */
   const metalRecipe: Recipe = metal ?? { surface: "metal", color: 0xbfc6cc };
   const glassRecipe: Recipe = glass ?? { surface: "glass", color: 0xdfeaec };
 
@@ -546,23 +719,32 @@ function glazingCombo({ glass, frame, handle, trim, metal }: {
   };
 }
 
-/** 绿植：叶 / 盆 / 托 / 干 / 土。 */
-function plantCombo({ foliage, pot, saucer, trunk, soil }: {
+/** 绿植 / 花艺：叶 / 浅色叶 / 盆 / 托 / 干 / 土 / 花 / 花蕊。 */
+function plantCombo({ foliage, pot, saucer, trunk, soil, flower, flowerCenter }: {
   foliage: Recipe;
   pot: Recipe;
   saucer?: Recipe;
   trunk?: Recipe;
   soil?: Recipe;
+  flower?: Recipe;
+  flowerCenter?: Recipe;
 }): Record<string, Recipe> {
   const derivedTrunk: Recipe = { surface: "wood", color: 0x6b5a42 };
   const derivedSaucer: Recipe = { surface: "ceramic", color: shadeColor(pot.color as number, -0.3) };
   const derivedSoil: Recipe = { surface: "stone", color: 0x3b2f22 };
   return {
     foliage,
+    /** 同一株上的新叶 / 受光叶：比主叶亮一档，别让整株塌成一个色号。 */
+    foliageLight: { surface: "foliage", color: shadeColor(foliage.color as number, 0.2) },
     pot,
+    /** `saucer` 与 `base` 是同一块接水盘的两种叫法（旧槽位叫 `base`）。 */
+    saucer: saucer ?? derivedSaucer,
     base: saucer ?? derivedSaucer,
     frame: trunk ?? derivedTrunk,
     interior: soil ?? derivedSoil,
+    ...(flower
+      ? { flower, flowerCenter: flowerCenter ?? { surface: "paint", color: 0xe8c169 } }
+      : {}),
   };
 }
 
@@ -1537,6 +1719,11 @@ const DEVICE_STYLES: readonly MaterialStylePreset[] = Object.freeze([
   ),
 ]);
 
+/**
+ * 洁具档位：除了池体 / 台面 / 木作，必须同时下料**五金与织物**（`showerMetal` / `diningLinen`）——
+ * 洁具组里毛巾杆（`rack`）、龙头（`faucet` 由 `metal`/`trim` 派生）、毛巾（`towel`）都读这两个语义键；
+ * 不写就等于让这些构件永远停在主题默认色，整机只有池体换色（`shower` / `poolTable` 档位早就这么做了）。
+ */
 const CERAMIC_STYLES: readonly MaterialStylePreset[] = Object.freeze([
   definePreset(
     "ceramic-glossy",
@@ -1765,6 +1952,7 @@ const DECOR_STYLES: readonly MaterialStylePreset[] = Object.freeze([
     plantCombo({
       foliage: { surface: "foliage", color: 0x5d8c40 },
       pot: { surface: "ceramic", color: 0xc4a484 },
+      flower: { surface: "paint", color: 0xe6a8bd },
     }),
   ),
   definePreset(
@@ -1779,6 +1967,7 @@ const DECOR_STYLES: readonly MaterialStylePreset[] = Object.freeze([
     plantCombo({
       foliage: { surface: "foliage", color: 0x6f7a45 },
       pot: { surface: "ceramic", color: 0xb0a68c },
+      flower: { surface: "paint", color: 0xf2ead6 },
     }),
   ),
   definePreset(
@@ -1795,6 +1984,7 @@ const DECOR_STYLES: readonly MaterialStylePreset[] = Object.freeze([
 
       pot: { surface: "ceramic", color: 0xc07a52 },
       trunk: { surface: "wood", color: 0x8c5a3c },
+      flower: { surface: "paint", color: 0xd98a63 },
     }),
   ),
 ]);
@@ -2346,6 +2536,509 @@ const DOOR_STYLES: readonly MaterialStylePreset[] = Object.freeze([
 ]);
 
 
+/* ------------------------------------------------------------------ *
+ * 0.7.6 新增品类档位：宠物 / 儿童 / 影音 / 健身 / 器皿 / 庭院
+ *
+ * 这些品类原来没有任何档位（面板上「材质风格」是空的），且它们的角色名（`petPad` /
+ * `playBody` / `sportFrame` / `basket` / `leaf`…）也不在旧档位表的词表里。这里按**真实语义**
+ * 给每组 4 个档位，并把该品类出现过的角色**显式写全**，保证「档位 → 槽位」交集非空（不空转）。
+ * ------------------------------------------------------------------ */
+
+/** 宠物用品：主体 / 框架 / 底座 / 软垫 / 食盆 / 猫砂 / 抓柱 / 剑麻绳。 */
+function petRoleRecipes(colors: {
+  body: number;
+  frame: number;
+  pad: number;
+  bowl: number;
+  litter: number;
+  rope: number;
+}): Record<string, Recipe> {
+  return {
+    petBody: { surface: "paint", color: colors.body },
+    body: { surface: "paint", color: colors.body },
+    soft: { surface: "fabric", color: colors.pad },
+    light: { surface: "paint", color: 0xefe9de },
+    panel: { surface: "wood", color: colors.frame },
+    petFrame: { surface: "wood", color: colors.frame },
+    frame: { surface: "wood", color: colors.frame },
+    rackWood: { surface: "wood", color: colors.frame },
+    petBase: { surface: "wood", color: colors.frame },
+    base: { surface: "wood", color: colors.frame },
+    trim: { surface: "wood", color: colors.frame },
+    dark: { surface: "wood", color: colors.rope },
+    petPad: { surface: "fabric", color: colors.pad },
+    scratchingPost: { surface: "fabric", color: colors.pad },
+    rope: { surface: "fabric", color: colors.rope },
+    petBowl: { surface: "ceramic", color: colors.bowl },
+    container: { surface: "ceramic", color: colors.bowl },
+    litter: { surface: "stone", color: colors.litter },
+    rack: { surface: "metal", color: 0xb6bbbf },
+    water: { surface: "glass", color: 0x8fbdd0, transparent: true, opacity: 0.45, depthWrite: false },
+    glass: { surface: "glass", color: 0xcfe0e6, transparent: true, opacity: 0.4, depthWrite: false },
+  };
+}
+
+const PET_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "pet-oak",
+    "原木米白",
+    "wood",
+    { furniture: 0xb08a5e, furnitureLight: 0xe4ded2, furnitureDark: 0x8c6b44 },
+    petRoleRecipes({
+      body: 0xe4ded2,
+      frame: 0xb08a5e,
+      pad: 0xb7bfae,
+      bowl: 0xeeeae2,
+      litter: 0xdcd6c8,
+      rope: 0xc3ad86,
+    }),
+  ),
+  definePreset(
+    "pet-walnut",
+    "胡桃木灰",
+    "wood",
+    { furniture: 0x6b4526, furnitureLight: 0xd8d2c6, furnitureDark: 0x4a2e1a },
+    petRoleRecipes({
+      body: 0xd8d2c6,
+      frame: 0x6b4526,
+      pad: 0x9aa39b,
+      bowl: 0xe6e3dc,
+      litter: 0xd2cbbd,
+      rope: 0xa9855c,
+    }),
+  ),
+  definePreset(
+    "pet-grey",
+    "雾灰布艺",
+    "fabric",
+    { furniture: 0x9aa3a6, furnitureLight: 0xc9ccce, furnitureDark: 0x6f7679 },
+    petRoleRecipes({
+      body: 0xc9ccce,
+      frame: 0x7b8184,
+      pad: 0x9aa3a6,
+      bowl: 0xdcdcd8,
+      litter: 0xc8c4bb,
+      rope: 0xb0a998,
+    }),
+  ),
+  definePreset(
+    "pet-cream",
+    "奶油白",
+    "paint",
+    { furniture: 0xe8e2d6, furnitureLight: 0xf5f1ea, furnitureDark: 0xc3bcaf },
+    petRoleRecipes({
+      body: 0xf2efe8,
+      frame: 0xe8e2d6,
+      pad: 0xe3dcc9,
+      bowl: 0xf3f1ec,
+      litter: 0xded7c8,
+      rope: 0xd0bb92,
+    }),
+  ),
+]);
+
+/** 儿童家具 / 玩具：玩具主体 / 点缀 / 球 / 帐篷布 / 层板 / 架体。 */
+function kidsRoleRecipes(colors: {
+  body: number;
+  accent: number;
+  ball: number;
+  tent: number;
+  wood: number;
+  shelf: number;
+}): Record<string, Recipe> {
+  return {
+    playBody: { surface: "paint", color: colors.body },
+    body: { surface: "paint", color: colors.body },
+    base: { surface: "paint", color: colors.wood },
+    playAccent: { surface: "paint", color: colors.accent },
+    accent: { surface: "paint", color: colors.accent },
+    playBall: { surface: "paint", color: colors.ball },
+    tentFabric: { surface: "fabric", color: colors.tent },
+    soft: { surface: "fabric", color: colors.tent },
+    shelf: { surface: "wood", color: colors.shelf },
+    rackWood: { surface: "wood", color: colors.wood },
+    grip: { surface: "metal", color: 0xb6bbbf },
+    frame: { surface: "wood", color: colors.wood },
+    glass: { surface: "glass", color: 0xcfe0e6, transparent: true, opacity: 0.4, depthWrite: false },
+  };
+}
+
+const KIDS_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "kids-pastel",
+    "马卡龙",
+    "paint",
+    { furniture: 0xa9c9d8, furnitureLight: 0xe6eef2, furnitureDark: 0x7fa3b5 },
+    kidsRoleRecipes({
+      body: 0xa9c9d8,
+      accent: 0xe0a36b,
+      ball: 0xd06e6e,
+      tent: 0xc9d6c3,
+      wood: 0xd9bf9a,
+      shelf: 0xc8ab84,
+    }),
+  ),
+  definePreset(
+    "kids-natural",
+    "原木本色",
+    "wood",
+    { furniture: 0xc49a6c, furnitureLight: 0xe3d4be, furnitureDark: 0x9c6b3f },
+    kidsRoleRecipes({
+      body: 0xe3d4be,
+      accent: 0xc98f52,
+      ball: 0xb9855c,
+      tent: 0xd8cbb0,
+      wood: 0xc49a6c,
+      shelf: 0xb08a5e,
+    }),
+  ),
+  definePreset(
+    "kids-ocean",
+    "海洋蓝",
+    "paint",
+    { furniture: 0x6f9fc4, furnitureLight: 0xc9deee, furnitureDark: 0x4a7396 },
+    kidsRoleRecipes({
+      body: 0x6f9fc4,
+      accent: 0xf2c14e,
+      ball: 0xe4d9c3,
+      tent: 0x9dc0d8,
+      wood: 0xcbb894,
+      shelf: 0xb8a37c,
+    }),
+  ),
+  definePreset(
+    "kids-cream",
+    "奶油白",
+    "paint",
+    { furniture: 0xf2efe8, furnitureLight: 0xfbfaf7, furnitureDark: 0xd8d4cb },
+    kidsRoleRecipes({
+      body: 0xf2efe8,
+      accent: 0xe0a36b,
+      /** 奶油白：球池的球单独给「奶粉 → 藕粉」一色，别和「马卡龙」的同一颗红球撞车（否则两档整机同色）。 */
+      ball: 0xd06e6e,
+      tent: 0xe9e2d3,
+      wood: 0xdcc9ab,
+      shelf: 0xcbb894,
+    }),
+  ),
+]);
+
+/** 影音 / 乐器 / 数码：外壳 / 面板 / 屏 / 边框 / 支架 / 格栅 / 镜头 / 唱盘 / 发光件。 */
+function mediaRoleRecipes(colors: {
+  shell: number;
+  panel: number;
+  frame: number;
+  screen: number;
+  accent: number;
+}): Record<string, Recipe> {
+  return {
+    shell: { surface: "lacquer", color: colors.shell },
+    body: { surface: "lacquer", color: colors.shell },
+    panel: { surface: "lacquer", color: colors.panel },
+    dark: { surface: "lacquer", color: colors.panel },
+    bezel: { surface: "lacquer", color: colors.panel },
+    frame: { surface: "wood", color: colors.frame },
+    stand: { surface: "metal", color: colors.accent },
+    base: { surface: "lacquer", color: colors.panel },
+    trim: { surface: "metal", color: colors.accent },
+    handle: { surface: "metal", color: colors.accent },
+    grille: { surface: "metal", color: colors.accent },
+    metal: { surface: "metal", color: colors.accent },
+    rackWood: { surface: "wood", color: colors.frame },
+    basket: { surface: "wood", color: colors.frame },
+    lens: { surface: "glass", color: 0x1f2933 },
+    platter: { surface: "lacquer", color: colors.panel },
+    screen: { surface: "lacquer", color: colors.screen },
+    glow: { surface: "lacquer", color: 0x7fd1e0, emissive: 0x7fd1e0, emissiveIntensity: 0.5 },
+  };
+}
+
+const MEDIA_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "media-black",
+    "黑曜石",
+    "lacquer",
+    { appliance: 0x2b2f34, applianceSoft: 0x3a3f45, applianceDark: 0x1c1f23 },
+    mediaRoleRecipes({
+      shell: 0x2b2f34,
+      panel: 0x1c1f23,
+      frame: 0x30343a,
+      screen: 0x0f1114,
+      accent: 0x6d747b,
+    }),
+  ),
+  definePreset(
+    "media-walnut",
+    "胡桃木",
+    "wood",
+    { appliance: 0x3a3330, applianceSoft: 0x6b4526, applianceDark: 0x241f1c },
+    mediaRoleRecipes({
+      shell: 0x3a3330,
+      panel: 0x2a2422,
+      frame: 0x6b4526,
+      screen: 0x0f1114,
+      accent: 0xb08d5a,
+    }),
+  ),
+  definePreset(
+    "media-white",
+    "象牙白",
+    "lacquer",
+    { appliance: 0xe9e6df, applianceSoft: 0xf4f2ec, applianceDark: 0xc9c5bc },
+    mediaRoleRecipes({
+      shell: 0xe9e6df,
+      panel: 0xd8d4cb,
+      frame: 0xdcc9ab,
+      screen: 0x14171a,
+      accent: 0xb6bbbf,
+    }),
+  ),
+  definePreset(
+    "media-silver",
+    "银灰",
+    "metal",
+    { appliance: 0x9aa1a8, applianceSoft: 0xb6bbbf, applianceDark: 0x5b6167 },
+    mediaRoleRecipes({
+      shell: 0x9aa1a8,
+      panel: 0x5b6167,
+      frame: 0x6f767b,
+      screen: 0x121518,
+      accent: 0xc2c7cc,
+    }),
+  ),
+]);
+
+/** 健身器械：框架 / 配重 / 握把 / 坐垫 / 包体 / 木件 / 场地。 */
+function fitnessRoleRecipes(colors: {
+  frame: number;
+  weight: number;
+  grip: number;
+  pad: number;
+  wood: number;
+  court: number;
+}): Record<string, Recipe> {
+  return {
+    sportFrame: { surface: "metal", color: colors.frame },
+    frame: { surface: "metal", color: colors.frame },
+    base: { surface: "metal", color: colors.frame },
+    body: { surface: "metal", color: colors.frame },
+    dark: { surface: "metal", color: colors.weight },
+    weight: { surface: "metal", color: colors.weight },
+    grip: { surface: "leather", color: colors.grip },
+    pad: { surface: "fabric", color: colors.pad },
+    surface: { surface: "fabric", color: colors.pad },
+    soft: { surface: "fabric", color: colors.pad },
+    trim: { surface: "metal", color: colors.grip },
+    bagBody: { surface: "leather", color: colors.grip },
+    wood: { surface: "wood", color: colors.wood },
+    rackWood: { surface: "wood", color: colors.wood },
+    courtFelt: { surface: "fabric", color: colors.court },
+  };
+}
+
+const FITNESS_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "fitness-carbon",
+    "碳黑",
+    "metal",
+    { appliance: 0x2f3338, applianceSoft: 0x53585e, applianceDark: 0x1f2226 },
+    fitnessRoleRecipes({
+      frame: 0x2f3338,
+      weight: 0x53585e,
+      grip: 0x1f2226,
+      pad: 0x3a3f45,
+      wood: 0xa9855c,
+      court: 0x2f6f4f,
+    }),
+  ),
+  definePreset(
+    "fitness-silver",
+    "银灰",
+    "metal",
+    { appliance: 0x9aa1a8, applianceSoft: 0xc2c7cc, applianceDark: 0x5b6167 },
+    fitnessRoleRecipes({
+      frame: 0x9aa1a8,
+      weight: 0x5b6167,
+      grip: 0x3a3d42,
+      pad: 0x8d949a,
+      wood: 0xb08a5e,
+      court: 0x3f7f5c,
+    }),
+  ),
+  definePreset(
+    "fitness-oak",
+    "原木黑",
+    "wood",
+    { appliance: 0x2b2f34, applianceSoft: 0xc49a6c, applianceDark: 0x1c1f23 },
+    fitnessRoleRecipes({
+      frame: 0x2b2f34,
+      weight: 0x3a3f45,
+      grip: 0x23262b,
+      pad: 0xc49a6c,
+      wood: 0xc49a6c,
+      court: 0x2f6f4f,
+    }),
+  ),
+  definePreset(
+    "fitness-sand",
+    "沙白",
+    "paint",
+    { appliance: 0xdcd6c8, applianceSoft: 0xefe9de, applianceDark: 0x9d968a },
+    fitnessRoleRecipes({
+      frame: 0xdcd6c8,
+      weight: 0x9d968a,
+      grip: 0x6f6a60,
+      pad: 0xc7b48f,
+      wood: 0xc49a6c,
+      court: 0x4f8a63,
+    }),
+  ),
+]);
+
+/** 器皿 / 收纳：篮筐 / 架体 / 木架 / 砧板 / 容器 / 盖 / 杯 / 壶 / 五金。 */
+function tablewareRoleRecipes(colors: {
+  ceramic: number;
+  wood: number;
+  basket: number;
+  metal: number;
+}): Record<string, Recipe> {
+  return {
+    mug: { surface: "ceramic", color: colors.ceramic },
+    plate: { surface: "ceramic", color: colors.ceramic },
+    potBody: { surface: "ceramic", color: colors.ceramic },
+    container: { surface: "ceramic", color: colors.ceramic },
+    containerLid: { surface: "lacquer", color: colors.ceramic },
+    base: { surface: "ceramic", color: colors.ceramic },
+    board: { surface: "wood", color: colors.wood },
+    rackWood: { surface: "wood", color: colors.wood },
+    wood: { surface: "wood", color: colors.wood },
+    basket: { surface: "wood", color: colors.basket },
+    trim: { surface: "metal", color: colors.metal },
+    handle: { surface: "metal", color: colors.metal },
+    rack: { surface: "metal", color: colors.metal },
+    metal: { surface: "metal", color: colors.metal },
+    window: { surface: "glass", color: 0xcfe0e6, transparent: true, opacity: 0.4, depthWrite: false },
+  };
+}
+
+const TABLEWARE_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "tableware-white",
+    "白瓷原木",
+    "ceramic",
+    { applianceSoft: 0xe7e2d6, wood: 0xc9a878, decorAccent: 0xc0975e },
+    tablewareRoleRecipes({ ceramic: 0xeae6dc, wood: 0xc9a878, basket: 0xc0975e, metal: 0xb6bbbf }),
+  ),
+  definePreset(
+    "tableware-oak",
+    "浅橡木",
+    "wood",
+    { applianceSoft: 0xf0ece4, wood: 0xd0ab7c, decorAccent: 0xa9855c },
+    tablewareRoleRecipes({ ceramic: 0xf0ece4, wood: 0xd0ab7c, basket: 0xa9855c, metal: 0xb0a894 }),
+  ),
+  definePreset(
+    "tableware-bamboo",
+    "竹编",
+    "wood",
+    { applianceSoft: 0xe4dcc6, wood: 0xc2b184, decorAccent: 0xb09b6a },
+    tablewareRoleRecipes({ ceramic: 0xe9e3d4, wood: 0xc2b184, basket: 0xb09b6a, metal: 0xb8ae94 }),
+  ),
+  definePreset(
+    "tableware-steel",
+    "不锈钢",
+    "metal",
+    { applianceSoft: 0xdcdcd8, wood: 0x8d9298, decorAccent: 0x9aa1a8 },
+    tablewareRoleRecipes({ ceramic: 0xdcdcd8, wood: 0x8d9298, basket: 0xb6bbbf, metal: 0xc2c7cc }),
+  ),
+]);
+
+/** 庭院：铺装 / 浅石 / 深色木石 / 植被 / 水面 / 花色。 */
+function gardenRoleRecipes(colors: {
+  base: number;
+  light: number;
+  dark: number;
+  leaf: number;
+  water: number;
+  accent: number;
+}): Record<string, Recipe> {
+  return {
+    base: { surface: "stone", color: colors.base },
+    planter: { surface: "ceramic", color: colors.dark },
+    light: { surface: "stone", color: colors.light },
+    stone: { surface: "stone", color: colors.light },
+    dark: { surface: "wood", color: colors.dark },
+    wood: { surface: "wood", color: colors.dark },
+    leaf: { surface: "foliage", color: colors.leaf },
+    foliage: { surface: "foliage", color: colors.leaf },
+    grassTuft: { surface: "foliage", color: colors.leaf },
+    soil: { surface: "stone", color: 0x3b3128 },
+    water: { surface: "glass", color: colors.water, transparent: true, opacity: 0.45, depthWrite: false },
+    accent: { surface: "foliage", color: colors.accent },
+    flower: { surface: "foliage", color: colors.accent },
+    glass: { surface: "glass", color: colors.water, transparent: true, opacity: 0.42, depthWrite: false },
+  };
+}
+
+const GARDEN_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "garden-natural",
+    "常绿庭园",
+    "stone",
+    { ground: 0x9a9484, leafColor: 0x4f7a3d, decorAccent: 0xd08a9a },
+    gardenRoleRecipes({
+      base: 0x9a9484,
+      light: 0xc8c2b4,
+      dark: 0x4d463a,
+      leaf: 0x4f7a3d,
+      water: 0x4f8ea8,
+      accent: 0xd08a9a,
+    }),
+  ),
+  definePreset(
+    "garden-olive",
+    "橄榄灰绿",
+    "stone",
+    { ground: 0x8f9083, leafColor: 0x647a3c, decorAccent: 0xc9a05a },
+    gardenRoleRecipes({
+      base: 0x8f9083,
+      light: 0xbcc0b0,
+      dark: 0x45483c,
+      leaf: 0x647a3c,
+      water: 0x54819a,
+      accent: 0xc9a05a,
+    }),
+  ),
+  definePreset(
+    "garden-autumn",
+    "秋色",
+    "stone",
+    { ground: 0xa2907a, leafColor: 0x8a7a2e, decorAccent: 0xc06a3a },
+    gardenRoleRecipes({
+      base: 0xa2907a,
+      light: 0xd0bfa4,
+      dark: 0x51412f,
+      leaf: 0x8a7a2e,
+      water: 0x4a7f9c,
+      accent: 0xc06a3a,
+    }),
+  ),
+  definePreset(
+    "garden-stone",
+    "素石庭园",
+    "stone",
+    { ground: 0xb3ada0, leafColor: 0x6b8a52, decorAccent: 0xc7b48f },
+    gardenRoleRecipes({
+      base: 0xb3ada0,
+      light: 0xd9d4c9,
+      dark: 0x6b665c,
+      leaf: 0x6b8a52,
+      water: 0x7fb3c8,
+      accent: 0xc7b48f,
+    }),
+  ),
+]);
+
+
 const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = Object.freeze({
   upholstery: UPHOLSTERY_STYLES,
   joinery: JOINERY_STYLES,
@@ -2372,6 +3065,12 @@ const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = 
   shower: SHOWER_STYLES,
   teaTable: TEA_TABLE_STYLES,
   ornament: ORNAMENT_STYLES,
+  pet: PET_STYLES,
+  kids: KIDS_STYLES,
+  media: MEDIA_STYLES,
+  fitness: FITNESS_STYLES,
+  tableware: TABLEWARE_STYLES,
+  garden: GARDEN_STYLES,
 });
 
 /** 逐模型的档位组：参考实现里按类型单独指定过的那些，这里逐一登记（空串 = 明确不给档位：结构件 / 车辆 / 壁画 / 饰面墙等由专用收尾接管颜色）。 */
@@ -2404,6 +3103,24 @@ const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.free
   "tea-table-set": "teaTable",
 
   basin: "basin",
+  /**
+   * 台面的档位组：**直接挂台盆那一组**（不是「换 id 复用」）。
+   *
+   * 台面这件素材的材质就是台盆的那张台面板（`light` 槽位 → 角色 `rim` → `furniture` 色号），
+   * 所以它必须和台盆**共用同一份档位注册表**，而不是拿一份复制品：
+   *  · 档位 id 同一套 → 台盆上存的 `basin-marble-white` 在台面上**同样合法**
+   *    （复制风格 / 应用到同类物件 / 场景存档都不会被 `normalizeMaterialStyle` 悄悄打回 `auto`，
+   *    那正是「台面看着和台盆不一样」最容易踩的一步）；
+   *  · 份数同一套 → 盆沿与台面在**任何**档位下都是同一个色，没有第二份定义可以走偏；
+   *  · 用户给台盆建的个人预设（`custom:*`）也立刻能用在台面上。
+   *
+   * 代价：台面只有 `rim` 一个槽位，「亮白陶瓷」与「白色大理石台面」这两档的 `furniture`
+   * 同为 0xf0f0ec，于是这两档对台面**看起来是同一块板**（= 台盆那张台面在这两档下也确实同色）。
+   * 审计会记一条 `style-presets-identical`；这是单槽位素材的必然结果，不是配置漂移。
+   *
+   * 组内角色补全见 `STYLE_ROLE_RECIPES_BY_GROUP.basin` 的 `rim: RIM_RECIPE`。
+   */
+  countertop: "basin",
 
   door: "door",
 
@@ -2437,6 +3154,14 @@ const PRESET_GROUP_BY_FAMILY: Readonly<Record<string, string>> = Object.freeze({
   lamp: "lamp",
   pillar: "pillar",
   aquatic: "aquarium",
+
+  pet: "pet",
+  kids: "kids",
+  media: "media",
+  fitness: "fitness",
+  tableware: "tableware",
+  garden: "garden",
+  furniture: "woodwork",
 });
 
 /** `auto` 档在下拉里的显示名：柱体不是「跟随全局风格」，而是配墙。 */
@@ -2463,6 +3188,21 @@ export function isMaterialStyleCapable(modelType: string): boolean {
   return presetGroupFor(modelType) !== null;
 }
 
+/**
+ * 该模型是否**显式声明**「不提供材质风格档位」（`PRESET_GROUP_BY_MODEL_TYPE` 里登记为 `""`）。
+ * 这类模型（楼梯 / 车辆 / 电梯 / 饰面墙）的颜色由各自的专用收尾接管，没有档位是设计决定，
+ * 不是「档位覆盖不全」。
+ *
+ * @public knip：消费者只有开发期审计脚本 `scripts/audit/material-role-audit.mjs`，
+ * 而该脚本刻意用 **动态 import（`file://` 绝对路径 + 计算路径）** 加载本模块（为了在
+ * 「修复前 / 修复后」两种仓库状态下都能跑），静态分析看不到这层消费关系。为避免用
+ * `ignoreIssues` 把整个模块的导出面一起豁免（本文件是 3565 行的核心模块，不该降级），
+ * 这里显式标注为公共导出。
+ */
+export function isMaterialStyleOptOut(modelType: string): boolean {
+  return modelType in PRESET_GROUP_BY_MODEL_TYPE && !PRESET_GROUP_BY_MODEL_TYPE[modelType];
+}
+
 /** 某模型可选的档位（不含「跟随全局风格」，那一项由界面统一补在最前）。 */
 export function materialStyleOptionsFor(modelType: string): readonly MaterialStylePreset[] {
   const presetGroup = presetGroupFor(modelType);
@@ -2486,6 +3226,26 @@ export function materialStyleAutoLabel(modelType: string): string {
 export function materialStylePresetFor(modelType: string, styleId: unknown): MaterialStylePreset | null {
   if (!styleId || styleId === MATERIAL_STYLE_AUTO) return null;
   return materialStyleOptionsFor(modelType).find((preset) => preset.id === styleId) || null;
+}
+
+/**
+ * 「材质风格」色卡条的重建指纹：模型类型 + **档位 id 列表** + 槽位角色。
+ *
+ * id 列表必须参与，不能只数个数。档位组换血时个数与角色都可能原封不动 —— 例如台面
+ * 从自己的组并回台盆组，两组都是 5 档、都只有 `rim` 一个角色 —— 只靠个数就**不会重建
+ * 色卡条**，面板上留着的仍是旧 id：点一下写进模型的是个已经不合法（或指向别组）的 id，
+ * `normalizeMaterialStyle` 把它归成 `auto`，存盘时连键一起删掉（`normalizeItemMaterialStyle`
+ * 返回 null）。现场表现就是「明明选过档位，颜色还是没跟着走」。
+ */
+export function materialStyleOptionsSignature(
+  modelType: string,
+  slotRoles?: readonly string[] | null,
+): string {
+  const presetIds = materialStyleOptionsFor(modelType)
+      .map((preset) => preset.id)
+      .join("|"),
+    roleSignature = (slotRoles || []).filter(Boolean).join(",");
+  return `${modelType}:${presetIds}:${roleSignature}`;
 }
 
 /** 把任意取值归一到「该模型下合法的档位 id」。 */
@@ -2817,7 +3577,7 @@ export function materialStyleRoleColorFor(
   palette: Record<string, unknown> | null | undefined,
 ): number | undefined {
   const preset = materialStylePresetFor(modelType, palette?.materialStyle);
-  const roleRecipe = preset?.roles?.[role];
+  const roleRecipe = preset ? styleRoleRecipeFor(modelType, role, preset) : undefined;
   if (roleRecipe) {
     const colorValue = resolveMaterialPaletteColor(palette, roleRecipe.color);
     return Number.isFinite(colorValue)

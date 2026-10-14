@@ -19,6 +19,9 @@ const SCRIPTS = [
   ['_entity_control_logic_smoke.ts', '实体控制逻辑'],
   ['_scene_update_plan_smoke.ts', '场景更新计划'],
   ['_camera_inspector_controls_smoke.ts', '相机检查器控件'],
+  ['_entity_picker_domains_smoke.ts', '实体选择器域白名单'],
+  ['_weather_binding_label_smoke.ts', '天气实体绑定显示名'],
+  ['_material_role_contracts_smoke.ts', '材质语义配色契约'],
 ]
 
 /**

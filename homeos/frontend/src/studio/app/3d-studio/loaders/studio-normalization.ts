@@ -2,6 +2,10 @@ export {
   isCourtyardDrawing,
   normalizeCourtyardDrawing,
 } from "../plan/courtyard-drawing";
+// 0.7.6 `studio-normalization.js` 的同名依赖：收藏模型（3D Studio 的 98 款新增 + 12 款
+// 改写）要按自己的尺寸下限摆放，不能一律套用遗留的 10cm / 5cm。`collection-models.ts`
+// 只有一条 `import type`，不会与这里形成运行期环。
+import { COLLECTION_MODELS } from "./external-models/collection-models";
 function clamp(rawValue: any, minValue: any, maxValue: any) {
   return Math.min(maxValue, Math.max(minValue, rawValue));
 }
@@ -15,15 +19,49 @@ export function normalizeFullRotation(angleDeg: any, fallbackAngleDeg = 0) {
     ? normalizedAngleDeg
     : ((normalizedAngleDeg % 360) + 360) % 360;
 }
+/**
+ * 这些「小件 / 挂墙件」同样按 1cm 级别下限处理（0.7.6 清单，逐字对齐
+ * `studio-normalization.js` 的 `itemMinimumFootprint`）。
+ */
+const MIN_FOOTPRINT_ITEM_TYPES = [
+  "airer",
+  "presence",
+  "smart-socket-86",
+  "wall-art",
+  "wall-clock",
+  "switch-console",
+  "smart-display",
+  "up-down-wall-lamp",
+];
+
+/**
+ * 该款模型是否属于「0.7.6 收藏模型」且**不是**改写既有款。
+ *
+ * `replaces: true` 的 12 款是重绘既有模型（`microwave` / `bed` / `basin`…），尺寸下限要
+ * 沿用被替换款的 10cm / 5cm —— 否则同一件家具在 0.7.5 能放进 12cm 的缝、升到 0.7.6
+ * 反而被 1cm 下限放开，历史户型里已保存的摆放校验会跟着变。
+ */
+function isNewCollectionModel(itemType: any) {
+  const collectionModel = COLLECTION_MODELS[itemType];
+  return Boolean(collectionModel) && !collectionModel.replaces;
+}
+
 export function itemMinimumFootprint(footprintItemType: any) {
-  return ["presence", "smart-socket-86"].includes(footprintItemType) ? 0.01 : 0.1;
+  return isNewCollectionModel(footprintItemType) ||
+    MIN_FOOTPRINT_ITEM_TYPES.includes(footprintItemType)
+    ? 0.01
+    : 0.1;
 }
 export function itemMinimumHeight(heightItemType: any) {
+  // 台面：整件就是一块 5cm 厚的板（`countertop.glb` 板厚 0.05m），不跟收藏批其它薄件
+  // 一起放到 4mm —— 属性面板「高（m）」的下限与场景载荷的收敛都取这个值，再薄就不是台面了。
+  if (heightItemType === "countertop") return 0.05;
+  if (isNewCollectionModel(heightItemType)) return 0.004;
   return heightItemType?.startsWith("courtyard-")
     ? 0.01
     : heightItemType === "planlabel"
       ? 0.001
-      : heightItemType === "rug"
+      : heightItemType === "rug" || heightItemType === "round-rug"
         ? 0.004
         : 0.05;
 }

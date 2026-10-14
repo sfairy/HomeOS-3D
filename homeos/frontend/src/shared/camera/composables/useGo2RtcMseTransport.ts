@@ -1,7 +1,7 @@
 /**
  * go2rtc MSE（fMP4 + MediaSource）传输，Vue 与 Studio 共用一份实现。
  *
- * 与 HA Bridge 0.7.5 发布包的 `registry.js` 协议逐条对齐：
+ * 与 HA Bridge 0.7.6 发布包的 `registry.js` 协议逐条对齐：
  * - 信令是**服务端**拼的：前端只上报 projectId/componentId/cameraId，地址由 `/api/v1/go2rtc/ws`
  *   从已保存的配置里取（Studio 查仪表盘文档，Vue 安防页查布局方案），前端这份
  *   `normalizeGo2rtcTarget` 只负责把用户填的 `stream.html?src=…` 转成那条同源 WebSocket
@@ -12,6 +12,8 @@
  * - 断线退避 3000ms → 30000ms；关闭码 `{4400,4401,4403}` 是终态不再重连，
  *   其中 4401/4403 额外提示“请检查登录、授权及已保存的摄像头配置”。
  * - 画面停滞看门狗：每 5s 采样 `currentTime`，连续 3 次不动即重连。
+ * - `{type:'error'}` 直接把中继给的原因透传给用户（后端已把地址打码成 `[视频源]`），
+ *   末尾补“（正在重连）”；`fail` 缺省文案是“摄像头连接中断，正在重连”。
  *
  * Studio 侧由 `studio/app/renderer/registry/camera-media.ts` 继续导出复用，避免两份协议漂移。
  */
@@ -49,6 +51,8 @@ const RECONNECT_MAX_DELAY_MS = 30000
 const CONNECT_TIMEOUT_MS = 12000
 const STALL_WATCH_INTERVAL_MS = 5000
 const STALL_TICKS_BEFORE_RECONNECT = 3
+/** 中继 `error` 消息透传给用户的长度上限，避免畸形报文把提示区撑爆。 */
+const RELAY_MESSAGE_MAX_LENGTH = 400
 
 /** 终态关闭码：中继认定这次连接不该再重试（参数非法 / 未登录 / 来源或授权不允许）。 */
 const TERMINAL_CLOSE_CODES = new Set([4400, 4401, 4403])
@@ -233,7 +237,13 @@ export function createGo2RtcMseTransport(
     releaseActiveStream()
   }
 
-  const fail = (generation: number, message: string, { retry = true } = {}) => {
+  /**
+   * 结束当前这一代连接并决定是否重连。
+   *
+   * `message` 有缺省值（与发布包的 `fail(generation, message = '摄像头连接中断，正在重连')`
+   * 一致）：`sourceBuffer` 的 `error` 事件不带任何原因，只能落到这条通用文案。
+   */
+  const fail = (generation: number, message = '摄像头连接中断，正在重连', { retry = true } = {}) => {
     if (isDisposed || generation !== transportGeneration) return
     clearConnectTimers()
     stopStallWatch()
@@ -372,10 +382,16 @@ export function createGo2RtcMseTransport(
             sourceBuffer = mediaSource.addSourceBuffer(String(payload.value))
             sourceBuffer.mode = 'segments'
             sourceBuffer.addEventListener('updateend', flushStreamQueue)
-            sourceBuffer.addEventListener('error', () => fail(generation, 'go2rtc 视频中转失败，正在重连'))
+            sourceBuffer.addEventListener('error', () => fail(generation))
             flushStreamQueue()
           } else if (payload?.type === 'error') {
-            fail(generation, 'go2rtc 视频中转失败，正在重连')
+            // 中继把失败原因放在 value 里（后端 `go2rtc.py` 已把地址打码成 [视频源]），
+            // 直接透传给用户比笼统的“中转失败”更有用；超长截断，缺省才回落到通用文案。
+            const relayMessage =
+              typeof payload.value === 'string' && payload.value.trim()
+                ? payload.value.trim().slice(0, RELAY_MESSAGE_MAX_LENGTH)
+                : 'go2rtc 视频中转失败'
+            fail(generation, `${relayMessage}（正在重连）`)
           }
           return
         }
@@ -385,7 +401,7 @@ export function createGo2RtcMseTransport(
         pendingChunks.push(mediaChunk)
         flushStreamQueue()
       } catch {
-        fail(generation, '摄像头视频数据异常，正在重连')
+        fail(generation, '摄像头视频缓冲失败，正在重连')
       }
     }
     socket.onclose = (closeEvent: CloseEvent) => {

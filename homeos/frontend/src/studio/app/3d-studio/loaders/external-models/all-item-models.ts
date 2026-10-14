@@ -1,17 +1,80 @@
 import { APPROVED_ITEM_MODELS } from "./approved-item-models";
+import { COLLECTION_MODELS } from "./collection-models";
 import {
   EXTERNAL_ITEM_MODELS,
+  MODEL_ASSET_CACHE_KEYS,
   createIndoorAssetDescriptor,
   createHomeAssetDescriptor,
   createFurnitureAssetDescriptor,
   createApplianceAssetDescriptor,
   createPillarAssetDescriptor,
+  withModelAssetCacheKey,
 } from "./_shared";
 
+/**
+ * 0.7.6 收藏模型（98 款新增 + 12 款重绘）的描述符：尺寸、挂载与角色统一取注册表，
+ * 因此重绘款（如台盆拔高到 1.14m）会以 0.7.6 的尺寸覆盖旧定义。
+ *
+ * URL 带上注册表的 `assetVersion`：这批 110 款的 GLB 全是 0.7.6 新落地或重绘的，
+ * 不带缓存键的话老用户会一直命中浏览器里那份旧字节（见 `MODEL_ASSET_CACHE_KEYS`）。
+ * `collection: true` 标记「收藏批」家族，供渲染期判断能否退化成降级盒。
+ */
+const COLLECTION_ITEM_MODELS = Object.freeze(
+  Object.fromEntries(
+    Object.entries(COLLECTION_MODELS).map(([modelId, modelDefinition]) => [
+      modelId,
+      Object.freeze({
+        url: withModelAssetCacheKey(
+          `/static/3d-studio/models/${modelId}-lite.glb`,
+          modelDefinition.assetVersion,
+        ),
+        fallbackUrl: withModelAssetCacheKey(
+          `/static/3d-studio/models/${modelId}.glb`,
+          modelDefinition.assetVersion,
+        ),
+        scaleBasis: modelDefinition.size,
+        preserveOrigin: true,
+        collection: true,
+      }),
+    ]),
+  ),
+);
+
+/**
+ * 0.7.6 起「必须用真模型」的家族：收藏批（`collection`）、减面优化款（`optimized`）、
+ * 以及卫浴两款（`toilet` / `squattoilet`，它们的 `-lite` 就是 0.7.6 的减面版）。
+ * 这些款的 `-lite.glb` 已经比统一降级盒更省，离线导出时也必须拿到真资源而不是方盒。
+ */
+const ALWAYS_REAL_MODEL_ASSET_ITEM_TYPES = new Set(["toilet", "squattoilet"]);
+
+/** 该模型类型是否属于「必须用真 GLB」的家族（0.7.6 渲染/导出闸门用）。 */
+export function needsExternalModelAsset(modelType: string) {
+  const modelDefinition = (ALL_ITEM_MODELS as Record<string, any>)[modelType];
+  return Boolean(
+    (EXTERNAL_ITEM_MODELS as Record<string, any>)[modelType] ||
+      modelDefinition?.collection ||
+      modelDefinition?.optimized ||
+      ALWAYS_REAL_MODEL_ASSET_ITEM_TYPES.has(modelType),
+  );
+}
+
 export const ALL_ITEM_MODELS = Object.freeze({
-    ...EXTERNAL_ITEM_MODELS,
-    ...APPROVED_ITEM_MODELS,
-    bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
+  ...EXTERNAL_ITEM_MODELS,
+  ...APPROVED_ITEM_MODELS,
+  ...COLLECTION_ITEM_MODELS,
+    bed: createIndoorAssetDescriptor("bed", {
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/bed-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        "/static/3d-studio/models/bed.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      scaleBasis: [1.92, 1.02, 2.18],
+      preserveOrigin: true,
+      optimized: true,
+    }),
     nightstand: createHomeAssetDescriptor("nightstand", {
       scaleBasis: [0.5, 0.55, 0.42],
       preserveOrigin: true,
@@ -81,14 +144,22 @@ export const ALL_ITEM_MODELS = Object.freeze({
       scaleBasis: [0.9, 0.88, 0.5],
       preserveOrigin: true,
     }),
-    toilet: createHomeAssetDescriptor("toilet", {
-      scaleBasis: [0.42, 0.52, 0.7],
-      preserveOrigin: true,
-    }),
-    squattoilet: createHomeAssetDescriptor("squattoilet", {
-      scaleBasis: [0.45, 0.18, 0.65],
-      preserveOrigin: true,
-    }),
+    toilet: createHomeAssetDescriptor(
+      "toilet",
+      {
+        scaleBasis: [0.42, 0.52, 0.7],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.sanitary,
+    ),
+    squattoilet: createHomeAssetDescriptor(
+      "squattoilet",
+      {
+        scaleBasis: [0.45, 0.18, 0.65],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.sanitary,
+    ),
     urinal: createHomeAssetDescriptor("urinal", {
       scaleBasis: [0.38, 0.72, 0.34],
       preserveOrigin: true,

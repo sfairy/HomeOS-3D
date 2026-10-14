@@ -1,4 +1,8 @@
 /** 0.7.2 approved furniture/appliance GLB catalog. */
+import {
+  MODEL_ASSET_CACHE_KEYS,
+  withModelAssetCacheKey,
+} from "./_shared";
 
 export type ApprovedItemMeta = {
   label: string;
@@ -421,9 +425,17 @@ export const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
 };
 
 function createApprovedAssetDescriptor(assetId: string, scaleBasis: [number, number, number]) {
+  // approved 批的 URL 带版本键：这 50 款的 GLB 在 0.7.2 定稿后没再变，但键让缓存可失效
+  // （0.7.6 的 approved-models 注册表逐条带 `assetVersion: '20261009-approved-v1'`）。
   return Object.freeze({
-    url: `/static/3d-studio/models/${assetId}-lite.glb`,
-    fallbackUrl: `/static/3d-studio/models/${assetId}.glb`,
+    url: withModelAssetCacheKey(
+      `/static/3d-studio/models/${assetId}-lite.glb`,
+      MODEL_ASSET_CACHE_KEYS.approved,
+    ),
+    fallbackUrl: withModelAssetCacheKey(
+      `/static/3d-studio/models/${assetId}.glb`,
+      MODEL_ASSET_CACHE_KEYS.approved,
+    ),
     scaleBasis,
     preserveOrigin: true,
   });

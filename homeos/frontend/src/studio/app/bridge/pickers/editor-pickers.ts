@@ -761,8 +761,16 @@ export function createInteraction3dEditorPickers({
           script: 2,
           button: 1,
         },
+        // 报警（水浸 / 烟雾 / 天然气）实体的来源域不定：`binary_sensor` / `sensor` / `event`
+        // 都可能是触发来源，所以 dist 给的是「任意域」+ 调用方 `entityFilter` 收口。
+        // 本仓暂无调用方（报警实体走 `pickers.alarm`），按 dist 补齐这条分支，避免日后接进来时
+        // 静默落到链尾的 `^(light|switch)\.`（`weather` / `nas` 漏分支就是这么翻车的）。
         entityIdPattern =
-          entityDeviceKind === "bath-heater"
+          entityDeviceKind === "weather"
+            ? /^weather\.[a-z0-9_]+$/
+            : entityDeviceKind === "security-alarm"
+              ? /^[a-z_]+\.[a-z0-9_]+$/
+              : entityDeviceKind === "bath-heater"
             ? /^(climate|fan)\.[a-z0-9_]+$/
             : environmentSensorKey
               ? /^sensor\.[a-z0-9_]+$/
@@ -788,7 +796,9 @@ export function createInteraction3dEditorPickers({
                                 ? /^(camera|image)\.[a-z0-9_]+$/
                                 : isTelevisionEntity || isSpeakerEntity
                                   ? /^media_player\.[a-z0-9_]+$/
-                                  : isCoverEntity
+                                  : entityDeviceKind === "nas"
+                                    ? /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/
+                                    : isCoverEntity
                                     ? /^cover\.[a-z0-9_]+$/
                                       : isClimateEntity
                                         ? /^climate\.[a-z0-9_]+$/
@@ -796,6 +806,10 @@ export function createInteraction3dEditorPickers({
         { editorEntityMatches: entityMatches } = createEditorPickerQueries({
           entityPickerConfig: () => ({
             recommended: (candidateEntity: any) => {
+              // 0.7.6：天气实体一律置顶（`weather.*` 优先），判据与 dist 的
+              // `deviceKind === 'weather' ? entityId.startsWith('weather.')` 一致。
+              if (entityDeviceKind === "weather")
+                return candidateEntity.entityId.startsWith("weather.");
               if (entityDeviceKind === "vacuum-room")
                 return vacuumRoomDomainRank[candidateEntity.entityId.split(".")[0]] || 0;
               if (isLockBatteryEntity) {
@@ -906,7 +920,9 @@ export function createInteraction3dEditorPickers({
         kind: "entity",
         title:
           entityPickerTitle ||
-          (entityDeviceKind === "bath-heater"
+          (entityDeviceKind === "security-alarm"
+            ? "选择报警传感器"
+            : entityDeviceKind === "bath-heater"
             ? "选择浴霸主实体（可不选）"
             : environmentSensorKey
               ? "选择" +
@@ -926,7 +942,7 @@ export function createInteraction3dEditorPickers({
                       : entityDeviceKind === "water-heater"
                         ? "选择热水器实体"
                         : entityDeviceKind === "fan"
-                          ? "选择电风扇实体"
+                          ? "选择风扇主实体（可不选）"
                           : entityDeviceKind === "purifier"
                             ? "选择空气净化器实体"
                             : entityDeviceKind === "camera"
@@ -945,7 +961,9 @@ export function createInteraction3dEditorPickers({
                                           ? "选择电视媒体实体（Apple TV）"
                                           : isTelevisionPowerEntity
                                             ? "选择电视电源状态"
-                                            : isCoverEntity
+                                            : entityDeviceKind === "nas"
+                                              ? "选择 NAS 指示灯状态实体（旧版兼容）"
+                                              : isCoverEntity
                                               ? "选择窗帘实体"
                                               : isClimateEntity
                                                 ? "选择空调实体"
@@ -960,38 +978,47 @@ export function createInteraction3dEditorPickers({
           null,
         ),
         selectedText: currentEntityId || "不使用实体",
-        emptyText: environmentSensorKey
-          ? "没有匹配的" +
-            ENVIRONMENT_SENSORS.find(
-              (environmentSensorHintEntry) =>
-                environmentSensorHintEntry.key === environmentSensorKey,
-            )!.label +
-            "传感器，请检查 Home Assistant 的实体类型或名称"
-          : isLockDoorEntity
-            ? "没有匹配的门状态传感器，请检查设备的门/开合实体"
-            : isLockBatteryEntity
-              ? "没有匹配的电量传感器，请检查设备的 battery 实体"
-              : entityDeviceKind === "water-heater"
-                ? "没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备"
-                : ["fan", "purifier"].includes(entityDeviceKind)
-                  ? "没有匹配的风扇（fan）实体，请先在 Home Assistant 接入设备"
-                  : entityDeviceKind === "camera"
-                    ? "没有匹配的摄像头实体，请先在 Home Assistant 接入设备"
-                    : entityDeviceKind === "presence"
-                      ? "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备"
-                      : entityDeviceKind.startsWith("vacuum")
-                        ? "没有匹配的实体，请先在 Home Assistant 中接入"
-                        : isSpeakerEntity
-                          ? "没有匹配的 media_player 实体，请先在 Home Assistant 接入音响"
-                          : isTelevisionEntity
-                            ? "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV"
-                            : isTelevisionPowerEntity
-                              ? "没有匹配的电源状态实体"
-                              : isCoverEntity
-                                ? "没有匹配的窗帘"
-                                : isClimateEntity
-                                  ? "没有匹配的空调"
-                                  : "没有匹配的灯光或开关",
+        emptyText: entityDeviceKind === "security-alarm"
+          ? "没有匹配的实体，请检查搜索条件或 Home Assistant 的实体列表"
+          : entityDeviceKind === "weather"
+            ? // 0.7.6 这条链上没有 weather 分支，会一路落到链尾说「没有匹配的灯光或开关」。
+              // 天气选择器返回这句话是答非所问（用户正是被它绕住，以为实体没同步）。
+              "没有匹配的天气（weather）实体，请先在 Home Assistant 接入天气服务"
+            : environmentSensorKey
+              ? "没有匹配的" +
+                ENVIRONMENT_SENSORS.find(
+                  (environmentSensorHintEntry) =>
+                    environmentSensorHintEntry.key === environmentSensorKey,
+                )!.label +
+                "传感器，请检查 Home Assistant 的实体类型或名称"
+              : isLockDoorEntity
+                ? "没有匹配的门状态传感器，请检查设备的门/开合实体"
+                : isLockBatteryEntity
+                  ? "没有匹配的电量传感器，请检查设备的 battery 实体"
+                  : entityDeviceKind === "water-heater"
+                    ? "没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备"
+                    : ["fan", "purifier"].includes(entityDeviceKind)
+                      ? // dist 的原话：风扇 / 净化器允许「不选主实体，直接绑设备 + 选附加功能」。
+                        "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。"
+                      : entityDeviceKind === "camera"
+                        ? "没有匹配的摄像头实体，请先在 Home Assistant 接入设备"
+                        : entityDeviceKind === "presence"
+                          ? "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备"
+                          : entityDeviceKind.startsWith("vacuum")
+                            ? "没有匹配的实体，请先在 Home Assistant 中接入"
+                            : isSpeakerEntity
+                              ? "没有匹配的 media_player 实体，请先在 Home Assistant 接入音响"
+                              : isTelevisionEntity
+                                ? "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV"
+                                : isTelevisionPowerEntity
+                                  ? "没有匹配的电源状态实体"
+                                  : entityDeviceKind === "nas"
+                                    ? "没有匹配的开关或二元传感器"
+                                    : isCoverEntity
+                                      ? "没有匹配的窗帘"
+                                      : isClimateEntity
+                                        ? "没有匹配的空调"
+                                        : "没有匹配的灯光或开关",
         itemClass: "entity-list",
         getPage: ({ query: entityQuery, page: entityPage }: any) =>
           editorEntityPickerPage(filterEntities(entityQuery), entityPage, null),

@@ -10,6 +10,7 @@ import {
   securityAlarmReadings,
 } from "../security/security-alarm";
 import { cameraSourceConfigured } from "../camera/camera-status";
+import { createWeatherEffects } from "../environment/weather-effects";
 
 type HostLogger = HomeOSLog & {
   report?: (
@@ -360,6 +361,8 @@ export function mountInteraction3d(
       componentProperties.floorCameras?.[componentProperties.floorSelection] ||
       componentProperties.camera,
     lastConfigJson = "",
+    // 下一次 `config` 下发要带 `resetPreviewSession`，让舞台侧当成「换了入口」整屏重置一次。
+    pendingResetPreviewSession = false,
     isPreviewSuspended = false,
     isFocusActive = false,
     isFocusPanelOpen = false,
@@ -567,6 +570,7 @@ export function mountInteraction3d(
         (isStageOnScreen || isPrewarmAllowed) !== wasStageVisible) &&
         ((wasStageActive = isStageActive),
         (wasStageVisible = isStageOnScreen || isPrewarmAllowed),
+        syncWeatherEffects(),
         (lastActivityAtMs = -Infinity),
         postToStageFrame({
           type: "activity-state",
@@ -592,13 +596,19 @@ export function mountInteraction3d(
           held: hasHeldInput(),
         }));
   }
-  function handleWindowBlur() {
+  /**
+   * 松开所有「按住的输入」并通知舞台。
+   *
+   * 窗口失焦（切标签页 / 点别的应用）和关闭配置窗口都会走到这里：这两种情况下用户都不可能
+   * 还在按着鼠标或键，状态得先清干净，否则舞台会一直以为有人在拖拽 / 长按。
+   */
+  function releaseHeldInput() {
     if (isDisposed) return;
-    const hasHeldInputOnBlur = hasHeldInput();
+    const hadHeldInput = hasHeldInput();
     (heldPointerIdsSet.clear(),
       heldKeyCodesSet.clear(),
       refreshActivityState(),
-      hasHeldInputOnBlur &&
+      hadHeldInput &&
         wasStageActive &&
         ((lastActivityAtMs = globalThis.performance?.now?.() ?? Date.now()),
         postToStageFrame({
@@ -944,6 +954,9 @@ export function mountInteraction3d(
       ...(componentProperties.environment?.waterHeaters || []),
       ...(componentProperties.environment?.curtains || []),
       ...temperatureHumidityEntities(componentProperties.environment?.temperatureHumidity),
+      ...(componentProperties.weather?.entityId
+        ? [{ entityId: componentProperties.weather.entityId }]
+        : []),
       ...(componentProperties.devices?.nas || []),
       ...(componentProperties.devices?.speakers || []),
       ...(componentProperties.devices?.televisions || []),
@@ -1052,9 +1065,56 @@ export function mountInteraction3d(
       componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default",
     );
   };
+  // 天气特效层：只在「绑定了天气实体」或「编辑器正在预览某个天气态」时创建 canvas，
+  // 其余情况整层不存在、不出帧（按需帧循环见 `weather-effects`）。
+  const WEATHER_PREVIEW_TIMEOUT_MS = 12000;
+  let weatherEffects: any = null,
+    weatherPreviewState = "",
+    weatherPreviewTimeoutId: any = null;
+  const boundWeatherEntityId = () => String(componentProperties.weather?.entityId || "");
+  function weatherEffectsActive() {
+    return (
+      !isDisposed &&
+      isAuthorized &&
+      isScenePresented &&
+      !isRangeEditorOnly &&
+      !isPreviewSuspended &&
+      !isPageFrozen &&
+      !isPageHidden &&
+      document.hidden !== true &&
+      isStageIntersecting &&
+      isHostActuallyVisible()
+    );
+  }
+  /** 同步天气态；`states` 省略时回落到当前订阅快照。 */
+  function syncWeatherEffects(states: any = null) {
+    if (isDisposed) return;
+    const weatherEntityId = boundWeatherEntityId();
+    // 没绑定、也没在预览：连 canvas 都不建，避免给不关心天气的户型带来任何开销。
+    if (!weatherEffects && !weatherEntityId && !weatherPreviewState) return;
+    const isActive = weatherEffectsActive();
+    if (!isActive && weatherPreviewState) closeWeatherPreview();
+    if (!weatherEffects && isActive && (weatherEntityId || weatherPreviewState))
+      weatherEffects = createWeatherEffects(hostElement);
+    weatherEffects?.update(
+      weatherPreviewState
+        ? { state: weatherPreviewState }
+        : (states ?? getCurrentStates())[weatherEntityId],
+      isActive,
+    );
+  }
+  /** 结束天气预览（含 12 秒超时到点）。空态时直接返回，避免与 `syncWeatherEffects` 相互递归。 */
+  function closeWeatherPreview() {
+    if (weatherPreviewTimeoutId !== null) clearTimeout(weatherPreviewTimeoutId);
+    weatherPreviewTimeoutId = null;
+    if (!weatherPreviewState) return;
+    weatherPreviewState = "";
+    syncWeatherEffects();
+  }
   const publishStates = (incomingPatch: any = null) => {
     const currentStates = getCurrentStates();
     syncSecurityAlarmOverlay(currentStates);
+    syncWeatherEffects(currentStates);
     if (isPreviewSuspended || isPageHidden) return;
     if (lightStream && currentStates === lastPublishedStates) return;
     const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
@@ -1166,8 +1226,11 @@ export function mountInteraction3d(
         type: "config",
         configId: ++configIdCounter,
         ...configPayload,
+        // 配置窗口关过一次：即使属性没变，也要让舞台丢掉上一次编辑留下的选中/取景状态。
+        ...(pendingResetPreviewSession ? { resetPreviewSession: true } : {}),
         states: mergeMotorReverseStates(getCurrentStates()),
       }),
+      (pendingResetPreviewSession = false),
       (lastPublishedStates = getCurrentStates()),
       isScenePresented || refreshActivityState(true));
   }
@@ -1271,7 +1334,10 @@ export function mountInteraction3d(
       reloadGeneration++ &&
         (stageFrameElement.removeAttribute("src"),
         (stageFrameElement = createStageFrameElement()),
-        hostElement.replaceChildren(stageFrameElement, loadingElement)),
+        hostElement.replaceChildren(stageFrameElement, loadingElement),
+        // 天气层是 hostElement 的子节点，重载换 iframe 时会被一并清掉，同步回收控制器。
+        weatherEffects?.dispose(),
+        (weatherEffects = null)),
       setRangeEditingState(false),
       activeRequestsSet.forEach((staleController) => staleController.abort("stale")),
       rejectPendingEdits("户型已切换，请在新户型中重新调整视角。"),
@@ -1796,7 +1862,7 @@ export function mountInteraction3d(
     listenerTarget.addEventListener("animationend", handleVisibilityChange, true),
     window.addEventListener("pagehide", handlePageHide),
     window.addEventListener("pageshow", handlePageShow),
-    window.addEventListener("blur", handleWindowBlur));
+    window.addEventListener("blur", releaseHeldInput));
   const intersectionObserver =
     typeof IntersectionObserver > "u"
       ? null
@@ -1908,6 +1974,11 @@ export function mountInteraction3d(
           lightStream?.dispose(),
           securityAlarmOverlay?.dispose(),
           (securityAlarmOverlay = null),
+          (weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId)),
+          (weatherPreviewTimeoutId = null),
+          (weatherPreviewState = ""),
+          weatherEffects?.dispose(),
+          (weatherEffects = null),
           editSubscribersSet.clear(),
           (isRangeEditing = false),
           hostElement.classList.remove("is-range-editing"),
@@ -1937,7 +2008,7 @@ export function mountInteraction3d(
           listenerTarget.removeEventListener("animationend", handleVisibilityChange, true),
           window.removeEventListener("pagehide", handlePageHide),
           window.removeEventListener("pageshow", handlePageShow),
-          window.removeEventListener("blur", handleWindowBlur),
+          window.removeEventListener("blur", releaseHeldInput),
           activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort("lifecycle")),
           stageFrameElement.removeAttribute("src"),
           hostElement.replaceChildren());
@@ -2079,7 +2150,46 @@ export function mountInteraction3d(
         refreshActivityState(true),
         isPageHidden || (updatePresentationLayout(), lightStream || publishStates()));
     }),
+    /**
+     * 关闭配置窗口时的收尾：不销毁运行时，只把这次编辑留下的临时状态全部撤销。
+     *
+     * 配置入口每次进出都复用同一个运行时（见 `editor-preview.ts`），所以「退出」必须自己
+     * 把界面恢复干净：隐藏页面、关掉照射范围编辑、拒掉在途编辑请求、松开按住的输入、退出
+     * 视角编辑。最后置 `pendingResetPreviewSession` 并清掉 `lastConfigJson` —— 前者让下一次
+     * `config` 带上 `resetPreviewSession`，舞台侧据此把取景与选中态整屏重置一次；后者保证
+     * 「属性没变就不重发 config」的去重不会把这个标志吞掉。
+     */
+    (runtimeHandle.resetPreviewSession = () => {
+      (runtimeHandle.setPageVisible(false),
+        runtimeHandle.closeRangeEditor(),
+        rejectPendingEdits("配置窗口已关闭。"),
+        rejectPendingRangeRequests("配置窗口已关闭。"),
+        activeRequestsSet.forEach((activeRequest) => activeRequest.abort()),
+        releaseHeldInput(),
+        (isViewEditing = false),
+        hostElement.classList.remove("is-view-editing"),
+        (lastConfigJson = ""),
+        (pendingResetPreviewSession = true));
+    }),
     (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
+    (runtimeHandle.closeWeatherPreview = closeWeatherPreview),
+    (runtimeHandle.previewWeather = (weatherState: any) =>
+      isDisposed ||
+      !isAuthorized ||
+      !isScenePresented ||
+      !runtimeContext.editable ||
+      isPageHidden ||
+      document.hidden ||
+      isPreviewSuspended ||
+      isRangeEditing ||
+      isViewEditing ||
+      !["rainy", "snowy", "lightning-rainy", "snowy-rainy"].includes(weatherState)
+        ? false
+        : (clearTimeout(weatherPreviewTimeoutId),
+          (weatherPreviewState = weatherState),
+          (weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS)),
+          syncWeatherEffects(),
+          true)),
     (runtimeHandle.previewPopupLayout = (layoutKind: any, layoutOptions: Record<string, any> = {}) =>
       isDisposed ||
       !isAuthorized ||

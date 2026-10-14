@@ -28,6 +28,8 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('input_select', 'select_option'): {'option'},
     ('select', 'select_option'): {'option'},
     ('script', 'turn_on'): set(),
+    # HA 场景实体（情景模式控件直接触发场景）
+    ('scene', 'turn_on'): set(),
     # 灯光
     ('light', 'turn_on'): {
         'white',

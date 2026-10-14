@@ -1,5 +1,9 @@
 /** 物品类型定义：类型 → 名称/字形/尺寸/离地/颜色的目录，以及各类型集合。 */
 import {
+  COLLECTION_ITEM_CATALOG,
+  COLLECTION_ITEM_CATALOG_APPLIANCE_TYPES,
+} from "./collection-item-catalog";
+import {
   DEFAULT_PILLAR_AXIS,
   DEFAULT_PILLAR_SHAPE,
   DEFAULT_STRIP_AXIS,
@@ -1866,7 +1870,10 @@ export const itemTypeCatalog = {
     glyph: "◉",
     width: 0.9,
     depth: 0.5,
-    height: 0.88,
+    // 0.7.6 重绘把台盆拔高到 1.14m（原 0.88m 是旧模型的柜体高度）：目录尺寸与
+    // `COLLECTION_MODELS.basin.size` 必须一致，否则加载器会按 0.88 / 1.14 = 0.772
+    // 把整件模型**纵向压扁**。
+    height: 1.14,
     color: "#d9dee2",
   },
   rug: {
@@ -1913,6 +1920,7 @@ export const itemTypeCatalog = {
     color: "#d4dbe2",
     stripAxis: DEFAULT_STRIP_AXIS,
   },
+  ...COLLECTION_ITEM_CATALOG,
 },
 squareEdgeItemTypeSet = new Set([
   "mural",
@@ -2020,6 +2028,7 @@ applianceItemTypeSet = new Set([
   "3d-printer",
   "floorlamp",
   "walllamp",
+  ...COLLECTION_ITEM_CATALOG_APPLIANCE_TYPES,
 ]),
 lampItemTypeSet = new Set(["downlight", "ceilinglight", "striplight"]),
 stairItemTypeSet = new Set(["stairs", "steelstairs", "glassstairs", "floatingstairs"]),

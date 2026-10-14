@@ -52,7 +52,7 @@ export interface CameraInspectorContext {
  * go2rtc 地址的默认提示文案：校验失败时会被换成具体错误，切换摄像头或改回合法地址时复原。
  */
 export const CAMERA_GO2RTC_NOTE_TEXT =
-  "视频经 HA Bridge 转发，沿用现有外网入口。请填写局域网 IP 地址，保存仪表盘后播放。";
+  "请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HA Bridge 中转，保存仪表盘后播放。";
 
 export function syncCameraInspector(ctx: CameraInspectorContext, cameraComponent: any) {
   // 每次同步都过一遍「改属性」控件的挂载（按元素自身标记幂等，见 `bindCameraInspectorControl`）。

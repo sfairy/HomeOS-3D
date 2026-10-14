@@ -5,6 +5,8 @@ import {
   resolveModelMaterialRole,
   stoneSlabFlavorForMaterial,
 } from "../../materials/studio-model-material-roles";
+import { MODEL_SLOT_ROLES_SEMANTIC, FAMILY_TOKEN_MODEL_IDS } from "../../materials/model-slot-roles";
+import { COLLECTION_MODELS } from "./collection-models";
 import {
   materialStyleStoneSlabRoles,
 } from "../../materials/studio-material-presets";
@@ -15,6 +17,36 @@ export {
   sofaFamilyItemTypes,
   preparedRestoreTimeoutMs,
 };
+
+/**
+ * 模型 GLB 的 **HTTP 缓存键**（0.7.6 引入）。
+ *
+ * 0.7.6 重写了 41 个 GLB（床 / 钢琴 / 钢楼梯 / 茶吧机 / 前置净水器 / 滑板车 / 庭院躺椅 /
+ * 坐便器 / 蹲便器 及各自 `-lite`），但文件路径没变 —— 老用户浏览器里那份 0.7.5 的字节
+ * 会一直被命中，看到的仍是旧模型。0.7.6 的做法是给**字节真的变过的批次**换 URL
+ * （`?v=<批次>`），没动过的模型保持原 URL，继续吃已有缓存、不制造无谓回源。
+ *
+ * 本仓库把同一批次的模型合并成 3 个键：减面重写批、卫浴重写批、家用收藏批。
+ */
+export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
+  /** 减面/合批重写批：床、钢琴、钢楼梯、茶吧机、前置净水器、滑板车、庭院躺椅。 */
+  modelOptimization: "20261013-model-optimization-v1",
+  /** 卫浴重写批：坐便器、蹲便器（`-lite` 与完整件都换了形）。 */
+  sanitary: "20261013-sanitary-v1",
+  /** 家用收藏批：98 款新增 + 12 款重绘（`collection-models.ts` 的 `assetVersion`）。 */
+  household: "20261013-household-v2",
+  /** 庭院植被/家具批：0.7.6 未改动，沿用 0.7.5 的键。 */
+  garden: "20260927-garden-v5",
+  /** 茶台套装批：0.7.6 未改动，沿用 0.7.5 的键。 */
+  teaTable: "20260927-tea-table-v1",
+  /** 0.7.2 approved 外购模型批：0.7.6 未改动，沿用 0.7.5 的键。 */
+  approved: "20261009-approved-v1",
+});
+
+/** 给模型资源 URL 挂上缓存键；`cacheKey` 为空时原样返回。 */
+export function withModelAssetCacheKey(modelUrl: string, cacheKey: string) {
+  return cacheKey ? modelUrl + "?v=" + cacheKey : modelUrl;
+}
 export function insetBedBaseGeometry(bedGeometry: any) {
   if (!bedGeometry?.attributes?.position) return bedGeometry;
   bedGeometry.computeBoundingBox();
@@ -74,17 +106,37 @@ export function applyStoneSlabPlanarUv(threeLib: any, modelRoot: any, modelType:
     ensureStoneSlabPlanarUv(threeLib, modelMesh.geometry);
   });
 }
-export function createHomeAssetDescriptor(homeAssetId: any, homeAssetOverrides: any) {
+export function createHomeAssetDescriptor(
+  homeAssetId: any,
+  homeAssetOverrides: any,
+  modelAssetCacheKey: string = "",
+) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + homeAssetId + "-lite.glb",
-    fallbackUrl: "/static/3d-studio/models/" + homeAssetId + ".glb",
+    url: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + homeAssetId + "-lite.glb",
+      modelAssetCacheKey,
+    ),
+    fallbackUrl: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + homeAssetId + ".glb",
+      modelAssetCacheKey,
+    ),
     ...homeAssetOverrides,
   });
 }
-export function createApplianceAssetDescriptor(applianceAssetId: any, applianceAssetOverrides: any) {
+export function createApplianceAssetDescriptor(
+  applianceAssetId: any,
+  applianceAssetOverrides: any,
+  modelAssetCacheKey: string = "",
+) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + applianceAssetId + "-lite.glb",
-    fallbackUrl: "/static/3d-studio/models/" + applianceAssetId + ".glb",
+    url: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + applianceAssetId + "-lite.glb",
+      modelAssetCacheKey,
+    ),
+    fallbackUrl: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + applianceAssetId + ".glb",
+      modelAssetCacheKey,
+    ),
     ...applianceAssetOverrides,
   });
 }
@@ -148,8 +200,14 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
     "bunk-bed": createIndoorAssetDescriptor("bunk-bed", [1.18, 1.845, 2.06]),
     "pool-table": createIndoorAssetDescriptor("pool-table", [2.54, 0.823, 1.42]),
     "tea-table-set": Object.freeze({
-      url: "/static/3d-studio/models/tea-table-set-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/tea-table-set.glb",
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/tea-table-set-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.teaTable,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        "/static/3d-studio/models/tea-table-set.glb",
+        MODEL_ASSET_CACHE_KEYS.teaTable,
+      ),
       scaleBasis: [1.61, 0.94, 1.4],
       preserveOrigin: true,
     }),
@@ -157,8 +215,20 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       Object.entries(COURTYARD_MODELS).map(([courtyardModelId, courtyardModelDefinition]) => [
         courtyardModelId,
         Object.freeze({
-          url: "/static/3d-studio/models/" + courtyardModelId + "-lite.glb",
-          fallbackUrl: "/static/3d-studio/models/" + courtyardModelId + ".glb",
+          url: withModelAssetCacheKey(
+            "/static/3d-studio/models/" + courtyardModelId + "-lite.glb",
+            courtyardModelId === "garden-lounger"
+              ? MODEL_ASSET_CACHE_KEYS.modelOptimization
+              : MODEL_ASSET_CACHE_KEYS.garden,
+          ),
+          fallbackUrl: withModelAssetCacheKey(
+            "/static/3d-studio/models/" + courtyardModelId + ".glb",
+            courtyardModelId === "garden-lounger"
+              ? MODEL_ASSET_CACHE_KEYS.modelOptimization
+              : MODEL_ASSET_CACHE_KEYS.garden,
+          ),
+          // 0.7.6 只把躺椅做了减面，其余庭院款沿用 0.7.5 的那一份。
+          optimized: courtyardModelId === "garden-lounger",
           scaleBasis: courtyardModelDefinition.size,
           preserveOrigin: true,
         }),
@@ -199,7 +269,19 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       scaleBasis: [0.75, 1.6, 0.75],
       preserveOrigin: true,
     }),
-    bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
+    bed: createIndoorAssetDescriptor("bed", {
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/bed-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        "/static/3d-studio/models/bed.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      scaleBasis: [1.92, 1.02, 2.18],
+      preserveOrigin: true,
+      optimized: true,
+    }),
     nightstand: createHomeAssetDescriptor("nightstand", {
       scaleBasis: [0.5, 0.55, 0.42],
       preserveOrigin: true,
@@ -217,7 +299,11 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       url: "/static/3d-studio/models/suv-lite.glb",
     },
     scooter: {
-      url: "/static/3d-studio/models/scooter-lite.glb",
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/scooter-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      optimized: true,
     },
     smallcar: {
       url: "/static/3d-studio/models/car-lite.glb",
@@ -228,21 +314,41 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       fallbackUrl: "/static/3d-studio/models/air-outlet.glb",
     },
     pipelinewaterpurifier: {
-      url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb",
-      fallbackUrl:
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/pipeline-water-purifier-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
         "/static/3d-studio/models/pipeline-water-purifier.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      optimized: true,
     },
     tea_bar_machine: {
-      url: "/static/3d-studio/models/tea-bar-machine-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb",
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/tea-bar-machine-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        "/static/3d-studio/models/tea-bar-machine.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      optimized: true,
     },
     elevator: {
       url: "/static/3d-studio/models/elevator-lite.glb",
       fallbackUrl: "/static/3d-studio/models/elevator.glb",
     },
     steelstairs: {
-      url: "/static/3d-studio/models/steel-stairs-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/steel-stairs.glb",
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/steel-stairs-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        "/static/3d-studio/models/steel-stairs.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      optimized: true,
     },
     glassstairs: {
       url: "/static/3d-studio/models/glass-stairs-lite.glb",
@@ -254,10 +360,17 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     },
     piano: {
-      url: "/static/3d-studio/models/piano-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/piano.glb",
-      materialRevision: "20260914-piano-surface-shadow-v1",
+      url: withModelAssetCacheKey(
+        "/static/3d-studio/models/piano-lite.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        "/static/3d-studio/models/piano.glb",
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      materialRevision: MODEL_ASSET_CACHE_KEYS.modelOptimization,
       preserveAspect: true,
+      optimized: true,
     },
   });
 const warmWoodFurnitureItemTypes = new Set([
@@ -329,6 +442,9 @@ const warmWoodFurnitureItemTypes = new Set([
   /** 「角色表优先」的模型集合：材质名只有 `<type>-material-N`（不带角色），由 studio-model-material-roles.ts 的槽位角色表接管。 */
   roleTableItemTypes = new Set([
     ...Object.keys(MODEL_SLOT_ROLES),
+    ...Object.keys(MODEL_SLOT_ROLES_SEMANTIC),
+    ...FAMILY_TOKEN_MODEL_IDS,
+    ...Object.keys(COLLECTION_MODELS),
     "plant",
     "rug",
     "airoutlet",

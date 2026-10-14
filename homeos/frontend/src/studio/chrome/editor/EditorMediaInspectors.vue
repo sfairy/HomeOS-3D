@@ -125,11 +125,12 @@
                             <div id="camera-entity-options" class="inspector-entity-options" role="listbox"></div>
                         </div>
                     </div>
-                    <label id="camera-go2rtc-url-field" hidden>go2rtc 地址<input id="camera-go2rtc-url" type="url"
-                            maxlength="2048"
-                            placeholder="http://局域网IP:1984/stream.html?src=摄像头名称"></label>
-                    <p id="camera-go2rtc-note" class="inspector-section-note" hidden>视频经 HA Bridge
-                        转发，沿用现有外网入口。请填写局域网 IP 地址，保存仪表盘后播放。</p>
+                    <label id="camera-go2rtc-url-field" hidden>go2rtc 网页播放地址<input id="camera-go2rtc-url" type="url"
+                            maxlength="512" aria-label="go2rtc 网页播放地址"
+                            placeholder="http://192.168.1.100:1984/stream.html?src=camera1"></label>
+                    <p id="camera-go2rtc-note" class="inspector-section-note" hidden>请填写 go2rtc 的 stream.html
+                        网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HA Bridge
+                        中转，保存仪表盘后播放。</p>
                 </section>
                 <section class="inspector-section">
                     <div class="navigation-property-heading section-heading">
@@ -145,7 +146,7 @@
                             type="number" min="6" step="1" inputmode="numeric"></label>
                     <div class="navigation-property-control"><span>画面比例</span>
                         <div id="camera-fit-options" class="navigation-segmented-options" role="group"
-                            aria-label="摄像头实时预览比例"><button type="button" data-camera-fit="contain">原始比例</button><button
+                            aria-label="摄像头弹窗画面比例"><button type="button" data-camera-fit="contain">原始比例</button><button
                                 type="button" data-camera-fit="fill">压缩 16:9</button></div>
                     </div>
                 </section>

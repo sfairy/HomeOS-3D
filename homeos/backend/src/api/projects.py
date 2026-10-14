@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
+from .go2rtc import validate_camera_source_addresses
 from ..dependencies import (
     DatabaseSession,
     LicensedUser,
@@ -330,6 +331,9 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     clear_popup_references(document_value, removed_popup_ids)
     try:
         document = validate_panel_document(document_value)
+        # 摄像头地址在这里把关：保存期只做字面量/格式校验（不连摄像头），
+        # 已停用的地址保留下来，切回 go2rtc 时不必重填。
+        validate_camera_source_addresses(document)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
     require_interaction3d_changes(

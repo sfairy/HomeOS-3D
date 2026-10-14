@@ -9,6 +9,7 @@
  */
 
 import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from "../../loaders/studio-external-models";
+import { needsExternalModelAsset } from "../../loaders/external-models/all-item-models";
 import { addBoxMesh, addFurnitureAssembly } from "./studio-mesh-primitives";
 import { addChargingPadModel } from "./studio-charging-pad";
 import { addSecurityModel as addSecurityModel2 } from "../../loaders/studio-security-models";
@@ -245,7 +246,7 @@ export function buildItemModel(
     if (modelItem.type === "planlabel") itemModelNode.add(createPlanLabel(modelItem));
     else {
       if (
-        modelItem.offlineModelExport !== true &&
+        (modelItem.offlineModelExport !== true || needsExternalModelAsset(modelItem.type)) &&
         (ALL_ITEM_MODELS2 as any)[modelItem.type] &&
         !(modelItem.type === "fridge" && modelItem.fridgeStyle === "double") &&
         !["smallcar", "suv", "scooter"].includes(modelItem.type)

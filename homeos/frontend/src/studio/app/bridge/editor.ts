@@ -25,7 +25,12 @@ import {
 import type { DomControl } from "@app/shared/util/dom-control";
 import { domElement } from "@app/shared/util/dom-factory";
 import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
-import { WEATHER_PREVIEWS } from "@/studio/platform/weather-settings";
+import {
+  weatherEntityId as resolveWeatherEntityId,
+  weatherEntityLabel,
+  weatherEntityState,
+  WEATHER_PREVIEWS,
+} from "@/studio/platform/weather-settings";
 function interaction3dEntries(componentTree: any, pathSegments: any[] = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree))
     componentTree.forEach((arrayItem, arrayIndex) =>
@@ -955,7 +960,7 @@ type PopupPresetConfig = {
       y: editEvent.y,
     };
     for (const [positionAxisControl, positionGroupKey, positionAxisKey] of positionInputRefs)
-      positionAxisControl.value = String((navigationSettings as any)[positionGroupKey][positionAxisKey]);
+      positionAxisControl.value = String(navigationSettings[positionGroupKey][positionAxisKey]);
     commitChange({
       properties: {
         navigation: structuredClone(navigationSettings),
@@ -1003,6 +1008,10 @@ type PopupPresetConfig = {
       dragNavigationButton.disabled = false;
     }
   });
+  // 导航位置的键是**字面量联合**而不是 `string`：这样下面的读写不需要再 `as any`
+  // （`navigationSettings` 是精确对象类型，用 `string` 索引在 `noImplicitAny` 下是错的）。
+  type NavigationGroupKey = "categories" | "floors";
+  type NavigationAxisKey = "x" | "y";
   const navigationSettings = {
       categories: {
         x: 50,
@@ -1016,17 +1025,17 @@ type PopupPresetConfig = {
       },
       followOffset: properties.navigation?.followOffset ?? 16,
     },
-    positionInputRefs: any = [];
+    positionInputRefs: Array<[any, NavigationGroupKey, NavigationAxisKey]> = [];
   for (const [navigationGroupKey, navigationGroupLabel] of [
     ["categories", "分类栏"],
     ["floors", "楼层栏"],
-  ]) {
+  ] as const) {
     const navigationGroupElement = createElement("div", "i3d-finishing-row");
     navigationSection.append(navigationGroupElement);
     for (const [axisKey, axisLabel] of [
       ["x", "横向"],
       ["y", "纵向"],
-    ]) {
+    ] as const) {
       const navigationAxisInput = createElement("input");
       (Object.assign(navigationAxisInput, {
         name: "i3d-navigation-" + navigationGroupKey + "-" + axisKey,
@@ -1034,13 +1043,13 @@ type PopupPresetConfig = {
         min: "0",
         max: "100",
         step: "1",
-        value: String((navigationSettings as any)[navigationGroupKey][axisKey]),
+        value: String(navigationSettings[navigationGroupKey][axisKey]),
         disabled: isViewEditing,
       }),
         navigationAxisInput.addEventListener("change", () => {
           isViewEditing ||
             (Number.isFinite(navigationAxisInput.valueAsNumber) &&
-              (((navigationSettings as any)[navigationGroupKey][axisKey] = Math.max(
+              ((navigationSettings[navigationGroupKey][axisKey] = Math.max(
                 0,
                 Math.min(100, navigationAxisInput.valueAsNumber),
               )),
@@ -1049,7 +1058,7 @@ type PopupPresetConfig = {
                   navigation: structuredClone(navigationSettings),
                 },
               })),
-            (navigationAxisInput.value = String((navigationSettings as any)[navigationGroupKey][axisKey])));
+            (navigationAxisInput.value = String(navigationSettings[navigationGroupKey][axisKey])));
         }),
         createLabeledField(
           navigationGroupElement,
@@ -1065,7 +1074,7 @@ type PopupPresetConfig = {
   for (const [scaleGroupKey, scaleGroupLabel] of [
     ["categories", "分类栏"],
     ["floors", "楼层栏"],
-  ]) {
+  ] as const) {
     const navigationScaleInput = createElement("input");
     (Object.assign(navigationScaleInput, {
       name: "i3d-navigation-" + scaleGroupKey + "-scale",
@@ -1073,13 +1082,13 @@ type PopupPresetConfig = {
       min: "50",
       max: "1000",
       step: "5",
-      value: String(Math.round(((navigationSettings as any)[scaleGroupKey].scale ?? 1) * 100)),
+      value: String(Math.round((navigationSettings[scaleGroupKey].scale ?? 1) * 100)),
       disabled: isViewEditing,
     }),
       navigationScaleInput.addEventListener("change", () => {
         isViewEditing ||
           (Number.isFinite(navigationScaleInput.valueAsNumber) &&
-            (((navigationSettings as any)[scaleGroupKey].scale =
+            ((navigationSettings[scaleGroupKey].scale =
               Math.max(50, Math.min(1000, navigationScaleInput.valueAsNumber)) / 100),
             commitChange({
               properties: {
@@ -1087,7 +1096,7 @@ type PopupPresetConfig = {
               },
             })),
           (navigationScaleInput.value = String(
-            Math.round(((navigationSettings as any)[scaleGroupKey].scale ?? 1) * 100),
+            Math.round((navigationSettings[scaleGroupKey].scale ?? 1) * 100),
           )));
       }),
       createLabeledField(
@@ -1113,7 +1122,7 @@ type PopupPresetConfig = {
           },
         });
         for (const [positionAxisControl, positionGroupKey, positionAxisKey] of positionInputRefs)
-          positionAxisControl.value = String((navigationSettings as any)[positionGroupKey][positionAxisKey]);
+          positionAxisControl.value = String(navigationSettings[positionGroupKey][positionAxisKey]);
         for (const scaleControl of scaleInputRefs) scaleControl.value = "100";
         commitChange({
           properties: {
@@ -1723,12 +1732,27 @@ type PopupPresetConfig = {
   // 天气效果：绑一个 `weather.*` 实体让 3D 场景跟着下雨/下雪，外加「先试看」的预览组。
   // 预览只影响 3D 画面、不动配置，12 秒后自动回到真实天气（见 runtime 的 previewWeather）。
   const weatherSection = createSection("天气效果"),
-    weatherEntityId = String(properties.weather?.entityId || ""),
-    weatherEntityButton = createElement("button", "secondary-button", weatherEntityId || "绑定天气实体");
+    weatherEntityId = resolveWeatherEntityId(properties.weather),
+    weatherEntityRecord = (editorOptions.entities || []).find(
+      (candidateWeatherEntity: any) =>
+        (candidateWeatherEntity.entityId || candidateWeatherEntity.entity_id) === weatherEntityId,
+    ),
+    // 按钮显示**实体名**（0.7.6 印的是 `weather.wulumuqi` 这种 ID，用户读不出所以然）；
+    // ID 退到 `title`，悬停仍可见。
+    weatherEntityButton = createElement(
+      "button",
+      "secondary-button",
+      weatherEntityLabel(
+        weatherEntityId,
+        weatherEntityRecord,
+        weatherEntityState(editorOptions.states, weatherEntityId),
+      ) || "绑定天气实体",
+    );
   // 0.7.6 把这一组的标题隐藏：分组靠下面「天气实体 / 天气预览」两行自述。
   (weatherSection.children[0] as HTMLElement).hidden = true;
   ((weatherEntityButton.type = "button"),
     (weatherEntityButton.name = "i3d-weather-entity"),
+    (weatherEntityButton.title = weatherEntityId || "绑定天气实体"),
     weatherEntityButton.setAttribute("aria-label", "绑定天气实体"),
     createLabeledField(weatherSection, "天气实体", weatherEntityButton),
     weatherEntityButton.addEventListener("click", async () => {
@@ -1738,7 +1762,7 @@ type PopupPresetConfig = {
           current: weatherEntityId,
           deviceKind: "weather",
           title: "绑定天气实体",
-          onSelect: (selectedWeatherEntityId: any) => {
+          onSelect: (selectedWeatherEntityId: any, selectedWeatherEntity?: any) => {
             (getInteraction3dEditorView(targetComponent.id)?.closeWeatherPreview?.(),
               commitChange({
                 properties: {
@@ -1746,7 +1770,15 @@ type PopupPresetConfig = {
                     entityId: selectedWeatherEntityId,
                   },
                 },
-              }));
+              }),
+              // 面板重建前先就地换文案，避免用户看到「选完了却还是旧字」。
+              (weatherEntityButton.textContent =
+                weatherEntityLabel(
+                  selectedWeatherEntityId,
+                  selectedWeatherEntity,
+                  weatherEntityState(editorOptions.states, selectedWeatherEntityId),
+                ) || "绑定天气实体"),
+              (weatherEntityButton.title = selectedWeatherEntityId || "绑定天气实体"));
           },
         });
       } catch (weatherPickerError: any) {

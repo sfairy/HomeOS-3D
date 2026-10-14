@@ -15,6 +15,7 @@ import {
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { temperatureHumidityFloorCenter } from "@app/bridge/temperature-humidity";
+import { validateGo2rtcUrl } from "../camera/go2rtc-url";
 import {
   SECURITY_ALARM_TYPES,
   createSecurityAlarmOverlay,
@@ -321,6 +322,10 @@ export async function openSecurityEditor({
     if (!(isSaving || !isAccessAllowed || isCameraEditing || isPresenceEditorOpen)) {
       ((isSaving = true), renderPanel());
       try {
+        // 保存前先跑一遍 go2rtc 地址校验：地址输入框不需要先失焦，点「保存配置」就能拿到
+        // 最新值并给出准确提示（权威校验仍在后端 normalize_go2rtc_target）。
+        for (const cameraItem of draftProperties.security?.cameras || [])
+          cameraItem?.cameraSource === "go2rtc" && validateGo2rtcUrl(cameraItem?.go2rtcUrl);
         if ((await requestInteraction3dAccess(), isDisposed || !isAccessAllowed)) return;
         (await onSaveConfig(structuredClone(draftProperties)),
           isDisposed || setSaveResultMessage("已应用到编辑器，请保存仪表盘。"));
@@ -1850,15 +1855,16 @@ export async function openSecurityEditor({
             type: "url",
             value: String(selectedItem.go2rtcUrl || ""),
             maxLength: 2048,
-            placeholder: "http://局域网IP:1984/stream.html?src=摄像头名称",
+            placeholder: "http://192.168.1.100:1984/stream.html?src=camera1",
           }),
-          cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 地址"),
-          cameraGo2rtcUrlInputElement.addEventListener("change", () => {
+          cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 网页播放地址"),
+          // 0.7.6 起改用 input：边输边写进草稿，保存时不必先让输入框失焦。
+          cameraGo2rtcUrlInputElement.addEventListener("input", () => {
             (selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim(),
               markPropertiesDirty());
           }),
           cameraGo2rtcUrlLabelElement.append(
-            createElement("span", "", "go2rtc 地址"),
+            createElement("span", "", "go2rtc 网页播放地址"),
             cameraGo2rtcUrlInputElement,
           ),
           (cameraGo2rtcUrlLabelElement.hidden = selectedItem.cameraSource !== "go2rtc"),
@@ -1867,7 +1873,7 @@ export async function openSecurityEditor({
             createElement(
               "p",
               "i3d-note",
-              "视频经 HA Bridge 转发，沿用现有外网入口。请填写局域网 IP 地址，保存仪表盘后播放。",
+              "请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HomeOS 中转，保存仪表盘后播放。",
             ),
           ),
           // go2rtc 来源不需要 HA 实体，实体选择器一并收起。

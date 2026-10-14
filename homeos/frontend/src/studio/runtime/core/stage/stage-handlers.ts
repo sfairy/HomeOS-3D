@@ -1369,6 +1369,8 @@ export function createHandleHostMessage(host: StageHandlersHost) {
           host.idleIconVisibilityControl.activity(),
           host.idleFocusExitControl.activity());
         const isCameraChanged =
+          // 配置窗口关过一次：舞台要丢掉上次编辑留下的取景，按新属性重新摆一次镜头。
+          data.resetPreviewSession === true ||
           (host.isAwaitingFloorViewAdjust && data.viewEditing !== true) ||
           JSON.stringify(host.options.camera) !== JSON.stringify(data.properties.camera);
         (host.panelDisplayMode || host.idleReturnCamera || host.cameraMotionSnapshot) &&
@@ -1393,7 +1395,8 @@ export function createHandleHostMessage(host: StageHandlersHost) {
           )
             ? data.editingSecurityKind
             : "";
-        ((data.editing !== true ||
+        ((data.resetPreviewSession === true ||
+          data.editing !== true ||
           editingSecurityKind !== "lock" ||
           (host.text && host.text !== (data.selectedId || ""))) &&
           (host.selectedLockEntry = null),

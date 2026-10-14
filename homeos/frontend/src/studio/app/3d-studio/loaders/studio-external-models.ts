@@ -18,6 +18,7 @@ import {
 import { finite } from "./studio-normalization";
 import { createModelPersistentCache } from "../model-persistent-cache";
 import { modelTemplateKey, captureModelTemplateBounds } from "../model-template-codec";
+import { modelPlacementBounds } from "./model-placement-bounds";
 import { prepareModelTextures } from "../model-texture-cache";
 import { releaseModelAsset } from "./model-asset-loader";
 import { DECOR_MODELS, DECOR_THEMES } from "../authoring/items/decor-models";
@@ -31,6 +32,8 @@ import {
   stoneSlabSurfaceFinish,
   usesNamedMaterialRole,
 } from "../materials/studio-model-material-roles";
+import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
+import { COLLECTION_MODELS } from "./external-models/collection-models";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
 import {
   materialStyleRecipeFor,
@@ -403,9 +406,12 @@ export function createExternalModelManager({
         bedMesh.isMesh && (bedMesh.geometry = insetBedBaseGeometry(bedMesh.geometry));
       }),
       templateScene.updateMatrixWorld(true));
-    const modelSize = new threeNamespace.Box3()
-      .setFromObject(templateScene)
-      .getSize(new threeNamespace.Vector3());
+    // 取尺寸优先用模型里烘焙的 `homeosPlacementBounds`（省一次整树遍历、结果确定）；
+    // 没烘焙 / 烘焙不可信时回退几何体自算 —— 与 0.7.6 的取尺寸口径一致。
+    const modelSize = (
+      modelPlacementBounds(threeNamespace, templateScene) ??
+      new threeNamespace.Box3().setFromObject(templateScene)
+    ).getSize(new threeNamespace.Vector3());
     if (
       ![modelSize.x, modelSize.y, modelSize.z].every(
         (sizeAxis) => Number.isFinite(sizeAxis) && sizeAxis > 0.001,
@@ -652,15 +658,25 @@ export function createExternalModelManager({
 
 
       const pillarRole = materialName.match(/material-\d+-([a-z][a-z0-9]*)$/)?.[1],
+        // 「材质风格」档位优先：柱体档位（木柜白门 / 浅橡木 / 胡桃木 / 深色烤漆）登记了
+        // `body`/`base`/`trim` 三件的取色，选档位时柱体要真的换料；只有 `auto`（跟随墙体）
+        // 档才回落到墙体色 —— 否则这 4 个档位会空转。
+        pillarStyleColor = materialStyleRoleColorFor(
+          furnitureItemType,
+          pillarRole ?? "body",
+          warmPalette,
+        ),
         pillarWallColor = new threeNamespace.Color(
           warmPalette.wall ?? warmPalette.furniture ?? 16777215,
         ),
         pillarColor =
-          pillarRole === "base"
-            ? pillarWallColor.clone().multiplyScalar(0.92)
-            : pillarRole === "trim"
-              ? pillarWallColor.clone().lerp(new threeNamespace.Color(16777215), 0.35)
-              : pillarWallColor;
+          typeof pillarStyleColor === "number"
+            ? new threeNamespace.Color(pillarStyleColor)
+            : pillarRole === "base"
+              ? pillarWallColor.clone().multiplyScalar(0.92)
+              : pillarRole === "trim"
+                ? pillarWallColor.clone().lerp(new threeNamespace.Color(16777215), 0.35)
+                : pillarWallColor;
       return createPaletteMaterial(meshMaterial, pillarColor, {
         roughness: pillarRole === "base" ? 0.74 : 0.66,
         metalness: 0.02,
@@ -1017,7 +1033,9 @@ export function createExternalModelManager({
     if (
       roleTableItemTypes.has(detailItemType) &&
       !isStructuralModelFamily(resolveModelFamily(detailItemType)) &&
-      !usesNamedMaterialRole(detailMaterial.name)
+      // 语义对照表模型的材质名虽然是「候选色」写法（`plant-candidate-body`），但角色表已经
+      // 把它还原成真实构件（`pot`），必须走角色表而不是按尾词当角色。
+      (!usesNamedMaterialRole(detailMaterial.name) || hasSemanticSlotRoles(detailItemType))
     ) {
       const roleTableRecipe = materialRoleRecipeFor(detailItemType, detailMaterial.name, itemPalette);
       if (roleTableRecipe) {
@@ -1862,8 +1880,9 @@ function normalizeMaterialValue(materialValue: any): any {
       applianceItemTypes.has(itemType) ||
 
 
-      (roleTableItemTypes.has(itemType) &&
-        !isStructuralModelFamily(resolveModelFamily(itemType))) ||
+      hasSemanticSlotRoles(itemType) ||
+      (!isStructuralModelFamily(resolveModelFamily(itemType)) &&
+        (roleTableItemTypes.has(itemType) || Boolean(COLLECTION_MODELS[itemType]))) ||
       (palette.warmWood && warmWoodFurnitureItemTypes.has(itemType))
     );
   }
@@ -2491,7 +2510,16 @@ function normalizeMaterialValue(materialValue: any): any {
       }
     } else {
       modelClone.updateMatrixWorld(true);
-      const boundsBox = new threeNamespace.Box3().setFromObject(modelClone),
+      // 摆放包围盒同样优先用烘焙的那一份，再按实例矩阵变换，省掉一次整树 `setFromObject`；
+      // 钢琴 / 前置净水器的烘焙盒与几何体对不上，这两个仍走几何体自算（并开精确模式）。
+      const isGeometryMeasuredModel =
+        modelType === "piano" || modelType === "pipelinewaterpurifier";
+      loadedModel.placementBounds === undefined &&
+        (loadedModel.placementBounds = modelPlacementBounds(threeNamespace, loadedModel.source));
+      const boundsBox =
+          loadedModel.placementBounds && !isGeometryMeasuredModel
+            ? loadedModel.placementBounds.clone().applyMatrix4(modelClone.matrixWorld)
+            : new threeNamespace.Box3().setFromObject(modelClone, isGeometryMeasuredModel),
         boundsCenter = boundsBox.getCenter(new threeNamespace.Vector3());
       modelClone.position.set(-boundsCenter.x, -boundsBox.min.y, -boundsCenter.z);
     }

@@ -7,12 +7,23 @@
  * - `material-N-role`
  * - `<type>-furniture-role` / `<type>-detail-role`
  * - `<type>-aquatic-role` / `<type>-garden-role` / `<type>-decor-N` / `<type>-tea-role`
+ * - `<type>-candidate-role`（0.7.6 批量导出批次）与 `<type>-role`（尾词为已知角色）
  * - legacy 名（`004`、`car_tms`、`金色金属材料` …）
  * 本模块把这些体系统一解析成角色，再按「家族 → 角色 → 配方」给出颜色与表面参数，让调色板按
  * 角色着色，而不是靠亮度 / 槽位号猜。
  */
 import { courtyardPalette } from "../plan/courtyard-models";
 import { DECOR_MODELS, DECOR_THEMES } from "../authoring/items/decor-models";
+import {
+  COLLECTION_MODELS,
+  collectionRoleColorSpec,
+} from "../loaders/external-models/collection-models";
+import { hasSemanticSlotRoles, resolveSemanticSlotRole } from "./model-slot-roles";
+import {
+  SEMANTIC_DEFAULT_BY_PALETTE_KEY,
+  resolveSemanticRoleColor,
+  semanticRoleAppearance,
+} from "./studio-semantic-roles";
 
 /** 表面族：决定默认粗糙度 / 金属度（对齐参考实现的 SURFACE_ROUGHNESS / SURFACE_METALNESS）。 */
 export type MaterialSurface =
@@ -81,29 +92,17 @@ const SURFACE_FINISH: Record<MaterialSurface, { roughness: number; metalness: nu
   paint: { roughness: 0.55, metalness: 0.02 },
 };
 
-/** 只存在于暖木调色板的键 → 默认主题下的回退键（保证默认主题也有合理颜色）。 */
+/**
+ * 只存在于暖木调色板、或**语义身份独立**的键。
+ *
+ * 修复要点：这些语义键（`wood`/`leafColor`/`countertop`/`cabinet*`/`sofaFabric`/`showerMetal`…）
+ * 以前全部链到 `furniture*` 家具键，默认主题又没有这些键 → 一律塌成同一个家具蓝灰。
+ * 现在**只保留建筑收口类**（窗套/门套，本就该跟主题的 `frame` 走）的链接；
+ * 材质语义键缺省时由 `resolveMaterialPaletteColor` 回落到
+ * `SEMANTIC_DEFAULT_BY_PALETTE_KEY`（写实默认色：叶绿 / 陶土 / 原木 / 白瓷 …），不再塌成灰。
+ */
 const PALETTE_KEY_FALLBACK: Record<string, string> = {
-  wood: "furniture",
-  woodLight: "furnitureLight",
-  woodDark: "furnitureDark",
-  cabinetWood: "furnitureDark",
-  cabinetBody: "furnitureDark",
-  cabinetDoor: "furnitureLight",
-  countertop: "furnitureLight",
-  joineryAccent: "furnitureSoft",
-  decorAccent: "accent",
-  sofaFabric: "furnitureLight",
-  diningLinen: "furnitureSoft",
-  diningSage: "furnitureSoft",
-  leafColor: "furniture",
-  runnerColor: "furnitureSoft",
-  rollerCurtain: "furnitureLight",
-  rollerSlat: "furnitureDark",
-  showerMetal: "applianceSoft",
-  floorLampBody: "furniture",
   windowFrame: "frame",
-
-
   doorFrame: "frame",
   entryDoorFrame: "doorFrame",
   solidDoorFrame: "doorFrame",
@@ -149,6 +148,10 @@ export function resolveMaterialPaletteColor(palette: PaletteLike, spec: string |
     if (typeof value == "number") return value;
     key = PALETTE_KEY_FALLBACK[key];
   }
+  // 语义键（wood / leafColor / countertop / ceramic …）在主题里缺省时，回落到该键的
+  // **写实默认色**，而不是塌成 `furniture` 灰 —— 保证「材质语义」永远压得住兜底。
+  const semanticDefault = SEMANTIC_DEFAULT_BY_PALETTE_KEY[spec];
+  if (typeof semanticDefault == "number") return semanticDefault;
   return typeof palette?.furniture == "number" ? (palette.furniture as number) : 0x7d8089;
 }
 
@@ -223,9 +226,14 @@ const MATERIAL_ROLE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   slat: "帘片",
 });
 
-/** 取角色的中文标签； */
+/** 取角色的中文标签；语义层（`studio-semantic-roles.ts`）优先，再回落到旧标签表。 */
 export function materialRoleLabel(role: string | undefined): string {
-  return (role && MATERIAL_ROLE_LABELS[role]) || role || "未识别";
+  return (
+    semanticRoleAppearance(role)?.label ||
+    (role && MATERIAL_ROLE_LABELS[role]) ||
+    role ||
+    "未识别"
+  );
 }
 
 
@@ -562,6 +570,10 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   "bunk-bed": "upholstery",
   rug: "rug",
   basin: "ceramic",
+  // 台面只做一件事：**和台盆那张台面一模一样**。所以家族跟台盆一样给 `ceramic`、槽位 token
+  // 取 `light`（= 台盆台面构件的槽位名）→ 角色 `rim`、档位组挂 `basin`，逐档颜色对齐；
+  // 换成 joinery / woodwork 的 `top` 反而会按「石材台面」刷成大理石纹，和台盆不一致。
+  countertop: "ceramic",
   toilet: "ceramic",
   squattoilet: "ceramic",
   urinal: "ceramic",
@@ -617,23 +629,109 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   door: "door",
   "tea-table-set": "tea",
   plant: "plant",
-  piano: "misc",
-  elevator: "misc",
-  airoutlet: "misc",
-  pipelinewaterpurifier: "misc",
-  tea_bar_machine: "misc",
+  piano: "structure",
+  elevator: "structure",
+  airoutlet: "appliance",
+  pipelinewaterpurifier: "appliance",
+  tea_bar_machine: "appliance",
+  "table-lamp": "lamp",
+  "up-down-wall-lamp": "lamp",
+  "yoga-set": "fitness",
+  "round-rug": "rug",
+  "storage-box": "joinery",
+
+  // 手工登记的基础模型（`all-item-models.ts`）也要有家族，否则家族配方命不中真实构件。
+  "ceiling-fan": "appliance",
+  "smart-display": "device",
+  "smart-display-wall": "device",
+  ps5: "device",
+  "switch-console": "device",
+  "xbox-series-x": "device",
+  "arcade-machine": "media",
+  "3d-printer": "device",
+  "water-purifier": "appliance",
+  "disinfection-cabinet": "appliance",
+  "electric-valve": "device",
+  "single-rail-rack": "joinery",
+  "drying-rack": "joinery",
+  "home-network-cabinet": "joinery",
+  "coat-rack": "joinery",
+  "baby-crib": "woodwork",
+  "child-highchair": "woodwork",
+  "rocking-horse": "woodwork",
+  "rocking-chair": "upholstery",
+  "cat-tree": "pet",
+  treadmill: "fitness",
+  elliptical: "fitness",
+  "dumbbell-rack": "fitness",
+  "mahjong-table": "woodwork",
+  "ping-pong-table": "fitness",
+  "drum-kit": "media",
+  "keyboard-stand": "media",
+  "guitar-stand": "media",
+  "cello-stand": "media",
+  "wall-art": "decor",
+  "wall-clock": "decor",
+  "full-length-mirror": "decor",
+  "side-table": "woodwork",
+  "bar-stool": "upholstery",
+  "trash-bin": "appliance",
+  "storage-cart": "joinery",
+  "laundry-basket": "joinery",
+  "aroma-diffuser": "device",
+  "desktop-frame": "decor",
+  "easel-board": "woodwork",
+  "bicycle-rack": "fitness",
+  dartboard: "fitness",
+});
+
+/**
+ * 收藏模型**细分类目 → 材质家族**（`COLLECTION_MODELS[id].group`）。
+ *
+ * 0.7.6 的 110 款收藏模型只登记了「摆放细分类目」（`LibraryGroupId`），没有材质家族，
+ * 于是 `resolveModelFamily` 全落 `misc`（97/110）+ 默认家族配方命中不了真实构件。
+ * 这里把细分类目一次映射到家族，`resolveModelFamily` 据此数据驱动兜底。
+ */
+const FAMILY_BY_COLLECTION_GROUP: Readonly<Record<string, string>> = Object.freeze({
+  plants: "plant",
+  "kitchen-devices": "appliance",
+  "kitchen-tools": "tableware",
+  laundry: "appliance",
+  cleaning: "appliance",
+  bathroom: "ceramic",
+  "office-devices": "device",
+  media: "media",
+  fitness: "fitness",
+  kids: "kids",
+  pets: "pet",
+  decor: "decor",
+  bedroom: "furniture",
+  entry: "furniture",
+  storage: "joinery",
+  "lighting-decor": "lamp",
 });
 
 /** itemType → 家族； */
 export function resolveModelFamily(itemType: string): string {
   const explicitFamily = FAMILY_BY_ITEM_TYPE[itemType];
   if (explicitFamily) return explicitFamily;
+  const collectionGroup = COLLECTION_MODELS[itemType]?.group;
+  const collectionFamily = collectionGroup ? FAMILY_BY_COLLECTION_GROUP[collectionGroup] : undefined;
+  if (collectionFamily) return collectionFamily;
+  if (itemType.startsWith("plant") || itemType.startsWith("flower")) return "plant";
   if (itemType.startsWith("garden-")) return "garden";
   if (itemType.startsWith("decor-")) return "decor";
   if (itemType.startsWith("pillar")) return "pillar";
   if (itemType.startsWith("curtain_")) return "curtain";
+  if (itemType.startsWith("pet-")) return "pet";
+  if (itemType.startsWith("kids-")) return "kids";
+  if (itemType.startsWith("office-")) return "device";
+  if (itemType.startsWith("fitness-")) return "fitness";
+  if (itemType.startsWith("media-")) return "media";
   if (itemType.startsWith("sofa")) return "upholstery";
   if (itemType.startsWith("tv")) return "device";
+  if (itemType.startsWith("bath-")) return "ceramic";
+  if (itemType.startsWith("kitchen-")) return "appliance";
   if (/stairs$/.test(itemType)) return "stair";
   return "misc";
 }
@@ -1058,6 +1156,52 @@ const MATERIAL_ROLE_PATTERNS: readonly RegExp[] = [
   /^ha-[a-z0-9]+-([a-z][a-z0-9]*)$/,
 ];
 
+/**
+ * 0.7.6 起外部模型导出改用「**模型名 + 角色**」直接给材质命名，两套写法：
+ *
+ * - `<模型>-candidate-<角色>`：20261013 批次统一导出，角色为
+ *   `body` / `dark` / `soft` / `light` / `accent` / `glass`（同款 4–6 个候选色）。
+ * - `<模型>-<角色>`：部分模型不带 `candidate` 中缀（`3d-printer-dark`、`arcade-machine-frame`）。
+ *
+ * 两套都**只认尾词在角色词表里的名字**：`pet-bed-bowls-water` 这种把普通名词写进名字的槽位
+ * 不会被误判（`water` 在词表里，但 `coupling` / `bowls` 这类不在，宁可退回「按槽位顺序」）。
+ */
+const MODEL_SUFFIX_ROLE_VOCABULARY: ReadonlySet<string> = new Set([
+  "accent",
+  "base",
+  "body",
+  "ceramic",
+  "dark",
+  "flowercenter",
+  "frame",
+  "glass",
+  "indicator",
+  "leg",
+  "light",
+  "metal",
+  "panel",
+  "screen",
+  "seat",
+  "soft",
+  "top",
+  "trim",
+  "water",
+]);
+
+/** `<模型>-candidate-<角色>`（0.7.6 批量导出批次）。 */
+const CANDIDATE_ROLE_PATTERN = /-candidate-([a-z][a-z0-9]*)$/;
+/** `<模型>-<角色>`：尾词命中角色词表才算。 */
+const MODEL_SUFFIX_ROLE_PATTERN = /-([a-z][a-z0-9]*)$/;
+
+/** 从 `0.7.6` 的「模型名 + 角色」命名里取角色；不是这套命名返回 `null`。 */
+function suffixRoleFromMaterialName(lowerName: string): string | null {
+  const candidateMatch = lowerName.match(CANDIDATE_ROLE_PATTERN);
+  if (candidateMatch?.[1]) return candidateMatch[1];
+  const suffixMatch = lowerName.match(MODEL_SUFFIX_ROLE_PATTERN);
+  const suffix = suffixMatch?.[1];
+  return suffix && MODEL_SUFFIX_ROLE_VOCABULARY.has(suffix) ? suffix : null;
+}
+
 interface RoleResolution {
   role: string;
   slot?: number;
@@ -1072,6 +1216,20 @@ export function resolveModelMaterialRole(
   materialIndex = 0,
 ): RoleResolution {
   const lowerName = (materialName || "").toLowerCase();
+
+  // 语义槽位表优先：登记在 `model-slot-roles.ts` 的模型（0.7.6 候选色命名、语义中缀
+  // `-foliage-`/`-sanitary-` 等）直接还原本槽位的**真实构件角色**，不再被「候选明度」压平。
+  if (hasSemanticSlotRoles(itemType)) {
+    const semanticSlotRole = resolveSemanticSlotRole(itemType, resolveModelFamily(itemType), lowerName);
+    if (semanticSlotRole) {
+      const semanticSlotMatch = lowerName.match(/material-(\d+)/);
+      return {
+        role: semanticSlotRole,
+        slot: semanticSlotMatch ? Number(semanticSlotMatch[1]) : undefined,
+        source: "name",
+      };
+    }
+  }
 
 
   const explicitRole = MODEL_ROLE_BY_MATERIAL_NAME[itemType]?.[lowerName];
@@ -1088,6 +1246,18 @@ export function resolveModelMaterialRole(
         source: "name",
       };
     }
+  }
+
+  // 0.7.6 的「模型名 + 角色」命名（`<模型>-candidate-<角色>` / `<模型>-<角色>`）。
+  // 放在显式槽位表之前：名字里既然写了角色，就比按槽位号推断更可信。
+  const suffixRole = suffixRoleFromMaterialName(lowerName);
+  if (suffixRole) {
+    const slotMatch = lowerName.match(/material-(\d+)/);
+    return {
+      role: suffixRole,
+      slot: slotMatch ? Number(slotMatch[1]) : undefined,
+      source: "name",
+    };
   }
 
 
@@ -1133,6 +1303,13 @@ export function resolveModelMaterialRole(
     tea: "frame",
     garden: "base",
     decor: "base",
+    tableware: "body",
+    media: "body",
+    fitness: "frame",
+    kids: "body",
+    pet: "body",
+    furniture: "body",
+    structure: "body",
     misc: "body",
   }[family];
   return {
@@ -1165,12 +1342,19 @@ export function materialRoleRecipeForRole(
   const warm = palette?.warmWood === true;
 
 
+  const semanticAppearance = semanticRoleAppearance(role);
+  /** 语义角色的写实出图色（主题有语义键跟主题，没有就跟写实默认色）。 */
+  const semanticColor = semanticAppearance
+    ? resolveSemanticRoleColor(role, palette) ?? semanticAppearance.defaultColor
+    : undefined;
+
   if (family === "garden") {
     const gardenPalette = courtyardPalette(itemType, warm ? "warm" : "default") as Record<
       string,
       number
     >;
-    const gardenColor = gardenPalette[role] ?? gardenPalette.base;
+    // 庭院调色板没登记这个角色时，先看语义层的写实色（叶绿 / 陶土），最后才退回 panel base。
+    const gardenColor = gardenPalette[role] ?? semanticColor ?? gardenPalette.base;
     if (typeof gardenColor != "number") return null;
     return {
       role,
@@ -1187,7 +1371,9 @@ export function materialRoleRecipeForRole(
   }
   if (family === "decor") {
     const decorTheme = DECOR_THEMES[warm ? "warm" : "default"] as unknown as Record<string, number>;
-    const decorColor = decorTheme[role] ?? decorTheme.base;
+    // 摆件主题表只登记了几个通用角色（`base`/`frame`/`accent`…）；像 `vase` / `trophyMetal` /
+    // `driedBouquet` 这些真实构件走语义层的写实色，不再塌成 `base` 的家具灰。
+    const decorColor = decorTheme[role] ?? semanticColor ?? decorTheme.base;
     if (typeof decorColor != "number") return null;
     return {
       role,
@@ -1200,27 +1386,85 @@ export function materialRoleRecipeForRole(
     };
   }
 
-  const recipe = MODEL_ROLE_RECIPES[itemType]?.[role] ?? ROLE_RECIPES_BY_FAMILY[family]?.[role] ?? COMMON_ROLE_RECIPES[role];
-  if (!recipe) return null;
+  // 0.7.6 收藏模型（`collection-models.ts`）自带「角色 → [冷色, 暖木色]」配色：命中即用注册表的
+  // 色号盖掉通用配方的主色。这些模型是按候选色导出的，注册表的二元组才是 0.7.6 的设计取值；
+  // 表面参数（粗糙度 / 金属度 / 透明）仍走通用配方，不跟着注册表变。
+  const collectionColorSpec = collectionRoleColorSpec(itemType, role, warm);
+  const baseRecipe: RoleRecipe | undefined =
+    MODEL_ROLE_RECIPES[itemType]?.[role] ??
+    ROLE_RECIPES_BY_FAMILY[family]?.[role] ??
+    COMMON_ROLE_RECIPES[role];
+
+  // 配方存在但调色板里没有它要的键 → `resolveMaterialPaletteColor` 会塌到家具灰。这种
+  // 「配方形同虚设」的槽位改用语义层的写实色（陶土花盆 / 铜奖杯 / 浅瓷托盘…）。
+  const fallbackGrey = resolveMaterialPaletteColor(palette, undefined);
+  const colorSpecCandidate = warm
+    ? (baseRecipe?.warmColor ?? baseRecipe?.color)
+    : (baseRecipe?.defaultColor ?? baseRecipe?.color);
+  const baseColorValue = baseRecipe
+    ? scaleMaterialColorChannels(
+        resolveMaterialPaletteColor(palette, collectionColorSpec ?? colorSpecCandidate),
+        baseRecipe.multiply ?? 1,
+      )
+    : undefined;
+  const recipeCollapsedToGrey = baseColorValue !== undefined && baseColorValue === fallbackGrey;
+
+  // 三级取值：
+  // 1) 收藏注册表登记了该角色的色号 → 注册表优先（0.7.6 的设计取值）；
+  // 2) 否则语义角色（foliage / pot / soil / ceramic / seat / shell / door / vase …）按
+  //    `studio-semantic-roles.ts` 的**写实外观**出图 —— 即使配方缺失或配方色被调色板吞掉，
+  //    也绝不塌成家具灰（「选鲜绿却全是棕」「所有槽位同一个灰」的根因）；
+  // 3) 否则走通用 / 家族 / 模型配方。
+  const usesCollectionColor = collectionColorSpec !== null;
+  const usesSemanticAppearance =
+    !usesCollectionColor &&
+    Boolean(semanticColor !== undefined) &&
+    (!baseRecipe || recipeCollapsedToGrey);
+  if (!baseRecipe && !usesCollectionColor && !usesSemanticAppearance) return null;
+
+  const recipe: RoleRecipe = usesCollectionColor
+    ? {
+        ...(baseRecipe ?? { color: collectionColorSpec as string | number }),
+        surface: baseRecipe?.surface ?? semanticAppearance?.surface,
+      }
+    : usesSemanticAppearance
+      ? {
+          ...(baseRecipe ?? { color: role }),
+          color: role,
+          surface: baseRecipe?.surface ?? semanticAppearance!.surface,
+          transparent: baseRecipe?.transparent ?? semanticAppearance!.transparent,
+          opacity: baseRecipe?.opacity ?? semanticAppearance!.opacity,
+          depthWrite: baseRecipe?.depthWrite ?? semanticAppearance!.depthWrite,
+          emissive: baseRecipe?.emissive ?? semanticAppearance!.emissive,
+          emissiveIntensity: baseRecipe?.emissiveIntensity ?? semanticAppearance!.emissiveIntensity,
+        }
+      : baseRecipe!;
 
   const surfaceFinish = recipe.surface ? SURFACE_FINISH[recipe.surface] : undefined;
-  const colorSpec = warm
-    ? (recipe.warmColor ?? recipe.color)
-    : (recipe.defaultColor ?? recipe.color);
   return {
     ...recipe,
     role,
     slot,
-    colorValue: scaleMaterialColorChannels(
-      resolveMaterialPaletteColor(palette, colorSpec),
-      recipe.multiply ?? 1,
-    ),
+    colorValue: usesCollectionColor
+      ? scaleMaterialColorChannels(
+          resolveMaterialPaletteColor(palette, collectionColorSpec),
+          baseRecipe?.multiply ?? 1,
+        )
+      : usesSemanticAppearance
+        ? semanticColor!
+        : baseColorValue!,
     emissiveValue:
       recipe.emissive !== undefined
         ? resolveMaterialPaletteColor(palette, recipe.emissive)
         : undefined,
-    roughness: recipe.roughness ?? surfaceFinish?.roughness,
-    metalness: recipe.metalness ?? surfaceFinish?.metalness,
+    roughness:
+      recipe.roughness ??
+      surfaceFinish?.roughness ??
+      (usesSemanticAppearance ? semanticAppearance!.roughness : undefined),
+    metalness:
+      recipe.metalness ??
+      surfaceFinish?.metalness ??
+      (usesSemanticAppearance ? semanticAppearance!.metalness : undefined),
   };
 }
 
@@ -1234,12 +1478,13 @@ export function stoneSlabFlavorForMaterial(
   return isStoneSlabFlavor(roleRecipe?.slab) ? roleRecipe.slab : null;
 }
 
-/** 材质名是否已经自带**显式角色**（`material-<n>-<role>` / `<type>-furniture|detail|aquatic|tea|garden|decor-<role>`）。 */
+/** 材质名是否已经自带**显式角色**（`material-<n>-<role>` / `<type>-furniture|detail|aquatic|tea|garden|decor-<role>` / 0.7.6 的 `<type>[-candidate]-<role>`）。 */
 export function usesNamedMaterialRole(materialName: string | undefined): boolean {
   const name = (materialName || "").toLowerCase();
   return (
     /material-\d+-[a-z]/.test(name) ||
-    /-(?:furniture|detail|aquatic|tea|garden|decor)-[a-z0-9]/.test(name)
+    /-(?:furniture|detail|aquatic|tea|garden|decor)-[a-z0-9]/.test(name) ||
+    suffixRoleFromMaterialName(name) !== null
   );
 }
 

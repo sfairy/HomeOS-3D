@@ -115,6 +115,7 @@ import {
   editorDocumentFrameSignature as editorDocumentFrameSignature2,
   recoveryStorageKey as recoveryStorageKey2,
 } from "./editor-history";
+import { validateGo2rtcDocument } from "@/studio/platform/go2rtc-url";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   normalizeBaseLighting as normalizeBaseLighting2,
@@ -7082,12 +7083,11 @@ async function saveDraft() {
       documentSignature2(editorCtx.baselineDocument.customPopups || []);
   ((editorCtx.isSaving = true), writeError(), syncHistoryButtons());
   try {
+    // 0.7.6 §5⑨：地址框不必先失焦 —— 保存前先本地拦一道，非法地址就别把整份草稿发上去。
+    validateGo2rtcDocument(draftBeforeSave);
     const saveResponse = await requestJson("/projects/" + projectId2 + "/draft", {
       method: "PUT",
-      hbLogContext: {
-        projectId: editorCtx.activeProject.projectId,
-        phase: "save-draft",
-      },
+      hbLogContext: { projectId: projectId2, phase: "save-draft" },
       body: JSON.stringify({
         revision: editorCtx.activeProject.revision,
         globalPopupRevision: editorCtx.activeProject.globalPopupRevision,

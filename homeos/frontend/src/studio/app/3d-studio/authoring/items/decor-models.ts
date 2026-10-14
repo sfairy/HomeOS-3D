@@ -1,4 +1,5 @@
 import { WARM_WOOD_STYLE } from "../scene/studio-scene-style";
+import { defaultViewSettings } from "../scene/studio-view-settings";
 export const DECOR_THEMES = Object.freeze({
     default: Object.freeze({
       name: "默认蓝灰",
@@ -7,7 +8,15 @@ export const DECOR_THEMES = Object.freeze({
       light: 12634839,
       dark: 5397873,
       accent: 10332346,
-      leaf: 8226713,
+      /**
+       * `leaf` = **叶子 / 草 / 绿篱**这一支队料，不是「深色家具」。
+       *
+       * 这里原本与 `base` **同值**（`8226713` = 导出占位蓝灰 `#7D8799`）—— 那是一个照抄
+       * `base` 的遗留值，于是庭院乔木的树冠、绿篱、草坪、小盆栽的叶片全都出**蓝灰**，
+       * 与「绿植 = 绿叶」的语义完全相反（暖木主题一直是 `WARM_WOOD_STYLE.leafColor`）。
+       * 现在跟默认主题的语义键 `leafColor` 走，保证任何主题下 `leaf` 都是叶子色。
+       */
+      leaf: defaultViewSettings.leafColor,
     }),
     warm: Object.freeze({
       name: "暖阳原木",

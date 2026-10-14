@@ -28,6 +28,9 @@ export type Interaction3dEditorView = {
   setAuthorized?: (authorized: boolean) => void;
   setPageVisible?: (visible: boolean) => void;
   closePopupLayoutPreview?: (...args: any[]) => any;
+  /** 天气效果预览：返回 false 表示当前画布不满足预览条件（正在视角/范围编辑、页面隐藏等）。 */
+  previewWeather?: (weatherState: string) => boolean;
+  closeWeatherPreview?: (...args: any[]) => any;
   closeRangeEditor?: (...args: any[]) => any;
   /** 实例自身可调用：锁定时用它收尾。 */
   (...args: any[]): any;

@@ -94,7 +94,10 @@ export function courtyardPalette(variant: any, theme: any) {
         (palette.dark = WARM_WOOD_STYLE.woodDark),
       pavingOrWaterBaseSet.has(variant) && (palette.light = WARM_WOOD_STYLE.countertop),
       planterBaseSet.has(variant) && (palette.dark = WARM_WOOD_STYLE.furnitureDark))
-    : variant === "garden-lawn" && (palette.leaf = DECOR_THEMES.default.accent);
+    : // 默认主题**不再**把 `garden-lawn` 的 `leaf` 改成 `accent`（蓝灰）—— 草坪/树冠/绿篱的
+      // `leaf` 必须是叶子色，之前那条覆盖让「草坪」出成了蓝灰。现在直接继承 `DECOR_THEMES.default.leaf`
+      // （= 默认主题语义键 `leafColor`）。
+      undefined;
   const frozenPalette = Object.freeze(palette);
   return (paletteByKey.set(cacheKey, frozenPalette), frozenPalette);
 }

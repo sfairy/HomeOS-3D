@@ -138,6 +138,7 @@ def validate_security_section(ctx: ValidationContext, properties: dict) -> None:
             'focusCamera',
             'buttonHidden',
             'cameraSource',
+            'fit',
             'go2rtcUrl',
             'backgroundOpacity'}
         if not isinstance(item, dict) or set(item) - fields:
@@ -155,6 +156,10 @@ def validate_security_section(ctx: ValidationContext, properties: dict) -> None:
         # 摄像头来源：默认 HA 实体；选 go2rtc 时地址必须能通过白名单归一（据此才能反代）。
         camera_source = item.get('cameraSource', 'entity')
         if camera_source not in ('entity', 'go2rtc'):
+            ctx.fail()
+        # 0.7.6：摄像头弹窗画面比例，默认 contain（完整可见）；fill 为铺满裁切。
+        camera_fit = item.get('fit', 'contain')
+        if not isinstance(camera_fit, str) or camera_fit not in ('fill', 'contain'):
             ctx.fail()
         camera_url = item.get('go2rtcUrl', '')
         if not ctx.text(camera_url, 2048):

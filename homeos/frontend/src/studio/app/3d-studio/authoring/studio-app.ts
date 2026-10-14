@@ -50,6 +50,7 @@ import {
   materialStyleGroupFor,
   materialStyleLabel,
   materialStyleOptionsFor,
+  materialStyleOptionsSignature,
   materialStylePaletteColors,
   materialStylePresetFor,
   materialStylePresetSwatchColors,
@@ -220,7 +221,8 @@ import {
   normalizeStripAxis as normalizeStripAxis2,
   pillarIsLying as pillarIsLying2,
 } from "./items/studio-item-posture";
-import { applianceItemTypeSet, itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, stairItemTypeSet, tvMountStyleSet } from "./items/item-catalog";
+import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, stairItemTypeSet, tvMountStyleSet } from "./items/item-catalog";
+import { installLibraryNameScroll, libraryCardVisible, normalizeLibraryCategory } from "./items/studio-model-library";
 import { defaultViewSettings } from "./scene/studio-view-settings";
 window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
@@ -613,6 +615,8 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   assetGridElement = selectElement("#asset-grid"),
   assetSearchInput = selectElement("#asset-search"),
   assetSearchEmptyElement = selectElement("#asset-search-empty"),
+  /** 模型名溢出时循环滚动（灯具模板卡由模块内部跳过）。 */
+  libraryNameScroll = installLibraryNameScroll(itemTypeButtons),
   lightAssetRowElement = selectElement("#light-asset-row"),
   lightLayerPanelElement = selectElement("#light-layer-panel"),
   lightGroupListElement = selectElement("#light-group-list"),
@@ -5049,8 +5053,7 @@ function syncMaterialStyleStrip(modelItem: any, modelType: any, slotRoles: any) 
   ensureCustomMaterialStylesLoaded();
   const presetOptions = isMaterialStyleCapable(modelType) ? materialStyleOptionsFor(modelType) : [],
 
-    roleSignature = (slotRoles || []).filter(Boolean).join(","),
-    optionSignature = modelType + ":" + presetOptions.length + ":" + roleSignature,
+    optionSignature = materialStyleOptionsSignature(modelType, slotRoles),
     itemPalette = backgroundSettings();
   if (optionSignature !== appCtx.materialStyleOptionSignature) {
     appCtx.materialStyleOptionSignature = optionSignature;
@@ -15420,39 +15423,33 @@ toggleFloorEdgeButton.addEventListener("click", () => {
     markDocumentDirty());
 });
 function filterAssetList() {
-  const replace2 = (assetSearchInput?.value || "").trim().toLocaleLowerCase().replace(/\s+/g, "");
+  const librarySearchText = (assetSearchInput?.value || "").trim().toLocaleLowerCase().replace(/\s+/g, ""),
+    activeLibraryCategory = normalizeLibraryCategory(appCtx.activeLibraryCategory);
+  libraryNameScroll.cancelAll();
   let assetMatchCount = 0;
   for (const assetToolbarEntryButton of itemTypeButtons) {
+    // 「灯光」大类单独一行（`#light-asset-row`），卡片上不带 `data-library-*`，只能按类型集合判；
+    // 其余三个大类（home / appliance / courtyard）一律交给模型库的 DOM 判定，避免两处各写一套。
     const itemType = assetToolbarEntryButton.dataset.itemType,
-      isSelectableAssetType = lampItemTypeSet.has(itemType!),
-      isModelAssetType = applianceItemTypeSet.has(itemType!),
-      startsWith =
-        appCtx.activeLibraryCategory === "light"
-          ? isSelectableAssetType
-          : appCtx.activeLibraryCategory === "appliance"
-            ? isModelAssetType
-            : appCtx.activeLibraryCategory === "courtyard"
-              ? itemType!.startsWith("garden-") &&
-                !isCourtyardGate2({
-                  type: itemType,
-                })
-              : !isModelAssetType && !isSelectableAssetType && !itemType!.startsWith("garden-"),
-      assetSearchText =
-        (replace2 &&
-          (assetToolbarEntryButton.querySelector("span")?.textContent ||
-            assetToolbarEntryButton.getAttribute("aria-label") ||
-            assetToolbarEntryButton.title)) ||
-        "",
-      doesAssetMatchQuery =
-        !replace2 || assetSearchText.toLocaleLowerCase().replace(/\s+/g, "").includes(replace2);
-    ((assetToolbarEntryButton.hidden = !startsWith || !doesAssetMatchQuery),
-      assetToolbarEntryButton.hidden || (assetMatchCount += 1));
+      isAssetCardVisible =
+        activeLibraryCategory === "light"
+          ? lampItemTypeSet.has(itemType!)
+          : libraryCardVisible(
+              assetToolbarEntryButton,
+              activeLibraryCategory,
+              null,
+              librarySearchText,
+            ) &&
+            // 庭院门是画在平面上的构件，不进模型卡列表（与 0.7.6 的 `libraryCardVisible` 调用点多一层收窄）。
+            (activeLibraryCategory !== "courtyard" || !isCourtyardGate2({ type: itemType }));
+    assetToolbarEntryButton.hidden = !isAssetCardVisible;
+    assetToolbarEntryButton.hidden || (assetMatchCount += 1);
   }
   for (const searchResultRow of assetHeadingCategoryControls)
     if (
       ((searchResultRow.hidden =
-        searchResultRow.dataset.assetHeadingCategory !== appCtx.activeLibraryCategory),
-      !searchResultRow.hidden && replace2)
+        searchResultRow.dataset.assetHeadingCategory !== activeLibraryCategory),
+      !searchResultRow.hidden)
     ) {
       let nextElementSibling = searchResultRow.nextElementSibling as StudioControlElement,
         isResultRowHidden = false;
@@ -15463,12 +15460,11 @@ function filterAssetList() {
           (nextElementSibling = nextElementSibling.nextElementSibling as StudioControlElement));
       searchResultRow.hidden = !isResultRowHidden;
     }
-  assetSearchEmptyElement && (assetSearchEmptyElement.hidden = !replace2 || assetMatchCount > 0);
+  assetSearchEmptyElement && (assetSearchEmptyElement.hidden = !librarySearchText || assetMatchCount > 0);
 }
 function setAssetCategory(assetCategory: any) {
-  const selectedAssetCategory = ["home", "appliance", "courtyard", "light"].includes(assetCategory)
-      ? assetCategory
-      : "home",
+  // 合法大类只在模型库里定义一次：非法值回落 `home`，卡片过滤与按钮态都用收窄后的值。
+  const selectedAssetCategory = normalizeLibraryCategory(assetCategory),
     ao7 = getPreviewScopeSelection();
   (hideLightGroupActionMenu(), (appCtx.activeLibraryCategory = selectedAssetCategory));
   for (const assetCategoryButton of assetCategoryButtons) {
