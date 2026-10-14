@@ -33,7 +33,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ops.check import check_error_codes as gate
-from ops.check._selftest_harness import Selftest
+from ops.check._selftest_harness import Selftest, expect_problem, substitute
 
 # 记账/收尾统一走公共骨架（夹具与注入手法留在本文件），调用点写法不变。
 _SELFTEST = Selftest("错误码门禁自检")
@@ -88,14 +88,6 @@ def write_workspace(root: Path, *, dict_source: str = DICT_SOURCE) -> None:
         target.write_text(text, encoding="utf-8")
 
 
-def substitute(root: Path, rel: Path, old: str, new: str) -> None:
-    path = root / rel
-    text = path.read_text(encoding="utf-8")
-    if old not in text:
-        raise AssertionError(f"副本里找不到待改内容 {old!r}（合成样本或门禁写法变了？）")
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-
 def case(mutate, fragment: str | None) -> None:
     """建干净副本 → 注入漂移 → 跑门禁（``ROOT`` 临时指向副本）。"""
     with tempfile.TemporaryDirectory() as raw:
@@ -108,15 +100,7 @@ def case(mutate, fragment: str | None) -> None:
             problems = gate.collect_problems()
         finally:
             gate.ROOT = original
-        if fragment is None:
-            if problems:
-                raise AssertionError(f"干净副本本应放行，却报：{'；'.join(problems)}")
-            return
-        joined = "；".join(problems)
-        if not problems:
-            raise AssertionError(f"注入漂移后门禁仍然放行（期望命中「{fragment}」）")
-        if fragment not in joined:
-            raise AssertionError(f"报错未命中「{fragment}」，实际：{joined}")
+        expect_problem(problems, fragment)
 
 
 def run(name: str, fn) -> None:
@@ -140,36 +124,35 @@ def main() -> int:
 
     def store_only(root: Path) -> None:
         """删掉后端引用、只留注释：商店前端那份还在 → 必须放行（证明商店语料参与扫描）。"""
-        substitute(root, demo, boom_line, "    return None")
+        substitute(root / demo, boom_line, "    return None")
 
     def backend_only(root: Path) -> None:
         """删掉商店前端引用：后端那份还在 → 必须放行（证明后端语料参与扫描）。"""
-        substitute(root, store_api, f"'{ALIVE}', ", "")
+        substitute(root / store_api, f"'{ALIVE}', ", "")
 
     def comment_only(root: Path) -> None:
         """两处引用都退化成注释 → 必须报零引用（注释不是失败点）。"""
-        substitute(root, demo, boom_line, "    return None")
-        substitute(root, store_api, f"'{ALIVE}', ", "")
+        substitute(root / demo, boom_line, "    return None")
+        substitute(root / store_api, f"'{ALIVE}', ", "")
 
     def all_references_removed(root: Path) -> None:
         """两处引用彻底删除 → 必须报零引用。"""
-        substitute(root, demo, boom_line, "    return None")
-        substitute(root, store_api, f"'{ALIVE}', ", "")
-        substitute(root, demo, comment_line, "")
+        substitute(root / demo, boom_line, "    return None")
+        substitute(root / store_api, f"'{ALIVE}', ", "")
+        substitute(root / demo, comment_line, "")
 
     def nested_identifier(root: Path) -> None:
         """引用被包在更长标识符里 → 不算整词引用，必须报零引用。"""
-        substitute(root, demo, f'"{ALIVE}"', f'"MY_{ALIVE}_FLAG"')
-        substitute(root, store_api, f"'{ALIVE}'", f"'MY_{ALIVE}_FLAG'")
+        substitute(root / demo, f'"{ALIVE}"', f'"MY_{ALIVE}_FLAG"')
+        substitute(root / store_api, f"'{ALIVE}'", f"'MY_{ALIVE}_FLAG'")
 
     def stale_manual_prefix(root: Path) -> None:
         """前缀表指向已删除的码 → 必须报「已不存在」。"""
-        substitute(root, gate.ERRORS_PY_REL, manual_line, ghost_manual_line)
+        substitute(root / gate.ERRORS_PY_REL, manual_line, ghost_manual_line)
 
     def duplicate_key(root: Path) -> None:
         substitute(
-            root,
-            gate.ERRORS_PY_REL,
+            root / gate.ERRORS_PY_REL,
             old=f'    "{ALIVE}": "合成码：有真实失败点",',
             new=f'    "{ALIVE}": "合成码：有真实失败点",\n    "{ALIVE}": "重复键",',
         )

@@ -33,7 +33,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ops.check import check_deploy_independence as gate
-from ops.check._selftest_harness import Selftest
+from ops.check._selftest_harness import Selftest, substitute
 
 # 记账/收尾统一走公共骨架；下面的 `check()` 策略属于本文件（见其 docstring）。
 _SELFTEST = Selftest("独立部署护栏自检")
@@ -120,18 +120,6 @@ def with_replica(fn) -> None:
 
 def append(path: Path, text: str) -> None:
     path.write_text(path.read_text(encoding="utf-8") + text, encoding="utf-8")
-
-
-def substitute(path: Path, old: str, new: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    assert old in text, f"副本里找不到待替换文本：{old!r}"
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-
-def substitute_all(path: Path, old: str, new: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    assert old in text, f"副本里找不到待替换文本：{old!r}"
-    path.write_text(text.replace(old, new), encoding="utf-8")
 
 
 def main() -> int:
@@ -426,10 +414,11 @@ def main() -> int:
     check("5b. 真实接线（COPY + find 断言齐全）→ 通过", lambda: with_replica(shared_py_wired))
 
     def shared_py_assertion_missing(root: Path) -> None:
-        substitute_all(
+        substitute(
             root / "Dockerfile",
             f" /app/{gate.SHARED_PY_PACKAGE} -type f",
             " -type f",
+            count=-1,
         )
         problems = run_gate(root)
         expect(problems, "断言未覆盖", "共享包产物断言")

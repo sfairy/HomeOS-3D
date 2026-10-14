@@ -20,7 +20,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import shutil
+from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 
 
@@ -88,3 +90,53 @@ class Selftest:
             return 1
         print(f"\n✓ {self.title}通过（{self.checked} 项断言）{self.note}")
         return 0
+
+
+# ── 注入式自检的公共动作 ──────────────────────────────────────────────────
+#
+# 「复制真实文件成副本 → 把某处改坏 → 跑门禁看它有没有红」这套注入式自检，各文件此前各自
+# 抄了一份 `mutate` / `substitute` / `substitute_all` 与「报错必须命中某片段」的收尾判断 ——
+# 措辞、count 语义、'干净副本必须放行' 的口径彼此漂移。这里只收敛这两个**纯动作**：
+# 夹具构造与具体注入手法仍留在各文件（它们才是「因语义不同才这么写」的部分）。
+
+
+def copy_replica(root: Path, source_root: Path, rel_paths: Iterable[str | Path]) -> None:
+    """把 ``source_root`` 下的若干相对路径按原样复制进 ``root``（父目录不存在即建）。
+
+    替代各文件里那份逐字相同的 ``build_fixture``：注入式自检必须先有一份**真实文件的副本**
+    （手抄迷你样本会与真文件写法脱节，门禁改了写法自检仍然「通过」）。
+    """
+    for rel in rel_paths:
+        target = root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source_root / rel, target)
+
+
+def substitute(path: Path, old: str, new: str, *, count: int = 1) -> None:
+    """把副本文件里的 ``old`` 换成 ``new``；找不到 ``old`` 就抛。
+
+    找不到即抛是有意的：那说明真源写法变了、锚点过期，此时**必须**让自检红，而不是「没匹配上
+    就跳过」—— 后者会让自检悄悄改坏无效果，却仍然打印通过。``count<0`` 表示全部替换
+    （同 ``str.replace`` 语义），个别用例（同一锚点在文件里出现多次）靠它避免「只改一处、
+    另一处仍命中」的假绿。
+    """
+    text = path.read_text(encoding="utf-8")
+    if old not in text:
+        raise AssertionError(f"副本里找不到待改内容 {old!r}（真文件写法变了？）")
+    path.write_text(text.replace(old, new, count) if count > 0 else text.replace(old, new), encoding="utf-8")
+
+
+def expect_problem(problems: list[str], fragment: str | None) -> None:
+    """注入漂移后的收尾：``fragment=None`` → 要求放行；否则要求报错且命中该片段。"""
+    joined = "；".join(problems)
+    if fragment is None:
+        if problems:
+            raise AssertionError(f"干净副本本应放行，却报：{joined}")
+        return
+    if not problems:
+        raise AssertionError(f"注入漂移后门禁仍然放行（期望命中「{fragment}」）")
+    if fragment not in joined:
+        raise AssertionError(f"报错未命中「{fragment}」，实际：{joined}")
+
+
+__all__ = ["Selftest", "copy_replica", "expect_problem", "substitute"]

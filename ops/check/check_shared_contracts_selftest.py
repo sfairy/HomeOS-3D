@@ -61,6 +61,8 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,7 +70,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ops.check import check_shared_contracts as gate
-from ops.check._selftest_harness import Selftest
+from ops.check._selftest_harness import Selftest, expect_problem, substitute
 
 GOLDEN = ROOT / "ops" / "contracts" / "shared-twins.json"
 
@@ -121,14 +123,6 @@ def build_replica(dest: Path, spec: dict) -> None:
         target.write_text((ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
 
 
-def substitute(path: Path, old: str, new: str) -> None:
-    """在副本里做一次替换；找不到待改内容即失败 —— 说明启动器/Dockerfile 写法变了。"""
-    text = path.read_text(encoding="utf-8")
-    if old not in text:
-        raise AssertionError(f"副本里找不到待改内容 {old!r}（门禁或启动器写法变了？）")
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-
-
 def substitute_literal(path: Path, item: str, replacement: str) -> None:
     """把副本里 ``'item'`` / ``"item"`` 两种写法全量换成 ``replacement``（保留原引号）。
 
@@ -142,6 +136,20 @@ def substitute_literal(path: Path, item: str, replacement: str) -> None:
             path.write_text(text.replace(form, f"{quote}{replacement}{quote}"), encoding="utf-8")
             return
     raise AssertionError(f"副本里找不到字面量 {item!r}（引号/写法变了？）")
+
+
+@contextmanager
+def _replica(spec: dict) -> Iterator[Path]:
+    """一次性副本：建好、把 ``gate.ROOT`` 临时指向它，退出即还原并清理。``case``/``baseline`` 共用。"""
+    with tempfile.TemporaryDirectory() as raw:
+        dest = Path(raw)
+        build_replica(dest, spec)
+        original_root = gate.ROOT
+        gate.ROOT = dest
+        try:
+            yield dest
+        finally:
+            gate.ROOT = original_root
 
 
 def build_twin_replica(dest: Path) -> None:
@@ -165,15 +173,6 @@ def load_twins() -> list[dict]:
 def twin_ts_items(twin: dict) -> set[str]:
     text = (ROOT / twin["ts"]).read_text(encoding="utf-8")
     return gate.ts_block_items(text, twin["tsBlock"], twin.get("tsMode", "values"))
-
-
-def expect_problem(problems: list[str], fragment: str) -> None:
-    """要求门禁报错且命中指定片段。"""
-    if not problems:
-        raise AssertionError(f"注入漂移后门禁仍然放行（期望命中「{fragment}」）")
-    joined = "；".join(problems)
-    if fragment not in joined:
-        raise AssertionError(f"报错未命中「{fragment}」，实际：{joined}")
 
 
 def main() -> int:
@@ -202,31 +201,14 @@ def main() -> int:
 
     def case(mutate) -> None:
         """建一份干净副本 → 注入漂移 → 跑门禁（ROOT 临时指向副本）。"""
-        with tempfile.TemporaryDirectory() as raw:
-            dest = Path(raw)
-            build_replica(dest, spec)
-            original_root = gate.ROOT
-            gate.ROOT = dest
-            try:
-                mutate(dest)
-                problems = gate.check_container_boot(spec)
-                expect_problem(problems, mutate.fragment)
-            finally:
-                gate.ROOT = original_root
+        with _replica(spec) as dest:
+            mutate(dest)
+            expect_problem(gate.check_container_boot(spec), mutate.fragment)
 
     def baseline() -> None:
         """真实仓库配置本应自洽：这一步同时验证副本推导没漏文件。"""
-        with tempfile.TemporaryDirectory() as raw:
-            dest = Path(raw)
-            build_replica(dest, spec)
-            original_root = gate.ROOT
-            gate.ROOT = dest
-            try:
-                problems = gate.check_container_boot(spec)
-            finally:
-                gate.ROOT = original_root
-            if problems:
-                raise AssertionError(f"真实配置本应自洽，却报：{'；'.join(problems)}")
+        with _replica(spec):
+            expect_problem(gate.check_container_boot(spec), None)
 
     def deep_nesting(dest: Path) -> None:
         # 记忆点：这正是主应用 to_app 之前的布局，漏改启动器时源码态测试全绿。

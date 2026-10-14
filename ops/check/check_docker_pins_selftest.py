@@ -25,7 +25,7 @@ REPO = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO))
 
 from ops.check import check_docker_pins as gate
-from ops.check._selftest_harness import Selftest
+from ops.check._selftest_harness import Selftest, copy_replica, expect_problem, substitute
 
 #: 需要复制进 fixture 的文件（与 gate 读的面一一对应；漏一个该面就在 fixture 里「读不到」，
 #: 那会让「干净副本放行」这条基线本身失真）。
@@ -45,19 +45,11 @@ check = _SELFTEST.check
 
 
 def build_fixture(root: Path) -> None:
-    for rel in SURFACE_FILES:
-        source = REPO / rel
-        target = root / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+    copy_replica(root, REPO, SURFACE_FILES)
 
 
 def mutate(root: Path, rel: str, old: str, new: str, *, count: int = 1) -> None:
-    path = root / rel
-    text = path.read_text(encoding="utf-8")
-    if old not in text:
-        raise AssertionError(f"fixture 里找不到待改内容 {old!r}（真文件写法变了？）")
-    path.write_text(text.replace(old, new, count) if count > 0 else text.replace(old, new), encoding="utf-8")
+    substitute(root / rel, old, new, count=count)
 
 
 def run_case(mutate_fn, fragment: str | None) -> None:
@@ -66,16 +58,7 @@ def run_case(mutate_fn, fragment: str | None) -> None:
         root = Path(raw).resolve()
         build_fixture(root)
         mutate_fn(root)
-        problems = gate.collect_problems(root)
-        if fragment is None:
-            if problems:
-                raise AssertionError(f"干净副本本应放行，却报：{'；'.join(problems)}")
-            return
-        joined = "；".join(problems)
-        if not problems:
-            raise AssertionError(f"注入漂移后门禁仍然放行（期望命中「{fragment}」）")
-        if fragment not in joined:
-            raise AssertionError(f"报错未命中「{fragment}」，实际：{joined}")
+        expect_problem(gate.collect_problems(root), fragment)
 
 
 def run(name: str, fn) -> None:
