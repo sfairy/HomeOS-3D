@@ -1,7 +1,7 @@
 {
   "name": "homeos-monorepo",
   "private": true,
-  "version": "0.7.5",
+  "version": "0.7.6",
   "type": "module",
   "packageManager": "bun@1.4.2",
   "scripts": {
@@ -55,7 +55,8 @@
     "dev:backend": "bun ops/dev.mjs --backend-only",
     "dev:app": "bun run --cwd homeos dev",
     "dev:store": "bun run --cwd homeos-store dev",
-    "verify:tokenmap": "node ops/tokens/check-token-map.mjs"
+    "verify:tokenmap": "node ops/tokens/check-token-map.mjs",
+    "diff:source": "node ops/scripts/diff-source-versions.mjs"
   },
   "workspaces": [
     "homeos",

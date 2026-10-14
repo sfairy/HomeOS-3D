@@ -283,7 +283,7 @@ cp .env.example .env
 ./ops/deploy/deploy.sh
 
 # 钉版本 / 只看将执行的命令（不写文件、不调用 docker）
-./ops/deploy/deploy.sh --version 0.7.5
+./ops/deploy/deploy.sh --version 0.7.6
 ./ops/deploy/deploy.sh --dry-run
 ```
 
@@ -405,7 +405,7 @@ python3 ops/check/check_docker_pins.py --verify-remote   # 联网核对 tag 与 
 
 可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PIP_VERSION=26.2.1`、`--build-arg SETUPTOOLS_VERSION=84.0.0`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
 前三个是**构建期工具**的精确版本（`ops/check/check_docker_pins.py` 的第 6 条判据要求 `pip install` 的包参数必须写成 `name==版本`）：`pip install --upgrade pip` / `pip install setuptools` 这类裸写法会让同一份源码随时间装出不同产物，而 `setuptools` 一收 `setuptools.command.*` 的兼容面就会让 `ops/docker/compile_python.py` 直接编不过。
-不传 `--build-arg HOMEOS_VERSION=0.7.5` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
+不传 `--build-arg HOMEOS_VERSION=0.7.6` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ### 七、数据卷与备份
 
@@ -437,9 +437,9 @@ docker run --rm -v homeos_homeos-data:/data \
 
 ```bash
 # ① 厂商机：先升中心商店
-./ops/deploy/upgrade.sh --role store --version 0.7.5
+./ops/deploy/upgrade.sh --role store --version 0.7.6
 # ② 每台客户机：逐个升到同一版本
-./ops/deploy/upgrade.sh --role app --version 0.7.5
+./ops/deploy/upgrade.sh --role app --version 0.7.6
 ```
 
 升级前可先核对各机版本：`./ops/deploy/upgrade.sh --check`。完整清单、客户通知模板与回滚

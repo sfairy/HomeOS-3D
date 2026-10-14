@@ -185,7 +185,10 @@ const SLOTS = [
     replace: '$1__V__$2',
   },
   {
-    file: 'homeos-store/frontend/src/components/SceneStage.vue',
+    // ⚠ 商店前端的组件层已收敛到 `src/shared/components/`（P5 起），旧路径
+    // `src/components/SceneStage.vue` 已不存在；槽位指向不存在的文件会让
+    // `--check` 直接判失败（而不是静默跳过），此处必须跟随实际布局。
+    file: 'homeos-store/frontend/src/shared/components/SceneStage.vue',
     label: '商店场景页版本兜底',
     pattern: /(site\.version \|\| ")[^"]*(")/g,
     replace: '$1__V__$2',

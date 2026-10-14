@@ -110,7 +110,15 @@ function typecheckPy() {
     cwd: MONOREPO_ROOT,
     stdio: ['ignore', 'pipe', 'inherit'],
     env: process.env,
+    // 默认上限只有 1MB：本仓的 JSON 报告（含本地 `源代码/` 快照）早已超过，
+    // 超限时 spawnSync 只置 `error = ENOBUFS` 并**静默截断 stdout**，门禁那边
+    // 表现成「报告 JSON 解析失败」这种找不到根因的报错（实测截断在 1114112 字节）。
+    maxBuffer: 64 * 1024 * 1024,
   })
+  if (pyright.error) {
+    console.error(`[typecheck] basedpyright 执行失败：${pyright.error.message}`)
+    process.exit(1)
+  }
   fs.writeFileSync(report, pyright.stdout ?? '')
   const gate = spawnSync(ROOT_PY, [PYRIGHT_GATE, report], {
     cwd: MONOREPO_ROOT,

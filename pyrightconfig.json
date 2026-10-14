@@ -31,7 +31,10 @@
   //                              底座下也复现不出，说明它们只在 reportUnknown* 开启时涌现。
 
   // 虚拟环境与缓存目录里有大量第三方源码，不该参与本仓库的诊断。
-  "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist"],
+  // `源代码/` 同理：那是本地逆向恢复出来的发布产物快照（已 gitignore，CI 上没有），
+  // 既不是我们的代码，又会把报告撑过 `run.mjs` 的捕获上限、并在反混淆产物里
+  // 命中 reportPossiblyUnboundVariable 这类「必为 bug」的硬失败规则。
+  "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist", "源代码"],
 
   // 但 exclude 只挡「批量扫描」：dist/ 里的文件一旦在编辑器里打开，分析器仍会单独分析它，
   // 而产物里只剩加密后的 .so（包名 app），解析不了，于是必然报

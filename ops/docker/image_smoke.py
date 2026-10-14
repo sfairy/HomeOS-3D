@@ -35,8 +35,8 @@
 ## 用法
 
 ```bash
-python3 ops/docker/image_smoke.py --image ghcr.io/x/homeos-store:0.7.5 --project store --version 0.7.5
-python3 ops/docker/image_smoke.py --image ghcr.io/x/homeos:0.7.5       --project app   --version 0.7.5
+python3 ops/docker/image_smoke.py --image ghcr.io/x/homeos-store:0.7.6 --project store --version 0.7.6
+python3 ops/docker/image_smoke.py --image ghcr.io/x/homeos:0.7.6       --project app   --version 0.7.6
 python3 ops/docker/image_smoke.py --image <ref> --project store --list      # 只列步骤
 ```
 

@@ -23,5 +23,5 @@ const values = computed(() => sceneValues(props.page))
     版本号：入户页的四个调用方目前都不传 `version`，沿用既有的固定站点版本；
     真源在 `homeos/*/package.json`（由版本脚本同步），需要真实值时由调用方注入。
   -->
-  <SharedSceneStage :values="values" :version="version || '0.7.5'" />
+  <SharedSceneStage :values="values" :version="version || '0.7.6'" />
 </template>

@@ -597,6 +597,28 @@ export default defineConfig(async (): Promise<UserConfig> => {
         // 3D Studio 源码别名。
         { find: '@app', replacement: resolve(__dirname, 'src/studio/app') },
         { find: '@runtime', replacement: resolve(__dirname, 'src/studio/runtime') },
+        // 只把 `controls.css` 这一条 `@import` 指到磁盘，**不要**通配整个 `/static/**`。
+        //
+        // 起因：`controls.css` 实体在 `public/` 里（`bridge.css` 以 URL 逐字伺服时按
+        // `/static/...` 引用它）。dev 下 `runtime.css` / `stage.css` 的
+        // `@import "/static/modules/interaction3d/controls.css"` 走的是**模块解析器**，
+        // 会被当成「相对 root 的 /static/...」→ `frontend/static/...` 不存在，`@tailwindcss/vite`
+        // 在 transform 阶段 resolve @import 时直接抛
+        // `Can't resolve '/static/modules/interaction3d/controls.css'`，令 import 这两个 CSS 的
+        // dev 页面整片样式 500。
+        //
+        // 为什么不能写成 `/^\/static\/(?!vendor\/)/` 通配：Vue 模板里的
+        // `<img src="/static/assets/icons/*.svg">` 会被编译成一条真实的模块 import，通配别名会把它
+        // 解析到 `public/` 里的磁盘文件，于是 dep scan 把它改写成
+        // `/public/static/assets/icons/*.svg?import`（Vite 对「从 public 目录 import」的告警 + 多一跳），
+        // 而它本来只该原样保留 `/static/...` 这个 URL。`/static/vendor/**` 同理属于外置契约
+        // （three 以根绝对 URL 加载，见 vite-studio.ts），任何通配都会把它拉进 bundle。
+        //
+        // 字符串 find 在 Vite 里是「`find` 或 `find + '/'`」前缀匹配，路径本身足够独特，不会误伤。
+        {
+          find: '/static/modules/interaction3d/controls.css',
+          replacement: resolve(__dirname, 'public/static/modules/interaction3d/controls.css'),
+        },
         { find: 'three', replacement: THREE_VENDOR },
       ],
       dedupe: ['@homeos/shared'],
