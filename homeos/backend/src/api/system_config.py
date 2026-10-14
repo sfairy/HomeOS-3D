@@ -48,7 +48,6 @@ _UPDATE_SECTIONS = (
     "profiles",
     "ui",
     "screensaver",
-    "weatherEffects",
     "external",
     "envSensorMap",
     "mediaPlaylists",

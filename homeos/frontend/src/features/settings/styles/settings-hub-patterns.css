@@ -1,6 +1,6 @@
 /**
  * 设置页 Hub 工作区共享样式模式
- * 供 alert-rules / client-power / weather-effects 等功能域复用。
+ * 供 alert-rules / client-power 等功能域复用。
  * 各域 CSS 通过 @import 引入，避免重复定义 workspace 壳层结构。
  */
 

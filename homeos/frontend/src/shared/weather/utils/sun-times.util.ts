@@ -78,30 +78,3 @@ export function formatSunCountdown(
   const time = formatDurationShort(diff)
   return isDay ? `距日落 ${time}` : `距日出 ${time}`
 }
-
-/** 昼夜过渡窗口长度（ms）：黎明/黄昏各 30 分钟 */
-const TWILIGHT_WINDOW_MS = 30 * 60 * 1000
-
-/**
- * 计算昼夜相位：0 = 深夜，1 = 正午。
- * 以日出/日落为中心向外扩展 30 分钟过渡窗，用 sin 曲线在整段（含黎明/黄昏）上平滑过渡，
- * 避免昼夜切换时的视觉跳变。
- */
-export function computeDayPhase(
-  sunrise: Date | null,
-  sunset: Date | null,
-  nowMs = Date.now(),
-): number {
-  if (!sunrise || !sunset) return 1
-  const rise = sunrise.getTime()
-  const set = sunset.getTime()
-  if (!Number.isFinite(rise) || !Number.isFinite(set) || set <= rise) return 1
-
-  const dayStart = rise - TWILIGHT_WINDOW_MS
-  const dayEnd = set + TWILIGHT_WINDOW_MS
-  const daySpan = dayEnd - dayStart
-  if (nowMs < dayStart || nowMs > dayEnd) return 0
-
-  const progress = Math.min(1, Math.max(0, (nowMs - dayStart) / daySpan))
-  return Math.round(Math.sin(progress * Math.PI) * 1000) / 1000
-}

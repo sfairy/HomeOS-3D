@@ -73,21 +73,6 @@ interface SecurityPublicSection {
   sensorAlertCooldownSec: number // 传感器告警冷却时间（秒）
 }
 
-/** 天气特效分区 */
-interface WeatherEffectsSection {
-  enabled: boolean // 是否启用天气特效
-  preset: string // 特效预设名
-  displayRoutes: string[] // 展示路由列表（仅这些路由展示特效）
-  useEntityAttributes: boolean // 是否使用实体属性驱动特效
-  densityMultiplier: number // 粒子密度倍数
-  windMultiplier: number // 风速倍数
-  attributeBlend: number // 属性混合权重（0-1）
-  starCount: number // 星星数量
-  cloudLayers: number // 云层数量
-  shootingStarRate: number // 流星出现频率
-  scenes: Record<string, Record<string, number>> // 场景参数表（场景名 -> 参数名 -> 值）
-}
-
 /** 房间元信息分区（公开） */
 interface RoomMetaPublicSection {
   roomLabels: Record<string, string> // 房间标签映射（room_id -> 展示名）
@@ -113,7 +98,6 @@ export interface AppPublicConfig {
   frontend: FrontendSection // 前端运行参数
   ui: UiSection // UI 参数
   screensaver: ScreensaverSection // 屏保配置
-  weatherEffects: WeatherEffectsSection // 天气特效
   voice: Record<string, unknown> // 语音配置（透传）
   voiceCommands: unknown[] // 语音命令列表
   eventLog: EventLogSection // 事件日志

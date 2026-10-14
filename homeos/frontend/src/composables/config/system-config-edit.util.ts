@@ -18,7 +18,6 @@ const EXCLUDED_SECTIONS = new Set([
   'voiceCommands',
   'profiles',
   'clientPower',
-  'weatherEffects',
   'auth',
 ])
 

@@ -740,7 +740,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
         resolveDependencies: (_filename, deps) =>
           deps.filter(
             (dep) =>
-              !/\/(charts|weather|popups|builders|hls|rolldown-runtime|widgets|settings|security-view|views-main|views-mobile|shell)-/.test(
+              !/\/(charts|popups|builders|hls|rolldown-runtime|widgets|settings|security-view|views-main|views-mobile|shell)-/.test(
                 dep,
               ),
           ),
@@ -804,14 +804,6 @@ export default defineConfig(async (): Promise<UserConfig> => {
               {
                 name: 'shell',
                 test: /src[\\/]layouts[\\/]shell-overlays\.ts/,
-                priority: 24,
-              },
-              {
-                name: 'weather',
-                // 曾含 `utils[\\/]weather[\\/]webgl-weather-renderer` —— 该文件不存在（悬空匹配），已删。
-                // 天气纯函数现位于 `shared/weather/utils/`，由 WeatherBackground / 粒子 Worker 拉入；
-                // 这里**刻意不整域并组**，避免把天气模块塞进即便关闭天气效果也要加载的 chunk。
-                test: /src[\\/](layouts[\\/]WeatherBackground|workers[\\/]weather-particle)/,
                 priority: 24,
               },
               {

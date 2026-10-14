@@ -29,15 +29,6 @@
         :style="wrapperContentStyle"
       >
         <slot />
-        <!-- 天气层：static 档位时降至内容下方，避免遮挡 UI -->
-        <div
-          v-if="$slots['weather-fx']"
-          class="app-shell__weather-layer"
-          :class="{ 'app-shell__weather-layer--static': weatherFxStatic }"
-          aria-hidden="true"
-        >
-          <slot name="weather-fx" />
-        </div>
       </div>
       <!-- 全局通知组件（toast 等） -->
       <VNotification />
@@ -67,8 +58,6 @@ const props = defineProps({
   shellClass: { type: [String, Array, Object], default: '' },
   // 覆盖单页最大宽度，未传时回退到 layoutConfig.pageMaxWidth / 配置基准宽度 / 1366
   pageMaxWidth: { type: Number, default: null },
-  /** static 质量天气层降至内容下方，避免不透明 CSS 渐变遮挡 UI */
-  weatherFxStatic: { type: Boolean, default: false },
   /** 独立全屏页（如部件构建器）强制整页等比缩放，不受用户缩放偏好影响 */
   forceScaling: { type: Boolean, default: false },
 })

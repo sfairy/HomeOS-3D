@@ -168,10 +168,11 @@ check(
   'S5a splitTopLevel 不切字符类里的 `|`',
   splitTopLevel('a[\\/](b|c)', '|').length === 1,
 )
-const branches = alternationBranches('src[\\/](layouts[\\/]WeatherBackground|workers[\\/]particle)')
+const branches = alternationBranches('src[\\/](layouts[\\/]ShellOverlays|workers[\\/]ingest-bridge)')
 check(
   'S5b 顶层 alternation 能带出字符类以外的分支',
-  branches.length === 1 && branches[0].parts.join() === 'layouts[\\/]WeatherBackground,workers[\\/]particle',
+  branches.length === 1 &&
+    branches[0].parts.join() === 'layouts[\\/]ShellOverlays,workers[\\/]ingest-bridge',
   JSON.stringify(branches),
 )
 check('S5c 嵌套分组不当作分支集合（避免替换失真）', alternationBranches('(a|(b|c))').length === 0)

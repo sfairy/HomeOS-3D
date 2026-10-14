@@ -97,6 +97,18 @@ _REMOVED_CONFIG_KEYS: dict[str, tuple[str, ...]] = {
     "ops": ("orchestratorImportMaxRetry", "sceneOverlayUndoTtlMin"),
 }
 
+#: 整体下线的顶层分区 → 从持久化/备份中剥离（v18 起：天气背景特效）。
+_REMOVED_APP_CONFIG_SECTIONS: dict[str, str] = {
+    "weatherEffects": "已下线（天气背景特效前置配置）",
+}
+
+
+def _strip_removed_sections(config: dict[str, Any], changes: list[str]) -> None:
+    for section, note in _REMOVED_APP_CONFIG_SECTIONS.items():
+        if section in config:
+            config.pop(section, None)
+            changes.append(f"{section}: {note}")
+
 
 def _strip_removed_config_keys(config: dict[str, Any], changes: list[str]) -> None:
     for section, keys in _REMOVED_CONFIG_KEYS.items():
@@ -180,6 +192,9 @@ def _migrate_ui_screensaver_keys(config: dict[str, Any], changes: list[str]) -> 
 def normalize_app_config_for_import(config: dict[str, Any]) -> dict[str, Any]:
     """备份/导入前规范化运行参数；返回 ``{"config", "changes"}``（原地修改 config）。"""
     changes: list[str] = []
+    # 先剥「整体下线的分区」，再剥「未登记分区」：否则前者会被后者当成未知分区吞掉，
+    # 变更记录只剩「已忽略未知配置分区」，看不出是主动下线。
+    _strip_removed_sections(config, changes)
     _strip_unknown_sections(config, changes)
     _strip_removed_config_keys(config, changes)
     _migrate_ui_screensaver_keys(config, changes)

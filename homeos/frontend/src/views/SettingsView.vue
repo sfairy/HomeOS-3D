@@ -246,7 +246,7 @@ function hasUnsavedSettingsChanges() {
 /** 设置页内切换 tab：只检查当前 tab，避免 keep-alive 中其它面板误报 pending */
 function hasUnsavedForCurrentTab() {
   const tab = resolvedTab.value
-  // 非独立 tab 也可注册 pendingByTab（天气特效、access 偏好等旁路 dirty）
+  // 非独立 tab 也可注册 pendingByTab（如 access 偏好等旁路 dirty）
   if (isSettingsTabPending(tab)) return true
   if (INDEPENDENT_SAVE_TABS.has(tab)) return false
   return pendingChanges.value > 0

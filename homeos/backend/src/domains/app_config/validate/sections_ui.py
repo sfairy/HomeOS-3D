@@ -1,4 +1,4 @@
-"""界面分区校验：frontend / ui / screensaver / 场景 / 天气特效 / 语音 / 播放列表。"""
+"""界面分区校验：frontend / ui / screensaver / 场景 / 语音 / 播放列表。"""
 
 from __future__ import annotations
 
@@ -143,55 +143,6 @@ def _validate_screensaver(section: str, p: dict[str, Any], e: list[FieldError]) 
     if "weatherStatsSizePx" in p:
         num_in(section, "weatherStatsSizePx", p["weatherStatsSizePx"], 8, 48, e)
 
-
-_SCENE_FIELD_RANGES: dict[str, tuple[float, float]] = {
-    "lightningMinMs": (800, 8000),
-    "lightningMaxMs": (3000, 20000),
-    "fogLayers": (1, 6),
-    "rainRatio": (0, 1),
-    "snowRatio": (0, 1),
-    "puddle": (0, 1),
-}
-_DEFAULT_SCENE_RANGE = (0, 2)
-
-def _scene_num(section: str, prefix: str, key: str, val: Any, e: list[FieldError]) -> None:
-    if isinstance(val, bool) or not isinstance(val, (int, float)):
-        e.append({"section": section, "key": f"{prefix}.{key}", "message": "必须为数字"})
-        return
-    lo, hi = _SCENE_FIELD_RANGES.get(key, _DEFAULT_SCENE_RANGE)
-    num_in(section, f"{prefix}.{key}", val, lo, hi, e)
-
-def _validate_weather_effects(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    for k in ("enabled", "useEntityAttributes"):
-        if k in p:
-            require_bool(section, k, p[k], e)
-    if "densityMultiplier" in p:
-        num_in(section, "densityMultiplier", p["densityMultiplier"], 0.3, 2, e)
-    if "windMultiplier" in p:
-        num_in(section, "windMultiplier", p["windMultiplier"], 0, 3, e)
-    if "attributeBlend" in p:
-        num_in(section, "attributeBlend", p["attributeBlend"], 0, 1, e)
-    if "starCount" in p:
-        num_in(section, "starCount", p["starCount"], 50, 800, e)
-    if "cloudLayers" in p:
-        num_in(section, "cloudLayers", p["cloudLayers"], 2, 12, e)
-    if "shootingStarRate" in p:
-        num_in(section, "shootingStarRate", p["shootingStarRate"], 0, 0.01, e)
-    if "displayRoutes" in p:
-        routes = p["displayRoutes"]
-        if not isinstance(routes, list):
-            e.append({"section": section, "key": "displayRoutes", "message": "displayRoutes 必须为字符串数组"})
-        else:
-            for i, r in enumerate(routes):
-                if not isinstance(r, str) or not r.strip():
-                    e.append({"section": section, "key": f"displayRoutes[{i}]", "message": "路由标识不能为空"})
-    scenes = p.get("scenes")
-    if isinstance(scenes, dict):
-        for scene_key, scene_val in scenes.items():
-            if not isinstance(scene_val, dict):
-                continue
-            for field, val in scene_val.items():
-                _scene_num(section, f"scenes.{scene_key}", field, val, e)
 
 def validate_voice_commands_array(commands: Any, errors: list[FieldError] | None = None) -> list[FieldError]:
     errors = errors if errors is not None else []

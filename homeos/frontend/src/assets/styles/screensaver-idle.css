@@ -9,11 +9,6 @@ html[data-screensaver-idle] .app-shell__content {
   pointer-events: none;
 }
 
-html[data-screensaver-idle] .app-shell__weather-layer {
-  visibility: hidden;
-  pointer-events: none;
-}
-
 html[data-screensaver-idle] .viewport-frame::before {
   animation-play-state: paused !important;
 }

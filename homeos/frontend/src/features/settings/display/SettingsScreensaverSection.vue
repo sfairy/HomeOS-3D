@@ -26,7 +26,7 @@
         "
       >
         <template #actions>
-          <WeatherEffectsSwitch v-model="form.enabled" aria-label="启用锁屏屏保" />
+          <SettingsSwitchToggle v-model="form.enabled" aria-label="启用锁屏屏保" />
         </template>
       </SettingsFeatureMaster>
 
@@ -68,7 +68,7 @@ import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.v
 import SettingsCardIntro from '@/components/common/settings-page-shell/SettingsCardIntro.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import WeatherEffectsSwitch from '@/features/settings/display/weather-effects/WeatherEffectsSwitch.vue'
+import SettingsSwitchToggle from '@/features/settings/shared/layout/SettingsSwitchToggle.vue'
 import {
   handleSystemConfigPatchError,
   patchSystemConfig,

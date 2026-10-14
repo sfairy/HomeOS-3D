@@ -22,7 +22,6 @@ from .sections_ui import (
     _validate_screensaver,
     _validate_ui,
     _validate_voice,
-    _validate_weather_effects,
 )
 from .security import (
     _validate_auth,
@@ -464,7 +463,6 @@ _SECTION_VALIDATORS: dict[str, Any] = {
     "pricing": _validate_pricing,
     "frontend": _validate_frontend,
     "screensaver": _validate_screensaver,
-    "weatherEffects": _validate_weather_effects,
     "voice": _validate_voice,
     "auth": _validate_auth,
     "ops": _validate_ops,

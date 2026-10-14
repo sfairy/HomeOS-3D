@@ -68,33 +68,6 @@ const defaults: AppPublicConfig = {
     brandTopVh: 5,
     contentShiftVh: 0,
   },
-  weatherEffects: {
-    enabled: true,
-    preset: 'realistic',
-    displayRoutes: ['dashboard'],
-    useEntityAttributes: true,
-    densityMultiplier: 0.78,
-    windMultiplier: 1,
-    attributeBlend: 0.92,
-    starCount: 110,
-    cloudLayers: 5,
-    shootingStarRate: 0.00035,
-    scenes: {
-      clearDay: {},
-      clearNight: {},
-      partlyCloudy: {},
-      cloudy: {},
-      drizzle: {},
-      rain: {},
-      heavyRain: {},
-      thunderstorm: {},
-      snow: {},
-      sleet: {},
-      windy: {},
-      hail: {},
-      sandstorm: {},
-    },
-  },
   voice: {
     sttMode: 'browser',
     language: 'zh-CN',
@@ -270,27 +243,7 @@ function applyConfig(data: Partial<AppPublicConfig> | null | undefined): void {
     if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
       const def = defaults[section]
       if (def && typeof def === 'object' && !Array.isArray(def)) {
-        if (section === 'weatherEffects') {
-          const weIn = incoming as AppPublicConfig['weatherEffects']
-          const weDef = def as AppPublicConfig['weatherEffects']
-          const weTarget = _app.weatherEffects
-          const { scenes: incomingScenes, ...weRest } = weIn
-          Object.assign(weTarget, weDef, weRest)
-          if (incomingScenes && typeof incomingScenes === 'object') {
-            const mergedScenes = { ...weDef.scenes }
-            for (const [key, patch] of Object.entries(incomingScenes)) {
-              if (patch && typeof patch === 'object') {
-                mergedScenes[key as keyof typeof mergedScenes] = {
-                  ...(mergedScenes[key as keyof typeof mergedScenes] || {}),
-                  ...patch,
-                }
-              }
-            }
-            weTarget.scenes = mergedScenes
-          }
-        } else {
-          Object.assign(_app[section] as object, def, incoming)
-        }
+        Object.assign(_app[section] as object, def, incoming)
       }
     }
   }

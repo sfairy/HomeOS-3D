@@ -1,6 +1,6 @@
 <!--
   通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
-  底部信息栏、天气特效、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
+  底部信息栏、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
   性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
 -->
 <template>
@@ -104,7 +104,7 @@
           icon-class="general-intro-icon--cyan"
           orb-class="orb-cyan"
           eyebrow="动画性能与渲染模式"
-          :description="'调整天气背景的渲染帧率以平衡视觉效果与功耗。'"
+          :description="'调整全局动效与毛玻璃的渲染开销以平衡视觉效果与功耗。'"
         />
         <div class="settings-choice-grid mt-5">
           <button
@@ -128,7 +128,7 @@
             <MonitorPlay class="w-5 h-5" />
             <div class="text-center">
               <div class="text-xs font-bold">{{ '均衡性能' }}</div>
-              <div class="sys-hint-micro">{{ '30fps 天气粒子' }}</div>
+              <div class="sys-hint-micro">{{ '30fps 动效' }}</div>
             </div>
           </button>
           <button
@@ -139,7 +139,7 @@
             <SettingsIcon class="w-5 h-5" />
             <div class="text-center">
               <div class="text-xs font-bold">{{ '低功耗模式' }}</div>
-              <div class="sys-hint-micro">{{ '静态背景' }}</div>
+              <div class="sys-hint-micro">{{ '精简动效' }}</div>
             </div>
           </button>
         </div>
@@ -152,15 +152,7 @@
           >
             {{ '高级参数' }}
           </button>
-          {{ '中配置；天气场景特效见' }}
-          <button
-            type="button"
-            class="general-link--info underline font-bold"
-            @click="generalSection = 'weather-effects'"
-          >
-            {{ '天气特效' }}
-          </button>
-          {{ '子页；SQLite 历史保留见' }}
+          {{ '中配置；SQLite 历史保留见' }}
           <button
             type="button"
             class="general-link--warn underline font-bold"
@@ -171,10 +163,6 @@
           {{ '。' }}
         </p>
       </SettingsCard>
-    </div>
-
-    <div v-show="generalSection === 'weather-effects'" class="settings-hub-section">
-      <SettingsWeatherEffectsSection />
     </div>
 
     <div v-show="generalSection === 'screensaver'" class="settings-hub-section">
@@ -256,7 +244,6 @@ import {
   Grip,
 } from '@lucide/vue'
 import SettingsWholeHomeOffSection from '@/features/settings/display/SettingsWholeHomeOffSection.vue'
-import SettingsWeatherEffectsSection from '@/features/settings/display/SettingsWeatherEffectsSection.vue'
 import SettingsScreensaverSection from '@/features/settings/display/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/display/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/display/layout/SettingsLayoutFooterSection.vue'
@@ -310,7 +297,6 @@ const generalSubnavSections = computed(() => {
     { id: 'brand', label: '站点品牌', emoji: '🎨' },
     { id: 'nav', label: '导航标签', emoji: '🧭' },
     { id: 'footer', label: '底部信息栏', emoji: '📊' },
-    { id: 'weather-effects', label: '天气特效', emoji: '🌦️' },
     { id: 'screensaver', label: '锁屏屏保', emoji: '🌙' },
     { id: 'scaling', label: '显示缩放', emoji: '🖥️' },
     { id: 'runtime', label: '性能调试', emoji: '⚡' },

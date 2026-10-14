@@ -67,22 +67,6 @@ DEFAULT_INGRESS_COALESCE_DOMAINS: tuple[str, ...] = (
     "update",
 )
 
-_WEATHER_SCENE_KEYS: tuple[str, ...] = (
-    "clearDay",
-    "clearNight",
-    "partlyCloudy",
-    "cloudy",
-    "drizzle",
-    "rain",
-    "heavyRain",
-    "thunderstorm",
-    "snow",
-    "sleet",
-    "windy",
-    "hail",
-    "sandstorm",
-)
-
 
 def build_default_env_sensor_map() -> dict[str, dict[str, str]]:
     """构建默认环境传感器映射（每个房间仅写入 ``label=defaultLabel``）。"""
@@ -253,20 +237,6 @@ def build_default_app_config() -> dict[str, Any]:
             "weatherStatsSizePx": 15,
             "brandTopVh": 5,
             "contentShiftVh": 0,
-        },
-        # 天气特效配置
-        "weatherEffects": {
-            "enabled": True,
-            "preset": "realistic",
-            "displayRoutes": ["dashboard"],
-            "useEntityAttributes": True,
-            "densityMultiplier": 0.78,
-            "windMultiplier": 1,
-            "attributeBlend": 0.92,
-            "starCount": 110,
-            "cloudLayers": 5,
-            "shootingStarRate": 0.00035,
-            "scenes": {key: {} for key in _WEATHER_SCENE_KEYS},
         },
         # 外部服务配置
         "external": {

@@ -58,7 +58,7 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   embeds: '在顶部导航嵌入外部网页',
   favorites: '常用设备写入布局，供总览快捷弹窗',
   floating: '浮动层：芯片与安防/环境/门锁等中心面板',
-  general: '站点品牌、导航标签、底部信息栏、天气特效与显示缩放',
+  general: '站点品牌、导航标签、底部信息栏与显示缩放',
   layout: '仪表盘编辑器与 3D 户型图绘制入口（总览为只读展示）',
   assets: '背景图与状态图标素材管理',
   'smart-charge': '按电量自动开关充电器；屏保时开关关→开可亮屏',

@@ -10,13 +10,13 @@ PUBLIC_CONFIG_SECTIONS: tuple[str, ...] = (
     "frontend",
     "ui",
     "screensaver",
-    "weatherEffects",
     "voice",
     "voiceCommands",
 )
 
 #: 配置 schema 版本号，结构发生破坏性变更时递增。
-APP_CONFIG_SCHEMA_VERSION = 17
+#: v18：下线天气背景特效（移除顶层 ``weatherEffects`` 分区）。
+APP_CONFIG_SCHEMA_VERSION = 18
 
 #: 配置审计持久化 RuntimeKv id。
 CONFIG_AUDIT_STORAGE_ID = "config-audit"

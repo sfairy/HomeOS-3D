@@ -59,7 +59,6 @@ export interface SystemConfig {
   pricing?: Partial<SharedPricingConfig>
   profiles?: Record<string, unknown>
   screensaver?: Record<string, unknown>
-  weatherEffects?: Record<string, unknown>
   webrtc?: Partial<SharedWebrtcConfig>
 }
 

@@ -6,8 +6,7 @@
   （媒体全屏 MediaPlayerModal 挂在 App.vue 根，供画布 more-info / 展示页共用）
   屏保 Screensaver、引导 GuidedTourOverlay、智能管家 AgentChatPalette、
   通知抽屉 NotificationDrawer，以及 HA 实时降级横幅 HaStatusDegradeBanner +
-  SetupChecklistBanner + ColdEntityPerfBanner，另有天气动态背景 WeatherBackground
-  按性能自适应档位（full/lite/static/off）渲染。
+  SetupChecklistBanner + ColdEntityPerfBanner。
   注意事项：壳层浮层（MediaPlayer/Doorbell/Earthquake 等 8 项）统一懒加载 shell-overlays 合并 chunk，
   减少首屏请求；横屏 ≥1280px 桌面断点启用；地震/设置锁/儿童模式优先级高于普通浮层。
 -->
@@ -59,7 +58,7 @@ import { useEntityWsSubscriptionSync } from '@/composables/entity/useEntityWsSub
 import { useEarthquakeBootstrap } from '@/features/earthquake'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import { setDerivedRoutePath } from '@/shared/entity/utils/derived-route.util'
-import { resolvePerfShellClass, useAdaptivePerfState } from '@/shared/utils/perf/adaptive-perf.util'
+import { resolvePerfShellClass } from '@/shared/utils/perf/adaptive-perf.util'
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import {
@@ -73,7 +72,6 @@ import { useEscLayer } from '@/composables/ui/useEscStack'
 import { isLicenseFeatureGranted } from '@/router/license-gate'
 import { getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
 import Screensaver from '@/components/common/Screensaver.vue'
-const WeatherBackground = defineAsyncComponent(() => import('@/layouts/WeatherBackground.vue'))
 // 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。
 const FloatingHub = defineAsyncComponent(() => import('@/components/shell/FloatingHub.vue'))
 const RightSidebar = defineAsyncComponent(() => import('@/components/dashboard/RightSidebar.vue'))
@@ -84,12 +82,9 @@ const DashboardFooter = defineAsyncComponent(() => import('@/components/dashboar
 const DeviceGroupModal = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.DeviceGroupModal),
 )
-import { resolveWeatherQuality, shouldShowWeatherBackground } from '@/shared/weather'
-import { getConfigSection, configEpoch } from '@/shared/utils/config/frontend-config'
 
 const {
   route,
-  entitiesStore,
   layoutStore,
   chrome,
   navFrameStyle,
@@ -305,34 +300,8 @@ watch(
 useTeleportTargetGuard()
 
 // 性能自适应：根据 layoutConfig.performanceMode 解析需要附加到 app-shell 的 class
-// （如降级到静态背景、关闭粒子、降低 backdrop-filter 等）
+// （如降低 backdrop-filter、关闭装饰性动画与模糊层等）
 const perfShellClass = computed(() => resolvePerfShellClass(layoutStore.layoutConfig.performanceMode))
-
-const { adaptiveTier } = useAdaptivePerfState()
-// 天气背景质量综合决策：性能模式 + 实体数量 + 实测帧率档位
-const weatherQuality = computed(() =>
-  resolveWeatherQuality({
-    performanceMode: layoutStore.layoutConfig.performanceMode,
-    entityCount: entitiesStore.totalCount,
-    fpsTier: adaptiveTier.value,
-  }),
-)
-
-// 是否显示天气背景：全局开关 + 当前路由允许显示 + 质量档位非 off
-const showWeatherBackground = computed(() => {
-  // 读取 configEpoch 以建立对前端配置变更的响应式依赖（配置热更后自动重算）
-  void configEpoch.value
-  const we = getConfigSection('weatherEffects')
-  const enabled = we?.enabled !== false
-  return (
-    enabled &&
-    shouldShowWeatherBackground(route.path, we?.displayRoutes, route.query) &&
-    weatherQuality.value !== 'off'
-  )
-})
-
-// static 档位下用纯 CSS 渐变替代 Canvas，传给 ScaledViewport 切换层级顺序（避免遮挡 UI）
-const weatherFxStatic = computed(() => weatherQuality.value === 'static')
 
 /**
  * 开关灯背景图（复刻原 homeos `DashboardView` 的 `absolute inset-0` 背景层）：
@@ -380,7 +349,6 @@ watch(
     <ScaledViewport
       :frame-style="navFrameStyle"
       :shell-class="[perfShellClass, { 'app-shell--light-backdrop': showLightBackdrop }]"
-      :weather-fx-static="weatherFxStatic"
     >
       <!--
         开关灯背景图层（原 homeos DashboardView 效果）：定位基准是 `.app-shell__content`，
@@ -393,10 +361,6 @@ watch(
         :style="lightBackdropStyle"
         aria-hidden="true"
       />
-      <!-- 天气动态背景插槽：根据质量档位渲染 Canvas 或 CSS 静态渐变 -->
-      <template #weather-fx>
-        <WeatherBackground v-show="showWeatherBackground" :quality="weatherQuality" />
-      </template>
       <!-- 顶栏：品牌 + 模式切换 + 导航 Tab + 操作按钮；handleTripleClick 用于三连击触发隐藏功能 -->
       <header class="tab-bar" role="banner" :style="navFrameStyle" @click="handleTripleClick">
         <div class="tab-bar__brand">

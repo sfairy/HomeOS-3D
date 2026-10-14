@@ -93,28 +93,6 @@
   will-change: transform;
 }
 
-/**
- * 天气特效层（单层 Canvas，半透明叠加）
- * - 动画模式 z-index:50，叠于主内容之上、tab-bar(200) 之下
- * - static 模式 z-index:0，在 UI 下方作氛围底图（CSS 渐变已改为半透明）
- * 禁止 position:fixed + 9999，避免嵌入式 WebView 合成异常遮挡 UI
- */
-.app-shell__weather-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  overflow: hidden;
-  isolation: isolate;
-  contain: paint;
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-}
-
-.app-shell__weather-layer--static {
-  z-index: 0;
-}
-
 .app-shell__content {
   display: flex;
   flex-direction: column;

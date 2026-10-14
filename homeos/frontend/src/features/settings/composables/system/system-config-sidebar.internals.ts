@@ -11,13 +11,11 @@ export const SECTION_LINK_LABELS: Record<string, string> = {
   mediaPlaylists: '播放列表',
   profiles: '方案备份',
   voice: '语音中心',
-  weatherEffects: '天气特效',
 }
 
 /** DELEGATED_PANEL_LINKS：常量集合，成员语义见定义处。 */
 export const DELEGATED_PANEL_LINKS = [
   { id: 'voice', to: SETTINGS_ROUTES.voice() },
-  { id: 'weatherEffects', to: SETTINGS_ROUTES.general('weather-effects') },
   { id: 'envSensorMap', to: SETTINGS_ROUTES.envHealth() },
   { id: 'clientPower', to: SETTINGS_ROUTES.smartCharge() },
   { id: 'profiles', to: SETTINGS_ROUTES.profiles() },

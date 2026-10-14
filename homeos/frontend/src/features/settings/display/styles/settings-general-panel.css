@@ -24,9 +24,6 @@
 .general-link--warn {
   color: var(--set-warn);
 }
-.general-link--info {
-  color: var(--set-info);
-}
 
 /* Task 7.2 — orb 颜色 token 化（穿透至 SettingsCardIntro 内部 .settings-icon-orb） */
 .orb-violet {

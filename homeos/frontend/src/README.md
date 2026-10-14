@@ -129,10 +129,9 @@ import Overview from '@/features/security/Overview.vue'
 - **引入时机**：域内会继续被搬动的件（`composables/`、跨域共用的决策函数）值得套一层 barrel，
   这样域内挪文件不会波及上层每一处调用点；纯 `utils/constants/types` 叶子池不套，消费者一律深路径
   （深路径本身也承担「这是纯函数」的语义）。
-- **现状**：18 个域中 **4 个出 barrel** —— `energy`（样板：`constants` + `utils` + 无 store 的 `composables`）、
-  `weather`（barrel 只剩决策面 `resolveWeatherQuality` / `shouldShowWeatherBackground`）、
+- **现状**：18 个域中 **3 个出 barrel** —— `energy`（样板：`constants` + `utils` + 无 store 的 `composables`）、
   `status`（`useSetupChecklist` / `useSystemDiagnostics`）、`home-mode`（3 个纯元数据件，被
-  `features/home-mode` 与 `studio` 双侧消费）；其余 14 个（含 `entity` 22 文件、`recommend` 12 文件）
+  `features/home-mode` 与 `studio` 双侧消费）；其余 15 个（含 `entity` 22 文件、`recommend` 12 文件）
   统一深路径。**不要为了「统一好看」给它们补 barrel**：那会把 200+ 处调用点从深路径改成 barrel，
   换来的是零行为收益。
 
@@ -165,18 +164,15 @@ import Overview from '@/features/security/Overview.vue'
 
 > **本批实测的教训**：域优先迁移期间，各 barrel 是按「把上面几层的域内件整批再导出」写出来的，
 > 于是积了 **7 个文件 / 58 条死导出**，而且全部躲过了 typecheck、lint 和所有依赖门禁
-> （多导出一条不需要的东西，没有任何一层会报错）。其中 `shared/weather` 最典型：文档写着
-> 「只出决策级 / 展示级 API」，可展示面那 25 条**没有任何跨域消费者从 barrel 取** ——
-> 它们全走深路径，而那正是本域「避免拖重图」的既定做法。**文档描述的设计意图会漂移，
+> （多导出一条不需要的东西，没有任何一层会报错）。文档描述的接口面往往比实际入边更宽：展示面的
+> 条目**没有任何跨域消费者从 barrel 取**，它们全走深路径。**文档描述的设计意图会漂移，
 > `export` 的实际入边不会**，所以两类问题各归其位：接口面以 knip 为准，文档改来描述现实。
 
 理由有三：
 
-1. **避免拖重图**。`shared/weather/utils/{effect-presets,particle-classes,background-*}` 互相引用成
-   一张含 Worker 入口的重图；全量 barrel 会让「只想判一个该不该显示天气背景」的调用方
-   （如 `layouts/MainLayout.vue`）被迫拉进整张图。故该 barrel 只出决策面
-   （`resolveWeatherQuality`、`shouldShowWeatherBackground`），展示面与粒子/画布实现一律深路径
-   `@/shared/weather/utils/…`。
+1. **避免拖重图**。域内 `utils` 与画布/粒子/Worker 一类实现模块常互相引用成一张重图；全量 barrel
+   会让「只想用其中一个纯函数的调用方」被迫拉进整张图。故这类域**不出 barrel**，或只出真正被跨域
+   取用的决策面，其余一律走深路径 `@/shared/<域>/utils/…`。
 2. **避免拖 Vue 运行时**。`shared/energy` 的 `composables/` 层依赖 `vue`，全量 barrel 会把它
    带进本该纯净的常量/状态模块（见上「两条访问规则」）。
 3. **避免假接口表**。域根上每多一条没人走的转发，读代码的人就要多花一次判断「这条到底谁在用」。
@@ -219,7 +215,7 @@ import Overview from '@/features/security/Overview.vue'
 | 其余小域纯逻辑 | `shared/agent/utils/`（`chat-limit`）、`shared/client/utils/`（`system`、`system-display`、`power-battery-display`、`infer-terminal-label`）、`shared/earthquake/utils/`（`history-analytics`）、`shared/floorplan/utils/`（`floating-hub-layout`）、`shared/presence/utils/`（`display`） |
 | 能源 / 水电燃气计量 | `shared/energy/`（constants + utils + 无 store 的 composables + barrel）；store 耦合的 `useCommInfoPopup` / `useUtilityMeterPopup` / `useClientPowerReporter` 在 `composables/energy/` |
 | 本机状态（安装引导清单 / 健康诊断） | `shared/status/`（`useSetupChecklist`、`useSystemDiagnostics`）；设置面板内的诊断 UI 仍在 `features/settings/system/diagnostics/` |
-| 天气 / 天气效果 | `shared/weather/`（`constants` + `types` + 16 个纯 `utils` + 薄 barrel）；**barrel 只剩决策面**（`resolveWeatherQuality`、`shouldShowWeatherBackground`），展示面（日出日落 / 气象指标 / 生活指数 / 状态标签）与粒子/画布实现一律深路径 `@/shared/weather/utils/*`；store 耦合的 `composables/{ui,entity}/useWeather*.ts` 留原位 |
+| 天气（数据面） | `shared/weather/`（`constants/weather-labels` + `utils/{sun-times,weather-metric,life-indices}` 纯函数，**无 barrel**，消费方一律深路径）；store 耦合的 `composables/{ui,entity}/useWeather*.ts` 留原位。原「天气背景特效」（`layouts/WeatherBackground.vue`、粒子 Worker、`shared/weather/utils/{effect-*,background-*,particle-*}`）与配套设置页、后端 `weatherEffects` 分区已整体下线 |
 | 微件系统（配置化桌面部件） | `components/widgets/`（9 种子部件 + `widget-registry` 组件注册表 + `shared/WidgetHubHeader`）；纯逻辑 `shared/widget/`（`useHubTabs`、`useScheduledPoll`、`panel-widget-height`、`profile-filter`）；store 耦合的 `composables/widget/{useNotificationCenter,notification-center.context}` 留原位。**UI 不入 `features/`**：`components/dashboard`、`components/shell/floating-hub`、`components/modals` 依 DAG 消费它，而 `components → features` 被门禁禁止 |
 | 家居模式（图标 / 预设元数据） | `shared/home-mode/`（`mode-icon`、`mode-preset-meta`） |
 | 家居模式（域：切换器 / 数据 / 日志分析 / 编辑器契约） | `features/home-mode/` |
