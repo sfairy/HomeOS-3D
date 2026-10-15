@@ -50,74 +50,62 @@ def _alipay_provider_for_callback(request: Request, session=None):
         return None
 
 
-@router.post(NOTIFY_PATH, include_in_schema=False)
-def alipay_notify(
-    request: Request,
-    session: DbSession,
-    background: BackgroundTasks,
-    body: bytes = Body(b""),
-) -> PlainTextResponse:
-    """支付宝异步通知（同步端点，跑在线程池里）。
-    """
-    settings = request.app.state.settings
-    provider = _alipay_provider_for_callback(request, session)
-    if provider is None:
-        logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
-        return PlainTextResponse("failure")
-
+def _parse_alipay_notify_form(request: Request, body: bytes) -> dict[str, str] | None:
     content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
     if content_type != "application/x-www-form-urlencoded":
         logger.error("支付宝异步通知的 Content-Type 不是表单：%s", content_type or "(空)")
-        return PlainTextResponse("failure")
-
+        return None
     try:
         pairs = parse_qsl(body.decode("utf-8"), keep_blank_values=True)
     except (UnicodeDecodeError, ValueError):
         logger.error("支付宝异步通知解析失败")
-        return PlainTextResponse("failure")
+        return None
+    return {str(key): str(field_value) for key, field_value in pairs}
 
-    form_fields = {str(key): str(value) for key, value in pairs}
 
+def _verify_alipay_notification(provider, settings, form_fields: dict[str, str]):
     if not provider.is_configured(settings):
         logger.error("收到支付宝异步通知，但收款凭据未配置，无法验签")
-        return PlainTextResponse("failure")
-
+        return None
     key_problem = public_key_error(provider.resolve_settings(settings).alipay_public_key_text)
     if key_problem:
         logger.error("支付宝公钥无法解析，通知与查单都会失败：%s", key_problem)
         incidents.note("alipay.config", error=key_problem)
-        return PlainTextResponse("failure")
-
+        return None
     notification = provider.verify_notification(settings, form_fields)
     if not notification.ok:
         logger.error("支付宝异步通知验签未通过：%s", notification.reason)
-        return PlainTextResponse("failure")
-
+        return None
     effective = provider.resolve_settings(settings)
-
     if effective.alipay_app_id and notification.app_id != effective.alipay_app_id:
         logger.error(
             "支付宝异步通知 app_id 不匹配：收到 %r，期望 %s",
             notification.app_id,
             effective.alipay_app_id,
         )
-        return PlainTextResponse("failure")
-
+        return None
     if effective.alipay_seller_id and notification.seller_id != effective.alipay_seller_id:
         logger.error(
             "支付宝异步通知 seller_id 不匹配：收到 %r，期望 %s",
             notification.seller_id,
             effective.alipay_seller_id,
         )
-        return PlainTextResponse("failure")
+        return None
+    return notification
 
+
+def _settle_alipay_notification(
+    session: DbSession,
+    request: Request,
+    background: BackgroundTasks,
+    notification,
+) -> PlainTextResponse:
     order = session.scalars(
         select(Order).where(Order.order_no == notification.out_trade_no)
     ).first()
     if order is None:
         logger.error("支付宝异步通知找不到订单 out_trade_no=%s", notification.out_trade_no)
         return PlainTextResponse("failure")
-
     if (order.payment_provider or "").lower() != "alipay":
         logger.error(
             "支付宝异步通知指向非支付宝订单，拒绝入账 order=%s provider=%r",
@@ -130,7 +118,6 @@ def alipay_notify(
             error=f"order.payment_provider={order.payment_provider!r}",
         )
         return PlainTextResponse("failure")
-
     if not notification.is_success:
         if notification.trade_status == "TRADE_CLOSED":
             fulfill.close_pending_after_channel_close(session, order=order)
@@ -140,7 +127,6 @@ def alipay_notify(
             notification.trade_status,
         )
         return PlainTextResponse("success")
-
     expected = int(order.amount_cents or 0)
     actual = cents_from_yuan(notification.total_amount)
     if actual is None or actual != expected:
@@ -151,7 +137,6 @@ def alipay_notify(
             notification.total_amount,
         )
         return PlainTextResponse("failure")
-
     setting = site_config.get_setting(session)
     settle_paid_order(
         session,
@@ -166,6 +151,29 @@ def alipay_notify(
         order_id=order.id,
     )
     return PlainTextResponse("success")
+
+
+@router.post(NOTIFY_PATH, include_in_schema=False)
+def alipay_notify(
+    request: Request,
+    session: DbSession,
+    background: BackgroundTasks,
+    body: bytes = Body(b""),
+) -> PlainTextResponse:
+    """支付宝异步通知（同步端点，跑在线程池里）。
+    """
+    settings = request.app.state.settings
+    provider = _alipay_provider_for_callback(request, session)
+    if provider is None:
+        logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
+        return PlainTextResponse("failure")
+    form_fields = _parse_alipay_notify_form(request, body)
+    if form_fields is None:
+        return PlainTextResponse("failure")
+    notification = _verify_alipay_notification(provider, settings, form_fields)
+    if notification is None:
+        return PlainTextResponse("failure")
+    return _settle_alipay_notification(session, request, background, notification)
 
 
 _RETURN_PAGE = """<!doctype html>

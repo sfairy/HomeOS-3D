@@ -107,20 +107,16 @@ def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
         return read_builtin_asset(asset_path, request)
 
 
-def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
-    """静态资源 + SPA fallback（须在业务路由之后注册）。"""
-    static_dir = settings.frontend_dir / "static"
+def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
+    """挂载 vite 构建产物目录（``/static`` / ``/assets`` / ``/modules``）。
+
+    目录必须在启动时 mkdir：watch-build / 原子发布窗口里 ``assets/`` 可能短暂不存在，
+    若这里 ``is_dir()`` 失败就永远不 mount，之后即使 dist 已恢复，进程不重启也会一直把
+    ``/assets/*.js`` 回成 HTML（Strict MIME 报错）。
+    """
+    static_dir = frontend_dir / "static"
     if static_dir.is_dir():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
-    # 构建产物根资源（vite 输出）：JS/CSS 哈希分片、runtime 模块、PWA manifest / service worker。
-    # 不挂载的话这些请求会落进下方 SPA 回退、以 text/html 返回，浏览器会因 MIME 不符拒绝执行
-    # 模块 —— 表现为页面空白、`#app` 永不挂载。
-    #
-    # 目录必须在启动时 mkdir：watch-build / 原子发布窗口里 ``assets/`` 可能短暂不存在，
-    # 若这里 ``is_dir()`` 失败就永远不 mount，之后即使 dist 已恢复，进程不重启也会一直把
-    # ``/assets/*.js`` 回成 HTML（Strict MIME 报错）。
-    frontend_dir = settings.frontend_dir
     for mount_path, sub_dir in (
         ("/assets", "assets"),
         ("/modules", "modules"),
@@ -133,8 +129,10 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
             name=mount_path.strip("/"),
         )
 
-    # GET+HEAD：FastAPI 的 ``@app.get`` 在与 catch-all HEAD 并存时，HEAD 可能落到 SPA 外壳
-    # （``/sw.js`` HEAD 曾返回 text/html 的 index），显式登记避免误判。
+
+def _register_pwa_asset_routes(app: FastAPI, frontend_dir: Path) -> None:
+    """显式登记 manifest / service worker（GET+HEAD），避免 catch-all HEAD 回成 HTML。"""
+
     @app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
     async def spa_manifest():
         manifest = frontend_dir / "manifest.json"
@@ -154,8 +152,9 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
             )
         raise HTTPException(status_code=404)
 
-    # 可替换静态资源（图标 / 背景图 / 音效 / Logo）。
-    # 与 Nest ServeStaticModule 的 fallthrough:false 一致：文件不存在直接 404，不落入 SPA。
+
+def _mount_replaceable_asset_dirs(app: FastAPI) -> None:
+    """可替换静态资源（图标 / 背景图 / 音效 / Logo）；缺失目录不挂载。"""
     from ..platform.core.asset_paths import (
         get_backgrounds_dir,
         get_icons_dir,
@@ -175,6 +174,10 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
                 StaticFiles(directory=str(asset_dir)),
                 name=mount_path.strip("/"),
             )
+
+
+def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> None:
+    """统一 SPA 外壳与 catch-all 回退。"""
 
     def _spa_index() -> Path:
         return settings.frontend_dir / "index.html"
@@ -225,3 +228,12 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
         ):
             raise HTTPException(status_code=404)
         return await _spa_shell(request)
+
+
+def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
+    """静态资源 + SPA fallback（须在业务路由之后注册）。"""
+    frontend_dir = settings.frontend_dir
+    _mount_frontend_build_dirs(app, frontend_dir)
+    _register_pwa_asset_routes(app, frontend_dir)
+    _mount_replaceable_asset_dirs(app)
+    _register_spa_fallback(app, settings, version)

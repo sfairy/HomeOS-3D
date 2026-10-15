@@ -114,7 +114,7 @@ async def _build_status(request: Request) -> dict[str, Any]:
         if poll is not None:
             try:
                 await poll.poll_now()
-            except Exception:
+            except Exception:  # 手动立即轮询是即时操作，失败由定时轮询兜底，不必打断请求
                 pass
     wolfx = await service.get_cluster_connection_status()
     diagnostics = service.get_diagnostics_snapshot()

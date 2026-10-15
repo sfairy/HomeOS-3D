@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import traceback
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
@@ -26,7 +28,7 @@ from ..domains.ha.integration.client import HAClientError
 from ..domains.ha.integration.connection_query import active_connection, load_active_connection_snapshot
 from ..domains.ha.integration.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
 from ..domains.ha.integration.crypto import CredentialCipherError
-from ..domains.ha.integration.endpoints import endpoint_candidates
+from ..domains.ha.integration.endpoints import HAEndpoint, endpoint_candidates
 from ..domains.ha.integration.errors import connection_error_message
 from ..domains.ha.integration.numeric_sources import numeric_sources
 from ..domains.ha.integration.percentage_sources import percentage_sources
@@ -217,57 +219,70 @@ async def test_connection(
     }
 
 
-@router.put('/connection')
-async def save_connection(
-    payload: HAConnectionInput,
-    request: Request,
-    database: DatabaseSession,
-    _user: LicensedUser,
-) -> dict[str, Any]:
-    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONFIGURE):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
-    connector = request.app.state.studio_ha
-    connection = active_connection(database)
+@dataclass(frozen=True)
+class _ConnectionTargets:
+    """探测后确定的内网 / 外网地址与版本摘要。"""
+
+    internal: str
+    external: str | None
+    tested: dict[str, Any]
+
+
+def _connection_verify_flags(
+    connection_input: HAConnectionInput, connection: HAConnection | None
+) -> tuple[bool, bool]:
+    """未显式提交时沿用已保存的 TLS 校验开关。"""
     verify_tls = (
         connection.verify_tls
-        if connection and 'verify_tls' not in payload.model_fields_set
-        else payload.verify_tls
+        if connection and 'verify_tls' not in connection_input.model_fields_set
+        else connection_input.verify_tls
     )
     external_verify_tls = (
         connection.external_verify_tls
-        if connection and 'external_verify_tls' not in payload.model_fields_set
-        else payload.external_verify_tls
+        if connection and 'external_verify_tls' not in connection_input.model_fields_set
+        else connection_input.external_verify_tls
     )
-    endpoints = endpoint_candidates(payload.base_url, verify_tls, payload.external_base_url, external_verify_tls)
-    new_addresses = (payload.base_url, payload.external_base_url)
-    previous_addresses = (
-        (connection.base_url, connection.external_base_url) if connection is not None else None
-    )
-    if payload.access_token:
-        token = payload.access_token
-    elif connection is not None:
-        if new_addresses != previous_addresses and not payload.reuse_token_for_new_url:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    'code': 'HA_URL_CHANGED_TOKEN_REUSE',
-                    'message': '地址已变更：复用已保存的 Home Assistant 令牌前请确认新地址可信（确认后重发 reuseTokenForNewUrl=true，或直接重新输入令牌）。',
-                },
-            )
-        try:
-            token = connector.cipher.decrypt(connection.encrypted_access_token)
-        except CredentialCipherError as error:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=str(error),
-            ) from error
-    else:
+    return verify_tls, external_verify_tls
+
+
+def _connection_access_token(
+    connection_input: HAConnectionInput,
+    connection: HAConnection | None,
+    connector: Any,
+    new_addresses: tuple[str, str | None],
+    previous_addresses: tuple[str, str | None] | None,
+) -> str:
+    """确定本次保存使用的令牌：显式提交优先，否则判断已保存令牌能否复用。"""
+    if connection_input.access_token:
+        return connection_input.access_token
+    if connection is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail='首次连接必须输入 Home Assistant 访问令牌。',
         )
+    if new_addresses != previous_addresses and not connection_input.reuse_token_for_new_url:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                'code': 'HA_URL_CHANGED_TOKEN_REUSE',
+                'message': '地址已变更：复用已保存的 Home Assistant 令牌前请确认新地址可信（确认后重发 reuseTokenForNewUrl=true，或直接重新输入令牌）。',
+            },
+        )
     try:
-        test_results = await probe_endpoints(
+        return connector.cipher.decrypt(connection.encrypted_access_token)
+    except CredentialCipherError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(error),
+        ) from error
+
+
+async def _probe_connection_endpoints(
+    request: Request, endpoints: Sequence[HAEndpoint], token: str
+) -> list[dict[str, Any]]:
+    """探测候选端点；连接层异常按原样转 422。"""
+    try:
+        return await probe_endpoints(
             endpoints, token, request.app.state.settings.ha_request_timeout_seconds
         )
     except HAClientError as error:
@@ -275,58 +290,96 @@ async def save_connection(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=connection_error_message(error),
         ) from error
-    reachable = [item for item in test_results if item['ok']]
+
+
+def _resolved_connection_targets(
+    test_results: list[dict[str, Any]], connection_input: HAConnectionInput
+) -> _ConnectionTargets:
+    """从探测结果里取主端点、最终内网 / 外网地址与版本摘要。"""
+    reachable = [probe_entry for probe_entry in test_results if probe_entry['ok']]
     if not reachable:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=failed_endpoint_summary(test_results))
     primary = reachable[0]
     resolved_internal = next(
-        (item['baseUrl'] for item in test_results if item['kind'] == 'internal'),
-        payload.base_url,
+        (probe_entry['baseUrl'] for probe_entry in test_results if probe_entry['kind'] == 'internal'),
+        connection_input.base_url,
     )
     resolved_external = next(
-        (item['baseUrl'] for item in test_results if item['kind'] == 'external'),
+        (probe_entry['baseUrl'] for probe_entry in test_results if probe_entry['kind'] == 'external'),
         None,
     )
     tested = {'version': primary.get('version'), 'locationName': primary.get('locationName')}
-    if connection is None:
-        connection = HAConnection(
-            name=payload.name.strip(),
-            base_url=resolved_internal,
-            external_base_url=resolved_external,
-            encrypted_access_token=connector.cipher.encrypt(token),
-            verify_tls=verify_tls,
-            external_verify_tls=external_verify_tls,
-            ha_version=tested.get('version'),
-        )
-        database.add(connection)
-    else:
-        connection.name = payload.name.strip()
-        connection.base_url = resolved_internal
-        connection.external_base_url = resolved_external
-        connection.verify_tls = verify_tls
-        connection.external_verify_tls = external_verify_tls
-        connection.ha_version = tested.get('version')
-        connection.last_error = None
-        connection.active_endpoint = None
-        if payload.access_token:
-            connection.encrypted_access_token = connector.cipher.encrypt(token)
-    database.commit()
-    database.refresh(connection)
-    await connector.restart()
-    if previous_addresses is not None and previous_addresses != (connection.base_url, connection.external_base_url):
-        previous_label = addresses_label(*previous_addresses)
-        current_label = addresses_label(connection.base_url, connection.external_base_url)
-        request.app.state.global_log.append(
-            'warning',
-            'Home Assistant',
-            '连接',
-            f'Home Assistant 地址已变更：{previous_label} → {current_label}（令牌已复用，请确认新地址可信）'
-            if not payload.access_token
-            else f'Home Assistant 地址已变更：{previous_label} → {current_label}（同时更新了令牌）',
-        )
-    disconnected = [item for item in test_results if not item['ok']]
-    if disconnected:
+    return _ConnectionTargets(internal=resolved_internal, external=resolved_external, tested=tested)
+
+
+def _create_connection_row(
+    connection_input: HAConnectionInput,
+    connector: Any,
+    token: str,
+    verify_tls: bool,
+    external_verify_tls: bool,
+    targets: _ConnectionTargets,
+) -> HAConnection:
+    """首次保存：构造 HAConnection 行。"""
+    return HAConnection(
+        name=connection_input.name.strip(),
+        base_url=targets.internal,
+        external_base_url=targets.external,
+        encrypted_access_token=connector.cipher.encrypt(token),
+        verify_tls=verify_tls,
+        external_verify_tls=external_verify_tls,
+        ha_version=targets.tested.get('version'),
+    )
+
+
+def _update_connection_row(
+    connection: HAConnection,
+    connection_input: HAConnectionInput,
+    connector: Any,
+    verify_tls: bool,
+    external_verify_tls: bool,
+    targets: _ConnectionTargets,
+) -> None:
+    """覆盖已保存连接的地址 / 证书开关 / 版本，并清掉上次错误状态。"""
+    connection.name = connection_input.name.strip()
+    connection.base_url = targets.internal
+    connection.external_base_url = targets.external
+    connection.verify_tls = verify_tls
+    connection.external_verify_tls = external_verify_tls
+    connection.ha_version = targets.tested.get('version')
+    connection.last_error = None
+    connection.active_endpoint = None
+    if connection_input.access_token:
+        connection.encrypted_access_token = connector.cipher.encrypt(connection_input.access_token)
+
+
+def _log_connection_address_change(
+    request: Request,
+    connection_input: HAConnectionInput,
+    previous_addresses: tuple[str, str | None] | None,
+    connection: HAConnection,
+) -> None:
+    """地址变更时写一条 warning 日志（区分是否同时更新了令牌）。"""
+    if previous_addresses is None or previous_addresses == (connection.base_url, connection.external_base_url):
+        return
+    previous_label = addresses_label(*previous_addresses)
+    current_label = addresses_label(connection.base_url, connection.external_base_url)
+    request.app.state.global_log.append(
+        'warning',
+        'Home Assistant',
+        '连接',
+        f'Home Assistant 地址已变更：{previous_label} → {current_label}（令牌已复用，请确认新地址可信）'
+        if not connection_input.access_token
+        else f'Home Assistant 地址已变更：{previous_label} → {current_label}（同时更新了令牌）',
+    )
+
+
+def _log_connection_endpoint_warnings(
+    request: Request, test_results: list[dict[str, Any]], connection: HAConnection
+) -> None:
+    """保存成功后记录不可达备用地址与整体成功日志。"""
+    if [probe_entry for probe_entry in test_results if not probe_entry['ok']]:
         request.app.state.global_log.append(
             'warning',
             'Home Assistant',
@@ -339,7 +392,39 @@ async def save_connection(
         '连接',
         f'Home Assistant 连接配置已保存（{connection.name}，版本 {connection.ha_version or "未知"}）',
     )
-    return {**connection_payload(connection, request), 'test': tested, 'endpoints': test_results}
+
+
+@router.put('/connection')
+async def save_connection(
+    payload: HAConnectionInput,
+    request: Request,
+    database: DatabaseSession,
+    _user: LicensedUser,
+) -> dict[str, Any]:
+    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONFIGURE):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
+    connector = request.app.state.studio_ha
+    connection = active_connection(database)
+    verify_tls, external_verify_tls = _connection_verify_flags(payload, connection)
+    endpoints = endpoint_candidates(payload.base_url, verify_tls, payload.external_base_url, external_verify_tls)
+    new_addresses = (payload.base_url, payload.external_base_url)
+    previous_addresses = (
+        (connection.base_url, connection.external_base_url) if connection is not None else None
+    )
+    token = _connection_access_token(payload, connection, connector, new_addresses, previous_addresses)
+    test_results = await _probe_connection_endpoints(request, endpoints, token)
+    targets = _resolved_connection_targets(test_results, payload)
+    if connection is None:
+        connection = _create_connection_row(payload, connector, token, verify_tls, external_verify_tls, targets)
+        database.add(connection)
+    else:
+        _update_connection_row(connection, payload, connector, verify_tls, external_verify_tls, targets)
+    database.commit()
+    database.refresh(connection)
+    await connector.restart()
+    _log_connection_address_change(request, payload, previous_addresses, connection)
+    _log_connection_endpoint_warnings(request, test_results, connection)
+    return {**connection_payload(connection, request), 'test': targets.tested, 'endpoints': test_results}
 
 
 @router.get('/entities')
@@ -791,7 +876,9 @@ async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
         raise
 
 
-async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
+async def _runtime_close_with_log(
+    websocket: WebSocket, context: dict, code: int, reason: str, *, send_reason: bool = True
+) -> None:
     # 关闭原因码 → 人话。日志里只出现原因码对排查毫无帮助，而这段文案会进入全局日志导出。
     close_explanations = {
         'origin not allowed': '页面来源未获允许',
@@ -801,33 +888,180 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         'subscribe message required': '未收到有效的实体订阅消息',
         'too many entities': '订阅实体数量超过上限',
     }
+    _runtime_log(
+        websocket,
+        'warning',
+        f'实时连接已关闭：{close_explanations.get(reason, reason)}',
+        {**context, 'code': str(code), 'phase': 'rejected'},
+    )
+    await websocket.close(code=code, reason=reason if send_reason else None)
 
-    async def close_with_log(code: int, reason: str, *, send_reason: bool = True) -> None:
-        _runtime_log(
-            websocket,
-            'warning',
-            f'实时连接已关闭：{close_explanations.get(reason, reason)}',
-            {**context, 'code': str(code), 'phase': 'rejected'},
-        )
-        await websocket.close(code=code, reason=reason if send_reason else None)
 
+async def _runtime_authorize(websocket: WebSocket, context: dict) -> ViewerPrincipal | None:
+    """来源 / 登录 / 授权三重校验；未通过时按原样关闭连接并返回 None。"""
     if not websocket_origin_allowed(websocket):
-        await close_with_log(4403, 'origin not allowed')
-        return
+        await _runtime_close_with_log(websocket, context, 4403, 'origin not allowed')
+        return None
     viewer = await asyncio.to_thread(websocket_viewer, websocket)
     if viewer is None:
-        await close_with_log(4401, 'authentication required', send_reason=False)
-        return
+        await _runtime_close_with_log(websocket, context, 4401, 'authentication required', send_reason=False)
+        return None
     if viewer.user is not None:
         context['actor'] = getattr(viewer.user, 'username', None)
     if not await asyncio.to_thread(websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET):
-        await close_with_log(4403, 'license restricted', send_reason=False)
+        await _runtime_close_with_log(websocket, context, 4403, 'license restricted', send_reason=False)
+        return None
+    return viewer
+
+
+class _RuntimeSubscriptionState:
+    """运行时长连的订阅状态：事件队列、订阅实体与是否已建立订阅。"""
+
+    def __init__(self, queue: Any) -> None:
+        self.queue = queue
+        self.entity_ids: set[str] = set()
+        self.watching = False
+
+
+async def _runtime_subscribe_and_stream(
+    websocket: WebSocket,
+    context: dict,
+    subscription: _RuntimeSubscriptionState,
+    close_with_log,
+    send_licensed,
+) -> None:
+    """等订阅帧 → 建立订阅 → 持续推送，直到两路协作任务任一路结束。"""
+    subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
+    if not isinstance(subscribe, dict) or subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
+        await close_with_log(4400, 'subscribe message required')
+        return
+    entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
+    subscription.entity_ids = entity_ids
+    if len(entity_ids) > MAX_RUNTIME_ENTITIES:
+        await close_with_log(4400, 'too many entities')
+        return
+    websocket.app.state.studio_ha.state_hub.set_subscription_entities(subscription.queue, entity_ids)
+    await websocket.app.state.studio_ha.add_runtime_entity_watch(entity_ids, ensure_states=False)
+    subscription.watching = True
+
+    async def send_updates() -> None:
+        """推送初始快照，然后持续转发状态事件并保活。"""
+        initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
+        if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
+            return
+        # 状态补全是「尽力而为」：初始快照已经发出，补全失败不该拆掉整条实时推送。
+        # ensure_entity_states 内部已逐实体容错并带退避重试，这里再兜一层，防的是
+        # 未预期的异常（如取连接 / 合并阶段出错）把 send_updates 整体带崩。
+        try:
+            await websocket.app.state.studio_ha.ensure_entity_states(entity_ids)
+        except Exception:
+            _runtime_log(
+                websocket,
+                'warning',
+                '实时连接初始状态补全失败，继续转发事件',
+                {**context, 'phase': 'hydrate'},
+                details=traceback.format_exc(),
+            )
+        hydrated_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
+        if hydrated_snapshot != initial_snapshot:
+            if not await send_licensed({'type': 'snapshot', 'states': hydrated_snapshot}):
+                return
+        while True:
+            try:
+                event = await asyncio.wait_for(subscription.queue.get(), timeout=25)
+            except TimeoutError:
+                if not await send_licensed({'type': 'ping'}):
+                    return
+                continue
+            if not await send_licensed(event):
+                return
+        return
+
+    async def receive_disconnect() -> None:
+        """另一路任务只负责感知客户端断开。"""
+        while True:
+            message = await websocket.receive()
+            if message['type'] == 'websocket.disconnect':
+                raise WebSocketDisconnect(code=message.get('code', 1000))
+
+    async def run_until_closed(operation) -> None:
+        """跑一路任务，结束后取消另一路，并把真正的异常留给外层分流。"""
+        nonlocal failure
+        try:
+            await operation()
+        except Exception as error:
+            if failure is None or not isinstance(error, WebSocketDisconnect):
+                failure = error
+        finally:
+            tasks.cancel_scope.cancel()
+
+    failure = None
+    # shield=True：这一段的收尾（推送尾包 / 摘除订阅）不能被外层的取消打断，
+    # 否则连接断开时会把内存里的订阅登记留成孤儿。
+    with CancelScope(shield=True):
+        async with create_task_group() as tasks:
+            tasks.start_soon(run_until_closed, send_updates)
+            tasks.start_soon(run_until_closed, receive_disconnect)
+    if failure is not None:
+        raise failure
+
+
+async def _runtime_run_until_closed(
+    websocket: WebSocket,
+    context: dict,
+    subscription: _RuntimeSubscriptionState,
+    monitor_access,
+    subscribe_and_stream,
+) -> None:
+    """三路任务编排：订阅推送、授权周期复检、连接断开感知；并处理断开与超时。"""
+    failure = None
+    try:
+        async with create_task_group() as tasks:
+            # 三路：订阅并推送、授权周期复检、连接断开感知。任一路结束都会取消其余两路。
+            async def run_until_closed(operation) -> None:
+                nonlocal failure
+                try:
+                    await operation()
+                except Exception as error:
+                    if failure is None or not isinstance(error, WebSocketDisconnect):
+                        failure = error
+                finally:
+                    tasks.cancel_scope.cancel()
+
+            tasks.start_soon(run_until_closed, monitor_access)
+            tasks.start_soon(run_until_closed, subscribe_and_stream)
+        if failure is not None:
+            raise failure
+    except WebSocketDisconnect as error:
+        if error.code not in {1000, 1001, 1005}:
+            _runtime_log(
+                websocket,
+                'warning',
+                '实时连接异常断开',
+                {**context, 'code': str(error.code), 'phase': 'disconnected'},
+            )
+    except TimeoutError:
+        _runtime_log(
+            websocket,
+            'warning',
+            '实时连接等待订阅超时',
+            {**context, 'code': 'SUBSCRIBE_TIMEOUT', 'phase': 'subscribe'},
+        )
+    finally:
+        try:
+            if subscription.watching:
+                await websocket.app.state.studio_ha.remove_runtime_entity_watch(subscription.entity_ids)
+        finally:
+            websocket.app.state.studio_ha.state_hub.unsubscribe(subscription.queue)
+
+
+async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
+    viewer = await _runtime_authorize(websocket, context)
+    if viewer is None:
         return
     await websocket.accept()
     _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
-    queue = websocket.app.state.studio_ha.state_hub.subscribe()
-    entity_ids = set()
-    watching = False
+    subscription = _RuntimeSubscriptionState(websocket.app.state.studio_ha.state_hub.subscribe())
     # 授权与登录态在长连期间仍会变化：access_closed 记住「已经因为授权/登录问题关过连接」，
     # 之后所有发送一律短路，避免在关闭途中继续往外推数据。
     access_closed = False
@@ -870,119 +1104,17 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             if not await access_allowed():
                 return
 
+    async def close_with_log(code: int, reason: str, *, send_reason: bool = True) -> None:
+        await _runtime_close_with_log(websocket, context, code, reason, send_reason=send_reason)
+
     async def subscribe_and_stream() -> None:
         """等订阅帧 → 建立订阅 → 持续推送。"""
-        nonlocal entity_ids, watching
-        subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
-        if not isinstance(subscribe, dict) or subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
-            await close_with_log(4400, 'subscribe message required')
-            return
-        entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
-        if len(entity_ids) > MAX_RUNTIME_ENTITIES:
-            await close_with_log(4400, 'too many entities')
-            return
-        websocket.app.state.studio_ha.state_hub.set_subscription_entities(queue, entity_ids)
-        await websocket.app.state.studio_ha.add_runtime_entity_watch(entity_ids, ensure_states=False)
-        watching = True
-
-        async def send_updates() -> None:
-            """推送初始快照，然后持续转发状态事件并保活。"""
-            initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
-            if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
-                return
-            # 状态补全是「尽力而为」：初始快照已经发出，补全失败不该拆掉整条实时推送。
-            # ensure_entity_states 内部已逐实体容错并带退避重试，这里再兜一层，防的是
-            # 未预期的异常（如取连接 / 合并阶段出错）把 send_updates 整体带崩。
-            try:
-                await websocket.app.state.studio_ha.ensure_entity_states(entity_ids)
-            except Exception:
-                _runtime_log(
-                    websocket,
-                    'warning',
-                    '实时连接初始状态补全失败，继续转发事件',
-                    {**context, 'phase': 'hydrate'},
-                    details=traceback.format_exc(),
-                )
-            hydrated_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
-            if hydrated_snapshot != initial_snapshot:
-                if not await send_licensed({'type': 'snapshot', 'states': hydrated_snapshot}):
-                    return
-            while True:
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=25)
-                except TimeoutError:
-                    if not await send_licensed({'type': 'ping'}):
-                        return
-                    continue
-                if not await send_licensed(event):
-                    return
-            return
-
-        async def receive_disconnect() -> None:
-            """另一路任务只负责感知客户端断开。"""
-            while True:
-                message = await websocket.receive()
-                if message['type'] == 'websocket.disconnect':
-                    raise WebSocketDisconnect(code=message.get('code', 1000))
-
-        async def run_until_closed(operation) -> None:
-            """跑一路任务，结束后取消另一路，并把真正的异常留给外层分流。"""
-            nonlocal failure
-            try:
-                await operation()
-            except Exception as error:
-                if failure is None or not isinstance(error, WebSocketDisconnect):
-                    failure = error
-            finally:
-                tasks.cancel_scope.cancel()
-
-        failure = None
-        # shield=True：这一段的收尾（推送尾包 / 摘除订阅）不能被外层的取消打断，
-        # 否则连接断开时会把内存里的订阅登记留成孤儿。
-        with CancelScope(shield=True):
-            async with create_task_group() as tasks:
-                tasks.start_soon(run_until_closed, send_updates)
-                tasks.start_soon(run_until_closed, receive_disconnect)
-        if failure is not None:
-            raise failure
-
-    failure = None
-    try:
-        async with create_task_group() as tasks:
-            # 三路：订阅并推送、授权周期复检、连接断开感知。任一路结束都会取消其余两路。
-            async def run_until_closed(operation) -> None:
-                nonlocal failure
-                try:
-                    await operation()
-                except Exception as error:
-                    if failure is None or not isinstance(error, WebSocketDisconnect):
-                        failure = error
-                finally:
-                    tasks.cancel_scope.cancel()
-
-            tasks.start_soon(run_until_closed, monitor_access)
-            tasks.start_soon(run_until_closed, subscribe_and_stream)
-        if failure is not None:
-            raise failure
-    except WebSocketDisconnect as error:
-        if error.code not in {1000, 1001, 1005}:
-            _runtime_log(
-                websocket,
-                'warning',
-                '实时连接异常断开',
-                {**context, 'code': str(error.code), 'phase': 'disconnected'},
-            )
-    except TimeoutError:
-        _runtime_log(
-            websocket,
-            'warning',
-            '实时连接等待订阅超时',
-            {**context, 'code': 'SUBSCRIBE_TIMEOUT', 'phase': 'subscribe'},
+        await _runtime_subscribe_and_stream(
+            websocket, context, subscription, close_with_log, send_licensed
         )
-    finally:
-        try:
-            if watching:
-                await websocket.app.state.studio_ha.remove_runtime_entity_watch(entity_ids)
-        finally:
-            websocket.app.state.studio_ha.state_hub.unsubscribe(queue)
+
+    await _runtime_run_until_closed(
+        websocket, context, subscription, monitor_access, subscribe_and_stream
+    )
     return
+

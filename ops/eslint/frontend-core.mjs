@@ -37,10 +37,7 @@ const coreRules = {
 export const APP_STYLE = {
   semi: ["warn", "never"],
   // `allowTemplateLiterals` 必须是 true：这条规则的 `--fix` 默认会把**不含插值**
-  // 的模板串改写成普通字符串，而 `scripts/**` 里有大量「被测代码的源码片段」夹具
-  // （例如 `_import_refs_selftest.mjs` 的 S10 场景专门验证「模板串里的 import spec
-  // 视为数据、不参与解析」）。改写外层引号会连夹具的**语义**一起改掉，让自检静默失效 ——
-  // 实测：`--fix` 一跑，引用可解析性门禁立刻在自己身上报 2 处假违规。
+  // 的模板串改写成普通字符串；工具脚本里若把模板串当源码夹具，改写外层引号会改语义。
   // `avoidEscape` 同理：字符串里带单引号时允许换用双引号，免得为风格制造一串转义。
   quotes: ["warn", "single", { avoidEscape: true, allowTemplateLiterals: true }],
 };

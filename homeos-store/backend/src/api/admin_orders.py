@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
@@ -372,21 +373,47 @@ def admin_refund(
         return result
 
 
-def _refund_order(
-    order_no: str,
-    payload: AdminOrderActionRequest,
-    request: Request,
-    session: Session,
-    admin: AdminAccount,
-) -> dict:
-    setting = site_config.get_setting(session)
-    order = order_or_404(session, order_no)
-    if order.status not in ORDER_REFUNDABLE_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"订单状态为{order_status_label(order.status)}，无法退款。",
-        )
+@dataclass(frozen=True)
+class _RefundPlan:
+    """一次后台退款的校验结论、金额口径与幂等号。"""
 
+    total_cents: int
+    refunded_cents: int
+    amount_cents: int
+    reason: str
+    out_request_no: str
+    offline: bool
+    forced_offline: str
+    free_order: bool
+
+
+@dataclass(frozen=True)
+class _RefundAttempt:
+    """一次退款在渠道侧的尝试结果，以及流水行是否已在本地占位。"""
+
+    settled_cents: int
+    trade_no: str | None
+    detail: str
+    ledger_booked: bool
+
+
+@dataclass(frozen=True)
+class _RefundBooking:
+    """退款入账后的累计口径与奖励扣回结果（供审计文案使用）。"""
+
+    cumulative_cents: int
+    reversed_centi: int
+    referral_shortfall_centi: int
+
+
+def _plan_refund(
+    order: Order,
+    requested_cents: int | None,
+    note: str,
+    offline_requested: bool,
+) -> _RefundPlan:
+    """校验可退余额与本次退款金额，并算出幂等号与线下 / 免费订单口径。
+    """
     total_cents = max(0, int(order.amount_cents or 0))
     refunded_cents = max(0, int(order.refund_amount_cents or 0))
     remaining_cents = refundable_cents(total_cents, refunded_cents)
@@ -400,7 +427,7 @@ def _refund_order(
     if free_order:
         amount_cents = 0
     else:
-        amount_cents = remaining_cents if payload.amount_cents is None else int(payload.amount_cents)
+        amount_cents = remaining_cents if requested_cents is None else int(requested_cents)
         if amount_cents > remaining_cents:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -410,7 +437,7 @@ def _refund_order(
                 ),
             )
 
-    refund_reason = (payload.note or f"订单 {order.order_no} 后台退款")[:255]
+    refund_reason = (note or f"订单 {order.order_no} 后台退款")[:255]
 
     target_cents = refunded_cents + amount_cents
     out_request_no = refunds.refund_request_no(order.order_no, target_cents)
@@ -418,184 +445,252 @@ def _refund_order(
     forced_offline = _offline_refund_reason(order)
     if free_order:
         forced_offline = "免费订单无渠道交易"
-    offline_refund = bool(payload.offline) or bool(forced_offline)
-    if forced_offline and not payload.offline:
+    offline_refund = bool(offline_requested) or bool(forced_offline)
+    if forced_offline and not offline_requested:
         logger.warning(
             "退款按线下处理 order=%s：%s（未走任何支付渠道）", order.order_no, forced_offline
         )
         refund_reason = f"{refund_reason}｜{forced_offline}，按线下退款记账"[:255]
 
-    if offline_refund:
-        existing = refunds.refund_by_request_no(session, out_request_no)
+    return _RefundPlan(
+        total_cents=total_cents,
+        refunded_cents=refunded_cents,
+        amount_cents=amount_cents,
+        reason=refund_reason,
+        out_request_no=out_request_no,
+        offline=offline_refund,
+        forced_offline=forced_offline,
+        free_order=free_order,
+    )
+
+
+def _open_refund_record(
+    session: Session,
+    order: Order,
+    plan: _RefundPlan,
+    operator: str,
+) -> OrderRefund:
+    """线下退款先做幂等查重，再建一条 ``failed`` 状态的占位流水。
+    """
+    if plan.offline:
+        existing = refunds.refund_by_request_no(session, plan.out_request_no)
         if existing is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    f"本订单已有一条金额相同的退款记录（幂等号 {out_request_no}，"
+                    f"本订单已有一条金额相同的退款记录（幂等号 {plan.out_request_no}，"
                     f"状态 {existing.status}），请勿重复提交。"
                 ),
             )
-    refund = OrderRefund(
+    return OrderRefund(
         order_id=order.id,
         order_no=order.order_no,
-        out_request_no=out_request_no,
-        amount_cents=amount_cents,
-        reason=refund_reason,
-        offline=offline_refund,
-        operator=_admin_actor(admin),
+        out_request_no=plan.out_request_no,
+        amount_cents=plan.amount_cents,
+        reason=plan.reason,
+        offline=plan.offline,
+        operator=operator,
         status="failed",
         id=new_uuid(),
         created_at=utcnow(),
     )
 
-    refund_trade_no: str | None = None
-    refund_detail = ""
-    settled_cents = amount_cents
-    ledger_booked = False
 
-    if amount_cents > 0 and not offline_refund:
-        other = refunds.unsettled_refund(session, order_id=order.id)
-        if other is not None and other.out_request_no != out_request_no:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"该订单有一笔退款结果未确认（¥{money.format_centi(int(other.amount_cents or 0))}，"
-                    f"幂等号 {other.out_request_no}）：它可能已经在渠道侧退了钱。"
-                    "请先用**相同的金额**重试那一笔，或到渠道后台确认后再操作，不要改成别的金额。"
-                ),
-            )
-        session.commit()
-        gate, _gate_row = refunds.open_refund_gate(session, refund)
-        if gate == "settled":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"该笔退款（¥{money.format_centi(amount_cents)}，幂等号 {out_request_no}）"
-                    "已经退款成功并记账，不需要重复退款。请刷新订单查看累计已退金额。"
-                ),
-            )
-        if gate == "in_flight":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"该笔退款（幂等号 {out_request_no}）正在处理中，请稍后刷新订单再看结果。",
-            )
-        ledger_booked = True
-        provider = _refund_provider(
-            request.app.state.resolve_payment_provider,
+def _attempt_channel_refund(
+    session: Session,
+    request: Request,
+    order: Order,
+    setting: StoreSetting,
+    plan: _RefundPlan,
+    refund: OrderRefund,
+) -> _RefundAttempt:
+    """走渠道退款（线下 / 免费订单跳过），返回本次实际退出的金额与流水状态。
+    """
+    if plan.amount_cents <= 0 or plan.offline:
+        return _RefundAttempt(
+            settled_cents=plan.amount_cents,
+            trade_no=None,
+            detail="",
+            ledger_booked=False,
+        )
+
+    other = refunds.unsettled_refund(session, order_id=order.id)
+    if other is not None and other.out_request_no != plan.out_request_no:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"该订单有一笔退款结果未确认（¥{money.format_centi(int(other.amount_cents or 0))}，"
+                f"幂等号 {other.out_request_no}）：它可能已经在渠道侧退了钱。"
+                "请先用**相同的金额**重试那一笔，或到渠道后台确认后再操作，不要改成别的金额。"
+            ),
+        )
+    session.commit()
+    gate, _gate_row = refunds.open_refund_gate(session, refund)
+    if gate == "settled":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"该笔退款（¥{money.format_centi(plan.amount_cents)}，幂等号 {plan.out_request_no}）"
+                "已经退款成功并记账，不需要重复退款。请刷新订单查看累计已退金额。"
+            ),
+        )
+    if gate == "in_flight":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"该笔退款（幂等号 {plan.out_request_no}）正在处理中，请稍后刷新订单再看结果。",
+        )
+    return _invoke_refund_provider(session, request, order, setting, plan)
+
+
+def _invoke_refund_provider(
+    session: Session,
+    request: Request,
+    order: Order,
+    setting: StoreSetting,
+    plan: _RefundPlan,
+) -> _RefundAttempt:
+    """调用渠道退款，并处理「成功 / 失败 / 结果未知」三条出口。
+    """
+    provider = _refund_provider(
+        request.app.state.resolve_payment_provider,
+        order=order,
+        setting=setting,
+    )
+    try:
+        result = provider.refund_payment(
             order=order,
+            amount_cents=plan.amount_cents,
+            reason=plan.reason,
+            out_request_no=plan.out_request_no,
+            settings=request.app.state.settings,
             setting=setting,
         )
-        try:
-            result = provider.refund_payment(
-                order=order,
-                amount_cents=amount_cents,
-                reason=refund_reason,
-                out_request_no=out_request_no,
-                settings=request.app.state.settings,
-                setting=setting,
-            )
-        except PaymentError as error:
-            persisted = refunds.persist_refund_result(
-                session,
-                out_request_no=out_request_no,
-                status="processing",
-                amount_cents=amount_cents,
-                detail=f"渠道调用异常，退款结果未知：{error}",
-            )
-            logger.warning("渠道退款调用异常 order=%s: %s", order.order_no, error)
+    except PaymentError as error:
+        persisted = refunds.persist_refund_result(
+            session,
+            out_request_no=plan.out_request_no,
+            status="processing",
+            amount_cents=plan.amount_cents,
+            detail=f"渠道调用异常，退款结果未知：{error}",
+        )
+        logger.warning("渠道退款调用异常 order=%s: %s", order.order_no, error)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"渠道退款调用异常，本次结果未知（幂等号 {plan.out_request_no}）：{error}"
+                "请先用**相同的金额**重试，或到渠道后台确认这笔是否已经退出；"
+                "不要改成别的金额，否则可能重复退款。"
+                + ("" if persisted else "（退款流水也未能落库，请立即人工核对。）")
+            ),
+        ) from error
+    if not result.ok:
+        failed_detail = (result.detail or "支付渠道未确认退款成功。")[:255]
+        status_text = "processing" if result.processing else "failed"
+        refunds.persist_refund_result(
+            session,
+            out_request_no=plan.out_request_no,
+            status=status_text,
+            amount_cents=plan.amount_cents,
+            trade_no=result.trade_no,
+            detail=failed_detail,
+        )
+        if result.processing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    f"渠道退款调用异常，本次结果未知（幂等号 {out_request_no}）：{error}"
-                    "请先用**相同的金额**重试，或到渠道后台确认这笔是否已经退出；"
-                    "不要改成别的金额，否则可能重复退款。"
-                    + ("" if persisted else "（退款流水也未能落库，请立即人工核对。）")
+                    f"{failed_detail}（幂等号 {plan.out_request_no}）"
+                    "请稍后用**相同的金额**重试，渠道会按同一幂等号去重。"
                 ),
-            ) from error
-        if not result.ok:
-            failed_detail = (result.detail or "支付渠道未确认退款成功。")[:255]
-            status_text = "processing" if result.processing else "failed"
-            refunds.persist_refund_result(
-                session,
-                out_request_no=out_request_no,
-                status=status_text,
-                amount_cents=amount_cents,
-                trade_no=result.trade_no,
-                detail=failed_detail,
             )
-            if result.processing:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        f"{failed_detail}（幂等号 {out_request_no}）"
-                        "请稍后用**相同的金额**重试，渠道会按同一幂等号去重。"
-                    ),
-                )
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=failed_detail)
-        refund_trade_no = result.trade_no
-        refund_detail = result.detail
-        settled_cents = max(0, amount_cents - int(result.unrefunded_cents or 0))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=failed_detail)
 
-    if settled_cents <= 0 and not free_order:
-        no_change_detail = (refund_detail or "渠道确认本次无新增资金变动。")[:255]
-        refund.detail = no_change_detail
-        if ledger_booked:
-            refunds.write_refund_result(
-                session,
-                out_request_no=out_request_no,
-                status="succeeded",
-                amount_cents=0,
-                trade_no=refund_trade_no,
-                detail=no_change_detail,
-            )
-        else:
-            refund.status = "succeeded"
-            refund.amount_cents = 0
-            refund.trade_no = refund_trade_no
-            session.add(refund)
-        session.flush()
-        _audit(
+    return _RefundAttempt(
+        settled_cents=max(0, plan.amount_cents - int(result.unrefunded_cents or 0)),
+        trade_no=result.trade_no,
+        detail=result.detail,
+        ledger_booked=True,
+    )
+
+
+def _finalize_unchanged_refund(
+    session: Session,
+    order: Order,
+    actor: str,
+    plan: _RefundPlan,
+    attempt: _RefundAttempt,
+    refund: OrderRefund,
+) -> dict:
+    """渠道确认「没有新增资金变动」时的收尾：流水记成 0 元成功并返回订单。
+    """
+    no_change_detail = (attempt.detail or "渠道确认本次无新增资金变动。")[:255]
+    refund.detail = no_change_detail
+    if attempt.ledger_booked:
+        refunds.write_refund_result(
             session,
-            _admin_actor(admin),
-            "order.refund",
-            order.order_no,
-            f"未产生资金变动（{refund_detail or '该笔可能已退过款'}）"
-            + ("（线下退款）" if offline_refund else "")
-            + (f" 幂等号 {out_request_no}" if not offline_refund else "")
-            + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else ""),
+            out_request_no=plan.out_request_no,
+            status="succeeded",
+            amount_cents=0,
+            trade_no=attempt.trade_no,
+            detail=no_change_detail,
         )
-        session.refresh(order)
-        return order_payload(order)
+    else:
+        refund.status = "succeeded"
+        refund.amount_cents = 0
+        refund.trade_no = attempt.trade_no
+        session.add(refund)
+    session.flush()
+    _audit(
+        session,
+        actor,
+        "order.refund",
+        order.order_no,
+        f"未产生资金变动（{attempt.detail or '该笔可能已退过款'}）"
+        + ("（线下退款）" if plan.offline else "")
+        + (f" 幂等号 {plan.out_request_no}" if not plan.offline else "")
+        + (f" 渠道单号 {attempt.trade_no}" if attempt.trade_no else ""),
+    )
+    session.refresh(order)
+    return order_payload(order)
 
-    cumulative_cents = refunded_cents + settled_cents
+
+def _claim_refund_settlement(
+    session: Session,
+    order: Order,
+    plan: _RefundPlan,
+    attempt: _RefundAttempt,
+    refund: OrderRefund,
+) -> int:
+    """把本次退款金额累加到订单上；抢单失败时登记待人工核对并抛 409。
+    """
+    cumulative_cents = plan.refunded_cents + attempt.settled_cents
     if not claim_refund_amount(
-        session, order, seen_cents=refunded_cents, add_cents=settled_cents
+        session, order, seen_cents=plan.refunded_cents, add_cents=attempt.settled_cents
     ):
         session.rollback()
         conflict_detail = (
-            f"{refund_detail} 本地记账冲突：累计值已不是 ¥{money.format_centi(refunded_cents)}，"
-            f"本次渠道退款 ¥{money.format_centi(settled_cents)} 待人工核对。"
+            f"{attempt.detail} 本地记账冲突：累计值已不是 ¥{money.format_centi(plan.refunded_cents)}，"
+            f"本次渠道退款 ¥{money.format_centi(attempt.settled_cents)} 待人工核对。"
         )[:255]
-        if ledger_booked:
+        if attempt.ledger_booked:
             ledger_recorded = refunds.persist_refund_result(
                 session,
-                out_request_no=out_request_no,
+                out_request_no=plan.out_request_no,
                 status="succeeded",
-                amount_cents=settled_cents,
-                trade_no=refund_trade_no,
+                amount_cents=attempt.settled_cents,
+                trade_no=attempt.trade_no,
                 detail=conflict_detail,
             )
         else:
             refund.status = "succeeded"
-            refund.amount_cents = settled_cents
-            refund.trade_no = refund_trade_no
+            refund.amount_cents = attempt.settled_cents
+            refund.trade_no = attempt.trade_no
             refund.detail = conflict_detail
             ledger_recorded = record_refund_audit(session, refund)
         logger.error(
             "退款记账抢单失败（渠道已退款）order=%s out_request_no=%s settled=%s",
             order.order_no,
-            out_request_no,
-            settled_cents,
+            plan.out_request_no,
+            attempt.settled_cents,
         )
         ledger_note = (
             ""
@@ -605,38 +700,47 @@ def _refund_order(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"渠道已退出 ¥{money.format_centi(settled_cents)}，但本地退款累计值被并发改动，"
+                f"渠道已退出 ¥{money.format_centi(attempt.settled_cents)}，但本地退款累计值被并发改动，"
                 "为避免重复记账已中止。"
                 f"{ledger_note}请到「退款流水」核对这笔后手工处理。"
             ),
         )
 
-    if ledger_booked:
+    if attempt.ledger_booked:
         refunds.write_refund_result(
             session,
-            out_request_no=out_request_no,
+            out_request_no=plan.out_request_no,
             status="succeeded",
-            amount_cents=settled_cents,
-            trade_no=refund_trade_no,
-            detail=refund_detail,
+            amount_cents=attempt.settled_cents,
+            trade_no=attempt.trade_no,
+            detail=attempt.detail,
         )
     else:
         refund.status = "succeeded"
-        refund.amount_cents = settled_cents
-        refund.trade_no = refund_trade_no
-        refund.detail = refund_detail[:255]
+        refund.amount_cents = attempt.settled_cents
+        refund.trade_no = attempt.trade_no
+        refund.detail = attempt.detail[:255]
         session.add(refund)
-    if refund_trade_no:
-        order.refund_trade_no = refund_trade_no
+    if attempt.trade_no:
+        order.refund_trade_no = attempt.trade_no
+    return cumulative_cents
 
+
+def _apply_refund_order_state(
+    session: Session,
+    order: Order,
+    plan: _RefundPlan,
+    cumulative_cents: int,
+) -> _RefundBooking:
+    """按累计退款额落订单终态：全额则撤权益、退奖励，部分则只记部分退款。
+    """
     if order.status in {"paid", "fulfillment_failed"}:
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_order_reservation(session, order=order, product=product)
 
-    fully_refunded = cumulative_cents >= total_cents
     reversed_centi = 0
     referral_shortfall_centi = 0
-    if fully_refunded:
+    if cumulative_cents >= plan.total_cents:
         _revoke_order_entitlements(session, order)
         reversed_centi, referral_shortfall_centi = referrals.reverse_order_reward(
             session, order=order, note=f"订单 {order.order_no} 退款，奖励退回"
@@ -657,27 +761,78 @@ def _refund_order(
         order.status = "partially_refunded"
 
     session.flush()
+    return _RefundBooking(
+        cumulative_cents=cumulative_cents,
+        reversed_centi=reversed_centi,
+        referral_shortfall_centi=referral_shortfall_centi,
+    )
+
+
+def _audit_refund(
+    session: Session,
+    order: Order,
+    actor: str,
+    plan: _RefundPlan,
+    attempt: _RefundAttempt,
+    booking: _RefundBooking,
+    note: str,
+) -> None:
+    """写退款审计：金额、累计、渠道单号与奖励扣回都收在同一条里。
+    """
     _audit(
         session,
-        _admin_actor(admin),
+        actor,
         "order.refund",
         order.order_no,
         (
-            f"退款 ¥{money.format_centi(settled_cents)}（累计 ¥{money.format_centi(cumulative_cents)}"
-            f" / 订单 ¥{money.format_centi(total_cents)}）"
-            + ("（线下退款）" if offline_refund else "")
-            + (f" 幂等号 {out_request_no}" if not offline_refund else "")
-            + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else "")
-            + (f" {refund_detail}" if refund_detail else "")
-            + (f" 邀请奖励已扣回 {money.format_centi(reversed_centi)} 积分" if (reversed_centi or referral_shortfall_centi) else "")
+            f"退款 ¥{money.format_centi(attempt.settled_cents)}"
+            f"（累计 ¥{money.format_centi(booking.cumulative_cents)}"
+            f" / 订单 ¥{money.format_centi(plan.total_cents)}）"
+            + ("（线下退款）" if plan.offline else "")
+            + (f" 幂等号 {plan.out_request_no}" if not plan.offline else "")
+            + (f" 渠道单号 {attempt.trade_no}" if attempt.trade_no else "")
+            + (f" {attempt.detail}" if attempt.detail else "")
             + (
-                f"，另有 {money.format_centi(referral_shortfall_centi)} 积分余额不足，已登记人工追偿"
-                if referral_shortfall_centi
+                f" 邀请奖励已扣回 {money.format_centi(booking.reversed_centi)} 积分"
+                if (booking.reversed_centi or booking.referral_shortfall_centi)
                 else ""
             )
-            + (f" 备注：{refund_reason}" if (payload.note or forced_offline) else "")
+            + (
+                f"，另有 {money.format_centi(booking.referral_shortfall_centi)} 积分余额不足，已登记人工追偿"
+                if booking.referral_shortfall_centi
+                else ""
+            )
+            + (f" 备注：{plan.reason}" if (note or plan.forced_offline) else "")
         ),
     )
+
+
+def _refund_order(
+    order_no: str,
+    payload: AdminOrderActionRequest,
+    request: Request,
+    session: Session,
+    admin: AdminAccount,
+) -> dict:
+    setting = site_config.get_setting(session)
+    order = order_or_404(session, order_no)
+    if order.status not in ORDER_REFUNDABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"订单状态为{order_status_label(order.status)}，无法退款。",
+        )
+
+    refund_plan = _plan_refund(order, payload.amount_cents, payload.note, payload.offline)
+    refund = _open_refund_record(session, order, refund_plan, _admin_actor(admin))
+    attempt = _attempt_channel_refund(session, request, order, setting, refund_plan, refund)
+    if attempt.settled_cents <= 0 and not refund_plan.free_order:
+        return _finalize_unchanged_refund(
+            session, order, _admin_actor(admin), refund_plan, attempt, refund
+        )
+
+    cumulative_cents = _claim_refund_settlement(session, order, refund_plan, attempt, refund)
+    booking = _apply_refund_order_state(session, order, refund_plan, cumulative_cents)
+    _audit_refund(session, order, _admin_actor(admin), refund_plan, attempt, booking, payload.note)
     session.refresh(order)
     return order_payload(order)
 

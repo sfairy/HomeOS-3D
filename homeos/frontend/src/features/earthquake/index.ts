@@ -3,7 +3,7 @@
  *
  * 纯函数留叶子层 `@/shared/earthquake/utils/`；依赖 store 的辅助留 `@/composables/earthquake/`
  * （被 stores / 跨域 composable 反向依赖，放进 features 会造成分层倒置）。本 barrel 只再导出
- * 跨域真正取用的成员（判定口径 `bun run knip`）。
+ * 跨域真正取用的成员（barrel 保持薄：只导出有实际入边的符号）。
  */
 
 // 域入口组件

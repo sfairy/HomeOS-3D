@@ -4,11 +4,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from ..commerce import coupons, fulfill, money, referrals
 from ..commerce.expiry import expire_stale_orders
@@ -77,47 +78,54 @@ from .admin_shared import (
 router = APIRouter(prefix="/store-admin/v1", tags=["admin"])
 
 
-@router.get("/overview")
-def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
-    """经营看板数据。
-    """
-    setting = site_config.get_setting(session)
-    expire_stale_orders(session, settings)
-    moment = utcnow()
+def _scalar_count(session: Session, statement) -> int:
+    """执行一条 ``SELECT count/sum`` 并取出单个标量（缺失时按 0 计）。"""
+    return int(session.execute(statement).scalar_one() or 0)
 
-    def count(statement) -> int:
-        return int(session.execute(statement).scalar_one() or 0)
 
-    total_gross = count(
+def _overview_revenue(session: Session, moment: datetime) -> dict:
+    """营收总览：累计收款 / 退款 / 人工补记，以及各时间窗的净现金流。"""
+    total_gross = _scalar_count(
+        session,
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
             Order.status.in_(PAID_MONEY_STATUSES),
             _billable_money_clause(),
-        )
+        ),
     )
-    total_refunded = count(
+    total_refunded = _scalar_count(
+        session,
         select(func.coalesce(func.sum(Order.refund_amount_cents), 0)).where(
             Order.paid_at.is_not(None),
             Order.status.in_(PAID_MONEY_STATUSES),
             _billable_money_clause(),
-        )
+        ),
     )
-    total_manual = count(
+    total_manual = _scalar_count(
+        session,
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
             Order.status.in_(PAID_MONEY_STATUSES),
             Order.manual_settlement.is_(True),
-        )
+        ),
     )
-
-    revenue: dict[str, Any] = {"totalCents": total_gross - total_refunded, "totalGrossCents": total_gross,
-               "totalRefundCents": total_refunded, "totalManualCents": total_manual,
-               "currency": "CNY", "windows": []}
-    for key, span in _OVERVIEW_WINDOWS:
-        bucket = _window_money(session, moment - span)
-        bucket["key"] = key
+    revenue: dict[str, Any] = {
+        "totalCents": total_gross - total_refunded,
+        "totalGrossCents": total_gross,
+        "totalRefundCents": total_refunded,
+        "totalManualCents": total_manual,
+        "currency": "CNY",
+        "windows": [],
+    }
+    for window_key, window_span in _OVERVIEW_WINDOWS:
+        bucket = _window_money(session, moment - window_span)
+        bucket["key"] = window_key
         revenue["windows"].append(bucket)
+    return revenue
 
+
+def _overview_funnel(session: Session) -> list[dict]:
+    """订单漏斗：按状态分组的单量与金额，并把空状态补进词表顺序里。"""
     status_rows = session.execute(
         select(
             Order.status,
@@ -126,10 +134,13 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         ).group_by(Order.status)
     ).all()
     by_status = {
-        str(row[0]): {"count": int(row[1] or 0), "amountCents": int(row[2] or 0)}
-        for row in status_rows
+        str(status_row[0]): {
+            "count": int(status_row[1] or 0),
+            "amountCents": int(status_row[2] or 0),
+        }
+        for status_row in status_rows
     }
-    funnel = [
+    return [
         {
             "status": code,
             "label": ORDER_STATUS_LABELS.get(code, code),
@@ -139,21 +150,54 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         for code in ORDER_STATUS_CHOICES
     ]
 
-    awaiting_fulfillment = count(
+
+def _overview_referral(session: Session) -> tuple[dict, int]:
+    """返利概览：钱包总量与待提现单数（``(referral, 待提现单数)``）。"""
+    pending_withdrawal_rows = session.execute(
+        select(
+            func.count(ReferralWithdrawal.id),
+            func.coalesce(func.sum(ReferralWithdrawal.net_points_centi), 0),
+        ).where(ReferralWithdrawal.status == "pending")
+    ).one()
+    wallet_row = session.execute(
+        select(
+            func.count(ReferralWallet.id),
+            func.coalesce(func.sum(ReferralWallet.balance_centi), 0),
+            func.coalesce(func.sum(ReferralWallet.frozen_centi), 0),
+        )
+    ).one()
+    pending_withdrawals = int(pending_withdrawal_rows[0] or 0)
+    referral = {
+        "wallets": int(wallet_row[0] or 0),
+        "balancePoints": money.format_centi(wallet_row[1] or 0),
+        "frozenPoints": money.format_centi(wallet_row[2] or 0),
+        "availablePoints": money.format_centi(
+            int(wallet_row[1] or 0) - int(wallet_row[2] or 0)
+        ),
+        "pendingWithdrawalPoints": money.format_centi(pending_withdrawal_rows[1] or 0),
+    }
+    return referral, pending_withdrawals
+
+
+def _overview_attention(
+    session: Session, moment: datetime, pending_withdrawals: int
+) -> tuple[dict, list[License], list[Product]]:
+    """待处理事项计数，附带即将到期的授权与低库存商品（各取前 20 条）。"""
+    awaiting_fulfillment = _scalar_count(
+        session,
         select(func.count(Order.id)).where(
             Order.status == "paid", Order.fulfillment_mode == "automatic"
-        )
+        ),
     )
     attention_counts = {
-        status: count(select(func.count(Order.id)).where(Order.status == status))
+        status: _scalar_count(
+            session, select(func.count(Order.id)).where(Order.status == status)
+        )
         for status in ORDER_ATTENTION_STATUSES
     }
-    fulfillment_failed = attention_counts["fulfillment_failed"]
-    payment_failed = attention_counts["payment_failed"]
-    needs_review = count(
-        select(func.count(Order.id)).where(Order.needs_review.is_(True))
+    needs_review = _scalar_count(
+        session, select(func.count(Order.id)).where(Order.needs_review.is_(True))
     )
-
     expiring_licenses = list(
         session.scalars(
             select(License)
@@ -166,7 +210,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
             .limit(20)
         )
     )
-
     low_stock = list(
         session.scalars(
             select(Product)
@@ -178,43 +221,84 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
             .limit(20)
         )
     )
+    summary = {
+        "awaitingFulfillment": awaiting_fulfillment,
+        "fulfillmentFailed": attention_counts["fulfillment_failed"],
+        "paymentFailed": attention_counts["payment_failed"],
+        "needsReview": needs_review,
+        "expiringLicenses": len(expiring_licenses),
+        "expiringWindowDays": OVERVIEW_EXPIRING_DAYS,
+        "lowStock": len(low_stock),
+        "pendingWithdrawals": pending_withdrawals,
+        "soldOut": _scalar_count(
+            session,
+            select(func.count(Product.id)).where(
+                Product.active.is_(True),
+                Product.stock_quantity.is_not(None),
+                Product.stock_quantity <= 0,
+            ),
+        ),
+    }
+    return summary, expiring_licenses, low_stock
 
-    pending_withdrawal_rows = session.execute(
-        select(
-            func.count(ReferralWithdrawal.id),
-            func.coalesce(func.sum(ReferralWithdrawal.net_points_centi), 0),
-        ).where(ReferralWithdrawal.status == "pending")
-    ).one()
 
-    wallet_row = session.execute(
-        select(
-            func.count(ReferralWallet.id),
-            func.coalesce(func.sum(ReferralWallet.balance_centi), 0),
-            func.coalesce(func.sum(ReferralWallet.frozen_centi), 0),
-        )
-    ).one()
+def _expiring_license_payload(license: License) -> dict:
+    return {
+        "activationCodeId": license.id,
+        "codeHint": license.code_hint,
+        "productName": license.product_name,
+        "productType": license.product_type,
+        "accountId": license.account_id,
+        "accessExpiresAt": iso_z(license.access_expires_at),
+    }
+
+
+def _low_stock_payload(product: Product) -> dict:
+    return {
+        "id": product.id,
+        "name": product.name,
+        "stockQuantity": int(product.stock_quantity or 0),
+        "reservedStock": int(product.reserved_stock or 0),
+        "availableStock": max(0, int(product.stock_quantity or 0) - int(product.reserved_stock or 0)),
+    }
+
+
+@router.get("/overview")
+def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
+    """经营看板数据。
+    """
+    setting = site_config.get_setting(session)
+    expire_stale_orders(session, settings)
+    moment = utcnow()
+
+    revenue = _overview_revenue(session, moment)
+    funnel = _overview_funnel(session)
+    referral, pending_withdrawals = _overview_referral(session)
+    attention, expiring_licenses, low_stock = _overview_attention(
+        session, moment, pending_withdrawals
+    )
 
     return {
-        "accounts": count(select(func.count(Account.id))),
-        "products": count(select(func.count(Product.id))),
-        "licenses": count(select(func.count(License.id))),
-        "activeLicenses": count(
-            select(func.count(License.id)).where(License.active.is_(True))
+        "accounts": _scalar_count(session, select(func.count(Account.id))),
+        "products": _scalar_count(session, select(func.count(Product.id))),
+        "licenses": _scalar_count(session, select(func.count(License.id))),
+        "activeLicenses": _scalar_count(
+            session, select(func.count(License.id)).where(License.active.is_(True))
         ),
-        "pendingOrders": count(
-            select(func.count(Order.id)).where(Order.status == "pending")
+        "pendingOrders": _scalar_count(
+            session, select(func.count(Order.id)).where(Order.status == "pending")
         ),
-        "fulfilledOrders": count(
-            select(func.count(Order.id)).where(Order.status == "fulfilled")
+        "fulfilledOrders": _scalar_count(
+            session, select(func.count(Order.id)).where(Order.status == "fulfilled")
         ),
-        "entitlements": count(select(func.count(Entitlement.id))),
-        "activeEntitlements": count(
-            select(func.count(Entitlement.id)).where(Entitlement.active.is_(True))
+        "entitlements": _scalar_count(session, select(func.count(Entitlement.id))),
+        "activeEntitlements": _scalar_count(
+            session, select(func.count(Entitlement.id)).where(Entitlement.active.is_(True))
         ),
-        "revenueCents": total_gross - total_refunded,
-        "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
-        "deviceBindings": count(
-            select(func.count(DeviceBinding.id)).where(DeviceBinding.live_clause())
+        "revenueCents": revenue["totalCents"],
+        "pendingWithdrawals": pending_withdrawals,
+        "deviceBindings": _scalar_count(
+            session, select(func.count(DeviceBinding.id)).where(DeviceBinding.live_clause())
         ),
         "serverTime": iso_z(moment),
         "maintenanceMode": bool(setting.maintenance_mode),
@@ -222,53 +306,10 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         "incidents": incidents.status(),
         "revenue": revenue,
         "orderFunnel": funnel,
-        "attention": {
-            "awaitingFulfillment": awaiting_fulfillment,
-            "fulfillmentFailed": fulfillment_failed,
-            "paymentFailed": payment_failed,
-            "needsReview": needs_review,
-            "expiringLicenses": len(expiring_licenses),
-            "expiringWindowDays": OVERVIEW_EXPIRING_DAYS,
-            "lowStock": len(low_stock),
-            "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
-            "soldOut": count(
-                select(func.count(Product.id)).where(
-                    Product.active.is_(True),
-                    Product.stock_quantity.is_not(None),
-                    Product.stock_quantity <= 0,
-                )
-            ),
-        },
-        "expiringLicenses": [
-            {
-                "activationCodeId": item.id,
-                "codeHint": item.code_hint,
-                "productName": item.product_name,
-                "productType": item.product_type,
-                "accountId": item.account_id,
-                "accessExpiresAt": iso_z(item.access_expires_at),
-            }
-            for item in expiring_licenses
-        ],
-        "lowStockProducts": [
-            {
-                "id": item.id,
-                "name": item.name,
-                "stockQuantity": int(item.stock_quantity or 0),
-                "reservedStock": int(item.reserved_stock or 0),
-                "availableStock": max(0, int(item.stock_quantity or 0) - int(item.reserved_stock or 0)),
-            }
-            for item in low_stock
-        ],
-        "referral": {
-            "wallets": int(wallet_row[0] or 0),
-            "balancePoints": money.format_centi(wallet_row[1] or 0),
-            "frozenPoints": money.format_centi(wallet_row[2] or 0),
-            "availablePoints": money.format_centi(
-                int(wallet_row[1] or 0) - int(wallet_row[2] or 0)
-            ),
-            "pendingWithdrawalPoints": money.format_centi(pending_withdrawal_rows[1] or 0),
-        },
+        "attention": attention,
+        "expiringLicenses": [_expiring_license_payload(item) for item in expiring_licenses],
+        "lowStockProducts": [_low_stock_payload(product) for product in low_stock],
+        "referral": referral,
     }
 
 

@@ -13,6 +13,8 @@ from collections import deque
 from datetime import UTC, datetime
 from typing import Any
 
+from ..platform.core.json_field import object_field
+
 #: 最近变更环形缓冲容量（``stateStore.maxRecentChanges`` 默认值，与 Nest 一致）。
 _RECENT_CHANGES_MAX = 3000
 #: 数据陈旧判定阈值（``stateStore.staleThresholdMs`` 默认值，与 Nest 一致）。
@@ -251,7 +253,7 @@ def slice_entities_by_cursor(
 
 
 def _entity_name(entity: dict[str, Any]) -> str:
-    attrs = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+    attrs = object_field(entity, "attributes")
     return str(attrs.get("friendly_name") or entity.get("entity_id") or "")
 
 
@@ -260,7 +262,7 @@ def _is_unavailable(entity: dict[str, Any]) -> bool:
 
 
 def _battery_level(entity: dict[str, Any]) -> float | None:
-    attrs = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+    attrs = object_field(entity, "attributes")
     value = attrs.get("battery_level")
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
@@ -318,7 +320,7 @@ def filter_entities_by_query(
             e
             for e in result
             if entity_matches_area_filter(
-                e.get("attributes") if isinstance(e.get("attributes"), dict) else {}, area_filter
+                object_field(e, "attributes"), area_filter
             )
         ]
 

@@ -369,6 +369,8 @@ export function createGo2RtcMseTransport(
       }
     }
 
+    // 本段是 MediaSource / SourceBuffer 的一次性生命周期监听：sourceopen 触发即自摘（once），
+    // updateend 挂在**本次** SourceBuffer 上、随流对象回收；video 元素上的两个已配对摘除（见下方清理）。
     mediaSource.addEventListener('sourceopen', sendSignaling, { once: true })
     socket.onopen = sendSignaling
     socket.onmessage = (messageEvent: MessageEvent) => {

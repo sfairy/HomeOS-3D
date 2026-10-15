@@ -152,7 +152,9 @@ class SecurityPanelStateHelper:
         try:
             with self._session_factory() as session:
                 data = load_runtime_kv(session, PANEL_RUNTIME_KEY)
-        except Exception:
+        except Exception as exc:
+            # 读不到就沿用当前（默认）状态，但配置读坏了必须留痕，否则布防状态会莫名回到默认。
+            logger.warning("加载安防面板持久化状态失败，沿用当前状态: %s", exc)
             return
         if not isinstance(data, dict):
             return
@@ -565,7 +567,8 @@ class SecurityEmergencyRunnerHelper:
                 normalize_security_emergency(layout.get("securityEmergency")),
                 [item for item in light_pool if item] if isinstance(light_pool, list) else [],
             )
-        except Exception:
+        except Exception as exc:
+            logger.warning("读取紧急求助配置失败，回退默认：%s", exc)
             return normalize_security_emergency(None), []
 
     async def run_builtin_emergency(
@@ -586,16 +589,27 @@ class SecurityEmergencyRunnerHelper:
             )
             results["sirens"] = siren_result["ok"]
             results["failed"] += siren_result["failed"]
-        except Exception:
-            pass
+        except Exception as exc:
+            # 紧急求助里「拉不起警报器」必须留痕：它是这条链路的核心动作，静默吞等于假成功。
+            logger.warning("紧急求助获取/驱动警报器失败: %s", exc)
+            schedule_security_event(
+                self._session_factory,
+                "emergency_siren_failed",
+                f"紧急求助驱动警报器失败: {exc}",
+            )
 
         light_ids: list[str] = []
         if profile == "full_home":
             try:
                 lights = await self._ha.fetch_entities_by_domain("light")
                 light_ids = [light["entity_id"] for light in lights]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("紧急求助获取灯具列表失败: %s", exc)
+                schedule_security_event(
+                    self._session_factory,
+                    "emergency_lights_failed",
+                    f"紧急求助获取灯具列表失败: {exc}",
+                )
         else:
             light_ids = resolve_emergency_light_pool(cfg, away_light_pool)
             if not light_ids:

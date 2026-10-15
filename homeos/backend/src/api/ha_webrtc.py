@@ -169,11 +169,11 @@ async def _close_session_ws(session: WebRtcSession) -> None:
                         }
                     )
                 )
-            except Exception:
+            except Exception:  # 解订阅只是礼貌收尾，对端已断时无处可退，避免噪声
                 pass
             try:
                 await session.websocket.close()
-            except Exception:
+            except Exception:  # 关闭会话 socket 的收尾动作，失败无处可退
                 pass
     except Exception:
         logger.debug('关闭 WebRTC 会话失败 session=%s', session.session_id, exc_info=True)
@@ -222,6 +222,81 @@ async def webrtc_client_config(
     return payload
 
 
+async def _collect_webrtc_offer_events(
+    websocket: Any,
+    *,
+    subscription_id: int,
+    deadline: float,
+) -> tuple[str, str, list[dict[str, Any]], bool]:
+    """等待 offer 订阅 result，并收集 session / answer / ICE 候选。"""
+    session_id = ''
+    answer = ''
+    candidates: list[dict[str, Any]] = []
+    saw_result = False
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        message = json.loads(await asyncio.wait_for(websocket.recv(), timeout=remaining))
+        if message.get('id') != subscription_id:
+            continue
+        if message.get('type') == 'result':
+            if not message.get('success'):
+                error = message.get('error') or {}
+                raise HTTPException(
+                    status_code=502,
+                    detail=str(error.get('message') or 'WebRTC offer 被 Home Assistant 拒绝。'),
+                )
+            saw_result = True
+            continue
+        if message.get('type') != 'event':
+            continue
+        event = message.get('event') or {}
+        event_type = event.get('type')
+        if event_type == 'session':
+            session_id = str(event.get('session_id') or '')
+        elif event_type == 'answer':
+            answer = str(event.get('answer') or '')
+            break
+        elif event_type == 'candidate':
+            candidate = event.get('candidate')
+            if isinstance(candidate, dict):
+                candidates.append(candidate)
+        elif event_type == 'error':
+            raise HTTPException(
+                status_code=502,
+                detail=str(event.get('message') or event.get('code') or 'WebRTC 协商失败'),
+            )
+    return session_id, answer, candidates, saw_result
+
+
+async def _drain_webrtc_candidates(
+    websocket: Any,
+    *,
+    subscription_id: int,
+    candidates: list[dict[str, Any]],
+) -> None:
+    """短暂排空后续 ICE 候选，减少首帧前黑洞。"""
+    drain_deadline = time.monotonic() + CANDIDATE_DRAIN_SECONDS
+    while time.monotonic() < drain_deadline:
+        try:
+            message = json.loads(
+                await asyncio.wait_for(
+                    websocket.recv(), timeout=max(0.05, drain_deadline - time.monotonic())
+                )
+            )
+        except TimeoutError:
+            break
+        if message.get('id') != subscription_id or message.get('type') != 'event':
+            continue
+        event = message.get('event') or {}
+        if event.get('type') == 'candidate' and isinstance(event.get('candidate'), dict):
+            candidates.append(event['candidate'])
+        elif event.get('type') == 'error':
+            raise HTTPException(
+                status_code=502,
+                detail=str(event.get('message') or event.get('code') or 'WebRTC 协商失败'),
+            )
+
+
 @router.post('/negotiate')
 async def webrtc_negotiate(
     body: WebRtcNegotiateBody,
@@ -246,67 +321,16 @@ async def webrtc_negotiate(
         )
         # 先等 result（订阅建立），再等 session / answer / error 事件。
         deadline = time.monotonic() + NEGOTIATE_TIMEOUT_SECONDS
-        session_id = ''
-        answer = ''
-        candidates: list[dict[str, Any]] = []
-        saw_result = False
-        while time.monotonic() < deadline:
-            remaining = deadline - time.monotonic()
-            message = json.loads(await asyncio.wait_for(websocket.recv(), timeout=remaining))
-            if message.get('id') != subscription_id:
-                continue
-            if message.get('type') == 'result':
-                if not message.get('success'):
-                    error = message.get('error') or {}
-                    raise HTTPException(
-                        status_code=502,
-                        detail=str(error.get('message') or 'WebRTC offer 被 Home Assistant 拒绝。'),
-                    )
-                saw_result = True
-                continue
-            if message.get('type') != 'event':
-                continue
-            event = message.get('event') or {}
-            event_type = event.get('type')
-            if event_type == 'session':
-                session_id = str(event.get('session_id') or '')
-            elif event_type == 'answer':
-                answer = str(event.get('answer') or '')
-                break
-            elif event_type == 'candidate':
-                candidate = event.get('candidate')
-                if isinstance(candidate, dict):
-                    candidates.append(candidate)
-            elif event_type == 'error':
-                raise HTTPException(
-                    status_code=502,
-                    detail=str(event.get('message') or event.get('code') or 'WebRTC 协商失败'),
-                )
+        session_id, answer, candidates, saw_result = await _collect_webrtc_offer_events(
+            websocket, subscription_id=subscription_id, deadline=deadline
+        )
         if not saw_result:
             raise HTTPException(status_code=502, detail='Home Assistant 未确认 WebRTC 订阅。')
         if not answer:
             raise HTTPException(status_code=502, detail='Home Assistant 未返回 WebRTC answer。')
-        # 短暂排空后续 ICE 候选，减少首帧前黑洞。
-        drain_deadline = time.monotonic() + CANDIDATE_DRAIN_SECONDS
-        while time.monotonic() < drain_deadline:
-            try:
-                message = json.loads(
-                    await asyncio.wait_for(
-                        websocket.recv(), timeout=max(0.05, drain_deadline - time.monotonic())
-                    )
-                )
-            except TimeoutError:
-                break
-            if message.get('id') != subscription_id or message.get('type') != 'event':
-                continue
-            event = message.get('event') or {}
-            if event.get('type') == 'candidate' and isinstance(event.get('candidate'), dict):
-                candidates.append(event['candidate'])
-            elif event.get('type') == 'error':
-                raise HTTPException(
-                    status_code=502,
-                    detail=str(event.get('message') or event.get('code') or 'WebRTC 协商失败'),
-                )
+        await _drain_webrtc_candidates(
+            websocket, subscription_id=subscription_id, candidates=candidates
+        )
         if not session_id:
             raise HTTPException(status_code=502, detail='Home Assistant 未返回 WebRTC session_id。')
         session = WebRtcSession(
@@ -337,7 +361,7 @@ async def webrtc_negotiate(
         if websocket is not None:
             try:
                 await websocket.close()
-            except Exception:
+            except Exception:  # finally 里关闭 socket 的收尾动作，失败无处可退
                 pass
 
 

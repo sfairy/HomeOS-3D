@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import ssl
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from ...platform.security.entity_access import is_entity_allowed_by_restrictions
@@ -79,7 +79,7 @@ async def bridge_websockets(
     upstream_uri: str,
     *,
     headers: dict[str, str] | None = None,
-    subprotocols: list[str] | None = None,
+    subprotocols: Sequence[str] | None = None,
     heartbeat_ms: int | None = None,
     on_close: Callable[[BaseException | None], None] | None = None,
 ) -> None:
@@ -158,7 +158,7 @@ async def bridge_websockets(
         _cleanup(None)
         try:
             await client.close()
-        except Exception:
+        except Exception:  # finally 收尾：关闭上游失败不得掩盖原始异常
             pass
 
 

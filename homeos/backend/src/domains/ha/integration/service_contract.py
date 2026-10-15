@@ -2,7 +2,7 @@
 
 拆成 mixin 后各族看不见主类 ``__init__`` 注入的属性与其他族的方法，这里统一声明；
 类体 ``None`` 默认值满足 ``reportUninitializedInstanceVariable`` 硬门禁
-（``ops/ci/pyright_gate.py``），运行期由实现方覆盖。
+，运行期由实现方覆盖。
 """
 
 from __future__ import annotations

@@ -120,6 +120,8 @@ function waitForConnection(
     )
 
     // 同时监听连接状态变化
+    // pc 上的监听属于本次 RTCPeerConnection：清理时 pc.close() 会把连接与监听一起丢弃，
+    // 每次重连都是新 pc 对象，不跨连接累积。
     pc.addEventListener('connectionstatechange', () => {
       if (pc.connectionState === 'connected') finish()
       if (pc.connectionState === 'failed') fail('WebRTC 连接失败')

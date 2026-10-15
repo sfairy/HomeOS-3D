@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 from urllib.parse import quote, unquote
@@ -38,6 +39,8 @@ from ..platform.security.request_origin import require_same_origin_write
 from ..platform.security.session_store import session_token_hash
 
 router = NestRouter(prefix="/backups", tags=["backups"])
+
+logger = logging.getLogger("homeos.api.backups")
 
 
 class ExportRequest(BaseModel):
@@ -84,8 +87,8 @@ def _flush_pending(request: Request) -> None:
     try:
         with request.app.state.database.session_factory() as database:
             _deliver_pending(request, database)
-    except Exception:
-        pass
+    except Exception:  # 后台任务收尾，失败不能带塌当前请求；留痕由下轮 flush 重试
+        logger.warning("待投递后台任务 flush 失败（下轮重试）", exc_info=True)
 
 
 def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) -> None:
@@ -301,7 +304,7 @@ async def restore_backup(
                 "备份",
                 "全量业务数据（含账号、授权、素材与数据库）已恢复；中控设备需重新配对",
             )
-        except Exception:
+        except Exception:  # 恢复结果已落定，这条只是全局日志提示，不得因写日志失败把成功变成 5xx
             pass
         return {"ok": True, "restored": True, "rePairDisplays": True}
     except BackupError as error:

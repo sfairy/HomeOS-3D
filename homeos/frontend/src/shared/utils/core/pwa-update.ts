@@ -79,6 +79,8 @@ export function setupPwaUpdatePrompt(onUpdate?: ((applyUpdate: () => void) => vo
         if (!navigator.serviceWorker.controller) postSkipWaiting(reg.waiting)
         else onUpdate?.(applyUpdate)
       }
+      // 每次 register() 都拿到**新的** registration / worker 对象，监听随对象成为垃圾，
+      // 不会跨版本累积；控制器换代的监听（controllerchange）已在上面的清理函数里摘除。
       reg.addEventListener('updatefound', () => {
         const worker = reg.installing
         if (!worker) return

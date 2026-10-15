@@ -1,31 +1,23 @@
 /** - 维护实体派生累加器（在线数 / 灯数 / 空调数 / 电池列表 / 离线列表 / 传感器索引 / 域计数）。 */
-import type { DerivedSnapshot, EntitiesMap, HaEntityState, HaEntityView } from '@/shared/types/entity-store'
+import type {
+  DerivedBatteryEntry,
+  DerivedOfflineEntry,
+  DerivedSnapshot,
+  EntitiesMap,
+  HaEntityState,
+  HaEntityView,
+} from '@/shared/types/entity-store'
 import { getEntityDomain } from '@homeos/shared'
-
-/**
- * 电池设备条目：电量低于 30% 的设备信息。
- */
-interface BatteryDeviceEntry {
-  entity_id: string
-  name: string
-  level: number
-  domain: string
-}
-
-/**
- * 离线设备条目：state 为 unavailable 的设备信息。
- */
-interface OfflineDeviceEntry {
-  entity_id: string
-  name: string
-  domain: string
-  last_changed: string
-}
 
 /**
  * 实体派生累加器。
  *
  * 在全量重建与增量 patch 中作为可变中间状态，收集各项派生指标。
+ * - batteryList / offlineList 的元素类型是 `DerivedBatteryEntry` / `DerivedOfflineEntry`
+ *   （派生条目），此前这里各自重复声明了一份同形接口、而 `DerivedSnapshot` 把它们标成了
+ *   `HaEntityState[]`，于是两处之间要靠 `as unknown as` 互转 —— 类型在说谎，
+ *   任何按 `HaEntityState` 语义去读 `.state` / `.attributes` 的新代码都会静默拿到 undefined。
+ *   现在统一引用共享类型，转换处的 4 个 `as unknown as` 一并删除。
  * - batteryById / offlineById：存在时以 Map 维护，便于增量 patch 快速查找删除；
  *   不存在时直接操作列表（全量重建场景）。
  * - skipSecondary：为 true 时跳过电池 / 离线 / 传感器二级索引，仅更新主计数。
@@ -34,13 +26,13 @@ export interface EntityDerivedAccumulator {
   online: number
   lightCount: number
   climateCount: number
-  batteryList: BatteryDeviceEntry[]
-  offlineList: OfflineDeviceEntry[]
+  batteryList: DerivedBatteryEntry[]
+  offlineList: DerivedOfflineEntry[]
   sensorIndex: Map<string, string[]>
   domainCounts?: Map<string, number>
   domainEntityIndex?: Map<string, Set<string>>
-  batteryById?: Map<string, BatteryDeviceEntry>
-  offlineById?: Map<string, OfflineDeviceEntry>
+  batteryById?: Map<string, DerivedBatteryEntry>
+  offlineById?: Map<string, DerivedOfflineEntry>
   skipSecondary?: boolean
 }
 
@@ -69,8 +61,8 @@ export function accFromDerivedSnapshot(snap: DerivedSnapshot): EntityDerivedAccu
     online: snap.online ?? 0,
     lightCount: snap.lightCount ?? 0,
     climateCount: snap.climateCount ?? 0,
-    batteryList: [...((snap.batteryList || []) as unknown as BatteryDeviceEntry[])],
-    offlineList: [...((snap.offlineList || []) as unknown as OfflineDeviceEntry[])],
+    batteryList: [...(snap.batteryList || [])],
+    offlineList: [...(snap.offlineList || [])],
     sensorIndex,
     domainCounts,
     domainEntityIndex,
@@ -91,8 +83,8 @@ export function snapshotFromDerivedAcc(acc: EntityDerivedAccumulator): DerivedSn
     online: acc.online,
     lightCount: acc.lightCount,
     climateCount: acc.climateCount,
-    batteryList: acc.batteryList as unknown as HaEntityState[],
-    offlineList: acc.offlineList as unknown as HaEntityState[],
+    batteryList: acc.batteryList,
+    offlineList: acc.offlineList,
     domainCounts: Object.fromEntries(acc.domainCounts || []),
     domainEntityIndex: Object.fromEntries(
       [...(acc.domainEntityIndex || new Map()).entries()].map(([k, v]) => [k, [...v]]),
@@ -193,7 +185,7 @@ export function applyEntityDerivedKey(
     if (bat !== undefined && bat !== null) {
       const lvl = typeof bat === 'number' ? bat : parseInt(String(bat), 10)
       if (!isNaN(lvl) && lvl <= 30) {
-        const item: BatteryDeviceEntry = {
+        const item: DerivedBatteryEntry = {
           entity_id: key,
           name: getEntityDisplayName(key, e),
           level: lvl,
@@ -206,7 +198,7 @@ export function applyEntityDerivedKey(
     if (key.startsWith('light.') && e.state === 'on') acc.lightCount++
     if (key.startsWith('climate.') && e.state !== 'off') acc.climateCount++
   } else {
-    const item: OfflineDeviceEntry = {
+    const item: DerivedOfflineEntry = {
       entity_id: key,
       name: getEntityDisplayName(key, e),
       domain,
@@ -321,8 +313,8 @@ interface EntityDerivedPatch {
 interface EntityDerivedRebuilderDeps {
   getEntities: () => EntitiesMap
   getChunkSize: () => number
-  batteryDevices: BatteryDeviceEntry[]
-  offlineDevices: OfflineDeviceEntry[]
+  batteryDevices: DerivedBatteryEntry[]
+  offlineDevices: DerivedOfflineEntry[]
   onlineCount: { value: number }
   lightCount: { value: number }
   climateCount: { value: number }
@@ -373,8 +365,8 @@ export function createEntityDerivedRebuilder(deps: EntityDerivedRebuilderDeps) {
 
   let rebuildChunkIndex = 0
   let rebuildKeys: string[] = []
-  let rebuildBatteryList: BatteryDeviceEntry[] = []
-  let rebuildOfflineList: OfflineDeviceEntry[] = []
+  let rebuildBatteryList: DerivedBatteryEntry[] = []
+  let rebuildOfflineList: DerivedOfflineEntry[] = []
   let rebuildOnline = 0
   let rebuildLightCount = 0
   let rebuildClimateCount = 0

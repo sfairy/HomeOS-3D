@@ -196,8 +196,8 @@ export interface DerivedSnapshot {
   online?: number // 在线设备数
   lightCount?: number // 灯具数
   climateCount?: number // 空调/气候设备数
-  batteryList?: HaEntityState[] // 电池设备列表
-  offlineList?: HaEntityState[] // 离线设备列表
+  batteryList?: DerivedBatteryEntry[] // 电池设备列表（元素是派生条目，**不是**完整 HaEntityState）
+  offlineList?: DerivedOfflineEntry[] // 离线设备列表（同上）
   sensorIndex?: Record<string, string[]> // 传感器索引（域 -> entity_id 列表）
   domainCounts?: Record<string, number> // 域计数
   domainEntityIndex?: Record<string, string[]> // 域实体索引
@@ -252,8 +252,8 @@ export interface DerivedSnapshotTargets {
   sensorIndex: Map<string, string[]> // 传感器索引
   domainCounts: Map<string, number> // 域计数
   domainEntityIndex: Map<string, Set<string>> // 域实体索引
-  batteryDevices: HaEntityState[] // 电池设备列表
-  offlineDevices: HaEntityState[] // 离线设备列表
+  batteryDevices: DerivedBatteryEntry[] // 电池设备列表（派生条目，不是完整 HaEntityState）
+  offlineDevices: DerivedOfflineEntry[] // 离线设备列表（派生条目，不是完整 HaEntityState）
 }
 
 /** 派生 Worker API（Web Worker 中执行重建/增量 patch） */
@@ -365,8 +365,8 @@ export interface EntityDerivedDeps {
   getPatchDebounceMs?: () => number // 获取 patch 防抖时间（毫秒）
   getDeferSecondaryIndexes: () => boolean // 是否延迟构建二级索引
   getUseWorkerDerived?: () => boolean // 是否使用 Worker 计算派生
-  batteryDevices: HaEntityState[] // 电池设备列表
-  offlineDevices: HaEntityState[] // 离线设备列表
+  batteryDevices: DerivedBatteryEntry[] // 电池设备列表（派生条目，不是完整 HaEntityState）
+  offlineDevices: DerivedOfflineEntry[] // 离线设备列表（派生条目，不是完整 HaEntityState）
   onProgress?: () => void // 进度回调
   onDerivedComplete?: () => void // 派生完成回调
   onSecondaryComplete?: () => void // 二级索引完成回调

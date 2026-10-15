@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any, Literal
 
 from fastapi import Body, Depends, Query, Request
@@ -33,6 +34,8 @@ from ..platform.core.retention import RETENTION_TABLE_KEYS
 from ..platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
+
+logger = logging.getLogger("homeos.api.system-config")
 
 #: ``UpdateSystemConfigDto`` 允许的分区键（其余键拒绝，等价 forbidNonWhitelisted）。
 _UPDATE_SECTIONS = (
@@ -122,16 +125,13 @@ async def get_public_config(request: Request):
         load.add_done_callback(
             lambda t: t.exception() if not t.cancelled() else None
         )
-        try:
-            done, _ = await asyncio.wait(
-                {load}, timeout=PUBLIC_CONFIG_AREA_WAIT_MS / 1000
-            )
-            if done and (exc := load.exception()) is not None:
-                raise exc
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            pass
+        done, _ = await asyncio.wait(
+            {load}, timeout=PUBLIC_CONFIG_AREA_WAIT_MS / 1000
+        )
+        if done and (exc := load.exception()) is not None:
+            # 区域索引预热失败只影响 HA 区域字段，公开配置**降级返回**（登录路径不能被拖死），
+            # 但必须留痕 —— 否则区域索引长期坏掉也没人知道。
+            logger.warning("HA 区域索引预热失败，公开配置降级返回: %s", exc)
 
     app_config = _app_config(request)
     base = app_config.get_public()

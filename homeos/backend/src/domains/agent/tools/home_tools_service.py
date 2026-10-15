@@ -32,6 +32,7 @@ from ..agent_actor import (
 )
 from ..config_service import AgentConfigService
 from ...proxy.command_proxy_auth import assert_command_proxy_authorized
+from ....platform.core.json_field import object_field
 from ....platform.security.entity_access import (
     is_entity_allowed,
     resolve_entity_restrictions,
@@ -102,7 +103,7 @@ class HomeToolsService(
                     str(entity.get("entity_id"))
                     for entity in state_store.get_all()
                     if entity.get("entity_id")
-                    and predicate(entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {})
+                    and predicate(object_field(entity, "attributes"))
                 ]
 
         return _Resolver()

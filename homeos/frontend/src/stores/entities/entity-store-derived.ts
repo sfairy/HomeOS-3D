@@ -67,12 +67,8 @@ export function createStoreDerivedState(deps: EntityDerivedDeps) {
       return Math.round(base * getRouteDerivedDebounceMultiplier())
     },
     getDeferSecondaryIndexes: deps.getDeferSecondaryIndexes,
-    batteryDevices: deps.batteryDevices as unknown as Parameters<
-      typeof createEntityDerivedRebuilder
-    >[0]['batteryDevices'],
-    offlineDevices: deps.offlineDevices as unknown as Parameters<
-      typeof createEntityDerivedRebuilder
-    >[0]['offlineDevices'],
+    batteryDevices: deps.batteryDevices,
+    offlineDevices: deps.offlineDevices,
     onlineCount,
     lightCount,
     climateCount,

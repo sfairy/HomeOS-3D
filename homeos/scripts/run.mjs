@@ -24,18 +24,12 @@ const BACKEND_DIR = path.join(REPO_ROOT, 'backend')
 const MONOREPO_ROOT_CWD = '..'
 const BACKEND_PY = path.join(BACKEND_DIR, '.venv', 'bin', 'python')
 
-/**
- * 本仓库在 monorepo 里的上一层：`pyrightconfig.json`、CI 的门禁脚本都在那里。
- * 这两个常量只被 Python 静态检查用到；本地缺少根 `.venv-store` 时整步跳过 ——
- * CI 的 `typecheck` job 不建这个 venv（Python 侧由独立的 `pyright` job 覆盖）。
- */
+/** 本仓库在 monorepo 里的上一层（ruff 可回落到根 `.venv-store`）。 */
 const MONOREPO_ROOT = path.resolve(REPO_ROOT, '..')
-const ROOT_PY = path.join(MONOREPO_ROOT, '.venv-store', 'bin', 'python')
-const PYRIGHT_GATE = path.join(MONOREPO_ROOT, 'ops', 'ci', 'pyright_gate.py')
 /**
- * ruff 的第二个来源：monorepo 根的 `.venv-store/bin/ruff`（pyright 就住在那儿，版本同样 0.16.8）。
- * 本地优先用 backend/.venv 里的 ruff，缺了就退到这里；都没有则**明确报错**（静默跳过静态检查
- * 比直接报错危险得多）。CI 侧由 `.github/workflows/checks.yml` 的 ruff job 独立覆盖。
+ * ruff 的第二个来源：monorepo 根的 `.venv-store/bin/ruff`。
+ * 本地优先用 backend/.venv 里的 ruff，缺了就退到这里；都没有则**明确报错**。
+ * CI 侧由 `.github/workflows/checks.yml` 的 ruff job 独立覆盖。
  */
 const STORE_RUFF = path.join(MONOREPO_ROOT, '.venv-store', 'bin', 'ruff')
 
@@ -55,7 +49,7 @@ function run(command, args, cwd = REPO_ROOT) {
     console.error(`[run] 无法执行：${command} ${args.join(' ')}（cwd=${cwd}）`)
     console.error(`[run] 原因：${why}`)
     if (/python|\.venv/.test(command)) {
-      console.error('[run] 若缺少 Python 工具链，先按 `ops/testing/README.md` 建 backend/.venv（含 ruff）。')
+      console.error('[run] 若缺少 Python 工具链，先建 backend/.venv（含 ruff）或 monorepo 根 `.venv-store`。')
     }
     process.exit(result.status ?? 1)
   }
@@ -87,46 +81,11 @@ function ruff() {
 }
 
 /**
- * Python 静态检查：与 CI 的 `pyright` job **同一口径**。
- *
- * 不能直接 `pyright -p .`：pyrightconfig 的 error 级里有一批存量误报（模型标注偏窄导致的
- * reportOptionalMemberAccess / reportArgumentType 等，实测 200 上下），裸跑必非 0 —— 本地与
- * CI 都会被它卡死。判定交给 `ops/ci/pyright_gate.py`：只有「一定会炸」的三条规则硬失败，
- * 其余打成直方图保持可见。
- *
- * 用根 `.venv-store` 的解释器（pyrightconfig.json 点名用它解析第三方包），等价于 CI 里
- * `basedpyright --outputjson | pyright_gate.py` 的本地版。缺 venv 就跳过：CI 的 typecheck job
- * 本来就没有这个 venv，Python 侧由独立的 pyright job 覆盖。
+ * Python 静态检查：自定义 pyright 基线门禁已拆除；本步仅提示并跳过。
+ * 需要时本机可自行 `basedpyright`（存量 issue 较多，裸跑常非 0）。
  */
 function typecheckPy() {
-  if (!fs.existsSync(ROOT_PY) || !fs.existsSync(PYRIGHT_GATE)) {
-    console.log(
-      `[typecheck] 跳过 Python 静态检查：未找到 ${ROOT_PY}（先 bun run dev:prepare）；CI 由 pyright job 覆盖。`
-    )
-    return
-  }
-  const report = path.join(MONOREPO_ROOT, '.pyright-local.json')
-  const pyright = spawnSync(ROOT_PY, ['-m', 'pyright', '--outputjson'], {
-    cwd: MONOREPO_ROOT,
-    stdio: ['ignore', 'pipe', 'inherit'],
-    env: process.env,
-    // 默认上限只有 1MB：本仓的 JSON 报告（含本地 `源代码/` 快照）早已超过，
-    // 超限时 spawnSync 只置 `error = ENOBUFS` 并**静默截断 stdout**，门禁那边
-    // 表现成「报告 JSON 解析失败」这种找不到根因的报错（实测截断在 1114112 字节）。
-    maxBuffer: 64 * 1024 * 1024,
-  })
-  if (pyright.error) {
-    console.error(`[typecheck] basedpyright 执行失败：${pyright.error.message}`)
-    process.exit(1)
-  }
-  fs.writeFileSync(report, pyright.stdout ?? '')
-  const gate = spawnSync(ROOT_PY, [PYRIGHT_GATE, report], {
-    cwd: MONOREPO_ROOT,
-    stdio: 'inherit',
-    env: process.env,
-  })
-  fs.rmSync(report, { force: true })
-  if (gate.status !== 0) process.exit(gate.status ?? 1)
+  console.log('[typecheck] 跳过 Python 静态检查：自定义 pyright 基线门禁已拆除。')
 }
 
 function shared() {

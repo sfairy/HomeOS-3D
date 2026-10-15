@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from .json_field import object_field
+
 RETENTION_DEFAULT_DAYS = 7
 RETENTION_DAYS_MIN = 1
 RETENTION_DAYS_MAX = 365
@@ -126,7 +128,7 @@ def load_ops_config(session) -> dict[str, Any]:
     from .app_config import load_raw_config
 
     raw = load_raw_config(session)
-    section = raw.get("ops") if isinstance(raw.get("ops"), dict) else {}
+    section = object_field(raw, "ops")
     return {**DEFAULT_OPS, **section}
 
 
@@ -134,6 +136,6 @@ def load_retention_config(session) -> dict[str, int]:
     from .app_config import load_raw_config
 
     raw = load_raw_config(session)
-    section = raw.get("retention") if isinstance(raw.get("retention"), dict) else {}
+    section = object_field(raw, "retention")
     merged = {**DEFAULT_RETENTION, **{k: v for k, v in section.items() if isinstance(v, (int, float))}}
     return {k: int(v) for k, v in merged.items()}

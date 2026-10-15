@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..platform.core.app_config import load_raw_config
+from ..platform.core.json_field import object_field
 from ..platform.security.entity_access import WS_PUSH_CRITICAL_DOMAINS
 
 
@@ -45,7 +46,7 @@ DEFAULT_STATE_STORE: dict[str, Any] = {
 
 def load_ws_push_config(session: Session) -> WsPushConfig:
     raw = load_raw_config(session)
-    section = raw.get("wsPush") if isinstance(raw.get("wsPush"), dict) else {}
+    section = object_field(raw, "wsPush")
     merged = {**DEFAULT_WS_PUSH, **section}
     domains = merged.get("criticalDomains")
     return WsPushConfig(
@@ -58,7 +59,7 @@ def load_ws_push_config(session: Session) -> WsPushConfig:
 
 def load_state_store_config(session: Session) -> StateStoreConfig:
     raw = load_raw_config(session)
-    section = raw.get("stateStore") if isinstance(raw.get("stateStore"), dict) else {}
+    section = object_field(raw, "stateStore")
     merged = {**DEFAULT_STATE_STORE, **section}
     return StateStoreConfig(
         stale_threshold_ms=int(merged["staleThresholdMs"]),

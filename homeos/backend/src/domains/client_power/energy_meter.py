@@ -106,7 +106,7 @@ def resolve_business_timezone(timezone_name: str | None) -> ZoneInfo:
     if normalized:
         try:
             return ZoneInfo(normalized)
-        except Exception:
+        except Exception:  # 非法时区名回退默认时区，脏配置不该带塌计量
             pass
     return ZoneInfo(BUSINESS_TIME_ZONE)
 

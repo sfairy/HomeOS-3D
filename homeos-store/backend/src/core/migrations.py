@@ -58,7 +58,7 @@ def _head_revision(config: Config) -> str:
 def _create_schema(settings: StoreSettings) -> None:
     """按 ORM 元数据建出全新库，并打上基线版本号。
 
-    ``0001`` 基线与 ``Base.metadata`` 等价（``ops/check/check_schema.py`` 比对结构指纹）。
+    ``0001`` 基线与 ``Base.metadata`` 等价。
     """
     from . import models, models_engagement  # noqa: F401  # 注册到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base, create_store_engine

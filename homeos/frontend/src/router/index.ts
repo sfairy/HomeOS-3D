@@ -211,6 +211,7 @@ const routes: RouteRecordRaw[] = [
 // ── keep-alive 页面滚动位置记忆 ──
 // 浏览器后退/前进（popstate）标记：仅此类导航恢复记忆的滚动位置
 let isPopNavigation = false
+// 路由是应用级单例（且这里只为标记「这次导航来自前进/后退」），不配对移除。
 window.addEventListener('popstate', () => {
   isPopNavigation = true
 })

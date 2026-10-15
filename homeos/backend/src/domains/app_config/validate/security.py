@@ -44,6 +44,132 @@ def _validate_notification(section: str, p: dict[str, Any], e: list[FieldError])
         if k in p:
             require_bool(section, k, p[k], e)
 
+def _validate_frigate_person_alarm_modes(
+    section: str, patch: dict[str, Any], errors: list[FieldError]
+) -> None:
+    raw = patch["frigatePersonAlarmModes"]
+    if not isinstance(raw, str):
+        errors.append(
+            {
+                "section": section,
+                "key": "frigatePersonAlarmModes",
+                "message": "须为逗号分隔的布防模式字符串",
+            }
+        )
+        return
+    allowed = {"disarmed", "armed_home", "armed_away", "armed_night"}
+    if raw.strip() == "none":
+        modes: list[str] = []
+    else:
+        modes = [mode.strip() for mode in raw.split(",") if mode.strip()]
+    if any(mode not in allowed for mode in modes):
+        errors.append(
+            {
+                "section": section,
+                "key": "frigatePersonAlarmModes",
+                "message": "须为 disarmed / armed_home / armed_away / armed_night 的逗号组合，或 none",
+            }
+        )
+
+
+def _validate_presence_persons(
+    section: str, patch: dict[str, Any], errors: list[FieldError]
+) -> None:
+    persons = patch["presencePersons"]
+    if not isinstance(persons, list):
+        errors.append({"section": section, "key": "presencePersons", "message": "须为数组"})
+        return
+    for index, person_entry in enumerate(persons):
+        if not isinstance(person_entry, dict):
+            errors.append(
+                {
+                    "section": section,
+                    "key": "presencePersons",
+                    "message": f"第 {index + 1} 项须为对象",
+                }
+            )
+            break
+        person_name = person_entry.get("name")
+        if not isinstance(person_name, str) or not person_name.strip():
+            errors.append(
+                {
+                    "section": section,
+                    "key": "presencePersons",
+                    "message": f"第 {index + 1} 项 name 须为非空字符串",
+                }
+            )
+            break
+        entity_ids = person_entry.get("entityIds")
+        if (
+            not isinstance(entity_ids, list)
+            or len(entity_ids) == 0
+            or any(not isinstance(entity_id, str) or not entity_id.strip() for entity_id in entity_ids)
+        ):
+            errors.append(
+                {
+                    "section": section,
+                    "key": "presencePersons",
+                    "message": f"第 {index + 1} 项 entityIds 须为非空字符串数组",
+                }
+            )
+            break
+
+
+def _validate_away_sim_interval_minmax(
+    section: str,
+    patch: dict[str, Any],
+    errors: list[FieldError],
+    context: dict[str, Any] | None,
+) -> None:
+    interval = patch["awaySimIntervalMinMax"]
+    if not isinstance(interval, dict):
+        errors.append({"section": section, "key": "awaySimIntervalMinMax", "message": "必须为对象"})
+        return
+    if "min" in interval:
+        num_in(section, "awaySimIntervalMinMax.min", interval["min"], 1, 120, errors)
+    if "max" in interval:
+        num_in(section, "awaySimIntervalMinMax.max", interval["max"], 1, 180, errors)
+    ctx_sec = context.get("security") if isinstance(context, dict) else None
+    ctx_interval = ctx_sec.get("awaySimIntervalMinMax") if isinstance(ctx_sec, dict) else None
+    ctx_min_max = ctx_interval if isinstance(ctx_interval, dict) else None
+    min_bound = interval.get("min") if "min" in interval else (ctx_min_max or {}).get("min")
+    max_bound = interval.get("max") if "max" in interval else (ctx_min_max or {}).get("max")
+    if min_bound is not None and max_bound is not None:
+        try:
+            min_num = float(min_bound)
+            max_num = float(max_bound)
+            if min_num > max_num:
+                errors.append(
+                    {
+                        "section": section,
+                        "key": "awaySimIntervalMinMax",
+                        "message": "最小间隔须小于或等于最大间隔",
+                    }
+                )
+        except (TypeError, ValueError):
+            pass
+
+
+def _validate_alert_channels(
+    section: str, patch: dict[str, Any], errors: list[FieldError]
+) -> None:
+    channels = patch["alertChannels"]
+    if not isinstance(channels, list):
+        errors.append({"section": section, "key": "alertChannels", "message": "须为数组"})
+        return
+    allowed_channels = {"in_app", "email", "webpush"}
+    for channel in channels:
+        if not isinstance(channel, str) or channel not in allowed_channels:
+            errors.append(
+                {
+                    "section": section,
+                    "key": "alertChannels",
+                    "message": "每项须为 in_app / email / webpush 之一",
+                }
+            )
+            break
+
+
 def _validate_security(
     section: str, p: dict[str, Any], e: list[FieldError], context: dict[str, Any] | None
 ) -> None:
@@ -64,68 +190,13 @@ def _validate_security(
     if "frigateDedupMs" in p:
         num_in(section, "frigateDedupMs", p["frigateDedupMs"], 1000, 600_000, e)
     if "frigatePersonAlarmModes" in p:
-        raw = p["frigatePersonAlarmModes"]
-        if not isinstance(raw, str):
-            e.append(
-                {
-                    "section": section,
-                    "key": "frigatePersonAlarmModes",
-                    "message": "须为逗号分隔的布防模式字符串",
-                }
-            )
-        else:
-            allowed = {"disarmed", "armed_home", "armed_away", "armed_night"}
-            if raw.strip() == "none":
-                modes: list[str] = []
-            else:
-                modes = [s.strip() for s in raw.split(",") if s.strip()]
-            if any(m not in allowed for m in modes):
-                e.append(
-                    {
-                        "section": section,
-                        "key": "frigatePersonAlarmModes",
-                        "message": "须为 disarmed / armed_home / armed_away / armed_night 的逗号组合，或 none",
-                    }
-                )
+        _validate_frigate_person_alarm_modes(section, p, e)
     if "awaySimBrightnessMin" in p:
         num_in(section, "awaySimBrightnessMin", p["awaySimBrightnessMin"], 1, 100, e)
     if "awaySimBrightnessRange" in p:
         num_in(section, "awaySimBrightnessRange", p["awaySimBrightnessRange"], 0, 100, e)
     if "presencePersons" in p:
-        persons = p["presencePersons"]
-        if not isinstance(persons, list):
-            e.append({"section": section, "key": "presencePersons", "message": "须为数组"})
-        else:
-            for i, item in enumerate(persons):
-                if not isinstance(item, dict):
-                    e.append(
-                        {"section": section, "key": "presencePersons", "message": f"第 {i + 1} 项须为对象"}
-                    )
-                    break
-                name = item.get("name")
-                if not isinstance(name, str) or not name.strip():
-                    e.append(
-                        {
-                            "section": section,
-                            "key": "presencePersons",
-                            "message": f"第 {i + 1} 项 name 须为非空字符串",
-                        }
-                    )
-                    break
-                ids = item.get("entityIds")
-                if (
-                    not isinstance(ids, list)
-                    or len(ids) == 0
-                    or any(not isinstance(x, str) or not x.strip() for x in ids)
-                ):
-                    e.append(
-                        {
-                            "section": section,
-                            "key": "presencePersons",
-                            "message": f"第 {i + 1} 项 entityIds 须为非空字符串数组",
-                        }
-                    )
-                    break
+        _validate_presence_persons(section, p, e)
     for k in (
         "requireConfiguredPersons",
         "mmWaveFusePresence",
@@ -139,49 +210,9 @@ def _validate_security(
         if k in p:
             require_bool(section, k, p[k], e)
     if p.get("awaySimIntervalMinMax") is not None and "awaySimIntervalMinMax" in p:
-        iv = p["awaySimIntervalMinMax"]
-        if not isinstance(iv, dict):
-            e.append({"section": section, "key": "awaySimIntervalMinMax", "message": "必须为对象"})
-        else:
-            if "min" in iv:
-                num_in(section, "awaySimIntervalMinMax.min", iv["min"], 1, 120, e)
-            if "max" in iv:
-                num_in(section, "awaySimIntervalMinMax.max", iv["max"], 1, 180, e)
-            ctx_sec = context.get("security") if isinstance(context, dict) else None
-            ctx_iv = ctx_sec.get("awaySimIntervalMinMax") if isinstance(ctx_sec, dict) else None
-            ctx_min_max = ctx_iv if isinstance(ctx_iv, dict) else None
-            min_v = iv.get("min") if "min" in iv else (ctx_min_max or {}).get("min")
-            max_v = iv.get("max") if "max" in iv else (ctx_min_max or {}).get("max")
-            if min_v is not None and max_v is not None:
-                try:
-                    min_num = float(min_v)
-                    max_num = float(max_v)
-                    if min_num > max_num:
-                        e.append(
-                            {
-                                "section": section,
-                                "key": "awaySimIntervalMinMax",
-                                "message": "最小间隔须小于或等于最大间隔",
-                            }
-                        )
-                except (TypeError, ValueError):
-                    pass
+        _validate_away_sim_interval_minmax(section, p, e, context)
     if "alertChannels" in p:
-        channels = p["alertChannels"]
-        if not isinstance(channels, list):
-            e.append({"section": section, "key": "alertChannels", "message": "须为数组"})
-        else:
-            allowed_channels = {"in_app", "email", "webpush"}
-            for item in channels:
-                if not isinstance(item, str) or item not in allowed_channels:
-                    e.append(
-                        {
-                            "section": section,
-                            "key": "alertChannels",
-                            "message": "每项须为 in_app / email / webpush 之一",
-                        }
-                    )
-                    break
+        _validate_alert_channels(section, p, e)
     if "alertBypassDnd" in p:
         require_bool(section, "alertBypassDnd", p["alertBypassDnd"], e)
 

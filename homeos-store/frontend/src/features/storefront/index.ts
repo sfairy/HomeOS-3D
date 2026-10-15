@@ -1,5 +1,5 @@
 /**
- * storefront 域根 barrel —— 域的唯一对外出口（门禁见 `homeos-store/scripts/check-store-deps.mjs` 的 R3）。
+ * storefront 域根 barrel —— 域的唯一对外出口（跨域只经本 barrel，禁深引用）。
  *
  * 前台商店这一片（7 个路由页 + 支付/待支付弹窗 + 2 个 store + 防抖竞态工具）是完整的一域。
  *

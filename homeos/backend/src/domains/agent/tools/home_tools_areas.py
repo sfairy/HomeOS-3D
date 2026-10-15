@@ -22,6 +22,17 @@ from ....platform.core.ha_service_catalog import agent_service_allowed
 from ....platform.security.entity_access import is_entity_allowed
 
 
+def _allowed_sensor_entry(
+    entity_id: str, reading: str, restrictions: Any
+) -> dict[str, str] | None:
+    """按读路径 ACL 过滤传感器：看不到的传感器不返回，避免间接泄露状态。"""
+    if not entity_id or not reading:
+        return None
+    if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
+        return None
+    return {"entity_id": entity_id, "value": reading}
+
+
 class HomeToolsAreasMixin(HomeToolsHost):
     """区域工具族：区域清单 / 区域快照 / 环境传感器 / 全屋与单区控制 / 布局读取。"""
 
@@ -37,18 +48,10 @@ class HomeToolsAreasMixin(HomeToolsHost):
         except Exception as exc:
             return {"error": f"房间列表加载失败: {_error_message(exc)}"}
 
-    async def _get_area_snapshot(
-        self, area_id_or_name: str, actor: AgentActor | None = None
-    ) -> dict[str, Any]:
-        """获取房间内所有设备的当前状态快照。
-
-        温度 / 湿度传感器来源优先级：布局 mobileRoomStats → AppConfig 的 envSensorMap。
-        读路径 ACL：受限账号看不到白名单外实体（含温湿度传感器来源实体）。
-        """
-        denied = self._read_denied(actor)
-        if denied is not None:
-            return denied
-        restrictions = self._read_restrictions(actor)
+    async def _resolve_named_area(
+        self, area_id_or_name: str
+    ) -> tuple[Any, dict[str, Any] | None]:
+        """按 id / 名称解析房间；加载失败返回错误载荷，未命中返回 ``(None, None)``。"""
         try:
             area = await self._area_service.find_one(area_id_or_name)
         except Exception:
@@ -58,7 +61,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
             try:
                 areas = await self._area_service.find_all()
             except Exception as exc:
-                return {"error": f"房间列表加载失败: {_error_message(exc)}"}
+                return None, {"error": f"房间列表加载失败: {_error_message(exc)}"}
             lower = area_id_or_name.lower().strip()
             area = next(
                 (
@@ -71,11 +74,14 @@ class HomeToolsAreasMixin(HomeToolsHost):
             if area is not None:
                 try:
                     area = await self._area_service.find_one(area.id)
-                except Exception:
+                except Exception:  # 区域详情取不到就退回已缓存字段，工具不因单点失败中断
                     pass
-        if area is None:
-            return {"error": f"未找到房间「{area_id_or_name}」"}
+        return area, None
 
+    def _collect_area_devices(
+        self, area: Any, restrictions: Any
+    ) -> list[dict[str, Any]]:
+        """采集房间内实体的当前状态快照（按读路径 ACL 过滤）。"""
         devices: list[dict[str, Any]] = []
         for ae in area.entities or []:
             entity_id = str(ae.entity_id)
@@ -92,16 +98,12 @@ class HomeToolsAreasMixin(HomeToolsHost):
                     "state": _or(entity.get("state") if entity else None, "unknown"),
                 }
             )
+        return devices
 
-        def _sensor(entity_id: str, value: str) -> dict[str, str] | None:
-            """按读路径 ACL 过滤传感器：看不到的传感器不返回，避免间接泄露状态。"""
-            if not entity_id or not value:
-                return None
-            if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
-                return None
-            return {"entity_id": entity_id, "value": value}
-
-        # 1) 先读布局里的 mobileRoomStats 配置的温度 / 湿度传感器
+    async def _layout_room_sensors(
+        self, area: Any, restrictions: Any
+    ) -> tuple[dict[str, str] | None, dict[str, str] | None]:
+        """从布局的 mobileRoomStats 读取温度 / 湿度传感器（含读路径 ACL）。"""
         temp: dict[str, str] | None = None
         humidity: dict[str, str] | None = None
         try:
@@ -111,27 +113,64 @@ class HomeToolsAreasMixin(HomeToolsHost):
             if isinstance(room_stats, dict) and room_stats.get("temp"):
                 te = self._state_store.get(str(room_stats["temp"]))
                 if te:
-                    temp = _sensor(str(room_stats["temp"]), _s(te.get("state")))
+                    temp = _allowed_sensor_entry(
+                        str(room_stats["temp"]), _s(te.get("state")), restrictions
+                    )
             if isinstance(room_stats, dict) and room_stats.get("humidity"):
                 he = self._state_store.get(str(room_stats["humidity"]))
                 if he:
-                    humidity = _sensor(str(room_stats["humidity"]), _s(he.get("state")))
-        except Exception:
+                    humidity = _allowed_sensor_entry(
+                        str(room_stats["humidity"]), _s(he.get("state")), restrictions
+                    )
+        except Exception:  # 温湿度是可选补充信息，缺失不影响区域摘要
             pass
+        return temp, humidity
 
-        # 2) 缺失时回退到 AppConfig 的 envSensorMap（按 area_id / label / 房间名匹配）
+    def _env_sensor_fallback(
+        self,
+        area: Any,
+        restrictions: Any,
+        temp: dict[str, str] | None,
+        humidity: dict[str, str] | None,
+    ) -> tuple[dict[str, str] | None, dict[str, str] | None]:
+        """布局缺失时的回退：从 AppConfig 的 envSensorMap 解析（按 area_id / label / 房间名匹配）。"""
+        from_env = self._resolve_env_sensors(area.id, area.name)
+        if not temp and from_env["temp"]:
+            temp = _allowed_sensor_entry(
+                str(from_env["temp"].get("entity_id") or ""),
+                str(from_env["temp"].get("value") or ""),
+                restrictions,
+            )
+        if not humidity and from_env["humidity"]:
+            humidity = _allowed_sensor_entry(
+                str(from_env["humidity"].get("entity_id") or ""),
+                str(from_env["humidity"].get("value") or ""),
+                restrictions,
+            )
+        return temp, humidity
+
+    async def _get_area_snapshot(
+        self, area_id_or_name: str, actor: AgentActor | None = None
+    ) -> dict[str, Any]:
+        """获取房间内所有设备的当前状态快照。
+
+        温度 / 湿度传感器来源优先级：布局 mobileRoomStats → AppConfig 的 envSensorMap。
+        读路径 ACL：受限账号看不到白名单外实体（含温湿度传感器来源实体）。
+        """
+        denied = self._read_denied(actor)
+        if denied is not None:
+            return denied
+        restrictions = self._read_restrictions(actor)
+        area, area_error = await self._resolve_named_area(area_id_or_name)
+        if area_error is not None:
+            return area_error
+        if area is None:
+            return {"error": f"未找到房间「{area_id_or_name}」"}
+
+        devices = self._collect_area_devices(area, restrictions)
+        temp, humidity = await self._layout_room_sensors(area, restrictions)
         if not temp or not humidity:
-            from_env = self._resolve_env_sensors(area.id, area.name)
-            if not temp and from_env["temp"]:
-                temp = _sensor(
-                    str(from_env["temp"].get("entity_id") or ""),
-                    str(from_env["temp"].get("value") or ""),
-                )
-            if not humidity and from_env["humidity"]:
-                humidity = _sensor(
-                    str(from_env["humidity"].get("entity_id") or ""),
-                    str(from_env["humidity"].get("value") or ""),
-                )
+            temp, humidity = self._env_sensor_fallback(area, restrictions, temp, humidity)
 
         return {
             "area": {"id": area.id, "name": area.name},
@@ -248,15 +287,8 @@ class HomeToolsAreasMixin(HomeToolsHost):
             }
         return await self._control_one_area(area, domain, service, service_data, actor)
 
-    async def _control_one_area(
-        self,
-        area: Any,
-        domain: str,
-        service: str,
-        service_data: dict[str, Any] | None = None,
-        actor: AgentActor | None = None,
-    ) -> dict[str, Any]:
-        """控制单个房间内的设备（按 domain 过滤），逐个下发并收集结果。"""
+    async def _resolve_area_entity_ids(self, area: Any, domain: str) -> list[str]:
+        """取房间内要下发的实体 id：缺 entities 时补一次 find_one，再按 domain 过滤。"""
         # 调用方 find_all 已带 entities 时直接用；缺失再补一次 find_one
         entity_ids = [str(ae.entity_id) for ae in (area.entities or [])]
         if not entity_ids:
@@ -267,82 +299,94 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 full = None
             entity_ids = [str(ae.entity_id) for ae in ((full.entities if full else None) or [])]
         if domain:
-            entity_ids = [eid for eid in entity_ids if eid.startswith(f"{domain}.")]
-        else:
-            # 空 domain（“打开书房所有设备”）仅放行安全域，避免误触 switch / cover / 插座等潜在危险设备
-            entity_ids = [
-                eid for eid in entity_ids if get_entity_domain(eid) in SAFE_BULK_CONTROL_DOMAINS
-            ]
-        if not entity_ids:
-            return {"room": area.name, "affected": 0, "total": 0, "results": []}
+            return [eid for eid in entity_ids if eid.startswith(f"{domain}.")]
+        # 空 domain（“打开书房所有设备”）仅放行安全域，避免误触 switch / cover / 插座等潜在危险设备
+        return [
+            eid for eid in entity_ids if get_entity_domain(eid) in SAFE_BULK_CONTROL_DOMAINS
+        ]
 
-        results: list[dict[str, Any]] = []
-        scene_voice = (
-            await self._scene_voice_gate() if domain in ("scene", "script") else None
+    async def _execute_area_entity(
+        self,
+        entity_id: str,
+        domain: str,
+        service: str,
+        actor: AgentActor | None,
+        command_context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """对单个实体做白名单 / 高危 / ACL 校验后下发，返回一条结果。"""
+        service_data = command_context.get("serviceData")
+        scene_voice = command_context.get("sceneVoice")
+        entity_domain = get_entity_domain(entity_id)
+        # 服务白名单：与 _control_device 同源（domain 可能来自实体本身）
+        if not agent_service_allowed(entity_domain, service):
+            logger.warning("房间控制中服务不在白名单: %s.%s (%s)", entity_domain, service, entity_id)
+            return {
+                "entity_id": entity_id,
+                "ok": False,
+                "blocked": True,
+                "message": self._service_whitelist_error(entity_domain, service)["message"],
+            }
+        risk = is_high_risk(entity_domain, service, entity_id, service_data, scene_voice)
+        if risk.get("blocked"):
+            logger.warning("房间控制中跳过高危设备: %s (%s)", entity_id, risk.get("reason"))
+            return {
+                "entity_id": entity_id,
+                "ok": False,
+                "blocked": True,
+                "message": risk.get("reason"),
+            }
+        auth = await self._assert_actor_may_control(
+            actor,
+            {
+                "domain": entity_domain,
+                "service": service,
+                "entity_id": entity_id,
+                "service_data": service_data,
+            },
         )
-        for entity_id in entity_ids:
-            entity_domain = get_entity_domain(entity_id)
-            # 服务白名单：与 _control_device 同源（domain 可能来自实体本身）
-            if not agent_service_allowed(entity_domain, service):
-                logger.warning("房间控制中服务不在白名单: %s.%s (%s)", entity_domain, service, entity_id)
-                results.append(
-                    {
-                        "entity_id": entity_id,
-                        "ok": False,
-                        "blocked": True,
-                        "message": self._service_whitelist_error(entity_domain, service)["message"],
-                    }
-                )
-                continue
-            risk = is_high_risk(entity_domain, service, entity_id, service_data, scene_voice)
-            if risk.get("blocked"):
-                logger.warning("房间控制中跳过高危设备: %s (%s)", entity_id, risk.get("reason"))
-                results.append(
-                    {
-                        "entity_id": entity_id,
-                        "ok": False,
-                        "blocked": True,
-                        "message": risk.get("reason"),
-                    }
-                )
-                continue
-            auth = await self._assert_actor_may_control(
-                actor,
+        if not auth.get("ok"):
+            return {
+                "entity_id": entity_id,
+                "ok": False,
+                "blocked": True,
+                "message": auth.get("message"),
+            }
+        try:
+            response = await self._command_proxy.call_service(
                 {
                     "domain": entity_domain,
                     "service": service,
                     "entity_id": entity_id,
                     "service_data": service_data,
-                },
+                }
             )
-            if not auth.get("ok"):
-                results.append(
-                    {
-                        "entity_id": entity_id,
-                        "ok": False,
-                        "blocked": True,
-                        "message": auth.get("message"),
-                    }
-                )
-                continue
-            try:
-                response = await self._command_proxy.call_service(
-                    {
-                        "domain": entity_domain,
-                        "service": service,
-                        "entity_id": entity_id,
-                        "service_data": service_data,
-                    }
-                )
-                results.append(
-                    {"entity_id": entity_id, "ok": bool((response or {}).get("success"))}
-                )
-            except Exception as exc:
-                results.append(
-                    {"entity_id": entity_id, "ok": False, "message": _error_message(exc, "失败")}
-                )
+            return {"entity_id": entity_id, "ok": bool((response or {}).get("success"))}
+        except Exception as exc:
+            return {"entity_id": entity_id, "ok": False, "message": _error_message(exc, "失败")}
 
-        ok_count = len([r for r in results if r.get("ok")])
+    async def _control_one_area(
+        self,
+        area: Any,
+        domain: str,
+        service: str,
+        service_data: dict[str, Any] | None = None,
+        actor: AgentActor | None = None,
+    ) -> dict[str, Any]:
+        """控制单个房间内的设备（按 domain 过滤），逐个下发并收集结果。"""
+        entity_ids = await self._resolve_area_entity_ids(area, domain)
+        if not entity_ids:
+            return {"room": area.name, "affected": 0, "total": 0, "results": []}
+
+        scene_voice = (
+            await self._scene_voice_gate() if domain in ("scene", "script") else None
+        )
+        command_context = {"serviceData": service_data, "sceneVoice": scene_voice}
+        results: list[dict[str, Any]] = [
+            await self._execute_area_entity(entity_id, domain, service, actor, command_context)
+            for entity_id in entity_ids
+        ]
+
+        ok_count = len([entry for entry in results if entry.get("ok")])
         return {
             "room": area.name,
             "domain": domain or "all",

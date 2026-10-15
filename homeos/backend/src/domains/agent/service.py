@@ -21,6 +21,7 @@ from .providers.llm_provider_interface import (
     LlmChatResult,
     LlmMessage,
     LlmProvider,
+    LlmToolCall,
 )
 from .session_store import AgentSessionStoreService
 from .short_term_memory import AgentShortTermMemoryService
@@ -221,6 +222,123 @@ def _empty_usage() -> dict[str, Any]:
     }
 
 
+def _now_ms() -> int:
+    """当前毫秒时间戳（对齐 JS ``Date.now()``）。"""
+    import time
+
+    return int(time.time() * 1000)
+
+
+@dataclass
+class _ChatRunContext:
+    """单轮对话内部的可变运行上下文。
+
+    承载「跨阶段共享、且会被后续 helper 改写」的状态：纠正口令会改写 ``user_message``，
+    快路径 / LLM 循环会累加耗时并追加工具轨迹。集中到一个小对象里传递，
+    避免每个 helper 都拖 7 个以上参数。
+    """
+
+    user_message: str
+    history: list[dict[str, str]]
+    options: AgentChatOptions | None
+    state: dict[str, bool]
+    actor: AgentActor | None
+    start_ms: int
+    llm_ms: int = 0
+    tool_ms: int = 0
+    tool_trace: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def session_id(self) -> str | None:
+        """当前会话 key（无 options 时为 None）。"""
+        return self.options.session_id if self.options else None
+
+
+@dataclass
+class _LlmLoopResult:
+    """LLM tool-calling 循环的收敛结果（回复 / 结果 / token 用量）。"""
+
+    reply: str = ""
+    speak: bool = True
+    outcome: str = "answer"
+    rounds: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cached_tokens: int = 0
+
+
+@dataclass
+class _ToolBatchOutcome:
+    """一批 LLM 工具调用的执行标记（是否含控制类 / 是否全成功 / 是否被拦截）。"""
+
+    has_control: bool = False
+    all_ok: bool = True
+    any_blocked: bool = False
+
+
+def _build_control_fast_call(fast: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """把控制快路径的解析结果整理成 ``(tool_name, tool_args)``。"""
+    if fast["kind"] == "device":
+        tool_args: dict[str, Any] = {
+            "domain": get_entity_domain(fast["entityId"]),
+            "service": fast["service"],
+            "entity_id": fast["entityId"],
+        }
+        if fast.get("serviceData"):
+            tool_args["service_data"] = fast["serviceData"]
+        return "control_device", tool_args
+    if fast["kind"] == "scene":
+        # 白名单内的 HA 场景 / 脚本：FastPathService 已做闸门过滤，这里直接触发
+        return "activate_scene", {"scene": fast["sceneName"], "entity_id": fast["entityId"]}
+    return "control_room", {
+        "room": fast["roomName"],
+        "domain": fast["domain"],
+        "service": fast["service"],
+    }
+
+
+def _is_applied_result(result_obj: dict[str, Any], *, by_success_flag: bool) -> bool:
+    """判定工具结果是否「生效」：设备 / 场景看 success，房间 / 批量看 total==affected。"""
+    if by_success_flag:
+        return result_obj.get("success") is True
+    total = result_obj.get("total")
+    return _is_number(total) and total > 0 and result_obj.get("affected") == total
+
+
+def _filter_effective_calls(tool_calls: list[LlmToolCall]) -> list[LlmToolCall]:
+    """过滤掉缺关键参数的调用（control_room 缺 room / control_device 缺 entity_id）。"""
+    effective: list[LlmToolCall] = []
+    for call in tool_calls:
+        if call.name == "control_room":
+            if call.arguments.get("room"):
+                effective.append(call)
+            continue
+        if call.name == "control_device":
+            if call.arguments.get("entity_id"):
+                effective.append(call)
+            continue
+        effective.append(call)
+    return effective or tool_calls
+
+
+def _emit_tool_progress(
+    on_progress: Callable[[dict[str, Any]], None] | None,
+    call: LlmToolCall,
+    serialized: str,
+) -> None:
+    """向进度回调上报一次工具调用（无回调时什么都不做）。"""
+    if not on_progress:
+        return
+    on_progress(
+        {
+            "type": "tool",
+            "name": call.name,
+            "arguments": call.arguments,
+            "resultPreview": serialized[:200],
+        }
+    )
+
+
 class AgentService:
     """智能管家服务：注入由 ResolvingLlmProvider 提供的 LlmProvider。"""
 
@@ -381,437 +499,426 @@ class AgentService:
         options: AgentChatOptions | None = None,
         state: dict[str, bool] | None = None,
     ) -> AgentChatResponse:
-        """智能管家对话主逻辑（内部实现，不处理会话上下文）。"""
-        import time
+        """智能管家对话主逻辑（内部实现，不处理会话上下文）。
 
-        history = history or []
-        state = state if state is not None else {"short_term_reset": False}
-        actor = options.actor if options else None
-        t0 = int(time.time() * 1000)
-        llm_ms = 0
-        tool_ms = 0
-        tool_trace: list[dict[str, Any]] = []
-
-        def now_ms() -> int:
-            return int(time.time() * 1000)
-
+        本方法只做「阶段编排」：每个阶段抽成独立 helper，命中即返回，未命中则继续。
+        跨阶段共享的可变状态放在 :class:`_ChatRunContext` 里传递。
+        """
+        ctx = _ChatRunContext(
+            user_message=user_message,
+            history=history or [],
+            options=options,
+            state=state if state is not None else {"short_term_reset": False},
+            actor=options.actor if options else None,
+            start_ms=_now_ms(),
+        )
         # 1) 纠正 / 清除记忆口令：命中则直接返回系统回复，不走后续流程
-        trimmed = user_message.strip()
+        memory_reply = self._handle_memory_command(ctx)
+        if memory_reply is not None:
+            return memory_reply
+        # 2) 命令缓存命中：已确认直接执行工具；待确认则提示用户确认，不直接执行
+        cached_reply = await self._serve_cached_command(ctx)
+        if cached_reply is not None:
+            return cached_reply
+        # 3) 查询快路径：温度 / 湿度询问直接读传感器回复
+        query_reply = await self._serve_query_fast_path(ctx)
+        if query_reply is not None:
+            return query_reply
+        # 4) 控制快路径：规则解析为 control_device / control_room / activate_scene 直接执行
+        control_reply = await self._serve_control_fast_path(ctx)
+        if control_reply is not None:
+            return control_reply
+        # 5) 兜底：构造 LLM 对话，进入 tool-calling 多轮循环
+        loop_outcome = await self._run_llm_tool_loop(ctx)
+        return self._finalize_llm_reply(ctx, loop_outcome)
+
+    def _handle_memory_command(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
+        """处理「纠正上一条指令 / 清除记忆」口令；返回 None 表示继续走后续流程。"""
+        trimmed = ctx.user_message.strip()
         is_correction = bool(self._L.correction_commands.search(trimmed))
         is_clear = trimmed == self._L.clear_memory
+        if not (is_correction or is_clear):
+            return None
+        if is_clear:
+            self._cmd_cache.clear(ctx.actor.user_id if ctx.actor else None)
+            if ctx.session_id:
+                self._sessions.clear(ctx.session_id)
+                # 短时记忆一并清空，避免遗留的反问语境在「忘掉一切」后继续生效
+                self._short_term.clear(ctx.session_id)
+            return self._empty_system_reply("已经把所有学到的指令忘掉了，像刚认识一样。")
+        # 纠正：删除最近一条缓存，用其原话作为新指令继续走后续流程
+        last = self._cmd_cache.correct_last(ctx.actor.user_id if ctx.actor else None)
+        if last:
+            ctx.user_message = last
+            return None
+        return self._empty_system_reply("没有需要纠正的指令哦。")
 
-        if is_correction or is_clear:
-            if is_clear:
-                self._cmd_cache.clear(actor.user_id if actor else None)
-                if options and options.session_id:
-                    self._sessions.clear(options.session_id)
-                    # 短时记忆一并清空，避免遗留的反问语境在「忘掉一切」后继续生效
-                    self._short_term.clear(options.session_id)
-                return self._empty_system_reply("已经把所有学到的指令忘掉了，像刚认识一样。")
-            # 纠正：删除最近一条缓存，用其原话作为新指令继续走后续流程
-            last = self._cmd_cache.correct_last(actor.user_id if actor else None)
-            if last:
-                user_message = last
-            else:
-                return self._empty_system_reply("没有需要纠正的指令哦。")
-
-        # 2) 命令缓存命中：已确认直接执行工具；待确认则提示用户确认，不直接执行
-        cached = self._cmd_cache.get(user_message, actor.user_id if actor else None)
-        if cached is not None:
-            # 待确认缓存（LLM 路径首次学习、尚未二次验证）
-            if cached.confirmed is False:
-                self._cmd_cache.confirm(user_message, actor.user_id if actor else None)
-                total_ms = now_ms() - t0
-                logger.info("缓存待确认,提示用户确认: %s total=%sms", cached.tool_name, total_ms)
-                return AgentChatResponse(
-                    reply=self._L.cache_confirm_prompt.replace("{tool}", cached.tool_name),
-                    speak=True,
-                    outcome="answer",
-                    earcon=None,
-                    provider="cache",
-                    rounds=0,
-                    tool_calls=[],
-                    timing={"llmMs": 0, "toolMs": 0, "totalMs": total_ms},
-                    usage=_empty_usage(),
-                )
-            # 已确认（confirmed === true）：直接执行工具，跳过 LLM
-            s0 = now_ms()
-            tool_result = await self._tools.execute(
-                cached.tool_name, cached.tool_args, actor
-            )
-            tool_ms = now_ms() - s0
-            if cached.tool_name in ("control_device", "activate_scene"):
-                ok = tool_result.get("success") is True
-            else:
-                total = tool_result.get("total")
-                ok = (
-                    _is_number(total)
-                    and total > 0
-                    and tool_result.get("affected") == total
-                )
-            if ok:
-                serialized = _js_stringify(tool_result)
-                tool_trace.append(
-                    {
-                        "name": cached.tool_name,
-                        "arguments": cached.tool_args,
-                        "resultPreview": serialized[:200],
-                    }
-                )
-                total_ms = now_ms() - t0
-                logger.info(
-                    "缓存命中: %s total=%sms hitCount=%s",
-                    cached.tool_name,
-                    total_ms,
-                    cached.hit_count,
-                )
-                # 独立完整的指令已执行完毕，重置短时记忆，杜绝跨意图污染
-                if options and options.session_id:
-                    self._short_term.clear(options.session_id)
-                    state["short_term_reset"] = True
-                return AgentChatResponse(
-                    reply="",
-                    speak=False,
-                    outcome="success",
-                    earcon="success",
-                    provider="cache",
-                    rounds=0,
-                    tool_calls=tool_trace,
-                    timing={"llmMs": 0, "toolMs": tool_ms, "totalMs": total_ms},
-                    usage=_empty_usage(),
-                )
-            # 缓存执行失败：设备可能已变更，删除过期缓存后降级到快路径 / LLM
-            logger.warning(
-                '缓存失败(设备可能已变更),删除过期缓存,降级→快路径/LLM: "%s"', user_message
-            )
-            self._cmd_cache.delete(user_message, actor.user_id if actor else None)
-
-        # 3) 查询快路径：温度 / 湿度询问直接读传感器回复
-        query_fast = self._match_query_fast_path(user_message)
-        if query_fast:
-            s0 = now_ms()
-            snap = await self._tools.execute(
-                "get_area_snapshot", {"area_id": query_fast["roomName"]}, actor
-            )
-            tool_ms = now_ms() - s0
-            sensors = (snap or {}).get("sensors") or {}
-            if query_fast["type"] == "temperature" and _sensor_value(sensors.get("temperature")):
-                return AgentChatResponse(
-                    reply=self._L.temp_reply_template.replace(
-                        "{room}", query_fast["roomName"]
-                    ).replace("{value}", _sensor_value(sensors.get("temperature"))),
-                    speak=True,
-                    outcome="answer",
-                    earcon=None,
-                    provider="fast-query",
-                    rounds=0,
-                    tool_calls=[
-                        {
-                            "name": "get_area_snapshot",
-                            "arguments": {"area_id": query_fast["roomName"]},
-                            "resultPreview": "",
-                        }
-                    ],
-                    timing={"llmMs": 0, "toolMs": tool_ms, "totalMs": now_ms() - t0},
-                    usage=_empty_usage(),
-                )
-            if query_fast["type"] == "humidity" and _sensor_value(sensors.get("humidity")):
-                return AgentChatResponse(
-                    reply=self._L.humidity_reply_template.replace(
-                        "{room}", query_fast["roomName"]
-                    ).replace("{value}", _sensor_value(sensors.get("humidity"))),
-                    speak=True,
-                    outcome="answer",
-                    earcon=None,
-                    provider="fast-query",
-                    rounds=0,
-                    tool_calls=[
-                        {
-                            "name": "get_area_snapshot",
-                            "arguments": {"area_id": query_fast["roomName"]},
-                            "resultPreview": "",
-                        }
-                    ],
-                    timing={"llmMs": 0, "toolMs": tool_ms, "totalMs": now_ms() - t0},
-                    usage=_empty_usage(),
-                )
-
-        # 4) 控制快路径：规则解析为 control_device / control_room / activate_scene 直接执行
-        fast = await self._fast_path.try_parse(user_message)
-        if fast:
-            s0 = now_ms()
-            if fast["kind"] == "device":
-                tool_name = "control_device"
-                tool_args: dict[str, Any] = {
-                    "domain": get_entity_domain(fast["entityId"]),
-                    "service": fast["service"],
-                    "entity_id": fast["entityId"],
-                }
-                if fast.get("serviceData"):
-                    tool_args["service_data"] = fast["serviceData"]
-            elif fast["kind"] == "scene":
-                # 白名单内的 HA 场景 / 脚本：FastPathService 已做闸门过滤，这里直接触发
-                tool_name = "activate_scene"
-                tool_args = {"scene": fast["sceneName"], "entity_id": fast["entityId"]}
-            else:
-                tool_name = "control_room"
-                tool_args = {
-                    "room": fast["roomName"],
-                    "domain": fast["domain"],
-                    "service": fast["service"],
-                }
-            tool_result = await self._tools.execute(tool_name, tool_args, actor)
-            tool_ms = now_ms() - s0
-            serialized = _js_stringify(tool_result)
-            tool_trace.append(
-                {
-                    "name": tool_name,
-                    "arguments": tool_args,
-                    "resultPreview": serialized[:200],
-                }
-            )
-            if fast["kind"] in ("device", "scene"):
-                ok = tool_result.get("success") is True
-            else:
-                total = tool_result.get("total")
-                ok = (
-                    _is_number(total)
-                    and total > 0
-                    and tool_result.get("affected") == total
-                )
-            blocked = tool_result.get("blocked") is True or (
-                isinstance(tool_result.get("results"), list)
-                and any(
-                    isinstance(r, dict) and r.get("blocked")
-                    for r in tool_result.get("results")  # type: ignore[union-attr]
-                )
-            )
-            total_ms = now_ms() - t0
-            logger.info("快路径: %s total=%sms ok=%s blocked=%s", tool_name, total_ms, ok, blocked)
-            # 控制成功则回写缓存（快路径默认 confirmed）
-            if ok:
-                self._cmd_cache.try_auto_correct(
-                    user_message, tool_name, tool_args, actor.user_id if actor else None
-                )
-                self._cmd_cache.set(
-                    user_message, tool_name, tool_args, True, actor.user_id if actor else None
-                )
-                # 快路径是独立完整的指令执行，成功后重置短时记忆，杜绝跨意图污染
-                if options and options.session_id:
-                    self._short_term.clear(options.session_id)
-                    state["short_term_reset"] = True
+    async def _serve_cached_command(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
+        """命令缓存命中分支：待确认先提示用户，已确认则直接执行工具（跳过 LLM）。"""
+        cached = self._cmd_cache.get(ctx.user_message, ctx.actor.user_id if ctx.actor else None)
+        if cached is None:
+            return None
+        # 待确认缓存（LLM 路径首次学习、尚未二次验证）
+        if cached.confirmed is False:
+            self._cmd_cache.confirm(ctx.user_message, ctx.actor.user_id if ctx.actor else None)
+            total_ms = _now_ms() - ctx.start_ms
+            logger.info("缓存待确认,提示用户确认: %s total=%sms", cached.tool_name, total_ms)
             return AgentChatResponse(
-                reply="",
-                speak=False,
-                outcome="success" if ok else ("blocked" if blocked else "failed"),
-                earcon="success" if ok else "error",
-                provider="fast-path",
-                rounds=1,
-                tool_calls=tool_trace,
-                timing={"llmMs": 0, "toolMs": tool_ms, "totalMs": total_ms},
+                reply=self._L.cache_confirm_prompt.replace("{tool}", cached.tool_name),
+                speak=True,
+                outcome="answer",
+                earcon=None,
+                provider="cache",
+                rounds=0,
+                tool_calls=[],
+                timing={"llmMs": 0, "toolMs": 0, "totalMs": total_ms},
                 usage=_empty_usage(),
             )
+        # 已确认（confirmed === true）：直接执行工具，跳过 LLM
+        s0 = _now_ms()
+        tool_result = await self._tools.execute(cached.tool_name, cached.tool_args, ctx.actor)
+        ctx.tool_ms = _now_ms() - s0
+        ok = _is_applied_result(
+            tool_result,
+            by_success_flag=cached.tool_name in ("control_device", "activate_scene"),
+        )
+        if not ok:
+            # 缓存执行失败：设备可能已变更，删除过期缓存后降级到快路径 / LLM
+            logger.warning(
+                '缓存失败(设备可能已变更),删除过期缓存,降级→快路径/LLM: "%s"', ctx.user_message
+            )
+            self._cmd_cache.delete(ctx.user_message, ctx.actor.user_id if ctx.actor else None)
+            return None
+        serialized = _js_stringify(tool_result)
+        ctx.tool_trace.append(
+            {
+                "name": cached.tool_name,
+                "arguments": cached.tool_args,
+                "resultPreview": serialized[:200],
+            }
+        )
+        total_ms = _now_ms() - ctx.start_ms
+        logger.info(
+            "缓存命中: %s total=%sms hitCount=%s",
+            cached.tool_name,
+            total_ms,
+            cached.hit_count,
+        )
+        # 独立完整的指令已执行完毕，重置短时记忆，杜绝跨意图污染
+        if ctx.session_id:
+            self._short_term.clear(ctx.session_id)
+            ctx.state["short_term_reset"] = True
+        return AgentChatResponse(
+            reply="",
+            speak=False,
+            outcome="success",
+            earcon="success",
+            provider="cache",
+            rounds=0,
+            tool_calls=ctx.tool_trace,
+            timing={"llmMs": 0, "toolMs": ctx.tool_ms, "totalMs": total_ms},
+            usage=_empty_usage(),
+        )
 
-        # 5) 兜底：构造 LLM 对话，进入 tool-calling 多轮循环
-        # 历史按字符预算（而非固定条数）从新到旧选取，单条限长后再累计
-        prior = _select_prior_history(history)
+    async def _serve_query_fast_path(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
+        """查询快路径：温度 / 湿度询问直接读传感器回复；未命中返回 None。"""
+        query_fast = self._match_query_fast_path(ctx.user_message)
+        if not query_fast:
+            return None
+        s0 = _now_ms()
+        snap = await self._tools.execute(
+            "get_area_snapshot", {"area_id": query_fast["roomName"]}, ctx.actor
+        )
+        ctx.tool_ms = _now_ms() - s0
+        sensors = (snap or {}).get("sensors") or {}
+        if query_fast["type"] == "temperature" and _sensor_value(sensors.get("temperature")):
+            return self._build_sensor_query_reply(ctx, query_fast, "temperature", sensors)
+        if query_fast["type"] == "humidity" and _sensor_value(sensors.get("humidity")):
+            return self._build_sensor_query_reply(ctx, query_fast, "humidity", sensors)
+        return None
 
-        messages: list[LlmMessage] = [
-            LlmMessage(role="system", content=await self._resolve_system_prompt()),
-            *[LlmMessage(role=p["role"], content=p["content"]) for p in prior],  # type: ignore[arg-type]
-            LlmMessage(role="user", content=user_message),
-        ]
-        tool_schemas = self._tools.get_tool_schemas()
-        rounds = 0
-        reply = ""
-        speak = True
-        outcome = "answer"
-        prompt_tokens = 0
-        completion_tokens = 0
-        cached_tokens = 0
+    def _build_sensor_query_reply(
+        self,
+        ctx: _ChatRunContext,
+        query_fast: dict[str, str],
+        sensor_kind: str,
+        sensors: dict[str, Any],
+    ) -> AgentChatResponse:
+        """构造温度 / 湿度查询的固定回复（provider=fast-query）。"""
+        template = (
+            self._L.temp_reply_template
+            if sensor_kind == "temperature"
+            else self._L.humidity_reply_template
+        )
+        return AgentChatResponse(
+            reply=template.replace("{room}", query_fast["roomName"]).replace(
+                "{value}", _sensor_value(sensors.get(sensor_kind))
+            ),
+            speak=True,
+            outcome="answer",
+            earcon=None,
+            provider="fast-query",
+            rounds=0,
+            tool_calls=[
+                {
+                    "name": "get_area_snapshot",
+                    "arguments": {"area_id": query_fast["roomName"]},
+                    "resultPreview": "",
+                }
+            ],
+            timing={"llmMs": 0, "toolMs": ctx.tool_ms, "totalMs": _now_ms() - ctx.start_ms},
+            usage=_empty_usage(),
+        )
+
+    async def _serve_control_fast_path(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
+        """控制快路径：规则解析为 control_device / control_room / activate_scene 直接执行。"""
+        fast = await self._fast_path.try_parse(ctx.user_message)
+        if not fast:
+            return None
+        s0 = _now_ms()
+        tool_name, tool_args = _build_control_fast_call(fast)
+        tool_result = await self._tools.execute(tool_name, tool_args, ctx.actor)
+        ctx.tool_ms = _now_ms() - s0
+        serialized = _js_stringify(tool_result)
+        ctx.tool_trace.append(
+            {
+                "name": tool_name,
+                "arguments": tool_args,
+                "resultPreview": serialized[:200],
+            }
+        )
+        ok = _is_applied_result(tool_result, by_success_flag=fast["kind"] in ("device", "scene"))
+        blocked = self._is_blocked(tool_result)
+        total_ms = _now_ms() - ctx.start_ms
+        logger.info("快路径: %s total=%sms ok=%s blocked=%s", tool_name, total_ms, ok, blocked)
+        # 控制成功则回写缓存（快路径默认 confirmed）
+        if ok:
+            self._cmd_cache.try_auto_correct(
+                ctx.user_message, tool_name, tool_args, ctx.actor.user_id if ctx.actor else None
+            )
+            self._cmd_cache.set(
+                ctx.user_message, tool_name, tool_args, True, ctx.actor.user_id if ctx.actor else None
+            )
+            # 快路径是独立完整的指令执行，成功后重置短时记忆，杜绝跨意图污染
+            if ctx.session_id:
+                self._short_term.clear(ctx.session_id)
+                ctx.state["short_term_reset"] = True
+        return AgentChatResponse(
+            reply="",
+            speak=False,
+            outcome="success" if ok else ("blocked" if blocked else "failed"),
+            earcon="success" if ok else "error",
+            provider="fast-path",
+            rounds=1,
+            tool_calls=ctx.tool_trace,
+            timing={"llmMs": 0, "toolMs": ctx.tool_ms, "totalMs": total_ms},
+            usage=_empty_usage(),
+        )
+
+    async def _run_llm_tool_loop(self, ctx: _ChatRunContext) -> _LlmLoopResult:
+        """兜底 LLM 链路：构造首轮消息并跑 tool-calling 多轮循环。"""
+        messages = await self._build_llm_messages(ctx.history, ctx.user_message)
+        tool_schemas: list[Any] = self._tools.get_tool_schemas()
         # 进度回调与轮次无关：循环外解析一次（同时避免闭包延迟绑定）
-        on_progress = options.on_progress if options else None
-
-        # tool-calling 循环：每轮调用 LLM，若有 tool_calls 则执行后回填，直到无 tool_calls 或达到上限
-        while rounds < MAX_ROUNDS:
-            rounds += 1
+        on_progress = ctx.options.on_progress if ctx.options else None
+        loop = _LlmLoopResult()
+        # tool-calling 循环：每轮调用 LLM，有 tool_calls 则执行后回填，直到无 tool_calls 或达到上限
+        while loop.rounds < MAX_ROUNDS:
+            loop.rounds += 1
             # 每轮下发前先按长度收敛上下文（工具回填会持续追加）
             messages = _trim_messages(messages, MAX_SESSION_PROMPT_CHARS)
-            l0 = now_ms()
-            chat_opts = (
-                LlmChatOptions(on_token=lambda text: on_progress({"type": "token", "text": text}))
-                if on_progress
-                else None
-            )
-            try:
-                result: LlmChatResult = await self._llm.chat(messages, tool_schemas, chat_opts)
-            except (BusinessException, StarletteHTTPException):
-                # 业务 / HTTP 异常透传，其余包装为 LLM 上游错误
-                raise
-            except Exception as exc:
-                raise BusinessException(
-                    ErrorCode.EXTERNAL_ERROR,
-                    api_error("AGENT_LLM_UPSTREAM_ERROR", "unknown", str(exc) or ""),
-                ) from exc
-            llm_ms += now_ms() - l0
-            if result.usage is not None:
-                prompt_tokens += result.usage.prompt_tokens
-                completion_tokens += result.usage.completion_tokens
-                cached_tokens += result.usage.cached_tokens or 0
-            # 每会话 prompt token 硬上限：累计超限即中止工具循环
-            if prompt_tokens > MAX_SESSION_PROMPT_TOKENS:
-                logger.warning(
-                    "Agent 会话上下文超限中止: rounds=%s promptTokens=%s>%s",
-                    rounds,
-                    prompt_tokens,
-                    MAX_SESSION_PROMPT_TOKENS,
-                )
-                reply = "对话内容过多，已停止继续调用工具。请简化指令或重试。"
-                speak = True
-                outcome = "failed"
+            chat_result = await self._invoke_llm_round(messages, tool_schemas, ctx, loop, on_progress)
+            # prompt token 超限：_invoke_llm_round 已写好中止回复，直接结束循环
+            if chat_result is None:
                 break
             # 无工具调用：本轮为最终文本回复，结束循环
-            if not result.tool_calls:
-                reply = result.content or ""
-                speak = True
+            if not chat_result.tool_calls:
+                loop.reply = chat_result.content or ""
+                loop.speak = True
                 break
             # 有工具调用：把 assistant 消息（含 tool_calls）追加到上下文
             messages.append(
                 LlmMessage(
                     role="assistant",
-                    content=result.content or "",
-                    tool_calls=result.tool_calls,
+                    content=chat_result.content or "",
+                    tool_calls=chat_result.tool_calls,
                 )
             )
-            # 过滤掉缺关键参数的调用（control_room 缺 room / control_device 缺 entity_id）
-            effective = []
-            for call in result.tool_calls:
-                if call.name == "control_room":
-                    if call.arguments.get("room"):
-                        effective.append(call)
-                    continue
-                if call.name == "control_device":
-                    if call.arguments.get("entity_id"):
-                        effective.append(call)
-                    continue
-                effective.append(call)
-            calls = effective or result.tool_calls
-            batch_has_control = False
-            batch_all_ok = True
-            batch_any_blocked = False
-            # 逐个执行工具调用并回填结果
-            for call in calls:
-                is_control = call.name in ("control_device", "control_room", "activate_scene")
-                s0 = now_ms()
-                try:
-                    tool_result = await self._tools.execute(
-                        call.name, call.arguments or {}, actor
-                    )
-                except Exception as exc:
-                    tool_result = {"error": str(exc) or "工具执行异常"}
-                tool_ms += now_ms() - s0
-                # 截断大工具结果后再回填 LLM 上下文，防止实体状态 / 日志撑爆 prompt
-                serialized = truncate_tool_result(_js_stringify(tool_result))
-                tool_trace.append(
-                    {
-                        "name": call.name,
-                        "arguments": call.arguments,
-                        "resultPreview": serialized[:200],
-                    }
-                )
-                if on_progress:
-                    on_progress(
-                        {
-                            "type": "tool",
-                            "name": call.name,
-                            "arguments": call.arguments,
-                            "resultPreview": serialized[:200],
-                        }
-                    )
-                messages.append(
-                    LlmMessage(
-                        role="tool",
-                        tool_call_id=call.id,
-                        name=call.name,
-                        content=serialized,
-                    )
-                )
-                # 跟踪本批控制类调用的成功 / 拦截状态
-                if is_control:
-                    batch_has_control = True
-                    if not self._is_control_success(call.name, tool_result):
-                        batch_all_ok = False
-                    if self._is_blocked(tool_result):
-                        batch_any_blocked = True
+            calls = _filter_effective_calls(chat_result.tool_calls)
+            batch = await self._execute_llm_tool_batch(ctx, calls, messages, on_progress)
             # 本批控制全部成功：结束循环，标记 success
-            if batch_has_control and batch_all_ok:
-                reply = ""
-                speak = False
-                outcome = "success"
+            if batch.has_control and batch.all_ok:
+                loop.reply = ""
+                loop.speak = False
+                loop.outcome = "success"
                 break
             # 本批控制存在失败：标记 failed / blocked，但仍继续循环让 LLM 决定是否重试 / 回复
-            if batch_has_control and not batch_all_ok:
-                outcome = "blocked" if batch_any_blocked else "failed"
-
+            if batch.has_control and not batch.all_ok:
+                loop.outcome = "blocked" if batch.any_blocked else "failed"
         # 循环结束但需要朗读且无回复：兜底提示
-        if speak and not reply:
-            reply = "（未能完成，请重试或换个说法）"
-            if outcome == "answer":
-                outcome = "failed"
+        if loop.speak and not loop.reply:
+            loop.reply = "（未能完成，请重试或换个说法）"
+            if loop.outcome == "answer":
+                loop.outcome = "failed"
+        return loop
 
-        total_ms = now_ms() - t0
-        estimated_cost_cny = estimate_cost_cny(prompt_tokens, cached_tokens, completion_tokens)
+    async def _build_llm_messages(
+        self, history: list[dict[str, str]], user_message: str
+    ) -> list[LlmMessage]:
+        """构造 LLM 首轮消息：system + 按字符预算选取的历史 + 当前输入。"""
+        # 历史按字符预算（而非固定条数）从新到旧选取，单条限长后再累计
+        prior = _select_prior_history(history)
+        return [
+            LlmMessage(role="system", content=await self._resolve_system_prompt()),
+            *[LlmMessage(role=p["role"], content=p["content"]) for p in prior],  # type: ignore[arg-type]
+            LlmMessage(role="user", content=user_message),
+        ]
+
+    async def _invoke_llm_round(
+        self,
+        messages: list[LlmMessage],
+        tool_schemas: list[Any],
+        ctx: _ChatRunContext,
+        loop: _LlmLoopResult,
+        on_progress: Callable[[dict[str, Any]], None] | None,
+    ) -> LlmChatResult | None:
+        """调用一次 LLM 并累计 token / 耗时；返回 None 表示已触发 prompt token 硬上限。"""
+        l0 = _now_ms()
+        chat_opts = (
+            LlmChatOptions(on_token=lambda text: on_progress({"type": "token", "text": text}))
+            if on_progress
+            else None
+        )
+        try:
+            chat_result: LlmChatResult = await self._llm.chat(messages, tool_schemas, chat_opts)
+        except (BusinessException, StarletteHTTPException):
+            # 业务 / HTTP 异常透传，其余包装为 LLM 上游错误
+            raise
+        except Exception as exc:
+            raise BusinessException(
+                ErrorCode.EXTERNAL_ERROR,
+                api_error("AGENT_LLM_UPSTREAM_ERROR", "unknown", str(exc) or ""),
+            ) from exc
+        ctx.llm_ms += _now_ms() - l0
+        if chat_result.usage is not None:
+            loop.prompt_tokens += chat_result.usage.prompt_tokens
+            loop.completion_tokens += chat_result.usage.completion_tokens
+            loop.cached_tokens += chat_result.usage.cached_tokens or 0
+        # 每会话 prompt token 硬上限：累计超限即中止工具循环
+        if loop.prompt_tokens > MAX_SESSION_PROMPT_TOKENS:
+            logger.warning(
+                "Agent 会话上下文超限中止: rounds=%s promptTokens=%s>%s",
+                loop.rounds,
+                loop.prompt_tokens,
+                MAX_SESSION_PROMPT_TOKENS,
+            )
+            loop.reply = "对话内容过多，已停止继续调用工具。请简化指令或重试。"
+            loop.speak = True
+            loop.outcome = "failed"
+            return None
+        return chat_result
+
+    async def _execute_llm_tool_batch(
+        self,
+        ctx: _ChatRunContext,
+        calls: list[LlmToolCall],
+        messages: list[LlmMessage],
+        on_progress: Callable[[dict[str, Any]], None] | None,
+    ) -> _ToolBatchOutcome:
+        """逐个执行本轮 LLM 工具调用并回填 messages，同时累计耗时与轨迹。"""
+        batch = _ToolBatchOutcome()
+        for call in calls:
+            is_control = call.name in ("control_device", "control_room", "activate_scene")
+            s0 = _now_ms()
+            try:
+                tool_result = await self._tools.execute(call.name, call.arguments or {}, ctx.actor)
+            except Exception as exc:
+                tool_result = {"error": str(exc) or "工具执行异常"}
+            ctx.tool_ms += _now_ms() - s0
+            # 截断大工具结果后再回填 LLM 上下文，防止实体状态 / 日志撑爆 prompt
+            serialized = truncate_tool_result(_js_stringify(tool_result))
+            ctx.tool_trace.append(
+                {
+                    "name": call.name,
+                    "arguments": call.arguments,
+                    "resultPreview": serialized[:200],
+                }
+            )
+            _emit_tool_progress(on_progress, call, serialized)
+            messages.append(
+                LlmMessage(
+                    role="tool",
+                    tool_call_id=call.id,
+                    name=call.name,
+                    content=serialized,
+                )
+            )
+            # 跟踪本批控制类调用的成功 / 拦截状态
+            if is_control:
+                batch.has_control = True
+                if not self._is_control_success(call.name, tool_result):
+                    batch.all_ok = False
+                if self._is_blocked(tool_result):
+                    batch.any_blocked = True
+        return batch
+
+    def _finalize_llm_reply(self, ctx: _ChatRunContext, loop: _LlmLoopResult) -> AgentChatResponse:
+        """LLM 循环收尾：统计耗时 / 成本、回写缓存并构造响应。"""
+        total_ms = _now_ms() - ctx.start_ms
+        estimated_cost_cny = estimate_cost_cny(
+            loop.prompt_tokens, loop.cached_tokens, loop.completion_tokens
+        )
         logger.info(
             "对话完成: 提供商=%s 轮次=%s 结果=%s 朗读=%s LLM=%sms 工具=%sms 合计=%sms | "
             "令牌 入=%s(缓存=%s) 出=%s ≈¥%.6f",
             self._llm.name,
-            rounds,
-            outcome,
-            "是" if speak else "否",
-            llm_ms,
-            tool_ms,
+            loop.rounds,
+            loop.outcome,
+            "是" if loop.speak else "否",
+            ctx.llm_ms,
+            ctx.tool_ms,
             total_ms,
-            prompt_tokens,
-            cached_tokens,
-            completion_tokens,
+            loop.prompt_tokens,
+            loop.cached_tokens,
+            loop.completion_tokens,
             estimated_cost_cny,
         )
-
-        if outcome == "success":
+        if loop.outcome == "success":
             earcon: str | None = "success"
-        elif outcome in ("failed", "blocked"):
+        elif loop.outcome in ("failed", "blocked"):
             earcon = "error"
         else:
             earcon = None
-
         # 成功的控制类指令回写缓存（LLM 路径默认待确认，需二次命中才确认）
-        if outcome == "success" and tool_trace:
-            last = tool_trace[-1]
+        if loop.outcome == "success" and ctx.tool_trace:
+            last = ctx.tool_trace[-1]
             if last["name"] in ("control_device", "control_room", "activate_scene"):
                 self._cmd_cache.try_auto_correct(
-                    user_message, last["name"], last["arguments"], actor.user_id if actor else None
+                    ctx.user_message,
+                    last["name"],
+                    last["arguments"],
+                    ctx.actor.user_id if ctx.actor else None,
                 )
                 self._cmd_cache.set(
-                    user_message,
+                    ctx.user_message,
                     last["name"],
                     last["arguments"],
                     False,
-                    actor.user_id if actor else None,
+                    ctx.actor.user_id if ctx.actor else None,
                 )
-
         return AgentChatResponse(
-            reply=reply,
-            speak=speak,
-            outcome=outcome,
+            reply=loop.reply,
+            speak=loop.speak,
+            outcome=loop.outcome,
             earcon=earcon,
             provider=self._llm.name,
-            rounds=rounds,
-            tool_calls=tool_trace,
-            timing={"llmMs": llm_ms, "toolMs": tool_ms, "totalMs": total_ms},
+            rounds=loop.rounds,
+            tool_calls=ctx.tool_trace,
+            timing={"llmMs": ctx.llm_ms, "toolMs": ctx.tool_ms, "totalMs": total_ms},
             usage={
-                "promptTokens": prompt_tokens,
-                "completionTokens": completion_tokens,
-                "cachedTokens": cached_tokens,
+                "promptTokens": loop.prompt_tokens,
+                "completionTokens": loop.completion_tokens,
+                "cachedTokens": loop.cached_tokens,
                 "estimatedCostCNY": estimated_cost_cny,
             },
         )

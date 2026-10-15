@@ -5,12 +5,15 @@
 保证激活码、令牌与实例 ID 不以明文过网；``SecretCipher``（Fernet）加密落库的会话令牌、
 恢复令牌与激活码。
 
+传输通道的协议参数（``PROTOCOL`` / HKDF 的 info / AAD / base64url / 规范化 JSON）**不在本文件**，
+而是共享真源 ``homeos_shared.license_transport``：商店侧的服务端实现读同一份，两侧不可能再各自
+漂移 —— 此前两处各写一遍，改一处不报错，只会让对手端解不开。
+
 本模块所有失败都抛 ``LicenseCryptoError``；调用方据此把状态归类为 INVALID /
 INSTANCE_CHANGED / INSTANCE_MISMATCH。
 """
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
@@ -28,6 +31,20 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from homeos_shared.license_transport import (
+    AES_GCM_IV_LENGTH,
+    PROTOCOL,
+    REQUEST_DIRECTION,
+    RESPONSE_DIRECTION,
+    SESSION_KEY_LENGTH,
+    b64url_decode,
+    b64url_encode,
+    canonical_json_bytes,
+    derive_key_info,
+    is_valid_key_id,
+    transport_aad,
+)
+
 
 class LicenseCryptoError(RuntimeError):
     """授权相关的密码学错误，涵盖格式非法、指纹不符、验签失败与解密失败。"""
@@ -40,11 +57,11 @@ class LicenseTransportCipher:
     返回的对称密钥必须原样交给 ``decrypt_response``（AAD 绑定了方向、路径与 keyId，
     跨请求复用必然解不开）。
 
-    ``PROTOCOL`` 同时参与 HKDF 的 info 与 AES-GCM 的 AAD，必须与商店侧
-    ``homeos-store/backend/src/licensing/crypto.py`` 的 ``PROTOCOL`` 逐字节一致：
-    两者不同时 keyId 校验仍会通过，但派生密钥与 AAD 不同，AES-GCM 解密必然失败。
+    协议参数（``PROTOCOL`` / HKDF info / AAD / base64url / 规范化 JSON）来自共享真源
+    ``homeos_shared.license_transport``，与商店侧服务端实现是同一份代码 —— 不再依赖
+    "两处字面量记得同步"（那种漂移只会表现为对手端突然解不开）。
     """
-    PROTOCOL = b'homeos-license-transport-v1'
+    PROTOCOL = PROTOCOL
 
     def __init__(self, public_key_path: Path, key_id: str, expected_sha256: str) -> None:
         """载入并校验授权传输公钥（服务端 X25519 公钥）。
@@ -55,7 +72,7 @@ class LicenseTransportCipher:
 
         异常: LicenseCryptoError —— keyId 非法、公钥读不到、指纹不符，或公钥不是 X25519。
         """
-        if not key_id or len(key_id) > 64 or not all(character.isalnum() or character in '-_.' for character in key_id):
+        if not is_valid_key_id(key_id):
             raise LicenseCryptoError('授权传输加密 keyId 格式无效。')
         try:
             key_data = public_key_path.read_bytes()
@@ -73,14 +90,20 @@ class LicenseTransportCipher:
         self._key = key
         self.key_id = key_id
 
-    @staticmethod
-    def _encode(value: bytes) -> str:
-        return base64.urlsafe_b64encode(value).rstrip(b'=').decode('ascii')
+    def _session_key(self, shared_secret: bytes, path: str) -> bytes:
+        """一次性会话密钥：HKDF-SHA256，``info`` 绑定协议、keyId 与路径。"""
+        return HKDF(
+            algorithm=hashes.SHA256(),
+            length=SESSION_KEY_LENGTH,
+            salt=None,
+            info=derive_key_info(self.key_id, path),
+        ).derive(shared_secret)
 
     @staticmethod
     def _decode(value: str) -> bytes:
+        """共享解码器的错误类型翻译：编码非法一律归为授权传输错误。"""
         try:
-            return base64.urlsafe_b64decode(value + '=' * (-len(value) % 4))
+            return b64url_decode(value)
         except (TypeError, ValueError) as error:
             raise LicenseCryptoError('授权传输响应编码无效。') from error
 
@@ -90,18 +113,16 @@ class LicenseTransportCipher:
         ``path`` 参与密钥派生与 AAD 绑定；返回的 key 必须原样保留用于解密配对的响应。
         """
         ephemeral = X25519PrivateKey.generate()
-        shared = ephemeral.exchange(self._key)
-        key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=self.PROTOCOL + b'\x00' + self.key_id.encode('ascii') + b'\x00' + path.encode('ascii')).derive(shared)
-        iv = os.urandom(12)
-        aad = self.PROTOCOL + b'\x00request\x00' + path.encode('ascii') + b'\x00' + self.key_id.encode('ascii')
-        plaintext = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
-        ciphertext = AESGCM(key).encrypt(iv, plaintext, aad)
+        key = self._session_key(ephemeral.exchange(self._key), path)
+        iv = os.urandom(AES_GCM_IV_LENGTH)
+        aad = transport_aad(REQUEST_DIRECTION, self.key_id, path)
+        ciphertext = AESGCM(key).encrypt(iv, canonical_json_bytes(payload), aad)
         public_key = ephemeral.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
         return ({
             'keyId': self.key_id,
-            'ephemeralPublicKey': self._encode(public_key),
-            'iv': self._encode(iv),
-            'ciphertext': self._encode(ciphertext)}, key)
+            'ephemeralPublicKey': b64url_encode(public_key),
+            'iv': b64url_encode(iv),
+            'ciphertext': b64url_encode(ciphertext)}, key)
 
     def decrypt_response(self, envelope: dict[str, Any], path: str, key: bytes) -> dict[str, Any]:
         """解密与某个请求配对的响应信封。
@@ -115,9 +136,9 @@ class LicenseTransportCipher:
             raise LicenseCryptoError('授权传输响应 keyId 不匹配。')
         iv = self._decode(envelope.get('iv', ''))
         ciphertext = self._decode(envelope.get('ciphertext', ''))
-        if len(iv) != 12:
+        if len(iv) != AES_GCM_IV_LENGTH:
             raise LicenseCryptoError('授权传输响应 IV 长度无效。')
-        aad = self.PROTOCOL + b'\x00response\x00' + path.encode('ascii') + b'\x00' + self.key_id.encode('ascii')
+        aad = transport_aad(RESPONSE_DIRECTION, self.key_id, path)
         try:
             plaintext = AESGCM(key).decrypt(iv, ciphertext, aad)
             payload = json.loads(plaintext)
@@ -143,8 +164,9 @@ def parse_timestamp(value: str) -> datetime:
 
 
 def _decode(value: str) -> bytes:
+    """租约里的 base64url 字段：同一共享解码器，文案按租约语境翻译。"""
     try:
-        return base64.urlsafe_b64decode(value + '=' * (-len(value) % 4))
+        return b64url_decode(value)
     except (ValueError, TypeError) as error:
         raise LicenseCryptoError('租约编码无效。') from error
 

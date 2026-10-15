@@ -12,6 +12,7 @@ from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
 from ..domains.security.service import resolve_events_limit
 from ..platform.core.errors import bad_request
+from ..platform.core.pagination import parse_bounded_limit
 from ..platform.security.auth_context import require_user
 
 router = NestRouter(
@@ -64,13 +65,14 @@ async def get_frigate_events(
     limit: str | None = Query(default=None),
     user: dict[str, Any] = Depends(require_user),
 ):
-    from ..domains.security.config import load_security_config, parse_optional_int
+    from ..domains.security.config import load_security_config
 
     with request.app.state.database.session_factory() as session:
         default_limit = int(load_security_config(session).get("frigateMaxEvents") or 50)
-    parsed = parse_optional_int(limit, default_limit)
-    effective = parsed if parsed and parsed > 0 else default_limit
-    return _frigate(request).get_recent_events(effective)
+    # 环形缓冲最多保留 `frigateMaxEvents` 条，因此上限就是缓冲容量本身：
+    # 超过它的 `limit` 不可能多拿到数据，这里显式封顶，避免无界查询面。
+    requested = parse_bounded_limit(limit, default_limit, minimum=0, maximum=default_limit)
+    return _frigate(request).get_recent_events(requested if requested > 0 else default_limit)
 
 @router.post("/frigate/ack")
 async def ack_frigate_events(

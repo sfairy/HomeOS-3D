@@ -354,15 +354,12 @@ class StoreSettings:
         return _read_secret_file(self.alipay_public_key_path) or self.alipay_public_key
 
 
-def load_settings(**overrides) -> StoreSettings:
-    """从环境变量装配配置。``overrides`` 用于测试与 seed 脚本覆盖单字段。"""
-
-    load_dotenv()
-
-    values: dict[str, Any] = {
+def _env_core_values() -> dict[str, Any]:
+    """进程/会话/静态挂载相关环境变量。"""
+    return {
         "data_dir": _env_path("STORE_DATA_DIR", PROJECT_ROOT / "data"),
         # 静态/外壳目录默认指向构建产物（`dist/static`）。可覆盖是为了让**不需要构建产物**
-        # 的冒烟（如 `_store_api_smoke.py`）把挂载点指到自己的临时目录：
+        # 的测试/临时运行把挂载点指到自己的临时目录：
         # `create_app()` 对不存在的静态目录是**硬报错**（生产上这是对的，构建缺失必须响亮），
         # 但干净检出上没跑过构建就是没有这个目录 —— 冒烟不该因此依赖一次前端构建。
         "static_dir": _env_path("STORE_STATIC_DIR", FRONTEND_ROOT / "static"),
@@ -384,6 +381,12 @@ def load_settings(**overrides) -> StoreSettings:
             maximum=365 * 24 * 3600,
         ),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
+    }
+
+
+def _env_mail_values() -> dict[str, Any]:
+    """邮件与验证码相关环境变量。"""
+    return {
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
         "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@homeos.local>") or "HomeOS <no-reply@homeos.local>",
         "smtp_host": _env_str("STORE_SMTP_HOST"),
@@ -412,7 +415,12 @@ def load_settings(**overrides) -> StoreSettings:
         "verification_global_hourly_limit": _env_int(
             "STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT", 500, minimum=1, maximum=100_000
         ),
+    }
 
+
+def _env_payment_values() -> dict[str, Any]:
+    """支付宝与支付巡检相关环境变量。"""
+    return {
         "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),
         "alipay_app_id": _env_str("STORE_ALIPAY_APP_ID"),
         "alipay_gateway_url": _env_str("STORE_ALIPAY_GATEWAY_URL", "https://openapi.alipay.com/gateway.do") or "https://openapi.alipay.com/gateway.do",
@@ -426,6 +434,19 @@ def load_settings(**overrides) -> StoreSettings:
         "alipay_return_url": _env_str("STORE_ALIPAY_RETURN_URL"),
         "alipay_sign_type": (_env_str("STORE_ALIPAY_SIGN_TYPE", "RSA2") or "RSA2").upper(),
         "alipay_verify_response_sign": _env_bool("STORE_ALIPAY_VERIFY_RESPONSE", True),
+        "order_ttl_seconds": _env_int(
+            "STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS, minimum=30, maximum=24 * 3600
+        ),
+        "payment_sweep_interval_seconds": _env_int(
+            "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=5, maximum=3600
+        ),
+        "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
+    }
+
+
+def _env_license_ops_values() -> dict[str, Any]:
+    """授权密钥、租约与发布同步相关环境变量。"""
+    return {
         "license_keys_dir": _env_path("STORE_LICENSE_KEYS_DIR", PROJECT_ROOT / "keys" / "local"),
         "license_key_id_override": _env_str("STORE_LICENSE_KEY_ID"),
         "license_transport_key_id_override": _env_str("STORE_LICENSE_TRANSPORT_KEY_ID"),
@@ -450,25 +471,34 @@ def load_settings(**overrides) -> StoreSettings:
             minimum=0,
             maximum=3650,
         ),
-        "order_ttl_seconds": _env_int(
-            "STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS, minimum=30, maximum=24 * 3600
-        ),
         "device_release_cooldown_seconds": _env_int(
             "STORE_DEVICE_RELEASE_COOLDOWN_SECONDS",
             DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS,
             minimum=0,
             maximum=30 * 24 * 3600,
         ),
-        "payment_sweep_interval_seconds": _env_int(
-            "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=5, maximum=3600
-        ),
-        "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
         "release_sync_interval_seconds": _env_int(
             "STORE_RELEASE_SYNC_INTERVAL_SECONDS", 6 * 3600, minimum=0, maximum=7 * 24 * 3600
         ),
         "github_repo": _env_str("STORE_GITHUB_REPO", "sfairy/HomeOS-3D") or "sfairy/HomeOS-3D",
         "github_token": _env_str("STORE_GITHUB_TOKEN"),
     }
+
+
+def _env_settings_values() -> dict[str, Any]:
+    """从环境变量读出 ``StoreSettings`` 构造参数（不含 overrides / 校验）。"""
+    return {
+        **_env_core_values(),
+        **_env_mail_values(),
+        **_env_payment_values(),
+        **_env_license_ops_values(),
+    }
+
+
+def load_settings(**overrides) -> StoreSettings:
+    """从环境变量装配配置。``overrides`` 用于测试与 seed 脚本覆盖单字段。"""
+    load_dotenv()
+    values = _env_settings_values()
     values.update(overrides)
     settings = StoreSettings(**values)
     _validate_settings(settings)

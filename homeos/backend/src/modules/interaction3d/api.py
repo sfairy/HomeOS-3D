@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
@@ -45,7 +46,7 @@ _runtime_media_type_cache: dict[tuple[str, int], dict[str, str]] = {}
 
 
 def find_module_component(document: dict, component_id: str) -> dict | None:
-    return next((item for _, item in module_components(document) if item.get('id') == component_id), None)
+    return next((component for _, component in module_components(document) if component.get('id') == component_id), None)
 
 
 async def call_service(payload: HAServiceCallRequest, request: Request, database, viewer) -> dict:
@@ -301,260 +302,576 @@ async def water_heater_capabilities(
     return {'temperatureUnit': unit}
 
 
+@dataclass(frozen=True)
+class _EnvironmentDeviceFlags:
+    """环境类设备分支的布尔开关（由 device_kind / domain 派生）。"""
+
+    is_climate_extra: bool
+    is_bath_heater: bool
+    is_airer: bool
+    is_fan: bool
+    is_cover: bool
+    is_water_heater: bool
+    generic_device: bool
+    extra_domain: bool
+    is_purifier: bool
+
+
+@dataclass
+class _EnvironmentControlContext:
+    """环境类设备控制上下文：绑定、实体状态与模型校验所需数据。"""
+
+    name: str
+    flags: _EnvironmentDeviceFlags
+    bindings: list[dict]
+    generic_bindings: list[tuple[dict, dict]]
+    primary: dict | None
+    valid_owners: list[dict]
+    entity: HAEntity
+    states: list[dict]
+
+
+def _scene_has_model(scene: dict, bindings: list[dict], model_type: str) -> bool:
+    """绑定的 modelId 是否仍能在户型对应楼层里找到指定类型的模型。"""
+    return any(
+        model.get('id') == binding.get('modelId') and model.get('type') == model_type
+        for binding in bindings
+        for floor in scene.get('floors', [])
+        if floor.get('id') == binding.get('floorId')
+        for model in floor.get('scene', {}).get('items', [])
+    )
+
+
+def _environment_device_flags(payload: Interaction3dControlRequest) -> _EnvironmentDeviceFlags:
+    """派生环境类设备分支的布尔开关。"""
+    is_climate_extra = payload.device_kind == 'climate-extra'
+    is_bath_heater = payload.device_kind == 'bath-heater'
+    is_airer = payload.device_kind in {'airer', 'airer-extra'}
+    is_fan = payload.device_kind in {'fan', 'fan-extra'}
+    is_cover = payload.domain == 'cover'
+    is_water_heater = payload.domain == 'water_heater' or payload.device_kind == 'water-heater-extra'
+    generic_device = payload.device_kind == 'device-extra'
+    extra_domain = payload.device_kind in {
+        'fan-extra',
+        'airer-extra',
+        'device-extra',
+        'climate-extra',
+        'purifier-extra',
+        'water-heater-extra',
+    }
+    is_purifier = not (
+        is_climate_extra
+        or is_bath_heater
+        or is_airer
+        or is_fan
+        or is_water_heater
+        or generic_device
+        or is_cover
+    ) and (payload.domain == 'fan' or payload.device_kind == 'purifier-extra')
+    return _EnvironmentDeviceFlags(
+        is_climate_extra=is_climate_extra,
+        is_bath_heater=is_bath_heater,
+        is_airer=is_airer,
+        is_fan=is_fan,
+        is_cover=is_cover,
+        is_water_heater=is_water_heater,
+        generic_device=generic_device,
+        extra_domain=extra_domain,
+        is_purifier=is_purifier,
+    )
+
+
+def _environment_device_name(
+    payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+) -> str:
+    """错误文案里使用的设备中文名。"""
+    if flags.is_climate_extra:
+        return '空调'
+    if flags.is_bath_heater:
+        return '浴霸'
+    if flags.is_airer:
+        return '晾衣架'
+    if flags.is_fan:
+        return '电风扇'
+    if flags.is_water_heater:
+        return '热水器'
+    if flags.generic_device:
+        return '设备'
+    if flags.is_cover:
+        return '窗帘'
+    if payload.domain == 'fan' or flags.extra_domain:
+        return '空气净化器'
+    return '空调'
+
+
+def _environment_bindings_collection(
+    payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+) -> str:
+    """按设备类型选择 environment 下的绑定集合名。"""
+    if flags.is_climate_extra or flags.is_bath_heater:
+        return 'airConditioners'
+    if flags.is_airer:
+        return 'airers'
+    if flags.is_fan:
+        return 'fans'
+    if flags.is_water_heater:
+        return 'waterHeaters'
+    if flags.is_cover:
+        return 'curtains'
+    if payload.domain == 'fan' or flags.extra_domain:
+        return 'airPurifiers'
+    return 'airConditioners'
+
+
+def _environment_declared_bindings(
+    properties: dict, payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+) -> list[dict]:
+    """取控件声明的绑定列表，浴霸再按 climateType 过滤。"""
+    collection = _environment_bindings_collection(payload, flags)
+    bindings = properties.get('environment', {}).get(collection, [])
+    if flags.is_bath_heater:
+        bindings = [binding for binding in bindings if binding.get('climateType') == 'bath-heater']
+    return bindings
+
+
+def _filter_environment_bindings(
+    bindings: list[dict], payload: Interaction3dControlRequest
+) -> list[dict]:
+    """按 binding_id / floor / model 过滤绑定；三者都未提供时原样返回。"""
+    if not (payload.binding_id or payload.binding_floor_id or payload.binding_model_id):
+        return bindings
+    return [
+        binding
+        for binding in bindings
+        if (not payload.binding_id or binding.get('id') == payload.binding_id)
+        and (not payload.binding_floor_id or binding.get('floorId') == payload.binding_floor_id)
+        and (not payload.binding_model_id or binding.get('modelId') == payload.binding_model_id)
+    ]
+
+
+def _primary_environment_binding(
+    bindings: list[dict], payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+) -> dict | None:
+    """主绑定：extra 分支没有主实体。"""
+    if flags.extra_domain:
+        return None
+    return next((binding for binding in bindings if binding.get('entityId') == payload.entity_id), None)
+
+
+def _extra_environment_owners(
+    bindings: list[dict], payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+) -> list[dict]:
+    """附加实体所属的绑定列表（仅 extra 分支）。"""
+    if not flags.extra_domain:
+        return []
+    return [
+        binding
+        for binding in bindings
+        if any(extra.get('entityId') == payload.entity_id for extra in binding.get('extraControls', []))
+    ]
+
+
+@dataclass(frozen=True)
+class _EnvironmentBindingScope:
+    """模型校验所需的绑定视图：声明绑定、通用设备画像与主绑定。"""
+
+    flags: _EnvironmentDeviceFlags
+    bindings: list[dict]
+    generic_bindings: list[tuple[dict, dict]]
+    primary: dict | None
+
+
+def _require_environment_binding_model(
+    payload: Interaction3dControlRequest,
+    scene: dict,
+    scope: _EnvironmentBindingScope,
+    owner: dict | None = None,
+) -> None:
+    """校验绑定（含附加实体 owner）对应模型是否仍存在于户型中。"""
+    flags = scope.flags
+    bindings = scope.bindings
+    try:
+        if flags.generic_device:
+            from .device import require_device_model
+
+            profile = next(profile for profile, binding in scope.generic_bindings if binding is owner)
+            require_device_model(owner, scene, profile['model_type'])
+        elif flags.is_airer:
+            target = owner or scope.primary
+            if target is None:
+                raise ValueError('晾衣架绑定缺失。')
+            require_curtain_model([target], target['entityId'], scene, model_type='airer')
+        elif flags.is_fan:
+            require_air_conditioner_model(
+                [owner] if owner else bindings,
+                owner.get('entityId', '') if owner else payload.entity_id,
+                scene,
+                model_type=('fan', 'ceiling-fan'),
+            )
+        elif flags.is_purifier:
+            require_air_conditioner_model(
+                [owner] if owner else bindings,
+                owner.get('entityId', '') if owner else payload.entity_id,
+                scene,
+                model_type='airpurifier',
+            )
+        elif flags.is_water_heater:
+            require_air_conditioner_model(
+                [owner] if owner else bindings,
+                owner.get('entityId', '') if owner else payload.entity_id,
+                scene,
+                model_type=('storagewaterheater', 'gaswaterheater'),
+            )
+        else:
+            (require_curtain_model if flags.is_cover else require_air_conditioner_model)(
+                [owner] if owner else bindings,
+                owner.get('entityId', '') if owner else payload.entity_id,
+                scene,
+            )
+    except (ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+
+
+def _validate_environment_command(
+    payload: Interaction3dControlRequest,
+    name: str,
+    flags: _EnvironmentDeviceFlags,
+    bindings: list[dict],
+    states: list[dict],
+) -> None:
+    """按设备类型分发到空调 / 窗帘 / 热水器 / 净化器的命令参数校验。"""
+    state_row = states[0] if states else None
+    if flags.is_water_heater:
+        from .water_heater import validate_water_heater_command
+
+        validate_water_heater_command(payload.service, payload.data, state_row)
+    elif flags.is_cover:
+        dream = any(
+            binding.get('entityId') == payload.entity_id and binding.get('coverKind') == 'dream'
+            for binding in bindings
+        )
+        validate_cover_command(
+            payload.service,
+            payload.data,
+            state_row,
+            dream=dream,
+            airer=flags.is_airer,
+        )
+    elif payload.domain == 'fan':
+        from .purifier import validate_purifier_command
+
+        validate_purifier_command(payload.service, payload.data, state_row, name=name)
+    else:
+        validate_climate_command(payload.service, payload.data, state_row)
+
+
+async def _control_extra_environment_entity(
+    payload: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+    context: _EnvironmentControlContext,
+    connection,
+) -> dict:
+    """附加实体分支：逐个校验归属与命令参数，首个通过的下发。"""
+    from .purifier import validate_extra_command
+
+    flags = context.flags
+    entity = context.entity
+    states = context.states
+    failures: list[HTTPException] = []
+    for owner in context.valid_owners:
+        try:
+            if flags.generic_device or (
+                (flags.is_purifier or flags.is_water_heater or (flags.is_climate_extra and owner.get('climateType') == 'bath-heater'))
+                and owner.get('deviceId')
+            ):
+                if not owner.get('deviceId') or entity.device_id != owner['deviceId']:
+                    raise HTTPException(403, detail='此实体不属于当前绑定设备，请重新选择。')
+            else:
+                primary_id = owner.get('entityId', '')
+                primary_entity = (
+                    database.scalar(
+                        select(HAEntity).where(
+                            HAEntity.connection_id == connection.id,
+                            HAEntity.entity_id == primary_id,
+                            HAEntity.domain == (
+                                primary_id.split('.')[0]
+                                if flags.is_climate_extra and owner.get('climateType') == 'bath-heater'
+                                else 'climate'
+                                if flags.is_climate_extra
+                                else 'cover'
+                                if flags.is_airer
+                                else 'water_heater'
+                                if flags.is_water_heater
+                                else 'fan'
+                            ),
+                            HAEntity.sync_status == 'active',
+                            HAEntity.disabled_by.is_(None),
+                        )
+                    )
+                    if primary_id
+                    else None
+                )
+                if primary_entity is not None and primary_entity.device_id and entity.device_id != primary_entity.device_id:
+                    raise HTTPException(403, detail=f'附加实体已不属于当前{context.name}，请重新绑定。')
+            extra = next((extra for extra in owner['extraControls'] if extra.get('entityId') == payload.entity_id), None)
+            validate_extra_command(extra, payload.domain, payload.service, payload.data, states[0] if states else None)
+        except HTTPException as error:
+            failures.append(error)
+        else:
+            return await call_service(payload, request, database, viewer)
+    raise failures[0]
+
+
+async def _control_speaker(
+    payload: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """智能音响分支：校验绑定、模型与命令参数后下发。"""
+    from .speaker import validate_speaker_command
+
+    if payload.domain != 'media_player' or not payload.project_id or not payload.component_id:
+        raise HTTPException(422, detail='智能音响控制缺少仪表盘、控件或媒体实体信息。')
+    require_viewer_project(viewer, payload.project_id)
+    properties = component_properties(database, payload.project_id, payload.component_id)
+    matches = [
+        binding
+        for binding in properties.get('devices', {}).get('speakers', [])
+        if binding.get('entityId') == payload.entity_id
+    ]
+    if not matches:
+        raise HTTPException(403, detail='此媒体实体未绑定到当前智能音响。')
+    scene_id = properties.get('sceneId', '')
+    try:
+        scene = scene_snapshot(request, database, scene_id)
+        valid = _scene_has_model(scene, matches, 'speaker')
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+    if not valid:
+        raise HTTPException(409, detail='智能音响模型已失联，请重新配置。')
+    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
+    validate_speaker_command(payload.service, payload.data, states[0] if states else None)
+    return await call_service(payload, request, database, viewer)
+
+
+async def _control_television(
+    payload: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """电视分支：校验电源实体绑定、模型与 supported_features。"""
+    if not payload.project_id or not payload.component_id:
+        raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
+    require_viewer_project(viewer, payload.project_id)
+    properties = component_properties(database, payload.project_id, payload.component_id)
+    bindings = properties.get('devices', {}).get('televisions', [])
+    power_command = payload.service in {'turn_on', 'turn_off'}
+    matches = [
+        binding
+        for binding in bindings
+        if (
+            (binding.get('powerEntityId') or binding.get('entityId'))
+            if power_command
+            else binding.get('entityId')
+        )
+        == payload.entity_id
+    ]
+    if not matches:
+        raise HTTPException(403, detail='此电源实体未配置到当前电视。')
+    scene_id = properties.get('sceneId', '')
+    try:
+        scene = scene_snapshot(request, database, scene_id)
+        valid = _scene_has_model(scene, matches, 'tv')
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+    if not valid:
+        raise HTTPException(409, detail='电视模型已失联，请重新配置。')
+    media_features = {
+        'turn_on': 128,
+        'turn_off': 256,
+        'media_previous_track': 16,
+        'media_next_track': 32,
+        'media_play': 16384,
+        'media_pause': 1,
+    }
+    if (
+        payload.domain not in {'switch', 'media_player'}
+        or payload.service not in media_features
+        or payload.data
+        or (payload.domain == 'switch' and not power_command)
+    ):
+        raise HTTPException(422, detail='电视不支持此控制操作或参数。')
+    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
+    state = states[0] if states else {}
+    if state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
+        raise HTTPException(409, detail='电视电源状态不可用，请稍后重试。')
+    if payload.domain == 'media_player':
+        features = state.get('attributes', {}).get('supported_features', 0)
+        if not isinstance(features, int) or isinstance(features, bool) or not features & media_features[payload.service]:
+            raise HTTPException(422, detail='此媒体实体不支持该操作。')
+        if not power_command and state.get('state') in {'off', 'standby'}:
+            raise HTTPException(409, detail='请先开启电视。')
+    return await call_service(payload, request, database, viewer)
+
+
+async def _control_lock(
+    payload: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """门锁分支：校验绑定模型、实体归属与命令参数。"""
+    from .lock import require_lock_model, validate_lock_command
+
+    if payload.domain != 'lock' or not payload.project_id or not payload.component_id:
+        raise HTTPException(422, detail='门锁控制缺少仪表盘或控件信息。')
+    require_viewer_project(viewer, payload.project_id)
+    properties = component_properties(database, payload.project_id, payload.component_id)
+    binding = next(
+        (
+            entry
+            for entry in properties.get('security', {}).get('locks', [])
+            if entry.get('entityId') == payload.entity_id
+        ),
+        None,
+    )
+    if not binding:
+        raise HTTPException(403, detail='此门锁未绑定到当前控件。')
+    scene_id = properties.get('sceneId', '')
+    try:
+        require_lock_model(binding, scene_snapshot(request, database, scene_id))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取。') from error
+    connection = active_connection(database)
+    entity = (
+        database.scalar(
+            select(HAEntity).where(
+                HAEntity.connection_id == connection.id,
+                HAEntity.entity_id == payload.entity_id,
+                HAEntity.domain == 'lock',
+                HAEntity.sync_status == 'active',
+                HAEntity.disabled_by.is_(None),
+            )
+        )
+        if connection
+        else None
+    )
+    if not entity:
+        raise HTTPException(404, detail='门锁实体不存在、已禁用或已失联。')
+    if binding.get('deviceId') and entity.device_id != binding['deviceId']:
+        raise HTTPException(403, detail='门锁实体已不属于所选设备，请重新绑定。')
+    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
+    validate_lock_command(payload.service, payload.data, states[0] if states else None)
+    return await call_service(payload, request, database, viewer)
+
+
+async def _control_environment_device(
+    payload: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """风扇 / 窗帘 / 空调 / 热水器 / 净化器 / 通用设备分支的校验与下发编排。"""
+    flags = _environment_device_flags(payload)
+    name = _environment_device_name(payload, flags)
+    if not payload.project_id or not payload.component_id:
+        raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
+    require_viewer_project(viewer, payload.project_id)
+    properties = component_properties(database, payload.project_id, payload.component_id)
+    bindings = _environment_declared_bindings(properties, payload, flags)
+    generic_bindings: list[tuple[dict, dict]] = []
+    if flags.generic_device:
+        from .device import DEVICE_PROFILES
+
+        generic_bindings = [
+            (profile, binding)
+            for profile in DEVICE_PROFILES.values()
+            for binding in properties.get('devices', {}).get(profile['collection'], [])
+        ]
+        bindings = [binding for _, binding in generic_bindings]
+    bindings = _filter_environment_bindings(bindings, payload)
+    primary = _primary_environment_binding(bindings, payload, flags)
+    owners = _extra_environment_owners(bindings, payload, flags)
+    if not primary and not owners:
+        raise HTTPException(403, detail=f'此{name}未配置到当前 3D 交互控件。')
+    scene_id = properties.get('sceneId', '')
+    try:
+        scene = scene_snapshot(request, database, scene_id)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+
+    valid_owners: list[dict] = []
+    scope = _EnvironmentBindingScope(
+        flags=flags, bindings=bindings, generic_bindings=generic_bindings, primary=primary
+    )
+    if flags.extra_domain:
+        failures = []
+        for owner in owners:
+            try:
+                _require_environment_binding_model(payload, scene, scope, owner)
+            except HTTPException as error:
+                failures.append(error)
+            else:
+                valid_owners.append(owner)
+        if not valid_owners:
+            raise failures[0]
+    else:
+        _require_environment_binding_model(payload, scene, scope)
+    connection = active_connection(database)
+    if connection is None:
+        raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
+    entity = database.scalar(
+        select(HAEntity).where(
+            HAEntity.connection_id == connection.id,
+            HAEntity.entity_id == payload.entity_id,
+            HAEntity.domain == payload.domain,
+            HAEntity.sync_status == 'active',
+            HAEntity.disabled_by.is_(None),
+        )
+    )
+    if entity is None:
+        raise HTTPException(404, detail=f'{name}实体不存在、已禁用或已失联。')
+    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
+
+    if flags.extra_domain:
+        context = _EnvironmentControlContext(
+            name=name,
+            flags=flags,
+            bindings=bindings,
+            generic_bindings=generic_bindings,
+            primary=primary,
+            valid_owners=valid_owners,
+            entity=entity,
+            states=states,
+        )
+        return await _control_extra_environment_entity(
+            payload, request, database, viewer, context, connection
+        )
+    if primary is not None and (flags.is_purifier or flags.is_water_heater or primary.get('climateType') == 'bath-heater') and primary.get('deviceId') and entity.device_id != primary['deviceId']:
+        raise HTTPException(403, detail='主实体已不属于当前绑定设备，请重新绑定。')
+    _validate_environment_command(payload, name, flags, bindings, states)
+    return await call_service(payload, request, database, viewer)
+
+
 @router.post('/control')
 async def control_light(payload: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
     require_access(request)
     if payload.device_kind == 'speaker':
-        from .speaker import validate_speaker_command
+        return await _control_speaker(payload, request, database, viewer)
+    if payload.device_kind == 'television' or payload.domain == 'media_player':
+        return await _control_television(payload, request, database, viewer)
+    if payload.domain == 'lock' or payload.device_kind == 'lock':
+        return await _control_lock(payload, request, database, viewer)
+    if payload.domain in {'fan', 'cover', 'climate', 'water_heater'} or payload.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
+        return await _control_environment_device(payload, request, database, viewer)
+    if payload.domain not in {'light', 'switch'} or payload.service not in {'turn_on', 'turn_off'}:
+        raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
+    return await call_service(payload, request, database, viewer)
 
-        if payload.domain != 'media_player' or not payload.project_id or not payload.component_id:
-            raise HTTPException(422, detail='智能音响控制缺少仪表盘、控件或媒体实体信息。')
-        require_viewer_project(viewer, payload.project_id)
-        properties = component_properties(database, payload.project_id, payload.component_id)
-        matches = [item for item in properties.get('devices', {}).get('speakers', []) if item.get('entityId') == payload.entity_id]
-        if not matches:
-            raise HTTPException(403, detail='此媒体实体未绑定到当前智能音响。')
-        scene_id = properties.get('sceneId', '')
-        try:
-            scene = scene_snapshot(request, database, scene_id)
-            valid = any(
-                model.get('id') == item.get('modelId') and model.get('type') == 'speaker'
-                for item in matches
-                for floor in scene.get('floors', [])
-                if floor.get('id') == item.get('floorId')
-                for model in floor.get('scene', {}).get('items', [])
-            )
-        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-            raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
-        if not valid:
-            raise HTTPException(409, detail='智能音响模型已失联，请重新配置。')
-        states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
-        validate_speaker_command(payload.service, payload.data, states[0] if states else None)
-        return await call_service(payload, request, database, viewer)
-    elif payload.device_kind == 'television' or payload.domain == 'media_player':
-        if not payload.project_id or not payload.component_id:
-            raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
-        require_viewer_project(viewer, payload.project_id)
-        properties = component_properties(database, payload.project_id, payload.component_id)
-        bindings = properties.get('devices', {}).get('televisions', [])
-        power_command = payload.service in {'turn_on', 'turn_off'}
-        matches = [
-            item for item in bindings
-            if ((item.get('powerEntityId') or item.get('entityId')) if power_command else item.get('entityId')) == payload.entity_id
-        ]
-        if not matches:
-            raise HTTPException(403, detail='此电源实体未配置到当前电视。')
-        scene_id = properties.get('sceneId', '')
-        try:
-            scene = scene_snapshot(request, database, scene_id)
-            valid = any(
-                model.get('id') == item.get('modelId') and model.get('type') == 'tv'
-                for item in matches
-                for floor in scene.get('floors', [])
-                if floor.get('id') == item.get('floorId')
-                for model in floor.get('scene', {}).get('items', [])
-            )
-        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-            raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
-        if not valid:
-            raise HTTPException(409, detail='电视模型已失联，请重新配置。')
-        media_features = {
-            'turn_on': 128,
-            'turn_off': 256,
-            'media_previous_track': 16,
-            'media_next_track': 32,
-            'media_play': 16384,
-            'media_pause': 1,
-        }
-        if payload.domain not in {'switch', 'media_player'} or payload.service not in media_features or payload.data or (payload.domain == 'switch' and not power_command):
-            raise HTTPException(422, detail='电视不支持此控制操作或参数。')
-        states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
-        state = states[0] if states else {}
-        if state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
-            raise HTTPException(409, detail='电视电源状态不可用，请稍后重试。')
-        if payload.domain == 'media_player':
-            features = state.get('attributes', {}).get('supported_features', 0)
-            if not isinstance(features, int) or isinstance(features, bool) or not features & media_features[payload.service]:
-                raise HTTPException(422, detail='此媒体实体不支持该操作。')
-            if not power_command and state.get('state') in {'off', 'standby'}:
-                raise HTTPException(409, detail='请先开启电视。')
-        return await call_service(payload, request, database, viewer)
-    elif payload.domain == 'lock' or payload.device_kind == 'lock':
-        from .lock import require_lock_model, validate_lock_command
-
-        if payload.domain != 'lock' or not payload.project_id or not payload.component_id:
-            raise HTTPException(422, detail='门锁控制缺少仪表盘或控件信息。')
-        require_viewer_project(viewer, payload.project_id)
-        properties = component_properties(database, payload.project_id, payload.component_id)
-        binding = next((item for item in properties.get('security', {}).get('locks', []) if item.get('entityId') == payload.entity_id), None)
-        if not binding:
-            raise HTTPException(403, detail='此门锁未绑定到当前控件。')
-        scene_id = properties.get('sceneId', '')
-        try:
-            require_lock_model(binding, scene_snapshot(request, database, scene_id))
-        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-            raise HTTPException(409, detail='户型暂时无法读取。') from error
-        connection = active_connection(database)
-        entity = database.scalar(select(HAEntity).where(HAEntity.connection_id == connection.id, HAEntity.entity_id == payload.entity_id, HAEntity.domain == 'lock', HAEntity.sync_status == 'active', HAEntity.disabled_by.is_(None))) if connection else None
-        if not entity:
-            raise HTTPException(404, detail='门锁实体不存在、已禁用或已失联。')
-        if binding.get('deviceId') and entity.device_id != binding['deviceId']:
-            raise HTTPException(403, detail='门锁实体已不属于所选设备，请重新绑定。')
-        states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
-        validate_lock_command(payload.service, payload.data, states[0] if states else None)
-        return await call_service(payload, request, database, viewer)
-    elif payload.domain in {'fan', 'cover', 'climate', 'water_heater'} or payload.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
-        is_climate_extra = payload.device_kind == 'climate-extra'
-        is_bath_heater = payload.device_kind == 'bath-heater'
-        is_airer = payload.device_kind in {'airer', 'airer-extra'}
-        is_fan = payload.device_kind in {'fan', 'fan-extra'}
-        is_cover = payload.domain == 'cover'
-        is_water_heater = payload.domain == 'water_heater' or payload.device_kind == 'water-heater-extra'
-        generic_device = payload.device_kind == 'device-extra'
-        extra_domain = payload.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}
-        is_purifier = not (is_climate_extra or is_bath_heater or is_airer or is_fan or is_water_heater or generic_device or is_cover) and (payload.domain == 'fan' or payload.device_kind == 'purifier-extra')
-        if is_climate_extra:
-            name = '空调'
-        elif is_bath_heater:
-            name = '浴霸'
-        elif is_airer:
-            name = '晾衣架'
-        elif is_fan:
-            name = '电风扇'
-        elif is_water_heater:
-            name = '热水器'
-        elif generic_device:
-            name = '设备'
-        elif is_cover:
-            name = '窗帘'
-        elif payload.domain == 'fan' or extra_domain:
-            name = '空气净化器'
-        else:
-            name = '空调'
-        if not payload.project_id or not payload.component_id:
-            raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
-        require_viewer_project(viewer, payload.project_id)
-        properties = component_properties(database, payload.project_id, payload.component_id)
-        bindings = properties.get('environment', {}).get('airConditioners' if is_climate_extra or is_bath_heater else 'airers' if is_airer else 'fans' if is_fan else 'waterHeaters' if is_water_heater else 'curtains' if is_cover else 'airPurifiers' if payload.domain == 'fan' or extra_domain else 'airConditioners', [])
-        generic_bindings = []
-        valid_owners = []
-        if is_bath_heater:
-            bindings = [item for item in bindings if item.get('climateType') == 'bath-heater']
-        if generic_device:
-            from .device import DEVICE_PROFILES
-
-            generic_bindings = [(profile, item) for profile in DEVICE_PROFILES.values() for item in properties.get('devices', {}).get(profile['collection'], [])]
-            bindings = [item for _, item in generic_bindings]
-        if payload.binding_id or payload.binding_floor_id or payload.binding_model_id:
-            bindings = [item for item in bindings if (not payload.binding_id or item.get('id') == payload.binding_id) and (not payload.binding_floor_id or item.get('floorId') == payload.binding_floor_id) and (not payload.binding_model_id or item.get('modelId') == payload.binding_model_id)]
-        primary = next((item for item in bindings if item.get('entityId') == payload.entity_id), None) if not extra_domain else None
-        owners = [item for item in bindings if any(extra.get('entityId') == payload.entity_id for extra in item.get('extraControls', []))] if extra_domain else []
-        if not primary and not owners:
-            raise HTTPException(403, detail=f'此{name}未配置到当前 3D 交互控件。')
-        scene_id = properties.get('sceneId', '')
-        try:
-            scene = scene_snapshot(request, database, scene_id)
-        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-            raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
-
-        def require_binding_model(owner=None):
-            try:
-                if generic_device:
-                    from .device import require_device_model
-
-                    profile = next(profile for profile, item in generic_bindings if item is owner)
-                    require_device_model(owner, scene, profile['model_type'])
-                elif is_airer:
-                    target = owner or primary
-                    if target is None:
-                        raise ValueError('晾衣架绑定缺失。')
-                    require_curtain_model([target], target['entityId'], scene, model_type='airer')
-                elif is_fan:
-                    require_air_conditioner_model(
-                        [owner] if owner else bindings,
-                        owner.get('entityId', '') if owner else payload.entity_id,
-                        scene,
-                        model_type=('fan', 'ceiling-fan'),
-                    )
-                elif is_purifier:
-                    require_air_conditioner_model([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene, model_type='airpurifier')
-                elif is_water_heater:
-                    require_air_conditioner_model([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene, model_type=('storagewaterheater', 'gaswaterheater'))
-                else:
-                    (require_curtain_model if is_cover else require_air_conditioner_model)([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene)
-            except (ValueError, KeyError, TypeError, AttributeError) as error:
-                raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
-
-        if extra_domain:
-            failures = []
-            for owner in owners:
-                try:
-                    require_binding_model(owner)
-                except HTTPException as error:
-                    failures.append(error)
-                else:
-                    valid_owners.append(owner)
-            if not valid_owners:
-                raise failures[0]
-        else:
-            require_binding_model()
-        connection = active_connection(database)
-        if connection is None:
-            raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
-        entity = database.scalar(select(HAEntity).where(HAEntity.connection_id == connection.id, HAEntity.entity_id == payload.entity_id, HAEntity.domain == payload.domain, HAEntity.sync_status == 'active', HAEntity.disabled_by.is_(None)))
-        if entity is None:
-            raise HTTPException(404, detail=f'{name}实体不存在、已禁用或已失联。')
-        states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
-        if extra_domain:
-            from .purifier import validate_extra_command
-
-            failures = []
-            for owner in valid_owners:
-                try:
-                    if generic_device or ((is_purifier or is_water_heater or (is_climate_extra and owner.get('climateType') == 'bath-heater')) and owner.get('deviceId')):
-                        if not owner.get('deviceId') or entity.device_id != owner['deviceId']:
-                            raise HTTPException(403, detail='此实体不属于当前绑定设备，请重新选择。')
-                    else:
-                        primary_id = owner.get('entityId', '')
-                        primary_entity = database.scalar(select(HAEntity).where(HAEntity.connection_id == connection.id, HAEntity.entity_id == primary_id, HAEntity.domain == (primary_id.split('.')[0] if is_climate_extra and owner.get('climateType') == 'bath-heater' else 'climate' if is_climate_extra else 'cover' if is_airer else 'water_heater' if is_water_heater else 'fan'), HAEntity.sync_status == 'active', HAEntity.disabled_by.is_(None))) if primary_id else None
-                        if primary_entity is not None and primary_entity.device_id and entity.device_id != primary_entity.device_id:
-                            raise HTTPException(403, detail=f'附加实体已不属于当前{name}，请重新绑定。')
-                    extra = next((extra for extra in owner['extraControls'] if extra.get('entityId') == payload.entity_id), None)
-                    validate_extra_command(extra, payload.domain, payload.service, payload.data, states[0] if states else None)
-                except HTTPException as error:
-                    failures.append(error)
-                else:
-                    return await call_service(payload, request, database, viewer)
-            raise failures[0]
-        if primary is not None and (is_purifier or is_water_heater or primary.get('climateType') == 'bath-heater') and primary.get('deviceId') and entity.device_id != primary['deviceId']:
-            raise HTTPException(403, detail='主实体已不属于当前绑定设备，请重新绑定。')
-        if is_water_heater:
-            from .water_heater import validate_water_heater_command
-
-            validate_water_heater_command(payload.service, payload.data, states[0] if states else None)
-        elif is_cover:
-            dream = any(
-                item.get('entityId') == payload.entity_id and item.get('coverKind') == 'dream'
-                for item in bindings
-            )
-            validate_cover_command(
-                payload.service,
-                payload.data,
-                states[0] if states else None,
-                dream=dream,
-                airer=is_airer,
-            )
-        elif payload.domain == 'fan':
-            from .purifier import validate_purifier_command
-
-            validate_purifier_command(payload.service, payload.data, states[0] if states else None, name=name)
-        else:
-            validate_climate_command(payload.service, payload.data, states[0] if states else None)
-        return await call_service(payload, request, database, viewer)
-    else:
-        if payload.domain not in {'light', 'switch'} or payload.service not in {'turn_on', 'turn_off'}:
-            raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
-        return await call_service(payload, request, database, viewer)
 
 
 @router.get('/stage.html')

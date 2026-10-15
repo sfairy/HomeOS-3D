@@ -124,17 +124,9 @@ def list_orders(
     }
 
 
-@router.post("/orders")
-def create_order(
-    payload: CreateOrderRequest,
-    request: Request,
-    background: BackgroundTasks,
-    session: DbSession,
-    account: AuthedAccount,
-    settings: SettingsDep,
-) -> Response:
-    _require_verified(account)
-    setting = site_config.get_setting(session)
+def _assert_store_open(setting) -> None:
+    """维护模式与支付开关的闸门：任一不满足就按「暂时不可用」拒绝下单。
+    """
     if setting.maintenance_mode:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -146,8 +138,10 @@ def create_order(
             detail="当前暂未开放支付，请稍后再试或联系客服。",
         )
 
-    expire_stale_orders(session, settings)
 
+def _assert_no_pending_order(session, account: AuthedAccount) -> None:
+    """一个账号同时只允许一笔待支付订单。
+    """
     pending = session.scalars(
         select(Order)
         .where(Order.account_id == account.id)
@@ -160,20 +154,26 @@ def create_order(
             detail=f"你有一笔待支付订单（{pending.order_no}），请先完成或等待其超时关闭。",
         )
 
-    product = _product_or_404(session, payload.product_id)
-    if is_sold_out(product):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
-    is_addon = product.product_type in {"module", "template"} or bool(product.requires_license)
-    target_license: License | None = None
+def _resolve_target_license(
+    session,
+    account: AuthedAccount,
+    product,
+    *,
+    is_addon: bool,
+    target_license_id: str,
+    upgrade_license_id: str | None,
+) -> License | None:
+    """解析本单要挂靠 / 升级的主授权（增量包、试用、升级三种形态各有一道闸门）。
+    """
     if is_addon:
-        target_license_id = (payload.target_license_id or "").strip()
-        if not target_license_id:
+        selected_id = (target_license_id or "").strip()
+        if not selected_id:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="请选择增量包要附加到的主授权。",
             )
-        target_license = session.get(License, target_license_id)
+        target_license = session.get(License, selected_id)
         if target_license is None or target_license.account_id != account.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="选择的授权不存在。")
         if not target_license.active:
@@ -183,7 +183,8 @@ def create_order(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="增量包只能添加到永不过期的主授权上。",
             )
-    elif _is_trial_product(product):
+        return target_license
+    if _is_trial_product(product):
         permanent, _temporary = _account_license_state(session, account)
         if permanent:
             raise HTTPException(
@@ -195,58 +196,24 @@ def create_order(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="每个账号只能购买一次试用授权。",
             )
-    else:
-        target_license = _resolve_upgrade_target(session, account, payload.upgrade_license_id)
+        return None
+    return _resolve_upgrade_target(session, account, upgrade_license_id)
 
-    coupon = None
-    discount = 0
-    coupon_code = (payload.coupon_code or "").strip()
-    if coupon_code:
-        coupon, discount = _evaluate_coupon_limited(
-            session, account=account, product=product, code=coupon_code
-        )
 
-    original_amount = int(product.price_cents or 0)
-    amount = max(0, original_amount - discount)
-    is_upgrade = not is_addon and target_license is not None
+def _resolve_order_action(product, *, is_addon: bool, is_upgrade: bool) -> tuple[str, str]:
+    """按商品形态定 ``(order_type, license_action)``。"""
     if is_addon:
-        order_type = "addon"
-        license_action = "patch"
-    elif is_upgrade:
-        order_type = "upgrade"
-        license_action = "upgrade"
-    elif product.product_type == "package":
-        order_type = "package"
-        license_action = "issue"
-    else:
-        order_type = "base"
-        license_action = "issue"
-    moment = utcnow()
-    order = Order(
-        order_no=new_order_no(account.email, now=moment),
-        lookup_token=new_token(24),
-        account_id=account.id,
-        customer_id=_customer_for(session, account).id,
-        email=account.email,
-        product_id=product.id,
-        product_name=product.name,
-        product_type=product.product_type,
-        order_type=order_type,
-        license_action=license_action,
-        target_license_id=target_license.id if target_license is not None else None,
-        original_amount_cents=original_amount,
-        discount_cents=discount,
-        amount_cents=amount,
-        coupon_code=coupon.code if coupon is not None else None,
-        status="pending",
-        fulfillment_mode=product.fulfillment_mode,
-        payment_provider=(
-            _resolve_requested_channel(setting, payload, request)
-            or default_channel_name(setting, request.app.state.settings)
-        ),
-        expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
-    )
-    session.add(order)
+        return "addon", "patch"
+    if is_upgrade:
+        return "upgrade", "upgrade"
+    if product.product_type == "package":
+        return "package", "issue"
+    return "base", "issue"
+
+
+def _flush_order_with_retry(session, order: Order, account: AuthedAccount) -> None:
+    """落库待支付订单；订单号撞唯一键时换号重试，其余结果各自给出明确响应。
+    """
     outcome = _flush_order(session, order)
     for _ in range(_ORDER_NO_ATTEMPTS - 1):
         if outcome != "retry":
@@ -270,6 +237,17 @@ def create_order(
             headers={"Retry-After": "1"},
         )
 
+
+def _reserve_stock_and_coupon(
+    session,
+    order: Order,
+    product,
+    coupon,
+    account: AuthedAccount,
+    discount: int,
+) -> None:
+    """先占库存、再核销优惠码（顺序不可颠倒，理由见下）。
+    """
     # 顺序很重要：**先占库存，再核销优惠码**。
     # 反过来的话，「库存不足 → 409」这条最常走的失败路径会在已经扣掉一个优惠码名额
     # **之后**才抛出：请求级会话虽然会回滚，但名额计数是 `UPDATE … SET count = count + 1`
@@ -287,31 +265,48 @@ def create_order(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
             ) from error
 
-    if amount <= 0:
-        order.status = "paid"
-        order.paid_at = utcnow()
-        order.payment_trade_no = f"FREE{order.order_no[-10:]}"
-        order.payment_payload_json = json.dumps(
-            {
-                "type": "free",
-                "displayName": "0 元订单",
-                "note": "优惠后应付 0 元，无需支付，已直接开通。",
-            },
-            ensure_ascii=False,
-        )
-        session.flush()
-        if order.fulfillment_mode != "manual":
-            fulfill.fulfill_order(session, order=order, setting=setting)
-        session.refresh(order)
-        background.add_task(
-            delivery.notify_license_issued,
-            request.app.state.database,
-            order_id=order.id,
-        )
-        logger.info("0 元订单直接开通 order=%s", order.order_no)
-        return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
 
-    chosen = _resolve_requested_channel(setting, payload, request)
+def _complete_free_order(
+    session,
+    request: Request,
+    background: BackgroundTasks,
+    order: Order,
+    setting,
+) -> JSONResponse:
+    """0 元订单直接开通：记账、履约，并把发码邮件排到响应之后。"""
+    order.status = "paid"
+    order.paid_at = utcnow()
+    order.payment_trade_no = f"FREE{order.order_no[-10:]}"
+    order.payment_payload_json = json.dumps(
+        {
+            "type": "free",
+            "displayName": "0 元订单",
+            "note": "优惠后应付 0 元，无需支付，已直接开通。",
+        },
+        ensure_ascii=False,
+    )
+    session.flush()
+    if order.fulfillment_mode != "manual":
+        fulfill.fulfill_order(session, order=order, setting=setting)
+    session.refresh(order)
+    background.add_task(
+        delivery.notify_license_issued,
+        request.app.state.database,
+        order_id=order.id,
+    )
+    logger.info("0 元订单直接开通 order=%s", order.order_no)
+    return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
+
+
+def _open_channel_payment(
+    request: Request,
+    session,
+    order: Order,
+    setting,
+    product,
+    chosen: str,
+) -> JSONResponse:
+    """向渠道下单并落二维码；渠道不可用时回滚订单、释放库存与优惠码。"""
     try:
         provider = request.app.state.resolve_payment_provider(setting, name=chosen)
     except PaymentError as error:
@@ -340,8 +335,85 @@ def create_order(
 
     order.payment_payload_json = json.dumps(intent.payload, ensure_ascii=False)
     session.flush()
-
     return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
+
+
+@router.post("/orders")
+def create_order(
+    payload: CreateOrderRequest,
+    request: Request,
+    background: BackgroundTasks,
+    session: DbSession,
+    account: AuthedAccount,
+    settings: SettingsDep,
+) -> Response:
+    _require_verified(account)
+    setting = site_config.get_setting(session)
+    _assert_store_open(setting)
+    expire_stale_orders(session, settings)
+    _assert_no_pending_order(session, account)
+
+    product = _product_or_404(session, payload.product_id)
+    if is_sold_out(product):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
+
+    is_addon = product.product_type in {"module", "template"} or bool(product.requires_license)
+    target_license = _resolve_target_license(
+        session,
+        account,
+        product,
+        is_addon=is_addon,
+        target_license_id=payload.target_license_id or "",
+        upgrade_license_id=payload.upgrade_license_id,
+    )
+
+    coupon = None
+    discount = 0
+    coupon_code = (payload.coupon_code or "").strip()
+    if coupon_code:
+        coupon, discount = _evaluate_coupon_limited(
+            session, account=account, product=product, code=coupon_code
+        )
+
+    original_amount = int(product.price_cents or 0)
+    amount = max(0, original_amount - discount)
+    order_type, license_action = _resolve_order_action(
+        product, is_addon=is_addon, is_upgrade=not is_addon and target_license is not None
+    )
+    moment = utcnow()
+    order = Order(
+        order_no=new_order_no(account.email, now=moment),
+        lookup_token=new_token(24),
+        account_id=account.id,
+        customer_id=_customer_for(session, account).id,
+        email=account.email,
+        product_id=product.id,
+        product_name=product.name,
+        product_type=product.product_type,
+        order_type=order_type,
+        license_action=license_action,
+        target_license_id=target_license.id if target_license is not None else None,
+        original_amount_cents=original_amount,
+        discount_cents=discount,
+        amount_cents=amount,
+        coupon_code=coupon.code if coupon is not None else None,
+        status="pending",
+        fulfillment_mode=product.fulfillment_mode,
+        payment_provider=(
+            _resolve_requested_channel(setting, payload, request)
+            or default_channel_name(setting, request.app.state.settings)
+        ),
+        expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
+    )
+    session.add(order)
+    _flush_order_with_retry(session, order, account)
+    _reserve_stock_and_coupon(session, order, product, coupon, account, discount)
+
+    if amount <= 0:
+        return _complete_free_order(session, request, background, order, setting)
+
+    chosen = _resolve_requested_channel(setting, payload, request)
+    return _open_channel_payment(request, session, order, setting, product, chosen)
 
 
 @router.get("/orders/{order_no}")

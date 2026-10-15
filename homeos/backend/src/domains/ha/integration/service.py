@@ -121,7 +121,7 @@ class HAConnectorService(
             other_raw = raw.get('other')
             if isinstance(other_raw, dict):
                 other.update(other_raw)
-        except Exception:
+        except Exception:  # 本配置节缺失/格式坏则保留默认值，继续解析其余节
             pass
         cfg = {'haConnector': connector, 'other': other}
         self._ha_tuning_cache = cfg

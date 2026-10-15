@@ -27,6 +27,9 @@ from ...platform.core.process_memory import get_process_memory_health
 
 logger = logging.getLogger("homeos.system")
 
+#: 私有网段 IPv4：``192.168.`` / ``10.`` / ``172.16-31.``（本机内网地址优先取这些）。
+_PRIVATE_IPV4_PATTERN = re.compile(r"^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)")
+
 #: 公网 IPv4 探针候选（按顺序尝试，全部失败返回 null）
 PUBLIC_IPV4_PROBES = (
     "http://ip.3322.net",
@@ -208,9 +211,8 @@ class SystemService:
             candidates = list(_collect_addresses(socket.AF_INET))
             if not candidates:
                 return "127.0.0.1"
-            private = re.compile(r"^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)")
             for candidate in candidates:
-                if private.match(candidate):
+                if _PRIVATE_IPV4_PATTERN.match(candidate):
                     return candidate
             return candidates[0] or "127.0.0.1"
         except Exception:
@@ -295,7 +297,7 @@ def _collect_addresses(family: int) -> list[str]:
                     addresses.append(str(addr.address))
         if addresses:
             return addresses
-    except Exception:
+    except Exception:  # 网卡枚举失败即回退默认/上一次的地址列表
         pass
 
     hostname = socket.gethostname()
@@ -305,7 +307,8 @@ def _collect_addresses(family: int) -> list[str]:
         return addresses
     for info in infos:
         raw = info[4][0]
-        if raw and raw not in addresses and raw != "127.0.0.1" and raw != "::1":
+        # `sockaddr[0]` 在非 IP 地址族下不是字符串（AF_UNIX 是 int），必须显式挡掉。
+        if isinstance(raw, str) and raw and raw not in addresses and raw not in ("127.0.0.1", "::1"):
             addresses.append(raw)
     return addresses
 

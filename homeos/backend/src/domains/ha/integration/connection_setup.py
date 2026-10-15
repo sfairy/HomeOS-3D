@@ -5,6 +5,7 @@ import asyncio
 import ipaddress
 import json
 import logging
+from collections.abc import Sequence
 from urllib.parse import urlparse, urlunparse
 
 import httpx
@@ -109,7 +110,7 @@ async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> 
             raise HAClientError(connection_error_message(error)) from error
         return False
 
-async def probe_endpoints(endpoints: tuple[HAEndpoint, ...], token: str, timeout: float) -> list[dict]:
+async def probe_endpoints(endpoints: Sequence[HAEndpoint], token: str, timeout: float) -> list[dict]:
     results: list[dict] = []
     for endpoint in endpoints:
         try:

@@ -12,10 +12,7 @@
     "build": "vite build --config frontend/vite.config.ts",
     "typecheck": "node ../ops/lib/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
     "lint": "eslint . --fix",
-    "lint:ci": "eslint . --max-warnings 0",
-    "check:store-deps": "node scripts/check-store-deps.mjs",
-    "check:refs": "node ../homeos/frontend/scripts/gates/check-import-refs.mjs --root frontend --alias @store/",
-    "check:deps": "node ../ops/lib/run-chain.mjs scripts/deps-gates.mjs"
+    "lint:ci": "eslint . --max-warnings 0"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

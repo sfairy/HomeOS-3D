@@ -73,6 +73,7 @@ function stopTick() {
 }
 
 // 页面从隐藏恢复可见时立即跑一次，保证数据及时刷新
+// 模块顶层一次性注册（模块本体只求值一次）：调度器是模块级单例，不配对移除。
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (!pageHidden()) runDue()

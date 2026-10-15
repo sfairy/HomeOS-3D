@@ -109,7 +109,7 @@ class HAControlPool:
             return
         try:
             await client.aclose()
-        except Exception:
+        except Exception:  # 连接池回收失败无处可退（对端多半已断）
             pass
 
     @asynccontextmanager

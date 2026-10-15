@@ -175,7 +175,7 @@ class ChannelsService:
             self.clear_session(msg.session_key)
             try:
                 await self._agent.chat("清除记忆")
-            except Exception:
+            except Exception:  # 会话已清空即达成语义，回声失败只影响回显
                 pass
             await provider.send_text(msg.chat_id, "已清除本对话记忆。")
             return

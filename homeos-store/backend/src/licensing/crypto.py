@@ -1,9 +1,12 @@
 """授权服务器侧的加密传输与租约签名。
+
+传输通道的协议参数（``PROTOCOL`` / HKDF 的 info / AAD / base64url / 规范化 JSON）**不在本文件**，
+而是共享真源 ``homeos_shared.license_transport`` —— 客户端 ``homeos/backend/src/domains/license/
+crypto.py`` 读的是同一份。HTTP 语义（状态码、错误码、中文文案）留在本模块，不进共享包。
 """
 
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import os
@@ -18,11 +21,22 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from homeos_shared import license_transport
+from homeos_shared.license_transport import (
+    AES_GCM_IV_LENGTH,
+    REQUEST_DIRECTION,
+    RESPONSE_DIRECTION,
+    SESSION_KEY_LENGTH,
+    b64url_encode,
+    canonical_json_bytes,
+    derive_key_info,
+    transport_aad,
+)
+
 from .keys import load_ed25519_private, load_x25519_private
 
 logger = logging.getLogger("src.license.crypto")
 
-PROTOCOL = b"homeos-license-transport-v1"
 PRODUCT = "homeos"
 
 #: 按状态码兜底的错误码。客户端只认结构化 ``code``（``as_body`` 的 ``detail`` 是给人看的
@@ -98,23 +112,16 @@ class LicenseServerError(Exception):
         return body
 
 
-def b64url_encode(value: bytes) -> str:
-    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
+def b64url_decode(value: Any) -> bytes:
+    """信封里的 base64url 字段：解码失败一律是「请求编码无效」（400）。
 
-
-def b64url_decode(value: str) -> bytes:
-    if not isinstance(value, str):
-        raise LicenseServerError("授权请求编码无效。", status_code=400)
+    实现来自共享真源（与客户端逐字节一致，不再是两处各写一份）；本模块只做**错误类型翻译**：
+    共享层的 ``TypeError`` / ``ValueError``（非字符串 / 非法编码）统一变成 400，调用方不必各自判断。
+    """
     try:
-        return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+        return license_transport.b64url_decode(value)
     except (ValueError, TypeError) as error:
         raise LicenseServerError("授权请求编码无效。", status_code=400) from error
-
-
-def _canonical(payload: dict[str, Any]) -> bytes:
-    return json.dumps(
-        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
 
 
 class TransportCipher:
@@ -125,11 +132,12 @@ class TransportCipher:
         self.key_id = key_id
 
     def _derive(self, shared: bytes, path: str) -> bytes:
+        """一次性会话密钥：HKDF-SHA256，``info`` 绑定协议、keyId 与路径（与客户端同一份）。"""
         return HKDF(
             algorithm=hashes.SHA256(),
-            length=32,
+            length=SESSION_KEY_LENGTH,
             salt=None,
-            info=PROTOCOL + b"\x00" + self.key_id.encode("ascii") + b"\x00" + path.encode("ascii"),
+            info=derive_key_info(self.key_id, path),
         ).derive(shared)
 
     def decrypt_request(self, envelope: Any, path: str) -> tuple[dict[str, Any], bytes]:
@@ -147,16 +155,10 @@ class TransportCipher:
             raise LicenseServerError("授权传输临时公钥无效。", status_code=400) from error
         key = self._derive(shared, path)
         iv = b64url_decode(envelope.get("iv", ""))
-        if len(iv) != 12:
+        if len(iv) != AES_GCM_IV_LENGTH:
             raise LicenseServerError("授权传输 IV 长度无效。", status_code=400)
         ciphertext = b64url_decode(envelope.get("ciphertext", ""))
-        aad = (
-            PROTOCOL
-            + b"\x00request\x00"
-            + path.encode("ascii")
-            + b"\x00"
-            + self.key_id.encode("ascii")
-        )
+        aad = transport_aad(REQUEST_DIRECTION, self.key_id, path)
         try:
             plaintext = AESGCM(key).decrypt(iv, ciphertext, aad)
             payload = json.loads(plaintext)
@@ -167,15 +169,9 @@ class TransportCipher:
         return payload, key
 
     def encrypt_response(self, payload: dict[str, Any], path: str, key: bytes) -> dict[str, str]:
-        iv = os.urandom(12)
-        aad = (
-            PROTOCOL
-            + b"\x00response\x00"
-            + path.encode("ascii")
-            + b"\x00"
-            + self.key_id.encode("ascii")
-        )
-        ciphertext = AESGCM(key).encrypt(iv, _canonical(payload), aad)
+        iv = os.urandom(AES_GCM_IV_LENGTH)
+        aad = transport_aad(RESPONSE_DIRECTION, self.key_id, path)
+        ciphertext = AESGCM(key).encrypt(iv, canonical_json_bytes(payload), aad)
         return {
             "keyId": self.key_id,
             "iv": b64url_encode(iv),
@@ -192,7 +188,7 @@ class LeaseSigner:
         self.product = product
 
     def sign(self, payload: dict[str, Any]) -> str:
-        payload_bytes = _canonical(payload)
+        payload_bytes = canonical_json_bytes(payload)
         signature = self._private.sign(payload_bytes)
         return f"{b64url_encode(payload_bytes)}.{b64url_encode(signature)}"
 
@@ -296,6 +292,8 @@ class KeyRegistry:
         now = as_naive_utc(self._clock())
         for generation in self._retired:
             if generation.transport_key_id != transport_key_id:
+                continue
+            if generation.retired_at is None:  # 没记退役时间的代次无法判定窗口，直接不认
                 continue
             age = (now - as_naive_utc(generation.retired_at)).total_seconds()
             if 0 <= age <= self._window:

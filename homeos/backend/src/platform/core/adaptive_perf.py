@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .numbers import positive_number
+
 #: 默认「大实体」判定阈值：实体数 ≥ 2000 触发 large 档位自适应
 LARGE_ENTITY_THRESHOLD = 2000
 
@@ -40,18 +42,8 @@ def apply_adaptive_backend_perf_in_place(config: dict[str, Any], entity_count: i
     ha_connector = _section(config, "haConnector")
     state_store = _section(config, "stateStore")
 
-    large_threshold = (
-        frontend.get("largeEntityThreshold")
-        if isinstance(frontend.get("largeEntityThreshold"), (int, float))
-        and frontend.get("largeEntityThreshold") > 0
-        else LARGE_ENTITY_THRESHOLD
-    )
-    xlarge_threshold = (
-        frontend.get("workerDerivedThreshold")
-        if isinstance(frontend.get("workerDerivedThreshold"), (int, float))
-        and frontend.get("workerDerivedThreshold") > 0
-        else 2000
-    )
+    large_threshold = positive_number(frontend.get("largeEntityThreshold")) or LARGE_ENTITY_THRESHOLD
+    xlarge_threshold = positive_number(frontend.get("workerDerivedThreshold")) or 2000
     profile = ws_push.get("latencyProfile") or "realtime"
 
     if entity_count < large_threshold:
@@ -120,7 +112,9 @@ def apply_adaptive_backend_perf_in_place(config: dict[str, Any], entity_count: i
     return applied
 
 
-def build_backend_perf_suggestions(entity_count: int, xlarge_threshold: int = 3500) -> list[str]:
+def build_backend_perf_suggestions(
+    entity_count: int, xlarge_threshold: int | float = 3500
+) -> list[str]:
     """根据实体规模给出后端调优建议（运维诊断 API 使用）。"""
     if entity_count < 2000:
         return []

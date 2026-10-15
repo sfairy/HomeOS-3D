@@ -10,7 +10,7 @@
 #
 # 钉的是 **manifest list 的摘要**，不是某个架构的镜像摘要 —— 这样 amd64 / arm64 各自
 # 仍从同一个多架构清单里解析，构建矩阵照旧（钉单架构摘要会让另一个架构直接拉不到）。
-# 换版本时必须同步改 tag 与摘要，`ops/check/check_docker_pins.py` 会拦住「只改一半」。
+# 换版本时必须同步改 tag 与摘要（真源 `ops/docker-pins.json`），避免只改一半。
 #
 # **apt 级版本不再逐个钉**：摘要已经把 apt 包索引钉在同一个 Debian 快照上，`ca-certificates` /
 # `curl` / `tini` 每次拿到的都是那一份（`apt-get update` 读的就是该快照里的索引）；反过来写死
@@ -34,7 +34,7 @@ ARG CYTHON_VERSION=3.2.9
 #: 而 ops/docker/compile_python.py 直接用 `setuptools.command.build_ext`；
 #: pip 大版本也会改依赖解析与元数据校验口径）。
 #: 升级方式：改这里的默认值 —— 四个值都在构建日志里可见，且被
-#: ops/check/check_docker_pins.py 的第 6 条判据钉成「必须 == 精确版本」。
+#: 构建期 pip 工具必须写成 `name==版本`，避免随时间装出不同产物。
 ARG PIP_VERSION=26.2.1
 ARG SETUPTOOLS_VERSION=84.0.0
 
@@ -87,7 +87,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
 
 # 后端保护：Cython 编译成 .so 后删除 .py 源码。
 # 主应用与商店共用这段流程，差异（源码目录、启动器、遗留目录）全部由 ARG PROJECT 派生；
-# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表与 ops/check/check_deploy_independence.py 对账。
+# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表约定。
 # 产物经 --target backend-export 导出到根 dist/ 再 COPY 回运行阶段；前端不在本文件构建。
 FROM base AS backend-build
 #: 必传、无默认值：漏传时下面的 COPY 找不到源而失败；给默认值会静默编出另一个项目的后端。
@@ -122,14 +122,14 @@ COPY package.json /tmp/package.json
 COPY ${PROJECT}/backend/src ./app
 # 共享 Python 包（真源 packages/shared-py，见其 README）：本阶段自己 COPY 一份再编译，
 # 于是两个镜像里各有一份自己编译的 homeos_shared/*.so —— 是「源码共享 + 各自内联」，
-# 不是运行期跨镜像依赖（ops/check/check_deploy_independence.py 的第 5 项钉死这一点）。
+# 不是运行期跨镜像依赖（两侧各自内联编译副本）。
 # 源写 <目录>/homeos_shared 而不是 <目录>：COPY 复制的是目录**内容**，写后者会多出一层
 # /app/homeos_shared/homeos_shared/。
 # 落点是 ./homeos_shared（而非 ./app 下）：PYTHONPATH=/app，包名要能在该根下直接解析。
 COPY packages/shared-py/homeos_shared ./homeos_shared
 # 迁移脚本（主应用的 migrations/ 与 alembic.ini、商店的 db/）**不进产物**：发行版里没有
 # Alembic，新库由 app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
-# ops/check/check_schema.py 会比对结构指纹）。位置与两个项目一致：后端落在 /app/app，
+# 结构由 ORM 元数据与迁移脚本共同约定）。位置与两个项目一致：后端落在 /app/app，
 # PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。该禁哪个目录由下面的 case 给出。
 # /app/image：内置素材目录（settings.built_in_assets_dir，由 HOMEOS_IMAGE_DIR 指到此处），
 # 默认空，可另行挂载增删。

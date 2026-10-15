@@ -300,6 +300,121 @@ def get_project_revision(project_id: str, database: DatabaseSession, viewer: Lic
         'updatedAt': draft.updated_at}
 
 
+def _collect_removed_popup_ids(
+    document_value: dict, stored_global_popups: list, popups_dirty: bool
+) -> set[str]:
+    """本次提交相对已存全局弹窗被移除的 id 集合（未标记 dirty 时为空）。"""
+    submitted_popup_ids = {
+        popup_id
+        for popup in (document_value.get('customPopups') or [])
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
+    }
+    if not popups_dirty:
+        return set()
+    stored_popup_ids = {
+        popup_id
+        for popup in stored_global_popups
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
+    }
+    return submitted_popup_ids - stored_popup_ids
+
+
+def _write_global_popups(
+    database: DatabaseSession, user_id: str, submitted_popups: list, expected_revision: int
+) -> None:
+    """乐观锁写入全局弹窗表；修订号被并发改动时回滚并抛 409。"""
+    popup_result = database.execute(
+        update(GlobalCustomPopupState)
+        .where(GlobalCustomPopupState.id == 1, GlobalCustomPopupState.revision == expected_revision)
+        .values(popups_json=serialize_document(submitted_popups), revision=GlobalCustomPopupState.revision + 1, updated_by=user_id)
+        .execution_options(synchronize_session=False)
+    )
+    if popup_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
+        database.rollback()
+        current_popup_revision = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
+            'code': 'GLOBAL_POPUP_REVISION_CONFLICT',
+            'message': '全局组合弹窗已在其他仪表盘中更新，请刷新后重试。',
+            'currentRevision': current_popup_revision})
+
+
+def _remove_popup_refs_from_drafts(
+    database: DatabaseSession, user_id: str, removed_popup_ids: set[str], project_id: str
+) -> None:
+    """把已删除的全局弹窗引用从其余仪表盘草稿中摘除（逐草稿乐观锁）。"""
+    for referenced_draft in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id != project_id)):
+        try:
+            referenced_document = json.loads(referenced_draft.document_json)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not clear_popup_references(referenced_document, removed_popup_ids):
+            continue
+        referenced_result = database.execute(
+            update(ProjectDraft)
+            .where(ProjectDraft.project_id == referenced_draft.project_id, ProjectDraft.revision == referenced_draft.revision)
+            .values(document_json=serialize_document(referenced_document), revision=ProjectDraft.revision + 1, updated_by=user_id)
+            .execution_options(synchronize_session=False)
+        )
+        if referenced_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
+            database.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
+                'code': 'PROJECT_REVISION_CONFLICT',
+                'message': '其他仪表盘正在更新，组合弹窗尚未删除，请重试。'})
+
+
+def _write_draft_document(
+    database: DatabaseSession,
+    user_id: str,
+    project_id: str,
+    draft_revision: int,
+    serialized_document: str,
+    schema_version: object,
+) -> None:
+    """乐观锁写入项目草稿文档；修订号被并发改动时回滚并抛 409/404。"""
+    write_result = database.execute(
+        update(ProjectDraft)
+        .where(ProjectDraft.project_id == project_id, ProjectDraft.revision == draft_revision)
+        .values(document_json=serialized_document, schema_version=schema_version, revision=ProjectDraft.revision + 1, updated_by=user_id)
+        .execution_options(synchronize_session=False)
+    )
+    if write_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
+        database.rollback()
+        current_revision = database.scalar(select(ProjectDraft.revision).where(ProjectDraft.project_id == project_id))
+        if current_revision is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
+            'code': 'PROJECT_REVISION_CONFLICT',
+            'message': '草稿已被其他页面更新。',
+            'currentRevision': current_revision})
+
+
+def _draft_update_response(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    database: DatabaseSession,
+    project_id: str,
+    project_name: object,
+) -> dict:
+    """写入成功后的收尾：刷新实体缓存、记录日志并返回回显载荷。"""
+    background_tasks.add_task(request.app.state.studio_ha.refresh_persistent_entity_ids, ensure_states=False)
+    database.expire_all()
+    draft = database.get(ProjectDraft, project_id)
+    if draft is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+    request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'仪表盘已保存：{project_name}（修订 {draft.revision}）')
+    hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
+    draft_payload = {
+        'projectId': project_id,
+        'schemaVersion': draft.schema_version,
+        'revision': draft.revision,
+        'globalPopupRevision': global_popup_state(database).revision,
+        'document': hydrated_document,
+        'updatedAt': draft.updated_at,
+    }
+    database.close()
+    return draft_payload
+
+
 @router.put('/{project_id}/draft')
 def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> dict:
     require_project_write(request)
@@ -316,18 +431,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     stored_global_popups = global_popups(database)
     if not payload.global_popups_dirty:
         document_value['customPopups'] = stored_global_popups
-    submitted_popup_ids = {
-        popup_id
-        for popup in (document_value.get('customPopups') or [])
-        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
-    }
-    removed_popup_ids = (
-        submitted_popup_ids - {
-            popup_id
-            for popup in stored_global_popups
-            if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
-        } if payload.global_popups_dirty else set()
-    )
+    removed_popup_ids = _collect_removed_popup_ids(document_value, stored_global_popups, payload.global_popups_dirty)
     clear_popup_references(document_value, removed_popup_ids)
     try:
         document = validate_panel_document(document_value)
@@ -360,69 +464,10 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         if user_asset_ids:
             validate_document_assets(request, document)
         if global_popups_changed:
-            popup_result = database.execute(
-                update(GlobalCustomPopupState)
-                .where(GlobalCustomPopupState.id == 1, GlobalCustomPopupState.revision == expected_global_popup_revision)
-                .values(popups_json=serialize_document(submitted_popups), revision=GlobalCustomPopupState.revision + 1, updated_by=user.id)
-                .execution_options(synchronize_session=False)
-            )
-            if popup_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
-                database.rollback()
-                current_popup_revision = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-                    'code': 'GLOBAL_POPUP_REVISION_CONFLICT',
-                    'message': '全局组合弹窗已在其他仪表盘中更新，请刷新后重试。',
-                    'currentRevision': current_popup_revision})
+            _write_global_popups(database, user.id, submitted_popups, expected_global_popup_revision)
             if removed_popup_ids:
-                for referenced_draft in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id != project_id)):
-                    try:
-                        referenced_document = json.loads(referenced_draft.document_json)
-                    except (TypeError, json.JSONDecodeError):
-                        continue
-                    if not clear_popup_references(referenced_document, removed_popup_ids):
-                        continue
-                    referenced_result = database.execute(
-                        update(ProjectDraft)
-                        .where(ProjectDraft.project_id == referenced_draft.project_id, ProjectDraft.revision == referenced_draft.revision)
-                        .values(document_json=serialize_document(referenced_document), revision=ProjectDraft.revision + 1, updated_by=user.id)
-                        .execution_options(synchronize_session=False)
-                    )
-                    if referenced_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
-                        database.rollback()
-                        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-                            'code': 'PROJECT_REVISION_CONFLICT',
-                            'message': '其他仪表盘正在更新，组合弹窗尚未删除，请重试。'})
-        result = database.execute(
-            update(ProjectDraft)
-            .where(ProjectDraft.project_id == project_id, ProjectDraft.revision == payload.revision)
-            .values(document_json=serialized_document, schema_version=document['schemaVersion'], revision=ProjectDraft.revision + 1, updated_by=user.id)
-            .execution_options(synchronize_session=False)
-        )
-        if result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
-            database.rollback()
-            current_revision = database.scalar(select(ProjectDraft.revision).where(ProjectDraft.project_id == project_id))
-            if current_revision is None:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
-                'code': 'PROJECT_REVISION_CONFLICT',
-                'message': '草稿已被其他页面更新。',
-                'currentRevision': current_revision})
+                _remove_popup_refs_from_drafts(database, user.id, removed_popup_ids, project_id)
+        _write_draft_document(database, user.id, project_id, payload.revision, serialized_document, document['schemaVersion'])
         database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
         commit_project_name(database)
-    background_tasks.add_task(request.app.state.studio_ha.refresh_persistent_entity_ids, ensure_states=False)
-    database.expire_all()
-    draft = database.get(ProjectDraft, project_id)
-    if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-    request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f"仪表盘已保存：{document['name']}（修订 {draft.revision}）")
-    hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
-    result = {
-        'projectId': project_id,
-        'schemaVersion': draft.schema_version,
-        'revision': draft.revision,
-        'globalPopupRevision': global_popup_state(database).revision,
-        'document': hydrated_document,
-        'updatedAt': draft.updated_at,
-    }
-    database.close()
-    return result
+    return _draft_update_response(request, background_tasks, database, project_id, document['name'])

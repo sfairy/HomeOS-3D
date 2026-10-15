@@ -379,28 +379,62 @@ async def _close(websocket: WebSocket, code: int, reason: str) -> None:
         pass
 
 
-@router.websocket("/ws")
-async def go2rtc_websocket(websocket: WebSocket) -> None:
-    """go2rtc MSE 信令 + 数据同源中继。"""
-    if not websocket_origin_allowed(websocket):
-        await _close(websocket, CLOSE_FORBIDDEN, "origin not allowed")
-        return
-    # websocket_viewer / license_service.allows 都是同步阻塞调用，必须挪到线程里。
-    viewer = await asyncio.to_thread(websocket_viewer, websocket)
-    if viewer is None:
-        await _close(websocket, CLOSE_UNAUTHORIZED, "authentication required")
-        return
-    if not await asyncio.to_thread(
-        websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET
-    ):
-        await _close(websocket, CLOSE_FORBIDDEN, "license restricted")
-        return
-    target = await asyncio.to_thread(_resolve_camera_target, websocket, viewer)
-    if target is None:
-        await _close(websocket, CLOSE_FORBIDDEN, "camera source not allowed")
-        return
-    await websocket.accept()
+async def _pump_client_to_upstream(websocket: WebSocket, upstream: Any) -> None:
+    """客户端 → 上游：只放行 MSE 协商信令，其余一律按终态关闭。"""
+    while True:
+        message = await websocket.receive_text()
+        if len(message) > MAX_SIGNALING_BYTES:
+            await _close(websocket, CLOSE_TOO_LARGE, "signaling message too large")
+            return
+        try:
+            request = json.loads(message)
+            codecs = request.get("value")
+            if (
+                request.get("type") != "mse"
+                or not isinstance(codecs, str)
+                or not SIGNALING_CODECS_PATTERN.fullmatch(codecs)
+            ):
+                raise ValueError("unsupported media request")
+        except (ValueError, AttributeError):
+            # 只放行 MSE 协商这一种信令：其余一律关闭，避免把它当中继去转发任意帧。
+            await _close(websocket, CLOSE_BAD_REQUEST, "unsupported media request")
+            return
+        await upstream.send(json.dumps({"type": "mse", "value": codecs}))
 
+
+async def _pump_upstream_to_client(websocket: WebSocket, upstream: Any) -> None:
+    """上游 → 客户端：二进制分片与文本消息原样透传。"""
+    async for message in upstream:
+        if isinstance(message, bytes):
+            await websocket.send_bytes(message)
+        else:
+            await websocket.send_text(message)
+
+
+async def _guard_go2rtc_access(websocket: WebSocket, target: str) -> None:
+    """长连复检：授权还在、登录会话没换、摄像头来源没被改掉。"""
+    while True:
+        await asyncio.sleep(ACCESS_RECHECK_SECONDS)
+        current = await asyncio.to_thread(websocket_viewer, websocket)
+        allowed = await asyncio.to_thread(
+            websocket.app.state.license_service.allows,
+            feature_codes.FEATURE_RUNTIME_WEBSOCKET,
+        )
+        try:
+            current_target = (
+                await asyncio.to_thread(saved_camera_target, websocket, current)
+                if current
+                else None
+            )
+        except Exception:
+            current_target = None
+        if not allowed or current_target != target:
+            await _close(websocket, CLOSE_FORBIDDEN, "camera access revoked")
+            return
+
+
+async def _relay_go2rtc_stream(websocket: WebSocket, target: str) -> None:
+    """建立上游连接并三路并发中继，把连接期 / 中继期错误翻译成稳定错误码。"""
     # go2rtc 会校验 Origin；上游是内网直连，带上与上游同源的 origin 即可。
     origin = Origin(f"{'https' if target.startswith('wss:') else 'http'}://{urlsplit(target).netloc}")
     # 连接期与中继期的失败原因完全不同，用这个标记区分后再翻译错误码。
@@ -414,60 +448,10 @@ async def go2rtc_websocket(websocket: WebSocket) -> None:
             max_size=UPSTREAM_MAX_MESSAGE_SIZE,
         ) as upstream:
             upstream_connected = True
-
-            async def client_to_upstream() -> None:
-                while True:
-                    message = await websocket.receive_text()
-                    if len(message) > MAX_SIGNALING_BYTES:
-                        await _close(websocket, CLOSE_TOO_LARGE, "signaling message too large")
-                        return
-                    try:
-                        request = json.loads(message)
-                        codecs = request.get("value")
-                        if (
-                            request.get("type") != "mse"
-                            or not isinstance(codecs, str)
-                            or not SIGNALING_CODECS_PATTERN.fullmatch(codecs)
-                        ):
-                            raise ValueError("unsupported media request")
-                    except (ValueError, AttributeError):
-                        # 只放行 MSE 协商这一种信令：其余一律关闭，避免把它当中继去转发任意帧。
-                        await _close(websocket, CLOSE_BAD_REQUEST, "unsupported media request")
-                        return
-                    await upstream.send(json.dumps({"type": "mse", "value": codecs}))
-
-            async def upstream_to_client() -> None:
-                async for message in upstream:
-                    if isinstance(message, bytes):
-                        await websocket.send_bytes(message)
-                    else:
-                        await websocket.send_text(message)
-
-            async def guard_access() -> None:
-                """长连复检：授权还在、登录会话没换、摄像头来源没被改掉。"""
-                while True:
-                    await asyncio.sleep(ACCESS_RECHECK_SECONDS)
-                    current = await asyncio.to_thread(websocket_viewer, websocket)
-                    allowed = await asyncio.to_thread(
-                        websocket.app.state.license_service.allows,
-                        feature_codes.FEATURE_RUNTIME_WEBSOCKET,
-                    )
-                    try:
-                        current_target = (
-                            await asyncio.to_thread(saved_camera_target, websocket, current)
-                            if current
-                            else None
-                        )
-                    except Exception:
-                        current_target = None
-                    if not allowed or current_target != target:
-                        await _close(websocket, CLOSE_FORBIDDEN, "camera access revoked")
-                        return
-
             tasks = [
-                asyncio.create_task(client_to_upstream()),
-                asyncio.create_task(upstream_to_client()),
-                asyncio.create_task(guard_access()),
+                asyncio.create_task(_pump_client_to_upstream(websocket, upstream)),
+                asyncio.create_task(_pump_upstream_to_client(websocket, upstream)),
+                asyncio.create_task(_guard_go2rtc_access(websocket, target)),
             ]
             try:
                 done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -489,6 +473,30 @@ async def go2rtc_websocket(websocket: WebSocket) -> None:
         logger.debug("go2rtc 中继已关闭：%s", code, exc_info=True)
         log_go2rtc_error(websocket, code, message, details=traceback.format_exc())
         await _close(websocket, CLOSE_FORBIDDEN, "camera source not allowed")
+
+
+@router.websocket("/ws")
+async def go2rtc_websocket(websocket: WebSocket) -> None:
+    """go2rtc MSE 信令 + 数据同源中继。"""
+    if not websocket_origin_allowed(websocket):
+        await _close(websocket, CLOSE_FORBIDDEN, "origin not allowed")
+        return
+    # websocket_viewer / license_service.allows 都是同步阻塞调用，必须挪到线程里。
+    viewer = await asyncio.to_thread(websocket_viewer, websocket)
+    if viewer is None:
+        await _close(websocket, CLOSE_UNAUTHORIZED, "authentication required")
+        return
+    if not await asyncio.to_thread(
+        websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET
+    ):
+        await _close(websocket, CLOSE_FORBIDDEN, "license restricted")
+        return
+    target = await asyncio.to_thread(_resolve_camera_target, websocket, viewer)
+    if target is None:
+        await _close(websocket, CLOSE_FORBIDDEN, "camera source not allowed")
+        return
+    await websocket.accept()
+    await _relay_go2rtc_stream(websocket, target)
 
 
 __all__ = [

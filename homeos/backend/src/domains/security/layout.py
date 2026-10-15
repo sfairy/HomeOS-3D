@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from ...platform.core.app_config import load_raw_config
 from ...platform.core.entity_domain import get_entity_domain
+from ...platform.core.json_field import object_field
 from ...platform.core.models import ProjectConfig, SecurityEvent
 
 logger = logging.getLogger("homeos.security")
@@ -38,9 +39,10 @@ def resolve_active_project_id(session) -> str:
     """对齐 ``resolveActiveProjectId``：profiles.activeProfileId 缺省为 default。"""
     try:
         raw = load_raw_config(session)
-    except Exception:
+    except Exception as exc:
+        logger.warning("读取 activeProfileId 失败，回退 default（按空配置继续）: %s", exc)
         raw = {}
-    profiles = raw.get("profiles") if isinstance(raw.get("profiles"), dict) else {}
+    profiles = object_field(raw, "profiles")
     return str(profiles.get("activeProfileId") or "").strip() or "default"
 
 
@@ -52,7 +54,8 @@ def load_project_layout_json(session, project_id: str) -> dict[str, Any]:
         if row is None or not row.layout:
             return {}
         return _read_json_object(row.layout)
-    except Exception:
+    except Exception as exc:
+        logger.warning("读取项目布局失败（project=%s），回退空布局: %s", project_id, exc)
         return {}
 
 
@@ -154,8 +157,16 @@ async def run_hazard_auto_actions(
             try:
                 await call_service(domain, service, entity_id)
                 return True
-            except Exception:
+            except Exception as exc:
                 if attempt >= retries:
+                    # 危险告警的自动处置（关阀/排风）失败必须可见：静默返回 False 会让人以为「已处置」。
+                    logger.warning(
+                        "危险告警自动动作失败，放弃重试 domain=%s service=%s entity=%s: %s",
+                        domain,
+                        service,
+                        entity_id,
+                        exc,
+                    )
                     return False
                 await asyncio.sleep(0.4)
         return False

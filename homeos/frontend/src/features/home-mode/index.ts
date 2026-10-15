@@ -36,7 +36,7 @@
  *
  * 只导出被跨域真正用到的成员。纯域内使用（如 `useHomeModeSwitcher` 的
  * `memberInitial` / `memberTone`，只被域内 `HomeModePresenceBadge` 用）不在此列出。
- * 本批按 `bun run knip` 实测又收掉了 5 条：`useHomeModes` / `useHomeModeSwitcher` /
+ * 本批又收掉了 5 条未再被跨域取用的导出：`useHomeModes` / `useHomeModeSwitcher` /
  * `useHomeModeEditor` 与 `ActionTemplate` / `ModeActionDraft` 类型，全部只被域内相对引用。
  * 上面的「使用场景」表描述的是**谁在用这个概念**，不等于「域根必须导出它」——
  * 归位批次收尾请以 knip 为准，别照抄表格。

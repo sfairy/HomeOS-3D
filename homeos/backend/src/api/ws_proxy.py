@@ -46,7 +46,7 @@ CLOSE_UNAVAILABLE = 1013
 async def _reject(websocket: WebSocket, code: int) -> None:
     try:
         await websocket.close(code=code)
-    except Exception:
+    except Exception:  # 拒绝握手时关闭 socket 是收尾动作，失败无处可退
         pass
 
 

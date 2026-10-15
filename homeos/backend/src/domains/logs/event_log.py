@@ -46,6 +46,7 @@ from .event_log_report import (
     EventLogReportMixin,
     _full_event_row,
     _naive_utc,
+    _report_now,
     _resolve_event_occurred_at,
     _resolve_ops_timezone_name,
     _restriction_conditions,
@@ -85,7 +86,8 @@ class EventLogService(EventLogReportMixin):
         try:
             with self._database.session_factory() as session:
                 raw = load_raw_config(session)
-            section = raw.get("ops") if isinstance(raw.get("ops"), dict) else {}
+            ops_source = raw.get("ops")
+            section = ops_source if isinstance(ops_source, dict) else {}
             self._ops = {**DEFAULT_OPS, **section}
         except Exception:
             self._ops = dict(DEFAULT_OPS)
@@ -105,11 +107,13 @@ class EventLogService(EventLogReportMixin):
     def get_retention_days(self) -> int:
         with self._database.session_factory() as session:
             raw = load_raw_config(session)
-        retention = raw.get("retention") if isinstance(raw.get("retention"), dict) else {}
+        retention_source = raw.get("retention")
+        retention = retention_source if isinstance(retention_source, dict) else {}
         value = retention.get("eventLog")
         if isinstance(value, (int, float)) and value > 0:
             return resolve_event_log_retention_days(value)
-        other = raw.get("other") if isinstance(raw.get("other"), dict) else {}
+        other_source = raw.get("other")
+        other = other_source if isinstance(other_source, dict) else {}
         return resolve_event_log_retention_days(other.get("eventlogRetentionDays"))
 
     def get_query_meta(self) -> dict[str, Any]:
@@ -454,8 +458,10 @@ class EventLogService(EventLogReportMixin):
         entity_id: str | None = None,
         domain: str | None = None,
     ) -> dict[str, Any]:
+        # 「现在」取家庭时区的墙钟并贯穿到聚合：分桶键是家庭时区文本，坐标轴必须同坐标。
+        now = _report_now(self._ops)
         window_hours = self._clamp_query_hours(hours, 24)
-        since = datetime.now(UTC) - timedelta(hours=window_hours)
+        since = now - timedelta(hours=window_hours)
         granularity = resolve_event_log_time_granularity(window_hours)
         bucket_expr = self._bucket_expr(EventLog.created_at, 13 if granularity == "hour" else 10)
         conditions: list[Any] = [EventLog.created_at >= _naive_utc(since)]
@@ -493,7 +499,7 @@ class EventLogService(EventLogReportMixin):
                     .order_by(bucket_expr.asc())
                 ).all()
             ]
-        return build_event_log_stats(domain_rows, entity_rows, time_rows, window_hours)
+        return build_event_log_stats(domain_rows, entity_rows, time_rows, window_hours, now)
 
     # 清理
     def clear_all_records(self) -> dict[str, Any]:

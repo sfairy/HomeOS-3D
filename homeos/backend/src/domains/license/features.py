@@ -16,7 +16,7 @@
 
 运行期加载：优先读磁盘 ``ops/check/feature_codes.json``（开发/测试），读不到则回退内嵌副本
 ``EMBEDDED_CATALOG``（发行的加密镜像里没有 ``ops/`` 目录，见根 Dockerfile）。
-``ops/check/check_feature_codes.py`` 会校验内嵌副本与 JSON 逐字段一致。
+内嵌副本须与 JSON 逐字段一致（靠评审保证）。
 """
 
 from __future__ import annotations

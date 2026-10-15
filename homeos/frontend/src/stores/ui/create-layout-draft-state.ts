@@ -90,6 +90,7 @@ export function createLayoutDraftState(deps: LayoutDraftStateDeps) {
   }
 
   // 注册 beforeunload 钩子：页面卸载前若有未保存修改则抢救性保存草稿
+  // 应用级单例监听（页面生命周期即其生命周期），触发点之后进程就结束了，不配对移除。
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
       if (layoutDirty.value) {

@@ -222,11 +222,18 @@ class HomeModeService:
                 raw = load_raw_config(session)
         except Exception:
             raw = {}
-        home_mode = raw.get("homeMode") if isinstance(raw.get("homeMode"), dict) else {}
-        security = raw.get("security") if isinstance(raw.get("security"), dict) else {}
+        # 先绑定再判类型：重复 `raw.get(K)` 时收窄不会传递到第二次读取，类型里会一直挂着 None，
+        # 字典解包因此被判成「可能不是映射」。
+        home_mode_source = raw.get("homeMode")
+        home_mode: dict[str, Any] = (
+            home_mode_source if isinstance(home_mode_source, dict) else {}
+        )
+        security_source = raw.get("security")
+        security: dict[str, Any] = security_source if isinstance(security_source, dict) else {}
         self._home_mode_cfg = {**HOME_MODE_DEFAULT_CONFIG, **home_mode}
         self._security_cfg = {**SECURITY_DEFAULT_CONFIG, **security}
-        ops = raw.get("ops") if isinstance(raw.get("ops"), dict) else {}
+        ops_source = raw.get("ops")
+        ops: dict[str, Any] = ops_source if isinstance(ops_source, dict) else {}
         tz = ops.get("homeTimezone")
         self._home_timezone = tz.strip() if isinstance(tz, str) and tz.strip() else None
 

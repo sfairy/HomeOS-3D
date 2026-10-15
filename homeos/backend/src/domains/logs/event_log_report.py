@@ -51,16 +51,16 @@ def parse_state_diff(state_diff: str | None) -> dict[str, str | None]:
     return {"state": state_diff, "oldState": "", "attrText": None}
 
 
-def map_history_row(row: EventLog) -> dict[str, Any]:
-    parsed = parse_state_diff(row.state_diff)
+def map_history_row(event_log: EventLog) -> dict[str, Any]:
+    parsed = parse_state_diff(event_log.state_diff)
     return {
-        "id": row.id,
-        "entityId": row.entity_id,
+        "id": event_log.id,
+        "entityId": event_log.entity_id,
         "state": parsed["state"],
         "oldState": parsed["oldState"],
         "attrText": parsed["attrText"],
-        "stateDiff": row.state_diff,
-        "createdAt": _iso(row.created_at),
+        "stateDiff": event_log.state_diff,
+        "createdAt": _iso(event_log.created_at),
     }
 
 
@@ -73,8 +73,13 @@ def build_event_log_stats(
     entity_rows: list[tuple[str, int]],
     time_rows: list[tuple[str, int]],
     window_hours: int,
-    now: datetime | None = None,
+    now: datetime,
 ) -> dict[str, Any]:
+    """装配 stats 报表。``now`` 必须显式传入家庭时区的「现在」（见 :func:`_report_now`）。
+
+    传参而非回落 ``datetime.now()`` 是有意的：分桶键是**家庭时区墙钟**文本，坐标轴必须
+    用同一坐标才能对齐，否则非 UTC 主机上会整体错位（东八区 8 小时）。
+    """
     by_domain: dict[str, int] = {}
     total = 0
     for domain, count in domain_rows:
@@ -88,13 +93,25 @@ def build_event_log_stats(
     }
 
 
+def _bucket_frame_ms(reference: datetime) -> int:
+    """把「现在」换算到分桶键所在坐标：**家庭时区墙钟按 UTC 解释**。
+
+    ``_bucket_expr`` 先把 UTC 存储值平移家庭时区偏移再截取，得到的是家庭墙钟文本
+    （东八区 ``2026-10-15 20``）；:func:`_parse_bucket_key` 又把它当 UTC 解析。两者相抵，
+    坐标轴就必须用同一种「墙钟字段按 UTC 解释」的毫秒。旧实现拿 ``datetime.now()``（naive
+    本地时间）当坐标轴，在 UTC 容器里会与东八区数据整体错位 8 小时，还把窗口外的数据
+    塞成额外的时间点。
+    """
+    wall_clock = reference.replace(tzinfo=None) if reference.tzinfo is not None else reference
+    return int(wall_clock.replace(tzinfo=UTC).timestamp() * 1000)
+
+
 def _build_time_series(
-    rows: list[tuple[str, int]], window_hours: int, now: datetime | None = None
+    rows: list[tuple[str, int]], window_hours: int, now: datetime
 ) -> list[dict[str, Any]]:
     granularity = resolve_event_log_time_granularity(window_hours)
     bucket_seconds = 3600 if granularity == "hour" else 86_400
-    reference = now or datetime.now()
-    now_ms = int(reference.timestamp() * 1000)
+    now_ms = _bucket_frame_ms(now)
     window_ms = window_hours * 3600_000
     bucket_ms = bucket_seconds * 1000
     start = (now_ms - window_ms) // bucket_ms * bucket_ms
@@ -201,8 +218,7 @@ def _report_now(ops: dict[str, Any] | None) -> datetime:
     return datetime.now(resolve_business_timezone(_resolve_ops_timezone_name(ops)))
 
 
-def _build_comparison_periods(granularity: str, now: datetime | None = None) -> dict[str, Any]:
-    now = now or datetime.now()
+def _build_comparison_periods(granularity: str, now: datetime) -> dict[str, Any]:
     if granularity == "week":
         current_start = _monday_of(now)
         span = now - current_start
@@ -241,29 +257,29 @@ def _restriction_conditions(restrictions: list[str] | None) -> list[Any]:
     return [or_(*conditions)] if conditions else [EventLog.entity_id.in_([])]
 
 
-def _iso(value: datetime | None) -> str | None:
-    if value is None:
+def _iso(moment: datetime | None) -> str | None:
+    if moment is None:
         return None
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond // 1000:03d}Z"
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
 
 class EventLogReportMixin:
     """报表层：依赖宿主注入的 ``_database`` 与 ``_ops``。"""
 
-    # 宿主装配期注入：类体给 ``None`` 默认值，满足 ``reportUninitializedInstanceVariable``
-    # （CI 硬门禁，见 ``ops/ci/pyright_gate.py``）；``EventLogService.__init__`` 覆写。
+    # 宿主装配期注入：类体给 ``None`` 默认值，满足 ``reportUninitializedInstanceVariable``；
+    # ``EventLogService.__init__`` 覆写。
     _database: Any = None
     _ops: Any = None
 
-    def report_compare(self, payload: dict[str, Any]) -> dict[str, Any]:
-        metric = payload.get("metric") or "events"
+    def report_compare(self, compare_request: dict[str, Any]) -> dict[str, Any]:
+        metric = compare_request.get("metric") or "events"
         if metric not in ("events", "energy", "environment", "device"):
             metric = "events"
-        granularity = "month" if payload.get("granularity") == "month" else "week"
-        field = payload.get("field") if payload.get("field") in ("humidity", "iaq") else "temperature"
-        entity_ids = payload.get("entityIds")
-        restrictions = payload.get("restrictions")
+        granularity = "month" if compare_request.get("granularity") == "month" else "week"
+        field = compare_request.get("field") if compare_request.get("field") in ("humidity", "iaq") else "temperature"
+        entity_ids = compare_request.get("entityIds")
+        restrictions = compare_request.get("restrictions")
         periods = _build_comparison_periods(granularity, _report_now(self._ops))
         if metric == "environment":
             return self._build_environment_report(periods, granularity, field)
@@ -294,7 +310,7 @@ class EventLogReportMixin:
         rows = session.execute(
             select(day_expr, func.count()).where(*conditions).group_by(day_expr)
         ).all()
-        mapping = {row[0]: int(row[1]) for row in rows}
+        mapping = {bucket_key: int(count) for bucket_key, count in rows}
         return [
             {"date": date, "label": _format_short_label(date), "value": mapping.get(date, 0)}
             for date in _build_day_labels(period["start"], period["end"])
@@ -309,7 +325,7 @@ class EventLogReportMixin:
             .order_by(func.count().desc())
             .limit(BY_ENTITY_LIMIT)
         ).all()
-        return [(row[0], int(row[1])) for row in rows]
+        return [(bucket_key, int(count)) for bucket_key, count in rows]
 
     def _period_conditions(self, period, entity_ids, restrictions) -> list[Any]:
         conditions: list[Any] = [
@@ -341,7 +357,7 @@ class EventLogReportMixin:
         )
 
     def _resolve_energy_entity_ids(self, session, entity_ids, restrictions) -> list[str]:
-        ids = [row[0] for row in session.execute(select(EnergyCandidateEntity.entity_id)).all()]
+        ids = [entity_id for (entity_id,) in session.execute(select(EnergyCandidateEntity.entity_id)).all()]
         if entity_ids:
             wanted = set(entity_ids)
             ids = [eid for eid in ids if eid in wanted]
@@ -394,20 +410,20 @@ class EventLogReportMixin:
         grouped: dict[str, list[tuple[str, float]]] = {}
         for (entity_id, day), value in last_by_day.items():
             grouped.setdefault(entity_id, []).append((day, value))
-        out: list[dict[str, Any]] = []
+        day_deltas: list[dict[str, Any]] = []
         for entity_id, entries in grouped.items():
-            entries.sort(key=lambda item: item[0])
+            entries.sort(key=lambda entry: entry[0])
             previous: float | None = None
             for day, value in entries:
                 if previous is None:
                     # 窗口内首日无前序读数：LAG 为 NULL，对齐 PG GREATEST 语义记为 0 增量
                     previous = value
-                    out.append({"entityId": entity_id, "date": day, "delta": 0.0})
+                    day_deltas.append({"entityId": entity_id, "date": day, "delta": 0.0})
                     continue
                 delta = value - previous if value >= previous else 0.0
-                out.append({"entityId": entity_id, "date": day, "delta": delta})
+                day_deltas.append({"entityId": entity_id, "date": day, "delta": delta})
                 previous = value
-        return out
+        return day_deltas
 
     # ---- environment ----
     def _build_environment_report(self, periods, granularity, field) -> dict[str, Any]:
@@ -440,7 +456,7 @@ class EventLogReportMixin:
             )
             .group_by(day_expr)
         ).all()
-        mapping = {row[0]: (None if row[1] is None else _round1(float(row[1]))) for row in rows}
+        mapping = {bucket_key: (None if avg is None else _round1(float(avg))) for bucket_key, avg in rows}
         return [
             {
                 "date": date,
@@ -461,7 +477,7 @@ class EventLogReportMixin:
             .order_by(func.avg(column).desc())
             .limit(BY_ENTITY_LIMIT)
         ).all()
-        return [(row[0], None if row[1] is None else float(row[1])) for row in rows]
+        return [(bucket_key, None if avg is None else float(avg)) for bucket_key, avg in rows]
 
     # ---- device ----
     def _build_device_report(self, periods, granularity, entity_ids, restrictions) -> dict[str, Any]:
@@ -503,8 +519,8 @@ class EventLogReportMixin:
         start_day = _format_day_label(periods["current"]["start"])
         end_day = _format_day_label(periods["current"]["end"])
         ids = [
-            row[0]
-            for row in session.execute(
+            entity_id
+            for (entity_id,) in session.execute(
                 select(DeviceUsageStat.entity_id)
                 .where(DeviceUsageStat.day >= start_day, DeviceUsageStat.day <= end_day)
                 .distinct()
@@ -529,7 +545,7 @@ class EventLogReportMixin:
             .group_by(DeviceUsageStat.day)
             .order_by(DeviceUsageStat.day.asc())
         ).all()
-        return [(row[0], float(row[1] or 0)) for row in rows]
+        return [(bucket_key, float(total or 0)) for bucket_key, total in rows]
 
     def _aggregate_device_by_entity(self, session, period, ids) -> list[tuple[str, float]]:
         start_day = _format_day_label(period["start"])
@@ -544,7 +560,7 @@ class EventLogReportMixin:
             .order_by(func.sum(DeviceUsageStat.total_runtime_ms).desc())
             .limit(BY_ENTITY_LIMIT)
         ).all()
-        return [(row[0], float(row[1] or 0)) for row in rows]
+        return [(bucket_key, float(total or 0)) for bucket_key, total in rows]
 
     # ---- 响应组装 ----
     def _assemble_response(
@@ -628,14 +644,14 @@ def _naive_utc(when: datetime) -> datetime:
     return when.astimezone(UTC).replace(tzinfo=None)
 
 
-def _full_event_row(row: EventLog) -> dict[str, Any]:
+def _full_event_row(event_log: EventLog) -> dict[str, Any]:
     return {
-        "id": row.id,
-        "entityId": row.entity_id,
-        "oldState": _load_json(row.old_state),
-        "newState": _load_json(row.new_state),
-        "stateDiff": row.state_diff,
-        "createdAt": _iso(row.created_at),
+        "id": event_log.id,
+        "entityId": event_log.entity_id,
+        "oldState": _load_json(event_log.old_state),
+        "newState": _load_json(event_log.new_state),
+        "stateDiff": event_log.state_diff,
+        "createdAt": _iso(event_log.created_at),
     }
 
 
@@ -667,10 +683,10 @@ def _empty_series(period) -> list[dict[str, Any]]:
 def _to_energy_series(rows: list[dict[str, Any]], period) -> list[dict[str, Any]]:
     first_day = _format_day_label(period["start"])
     mapping: dict[str, float] = {}
-    for row in rows:
-        if row["date"] < first_day:
+    for delta_row in rows:
+        if delta_row["date"] < first_day:
             continue
-        mapping[row["date"]] = mapping.get(row["date"], 0.0) + row["delta"]
+        mapping[delta_row["date"]] = mapping.get(delta_row["date"], 0.0) + delta_row["delta"]
     return [
         {"date": date, "label": _format_short_label(date), "value": _round2(mapping.get(date, 0.0))}
         for date in _build_day_labels(period["start"], period["end"])
@@ -681,16 +697,16 @@ def _build_energy_by_entity(cur_rows, prev_rows, periods) -> list[dict[str, Any]
     def sum_by_entity(rows, period):
         first_day = _format_day_label(period["start"])
         mapping: dict[str, float] = {}
-        for row in rows:
-            if row["date"] < first_day:
+        for delta_row in rows:
+            if delta_row["date"] < first_day:
                 continue
-            mapping[row["entityId"]] = mapping.get(row["entityId"], 0.0) + row["delta"]
+            mapping[delta_row["entityId"]] = mapping.get(delta_row["entityId"], 0.0) + delta_row["delta"]
         return mapping
 
     cur = sum_by_entity(cur_rows, periods["current"])
     prev = sum_by_entity(prev_rows, periods["previous"])
-    ordered = sorted(cur.items(), key=lambda item: item[1], reverse=True)[:BY_ENTITY_LIMIT]
-    return [_build_compare_row(eid, value, prev.get(eid, 0)) for eid, value in ordered]
+    ordered = sorted(cur.items(), key=lambda entry: entry[1], reverse=True)[:BY_ENTITY_LIMIT]
+    return [_build_compare_row(eid, current_total, prev.get(eid, 0)) for eid, current_total in ordered]
 
 
 def _to_hours_series(rows: list[tuple[str, float]], period) -> list[dict[str, Any]]:
@@ -722,14 +738,14 @@ def _build_insights(metric, cur_series, by_entity) -> dict[str, Any]:
     avg_per_day = avg_round(total / active_days) if active_days > 0 else None
     if peak_day is not None:
         peak_day = {**peak_day, "value": avg_round(peak_day["value"])}
-    with_pct = [row for row in by_entity if row.get("deltaPct") is not None]
+    with_pct = [entity_row for entity_row in by_entity if entity_row.get("deltaPct") is not None]
     top_riser = top_faller = None
-    for row in with_pct:
-        pct = row["deltaPct"]
+    for entity_row in with_pct:
+        pct = entity_row["deltaPct"]
         if top_riser is None or pct > top_riser["deltaPct"]:
-            top_riser = row
+            top_riser = entity_row
         if top_faller is None or pct < top_faller["deltaPct"]:
-            top_faller = row
+            top_faller = entity_row
     return {
         "peakDay": peak_day,
         "avgPerDay": avg_per_day,

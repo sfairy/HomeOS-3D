@@ -34,14 +34,29 @@ MAX_REVISIONS_PER_RULE = 20
 MAX_RULES = 500
 
 
-def _is_finite_number(value: Any) -> bool:
-    if isinstance(value, bool) or value is None:
-        return False
+#: 告警规则冷却时间默认值（分钟）：配置缺失或非法时使用。
+DEFAULT_COOLDOWN_MINUTES = 60
+
+
+def _finite_number(raw_value: Any) -> float | None:
+    """有限数值 → ``float``；``bool`` / ``None`` / 非数字 / 非有限数 → ``None``。
+
+    返回解析结果而非「是否是数值」的布尔：调用点因此不必再 ``float(value)`` 解析一遍，
+    也不会出现「判据通过、解析对象却是另一次读取」的错位（类型检查同样收不窄）。
+    """
+    if isinstance(raw_value, bool) or raw_value is None:
+        return None
     try:
-        number = float(value)
+        number = float(raw_value)
     except (TypeError, ValueError):
-        return False
-    return math.isfinite(number)
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _cooldown_minutes(raw_value: Any) -> float:
+    """冷却分钟数：非法值回落 :data:`DEFAULT_COOLDOWN_MINUTES`，负数夹到 0。"""
+    parsed = _finite_number(raw_value)
+    return max(0.0, parsed) if parsed is not None else float(DEFAULT_COOLDOWN_MINUTES)
 
 
 class NotificationRulesHelper:
@@ -201,12 +216,7 @@ class NotificationRulesHelper:
             except Exception as exc:
                 logger.warning("告警规则通知失败: %s", exc)
             if delivered:
-                cooldown_minutes = rule.get("cooldownMinutes")
-                if _is_finite_number(cooldown_minutes):
-                    minutes = max(0.0, float(cooldown_minutes))
-                else:
-                    minutes = 60.0
-                self._set_cooldown(cooldown_key, minutes)
+                self._set_cooldown(cooldown_key, _cooldown_minutes(rule.get("cooldownMinutes")))
             else:
                 # 通知未投递：回滚边沿匹配状态，保证条件持续匹配期间可重试。
                 self._match_state[edge_key] = False
@@ -227,10 +237,7 @@ class NotificationRulesHelper:
         if not condition:
             bad_request(api_error("ALERT_RULE_CONDITION_REQUIRED"))
         entity_id = str(rule.get("entityId") or "").strip() or None
-        cooldown = rule.get("cooldownMinutes")
-        cooldown_minutes = (
-            int(max(0.0, float(cooldown))) if _is_finite_number(cooldown) else 60
-        )
+        cooldown_minutes = int(_cooldown_minutes(rule.get("cooldownMinutes")))
         channels = rule.get("channels") if isinstance(rule.get("channels"), list) else []
 
         def _insert() -> dict[str, Any]:
@@ -288,11 +295,7 @@ class NotificationRulesHelper:
                 if "channels" in partial:
                     existing.channels = json.dumps(partial["channels"], ensure_ascii=False)
                 if "cooldownMinutes" in partial:
-                    cooldown = partial["cooldownMinutes"]
-                    if _is_finite_number(cooldown):
-                        existing.cooldown_minutes = int(max(0.0, float(cooldown)))
-                    else:
-                        existing.cooldown_minutes = 60
+                    existing.cooldown_minutes = int(_cooldown_minutes(partial["cooldownMinutes"]))
                 if "enabled" in partial:
                     existing.enabled = bool(partial["enabled"])
                 if "messageTemplate" in partial:

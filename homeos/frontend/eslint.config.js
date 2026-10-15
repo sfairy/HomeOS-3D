@@ -103,9 +103,7 @@ export default [
     ignores: APP_IGNORES,
     style: APP_STYLE,
   }),
-  // `scripts/**` 是仓库自己的门禁/冒烟入口（与 `ops/**` 同一定位）：console 就是它的
-  // 输出通道，不是遗留调试语句。此前这批文件虽在 APP_FILES 里，但 CLI glob 只写了
-  // `src/**/*.{ts,vue}`，所以从没被 lint 过；随 glob 补齐一并声明这条豁免。
+  // `scripts/**`（如 models 构建辅助）：console 就是输出通道，不是遗留调试语句。
   {
     files: ['scripts/**/*.{js,ts,mjs}'],
     ignores: APP_IGNORES,

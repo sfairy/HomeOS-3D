@@ -148,7 +148,9 @@ class ClientPowerService:
     def cfg(self) -> ClientPowerConfig:
         raw = self._app_config.get("clientPower")
         raw = raw if isinstance(raw, dict) else {}
-        clients = raw.get("clients") if isinstance(raw.get("clients"), list) else []
+        # 先绑定再判类型：重复 `raw.get("clients")` 时收窄不会传递到第二次读取，推导结果里带 None。
+        clients_source = raw.get("clients")
+        clients = clients_source if isinstance(clients_source, list) else []
         return ClientPowerConfig(
             enabled=raw.get("enabled") is True,
             report_interval_sec=int(raw.get("reportIntervalSec") or 10),
@@ -214,6 +216,98 @@ class ClientPowerService:
 
         return {"linkageAllowed": False, "deliverToken": expected}
 
+    def _build_reported_state(
+        self,
+        client_id: str,
+        client_cfg: dict[str, Any] | None,
+        normalized: dict[str, Any],
+        auth: dict[str, Any],
+        prev: ClientSystemState | None,
+        now: str,
+    ) -> ClientSystemState:
+        """把一次上报归一成内存态（含 token 哈希与配对标记）。"""
+        expected_token = str(client_cfg.get("reportToken") or "").strip() if client_cfg else ""
+        return ClientSystemState(
+            client_id=client_id,
+            system_info=normalized["systemInfo"],
+            level=normalized["level"],
+            charging=normalized["charging"],
+            charging_time=normalized["chargingTime"],
+            discharging_time=normalized["dischargingTime"],
+            battery_supported=normalized["batterySupported"],
+            last_report_at=now,
+            online=True,
+            label=client_cfg.get("label") if client_cfg else None,
+            pending=client_cfg is None,
+            report_token_acknowledged=bool(auth.get("linkageAllowed")),
+            report_token_hash=(
+                self._hash_token(expected_token)
+                if auth.get("linkageAllowed") and expected_token
+                else (prev.report_token_hash if prev else None)
+            ),
+        )
+
+    async def _emit_reported_event(
+        self,
+        client_id: str,
+        client_cfg: dict[str, Any] | None,
+        normalized: dict[str, Any],
+        auth: dict[str, Any],
+        state: ClientSystemState,
+        now: str,
+    ) -> None:
+        """广播 ``clientPower.reported``（供其他实例与前端状态面板消费）。"""
+        await self._emit(
+            CLIENT_POWER_REPORTED,
+            {
+                "clientId": client_id,
+                "level": normalized["level"],
+                "charging": normalized["charging"],
+                "chargingTime": normalized["chargingTime"],
+                "dischargingTime": normalized["dischargingTime"],
+                "batterySupported": normalized["batterySupported"],
+                "configured": client_cfg is not None,
+                "systemInfo": normalized["systemInfo"],
+                "label": client_cfg.get("label") if client_cfg else None,
+                "lastReportAt": now,
+                "reportTokenAcknowledged": bool(auth.get("linkageAllowed")),
+                "reportTokenHash": state.report_token_hash,
+            },
+        )
+
+    async def _emit_threshold_events(
+        self,
+        client_id: str,
+        client_cfg: dict[str, Any] | None,
+        level: float | None,
+        prev: ClientSystemState | None,
+        configured: bool,
+        auth: dict[str, Any],
+    ) -> None:
+        """仅在电量跨过阈值时触发低电量 / 充满事件，避免重复告警。"""
+        if level is None:
+            return
+        self_charge = client_cfg.get("selfCharge") if client_cfg else None
+        self_charge = self_charge if isinstance(self_charge, dict) else {}
+        low_threshold = float(
+            self_charge.get("lowPercent") or DEFAULT_CLIENT_POWER_SELF_CHARGE["lowPercent"]
+        )
+        high_threshold = float(
+            self_charge.get("highPercent") or DEFAULT_CLIENT_POWER_SELF_CHARGE["highPercent"]
+        )
+        if prev is not None and prev.level is not None and prev.level >= low_threshold and level < low_threshold:
+            await self._emit(CLIENT_POWER_LOW, {"clientId": client_id, "level": level})
+        elif prev is None and level < low_threshold and configured and auth.get("linkageAllowed"):
+            # 首次上报即低于低阈值：仅对已配对（token 确认）终端触发一次
+            await self._emit(CLIENT_POWER_LOW, {"clientId": client_id, "level": level})
+        if (
+            prev is not None
+            and prev.level is not None
+            and prev.level < high_threshold
+            and level >= high_threshold
+        ):
+            await self._emit(CLIENT_POWER_CHARGED, {"clientId": client_id, "level": level})
+
     # 上报处理
     async def report(self, dto: dict[str, Any]) -> dict[str, Any]:
         """处理客户端系统信息上报。"""
@@ -223,13 +317,6 @@ class ClientPowerService:
 
         normalized = normalize_client_system_report(dto)
         now = _iso_now()
-        system_info = normalized["systemInfo"]
-        level = normalized["level"]
-        charging = normalized["charging"]
-        charging_time = normalized["chargingTime"]
-        discharging_time = normalized["dischargingTime"]
-        battery_supported = normalized["batterySupported"]
-
         client_cfg = self._find_client_config(client_id)
         configured = client_cfg is not None
 
@@ -237,7 +324,7 @@ class ClientPowerService:
             existing_pending = self._pending.get(client_id)
             self._pending[client_id] = PendingClientState(
                 client_id=client_id,
-                system_info=system_info,
+                system_info=normalized["systemInfo"],
                 first_seen_at=existing_pending.first_seen_at if existing_pending else now,
                 last_report_at=now,
             )
@@ -247,69 +334,14 @@ class ClientPowerService:
 
         prev = self._states.get(client_id)
         auth = self._resolve_report_auth(client_id, dto.get("reportToken"), client_cfg, prev)
-        expected_token = str(client_cfg.get("reportToken") or "").strip() if client_cfg else ""
-        state = ClientSystemState(
-            client_id=client_id,
-            system_info=system_info,
-            level=level,
-            charging=charging,
-            charging_time=charging_time,
-            discharging_time=discharging_time,
-            battery_supported=battery_supported,
-            last_report_at=now,
-            online=True,
-            label=client_cfg.get("label") if client_cfg else None,
-            pending=not configured,
-            report_token_acknowledged=bool(auth.get("linkageAllowed")),
-            report_token_hash=(
-                self._hash_token(expected_token)
-                if auth.get("linkageAllowed") and expected_token
-                else (prev.report_token_hash if prev else None)
-            ),
-        )
+        state = self._build_reported_state(client_id, client_cfg, normalized, auth, prev, now)
         self._states[client_id] = state
         self._dirty = True
 
-        await self._emit(
-            CLIENT_POWER_REPORTED,
-            {
-                "clientId": client_id,
-                "level": level,
-                "charging": charging,
-                "chargingTime": charging_time,
-                "dischargingTime": discharging_time,
-                "batterySupported": battery_supported,
-                "configured": configured,
-                "systemInfo": system_info,
-                "label": client_cfg.get("label") if client_cfg else None,
-                "lastReportAt": now,
-                "reportTokenAcknowledged": bool(auth.get("linkageAllowed")),
-                "reportTokenHash": state.report_token_hash,
-            },
+        await self._emit_reported_event(client_id, client_cfg, normalized, auth, state, now)
+        await self._emit_threshold_events(
+            client_id, client_cfg, normalized["level"], prev, configured, auth
         )
-
-        # 仅在电量跨过阈值时触发低电量 / 充满事件，避免重复告警
-        if level is not None:
-            self_charge = client_cfg.get("selfCharge") if client_cfg else None
-            self_charge = self_charge if isinstance(self_charge, dict) else {}
-            low_threshold = float(
-                self_charge.get("lowPercent") or DEFAULT_CLIENT_POWER_SELF_CHARGE["lowPercent"]
-            )
-            high_threshold = float(
-                self_charge.get("highPercent") or DEFAULT_CLIENT_POWER_SELF_CHARGE["highPercent"]
-            )
-            if prev is not None and prev.level is not None and prev.level >= low_threshold and level < low_threshold:
-                await self._emit(CLIENT_POWER_LOW, {"clientId": client_id, "level": level})
-            elif prev is None and level < low_threshold and configured and auth.get("linkageAllowed"):
-                # 首次上报即低于低阈值：仅对已配对（token 确认）终端触发一次
-                await self._emit(CLIENT_POWER_LOW, {"clientId": client_id, "level": level})
-            if (
-                prev is not None
-                and prev.level is not None
-                and prev.level < high_threshold
-                and level >= high_threshold
-            ):
-                await self._emit(CLIENT_POWER_CHARGED, {"clientId": client_id, "level": level})
 
         if self.cfg().enabled and auth.get("linkageAllowed"):
             await self._evaluate_and_execute(state)
@@ -453,9 +485,13 @@ class ClientPowerService:
     # 对账 / 在线刷新 / 容量控制
     def _reconcile_pending_with_config(self) -> None:
         """将已注册终端移出 pending，未注册但有上报记录的终端恢复为待配对。"""
-        configured_ids = {c.get("id") for c in self.cfg().clients}
-        for cid in configured_ids:
-            self._pending.pop(cid, None)
+        # 只收集有 id 的终端（缺 id 会往集合里塞 None，弹出的是无意义键）；
+        # 键统一成字符串：`_pending` 的键就是字符串 client_id。
+        configured_ids = {
+            str(client["id"]) for client in self.cfg().clients if client.get("id")
+        }
+        for client_id in configured_ids:
+            self._pending.pop(client_id, None)
 
         changed = False
         for state in self._states.values():

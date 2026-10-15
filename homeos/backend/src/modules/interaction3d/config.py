@@ -13,7 +13,7 @@ from .config_sections_security import validate_security_section
 
 def validate_config(properties: dict) -> None:
     """校验 3D 增量配置：任一处不合规即抛 422（分区实现见 ``config_sections_*.py``）。"""
-    ctx = ValidationContext(validate_config)
+    ctx = ValidationContext()
     validate_core_sections(ctx, properties)
     validate_security_section(ctx, properties)
     validate_appearance_sections(ctx, properties)

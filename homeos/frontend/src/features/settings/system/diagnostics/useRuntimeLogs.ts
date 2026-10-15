@@ -144,6 +144,8 @@ export function useRuntimeLogs(active: () => boolean) {
     })
     liveMode.value = 'sse'
 
+    // 三个 handler 都挂在**本次** EventSource 上：stopStream() 会 stream.close()，
+    // 监听随连接对象一起回收，无需逐个摘除（也不会跨连接累积）。
     stream.addEventListener('log', (ev) => {
       try {
         const row = JSON.parse((ev as MessageEvent).data) as RuntimeLogEntry

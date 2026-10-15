@@ -12,13 +12,14 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from . import refunds
+from .base import PaymentError
+from .settlement import settle_paid_order
 from ..commerce import fulfill
 from ..commerce.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
 from ..config import StoreSettings
 from ..core.models import Order, Product, StoreSetting, utcnow
 from ..payments import PROVIDER_NAMES, normalize_provider_name, resolve_provider
-from ..payments.base import PaymentError
-from ..payments.settlement import settle_paid_order
 
 logger = logging.getLogger("src.payments.reconcile")
 
@@ -154,11 +155,12 @@ class SweepResult:
     closed: int = 0
     failed: int = 0
     expired: int = 0
+    stale_refunds: int = 0
     settled_orders: list[str] = field(default_factory=list)
 
     @property
     def changed(self) -> bool:
-        return bool(self.settled or self.closed or self.expired)
+        return bool(self.settled or self.closed or self.expired or self.stale_refunds)
 
 
 def _confirm_paid_after_close(
@@ -229,58 +231,39 @@ def reconcile_due_orders(
     pruned = prune_expired_sessions(session)
     if pruned:
         logger.info("支付巡检：清理过期登录会话 %d 条", pruned)
+    stale_refunds = refunds.reconcile_stale_running_refunds(session)
+    if stale_refunds:
+        result.stale_refunds = stale_refunds
+        logger.error("支付巡检：%d 笔退款占位长期未定论，已标记需人工核对", stale_refunds)
     return result
 
 
-def _sweep_channel_orders(
-    session: Session,
+def _collect_pending_sweep_actions(
     *,
+    pending_orders: list[Order],
+    moment: datetime,
+    provider_for,
     settings: StoreSettings,
-    setting: StoreSetting,
-    limit: int = 25,
-) -> SweepResult:
-    """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
-    """
-    result = SweepResult()
-    providers: dict = {}
-
-    def provider_for(name: str):
-        if name not in providers:
-            providers[name] = _reconcile_provider(settings, setting, name)
-        return providers[name]
-
-    active = [name for name in PROVIDER_NAMES if provider_for(name).is_configured(settings)]
-    if not active:
-        return result
-
-    moment = utcnow()
-    actions: list[_Action] = []
-
-    pending = session.scalars(
-        select(Order)
-        .where(Order.status == "pending")
-        .where(Order.payment_provider.in_(active))
-        .where(Order.created_at >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS))
-        .order_by(Order.created_at.desc())
-        .limit(limit)
-    ).all()
-
-    for order in pending:
+    actions: list[_Action],
+    sweep: SweepResult,
+) -> None:
+    """对待支付订单查单：已付则入账，过期未付则关单。"""
+    for order in pending_orders:
         is_expired = order.expires_at is not None and order.expires_at <= moment
         if not _allow_query(order.order_no):
             continue
         provider = provider_for(normalize_provider_name(order.payment_provider))
-        result.queried += 1
+        sweep.queried += 1
         try:
             node = provider.query_payment(settings, order)
         except PaymentError as error:
-            result.failed += 1
+            sweep.failed += 1
             logger.warning("巡检查单失败 order=%s error=%s", order.order_no, error)
             continue
 
         if node is not None and provider.is_success_node(node):
             if not _amount_matches(order, node, provider):
-                result.failed += 1
+                sweep.failed += 1
                 continue
             actions.append(
                 _Action(order=order, kind="settle", trade_no=provider.trade_no_of(node))
@@ -304,12 +287,12 @@ def _sweep_channel_orders(
         try:
             outcome = provider.close_payment(settings, order)
         except PaymentError as error:
-            result.failed += 1
+            sweep.failed += 1
             logger.warning("过期单关单失败 order=%s error=%s", order.order_no, error)
             continue
         if outcome.already_paid:
             if _confirm_paid_after_close(
-                provider=provider, settings=settings, order=order, actions=actions, result=result
+                provider=provider, settings=settings, order=order, actions=actions, result=sweep
             ):
                 continue
             continue
@@ -323,30 +306,30 @@ def _sweep_channel_orders(
                 )
             )
         else:
-            result.failed += 1
+            sweep.failed += 1
             logger.warning(
                 "过期单关单未成功 order=%s reason=%s", order.order_no, outcome.reason
             )
 
-    closing = session.scalars(
-        select(Order)
-        .where(Order.status.in_(("expired", "cancelled")))
-        .where(Order.payment_provider.in_(active))
-        .where(Order.channel_closed_at.is_(None))
-        .where(Order.created_at >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS))
-        .order_by(Order.created_at.desc())
-        .limit(limit)
-    ).all()
 
-    for order in closing:
+def _collect_closing_sweep_actions(
+    *,
+    closing_orders: list[Order],
+    provider_for,
+    settings: StoreSettings,
+    actions: list[_Action],
+    sweep: SweepResult,
+) -> None:
+    """对已过期/已取消但渠道未关的订单：已付入账，否则关单。"""
+    for order in closing_orders:
         if not _allow_query(order.order_no):
             continue
         provider = provider_for(normalize_provider_name(order.payment_provider))
-        result.queried += 1
+        sweep.queried += 1
         try:
             node = provider.query_payment(settings, order)
         except PaymentError as error:
-            result.failed += 1
+            sweep.failed += 1
             logger.warning("关单前查单失败 order=%s error=%s", order.order_no, error)
             continue
 
@@ -369,23 +352,32 @@ def _sweep_channel_orders(
         try:
             outcome = provider.close_payment(settings, order)
         except PaymentError as error:
-            result.failed += 1
+            sweep.failed += 1
             logger.warning("关单失败 order=%s error=%s", order.order_no, error)
             continue
 
         if outcome.already_paid:
             _confirm_paid_after_close(
-                provider=provider, settings=settings, order=order, actions=actions, result=result
+                provider=provider, settings=settings, order=order, actions=actions, result=sweep
             )
             continue
         if outcome.closed:
             actions.append(_Action(order=order, kind="close", detail=outcome.reason))
         else:
-            result.failed += 1
+            sweep.failed += 1
             logger.warning(
                 "关单未成功 order=%s reason=%s", order.order_no, outcome.reason
             )
 
+
+def _apply_sweep_actions(
+    session: Session,
+    *,
+    setting: StoreSetting,
+    actions: list[_Action],
+    sweep: SweepResult,
+) -> None:
+    """把巡检收集到的 settle/close 动作落到本地库。"""
     for action in actions:
         if action.kind == "settle":
             outcome = settle_paid_order(
@@ -396,8 +388,8 @@ def _sweep_channel_orders(
                 source=f"{normalize_provider_name(action.order.payment_provider)}.sweep",
             )
             if outcome.get("changed"):
-                result.settled += 1
-                result.settled_orders.append(action.order.order_no)
+                sweep.settled += 1
+                sweep.settled_orders.append(action.order.order_no)
             continue
 
         if action.expire_local and not _expire_local_order(session, action.order):
@@ -407,8 +399,69 @@ def _sweep_channel_orders(
             logger.info(
                 "已关闭渠道交易 order=%s 说明=%s", action.order.order_no, action.detail
             )
-        result.closed += 1
+        sweep.closed += 1
 
     if actions:
         session.flush()
-    return result
+
+
+def _sweep_channel_orders(
+    session: Session,
+    *,
+    settings: StoreSettings,
+    setting: StoreSetting,
+    limit: int = 25,
+) -> SweepResult:
+    """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
+    """
+    sweep = SweepResult()
+    providers: dict = {}
+
+    def provider_for(name: str):
+        if name not in providers:
+            providers[name] = _reconcile_provider(settings, setting, name)
+        return providers[name]
+
+    active = [name for name in PROVIDER_NAMES if provider_for(name).is_configured(settings)]
+    if not active:
+        return sweep
+
+    moment = utcnow()
+    actions: list[_Action] = []
+
+    pending = session.scalars(
+        select(Order)
+        .where(Order.status == "pending")
+        .where(Order.payment_provider.in_(active))
+        .where(Order.created_at >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS))
+        .order_by(Order.created_at.desc())
+        .limit(limit)
+    ).all()
+    _collect_pending_sweep_actions(
+        pending_orders=list(pending),
+        moment=moment,
+        provider_for=provider_for,
+        settings=settings,
+        actions=actions,
+        sweep=sweep,
+    )
+
+    closing = session.scalars(
+        select(Order)
+        .where(Order.status.in_(("expired", "cancelled")))
+        .where(Order.payment_provider.in_(active))
+        .where(Order.channel_closed_at.is_(None))
+        .where(Order.created_at >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS))
+        .order_by(Order.created_at.desc())
+        .limit(limit)
+    ).all()
+    _collect_closing_sweep_actions(
+        closing_orders=list(closing),
+        provider_for=provider_for,
+        settings=settings,
+        actions=actions,
+        sweep=sweep,
+    )
+
+    _apply_sweep_actions(session, setting=setting, actions=actions, sweep=sweep)
+    return sweep

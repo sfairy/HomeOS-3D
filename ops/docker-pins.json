@@ -1,6 +1,6 @@
 {
   "_doc": [
-    "基础镜像的唯一真源。三处镜像面都与这里逐字对账（ops/check/check_docker_pins.py）：",
+    "基础镜像的唯一真源。三处镜像面应与这里逐字一致：",
     "  1. Dockerfile 的 ARG PYTHON_IMAGE / ARG CADDY_IMAGE 默认值；",
     "  2. docker-compose.store.public.yml 里 caddy-public 的 ${CADDY_IMAGE:-…} 兜底值；",
     "  3. ops/build.py 走 --base-mirror 时用来拼镜像站引用的官方引用。",
@@ -9,10 +9,9 @@
     "而不是一整行长字符串里悄悄换掉半截。digest 是 manifest list（多架构清单）的摘要 ——",
     "钉单架构摘要会让构建矩阵的另一个架构直接拉不到。",
     "",
-    "升级步骤：改 upstream_tag → 用 `python3 ops/check/check_docker_pins.py --verify-remote --show-digest`",
-    "取回新 digest（或 docker buildx imagetools inspect <ref>）→ 填进 digest → 跑门禁与自检。",
-    "--verify-remote 也能反过来发现「上游重推了同一个 tag」：那时本文件里的 tag 已不再指向这里的",
-    "digest，必须重取摘要（这正是本文件存在的理由 —— 只写 tag 是可变引用）。"
+    "升级步骤：改 upstream_tag → 查 registry digest（或 docker buildx imagetools inspect <ref>）",
+    "→ 写回 digest → 同步 Dockerfile / compose。",
+    "上游重推同名 tag 后本文件里的 digest 会过时，必须重取摘要（这正是本文件存在的理由 —— 只写 tag 是可变引用）。"
   ],
   "images": {
     "python": {

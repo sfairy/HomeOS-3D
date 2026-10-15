@@ -1,8 +1,6 @@
 /** Derived 索引 Worker 主线程桥：发起 Worker 重建 / 增量 patch，并把结果回写主线程索引。 */
 import type { Remote } from 'comlink'
 import type {
-  DerivedBatteryEntry,
-  DerivedOfflineEntry,
   DerivedSnapshot,
   DerivedSnapshotPatch,
   DerivedSnapshotTargets,
@@ -78,14 +76,14 @@ export function applyDerivedSnapshotPatch(
   }
 
   // 电池 / 离线列表：按增量增删维护，避免整体重建
-  const batteryTarget = targets.batteryDevices as unknown as DerivedBatteryEntry[]
+  const batteryTarget = targets.batteryDevices
   for (const id of patch.batteryRemoved) {
     const idx = batteryTarget.findIndex((x) => x.entity_id === id)
     if (idx >= 0) batteryTarget.splice(idx, 1)
   }
   batteryTarget.push(...patch.batteryAdded)
 
-  const offlineTarget = targets.offlineDevices as unknown as DerivedOfflineEntry[]
+  const offlineTarget = targets.offlineDevices
   for (const id of patch.offlineRemoved) {
     const idx = offlineTarget.findIndex((x) => x.entity_id === id)
     if (idx >= 0) offlineTarget.splice(idx, 1)

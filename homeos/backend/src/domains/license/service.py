@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import secrets
 import threading
@@ -29,6 +30,8 @@ from ...platform.core.models import LicenseState
 # 事件日志是可选的：homeos 侧由 GlobalLogStore（Phase 4 随数据面一并并入）提供，
 # 未注入时授权服务只做本地状态记录，不阻塞任何流程。
 EventLogLike = Any
+
+logger = logging.getLogger("homeos.license.service")
 
 RETRY_DELAYS = (2, 5, 10, 30, 60, 300)
 TERMINAL_STATES = {
@@ -207,8 +210,9 @@ class LicenseService:
             return
         try:
             self.event_log.append(level, '授权服务', '授权', message)
-        except Exception:
-            pass
+        except Exception as exc:
+            # 授权事件写不进日志不阻塞授权流程，但必须留痕：否则「授权失败」会查无实据。
+            logger.warning('授权事件写入失败 level=%s message=%s: %s', level, message, exc)
 
     def _record_status(self, status: str, reason: str | None = None) -> None:
         labels = STATUS_LABELS
@@ -975,26 +979,35 @@ class LicenseService:
         except LicenseCryptoError:
             return None
 
-    def _payload(self, state: LicenseState) -> dict:
-        effective_status = state.status
-        effective_error = state.last_error
-        now = datetime.now(UTC)
+    def _resolve_signed_lease_dict(self, state: LicenseState) -> dict:
+        """校验签名租约；失败时返回空 dict（与原先内联逻辑一致）。"""
         # 时间锚点用**服务端签名的时间**，不用可变的本地 ``last_verified_at``：租约的
         # ``issuedAt``/``expiresAt`` 由商店私钥签名，本机改不动，所以它才是「现在到底
         # 该不该有效」的可信起点。以前靠 ``last_verified_at``（本地列）判时间回拨，
         # 清空这一列就能绕过，而签名时间戳绕不过去。
-        signed_payload: dict = {}
-        if state.signed_lease:
-            try:
-                signed_payload = self.verifier.verify(state.signed_lease, state.instance_id)
-            except LicenseCryptoError:
-                signed_payload = {}
+        if not state.signed_lease:
+            return {}
+        try:
+            return self.verifier.verify(state.signed_lease, state.instance_id)
+        except LicenseCryptoError:
+            return {}
+
+    def _resolve_effective_license_status(
+        self,
+        state: LicenseState,
+        *,
+        signed_lease: dict,
+        now: datetime,
+    ) -> tuple[str, str | None, bool]:
+        """推算面板用的有效状态 / 错误文案 / 是否已验证通过。"""
+        effective_status = state.status
+        effective_error = state.last_error
         skew = timedelta(seconds=self.settings.license_clock_skew_seconds)
-        server_issued_at = self._signed_timestamp(signed_payload, 'issuedAt')
+        server_issued_at = self._signed_timestamp(signed_lease, 'issuedAt')
         if server_issued_at is not None and server_issued_at > now + skew:
             effective_status = 'CLOCK_ROLLBACK'
             effective_error = '授权服务器签发的租约时间晚于本机时间，请校准系统时间后重试。'
-        lease_expires = self._signed_timestamp(signed_payload, 'expiresAt') or aware(state.lease_expires_at)
+        lease_expires = self._signed_timestamp(signed_lease, 'expiresAt') or aware(state.lease_expires_at)
         if effective_status != 'CLOCK_ROLLBACK' and lease_expires and lease_expires <= now and effective_status in {'ACTIVE', 'CONNECTION_WARNING'}:
             effective_status = 'LEASE_EXPIRED'
             if not effective_error:
@@ -1007,26 +1020,35 @@ class LicenseService:
         if not allowed and effective_status in {'ACTIVE', 'CONNECTION_WARNING', 'STARTUP_VALIDATION_REQUIRED'}:
             effective_status = 'INVALID'
             effective_error = '本地授权签名或会话记录校验失败，请联系管理员检查。'
+        return effective_status, effective_error, allowed
+
+    def _lease_features_and_products(
+        self,
+        state: LicenseState,
+        *,
+        signed_lease: dict,
+        allowed: bool,
+    ) -> tuple[list, list[dict]]:
+        """从签名租约（或本地缓存）取出 features 列表与可见商品。"""
         # 能力清单同样以**签名租约**为准（服务端签的 features/entitlements 不可被改），
         # ``feature_set`` 只是本地缓存，租约不可读时才退回它。
-        lease_features = signed_payload.get('features')
+        lease_features = signed_lease.get('features')
         if not isinstance(lease_features, list):
             try:
                 lease_features = json.loads(state.feature_set or '[]')
             except json.JSONDecodeError:
                 lease_features = []
-        granted_codes = feature_codes.expand(item for item in lease_features if isinstance(item, str))
-        visible_products = []
-        raw_products = signed_payload.get('products')
+        visible_products: list[dict] = []
+        raw_products = signed_lease.get('products')
         if isinstance(raw_products, list):
-            for item in raw_products:
-                if not isinstance(item, dict) or not isinstance(item.get('name'), str):
+            for product_entry in raw_products:
+                if not isinstance(product_entry, dict) or not isinstance(product_entry.get('name'), str):
                     continue
-                product_name = item['name'].strip()
+                product_name = product_entry['name'].strip()
                 if not product_name:
                     continue
-                product_type = item.get('type') if isinstance(item.get('type'), str) else 'module'
-                expires_at = item.get('expiresAt') if isinstance(item.get('expiresAt'), str) else None
+                product_type = product_entry.get('type') if isinstance(product_entry.get('type'), str) else 'module'
+                expires_at = product_entry.get('expiresAt') if isinstance(product_entry.get('expiresAt'), str) else None
                 visible_products.append({
                     'name': product_name,
                     'type': product_type,
@@ -1036,8 +1058,23 @@ class LicenseService:
                 'name': '基础版',
                 'type': 'base',
                 'expiresAt': None}]
-        entitlements = signed_payload.get('entitlements')
+        return lease_features, visible_products
+
+    def _build_license_status_body(
+        self,
+        state: LicenseState,
+        *,
+        now: datetime,
+        status_triple: tuple[str, str | None, bool],
+        lease_bundle: tuple[list, list[dict], Any],
+    ) -> dict:
+        """装配 ``/status`` 响应体（含能力码、商品、重试字段）。"""
+        effective_status, effective_error, allowed = status_triple
+        lease_features, visible_products, entitlements = lease_bundle
         entitlement_codes = feature_codes.active_entitlement_codes(entitlements, now=now)
+        granted_codes = feature_codes.expand(
+            feature_code for feature_code in lease_features if isinstance(feature_code, str)
+        )
 
         def _granted(code: str) -> bool:
             """单码判定：未验证通过（无授权 / 校验失败）时一律 false。
@@ -1085,11 +1122,11 @@ class LicenseService:
             'entitlements': (
                 [
                     {
-                        'code': item.get('code'),
-                        'startsAt': item.get('startsAt'),
-                        'expiresAt': item.get('expiresAt')}
-                    for item in entitlements
-                    if isinstance(item, dict) and isinstance(item.get('code'), str)
+                        'code': entitlement_entry.get('code'),
+                        'startsAt': entitlement_entry.get('startsAt'),
+                        'expiresAt': entitlement_entry.get('expiresAt')}
+                    for entitlement_entry in entitlements
+                    if isinstance(entitlement_entry, dict) and isinstance(entitlement_entry.get('code'), str)
                 ]
                 if allowed and isinstance(entitlements, list)
                 else []
@@ -1099,25 +1136,40 @@ class LicenseService:
             'leaseExpiresAt': aware(state.lease_expires_at),
             'lastHeartbeatAt': aware(state.last_heartbeat_at),
             'lastVerifiedAt': aware(state.last_verified_at),
-            
-                'lastError': effective_error,
-                'errorCode': self._error_code or {
-                    'RECOVERY_RETRY': 'RECOVERY_TOKEN_INVALID',
-                    'RECOVERY_REQUIRED': 'LICENSE_REMOTE_REJECTED',
-                    'REMOTE_REJECTED': 'LICENSE_REMOTE_REJECTED',
-                    'REVOKED': 'LICENSE_REVOKED',
-                    'INVALID': 'CREDENTIAL_INVALID',
-                    'CLOCK_ROLLBACK': 'CLOCK_INVALID',
-                    'INSTANCE_CHANGED': 'INSTANCE_CHANGED',
-                    'INSTANCE_MISMATCH': 'INSTANCE_MISMATCH',
-                    'LEASE_EXPIRED': 'LEASE_EXPIRED'}.get(effective_status),
-                'retryable': bool(state.license_id and effective_status not in TERMINAL_STATES),
-                'canRetry': bool(state.license_id and effective_status not in TERMINAL_STATES - {'CLOCK_ROLLBACK', 'REMOTE_REJECTED', 'RECOVERY_REQUIRED'}),
-                'retrying': self._heartbeat_lock.locked(),
-                'retryAttempt': self._failures,
-                'nextRetryAt': (now + timedelta(seconds=max(0, self._next_attempt - time.monotonic()))).isoformat() if self._next_attempt is not None and effective_status not in TERMINAL_STATES else None,
-                'startupValidationPending': self._startup_validation_pending
-            }
+            'lastError': effective_error,
+            'errorCode': self._error_code or {
+                'RECOVERY_RETRY': 'RECOVERY_TOKEN_INVALID',
+                'RECOVERY_REQUIRED': 'LICENSE_REMOTE_REJECTED',
+                'REMOTE_REJECTED': 'LICENSE_REMOTE_REJECTED',
+                'REVOKED': 'LICENSE_REVOKED',
+                'INVALID': 'CREDENTIAL_INVALID',
+                'CLOCK_ROLLBACK': 'CLOCK_INVALID',
+                'INSTANCE_CHANGED': 'INSTANCE_CHANGED',
+                'INSTANCE_MISMATCH': 'INSTANCE_MISMATCH',
+                'LEASE_EXPIRED': 'LEASE_EXPIRED'}.get(effective_status),
+            'retryable': bool(state.license_id and effective_status not in TERMINAL_STATES),
+            'canRetry': bool(state.license_id and effective_status not in TERMINAL_STATES - {'CLOCK_ROLLBACK', 'REMOTE_REJECTED', 'RECOVERY_REQUIRED'}),
+            'retrying': self._heartbeat_lock.locked(),
+            'retryAttempt': self._failures,
+            'nextRetryAt': (now + timedelta(seconds=max(0, self._next_attempt - time.monotonic()))).isoformat() if self._next_attempt is not None and effective_status not in TERMINAL_STATES else None,
+            'startupValidationPending': self._startup_validation_pending,
+        }
+
+    def _payload(self, state: LicenseState) -> dict:
+        now = datetime.now(UTC)
+        signed_lease = self._resolve_signed_lease_dict(state)
+        status_triple = self._resolve_effective_license_status(
+            state, signed_lease=signed_lease, now=now
+        )
+        lease_features, visible_products = self._lease_features_and_products(
+            state, signed_lease=signed_lease, allowed=status_triple[2]
+        )
+        return self._build_license_status_body(
+            state,
+            now=now,
+            status_triple=status_triple,
+            lease_bundle=(lease_features, visible_products, signed_lease.get('entitlements')),
+        )
 
     def status(self) -> dict:
         with self.database.session_factory() as database:

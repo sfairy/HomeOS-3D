@@ -590,13 +590,11 @@ input[type="range"].hos-range-ui:disabled {
   /* 7.10e 毛玻璃禁用组
      ⚠️ 选择器清单**必须字面量内联**，不能写成 `:is(var(--glass-fallback-selectors))`：
      `var()` 只在**声明值**位置被替换，出现在**选择器**位置时整条规则解析失败、被静默丢弃。
-     这条规则曾因此整段失效（低性能模式下约 30 个组件的 backdrop-filter 没被关掉），
-     而两条令牌门禁都看不见这类错误 —— 现在由 `ops/tokens/check-token-contract.mjs`
-     的「选择器位置禁用 var()」项拦下。
+     这条规则曾因此整段失效（低性能模式下约 30 个组件的 backdrop-filter 没被关掉）。
 
      下面这份清单在 main.css 里出现**两次**（这里的 coarse 触屏组，以及文件末尾的
      `html[data-glass-effect="static"]` 组），两处必须逐项一致；
-    门禁会比对这两份清单，新增 blur 使用点时两处都要登记。 */
+     新增 blur 使用点时两处都要登记。 */
 
   /* 7.10c iPad 增强阴影
      更细腻的多层阴影，模拟物理抬升感

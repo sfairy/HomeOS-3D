@@ -126,7 +126,7 @@ async def lookup_place_zh_remote(
         from_bdc = format_place_zh_from_bigdatacloud(result.get("data"))
         if from_bdc and has_cjk_text(from_bdc):
             return from_bdc
-    except Exception:
+    except Exception:  # 地名多源级联：本来源失败即换下一个来源
         pass
 
     try:

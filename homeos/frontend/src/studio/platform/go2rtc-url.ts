@@ -9,7 +9,7 @@
  *
  * 放在 platform 而不是 `runtime/camera/go2rtc-url.ts`：**保存草稿**前的整体预校验
  * （`app/editor/home.ts`）与运行时摄像头挂载都要用同一份规则，而 app ↛ runtime 是硬边界
- * （见 `scripts/gates/check-studio-deps.mjs`，白名单只减不增）。运行时入口
+ * 。运行时入口
  * `runtime/camera/go2rtc-url.ts` 保留为再导出，构建产物与清单路径不变。
  */
 

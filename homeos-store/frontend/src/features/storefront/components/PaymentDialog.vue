@@ -64,8 +64,8 @@ async function refresh() {
       <button type="button" class="hb-dialog__close hb-payment-close" aria-label="关闭" @click="order.closePayment()">
         <i class="fa-duotone fa-regular fa-xmark"></i>
       </button>
-      <span class="hb-kicker hb-kicker--plain">{{ (current as any)?.kicker || "Payment" }}</span>
-      <h2>{{ (current as any)?.title || "扫码支付" }}</h2>
+      <span class="hb-kicker hb-kicker--plain">{{ order.paymentKicker }}</span>
+      <h2>{{ order.paymentTitle }}</h2>
       <p>{{ current?.productName }}</p>
     </div>
     <div class="hb-dialog__body">
@@ -75,7 +75,7 @@ async function refresh() {
         </div>
         <p class="hb-pay-scan__hint">
           <i class="fa-duotone fa-regular fa-mobile-notch"></i>
-          <span>{{ (current as any)?.hint || "打开支付宝「扫一扫」完成付款" }}</span>
+          <span>{{ order.paymentHint || "打开支付宝「扫一扫」完成付款" }}</span>
         </p>
       </div>
       <div class="hb-pay-amount">

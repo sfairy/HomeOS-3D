@@ -37,6 +37,7 @@ app.config.errorHandler = (error) => {
   reportGlobal("渲染或生命周期异常", error);
 };
 
+// 启动时挂一次的全局兜底上报（应用级单例监听），进程结束前不需要摘除。
 window.addEventListener("unhandledrejection", (event) => {
   reportGlobal("未处理的 Promise 拒绝", event.reason);
 });

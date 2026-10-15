@@ -5,11 +5,8 @@ from __future__ import annotations
 from ..providers.llm_provider_interface import LlmToolSchema
 
 
-def build_home_tool_schemas() -> list[LlmToolSchema]:
-    """返回暴露给 LLM 的工具 schema 列表。
-
-    包含搜索、查状态、控制设备、列房间、房间快照、按房间批量控制等工具。
-    """
+def _search_and_control_schemas() -> list[LlmToolSchema]:
+    """搜索 / 查状态 / 控制设备 / 列房间这几类基础工具的 schema。"""
     return [
         LlmToolSchema(
             name="search_entities",
@@ -74,6 +71,12 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
             description="列出所有房间/区域。",
             parameters={"type": "object", "properties": {}},
         ),
+    ]
+
+
+def _room_and_mode_schemas() -> list[LlmToolSchema]:
+    """房间快照 / 按房间批量控制 / 场景 / 家庭模式这几类工具 schema。"""
+    return [
         LlmToolSchema(
             name="get_area_snapshot",
             description=(
@@ -161,6 +164,12 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
                 "required": ["name"],
             },
         ),
+    ]
+
+
+def _status_and_scene_schemas() -> list[LlmToolSchema]:
+    """全屋状态 / 天气 / 日历 / 场景列表 / 家庭模式列表这几类查询工具 schema。"""
+    return [
         LlmToolSchema(
             name="get_home_status",
             description=(
@@ -198,6 +207,12 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
             description="列出家庭模式名称（在家/离家/睡眠等）。切换模式前可先列出。",
             parameters={"type": "object", "properties": {}},
         ),
+    ]
+
+
+def _device_detail_schemas() -> list[LlmToolSchema]:
+    """亮度 / 窗帘位置 / 媒体控制 / 摄像头查询这几类细粒度工具 schema。"""
+    return [
         LlmToolSchema(
             name="set_light_brightness",
             description="设置灯的亮度（0-100）。需要 entity_id。",
@@ -249,4 +264,17 @@ def build_home_tool_schemas() -> list[LlmToolSchema]:
                 "required": ["entity_id"],
             },
         ),
+    ]
+
+
+def build_home_tool_schemas() -> list[LlmToolSchema]:
+    """返回暴露给 LLM 的工具 schema 列表。
+
+    包含搜索、查状态、控制设备、列房间、房间快照、按房间批量控制等工具。
+    """
+    return [
+        *_search_and_control_schemas(),
+        *_room_and_mode_schemas(),
+        *_status_and_scene_schemas(),
+        *_device_detail_schemas(),
     ]

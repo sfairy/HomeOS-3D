@@ -38,6 +38,9 @@ _AREA_CACHE_INVALIDATION_EVENTS = (
     "ha.entity_registry_updated",
 )
 
+#: 设温度分支内显式中止（如多空调消歧），与「未命中、继续开 / 关」区分。
+_FAST_PATH_ABORT = object()
+
 
 def looks_like_scene_intent(text: str) -> bool:
     """判断是否具备场景 / 脚本快路径的意图特征。
@@ -89,82 +92,152 @@ class FastPathService:
         """当前语言模板（正则、关键词等）。"""
         return self._lang_templates.current
 
-    async def try_parse(self, text: str) -> dict[str, Any] | None:
-        """尝试用规则解析用户文本为工具调用。
+    async def _try_parse_set_temperature(
+        self, cleaned: str, original_text: str, temp_match: Any
+    ) -> dict[str, Any] | object | None:
+        """设温度快路径（调用方已确认 ``set_temperature`` 正则命中）。
 
-        解析顺序：场景 / 脚本（白名单内）→ 设温度（空调）→ 开/关动作 → 房间 / 全屋 / 全局设备匹配。
-        无法确定时返回 None（交由 LLM 兜底）。
+        返回命中 dict、``_FAST_PATH_ABORT``（多空调等显式中止）、或 None（条件未满足，继续开 / 关）。
         """
-        t = str(text or "").strip()
-        # 过短 / 过长的文本不进快路径，避免误匹配
-        if not t or len(t) < 2 or len(t) > 80:
-            return None
-        # 去掉"帮我 / 请 / 麻烦"等礼貌前缀
-        t = self._L.polite_prefix.sub("", t, count=1).strip()
-        if not t or len(t) < 2:
-            return None
+        before = cleaned[: cleaned.index(temp_match.group(0))]
+        before = self._L.strip_pattern.sub("", before).strip()
+        temperature_celsius = int(temp_match.group(2))
+        if len(before) >= 2 and 10 <= temperature_celsius <= 35:
+            # 仅在描述命中 climate（空调）关键词时才走设温度
+            ac_dk = next(
+                (
+                    domain_kw
+                    for domain_kw in self._L.domain_keywords
+                    if any(kw in before for kw in domain_kw.keywords)
+                    and domain_kw.domain == "climate"
+                ),
+                None,
+            )
+            if ac_dk is not None:
+                areas = await self._get_areas()
+                room = self._resolve_room(before, areas)
+                if room is not None:
+                    # 取房间内第一个 climate 设备作为控制对象
+                    climate_devices = await self._get_room_devices(room["id"], "climate")
+                    if len(climate_devices) > 1:
+                        logger.info(
+                            '快路径跳过(多空调消歧): "%s" → %s 台',
+                            original_text,
+                            len(climate_devices),
+                        )
+                        return _FAST_PATH_ABORT
+                    climate_entity = climate_devices[0]["entityId"] if climate_devices else None
+                    if climate_entity:
+                        logger.info(
+                            '快路径命中(set_temp): "%s" → %s  %s°C',
+                            original_text,
+                            climate_entity,
+                            temperature_celsius,
+                        )
+                        return {
+                            "kind": "device",
+                            "service": "set_temperature",
+                            "entityId": climate_entity,
+                            "serviceData": {"temperature": temperature_celsius},
+                        }
+        return None
 
-        # 0) 场景 / 脚本：白名单内的 HA scene.* / script.* 直接触发
-        scene_hit = await self._match_scene_fast_path(t)
-        if scene_hit:
-            return scene_hit
-
-        # 1) 设温度：提取"调到 24 度"中的数值与前置房间 / 设备描述
-        temp_match = self._L.set_temperature.search(t)
-        if temp_match:
-            before = t[: t.index(temp_match.group(0))]
-            before = self._L.strip_pattern.sub("", before).strip()
-            temp_val = int(temp_match.group(2))
-            if len(before) >= 2 and 10 <= temp_val <= 35:
-                # 仅在描述命中 climate（空调）关键词时才走设温度
-                ac_dk = next(
-                    (
-                        c
-                        for c in self._L.domain_keywords
-                        if any(kw in before for kw in c.keywords) and c.domain == "climate"
-                    ),
-                    None,
-                )
-                if ac_dk is not None:
-                    areas = await self._get_areas()
-                    room = self._resolve_room(before, areas)
-                    if room is not None:
-                        # 取房间内第一个 climate 设备作为控制对象
-                        acs = await self._get_room_devices(room["id"], "climate")
-                        if len(acs) > 1:
-                            logger.info('快路径跳过(多空调消歧): "%s" → %s 台', text, len(acs))
-                            return None
-                        ac_entity = acs[0]["entityId"] if acs else None
-                        if ac_entity:
-                            logger.info(
-                                '快路径命中(set_temp): "%s" → %s  %s°C', text, ac_entity, temp_val
-                            )
-                            return {
-                                "kind": "device",
-                                "service": "set_temperature",
-                                "entityId": ac_entity,
-                                "serviceData": {"temperature": temp_val},
-                            }
-
-        # 2) 开 / 关动作判定：优先匹配动作后缀（"灯打开"），再匹配前缀（"打开灯"）
-        is_on: bool
-        rest: str
-        on_end = self._L.turn_on_end.search(t)
-        off_end = self._L.turn_off_end.search(t)
+    def _parse_on_off_rest(self, cleaned: str) -> tuple[bool, str] | None:
+        """开 / 关动作判定：优先匹配动作后缀，再匹配前缀；无法判定时返回 None。"""
+        on_end = self._L.turn_on_end.search(cleaned)
+        off_end = self._L.turn_off_end.search(cleaned)
         if on_end:
-            is_on = True
-            rest = t[: t.rindex(on_end.group(0))].strip()
-        elif off_end:
-            is_on = False
-            rest = t[: t.rindex(off_end.group(0))].strip()
-        elif self._L.turn_on_start.search(t):
-            is_on = True
-            rest = self._L.turn_on_start.sub("", t, count=1)
-        elif self._L.turn_off_start.search(t):
-            is_on = False
-            rest = self._L.turn_off_start.sub("", t, count=1)
-        else:
+            return True, cleaned[: cleaned.rindex(on_end.group(0))].strip()
+        if off_end:
+            return False, cleaned[: cleaned.rindex(off_end.group(0))].strip()
+        if self._L.turn_on_start.search(cleaned):
+            return True, self._L.turn_on_start.sub("", cleaned, count=1)
+        if self._L.turn_off_start.search(cleaned):
+            return False, self._L.turn_off_start.sub("", cleaned, count=1)
+        return None
+
+    async def _resolve_control_without_room(
+        self,
+        *,
+        original_text: str,
+        rest: str,
+        target: str,
+        service: str,
+        domain: str,
+        explicit_all: bool,
+    ) -> dict[str, Any] | None:
+        """房间未匹配时：全屋兜底或全局精确设备名。"""
+        if explicit_all or self._L.whole_home.search(rest):
+            logger.info(
+                '快路径命中(全屋fallback): "%s" → 全屋/%s/%s', original_text, domain, service
+            )
+            return {"kind": "room", "service": service, "roomName": "全屋", "domain": domain}
+        if len(target) >= 3:
+            global_exact = await self._find_device_globally(target, domain)
+            if global_exact:
+                logger.info(
+                    '快路径命中(全局设备): "%s" → %s/%s', original_text, global_exact, service
+                )
+                return {"kind": "device", "service": service, "entityId": global_exact}
+        return None
+
+    async def _resolve_control_in_room(
+        self,
+        *,
+        original_text: str,
+        room: dict[str, str],
+        target: str,
+        service: str,
+        domain: str,
+        explicit_all: bool,
+    ) -> dict[str, Any] | None:
+        """房间内查找该域设备；非「所有」时优先精确匹配设备名。"""
+        devices = await self._get_room_devices(room["id"], domain)
+        if not devices:
             return None
+
+        if not explicit_all:
+            exact_hits = [
+                device for device in devices if device["name"] and device["name"] == target
+            ]
+            if len(exact_hits) == 1:
+                logger.info(
+                    '快路径命中(精确设备): "%s" → %s/%s',
+                    original_text,
+                    exact_hits[0]["name"],
+                    service,
+                )
+                return {
+                    "kind": "device",
+                    "service": service,
+                    "entityId": exact_hits[0]["entityId"],
+                }
+            if len(exact_hits) > 1:
+                return None
+
+        # 兜底：整房间该域设备批量控制
+        logger.info(
+            '快路径命中(整房间): "%s" → %s/%s/%s',
+            original_text,
+            room["name"],
+            domain,
+            service,
+        )
+        return {
+            "kind": "room",
+            "service": service,
+            "roomName": room["name"],
+            "domain": domain,
+        }
+
+    async def _try_parse_device_control(
+        self, cleaned: str, original_text: str
+    ) -> dict[str, Any] | None:
+        """开 / 关类指令：房间 / 全屋 / 全局设备匹配。"""
+        parsed = self._parse_on_off_rest(cleaned)
+        if parsed is None:
+            return None
+        is_on, rest = parsed
 
         # 去掉"把"字宾语标记
         if self._L.object_marker and rest.startswith(self._L.object_marker):
@@ -177,60 +250,88 @@ class FastPathService:
         if self._L.second_action.search(rest):
             return None
 
-        # 3) 按关键词匹配设备域；多域命中（"灯和空调"这种）交给 LLM
+        # 按关键词匹配设备域；多域命中（"灯和空调"这种）交给 LLM
         hit_domains = [
-            c for c in self._L.domain_keywords if any(kw in rest for kw in c.keywords)
+            domain_kw
+            for domain_kw in self._L.domain_keywords
+            if any(kw in rest for kw in domain_kw.keywords)
         ]
-        distinct = {c.domain for c in hit_domains}
+        distinct = {domain_kw.domain for domain_kw in hit_domains}
         if len(distinct) == 0:
             return None
         if len(distinct) > 1:
             return None
 
-        dk = hit_domains[0]
-        service = dk.service_on if is_on else dk.service_off
+        domain_kw = hit_domains[0]
+        service = domain_kw.service_on if is_on else domain_kw.service_off
         target = self._L.strip_pattern.sub("", rest).strip()
 
-        # 4a) 显式"所有"且无具体目标 → 全屋控制
+        # 显式"所有"且无具体目标 → 全屋控制
         if explicit_all and len(target) == 0:
-            logger.info('快路径命中(全屋): "%s" → 全屋/%s/%s', text, dk.domain, service)
-            return {"kind": "room", "service": service, "roomName": "全屋", "domain": dk.domain}
+            logger.info(
+                '快路径命中(全屋): "%s" → 全屋/%s/%s', original_text, domain_kw.domain, service
+            )
+            return {
+                "kind": "room",
+                "service": service,
+                "roomName": "全屋",
+                "domain": domain_kw.domain,
+            }
 
         if len(target) < 1:
             return None
 
         areas = await self._get_areas()
         room = self._resolve_room(target, areas)
-        # 4b) 房间匹配失败：尝试"全屋"兜底或全局精确设备名
         if room is None:
-            if explicit_all or self._L.whole_home.search(rest):
-                logger.info('快路径命中(全屋fallback): "%s" → 全屋/%s/%s', text, dk.domain, service)
-                return {"kind": "room", "service": service, "roomName": "全屋", "domain": dk.domain}
-            if len(target) >= 3:
-                global_exact = await self._find_device_globally(target, dk.domain)
-                if global_exact:
-                    logger.info('快路径命中(全局设备): "%s" → %s/%s', text, global_exact, service)
-                    return {"kind": "device", "service": service, "entityId": global_exact}
+            return await self._resolve_control_without_room(
+                original_text=original_text,
+                rest=rest,
+                target=target,
+                service=service,
+                domain=domain_kw.domain,
+                explicit_all=explicit_all,
+            )
+        return await self._resolve_control_in_room(
+            original_text=original_text,
+            room=room,
+            target=target,
+            service=service,
+            domain=domain_kw.domain,
+            explicit_all=explicit_all,
+        )
+
+    async def try_parse(self, text: str) -> dict[str, Any] | None:
+        """尝试用规则解析用户文本为工具调用。
+
+        解析顺序：场景 / 脚本（白名单内）→ 设温度（空调）→ 开/关动作 → 房间 / 全屋 / 全局设备匹配。
+        无法确定时返回 None（交由 LLM 兜底）。
+        """
+        cleaned = str(text or "").strip()
+        # 过短 / 过长的文本不进快路径，避免误匹配
+        if not cleaned or len(cleaned) < 2 or len(cleaned) > 80:
+            return None
+        # 去掉"帮我 / 请 / 麻烦"等礼貌前缀
+        cleaned = self._L.polite_prefix.sub("", cleaned, count=1).strip()
+        if not cleaned or len(cleaned) < 2:
             return None
 
-        # 5) 房间内查找该域设备；非"所有"时优先精确匹配设备名
-        devices = await self._get_room_devices(room["id"], dk.domain)
-        if not devices:
-            return None
+        # 0) 场景 / 脚本：白名单内的 HA scene.* / script.* 直接触发
+        scene_hit = await self._match_scene_fast_path(cleaned)
+        if scene_hit:
+            return scene_hit
 
-        if not explicit_all:
-            exact_hits = [d for d in devices if d["name"] and d["name"] == target]
-            if len(exact_hits) == 1:
-                logger.info(
-                    '快路径命中(精确设备): "%s" → %s/%s', text, exact_hits[0]["name"], service
-                )
-                return {"kind": "device", "service": service, "entityId": exact_hits[0]["entityId"]}
-            if len(exact_hits) > 1:
+        # 1) 设温度：提取「调到 24 度」；未命中或条件不足时继续开 / 关
+        temp_match = self._L.set_temperature.search(cleaned)
+        if temp_match:
+            temp_hit = await self._try_parse_set_temperature(cleaned, text, temp_match)
+            if temp_hit is _FAST_PATH_ABORT:
                 return None
+            if temp_hit is not None:
+                return temp_hit  # type: ignore[return-value]
 
-        # 6) 兜底：整房间该域设备批量控制
-        logger.info('快路径命中(整房间): "%s" → %s/%s/%s', text, room["name"], dk.domain, service)
-        return {"kind": "room", "service": service, "roomName": room["name"], "domain": dk.domain}
+        # 2–6) 开 / 关与房间 / 设备匹配
+        return await self._try_parse_device_control(cleaned, text)
 
     # 场景 / 脚本
     async def _match_scene_fast_path(self, text: str) -> dict[str, Any] | None:

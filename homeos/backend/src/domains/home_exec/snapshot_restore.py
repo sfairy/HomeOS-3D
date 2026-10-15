@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...platform.core.entity_domain import get_entity_domain
+from ...platform.core.json_field import object_field
 
 #: 支持 turn_on / turn_off 的域（默认分支可用）；其余域无此服务，跳过恢复。
 SWITCHABLE_DOMAINS = frozenset(
@@ -38,7 +39,7 @@ def build_snapshot_restore_calls(entity_id: str, snap: dict[str, Any] | None) ->
     snapshot = snap if isinstance(snap, dict) else {}
     domain = get_entity_domain(entity_id)
     state = snapshot.get("state")
-    attrs = snapshot.get("attributes") if isinstance(snapshot.get("attributes"), dict) else {}
+    attrs = object_field(snapshot, "attributes")
 
     if not state or state in ("unavailable", "unknown"):
         return []

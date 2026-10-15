@@ -22,7 +22,7 @@ import traceback
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 from time import monotonic
-from typing import Any
+from typing import Any, Protocol, cast
 from urllib.parse import parse_qs, parse_qsl, urlencode
 
 import httpx
@@ -30,6 +30,7 @@ from anyio import CancelScope, create_task_group, move_on_after
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.requests import ClientDisconnect
+from starlette.types import Message, Send
 
 from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..domains.ha.integration.client import HAClientError
@@ -245,7 +246,9 @@ def _camera_stream_log(
     recorded = getattr(state, 'camera_stream_log_codes', None)
     if recorded is None:
         recorded = set()
-        state.camera_stream_log_codes = recorded
+        # Starlette 的 ``State`` 是动态属性容器：类型系统看不到运行期挂上去的键，
+        # 直接 `.attr = …` 会被判成「类上不存在该属性」，因此显式走 setattr。
+        setattr(state, 'camera_stream_log_codes', recorded)  # noqa: B010 - State 只支持动态属性
     if code in recorded:
         return
     recorded.add(code)
@@ -311,9 +314,23 @@ async def open_licensed_camera_stream(
     return result
 
 
+class _ClosableAsyncStream(Protocol):
+    """比 ``AsyncIterator`` 多一个 ``aclose`` 的异步流。
+
+    ``httpx.Response.aiter_raw()`` 声明返回 ``AsyncIterator[bytes]``，但运行期是异步生成器，
+    确实支持 ``aclose()``；本函数依赖这一点来在取消域里提前收干净上游连接，因此把契约写出来。
+    """
+
+    def __aiter__(self) -> AsyncIterator[bytes]: ...
+
+    def __anext__(self) -> Any: ...
+
+    async def aclose(self) -> None: ...
+
+
 async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> AsyncIterator[bytes]:
     """逐帧复检授权；响应侧另外负责取消静默读取与卡住的发送。"""
-    iterator = upstream.aiter_raw().__aiter__()
+    iterator = cast(_ClosableAsyncStream, upstream.aiter_raw().__aiter__())
     if not await _camera_license_allows(request):
         _camera_stream_log(
             request,
@@ -373,15 +390,16 @@ class LicensedCameraStreamingResponse(StreamingResponse):
         self.upstream = upstream
         self.client = client
         state = getattr(request, 'state', request)
-        state.camera_stream_started_at = monotonic()
+        # 同上：``State`` 的键只能动态挂载。
+        setattr(state, 'camera_stream_started_at', monotonic())  # noqa: B010 - State 只支持动态属性
 
-    async def stream_response(self, send) -> None:
+    async def stream_response(self, send: Send) -> None:
         failure: BaseException | None = None
         restricted = False
         started = False
         finished = False
 
-        async def track_send(message: dict[str, Any]) -> None:
+        async def track_send(message: Message) -> None:
             nonlocal started, finished
             await send(message)
             if message['type'] == 'http.response.start':
@@ -429,7 +447,10 @@ class LicensedCameraStreamingResponse(StreamingResponse):
             await super().__call__(scope, receive, send)
         finally:
             with CancelScope(shield=True):
-                await self.body_iterator.aclose()
+                # ``body_iterator`` 由基类按 ``AsyncContentStream`` 声明（协议里没有 aclose），
+                # 但这里传入的是异步生成器，必须显式关闭才不会留下未收尾的帧读取协程。
+                body_stream = cast(_ClosableAsyncStream, self.body_iterator)
+                await body_stream.aclose()
                 await self.upstream.aclose()
                 await self.client.aclose()
 

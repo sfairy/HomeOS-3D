@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .json_field import object_field
 from .models import SystemConfig
 
 
@@ -45,5 +46,5 @@ def merge_raw_config_section(session_factory, section: str, partial: dict[str, A
     """按字段合并（而非整体替换）SystemConfig 指定分区，供增量更新使用。"""
     with session_factory() as session:
         raw = load_raw_config(session)
-    current = raw.get(section) if isinstance(raw.get(section), dict) else {}
+    current = object_field(raw, section)
     write_raw_config_section(session_factory, section, {**current, **partial})

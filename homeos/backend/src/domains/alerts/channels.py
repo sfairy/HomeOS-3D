@@ -10,6 +10,13 @@ from __future__ import annotations
 
 from typing import Any
 
+# 转出（非本地定义）：列入 ``__all__`` 即视为有意重导出。
+from ...platform.core.numbers import resolve_notification_fetch_limit
+
+# ``resolve_notification_fetch_limit`` 直接从共享实现转出：该口径原先在本模块与
+# ``domains.security.config`` 各写一份（连默认值 100/500 都重复），非法值处理已经漂移。
+# 调用方沿用 ``from ..alerts.channels import resolve_notification_fetch_limit``。
+
 #: 全部可用渠道的有序列表（空数组过滤参数视为全选）。
 LAN_NOTIFICATION_CHANNELS: list[str] = [
     "in_app",
@@ -45,33 +52,6 @@ def resolve_alert_rule_channels(channels: Any) -> list[str]:
     return resolved or ["in_app", "socket"]
 
 
-def _positive_number(value: Any) -> bool:
-    try:
-        return float(value) > 0
-    except (TypeError, ValueError):
-        return False
-
-
-def resolve_notification_fetch_limit(
-    limit: Any,
-    frontend: dict[str, Any] | None,
-    notification: dict[str, Any] | None,
-) -> int:
-    """计算通知列表 API 的安全拉取条数（对齐 ``resolveNotificationFetchLimit``）。"""
-    frontend = frontend or {}
-    notification = notification or {}
-    default_fetch = (
-        int(frontend.get("maxRemoteNotifications"))
-        if _positive_number(frontend.get("maxRemoteNotifications"))
-        else 100
-    )
-    storage_cap = (
-        int(notification.get("maxNotifications"))
-        if _positive_number(notification.get("maxNotifications"))
-        else 500
-    )
-    parsed = int(limit) if limit is not None and _positive_number(limit) else default_fetch
-    return min(max(parsed, 1), storage_cap)
 
 
 __all__ = [

@@ -69,7 +69,7 @@ class User(Base):
     __table_args__ = (
         # email 的唯一性用**具名唯一索引**表达，而不是列级 ``unique=True``：
         # 迁移 0008 建的是 ``users_email_idx``，而列级 unique 会让 ``create_all``（发行路径）
-        # 生成一个匿名 UNIQUE 约束——两者结构不等价，ops/check/check_schema.py 会判为不一致。
+        # 生成一个匿名 UNIQUE 约束——两者结构不等价，勿混用。
         # 具名索引也是本文件既有约定（见 HomeMode 的 __table_args__）。
         Index("users_email_idx", "email", unique=True),
     )

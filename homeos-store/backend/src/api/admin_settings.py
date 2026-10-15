@@ -129,66 +129,64 @@ def admin_get_settings(session: DbSession, _admin: AdminAccount, settings: Setti
     return _settings_response(setting, settings)
 
 
-@router.put("/settings")
-def admin_update_settings(
-    payload: AdminSettingsRequest,
-    session: DbSession,
-    admin: AdminAccount,
-    settings: SettingsDep,
-) -> dict:
-    data = payload.model_dump(exclude_unset=True)
-    mapping = {
-        "site_name": "site_name",
-        "site_title": "site_title",
-        "description": "description",
-        "announcement": "announcement",
-        "support_email": "support_email",
-        "logo_url": "logo_url",
-        "deploy_base_url": "deploy_base_url",
-        "maintenance_mode": "maintenance_mode",
-        "maintenance_message": "maintenance_message",
-        "payment_provider": "payment_provider",
-        "payment_channels": "payment_channels_json",
-        "payment_enabled": "payment_enabled",
-        "payment_transaction_description": "payment_transaction_description",
-        "referral_enabled": "referral_enabled",
-        "referral_rate_percent": "referral_rate_percent",
-        "referral_withdrawal_fee_percent": "referral_withdrawal_fee_percent",
-        "referral_withdrawal_min_points": "referral_withdrawal_min_points",
-        "device_release_cooldown_seconds": "device_release_cooldown_override",
-        "mail_mode": "mail_mode",
-        "mail_from": "mail_from",
-        "smtp_host": "smtp_host",
-        "smtp_port": "smtp_port",
-        "smtp_username": "smtp_username",
-        "smtp_security": "smtp_security",
-        "verification_ttl_seconds": "verification_ttl_seconds",
-        "verification_cooldown_seconds": "verification_cooldown_seconds",
-        "verification_global_hourly_limit": "verification_global_hourly_limit",
-        "delivery_email_enabled": "delivery_email_enabled",
-    }
-    updates = {column: data[field] for field, column in mapping.items() if field in data}
-    if "payment_channels_json" in updates:
-        raw = updates["payment_channels_json"] or []
-        if not isinstance(raw, list):
+_SETTINGS_FIELD_MAPPING: dict[str, str] = {
+    "site_name": "site_name",
+    "site_title": "site_title",
+    "description": "description",
+    "announcement": "announcement",
+    "support_email": "support_email",
+    "logo_url": "logo_url",
+    "deploy_base_url": "deploy_base_url",
+    "maintenance_mode": "maintenance_mode",
+    "maintenance_message": "maintenance_message",
+    "payment_provider": "payment_provider",
+    "payment_channels": "payment_channels_json",
+    "payment_enabled": "payment_enabled",
+    "payment_transaction_description": "payment_transaction_description",
+    "referral_enabled": "referral_enabled",
+    "referral_rate_percent": "referral_rate_percent",
+    "referral_withdrawal_fee_percent": "referral_withdrawal_fee_percent",
+    "referral_withdrawal_min_points": "referral_withdrawal_min_points",
+    "device_release_cooldown_seconds": "device_release_cooldown_override",
+    "mail_mode": "mail_mode",
+    "mail_from": "mail_from",
+    "smtp_host": "smtp_host",
+    "smtp_port": "smtp_port",
+    "smtp_username": "smtp_username",
+    "smtp_security": "smtp_security",
+    "verification_ttl_seconds": "verification_ttl_seconds",
+    "verification_cooldown_seconds": "verification_cooldown_seconds",
+    "verification_global_hourly_limit": "verification_global_hourly_limit",
+    "delivery_email_enabled": "delivery_email_enabled",
+}
+
+
+def _normalize_payment_channels_update(updates: dict) -> None:
+    if "payment_channels_json" not in updates:
+        return
+    raw = updates["payment_channels_json"] or []
+    if not isinstance(raw, list):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="支付渠道清单必须是数组。",
+        )
+    names: list[str] = []
+    for channel in raw:
+        name = normalize_provider_name(str(channel))
+        if not is_known_provider(name) or not name:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="支付渠道清单必须是数组。",
+                detail=(
+                    f"不支持的支付渠道「{channel}」："
+                    f"可选 {'、'.join(PROVIDER_NAMES)}。"
+                ),
             )
-        names: list[str] = []
-        for item in raw:
-            name = normalize_provider_name(str(item))
-            if not is_known_provider(name) or not name:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail=(
-                        f"不支持的支付渠道「{item}」："
-                        f"可选 {'、'.join(PROVIDER_NAMES)}。"
-                    ),
-                )
-            if name not in names:
-                names.append(name)
-        updates["payment_channels_json"] = json.dumps(names, ensure_ascii=False)
+        if name not in names:
+            names.append(name)
+    updates["payment_channels_json"] = json.dumps(names, ensure_ascii=False)
+
+
+def _normalize_core_settings_updates(updates: dict) -> None:
     if "payment_provider" in updates:
         candidate = updates["payment_provider"]
         if not is_known_provider(candidate):
@@ -222,6 +220,23 @@ def admin_update_settings(
         updates["support_email"] = (
             str(updates["support_email"] or "").strip() or DEFAULT_SUPPORT_EMAIL
         )
+
+
+@router.put("/settings")
+def admin_update_settings(
+    payload: AdminSettingsRequest,
+    session: DbSession,
+    admin: AdminAccount,
+    settings: SettingsDep,
+) -> dict:
+    data = payload.model_dump(exclude_unset=True)
+    updates = {
+        column: data[field]
+        for field, column in _SETTINGS_FIELD_MAPPING.items()
+        if field in data
+    }
+    _normalize_payment_channels_update(updates)
+    _normalize_core_settings_updates(updates)
     updates |= _alipay_settings_updates(data)
     updates |= _wechat_settings_updates(data)
     updates |= _mail_settings_updates(data, current=site_config.get_setting(session), settings=settings)

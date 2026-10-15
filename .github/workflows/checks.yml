@@ -1,17 +1,18 @@
 name: Checks
 
-# 轻检查（不构建镜像、不推 GHCR）：类型检查、前端产物构建、ruff、pyright、库结构、
-# 端到端冒烟，以及 shell / workflow / compose / Caddyfile 的静态校验。
+# 轻检查（不构建镜像、不推 GHCR）：类型检查、前端产物构建、ruff，以及 shell /
+# workflow / compose / Caddyfile 的静态校验。
+# 自定义门禁与冒烟体系已拆除；仅保留语言级与基建检查。
 # 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
-# 触发（2026-10-15 起改为**只手动**）：push 与 PR 的自动触发都已移除，避免「一推送就跑
-# 一整套门禁」；需要时在 Actions 页面 Run workflow（workflow_dispatch）。
-# 仍保留 workflow_call：docker.yml 构建镜像前必须复用同一份检查，这条不能被切断
-# —— 删掉它 docker.yml 会直接报「workflow not found」，等于把推镜像前的门禁一起弄没。
+#
+# 触发：
+# - workflow_dispatch：Actions 页面手动跑。
+# - workflow_call：docker.yml 发版前复用同一份检查。
+# 不挂 push / pull_request：推送与 PR 不自动跑。
 on:
   workflow_call:
   workflow_dispatch:
 
-# 同组并发只保留最新一次：手动连点 Run workflow 时取消上一轮，避免排队。
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -20,10 +21,6 @@ permissions:
   contents: read
 
 jobs:
-  # ── 前端/Node 侧拆成 3 个并行 job ───────────────────────────────────────────
-  # 此前这三组事串在同一个 job 里（约 15 步顺序执行），关键路径 = 之和；
-  # 拆开后关键路径 = 三者最大值。各组所需前置条件不同（见各 job 注释），故各自独立。
-
   # TS 类型 + ESLint：必须先 build:shared（dist/ 被 gitignore，干净检出上不先建就是一片 TS2307）。
   typecheck:
     runs-on: ubuntu-24.04
@@ -34,8 +31,6 @@ jobs:
         with:
           bun-version: 1.4.2
 
-      # 只缓存 bun 的下载/解包缓存（~/.bun/install/cache），不缓存 node_modules：
-      # 后者体积大且跨 job 复用要处理软链，收益比不过 `bun install` 从缓存重建。
       - name: Cache bun install cache
         uses: actions/cache@v4
         with:
@@ -46,136 +41,14 @@ jobs:
       - name: Install, typecheck and lint
         run: |
           bun install --frozen-lockfile
-          # 根 `typecheck` 先跑 `build:shared`：dist/ 被 gitignore，干净检出上不先建就是一片 TS2307。
           bun run typecheck
-          # ESLint：两前端共用规则核（ops/eslint/frontend-core.mjs）；--max-warnings 0 让风格问题也硬失败。
-          # 两前端的 lint 脚本已改成 `eslint .`：由各自的 eslint.config.js 决定文件范围，
-          # 不再在 CLI 里另写一份 glob（此前只写 `src/**/*.{ts,vue}`，两边的 `scripts/**`
-          # 门禁脚本因此从没被 lint 过 —— 判据本身写错没人拦）。
           bun run --cwd homeos/frontend lint:ci
           bun run --cwd homeos-store lint:ci
-          # 共享契约包 @homeos/shared 的 lint 此前从未进 CI（只 lint 了两个前端）。
           bun run lint:shared
-          # 仓库根配置（ops/**）：有配置但零执行入口，等于没配。修好两处存量（一个从未
-          # 被读的常量、一个未使用的 caught error）后纳入。
           bun run lint:ops
-          # 三条 vite 配置用根 tsconfig.node.json 单独 strict 检查。
           bun run typecheck:node
 
-  # 前端静态门禁：分层依赖方向 + 引用可解析性（含注释里的 `@/`）+ 纯逻辑冒烟。
-  # 依赖门禁扫源码，**不需要** `build:shared`；但 `verify:smoke:frontend` 里的
-  # `_entity_control_logic` / `_camera_inspector_controls` 两条冒烟会经被测模块
-  # 间接 import `@homeos/shared`（解析到 `packages/shared/dist`，被 gitignore），
-  # 干净检出上就是 `Cannot find module '@homeos/shared'` —— 所以本 job 仍要先 build:shared。
-  # （真因见 2026-10-14 的 CI 红灯：本机有历史 dist/ 兜着，只有干净检出才炸。）
-  frontend-gates:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
-      - name: Cache bun install cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Install
-        run: |
-          bun install --frozen-lockfile
-          # 依赖门禁只需源码，但 Frontend smoke 有两条冒烟会间接 import `@homeos/shared`
-          # → 解析到被 gitignore 的 `packages/shared/dist`，不先建就是 `Cannot find module`。
-          bun run build:shared
-
-      - name: Dependency gates
-        run: |
-          # 分层依赖方向 + 引用可解析性（含注释里的 `@/`）；store 侧同样两条。
-          # 链末的 token 契约/映射棘轮也在这里覆盖（`check-token-contract.mjs` / `check-token-map.mjs`），
-          # 且一次即扫两个项目。
-          bun run --cwd homeos/frontend check:deps
-          bun run --cwd homeos-store check:deps
-
-      - name: Frontend smoke
-        # 前端纯逻辑冒烟：走 `verify:smoke:frontend` 单一来源，避免手抄清单漏项 ——
-        # 此前 _camera_inspector_controls / _go2rtc_mse 两个冒烟就没进 CI。
-        # **前提是上一步的 `build:shared`**：其中两条冒烟会间接 import `@homeos/shared`。
-        run: bun run verify:smoke:frontend
-
-      - name: No @ts-nocheck
-        # 零 @ts-nocheck 门禁（硬失败）；扫 frontend 全目录，允许前导空白。
-        run: |
-          leftovers="$(
-            grep -RIlE --include='*.ts' --exclude-dir=node_modules --exclude-dir=dist \
-              '^[[:space:]]*//[[:space:]]*@ts-nocheck' \
-              homeos/frontend homeos-store/frontend || true
-          )"
-          if [ -n "$leftovers" ]; then
-            count="$(printf '%s\n' "$leftovers" | wc -l | tr -d ' ')"
-            echo "::error::仍有 ${count} 个文件带 // @ts-nocheck：类型迁移要求零容忍"
-            printf '%s\n' "$leftovers" | sed 's/^/  - /'
-            exit 1
-          fi
-          echo "零 @ts-nocheck：通过"
-
-  # 跨语言契约与度量：未使用 JS/TS（knip，需 node_modules）、功能码镜像、场景资源副本、
-  # TS↔Python 黄金契约 + 独立部署护栏 + studio 度量 KPI。都不需要前端产物，故与
-  # typecheck / frontend-gates 并行、互不阻塞。
-  verify:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      # 门禁链里的 Python 步骤走 `${PYTHON:-.venv-store/bin/python}`（见 ops/chains/common.mjs）：
-      # 干净检出没有 `.venv-store`，不显式给 PYTHON 就是 `spawn … ENOENT` × 12 步。
-      # 这些门禁只用标准库（不用装 requirements），但解释器必须存在 —— 与 schema/smoke 同款。
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
-      - name: Cache bun install cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Install
-        run: |
-          bun install --frozen-lockfile
-          # knip 会按 package.json 的 workspace 入口解析包，先把 shared 产物建好。
-          bun run build:shared
-
-      - name: Verify
-        env:
-          # 显式给出解释器：不设时门禁链会回落 `.venv-store/bin/python`，CI 上没有这个 venv。
-          PYTHON: python
-        run: |
-          bun run knip
-          bun run verify:features
-          bun run verify:scene
-          bun run verify:assets
-          bun run verify:env
-          bun run verify:contracts
-          # studio 度量 KPI：防拆分成果悄悄退化。
-          bun run kpi:studio
-
   # 前端产物构建 + 结构断言。
-  # 此前**没有任何自动门禁**会跑构建：checks 系列全是「只读源码」的静态门禁，
-  # 唯一会构建的两处是 docker.yml（同时推 GHCR，等于把「会不会构建挂」和「要不要发版」
-  # 绑成同一件事）和 build-check.yml（纯手动）。于是构建类改动的红灯只能靠人工发现 ——
-  # 2026-10-10 的构建锁 ENOENT 就是这样漏到 main 上的：本地有历史 dist/ 兜着是绿的，
-  # 干净检出才炸。这里补上，手动跑一轮 checks 就能拦住。
-  #
-  # 与上面三个 job 并行、互不阻塞；`rm -rf dist` 是这一步的关键，
-  # dist/ 被 gitignore，不删就复现不出「干净检出」那种状态，等于没测。
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -193,23 +66,11 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
 
       - name: Build frontend and assert artifacts
-        # 单一来源：与 docker.yml 的 build job、build-check.yml 共用同一份脚本
-        # （含 6 条产物结构断言），避免「一处改了另一处没改」。
         run: |
           rm -rf dist
           bash ops/ci/build_frontend_verify.sh
 
   # 基础设施配置的静态校验：shell / workflow / compose / Caddyfile。
-  #
-  # 这四类文件此前**完全没有门禁**，写错只会在部署机（或 Actions 自己）现场炸。加进来后
-  # 首轮就抓到：
-  #   - shellcheck 在 ops/deploy/deploy.sh 上 1 处真 bug —— `ASSUME_YES` 从未被读，
-  #     即 `--yes` 是个空开关（文档还写着「不提问，sudo 只用 sudo -n」，而那些行为
-  #     本来就无条件成立）；另有 8 处未加引号的词列表展开（SC2086）。
-  #   - 版本全部钉死：shellcheck / actionlint 与本地核对过；caddy 版本**从 Dockerfile 的
-  #     CADDY_IMAGE 派生**，不在这里写第二份，Caddyfile 的语法随大版本变，用别的版本
-  #     校验等于没验。
-  # 不起容器、不拉业务镜像：compose 只做客户端侧的 `config`，caddy 只下静态二进制。
   lint-infra:
     runs-on: ubuntu-24.04
     env:
@@ -233,8 +94,6 @@ jobs:
           actionlint --version
 
       - name: Shell check
-        # 刻意逐个列文件而不是 glob：新增脚本时若没登记进来，`shellcheck <不存在的文件>`
-        # 会硬失败，而不是静默少扫一个（glob 展开漏项的教训见 verify:features 的历史）。
         run: |
           shellcheck \
             homeos/deploy/run-backend.sh \
@@ -244,13 +103,9 @@ jobs:
             ops/deploy/upgrade.sh
 
       - name: Actionlint
-        # 本工作流自己也在被检查之列（workflow 文件写错时 Actions 只会给一条含糊的报错）。
         run: actionlint -color
 
       - name: Compose config
-        # 四种真实形态。两个 overlay 文件**单独** `config` 必然报「既无 image 也无 build」，
-        # 所以按部署脚本的真实用法与基础文件叠加；public 形态还要求三个占位变量
-        # （Caddy 的 email 指令不接受空值，STORE_DOMAIN / STORE_BASE_URL 同理）。
         run: |
           docker compose -f docker-compose.app.yml config -q
           docker compose -f docker-compose.store.yml config -q
@@ -276,16 +131,13 @@ jobs:
           tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
           /tmp/caddy version
 
-          # 进镜像的两份（反代与应用同容器，本文件由 Dockerfile COPY 进去）。
           /tmp/caddy validate --config ops/caddy/app.Caddyfile --adapter caddyfile
           /tmp/caddy validate --config ops/caddy/store.Caddyfile --adapter caddyfile
-          # 部署目录里的两个示例：public 那份的 `email {$ACME_EMAIL}` 在变量为空时
-          # **必然**解析失败（Caddy 的 email 不接受空值），故按示例里的用法给占位值。
           /tmp/caddy validate --config ops/deploy/Caddyfile.intranet.example --adapter caddyfile
           ACME_EMAIL=ops@example.com STORE_DOMAIN=store.example.com \
             /tmp/caddy validate --config ops/deploy/Caddyfile.public.example --adapter caddyfile
 
-  # Python 静态检查硬门禁（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
+  # Python 静态检查（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
   ruff:
     runs-on: ubuntu-24.04
     steps:
@@ -296,131 +148,7 @@ jobs:
           python-version: '3.14'
 
       - name: Install ruff
-        # 与本地 ruff 版本对齐，避免规则集随上游漂移。
         run: pip install "ruff==0.16.8"
 
       - name: Ruff check
-        # 走 `ruff.toml` 的完整规则集（E,F,I,UP,B,SIM,PIE,RET,RUF,C4,FURB,ISC,PL + bandit S）。
-        # 此前这里写的是 `--select F,E9,I,RET501,PLR1711,RUF059`，**覆盖掉**了 ruff.toml ——
-        # 于是 `UP/B/SIM/PIE/C4/FURB` 与 bandit `S` 从未在 CI 生效，规则集只剩个零头。
-        # 全量首轮共 28 处（19 处 RUF100 陈旧 noqa + 9 处真实问题），已逐条清零，
-        # 故这里不再需要基线棘轮：新增一处即红。
         run: ruff check .
-
-  # 类型检查门禁（basedpyright）。存量误报未清零，只把「一定会炸」的三条规则当硬失败，
-  # 其余打成直方图；口径见 ops/ci/pyright_gate.py 顶部。
-  pyright:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-          # 三个装依赖的 job 共用同一份 pip 下载缓存（key 只由这两份 requirements 决定）：
-          # 先跑哪个都能给后面的暖场，省掉 3 次冷下载。
-          cache: pip
-          cache-dependency-path: |
-            homeos/backend/requirements.txt
-            homeos-store/backend/requirements.txt
-
-      # pyrightconfig.json 指向仓库根 .venv-store；CI 里须自建，否则第三方包解析不到。
-      - name: Create .venv-store with backend dependencies
-        run: |
-          python -m venv .venv-store
-          .venv-store/bin/python -m pip install --upgrade pip
-          .venv-store/bin/python -m pip install \
-            -r homeos/backend/requirements.txt \
-            -r homeos-store/backend/requirements.txt
-
-      - name: Install basedpyright
-        run: pip install "basedpyright==1.40.1"
-
-      - name: Basedpyright
-        run: |
-          # 有存量 error 时 basedpyright 自己也返回非 0；退出码交给下面的门禁脚本判定。
-          basedpyright --outputjson > basedpyright.json || true
-          python ops/ci/pyright_gate.py basedpyright.json
-
-  # 库结构门禁（ops/check/check_schema.py）：验证迁移脚本 = ORM 元数据 = 实际结构。
-  # 放在 build 之前：结构漂移只在存量部署暴露，坏迁移必须在推镜像前拦下。
-  schema:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      # 与 Dockerfile 的 python:3.14-slim-bookworm 对齐：迁移脚本要在生产同版本上验证过。
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-          cache: pip
-          cache-dependency-path: |
-            homeos/backend/requirements.txt
-            homeos-store/backend/requirements.txt
-
-      # 通过 `bun run verify:*` 单一来源驱动，需要 bun 本体（不装 node_modules：
-      # 这些脚本都是「python 命令」的壳，包解析用不到）。
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r homeos/backend/requirements.txt \
-                      -r homeos-store/backend/requirements.txt
-
-      - name: Check schema and database
-        # 走 package.json 的单一来源（`${PYTHON:-.venv-store/bin/python}`）：CI 里显式给 PYTHON，
-        # 本地无该变量时自动回落到 .venv-store，两边同一条命令。
-        env:
-          PYTHON: python
-        run: |
-          bun run verify:schema
-          # 库结构医生（完整性/FK/结构漂移）：此前完全没进 CI。
-          bun run verify:database
-
-  # 端到端契约冒烟（离线自足：进程内假商店、被替换的 httpx、临时数据目录）。
-  smoke:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-          cache: pip
-          cache-dependency-path: |
-            homeos/backend/requirements.txt
-            homeos-store/backend/requirements.txt
-
-      # 通过 `bun run verify:smoke*` 单一来源驱动，需要 bun 本体（同 schema：不装 node_modules）。
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r homeos/backend/requirements.txt \
-                      -r homeos-store/backend/requirements.txt
-
-      # 走根 package.json 的 `verify:smoke:*` 单一来源，杜绝手抄清单漂移
-      # （此前 `_go2rtc_relay_smoke.py` 就没进 CI）。全部离线自足（不联网、不依赖外部服务）。
-      - name: App smokes
-        env:
-          PYTHON: python
-        run: bun run verify:smoke:app
-
-      - name: Store smokes
-        env:
-          PYTHON: python
-        run: bun run verify:smoke
-
-      # 授权激活闭环：夹具用临时 data/密钥目录 + 随机端口现起一个商店、走 HTTP 建管理员与
-      # 顾客、后台签发真授权，再驱动主应用 e2e 并断言日志里**没有** SKIP —— 此前这条脚本
-      # 在 CI 只会 SKIP（SKIP 不是覆盖），等于全仓最关键的授权闭环从未被验证过。
-      - name: License activation e2e
-        env:
-          PYTHON: python
-        run: bun run verify:smoke:license

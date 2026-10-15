@@ -160,6 +160,8 @@ async function probeBattery() {
       const notify = () => {
         for (const fn of batteryListeners) fn()
       }
+      // 应用级单例监听：BatteryManager 是浏览器全局对象、上面 `if (!batteryManager)` 保证只注册一次，
+      // 不存在「重复注册」也无人可摘（管理器活到页面结束），故不配对 removeEventListener。
       batteryManager.addEventListener('levelchange', notify)
       batteryManager.addEventListener('chargingchange', notify)
       batteryManager.addEventListener('chargingtimechange', notify)

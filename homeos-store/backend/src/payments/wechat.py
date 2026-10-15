@@ -470,39 +470,24 @@ class WeChatPayProvider:
             return False, f"凭据不可用（{code}）：{str((node or {}).get('message') or '')[:200]}"
         return False, f"网关返回了预期外的结果（HTTP {status}，code={code or '无'}）。"
 
-    def diagnose_credentials(
-        self,
-        settings: StoreSettings,
-        *,
-        notify_url: str = "",
-        return_url: str = "",
-    ) -> tuple[bool, str, list[dict]]:
-        """逐项自检凭据与回调配置，返回 ``(是否全部通过, 一句话结论, 结论列表)``。
-
-        ``return_url`` 只是与支付宝那条保持同一签名（Native 支付没有浏览器跳转页）。
-        """
-        del return_url
-        settings = self._resolve(settings)
-        checks: list[dict] = []
-
+    def _diagnose_gateway_url(self, settings: StoreSettings) -> dict:
         gateway = (settings.wechat_gateway_url or "").strip() or DEFAULT_GATEWAY_URL
         gateway_host = host_from_url(gateway)
         default_host = host_from_url(DEFAULT_GATEWAY_URL)
         if not gateway.lower().startswith("https://"):
-            checks.append(check_result("gateway-url", "网关地址", LEVEL_FAIL, f"{gateway} 必须以 https:// 开头。"))
-        elif gateway_host and gateway_host != default_host:
-            checks.append(
-                check_result(
-                    "gateway-url",
-                    "网关地址",
-                    LEVEL_WARN,
-                    f"网关域名 {gateway_host} 不是微信支付生产域名（{default_host}）：确认这是有意的。",
-                )
+            return check_result("gateway-url", "网关地址", LEVEL_FAIL, f"{gateway} 必须以 https:// 开头。")
+        if gateway_host and gateway_host != default_host:
+            return check_result(
+                "gateway-url",
+                "网关地址",
+                LEVEL_WARN,
+                f"网关域名 {gateway_host} 不是微信支付生产域名（{default_host}）：确认这是有意的。",
             )
-        else:
-            checks.append(check_result("gateway-url", "网关地址", LEVEL_PASS, gateway))
+        return check_result("gateway-url", "网关地址", LEVEL_PASS, gateway)
 
-        for check_id, label, value, validator in (
+    def _diagnose_field_checks(self, settings: StoreSettings) -> list[dict]:
+        checks: list[dict] = []
+        for check_id, label, field_text, validator in (
             ("mch-id", "商户号 mchid", settings.wechat_mch_id, lambda text: "" if text else "未填写商户号。"),
             ("app-id", "应用 appid", settings.wechat_app_id, lambda text: "" if text else "未填写 appid。"),
             ("api-v3-key", "APIv3 密钥", settings.wechat_api_v3_key, api_v3_key_error),
@@ -525,11 +510,42 @@ class WeChatPayProvider:
                 platform_public_key_error,
             ),
         ):
-            problem = validator(str(value or ""))
+            problem = validator(str(field_text or ""))
             if problem:
                 checks.append(check_result(check_id, label, LEVEL_FAIL, problem))
             else:
                 checks.append(check_result(check_id, label, LEVEL_PASS, "已配置且格式合法。"))
+        return checks
+
+    @staticmethod
+    def _summarize_credential_checks(checks: list[dict]) -> tuple[bool, str]:
+        passed = all(entry["level"] == LEVEL_PASS for entry in checks)
+        failures = [entry for entry in checks if entry["level"] == LEVEL_FAIL]
+        warnings = [entry for entry in checks if entry["level"] == LEVEL_WARN]
+        if passed:
+            return True, "凭据自检全部通过：网关验签与回调配置均可用。"
+        if failures:
+            return False, "自检未通过：" + "；".join(
+                f"{entry['label']} —— {entry['detail']}" for entry in failures
+            )
+        return False, "自检通过但有待确认项：" + "；".join(
+            f"{entry['label']} —— {entry['detail']}" for entry in warnings
+        )
+
+    def diagnose_credentials(
+        self,
+        settings: StoreSettings,
+        *,
+        notify_url: str = "",
+        return_url: str = "",
+    ) -> tuple[bool, str, list[dict]]:
+        """逐项自检凭据与回调配置，返回 ``(是否全部通过, 一句话结论, 结论列表)``。
+
+        ``return_url`` 只是与支付宝那条保持同一签名（Native 支付没有浏览器跳转页）。
+        """
+        del return_url
+        settings = self._resolve(settings)
+        checks: list[dict] = [self._diagnose_gateway_url(settings), *self._diagnose_field_checks(settings)]
 
         configured = not self.missing_credentials(settings)
         if configured:
@@ -555,20 +571,7 @@ class WeChatPayProvider:
                 reachable_hint="不配也能收款（轮询 + 巡检兜底），但配好会快很多。",
             )
         )
-
-        passed = all(item["level"] == LEVEL_PASS for item in checks)
-        failures = [item for item in checks if item["level"] == LEVEL_FAIL]
-        warnings = [item for item in checks if item["level"] == LEVEL_WARN]
-        if passed:
-            message = "凭据自检全部通过：网关验签与回调配置均可用。"
-        elif failures:
-            message = "自检未通过：" + "；".join(
-                f"{item['label']} —— {item['detail']}" for item in failures
-            )
-        else:
-            message = "自检通过但有待确认项：" + "；".join(
-                f"{item['label']} —— {item['detail']}" for item in warnings
-        )
+        passed, message = self._summarize_credential_checks(checks)
         return passed, message, checks
 
 

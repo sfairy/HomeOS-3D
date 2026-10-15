@@ -56,5 +56,6 @@ def install_msgpack_ext_hook() -> None:
     _install_engineio_b64_encode_cache_fix()
     if _INSTALLED:
         return
-    msgpack_packet.MsgPackPacket.ext_hook = _ext_hook
+    # engineio 用类属性做扩展钩子；直接赋值会触发动态属性告警（见 B010 口径）。
+    setattr(msgpack_packet.MsgPackPacket, "ext_hook", _ext_hook)  # noqa: B010
     _INSTALLED = True

@@ -60,50 +60,33 @@ def setup_status(request: Request, session: DbSession) -> dict:
     return {"initialized": True}
 
 
-@router.post("/admin", status_code=status.HTTP_201_CREATED)
-def setup_admin(
-    payload: SetupAdminRequest,
-    request: Request,
-    session: DbSession,
-) -> Response:
-    email = payload.email.strip().lower()
+def _validate_setup_admin_input(payload: SetupAdminRequest, session: DbSession) -> str:
+    """校验邮箱格式、确认密码与「尚未初始化」；返回规范化邮箱。
 
+    邮箱唯一性检查仍在 ``setup_admin`` 里、``guard.authorize`` 之后执行（保持原顺序）。
+    """
+    email = payload.email.strip().lower()
     if not is_valid_email(email):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="请输入有效的邮箱地址（形如 name@example.com）。",
         )
-
     if payload.confirm_password != payload.password:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="两次输入的密码不一致。",
         )
-
     if admin_exists(session):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="管理员账号已存在，无法重复初始化。",
         )
+    return email
 
-    guard = getattr(request.app.state, "setup_guard", None)
-    if guard is not None:
-        guard.authorize(request, payload.setup_token)
 
-    existing = session.scalar(
-        select(Account).where(func.lower(Account.email) == email)
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="该邮箱已被注册，请更换邮箱或直接登录。",
-        )
-
-    settings = request.app.state.settings
-    moment = utcnow()
+def _insert_admin_account(session: DbSession, *, email: str, password: str, moment) -> str:
     account_id = new_uuid()
-    password_hash = hash_password(payload.password)
-
+    password_hash = hash_password(password)
     statement = (
         insert(Account)
         .from_select(
@@ -126,21 +109,27 @@ def setup_admin(
                 literal(True, Boolean),
                 literal(moment, DateTime),
                 literal(moment, DateTime),
-            ).where(
-                ~exists(
-                    select(Account.id).where(Account.is_admin == True)
-                )
-            ),
+            ).where(~exists(select(Account.id).where(Account.is_admin == True))),
         )
         .execution_options(synchronize_session=False)
     )
-    result = session.execute(statement)
-    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
+    executed = session.execute(statement)
+    if executed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="管理员账号已存在，无法重复初始化。",
         )
+    return account_id
 
+
+def _create_admin_session(
+    session: DbSession,
+    request: Request,
+    *,
+    account_id: str,
+    moment,
+    settings,
+) -> str:
     token = new_token(32)
     session.add(
         AccountSession(
@@ -159,6 +148,35 @@ def setup_admin(
         .values(last_login_at=moment)
         .execution_options(synchronize_session=False)
     )
+    return token
+
+
+@router.post("/admin", status_code=status.HTTP_201_CREATED)
+def setup_admin(
+    payload: SetupAdminRequest,
+    request: Request,
+    session: DbSession,
+) -> Response:
+    email = _validate_setup_admin_input(payload, session)
+    guard = getattr(request.app.state, "setup_guard", None)
+    if guard is not None:
+        guard.authorize(request, payload.setup_token)
+
+    existing = session.scalar(select(Account).where(func.lower(Account.email) == email))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该邮箱已被注册，请更换邮箱或直接登录。",
+        )
+
+    settings = request.app.state.settings
+    moment = utcnow()
+    account_id = _insert_admin_account(
+        session, email=email, password=payload.password, moment=moment
+    )
+    token = _create_admin_session(
+        session, request, account_id=account_id, moment=moment, settings=settings
+    )
     session.flush()
     session.commit()
 
@@ -166,7 +184,6 @@ def setup_admin(
         guard.consume()
 
     logger.info("商店管理员初始化成功 email=%s", email)
-
     response = JSONResponse(
         {"email": email, "isAdmin": True},
         status_code=status.HTTP_201_CREATED,

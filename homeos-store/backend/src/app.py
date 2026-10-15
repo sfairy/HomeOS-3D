@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
 import logging
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
@@ -58,7 +60,7 @@ from .security.request_security import (
     same_origin_request,
     security_headers,
 )
-from .security.schema_guard import inspect_schema, log_drift
+from .security.schema_guard import SchemaDrift, inspect_schema, log_drift
 from .security.setup_guard import SetupGuard, announce_setup_window
 from .security.static_cache import StaticAssetCacheMiddleware
 
@@ -230,8 +232,20 @@ def build_key_registry(settings: StoreSettings):
     )
 
 
-def create_app(settings: StoreSettings | None = None) -> FastAPI:
-    settings = settings or load_settings()
+@dataclass(frozen=True)
+class _StoreRuntime:
+    """``create_app`` 装配期准备好的运行时零件（随后挂到 ``app.state``）。"""
+
+    settings: StoreSettings
+    database: Database
+    schema_drift: SchemaDrift
+    authority: LicenseAuthority
+    setup_guard: SetupGuard
+    trusted_proxies: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]
+
+
+def _prepare_settings(settings: StoreSettings) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """建好数据目录、确保密钥齐备，并解析可信代理网段。"""
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.product_images_dir.mkdir(parents=True, exist_ok=True)
     settings.license_keys_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -242,7 +256,11 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             "STORE_BASE_URL 是 https 但未配置 STORE_TRUSTED_PROXIES："
             "限流与授权记录会按反向代理地址统计，建议按部署方式配置。"
         )
+    return trusted_proxies
 
+
+def _open_database(settings: StoreSettings) -> tuple[Database, SchemaDrift]:
+    """跑迁移、打开数据库、检查 schema 漂移，并补齐种子数据。"""
     for step in run_migrations(settings):
         logger.info("数据库迁移：%s", step)
 
@@ -257,9 +275,29 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         ensure_default_products(session)
     if released:
         logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
+    return database, schema_drift
 
+
+def _build_runtime(settings: StoreSettings) -> _StoreRuntime:
+    """把这份进程要用的一整套运行时零件准备好。"""
+    trusted_proxies = _prepare_settings(settings)
+    database, schema_drift = _open_database(settings)
     authority = LicenseAuthority(settings, database, build_key_registry(settings))
     setup_guard = SetupGuard(settings.data_dir, settings.setup_token)
+    return _StoreRuntime(
+        settings=settings,
+        database=database,
+        schema_drift=schema_drift,
+        authority=authority,
+        setup_guard=setup_guard,
+        trusted_proxies=trusted_proxies,
+    )
+
+
+def _make_payment_sweep_loop(runtime: _StoreRuntime):
+    """造一个后台支付巡检循环：按 ``STORE_PAYMENT_SWEEP_INTERVAL_SECONDS`` 逐轮巡检。"""
+    settings = runtime.settings
+    database = runtime.database
 
     async def _payment_sweep_loop() -> None:
         """后台支付巡检循环。
@@ -280,6 +318,14 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                     logger.exception("支付巡检本轮失败，将在 %d 秒后重试", interval)
         finally:
             mark_sweep_loop_stopped(generation)
+
+    return _payment_sweep_loop
+
+
+def _make_release_sync_loop(runtime: _StoreRuntime):
+    """造一个后台发布版本同步循环：定时从 GitHub Releases 取最新版本落库。"""
+    settings = runtime.settings
+    database = runtime.database
 
     async def _release_sync_loop() -> None:
         """后台发布版本同步循环：定时从 GitHub Releases 取最新版本落库。
@@ -313,6 +359,17 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                     )
             await asyncio.sleep(interval if ok else min(interval, 3600))
 
+    return _release_sync_loop
+
+
+def _make_lifespan(runtime: _StoreRuntime):
+    """造应用生命周期钩子：启动时拉起后台任务，退出时取消任务并释放数据库。"""
+    settings = runtime.settings
+    database = runtime.database
+    setup_guard = runtime.setup_guard
+    payment_sweep_loop = _make_payment_sweep_loop(runtime)
+    release_sync_loop = _make_release_sync_loop(runtime)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         install_access_log_noise_filter()
@@ -325,8 +382,8 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 announce_setup_window(setup_guard)
             else:
                 setup_guard.discard_file()
-        sweep_task = asyncio.create_task(_payment_sweep_loop())
-        release_task = asyncio.create_task(_release_sync_loop())
+        sweep_task = asyncio.create_task(payment_sweep_loop())
+        release_task = asyncio.create_task(release_sync_loop())
         try:
             yield
         finally:
@@ -338,22 +395,23 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 await sweep_task
             database.dispose()
 
-    app = FastAPI(
-        title="HomeOS 授权商店与授权服务器",
-        version=__version__,
-        docs_url=None,
-        redoc_url=None,
-        openapi_url=None,
-        lifespan=lifespan,
-    )
+    return lifespan
 
-    app.state.settings = settings
-    app.state.database = database
-    app.state.schema_drift = schema_drift
-    app.state.license_authority = authority
-    app.state.setup_guard = setup_guard
-    app.state.appearance = AppearanceStore(settings.appearance_path)
+
+def _attach_runtime_state(app: FastAPI, runtime: _StoreRuntime) -> None:
+    """把运行时零件挂到 ``app.state``（路由与中间件都从这里取）。"""
+    app.state.settings = runtime.settings
+    app.state.database = runtime.database
+    app.state.schema_drift = runtime.schema_drift
+    app.state.license_authority = runtime.authority
+    app.state.setup_guard = runtime.setup_guard
+    app.state.appearance = AppearanceStore(runtime.settings.appearance_path)
     app.state.appearance.load()
+
+
+def _install_write_guard(app: FastAPI, runtime: _StoreRuntime) -> None:
+    """改状态的商店/后台请求必须同源（CSRF 第二道闸）。"""
+    trusted_proxies = runtime.trusted_proxies
 
     @app.middleware("http")
     async def require_same_origin_for_writes(request: Request, call_next):
@@ -381,13 +439,9 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             )
         return await call_next(request)
 
-    app.add_middleware(RequestBodyGuard)
 
-    # 稳定 URL 的静态 / 素材响应：no-cache + ETag 回源校验（替代 ?v= 版本戳）。
-    # 置于 GZip 内层，命中条件请求时先定 304，再交给压缩层。
-    app.add_middleware(StaticAssetCacheMiddleware)
-
-    app.add_middleware(SelectiveGZipMiddleware)
+def _install_security_headers(app: FastAPI) -> None:
+    """给所有响应补上安全头。"""
 
     @app.middleware("http")
     async def attach_security_headers(request: Request, call_next):
@@ -399,6 +453,12 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             response.headers.setdefault(name, value)
         return response
 
+
+def _make_provider_resolver(runtime: _StoreRuntime):
+    """造支付渠道解析函数：``setting`` 省略时按当前站点配置查库。"""
+    settings = runtime.settings
+    database = runtime.database
+
     def resolve_payment_provider(setting=None, *, name: str | None = None):
         """解析支付渠道。
         """
@@ -409,9 +469,12 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             return resolve_provider(settings, setting, name_override=name)
         return resolve_provider(settings, setting)
 
-    app.state.resolve_payment_provider = resolve_payment_provider
+    return resolve_payment_provider
 
-    static_dir = settings.static_dir
+
+def _mount_routes(app: FastAPI, runtime: _StoreRuntime) -> None:
+    """挂载静态素材与各 API 资源组（注册顺序即匹配优先级，勿调整）。"""
+    static_dir = runtime.settings.static_dir
     app.mount("/store-static", StaticFiles(directory=static_dir), name="store-static")
     app.mount("/fonts", StaticFiles(directory=static_dir / "fonts"), name="fonts")
 
@@ -422,6 +485,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.include_router(admin_api.router)
     app.include_router(appearance_api.router)
     app.include_router(setup_api.router)
+
+
+def _install_appearance_stylesheet(app: FastAPI) -> None:
+    """注册商店站点配色样式表路由。"""
 
     @app.get("/store-appearance.css", include_in_schema=False)
     def appearance_stylesheet(request: Request) -> Response:
@@ -437,13 +504,17 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             headers={"ETag": f'"{revision}"', "Cache-Control": "no-cache"},
         )
 
+
+def _install_healthz(app: FastAPI, runtime: _StoreRuntime) -> None:
+    """注册健康检查路由。"""
+
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         drift = app.state.schema_drift
         return {
             "status": "ok",
             "version": __version__,
-            "port": settings.port,
+            "port": runtime.settings.port,
             "paymentSweep": sweep_status(),
             "incidents": incidents.status(),
             "schema": {
@@ -452,6 +523,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 "drift": None if drift.clean else drift.as_dict(),
             },
         }
+
+
+def _install_exception_handler(app: FastAPI) -> None:
+    """注册未处理异常的统一出口。"""
 
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, error: Exception) -> Response:
@@ -467,6 +542,38 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 response.headers.setdefault(name, value)
             return response
         return JSONResponse({"detail": "服务器内部错误，请稍后重试。"}, status_code=500)
+
+
+def create_app(settings: StoreSettings | None = None) -> FastAPI:
+    """装配 ASGI 应用：先备好运行时零件，再逐层挂中间件、路由与页面外壳。"""
+    settings = settings or load_settings()
+    runtime = _build_runtime(settings)
+
+    app = FastAPI(
+        title="HomeOS 授权商店与授权服务器",
+        version=__version__,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=_make_lifespan(runtime),
+    )
+
+    _attach_runtime_state(app, runtime)
+    _install_write_guard(app, runtime)
+
+    app.add_middleware(RequestBodyGuard)
+
+    # 稳定 URL 的静态 / 素材响应：no-cache + ETag 回源校验（替代 ?v= 版本戳）。
+    # 置于 GZip 内层，命中条件请求时先定 304，再交给压缩层。
+    app.add_middleware(StaticAssetCacheMiddleware)
+    app.add_middleware(SelectiveGZipMiddleware)
+
+    _install_security_headers(app)
+    app.state.resolve_payment_provider = _make_provider_resolver(runtime)
+    _mount_routes(app, runtime)
+    _install_appearance_stylesheet(app)
+    _install_healthz(app, runtime)
+    _install_exception_handler(app)
 
     # 页面外壳（含 SPA catch-all）必须最后注册：它会把所有未命中路径兜走，
     # 所以要在 /healthz、/store-appearance.css 与各 API 路由之后。

@@ -25,7 +25,6 @@ HomeOS/
 │   │   ├── migrations/ alembic.ini   # 只在开发期用，不进构建产物
 │   │   └── requirements.txt
 │   ├── frontend/              # 前端源码
-│   ├── scripts/               # 冒烟与开发辅助脚本
 │   ├── data/                  # 运行时（不入库；STORE_DATA_DIR）
 │   ├── keys/local/            # 本地联调用的授权私钥（不入库）
 │   └── package.json
@@ -43,7 +42,7 @@ HomeOS/
 │   ├── eslint/                # 两个前端共用的 ESLint 规则核（frontend-core.mjs）
 │   ├── vite/                  # 两个前端共用的构建助手（经典 IIFE 打包 / SPA 外壳断言）
 │   ├── deploy/                # deploy.sh 与部署文档
-│   ├── check_schema.py        # 库结构门禁：迁移脚本 ↔ ORM 元数据一致性
+│   ├── check/feature_codes.json  # 功能码真源（两端后端运行时加载）
 │   └── dev.mjs                # 本地开发一键启动（Bun；不是部署脚本）
 ├── keys/                      # 仅本地联调用的开发公钥（生产商店会自生成新密钥对；容器不用）
 ├── packages/shared/           # @homeos/shared 共享契约包（两个前端共用源码；后端契约同源）
@@ -147,29 +146,13 @@ bun run dev:runtime
 | `bun run build:vite` | 仅 Vite 构建，跳过混淆（调试用，产出到根 `dist/`） |
 | `bun run obfuscate` | 对已有根 `dist/` 前端再跑一遍混淆 |
 | `bun run image` / `image:app` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
-| `bun run typecheck` | 两边 `tsc` + Python 静态检查（与 CI 的 `pyright` job 同口径，只硬拦必为 bug 的规则）。**先跑 `build:shared`**：主应用从 `@homeos/shared` 的 `dist/` 取类型，干净检出时该目录不存在（`dist/` 被 gitignore），不先建就会以 `TS2307 Cannot find module '@homeos/shared'` 失败 |
-| `bun run typecheck:py` | 只跑 Python 静态检查（`ops/ci/pyright_gate.py`） |
-| `bun run knip` | JS/TS 未使用文件/导出/依赖扫描（`knip.config.ts`，含动态入口白名单） |
-| `bun run --cwd homeos/frontend lint` / `--cwd homeos-store lint` | 前端 ESLint（`--fix`）。规则核只有一份（`ops/eslint/frontend-core.mjs`）：parser/插件装配与「抓 bug」那批规则（未使用 import、`any`、vue 陷阱）两个前端逐条一致；分离出来的只有**风格两条**，各自按既有约定给 —— 主应用单引号无分号、商店双引号带分号（实测 5789 条存量差异全是这两条，整树 `--fix` 等于重写商店前端且抓不出一个 bug，理由写在该文件头）。`lint:ci` 是 `--max-warnings 0`，两个应用都已进 CI |
-| `bun run kpi:studio` | studio 收敛 KPI 三件套：单体行数（`ops/kpi/studio_monolith_kpi.py`，含桩检测 + ratchet）、域清单与平铺面（`ops/kpi/studio_domains_kpi.py`）、根↔studio 同名冲突（`ops/kpi/studio_layout_kpi.py`）。**P4 拆 studio 的双门槛之一**（另一半是 `homeos/frontend` 侧的 `check:deps` 域边界门禁）；已进 CI —— 不进就等于「拆分成果没有护栏」 |
+| `bun run typecheck` | 两边 `vue-tsc` / `tsc`。**先跑 `build:shared`**：主应用从 `@homeos/shared` 的 `dist/` 取类型，干净检出时该目录不存在（`dist/` 被 gitignore），不先建就会以 `TS2307 Cannot find module '@homeos/shared'` 失败 |
+| `bun run typecheck:py` | 本机 basedpyright（可选；CI 已不再跑 pyright 基线门禁） |
+| `bun run --cwd homeos/frontend lint` / `--cwd homeos-store lint` | 前端 ESLint（`--fix`）。规则核只有一份（`ops/eslint/frontend-core.mjs`）。`lint:ci` 是 `--max-warnings 0`，已进 CI |
 | `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
-| `bun run verify:scene` | 校验 `design/scene` 与两端 `public/static/**/scene` 逐字节一致 |
-| `bun run verify:features` | 校验功能码真源（`ops/check/feature_codes.json`）与两端后端 + 前端镜像一致 |
-| `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id、常量块字面量集；`ops/contracts/shared-twins.json`）+ 共享 Python 真源唯一（后端不得再存 `packages/shared-py` 模块的副本）+ 门禁自检（`ops/check/check_shared_contracts_selftest.py`）+ 独立部署护栏（见下一行） |
-| `bun run verify:independence` | 独立部署护栏（`ops/check/check_deploy_independence.py`）：两后端源码/两前端源码/两份 `package.json` 互不引用（跨界只允许 `@homeos/shared`）、Dockerfile 只有一个构建阶段且源码只能由 `--build-arg PROJECT` 选（`ARG PROJECT` 不许有默认值）、`ops/build.py` 的 PROJECTS 表与 Dockerfile 的 `case "$PROJECT"` 双向对账、运行阶段各装各的产物与两个构建阶段各自内联 `packages/shared-py`；含 33 项注入式自检 |
-| `bun run verify:schema` | 库结构门禁（`ops/check/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
-| `bun run verify:database` | 库结构医生（`ops/check/check_database.py`）：完整性检查 / 外键 / 结构漂移。此前只在本地跑，现已进 CI |
-| `bun run verify:smoke` | 商店侧冒烟（3 个脚本）：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏（`_schema_drift_guard_smoke.py`）+ 计数列重算（`_commerce_recount_smoke.py`） |
-| `bun run verify:smoke:app` | 主应用侧冒烟（9 个脚本）：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + WS 广播 + 全量备份 + go2rtc 中继。全部离线自足（进程内假商店、假 httpx、临时数据目录） |
-| `bun run verify:smoke:frontend` | 前端纯逻辑冒烟（6 个脚本）：Esc 层级栈回归 + 实体控制逻辑 + 场景更新计划 + `requestJson` 请求面 + 摄像头检查器控件 + go2rtc MSE over WebSocket |
-| `bun run verify:smoke:license` | 授权激活 e2e（`_license_activation_e2e_smoke.py`）：需要**运行中的本地商店**。商店不可达或没有可安全占用的授权时打醒目的 `SKIP` 并以 0 退出 —— 所以它**不在**默认冒烟里（SKIP 不是覆盖），本地用 `verify:smoke:all` 或本别名单独跑 |
-| `bun run verify:smoke:all` | 上面四组冒烟全跑（本机热缓存约 9s；含需要运行中商店的授权激活 e2e） |
-| `bun run verify:tokens` | 令牌契约门禁单独跑（`ops/tokens/check-token-contract.mjs`）：每个 `var(--x)` 必须能解析到定义，否则整条声明在计算期静默丢弃 |
-| `bun run verify:tokenmap` | 令牌映射棘轮单独跑（`ops/tokens/check-token-map.mjs`）：命名漂移 / 同名分歧 / 身份色越界只减不增（基线 `ops/contracts/ui-token-map.baseline.json`） |
-| `bun run --cwd homeos/frontend check:deps` / `--cwd homeos-store check:deps` | 依赖方向 + 引用可解析性 + 令牌契约 + 注入式自检（共 14 / 2 步）。清单在各项目的 `scripts/deps-gates.mjs`，由 `ops/lib/run-chain.mjs` **并发**执行（串行 `&&` 链的关键路径是各步之和，实测 10.2s → 1.9s）；任一步非 0 则整链失败 |
 
-整个测试/冒烟体系（三层 harness 的分工、断言口径、以及「要不要改用 pytest / `bun test`」的实测评估）见 [`ops/testing/README.md`](ops/testing/README.md) —— 结论是保留脚本式冒烟，只把少数假时钟/退避用例按需迁 `bun test`。
+CI（`.github/workflows/checks.yml`）仅保留：`typecheck` + eslint、`ruff`、前端 `build`、基建 lint（shell/actionlint/compose/Caddy）。自定义门禁与冒烟体系已拆除。
 
 ### 首次联调流程
 
@@ -178,14 +161,7 @@ bun run dev:runtime
 3. 主应用登录后自动检测授权；未激活跳 `/activate`，用商店激活码完成绑定。
 4. 编辑器配 HA；3D 先在 `/3d-studio` 保存户型。
 
-不改代码就能验证这条链路（临时数据目录、进程内假商店、不碰网络）：
-
-```bash
-bun run verify:smoke:app
-```
-
-覆盖「零用户 → 发码 → 注册并登录 → 账号/邮箱两种登录 → 未登录激活 401 → 登录后激活携带
-accountName → 激活失败不误判为已授权」。授权页与后台「设置 → 授权状态」面板给人工复核用。
+授权页与后台「设置 → 授权状态」面板给人工复核用。
 
 ---
 
@@ -351,7 +327,7 @@ docker logs homeos | head
 
 CI 通过 GitHub Actions **手动 `workflow_dispatch`** 构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）。默认分支 push **不会**自动触发镜像构建（镜像推送保持手动，避免每次提交都推 GHCR）。
 
-轻检查**也已改为手动**：`.github/workflows/checks.yml`（typecheck+lint / 前端门禁 / 契约与度量 / ruff / pyright / 库结构 / 端到端冒烟）不再挂在 `push(main)` 或 PR 上，只在 Actions 页面 Run workflow；`docker.yml` 构建前仍复用它（`uses:`，这条不能断）。门禁清单只此一处，改检查只改这一个文件。`.github/workflows/build-check.yml`（只构建、不推镜像）同样只手动触发。
+轻检查定义在 `.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint），只手动 `workflow_dispatch`；`docker.yml` 构建前仍复用它（`uses:`）。`.github/workflows/build-check.yml`（只构建、不推镜像）同样只手动触发。推送与 PR **不会**自动跑任何工作流。
 
 本地构建是**两阶段**：先把前端与加密后端产出到工作区根 `dist/`，再从 `dist/` 组装运行镜像（镜像内不再编译后端，见 `Dockerfile` 的 app / store 目标与 `ops/build.py`）：
 
@@ -374,7 +350,7 @@ Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只�
 
 **产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，构建阶段用 `COPY homeos/backend/src ./app` 把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。主应用与商店用**同一条**映射（`.../src → ./app`），镜像里都是 `/app/app`，区别只在装什么、以什么入口启动。
 
-产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见主应用 `backend/src/platform/core/migrations.py` 与商店 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
+产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见主应用 `backend/src/platform/core/migrations.py` 与商店 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。
 
 编译后编译脚本会自动对每个 `.so` 执行 `strip --strip-all`（见 `ops/docker/compile_python.py` 的 `_strip_extensions`）：去掉 DWARF 调试信息与 `.symtab` 静态符号，保留 `.dynsym`（动态加载靠它，删了 `import` 就失败）。这样 `strings` 里不再出现 `__pyx_pf_*` 内部函数名与原始路径。
 
@@ -393,18 +369,12 @@ bun run build
 
 也可以直接把基础镜像钉到任意镜像站 / 私有仓库：`--python-image <ref>`、`--caddy-image <ref>`。
 
-> ⚠ 走 `--base-mirror`（或上面两个 `--*-image`）会**丢掉基础镜像的摘要钉版**：镜像站/私有仓库是另一个仓库，`@sha256:…` 摘要必然与上游不同，照搬会直接拉不到，所以 `ops/build.py` 只保留 `tag` 并在构建期打印警告。正式产物走 CI —— CI 的工作流被 `ops/check/check_docker_pins.py` 禁止传这三个参数，用的就是真源里钉死的 `tag@digest`。
+> ⚠ 走 `--base-mirror`（或上面两个 `--*-image`）会**丢掉基础镜像的摘要钉版**：镜像站/私有仓库是另一个仓库，`@sha256:…` 摘要必然与上游不同，照搬会直接拉不到，所以 `ops/build.py` 只保留 `tag` 并在构建期打印警告。正式产物走 CI 时用真源 [`ops/docker-pins.json`](ops/docker-pins.json) 里钉死的 `tag@digest`。
 
-默认的基础镜像写在**唯一真源** [`ops/docker-pins.json`](ops/docker-pins.json)（`upstream_tag` 与 `digest` 分开两行），由 `ops/check/check_docker_pins.py` 与各处逐字对账：`Dockerfile` 的两个 `ARG` 默认值、`docker-compose.store.public.yml` 里公网 Caddy 的兜底值，加上对 `ops/build.py` 的**行为测试**（镜像站改写只丢摘要、不设镜像站时不得注入 build-arg），另有「`Dockerfile` 的每个 `FROM` 都必须走登记的镜像」「`pip install` 的构建期工具必须 `==` 精确版本」「工作流不得传基础镜像覆盖参数」三条硬规则。升级基础镜像时改真源，然后：
-
-```bash
-python3 ops/check/check_docker_pins.py --verify-remote   # 联网核对 tag 与 digest 是否仍然配对
-```
-
-`--verify-remote` 在发布路径（`.github/workflows/docker.yml` 的默认分支构建）是**硬门禁**：上游重推同名 tag 后，本仓库钉住的摘要仍然可复现，但 `tag@digest` 这句话已经不成立，必须显式刷新成新摘要。非发布分支只作提示。
+默认的基础镜像写在**唯一真源** [`ops/docker-pins.json`](ops/docker-pins.json)（`upstream_tag` 与 `digest` 分开两行），并写进 `Dockerfile` 的 `ARG` 默认值与 `docker-compose.store.public.yml` 公网 Caddy 兜底值。升级基础镜像时改真源，并同步更新 Dockerfile / compose 中的引用。
 
 可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PIP_VERSION=26.2.1`、`--build-arg SETUPTOOLS_VERSION=84.0.0`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
-前三个是**构建期工具**的精确版本（`ops/check/check_docker_pins.py` 的第 6 条判据要求 `pip install` 的包参数必须写成 `name==版本`）：`pip install --upgrade pip` / `pip install setuptools` 这类裸写法会让同一份源码随时间装出不同产物，而 `setuptools` 一收 `setuptools.command.*` 的兼容面就会让 `ops/docker/compile_python.py` 直接编不过。
+前三个是**构建期工具**的精确版本：`pip install --upgrade pip` / `pip install setuptools` 这类裸写法会让同一份源码随时间装出不同产物，而 `setuptools` 一收 `setuptools.command.*` 的兼容面就会让 `ops/docker/compile_python.py` 直接编不过。
 不传 `--build-arg HOMEOS_VERSION=0.7.6` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ### 七、数据卷与备份

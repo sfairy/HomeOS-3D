@@ -32,8 +32,14 @@ from ..platform.core.observability import (
     get_ha_sync_latency_snapshots,
     get_ha_ws_deferred_dropped_total,
 )
+from ..platform.core.pagination import parse_bounded_limit
 from ..platform.core.runtime_kv import load_runtime_kv
-from ..platform.core.runtime_logs import DEFAULT_QUERY_LIMIT, RuntimeLogBuffer, matches_runtime_log_filter
+from ..platform.core.runtime_logs import (
+    DEFAULT_QUERY_LIMIT,
+    MAX_QUERY_LIMIT,
+    RuntimeLogBuffer,
+    matches_runtime_log_filter,
+)
 from ..platform.security.auth_context import require_user
 
 logger = logging.getLogger("homeos.system.controller")
@@ -108,6 +114,61 @@ def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
         "errorCount": len(errors) if isinstance(errors, list) else 0,
     }
 
+def _render_diagnostics_text(diagnostics: dict[str, Any]) -> str:
+    """把诊断事实渲染成一段可复制到剪贴板的纯文本摘要。"""
+    latency = diagnostics["latency"]
+    host = diagnostics["host"]
+    ha = diagnostics["ha"]
+    memory_detail = diagnostics["memoryDetail"]
+    drift_repair_last_run = diagnostics["driftRepairLastRun"]
+    retention_days = diagnostics["retentionDays"]
+    deferred_dropped = diagnostics["deferredDropped"]
+    state_store = diagnostics["stateStore"]
+    gateway = diagnostics["gateway"]
+
+    with_samples = [snap for snap in latency if snap.count > 0]
+    if with_samples:
+        latency_line = "同步延迟: " + " · ".join(
+            f"{snap.stage} p99={_js_number(snap.p99)}ms" for snap in with_samples[:6]
+        )
+    else:
+        latency_line = "同步延迟: 暂无样本"
+
+    memory_mb = host.get("memoryMb")
+    limit_mb = host.get("memoryLimitMb")
+    rss_mb = host.get("rssMb")
+    lines = [
+        f"HomeOS 诊断 {_format_locale_string(datetime.now(UTC).astimezone())}",
+        (
+            f"HA: {'已连接' if ha.get('connected') else '未连接'} "
+            f"{ha.get('ha_version') or ''} ({ha.get('ha_ws_mode') or 'standalone'})"
+        ),
+        f"实体: {state_store.get_count()}",
+        f"WS 客户端: {gateway.client_count()}",
+        f"历史保留: {retention_days} 天",
+        (
+            f"漂移修复上次: {drift_repair_last_run['finishedAt']} · "
+            f"修复 {drift_repair_last_run['repaired']} · 失败 {drift_repair_last_run['failed']}"
+            if drift_repair_last_run and drift_repair_last_run.get("finishedAt")
+            else "漂移修复: 尚无运行记录"
+        ),
+        latency_line,
+        f"HA WS 延期丢弃: {deferred_dropped}",
+        (
+            f"CPU: {host.get('cpu')}% 内存: {host.get('memory')}% "
+            f"({memory_mb if memory_mb is not None else '?'}/"
+            f"{limit_mb if limit_mb is not None else '?'} MB, "
+            f"RSS {rss_mb if rss_mb is not None else '?'} MB) 运行: {host.get('uptime')}"
+        ),
+        (
+            f"实体缓存估算: ~{memory_detail['estimatedEntityStoreMb']} MB · "
+            f"recentChanges {memory_detail['recentChangesCount']}/{memory_detail['recentChangesMax']}"
+        ),
+        f"DB: {host.get('dbSize')}",
+    ]
+    return "\n".join(lines)
+
+
 # 调度作业 / 诊断
 @router.get("/jobs")
 async def get_jobs(request: Request, user: dict[str, Any] = Depends(require_user)):
@@ -143,48 +204,20 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
     latency = get_ha_sync_latency_snapshots()
     deferred_dropped = get_ha_ws_deferred_dropped_total()
 
-    def copy_text() -> str:
-        with_samples = [snap for snap in latency if snap.count > 0]
-        if with_samples:
-            latency_line = "同步延迟: " + " · ".join(
-                f"{snap.stage} p99={_js_number(snap.p99)}ms" for snap in with_samples[:6]
-            )
-        else:
-            latency_line = "同步延迟: 暂无样本"
+    diagnostics_facts = {
+        "latency": latency,
+        "host": host,
+        "ha": ha,
+        "memoryDetail": memory_detail,
+        "driftRepairLastRun": drift_repair_last_run,
+        "retentionDays": retention_days,
+        "deferredDropped": deferred_dropped,
+        "stateStore": state_store,
+        "gateway": gateway,
+    }
 
-        memory_mb = host.get("memoryMb")
-        limit_mb = host.get("memoryLimitMb")
-        rss_mb = host.get("rssMb")
-        lines = [
-            f"HomeOS 诊断 {_format_locale_string(datetime.now(UTC).astimezone())}",
-            (
-                f"HA: {'已连接' if ha.get('connected') else '未连接'} "
-                f"{ha.get('ha_version') or ''} ({ha.get('ha_ws_mode') or 'standalone'})"
-            ),
-            f"实体: {state_store.get_count()}",
-            f"WS 客户端: {gateway.client_count()}",
-            f"历史保留: {retention_days} 天",
-            (
-                f"漂移修复上次: {drift_repair_last_run['finishedAt']} · "
-                f"修复 {drift_repair_last_run['repaired']} · 失败 {drift_repair_last_run['failed']}"
-                if drift_repair_last_run and drift_repair_last_run.get("finishedAt")
-                else "漂移修复: 尚无运行记录"
-            ),
-            latency_line,
-            f"HA WS 延期丢弃: {deferred_dropped}",
-            (
-                f"CPU: {host.get('cpu')}% 内存: {host.get('memory')}% "
-                f"({memory_mb if memory_mb is not None else '?'}/"
-                f"{limit_mb if limit_mb is not None else '?'} MB, "
-                f"RSS {rss_mb if rss_mb is not None else '?'} MB) 运行: {host.get('uptime')}"
-            ),
-            (
-                f"实体缓存估算: ~{memory_detail['estimatedEntityStoreMb']} MB · "
-                f"recentChanges {memory_detail['recentChangesCount']}/{memory_detail['recentChangesMax']}"
-            ),
-            f"DB: {host.get('dbSize')}",
-        ]
-        return "\n".join(lines)
+    def copy_text() -> str:
+        return _render_diagnostics_text(diagnostics_facts)
 
     now = datetime.now(UTC)
     timestamp = now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
@@ -242,10 +275,12 @@ async def get_runtime_logs(
 ):
     """后端运行日志（进程内环形缓冲）。"""
     _ = user
-    parsed_limit = _int_or_none(limit)
+    buffered_limit = parse_bounded_limit(
+        limit, DEFAULT_QUERY_LIMIT, maximum=MAX_QUERY_LIMIT
+    )
     return _runtime_buffer(request).query(
         {
-            "limit": parsed_limit if parsed_limit is not None else DEFAULT_QUERY_LIMIT,
+            "limit": buffered_limit,
             "level": level,
             "q": q,
             "context": context,

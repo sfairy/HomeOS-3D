@@ -22,6 +22,7 @@ KINDS: dict[str, str] = {
     "alipay.config": "支付宝回调配置缺失",
     "wechat.config": "微信回调配置缺失",
     "refund.ledger": "退款流水写入失败",
+    "refund.stale_running": "退款占位长期未定论（需人工核对）",
     "referral.reversal_shortfall": "退款扣回邀请积分余额不足",
     "referral.reward": "邀请奖励入账失败",
     "delivery": "发货通知投递异常",

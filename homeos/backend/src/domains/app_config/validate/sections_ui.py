@@ -17,6 +17,9 @@ from ..constants import (
     REBUILD_DEBOUNCE_MS_MIN,
 )
 
+#: 语音命令里的 domain / service 词法：``^[a-z_][a-z0-9_]*$``（大小写不敏感）。
+_VOICE_DOMAIN_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$", re.IGNORECASE)
+
 
 def _validate_frontend(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
     if "apiTimeoutMs" in p:
@@ -149,7 +152,6 @@ def validate_voice_commands_array(commands: Any, errors: list[FieldError] | None
     if not isinstance(commands, list):
         errors.append({"section": "voiceCommands", "key": "*", "message": "须为数组"})
         return errors
-    domain_re = re.compile(r"^[a-z_][a-z0-9_]*$", re.IGNORECASE)
     for index, cmd in enumerate(commands):
         prefix = f"[{index}]"
         if not isinstance(cmd, dict):
@@ -167,10 +169,10 @@ def validate_voice_commands_array(commands: Any, errors: list[FieldError] | None
                         {"section": "voiceCommands", "key": f"{prefix}.phrases[{pi}]", "message": "须为非空字符串"}
                     )
         domain = cmd["domain"].strip() if isinstance(cmd.get("domain"), str) else ""
-        if not domain or not domain_re.match(domain):
+        if not domain or not _VOICE_DOMAIN_PATTERN.match(domain):
             errors.append({"section": "voiceCommands", "key": f"{prefix}.domain", "message": "须为有效 HA domain"})
         service = cmd["service"].strip() if isinstance(cmd.get("service"), str) else ""
-        if not service or not domain_re.match(service):
+        if not service or not _VOICE_DOMAIN_PATTERN.match(service):
             errors.append({"section": "voiceCommands", "key": f"{prefix}.service", "message": "须为有效 HA service"})
         if cmd.get("entityMatch") not in (None, "") and "entityMatch" in cmd:
             if not isinstance(cmd["entityMatch"], str):

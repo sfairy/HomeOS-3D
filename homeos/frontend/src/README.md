@@ -25,27 +25,15 @@ views (router)  -.->  studio  (只经 `@/studio` barrel 的懒加载器；不直
 > `features/<device>`、`composables/device`（2D 控制 UI）**同名不同义**，
 > 不可互相 import。详见 [studio/README.md](./studio/README.md) 的「设备命名」一节。
 
-由以下门禁强制：
-
-- `npm run check:frontend-deps` ([`scripts/gates/check-frontend-deps.mjs`](../scripts/gates/check-frontend-deps.mjs))
-- `npm run check:studio-deps`
-- 主应用上的 ESLint `no-restricted-imports`
-- `npm run check:refs` ([`scripts/gates/check-import-refs.mjs`](../scripts/gates/check-import-refs.mjs)) —— 每条 spec **真去文件系统解析一次**，
-  含**注释里**的 `@/` 说明（见下「注释路径卫生」）。它补的是别的门禁都没有的洞：`check-frontend-deps.mjs` 只管方向、
-  且只从 `src/` 起步，`scripts/*.ts` 的相对导入此前**没有任何门禁**真的 lstat 过。
-- `npm run check:chunk-groups` ([`scripts/gates/check-vite-chunk-groups.mjs`](../scripts/gates/check-vite-chunk-groups.mjs)) ——
-  `vite.config.ts` 的 `codeSplitting.groups` 里每条 `test` 必须**落到真实模块**，且 alternation 的每条分支都要有文件
-  （见下「构建分块组不能悬空」）。
-- `bun run knip`（仓库根）—— 域 barrel 的「薄」：没有任何 import 的 `export` 会被报出来（见下「域 barrel 要「薄」」）。
+分层约定由评审与 ESLint `no-restricted-imports` 维护。
 
 `utils` → composables/stores/components 的白名单**为空**。  
 `composables` → components 仍放行 `composables/shell/useFloatingHub.ts`（异步弹层挂载点），直到这些件搬进 components。  
-层违规存量白名单（`LAYER_WHITELIST`）**已清零**：原 `utils/entity/popup-registry.ts` deprecated 桩已按
+原层违规存量白名单（`LAYER_WHITELIST`）**已清零**：`utils/entity/popup-registry.ts` deprecated 桩已按
 「纯元数据 / 组件映射」两层拆分 —— 纯判定「entity_id → 弹窗种类」下沉到
 `@/shared/entity/utils/popup-registry.util`（可被 utils/composables/stores 安全引用），
 「种类 → 懒加载组件」映射留在 `@/components/entities/popup-registry`（需要 `components/`）。
-拆完后 `utils` 不再向上引用 `components`，分层倒置消除。key 用 `<引用方>|<归一化 target>`，
-改导入风格不会让它静默失效；条目一旦不再违规，脚本会报「已过期」强制清掉。
+拆完后 `utils` 不再向上引用 `components`，分层倒置消除。
 
 **P2 utils 收尾（本轮）**：根级 `src/utils/` **整个目录已清零** —— 8 个域桶按「纯逻辑落共享域」
 重排为 `shared/{agent,client,earthquake,floorplan,presence,recommend,security,voice}/utils/`。
@@ -81,12 +69,7 @@ import { useNav } from './composables/nav'
 import Overview from '@/features/security/Overview.vue'
 ```
 
-两处门禁同一规则，各有分工：
-
-| 门禁 | 作用 | 白名单 |
-|------|------|--------|
-| `npm run check:deps` | **权威**。扫全仓（含 `views/`），逐条比对 | `CROSS_DOMAIN_WHITELIST`，**带过期检测**：条目不再违规就必须删 → 只能变小 |
-| ESLint `no-restricted-imports` | 编辑器即时反馈。按域自动生成，新增域无需改配置 | `CROSS_DOMAIN_EXEMPT`（存量豁免） |
+跨域规则由 ESLint `no-restricted-imports` 在编辑器里即时反馈（按域自动生成，新增域无需改配置）。
 
 迁移顺序见根仓库重构计划：`security` 试点 → 其余域分批 → `views/` 收敛为薄壳（只挂 `<features/<域>>`）。
 新增域时**先建 `features/<域>/index.ts`**，否则跨域引用无从落地。
@@ -103,9 +86,7 @@ import Overview from '@/features/security/Overview.vue'
 理由：`shared` 在 DAG 里位于这些层**下方**，所以 `stores/defaults.ts → @/shared/energy/...` 合法；
 同样的 import 指向 `features/` 就是分层倒置。
 
-判定不要靠肉眼 —— 分层倒置由 `check:deps` 的分层方向门禁（`scripts/gates/check-frontend-deps.mjs`）自动兜住，
-它会排除纯 re-export 兼容桩（否则已迁域会被自己的桩伪造成假阳性）。
-一次性的全量归类脚本 `ops/frontend_domain_classify.py`（`bun run classify:domains`）已随重构完成退役。
+分层倒置靠评审与 ESLint 约定兜住（排除纯 re-export 兼容桩，否则已迁域会被自己的桩伪造成假阳性）。
 
 ### `shared/<域>/` 的两条访问规则
 
@@ -117,15 +98,14 @@ import Overview from '@/features/security/Overview.vue'
   `@/shared/<域>/{utils,constants,types}/…`
 
 不能反过来：barrel 会带上 `composables/` 层（`shared/energy/composables/useUtilityMeter` 依赖 `vue`），
-让 `stores/defaults.ts` 去 import 它会把 Vue 运行时拖进本该纯净的常量/状态模块。这条由
-`check:frontend-deps` 强制（ESLint 的 `group` 是 gitignore 语义，表达不了「精确匹配裸 barrel」，故只在脚本里）。
+让 `stores/defaults.ts` 去 import 它会把 Vue 运行时拖进本该纯净的常量/状态模块。
 
 ### `shared/<域>/` 的 barrel 面（哪些域出 barrel）
 
 **结论：薄 barrel 是「按需引入」，不是默认配置。** 判据与硬约束：
 
-- **硬约束（门禁）**：叶子/下层消费者永不走 barrel（上一条，`isLeafConsumer`）；barrel 里**不许有死导出**
-  （口径 = `bun run knip`）——所以 barrel 只导出上层消费者**实际取用**的符号。
+- **硬约束**：叶子/下层消费者永不走 barrel（上一条，`isLeafConsumer`）；barrel 里**不许有死导出**
+  ——所以 barrel 只导出上层消费者**实际取用**的符号。
 - **引入时机**：域内会继续被搬动的件（`composables/`、跨域共用的决策函数）值得套一层 barrel，
   这样域内挪文件不会波及上层每一处调用点；纯 `utils/constants/types` 叶子池不套，消费者一律深路径
   （深路径本身也承担「这是纯函数」的语义）。
@@ -138,7 +118,7 @@ import Overview from '@/features/security/Overview.vue'
 ## 桶命名铁律：一个名字只能有一个含义
 
 建新桶（尤其 `shared/<域>/`）前，先 `find src -type d -name <候选名>` 确认它不是已有语义的另一件事。
-同名双义会让 `rg` 结果失真、也让「该改哪个」变成猜谜 —— P6 的 studio 同名冲突 KPI 消灭的就是这一类。
+同名双义会让 `rg` 结果失真、也让「该改哪个」变成猜谜。
 
 本仓库已有的坑位：
 
@@ -159,14 +139,13 @@ import Overview from '@/features/security/Overview.vue'
 ## 域 barrel 要「薄」：只导出被跨域真正用到的成员
 
 `shared/<域>/index.ts` 与 `features/<域>/index.ts` 不做 `export *` 全量再导出。口径不是「这个概念
-在外被人用」，而是**「有没有人真的从这条 barrel import 它」**—— 判定工具就是 `bun run knip`
-（`export` 无人 import 即报错），归位批次收尾必跑。
+在外被人用」，而是**「有没有人真的从这条 barrel import 它」**。
 
 > **本批实测的教训**：域优先迁移期间，各 barrel 是按「把上面几层的域内件整批再导出」写出来的，
-> 于是积了 **7 个文件 / 58 条死导出**，而且全部躲过了 typecheck、lint 和所有依赖门禁
-> （多导出一条不需要的东西，没有任何一层会报错）。文档描述的接口面往往比实际入边更宽：展示面的
+> 于是积了 **7 个文件 / 58 条死导出**，而且全部躲过了 typecheck / lint
+> （多导出一条不需要的东西，这两层都不会报错）。文档描述的接口面往往比实际入边更宽：展示面的
 > 条目**没有任何跨域消费者从 barrel 取**，它们全走深路径。**文档描述的设计意图会漂移，
-> `export` 的实际入边不会**，所以两类问题各归其位：接口面以 knip 为准，文档改来描述现实。
+> `export` 的实际入边不会**，所以接口面以真实 import 为准，文档改来描述现实。
 
 理由有三：
 
@@ -242,29 +221,14 @@ import Overview from '@/features/security/Overview.vue'
 文件头 `@dependencies` / `@module` 与迁移批次里留下的 `@/` 说明是最容易腐烂的地方：既没有编译器把关，
 批量改路径时又会被正则「顺手套用前缀」，生成看起来合理、实际不存在的路径。
 
-**本轮已把它从「收尾时手动跑一遍审计」升级成门禁**：`npm run check:refs`
-（[`scripts/gates/check-import-refs.mjs`](../scripts/gates/check-import-refs.mjs)）会把每个 import/export spec
-（`@/…` 与相对路径）以及**注释与 `.md` 文档里出现的 `@/` 字样**逐个解析成真实文件，解析不出来即失败；负向自检
-`scripts/gates/_import_refs_selftest.mjs` 也在 `check:deps` 里（解析型门禁最常见的死法是「匹配不到就跳过」，
-此后永远报绿）。首轮清了 9 处（`services/api/orchestrator`、
-`composables/orchestrator/useYamlValidation`、`features/security/utils/security-*.util`、
-`features/settings/system/composables/system-config.internals`、`utils/client/client-system.util`、
-5 处 `@module frontend/src/utils`）——**注意这里刻意省掉 `@/` 前缀**：这些路径已被删除，
-写成完整形式就会被本门禁判为悬空引用（本文件自身也受扫，见下）。
-
 因此有了一条**注释 / 文档纪律**：注释与 `.md` 里**不要写完整的假 `@/` 路径**，改用占位符（`@/components/<x>`、`@/foo/**`、
 `@/shared/<域>/utils/…`）或省掉 `@/` 前缀（写 `…/shared/client/utils/system.util`）。
-这不是洁癖 —— 写成完整形式就会被当成真引用校验。门禁已豁免 `*` `<` `>` `…` `{}` 这类占位符与
-`import.meta.glob` 通配串，所以文档里表达「某一类路径」不受影响。
-
-`.md` 只走「`@/` 字样」这一遍，**不解析文档里的 `import` 示例** —— 示例是示意，不是真引用。
-`src/**/*.md` 与本包根级 `*.md` 都在扫描面内（当前 4 个：`src/README.md`、
-`src/components/list-page-shell/README.md`、`src/studio/README.md`、`src/studio/MONOLITH_BASELINE.md`）。
+文档里的 `import` 示例是示意，不是真引用。
 
 ### 样式表卫生
 
-样式表是本仓库最缺门禁的角落：`@import` 与 `<style src>` 都不在依赖门禁的常规扫描面上，宿主组件被删除后
-样式表会静默留下（`knip` 也不看 CSS）。本批实测：`components/dashboard/styles/` 原有 14 个文件，其中 11 个已
+样式表容易腐烂：`@import` 与 `<style src>` 没有编译器把关，宿主组件被删除后样式表会静默留下。
+本批实测：`components/dashboard/styles/` 原有 14 个文件，其中 11 个已
 **零引用**（宿主 `AutomationBuilder` / `SceneBatchPickerModal` / `SceneBatchStepField` / `SimpleAutomationWizard` /
 `TemplateEntityBuilder` / `Orchestrator{DriftDiffModal,EngineCapsPanel,ExecutionEngineBadge,PlaceholderWizard,SyncAlert}` /
 `OrchestratorBuilder.shared` 全仓已不存在），合计 4,115 行，整批删除。
@@ -286,40 +250,17 @@ import Overview from '@/features/security/Overview.vue'
 （P2 手删）、`views/(Login|Setup|Guest)View.vue`、`views/Mobile*View.vue`、`components/dashboard/.*Builder`、
 `components/widgets/{energy,orchestrator,device,care}`、`views/dashboard-chrome.ts`。
 
-故立 `npm run check:chunk-groups`（[`scripts/gates/check-vite-chunk-groups.mjs`](../scripts/gates/check-vite-chunk-groups.mjs)）：
-不 import 配置（那是 TS + 一堆插件），只做括号/注释/字符串感知的文本切片，抠出每组的 `name` / `test` 字面量，
-拿 `src/` 下所有 `.ts/.tsx/.vue/.js/.mjs/.cjs`（CSS 不参与分块）的绝对 posix 路径逐个喂给 `test`：
-
-- **死组**：整组匹配不到任何文件 → 报错并点名该组；
-- **死分支**：`(media|weather)` 这类 alternation 里某条分支无文件 → 报错。死分支比死组更难发现，因为它不会
-  让组消失，只让它悄悄少覆盖一块；
-- 依赖组（`node_modules`）与 `entriesAware` 兜底组显式跳过，不误判。
-
-三处防瞎（解析不到 `codeSplitting:` / 解析出 0 组 / `src/` 下 0 模块）判**门禁自身失效**（退出码 2），
-免得「解析漂移」伪装成「全部通过」。自检 `scripts/gates/_vite_chunk_groups_selftest.mjs`（25 项）在**真实配置文本**上
-注入死组 / 死分支 / 改键名，并用合成组对象压依赖组、兜底组、缺 `name`、`test` 非字面量各分支；
-两条都挂进 `check:deps`（CI 已在跑 `bun run --cwd homeos/frontend check:deps`）。
+改 `codeSplitting.groups` 时请人工核对：每组的 `test` 仍能命中真实模块；`(media|weather)` 这类
+alternation 的每条分支都要有文件，否则只是静默少覆盖一块。
 
 与之相邻的存量本轮已清理：`wr-*` 命名空间（更早的 widget-renderer 外壳遗留）在 6 个样式表
 （`features/settings/shared/styles/*`、`assets/styles/*`、`features/home-mode/editor/styles/HomeMode.css`）
-里定义了 100+ 类名，而应用侧（`.vue/.ts/.js`、`public/`、studio、后端模板）没有任何地方把 `wr-*` 加到
-元素上 —— 唯一的「命中」是门禁自检 `scripts/gates/_css_classes_selftest.mjs` 里的夹具类名（`wr-bar`/`wr-slider`…），
-那是工具在给这个命名空间**续命**，不算发射点。
+里定义了 100+ 类名，而应用侧没有任何地方把 `wr-*` 加到元素上。
 
 判定与删除口径：一个**规则块**只要其**每条逗号分支**都硬依赖某个**不可发射**的类名（该分支永远不会
-匹配），整块可判死、直接删除；删除是纯删除。删完复核幂等（再跑一次不再产生变化），并强制校验删除区间
-**整行对齐**、读写**原样保留 LF/CRLF**（仓库两种行尾混存，通用换行会把 CRLF 文件整篇算成改动而看不出
-真删了多少行）。实际：`orchestrator-premium.css` −749、`HomeMode.css` −108、`settings-forms.css` −99
-（这几个数字是相对 HEAD 的累计值，含批次 C 已在同一工作区里删掉的部分）。
-
-残留仅剩「活选择器里的 no-op 守卫 / 混合选择器列表里的死分支」，按「含仍存活类名的选择器不动」保留：
-`main.css` 的 `input[type="range"]:not(.wr-range)…`（`:not(.wr-x)` 恒真，删不删等价）与 `.wr-btn-add` / `.wr-btn-weak`
-所在的混合选择器列表（首条分支仍然活），外加 `components/common/base/styles/hos-select.css` 里一条 `wr-dd` 注释。
-全仓现存 `wr-` 字样已只剩这些（`main.css` + `hos-select.css`），不再有「整块 wr- 死规则」。
-
-门禁 `scripts/gates/check-css-classes.mjs` 兜底：一旦又冒出「整块 wr- 死规则」就报红（自检 `scripts/gates/_css_classes_selftest.mjs`）。
-它的判定口径比人扫**更宽**（只看分支里有没有 `.wr-*`），所以清理脚本必须覆盖 `:is(...)` / `:deep(...)` 开头的
-选择器 —— 早先漏掉这一类，门禁一直红着却没人清（本轮已补，门禁转绿）。
+匹配），整块可判死、直接删除。残留仅剩「活选择器里的 no-op 守卫 / 混合选择器列表里的死分支」，
+按「含仍存活类名的选择器不动」保留：`main.css` 的 `input[type="range"]:not(.wr-range)…` 与
+`.wr-btn-add` / `.wr-btn-weak` 所在的混合选择器列表，外加 `hos-select.css` 里一条 `wr-dd` 注释。
 
 ## 跨应用共享包（`@homeos/shared`）—— 主应用 ↔ 授权商店
 
@@ -331,18 +272,13 @@ import Overview from '@/features/security/Overview.vue'
 |---|---|---|
 | 纯逻辑池 | `@homeos/shared`（bare，`src/index.ts`） | 常量 / 类型 / 纯函数。主应用 100+ 处使用；商店目前不用 |
 | 场景壳契约 | `@homeos/shared/scene/scene-values` | `SceneShell` / `SceneValues` / `resolveSceneValues`：两侧字典**形状**单点化，文案各留各的（本应用 `components/common/scene-values.ts` ↔ 商店 `components/scene-values.ts`，兜底页各点名 `login` / `store`） |
-| 手持档判据 | `@homeos/shared/scene/touch-profile` | `isTouchProfile` / `applyTouchProfile`；本应用经 `studio/platform/scene-depth.ts` 进 `index.html` 的经典阻塞入口，商店在 `main.ts` import。**手抄兜底件** `public/static/auth/scene/scene-depth.js` 无法 import，由 `ops/check/check_shared_contracts.py` 比对信号面 |
+| 手持档判据 | `@homeos/shared/scene/touch-profile` | `isTouchProfile` / `applyTouchProfile`；本应用经 `studio/platform/scene-depth.ts` 进 `index.html` 的经典阻塞入口，商店在 `main.ts` import。**手抄兜底件** `public/static/auth/scene/scene-depth.js` 无法 import，改判据须与 shared 包同步 |
 | 共享 SFC | `@homeos/shared/components/{SceneStage,PasswordField}.vue` | 本包承载的第一批 `.vue`：两侧逐字同构的展示件，旧副本已删 |
 | 剪贴板内核 | `@homeos/shared/utils/clipboard` | 纯拷贝（安全上下文走 Clipboard API，HTTP 降级 `execCommand`）；提示文案留各应用（本应用接 `services/notify`，商店接 `useToast`）。商店 4 处消费**全部**走本店 `utils/clipboard` 包装：`LicensesView` 一直如此，`ItemView` / `AccountView` / `ReferralsView` 三个视图原先裸调 `navigator.clipboard.writeText`（**HTTP 非安全上下文下必抛**，正是该内核存在的理由），本轮并入 |
 
 另有一批常量 / 枚举**天生只能各存一份**（前端包不能被 Python import），漂移的表现是「前端有、后端认不出」：
 WS 事件名、可控实体域、通知来源与过滤优先级、实体引用种类、语音告警规则、系统配置字段白名单，
-外加商店配色令牌名（`homeos-store` 的 TS 生成 ↔ Python 校验器）。它们登记在
-`ops/contracts/shared-twins.json`，由 `bun run verify:contracts` 按**字面量集合**对账；口径与
-「抽取不到就判解析失败」的取舍见 `ops/check/check_shared_contracts.py` 的模块说明。**改这些常量等于改契约**，
-两处一起改或登记豁免（豁免必须写理由）。本轮清掉了 WS 事件名孪生里**唯一一条**真实豁免：`child_mode`
-全仓只剩定义处（前端无读取、后端无发射、Python 无孪生项），确认死常量后连常量带豁免一起删除；
-该孪生的 `ignore` 用例随之改为**自检自带豁免**，不再依赖黄金文件里真有豁免。
+外加商店配色令牌名（`homeos-store` 的 TS 生成 ↔ Python 校验器）。**改这些常量等于改契约**，两处一起改。
 
 三条容易踩的坑（都已在配置里写死并注释）：
 

@@ -29,7 +29,11 @@ export default tseslint.config(
       },
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
+      // 共享包是两个前端 + 静态运行面共同依赖的**叶子**：这里漏出去一个 `any`，
+      // 三个消费方就都失去了这一处的类型保护，而且是在自己的 `tsc` 里才暴露。
+      // 存量已清零（`src/**/*.ts` 0 处），故按 error 收口；`.vue` 段落本来就是 error，
+      // 此前只有 `.ts` 段落是 `off`，等于「同一个包、两种口径」。
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },

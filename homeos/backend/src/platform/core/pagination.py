@@ -54,6 +54,26 @@ def parse_optional_int(value: Any, fallback: int | None = None) -> int | None:
     return parsed if parsed is not None else fallback
 
 
+def parse_bounded_limit(
+    value: Any,
+    default: int,
+    minimum: int = 1,
+    maximum: int = MAX_SAFE_INTEGER,
+) -> int:
+    """把 ``limit`` 查询参数解析为强制落在 ``[minimum, maximum]`` 内的整数。
+
+    这是路由层解析 ``limit`` 的唯一受控入口：无论前端传缺省、空串、``"abc"``、
+    负数还是天文数字，返回值一定带上下界，杜绝"手工 ``int()`` + 事后 clamp"时
+    漏掉上限而暴露无界查询面。缺省 / 非数字回退 ``default``（并夹进上下界）。
+    """
+    if maximum < minimum:
+        raise ValueError("parse_bounded_limit: maximum 不能小于 minimum")
+    parsed = parse_int_10(value) if value is not None and value != "" else None
+    if parsed is None:
+        parsed = default
+    return clamp_int(parsed, minimum, maximum)
+
+
 def parse_crud_pagination(
     page: Any = None,
     limit: Any = None,
@@ -98,6 +118,7 @@ __all__ = [
     "MAX_SAFE_INTEGER",
     "build_paginated_result",
     "clamp_int",
+    "parse_bounded_limit",
     "parse_crud_pagination",
     "parse_int_10",
     "parse_optional_int",

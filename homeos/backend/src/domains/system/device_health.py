@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ...platform.core.entity_domain import get_entity_domain
+from ...platform.core.json_field import object_field
 
 #: 每类采样上限，避免响应体过大
 SAMPLE_LIMIT = 8
@@ -38,7 +39,7 @@ class DeviceHealthService:
         for entity in entities:
             entity_id = str(entity.get("entity_id") or "")
             domain = get_entity_domain(entity_id)
-            attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+            attributes = object_field(entity, "attributes")
             # friendly_name 为 HA 属性 key，缺失时回退到 entity_id
             name = str(attributes.get("friendly_name") or entity_id)
             state = entity.get("state")

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from http.cookies import SimpleCookie
 from typing import Any
 
@@ -15,6 +16,8 @@ from .entity_access import resolve_entity_restrictions
 from .session_store import resolve_login_session
 from ..core.errors import api_error
 
+logger = logging.getLogger("homeos.platform.security.ws_auth")
+
 
 def extract_auth_token_from_cookie(cookie_header: str | None, cookie_name: str = "auth_token") -> str | None:
     if not cookie_header:
@@ -22,7 +25,9 @@ def extract_auth_token_from_cookie(cookie_header: str | None, cookie_name: str =
     try:
         jar = SimpleCookie()
         jar.load(cookie_header)
-    except Exception:
+    except Exception as exc:
+        # 畸形 Cookie 一律当作「无凭证」（fail-closed）；留 debug 痕迹便于排查握手失败。
+        logger.debug("WS 握手 Cookie 解析失败，按无凭证处理: %s", exc)
         return None
     morsel = jar.get(cookie_name)
     return morsel.value if morsel and morsel.value else None

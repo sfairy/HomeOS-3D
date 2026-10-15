@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 from .presets import collect_home_mode_target_actions, resolve_action_kind
@@ -220,99 +221,105 @@ class HomeModeActivateState:
         self._set(mode_id)
 
 
-async def activate_home_mode(
-    state: HomeModeActivateState, deps: Any, mode_id: str, meta: dict[str, Any] | None = None
+_MISSING_FAILED_ITEMS: Any = object()
+
+
+@dataclass(frozen=True)
+class _ModeTriggerContext:
+    """触发上下文：模式 id / 名称 / 来源 / 原始 reason，供日志与执行历史复用。"""
+
+    mode_id: str
+    mode_name: str
+    source: str
+    raw_reason: Any
+
+
+@dataclass(frozen=True)
+class _ExecutionOutcome:
+    """执行历史里要记录的条数：总数、成功数与失败明细（缺省表示不写该键）。"""
+
+    total: int
+    executed: int
+    failed_items: Any = _MISSING_FAILED_ITEMS
+
+
+@dataclass
+class _ActionRunState:
+    """动作执行状态：待执行配置、逐条结果与当前失败下标（重试会原地改写）。"""
+
+    configs: list[dict[str, Any]]
+    results: list[dict[str, Any]]
+    failed_indices: list[int]
+
+
+@dataclass
+class _ActivationContext:
+    """激活过程的共享上下文：模式、触发方、回滚快照与执行 / 重试结果。"""
+
+    mode: dict[str, Any]
+    trigger: _ModeTriggerContext
+    snapshot: dict[str, Any]
+    results: list[dict[str, Any]]
+    retry_results: list[dict[str, Any]]
+
+
+def _trigger_log_payload(
+    trigger: _ModeTriggerContext, event_reason: Any, success: bool
 ) -> dict[str, Any]:
-    mode = await deps.find_mode(mode_id)
-    if mode is None:
-        not_found(api_error("HOME_MODE_NOT_FOUND"))
+    """构造 push_trigger_log 的触发日志负载。"""
+    return {
+        "modeId": trigger.mode_id,
+        "modeName": trigger.mode_name,
+        "source": trigger.source,
+        "reason": event_reason,
+        "success": success,
+    }
 
-    if mode.get("isActive"):
-        deps.log(f"模式 {mode['name']} 已处于激活状态,跳过重复激活")
-        return {
-            "success": True,
-            "modeId": mode_id,
-            "modeName": mode["name"],
-            "active": True,
-            "alreadyActive": True,
-            "executed": 0,
-            "total": 0,
-            "retried": 0,
-            "results": [],
-        }
 
-    entity_configs = _read_actions(mode.get("config"))
+def _home_mode_execution_record(
+    trigger: _ModeTriggerContext, event_reason: Any, success: bool, outcome: _ExecutionOutcome
+) -> dict[str, Any]:
+    """构造 record_execution 的执行历史负载；未给 failed_items 时不写该键。"""
+    record: dict[str, Any] = {
+        "modeId": trigger.mode_id,
+        "modeName": trigger.mode_name,
+        "success": success,
+        "source": trigger.source,
+        "reason": event_reason,
+        "executed": outcome.executed,
+        "total": outcome.total,
+    }
+    if outcome.failed_items is not _MISSING_FAILED_ITEMS:
+        record["failedItems"] = outcome.failed_items
+    return record
 
-    assert_entity_targets_execute_authorized(
-        collect_home_mode_target_actions(entity_configs),
-        (meta or {}).get("actor"),
-    )
 
-    hm_cfg = deps.get_home_mode_config()
-    arbiter = deps.linkage_arbiter.try_acquire(
-        (meta or {}).get("source"),
-        claim_ttl_ms=max(1, int(hm_cfg.get("linkageClaimTtlMin") or 15)) * 60_000,
-        manual_lock_ms=max(0, int(hm_cfg.get("manualLockTtlMin") or 30)) * 60_000,
-    )
-    if not arbiter.get("ok"):
-        deps.warn(f"家庭模式激活被联动仲裁拦截: {arbiter.get('reason')}")
-        deps.push_trigger_log(
-            {
-                "modeId": mode_id,
-                "modeName": mode["name"],
-                "source": (meta or {}).get("source") or "manual",
-                "reason": (meta or {}).get("reason") or arbiter.get("reason"),
-                "success": False,
-            }
-        )
-        bad_request(api_error("HOME_MODE_LINKAGE_BLOCKED", arbiter.get("reason")))
+def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> dict[str, Any]:
+    """重复激活时直接返回的幂等结果。"""
+    return {
+        "success": True,
+        "modeId": mode_id,
+        "modeName": mode["name"],
+        "active": True,
+        "alreadyActive": True,
+        "executed": 0,
+        "total": 0,
+        "retried": 0,
+        "results": [],
+    }
 
-    ha_status = await deps.get_ha_status()
-    if not ha_status.get("connected"):
-        deps.linkage_arbiter.release()
-        deps.warn("Home Assistant 未连接,拒绝激活家庭模式")
-        deps.push_trigger_log(
-            {
-                "modeId": mode_id,
-                "modeName": mode["name"],
-                "source": (meta or {}).get("source") or "manual",
-                "reason": (meta or {}).get("reason") or "手动切换",
-                "success": False,
-            }
-        )
-        deps.record_execution(
-            {
-                "modeId": mode_id,
-                "modeName": mode["name"],
-                "success": False,
-                "source": (meta or {}).get("source") or "manual",
-                "reason": (meta or {}).get("reason") or "HA 未连接",
-                "executed": 0,
-                "total": len(entity_configs),
-            }
-        )
-        return {
-            "success": False,
-            "modeId": mode_id,
-            "modeName": mode["name"],
-            "active": False,
-            "error": "HA 未连接，无法激活家庭模式",
-        }
 
-    incoming_group = mode.get("exclusiveGroup") or "default"
-    active_modes = await deps.list_active_modes()
-    conflicting_modes = [
-        active
-        for active in active_modes
-        if active["id"] != mode_id and (active.get("exclusiveGroup") or "default") == incoming_group
-    ]
-    conflict_restore: dict[str, dict[str, Any]] = {}
-    for active in conflicting_modes:
-        conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
-
+async def _collect_device_snapshot(
+    deps: Any, entity_configs: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """并发采集动作目标实体的当前状态，作为回滚快照。"""
     snapshot: dict[str, Any] = {}
     try:
-        entity_ids = [c.get("entity_id") for c in entity_configs if c.get("entity_id")]
+        entity_ids = [
+            entity_id
+            for entity_id in (config_item.get("entity_id") for config_item in entity_configs)
+            if isinstance(entity_id, str) and entity_id
+        ]
         semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
         fetched: list[tuple[str, dict[str, Any]] | None] = []
 
@@ -327,109 +334,129 @@ async def activate_home_mode(
                 snapshot[row[0]] = row[1]
     except Exception as exc:
         deps.warn(f"采集设备快照失败: {exc}")
+    return snapshot
 
-    try:
-        await deps.switch_active_group(conflicting_modes, conflict_restore, mode_id, snapshot)
-    except Exception:
-        deps.linkage_arbiter.release()
-        raise
-    state.set_active_mode_id(mode_id)
-    deps.log(f"正在激活模式: {mode['name']}")
 
-    sec_cfg = deps.get_security_config()
-    configs_to_run = filter_home_mode_actions_for_linkage_dedupe(entity_configs, meta, sec_cfg)
-
-    results = await execute_action_sequence(
-        configs_to_run, lambda config: _execute_home_mode_action(deps, config), "milliseconds"
-    )
-
-    failed_indices = [idx for idx, result in enumerate(results) if not result.get("success")]
-
+async def _retry_failed_home_mode_actions(
+    deps: Any, mode_name: str, run: _ActionRunState
+) -> list[dict[str, Any]]:
+    """按配置次数串行重试失败动作（原地更新 run.results），返回重试成功的条目。"""
     retry_results: list[dict[str, Any]] = []
-    if failed_indices:
-        deps.warn(f"模式 {mode['name']} 有 {len(failed_indices)} 个设备执行失败,开始重试...")
-        apply_max_retries = int(deps.get_apply_max_retries() or 0)
-        attempt = 0
-        while attempt < apply_max_retries and failed_indices:
-            deps.log(
-                f"重试第 {attempt + 1}/{apply_max_retries} 次,共 {len(failed_indices)} 个设备"
-            )
-            await asyncio.sleep(1)
-            retry_batch = await asyncio.gather(
-                *(_execute_home_mode_action(deps, configs_to_run[idx]) for idx in failed_indices)
-            )
-            still_failed: list[int] = []
-            for position, original_idx in enumerate(failed_indices):
-                result = retry_batch[position]
-                results[original_idx] = result
-                if result.get("success"):
-                    retry_results.append(result)
-                else:
-                    still_failed.append(original_idx)
-            failed_indices = still_failed
-            attempt += 1
+    if not run.failed_indices:
+        return retry_results
 
-    final_success = sum(1 for result in results if result.get("success"))
-
-    if results and final_success == 0:
-        deps.warn(f"模式 {mode['name']} 全部动作失败,回滚快照并取消激活")
-        rollback = await _restore_mode_snapshot(deps, {"deviceSnapshot": snapshot})
-        # 回滚不完整（HA 断连 / 部分实体恢复失败）时必须保留快照：
-        # 否则用户失去唯一的手动恢复依据，设备将停留在半执行状态。
-        rollback_incomplete = bool(rollback.get("incomplete"))
-        await deps.deactivate_in_db(mode_id, keep_snapshot=rollback_incomplete)
-        if rollback_incomplete:
-            await deps.notify(
-                "warning",
-                f"模式 {mode['name']} 激活失败且状态回滚不完整，已保留设备快照，请检查 HA 连接后手动恢复",
-                "home-mode",
-            )
-        if state.get_active_mode_id() == mode_id:
-            state.set_active_mode_id(None)
-        deps.linkage_arbiter.release()
-
-        failed_items = [
-            {"entity_id": r["entity_id"], "service": r["service"], "error": r.get("error")}
-            for r in results
-        ]
-        deps.push_trigger_log(
-            {
-                "modeId": mode_id,
-                "modeName": mode["name"],
-                "source": (meta or {}).get("source") or "manual",
-                "reason": (meta or {}).get("reason") or "手动切换",
-                "success": False,
-            }
+    deps.warn(f"模式 {mode_name} 有 {len(run.failed_indices)} 个设备执行失败,开始重试...")
+    apply_max_retries = int(deps.get_apply_max_retries() or 0)
+    attempt = 0
+    while attempt < apply_max_retries and run.failed_indices:
+        deps.log(f"重试第 {attempt + 1}/{apply_max_retries} 次,共 {len(run.failed_indices)} 个设备")
+        await asyncio.sleep(1)
+        retry_batch = await asyncio.gather(
+            *(_execute_home_mode_action(deps, run.configs[idx]) for idx in run.failed_indices)
         )
-        deps.record_execution(
-            {
-                "modeId": mode_id,
-                "modeName": mode["name"],
-                "success": False,
-                "source": (meta or {}).get("source") or "manual",
-                "reason": (meta or {}).get("reason") or "手动切换",
-                "executed": 0,
-                "total": len(results),
-                "failedItems": failed_items,
-            }
-        )
-        return {
-            "success": False,
-            "modeName": mode["name"],
-            "executed": 0,
-            "failedItems": failed_items,
-            "modeId": mode_id,
-            "active": False,
-            "total": len(results),
-            "retried": len(retry_results),
-            "results": results,
-            "error": "所有设备动作均失败，已恢复快照并取消激活",
-        }
+        still_failed: list[int] = []
+        for position, original_idx in enumerate(run.failed_indices):
+            result = retry_batch[position]
+            run.results[original_idx] = result
+            if result.get("success"):
+                retry_results.append(result)
+            else:
+                still_failed.append(original_idx)
+        run.failed_indices = still_failed
+        attempt += 1
+    return retry_results
 
+
+async def _reject_home_mode_without_ha(
+    deps: Any, mode: dict[str, Any], trigger: _ModeTriggerContext, total_actions: int
+) -> dict[str, Any]:
+    """HA 未连接时释放仲裁、记录日志并返回拒绝结果。"""
+    deps.linkage_arbiter.release()
+    deps.warn("Home Assistant 未连接,拒绝激活家庭模式")
+    deps.push_trigger_log(
+        _trigger_log_payload(trigger, trigger.raw_reason or "手动切换", False)
+    )
+    deps.record_execution(
+        _home_mode_execution_record(
+            trigger,
+            trigger.raw_reason or "HA 未连接",
+            False,
+            _ExecutionOutcome(total=total_actions, executed=0),
+        )
+    )
+    return {
+        "success": False,
+        "modeId": trigger.mode_id,
+        "modeName": mode["name"],
+        "active": False,
+        "error": "HA 未连接，无法激活家庭模式",
+    }
+
+
+async def _abort_failed_activation(
+    deps: Any, state: HomeModeActivateState, activation: _ActivationContext
+) -> dict[str, Any]:
+    """全部动作失败：回滚快照、取消激活并记录失败历史。"""
+    mode = activation.mode
+    trigger = activation.trigger
+    snapshot = activation.snapshot
+    results = activation.results
+    deps.warn(f"模式 {mode['name']} 全部动作失败,回滚快照并取消激活")
+    rollback = await _restore_mode_snapshot(deps, {"deviceSnapshot": snapshot})
+    # 回滚不完整（HA 断连 / 部分实体恢复失败）时必须保留快照：
+    # 否则用户失去唯一的手动恢复依据，设备将停留在半执行状态。
+    rollback_incomplete = bool(rollback.get("incomplete"))
+    await deps.deactivate_in_db(trigger.mode_id, keep_snapshot=rollback_incomplete)
+    if rollback_incomplete:
+        await deps.notify(
+            "warning",
+            f"模式 {mode['name']} 激活失败且状态回滚不完整，已保留设备快照，请检查 HA 连接后手动恢复",
+            "home-mode",
+        )
+    if state.get_active_mode_id() == trigger.mode_id:
+        state.set_active_mode_id(None)
+    deps.linkage_arbiter.release()
+
+    failed_items = [
+        {"entity_id": r["entity_id"], "service": r["service"], "error": r.get("error")}
+        for r in results
+    ]
+    event_reason = trigger.raw_reason or "手动切换"
+    deps.push_trigger_log(_trigger_log_payload(trigger, event_reason, False))
+    deps.record_execution(
+        _home_mode_execution_record(
+            trigger,
+            event_reason,
+            False,
+            _ExecutionOutcome(total=len(results), executed=0, failed_items=failed_items),
+        )
+    )
+    return {
+        "success": False,
+        "modeName": mode["name"],
+        "executed": 0,
+        "failedItems": failed_items,
+        "modeId": trigger.mode_id,
+        "active": False,
+        "total": len(results),
+        "retried": len(activation.retry_results),
+        "results": results,
+        "error": "所有设备动作均失败，已恢复快照并取消激活",
+    }
+
+
+async def _finalize_home_mode_activation(
+    deps: Any, activation: _ActivationContext, final_success: int
+) -> dict[str, Any]:
+    """记录激活成功事件 / 触发日志 / 执行历史，并返回激活结果。"""
+    mode = activation.mode
+    trigger = activation.trigger
+    results = activation.results
+    retry_results = activation.retry_results
     await deps.emit_home_mode_event(
         "homeMode.activated",
         {
-            "modeId": mode_id,
+            "modeId": trigger.mode_id,
             "modeName": mode["name"],
             "results": results,
             "successCount": final_success,
@@ -448,26 +475,17 @@ async def activate_home_mode(
         for r in results
         if not r.get("success")
     ]
-    deps.push_trigger_log(
-        {
-            "modeId": mode_id,
-            "modeName": mode["name"],
-            "source": (meta or {}).get("source") or "manual",
-            "reason": (meta or {}).get("reason") or "手动切换",
-            "success": all_ok,
-        }
-    )
+    event_reason = trigger.raw_reason or "手动切换"
+    deps.push_trigger_log(_trigger_log_payload(trigger, event_reason, all_ok))
     deps.record_execution(
-        {
-            "modeId": mode_id,
-            "modeName": mode["name"],
-            "success": all_ok,
-            "source": (meta or {}).get("source") or "manual",
-            "reason": (meta or {}).get("reason") or "手动切换",
-            "executed": final_success,
-            "total": len(results),
-            "failedItems": failed_items or None,
-        }
+        _home_mode_execution_record(
+            trigger,
+            event_reason,
+            all_ok,
+            _ExecutionOutcome(
+                total=len(results), executed=final_success, failed_items=failed_items or None
+            ),
+        )
     )
 
     return {
@@ -475,12 +493,103 @@ async def activate_home_mode(
         "modeName": mode["name"],
         "executed": final_success,
         "failedItems": failed_items,
-        "modeId": mode_id,
+        "modeId": trigger.mode_id,
         "active": True,
         "total": len(results),
         "retried": len(retry_results),
         "results": results,
     }
+
+
+async def activate_home_mode(
+    state: HomeModeActivateState, deps: Any, mode_id: str, meta: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    mode = await deps.find_mode(mode_id)
+    if mode is None:
+        not_found(api_error("HOME_MODE_NOT_FOUND"))
+
+    if mode.get("isActive"):
+        deps.log(f"模式 {mode['name']} 已处于激活状态,跳过重复激活")
+        return _already_active_home_mode_result(mode, mode_id)
+
+    entity_configs = _read_actions(mode.get("config"))
+
+    assert_entity_targets_execute_authorized(
+        collect_home_mode_target_actions(entity_configs),
+        (meta or {}).get("actor"),
+    )
+
+    trigger = _ModeTriggerContext(
+        mode_id=mode_id,
+        mode_name=mode["name"],
+        source=(meta or {}).get("source") or "manual",
+        raw_reason=(meta or {}).get("reason"),
+    )
+
+    hm_cfg = deps.get_home_mode_config()
+    arbiter = deps.linkage_arbiter.try_acquire(
+        (meta or {}).get("source"),
+        claim_ttl_ms=max(1, int(hm_cfg.get("linkageClaimTtlMin") or 15)) * 60_000,
+        manual_lock_ms=max(0, int(hm_cfg.get("manualLockTtlMin") or 30)) * 60_000,
+    )
+    if not arbiter.get("ok"):
+        deps.warn(f"家庭模式激活被联动仲裁拦截: {arbiter.get('reason')}")
+        deps.push_trigger_log(
+            _trigger_log_payload(trigger, trigger.raw_reason or arbiter.get("reason"), False)
+        )
+        bad_request(api_error("HOME_MODE_LINKAGE_BLOCKED", arbiter.get("reason")))
+
+    ha_status = await deps.get_ha_status()
+    if not ha_status.get("connected"):
+        return await _reject_home_mode_without_ha(deps, mode, trigger, len(entity_configs))
+
+    incoming_group = mode.get("exclusiveGroup") or "default"
+    active_modes = await deps.list_active_modes()
+    conflicting_modes = [
+        active
+        for active in active_modes
+        if active["id"] != mode_id and (active.get("exclusiveGroup") or "default") == incoming_group
+    ]
+    conflict_restore: dict[str, dict[str, Any]] = {}
+    for active in conflicting_modes:
+        conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
+
+    snapshot = await _collect_device_snapshot(deps, entity_configs)
+
+    try:
+        await deps.switch_active_group(conflicting_modes, conflict_restore, mode_id, snapshot)
+    except Exception:
+        deps.linkage_arbiter.release()
+        raise
+    state.set_active_mode_id(mode_id)
+    deps.log(f"正在激活模式: {mode['name']}")
+
+    sec_cfg = deps.get_security_config()
+    configs_to_run = filter_home_mode_actions_for_linkage_dedupe(entity_configs, meta, sec_cfg)
+
+    results = await execute_action_sequence(
+        configs_to_run, lambda config: _execute_home_mode_action(deps, config), "milliseconds"
+    )
+
+    failed_indices = [idx for idx, result in enumerate(results) if not result.get("success")]
+    run = _ActionRunState(
+        configs=configs_to_run, results=results, failed_indices=failed_indices
+    )
+    retry_results = await _retry_failed_home_mode_actions(deps, mode["name"], run)
+
+    final_success = sum(1 for result in results if result.get("success"))
+
+    activation = _ActivationContext(
+        mode=mode,
+        trigger=trigger,
+        snapshot=snapshot,
+        results=results,
+        retry_results=retry_results,
+    )
+    if results and final_success == 0:
+        return await _abort_failed_activation(deps, state, activation)
+
+    return await _finalize_home_mode_activation(deps, activation, final_success)
 
 
 async def deactivate_home_mode(

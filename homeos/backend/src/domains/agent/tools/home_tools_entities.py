@@ -19,6 +19,7 @@ from .home_tools_primitives import (
 from .tool_args_validator import extract_domain
 from ..agent_actor import AgentActor
 from ....platform.core.ha_service_catalog import agent_service_allowed
+from ....platform.core.json_field import object_field
 from ....platform.security.entity_access import is_entity_allowed
 
 
@@ -60,7 +61,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
                         ident = str(entity_id)
                         whitelist[ident] = None
                         favorites.append(ident)
-        except Exception:
+        except Exception:  # 白名单/收藏持久化容错：坏行跳过，其余字段照常返回
             pass
 
         # 在白名单内按关键词匹配
@@ -73,7 +74,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             # 读路径 ACL：受限账号只能搜到自己可见的实体
             if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
                 continue
-            attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+            attributes = object_field(entity, "attributes")
             friendly = str((attributes or {}).get("friendly_name") or "")
             if lower not in entity_id.lower() and lower not in friendly.lower():
                 continue
@@ -112,7 +113,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         entity = self._state_store.get(entity_id)
         if entity is None:
             return {"error": f"未找到设备 {entity_id}"}
-        attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+        attributes = object_field(entity, "attributes")
         result: dict[str, Any] = {
             "entity_id": entity.get("entity_id"),
             "name": _or((attributes or {}).get("friendly_name"), entity.get("entity_id")),
@@ -301,7 +302,7 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
         if ha_id:
             entity = self._state_store.get(ha_id)
             if entity:
-                attrs = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+                attrs = object_field(entity, "attributes")
 
                 def _num(value: Any) -> float | None:
                     if isinstance(value, bool):

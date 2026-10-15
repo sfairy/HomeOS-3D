@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 
 from ...platform.core.app_config import load_raw_config
 
+# 通知拉取条数 clamp 与 ``domains.alerts.channels`` 共用同一实现（原为两份拷贝）。
+# 转出（非本地定义）：列入 ``__all__`` 即视为有意重导出。
+from ...platform.core.numbers import resolve_notification_fetch_limit
+
 #: 安防分区默认值（逐条对齐 backend/src/shared/app-config/defaults.ts）。
 DEFAULT_SECURITY_CONFIG: dict[str, Any] = {
     "sensorAlertCooldownSec": 60,
@@ -87,24 +91,6 @@ def load_home_timezone(session: Session) -> str | None:
     return tz.strip() if isinstance(tz, str) and tz.strip() else None
 
 
-def resolve_notification_fetch_limit(
-    limit: Any,
-    frontend: dict[str, Any],
-    notification: dict[str, Any],
-) -> int:
-    """对齐 ``resolveNotificationFetchLimit``：clamp 到 [1, maxNotifications]。"""
-    default_fetch = (
-        int(frontend.get("maxRemoteNotifications"))
-        if _positive_int(frontend.get("maxRemoteNotifications"))
-        else 100
-    )
-    storage_cap = (
-        int(notification.get("maxNotifications"))
-        if _positive_int(notification.get("maxNotifications"))
-        else 500
-    )
-    parsed = int(limit) if _positive_int(limit) else default_fetch
-    return min(max(parsed, 1), storage_cap)
 
 
 def parse_optional_int(raw: Any, default: int | None = None) -> int | None:
@@ -117,8 +103,17 @@ def parse_optional_int(raw: Any, default: int | None = None) -> int | None:
         return default
 
 
-def _positive_int(value: Any) -> bool:
-    try:
-        return float(value) > 0
-    except (TypeError, ValueError):
-        return False
+
+
+__all__ = [
+    "DEFAULT_FRONTEND_CONFIG",
+    "DEFAULT_NOTIFICATION_CONFIG",
+    "DEFAULT_SECURITY_CONFIG",
+    "DEFAULT_SECURITY_EMERGENCY",
+    "load_frontend_config",
+    "load_home_timezone",
+    "load_notification_config",
+    "load_security_config",
+    "parse_optional_int",
+    "resolve_notification_fetch_limit",
+]

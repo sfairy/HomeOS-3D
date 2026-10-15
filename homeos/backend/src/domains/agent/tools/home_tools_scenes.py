@@ -18,6 +18,7 @@ from .home_tools_primitives import (
 )
 from ..agent_actor import AgentActor
 from ....platform.core.entity_domain import get_entity_domain
+from ....platform.core.json_field import object_field
 from ....platform.core.models import HomeMode
 
 
@@ -209,7 +210,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
             result = await self._command_proxy.call_service(
                 {"domain": domain, "service": "turn_on", "entity_id": entity_id}
             )
-            attributes = hit.get("attributes") if isinstance(hit.get("attributes"), dict) else {}
+            attributes = object_field(hit, "attributes")
             return {
                 "success": True,
                 "entity_id": entity_id,
@@ -230,7 +231,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
         """在候选场景 / 脚本实体中解析用户意图，逐级放宽匹配条件。"""
 
         def name_of(entity: dict[str, Any]) -> str:
-            attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+            attributes = object_field(entity, "attributes")
             return str(
                 _or((attributes or {}).get("friendly_name"), entity.get("entity_id"))
             ).lower()

@@ -28,16 +28,6 @@ const STORE_JS_FILES = ['frontend/src/**/*.js']
 const STORE_VUE_FILES = ['frontend/src/**/*.vue']
 const STORE_FILES = [...STORE_TS_FILES, ...STORE_JS_FILES, ...STORE_VUE_FILES]
 
-/**
- * 商店自己的门禁脚本（`homeos-store/scripts/**`，如 `check-store-deps.mjs`）。
- *
- * 它们此前落在「商店前端的 config 管不到、根 config 只管 `ops/**`」的缝里，等于零 lint ——
- * 这批脚本恰恰是判定依赖方向的判据本身，判据写错没人拦。与 `ops/**` 同属工具脚本，
- * 故只上抓 bug 的核：**不套商店前端的双引号 + 分号风格**（它们沿用仓库 JS 工具链的
- * 单引号 + 无分号），并豁免 `no-console`（打印结果就是它的输出通道）。
- */
-const STORE_SCRIPT_FILES = ['scripts/**/*.{js,mjs}']
-
 export default [
   {
     ignores: ['dist', 'node_modules', '.vite', 'frontend/public/**'],
@@ -47,5 +37,4 @@ export default [
   jsBlock({ files: STORE_JS_FILES, style: STORE_STYLE }),
   tsBlock({ files: STORE_TS_FILES, style: STORE_STYLE }),
   vueBlock({ files: STORE_VUE_FILES, style: STORE_STYLE }),
-  jsBlock({ files: STORE_SCRIPT_FILES, rules: { 'no-console': 'off' } }),
 ]

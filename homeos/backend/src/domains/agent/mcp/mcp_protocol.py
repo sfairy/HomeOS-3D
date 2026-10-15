@@ -150,6 +150,73 @@ def _params(body: dict[str, Any]) -> dict[str, Any]:
     return params if isinstance(params, dict) else {}
 
 
+async def _handle_mcp_resources_read(
+    body: dict[str, Any], deps: McpHandlerDeps, request_id: Any
+) -> dict[str, Any]:
+    """resources/read：按 uri 读取资源文本。"""
+    uri = str(_params(body).get("uri") or "").strip()
+    if not uri:
+        return err(request_id, INVALID_PARAMS, "缺少必需参数：uri")
+    known = any(resource["uri"] == uri for resource in MCP_RESOURCES)
+    if not known:
+        return err(request_id, INVALID_PARAMS, f"未知资源：{uri}")
+    if deps.read_resource is None:
+        return err(request_id, INTERNAL_ERROR, "资源读取未就绪")
+    try:
+        resource_body = await deps.read_resource(uri)
+        mime = resource_body.get("mimeType") or "application/json"
+        return ok(
+            request_id,
+            {
+                "contents": [
+                    {"uri": uri, "mimeType": mime, "text": resource_body.get("text")}
+                ]
+            },
+        )
+    except Exception:
+        return err(request_id, INTERNAL_ERROR, "资源读取失败")
+
+
+async def _handle_mcp_tools_call(
+    body: dict[str, Any], deps: McpHandlerDeps, request_id: Any
+) -> dict[str, Any]:
+    """tools/call：按 name 分发到 smart_home.control 或细粒度工具。"""
+    try:
+        params = _params(body)
+        name = str(params.get("name") or "")
+        args = params.get("arguments")
+        args = args if isinstance(args, dict) else {}
+        # smart_home.control：转发到 AgentService.chat
+        if name == MCP_SMART_HOME_TOOL:
+            message = str(args.get("message") or "").strip()
+            if not message:
+                return err(request_id, INVALID_PARAMS, "缺少必需参数：message")
+            smart_home_body = await deps.call_smart_home(message)
+            return ok(
+                request_id,
+                {
+                    "content": [
+                        {"type": "text", "text": smart_home_body.get("text") or "已处理"}
+                    ],
+                    "isError": smart_home_body.get("isError"),
+                },
+            )
+        # 细粒度工具：先校验是否在工具集中，再调用
+        known = any(_field(tool, "name", "") == name for tool in deps.list_fine_tools())
+        if not known:
+            return err(request_id, METHOD_NOT_FOUND, f"未知工具：{name}")
+        fine_tool_body = await deps.call_fine_tool(name, args)
+        return ok(
+            request_id,
+            {
+                "content": [{"type": "text", "text": fine_tool_body.get("text")}],
+                "isError": fine_tool_body.get("isError"),
+            },
+        )
+    except Exception:
+        return err(request_id, INTERNAL_ERROR, "智能家居控制失败，请稍后重试")
+
+
 async def handle_mcp_json_rpc(
     body: dict[str, Any],
     deps: McpHandlerDeps,
@@ -200,23 +267,7 @@ async def handle_mcp_json_rpc(
 
     # resources/read：按 uri 读取资源文本
     if method == "resources/read":
-        uri = str(_params(body).get("uri") or "").strip()
-        if not uri:
-            return err(request_id, INVALID_PARAMS, "缺少必需参数：uri")
-        known = any(resource["uri"] == uri for resource in MCP_RESOURCES)
-        if not known:
-            return err(request_id, INVALID_PARAMS, f"未知资源：{uri}")
-        if deps.read_resource is None:
-            return err(request_id, INTERNAL_ERROR, "资源读取未就绪")
-        try:
-            result = await deps.read_resource(uri)
-            mime = result.get("mimeType") or "application/json"
-            return ok(
-                request_id,
-                {"contents": [{"uri": uri, "mimeType": mime, "text": result.get("text")}]},
-            )
-        except Exception:
-            return err(request_id, INTERNAL_ERROR, "资源读取失败")
+        return await _handle_mcp_resources_read(body, deps, request_id)
 
     # prompts/list：返回固定的两类预设提示词
     if method == "prompts/list":
@@ -233,38 +284,7 @@ async def handle_mcp_json_rpc(
 
     # tools/call：按 name 分发到 smart_home.control 或细粒度工具
     if method == "tools/call":
-        try:
-            params = _params(body)
-            name = str(params.get("name") or "")
-            args = params.get("arguments")
-            args = args if isinstance(args, dict) else {}
-            # smart_home.control：转发到 AgentService.chat
-            if name == MCP_SMART_HOME_TOOL:
-                message = str(args.get("message") or "").strip()
-                if not message:
-                    return err(request_id, INVALID_PARAMS, "缺少必需参数：message")
-                result = await deps.call_smart_home(message)
-                return ok(
-                    request_id,
-                    {
-                        "content": [{"type": "text", "text": result.get("text") or "已处理"}],
-                        "isError": result.get("isError"),
-                    },
-                )
-            # 细粒度工具：先校验是否在工具集中，再调用
-            known = any(_field(tool, "name", "") == name for tool in deps.list_fine_tools())
-            if not known:
-                return err(request_id, METHOD_NOT_FOUND, f"未知工具：{name}")
-            result = await deps.call_fine_tool(name, args)
-            return ok(
-                request_id,
-                {
-                    "content": [{"type": "text", "text": result.get("text")}],
-                    "isError": result.get("isError"),
-                },
-            )
-        except Exception:
-            return err(request_id, INTERNAL_ERROR, "智能家居控制失败，请稍后重试")
+        return await _handle_mcp_tools_call(body, deps, request_id)
 
     # 未匹配的方法：返回 -32601 method not found
     return err(request_id, METHOD_NOT_FOUND, f"未找到方法：{method}")

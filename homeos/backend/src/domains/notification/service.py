@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any, TypeVar
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from .config import (
     load_energy_config,
@@ -429,7 +429,7 @@ class NotificationService:
                 count = int(
                     session.execute(select(func.count()).select_from(Notification)).scalar() or 0
                 )
-                session.execute(Notification.__table__.delete())
+                session.execute(delete(Notification))
                 session.commit()
                 return count
 

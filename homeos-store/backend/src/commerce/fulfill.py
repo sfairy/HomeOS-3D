@@ -673,22 +673,12 @@ def recompute_reserved_stock(session: Session) -> dict[str, int]:
     return changes
 
 
-def fulfill_order(
-    session: Session,
-    *,
-    order: Order,
-    setting: StoreSetting,
-    settings: StoreSettings | None = None,
-    now: datetime | None = None,
-) -> dict:
-    """履约。幂等：已履约的订单直接返回。
-    """
-    moment = now or utcnow()
+def _claim_order_for_fulfillment(session: Session, order: Order, moment: datetime) -> dict | None:
+    """CAS 认领履约权；已履约返回短路结果，竞争失败返回已履约结果。"""
     if order.status == "fulfilled" or order.fulfilled_at is not None:
         return {"alreadyFulfilled": True, "licenseId": order.license_id}
     if order.status == "refunded":
         raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")
-
     claimed = session.execute(
         update(Order)
         .where(Order.id == order.id)
@@ -703,23 +693,17 @@ def fulfill_order(
             raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")
         return {"alreadyFulfilled": True, "licenseId": order.license_id}
     session.refresh(order)
+    return None
 
-    product = session.get(Product, order.product_id) if order.product_id else None
-    if product is None:
-        raise RuntimeError(f"订单 {order.order_no} 对应的商品不存在。")
 
-    customer = session.get(Customer, order.customer_id) if order.customer_id else None
-    if customer is None:
-        raise RuntimeError(f"订单 {order.order_no} 对应的客户不存在。")
-
-    if order.license_action in {"issue", "patch", "upgrade"} and not _product_grants_features(
-        session, product
-    ):
-        raise RuntimeError(
-            f"商品「{product.name}」没有配置任何功能码，履约后无法开通任何能力。"
-            "请先在后台给商品勾选功能码（或把它下架）后再履约。"
-        )
-
+def _apply_license_action(
+    session: Session,
+    *,
+    order: Order,
+    product: Product,
+    customer: Customer,
+    moment: datetime,
+) -> None:
     if order.license_action == "patch":
         license = session.get(License, order.target_license_id) if order.target_license_id else None
         if license is None:
@@ -739,6 +723,58 @@ def fulfill_order(
             session, order=order, product=product, customer=customer, now=moment
         )
 
+
+def _grant_referral_reward(session: Session, order: Order, setting: StoreSetting) -> int:
+    try:
+        with session.begin_nested():
+            return referrals.grant_order_reward(
+                session,
+                order=order,
+                rate_percent=float(setting.referral_rate_percent or 0.0),
+                enabled=bool(setting.referral_enabled),
+            )
+    except Exception as error:
+        incidents.note("referral.reward", order_no=order.order_no, error=error)
+        logger.exception("邀请奖励发放失败（不影响已签发的授权）order=%s", order.order_no)
+        return 0
+
+
+def fulfill_order(
+    session: Session,
+    *,
+    order: Order,
+    setting: StoreSetting,
+    settings: StoreSettings | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """履约。幂等：已履约的订单直接返回。
+    """
+    del settings  # 保留签名兼容
+    moment = now or utcnow()
+    early = _claim_order_for_fulfillment(session, order, moment)
+    if early is not None:
+        return early
+
+    product = session.get(Product, order.product_id) if order.product_id else None
+    if product is None:
+        raise RuntimeError(f"订单 {order.order_no} 对应的商品不存在。")
+
+    customer = session.get(Customer, order.customer_id) if order.customer_id else None
+    if customer is None:
+        raise RuntimeError(f"订单 {order.order_no} 对应的客户不存在。")
+
+    if order.license_action in {"issue", "patch", "upgrade"} and not _product_grants_features(
+        session, product
+    ):
+        raise RuntimeError(
+            f"商品「{product.name}」没有配置任何功能码，履约后无法开通任何能力。"
+            "请先在后台给商品勾选功能码（或把它下架）后再履约。"
+        )
+
+    _apply_license_action(
+        session, order=order, product=product, customer=customer, moment=moment
+    )
+
     if order.license_action in {"issue", "patch", "upgrade"}:
         session.flush()
         fulfilled_license = (
@@ -757,18 +793,7 @@ def fulfill_order(
         release_order_reservation(session, order=order, product=product, quantity=1)
     consume_stock(session, product, 1)
 
-    try:
-        with session.begin_nested():
-            reward = referrals.grant_order_reward(
-                session,
-                order=order,
-                rate_percent=float(setting.referral_rate_percent or 0.0),
-                enabled=bool(setting.referral_enabled),
-            )
-    except Exception as error:
-        incidents.note("referral.reward", order_no=order.order_no, error=error)
-        logger.exception("邀请奖励发放失败（不影响已签发的授权）order=%s", order.order_no)
-        reward = 0
+    reward = _grant_referral_reward(session, order, setting)
     session.flush()
 
     logger.info(

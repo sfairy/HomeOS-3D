@@ -117,6 +117,57 @@ def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
     return result
 
 
+def _build_log_event(
+    level: str,
+    source: str,
+    category: str,
+    message: str,
+    context: dict[str, Any] | None,
+    details: str | None,
+    client_timestamp: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """构造一条规范化的日志事件，并返回其（用于去重的）上下文副本。"""
+    normalized_level = (
+        level if level in {"info", "error", "success", "warning"} else "info"
+    )
+    event = {
+        "id": str(uuid4()),
+        "timestamp": _utc_now().isoformat(),
+        "level": normalized_level,
+        "source": _safe_text(source, limit=64) or "系统后台",
+        "category": _safe_text(category, limit=64) or "系统",
+        "message": _safe_text(message, limit=1000) or "未提供说明",
+        "repeatCount": 1,
+    }
+    metadata = safe_context({**event_context.get({}), **(context or {})})
+    if metadata:
+        event["context"] = metadata
+    if details:
+        event["details"] = _safe_text(details, limit=8000)
+    if client_timestamp:
+        try:
+            event["clientTimestamp"] = datetime.fromisoformat(client_timestamp).isoformat()
+        except (ValueError, TypeError):
+            pass
+    return event, metadata
+
+
+def _event_signature(event: dict[str, Any], metadata: dict[str, Any]) -> str:
+    """事件去重签名：同级别 / 来源 / 分类 / 正文 / 上下文 / 明细视为同一条。"""
+    return json.dumps(
+        [
+            event["level"],
+            event["source"],
+            event["category"],
+            event["message"],
+            metadata,
+            event.get("details"),
+        ],
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
 class GlobalLogStore:
     """存储在持久化数据目录中的免迁移 JSONL 事件日志。"""
 
@@ -170,6 +221,73 @@ class GlobalLogStore:
                 "lastError": self._last_error,
             }
 
+    def _merge_recent_event(
+        self, signature: str, event: dict[str, Any], now: datetime
+    ) -> None:
+        """5 秒内的同签名事件合并计数（保留首条 id / 时间戳），并顺带裁剪缓存。"""
+        recent = self._recent_events.get(signature)
+        if recent and (now - recent[0]) < timedelta(seconds=5):
+            event["id"] = recent[1]["id"]
+            event["timestamp"] = recent[1]["timestamp"]
+            event["repeatCount"] = recent[1].get("repeatCount", 1) + 1
+            event["lastTimestamp"] = now.isoformat()
+            if event.get("clientTimestamp"):
+                event["lastClientTimestamp"] = event["clientTimestamp"]
+                event["clientTimestamp"] = recent[1].get(
+                    "clientTimestamp", event["clientTimestamp"]
+                )
+        self._recent_events[signature] = (now, event.copy())
+        if len(self._recent_events) > 1000:
+            cutoff = now - timedelta(seconds=5)
+            self._recent_events = {
+                key: value
+                for key, value in self._recent_events.items()
+                if value[0] >= cutoff
+            }
+            while len(self._recent_events) > 1000:
+                self._recent_events.pop(next(iter(self._recent_events)))
+
+    def _needs_separator_line(self) -> bool:
+        """尾部若不是换行，落盘前得先补一个换行，避免两条 JSON 粘成一行。"""
+        if self._tail_checked or not self.path.exists() or not self.path.stat().st_size:
+            return False
+        with self.path.open("rb") as source_file:
+            source_file.seek(-1, os.SEEK_END)
+            return source_file.read(1) != b"\n"
+
+    def _flush_pending(self) -> None:
+        """把待写队列原子落盘；失败时降级为内存暂存并记录 IO 故障。"""
+        try:
+            self._prepare_directory()
+            separate_partial_line = self._needs_separator_line()
+            descriptor = os.open(
+                self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600
+            )
+            with os.fdopen(descriptor, "ab") as output:
+                if separate_partial_line:
+                    output.write(b"\n")
+                for pending in self._pending:
+                    output.write(
+                        (
+                            json.dumps(
+                                pending, ensure_ascii=False, separators=(",", ":")
+                            )
+                            + "\n"
+                        ).encode("utf-8")
+                    )
+                output.flush()
+            self._pending.clear()
+            self._tail_checked = True
+            was_unavailable = self._last_error is not None
+            self._last_error = None
+            self._prune_if_needed()
+            if was_unavailable:
+                _storage_diagnostic(
+                    f"全局日志存储已恢复，已补写缓存事件；累计未能保留 {self._dropped_events} 条"
+                )
+        except OSError as error:
+            self._io_failure(error)
+
     def append(
         self,
         level: str,
@@ -181,105 +299,18 @@ class GlobalLogStore:
         details: str | None = None,
         client_timestamp: str | None = None,
     ) -> dict[str, Any]:
-        normalized_level = (
-            level if level in {"info", "error", "success", "warning"} else "info"
+        event, metadata = _build_log_event(
+            level, source, category, message, context, details, client_timestamp
         )
-        event = {
-            "id": str(uuid4()),
-            "timestamp": _utc_now().isoformat(),
-            "level": normalized_level,
-            "source": _safe_text(source, limit=64) or "系统后台",
-            "category": _safe_text(category, limit=64) or "系统",
-            "message": _safe_text(message, limit=1000) or "未提供说明",
-            "repeatCount": 1,
-        }
-        metadata = safe_context({**event_context.get({}), **(context or {})})
-        if metadata:
-            event["context"] = metadata
-        if details:
-            event["details"] = _safe_text(details, limit=8000)
-        if client_timestamp:
-            try:
-                event["clientTimestamp"] = datetime.fromisoformat(client_timestamp).isoformat()
-            except (ValueError, TypeError):
-                pass
 
         with self._lock:
-            signature = json.dumps(
-                [
-                    normalized_level,
-                    event["source"],
-                    event["category"],
-                    event["message"],
-                    metadata,
-                    event.get("details"),
-                ],
-                ensure_ascii=False,
-                sort_keys=True,
-            )
+            signature = _event_signature(event, metadata)
             now = _utc_now()
-            recent = self._recent_events.get(signature)
-            if recent and (now - recent[0]) < timedelta(seconds=5):
-                event["id"] = recent[1]["id"]
-                event["timestamp"] = recent[1]["timestamp"]
-                event["repeatCount"] = recent[1].get("repeatCount", 1) + 1
-                event["lastTimestamp"] = now.isoformat()
-                if event.get("clientTimestamp"):
-                    event["lastClientTimestamp"] = event["clientTimestamp"]
-                    event["clientTimestamp"] = recent[1].get(
-                        "clientTimestamp", event["clientTimestamp"]
-                    )
-            self._recent_events[signature] = (now, event.copy())
-            if len(self._recent_events) > 1000:
-                cutoff = now - timedelta(seconds=5)
-                self._recent_events = {
-                    key: value
-                    for key, value in self._recent_events.items()
-                    if value[0] >= cutoff
-                }
-                while len(self._recent_events) > 1000:
-                    self._recent_events.pop(next(iter(self._recent_events)))
+            self._merge_recent_event(signature, event, now)
             if len(self._pending) == self._pending.maxlen:
                 self._dropped_events += 1
             self._pending.append(event)
-            try:
-                self._prepare_directory()
-                separate_partial_line = False
-                if (
-                    not self._tail_checked
-                    and self.path.exists()
-                    and self.path.stat().st_size
-                ):
-                    with self.path.open("rb") as source_file:
-                        source_file.seek(-1, os.SEEK_END)
-                        separate_partial_line = source_file.read(1) != b"\n"
-                descriptor = os.open(
-                    self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600
-                )
-                with os.fdopen(descriptor, "ab") as output:
-                    if separate_partial_line:
-                        output.write(b"\n")
-                    for pending in self._pending:
-                        output.write(
-                            (
-                                json.dumps(
-                                    pending, ensure_ascii=False, separators=(",", ":")
-                                )
-                                + "\n"
-                            ).encode("utf-8")
-                        )
-                    output.flush()
-                self._pending.clear()
-                self._tail_checked = True
-                was_unavailable = self._last_error is not None
-                self._last_error = None
-                self._prune_if_needed()
-                if was_unavailable:
-                    _storage_diagnostic(
-                        f"全局日志存储已恢复，已补写缓存事件；累计未能保留 {self._dropped_events} 条"
-                    )
-            except OSError as error:
-                self._io_failure(error)
+            self._flush_pending()
         return event
 
     def list_events(

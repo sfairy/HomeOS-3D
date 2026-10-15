@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 SECURITY_ARMING_MODES = ("armed_home", "armed_away", "armed_night", "disarmed")
@@ -14,6 +15,12 @@ SECURITY_TO_HOME_MODE_NAME_PATTERN: dict[str, str] = {
     "disarmed": r"撤防|disarm",
 }
 
+#: 预编译形态：名称回退匹配在每次模式切换时都会跑，避免在函数里反复编译同一批模式。
+_SECURITY_TO_HOME_MODE_NAME_REGEX: dict[str, re.Pattern[str]] = {
+    mode: re.compile(pattern, re.IGNORECASE)
+    for mode, pattern in SECURITY_TO_HOME_MODE_NAME_PATTERN.items()
+}
+
 
 def normalize_zone_type(raw: Any) -> str:
     if raw in ("perimeter", "interior", "all"):
@@ -22,13 +29,13 @@ def normalize_zone_type(raw: Any) -> str:
 
 
 def should_zone_alarm_in_mode(mode: str, zone_type: str | None) -> bool:
-    zt = zone_type or "all"
+    normalized_zone_type = zone_type or "all"
     if mode == "disarmed":
         return False
     if mode == "armed_away":
         return True
     if mode in ("armed_home", "armed_night"):
-        return zt != "interior"
+        return normalized_zone_type != "interior"
     return True
 
 
@@ -40,11 +47,9 @@ def resolve_home_mode_link_for_security_change(
     allow_name_fallback: bool = True,
 ) -> dict[str, Any]:
     """对齐 ``resolveHomeModeLinkForSecurityChange``：activate / deactivate / none。"""
-    import re
-
     linked = (linked_id or "").strip()
     if linked:
-        target = next((m for m in modes if m.get("id") == linked), None)
+        target = next((home_mode for home_mode in modes if home_mode.get("id") == linked), None)
         if target is not None:
             return {"action": "activate", "modeId": target["id"]}
         if mode == "disarmed" and allow_name_fallback:
@@ -57,11 +62,12 @@ def resolve_home_mode_link_for_security_change(
     if mode == "disarmed":
         return {"action": "deactivate"}
 
-    pattern = SECURITY_TO_HOME_MODE_NAME_PATTERN.get(mode)
-    if not pattern:
+    if not SECURITY_TO_HOME_MODE_NAME_PATTERN.get(mode):
         return {"action": "none"}
-    compiled = re.compile(pattern, re.IGNORECASE)
-    target = next((m for m in modes if compiled.search(str(m.get("name") or ""))), None)
+    compiled = _SECURITY_TO_HOME_MODE_NAME_REGEX[mode]
+    target = next(
+        (home_mode for home_mode in modes if compiled.search(str(home_mode.get("name") or ""))), None
+    )
     if target is None:
         return {"action": "none"}
     return {"action": "activate", "modeId": target["id"]}

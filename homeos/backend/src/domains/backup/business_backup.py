@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -808,7 +809,7 @@ async def refresh_runtime_after_restore(app: Any) -> None:
 
     connector = getattr(app.state, "ha_connector", None)
     restart = getattr(connector, "restart", None)
-    if callable(restart):
+    if inspect.iscoroutinefunction(restart):
         try:
             await restart()
         except Exception:

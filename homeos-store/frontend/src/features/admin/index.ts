@@ -1,5 +1,5 @@
 /**
- * admin 域根 barrel —— 域的唯一对外出口（门禁见 `homeos-store/scripts/check-store-deps.mjs` 的 R3）。
+ * admin 域根 barrel —— 域的唯一对外出口（跨域只经本 barrel，禁深引用）。
  *
  * 后台这一片（`views/` 15 个面板 + `components/` 9 个子块 + 4 个 store + `useAdminTabs`）
  * 是完整的一域：跨域只能 `import { … } from "@store/features/admin"`，域内细节不外借。

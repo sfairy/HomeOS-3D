@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import socketio
+from socketio.exceptions import ConnectionRefusedError as SocketConnectionRefusedError
 
 from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import (
@@ -156,6 +157,84 @@ class RealtimeGateway:
         self.sio.on("update_subscription", self._on_update_subscription)
         self.sio.on("ha_sync_fe_latency", self._on_ha_sync_fe_latency)
 
+    async def _emit_connect_state_replay(
+        self, sid: str, user: Any, auth_fields: dict[str, Any]
+    ) -> bool:
+        """按 since / lastEventId 下发增量回放；返回是否处理了 since。"""
+        since_raw = auth_fields.get("since")
+        last_event_raw = auth_fields.get("lastEventId")
+        since_ms, last_event_id = parse_state_replay_params(since_raw, last_event_raw)
+        if not should_replay_state(since_ms, last_event_id):
+            return False
+        if self.state_store.is_replay_truncated(since_ms, last_event_id):
+            # 环形缓冲已淘汰部分变更：此时下发增量会漏掉状态，
+            # 前端已有完整快照，直接建议重同步（会回滚乐观更新并软重拉）。
+            logger.info("state_replay 起点已淘汰,建议客户端重同步 sid=%s", sid)
+            await self.sio.emit(
+                "resync_suggested", _resync_suggested_payload("replay_truncated"), to=sid
+            )
+            return True
+        replay = [
+            record
+            for record in self.state_store.get_recent_changes_since(since_ms, last_event_id)
+            if _entity_visible(user, record["entity_id"])
+        ]
+        if replay:
+            await self.sio.emit(
+                "state_replay",
+                {
+                    "type": "state_replay",
+                    "changes": [
+                        to_ws_state_change_payload(
+                            {
+                                "entity_id": record["entity_id"],
+                                "old_state": None,
+                                "new_state": record["new_state"],
+                                "changed_at": _ms_to_iso(record["at"]),
+                            }
+                        )
+                        for record in replay
+                    ],
+                    "count": len(replay),
+                    "lastEventId": self.state_store.get_latest_change_id(),
+                    "timestamp": _iso_now(),
+                },
+                to=sid,
+            )
+        return True
+
+    async def _finish_connect_sync(
+        self,
+        sid: str,
+        user: Any,
+        auth_fields: dict[str, Any],
+        entities: list[Any],
+        replay_chunk_size: int,
+    ) -> None:
+        """全量初态 + since 回放 + 最终 ha_status。"""
+        try:
+            await self._emit_initial_states(sid, entities, replay_chunk_size)
+        except Exception:
+            await self.sio.emit(
+                "sync_error",
+                {
+                    "type": "sync_error",
+                    "code": "initial_states_failed",
+                    "count": len(entities),
+                },
+                to=sid,
+            )
+
+        handled_since = await self._emit_connect_state_replay(sid, user, auth_fields)
+        _ = handled_since
+
+        final = self._ha_status_snapshot()
+        await self.sio.emit(
+            "ha_status",
+            _ha_status_payload("connected" if final["connected"] else "disconnected", final),
+            to=sid,
+        )
+
     # 握手 / 断开
     async def _on_connect(self, sid: str, environ: dict[str, Any], auth: Any) -> None:
         cookie_header = environ.get("HTTP_COOKIE")
@@ -165,23 +244,23 @@ class RealtimeGateway:
         )
         token = session_token
         if not token:
-            raise socketio.exceptions.ConnectionRefusedError("auth required")
+            raise SocketConnectionRefusedError("auth required")
 
         database = self.app.state.database
         try:
             with database.session_factory() as session:
                 user = resolve_ws_user(token, session)
         except Exception:
-            raise socketio.exceptions.ConnectionRefusedError("unauthorized") from None
+            raise SocketConnectionRefusedError("unauthorized") from None
 
-        auth_payload = auth if isinstance(auth, dict) else {}
-        session_payload = {
+        auth_fields = auth if isinstance(auth, dict) else {}
+        session_fields = {
             "user": user,
-            "subscribedDomains": auth_payload.get("subscribeDomains"),
-            "pinnedEntityIds": auth_payload.get("pinnedEntityIds"),
+            "subscribedDomains": auth_fields.get("subscribeDomains"),
+            "pinnedEntityIds": auth_fields.get("pinnedEntityIds"),
         }
-        await self.sio.save_session(sid, session_payload)
-        self._sessions[sid] = session_payload
+        await self.sio.save_session(sid, session_fields)
+        self._sessions[sid] = session_fields
         await self.sio.enter_room(sid, resolve_user_room_key(user, sid))
         self.connected.add(sid)
         self.app.state.socket_clients = len(self.connected)
@@ -208,71 +287,12 @@ class RealtimeGateway:
         self._baseline_ready.add(sid)
         self._index_subscription(
             sid,
-            auth_payload.get("subscribeDomains"),
-            auth_payload.get("pinnedEntityIds"),
+            auth_fields.get("subscribeDomains"),
+            auth_fields.get("pinnedEntityIds"),
         )
 
-        handled_since = False
-        try:
-            await self._emit_initial_states(sid, entities, ws_cfg.replay_chunk_size)
-        except Exception:
-            await self.sio.emit(
-                "sync_error",
-                {
-                    "type": "sync_error",
-                    "code": "initial_states_failed",
-                    "count": len(entities),
-                },
-                to=sid,
-            )
-
-        since_raw = auth_payload.get("since")
-        last_event_raw = auth_payload.get("lastEventId")
-        since_ms, last_event_id = parse_state_replay_params(since_raw, last_event_raw)
-        if should_replay_state(since_ms, last_event_id):
-            handled_since = True
-            if self.state_store.is_replay_truncated(since_ms, last_event_id):
-                # 环形缓冲已淘汰部分变更：此时下发增量会漏掉状态，
-                # 前端已有完整快照，直接建议重同步（会回滚乐观更新并软重拉）。
-                logger.info("state_replay 起点已淘汰,建议客户端重同步 sid=%s", sid)
-                await self.sio.emit(
-                    "resync_suggested", _resync_suggested_payload("replay_truncated"), to=sid
-                )
-            else:
-                replay = [
-                    record
-                    for record in self.state_store.get_recent_changes_since(since_ms, last_event_id)
-                    if _entity_visible(user, record["entity_id"])
-                ]
-                if replay:
-                    await self.sio.emit(
-                        "state_replay",
-                        {
-                            "type": "state_replay",
-                            "changes": [
-                                to_ws_state_change_payload(
-                                    {
-                                        "entity_id": record["entity_id"],
-                                        "old_state": None,
-                                        "new_state": record["new_state"],
-                                        "changed_at": _ms_to_iso(record["at"]),
-                                    }
-                                )
-                                for record in replay
-                            ],
-                            "count": len(replay),
-                            "lastEventId": self.state_store.get_latest_change_id(),
-                            "timestamp": _iso_now(),
-                        },
-                        to=sid,
-                    )
-        _ = handled_since
-
-        final = self._ha_status_snapshot()
-        await self.sio.emit(
-            "ha_status",
-            _ha_status_payload("connected" if final["connected"] else "disconnected", final),
-            to=sid,
+        await self._finish_connect_sync(
+            sid, user, auth_fields, entities, ws_cfg.replay_chunk_size
         )
 
     async def _on_disconnect(self, sid: str, reason: Any = None) -> None:
@@ -456,7 +476,7 @@ class RealtimeGateway:
         if event_log is not None:
             try:
                 event_log.handle_state_change_batch({"changes": changes})
-            except Exception:
+            except Exception:  # 事件日志批量落库失败不能带塌 WS 广播
                 pass
         started = time.monotonic()
         ws_cfg = self._ws_config()
@@ -589,7 +609,7 @@ class RealtimeGateway:
             await self._mark_notification_delivered(str(notification_id), ["socket"])
 
     async def _mark_notification_delivered(self, notification_id: str, channels: list[str]) -> None:
-        """通知送达回写（失败静默；对齐 ``markNotificationDelivered``）。"""
+        """通知送达回写（失败留痕；对齐 ``markNotificationDelivered`` 的"不阻断投递"语义）。"""
         from datetime import UTC, datetime
 
         from ..platform.core.json_field import parse_json_array
@@ -609,8 +629,8 @@ class RealtimeGateway:
 
         try:
             await asyncio.to_thread(_write)
-        except Exception:
-            pass
+        except Exception:  # 回写失败只影响"已送达"标记，留痕后由下轮重投
+            logger.warning("通知送达回写失败（下轮将重投）：id=%s channels=%s", notification_id, channels, exc_info=True)
 
     async def broadcast_entities_stale(self, reason: str = "ha_disconnected") -> None:
         await self.sio.emit(

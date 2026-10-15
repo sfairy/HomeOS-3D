@@ -570,12 +570,8 @@ def _describe_smtp_error(error: BaseException) -> str:
     return f"{error.__class__.__name__}: {error}"
 
 
-def diagnose_mail(
-    settings: StoreSettings, *, timeout_seconds: float = net_probe.DEFAULT_TIMEOUT_SECONDS
-) -> tuple[bool, list[dict]]:
-    """按**已合并站点配置**做一次邮件链路诊断，返回 ``(是否全部通过, 结论列表)``。
-    """
-    checks: list[dict] = []
+def _diagnose_mail_mode_and_server(settings: StoreSettings, checks: list[dict]) -> tuple[str, bool]:
+    """投递方式 + 服务器端口，返回 ``(mode, server_ok)``。"""
     mode = (settings.mail_mode or "log").lower()
 
     if mode == "smtp":
@@ -608,7 +604,11 @@ def diagnose_mail(
         checks.append(
             check_result("server", "服务器与端口", net_probe.LEVEL_PASS, f"{host}:{port}")
         )
+    return mode, server_ok
 
+
+def _diagnose_mail_auth_and_sender(settings: StoreSettings, checks: list[dict]) -> None:
+    """SMTP 登录凭据与发件地址。"""
     if settings.smtp_username and not settings.smtp_password:
         checks.append(
             check_result(
@@ -620,7 +620,12 @@ def diagnose_mail(
         )
     elif settings.smtp_username:
         checks.append(
-            check_result("auth", "SMTP 登录凭据", net_probe.LEVEL_PASS, f"用户名 {settings.smtp_username}（授权码已配置）")
+            check_result(
+                "auth",
+                "SMTP 登录凭据",
+                net_probe.LEVEL_PASS,
+                f"用户名 {settings.smtp_username}（授权码已配置）",
+            )
         )
     else:
         checks.append(
@@ -645,6 +650,16 @@ def diagnose_mail(
             )
         )
 
+
+def _diagnose_mail_network(
+    settings: StoreSettings,
+    *,
+    mode: str,
+    server_ok: bool,
+    checks: list[dict],
+) -> None:
+    """域名解析与 SMTP 连接探测。"""
+    host = (settings.smtp_host or "").strip()
     if mode != "smtp":
         checks.append(
             check_result("dns", "域名解析", net_probe.LEVEL_SKIP, "投递方式不是 smtp，未做网络探测。")
@@ -691,5 +706,16 @@ def diagnose_mail(
                     )
                 )
 
-    passed = all(item["level"] in net_probe.PASSING_LEVELS for item in checks)
+
+def diagnose_mail(
+    settings: StoreSettings, *, timeout_seconds: float = net_probe.DEFAULT_TIMEOUT_SECONDS
+) -> tuple[bool, list[dict]]:
+    """按**已合并站点配置**做一次邮件链路诊断，返回 ``(是否全部通过, 结论列表)``。
+    """
+    checks: list[dict] = []
+    mode, server_ok = _diagnose_mail_mode_and_server(settings, checks)
+    _diagnose_mail_auth_and_sender(settings, checks)
+    _diagnose_mail_network(settings, mode=mode, server_ok=server_ok, checks=checks)
+
+    passed = all(check["level"] in net_probe.PASSING_LEVELS for check in checks)
     return passed, checks

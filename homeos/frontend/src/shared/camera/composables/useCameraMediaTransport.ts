@@ -19,6 +19,7 @@ function loadClassicHlsScript(): Promise<HlsCtor | null> {
   return new Promise((resolve) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-homeos-hls="1.7.3"]')
     if (existing) {
+      // 探活用的两个监听都带 `once: true`（触发即自摘），img/video 上的五个已配对摘除（见下方清理）。
       existing.addEventListener('load', () => resolve(w.Hls?.isSupported?.() ? w.Hls! : null), {
         once: true,
       })

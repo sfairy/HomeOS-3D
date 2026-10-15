@@ -14,6 +14,7 @@ from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
+from ..platform.core.pagination import parse_crud_pagination
 from ..platform.security.auth_context import require_user
 
 router = NestRouter(
@@ -54,20 +55,9 @@ class UpdateHomeModeDto(StrictModel):
     exclusiveGroup: str | None = None
     priority: float | None = None
 
-def _clamp_int(value: int, minimum: int, maximum: int) -> int:
-    return min(max(int(value), minimum), maximum)
-
 def _parse_pagination(page: str | None, limit: str | None) -> dict[str, Any]:
-    try:
-        page_num = max(1, int(page or "0"))
-    except (TypeError, ValueError):
-        page_num = 1
-    try:
-        parsed_limit = int(limit or "0")
-    except (TypeError, ValueError):
-        parsed_limit = 0
-    page_size = _clamp_int(parsed_limit, 5, 200) if parsed_limit > 0 else 0
-    return {"pageNum": page_num, "pageSize": page_size, "enabled": page_size > 0}
+    """家庭模式列表分页：复用平台受控解析（缺省不分页，条数恒在 ``[5, 200]``）。"""
+    return parse_crud_pagination(page, limit)
 
 def _drop_none(payload: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in payload.items() if value is not None}

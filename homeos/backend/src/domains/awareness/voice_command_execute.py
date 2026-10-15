@@ -89,6 +89,42 @@ async def _execute_homeos_voice_action(
     bad_request(str(api_error("VOICE_UNKNOWN_COMMAND_TYPE")))
 
 
+async def _run_voice_actions(
+    plan: dict[str, Any], user: dict[str, Any] | None, deps: VoiceCommandExecuteDeps
+) -> tuple[list[str], int]:
+    """逐条下发解析出的动作；返回 ``(错误列表, 被 ACL 跳过的条数)``。"""
+    errors: list[str] = []
+    skipped = 0
+    for action in plan.get("actions") or []:
+        kind = action.get("kind")
+        if kind and kind != "entity":
+            # 场景 / 自动化 / 家庭模式：逐目标实体 ACL 在 _execute_homeos_voice_action 内校验
+            try:
+                await _execute_homeos_voice_action(action, user, deps)
+            except Exception as exc:
+                errors.append(str(exc))
+            continue
+
+        dto = {
+            "domain": action.get("domain"),
+            "service": action.get("service"),
+            "entity_id": action.get("entityId"),
+            "service_data": action.get("serviceData") or {},
+        }
+        try:
+            await assert_command_proxy_authorized(dto, _as_actor(user))
+        except Exception as exc:
+            denied = str(exc) or "无权操作该设备"
+            skipped += 1
+            errors.append(f"{action.get('entityId')}: {denied}")
+            continue
+        try:
+            await deps.command_proxy.call_service(dto)
+        except Exception as exc:
+            errors.append(f"{action.get('entityId')}: {exc}")
+    return errors, skipped
+
+
 async def execute_voice_command(
     text: str, user: dict[str, Any] | None, deps: VoiceCommandExecuteDeps
 ) -> dict[str, Any]:
@@ -134,36 +170,7 @@ async def execute_voice_command(
             "count": 0,
         }
 
-    errors: list[str] = []
-    skipped = 0
-
-    for action in plan.get("actions") or []:
-        kind = action.get("kind")
-        if kind and kind != "entity":
-            # 场景 / 自动化 / 家庭模式：逐目标实体 ACL 在 _execute_homeos_voice_action 内校验
-            try:
-                await _execute_homeos_voice_action(action, user, deps)
-            except Exception as exc:
-                errors.append(str(exc))
-            continue
-
-        dto = {
-            "domain": action.get("domain"),
-            "service": action.get("service"),
-            "entity_id": action.get("entityId"),
-            "service_data": action.get("serviceData") or {},
-        }
-        try:
-            await assert_command_proxy_authorized(dto, _as_actor(user))
-        except Exception as exc:
-            denied = str(exc) or "无权操作该设备"
-            skipped += 1
-            errors.append(f"{action.get('entityId')}: {denied}")
-            continue
-        try:
-            await deps.command_proxy.call_service(dto)
-        except Exception as exc:
-            errors.append(f"{action.get('entityId')}: {exc}")
+    errors, skipped = await _run_voice_actions(plan, user, deps)
 
     total = len(plan.get("actions") or [])
     if skipped == total and len(errors) == skipped:

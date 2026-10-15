@@ -28,6 +28,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..core.app_config import load_raw_config
+from ..core.json_field import object_field
 
 #: ``auth`` 分区的缺省值 —— 与 ``@homeos/shared`` 的 ``DEFAULT_AUTH_SECURITY`` 完全一致。
 DEFAULT_AUTH_CONFIG: dict[str, Any] = {
@@ -53,7 +54,7 @@ class AuthConfig:
 def get_auth_config(session: Session) -> AuthConfig:
     """读取 ``auth`` 分区（缺字段回落缺省值），归一成 ``AuthConfig``。"""
     raw = load_raw_config(session)
-    auth = raw.get("auth") if isinstance(raw.get("auth"), dict) else {}
+    auth = object_field(raw, "auth")
     merged = {**DEFAULT_AUTH_CONFIG, **auth}
     return AuthConfig(
         lockout_max_attempts=int(merged["lockoutMaxAttempts"]),

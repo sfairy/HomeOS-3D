@@ -6,7 +6,7 @@
 #   1. `.github/workflows/docker.yml` 的 build 矩阵 job（镜像要用 dist/，不能拆成独立 job）；
 #   2. `.github/workflows/build-check.yml`（只构建、不推镜像的手动验证入口）。
 # 复制两份必然漂移，而「一处改了另一处没改」在本仓已经出过事：
-# 8d3be3e7 搬走 SettingsLicensePanel.vue 后，verify:features 里硬编码的路径没跟着改，
+# 8d3be3e7 搬走 SettingsLicensePanel.vue 后，旧路径校验没跟着改，
 # 红灯在 main 上躺到下一次手动 dispatch 才暴露。
 #
 # 在这里跑得通 ≠ 在 CI 上跑得通的历史教训：`dist/` 被 gitignore，本地通常有历史产物兜着。

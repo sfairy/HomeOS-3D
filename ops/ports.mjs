@@ -1,19 +1,17 @@
 /**
- * 开发/源码态端口唯一真源（`ops/dev.mjs`、门禁 `ops/check/check_ports.py` 共用一份）。
+ * 开发/源码态端口唯一真源（`ops/dev.mjs` 与各 vite / 启动器 / compose 共用一份）。
  *
  * 为什么要有这个文件：同一组端口此前散在四处各写一遍 —— 启动器（`ops/dev.mjs`）、
  * 两个 vite 配置（HMR 端口 + 后端代理目标）、运行镜像里的 Python 启动器
  * （`ops/docker/start_app.py` / `start_store.py` / `proxy.py`）、以及 compose / deploy 里的
- * `${VAR:-默认值}`。改一处漏一处不会让任何东西变红，只会在本机「前端连不上后端」
- * 或部署后「反代指向空气」时才暴露，且症状与真实原因隔好几层。
+ * `${VAR:-默认值}`。改一处漏一处只会在本机「前端连不上后端」或部署后「反代指向空气」时才暴露。
  *
  * 表里每个端口都标了**归属**：
  * - `dev`   —— 源码态（`bun run dev`）用，宿主回环；
  * - `proxy` —— 镜像内置 Caddy 反代监听，容器内固定，宿主发布端口由 compose 变量覆盖；
  * - `debug` —— 仅 `--debug` 时给 IDE attach。
  *
- * 容器内固定端口（8801/8802 与反代 8803/8804）与 compose 的默认值必须与下表一致 ——
- * `ops/check/check_ports.py` 就是把这条一致性钉住的门禁。
+ * 容器内固定端口（8801/8802 与反代 8803/8804）与 compose 的默认值必须与下表一致。
  */
 
 /** 端口表：键为语义名，值为 `{ port, bind, project, role }`。 */

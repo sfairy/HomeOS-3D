@@ -8,9 +8,18 @@ import logging
 import re
 import time
 from collections.abc import Callable
+from functools import lru_cache
 from typing import Any
 
+from ...platform.core.json_field import object_field
+
 logger = logging.getLogger("homeos.state_store.entity_references")
+
+#: 路径语义判定：出现 ``trigger`` 视为触发侧，出现 ``action`` / ``service`` / ``call`` 视为动作侧。
+#: 这两条在倒排扫描里对每条命中路径都要跑一次，预编译避免每次调用重新编译（``re`` 的隐式
+#: 缓存也要走一次查表 + 参数拼装）。
+_TRIGGER_PATH_PATTERN = re.compile(r'trigger', re.IGNORECASE)
+_ACTION_PATH_PATTERN = re.compile(r'action|service|call', re.IGNORECASE)
 
 #: 引用类型（kind）全集 —— 对齐 ``@homeos/shared`` ``EntityReferenceKind``。
 ENTITY_REFERENCE_KINDS = (
@@ -49,8 +58,17 @@ ENTITY_REFERENCE_ROLES = (
 
 
 # 工具函数（对齐 entity-references.util.ts）
-def _escape_regexp(text: str) -> str:
-    return re.escape(text)
+@lru_cache(maxsize=256)
+def _entity_id_boundary_pattern(entity_id: str) -> re.Pattern[str]:
+    """实体 ID 的"整词"匹配式，按 ID 缓存。
+
+    倒排扫描会对同一实体 ID 反复调用（每条字符串一次），原本每调一次就 ``re.compile``
+    一次。正则由 ID 动态拼出，**无法**提到模块级，因此保留这里的 ``compile`` 并用
+    **有界** LRU 缓存（256 个 ID 足够覆盖单次扫描，且不会无界增长）。
+    """
+    return re.compile(
+        r"(?:^|[^A-Za-z0-9_])" + re.escape(entity_id) + r"(?:[^A-Za-z0-9_]|$)"
+    )
 
 
 def text_contains_entity_id(text: str, entity_id: str) -> bool:
@@ -59,10 +77,7 @@ def text_contains_entity_id(text: str, entity_id: str) -> bool:
         return False
     if text == entity_id:
         return True
-    pattern = re.compile(
-        r"(?:^|[^A-Za-z0-9_])" + _escape_regexp(entity_id) + r"(?:[^A-Za-z0-9_]|$)"
-    )
-    return bool(pattern.search(text))
+    return bool(_entity_id_boundary_pattern(entity_id).search(text))
 
 
 def safe_parse_json(raw: Any) -> Any:
@@ -80,219 +95,300 @@ def safe_parse_json(raw: Any) -> Any:
 
 
 def collect_entity_paths(
-    value: Any,
+    node: Any,
     entity_id: str,
     path: str = "",
-    out: list[str] | None = None,
+    paths: list[str] | None = None,
     mode: str = "exact",
 ) -> list[str]:
     """在任意 JSON 值中收集命中路径（mode=exact|contains）。"""
-    if out is None:
-        out = []
-    if value is None:
-        return out
+    if paths is None:
+        paths = []
+    if node is None:
+        return paths
 
-    if isinstance(value, str):
-        hit = value == entity_id or (mode == "contains" and text_contains_entity_id(value, entity_id))
+    if isinstance(node, str):
+        hit = node == entity_id or (mode == "contains" and text_contains_entity_id(node, entity_id))
         if hit:
-            out.append(path or "value")
-        return out
+            paths.append(path or "value")
+        return paths
 
-    if isinstance(value, list):
-        for index, item in enumerate(value):
+    if isinstance(node, list):
+        for index, element in enumerate(node):
             child_path = f"{path}[{index}]" if path else f"[{index}]"
-            collect_entity_paths(item, entity_id, child_path, out, mode)
-        return out
+            collect_entity_paths(element, entity_id, child_path, paths, mode)
+        return paths
 
-    if isinstance(value, dict):
-        for key, child in value.items():
-            next_path = f"{path}.{key}" if path else str(key)
-            collect_entity_paths(child, entity_id, next_path, out, mode)
-    return out
+    if isinstance(node, dict):
+        for field_key, child_node in node.items():
+            next_path = f"{path}.{field_key}" if path else str(field_key)
+            collect_entity_paths(child_node, entity_id, next_path, paths, mode)
+    return paths
 
 
 def path_looks_like_trigger(path: str) -> bool:
-    return bool(re.search("trigger", path, re.IGNORECASE))
+    return _TRIGGER_PATH_PATTERN.search(path) is not None
 
 
 def path_looks_like_action(path: str) -> bool:
-    return bool(re.search("action|service|call", path, re.IGNORECASE))
+    return _ACTION_PATH_PATTERN.search(path) is not None
 
 
 #: 实体承载字段名集合：对象中出现这些 key 且值匹配 entityId 时，视为以实体为主键。
 _ENTITY_FIELD_KEYS = ("entity_id", "entityId", "entityIds", "entity_ids", "id", "target")
 
 
-def _is_entity_bearing_object(value: Any, entity_id: str) -> bool:
-    if not isinstance(value, dict):
+def _is_entity_bearing_object(node: Any, entity_id: str) -> bool:
+    if not isinstance(node, dict):
         return False
-    for key in _ENTITY_FIELD_KEYS:
-        v = value.get(key)
-        if isinstance(v, str) and v == entity_id:
+    for field_key in _ENTITY_FIELD_KEYS:
+        field_value = node.get(field_key)
+        if isinstance(field_value, str) and field_value == entity_id:
             return True
-        if isinstance(v, list) and any(str(x) == entity_id for x in v):
+        if isinstance(field_value, list) and any(str(element) == entity_id for element in field_value):
             return True
     return False
 
 
-def remove_entity_from_json_value(value: Any, entity_id: str) -> tuple[Any, bool]:
+def remove_entity_from_json_value(node: Any, entity_id: str) -> tuple[Any, bool]:
     """从 JSON 值中移除实体引用，返回 ``(新值, 是否变更)``。"""
-    if value is None:
-        return value, False
+    if node is None:
+        return node, False
 
-    if isinstance(value, str):
-        if value == entity_id:
+    if isinstance(node, str):
+        if node == entity_id:
             return "", True
-        return value, False
+        return node, False
 
-    if isinstance(value, list):
+    if isinstance(node, list):
         changed = False
-        next_items: list[Any] = []
-        for item in value:
-            if isinstance(item, str):
-                if item == entity_id:
+        kept: list[Any] = []
+        for element in node:
+            if isinstance(element, str):
+                if element == entity_id:
                     changed = True
                     continue
-                next_items.append(item)
+                kept.append(element)
                 continue
-            if _is_entity_bearing_object(item, entity_id):
+            if _is_entity_bearing_object(element, entity_id):
                 changed = True
                 continue
-            nested_value, nested_changed = remove_entity_from_json_value(item, entity_id)
-            if nested_changed:
+            cleaned_element, element_changed = remove_entity_from_json_value(element, entity_id)
+            if element_changed:
                 changed = True
-            next_items.append(nested_value)
-        return next_items, changed
+            kept.append(cleaned_element)
+        return kept, changed
 
-    if isinstance(value, dict):
-        out: dict[str, Any] = {}
+    if isinstance(node, dict):
+        cleaned_object: dict[str, Any] = {}
         changed = False
-        for key, child in value.items():
-            if key in ("entity_id", "entityId", "id") and isinstance(child, str) and child == entity_id:
-                out[key] = ""
+        for field_key, child_node in node.items():
+            if field_key in ("entity_id", "entityId", "id") and isinstance(child_node, str) and child_node == entity_id:
+                cleaned_object[field_key] = ""
                 changed = True
                 continue
-            if key in ("entityIds", "entity_ids") and isinstance(child, list):
-                filtered = [x for x in child if str(x) != entity_id]
-                if len(filtered) != len(child):
+            if field_key in ("entityIds", "entity_ids") and isinstance(child_node, list):
+                cleaned_ids = [element for element in child_node if str(element) != entity_id]
+                if len(cleaned_ids) != len(child_node):
                     changed = True
-                out[key] = filtered
+                cleaned_object[field_key] = cleaned_ids
                 continue
-            nested_value, nested_changed = remove_entity_from_json_value(child, entity_id)
-            if nested_changed:
+            cleaned_child, child_changed = remove_entity_from_json_value(child_node, entity_id)
+            if child_changed:
                 changed = True
-            out[key] = nested_value
-        return out, changed
+            cleaned_object[field_key] = cleaned_child
+        return cleaned_object, changed
 
-    return value, False
+    return node, False
 
 
 # 倒排索引（对齐 entity-references-index.ts）
+
+def _reference_key(reference: dict[str, Any]) -> str:
+    """引用去重键：同 ``kind:id:role:detail`` 视为同一条引用。
+
+    拼 key 的逻辑只有这一处：此前它在"插入"与"查重"里各写了一遍（`_push_reference`），
+    两份一旦漂移（比如一处加字段、另一处没加）就会**静默插入重复项**。
+    """
+    return (
+        f"{reference['kind']}:{reference['id']}:{reference['role']}"
+        f":{reference.get('detail') or ''}"
+    )
+
+
 def _push_reference(
-    mapping: dict[str, list[dict[str, Any]]], entity_id: str, item: dict[str, Any]
+    mapping: dict[str, list[dict[str, Any]]],
+    seen_keys: set[str],
+    entity_id: str,
+    reference: dict[str, Any],
 ) -> None:
-    bucket = mapping.setdefault(entity_id, [])
-    key = f"{item['kind']}:{item['id']}:{item['role']}:{item.get('detail') or ''}"
-    if any(
-        f"{x['kind']}:{x['id']}:{x['role']}:{x.get('detail') or ''}" == key for x in bucket
-    ):
+    """把引用挂到 ``entity_id`` 的桶里（去重是 **O(1)**：键算一次、集合查一次）。
+
+    旧实现每插一条都要**遍历整桶**并把 f-string 重新拼一遍来比较：桶大时是 O(n²)，
+    而这段拼串逻辑与插入处重复。改成"算一次键 + 集合"后，两者共用 :func:`_reference_key`。
+    """
+    key = f"{entity_id}\x00{_reference_key(reference)}"
+    if key in seen_keys:
         return
-    bucket.append(item)
+    seen_keys.add(key)
+    mapping.setdefault(entity_id, []).append(reference)
 
 
-def build_entity_references_inverted_index(session_factory: Any) -> dict[str, list[dict[str, Any]]]:
-    """一次扫描本地资源（告警规则 / 家庭模式），构建 entityId → references 倒排索引。"""
-    from ...platform.core.models import AlertRule, HomeMode
+def _collect_referenced_ids(node: Any, ids: set[str]) -> None:
+    """递归收集 JSON 里所有形如 ``domain.object_id`` 的字符串（引用候选）。"""
+    if not node:
+        return
+    if isinstance(node, str):
+        if "." in node:
+            ids.add(node)
+        return
+    if isinstance(node, list):
+        for entry in node:
+            _collect_referenced_ids(entry, ids)
+        return
+    if isinstance(node, dict):
+        for child_node in node.values():
+            _collect_referenced_ids(child_node, ids)
 
-    mapping: dict[str, list[dict[str, Any]]] = {}
-    with session_factory() as session:
-        alerts = session.query(AlertRule).limit(500).all()
-        home_modes = session.query(HomeMode).limit(200).all()
 
-        alert_rows = [
-            {"id": r.id, "name": r.name, "entityId": r.entity_id, "enabled": r.enabled}
-            for r in alerts
-        ]
-        home_mode_rows = [
-            {"id": r.id, "name": r.name, "config": r.config, "triggers": r.triggers}
-            for r in home_modes
-        ]
+def _home_mode_reference_role(
+    config_obj: Any, trigger_obj: Any, referenced_entity_id: str
+) -> str:
+    """判定家庭模式里一条引用扮演的角色（trigger / action / config / reference）。"""
+    config_paths = collect_entity_paths(config_obj, referenced_entity_id)
+    trigger_paths = collect_entity_paths(trigger_obj, referenced_entity_id)
+    if trigger_paths or path_looks_like_trigger(trigger_paths[0] if trigger_paths else ""):
+        return "trigger"
+    if config_paths and path_looks_like_action(config_paths[0]):
+        return "action"
+    if config_paths:
+        return "config"
+    return "reference"
 
-    for row in alert_rows:
-        eid = str(row.get("entityId") or "").strip()
-        if "." not in eid:
+
+def _index_alert_rules(
+    mapping: dict[str, list[dict[str, Any]]],
+    seen_keys: set[str],
+    alert_rows: list[dict[str, Any]],
+) -> None:
+    for alert_row in alert_rows:
+        watched_entity_id = str(alert_row.get("entityId") or "").strip()
+        if "." not in watched_entity_id:
             continue
         _push_reference(
             mapping,
-            eid,
+            seen_keys,
+            watched_entity_id,
             {
                 "kind": "alert_rule",
-                "id": row["id"],
-                "name": row.get("name") or "未命名告警",
+                "id": alert_row["id"],
+                "name": alert_row.get("name") or "未命名告警",
                 "role": "watch",
-                "enabled": bool(row.get("enabled")),
+                "enabled": bool(alert_row.get("enabled")),
                 "path": "/settings?tab=alerts",
             },
         )
 
-    def _collect_ids(node: Any, ids: set[str]) -> None:
-        if not node:
-            return
-        if isinstance(node, str) and "." in node:
-            ids.add(node)
-        if isinstance(node, list):
-            for x in node:
-                _collect_ids(x, ids)
-            return
-        if isinstance(node, dict):
-            for v in node.values():
-                _collect_ids(v, ids)
 
-    for row in home_mode_rows:
-        config_obj = safe_parse_json(row.get("config"))
-        trigger_obj = safe_parse_json(row.get("triggers"))
+def _index_home_modes(
+    mapping: dict[str, list[dict[str, Any]]],
+    seen_keys: set[str],
+    home_mode_rows: list[dict[str, Any]],
+) -> None:
+    for home_mode_row in home_mode_rows:
+        config_obj = safe_parse_json(home_mode_row.get("config"))
+        trigger_obj = safe_parse_json(home_mode_row.get("triggers"))
         walk_ids: set[str] = set()
-        _collect_ids(config_obj, walk_ids)
-        _collect_ids(trigger_obj, walk_ids)
-        for eid in walk_ids:
-            if "." not in eid:
+        _collect_referenced_ids(config_obj, walk_ids)
+        _collect_referenced_ids(trigger_obj, walk_ids)
+        for referenced_entity_id in walk_ids:
+            if "." not in referenced_entity_id:
                 continue
-            config_paths = collect_entity_paths(config_obj, eid)
-            trigger_paths = collect_entity_paths(trigger_obj, eid)
-            if trigger_paths or path_looks_like_trigger(trigger_paths[0] if trigger_paths else ""):
-                role = "trigger"
-            elif config_paths and path_looks_like_action(config_paths[0]):
-                role = "action"
-            elif config_paths:
-                role = "config"
-            else:
-                role = "reference"
             _push_reference(
                 mapping,
-                eid,
+                seen_keys,
+                referenced_entity_id,
                 {
                     "kind": "home_mode",
-                    "id": row["id"],
-                    "name": row.get("name") or "家庭模式",
-                    "role": role,
-                    "path": f"/settings?tab=home-mode&id={row['id']}",
+                    "id": home_mode_row["id"],
+                    "name": home_mode_row.get("name") or "家庭模式",
+                    "role": _home_mode_reference_role(config_obj, trigger_obj, referenced_entity_id),
+                    "path": f"/settings?tab=home-mode&id={home_mode_row['id']}",
                 },
             )
+
+
+def build_entity_references_inverted_index(session_factory: Any) -> dict[str, list[dict[str, Any]]]:
+    """一次扫描本地资源（告警规则 / 家庭模式），构建 entityId → references 倒排索引。
+
+    这两张表**不能**加 ``limit``：倒排索引是「删除实体前清引用」的唯一依据，截断意味着
+    超出的告警规则 / 家庭模式里的引用根本不会被发现 —— 删除实体后留下悬挂引用，而且
+    没有任何提示。配置表规模由用户配置决定（几十~几百行），全量扫描的代价可以忽略。
+    """
+    from ...platform.core.models import AlertRule, HomeMode
+
+    with session_factory() as session:
+        alerts = session.query(AlertRule).all()
+        home_modes = session.query(HomeMode).all()
+
+    logger.debug(
+        "实体引用倒排索引：告警规则 %d 条、家庭模式 %d 条（全量，不截断）",
+        len(alerts),
+        len(home_modes),
+    )
+
+    alert_rows = [
+        {
+            "id": alert_rule.id,
+            "name": alert_rule.name,
+            "entityId": alert_rule.entity_id,
+            "enabled": alert_rule.enabled,
+        }
+        for alert_rule in alerts
+    ]
+    home_mode_rows = [
+        {
+            "id": home_mode.id,
+            "name": home_mode.name,
+            "config": home_mode.config,
+            "triggers": home_mode.triggers,
+        }
+        for home_mode in home_modes
+    ]
+
+    mapping: dict[str, list[dict[str, Any]]] = {}
+    seen_keys: set[str] = set()
+    _index_alert_rules(mapping, seen_keys, alert_rows)
+    _index_home_modes(mapping, seen_keys, home_mode_rows)
     return mapping
 
 
 # 布局 / 系统配置扫描（对齐 entity-references-scanners.helper.ts）
-def _push(items: list[dict[str, Any]], item: dict[str, Any], seen: set[str]) -> None:
-    key = f"{item['kind']}:{item['id']}:{item['role']}:{item.get('detail') or ''}"
+def _push(items: list[dict[str, Any]], reference: dict[str, Any], seen: set[str]) -> None:
+    """按 ``kind:id:role:detail`` 去重后追加（与倒排索引共用同一份去重口径）。"""
+    key = _reference_key(reference)
     if key in seen:
         return
     seen.add(key)
-    items.append(item)
+    items.append(reference)
+
+
+def _reference_paths(node: Any, entity_id: str) -> list[str]:
+    """节点里该实体的命中路径；空列表 = 未引用。
+
+    扫描器几乎每个落点都要写「取路径 → 空则跳过」。把它收成一行，既少了样板，
+    也避免每个 `_scan_*` 复制同一段骨架（重复块棘轮会把这些骨架算成复制粘贴）。
+
+    注意**不要**在这里过滤类型：布局里的"单字段引用"可以是数组
+    （``awaySimulationLightPool`` / ``statsSensors`` / ``mobileRoomStats``），
+    按 dict 过滤会静默漏掉它们 —— 这正是 ``_entity_references_parity_smoke`` 守的坑。
+    """
+    return collect_entity_paths(node, entity_id)
 
 
 def scan_layout_and_system(deps: dict[str, Any], entity_id: str, items: list[dict[str, Any]]) -> None:
     """扫描布局配置（projectConfig.layout）与系统配置（app_config）中的实体引用。"""
-    seen = {f"{i['kind']}:{i['id']}:{i['role']}:{i.get('detail') or ''}" for i in items}
+    seen = {_reference_key(reference) for reference in items}
     try:
         layout = deps["load_layout"]()
         if isinstance(layout, dict) and layout:
@@ -306,45 +402,53 @@ def scan_layout_and_system(deps: dict[str, Any], entity_id: str, items: list[dic
         logger.warning("扫描系统配置引用失败: %s", exc)
 
 
-def _scan_layout_object(
+def _scan_layout_favorites(
     entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
 ) -> None:
-    # 收藏
     favorites = layout.get("favoriteEntities")
-    if isinstance(favorites, dict):
-        for domain, value in favorites.items():
-            if isinstance(value, list) and any(str(x) == entity_id for x in value):
-                _push(
-                    items,
-                    {
-                        "kind": "favorite",
-                        "id": f"favorite:{domain}",
-                        "name": f"收藏 · {domain}",
-                        "role": "favorite",
-                        "path": "/settings?tab=favorites",
-                    },
-                    seen,
-                )
+    if not isinstance(favorites, dict):
+        return
+    for favorite_domain, favorite_ids in favorites.items():
+        if isinstance(favorite_ids, list) and any(
+            str(referenced_id) == entity_id for referenced_id in favorite_ids
+        ):
+            _push(
+                items,
+                {
+                    "kind": "favorite",
+                    "id": f"favorite:{favorite_domain}",
+                    "name": f"收藏 · {favorite_domain}",
+                    "role": "favorite",
+                    "path": "/settings?tab=favorites",
+                },
+                seen,
+            )
 
-    # 右侧 / 浮动面板组件
+
+def _scan_layout_panel_widgets(
+    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    right_panel = layout.get("rightPanelWidgets")
+    floating = layout.get("floatingWidgets")
     panel_widgets = [
-        *(layout.get("rightPanelWidgets") if isinstance(layout.get("rightPanelWidgets"), list) else []),
-        *(layout.get("floatingWidgets") if isinstance(layout.get("floatingWidgets"), list) else []),
+        *(right_panel if isinstance(right_panel, list) else []),
+        *(floating if isinstance(floating, list) else []),
     ]
-    for idx, widget in enumerate(panel_widgets):
+    for index, widget in enumerate(panel_widgets):
         if not isinstance(widget, dict):
             continue
         paths = collect_entity_paths(widget, entity_id)
         if not paths:
             continue
         widget_type = str(widget.get("type") or "widget")
-        config = widget.get("config") if isinstance(widget.get("config"), dict) else {}
-        config_title = str(config.get("title") or "") if isinstance(config, dict) else ""
+        widget_config_raw = widget.get("config")
+        widget_config = widget_config_raw if isinstance(widget_config_raw, dict) else {}
+        config_title = str(widget_config.get("title") or "")
         _push(
             items,
             {
                 "kind": "widget",
-                "id": str(widget.get("id") or f"widget:{idx}"),
+                "id": str(widget.get("id") or f"widget:{index}"),
                 "name": config_title or widget_type,
                 "role": "display",
                 "detail": paths[0],
@@ -353,49 +457,58 @@ def _scan_layout_object(
             seen,
         )
 
-    # HA 绑定
-    ha_config = layout.get("haConfig") if isinstance(layout.get("haConfig"), dict) else {}
-    _scan_ha_bindings(entity_id, ha_config, items, seen)
 
-    # 页脚
-    footer = layout.get("dashboardFooter")
-    if footer:
-        paths = collect_entity_paths(footer, entity_id)
-        if paths:
-            _push(
-                items,
-                {
-                    "kind": "footer",
-                    "id": "dashboard-footer",
-                    "name": "仪表盘页脚",
-                    "role": "display",
-                    "detail": paths[0],
-                    "path": "/settings?tab=general&section=footer",
-                },
-                seen,
-            )
+# 布局里"字段命中即产出一条固定引用"的落点：(layoutKey, kind, 引用 id, 名称, role, 跳转)
+# 页脚 / 全屋关闭与「紧急配置 / 离家模拟灯池 / 统计传感器 / 移动端房间统计」是同一件事，
+# 合并成一张表 + 一个循环，避免两处各写一遍相同的取路径/判空/组装引用骨架。
+_LAYOUT_FIELD_REFERENCES = (
+    ("securityEmergency", "security_mode", "securityEmergency", "紧急配置", "config",
+     "/settings?tab=security-modes"),
+    ("awaySimulationLightPool", "binding", "awaySimulationLightPool", "离家模拟灯池", "config",
+     "/settings?tab=params"),
+    ("statsSensors", "binding", "statsSensors", "统计传感器", "config", "/settings?tab=bindings"),
+    ("mobileRoomStats", "binding", "mobileRoomStats", "移动端房间统计", "config",
+     "/settings?tab=rooms"),
+    ("dashboardFooter", "footer", "dashboard-footer", "仪表盘页脚", "display",
+     "/settings?tab=general&section=footer"),
+    ("wholeHomeOff", "whole_home_off", "whole-home-off", "全屋关闭", "config",
+     "/settings?tab=general"),
+)
+# kind=binding 的移除要区分"单字段引用"与其余 haConfig 兜底，两者共用同一份键集合。
+_LAYOUT_SIMPLE_BINDINGS_KEYS = frozenset(
+    field_key for field_key, _kind, _ref_id, _name, _role, _path in _LAYOUT_FIELD_REFERENCES
+    if field_key != "securityEmergency"
+)
 
-    # 全屋关闭
-    whole_home_off = layout.get("wholeHomeOff")
-    if whole_home_off:
-        paths = collect_entity_paths(whole_home_off, entity_id)
-        if paths:
-            _push(
-                items,
-                {
-                    "kind": "whole_home_off",
-                    "id": "whole-home-off",
-                    "name": "全屋关闭",
-                    "role": "config",
-                    "detail": paths[0],
-                    "path": "/settings?tab=general",
-                },
-                seen,
-            )
 
-    # 安防模式动作
-    security_modes = layout.get("securityModes") if isinstance(layout.get("securityModes"), list) else []
-    for idx, mode in enumerate(security_modes):
+def _scan_layout_field_references(
+    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    """布局里"字段命中即产出一条固定引用"的落点（页脚 / 全屋关闭 / 单字段绑定）。"""
+    for layout_key, kind, reference_id, display_name, role, settings_path in _LAYOUT_FIELD_REFERENCES:
+        paths = _reference_paths(layout.get(layout_key), entity_id)
+        if not paths:
+            continue
+        _push(
+            items,
+            {
+                "kind": kind,
+                "id": reference_id,
+                "name": display_name,
+                "role": role,
+                "detail": paths[0],
+                "path": settings_path,
+            },
+            seen,
+        )
+
+
+def _scan_layout_security_modes(
+    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    raw_modes = layout.get("securityModes")
+    security_modes = raw_modes if isinstance(raw_modes, list) else []
+    for index, mode in enumerate(security_modes):
         if not isinstance(mode, dict):
             continue
         paths = collect_entity_paths(mode, entity_id)
@@ -405,7 +518,7 @@ def _scan_layout_object(
             items,
             {
                 "kind": "security_mode",
-                "id": str(mode.get("key") or f"security-mode:{idx}"),
+                "id": str(mode.get("key") or f"security-mode:{index}"),
                 "name": str(mode.get("name") or mode.get("key") or "安防模式"),
                 "role": "action" if path_looks_like_action(paths[0]) else "config",
                 "detail": paths[0],
@@ -414,35 +527,28 @@ def _scan_layout_object(
             seen,
         )
 
-    # 紧急配置 / 离家模拟灯池 / 统计传感器 / 移动端房间统计
-    simple_bindings = (
-        ("securityEmergency", "紧急配置", "/settings?tab=security-modes", "security_mode"),
-        ("awaySimulationLightPool", "离家模拟灯池", "/settings?tab=params", "binding"),
-        ("statsSensors", "统计传感器", "/settings?tab=bindings", "binding"),
-        ("mobileRoomStats", "移动端房间统计", "/settings?tab=rooms", "binding"),
-    )
-    for key, label, path, kind in simple_bindings:
-        value = layout.get(key)
-        if not value:
-            continue
-        paths = collect_entity_paths(value, entity_id)
-        if not paths:
-            continue
-        _push(
-            items,
-            {"kind": kind, "id": key, "name": label, "role": "config", "detail": paths[0], "path": path},
-            seen,
-        )
 
-    # 安防区域：layout.securityZones 与 haConfig.zones 双源
-    layout_zones = layout.get("securityZones") if isinstance(layout.get("securityZones"), list) else []
-    ha_zones = ha_config.get("zones") if isinstance(ha_config.get("zones"), list) else []
+# 布局里的"单字段引用"：紧急配置 / 离家模拟灯池 / 统计传感器 / 移动端房间统计
+# （页脚与全屋关闭同属这张表，见 _LAYOUT_FIELD_REFERENCES）
+
+def _scan_layout_security_zones(
+    entity_id: str,
+    layout: dict[str, Any],
+    ha_config: dict[str, Any],
+    items: list[dict[str, Any]],
+    seen: set[str],
+) -> None:
+    """安防区域：layout.securityZones 与 haConfig.zones 双源。"""
+    raw_layout_zones = layout.get("securityZones")
+    raw_ha_zones = ha_config.get("zones")
+    layout_zones = raw_layout_zones if isinstance(raw_layout_zones, list) else []
+    ha_zones = raw_ha_zones if isinstance(raw_ha_zones, list) else []
     if layout_zones and ha_zones:
         zone_lists = [layout_zones, ha_zones]
     else:
         zone_lists = [layout_zones or ha_zones]
     for zone_list in zone_lists:
-        for idx, zone in enumerate(zone_list):
+        for index, zone in enumerate(zone_list):
             if not isinstance(zone, dict):
                 continue
             paths = collect_entity_paths(zone, entity_id)
@@ -452,8 +558,8 @@ def _scan_layout_object(
                 items,
                 {
                     "kind": "security_zone",
-                    "id": str(zone.get("id") or zone.get("name") or f"zone:{idx}"),
-                    "name": str(zone.get("name") or zone.get("id") or f"安防区域 {idx + 1}"),
+                    "id": str(zone.get("id") or zone.get("name") or f"zone:{index}"),
+                    "name": str(zone.get("name") or zone.get("id") or f"安防区域 {index + 1}"),
                     "role": "watch",
                     "detail": paths[0],
                     "path": "/settings?tab=bindings&section=security",
@@ -462,54 +568,74 @@ def _scan_layout_object(
             )
 
 
+def _scan_layout_object(
+    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    """扫描 projectConfig.layout 的各个引用落点（收藏 / 组件 / 页脚 / 安防 / 绑定 / 区域）。"""
+    _scan_layout_favorites(entity_id, layout, items, seen)
+    _scan_layout_panel_widgets(entity_id, layout, items, seen)
+
+    ha_config_raw = layout.get("haConfig")
+    ha_config: dict[str, Any] = ha_config_raw if isinstance(ha_config_raw, dict) else {}
+    _scan_ha_bindings(entity_id, ha_config, items, seen)
+
+    _scan_layout_field_references(entity_id, layout, items, seen)
+    _scan_layout_security_modes(entity_id, layout, items, seen)
+    _scan_layout_security_zones(entity_id, layout, ha_config, items, seen)
+
+
+#: HA 配置里「实体绑定」字段 → 展示名。同组内命中第一个字段即停止（避免同一绑定出现多条）。
+_HA_BINDING_LABELS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("securityCamera", "securityCameras"), "安防摄像头"),
+    (("weatherEntityId",), "天气实体"),
+    (("motionSensorEntityId",), "人体传感器"),
+    (("hazardSmokeEntityIds",), "烟感绑定"),
+    (("hazardGasEntityIds",), "燃气绑定"),
+    (("hazardLeakEntityIds",), "水浸绑定"),
+    (("hazardGasValveEntityId",), "燃气阀"),
+    (("hazardWaterValveEntityId",), "水阀"),
+    (("hazardExhaustFanEntityIds",), "排风"),
+)
+
+
 def _scan_ha_bindings(
     entity_id: str, ha_config: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
 ) -> None:
-    binding_labels = (
-        (("securityCamera", "securityCameras"), "安防摄像头"),
-        (("weatherEntityId",), "天气实体"),
-        (("motionSensorEntityId",), "人体传感器"),
-        (("hazardSmokeEntityIds",), "烟感绑定"),
-        (("hazardGasEntityIds",), "燃气绑定"),
-        (("hazardLeakEntityIds",), "水浸绑定"),
-        (("hazardGasValveEntityId",), "燃气阀"),
-        (("hazardWaterValveEntityId",), "水阀"),
-        (("hazardExhaustFanEntityIds",), "排风"),
-    )
-    for keys, label in binding_labels:
-        for key in keys:
-            value = ha_config.get(key)
-            paths = collect_entity_paths(value, entity_id)
-            if not paths and isinstance(value, str) and value == entity_id:
-                paths.append(key)
+    for field_keys, binding_label in _HA_BINDING_LABELS:
+        for field_key in field_keys:
+            bound_value = ha_config.get(field_key)
+            paths = collect_entity_paths(bound_value, entity_id)
+            if not paths and isinstance(bound_value, str) and bound_value == entity_id:
+                paths.append(field_key)
             if not paths:
                 continue
             _push(
                 items,
                 {
                     "kind": "binding",
-                    "id": f"ha:{key}",
-                    "name": label,
+                    "id": f"ha:{field_key}",
+                    "name": binding_label,
                     "role": "binding",
-                    "detail": key,
+                    "detail": field_key,
                     "path": "/settings?tab=bindings",
                 },
                 seen,
             )
             break
 
-    doorbells = ha_config.get("doorbells") if isinstance(ha_config.get("doorbells"), list) else []
-    for idx, bell in enumerate(doorbells):
-        paths = collect_entity_paths(bell, entity_id)
+    doorbells_raw = ha_config.get("doorbells")
+    doorbells: list[Any] = doorbells_raw if isinstance(doorbells_raw, list) else []
+    for index, doorbell in enumerate(doorbells):
+        paths = collect_entity_paths(doorbell, entity_id)
         if not paths:
             continue
-        b = bell if isinstance(bell, dict) else {}
+        doorbell_obj = doorbell if isinstance(doorbell, dict) else {}
         _push(
             items,
             {
                 "kind": "binding",
-                "id": f"doorbell:{idx}",
-                "name": str(b.get("name") or f"门铃 {idx + 1}"),
+                "id": f"doorbell:{index}",
+                "name": str(doorbell_obj.get("name") or f"门铃 {index + 1}"),
                 "role": "binding",
                 "detail": paths[0],
                 "path": "/settings?tab=bindings",
@@ -518,24 +644,20 @@ def _scan_ha_bindings(
         )
 
 
-def _scan_system_config(
-    deps: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+def _scan_env_sensor_map(
+    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
 ) -> None:
-    cfg = deps["app_config"].get_all_raw() or {}
-
-    for room_id, room in (cfg.get("envSensorMap") or {}).items():
-        if not isinstance(room, dict):
-            continue
-        paths = collect_entity_paths(room, entity_id)
+    for room_id, env_sensor_room in (app_config_raw.get("envSensorMap") or {}).items():
+        paths = _reference_paths(env_sensor_room, entity_id)
         if not paths:
             continue
-        label = room.get("label") or room_id
+        room_label = env_sensor_room.get("label") or room_id
         _push(
             items,
             {
                 "kind": "env_sensor",
                 "id": f"env:{room_id}",
-                "name": f"环境映射 · {label}",
+                "name": f"环境映射 · {room_label}",
                 "role": "binding",
                 "detail": paths[0],
                 "path": "/settings?tab=bindings&section=environment",
@@ -543,86 +665,123 @@ def _scan_system_config(
             seen,
         )
 
-    security = cfg.get("security") if isinstance(cfg.get("security"), dict) else {}
+
+def _push_system_config(
+    items: list[dict[str, Any]],
+    seen: set[str],
+    reference_id: str,
+    display_name: str,
+    role: str,
+    settings_path: str,
+) -> None:
+    """app_config 侧引用的统一组装（kind 固定 ``system_config``）。
+
+    app_config 有 5 个落点都产出 ``system_config`` 引用，只有 id/名称/role/跳转递进不同；
+    把这段 8 行字典收到这里，各落点只剩"什么条件下算命中"。
+    """
+    _push(
+        items,
+        {
+            "kind": "system_config",
+            "id": reference_id,
+            "name": display_name,
+            "role": role,
+            "path": settings_path,
+        },
+        seen,
+    )
+
+
+def _scan_presence_persons(
+    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    security = _app_config_section(app_config_raw, "security")
     for person in security.get("presencePersons") or []:
         if not isinstance(person, dict) or entity_id not in (person.get("entityIds") or []):
             continue
-        _push(
+        _push_system_config(
             items,
-            {
-                "kind": "system_config",
-                "id": f"presence:{person.get('id')}",
-                "name": f"在家判定 · {person.get('name') or person.get('id')}",
-                "role": "watch",
-                "path": "/settings?tab=bindings&section=security",
-            },
             seen,
+            f"presence:{person.get('id')}",
+            f"在家判定 · {person.get('name') or person.get('id')}",
+            "watch",
+            "/settings?tab=bindings&section=security",
         )
 
-    circadian = cfg.get("circadian") if isinstance(cfg.get("circadian"), dict) else {}
-    water = cfg.get("water") if isinstance(cfg.get("water"), dict) else {}
-    energy = cfg.get("energy") if isinstance(cfg.get("energy"), dict) else {}
-    voice = cfg.get("voice") if isinstance(cfg.get("voice"), dict) else {}
-    simple_bindings = (
-        (circadian.get("weatherEntityId") == entity_id, "circadian-weather", "昼夜节律 · 天气", "/settings?tab=bindings", None),
-        (water.get("mainValveEntityId") == entity_id, "water-main-valve", "用水 · 总阀", "/settings?tab=bindings", None),
-        (energy.get("meterEntityId") == entity_id, "energy-meter", "能源 · 主电表", "/settings?tab=bindings", None),
-        (
-            entity_id in (energy.get("circuitEntityIds") or []),
-            "energy-circuit",
-            "能源 · 分路",
-            "/settings?tab=bindings",
-            None,
-        ),
-        (voice.get("sttEntityId") == entity_id, "voice-stt", "语音 · STT", "/settings?tab=voice", None),
-    )
-    for hit, item_id, name, path, kind in simple_bindings:
-        if not hit:
+
+def _app_config_section(app_config_raw: dict[str, Any], section_key: str) -> dict[str, Any]:
+    """取 app_config 的一个对象段落（缺失或类型不对时给空 dict）。
+
+    实现落在 :func:`platform.core.json_field.object_field`：同一语义在全仓出现过二十余次
+    （``x.get(K) if isinstance(x.get(K), dict) else {}``），收敛到一处后，字段名写错或类型判断
+    漏写只会有一种后果。
+    """
+    return object_field(app_config_raw, section_key)
+
+
+# app_config 里的"单字段绑定"：(section, 字段, 引用 id, 名称, 跳转)。
+# 扫描与解绑**共用**这张表：两边的字段名一旦漂移，就会出现「界面提示已解绑、实际没清」。
+_APP_CONFIG_FIELD_BINDINGS = (
+    ("circadian", "weatherEntityId", "circadian-weather", "昼夜节律 · 天气", "/settings?tab=bindings"),
+    ("water", "mainValveEntityId", "water-main-valve", "用水 · 总阀", "/settings?tab=bindings"),
+    ("energy", "meterEntityId", "energy-meter", "能源 · 主电表", "/settings?tab=bindings"),
+    ("voice", "sttEntityId", "voice-stt", "语音 · STT", "/settings?tab=voice"),
+)
+# 能源分路是数组字段（同 section，但命中判定不是"字段值等于实体"）。
+_ENERGY_CIRCUIT_FIELD = ("energy", "circuitEntityIds")
+
+
+def _scan_app_config_bindings(
+    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    """昼夜节律 / 用水 / 能源 / 语音这几个"单字段绑定"是否指向该实体。"""
+    for section_key, field_key, binding_id, display_name, settings_path in _APP_CONFIG_FIELD_BINDINGS:
+        if _app_config_section(app_config_raw, section_key).get(field_key) != entity_id:
             continue
-        _push(
-            items,
-            {
-                "kind": kind or "system_config",
-                "id": item_id,
-                "name": name,
-                "role": "binding",
-                "path": path,
-            },
-            seen,
+        _push_system_config(items, seen, binding_id, display_name, "binding", settings_path)
+
+    circuit_section, circuit_field = _ENERGY_CIRCUIT_FIELD
+    if entity_id in (_app_config_section(app_config_raw, circuit_section).get(circuit_field) or []):
+        _push_system_config(
+            items, seen, "energy-circuit", "能源 · 分路", "binding", "/settings?tab=bindings"
         )
 
-    for rule in voice.get("entityTtsAlerts") or []:
-        if not isinstance(rule, dict) or rule.get("entityId") != entity_id:
+
+def _scan_voice_and_client_power(
+    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    voice = _app_config_section(app_config_raw, "voice")
+    for tts_alert_rule in voice.get("entityTtsAlerts") or []:
+        if not isinstance(tts_alert_rule, dict) or tts_alert_rule.get("entityId") != entity_id:
             continue
-        _push(
+        _push_system_config(
             items,
-            {
-                "kind": "system_config",
-                "id": f"tts-alert:{rule.get('entityId')}",
-                "name": "语音 · 实体播报",
-                "role": "watch",
-                "path": "/settings?tab=voice",
-            },
             seen,
+            f"tts-alert:{tts_alert_rule.get('entityId')}",
+            "语音 · 实体播报",
+            "watch",
+            "/settings?tab=voice",
         )
 
-    client_power = cfg.get("clientPower") if isinstance(cfg.get("clientPower"), dict) else {}
-    for client in client_power.get("clients") or []:
-        if not isinstance(client, dict) or client.get("chargerSwitchEntityId") != entity_id:
+    client_power = _app_config_section(app_config_raw, "clientPower")
+    for client_profile in client_power.get("clients") or []:
+        if not isinstance(client_profile, dict) or client_profile.get("chargerSwitchEntityId") != entity_id:
             continue
-        _push(
+        _push_system_config(
             items,
-            {
-                "kind": "system_config",
-                "id": f"client-power:{client.get('id')}",
-                "name": f"客户端电源 · {client.get('label') or client.get('id')}",
-                "role": "binding",
-                "path": "/settings?tab=smart-charge",
-            },
             seen,
+            f"client-power:{client_profile.get('id')}",
+            f"客户端电源 · {client_profile.get('label') or client_profile.get('id')}",
+            "binding",
+            "/settings?tab=smart-charge",
         )
 
-    media_playlists = cfg.get("mediaPlaylists")
+
+def _scan_media_and_log_block(
+    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    """影音播放列表键名即实体 ID；事件日志屏蔽是 entity_ids 数组。"""
+    media_playlists = app_config_raw.get("mediaPlaylists")
     if isinstance(media_playlists, dict) and entity_id in media_playlists:
         _push(
             items,
@@ -636,20 +795,24 @@ def _scan_system_config(
             seen,
         )
 
-    ops = cfg.get("ops") if isinstance(cfg.get("ops"), dict) else {}
-    block_list = ops.get("eventLogRecordBlockEntityIds")
-    if isinstance(block_list, list) and entity_id in block_list:
-        _push(
-            items,
-            {
-                "kind": "system_config",
-                "id": "event-log-block",
-                "name": "事件日志屏蔽",
-                "role": "config",
-                "path": "/settings?tab=connection",
-            },
-            seen,
+    ops_config = _app_config_section(app_config_raw, "ops")
+    blocked_entity_ids = ops_config.get("eventLogRecordBlockEntityIds")
+    if isinstance(blocked_entity_ids, list) and entity_id in blocked_entity_ids:
+        _push_system_config(
+            items, seen, "event-log-block", "事件日志屏蔽", "config", "/settings?tab=connection"
         )
+
+
+def _scan_system_config(
+    deps: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+) -> None:
+    """扫描 app_config 中的实体引用（环境映射 / 在家判定 / 绑定 / 播报 / 影音 / 日志屏蔽）。"""
+    app_config_raw = deps["app_config"].get_all_raw() or {}
+    _scan_env_sensor_map(app_config_raw, entity_id, items, seen)
+    _scan_presence_persons(app_config_raw, entity_id, items, seen)
+    _scan_app_config_bindings(app_config_raw, entity_id, items, seen)
+    _scan_voice_and_client_power(app_config_raw, entity_id, items, seen)
+    _scan_media_and_log_block(app_config_raw, entity_id, items, seen)
 
 
 # 解绑执行器（对齐 entity-references-unlink.ts）
@@ -665,11 +828,11 @@ def _unlink_home_mode(deps: dict[str, Any], mode_id: str, entity_id: str) -> dic
     from ...platform.core.models import HomeMode
 
     with deps["session_factory"]() as session:
-        row = session.get(HomeMode, mode_id)
-        if row is None:
+        stored_mode = session.get(HomeMode, mode_id)
+        if stored_mode is None:
             return _fail("家庭模式不存在")
-        config_parsed = safe_parse_json(row.config) or []
-        triggers_parsed = safe_parse_json(row.triggers) or []
+        config_parsed = safe_parse_json(stored_mode.config) or []
+        triggers_parsed = safe_parse_json(stored_mode.triggers) or []
     config_next, config_changed = remove_entity_from_json_value(config_parsed, entity_id)
     triggers_next, triggers_changed = remove_entity_from_json_value(triggers_parsed, entity_id)
     if not config_changed and not triggers_changed:
@@ -680,10 +843,10 @@ def _unlink_home_mode(deps: dict[str, Any], mode_id: str, entity_id: str) -> dic
         update_home_mode(mode_id, {"config": config_next, "triggers": triggers_next})
     else:
         with deps["session_factory"]() as session:
-            row = session.get(HomeMode, mode_id)
-            if row is not None:
-                row.config = json.dumps(config_next, ensure_ascii=False)
-                row.triggers = json.dumps(triggers_next, ensure_ascii=False)
+            stored_mode = session.get(HomeMode, mode_id)
+            if stored_mode is not None:
+                stored_mode.config = json.dumps(config_next, ensure_ascii=False)
+                stored_mode.triggers = json.dumps(triggers_next, ensure_ascii=False)
                 session.commit()
     return _ok("filtered", "已从家庭模式动作/触发中移除")
 
@@ -693,27 +856,28 @@ def _unlink_alert_rule(deps: dict[str, Any], rule_id: str) -> dict[str, Any]:
 
     delete_alert_rule = deps.get("delete_alert_rule")
     if delete_alert_rule is not None:
-        res = delete_alert_rule(rule_id)
-        if not (isinstance(res, dict) and res.get("success")):
+        delete_result = delete_alert_rule(rule_id)
+        if not (isinstance(delete_result, dict) and delete_result.get("success")):
             return _fail("删除告警规则失败")
         return _ok("deleted_rule", "已删除告警规则")
 
     try:
         with deps["session_factory"]() as session:
-            row = session.get(AlertRule, rule_id)
-            if row is None:
+            stored_rule = session.get(AlertRule, rule_id)
+            if stored_rule is None:
                 return _fail("告警规则不存在或删除失败")
-            session.delete(row)
+            session.delete(stored_rule)
             session.commit()
     except Exception:
         return _fail("告警规则不存在或删除失败")
 
     watch_index = deps.get("alert_rule_watch_index")
     if watch_index is not None:
+        # 实体关注索引是全量的：加 limit 会让超出的规则被静默漏掉，告警触发因此丢事件。
         with deps["session_factory"]() as session:
-            remaining = session.query(AlertRule).filter(AlertRule.enabled.is_(True)).limit(1000).all()
+            remaining_rules = session.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
         watch_index.update_from_rules(
-            [{"entityId": r.entity_id, "enabled": r.enabled} for r in remaining]
+            [{"entityId": rule.entity_id, "enabled": rule.enabled} for rule in remaining_rules]
         )
     return _ok("deleted_rule", "已删除告警规则")
 
@@ -722,21 +886,21 @@ def _unlink_favorite(deps: dict[str, Any], item_id: str, entity_id: str) -> dict
     layout = dict(deps["load_layout"]())
     favorites = layout.get("favoriteEntities")
     favorites = dict(favorites) if isinstance(favorites, dict) else {}
-    domain = item_id[len("favorite:") :] if item_id.startswith("favorite:") else ""
+    favorite_domain = item_id[len("favorite:") :] if item_id.startswith("favorite:") else ""
     changed = False
-    if domain and isinstance(favorites.get(domain), list):
-        current = favorites[domain]
-        filtered = [x for x in current if str(x) != entity_id]
-        if len(filtered) != len(current):
-            favorites[domain] = filtered
+    if favorite_domain and isinstance(favorites.get(favorite_domain), list):
+        current_ids = favorites[favorite_domain]
+        kept_ids = [referenced_id for referenced_id in current_ids if str(referenced_id) != entity_id]
+        if len(kept_ids) != len(current_ids):
+            favorites[favorite_domain] = kept_ids
             changed = True
     else:
-        for key, value in list(favorites.items()):
-            if not isinstance(value, list):
+        for domain, favorite_ids in list(favorites.items()):
+            if not isinstance(favorite_ids, list):
                 continue
-            filtered = [x for x in value if str(x) != entity_id]
-            if len(filtered) != len(value):
-                favorites[key] = filtered
+            kept_ids = [referenced_id for referenced_id in favorite_ids if str(referenced_id) != entity_id]
+            if len(kept_ids) != len(favorite_ids):
+                favorites[domain] = kept_ids
                 changed = True
     if not changed:
         return _fail("收藏中未找到该实体")
@@ -745,139 +909,200 @@ def _unlink_favorite(deps: dict[str, Any], item_id: str, entity_id: str) -> dict
     return _ok("filtered", "已从收藏移除", True)
 
 
+_WIDGET_INDEX_PATTERN = re.compile(r"widget:(\d+)")
+
+
+def _strip_targeted_widgets(
+    source: list[Any],
+    start_index: int,
+    item_id: str,
+    entity_id: str,
+    index_match: re.Match[str] | None,
+) -> tuple[list[Any], bool, int]:
+    """删除命中 ``item_id`` 的组件（按下标或按 ``id``），返回 ``(保留列表, 是否变更, 下一个累计下标)``。
+
+    ``start_index`` 是跨两个列表（rightPanelWidgets → floatingWidgets）累计的下标：旧实现用
+    闭包里的 ``nonlocal combined_idx`` 维护它，拆出来后改成显式传入/传出，行为一致。
+    """
+    kept_widgets: list[Any] = []
+    changed = False
+    next_index = start_index
+    for widget in source:
+        current_index = next_index
+        next_index += 1
+        if not isinstance(widget, dict):
+            kept_widgets.append(widget)
+            continue
+        widget_key = str(widget.get("id") or f"widget:{current_index}")
+        targeted = widget_key == item_id or (
+            index_match is not None and current_index == int(index_match.group(1))
+        )
+        if not targeted:
+            kept_widgets.append(widget)
+            continue
+        if str(widget.get("id") or "") == entity_id:
+            changed = True
+            continue
+        cleaned_node, node_changed = remove_entity_from_json_value(widget, entity_id)
+        if not node_changed:
+            kept_widgets.append(widget)
+            continue
+        changed = True
+        kept_widgets.append(cleaned_node)
+    return kept_widgets, changed, next_index
+
+
+def _unlink_layout_widgets(layout: dict[str, Any], item_id: str, entity_id: str) -> bool:
+    index_match = _WIDGET_INDEX_PATTERN.fullmatch(item_id)
+    changed = False
+    next_index = 0
+    for layout_key in ("rightPanelWidgets", "floatingWidgets"):
+        source = layout.get(layout_key)
+        if not isinstance(source, list):
+            continue
+        kept_widgets, list_changed, next_index = _strip_targeted_widgets(
+            list(source), next_index, item_id, entity_id, index_match
+        )
+        layout[layout_key] = kept_widgets
+        changed = changed or list_changed
+    return changed
+
+
+def _unlink_layout_binding(layout: dict[str, Any], item_id: str, entity_id: str) -> bool:
+    """HA 绑定：``ha:<字段>`` / ``doorbell:<下标>`` / 单字段引用，其余整块 haConfig 兜底。"""
+    ha_config_raw = layout.get("haConfig")
+    ha_config = dict(ha_config_raw) if isinstance(ha_config_raw, dict) else {}
+    changed = False
+    if item_id.startswith("ha:"):
+        ha_field_key = item_id[3:]
+        if ha_field_key in ha_config:
+            cleaned_node, node_changed = remove_entity_from_json_value(
+                ha_config[ha_field_key], entity_id
+            )
+            if node_changed:
+                ha_config[ha_field_key] = cleaned_node
+                changed = True
+    elif item_id.startswith("doorbell:"):
+        doorbell_index_raw = item_id[len("doorbell:") :]
+        doorbells_raw = ha_config.get("doorbells")
+        doorbells: list[Any] = list(doorbells_raw) if isinstance(doorbells_raw, list) else []
+        if doorbell_index_raw.isdigit() and 0 <= int(doorbell_index_raw) < len(doorbells):
+            doorbell_index = int(doorbell_index_raw)
+            cleaned_node, node_changed = remove_entity_from_json_value(
+                doorbells[doorbell_index], entity_id
+            )
+            if node_changed:
+                doorbells[doorbell_index] = cleaned_node
+                ha_config["doorbells"] = doorbells
+                changed = True
+    elif item_id in _LAYOUT_SIMPLE_BINDINGS_KEYS:
+        cleaned_node, node_changed = remove_entity_from_json_value(layout.get(item_id), entity_id)
+        if node_changed:
+            layout[item_id] = cleaned_node
+            changed = True
+    else:
+        cleaned_node, node_changed = remove_entity_from_json_value(ha_config, entity_id)
+        if node_changed and isinstance(cleaned_node, dict):
+            ha_config = cleaned_node
+            changed = True
+    layout["haConfig"] = ha_config
+    return changed
+
+
+def _unlink_layout_single_field(layout: dict[str, Any], layout_key: str, entity_id: str) -> bool:
+    """移除单字段引用里的实体（页脚 / 全屋关闭）。"""
+    if not layout.get(layout_key):
+        return False
+    cleaned_node, node_changed = remove_entity_from_json_value(layout[layout_key], entity_id)
+    if not node_changed:
+        return False
+    layout[layout_key] = cleaned_node
+    return True
+
+
+def _unlink_layout_security_mode(layout: dict[str, Any], item_id: str, entity_id: str) -> bool:
+    if item_id == "securityEmergency":
+        return _unlink_layout_single_field(layout, "securityEmergency", entity_id)
+
+    raw_modes = layout.get("securityModes")
+    modes = list(raw_modes) if isinstance(raw_modes, list) else []
+    changed = False
+    next_modes: list[Any] = []
+    for mode in modes:
+        if not isinstance(mode, dict) or str(mode.get("key") or "") != item_id:
+            next_modes.append(mode)
+            continue
+        cleaned_node, node_changed = remove_entity_from_json_value(mode, entity_id)
+        if node_changed:
+            changed = True
+            next_modes.append(cleaned_node)
+        else:
+            next_modes.append(mode)
+    layout["securityModes"] = next_modes
+    return changed
+
+
+def _unlink_zone_list(zone_list: list[Any], item_id: str, entity_id: str) -> tuple[list[Any], bool]:
+    kept_zones: list[Any] = []
+    touched = False
+    for zone_index, zone in enumerate(zone_list):
+        if not isinstance(zone, dict):
+            kept_zones.append(zone)
+            continue
+        zone_key = str(zone.get("id") or zone.get("name") or f"zone:{zone_index}")
+        if zone_key != item_id:
+            kept_zones.append(zone)
+            continue
+        cleaned_node, node_changed = remove_entity_from_json_value(zone, entity_id)
+        if node_changed:
+            touched = True
+            kept_zones.append(cleaned_node)
+        else:
+            kept_zones.append(zone)
+    return kept_zones, touched
+
+
+def _unlink_layout_security_zone(layout: dict[str, Any], item_id: str, entity_id: str) -> bool:
+    """安防区域双源：layout.securityZones 与 haConfig.zones 都要清。"""
+    ha_config_raw = layout.get("haConfig")
+    ha_config = dict(ha_config_raw) if isinstance(ha_config_raw, dict) else {}
+    changed = False
+    if isinstance(layout.get("securityZones"), list):
+        cleaned_zones, touched = _unlink_zone_list(list(layout["securityZones"]), item_id, entity_id)
+        layout["securityZones"] = cleaned_zones
+        changed = changed or touched
+    if isinstance(ha_config.get("zones"), list):
+        cleaned_zones, touched = _unlink_zone_list(list(ha_config["zones"]), item_id, entity_id)
+        ha_config["zones"] = cleaned_zones
+        layout["haConfig"] = ha_config
+        changed = changed or touched
+    return changed
+
+
+def _layout_field_unlinker(layout_key: str) -> Callable[[dict[str, Any], str, str], bool]:
+    """把"解绑单个布局字段"适配成统一的 ``(layout, item_id, entity_id) -> changed`` 形态。"""
+    return lambda layout, _item_id, entity_id: _unlink_layout_single_field(layout, layout_key, entity_id)
+
+
+# kind → 布局解绑器。表驱动取代 6 段形状相同的 ``elif kind == ...``（那种写法也正好是
+# 重复块棘轮最容易涨的地方）。
+_LAYOUT_UNLINK_HANDLERS: dict[str, Callable[[dict[str, Any], str, str], bool]] = {
+    "widget": _unlink_layout_widgets,
+    "binding": _unlink_layout_binding,
+    "footer": _layout_field_unlinker("dashboardFooter"),
+    "whole_home_off": _layout_field_unlinker("wholeHomeOff"),
+    "security_mode": _unlink_layout_security_mode,
+    "security_zone": _unlink_layout_security_zone,
+}
+
+
 def _unlink_layout_json_field(
     deps: dict[str, Any], kind: str, item_id: str, entity_id: str
 ) -> dict[str, Any]:
     layout = dict(deps["load_layout"]())
-    changed = False
-
-    if kind == "widget":
-        widget_index_match = re.fullmatch(r"widget:(\d+)", item_id)
-        combined_idx = 0
-
-        def strip_widgets(source: list[Any]) -> list[Any]:
-            nonlocal combined_idx, changed
-            out: list[Any] = []
-            for widget in source:
-                current_idx = combined_idx
-                combined_idx += 1
-                if not isinstance(widget, dict):
-                    out.append(widget)
-                    continue
-                widget_key = str(widget.get("id") or f"widget:{current_idx}")
-                targeted = widget_key == item_id or (
-                    widget_index_match is not None and current_idx == int(widget_index_match.group(1))
-                )
-                if not targeted:
-                    out.append(widget)
-                    continue
-                if str(widget.get("id") or "") == entity_id:
-                    changed = True
-                    continue
-                nested_value, nested_changed = remove_entity_from_json_value(widget, entity_id)
-                if not nested_changed:
-                    out.append(widget)
-                    continue
-                changed = True
-                out.append(nested_value)
-            return out
-
-        if isinstance(layout.get("rightPanelWidgets"), list):
-            layout["rightPanelWidgets"] = strip_widgets(list(layout["rightPanelWidgets"]))
-        if isinstance(layout.get("floatingWidgets"), list):
-            layout["floatingWidgets"] = strip_widgets(list(layout["floatingWidgets"]))
-    elif kind == "binding":
-        ha = dict(layout.get("haConfig")) if isinstance(layout.get("haConfig"), dict) else {}
-        if item_id.startswith("ha:"):
-            key = item_id[3:]
-            if key in ha:
-                nested_value, nested_changed = remove_entity_from_json_value(ha[key], entity_id)
-                if nested_changed:
-                    ha[key] = nested_value
-                    changed = True
-        elif item_id.startswith("doorbell:"):
-            idx = item_id[len("doorbell:") :]
-            doorbells = list(ha.get("doorbells")) if isinstance(ha.get("doorbells"), list) else []
-            if idx.isdigit() and 0 <= int(idx) < len(doorbells):
-                i = int(idx)
-                nested_value, nested_changed = remove_entity_from_json_value(doorbells[i], entity_id)
-                if nested_changed:
-                    doorbells[i] = nested_value
-                    ha["doorbells"] = doorbells
-                    changed = True
-        elif item_id in ("statsSensors", "awaySimulationLightPool", "mobileRoomStats"):
-            nested_value, nested_changed = remove_entity_from_json_value(layout.get(item_id), entity_id)
-            if nested_changed:
-                layout[item_id] = nested_value
-                changed = True
-        else:
-            nested_value, nested_changed = remove_entity_from_json_value(ha, entity_id)
-            if nested_changed and isinstance(nested_value, dict):
-                ha = nested_value
-                changed = True
-        layout["haConfig"] = ha
-    elif kind == "footer" and layout.get("dashboardFooter"):
-        nested_value, nested_changed = remove_entity_from_json_value(layout["dashboardFooter"], entity_id)
-        if nested_changed:
-            layout["dashboardFooter"] = nested_value
-            changed = True
-    elif kind == "whole_home_off" and layout.get("wholeHomeOff"):
-        nested_value, nested_changed = remove_entity_from_json_value(layout["wholeHomeOff"], entity_id)
-        if nested_changed:
-            layout["wholeHomeOff"] = nested_value
-            changed = True
-    elif kind == "security_mode":
-        if item_id == "securityEmergency" and layout.get("securityEmergency"):
-            nested_value, nested_changed = remove_entity_from_json_value(layout["securityEmergency"], entity_id)
-            if nested_changed:
-                layout["securityEmergency"] = nested_value
-                changed = True
-        else:
-            modes = list(layout.get("securityModes")) if isinstance(layout.get("securityModes"), list) else []
-            next_modes: list[Any] = []
-            for mode in modes:
-                if not isinstance(mode, dict) or str(mode.get("key") or "") != item_id:
-                    next_modes.append(mode)
-                    continue
-                nested_value, nested_changed = remove_entity_from_json_value(mode, entity_id)
-                if nested_changed:
-                    changed = True
-                    next_modes.append(nested_value)
-                else:
-                    next_modes.append(mode)
-            layout["securityModes"] = next_modes
-    elif kind == "security_zone":
-        ha = dict(layout.get("haConfig")) if isinstance(layout.get("haConfig"), dict) else {}
-
-        def _unlink_zone_list(zone_list: list[Any]) -> tuple[list[Any], bool]:
-            out: list[Any] = []
-            touched = False
-            for idx, zone in enumerate(zone_list):
-                if not isinstance(zone, dict):
-                    out.append(zone)
-                    continue
-                zone_key = str(zone.get("id") or zone.get("name") or f"zone:{idx}")
-                if zone_key != item_id:
-                    out.append(zone)
-                    continue
-                nested_value, nested_changed = remove_entity_from_json_value(zone, entity_id)
-                if nested_changed:
-                    touched = True
-                    out.append(nested_value)
-                else:
-                    out.append(zone)
-            return out, touched
-
-        if isinstance(layout.get("securityZones"), list):
-            zoned, touched = _unlink_zone_list(list(layout["securityZones"]))
-            layout["securityZones"] = zoned
-            changed = changed or touched
-        if isinstance(ha.get("zones"), list):
-            zoned, touched = _unlink_zone_list(list(ha["zones"]))
-            ha["zones"] = zoned
-            layout["haConfig"] = ha
-            changed = changed or touched
-
+    handler = _LAYOUT_UNLINK_HANDLERS.get(kind)
+    # 调用方按 kind 分发，理论到不了 else；保持与旧实现一致的提示语。
+    changed = handler(layout, item_id, entity_id) if handler is not None else False
     if not changed:
         return _fail("未找到可移除的布局引用")
     deps["save_layout"](layout)
@@ -885,83 +1110,157 @@ def _unlink_layout_json_field(
     return _ok(action, "已从布局配置移除", True)
 
 
+class _UnsupportedReferenceError(Exception):
+    """解绑时遇到当前不支持的引用类型 / 找不到目标（消息直接回给前端）。"""
+
+
+# system_config 的"单字段绑定"移除：命中即把该字段清空。
+# 与**扫描**共用 `_APP_CONFIG_FIELD_BINDINGS`（同一份 section/字段名，两边不会漂移）。
+_SYSTEM_CONFIG_CLEAR_FIELDS: dict[str, tuple[str, str]] = {
+    binding_id: (section_key, field_key)
+    for section_key, field_key, binding_id, _name, _path in _APP_CONFIG_FIELD_BINDINGS
+}
+# system_config 的"数组绑定"移除：命中即从数组里剔除该实体。
+_SYSTEM_CONFIG_CLEAR_LISTS: dict[str, tuple[str, str]] = {
+    "energy-circuit": ("energy", "circuitEntityIds"),
+    "event-log-block": ("ops", "eventLogRecordBlockEntityIds"),
+}
+
+
+def _patch_env_sensor(app_config_raw: dict[str, Any], item_id: str, entity_id: str) -> dict[str, Any]:
+    room_id = item_id[len("env:") :]
+    env_sensor_room = dict((app_config_raw.get("envSensorMap") or {}).get(room_id) or {})
+    cleaned_node, node_changed = remove_entity_from_json_value(env_sensor_room, entity_id)
+    if not node_changed:
+        raise _UnsupportedReferenceError("环境映射中未找到该实体")
+    return {"envSensorMap": {**(app_config_raw.get("envSensorMap") or {}), room_id: cleaned_node}}
+
+
+def _patch_media_playlist(app_config_raw: dict[str, Any], entity_id: str) -> dict[str, Any]:
+    playlists = dict(app_config_raw.get("mediaPlaylists") or {})
+    if entity_id not in playlists:
+        raise _UnsupportedReferenceError("未找到影音播放列表")
+    playlists.pop(entity_id, None)
+    return {"mediaPlaylists": playlists}
+
+
+def _patch_clear_field(
+    app_config_raw: dict[str, Any], targets: dict[str, tuple[str, str]], item_id: str
+) -> dict[str, Any]:
+    section_key, field_key = targets[item_id]
+    section = dict(app_config_raw.get(section_key) or {})
+    section[field_key] = ""
+    return {section_key: section}
+
+
+def _patch_clear_list_field(
+    app_config_raw: dict[str, Any],
+    targets: dict[str, tuple[str, str]],
+    item_id: str,
+    entity_id: str,
+) -> dict[str, Any]:
+    section_key, list_key = targets[item_id]
+    section = dict(app_config_raw.get(section_key) or {})
+    section[list_key] = [
+        referenced_id
+        for referenced_id in (section.get(list_key) or [])
+        if referenced_id != entity_id
+    ]
+    return {section_key: section}
+
+
+def _patch_presence_person(
+    app_config_raw: dict[str, Any], item_id: str, entity_id: str
+) -> dict[str, Any]:
+    person_id = item_id[len("presence:") :]
+    security = dict(app_config_raw.get("security") or {})
+    persons = [
+        (
+            {
+                **person,
+                "entityIds": [
+                    referenced_id
+                    for referenced_id in (person.get("entityIds") or [])
+                    if referenced_id != entity_id
+                ],
+            }
+            if person.get("id") == person_id
+            else person
+        )
+        for person in (security.get("presencePersons") or [])
+    ]
+    return {"security": {**security, "presencePersons": persons}}
+
+
+def _patch_tts_alert(app_config_raw: dict[str, Any], entity_id: str) -> dict[str, Any]:
+    voice = dict(app_config_raw.get("voice") or {})
+    return {
+        "voice": {
+            **voice,
+            "entityTtsAlerts": [
+                tts_rule
+                for tts_rule in (voice.get("entityTtsAlerts") or [])
+                if tts_rule.get("entityId") != entity_id
+            ],
+        }
+    }
+
+
+def _patch_client_power(
+    app_config_raw: dict[str, Any], item_id: str, entity_id: str
+) -> dict[str, Any]:
+    client_id = item_id[len("client-power:") :]
+    client_power = dict(app_config_raw.get("clientPower") or {})
+    return {
+        "clientPower": {
+            **client_power,
+            "clients": [
+                {**profile, "chargerSwitchEntityId": ""} if profile.get("id") == client_id else profile
+                for profile in (client_power.get("clients") or [])
+            ],
+        }
+    }
+
+
+# item_id 前缀 → 去除器（比"一长串 elif"更好扫读，也让每个分支能单独测）。
+_SYSTEM_CONFIG_PREFIX_HANDLERS: tuple[
+    tuple[str, Callable[[dict[str, Any], str, str], dict[str, Any]]], ...
+] = (
+    ("presence:", _patch_presence_person),
+    ("tts-alert:", lambda config_raw, _item_id, entity_id: _patch_tts_alert(config_raw, entity_id)),
+    ("client-power:", _patch_client_power),
+)
+
+
+def _build_system_config_patch(
+    app_config_raw: dict[str, Any], kind: str, item_id: str, entity_id: str
+) -> dict[str, Any]:
+    """算出移除某条系统配置引用所需的 app_config 补丁；不支持的类型抛异常。"""
+    if kind == "env_sensor":
+        return _patch_env_sensor(app_config_raw, item_id, entity_id)
+    if kind == "media":
+        return _patch_media_playlist(app_config_raw, entity_id)
+    if kind != "system_config":
+        raise _UnsupportedReferenceError("暂不支持移除此引用类型")
+
+    for prefix, handler in _SYSTEM_CONFIG_PREFIX_HANDLERS:
+        if item_id.startswith(prefix):
+            return handler(app_config_raw, item_id, entity_id)
+    if item_id in _SYSTEM_CONFIG_CLEAR_FIELDS:
+        return _patch_clear_field(app_config_raw, _SYSTEM_CONFIG_CLEAR_FIELDS, item_id)
+    if item_id in _SYSTEM_CONFIG_CLEAR_LISTS:
+        return _patch_clear_list_field(app_config_raw, _SYSTEM_CONFIG_CLEAR_LISTS, item_id, entity_id)
+    raise _UnsupportedReferenceError("暂不支持移除此系统配置项")
+
+
 def _unlink_system_config(
     deps: dict[str, Any], kind: str, item_id: str, entity_id: str
 ) -> dict[str, Any]:
-    cfg = deps["app_config"].get_all_raw() or {}
-    patch: dict[str, Any] = {}
-
-    if kind == "env_sensor" and item_id.startswith("env:"):
-        room_id = item_id[4:]
-        room = dict((cfg.get("envSensorMap") or {}).get(room_id) or {})
-        nested_value, nested_changed = remove_entity_from_json_value(room, entity_id)
-        if not nested_changed:
-            return _fail("环境映射中未找到该实体")
-        patch["envSensorMap"] = {**(cfg.get("envSensorMap") or {}), room_id: nested_value}
-    elif kind == "media" and item_id.startswith("playlist:"):
-        playlists = dict(cfg.get("mediaPlaylists") or {})
-        if entity_id not in playlists:
-            return _fail("未找到影音播放列表")
-        playlists.pop(entity_id, None)
-        patch["mediaPlaylists"] = playlists
-    elif kind == "system_config":
-        security = dict(cfg.get("security") or {})
-        voice = dict(cfg.get("voice") or {})
-        energy = dict(cfg.get("energy") or {})
-        if item_id.startswith("presence:"):
-            person_id = item_id[len("presence:") :]
-            persons = [
-                (
-                    {**p, "entityIds": [x for x in (p.get("entityIds") or []) if x != entity_id]}
-                    if p.get("id") == person_id
-                    else p
-                )
-                for p in (security.get("presencePersons") or [])
-            ]
-            patch["security"] = {**security, "presencePersons": persons}
-        elif item_id == "circadian-weather":
-            patch["circadian"] = {**dict(cfg.get("circadian") or {}), "weatherEntityId": ""}
-        elif item_id == "water-main-valve":
-            patch["water"] = {**dict(cfg.get("water") or {}), "mainValveEntityId": ""}
-        elif item_id == "energy-meter":
-            patch["energy"] = {**energy, "meterEntityId": ""}
-        elif item_id == "energy-circuit":
-            patch["energy"] = {
-                **energy,
-                "circuitEntityIds": [x for x in (energy.get("circuitEntityIds") or []) if x != entity_id],
-            }
-        elif item_id == "voice-stt":
-            patch["voice"] = {**voice, "sttEntityId": ""}
-        elif item_id.startswith("tts-alert:"):
-            patch["voice"] = {
-                **voice,
-                "entityTtsAlerts": [
-                    r for r in (voice.get("entityTtsAlerts") or []) if r.get("entityId") != entity_id
-                ],
-            }
-        elif item_id.startswith("client-power:"):
-            client_id = item_id[len("client-power:") :]
-            client_power = dict(cfg.get("clientPower") or {})
-            patch["clientPower"] = {
-                **client_power,
-                "clients": [
-                    {**c, "chargerSwitchEntityId": ""} if c.get("id") == client_id else c
-                    for c in (client_power.get("clients") or [])
-                ],
-            }
-        elif item_id == "event-log-block":
-            ops = dict(cfg.get("ops") or {})
-            patch["ops"] = {
-                **ops,
-                "eventLogRecordBlockEntityIds": [
-                    x for x in (ops.get("eventLogRecordBlockEntityIds") or []) if x != entity_id
-                ],
-            }
-        else:
-            return _fail("暂不支持移除此系统配置项")
-    else:
-        return _fail("暂不支持移除此引用类型")
-
+    app_config_raw = deps["app_config"].get_all_raw() or {}
+    try:
+        patch = _build_system_config_patch(app_config_raw, kind, item_id, entity_id)
+    except _UnsupportedReferenceError as exc:
+        return _fail(str(exc))
     deps["app_config"].update(patch)
     return _ok("cleared", "已从系统配置移除")
 
@@ -1030,14 +1329,14 @@ class EntityReferencesService:
         from ...platform.core.models import ProjectConfig
 
         with self._session_factory() as session:
-            row = (
+            project_config_row = (
                 session.query(ProjectConfig)
                 .filter(ProjectConfig.project_id == "default")
                 .one_or_none()
             )
-            raw = row.layout if row is not None else None
-        parsed = safe_parse_json(raw)
-        return parsed if isinstance(parsed, dict) else {}
+            layout_raw = project_config_row.layout if project_config_row is not None else None
+        layout_parsed = safe_parse_json(layout_raw)
+        return layout_parsed if isinstance(layout_parsed, dict) else {}
 
     def _save_layout(self, layout: dict[str, Any]) -> None:
         self._ui_config.save_config("default", layout)
@@ -1058,11 +1357,15 @@ class EntityReferencesService:
         self._inverted_index_at = time.monotonic() * 1000
 
     @staticmethod
-    def _to_response(entity_id: str, items: list[dict[str, Any]]) -> dict[str, Any]:
-        ordered = sorted(items, key=lambda i: (str(i.get("kind") or ""), str(i.get("name") or "")))
+    def _to_response(entity_id: str, references: list[dict[str, Any]]) -> dict[str, Any]:
+        ordered = sorted(
+            references,
+            key=lambda reference: (str(reference.get("kind") or ""), str(reference.get("name") or "")),
+        )
         counts: dict[str, int] = {}
-        for item in ordered:
-            counts[item["kind"]] = counts.get(item["kind"], 0) + 1
+        for reference in ordered:
+            kind_key = reference["kind"]
+            counts[kind_key] = counts.get(kind_key, 0) + 1
         return {"entityId": entity_id, "total": len(ordered), "counts": counts, "items": ordered}
 
     async def find_references(self, entity_id: str) -> dict[str, Any]:
@@ -1075,14 +1378,14 @@ class EntityReferencesService:
             return cached["data"]
 
         await self._ensure_inverted_index()
-        items = list((self._inverted_index or {}).get(ident, []))
+        references = list((self._inverted_index or {}).get(ident, []))
         await asyncio.get_running_loop().run_in_executor(
-            None, scan_layout_and_system, self._deps(), ident, items
+            None, scan_layout_and_system, self._deps(), ident, references
         )
 
-        result = self._to_response(ident, items)
-        self._ref_cache[ident] = {"at": time.monotonic() * 1000, "data": result}
-        return result
+        references_response = self._to_response(ident, references)
+        self._ref_cache[ident] = {"at": time.monotonic() * 1000, "data": references_response}
+        return references_response
 
     def _invalidate_reference_index(self) -> None:
         self._ref_cache.clear()

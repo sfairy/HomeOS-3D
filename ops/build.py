@@ -19,7 +19,7 @@
       Linux 容器内按目标架构编译（宿主是 macOS 时尤其如此）。
       Dockerfile 里两个项目共用同一个构建阶段，靠 ``--build-arg PROJECT=<项目目录>``
       选源码；这里的 ``Project.source`` 就是那个值，与项目目录同名（写错即编出另一个
-      项目的后端，``ops/check/check_deploy_independence.py`` 第 4 项会拦）。
+      项目的后端）。
 
   image [--arch ARCH] [--project app|store|all] [--tag TAG] [--push]
       从工作区根 ``dist/`` 组装运行镜像（``--target app`` / ``--target store``）。
@@ -56,7 +56,7 @@ def base_image(key: str) -> str:
     """基础镜像的官方引用（``<tag>@sha256:<digest>``），真源是 ``ops/docker-pins.json``。
 
     刻意**不在本文件重写一遍** tag 与摘要：写第二遍就等于给了它第二个漂移点，而
-    ``ops/check/check_docker_pins.py`` 现在拿真源与 Dockerfile / compose 对账，本函数只是
+    真源与 Dockerfile / compose 须人工对账，本函数只是
     复用同一份真源（该门禁会连同镜像站改写逻辑一起做行为测试）。
     """
     pins = json.loads(PINS_FILE.read_text(encoding='utf-8'))['images']

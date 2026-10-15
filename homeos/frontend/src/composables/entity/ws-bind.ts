@@ -35,9 +35,9 @@ function filterDeltaBeforeFullSync(
   if (sync.initialStatesReceived || !changes.length) return changes
   const full: Record<string, unknown>[] = []
   let dropped = 0
-  for (const c of changes) {
-    if ((c as { _delta?: boolean })?._delta) dropped++
-    else full.push(c)
+  for (const change of changes) {
+    if ((change as { _delta?: boolean })?._delta) dropped++
+    else full.push(change)
   }
   if (dropped > 0) {
     // 设计内的自愈：这些 delta 的变更时刻不晚于随后到达的全量快照，快照会覆盖其效果，

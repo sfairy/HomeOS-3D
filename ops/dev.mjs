@@ -29,7 +29,7 @@ const STORE_FRONTEND = path.join(DIST_ROOT, "homeos-store", "frontend");
 
 const IS_WINDOWS = process.platform === "win32";
 
-// 端口全部来自 `ops/ports.mjs`（唯一真源，门禁 `ops/check/check_ports.py` 守住它与
+// 端口全部来自 `ops/ports.mjs`（唯一真源，须与
 // compose / 镜像启动器 / 两个 vite 配置的一致）；这里只留「启动器要用的那几个」的别名。
 const APP_PORT = String(portOf("appApi"));
 const STORE_PORT = String(portOf("storeApi"));

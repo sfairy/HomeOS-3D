@@ -59,19 +59,13 @@ def _fingerprint_of(eew: EewRawMessage) -> EewEventFingerprint:
     )
 
 
-def evaluate_eew_for_alert(
+def _eew_suppress_duplicate(
     eew: EewRawMessage,
-    cfg: EarthquakeRuntimeConfig,
     dedupe: EewDedupeState,
-    magnitude_merge_threshold: float = MAGNITUDE_MERGE_THRESHOLD,
-) -> dict[str, Any]:
-    """评估 EEW 是否应触发预警（不含已关闭事件等外部状态）。"""
-    if not (eew.origin_time > 0):
-        return {"kind": "skip", "message": f"⚠️ EEW originTime 无效 eventId={eew.event_id}"}
-
-    if cfg.home_lat is None or cfg.home_lon is None:
-        return {"kind": "skip", "message": "⚠️ 收到 EEW 但未设置家庭坐标"}
-
+    *,
+    magnitude_merge_threshold: float,
+) -> dict[str, Any] | None:
+    """同事件震级未升或跨源指纹命中时返回抑制结果，否则 None。"""
     prev_magnitude = dedupe.lastMagnitude
     magnitude_delta = abs(eew.magnitude - prev_magnitude)
 
@@ -84,12 +78,12 @@ def evaluate_eew_for_alert(
                 "nextDedupe": dedupe,
             }
 
-    for fp in dedupe.recent or []:
-        if _matches_cross_source_fingerprint(eew, fp):
+    for fingerprint in dedupe.recent or []:
+        if _matches_cross_source_fingerprint(eew, fingerprint):
             return {
                 "kind": "suppress_duplicate",
                 "message": (
-                    f"[跨源去重] 与 {fp.eventId} 时空相近,抑制重复预警"
+                    f"[跨源去重] 与 {fingerprint.eventId} 时空相近,抑制重复预警"
                     f"(source={eew.source or eew.type or '?'})"
                 ),
                 # 保留原事件为 activeEventId（不把去重状态改绑到重复源），仅并入本事件指纹。
@@ -99,7 +93,17 @@ def evaluate_eew_for_alert(
                     recent=_push_fingerprint(dedupe.recent, _fingerprint_of(eew)),
                 ),
             }
+    return None
 
+
+def _build_eew_alert_decision(
+    eew: EewRawMessage,
+    cfg: EarthquakeRuntimeConfig,
+    dedupe: EewDedupeState,
+    *,
+    magnitude_merge_threshold: float,
+) -> dict[str, Any]:
+    """阈值门控通过后的预警构造（early / confirmation）。"""
     gate = evaluate_local_quake_thresholds(
         {
             "magnitude": eew.magnitude,
@@ -143,7 +147,7 @@ def evaluate_eew_for_alert(
         else "wolfx"
     )
 
-    alert_payload = EarthquakeAlertPayload(
+    alert = EarthquakeAlertPayload(
         eventId=eew.event_id,
         latitude=eew.latitude,
         longitude=eew.longitude,
@@ -159,6 +163,8 @@ def evaluate_eew_for_alert(
         source=source,
     )
 
+    prev_magnitude = dedupe.lastMagnitude
+    magnitude_delta = abs(eew.magnitude - prev_magnitude)
     dedupe_log = (
         f"[去重] 震级变化 > 0.5({prev_magnitude} → {eew.magnitude}),重新触发预警"
         if eew.event_id == dedupe.activeEventId and magnitude_delta > magnitude_merge_threshold
@@ -170,13 +176,37 @@ def evaluate_eew_for_alert(
     return {
         "kind": "alert",
         "message": message,
-        "alert": alert_payload,
+        "alert": alert,
         "nextDedupe": EewDedupeState(
             activeEventId=eew.event_id,
             lastMagnitude=eew.magnitude,
             recent=_push_fingerprint(dedupe.recent, _fingerprint_of(eew)),
         ),
     }
+
+
+def evaluate_eew_for_alert(
+    eew: EewRawMessage,
+    cfg: EarthquakeRuntimeConfig,
+    dedupe: EewDedupeState,
+    magnitude_merge_threshold: float = MAGNITUDE_MERGE_THRESHOLD,
+) -> dict[str, Any]:
+    """评估 EEW 是否应触发预警（不含已关闭事件等外部状态）。"""
+    if not (eew.origin_time > 0):
+        return {"kind": "skip", "message": f"⚠️ EEW originTime 无效 eventId={eew.event_id}"}
+
+    if cfg.home_lat is None or cfg.home_lon is None:
+        return {"kind": "skip", "message": "⚠️ 收到 EEW 但未设置家庭坐标"}
+
+    suppressed = _eew_suppress_duplicate(
+        eew, dedupe, magnitude_merge_threshold=magnitude_merge_threshold
+    )
+    if suppressed is not None:
+        return suppressed
+
+    return _build_eew_alert_decision(
+        eew, cfg, dedupe, magnitude_merge_threshold=magnitude_merge_threshold
+    )
 
 
 def _now_ms() -> float:

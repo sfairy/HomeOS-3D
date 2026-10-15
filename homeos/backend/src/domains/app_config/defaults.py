@@ -73,8 +73,8 @@ def build_default_env_sensor_map() -> dict[str, dict[str, str]]:
     return {room.id: {"label": room.default_label} for room in DEFAULT_ROOM_CATALOG}
 
 
-def build_default_app_config() -> dict[str, Any]:
-    """返回一份全新的应用配置默认值（每次调用构造新对象，避免跨调用共享引用）。"""
+def _default_security_sections() -> dict[str, Any]:
+    """认证 / 通知 / 用水 / 安防 / 昼夜节律 / 空气质量默认分区。"""
     return {
         # 认证配置
         "auth": {
@@ -136,6 +136,12 @@ def build_default_app_config() -> dict[str, Any]:
         "iaq": {
             "moldAlertCooldownMin": 10,
         },
+    }
+
+
+def _default_energy_and_frontend_sections() -> dict[str, Any]:
+    """能源 / 电价 / 杂项 / 前端 / 用户配置文件 / 界面默认分区。"""
+    return {
         # 能源监测配置
         "energy": {
             "meterEntityId": "",
@@ -208,6 +214,12 @@ def build_default_app_config() -> dict[str, Any]:
             "scaleBaseHeight": 1024,
             "accentColor": "#3b82f6",
         },
+    }
+
+
+def _default_device_sections() -> dict[str, Any]:
+    """屏保 / 外部服务 / HA 连接器 / 运维默认分区。"""
+    return {
         # 屏保配置（含启用开关与空闲超时）
         "screensaver": {
             "screensaverEnabled": True,
@@ -301,6 +313,12 @@ def build_default_app_config() -> dict[str, Any]:
             "autoBackupRetainDays": 7,
             "homeTimezone": "Asia/Shanghai",
         },
+    }
+
+
+def _default_runtime_sections() -> dict[str, Any]:
+    """保留天数 / 状态存储 / WS 推送 / 命令代理 / WebRTC / 家庭模式 / 语音 / 客户端功耗默认分区。"""
+    return {
         # 各业务表历史数据保留天数
         "retention": dict(DEFAULT_RETENTION),
         # 状态存储配置
@@ -380,6 +398,16 @@ def build_default_app_config() -> dict[str, Any]:
             "linkageRetryDelayMs": DEFAULT_CLIENT_POWER_SETTINGS["linkageRetryDelayMs"],
             "clients": [],
         },
+    }
+
+
+def build_default_app_config() -> dict[str, Any]:
+    """返回一份全新的应用配置默认值（每次调用构造新对象，避免跨调用共享引用）。"""
+    return {
+        **_default_security_sections(),
+        **_default_energy_and_frontend_sections(),
+        **_default_device_sections(),
+        **_default_runtime_sections(),
     }
 
 

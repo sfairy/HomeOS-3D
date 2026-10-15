@@ -16,6 +16,7 @@ from typing import Any
 
 from .geo import haversine_distance_km, is_valid_home_coordinate
 from .types import EewRawMessage
+from ...platform.core.json_field import object_field
 
 # ── CENC feed ──────────────────────────────────────────────────────────
 WOLFX_CENC_EQ_LIST_URL = "https://api.wolfx.jp/cenc_eqlist.json"
@@ -193,11 +194,17 @@ _PERIOD_PATH = {
     "week": "all_week.geojson",
 }
 
+#: USGS 月报只提供三档曲线（>=4.5 / >=2.5 / 其余），按阈值从高到低取第一档。
+_MONTH_MAGNITUDE_TIERS: tuple[tuple[float, str], ...] = ((4.5, "4.5"), (2.5, "2.5"))
+
 
 def resolve_usgs_feed_url(period: str, min_magnitude: float = 4) -> str:
     if period == "month":
         mag = min_magnitude if math.isfinite(_num(min_magnitude)) else 4
-        tier = "4.5" if mag >= 4.5 else "2.5" if mag >= 2.5 else "1.0"
+        # USGS 的月报只提供三档曲线，按阈值取最近且不低于请求值的那一档。
+        tier = next(
+            (label for threshold, label in _MONTH_MAGNITUDE_TIERS if mag >= threshold), "1.0"
+        )
         return f"{USGS_FEED_BASE}/{tier}_month.geojson"
     return f"{USGS_FEED_BASE}/{_PERIOD_PATH.get(period, _PERIOD_PATH['day'])}"
 
@@ -236,7 +243,7 @@ def _parse_usgs_feature(feature: Any, home_lat: Any, home_lon: Any) -> dict[str,
     if not isinstance(feature, dict):
         return None
     props = feature.get("properties")
-    geometry = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
+    geometry = object_field(feature, "geometry")
     coords = geometry.get("coordinates") if isinstance(geometry, dict) else None
     if not isinstance(props, dict) or not isinstance(coords, list) or len(coords) < 2:
         return None
@@ -344,26 +351,46 @@ def _is_wolfx_training(msg: dict[str, Any]) -> bool:
     return any(token in status for token in ("training", "train", "试验", "训练", "演练"))
 
 
+def _first_present(report: dict[str, Any], *field_names: str) -> Any:
+    """按别名优先级取第一个「非 `None`」的字段值。
+
+    这些报文来自多家上游（WolfX / CENC / SC / USGS / 日本气象厅），同一语义字段的键名
+    各家不同，旧写法全是 `msg.get(a) if msg.get(a) is not None else msg.get(b) if ...`：
+    读起来像一团乱麻（本文件占了全仓 Python 嵌套三元 15 条里的 14 条），加一个别名就得
+    再嵌一层，而且 `msg.get(k)` 必须写两遍 —— 漏改一处就变成"判 A 取 B"，还不报错。
+
+    注意判据是 `is not None` 而**不是**真值：`latitude = 0`（赤道）与 `magnitude = 0`
+    都是合法值，用 `or` 串起来会把它们当作"缺失"继续往下取。
+    """
+    for field_name in field_names:
+        raw_field = report.get(field_name)
+        if raw_field is not None:
+            return raw_field
+    return None
+
+
+def _pick(*field_candidates: tuple[dict[str, Any], str]) -> Any:
+    """按给定顺序取第一个「非 `None`」的 `(报文, 键名)`。
+
+    用于"外层报文优先、内层 `hypocenter` 子对象兜底"这类跨来源取数：各家键名不同，
+    原写法是一串同形嵌套三元，判据（`is not None`）在每一层都要重复写一遍。
+    这里把候选显式摊平 —— 加别名只需加一个元组，顺序与原来的链条一致。
+    """
+    for report, field_name in field_candidates:
+        raw_field = report.get(field_name)
+        if raw_field is not None:
+            return raw_field
+    return None
+
+
 def read_number(value: Any) -> float:
     num = _num(value)
     return num if math.isfinite(num) else 0
 
 
 def _read_epicenter(msg: dict[str, Any]) -> str:
-    raw = (
-        msg.get("epicenter")
-        if msg.get("epicenter") is not None
-        else msg.get("Epicenter")
-        if msg.get("Epicenter") is not None
-        else msg.get("HypoCenter")
-        if msg.get("HypoCenter") is not None
-        else msg.get("hypoCenter")
-        if msg.get("hypoCenter") is not None
-        else msg.get("location")
-        if msg.get("location") is not None
-        else msg.get("region")
-        if msg.get("region") is not None
-        else msg.get("Title")
+    raw = _first_present(
+        msg, "epicenter", "Epicenter", "HypoCenter", "hypoCenter", "location", "region", "Title"
     )
     text = str(raw).strip() if raw is not None else ""
     return text or "未知震中"
@@ -392,66 +419,37 @@ def _infer_wolfx_source(type_lower: str) -> str:
 
 def parse_wolfx_message(msg: dict[str, Any]) -> EewRawMessage | None:
     """将 WolfX WebSocket JSON 转为内部 :class:`EewRawMessage`。"""
-    kind = str(msg.get("type") if msg.get("type") is not None else "eew")
+    kind = str(_first_present(msg, "type") or "eew")
     type_lower = kind.lower()
 
     if type_lower in ("heartbeat", "pong"):
         return None
 
-    event_id = str(
-        msg.get("eventId")
-        if msg.get("eventId") is not None
-        else msg.get("event_id")
-        if msg.get("event_id") is not None
-        else msg.get("EventID")
-        or ""
-    ).strip()
+    event_id = str(_first_present(msg, "eventId", "event_id", "EventID") or "").strip()
     if not event_id:
         return None
 
     if is_wolfx_cancelled(msg) or _is_wolfx_training(msg):
         return None
 
-    hypocenter = msg.get("hypocenter") if isinstance(msg.get("hypocenter"), dict) else {}
+    # 子对象缺失/类型不对时退化成空字典，让下面的取数统一走 `_pick` / `_first_present`。
+    hypocenter_raw = msg.get("hypocenter")
+    hypocenter: dict[str, Any] = hypocenter_raw if isinstance(hypocenter_raw, dict) else {}
 
     origin_time = parse_wolfx_time_ms(
-        msg.get("originTime")
-        if msg.get("originTime") is not None
-        else msg.get("origin_time")
-        if msg.get("origin_time") is not None
-        else msg.get("OriginTime"),
+        _first_present(msg, "originTime", "origin_time", "OriginTime"),
         type_lower,
     )
     latitude = read_number(
-        msg.get("latitude")
-        if msg.get("latitude") is not None
-        else msg.get("Latitude")
-        if msg.get("Latitude") is not None
-        else hypocenter.get("latitude")
+        _pick((msg, "latitude"), (msg, "Latitude"), (hypocenter, "latitude"))
     )
     longitude = read_number(
-        msg.get("longitude")
-        if msg.get("longitude") is not None
-        else msg.get("Longitude")
-        if msg.get("Longitude") is not None
-        else hypocenter.get("longitude")
+        _pick((msg, "longitude"), (msg, "Longitude"), (hypocenter, "longitude"))
     )
     magnitude = read_number(
-        msg.get("magnitude")
-        if msg.get("magnitude") is not None
-        else msg.get("Magnitude")
-        if msg.get("Magnitude") is not None
-        else msg.get("mag")
-        if msg.get("mag") is not None
-        else msg.get("Magunitude")
+        _first_present(msg, "magnitude", "Magnitude", "mag", "Magunitude")
     )
-    depth_raw = (
-        msg.get("depth")
-        if msg.get("depth") is not None
-        else msg.get("Depth")
-        if msg.get("Depth") is not None
-        else hypocenter.get("depth")
-    )
+    depth_raw = _pick((msg, "depth"), (msg, "Depth"), (hypocenter, "depth"))
     depth = 0.0 if depth_raw is None else read_number(depth_raw)
 
     if not (math.isfinite(origin_time) and origin_time > 0):
@@ -464,15 +462,7 @@ def parse_wolfx_message(msg: dict[str, Any]) -> EewRawMessage | None:
     return EewRawMessage(
         type=kind,
         event_id=event_id,
-        report_id=read_number(
-            msg.get("reportId")
-            if msg.get("reportId") is not None
-            else msg.get("report_id")
-            if msg.get("report_id") is not None
-            else msg.get("ReportNum")
-            if msg.get("ReportNum") is not None
-            else msg.get("Serial")
-        ),
+        report_id=read_number(_first_present(msg, "reportId", "report_id", "ReportNum", "Serial")),
         origin_time=origin_time,
         latitude=latitude,
         longitude=longitude,
@@ -504,7 +494,7 @@ def parse_usgs_feature_as_eew(feature: Any) -> EewRawMessage | None:
     if not isinstance(feature, dict):
         return None
     props = feature.get("properties")
-    geometry = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
+    geometry = object_field(feature, "geometry")
     coords = geometry.get("coordinates") if isinstance(geometry, dict) else None
     if not isinstance(props, dict) or not isinstance(coords, list) or len(coords) < 2:
         return None

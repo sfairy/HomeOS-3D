@@ -77,8 +77,10 @@ def _run_in_worker(
         result = getattr(authority, method)(payload, ip=client_ip, generation=generation)
     except LicenseServerError as error:
         return None, error, stage
-    except Exception:
+    except Exception as exc:
         if stage == "decrypt":
+            # 解密失败按「无效请求」fail-closed；留痕以便区分攻击探测与密钥不匹配。
+            logger.warning("授权请求解密失败 path=%s: %s", path, exc)
             return None, None, "invalid"
         raise
     return generation.transport.encrypt_response(result, path, key), None, ""
@@ -90,7 +92,8 @@ async def _dispatch(request: Request, method: str) -> Response:
 
     try:
         address = resolve_client_ip(request)
-    except Exception:
+    except Exception as exc:
+        logger.warning("解析来源 IP 失败（按无 IP 继续）: %s", exc)
         address = None
     if address is not None and address.per_client and address.ip:
         if method == "activate":
@@ -106,7 +109,8 @@ async def _dispatch(request: Request, method: str) -> Response:
 
     try:
         body = await request.json()
-    except Exception:
+    except Exception as exc:
+        logger.debug("授权请求 JSON 解析失败 path=%s: %s", path, exc)
         return JSONResponse(
             {"detail": "授权请求格式无效。", "code": "REQUEST_INVALID"}, status_code=400
         )
@@ -194,7 +198,8 @@ def public_keys(request: Request) -> Response:
     settings = request.app.state.settings
     try:
         address = resolve_client_ip(request)
-    except Exception:
+    except Exception as exc:
+        logger.warning("解析来源 IP 失败（按无 IP 继续）: %s", exc)
         address = None
     if address is not None and address.per_client and address.ip:
         ip_key = f"ip:{address.ip}"

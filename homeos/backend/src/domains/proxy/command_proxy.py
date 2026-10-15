@@ -17,6 +17,7 @@ from typing import Any
 from .command_proxy_auth import is_dangerous_ha_control
 from ...platform.core.app_config import load_raw_config
 from ...platform.core.errors import BusinessException, ErrorCode, api_error, bad_request
+from ...platform.core.json_field import object_field
 
 logger = logging.getLogger("homeos.command_proxy")
 
@@ -87,7 +88,7 @@ class CommandProxyService:
         domain = str(dto.get("domain") or "")
         service = str(dto.get("service") or "")
         entity_id = str(dto.get("entity_id") or "")
-        service_data = dto.get("service_data") if isinstance(dto.get("service_data"), dict) else {}
+        service_data = object_field(dto, "service_data")
         return_response = bool(dto.get("return_response"))
         try:
             status = await self._connector.get_status()

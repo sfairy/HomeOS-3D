@@ -48,7 +48,9 @@ class SecurityConfigProvider:
             try:
                 with self._session_factory() as session:
                     self._cached = load_security_config(session)
-            except Exception:
+            except Exception as exc:
+                # 配置读失败会沿用上次缓存（或空配置）继续工作；留痕以便发现配置表损坏。
+                logger.warning("加载安防配置失败，沿用上次缓存: %s", exc)
                 self._cached = self._cached or {}
             self._at = now
         return self._cached

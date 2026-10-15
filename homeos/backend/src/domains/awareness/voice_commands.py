@@ -71,71 +71,55 @@ def find_matching_command(
     return None
 
 
-def plan_voice_commands(
-    text: str,
-    mappings: list[dict[str, Any]],
-    entities: list[dict[str, Any]],
-    rooms: list[dict[str, Any]] | None = None,
+def _plan_homeos_target(
+    mapping: dict[str, Any],
+    phrase: str,
+    room: dict[str, Any] | None,
+    kind: str,
 ) -> dict[str, Any]:
-    """规划语音命令执行计划（含匹配状态、房间、动作列表、用户可见消息）。
-
-    1. 提取房间（可能为 None=全屋）。
-    2. 查找匹配的命令映射；未匹配则 ``matched=False``。
-    3. 非 entity 类型（场景/自动化/模式）：直接生成单条动作，需 ``targetId``。
-    4. entity 类型：按 ``entityMatch`` 前缀过滤实体，排除 unavailable，按房间过滤。
-    5. 生成用户可见中文消息。
-    """
-    rooms = rooms if rooms is not None else VOICE_ROOMS
-    room = extract_room_from_text(text, rooms)
-    hit = find_matching_command(text, mappings)
-    if hit is None:
-        return {
-            "matched": False,
-            "room": room,
-            "phrase": None,
-            "actions": [],
-            "message": "未匹配到语音命令",
-            "count": 0,
-        }
-
-    mapping, phrase = hit
-    kind = mapping.get("kind") or "entity"
-
-    if kind != "entity":
-        target_id = str(mapping.get("targetId") or "").strip()
-        if not target_id:
-            return {
-                "matched": True,
-                "room": room,
-                "phrase": phrase,
-                "actions": [],
-                "message": "语音命令未配置 HomeOS 目标 ID",
-                "count": 0,
-            }
-        label = (
-            "场景"
-            if kind == "homeos_scene"
-            else "自动化"
-            if kind == "homeos_automation"
-            else "家庭模式"
-        )
+    """规划 HomeOS 内部目标（场景 / 自动化 / 家庭模式）的单条动作。"""
+    target_id = str(mapping.get("targetId") or "").strip()
+    if not target_id:
         return {
             "matched": True,
             "room": room,
             "phrase": phrase,
-            "actions": [
-                {
-                    "kind": kind,
-                    "domain": mapping.get("domain") or "",
-                    "service": mapping.get("service") or "",
-                    "entityId": "",
-                    "targetId": target_id,
-                }
-            ],
-            "message": f"已触发 HomeOS {label}（{phrase}）",
-            "count": 1,
+            "actions": [],
+            "message": "语音命令未配置 HomeOS 目标 ID",
+            "count": 0,
         }
+    label = (
+        "场景"
+        if kind == "homeos_scene"
+        else "自动化"
+        if kind == "homeos_automation"
+        else "家庭模式"
+    )
+    return {
+        "matched": True,
+        "room": room,
+        "phrase": phrase,
+        "actions": [
+            {
+                "kind": kind,
+                "domain": mapping.get("domain") or "",
+                "service": mapping.get("service") or "",
+                "entityId": "",
+                "targetId": target_id,
+            }
+        ],
+        "message": f"已触发 HomeOS {label}（{phrase}）",
+        "count": 1,
+    }
 
+
+def _plan_entity_actions(
+    mapping: dict[str, Any],
+    phrase: str,
+    room: dict[str, Any] | None,
+    entities: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """规划 entity 类型动作：按 ``entityMatch`` 前缀与房间过滤实体，并生成可见消息。"""
     prefix = mapping.get("entityMatch") or f"{mapping.get('domain') or ''}."
     actions: list[dict[str, Any]] = []
     for entity in entities or []:
@@ -171,6 +155,40 @@ def plan_voice_commands(
         "message": message,
         "count": len(actions),
     }
+
+
+def plan_voice_commands(
+    text: str,
+    mappings: list[dict[str, Any]],
+    entities: list[dict[str, Any]],
+    rooms: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """规划语音命令执行计划（含匹配状态、房间、动作列表、用户可见消息）。
+
+    1. 提取房间（可能为 None=全屋）。
+    2. 查找匹配的命令映射；未匹配则 ``matched=False``。
+    3. 非 entity 类型（场景/自动化/模式）：直接生成单条动作，需 ``targetId``。
+    4. entity 类型：按 ``entityMatch`` 前缀过滤实体，排除 unavailable，按房间过滤。
+    5. 生成用户可见中文消息。
+    """
+    rooms = rooms if rooms is not None else VOICE_ROOMS
+    room = extract_room_from_text(text, rooms)
+    hit = find_matching_command(text, mappings)
+    if hit is None:
+        return {
+            "matched": False,
+            "room": room,
+            "phrase": None,
+            "actions": [],
+            "message": "未匹配到语音命令",
+            "count": 0,
+        }
+
+    mapping, phrase = hit
+    kind = mapping.get("kind") or "entity"
+    if kind != "entity":
+        return _plan_homeos_target(mapping, phrase, room, kind)
+    return _plan_entity_actions(mapping, phrase, room, entities)
 
 
 def extract_ha_assist_speech(response: dict[str, Any] | None) -> str:

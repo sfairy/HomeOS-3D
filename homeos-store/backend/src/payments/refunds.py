@@ -8,6 +8,7 @@ import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -21,9 +22,11 @@ logger = logging.getLogger("src.payments.refunds")
 
 __all__ = [
     "REFUND_UNSETTLED_STATUSES",
+    "STALE_RUNNING_REFUND_SECONDS",
     "claim_refund_amount",
     "open_refund_gate",
     "persist_refund_result",
+    "reconcile_stale_running_refunds",
     "record_refund_audit",
     "record_refund_in_new_session",
     "refund_by_request_no",
@@ -107,7 +110,12 @@ def claim_refund_amount(session: Session, order, *, seen_cents: int, add_cents: 
     return claimed.rowcount == 1  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
+#: 「未定论」退款状态：钱可能已经在渠道侧退掉了，但本地还没拿到确定结果。
+#: 两者都必须挡住「改个金额再退一次」—— 否则就是超额退款。
 REFUND_UNSETTLED_STATUSES = frozenset({"running", "processing"})
+
+#: 占位（``running``）超过这个时长仍无结果，即认定「中断」（渠道调用最长也就几十秒）。
+STALE_RUNNING_REFUND_SECONDS = 24 * 3600
 
 
 def refund_request_no(order_no: str, target_cents: int) -> str:
@@ -128,17 +136,63 @@ def refund_by_request_no(session: Session, out_request_no: str) -> OrderRefund |
 
 
 def unsettled_refund(session: Session, *, order_id: str) -> OrderRefund | None:
-    """该订单上仍未定论的退款（``processing``）。
+    """该订单上仍未定论的退款（``running`` / ``processing``）。
 
     用来拦住最危险的一种操作：一笔退款超时后，运营换个金额再退一次 —— 前一笔可能
     已经在渠道侧退了钱，两笔叠加就是超额退款。
+
+    **必须覆盖 ``running``**：闸门先落 ``running`` 占位再调渠道，若占位之后中断（崩溃 /
+    重启 / 超时），结果从未写回，这条会永远停在 ``running``。只筛 ``processing`` 会让它
+    隐身，于是「换个金额再退」的守卫失效 —— 这正是本函数要防的场景。
     """
     return session.scalars(
         select(OrderRefund)
         .where(OrderRefund.order_id == order_id)
-        .where(OrderRefund.status == "processing")
+        .where(OrderRefund.status.in_(tuple(sorted(REFUND_UNSETTLED_STATUSES))))
         .order_by(OrderRefund.created_at.desc())
     ).first()
+
+
+def reconcile_stale_running_refunds(session: Session, *, limit: int = 50) -> int:
+    """把长期卡在 ``running`` 的退款占位推进为 ``processing`` 并留痕，返回处理条数。
+
+    正常路径会在调渠道后把结果写回（``succeeded`` / ``failed`` / ``processing``），但进程
+    崩溃 / 重启 / 超时会让某条占位永远停在 ``running``。这里只做两件**安全**的事：
+
+    1. 推进到 ``processing`` —— 仍是「未定论」（见 :data:`REFUND_UNSETTLED_STATUSES`），
+       继续挡住改金额重退；
+    2. 记一条 ``refund.stale_running`` 事故，提示人工到渠道后台核对。
+
+    **不**自动推进订单的累计退款额 —— 那需要渠道侧的退款查询结果，而当前支付渠道协议
+    未提供 ``query_refund``；凭空推断会把「可能已退」当成「确定已退」而少记账。
+    """
+    cutoff = utcnow() - timedelta(seconds=STALE_RUNNING_REFUND_SECONDS)
+    stale = session.scalars(
+        select(OrderRefund)
+        .where(OrderRefund.status == "running")
+        .where(OrderRefund.created_at < cutoff)
+        .order_by(OrderRefund.created_at.asc())
+        .limit(max(1, int(limit)))
+    ).all()
+    if not stale:
+        return 0
+
+    for row in stale:
+        row.status = "processing"
+        row.detail = "退款占位后未收到渠道结果（疑似中断），需人工到渠道后台核对"[:255]
+        incidents.note(
+            "refund.stale_running",
+            order_no=row.order_no,
+            error=f"退款占位长时间未定论 out_request_no={row.out_request_no}",
+        )
+        logger.error(
+            "退款占位长期未定论（需人工核对）order=%s out_request_no=%s amount=%s",
+            row.order_no,
+            row.out_request_no,
+            row.amount_cents,
+        )
+    session.flush()
+    return len(stale)
 
 
 def _gate_verdict(row: OrderRefund) -> str:

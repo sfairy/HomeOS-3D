@@ -69,7 +69,9 @@ class SecurityLinkageService:
                 default_layout = await asyncio.to_thread(_load_default)
                 links = default_layout.get("securityModeLinks")
             return {str(k): str(v) for k, v in links.items()} if isinstance(links, dict) else {}
-        except Exception:
+        except Exception as exc:
+            # 读不到联动映射就按「无联动」继续布防：安全兜底，但必须留痕，否则配置读坏了没人知道。
+            logger.warning("读取安防模式联动配置失败，按无联动处理: %s", exc)
             return {}
 
     # 事件处理
@@ -223,5 +225,7 @@ class SecurityLinkageService:
             try:
                 await self._away_sim.disable()
                 logger.info("安防 %s:已关闭离家模拟", mode)
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log_linkage_failure(
+                    "linkage_away_sim_disable_failed", f"联动关闭离家模拟失败: {exc}", mode
+                )

@@ -11,8 +11,7 @@
  * 否则同一台设备在两个前端的档位会不一样。
  *
  * 唯一的手抄件是 ``public/static/auth/scene/scene-depth.js``：它是构建缺口时的兜底资源，
- * 由后端直接伺服、不经过打包，无法 import，改动判据时须同步（见 ops/check/check_shared_contracts.py
- * 的 ``scene-depth 兜底件`` 检查）。
+ * 由后端直接伺服、不经过打包，无法 import，改动判据时须与 ``@homeos/shared/scene/touch-profile`` 同步。
  */
 import { applyTouchProfile } from '@homeos/shared/scene/touch-profile'
 

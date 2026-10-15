@@ -38,11 +38,13 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 
 顶层模块：`app.py`（ASGI 装配）、`run.py`（启动/热重载）、`config.py`（配置与布局探测）、`env.py`、`dependencies.py`、`schemas.py`。
 
-> 与商店共用的三个叶子模块 —— `logging_noise`（开发期重载提示降噪）、`file_lock`（跨进程文件锁）、
-> `migrations_core`（读写 `alembic_version` / 迁移前快照 / 升级后核对等**与库结构和 ORM 无关**的迁移叶子逻辑）——
+> 与商店共用的叶子模块 —— `logging_noise`（开发期重载提示降噪）、`file_lock`（跨进程文件锁）、
+> `migrations_core`（读写 `alembic_version` / 迁移前快照 / 升级后核对等**与库结构和 ORM 无关**的迁移叶子逻辑）、
+> `client_ip`（可信代理链 → 真实客户端地址）、`rate_limit`（有界滑动窗口限流）、
+> `license_transport`（授权传输的协议参数：`PROTOCOL` / HKDF info / AAD / base64url / 规范化 JSON）——
 > **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包的
-> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README 与
-> `ops/check/check_deploy_independence.py` 第 5 项）。原先两端「各存一份 + `backendTwinModules` 比对」的形态已收拢。
+> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README）。
+> 原先两端「各存一份 + 孪生比对」的形态已收拢为唯一真源。
 > `platform/core/migrations.py` 的**编排**（退役列清理、数据兼容地板、脚本目录布局、报错文案）两边确有差异，
 > 留在各自包内；同批复核过的 `platform/core/database.py` 与 `run.py` 也已判定「不共享」，理由见该 README 的「分诊台账」。
 
@@ -80,8 +82,8 @@ bootstrap  →  全部（仅装配，不含业务逻辑）
 
 - **POST 默认状态码 201**：全站用 `api/router.py` 的 `NestRouter` 对齐 NestJS，前端依赖该契约做「零改动透明替换」。
 - **路由注册顺序不可改**：业务路由必须在 SPA catch-all 之前，3D 数据面紧随 `/api/v1` 之后（见 `bootstrap/router_registry.py` 顶部说明）。
-- **迁移不进产物**：发行版没有 Alembic，新库由 `app.migrations` 按 ORM 元数据直接建；`migrations/` 与 `alembic.ini` 不 COPY 进镜像，由 [ops/check/check_schema.py](../../../ops/check/check_schema.py) 比对结构指纹。
-- **能力码**：与 `homeos-store` 通过 `verify:features` 门禁对账，新增能力先改主应用再补商店。
+- **迁移不进产物**：发行版没有 Alembic，新库由 `app.migrations` 按 ORM 元数据直接建；`migrations/` 与 `alembic.ini` 不 COPY 进镜像。
+- **能力码**：真源为 `ops/check/feature_codes.json`；与 `homeos-store` 对齐靠评审，新增能力先改主应用再补商店。
 
 ## 本地启动
 
@@ -92,12 +94,10 @@ bun run dev
 bun run dev:backend
 ```
 
-## 相关门禁
+## 相关检查
 
 | 命令 | 作用 |
 |------|------|
-| `bun run typecheck:py` | basedpyright 硬门禁（见 `ops/ci/pyright_gate.py`） |
-| `bun run verify:schema` | 迁移脚本 = ORM 元数据 = 实际结构 |
-| `bun run verify:features` | 能力码与商店对齐 |
-| `bun run verify:contracts` | 共享 Python 真源唯一（后端不得再存 `packages/shared-py` 模块副本）/ 跨后端孪生（清单现为空）/ TS↔Python 常量块对账 / 容器入口 / 构建期残留 |
-| `bun run verify:smoke:app` | 端到端契约冒烟（认证、激活、HA、备份等） |
+| `bun run typecheck` | 前端类型检查 |
+| `bun run typecheck:py` | 本机 basedpyright（可选） |
+| `ruff check .` | Python lint（CI 硬拦） |

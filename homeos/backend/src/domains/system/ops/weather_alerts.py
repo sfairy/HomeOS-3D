@@ -66,9 +66,14 @@ def parse_open_weather_alerts(payload: dict[str, Any]) -> list[dict[str, Any]]:
     for raw in alerts:
         item = raw if isinstance(raw, dict) else {}
         mapped = map_weather_alert_type(str(item.get("event") or ""))
-        tags = [str(tag) for tag in item.get("tags")] if isinstance(item.get("tags"), list) else []
-        start = item.get("start") if isinstance(item.get("start"), (int, float)) else 0
-        end = item.get("end") if isinstance(item.get("end"), (int, float)) else 0
+        # 每个字段只取一次再判类型：重复调用 `item.get(K)` 时收窄不会传递到第二次调用，
+        # 推导出的类型里始终挂着 None（下面 float() 因此报错，`tags` 还被判成可能不可迭代）。
+        tags_raw = item.get("tags")
+        tags = [str(tag) for tag in tags_raw] if isinstance(tags_raw, list) else []
+        start_raw = item.get("start")
+        start = float(start_raw) if isinstance(start_raw, (int, float)) else 0.0
+        end_raw = item.get("end")
+        end = float(end_raw) if isinstance(end_raw, (int, float)) else 0.0
         out.append(
             {
                 "level": map_open_weather_alert_level(tags),
@@ -76,8 +81,8 @@ def parse_open_weather_alerts(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 "typeEn": mapped["en"],
                 "title": mapped["zh"] or str(item.get("event") or "天气预警"),
                 "description": str(item.get("description") or ""),
-                "effectiveFrom": _iso_from_epoch_seconds(float(start)),
-                "effectiveTo": _iso_from_epoch_seconds(float(end)),
+                "effectiveFrom": _iso_from_epoch_seconds(start),
+                "effectiveTo": _iso_from_epoch_seconds(end),
                 "source": "OpenWeatherMap",
             }
         )

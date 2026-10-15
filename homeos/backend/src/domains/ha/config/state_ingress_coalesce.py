@@ -10,6 +10,7 @@ from typing import Any
 
 from ...app_config.defaults import DEFAULT_APP_CONFIG
 from ....platform.core.app_config import load_raw_config
+from ....platform.core.background import spawn_awaitable
 from ....platform.core.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.state_ingress_coalesce")
@@ -69,7 +70,7 @@ class StateIngressCoalesceService:
             section = raw.get("wsPush")
             if isinstance(section, dict):
                 ws.update(section)
-        except Exception:
+        except Exception:  # 本配置节缺失/格式坏则保留默认值，继续解析其余节
             pass
         self._cfg_cache = {"ha": ha, "ws": ws}
         self._cfg_at = now
@@ -172,10 +173,7 @@ class StateIngressCoalesceService:
             return
         result = emit("ha.state_changed.batch", payload)
         if inspect.isawaitable(result):
-            try:
-                asyncio.get_running_loop().create_task(result)
-            except RuntimeError:
-                pass
+            spawn_awaitable(result)
 
     async def flush(self) -> None:
         """显式刷新（关机 / 测试用）。"""

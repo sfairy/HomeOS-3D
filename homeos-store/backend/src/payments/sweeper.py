@@ -277,13 +277,14 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
     delivered = delivery.sweep_undelivered(database, limit=max(1, int(settings.payment_sweep_batch or 25)))
     if delivered:
         logger.info("支付巡检：补发激活码邮件 %d 封", delivered)
-    if result.queried or result.expired:
+    if result.queried or result.expired or result.stale_refunds:
         logger.info(
-            "支付巡检：查单 %d 笔，入账 %d 笔，关单 %d 笔，本地过期 %d 笔，失败 %d 笔",
+            "支付巡检：查单 %d 笔，入账 %d 笔，关单 %d 笔，本地过期 %d 笔，失败 %d 笔，退款占位需核对 %d 笔",
             result.queried,
             result.settled,
             result.closed,
             result.expired,
             result.failed,
+            result.stale_refunds,
         )
     return result if result.changed else None

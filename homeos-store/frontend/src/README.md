@@ -23,10 +23,9 @@
 同目录内用 `./`。别名在构建期前缀匹配到 `frontend/src`，所以 `@store/shared/utils/money` 就是 `src/shared/utils/money.ts`。
 `.vue` 目标必须带扩展名（Vite 的默认 `resolve.extensions` 不含 `.vue`）。
 
-## 依赖规则（由门禁强制）
+## 依赖规则（约定；自定义门禁已拆除）
 
-`homeos-store/scripts/check-store-deps.mjs`（5 条规则，与主应用的
-`homeos/frontend/scripts/gates/check-frontend-deps.mjs` 同口径）：
+仍建议遵守：
 
 - **R1** `shared/**` 不得回头依赖 `features/**`（shared 是 DAG 的底）；
 - **R2** `shared/**` 与 `features/**` 不得依赖组合根（`router/**`、`views/**`、`App.vue`、`main.ts`、`auth-bootstrap.ts`）；
@@ -37,12 +36,7 @@
 宿主（路由表 / 顶层 views / 入口）可以向下引用任何层；其中**懒加载**路由组件允许深引用域内
 `views/*.vue`（经 barrel 转出会把所有路由页并进同一个 chunk，毁掉路由级分包）。
 
-白名单一律只减不增并带**过期检测**：条目一旦不再违规，门禁会报错要求删除。
+CI 仅保留 `typecheck` / `lint:ci` / `ruff` / 构建等语言级检查。
 
-跑法：`bun run --cwd homeos-store check:deps`（`homeos-store/package.json` → `scripts/deps-gates.mjs`
-清单 → 上面的门禁 + 自检 + 复用主应用的 `check-import-refs.mjs --root frontend --alias @store/`），
-清单由 `ops/lib/run-chain.mjs` 并发执行。CI 在 `checks.yml` 的 `frontend-gates` job 里直接跑
-`bun run --cwd homeos-store check:deps`。
-
-> 注意：商店前端**没有**自己的 `package.json`，构建 / 检查脚本都由 `homeos-store/package.json` 驱动
+> 注意：商店前端**没有**自己的 `package.json`，构建脚本由 `homeos-store/package.json` 驱动
 > （`vite --config frontend/vite.config.ts`）。

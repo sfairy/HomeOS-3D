@@ -86,6 +86,7 @@ export function resumeFpsScheduler(): void {
 export function bindFpsSchedulerVisibilityPause(): void {
   if (visibilityBound || typeof document === 'undefined') return
   visibilityBound = true
+  // visibilityBound 保证只注册一次；调度器是模块级单例，监听无归属对象可挂。
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pauseFpsScheduler()
     else resumeFpsScheduler()

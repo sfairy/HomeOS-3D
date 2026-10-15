@@ -59,7 +59,9 @@ ATTR_CHANGE_TRIGGERS: dict[str, tuple[str, ...]] = {
     "cover": ("current_position", "current_tilt_position"),
     "media_player": ("volume_level", "source"),
     "water_heater": ("temperature", "operation_mode"),
-    "vacuum": ("fan_speed"),
+    # 注意尾逗号：`("fan_speed")` 是**字符串**，迭代它等于逐字符匹配，
+    # 会让扫地机的任意属性名（含 f/a/n/_/s/p/e 之一）都被当成变化量上报。
+    "vacuum": ("fan_speed",),
 }
 
 DOMAIN_RE = set("abcdefghijklmnopqrstuvwxyz0123456789_")

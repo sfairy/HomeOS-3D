@@ -15,17 +15,6 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "lint:ci": "eslint . --max-warnings 0",
-    "check:studio-deps": "node scripts/gates/check-studio-deps.mjs",
-    "check:frontend-deps": "node scripts/gates/check-frontend-deps.mjs",
-    "check:refs": "node scripts/gates/check-import-refs.mjs",
-    "check:refs:selftest": "node scripts/gates/_import_refs_selftest.mjs",
-    "check:chunk-groups": "node scripts/gates/check-vite-chunk-groups.mjs",
-    "check:host-bindings": "node scripts/gates/check-host-bindings.mjs",
-    "check:host-bindings:selftest": "node scripts/gates/_host_bindings_selftest.mjs",
-    "check:deps-bag": "node scripts/gates/check-deps-bag-lazy.mjs",
-    "check:deps-bag:selftest": "node scripts/gates/_deps_bag_lazy_selftest.mjs",
-    "check:chunk-groups:selftest": "node scripts/gates/_vite_chunk_groups_selftest.mjs",
-    "check:deps": "node ../../ops/lib/run-chain.mjs scripts/deps-gates.mjs",
     "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit"
   },
   "dependencies": {

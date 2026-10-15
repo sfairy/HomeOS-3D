@@ -27,6 +27,9 @@ function install(): void {
   if (installed) return;
   installed = true;
 
+  // `installed` 保证这四个全局监听进程内只注册一次（应用级单例）：登记/注销的是
+  // `handles` 里的行菜单句柄，监听本身无归属对象可挂，故不配对移除。
+
   document.addEventListener(
     "click",
     (event) => {

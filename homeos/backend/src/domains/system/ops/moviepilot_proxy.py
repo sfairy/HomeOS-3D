@@ -280,7 +280,9 @@ async def _default_resolve_host(host: str) -> list[str] | None:
         infos = await loop.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     except (socket.gaierror, OSError, UnicodeError):
         return None
-    return sorted({info[4][0] for info in infos})
+    # `sockaddr[0]` 的类型随地址族变化（AF_UNIX 下是 int），混着排序会 TypeError。
+    resolved = {info[4][0] for info in infos}
+    return sorted(address for address in resolved if isinstance(address, str))
 
 
 __all__ = [

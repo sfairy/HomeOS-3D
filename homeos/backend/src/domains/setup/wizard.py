@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 
 from .bindings_gaps import collect_binding_gaps
 from ...platform.core.errors import api_error, bad_request
-from ...platform.core.json_field import read_json_object
+from ...platform.core.json_field import object_field, read_json_object
 from ...platform.core.models import Project, ProjectConfig, SecurityEvent
 
 logger = logging.getLogger("homeos.setup.wizard")
@@ -340,8 +340,8 @@ class SetupWizardService:
     # 绑定缺口 / 健康评分
     async def get_binding_gaps(self) -> dict[str, Any]:
         layout = self._get_project_layout() or {}
-        ha_config = layout.get("haConfig") if isinstance(layout.get("haConfig"), dict) else {}
-        stats = layout.get("statsSensors") if isinstance(layout.get("statsSensors"), dict) else {}
+        ha_config = object_field(layout, "haConfig")
+        stats = object_field(layout, "statsSensors")
         env_map = self._app_config.get("envSensorMap")
         footer = layout.get("dashboardFooter")
         footer_items = footer.get("items") if isinstance(footer, dict) else None

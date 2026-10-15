@@ -21,7 +21,7 @@ def delay_to_ms(delay: Any, unit: DelayUnit = "milliseconds") -> int:
     return int(delay * 1000) if unit == "seconds" else int(delay)
 
 
-def _fallback_result(error: Exception) -> dict[str, Any]:
+def _fallback_result(error: BaseException) -> dict[str, Any]:
     return {
         "entity_id": "unknown",
         "service": "unknown",
@@ -48,7 +48,10 @@ async def execute_action_sequence(
                 *(execute_one(item) for item in batch), return_exceptions=True
             )
             for outcome in settled:
-                if isinstance(outcome, Exception):
+                # 必须收 `BaseException`：`CancelledError` 继承自 `BaseException` 而非
+                # `Exception`，用后者收窄会让取消对象被当成「正常结果」塞进结果列表
+                # （该列表随后要序列化返回，混进异常对象会在响应阶段炸）。
+                if isinstance(outcome, BaseException):
                     results.append(_fallback_result(outcome))
                 else:
                     results.append(outcome)

@@ -259,123 +259,200 @@ class HASyncMixin(HAConnectorHost):
     def _status(disabled_by: str | None) -> str:
         return 'disabled' if disabled_by else 'active'
 
-    def _apply_snapshot(self, connection_id: str, snapshot: HASnapshot, reconciled: bool) -> dict[str, int]:
-        now = utc_now()
-        state_by_id = {
-            str(item.get('entity_id')): item
-            for item in snapshot.states
-            if item.get('entity_id') }
-        registry_by_id = {
-            str(item.get('entity_id')): item
-            for item in snapshot.entities or []
-            if item.get('entity_id') }
-        seen_entities = set(state_by_id) | set(registry_by_id)
-        with self.database.session_factory() as database:
-            existing_entities = {
-                item.entity_id: item for item in database.scalars(select(HAEntity).where(HAEntity.connection_id == connection_id))}
-            for entity_id in seen_entities:
-                registry = registry_by_id.get(entity_id, { })
-                state = state_by_id.get(entity_id, { })
-                attributes = state.get('attributes') or { }
-                record = existing_entities.get(entity_id)
-                if record is None:
-                    record = HAEntity(connection_id = connection_id, entity_id = entity_id, domain = entity_id.partition('.')[0])
-                    database.add(record)
-                record.domain = entity_id.partition('.')[0]
-                if registry:
-                    record.platform = registry.get('platform')
-                    record.translation_key = registry.get('translation_key')
-                    record.has_entity_name = registry.get('has_entity_name')
-                    record.unique_id = registry.get('unique_id')
-                    record.device_id = registry.get('device_id')
-                    record.area_id = registry.get('area_id')
-                    record.name = registry.get('name') or attributes.get('friendly_name') or registry.get('original_name')
-                    record.original_name = registry.get('original_name')
-                    record.icon = registry.get('icon') or attributes.get('icon')
-                    record.disabled_by = registry.get('disabled_by')
-                else:
-                    record.name = record.name or attributes.get('friendly_name')
-                    record.icon = attributes.get('icon') or record.icon
-                record.sync_status = self._status(record.disabled_by)
-                record.last_seen_at = now
-                record.missing_since = None
-            for entity_id, record in existing_entities.items():
-                if entity_id not in seen_entities:
+    def _sync_snapshot_entities(
+        self,
+        database,
+        *,
+        connection_id: str,
+        seen_entities: set[str],
+        state_by_id: dict[str, dict],
+        registry_by_id: dict[str, dict],
+        now,
+    ) -> None:
+        """按快照 upsert 实体并标记缺失。"""
+        existing_entities = {
+            entity.entity_id: entity
+            for entity in database.scalars(select(HAEntity).where(HAEntity.connection_id == connection_id))
+        }
+        for entity_id in seen_entities:
+            registry = registry_by_id.get(entity_id, { })
+            state = state_by_id.get(entity_id, { })
+            attributes = state.get('attributes') or { }
+            record = existing_entities.get(entity_id)
+            if record is None:
+                record = HAEntity(connection_id = connection_id, entity_id = entity_id, domain = entity_id.partition('.')[0])
+                database.add(record)
+            record.domain = entity_id.partition('.')[0]
+            if registry:
+                record.platform = registry.get('platform')
+                record.translation_key = registry.get('translation_key')
+                record.has_entity_name = registry.get('has_entity_name')
+                record.unique_id = registry.get('unique_id')
+                record.device_id = registry.get('device_id')
+                record.area_id = registry.get('area_id')
+                record.name = registry.get('name') or attributes.get('friendly_name') or registry.get('original_name')
+                record.original_name = registry.get('original_name')
+                record.icon = registry.get('icon') or attributes.get('icon')
+                record.disabled_by = registry.get('disabled_by')
+            else:
+                record.name = record.name or attributes.get('friendly_name')
+                record.icon = attributes.get('icon') or record.icon
+            record.sync_status = self._status(record.disabled_by)
+            record.last_seen_at = now
+            record.missing_since = None
+        for entity_id, record in existing_entities.items():
+            if entity_id not in seen_entities:
+                if record.sync_status != 'missing':
+                    record.sync_status = 'missing'
+                    record.missing_since = now
+
+    def _sync_snapshot_devices(
+        self,
+        database,
+        *,
+        connection_id: str,
+        snapshot: HASnapshot,
+        now,
+    ) -> set[str]:
+        """按快照 upsert 设备并标记缺失，返回 seen_devices。"""
+        existing_devices = {
+            device.device_id: device
+            for device in database.scalars(select(HADevice).where(HADevice.connection_id == connection_id))
+        }
+        seen_devices = {
+            device_id for device_id, device in existing_devices.items() if device.sync_status != 'missing'
+        } if snapshot.devices is None else set()
+        for device_entry in snapshot.devices or []:
+            device_id = str(device_entry.get('id') or '')
+            if not device_id:
+                continue
+            seen_devices.add(device_id)
+            record = existing_devices.get(device_id)
+            if record is None:
+                record = HADevice(connection_id = connection_id, device_id = device_id)
+                database.add(record)
+            record.name = device_entry.get('name')
+            record.name_by_user = device_entry.get('name_by_user')
+            record.registry_metadata_json = self._device_registry_metadata(device_entry)
+            record.manufacturer = device_entry.get('manufacturer')
+            record.model = device_entry.get('model')
+            record.area_id = device_entry.get('area_id')
+            record.disabled_by = device_entry.get('disabled_by')
+            record.sync_status = self._status(record.disabled_by)
+            record.last_seen_at = now
+            record.missing_since = None
+        if snapshot.devices is not None:
+            for device_id, record in existing_devices.items():
+                if device_id not in seen_devices:
                     if record.sync_status != 'missing':
                         record.sync_status = 'missing'
                         record.missing_since = now
-            existing_devices = {
-                item.device_id: item for item in database.scalars(select(HADevice).where(HADevice.connection_id == connection_id))}
-            seen_devices = {
-                device_id for device_id, item in existing_devices.items() if item.sync_status != 'missing'} if snapshot.devices is None else set()
-            for item in snapshot.devices or []:
-                device_id = str(item.get('id') or '')
-                if not device_id:
-                    continue
-                seen_devices.add(device_id)
-                record = existing_devices.get(device_id)
-                if record is None:
-                    record = HADevice(connection_id = connection_id, device_id = device_id)
-                    database.add(record)
-                record.name = item.get('name')
-                record.name_by_user = item.get('name_by_user')
-                record.registry_metadata_json = self._device_registry_metadata(item)
-                record.manufacturer = item.get('manufacturer')
-                record.model = item.get('model')
-                record.area_id = item.get('area_id')
-                record.disabled_by = item.get('disabled_by')
-                record.sync_status = self._status(record.disabled_by)
-                record.last_seen_at = now
-                record.missing_since = None
-            if snapshot.devices is not None:
-                for device_id, record in existing_devices.items():
-                    if device_id not in seen_devices:
-                        if record.sync_status != 'missing':
-                            record.sync_status = 'missing'
-                            record.missing_since = now
-            existing_areas = {
-                item.area_id: item for item in database.scalars(select(HAArea).where(HAArea.connection_id == connection_id))}
-            seen_areas = {
-                area_id for area_id, item in existing_areas.items() if item.sync_status != 'missing'} if snapshot.areas is None else set()
-            for item in snapshot.areas or []:
-                area_id = str(item.get('area_id') or item.get('id') or '')
-                if not area_id:
-                    continue
-                seen_areas.add(area_id)
-                record = existing_areas.get(area_id)
-                if record is None:
-                    record = HAArea(connection_id = connection_id, area_id = area_id, name = str(item.get('name') or area_id))
-                    database.add(record)
-                record.name = str(item.get('name') or area_id)
-                record.aliases_json = json.dumps(item.get('aliases') or [], ensure_ascii = False)
-                record.sync_status = 'active'
-                record.last_seen_at = now
-                record.missing_since = None
-            if snapshot.areas is not None:
-                for area_id, record in existing_areas.items():
-                    if area_id not in seen_areas:
-                        if record.sync_status != 'missing':
-                            record.sync_status = 'missing'
-                            record.missing_since = now
-            connection = database.get(HAConnection, connection_id)
-            if connection:
-                connection.ha_version = snapshot.config.get('version') or connection.ha_version
-                connection.last_connected_at = now
-                connection.last_error = None
-            sync_state = database.get(HASyncState, connection_id) or HASyncState(connection_id = connection_id)
-            sync_state.status = 'connected'
-            sync_state.phase = None
-            sync_state.last_completed_at = now
-            sync_state.last_full_sync_at = now
-            sync_state.catalog_revision = (sync_state.catalog_revision or 0) + 1
-            if reconciled:
-                sync_state.last_reconciled_at = now
-            sync_state.entity_count = len(seen_entities)
-            sync_state.device_count = len(seen_devices)
-            sync_state.area_count = len(seen_areas)
-            sync_state.last_error = None
-            database.add(sync_state)
-            database.commit()
+        return seen_devices
+
+    def _sync_snapshot_areas(
+        self,
+        database,
+        *,
+        connection_id: str,
+        snapshot: HASnapshot,
+        now,
+    ) -> set[str]:
+        """按快照 upsert 区域并标记缺失，返回 seen_areas。"""
+        existing_areas = {
+            area.area_id: area
+            for area in database.scalars(select(HAArea).where(HAArea.connection_id == connection_id))
+        }
+        seen_areas = {
+            area_id for area_id, area in existing_areas.items() if area.sync_status != 'missing'
+        } if snapshot.areas is None else set()
+        for area_entry in snapshot.areas or []:
+            area_id = str(area_entry.get('area_id') or area_entry.get('id') or '')
+            if not area_id:
+                continue
+            seen_areas.add(area_id)
+            record = existing_areas.get(area_id)
+            if record is None:
+                record = HAArea(connection_id = connection_id, area_id = area_id, name = str(area_entry.get('name') or area_id))
+                database.add(record)
+            record.name = str(area_entry.get('name') or area_id)
+            record.aliases_json = json.dumps(area_entry.get('aliases') or [], ensure_ascii = False)
+            record.sync_status = 'active'
+            record.last_seen_at = now
+            record.missing_since = None
+        if snapshot.areas is not None:
+            for area_id, record in existing_areas.items():
+                if area_id not in seen_areas:
+                    if record.sync_status != 'missing':
+                        record.sync_status = 'missing'
+                        record.missing_since = now
+        return seen_areas
+
+    def _finalize_snapshot_sync(
+        self,
+        database,
+        *,
+        connection_id: str,
+        snapshot: HASnapshot,
+        reconciled: bool,
+        now,
+        seen_counts: tuple[set[str], set[str], set[str]],
+    ) -> None:
+        """更新连接与 sync_state 计数并提交。"""
+        seen_entities, seen_devices, seen_areas = seen_counts
+        connection = database.get(HAConnection, connection_id)
+        if connection:
+            connection.ha_version = snapshot.config.get('version') or connection.ha_version
+            connection.last_connected_at = now
+            connection.last_error = None
+        sync_state = database.get(HASyncState, connection_id) or HASyncState(connection_id = connection_id)
+        sync_state.status = 'connected'
+        sync_state.phase = None
+        sync_state.last_completed_at = now
+        sync_state.last_full_sync_at = now
+        sync_state.catalog_revision = (sync_state.catalog_revision or 0) + 1
+        if reconciled:
+            sync_state.last_reconciled_at = now
+        sync_state.entity_count = len(seen_entities)
+        sync_state.device_count = len(seen_devices)
+        sync_state.area_count = len(seen_areas)
+        sync_state.last_error = None
+        database.add(sync_state)
+        database.commit()
+
+    def _apply_snapshot(self, connection_id: str, snapshot: HASnapshot, reconciled: bool) -> dict[str, int]:
+        now = utc_now()
+        state_by_id = {
+            str(state_entry.get('entity_id')): state_entry
+            for state_entry in snapshot.states
+            if state_entry.get('entity_id') }
+        registry_by_id = {
+            str(registry_entry.get('entity_id')): registry_entry
+            for registry_entry in snapshot.entities or []
+            if registry_entry.get('entity_id') }
+        seen_entities = set(state_by_id) | set(registry_by_id)
+        with self.database.session_factory() as database:
+            self._sync_snapshot_entities(
+                database,
+                connection_id=connection_id,
+                seen_entities=seen_entities,
+                state_by_id=state_by_id,
+                registry_by_id=registry_by_id,
+                now=now,
+            )
+            seen_devices = self._sync_snapshot_devices(
+                database, connection_id=connection_id, snapshot=snapshot, now=now
+            )
+            seen_areas = self._sync_snapshot_areas(
+                database, connection_id=connection_id, snapshot=snapshot, now=now
+            )
+            self._finalize_snapshot_sync(
+                database,
+                connection_id=connection_id,
+                snapshot=snapshot,
+                reconciled=reconciled,
+                now=now,
+                seen_counts=(seen_entities, seen_devices, seen_areas),
+            )
         self._known_entity_ids = {
             key for key in self._known_entity_ids if key[0] != connection_id}
         self._known_entity_ids.update((connection_id, entity_id) for entity_id in seen_entities)

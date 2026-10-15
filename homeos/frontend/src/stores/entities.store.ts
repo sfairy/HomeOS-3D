@@ -15,7 +15,13 @@ import {
   getLargeEntityThreshold,
   getWorkerDerivedThreshold,
 } from '@/shared/utils/config/frontend-config'
-import type { EntitiesMap, EntityLoadPhase, HaEntityState } from '@/shared/types/entity-store'
+import type {
+  DerivedBatteryEntry,
+  DerivedOfflineEntry,
+  EntitiesMap,
+  EntityLoadPhase,
+  HaEntityState,
+} from '@/shared/types/entity-store'
 import { buildEntityCacheKey } from '@/shared/entity/utils/idb-cache'
 import { createEntityOptimisticState } from '@/stores/entities/entity-store-optimistic.util'
 import {
@@ -114,10 +120,10 @@ export const useEntitiesStore = defineStore('entities', () => {
   const forecasts = shallowReactive<Record<string, unknown[]>>({})
   /** 友好名称映射：entity_id → 显示名 */
   const friendlyNamesMap = shallowReactive<Record<string, string>>({})
-  /** 电池设备列表（派生索引，由 derived rebuilder 维护） */
-  const batteryDevices = shallowReactive<HaEntityState[]>([])
-  /** 离线设备列表（派生索引，由 derived rebuilder 维护） */
-  const offlineDevices = shallowReactive<HaEntityState[]>([])
+  /** 电池设备列表（派生索引，由 derived rebuilder 维护；元素是派生条目，不是完整实体状态） */
+  const batteryDevices = shallowReactive<DerivedBatteryEntry[]>([])
+  /** 离线设备列表（派生索引，由 derived rebuilder 维护；元素是派生条目，不是完整实体状态） */
+  const offlineDevices = shallowReactive<DerivedOfflineEntry[]>([])
   /** 可见实体总数 */
   const totalCount = ref(0)
   /** 任意可见实体写入后递增，供 UI 刷新（不依赖 derived 索引是否 relevant） */
@@ -546,6 +552,8 @@ export const useEntitiesStore = defineStore('entities', () => {
     if (document.hidden) flushEntityCacheIfDirty()
   }
 
+  // store setup 只在应用装配时执行一次（Pinia setup store），这两个监听是应用级单例：
+  // 没有比「页面生命周期」更短的归属对象可挂，故不配对移除。
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', handleVisibilityChange)
   }

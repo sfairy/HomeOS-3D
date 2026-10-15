@@ -374,7 +374,7 @@ class SmartAdvisorUsageHelper:
         if not entity_id or not new_state:
             return
 
-        entry = self.device_usage.get(str(entity_id))
+        entry: dict[str, Any] | None = self.device_usage.get(str(entity_id))
         if entry is None:
             entry = {"onCount": 0, "lastOn": 0, "totalRuntime": 0}
             self.device_usage[str(entity_id)] = entry
@@ -618,7 +618,7 @@ class SmartAdvisorUsageHelper:
                         "message": item.get("reason") or "可能遗忘开启",
                     }
                 )
-        except Exception:
+        except Exception:  # 遗忘提醒推送属旁路观测，失败不影响用量统计结果
             pass
         return hints[:15]
 

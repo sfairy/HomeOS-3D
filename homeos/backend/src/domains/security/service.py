@@ -14,6 +14,7 @@ import httpx
 from .config import load_security_config, parse_optional_int
 from ..ha.config.ha_config import load_active_ha_endpoints
 from ...platform.core.app_config import load_raw_config
+from ...platform.core.json_field import object_field
 from ...platform.core.models import ProjectConfig
 
 logger = logging.getLogger("homeos.security.service")
@@ -64,7 +65,7 @@ class SecurityService:
             events_path = ""
             try:
                 raw = load_raw_config(session)
-                profiles = raw.get("profiles") if isinstance(raw.get("profiles"), dict) else {}
+                profiles = object_field(raw, "profiles")
                 active_profile_id = str(profiles.get("activeProfileId") or "").strip() or "default"
                 from sqlalchemy import select
 

@@ -1,6 +1,7 @@
 # Studio 源码目录结构
 
 `src/studio/` 下叠放三套系统。优先遵守下述依赖规则，而非深层相对导入。
+依赖边界靠评审与 `typecheck` / `lint` 维护（自定义 KPI / 门禁 / 冒烟已拆除）。
 
 ## 分层
 
@@ -16,12 +17,12 @@
 别名：`@app` → `app/`，`@runtime` → `runtime/`。
 
 > **根代码只允许 `import ... from '@/studio'`** —— 不得直达 `@app/*`、`@runtime/*` 或 studio 内部路径。
-> 由 `scripts/gates/check-studio-deps.mjs` 强制（白名单已清零）。studio 的公开面见 [`index.ts`](./index.ts)。
+> studio 的公开面见 [`index.ts`](./index.ts)。
 
 ## 为什么这里没有 `components/` `composables/` `views/`
 
 studio 是**子系统**，不是应用根。历史上它复用过应用根的通用桶名（`components/`、`composables/`、`views/`、`utils/`），
-导致同名不同义、路径无法自解释。现已消除（`ops/kpi/studio_layout_kpi.py` 门禁 = 0）：
+导致同名不同义、路径无法自解释。现已消除：
 
 - 路由入口页 → `entries/`（不再是 `views/`）
 - `useLegacyPage` → `platform/`
@@ -66,7 +67,7 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 | `ui/` | 微件、历史、纯函数助手（P4 搬入：`studio-export-layers.ts` = 导出图层清单渲染 + 导出名净化） |
 | `types/` | 共享的 studio-app 类型 |
 
-`authoring/` 之外，`app/3d-studio/` 顶层还有一批同级的创作域（`ops/kpi/studio_domains_kpi.py` 均登记为 `existing`）：
+`authoring/` 之外，`app/3d-studio/` 顶层还有一批同级的创作域：
 
 | 文件夹 | 内容 |
 |--------|----------|
@@ -78,31 +79,18 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 
 **新代码必须从域文件夹 import**（`./scene/…`、`./items/…` …）—— 不要在这里新增平铺的 `studio-*.ts` 文件。
 原 29 个平铺兼容转发桩已随「去重收尾」整批删除（本目录现只剩 `studio-app.ts` 与 `lifecycle.ts`），引用一律直达域目录。
-这条不是口头约定：`ops/kpi/studio_domains_kpi.py` 对 `studio/` 的平铺 `.ts` 个数做 ratchet（只减不增），新增平铺件会被门禁拦下。
 
-父应用目录结构见 [`../README.md`](../README.md)。CI 会跑 `npm run check:deps`（frontend + studio）。
+父应用目录结构见 [`../README.md`](../README.md)。
 
 ## 拆分单体（`studio-app.ts` / `home.ts` / `panel-renderer.ts` / `stage.ts`）
 
-> **切片工具链可用（2026-10-13 P2 重建）。** `ops/studio/studio_slice_analyze.mjs`
-> （`--list|--rank|--seeds`）、`studio_slice_extract.mjs`、`studio_slice_wrap.mjs`、
-> `studio_slice_apply.mjs`（一条命令跑完 AST 提取 → 依赖袋包装 → import 归位 → 锚点插入）、
-> `restore_import_formatting.mjs`，以及模板维度工具 `studio_template_seam.mjs`、状态显式化工具
-> `studio_state_context.mjs`（宿主闭包 `let x` → `ctx.x`，跳过 `get`/`set` 键名，简写属性展开回
-> `x: ctx.x`）都在，
-> 根别名 `slice:studio*` / `seam:studio*` 有效，注入式自检均挂在 `check:deps` 链上。
-> 与 KPI 门禁 `bun run kpi:studio`、宿主薄绑定门禁 `scripts/gates/check-host-bindings.mjs` 配合使用。
-> 口径、已落地切片日志与下一批目标见 [`MONOLITH_BASELINE.md`](./MONOLITH_BASELINE.md)。
+后续拆分手工进行；靠 `typecheck` / `lint` / 评审防回潮。
 
-**先量再拆**，别按行号猜。工具：`node ops/studio/studio_slice_analyze.mjs <file> [--list|--rank|--seeds=A,B]`（TS 编译器 API，认缩进、认闭包捕获）。
-
-- `--list`：顶层声明 + 巨型宿主函数 + >800 行的函数；`--rank`：按**搬迁成本**给宿主内声明排序（`muts*1000 + outs*100 + sibs*10`）；`--seeds=名1,名2`：算出这几个声明的自由引用与传递闭包。
 - `studio-app.ts` / `home.ts` 的真实形状是「一个 `bootX()` 里套一个巨型箭头函数」，声明不在顶层、缩进不统一 —— 所以**不要**按行首缩进切。
-- 判据与域归属规则、已落地的切片日志、下一批目标：见 [`MONOLITH_BASELINE.md`](./MONOLITH_BASELINE.md)。
 
 ## 面板编辑器 / 渲染器域（`app/editor/`、`app/renderer/`）
 
-`app/editor/` 顶层保留少量宿主与 `editor-*.ts` / `home-*.ts` 装配件，域文件夹如下（`ops/kpi/studio_domains_kpi.py` 登记）：
+`app/editor/` 顶层保留少量宿主与 `editor-*.ts` / `home-*.ts` 装配件，域文件夹如下：
 
 - `bindings/` — 宿主 DOM 事件注册（语句级切片：依赖按 getter 惰性注入）
 - `controls/` — 检查器表单控件（数字输入 ± 步进器增强）
@@ -111,7 +99,7 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 - `menus/` — 标题按钮图标菜单（定位 / 悬停滚动 / 图标选项装载）
 - `metadata/` — 导航 / 样式属性元数据表（纯数据）与透视常量（P4 从 `home.ts` 切出）
 - `navigation-style-apply/` — 导航「套用到其它控件」弹窗
-- `net/` — 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩（P4 6e 从 `home.ts` 切出；回归见 `scripts/smoke/_request_json_smoke.ts`，已进 `verify:smoke:frontend` 与 CI）
+- `net/` — 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩（P4 6e 从 `home.ts` 切出）
 - `picker/` — 取数弹层
 - `selection/` — 选中组件方向键微调（nudge）
 - `boot.ts` — 生命周期
@@ -125,13 +113,13 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 - **`app/renderer/panel-seams/` 是「面板渲染器方法」域**（P4 7b + 7c 落地）：原 `panel-renderer-bulk-methods.ts`（10.9k 行）按 seam 拆成 12 个文件（`render-component` / `connect-runtime` / `{capability,light,cover,climate,water-heater}-controls` / `{air-purifier,vacuum,presence,entity}-details` / `custom-popup`），宿主文件已删，调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
 - **class 方法域同在此目录**（P4 7c 落地）：`panel-renderer.ts` 的 70 个类方法按 seam 搬进 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场红；这是 7b 删宿主文件时学到的教训）。工具：`ops/studio/studio_slice_extract.mjs --method-form`（`ops/studio/studio_slice_analyze.mjs --rank` 也认类方法）—— **两者均已随工具链退役移除**
 - 去重收尾把原 `renderer/core/renderer/`（12 个 mixin 刀）与 `renderer/core/renderer/methods/`（8 个类方法刀 + `optimistic-state`）合并压平为单层 `panel-seams/`（21 文件），并把 `renderer/core/*` 整体上提到 `app/renderer/`
-- 该目录里 `paint.ts` 仍是 **planned**（那是 `panel-renderer.ts` 自己的绘制 seam，未建）；原 `dialogs.ts` 计划条目已被上面这 12 刀取代、从清单删除。这些都记在 `ops/kpi/studio_domains_kpi.py`（planned 建出来不改状态会报错）
+- 该目录里 `paint.ts` 仍是 **planned**（那是 `panel-renderer.ts` 自己的绘制 seam，未建）；原 `dialogs.ts` 计划条目已被上面这 12 刀取代、从清单删除。
 
 ## 舞台配置 UI
 
 优先 `@runtime/config-ui/*`。已废弃的 `@runtime/editor/*` 路径是纯再导出桩，以保证已投放的模块 URL 仍然有效。
 
-## 依赖规则（由 `npm run check:studio-deps` 强制）
+## 依赖规则（约定）
 
 1. `entries` → `engine` → (`creator` \| `panel` \| `display`) → `platform`
 2. `stage`（`runtime/`）→ `platform` / `@app/bridge` / 叶子 utils
@@ -158,27 +146,13 @@ ESLint 对 `app/shared/**` 与 `platform/**` 亦有同等强制。
 
 - 舞台侧只依赖 `platform/`、`@app/bridge` 与叶子 utils
 - UI 侧只依赖 `@/components`、`@/composables`、`@/stores`、`@/shared` 等
-- 根代码**禁止** import `@runtime/*`（由 `scripts/gates/check-studio-deps.mjs` 强制）
+- 根代码**禁止** import `@runtime/*`
 
 改名只在文档层面消歧；物理改名会打断公网 URL，需同步后端 manifest 与 allowlist。
 
-## 单体基线
+## 单体拆分目标
 
-目标清单与「拆到哪去」的预算见 [`MONOLITH_BASELINE.md`](./MONOLITH_BASELINE.md)。
-
-```bash
-bun run kpi:studio    # 三件套：单体行数 + 域清单/平铺面 + 根↔studio 同名冲突
-```
-
-P4 收敛由**两个** KPI 同时管（行数单看会被糊弄 —— 挪进另一个平铺文件、或直接删，都能让行数掉）：
-
-| KPI | 脚本 | 口径 |
-|-----|------|------|
-| 单体行数 | `ops/kpi/studio_monolith_kpi.py` | 5 个编排宿主，只减不增；纯转发桩（假收敛）与低于下限都会硬失败 |
-| 域清单 / 平铺面 | `ops/kpi/studio_domains_kpi.py` | 域覆盖行数只增不减（27 个 `existing` 域，88141 行；基线 87934）+ 宿主目录平铺 `.ts` 只减不增 + `planned` 条目偷跑报错 |
-| 根↔studio 同名冲突 | `ops/kpi/studio_layout_kpi.py` | 同名不同义的目录在两侧并存（当前 0） |
-
-目标：`studio-app.ts`（20.7k）/ `home.ts`（17.0k）等编排宿主收到 &lt; 3k 行，代码进域文件夹 —— 不是进新的平铺 `*-foo.ts`。
+目标：`studio-app.ts` / `home.ts` 等编排宿主收到更小体积，代码进域文件夹 —— 不是进新的平铺 `*-foo.ts`。
 
 ## 该改哪里
 

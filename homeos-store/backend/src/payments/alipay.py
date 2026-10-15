@@ -92,6 +92,26 @@ def _gateway_hint(settings: StoreSettings, sub_code: str) -> str:
         "未签约时生产网关同样回「应用不存在」，那是签约问题而不是密钥问题。"
     )
 
+
+def _summarize_diagnostics(checks: list[dict]) -> tuple[bool, str]:
+    """把逐项自检结论收成 ``(是否全部通过, 一句话结论)``。
+    """
+    passed = all(item["level"] == LEVEL_PASS for item in checks)
+    failures = [item for item in checks if item["level"] == LEVEL_FAIL]
+    warnings = [item for item in checks if item["level"] == LEVEL_WARN]
+    if passed:
+        message = "凭据自检全部通过：网关验签、响应验签与回调地址配置均可用。"
+    elif failures:
+        message = "自检未通过：" + "；".join(
+            f"{item['label']} —— {item['detail']}" for item in failures
+        )
+    else:
+        message = "自检未通过（存在无法判定或需要留意的事项）：" + "；".join(
+            f"{item['label']} —— {item['detail']}" for item in warnings
+        )
+    return passed, message[:500]
+
+
 class AlipayProvider:
     name = "alipay"
 
@@ -400,49 +420,60 @@ class AlipayProvider:
         """逐项自检凭据与回调配置，返回 ``(是否全部通过, 一句话结论, 结论列表)``。
         """
         settings = self._resolve(settings)
-        checks: list[dict] = []
+        checks: list[dict] = [
+            self._diagnose_gateway_address(settings),
+            self._diagnose_sign_type(settings),
+            *self._diagnose_key_material(settings),
+            self._diagnose_gateway_network(settings),
+            self._diagnose_gateway_acceptance(settings),
+            self._diagnose_response_signature(settings),
+            self._diagnose_seller_id(settings),
+            *self._diagnose_callback_urls(notify_url, return_url),
+            self._diagnose_gateway_environment(settings),
+        ]
+        passed, message = _summarize_diagnostics(checks)
+        return passed, message, checks
 
+    def _diagnose_gateway_address(self, settings: StoreSettings) -> dict:
+        """网关地址本身是否合法（https、不带查询串）。"""
         gateway = (settings.alipay_gateway_url or "").strip()
-        gateway_valid = True
         try:
             validate_gateway_url(gateway)
         except PaymentError as error:
-            gateway_valid = False
-            checks.append(check_result("gateway-url", "网关地址", LEVEL_FAIL, str(error)))
-        else:
-            checks.append(check_result("gateway-url", "网关地址", LEVEL_PASS, gateway or "（未配置）"))
+            return check_result("gateway-url", "网关地址", LEVEL_FAIL, str(error))
+        return check_result("gateway-url", "网关地址", LEVEL_PASS, gateway or "（未配置）")
 
+    def _diagnose_sign_type(self, settings: StoreSettings) -> dict:
+        """签名算法是不是本服务唯一实现的 RSA2。"""
         sign_type = (settings.alipay_sign_type or "RSA2").upper()
         if sign_type == "RSA2":
-            checks.append(check_result("sign-type", "签名算法", LEVEL_PASS, "RSA2（SHA256withRSA）"))
-        else:
-            checks.append(
-                check_result(
-                    "sign-type",
-                    "签名算法",
-                    LEVEL_FAIL,
-                    f"当前为 {sign_type}，但本服务只实现 RSA2；下单会直接被拒绝。请改为 RSA2。",
-                )
-            )
+            return check_result("sign-type", "签名算法", LEVEL_PASS, "RSA2（SHA256withRSA）")
+        return check_result(
+            "sign-type",
+            "签名算法",
+            LEVEL_FAIL,
+            f"当前为 {sign_type}，但本服务只实现 RSA2；下单会直接被拒绝。请改为 RSA2。",
+        )
 
+    def _diagnose_key_material(self, settings: StoreSettings) -> list[dict]:
+        """应用私钥、支付宝公钥的格式结论，以及两者是否被填成了同一把密钥。"""
         private_text = settings.alipay_private_key_text
         private_error = private_key_error(private_text)
+        public_text = settings.alipay_public_key_text
+        public_error = public_key_error(public_text)
+        checks: list[dict] = []
         if private_error:
             checks.append(check_result("private-key", "应用私钥", LEVEL_FAIL, private_error))
         else:
             checks.append(
                 check_result("private-key", "应用私钥", LEVEL_PASS, "格式与位数合法（RSA2048）。")
             )
-
-        public_text = settings.alipay_public_key_text
-        public_error = public_key_error(public_text)
         if public_error:
             checks.append(check_result("public-key", "支付宝公钥", LEVEL_FAIL, public_error))
         else:
             checks.append(
                 check_result("public-key", "支付宝公钥", LEVEL_PASS, "格式与位数合法（RSA2048）。")
             )
-
         if not private_error and not public_error:
             if key_pair_same_modulus(private_text, public_text):
                 checks.append(
@@ -464,32 +495,39 @@ class AlipayProvider:
                         "支付宝公钥与应用私钥是两把不同的密钥。",
                     )
                 )
+        return checks
 
+    def _diagnose_gateway_network(self, settings: StoreSettings) -> dict:
+        """网关域名的 TCP/TLS 连通性（地址本身不合法时直接跳过探测）。"""
+        gateway = (settings.alipay_gateway_url or "").strip()
+        try:
+            validate_gateway_url(gateway)
+        except PaymentError:
+            return check_result("network", "网关连通性", LEVEL_SKIP, "网关地址无效，未尝试连接。")
         gateway_host = host_from_url(gateway)
-        if not gateway_valid or not gateway_host:
-            checks.append(check_result("network", "网关连通性", LEVEL_SKIP, "网关地址无效，未尝试连接。"))
-        else:
-            gateway_port = _url_port(gateway, default=443)
-            reachable, detail = probe_tls(gateway_host, gateway_port)
-            checks.append(
-                check_result(
-                    "network",
-                    "网关连通性",
-                    LEVEL_PASS if reachable else LEVEL_FAIL,
-                    f"{gateway_host}:{gateway_port} — {detail}",
-                )
-            )
-
-        accepted, accepted_detail = self._probe_gateway_credentials(settings)
-        checks.append(
-            check_result(
-                "credentials-accepted",
-                "网关验签（探活）",
-                LEVEL_PASS if accepted else LEVEL_FAIL,
-                accepted_detail,
-            )
+        if not gateway_host:
+            return check_result("network", "网关连通性", LEVEL_SKIP, "网关地址无效，未尝试连接。")
+        gateway_port = _url_port(gateway, default=443)
+        reachable, detail = probe_tls(gateway_host, gateway_port)
+        return check_result(
+            "network",
+            "网关连通性",
+            LEVEL_PASS if reachable else LEVEL_FAIL,
+            f"{gateway_host}:{gateway_port} — {detail}",
         )
 
+    def _diagnose_gateway_acceptance(self, settings: StoreSettings) -> dict:
+        """网关是否认这套 app_id + 私钥（用一笔不存在的交易探活）。"""
+        accepted, accepted_detail = self._probe_gateway_credentials(settings)
+        return check_result(
+            "credentials-accepted",
+            "网关验签（探活）",
+            LEVEL_PASS if accepted else LEVEL_FAIL,
+            accepted_detail,
+        )
+
+    def _diagnose_response_signature(self, settings: StoreSettings) -> dict:
+        """用一笔强制验签的探活请求确认「支付宝公钥」配对了没有。"""
         probe_no = f"HOMEOS-PROBE-{uuid4().hex[:12]}"
         try:
             self._call(
@@ -500,98 +538,71 @@ class AlipayProvider:
                 force_signature_check=True,
             )
         except ResponseSignatureMissing:
-            checks.append(
-                check_result(
-                    "public-key-verified",
-                    "响应验签",
-                    LEVEL_WARN,
-                    "网关本次响应未带签名，无法据此判定支付宝公钥是否正确"
-                    "（先修好上面的凭据项再复测）。",
-                )
+            return check_result(
+                "public-key-verified",
+                "响应验签",
+                LEVEL_WARN,
+                "网关本次响应未带签名，无法据此判定支付宝公钥是否正确"
+                "（先修好上面的凭据项再复测）。",
             )
         except ResponseSignatureInvalid:
-            checks.append(
-                check_result(
-                    "public-key-verified",
-                    "响应验签",
-                    LEVEL_FAIL,
-                    "响应验签失败：支付宝公钥不正确。最常见的原因是填成了自己的"
-                    "「应用公钥」，请改成开放平台里的「支付宝公钥」。",
-                )
+            return check_result(
+                "public-key-verified",
+                "响应验签",
+                LEVEL_FAIL,
+                "响应验签失败：支付宝公钥不正确。最常见的原因是填成了自己的"
+                "「应用公钥」，请改成开放平台里的「支付宝公钥」。",
             )
         except PaymentError as error:
-            checks.append(
-                check_result("public-key-verified", "响应验签", LEVEL_WARN, str(error))
-            )
-        else:
-            checks.append(
-                check_result(
-                    "public-key-verified",
-                    "响应验签",
-                    LEVEL_PASS,
-                    "已用配置的支付宝公钥成功验签一次真实响应。",
-                )
-            )
-
-        if (settings.alipay_seller_id or "").strip():
-            checks.append(check_result("seller-id", "卖家 PID", LEVEL_PASS, settings.alipay_seller_id))
-        else:
-            checks.append(
-                check_result(
-                    "seller-id",
-                    "卖家 PID",
-                    LEVEL_WARN,
-                    "未配置：异步通知的收款方校验会被跳过。多商户共用同一套 appId 时应补上。",
-                )
-            )
-
-        checks.extend(
-            [
-                _callback_check(
-                    "notify-url",
-                    "异步通知地址",
-                    notify_url,
-                    reachable_hint="支付宝服务器回调的地址，必须公网可达；"
-                    "本机可达不代表支付宝可达（NAT 回环会让探测提前成功）。",
-                ),
-                _callback_check(
-                    "return-url",
-                    "同步跳转地址",
-                    return_url,
-                    reachable_hint="用户付完款后浏览器回到的页面，必须是公网可达的绝对地址。",
-                ),
-            ]
+            return check_result("public-key-verified", "响应验签", LEVEL_WARN, str(error))
+        return check_result(
+            "public-key-verified",
+            "响应验签",
+            LEVEL_PASS,
+            "已用配置的支付宝公钥成功验签一次真实响应。",
         )
 
-        production_host = PRODUCTION_GATEWAY_HOST
-        if gateway_host and gateway_host != production_host:
-            checks.append(
-                check_result(
-                    "gateway-environment",
-                    "运行环境",
-                    LEVEL_WARN,
-                    f"网关域名 {gateway_host} 不是支付宝生产域名（{production_host}）：确认这是有意的。",
-                )
-            )
-        else:
-            checks.append(
-                check_result("gateway-environment", "运行环境", LEVEL_PASS, "支付宝生产网关。")
-            )
+    def _diagnose_seller_id(self, settings: StoreSettings) -> dict:
+        """卖家 PID 是否配置（未配置只是少一道收款方校验，故为告警）。"""
+        if (settings.alipay_seller_id or "").strip():
+            return check_result("seller-id", "卖家 PID", LEVEL_PASS, settings.alipay_seller_id)
+        return check_result(
+            "seller-id",
+            "卖家 PID",
+            LEVEL_WARN,
+            "未配置：异步通知的收款方校验会被跳过。多商户共用同一套 appId 时应补上。",
+        )
 
-        passed = all(item["level"] == LEVEL_PASS for item in checks)
-        failures = [item for item in checks if item["level"] == LEVEL_FAIL]
-        warnings = [item for item in checks if item["level"] == LEVEL_WARN]
-        if passed:
-            message = "凭据自检全部通过：网关验签、响应验签与回调地址配置均可用。"
-        elif failures:
-            message = "自检未通过：" + "；".join(
-                f"{item['label']} —— {item['detail']}" for item in failures
+    def _diagnose_callback_urls(self, notify_url: str, return_url: str) -> list[dict]:
+        """异步通知与同步跳转两个回调地址的诊断项。"""
+        return [
+            _callback_check(
+                "notify-url",
+                "异步通知地址",
+                notify_url,
+                reachable_hint="支付宝服务器回调的地址，必须公网可达；"
+                "本机可达不代表支付宝可达（NAT 回环会让探测提前成功）。",
+            ),
+            _callback_check(
+                "return-url",
+                "同步跳转地址",
+                return_url,
+                reachable_hint="用户付完款后浏览器回到的页面，必须是公网可达的绝对地址。",
+            ),
+        ]
+
+    def _diagnose_gateway_environment(self, settings: StoreSettings) -> dict:
+        """网关域名是不是支付宝生产域名（沙箱/自建网关时给一条告警）。"""
+        production_host = PRODUCTION_GATEWAY_HOST
+        gateway_host = host_from_url((settings.alipay_gateway_url or "").strip())
+        if gateway_host and gateway_host != production_host:
+            return check_result(
+                "gateway-environment",
+                "运行环境",
+                LEVEL_WARN,
+                f"网关域名 {gateway_host} 不是支付宝生产域名（{production_host}）：确认这是有意的。",
             )
-        else:
-            message = "自检未通过（存在无法判定或需要留意的事项）：" + "；".join(
-                f"{item['label']} —— {item['detail']}" for item in warnings
-            )
-        return passed, message[:500], checks
+        return check_result("gateway-environment", "运行环境", LEVEL_PASS, "支付宝生产网关。")
 
     def query_payment(
         self, settings: StoreSettings, order: Order

@@ -9,7 +9,8 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from ...platform.core.background import spawn_background
+from ...platform.core.background import spawn_awaitable, spawn_background
+from ...platform.core.json_field import object_field
 
 logger = logging.getLogger("homeos.state_store.entity_area")
 
@@ -163,10 +164,11 @@ class EntityAreaEnrichmentService:
         spawn_background(self._reload_safely())
 
     async def _reload_safely(self) -> None:
+        # 后台自愈式重载：失败不能让调用方（状态推送回调）抛错，留痕后等下次触发。
         try:
             await self.ensure_loaded()
-        except Exception:
-            pass
+        except Exception:  # 见上：后台重载失败留痕即可
+            logger.warning("区域索引后台重载失败", exc_info=True)
 
     def on_initial_states(self, _payload: Any = None) -> None:
         """初始全量状态到达 → 后台对账 store 中各实体的区域信息。"""
@@ -334,14 +336,10 @@ class EntityAreaEnrichmentService:
         load.add_done_callback(
             lambda t: t.exception() if not t.cancelled() else None
         )
-        try:
-            done, _ = await asyncio.wait({load}, timeout=0.4)
-            if done and (exc := load.exception()) is not None:
-                raise exc
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            pass
+        done, _ = await asyncio.wait({load}, timeout=0.4)
+        if done and (exc := load.exception()) is not None:
+            # 索引构建失败只是补全降级（返回未补全的实体），不能让列表接口报错；留痕即可。
+            logger.warning("区域索引构建失败，实体补全降级返回: %s", exc)
         return enrich_entities_areas(entities, self._index)
 
     def enrich_state_change_event_sync(self, event: dict[str, Any]) -> dict[str, Any]:
@@ -372,9 +370,9 @@ class EntityAreaEnrichmentService:
             if not current:
                 continue
             enriched = self.enrich_entity_sync(current)
-            current_attrs = current.get("attributes") if isinstance(current.get("attributes"), dict) else {}
+            current_attrs = object_field(current, "attributes")
             enriched_attrs = (
-                enriched.get("attributes") if isinstance(enriched.get("attributes"), dict) else {}
+                object_field(enriched, "attributes")
             )
             before_id = str(current_attrs.get("area_id") or "").strip()
             before_name = str(current_attrs.get("area_name") or "").strip()
@@ -409,10 +407,7 @@ class EntityAreaEnrichmentService:
             return
         result = emit("ha.state_changed", payload)
         if inspect.isawaitable(result):
-            try:
-                asyncio.get_running_loop().create_task(result)
-            except RuntimeError:
-                pass
+            spawn_awaitable(result)
 
 
 def _iso_now() -> str:

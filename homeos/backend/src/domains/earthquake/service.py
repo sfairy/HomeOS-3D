@@ -397,7 +397,7 @@ class EarthquakeService:
             if prev is not None:
                 try:
                     await prev
-                except Exception:
+                except Exception:  # 等待上一轮轮询任务收尾属尽力而为（其失败已在自身处记录）
                     pass
             try:
                 await self.process_eew(eew, opts)

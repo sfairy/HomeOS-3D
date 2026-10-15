@@ -3193,11 +3193,7 @@ export function isMaterialStyleCapable(modelType: string): boolean {
  * 这类模型（楼梯 / 车辆 / 电梯 / 饰面墙）的颜色由各自的专用收尾接管，没有档位是设计决定，
  * 不是「档位覆盖不全」。
  *
- * @public knip：消费者只有开发期审计脚本 `scripts/audit/material-role-audit.mjs`，
- * 而该脚本刻意用 **动态 import（`file://` 绝对路径 + 计算路径）** 加载本模块（为了在
- * 「修复前 / 修复后」两种仓库状态下都能跑），静态分析看不到这层消费关系。为避免用
- * `ignoreIssues` 把整个模块的导出面一起豁免（本文件是 3565 行的核心模块，不该降级），
- * 这里显式标注为公共导出。
+ * 公开导出：供材质风格档位判定（历史审计脚本曾动态 import 本符号）。
  */
 export function isMaterialStyleOptOut(modelType: string): boolean {
   return modelType in PRESET_GROUP_BY_MODEL_TYPE && !PRESET_GROUP_BY_MODEL_TYPE[modelType];

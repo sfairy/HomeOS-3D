@@ -5,7 +5,7 @@
  * 放在 platform 而不是 `runtime/environment/weather-settings.ts`：**配置面板**
  * （`app/bridge/editor.ts` 的天气预览按钮组）与运行时特效（`runtime/environment/weather-effects.ts`）
  * 都要用同一张「哪些 HA 状态有对应 3D 效果」的表，而 app ↛ runtime 是硬边界
- * （见 `scripts/gates/check-studio-deps.mjs`，白名单只减不增）。运行时入口
+ * 。运行时入口
  * `runtime/environment/weather-settings.ts` 保留为再导出，构建产物与清单路径不变。
  */
 

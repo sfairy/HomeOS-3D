@@ -12,7 +12,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from ...platform.core.models import Notification
 
@@ -111,7 +111,7 @@ class NotificationPruneHelper:
                 if not oldest:
                     break
                 session.execute(
-                    Notification.__table__.delete().where(Notification.id.in_(oldest))
+                    delete(Notification).where(Notification.id.in_(oldest))
                 )
                 session.commit()
                 total_deleted += len(oldest)

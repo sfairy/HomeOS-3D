@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import select
 
 from .zombie_scan import build_alive_entity_id_set, should_skip_zombie_scan
+from ...platform.core.json_field import object_field
 from ...platform.core.models import AlertRule, ProjectConfig
 
 logger = logging.getLogger("homeos.system.device_management")
@@ -107,7 +108,7 @@ class DeviceManagementService:
                     if not entity_id:
                         continue
                     type_label = str(widget.get("type") or "部件")
-                    cfg = widget.get("config") if isinstance(widget.get("config"), dict) else {}
+                    cfg = object_field(widget, "config")
                     title = str(cfg.get("title") or "")
                     ref_id = (
                         f"widget:{widget['id']}"
@@ -252,7 +253,7 @@ class DeviceManagementService:
 
             # 同一列表多个条目批量删除时 index 会随删除漂移；
             # 按 index 降序处理可保证先删尾部、前部索引仍然有效（id / favorite 形态不受影响）。
-            def parse_pos(ref_id: str) -> tuple[str, str, int] | None:
+            def parse_pos(ref_id: Any) -> tuple[str, str, int] | None:
                 parts = str(ref_id or "").split(":")
                 if len(parts) == 3 and parts[0] in ("floor", "widget") and parts[2].isdigit():
                     return parts[0], parts[1], int(parts[2])

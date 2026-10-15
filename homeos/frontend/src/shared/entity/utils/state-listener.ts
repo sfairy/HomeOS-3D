@@ -200,6 +200,7 @@ let flushDeps: EntityStateListenerFlushDeps | null = null
 
 const FALLBACK_FLUSH_DEPS: EntityStateListenerFlushDeps = { logger }
 
+// 模块顶层一次性注册：监听器集合是模块级单例，可见性钩子无归属对象可挂，不配对移除。
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

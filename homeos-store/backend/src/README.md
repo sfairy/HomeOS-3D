@@ -106,7 +106,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 | 订单 | 仅未支付且无授权可删；已付走退款 |
 | 「标记支付」 | 人工放行，**不计入营收**；「线下收款入账」才计入 |
 
-能力码目录唯一出处：`ops/check/feature_codes.json`（由 `ops/check/check_feature_codes.py` 门禁校验，与主应用 `domains/license/features.py` 的 `BASE_FEATURES` 对齐）。新增能力先改主应用再补这里。
+能力码目录唯一出处：`ops/check/feature_codes.json`（与主应用 `domains/license/features.py` 的 `BASE_FEATURES` 对齐，靠评审保证）。新增能力先改主应用再补这里。
 
 ## 目录结构
 
@@ -121,11 +121,13 @@ homeos-store/
 └── dist/                   # index.html + static
 ```
 
-> 与主应用共用的三个叶子模块（`logging_noise` 开发期重载提示降噪、`file_lock` 跨进程文件锁、
-> `migrations_core` 读写 `alembic_version` / 迁移前快照 / 升级后核对等与库结构和 ORM 无关的迁移叶子逻辑）
+> 与主应用共用的叶子模块（`logging_noise` 开发期重载提示降噪、`file_lock` 跨进程文件锁、
+> `migrations_core` 读写 `alembic_version` / 迁移前快照 / 升级后核对等与库结构和 ORM 无关的迁移叶子逻辑、
+> `client_ip` 可信代理链 → 真实客户端地址、`rate_limit` 有界滑动窗口限流、
+> `license_transport` 授权传输的协议参数（`PROTOCOL` / HKDF info / AAD / base64url / 规范化 JSON））
 > **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包
-> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README 与
-> `ops/check/check_deploy_independence.py` 第 5 项）。原先两端「各存一份 + 孪生清单比对」的形态已收拢为唯一真源。
+> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README）。
+> 原先两端「各存一份 + 孪生清单比对」的形态已收拢为唯一真源。
 > `core/migrations.py` 的**编排**（备份标签文案、脚本目录布局、迁移编排）与本包 `database.py` / `run.py`
 > 经复核判定**不共享**，理由见该 README 的「分诊台账」。
 
@@ -134,9 +136,8 @@ homeos-store/
 - 样式源：`frontend/public/static/` 的顺序是 `store-critical.css`（首屏关键样式）→ `theme.css` → `scene/*.css` → `store-shell.css` → `store.css`，以 `frontend/index.html` 为准；`admin.css` 由 `App.vue` 在后台路由下动态注入，须晚于 `theme.css`。
 - 构建：`bun run --cwd homeos-store build` → 工作区根 `dist/homeos-store/frontend/`；`auth-bootstrap` 仍为首屏前 IIFE。
 - 配色注入点：构建后的 `dist/homeos-store/frontend/index.html` 外壳里的 appearance 占位；漏一处会 500（刻意）。
-- 配色令牌名：本目录 `ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 与前端
-  `frontend/src/scene/appearance.ts` 生成的名字由 `bun run verify:contracts` 对账 —— 前端生成得出来、
-  后端校验器不认，管理员保存配色就会被 422 挡掉。
+- 配色令牌名：本目录 `ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 须与前端
+  `frontend/src/scene/appearance.ts` 生成的名字对齐 —— 前端生成得出来、后端校验器不认，管理员保存配色就会被 422 挡掉。
 
 ## 支付后发码
 

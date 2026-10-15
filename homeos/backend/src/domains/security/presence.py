@@ -233,7 +233,9 @@ class PresenceService:
             return False
         try:
             return bool(self._mmwave.get_summary().get("homeOccupied"))
-        except Exception:
+        except Exception as exc:
+            # 毫米波不可用不该让「是否有人在家」整体报错，按未占用兜底，但要留痕。
+            logger.debug("读取毫米波在家占用失败，按未占用处理: %s", exc)
             return False
 
     def is_anyone_home(self) -> bool:
@@ -527,7 +529,8 @@ class PresenceService:
         try:
             with self._session_factory() as session:
                 data = load_runtime_kv(session, PRESENCE_CONFIG_ID)
-        except Exception:
+        except Exception as exc:
+            logger.warning("加载在家判定持久化状态失败，从空状态开始: %s", exc)
             data = None
         if not isinstance(data, dict):
             return

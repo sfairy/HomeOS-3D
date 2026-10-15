@@ -2,7 +2,7 @@
 
 各工具族拆成 mixin 后，mixin 看不见主类 ``__init__`` 注入的属性与其他族的方法。
 这里统一声明（类体给 ``None`` 默认值以满足 ``reportUninitializedInstanceVariable``
-硬门禁，见 ``ops/ci/pyright_gate.py``），运行期由主类与各族 mixin 覆写。
+），运行期由主类与各族 mixin 覆写。
 """
 
 from __future__ import annotations

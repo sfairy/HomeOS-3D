@@ -67,6 +67,17 @@ class LayoutEmbed:
     url: str
 
 
+@dataclass
+class _RelayTarget:
+    """上游响应的改写参数：内嵌 id / base 路径 / 反代前缀 / 子路径。"""
+
+    embed_id: str
+    embed_base: str
+    base_path: str | None
+    sub_path: str
+    proxy_prefix: str
+
+
 def _message(key: str, *args: Any) -> str:
     return api_error(key, *args)
 
@@ -111,7 +122,10 @@ class EmbedProxyService:
     def resolve_embed_configured_url(self, embed_id: str) -> EmbedTarget:
         """解析内嵌目标配置 URL（含路径），供反代取 origin 与 base 路径使用。"""
         layout = self.load_layout()
-        raw_embeds = layout.get("customEmbeds") if isinstance(layout.get("customEmbeds"), list) else []
+        # 先绑定再判类型：重复 `layout.get(...)` 时收窄不会传递到第二次读取，推导结果里始终带
+        # None（下面的列表推导因此被判成「可能遍历 None」）。
+        embeds_source = layout.get("customEmbeds")
+        raw_embeds = embeds_source if isinstance(embeds_source, list) else []
         custom_embeds = [
             LayoutEmbed(id=str(item.get("id") or ""), url=str(item.get("url") or ""))
             for item in raw_embeds
@@ -297,6 +311,29 @@ class EmbedProxyService:
                 await client.aclose()
             return self._respond_upstream_unreachable(upstream_url, err)
 
+        relay = _RelayTarget(
+            embed_id=embed_id,
+            embed_base=embed_base,
+            base_path=base_path,
+            sub_path=sub_path,
+            proxy_prefix=proxy_prefix,
+        )
+        return await self._relay_upstream_response(upstream, client, request, relay)
+
+    async def _relay_upstream_response(
+        self,
+        upstream: httpx.Response,
+        client: httpx.AsyncClient,
+        request: Request,
+        relay: _RelayTarget,
+    ) -> Response:
+        """按上游响应内容类型改写或透传；``upstream`` / ``client`` 由 ``_open_upstream`` 保证非空。"""
+        embed_id = relay.embed_id
+        embed_base = relay.embed_base
+        base_path = relay.base_path
+        sub_path = relay.sub_path
+        proxy_prefix = relay.proxy_prefix
+
         req_secure = is_request_secure(request)
         status = upstream.status_code
         set_cookies = [_decode(value) for value in upstream.headers.get_list("set-cookie")]
@@ -367,8 +404,6 @@ class EmbedProxyService:
             return response
 
         # 二进制 / 其他：流式透传（大文件、媒体下载不落内存）
-        assert client is not None and upstream is not None
-
         async def body_iterator() -> AsyncIterator[bytes]:
             try:
                 async for chunk in upstream.aiter_bytes():
@@ -444,12 +479,12 @@ async def _close_upstream(client: httpx.AsyncClient | None, response: httpx.Resp
     if response is not None:
         try:
             await response.aclose()
-        except Exception:
+        except Exception:  # 短路/本地伺服路径的收尾：关闭响应失败不得掩盖原始异常
             pass
     if client is not None:
         try:
             await client.aclose()
-        except Exception:
+        except Exception:  # 短路/本地伺服路径的收尾：关闭客户端失败不得掩盖原始异常
             pass
 
 

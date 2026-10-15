@@ -16,6 +16,9 @@ from .energy import (
     _validate_energy,
     _validate_pricing,
 )
+
+#: 环境传感器映射里的实体/数值字段写法：``domain.object_id``（大小写不敏感）。
+_ENV_SENSOR_ENTITY_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9_]+$", re.IGNORECASE)
 from .sections_ui import (
     _validate_frontend,
     _validate_media_playlists,
@@ -378,7 +381,6 @@ def _validate_client_power(section: str, p: dict[str, Any], e: list[FieldError])
                         break
 
 def _validate_env_sensor_map(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    entry_re = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9_]+$", re.IGNORECASE)
     for room_id, entry_raw in p.items():
         if not str(room_id).strip():
             e.append({"section": section, "key": room_id, "message": "房间 ID 不能为空"})
@@ -396,7 +398,7 @@ def _validate_env_sensor_map(section: str, p: dict[str, Any], e: list[FieldError
             if not isinstance(val, str):
                 e.append({"section": section, "key": f"{room_id}.{field}", "message": "须为字符串"})
                 continue
-            if field != "label" and not entry_re.match(val.strip()):
+            if field != "label" and not _ENV_SENSOR_ENTITY_PATTERN.match(val.strip()):
                 e.append({"section": section, "key": f"{room_id}.{field}", "message": "须为合法 entity_id"})
 
 

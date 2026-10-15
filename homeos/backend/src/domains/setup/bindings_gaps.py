@@ -59,21 +59,14 @@ def filter_binding_gaps_by_section(
     return [gap for gap in gaps if resolve_binding_gap_section(gap["id"]) == section]
 
 
-def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """检测当前配置下的各类首装绑定缺口。"""
-    data = input_data or {}
-    gaps: list[dict[str, Any]] = []
-    hc = data.get("haConfig") if isinstance(data.get("haConfig"), dict) else {}
-    stats = data.get("statsSensors") if isinstance(data.get("statsSensors"), dict) else {}
-
-    def pick(key: str) -> str:
-        return str(hc.get(key) or "").strip()
-
-    format_energy_label = data.get("formatEnergyLabel") or format_account_binding_label
-    check_energy = data.get("hasEnergyConfig") or (
-        lambda cat: has_energy_config(cat, stats)
-    )
-
+def _append_weather_and_energy_gaps(
+    gaps: list[dict[str, Any]],
+    *,
+    pick,
+    input_config: dict[str, Any],
+    stats: dict[str, Any],
+) -> None:
+    """天气实体与能源账户缺口。"""
     if not pick("weatherEntityId"):
         gaps.append(
             {
@@ -84,21 +77,32 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             }
         )
 
-    categories = data.get("requiredAccountCategories")
+    format_energy_label = input_config.get("formatEnergyLabel") or format_account_binding_label
+    check_energy = input_config.get("hasEnergyConfig") or (
+        lambda category: has_energy_config(category, stats)
+    )
+    categories = input_config.get("requiredAccountCategories")
     if not isinstance(categories, list):
-        categories = collect_required_account_binding_categories(data.get("dashboardFooterItems"))
-    for cat in categories:
-        if not check_energy(cat):
+        categories = collect_required_account_binding_categories(
+            input_config.get("dashboardFooterItems")
+        )
+    for category in categories:
+        if not check_energy(category):
             gaps.append(
                 {
-                    "id": f"energy-{cat}",
-                    "label": f"{format_energy_label(cat)}账户",
-                    "route": resolve_account_binding_settings_route(cat),
+                    "id": f"energy-{category}",
+                    "label": f"{format_energy_label(category)}账户",
+                    "route": resolve_account_binding_settings_route(category),
                     "severity": "info",
                 }
             )
 
-    cameras = hc.get("securityCameras")
+
+def _append_camera_doorbell_gaps(
+    gaps: list[dict[str, Any]], *, ha_config: dict[str, Any], pick
+) -> None:
+    """摄像头与门铃缺口。"""
+    cameras = ha_config.get("securityCameras")
     if not has_camera_binding(cameras) and not pick("securityCamera"):
         gaps.append(
             {
@@ -109,11 +113,11 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             }
         )
 
-    doorbells = hc.get("doorbells")
+    doorbells = ha_config.get("doorbells")
     has_doorbell = isinstance(doorbells, list) and any(
-        str((d or {}).get("triggerEntityId") or "").strip()
-        for d in doorbells
-        if isinstance(d, dict)
+        str((doorbell or {}).get("triggerEntityId") or "").strip()
+        for doorbell in doorbells
+        if isinstance(doorbell, dict)
     )
     if not has_doorbell:
         gaps.append(
@@ -125,7 +129,12 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             }
         )
 
-    if not has_any_hazard_sensor_binding(hc):
+
+def _append_hazard_gaps(
+    gaps: list[dict[str, Any]], *, ha_config: dict[str, Any], pick
+) -> None:
+    """危险传感器、关阀、冲突与紧急场景缺口。"""
+    if not has_any_hazard_sensor_binding(ha_config):
         gaps.append(
             {
                 "id": "hazard",
@@ -136,10 +145,10 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
         )
 
     has_smoke_or_gas = bool(
-        parse_hazard_entity_id_list(hc, "hazardSmokeEntityIds")
-        or parse_hazard_entity_id_list(hc, "hazardGasEntityIds")
+        parse_hazard_entity_id_list(ha_config, "hazardSmokeEntityIds")
+        or parse_hazard_entity_id_list(ha_config, "hazardGasEntityIds")
     )
-    has_leak = bool(parse_hazard_entity_id_list(hc, "hazardLeakEntityIds"))
+    has_leak = bool(parse_hazard_entity_id_list(ha_config, "hazardLeakEntityIds"))
     if has_smoke_or_gas and not pick("hazardGasValveEntityId"):
         gaps.append(
             {
@@ -159,7 +168,7 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             }
         )
 
-    if detect_hazard_binding_conflicts(hc):
+    if detect_hazard_binding_conflicts(ha_config):
         gaps.append(
             {
                 "id": "hazard-conflict",
@@ -169,12 +178,20 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             }
         )
 
-    env_map = data.get("envSensorMap") if isinstance(data.get("envSensorMap"), dict) else {}
+
+def _append_env_sensor_gaps(
+    gaps: list[dict[str, Any]], *, input_config: dict[str, Any]
+) -> None:
+    """环境传感器房间缺口。"""
+    env_sensor_map_raw = input_config.get("envSensorMap")
+    env_map: dict[str, Any] = env_sensor_map_raw if isinstance(env_sensor_map_raw, dict) else {}
     env_rooms = 0
-    for entry in env_map.values():
-        if not isinstance(entry, dict) or entry.get("_hidden"):
+    for room_entry in env_map.values():
+        if not isinstance(room_entry, dict) or room_entry.get("_hidden"):
             continue
-        if str(entry.get("temperature") or "").strip() or str(entry.get("humidity") or "").strip():
+        if str(room_entry.get("temperature") or "").strip() or str(
+            room_entry.get("humidity") or ""
+        ).strip():
             env_rooms += 1
     if env_rooms < 1:
         gaps.append(
@@ -186,7 +203,12 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             }
         )
 
-    if not pick("hazardEmergencySceneId") and has_any_hazard_sensor_binding(hc):
+
+def _append_hazard_scene_gap(
+    gaps: list[dict[str, Any]], *, ha_config: dict[str, Any], pick
+) -> None:
+    """紧急场景缺口（保持在环境房间之后追加，与原先顺序一致）。"""
+    if not pick("hazardEmergencySceneId") and has_any_hazard_sensor_binding(ha_config):
         gaps.append(
             {
                 "id": "hazard-scene",
@@ -195,6 +217,28 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
                 "severity": "info",
             }
         )
+
+
+def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """检测当前配置下的各类首装绑定缺口。"""
+    input_config = input_data or {}
+    gaps: list[dict[str, Any]] = []
+    # 一律「先绑定再收窄」：写成 `x.get(K) if isinstance(x.get(K), dict) else {}` 时，静态分析
+    # 给出的是 `Any | dict | None`，于是下面每个把 ha_config / stats 传下去的调用都被判成
+    # 类型不匹配（6 条噪声），而 `x.get(K)` 还要读两遍。
+    ha_config_raw = input_config.get("haConfig")
+    ha_config: dict[str, Any] = ha_config_raw if isinstance(ha_config_raw, dict) else {}
+    stats_raw = input_config.get("statsSensors")
+    stats: dict[str, Any] = stats_raw if isinstance(stats_raw, dict) else {}
+
+    def pick(key: str) -> str:
+        return str(ha_config.get(key) or "").strip()
+
+    _append_weather_and_energy_gaps(gaps, pick=pick, input_config=input_config, stats=stats)
+    _append_camera_doorbell_gaps(gaps, ha_config=ha_config, pick=pick)
+    _append_hazard_gaps(gaps, ha_config=ha_config, pick=pick)
+    _append_env_sensor_gaps(gaps, input_config=input_config)
+    _append_hazard_scene_gap(gaps, ha_config=ha_config, pick=pick)
 
     return gaps
 

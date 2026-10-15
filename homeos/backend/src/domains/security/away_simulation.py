@@ -176,7 +176,9 @@ class AwaySimulationService:
         try:
             with self._session_factory() as session:
                 self._tz_cache_value = load_home_timezone(session)
-        except Exception:
+        except Exception as exc:
+            # 读到家庭时区失败会退回默认时区，可能让「活跃时段」判断偏 8 小时，必须留痕。
+            logger.warning("读取家庭时区失败，本次按默认时区: %s", exc)
             self._tz_cache_value = None
         self._tz_cache_at = now
         return self._tz_cache_value
@@ -224,7 +226,13 @@ class AwaySimulationService:
             try:
                 entities = await self._ha.fetch_entities_by_domain("cover")
                 self._cover_pool = [e["entity_id"] for e in entities]
-            except Exception:
+            except Exception as exc:
+                logger.warning("获取窗帘列表失败: %s", exc)
+                schedule_security_event(
+                    self._session_factory,
+                    "away_sim_enable_failed",
+                    f"离家模拟启用失败（无法获取窗帘列表）: {exc}",
+                )
                 self._cover_pool = []
 
         self._enabled = True

@@ -46,6 +46,30 @@ function channelOf(order: StoreOrder) {
   return String(order.payment?.provider || order.payment?.type || "").toLowerCase();
 }
 
+/**
+ * 支付弹窗的渠道化文案：`kicker` / `title` / `hint` 由**渠道**决定，不是订单上的字段。
+ *
+ * 此前这三段文案被临时挂在订单对象上（`(order as StoreOrder & { kicker?: string }).kicker = …`），
+ * 模板再用 `(current as any)?.kicker` 读回来。代价有两个，都是静默的：
+ *
+ * 1. 模板里的 `as any` 让**键名打错也照样编译**（`kickerr` 只会永远走 `|| "Payment"` 兜底）；
+ * 2. 那三个键落在 API 载荷对象上，于是「服务端某天在订单里加一个 `title`」会被
+ *    `pollOrder` 的 `{ ...currentOrder, ...order }` 展开覆盖掉，弹窗文案悄悄变成订单标题。
+ *
+ * 改成 store 上的显式状态后，键名由类型保证，也不再往 API 载荷里塞字段。
+ */
+function paymentChannelCopy(order: StoreOrder) {
+  const channel = channelOf(order);
+  const channelName = order.payment?.displayName || "";
+  return {
+    kicker: CHANNEL_KICKERS[channel] || "Payment",
+    title: CHANNEL_TITLES[channel] || (channelName ? `${channelName}扫码支付` : "扫码支付"),
+    hint:
+      order.payment?.note ||
+      `打开${channelName || "支付宝"}「扫一扫」完成付款，付款后本页会自动确认。`,
+  };
+}
+
 export const useOrderStore = defineStore("order", () => {
   const session = useSessionStore();
   const toast = useStoreToast();
@@ -57,6 +81,10 @@ export const useOrderStore = defineStore("order", () => {
   const qrDataUrl = ref("");
   const paymentStatus = ref("等待支付");
   const statusDone = ref(false);
+  /** 支付弹窗的渠道化文案（见 `paymentChannelCopy`）：由下单时的渠道决定，不落在订单对象上。 */
+  const paymentKicker = ref("Payment");
+  const paymentTitle = ref("扫码支付");
+  const paymentHint = ref("");
 
   let pollTimer: number | null = null;
   let countdownTimer: number | null = null;
@@ -91,17 +119,10 @@ export const useOrderStore = defineStore("order", () => {
     currentOrder.value = order;
     statusDone.value = false;
     paymentStatus.value = "等待支付";
-    const channel = channelOf(order);
-    const channelName = order.payment.displayName || "";
-    const title =
-      CHANNEL_TITLES[channel] || (channelName ? `${channelName}扫码支付` : "扫码支付");
-    const hint =
-      order.payment.note ||
-      `打开${channelName || "支付宝"}「扫一扫」完成付款，付款后本页会自动确认。`;
-    (order as StoreOrder & { kicker?: string; title?: string; hint?: string }).kicker =
-      CHANNEL_KICKERS[channel] || "Payment";
-    (order as StoreOrder & { title?: string }).title = title;
-    (order as StoreOrder & { hint?: string }).hint = hint;
+    const copy = paymentChannelCopy(order);
+    paymentKicker.value = copy.kicker;
+    paymentTitle.value = copy.title;
+    paymentHint.value = copy.hint;
     qrDataUrl.value = await QRCode.toDataURL(order.payment.qrCode, {
       width: 396,
       margin: 1,
@@ -148,6 +169,10 @@ export const useOrderStore = defineStore("order", () => {
     paymentOpen.value = false;
     stopPolling();
     currentOrder.value = null;
+    // 文案随订单走：清空订单时一并复位，避免下一次下单前有上一单的渠道文案残留。
+    paymentKicker.value = "Payment";
+    paymentTitle.value = "扫码支付";
+    paymentHint.value = "";
   }
 
   async function pollOrder(
@@ -276,6 +301,9 @@ export const useOrderStore = defineStore("order", () => {
     qrDataUrl,
     paymentStatus,
     statusDone,
+    paymentKicker,
+    paymentTitle,
+    paymentHint,
     showPayment,
     closePayment,
     showPendingOrder,

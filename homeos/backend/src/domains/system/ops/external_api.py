@@ -20,6 +20,9 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
+# 时间字符串解析用正则：模块级编译一次，避免在每个请求里重复编译。
+_LEADING_DIGITS_RE = re.compile(r"\d+")
+
 from .calendar_sync import CalendarSyncDeps, sync_calendar_from_url
 from .upstream import DEFAULT_TIMEOUT, UpstreamResponse, fetch_raw
 from .weather_alerts import fetch_open_weather_alerts_with_cache
@@ -44,6 +47,27 @@ logger = logging.getLogger("homeos.system.ops.external_api")
 WEATHER_SNAPSHOT_TTL_MS = 30 * 60_000
 #: 预报内存缓存 TTL（毫秒）
 FORECAST_TTL_MS = 30 * 60_000
+
+
+def _parse_pricing_entry(entry: Any) -> dict[str, Any] | None:
+    """解析一条动态电价条目；``start`` 不合法或电价非法/为负时返回 ``None``。
+
+    ``price`` 可能是数字，也可能是数字字符串（部分电价源用文本）；非数值类型直接丢弃，
+    不再走 ``float()`` 的异常路径。
+    """
+    item = entry if isinstance(entry, dict) else {}
+    start = str(item.get("start") or "").strip()
+    price_source = item.get("price")
+    if not isinstance(price_source, (int, float, str)):
+        return None
+    try:
+        price = float(price_source)
+    except ValueError:
+        return None
+    period = str(item.get("period") or "flat")
+    if not re.fullmatch(r"\d{1,2}:\d{2}", start) or price < 0:
+        return None
+    return {"start": start, "price": price, "period": period if period in ("peak", "valley") else "flat"}
 
 
 def _iso_now() -> str:
@@ -202,12 +226,14 @@ class ExternalApiService:
 
     def _home_timezone(self) -> str | None:
         getter = getattr(self._app_config, "get_home_timezone", None)
-        if callable(getter):
-            try:
-                return getter()
-            except Exception:
-                return None
-        return None
+        if not callable(getter):
+            return None
+        try:
+            timezone_value = getter()
+        except Exception:
+            return None
+        # 上游可能返回任意值（如 None/数字）：只有非空字符串才是合法时区名。
+        return timezone_value if isinstance(timezone_value, str) and timezone_value else None
 
     # 日历同步
     def _schedule_calendar_sync(self) -> None:
@@ -461,8 +487,10 @@ class ExternalApiService:
     def _to_minutes(value: str) -> int:
         parts = str(value).split(":")
         hour = int(parts[0]) if parts and parts[0].isdigit() else 0
-        minutes_raw = parts[1] if len(parts) > 1 else "0"
-        minutes = int(re.match(r"\d+", minutes_raw).group(0)) if re.match(r"\d+", minutes_raw) else 0
+        minutes_source = parts[1] if len(parts) > 1 else "0"
+        # 只匹配一次：旧写法把同一段文本匹配两遍，且未判 None。
+        minutes_match = _LEADING_DIGITS_RE.match(minutes_source)
+        minutes = int(minutes_match.group(0)) if minutes_match else 0
         return hour * 60 + minutes
 
     async def sync_dynamic_pricing(self) -> dict[str, Any]:
@@ -485,25 +513,13 @@ class ExternalApiService:
             raw_data = response.json() or {}
             unwrapped = raw_data.get("data") if isinstance(raw_data, dict) else None
             body = unwrapped if isinstance(unwrapped, dict) else raw_data
-            raw_schedule = body.get("schedule") if isinstance(body.get("schedule"), list) else []
+            schedule_source = body.get("schedule")
+            raw_schedule = schedule_source if isinstance(schedule_source, list) else []
             schedule: list[dict[str, Any]] = []
             for entry in raw_schedule:
-                item = entry if isinstance(entry, dict) else {}
-                start = str(item.get("start") or "").strip()
-                try:
-                    price = float(item.get("price"))
-                except (TypeError, ValueError):
-                    continue
-                period = str(item.get("period") or "flat")
-                if not re.fullmatch(r"\d{1,2}:\d{2}", start) or price < 0:
-                    continue
-                schedule.append(
-                    {
-                        "start": start,
-                        "price": price,
-                        "period": period if period in ("peak", "valley") else "flat",
-                    }
-                )
+                parsed_entry = _parse_pricing_entry(entry)
+                if parsed_entry is not None:
+                    schedule.append(parsed_entry)
             schedule.sort(key=lambda item: self._to_minutes(item["start"]))
             if not schedule:
                 self._dynamic_price_error = "动态电价 API 返回空 schedule"
@@ -680,9 +696,12 @@ class ExternalApiService:
             response = await self._weather_breaker.fire(_do_fetch)
             data = response.json()
             data = data if isinstance(data, dict) else {}
-            main = data.get("main") if isinstance(data.get("main"), dict) else {}
-            temperature = main.get("temp") if isinstance(main.get("temp"), (int, float)) else None
-            weather_list = data.get("weather") if isinstance(data.get("weather"), list) else []
+            main_source = data.get("main")
+            main: dict[str, Any] = main_source if isinstance(main_source, dict) else {}
+            temp_source = main.get("temp")
+            temperature = temp_source if isinstance(temp_source, (int, float)) else None
+            weather_source = data.get("weather")
+            weather_list = weather_source if isinstance(weather_source, list) else []
             first = weather_list[0] if weather_list and isinstance(weather_list[0], dict) else {}
             condition = str(first.get("description") or "")
             if temperature is None:
@@ -760,7 +779,8 @@ class ExternalApiService:
         if not entity_id or self._state_store is None:
             return {"source": None, "temperature": None, "condition": "", "fetchedAt": ""}
         entity = self._state_store.get(entity_id) or {}
-        attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
+        attributes_source = entity.get("attributes")
+        attributes: dict[str, Any] = attributes_source if isinstance(attributes_source, dict) else {}
         try:
             temperature = float(str(entity.get("state") if entity.get("state") is not None else ""))
         except (TypeError, ValueError):

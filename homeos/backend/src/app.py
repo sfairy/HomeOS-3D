@@ -38,38 +38,25 @@ DB_PROBE_TTL_SECONDS = 3.0
 SLOW_REQUEST_MILLISECONDS = 2000
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
-    app_settings = settings or load_settings()
-    version = load_app_version()
+def _probe_db(app: FastAPI) -> bool:
+    """带 TTL 的 DB 探针：``/health`` 为公开端点，避免高频轮询击穿连接。"""
+    now = time.monotonic()
+    cached = getattr(app.state, "db_probe", None)
+    if cached is not None and now - cached[0] < DB_PROBE_TTL_SECONDS:
+        return cached[1]
+    ok = True
+    try:
+        database: Database = app.state.database
+        with database.engine.connect() as connection:
+            connection.exec_driver_sql("SELECT 1")
+    except Exception:
+        ok = False
+    app.state.db_probe = (now, ok)
+    return ok
 
-    app = FastAPI(
-        title="HomeOS",
-        version=version,
-        lifespan=create_lifespan(app_settings, version),
-        docs_url=None,
-        redoc_url=None,
-        openapi_url=None,
-    )
-    app.state.settings = app_settings
 
-    register_exception_handlers(app, app_settings)
-    register_early_middleware(app, app_settings)
-
-    # 根路径健康检查 / 指标（无 /api/v1 前缀）
-    def _probe_db(app: FastAPI) -> bool:
-        now = time.monotonic()
-        cached = getattr(app.state, "db_probe", None)
-        if cached is not None and now - cached[0] < DB_PROBE_TTL_SECONDS:
-            return cached[1]
-        ok = True
-        try:
-            database: Database = app.state.database
-            with database.engine.connect() as connection:
-                connection.exec_driver_sql("SELECT 1")
-        except Exception:
-            ok = False
-        app.state.db_probe = (now, ok)
-        return ok
+def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -> None:
+    """根路径健康检查 / 指标（无 /api/v1 前缀）。"""
 
     @app.get("/health", include_in_schema=False)
     async def health(request: Request):
@@ -129,6 +116,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             headers={"Cache-Control": "no-store"},
         )
 
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    app_settings = settings or load_settings()
+    version = load_app_version()
+
+    app = FastAPI(
+        title="HomeOS",
+        version=version,
+        lifespan=create_lifespan(app_settings, version),
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+    app.state.settings = app_settings
+
+    register_exception_handlers(app, app_settings)
+    register_early_middleware(app, app_settings)
+    _register_probe_routes(app, app_settings, version)
     register_page_asset_routes(app, app_settings)
 
     # 业务路由（/api/v1）——必须在 SPA catch-all 之前注册

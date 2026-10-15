@@ -23,7 +23,7 @@ try:
     from pillow_heif import register_heif_opener
 
     register_heif_opener()
-except Exception:
+except Exception:  # HEIF 解码器是可选依赖：装不上只失去 HEIC 支持，其余图片照常
     pass
 
 from ..dependencies import (

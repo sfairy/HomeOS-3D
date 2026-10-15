@@ -1,7 +1,8 @@
 """HomeOS 授权商店与授权服务器（独立服务，默认端口 8802）。
 
-与主应用共用的三个叶子模块（``logging_noise`` / ``file_lock`` / ``migrations_core``）**不在本包内**：它们在
-``packages/shared-py/homeos_shared``，由本包导入时挂好 ``sys.path``（见下）。
+与主应用共用的叶子模块（``logging_noise`` / ``file_lock`` / ``migrations_core`` / ``client_ip`` /
+``rate_limit`` / ``license_transport``）**不在本包内**：它们在 ``packages/shared-py/homeos_shared``，
+由本包导入时挂好 ``sys.path``（见下）。
 """
 
 from __future__ import annotations
@@ -21,10 +22,9 @@ def _register_shared_python_root() -> Path | None:
     可解析。判据是「上溯祖先目录里有没有 ``packages/shared-py/homeos_shared/__init__.py``」——
     镜像里 ``__file__`` 是 ``/app/app/__init__*.so``，一路查到 ``/`` 都落空，自然无害跳过。
 
-    为什么放在包入口而不是各启动脚本里：仓库里有二十来处脚本 / 迁移入口 / 门禁各自往
-    ``sys.path`` 插后端目录（``ops/{check_schema,check_database,license_keys}.py``、
-    两个 ``migrations/env.py``、``*/scripts/*_smoke.py`` …），逐个补一行必然漏；而它们**都**要
-    ``import src.*``，所以包入口这一次注册就全覆盖了，将来新增脚本也不必再记得这件事。
+    为什么放在包入口而不是各启动脚本里：仓库里有多处迁移入口 / 工具脚本各自往
+    ``sys.path`` 插后端目录（``ops/license_keys.py``、两个 ``migrations/env.py`` 等），
+    逐个补一行必然漏；而它们**都**要 ``import src.*``，所以包入口这一次注册就全覆盖了。
 
     与主应用 ``src/__init__.py`` 里的同名函数是刻意重复的引导代码：它必须在
     ``homeos_shared`` 可导入**之前**就存在，所以没法反过来从共享包里取。

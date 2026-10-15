@@ -9,7 +9,7 @@
    逐级上溯查找，也可用环境变量 ``HOMEOS_FEATURE_CODES_PATH`` 显式指定。
 2. 读不到时回退到下方 ``_CATALOG_JSON`` —— **发行的加密镜像里没有 ``ops/`` 目录**
    （见根 Dockerfile：产物只允许 ``.so``），所以这份内嵌副本必须与 JSON 一致。
-   ``ops/check/check_feature_codes.py`` 会强制校验两者逐字段相等，防止它悄悄漂移。
+   须与 JSON 逐字段相等，防止悄悄漂移（靠评审保证）。
 """
 
 from __future__ import annotations

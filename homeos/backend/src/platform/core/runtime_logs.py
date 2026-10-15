@@ -126,7 +126,7 @@ class RuntimeLogBuffer:
         for listener in listeners:
             try:
                 listener(entry)
-            except Exception:
+            except Exception:  # SSE 订阅者回调失败不能带塌日志写入主流程
                 pass
         return entry
 
@@ -213,7 +213,7 @@ class RuntimeLogHandler(logging.Handler):
                 trace_id=get_trace_id(),
                 ts=_now_iso(),
             )
-        except Exception:
+        except Exception:  # 日志格式化/入缓冲失败不能带塌被观测方的业务日志调用
             pass
 
 
