@@ -121,8 +121,7 @@
 }
 
 /* ---- 窗帘/数值滑块（与 temp-slider 同结构，尺寸可微调） ---- */
-.cover-slider,
-.num-slider {
+.cover-slider {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
@@ -141,8 +140,7 @@
 }
 
 
-.cover-slider::-webkit-slider-runnable-track,
-.num-slider::-webkit-slider-runnable-track {
+.cover-slider::-webkit-slider-runnable-track {
   -webkit-appearance: none;
   appearance: none;
   border-radius: var(--hos-radius-pill);
@@ -155,16 +153,14 @@
 
 .cover-slider::-webkit-slider-runnable-track { height: 6px; }
 
-.cover-slider::-moz-range-track,
-.num-slider::-moz-range-track {
+.cover-slider::-moz-range-track {
   border-radius: var(--hos-radius-pill);
   background: var(--track-bg, rgba(255, 255, 255, 0.06));
 }
 
 .cover-slider::-moz-range-track { height: 6px; }
 
-.cover-slider::-moz-range-progress,
-.num-slider::-moz-range-progress {
+.cover-slider::-moz-range-progress {
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
     var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
@@ -173,8 +169,7 @@
 
 .cover-slider::-moz-range-progress { height: 6px; }
 
-.cover-slider::-webkit-slider-thumb,
-.num-slider::-webkit-slider-thumb {
+.cover-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 50%;
@@ -191,8 +186,7 @@
 }
 
 
-.cover-slider::-moz-range-thumb,
-.num-slider::-moz-range-thumb {
+.cover-slider::-moz-range-thumb {
   border-radius: 50%;
   background: var(--accent, #0A84FF);
   border: 2px solid #fff;
@@ -251,13 +245,6 @@
 .mode-value {
   font-size: var(--premium-fs-caption);
   font-weight: 700;
-}
-
-.mode-label {
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  opacity: 0.7;
-  margin-top: 2px;
 }
 
 /* ---- 关闭/开关按钮 ---- */

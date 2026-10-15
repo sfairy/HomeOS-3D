@@ -40,7 +40,6 @@
     "homeos:src/features/settings/system/diagnostics/styles/diagnostics-theme.css|--font-mono",
     "homeos:src/features/settings/system/profiles/styles/profiles-theme.css|--module-accent-admin-sub-bg",
     "homeos:src/features/settings/system/profiles/styles/profiles-theme.css|--module-accent-admin-sub-border",
-    "homeos:src/features/settings/system/profiles/styles/profiles-theme.css|--premium-accent-indigo",
     "homeos:src/features/settings/system/styles/admin-hubs.css|--set-info-glow"
   ]
 }

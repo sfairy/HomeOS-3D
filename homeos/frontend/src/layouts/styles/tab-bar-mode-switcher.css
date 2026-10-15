@@ -19,8 +19,11 @@
 .tab-bar .home-mode-switcher__presence,
 .tab-bar .home-mode-switcher__btn {
   border: none;
-  border-radius: 9px;
-  min-height: 40px;
+  border-radius: var(--hos-radius-control);
+  /* 顶栏控件统一到 lg 档。此处原为 min-height: 40px，特异性高于
+     main-layout.css 的 .tab-bar__tab{min-height:44px}，把整条顶栏压在 40px，
+     而同一排的 .tab-bar__actions .icon-btn 是 44px —— 同排两档正是「40/41 与 44/45 成簇差」的来源。 */
+  height: var(--control-height-lg);
   box-shadow: none;
 }
 
@@ -96,8 +99,9 @@
 
 .tab-bar .tab-bar__tab {
   font-size: var(--premium-fs-body-sm);
-  min-height: 40px;
-  padding: 5px 11px;
+  /* 同为 lg 档：见上方 mode-switcher 处说明，此处原 min-height: 40px 是顶栏同排两档的另一半。 */
+  height: var(--control-height-lg);
+  padding: 0 11px;
 }
 
 .tab-bar .tab-bar__tab-icon {

@@ -18,7 +18,7 @@
 /* ---- 弹窗锚点定位 ---- */
 .popup-anchor {
   position: absolute;
-  z-index: 1000;
+  z-index: var(--z-modal);
   cursor: default;
   overflow: visible;
 }

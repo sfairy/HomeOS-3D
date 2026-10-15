@@ -125,8 +125,8 @@
 .alert-rule-switch__track {
   position: relative;
   display: inline-block;
-  width: 34px;
-  height: 20px;
+  width: var(--hos-switch-w-xs);
+  height: var(--hos-switch-h-xs);
   border-radius: var(--hos-radius-pill);
   background: rgba(255, 255, 255, 0.12);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.16);
@@ -135,10 +135,10 @@
 
 .alert-rule-switch__thumb {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+  top: var(--hos-switch-thumb-inset);
+  left: var(--hos-switch-thumb-inset);
+  width: var(--hos-switch-knob-xs);
+  height: var(--hos-switch-knob-xs);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.72);
   transition: transform 0.18s ease, background 0.18s ease;
@@ -150,7 +150,7 @@
 }
 
 .alert-rule-switch__input:checked + .alert-rule-switch__track .alert-rule-switch__thumb {
-  transform: translateX(14px);
+  transform: translateX(var(--hos-switch-travel-xs));
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -197,19 +197,6 @@
   color: rgba(253, 164, 175, 0.88);
   background: rgba(251, 113, 133, 0.06);
   border-color: rgba(251, 113, 133, 0.18);
-}
-
-/* ── 颜色统一：原 Tailwind color class → CSS 变量 ── */
-
-/* 引言图标 + 光晕（child component props via :deep）—— 玫红告警 */
-
-/* 无 admin 权限提示卡片（extra-class 注入到 SettingsCard 边框/背景） */
-.ar-warn-text {
-  color: var(--set-warn);
-  /* 窄屏下保持按语义换行，避免中文提示逐字竖排 */
-  white-space: normal;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
 }
 
 /* 三个 hub-stat 数值（应用内规则/语音播报/自定义语音） */

@@ -62,7 +62,7 @@
 .ef-item-tabs .settings-orch-sort-shift {
   flex-shrink: 0;
   width: 34px;
-  height: 34px;
+  height: var(--control-height-sm);
   min-height: 0;
   align-self: center;
   border: var(--hos-hairline) solid var(--premium-border-strong);
@@ -255,7 +255,7 @@
 .embed-item-tabs .settings-orch-sort-shift {
   flex-shrink: 0;
   width: 34px;
-  height: 34px;
+  height: var(--control-height-sm);
   min-height: 0;
   align-self: center;
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
@@ -564,24 +564,6 @@
 }
 
 .settings-orch-tab--active .settings-orch-label { color: #fff; }
-
-.settings-orch-tab--sortable {
-  cursor: grab;
-}
-
-.settings-orch-tab--sortable:active {
-  cursor: grabbing;
-}
-
-.settings-orch-tab--dragging {
-  opacity: 0.45;
-  transform: scale(0.96);
-}
-
-.settings-orch-tab--drag-over {
-  box-shadow: inset 0 0 0 2px var(--tab-accent, #fbbf24);
-  background: var(--set-glass-bg-hover);
-}
 
 .settings-orch-count {
   font-size: var(--set-fs-micro);

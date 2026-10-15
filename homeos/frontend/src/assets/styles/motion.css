@@ -50,7 +50,6 @@
 
 
 
-.accent-ring:focus-visible,
 .focus-ring:focus-visible {
   outline: none;
   box-shadow:
@@ -69,8 +68,7 @@ html[data-kiosk="true"] .icon-btn[title*="Command"] {
   .hos-fade-up {
     animation: none;
   }
-  .tap-active:active,
-  .hos-panel-hover:hover {
+  .tap-active:active {
     transform: none;
   }
 }

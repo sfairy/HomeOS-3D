@@ -205,14 +205,6 @@ html.editor-viewport-fit body {
 
 
 
-
-.sc-panel--left {
-  border-right: var(--hos-hairline) solid var(--hos-border-subtle);
-}
-
-
-
-
 .sc-zoom-bar {
   display: inline-flex;
   align-items: center;
@@ -252,7 +244,7 @@ html.editor-viewport-fit body {
 
 .sc-shortcuts-card h3 {
   margin: 0 0 var(--hos-space-md);
-  font-size: 15px;
+  font-size: var(--premium-fs-body);
 }
 
 .sc-shortcuts-card dl {

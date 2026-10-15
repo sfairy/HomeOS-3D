@@ -140,17 +140,6 @@
   font-size: var(--set-fs-body-sm);
 }
 
-
-.settings-independent-save-hint {
-  margin: 0 0 12px;
-  padding: 10px 14px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--set-fs-caption);
-  color: rgba(251, 191, 36, 0.9);
-  background: rgba(251, 191, 36, 0.08);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.2);
-}
-
 /* 区内保存：页头/窄屏藏 actions 时仍可操作（仅 pending>0 时渲染） */
 .settings-inline-save-bar {
   display: flex;
@@ -166,14 +155,6 @@
 }
 
 @media (max-width: 639px) {
-  .settings-independent-save-hint {
-    margin: 0 0 8px;
-    padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-    font-size: var(--premium-fs-micro, 12px);
-    line-height: 1.45;
-    border: none;
-    background: rgba(251, 191, 36, 0.06);
-  }
 }
 
 /* ── 基础设置 · 顶栏导航标签编辑器 ── */
@@ -638,9 +619,9 @@
   align-items: center;
   justify-content: center;
   width: 30px;
-  height: 30px;
+  height: var(--control-height-xs);
   border: none;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   background: var(--set-glass-bg);
   color: var(--set-text-label);
   border: var(--hos-hairline) solid var(--premium-border-strong);
@@ -708,9 +689,9 @@
   align-items: center;
   justify-content: center;
   width: 26px;
-  height: 26px;
+  height: var(--control-height-xs);
   border: none;
-  border-radius: 7px;
+  border-radius: var(--hos-radius-control);
   background: var(--set-glass-bg);
   color: var(--set-text-label);
   cursor: pointer;
@@ -858,7 +839,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  /* 高度钉到 md 档：8px 内边距 + 行高 + 发丝边框凑出 37px。 */
+  height: var(--control-height-md);
+  padding: 0 14px;
   border-radius: var(--hos-radius-pill);
   font-size: var(--premium-fs-caption);
   font-weight: 600;
@@ -883,24 +866,6 @@
 .settings-premium-empty__btn--accent:hover {
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
   border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.32);
-}
-
-/* 楼层卡片 */
-
-
-.layout-floor-card__index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-micro);
-  font-weight: 800;
-  color: var(--page-accent, #7eb8ff);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.25);
 }
 
 

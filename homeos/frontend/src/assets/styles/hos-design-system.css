@@ -28,6 +28,46 @@
   --hos-radius-shell: var(--hos-radius-panel);
   --hos-radius-pill: 9999px;
 
+  /* ── 开关/切换件几何（唯一尺度源） ──
+     收敛前全站 8 种互不相干的轨道尺寸（48×24 / 46×26 / 44×26 / 44×24 / 40×24 /
+     40×22 / 40×20 / 34×20），且成簇只差 1–2px，观感上「同一排开关高低不齐」。
+     收成三档后，语义映射固定：
+       md —— 设置页标准开关（表单行、区块开关）
+       sm —— 次级/密集面板开关（工具条、字段内联开关）
+       xs —— 密集列表行内的行内开关（收件箱/告警行）
+     几何不变量：轨道内边距恒为 `--hos-switch-inset`，滑块行程 = 宽 − 滑块 − 2×内边距，
+     因此滑块右停靠时四周留白一致，改档位不会出现「一侧贴边」。
+     滑块垂直居中由 `(h − knob) / 2 = inset` 保证，故三档都满足 h = knob + 6px。 */
+  --hos-switch-inset: 3px;
+  --hos-switch-w-xs: 34px;
+  --hos-switch-h-xs: 20px;
+  --hos-switch-knob-xs: 14px;
+  --hos-switch-w-sm: 40px;
+  --hos-switch-h-sm: 24px;
+  --hos-switch-knob-sm: 18px;
+  --hos-switch-w-md: 44px;
+  --hos-switch-h-md: 26px;
+  --hos-switch-knob-md: 20px;
+  --hos-switch-w-lg: 56px;
+  --hos-switch-h-lg: 28px;
+  --hos-switch-knob-lg: 22px;
+  --hos-switch-w-xl: 64px;
+  --hos-switch-h-xl: 32px;
+  --hos-switch-knob-xl: 26px;
+
+  /* 带描边轨道里滑块的水平偏移：轨道的 padding box 比外框内缩一个描边宽，
+     因此从 padding box 量起的偏移 = inset − hairline（桌面 0.5px → 2.5px，触屏 1px → 2px），
+     它同时等于 (h − 2×hairline − knob) / 2，所以垂直也是精确居中。
+     触屏档会在下面的 hairline 覆盖块里同步重算，否则这里会锁死在 0.5px 的旧值。 */
+  --hos-switch-thumb-inset: calc(var(--hos-switch-inset) - var(--hos-hairline));
+  /* 滑块行程 = 宽 − 滑块 − 2×内边距。带描边时 padding box 的额外内缩与上式抵消，
+     故有边框/无边框共用同一行程，两个停靠位左右留白严格相等（不再一侧贴边）。 */
+  --hos-switch-travel-xs: calc(var(--hos-switch-w-xs) - var(--hos-switch-knob-xs) - 2 * var(--hos-switch-inset));
+  --hos-switch-travel-sm: calc(var(--hos-switch-w-sm) - var(--hos-switch-knob-sm) - 2 * var(--hos-switch-inset));
+  --hos-switch-travel-md: calc(var(--hos-switch-w-md) - var(--hos-switch-knob-md) - 2 * var(--hos-switch-inset));
+  --hos-switch-travel-lg: calc(var(--hos-switch-w-lg) - var(--hos-switch-knob-lg) - 2 * var(--hos-switch-inset));
+  --hos-switch-travel-xl: calc(var(--hos-switch-w-xl) - var(--hos-switch-knob-xl) - 2 * var(--hos-switch-inset));
+
   /* ── 设置页「流动光带」渐变 ──
      规范源：页面主/次强调色 + 统一透明度。各设置分区只按需覆盖色相，
      不再各自重复声明整套 rgba 值，避免 8 处副本逐渐漂移。 */
@@ -162,6 +202,9 @@
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   :root {
     --hos-hairline: 1px;
+    /* 描边加粗到 1px 后，开关滑块的水平/垂直基准偏移要同步重算（见文件顶部开关几何族），
+       否则滑块会比轨道中心低 0.5px、右侧留白比左侧多 1px。 */
+    --hos-switch-thumb-inset: calc(var(--hos-switch-inset) - var(--hos-hairline));
     --hos-surface-inset: none;
     --hos-surface-well-inset: inset 0 2px 8px rgba(0, 0, 0, 0.28);
     --hos-border-subtle: rgba(255, 255, 255, 0.1);

@@ -110,7 +110,7 @@
 /*
  * 检查器里的滑条（强度类：反射强度 / 弹窗缩放与位置 / 透明度，以及墙体透明度）：胶囊轨道 +
  * 圆点拇指，观感与浏览器原生 `accent-color` 滑块一致（8px 轨道含 1px 描边、6px 槽、16px
- * 圆点、金色填充）。
+ * 圆点、金色渐变填充）。
  *
  * 为什么整段用 ID 选择器重画：main.css 的全局 range 默认样式（24px 白圆点 + 光晕 + 6px
  * 半透明槽）在 `:not()` 链上叠了十几个类，权重极高，本文件只声明 height/accent-color
@@ -127,6 +127,13 @@
  */
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) {
   --accent: #f2a20d;
+  /* 填充段用金色渐变：亮金（主金提亮）→ 主金，方向与 `button.primary` 的
+     `linear-gradient(180deg, #ffb82e, #ef9900)` 同源。亮端不复用 app.css 的
+     `--accent-bright`：宿主页面若自带同名变量（runtime.css 的 `.i3d-editor` 就把它定义成
+     另一个金）会串色，所以这里从已钉住的 `--accent` 现算；`--track-fill-to` 不写，落到
+     下面渐变里的 `var(--track-fill-to, var(--accent))` 兜底。
+     JS 仍可用内联 `--track-fill-*` 覆盖（内联优先于本类）。 */
+  --track-fill-from: color-mix(in srgb, var(--accent) 72%, white);
 }
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"] {
   appearance: none;
@@ -139,10 +146,11 @@
   border: 1px solid var(--muted);
   border-radius: 99px;
   outline: none;
+  /* 渐变被 --progress-pct 截断：两个停靠色始终铺满「已填充」那一段，与滑条长度无关 */
   background: linear-gradient(
     to right,
-    var(--accent) 0,
-    var(--accent) var(--progress-pct, 0%),
+    var(--track-fill-from, var(--accent)) 0,
+    var(--track-fill-to, var(--accent)) var(--progress-pct, 0%),
     var(--line) var(--progress-pct, 0%),
     var(--line) 100%
   );
@@ -175,7 +183,11 @@
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"]::-moz-range-progress {
   height: 6px;
   border-radius: 99px;
-  background: var(--accent);
+  background: linear-gradient(
+    to right,
+    var(--track-fill-from, var(--accent)),
+    var(--track-fill-to, var(--accent))
+  );
 }
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"]::-moz-range-thumb {
   width: 16px;

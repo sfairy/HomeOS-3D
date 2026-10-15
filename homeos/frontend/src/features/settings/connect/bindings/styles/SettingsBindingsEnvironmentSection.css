@@ -12,7 +12,7 @@
   align-items: center;
   gap: 5px;
   padding: 7px 11px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   border: none;
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.62);
@@ -79,7 +79,9 @@
   align-items: center;
   gap: 5px;
   margin-left: auto;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  /* 高度钉到 xs 档：chip 内边距 + 行高凑出 30px。 */
+  height: var(--control-height-xs);
+  padding: 0 var(--hos-chip-pad-x, 12px);
   border: none;
   border-radius: 8px;
   background: transparent;

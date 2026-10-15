@@ -60,21 +60,9 @@
   transition: all 0.12s ease-out;
 }
 
-.settings-popout-drop-enter-from,
-.settings-popout-drop-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
 .settings-popout-drop-up-enter-active,
 .settings-popout-drop-up-leave-active {
   transition: all 0.12s ease-out;
-}
-
-.settings-popout-drop-up-enter-from,
-.settings-popout-drop-up-leave-to {
-  opacity: 0;
-  transform: translateY(4px);
 }
 
 .settings-popout-fade-enter-active,

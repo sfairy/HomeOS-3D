@@ -37,18 +37,7 @@
   );
 }
 
-.text-gradient--soft {
-  color: color-mix(in srgb, var(--page-accent, #34d399) 72%, white);
-}
-
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .text-gradient--soft {
-    background: var(--page-gradient-soft);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-  }
 }
 
 /* ── 预设多彩渐变文字（复用 main.css 既有 --gradient-* 预设） ── */
@@ -61,26 +50,6 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-}
-
-/* ── 卡片顶部渐变光带（供具体卡片类声明 ::after 时复用背景） ── */
-.card-top-band::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--page-accent, #34d399) 60%, transparent) 30%,
-    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, #38bdf8)) 60%, transparent) 70%,
-    transparent 100%
-  );
-  opacity: 0.9;
-  pointer-events: none;
 }
 
 /* ── 卡片 hover 外发光（随页面色） ── */

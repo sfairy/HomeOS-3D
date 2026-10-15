@@ -374,6 +374,3 @@
 .dhs-c-danger {
   color: var(--set-danger, #fda4af);
 }
-.dhs-c-info {
-  color: var(--set-info, #7dd3fc);
-}

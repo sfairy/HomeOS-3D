@@ -343,8 +343,5 @@ onMounted(load)
   color: var(--module-accent-connection, #34d399);
 }
 
-.settings-btn--sm {
-  padding: 6px 12px;
-  font-size: var(--set-fs-micro, 12px);
-}
+/* .settings-btn--sm 已收敛到 features/settings/shared/styles/settings-forms.css */
 </style>

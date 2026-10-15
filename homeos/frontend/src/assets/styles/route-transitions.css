@@ -1,6 +1,14 @@
-/* 路由淡入淡出过渡（原 frontend/src/styles/App.css） */
-.fade-enter-active,
-.fade-leave-active {
+/* 路由换页过渡（原 frontend/src/styles/App.css）
+ *
+ * 命名隔离：本族**只能**叫 `route-fade-*`（App.vue 的 routeTransitionName 取 'route-fade'）。
+ * 历史缺陷：它原先叫 `fade-*`，与组件内 `<Transition name="fade">` 的淡入淡出**同名**，
+ * 于是下面这套「绝对定位 + 横向 100% 位移」的整屏换页规则，被所有组件级 fade 元素一并继承
+ * —— 典型受害者是 SecurityView 的全屏查看器（自身写着 fixed inset-0，却因继承到
+ * `position:absolute` 而改成按最近定位祖先铺满，并莫名其妙地从右侧滑入）。
+ * 改名后两者互不干扰：路由壳走 route-fade-*，组件淡入淡出走全局唯一的 .fade-*（见 modal-theme.css）。
+ */
+.route-fade-enter-active,
+.route-fade-leave-active {
   /* 路由壳保持实体渲染，避免 out-in 的透明度熄灭/点亮闪烁。 */
   transition: transform 0.42s cubic-bezier(0.22, 0.8, 0.2, 1);
   will-change: transform;
@@ -15,15 +23,15 @@
   width: 100%;
   height: 100%;
 }
-.fade-enter-active {
+.route-fade-enter-active {
   z-index: 2;
 }
-.fade-leave-active {
+.route-fade-leave-active {
   z-index: 1;
   pointer-events: none;
 }
-.fade-enter-from { transform: translate3d(100%, 0, 0); }
-.fade-leave-to { transform: translate3d(-100%, 0, 0); }
+.route-fade-enter-from { transform: translate3d(100%, 0, 0); }
+.route-fade-leave-to { transform: translate3d(-100%, 0, 0); }
 
 /**
  * 创作面（编辑器 / 户型图）瞬时换页：离开页立刻从布局摘掉，
@@ -72,8 +80,8 @@
 }
 
 @media (pointer: coarse), (hover: none) {
-  .fade-enter-active,
-  .fade-leave-active {
+  .route-fade-enter-active,
+  .route-fade-leave-active {
     transition: none !important;
     transform: none !important;
     /* 触控端关掉动画后仍不要留下 absolute，避免稳态布局被改坏 */
@@ -82,8 +90,8 @@
     z-index: auto !important;
     pointer-events: auto !important;
   }
-  .fade-enter-from,
-  .fade-leave-to { transform: none !important; }
+  .route-fade-enter-from,
+  .route-fade-leave-to { transform: none !important; }
 }
 
 /* 双主题纯 CSS 氛围层：只合成 transform，不参与布局与交互。 */

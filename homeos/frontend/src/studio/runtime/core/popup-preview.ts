@@ -40,6 +40,18 @@ export function createPopupLayoutPreview(hostElement: any, getLayout: any, onClo
     layerElement.append(previewElement),
     hostElement.append(layerElement));
   let currentKind: any, currentSettings: any;
+  /**
+   * 布局预览的面板底色按 `--i3d-panel-opacity` 画（runtime.css 的 `.i3d-popup-preview` 与
+   * stage.css 的真面板同一枚变量）。但舞台那枚变量由 stage.ts 在**舞台帧里**注入，预览挂在
+   * 编辑器页面，没有任何人替它写 —— 不写就永远停在 CSS 兜底的 0.74，「弹窗透明度」滑条
+   * 于是调了也看不出变化。这里按 settings 自己写一次，与真面板同口径（百分比 → 0–1）。
+   */
+  const applyPopupOpacity = () => {
+    const opacityPercent = Number.isFinite(currentSettings?.opacity)
+      ? Math.max(0, Math.min(100, Number(currentSettings.opacity)))
+      : 74;
+    previewElement.style.setProperty("--i3d-panel-opacity", String(opacityPercent / 100));
+  };
   const resize = () => {
     if (!currentKind) return;
     const layout = getLayout() || {},
@@ -91,7 +103,16 @@ export function createPopupLayoutPreview(hostElement: any, getLayout: any, onClo
         (currentSettings = {
           ...nextSettings,
         }),
+        applyPopupOpacity(),
         resize());
+    },
+    /** 只刷新不透明度（滑条拖动时用）：不动布局，也不需要调用方知道当前预览的是哪个预设。 */
+    setOpacity(nextOpacity: any) {
+      ((currentSettings = {
+        ...(currentSettings || {}),
+        opacity: nextOpacity,
+      }),
+        applyPopupOpacity());
     },
     resize: resize,
     dispose() {

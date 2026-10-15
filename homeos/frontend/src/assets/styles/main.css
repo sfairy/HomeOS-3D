@@ -105,17 +105,6 @@ body {
 .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.06) transparent; }
 
 /**
- * .custom-scrollbar-lg —— 加粗滚动条（5px、更亮滑块）
- * 用于主内容区等需要明确滚动提示的场景
- */
-.custom-scrollbar-lg::-webkit-scrollbar { width: 5px; }
-.custom-scrollbar-lg::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar-lg::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
-.custom-scrollbar-lg::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
-
-.custom-scrollbar-lg { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
-
-/**
  * .no-scrollbar —— 完全隐藏滚动条
  * 用于横向滑动容器、全屏沉浸等场景
  */
@@ -778,66 +767,6 @@ input[type="range"].hos-range-ui:disabled {
 
 
 /* ==========================================================================
-   15. GPU 加速工具类
-   通过 CSS containment 和 will-change 将元素提升到独立合成层
-   大幅减少重绘/回流，提升动画流畅度
-   ========================================================================== */
-
-/**
- * .gpu-isolate —— GPU 合成层隔离（完整版）
- * - contain: layout paint —— 限制布局和绘制范围
- * - will-change: transform, opacity —— 提前告知 GPU 准备
- * - backface-visibility: hidden —— 避免 3D 变换时的背面闪烁
- * - transform-style: preserve-3d —— 保持子元素 3D 空间
- */
-
-/**
- * .gpu-isolate-light —— GPU 合成层隔离（轻量版）
- * 仅 contain: layout，适合不需要 paint containment 的场景
- */
-
-
-/**
- * .gpu-accelerate —— GPU 加速（基础版）
- * 使用 translateZ(0) 强制创建合成层，适合简单动画元素
- */
-.gpu-accelerate {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: transform;
-}
-
-/**
- * .gpu-accelerate-strong —— GPU 加速（增强版）
- * 使用 translate3d + preserve-3d，适合复杂动画元素
- */
-.gpu-accelerate-strong {
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-  will-change: transform, opacity;
-}
-
-
-/* ==========================================================================
-   16. 毛玻璃快捷类
-   预设的 backdrop-filter 组合，避免在组件中重复书写
-   ========================================================================== */
-
-/** 性能版毛玻璃：12px 模糊 + 150% 饱和度 */
-.backdrop-blur-performance {
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  backdrop-filter: blur(12px) saturate(150%);
-}
-
-/** 轻量版毛玻璃：8px 模糊 + 120% 饱和度 */
-.backdrop-blur-light {
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  backdrop-filter: blur(8px) saturate(120%);
-}
-
-
-/* ==========================================================================
    17. GPU 优化版动画关键帧
    使用 translate3d/scale3d 取代 2D 版本
    强制触发 GPU 合成层，避免 CPU 重绘
@@ -1050,8 +979,6 @@ input[type="range"].hos-range-ui:disabled {
     .notification-drawer,
     .device-group-modal,
     .dgm-shell,
-    .linkage-hub__drawer,
-    .linkage-hub__nav-wrap,
     .linkage-builder-drawer-panel,
     .linkage-builder-drawer-backdrop,
     .orch-premium-shell,
@@ -1094,7 +1021,6 @@ input[type="range"].hos-range-ui:disabled {
   .hub-tabs-config__toggle,
   .hub-tabs-config__segment,
   .dev-metric__icon,
-  .linkage-hub-card__icon,
   .linkage-overview__cat-orb,
   .lp-metrics__item,
   .diag-hero-orb,
@@ -1113,8 +1039,6 @@ input[type="range"].hos-range-ui:disabled {
   .bind-sec-path--ha:hover,
   .bind-sec-action--primary,
   .bind-doorbell-card:hover,
-  .linkage-hub .list-page__btn--primary,
-  .linkage-hub .list-page__btn--primary:hover:not(:disabled),
   .list-page__btn--primary,
   .list-page__btn--primary:hover:not(:disabled),
   .settings-switch-toggle--on,
@@ -1140,7 +1064,6 @@ input[type="range"].hos-range-ui:disabled {
 
   /* 主按钮保留轻暗影，去掉彩色光晕 */
   .list-page__btn--primary,
-  .linkage-hub .list-page__btn--primary,
   .bind-sec-action--primary {
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28) !important;
   }
@@ -1176,8 +1099,6 @@ html[data-glass-effect="static"] :is(
     .notification-drawer,
     .device-group-modal,
     .dgm-shell,
-    .linkage-hub__drawer,
-    .linkage-hub__nav-wrap,
     .linkage-builder-drawer-panel,
     .linkage-builder-drawer-backdrop,
     .orch-premium-shell,
@@ -1189,7 +1110,6 @@ html[data-glass-effect="static"] :is(
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-html[data-glass-effect="static"] .glass-panel:not(.glass-panel--native),
 html[data-glass-effect="static"] .tab-bar {
   background: var(--glass-off-bg-surface);
 }
@@ -1200,10 +1120,7 @@ html[data-glass-effect="static"] .popup-shell {
   background: var(--glass-off-bg-popup);
 }
 
-/* ────── 性能优化：浏览器原生虚拟滚动（零 JS 开销） ────── */
-/* content-visibility: auto 告诉浏览器跳过屏外元素的渲染，
-   对 500+ 实体列表可减少 60-80% 首帧渲染开销 */
-.entity-item, .widget-card,
+.widget-card,
 .widget-wrapper,
 .info-panel .widget-wrapper,
 .security-camera-tile {
@@ -1330,8 +1247,7 @@ html[data-glass-effect="static"] .popup-shell {
    20. Toggle 触屏热区（Settings / Widget 共用）
    ========================================================================== */
 
-.toggle-btn,
-.toggle-bg {
+.toggle-btn {
   flex-shrink: 0;
   box-sizing: border-box;
   overflow: hidden;
@@ -1346,14 +1262,12 @@ html[data-glass-effect="static"] .popup-shell {
    * 注意旧写法同时带 `pointer-events: none` 和 `.toggle-btn{overflow:hidden}` 裁剪，
    * 伪元素既不可点也被裁掉，等于从未生效过。
    */
-  .toggle-btn,
-  .toggle-bg {
+  .toggle-btn {
     position: relative;
     overflow: visible;
   }
 
-  .toggle-btn::before,
-  .toggle-bg::before {
+  .toggle-btn::before {
     content: '';
     position: absolute;
     inset: -10px;

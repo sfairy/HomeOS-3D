@@ -115,7 +115,9 @@
 }
 
 .fav-filter-pill {
-  padding: 6px 12px;
+  /* 高度钉到 sm 档：6px 内边距 + 行高 + 发丝边框凑出 33px。 */
+  height: var(--control-height-sm);
+  padding: 0 12px;
   border-radius: var(--hos-radius-pill);
   font-size: var(--premium-fs-caption, 11px);
   font-weight: 600;

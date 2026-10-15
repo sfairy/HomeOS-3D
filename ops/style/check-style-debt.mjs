@@ -30,14 +30,20 @@
  *
  * 审计口径的「硬编码色 2,969」只数了十六进制色、且只数主应用 `src`；本门禁的口径更宽：
  * 十六进制色 **加上** `rgb()/rgba()/hsl()/hsla()` 的**数值**首参（`rgba(var(--x), .2)` 不算，
- * 那是已令牌化的形态），并且覆盖 `public/static` 这份**手写的静态运行面**样式
- * （它不是 `src` 的生成物，两边都在维护）。所以基线绝对数更大是口径差异，不是债务变多：
+ * 那是已令牌化的形态），并且覆盖两个前端的 `public/static` 这份**手写的静态运行面**样式
+ * （它不是 `src` 的生成物，两边都在维护；商店的样式**全部**在这里，`homeos-store/frontend/src`
+ * 一个样式文件都没有）。所以基线绝对数更大是口径差异，不是债务变多：
  *
  * | 根 | `!important` | 硬编码色 |
  * | --- | --- | --- |
  * | `homeos/frontend/src` | 373（审计 380，P1 清掉 7 处） | 8,047 |
- * | `homeos/frontend/public/static` | 136 | 3,023 |
+ * | `homeos/frontend/public/static` | 136 | 3,019 |
  * | `homeos-store/frontend/src` | 0 | 0 |
+ * | `homeos-store/frontend/public/static` | 44 | 192 |
+ *
+ * 第三方 / 压缩产物（`*.min.css`、`vendor/`）按 `isVendored` 跳过（与
+ * `ops/tokens/check-token-contract.mjs` 同口径）—— 当前唯一命中的是商店的
+ * `public/static/font.min.css`（字体图标库），它不该进棘轮。
  *
  * 门禁的价值在**棘轮**（只减不增）与**新裸 `z-index` 数值必红**，而不在这几个绝对数。
  *
@@ -59,14 +65,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { blankComments, extractStyleText, rel, walk } from '../lib/scan.mjs'
+import { blankComments, extractStyleText, isVendored, rel, walk } from '../lib/scan.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '..', '..')
 const DEFAULT_BASELINE = path.join(HERE, 'style-debt-baseline.json')
 
-/** 默认扫描面：两个前端的样式来源（`public/static` 里也有独立样式表）。 */
-const DEFAULT_ROOTS = ['homeos/frontend/src', 'homeos/frontend/public/static', 'homeos-store/frontend/src']
+/** 默认扫描面：两个前端的样式来源（`public/static` 里也有独立样式表，不是 `src` 的生成物）。 */
+const DEFAULT_ROOTS = [
+  'homeos/frontend/src',
+  'homeos/frontend/public/static',
+  'homeos-store/frontend/src',
+  'homeos-store/frontend/public/static',
+]
 
 const argv = process.argv.slice(2)
 const wantUpdate = argv.includes('--update')
@@ -116,7 +127,13 @@ const NUMERIC_VALUE = /^-?\d+$/
 const styleFiles = []
 for (const root of ROOTS) {
   if (!fs.existsSync(root)) continue
-  for (const file of walk(root, new Set(['.css', '.vue', '.html']))) styleFiles.push(file)
+  for (const file of walk(root, new Set(['.css', '.vue', '.html']))) {
+    // 第三方 / 压缩产物（`*.min.css`、`vendor/` 目录）不是本仓要还的债 —— 与
+    // `ops/tokens/check-token-contract.mjs` 同口径（两处都是「审计清理时跳过」）。
+    // 当前唯一命中的是 `homeos-store/frontend/public/static/font.min.css`（字体图标库）。
+    if (isVendored(rel(REPO_ROOT, file))) continue
+    styleFiles.push(file)
+  }
 }
 styleFiles.sort()
 

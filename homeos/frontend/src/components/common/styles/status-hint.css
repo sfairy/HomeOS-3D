@@ -2,8 +2,7 @@
  * 通用状态提示样式（原 settings-forms.css 中 inline-hint / deploy-note 段）
  *
  * 用途：跨页面统一的空状态、加载、错误、成功、信息提示样式。
- *  - .settings-inline-hint--{indigo|amber|rose|...}     单行内联提示条
- *  - .settings-deploy-note--{emerald|sky|indigo|...}   部署/重要说明卡片
+ *  - .settings-inline-hint--{indigo|amber|rose|...}   部署/重要说明卡片
  *
  * 来源：从 frontend/src/features/settings/shared/styles/settings-forms.css 抽离，
  *       settings-forms.css 仍通过 `@import` 引用本文件，settings 行为保持不变。
@@ -45,34 +44,16 @@
   border-color: rgba(52, 211, 153, 0.14);
 }
 
-.settings-deploy-note--sky {
-  --deploy-accent: rgba(56, 189, 248, 0.55);
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.09) 0%, rgba(0, 0, 0, 0.24) 100%);
-  border-color: rgba(56, 189, 248, 0.14);
-}
-
 .settings-deploy-note--indigo {
   --deploy-accent: rgba(129, 140, 248, 0.55);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.09) 0%, rgba(0, 0, 0, 0.24) 100%);
   border-color: rgba(129, 140, 248, 0.14);
 }
 
-.settings-deploy-note--violet {
-  --deploy-accent: rgba(167, 139, 250, 0.55);
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.09) 0%, rgba(0, 0, 0, 0.24) 100%);
-  border-color: rgba(167, 139, 250, 0.14);
-}
-
 .settings-deploy-note--amber {
   --deploy-accent: rgba(251, 191, 36, 0.55);
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, rgba(0, 0, 0, 0.24) 100%);
   border-color: rgba(251, 191, 36, 0.14);
-}
-
-.settings-deploy-note--pink {
-  --deploy-accent: rgba(244, 114, 182, 0.55);
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.09) 0%, rgba(0, 0, 0, 0.24) 100%);
-  border-color: rgba(244, 114, 182, 0.14);
 }
 
 .settings-deploy-note__icon {
@@ -174,28 +155,6 @@
   border-radius: 5px;
   background: var(--set-glass-bg-hover);
   color: var(--set-text-secondary);
-}
-
-.settings-deploy-note__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  color: var(--set-info);
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.settings-deploy-note__link:hover {
-  color: #bae6fd;
-}
-
-.settings-deploy-note__link svg {
-  width: 12px;
-  height: 12px;
-  opacity: 0.85;
 }
 
 /* ── Inline Hint · 单行内联提示条 ── */

@@ -107,18 +107,6 @@
   .quick-btn-toggle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-.settings-widget-config--hero-swiper {
-  padding: 12px;
-  gap: 0;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.settings-widget-config--weather-hub {
-  padding: 12px;
-  gap: 0;
-  background: rgba(0, 0, 0, 0.18);
-}
-
 /* ── settings-embeds.css ── */
 /* 内嵌网页 · 编辑器控件（图标选择 / 状态 / 移除） */
 
@@ -1060,52 +1048,13 @@
   gap: 10px;
 }
 
-.assets-shell {
-  display: flex;
-  flex-direction: column;
-  padding: 6px;
-  border-radius: var(--hos-radius-panel, 20px);
-  background: var(--set-card-surface-bg, rgba(255, 255, 255, 0.03));
-  border: var(--hos-hairline) solid var(--set-card-surface-border, var(--set-border-subtle));
-  box-shadow:
-    var(--set-card-surface-shadow, 0 12px 32px rgba(0, 0, 0, 0.22)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.assets-shell__divider {
-  height: var(--hos-hairline);
-  margin: 0 14px;
-  background: var(--set-border-subtle);
-  opacity: 0.9;
-}
-
-.assets-launcher {
-  display: block;
-  width: 100%;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  margin: 0;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  border-radius: var(--hos-radius-card);
-  transition: background 0.15s ease;
-}
-
-.assets-launcher:hover {
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.assets-launcher:focus-visible {
-  outline: 2px solid var(--page-accent-text);
-  outline-offset: 2px;
-}
-
 .assets-launcher__cta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  /* 高度钉到 sm 档：chip 内边距 + 行高 + 发丝边框凑出 31px。 */
+  height: var(--control-height-sm);
+  padding: 0 var(--hos-chip-pad-x, 12px);
   border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
@@ -1452,8 +1401,8 @@
 
 .ef-switch__thumb {
   position: relative;
-  width: 2.5rem;
-  height: 1.375rem;
+  width: var(--hos-switch-w-sm);
+  height: var(--hos-switch-h-sm);
   border-radius: var(--hos-radius-pill);
   background: rgba(255, 255, 255, 0.1);
   transition: background 0.2s ease;
@@ -1462,10 +1411,10 @@
 .ef-switch__thumb::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 1.125rem;
-  height: 1.125rem;
+  top: var(--hos-switch-inset);
+  left: var(--hos-switch-inset);
+  width: var(--hos-switch-knob-sm);
+  height: var(--hos-switch-knob-sm);
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
@@ -1477,7 +1426,7 @@
 }
 
 .ef-switch__thumb--on::after {
-  transform: translateX(18px);
+  transform: translateX(var(--hos-switch-travel-sm));
 }
 
 .ef-switch__label {
@@ -1505,7 +1454,7 @@
   gap: 5px;
   padding: 6px 10px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   background: transparent;
   color: var(--hos-text-secondary);
   font-size: var(--set-fs-caption);
@@ -1591,8 +1540,9 @@
 .ef-field > .settings-field,
 .ef-field > .hos-select .hos-select__trigger {
   box-sizing: border-box;
-  min-height: calc(var(--set-fs-input, 15px) * 1.25 + 20px + 2px);
-  height: calc(var(--set-fs-input, 15px) * 1.25 + 20px + 2px);
+  /* 与 input.settings-field / .hos-select--settings 同档，避免显示设置在并排时高 3px。 */
+  min-height: var(--control-height-lg);
+  height: var(--control-height-lg);
   padding-top: 0;
   padding-bottom: 0;
   line-height: 1.25;
@@ -1706,17 +1656,6 @@
 .wh-orb-accent {
   background: var(--page-accent-bg, rgba(124, 58, 237, 0.12));
   border: var(--hos-hairline) solid var(--page-accent-border, rgba(124, 58, 237, 0.22));
-}
-
-/* —— AssetsHubSection —— */
-.ah-icon-info,
-.ah-icon-sky {
-  color: var(--set-info, #7dd3fc);
-}
-.ah-orb-info,
-.ah-orb-sky {
-  background: var(--set-info-bg, rgba(56, 189, 248, 0.12));
-  border: var(--hos-hairline) solid var(--set-info-border, rgba(56, 189, 248, 0.22));
 }
 .ah-icon-amber {
   color: var(--set-warn, #fbbf24);

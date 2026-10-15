@@ -344,12 +344,6 @@
 .hos-modal-input::placeholder,
 .hos-modal-search::placeholder { color: var(--hos-text-faint); }
 
-
-.hos-modal-dropzone {
-  background: var(--premium-glass-bg, rgba(255,255,255,0.03));
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-}
-
 .hos-modal-dropzone--active {
   box-shadow: 0 0 0 2px color-mix(in srgb, #BF5AF2 40%, rgba(0, 0, 0, 0));
   border-color: color-mix(in srgb, #BF5AF2 35%, rgba(0, 0, 0, 0));
@@ -547,6 +541,9 @@
   transform: scale(0.9) translateY(12px);
 }
 
+/* 全站唯一的组件级淡入淡出过渡（唯一来源，勿在其它文件再复制一份）。
+   路由整屏换页用的是另一族 route-fade-*（assets/styles/route-transitions.css），
+   两者刻意不再同名，避免「绝对定位 + 横向位移」的换页规则泄漏到组件内淡入淡出。 */
 .fade-enter-active,
 .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from,
@@ -555,9 +552,4 @@
 .scale-fade-enter-active,
 .scale-fade-leave-active {
   transition: all 0.35s var(--ease-bounce);
-}
-.scale-fade-enter-from,
-.scale-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.94);
 }

@@ -189,11 +189,13 @@
 }
 
 .params-cell-input {
+  /* 高度钉到 md 档：9px 内边距 + 行高 + 发丝边框凑出 40px，落在两档之间。 */
+  height: var(--control-height-md);
   width: 100%;
   background: rgba(0, 0, 0, 0.32);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   border-radius: var(--hos-radius-card);
-  padding: 9px 12px;
+  padding: 0 12px;
   font-size: var(--premium-fs-body-sm);
   color: #fff;
   outline: none;

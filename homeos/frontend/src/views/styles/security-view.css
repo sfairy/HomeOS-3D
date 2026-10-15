@@ -223,11 +223,6 @@
 .security-hub .hos-degrade-banner {
   margin: 0;
 }
-
-/* 事件日历 / 时间轴语义色 */
-.bg-viewport {
-  background: transparent;
-}
 .glass-shine::after {
   content: '';
   z-index: 30;
@@ -301,12 +296,9 @@
   border-color: var(--page-accent);
   box-shadow: 0 0 0 1px rgba(var(--page-accent-rgb), 0.35);
 }
-.scanline-overlay {
-  background:
-    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%) 0 0 / 100% 3px,
-    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)) 0 0 /
-      3px 100%;
-}
+/* 扫描线叠加层不再在本文件重复定义：唯一消费者是 features/security/MonitorPanel.vue，
+   规范定义保留在它自己的 features/security/styles/MonitorPanel.css 里。
+   此前三份逐字相同的副本（本文件 / security-view.css / MonitorPanel.css）只会让人以为改了哪份都生效。 */
 .animate-scale-in {
   animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -320,14 +312,10 @@
     transform: scale(1);
   }
 }
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+/* 全屏查看器的淡入淡出不再在本文件覆盖全局节奏（原 all 0.4s，且是**未 scoped** 的全局污染——
+   它会顺带改写全站所有 .fade-* 的时长）。统一走 modal-theme.css 的 .fade-*。
+   注意：原先它还继承了 route-transitions.css 的 route-fade 位移（同名遗留缺陷），
+   现在路由族已改名，查看器恢复自身 .sec-fullscreen-viewer 的 fixed inset-0 定位。 */
 .bg-card {
   background: rgba(255, 255, 255, 0.03);
 }
@@ -398,8 +386,7 @@
 }
 
 .sec-events-empty,
-.sz-empty,
-.sec-audit-empty {
+.sz-empty {
   border-radius: var(--hos-radius-card, 14px);
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);

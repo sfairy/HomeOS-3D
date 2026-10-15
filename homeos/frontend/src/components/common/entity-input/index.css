@@ -1,7 +1,5 @@
 .ei-wrap { position: relative; flex: 1; min-width: 0; }
 
-.ei-wrap--grow { min-width: 120px; }
-
 .ei-input-row {
   display: flex; align-items: center;
   width: 100%;

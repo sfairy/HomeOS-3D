@@ -125,7 +125,7 @@
 .ef-icon-picker__input {
   width: 100%;
   padding: 7px 10px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   font-size: var(--hos-dd-fs-item);
   color: #fff;
   background: rgba(0, 0, 0, 0.28);

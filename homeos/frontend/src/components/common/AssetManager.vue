@@ -232,7 +232,7 @@ function setSearchInput(el: Element | ComponentPublicInstance | null) {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 11px;
+  border-radius: var(--hos-radius-input);
   font-size: 12px;
   color: #e8f1ff;
   background: rgba(8, 12, 20, 0.92);

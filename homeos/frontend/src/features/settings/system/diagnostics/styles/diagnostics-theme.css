@@ -5,7 +5,9 @@
   --diag-fs-title: var(--premium-fs-title);
   --diag-fs-kpi: 17px;
   --diag-fs-section: var(--premium-fs-caption);
-  --diag-touch: 40px;
+  /* 触控档对齐 lg：原 40px 落在 md(36) 与 lg(44) 之间，与
+     --events-control-h / --notifications-control-h 原值同源。 */
+  --diag-touch: 44px;
   /* 健康总览主色：翠绿为主，天蓝为辅，琥珀/玫红仅语义告警 */
   --diag-emerald: #34d399;
   --diag-sky: #38bdf8;
@@ -42,7 +44,9 @@
 }
 
 .diagnostics-hub .diag-top-subnav .settings-hub-subnav__btn {
-  padding: 11px 18px;
+  /* min-height 压不住 11px 纵向内边距撑出的 40px，改显式 height 并钉到 lg 档。 */
+  height: var(--control-height-lg);
+  padding: 0 18px;
   font-size: var(--premium-fs-body);
   min-height: var(--diag-touch);
 }
@@ -549,15 +553,11 @@
 
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   .diag-hero-orb--ok,
-  .diag-hero-orb--warn,
-  .diag-hero-orb--bad,
-  .diag-metrics-ring,
-  .diag-metrics-banner__orb--ok,
-  .diag-metrics-banner__orb--warn,
-  .diag-metrics-banner__orb--bad,
-  .diag-config-health__eyebrow::before,
-  .diag-section-title::before,
-  .diag-config-health__link:hover {
+.diag-hero-orb--warn,
+.diag-hero-orb--bad,
+.diag-config-health__eyebrow::before,
+.diag-section-title::before,
+.diag-config-health__link:hover {
     box-shadow: none !important;
   }
   .diag-hero-orb__ring,
@@ -596,36 +596,7 @@
   text-decoration: none;
 }
 
-/* ── 状态管道 ── */
-.diag-pipeline--flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-
-
-
-
-
-.diag-pipeline__label {
-  font-size: var(--diag-fs-caption);
-  font-weight: 700;
-  color: var(--set-text-primary);
-}
-
-
-.diag-pipeline__arrow {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: var(--set-text-faint);
-  filter: drop-shadow(0 0 6px rgba(var(--set-info-rgb), 0.25));
-}
-
 @container settings-scroll (max-width: 520px) {
-  .diag-pipeline__arrow { display: none; }
 }
 
 /* ── 告警条 ── */
@@ -1051,8 +1022,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 18px;
-  min-height: var(--diag-touch);
+  /* min-height 压不住 12px 纵向内边距，改显式 height 并钉到 lg 档。 */
+  height: var(--control-height-lg);
+  padding: 0 18px;
   border-radius: var(--hos-radius-card);
   font-size: var(--diag-fs-caption);
   font-weight: 700;
@@ -1135,10 +1107,6 @@
 .diag-baseline-chip__meta {
   font-size: var(--diag-fs-micro);
   color: var(--set-text-tertiary);
-}
-
-.diag-kpi-row {
-  margin: 0;
 }
 
 .diag-kv-grid {
@@ -1280,16 +1248,6 @@
 }
 
 
-.diag-metrics-eyebrow {
-  margin: 18px 0 10px;
-  font-size: var(--diag-fs-section);
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--set-text-tertiary);
-}
-
-
 
 
 
@@ -1333,81 +1291,6 @@
 
 
 @container settings-scroll (min-width: 860px) {
-
-  .diag-metrics-cell--runtime { grid-area: runtime; }
-}
-
-
-
-.diag-metrics-cell--runtime { border-top: 2px solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.55); }
-
-.diag-metrics-cell--runtime:hover { border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.28); }
-
-.diag-metrics-stat-strip__item {
-  padding: 12px 8px;
-  border-radius: var(--hos-radius-card);
-  text-align: center;
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.diag-metrics-http-latency__unit {
-  margin-top: 8px;
-  font-size: var(--diag-fs-caption);
-  font-weight: 700;
-  color: var(--set-text-tertiary);
-}
-
-
-
-
-
-
-.diag-metrics-http-rate {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.diag-metrics-runtime-item {
-  padding: 14px 14px;
-  border-radius: var(--hos-radius-card);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  min-width: 0;
-}
-
-
-
-
-
-
-
-
-
-
-.diag-metrics-rate__label {
-  font-size: var(--diag-fs-caption);
-  font-weight: 700;
-  color: var(--set-text-secondary);
 }
 
 
@@ -1425,46 +1308,6 @@
   padding: 48px 24px;
   font-size: var(--diag-fs-body);
   color: var(--set-text-secondary);
-}
-
-.diag-metrics-raw {
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card, 14px);
-  background: rgba(0, 0, 0, 0.28);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-}
-
-
-
-
-
-
-.diag-metrics-raw__count {
-  margin-left: auto;
-  padding: 4px 11px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--diag-fs-micro);
-  font-weight: 800;
-  font-family: ui-monospace, monospace;
-  color: var(--set-text-secondary);
-  background: rgba(52, 211, 153, 0.1);
-  border: var(--hos-hairline) solid var(--set-success-border);
-}
-
-.diag-metrics-raw__row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 13px;
-  border-radius: var(--hos-radius-card);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  min-width: 0;
-}
-
-.diag-metrics-raw__row:hover {
-  background: var(--set-glass-bg);
 }
 
 
@@ -1875,13 +1718,6 @@
 .do-text-danger {
   color: var(--set-danger, #fda4af);
 }
-.do-icon-info {
-  color: var(--set-info, #7dd3fc);
-}
-.do-orb-info {
-  background: var(--set-info-bg, rgba(56, 189, 248, 0.12));
-  border: var(--hos-hairline) solid var(--set-info-border, rgba(56, 189, 248, 0.22));
-}
 
 /* —— SettingsDiagnosticsPanel —— */
 .diagnostics-load-error {
@@ -1999,7 +1835,7 @@
 .diag-runtime-level {
   min-height: 34px;
   padding: 6px 12px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   border: none;
   background: transparent;
   color: var(--set-text-secondary);

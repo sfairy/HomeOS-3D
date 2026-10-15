@@ -120,6 +120,9 @@
 
 .settings-home-mode-workspace .home-mode-panel--embedded .settings-field,
 .settings-home-mode-workspace .home-mode-panel--embedded .hos-select--settings .hos-select__trigger {
+  /* 嵌入面板走更紧凑的 36px 档，需显式 height 才能压过
+     .hos-select--settings / input.settings-field 的 lg(44)。只写 min-height 是压不低的。 */
+  height: var(--orch-control-h);
   min-height: var(--orch-control-h);
   font-size: var(--orch-fs-body);
   border-radius: var(--orch-radius);

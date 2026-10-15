@@ -46,15 +46,6 @@
   gap: 0;
 }
 
-.linkage-overview__eyebrow {
-  margin: 0;
-  font-size: var(--set-fs-micro, 12px);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--hos-text-secondary);
-}
-
 .linkage-overview__stats {
   padding-top: 0;
   border-top: none;
@@ -62,176 +53,6 @@
 
 .linkage-overview--stats-only .linkage-overview__stats {
   padding: 2px 0;
-}
-
-.linkage-flow {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  justify-content: center;
-  gap: 0;
-  padding: 2px 0 4px;
-}
-
-.linkage-flow__node {
-  --flow-accent: rgba(var(--page-accent-rgb), 0.75);
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 148px;
-  padding: 14px 12px 12px;
-  border-radius: var(--hos-radius-card, 14px);
-  background:
-    linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.18) 100%);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
-  color: var(--set-text-secondary);
-  transition:
-    border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    background 0.22s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.linkage-flow__node--btn {
-  font: inherit;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.linkage-flow__node--btn:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--flow-accent) 45%, rgba(255, 255, 255, 0.12));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 20px rgba(0, 0, 0, 0.22);
-}
-
-.linkage-flow__node--btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--flow-accent) 55%, rgba(0, 0, 0, 0));
-  outline-offset: 2px;
-}
-
-.linkage-flow__node--active {
-  border-color: color-mix(in srgb, var(--flow-accent) 55%, rgba(0, 0, 0, 0));
-  background:
-    radial-gradient(ellipse 90% 80% at 50% 0%, color-mix(in srgb, var(--flow-accent) 22%, rgba(0, 0, 0, 0)), transparent 70%),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.16) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 0 0 1px color-mix(in srgb, var(--flow-accent) 28%, rgba(0, 0, 0, 0)),
-    0 10px 24px rgba(0, 0, 0, 0.2);
-  transform: translateY(-1px);
-}
-
-.linkage-flow__orb {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--hos-radius-card);
-  color: color-mix(in srgb, var(--flow-accent) 90%, #fff);
-  background: color-mix(in srgb, var(--flow-accent) 14%, rgba(0, 0, 0, 0));
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--flow-accent) 28%, rgba(0, 0, 0, 0));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
-}
-
-.linkage-flow__node--active .linkage-flow__orb {
-  transform: scale(1.04);
-  background: color-mix(in srgb, var(--flow-accent) 22%, rgba(0, 0, 0, 0));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 0 16px color-mix(in srgb, var(--flow-accent) 25%, rgba(0, 0, 0, 0));
-}
-
-.linkage-flow__node--presence {
-  --flow-accent: var(--set-info, #38bdf8);
-}
-
-.linkage-flow__node--security {
-  --flow-accent: rgba(var(--page-accent-rgb), 0.95);
-}
-
-.linkage-flow__node--scene {
-  --flow-accent: rgba(var(--page-accent-secondary-rgb), 0.95);
-}
-
-.linkage-flow__label {
-  font-size: var(--set-fs-caption, 13px);
-  font-weight: 750;
-  letter-spacing: 0.01em;
-  color: var(--set-text-primary);
-}
-
-.linkage-flow__meta {
-  font-size: var(--set-fs-micro, 12px);
-  font-weight: 600;
-  color: var(--hos-text-secondary);
-  text-align: center;
-  max-width: 100%;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 2px;
-}
-
-.linkage-flow__node--active .linkage-flow__meta {
-  color: color-mix(in srgb, var(--flow-accent) 70%, rgba(255, 255, 255, 0.55));
-}
-
-.linkage-flow__connector {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 28px;
-  align-self: center;
-  height: 20px;
-  margin-top: -10px;
-}
-
-.linkage-flow__connector-line {
-  display: block;
-  width: 100%;
-  height: 1.5px;
-  border-radius: var(--hos-radius-pill);
-  background: linear-gradient(
-    90deg,
-    rgba(var(--page-accent-secondary-rgb), 0.15),
-    rgba(var(--page-accent-rgb), 0.55),
-    rgba(var(--page-accent-secondary-rgb), 0.15)
-  );
-  opacity: 0.85;
-}
-
-.linkage-flow__connector-dot {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(var(--page-accent-rgb), 0.9);
-  box-shadow: 0 0 8px rgba(var(--page-accent-rgb), 0.45);
-  animation: linkage-flow-pulse 2.4s ease-in-out infinite;
-}
-
-@keyframes linkage-flow-pulse {
-  0%,
-  100% {
-    transform: translateX(-6px);
-    opacity: 0.35;
-  }
-  50% {
-    transform: translateX(6px);
-    opacity: 1;
-  }
 }
 
 /* ── linkage-panel.css ── */
@@ -309,24 +130,6 @@
   font-size: var(--set-fs-caption, 13px);
   line-height: 1.5;
   color: var(--hos-text-secondary);
-}
-
-.linkage-stat--btn {
-  font: inherit;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  text-align: inherit;
-  transition:
-    border-color 0.18s ease,
-    background 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.linkage-stat--btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .linkage-stat--active {
@@ -412,19 +215,6 @@
 }
 
 @media (max-width: 720px) {
-  .linkage-flow {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .linkage-flow__node {
-    flex: 1 1 calc(50% - 8px);
-    max-width: none;
-  }
-
-  .linkage-flow__connector {
-    display: none;
-  }
 
   .linkage-pane-toolbar {
     flex-direction: column;
@@ -443,11 +233,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .linkage-flow__connector-dot,
   .link-tab-panel,
-  .linkage-flow__node,
-  .linkage-stat--btn,
-  .linkage-preset-card {
+.linkage-preset-card {
     animation: none !important;
     transition: none !important;
   }

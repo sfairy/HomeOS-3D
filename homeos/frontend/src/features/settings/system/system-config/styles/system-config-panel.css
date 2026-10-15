@@ -111,8 +111,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
-  border-radius: 9px;
+  /* 高度钉到 md 档：7px 内边距 + 行高 + 发丝边框凑出 35px。 */
+  height: var(--control-height-md);
+  padding: 0 12px;
+  border-radius: var(--hos-radius-control);
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.22);
   background: rgba(251, 191, 36, 0.08);
   color: var(--set-warn, #fbbf24);
@@ -138,12 +140,6 @@
 
 .params-reset-all:active {
   background: rgba(251, 191, 36, 0.2);
-}
-
-
-
-.params-scroll--loading {
-  padding-top: 4px;
 }
 
 .params-panel-card {

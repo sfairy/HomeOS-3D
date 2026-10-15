@@ -77,8 +77,9 @@
     键盘与读屏都能命中，且点击区域不再依赖整卡点击。 */
 .notification-item__close {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  /* 归到 xs 档：原 24×24 不在尺度上，且低于触控最小命中区。 */
+  width: var(--control-height-xs);
+  height: var(--control-height-xs);
   padding: 0;
   border: 0;
   border-radius: 50%;

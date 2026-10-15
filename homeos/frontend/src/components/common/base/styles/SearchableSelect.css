@@ -8,22 +8,28 @@
   display: flex;
   align-items: center;
   gap: 0;
+  /* 行高由 height 钉死（只写 min-height 时内部输入框的内边距会把整行撑到 40px）。
+     描边用 inset 阴影而非 border：真 border 会让内容盒只有 35px，
+     把行内的输入框/清除键压到比行矮 1px（35 vs 36）。 */
+  height: var(--control-height-md, 36px);
   min-height: var(--control-height-md, 36px);
   background: rgba(255, 255, 255, 0.05);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border: none;
+  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.1);
   border-radius: var(--hos-radius-card);
   overflow: hidden;
 }
 
 .ss-input-row:focus-within {
-  border-color: var(--hos-dd-accent-mid);
   background: var(--premium-glass-bg-hover);
+  box-shadow: inset 0 0 0 var(--hos-hairline) var(--hos-dd-accent-mid);
 }
 
 .ss-input-row .settings-field,
 .ss-input-row .ss-input--list-page {
   flex: 1;
   min-width: 0;
+  height: 100%;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -32,7 +38,7 @@
 
 .ss-input--list-page {
   width: 100%;
-  padding: 10px 14px;
+  padding: 0 14px;
   color: inherit;
   font-size: var(--premium-fs-caption);
   outline: none;

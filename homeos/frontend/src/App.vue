@@ -137,15 +137,17 @@ const shellRouteKey = computed(() => route.matched[0]?.path ?? route.path)
  * 背景里会出现无样式文字或样式串味。凡进出创作面都切成瞬时换页（route-cut）。
  */
 const STUDIO_CREATOR_ROUTES = new Set(['studio', 'studio-editor'])
-/** `fade`：普通壳切换滑动；`route-cut`：创作面相关瞬时切换。 */
-const routeTransitionName = ref('fade')
+/** `route-fade`：普通壳切换滑动；`route-cut`：创作面相关瞬时切换。
+    路由族刻意不叫 `fade`：那个名字归组件级淡入淡出（modal-theme.css），
+    同名会让整屏换页的「绝对定位 + 横向位移」泄漏到组件内的淡入淡出元素上。 */
+const routeTransitionName = ref('route-fade')
 
 const removeRouteTransitionGuard = router.beforeEach((to, from) => {
   const toName = String(to.name ?? '')
   const fromName = String(from.name ?? '')
   const involvesCreator =
     STUDIO_CREATOR_ROUTES.has(toName) || STUDIO_CREATOR_ROUTES.has(fromName)
-  routeTransitionName.value = involvesCreator ? 'route-cut' : 'fade'
+  routeTransitionName.value = involvesCreator ? 'route-cut' : 'route-fade'
 })
 onBeforeUnmount(removeRouteTransitionGuard)
 
@@ -197,7 +199,7 @@ watch(
     previousShellRouteKey = nextShellKey
 
     const deferStyles =
-      shellKeyChanged && routeTransitionName.value === 'fade'
+      shellKeyChanged && routeTransitionName.value === 'route-fade'
 
     if (deferStyles) {
       applyPageAssets(nextAssets, { keepStylesheets: listManagedStylesheets() })

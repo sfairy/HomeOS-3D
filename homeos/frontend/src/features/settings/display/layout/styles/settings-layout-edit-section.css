@@ -19,19 +19,6 @@
     box-shadow 0.3s ease;
 }
 
-.layout-edit-hero--live {
-  border-color: rgba(248, 113, 113, 0.38);
-  background: linear-gradient(
-    135deg,
-    rgba(220, 38, 38, 0.2) 0%,
-    rgba(67, 56, 202, 0.14) 38%,
-    rgba(0, 0, 0, 0.38) 100%
-  );
-  box-shadow:
-    0 0 0 1px rgba(248, 113, 113, 0.08) inset,
-    0 12px 40px rgba(239, 68, 68, 0.14);
-}
-
 /* 3D 户型图绘制入口：cyan 变体，与仪表盘编辑器（indigo）区分 */
 .layout-edit-hero--studio {
   border-color: rgba(34, 211, 238, 0.24);
@@ -150,13 +137,6 @@
   box-shadow: none;
 }
 
-.layout-edit-hero__badge--live {
-  color: #fecaca;
-  background: rgba(239, 68, 68, 0.22);
-  border-color: rgba(248, 113, 113, 0.45);
-  box-shadow: none;
-}
-
 .layout-edit-hero__badge-dot {
   width: 7px;
   height: 7px;
@@ -228,28 +208,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
-.layout-edit-hero__cta--live {
-  border-color: rgba(252, 165, 165, 0.5);
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.88) 0%, rgba(185, 28, 28, 0.95) 100%);
-  box-shadow:
-    0 8px 26px rgba(239, 68, 68, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-}
-
-.layout-edit-flow {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  margin-top: 14px;
-}
-
-.layout-edit-flow__item {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-}
-
 
 
 
@@ -264,14 +222,6 @@
 
 
 @media (max-width: 900px) {
-  .layout-edit-flow {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .layout-edit-flow__item {
-    width: 100%;
-  }
 
 }
 
@@ -292,12 +242,6 @@
 }
 
 /* —— SettingsLayoutEventlogSection —— */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+/* 死副本：本组件（SettingsLayoutEditSection.vue / EventlogSection）没有任何
+   <Transition name="fade">，这两条 scoped 规则从未命中。全局唯一来源见 modal-theme.css。 */
 

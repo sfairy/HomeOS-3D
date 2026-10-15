@@ -187,8 +187,6 @@
   letter-spacing: 0.04em;
 }
 
-.um-rel--daybefore { background: #8b5cf6; color: #f5f3ff; }
-
 .um-section-title {
   margin: 0 0 6px;
   font-size: var(--premium-fs-micro);
@@ -715,14 +713,6 @@
 .w-list-day {
   text-align: center;
   opacity: 0.6;
-}
-
-.gas-list-val,
-.ele-list-val,
-.w-list-val {
-  text-align: center;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 .gas-list-val.green,

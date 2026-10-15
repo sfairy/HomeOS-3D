@@ -5,7 +5,9 @@
 }
 
 .sw-refresh-btn {
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  /* 高度钉到 sm 档：原先 6px 内边距 + 行高 + 发丝边框凑出 32.5px（渲染 33px），比 sm(32) 高 1px。 */
+  height: var(--control-height-sm);
+  padding: 0 var(--hos-chip-pad-x, 12px);
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.28);
   background: rgba(var(--page-accent-rgb), 0.1);
@@ -99,12 +101,6 @@
   transition:
     opacity 0.22s ease,
     transform 0.22s ease;
-}
-
-.sw-toast-enter-from,
-.sw-toast-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 
 .sw-flow-band__shell {

@@ -1843,7 +1843,8 @@
 .i3d-alarm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2147483000;
+  /* 报警遮罩需盖住工作台一切浮层：收敛到层级令牌，不再写近最大值裸数 */
+  z-index: var(--z-max);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;

@@ -95,16 +95,6 @@
   color: var(--set-danger);
 }
 
-.list-page__error {
-  margin: 0;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
-  color: var(--set-danger);
-  background: var(--set-danger-bg);
-  border: var(--hos-hairline) solid var(--set-danger-border);
-}
-
 /* 空状态：跟随 page-accent（amber）做点缀 */
 .mode-logs-empty {
   display: flex;
@@ -116,11 +106,6 @@
   text-align: center;
   border: var(--hos-hairline) dashed var(--page-accent-border);
   background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.12) 100%);
-}
-
-.mode-logs-empty--rose {
-  border-color: var(--set-danger-border);
-  background: linear-gradient(160deg, var(--set-danger-bg) 0%, rgba(0, 0, 0, 0.12) 100%);
 }
 
 .mode-logs-empty__icon {

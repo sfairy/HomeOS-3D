@@ -80,7 +80,6 @@
 .devices-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
 .device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
 .security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
-.rooms-view { --page-accent: #fb923c; --page-accent-secondary: #f97316; --page-accent-rgb: 251, 146, 60; }
 .mode-logs-view {
   --page-accent: var(--module-accent-home-mode, #fbbf24);
   --page-accent-secondary: var(--module-accent-home-mode-sub, #fb7185);
@@ -169,94 +168,9 @@
 .device-detail-view .list-page__row-main--clickable:hover .list-page__row-name {
   color: color-mix(in srgb, var(--page-accent) 45%, white);
 }
-
-/* ── 房间 ── */
-.rooms-view__homeos-row { gap: 8px; }
-.rooms-view__homeos-name { font-weight: 600; font-size: var(--premium-fs-caption); }
-.rooms-view__homeos-meta {
-  margin-left: auto;
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.rooms-view__crud-actions { display: flex; gap: 6px; margin-left: 8px; }
-.rooms-view__grid { align-items: start; }
-.rooms-view__card { overflow: hidden; padding: 0; }
-.rooms-view__card-head {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-}
-.rooms-view__card-head:hover .rooms-view__name { color: #fdba74; }
-.rooms-view__name { font-weight: 600; flex: 1; transition: color 0.15s; font-size: var(--premium-fs-body-sm); }
-.rooms-view__badge {
-  font-size: var(--premium-fs-caption);
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: var(--hos-radius-pill);
-  background: var(--premium-glass-bg-hover);
-  font-variant-numeric: tabular-nums;
-}
-.rooms-view__on { font-size: var(--premium-fs-caption); color: var(--hos-text-secondary); }
-.rooms-view__chev { width: 16px; height: 16px; transition: transform 0.15s; opacity: 0.55; flex-shrink: 0; }
 .rooms-view__chev--open { transform: rotate(90deg); opacity: 0.85; }
-.rooms-view__actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 10px; }
-.rooms-view__devices {
-  list-style: none;
-  margin: 0;
-  padding: 8px 12px 14px;
-  border-top: var(--hos-hairline) solid var(--premium-border);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.rooms-view__dev {
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 0;
-}
-.rooms-view__dev--clickable { cursor: pointer; }
-.rooms-view__dev--clickable:hover .rooms-view__dev-name { color: #fdba74; }
-.rooms-view__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  flex-shrink: 0;
-}
 .rooms-view__dot--on { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.45); }
-.rooms-view__dev-text { flex: 1; min-width: 0; }
-.rooms-view__dev-name { font-size: var(--premium-fs-caption); }
-
-.list-page__form-panel {
-  margin-top: 14px;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  background: rgba(0, 0, 0, 0.18);
-}
 .list-page__form-title { margin: 0 0 10px; font-size: var(--premium-fs-caption); font-weight: 600; }
-.list-page__form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
-}
-.list-page__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
-}
-.list-page__form-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
 /* ── 设备 ── */
 .devices-view__hero-toolbar {
@@ -304,48 +218,6 @@
 
 .devices-view__layout.is-sidebar-collapsed .devices-view__sidebar {
   display: none;
-}
-
-.devices-view__sidebar-toggle {
-  flex-shrink: 0;
-  padding: 6px 10px;
-  min-height: 44px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.72);
-  font-size: var(--premium-fs-micro);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.devices-view__list-mode-chips {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.devices-view__list--grouped {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px 2px 8px;
-}
-
-.devices-view__sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.devices-view__pager {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.devices-view__pager-sep {
-  opacity: 0.35;
-  padding: 0 2px;
 }
 
 /* 左栏：概览 + 筛选双卡片，总高度与右栏对齐 */
@@ -466,18 +338,8 @@
   border-bottom: var(--hos-hairline) solid var(--premium-border);
 }
 
-.devices-view__panel-toolbar-row--actions {
-  flex-wrap: wrap;
-  row-gap: 8px;
-}
-
 .devices-view__panel-toolbar-row--actions .devices-view__list-count {
   margin-left: auto;
-}
-
-.devices-view__panel-toolbar-row--tabs {
-  padding-top: 8px;
-  padding-bottom: 8px;
 }
 
 .devices-view__domain-tabs-shell {
@@ -730,10 +592,6 @@
   white-space: nowrap;
 }
 
-.devices-view__list-error {
-  min-height: 180px;
-}
-
 .device-detail-view__attrs-card,
 .device-detail-view__tab-stack > .device-health {
   display: flex;
@@ -822,7 +680,6 @@
 }
 
 @media (max-width: 768px) {
-  .list-page__form-grid { grid-template-columns: 1fr; }
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar {
     grid-template-columns: 1fr;
     max-height: none;

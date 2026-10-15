@@ -178,9 +178,6 @@
   opacity: 0;
   transform: scale(0.9) translateY(40px);
 }
-.scanline-overlay {
-  background:
-    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%) 0 0 / 100% 3px,
-    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)) 0
-      0 / 3px 100%;
-}
+/* 扫描线叠加层不再在本文件重复定义：唯一消费者是 features/security/MonitorPanel.vue，
+   规范定义保留在它自己的 features/security/styles/MonitorPanel.css 里。
+   此前三份逐字相同的副本（本文件 / security-view.css / MonitorPanel.css）只会让人以为改了哪份都生效。 */

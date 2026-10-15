@@ -527,9 +527,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  /* 从 26×26 归到 xs 档，与同排控件对齐。 */
+  width: var(--control-height-xs);
+  height: var(--control-height-xs);
+  border-radius: var(--hos-radius-control);
   border: none;
   background: rgba(236, 72, 153, 0.12);
   color: #f9a8d4;

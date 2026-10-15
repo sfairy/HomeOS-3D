@@ -426,7 +426,7 @@ async function send(raw?: string) {
 
 .acp-head__title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--premium-fs-body);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
 }

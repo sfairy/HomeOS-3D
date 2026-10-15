@@ -2140,7 +2140,14 @@ type PopupPresetConfig = {
     reflectionStrengthInput.addEventListener("change", commitGroundReflection),
     syncReflectionControls());
   const popupSettingsSection = createElement("section", "inspector-section i3d-popup-settings"),
-    popupLayout = structuredClone(properties.popupLayout || {});
+    popupLayout = structuredClone(properties.popupLayout || {}),
+    /* 不透明度是**组件级**属性（不属于某个预设），但两个预设的布局预览都按它作画，
+       所以放在循环外共用：滑条改它就更新，预览按钮 / 位置拖动的每次 preview 都带上它。 */
+    readPopupOpacity = () =>
+      Number.isFinite(properties.popupOpacity)
+        ? Math.max(0, Math.min(100, properties.popupOpacity))
+        : 74;
+  let popupOpacityPercent = readPopupOpacity();
   for (const [popupPresetKey, popupPresetLabel] of [
     ["general", "通用弹窗"],
     ["camera", "摄像头弹窗"],
@@ -2154,7 +2161,9 @@ type PopupPresetConfig = {
         scale: 1,
         ...popupLayout[popupPresetKey],
       },
-      previewPopupLayout = (previewLayout = popupPresetConfig) => {
+      previewPopupLayout = (
+        previewLayout: Record<string, any> = { ...popupPresetConfig, opacity: popupOpacityPercent },
+      ) => {
         isViewEditing ||
           getInteraction3dEditorView(targetComponent.id)?.previewPopupLayout?.(popupPresetKey, {
             ...previewLayout,
@@ -2330,14 +2339,22 @@ type PopupPresetConfig = {
       getInteraction3dEditorView(targetComponent.id)?.closePopupLayoutPreview?.(),
     ),
     popupSettingsSection.append(closePreviewButton));
+  /* 滑条值直接写入 `popupOpacity`，不做取反，与同面板「墙体透明度」（wallOpacity = 值 / 100，
+   * tooltip「0% 全透明，100% 实心」）保持同一口径：填充段长度 = 滑条位置 = 弹窗实心程度。
+   * `title` 负责把方向讲清楚，避免「透明度」这个标签被读成「越大越虚」。 */
   const popupTransparencySettingElement = createElement("div", "i3d-vignette-setting"),
     popupTransparencyInput = createElement("input"),
     popupTransparencyOutputElement = createElement("output"),
-    popupTransparency =
-      100 -
-      (Number.isFinite(properties.popupOpacity)
-        ? Math.max(0, Math.min(100, properties.popupOpacity))
-        : 74);
+    popupTransparency = popupOpacityPercent;
+  /**
+   * 拖动途中就把值推给**已打开**的布局预览：预览面板底色走 `--i3d-panel-opacity`，
+   * 与「等比例大小 / 位置」在 input 里调 previewPopupLayout 是同一个道理。
+   * 只更新已有的预览（没开预览时是空操作），所以不必知道当前预览的是哪个预设。
+   */
+  const syncPopupPreviewOpacity = () => {
+    isViewEditing ||
+      getInteraction3dEditorView(targetComponent.id)?.previewPopupOpacity?.(popupOpacityPercent);
+  };
   if (
     (Object.assign(popupTransparencyInput, {
       name: "i3d-popup-transparency",
@@ -2349,8 +2366,15 @@ type PopupPresetConfig = {
     }),
     popupTransparencyInput.setAttribute("aria-label", "弹窗透明度"),
     (popupTransparencyOutputElement.textContent = popupTransparency + "%"),
+    syncHtmlRangeProgress(popupTransparencyInput),
     popupTransparencyInput.addEventListener("input", () => {
-      popupTransparencyOutputElement.textContent = popupTransparencyInput.value + "%";
+      ((popupOpacityPercent = Math.max(
+        0,
+        Math.min(100, Number(popupTransparencyInput.value) || 0),
+      )),
+        (popupTransparencyOutputElement.textContent = popupTransparencyInput.value + "%"),
+        syncHtmlRangeProgress(popupTransparencyInput),
+        syncPopupPreviewOpacity());
     }),
     popupTransparencyInput.addEventListener("change", () => {
       const typedPopupTransparency = Math.max(
@@ -2358,13 +2382,19 @@ type PopupPresetConfig = {
         Math.min(100, Number(popupTransparencyInput.value)),
       );
       Number.isFinite(typedPopupTransparency) &&
+        ((popupOpacityPercent = typedPopupTransparency),
+        (popupTransparencyInput.value = String(typedPopupTransparency)),
+        (popupTransparencyOutputElement.textContent = popupTransparencyInput.value + "%"),
+        syncHtmlRangeProgress(popupTransparencyInput),
+        syncPopupPreviewOpacity(),
         commitChange({
           properties: {
-            popupOpacity: 100 - typedPopupTransparency,
+            popupOpacity: typedPopupTransparency,
           },
-        });
+        }));
     }),
     popupTransparencySettingElement.append(popupTransparencyInput, popupTransparencyOutputElement),
+    (popupTransparencySettingElement.title = "0% 弹窗完全透明，100% 完全显示。"),
     createLabeledField(popupSettingsSection, "弹窗透明度", popupTransparencySettingElement),
     isViewEditing)
   ) {

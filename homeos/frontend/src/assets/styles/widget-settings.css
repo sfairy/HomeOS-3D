@@ -1,87 +1,8 @@
 
-/* ── Body ── */
-
-
-/* ── Fields ── */
-
-
-.ws-field-key {
-  display: block;
-  font-size: var(--premium-fs-micro);
-  font-weight: 700;
-  color: var(--hos-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 5px;
-}
-
-
-
-
-
-.ws-type-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
 
 .ws-type-row .hos-select {
   flex: 1;
   min-width: 0;
-}
-
-
-.ws-select--block { width: 100%; }
-
-
-
-.ws-input-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-
-
-
-
-
-
-.ws-image-preview {
-  margin-top: 8px;
-  border-radius: var(--hos-radius-card);
-  overflow: hidden;
-  position: relative;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-}
-
-
-.ws-preview-label {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.8);
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
-  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-}
-
-
-.ws-slider-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-
-
-.ws-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* 轨道与滑块外观由全局滑块系统统一接管（main.css），
@@ -113,58 +34,7 @@
   margin-bottom: 10px;
 }
 
-
-
-
-
-.ws-state-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-
-.ws-state-raw {
-  font-size: var(--premium-fs-micro);
-  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-  color: var(--hos-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ws-state-card-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ws-state-card-key {
-  width: 40px;
-  flex-shrink: 0;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
-}
-
-
-
-
-.ws-state-path {
-  font-size: var(--premium-fs-micro);
-  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-  color: rgba(255, 255, 255, 0.6);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-}
-
 .ws-state-path.empty { color: var(--hos-text-secondary); font-style: italic; }
-
-
-
-
-.ws-add-row { display: flex; }
 
 .ws-btn-add {
   font-size: var(--premium-fs-micro);
@@ -175,21 +45,6 @@
   border-radius: var(--hos-radius-card);
   padding: 6px 12px;
   cursor: pointer;
-}
-
-
-
-
-
-.ws-btn-cancel {
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  color: var(--hos-text-secondary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 8px;
 }
 
 

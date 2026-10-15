@@ -85,11 +85,6 @@
 .presence-designs button {
   padding: 7px 3px;
 }
-.presence-pages {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-}
 .i3d-editor .presence-pages button {
   padding: 6px 3px;
   min-width: 0;

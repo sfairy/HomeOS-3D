@@ -2210,6 +2210,9 @@ export function mountInteraction3d(
             ))),
           popupLayoutPreview.update(layoutKind, layoutOptions),
           true)),
+    /* 布局预览的不透明度：滑条在拖动途中调它，就地刷新已开着的预览（没开预览时是空操作，
+       也不需要调用方知道当前预览的是「通用」还是「摄像头」）。 */
+    (runtimeHandle.previewPopupOpacity = (opacity: any) => popupLayoutPreview?.setOpacity(opacity)),
     (runtimeHandle.command = (command: any) =>
       postToStageFrame({
         type: "editor-command",

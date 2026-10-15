@@ -95,10 +95,6 @@
   display: flex;
 }
 
-.afh-content--html {
-  padding: 0;
-}
-
 .afh-content--panel {
   padding: 0;
   display: flex;

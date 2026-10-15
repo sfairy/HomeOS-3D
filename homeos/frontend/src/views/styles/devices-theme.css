@@ -53,7 +53,9 @@
 
 /* ── 刷新按钮 ── */
 .dev-btn-refresh {
-  padding: 6px;
+  /* 高度钉到 xs 档：原先 6px 内边距 + 图标凑出 25px，比 xs(28) 矮 3px 且不在尺度上。 */
+  height: var(--control-height-xs);
+  padding: 0 6px;
   border-radius: var(--hos-radius-card);
   color: var(--set-text-label);
   background: var(--premium-glass-bg-hover);
@@ -254,34 +256,11 @@
   color: var(--set-text-tertiary);
 }
 
-.dev-chart-wrap__legend-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px 12px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: var(--hos-hairline) solid var(--premium-border);
-}
-
-.dev-chart-wrap__legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-tertiary);
-}
-
 
 .dev-chart-canvas {
   width: 100%;
   min-height: 150px;
   height: 180px;
-}
-
-.dev-chart-canvas--tall {
-  min-height: 200px;
-  height: 220px;
 }
 
 /* ── 状态块 ── */
@@ -2125,7 +2104,10 @@
 
 .device-filter__select {
   width: 100%;
-  padding: 9px 6px 9px 12px;
+  /* 与相邻的 .ss-input--list-page（md 档，36px）对齐：原先 9px 内边距把下拉顶到 41px，
+     同排两个表单控件差 1px 且分属两档。 */
+  height: var(--control-height-md);
+  padding: 0 6px 0 12px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   background: rgba(0, 0, 0, 0.32);

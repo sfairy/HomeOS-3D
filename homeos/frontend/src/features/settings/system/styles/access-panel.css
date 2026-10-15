@@ -73,9 +73,11 @@
   color: #c084fc;
 }
 
+/* 本文件是 scoped 样式（`<style scoped src>`），选择器带 [data-v-*] 属性，
+   特异性高于全局 `.toggle-btn.on`，无需 !important 压权重。 */
 .access-security-toggle.on {
-  background: #c084fc !important;
-  box-shadow: none !important;
+  background: #c084fc;
+  box-shadow: none;
 }
 
 /* ── 触屏设备（pointer: coarse / hover: none）：优化锁区域布局，提升状态文字可读性 ── */
@@ -105,32 +107,18 @@
     /* 启用态保持紫色但更鲜明 */
     color: #d8b4fe;
   }
+  /* 几何不再在这里覆盖：本文件是 scoped 样式，选择器带 [data-v-*]，
+     特异性本就高于全局 .toggle-btn，而触屏档 .toggle-btn 已统一为 sm（40×24）。
+     这里只保留触屏下的对比度增强（深底 + 白描边 + 内阴影），
+     原先前 6 条尺寸声明全带 !important，既重复了尺寸又让后续调整无从下手。 */
   .access-security-toggle {
-    /* 触屏：40×20 外框，内容区 38×18，圆点 16×16 对称布局 */
-    width: 40px !important;
-    height: 20px !important;
-    min-width: 40px !important;
-    max-width: 40px !important;
-    min-height: 20px !important;
-    max-height: 20px !important;
-    background: rgba(0, 0, 0, 0.42) !important;
-    border: 1px solid rgba(255, 255, 255, 0.55) !important;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55) !important;
+    background: rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55);
   }
   .access-security-toggle.on {
-    background: #c084fc !important;
-    box-shadow: none !important;
-  }
-  .access-security-toggle .toggle-dot {
-    top: 1px !important;
-    left: 2px !important;
-    width: 16px !important;
-    height: 16px !important;
-    min-width: 16px !important;
-    min-height: 16px !important;
-  }
-  .access-security-toggle .toggle-dot.on {
-    transform: translate3d(18px, 0, 0) !important;
+    background: #c084fc;
+    box-shadow: none;
   }
 }
 

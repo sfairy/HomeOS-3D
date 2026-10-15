@@ -187,8 +187,7 @@
   height: 14px;
 }
 
-.sidebar-search-mark,
-.settings-search-mark {
+.sidebar-search-mark {
   padding: 0;
   border-radius: 3px;
   background: rgba(251, 191, 36, 0.28);
@@ -506,7 +505,7 @@
   width: 100%;
   min-height: 32px;
   padding: 6px 10px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   border: var(--hos-hairline) solid transparent;
   background: rgba(0, 0, 0, 0.22);
   color: rgba(255, 255, 255, 0.86);
@@ -568,8 +567,11 @@
 }
 
 .sidebar-search__input {
+  /* 高度钉到 md 档：原先 9px 内边距 + 行高 + 发丝边框凑出 38.5px（渲染 39px），
+     比同列 36px 档的行高 3px，且不在尺度上。纵向内边距交由 height 接管。 */
+  height: var(--control-height-md);
   width: 100%;
-  padding: 9px 34px 9px 34px;
+  padding: 0 34px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   background: var(--set-glass-bg);
@@ -668,11 +670,16 @@
 }
 
 .sidebar-group-header {
+  /* 高度钉到 lg 档。原为 10px 内边距 + 24px 行高 + 发丝边框凑出的 45px：
+     比 lg(44) 高 1px，正是「成簇差 1px」的典型。
+     注意必须用 height 而非 min-height —— min-height 只能抬高矮控件、压不低高控件，
+     用 min-height 修这类偏高的控件是无效修法。 */
+  height: var(--control-height-lg);
   width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 0 12px;
   border-radius: var(--radius-ipad-md);
   border: var(--hos-hairline) solid transparent;
   font-size: var(--set-fs-nav-l1);
@@ -748,11 +755,14 @@
 }
 
 .sidebar-tab {
+  /* 高度钉到 md 档：原先靠 padding + 行高凑高度，切换选中态时内联内容（图标/圆点）变化
+     会把行高从 37px 顶到 40px，侧栏选中另一项时整列会跳动。 */
+  height: var(--control-height-md);
   width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 0 14px;
   border-radius: var(--hos-radius-card);
   border: none;
   font-size: var(--set-fs-nav-l1);
@@ -818,7 +828,10 @@
 }
 
 .sidebar-tab--child {
-  padding: 9px 12px;
+  /* 与父级同为 md 档：原先 7px 内边距 + 行高凑出 37px，选中态因内联图标撑到 40px，
+     两者都不在尺度上且互不相等。层级用缩进表达，不用高度差。 */
+  height: var(--control-height-md);
+  padding: 0 12px;
   font-size: var(--set-fs-nav-l2);
   gap: 10px;
 }
@@ -986,7 +999,9 @@
   gap: 8px;
   background: linear-gradient(135deg, #0A84FF, #5E5CE6);
   color: #fff;
-  padding: 11px 14px;
+  /* 高度钉到 lg 档：原先 11px 内边距 + 21px 行高凑出 43px，比 lg(44) 矮 1px。 */
+  height: var(--control-height-lg);
+  padding: 0 14px;
   border-radius: var(--hos-radius-card);
   font-size: var(--premium-fs-body-sm);
   font-weight: 600;
@@ -1088,7 +1103,9 @@
 }
 
 .sys-action-btn {
-  padding: 8px 16px;
+  /* 高度钉到 md 档：8px 内边距 + 行高 + 发丝边框凑出 38px。 */
+  height: var(--control-height-md);
+  padding: 0 16px;
   border-radius: var(--radius-ipad-pill);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   background: var(--set-glass-bg);
@@ -1116,13 +1133,12 @@
 }
 
 .toggle-btn {
-  width: 48px;
-  height: 24px;
-  min-width: 48px;
-  max-width: 48px;
-  min-height: 24px;
-  max-height: 24px;
-  aspect-ratio: 2 / 1;
+  width: var(--hos-switch-w-md);
+  height: var(--hos-switch-h-md);
+  min-width: var(--hos-switch-w-md);
+  max-width: var(--hos-switch-w-md);
+  min-height: var(--hos-switch-h-md);
+  max-height: var(--hos-switch-h-md);
   border-radius: var(--hos-radius-pill);
   border: var(--hos-hairline) solid var(--set-border);
   background: var(--set-glass-bg-hover);
@@ -1138,14 +1154,14 @@
 .toggle-btn.on { background: #0A84FF; box-shadow: none; }
 .toggle-dot {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
-  max-width: 18px;
-  max-height: 18px;
+  top: var(--hos-switch-thumb-inset);
+  left: var(--hos-switch-thumb-inset);
+  width: var(--hos-switch-knob-md);
+  height: var(--hos-switch-knob-md);
+  min-width: var(--hos-switch-knob-md);
+  min-height: var(--hos-switch-knob-md);
+  max-width: var(--hos-switch-knob-md);
+  max-height: var(--hos-switch-knob-md);
   border-radius: 50%;
   background: #fff;
   transition: transform 0.2s var(--ease-spring);
@@ -1153,25 +1169,22 @@
   transform: translateZ(0);
   pointer-events: none;
 }
-.toggle-dot.on { transform: translate3d(24px, 0, 0); }
+.toggle-dot.on { transform: translate3d(var(--hos-switch-travel-md), 0, 0); }
 
-/* ── 触屏设备（pointer: coarse / hover: none）：精确盒模型对齐 ──
-   盒模型计算（box-sizing: border-box）：
-   轨道外框 40×20 → 减去 2×1 边框 → 内部 38×18
-   圆点 16×16，top:1 垂直居中（上下各 1px）
-   关闭态 left:2 → 右边空 20px
-   开启态 translate:18 → 左边空 20px，右边距 2px
-   完全对称，零溢出
+/* ── 触屏设备（pointer: coarse / hover: none）：降一级到 sm 档 ──
+   盒模型计算（box-sizing: border-box），轨道取 --hos-switch-w-sm/h-sm = 40×24：
+   减去 2×1 边框 → 内部 38×22；滑块 18×18，内边距 2px 后垂直居中
+   （(22−18)/2 = 2，加边框即 border-box 的 3px = --hos-switch-inset）。
+   关闭态左空 3px、右空 19px；开启态行程 38−18−2×2 = 16px，左右留白互换，零溢出。
 ─ */
 @media (pointer: coarse), (hover: none) {
   .toggle-btn {
-    width: 40px;
-    height: 20px;
-    min-width: 40px;
-    max-width: 40px;
-    min-height: 20px;
-    max-height: 20px;
-    aspect-ratio: 2 / 1;
+    width: var(--hos-switch-w-sm);
+    height: var(--hos-switch-h-sm);
+    min-width: var(--hos-switch-w-sm);
+    max-width: var(--hos-switch-w-sm);
+    min-height: var(--hos-switch-h-sm);
+    max-height: var(--hos-switch-h-sm);
     background: rgba(0, 0, 0, 0.42);
     border: 1px solid rgba(255, 255, 255, 0.55);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55);
@@ -1181,23 +1194,23 @@
     box-shadow: none;
   }
   .toggle-dot {
-    top: 1px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    min-width: 16px;
-    min-height: 16px;
-    max-width: 16px;
-    max-height: 16px;
+    top: var(--hos-switch-thumb-inset);
+    left: var(--hos-switch-thumb-inset);
+    width: var(--hos-switch-knob-sm);
+    height: var(--hos-switch-knob-sm);
+    min-width: var(--hos-switch-knob-sm);
+    min-height: var(--hos-switch-knob-sm);
+    max-width: var(--hos-switch-knob-sm);
+    max-height: var(--hos-switch-knob-sm);
     box-shadow:
       0 2px 4px rgba(0, 0, 0, 0.45),
       0 0 0 1px rgba(0, 0, 0, 0.12);
   }
   .toggle-dot.on {
-    transform: translate3d(18px, 0, 0);
+    transform: translate3d(var(--hos-switch-travel-sm), 0, 0);
   }
 
-  /* 命中区补偿：轨道仍是 40×20，可点区域由透明伪元素扩到 48×44（见 main.css 同名块）。 */
+  /* 命中区补偿：轨道仍是 40×24，可点区域由透明伪元素扩到 48×48（见 main.css 同名块）。 */
   .toggle-btn {
     position: relative;
     overflow: visible;
@@ -1227,10 +1240,6 @@
 @keyframes settingsAmbientPulse {
   0%, 100% { opacity: 0.5; transform: scale(1); }
   50% { opacity: 0.85; transform: scale(1.02); }
-}
-
-.settings-animate-fade-in {
-  animation: settingsFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .settings-card .grid > div {
@@ -1282,6 +1291,15 @@
   color: #0A84FF;
 }
 
+/* 高度钉到 lg 档，只作用于文本框/下拉触发器。
+   注意 .settings-field 同时被复用为 flex 列容器（settings-forms.css），
+   所以高度必须限定在 `input.settings-field` 上，否则会把容器也钉成 44px。
+   原先的高度由 10px 内边距 + 行高算出 40.75px（渲染 41px），不在尺度上。 */
+input.settings-field {
+  height: var(--control-height-lg);
+  padding: 0 12px;
+}
+
 .settings-field {
   width: 100%;
   background: rgba(0,0,0,0.3);
@@ -1328,11 +1346,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
-}
-
-.settings-page--narrow,
-.settings-page--wide {
-  max-width: none;
 }
 
 .settings-page--compact { gap: 16px; }
@@ -1389,45 +1402,6 @@
 
 .settings-shell .settings-breadcrumb + .settings-main__stage .settings-page-inset--top .premium-head__title {
   font-size: var(--premium-fs-title, 18px);
-}
-
-/* 去掉页级 Hero 后：操作按钮并入 subnav 同行，或紧凑工具条（不遮挡） */
-.settings-page-chrome-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  width: 100%;
-  min-width: 0;
-}
-.settings-page-chrome-main {
-  flex: 1 1 12rem;
-  min-width: 0;
-}
-.settings-page-actions-inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex: 1 1 auto;
-  margin-left: auto;
-}
-.settings-page-inset--actions {
-  position: relative;
-  z-index: 3;
-  flex-shrink: 0;
-  padding-top: 0.4rem;
-  padding-bottom: 0;
-}
-.settings-page-actions-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
 }
 
 /* Hub 二级子导航：固定在滚动区外，不随内容滚动 */
@@ -1668,28 +1642,30 @@
     padding: 15px 18px;
   }
 
+  /* 1920px+ 大屏放大一档（lg：56×28，滑块 22 —— 原来滑块只有 20，
+     在 28 高的轨道里垂直偏了 1px）。 */
   .toggle-btn {
-    width: 56px;
-    height: 28px;
-    min-width: 56px;
-    max-width: 56px;
-    min-height: 28px;
-    max-height: 28px;
+    width: var(--hos-switch-w-lg);
+    height: var(--hos-switch-h-lg);
+    min-width: var(--hos-switch-w-lg);
+    max-width: var(--hos-switch-w-lg);
+    min-height: var(--hos-switch-h-lg);
+    max-height: var(--hos-switch-h-lg);
   }
 
   .toggle-dot {
-    top: 3px;
-    left: 3px;
-    width: 20px;
-    height: 20px;
-    min-width: 20px;
-    min-height: 20px;
-    max-width: 20px;
-    max-height: 20px;
+    top: var(--hos-switch-thumb-inset);
+    left: var(--hos-switch-thumb-inset);
+    width: var(--hos-switch-knob-lg);
+    height: var(--hos-switch-knob-lg);
+    min-width: var(--hos-switch-knob-lg);
+    min-height: var(--hos-switch-knob-lg);
+    max-width: var(--hos-switch-knob-lg);
+    max-height: var(--hos-switch-knob-lg);
   }
 
   .toggle-dot.on {
-    transform: translate3d(28px, 0, 0);
+    transform: translate3d(var(--hos-switch-travel-lg), 0, 0);
   }
 }
 
@@ -1739,28 +1715,30 @@
     padding: 17px 20px;
   }
 
+  /* 3200px+ 再放大一档（xl：64×32，滑块 26 —— 原来滑块只有 24，
+     在 32 高的轨道里垂直偏了 2px）。 */
   .toggle-btn {
-    width: 64px;
-    height: 32px;
-    min-width: 64px;
-    max-width: 64px;
-    min-height: 32px;
-    max-height: 32px;
+    width: var(--hos-switch-w-xl);
+    height: var(--hos-switch-h-xl);
+    min-width: var(--hos-switch-w-xl);
+    max-width: var(--hos-switch-w-xl);
+    min-height: var(--hos-switch-h-xl);
+    max-height: var(--hos-switch-h-xl);
   }
 
   .toggle-dot {
-    top: 3px;
-    left: 3px;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    min-height: 24px;
-    max-width: 24px;
-    max-height: 24px;
+    top: var(--hos-switch-thumb-inset);
+    left: var(--hos-switch-thumb-inset);
+    width: var(--hos-switch-knob-xl);
+    height: var(--hos-switch-knob-xl);
+    min-width: var(--hos-switch-knob-xl);
+    min-height: var(--hos-switch-knob-xl);
+    max-width: var(--hos-switch-knob-xl);
+    max-height: var(--hos-switch-knob-xl);
   }
 
   .toggle-dot.on {
-    transform: translate3d(32px, 0, 0);
+    transform: translate3d(var(--hos-switch-travel-xl), 0, 0);
   }
 }
 

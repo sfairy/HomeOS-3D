@@ -90,7 +90,9 @@
 }
 
 .bind-energy-mode {
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  /* 高度钉到 sm 档：chip 内边距 + 行高 + 发丝边框凑出 33px。 */
+  height: var(--control-height-sm);
+  padding: 0 var(--hos-chip-pad-x, 12px);
   border-radius: var(--hos-radius-pill);
   font-size: var(--premium-fs-caption);
   font-weight: 600;
@@ -323,7 +325,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 38px;
+  min-height: var(--control-height-md);
   padding: 8px 14px;
   border-radius: var(--hos-radius-card);
   font-size: var(--premium-fs-caption);

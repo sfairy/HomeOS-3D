@@ -63,8 +63,9 @@
 
 .account-list-editor__primary {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  /* 从 34×34 归到 sm 档，与同排控件同高。 */
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
@@ -108,8 +109,9 @@
 
 .account-list-editor__remove {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  /* 从 34×34 归到 sm 档，与同排控件同高。 */
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
   border: none;
   border-radius: var(--hos-radius-card);
   background: transparent;

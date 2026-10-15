@@ -19,7 +19,7 @@
 .hm-preset-sidebar__icon {
   width: 30px;
   height: 30px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   display: flex;
   align-items: center;
   justify-content: center;

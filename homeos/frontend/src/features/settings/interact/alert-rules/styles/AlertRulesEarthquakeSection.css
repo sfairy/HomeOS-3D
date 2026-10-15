@@ -10,14 +10,12 @@
   color: var(--set-warn-deep, #fb923c);
 }
 
-.eew-ic-sky,
 .eew-ic-amber {
   color: #fb923c;
 }
 .eew-ic-warn-deep {
   color: var(--set-warn-deep, #fb923c);
 }
-.eew-ic-violet,
 .eew-ic-rose {
   color: #fb7185;
 }
@@ -25,7 +23,6 @@
   color: var(--set-danger, #f87171);
 }
 
-.eew-orb-sky,
 .eew-orb-amber {
   background: rgba(251, 146, 60, 0.14);
   border: var(--hos-hairline) solid rgba(251, 146, 60, 0.28);
@@ -34,7 +31,6 @@
   background: rgba(251, 146, 60, 0.12);
   border: var(--hos-hairline) solid rgba(251, 146, 60, 0.28);
 }
-.eew-orb-violet,
 .eew-orb-rose {
   background: rgba(251, 113, 133, 0.12);
   border: var(--hos-hairline) solid rgba(251, 113, 133, 0.28);

@@ -16,7 +16,8 @@
 }
 
 .notifications-view__toolbar {
-  --notifications-control-h: 40px;
+  /* 与同排 .icon-btn（lg 44px）对齐：原 40px 落在两档之间，是「40/41 成簇」的来源。 */
+  --notifications-control-h: 44px;
 }
 
 .notifications-view__query-grid {

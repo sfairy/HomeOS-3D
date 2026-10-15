@@ -27,7 +27,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  /* 高度钉到 md 档：6px 内边距 + 行高 + 发丝边框凑出 37px。 */
+  height: var(--control-height-md);
+  padding: 0 12px;
   border-radius: var(--hos-radius-card);
   font-size: var(--premium-fs-caption);
   font-weight: 600;
@@ -101,7 +103,7 @@
 .home-mode-panel .hm-context-pill__icon {
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,7 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   background: var(--page-accent-bg);
   border: var(--hos-hairline) solid var(--page-accent-border);
 }
@@ -351,10 +353,12 @@
 }
 .home-mode-panel .hm-segments::-webkit-scrollbar { display: none; }
 .home-mode-panel .hm-segment {
+  /* 高度锁到 md 档：7px 内边距 + 行高 + 发丝边框凑出的 35px 不在尺度上。 */
+  height: var(--control-height-md);
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 11px;
+  padding: 0 11px;
   border-radius: 8px;
   font-size: var(--set-fs-micro, 12px);
   font-weight: 700;
@@ -469,11 +473,13 @@
   color: var(--hos-text-secondary);
 }
 .home-mode-panel .hm-field__input {
+  /* 高度锁到 md 档：8px 内边距 + 行高凑出的 37px 不在尺度上（lg 是给 .settings-field 的）。 */
+  height: var(--control-height-md);
   width: 100%;
   background: rgba(0, 0, 0, 0.28);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   border-radius: var(--hos-radius-card);
-  padding: 8px 11px;
+  padding: 0 11px;
   font-size: var(--premium-fs-caption);
   color: #fff;
   outline: none;
@@ -658,7 +664,7 @@
   align-items: center;
   gap: 5px;
   padding: 6px 10px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   color: var(--set-text-secondary);
@@ -725,7 +731,9 @@
   margin-left: auto;
   font-size: var(--set-fs-micro, 12px);
   font-weight: 700;
-  padding: 6px 8px;
+  /* 高度钉到 sm 档：6px 内边距 + 行高 + 发丝边框凑出 31px。 */
+  height: var(--control-height-sm);
+  padding: 0 8px;
 }
 .home-mode-panel .hm-mode-footer__hint {
   margin: 0 0 10px;
@@ -905,7 +913,7 @@
 }
 .home-mode-panel .hm-entity-input .ei-input-row {
   min-height: 36px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.35);
 }
@@ -1234,7 +1242,7 @@
 .home-mode-panel .hos-select--home-mode .hos-select__trigger {
   min-height: 36px;
   padding: 8px 10px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   font-size: var(--premium-fs-caption);
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.35);
@@ -1322,7 +1330,7 @@
 .home-mode-panel--embedded .hm-context-pill__icon {
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: var(--hos-radius-control);
 }
 .home-mode-panel--embedded .hm-context-pill__icon svg {
   width: 12px;
@@ -1476,7 +1484,7 @@
   width: 100%;
   padding: 9px 10px 9px 12px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -1862,7 +1870,7 @@
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--hos-radius-control);
   color: var(--hos-text-secondary);
   background: transparent;
   border: var(--hos-hairline) solid transparent;
@@ -2117,7 +2125,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   padding: 0;
   border: none;
   cursor: pointer;

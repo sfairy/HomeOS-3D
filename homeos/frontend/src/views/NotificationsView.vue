@@ -33,7 +33,10 @@ const {
   filterBySource,
   filterByLevel,
   formatCount,
-  formatHourOption,
+  /* 组合式函数导出的是 formatNotificationHourOption；此处原名 formatHourOption 解构不到，
+     会得到 undefined 并以 required Function prop 传给 ViewToolbar，
+     导致整页被 ErrorBoundary 拦下（$props.formatHourOption is not a function）。 */
+  formatNotificationHourOption: formatHourOption,
 } = useNotificationsView()
 </script>
 

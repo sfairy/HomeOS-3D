@@ -40,7 +40,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  /* 高度钉到 sm 档：chip 内边距 + 行高凑出 33px，比 sm(32) 高 1px。 */
+  height: var(--control-height-sm);
+  padding: 0 var(--hos-chip-pad-x, 12px);
   border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-body-sm);
   font-weight: 600;
@@ -119,10 +121,5 @@
   gap: var(--hos-space-xl, 20px);
   flex: none;
   width: 100%;
-}
-
-.settings-hub-section--dim {
-  opacity: 0.45;
-  pointer-events: none;
 }
 

@@ -38,8 +38,8 @@ defineEmits(['update:modelValue'])
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  width: 44px;
-  height: 26px;
+  width: var(--hos-switch-w-md);
+  height: var(--hos-switch-h-md);
   padding: 0;
   border: none;
   border-radius: var(--hos-radius-pill);
@@ -51,8 +51,8 @@ defineEmits(['update:modelValue'])
 }
 
 .settings-switch-toggle--sm {
-  width: 40px;
-  height: 24px;
+  width: var(--hos-switch-w-sm);
+  height: var(--hos-switch-h-sm);
 }
 
 .settings-switch-toggle--on {
@@ -62,9 +62,9 @@ defineEmits(['update:modelValue'])
 
 .settings-switch-toggle__knob {
   display: block;
-  width: 20px;
-  height: 20px;
-  margin-left: 3px;
+  width: var(--hos-switch-knob-md);
+  height: var(--hos-switch-knob-md);
+  margin-left: var(--hos-switch-inset);
   border-radius: 50%;
   background: var(--hos-text-strong);
   box-shadow: var(--hos-shadow-card);
@@ -73,15 +73,16 @@ defineEmits(['update:modelValue'])
 }
 
 .settings-switch-toggle--sm .settings-switch-toggle__knob {
-  width: 18px;
-  height: 18px;
+  width: var(--hos-switch-knob-sm);
+  height: var(--hos-switch-knob-sm);
 }
 
+/* 行程由 --hos-switch-travel-* 统一给出（md: 44−20−6 = 18px），改档位自动跟随，不会一侧贴边。 */
 .settings-switch-toggle__knob--on {
-  transform: translateX(18px);
+  transform: translateX(var(--hos-switch-travel-md));
 }
 
 .settings-switch-toggle--sm .settings-switch-toggle__knob--on {
-  transform: translateX(16px);
+  transform: translateX(var(--hos-switch-travel-sm));
 }
 </style>

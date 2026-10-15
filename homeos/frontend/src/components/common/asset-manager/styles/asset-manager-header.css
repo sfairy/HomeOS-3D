@@ -28,20 +28,6 @@
   color: #60a5fa;
 }
 
-.asset-header__title {
-  font-size: var(--premium-fs-caption);
-  font-weight: 600;
-  color: #e2e8f0;
-}
-
-.asset-header__tag {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-left: 2px;
-}
-
 .asset-header__crumb {
   font-size: var(--premium-fs-caption);
   font-weight: 600;

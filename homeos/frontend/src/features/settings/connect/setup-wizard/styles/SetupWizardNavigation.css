@@ -34,7 +34,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 10px 16px;
+  /* 高度钉到 lg 档：原先 10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
+  height: var(--control-height-lg);
+  padding: 0 16px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
@@ -61,7 +63,9 @@
   z-index: 1;
   align-items: center;
   gap: 6px;
-  padding: 10px 18px;
+  /* 与 .sw-nav__prev 同档，避免上一步/下一步两颗按钮高度不等。 */
+  height: var(--control-height-lg);
+  padding: 0 18px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid var(--sw-emerald-border-strong);
   background: linear-gradient(135deg, var(--sw-emerald-btn-from), var(--sw-emerald-btn-to));

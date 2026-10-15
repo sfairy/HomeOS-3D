@@ -205,30 +205,10 @@
   width: 100%;
 }
 
-/* ── 图例（预留，当前主体未挂载） ── */
-.hcc-card__legend {
-  flex-shrink: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-}
-
 
 
 .hcc-card__legend-chip--off {
   opacity: 0.38;
-}
-
-
-
-.hcc-card__legend-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 4px 6px 4px 5px;
 }
 
 
@@ -238,15 +218,6 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.82);
-}
-
-
-
-.hcc-card__legend-unit {
-  flex-shrink: 0;
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  color: rgba(148, 163, 184, 0.45);
 }
 
 

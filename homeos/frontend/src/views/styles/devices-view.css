@@ -56,6 +56,14 @@
   transform: scale(0.97);
 }
 
+/* 触屏：原生复选框视觉尺寸保持 15px，但把外层 label 的命中区抬到 44px。
+   （复选框本身是原生控件，不适合拉伸视觉尺寸。） */
+@media (pointer: coarse), (hover: none) {
+  .device-filter__check {
+    min-height: var(--control-height-lg);
+  }
+}
+
 /* ── 列表行 hover 已在 list-page-views.css 跟随 --page-accent ──
    这里补充 active 态的轻微下压反馈。 */
 .devices-view .list-page__row {
@@ -121,10 +129,6 @@
 @media (max-width: 639px) {
   .devices-view__hero-toolbar {
     gap: 8px;
-  }
-
-  .devices-view__sidebar-toggle {
-    min-height: 44px;
   }
 }
 

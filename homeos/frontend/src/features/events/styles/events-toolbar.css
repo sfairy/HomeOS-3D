@@ -1,6 +1,7 @@
 .events-view__toolbar {
   width: 100%;
-  --events-control-h: 40px;
+  /* 与同排 .icon-btn（lg 44px）对齐：原 40px 落在两档之间，是「40/41 成簇」的来源。 */
+  --events-control-h: 44px;
 }
 
 .events-view__query-card {

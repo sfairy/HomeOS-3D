@@ -402,7 +402,7 @@ defineExpose({ open, close })
   max-height: calc(100dvh - 40px);
   padding: 0;
   border: 1px solid #3a444c;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   color: #e8ecef;
   background: #1a2026;
   box-shadow: 0 30px 100px #00000094;

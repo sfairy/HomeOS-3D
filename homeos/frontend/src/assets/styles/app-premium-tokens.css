@@ -50,8 +50,15 @@
   --premium-fs-widget-label: 12px;
   --premium-fs-widget-meta: 12px;
 
-  /* 表单控件统一尺寸（HosSelect / SearchableSelect / EntityInput 等） */
+  /* 表单控件统一尺寸（HosSelect / SearchableSelect / EntityInput 等）。
+     高度是一**族尺度**而非单个值：实测同一屏曾出现 12+ 种控件高度、且成簇只差 1–2px
+     （35/36、40/41、44/45），根因就是各控件绕开令牌硬编码。四档语义：
+     xs=紧凑图标钮 / chip；sm=侧栏项 / 次级钮；md=标准表单控件；lg=主按钮 / 触控主目标。
+     新控件一律引用这里，不要再写裸高度。 */
+  --control-height-xs: 28px;
+  --control-height-sm: 32px;
   --control-height-md: 36px;
+  --control-height-lg: 44px;
   --control-padding-y: 8px;
   --control-padding-inline-compact: 6px;
   /** 触控目标下限（WCAG / iOS HIG）：coarse 指针下控件至少 44px */
@@ -193,8 +200,7 @@
 }
 
 /** 玻璃面板基础面（border + 默认背景 + 阴影；圆角/padding 由场景 modifier 覆盖） */
-.premium-glass-surface,
-.premium-acc {
+.premium-glass-surface {
   border: var(--hos-hairline) solid var(--premium-border);
   background: var(--hos-surface-panel, var(--premium-glass-bg));
   box-shadow: var(--premium-shadow), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));

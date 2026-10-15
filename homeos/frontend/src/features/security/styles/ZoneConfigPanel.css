@@ -26,10 +26,6 @@
   color: var(--hos-text-secondary);
 }
 
-.sov-config__hint--readonly {
-  color: rgba(251, 191, 36, 0.85);
-}
-
 .sov-config__actions {
   display: flex;
   flex-wrap: wrap;

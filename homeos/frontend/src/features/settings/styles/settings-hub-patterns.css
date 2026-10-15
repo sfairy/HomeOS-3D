@@ -23,11 +23,6 @@
   width: 100%;
 }
 
-.settings-hub-workspace .settings-hub-section--dim {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
 /* ── Hero 顶栏标题排版（settings-utilities 扩展点） ── */
 .settings-hub-workspace .hub-hero-bar__title {
   letter-spacing: -0.02em;
@@ -38,33 +33,6 @@
   line-height: 1.45;
 }
 
-/* ── Head band 渐变底（accent 参数化） ── */
-.settings-hub-head-band {
-  padding: 18px 22px 16px;
-  border-bottom: var(--hos-hairline) solid var(--premium-border-strong);
-  background:
-    radial-gradient(ellipse 85% 120% at 0% 0%, rgba(var(--page-accent-rgb), 0.12) 0%, transparent 58%),
-    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.08) 0%, transparent 50%),
-    rgba(0, 0, 0, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.settings-hub-head-band__title {
-  margin: 0;
-  font-size: var(--premium-fs-body-sm, 14px);
-  font-weight: 800;
-  color: var(--set-text-primary);
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-.settings-hub-head-band__desc {
-  margin: 4px 0 0;
-  font-size: var(--premium-fs-micro, 11px);
-  line-height: 1.5;
-  color: var(--set-text-tertiary);
-}
-
 /* ── Hub 子页撑满视口 flex 栈（父级 overflow:hidden 时配合内层滚动） ── */
 .settings-hub-section--fill {
   display: flex;
@@ -72,11 +40,4 @@
   flex: 1 1 0%;
   min-height: 0;
   align-self: stretch;
-}
-
-/* ── Workspace：顶栏固定 + body 纵向滚动 ── */
-
-
-.svc-head-band {
-  flex-shrink: 0;
 }

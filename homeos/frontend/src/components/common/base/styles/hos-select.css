@@ -41,9 +41,11 @@
   gap: 4px;
   width: 100%;
   box-sizing: border-box;
-  min-height: 34px;
+  /* 用 height 而非 min-height 钉高：min-height 只托底、拦不住内容（行高+内边距+发丝边框）
+     把控件顶高，之前各档位因此普遍比目标高 3–5px。 */
+  height: var(--control-height-md);
   min-width: 0;
-  padding: 7px 6px 7px 10px;
+  padding: 0 6px 0 10px;
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
@@ -130,8 +132,8 @@
 }
 
 .hos-select--xs .hos-select__trigger {
-  min-height: 30px;
-  padding: 6px 6px 6px 8px;
+  height: var(--control-height-xs);
+  padding: 0 6px 0 8px;
   border-radius: 6px;
   font-size: var(--premium-fs-body-sm);
 }
@@ -141,8 +143,8 @@
 }
 
 .hos-select--sm .hos-select__trigger {
-  min-height: 32px;
-  padding: 6px 6px 6px 8px;
+  height: var(--control-height-sm);
+  padding: 0 6px 0 8px;
   border-radius: 6px;
   font-size: var(--premium-fs-body);
 }
@@ -199,13 +201,13 @@
 }
 
 .hos-select--orchestrator .hos-select__trigger {
-  min-height: 36px;
-  border-radius: 7px;
+  height: var(--control-height-md);
+  border-radius: var(--hos-radius-control);
   border-color: var(--premium-border-strong);
   background: rgba(255, 255, 255, 0.045);
   font-size: var(--premium-fs-body-sm);
   color: rgba(255, 255, 255, 0.88);
-  padding: 7px 6px 7px 10px;
+  padding: 0 6px 0 10px;
 }
 
 .hos-select--orchestrator .hos-select__trigger--empty .hos-select__value {
@@ -213,14 +215,14 @@
 }
 
 .hos-select--orchestrator.hos-select--xs .hos-select__trigger {
-  min-height: 44px;
+  height: var(--control-height-lg);
   font-size: var(--premium-fs-caption);
-  padding: 5px 8px;
+  padding: 0 8px;
   border-radius: 6px;
 }
 
 .hos-select--orchestrator.hos-select--sm .hos-select__trigger {
-  min-height: 36px;
+  height: var(--control-height-md);
 }
 
 .hos-select--orchestrator .hos-select__trigger:hover:not(:disabled),
@@ -232,8 +234,10 @@
 
 /* variant: settings — 与 .settings-field 同高同外观，并排时对齐 */
 .hos-select--settings .hos-select__trigger {
-  min-height: calc(var(--set-fs-input, 15px) * 1.25 + 20px + 2px);
-  padding: 10px 10px 10px 12px;
+  /* 原先用 calc(行高 + 内边距 + 边框) 凑高 = 40.75px（渲染 41px），不在尺度上，
+     正是计划里「40/41 成簇」的另一半。改为钉住 lg 档，与并排的 input.settings-field 保持同高。 */
+  height: var(--control-height-lg);
+  padding: 0 10px 0 12px;
   border-radius: var(--acc-radius, 10px);
   border-color: var(--premium-border, rgba(255, 255, 255, 0.1));
   background: rgba(0, 0, 0, 0.3);
@@ -256,8 +260,8 @@
 /* 变体：widget（ws-select） */
 .hos-select--widget .hos-select__trigger {
   border-radius: 8px;
-  min-height: 28px;
-  padding: 3px 6px;
+  height: var(--control-height-xs);
+  padding: 0 6px;
   font-size: var(--premium-fs-micro);
   color: rgba(255, 255, 255, 0.7);
 }
@@ -278,7 +282,7 @@
 /* 变体：inline（带本地 input 类的面板） */
 .hos-select--inline .hos-select__trigger {
   border-radius: 8px;
-  min-height: 32px;
+  height: var(--control-height-sm);
   font-size: var(--premium-fs-caption);
 }
 

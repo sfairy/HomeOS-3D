@@ -408,10 +408,7 @@ onMounted(load)
   white-space: nowrap;
 }
 
-.settings-btn--sm {
-  padding: 6px 12px;
-  font-size: var(--set-fs-micro, 12px);
-}
+/* .settings-btn--sm 已收敛到 features/settings/shared/styles/settings-forms.css */
 
 /* 批量设置工具条 */
 .retention-batch {
@@ -601,8 +598,10 @@ onMounted(load)
 }
 
 .retention-table__input {
+  /* 高度钉到 sm 档：6px 内边距 + 行高 + 发丝边框凑出 33px。 */
+  height: var(--control-height-sm);
   width: 76px;
-  padding: 6px 28px 6px 8px;
+  padding: 0 28px 0 8px;
   border-radius: 8px;
   border: var(--hos-hairline) solid var(--hos-border-hairline-strong);
   background: rgba(255, 255, 255, 0.04);

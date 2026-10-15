@@ -47,7 +47,7 @@
 
 .life-indices__title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--premium-fs-body);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -138,7 +138,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   color: var(--li-warn);
   background: rgba(251, 113, 133, 0.16);
 }
@@ -260,7 +260,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: var(--hos-radius-control);
   color: var(--li-info);
   background: rgba(125, 211, 252, 0.12);
 }
@@ -505,7 +505,7 @@
 }
 
 .life-indices__card-state {
-  font-size: 15px;
+  font-size: var(--premium-fs-body);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
 }

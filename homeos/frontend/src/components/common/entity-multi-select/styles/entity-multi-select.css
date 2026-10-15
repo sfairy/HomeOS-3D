@@ -186,7 +186,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: var(--hos-radius-control);
   background: rgba(255, 255, 255, 0.05);
   border: var(--hos-hairline) solid var(--premium-border-strong);
   transition: background 0.15s ease, border-color 0.15s ease;

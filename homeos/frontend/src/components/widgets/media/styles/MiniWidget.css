@@ -245,7 +245,10 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 5px;
+  /* 与同一排的 .mm-btn-play 统一到 sm 档：原先仅靠 5px 内边距撑着内容高度，
+     渲染出 25px，比同行 32px 的播放键矮 7px 且不在尺度上。 */
+  height: var(--control-height-sm);
+  padding: 0 5px;
   border-radius: var(--hos-radius-card);
   display: flex;
   align-items: center;
@@ -260,7 +263,7 @@
 
 .mm-btn-play {
   width: 34px;
-  height: 34px;
+  height: var(--control-height-sm);
   border-radius: 50%;
   background: var(--premium-glass-bg-hover);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
