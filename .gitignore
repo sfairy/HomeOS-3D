@@ -46,7 +46,7 @@ dist/
 # 系统导出包（hub 备份，含真实用户与布局数据）
 homeos-bundle-*.json
 
-# 客户分发包（ops/deploy/pack-customer.sh 默认输出到 build/customer-pack）
+# 客户分发包（导出的 customer-pack / 打包脚本默认输出到 build/）
 /build/
 
 # 开发期临时/备份/日志残留

@@ -41,7 +41,8 @@
 # ③ 创建商店管理员：商店还没有管理员时，启动日志里有引导密钥
 #      docker logs homeos-store | grep -A4 '引导密钥'
 #    打开 https://homelifepay.iepose.cn/setup 填入（本机调试也可以走
-#    http://127.0.0.1:8802/setup —— 回环端口就是留给这种用途的）。
+#    http://127.0.0.1:8802/setup；注意 STORE_COOKIE_SECURE 已开，会话 Cookie 带 Secure，
+#    个别浏览器会拒收 http 下的 Secure Cookie —— 那就改用 https://127.0.0.1:8804/setup）。
 # ④ 商店前台注册一个客户账号：https://homelifepay.iepose.cn/user/authentication/register
 #    验证码默认走**日志**（STORE_MAIL_MODE=log，见下），取码：
 #      docker logs homeos-store | grep 验证码
@@ -150,11 +151,15 @@ services:
     environment:
       APP_ENVIRONMENT: production
       # 容器内部直连商店：同一个 compose 项目里用**服务名**解析即可，不必走宿主 IP。
+      # 注意这条**不参与**登录页链接 —— 那是给浏览器的，见下面 APP_STORE_URL 的说明。
       APP_LICENSE_SERVER_URL: http://homeos-store:8802
-      # 商店的**浏览器入口**地址按需推导，默认不填：主应用问商店「你的对外地址是什么」，
-      # 商店答的是容器服务名（http://homeos-store:8802）—— 浏览器解析不了，于是主应用把
-      # 主机名换成浏览器正在用的那个（局域网 IP / 域名），端口沿用商店的回答。
-      # 所以这台机器换 IP / 换域名都不用改这里；推导出的地址不合期望时才取消注释写死。
+      # 商店的**浏览器入口**地址不用填：主应用问商店「你的对外地址是什么」，商店配了
+      # STORE_BASE_URL（本文件已配成 https://homelifepay.iepose.cn）就答这个地址，
+      # 于是登录页的「忘记密码 / 商店」直接跳过去。
+      # 只有商店没配 STORE_BASE_URL 时才需要推导 —— 那时商店答的是容器服务名
+      # （http://homeos-store:8802），浏览器解析不了，主应用会把主机名换成浏览器正在用的
+      # 那个（局域网 IP / 域名，端口沿用商店的回答），所以这台机器换 IP / 换域名都不用
+      # 改这里。推导出的地址不合期望时（例如商店另有一层只给浏览器的反代）再取消注释写死。
       # APP_STORE_URL: http://192.168.1.20:8802
       # 公钥目录改挂商店写出的共享卷（只读）：这条路径不联网、也不写盘。
       APP_CLIENT_KEYS_DIR: /shared-keys
@@ -226,7 +231,7 @@ services:
   #   # 验证、回调地址与排错见 ops/deploy/PUBLIC-ACCESS.md。
   # ─────────────────────────────────────────────────────────────────────────────
 networks:
-  # 固定名字：公网接入段里的 caddy-public 也加入这个网络才能反代到商店。
+  # 固定名字：「可选：内置 Caddy 入口」段里的 caddy-public 也要加入这个网络才能反代到商店。
   homeos-net:
     name: homeos-net
 

@@ -52,7 +52,7 @@ python3 ops/build.py image --project store --tag homeos-store:local
 
 默认基础镜像写在**唯一真源** [`ops/docker-pins.json`](docker-pins.json)（`upstream_tag` 与
 `digest` 分开两行），并写进 `Dockerfile` 的 `ARG` 默认值与 `docker-compose.yml` 里那段
-「可选：公网接入」的 caddy 镜像。升级基础镜像时改真源，并同步更新 Dockerfile / compose 中
+「可选：内置 Caddy 入口」的 caddy 镜像。升级基础镜像时改真源，并同步更新 Dockerfile / compose 中
 的引用 —— 这三处是人工对账，没有脚本挡着。
 
 ### 构建期工具的精确版本

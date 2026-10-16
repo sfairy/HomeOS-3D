@@ -96,6 +96,19 @@ def main() -> None:
             '同机部署用 docker-compose.yml（商店地址走容器内网服务名，已注入）。'
         )
 
+    license_url = environment['APP_LICENSE_SERVER_URL'].strip().rstrip('/')
+    # 8804 是镜像内置反代的端口，用的是 Caddy **内部 CA 的自签**证书：跨机（或从容器里）
+    # 用 https 连它，httpx 会按系统 CA 校验并直接拒绝。这是文档里反复警告的坑，
+    # 所以在启动时就把它说破 —— 否则症状只是「取回授权公钥超时」，很难查到根因。
+    if license_url.lower().startswith('https://') and license_url.rsplit(':', 1)[-1] == '8804':
+        print(
+            f'警告：APP_LICENSE_SERVER_URL={license_url} 用的是商店内置反代的 8804 端口，'
+            '它的证书是自签的（本容器会拒绝）。请改成厂商那台机器的 HTTP 地址或公网域名，'
+            '例如 http://192.168.1.20:8802 或 https://store.example.com。',
+            file=sys.stderr,
+            flush=True,
+        )
+
     app_port = environment.get("APP_PORT", "8801").strip() or "8801"
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()
     Path(environment["APP_DATA_DIR"]).mkdir(parents=True, exist_ok=True)

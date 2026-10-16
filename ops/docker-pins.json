@@ -2,7 +2,7 @@
   "_doc": [
     "基础镜像的唯一真源。三处镜像面应与这里逐字一致：",
     "  1. Dockerfile 的 ARG PYTHON_IMAGE / ARG CADDY_IMAGE 默认值；",
-    "  2. docker-compose.yml 里「可选：公网接入」段中 caddy-public 的 image；",
+    "  2. docker-compose.yml 里「可选：内置 Caddy 入口」段中 caddy-public 的 image；",
     "  3. ops/build.py 走 --base-mirror 时用来拼镜像站引用的官方引用。",
     "",
     "tag 与 digest 分开写：这样「只改 tag 忘改摘要」和「只改摘要忘改 tag」都是**能看见的**改动，",
@@ -22,7 +22,7 @@
     "caddy": {
       "upstream_tag": "caddy:2.11.4-alpine",
       "digest": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
-      "role": "内置反代（镜像内取静态二进制）+ 公网接入段的 caddy-public 容器"
+      "role": "内置反代（镜像内取静态二进制）+ 「可选：内置 Caddy 入口」段的 caddy-public 容器"
     }
   }
 }

@@ -87,7 +87,8 @@ class StoreVerificationClient:
 
 
 def verification_client_from_settings(settings) -> StoreVerificationClient:
-    """按 ``settings`` 构造客户端：优先对外商店地址，回退授权服务器地址。"""
+    """按 ``settings`` 构造客户端：服务端出站**优先授权服务器地址**（那是容器能连到商店的
+    地址），缺省才退回对外商店地址。"""
     # 服务端出站优先 license 服务器地址；浏览器商店链接才用 store_url。
     base = (getattr(settings, "license_server_url", "") or "").strip()
     if not base:

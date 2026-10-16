@@ -79,21 +79,22 @@ from ..security.security import (
 router = APIRouter(prefix="/store/v1", tags=["store"])
 
 @router.get("/base-url")
-def store_base_url(request: Request) -> JSONResponse:
-    """本商店的对外访问地址（``{"baseUrl": "..."}``，可能为空串）。
+def store_base_url(request: Request, settings: SettingsDep) -> JSONResponse:
+    """本商店的对外访问地址（``{"baseUrl": "...", "declared": bool}``）。
 
-    给**机器对机器**用：客户机上的主应用拿它当登录页商店链接的兜底 —— 那边只知道容器
-    能连到的商店地址，而链接要给浏览器用（详细理由见
+    给**机器对机器**用：客户机 / 同机的主应用拿它当登录页商店链接的兜底 —— 那边只知道
+    容器能连到的商店地址，而链接要给浏览器用（详细理由见
     ``security.request_security.request_origin``）。
 
     取值口径两条，按序：
-    1. 显式配置的 ``STORE_BASE_URL``（权威，公网接入时就是它）；
-    2. 回显本次请求的 scheme + ``Host``，即「调用方是怎么连上我的」。
+    1. 显式配置的 ``STORE_BASE_URL``（权威，公网接入时就是它）—— 此时 ``declared=true``；
+    2. 回显本次请求的 scheme + ``Host``，即「调用方是怎么连上我的」—— ``declared=false``。
 
-    第 2 条在「容器能到的地址 == 浏览器能打开的地址」时正确；两者不同时（容器走内网
-    DNS、浏览器走公网域名）由调用方显式配置覆盖。
+    ``declared`` 是给调用方的判据：回显值在**同机部署**里就是容器服务名（浏览器解析不了），
+    调用方要自己换成浏览器视角的地址；显式值则原样采信，不必推测。
     """
-    response = JSONResponse({"baseUrl": request_origin(request)})
+    declared = bool(str(getattr(settings, "base_url", "") or "").strip())
+    response = JSONResponse({"baseUrl": request_origin(request), "declared": declared})
     response.headers["Cache-Control"] = "no-store"
     return response
 

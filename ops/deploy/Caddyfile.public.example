@@ -1,6 +1,6 @@
 # 公网接入示例（Caddy 2）—— 授权商店用真实域名 + 自动签发的可信证书
 #
-# 与 docker-compose.yml 里那段「可选：公网接入」（取消注释即用）配套：
+# 与 docker-compose.yml 里那段「可选：内置 Caddy 入口」（取消注释即用）配套：
 #
 #   caddy-public 的 environment 里填 STORE_DOMAIN: store.example.com / ACME_EMAIL: you@example.com
 #   docker compose up -d

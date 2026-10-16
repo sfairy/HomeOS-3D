@@ -60,21 +60,33 @@ def main() -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     store_port = environment.get("STORE_PORT", "8802")
-    if not _check_admin_exists(data_dir):
+    # 首装引导地址：配了 STORE_BASE_URL 就用它（公网部署时那才是用户真正能打开的地址），
+    # 否则退回「容器自己看到的 host:port」。同机部署里后者是服务名 / 0.0.0.0，
+    # 所以只当兜底，并且额外提示本机回环地址。
+    declared = (environment.get("STORE_BASE_URL") or "").strip().rstrip("/")
+    if declared:
+        setup_url = f"{declared}/setup"
+        local_hint = f"（本机调试：http://127.0.0.1:{store_port}/setup）"
+    else:
         host = environment.get("STORE_HOST", "0.0.0.0")
-        display_host = "localhost" if host in ("0.0.0.0", "::") else host
+        display_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+        setup_url = f"http://{display_host}:{store_port}/setup"
+        local_hint = ""
+    if not _check_admin_exists(data_dir):
         print(
             "═══════════════════════════════════════════════════════════",
             flush=True,
         )
         print(
-            f"  首次部署：请在浏览器打开 http://{display_host}:{store_port}/setup",
+            f"  首次部署：请在浏览器打开 {setup_url}",
             flush=True,
         )
         print(
             "  通过页面设置管理员账号",
             flush=True,
         )
+        if local_hint:
+            print(f"  {local_hint}", flush=True)
         print(
             "═══════════════════════════════════════════════════════════",
             flush=True,

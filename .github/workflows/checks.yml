@@ -168,11 +168,12 @@ jobs:
           docker compose -f docker-compose.yml config -q
           docker compose -f docker-compose.app.yml config -q
 
-      - name: Compose config（公网接入段取消注释后）
+      - name: Compose config（内置 Caddy 入口段取消注释后）
         run: |
-          # 公网接入不是独立文件，而是 docker-compose.yml 里的注释段：**启用时才取消注释**，
-          # 而注释里的缩进只有取消注释后才会被 YAML 解析，写错了平时看不出来。
-          # 所以这里模拟启用一次（取消注释 + 补上 volumes 两行），让它立刻报错。
+          # 公网接入不是独立文件，而是 docker-compose.yml 里的注释段（「可选：内置 Caddy
+          # 入口」）：**启用时才取消注释**，而注释里的缩进只有取消注释后才会被 YAML 解析，
+          # 写错了平时看不出来。所以这里模拟启用一次（取消注释 + 补上 volumes 两行），
+          # 让它立刻报错。
           python3 - <<'PY'
           import pathlib, re, sys
 
@@ -192,7 +193,7 @@ jobs:
                       or re.match(r"^\s+- ", body):
                   lines.append(body)
           if len(lines) < 10 or "caddy-public:" not in lines[0]:
-              sys.exit("::error::公网接入段解析失败 —— 注释块结构与本步骤的假设不一致，请同步修改")
+              sys.exit("::error::「可选：内置 Caddy 入口」段解析失败 —— 注释块结构与本步骤的假设不一致，请同步修改")
           out = src[:start] + "\n".join(lines) + "\n" + src[end:]
           out = out.replace("  # caddy-public-data:\n  # caddy-public-config:\n",
                             "  caddy-public-data:\n  caddy-public-config:\n")

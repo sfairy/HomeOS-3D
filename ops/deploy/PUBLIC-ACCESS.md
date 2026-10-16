@@ -1,13 +1,31 @@
-# 商店公网接入（真实域名 + 可信证书）
+# 商店对外接入（真实域名 + 可信证书）
 
-适用场景：**客户机分布在不同网络 / 不同地方**，需要跨公网连到你的商店；或者你要
-**卖授权**（支付宝 / 微信的异步回调必须公网可达）。
-
-只在内网分发（同一个局域网）时不需要本文件 —— 直接用仓库根的 `docker-compose.yml` 即可。
+适用场景：**客户机分布在不同网络**，需要跨公网连到你的商店；或者你要**卖授权**（支付宝 /
+微信的异步回调必须公网可达）。只在内网分发（同一个局域网）时不需要本文件。
 
 ---
 
-## 1. 为什么不能直接用镜像内置的 8804 HTTPS
+## 1. 先分清两种部署形态
+
+同一个产品只有两种拓扑，配置项一样但**取值不同**，混了就会「看似健康、其实连不上」：
+
+| | 同机部署 | 分机部署 |
+| --- | --- | --- |
+| 谁在哪 | 商店 + 主应用都在**厂商这台** | 厂商那台只跑商店，每台客户机跑主应用 |
+| compose 文件 | `docker-compose.yml` | 客户机用 `docker-compose.app.yml` |
+| 主应用容器**出站**找商店<br>（`APP_LICENSE_SERVER_URL`） | `http://homeos-store:8802`<br>同一个 compose 项目里用服务名 | 商店的**对外地址**<br>（IP 或域名，浏览器也能打开） |
+| **浏览器**打开商店 | 商店自己答的对外地址 | 同左 |
+
+两个地址的分工是刚性的：容器出站走「容器网络内能解析的名字」，浏览器走「公网能打通的
+地址」。同机部署里这两者**必然不同**（一个服务名、一个宿主地址），所以别把它们填成同一个值。
+
+登录页的商店入口地址（原来要手填的 `APP_STORE_URL`）**现在不用填**：主应用会问商店
+「你的对外地址是什么」（`GET /store/v1/base-url`），并按回答里的 `declared` 标记决定要不要
+修正主机名 —— 详见 §2.4。
+
+---
+
+## 2. 为什么不能直接用镜像内置的 8804 HTTPS
 
 主应用与商店的镜像各自内置了 Caddy 反代（主应用 `:8803`、商店 `:8804`）。它用的是
 **Caddy 内部 CA 的自签证书**，浏览器手动放行能用，但：
@@ -16,132 +34,115 @@
   表现是「无法连接授权服务器」+「取回授权公钥超时」；
 - 支付宝 / 微信也不会信任自签证书的回调地址。
 
+> 镜像启动器会在日志里主动警告你把 `APP_LICENSE_SERVER_URL` 写成了 `https://…:8804`。
+
 所以跨公网只有两个选择：
 
 | 方案 | 客户机里的 `APP_LICENSE_SERVER_URL` | 说明 |
 | --- | --- | --- |
 | **A. 明文 HTTP（最简单）** | `http://<商店公网IP>:8802` | 靠 IP 白名单 / 防火墙收敛来源；传输不明文加密（租约本身由 Ed25519 签名保证真伪，但请求体明文） |
-| **B. 真实证书 HTTPS（推荐）** | `https://store.example.com` | 本文件方案：Caddy 自动申请公共 CA 证书，客户机与支付平台都信任 |
-
-> 无论哪种，都**不要**用 `https://<公网IP>:8804`。
+| **B. 真实证书 HTTPS（推荐）** | `https://store.example.com` | 本文件方案：公共 CA 证书，客户机与支付平台都信任 |
 
 ---
 
-## 2. 方案 B：Caddy 自动 HTTPS（推荐）
+## 3. 方案 B：域名 + 真实证书
 
-不需要额外文件：`docker-compose.yml`（商店所在的那台，也就是你自己这台）里就有一段
-**可直接取消注释**的「公网接入」块，里面是 `caddy-public` 容器（80/443），配合
-`ops/deploy/Caddyfile.public.example`（站点配置，域名走环境变量）。客户机的
-`docker-compose.app.yml` 不动结构，只把那行商店地址换成该域名。
+分两步：商店那台改**身份**（谁都已经写好在 compose 里，只要换域名），80/443 上**放一层入口**。
 
-### 2.1 前置
-
-1. **域名**：一条 A（或 AAAA）记录指向商店机器的公网 IP，例如
-   `store.example.com → 203.0.113.10`。
-2. **放行端口**：公网放行 **80**（ACME HTTP-01 校验 / 跳转）与 **443**（站点）。
-3. **收掉商店自身的公网端口**：不要裸奔 8802 / 8804 —— 改 `docker-compose.yml` 里
-   `homeos-store` 的 `ports:`，把宿主侧绑到回环：
+### 3.1 商店那台：`docker-compose.yml` 的 `homeos-store.environment`
 
 ```yaml
-    ports:
-      - "127.0.0.1:8802:8802"
-      - "127.0.0.1:8804:8804"
-```
-
-4. 取消注释那段里的两处占位符，填上域名与邮箱：
-
-```yaml
-    #   caddy-public:
-    #     ...
-    #     environment:
-    #       STORE_DOMAIN: store.example.com        # ← 改成你的域名（不带协议）
-    #       ACME_EMAIL: you@example.com            # ← 证书到期 / 吊销通知邮箱（必填）
-```
-
-5. 同时把 `homeos-store` 的 `environment:` 改成公网口径（本框架没有条件化 env，改不彻底
-   会让商店带着内网设置运行）：
-
-```yaml
-      STORE_BASE_URL: https://store.example.com    # 支付回调按它推导
+      STORE_BASE_URL: https://store.example.com    # 商店对外身份：支付回调、同源判定都按它
       STORE_COOKIE_SECURE: "true"                  # 公网只走 HTTPS
-      STORE_TRUSTED_PROXIES: 172.16.0.0/12         # 反代在容器之外了
+      STORE_TRUSTED_PROXIES: 172.16.0.0/12         # TLS 在容器之外终止了
       UVICORN_FORWARDED_ALLOW_IPS: 172.16.0.0/12
 ```
 
-6. **改完后自己核对一遍**（写错时症状只有 Caddy 日志里一句「证书申请失败」，很难查）：
+- `STORE_BASE_URL` 是**唯一权威**：商店需要它才能知道「我对外是 https、域名是什么」。
+  不配也不至于全坏（scheme 会退回可信代理报的值，见 `security/request_security.py`），
+  但支付回调地址会推导错，所以公网部署必须配。
+- 可信代理要**收敛到入口所在网段**（默认 docker 网段即可）：否则 uvicorn 会把入口容器当成
+  客户端本人，真实来源 IP、登录限流与审计一起失真。**别填 `*`**。
 
-   | 检查 | 挡不住的后果 |
-   |---|---|
-   | `STORE_DOMAIN` 不带协议 / 路径 / 空格 | Caddy 配置解析失败，容器反复重启 |
-   | `STORE_DOMAIN` 不带端口 / IPv6 字面量 | 对外固定用 80/443，写了端口就不再匹配 |
-   | `STORE_DOMAIN` 不是裸 IP | ACME 不给 IP 签发证书，`https://<IP>` 永远连不上 |
-   | `ACME_EMAIL` 已设置且像邮箱 | 空值让 Caddy 配置解析失败；不像邮箱则收不到到期通知 |
-   | `STORE_BASE_URL` 与域名一致 | 支付回调会被推导到另一个地址 |
-   | 8802 / 8804 已收到回环 | 明文后台直接暴露，绕过反代（限流与审计失效） |
-   | `ops/deploy/Caddyfile.public.example` 存在 | 挂载源缺失时 Docker 会建出**目录**，容器起不来 |
+> ⚠️ `STORE_COOKIE_SECURE: "true"` 之后，会话 Cookie 带 `Secure`：**本机调试请走 https**
+> （公网域名，或自签的 `https://127.0.0.1:8804`）。部分浏览器会拒收 `http://` 下的
+> `Secure` Cookie，表现为「登录成功但立刻又变回未登录」。
 
-   > 最后一项容易被忽略：Caddyfile 没跟着复制到目标机时，Docker 会把缺失的 bind 源建成空
-   > 目录，Caddy 读到的是一堆二进制乱码而不是配置。
+### 3.2 80/443 上放入口：两种选择
 
-### 2.2 启动
+**选择一：你已经有入口（openresty / nginx / NAS 系统反代 / CDN）** —— 直接用它，别开内置的
+那一段（会抢端口，两层入口终止 TLS 更容易出错）。把域名反代到商店：
 
-```bash
-docker compose up -d
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8802;
+    proxy_set_header Host              $host;   # 必须
+    proxy_set_header X-Forwarded-Proto $scheme; # 必须
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+}
 ```
+
+两个 `proxy_set_header` 是**必须**的：少了 `Host`，商店的同源判定与回显都对不上；少了
+`X-Forwarded-Proto`，商店会以为自己在 http 上（Cookie 的 `Secure`、绝对链接都会错）。
+入口在**另一台机器**上时，`proxy_pass` 换成商店的内网地址，并把 §3.1 的可信代理改成那台
+机器的地址或网段。
+
+**选择二：机器上没有现成入口** —— 取消注释 `docker-compose.yml` 里那段
+「可选：内置 Caddy 入口」（含文件末尾 `volumes:` 里两行），填域名与证书邮箱：
+
+```yaml
+    #   environment:
+    #     STORE_DOMAIN: store.example.com        # ← 不合协议、不带端口
+    #     ACME_EMAIL: you@example.com            # ← 证书到期 / 吊销通知邮箱（必填）
+```
+
+它会起一个 `caddy-public` 容器占 80/443，按域名自动申请并续期公共 CA 证书，反代到
+`homeos-store:8802`，证书落在卷 `homeos_caddy-public-data` 里。
+
+**无论哪种选择**，都请确认商店自身的 8802 / 8804 **没有被公网放行**：一旦能从公网直连
+8802，就是一条绕过 HTTPS 与入口的明文后台入口（限流、审计、Cookie 的 Secure 全失效）。
+只在本机调试的话，把 `docker-compose.yml` 里那两行改成 `127.0.0.1:8802:8802` 即可。
+
+### 3.3 启动与验证
 
 改的是同一个文件，命令不变（`up -d` 会按新配置重建被改的容器）：
 
 ```bash
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
-> ⚠️ 公网商店**别退回内网口径启动**：那样的容器看起来还是健康的，但
-> `STORE_BASE_URL` / `STORE_COOKIE_SECURE` / 可信代理会一起悄悄退回内网值 —— 支付回调地址
-> 错、HTTPS 会话 Cookie 丢 `Secure`、审计里的 IP 全是反代容器地址。
-
-公网接入会增加一个 `caddy-public` 容器，它做三件事：
-
-1. 按 `STORE_DOMAIN` 自动签发并续期证书，反代到 `homeos-store:8802`；
-2. 终止 TLS，把请求按内网明文转给商店；
-3. 证书与 ACME 账号落在自己的卷里（`homeos_caddy-public-data`）。
-
-> 反代在**镜像外**时，`STORE_TRUSTED_PROXIES` / `UVICORN_FORWARDED_ALLOW_IPS` 必须包含
-> 反代容器所在网段，否则 uvicorn 会把反代当成客户端本人，真实来源 IP、登录限流与审计
-> 一起失真。收敛到 docker 网段（默认 `172.16.0.0/12`）即可，**别填 `*`**。
-
-### 2.3 验证
-
 ```bash
-# 证书是否可信（公共 CA 签发，不应有证书告警）
+# 证书可信（公共 CA 签发，不应有证书告警）
 curl -fsS https://store.example.com/v2/keys | head -c 200; echo
-
-# 健康
+# 商店自己认为的对外地址（应是这个域名，且 declared 为 true）
+curl -fsS https://store.example.com/store/v1/base-url; echo
+# 健康与后台
 curl -fsS https://store.example.com/healthz && echo OK
-
-# 后台
 open https://store.example.com/admin
 ```
 
-### 2.4 客户机接入
+> 启用内置 Caddy 段时，还要核对：`STORE_DOMAIN` 不带协议 / 端口 / 空格（带了 Caddy 容器
+> 会反复重启）、域名不是裸 IP（公共 CA 不给 IP 签证书）、`ops/deploy/Caddyfile.public.example`
+> 确实存在（挂载源缺失时 Docker 会建出**空目录**，Caddy 读到的是一堆二进制乱码）。
 
-客户机侧把商店地址换成域名即可（此时 https 是可信的，不会踩自签的坑）—— 只改
-`docker-compose.app.yml` 里标了 `←` 的那一行：
+### 3.4 客户机（每台）
+
+`docker-compose.app.yml` **只改一行**：
 
 ```yaml
       APP_LICENSE_SERVER_URL: https://store.example.com
 ```
 
-登录页的商店链接**不用另填**：主应用会问商店「你的对外地址是什么」，商店配了
-`STORE_BASE_URL` 就答它（公网接入时正是这个域名），没配就答「你是怎么连上我的」——
-答回来若是浏览器解析不了的主机名，主应用会换成你正在用的那个地址。
+登录页的商店入口**不用另填**：主应用取 `/public/config` 时会问商店「你的对外地址是什么」，
+商店配了 `STORE_BASE_URL`（本例就是）就答这个域名，且带 `declared: true` —— 主应用原样采信。
 
-（只有推导出来的地址不合期望时才需要取消注释 `APP_STORE_URL` 显式覆盖，例如容器走内网
-穿透地址、浏览器走公网域名。）
+只有推出来的地址不合期望时才取消注释 `APP_STORE_URL` 显式覆盖，例如商店另有一层**只给
+浏览器**用的反代（容器走内网穿透地址、浏览器走公网域名）。
 
-### 2.5 支付回调
+### 3.5 支付回调
 
-`STORE_BASE_URL=https://store.example.com` 时，回调地址按它自动推导，无需另配：
+`STORE_BASE_URL=https://store.example.com` 时回调地址按它自动推导，无需另配：
 
 - 支付宝：`https://store.example.com/store/v1/payments/alipay/notify`
 - 微信：`https://store.example.com/store/v1/payments/wechat/notify`
@@ -151,12 +152,12 @@ open https://store.example.com/admin
 
 ---
 
-## 3. 方案 A：明文 HTTP + 防火墙收敛
+## 4. 方案 A：明文 HTTP + 防火墙收敛
 
 最省事，适合客户机数量少、来源 IP 固定（如各客户机有固定公网出口）时：
 
-1. `docker-compose.yml` 保持默认端口，公网只放行 **8802**，并用防火墙 / 安全组把来源
-   限制到客户机出口 IP（若商店在别的机器上，就是那台机器上的这份文件）；
+1. `docker-compose.yml` 保持默认端口，公网只放行 **8802**（**不要**同时放行 8804），并用
+   防火墙 / 安全组把来源限制到客户机出口 IP；
 2. 客户机的 `APP_LICENSE_SERVER_URL` 填 `http://<商店公网IP>:8802`（登录页的商店入口地址
    由主应用问回来，不用另填）；
 3. 商店 `/admin` 里若开启了收款，回调地址仍建议单独走一个带证书的域名（否则支付平台拒绝）。
@@ -167,29 +168,12 @@ open https://store.example.com/admin
 
 ---
 
-## 4. 已有入口的情况
-
-如果你已经有 nginx / 别的负载均衡 / CDN 终止 TLS：**不要**用上面那套 `caddy-public`，直接把
-入口转发到商店的 `8802`（内网明文即可），并把两层可信代理改成那一层入口的地址或网段：
-
-```bash
-STORE_TRUSTED_PROXIES=<入口地址或网段>
-UVICORN_FORWARDED_ALLOW_IPS=<入口地址或网段>
-STORE_BASE_URL=https://store.example.com
-STORE_COOKIE_SECURE=true
-```
-
-反代写法参考仓库里镜像内置的那份 `ops/caddy/app.Caddyfile`（同样只是把请求转给
-`127.0.0.1:8801` / `:8802`，并透传 `X-Forwarded-*`）。
-
----
-
 ## 5. 证书与备份
 
-- Caddy 的证书与 ACME 账号数据落在卷 `homeos_caddy-public-data`（公网接入段里定义，带 compose
-  项目名 `homeos` 前缀）。容器重建不丢；删了这个卷会重新申请证书，频繁删除可能触发
-  Let's Encrypt 的签发限流，别当日常操作。
-- 商店授权私钥仍在 `homeos_homeos-license-keys`，**单独备份**，公网化不改变这条。
+- 内置 Caddy 入口的证书与 ACME 账号落在卷 `homeos_caddy-public-data`（带 compose 项目名
+  `homeos` 前缀）。容器重建不丢；删了这个卷会重新申请证书，频繁删除可能触发 CA 的签发
+  限流，别当日常操作。用外部入口（§3.2 选择一）时，证书由那一层自己管。
+- 商店授权私钥在 `homeos_homeos-license-keys`，**单独备份**，公网化不改变这条。
 
 ---
 
@@ -197,8 +181,10 @@ STORE_COOKIE_SECURE=true
 
 | 现象 | 处理 |
 | --- | --- |
-| 证书申请失败 / 一直 pending | 检查域名解析是否已生效、80/443 是否公网可达；HTTP-01 需要 80 能连到本机 |
+| 证书申请失败 / 一直 pending | 域名解析是否生效、80/443 是否公网可达；HTTP-01 需要 80 能连到本机 |
 | 客户机报「无法连接授权服务器」 | 确认客户机能解析并访问该域名 443；确认没把地址写成 8804 |
-| 登录限流 / 审计里的 IP 全是反代容器地址 | 可信代理没放宽：核对 `STORE_TRUSTED_PROXIES` 与 `UVICORN_FORWARDED_ALLOW_IPS` |
+| 登录限流 / 审计里的 IP 全是入口容器地址 | 可信代理没放宽：核对 `STORE_TRUSTED_PROXIES` 与 `UVICORN_FORWARDED_ALLOW_IPS` |
+| 商店注册 / 登录 / 下单全部 403 | `Host` 或 `X-Forwarded-Proto` 没透传（§3.2）；同源判定认的是「浏览器实际用的来源」 |
+| 登录成功但立刻变回未登录 | `STORE_COOKIE_SECURE` 与访问方式不匹配：HTTPS 部署请走 https（§3.1 的警告） |
 | 支付回调收不到 | `STORE_BASE_URL` 是否公网域名、商店 `/admin` 的凭据与回调地址是否对；用「测试凭据」自检 |
 | 想临时用 IP+HTTPS | 不建议：公共 CA 不给 IP 签证书，只能自签，客户机又会拒绝 |

@@ -2,7 +2,9 @@
 
 端口 **8802**，同一进程提供：
 
-1. **商店** — 账号、商品、订单、优惠码、邀请（`/store/v1/*`）
+1. **商店** — 账号、商品、订单、优惠码、邀请（`/store/v1/*`）；其中 `GET /store/v1/base-url`
+   回答「我的对外地址是什么」（给主应用拼登录页的商店链接用，见
+   `security/request_security.request_origin`）
 2. **授权服务器** — `/v2/activate`、`/v2/heartbeat`、`/v2/recover`（Ed25519 租约 + X25519 传输）
 3. **运营后台** — `/admin` + `/store-admin/v1/*`
 
@@ -24,8 +26,13 @@ bun run dev
 # 在仓库根执行；PYTHONPATH 指向本项目 backend/
 python -m venv .venv-store
 .venv-store/bin/pip install -r homeos-store/backend/requirements.txt
-PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
+PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 ```
+
+> 包名与主应用同一套约定：**源码态是 `src`，镜像里是 `app`**（镜像用
+> `COPY homeos-store/backend/src ./app` 映射，所以容器内入口是
+> `ops/docker/start_store.py` 的 `import app.run`）。本地照抄镜像那条 `-m app.run` 会
+> `No module named 'app'` —— 完整说明见 [homeos/backend/src/README.md](../../../homeos/backend/src/README.md)。
 
 首次访问会进 `/setup` 建管理员。密钥在启动时生成（私钥 `homeos-store/keys/local/`，公钥镜像到仓库根 `keys/`）。
 
@@ -79,7 +86,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 | 变量 | 说明 |
 | --- | --- |
 | `STORE_HOST` / `STORE_PORT` | 默认 `0.0.0.0:8802` |
-| `STORE_BASE_URL` | 支付二维码 / 回调基址 |
+| `STORE_BASE_URL` | 商店的**对外身份**（`https://<域名>`）：支付二维码 / 回调基址、同源判定与会话 Cookie 的 `Secure` 都按它推导，也是 `/store/v1/base-url` 对外的答案 |
 | `STORE_DATA_DIR` / `STORE_LICENSE_KEYS_DIR` | 数据与私钥目录 |
 | `STORE_MAIL_MODE` / `STORE_SMTP_*` | 邮件 |
 | `STORE_PAYMENT_PROVIDER` | `alipay` 等；也可只走后台配置 |
