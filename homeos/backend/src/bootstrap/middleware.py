@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -17,7 +18,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from .exception_handlers import business_exception_json, nest_error_payload
 from ..config import Settings
 from ..domains.license import features as feature_codes
-from ..domains.license.guard import is_license_exempt_path
+from ..domains.license.guard import ASSET_SUFFIXES, is_license_exempt_path
 from ..platform.core.errors import BusinessException, ErrorCode, api_error
 from ..platform.core.observability import new_request_id, reset_trace_id, set_trace_id
 from ..platform.core.upload_limits import PATH_BODY_LIMIT_OVERRIDES
@@ -25,6 +26,8 @@ from ..platform.security.body_limit import BodyLimitMiddleware
 from ..platform.security.cookies import is_https_deploy_mode
 from ..platform.security.cors import CorsMiddleware
 from ..platform.security.csrf import CsrfMiddleware
+
+logger = logging.getLogger("homeos.app")
 
 
 class RequestDiagnosticsMiddleware:
@@ -69,11 +72,13 @@ class LicenseGuardMiddleware:
         request = Request(scope, receive)
         service = getattr(request.app.state, "license_service", None)
         if service is not None and self.settings.license_required:
-            if not is_license_exempt_path(request.url.path, request.method):
+            path = request.url.path
+            if not is_license_exempt_path(path, request.method):
                 # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
                 # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。
                 # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。
                 if not await asyncio.to_thread(service.allows, feature_codes.FEATURE_API):
+                    _warn_if_asset_blocked(path)
                     response = business_exception_json(
                         request,
                         BusinessException(
@@ -84,6 +89,24 @@ class LicenseGuardMiddleware:
                     await response(scope, receive, send)
                     return
         await self.app(scope, receive, send)
+
+
+def _warn_if_asset_blocked(path: str) -> None:
+    """门禁拦下的路径「像是前端产物」时告警一次。
+
+    这是本模块最贵的一种误配，且它的症状**不在后端日志里**：未激活时页面白屏、控制台只有
+    一串 401 与「MIME type ('application/json') is not a supported stylesheet」，而激活页
+    自己也是用这些产物渲染的 —— 于是用户永远走不到激活那一步（死锁）。豁免名单在
+    ``domains/license/guard.py``，漏一个挂载前缀就会重现，所以在拦下的那一刻把线索写进日志。
+    """
+    lowered = path.lower()
+    if not lowered.endswith(tuple(ASSET_SUFFIXES)):
+        return
+    logger.warning(
+        "授权门禁拦下了疑似前端产物：%s —— 未激活时页面会白屏、且激活页自身也渲染不出来。"
+        "请核对 domains/license/guard.py 的 LICENSE_EXEMPT_STATIC_PREFIXES 是否覆盖该挂载点。",
+        path,
+    )
 
 
 class SecurityHeadersMiddleware:

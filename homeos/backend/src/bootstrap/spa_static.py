@@ -12,6 +12,21 @@ from fastapi.staticfiles import StaticFiles
 from ..api.assets import read_builtin_asset
 from ..config import Settings
 from ..domains.license import features as feature_codes
+from ..platform.core.frontend_static import (
+    APPLE_TOUCH_ICON_PATHS,
+    ASSETS_MOUNT_PREFIX,
+    BACKGROUNDS_MOUNT_PREFIX,
+    FAVICON_PATH,
+    FRONTEND_ASSET_SUFFIXES,
+    ICONS_MOUNT_PREFIX,
+    LOGO_MOUNT_PREFIX,
+    MANIFEST_PATH,
+    MODULES_MOUNT_PREFIX,
+    SERVICE_WORKER_PATH,
+    SOUNDS_MOUNT_PREFIX,
+    STATIC_MOUNT_PREFIX,
+    is_frontend_static_path,
+)
 from ..platform.security.session_store import resolve_login_session
 
 #: 需要按「能力」判定授权状态的页面路径 → 能力名。
@@ -24,27 +39,8 @@ _PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
 _SPA_FALLBACK_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
 
 #: 这些后缀绝不是 SPA 路由；回 HTML 会被浏览器当成「MIME 不是 JS」拒绝执行模块。
-_SPA_FALLBACK_ASSET_SUFFIXES = frozenset(
-    {
-        ".js",
-        ".mjs",
-        ".css",
-        ".map",
-        ".wasm",
-        ".json",
-        ".webmanifest",
-        ".woff",
-        ".woff2",
-        ".ttf",
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".webp",
-        ".gif",
-        ".svg",
-        ".ico",
-    }
-)
+#: 取值来自平台层的单一真源（授权门禁的告警判据用的是同一份）。
+_SPA_FALLBACK_ASSET_SUFFIXES = FRONTEND_ASSET_SUFFIXES
 
 
 def signed_in(request: Request) -> bool:
@@ -84,15 +80,15 @@ def page_license_feature(path: str) -> str | None:
 def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
     """页面级图标与内置素材（并入 homeos-3d 的公开 / 受保护资源路由）。"""
 
-    @app.get("/favicon.ico", include_in_schema=False)
+    @app.get(FAVICON_PATH, include_in_schema=False)
     def favicon() -> FileResponse:
         return FileResponse(
             settings.frontend_dir / "static" / "assets" / "icons" / "homeos-favicon-h5.ico",
             media_type="image/x-icon",
         )
 
-    @app.get("/apple-touch-icon.png", include_in_schema=False)
-    @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+    @app.get(APPLE_TOUCH_ICON_PATHS[0], include_in_schema=False)
+    @app.get(APPLE_TOUCH_ICON_PATHS[1], include_in_schema=False)
     def apple_touch_icon() -> FileResponse:
         return FileResponse(
             settings.frontend_dir / "static" / "assets" / "icons" / "homeos-icon-180-h5.png",
@@ -116,10 +112,10 @@ def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
     """
     static_dir = frontend_dir / "static"
     if static_dir.is_dir():
-        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        app.mount(STATIC_MOUNT_PREFIX, StaticFiles(directory=str(static_dir)), name="static")
     for mount_path, sub_dir in (
-        ("/assets", "assets"),
-        ("/modules", "modules"),
+        (ASSETS_MOUNT_PREFIX, "assets"),
+        (MODULES_MOUNT_PREFIX, "modules"),
     ):
         directory = frontend_dir / sub_dir
         directory.mkdir(parents=True, exist_ok=True)
@@ -133,14 +129,14 @@ def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
 def _register_pwa_asset_routes(app: FastAPI, frontend_dir: Path) -> None:
     """显式登记 manifest / service worker（GET+HEAD），避免 catch-all HEAD 回成 HTML。"""
 
-    @app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route(MANIFEST_PATH, methods=["GET", "HEAD"], include_in_schema=False)
     async def spa_manifest():
         manifest = frontend_dir / "manifest.json"
         if manifest.is_file():
             return FileResponse(manifest, media_type="application/manifest+json")
         raise HTTPException(status_code=404)
 
-    @app.api_route("/sw.js", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route(SERVICE_WORKER_PATH, methods=["GET", "HEAD"], include_in_schema=False)
     async def spa_service_worker():
         worker = frontend_dir / "sw.js"
         if worker.is_file():
@@ -172,8 +168,8 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
 
     ui_assets_root = settings.ui_assets_dir
     for mount_path, kind, builtin_root in (
-        ("/icons", "icons", get_icons_dir()),
-        ("/backgrounds", "backgrounds", get_backgrounds_dir()),
+        (ICONS_MOUNT_PREFIX, "icons", get_icons_dir()),
+        (BACKGROUNDS_MOUNT_PREFIX, "backgrounds", get_backgrounds_dir()),
     ):
         user_root = ui_assets_root / kind
 
@@ -212,8 +208,8 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
         )(_bare_asset_dir)
 
     for mount_path, asset_dir in (
-        ("/sounds", get_sounds_dir()),
-        ("/logo", get_logo_dir()),
+        (SOUNDS_MOUNT_PREFIX, get_sounds_dir()),
+        (LOGO_MOUNT_PREFIX, get_logo_dir()),
     ):
         if asset_dir.is_dir():
             app.mount(
@@ -270,7 +266,7 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
             raise HTTPException(status_code=404)
         # 静态产物路径未挂载 / 文件缺失时也绝不能回 index.html（否则 shared-*.js 报 Strict MIME）。
         path = request.url.path
-        if path.startswith(("/assets/", "/static/", "/modules/")) or Path(path).suffix.lower() in (
+        if is_frontend_static_path(path) or Path(path).suffix.lower() in (
             _SPA_FALLBACK_ASSET_SUFFIXES
         ):
             raise HTTPException(status_code=404)
