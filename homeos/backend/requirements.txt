@@ -1,7 +1,12 @@
-# HomeOS Python 后端运行期依赖。
+# HomeOS Python 后端运行期依赖（开发期真源，开区间）。
+#
+# **镜像里不装这个文件**：构建期安装的是仓库根 `requirements.lock` —— 它是本文件与
+# `homeos-store/backend/requirements.txt` 合并解析出的精确版本 + sha256 锁，由
+# `python3 ops/ci/python_lock.py generate` 生成。改动本文件后必须重新生成锁，否则
+# 改动不会进镜像（CI 的 checks 工作流会比对指纹并拦住这种漂移）。
 #
 # 对齐仓库既有 Python 后端（homeos-3d / homeos-store）的版本区间；SQLite 走标准库，
-# 无需额外驱动。生产部署用 requirements.txt，本地开发可用 pip install -e .。
+# 无需额外驱动。本地开发 `pip install -r requirements.txt`。
 # 版本下限已于 2026-10 对齐 PyPI 最新稳定版（与 homeos-store 的区间取齐）。
 
 fastapi>=0.143

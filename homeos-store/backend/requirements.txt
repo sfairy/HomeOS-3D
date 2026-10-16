@@ -1,3 +1,9 @@
+# 授权商店后端运行期依赖（开发期真源，开区间）。
+#
+# **镜像里不装这个文件**：构建期安装的是仓库根 `requirements.lock` —— 它是本文件与
+# `homeos/backend/requirements.txt` 合并解析出的精确版本 + sha256 锁，由
+# `python3 ops/ci/python_lock.py generate` 生成。改动本文件后必须重新生成锁，否则
+# 改动不会进镜像（CI 的 checks 工作流会比对指纹并拦住这种漂移）。
 fastapi>=0.143
 uvicorn>=0.54
 sqlalchemy>=2.1

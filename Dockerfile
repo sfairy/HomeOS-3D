@@ -63,8 +63,17 @@ COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 
 WORKDIR /app
 
-COPY homeos/backend/requirements.txt /tmp/requirements-app.txt
-COPY homeos-store/backend/requirements.txt /tmp/requirements-store.txt
+# 运行期依赖的**唯一**安装输入是仓库根的 requirements.lock：每个依赖都钉了精确版本与
+# sha256，由两个后端的 requirements.txt 合并生成（`python3 ops/ci/python_lock.py generate`）。
+# 那两个 requirements.txt 仍留给开发期（`pip install -r requirements.txt` 走开区间），
+# **不进镜像** —— 这样「同一份源码在不同时间构建出不同镜像」在这条链上也有了解药
+# （此前唯一被钉住的只有顶部的基础镜像摘要与 pip/setuptools/cython）。
+#
+# 为什么合并成一份而不是每个后端一份：两个后端的依赖装进**同一层**（app / store 两个运行
+# 镜像共用 base），所以实际安装的是两份要求的并集。两份各自独立解析的锁会对公共依赖
+# （pydantic / starlette / httpx …）各钉一个版本，只重新生成其中一个就会让并集里出现两个
+# 不同的 pin，pip 直接报解析冲突 —— 那是构建期才炸、症状还指向「某个传递依赖冲突」的坑。
+COPY requirements.lock /tmp/requirements.lock
 #: 构建容器连不上 pypi.org 时，由 ops/build.py 的 --pip-index 换成可达镜像。
 ARG PIP_INDEX_URL=""
 #: 复用顶部 ARG 的默认值（Docker 的规则：FROM 之前的 ARG 要在阶段内重新声明才能用）。
@@ -73,10 +82,13 @@ ARG PIP_VERSION
 #: pip 本身**钉版本**再 --upgrade：裸 `--upgrade pip` 每次构建都可能换一个 pip 大版本，
 #: 而 pip 换版本会改依赖解析与元数据校验的口径 —— 那是「同一份源码、不同时间构建出不同
 #: 镜像」的另一个入口，与基础镜像摘要漂移同类。
+#: `--require-hashes` 是刻意的硬约束：锁里每个 pin 都必须带哈希，任何一项对不上（版本被改、
+#: 镜像站的包与 PyPI 不一致）就直接失败，不留「警告后继续」的口子；它同时让 pip 拒绝一切
+#: 没出现在锁里的传递依赖，等于把「运行期到底装了哪些包」钉死在这一个文件上。
 RUN pip install --upgrade "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
-    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
-        -r /tmp/requirements-app.txt -r /tmp/requirements-store.txt \
-    && rm /tmp/requirements-app.txt /tmp/requirements-store.txt
+    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes \
+        -r /tmp/requirements.lock \
+    && rm /tmp/requirements.lock
 
 #: Debian 包源同上，由 ops/build.py 换成就近镜像。
 ARG APT_MIRROR=""
