@@ -65,6 +65,7 @@ from ..ops import site_settings as site_config
 from ..ops.release_sync import select_latest_release as _select_latest_release
 from ..security import password_gate
 from ..security.limiter import SlidingWindowLimiter
+from ..security.request_security import request_origin
 from ..security.security import (
     code_hash,
     is_valid_email,
@@ -76,6 +77,26 @@ from ..security.security import (
 )
 
 router = APIRouter(prefix="/store/v1", tags=["store"])
+
+@router.get("/base-url")
+def store_base_url(request: Request) -> JSONResponse:
+    """本商店的对外访问地址（``{"baseUrl": "..."}``，可能为空串）。
+
+    给**机器对机器**用：客户机上的主应用拿它当登录页商店链接的兜底 —— 那边只知道容器
+    能连到的商店地址，而链接要给浏览器用（详细理由见
+    ``security.request_security.request_origin``）。
+
+    取值口径两条，按序：
+    1. 显式配置的 ``STORE_BASE_URL``（权威，公网接入时就是它）；
+    2. 回显本次请求的 scheme + ``Host``，即「调用方是怎么连上我的」。
+
+    第 2 条在「容器能到的地址 == 浏览器能打开的地址」时正确；两者不同时（容器走内网
+    DNS、浏览器走公网域名）由调用方显式配置覆盖。
+    """
+    response = JSONResponse({"baseUrl": request_origin(request)})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
 
 @router.get("/configuration")
 def configuration(session: DbSession, settings: SettingsDep) -> dict:

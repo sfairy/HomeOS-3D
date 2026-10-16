@@ -27,6 +27,7 @@ __all__ = [
     "new_csp_nonce",
     "parse_trusted_proxies",
     "request_is_https",
+    "request_origin",
     "resolve_client_ip",
     "same_origin_request",
     "secure_cookies_required",
@@ -91,6 +92,33 @@ def _origin_from_referer(referer: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return ""
     return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def request_origin(request: Request) -> str:
+    """本商店**对调用方而言**的访问来源 ``scheme://host``；判不出来时返回空串。
+
+    与 :func:`expected_request_scheme` 的分工：那个只回答 scheme，且以「部署形态」为准；
+    这个回答完整来源，取值顺序是
+
+    1. 显式配置的 ``STORE_BASE_URL``（权威：公网接入时就是它，不看请求头）；
+    2. 否则回显请求里的 scheme + ``Host`` —— 也就是「调用方是怎么连上我的」。
+
+    第 2 条是给**机器对机器**的场景用的：客户机上的主应用只知道自己容器能连到的商店地址
+    （``APP_LICENSE_SERVER_URL``），而登录页的商店链接要给浏览器用；同机部署时这两者必然
+    不同（容器走服务名、浏览器走宿主 IP），分机部署时则通常一致 —— 所以让商店把
+    「你是怎么连上我的」回显回去，客户机就不必手填第二处（见 ``/store/v1/base-url``）。
+
+    注意它回显的是**调用方给的 Host**，不要直接用于安全判据（同源校验有自己的
+    :func:`_origin_allowed`）。
+    """
+    settings = _settings(request)
+    explicit = str(getattr(settings, "base_url", "") or "").strip().rstrip("/")
+    if explicit:
+        return explicit
+    host = request.headers.get("host", "").strip()
+    if not host:
+        return ""
+    return f"{expected_request_scheme(request)}://{host}"
 
 
 def expected_request_scheme(request: Request) -> str:

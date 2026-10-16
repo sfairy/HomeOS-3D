@@ -4,7 +4,8 @@ interface StoreConfig {
   storePasswordResetPath: string;
 }
 
-/** 取不到配置时的兜底：与后端 DEFAULT_STORE_URL / STORE_PASSWORD_RESET_PATH 保持一致。 */
+/** 取不到配置时的兜底：与后端 /public/config 的默认回退口径一致（同机部署时它是错的，
+ *  所以后端会优先向商店问回真实对外地址，见 domains/store/discovery.py）。 */
 const FALLBACK_STORE_CONFIG: StoreConfig = {
   storeUrl: 'http://127.0.0.1:8802',
   storePasswordResetPath: '/user/authentication/forget',

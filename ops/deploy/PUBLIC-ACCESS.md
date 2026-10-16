@@ -126,16 +126,18 @@ open https://store.example.com/admin
 ### 2.4 客户机接入
 
 客户机侧把商店地址换成域名即可（此时 https 是可信的，不会踩自签的坑）—— 只改
-`docker-compose.app.yml` 里标了 `←` 的那一行（锚点会把同一个值喂给两行）：
+`docker-compose.app.yml` 里标了 `←` 的那一行：
 
 ```yaml
-      APP_LICENSE_SERVER_URL: &store https://store.example.com
-      APP_STORE_URL: *store
+      APP_LICENSE_SERVER_URL: https://store.example.com
 ```
 
-（两行的角色不同：前者容器自己出站取公钥/发验证码，后者给浏览器跳「忘记密码」。公网接入
-时它们恰好都指向同一个域名，所以绑在一起；哪天要给商店加一层只给浏览器用的反代，把
-`APP_STORE_URL: *store` 换成直接写地址即可。）
+登录页的商店链接**不用另填**：主应用启动时问一次商店的对外地址
+（`GET /store/v1/base-url`）。商店配了 `STORE_BASE_URL` 就回它，没配就把「你是怎么连上
+我的」回显回去 —— 公网接入时这两个值都等于同一个域名，所以这里什么都不用做。
+
+（只有「容器能连到的地址」与「浏览器能打开的地址」真不是同一个时才需要取消注释
+`APP_STORE_URL` 显式覆盖，例如容器走内网穿透地址、浏览器走公网域名。）
 
 ### 2.5 支付回调
 
