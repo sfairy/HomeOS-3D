@@ -137,8 +137,9 @@ bun run dev:runtime
 | 脚本 | 作用 |
 | --- | --- |
 | `bun run dev` | 一键 dev：后端 + Vite HMR |
-| `bun run dev:backend` | 只起后端热重载 |
+| `bun run dev:backend` | 只起后端热重载（两个后端都在内，走共享 venv `.venv-store`） |
 | `bun run dev:prepare` | 只装 Python 环境（共享 `.venv-store`），不起服务 |
+| `bun run dev:frontend` | 同 `dev:app`（主应用前端 Vite HMR）—— 设置页里那句「请同时运行 `dev:backend` 与 ……」指的就是这条 |
 | `bun run build` | 完整构建：前端 → 根 `dist/`（含混淆）+ 后端 Cython 导出到根 `dist/` |
 | `bun run build:frontend` | 只构建前端（Vite + 混淆）→ 根 `dist/<项目>/frontend/` |
 | `bun run build:backend` | 只导出加密后端（Cython `.so`）→ 根 `dist/<项目>/backend/linux-<arch>/` |
@@ -147,12 +148,13 @@ bun run dev:runtime
 | `bun run obfuscate` | 对已有根 `dist/` 前端再跑一遍混淆 |
 | `bun run image` / `image:app` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
 | `bun run typecheck` | 两边 `vue-tsc` / `tsc`。**先跑 `build:shared`**：主应用从 `@homeos/shared` 的 `dist/` 取类型，干净检出时该目录不存在（`dist/` 被 gitignore），不先建就会以 `TS2307 Cannot find module '@homeos/shared'` 失败 |
-| `bun run typecheck:py` | 本机 basedpyright（可选；CI 已不再跑 pyright 基线门禁） |
 | `bun run --cwd homeos/frontend lint` / `--cwd homeos-store lint` | 前端 ESLint（`--fix`）。规则核只有一份（`ops/eslint/frontend-core.mjs`）。`lint:ci` 是 `--max-warnings 0`，已进 CI |
-| `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
+| `bun run dev:app` / `dev:store` | **只**跑该侧前端的 Vite HMR（后端要自己另开：`bun run dev:backend`）。这两条都**不**碰后端；历史上的 `dev:app` 曾顺带拉起后端，而它依赖一个仓库从不创建的 `backend/.venv`，实测直接 exit 127 —— 已拆掉 |
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
 
-CI（`.github/workflows/checks.yml`）仅保留：`typecheck` + eslint、`ruff`、前端 `build`、基建 lint（shell/actionlint/compose/Caddy）。自定义门禁与冒烟体系已拆除。
+CI（`.github/workflows/checks.yml`）仅保留：`typecheck` + eslint、`ruff`、前端 `build`、基建 lint（shell/actionlint/compose/Caddy），随 `push(main)` 与全部 PR 自动跑。自定义门禁与冒烟体系已拆除。
+
+**Python 侧没有类型检查命令**（`typecheck:py` 已随自定义门禁一起删除，避免留一个「打印跳过、返回 0」的空转壳）。仓库根 [`pyrightconfig.json`](pyrightconfig.json) 仍被 Pylance 与手动 `basedpyright` 读取（里面点名 `.venv-store`、按目录配 import 根、按项开关规则）；CI 只跑 `ruff`，所以别把「没报错」当成 Python 类型过了。
 
 ### 首次联调流程
 
@@ -327,7 +329,7 @@ docker logs homeos | head
 
 CI 通过 GitHub Actions **手动 `workflow_dispatch`** 构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）。默认分支 push **不会**自动触发镜像构建（镜像推送保持手动，避免每次提交都推 GHCR）。
 
-轻检查定义在 `.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint），只手动 `workflow_dispatch`；`docker.yml` 构建前仍复用它（`uses:`）。`.github/workflows/build-check.yml`（只构建、不推镜像）同样只手动触发。推送与 PR **不会**自动跑任何工作流。
+轻检查定义在 `.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint），在 `push(main)` 与全部 PR 上自动跑（纯文档改动除外，见该文件的 `paths-ignore`）；`docker.yml` 构建前仍复用它（`uses:`），并复用它在 `build` job 里构建好的前端制品 —— 前端与 CPU 架构无关，全流水线只构建一次。`.github/workflows/build-check.yml`（只构建、不推镜像）是只手动 `workflow_dispatch` 的补充入口。
 
 本地构建是**两阶段**：先把前端与加密后端产出到工作区根 `dist/`，再从 `dist/` 组装运行镜像（镜像内不再编译后端，见 `Dockerfile` 的 app / store 目标与 `ops/build.py`）：
 

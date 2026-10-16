@@ -55,7 +55,7 @@
         {{ '）。开发环境请同时运行' }}
         <code class="conn-overview-code">bun run dev:backend</code>
         {{ '（8801）与' }}
-        <code class="conn-overview-code">bun run dev:frontend</code>
+        <code class="conn-overview-code">bun run dev:app</code>
         {{ '。' }}
       </span>
     </div>

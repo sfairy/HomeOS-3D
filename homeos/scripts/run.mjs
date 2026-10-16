@@ -1,7 +1,8 @@
 /**
  * 根目录任务入口：收敛 shared / lint / typecheck / build。
  *
- * 主后端为 Python（backend/，FastAPI）；静态检查使用其 .venv 内的 ruff / pyright。
+ * 主后端为 Python（backend/，FastAPI）；本入口只跑 ruff（lint）与 TypeScript 侧类型检查。
+ * Python 的类型检查不在本入口内，见 tasks.typecheck 上方的说明。
  *
  * 用法：
  *   bun scripts/run.mjs <shared|prep|lint|typecheck|check|build|build:frontend>
@@ -22,16 +23,23 @@ const BACKEND_DIR = path.join(REPO_ROOT, 'backend')
  * 它的 build / lint / typecheck 调度归**根 package.json**，这里只委托（cwd 取上一级）。
  */
 const MONOREPO_ROOT_CWD = '..'
-const BACKEND_PY = path.join(BACKEND_DIR, '.venv', 'bin', 'python')
 
-/** 本仓库在 monorepo 里的上一层（ruff 可回落到根 `.venv-store`）。 */
+/** 本仓库在 monorepo 里的上一层。 */
 const MONOREPO_ROOT = path.resolve(REPO_ROOT, '..')
 /**
- * ruff 的第二个来源：monorepo 根的 `.venv-store/bin/ruff`。
- * 本地优先用 backend/.venv 里的 ruff，缺了就退到这里；都没有则**明确报错**。
+ * ruff 的来源：monorepo 根的共享 venv `.venv-store`。
+ *
+ * 这个目录由 `ops/dev.mjs`（`VENV_DIR`）创建与维护，也是根 pyrightconfig.json 点名的环境。
+ * 曾经这里还有第二套约定 —— 优先用 `backend/.venv`：但那套已经全线失效（`homeos` 的
+ * `dev:backend` 曾硬编码 `backend/.venv/bin/python`，实测 exit 127；pyproject.toml 的
+ * `[tool.pyright] venv` 同样指向它且从未被加载过）。留着它只会让人以为有两个环境可选，
+ * 于是「按提示建了一个，另一个才是真的」。
+ *
+ * 仍保留第二顺位回落：别人本机若真的自建了 `backend/.venv`（含 ruff），照样能用。
  * CI 侧由 `.github/workflows/checks.yml` 的 ruff job 独立覆盖。
  */
-const STORE_RUFF = path.join(MONOREPO_ROOT, '.venv-store', 'bin', 'ruff')
+const VENV_RUFF = path.join(MONOREPO_ROOT, '.venv-store', 'bin', 'ruff')
+const BACKEND_LOCAL_PYTHON = path.join(BACKEND_DIR, '.venv', 'bin', 'python')
 
 function run(command, args, cwd = REPO_ROOT) {
   const result = spawnSync(command, args, {
@@ -49,7 +57,7 @@ function run(command, args, cwd = REPO_ROOT) {
     console.error(`[run] 无法执行：${command} ${args.join(' ')}（cwd=${cwd}）`)
     console.error(`[run] 原因：${why}`)
     if (/python|\.venv/.test(command)) {
-      console.error('[run] 若缺少 Python 工具链，先建 backend/.venv（含 ruff）或 monorepo 根 `.venv-store`。')
+      console.error('[run] 缺少 Python 工具链：先在仓库根跑 `bun run dev:prepare` 建共享 venv `.venv-store`。')
     }
     process.exit(result.status ?? 1)
   }
@@ -60,34 +68,31 @@ function bunRun(script, cwd) {
   run('bun', ['run', script], path.join(REPO_ROOT, cwd))
 }
 
-/** 以 backend/.venv 的解释器运行 Python 工具。 */
-function pyRun(args) {
-  run(BACKEND_PY, args, BACKEND_DIR)
-}
-
 /**
  * ruff：口径与 CI 的 `ruff` job 完全一致 —— 在 **monorepo 根** 跑 `ruff check .`。
  * 之前这里是 `backend/` 下的 `ruff check src`，只覆盖后端 `src/`：`ops/**`、
  * `backend/scripts/**` 本地从来不查，「本地绿、CI 红」属于常态。
  */
 function ruff() {
-  if (fs.existsSync(BACKEND_PY)) run(BACKEND_PY, ['-m', 'ruff', 'check', '.'], MONOREPO_ROOT)
-  else if (fs.existsSync(STORE_RUFF)) run(STORE_RUFF, ['check', '.'], MONOREPO_ROOT)
-  else {
-    console.error(`[lint] 找不到 ruff：${BACKEND_PY} 与 ${STORE_RUFF} 都不存在。`)
-    console.error('[lint] 先建后端 venv（其中含 ruff），或安装 monorepo 的 .venv-store。')
+  if (fs.existsSync(VENV_RUFF)) run(VENV_RUFF, ['check', '.'], MONOREPO_ROOT)
+  else if (fs.existsSync(BACKEND_LOCAL_PYTHON)) {
+    // 本机自建 backend/.venv 的话也能用（非仓库约定，仅兜底）。
+    run(BACKEND_LOCAL_PYTHON, ['-m', 'ruff', 'check', '.'], MONOREPO_ROOT)
+  } else {
+    console.error(`[lint] 找不到 ruff：${VENV_RUFF} 与 ${BACKEND_LOCAL_PYTHON} 都不存在。`)
+    console.error('[lint] 在仓库根跑 `bun run dev:prepare` 建共享 venv `.venv-store`（其中含 ruff）。')
     process.exit(1)
   }
 }
 
 /**
- * Python 静态检查：自定义 pyright 基线门禁已拆除；本步仅提示并跳过。
- * 需要时本机可自行 `basedpyright`（存量 issue 较多，裸跑常非 0）。
+ * Python 静态检查入口已在 a70ed33d 随自定义门禁体系一起拆除（CI 只留语言级检查），
+ * 这里不再保留 `typecheck:py` 空转壳：它只打印一句「已跳过」就返回 0，
+ * 看日志的人却会以为 Python 侧已经检查过了 —— 比没有这条命令更危险。
+ *
+ * 因此 `tasks.typecheck()` 只做 TypeScript 侧检查；需要 Python 类型检查时按 README 直接跑
+ * 仓库根的 `basedpyright`（配置见 pyrightconfig.json，Pylance 也读同一份）。
  */
-function typecheckPy() {
-  console.log('[typecheck] 跳过 Python 静态检查：自定义 pyright 基线门禁已拆除。')
-}
-
 function shared() {
   bunRun('build:shared', MONOREPO_ROOT_CWD)
 }
@@ -108,11 +113,9 @@ const tasks = {
   },
   typecheck() {
     prep()
-    typecheckPy()
     bunRun('typecheck:shared', MONOREPO_ROOT_CWD)
     bunRun('typecheck', 'frontend')
   },
-  'typecheck:py': typecheckPy,
   check() {
     tasks.lint()
     tasks.typecheck()

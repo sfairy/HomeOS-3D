@@ -99,5 +99,7 @@ bun run dev:backend
 | 命令 | 作用 |
 |------|------|
 | `bun run typecheck` | 前端类型检查 |
-| `bun run typecheck:py` | 本机 basedpyright（可选） |
 | `ruff check .` | Python lint（CI 硬拦） |
+
+Python 类型检查只在本机 / 编辑器侧：仓库根 `pyrightconfig.json` 同时被 Pylance 与手动
+`basedpyright` 读取，CI 不跑，也没有对应的 `typecheck:py` 命令。

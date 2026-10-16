@@ -16,11 +16,15 @@ include = ["src*"]
 # 勿在此重复 [tool.ruff]，以免与根配置冲突或覆盖。
 # 在本目录单独跑 ruff 时请：ruff check --config ../../ruff.toml src
 
-[tool.pyright]
-include = ["src"]
-pythonVersion = "3.11"
-typeCheckingMode = "basic"
-# pyright 不会自动发现项目内的 .venv，需显式点名，否则第三方包
-# （fastapi / sqlalchemy / httpx 等）会整片报 reportMissingImports。
-venvPath = "."
-venv = ".venv"
+# Pyright：同理，唯一配置源是**仓库根** pyrightconfig.json，勿在此重复 [tool.pyright]。
+#
+# 这里原本有一段 venvPath="." / venv=".venv"，两个问题叠在一起：
+#   1) `.venv` 这个目录不存在 —— 仓库只在 monorepo 根建 `.venv-store`（ops/dev.mjs 的
+#      VENV_DIR），没有任何环节会建 backend/.venv；
+#   2) 它**永远不会被读到** —— pyright / basedpyright / Pylance 都会从 cwd 逐级向上找
+#      pyrightconfig.json，只要在仓库内跑就必然命中根那份（实测 `--verbose` 输出
+#      “Loading configuration file at …/pyrightconfig.json”）。于是这段既错误又失效，
+#      唯一作用是让后来人照它去建一个白建的 venv。
+#
+# 根 pyrightconfig.json 负责：点名 `.venv-store`、按目录配 import 根（两个后端的
+# sys.path 注入约定不同）、按项开关规则、排除产物目录。要调整分析口径改那一份。

@@ -8,8 +8,8 @@
     "clean:local": "bun scripts/clean-local.mjs",
     "prep": "bun scripts/run.mjs prep",
     "build:shared": "bun run --cwd .. build:shared",
-    "dev": "bun scripts/dev.mjs",
-    "dev:backend": "cd backend && HOMEOS_RELOAD=1 .venv/bin/python -m src.run",
+    "dev": "bun run --cwd frontend dev",
+    "dev:backend": "bun run --cwd .. dev:backend",
     "dev:frontend": "bun run --cwd frontend dev",
     "dev:runtime": "bun run --cwd frontend dev:runtime",
     "build": "bun scripts/run.mjs build",
@@ -17,7 +17,6 @@
     "start:prod": "bash deploy/run-backend.sh",
     "lint": "bun scripts/run.mjs lint",
     "typecheck": "bun scripts/run.mjs typecheck",
-  "typecheck:py": "bun scripts/run.mjs typecheck:py",
     "check": "bun scripts/run.mjs check"
   }
 }

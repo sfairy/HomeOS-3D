@@ -20,7 +20,6 @@
     "image:store": "python3 ops/build.py image --project store",
     "typecheck": "bun run build:shared && bun run --cwd homeos typecheck && bun run --cwd homeos-store typecheck",
     "typecheck:shared": "bun run --cwd packages/shared typecheck",
-    "typecheck:py": "bun run --cwd homeos typecheck:py",
     "typecheck:node": "tsc -p tsconfig.node.json",
     "lint:shared": "bun run --cwd packages/shared lint",
     "lint:ops": "eslint ops --max-warnings 0",
@@ -28,7 +27,8 @@
     "dev:prepare": "bun ops/dev.mjs --prepare",
     "dev:runtime": "bun run --cwd homeos dev:runtime",
     "dev:backend": "bun ops/dev.mjs --backend-only",
-    "dev:app": "bun run --cwd homeos dev",
+    "dev:frontend": "bun run --cwd homeos dev:frontend",
+    "dev:app": "bun run --cwd homeos dev:frontend",
     "dev:store": "bun run --cwd homeos-store dev",
     "diff:source": "node ops/scripts/diff-source-versions.mjs"
   },

@@ -1,9 +1,13 @@
 # HomeOS Python 后端开发 / CI 静态检查工具。
 #
-# 安装（作用于 backend/.venv）：
-#   pip install -r requirements-dev.txt
+# 安装进**monorepo 根的共享 venv** `.venv-store`（`bun run dev:prepare` 会建好它；
+# 也是 pyrightconfig.json 与 ops/dev.mjs 共同点名的那个环境）：
+#   .venv-store/bin/pip install -r homeos/backend/requirements-dev.txt
 #
 # 运行时依赖见 requirements.txt；此处仅补充 ruff（lint）与 pyright（类型检查）。
+#
+# 注意：类型检查**没有** `bun run` 入口（自定义门禁已拆除）。直接跑仓库根的
+# `.venv-store/bin/basedpyright`（配置见根 pyrightconfig.json）。
 
 ruff>=0.16
 pyright>=1.1
