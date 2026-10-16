@@ -5,8 +5,8 @@
  */
 
 import type { BoxMeshOptions } from "../types/studio-app-types";
-import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import { RoundedBoxGeometry } from "/static/vendor/three/0.186.1/RoundedBoxGeometry.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
 export function addBoxMesh(
   boxParent: any,

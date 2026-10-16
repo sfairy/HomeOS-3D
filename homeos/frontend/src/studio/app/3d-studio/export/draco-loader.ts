@@ -1,4 +1,4 @@
-import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js";
+import { DRACOLoader } from "/static/vendor/three/0.186.1/DRACOLoader.js";
 
 /** Draco Worker 上每条解码任务挂起的回调句柄。 */
 type DracoPendingCallback = {

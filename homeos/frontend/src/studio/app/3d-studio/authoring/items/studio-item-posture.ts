@@ -1,5 +1,5 @@
 /** 立柱造型（pillarShape）与立柱 / 灯带布置轴（pillarAxis / stripAxis）的共用口径。 */
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 立柱可选造型； */
 const PILLAR_SHAPES = ["square", "round", "semicircle", "quarter", "quarterinner"];

@@ -14,8 +14,8 @@ import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
 import { createWallSideMaterial as createWallSideMaterial2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
 import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
 import { finite as finite2 } from "../../loaders/studio-normalization";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { validGeometryLoops as validGeometryLoops2 } from "../../geometry-persistent-cache";
 import { windowGeometryParts as windowGeometryParts2 } from "../../plan/studio-window-geometry";
 

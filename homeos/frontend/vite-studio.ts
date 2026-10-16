@@ -1,7 +1,7 @@
 /**
  * 3D Studio 构建契约（并入 homeos 前端后复用）。
  *
- *   1. `three` 不打进 bundle，以根绝对 URL `/static/vendor/three/0.186.0/...` 外置加载；
+ *   1. `three` 不打进 bundle，以根绝对 URL `/static/vendor/three/0.186.1/...` 外置加载；
  *   2. `/static/vendor/**` 与 `/api/**`、`/api/v1/modules/interaction3d/**` 一律外置，
  *      它们是后端下发的运行时资源，不是本地模块；
  *   3. 少量零依赖经典 IIFE 入口（HTML 里非 module 的 <script>、或字面量 URL 的 Worker）
@@ -24,8 +24,10 @@ export const outDir = path.resolve(__dirname, "../../dist/homeos/frontend");
 /** studio 源码根目录（homeos/frontend/src/studio）。 */
 export const studioRoot = path.join(__dirname, "src/studio");
 
-// three 锁定 0.186.0，与随包分发的 static/vendor/three/0.186.0 保持一致。
-export const THREE_VENDOR = "/static/vendor/three/0.186.0/three.module.min.js";
+// three 的 npm 依赖版本与随包分发的运行时副本必须一致：副本由
+// `scripts/build-three-vendor.mjs` 从 node_modules/three 单向生成（`bun run sync:three`），
+// 这里的常量、tsconfig 的 paths 与 CI 的产物断言三处都会被它一起改写。
+export const THREE_VENDOR = "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 运行期外置判定：构建与 Worker 子构建都必须使用同一份，行为才一致。 */
 export function isRuntimeExternal(id: string): boolean {

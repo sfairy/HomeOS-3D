@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# 前端产物构建 + 结构断言：装依赖 → `bun run build:frontend` → 校验 dist/ 的关键产物。
+# 前端产物构建 + 结构断言：装依赖 → 校验 three 运行时副本 → `bun run build:frontend` → 校验 dist/ 的关键产物。
 #
 # 为什么抽成脚本：这段逻辑有两个调用方 ——
-#   1. `.github/workflows/docker.yml` 的 build 矩阵 job（镜像要用 dist/，不能拆成独立 job）；
+#   1. `.github/workflows/docker.yml` 的 frontend job（构建出的 dist/ 作为制品交给镜像矩阵）；
 #   2. `.github/workflows/build-check.yml`（只构建、不推镜像的手动验证入口）。
 # 复制两份必然漂移，而「一处改了另一处没改」在本仓已经出过事：
 # 8d3be3e7 搬走 SettingsLicensePanel.vue 后，旧路径校验没跟着改，
@@ -17,12 +17,21 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 bun install --frozen-lockfile
+
+# three 运行时副本的漂移检查：副本（public/static/vendor/three/<版本>/）由
+# `homeos/frontend/scripts/build-three-vendor.mjs` 从 node_modules/three 单向生成，
+# 但它是提交进仓库的静态资源，npm 侧升级后不会自动跟着变。
+# 放在 build 之前：这条挂掉时能直接指出「npm 升了 three、副本没跟上」，
+# 而如果等到 dist 断言，症状只会是「某个 /static/vendor/three/... 路径 404」，
+# 排查方向完全不同。
+bun run --cwd homeos/frontend sync:three:check
+
 bun run build:frontend
 
 # 混淆与产物结构断言。
 grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
 grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
-test -f dist/homeos/frontend/static/vendor/three/0.186.0/three.module.min.js
+test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
 test -f dist/homeos-store/frontend/static/store.css
 test -f dist/homeos/frontend/index.html
 test -f dist/homeos-store/frontend/index.html

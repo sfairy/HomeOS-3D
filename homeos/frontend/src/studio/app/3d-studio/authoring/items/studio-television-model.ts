@@ -10,7 +10,7 @@
 import { addBoxMesh } from "./studio-mesh-primitives";
 import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from "../../materials/studio-television-glass";
 import { drawTelevisionPoster as drawTelevisionPoster2 } from "../../materials/studio-television-poster";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 电视模型构件需要的外部状态（均为只读）。 */
 export interface StudioTelevisionDeps {

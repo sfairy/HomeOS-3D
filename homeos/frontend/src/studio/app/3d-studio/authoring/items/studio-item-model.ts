@@ -29,8 +29,8 @@ import { createMuralModel } from "../../materials/studio-mural";
 import { createSpeakerModel as createSpeakerModel2 } from "./studio-speaker";
 import { isCourtyardDrawing as isCourtyardDrawing2 } from "../../loaders/studio-normalization";
 import { isTurntableRoundTable } from "../ui/studio-app-helpers";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
 
 /**

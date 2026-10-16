@@ -3,7 +3,7 @@
  * 从 `../studio-app.ts` 的巨型闭包抽出（P4 拆单体）：入参全显式，只读时间预算常量。
  */
 
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
 const lightPrecompileBudgetMs = 4500;
 

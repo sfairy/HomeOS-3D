@@ -12,8 +12,8 @@
 
 import { buildGeometryKey } from "./studio-furniture-batching";
 import { buildStaticMaterialKey } from "../../materials/studio-static-material-key";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 静态合批需要的外部句柄（全部只读；`appCtx` 只用到 `threeRenderer`）。 */
 export interface StudioStaticItemMeshesDeps {

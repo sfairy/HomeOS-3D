@@ -1,4 +1,4 @@
-import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
+import { mergeGeometries } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
 const batchableDeviceTypeSet = new Set([
   "camera",
   "presence",

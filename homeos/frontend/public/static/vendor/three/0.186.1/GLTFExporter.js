@@ -26,7 +26,7 @@ import {
 	Quaternion,
 	REVISION,
 	ImageUtils
-} from './three.module.min.js';
+} from "./three.module.min.js";
 
 /**
  * The KHR_mesh_quantization extension allows these extra attribute component types

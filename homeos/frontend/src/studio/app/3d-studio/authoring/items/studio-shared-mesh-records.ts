@@ -6,7 +6,7 @@
  */
 
 import { finite as finite2 } from "../../loaders/studio-normalization";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 export function buildMaterialSignature(signatureMesh: any) {
   const signatureMaterial = signatureMesh.material;

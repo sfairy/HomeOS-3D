@@ -2,7 +2,7 @@
  *
  * 从 `../studio/studio-app.ts` 的巨型闭包中抽出（P4 拆单体）：纯函数（只读入参 → 新几何），无闭包依赖。
  */
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
 export function buildPressProfile(pressWidth: any, pressDepth: any, pressHeight: any) {
   const pressProfileSections = [

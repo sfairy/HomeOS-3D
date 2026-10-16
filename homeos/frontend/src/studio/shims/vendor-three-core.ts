@@ -1,5 +1,5 @@
 /**
- * 编译期影子模块：对应浏览器直载的 `/static/vendor/three/0.186.0/three.module.min.js`。
+ * 编译期影子模块：对应浏览器直载的 `/static/vendor/three/0.186.1/three.module.min.js`。
  *
  * 该绝对路径不是 npm 包，`moduleResolution: "bundler"` 找不到它，由 tsconfig 的 `paths`
  * 把这条路径（以及 `three` 本身）指到这里。

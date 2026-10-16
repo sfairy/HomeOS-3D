@@ -15,7 +15,9 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "lint:ci": "eslint . --max-warnings 0",
-    "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit"
+    "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit",
+    "sync:three": "node scripts/build-three-vendor.mjs",
+    "sync:three:check": "node scripts/build-three-vendor.mjs --check"
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",

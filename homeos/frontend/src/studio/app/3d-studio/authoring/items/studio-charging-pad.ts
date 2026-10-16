@@ -1,4 +1,4 @@
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
 export function addChargingPadModel(
   chargingPadParent: any,

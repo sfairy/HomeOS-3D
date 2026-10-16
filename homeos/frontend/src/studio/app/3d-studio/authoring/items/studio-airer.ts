@@ -1,4 +1,4 @@
-import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
+import { RoundedBoxGeometry } from "/static/vendor/three/0.186.1/RoundedBoxGeometry.js";
 
 type AirerDimensionOptions = {
   elevation?: unknown;

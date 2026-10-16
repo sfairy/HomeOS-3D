@@ -121,11 +121,11 @@ import { createDemandFrameLoop as createDemandFrameLoop2 } from "../../bridge/sc
 import { cacheObjectTransforms as cacheObjectTransforms2 } from "../../bridge/scene/scene-matrices";
 import { syncHtmlRangeProgress as syncHtmlRangeProgress2 } from "../../shared/util/range-progress";
 import { withRequestTimeout as withRequestTimeout2 } from "../../shared/util/request-timeout";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls as OrbitControls2 } from "/static/vendor/three/0.186.0/OrbitControls.js";
-import { RoundedBoxGeometry as RoundedBoxGeometry2 } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader as GLTFLoader2 } from "/static/vendor/three/0.186.0/GLTFLoader.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+import { OrbitControls as OrbitControls2 } from "/static/vendor/three/0.186.1/OrbitControls.js";
+import { RoundedBoxGeometry as RoundedBoxGeometry2 } from "/static/vendor/three/0.186.1/RoundedBoxGeometry.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import { GLTFLoader as GLTFLoader2 } from "/static/vendor/three/0.186.1/GLTFLoader.js";
 import { SameOriginDRACOLoader as SameOriginDRACOLoader2 } from "../export/draco-loader";
 import { createModelAssetLoader as createModelAssetLoader2 } from "../loaders/model-asset-loader";
 import {
@@ -683,7 +683,7 @@ const modelAssetLoader = createModelAssetLoader2({
       loaderConfig,
     );
     return (
-      dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/"),
+      dracoLoader.setDecoderPath("/static/vendor/three/0.186.1/draco/"),
       dracoLoader.setDecoderConfig({
         type: "wasm",
       }),

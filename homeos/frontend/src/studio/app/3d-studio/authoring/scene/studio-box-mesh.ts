@@ -8,8 +8,8 @@
  */
 
 import type { ArchitectureMeshOptions, MeshMaterialOptions } from "../types/studio-app-types";
-import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import * as ns2 from "/static/vendor/three/0.186.0/three.module.min.js";
+import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 盒子网格构件需要的外部状态：两个缓存 + 主题视图设置读取器。 */
 export interface StudioBoxMeshDeps {

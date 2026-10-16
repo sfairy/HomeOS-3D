@@ -1,4 +1,4 @@
-import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
+import { mergeGeometries } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
 
 /** 做几何签名 / 合批时读到的最小 Attribute 结构。 */
 type GeometryAttributeLike = {

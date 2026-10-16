@@ -3,7 +3,7 @@
  * 从 `../studio/studio-app.ts` 的巨型闭包中抽出（P4 拆单体）：纯函数，无闭包依赖；
  * 不适用的网格（蒙皮 / 批量 / 半透明 / 自定义 shader 钩子…）返回空串，调用方据此跳过合批。
  */
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
 export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, isColorOnly = false) {
   const meshMaterial = sourceMesh.material;

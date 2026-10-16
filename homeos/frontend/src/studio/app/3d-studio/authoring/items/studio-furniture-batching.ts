@@ -1,7 +1,7 @@
-import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
+import { mergeGeometries } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
 import { buildStaticMaterialKey } from "../../materials/studio-static-material-key";
 import { nextBatchItemTypeSet } from "./item-catalog";
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
+import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 const indexCompactionTypeSet = new Set([
     "drawer-chest",
     "bunk-bed",
