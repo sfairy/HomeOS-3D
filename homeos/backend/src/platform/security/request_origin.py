@@ -19,6 +19,26 @@ from ..core.errors import RequestRejected
 _REJECTION = "此操作只允许从当前应用页面发起。"
 
 
+def browser_origin(request: Request) -> str:
+    """浏览器**正在用**的站点来源 ``scheme://host[:port]``；判不出来时返回空串。
+
+    与 :func:`require_same_origin_write` 取的是同一份基准（``APP_BASE_URL`` 优先，
+    否则请求的 scheme + ``Host``）—— 这样「同源校验认可的那个来源」与「拼绝对链接时
+    用的那个来源」永远一致：两处一旦分叉，就会出现「校验通过、但链接指向别处」。
+
+    用途：拼那种**必须由浏览器打开**的绝对地址（如商店入口）。这类地址不能用容器自己
+    看到的地址来填 —— 容器走的是内网服务名，浏览器走的是宿主 IP / 域名。
+    """
+    settings = getattr(getattr(request, "app", None), "state", None)
+    configured = str(getattr(getattr(settings, "settings", None), "app_base_url", "") or "").strip()
+    if configured:
+        return configured.rstrip("/")
+    host = request.headers.get("host", "").strip()
+    if not host:
+        return ""
+    return f"{request.url.scheme}://{host}"
+
+
 def require_same_origin_write(request: Request) -> None:
     site = request.headers.get("sec-fetch-site", "").strip().lower()
     if site and site != "same-origin":
@@ -58,4 +78,4 @@ def require_same_origin_write(request: Request) -> None:
         raise RequestRejected(_REJECTION)
 
 
-__all__ = ["require_same_origin_write"]
+__all__ = ["browser_origin", "require_same_origin_write"]

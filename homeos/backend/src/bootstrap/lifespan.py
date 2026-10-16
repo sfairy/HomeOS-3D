@@ -1046,19 +1046,15 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     # 商业授权：门禁自举（公钥取回 / 状态恢复 / 续租循环）。
     await startup.license_service.start()
 
-    # 商店的**对外地址**（登录页「忘记密码 / 商店」链接要给浏览器用的那个）。
-    # 只在没显式配 APP_STORE_URL 时才去问商店 —— 问回来的是「本容器怎么连上它的」，
-    # 分机部署里通常也正是浏览器能打开的地址；同机部署（容器走服务名）问不到正确值，
-    # 所以那份编排里是显式写死的。取不到只是链接退化，与启动 / 授权无关；
-    # 失败后的退避与「登录页再试一次」都在 resolver 里（见 domains/store/discovery.py）。
+    # 商店对外地址的解析器（登录页的「忘记密码 / 商店」链接要用）。**启动时不联网** ——
+    # 真正取回发生在登录页请求 /public/config 时；这里只把状态挂上（见 domains/store/
+    # discovery.py）。显式 APP_STORE_URL 时它一次网络请求都不会发。
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
-    await app.state.store_base_url_resolver.resolve()
 
     # 版本更新发现（可选）：失败静默降级，不影响其余服务。
-    # endpoint 优先级：显式 APP_UPDATE_ENDPOINTS > 显式 APP_STORE_URL > 问回来的商店对外
-    # 地址 > 空（不检查）。最后一档很重要：客户机在内网「只问商店」，而不是回落到
-    # UpdateChecker 自己写死的回环地址。
-    update_store_url = app.state.store_base_url_resolver.cached()
+    # 端点是**容器自己出站**去问的，所以用授权服务器地址（同机部署 = 服务名，分机部署 =
+    # 厂商那台的地址），而不是给浏览器用的那个 —— 两者在很多部署里不是同一个值。
+    # APP_UPDATE_ENDPOINTS 显式给出时优先；都没有就留空 = 不检查，不回落到写死的回环。
     app.state.update_checker = UpdateChecker(
         app_settings.data_dir,
         app_settings.version,
@@ -1066,7 +1062,9 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
         enabled=app_settings.update_checks_enabled,
         endpoints=app_settings.update_endpoints
         or (
-            (f"{update_store_url}{STORE_UPDATES_PATH}",) if update_store_url else ()
+            (f"{app_settings.license_server_url}{STORE_UPDATES_PATH}",)
+            if app_settings.license_server_url
+            else ()
         ),
     )
     app.state.update_checker.start()

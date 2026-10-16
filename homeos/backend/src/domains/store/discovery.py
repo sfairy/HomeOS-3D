@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -42,6 +43,56 @@ def _normalize(value: object) -> str:
     if not text.lower().startswith(('http://', 'https://')):
         return ''
     return text
+
+
+#: 只在「本机」有意义的主机名（浏览器解析不到商店）。
+_LOOPBACK_HOSTS = frozenset({'localhost', '::1', '0.0.0.0'})
+
+
+def browser_reachable(host: str) -> bool:
+    """浏览器能不能靠这个主机名找到商店？
+
+    否，只可能是两种「只有本机 / 容器网络内部才有意义」的写法：
+
+    - 回环（``127.x`` / ``::1`` / ``localhost``）；
+    - **不带点的单段名**（``homeos-store`` 这类 Docker Compose 服务名 / 容器别名）。
+
+    是：IP 字面量、带点的域名。注意判的是**语法**，不是可达性 —— 判断不了的东西
+    （跨网络的私网 IP、域名解析不到）都算「是」，不在这里纠正。
+    """
+    name = host.strip().strip('[]').casefold()
+    if not name or name in _LOOPBACK_HOSTS or name.startswith('127.'):
+        return False
+    return '.' in name
+
+
+def resolve_browser_store_url(discovered: str, browser_origin: str) -> str:
+    """把商店的回答整理成**浏览器能用**的商店地址。
+
+    商店回答的口径是「你是怎么连上我的」（见商店侧 ``request_origin``）：
+
+    - 分机部署：调用方（客户机上的主应用容器）与浏览器的路径一致 —— 直接可用；
+    - 同机部署：容器走的是 compose 服务名，拿到 ``http://homeos-store:8802``，
+      浏览器解析不了 —— 这时把**主机名**换成浏览器自己访问主应用用的那个，端口与
+      scheme 沿用商店的回答（``http://<宿主IP>:8802``）。
+
+    只换主机名，不换端口 / 协议：那是商店自己的口径。宿主端口被改过（``18802:8802``）
+    这类情况需要显式 ``APP_STORE_URL``。
+    """
+    text = _normalize(discovered)
+    if not text:
+        return ''
+    parts = urlsplit(text)
+    if browser_reachable(parts.hostname or ''):
+        return text
+    source = urlsplit(_normalize(browser_origin))
+    host = source.hostname or ''
+    if not host:
+        return ''
+    if ':' in host:  # IPv6 字面量要带方括号才是合法 URL
+        host = f'[{host}]'
+    port = f':{parts.port}' if parts.port else ''
+    return f'{parts.scheme}://{host}{port}'
 
 
 async def discover_store_base_url(
@@ -76,11 +127,9 @@ async def discover_store_base_url(
 class StoreBaseUrlResolver:
     """商店对外地址的「取回一次、缓存、失败退避」。
 
-    每个进程一份（挂在 ``app.state`` 上）。两个调用时机：
-
-    - 启动时（``bootstrap/lifespan``）：结果同时喂给版本更新检查端点 —— 客户机在内网
-      「只问商店」，没有它就只能回落到 ``UpdateChecker`` 自己写死的回环地址；
-    - 登录页取公开配置时（``api/public_config``）：覆盖「商店比主应用晚起」的情形。
+    每个进程一份（在 ``bootstrap/lifespan`` 里建好挂到 ``app.state``，**启动时不联网**）。
+    唯一的调用时机是登录页取公开配置（``api/public_config``）—— 那是唯一需要
+    「浏览器能打开的商店地址」的地方。
 
     失败**不缓存空值**，而是退避 ``RETRY_COOLDOWN_SECONDS`` 再试；成功即长期有效
     （商店地址不会中途变，真变了重启容器即可）。
@@ -100,10 +149,25 @@ class StoreBaseUrlResolver:
         return self._explicit() or self._value
 
     async def resolve(self) -> str:
-        """取回商店对外地址；取不到返回空串。显式配了 ``APP_STORE_URL`` 时不联网。"""
+        """商店的对外地址（显式配置优先）；取不到返回空串。**机器对机器**口径。"""
         explicit = self._explicit()
         if explicit:
             return explicit
+        return await self._discover()
+
+    async def resolve_for_browser(self, browser_origin: str) -> str:
+        """商店的对外地址，**浏览器的口径**：显式配置原样返回，问回来的值做主机名修正。
+
+        修正只针对「浏览器解析不了」的主机名（见 :func:`resolve_browser_store_url`），
+        所以显式 ``APP_STORE_URL`` 与分机部署的真实地址都不会被改动。
+        """
+        explicit = self._explicit()
+        if explicit:
+            return explicit
+        return resolve_browser_store_url(await self._discover(), browser_origin)
+
+    async def _discover(self) -> str:
+        """带回缓存与失败退避的取回（对外接口都走上面那两个方法）。"""
         if self._value:
             return self._value
         if time.monotonic() < self._next_attempt:
@@ -125,5 +189,7 @@ __all__ = [
     'RETRY_COOLDOWN_SECONDS',
     'STORE_BASE_URL_PATH',
     'StoreBaseUrlResolver',
+    'browser_reachable',
     'discover_store_base_url',
+    'resolve_browser_store_url',
 ]

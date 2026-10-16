@@ -158,8 +158,9 @@ class Settings:
     project_root: Path = PROJECT_ROOT
     # 授权 / 联网商店
     #: 商店的**浏览器入口**地址（``APP_STORE_URL``）：登录页「忘记密码 / 商店」跳转用。
-    #: 留空 = 启动时问商店要一次（``GET /store/v1/base-url``，见 domains/store/discovery.py），
-    #: 取不到就留空、由前端兜底 —— 同机部署必须显式填宿主 IP，因为那时容器只认服务名。
+    #: 留空（推荐）= 由 ``/public/config`` 向商店问回它的对外地址，并修正浏览器解析不了的
+    #: 主机名（同机部署的容器服务名 → 浏览器正在用的宿主 / 域名，见
+    #: ``domains/store/discovery.py``）。只有地址特殊到推导不出来时才显式写死。
     store_url: str = ""
     # 版本更新发现（并入 homeos-3d ``/api/v1/updates``）：可选的发布发现，与授权/编辑器隔离。
     update_checks_enabled: bool = True

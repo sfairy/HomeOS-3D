@@ -27,7 +27,8 @@ _VERSION_PATTERN = re.compile(r"[vV]?(0|[1-9][0-9]{0,8})(?:\.(0|[1-9][0-9]{0,8})
 # 商店侧的更新查询路径（商店 API 的固定前缀）。
 STORE_UPDATES_PATH = "/store/v1/updates/latest"
 # 仅作 UpdateChecker 的兜底默认值：正常由 ``APP_UPDATE_ENDPOINTS``（优先）
-# 或 ``APP_STORE_URL`` 注入，分拆部署时才能指向中心商店，而不是客户机自己的回环。
+# 或 ``APP_LICENSE_SERVER_URL`` 注入（那个地址就是容器出站去连商店的），
+# 分拆部署时才能指向中心商店，而不是客户机自己的回环。
 RELEASE_ENDPOINTS = (f"http://127.0.0.1:8802{STORE_UPDATES_PATH}",)
 CHECK_INTERVAL = 21600
 MAX_CACHE_AGE = 86400
