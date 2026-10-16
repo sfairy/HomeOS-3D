@@ -122,12 +122,19 @@ def request_origin(request: Request) -> str:
 
 
 def expected_request_scheme(request: Request) -> str:
-    """本商店**应当**以哪个 scheme 被访问：只按部署形态钉，不看请求头里的 Origin。
+    """本商店**应当**以哪个 scheme 被访问。
+
+    只有显式配了 ``STORE_BASE_URL`` 时才按它钉死 —— 那是运维的明确声明，公网接入就该是
+    ``https://``。没配时不能拿 ``public_base_url`` 顶替：它只是「host/port 推导出来的兜底」
+    （默认就是 ``http://127.0.0.1:8802``），把它当成声明会让整个公网 HTTPS 部署被当成
+    http —— 后果不只是链接少了 s，而是同源判定把浏览器的 ``https://<域名>`` 判为异源，
+    于是商店的注册 / 登录 / 下单（所有带 Cookie 的写操作）一律 403。所以这里退回
+    「可信代理告诉我们的 scheme」再退「请求自身的 scheme」。
     """
     settings = _settings(request)
-    base_url = str(getattr(settings, "public_base_url", "") or "").strip().lower()
+    declared = str(getattr(settings, "base_url", "") or "").strip().lower()
     for scheme in ("https", "http"):
-        if base_url.startswith(f"{scheme}://"):
+        if declared.startswith(f"{scheme}://"):
             return scheme
     address = resolve_client_ip(request)
     if address.via_proxy:
