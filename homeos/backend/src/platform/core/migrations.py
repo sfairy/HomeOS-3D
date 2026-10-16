@@ -9,14 +9,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 import shutil
 import sqlite3
 from contextlib import closing
-from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -148,14 +146,6 @@ def _legacy_error(revision: str) -> LegacyDatabaseError:
         "当前版本只保留了 0001 基线，不能从老库直接升级，也不会自动改写老结构。"
         "请从数据目录里的 *.pre-migrate-*.bak 快照恢复，或先用旧版本导出数据后再在全新安装上导入。"
     )
-
-
-def _sha256(file_path: Path) -> str:
-    digest = hashlib.sha256()
-    with file_path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1048576), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _fsync_file(file_path: Path) -> None:
@@ -429,18 +419,3 @@ def _bring_schema_to_head(settings: Settings) -> Path | None:
             f"数据库升级失败；已从 {backup_path} 恢复升级前的库。"
         ) from error
     return backup_path
-
-
-def write_upgrade_metadata(settings: Settings, backup_path: Path, target_revision: str) -> None:
-    """为升级备份写入元数据 sidecar（供运维核对版本与校验和）。"""
-    metadata = {
-        "applicationVersion": settings.version if hasattr(settings, "version") else "",
-        "createdAt": datetime.now(UTC).isoformat(),
-        "databaseFile": backup_path.name,
-        "databaseSha256": _sha256(backup_path),
-        "targetRevision": target_revision,
-    }
-    metadata_path = backup_path.with_suffix(".json")
-    metadata_path.write_text(
-        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )

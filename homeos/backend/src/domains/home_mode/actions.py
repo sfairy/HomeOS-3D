@@ -17,7 +17,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
 
 from .presets import collect_home_mode_target_actions, resolve_action_kind
 from ..home_exec.execute_action_sequence import execute_action_sequence
@@ -163,8 +163,8 @@ async def _restore_entity_from_snapshot_if_not_changed(
     return "restored"
 
 
-async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> dict[str, Any]:
-    outcome: dict[str, Any] = {"restored": 0, "unchanged": 0, "failed": 0, "incomplete": False}
+async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSnapshotOutcome:
+    outcome: HomeModeSnapshotOutcome = {"restored": 0, "unchanged": 0, "failed": 0, "incomplete": False}
     snapshot = _read_snapshot(mode.get("deviceSnapshot"))
     if not snapshot:
         return outcome
@@ -294,7 +294,47 @@ def _home_mode_execution_record(
     return record
 
 
-def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> dict[str, Any]:
+class HomeModeActivateResult(TypedDict, total=False):
+    """家庭模式激活/幂等结果。"""
+
+    success: bool
+    modeId: str
+    modeName: str
+    active: bool
+    alreadyActive: bool
+    executed: int
+    total: int
+    retried: int
+    results: list[Any]
+    failedItems: list[Any]
+    message: str
+
+
+class HomeModeDeactivateResult(TypedDict, total=False):
+    """家庭模式停用结果。"""
+
+    success: bool
+    modeId: str
+    modeName: str
+    active: bool
+    restored: int
+    unchanged: int
+    failed: int
+    incomplete: bool
+    exclusiveGroup: str
+    message: str
+
+
+class HomeModeSnapshotOutcome(TypedDict, total=False):
+    """快照恢复计数。"""
+
+    restored: int
+    unchanged: int
+    failed: int
+    incomplete: bool
+
+
+def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> HomeModeActivateResult:
     """重复激活时直接返回的幂等结果。"""
     return {
         "success": True,
@@ -594,7 +634,7 @@ async def activate_home_mode(
 
 async def deactivate_home_mode(
     state: HomeModeActivateState, deps: Any, mode_id: str | None = None
-) -> dict[str, Any]:
+) -> HomeModeDeactivateResult:
     target_id = mode_id or state.get_active_mode_id()
     if not target_id:
         return {"success": True, "message": "无激活模式"}

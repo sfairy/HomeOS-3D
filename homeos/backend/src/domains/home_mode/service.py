@@ -97,13 +97,13 @@ def _parse_json_loud(raw: Any, fallback: Any, *, field: str, mode_id: str) -> An
         return fallback
 
 
-def _coerce_int_field(payload: dict[str, Any], key: str, default: int) -> int:
+def _coerce_int_field(fields: dict[str, Any], key: str, default: int) -> int:
     """把请求体里的可选整数字段解析成 int；非法值给 **400** 而不是让 `int()` 炸成 500。
 
-    旧实现是裸 `int(payload.get("sortOrder") or 0)`：客户端传 `"abc"`（或对象、小数串）时
+    旧实现是裸 `int(fields.get("sortOrder") or 0)`：客户端传 `"abc"`（或对象、小数串）时
     在服务里抛 ValueError，被全局处理器当未知异常 —— 一个「参数不对」的错误看起来像服务端崩了。
     """
-    raw = payload.get(key)
+    raw = fields.get(key)
     if raw is None or raw == "":
         return default
     if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
@@ -115,20 +115,20 @@ def _coerce_int_field(payload: dict[str, Any], key: str, default: int) -> int:
     return default
 
 
-def mode_to_dict(row: HomeMode) -> dict[str, Any]:
+def mode_to_dict(mode: HomeMode) -> dict[str, Any]:
     return {
-        "id": row.id,
-        "name": row.name,
-        "icon": row.icon,
-        "config": _parse_json_loud(row.config, [], field="config", mode_id=str(row.id)),
-        "triggers": _parse_json_loud(row.triggers, None, field="triggers", mode_id=str(row.id)),
-        "isActive": bool(row.is_active),
-        "deviceSnapshot": _parse_json(row.device_snapshot, None),
-        "sortOrder": row.sort_order,
-        "exclusiveGroup": row.exclusive_group,
-        "priority": row.priority,
-        "createdAt": _iso(row.created_at),
-        "updatedAt": _iso(row.updated_at),
+        "id": mode.id,
+        "name": mode.name,
+        "icon": mode.icon,
+        "config": _parse_json_loud(mode.config, [], field="config", mode_id=str(mode.id)),
+        "triggers": _parse_json_loud(mode.triggers, None, field="triggers", mode_id=str(mode.id)),
+        "isActive": bool(mode.is_active),
+        "deviceSnapshot": _parse_json(mode.device_snapshot, None),
+        "sortOrder": mode.sort_order,
+        "exclusiveGroup": mode.exclusive_group,
+        "priority": mode.priority,
+        "createdAt": _iso(mode.created_at),
+        "updatedAt": _iso(mode.updated_at),
     }
 
 
@@ -251,12 +251,12 @@ class HomeModeService:
 
     async def reload_trigger_bindings(self) -> None:
         with self._session_factory() as session:
-            rows = (
+            modes = (
                 session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(200))
                 .scalars()
                 .all()
             )
-        modes = [mode_to_dict(row) for row in rows]
+        modes = [mode_to_dict(mode) for mode in modes]
         self._trigger_state.cached_modes = modes
         self._trigger_state.trigger_bindings = parse_home_mode_trigger_bindings(modes)
         prune_home_mode_trigger_cooldown(self._trigger_state.trigger_cooldown)
@@ -265,12 +265,12 @@ class HomeModeService:
     # CRUD
     def find_all(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
-            rows = (
+            modes = (
                 session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(200))
                 .scalars()
                 .all()
             )
-        return [mode_to_dict(row) for row in rows]
+        return [mode_to_dict(mode) for mode in modes]
 
     def find_all_paginated(self, page: int = 1, page_size: int = 50) -> dict[str, Any]:
         page = max(int(page or 1), 1)
@@ -287,9 +287,9 @@ class HomeModeService:
                 .scalars()
                 .all()
             )
-        items = [mode_to_dict(row) for row in rows]
+        mode_items = [mode_to_dict(mode) for mode in rows]
         return {
-            "items": items,
+            "items": mode_items,
             "total": total,
             "page": page,
             "pageSize": page_size,
@@ -298,93 +298,93 @@ class HomeModeService:
 
     def find_one(self, mode_id: str) -> dict[str, Any] | None:
         with self._session_factory() as session:
-            row = session.get(HomeMode, mode_id)
-        return mode_to_dict(row) if row is not None else None
+            mode = session.get(HomeMode, mode_id)
+        return mode_to_dict(mode) if mode is not None else None
 
     def get_active(self) -> dict[str, Any] | None:
         with self._session_factory() as session:
-            row = session.execute(
+            mode = session.execute(
                 select(HomeMode).where(HomeMode.is_active.is_(True)).limit(1)
             ).scalar_one_or_none()
-        return mode_to_dict(row) if row is not None else None
+        return mode_to_dict(mode) if mode is not None else None
 
     async def create(self, data: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(data)
-        if "config" in payload:
-            payload["config"] = normalize_home_mode_json_array(payload["config"], "config", True)
-        if "triggers" in payload:
-            payload["triggers"] = normalize_home_mode_json_array(payload["triggers"], "triggers", False)
-        row = HomeMode(
-            name=str(payload.get("name") or ""),
-            icon=payload.get("icon") or "home",
-            config=json.dumps(payload.get("config") or [], ensure_ascii=False),
+        fields = dict(data)
+        if "config" in fields:
+            fields["config"] = normalize_home_mode_json_array(fields["config"], "config", True)
+        if "triggers" in fields:
+            fields["triggers"] = normalize_home_mode_json_array(fields["triggers"], "triggers", False)
+        mode = HomeMode(
+            name=str(fields.get("name") or ""),
+            icon=fields.get("icon") or "home",
+            config=json.dumps(fields.get("config") or [], ensure_ascii=False),
             triggers=(
-                json.dumps(payload["triggers"], ensure_ascii=False)
-                if payload.get("triggers") is not None
+                json.dumps(fields["triggers"], ensure_ascii=False)
+                if fields.get("triggers") is not None
                 else None
             ),
-            sort_order=_coerce_int_field(payload, "sortOrder", 0),
-            exclusive_group=payload.get("exclusiveGroup") or "default",
-            priority=_coerce_int_field(payload, "priority", 50),
+            sort_order=_coerce_int_field(fields, "sortOrder", 0),
+            exclusive_group=fields.get("exclusiveGroup") or "default",
+            priority=_coerce_int_field(fields, "priority", 50),
         )
         with self._session_factory() as session:
-            session.add(row)
+            session.add(mode)
             session.commit()
-            session.refresh(row)
-            result = mode_to_dict(row)
+            session.refresh(mode)
+            mode_snapshot = mode_to_dict(mode)
         await self.reload_trigger_bindings()
-        return result
+        return mode_snapshot
 
     async def update(self, mode_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(data)
-        if "config" in payload:
-            payload["config"] = normalize_home_mode_json_array(payload["config"], "config", True)
-        if "triggers" in payload:
-            payload["triggers"] = normalize_home_mode_json_array(payload["triggers"], "triggers", False)
+        fields = dict(data)
+        if "config" in fields:
+            fields["config"] = normalize_home_mode_json_array(fields["config"], "config", True)
+        if "triggers" in fields:
+            fields["triggers"] = normalize_home_mode_json_array(fields["triggers"], "triggers", False)
         with self._session_factory() as session:
-            row = session.get(HomeMode, mode_id)
-            if row is None:
+            mode = session.get(HomeMode, mode_id)
+            if mode is None:
                 not_found(api_error("HOME_MODE_NOT_FOUND"))
-            if "name" in payload:
-                row.name = str(payload["name"])
-            if "icon" in payload:
-                row.icon = payload["icon"]
-            if "config" in payload:
-                row.config = json.dumps(payload["config"] or [], ensure_ascii=False)
-            if "triggers" in payload:
-                row.triggers = (
-                    json.dumps(payload["triggers"], ensure_ascii=False)
-                    if payload["triggers"] is not None
+            if "name" in fields:
+                mode.name = str(fields["name"])
+            if "icon" in fields:
+                mode.icon = fields["icon"]
+            if "config" in fields:
+                mode.config = json.dumps(fields["config"] or [], ensure_ascii=False)
+            if "triggers" in fields:
+                mode.triggers = (
+                    json.dumps(fields["triggers"], ensure_ascii=False)
+                    if fields["triggers"] is not None
                     else None
                 )
-            if "sortOrder" in payload:
-                row.sort_order = _coerce_int_field(payload, "sortOrder", 0)
-            if "exclusiveGroup" in payload:
-                row.exclusive_group = payload["exclusiveGroup"] or "default"
-            if "priority" in payload:
-                row.priority = _coerce_int_field(payload, "priority", 50)
+            if "sortOrder" in fields:
+                mode.sort_order = _coerce_int_field(fields, "sortOrder", 0)
+            if "exclusiveGroup" in fields:
+                mode.exclusive_group = fields["exclusiveGroup"] or "default"
+            if "priority" in fields:
+                mode.priority = _coerce_int_field(fields, "priority", 50)
             session.commit()
-            session.refresh(row)
-            result = mode_to_dict(row)
+            session.refresh(mode)
+            mode_snapshot = mode_to_dict(mode)
         await self.reload_trigger_bindings()
-        return result
+        return mode_snapshot
 
     async def remove(self, mode_id: str) -> dict[str, Any]:
         with self._session_factory() as session:
-            row = session.get(HomeMode, mode_id)
-        if row is None:
+            mode = session.get(HomeMode, mode_id)
+        if mode is None:
             not_found(api_error("HOME_MODE_NOT_FOUND"))
-        if row.is_active or self._active_mode_id == mode_id:
+        if mode.is_active or self._active_mode_id == mode_id:
             await self.deactivate(mode_id)
         with self._session_factory() as session:
-            row = session.get(HomeMode, mode_id)
-            if row is None:
+            mode = session.get(HomeMode, mode_id)
+            if mode is None:
                 not_found(api_error("HOME_MODE_NOT_FOUND"))
-            result = mode_to_dict(row)
-            session.delete(row)
+            mode_snapshot = mode_to_dict(mode)
+            session.delete(mode)
             session.commit()
         await self.reload_trigger_bindings()
-        return result
+        return mode_snapshot
 
     async def duplicate(self, mode_id: str) -> dict[str, Any]:
         source = self.find_one(mode_id)
@@ -402,21 +402,21 @@ class HomeModeService:
             }
         )
 
-    async def reorder(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def reorder(self, order_entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # 一次性 IN 查询取回全部目标模式：原实现按条目逐个 `session.get`，
         # 拖拽排序 N 个模式就是 N 次往返（N+1）。
         order_by_id = {
-            str(item.get('id')): _coerce_int_field(item, "sortOrder", 0)
-            for item in items
-            if isinstance(item, dict) and item.get('id')
+            str(entry.get('id')): _coerce_int_field(entry, "sortOrder", 0)
+            for entry in order_entries
+            if isinstance(entry, dict) and entry.get('id')
         }
         if order_by_id:
             with self._session_factory() as session:
-                rows = session.execute(select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))).scalars()
-                for row in rows:
-                    target = order_by_id.get(str(row.id))
+                modes = session.execute(select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))).scalars()
+                for mode in modes:
+                    target = order_by_id.get(str(mode.id))
                     if target is not None:
-                        row.sort_order = target
+                        mode.sort_order = target
                 session.commit()
         await self.reload_trigger_bindings()
         return self.find_all()
@@ -448,10 +448,10 @@ class HomeModeService:
     def get_presets(self) -> list[dict[str, Any]]:
         entity_ids = [entity["entity_id"] for entity in self._state_store.get_all()]
         with self._session_factory() as session:
-            rows = (
+            mode_pairs = (
                 session.execute(select(HomeMode.id, HomeMode.name).limit(200)).all()
             )
-        existing = [{"id": row[0], "name": row[1]} for row in rows]
+        existing = [{"id": mode_id, "name": mode_name} for mode_id, mode_name in mode_pairs]
         return presets_module.enrich_home_mode_presets(entity_ids, existing)
 
     async def install_preset(
@@ -469,14 +469,14 @@ class HomeModeService:
             existing_dict = mode_to_dict(existing) if existing is not None else None
 
         if existing_dict is not None and merge:
-            row = await self.update(
+            mode_snapshot = await self.update(
                 existing_dict["id"],
                 {"icon": preset["icon"], "config": plan["config"], "triggers": plan["triggersJson"]},
             )
-            return {**row, "unresolvedActions": plan["unresolvedActions"]}
+            return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
 
         if existing_dict is not None:
-            row = await self.create(
+            mode_snapshot = await self.create(
                 {
                     "name": f"{preset['name']}（预设）",
                     "icon": preset["icon"],
@@ -487,11 +487,11 @@ class HomeModeService:
                     "priority": preset.get("priority"),
                 }
             )
-            return {**row, "unresolvedActions": plan["unresolvedActions"]}
+            return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
 
         with self._session_factory() as session:
             max_order = session.execute(select(func.max(HomeMode.sort_order))).scalar()
-        row = await self.create(
+        mode_snapshot = await self.create(
             {
                 "name": preset["name"],
                 "icon": preset["icon"],
@@ -502,7 +502,7 @@ class HomeModeService:
                 "priority": preset.get("priority"),
             }
         )
-        return {**row, "unresolvedActions": plan["unresolvedActions"]}
+        return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
 
     # 激活 / 停用
     async def activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -582,22 +582,22 @@ class HomeModeService:
 
     def _list_active_modes(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
-            rows = (
+            modes = (
                 session.execute(select(HomeMode).where(HomeMode.is_active.is_(True)).limit(50))
                 .scalars()
                 .all()
             )
-        return [mode_to_dict(row) for row in rows]
+        return [mode_to_dict(mode) for mode in modes]
 
     def _find_first_active(self) -> dict[str, Any] | None:
         with self._session_factory() as session:
-            row = session.execute(
+            mode = session.execute(
                 select(HomeMode)
                 .where(HomeMode.is_active.is_(True))
                 .order_by(HomeMode.sort_order.asc())
                 .limit(1)
             ).scalar_one_or_none()
-        return mode_to_dict(row) if row is not None else None
+        return mode_to_dict(mode) if mode is not None else None
 
     def _switch_active_group(
         self,
@@ -630,11 +630,11 @@ class HomeModeService:
 
     def _deactivate_in_db(self, mode_id: str, *, keep_snapshot: bool = False) -> None:
         with self._session_factory() as session:
-            row = session.get(HomeMode, mode_id)
-            if row is not None:
-                row.is_active = False
+            mode = session.get(HomeMode, mode_id)
+            if mode is not None:
+                mode.is_active = False
                 if not keep_snapshot:
-                    row.device_snapshot = None
+                    mode.device_snapshot = None
                 session.commit()
 
     def _clear_group_active(self, group_ids: list[str], incomplete: bool) -> None:

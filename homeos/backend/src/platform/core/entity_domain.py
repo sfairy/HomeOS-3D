@@ -7,12 +7,3 @@ def get_entity_domain(entity_id: str) -> str:
     text = str(entity_id or "")
     dot = text.find(".")
     return text[:dot] if dot > 0 else ""
-
-
-def get_entity_leaf(entity_id: str) -> str:
-    text = str(entity_id or "")
-    dot = text.rfind(".")
-    if dot < 0:
-        return text
-    leaf = text[dot + 1 :]
-    return leaf or text

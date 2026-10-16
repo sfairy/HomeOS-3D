@@ -50,8 +50,7 @@ def _shell_text(request: Request, account: Account | None = None) -> str:
     return page_shell.inject_scene(text, request)
 
 
-def _render_shell(request: Request, page: str, account: Account | None = None) -> HTMLResponse:
-    setattr(request.state, page_shell.PAGE_STATE_ATTR, page)
+def _render_shell(request: Request, account: Account | None = None) -> HTMLResponse:
     return HTMLResponse(
         _shell_text(request, account), headers={"Cache-Control": "no-store"}
     )
@@ -68,19 +67,19 @@ def _admin_count(session: DbSession) -> int:
 def home(request: Request, session: DbSession, account: CurrentAccount) -> Response:
     if _admin_count(session) == 0:
         return RedirectResponse(url="/admin", status_code=302)
-    return _render_shell(request, "store", account)
+    return _render_shell(request, account)
 
 
 @router.get("/setup", include_in_schema=False)
 def setup_page(request: Request, account: CurrentAccount) -> HTMLResponse:
-    return _render_shell(request, "setup", account)
+    return _render_shell(request, account)
 
 
 @router.get("/admin", include_in_schema=False)
 def admin_page(request: Request, session: DbSession, account: CurrentAccount) -> Response:
     if _admin_count(session) == 0:
         return RedirectResponse(url="/setup", status_code=302)
-    return _render_shell(request, "admin", account)
+    return _render_shell(request, account)
 
 
 @router.get("/store/v1/product-images/{product_id}", include_in_schema=False)
@@ -110,7 +109,4 @@ def spa_fallback(
     path = "/" + full_path
     if path.startswith(RESERVED_PREFIXES):
         return JSONResponse({"detail": "未找到。"}, status_code=404)
-    if not path.startswith("/"):
-        path = "/" + path
-    page = "admin" if path.startswith("/admin") else "store"
-    return _render_shell(request, page, account)
+    return _render_shell(request, account)

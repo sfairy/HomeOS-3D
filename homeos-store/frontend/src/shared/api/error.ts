@@ -40,7 +40,7 @@ export function describe(detail: unknown, fallback?: string): string {
   return text;
 }
 
-export type ApiError = Error & {
+type ApiError = Error & {
   status?: number;
   payload?: unknown;
   retryAfter?: number;

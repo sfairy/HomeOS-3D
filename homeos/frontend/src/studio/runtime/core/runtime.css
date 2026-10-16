@@ -318,15 +318,6 @@
   align-items: center;
   min-height: 26px;
 }
-/* 说明：原先这里有一条泛化的 `.i3d-editor input[type="range"]`（width/height:22px/margin/
-   padding/border/background:transparent/**accent-color**）。它已经彻底空转，而且有害：
-    - `accent-color` 在 `appearance:none` 下不生效（本文件 `.i3d-opacity-range` 与
-      stage.css 的 `.i3d-control-range` 都已 `appearance:none`）；
-    - `background: transparent` 与 `height: 22px` 权重 0,2,1，会和 main.css 统一配方
-      `input[type="range"].hos-range-ui`（同为 0,2,1）抢背景，谁在后谁赢 —— 悬空的隐患。
-   `.i3d-editor` 的滑条现在各有归属：`.i3d-opacity-range` 自带整套规则、
-   `.i3d-control-range` 走 stage.css、检查器走 bridge.css、能力条与工作室滑条走
-   main.css 的 `hos-range-ui`，泛化规则删掉即可。 */
 /* 背景不透明度滑条（label-appearance.ts）：金色胶囊轨道 + 金色圆点，
    进度由 --progress-pct 裁切；已从 main.css 全局 range 选择器排除，避免白点拇指。 */
 .i3d-editor input[type="range"].i3d-opacity-range {
@@ -687,9 +678,6 @@
   border-radius: 5px;
   font-size: 11px;
 }
-/* 说明：`.i3d-floor-brightness` 那一段（flex 行 + range + number + span + 数字步进器）
-   已删除 —— 现行实现走 `.i3d-appearance-grid`（见 appearance-editor.ts），没有任何地方
-   再生成这个类名，属于样式债里的死代码。 */
 .i3d-appearance-editor .inspector-number-control .inspector-number-stepper {
   min-height: 0;
   height: auto;

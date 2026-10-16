@@ -6,7 +6,7 @@
  */
 import { removeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
-export type HomeOsResolvedTheme = 'slate-navy'
+type HomeOsResolvedTheme = 'slate-navy'
 
 const STORAGE_KEY = 'homeos_ui_theme'
 

@@ -66,13 +66,13 @@ router = APIRouter()
 _ORDER_NO_ATTEMPTS = 3
 
 
-def _resolve_requested_channel(setting, payload, request) -> str:
+def _resolve_requested_channel(setting, order_body, request) -> str:
     """顾客在收银台选的渠道 → 渠道名；留空返回空串（表示「用默认渠道」）。
 
     这里**必须**校验：一个请求字段不能让顾客自己决定走哪个商户号收款。校验三件事 ——
     渠道受支持、运营启用了它、它的凭据齐备（不齐的话建单必然失败，不如现在就报清楚）。
     """
-    requested = normalize_provider_name(getattr(payload, "payment_channel", None))
+    requested = normalize_provider_name(getattr(order_body, "payment_channel", None))
     if not requested:
         return ""
     if not is_known_provider(requested):
@@ -340,7 +340,7 @@ def _open_channel_payment(
 
 @router.post("/orders")
 def create_order(
-    payload: CreateOrderRequest,
+    body: CreateOrderRequest,
     request: Request,
     background: BackgroundTasks,
     session: DbSession,
@@ -353,7 +353,7 @@ def create_order(
     expire_stale_orders(session, settings)
     _assert_no_pending_order(session, account)
 
-    product = _product_or_404(session, payload.product_id)
+    product = _product_or_404(session, body.product_id)
     if is_sold_out(product):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
@@ -363,13 +363,13 @@ def create_order(
         account,
         product,
         is_addon=is_addon,
-        target_license_id=payload.target_license_id or "",
-        upgrade_license_id=payload.upgrade_license_id,
+        target_license_id=body.target_license_id or "",
+        upgrade_license_id=body.upgrade_license_id,
     )
 
     coupon = None
     discount = 0
-    coupon_code = (payload.coupon_code or "").strip()
+    coupon_code = (body.coupon_code or "").strip()
     if coupon_code:
         coupon, discount = _evaluate_coupon_limited(
             session, account=account, product=product, code=coupon_code
@@ -400,7 +400,7 @@ def create_order(
         status="pending",
         fulfillment_mode=product.fulfillment_mode,
         payment_provider=(
-            _resolve_requested_channel(setting, payload, request)
+            _resolve_requested_channel(setting, body, request)
             or default_channel_name(setting, request.app.state.settings)
         ),
         expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
@@ -412,7 +412,7 @@ def create_order(
     if amount <= 0:
         return _complete_free_order(session, request, background, order, setting)
 
-    chosen = _resolve_requested_channel(setting, payload, request)
+    chosen = _resolve_requested_channel(setting, body, request)
     return _open_channel_payment(request, session, order, setting, product, chosen)
 
 

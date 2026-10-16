@@ -20,7 +20,8 @@ packages/shared-py/
     ├── migrations_core.py
     ├── client_ip.py       ← 可信代理链 → 真实客户端地址（安全判据，两侧共用）
     ├── rate_limit.py      ← 有界滑动窗口限流器（内存上限 + 淘汰）
-    └── license_transport.py ← 授权传输的协议参数（PROTOCOL / HKDF info / AAD / base64url / 规范 JSON）
+    ├── license_transport.py ← 授权传输的协议参数（PROTOCOL / HKDF info / AAD / base64url / 规范 JSON）
+    └── feature_codes.py   ← 能力码目录加载（内嵌副本 + 读 ``ops/check/feature_codes.json``）
 ```
 
 这个两层形状是被三处硬约束**同时**定出来的，不是随意选的：
@@ -68,5 +69,7 @@ packages/shared-py/
 | `security/limiter.py`（商店） | **已下沉** → `homeos_shared/rate_limit.py` | 商店版（有界 + 淘汰）本来就是正确实现，主应用版是无界全局字典；差异是**缺陷**而非设计选择，所以不是「两套各有理由」，而是「一份对、一份错」。商店文件保留为一行转发（导入路径有 5 处调用点，改路径只有噪音）。 |
 | `security/request_security.py`（商店） | **部分共享** → `homeos_shared/client_ip.py` | 只把「可信代理链 → 真实客户端地址」这段纯判定下沉 —— 它是安全判据（限流分桶、审计记录、MCP IP 白名单都读它），两份副本必然分叉。**留在商店包内**的是 FastAPI 适配与同源校验：`request_is_https` / `same_origin_request` / CSP nonce / 500 页面，它们与商店的 Cookie、模板、Caddy 形态绑定，主应用没有对应物。 |
 | 授权密码学：主应用 `domains/license/crypto.py` ↔ 商店 `licensing/crypto.py` | **部分共享** → `homeos_shared/license_transport.py` | 只下沉「两侧必须逐字节一致、且漂移了**本端不报错**」的协议参数：`PROTOCOL` 字面量、HKDF 的 `info`、AES-GCM 的 AAD 组成、无填充 base64url、规范化 JSON、keyId 判据。此前两处各写一遍：改一处本端不报错，只是派生密钥/AAD 不同，对手端解密必然失败（症状是「激活突然全挂」）。**留在各自包内**的是密码学调用与错误语义 —— 主应用抛 `LicenseCryptoError`（离线门禁）并多出租约 Ed25519 验签、`SecretCipher`；商店抛 `LicenseServerError(400)` 并多出 `LeaseSigner` / `KeyRegistry`。客户端 ↔ 服务端握手靠联调/人工验收。 |
+| 能力码目录：主应用 `domains/license/features.py` ↔ 商店 `ops/features.py` | **部分共享** → `homeos_shared/feature_codes.py` | 只下沉目录加载与内嵌副本（两侧曾各粘一份 ~3KB JSON，且查找路径曾误写成 `ops/feature_codes.json` 永远 miss）。**留在各自包内**的是主应用门禁判定（`granted` / `expand` / `FEATURE_*`）与商店运营展示（`feature_catalog_payload` / 商品种子元组）。 |
 | 主应用 `platform/security/client_address.py` | **适配层，不是真源** | 只做 `Request` → `homeos_shared.client_ip.resolve_client_address` 的入参映射（共享包刻意不依赖 FastAPI）。判定逻辑一行都不在这里，避免出现「第二份判据」。 |
+| 口令哈希：主应用 `platform/security/passwords.py` ↔ 商店 `security/security.py` | **不共享** | 算法刻意不同：主应用 argon2id（兼容存量 bcrypt 首登迁移）；商店 pbkdf2。强行统一等于给存量库做一次密码学迁移，不在「抽共享」范围内。 |
 """

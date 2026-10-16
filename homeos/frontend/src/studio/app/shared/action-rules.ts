@@ -42,7 +42,7 @@ export function entityIdSupportsToggle(entityId: any) {
  * 这类摄像机可以完全不绑 HA 实体，靠 `properties.go2rtcUrl` 出画，所以「有没有当前实体」
  * 的旧判据（只看 `bindings.entity.entityId`）会把它们的弹窗动作误判为不支持。
  */
-export function componentHasGo2rtcCameraSource(component: any) {
+function componentHasGo2rtcCameraSource(component: any) {
   return (
     component?.properties?.cameraSource === "go2rtc" &&
     !!String(component?.properties?.go2rtcUrl || "").trim()

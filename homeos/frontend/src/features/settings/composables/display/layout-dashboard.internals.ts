@@ -2,11 +2,7 @@
  * @file layout-dashboard.internals.ts
  * @module frontend/src/views
  */
-/** composables：嵌入页 / Dashboard 页脚 / Hero 轮播 / 楼层管理 / 小组件编辑 / 布局快照 */
-import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
-import { useClickOutside } from '@/composables/ui/useClickOutside'
-import { clonePlain } from '@/shared/utils/core/clone-plain.util'
-import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/shared/energy/constants/energy-fields'
+/** Dashboard / footer / widget editor */
 import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/shared/constants/account-binding-meta'
 import {
   createDefaultDashboardFooterItems,
@@ -17,199 +13,13 @@ import {
   normalizeDashboardFooter,
   resolveFooterItemLabel,
 } from '@/shared/constants/dashboard-footer'
+import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/shared/energy/constants/energy-fields'
 import type { DashboardFooterItem, FooterFieldOption } from '@/shared/types/dashboard-footer'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { createDefaultEarthquakeConfig } from '@/shared/types/earthquake'
-import type { HaConfig, StatsSensorsConfig, UILayoutConfig } from '@/shared/types/layout'
-import { EMBED_ICON_LABELS, embedIconMap, embedLucidIcons, resolveEmbedIconByIndex } from '@/shared/utils/layout/embed-icons.util'
-import { EMBED_TAB_ACCENTS, resolveEmbedIconAccent, resolveEmbedTabAccent } from '@/shared/utils/layout/embed-nav-theme.util'
-import { getEmbedBlockReason } from '@/shared/utils/layout/embed-url.util'
-import { pruneNavTabsForRemovedEmbed } from '@/shared/utils/layout/nav-tabs.util'
-import { copyTextWithNotify } from '@/services/notify'
-import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
+import type { UILayoutConfig } from '@/shared/types/layout'
 import type { Ref } from 'vue'
-import { computed, ref, watch } from 'vue'
-
-// ── useSettingsEmbeds ──
-export function useSettingsEmbeds(activeTabProp: () => string) {
-  const layoutStore = useLayoutStore()
-  const chrome = useChromeStore()
-  const activeEmbedId = ref('')
-  const iconPickerOpen = ref(false)
-  const iconPickerRef = ref<HTMLElement | null>(null)
-  const iconPickerPanelRef = ref<HTMLElement | null>(null)
-
-  const {
-    dropdownStyle: iconPickerDropdownStyle,
-    teleportTarget: iconPickerTeleportTarget,
-    placement: iconPickerPlacement,
-    teleportDisabled: iconPickerTeleportDisabled,
-  } = useDropdownPosition(iconPickerRef, iconPickerOpen, {
-    minWidth: 248,
-    maxHeight: 280,
-    chromeHeight: 0,
-    minListHeight: 96,
-    dropdownRef: iconPickerPanelRef,
-  })
-
-  useClickOutside(
-    () =>
-      [iconPickerRef.value, iconPickerPanelRef.value].filter((el): el is HTMLElement => el != null),
-    () => {
-      iconPickerOpen.value = false
-    },
-  )
-
-  const embedCount = computed(() => layoutStore.layoutConfig.customEmbeds?.length || 0)
-
-  function embedIconAccent(icon: string) {
-    return resolveEmbedIconAccent(icon)
-  }
-
-  function embedIconLabel(icon: string) {
-    return EMBED_ICON_LABELS[icon || 'MonitorPlay'] || '图标'
-  }
-
-  const embedTabsKey = computed(() =>
-    (layoutStore.layoutConfig.customEmbeds || []).map((e) => e.id).join('|'),
-  )
-
-  const embedTabs = computed(() =>
-    (layoutStore.layoutConfig.customEmbeds || []).map((e, idx) => ({
-      id: e.id,
-      label: (e.name || `页面 ${idx + 1}`).slice(0, 14),
-      icon: embedIconMap[e.icon || 'MonitorPlay'],
-      accent: resolveEmbedTabAccent(e, idx),
-    })),
-  )
-
-  useSettingsHubRouteSection(activeEmbedId, embedTabs, {
-    tabId: 'embeds',
-    activeTab: activeTabProp,
-  })
-
-  const activeEmbed = computed(
-    () => layoutStore.layoutConfig.customEmbeds?.find((e) => e.id === activeEmbedId.value) ?? null,
-  )
-
-  const activeEmbedAccent = computed(() => {
-    if (!activeEmbed.value) return EMBED_TAB_ACCENTS[0]
-    const idx = (layoutStore.layoutConfig.customEmbeds || []).findIndex(
-      (e) => e.id === activeEmbedId.value,
-    )
-    return resolveEmbedTabAccent(activeEmbed.value, Math.max(0, idx))
-  })
-
-  const activeEmbedIconAccent = computed(
-    () => embedIconAccent(activeEmbed.value?.icon || '') || activeEmbedAccent.value,
-  )
-
-  watch(
-    embedTabs,
-    (tabs) => {
-      if (!tabs.length) {
-        activeEmbedId.value = ''
-        return
-      }
-      if (!tabs.some((t) => t.id === activeEmbedId.value)) {
-        activeEmbedId.value = tabs[tabs.length - 1].id
-      }
-    },
-    { immediate: true },
-  )
-
-  function embedUrlWarning(url: string) {
-    return getEmbedBlockReason(url)
-  }
-
-  function pickEmbedIcon(iconName: string) {
-    if (activeEmbed.value) activeEmbed.value.icon = iconName
-    iconPickerOpen.value = false
-  }
-
-  async function copyEmbedUrl(url: string) {
-    await copyTextWithNotify(url, {
-      successMessage: '内嵌 URL 已复制',
-      emptyMessage: '请先填写内嵌地址',
-    })
-  }
-
-  function addEmbed() {
-    if (!layoutStore.layoutConfig.customEmbeds) layoutStore.layoutConfig.customEmbeds = []
-    const nextIdx = layoutStore.layoutConfig.customEmbeds.length
-    // 裸时间戳 id；顶栏 Tab id 由 embedNavTabId 统一加 embed- 前缀，避免 embed-embed-* 双前缀
-    const id = String(Date.now())
-    layoutStore.layoutConfig.customEmbeds.push({
-      id,
-      name: '新网页',
-      url: '',
-      icon: resolveEmbedIconByIndex(nextIdx),
-    })
-    activeEmbedId.value = id
-  }
-
-  async function removeEmbed(id: string) {
-    const embed = layoutStore.layoutConfig.customEmbeds?.find((e) => e.id === id)
-    const ok = await chrome.confirm(
-      embed?.name ? `确定删除内嵌页「${embed.name}」？` : '确定删除该内嵌页？',
-      '删除内嵌页',
-      { confirmText: '删除', type: 'danger' },
-    )
-    if (!ok) return
-    if (layoutStore.layoutConfig.customEmbeds) {
-      layoutStore.layoutConfig.customEmbeds = layoutStore.layoutConfig.customEmbeds.filter(
-        (e) => e.id !== id,
-      )
-    }
-    pruneNavTabsForRemovedEmbed(layoutStore.layoutConfig, id)
-  }
-
-  function onEmbedReorder({ fromIndex, toIndex }: { fromIndex: number; toIndex: number }) {
-    const list = layoutStore.layoutConfig.customEmbeds
-    if (!list || fromIndex === toIndex) return
-    const item = list.splice(fromIndex, 1)[0]
-    list.splice(toIndex, 0, item)
-    layoutStore.layoutConfig.customEmbeds = [...list]
-  }
-
-  const moviePilotUrl = computed({
-    get: () => layoutStore.layoutConfig.moviePilotUrl || '',
-    set: (v: string) => {
-      layoutStore.layoutConfig.moviePilotUrl = v.trim()
-    },
-  })
-  const moviePilotConfigured = computed(() => Boolean(String(moviePilotUrl.value || '').trim()))
-
-  return {
-    embedIconMap,
-    embedLucidIcons,
-    embedCount,
-    activeEmbedId,
-    iconPickerOpen,
-    iconPickerRef,
-    iconPickerPanelRef,
-    iconPickerDropdownStyle,
-    iconPickerTeleportTarget,
-    iconPickerTeleportDisabled,
-    iconPickerPlacement,
-    embedTabsKey,
-    embedTabs,
-    activeEmbed,
-    activeEmbedAccent,
-    activeEmbedIconAccent,
-    moviePilotUrl,
-    moviePilotConfigured,
-    embedIconLabel,
-    embedIconAccent,
-    embedUrlWarning,
-    pickEmbedIcon,
-    copyEmbedUrl,
-    addEmbed,
-    removeEmbed,
-    onEmbedReorder,
-  }
-}
+import { computed, ref } from 'vue'
 
 // ── useDashboardFooterEditor ──
 const PRESET_LABELS: Record<string, string> = {
@@ -402,83 +212,19 @@ export async function confirmRemoveWidget(
   return chrome.confirm(body, title, confirmOptions)
 }
 
-// ── settings-layout-snapshot.util ──
-const clone = clonePlain
 
-/** 集成绑定 Tab 管辖的 layout 切片 */
-export function pickBindingsLayoutSlice(layout: UILayoutConfig) {
-  return { haConfig: clone(layout.haConfig) }
-}
+export {
+  pickBindingsLayoutSlice,
+  liveBindingsLayoutSlice,
+  applyBindingsLayoutSlice,
+  pickLifeAccountsLayoutSlice,
+  liveLifeAccountsLayoutSlice,
+  applyLifeAccountsLayoutSlice,
+  pickSecurityModesLayoutSlice,
+  liveSecurityModesLayoutSlice,
+  applySecurityModesLayoutSlice,
+  pickEarthquakeLayoutSlice,
+  applyEarthquakeLayoutSlice,
+} from '@/features/settings/composables/display/layout-dashboard-slices.internals'
 
-/** pending 检测用：必须返回 store 活引用，禁止 clone（否则 deep-watch 无法感知嵌套修改） */
-export function liveBindingsLayoutSlice(layout: UILayoutConfig) {
-  return { haConfig: layout.haConfig }
-}
-
-export function applyBindingsLayoutSlice(layout: UILayoutConfig, slice: { haConfig?: HaConfig }) {
-  if (slice.haConfig) layout.haConfig = clone(slice.haConfig)
-}
-
-/** 生活账户 Tab 管辖的 layout 切片 */
-export function pickLifeAccountsLayoutSlice(layout: UILayoutConfig) {
-  return {
-    energySources: clone(layout.statsSensors?.energySources || {}),
-  }
-}
-
-/** pending 检测用：活引用 */
-export function liveLifeAccountsLayoutSlice(layout: UILayoutConfig) {
-  const stats = layout.statsSensors
-  if (!stats) return { energySources: undefined as StatsSensorsConfig['energySources'] | undefined }
-  if (!stats.energySources) stats.energySources = {}
-  return { energySources: stats.energySources }
-}
-
-export function applyLifeAccountsLayoutSlice(
-  layout: UILayoutConfig,
-  slice: { energySources?: StatsSensorsConfig['energySources'] },
-) {
-  if (!layout.statsSensors) return
-  if (slice.energySources) {
-    layout.statsSensors.energySources = clone(slice.energySources)
-  }
-}
-
-/** 安防场景 Tab 管辖的 layout 切片 */
-export function pickSecurityModesLayoutSlice(layout: UILayoutConfig) {
-  return {
-    securityModes: clone(layout.securityModes),
-    securityEmergency: clone(layout.securityEmergency),
-    securityModeLinks: clone(layout.securityModeLinks),
-  }
-}
-
-/** pending 检测用：活引用 */
-export function liveSecurityModesLayoutSlice(layout: UILayoutConfig) {
-  return {
-    securityModes: layout.securityModes,
-    securityEmergency: layout.securityEmergency,
-    securityModeLinks: layout.securityModeLinks,
-  }
-}
-
-export function applySecurityModesLayoutSlice(
-  layout: UILayoutConfig,
-  slice: ReturnType<typeof pickSecurityModesLayoutSlice>,
-) {
-  if (slice.securityModes) layout.securityModes = clone(slice.securityModes)
-  if (slice.securityEmergency) layout.securityEmergency = clone(slice.securityEmergency)
-  if (slice.securityModeLinks) layout.securityModeLinks = clone(slice.securityModeLinks)
-}
-
-/** 地震预警（告警 Tab）管辖的 layout 切片 */
-export function pickEarthquakeLayoutSlice(layout: UILayoutConfig) {
-  return { earthquakeConfig: clone(layout.earthquakeConfig || createDefaultEarthquakeConfig()) }
-}
-
-export function applyEarthquakeLayoutSlice(
-  layout: UILayoutConfig,
-  slice: { earthquakeConfig?: UILayoutConfig['earthquakeConfig'] },
-) {
-  if (slice.earthquakeConfig) layout.earthquakeConfig = clone(slice.earthquakeConfig)
-}
+export { useSettingsEmbeds } from '@/features/settings/composables/display/layout-dashboard-embeds.internals'

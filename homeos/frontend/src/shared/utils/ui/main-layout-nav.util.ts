@@ -27,7 +27,7 @@ import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/shared/utils/layout/
 import { embedIconMap } from '@/shared/utils/layout/embed-icons.util'
 
 /** 主布局各导航 Tab ID → 中文展示名映射 */
-export const MAIN_LAYOUT_NAV_LABELS: Record<string, string> = {
+const MAIN_LAYOUT_NAV_LABELS: Record<string, string> = {
   dashboard: '总览',
   devices: '设备',
   scenes: '场景',

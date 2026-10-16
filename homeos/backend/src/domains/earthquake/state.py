@@ -41,24 +41,24 @@ def is_simulation_alert_record(record: dict[str, Any]) -> bool:
 # ── 持久化：预警历史（SQLite / PostgreSQL） ────────────────────────────
 
 
-def append_alert_history_prisma(session_factory: Any, payload: EarthquakeAlertPayload) -> None:
+def append_alert_history_prisma(session_factory: Any, event: EarthquakeAlertPayload) -> None:
     """将预警写入历史表，并清理超出上限的旧记录（单次最多 500 条）。"""
     with session_factory() as session:
         session.add(
             EarthquakeAlertHistory(
-                event_id=payload.eventId,
-                epicenter=payload.epicenter,
-                magnitude=payload.magnitude,
-                depth=payload.depth,
-                latitude=payload.latitude,
-                longitude=payload.longitude,
-                origin_time=int(payload.originTime),
-                distance=payload.distance,
-                countdown=int(payload.countdown),
-                local_intensity=payload.localIntensity,
-                max_intensity=payload.maxIntensity,
-                alert_kind=payload.alertKind,
-                source=str(payload.source) if payload.source else None,
+                event_id=event.eventId,
+                epicenter=event.epicenter,
+                magnitude=event.magnitude,
+                depth=event.depth,
+                latitude=event.latitude,
+                longitude=event.longitude,
+                origin_time=int(event.originTime),
+                distance=event.distance,
+                countdown=int(event.countdown),
+                local_intensity=event.localIntensity,
+                max_intensity=event.maxIntensity,
+                alert_kind=event.alertKind,
+                source=str(event.source) if event.source else None,
             )
         )
         session.commit()
@@ -176,9 +176,9 @@ def parse_earthquake_layout(layout: dict[str, Any]) -> EarthquakeRuntimeConfig:
 # ── 通知格式化 ─────────────────────────────────────────────────────────
 
 
-def format_eew_notify_message(payload: dict[str, Any] | Any) -> str:
+def format_eew_notify_message(event: dict[str, Any] | Any) -> str:
     """格式化 EEW 预警 / 官方速报通知消息（面向用户）。"""
-    data = payload.to_dict() if isinstance(payload, EarthquakeAlertPayload) else (payload or {})
+    data = event.to_dict() if isinstance(event, EarthquakeAlertPayload) else (event or {})
     magnitude = _num(data.get("magnitude"))
     mag_text = f"{magnitude:.1f}" if math.isfinite(magnitude) else "?"
     place = data.get("epicenter") or "未知震中"
@@ -197,30 +197,30 @@ def format_eew_notify_message(payload: dict[str, Any] | Any) -> str:
     )
 
 
-def format_catalog_notify_message(item: dict[str, Any]) -> str:
+def format_catalog_notify_message(quake: dict[str, Any]) -> str:
     """格式化地震目录新增事件通知消息。"""
-    magnitude = _num(item.get("magnitude"))
+    magnitude = _num(quake.get("magnitude"))
     mag_text = f"{magnitude:.1f}" if math.isfinite(magnitude) else "?"
-    place = item.get("place") or "未知位置"
-    depth = f"{item.get('depth')} km" if item.get("depth") is not None else "—"
-    distance = f"，距家 {item.get('distanceKm')} km" if item.get("distanceKm") is not None else ""
-    intensity = f"，烈度 {item.get('intensity')}" if item.get("intensity") is not None else ""
-    origin = format_time_only(item.get("originTime"), "—")
+    place = quake.get("place") or "未知位置"
+    depth = f"{quake.get('depth')} km" if quake.get("depth") is not None else "—"
+    distance = f"，距家 {quake.get('distanceKm')} km" if quake.get("distanceKm") is not None else ""
+    intensity = f"，烈度 {quake.get('intensity')}" if quake.get("intensity") is not None else ""
+    origin = format_time_only(quake.get("originTime"), "—")
     return (
         f"🌍 地震速报（官方正式测定·非预警）：发震时间 {origin}，{place} M{mag_text}，"
         f"深度 {depth}{distance}{intensity}"
     )
 
 
-def resolve_catalog_notify_level(item: dict[str, Any]) -> str:
+def resolve_catalog_notify_level(quake: dict[str, Any]) -> str:
     """根据震级、烈度、距离判定目录通知级别。"""
-    magnitude = _num(item.get("magnitude"))
-    intensity = _num(item.get("intensity"))
+    magnitude = _num(quake.get("magnitude"))
+    intensity = _num(quake.get("intensity"))
     if (math.isfinite(magnitude) and magnitude >= 6) or (
         math.isfinite(intensity) and intensity >= 7
     ):
         return "danger"
-    distance = item.get("distanceKm")
+    distance = quake.get("distanceKm")
     if (
         (math.isfinite(magnitude) and magnitude >= 4.5)
         or (math.isfinite(intensity) and intensity >= 5)
@@ -230,17 +230,17 @@ def resolve_catalog_notify_level(item: dict[str, Any]) -> str:
     return "info"
 
 
-def should_notify_catalog_event(item: dict[str, Any], opts: dict[str, Any]) -> bool:
+def should_notify_catalog_event(quake: dict[str, Any], opts: dict[str, Any]) -> bool:
     """判断目录事件是否应触发通知 / 记入本地预警。"""
     if opts.get("mode") == "aligned":
         return bool(
             evaluate_local_quake_thresholds(
                 {
-                    "magnitude": item.get("magnitude"),
-                    "latitude": item.get("latitude"),
-                    "longitude": item.get("longitude"),
-                    "distanceKm": item.get("distanceKm"),
-                    "depthKm": item.get("depth"),
+                    "magnitude": quake.get("magnitude"),
+                    "latitude": quake.get("latitude"),
+                    "longitude": quake.get("longitude"),
+                    "distanceKm": quake.get("distanceKm"),
+                    "depthKm": quake.get("depth"),
                 },
                 {
                     "minMagnitude": opts["minMagnitude"],
@@ -252,12 +252,12 @@ def should_notify_catalog_event(item: dict[str, Any], opts: dict[str, Any]) -> b
             )["pass"]
         )
 
-    magnitude = _num(item.get("magnitude"))
+    magnitude = _num(quake.get("magnitude"))
     if not math.isfinite(magnitude) or magnitude < float(opts["minMagnitude"]):
         return False
     if not opts.get("homeConfigured") or opts.get("maxDistanceKm") is None:
         return True
-    distance = item.get("distanceKm")
+    distance = quake.get("distanceKm")
     if distance is None:
         return magnitude >= 4.5
     if distance <= opts["maxDistanceKm"]:
@@ -265,9 +265,9 @@ def should_notify_catalog_event(item: dict[str, Any], opts: dict[str, Any]) -> b
     return magnitude >= 5
 
 
-def s_wave_countdown_for(item: dict[str, Any]) -> float:
+def s_wave_countdown_for(quake: dict[str, Any]) -> float:
     """基于目录事件计算横波倒计时（秒）。"""
-    return compute_s_wave_countdown(float(item.get("distanceKm") or 0), float(item.get("originTime") or 0), _now_ms())
+    return compute_s_wave_countdown(float(quake.get("distanceKm") or 0), float(quake.get("originTime") or 0), _now_ms())
 
 
 # ── 内部工具 ───────────────────────────────────────────────────────────

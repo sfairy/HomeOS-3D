@@ -50,19 +50,6 @@ def json_dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
-class JsonMixin:
-    """JSON 文本列的读写便捷方法。"""
-
-    @staticmethod
-    def load(raw: str | None, default: Any = None) -> Any:
-        if raw is None or raw == "":
-            return default
-        try:
-            return json.loads(raw)
-        except (TypeError, ValueError):
-            return default
-
-
 # 用户与鉴权
 class User(Base):
     __tablename__ = "users"

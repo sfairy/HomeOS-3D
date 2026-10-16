@@ -15,7 +15,7 @@
  */
 
 /** 安防跨模块联动一键启用预设项 */
-export type SecurityLinkagePreset = {
+type SecurityLinkagePreset = {
   id: string
   icon: string
   theme: string
@@ -29,10 +29,10 @@ export type SecurityLinkagePreset = {
 }
 
 /** 联动开关行（写入 AppConfig.security） */
-export type SecurityLinkageFlagRow = { key: string; label: string; desc: string }
+type SecurityLinkageFlagRow = { key: string; label: string; desc: string }
 
 /** 全屋联动页入口行（跳转本页或高级参数） */
-export type SecurityLinkageParamRow = {
+type SecurityLinkageParamRow = {
   key: string
   label: string
   desc: string

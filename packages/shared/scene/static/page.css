@@ -1,0 +1,410 @@
+/* HomeOS 入口页容器与表单坞（canonical 源：design/scene/page.css）
+   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
+
+:root {
+  color-scheme: dark;
+  /* 原生控件（勾选框 / 单选 / 进度条 / 日期选择）也走主控色。商店的 theme.css 早已
+     可滚动前台」，前台不在 .hos-page 里。 */
+  accent-color: var(--hb-accent);
+
+  /* 夜空面：蓝相往靛偏约 6°，给极光紫与暖金让出色域（原 #050910 是纯蓝，加紫会发灰）。 */
+  --hos-sky-deep: #050912;
+  --hos-sky-low: #081020;
+  --hos-sky-mid: #0d1728;
+  --hos-sky-high: #16263c;
+  --hos-sky-haze: #24395a;
+  /* 同族 RGB 通道：玻璃面、雾、暗角要按 alpha 叠在场景上，只有十六进制没法做半透明派生。 */
+  --hos-sky-deep-rgb: 5, 9, 18;
+  --hos-sky-low-rgb: 8, 16, 32;
+  --hos-sky-mid-rgb: 13, 23, 40;
+  --hos-sky-high-rgb: 22, 38, 60;
+  --hos-sky-haze-rgb: 36, 57, 90;
+
+  /* 四束身份色（accent/lumen/aura/eco）由 appearance.css（应用侧）与 theme.css（商店侧）声明，
+     本文件只引用。accent 与 lumen 同属暖色，靠一亮一沉区分，改配色时别拉成同一明度。 */
+
+  /* 设备读色。heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
+     --hos-grad-alert 同源），所以这三档也一样不能缺、不能只改一侧。 */
+  --hos-heat-rgb: 255, 138, 101;
+  --hos-heat: #ff8a65;
+  --hos-heat-bright: #ffb59c;
+  --hos-heat-deep: #e0663c;
+  --hos-cool-rgb: 88, 196, 255;
+  --hos-cool: #58c4ff;
+  --hos-cool-bright: #b7e6ff;
+  --hos-cool-deep: #2f8fd0;
+  --hos-alert-rgb: 240, 122, 126;
+  --hos-alert: #f07a7e;
+  --hos-alert-bright: #f5a3a6;
+  /* alert 的深色档。此前只有 .hos-tone--alert 里写死的一枚 #c85a5e —— 一族四枚里
+     独独缺这一个，正是因为缺它，那个 tone 的渐变也只能写死字面量。 */
+  --hos-alert-deep: #c85a5e;
+  /* 「安静版」危险色：给**次要**的危险文字用（安静危险按钮、下拉里的删除叉、删除确认块的正文）。
+     取值是原先三处写死值（#c98682 / #d98c87 / #dca3a0）的中位，**最大位移最小（Δ25）**。 */
+  --hos-alert-quiet: #d98c87;
+  --hos-sensor-rgb: 158, 176, 196;
+  --hos-sensor: #9eb0c4;
+  --hos-sensor-bright: #cfdae6;
+  --hos-sensor-deep: #77879a;
+  /* 设备**读数**（与上面那组「设备读色」不是一回事）：器件详情面板里**数值本身**的颜色 ——
+     改一次读数色不必再赌「改了三份、漏了两份」。 */
+  --hos-readout: #b99264;
+
+  /* ── 工具面（编辑器 / 渲染器 / 工作室的 chrome）─────────────────────────────
+     三处都指向同一个动作：让它们取这里的令牌，而不是各自再抄一遍十六进制。 */
+  --hos-tool-bg: #0b0f12;
+  --hos-tool-surface: #141a20;
+  --hos-tool-surface-soft: #192128;
+  --hos-tool-surface-raised: #26313c;
+  --hos-tool-field: #0b0f12;
+  --hos-tool-line: #303840;
+  --hos-tool-line-rgb: 48, 56, 64;
+  /* 中档线。审计把工具面的描边聚成四档：#303840 / #39434c / #46515a / #4a5a62，
+     两边都够不着，所以自成一档；名字落在既有 line / line-strong 的顺序中间。 */
+  --hos-tool-line-mid: #39434c;
+  /* 第二档线：浮层描边 / 分隔用。app.css 里同一个角色散着 #46515a(14) / #505a63 /
+     #4a545d / #48525b 四个值（最大差 10 个通道），全部落在审计的同一个簇里。 */
+  --hos-tool-line-strong: #46515a;
+  /* 控件自己的描边：按钮 / 下拉 / 开关 / 输入框 / 预览框在常态、hover、激活、禁用
+     line-bright，会让人以为存在一条四档齐全的阶梯 —— 实际并没有。 */
+  --hos-tool-control-line: #59656e;
+  /* 上一条的 -rgb 兄弟。唯一消费者是 .hb-unknown-component 的底色洗染
+     （同一只占位块「描边 = 全值、底色 = 8% 同色」，改一处即同步）。 */
+  --hos-tool-control-line-rgb: 89, 101, 110;
+  /* 中性标记：状态指示点 / 项目符号点，以及「安静按钮」hover 时那层提亮的描边。
+     与簇内最远处（.hb-vacuum-robot-lidar 的 #657178）差 11 个通道，肉眼不可辨。 */
+  --hos-tool-mark: #69757c;
+  /* 三个「面」的 -rgb 兄弟。和 --hos-tool-line-rgb 一样，给需要**半透明同色**的场景用：
+     收成 rgba() 后既接上令牌、又消掉 9 个字面量。 */
+  --hos-tool-bg-rgb: 11, 15, 18;
+  --hos-tool-surface-rgb: 20, 26, 32;
+  --hos-tool-surface-soft-rgb: 25, 33, 40;
+  --hos-tool-surface-raised-rgb: 38, 49, 60;
+  /* 浅发丝（描边的高光侧）。renderer.css 43 处 + climate-panel.css 2 处都写着
+     按角色自成一枚，取值取现值（Δ0，接上后像素零变化）。 */
+  --hos-tool-hairline-rgb: 126, 141, 153;
+  /* 面板表面渐变。renderer.css 里有一段三停渐变**逐字重复 12 次**
+     取值取那 10 次的多数写法；另 2 处并过来只差 1 个通道，肉眼不可辨。 */
+  --hos-tool-panel-stop: #1b2228;
+  --hos-tool-panel: linear-gradient(145deg, var(--hos-tool-panel-stop), #12181d 48%, #0d1216);
+  /* 进度轨 / 未填充底色。同一个角色在 renderer.css 里有两个值：
+     令牌按角色命名，同值不同角色不是问题，这里只收「轨道」这一个角色。 */
+  --hos-tool-track: #343d44;
+  /* 文字只登记两档，且都是**指向已有令牌的别名**（不是新取值）：
+     所以做法是：每簇自成一档、取值取簇内多数票，而不是往现有令牌上硬并。 */
+  --hos-tool-ink: var(--hos-ink);
+  --hos-tool-muted: var(--hos-muted);
+  /* 中性文字梯（7 档）。编辑器 / 显示端 / 工作室三套界面的文字色是**中性灰**，
+     tools/audit_colors.mjs 的 FOREGROUND_CEILING 里并各自注明理由。 */
+  --hos-tool-ink-dim: #dce2e6;
+  --hos-tool-text: #cbd2d6;
+  --hos-tool-text-dim: #aeb7bc;
+  --hos-tool-muted-dim: #8d989f;
+  --hos-tool-hint: #808b91;
+  --hos-tool-hint-dim: #727e86;
+  /* 非活动文字（禁用态 / 空状态 / 步进与占位标签）。它比 hint-dim 还暗 36 个色差单位，
+     「表里没有它，于是全绿是假的」那样静默漏检）。 */
+  --hos-tool-disabled: #65717c;
+  /* 次级按钮标签：工具栏 / 导出面板里那些「安静按钮」的文字色
+     是全梯最大间隔；本值把它对半分开，两边的差都回到 13/20）。 */
+  --hos-tool-label: #9aa5ab;
+
+  /* 氛围层：三束极淡的光。编辑器 / 展示端 / 舞台共用同一组强度与色相，
+     所以密集文字的面板保持不透明，玻璃面只用于浮层（下面那一组）。 */
+  --hos-atmo-strong: rgba(170, 182, 190, 0.08);
+  --hos-atmo-soft: rgba(138, 152, 162, 0.06);
+  --hos-atmo-faint: rgba(120, 134, 145, 0.042);
+
+  /* 玻璃三件套：半透底 + 背板模糊 + 顶缘发丝。范式取自商店后台已验证的 --a-glass
+     另：展示端 / 工作室是**展示面**，中性不透明也正合上面 --hos-atmo 那条「不跟主控色走」。 */
+  --hos-glass: linear-gradient(
+    180deg,
+    rgba(var(--hos-tool-surface-soft-rgb), 0.94),
+    rgba(var(--hos-tool-surface-rgb), 0.96)
+  );
+  --hos-glass-blur: blur(10px) saturate(135%);
+  --hos-glass-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+
+
+  /* 渐变：单色竖渐变给按钮（深色文字压在上面要够亮），三色横渐变给标题与光带。 */
+  --hos-grad-accent: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
+  --hos-grad-lumen: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen-deep));
+  --hos-grad-aura: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura-deep));
+  --hos-grad-eco: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco-deep));
+  --hos-grad-alert: linear-gradient(180deg, var(--hos-alert-bright), var(--hos-alert-deep));
+  --hos-grad-aurora: linear-gradient(
+    100deg,
+    var(--hb-accent) 0%,
+    var(--hb-aura) 48%,
+    var(--hb-lumen) 100%
+  );
+
+  /* 状态文案色（比语义色亮一档，保证在深空底上的可读性）。 */
+  --hos-ok: var(--hb-eco-bright);
+  --hos-warn: var(--hb-lumen-bright);
+  --hos-err: var(--hos-alert-bright);
+  /* 次要危险文字（安静版）。与 --hos-err 同一族、低一档气势 —— 用在哪见
+     --hos-alert-quiet 定义处。 */
+  --hos-err-quiet: var(--hos-alert-quiet);
+
+  /* 页面色调开关，默认「主控暖金」。
+     也不会因为这些页面共用一份 panel.css 而糊成同一个颜色。 */
+  --hos-tone: var(--hb-accent);
+  --hos-tone-rgb: var(--hb-accent-rgb);
+  --hos-tone-bright: var(--hb-accent-bright);
+  --hos-tone-deep: var(--hb-accent-deep);
+  --hos-grad-tone: var(--hos-grad-accent);
+  /* 主按钮 hover：比默认渐变再亮一档。
+     hover 态却还是琥珀。 */
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent));
+
+  /* 天气与远景：黎明冷灰、地平线暖调。 */
+  --hos-dawn-rgb: 168, 196, 220;
+
+  /* 星空与浮尘的「一点光」。比 --hos-cool / --hb-lumen / --hb-aura 都淡一档：
+     冷档两种：近白的远星 + 偏青的亮星（远近各一层，才不像贴上去的贴纸）。 */
+  --hos-star-rgb: 220, 240, 255;
+  --hos-star-cool-rgb: 168, 226, 255;
+  --hos-star-warm-rgb: 255, 226, 186;
+  --hos-star-aura-rgb: 214, 204, 255;
+
+  /* 文字 */
+  --hos-ink: #f1f7fb;
+  /* 文字的最亮档：只给渐变字（坞里 h1、场景品牌字）当起始停点用。
+     两处原本各写一遍 #f7fcff —— 同一件事写两次，改一次就漏一处。 */
+  --hos-ink-bright: #f7fcff;
+  /* 次级文字的通道三元组。--hos-muted 与它下面的 --hos-ink-rgb 是 panel.css 里
+     最常被跳过的字上。0.64 把最坏情形拉到 5.1:1，且四档的排序不变。 */
+  --hos-ink-rgb: 241, 247, 251;
+  --hos-muted-rgb: 186, 214, 232;
+  --hos-muted: rgba(var(--hos-muted-rgb), 0.64);
+
+  /* 亮底上的深色文字。主按钮 / 选中态 / 徽标的「亮渐变 + 深字」组合共用这一枚，
+     这里补上场景侧缺失的那一枚。 */
+  --hos-on-bright: #041018;
+
+  --hos-font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
+    'Noto Sans CJK SC', sans-serif;
+  --hos-font-brand: 'Orbitron', 'Exo 2', var(--hos-font-cjk);
+  --hos-font-display: 'Exo 2', var(--hos-font-cjk);
+  --hos-font-ui: 'Exo 2', var(--hos-font-cjk);
+  --hos-font-mono: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --hos-fs-micro: 12px;
+  --hos-fs-caption: 13px;
+  --hos-fs-body-sm: 14px;
+  --hos-fs-body: 15px;
+
+  --hos-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+
+/* 主控暖金。取值与 :root 的默认完全相同 —— 加这个类不是为了让默认态变样，而是让
+   另外四页是冻结的字面色相 —— 机制不同，改主控色时只有它一个人动。 */
+.hos-tone--accent {
+  --hos-tone: var(--hb-accent);
+  --hos-tone-rgb: var(--hb-accent-rgb);
+  --hos-tone-bright: var(--hb-accent-bright);
+  --hos-tone-deep: var(--hb-accent-deep);
+  --hos-grad-tone: var(--hos-grad-accent);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent));
+}
+
+.hos-tone--lumen {
+  --hos-tone: var(--hb-lumen);
+  --hos-tone-rgb: var(--hb-lumen-rgb);
+  --hos-tone-bright: var(--hb-lumen-bright);
+  --hos-tone-deep: var(--hb-lumen-deep);
+  --hos-grad-tone: var(--hos-grad-lumen);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen));
+}
+
+.hos-tone--aura {
+  --hos-tone: var(--hb-aura);
+  --hos-tone-rgb: var(--hb-aura-rgb);
+  --hos-tone-bright: var(--hb-aura-bright);
+  --hos-tone-deep: var(--hb-aura-deep);
+  --hos-grad-tone: var(--hos-grad-aura);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura));
+}
+
+.hos-tone--eco {
+  --hos-tone: var(--hb-eco);
+  --hos-tone-rgb: var(--hb-eco-rgb);
+  --hos-tone-bright: var(--hb-eco-bright);
+  --hos-tone-deep: var(--hb-eco-deep);
+  --hos-grad-tone: var(--hos-grad-eco);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco));
+}
+
+/* 异常路径专用（找回 / 恢复 / 需人工处理）。用珊瑚而不是把主控色调暗：
+   一整页的色调本身就在说「这里发生的事和别人不一样」，比任何一段文案都先被读到。 */
+.hos-tone--alert {
+  --hos-tone: var(--hos-alert);
+  --hos-tone-rgb: var(--hos-alert-rgb);
+  --hos-tone-bright: var(--hos-alert-bright);
+  --hos-tone-deep: var(--hos-alert-deep);
+  --hos-grad-tone: var(--hos-grad-alert);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-alert-bright), var(--hos-alert));
+}
+
+/* 页面尺寸与壳层。Activate 把它放在自己的缩放壳里（.app-shell__content--fluid
+   父级没有确定高度，由商店样式补 min-height 兜底（见 store.css 的 .hb-auth-stage）。 */
+
+.hos-page {
+  /* 坞宽相对画布；场景内装饰用 cqw（见 hos-scene）。
+     而顶栏是全宽的，品牌区不会因为坞变宽而失重。 */
+  --hos-gutter: clamp(20px, 3.5%, 48px);
+  --hos-dock-w: min(600px, 47%);
+  --hos-dock-span: var(--hos-dock-w);
+  --hos-head-h: 72px;
+
+  position: relative;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: var(--hos-sky-deep);
+  font-family: var(--hos-font-ui);
+  font-size: 16px;
+  color: var(--hos-ink);
+  container-type: inline-size;
+  container-name: hos-page;
+}
+
+.hos-page > .hos-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* [hidden] 必须赢。窄屏那段把 .hos-page 改成了 display: flex，而作者样式会盖掉浏览器
+   几块壳叠在一起同时显示。特异性 0,2,0 高于 .hos-page 的 0,1,0，与书写顺序无关。 */
+.hos-page[hidden] {
+  display: none;
+}
+
+.hos-page > .hos-dock {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--hos-dock-w);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 上留白多一截 --hos-head-h：指挥条是全宽绝对定位的，坞若从 0 起算上内边距，
+     并把居中改成顶对齐。 */
+  padding: calc(var(--hos-gutter) + var(--hos-head-h)) var(--hos-gutter) var(--hos-gutter);
+  box-sizing: border-box;
+  pointer-events: none;
+
+  /* 坞体（表单）**不**参与 3D：这里不做微倾。
+     倾斜只留在场景里（轨道环的 3D 倾角），不进城里的表单。 */
+}
+
+.hos-page > .hos-dock > * {
+  pointer-events: auto;
+  width: 100%;
+}
+
+/* 短屏（1366×768 这类笔记本上最大化的浏览器，视口高约 660px）。
+   不再被指挥条压住，这档就没有要解决的问题。 */
+@media (min-width: 901px) and (max-height: 820px) {
+  .hos-page > .hos-dock {
+    align-items: flex-start;
+    padding: calc(var(--hos-head-h) + 12px) var(--hos-gutter) 12px;
+  }
+}
+
+/* 极短屏（浏览器窗口只留出约 660–700px）。这一档把坞的上下留白再收 8px：
+   两处合起来把注册屏（最长的一页）压进 673px 以上的任何窗口。 */
+@media (min-width: 901px) and (max-height: 760px) {
+  .hos-page > .hos-dock {
+    padding: calc(var(--hos-head-h) + 8px) var(--hos-gutter) 10px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .hos-page {
+    --hos-dock-w: min(520px, 50%);
+  }
+}
+
+/* 又矮又窄（1014×667 这类：半屏浏览器、去掉标签栏的 1024×768 笔记本）。
+   必须排在上面那条 max-width: 1100px 之后 —— 两条同权重，靠顺序覆盖。 */
+@media (min-width: 901px) and (max-width: 1276px) and (max-height: 760px) {
+  .hos-page {
+    --hos-dock-w: min(600px, 56%);
+  }
+}
+
+@media (max-width: 900px) {
+  .hos-page {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  /* 窄屏：表单坞置顶。原先场景在上且很高，首屏只见山景/文案、表单在折叠线下，
+     看起来像「闪一下残缺入户页」。 */
+  .hos-page > .hos-dock {
+    position: relative;
+    inset: auto;
+    order: -1;
+    width: 100%;
+    flex: 1 1 auto;
+    align-items: flex-start;
+    padding: 12px 18px 20px;
+  }
+
+  .hos-page > .hos-scene {
+    position: relative;
+    inset: auto;
+    order: 1;
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: 42vh;
+    overflow: hidden;
+  }
+}
+
+/*
+ * 入户面板入场：禁止 opacity:0。
+ * fill-mode:both + from{opacity:0} 会让场景先可见、面板整段隐形，
+ * 所有入户页（登录/注册/激活/商店认证）都会闪成「只有山景」——正是用户截到的中间态。
+ */
+.hos-rise {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hos-page *,
+  .hos-page *::before,
+  .hos-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+}
+
+/* 只有入口页把自己的 <html> 标成 .hos-shell；商店在同一个文档里还要滚动前台，
+   所以这份全屏锁定不能挂在裸 html/body 上。 */
+html.hos-shell,
+html.hos-shell body {
+  height: 100%;
+  margin: 0;
+  background: var(--hos-sky-deep);
+  -webkit-font-smoothing: antialiased;
+}
+
+html.hos-shell body {
+  overflow: hidden;
+}
+
+html.hos-shell body.modal-open {
+  overflow: hidden;
+}
+

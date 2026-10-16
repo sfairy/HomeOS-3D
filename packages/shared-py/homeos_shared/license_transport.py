@@ -82,10 +82,18 @@ def canonical_json_bytes(document: Mapping[str, Any]) -> bytes:
 
 
 def is_valid_key_id(key_id: Any) -> bool:
-    """keyId 是否可用于派生与 AAD：字符串、非空、≤64 字符、只用字母数字与 ``-_.``。"""
+    """keyId 是否可用于派生与 AAD：字符串、非空、≤64 字符、只用 **ASCII** 字母数字与 ``-_.``。
+
+    必须限定 ASCII：``derive_key_info`` / ``transport_aad`` 用 ``.encode('ascii')`` 拼进
+    HKDF info 与 AAD，若放行非 ASCII（如 ``str.isalnum()`` 会接受 ``'中'``），校验通过、
+    握手期却在 ``UnicodeEncodeError`` 上炸掉。这里把关口收在 ASCII 字符集内，两侧一致。
+    """
     if not isinstance(key_id, str) or not key_id or len(key_id) > KEY_ID_MAX_LENGTH:
         return False
-    return all(character.isalnum() or character in KEY_ID_SAFE_CHARACTERS for character in key_id)
+    return all(
+        character.isascii() and (character.isalnum() or character in KEY_ID_SAFE_CHARACTERS)
+        for character in key_id
+    )
 
 
 __all__ = [

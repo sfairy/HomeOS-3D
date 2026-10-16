@@ -70,6 +70,12 @@ def _environment_csv(name: str) -> tuple[str, ...]:
     return tuple(item.strip().rstrip("/") for item in value.split(",") if item.strip())
 
 
+#: 服务器全量备份包目录名（Nest 约定：仓库根 ``backups/``）。
+BACKUP_DIR_NAME = "backups"
+#: 运行目录落在这些名字下时视为「在仓库内运行」，备份目录取其上一级（仓库根）。
+BACKEND_DIR_NAMES = frozenset({"backend"})
+
+
 # ---- 授权服务常量（并入 homeos-3d 授权服务）----
 # 公钥指纹只作兜底：ops/license_keys.py 在容器启动期按**实际公钥文件字节**注入
 # APP_LICENSE_PUBLIC_KEY_SHA256 / APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
@@ -263,6 +269,16 @@ class Settings:
         return self.data_dir / "cache" / "effect-variants"
 
     @property
+    def ui_assets_dir(self) -> Path:
+        """用户可写的 UI 静态资源根（图标 / 背景图上传层）。
+
+        与随包发布的默认素材树（``builtin_assets_dir`` 旁的 ``assets/icons`` /
+        ``assets/backgrounds``）分开：上传 / 删除只作用于这一层，随包目录保持只读，
+        避免「用户覆盖了默认图，升级后又被镜像内容回滚」和「删目录连带删掉默认素材」。
+        """
+        return self.data_dir / "ui-assets"
+
+    @property
     def backups_dir_override(self) -> Path | None:
         """服务器全量备份包目录的显式覆盖（``HOMEOS_BACKUPS_DIR``）。
 
@@ -270,6 +286,25 @@ class Settings:
         数据卷，重建即丢，故镜像设 ``HOMEOS_BACKUPS_DIR=/data/backups`` 落到持久卷。
         """
         return _environment_path("HOMEOS_BACKUPS_DIR")
+
+    @property
+    def backups_dir(self) -> Path:
+        """服务器全量备份包目录（**唯一权威**）。
+
+        显式覆盖优先；否则 Nest 约定：运行目录是后端子目录时取仓库根，其余取当前目录，
+        再拼 ``backups/``。
+
+        这个目录可能落在 ``data_dir`` **内部**（容器里就是 ``/data/backups``），所以收集
+        待备份数据文件与恢复数据目录两侧都必须以本属性为准把它排除。否则：备份会把所有
+        旧备份包连同正在写入的自己一起装进新包（体积逐次翻倍，直到磁盘最紧的时刻备份
+        功能彻底失效），恢复则会把当前的备份目录整块挪走 —— 那正是它自己的工作目录。
+        """
+        override = self.backups_dir_override
+        if override is not None:
+            return Path(override)
+        cwd = Path.cwd()
+        base = cwd.parent if cwd.name in BACKEND_DIR_NAMES else cwd
+        return base / BACKUP_DIR_NAME
 
     @property
     def built_in_assets_dir(self) -> Path:

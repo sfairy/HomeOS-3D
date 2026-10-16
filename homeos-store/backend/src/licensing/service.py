@@ -369,14 +369,23 @@ class LicenseAuthority:
         return raw
 
     def assert_usable(self, license: License, now: datetime) -> None:
-        """授权是否可继续使用。detail 命中客户端吊销短语以使吊销立即生效。"""
+        """授权是否可继续使用。
+
+        「已停用/已吊销」按确认吊销处理（客户端清本地授权、停止自愈）；「到期」只给
+        ``ACCESS_EXPIRED``：授权还在，续费即恢复，不能被客户端当成吊销。
+        """
         if not license.active or license.revoked_at is not None:
             raise LicenseServerError(
                 "客户授权或激活码已停用。", status_code=403, revoked=True
             )
         if license.access_expires_at is not None and license.access_expires_at <= now:
+            # 到期 ≠ 吊销：给独立码且不带 revoked 语义。客户端对 REVOKED 的处理是
+            # 「授权没了、重试无用」并停止自动恢复，续费同一份授权也不会自愈；到期应当
+            # 表现为可重试的远端拒绝，续费后心跳即恢复。
             raise LicenseServerError(
-                "商品授权有效期已结束。", status_code=403, revoked=True
+                "商品授权有效期已结束，请续费后重试。",
+                status_code=403,
+                code="ACCESS_EXPIRED",
             )
 
     def last_release_at(self, session: Session, license_id: str) -> datetime | None:
@@ -470,6 +479,19 @@ class LicenseAuthority:
         now: datetime,
         account_name: str = "",
     ) -> DeviceBinding:
+        """把实例认到授权上，返回「当前那一行」绑定记录。
+
+        并发安全（**不要**在别处另起一条建绑定的路径）：本方法的读-判-写依赖
+        :meth:`activate` 里 ``consume_nonce`` 必须先落一行随机数 —— 那个 INSERT 是
+        activate 事务的首个写语句，SQLite 的写锁由此把并发 activate 串行化。后到的事务
+        因此能读到先到者刚提交的 live 绑定，落到下面的 409，而不是各自建一行。
+
+        实测（WAL + busy_timeout，20 轮并发 activate）：真实顺序下 20/20 由一方胜出、
+        另一方拿到干净的「已绑定其他设备」拒绝，从不出现同一授权两条 live 绑定。
+        若把随机数写挪到本方法的查询之后，失去写锁保护的一方会撞上 SQLite 快照冲突
+        （``database is locked`` → 500）而不是 409，那时才需要补一条
+        ``(license_id) WHERE active = 1 AND released_at IS NULL`` 的部分唯一索引。
+        """
         binding = session.scalars(
             select(DeviceBinding)
             .where(DeviceBinding.license_id == license.id)

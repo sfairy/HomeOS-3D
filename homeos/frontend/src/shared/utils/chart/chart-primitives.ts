@@ -13,7 +13,7 @@ export const splitLineStyle = {
 
 
 /** 深色 tooltip 工厂属性（borderWidth / padding / extraCssText 未传时不输出该键） */
-export interface ChartTooltipOptions {
+interface ChartTooltipOptions {
   borderColor: string
   textStyle: { color: string; fontSize: number; fontWeight?: number }
   borderWidth?: number

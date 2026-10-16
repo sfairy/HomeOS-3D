@@ -156,6 +156,10 @@ class StateStore:
     def is_ha_synced(self) -> bool:
         return self._ha_synced
 
+    def is_ha_connected(self) -> bool:
+        """HA 当前是否处于已连接状态（断连期间的状态不可信）。"""
+        return self._ha_connected
+
     def mark_ha_synced(self, value: bool = True) -> None:
         self._ha_synced = value
 

@@ -2,24 +2,19 @@
  * @file useEntityInput.ts
  * @module frontend/src/composables
  */
-import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, nextTick, watch, type Ref } from 'vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useEntityPickerSession } from '@/composables/entity/useEntityPickerSession'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
+import {
+  buildEntityInputGroups,
+  inferSuggestDeviceClassFromPlaceholder,
+  type EntityInputGroup,
+  type EntityInputItem,
+} from '@/composables/entity/entity-input.internals'
 
-export interface EntityInputItem {
-  entity_id: string
-  name: string
-  domain: string
-  isSuggested?: boolean
-}
-
-export interface EntityInputGroup {
-  domain: string
-  items: EntityInputItem[]
-}
+export type { EntityInputItem, EntityInputGroup }
 
 interface UseEntityInputProps {
   modelValue: string
@@ -150,85 +145,18 @@ export function useEntityInput(
     q: string,
     activeSuggest: string,
   ): EntityInputGroup[] {
-    const groups = new Map<string, EntityInputItem[]>()
-    for (const { key, e } of entries) {
-      if (!e) continue
-      const dom = getEntityDomain(key)
-      if (hasDomainFilter.value && !filterDomainSet.value.has(dom)) continue
-      if (selectedDomain.value && dom !== selectedDomain.value) continue
-      const name = getEntityDisplayName(key, e).toLowerCase()
-      const eid = key.toLowerCase()
-      const rawDeviceClass = e.attributes?.device_class
-      const deviceClass =
-        typeof rawDeviceClass === 'string' ? rawDeviceClass.toLowerCase() : undefined
-      const isSuggested = !!(activeSuggest && deviceClass === activeSuggest)
-      if (!q || eid.includes(q) || name.includes(q)) {
-        if (!groups.has(dom)) groups.set(dom, [])
-        groups.get(dom)!.push({
-          entity_id: key,
-          name: getEntityDisplayName(key, e),
-          domain: dom,
-          isSuggested,
-        })
-      }
-    }
-    const result: EntityInputGroup[] = []
-    for (const [domain, items] of groups) {
-      items.sort((a, b) => {
-        if (a.isSuggested && !b.isSuggested) return -1
-        if (!a.isSuggested && b.isSuggested) return 1
-        return a.name.localeCompare(b.name)
-      })
-      result.push({ domain, items })
-    }
-    result.sort((a, b) => a.domain.localeCompare(b.domain))
-    return result
+    return buildEntityInputGroups({
+      entries,
+      query: q,
+      activeSuggest,
+      selectedDomain: selectedDomain.value,
+      filterDomainSet: hasDomainFilter.value ? filterDomainSet.value : null,
+    })
   }
 
   const autoSuggestDeviceClass = computed(() => {
     if (props.suggestDeviceClass) return props.suggestDeviceClass
-
-    const hint = (props.placeholder || '').toLowerCase()
-
-    if (hint.includes('temperature') || hint.includes('_temp') || hint.includes('温度'))
-      return 'temperature'
-    if (hint.includes('humidity') || hint.includes('湿度')) return 'humidity'
-    if (hint.includes('pm25') || hint.includes('pm2.5') || hint.includes('空气质量')) return 'pm25'
-    if (hint.includes('co2') || hint.includes('carbon_dioxide') || hint.includes('二氧化碳'))
-      return 'carbon_dioxide'
-    if (hint.includes('battery') || hint.includes('电池')) return 'battery'
-    if (
-      hint.includes('power') ||
-      hint.includes('energy') ||
-      hint.includes('功率') ||
-      hint.includes('能耗')
-    )
-      return 'power'
-    if (hint.includes('voltage') || hint.includes('电压')) return 'voltage'
-    if (hint.includes('current') || hint.includes('电流')) return 'current'
-    if (
-      hint.includes('presence') ||
-      hint.includes('mmwave') ||
-      hint.includes('occupancy') ||
-      hint.includes('存在') ||
-      hint.includes('人体')
-    )
-      return 'occupancy'
-    if (hint.includes('motion') || hint.includes('运动')) return 'motion'
-    if (hint.includes('lock') || hint.includes('door') || hint.includes('门锁')) return 'door'
-    if (hint.includes('window') || hint.includes('窗户')) return 'window'
-    if (hint.includes('smoke') || hint.includes('烟雾')) return 'smoke'
-    if (hint.includes('carbon_monoxide') || hint.includes('co') || hint.includes('一氧化碳'))
-      return 'carbon_monoxide'
-    if (
-      hint.includes('water') ||
-      hint.includes('leak') ||
-      hint.includes('漏水') ||
-      hint.includes('水浸')
-    )
-      return 'moisture'
-
-    return ''
+    return inferSuggestDeviceClassFromPlaceholder(props.placeholder || '')
   })
 
   function selectFilterDomain(dom: string) {

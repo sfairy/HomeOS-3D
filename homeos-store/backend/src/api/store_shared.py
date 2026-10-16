@@ -102,8 +102,12 @@ def _set_session_cookies(
     )
 def _clear_session_cookies(request: Request, response: Response) -> None:
     settings: StoreSettings = request.app.state.settings
-    response.delete_cookie(settings.cookie_name, path="/")
-    response.delete_cookie(settings.hint_cookie_name, path="/")
+    # 必须与写入时的 Secure/SameSite 一致，否则 HTTPS 下浏览器会拒绝删除 Secure Cookie。
+    secure = secure_cookies_required(request)
+    response.delete_cookie(settings.cookie_name, path="/", secure=secure, samesite="lax")
+    response.delete_cookie(
+        settings.hint_cookie_name, path="/", secure=secure, samesite="lax"
+    )
 def _create_session(session, request: Request, account: Account) -> str:
     token = new_token(32)
     settings: StoreSettings = request.app.state.settings

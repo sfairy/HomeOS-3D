@@ -31,6 +31,8 @@ logger = logging.getLogger("homeos.notification.dispatch")
 
 #: 外部通道（邮件 / 企微 / webpush）最大投递尝试次数（含首次）
 _EXTERNAL_MAX_ATTEMPTS = 3
+#: 需要**外部投递**的通道（站内 / socket 不算）：只有它们才能决定 delivered_at。
+_EXTERNAL_CHANNELS = ("email", "webpush", "wecom")
 
 _ID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -197,39 +199,61 @@ class NotificationDispatchHelper:
             return
 
         async def _deliver_with_retry() -> None:
-            last_error: Exception | None = None
+            # 只把**在通道列表里的外部通道**当作待投递目标：纯站内 / socket 通知没有任何
+            # 外部通道可投，绝不能标记 delivered_at（旧实现会，且照样广播 delivered 事件）。
+            pending = [channel for channel in _EXTERNAL_CHANNELS if channel in channels]
+            if not pending:
+                return
+            delivered: set[str] = set()
+            failed: list[str] = []
             for attempt in range(1, _EXTERNAL_MAX_ATTEMPTS + 1):
                 try:
-                    result = sender(channels, message, title)
+                    result = sender(pending, message, title)
                     if inspect.isawaitable(result):
-                        await result
+                        result = await result
                 except Exception as exc:
-                    last_error = exc
-                    if attempt < _EXTERNAL_MAX_ATTEMPTS:
-                        await asyncio.sleep(min(2 ** (attempt - 1), 8))
-                    continue
-                await asyncio.to_thread(self._mark_delivered, notification_id)
+                    logger.debug("外部通道投递异常: %s", exc)
+                    result = None
+                outcomes = result if isinstance(result, dict) else {}
+                delivered |= {
+                    channel for channel in pending if outcomes.get(channel) == "ok"
+                }
+                # 结果里没出现的通道（发送器抛异常、或旧实现无返回）按失败处理，
+                # 避免「通道凭空消失」被当成成功。
+                failed = [
+                    channel
+                    for channel in pending
+                    if outcomes.get(channel) not in {"ok", "skipped"}
+                ]
+                if not failed:
+                    break
+                # 只重试失败的通道：成功的通道再投一次会造成重复邮件 / 重复企微消息。
+                pending = list(failed)
+                if attempt < _EXTERNAL_MAX_ATTEMPTS:
+                    await asyncio.sleep(min(2 ** (attempt - 1), 8))
+
+            if failed:
                 try:
                     await self._event_bus.emit(
-                        "notification.delivered",
-                        {"id": notification_id, "channels": channels},
+                        "notification.deliveryFailed",
+                        {"id": notification_id, "channels": failed},
                     )
                 except Exception as exc:
-                    logger.debug("广播投递成功事件失败: %s", exc)
+                    logger.debug("广播投递失败事件失败: %s", exc)
+                logger.warning("外部通道投递失败，未标记已投递：%s", failed)
                 return
-            # 外部通道（邮件/企微/webpush）全部重试失败：留下未投递记录并广播，便于排查
-            logger.error("发送外部通知失败(已重试 %s 次): %s", _EXTERNAL_MAX_ATTEMPTS, last_error)
+            if not delivered:
+                # 所有外部通道都未启用/未就绪：既没送达也不算失败。
+                logger.warning("外部通道均未启用或未就绪，通知未标记为已投递")
+                return
+            await asyncio.to_thread(self._mark_delivered, notification_id)
             try:
                 await self._event_bus.emit(
-                    "notification.deliveryFailed",
-                    {
-                        "id": notification_id,
-                        "channels": channels,
-                        "error": str(last_error) if last_error else "unknown",
-                    },
+                    "notification.delivered",
+                    {"id": notification_id, "channels": sorted(delivered)},
                 )
             except Exception as exc:
-                logger.debug("广播投递失败事件失败: %s", exc)
+                logger.debug("广播投递成功事件失败: %s", exc)
 
         spawn_background(_deliver_with_retry())
 

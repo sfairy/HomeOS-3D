@@ -1,6 +1,5 @@
 /** KPI 指标卡 + 点击下钻过滤。 */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type ToRefs, unref } from 'vue'
-import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 import type { ECharts, ECElementEvent, EChartsCoreOption } from 'echarts'
 import { observeChartResize } from '@/shared/utils/ui/chart-resize.util'
 import {
@@ -13,6 +12,13 @@ import {
   type NotificationAnalyticsSummary,
   type NotificationStatsPayload,
 } from '@/shared/notifications/utils/analytics.util'
+import {
+  buildNotificationsLevelOption,
+  buildNotificationsRankOption,
+  buildNotificationsReadOption,
+  buildNotificationsSourceOption,
+  buildNotificationsTimeOption,
+} from '@/features/notifications/composables/notifications-analytics-charts.internals'
 
 /** 5 张图表的 key：来源 / 级别 / 排行 / 时段 / 已读 */
 type ChartKey = 'source' | 'level' | 'rank' | 'time' | 'read'
@@ -142,234 +148,20 @@ export function useNotificationsViewAnalytics(
     ]
   })
 
-  // 图表基础 option：动画 + 透明背景
-  const chartBase = { ...getKioskAnimationOptions(), backgroundColor: 'transparent' }
-  // 图表 tooltip 样式：粉色调暗色玻璃拟态
-  const chartTooltip = {
-    backgroundColor: 'rgba(12, 12, 18, 0.94)',
-    borderColor: 'rgba(244, 114, 182, 0.32)',
-    borderWidth: 1,
-    padding: [8, 12],
-    extraCssText:
-      'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
-    textStyle: { color: '#fbcfe8', fontSize: 12, fontWeight: 600 },
-  }
-  // 坐标轴 / 分割线样式
-  const axisLineStyle = { lineStyle: { color: 'rgba(255,255,255,0.07)' } }
-  const splitLineStyle = { lineStyle: { color: 'rgba(255,255,255,0.05)', type: 'dashed' } }
-
-  /** 生成柱状图垂直渐变（顶部不透明，底部半透明）。 */
-  function barGradient(color: string) {
-    return {
-      type: 'linear',
-      x: 0,
-      y: 0,
-      x2: 0,
-      y2: 1,
-      colorStops: [
-        { offset: 0, color },
-        { offset: 1, color: `${color}66` },
-      ],
-    }
-  }
-
-  /** 计算 y 轴最大值：取最大值与 1 的较大者，避免 0 数据时空轴。 */
-  function yMax(values: number[]) {
-    return Math.max(...values, 0, 1)
-  }
-
-  /** 构建时段折线图 option（小时分布，颜色：粉 #f472b6）。 */
   function buildTimeOption(): EChartsCoreOption {
-    const buckets = timeBuckets.value
-    const counts = buckets.map((b) => b.count)
-    return {
-      ...chartBase,
-      grid: { left: 36, right: 12, top: 16, bottom: buckets.length > 8 ? 36 : 24 },
-      xAxis: {
-        type: 'category',
-        data: buckets.map((b) => b.label),
-        axisLine: axisLineStyle,
-        axisTick: { show: false },
-        axisLabel: {
-          color: 'rgba(255,255,255,0.58)',
-          fontSize: 9,
-          interval: buckets.length > 12 ? Math.floor(buckets.length / 8) : 0,
-          rotate: buckets.length > 10 ? 32 : 0,
-        },
-      },
-      yAxis: {
-        type: 'value',
-        min: 0,
-        max: yMax(counts),
-        minInterval: 1,
-        axisLine: { show: false },
-        splitLine: splitLineStyle,
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
-      series: [
-        {
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          data: counts,
-          lineStyle: { width: 2.5, color: '#f472b6' },
-          itemStyle: { color: '#f472b6', borderColor: '#fb7185', borderWidth: 1 },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(244, 114, 182, 0.35)' },
-                { offset: 1, color: 'rgba(244, 114, 182, 0.02)' },
-              ],
-            },
-          },
-        },
-      ],
-      tooltip: { ...chartTooltip, trigger: 'axis' },
-    }
+    return buildNotificationsTimeOption(timeBuckets.value)
   }
-
-  /** 构建已读率环形饼图 option（已读绿色 / 未读粉色）。 */
   function buildReadOption(): EChartsCoreOption {
-    const s = summary.value
-    const data = [
-      { name: '已读', value: s.read, itemStyle: { color: '#34d399' } },
-      { name: '未读', value: s.unread, itemStyle: { color: '#f472b6' } },
-    ]
-    return {
-      ...chartBase,
-      tooltip: { ...chartTooltip, trigger: 'item' },
-      series: [
-        {
-          type: 'pie',
-          radius: ['46%', '72%'],
-          center: ['50%', '54%'],
-          label: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 600 },
-          itemStyle: { borderRadius: 4, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
-          data: s.total ? data : [{ name: '暂无', value: 1, itemStyle: { color: '#64748b' } }],
-        },
-      ],
-    }
+    return buildNotificationsReadOption(summary.value)
   }
-
-  /** 构建来源环形饼图 option（按 bucket 颜色，过滤 count=0 项）。 */
   function buildSourceOption(): EChartsCoreOption {
-    const buckets = sourceBuckets.value.filter((b) => b.count > 0)
-    const data = buckets.length
-      ? buckets.map((b) => ({
-          name: b.label,
-          value: b.count,
-          key: b.key,
-          itemStyle: { color: b.color },
-        }))
-      : [{ name: '暂无', value: 1, key: '', itemStyle: { color: '#64748b' } }]
-    return {
-      ...chartBase,
-      tooltip: { ...chartTooltip, trigger: 'item' },
-      series: [
-        {
-          type: 'pie',
-          radius: ['42%', '68%'],
-          center: ['50%', '54%'],
-          label: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 600 },
-          itemStyle: { borderRadius: 4, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
-          data,
-        },
-      ],
-    }
+    return buildNotificationsSourceOption(sourceBuckets.value)
   }
-
-  /** 构建级别柱状图 option（按 level 颜色渐变）。 */
   function buildLevelOption(): EChartsCoreOption {
-    const buckets = levelBuckets.value
-    const labels = buckets.length ? buckets.map((b) => b.label) : ['暂无']
-    const values = buckets.length ? buckets.map((b) => b.count) : [0]
-    return {
-      ...chartBase,
-      grid: { left: 36, right: 12, top: 16, bottom: buckets.length > 4 ? 36 : 24 },
-      xAxis: {
-        type: 'category',
-        data: labels,
-        axisLine: axisLineStyle,
-        axisTick: { show: false },
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
-      yAxis: {
-        type: 'value',
-        min: 0,
-        max: yMax(values),
-        minInterval: 1,
-        axisLine: { show: false },
-        splitLine: splitLineStyle,
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
-      series: [
-        {
-          type: 'bar',
-          data: values.map((value, i) => ({
-            value,
-            level: buckets[i]?.level,
-            itemStyle: {
-              color: barGradient(buckets[i]?.color || '#f472b6'),
-              borderRadius: [6, 6, 0, 0],
-            },
-          })),
-          barWidth: 18,
-        },
-      ],
-      tooltip: { ...chartTooltip, trigger: 'axis' },
-    }
+    return buildNotificationsLevelOption(levelBuckets.value)
   }
-
-  /** 构建来源排行横向柱状图 option（取前 8）。 */
   function buildRankOption(): EChartsCoreOption {
-    const buckets = sourceBuckets.value.slice(0, 8)
-    const labels = buckets.length ? buckets.map((b) => b.label.slice(0, 8)) : ['暂无']
-    const values = buckets.length ? buckets.map((b) => b.count) : [0]
-    return {
-      ...chartBase,
-      grid: {
-        left: 56,
-        right: 16,
-        top: 8,
-        bottom: 8,
-        outerBoundsMode: 'same',
-        outerBoundsContain: 'axisLabel',
-      },
-      xAxis: {
-        type: 'value',
-        min: 0,
-        max: yMax(values),
-        splitLine: splitLineStyle,
-        axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
-      },
-      yAxis: {
-        type: 'category',
-        data: labels,
-        axisLine: { show: false },
-        axisLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
-      },
-      series: [
-        {
-          type: 'bar',
-          data: values.map((value, i) => ({
-            value,
-            key: buckets[i]?.key,
-            itemStyle: {
-              color: barGradient(buckets[i]?.color || '#f472b6'),
-              borderRadius: [0, 6, 6, 0],
-            },
-          })),
-          barWidth: 10,
-        },
-      ],
-      tooltip: { ...chartTooltip, trigger: 'axis' },
-    }
+    return buildNotificationsRankOption(sourceBuckets.value)
   }
 
   /**

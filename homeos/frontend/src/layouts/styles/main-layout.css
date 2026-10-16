@@ -59,13 +59,6 @@
 /* 浮动组件覆盖层（.afh-root）：挂在 .main-content 内，由自身 CSS 做 absolute inset:0，
    坐标基准即内容区，与 .shell-right-sidebar / .shell-footer 互不重叠。 */
 
-/* `.route-transition-root` 的规则**已删除**：本文件是 `<style scoped>`（MainLayout.vue），
-   选择器会被编译成 `.route-transition-root[data-v-f8213c75]`，而带这个类的元素是
-   App.vue 模板里的路由壳 `<div class="route-transition-root">`——它不属于 MainLayout，
-   永远拿不到这个 scope 属性，于是这里原先那份 `flex:1 / min-height:0 / display:flex`
-   从未生效（构建产物里可复核：`shared-*.css` 中该选择器带 `[data-v-f8213c75]`）。
-   路由壳的真正定义在**非 scoped** 的 assets/styles/route-transitions.css 里。
-   若将来确实需要给路由壳补 flex 语义，请改那个全局文件，不要在这里恢复本规则。 */
 
 /* .teleport-target 样式见 scaled-viewport.css（#teleport-target 与 .teleport-target 共用） */
 

@@ -5,6 +5,7 @@ import { ref } from "vue";
 import QRCode from "qrcode";
 import { api } from "@store/shared/api/http";
 import { errorMessage, type StoreOrder } from "@store/shared/types/store";
+import { retryAfterSeconds, withRetryHint } from "@store/shared/api/error";
 import { createEpochGuard } from "@store/features/storefront/utils/async-guard";
 import { logAndIgnore } from "@store/shared/utils/best-effort";
 import { useSessionStore } from "@store/shared/stores/session";
@@ -90,6 +91,11 @@ export const useOrderStore = defineStore("order", () => {
   let countdownTimer: number | null = null;
   let pendingTimer: number | null = null;
   /**
+   * 连续查询失败次数：用于「失败很多次但仍一声不吭」的场景给一次非阻塞提示。
+   * 只在拿到一次成功响应时归零。
+   */
+  let pollFailures = 0;
+  /**
    * 轮询世代守卫：开始/关闭一次支付会话时换代。
    * 在途的订单查询响应会带上取号时的世代，世代不一致说明弹窗已关闭或已换单，
    * 该响应必须整体丢弃——否则会出现「用户已关闭支付弹窗，仍在途的轮询把订单写回
@@ -131,6 +137,7 @@ export const useOrderStore = defineStore("order", () => {
     paymentOpen.value = true;
 
     stopPolling();
+    pollFailures = 0;
     const epoch = pollGuard.begin();
     const updateCountdown = () => {
       const remaining = orderRemainingSeconds(currentOrder.value?.expiresAt || order.expiresAt);
@@ -188,6 +195,7 @@ export const useOrderStore = defineStore("order", () => {
       })) as StoreOrder;
       // 响应到达时若支付会话已结束（用户关闭弹窗 / 换单），整体丢弃本次结果
       if (!pollGuard.isCurrent(startEpoch)) return false;
+      pollFailures = 0;
       let label = STATUS_LABELS[order.status || ""] || order.statusLabel || order.status || "";
       if (order.status === "paid" && order.fulfillmentMode === "manual") {
         label = "支付成功，等待管理员发卡";
@@ -214,7 +222,17 @@ export const useOrderStore = defineStore("order", () => {
         if (order.status === "expired") toast.show("订单已超时关闭，库存和优惠码已释放。", "err");
       }
       return true;
-    } catch {
+    } catch (error) {
+      // 网络抖动 / 429 / 5xx 不再静默吞掉：否则用户明明已付款，弹窗却一直停在
+      // 「等待支付」，看不出是查询失败。提示只给一次，轮询照旧继续。
+      if (!pollGuard.isCurrent(startEpoch)) return false;
+      pollFailures += 1;
+      if (pollFailures === 3) {
+        toast.show(
+          withRetryHint("暂时查不到支付状态，将自动重试。", retryAfterSeconds(error)),
+          "err",
+        );
+      }
       return false;
     }
   }
@@ -227,14 +245,33 @@ export const useOrderStore = defineStore("order", () => {
       const remaining = orderRemainingSeconds(order.expiresAt);
       if (remaining > 0) return;
       stopPendingCountdown();
-      void api(`/orders/${encodeURIComponent(order.orderNo || "")}`)
-        .catch(logAndIgnore("PendingOrderDialog 关闭后的订单复查"))
-        .finally(() => {
-          pendingOpen.value = false;
-          pendingOrder.value = null;
+      void (async () => {
+        let latest: StoreOrder | null = null;
+        try {
+          latest = (await api(
+            `/orders/${encodeURIComponent(order.orderNo || "")}`,
+          )) as StoreOrder;
+        } catch (error) {
+          logAndIgnore("PendingOrderDialog 关闭后的订单复查")(error);
+        }
+        pendingOpen.value = false;
+        pendingOrder.value = null;
+        // 倒计时归零只说明「本地到点」，订单到底怎么收场必须看服务端状态：
+        // 支付回调可能刚好在这一刻把它结清，一律喊「已自动关闭」会误导用户重新下单。
+        if (!latest) {
+          // 状态未知（查询失败）：不谎报结论，下次进入页面时会重新查询。
+          return;
+        }
+        const status = latest.status || "";
+        if (status === "fulfilled") {
+          toast.show("订单已完成，请到账号中心查看激活码。");
+        } else if (status === "paid") {
+          toast.show("订单已支付，正在处理，请到账号中心查看进度。");
+        } else if (["expired", "cancelled", "payment_failed"].includes(status)) {
           toast.show("原订单已自动关闭，现在可以重新下单。");
-          void session.load().catch(logAndIgnore("订单关闭后刷新账号数据"));
-        });
+        }
+        void session.load().catch(logAndIgnore("订单关闭后刷新账号数据"));
+      })();
     };
     update();
     pendingTimer = window.setInterval(update, 1000);

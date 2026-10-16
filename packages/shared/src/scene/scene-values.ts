@@ -2,9 +2,11 @@
  * 入户页场景壳的**取值面**：两个前端（主应用 / 授权商店）共用同一套字段名与取值规则。
  *
  * 页面字典仍留在各自域内（主应用 `src/components/common/scene-values.ts`、商店
- * `src/components/scene-values.ts`）—— 文案是各域的内容，不该塞进共享包；这里单点化的
- * 是 `SceneStage.vue`（本包 `components/`）与那两份字典之间的**契约**：字段名一旦两边
- * 不一致，某个前端左栏就会整块空掉，而类型检查发现不了（两个字典各自自洽）。
+ * `frontend/src/shared/components/scene-values.ts`）—— 文案是各域的内容，不该塞进共享包；
+ * 这里单点化的是 `SceneStage.vue`（本包 `components/`）与那两份字典之间的**契约**：字段名
+ * 一旦两边不一致，某个前端左栏就会整块空掉，而类型检查发现不了（两个字典各自自洽）。
+ *
+ * 场景 CSS / 字体真源见同包 ``scene/static/``（`bun run sync:scene` 同步到两端 `public/`）。
  */
 
 /** 所有页面共享的壳信息：只在品牌层面变化的字段。 */

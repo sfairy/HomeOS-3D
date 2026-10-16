@@ -152,10 +152,18 @@ def _overview_funnel(session: Session) -> list[dict]:
 
 
 def _overview_referral(session: Session) -> tuple[dict, int]:
-    """返利概览：钱包总量与待提现单数（``(referral, 待提现单数)``）。"""
+    """返利概览：钱包总量与待提现单数（``(referral, 待提现单数)``）。
+
+    待提现一律用**总额**（``points_centi``）汇总，与 ``frozen_centi`` 同口径：冻结额就是
+    按总额累加的，所以 ``frozenPoints == pendingWithdrawalPoints`` 是应当成立、可用来
+    对账的不变量。用净额汇总会直接破坏它，让「提现中积分」与「待提现积分」同一屏里
+    对不上。手续费与实际到账额各自单列，需要时仍能拿到。
+    """
     pending_withdrawal_rows = session.execute(
         select(
             func.count(ReferralWithdrawal.id),
+            func.coalesce(func.sum(ReferralWithdrawal.points_centi), 0),
+            func.coalesce(func.sum(ReferralWithdrawal.fee_points_centi), 0),
             func.coalesce(func.sum(ReferralWithdrawal.net_points_centi), 0),
         ).where(ReferralWithdrawal.status == "pending")
     ).one()
@@ -174,7 +182,10 @@ def _overview_referral(session: Session) -> tuple[dict, int]:
         "availablePoints": money.format_centi(
             int(wallet_row[1] or 0) - int(wallet_row[2] or 0)
         ),
+        # 与 frozenPoints 同口径（总额），两者应当相等。
         "pendingWithdrawalPoints": money.format_centi(pending_withdrawal_rows[1] or 0),
+        "pendingWithdrawalFeePoints": money.format_centi(pending_withdrawal_rows[2] or 0),
+        "pendingWithdrawalNetPoints": money.format_centi(pending_withdrawal_rows[3] or 0),
     }
     return referral, pending_withdrawals
 

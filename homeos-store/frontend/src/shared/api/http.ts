@@ -2,7 +2,7 @@
 
 import { fromResponse } from "@store/shared/api/error";
 
-export type HttpOptions = RequestInit & { raw?: boolean };
+type HttpOptions = RequestInit & { raw?: boolean };
 
 /** 后台 401/403 时触发，由 AdminLayout 监听并回到登录屏。 */
 type AuthListener = () => void;

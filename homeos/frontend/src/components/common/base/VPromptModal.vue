@@ -34,10 +34,10 @@
               :id="inputId"
               ref="inputRef"
               v-model="inputValue"
-              type="text"
+              :type="chrome.activePrompt.password ? 'password' : 'text'"
               class="hos-modal-input"
               :placeholder="chrome.activePrompt.placeholder"
-              autocomplete="off"
+              :autocomplete="chrome.activePrompt.password ? 'current-password' : 'off'"
               @keydown.enter.prevent="submit"
             />
             <!-- 校验错误提示 -->

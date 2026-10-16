@@ -12,14 +12,12 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from urllib.parse import urlparse
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..integration.crypto import CredentialCipher, CredentialCipherError
 from ..integration.endpoints import ENDPOINT_EXTERNAL
-from ....config import environment_is_production
 from ....platform.core.models import HAConnection
 
 
@@ -40,44 +38,6 @@ def normalize_ha_url(raw: str) -> str:
     if host_ip and host_ip != "host.docker.internal" and "host.docker.internal" in ha_url:
         ha_url = ha_url.replace("host.docker.internal", host_ip)
     return ha_url
-
-
-def is_localhost_ha_url(url: str) -> bool:
-    """判断 HA URL 是否指向本机回环地址（容器内不可达宿主机 HA）。"""
-    try:
-        host = urlparse(url.strip()).hostname or ""
-    except ValueError:
-        return False
-    host = host.lower().strip("[]")
-    return host in ("localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1")
-
-
-def validate_ha_url_for_deploy(url: str, allow_localhost: bool = False) -> str | None:
-    """校验 HA URL 是否可用于部署环境；返回错误描述，通过则返回 None。"""
-    trimmed = (url or "").strip()
-    if not trimmed:
-        return "HA 地址不能为空"
-    parsed = urlparse(trimmed)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        return "HA 地址须以 http:// 或 https:// 开头"
-    if not allow_localhost and is_localhost_ha_url(trimmed):
-        return "HA 地址不能使用 localhost 或 127.0.0.1（Docker/远程部署请使用宿主机 LAN IP 或 host.docker.internal）"
-    return None
-
-
-def allow_ha_localhost() -> bool:
-    """本机（非容器）运行允许 localhost；容器内 / 生产环境不允许。"""
-    from pathlib import Path
-
-    try:
-        return not Path("/.dockerenv").exists()
-    except OSError:
-        return not environment_is_production()
-
-
-def describe_ha_url_for_deploy_error(url: str) -> str | None:
-    """诊断型接口（连通性探测）使用的非抛异常校验。"""
-    return validate_ha_url_for_deploy(url, allow_localhost=allow_ha_localhost())
 
 
 def _decrypted_connection_token(session: Session, cipher: CredentialCipher) -> str | None:
@@ -164,3 +124,28 @@ def load_active_ha_endpoints(session: Session, *, cipher: CredentialCipher | Non
     if fallback == primary:
         fallback = ''
     return HaEndpoints(ha_url_primary=primary, ha_url_fallback=fallback, token=endpoints.token)
+
+
+def ha_connection_configured(session: Session) -> bool:
+    """是否**配过** HA 连接：活跃连接记录（地址 + 令牌齐备），或引导环境变量 ``HA_URL``/``HA_TOKEN``。
+
+    与 :func:`load_ha_endpoints` 的 ``bool(ha_url_primary and token)`` 同口径，但**不要求
+    令牌能解密**：令牌解不开本身就是「配好了却连不上」，同样该让用户知道，不能被判成
+    「未配置」而永远静默。
+
+    用途：区分「中枢本来连着、现在断了」（要告警）与「压根没配 HA 的环境」（连不上是
+    预期状态，反复告警只会变成噪音）。
+    """
+    try:
+        record = session.scalars(
+            select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
+        ).first()
+    except Exception:
+        record = None
+    if record is not None:
+        has_url = bool(
+            normalize_ha_url(record.base_url or '') or normalize_ha_url(record.external_base_url or '')
+        )
+        if has_url and (record.encrypted_access_token or os.getenv("HA_TOKEN", "").strip()):
+            return True
+    return bool(os.getenv("HA_URL", "").strip() and os.getenv("HA_TOKEN", "").strip())

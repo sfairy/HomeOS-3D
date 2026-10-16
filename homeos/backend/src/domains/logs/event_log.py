@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -78,6 +79,11 @@ class EventLogService(EventLogReportMixin):
         self._flush_timer: asyncio.TimerHandle | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._dropped_events = 0
+        #: 批量写入与「清空全部」串行化用的跨线程锁（两者都跑在工作线程里）。
+        self._write_lock = threading.Lock()
+        #: 清空世代。写批次提交前比对世代，若期间发生过清空就丢弃该批 —— 否则一个在
+        #: 清空之前抓取的批次会在删除之后提交，把刚清掉的记录重新写回去。
+        self._clear_epoch = 0
         self._ops: dict[str, Any] = dict(DEFAULT_OPS)
         self._load_ops()
 
@@ -128,8 +134,8 @@ class EventLogService(EventLogReportMixin):
         return clamp_event_log_query_hours(hours, self.get_retention_days(), fallback)
 
     # 写入流水线
-    def handle_state_change_batch(self, payload: Any) -> None:
-        changes = self._extract_changes(payload)
+    def handle_state_change_batch(self, batch: Any) -> None:
+        changes = self._extract_changes(batch)
         if not changes:
             return
         record_filter = build_record_filter(self._ops)
@@ -182,13 +188,13 @@ class EventLogService(EventLogReportMixin):
         self._schedule_flush()
 
     @staticmethod
-    def _extract_changes(payload: Any) -> list[dict[str, Any]]:
-        if not payload:
+    def _extract_changes(batch: Any) -> list[dict[str, Any]]:
+        if not batch:
             return []
-        if isinstance(payload, list):
-            return [e for e in payload if isinstance(e, dict)]
-        if isinstance(payload, dict):
-            changes = payload.get("changes")
+        if isinstance(batch, list):
+            return [e for e in batch if isinstance(e, dict)]
+        if isinstance(batch, dict):
+            changes = batch.get("changes")
             return [e for e in changes if isinstance(e, dict)] if isinstance(changes, list) else []
         return []
 
@@ -237,9 +243,11 @@ class EventLogService(EventLogReportMixin):
         if not self._buffer:
             return
         batch = self._buffer
+        # 抓取世代：若提交前发生过「清空全部」，这一批就已经过时，必须丢弃。
+        epoch = self._clear_epoch
         self._buffer = []
         try:
-            await asyncio.to_thread(self._write_batch, batch)
+            await asyncio.to_thread(self._write_batch, batch, epoch)
         except Exception as error:
             max_requeue = int(self._ops.get("eventLogMaxRequeueBuffer") or 500)
             room = max(0, max_requeue - len(self._buffer))
@@ -251,20 +259,26 @@ class EventLogService(EventLogReportMixin):
                 self._dropped_events += len(batch)
                 logger.error("事件日志批量写入失败且缓冲区满: %s", error)
 
-    def _write_batch(self, batch: list[dict[str, Any]]) -> None:
-        with self._database.session_factory() as session:
-            for row in batch:
-                session.add(
-                    EventLog(
-                        entity_id=row["entity_id"],
-                        domain=get_entity_domain(row["entity_id"]) or "",
-                        old_state=None if row["old_state"] is None else json.dumps(row["old_state"], ensure_ascii=False),
-                        new_state=None if row["new_state"] is None else json.dumps(row["new_state"], ensure_ascii=False),
-                        state_diff=row["state_diff"],
-                        created_at=_naive_utc(row["created_at"]),
+    def _write_batch(self, batch: list[dict[str, Any]], epoch: int) -> None:
+        with self._write_lock:
+            # 世代比对与提交必须在同一把锁内：否则「比对通过 → 清空删除 → 本批提交」
+            # 仍会把过时的记录写回一个刚被清空的库，而接口已经报过 complete。
+            if epoch != self._clear_epoch:
+                logger.info("清空事件日志期间丢弃过时批次 %s 条", len(batch))
+                return
+            with self._database.session_factory() as session:
+                for row in batch:
+                    session.add(
+                        EventLog(
+                            entity_id=row["entity_id"],
+                            domain=get_entity_domain(row["entity_id"]) or "",
+                            old_state=None if row["old_state"] is None else json.dumps(row["old_state"], ensure_ascii=False),
+                            new_state=None if row["new_state"] is None else json.dumps(row["new_state"], ensure_ascii=False),
+                            state_diff=row["state_diff"],
+                            created_at=_naive_utc(row["created_at"]),
+                        )
                     )
-                )
-            session.commit()
+                session.commit()
         self._apply_energy_side_effects(batch)
 
     def _apply_energy_side_effects(self, batch: list[dict[str, Any]]) -> None:
@@ -509,27 +523,36 @@ class EventLogService(EventLogReportMixin):
         触顶时库里仍有记录，而旧实现只返回条数 —— 界面会按「已清空」提示用户，
         实际却还剩一大截，且没有任何地方能察觉。触顶与否用一次 `LIMIT 1` 探针判定，
         比 `count(*)` 便宜得多。
+
+        删除与批量写入共用 ``_write_lock`` 并借 ``_clear_epoch`` 作废在途批次：否则一个
+        在清空之前抓取的批次会在删除**之后**提交，把刚清掉的记录重新写回去，而这里已经
+        返回了 ``complete=True``。
         """
         batch_size = int(self._ops.get("retentionDeleteBatchSize") or 800)
         deleted = 0
         complete = True
-        with self._database.session_factory() as session:
-            for _ in range(CLEAR_ALL_MAX_BATCHES):
-                ids = [
-                    row[0]
-                    for row in session.execute(
-                        select(EventLog.id).order_by(EventLog.id.asc()).limit(batch_size)
-                    ).all()
-                ]
-                if not ids:
-                    break
-                result = session.execute(delete(EventLog).where(EventLog.id.in_(ids)))
-                deleted += int(result.rowcount or 0)
-                session.commit()
-                if len(ids) < batch_size:
-                    break
-            else:
-                complete = session.execute(select(EventLog.id).limit(1)).first() is None
+        # 与 _write_batch 共用一把锁：进入临界区先递增世代（让在途批次作废），再删除。
+        # 这样无论谁先拿到锁，结果都一致 —— 先写的批次会被随后的删除清掉，后到的过时
+        # 批次会因世代不符而丢弃，不会出现「报已清空、记录又回来」。
+        with self._write_lock:
+            self._clear_epoch += 1
+            with self._database.session_factory() as session:
+                for _ in range(CLEAR_ALL_MAX_BATCHES):
+                    ids = [
+                        row[0]
+                        for row in session.execute(
+                            select(EventLog.id).order_by(EventLog.id.asc()).limit(batch_size)
+                        ).all()
+                    ]
+                    if not ids:
+                        break
+                    result = session.execute(delete(EventLog).where(EventLog.id.in_(ids)))
+                    deleted += int(result.rowcount or 0)
+                    session.commit()
+                    if len(ids) < batch_size:
+                        break
+                else:
+                    complete = session.execute(select(EventLog.id).limit(1)).first() is None
         if not complete:
             logger.warning(
                 "清空事件日志触顶：%s 批 × %s 行，仍有记录未删除（需再执行一次或交由保留策略清理）",

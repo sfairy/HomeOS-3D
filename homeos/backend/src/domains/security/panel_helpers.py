@@ -186,7 +186,13 @@ class SecurityPanelStateHelper:
             len(self._state["getZones"]()),
         )
 
-    def persist_panel_state(self) -> None:
+    def persist_panel_state(self) -> bool:
+        """把当前模式/区域/布防时刻写进运行时 KV，返回是否写入成功。
+
+        返回布尔值而不是静默吞掉异常：写失败时模式只存在于内存里，重启后会被
+        ``load_persisted_state`` 恢复成旧模式 —— 那正是「界面显示已布防、重启后其实没布防」
+        这种「虚假安全感」的来源。调用方据此把失败如实报给客户端。
+        """
         payload = {
             "mode": self._state["getMode"](),
             "zones": self._state["getZones"](),
@@ -195,7 +201,12 @@ class SecurityPanelStateHelper:
         try:
             persist_runtime_kv(self._session_factory, PANEL_RUNTIME_KEY, payload)
         except Exception as exc:
-            logger.warning("安防面板状态写入失败: %s", exc)
+            logger.error(
+                "安防面板状态写入失败（模式只存在于内存，重启后会回退到上一次成功落库的状态）: %s",
+                exc,
+            )
+            return False
+        return True
 
     def schedule_security_event(
         self,

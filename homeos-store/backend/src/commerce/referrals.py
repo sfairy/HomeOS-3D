@@ -184,6 +184,37 @@ def _apply_wallet_delta(
     return int(wallet.balance_centi or 0), int(wallet.frozen_centi or 0)
 
 
+def _write_ledger_entry(
+    session: Session,
+    wallet: ReferralWallet,
+    *,
+    kind: str,
+    delta_centi: int,
+    frozen_delta_centi: int,
+    balance_after_centi: int,
+    frozen_after_centi: int,
+    note: str = "",
+    reference: str | None = None,
+    order_id: str | None = None,
+) -> ReferralLedger:
+    """写一条流水行（**不动钱包**）。调用方负责保证 delta 与 after 值自洽。"""
+    entry = ReferralLedger(
+        wallet_id=wallet.id,
+        account_id=wallet.account_id,
+        kind=kind,
+        delta_centi=int(delta_centi),
+        frozen_delta_centi=int(frozen_delta_centi),
+        balance_after_centi=int(balance_after_centi),
+        frozen_after_centi=int(frozen_after_centi),
+        note=note,
+        reference=reference,
+        order_id=order_id,
+    )
+    session.add(entry)
+    session.flush()
+    return entry
+
+
 def ledger_entry(
     session: Session,
     wallet: ReferralWallet,
@@ -211,21 +242,48 @@ def ledger_entry(
         min_balance_centi=min_balance_centi,
         min_frozen_centi=min_frozen_centi,
     )
-    entry = ReferralLedger(
-        wallet_id=wallet.id,
-        account_id=wallet.account_id,
+    return _write_ledger_entry(
+        session,
+        wallet,
         kind=kind,
-        delta_centi=int(delta_centi),
-        frozen_delta_centi=int(frozen_delta_centi),
+        delta_centi=delta_centi,
+        frozen_delta_centi=frozen_delta_centi,
         balance_after_centi=balance,
         frozen_after_centi=frozen,
         note=note,
         reference=reference,
         order_id=order_id,
     )
-    session.add(entry)
-    session.flush()
-    return entry
+
+
+def record_applied_freeze(
+    session: Session,
+    wallet: ReferralWallet,
+    *,
+    frozen_delta_centi: int,
+    kind: str = "freeze",
+    note: str = "",
+    reference: str | None = None,
+) -> ReferralLedger:
+    """补写一条「冻结已由带条件 UPDATE 原子落库」的流水（**不再重复应用**增量）。
+
+    提现冻结先占额度（一条带条件的 UPDATE 把可用余额锁住）再补流水，因此这里必须
+    如实记录那次已经发生的增量：``ledger_entry`` 走的是「应用增量」路径，直接用它会让
+    钱包被冻两次，而完全不传 delta 又会写出自相矛盾的行 —— ``frozen_delta_centi`` 为 0
+    但 ``frozen_after_centi`` 已经跳升，于是 ``sum(frozen_delta_centi)`` 永远对不上余额链，
+    对账的人会去追一个并不存在的漂移。
+    """
+    return _write_ledger_entry(
+        session,
+        wallet,
+        kind=kind,
+        delta_centi=0,
+        frozen_delta_centi=int(frozen_delta_centi),
+        balance_after_centi=int(wallet.balance_centi or 0),
+        frozen_after_centi=int(wallet.frozen_centi or 0),
+        note=note,
+        reference=reference,
+    )
 
 
 def reward_points_for(order: Order, rate_percent: float) -> int:
@@ -379,10 +437,10 @@ def create_withdrawal(
     session.flush()
 
     session.refresh(wallet)
-    ledger_entry(
+    record_applied_freeze(
         session,
         wallet,
-        kind="freeze",
+        frozen_delta_centi=points_centi,
         note="提现申请冻结",
         reference=withdrawal.id,
     )
@@ -430,6 +488,10 @@ def resolve_withdrawal(
             note=note or "提现完成",
             reference=withdrawal.id,
             min_balance_centi=0,
+            # 冻结额同样不得变成负数：人工调账（admin adjust）可能已经把这份申请的冻结
+            # 解掉，此时无条件扣减会写出负的 frozen_centi，而 available = balance - frozen
+            # 随之被夸大，用户能就同一笔已付出去的钱再次提现。
+            min_frozen_centi=0,
         )
     else:
         ledger_entry(
@@ -439,6 +501,7 @@ def resolve_withdrawal(
             frozen_delta_centi=-points_centi,
             note=note or "提现未通过，积分退回",
             reference=withdrawal.id,
+            min_frozen_centi=0,
         )
 
     session.refresh(withdrawal)

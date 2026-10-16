@@ -14,7 +14,9 @@ from typing import Any
 
 from fastapi import Body, Depends, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
 
+from .backup_guard import verify_admin_password
 from .router import NestRouter
 from ..domains.backup.business_backup import BackupError, refresh_runtime_after_restore
 from ..platform.core.errors import BusinessException
@@ -24,12 +26,30 @@ from ..platform.security.request_origin import require_same_origin_write
 router = NestRouter(prefix="/system/backup", tags=["system"])
 
 
+class RestoreServerBackupRequest(BaseModel):
+    """服务器快照还原请求。
+
+    ``adminPassword`` 是**强制**的：这条路由会用备份包整体覆盖数据库（含账号与授权），
+    与业务备份恢复同样不可撤销。只有 ``confirm`` 不足以证明此刻是本人操作 —— 一条被窃取
+    的会话 Cookie 就能完成清库。旧实现正是如此：只校验 ``confirm``。
+    """
+
+    name: str = Field(default="", max_length=255)
+    confirm: bool = False
+    adminPassword: str = Field(default="", max_length=128)
+
+
 def _server(request: Request):
     return request.app.state.server_backup
 
 
 def _auto(request: Request):
     return request.app.state.auto_backup
+
+
+def _gate(request: Request):
+    """备份协调器（维护标记 / 串行锁）；未装配时返回 None。"""
+    return getattr(request.app.state, "business_backup", None)
 
 
 # 自动备份状态
@@ -45,7 +65,9 @@ async def auto_backup_status(
 async def create_server_backup(
     request: Request, user: dict[str, Any] = Depends(require_user)
 ):
-    return await asyncio.to_thread(_server(request).create_backup)
+    gate = _gate(request)
+    runner = gate.run_exclusive if gate is not None else asyncio.to_thread
+    return await runner(_server(request).create_backup)
 
 
 @router.get("/files")
@@ -82,12 +104,11 @@ async def delete_server_backup_file(
 @router.post("/files/restore")
 async def restore_server_backup_file(
     request: Request,
-    body: dict[str, Any] = Body(default_factory=dict),
+    payload: RestoreServerBackupRequest = Body(default_factory=RestoreServerBackupRequest),
     user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
-    payload = body or {}
-    gate = getattr(request.app.state, "business_backup", None)
+    gate = _gate(request)
     if gate is not None and gate.recovery_required:
         return JSONResponse(
             status_code=503,
@@ -98,14 +119,20 @@ async def restore_server_backup_file(
             status_code=503,
             content={"detail": "正在恢复业务数据，请稍候…"},
         )
+    # 覆盖数据库前重验当前管理员密码（含失败限流）：与 /backups/restore 同一道门，
+    # 且必须在置 maintenance 之前完成，否则密码校验期间的并发请求会被误判为"正在恢复"。
+    password_error = verify_admin_password(request, user, payload.adminPassword)
+    if password_error is not None:
+        return password_error
     database = getattr(request.app.state, "database", None)
     if gate is not None:
         gate.maintenance = True
     try:
-        result = await asyncio.to_thread(
+        runner = gate.run_exclusive if gate is not None else asyncio.to_thread
+        result = await runner(
             _server(request).restore_file,
-            str(payload.get("name") or ""),
-            {"confirm": payload.get("confirm") is True},
+            str(payload.name or ""),
+            {"confirm": payload.confirm is True},
             dispose=(database.engine.dispose if database is not None else None),
         )
     except BackupError as error:

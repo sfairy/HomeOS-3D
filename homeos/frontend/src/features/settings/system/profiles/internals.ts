@@ -184,7 +184,7 @@ function useProfilesServerBackups() {
     }
   }
 
-  async function restoreBackupFile(name: string) {
+  async function restoreBackupFile(name: string, adminPassword: string) {
     const ok = await chrome.confirm(
       `确定从「${name}」还原全量备份？将用备份中的数据库、账号、授权与素材整体覆盖当前数据，无法撤销。建议先另存一份当前备份。`,
       '全量还原',
@@ -194,7 +194,7 @@ function useProfilesServerBackups() {
     backupFileActionName.value = name
     backupFileActionKind.value = 'restore'
     try {
-      await restoreServerBackupFile({ name, confirm: true })
+      await restoreServerBackupFile({ name, confirm: true, adminPassword })
       chrome.notify('全量数据已还原，正在重新加载…', 'success', 5000)
       // 整库（含账号）已被替换，当前会话可能失效：整页重载回到干净状态
       window.setTimeout(() => window.location.reload(), 800)

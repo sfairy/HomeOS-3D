@@ -2,22 +2,24 @@
  * @file layout-floating.internals.ts
  * @module frontend/src/views
  */
+/** 浮动组件编辑 */
+/**
+ * @file layout-floating.internals.ts
+ * @module frontend/src/views
+ */
 /** composables：浮动小组件与浮动面板展示 */
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
 import { clampPct } from '@/shared/utils/core/misc.util'
 export { clampPct }
-import { mirrorSecurityPanelZonesToLayout } from '@/shared/security/utils/panel-layout.util'
-import { FLOATING_HUB_DEFAULT_TAB, getFloatingHubTabOptions } from '@/shared/utils/registry/floating-hub-tab-options'
-import { cloneHubTabsDraft, getHubTabSet, hasConfigurableTabs, serializeHubTabsConfig } from '@/shared/utils/registry/hub-tabs-options'
-import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import { FLOATING_HUB_TYPE_SET, FLOATING_HUB_WIDTH_MAP, getFloatingCatalogGroups, getWidgetCategoryLabelForType, getWidgetIcon, getWidgetName } from '@/shared/utils/registry/widget-catalog'
-import { Code } from '@lucide/vue'
+import { FLOATING_HUB_DEFAULT_TAB } from '@/shared/utils/registry/floating-hub-tab-options'
+import { cloneHubTabsDraft, hasConfigurableTabs, serializeHubTabsConfig } from '@/shared/utils/registry/hub-tabs-options'
+import { FLOATING_HUB_WIDTH_MAP, getWidgetName } from '@/shared/utils/registry/widget-catalog'
 import type { Ref } from 'vue'
 import { computed, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { confirmRemoveWidget, useWidgetEditorState } from './layout-dashboard.internals'
+import { useWidgetEditorState } from './layout-dashboard.internals'
+import { useFloatingAfhActions } from '@/features/settings/composables/display/layout-floating-afh-actions.internals'
 
 // ── useFloatingWidgets ──
 /** 浮动组件 安防区域配置项 */
@@ -32,7 +34,6 @@ interface AfhZone {
 export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
-  const router = useRouter()
   const { editId: afhEditId, toggleEdit, closeEdit } = useWidgetEditorState()
 
   const showAddFloating = ref(false)
@@ -271,125 +272,22 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     closeEdit()
   }
 
-  function addSecurityZone() {
-    afhConfig.zones.push({
-      id: `zone-${Date.now()}`,
-      name: '',
-      zoneType: 'all',
-      sensors: [],
-      roomId: '',
-    })
-  }
+  const {
+    addSecurityZone,
+    saveAfhConfig,
+    removeFloatingWidgetById,
+    getAfhIcon,
+    isValidFloatingType,
+    goSecurityModes,
+  } = useFloatingAfhActions({
+    floatingWidgets,
+    afhEditId,
+    afhConfig,
+    afhHubTabs,
+    afhEditSnapshot,
+    closeEdit,
+  })
 
-  function saveAfhConfig() {
-    void saveAfhConfigAsync()
-  }
-
-  async function saveAfhConfigAsync() {
-    if (!afhEditId.value) return
-    const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
-    const widgetType = widget?.type || ''
-    const { normalizeZonesForApi } = await import('@/shared/security/utils/zones-api.util')
-    const zonesForSave = normalizeZonesForApi(
-      (afhConfig.zones || []).map((z) => ({
-        id: z.id,
-        name: z.name,
-        zoneType: z.zoneType,
-        sensors: (Array.isArray(z.sensors) ? z.sensors : []).map(String),
-        roomId: z.roomId,
-      })),
-    )
-    const nextConfig: Record<string, unknown> = {
-      ...(widget?.config || {}),
-      entityId: afhConfig.entityId,
-      title: afhConfig.title,
-      width: afhConfig.width,
-      height: afhConfig.height,
-      theme: afhConfig.theme,
-      showIcon: afhConfig.showIcon,
-      showZones: afhConfig.showZones,
-      rawHtml: afhConfig.rawHtml,
-      zones: zonesForSave,
-      sensorIds: afhConfig.sensorIds || '',
-      playerEntities: afhConfig.playerEntities || '',
-    }
-    if (widgetType === 'entity') {
-      nextConfig.customColorsEnabled = afhConfig.customColorsEnabled === true
-      nextConfig.customColorAccent = String(afhConfig.customColorAccent || '').trim()
-      nextConfig.customColorLabel = String(afhConfig.customColorLabel || '').trim()
-      nextConfig.customColorValue = String(afhConfig.customColorValue || '').trim()
-      if (!nextConfig.customColorsEnabled) {
-        delete nextConfig.customColorAccent
-        delete nextConfig.customColorLabel
-        delete nextConfig.customColorValue
-      }
-    }
-    if (hasConfigurableTabs(widgetType)) {
-      const tabFields = serializeHubTabsConfig(afhHubTabs, widgetType)
-      Object.assign(nextConfig, tabFields)
-      if (!('visibleTabs' in tabFields)) delete nextConfig.visibleTabs
-    }
-    layoutStore.updateFloatingWidget(afhEditId.value, {
-      config: nextConfig,
-    })
-    afhEditSnapshot.value = null
-    closeEdit()
-
-    if (widgetType === 'securityPanel') {
-      if (zonesForSave.length) {
-        mirrorSecurityPanelZonesToLayout(layoutStore, zonesForSave)
-      }
-      if (!zonesForSave.length) {
-        chrome.notify(
-          '浮动组件已更新；未配置区域时不会覆盖后端已有区域，请点击侧边栏「保存全部」持久化',
-          'info',
-        )
-        return
-      }
-      const { postSecurityZonesSafe } = await import('@/shared/security/utils/zones-api.util')
-      const result = await postSecurityZonesSafe(zonesForSave)
-      if (result.ok) {
-        chrome.notify(
-          '浮动组件与安防区域已同步到后端，请点击侧边栏「保存全部」持久化布局',
-          'success',
-        )
-        return
-      }
-      if (result.unauthorized) {
-        // 全局 401 拦截器会提示并跳转登录，避免重复 toast
-        return
-      }
-      chrome.notify(`布局已更新，但区域同步失败：${result.error}`, 'warning')
-      return
-    }
-
-    chrome.notify('浮动组件配置已更新，请点击侧边栏「保存全部」持久化', 'info')
-  }
-
-  async function removeFloatingWidgetById(id: string) {
-    const fw = floatingWidgets.value.find((w) => w.id === id)
-    const title = fw?.config?.title || fw?.type || '组件'
-    const ok = await confirmRemoveWidget(chrome, {
-      message: `确定删除浮动组件「${title}」？`,
-      title: '删除组件',
-      confirmOptions: { confirmText: '删除', type: 'danger' },
-    })
-    if (!ok) return
-    layoutStore.removeFloatingWidget(id)
-    if (afhEditId.value === id) closeEdit()
-  }
-
-  function getAfhIcon(type: string) {
-    return getWidgetIcon(type) || Code
-  }
-
-  function isValidFloatingType(type: string) {
-    return FLOATING_HUB_TYPE_SET.has(type)
-  }
-
-  function goSecurityModes() {
-    router.push(SETTINGS_ROUTES.securityModes())
-  }
 
   watch(
     () => layoutStore.layoutDirty,
@@ -421,65 +319,11 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
   }
 }
 
-// ── useFloatingPanelDisplay ──
-export { AFH_THEME_DEFS as AFH_THEMES } from '@/shared/entity/utils/floating-entity-colors.util'
 
-const ENTITY_FLOAT_TYPES = ['entity', 'temp', 'humidity', 'battery', 'power']
-
-export function isEntityFloatType(type: string) {
-  return ENTITY_FLOAT_TYPES.includes(type)
-}
-
-export function hubTabOptions(type: string) {
-  return getHubTabSet(type) || getFloatingHubTabOptions(type)
-}
-
-export function formatPct(value: unknown) {
-  const n = clampPct(value)
-  return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`
-}
-
-/** 浮动组件类型 → 视觉色调（卡片、标签、编辑态环境色） */
-const AFH_TYPE_TONE_MAP: Record<string, string> = {
-  entity: 'sky',
-  weather: 'sky',
-  securityPanel: 'rose',
-  mediaMini: 'pink',
-}
-
-export function getAfhTypeTone(type: string) {
-  return AFH_TYPE_TONE_MAP[type] || 'indigo'
-}
-
-/** 浮动组件 · 功能域类别（与添加菜单分组一致） */
-export function getFloatingCategoryLabel(type: string) {
-  return getWidgetCategoryLabelForType(type)
-}
-
-interface FloatingPanelDisplayOptions {
-  /** 布局仓库（调用方仍传入以保持签名一致；本展示派生函数不直接读取） */
-  layoutStore: ReturnType<typeof useLayoutStore>
-  afhEditId: Ref<string | null>
-}
-
-export function useFloatingPanelDisplay({
-  afhEditId,
-}: FloatingPanelDisplayOptions) {
-  const openSection = ref('layout')
-
-  const floatingCatalogGroups = computed(() => getFloatingCatalogGroups())
-
-  watch(afhEditId, (id) => {
-    if (id) openSection.value = 'layout'
-  })
-
-  function toggleFloatingVisible(fw: { visible?: boolean }) {
-    fw.visible = fw.visible === false ? true : false
-  }
-
-  return {
-    openSection,
-    floatingCatalogGroups,
-    toggleFloatingVisible,
-  }
-}
+export { AFH_THEMES } from '@/features/settings/composables/display/layout-floating-display.internals'
+export { isEntityFloatType } from '@/features/settings/composables/display/layout-floating-display.internals'
+export { hubTabOptions } from '@/features/settings/composables/display/layout-floating-display.internals'
+export { formatPct } from '@/features/settings/composables/display/layout-floating-display.internals'
+export { getAfhTypeTone } from '@/features/settings/composables/display/layout-floating-display.internals'
+export { getFloatingCategoryLabel } from '@/features/settings/composables/display/layout-floating-display.internals'
+export { useFloatingPanelDisplay } from '@/features/settings/composables/display/layout-floating-display.internals'

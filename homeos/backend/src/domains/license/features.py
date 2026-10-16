@@ -1,31 +1,20 @@
-"""功能码（能力码）的唯一登记处。
+"""功能码（能力码）的主应用判定面。
 
-功能码是授权租约里的「能做什么」清单：商店按商品/权益签进租约，主应用按码放行路由。
-以前这些字符串散在十个模块里（``api/assets.py``、``api/ha.py``、``app.py``、
-``modules/interaction3d/access.py`` …），后果是**同一件事有两种写法**且没人能回答
-「现在一共几个码」—— 最典型的是 ``all`` 的展开表漏了 ``module.3d_interaction``，
-于是拿 ``all`` 的客户在 UI 上看到 3D 交互是关的、后端却按 ``editor`` 放行。
-
-现在码目录的**唯一真源是仓库根的 ``ops/check/feature_codes.json``**（商店项目也从同一份
-派生），本模块只负责把它加载进来并派生判定需要的数据结构：
+码目录的**唯一真源是仓库根的 ``ops/check/feature_codes.json``**；加载与内嵌副本在
+``homeos_shared.feature_codes``（商店同一份）。本模块只负责主应用侧派生：
 
 1. ``FEATURE_*`` 各码的字面量（调用方一律引用常量，不再写字面串）；
 2. :data:`GRANTED_BY_ALL`（``all`` 覆盖哪些码）与 :data:`IMPLIED_BY`（码之间的蕴含关系）；
 3. :func:`granted`：唯一的判定实现 —— 租约 ``features`` + 未过期 ``entitlements`` →
    某个码是否可用。``LicenseService`` 与路由门禁都走它，避免再出现「两处判定、结果不同」。
-
-运行期加载：优先读磁盘 ``ops/check/feature_codes.json``（开发/测试），读不到则回退内嵌副本
-``EMBEDDED_CATALOG``（发行的加密镜像里没有 ``ops/`` 目录，见根 Dockerfile）。
-内嵌副本须与 JSON 逐字段一致（靠评审保证）。
 """
 
 from __future__ import annotations
 
-import json
-import os
 from collections.abc import Collection, Iterable, Mapping
 from datetime import UTC, datetime
-from pathlib import Path
+
+from homeos_shared.feature_codes import EMBEDDED_CATALOG, load_catalog
 
 # 功能码字面量
 #: 控制类 API（HA 代理的写操作）。
@@ -64,69 +53,6 @@ FEATURE_VOICE = "module.voice"
 FEATURE_AGENT = "module.agent"
 #: 影视媒体增量包。
 FEATURE_MEDIA = "module.media"
-
-# 目录加载（真源 ops/check/feature_codes.json，回退内嵌副本）
-#: 内嵌的能力码目录（与 ``ops/check/feature_codes.json`` 逐字段一致；见模块注释）。
-_CATALOG_JSON = """
-{
-  "version": 1,
-  "wildcard": "all",
-  "groups": [
-    { "key": "base", "label": "基础能力" },
-    { "key": "module", "label": "增量模块" }
-  ],
-  "features": [
-    { "code": "api", "label": "接口访问", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "客户端登录后读写业务数据的通用接口，其余能力码的前置条件。" },
-    { "code": "assets", "label": "素材资源", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "读取内置素材库与用户上传的图片等资源。" },
-    { "code": "editor", "label": "仪表盘编辑器", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "打开编辑器，创建与修改仪表盘布局。" },
-    { "code": "display", "label": "中控展示", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "打开正式展示页（墙屏只读总览）并读取其数据接口。" },
-    { "code": "ha.sync", "label": "Home Assistant 同步", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "同步 Home Assistant 的实体与实时状态。" },
-    { "code": "ha.configure", "label": "Home Assistant 配置", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "配置 Home Assistant 连接地址与集成参数。" },
-    { "code": "ha.control", "label": "Home Assistant 控制", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "下发灯光、开关、空调、窗帘等设备控制指令。" },
-    { "code": "projects.write", "label": "项目写入", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "新增或修改仪表盘项目数据。" },
-    { "code": "runtime.websocket", "label": "实时通道", "group": "base", "base": true, "grantedByAll": true, "impliedBy": [], "description": "建立运行时 WebSocket，推送实时状态与事件。" },
-    { "code": "module.3d_interaction", "label": "3D 交互", "group": "module", "base": false, "grantedByAll": true, "impliedBy": ["editor"], "description": "3D 交互舞台与控件增量包：灯、窗帘、空调、电视、扫地机等运行时面板。" },
-    { "code": "module.security", "label": "安防监控", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "安防监控：摄像头实时画面、报警与门铃事件面板。" },
-    { "code": "module.notifications", "label": "通知中心", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "通知中心：站内通知、推送渠道与规则管理。" },
-    { "code": "module.earthquake", "label": "地震预警", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "地震预警：接入预警数据源并推送预警事件。" },
-    { "code": "module.energy", "label": "能耗管理", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "能耗管理：电表与能源统计、费用视图。" },
-    { "code": "module.home_mode", "label": "场景模式", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "回家 / 离家等场景模式的编排与一键切换。" },
-    { "code": "module.voice", "label": "语音助手", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "语音助手：语音唤醒、识别与语音控制。" },
-    { "code": "module.agent", "label": "AI 助手", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "AI 助手：智能体对话与自动化指令编排。" },
-    { "code": "module.media", "label": "影视媒体", "group": "module", "base": false, "grantedByAll": true, "impliedBy": [], "description": "影视媒体：媒体库浏览与播放控制。" }
-  ]
-}
-"""
-
-EMBEDDED_CATALOG: dict = json.loads(_CATALOG_JSON)
-
-
-def _find_catalog_file() -> Path | None:
-    """从环境变量或逐级上溯定位 ``ops/check/feature_codes.json``；找不到返回 ``None``。"""
-    override = os.getenv("HOMEOS_FEATURE_CODES_PATH", "").strip()
-    if override:
-        candidate = Path(override)
-        if candidate.is_file():
-            return candidate
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / "ops" / "feature_codes.json"
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def load_catalog() -> dict:
-    """读取能力码目录：优先磁盘真源，缺失/损坏时回退内嵌副本。"""
-    path = _find_catalog_file()
-    if path is not None:
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            data = None
-        if isinstance(data, dict) and data.get("features"):
-            return data
-    return EMBEDDED_CATALOG
-
 
 CATALOG: dict = load_catalog()
 
@@ -230,6 +156,25 @@ def active_entitlement_codes(entitlements: object, *, now: datetime) -> set[str]
     return codes
 
 
+def declared_entitlement_codes(entitlements: object) -> set[str]:
+    """租约 ``entitlements`` 里**声明过**的码（不看是否落在有效窗口内）。
+
+    用来区分「快照永久授予」与「随权益到期失效」：同一个码同时出现在 ``features`` 与
+    ``entitlements`` 时以后者声明的有效期为准。否则商店把限时增量包同时写进两者后，
+    客户端只会在下一次续租（可能几小时后）才丢掉它 —— 租约有效期内会一直放行。
+    """
+    if not isinstance(entitlements, list):
+        return set()
+    codes: set[str] = set()
+    for item in entitlements:
+        if not isinstance(item, Mapping):
+            continue
+        code = item.get("code")
+        if isinstance(code, str) and code:
+            codes.add(code)
+    return codes
+
+
 def granted(
     features: Collection[str],
     entitlements: object,
@@ -243,10 +188,10 @@ def granted(
     的展开式。两边都过 :func:`expand`，这样「有 ``editor`` 就等于有 3D 交互」在权益路径上
     同样成立，不必让每个调用点再补一次 ``or``。
 
-    ``LicenseService`` 与路由门禁都必须走这里，否则「租约说开了、路由器说没开」这类
-    矛盾又会从别处长出来。
+    例外：某个码一旦在 ``entitlements`` 里声明过（说明商店是按**限时权益**卖它的），
+    就不再由 ``features`` 永久放行 —— 否则限时增量包会因快照而「越权」，直到下次续租。
     """
-    if feature in expand(features):
+    if feature in expand(features) and feature not in declared_entitlement_codes(entitlements):
         return True
     return feature in expand(active_entitlement_codes(entitlements, now=now))
 
@@ -286,6 +231,7 @@ __all__ = [
     "MODULE_FEATURES",
     "WILDCARD",
     "active_entitlement_codes",
+    "declared_entitlement_codes",
     "expand",
     "granted",
     "load_catalog",

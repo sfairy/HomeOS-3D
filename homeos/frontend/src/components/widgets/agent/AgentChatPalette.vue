@@ -208,9 +208,10 @@ async function send(raw?: string) {
   scrollLogToBottom()
   try {
     const res = await agentChat(message, history, sessionId.value)
-    const reply =
-      res.reply ||
-      (res.outcome === 'success' ? '已执行' : res.outcome === 'blocked' ? '该指令未被执行。' : '无回复')
+    let fallbackReply = '无回复'
+    if (res.outcome === 'success') fallbackReply = '已执行'
+    else if (res.outcome === 'blocked') fallbackReply = '该指令未被执行。'
+    const reply = res.reply || fallbackReply
     messages.value.push({
       role: 'assistant',
       text: reply,

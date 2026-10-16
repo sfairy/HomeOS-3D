@@ -575,6 +575,7 @@ def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) -> Non
         app.state.database.session_factory,
         app_config,
         event_bus=startup.security_bus,
+        ui_assets_root=app_settings.ui_assets_dir,
     )
     ui_config._static_assets.ensure_dirs()
     # 一次性清理已下线的 layout.wholeHomeOff.roles，避免等用户再次保存才删除。
@@ -610,13 +611,14 @@ def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) -> Non
 
     # 备份与还原：统一全量备份（含数据库）/ 服务器备份文件 / 定时自动备份
     server_backup = ServerBackupService(app_settings)
-    auto_backup = AutoBackupService(app_config, server_backup)
+    # 协调器先于自动备份作业构造：定时作业要能与手动恢复互斥（维护期跳过 + 共用一把锁）。
+    business_backup = BackupCoordinator(app)
+    auto_backup = AutoBackupService(app_config, server_backup, business_backup)
     app.state.server_backup = server_backup
     app.state.auto_backup = auto_backup
     auto_backup.start()
     startup.auto_backup = auto_backup
 
-    business_backup = BackupCoordinator(app)
     business_backup.cleanup_startup()
     if startup.recovery_required:
         business_backup.recovery_required = True
@@ -697,7 +699,7 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
         # 走统一事件总线：本进程分发（WS fan-out）
         await security_bus.emit(name, payload)
 
-    def _set_security_mode(mode: str, source: str) -> bool:
+    async def _set_security_mode(mode: str, source: str) -> bool:
         # 家庭模式驱动安防时仍要求 ``module.security``，避免只买场景模式绕过安防门禁。
         license_service = getattr(app.state, "license_service", None)
         if license_service is not None and not license_service.allows(
@@ -706,10 +708,18 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
             return False
         panel = getattr(app.state, "security_panel", None)
         if panel is None:
-            return True
-        result = panel.set_mode(mode, source)
+            # 面板未挂载时安防动作**没有发生**：此前返回 True 会让家庭模式把「安防已切换」
+            # 记成成功，实际警报状态一动不动。宁可如实报失败（安防服务总是随启动发布，
+            # 这条分支只在安防域被裁掉时才会走到）。
+            logger.warning("家庭模式请求切换安防，但安防面板未启动：mode=%s", mode)
+            return False
+        # set_mode 是 async：旧实现 bool(coroutine) 恒为 True，安防动作从未真正执行。
+        result = await panel.set_mode(mode, source)
         if isinstance(result, dict):
-            return bool(result.get("success", False))
+            if result.get("success"):
+                return True
+            # 撤防 fail-open：联动降级时 success 可能为 False，但 mode 已提交。
+            return mode == "disarmed" and result.get("mode") == "disarmed"
         return bool(result)
 
     home_mode = HomeModeService(
@@ -873,6 +883,7 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
         cooldown_service=startup.cooldown,
         channels_service=channels_service,  # Phase 6：Email / WebPush / 企微 外部通知
         ha_areas_provider=lambda: (app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []),
+        state_store=startup.state_store,  # 设备离线告警需复查实体状态 / HA 连接
     )
     notification.bind_events()
     await notification.start()

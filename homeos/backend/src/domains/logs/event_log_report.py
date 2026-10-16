@@ -9,9 +9,32 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, TypedDict
 
 from sqlalchemy import func, or_, select
+
+
+class ParsedStateDiff(TypedDict):
+    state: str
+    oldState: str
+    attrText: str | None
+
+
+class EventHistoryRow(TypedDict):
+    id: Any
+    entityId: str
+    state: str
+    oldState: str
+    attrText: str | None
+    stateDiff: str | None
+    createdAt: str | None
+
+
+class EventLogStatsPayload(TypedDict):
+    total: int
+    byDomain: dict[str, int]
+    byTime: list[dict[str, Any]]
+    topEntities: list[dict[str, Any]]
 
 from ..client_power.energy_meter import (
     business_day_key,
@@ -30,7 +53,7 @@ BY_ENTITY_LIMIT = 20
 
 
 # stateDiff 解析（对齐 util.ts parseStateDiff / mapEventLogHistoryRow）
-def parse_state_diff(state_diff: str | None) -> dict[str, str | None]:
+def parse_state_diff(state_diff: str | None) -> ParsedStateDiff:
     if not state_diff:
         return {"state": "", "oldState": "", "attrText": None}
     if state_diff.startswith("attr:"):
@@ -51,7 +74,7 @@ def parse_state_diff(state_diff: str | None) -> dict[str, str | None]:
     return {"state": state_diff, "oldState": "", "attrText": None}
 
 
-def map_history_row(event_log: EventLog) -> dict[str, Any]:
+def map_history_row(event_log: EventLog) -> EventHistoryRow:
     parsed = parse_state_diff(event_log.state_diff)
     return {
         "id": event_log.id,
@@ -74,7 +97,7 @@ def build_event_log_stats(
     time_rows: list[tuple[str, int]],
     window_hours: int,
     now: datetime,
-) -> dict[str, Any]:
+) -> EventLogStatsPayload:
     """装配 stats 报表。``now`` 必须显式传入家庭时区的「现在」（见 :func:`_report_now`）。
 
     传参而非回落 ``datetime.now()`` 是有意的：分桶键是**家庭时区墙钟**文本，坐标轴必须

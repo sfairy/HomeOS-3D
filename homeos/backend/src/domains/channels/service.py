@@ -18,6 +18,17 @@ from ...platform.core.json_field import read_json_object
 
 logger = logging.getLogger("homeos.channels.service")
 
+
+def _webpush_outcome_state(outcome: Any) -> str:
+    """把 ``WebPushService.send_text`` 的返回归一成 ok / failed / skipped。"""
+    if isinstance(outcome, dict):
+        if int(outcome.get("attempted") or 0) <= 0:
+            return "skipped"
+        return "ok" if int(outcome.get("delivered") or 0) > 0 else "failed"
+    # 兼容无返回值的旧实现：按「未抛异常即成功」处理，但绝不能凭空当成已投递的借口
+    # （调用方只在至少一个通道为 ok 且无 failed 时才记投递成功）。
+    return "ok" if outcome is None or outcome else "failed"
+
 #: 群聊 @提及 后缀（如 ``/clear@bot`` → ``/clear``）
 _MENTION_SUFFIX_RE = re.compile(r"@[\w_]+$", re.IGNORECASE)
 
@@ -111,36 +122,59 @@ class ChannelsService:
 
     async def send_external_alert(
         self, channels: list[str], message: str, title: str | None = None
-    ) -> None:
+    ) -> dict[str, str]:
         """告警/系统通知的外部通道投递（Email / WebPush / 企业微信）。
 
         主动推送正文统一前置 ``[YYYY-MM-DD HH:mm:ss]`` 时间戳（Asia/Shanghai）。
+
+        返回**逐通道结果**：``"ok"``（真正送出）/ ``"failed"``（启用且尝试过但失败）/
+        ``"skipped"``（未启用或未配置，根本没尝试）。调用方据此判断是否算「已投递」——
+        旧实现吞掉所有异常并返回 ``None``，导致调用方把「什么都没发出去」也记成投递成功。
         """
         if not isinstance(channels, list) or not channels or not str(message or "").strip():
-            return
+            return {}
 
         from ..notification.push_time import with_push_timestamp
 
         status = await self.get_status()
         text = with_push_timestamp(message)
+        results: dict[str, str] = {}
 
-        if "email" in channels and status["email"].get("enabled") and status["email"].get("configured"):
-            try:
-                await self._email.send_text("", text, title)
-            except Exception as exc:
-                logger.error("Email 告警投递失败: %s", exc)
+        if "email" in channels:
+            if not (status["email"].get("enabled") and status["email"].get("configured")):
+                results["email"] = "skipped"
+            else:
+                try:
+                    ok = await self._email.send_text("", text, title)
+                    results["email"] = "ok" if ok else "failed"
+                except Exception as exc:
+                    logger.error("Email 告警投递失败: %s", exc)
+                    results["email"] = "failed"
 
-        if "webpush" in channels and status["webpush"].get("enabled") and status["webpush"].get("configured"):
-            try:
-                await self._webpush.send_text("", text, title)
-            except Exception as exc:
-                logger.error("WebPush 告警投递失败: %s", exc)
+        if "webpush" in channels:
+            if not (status["webpush"].get("enabled") and status["webpush"].get("configured")):
+                results["webpush"] = "skipped"
+            else:
+                try:
+                    results["webpush"] = _webpush_outcome_state(
+                        await self._webpush.send_text("", text, title)
+                    )
+                except Exception as exc:
+                    logger.error("WebPush 告警投递失败: %s", exc)
+                    results["webpush"] = "failed"
 
-        if "wecom" in channels and status["wecom"].get("enabled"):
-            try:
-                await self._wecom.send_alert_broadcast(text, title)
-            except Exception as exc:
-                logger.error("企业微信告警投递失败: %s", exc)
+        if "wecom" in channels:
+            if not status["wecom"].get("enabled"):
+                results["wecom"] = "skipped"
+            else:
+                try:
+                    ok = await self._wecom.send_alert_broadcast(text, title)
+                    results["wecom"] = "ok" if ok else "failed"
+                except Exception as exc:
+                    logger.error("企业微信告警投递失败: %s", exc)
+                    results["wecom"] = "failed"
+
+        return results
 
     # 会话历史
     def clear_session(self, session_key: str) -> None:

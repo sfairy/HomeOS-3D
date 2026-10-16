@@ -19,6 +19,7 @@ from fastapi import Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from .cookies import resolve_session_cookie_secure
 from ..core.models import LoginSession, User
 
 #: 活跃时间刷新阈值：低于此间隔不写库，避免只读请求产生写放大。
@@ -87,7 +88,15 @@ def resolve_login_session(
         record.last_seen_at = now
         record.expires_at = now + timedelta(seconds=max_age_seconds)
         session.commit()
-    return session.get(User, record.user_id)
+    user = session.get(User, record.user_id)
+    if user is None or not user.is_active:
+        # 账号已删除或已停用：会话必须立即失效。这里刻意重查 ``is_active`` —— 否则停用
+        # 只在会话自然到期后才生效，被停用的账号在到期前仍能正常访问与订阅推送。
+        # 会话吊销（吊销函数按 user_id 清库）也只对「重查状态」的解析路径有意义。
+        session.delete(record)
+        session.commit()
+        return None
+    return user
 
 
 def revoke_login_session(session: Session, token: str) -> str | None:
@@ -111,21 +120,51 @@ def clear_login_sessions(session: Session, user_id: str) -> None:
     session.execute(delete(LoginSession).where(LoginSession.user_id == user_id))
 
 
-def set_session_cookie(response: Response, settings, token: str, *, max_age_seconds: int) -> None:
+def set_session_cookie(
+    response: Response,
+    settings,
+    token: str,
+    *,
+    max_age_seconds: int,
+    request: Request | None = None,
+) -> None:
+    """写入会话 Cookie。
+
+    ``Secure`` 走 ``cookies.resolve_session_cookie_secure``（与 CSRF 同一套三态判定），
+    而不是直接吃布尔的 ``settings.cookie_secure`` —— 否则 ``COOKIE_SECURE=auto`` 在
+    HTTPS 下会写出「csrf_token 是 Secure、auth_token 不是」的错配。
+    """
+    secure = (
+        resolve_session_cookie_secure(request, settings)
+        if request is not None
+        else bool(getattr(settings, "cookie_secure", False))
+    )
     response.set_cookie(
         key=settings.cookie_name,
         value=token,
         max_age=max_age_seconds,
         expires=datetime.now(UTC) + timedelta(seconds=max_age_seconds),
         httponly=True,
-        secure=settings.cookie_secure,
+        secure=secure,
         samesite="lax",
         path="/",
     )
 
 
-def clear_session_cookie(response: Response, settings) -> None:
-    response.delete_cookie(settings.cookie_name, path="/")
+def clear_session_cookie(response: Response, settings, request: Request | None = None) -> None:
+    # 与 set_session_cookie 的 Secure/SameSite 对齐：两处必须同源解析，否则
+    # HTTPS 下写入的是 Secure Cookie、删除时声明非 Secure，属性对不上。
+    secure = (
+        resolve_session_cookie_secure(request, settings)
+        if request is not None
+        else bool(getattr(settings, "cookie_secure", False))
+    )
+    response.delete_cookie(
+        settings.cookie_name,
+        path="/",
+        secure=secure,
+        samesite="lax",
+    )
 
 
 def session_expiry(max_age_seconds: int) -> datetime:

@@ -147,7 +147,7 @@
                 type="button"
                 class="settings-btn-accent text-[12px] py-1 px-2"
                 :disabled="!!backupFileActionName"
-                @click="restoreBackupFile(file.name)"
+                @click="requestRestore(file.name)"
               >
                 <Loader2
                   v-if="backupFileActionName === file.name && backupFileActionKind === 'restore'"
@@ -197,6 +197,9 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import BackupRestoreDialog from './BackupRestoreDialog.vue'
 import { useProfilesSection } from './useProfilesSection'
+import { useChromeStore } from '@/stores/chrome.store'
+
+const chrome = useChromeStore()
 
 const {
   backupRunNowLoading,
@@ -275,6 +278,26 @@ const backupFlowSteps = computed(() => [
 const encryptedBackupDialogRef = ref(null)
 function openEncryptedBackupDialog() {
   encryptedBackupDialogRef.value?.open?.()
+}
+
+/**
+ * 还原服务器快照前先收当前管理员密码。
+ * 该操作会用备份包整体覆盖数据库（含账号与授权），后端强制校验此密码，
+ * 不能沿用只需点「确定」的确认框——那证明不了此刻是本人操作。
+ */
+async function requestRestore(name) {
+  if (backupFileActionName.value) return
+  const password = await chrome.prompt('', {
+    title: '全量还原',
+    label: '当前管理员密码',
+    placeholder: '输入当前安装的登录密码',
+    confirmText: '下一步',
+    password: true,
+    required: true,
+    requiredMessage: '请输入当前管理员密码',
+  })
+  if (!password) return
+  await restoreBackupFile(name, password)
 }
 </script>
 

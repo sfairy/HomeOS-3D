@@ -4,7 +4,7 @@
  */
 
 /** 灯光能力相关 attributes key（REST 刷新时只 pick 这些字段） */
-export const LIGHT_CAPABILITY_ATTR_KEYS = [
+const LIGHT_CAPABILITY_ATTR_KEYS = [
   'supported_color_modes',
   'min_color_temp_kelvin',
   'max_color_temp_kelvin',

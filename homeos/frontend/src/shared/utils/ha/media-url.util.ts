@@ -8,7 +8,7 @@ type HaProxyKind = 'media' | 'stream'
  * 浏览器侧 HA 媒体一律走 HomeOS 同源代理。
  * 直连 HA（尤其前面还有 nginx/:80）时 camera_proxy_stream 常 502；后端用长期 Token 拉取更稳。
  */
-export function needsHaMediaProxy(resourceUrl: string): boolean {
+function needsHaMediaProxy(resourceUrl: string): boolean {
   return typeof window !== 'undefined' && Boolean(resourceUrl)
 }
 
@@ -33,7 +33,7 @@ function buildHaProxyUrl(haPath: string, _kind: HaProxyKind = 'media'): string {
  * @param haPath HA 相对路径（自动补前导斜杠）
  * @returns 形如 `<haUrl><haPath>` 的绝对地址
  */
-export function buildHaAbsoluteUrl(haUrl: string, haPath: string): string {
+function buildHaAbsoluteUrl(haUrl: string, haPath: string): string {
   const path = haPath.startsWith('/') ? haPath : `/${haPath}`
   return `${normalizeHaUrl(haUrl)}${path}`
 }
@@ -63,7 +63,7 @@ function extractHaPathFromAbsolute(haUrl: string, absolute: string): string | nu
  * @param kind 代理类型（走代理时使用）
  * @returns 可直接加载的资源 URL；入参为空时返回空串
  */
-export function resolveHaResourceUrl(
+function resolveHaResourceUrl(
   haUrl: string | null | undefined,
   haPath: string,
   kind: HaProxyKind = 'media',

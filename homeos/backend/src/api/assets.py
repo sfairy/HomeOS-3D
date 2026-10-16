@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+import time
 import warnings
 from pathlib import Path
 from threading import RLock
@@ -72,6 +73,9 @@ NORMALIZE_UPLOAD_SUFFIXES = {
     '.heif'}
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
+#: 内置素材目录的重扫间隔（秒）：部署方在运行期增删 ``built_in_assets_dir`` 里的文件
+#: 后，无需重启即可在 ``catalogVersion`` 变化后生效（旧实现只加载一次、永不失效）。
+BUILTIN_REFRESH_TTL_SECONDS = 60.0
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
@@ -112,7 +116,7 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
     stat = path.stat()
     mtime_ns = stat.st_mtime_ns
     version = f'{mtime_ns:x}-{stat.st_size:x}'
-    payload = {
+    body = {
         'assetId': f'user:{asset_id}',
         'name': path.name,
         'relativePath': f'{asset_id}/{path.name}',
@@ -122,8 +126,8 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
         'version': version,
         'url': f'/api/v1/assets/user/{asset_id}' }
     if dimensions:
-        (payload['width'], payload['height']) = dimensions
-    return payload
+        (body['width'], body['height']) = dimensions
+    return body
 
 
 def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_root: Path) -> tuple[dict, Path] | None:
@@ -196,10 +200,10 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     finally:
         if temporary_metadata_path.exists():
             temporary_metadata_path.unlink()
-    payload = {
+    body = {
         'url': f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}',
         **metadata }
-    return (payload, variant_path)
+    return (body, variant_path)
 
 def studio3d_export_metadata(folder: Path) -> tuple[dict[str, str], dict[str, int]]:
     manifest_path = folder / 'lights.json'
@@ -231,7 +235,7 @@ def studio3d_export_payload(folder_name: str, path: Path, role: str = '', export
     stat = path.stat()
     mtime_ns = stat.st_mtime_ns
     version = f'{mtime_ns:x}-{stat.st_size:x}'
-    payload = {
+    body = {
         'assetId': f'studio3d:{folder_name}/{path.name}',
         'name': path.name,
         'relativePath': f'exports/{folder_name}/{path.name}',
@@ -241,13 +245,13 @@ def studio3d_export_payload(folder_name: str, path: Path, role: str = '', export
         'version': version,
         'url': f'/api/v1/assets/studio3d-export/{quote(folder_name, safe = "")}/{quote(path.name, safe = "")}' }
     if role:
-        payload['exportRole'] = role
+        body['exportRole'] = role
     if export_order is not None:
-        payload['exportOrder'] = export_order
-    return payload
+        body['exportOrder'] = export_order
+    return body
 
-def user_asset_sort_key(item: dict) -> tuple[str, int, int, str]:
-    name = str(item.get('name', ''))
+def user_asset_sort_key(asset: dict) -> tuple[str, int, int, str]:
+    name = str(asset.get('name', ''))
     base_name = Path(name).stem
     studio3d_role_order = {
         'television': 0,
@@ -267,11 +271,11 @@ def user_asset_sort_key(item: dict) -> tuple[str, int, int, str]:
         fallback_role = 'background-with-plan'
     else:
         fallback_role = ''
-    role = str(item.get('exportRole') or fallback_role)
-    priority = studio3d_role_order.get(role, 5) if item.get('source') == 'studio3d-export' else 5
-    export_order = item.get('exportOrder')
+    role = str(asset.get('exportRole') or fallback_role)
+    priority = studio3d_role_order.get(role, 5) if asset.get('source') == 'studio3d-export' else 5
+    export_order = asset.get('exportOrder')
     user_order = export_order if isinstance(export_order, int) else 1000000
-    return (str(item.get('folder', '')).casefold(), priority, user_order, name.casefold())
+    return (str(asset.get('folder', '')).casefold(), priority, user_order, name.casefold())
 
 def studio3d_export_file(root: Path, folder_name: str, filename: str) -> Path | None:
     if not folder_name or folder_name in {'.', '..'} or Path(folder_name).name != folder_name or folder_name.startswith('.') or not filename or filename in {'.', '..'} or Path(filename).name != filename or filename.startswith('.') or Path(filename).suffix.lower() not in {'.png', '.webp'}:
@@ -439,6 +443,8 @@ class AssetCatalog:
         self.effect_variants_root = effect_variants_root.resolve() if effect_variants_root else self.user_root.parent / 'cache' / 'effect-variants'
         self.mutation_lock = RLock()
         self._builtin_loaded = False
+        self._builtin_loaded_at = 0.0
+        self._builtin_fingerprint: tuple[tuple[str, str], ...] | None = None
         self._user_loaded = False
         self._builtin_items = { }
         self._builtin_paths = { }
@@ -447,22 +453,30 @@ class AssetCatalog:
         self._builtin_revision = uuid4().hex
         self._user_revision = uuid4().hex
 
-    def _attach_effect_variant(self, payload: dict, path: Path) -> None:
+    def _attach_effect_variant(self, body: dict, path: Path) -> None:
         try:
-            generated = effect_variant_payload(path, str(payload['assetId']), str(payload['version']), self.effect_variants_root)
+            generated = effect_variant_payload(path, str(body['assetId']), str(body['version']), self.effect_variants_root)
         except OSError:
             return
         if generated is None:
             return
         (metadata, variant_path) = generated
-        payload['effectVariant'] = metadata
-        self._effect_variant_paths[str(payload['assetId'])] = variant_path
+        body['effectVariant'] = metadata
+        self._effect_variant_paths[str(body['assetId'])] = variant_path
         return
 
     def _load_builtin(self) -> None:
         with self.mutation_lock:
-            if self._builtin_loaded:
+            now = time.monotonic()
+            if self._builtin_loaded and (now - self._builtin_loaded_at) < BUILTIN_REFRESH_TTL_SECONDS:
                 return
+            # 重扫前清空：内置目录可能被部署方增删文件（配置注释里明确支持），旧实现
+            # 用一次性 latch，于是新增的图永远不出现、删掉的文件依旧解析得到
+            # （FileResponse 命中不存在的路径直接 500 而不是 404）。
+            self._builtin_items.clear()
+            self._builtin_paths.clear()
+            for stale in [key for key in self._effect_variant_paths if key.startswith('builtin:')]:
+                self._effect_variant_paths.pop(stale, None)
             for path in self.built_in_root.rglob('*'):
                 if not path.is_file() or path.name.startswith('.') or path.suffix.lower() not in SUPPORTED_IMAGE_SUFFIXES:
                     continue
@@ -477,7 +491,7 @@ class AssetCatalog:
                 mtime_ns = stat.st_mtime_ns
                 version = f'{mtime_ns:x}-{stat.st_size:x}'
                 asset_id = f'builtin:{relative_path}'
-                payload = {
+                body = {
                     'assetId': asset_id,
                     'name': path.name,
                     'relativePath': relative_path,
@@ -485,11 +499,29 @@ class AssetCatalog:
                     'source': 'builtin',
                     'version': version,
                     'url': '/assets/builtin/' + '/'.join(relative_path.split('/')) }
-                self._attach_effect_variant(payload, resolved)
-                self._builtin_items[asset_id] = payload
+                self._attach_effect_variant(body, resolved)
+                self._builtin_items[asset_id] = body
                 self._builtin_paths[relative_path] = resolved
             self._builtin_loaded = True
+            self._builtin_loaded_at = now
+            # 只在内容真的变了才换 revision：否则客户端每 TTL 周期都会白白重拉一次目录。
+            fingerprint = tuple(
+                sorted(
+                    (str(body['relativePath']), str(body['version']))
+                    for body in self._builtin_items.values()
+                )
+            )
+            if fingerprint != self._builtin_fingerprint:
+                self._builtin_fingerprint = fingerprint
+                self._builtin_revision = uuid4().hex
             return
+
+    def reload_builtin(self) -> None:
+        """强制重扫内置素材目录（业务恢复后 / 部署方增删文件后）。"""
+        with self.mutation_lock:
+            self._builtin_loaded = False
+            self._builtin_loaded_at = 0.0
+        self._load_builtin()
 
     def _load_user(self) -> None:
         with self.mutation_lock:
@@ -500,9 +532,9 @@ class AssetCatalog:
                 if path is None:
                     continue
                 try:
-                    payload = user_asset_payload(self.user_root, directory.name, path)
-                    self._attach_effect_variant(payload, path)
-                    self._user_items[f'user:{directory.name}'] = payload
+                    body = user_asset_payload(self.user_root, directory.name, path)
+                    self._attach_effect_variant(body, path)
+                    self._user_items[f'user:{directory.name}'] = body
                 except OSError:
                     continue
             if self.studio3d_exports_root and self.studio3d_exports_root.is_dir():
@@ -514,11 +546,11 @@ class AssetCatalog:
                         if not path.is_file() or path.name.startswith('.') or path.suffix.lower() not in {'.png', '.webp'}:
                             continue
                         try:
-                            payload = studio3d_export_payload(folder.name, path, export_roles.get(path.name, ''), export_order.get(path.name))
+                            body = studio3d_export_payload(folder.name, path, export_roles.get(path.name, ''), export_order.get(path.name))
                         except OSError:
                             continue
-                        self._attach_effect_variant(payload, path)
-                        self._user_items[payload['assetId']] = payload
+                        self._attach_effect_variant(body, path)
+                        self._user_items[body['assetId']] = body
             self._user_loaded = True
 
     def versions(self) -> dict[str, str]:
@@ -562,9 +594,17 @@ class AssetCatalog:
 
     def builtin_path(self, relative_path: str) -> Path | None:
         """把目录内的内置相对路径映射到其文件；不存在时为 None。"""
+        key = relative_path.strip('/')
         self._load_builtin()
         with self.mutation_lock:
-            return self._builtin_paths.get(relative_path.strip('/'))
+            path = self._builtin_paths.get(key)
+        if path is not None and not path.is_file():
+            # 文件已被删除 / 替换：立刻重扫，避免把「已不存在的素材」当 200 交给
+            # FileResponse（那会抛成 500，而不是干净的 404）。
+            self.reload_builtin()
+            with self.mutation_lock:
+                path = self._builtin_paths.get(key)
+        return path if path is not None and path.is_file() else None
 
     def builtin_asset_exists(self, asset_id: str) -> bool:
         """内置资源 id 是否在目录中。"""
@@ -587,22 +627,22 @@ class AssetCatalog:
 
     def register_user(self, asset_id: str, path: Path, dimensions: tuple[int, int]) -> dict:
         self._load_user()
-        payload = user_asset_payload(self.user_root, asset_id, path, dimensions)
-        self._attach_effect_variant(payload, path)
+        body = user_asset_payload(self.user_root, asset_id, path, dimensions)
+        self._attach_effect_variant(body, path)
         with self.mutation_lock:
-            self._user_items[payload['assetId']] = payload
+            self._user_items[body['assetId']] = body
             self._user_revision = uuid4().hex
-        return dict(payload)
+        return dict(body)
 
     def register_studio3d_export(self, folder_name: str, path: Path) -> dict:
         self._load_user()
         (export_roles, export_order) = studio3d_export_metadata(path.parent)
-        payload = studio3d_export_payload(folder_name, path, export_roles.get(path.name, ''), export_order.get(path.name))
-        self._attach_effect_variant(payload, path)
+        body = studio3d_export_payload(folder_name, path, export_roles.get(path.name, ''), export_order.get(path.name))
+        self._attach_effect_variant(body, path)
         with self.mutation_lock:
-            self._user_items[payload['assetId']] = payload
+            self._user_items[body['assetId']] = body
             self._user_revision = uuid4().hex
-        return dict(payload)
+        return dict(body)
 
     def reload_user(self) -> None:
         """业务恢复后强制重扫用户 / studio3d 素材目录。"""

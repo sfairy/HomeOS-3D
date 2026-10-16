@@ -35,6 +35,7 @@ class NotificationEventHandlersHelper:
         get_water_cfg: Callable[[], dict[str, Any]],
         get_iaq_cfg: Callable[[], dict[str, Any]],
         get_other_cfg: Callable[[], dict[str, Any]],
+        ha_states_trustworthy: Callable[[], bool] | None = None,
     ) -> None:
         self._state_router = state_router
         self._notify = notify
@@ -49,6 +50,8 @@ class NotificationEventHandlersHelper:
         self._get_water_cfg = get_water_cfg
         self._get_iaq_cfg = get_iaq_cfg
         self._get_other_cfg = get_other_cfg
+        #: HA 连接状态是否可信。未注入时按旧行为（始终可信）。
+        self._ha_states_trustworthy = ha_states_trustworthy or (lambda: True)
 
     # 安防
     def _resolve_security_alert_channels(self) -> list[str] | None:
@@ -65,20 +68,20 @@ class NotificationEventHandlersHelper:
             forced.append("socket")
         return forced
 
-    async def handle_security_alarm(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        desc = format_security_alarm_message(data)
-        cooldown_key = f"security_alarm:{data.get('entityId') or data.get('type') or 'global'}"
+    async def handle_security_alarm(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        desc = format_security_alarm_message(event)
+        cooldown_key = f"security_alarm:{event.get('entityId') or event.get('type') or 'global'}"
         if self._is_in_cooldown(cooldown_key):
             return
         forced = self._resolve_security_alert_channels()
         if forced is not None:
             channels = forced
-        elif data.get("type") in ("smoke", "gas_leak", "water_leak"):
+        elif event.get("type") in ("smoke", "gas_leak", "water_leak"):
             channels = ["in_app", "socket"]
         else:
             channels = None
-        level_raw = str(data.get("level") or "").lower()
+        level_raw = str(event.get("level") or "").lower()
         if level_raw in ("high", "danger"):
             alert_level = "danger"
         elif level_raw in ("medium", "warn", "warning"):
@@ -90,13 +93,13 @@ class NotificationEventHandlersHelper:
         opts: dict[str, Any] = {"bypassDnd": True}
         if channels is not None:
             opts["channels"] = channels
-        sent = await self._notify(alert_level, desc, "security", data.get("entityId"), opts)
+        sent = await self._notify(alert_level, desc, "security", event.get("entityId"), opts)
         if not sent:
             return
         self._set_cooldown(cooldown_key, 1 if alert_level == "danger" else 2)
 
-    async def handle_emergency(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
+    async def handle_emergency(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
         cooldown_key = "security_emergency_notify"
         if self._is_in_cooldown(cooldown_key):
             return
@@ -106,7 +109,7 @@ class NotificationEventHandlersHelper:
             opts["channels"] = forced
         sent = await self._notify(
             "danger",
-            f"🆘 紧急求助已触发：{data.get('action') or 'SOS'}",
+            f"🆘 紧急求助已触发：{event.get('action') or 'SOS'}",
             "emergency",
             None,
             opts,
@@ -116,39 +119,39 @@ class NotificationEventHandlersHelper:
         self._set_cooldown(cooldown_key, 1)
 
     # 能耗 / 用水
-    async def handle_energy_anomaly(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = f"energy_anomaly:{data.get('entityId') or data.get('type') or 'global'}"
+    async def handle_energy_anomaly(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = f"energy_anomaly:{event.get('entityId') or event.get('type') or 'global'}"
         if self._is_in_cooldown(cooldown_key):
             return
-        name = data.get("friendlyName") or data.get("entityId") or "设备"
+        name = event.get("friendlyName") or event.get("entityId") or "设备"
         detail = f"{name} 功耗异常"
-        if data.get("type") == "high_standby":
-            average = _format_number(data.get("average"), 0)
-            detail = f"{name} 待机功耗 {data.get('current', '?')}W 持续偏高（均值 {average}W）"
-        elif data.get("type") == "spike":
+        if event.get("type") == "high_standby":
+            average = _format_number(event.get("average"), 0)
+            detail = f"{name} 待机功耗 {event.get('current', '?')}W 持续偏高（均值 {average}W）"
+        elif event.get("type") == "spike":
             detail = (
-                f"{name} 功率突增至 {data.get('current', '?')}W"
-                f"（约为均值 {data.get('ratio', '?')} 倍）"
+                f"{name} 功率突增至 {event.get('current', '?')}W"
+                f"（约为均值 {event.get('ratio', '?')} 倍）"
             )
-        elif data.get("type") == "sustained_high":
-            detail = f"{name} 持续高负荷 {data.get('current', '?')}W 超过 2 小时"
-        level = "danger" if data.get("type") == "sustained_high" else "warn"
-        sent = await self._notify(level, f"⚡ {detail}", "energy-anomaly", data.get("entityId"))
+        elif event.get("type") == "sustained_high":
+            detail = f"{name} 持续高负荷 {event.get('current', '?')}W 超过 2 小时"
+        level = "danger" if event.get("type") == "sustained_high" else "warn"
+        sent = await self._notify(level, f"⚡ {detail}", "energy-anomaly", event.get("entityId"))
         if not sent:
             return
         self._set_cooldown(
             cooldown_key, float(self._get_energy_cfg().get("anomalyCooldownMin") or 60)
         )
 
-    async def handle_budget_exceeded(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
+    async def handle_budget_exceeded(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
         cooldown_key = "energy_budget"
         if self._is_in_cooldown(cooldown_key):
             return
         sent = await self._notify(
             "warn",
-            f"能源预算告警：{data.get('message') or '本月用能预计超支'}",
+            f"能源预算告警：{event.get('message') or '本月用能预计超支'}",
             "energy-budget",
         )
         if not sent:
@@ -157,17 +160,17 @@ class NotificationEventHandlersHelper:
             cooldown_key, float(self._get_energy_cfg().get("budgetAlertCooldownMin") or 720)
         )
 
-    async def handle_water_anomaly(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = f"water:{data.get('entityId') or data.get('type') or 'global'}"
+    async def handle_water_anomaly(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = f"water:{event.get('entityId') or event.get('type') or 'global'}"
         if self._is_in_cooldown(cooldown_key):
             return
-        name = data.get("friendlyName") or data.get("entityId") or "水表"
-        if data.get("type") == "continuous_flow":
-            detail = f"{name} 持续水流 {data.get('flowRate', '?')} L/min，疑似漏水"
+        name = event.get("friendlyName") or event.get("entityId") or "水表"
+        if event.get("type") == "continuous_flow":
+            detail = f"{name} 持续水流 {event.get('flowRate', '?')} L/min，疑似漏水"
         else:
-            detail = f"{name} 今日用水 {_format_number(data.get('totalUsage'), 2)} m³，超出阈值"
-        sent = await self._notify("danger", detail, "water-monitor", data.get("entityId"))
+            detail = f"{name} 今日用水 {_format_number(event.get('totalUsage'), 2)} m³，超出阈值"
+        sent = await self._notify("danger", detail, "water-monitor", event.get("entityId"))
         if not sent:
             return
         self._set_cooldown(
@@ -175,20 +178,20 @@ class NotificationEventHandlersHelper:
         )
 
     # 环境
-    async def handle_mold_risk(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = f"mold:{data.get('roomId') or 'global'}"
+    async def handle_mold_risk(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = f"mold:{event.get('roomId') or 'global'}"
         if self._is_in_cooldown(cooldown_key):
             return
-        level = data.get("level")
+        level = event.get("level")
         level = level if level is not None else 2
         alert_level = "danger" if level >= 3 else "warn"
-        room_label = self._resolve_room_label(data.get("roomId"))
+        room_label = self._resolve_room_label(event.get("roomId"))
         sent = await self._notify(
             alert_level,
-            f"🦠 [{room_label}] {data.get('message') or '霉菌风险偏高'}",
+            f"🦠 [{room_label}] {event.get('message') or '霉菌风险偏高'}",
             "environment-health",
-            data.get("roomId"),
+            event.get("roomId"),
         )
         if not sent:
             return
@@ -196,19 +199,19 @@ class NotificationEventHandlersHelper:
             cooldown_key, float(self._get_iaq_cfg().get("moldAlertCooldownMin") or 10)
         )
 
-    async def handle_iaq_threshold(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = f"iaq:{data.get('roomId') or 'global'}"
+    async def handle_iaq_threshold(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = f"iaq:{event.get('roomId') or 'global'}"
         if self._is_in_cooldown(cooldown_key):
             return
-        room_label = self._resolve_room_label(data.get("roomId"))
-        score = f" IAQ {data.get('iaq')}" if data.get("iaq") is not None else ""
+        room_label = self._resolve_room_label(event.get("roomId"))
+        score = f" IAQ {event.get('iaq')}" if event.get("iaq") is not None else ""
         sent = await self._notify(
             "warn",
             f"🌬️ [{room_label}]{score} "
-            f"{data.get('message') or '空气质量指数超阈值，建议通风或开启净化设备'}",
+            f"{event.get('message') or '空气质量指数超阈值，建议通风或开启净化设备'}",
             "environment-health",
-            data.get("roomId"),
+            event.get("roomId"),
         )
         if not sent:
             return
@@ -217,19 +220,26 @@ class NotificationEventHandlersHelper:
         )
 
     # 自动化
-    async def handle_homeos_automation_notify(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        text = data.get("message") or data.get("title") or "自动化通知"
+    async def handle_homeos_automation_notify(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        text = event.get("message") or event.get("title") or "自动化通知"
         await self._notify("info", text, "automation")
 
-    async def handle_automation_failed(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        rule_id = data.get("ruleId") or "unknown"
+    async def handle_automation_failed(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        rule_id = event.get("ruleId") or "unknown"
+        # HA（中枢）不可达时**每条**自动化都会失败，而根因只有一个 —— 中枢失联本身已经单独
+        # 告过警了。旧实现按 ruleId 各自冷却，所以一次中枢抖动会变成「N 条自动化失败」的
+        # 风暴，且每条每 30 分钟重来一轮。这里直接静默：这类失败在中枢恢复后会重现，不会
+        # 永久丢失信息，而此刻重复 N 遍只会把真正要看的告警淹掉。
+        if not self._ha_states_trustworthy():
+            logger.info("HA 连接不可信,跳过自动化失败通知: %s", rule_id)
+            return
         cooldown_key = f"automation-failed:{rule_id}"
         if self._is_in_cooldown(cooldown_key):
             return
-        name = data.get("name") or rule_id
-        summary = data.get("error") or "动作执行失败"
+        name = event.get("name") or rule_id
+        summary = event.get("error") or "动作执行失败"
         sent = await self._notify(
             "warn", f"⚠️ 自动化执行失败：[{name}] {summary}", "automation"
         )
@@ -237,18 +247,18 @@ class NotificationEventHandlersHelper:
             return
         self._set_cooldown(cooldown_key, 30)
 
-    async def handle_automation_dropped(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        rule_id = data.get("ruleId") or "unknown"
+    async def handle_automation_dropped(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        rule_id = event.get("ruleId") or "unknown"
         cooldown_key = f"automation-dropped:{rule_id}"
         if self._is_in_cooldown(cooldown_key):
             return
-        name = data.get("name") or rule_id
-        reason = data.get("reason")
+        name = event.get("name") or rule_id
+        reason = event.get("reason")
         if reason == "concurrency-limit":
-            detail = f"并发执行数已达上限({data.get('limit') or '未知'})，本次触发被丢弃"
+            detail = f"并发执行数已达上限({event.get('limit') or '未知'})，本次触发被丢弃"
         elif reason == "mutex-busy":
-            detail = f"互斥组 [{data.get('group') or '未知'}] 正被其他自动化占用，本次触发被丢弃"
+            detail = f"互斥组 [{event.get('group') or '未知'}] 正被其他自动化占用，本次触发被丢弃"
         else:
             detail = "本次触发被丢弃"
         sent = await self._notify(
@@ -259,32 +269,32 @@ class NotificationEventHandlersHelper:
         self._set_cooldown(cooldown_key, 30)
 
     # 地震
-    async def handle_earthquake_eew_alert(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = f"earthquake_eew:{data.get('eventId')}"
+    async def handle_earthquake_eew_alert(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = f"earthquake_eew:{event.get('eventId')}"
         if self._is_in_cooldown(cooldown_key):
             return
         sent = await self._notify(
             "danger",
-            format_eew_notify_message(data),
+            format_eew_notify_message(event),
             "earthquake-eew",
-            data.get("eventId"),
+            event.get("eventId"),
             {"channels": ["in_app", "socket", "webpush"], "title": "地震预警"},
         )
         if not sent:
             return
         self._set_cooldown(cooldown_key, 10)
 
-    async def handle_earthquake_eew_confirmation(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = eew_catalog_cooldown_key(str(data.get("eventId") or ""))
+    async def handle_earthquake_eew_confirmation(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = eew_catalog_cooldown_key(str(event.get("eventId") or ""))
         if self._is_in_cooldown(cooldown_key):
             return
         sent = await self._notify(
             "warn",
-            format_eew_notify_message(data),
+            format_eew_notify_message(event),
             "earthquake-catalog",
-            data.get("eventId"),
+            event.get("eventId"),
             {"channels": ["in_app", "socket", "webpush"], "title": "地震速报(官方已确认)"},
         )
         if not sent:
@@ -292,15 +302,15 @@ class NotificationEventHandlersHelper:
         self._set_cooldown(cooldown_key, 10)
 
     # 顾问 / 墙面板
-    async def handle_advisor_tip(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        cooldown_key = f"tip:{data.get('title')}:{data.get('category') or ''}"
+    async def handle_advisor_tip(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        cooldown_key = f"tip:{event.get('title')}:{event.get('category') or ''}"
         if self._is_in_cooldown(cooldown_key):
             return
         sent = await self._notify(
             "info",
-            f"{data.get('title')}: {data.get('message')}",
-            f"advisor-{data.get('category') or 'tip'}",
+            f"{event.get('title')}: {event.get('message')}",
+            f"advisor-{event.get('category') or 'tip'}",
         )
         if not sent:
             return
@@ -310,13 +320,13 @@ class NotificationEventHandlersHelper:
             tip_hours = 2.0
         self._set_cooldown(cooldown_key, max(1, _js_round(tip_hours * 60)))
 
-    async def handle_client_power_low(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        client_id = str(data.get("clientId") or "unknown")
+    async def handle_client_power_low(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        client_id = str(event.get("clientId") or "unknown")
         cooldown_key = f"client_power_low:{client_id}"
         if self._is_in_cooldown(cooldown_key):
             return
-        level = f"{_js_round(data['level'])}%" if data.get("level") is not None else "未知"
+        level = f"{_js_round(event['level'])}%" if event.get("level") is not None else "未知"
         sent = await self._notify(
             "warn",
             f"墙面板 {client_id} 电量低（{level}）",
@@ -328,13 +338,13 @@ class NotificationEventHandlersHelper:
             return
         self._set_cooldown(cooldown_key, 30)
 
-    async def handle_client_power_charged(self, data: dict[str, Any] | None) -> None:
-        data = data or {}
-        client_id = str(data.get("clientId") or "unknown")
+    async def handle_client_power_charged(self, event: dict[str, Any] | None) -> None:
+        event = event or {}
+        client_id = str(event.get("clientId") or "unknown")
         cooldown_key = f"client_power_charged:{client_id}"
         if self._is_in_cooldown(cooldown_key):
             return
-        level = f"{_js_round(data['level'])}%" if data.get("level") is not None else "未知"
+        level = f"{_js_round(event['level'])}%" if event.get("level") is not None else "未知"
         sent = await self._notify(
             "info",
             f"墙面板 {client_id} 电量已充满（{level}）",
@@ -350,11 +360,11 @@ class NotificationEventHandlersHelper:
     def handle_state_changed(self, event: dict[str, Any] | None) -> None:
         if not self._state_router.should_process("notification_health", event):
             return
-        data = event or {}
-        new_state = data.get("new_state")
+        event = event or {}
+        new_state = event.get("new_state")
         if not isinstance(new_state, dict):
             return
-        entity_id = str(data.get("entity_id") or "")
+        entity_id = str(event.get("entity_id") or "")
         attributes = new_state.get("attributes") or {}
         name = attributes.get("friendly_name") or entity_id
         state = new_state.get("state")
@@ -367,11 +377,11 @@ class NotificationEventHandlersHelper:
     def handle_alert_rule_state_changed(self, event: dict[str, Any] | None) -> None:
         if not self._state_router.should_process("alert_rules", event):
             return
-        data = event or {}
-        new_state = data.get("new_state")
+        event = event or {}
+        new_state = event.get("new_state")
         if not isinstance(new_state, dict):
             return
-        entity_id = str(data.get("entity_id") or "")
+        entity_id = str(event.get("entity_id") or "")
         state = new_state.get("state")
         attributes = new_state.get("attributes")
         _fire_and_forget(self._evaluate_rules(entity_id, state, attributes or {}))

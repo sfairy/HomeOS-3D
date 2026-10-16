@@ -153,18 +153,65 @@ def _register_pwa_asset_routes(app: FastAPI, frontend_dir: Path) -> None:
         raise HTTPException(status_code=404)
 
 
-def _mount_replaceable_asset_dirs(app: FastAPI) -> None:
-    """可替换静态资源（图标 / 背景图 / 音效 / Logo）；缺失目录不挂载。"""
+def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
+    """可替换静态资源（图标 / 背景图 / 音效 / Logo）；缺失目录不挂载。
+
+    图标与背景图是**分层**的：随包默认素材（``assets/icons`` / ``assets/backgrounds``）
+    只读，用户上传落到 ``<data_dir>/ui-assets`` 并优先命中。这样上传覆盖默认图、删除默认
+    素材都不再改动随包目录（否则升级 / 重建镜像后改动会被回滚）。
+    """
     from ..platform.core.asset_paths import (
+        UPLOAD_CONTENT_TYPES,
         get_backgrounds_dir,
         get_icons_dir,
         get_logo_dir,
         get_sounds_dir,
+        layered_asset_path,
+        load_hidden_assets,
     )
 
+    ui_assets_root = settings.ui_assets_dir
+    for mount_path, kind, builtin_root in (
+        ("/icons", "icons", get_icons_dir()),
+        ("/backgrounds", "backgrounds", get_backgrounds_dir()),
+    ):
+        user_root = ui_assets_root / kind
+
+        def _layered_asset(
+            asset_path: str,
+            *,
+            _kind: str = kind,
+            _builtin: Path = builtin_root,
+            _user: Path = user_root,
+        ) -> FileResponse:
+            hidden = load_hidden_assets(ui_assets_root)
+            resolved = layered_asset_path(_builtin, _user, hidden, _kind, asset_path)
+            if resolved is None:
+                raise HTTPException(status_code=404, detail="资源不存在。")
+            response = FileResponse(resolved, media_type=UPLOAD_CONTENT_TYPES.get(resolved.suffix.lower()))
+            response.headers["Cache-Control"] = "private, no-cache"
+            return response
+
+        app.api_route(
+            f"{mount_path}/{{asset_path:path}}",
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+            name=f"layered{mount_path}",
+        )(_layered_asset)
+
+        # 无尾斜杠的挂载点本身不是资源：显式 404，避免回落到 SPA 外壳把目录当页面返回
+        # （``StaticFiles`` 时期这里是 308 重定向到 ``/icons/``）。
+        def _bare_asset_dir() -> None:
+            raise HTTPException(status_code=404, detail="资源不存在。")
+
+        app.api_route(
+            mount_path,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+            name=f"layered-bare{mount_path}",
+        )(_bare_asset_dir)
+
     for mount_path, asset_dir in (
-        ("/icons", get_icons_dir()),
-        ("/backgrounds", get_backgrounds_dir()),
         ("/sounds", get_sounds_dir()),
         ("/logo", get_logo_dir()),
     ):
@@ -235,5 +282,5 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
     frontend_dir = settings.frontend_dir
     _mount_frontend_build_dirs(app, frontend_dir)
     _register_pwa_asset_routes(app, frontend_dir)
-    _mount_replaceable_asset_dirs(app)
+    _mount_replaceable_asset_dirs(app, settings)
     _register_spa_fallback(app, settings, version)

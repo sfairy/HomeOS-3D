@@ -6,6 +6,5 @@ export {
   HA_YAML_DUMP_OPTS,
   loadHaYaml,
   loadHaYamlObject,
-  loadHaYamlObject as parseOrchestratorYaml,
   dumpHaYaml,
 } from './ha-yaml';

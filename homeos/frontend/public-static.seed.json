@@ -7,10 +7,6 @@
   ],
   "files": [
     {
-      "path": "/static/auth.css",
-      "why": "公开页样式表"
-    },
-    {
       "path": "/static/auth/scene/fonts.css",
       "why": "登录/配对场景样式"
     },

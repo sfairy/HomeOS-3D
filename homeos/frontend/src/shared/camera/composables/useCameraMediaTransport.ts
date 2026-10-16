@@ -36,7 +36,7 @@ function loadClassicHlsScript(): Promise<HlsCtor | null> {
   })
 }
 
-export type CameraMediaStopFn = () => void
+type CameraMediaStopFn = () => void
 
 export async function startCameraMediaTransport(
   entityId: string,
@@ -73,7 +73,10 @@ export async function startCameraMediaTransport(
     if (stopped || hasStarted) return
     hasStarted = true
     clearTimers()
-    const readyMode = mode === 'legacy' ? 'mjpeg' : mode === 'snapshot' ? 'snapshot' : 'hls'
+    let readyMode: 'mjpeg' | 'snapshot' | 'hls'
+    if (mode === 'legacy') readyMode = 'mjpeg'
+    else if (mode === 'snapshot') readyMode = 'snapshot'
+    else readyMode = 'hls'
     onReady?.(readyMode)
   }
 

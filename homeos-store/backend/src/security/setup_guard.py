@@ -207,7 +207,15 @@ class SetupGuard:
 
     def authorize(self, request: Request, setup_token: str = "") -> None:
         """校验本次初始化请求；无权限抛 403，超限抛 429。
+
+        有权限的请求**不消耗**限流配额：否则一次远程爆破（或共享 NAT 出口）会把
+        ``setup:global`` 打满，合法管理员拿着正确密钥也只能等窗口过期。限流只统计
+        「未带正确密钥」的尝试。
         """
+        # 先判权限：本机直连 / 正确密钥都不该被算作「尝试」。
+        if self.has_setup_privilege(request, setup_token):
+            return
+
         address = resolve_client_ip(request)
         host = address.ip or "unknown"
         limiter_key = f"setup:{host}" if address.per_client else "setup:global"
@@ -219,9 +227,6 @@ class SetupGuard:
                 detail="初始化尝试次数过多，请稍后再试。",
                 headers={"Retry-After": str(retry_after)},
             )
-
-        if self.has_setup_privilege(request, setup_token):
-            return
 
         logger.warning(
             "拒绝了未带正确引导密钥的初始化请求 对端=%s 经代理=%s Host=%s 有转发头=%s 已配置密钥=%s",

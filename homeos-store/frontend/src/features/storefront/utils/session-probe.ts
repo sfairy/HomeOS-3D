@@ -19,7 +19,7 @@
  * （纯函数不引入 store 的类型依赖，与 `router/admin-guard.ts` 同一口径）。
  */
 
-export interface SessionProbeInputs {
+interface SessionProbeInputs {
   /** `<html data-auth>` 的取值：`guest` | `user` | `admin`，缺失时归一化成 `unknown`。 */
   serverAuth: string;
   /** 是否有 `hb-auth-hint` 类：客户端上次已知「已登录」的提示。 */

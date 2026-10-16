@@ -11,11 +11,13 @@ import base64
 import ipaddress
 import json
 import logging
+import random
 import secrets
 import socket
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -34,10 +36,37 @@ logger = logging.getLogger("homeos.channels.webpush")
 
 #: 单条推送 payload 的记录大小（RFC 8188 推荐 4096）
 RECORD_SIZE = 4096
+#: 推送服务（FCM 等）对整包 body 的硬上限；超了会 413 且整条推送被丢弃。
+MAX_PUSH_BODY_BYTES = 4096
+#: 单记录头长度：salt(16) + rs(4) + keyid_len(1) + 未压缩公钥(65)。
+_PUSH_HEADER_BYTES = 16 + 4 + 1 + 65
+#: 可安全承载的明文字节数：body 上限扣掉记录头、AEAD tag(16) 与 0x02 分隔符(1)。
+MAX_PUSH_PLAINTEXT_BYTES = MAX_PUSH_BODY_BYTES - _PUSH_HEADER_BYTES - 16 - 1
 #: 推送有效期（秒）
 DEFAULT_TTL = 2419200
 #: 发送超时（秒）
 SEND_TIMEOUT = 15.0
+
+#: 永久性投递拒绝状态：订阅已失效，或与当前 VAPID 公钥不再匹配。收到即摘除订阅，
+#: 否则每条后续通知都会一直重投这个死地址。413（负载过大）不属于此类，不应摘订阅。
+PERMANENT_SUBSCRIPTION_STATUSES = frozenset({400, 401, 403, 404, 410})
+
+#: 可重试的瞬时拒绝：限流（429）与网关 / 服务端错误。重试有意义；其它 4xx 语义错误
+#: 重试多少次结果都一样，只会浪费一次投递窗口。
+RETRYABLE_PUSH_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
+#: 瞬时失败的最大尝试次数（含首次）。再多会把告警拖到失去时效性。
+MAX_TRANSIENT_ATTEMPTS = 3
+#: 指数退避的基准与单次上限（秒）
+RETRY_BASE_DELAY_SECONDS = 1.0
+RETRY_MAX_DELAY_SECONDS = 15.0
+#: 一次投递内允许用于「等待重试」的总时长（秒）：超出即放弃内联重试并如实报失败。
+INLINE_RETRY_BUDGET_SECONDS = 30.0
+#: 服务端 ``Retry-After`` 允许的最长内联等待（秒）。推送服务动辄要求等几分钟，内联等
+#: 下去会拖垮整批投递，所以超过这个值就放弃本次重试（但仍记失败，不谎报成功）。
+MAX_HONORED_RETRY_AFTER_SECONDS = 30.0
+#: 单条订阅的退避窗口上限（秒）。一次广播命中限流后，上层的整通道重试会很快再次尝试，
+#: 若没有订阅级退避窗口就会把限流越踩越深；有窗口才能让服务端「喘过气」。
+MAX_ENDPOINT_BACKOFF_SECONDS = 300.0
 
 #: 私网/回环/链路本地/保留 host 名后缀（mDNS / Docker internal / 本地解析等）
 BLOCKED_WEBPUSH_HOST_SUFFIXES = (
@@ -61,6 +90,44 @@ def _b64url_decode(value: str) -> bytes:
 def _b64url_encode(raw: bytes) -> str:
     """base64url 编码（去 padding）。"""
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def parse_retry_after(value: str | None, *, now: float | None = None) -> float | None:
+    """解析 ``Retry-After``（RFC 9110：delta-seconds 或 HTTP-date），返回待等待秒数。
+
+    无法识别时返回 ``None``：宁可按本地指数退避处理，也不能把坏值当成「立即重试」——
+    那正好与限流服务的意图相反。
+    """
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return max(0.0, float(text))
+    except ValueError:
+        pass
+    try:
+        parsed = parsedate_to_datetime(text)
+    except (TypeError, ValueError):
+        return None
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    reference = time.time() if now is None else now
+    return max(0.0, parsed.timestamp() - reference)
+
+
+def retry_delay_seconds(attempt: int, retry_after: str | None) -> float:
+    """本次重试的等待秒数：优先尊重服务端 ``Retry-After``，否则指数退避 + 抖动。
+
+    抖动不是可选项：一次广播会给几十个订阅同时投递，固定间隔会让它们在同一毫秒一起
+    重试，正好把刚触发的限流再踩一遍。
+    """
+    server_delay = parse_retry_after(retry_after)
+    if server_delay is not None:
+        return min(server_delay, MAX_HONORED_RETRY_AFTER_SECONDS)
+    base = min(RETRY_BASE_DELAY_SECONDS * (2 ** max(0, attempt - 1)), RETRY_MAX_DELAY_SECONDS)
+    return base + random.uniform(0, base * 0.5)
 
 
 def is_private_ipv4(ip: str) -> bool:
@@ -192,6 +259,18 @@ def encrypt_webpush_payload(
     nonce = _hkdf(salt, ikm, b"Content-Encoding: nonce\x00", 12)
 
     # 单记录：正文 + 0x02 填充分隔符（最后一条记录）
+    #
+    # 负载必须先裁剪：FCM 等推送服务对整包 body 有 4096 字节硬上限，超了直接 413、整条
+    # 推送被丢。旧实现照发不悟，只是打条日志 —— 站内留痕还在，用户永远不知道手机没收到。
+    # 裁到上限并保留开头（告警最关键的信息在开头），同时明确记录截断。
+    if len(payload) > MAX_PUSH_PLAINTEXT_BYTES:
+        clipped = payload[:MAX_PUSH_PLAINTEXT_BYTES].decode("utf-8", errors="ignore")
+        payload = clipped.encode("utf-8")
+        logger.warning(
+            "WebPush 负载过长,已截断至 %s 字节（上限 %s）",
+            len(payload),
+            MAX_PUSH_PLAINTEXT_BYTES,
+        )
     plaintext = payload + b"\x02"
     ciphertext = AESGCM(content_encryption_key).encrypt(nonce, plaintext, None)
 
@@ -277,6 +356,8 @@ class WebPushService:
         self._enabled = False
         self._vapid: dict[str, str] = {}
         self._subscriptions: dict[str, PushSubscription] = {}
+        #: 订阅级退避窗口：endpoint → 可再次尝试的 monotonic 时刻。
+        self._endpoint_backoff_until: dict[str, float] = {}
         self._message_handler: MessageHandler | None = None
         self._http = httpx.AsyncClient(timeout=SEND_TIMEOUT)
 
@@ -311,13 +392,29 @@ class WebPushService:
             "subject": cfg.subject or "mailto:webmaster@homeos.local",
         }
         try:
-            # 校验密钥可用性（等价 web-push 的 setVapidDetails 校验）
-            _b64url_decode(cfg.vapid_public_key)
-            _b64url_decode(cfg.vapid_private_key)
-            logger.info("WebPush 通道已热重载")
+            # 只做 base64 解码是不够的：解码出垃圾字节时服务会「看起来已配置」而实际永远
+            # 发不出去（health 报 configured=true，通知照记已投递）。这里把密钥真正用起来
+            # 校验一遍，等价 web-push 的 setVapidDetails：公钥必须是合法未压缩 P-256 点，
+            # 且与私钥同源（轮换后写错一个字段正是最常见的故障）。
+            public_raw = _b64url_decode(cfg.vapid_public_key)
+            if len(public_raw) != 65 or public_raw[0] != 0x04:
+                raise ValueError("VAPID 公钥不是合法的未压缩 P-256 点")
+            ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), public_raw)
+            private_key = ec.derive_private_key(
+                int.from_bytes(_b64url_decode(cfg.vapid_private_key), "big"),
+                ec.SECP256R1(),
+            )
+            derived = private_key.public_key().public_bytes(
+                serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
+            )
+            if derived != public_raw:
+                raise ValueError("VAPID 公私钥不匹配")
         except Exception as exc:
             logger.error("WebPush 通道初始化失败: %s", exc)
             self._vapid = {}
+            self._enabled = False
+            return
+        logger.info("WebPush 通道已热重载")
 
     def _load_rows(self) -> list[WebPushSubscription]:
         with self._session_factory() as session:
@@ -328,6 +425,7 @@ class WebPushService:
         try:
             rows = await asyncio.to_thread(self._load_rows)
             self._subscriptions.clear()
+            self._endpoint_backoff_until.clear()
             for row in rows:
                 endpoint = str(row.endpoint or "")
                 if not is_safe_webpush_endpoint(endpoint):
@@ -353,10 +451,15 @@ class WebPushService:
         base = {"enabled": True, "subscriptionCount": len(self._subscriptions)}
         try:
             cfg = await self._channel_config.get_webpush_config()
-            configured = bool(cfg and cfg.vapid_public_key and cfg.vapid_private_key)
-            return {**base, "configured": configured, "vapidPublicKey": cfg.vapid_public_key if cfg else None}
+            # configured 必须反映**已验证可用**的 VAPID 状态（self._vapid），而不是原始配置
+            # 字符串：否则密钥是垃圾/被轮换掉时，健康检查仍报 configured=true。
+            return {
+                **base,
+                "configured": bool(self._vapid),
+                "vapidPublicKey": cfg.vapid_public_key if cfg else None,
+            }
         except Exception as exc:
-            return {**base, "configured": False, "error": str(exc)}
+            return {**base, "configured": bool(self._vapid), "error": str(exc)}
 
     async def get_public_key(self) -> str | None:
         if not self._enabled:
@@ -420,6 +523,7 @@ class WebPushService:
 
     async def unregister_subscription(self, endpoint: str) -> None:
         self._subscriptions.pop(endpoint, None)
+        self._endpoint_backoff_until.pop(endpoint, None)
 
         def _delete() -> None:
             with self._session_factory() as session:
@@ -436,28 +540,34 @@ class WebPushService:
     def on_message(self, handler: MessageHandler) -> None:
         self._message_handler = handler
 
-    async def send_text(self, to: str | int, text: str, title: str | None = None) -> None:
-        """发送文本推送；``to`` 为空表示广播给全部订阅者。"""
+    async def send_text(
+        self, to: str | int, text: str, title: str | None = None
+    ) -> dict[str, int]:
+        """发送文本推送；``to`` 为空表示广播给全部订阅者。
+
+        返回 ``{"attempted": n, "delivered": m}``：调用方据此判断「是否真的送达」，
+        而不再把「没有抛异常」当作投递成功。
+        """
         if not self._enabled:
             logger.warning("WebPush 通道未启用")
-            return
+            return {"attempted": 0, "delivered": 0}
 
         targets: list[PushSubscription] = []
         if isinstance(to, str) and to.strip():
             sub = self._subscriptions.get(to.strip())
             if sub is None:
                 logger.warning("未找到 endpoint: %s", to)
-                return
+                return {"attempted": 0, "delivered": 0}
             targets.append(sub)
         else:
             targets.extend(self._subscriptions.values())
 
         if not targets:
             logger.warning("无 WebPush 订阅者")
-            return
+            return {"attempted": 0, "delivered": 0}
         if not self._vapid:
             logger.warning("WebPush VAPID 未就绪,跳过推送")
-            return
+            return {"attempted": 0, "delivered": 0}
 
         payload = json.dumps(
             {
@@ -468,17 +578,43 @@ class WebPushService:
             },
             ensure_ascii=False,
         ).encode()
-        await asyncio.gather(
+        results = await asyncio.gather(
             *(self._send_one(sub, payload) for sub in targets), return_exceptions=True
         )
+        delivered = sum(1 for item in results if item is True)
+        return {"attempted": len(targets), "delivered": delivered}
 
-    async def _send_one(self, sub: PushSubscription, payload: bytes) -> None:
+    def _backoff_remaining(self, endpoint: str) -> float:
+        """该订阅还剩多少退避时间（秒）；``0`` 表示可以立即尝试。"""
+        return max(0.0, self._endpoint_backoff_until.get(endpoint, 0.0) - time.monotonic())
+
+    def _set_endpoint_backoff(self, endpoint: str, seconds: float) -> None:
+        """为单条订阅设置退避窗口（钳到 ``MAX_ENDPOINT_BACKOFF_SECONDS``）。"""
+        capped = min(max(0.0, seconds), MAX_ENDPOINT_BACKOFF_SECONDS)
+        if capped <= 0:
+            return
+        self._endpoint_backoff_until[endpoint] = time.monotonic() + capped
+
+    async def _send_one(self, sub: PushSubscription, payload: bytes) -> bool:
+        """投递单条订阅，返回是否真正送达（2xx）。
+
+        瞬时失败（429 限流 / 5xx 网关错误 / 连接未建立）会**逐订阅**退避重试：推送服务
+        常在响应里给出 ``Retry-After``，照它等才有意义；旧实现一失败就返回 False，上层
+        的固定 1s/2s 重试远早于服务端允许的时间，于是三次全部撞在同一段限流窗口里，
+        这条通知就永远送不出去（而站内留痕看着一切正常）。
+        """
+        remaining = self._backoff_remaining(sub.endpoint)
+        if remaining > 0:
+            logger.warning(
+                "WebPush 订阅仍在退避中(%.0fs),跳过本次投递: %s", remaining, sub.endpoint[:60]
+            )
+            return False
         try:
             # 投递前再解析一次：注册期的字面检查挡不住 DNS rebinding，这里是最后一道门。
             allowed, reason = await asyncio.to_thread(resolve_public_endpoint, sub.endpoint)
             if not allowed:
                 logger.error("跳过 WebPush 投递（%s）：%s", reason, sub.endpoint[:80])
-                return
+                return False
             body, _ = await asyncio.to_thread(
                 encrypt_webpush_payload, payload, sub.p256dh, sub.auth
             )
@@ -489,28 +625,92 @@ class WebPushService:
                 self._vapid["privateKey"],
                 self._vapid["subject"],
             )
-            response = await self._http.post(
-                sub.endpoint,
-                content=body,
-                headers={
-                    "Content-Encoding": "aes128gcm",
-                    "Content-Type": "application/octet-stream",
-                    "TTL": str(DEFAULT_TTL),
-                    "Authorization": authorization,
-                },
-            )
-            if response.status_code in (404, 410):
-                logger.info("WebPush 订阅已失效(%s),自动清理", response.status_code)
-                await self.unregister_subscription(sub.endpoint)
-            elif response.status_code >= 400:
-                logger.error(
-                    "发送 WebPush 失败: HTTP %s %s", response.status_code, response.text[:200]
-                )
         except Exception as exc:
-            message = str(exc)
-            logger.error("发送 WebPush 失败: %s", message)
-            if any(token in message for token in ("410", "404", "expired")):
+            logger.error("构造 WebPush 请求失败: %s", exc)
+            return False
+
+        headers = {
+            "Content-Encoding": "aes128gcm",
+            "Content-Type": "application/octet-stream",
+            "TTL": str(DEFAULT_TTL),
+            "Authorization": authorization,
+        }
+        waited = 0.0
+        for attempt in range(1, MAX_TRANSIENT_ATTEMPTS + 1):
+            try:
+                response = await self._http.post(sub.endpoint, content=body, headers=headers)
+            except httpx.ConnectError as exc:
+                # 连接根本没建立 → 推送一定没送达，重试不会产生重复。
+                delay = retry_delay_seconds(attempt, None)
+                if attempt >= MAX_TRANSIENT_ATTEMPTS or waited + delay > INLINE_RETRY_BUDGET_SECONDS:
+                    logger.error("发送 WebPush 失败(连接失败): %s", exc)
+                    self._set_endpoint_backoff(sub.endpoint, RETRY_MAX_DELAY_SECONDS)
+                    return False
+                logger.warning(
+                    "WebPush 连接失败,%.1fs 后重试(第 %s 次): %s", delay, attempt + 1, sub.endpoint[:60]
+                )
+                await asyncio.sleep(delay)
+                waited += delay
+                continue
+            except Exception as exc:
+                # 读取超时等无法判断是否已送达：重试可能造成重复推送，故不重试。
+                message = str(exc)
+                logger.error("发送 WebPush 失败: %s", message)
+                if any(token in message for token in ("410", "404", "expired")):
+                    await self.unregister_subscription(sub.endpoint)
+                return False
+
+            status = response.status_code
+            if status in PERMANENT_SUBSCRIPTION_STATUSES:
+                # 永久性拒绝：订阅已失效或与当前 VAPID 公钥不再匹配（密钥轮换后浏览器
+                # 会用旧 endpoint 一律 401/403）。必须摘掉，否则每条后续通知都会一直
+                # 重投这些死地址，投递循环持续劣化且永远自愈不了。
+                logger.info("WebPush 订阅永久失效(%s),自动清理: %s", status, sub.endpoint[:80])
                 await self.unregister_subscription(sub.endpoint)
+                return False
+            if status < 400:
+                # 投递成功即清掉退避窗口：服务端已恢复，没必要继续压着这条订阅。
+                self._endpoint_backoff_until.pop(sub.endpoint, None)
+                return True
+            if status not in RETRYABLE_PUSH_STATUSES:
+                logger.error("发送 WebPush 失败: HTTP %s %s", status, response.text[:200])
+                return False
+            server_delay = parse_retry_after(response.headers.get("Retry-After"))
+            # 服务端明确要求等待的时间超出本次投递的等待预算：把预算全烧在一次注定仍被拒
+            # 的重试上没有意义，不如立刻如实报失败，把时间让给其它通道与后续通知；同时
+            # 按服务端要求把这条订阅压进退避窗口，避免上层重试立刻再撞一次限流。
+            if server_delay is not None and server_delay > INLINE_RETRY_BUDGET_SECONDS:
+                logger.error(
+                    "发送 WebPush 失败(HTTP %s,服务端要求 %ss 后重试,超出本次投递预算 %ss): %s",
+                    status,
+                    int(server_delay),
+                    int(INLINE_RETRY_BUDGET_SECONDS),
+                    sub.endpoint[:80],
+                )
+                self._set_endpoint_backoff(sub.endpoint, server_delay)
+                return False
+            delay = retry_delay_seconds(attempt, response.headers.get("Retry-After"))
+            if attempt >= MAX_TRANSIENT_ATTEMPTS or waited + delay > INLINE_RETRY_BUDGET_SECONDS:
+                logger.error(
+                    "发送 WebPush 失败(已尝试 %s 次,最后 HTTP %s): %s",
+                    attempt,
+                    status,
+                    response.text[:200],
+                )
+                self._set_endpoint_backoff(
+                    sub.endpoint, server_delay if server_delay is not None else RETRY_MAX_DELAY_SECONDS
+                )
+                return False
+            logger.warning(
+                "WebPush 瞬时失败(HTTP %s),%.1fs 后重试(第 %s 次): %s",
+                status,
+                delay,
+                attempt + 1,
+                sub.endpoint[:60],
+            )
+            await asyncio.sleep(delay)
+            waited += delay
+        return False
 
     async def send_test(self, endpoint: str | None = None) -> dict[str, int]:
         """测试推送：向全部或指定 endpoint 发送。"""
@@ -525,6 +725,11 @@ class WebPushService:
 
 __all__ = [
     "BLOCKED_WEBPUSH_HOST_SUFFIXES",
+    "INLINE_RETRY_BUDGET_SECONDS",
+    "MAX_ENDPOINT_BACKOFF_SECONDS",
+    "MAX_TRANSIENT_ATTEMPTS",
+    "PERMANENT_SUBSCRIPTION_STATUSES",
+    "RETRYABLE_PUSH_STATUSES",
     "PushSubscription",
     "WebPushService",
     "build_vapid_authorization",
@@ -532,5 +737,7 @@ __all__ = [
     "is_blocked_webpush_host",
     "is_private_ipv4",
     "is_safe_webpush_endpoint",
+    "parse_retry_after",
     "resolve_public_endpoint",
+    "retry_delay_seconds",
 ]

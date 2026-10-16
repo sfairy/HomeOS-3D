@@ -18,7 +18,7 @@ import {
 import { randomUUID } from '@/shared/utils/core/random-uuid.util'
 
 /** 前端人员配置类型：在共享类型基础上补充 userId 字段 */
-export type PresencePerson = SharedPresencePerson & { userId: string }
+type PresencePerson = SharedPresencePerson & { userId: string }
 
 /**
  * 规范化人员配置（缺 id 时用 UUID，适配设置页编辑）。

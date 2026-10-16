@@ -9,11 +9,49 @@ import re
 import time
 from collections.abc import Callable
 from functools import lru_cache
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 from ...platform.core.json_field import object_field
 
 logger = logging.getLogger("homeos.state_store.entity_references")
+
+
+class EntityReference(TypedDict):
+    """单条实体反向引用（对齐前端 EntityReference 形状）。"""
+
+    kind: str
+    id: str
+    role: str
+    name: NotRequired[str]
+    detail: NotRequired[str]
+    path: NotRequired[str]
+    jumpTo: NotRequired[str]
+
+
+class UnlinkResult(TypedDict, total=False):
+    """解绑结果：失败仅 ``ok/message``；成功带 ``action`` 等。"""
+
+    ok: bool
+    message: str
+    action: str
+    layoutTouched: bool
+
+
+class EntityReferencesDeps(TypedDict, total=False):
+    """解绑/扫描依赖注入（session / 配置仓库 / layout 读写）。"""
+
+    session_factory: Any
+    app_config: Any
+    ui_config: Any
+    alert_rule_watch_index: Any
+    update_home_mode: Callable[[str, dict[str, Any]], Any] | None
+    delete_alert_rule: Callable[[str], Any] | None
+    load_layout: Callable[[], dict[str, Any]]
+    save_layout: Callable[[dict[str, Any]], None]
+
+
+#: JSON 树节点（倒排扫描 / 解绑递归用；容器值仍放宽为 Any 以免递归 TypedDict 过深）
+JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
 
 #: 路径语义判定：出现 ``trigger`` 视为触发侧，出现 ``action`` / ``service`` / ``call`` 视为动作侧。
 #: 这两条在倒排扫描里对每条命中路径都要跑一次，预编译避免每次调用重新编译（``re`` 的隐式
@@ -80,7 +118,7 @@ def text_contains_entity_id(text: str, entity_id: str) -> bool:
     return bool(_entity_id_boundary_pattern(entity_id).search(text))
 
 
-def safe_parse_json(raw: Any) -> Any:
+def safe_parse_json(raw: Any) -> JsonValue:
     """安全解析 JSON（对象 / 数组直通；字符串尝试解析；其余 → None）。"""
     if raw is None:
         return None
@@ -138,7 +176,7 @@ def path_looks_like_action(path: str) -> bool:
 _ENTITY_FIELD_KEYS = ("entity_id", "entityId", "entityIds", "entity_ids", "id", "target")
 
 
-def _is_entity_bearing_object(node: Any, entity_id: str) -> bool:
+def _is_entity_bearing_object(node: JsonValue, entity_id: str) -> bool:
     if not isinstance(node, dict):
         return False
     for field_key in _ENTITY_FIELD_KEYS:
@@ -150,7 +188,7 @@ def _is_entity_bearing_object(node: Any, entity_id: str) -> bool:
     return False
 
 
-def remove_entity_from_json_value(node: Any, entity_id: str) -> tuple[Any, bool]:
+def remove_entity_from_json_value(node: JsonValue, entity_id: str) -> tuple[JsonValue, bool]:
     """从 JSON 值中移除实体引用，返回 ``(新值, 是否变更)``。"""
     if node is None:
         return node, False
@@ -204,7 +242,7 @@ def remove_entity_from_json_value(node: Any, entity_id: str) -> tuple[Any, bool]
 
 # 倒排索引（对齐 entity-references-index.ts）
 
-def _reference_key(reference: dict[str, Any]) -> str:
+def _reference_key(reference: EntityReference) -> str:
     """引用去重键：同 ``kind:id:role:detail`` 视为同一条引用。
 
     拼 key 的逻辑只有这一处：此前它在"插入"与"查重"里各写了一遍（`_push_reference`），
@@ -217,10 +255,10 @@ def _reference_key(reference: dict[str, Any]) -> str:
 
 
 def _push_reference(
-    mapping: dict[str, list[dict[str, Any]]],
+    mapping: dict[str, list[EntityReference]],
     seen_keys: set[str],
     entity_id: str,
-    reference: dict[str, Any],
+    reference: EntityReference,
 ) -> None:
     """把引用挂到 ``entity_id`` 的桶里（去重是 **O(1)**：键算一次、集合查一次）。
 
@@ -234,7 +272,7 @@ def _push_reference(
     mapping.setdefault(entity_id, []).append(reference)
 
 
-def _collect_referenced_ids(node: Any, ids: set[str]) -> None:
+def _collect_referenced_ids(node: JsonValue, ids: set[str]) -> None:
     """递归收集 JSON 里所有形如 ``domain.object_id`` 的字符串（引用候选）。"""
     if not node:
         return
@@ -267,7 +305,7 @@ def _home_mode_reference_role(
 
 
 def _index_alert_rules(
-    mapping: dict[str, list[dict[str, Any]]],
+    mapping: dict[str, list[EntityReference]],
     seen_keys: set[str],
     alert_rows: list[dict[str, Any]],
 ) -> None:
@@ -291,7 +329,7 @@ def _index_alert_rules(
 
 
 def _index_home_modes(
-    mapping: dict[str, list[dict[str, Any]]],
+    mapping: dict[str, list[EntityReference]],
     seen_keys: set[str],
     home_mode_rows: list[dict[str, Any]],
 ) -> None:
@@ -318,7 +356,7 @@ def _index_home_modes(
             )
 
 
-def build_entity_references_inverted_index(session_factory: Any) -> dict[str, list[dict[str, Any]]]:
+def build_entity_references_inverted_index(session_factory: object) -> dict[str, list[EntityReference]]:
     """一次扫描本地资源（告警规则 / 家庭模式），构建 entityId → references 倒排索引。
 
     这两张表**不能**加 ``limit``：倒排索引是「删除实体前清引用」的唯一依据，截断意味着
@@ -356,7 +394,7 @@ def build_entity_references_inverted_index(session_factory: Any) -> dict[str, li
         for home_mode in home_modes
     ]
 
-    mapping: dict[str, list[dict[str, Any]]] = {}
+    mapping: dict[str, list[EntityReference]] = {}
     seen_keys: set[str] = set()
     _index_alert_rules(mapping, seen_keys, alert_rows)
     _index_home_modes(mapping, seen_keys, home_mode_rows)
@@ -364,7 +402,7 @@ def build_entity_references_inverted_index(session_factory: Any) -> dict[str, li
 
 
 # 布局 / 系统配置扫描（对齐 entity-references-scanners.helper.ts）
-def _push(items: list[dict[str, Any]], reference: dict[str, Any], seen: set[str]) -> None:
+def _push(items: list[EntityReference], reference: EntityReference, seen: set[str]) -> None:
     """按 ``kind:id:role:detail`` 去重后追加（与倒排索引共用同一份去重口径）。"""
     key = _reference_key(reference)
     if key in seen:
@@ -373,7 +411,7 @@ def _push(items: list[dict[str, Any]], reference: dict[str, Any], seen: set[str]
     items.append(reference)
 
 
-def _reference_paths(node: Any, entity_id: str) -> list[str]:
+def _reference_paths(node: JsonValue, entity_id: str) -> list[str]:
     """节点里该实体的命中路径；空列表 = 未引用。
 
     扫描器几乎每个落点都要写「取路径 → 空则跳过」。把它收成一行，既少了样板，
@@ -386,7 +424,7 @@ def _reference_paths(node: Any, entity_id: str) -> list[str]:
     return collect_entity_paths(node, entity_id)
 
 
-def scan_layout_and_system(deps: dict[str, Any], entity_id: str, items: list[dict[str, Any]]) -> None:
+def scan_layout_and_system(deps: EntityReferencesDeps, entity_id: str, items: list[EntityReference]) -> None:
     """扫描布局配置（projectConfig.layout）与系统配置（app_config）中的实体引用。"""
     seen = {_reference_key(reference) for reference in items}
     try:
@@ -403,7 +441,7 @@ def scan_layout_and_system(deps: dict[str, Any], entity_id: str, items: list[dic
 
 
 def _scan_layout_favorites(
-    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+    entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]
 ) -> None:
     favorites = layout.get("favoriteEntities")
     if not isinstance(favorites, dict):
@@ -426,7 +464,7 @@ def _scan_layout_favorites(
 
 
 def _scan_layout_panel_widgets(
-    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+    entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]
 ) -> None:
     right_panel = layout.get("rightPanelWidgets")
     floating = layout.get("floatingWidgets")
@@ -482,7 +520,7 @@ _LAYOUT_SIMPLE_BINDINGS_KEYS = frozenset(
 
 
 def _scan_layout_field_references(
-    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+    entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]
 ) -> None:
     """布局里"字段命中即产出一条固定引用"的落点（页脚 / 全屋关闭 / 单字段绑定）。"""
     for layout_key, kind, reference_id, display_name, role, settings_path in _LAYOUT_FIELD_REFERENCES:
@@ -504,7 +542,7 @@ def _scan_layout_field_references(
 
 
 def _scan_layout_security_modes(
-    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+    entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]
 ) -> None:
     raw_modes = layout.get("securityModes")
     security_modes = raw_modes if isinstance(raw_modes, list) else []
@@ -535,7 +573,7 @@ def _scan_layout_security_zones(
     entity_id: str,
     layout: dict[str, Any],
     ha_config: dict[str, Any],
-    items: list[dict[str, Any]],
+    items: list[EntityReference],
     seen: set[str],
 ) -> None:
     """安防区域：layout.securityZones 与 haConfig.zones 双源。"""
@@ -569,7 +607,7 @@ def _scan_layout_security_zones(
 
 
 def _scan_layout_object(
-    entity_id: str, layout: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+    entity_id: str, layout: dict[str, Any], items: list[EntityReference], seen: set[str]
 ) -> None:
     """扫描 projectConfig.layout 的各个引用落点（收藏 / 组件 / 页脚 / 安防 / 绑定 / 区域）。"""
     _scan_layout_favorites(entity_id, layout, items, seen)
@@ -599,7 +637,7 @@ _HA_BINDING_LABELS: tuple[tuple[tuple[str, ...], str], ...] = (
 
 
 def _scan_ha_bindings(
-    entity_id: str, ha_config: dict[str, Any], items: list[dict[str, Any]], seen: set[str]
+    entity_id: str, ha_config: dict[str, Any], items: list[EntityReference], seen: set[str]
 ) -> None:
     for field_keys, binding_label in _HA_BINDING_LABELS:
         for field_key in field_keys:
@@ -645,7 +683,7 @@ def _scan_ha_bindings(
 
 
 def _scan_env_sensor_map(
-    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+    app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     for room_id, env_sensor_room in (app_config_raw.get("envSensorMap") or {}).items():
         paths = _reference_paths(env_sensor_room, entity_id)
@@ -667,7 +705,7 @@ def _scan_env_sensor_map(
 
 
 def _push_system_config(
-    items: list[dict[str, Any]],
+    items: list[EntityReference],
     seen: set[str],
     reference_id: str,
     display_name: str,
@@ -693,7 +731,7 @@ def _push_system_config(
 
 
 def _scan_presence_persons(
-    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+    app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     security = _app_config_section(app_config_raw, "security")
     for person in security.get("presencePersons") or []:
@@ -732,7 +770,7 @@ _ENERGY_CIRCUIT_FIELD = ("energy", "circuitEntityIds")
 
 
 def _scan_app_config_bindings(
-    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+    app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     """昼夜节律 / 用水 / 能源 / 语音这几个"单字段绑定"是否指向该实体。"""
     for section_key, field_key, binding_id, display_name, settings_path in _APP_CONFIG_FIELD_BINDINGS:
@@ -748,7 +786,7 @@ def _scan_app_config_bindings(
 
 
 def _scan_voice_and_client_power(
-    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+    app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     voice = _app_config_section(app_config_raw, "voice")
     for tts_alert_rule in voice.get("entityTtsAlerts") or []:
@@ -778,7 +816,7 @@ def _scan_voice_and_client_power(
 
 
 def _scan_media_and_log_block(
-    app_config_raw: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+    app_config_raw: dict[str, Any], entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     """影音播放列表键名即实体 ID；事件日志屏蔽是 entity_ids 数组。"""
     media_playlists = app_config_raw.get("mediaPlaylists")
@@ -804,7 +842,7 @@ def _scan_media_and_log_block(
 
 
 def _scan_system_config(
-    deps: dict[str, Any], entity_id: str, items: list[dict[str, Any]], seen: set[str]
+    deps: EntityReferencesDeps, entity_id: str, items: list[EntityReference], seen: set[str]
 ) -> None:
     """扫描 app_config 中的实体引用（环境映射 / 在家判定 / 绑定 / 播报 / 影音 / 日志屏蔽）。"""
     app_config_raw = deps["app_config"].get_all_raw() or {}
@@ -816,15 +854,18 @@ def _scan_system_config(
 
 
 # 解绑执行器（对齐 entity-references-unlink.ts）
-def _fail(message: str) -> dict[str, Any]:
+def _fail(message: str) -> UnlinkResult:
     return {"ok": False, "message": message}
 
 
-def _ok(action: str, message: str | None = None, layout_touched: bool = False) -> dict[str, Any]:
-    return {"ok": True, "action": action, "message": message, "layoutTouched": layout_touched}
+def _ok(action: str, message: str | None = None, layout_touched: bool = False) -> UnlinkResult:
+    result: UnlinkResult = {"ok": True, "action": action, "layoutTouched": layout_touched}
+    if message is not None:
+        result["message"] = message
+    return result
 
 
-def _unlink_home_mode(deps: dict[str, Any], mode_id: str, entity_id: str) -> dict[str, Any]:
+def _unlink_home_mode(deps: EntityReferencesDeps, mode_id: str, entity_id: str) -> UnlinkResult:
     from ...platform.core.models import HomeMode
 
     with deps["session_factory"]() as session:
@@ -851,7 +892,7 @@ def _unlink_home_mode(deps: dict[str, Any], mode_id: str, entity_id: str) -> dic
     return _ok("filtered", "已从家庭模式动作/触发中移除")
 
 
-def _unlink_alert_rule(deps: dict[str, Any], rule_id: str) -> dict[str, Any]:
+def _unlink_alert_rule(deps: EntityReferencesDeps, rule_id: str) -> UnlinkResult:
     from ...platform.core.models import AlertRule
 
     delete_alert_rule = deps.get("delete_alert_rule")
@@ -882,7 +923,7 @@ def _unlink_alert_rule(deps: dict[str, Any], rule_id: str) -> dict[str, Any]:
     return _ok("deleted_rule", "已删除告警规则")
 
 
-def _unlink_favorite(deps: dict[str, Any], item_id: str, entity_id: str) -> dict[str, Any]:
+def _unlink_favorite(deps: EntityReferencesDeps, item_id: str, entity_id: str) -> UnlinkResult:
     layout = dict(deps["load_layout"]())
     favorites = layout.get("favoriteEntities")
     favorites = dict(favorites) if isinstance(favorites, dict) else {}
@@ -1097,8 +1138,8 @@ _LAYOUT_UNLINK_HANDLERS: dict[str, Callable[[dict[str, Any], str, str], bool]] =
 
 
 def _unlink_layout_json_field(
-    deps: dict[str, Any], kind: str, item_id: str, entity_id: str
-) -> dict[str, Any]:
+    deps: EntityReferencesDeps, kind: str, item_id: str, entity_id: str
+) -> UnlinkResult:
     layout = dict(deps["load_layout"]())
     handler = _LAYOUT_UNLINK_HANDLERS.get(kind)
     # 调用方按 kind 分发，理论到不了 else；保持与旧实现一致的提示语。
@@ -1254,8 +1295,8 @@ def _build_system_config_patch(
 
 
 def _unlink_system_config(
-    deps: dict[str, Any], kind: str, item_id: str, entity_id: str
-) -> dict[str, Any]:
+    deps: EntityReferencesDeps, kind: str, item_id: str, entity_id: str
+) -> UnlinkResult:
     app_config_raw = deps["app_config"].get_all_raw() or {}
     try:
         patch = _build_system_config_patch(app_config_raw, kind, item_id, entity_id)
@@ -1266,8 +1307,8 @@ def _unlink_system_config(
 
 
 def unlink_entity_reference(
-    deps: dict[str, Any], entity_id: str, req: dict[str, Any]
-) -> dict[str, Any]:
+    deps: EntityReferencesDeps, entity_id: str, req: dict[str, Any]
+) -> UnlinkResult:
     """执行单条引用移除，按 kind 分发。"""
     item_id = str(req.get("id") or "").strip()
     kind = req.get("kind")
@@ -1310,10 +1351,10 @@ class EntityReferencesService:
         self._update_home_mode = update_home_mode
         self._delete_alert_rule = delete_alert_rule
         self._ref_cache: dict[str, dict[str, Any]] = {}
-        self._inverted_index: dict[str, list[dict[str, Any]]] | None = None
+        self._inverted_index: dict[str, list[EntityReference]] | None = None
         self._inverted_index_at = 0.0
 
-    def _deps(self) -> dict[str, Any]:
+    def _deps(self) -> EntityReferencesDeps:
         return {
             "session_factory": self._session_factory,
             "app_config": self._app_config,
@@ -1412,7 +1453,9 @@ class EntityReferencesService:
 __all__ = [
     "ENTITY_REFERENCE_KINDS",
     "ENTITY_REFERENCE_ROLES",
+    "EntityReference",
     "EntityReferencesService",
+    "UnlinkResult",
     "build_entity_references_inverted_index",
     "collect_entity_paths",
     "path_looks_like_action",

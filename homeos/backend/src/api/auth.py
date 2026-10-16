@@ -44,7 +44,11 @@ from ..platform.security.passwords import (
     verify_password,
 )
 from ..platform.security.request_origin import require_same_origin_write
-from ..platform.security.session_store import create_login_session, set_session_cookie
+from ..platform.security.session_store import (
+    clear_session_cookie,
+    create_login_session,
+    set_session_cookie,
+)
 
 router = NestRouter(tags=["authentication"])
 
@@ -218,7 +222,11 @@ async def register(
         )
         session.commit()
         set_session_cookie(
-            response, request.app.state.settings, token, max_age_seconds=_session_max_age(request)
+            response,
+            request.app.state.settings,
+            token,
+            max_age_seconds=_session_max_age(request),
+            request=request,
         )
         request.app.state.global_log.append("success", "系统后台", "账号", registered_note)
         return public_user(user)
@@ -270,7 +278,11 @@ def login(
     )
     session.commit()
     set_session_cookie(
-        response, request.app.state.settings, token, max_age_seconds=_session_max_age(request)
+        response,
+        request.app.state.settings,
+        token,
+        max_age_seconds=_session_max_age(request),
+        request=request,
     )
     request.app.state.global_log.append(
         "success", "系统后台", "账号", f"账号 {user.username} 已登录"
@@ -279,7 +291,7 @@ def login(
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(
+async def logout(
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
@@ -287,6 +299,7 @@ def logout(
     settings = request.app.state.settings
     token = request.cookies.get(settings.cookie_name, "")
     username = "用户"
+    revoked_user_id: str | None = None
     if token:
         from ..platform.security.session_store import session_token_hash
 
@@ -295,6 +308,7 @@ def logout(
             select(LoginSession).where(LoginSession.id_hash == token_hash)
         )
         if record is not None:
+            revoked_user_id = record.user_id
             user = session.get(User, record.user_id)
             if user is not None:
                 username = user.username
@@ -303,7 +317,12 @@ def logout(
     request.app.state.global_log.append(
         "info", "系统后台", "账号", f"{username} 已退出登录"
     )
-    response.delete_cookie(settings.cookie_name, path="/")
+    clear_session_cookie(response, settings, request)
+    # 光删 DB 会话不够：WS 连接在握手时一次性鉴权、之后不再查库，所以登出后那条连接
+    # 仍会持续收到家中的状态变更与站内通知。这里显式切断该账号的在线连接。
+    gateway = getattr(request.app.state, "realtime", None)
+    if gateway is not None and revoked_user_id:
+        await gateway.disconnect_user(revoked_user_id)
 
 
 @router.get("/auth/me", response_model=UserResponse)

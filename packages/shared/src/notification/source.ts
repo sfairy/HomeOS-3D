@@ -25,6 +25,7 @@ export const NOTIFICATION_SOURCE_SHORT_LABELS: Record<string, string> = {
   drill: '演习',
   voice: '语音',
   presence: '人员',
+  'ha-connection': 'HA',
 }
 
 const ADVISOR_CATEGORY_LABELS: Record<string, string> = {
@@ -127,6 +128,11 @@ export function isLifeSafetyNotification(
   if (src.startsWith('security') || src.startsWith('hazard') || src.startsWith('drill')) return true
   if (src.startsWith('earthquake')) return true
   if (src.startsWith('water')) return true
+  // HA（中枢）失联：它一断，安防 / 告警 / 自动化 / 场景全部失效，且设备离线告警本身会被
+  // 后端抑制（状态不可信）—— 这条通知正是那批告警缺席的原因，因此不能被「重要通知」开关
+  // 或免打扰静音，否则用户会在毫不知情的情况下失去全部告警能力。
+  // 它仍用 warn 级别：中枢失联是系统性故障，不是家里的紧急事件，不占 danger 语义。
+  if (src === 'ha-connection' || src.startsWith('ha-connection')) return true
   return false
 }
 

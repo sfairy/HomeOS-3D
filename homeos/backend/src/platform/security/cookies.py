@@ -42,6 +42,21 @@ def resolve_cookie_secure_for_request(request: Request) -> bool:
     return is_request_secure(request)
 
 
+def resolve_session_cookie_secure(request: Request, settings) -> bool:
+    """会话 Cookie 的 ``Secure``：与 CSRF Cookie 共用同一套三态判定。
+
+    此前会话 Cookie 直接吃 ``settings.cookie_secure``（布尔），而 ``COOKIE_SECURE=auto``
+    会被 ``_environment_bool`` 判成 False —— HTTPS 部署下同一次响应里 ``csrf_token`` 带
+    Secure、``auth_token`` 不带，属性互相矛盾，会话 Cookie 的传输要求反而更弱。
+
+    这里统一口径：显式置真/置假照旧，``auto``（含未设置）跟随请求实际协议
+    （含反向代理下的 ``X-Forwarded-Proto``）。
+    """
+    if getattr(settings, "cookie_secure", False):
+        return True
+    return resolve_cookie_secure_for_request(request)
+
+
 def is_https_deploy_mode() -> bool:
     return get_cookie_secure_mode() == "true"
 
@@ -80,24 +95,6 @@ def is_origin_allowed(origin: str, allowed_origins: list[str]) -> bool:
 
 
 # Cookie 写入 / 清除
-def set_auth_cookie(
-    response: Response,
-    request: Request,
-    token: str,
-    cookie_name: str,
-    max_age_ms: int,
-) -> None:
-    response.set_cookie(
-        key=cookie_name,
-        value=token,
-        max_age=max_age_ms // 1000,
-        httponly=True,
-        samesite="lax",
-        secure=resolve_cookie_secure_for_request(request),
-        path="/",
-    )
-
-
 def set_csrf_cookie(
     response: Response,
     request: Request,
@@ -128,13 +125,3 @@ def ensure_csrf_cookie(
     if isinstance(existing, str) and existing:
         return
     set_csrf_cookie(response, request, cookie_name, max_age_ms)
-
-
-def clear_auth_cookies(
-    response: Response, request: Request, auth_cookie_name: str, csrf_cookie_name: str
-) -> None:
-    secure = resolve_cookie_secure_for_request(request)
-    response.delete_cookie(
-        auth_cookie_name, path="/", httponly=True, samesite="lax", secure=secure
-    )
-    response.delete_cookie(csrf_cookie_name, path="/", samesite="lax", secure=secure)

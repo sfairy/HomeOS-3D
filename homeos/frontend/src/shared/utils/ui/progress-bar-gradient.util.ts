@@ -2,7 +2,7 @@
 
 import { isRef, type Ref } from 'vue'
 
-export type ProgressGradient = { from: string; to: string; glow?: string }
+type ProgressGradient = { from: string; to: string; glow?: string }
 
 /** @type {Record<string, ProgressGradient>} */
 const PROGRESS_VARIANTS: Record<string, ProgressGradient> = {

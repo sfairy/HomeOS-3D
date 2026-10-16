@@ -19,7 +19,8 @@
     "./utils/clipboard": "./src/utils/clipboard.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.esm.json && bun scripts/build-cjs.mjs",
+    "sync:scene": "bun scripts/sync-scene-static.mjs",
+    "build": "bun run sync:scene && tsc -p tsconfig.esm.json && bun scripts/build-cjs.mjs",
     "lint": "eslint \"**/*.{ts,vue}\" --max-warnings 0",
     "typecheck": "tsc -p tsconfig.esm.json --noEmit"
   },

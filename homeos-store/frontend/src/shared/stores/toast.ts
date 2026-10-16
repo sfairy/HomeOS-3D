@@ -3,9 +3,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export type ToastTone = "info" | "success" | "warning" | "danger" | "err";
+type ToastTone = "info" | "success" | "warning" | "danger" | "err";
 
-export interface ToastItem {
+interface ToastItem {
   id: number;
   message: string;
   tone: ToastTone;

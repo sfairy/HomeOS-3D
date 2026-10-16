@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime
@@ -28,9 +29,10 @@ AUTO_BACKUP_TZ = "Asia/Shanghai"
 class AutoBackupService:
     """Nest ``AutoBackupService`` 等价实现（APScheduler 承载 Cron 语义）。"""
 
-    def __init__(self, app_config: Any, server_backup: Any) -> None:
+    def __init__(self, app_config: Any, server_backup: Any, coordinator: Any = None) -> None:
         self._app_config = app_config
         self._server_backup = server_backup
+        self._coordinator = coordinator
         self.last_run_at: str | None = None
         self.last_error: str | None = None
         self._scheduler: Any = None
@@ -83,9 +85,20 @@ class AutoBackupService:
         if not ops.get("autoBackupEnabled"):
             logger.debug("自动备份未启用,跳过")
             return
+        # 维护闸门只拦 HTTP 请求，拦不住这里的进程内作业：恢复正在进行时必须主动让路，
+        # 否则备份会采到「库已换、数据文件挪了一半」的中间态。
+        if self._coordinator is not None and self._coordinator.maintenance:
+            logger.warning("正在恢复业务数据，本次自动备份跳过")
+            return
         try:
-            name = self._server_backup.create_backup()["name"]
-            self.prune_old_backups(int(ops.get("autoBackupRetainDays") or 0))
+            if self._coordinator is not None:
+                name = await self._coordinator.run_exclusive(
+                    self._create_and_prune, int(ops.get("autoBackupRetainDays") or 0)
+                )
+            else:
+                name = await asyncio.to_thread(
+                    self._create_and_prune, int(ops.get("autoBackupRetainDays") or 0)
+                )
             self.last_run_at = datetime.now(UTC).isoformat(timespec="milliseconds").replace(
                 "+00:00", "Z"
             )
@@ -95,12 +108,30 @@ class AutoBackupService:
             self.last_error = str(err)
             logger.error("自动备份失败: %s", self.last_error)
 
+    def _create_and_prune(self, retain_days: int) -> str:
+        """生成自动备份并清理超期产物（同步，跑在 worker 线程里）。"""
+        name = self._server_backup.create_backup(origin="auto")["name"]
+        self.prune_old_backups(retain_days)
+        return name
+
     def prune_old_backups(self, retain_days: int) -> None:
-        """清理超出保留天数的历史备份包（按文件 mtime 判定）。"""
+        """清理超出保留天数的**自动**备份包（按文件 mtime 判定）。
+
+        只清 ``homeos-auto-`` 前缀的产物，且永远保留最新的一份：
+
+        - 手动包（``homeos-full-``）与自动包过去同名同目录，无法区分来源，于是「升级前手动
+          备份」闲置超期就被静默删掉 —— 那往往正是最该留下的那一份；
+        - 没有任何「至少留一份」的兜底时，长时间停机后首次调度会先造新包再删旧包，看似安全，
+          但若新包创建失败、清理又先跑，就会把历史清空。
+        """
         if not isinstance(retain_days, (int, float)) or retain_days < 1:
             return
         cutoff_ms = time.time() * 1000 - retain_days * 24 * 60 * 60 * 1000
-        for file in self._server_backup.list_files():
+        entries = [item for item in self._server_backup.list_files() if item.get("origin") == "auto"]
+        if len(entries) <= 1:
+            return
+        # list_files 已按 mtime 倒序：跳过最新的那份，其余超期才删。
+        for file in entries[1:]:
             try:
                 mtime_ms = datetime.fromisoformat(
                     str(file["mtime"])

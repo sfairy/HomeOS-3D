@@ -1,7 +1,7 @@
 /** HEX 颜色工具（全局唯一实现） */
 
 /** RGB 通道值对象 */
-export interface Rgb {
+interface Rgb {
   r: number
   g: number
   b: number

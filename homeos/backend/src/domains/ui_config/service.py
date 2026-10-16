@@ -13,6 +13,7 @@ import json
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
@@ -24,6 +25,7 @@ from .layout_secrets import (
     strip_retired_layout_keys,
 )
 from .static_assets import UiConfigStaticAssetService
+from ...platform.core.asset_paths import get_ui_assets_dir
 from ...platform.core.errors import (
     BusinessException,
     ErrorCode,
@@ -54,10 +56,13 @@ class UiConfigService:
         app_config: Any,
         static_assets: UiConfigStaticAssetService | None = None,
         event_bus: Any = None,
+        ui_assets_root: Path | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._app_config = app_config
-        self._static_assets = static_assets or UiConfigStaticAssetService()
+        self._static_assets = static_assets or UiConfigStaticAssetService(
+            ui_assets_root or get_ui_assets_dir()
+        )
         self._event_bus = event_bus
 
     # 内部工具
@@ -72,15 +77,15 @@ class UiConfigService:
                 except Exception as exc:
                     logger.debug("广播 %s 失败: %s", name, exc)
 
-    def _record(self, row: ProjectConfig) -> dict[str, Any]:
+    def _record(self, config: ProjectConfig) -> dict[str, Any]:
         return {
-            "id": row.id,
-            "projectId": row.project_id,
+            "id": config.id,
+            "projectId": config.project_id,
             # 读路径统一清掉历史 layout.haConfig 里的连接凭据（3.3 起单源到 ha_connections）
             # 与已退役的结构键（角色维度）。
-            "layout": strip_retired_layout_keys(strip_legacy_ha_connection(read_json_object(row.layout))),
-            "createdAt": _iso(row.created_at),
-            "updatedAt": _iso(row.updated_at),
+            "layout": strip_retired_layout_keys(strip_legacy_ha_connection(read_json_object(config.layout))),
+            "createdAt": _iso(config.created_at),
+            "updatedAt": _iso(config.updated_at),
         }
 
     def normalize_retired_layout_keys(self) -> int:
@@ -92,12 +97,12 @@ class UiConfigService:
         """
         changed = 0
         with self._session_factory() as session:
-            for row in session.execute(select(ProjectConfig)).scalars().all():
-                raw = read_json_object(row.layout)
+            for config in session.execute(select(ProjectConfig)).scalars().all():
+                raw = read_json_object(config.layout)
                 cleaned = strip_retired_layout_keys(raw)
                 if cleaned == raw:
                     continue
-                row.layout = json.dumps(cleaned, ensure_ascii=False)
+                config.layout = json.dumps(cleaned, ensure_ascii=False)
                 changed += 1
             if changed:
                 session.commit()
@@ -134,10 +139,10 @@ class UiConfigService:
     def get_config(self, project_id: str = "default") -> dict[str, Any]:
         """获取项目配置（不存在时返回 ``{projectId, layout: {}}``）。"""
         with self._session_factory() as session:
-            row = self._find(session, project_id)
-            if row is None:
+            config = self._find(session, project_id)
+            if config is None:
                 return {"projectId": project_id, "layout": {}}
-            return self._record(row)
+            return self._record(config)
 
     def get_config_for_api(self, project_id: str) -> dict[str, Any]:
         """API：获取项目配置（含已解析 layout；敏感字段脱敏）。"""
@@ -196,7 +201,7 @@ class UiConfigService:
 
     def list_terminal_bindings(self) -> dict[str, Any]:
         bindings = list(self._profiles().get("terminalBindings") or [])
-        bindings.sort(key=lambda row: str(row.get("updatedAt") or ""), reverse=True)
+        bindings.sort(key=lambda config: str(config.get("updatedAt") or ""), reverse=True)
         return {"success": True, "data": bindings}
 
     async def resolve_profile_for_terminal(self, client_id_raw: str | None) -> dict[str, Any]:
@@ -206,7 +211,7 @@ class UiConfigService:
 
         profiles = self._profiles()
         binding = next(
-            (row for row in (profiles.get("terminalBindings") or []) if row.get("clientId") == client_id),
+            (binding for binding in (profiles.get("terminalBindings") or []) if binding.get("clientId") == client_id),
             None,
         )
         if binding and binding.get("profileId") and self._profile_exists(binding["profileId"]):
@@ -235,11 +240,11 @@ class UiConfigService:
         self._assert_profile_exists(profile_id)
 
         profiles = self._profiles()
-        bindings = [dict(row) for row in (profiles.get("terminalBindings") or [])]
+        bindings = [dict(binding) for binding in (profiles.get("terminalBindings") or [])]
         index = next(
-            (i for i, row in enumerate(bindings) if row.get("clientId") == client_id), None
+            (i for i, binding in enumerate(bindings) if binding.get("clientId") == client_id), None
         )
-        row = {
+        config = {
             "clientId": client_id,
             "profileId": profile_id,
             "label": str(body.get("label")).strip() if body.get("label") is not None else None,
@@ -247,18 +252,18 @@ class UiConfigService:
             "updatedAt": datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         }
         if index is not None:
-            merged = {**bindings[index], **row}
-            if row["boundBy"] is None:
+            merged = {**bindings[index], **config}
+            if config["boundBy"] is None:
                 merged["boundBy"] = bindings[index].get("boundBy")
-            if row["label"] is None:
+            if config["label"] is None:
                 merged.pop("label", None)
             bindings[index] = merged
             result = merged
         else:
-            if row["label"] is None:
-                row.pop("label", None)
-            bindings.append(row)
-            result = row
+            if config["label"] is None:
+                config.pop("label", None)
+            bindings.append(config)
+            result = config
 
         self._app_config.update({"profiles": {"terminalBindings": bindings}})
         return {"success": True, "data": result}
@@ -284,7 +289,7 @@ class UiConfigService:
             bad_request(api_error("UI_CONFIG_CLIENT_ID_REQUIRED"))
         profiles = self._profiles()
         bindings = [
-            row for row in (profiles.get("terminalBindings") or []) if row.get("clientId") != client_id
+            binding for binding in (profiles.get("terminalBindings") or []) if binding.get("clientId") != client_id
         ]
         self._app_config.update({"profiles": {"terminalBindings": bindings}})
         return {"success": True, "removed": client_id}
@@ -323,22 +328,22 @@ class UiConfigService:
         logger.info("正在保存项目布局配置:%s", project_id)
         layout_json = strip_retired_layout_keys(strip_legacy_ha_connection(to_input_json(layout, {})))
         with self._session_factory() as session:
-            row = self._find(session, project_id)
+            config = self._find(session, project_id)
             now = datetime.now(UTC)
-            if row is None:
-                row = ProjectConfig(
+            if config is None:
+                config = ProjectConfig(
                     project_id=project_id,
                     layout=json.dumps(layout_json, ensure_ascii=False),
                     created_at=now,
                     updated_at=now,
                 )
-                session.add(row)
+                session.add(config)
             else:
-                row.layout = json.dumps(layout_json, ensure_ascii=False)
-                row.updated_at = now
+                config.layout = json.dumps(layout_json, ensure_ascii=False)
+                config.updated_at = now
             session.commit()
-            session.refresh(row)
-            result = self._record(row)
+            session.refresh(config)
+            result = self._record(config)
 
         self._emit_config_updated()
         return result
@@ -350,10 +355,10 @@ class UiConfigService:
 
         existing_layout: Any = None
         with self._session_factory() as session:
-            row = self._find(session, project_id)
-            if row is not None:
-                existing_layout = row.layout
-        if row is None:
+            config = self._find(session, project_id)
+            if config is not None:
+                existing_layout = config.layout
+        if config is None:
             active_profile_id = str(self._profiles().get("activeProfileId") or "").strip()
             if active_profile_id and active_profile_id != project_id:
                 with self._session_factory() as session:
@@ -373,10 +378,10 @@ class UiConfigService:
         if project_id == "default":
             bad_request(api_error("UI_CONFIG_DEFAULT_DELETE_DENIED"))
         with self._session_factory() as session:
-            row = self._find(session, project_id)
-            if row is None:
+            config = self._find(session, project_id)
+            if config is None:
                 bad_request(api_error("UI_CONFIG_PROFILE_NOT_FOUND", project_id))
-            session.delete(row)
+            session.delete(config)
             session.commit()
 
     def list_profiles(self) -> list[dict[str, Any]]:
@@ -390,7 +395,7 @@ class UiConfigService:
                 .scalars()
                 .all()
             )
-        return [{"projectId": row.project_id, "updatedAt": _iso(row.updated_at)} for row in rows]
+        return [{"projectId": config.project_id, "updatedAt": _iso(config.updated_at)} for config in rows]
 
     def get_profiles_summary(self) -> dict[str, Any]:
         profiles = self.list_profiles()
@@ -407,7 +412,7 @@ class UiConfigService:
                 .scalars()
                 .all()
             )
-            return [self._record(row) for row in rows]
+            return [self._record(config) for config in rows]
 
     async def import_all_configs_validated(self, body: dict[str, Any]) -> dict[str, Any]:
         configs = (body or {}).get("configs")
@@ -436,8 +441,8 @@ class UiConfigService:
                     .scalars()
                     .all()
                 )
-                for row in rows:
-                    existing[row.project_id] = row.layout
+                for config in rows:
+                    existing[config.project_id] = config.layout
 
         rows_to_write: list[dict[str, Any]] = []
         for item in valid:
@@ -456,9 +461,9 @@ class UiConfigService:
         now = datetime.now(UTC)
         with self._session_factory() as session:
             for item in rows_to_write:
-                row = self._find(session, item["projectId"])
+                config = self._find(session, item["projectId"])
                 payload = json.dumps(item["layout"], ensure_ascii=False)
-                if row is None:
+                if config is None:
                     session.add(
                         ProjectConfig(
                             project_id=item["projectId"],
@@ -468,8 +473,8 @@ class UiConfigService:
                         )
                     )
                 else:
-                    row.layout = payload
-                    row.updated_at = now
+                    config.layout = payload
+                    config.updated_at = now
             session.commit()
 
         self._emit_config_updated()

@@ -17,7 +17,7 @@ interface ClimateSeriesPoint {
  * 后端 `/ha/history` 返回的历史点。
  * 用结构类型而非 import API 层类型，保持渲染工具层不反向依赖 services。
  */
-export interface ClimateHistoryPoint {
+interface ClimateHistoryPoint {
   timestamp: string
   value: number | string
 }

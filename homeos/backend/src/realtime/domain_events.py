@@ -53,85 +53,85 @@ class DomainEventBridge:
             "earthquake.alert": self._handle_earthquake_alert,
             "earthquake.confirmation": self._handle_earthquake_confirmation,
         }
-        for event, handler in handlers.items():
-            self._event_bus.on(event, handler)
+        for event_name, handler in handlers.items():
+            self._event_bus.on(event_name, handler)
 
     # 通用分发
-    async def _safe(self, label: str, method: Any, data: Any) -> None:
-        if not isinstance(data, dict):
+    async def _safe(self, label: str, method: Any, event: Any) -> None:
+        if not isinstance(event, dict):
             return
         try:
-            await method(data)
+            await method(event)
         except Exception as exc:
             logger.warning("%s WS 推送失败: %s", label, exc)
 
     # 通知
-    async def _handle_notification(self, data: Any) -> None:
-        if not isinstance(data, dict):
+    async def _handle_notification(self, event: Any) -> None:
+        if not isinstance(event, dict):
             return
         try:
-            await self._gateway.broadcast_notification(data)
+            await self._gateway.broadcast_notification(event)
         except Exception as exc:
             logger.warning("通知 WS 推送失败: %s", exc)
 
     # 家庭模式 / 自动化
-    async def _handle_home_mode_activated(self, data: Any) -> None:
-        await self._safe("家庭模式激活", self._gateway.broadcast_home_mode_activated, data)
+    async def _handle_home_mode_activated(self, event: Any) -> None:
+        await self._safe("家庭模式激活", self._gateway.broadcast_home_mode_activated, event)
 
-    async def _handle_home_mode_deactivated(self, data: Any) -> None:
-        await self._safe("家庭模式停用", self._gateway.broadcast_home_mode_deactivated, data)
+    async def _handle_home_mode_deactivated(self, event: Any) -> None:
+        await self._safe("家庭模式停用", self._gateway.broadcast_home_mode_deactivated, event)
 
-    async def _handle_automation_executed(self, data: Any) -> None:
-        await self._safe("自动化执行", self._gateway.broadcast_automation_executed, data)
+    async def _handle_automation_executed(self, event: Any) -> None:
+        await self._safe("自动化执行", self._gateway.broadcast_automation_executed, event)
 
     # 安防
-    async def _handle_security_mode_changed(self, data: Any) -> None:
-        await self._safe("安防模式", self._gateway.broadcast_security_mode_changed, data)
+    async def _handle_security_mode_changed(self, event: Any) -> None:
+        await self._safe("安防模式", self._gateway.broadcast_security_mode_changed, event)
 
-    async def _handle_security_zones_changed(self, data: Any) -> None:
-        await self._safe("安防区域", self._gateway.broadcast_security_zones_changed, data)
+    async def _handle_security_zones_changed(self, event: Any) -> None:
+        await self._safe("安防区域", self._gateway.broadcast_security_zones_changed, event)
 
-    async def _handle_security_alarm(self, data: Any) -> None:
-        await self._safe("安防告警", self._gateway.broadcast_security_alarm, data)
+    async def _handle_security_alarm(self, event: Any) -> None:
+        await self._safe("安防告警", self._gateway.broadcast_security_alarm, event)
 
-    async def _handle_security_emergency(self, data: Any) -> None:
-        await self._safe("紧急求助", self._gateway.broadcast_security_emergency, data)
+    async def _handle_security_emergency(self, event: Any) -> None:
+        await self._safe("紧急求助", self._gateway.broadcast_security_emergency, event)
 
-    async def _handle_security_emergency_completed(self, data: Any) -> None:
+    async def _handle_security_emergency_completed(self, event: Any) -> None:
         await self._safe(
-            "紧急求助结束", self._gateway.broadcast_security_emergency_completed, data
+            "紧急求助结束", self._gateway.broadcast_security_emergency_completed, event
         )
 
     # 在场 / 能耗 / 检测 / 儿童模式
-    async def _handle_presence_changed(self, data: Any) -> None:
-        await self._safe("在场状态", self._gateway.broadcast_presence_changed, data)
+    async def _handle_presence_changed(self, event: Any) -> None:
+        await self._safe("在场状态", self._gateway.broadcast_presence_changed, event)
 
-    async def _handle_everyone_left(self, data: Any) -> None:
-        await self._safe("全员离家", self._gateway.broadcast_presence_all_left, data)
+    async def _handle_everyone_left(self, event: Any) -> None:
+        await self._safe("全员离家", self._gateway.broadcast_presence_all_left, event)
 
-    async def _handle_room_presence(self, data: Any) -> None:
-        await self._safe("房间在场", self._gateway.broadcast_room_presence, data)
+    async def _handle_room_presence(self, event: Any) -> None:
+        await self._safe("房间在场", self._gateway.broadcast_room_presence, event)
 
-    async def _handle_energy_anomaly(self, data: Any) -> None:
-        await self._safe("能耗异常", self._gateway.broadcast_energy_anomaly, data)
+    async def _handle_energy_anomaly(self, event: Any) -> None:
+        await self._safe("能耗异常", self._gateway.broadcast_energy_anomaly, event)
 
-    async def _handle_frigate_detection(self, data: Any) -> None:
-        await self._safe("Frigate 检测", self._gateway.broadcast_frigate_detection, data)
+    async def _handle_frigate_detection(self, event: Any) -> None:
+        await self._safe("Frigate 检测", self._gateway.broadcast_frigate_detection, event)
 
     # TTS / 地震
-    async def _handle_tts_speak(self, data: Any) -> None:
-        if not isinstance(data, dict) or self._tts_speak is None:
+    async def _handle_tts_speak(self, event: Any) -> None:
+        if not isinstance(event, dict) or self._tts_speak is None:
             return
         try:
-            await self._gateway.broadcast_tts_speak(data, self._tts_speak)
+            await self._gateway.broadcast_tts_speak(event, self._tts_speak)
         except Exception as exc:
             logger.warning("TTS 播报 WS 推送失败: %s", exc)
 
-    async def _handle_earthquake_alert(self, data: Any) -> None:
-        await self._safe("地震预警", self._gateway.broadcast_earthquake_alert, data)
+    async def _handle_earthquake_alert(self, event: Any) -> None:
+        await self._safe("地震预警", self._gateway.broadcast_earthquake_alert, event)
 
-    async def _handle_earthquake_confirmation(self, data: Any) -> None:
-        await self._safe("地震速报", self._gateway.broadcast_earthquake_confirmation, data)
+    async def _handle_earthquake_confirmation(self, event: Any) -> None:
+        await self._safe("地震速报", self._gateway.broadcast_earthquake_confirmation, event)
 
 
 __all__ = ["DomainEventBridge"]

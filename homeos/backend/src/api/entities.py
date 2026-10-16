@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -291,30 +292,31 @@ async def batch_get_entities(
 
 @router.post("/batch/area")
 async def batch_update_entity_area(
-    payload: StateStoreQueryDto,
+    body: StateStoreQueryDto,
     request: Request,
     user: dict[str, Any] = Depends(require_user),
 ):
-    entity_ids = [i for i in (payload.entity_ids or []) if i]
-    area_id = str(payload.area_id or "").strip()
+    entity_ids = [i for i in (body.entity_ids or []) if i]
+    area_id = str(body.area_id or "").strip()
     if not entity_ids:
         return {"success": False, "message": "未指定实体", "updated": 0}
 
     ha_connector = request.app.state.ha_connector
     restrictions = resolve_entity_restrictions(user)
-    updated = 0
-    errors: list[str] = []
-    updated_ids: list[str] = []
-    for entity_id in entity_ids:
+
+    async def _update_one(entity_id: str) -> tuple[str, bool]:
         if not is_entity_allowed(entity_id, restrictions):
-            errors.append(entity_id)
-            continue
+            return entity_id, False
         try:
             await ha_connector.update_entity_area(entity_id, area_id)
-            updated += 1
-            updated_ids.append(entity_id)
+            return entity_id, True
         except Exception:
-            errors.append(entity_id)
+            return entity_id, False
+
+    results = await asyncio.gather(*[_update_one(entity_id) for entity_id in entity_ids])
+    updated_ids = [entity_id for entity_id, ok in results if ok]
+    errors = [entity_id for entity_id, ok in results if not ok]
+    updated = len(updated_ids)
 
     entity_area = _entity_area(request)
     entity_area.invalidate()

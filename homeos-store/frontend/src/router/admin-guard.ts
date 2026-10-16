@@ -16,10 +16,10 @@
  * 「闸门改道到别处」这种回归只能靠这条对账发现（私有常量时冒烟只能重抄一遍字面量，
  * 于是两边一起改错也没人知道）。
  */
-export const STORE_LOGIN_PATH = "/user/authentication/login";
+const STORE_LOGIN_PATH = "/user/authentication/login";
 
 /** 放行（`true`）或改道（`replace` 为 true 时不往历史里塞一条，避免「后退」回不去）。 */
-export type GuardResult = true | { path: string; replace: true };
+type GuardResult = true | { path: string; replace: true };
 
 /**
  * 守卫实际读取的导航目标：只声明 `meta`。
@@ -32,12 +32,12 @@ export type GuardResult = true | { path: string; replace: true };
  * 反过来把 `meta` 声明成 `Record<PropertyKey, unknown>`：真 `to` 与冒烟里的
  * 字面量都能赋值（`meta` 这个属性名是两边共有的），也不需要依赖 vue-router 类型。
  */
-export interface GuardRoute {
+interface GuardRoute {
   meta?: Record<PropertyKey, unknown>;
 }
 
 /** 闸门依赖的会话能力，由 `stores/admin` 提供（`router/index.ts` 里注入真实现）。 */
-export interface AdminGateDeps {
+interface AdminGateDeps {
   /** 服务端渲染进外壳的登录态：`guest` 表示服务端已确认这一页没有会话。 */
   serverAuthState(): string;
   /** 后台会话阶段：`boot` | `login` | `ready`。 */

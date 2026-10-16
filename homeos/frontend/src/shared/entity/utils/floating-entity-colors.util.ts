@@ -29,7 +29,7 @@ type AfhThemeId =
   | 'cyber-red'
   | 'sunset'
 
-export type AfhThemeDef = {
+type AfhThemeDef = {
   id: AfhThemeId
   label: string
   accent: string

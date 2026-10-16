@@ -170,14 +170,14 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
 
 @router.post('/test')
 async def test_connection(
-    payload: HATestRequest,
+    command: HATestRequest,
     request: Request,
     database: DatabaseSession,
     _user: LicensedUser,
 ) -> dict[str, Any]:
     connection = active_connection(database)
     try:
-        token = payload.access_token or (
+        token = command.access_token or (
             request.app.state.studio_ha.cipher.decrypt(connection.encrypted_access_token)
             if connection
             else None
@@ -186,15 +186,15 @@ async def test_connection(
             raise HAClientError('首次连接必须输入 Home Assistant 访问令牌。')
         verify_tls = (
             connection.verify_tls
-            if connection and 'verify_tls' not in payload.model_fields_set
-            else payload.verify_tls
+            if connection and 'verify_tls' not in command.model_fields_set
+            else command.verify_tls
         )
         external_verify_tls = (
             connection.external_verify_tls
-            if connection and 'external_verify_tls' not in payload.model_fields_set
-            else payload.external_verify_tls
+            if connection and 'external_verify_tls' not in command.model_fields_set
+            else command.external_verify_tls
         )
-        endpoints = endpoint_candidates(payload.base_url, verify_tls, payload.external_base_url, external_verify_tls)
+        endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
         results = await probe_endpoints(
             endpoints, token, request.app.state.settings.ha_request_timeout_seconds
         )
@@ -396,7 +396,7 @@ def _log_connection_endpoint_warnings(
 
 @router.put('/connection')
 async def save_connection(
-    payload: HAConnectionInput,
+    command: HAConnectionInput,
     request: Request,
     database: DatabaseSession,
     _user: LicensedUser,
@@ -405,24 +405,24 @@ async def save_connection(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
     connector = request.app.state.studio_ha
     connection = active_connection(database)
-    verify_tls, external_verify_tls = _connection_verify_flags(payload, connection)
-    endpoints = endpoint_candidates(payload.base_url, verify_tls, payload.external_base_url, external_verify_tls)
-    new_addresses = (payload.base_url, payload.external_base_url)
+    verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
+    endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
+    new_addresses = (command.base_url, command.external_base_url)
     previous_addresses = (
         (connection.base_url, connection.external_base_url) if connection is not None else None
     )
-    token = _connection_access_token(payload, connection, connector, new_addresses, previous_addresses)
+    token = _connection_access_token(command, connection, connector, new_addresses, previous_addresses)
     test_results = await _probe_connection_endpoints(request, endpoints, token)
-    targets = _resolved_connection_targets(test_results, payload)
+    targets = _resolved_connection_targets(test_results, command)
     if connection is None:
-        connection = _create_connection_row(payload, connector, token, verify_tls, external_verify_tls, targets)
+        connection = _create_connection_row(command, connector, token, verify_tls, external_verify_tls, targets)
         database.add(connection)
     else:
-        _update_connection_row(connection, payload, connector, verify_tls, external_verify_tls, targets)
+        _update_connection_row(connection, command, connector, verify_tls, external_verify_tls, targets)
     database.commit()
     database.refresh(connection)
     await connector.restart()
-    _log_connection_address_change(request, payload, previous_addresses, connection)
+    _log_connection_address_change(request, command, previous_addresses, connection)
     _log_connection_endpoint_warnings(request, test_results, connection)
     return {**connection_payload(connection, request), 'test': targets.tested, 'endpoints': test_results}
 
@@ -730,7 +730,7 @@ def ha_health(request: Request, _database: DatabaseSession, _viewer: LicensedVie
 
 @router.post('/services/call')
 async def call_service(
-    payload: HAServiceCallRequest,
+    command: HAServiceCallRequest,
     request: Request,
     _database: DatabaseSession,
     viewer: LicensedViewer,
@@ -740,7 +740,7 @@ async def call_service(
     try:
         return await execute_service_call(
             request,
-            payload,
+            command,
             access_check=lambda database, entity_id: require_viewer_entity(database, viewer, entity_id),
         )
     except ServiceCallRejected as error:
@@ -749,14 +749,14 @@ async def call_service(
 
 @router.post('/media/browse')
 async def browse_media(
-    payload: HABrowseMediaRequest,
+    command: HABrowseMediaRequest,
     request: Request,
     _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
-    entity_domain = payload.entity_id.partition('.')[0]
+    entity_domain = command.entity_id.partition('.')[0]
     if entity_domain != 'media_player':
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -766,7 +766,7 @@ async def browse_media(
         load_authorized_entity_context,
         request.app.state.database,
         viewer,
-        payload.entity_id,
+        command.entity_id,
     )
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
@@ -774,11 +774,11 @@ async def browse_media(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
     try:
         client = await request.app.state.studio_ha.client_for(connection)
-        browse = client.browse_player_media if payload.player_library else client.browse_media
+        browse = client.browse_player_media if command.player_library else client.browse_media
         result = await browse(
-            payload.entity_id,
-            payload.media_content_id,
-            payload.media_content_type or None,
+            command.entity_id,
+            command.media_content_id,
+            command.media_content_type or None,
         )
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
@@ -863,9 +863,9 @@ def _runtime_log(
         log.append(level, source, '实时连接', message, context=context, details=details)
 
 
-async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
+async def _runtime_send_json(websocket: WebSocket, command: dict) -> None:
     try:
-        await websocket.send_json(payload)
+        await websocket.send_json(command)
     except RuntimeError as error:
         if str(error) in {
             'Cannot call "send" once a close message has been sent.',
@@ -1088,11 +1088,11 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             return False
         return not access_closed
 
-    async def send_licensed(payload: dict) -> bool:
+    async def send_licensed(command: dict) -> bool:
         """所有出站消息的唯一出口：先确认还有效，再发送。"""
         if not await access_allowed():
             return False
-        await _runtime_send_json(websocket, payload)
+        await _runtime_send_json(websocket, command)
         return True
 
     async def monitor_access() -> None:

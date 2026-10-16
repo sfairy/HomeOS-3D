@@ -12,6 +12,7 @@ from ..core.deps import AdminAccount, DbSession
 from ..core.models import (
     Coupon,
     CouponRedemption,
+    Order,
 )
 from ..core.schemas import (
     AdminCouponPatch,
@@ -81,11 +82,20 @@ def admin_list_coupons(
 
 
 def _coupon_redemption_counts(session, coupon_ids=None) -> dict[str, int]:
-    """按核销记录表统计每个优惠码的实际用量。
+    """按核销记录表统计每个优惠码**此刻仍占用**的名额数。
+
+    判据必须与 :func:`src.commerce.coupons.holds_slot_conditions` 同源：裸
+    ``count(*)`` 会把已作废（订单取消/过期/支付失败/全额退款后被 ``release_coupon``
+    标记 ``voided_at``）的历史记录也算进去，于是同一个码在后台列表与详情里给出两个数，
+    删券与下调名额的守卫也会被历史记录误挡。
     """
-    statement = select(
-        CouponRedemption.coupon_id, func.count(CouponRedemption.id)
-    ).group_by(CouponRedemption.coupon_id)
+    statement = (
+        select(CouponRedemption.coupon_id, func.count(CouponRedemption.id))
+        .select_from(CouponRedemption)
+        .outerjoin(Order, Order.id == CouponRedemption.order_id)
+        .where(*coupons.holds_slot_conditions())
+        .group_by(CouponRedemption.coupon_id)
+    )
     if coupon_ids is not None:
         ids = [str(item) for item in coupon_ids]
         if not ids:
@@ -98,11 +108,14 @@ def _coupon_redemption_counts(session, coupon_ids=None) -> dict[str, int]:
 
 
 def _coupon_redemption_count(session, coupon_id: str) -> int:
+    """单个优惠码仍占用的名额数（判据同 :func:`_coupon_redemption_counts`）。"""
     return int(
         session.execute(
-            select(func.count(CouponRedemption.id)).where(
-                CouponRedemption.coupon_id == coupon_id
-            )
+            select(func.count(CouponRedemption.id))
+            .select_from(CouponRedemption)
+            .outerjoin(Order, Order.id == CouponRedemption.order_id)
+            .where(CouponRedemption.coupon_id == coupon_id)
+            .where(*coupons.holds_slot_conditions())
         ).scalar_one()
         or 0
     )

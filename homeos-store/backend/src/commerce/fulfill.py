@@ -237,14 +237,16 @@ def _product_grants_features(session: Session, product: Product) -> bool:
 def _license_grants_features(session: Session, license: License) -> bool:
     """这张授权当前能不能开出至少一个能力码（与 licensing/service.features_for 同口径）。
 
-    能力 = 授权当前商品的 feature_codes ∪ 该授权上仍 active 的权益。
-    履约后用它做兜底断言：商品改配/权益写入静默失败时，宁可把订单打成
-    ``fulfillment_failed`` 让巡检捞起来，也不要发出「钱收了、能力没开通」的成功单。
+    能力 = 授权**功能码快照**（空快照才从当前商品回填一次）∪ 该授权上仍 active 的权益。
+    注意不能只看当前商品的 ``feature_codes_json``：那是「商品应该给什么」，而租约签的是
+    「授权记录里有什么」；两者不一致时（如升级漏写快照）用它做兜底断言会把问题订单放行。
     """
-    if license.product_id:
+    if not json_list(license.feature_codes_json) and license.product_id:
         product = session.get(Product, license.product_id)
         if product is not None and json_list(product.feature_codes_json):
             return True
+    elif json_list(license.feature_codes_json):
+        return True
     return (
         session.scalars(
             select(Entitlement.id)
@@ -388,6 +390,10 @@ def upgrade_license_in_place(
     )
     if (license.issuance_source or "") == "manual":
         license.issuance_source = "payment_automatic"
+    # 功能码快照必须跟着新商品走，否则续租签出的租约仍是升级前那套码：
+    # ``features_for`` 只在快照为空时才回填，且不再跟随商品变化 —— 升级后不重写快照，
+    # 用户花了钱却拿不到新商品自带的能力码（套餐包含的码走权益，自带的码没有出口）。
+    license.feature_codes_json = list_json(json_list(product.feature_codes_json))
     order.license_id = license.id
     grant_bundled_entitlements(
         session, license=license, product=product, customer=customer, now=moment

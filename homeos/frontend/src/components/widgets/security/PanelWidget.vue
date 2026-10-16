@@ -140,7 +140,10 @@ import { ShieldCheck, Shield, ShieldOff, Home, Moon, Loader2, ChevronDown } from
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
-import { executeSecurityPanelArm } from '@/shared/security/utils/panel-arm.util'
+import {
+  executeSecurityPanelArm,
+  interpretSecurityArmResult,
+} from '@/shared/security/utils/panel-arm.util'
 import {
   postSecurityZonesSafe,
   normalizeZonesForApi,
@@ -279,21 +282,22 @@ async function handleArm(mode) {
     const zoneIds = armZoneSelection.value.length ? armZoneSelection.value : []
     const data = await executeSecurityPanelArm(mode, zoneIds, panelZones.value, patchModeFromSocket)
     const sm = securityModes.value.find((m) => m.key === mode)
-    if (data?.success === false) {
-      const failed = data?.actions?.failed ?? 0
-      chrome.notify(
-        failed > 0
-          ? `${sm?.name || mode}未生效：${failed} 条联动失败，布防已取消`
-          : `${sm?.name || mode}未生效`,
-        'error',
-      )
+    const label = sm?.name || mode
+    const outcome = interpretSecurityArmResult(mode, label, data)
+    if (outcome.kind === 'failed') {
+      chrome.notify(outcome.message, 'error')
       return
     }
-    if (data?.skipped) {
-      chrome.notify(`已是${sm?.name || mode}，跳过重复联动`, 'info')
+    if (outcome.kind === 'partial') {
+      chrome.notify(outcome.message, 'warning')
+      lastEvent.value = `${formatLocaleTime(new Date(), { hour: '2-digit', minute: '2-digit' })} ${label}`
+      return
+    }
+    if (outcome.kind === 'skipped') {
+      chrome.notify(`已是${label}，跳过重复联动`, 'info')
     } else {
       hapticAlert()
-      lastEvent.value = `${formatLocaleTime(new Date(), { hour: '2-digit', minute: '2-digit' })} ${sm?.name || mode}`
+      lastEvent.value = `${formatLocaleTime(new Date(), { hour: '2-digit', minute: '2-digit' })} ${label}`
     }
   } catch (err) {
     const status = err?.response?.status

@@ -244,13 +244,13 @@ class HAConnectorService(
         """
         self._state_listener = listener
 
-    async def _notify_state(self, kind: str, payload: Any) -> None:
+    async def _notify_state(self, kind: str, state_update: Any) -> None:
         """外发一次状态（失败不拖垮连接循环：状态外发是旁路，不是主链路）。"""
         listener = self._state_listener
         if listener is None:
             return
         try:
-            result = listener(kind, payload)
+            result = listener(kind, state_update)
             if hasattr(result, '__await__'):
                 await result
         except Exception:

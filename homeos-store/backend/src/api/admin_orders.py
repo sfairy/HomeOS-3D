@@ -733,14 +733,24 @@ def _apply_refund_order_state(
     cumulative_cents: int,
 ) -> _RefundBooking:
     """按累计退款额落订单终态：全额则撤权益、退奖励，部分则只记部分退款。
+
+    「部分退款」**不能**把一笔还没发货的订单推进终态：``partially_refunded`` 既不在
+    ``FULFILLABLE_STATUSES`` 里（``admin_fulfill`` / ``mark-paid`` 一律 409），也不在
+    巡检重试的过滤条件里，而库存预留却已被释放。结果是「客户付了未退的那部分钱、
+    永远拿不到权益、库存还被退回可售池」。未交付订单的部分退款必须保持可履约状态，
+    退款额本身已记在 ``order.refund_amount_cents`` 上，不依赖状态名表达。
     """
-    if order.status in {"paid", "fulfillment_failed"}:
+    fully_refunded = cumulative_cents >= plan.total_cents
+    undelivered = order.status in {"paid", "fulfillment_failed"}
+
+    if fully_refunded and undelivered:
+        # 全额退款且未发货：预留不再需要，释放回可售池。
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_order_reservation(session, order=order, product=product)
 
     reversed_centi = 0
     referral_shortfall_centi = 0
-    if cumulative_cents >= plan.total_cents:
+    if fully_refunded:
         _revoke_order_entitlements(session, order)
         reversed_centi, referral_shortfall_centi = referrals.reverse_order_reward(
             session, order=order, note=f"订单 {order.order_no} 退款，奖励退回"
@@ -757,7 +767,8 @@ def _apply_refund_order_state(
         order.status = "refunded"
         order.refunded_at = utcnow()
         coupons.release_coupon(session, order, reason="全额退款，归还优惠码名额")
-    else:
+    elif not undelivered:
+        # 已交付的订单被部分退款：权益不退，状态仅作账目标记。
         order.status = "partially_refunded"
 
     session.flush()

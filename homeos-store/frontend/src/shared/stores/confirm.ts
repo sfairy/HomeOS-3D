@@ -3,7 +3,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export interface ConfirmOptions {
+interface ConfirmOptions {
   kicker?: string;
   title?: string;
   message?: string;

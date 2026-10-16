@@ -21,12 +21,18 @@ from ..dependencies import DatabaseSession, LicensedUser
 from ..domains.ui_config.global_popups import global_popups
 from ..modules.interaction3d.studio_cleanup import confirmation_token, identities, plan_cleanup
 from ..platform.core.models import Project, ProjectDraft, StudioInteractionSync
+from ..platform.core.upload_limits import (
+    MAX_STUDIO3D_DRAFT_BYTES,
+    MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES,
+)
 from ..schemas import Studio3DDraftUpdate
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
-MAX_DRAFT_BYTES = 67108864
-MAX_EXPORT_ARCHIVE_BYTES = 536870912
+MAX_DRAFT_BYTES = MAX_STUDIO3D_DRAFT_BYTES
+MAX_EXPORT_ARCHIVE_BYTES = MAX_STUDIO3D_EXPORT_ARCHIVE_BYTES
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
+#: 单个成员解压后上限：累计上限挡不住「一个条目吃掉整个预算」的高压缩率 zip。
+MAX_EXPORT_ENTRY_BYTES = 67108864
 MAX_EXPORT_FILES = 512
 _storage_lock = RLock()
 
@@ -130,21 +136,35 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
             expanded_size += entry.file_size
             if expanded_size > MAX_EXPORT_EXPANDED_BYTES:
                 raise HTTPException(413, '导出内容超过 NAS 保存上限。')
+            # 单条目上限：累计上限管不住「一个成员吃掉整个预算」—— zip 声明 file_size 时
+            # 可以只写一个 900MB 的高压缩率条目，归档本身仍远小于 ZIP 上限。下面读取时
+            # 还会再按 MAX_EXPORT_ENTRY_BYTES 兜一次，防声明值撒谎。
+            if entry.file_size > MAX_EXPORT_ENTRY_BYTES:
+                raise HTTPException(413, '导出包单个文件超过 NAS 保存上限。')
         for json_name in (name for name in names if name.lower().endswith('.json')):
             try:
-                value = json.loads(archive.read(json_name))
-            except (UnicodeDecodeError, json.JSONDecodeError, KeyError) as error:
+                with archive.open(json_name) as stream:
+                    raw = stream.read(MAX_EXPORT_ENTRY_BYTES + 1)
+            except KeyError as error:
+                raise HTTPException(422, f'{json_name} 内容无效。') from error
+            if len(raw) > MAX_EXPORT_ENTRY_BYTES:
+                raise HTTPException(413, '导出包单个文件超过 NAS 保存上限。')
+            try:
+                value = json.loads(raw)
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
                 raise HTTPException(422, f'{json_name} 内容无效。') from error
             if isinstance(value, dict):
                 continue
             raise HTTPException(422, f'{json_name} 内容无效。')
         for image_name in (name for name in names if Path(name).suffix.lower() in {'.png', '.webp'}):
-            image_data = archive.read(image_name)
+            # 只取文件头做魔数校验：没必要把整张图读进内存（旧实现 archive.read 全量读）。
+            with archive.open(image_name) as stream:
+                head = stream.read(12)
             suffix = Path(image_name).suffix.lower()
             if suffix == '.png':
-                valid = image_data.startswith(b'\x89PNG\r\n\x1a\n')
+                valid = head.startswith(b'\x89PNG\r\n\x1a\n')
             else:
-                valid = len(image_data) >= 12 and image_data[:4] == b'RIFF' and image_data[8:12] == b'WEBP'
+                valid = len(head) >= 12 and head[:4] == b'RIFF' and head[8:12] == b'WEBP'
             if valid:
                 continue
             format_name = 'PNG' if suffix == '.png' else 'WebP'
@@ -269,7 +289,7 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
         temporary_archive.chmod(384)
         if written == 0:
             raise HTTPException(422, '导出 ZIP 为空。')
-        entries = _validate_archive(temporary_archive)
+        entries = await run_in_threadpool(_validate_archive, temporary_archive)
         return await run_in_threadpool(
             _store_export_package, request, folder_name, overwrite, temporary_archive, entries)
     finally:

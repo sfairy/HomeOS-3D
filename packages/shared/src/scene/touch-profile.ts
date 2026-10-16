@@ -12,7 +12,7 @@
  */
 
 /** 该设备是否按「手持档」处理。 */
-export function isTouchProfile(): boolean {
+function isTouchProfile(): boolean {
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches
   const noHover = window.matchMedia('(hover: none)').matches
   // iPadOS 装在 Mac 上：platform 报 Mac，但触点数 > 1，按手持档处理。

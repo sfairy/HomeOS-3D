@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 from urllib.parse import quote, unquote
@@ -15,9 +16,9 @@ from uuid import uuid4
 from fastapi import Depends, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from starlette.background import BackgroundTask
 
+from .backup_guard import owner_session_key, verify_admin_password
 from .router import NestRouter
 from ..api.studio3d import _deliver_pending
 from ..dependencies import authenticated_short_lived_user
@@ -31,12 +32,8 @@ from ..domains.backup.business_backup import (
     refresh_runtime_after_restore,
     restore_business,
 )
-from ..platform.core.models import User
 from ..platform.security.auth_context import require_user
-from ..platform.security.login_limiter import retry_after_headers
-from ..platform.security.passwords import verify_password
 from ..platform.security.request_origin import require_same_origin_write
-from ..platform.security.session_store import session_token_hash
 
 router = NestRouter(prefix="/backups", tags=["backups"])
 
@@ -58,8 +55,7 @@ def _gate(request: Request):
 
 
 def _owner_key(request: Request, user: dict[str, Any]) -> str:
-    token = request.cookies.get(request.app.state.settings.cookie_name, "") or ""
-    return f"{user.get('userId')}:{session_token_hash(token)}"
+    return owner_session_key(request, user)
 
 
 def _busy_response(request: Request) -> JSONResponse | None:
@@ -140,7 +136,7 @@ async def export_backup(
     _flush_pending(request)
     directory = gate.workspace()
     try:
-        archive = await durable_work(
+        archive = await gate.run_exclusive(
             create_archive,
             request.app.state.settings,
             directory,
@@ -188,17 +184,34 @@ async def inspect_backup(
     password = unquote(request.headers.get("X-Backup-Password", "") or "")
     if not (8 <= len(password) <= 128):
         return JSONResponse(status_code=400, content={"detail": "请提供 8–128 位备份密码。"})
-    body = await request.body()
-    if not body:
-        return JSONResponse(status_code=400, content={"detail": "请选择备份文件。"})
-    if len(body) > MAX_ARCHIVE:
-        return JSONResponse(status_code=400, content={"detail": "备份文件超过 512 MB 限制。"})
     owner = _owner_key(request, user)
     if any(job.get("owner") == owner for job in gate.jobs.values()):
         _drop_owner_jobs(gate, owner)
     directory = gate.workspace()
     upload = directory / "upload.habackup"
-    upload.write_bytes(body)
+    # 流式落盘而不是 ``await request.body()``：整包上限是 512MB，先整包读进内存等于让
+    # 一次上传占掉 512MB（还得再复制一份），在家庭 NAS 上足以把进程压垮。这里边收边写、
+    # 边累计限长，超限立刻断开——与 studio3d 导出包的处理方式一致。
+    written = 0
+    try:
+        with upload.open("xb") as output:
+            async for chunk in request.stream():
+                written += len(chunk)
+                if written > MAX_ARCHIVE:
+                    raise BackupError("备份文件超过 512 MB 限制。")
+                output.write(chunk)
+            output.flush()
+            os.fsync(output.fileno())
+    except BackupError as error:
+        gate.cleanup_job(directory)
+        return JSONResponse(status_code=400, content={"detail": str(error)})
+    except Exception:
+        # 断开 / 磁盘写失败：清掉半截归档，别把 workspace 留成垃圾
+        gate.cleanup_job(directory)
+        return JSONResponse(status_code=400, content={"detail": "备份文件上传中断，请重试。"})
+    if written == 0:
+        gate.cleanup_job(directory)
+        return JSONResponse(status_code=400, content={"detail": "请选择备份文件。"})
     try:
         preview = await durable_work(
             inspect_archive, request.app.state.settings, directory, password
@@ -263,20 +276,9 @@ async def restore_backup(
             status_code=400,
             content={"detail": "检查结果已失效，请重新选择并检查备份文件。"},
         )
-    limiter = gate.backup_password_limiter
-    limiter_key = f"backup-restore:{_owner_key(request, user)}"
-    if limiter.blocked(limiter_key):
-        return JSONResponse(
-            status_code=429,
-            content={"detail": "密码尝试过多，请稍后再试。"},
-            headers=retry_after_headers(limiter.retry_after(limiter_key)),
-        )
-    with request.app.state.database.session_factory() as session:
-        admin = session.scalar(select(User).where(User.id == user["userId"]))
-        if admin is None or not verify_password(payload.adminPassword, admin.password):
-            limiter.record_failure(limiter_key)
-            return JSONResponse(status_code=401, content={"detail": "当前管理员密码不正确。"})
-    limiter.reset(limiter_key)
+    password_error = verify_admin_password(request, user, payload.adminPassword)
+    if password_error is not None:
+        return password_error
     # 密码校验后、写入前再验一次，覆盖长时间停留在确认页的情况。
     session_error = _ensure_same_admin_session(request, user)
     if session_error is not None:
@@ -285,7 +287,7 @@ async def restore_backup(
     gate.maintenance = True
     try:
         database = getattr(request.app.state, "database", None)
-        await durable_work(
+        await gate.run_exclusive(
             lambda: restore_business(
                 request.app.state.settings,
                 directory,

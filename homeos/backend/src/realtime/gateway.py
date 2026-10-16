@@ -19,7 +19,7 @@ import logging
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypedDict
 
 import socketio
 from socketio.exceptions import ConnectionRefusedError as SocketConnectionRefusedError
@@ -47,7 +47,44 @@ logger = logging.getLogger("homeos.realtime.gateway")
 WS_PUSH_BACKPRESSURE_WRITE_BUFFER = 512
 
 
-def _resync_suggested_payload(reason: str = "backpressure") -> dict[str, Any]:
+class ResyncSuggestedPayload(TypedDict):
+    type: str
+    reason: str
+    timestamp: str
+
+
+class HaStatusSnapshot(TypedDict, total=False):
+    connected: bool
+    ha_version: str | None
+    attempt: int | None
+
+
+class NotificationBroadcastEvent(TypedDict, total=False):
+    id: str
+    entity_id: str
+    entityId: str
+
+
+class DomainBroadcastEvent(TypedDict, total=False):
+    """领域 fan-out 事件的宽松负载（各 broadcast_* 共用超集）。"""
+
+    type: str
+    modeId: str
+    modeName: str
+    successCount: int
+    totalCount: int
+    automationId: str
+    name: str
+    success: bool
+    action: str
+    message: str
+    timestamp: str
+    ts: str | float | int
+    reason: str
+    alertKind: str
+
+
+def _resync_suggested_payload(reason: str = "backpressure") -> ResyncSuggestedPayload:
     """全量重同步建议负载（对齐 ``emitResyncSuggested``）。"""
     return {"type": "resync_suggested", "reason": reason, "timestamp": _iso_now()}
 
@@ -85,6 +122,10 @@ class RealtimeGateway:
         # 客户端多、变更频繁时会成为 WS 推送的主成本。会话只在此处（connect）与
         # ``update_subscription`` 写入，disconnect 清除，镜像与引擎会话保持同步。
         self._sessions: dict[str, dict[str, Any]] = {}
+        #: 已就背压发过 ``resync_suggested`` 的 sid。背压期间每个变更都发一条只会往
+        #: engineio 的无界写队列里继续灌水，形成正反馈；同一轮背压内只提示一次，
+        #: 待该连接恢复正常（不再背压）后清除，下次真正背压时再提示。
+        self._resync_pending: set[str] = set()
         self.state_store: StateStore = StateStore()
         self._state_cfg_at = 0.0
         self._ws_cfg_cache: Any | None = None
@@ -110,7 +151,7 @@ class RealtimeGateway:
             return bool(self.app.state.ha_configured)
         return bool(os.getenv("HA_URL", "").strip() or os.getenv("HA_BASE_URL", "").strip())
 
-    def _ha_status_snapshot(self) -> dict[str, Any]:
+    def _ha_status_snapshot(self) -> HaStatusSnapshot:
         return {
             "connected": bool(getattr(self.app.state, "ha_connected", False)),
             "ha_version": getattr(self.app.state, "ha_version", None),
@@ -281,6 +322,15 @@ class RealtimeGateway:
             filter_entities_by_access(self.state_store.get_all(), user),
             list(ws_cfg.critical_domains),
         )
+        # 等待期内客户端可能已经断开。connect / disconnect 处理函数各自跑在独立 task 里
+        # （engineio 对每个消息都 ``start_background_task``，见
+        # ``engineio/async_server.py`` 的 ``_trigger_event(run_async=True)``），所以
+        # ``_on_disconnect`` 完全可能已经跑完并清理过一遍；此刻若继续登记，sid 会被永久
+        # 留在 ``_baseline_ready`` 与订阅索引里，而 ``_session_for`` 对缺失会话是 fail-open
+        # （视作无订阅限制），于是每个死 sid 都会参与之后的每一次广播，候选集与内存只增不减。
+        # 这里到下面两个登记动作之间没有 await，asyncio 是协作式的，不会再有交错窗口。
+        if sid not in self.connected:
+            return
         # 快照已生成：此刻起该 sid 才有「基线」。
         # 等待期（_wait_for_ha_entity_sync）内的增量不晚于本快照，已包含在 entities 中，
         # 无需再以 delta 下发，可避免前端「全量同步完成前丢弃 delta」的告警与无效带宽。
@@ -298,9 +348,35 @@ class RealtimeGateway:
     async def _on_disconnect(self, sid: str, reason: Any = None) -> None:
         self.connected.discard(sid)
         self._baseline_ready.discard(sid)
+        self._resync_pending.discard(sid)
         self._unindex_subscription(sid)
         self._sessions.pop(sid, None)
         self.app.state.socket_clients = len(self.connected)
+
+    async def disconnect_user(self, user_id: str, *, reason: str = "session_revoked") -> int:
+        """断开某账号的全部在线连接，返回断开条数。
+
+        只删 DB 会话是不够的：WS 连接在握手时一次性完成鉴权，之后不会再查库，因此用户
+        登出（或会话被吊销、账号被停用）之后，那条连接仍会持续收到家中的状态变更与站内
+        通知 —— 登出在服务端并不是一道真正的边界。调用 ``sio.disconnect`` 会触发
+        ``_on_disconnect``，所以这里的清理与正常断线走同一条路径。
+        """
+        key = str(user_id or "")
+        if not key:
+            return 0
+        targets = [
+            sid
+            for sid in list(self.connected)
+            if str((self._session_for(sid).get("user") or {}).get("userId") or "") == key
+        ]
+        closed = 0
+        for sid in targets:
+            try:
+                await self.sio.disconnect(sid)
+                closed += 1
+            except Exception:
+                logger.warning("吊销会话时断开连接失败 sid=%s reason=%s", sid, reason)
+        return closed
 
     def _session_for(self, sid: str) -> dict[str, Any]:
         """取 sid 的会话（内存镜像优先）。镜像未命中时返回空 dict（fail-open：
@@ -378,11 +454,11 @@ class RealtimeGateway:
         return candidates & self._baseline_ready
 
     # 客户端事件
-    async def _on_update_subscription(self, sid: str, payload: Any = None) -> dict[str, Any]:
-        payload = payload if isinstance(payload, dict) else {}
+    async def _on_update_subscription(self, sid: str, message: Any = None) -> dict[str, Any]:
+        message = message if isinstance(message, dict) else {}
         session = dict(await self._load_session(sid))
-        session["subscribedDomains"] = payload.get("subscribeDomains")
-        session["pinnedEntityIds"] = payload.get("pinnedEntityIds")
+        session["subscribedDomains"] = message.get("subscribeDomains")
+        session["pinnedEntityIds"] = message.get("pinnedEntityIds")
         await self.sio.save_session(sid, session)
         self._sessions[sid] = session
         self._index_subscription(
@@ -390,8 +466,8 @@ class RealtimeGateway:
         )
         return {"ok": True}
 
-    async def _on_ha_sync_fe_latency(self, sid: str, payload: Any = None) -> dict[str, Any]:
-        samples = payload.get("samples") if isinstance(payload, dict) else None
+    async def _on_ha_sync_fe_latency(self, sid: str, message: Any = None) -> dict[str, Any]:
+        samples = message.get("samples") if isinstance(message, dict) else None
         accepted = record_ha_sync_fe_latency_samples(samples)
         return {"ok": True, "accepted": accepted}
 
@@ -465,8 +541,8 @@ class RealtimeGateway:
         return len(self.connected)
 
     async def broadcast_ha_status(self, status: str, **extra: Any) -> None:
-        payload = _ha_status_payload(status, extra)
-        await self.sio.emit("ha_status", payload)
+        message = _ha_status_payload(status, extra)
+        await self.sio.emit("ha_status", message)
 
     async def broadcast_state_changed_batch(self, changes: list[dict[str, Any]]) -> None:
         if not changes:
@@ -497,7 +573,7 @@ class RealtimeGateway:
             visible: list[dict[str, Any]] = []
             has_pinned = False
             user_cache = _visibility_cache_for(visibility_cache, user)
-            for change, payload in zip(changes, payloads, strict=False):
+            for change, message in zip(changes, payloads, strict=False):
                 entity_id = change["entity_id"]
                 allowed = user_cache.get(entity_id)
                 if allowed is None:
@@ -513,37 +589,47 @@ class RealtimeGateway:
                     ws_cfg.cold_entity_on_demand,
                 ):
                     continue
-                visible.append(payload)
+                visible.append(message)
                 if pinned is not None and entity_id in pinned:
                     has_pinned = True
             if not visible:
                 continue
-            # 批次含钉选实体时对该客户端可靠推送（背压下仍尝试送达）
-            if self._is_socket_backpressured(sid):
-                if has_pinned:
-                    await self.sio.emit(
-                        "state_changed_batch",
-                        {
-                            "type": "state_changed_batch",
-                            "changes": visible,
-                            "count": len(visible),
-                            "timestamp": timestamp,
-                        },
-                        to=sid,
-                    )
-                await self.sio.emit("resync_suggested", _resync_suggested_payload(), to=sid)
-                continue
-            await self.sio.emit(
-                "state_changed_batch",
-                {
-                    "type": "state_changed_batch",
-                    "changes": visible,
-                    "count": len(visible),
-                    "timestamp": timestamp,
-                },
-                to=sid,
-            )
+            try:
+                await self._emit_state_changes(sid, visible, timestamp, has_pinned)
+            except Exception:
+                # 单个连接发送失败（连接刚断、序列化异常等）不能让整轮广播中断，
+                # 否则后面所有订阅者都会漏掉这一批变更。
+                logger.warning("推送状态变更失败 sid=%s", sid, exc_info=True)
         record_ha_sync_latency("ws_emit", (time.monotonic() - started) * 1000)
+
+    async def _emit_state_changes(
+        self,
+        sid: str,
+        visible: list[dict[str, Any]],
+        timestamp: str,
+        has_pinned: bool,
+    ) -> None:
+        """向单个连接推送一批变更；背压时只对含钉选实体的批次尝试送达。"""
+        batch = {
+            "type": "state_changed_batch",
+            "changes": visible,
+            "count": len(visible),
+            "timestamp": timestamp,
+        }
+        if not self._is_socket_backpressured(sid):
+            self._resync_pending.discard(sid)
+            await self.sio.emit("state_changed_batch", batch, to=sid)
+            return
+        # 批次含钉选实体时对该客户端可靠推送（背压下仍尝试送达）
+        if has_pinned:
+            await self.sio.emit("state_changed_batch", batch, to=sid)
+            return
+        # 背压且无钉选实体：不推状态，改用「建议重同步」提示。但同一轮背压内只提示一次 ——
+        # 每个变更都发一条只会往已经堆积的写队列里继续灌水，越堵越糟。
+        if sid in self._resync_pending:
+            return
+        self._resync_pending.add(sid)
+        await self.sio.emit("resync_suggested", _resync_suggested_payload(), to=sid)
 
     def _is_socket_backpressured(self, sid: str) -> bool:
         """客户端写缓冲背压检测（对齐 Nest ``isSocketBackpressured``，fail-open）。
@@ -575,7 +661,7 @@ class RealtimeGateway:
             return len(buffer) > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
         return False
 
-    async def broadcast_notification(self, data: dict[str, Any]) -> None:
+    async def broadcast_notification(self, event: NotificationBroadcastEvent | dict[str, Any]) -> None:
         """站内通知广播（对齐 ws-push ``handleNotification``）。
 
         - ``channels`` 不含 ``socket`` 时跳过；
@@ -583,15 +669,15 @@ class RealtimeGateway:
         - 绑定实体的通知按 ACL 过滤，并按 user room 去重推送；
         - 实际送达后异步回写 ``deliveredAt`` / ``deliveryChannels``。
         """
-        raw_channels = data.get("channels")
+        raw_channels = event.get("channels")
         channels = raw_channels if isinstance(raw_channels, list) and raw_channels else ["in_app", "socket"]
         if "socket" not in channels:
             return
-        payload = {"type": "notification", **data}
-        entity_id = data.get("entityId")
+        message = {"type": "notification", **event}
+        entity_id = event.get("entityId")
         delivered = 0
         if not entity_id:
-            await self.sio.emit("notification", payload)
+            await self.sio.emit("notification", message)
             delivered = len(self.connected)
         else:
             rooms: set[str] = set()
@@ -601,10 +687,17 @@ class RealtimeGateway:
                 if not _entity_visible(user, str(entity_id)):
                     continue
                 rooms.add(resolve_user_room_key(user, sid))
-            for room in rooms:
-                await self.sio.emit("notification", payload, to=room)
+            if rooms:
+                # 一个 room 发送失败不能让整条通知丢失：return_exceptions 让其余 room 照常收到。
+                results = await asyncio.gather(
+                    *[self.sio.emit("notification", message, to=room) for room in rooms],
+                    return_exceptions=True,
+                )
+                for result in results:
+                    if isinstance(result, Exception):
+                        logger.warning("站内通知推送失败: %s", result)
             delivered = len(rooms)
-        notification_id = data.get("id")
+        notification_id = event.get("id")
         if delivered > 0 and notification_id:
             await self._mark_notification_delivered(str(notification_id), ["socket"])
 
@@ -638,128 +731,128 @@ class RealtimeGateway:
             {"type": "entities_stale", "reason": reason, "timestamp": _iso_now()},
         )
 
-    async def broadcast_ha_queue_dropped(self, payload: dict[str, Any]) -> None:
+    async def broadcast_ha_queue_dropped(self, message: dict[str, Any]) -> None:
         await self.sio.emit(
             "ha_queue_dropped",
-            {"type": "ha_queue_dropped", "timestamp": _iso_now(), **payload},
+            {"type": "ha_queue_dropped", "timestamp": _iso_now(), **message},
         )
 
     # 地震预警（EEW）广播（对齐 ws-push ``handleEarthquakeAlert``）
-    async def broadcast_earthquake_alert(self, data: dict[str, Any]) -> None:
+    async def broadcast_earthquake_alert(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """地震早期预警：高优先级全屏推送，携带震感与震中信息。"""
         await self.sio.emit(
             "earthquake_alert",
-            {"type": "earthquake_alert", **data, "timestamp": _iso_now()},
+            {"type": "earthquake_alert", **event, "timestamp": _iso_now()},
         )
 
-    async def broadcast_earthquake_confirmation(self, data: dict[str, Any]) -> None:
+    async def broadcast_earthquake_confirmation(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """台网核定速报 / 迟到确认：轻量公报弹层（非全屏倒计时）。"""
         await self.sio.emit(
             "earthquake_confirmation",
             {
                 "type": "earthquake_confirmation",
-                "alertKind": data.get("alertKind") or "confirmation",
-                **data,
+                "alertKind": event.get("alertKind") or "confirmation",
+                **event,
                 "timestamp": _iso_now(),
             },
         )
 
     # 领域事件 fan-out（对齐 ws-push ``WsPushDomainEventsHelper``）
-    async def _emit_domain(self, event: str, payload: dict[str, Any]) -> None:
-        await self.sio.emit(event, payload)
+    async def _emit_domain(self, event: str, message: DomainBroadcastEvent | dict[str, Any]) -> None:
+        await self.sio.emit(event, message)
 
-    async def broadcast_home_mode_activated(self, data: dict[str, Any]) -> None:
+    async def broadcast_home_mode_activated(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """家庭模式激活：广播模式 ID / 名称与执行统计。"""
         await self._emit_domain(
             "home_mode",
             {
                 "type": "home_mode_activated",
-                "modeId": data.get("modeId"),
-                "modeName": data.get("modeName"),
-                "successCount": data.get("successCount"),
-                "totalCount": data.get("totalCount"),
+                "modeId": event.get("modeId"),
+                "modeName": event.get("modeName"),
+                "successCount": event.get("successCount"),
+                "totalCount": event.get("totalCount"),
                 "timestamp": _iso_now(),
             },
         )
 
-    async def broadcast_home_mode_deactivated(self, data: dict[str, Any]) -> None:
+    async def broadcast_home_mode_deactivated(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """家庭模式停用：仅携带 modeId。"""
         await self._emit_domain(
             "home_mode",
             {
                 "type": "home_mode_deactivated",
-                "modeId": data.get("modeId"),
+                "modeId": event.get("modeId"),
                 "timestamp": _iso_now(),
             },
         )
 
-    async def broadcast_automation_executed(self, data: dict[str, Any]) -> None:
+    async def broadcast_automation_executed(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """自动化执行结果：供前端展示成功/失败状态。"""
         await self._emit_domain(
             "automation_executed",
             {
                 "type": "automation_executed",
-                "automationId": data.get("id"),
-                "name": data.get("name"),
-                "success": data.get("success"),
-                "timestamp": data.get("timestamp"),
+                "automationId": event.get("id"),
+                "name": event.get("name"),
+                "success": event.get("success"),
+                "timestamp": event.get("timestamp"),
             },
         )
 
-    async def broadcast_security_mode_changed(self, data: dict[str, Any]) -> None:
+    async def broadcast_security_mode_changed(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """安防布防/撤防模式变更。"""
-        await self._emit_domain("security_mode", {"type": "security_mode_changed", **data})
+        await self._emit_domain("security_mode", {"type": "security_mode_changed", **event})
 
-    async def broadcast_security_zones_changed(self, data: dict[str, Any]) -> None:
+    async def broadcast_security_zones_changed(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """安防区域配置变更：前端据此刷新区域列表。"""
-        await self._emit_domain("security_zones", {"type": "security_zones_changed", **data})
+        await self._emit_domain("security_zones", {"type": "security_zones_changed", **event})
 
-    async def broadcast_security_alarm(self, data: dict[str, Any]) -> None:
+    async def broadcast_security_alarm(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """安防告警：携带告警实体、区域、模式与动作失败列表。"""
-        await self._emit_domain("security_alarm", {"type": "security_alarm", **data})
+        await self._emit_domain("security_alarm", {"type": "security_alarm", **event})
 
-    async def broadcast_security_emergency(self, data: dict[str, Any]) -> None:
+    async def broadcast_security_emergency(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """紧急事件（如 SOS）：默认 action 为 SOS。"""
         await self._emit_domain(
             "security_emergency",
             {
                 "type": "security_emergency",
-                "action": data.get("action") or "SOS",
-                "timestamp": data.get("timestamp") or _iso_now(),
+                "action": event.get("action") or "SOS",
+                "timestamp": event.get("timestamp") or _iso_now(),
             },
         )
 
-    async def broadcast_security_emergency_completed(self, data: dict[str, Any]) -> None:
+    async def broadcast_security_emergency_completed(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """紧急事件解除：通知前端关闭告警 UI。"""
         await self._emit_domain(
-            "security_emergency_completed", {"type": "security_emergency_completed", **data}
+            "security_emergency_completed", {"type": "security_emergency_completed", **event}
         )
 
-    async def broadcast_presence_changed(self, data: dict[str, Any]) -> None:
+    async def broadcast_presence_changed(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """在场状态变化：成员是否在家。"""
-        await self._emit_domain("presence_changed", {"type": "presence_changed", **data})
+        await self._emit_domain("presence_changed", {"type": "presence_changed", **event})
 
-    async def broadcast_presence_all_left(self, data: dict[str, Any]) -> None:
+    async def broadcast_presence_all_left(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """全员离家：触发离家模式相关自动化。"""
-        await self._emit_domain("presence_all_left", {"type": "presence_all_left", **data})
+        await self._emit_domain("presence_all_left", {"type": "presence_all_left", **event})
 
-    async def broadcast_energy_anomaly(self, data: dict[str, Any]) -> None:
+    async def broadcast_energy_anomaly(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """能耗异常检测：携带异常设备与原因。"""
-        await self._emit_domain("energy_anomaly", {"type": "energy_anomaly", **data})
+        await self._emit_domain("energy_anomaly", {"type": "energy_anomaly", **event})
 
-    async def broadcast_frigate_detection(self, data: dict[str, Any]) -> None:
+    async def broadcast_frigate_detection(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """Frigate 检测事件：携带摄像头/事件 ID。"""
-        await self._emit_domain("frigate_detection", {"type": "frigate_detection", **data})
+        await self._emit_domain("frigate_detection", {"type": "frigate_detection", **event})
 
-    async def broadcast_room_presence(self, data: dict[str, Any]) -> None:
+    async def broadcast_room_presence(self, event: DomainBroadcastEvent | dict[str, Any]) -> None:
         """房间级在场检测：携带房间名/是否有人/触发传感器。"""
-        await self._emit_domain("room_presence", {"type": "room_presence", **data})
+        await self._emit_domain("room_presence", {"type": "room_presence", **event})
 
-    async def broadcast_tts_speak(self, data: dict[str, Any], tts_speak: Any) -> None:
+    async def broadcast_tts_speak(self, event: DomainBroadcastEvent | dict[str, Any], tts_speak: Any) -> None:
         """TTS 播报：调用 ``TtsSpeakService`` 选路播报，并广播播报结果。"""
-        message = data.get("message") or ""
+        message = event.get("message") or ""
         result = await tts_speak.speak(message)
-        ts = data.get("ts")
+        ts = event.get("ts")
         try:
             timestamp = (
                 datetime.fromtimestamp(float(ts) / 1000, tz=UTC) if ts else datetime.now(UTC)
@@ -807,18 +900,18 @@ def _visibility_cache_for(
 
 def _ha_status_payload(status: str, snapshot: dict[str, Any]) -> dict[str, Any]:
     """构造 ha_status 负载：值为 ``None`` 的字段省略（对齐 JS ``undefined`` 不带键）。"""
-    payload: dict[str, Any] = {"type": "ha_status", "status": status}
+    message: dict[str, Any] = {"type": "ha_status", "status": status}
     ha_version = snapshot.get("ha_version")
     if ha_version is not None:
-        payload["ha_version"] = ha_version
+        message["ha_version"] = ha_version
     attempt = snapshot.get("attempt")
     if attempt is not None:
-        payload["attempt"] = attempt
+        message["attempt"] = attempt
     delay = snapshot.get("delay")
     if delay is not None:
-        payload["delay"] = delay
-    payload["timestamp"] = snapshot.get("timestamp") or _iso_now()
-    return payload
+        message["delay"] = delay
+    message["timestamp"] = snapshot.get("timestamp") or _iso_now()
+    return message
 
 
 def _as_set(raw: Any, require_dot: bool = False) -> set[str] | None:

@@ -178,12 +178,21 @@ export function deleteServerBackupFile(name: string, config?: AxiosRequestConfig
   })
 }
 
-/** 还原指定全量备份文件（含数据库），需 confirm=true。 */
+/**
+ * 还原指定全量备份文件（含数据库）。
+ *
+ * 需 `confirm=true` **且**提供当前管理员密码：这条接口会用备份包整体覆盖数据库
+ * （含账号与授权），仅凭登录态不足以执行。
+ */
 export function restoreServerBackupFile(
-  body: { name: string; confirm: boolean },
+  body: { name: string; confirm: boolean; adminPassword: string },
   config?: AxiosRequestConfig,
 ) {
-  return apiPost('/system/backup/files/restore', body, config)
+  return apiPost(
+    '/system/backup/files/restore',
+    { name: body.name, confirm: body.confirm === true, adminPassword: body.adminPassword },
+    config,
+  )
 }
 
 

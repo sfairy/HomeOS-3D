@@ -132,10 +132,3 @@ class Studio3DDraftUpdate(BaseModel):
     scene: dict[str, Any]
     interactionConfirmation: str = Field(default='', max_length=64)
 
-
-class LicenseActivateRequest(BaseModel):
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    activation_code: str = Field(alias='activationCode', min_length=8, max_length=128)
-    email: str = Field(min_length=3, max_length=255)

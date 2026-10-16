@@ -1,8 +1,7 @@
-"""可观测性：请求级 traceId、结构化日志去重、Prometheus 指标与访问判定。
+"""可观测性：请求级 traceId、结构化日志、Prometheus 指标与访问判定。
 
 等价移植 Nest 侧：
 - ``observability/trace-context.ts``（contextvars 版）；
-- ``observability/status-log-dedupe.util.ts``（状态日志去重）；
 - ``observability/prometheus-metrics.util.ts`` + ``ha-sync-latency.util``（指标文本）；
 - ``common/http-security/metrics-access.util.ts``（/metrics 访问判定）。
 """
@@ -14,8 +13,7 @@ import hashlib
 import math
 import os
 import threading
-import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 # traceId（contextvars，等价 AsyncLocalStorage）
@@ -32,29 +30,6 @@ def set_trace_id(value: str | None) -> contextvars.Token:
 
 def reset_trace_id(token: contextvars.Token) -> None:
     _trace_id.reset(token)
-
-
-# 状态日志去重（同一「key + 状态」在窗口内只打印一次，避免 HA 断连刷屏）
-class StatusLogDeduper:
-    """按 ``key`` 记忆上次日志状态与时间，抑制重复输出。"""
-
-    def __init__(self, window_seconds: float = 30.0) -> None:
-        self._window = window_seconds
-        self._seen: dict[str, tuple[str, float]] = {}
-        self._lock = threading.Lock()
-
-    def should_log(self, key: str, status: str) -> bool:
-        now = time.monotonic()
-        with self._lock:
-            previous = self._seen.get(key)
-            if previous is not None and previous[0] == status and now - previous[1] < self._window:
-                return False
-            self._seen[key] = (status, now)
-            return True
-
-    def reset(self) -> None:
-        with self._lock:
-            self._seen.clear()
 
 
 # 结构化日志（含 traceId）
@@ -116,12 +91,6 @@ def record_ha_sync_latency(stage: str, milliseconds: float) -> None:
         bucket.append(milliseconds)
         if len(bucket) > 512:
             del bucket[: len(bucket) - 512]
-
-
-def record_ha_ws_deferred_dropped(count: int = 1) -> None:
-    global _ha_ws_deferred_dropped_total
-    with _latency_lock:
-        _ha_ws_deferred_dropped_total += count
 
 
 def get_ha_ws_deferred_dropped_total() -> int:
@@ -289,11 +258,3 @@ def decide_metrics_access(
 # 请求 ID 生成
 def new_request_id() -> str:
     return hashlib.sha256(os.urandom(16)).hexdigest()[:32]
-
-
-@dataclass
-class LogContext:
-    request_id: str
-    method: str
-    path: str
-    extra: dict[str, Any] = field(default_factory=dict)

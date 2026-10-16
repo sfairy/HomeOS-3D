@@ -2,7 +2,6 @@
  * @file useDevicesView.ts
  * @module frontend/src/composables
  */
-import { entityMatchesAreaFilter, getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import type { HaEntityState, HaEntityView } from '@/shared/types/entity-store'
 import type { DeviceListItem, DeviceFilterState } from '@/shared/types/device'
 import { ref, computed, onMounted, watch, toRaw } from 'vue'
@@ -15,26 +14,19 @@ import { getLargeEntityThreshold, configEpoch } from '@/shared/utils/config/fron
 import { usePaginatedEntityList } from '@/composables/entity/usePaginatedEntityList'
 import { useRouteEntityProjection } from '@/composables/entity/useRouteEntityProjection'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
-import { resolveListRowEntity } from '@/composables/entity/projection-row.util'
 import { logger } from '@/shared/utils/core/logger'
 import { getEntityDisplayName, collectIndexedEntityIds } from '@/shared/entity/utils/derived.util'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 import { appNotify } from '@/shared/utils/bridge/store-bridge'
-import { coverToggleService } from '@/shared/entity/utils/control/cover-control-core'
 import { hasEntityControlPopup } from '@/shared/entity/utils/popup-registry.util'
+import { filterMemoryDeviceItems } from '@/features/device/composables/devices-view-filter.internals'
+import { resolveDeviceToggleCommand } from '@/features/device/composables/devices-view-actions.internals'
+import {
+  buildDevicesDomainTabs,
+  mapDeviceEntityRow,
+} from '@/features/device/composables/devices-view-map.internals'
 
 const FILTER_STORAGE_KEY = 'homeos:devices-filter'
-const TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'lock', 'input_boolean'])
-const PREFERRED_DOMAINS = [
-  'light',
-  'climate',
-  'cover',
-  'switch',
-  'sensor',
-  'binary_sensor',
-  'media_player',
-  'camera',
-]
 
 /**
  * /devices 列表 REST 分页回退阈值。
@@ -142,35 +134,14 @@ export function useDevicesView() {
   })
 
   function mapEntityRow(
-    e: HaEntityView & { entity_id: string },
+    entity: HaEntityView & { entity_id: string },
     options?: { preferProjection?: boolean; rawEntities?: Record<string, HaEntityState> },
   ): DeviceListItem | null {
-    const key = e.entity_id || ''
-    if (!key) return null
-    const preferProjection = options?.preferProjection ?? true
-    const src = preferProjection ? resolveListRowEntity(key, e) : e
-    if (!src) return null
-    // 非响应式读取实体属性：列表重算时机由下方按域/全局 epoch 订阅控制，
-    // 避免逐实体键订阅导致单个实体变更触发整列表重建
-    const rawMap = options?.rawEntities ?? toRaw(entitiesStore.entities)
-    const rawAttrs = rawMap[key]?.attributes
-    const mergedAttrs = { ...rawAttrs, ...src.attributes }
-    const domain = getEntityDomain(key)
-    const batteryLevel = mergedAttrs?.battery_level ?? src.attributes?.battery_level
-    return {
-      entity_id: key,
-      domain,
-      name: getEntityDisplayName(key, src),
-      state: src.state || '',
-      area: resolveEntityArea(mergedAttrs),
-      unavailable: src.state === 'unavailable' || src.state === 'unknown',
-      toggleable: TOGGLE_DOMAINS.has(domain) && authStore.isEntityAllowed(key),
-      // 「可控」按实体鉴权判定，与是否具备控制弹窗解耦：
-      // 弹窗裁剪后，开关/传感器等仍应出现在默认设备列表中（是否弹窗由控制宿主决定）。
-      controllable: authStore.isEntityAllowed(key),
-      batteryLevel: typeof batteryLevel === 'number' ? batteryLevel : null,
-      lastChanged: src.last_changed,
-    }
+    return mapDeviceEntityRow(entity, {
+      preferProjection: options?.preferProjection,
+      rawEntities: options?.rawEntities ?? toRaw(entitiesStore.entities),
+      isEntityAllowed: (entityId) => authStore.isEntityAllowed(entityId),
+    })
   }
 
   /**
@@ -238,61 +209,15 @@ export function useDevicesView() {
   const allItems = computed(() => (useRestList.value ? restItems.value : memoryItems.value))
 
   const filtered = computed((): DeviceListItem[] => {
-    let result: DeviceListItem[] = allItems.value
-
-    if (!useRestList.value) {
-      const q = query.value.trim().toLowerCase()
-      const status = currentFilter.value.status
-      const room = resolvedRoomFilter.value
-      const sort = currentFilter.value.sort
-
-      result = allItems.value.filter((item): item is DeviceListItem => {
-        if (!item) return false
-        if (activeDomain.value !== 'all' && item.domain !== activeDomain.value) return false
-        if (!q) return true
-        return item.name.toLowerCase().includes(q) || item.entity_id.toLowerCase().includes(q)
-      })
-
-      if (status === 'online') {
-        result = result.filter((i) => !i.unavailable)
-      } else if (status === 'offline') {
-        result = result.filter((i) => i.unavailable)
-      } else if (status === 'low-battery') {
-        result = result.filter((i) => i.batteryLevel != null && i.batteryLevel <= 20)
-      }
-
-      if (room) {
-        result = result.filter((i) =>
-          entityMatchesAreaFilter(
-            i.area ? { area_id: i.area.id, area_name: i.area.name } : undefined,
-            room,
-          ),
-        )
-      }
-
-      if (sort === 'name-asc') {
-        result = [...result].sort((a, b) => a.name.localeCompare(b.name, 'zh'))
-      } else if (sort === 'name-desc') {
-        result = [...result].sort((a, b) => b.name.localeCompare(a.name, 'zh'))
-      } else if (sort === 'status') {
-        result = [...result].sort((a, b) => {
-          if (a.unavailable !== b.unavailable) return a.unavailable ? 1 : -1
-          return a.name.localeCompare(b.name, 'zh')
-        })
-      } else if (sort === 'last-changed') {
-        result = [...result].sort((a, b) => {
-          const ta = a.lastChanged ? new Date(a.lastChanged).getTime() : 0
-          const tb = b.lastChanged ? new Date(b.lastChanged).getTime() : 0
-          return tb - ta
-        })
-      }
-    }
-
-    if (!useRestList.value && currentFilter.value.controllableOnly) {
-      result = result.filter((i) => i.controllable)
-    }
-
-    return result
+    if (useRestList.value) return allItems.value
+    return filterMemoryDeviceItems({
+      items: allItems.value,
+      activeDomain: activeDomain.value,
+      query: query.value,
+      filter: currentFilter.value,
+      roomAreaId: resolvedRoomFilter.value,
+      controllableOnly: currentFilter.value.controllableOnly,
+    })
   })
 
   watch([filtered, activeDomain, query, currentFilter, restPage], () => {
@@ -303,27 +228,9 @@ export function useDevicesView() {
   useRouteEntityProjection(() => filtered.value.map((i) => i.entity_id))
   useEnsureVisibleEntities(() => filtered.value.map((i) => i.entity_id))
 
-  const domainTabs = computed(() => {
-    if (useRestList.value) {
-      const tabs = [{ id: 'all', label: '全部', count: null as number | null }]
-      for (const d of PREFERRED_DOMAINS) {
-        tabs.push({ id: d, label: getDomainLabel(d), count: null })
-      }
-      return tabs
-    }
-    const counts = new Map<string, number>()
-    for (const item of memoryItems.value) {
-      counts.set(item.domain, (counts.get(item.domain) || 0) + 1)
-    }
-    const tabs = [{ id: 'all', label: '全部', count: memoryItems.value.length }]
-    for (const d of PREFERRED_DOMAINS) {
-      if (counts.has(d)) tabs.push({ id: d, label: getDomainLabel(d), count: counts.get(d)! })
-    }
-    for (const [d, c] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
-      if (!PREFERRED_DOMAINS.includes(d)) tabs.push({ id: d, label: getDomainLabel(d), count: c })
-    }
-    return tabs
-  })
+  const domainTabs = computed(() =>
+    buildDevicesDomainTabs(memoryItems.value, useRestList.value),
+  )
 
   const totalCount = computed(() =>
     useRestList.value ? restTotal.value : memoryItems.value.length,
@@ -378,12 +285,12 @@ export function useDevicesView() {
     )
   }
 
-  function toggleSelectItem(item: DeviceListItem) {
-    const idx = selectedIds.value.indexOf(item.entity_id)
+  function toggleSelectItem(device: DeviceListItem) {
+    const idx = selectedIds.value.indexOf(device.entity_id)
     if (idx > -1) {
-      selectedIds.value = selectedIds.value.filter((id) => id !== item.entity_id)
+      selectedIds.value = selectedIds.value.filter((id) => id !== device.entity_id)
     } else {
-      selectedIds.value = [...selectedIds.value, item.entity_id]
+      selectedIds.value = [...selectedIds.value, device.entity_id]
     }
   }
 
@@ -391,7 +298,7 @@ export function useDevicesView() {
     if (selectedIds.value.length === filtered.value.length && filtered.value.length > 0) {
       selectedIds.value = []
     } else {
-      selectedIds.value = filtered.value.map((i) => i.entity_id)
+      selectedIds.value = filtered.value.map((device) => device.entity_id)
     }
   }
 
@@ -399,65 +306,60 @@ export function useDevicesView() {
     selectedIds.value = []
   }
 
-  function openControl(item: DeviceListItem) {
-    if (!item.entity_id || item.unavailable) return
-    if (!hasEntityControlPopup(item.entity_id, entitiesStore.entities)) {
+  function openControl(device: DeviceListItem) {
+    if (!device.entity_id || device.unavailable) return
+    if (!hasEntityControlPopup(device.entity_id, entitiesStore.entities)) {
       chrome.notify('该设备暂无快捷控制弹窗，请打开详情查看', 'info')
       return
     }
-    void entitiesStore.ensureEntity(item.entity_id).finally(() => {
-      chrome.openEntityControl(item.entity_id)
+    void entitiesStore.ensureEntity(device.entity_id).finally(() => {
+      chrome.openEntityControl(device.entity_id)
     })
   }
 
-  function openDetail(item: DeviceListItem) {
-    if (!item.entity_id) return
-    void entitiesStore.ensureEntity(item.entity_id).finally(() => {
-      router.push({ path: '/device', query: { id: item.entity_id } })
+  function openDetail(device: DeviceListItem) {
+    if (!device.entity_id) return
+    void entitiesStore.ensureEntity(device.entity_id).finally(() => {
+      router.push({ path: '/device', query: { id: device.entity_id } })
     })
   }
 
-  async function toggleEntity(item: DeviceListItem) {
-    if (!item.toggleable || item.unavailable) return
-    if (!authStore.isEntityAllowed(item.entity_id)) {
+  async function toggleEntity(device: DeviceListItem) {
+    if (!device.toggleable || device.unavailable) return
+    if (!authStore.isEntityAllowed(device.entity_id)) {
       chrome.notify('当前账户无权操作该设备', 'warning')
       return
     }
-    await entitiesStore.ensureEntity(item.entity_id)
-    const live = entitiesStore.entities[item.entity_id]
-    const state = live?.state ?? item.state
-    const domain = item.domain
+    await entitiesStore.ensureEntity(device.entity_id)
+    const live = entitiesStore.entities[device.entity_id]
+    const state = live?.state ?? device.state
+    const command = resolveDeviceToggleCommand(device.domain, state)
     try {
-      if (domain === 'cover') {
-        const service = coverToggleService(state)
-        // 状态不可用/未知（unavailable / unknown）时不下发命令
-        if (!service) {
-          chrome.notify('设备状态未知，暂时无法操作', 'warning')
-          return
-        }
-        await entitiesStore.callService('cover', service, item.entity_id, null, false)
-      } else if (domain === 'lock') {
-        const service = state === 'unlocked' ? 'lock' : 'unlock'
-        // 解锁为高危操作，二次确认（上锁为安全方向直接执行）
-        if (service === 'unlock') {
-          const ok = await chrome.confirm(
-            `确定解锁「${item.name || item.entity_id}」？解锁后门将可直接打开。`,
-            '解锁确认',
-            { type: 'danger', confirmText: '确认解锁' },
-          )
-          if (!ok) return
-        }
-        await entitiesStore.callService('lock', service, item.entity_id, null, false)
-      } else {
-        const onStates = new Set(['on', 'playing'])
-        const service = onStates.has(state) ? 'turn_off' : 'turn_on'
-        await entitiesStore.callService(domain, service, item.entity_id, null, false)
+      if (!command.ok) {
+        chrome.notify('设备状态未知，暂时无法操作', 'warning')
+        return
       }
+      // 解锁为高危操作，二次确认（上锁为安全方向直接执行）
+      if (command.domain === 'lock' && command.service === 'unlock') {
+        const ok = await chrome.confirm(
+          `确定解锁「${device.name || device.entity_id}」？解锁后门将可直接打开。`,
+          '解锁确认',
+          { type: 'danger', confirmText: '确认解锁' },
+        )
+        if (!ok) return
+      }
+      await entitiesStore.callService(
+        command.domain,
+        command.service,
+        device.entity_id,
+        null,
+        false,
+      )
       // 内存模式下乐观更新会即时驱动行状态；REST 分页模式列表来自服务端，
       // 乐观态不会驱动本列表渲染，成功后刷新当前页保证行状态与服务端一致
       if (useRestList.value) restRefresh()
-    } catch (e) {
-      logger.debug('设备切换失败', e)
+    } catch (error) {
+      logger.debug('设备切换失败', error)
       chrome.notify('设备操作失败，请检查权限或设备状态', 'error')
     }
   }

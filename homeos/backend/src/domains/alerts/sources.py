@@ -30,6 +30,7 @@ NOTIFICATION_SOURCE_SHORT_LABELS: dict[str, str] = {
     "drill": "演习",
     "voice": "语音",
     "presence": "人员",
+    "ha-connection": "HA",
 }
 
 _ADVISOR_CATEGORY_LABELS: dict[str, str] = {
@@ -148,7 +149,14 @@ def is_life_safety_notification(level: Any, source: Any) -> bool:
         return True
     if src.startswith("earthquake"):
         return True
-    return bool(src.startswith("water"))
+    if src.startswith("water"):
+        return True
+    # HA（中枢）失联：它一断，安防 / 告警 / 自动化 / 场景全部失效，而且**设备离线告警本身
+    # 也会被抑制**（状态不可信）。这条通知正是那批告警缺席的原因，所以既不能被「重要通知」
+    # 关掉，也不能被免打扰静音 —— 否则用户会在毫不知情的情况下失去全部告警能力。
+    # 注意它仍用 ``warn`` 级别：中枢失联是系统性故障，不是家里的紧急事件，不该占用 danger
+    # 语义（红色 / 生命安全标签）。
+    return src.startswith("ha-connection")
 
 
 def _advisor_source_label(source: str) -> str | None:

@@ -223,11 +223,3 @@ def is_event_log_recordable(entity_id: str, cfg: dict[str, Any] | None) -> bool:
         return bool(allow) and domain in allow
     return domain not in (cfg.get("blockDomains") or [])
 
-
-def extract_event_log_state(new_state: Any) -> str | None:
-    if not isinstance(new_state, dict):
-        return None
-    state = new_state.get("state")
-    if isinstance(state, str):
-        return state
-    return None if state is None else str(state)

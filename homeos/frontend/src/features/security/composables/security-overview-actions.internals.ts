@@ -19,7 +19,10 @@ import {
 } from '@/services/api/security'
 import { loadPresenceHome } from '@/shared/presence/composables/load-presence-home'
 import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
-import { executeSecurityPanelArm } from '@/shared/security/utils/panel-arm.util'
+import {
+  executeSecurityPanelArm,
+  interpretSecurityArmResult,
+} from '@/shared/security/utils/panel-arm.util'
 import type { SecurityMode } from '@/shared/types/layout'
 import type { SecurityOverviewSensor } from './security-overview-sensors.internals'
 import type { useLayoutStore } from '@/stores/layout.store'
@@ -139,21 +142,23 @@ export function createSecurityOverviewActions(opts: {
       const zoneIds = armZoneSelection.value.length ? armZoneSelection.value : []
       const data = await executeSecurityPanelArm(mode, zoneIds, zones.value, patchModeFromSocket)
       const sm = securityModes.value.find((m: SecurityMode) => m.key === mode)
-      if (data?.success === false) {
-        const failedActions = data?.actions?.failed ?? 0
-        chrome.notify(
-          failedActions > 0
-            ? `${sm?.name || mode}未生效：${failedActions} 条联动失败，布防已取消`
-            : `${sm?.name || mode}未生效`,
-          'error',
-        )
+      const label = sm?.name || mode
+      const outcome = interpretSecurityArmResult(mode, label, data)
+      if (outcome.kind === 'failed') {
+        chrome.notify(outcome.message, 'error')
         await fetchSecAuditEvents()
         return
       }
-      if (data?.skipped) {
-        addSecEvent(ShieldCheck, `已是${sm?.name || mode}，跳过重复联动`, 'sec-event-item--mode')
+      if (outcome.kind === 'partial') {
+        chrome.notify(outcome.message, 'warning')
+        addSecEvent(Shield, `手动${label}（联动降级）`, 'sec-event-item--mode')
+        await fetchSecAuditEvents()
+        return
+      }
+      if (outcome.kind === 'skipped') {
+        addSecEvent(ShieldCheck, `已是${label}，跳过重复联动`, 'sec-event-item--mode')
       } else {
-        addSecEvent(Shield, `手动${sm?.name || mode}`, 'sec-event-item--mode')
+        addSecEvent(Shield, `手动${label}`, 'sec-event-item--mode')
         hapticAlert()
       }
       await fetchSecAuditEvents()

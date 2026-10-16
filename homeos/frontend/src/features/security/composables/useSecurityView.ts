@@ -12,20 +12,18 @@ import { ref, computed, watch } from 'vue'
 import type { Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Shield, Video, Clock } from '@lucide/vue'
-import { logger } from '@/shared/utils/core/logger'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { fetchSecurityEvents, validateSecurityEvents } from '@/services/api/security'
 import { useSecuritySensors } from '@/features/security/composables/useSecuritySensors'
 import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
 import { useRouteEntityProjection } from '@/composables/entity/useRouteEntityProjection'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
 import { useHaDegrade } from '@/composables/ui/useHaDegrade'
 import { collectHazardWatchedEntityIds } from '@homeos/shared'
-import { useYamlValidation } from '@/features/security/composables/useYamlValidation'
-import { formatLocaleDate } from '@/shared/utils/format/locale-format.util'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { securityCameraEntityIds } from '@/shared/utils/layout/security-cameras.util'
+import { resolveSecurityHeroTone } from '@/features/security/composables/security-view-events.internals'
+import { useSecurityEventsCalendar } from '@/features/security/composables/useSecurityEventsCalendar'
 
 /** 安防页 Tab ID 常量列表 */
 const SEC_TAB_IDS = ['overview', 'monitor', 'events'] as const
@@ -226,7 +224,7 @@ export function useSecurityView() {
         label: '布防',
         value: modeLabel.value,
         // 未布防灰色；告警红色；已布防琥珀色
-        tone: !armed ? 'muted' : alerts > 0 ? 'red' : 'amber',
+        tone: resolveSecurityHeroTone(armed, alerts),
       },
       {
         key: 'alert',
@@ -280,226 +278,8 @@ export function useSecurityView() {
     return `${parts.join('；')}${'。新告警可能无法实时显示，恢复 HA 连接后请刷新页面。'}`
   })
 
-  // 星期标签：日,一,二,三,四,五,六
-  const weekdayLabels = computed(() => '日,一,二,三,四,五,六'.split(','))
-  // 是否配置了门禁事件路径
-  const hasEvents = computed(() => !!layoutStore.layoutConfig.haConfig.eventsPath?.trim())
-  // 事件加载中标记
-  const loadingEvents = ref(false)
-  // 事件路径连通性校验
-  const eventsValidation = useYamlValidation({
-    method: 'get',
-    endpoint: '/security/events/validate',
-    request: async () => {
-      const { data } = await validateSecurityEvents()
-      return (data || {}) as Record<string, unknown>
-    },
-    mapMessage: (data: { message?: string } | undefined, ok: boolean) =>
-      data?.message || (ok ? '连通正常' : '校验失败'),
-  })
-  const validatingEvents = eventsValidation.validating
-  const eventsValidateMsg = eventsValidation.message
-  const eventsValidateOk = eventsValidation.valid
-
-  /**
-   * 触发事件路径连通性校验
-   */
-  async function validateEventsPath() {
-    await eventsValidation.validate('')
-  }
-
-  // 门禁事件列表
-  const events = ref<
-    Array<{
-      date?: string
-      video?: string
-      clip?: string
-      mp4?: string
-      recording?: string
-      thumbnail?: string
-      [key: string]: unknown
-    }>
-  >([])
-  // 日历选中日期
-  const selectedDate = ref(new Date())
-  // 选中日期内的事件索引
-  const selectedEventIdx = ref(0)
-  // 是否全屏查看视频
-  const isFullscreenViewer = ref(false)
-  // 是否显示视频（而非缩略图）
-  const eventShowVideo = ref(false)
-  // 视频加载失败标记（例如录像已被删除/过期），失败时回退显示截图
-  const videoError = ref(false)
-  // 缩略图容器引用，用于滚动定位
-  const thumbnailsContainerRef = ref<HTMLElement | null>(null)
-
-  // 当前选中年份
-  const currentYear = computed(() => selectedDate.value.getFullYear())
-  // 当前选中月份
-  const currentMonth = computed(() => selectedDate.value.getMonth())
-  // 日历天数网格：包含上月末尾、本月全部、下月开头，凑齐整周
-  const calendarDays = computed(() => {
-    const y = currentYear.value
-    const m = currentMonth.value
-    // 本月第一天是星期几（0=周日）
-    const firstDay = new Date(y, m, 1).getDay()
-    // 本月总天数
-    const lastDate = new Date(y, m + 1, 0).getDate()
-    // 上月总天数
-    const prevLastDate = new Date(y, m, 0).getDate()
-    const days: Array<{ day: number; isCurrentMonth: boolean; date: Date }> = []
-    // 上月末尾几天填充首周
-    for (let i = firstDay - 1; i >= 0; i--) {
-      days.push({
-        day: prevLastDate - i,
-        isCurrentMonth: false,
-        date: new Date(y, m - 1, prevLastDate - i),
-      })
-    }
-    // 本月全部天数
-    for (let i = 1; i <= lastDate; i++) {
-      days.push({ day: i, isCurrentMonth: true, date: new Date(y, m, i) })
-    }
-    // 仅补齐最后一周（多数月份 5 行），不强制 6 行，避免空白过多
-    const remaining = (7 - (days.length % 7)) % 7
-    for (let i = 1; i <= remaining; i++) {
-      days.push({ day: i, isCurrentMonth: false, date: new Date(y, m + 1, i) })
-    }
-    return days
-  })
-
-  /**
-   * 判断两个日期是否同一天
-   * @param a 日期 a
-   * @param b 日期 b
-   * @returns 同一天返回 true
-   */
-  function isSameDay(a: Date, b: Date) {
-    return (
-      a &&
-      b &&
-      a.getFullYear() === b.getFullYear() &&
-      a.getMonth() === b.getMonth() &&
-      a.getDate() === b.getDate()
-    )
-  }
-
-  // 选中日期的 ISO 字符串（en-CA 格式：YYYY-MM-DD），用于匹配事件 date 字段
-  const selectedDateStr = computed(() =>
-    formatLocaleDate(
-      selectedDate.value,
-      { year: 'numeric', month: '2-digit', day: '2-digit' },
-      'en-CA',
-    ),
-  )
-  // 选中日期内的事件列表
-  const dayEvents = computed(() => events.value.filter((e) => e.date === selectedDateStr.value))
-
-  // 当前选中事件的视频地址：优先 video，依次回退 clip/mp4/recording
-  const currentEventVideo = computed(() => {
-    const ev = dayEvents.value[selectedEventIdx.value]
-    return ev?.video || ev?.clip || ev?.mp4 || ev?.recording || ''
-  })
-
-  /**
-   * 钳制选中事件索引到合法范围
-   */
-  function clampSelectedEventIdx() {
-    const max = Math.max(0, dayEvents.value.length - 1)
-    if (selectedEventIdx.value > max) selectedEventIdx.value = max
-  }
-
-  /** 切换到上个月 */
-  function prevMonth() {
-    selectedDate.value = new Date(currentYear.value, currentMonth.value - 1, 1)
-  }
-
-  /** 切换到下个月 */
-  function nextMonth() {
-    selectedDate.value = new Date(currentYear.value, currentMonth.value + 1, 1)
-  }
-
-  /**
-   * 选择某个日期，并重置事件索引
-   * @param d 目标日期
-   */
-  function selectDate(d: Date) {
-    selectedDate.value = d
-    selectedEventIdx.value = 0
-  }
-
-  /**
-   * 点击事件项：更新选中索引并根据是否有视频切换显示
-   * @param idx 事件索引
-   */
-  function onEventClick(idx: number) {
-    selectedEventIdx.value = idx
-    const ev = dayEvents.value[idx]
-    const hasVideo = !!(ev?.video || ev?.clip || ev?.mp4 || ev?.recording)
-    eventShowVideo.value = hasVideo
-    videoError.value = false
-  }
-
-  // 切换事件/日期时重置视频失败标记
-  watch(
-    () => [selectedEventIdx.value, currentEventVideo.value, selectedDateStr.value],
-    () => {
-      videoError.value = false
-    },
-  )
-
-  // 选中事件索引变化时，滚动缩略图到视口中央
-  watch(selectedEventIdx, () => {
-    if (thumbnailsContainerRef.value) {
-      const imgs = thumbnailsContainerRef.value.querySelectorAll('img')
-      const target = imgs[selectedEventIdx.value] as HTMLElement | undefined
-      if (target) {
-        thumbnailsContainerRef.value.scrollTo({
-          left:
-            target.offsetLeft -
-            thumbnailsContainerRef.value.offsetWidth / 2 +
-            target.offsetWidth / 2,
-          behavior: 'smooth',
-        })
-      }
-    }
-  })
-
-  // 当日事件列表变化时，钳制选中索引
-  watch(dayEvents, () => {
-    clampSelectedEventIdx()
-  })
-  /**
-   * 拉取门禁事件列表
-   * @sideEffects 更新 events/loadingEvents/eventsValidateOk/eventsValidateMsg
-   * @exceptions 捕获异常后记录 error 日志并提示用户校验 eventsPath
-   */
-  async function fetchEvents() {
-    const path = layoutStore.layoutConfig.haConfig.eventsPath?.trim()
-    // 未配置路径时清空事件列表
-    if (!path) {
-      events.value = []
-      return
-    }
-    loadingEvents.value = true
-    try {
-      const res = await fetchSecurityEvents()
-      events.value = res.data || []
-      // 路径可读但无事件记录时标记校验失败
-      if (!events.value.length) {
-        eventsValidateOk.value = false
-        eventsValidateMsg.value = '路径可读但暂无事件记录'
-      }
-    } catch (e) {
-      logger.error('获取安全事件失败', e)
-      events.value = []
-      eventsValidateOk.value = false
-      eventsValidateMsg.value = '拉取事件失败，请点击「测试连通」检查 eventsPath'
-    } finally {
-      loadingEvents.value = false
-      clampSelectedEventIdx()
-    }
-  }
+  const eventsPath = computed(() => layoutStore.layoutConfig.haConfig.eventsPath || '')
+  const eventsCalendar = useSecurityEventsCalendar(eventsPath)
 
   // 刷新进行中标记
   const refreshing = ref(false)
@@ -513,7 +293,7 @@ export function useSecurityView() {
     if (refreshing.value) return
     refreshing.value = true
     try {
-      await Promise.all([refreshPanel(), fetchEvents()])
+      await Promise.all([refreshPanel(), eventsCalendar.fetchEvents()])
     } finally {
       refreshing.value = false
     }
@@ -521,9 +301,9 @@ export function useSecurityView() {
 
   // 配置加载完成且 eventsPath 存在时自动拉取事件
   watch(
-    [() => layoutStore.isConfigLoaded, () => layoutStore.layoutConfig.haConfig.eventsPath],
+    [() => layoutStore.isConfigLoaded, eventsPath],
     ([loaded, path]) => {
-      if (loaded && path) fetchEvents()
+      if (loaded && path) void eventsCalendar.fetchEvents()
     },
     { immediate: true },
   )
@@ -543,29 +323,6 @@ export function useSecurityView() {
     showSecDegradeBanner,
     secDegradeText,
     retryHaConnection,
-    hasEvents,
-    loadingEvents,
-    validatingEvents,
-    eventsValidateMsg,
-    eventsValidateOk,
-    validateEventsPath,
-    weekdayLabels,
-    currentYear,
-    currentMonth,
-    calendarDays,
-    isSameDay,
-    selectedDate,
-    selectedEventIdx,
-    dayEvents,
-    currentEventVideo,
-    isFullscreenViewer,
-    eventShowVideo,
-    videoError,
-    thumbnailsContainerRef,
-    prevMonth,
-    nextMonth,
-    selectDate,
-    onEventClick,
-    fetchEvents,
+    ...eventsCalendar,
   }
 }

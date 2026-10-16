@@ -387,6 +387,10 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
 
 
 def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:
+    """钱包视图。``withdrawn`` 是**扣费前**的累计提现总额，与 ``frozen`` 同口径
+    （都按总额累加），因此 ``earned - withdrawn`` 仍是有意义的结余口径；单笔的手续费与
+    实际到账额见 :func:`_withdrawal_payload`。
+    """
     if wallet is None:
         return None
     return {

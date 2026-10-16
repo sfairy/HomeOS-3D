@@ -5,12 +5,87 @@ import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 import type { SecurityModeSocketPayload } from '@/shared/utils/bridge/store-bridge'
 
 /** 布防/撤防 API 响应结果 */
-interface SecurityArmResult {
+export interface SecurityArmResult {
   success?: boolean
   mode?: string
   /** 是否跳过（如当前已是目标模式） */
   skipped?: boolean
+  /** 模式已提交但联动有失败（撤防 fail-open） */
+  degraded?: boolean
+  /** 模式是否已落库；`false` 表示只改了内存，重启会回退到上一次成功落库的模式 */
+  persisted?: boolean
   actions?: { executed?: number; failed?: number }
+}
+
+/** 给 UI 层的布防/撤防结果解读 */
+export type SecurityArmUiOutcome =
+  | { kind: 'failed'; message: string }
+  | { kind: 'partial'; message: string }
+  | { kind: 'skipped' }
+  | { kind: 'ok' }
+
+/**
+ * 解读布防/撤防 API 结果，供总览页与浮动 widget 共用提示文案。
+ *
+ * - 布防 fail-closed：`success===false` → failed
+ * - 撤防 fail-open：模式已是 disarmed 但联动失败 → partial（警告，非错误）
+ * - `degraded` 且 success → partial
+ * - `persisted===false`：模式已生效但没落库 → 仍按已生效提示，不谎报失败
+ */
+export function interpretSecurityArmResult(
+  requestedMode: string,
+  modeLabel: string,
+  data?: SecurityArmResult,
+): SecurityArmUiOutcome {
+  const failed = data?.actions?.failed ?? 0
+  const committedDisarm = data?.mode === 'disarmed' && requestedMode === 'disarmed'
+  const persistWarning = '（未能写入本机存储，重启后可能回退）'
+
+  if (data?.success === false) {
+    // 兼容旧后端：撤防已提交但仍返回 success=false
+    if (committedDisarm) {
+      return {
+        kind: 'partial',
+        message:
+          failed > 0 ? `已撤防，但 ${failed} 条联动失败` : '已撤防，但部分联动未完成',
+      }
+    }
+    return {
+      kind: 'failed',
+      message:
+        failed > 0
+          ? `${modeLabel}未生效：${failed} 条联动失败，布防已取消`
+          : `${modeLabel}未生效`,
+    }
+  }
+
+  if (data?.skipped) return { kind: 'skipped' }
+
+  if (data?.degraded || (committedDisarm && failed > 0)) {
+    return {
+      kind: 'partial',
+      message:
+        (requestedMode === 'disarmed'
+          ? failed > 0
+            ? `已撤防，但 ${failed} 条联动失败`
+            : '已撤防，但部分联动未完成'
+          : failed > 0
+            ? `${modeLabel}已生效，但 ${failed} 条联动失败`
+            : `${modeLabel}已生效，但部分联动未完成`) +
+        (data?.persisted === false ? persistWarning : ''),
+    }
+  }
+
+  // 模式已生效但没落库：不能当完全成功（重启会回退），也不该谎报失败。
+  if (data?.persisted === false) {
+    return {
+      kind: 'partial',
+      message:
+        requestedMode === 'disarmed' ? `已撤防${persistWarning}` : `${modeLabel}已生效${persistWarning}`,
+    }
+  }
+
+  return { kind: 'ok' }
 }
 
 /**
@@ -34,7 +109,13 @@ function patchArmedStateFromArmResponse(
   data?: SecurityArmResult,
 ) {
   // 联动 fail-closed：后端未提交布防态时勿乐观 patch，避免 UI 假布防
-  if (data?.success === false) return
+  if (data?.success === false) {
+    // 撤防 fail-open（含旧后端）：mode 已是 disarmed 时仍须同步 UI
+    if (data.mode === 'disarmed') {
+      patchModeFromSocket({ mode: 'disarmed', zones: [] })
+    }
+    return
+  }
   const resolvedMode = data?.mode || mode
   if (resolvedMode === 'disarmed') {
     patchModeFromSocket({ mode: 'disarmed', zones: [] })
@@ -61,7 +142,7 @@ export async function executeSecurityPanelArm(
 ): Promise<SecurityArmResult> {
   const { data } =
     mode === 'disarmed' ? await disarmSecurityPanel() : await armSecurityPanel(mode, zoneIds)
-  // 高危操作触感反馈：仅真正提交成功且非跳过时触发
+  // 高危操作触感反馈：仅真正提交成功且非跳过时触发（含撤防 degraded）
   if (data?.success !== false && !data?.skipped) hapticAlert()
   patchArmedStateFromArmResponse(mode, zoneIds, zones, patchModeFromSocket, data)
   return data || {}

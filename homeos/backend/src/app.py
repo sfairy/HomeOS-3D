@@ -34,9 +34,6 @@ from .platform.core.observability import decide_metrics_access, format_homeos_pr
 #: 健康检查 DB 探针缓存 TTL：/health 为公开端点，避免高频轮询击穿连接。
 DB_PROBE_TTL_SECONDS = 3.0
 
-#: 慢请求阈值（毫秒）。
-SLOW_REQUEST_MILLISECONDS = 2000
-
 
 def _probe_db(app: FastAPI) -> bool:
     """带 TTL 的 DB 探针：``/health`` 为公开端点，避免高频轮询击穿连接。"""

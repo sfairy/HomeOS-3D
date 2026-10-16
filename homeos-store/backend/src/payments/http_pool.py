@@ -48,15 +48,6 @@ def shared_client() -> httpx.Client:
     return client
 
 
-def close_shared_client() -> None:
-    """关闭并丢弃共享客户端（供进程收尾 / 测试复位使用）。"""
-    global _client
-    with _lock:
-        client, _client = _client, None
-    if client is not None:
-        client.close()
-
-
 def request(
     method: str,
     url: str,

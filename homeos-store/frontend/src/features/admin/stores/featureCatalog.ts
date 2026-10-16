@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { adminApi } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 
-export interface FeatureCatalogItem {
+interface FeatureCatalogItem {
   code: string;
   label?: string;
   description?: string;
@@ -14,7 +14,7 @@ export interface FeatureCatalogItem {
   [key: string]: unknown;
 }
 
-export interface FeatureGroup {
+interface FeatureGroup {
   key: string;
   label: string;
   [key: string]: unknown;

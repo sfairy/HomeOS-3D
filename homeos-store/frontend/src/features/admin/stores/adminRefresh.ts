@@ -4,7 +4,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { watch } from "vue";
 
-export type AdminRefreshKey =
+type AdminRefreshKey =
   | "overview"
   | "products"
   | "productCatalog"

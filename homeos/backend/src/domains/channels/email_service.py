@@ -145,16 +145,16 @@ class EmailService:
         """注册消息处理回调。Email 为单向通知通道，此方法仅保存回调。"""
         self._message_handler = handler
 
-    async def send_text(self, to: str | int, text: str, subject: str | None = None) -> None:
-        """发送邮件通知；``to`` 为空时使用配置中的收件人列表。"""
+    async def send_text(self, to: str | int, text: str, subject: str | None = None) -> bool:
+        """发送邮件通知；``to`` 为空时使用配置中的收件人列表。返回是否真正送出。"""
         if not self._enabled or not self._smtp:
             logger.warning("Email 通道未启用或未配置")
-            return
+            return False
 
         recipients = [str(to).strip()] if isinstance(to, str) and str(to).strip() else list(self._to_addresses)
         if not recipients:
             logger.warning("无收件人地址")
-            return
+            return False
 
         message = EmailMessage()
         message["From"] = self._from_address
@@ -168,8 +168,10 @@ class EmailService:
         try:
             await asyncio.to_thread(self._send_sync, message, recipients)
             logger.info("已向 %s 个收件人发送邮件通知", len(recipients))
+            return True
         except Exception as exc:
             logger.error("发送邮件失败: %s", exc)
+            return False
 
     def _send_sync(self, message: EmailMessage, recipients: list[str]) -> None:
         client = self._connect()

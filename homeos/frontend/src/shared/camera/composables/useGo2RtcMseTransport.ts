@@ -21,10 +21,10 @@ import { onUnmounted, ref, watch, type Ref } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
 
 /** 同源中继路径（后端 `api/go2rtc.py` 挂在 API 前缀 `/api/v1` 下）。 */
-export const GO2RTC_WS_PATH = '/api/v1/go2rtc/ws'
+const GO2RTC_WS_PATH = '/api/v1/go2rtc/ws'
 
 /** MSE 编解码协商候选，顺序即偏好；实际发送前按浏览器 `isTypeSupported` 过滤。 */
-export const GO2RTC_CODEC_CANDIDATES = [
+const GO2RTC_CODEC_CANDIDATES = [
   'avc1.640029',
   'avc1.64002A',
   'avc1.640033',
@@ -39,7 +39,7 @@ export const GO2RTC_CODEC_CANDIDATES = [
 export const GO2RTC_TRANSPORT_NAME = 'go2rtc-mse'
 
 /** 登录态/授权类关闭码的提示文案。 */
-export const GO2RTC_AUTH_HINT = '请检查登录、授权及已保存的摄像头配置'
+const GO2RTC_AUTH_HINT = '请检查登录、授权及已保存的摄像头配置'
 
 const MEDIA_QUEUE_MAX_BYTES = 8 * 1024 * 1024
 const CATCHUP_LAG_SECONDS = 3
@@ -60,7 +60,7 @@ const TERMINAL_CLOSE_CODES = new Set([4400, 4401, 4403])
 const AUTH_CLOSE_CODES = new Set([4401, 4403])
 
 /** 摄像机舞台的视觉状态（写入 `dataset.cameraVisualState`）。 */
-export type CameraVisualState =
+type CameraVisualState =
   | 'idle'
   | 'connecting'
   | 'reconnecting'
@@ -125,7 +125,7 @@ export function normalizeGo2rtcTarget(
   return relayUrl.href
 }
 
-export interface Go2RtcMseTransportOptions {
+interface Go2RtcMseTransportOptions {
   /** 承载 MSE 的 video 元素（会写入 `srcObject` 或 blob URL）。 */
   video: HTMLVideoElement
   /** 用户填写的 go2rtc `stream.html` 地址。 */
@@ -473,7 +473,7 @@ export function createGo2RtcMseTransport(
   }
 }
 
-export interface UseGo2RtcMseTransportOptions {
+interface UseGo2RtcMseTransportOptions {
   /** 非空即启用 MSE 通路；变化会重连。 */
   url: Ref<string | undefined> | (() => string | undefined)
   projectId?: Ref<string | undefined> | (() => string | undefined)

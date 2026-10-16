@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from .platform.core.errors import unauthorized
 from .platform.core.models import LoginSession, User
+from .platform.security.cookies import resolve_session_cookie_secure
 from .platform.security.session_store import session_token_hash
 
 
@@ -62,7 +63,7 @@ def _admin_session(
                         value=token,
                         max_age=max_age,
                         httponly=True,
-                        secure=settings.cookie_secure,
+                        secure=resolve_session_cookie_secure(request, settings),
                         samesite='lax',
                         path='/',
                     )

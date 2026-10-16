@@ -1,7 +1,7 @@
 /** 通用列表响应归一化工具。 */
 
 /** CRUD 列表归一化结果 */
-export interface CrudListNormalized {
+interface CrudListNormalized {
   rows: Array<Record<string, unknown>>
   total: number
 }

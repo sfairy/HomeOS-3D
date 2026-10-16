@@ -16,7 +16,7 @@
  * `scripts/_store_frontend_race_smoke.mjs` 就得先把浏览器环境搭起来，纯函数的意义就没了。
  */
 
-export interface RequestGuard {
+interface RequestGuard {
   /** 开始一次请求并拿到它的令牌；响应回来时用 :meth:`isCurrent` 判断是否仍有效。 */
   begin(): number;
   /** 作废当前所有在途请求（弹窗关闭 / 换单 / 输入变了）。 */

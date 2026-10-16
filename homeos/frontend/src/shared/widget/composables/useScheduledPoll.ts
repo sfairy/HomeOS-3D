@@ -6,7 +6,7 @@ import { getWidgetPollInterval, configEpoch } from '@/shared/utils/config/fronte
 let pollInstanceSeq = 0
 
 /** 轮询可选项 */
-export interface ScheduledPollOptions {
+interface ScheduledPollOptions {
   /** 是否在 onMounted 时立即执行一次回调（默认 true） */
   immediate?: boolean
   /** 页面隐藏时是否暂停（保留给调度器内部使用） */

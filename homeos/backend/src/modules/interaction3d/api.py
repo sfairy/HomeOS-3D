@@ -49,7 +49,7 @@ def find_module_component(document: dict, component_id: str) -> dict | None:
     return next((component for _, component in module_components(document) if component.get('id') == component_id), None)
 
 
-async def call_service(payload: HAServiceCallRequest, request: Request, database, viewer) -> dict:
+async def call_service(command: HAServiceCallRequest, request: Request, database, viewer) -> dict:
     """本模块的 HA 服务调用入口：转调域内唯一出口，把域内拒绝映射成 ``HTTPException``。
 
     参数顺序与原先 ``api/ha.py`` 的同名函数一致，故 6 个控制分支无需改动；
@@ -61,7 +61,7 @@ async def call_service(payload: HAServiceCallRequest, request: Request, database
     try:
         return await execute_service_call(
             request,
-            payload,
+            command,
             access_check=lambda session, entity_id: require_viewer_entity(session, viewer, entity_id),
         )
     except ServiceCallRejected as error:
@@ -123,12 +123,12 @@ def scene_path(request: Request, scene_id: str):
 
 def load_scene_document(request: Request, scene_id: str) -> dict:
     try:
-        payload = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
+        command = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
     except (OSError, ValueError) as error:
         raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。') from error
-    if not isinstance(payload, dict):
+    if not isinstance(command, dict):
         raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。')
-    return payload
+    return command
 
 
 def decode_draft_document(draft: ProjectDraft | None) -> dict | None:
@@ -166,27 +166,27 @@ def current_scene_payload(request: Request, database, scene_id: str, reference: 
 
 
 @router.post('/scenes', status_code=201)
-def snapshot_scene(request: Request, _user: LicensedUser):
+def snapshot_scene(request: Request, database: DatabaseSession, _user: LicensedUser):
     require_same_origin_write(request)
     require_access(request)
     source = request.app.state.settings.studio3d_draft_path
     if not source.is_file():
         raise HTTPException(409, detail='请先在 3D 户型图绘制中绘制并保存户型。')
     try:
-        payload = json.loads(source.read_text(encoding='utf-8'))
-        if not isinstance(payload, dict) or not isinstance(payload.get('scene'), dict):
+        command = json.loads(source.read_text(encoding='utf-8'))
+        if not isinstance(command, dict) or not isinstance(command.get('scene'), dict):
             raise HTTPException(409, detail='户型数据为空，请先在 3D 户型图绘制中保存户型。')
     except (OSError, ValueError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请检查保存状态。') from error
-    payload[SCENE_SOURCE_KEY] = 'studio'
+    command[SCENE_SOURCE_KEY] = 'studio'
     scene_id = uuid4().hex
     folder = request.app.state.settings.data_dir / 'modules' / 'interaction3d' / 'scenes'
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f'{scene_id}.json'
     with path.open('x', encoding='utf-8') as output:
-        json.dump(payload, output, ensure_ascii=False)
+        json.dump(command, output, ensure_ascii=False)
     path.chmod(384)
-    scene = payload['scene']
+    scene = command['scene']
     for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
@@ -195,14 +195,107 @@ def snapshot_scene(request: Request, _user: LicensedUser):
             continue
         suffix = asset.suffix.lower()
         shutil.copyfile(asset, folder / f'{scene_id}-{asset_id}{suffix}')
+    prune_scene_snapshots(request, database)
     return {'sceneId': scene_id}
+
+
+#: 场景快照保留份数：编辑器每次保存都会新建一份快照，并把每层户型底图整套复制过来
+#: （底图是照片级位图，单个项目几 MB 起），而在此之前没有任何清理入口 —— 长期使用
+#: 会把磁盘吃满。只保留最近的若干份**且已不被任何项目引用**的快照。
+SCENE_SNAPSHOT_KEEP = 5
+
+
+def _collect_scene_ids(node: object, out: set[str]) -> None:
+    """递归收集文档里出现的任何 ``sceneId``。
+
+    比只认 ``模块 → 组件 → properties`` 路径更保守：宁可少删，也不能删掉一个仍在被
+    引用的场景（那会让项目打不开户型）。
+    """
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == 'sceneId' and isinstance(value, str) and value:
+                out.add(value.removeprefix('user:'))
+                continue
+            _collect_scene_ids(value, out)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_scene_ids(item, out)
+
+
+def referenced_scene_ids(request: Request, database: DatabaseSession) -> set[str] | None:
+    """仍被项目草稿 / 编辑器草稿引用的场景 id；无法判定时返回 ``None``（调用方跳过清理）。"""
+    settings = request.app.state.settings
+    try:
+        documents = list(database.scalars(select(ProjectDraft.document_json)))
+    except Exception:
+        LOGGER.warning("读取项目草稿失败，无法判定场景引用", exc_info=True)
+        return None
+    referenced: set[str] = set()
+    for document_json in documents:
+        if not isinstance(document_json, str):
+            continue
+        try:
+            _collect_scene_ids(json.loads(document_json), referenced)
+        except ValueError:
+            continue
+    draft = getattr(settings, 'studio3d_draft_path', None)
+    try:
+        if draft is not None and Path(draft).is_file():
+            _collect_scene_ids(json.loads(Path(draft).read_text(encoding='utf-8')), referenced)
+    except (OSError, ValueError):
+        pass
+    return referenced
+
+
+def prune_scene_snapshots(request: Request, database: DatabaseSession) -> None:
+    """按 ``SCENE_SNAPSHOT_KEEP`` 清理旧快照及其底图副本（保留仍被引用的快照）。"""
+    settings = request.app.state.settings
+    folder = settings.data_dir / 'modules' / 'interaction3d' / 'scenes'
+    if not folder.is_dir():
+        return
+    try:
+        snapshots = sorted(
+            (
+                entry
+                for entry in folder.glob('*.json')
+                if entry.is_file() and re.fullmatch('[0-9a-f]{32}', entry.stem)
+            ),
+            key=lambda entry: entry.stat().st_mtime_ns,
+            reverse=True,
+        )
+    except OSError:
+        return
+    stale = snapshots[SCENE_SNAPSHOT_KEEP:]
+    if not stale:
+        return
+    # 项目草稿表的 document_json 是场景引用的唯一事实源。
+    referenced = referenced_scene_ids(request, database)
+    if referenced is None:
+        LOGGER.warning("场景引用不可判定，跳过本次快照清理")
+        return
+    for entry in stale:
+        scene_id = entry.stem
+        if scene_id in referenced:
+            continue
+        try:
+            entry.unlink()
+        except OSError:
+            continue
+        # 底图副本形如 {scene_id}-{asset_id}.{ext}：快照没了它们就是纯占位。
+        for copy in folder.glob(f'{scene_id}-*'):
+            try:
+                if copy.is_file():
+                    copy.unlink()
+            except OSError:
+                continue
+        LOGGER.info("已清理场景快照:%s", scene_id)
 
 
 @router.get('/scenes/{scene_id}')
 def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     require_scene_transfer(request, viewer, scene_id, projectId)
-    payload = load_scene_document(request, scene_id)
-    scene = payload['scene']
+    command = load_scene_document(request, scene_id)
+    scene = command['scene']
     from urllib.parse import urlencode
     for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
@@ -210,8 +303,8 @@ def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId
         if not re.fullmatch('[0-9a-f]{32}', asset_id):
             continue
         background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
-    payload.pop(SCENE_SOURCE_KEY, None)
-    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+    command.pop(SCENE_SOURCE_KEY, None)
+    return JSONResponse(command, headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/scenes/{scene_id}/current')
@@ -219,28 +312,28 @@ def get_current_scene(scene_id: str, request: Request, database: DatabaseSession
     require_scene_transfer(request, viewer, scene_id, projectId)
     reference = load_scene_document(request, scene_id)
     try:
-        payload = current_scene_payload(request, database, scene_id, reference, since=since)
-        if not isinstance(payload.get('scene'), dict):
+        command = current_scene_payload(request, database, scene_id, reference, since=since)
+        if not isinstance(command.get('scene'), dict):
             raise ValueError('missing scene')
     except (OSError, ValueError, AttributeError) as error:
         if since:
             raise HTTPException(409, detail='户型保存尚未完成，稍后自动重试。') from error
-        payload = reference
-    key = hashlib.sha256(json.dumps(payload['scene'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+        command = reference
+    key = hashlib.sha256(json.dumps(command['scene'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     if key == since:
         from fastapi.responses import Response
         return Response(status_code=204, headers={'Cache-Control': 'no-store'})
-    payload['syncKey'] = key
-    payload['referenceScene'] = reference['scene']
+    command['syncKey'] = key
+    command['referenceScene'] = reference['scene']
     from urllib.parse import urlencode
-    for floor in payload['scene'].get('floors', []):
+    for floor in command['scene'].get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
         if not re.fullmatch('[0-9a-f]{32}', asset_id):
             continue
         background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
-    payload.pop(SCENE_SOURCE_KEY, None)
-    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+    command.pop(SCENE_SOURCE_KEY, None)
+    return JSONResponse(command, headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/scenes/{scene_id}/background/{asset_id}')
@@ -342,16 +435,16 @@ def _scene_has_model(scene: dict, bindings: list[dict], model_type: str) -> bool
     )
 
 
-def _environment_device_flags(payload: Interaction3dControlRequest) -> _EnvironmentDeviceFlags:
+def _environment_device_flags(command: Interaction3dControlRequest) -> _EnvironmentDeviceFlags:
     """派生环境类设备分支的布尔开关。"""
-    is_climate_extra = payload.device_kind == 'climate-extra'
-    is_bath_heater = payload.device_kind == 'bath-heater'
-    is_airer = payload.device_kind in {'airer', 'airer-extra'}
-    is_fan = payload.device_kind in {'fan', 'fan-extra'}
-    is_cover = payload.domain == 'cover'
-    is_water_heater = payload.domain == 'water_heater' or payload.device_kind == 'water-heater-extra'
-    generic_device = payload.device_kind == 'device-extra'
-    extra_domain = payload.device_kind in {
+    is_climate_extra = command.device_kind == 'climate-extra'
+    is_bath_heater = command.device_kind == 'bath-heater'
+    is_airer = command.device_kind in {'airer', 'airer-extra'}
+    is_fan = command.device_kind in {'fan', 'fan-extra'}
+    is_cover = command.domain == 'cover'
+    is_water_heater = command.domain == 'water_heater' or command.device_kind == 'water-heater-extra'
+    generic_device = command.device_kind == 'device-extra'
+    extra_domain = command.device_kind in {
         'fan-extra',
         'airer-extra',
         'device-extra',
@@ -367,7 +460,7 @@ def _environment_device_flags(payload: Interaction3dControlRequest) -> _Environm
         or is_water_heater
         or generic_device
         or is_cover
-    ) and (payload.domain == 'fan' or payload.device_kind == 'purifier-extra')
+    ) and (command.domain == 'fan' or command.device_kind == 'purifier-extra')
     return _EnvironmentDeviceFlags(
         is_climate_extra=is_climate_extra,
         is_bath_heater=is_bath_heater,
@@ -382,7 +475,7 @@ def _environment_device_flags(payload: Interaction3dControlRequest) -> _Environm
 
 
 def _environment_device_name(
-    payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+    command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> str:
     """错误文案里使用的设备中文名。"""
     if flags.is_climate_extra:
@@ -399,13 +492,13 @@ def _environment_device_name(
         return '设备'
     if flags.is_cover:
         return '窗帘'
-    if payload.domain == 'fan' or flags.extra_domain:
+    if command.domain == 'fan' or flags.extra_domain:
         return '空气净化器'
     return '空调'
 
 
 def _environment_bindings_collection(
-    payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+    command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> str:
     """按设备类型选择 environment 下的绑定集合名。"""
     if flags.is_climate_extra or flags.is_bath_heater:
@@ -418,16 +511,16 @@ def _environment_bindings_collection(
         return 'waterHeaters'
     if flags.is_cover:
         return 'curtains'
-    if payload.domain == 'fan' or flags.extra_domain:
+    if command.domain == 'fan' or flags.extra_domain:
         return 'airPurifiers'
     return 'airConditioners'
 
 
 def _environment_declared_bindings(
-    properties: dict, payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+    properties: dict, command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> list[dict]:
     """取控件声明的绑定列表，浴霸再按 climateType 过滤。"""
-    collection = _environment_bindings_collection(payload, flags)
+    collection = _environment_bindings_collection(command, flags)
     bindings = properties.get('environment', {}).get(collection, [])
     if flags.is_bath_heater:
         bindings = [binding for binding in bindings if binding.get('climateType') == 'bath-heater']
@@ -435,31 +528,31 @@ def _environment_declared_bindings(
 
 
 def _filter_environment_bindings(
-    bindings: list[dict], payload: Interaction3dControlRequest
+    bindings: list[dict], command: Interaction3dControlRequest
 ) -> list[dict]:
     """按 binding_id / floor / model 过滤绑定；三者都未提供时原样返回。"""
-    if not (payload.binding_id or payload.binding_floor_id or payload.binding_model_id):
+    if not (command.binding_id or command.binding_floor_id or command.binding_model_id):
         return bindings
     return [
         binding
         for binding in bindings
-        if (not payload.binding_id or binding.get('id') == payload.binding_id)
-        and (not payload.binding_floor_id or binding.get('floorId') == payload.binding_floor_id)
-        and (not payload.binding_model_id or binding.get('modelId') == payload.binding_model_id)
+        if (not command.binding_id or binding.get('id') == command.binding_id)
+        and (not command.binding_floor_id or binding.get('floorId') == command.binding_floor_id)
+        and (not command.binding_model_id or binding.get('modelId') == command.binding_model_id)
     ]
 
 
 def _primary_environment_binding(
-    bindings: list[dict], payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+    bindings: list[dict], command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> dict | None:
     """主绑定：extra 分支没有主实体。"""
     if flags.extra_domain:
         return None
-    return next((binding for binding in bindings if binding.get('entityId') == payload.entity_id), None)
+    return next((binding for binding in bindings if binding.get('entityId') == command.entity_id), None)
 
 
 def _extra_environment_owners(
-    bindings: list[dict], payload: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
+    bindings: list[dict], command: Interaction3dControlRequest, flags: _EnvironmentDeviceFlags
 ) -> list[dict]:
     """附加实体所属的绑定列表（仅 extra 分支）。"""
     if not flags.extra_domain:
@@ -467,7 +560,7 @@ def _extra_environment_owners(
     return [
         binding
         for binding in bindings
-        if any(extra.get('entityId') == payload.entity_id for extra in binding.get('extraControls', []))
+        if any(extra.get('entityId') == command.entity_id for extra in binding.get('extraControls', []))
     ]
 
 
@@ -482,7 +575,7 @@ class _EnvironmentBindingScope:
 
 
 def _require_environment_binding_model(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     scene: dict,
     scope: _EnvironmentBindingScope,
     owner: dict | None = None,
@@ -504,28 +597,28 @@ def _require_environment_binding_model(
         elif flags.is_fan:
             require_air_conditioner_model(
                 [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else payload.entity_id,
+                owner.get('entityId', '') if owner else command.entity_id,
                 scene,
                 model_type=('fan', 'ceiling-fan'),
             )
         elif flags.is_purifier:
             require_air_conditioner_model(
                 [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else payload.entity_id,
+                owner.get('entityId', '') if owner else command.entity_id,
                 scene,
                 model_type='airpurifier',
             )
         elif flags.is_water_heater:
             require_air_conditioner_model(
                 [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else payload.entity_id,
+                owner.get('entityId', '') if owner else command.entity_id,
                 scene,
                 model_type=('storagewaterheater', 'gaswaterheater'),
             )
         else:
             (require_curtain_model if flags.is_cover else require_air_conditioner_model)(
                 [owner] if owner else bindings,
-                owner.get('entityId', '') if owner else payload.entity_id,
+                owner.get('entityId', '') if owner else command.entity_id,
                 scene,
             )
     except (ValueError, KeyError, TypeError, AttributeError) as error:
@@ -533,7 +626,7 @@ def _require_environment_binding_model(
 
 
 def _validate_environment_command(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     name: str,
     flags: _EnvironmentDeviceFlags,
     bindings: list[dict],
@@ -544,29 +637,29 @@ def _validate_environment_command(
     if flags.is_water_heater:
         from .water_heater import validate_water_heater_command
 
-        validate_water_heater_command(payload.service, payload.data, state_row)
+        validate_water_heater_command(command.service, command.data, state_row)
     elif flags.is_cover:
         dream = any(
-            binding.get('entityId') == payload.entity_id and binding.get('coverKind') == 'dream'
+            binding.get('entityId') == command.entity_id and binding.get('coverKind') == 'dream'
             for binding in bindings
         )
         validate_cover_command(
-            payload.service,
-            payload.data,
+            command.service,
+            command.data,
             state_row,
             dream=dream,
             airer=flags.is_airer,
         )
-    elif payload.domain == 'fan':
+    elif command.domain == 'fan':
         from .purifier import validate_purifier_command
 
-        validate_purifier_command(payload.service, payload.data, state_row, name=name)
+        validate_purifier_command(command.service, command.data, state_row, name=name)
     else:
-        validate_climate_command(payload.service, payload.data, state_row)
+        validate_climate_command(command.service, command.data, state_row)
 
 
 async def _control_extra_environment_entity(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     request: Request,
     database: DatabaseSession,
     viewer: LicensedViewer,
@@ -615,17 +708,17 @@ async def _control_extra_environment_entity(
                 )
                 if primary_entity is not None and primary_entity.device_id and entity.device_id != primary_entity.device_id:
                     raise HTTPException(403, detail=f'附加实体已不属于当前{context.name}，请重新绑定。')
-            extra = next((extra for extra in owner['extraControls'] if extra.get('entityId') == payload.entity_id), None)
-            validate_extra_command(extra, payload.domain, payload.service, payload.data, states[0] if states else None)
+            extra = next((extra for extra in owner['extraControls'] if extra.get('entityId') == command.entity_id), None)
+            validate_extra_command(extra, command.domain, command.service, command.data, states[0] if states else None)
         except HTTPException as error:
             failures.append(error)
         else:
-            return await call_service(payload, request, database, viewer)
+            return await call_service(command, request, database, viewer)
     raise failures[0]
 
 
 async def _control_speaker(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     request: Request,
     database: DatabaseSession,
     viewer: LicensedViewer,
@@ -633,14 +726,14 @@ async def _control_speaker(
     """智能音响分支：校验绑定、模型与命令参数后下发。"""
     from .speaker import validate_speaker_command
 
-    if payload.domain != 'media_player' or not payload.project_id or not payload.component_id:
+    if command.domain != 'media_player' or not command.project_id or not command.component_id:
         raise HTTPException(422, detail='智能音响控制缺少仪表盘、控件或媒体实体信息。')
-    require_viewer_project(viewer, payload.project_id)
-    properties = component_properties(database, payload.project_id, payload.component_id)
+    require_viewer_project(viewer, command.project_id)
+    properties = component_properties(database, command.project_id, command.component_id)
     matches = [
         binding
         for binding in properties.get('devices', {}).get('speakers', [])
-        if binding.get('entityId') == payload.entity_id
+        if binding.get('entityId') == command.entity_id
     ]
     if not matches:
         raise HTTPException(403, detail='此媒体实体未绑定到当前智能音响。')
@@ -652,24 +745,24 @@ async def _control_speaker(
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
     if not valid:
         raise HTTPException(409, detail='智能音响模型已失联，请重新配置。')
-    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
-    validate_speaker_command(payload.service, payload.data, states[0] if states else None)
-    return await call_service(payload, request, database, viewer)
+    states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
+    validate_speaker_command(command.service, command.data, states[0] if states else None)
+    return await call_service(command, request, database, viewer)
 
 
 async def _control_television(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     request: Request,
     database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict:
     """电视分支：校验电源实体绑定、模型与 supported_features。"""
-    if not payload.project_id or not payload.component_id:
+    if not command.project_id or not command.component_id:
         raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
-    require_viewer_project(viewer, payload.project_id)
-    properties = component_properties(database, payload.project_id, payload.component_id)
+    require_viewer_project(viewer, command.project_id)
+    properties = component_properties(database, command.project_id, command.component_id)
     bindings = properties.get('devices', {}).get('televisions', [])
-    power_command = payload.service in {'turn_on', 'turn_off'}
+    power_command = command.service in {'turn_on', 'turn_off'}
     matches = [
         binding
         for binding in bindings
@@ -678,7 +771,7 @@ async def _control_television(
             if power_command
             else binding.get('entityId')
         )
-        == payload.entity_id
+        == command.entity_id
     ]
     if not matches:
         raise HTTPException(403, detail='此电源实体未配置到当前电视。')
@@ -699,27 +792,27 @@ async def _control_television(
         'media_pause': 1,
     }
     if (
-        payload.domain not in {'switch', 'media_player'}
-        or payload.service not in media_features
-        or payload.data
-        or (payload.domain == 'switch' and not power_command)
+        command.domain not in {'switch', 'media_player'}
+        or command.service not in media_features
+        or command.data
+        or (command.domain == 'switch' and not power_command)
     ):
         raise HTTPException(422, detail='电视不支持此控制操作或参数。')
-    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
+    states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
     state = states[0] if states else {}
     if state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
         raise HTTPException(409, detail='电视电源状态不可用，请稍后重试。')
-    if payload.domain == 'media_player':
+    if command.domain == 'media_player':
         features = state.get('attributes', {}).get('supported_features', 0)
-        if not isinstance(features, int) or isinstance(features, bool) or not features & media_features[payload.service]:
+        if not isinstance(features, int) or isinstance(features, bool) or not features & media_features[command.service]:
             raise HTTPException(422, detail='此媒体实体不支持该操作。')
         if not power_command and state.get('state') in {'off', 'standby'}:
             raise HTTPException(409, detail='请先开启电视。')
-    return await call_service(payload, request, database, viewer)
+    return await call_service(command, request, database, viewer)
 
 
 async def _control_lock(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     request: Request,
     database: DatabaseSession,
     viewer: LicensedViewer,
@@ -727,15 +820,15 @@ async def _control_lock(
     """门锁分支：校验绑定模型、实体归属与命令参数。"""
     from .lock import require_lock_model, validate_lock_command
 
-    if payload.domain != 'lock' or not payload.project_id or not payload.component_id:
+    if command.domain != 'lock' or not command.project_id or not command.component_id:
         raise HTTPException(422, detail='门锁控制缺少仪表盘或控件信息。')
-    require_viewer_project(viewer, payload.project_id)
-    properties = component_properties(database, payload.project_id, payload.component_id)
+    require_viewer_project(viewer, command.project_id)
+    properties = component_properties(database, command.project_id, command.component_id)
     binding = next(
         (
             entry
             for entry in properties.get('security', {}).get('locks', [])
-            if entry.get('entityId') == payload.entity_id
+            if entry.get('entityId') == command.entity_id
         ),
         None,
     )
@@ -751,7 +844,7 @@ async def _control_lock(
         database.scalar(
             select(HAEntity).where(
                 HAEntity.connection_id == connection.id,
-                HAEntity.entity_id == payload.entity_id,
+                HAEntity.entity_id == command.entity_id,
                 HAEntity.domain == 'lock',
                 HAEntity.sync_status == 'active',
                 HAEntity.disabled_by.is_(None),
@@ -764,25 +857,25 @@ async def _control_lock(
         raise HTTPException(404, detail='门锁实体不存在、已禁用或已失联。')
     if binding.get('deviceId') and entity.device_id != binding['deviceId']:
         raise HTTPException(403, detail='门锁实体已不属于所选设备，请重新绑定。')
-    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
-    validate_lock_command(payload.service, payload.data, states[0] if states else None)
-    return await call_service(payload, request, database, viewer)
+    states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
+    validate_lock_command(command.service, command.data, states[0] if states else None)
+    return await call_service(command, request, database, viewer)
 
 
 async def _control_environment_device(
-    payload: Interaction3dControlRequest,
+    command: Interaction3dControlRequest,
     request: Request,
     database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict:
     """风扇 / 窗帘 / 空调 / 热水器 / 净化器 / 通用设备分支的校验与下发编排。"""
-    flags = _environment_device_flags(payload)
-    name = _environment_device_name(payload, flags)
-    if not payload.project_id or not payload.component_id:
+    flags = _environment_device_flags(command)
+    name = _environment_device_name(command, flags)
+    if not command.project_id or not command.component_id:
         raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
-    require_viewer_project(viewer, payload.project_id)
-    properties = component_properties(database, payload.project_id, payload.component_id)
-    bindings = _environment_declared_bindings(properties, payload, flags)
+    require_viewer_project(viewer, command.project_id)
+    properties = component_properties(database, command.project_id, command.component_id)
+    bindings = _environment_declared_bindings(properties, command, flags)
     generic_bindings: list[tuple[dict, dict]] = []
     if flags.generic_device:
         from .device import DEVICE_PROFILES
@@ -793,9 +886,9 @@ async def _control_environment_device(
             for binding in properties.get('devices', {}).get(profile['collection'], [])
         ]
         bindings = [binding for _, binding in generic_bindings]
-    bindings = _filter_environment_bindings(bindings, payload)
-    primary = _primary_environment_binding(bindings, payload, flags)
-    owners = _extra_environment_owners(bindings, payload, flags)
+    bindings = _filter_environment_bindings(bindings, command)
+    primary = _primary_environment_binding(bindings, command, flags)
+    owners = _extra_environment_owners(bindings, command, flags)
     if not primary and not owners:
         raise HTTPException(403, detail=f'此{name}未配置到当前 3D 交互控件。')
     scene_id = properties.get('sceneId', '')
@@ -812,7 +905,7 @@ async def _control_environment_device(
         failures = []
         for owner in owners:
             try:
-                _require_environment_binding_model(payload, scene, scope, owner)
+                _require_environment_binding_model(command, scene, scope, owner)
             except HTTPException as error:
                 failures.append(error)
             else:
@@ -820,22 +913,22 @@ async def _control_environment_device(
         if not valid_owners:
             raise failures[0]
     else:
-        _require_environment_binding_model(payload, scene, scope)
+        _require_environment_binding_model(command, scene, scope)
     connection = active_connection(database)
     if connection is None:
         raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
     entity = database.scalar(
         select(HAEntity).where(
             HAEntity.connection_id == connection.id,
-            HAEntity.entity_id == payload.entity_id,
-            HAEntity.domain == payload.domain,
+            HAEntity.entity_id == command.entity_id,
+            HAEntity.domain == command.domain,
             HAEntity.sync_status == 'active',
             HAEntity.disabled_by.is_(None),
         )
     )
     if entity is None:
         raise HTTPException(404, detail=f'{name}实体不存在、已禁用或已失联。')
-    states = await request.app.state.studio_ha.state_hub.snapshot({payload.entity_id})
+    states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
 
     if flags.extra_domain:
         context = _EnvironmentControlContext(
@@ -849,28 +942,28 @@ async def _control_environment_device(
             states=states,
         )
         return await _control_extra_environment_entity(
-            payload, request, database, viewer, context, connection
+            command, request, database, viewer, context, connection
         )
     if primary is not None and (flags.is_purifier or flags.is_water_heater or primary.get('climateType') == 'bath-heater') and primary.get('deviceId') and entity.device_id != primary['deviceId']:
         raise HTTPException(403, detail='主实体已不属于当前绑定设备，请重新绑定。')
-    _validate_environment_command(payload, name, flags, bindings, states)
-    return await call_service(payload, request, database, viewer)
+    _validate_environment_command(command, name, flags, bindings, states)
+    return await call_service(command, request, database, viewer)
 
 
 @router.post('/control')
-async def control_light(payload: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
+async def control_light(command: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
     require_access(request)
-    if payload.device_kind == 'speaker':
-        return await _control_speaker(payload, request, database, viewer)
-    if payload.device_kind == 'television' or payload.domain == 'media_player':
-        return await _control_television(payload, request, database, viewer)
-    if payload.domain == 'lock' or payload.device_kind == 'lock':
-        return await _control_lock(payload, request, database, viewer)
-    if payload.domain in {'fan', 'cover', 'climate', 'water_heater'} or payload.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
-        return await _control_environment_device(payload, request, database, viewer)
-    if payload.domain not in {'light', 'switch'} or payload.service not in {'turn_on', 'turn_off'}:
+    if command.device_kind == 'speaker':
+        return await _control_speaker(command, request, database, viewer)
+    if command.device_kind == 'television' or command.domain == 'media_player':
+        return await _control_television(command, request, database, viewer)
+    if command.domain == 'lock' or command.device_kind == 'lock':
+        return await _control_lock(command, request, database, viewer)
+    if command.domain in {'fan', 'cover', 'climate', 'water_heater'} or command.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
+        return await _control_environment_device(command, request, database, viewer)
+    if command.domain not in {'light', 'switch'} or command.service not in {'turn_on', 'turn_off'}:
         raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
-    return await call_service(payload, request, database, viewer)
+    return await call_service(command, request, database, viewer)
 
 
 
@@ -974,12 +1067,12 @@ def _runtime_resource_media_types(settings: Settings) -> dict[str, str]:
     if cached is not None:
         return cached
     try:
-        payload = json.loads(manifest_path.read_text(encoding='utf-8'))
+        command = json.loads(manifest_path.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError):
         return {}
-    suffixes = payload.get('mediaTypes') if isinstance(payload, dict) else None
+    suffixes = command.get('mediaTypes') if isinstance(command, dict) else None
     suffixes = suffixes if isinstance(suffixes, dict) else {'.js': 'text/javascript', '.css': 'text/css'}
-    entries = payload.get('files') if isinstance(payload, dict) else None
+    entries = command.get('files') if isinstance(command, dict) else None
     table: dict[str, str] = {}
     if isinstance(entries, list):
         for entry in entries:

@@ -3,12 +3,12 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-export interface AdjustTarget {
+interface AdjustTarget {
   accountId: string;
   label: string;
 }
 
-export interface PurgeRequest {
+interface PurgeRequest {
   title: string;
   message: string;
   impact: string;

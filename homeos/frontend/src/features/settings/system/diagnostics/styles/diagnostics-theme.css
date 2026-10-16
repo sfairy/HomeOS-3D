@@ -1206,8 +1206,6 @@
 }
 
 
-
-
 .diag-quick-links {
   display: flex;
   flex-wrap: wrap;
@@ -1248,13 +1246,6 @@
 }
 
 
-
-
-
-
-
-
-
 .diag-alert__text .diag-hint-link,
 .settings-inline-hint .diag-hint-link {
   color: var(--set-success);
@@ -1265,10 +1256,6 @@
 .settings-inline-hint .diag-hint-link:hover {
   color: var(--set-success);
 }
-
-/* 注：原 .diag-metric-tile--warn / --bad 状态修饰类已删除（无任何 .vue/.ts 引用，
-     .diag-metric-tile 通过 :style="{ '--tile-accent': tile.accent }" 动态注入颜色，
-     见 DiagnosticsOverviewSection.vue） */
 
 /* ── 监控指标 Tab（Bento 仪表盘）── */
 
@@ -1282,17 +1269,8 @@
 }
 
 
-
-
-
-
-
-
-
-
 @container settings-scroll (min-width: 860px) {
 }
-
 
 
 .diag-metrics-loading-card {
@@ -1309,7 +1287,6 @@
   font-size: var(--diag-fs-body);
   color: var(--set-text-secondary);
 }
-
 
 
 /* ── 诊断导出 Tab ── */

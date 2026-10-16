@@ -35,7 +35,7 @@ const WEATHER_LABELS: Record<string, string> = {
   aurora: '极光',
 }
 
-export type WeatherVisualKey =
+type WeatherVisualKey =
   | 'sunny'
   | 'clear-night'
   | 'cloudy'

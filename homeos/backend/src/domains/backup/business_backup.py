@@ -14,8 +14,9 @@
 HA 目录缓存。
 
 排除项：``cache/``、``logs/``（含操作日志 JSONL）、``backup-work/``、``backup-recovery/``、
-渲染缓存、迁移备份（``*.pre-*.bak``）、``data-compatibility.json``（还原后重新写入）与
-数据库文件本身。
+备份包目录（``settings.backups_dir``；容器里位于 ``data_dir`` 内部，必须排除，否则新包会
+吞掉全部旧包与自己）、渲染缓存、迁移备份（``*.pre-*.bak``）、``data-compatibility.json``
+（还原后重新写入）与数据库文件本身。
 
 **为什么必须带 ``secrets/``**：HA access token 与 license 凭证用 ``data_dir/secrets/*.key``
 （Fernet）加密后落库（见 :mod:`src.domains.ha.integration.crypto`）。只备份数据库、不带密钥，
@@ -50,15 +51,19 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
 from ...platform.core.migrations import (
     compare_application_versions,
+    read_recorded_revision,
     run_migrations,
     write_data_compatibility_marker,
 )
+from ...platform.core.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
 from ...platform.security.login_limiter import LoginAttemptLimiter
 
 logger = logging.getLogger("homeos.backup.business")
 
 MAGIC = b"HABACKUP\x01"
-MAX_ARCHIVE = 512 * 1024 * 1024
+#: 归档本体上限（与 ``platform.core.upload_limits.MAX_BACKUP_ARCHIVE_BYTES`` 同源）：
+#: 请求体门禁按同一数字放行 ``/backups/inspect``，否则这里连同它的报错文案都够不着。
+MAX_ARCHIVE = MAX_BACKUP_ARCHIVE_BYTES
 MAX_EXPANDED = 4 * 1024 * 1024 * 1024
 MAX_FILES = 50_000
 MAX_JSON = 128 * 1024 * 1024
@@ -177,6 +182,50 @@ def _is_excluded(relative: str) -> bool:
     if ".pre-" in name and name.endswith(".bak"):
         return True
     return name.endswith(".migrate.lock")
+
+
+def _resolved(path: Any) -> Path | None:
+    if path is None:
+        return None
+    try:
+        return Path(path).resolve()
+    except OSError:
+        return None
+
+
+def _backups_prefix_in_data_dir(settings: Any) -> str | None:
+    """备份包目录落在 ``data_dir`` **内部**时，返回它在数据目录下的相对前缀；否则 ``None``。
+
+    容器里 ``HOMEOS_BACKUPS_DIR=/data/backups`` 就在数据卷内，所以这个前缀通常非空 ——
+    收集数据文件时必须排除它，否则新备份包会把所有旧备份包连同正在写入的自己一起装进去。
+    """
+    base = _resolved(getattr(settings, "data_dir", None))
+    backups = _resolved(getattr(settings, "backups_dir", None))
+    if base is None or backups is None:
+        return None
+    try:
+        relative = backups.relative_to(base)
+    except ValueError:
+        return None
+    prefix = relative.as_posix()
+    return None if prefix in {"", "."} else prefix
+
+
+def _overlaps_backups_dir(settings: Any, target: Path) -> bool:
+    """``target`` 与备份包目录是否重叠（同一路径、或互为祖先/后代）。
+
+    恢复数据文件时用它拦下归档里的备份目录条目：既不能让恢复把当前备份目录整块挪走
+    （那正是恢复工作目录所在处），也不能用归档里的旧备份覆盖当前备份历史。
+    """
+    backups = _resolved(getattr(settings, "backups_dir", None))
+    candidate = _resolved(target)
+    if backups is None or candidate is None:
+        return False
+    return (
+        candidate == backups
+        or candidate in backups.parents
+        or backups in candidate.parents
+    )
 
 
 def _key(password: str | bytes, salt: bytes) -> bytes:
@@ -313,9 +362,17 @@ def _data_files(settings: Any) -> list[tuple[Path, str]]:
     collected: list[tuple[Path, str]] = []
     if not base.is_dir():
         return collected
+    backups_prefix = _backups_prefix_in_data_dir(settings)
     for path in sorted(base.rglob("*")):
         relative = path.relative_to(base).as_posix()
         if _is_excluded(relative):
+            continue
+        # 备份包目录可能就在 data_dir 内（容器即如此）：不排除的话，新包会把所有旧备份
+        # 连同「正在写入的自己」一起装进去 —— 体积逐次翻倍，磁盘最满时备份功能先死，
+        # 而且包里多出的顶层 ``backups/`` 会让恢复把当前备份目录整块挪走。
+        if backups_prefix and (
+            relative == backups_prefix or relative.startswith(backups_prefix + "/")
+        ):
             continue
         if path.is_symlink():
             raise BackupError(f"数据目录含符号链接，无法创建完整备份：{relative}")
@@ -420,15 +477,19 @@ def _verify_archive(archive: ZipFile, manifest: dict[str, Any]) -> None:
     def _check(relative: str, meta: Any) -> None:
         if relative not in names:
             raise BackupError(f"备份缺少清单文件：{relative}")
+        if not isinstance(meta, dict):
+            raise BackupError(f"备份清单条目无效：{relative}")
+        # 大小与摘要都必须存在：旧实现在缺字段时**静默跳过**校验，于是「清单里只写个名字」
+        # 就能让一个空文件通过全部校验 —— 对数据库条目而言，那等于把整库换成空库后照报成功。
+        expected_size = int(meta.get("size") or -1)
+        if expected_size < 0:
+            raise BackupError(f"备份清单缺少文件大小：{relative}")
         info = archive.getinfo(relative)
-        expected_size = int((meta or {}).get("size") or -1) if isinstance(meta, dict) else -1
-        if expected_size >= 0 and info.file_size != expected_size:
+        if info.file_size != expected_size:
             raise BackupError(f"备份文件大小与清单不符：{relative}")
-        expected_hash = (
-            str((meta or {}).get("sha256") or "").lower() if isinstance(meta, dict) else ""
-        )
+        expected_hash = str(meta.get("sha256") or "").lower()
         if not expected_hash:
-            return
+            raise BackupError(f"备份清单缺少文件摘要：{relative}")
         digest = hashlib.sha256()
         with archive.open(relative) as reader:
             while True:
@@ -576,11 +637,17 @@ def _copy_bounded(source: Any, destination: Any, *, limit: int, what: str) -> in
     return total
 
 
-def _extract_data_files(archive: ZipFile, extract_root: Path) -> None:
-    """把归档里的数据文件解到 ``extract_root``，并在此**重新**校验规模上限。
+def _extract_data_files(
+    archive: ZipFile, extract_root: Path, allowed: set[str]
+) -> None:
+    """把归档里的数据文件解到 ``extract_root``，并在此**重新**校验规模上限与清单成员。
 
     写入侧（``create_payload``）有 4 GB / 50000 文件的上限，但那只约束「我们自己造包时」；
     恢复入口接受外部上传的 zip，条目数与解压后体积都由上传方说了算，所以这里必须再数一遍。
+
+    ``allowed`` 是清单里列出的数据文件集合：**只有**清单成员才允许落盘。旧实现只遍历
+    归档条目、不比对清单，于是任何未列出的成员（例如 ``secrets/ha_credentials.key``）
+    都能被原样写进数据目录，且没有任何大小 / 摘要校验 —— 清单与内容的约束是单向的。
     """
     total = 0
     count = 0
@@ -590,6 +657,8 @@ def _extract_data_files(archive: ZipFile, extract_root: Path) -> None:
             continue
         if _safe_relative(name) is None:
             raise BackupError("备份含非法路径，已中止恢复。")
+        if name not in allowed:
+            raise BackupError(f"备份含清单未列出的文件，已中止恢复：{name}")
         count += 1
         if count > MAX_FILES:
             raise BackupError(f"备份条目数超过上限（{MAX_FILES} 个），已中止恢复。")
@@ -606,13 +675,16 @@ def _restore_data_files(
     directory: Path,
     rollback_dir: Path,
     journal: dict[str, Any],
+    manifest: dict[str, Any],
 ) -> None:
     extract_root = directory / "extracted"
     if extract_root.exists():
         shutil.rmtree(extract_root)
     extract_root.mkdir(parents=True, exist_ok=True)
     with ZipFile(payload, "r") as archive:
-        _extract_data_files(archive, extract_root)
+        _extract_data_files(
+            archive, extract_root, set((manifest.get("files") or {}).keys())
+        )
 
     created: list[str] = journal.setdefault("created", [])
     moved: dict[str, str] = journal.setdefault("moved", {})
@@ -622,6 +694,11 @@ def _restore_data_files(
         if top in {DB_NAME, MANIFEST_NAME}:
             continue
         target = settings.data_dir / top
+        # 归档里的备份目录条目一律跳过：挪走它等于把恢复自己的工作目录挪走，而用归档里的
+        # 旧备份覆盖当前备份历史同样是错的。
+        if _overlaps_backups_dir(settings, target):
+            logger.warning("备份包内含备份目录条目，已跳过：%s", top)
+            continue
         # 先落盘「回退意图」再动文件：即使中途崩溃，启动期回滚也能据此还原。
         if target.exists() or target.is_symlink():
             stored = aside / top
@@ -714,7 +791,7 @@ def restore_business(
         _write_journal(rollback_dir, journal)
 
         # 2) 数据文件（不含数据库）替换
-        _restore_data_files(settings, payload, directory, rollback_dir, journal)
+        _restore_data_files(settings, payload, directory, rollback_dir, journal, manifest)
         journal["phase"] = "database"
         _write_journal(rollback_dir, journal)
 
@@ -735,10 +812,20 @@ def restore_business(
             except Exception:
                 logger.warning("释放数据库连接池失败", exc_info=True)
         _remove_sidecars(settings.database_path)
-        os.replace(restored_db, settings.database_path)
-        os.chmod(settings.database_path, 0o600)
+        # 先落盘「回退意图」再替换数据库，与数据文件那一段同序。旧实现把 dbReplaced 写在
+        # os.replace **之后**：在两步之间崩溃/断电时，journal 记着 dbReplaced=False，启动期
+        # 回滚只还原数据文件、数据库却已是还原后的内容，随后回退目录（含还原前唯一的库
+        # 快照）还会被清理掉 —— 留下一对静默不一致的库与数据，且无从追回。
         journal["dbReplaced"] = True
         _write_journal(rollback_dir, journal)
+        os.replace(restored_db, settings.database_path)
+        os.chmod(settings.database_path, 0o600)
+        # 替换后立刻确认「这确实是一个 HomeOS 业务库」。空文件 / 无 schema 的库会被
+        # PRAGMA integrity_check 判为 ok，然后 run_migrations 建出一套全新空表，删除动作
+        # 照做、成功照报 —— 全部账号、授权、项目与实体就此消失且界面毫无提示。
+        # 记录不到迁移版本就说明它没有我们的 schema，必须回滚。
+        if read_recorded_revision(settings.database_path) is None:
+            raise BackupError("备份中的数据库快照不是有效的 HomeOS 业务库，已中止并回滚。")
 
         # 4) 迁移到当前程序 head + 写数据兼容标记
         run_migrations(settings)
@@ -804,6 +891,11 @@ async def refresh_runtime_after_restore(app: Any) -> None:
     if catalog is not None and hasattr(catalog, "reload_user"):
         try:
             catalog.reload_user()
+            # 内置目录也要重扫：还原可能换掉了 built_in_assets_dir 背后的内容，而
+            # 单向 latch 会让旧目录一直生效（新增不出现、已删的仍解析得到）。
+            reload_builtin = getattr(catalog, "reload_builtin", None)
+            if callable(reload_builtin):
+                reload_builtin()
         except Exception:
             logger.warning("还原后重载素材目录失败", exc_info=True)
 
@@ -816,8 +908,8 @@ async def refresh_runtime_after_restore(app: Any) -> None:
             logger.warning("还原后重连 Home Assistant 失败", exc_info=True)
 
 
-async def durable_work(function: Any, *args: Any) -> Any:
-    return await asyncio.to_thread(function, *args)
+async def durable_work(function: Any, *args: Any, **kwargs: Any) -> Any:
+    return await asyncio.to_thread(function, *args, **kwargs)
 
 
 class BackupCoordinator:
@@ -832,6 +924,17 @@ class BackupCoordinator:
         self.backup_password_limiter = LoginAttemptLimiter(
             max_failures=5, window_seconds=300, block_seconds=600
         )
+
+    async def run_exclusive(self, function: Any, *args: Any, **kwargs: Any) -> Any:
+        """串行执行备份 / 恢复类作业（本进程内的唯一串行点）。
+
+        备份与恢复读写的都是同一份数据库与数据目录：定时备份若与手动恢复并发，备份可能
+        采到「数据库已换、数据文件只挪了一半」的中间态，产出一个自相矛盾、事后无法恢复
+        的包；反过来备份期间恢复也会读到正在写入的产物。``_lock`` 过去只被创建、从未被
+        使用，这里把它用起来。作业本身在 worker 线程里跑，别卡住事件循环。
+        """
+        async with self._lock:
+            return await durable_work(function, *args, **kwargs)
 
     def cleanup_startup(self) -> None:
         settings = self.app.state.settings
@@ -861,7 +964,12 @@ class BackupCoordinator:
                 self.cleanup_job(job.get("directory"))
 
     def prune_rollbacks(self, keep: int = ROLLBACK_KEEP) -> None:
-        """只保留最近若干个**已完成**的还原回退副本，避免磁盘无限增长。"""
+        """只保留最近若干个**已完成**的还原回退副本，避免磁盘无限增长。
+
+        判据必须是 journal 里的 ``phase == "done"``：只要目录存在就等于「已完成」的话，
+        一次回滚失败（例如 os.replace 因权限/ENOSPC 失败）留下的目录会在下一行被删掉，
+        而它正是还原前数据库快照的唯一副本 —— 那之后备份接口只会一直 503，材料却没了。
+        """
         recovery = _recovery_root(self.app.state.settings)
         if not recovery.is_dir():
             return
@@ -869,8 +977,17 @@ class BackupCoordinator:
         for path in recovery.iterdir():
             if not path.is_dir():
                 continue
-            if not (path / RECOVERY_JOURNAL).is_file():
+            journal_path = path / RECOVERY_JOURNAL
+            if not journal_path.is_file():
                 shutil.rmtree(path, ignore_errors=True)
+                continue
+            try:
+                journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                logger.warning("还原回退目录的 journal 无法解析，已保留：%s", path.name)
+                continue
+            if not isinstance(journal, dict) or journal.get("phase") != "done":
+                logger.warning("保留未完成的还原回退目录（尚未回滚）：%s", path.name)
                 continue
             finished.append(path)
         finished.sort(key=lambda path: path.stat().st_mtime, reverse=True)

@@ -1,7 +1,7 @@
 /**
  * 按实体规模与设备能力自动调节前端性能参数
  */
-import { ref, readonly } from 'vue'
+import { ref } from 'vue'
 import type { FrontendSection } from '@/shared/types/frontend-config'
 import {
   getFrontendConfig,
@@ -21,7 +21,6 @@ let adaptiveConfigBaseline: AdaptiveConfigBaseline | null = null
 const ADAPTIVE_KEYS: readonly AdaptiveConfigKey[] = ['rebuildDebounceMs', 'rebuildChunkSize']
 
 const adaptiveTier = ref('high')
-const adaptiveReason = ref<string>('')
 
 let fpsMonitorStarted = false
 let slowFrameStreak = 0
@@ -59,9 +58,8 @@ export function probeDeviceProfile() {
   return { tier, reason: reasons.join(', ') || 'capable', deviceMemory: mem, cores }
 }
 
-function updateAdaptiveTier(tier: string, reason: string): void {
+function updateAdaptiveTier(tier: string, _reason: string): void {
   adaptiveTier.value = tier
-  adaptiveReason.value = reason
 }
 
 /**
@@ -191,13 +189,6 @@ export function startFpsAdaptiveMonitor() {
   // 页面隐藏时暂停 rAF 调度，避免后台空转
   bindFpsSchedulerVisibilityPause()
   startFpsScheduler()
-}
-
-export function useAdaptivePerfState() {
-  return {
-    adaptiveTier: readonly(adaptiveTier),
-    adaptiveReason: readonly(adaptiveReason),
-  }
 }
 
 export { adaptiveTier }

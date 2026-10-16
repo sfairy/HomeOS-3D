@@ -125,32 +125,38 @@ class WecomService:
         """注册消息处理回调，将入站消息接入 Agent 流水线。"""
         self._message_handler = handler
 
-    async def send_text(self, to: str | int, text: str, title: str | None = None) -> None:
-        """向指定用户发送文本：Markdown 转纯文本 → 长文本分片 → 逐片发送。"""
+    async def send_text(self, to: str | int, text: str, title: str | None = None) -> bool:
+        """向指定用户发送文本：Markdown 转纯文本 → 长文本分片 → 逐片发送。返回是否全部送出。"""
         plain_text = markdown_to_wecom_text(text)
         chunks = split_wecom_text(plain_text)
+        delivered = 0
         for index, chunk in enumerate(chunks):
             try:
                 await self.send_wecom_text_single(str(to), chunk)
+                delivered += 1
                 if index < len(chunks) - 1:
                     await asyncio.sleep(CHUNK_SLEEP_SECONDS)
             except Exception as exc:
                 logger.error("企微消息分片发送失败 %s/%s: %s", index + 1, len(chunks), exc)
+        return bool(chunks) and delivered == len(chunks)
 
-    async def send_alert_broadcast(self, text: str, title: str | None = None) -> None:
-        """告警/系统通知广播：优先 UserId 白名单，否则 @all。"""
+    async def send_alert_broadcast(self, text: str, title: str | None = None) -> bool:
+        """告警/系统通知广播：优先 UserId 白名单，否则 @all。返回是否全部送出。"""
         if not self._corp_id or not self._corp_secret or not self._agent_id:
             logger.warning("企微出站未就绪(缺少 CorpId/Secret/AgentId),跳过告警推送")
-            return
+            return False
         # 标题以 Markdown `#` 前置，经 markdownToWecomText 转为 `◆ 标题` 醒目行
         heading = str(title or "").strip()
         body = f"# {heading}\n\n{text}" if heading else text
         targets = self._allowed_users or ["@all"]
+        delivered = 0
         for to in targets:
             try:
-                await self.send_text(to, body)
+                if await self.send_text(to, body):
+                    delivered += 1
             except Exception as exc:
                 logger.error("企微告警推送失败 (%s): %s", to, exc)
+        return delivered == len(targets)
 
     # 入站消息
     async def handle_incoming_message(self, from_user: str, content: str) -> None:

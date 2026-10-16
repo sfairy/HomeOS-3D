@@ -11,8 +11,6 @@ APPEARANCE_PLACEHOLDER = '<!--{{APPEARANCE}}-->'
 
 APPEARANCE_PATH = '/store-appearance.css'
 
-PAGE_STATE_ATTR = 'store_shell_page'
-
 #: 外壳上写登录态用的属性。渲染这一页时服务端已经解过会话，直接把结论交给前端，
 #: 前端挂载时就不必再打一发注定 401 的 ``/store/v1/auth/me`` 探针。
 AUTH_STATE_ATTR = 'data-auth'
@@ -55,7 +53,3 @@ def inject_scene(text: str, request: Request, *, session=None) -> str:
         f'<link rel="stylesheet" href="{APPEARANCE_PATH}">',
     )
 
-
-def page_of(request: Request) -> str:
-    """这一响应渲染的页面名；没登记时回空串。"""
-    return getattr(request.state, PAGE_STATE_ATTR, '')

@@ -71,6 +71,7 @@ const SOURCE_COLORS: Record<string, string> = {
   'environment-health': '#38bdf8',
   'device-monitor': '#94a3b8',
   'water-monitor': '#22d3ee',
+  'ha-connection': '#fb923c',
   system: '#94a3b8',
 }
 

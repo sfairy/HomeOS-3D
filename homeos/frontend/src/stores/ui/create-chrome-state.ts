@@ -60,6 +60,8 @@ interface PromptState {
   required: boolean
   /** 必填校验失败时的提示文案 */
   requiredMessage: string
+  /** 是否为密码输入（掩码显示、禁用浏览器自动填充回填明文） */
+  password: boolean
   /** Promise 的 resolve 回调，传入用户输入字符串或 null（取消） */
   resolve: (value: string | null) => void
 }
@@ -325,6 +327,8 @@ export function createUIChromeState() {
       cancelText?: string
       required?: boolean
       requiredMessage?: string
+      /** 密码输入：掩码显示并阻止浏览器自动填充明文回填 */
+      password?: boolean
     } = {},
   ): Promise<string | null> {
     // 新输入弹窗弹出前，先把未关闭的旧弹窗按"取消" resolve，避免旧 Promise 永久悬挂
@@ -343,6 +347,7 @@ export function createUIChromeState() {
         cancelText: String(opts.cancelText || '取消'),
         required: opts.required !== false,
         requiredMessage: String(opts.requiredMessage || '请输入内容'),
+        password: opts.password === true,
         resolve,
       }
     })

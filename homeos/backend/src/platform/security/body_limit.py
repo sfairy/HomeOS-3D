@@ -12,7 +12,7 @@ Nest 全局 JSON/urlencoded 解析器限 50MB；对一组「未鉴权即解析�
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from starlette.requests import Request
@@ -61,14 +61,31 @@ class BodyLimitMiddleware:
         public_max_bytes: int,
         authenticated_max_bytes: int,
         build_payload: PayloadBuilder,
+        path_overrides: Iterable[tuple[str, int]] = (),
     ) -> None:
         self.app = app
         self.public_max_bytes = max(1, int(public_max_bytes))
         self.authenticated_max_bytes = max(1, int(authenticated_max_bytes))
         self.build_payload = build_payload
+        #: 端点级覆盖：前缀 → 上限。按前缀**从长到短**排序后再匹配，否则 ``/api/v1/studio3d``
+        #: 会把更具体的 ``/api/v1/studio3d/exports`` 一起吃掉，导出包就只能按草稿的上限算。
+        self.path_overrides = tuple(
+            sorted(
+                ((str(prefix), max(1, int(limit))) for prefix, limit in path_overrides),
+                key=lambda item: len(item[0]),
+                reverse=True,
+            )
+        )
 
     def _limit_for(self, path: str) -> int:
-        return self.public_max_bytes if is_public_body_limit_path(path) else self.authenticated_max_bytes
+        # 未鉴权即可解析的公共端点始终用最小限额：即便有人给它们配了覆盖，也不该放大——
+        # 这里的意义正是「拒绝得越早越省」，不是让调用方自定义。
+        if is_public_body_limit_path(path):
+            return self.public_max_bytes
+        for prefix, limit in self.path_overrides:
+            if path == prefix or path.startswith(f"{prefix}/"):
+                return limit
+        return self.authenticated_max_bytes
 
     async def _reject(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         request = Request(scope)

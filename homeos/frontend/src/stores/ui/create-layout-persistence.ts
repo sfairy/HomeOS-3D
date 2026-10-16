@@ -589,11 +589,25 @@ export function createLayoutPersistence({
           const runSilent = saveConfigQueuedSilent
           saveConfigNeedsResave = false
           try {
+            // 目标方案在这一刻锚定：clone 与 saveProject 之间没有 await，写入内容与目标
+            // 方案必然配对；但 await 期间用户可能切走方案，所以保存后的副作用必须再核对。
+            const targetProfileId = activeProfileId.value
             const layout = cloneLayoutForApi(layoutConfig)
-            await saveProject(activeProfileId.value, { layout })
+            await saveProject(targetProfileId, { layout })
+            if (activeProfileId.value !== targetProfileId) {
+              // 保存期间切换了方案：这次写入落在旧方案上，已不属于「当前」状态。
+              // 若继续执行下面的副作用，会把新方案刚载入的干净状态标成已保存
+              // （layoutDirty=false）、并把新方案的 externalUrl 推给原生端。
+              logger.warn(
+                `保存期间切换了方案（${targetProfileId} -> ${activeProfileId.value}），` +
+                  '本次写入已落库，但不再更新当前方案的脏标记与原生端入口',
+              )
+              lastOk = true
+              break
+            }
             if (!runSilent) notify('布局配置已保存', 'success')
             // 保存成功后推送远程访问地址，原生端无需重启即可拿到新入口
-            void syncServerAccessToNative(String(layoutConfig.externalUrl ?? ''))
+            void syncServerAccessToNative(String(layout.externalUrl ?? ''))
             layoutDirty.value = false
             lastOk = true
           } catch (err) {

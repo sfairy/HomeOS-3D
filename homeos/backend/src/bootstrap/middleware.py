@@ -20,6 +20,7 @@ from ..domains.license import features as feature_codes
 from ..domains.license.guard import is_license_exempt_path
 from ..platform.core.errors import BusinessException, ErrorCode, api_error
 from ..platform.core.observability import new_request_id, reset_trace_id, set_trace_id
+from ..platform.core.upload_limits import PATH_BODY_LIMIT_OVERRIDES
 from ..platform.security.body_limit import BodyLimitMiddleware
 from ..platform.security.cookies import is_https_deploy_mode
 from ..platform.security.cors import CorsMiddleware
@@ -203,9 +204,13 @@ def register_outer_middleware(app: FastAPI, settings: Settings) -> None:
     # 对齐 Nest ``compression()``：默认阈值 1KB；媒体流必须排除（见 SelectiveGZipMiddleware）。
     app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024)
     # 对齐 Nest body-parser limit：公共端点 1MB、其余 50MB。
+    # 但「其余 50MB」不能一刀切：有些端点的处理器自己就声明了更大的上限（3D 草稿 64MB、
+    # 导出包 512MB），门禁不放行的话那些上限永远走不到，用户拿到的是与「文件太大」无关的
+    # 413。覆盖表的数值取自平台层单一来源，与处理器用的是同一个数字。
     app.add_middleware(
         BodyLimitMiddleware,
         public_max_bytes=settings.public_body_limit_bytes,
         authenticated_max_bytes=settings.authenticated_body_limit_bytes,
         build_payload=nest_error_payload,
+        path_overrides=PATH_BODY_LIMIT_OVERRIDES,
     )

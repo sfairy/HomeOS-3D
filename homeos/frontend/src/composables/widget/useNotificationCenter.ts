@@ -20,12 +20,16 @@ import { getMaxRemoteNotifications } from '@/shared/utils/config/frontend-config
 import { logger } from '@/shared/utils/core/logger'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import {
-  buildNotificationSourceFilters,
-  matchesNotificationSourceFilter,
-  isLifeSafetyNotification,
-} from '@homeos/shared'
 import type { RemoteNotificationPayload } from '@/shared/types/entity-store'
+import {
+  applyNotifyPrefs,
+  buildSourceFilters,
+  countBySource,
+  filterByLevel,
+  filterBySource,
+  mergeNotificationLists,
+  type NotificationCenterItem,
+} from '@/composables/widget/notification-center.filters.internals'
 
 /** 通知级别过滤选项：UI 显示的「全部/紧急/警告/信息/成功」 */
 const levelFilters = [
@@ -36,19 +40,7 @@ const levelFilters = [
   { key: 'success', label: '成功' },
 ]
 
-/** 通知中心展示条目（远程 + 本地合并） */
-interface NotificationItem {
-  id: string | number
-  level?: string
-  message?: string
-  source?: string
-  time?: string
-  createdAt?: string
-  read?: boolean
-  entityId?: string
-  monitorKind?: string
-  deliveredAt?: string
-}
+type NotificationItem = NotificationCenterItem
 /**
  * 通知中心组合式函数：返回通知面板所需的全部响应式状态与操作方法。
  *
@@ -162,106 +154,20 @@ export function useNotificationCenter() {
     filterRefs.value[next]?.focus?.()
   }
   // 全部通知（远程 + 本地合并，按时间倒序）
-  const allNotifications = computed(() => {
-    const remote = entitiesStore.remoteNotifications || []
-    const local = localNotifications.value
-    const merged: NotificationItem[] = [
-      ...remote.map((n) => ({ ...n, read: n.read || false })),
-      ...local,
-    ]
-    merged.sort((a, b) => {
-      const aTime = Date.parse(a.createdAt || a.time || '') || (typeof a.id === 'number' ? a.id : 0)
-      const bTime = Date.parse(b.createdAt || b.time || '') || (typeof b.id === 'number' ? b.id : 0)
-      if (aTime !== bTime) return bTime - aTime
-      // 同时间戳时区分本地（id 超大）与远程，远程排在前面
-      const aIdx = Number(a.id) > 1e15 ? 0 : 1
-      const bIdx = Number(b.id) > 1e15 ? 0 : 1
-      return aIdx - bIdx
-    })
-    return merged
-  })
+  const allNotifications = computed(() =>
+    mergeNotificationLists(
+      (entitiesStore.remoteNotifications || []) as NotificationItem[],
+      localNotifications.value,
+    ),
+  )
 
-  /**
-   * 判断通知是否为「设备离线/恢复在线」类型。
-   * @param {NotificationItem} n  通知项
-   * @returns 是否为离线类通知
-   */
-  function isOfflineNotification(n: NotificationItem) {
-    if (n.monitorKind === 'offline' || n.monitorKind === 'online') return true
-    const msg = n.message || ''
-    return (
-      n.source === 'device-monitor' ||
-      msg.includes('离线') ||
-      msg.includes('恢复在线') ||
-      msg.includes('offline') ||
-      msg.includes('back online')
-    )
-  }
-
-  /**
-   * 判断通知是否为「低电量」类型。
-   * @param {NotificationItem} n  通知项
-   * @returns 是否为低电量类通知
-   */
-  function isLowBatteryNotification(n: NotificationItem) {
-    if (n.monitorKind === 'low_battery') return true
-    const msg = n.message || ''
-    return msg.includes('电量') || msg.includes('低电量') || msg.includes('battery')
-  }
-
-  /**
-   * 应用通知偏好：根据 notifyPrefs 过滤通知（如关闭紧急/离线/低电量通知时移除对应项）。
-   * @param {NotificationItem[]} list  原始通知列表
-   * @returns 过滤后的通知列表
-   */
-  function applyNotifyPrefs(list: NotificationItem[]) {
-    let out = list
-    if (!notifyPrefs.value.globalNotifyEnabled) return []
-    if (!notifyPrefs.value.importantNotifyEnabled) {
-      // 与后端一致：关闭「告警与警告」时仍保留生命安全类（danger / 安防 / EEW 等）
-      out = out.filter(
-        (n) =>
-          n.level === 'info' ||
-          n.level === 'success' ||
-          isLifeSafetyNotification(n.level, n.source),
-      )
-    }
-    if (!notifyPrefs.value.offlineNotifyEnabled) {
-      out = out.filter((n) => !isOfflineNotification(n))
-    }
-    if (!notifyPrefs.value.lowBatteryNotifyEnabled) {
-      out = out.filter((n) => !isLowBatteryNotification(n))
-    }
-    return out
-  }
-
-  /**
-   * 按级别过滤通知。
-   * @param {NotificationItem[]} list  通知列表
-   * @param {string} level  级别 key（all=不过滤）
-   * @returns 过滤后的通知列表
-   */
-  function filterByLevel(list: NotificationItem[], level: string) {
-    if (level === 'all') return list
-    return list.filter((n) => (n.level || 'info') === level)
-  }
-
-  /**
-   * 按来源过滤通知（来源匹配由 matchesNotificationSourceFilter 完成）。
-   * @param {NotificationItem[]} list  通知列表
-   * @param {string} source  来源 key
-   * @returns 过滤后的通知列表
-   */
-  function filterBySource(list: NotificationItem[], source: string) {
-    return list.filter((n) => matchesNotificationSourceFilter(n.source, source))
-  }
   // 应用偏好后的通知列表（不含级别/来源过滤）
-  const prefFilteredNotifications = computed(() => applyNotifyPrefs(allNotifications.value))
+  const prefFilteredNotifications = computed(() =>
+    applyNotifyPrefs(allNotifications.value, notifyPrefs.value),
+  )
 
   // 来源筛选选项（由 @homeos/shared 工具基于通知来源动态构造，最多 9 个）
-  const sourceFilters = computed(() =>
-    buildNotificationSourceFilters(prefFilteredNotifications.value, { maxTabs: 9 }),
-  )
+  const sourceFilters = computed(() => buildSourceFilters(prefFilteredNotifications.value, 9))
 
   // 最终展示的通知列表：先级别、再来源过滤后的结果
   const displayNotifications = computed(() =>
@@ -272,15 +178,9 @@ export function useNotificationCenter() {
   )
 
   // 各来源筛选 tab 的通知数量统计（用于徽标显示）
-  const filterCounts = computed(() => {
-    const base = prefFilteredNotifications.value
-    const counts: Record<string, number> = { all: base.length }
-    for (const f of sourceFilters.value) {
-      if (f.key === 'all') continue
-      counts[f.key] = filterBySource(base, f.key).length
-    }
-    return counts
-  })
+  const filterCounts = computed(() =>
+    countBySource(prefFilteredNotifications.value, sourceFilters.value),
+  )
 
   // 来源筛选变化时：若当前激活来源消失，回退到 all
   watch(sourceFilters, (tabs) => {
@@ -333,6 +233,8 @@ export function useNotificationCenter() {
     }
     if (src === 'environment-health') return SETTINGS_ROUTES.envHealth()
     if (src.startsWith('earthquake')) return '/earthquake-history'
+    // HA 失联 / 恢复：点进去就是连接设置页，用户在那里能看到连接状态并改地址 / 令牌。
+    if (src === 'ha-connection') return SETTINGS_ROUTES.connection()
     if (src === 'home-mode' || src.startsWith('home-mode')) return SETTINGS_ROUTES.homeMode()
     if (src === 'automation') return SETTINGS_ROUTES.homeMode()
     if (src.includes('linkage') || src.includes('linkage_'))

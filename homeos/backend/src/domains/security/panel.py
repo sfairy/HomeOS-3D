@@ -29,7 +29,6 @@ from ...platform.core.models import SecurityEvent
 
 logger = logging.getLogger("homeos.security.panel")
 
-ARMING_MODES = ("disarmed", "armed_home", "armed_away", "armed_night")
 _SENSOR_ENTITY_RE = re.compile(r"^[\w.]+\.[\w]+$")
 
 
@@ -274,13 +273,15 @@ class SecurityPanelService:
             },
         )
         logger.info("安防已布防: %s (%s 个区域)", mode, len(target_zones))
-        self.state_helper.persist_panel_state()
+        persisted = self.state_helper.persist_panel_state()
         self.state_helper.schedule_security_event(
             "arm", f"布防: {mode}", mode=mode, zones=armed_zone_ids
         )
         return {
             "success": True,
             "degraded": False,
+            # 模式已提交但没落库：重启会回退到上一次成功落库的模式，前端据此给出提醒。
+            "persisted": persisted,
             "mode": mode,
             "zoneCount": len(target_zones),
             "actions": action_result,
@@ -328,11 +329,13 @@ class SecurityPanelService:
             },
         )
         logger.info("安防已撤防%s", " [联动降级]" if degraded else "")
-        self.state_helper.persist_panel_state()
+        persisted = self.state_helper.persist_panel_state()
         self.state_helper.schedule_security_event("disarm", "撤防")
+        # success=模式已提交（撤防 fail-open）；联动失败只反映在 degraded，避免 FE/家庭模式当作未撤防。
         return {
-            "success": not degraded,
+            "success": True,
             "degraded": degraded,
+            "persisted": persisted,
             "mode": "disarmed",
             "actions": action_result,
             "failedItems": action_result["failedItems"],

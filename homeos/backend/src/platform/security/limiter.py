@@ -60,8 +60,3 @@ def rate_limit(limit: int, ttl_seconds: float = 60.0) -> Callable:
             raise BusinessException(ErrorCode.UNKNOWN, "Too Many Requests", 429)
 
     return _dependency
-
-
-def reset_all() -> None:
-    for limiter in _LIMITERS.values():
-        limiter.reset()

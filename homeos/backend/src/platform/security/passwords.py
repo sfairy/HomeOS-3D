@@ -17,8 +17,6 @@ import bcrypt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
-from ..core.errors import bad_request
-
 #: 主哈希器（argon2id，库默认参数）。
 password_hasher = PasswordHasher()
 
@@ -107,8 +105,3 @@ def is_password_policy_compliant(password: str) -> bool:
     return any(ch.isalpha() and ch.isascii() for ch in password) and any(
         ch.isdigit() for ch in password
     )
-
-
-def assert_password_policy(password: str) -> None:
-    if not is_password_policy_compliant(password):
-        bad_request(PASSWORD_POLICY_MESSAGE)

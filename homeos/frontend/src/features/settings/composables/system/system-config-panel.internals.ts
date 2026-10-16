@@ -3,27 +3,32 @@
  * @module frontend/src/views
  */
 /** composables：useSystemConfigPanel */
-import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
-
-/** composables：useSystemConfigPanel */
+import { writeLocalStorage } from '@/shared/utils/core/local-storage.util'
+import {
+  DEV_KEYS_STORAGE_KEY,
+  readDevKeysPref,
+  readExpertModePref,
+  writeExpertModePref,
+} from '@/features/settings/composables/system/system-config-panel-prefs.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
-import { fetchConfigAudit, resetSystemConfig } from '@/services/api/system'
+import { fetchConfigAudit } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'
 import type { SystemConfig, SystemConfigLoadOptions } from '@/shared/types/system-config'
-import type { EditableConfigField, EditableConfigSection } from '@/shared/types/system-config-editor'
-import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
+import type { EditableConfigSection } from '@/shared/types/system-config-editor'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 import { useAppConfigBackup } from '@/features/settings/composables/hub-backup-orchestrator.internals'
-import { applyEditableSnapshotToSections, countSystemConfigPendingChanges, filterPricingSectionFields, fromEditableSections, fromEditableSectionsPending, getSystemConfigPendingFieldKeys, getSystemConfigSectionPendingMap, toEditableSections } from '@/composables/config/system-config-edit.util'
+import { countSystemConfigPendingChanges, fromEditableSections, getSystemConfigPendingFieldKeys, getSystemConfigSectionPendingMap, toEditableSections } from '@/composables/config/system-config-edit.util'
 import { filterSectionsForExpert } from '@/shared/utils/config/system-config/expert.util'
-import { resolveSystemConfigFieldLabel, systemConfigFieldHint } from '@/shared/utils/config/system-config/field.meta'
-import { systemConfigFieldMatchesQuery } from '@/shared/utils/config/system-config/field.util'
 import type { Ref } from 'vue'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { fetchSystemConfigFresh, categoryForSection, getSectionLabels, handleSystemConfigPatchError, useSystemConfig } from '@/composables/config/system-config-core.internals'
+import { categoryForSection, useSystemConfig } from '@/composables/config/system-config-core.internals'
+import { createSystemConfigFieldHelpers } from '@/features/settings/composables/system/system-config-panel-fields.internals'
+import { useSystemConfigPanelIo } from '@/features/settings/composables/system/system-config-panel-io.internals'
+import { createSystemConfigPanelNav } from '@/features/settings/composables/system/system-config-panel-nav.internals'
+import { useSystemConfigPanelSearch } from '@/features/settings/composables/system/system-config-panel-search.internals'
 
 type ConfigAuditEntry = {
   at?: string
@@ -44,28 +49,7 @@ type SystemConfigPanelParams = {
 }
 
 // ── useSystemConfigPanel ──
-const EXPERT_MODE_STORAGE_KEY = 'homeos_params_expert_mode'
-const DEV_KEYS_STORAGE_KEY = 'homeos_params_show_dev_keys'
-
-function readExpertModePref() {
-  try {
-    return readLocalStorageFlag(EXPERT_MODE_STORAGE_KEY)
-  } catch {
-    return false
-  }
-}
-
-function readDevKeysPref() {
-  try {
-    return readLocalStorageFlag(DEV_KEYS_STORAGE_KEY)
-  } catch {
-    return false
-  }
-}
-
-/**
- * 高级运行参数面板：加载 / 保存 / 导入导出 / 重置 / 搜索派生
- */
+/** 高级运行参数面板：加载 / 保存 / 导入导出 / 重置 / 搜索派生 */
 export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanelParams) {
   const chrome = useChromeStore()
   const { saving, runSave } = useSettingsSave()
@@ -124,39 +108,14 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
       null,
   )
 
-  const isSearchMode = computed(() => globalSearch.value.trim().length > 0)
+  const { sectionLabel, fieldLabel, fieldHint, fieldId, searchFieldId } =
+    createSystemConfigFieldHelpers(() => currentSection.value?.key)
 
-  const searchResults = computed(() => {
-    const q = globalSearch.value.trim().toLowerCase()
-    if (!q) return []
-    const results = []
-    for (const section of visibleSectionList.value) {
-      for (const field of section.fields) {
-        if (systemConfigFieldMatchesQuery(field, q, section.key)) {
-          results.push({ section, field })
-        }
-      }
-    }
-    return results
-  })
-
-  const searchMatchMap = computed(() => {
-    const map: Record<string, number> = {}
-    for (const item of searchResults.value) {
-      const sk = item.section.key
-      map[sk] = (map[sk] || 0) + 1
-    }
-    return map
-  })
-
-  const displayFields = computed(() => currentSection.value?.fields || [])
-
-  const filteredSectionFields = computed(() => {
-    const q = sectionFilter.value.trim().toLowerCase()
-    const sectionKey = currentSection.value?.key
-    let fields = filterPricingSectionFields(displayFields.value, sectionKey)
-    if (!q || !sectionKey) return fields
-    return fields.filter((f) => systemConfigFieldMatchesQuery(f, q, sectionKey))
+  const { isSearchMode, searchResults, searchMatchMap, filteredSectionFields } = useSystemConfigPanelSearch({
+    globalSearch,
+    sectionFilter,
+    visibleSectionList,
+    currentSection,
   })
 
   const booleanFields = computed(() =>
@@ -259,28 +218,6 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     sectionFilter.value = ''
   })
 
-  function sectionLabel(key: string) {
-    return getSectionLabels()[key] || '运行参数'
-  }
-
-  function fieldLabel(field: EditableConfigField, sectionKey?: string) {
-    const sk = sectionKey || currentSection.value?.key
-    return resolveSystemConfigFieldLabel(field.key, sk)
-  }
-
-  function fieldHint(field: EditableConfigField, sectionKey?: string) {
-    const sk = sectionKey || currentSection.value?.key
-    return systemConfigFieldHint(field.key, sk)
-  }
-
-  function fieldId(field: EditableConfigField) {
-    return `${currentSection.value?.key}-${field.key}`
-  }
-
-  function searchFieldId(item: { section: EditableConfigSection; field: EditableConfigField }) {
-    return `search-${item.section.key}-${item.field.key}`
-  }
-
   async function setExpertMode(on: boolean) {
     if (!on && expertMode.value && hiddenPendingCount.value > 0) {
       const ok = await chrome.confirm(
@@ -291,51 +228,24 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
       if (!ok) return
     }
     expertMode.value = on
-    try {
-      writeLocalStorage(EXPERT_MODE_STORAGE_KEY, on ? '1' : '0')
-    } catch {
-      /* 忽略 */
-    }
+    writeExpertModePref(on)
     if (!visibleSectionList.value.some((s) => s.key === activeSection.value)) {
       activeSection.value = visibleSectionList.value[0]?.key || ''
       activeCategory.value = categoryForSection(activeSection.value)
     }
   }
 
-  async function navigateToValidationError(err: { section: string; key: string }) {
-    if (!err?.section || !err?.key) return
-    globalSearch.value = ''
-    await applyParamsSection(err.section)
-    await nextTick()
-    const el = document.querySelector(`[data-field-id="${err.section}-${err.key}"]`)
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    if (el instanceof HTMLElement) {
-      el.classList.add('params-cell--focus')
-      setTimeout(() => el.classList.remove('params-cell--focus'), 2200)
-    }
-    const input = el?.querySelector('input, textarea, select, button.toggle-btn') as
-      | HTMLElement
-      | null
-    input?.focus({ preventScroll: true })
-  }
-
-  async function applyParamsSection(section: string) {
-    if (!sectionList.value.some((s) => s.key === section)) return
-    if (!expertMode.value && !visibleSectionList.value.some((s) => s.key === section)) {
-      await setExpertMode(true)
-      // 用户取消切专家模式时，不要硬切到不可见分区
-      if (!expertMode.value && !visibleSectionList.value.some((s) => s.key === section)) return
-    }
-    activeSection.value = section
-    activeCategory.value = categoryForSection(section)
-    // 不二次调用 paramsDock.selectSection：侧栏会通过 activeSection watch 展开分类；
-    // 路由 onApply 再调 selectSection 会造成「展开又被拽回」的回环感
-  }
-
-  async function applySectionFromRoute() {
-    const section = route.query.section
-    if (typeof section === 'string' && section) await applyParamsSection(section)
-  }
+  const { navigateToValidationError, applyParamsSection, applySectionFromRoute } =
+    createSystemConfigPanelNav({
+      route,
+      globalSearch,
+      sectionList,
+      visibleSectionList,
+      expertMode,
+      activeSection,
+      activeCategory,
+      setExpertMode,
+    })
 
   useSettingsHubRouteSection(activeSection, paramsSectionNav, {
     tabId: 'params',
@@ -395,159 +305,40 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     }
   }
 
-  const configConflict = ref(false)
-
-  async function reload() {
-    loaded = false
-    configConflict.value = false
-    loadError.value = ''
-    invalidateSystemConfig()
-    await load({ force: true })
-  }
-
-  function ensureLoaded(activeTab: string) {
-    if (activeTab === 'params' && !loaded) return load()
-    return undefined
-  }
-
-  async function exportConfig() {
-    savedTip.value = ''
-    const ok = await exportAppConfig()
-    savedTipOk.value = ok
-    savedTip.value = ok ? '已导出' : '导出失败'
-    if (savedTip.value)
-      setTimeout(() => {
-        savedTip.value = ''
-      }, 2800)
-  }
-
-  async function onImportFileFromBar(file: File | null | undefined) {
-    if (!file) return
-    savedTip.value = ''
-    try {
-      const mode = await importAppConfigFromText(await file.text())
-      if (mode) {
-        await reload()
-        savedTipOk.value = true
-        savedTip.value = mode === 'replace' ? '已全量导入' : '已合并导入'
-        setTimeout(() => {
-          savedTip.value = ''
-        }, 2800)
-      } else {
-        savedTipOk.value = false
-        savedTip.value = '导入失败'
-      }
-    } catch (e) {
-      logger.error('导入系统参数失败', e)
-      savedTipOk.value = false
-      savedTip.value = '导入失败'
-    }
-  }
-
-  async function save() {
-    savedTip.value = ''
-    validationErrors.value = []
-    configConflict.value = false
-    await runSave(
-      async () => {
-        const pending = pendingFieldKeys.value
-        let patch
-        try {
-          patch = fromEditableSectionsPending(sectionList.value, pending)
-        } catch (e) {
-          const msg = String((e as { message?: string })?.message || '')
-          const match = /^([\w]+)\.([\w]+)\s+JSON/.exec(msg)
-          if (match) {
-            validationErrors.value = [
-              { section: match[1], key: match[2], message: 'JSON 格式无效' },
-            ]
-            savedTipOk.value = false
-            savedTip.value = 'JSON 格式无效'
-            return
-          }
-          throw e
-        }
-        await fetchSystemConfigFresh()
-        const data = await saveSystemConfig(patch)
-        captureSnapshot()
-        await loadAudit(data?._configAudit)
-        await reloadFrontendConfig()
-        savedTipOk.value = true
-        savedTip.value = '已保存'
-        setTimeout(() => {
-          savedTip.value = ''
-        }, 2800)
-      },
-      {
-        onError: async (e) => {
-          logger.error('保存系统参数失败', e)
-          savedTipOk.value = false
-          const err = e as {
-            message?: string
-            response?: { status?: number; data?: { fieldErrors?: ConfigValidationError[] } }
-          }
-          const fe = err?.response?.data?.fieldErrors
-          if (Array.isArray(fe) && fe.length) {
-            validationErrors.value = fe
-            savedTip.value = '校验失败，请查看下方错误列表'
-          } else if (err?.response?.status === 409) {
-            const handled = await handleSystemConfigPatchError(e, chrome)
-            configConflict.value = !handled
-            savedTip.value = handled
-              ? '配置已被其他终端修改，已重新加载'
-              : getApiErrorMessage(e, '配置已被他人修改，请刷新后重试')
-            if (handled) await load({ force: true })
-          } else {
-            savedTip.value = err?.message?.includes('JSON')
-              ? err.message
-              : getApiErrorMessage(e, '保存失败')
-          }
-        },
-      },
-    )
-  }
-
-  async function onResetSection(key: string) {
-    const label = sectionLabel(key)
-    const ok = await chrome.confirm(`确定将「${label}」恢复为默认值？`, '恢复默认')
-    if (!ok) return
-    try {
-      await resetSystemConfig(key)
-      await reload()
-      await reloadFrontendConfig()
-      chrome.notify(`「${label}」已恢复默认`, 'success')
-    } catch (e) {
-      logger.error('恢复分区默认失败', e)
-      chrome.notify(getApiErrorMessage(e, '恢复默认失败'), 'error')
-    }
-  }
-
-  async function onResetAll() {
-    const ok = await chrome.confirm('确定将全部运行参数恢复为默认值？此操作不可撤销。', '恢复默认')
-    if (!ok) return
-    try {
-      await resetSystemConfig()
-      await reload()
-      await reloadFrontendConfig()
-      chrome.notify('全部运行参数已恢复默认', 'success')
-    } catch (e) {
-      logger.error('恢复全部默认失败', e)
-      chrome.notify(getApiErrorMessage(e, '恢复默认失败'), 'error')
-    }
-  }
-
-  async function cancelChanges() {
-    if (pendingChanges.value === 0) return
-    const ok = await chrome.confirm('确定放弃未保存的更改？此操作不可撤销。', '放弃更改', {
-      type: 'danger',
-      confirmText: '放弃更改',
-      cancelText: '继续编辑',
-    })
-    if (!ok) return
-    if (!applyEditableSnapshotToSections(sectionList.value, savedSnapshot.value)) return
-    validationErrors.value = []
-    chrome.notify('已取消修改', 'info')
-  }
+  const {
+    configConflict,
+    reload,
+    ensureLoaded,
+    exportConfig,
+    onImportFileFromBar,
+    save,
+    onResetSection,
+    onResetAll,
+    cancelChanges,
+  } = useSystemConfigPanelIo({
+    chrome,
+    runSave,
+    load,
+    getLoaded: () => loaded,
+    setLoaded: (v) => {
+      loaded = v
+    },
+    invalidateSystemConfig,
+    saveSystemConfig,
+    loadAudit,
+    captureSnapshot,
+    sectionLabel,
+    sectionList,
+    pendingChanges,
+    pendingFieldKeys,
+    validationErrors,
+    savedTip,
+    savedTipOk,
+    loadError,
+    savedSnapshot,
+    exportAppConfig,
+    importAppConfigFromText,
+  })
 
   return {
     configAudit,

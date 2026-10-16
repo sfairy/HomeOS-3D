@@ -9,7 +9,7 @@
 import { resolveSceneValues, type SceneValues } from '@homeos/shared/scene/scene-values'
 
 /** 所有入户页共享的壳信息。 */
-export const SHARED = {
+const SHARED = {
   SHELL_TITLE: 'HomeOS 本机中控',
   SHELL_NAME: '本机中控',
   LOGO_SRC: '/static/assets/icons/homeos-mark-white-orange.svg',

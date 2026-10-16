@@ -73,8 +73,8 @@ def serialize_document(document: object) -> str:
     return json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
 
 
-def project_payload(project: Project, draft: ProjectDraft | None = None) -> dict:
-    payload = {
+def project_body(project: Project, draft: ProjectDraft | None = None) -> dict:
+    body = {
         'id': project.id,
         'name': project.name,
         'slug': project.slug,
@@ -82,9 +82,9 @@ def project_payload(project: Project, draft: ProjectDraft | None = None) -> dict
         'createdAt': project.created_at,
         'updatedAt': project.updated_at}
     if draft is not None:
-        payload['draftRevision'] = draft.revision
-        payload['schemaVersion'] = draft.schema_version
-    return payload
+        body['draftRevision'] = draft.revision
+        body['schemaVersion'] = draft.schema_version
+    return body
 
 
 def unique_slug(database: DatabaseSession, name: str) -> str:
@@ -121,7 +121,7 @@ def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
         item.project_id: item
         for item in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id.in_([project.id for project in projects])))
     } if projects else {}
-    return {'items': [project_payload(project, drafts.get(project.id)) for project in projects]}
+    return {'items': [project_body(project, drafts.get(project.id)) for project in projects]}
 
 
 def _active_dashboard_id(request: Request) -> str:
@@ -166,7 +166,7 @@ def get_active_project(request: Request, database: DatabaseSession, viewer: Lice
     project = database.get(Project, wanted) if wanted else None
     if project is None:
         project = database.scalars(select(Project).order_by(Project.updated_at.desc()).limit(1)).first()
-    return {'active': project_payload(project) if project is not None else None}
+    return {'active': project_body(project) if project is not None else None}
 
 
 @router.put('/{project_id}/active', status_code=status.HTTP_200_OK)
@@ -179,20 +179,20 @@ def set_active_project(project_id: str, request: Request, database: DatabaseSess
     if app_config is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail='配置服务尚未就绪。')
     app_config.update({'profiles': {'activeDashboardId': project.id}})
-    return {'active': project_payload(project)}
+    return {'active': project_body(project)}
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectCreateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
+def create_project(body: ProjectCreateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     require_project_write(request)
-    ensure_unique_project_name(database, payload.name)
+    ensure_unique_project_name(database, body.name)
     project_id = str(uuid4())
-    document = create_blank_project(project_id, payload.name, payload.canvas_width, payload.canvas_height)
+    document = create_blank_project(project_id, body.name, body.canvas_width, body.canvas_height)
     project = Project(
         id=project_id,
-        name=payload.name,
-        slug=unique_slug(database, payload.name),
-        description=payload.description.strip(),
+        name=body.name,
+        slug=unique_slug(database, body.name),
+        description=body.description.strip(),
         created_by=user.id,
     )
     draft = ProjectDraft(
@@ -206,7 +206,7 @@ def create_project(payload: ProjectCreateRequest, request: Request, database: Da
     commit_project_name(database)
     database.refresh(project)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已创建仪表盘：{project.name}')
-    return project_payload(project, draft)
+    return project_body(project, draft)
 
 
 @router.get('/{project_id}')
@@ -215,28 +215,28 @@ def get_project(project_id: str, database: DatabaseSession, viewer: LicensedView
     project = database.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目不存在。')
-    return project_payload(project, database.get(ProjectDraft, project_id))
+    return project_body(project, database.get(ProjectDraft, project_id))
 
 
 @router.post('/{project_id}/duplicate', status_code=status.HTTP_201_CREATED)
-def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
+def duplicate_project(project_id: str, body: ProjectDuplicateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     require_project_write(request)
     source = database.get(Project, project_id)
     source_draft = database.get(ProjectDraft, project_id)
     if source is None or source_draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目或草稿不存在。')
-    ensure_unique_project_name(database, payload.name)
+    ensure_unique_project_name(database, body.name)
     duplicate_id = str(uuid4())
     document = hydrate_document_popups(database, json.loads(source_draft.document_json))
     require_interaction3d_changes(request, document, database=database)
     validate_document_assets(request, document)
     document['projectId'] = duplicate_id
-    document['name'] = payload.name
+    document['name'] = body.name
     document = validate_panel_document(document)
     duplicate = Project(
         id=duplicate_id,
-        name=payload.name,
-        slug=unique_slug(database, payload.name),
+        name=body.name,
+        slug=unique_slug(database, body.name),
         description=source.description,
         created_by=user.id,
     )
@@ -251,16 +251,16 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
     commit_project_name(database)
     database.refresh(duplicate)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已复制仪表盘：{source.name} → {duplicate.name}')
-    return project_payload(duplicate, duplicate_draft)
+    return project_body(duplicate, duplicate_draft)
 
 
 @router.delete('/{project_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, _user: LicensedUser) -> None:
+def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, _user: LicensedUser) -> None:
     require_project_write(request)
     project = database.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目不存在。')
-    if payload.confirmation != project.name:
+    if body.confirmation != project.name:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='确认文字与项目名称不一致。')
     project_name = project.name
     database.delete(project)
@@ -403,7 +403,7 @@ def _draft_update_response(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'仪表盘已保存：{project_name}（修订 {draft.revision}）')
     hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
-    draft_payload = {
+    draft_body = {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,
         'revision': draft.revision,
@@ -412,26 +412,26 @@ def _draft_update_response(
         'updatedAt': draft.updated_at,
     }
     database.close()
-    return draft_payload
+    return draft_body
 
 
 @router.put('/{project_id}/draft')
-def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> dict:
+def update_project_draft(project_id: str, body: ProjectDraftUpdate, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> dict:
     require_project_write(request)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-    if draft.revision != payload.revision:
+    if draft.revision != body.revision:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
             'code': 'PROJECT_REVISION_CONFLICT',
             'message': '草稿已被其他页面更新。',
             'currentRevision': draft.revision})
     popup_state = global_popup_state(database)
-    document_value = dict(payload.document)
+    document_value = dict(body.document)
     stored_global_popups = global_popups(database)
-    if not payload.global_popups_dirty:
+    if not body.global_popups_dirty:
         document_value['customPopups'] = stored_global_popups
-    removed_popup_ids = _collect_removed_popup_ids(document_value, stored_global_popups, payload.global_popups_dirty)
+    removed_popup_ids = _collect_removed_popup_ids(document_value, stored_global_popups, body.global_popups_dirty)
     clear_popup_references(document_value, removed_popup_ids)
     try:
         document = validate_panel_document(document_value)
@@ -451,8 +451,8 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文档 projectId 与项目不匹配。')
     ensure_unique_project_name(database, document['name'], exclude_project_id=project_id)
     submitted_popups = document.get('customPopups') or []
-    global_popups_changed = payload.global_popups_dirty and serialize_document(submitted_popups) != serialize_document(stored_global_popups)
-    expected_global_popup_revision = payload.global_popup_revision or popup_state.revision
+    global_popups_changed = body.global_popups_dirty and serialize_document(submitted_popups) != serialize_document(stored_global_popups)
+    expected_global_popup_revision = body.global_popup_revision or popup_state.revision
     if global_popups_changed and expected_global_popup_revision != popup_state.revision:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
             'code': 'GLOBAL_POPUP_REVISION_CONFLICT',
@@ -467,7 +467,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             _write_global_popups(database, user.id, submitted_popups, expected_global_popup_revision)
             if removed_popup_ids:
                 _remove_popup_refs_from_drafts(database, user.id, removed_popup_ids, project_id)
-        _write_draft_document(database, user.id, project_id, payload.revision, serialized_document, document['schemaVersion'])
+        _write_draft_document(database, user.id, project_id, body.revision, serialized_document, document['schemaVersion'])
         database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
         commit_project_name(database)
     return _draft_update_response(request, background_tasks, database, project_id, document['name'])

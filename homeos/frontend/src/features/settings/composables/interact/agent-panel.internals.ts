@@ -1,5 +1,5 @@
 /** 智能管家设置面板组合式函数（SettingsAgentPanel.vue 逻辑抽取）。 */
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   CircleCheck,
   Languages,
@@ -9,32 +9,29 @@ import {
   Wrench,
   Zap,
 } from '@lucide/vue'
-import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { getDefaultLayout } from '@/stores/defaults'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
-import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
 import {
-  agentChat,
   agentPing,
   channelsStatus,
   type AgentPingResult,
   type ChannelsStatusResult,
 } from '@/services/api/agent'
+import { useAgentPanelChat } from '@/features/settings/composables/interact/agent-panel-chat.internals'
+import { useAgentModelStats } from '@/features/settings/composables/interact/agent-panel-stats.internals'
 import type { AgentConfig, ChannelConfig, SceneVoiceControl } from '@/shared/types/layout'
-
-/** 统计卡片色调（与 SettingsFlowStat.vue 的 FlowStatTone 保持对齐） */
-type FlowStatTone =
-  | 'accent'
-  | 'secondary'
-  | 'emerald'
-  | 'amber'
-  | 'sky'
-  | 'rose'
-  | 'violet'
+import {
+  AGENT_CHAT_QUICK_PROMPTS,
+  AGENT_PROVIDER_PRESETS,
+  AGENT_SECRET_MASK,
+  isAgentMockProvider,
+  isAgentSecretMasked,
+  toneFromAgentClass,
+} from '@/features/settings/composables/interact/agent-panel-helpers.internals'
 
 type ChannelDraft = {
   email: NonNullable<ChannelConfig['email']>
@@ -42,62 +39,6 @@ type ChannelDraft = {
   wecom: NonNullable<ChannelConfig['wecom']>
 }
 
-function mapFlowStatTone(cls: string): FlowStatTone {
-  if (cls.includes('emerald') || cls.includes('green')) return 'emerald'
-  if (cls.includes('amber') || cls.includes('yellow') || cls.includes('warn')) return 'amber'
-  if (cls.includes('rose') || cls.includes('red') || cls.includes('danger')) return 'rose'
-  if (cls.includes('violet') || cls.includes('indigo') || cls.includes('purple')) return 'violet'
-  if (cls.includes('secondary') || cls.includes('slate') || cls.includes('muted')) return 'secondary'
-  if (cls.includes('accent')) return 'accent'
-  return 'sky'
-}
-
-type ChatLogEntry = {
-  role: 'user' | 'assistant'
-  text: string
-  meta?: string
-  outcome?: string
-  provider?: string
-  totalMs?: number
-}
-
-/** GET 脱敏占位符（与后端 CONFIG_MASK_PLACEHOLDER 对齐） */
-const AGENT_SECRET_MASK = '••••••••'
-
-/** 是否为脱敏占位（接口不会回传明文密钥） */
-function isAgentSecretMasked(val: unknown): boolean {
-  const key = String(val ?? '').trim()
-  return key === AGENT_SECRET_MASK || key === '********'
-}
-
-/** Agent Mock / 演示模式判定（设置页与单测共用） */
-function isAgentMockProvider(opts: {
-  draftProvider?: string | null
-  pingProvider?: string | null
-  pingReady?: boolean | null
-  apiKey?: string | null
-  apiKeyConfigured?: boolean | null
-}): boolean {
-  if (String(opts.draftProvider || '').toLowerCase() === 'mock') return true
-  if (String(opts.pingProvider || '').toLowerCase() === 'mock') return true
-  const hasKey =
-    opts.apiKeyConfigured === true ||
-    (Boolean(String(opts.apiKey || '').trim()) && !isAgentSecretMasked(opts.apiKey))
-  if (opts.pingReady === false && !hasKey) return true
-  return false
-}
-
-const AGENT_PROVIDER_PRESETS = [
-  { id: 'deepseek', label: 'DeepSeek', apiBase: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
-  { id: 'doubao', label: '豆包', apiBase: 'https://ark.cn-beijing.volces.com/api/v3', model: '' },
-  { id: 'minimax', label: 'MiniMax', apiBase: 'https://api.minimax.chat/v1', model: '' },
-  { id: 'qwen', label: '通义千问', apiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: '' },
-  { id: 'moonshot', label: 'Moonshot', apiBase: 'https://api.moonshot.cn/v1', model: '' },
-  { id: 'custom', label: '自定义', apiBase: '', model: '' },
-  { id: 'mock', label: '演示（无密钥）', apiBase: '', model: '' },
-]
-
-const AGENT_CHAT_QUICK_PROMPTS = ['打开客厅灯', '现在家里温度多少', '那把它关掉']
 
 /** 智能管家设置面板：聚合模型配置草稿、通知渠道、管家对话与连通性检测，供 SettingsAgentPanel.vue 使用 */
 export function useSettingsAgentPanel(props: { activeTab: string }) {
@@ -185,20 +126,6 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
   const pinging = ref(false)
   const pingInfo = ref<AgentPingResult | null>(null)
 
-  const chatSessionId = ref(`settings-agent-${Date.now().toString(36)}`)
-  const chatInput = ref('')
-  const chatting = ref(false)
-  const chatLog = ref<ChatLogEntry[]>([])
-  const chatLogEl = ref<HTMLElement | null>(null)
-
-  function scrollChatToBottom() {
-    void nextTick(() => {
-      const el = chatLogEl.value
-      if (!el) return
-      el.scrollTop = el.scrollHeight
-    })
-  }
-
   const envHealthHref = computed(() => SETTINGS_ROUTES.envHealth())
 
   const providerLabel = computed(
@@ -214,6 +141,20 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     }),
   )
   const languageLabel = computed(() => (agentDraft.language === 'zh' ? '中文' : 'English'))
+  const chatFlowModelLabel = computed(() => agentDraft.model || providerLabel.value)
+
+  const chat = useAgentPanelChat({
+    isMockProvider,
+    pending,
+    pingInfo,
+  })
+
+  const {
+    modelStatProvider,
+    modelStatReadyLabel,
+    modelStatReadyClass,
+    modelStatReadyValClass,
+  } = useAgentModelStats({ pending, pingInfo, providerLabel })
 
   /**
    * 场景语音控制总开关。
@@ -243,17 +184,6 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
   /** 清单内可被语音触发的数量（供面板统计展示） */
   const sceneVoiceAllowCount = computed(() => sceneVoiceAllow.value.length)
 
-  type FlowTone = FlowStatTone
-
-  function toneFromAgentClass(cls: string): FlowTone {
-    if (cls.includes('emerald')) return 'emerald'
-    if (cls.includes('amber')) return 'amber'
-    if (cls.includes('violet') || cls.includes('indigo') || cls.includes('purple')) return 'violet'
-    if (cls.includes('rose') || cls.includes('danger')) return 'rose'
-    if (cls.includes('accent')) return 'sky'
-    if (cls.includes('secondary') || cls.includes('slate')) return 'secondary'
-    return mapFlowStatTone(cls)
-  }
 
   const modelFlowSteps = computed(() => [
     { label: '自然语言', meta: languageLabel.value, icon: Languages, tone: 'in' as const },
@@ -274,109 +204,6 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     { label: '执行反馈', meta: '工具 · 播报', icon: CircleCheck, tone: 'out' as const },
   ])
 
-  const modelStatProvider = computed(() => {
-    if (pending.value > 0) return providerLabel.value
-    return pingInfo.value?.provider ?? providerLabel.value
-  })
-
-  const modelStatReadyLabel = computed(() => {
-    if (pending.value > 0) return '待保存'
-    if (!pingInfo.value) return '—'
-    return pingInfo.value.ready ? '就绪' : '未就绪'
-  })
-
-  const modelStatReadyClass = computed(() => {
-    if (pending.value > 0) return 'agent-stat--amber'
-    if (!pingInfo.value) return 'agent-stat--sky'
-    return pingInfo.value.ready ? 'agent-stat--emerald' : 'agent-stat--amber'
-  })
-
-  const modelStatReadyValClass = computed(() => {
-    if (pending.value > 0) return 'agent-stat-val--amber'
-    if (!pingInfo.value) return 'agent-stat-val--sky'
-    return pingInfo.value.ready ? 'agent-stat-val--emerald' : 'agent-stat-val--amber'
-  })
-
-  const chatFlowModelLabel = computed(() => agentDraft.model || providerLabel.value)
-
-  const chatUserRounds = computed(
-    () => chatLog.value.filter((m) => m.role === 'user').length,
-  )
-
-  const lastAssistantMessage = computed(() =>
-    [...chatLog.value].reverse().find((m) => m.role === 'assistant'),
-  )
-
-  const chatStatReadyLabel = computed(() => {
-    if (pending.value > 0) return '待保存'
-    if (!pingInfo.value) return '—'
-    return pingInfo.value.ready ? '就绪' : '未就绪'
-  })
-
-  const chatStatReadyClass = computed(() => {
-    if (pending.value > 0) return 'agent-stat--amber'
-    if (!pingInfo.value) return 'agent-stat--sky'
-    return pingInfo.value.ready ? 'agent-stat--emerald' : 'agent-stat--amber'
-  })
-
-  const chatStatReadyValClass = computed(() => {
-    if (pending.value > 0) return 'agent-stat-val--amber'
-    if (!pingInfo.value) return 'agent-stat-val--sky'
-    return pingInfo.value.ready ? 'agent-stat-val--emerald' : 'agent-stat-val--amber'
-  })
-
-  const chatStatRoundLabel = computed(() =>
-    chatUserRounds.value ? `${chatUserRounds.value} 轮` : '—',
-  )
-
-  const chatStatLastMsLabel = computed(() => {
-    const ms = lastAssistantMessage.value?.totalMs
-    return ms != null ? `${ms}ms` : '—'
-  })
-
-  const chatStatOutcomeLabel = computed(() => {
-    const outcome = lastAssistantMessage.value?.outcome
-    if (!outcome) return '—'
-    return chatOutcomeLabel(outcome)
-  })
-
-  const chatStatOutcomeClass = computed(() => {
-    const tone = chatOutcomeTone(lastAssistantMessage.value?.outcome)
-    if (tone === 'emerald') return 'agent-stat--emerald'
-    if (tone === 'amber') return 'agent-stat--amber'
-    if (tone === 'rose') return 'agent-stat--rose'
-    return 'agent-stat--sky'
-  })
-
-  const chatStatOutcomeValClass = computed(() => {
-    const tone = chatOutcomeTone(lastAssistantMessage.value?.outcome)
-    if (tone === 'emerald') return 'agent-stat-val--emerald'
-    if (tone === 'amber') return 'agent-stat-val--amber'
-    if (tone === 'rose') return 'agent-stat-val--rose'
-    return 'agent-stat-val--sky'
-  })
-
-  function chatOutcomeLabel(outcome: string) {
-    if (outcome === 'success') return '已执行'
-    if (outcome === 'answer') return '已回复'
-    if (outcome === 'blocked') return '已拦截'
-    if (outcome === 'failed') return '失败'
-    if (outcome === 'error') return '错误'
-    return outcome
-  }
-
-  function chatOutcomeTone(outcome?: string) {
-    if (outcome === 'success' || outcome === 'answer') return 'emerald'
-    if (outcome === 'blocked') return 'amber'
-    if (outcome === 'failed' || outcome === 'error') return 'rose'
-    return 'sky'
-  }
-
-  function sendQuickPrompt(prompt: string) {
-    if (chatting.value || isMockProvider.value) return
-    chatInput.value = prompt
-    void sendChat()
-  }
 
   function applyPreset(providerId?: string | number) {
     const id = String(providerId ?? agentDraft.provider)
@@ -514,92 +341,6 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     }
   }
 
-  async function sendChat() {
-    const message = clipAgentChatMessage(chatInput.value)
-    if (!message || chatting.value || isMockProvider.value) return
-    chatting.value = true
-    const history = chatLog.value
-      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text.trim())
-      .map((m) => ({ role: m.role, content: m.text }))
-      .slice(-16)
-    chatLog.value.push({ role: 'user', text: message })
-    chatInput.value = ''
-    scrollChatToBottom()
-    try {
-      const res = await agentChat(message, history, chatSessionId.value)
-      const text =
-        res.reply ||
-        (res.outcome === 'success'
-          ? '（已执行，静默成功）'
-          : res.outcome === 'blocked'
-            ? '（已拦截）'
-            : '（无回复）')
-      chatLog.value.push({
-        role: 'assistant',
-        text,
-        meta: [
-          res.provider,
-          res.outcome,
-          `${res.timing?.totalMs ?? '?'}ms`,
-          res.toolCalls?.length ? res.toolCalls.map((c) => c.name).join(' → ') : '',
-        ]
-          .filter(Boolean)
-          .join(' · '),
-        provider: res.provider,
-        outcome: res.outcome,
-        totalMs: res.timing?.totalMs,
-      })
-    } catch (e: unknown) {
-      chatLog.value.push({
-        role: 'assistant',
-        text: getApiErrorMessage(e, '请求失败'),
-        meta: 'error',
-        outcome: 'error',
-      })
-    } finally {
-      chatting.value = false
-      scrollChatToBottom()
-    }
-  }
-
-  const {
-    listening: voiceListening,
-    transcribing: voiceTranscribing,
-    error: voiceError,
-    status: voiceStatus,
-    toggleListen: toggleVoiceListen,
-    stopListen: stopVoiceListen,
-  } = useSpeechToText({
-    preferHa: true,
-    onInterim: (text) => {
-      chatInput.value = clipAgentChatMessage(text)
-    },
-    onFinal: (text) => {
-      if (isMockProvider.value || chatting.value) return
-      chatInput.value = clipAgentChatMessage(text)
-      void sendChat()
-    },
-  })
-
-  const chatPlaceholder = computed(() => {
-    if (isMockProvider.value) return '演示模式已禁用发送，请先配置接口密钥…'
-    if (voiceStatus.value) return voiceStatus.value
-    return '输入自然语言指令，或点麦克风说话…'
-  })
-
-  watch([isMockProvider, chatting], ([mock, busy]) => {
-    if (mock || busy) stopVoiceListen()
-  })
-
-  watch(
-    () => chatLog.value.length,
-    () => scrollChatToBottom(),
-  )
-
-  watch(chatting, (active) => {
-    if (active) scrollChatToBottom()
-  })
-
   watch(
     () => props.activeTab,
     (tab) => {
@@ -633,11 +374,7 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     saveTip,
     saveTipOk,
     pinging,
-    chatInput,
-    chatting,
-    AGENT_CHAT_MAX_LENGTH,
-    chatLog,
-    chatLogEl,
+    ...chat,
     envHealthHref,
     isMockProvider,
     languageLabel,
@@ -651,26 +388,9 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     modelStatReadyLabel,
     modelStatReadyClass,
     modelStatReadyValClass,
-    chatStatReadyLabel,
-    chatStatReadyClass,
-    chatStatReadyValClass,
-    chatStatRoundLabel,
-    chatStatLastMsLabel,
-    chatStatOutcomeLabel,
-    chatStatOutcomeClass,
-    chatStatOutcomeValClass,
-    chatOutcomeLabel,
-    chatOutcomeTone,
-    sendQuickPrompt,
     applyPreset,
     resetDraft,
     saveConfig,
     refreshPing,
-    sendChat,
-    voiceListening,
-    voiceTranscribing,
-    voiceError,
-    toggleVoiceListen,
-    chatPlaceholder,
   }
 }
