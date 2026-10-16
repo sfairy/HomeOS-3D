@@ -189,6 +189,7 @@ docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
 | 激活报「租约使用了不受信任的授权公钥」 | 数据卷是从别处搬来的：删掉数据卷里的 `client-keys` 后重启即可重新取回 |
 | 端口冲突 | 改 `.env` 的 `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` 后重跑 install.sh |
 | 只想看脚本会做什么 | `./install.sh --license-server ... --dry-run` |
+| `./install.sh --help` 里提到 `SPLIT-DEPLOY.md` / `UPGRADE.md` 等 | 那些是厂商机仓库里的手册，不随本包分发；客户机上的唯一索引就是本文件 |
 
 ---
 

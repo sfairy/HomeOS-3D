@@ -40,8 +40,10 @@ usage() {
   homeos-app-<version>.tar.gz.sha256
 
 包内文件（只有主应用部署所需的这些）：
-  docker-compose.app.yml   .env.example   package.json   install.sh
-  ops/deploy/deploy.sh     ops/deploy/upgrade.sh          ops/deploy/CUSTOMER.md
+  install.sh              一键入口（= deploy.sh --role app）
+  docker-compose.app.yml  .env.example   package.json
+  ops/deploy/deploy.sh    ops/deploy/upgrade.sh    ops/deploy/CUSTOMER.md
+  MANIFEST.txt            生成：版本 / 提交 / 各文件 sha256
 USAGE
 }
 
@@ -70,6 +72,11 @@ case "$VERSION" in
 esac
 
 # 必须存在的源文件：缺一个就说明仓库不完整，宁可报错也不产出半成品包。
+#
+# 客户机上只会有这个包。所以 deploy.sh / upgrade.sh 里**在客户机上能打印出来的**路径，
+# 要么在下面这份名单里，要么必须显式写成「厂商侧」并指向包内的 CUSTOMER.md ——
+# 否则客户机上的报错提示会指向一个不存在的文件（以前 UPGRADE.md 就是这样漏出去的）。
+# 加文件前先确认 CUSTOMER.md 的「包内文件」一节同步更新。
 required_files=(
   docker-compose.app.yml
   .env.example

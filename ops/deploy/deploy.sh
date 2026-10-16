@@ -80,8 +80,14 @@ STORE_PUBLISH_PORT（8802）、STORE_PROXY_PUBLISH_PORT（8804）。
   all   —— 主应用只读挂载商店写出的共享卷（docker-compose.app.shared.yml），开箱即用。
 
 客户机精简包：ops/deploy/pack-customer.sh 产出只含 app 侧文件的压缩包，里面有一键
-install.sh（等价于「--role app」）。中心 / 客户机的完整流程见 ops/deploy/SPLIT-DEPLOY.md，
-公网接入见 ops/deploy/PUBLIC-ACCESS.md，升级见 ops/deploy/UPGRADE.md。
+install.sh（等价于「--role app」）。包里**只带 ops/deploy/CUSTOMER.md**：安装、端口、
+授权指纹、升级、备份、常见问题全在那一份里。
+
+下面这几份是**厂商机仓库里**的手册，不随客户精简包分发，所以客户机上看不到这些路径：
+  SPLIT-DEPLOY.md    中心 + 客户机的完整拓扑与授权身份
+  PUBLIC-ACCESS.md   跨公网 / 真实证书接入
+  PRODUCTION.md      生产最小检查清单
+  UPGRADE.md         升级与回滚
 
 例：
   # 中心商店（厂商机）
@@ -635,7 +641,7 @@ diagnose_pull_failure() {
   warn "拉取镜像失败，原始输出："
   sed 's/^/    /' "$LOG_FILE" | tail -n 20 >&2
   if grep -Eqi 'unauthorized|denied|authentication required' "$LOG_FILE"; then
-    info "GHCR 包可能是私有的：先 docker login ghcr.io（见 PRODUCTION.md 第 8 步）"
+    info "GHCR 包可能是私有的：先 docker login ghcr.io（PAT 要 read:packages；客户机见 ops/deploy/CUSTOMER.md 第 7 节，厂商侧清单见 PRODUCTION.md 第 8 步）"
   fi
   if grep -Eqi 'manifest unknown|not found' "$LOG_FILE"; then
     info "该 tag 可能还没构建：先在 GitHub Actions 手动 Run workflow，或改用 --version latest"

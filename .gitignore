@@ -57,10 +57,7 @@ homeos-bundle-*.json
 # 本地清理扫描报告（knip / eslint / ruff 基线输出）
 ops/cleanup-reports/
 
-# UI 令牌门禁产物（由 ops/tokens/*.mjs 生成，不再入库以免每次跑门禁产生 diff）
-ops/tokens/reports/
-
-# UI 审计分册（历史产物，已废弃：数据看 ops/tokens/reports/*.json）
+# UI 审计分册（历史产物，已废弃）
 docs/
 
 # 逆向恢复出来的历史源码快照
