@@ -21,6 +21,7 @@ FORWARDED_HEADERS = ("x-forwarded-for", "x-forwarded-proto", "x-real-ip", "forwa
 __all__ = [
     "FORWARDED_HEADERS",
     "ClientAddress",
+    "actual_request_scheme",
     "error_page_html",
     "expected_request_scheme",
     "forwarded_headers_present",
@@ -121,6 +122,21 @@ def request_origin(request: Request) -> str:
     return f"{expected_request_scheme(request)}://{host}"
 
 
+def actual_request_scheme(request: Request) -> str:
+    """**客户端实际用的** scheme：可信代理报的 ``X-Forwarded-Proto`` 优先，否则看请求自身。
+
+    与 :func:`expected_request_scheme` 的分工：那个是「本商店应当以哪个 scheme 对外」，可能
+    来自 ``STORE_BASE_URL`` 的声明；这个是「这一次请求真的从哪种 scheme 来的」。公网接入后
+    两者都是 ``https``，但本机直接开 ``http://127.0.0.1:8802`` 调试时只有它会是 ``http``。
+    """
+    address = resolve_client_ip(request)
+    if address.via_proxy:
+        forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+        if forwarded_proto in {"http", "https"}:
+            return forwarded_proto
+    return (request.url.scheme or "http").lower()
+
+
 def expected_request_scheme(request: Request) -> str:
     """本商店**应当**以哪个 scheme 被访问。
 
@@ -136,12 +152,7 @@ def expected_request_scheme(request: Request) -> str:
     for scheme in ("https", "http"):
         if declared.startswith(f"{scheme}://"):
             return scheme
-    address = resolve_client_ip(request)
-    if address.via_proxy:
-        forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
-        if forwarded_proto in {"http", "https"}:
-            return forwarded_proto
-    return (request.url.scheme or "http").lower()
+    return actual_request_scheme(request)
 
 
 def _origin_allowed(request: Request, origin: str) -> bool:
@@ -160,7 +171,13 @@ def _origin_allowed(request: Request, origin: str) -> bool:
     allowed = set()
     host = request.headers.get("host", "").strip().lower()
     if host:
+        # 两种 scheme 都收：声明口径（可能是 https）+ 客户端实际用的那个。
+        # 为什么收 actual 这一种：配了 STORE_BASE_URL=https://… 之后，管理员从本机
+        # http://127.0.0.1:8802 打开商店后台做任何写操作都会被判异源 —— 那不是攻击，
+        # 只是同源判定把「客户端真的在用 http」这一事实丢了。放宽的是**同一个 host**，
+        # 跨站请求（Origin 是别的站点）依旧进不来，所以这不削弱 CSRF 防护。
         allowed.add(f"{expected_request_scheme(request)}://{host}")
+        allowed.add(f"{actual_request_scheme(request)}://{host}")
     settings = _settings(request)
     base_origin = _origin_from_referer(str(getattr(settings, "public_base_url", "") or "").strip())
     if base_origin:

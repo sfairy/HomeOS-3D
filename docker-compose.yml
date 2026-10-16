@@ -19,14 +19,13 @@
 # 宿主架构自动选）。已发布的 tag 见 https://github.com/sfairy/HomeOS-3D/pkgs/container/homeos
 #
 # ---------------------------------------------------------------- 用之前不用改任何东西
-# 这份编排里两个服务在同一台机器上，两个地址都由程序自己算出来：
-#   APP_LICENSE_SERVER_URL  容器**自己**去连商店 —— 同一个 compose 项目里走容器内网服务名
-#                           （http://homeos-store:8802），已经写好，不用改
-#   APP_STORE_URL           浏览器点「忘记密码 / 商店」时跳转的目标 —— **不用填**：主应用会问
-#                           商店「你的对外地址是什么」，拿到容器服务名这种浏览器解析不了的
-#                           主机名时，自动换成你正在用的那个地址（局域网 IP / 域名）+ 商店端口
-# 换机器 / 换域名都不用动文件；万一推导出的地址不合期望（例如把商店的宿主端口改成了
-# 18802），再取消注释下面的 APP_STORE_URL 显式写死。
+# 这份编排里两个服务在同一台机器上，两条地址链路是这样定的：
+#   容器出站 → 商店：APP_LICENSE_SERVER_URL 走容器内网服务名（http://homeos-store:8802），
+#                   已经写死，不用改
+#   浏览器 → 商店：https://homelifepay.iepose.cn —— 商店自己按 STORE_BASE_URL 答这个地址
+#                   （见下面 homeos-store 的 environment），所以 APP_STORE_URL 不用填
+# 换成别的域名时，只需改下面 homeos-store 的 STORE_BASE_URL 一处 + 客户机那份的
+# APP_LICENSE_SERVER_URL；主应用容器内部地址与它无关。
 #
 # 占用端口：8801 / 8803（主应用 HTTP / 内置 HTTPS）、8802 / 8804（商店 HTTP / 内置 HTTPS）。
 # 冲突时改 `ports:` 左侧的宿主端口即可（容器内端口不变）。
@@ -37,25 +36,32 @@
 #      sudo mkdir -p /host/etc /host/sys/class/dmi
 #      sudo ln -sfn /etc/machine-id   /host/etc/machine-id
 #      sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
-# ② docker compose up -d（或界面里启动），等两个容器 healthy。
+# ② 确认域名已指向本机、入口放行 80/443，然后 docker compose up -d（或界面里启动），
+#    等两个容器 healthy。
 # ③ 创建商店管理员：商店还没有管理员时，启动日志里有引导密钥
 #      docker logs homeos-store | grep -A4 '引导密钥'
-#    打开 http://192.168.1.20:8802/setup 填入（在商店本机用 localhost 打开可留空）。
-# ④ 商店前台注册一个客户账号：http://192.168.1.20:8802/user/authentication/register
+#    打开 https://homelifepay.iepose.cn/setup 填入（本机调试也可以走
+#    http://127.0.0.1:8802/setup —— 回环端口就是留给这种用途的）。
+# ④ 商店前台注册一个客户账号：https://homelifepay.iepose.cn/user/authentication/register
 #    验证码默认走**日志**（STORE_MAIL_MODE=log，见下），取码：
 #      docker logs homeos-store | grep 验证码
-# ⑤ 后台 http://192.168.1.20:8802/admin/licenses（「激活码」页）给这个邮箱发一个激活码。
+# ⑤ 后台 https://homelifepay.iepose.cn/admin/licenses（「激活码」页）给这个邮箱发一个激活码。
 #    注意该页要求邮箱**已有商店账号**（否则报「该邮箱尚未注册账号」），所以第 ④ 步不能跳。
 #    发给客户时，把 ② 里那份 docker-compose.app.yml 连同这个地址和激活码一起交出去。
 # ⑥ 主应用打开 http://192.168.1.20:8801/register 注册本机账号（验证码同样在商店日志里），
 #    随后按提示填第 ⑤ 步的激活码。（HTTPS 入口 https://192.168.1.20:8803，自签证书点继续访问。）
+#    登录页的「忘记密码 / 商店」会跳到 https://homelifepay.iepose.cn（见上面「浏览器 → 商店」）。
 #
 # ---------------------------------------------------------------- 公网商店（卖授权 / 跨网络）
 # 客户机分布在不同网络、或要收款（支付宝 / 微信的异步回调必须公网可达）时，需要真实域名 +
 # 可信证书 HTTPS（镜像内置的 8804 是自签，客户机与支付平台都不认）。
 #
-# 看到下面的 services: 里那段「可选：公网接入」——取消注释 + 改域名即可；
-# 同时按商店 environment 里标的四行改成公网口径。前提与验证见 ops/deploy/PUBLIC-ACCESS.md。
+# **本文件已按公网口径配好**（商店的 STORE_BASE_URL / Cookie Secure / 可信代理）。
+# 唯一要你自己保证的是「80/443 上有一层带真实证书的入口指向商店」：
+#   - 你已有的 openresty / NAS 系统反代：把 homelifepay.iepose.cn 反代到本机
+#     http://127.0.0.1:8802（转发时要带上 Host 与 X-Forwarded-Proto: https）；
+#   - 没有现成入口：取消注释下面的「可选：内置 Caddy 入口」段（会占用 80/443）。
+# 前提、验证与排错见 ops/deploy/PUBLIC-ACCESS.md。
 #
 # ---------------------------------------------------------------- 升级 / 回滚
 # 改镜像 tag（或就用 :latest）后：
@@ -77,8 +83,10 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     ports:
-      # 8802：HTTP 直连（客户机与浏览器都用它）；8804：内置 Caddy 的内网 HTTPS 入口。
-      # 启用下面的「公网接入」时，把这两行改成回环（"127.0.0.1:8802:8802"），公网只留 80/443。
+      # 8802：HTTP 直连（局域网 / 本机调试都走它）；8804：内置 Caddy 的内网 HTTPS 入口。
+      # 公网入口只应是 80/443（域名 + 真实证书），所以请确认这两行**没有被公网放行**：
+      # 一旦能从公网直连 8802，就是一条绕过 HTTPS 与反代的明文后台入口。
+      # 想彻底断掉这条路，把两行左侧改成 127.0.0.1:（本机反代仍能连，局域网就连不上了）。
       - "8802:8802"
       - "8804:8804"
     environment:
@@ -90,9 +98,17 @@ services:
       APP_CLIENT_KEYS_DIR: /data/client-keys
       STORE_HOST: 0.0.0.0
       STORE_PORT: "8802"
-      # 内网 HTTP/HTTPS 都能登录，所以是 false；只走 HTTPS 时改 true。
-      STORE_COOKIE_SECURE: "false"
-      STORE_TRUSTED_PROXIES: 127.0.0.1,::1
+      # ── 公网接入（真实域名 https://homelifepay.iepose.cn）──
+      # 商店的对外身份：商店链接、同源校验、注册/登录、支付回调地址都按它推导。
+      # 它必须是浏览器与客户机容器都能访问的地址（内网直连 8802 会跨不过 HTTPS）。
+      STORE_BASE_URL: https://homelifepay.iepose.cn
+      # 公网只走 HTTPS：会话 Cookie 加 Secure，明文请求不再被当成同源。
+      STORE_COOKIE_SECURE: "true"
+      # TLS 在商店容器之外终止（本机反代 / NAS 反代 / 已有的 openresty），
+      # 所以可信代理要放开到「反代容器所在网段」：否则 uvicorn 会把反代当成客户端本人，
+      # 真实来源 IP、登录限流与审计一起失真，同源判定也会跟着错。
+      STORE_TRUSTED_PROXIES: 172.16.0.0/12
+      UVICORN_FORWARDED_ALLOW_IPS: 172.16.0.0/12
       # 验证码投递方式。log = 只写日志（docker logs homeos-store | grep 验证码），
       # 适合还没配 SMTP 的首装；配好 SMTP 在后台「站点配置 → 邮件」切到 smtp 即可，
       # 也可以在这里直接写 smtp 并补 STORE_SMTP_* 环境变量。
@@ -100,12 +116,6 @@ services:
       # 商店定时问 GitHub 拿最新版本（客户机在内网只问商店）。这台出不了外网就填 "0" 关掉，
       # 否则会周期性在日志里留一条 GitHub 连接失败。
       # STORE_RELEASE_SYNC_INTERVAL_SECONDS: "21600"
-      #
-      # ↑ 启用下面的「公网接入」时，上面四行要一起改（compose 没法按段条件化 env）：
-      #   STORE_BASE_URL: https://<商店域名>          # 支付回调按它推导
-      #   STORE_COOKIE_SECURE: "true"                # 公网只走 HTTPS
-      #   STORE_TRUSTED_PROXIES: 172.16.0.0/12       # 反代在容器之外了
-      #   UVICORN_FORWARDED_ALLOW_IPS: 172.16.0.0/12
     volumes:
       - homeos-store-data:/data
       - homeos-license-keys:/data/license-keys
@@ -170,18 +180,23 @@ services:
       start_period: 60s
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # 可选：公网接入（真实域名 + 可信证书 HTTPS）
+  # 可选：内置 Caddy 入口（真实域名 + 可信证书 HTTPS，自动申请与续期）
   #
-  # 客户机分布在不同网络、或你要收款（支付宝 / 微信的异步回调必须公网可达）时，把下面这一
-  # 整段取消注释（含文件末尾 volumes: 里那两行），并替换 <商店域名> / <证书通知邮箱>。
-  # 公网只留 80 / 443；商店自身端口请改成回环（见上面 homeos-store 的 ports 注释）。
+  # **只有「本机没有别的入口」时才需要**。已经有 openresty / NAS 系统反代在 80/443 上服务
+  # homelifepay.iepose.cn 的就不要开这段 —— 会抢端口，而且两层入口重复终止 TLS 更容易出错。
+  # 那种情况下你只要保证：反代把 homelifepay.iepose.cn 转到 http://127.0.0.1:8802，
+  # 并带上 Host 与 X-Forwarded-Proto: https。
+  #
+  # 要开就把下面整段取消注释（含文件末尾 volumes: 里那两行）。域名与邮箱已经填好，
+  # 用的是 ops/deploy/Caddyfile.public.example —— 那个文件必须和执行 compose 的目录保持
+  # 相对路径一致（下面挂载是 ./ops/deploy/...，所以在仓库根执行；把它单独拷到别处时记得
+  # 一起改路径，**别让挂载源缺失**：Docker 会把缺失的 bind 源建成空目录，Caddy 起不来）。
   #
   # 为什么不能直接用镜像内置的 8804：那是 Caddy 内部 CA 的**自签**证书，客户机里的主应用
   # （httpx / urllib 按系统 CA 校验）会直接拒绝，支付平台也不认。
   #
-  # 同时必须按上面 homeos-store 的 environment 里标的那四行改成公网口径
-  # （STORE_BASE_URL / STORE_COOKIE_SECURE / STORE_TRUSTED_PROXIES /
-  #  UVICORN_FORWARDED_ALLOW_IPS —— compose 没法按段条件化 env，所以是「改」不是「加」）。
+  # 商店的 environment（STORE_BASE_URL / STORE_COOKIE_SECURE / STORE_TRUSTED_PROXIES /
+  # UVICORN_FORWARDED_ALLOW_IPS）**已经**按公网口径配好，开这段不用再动它们。
   #
   # caddy-public:
   #   # 按 digest 钉死（真源 ops/docker-pins.json）。这个容器在**公网**上（80/443），并且
@@ -196,9 +211,9 @@ services:
   #     - "80:80"
   #     - "443:443"
   #   environment:
-  #     STORE_DOMAIN: <商店域名>
+  #     STORE_DOMAIN: homelifepay.iepose.cn
   #     # Caddy 的 email 指令不接受空值（空会让配置解析失败），所以必填。
-  #     ACME_EMAIL: <证书通知邮箱>
+  #     ACME_EMAIL: 156120718@qq.com
   #   volumes:
   #     - ./ops/deploy/Caddyfile.public.example:/etc/caddy/Caddyfile:ro
   #     # 证书与 ACME 账号数据：容器重建不丢，删卷会重新申请（可能触发 ACME 限流）。
@@ -206,7 +221,7 @@ services:
   #     - caddy-public-config:/config
   #   networks:
   #     - homeos-net
-  #   # 改完还是同一条命令：
+  #   # 开完还是同一条命令：
   #   #   docker compose up -d
   #   # 验证、回调地址与排错见 ops/deploy/PUBLIC-ACCESS.md。
   # ─────────────────────────────────────────────────────────────────────────────
@@ -224,6 +239,6 @@ volumes:
   # 主应用：数据（含 backups）与签名密钥
   homeos-data:
   homeos-secrets:
-  # 用到上面的「公网接入」段时，把这两行也取消注释：
+  # 用到上面的「内置 Caddy 入口」段时，把这两行也取消注释：
   # caddy-public-data:
   # caddy-public-config:
