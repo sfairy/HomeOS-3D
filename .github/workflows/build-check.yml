@@ -9,10 +9,9 @@ name: Build Check
 # 2026-10-10 的构建锁 ENOENT 就卡在这条缝里：本地有历史 dist/ 兜着所以是绿的，干净检出
 # 才炸；`verify:*` 那些门禁不跑构建，Docker 又太重。这个工作流把那一步单独拎出来。
 #
-# 触发（2026-10-15 起改为**只手动**）：
-# - `workflow_dispatch`：Actions 页面 Run workflow。此前还带 `pull_request` + `paths`，
-#   每次推 PR 都会自动构建一遍；现在自动触发全部移除，只在需要时手动跑。
-#   `checks.yml` 里那个 `build` job 是同一份脚本的常驻版本（同样改为手动）。
+# 触发：`workflow_dispatch`，Actions 页面 Run workflow。
+# 这只是一个「临时想单独验证构建」的入口；常态化的构建验证在 `checks.yml` 的 build job
+# （2026-10-16 起随 push / PR 自动跑），两者跑的是同一份 ops/ci/build_frontend_verify.sh。
 on:
   workflow_dispatch:
 
@@ -33,7 +32,7 @@ jobs:
         with:
           bun-version: 1.4.2
 
-      # 与 docker.yml build job 的对应步骤共用同一份定义，包括那 6 条产物结构断言。
+      # 与 checks.yml build job 的对应步骤共用同一份定义，包括那 6 条产物结构断言。
       # checkout 出来就是干净树（没有 gitignore 的 dist/），正是当年出错的那种状态。
       # 仍显式 `rm -rf dist`：万一 dist/ 被缓存或误提交，也能复现「干净检出」的失败面。
       - name: Build frontend to workspace dist

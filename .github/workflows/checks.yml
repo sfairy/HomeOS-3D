@@ -6,13 +6,39 @@ name: Checks
 # 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
 #
 # 触发：
-# - workflow_dispatch：Actions 页面手动跑。
+# - push(main) 与全部 PR 自动跑 —— 门禁必须自动生效，否则等于形同虚设。
+#   2026-10-15 曾整体改成「只手动」，结果 8d3be3e7 / 2026-10-10 那类「本机绿、干净检出红」
+#   的问题会一直躺到下一次有人想起来点 Run workflow：红灯不是被发现得晚，是根本没有发现者。
+# - paths-ignore 只放过纯文档改动（.md / LICENSE / .gitignore）。这里用 ignore 白名单式
+#   地「排除」而不是用 `paths:` 列「包含」：allowlist 一旦漏掉某个新目录就会静默不跑，
+#   而 ignore 的默认方向是「跑」。
+#   代价：只改文档的 PR 不会产出任何 check 结果，若 main 上配了 required status checks，
+#   这类 PR 会一直等不到 —— 遇到时手动 dispatch 一次即可。
 # - workflow_call：docker.yml 发版前复用同一份检查。
-# 不挂 push / pull_request：推送与 PR 不自动跑。
+# - workflow_dispatch：Actions 页面手动跑。
+#
+# 制品只在 docker.yml 调用时上传（见 build job 里的两个 upload 步骤）。判定用
+# `github.event_name` 而不是给 workflow_call 声明一个 boolean input：本工作流同时挂着
+# push / pull_request，而那两个触发**没有 inputs 上下文**，在 `if` 里引用 `inputs.*` 有
+# 落到「Invalid workflow file: Unrecognized named-value: 'inputs'」的风险 —— 真踩到的话
+# 整个 push / PR 的 checks 连启动都启动不了，代价远大于少传一个制品。
+# `github.event_name` 在任何触发下都存在，属最保守的写法。
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_call:
   workflow_dispatch:
 
+# 同组并发只保留最新一次：PR 连续推送时取消上一轮，避免排队。
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -49,6 +75,12 @@ jobs:
           bun run typecheck:node
 
   # 前端产物构建 + 结构断言。
+  #
+  # 这是整条流水线里**唯一**构建前端的 job：docker.yml 通过 workflow_call 复用它，构建出的
+  # 产物以制品形式交给镜像矩阵（见下面的 upload 步骤）。
+  # 此前是 docker.yml 的 4 个矩阵项各跑一遍同样的构建：既浪费 4 次 bun install + vite +
+  # 混淆，又让 amd64 / arm64 两个镜像**各自**产出一份前端 —— 前端产物与 CPU 架构无关，
+  # 却因为「各建各的」而多出一条「两个架构发布的不是同一个前端」的可能。
   build:
     runs-on: ubuntu-24.04
     steps:
@@ -69,6 +101,33 @@ jobs:
         run: |
           rm -rf dist
           bash ops/ci/build_frontend_verify.sh
+
+      # 只在需要交付给镜像构建时上传：PR / push 的检查不需要这份产物，而
+      # dist/homeos/frontend 有 100MB+，每次 PR 都白传一遍纯属浪费 runner 与制品配额。
+      # 判定条件就是上面注释里说的 `github.event_name`（docker.yml 与本工作流的手动
+      # dispatch 都为真；push / pull_request 为假）。
+      # 拆成 app / store 两个制品而不是一个：矩阵里 app 项只要 homeos/frontend、store 项只要
+      # homeos-store/frontend，合成一个会让每项都拖上自己用不到的那一半。
+      # 上传的是**目录内容**（上传 path 指向的目录，其内容成为制品根），下载时指到同一个
+      # 相对路径即可原样还原：dist/homeos/frontend 与 dist/homeos-store/frontend 正是
+      # Dockerfile 在运行阶段 COPY 的位置（见 Dockerfile 的 `COPY dist/homeos/frontend`）。
+      - name: Upload app frontend dist
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-app
+          path: dist/homeos/frontend
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload store frontend dist
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-store
+          path: dist/homeos-store/frontend
+          retention-days: 1
+          if-no-files-found: error
 
   # 基础设施配置的静态校验：shell / workflow / compose / Caddyfile。
   lint-infra:
@@ -152,3 +211,11 @@ jobs:
 
       - name: Ruff check
         run: ruff check .
+
+      # 运行期依赖锁与两个 requirements.txt 的一致性。放在这个 job 里是因为它已经有
+      # python3 且这一步不联网（纯静态比对）。
+      # 镜像里装的是 requirements.lock，两个 requirements.txt 不会进镜像 —— 改了 .txt
+      # 却忘了重新生成锁，只会在下一次发布时以「镜像里装的还是旧依赖」的形式暴露，
+      # 而那正是这个锁要解决的问题。这里靠 sha256 指纹把它挡在合并之前。
+      - name: Check requirements lock
+        run: python3 ops/ci/python_lock.py verify
