@@ -51,7 +51,7 @@ HomeOS/
 ├── ops/                       # dev.mjs 本地联调、build.py 构建、BUILD.md、deploy/（公网接入文档）、docker/ 容器构建辅助
 ├── dist/                      # 构建产物（不入库；镜像只消费它）
 ├── docker-compose.yml         # 管理员这台：商店 + 主应用（NAS / 单机一键）
-├── docker-compose.app.yml     # 客户机：只有主应用（填两行商店地址）
+├── docker-compose.app.yml     # 客户机：只有主应用（填一处商店地址）
 ├── Dockerfile                 # 双目标运行镜像：--target app / --target store
 └── package.json / bun.lock    # 版本号唯一来源 + 全仓唯一的依赖锁
 ```
@@ -109,7 +109,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | 文件 | 起什么 | 给谁 |
 | --- | --- | --- |
 | [`docker-compose.yml`](docker-compose.yml) | 授权商店 + 主应用 | **开发者 / 管理员**自己这台：整个产品唯一一处商店就在这里，你的面板也一起起 |
-| [`docker-compose.app.yml`](docker-compose.app.yml) | 只有主应用 | **客户**：每台一份，填两行商店地址即可 |
+| [`docker-compose.app.yml`](docker-compose.app.yml) | 只有主应用 | **客户**：每台一份，填一处商店地址即可 |
 
 两份的项目名都是 `homeos`，服务名与卷名也一致 —— 客户机将来想换回管理员那份也不会换错数据。
 公网接入（真实域名 + 可信证书 HTTPS）不是第三个文件，而是 `docker-compose.yml` 里一段
@@ -132,7 +132,11 @@ docker compose up -d
 docker logs homeos-store | grep -A4 '引导密钥'
 ```
 
-**跑之前只改一处**：文件里标了 `←` 的商店地址（示例值 `192.168.1.20` 是占位，换成这台机器的 IP 或域名）。
+**跑之前只改一处**：文件里标了 `←` 的那行商店地址（示例值 `192.168.1.20` 是占位，换成这台机器的
+IP 或域名）。它经 YAML 锚点同时喂给两行 —— 容器自己出站取公钥/发验证码用的
+`APP_LICENSE_SERVER_URL`，和浏览器「忘记密码 / 商店」跳转用的 `APP_STORE_URL`。两者是不同角色
+（同机部署时必然不同值，见 `docker-compose.yml`），只是客户机上地址恰好同一个；哪天要分开
+（例如给商店加反代），把 `APP_STORE_URL: *store` 换成直接写地址即可。
 两条容易踩的：
 
 - **先建 `/host` 符号链接**（文件头 ① 有命令），必须在第一次 `up -d` **之前** —— 否则 Docker 会把
@@ -152,8 +156,8 @@ docker logs homeos-store | grep -A4 '引导密钥'
 docker compose -f docker-compose.app.yml up -d
 ```
 
-**跑之前只改一处**：文件里标了 `←` 的两行商店地址（`APP_LICENSE_SERVER_URL` / `APP_STORE_URL`），
-换成第 1 步那台机器的 IP 或域名；`/host` 符号链接同样必须先建好。
+**跑之前只改一处**：文件里标了 `←` 的那行商店地址（锚点会喂给 `APP_LICENSE_SERVER_URL` /
+`APP_STORE_URL` 两个变量），换成第 1 步那台机器的 IP 或域名；`/host` 符号链接同样必须先建好。
 
 跑完浏览器 `http://<客户机IP>:8801/register` 注册本机唯一账号（验证码由商店代发，所以这台
 必须能出站访问商店的 8802），登录后未激活会跳 `/activate`，填第 1 步发出去的激活码即完成绑定。
@@ -172,7 +176,7 @@ docker compose -f docker-compose.yml up -d
 ```
 
 那段会多起一个 `caddy-public` 容器，按域名自动申请并续期公共 CA 证书，再反代到商店；客户机
-的 `docker-compose.app.yml` 里两行地址换成该域名即可。完整前提、验证与排错见
+的 `docker-compose.app.yml` 里改那行地址为域名即可。完整前提、验证与排错见
 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md)。
 
 
@@ -267,7 +271,7 @@ python3 ops/build.py image --project store --tag homeos-store:local
 | 文档 | 内容 |
 | --- | --- |
 | [docker-compose.yml](docker-compose.yml) | 管理员这台：商店 + 主应用（含公网接入段） |
-| [docker-compose.app.yml](docker-compose.app.yml) | 客户机：只有主应用，填两行商店地址即可 |
+| [docker-compose.app.yml](docker-compose.app.yml) | 客户机：只有主应用，填一处商店地址即可 |
 | [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) | 商店公网接入（域名 + 真实证书 HTTPS、支付回调） |
 | [ops/BUILD.md](ops/BUILD.md) | 镜像构建细节（Cython 产物、基础镜像钉版、镜像站） |
 | [homeos-store/backend/src/README.md](homeos-store/backend/src/README.md) | 商店 / 授权服务器细节 |

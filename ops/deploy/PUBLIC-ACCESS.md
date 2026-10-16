@@ -32,7 +32,7 @@
 不需要额外文件：`docker-compose.yml`（商店所在的那台，也就是你自己这台）里就有一段
 **可直接取消注释**的「公网接入」块，里面是 `caddy-public` 容器（80/443），配合
 `ops/deploy/Caddyfile.public.example`（站点配置，域名走环境变量）。客户机的
-`docker-compose.app.yml` 不动结构，只把两行地址换成该域名。
+`docker-compose.app.yml` 不动结构，只把那行商店地址换成该域名。
 
 ### 2.1 前置
 
@@ -125,13 +125,17 @@ open https://store.example.com/admin
 
 ### 2.4 客户机接入
 
-客户机侧把商店地址换成域名即可（此时 https 是可信的，不会踩自签的坑）—— 改
-`docker-compose.app.yml` 里标了 `←` 的两行：
+客户机侧把商店地址换成域名即可（此时 https 是可信的，不会踩自签的坑）—— 只改
+`docker-compose.app.yml` 里标了 `←` 的那一行（锚点会把同一个值喂给两行）：
 
 ```yaml
-      APP_LICENSE_SERVER_URL: https://store.example.com
-      APP_STORE_URL: https://store.example.com
+      APP_LICENSE_SERVER_URL: &store https://store.example.com
+      APP_STORE_URL: *store
 ```
+
+（两行的角色不同：前者容器自己出站取公钥/发验证码，后者给浏览器跳「忘记密码」。公网接入
+时它们恰好都指向同一个域名，所以绑在一起；哪天要给商店加一层只给浏览器用的反代，把
+`APP_STORE_URL: *store` 换成直接写地址即可。）
 
 ### 2.5 支付回调
 

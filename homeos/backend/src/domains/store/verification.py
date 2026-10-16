@@ -8,8 +8,9 @@
 - ``POST /store/v1/verifications``          发码（公开、按 IP/邮箱限流）
 - ``POST /store/v1/verifications/verify``   验码并消费（公开）
 
-基地址取 ``settings.store_url``（对外商店地址），缺省回退 ``license_server_url``
-（授权/商店同一台服务器）。
+基地址取 ``settings.license_server_url``（服务端出站优先授权服务器地址），缺省回退
+``settings.store_url``（对外商店地址）—— 两者的区别见下方
+:func:`verification_client_from_settings` 的注释。
 """
 
 from __future__ import annotations
