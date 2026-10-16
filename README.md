@@ -100,92 +100,88 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 
 ## 部署（生产）
 
-生产方式走 **GHCR 镜像 + `ops/deploy/deploy.sh` 一键部署**，全部在 Docker 里跑。下面八步是完整流程，
-厂商机走 1–3、5–8，每台客户机走 1–2、4–8。
+**每台机器只要一条命令。** 不需要预先准备 `.env`、不需要装 Bun/Python、不需要手工建目录 ——
+脚本自己把能做的都做完，只在浏览器里注册账号那两步需要人工。
 
-### 1. 前置条件
+### 前置条件
 
 - 部署机装好 **Docker Engine + Compose v2**（compose 文件用了 `name:` 字段，需要 ≥ 2.3.3）；
-  `deploy.sh` 启动前会自检 docker、compose v2 与守护进程。
-- 能拉 GHCR：包若为私有，先 `docker login ghcr.io`（PAT 需 `read:packages`）。
-- **架构匹配**：后端已被 Cython 编译成 per-arch 的 `.so`，amd64 / arm64 镜像不能互搬；GHCR 两种
-  架构都发布，`docker pull` 自动选。
-- 所有机器**时钟同步**（租约、会话、令牌都按时间判定），并使用**同一个镜像 tag**。
-- 在仓库根执行（`deploy.sh` 需要与 `docker-compose.app.yml` 同目录），或 `--dir` 指定目录。
+  脚本启动前会自检 docker、compose v2 与守护进程，装得不对会直接说清楚。
+- 能拉 GHCR：包若是私有的，先 `docker login ghcr.io`（PAT 需 `read:packages`）。
+- **在仓库根目录执行**（`deploy.sh` 需要与 `docker-compose.app.yml` 同目录）。
+- 所有机器**时钟同步**、并用**同一个版本 tag**（脚本会自动钉住，不用你操心）。
+- 架构：后端编译成了 per-arch 的 `.so`，amd64 / arm64 镜像不能互搬；GHCR 两种都有，`docker pull` 自动选。
 
-### 2. 准备环境变量
-
-```bash
-cp .env.example .env
-```
-
-`.env` 默认全部注释掉，复制不改也能启动，生产按角色确认这几项：
-
-| 变量 | 默认 | 说明 |
-| --- | --- | --- |
-| `APP_LICENSE_SERVER_URL` | 空 | 客户机必填（等价于 `--license-server`，会同时钉住 `APP_STORE_URL`） |
-| `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` | `false` | 要让 HTTP(8801/8802) 与 HTTPS(8803/8804) **都能登录**就保持 `false` |
-| `APP_TRUSTED_PROXIES` / `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1` | 内置反代在容器回环上，**保持默认**；不要填 `*` 或 docker 网段 |
-| `APP_BASE_URL` / `STORE_BASE_URL` | 空 | 局域网 IP 不固定就留空（应用按请求 `Host` 判断同源） |
-| `*_PUBLISH_PORT` | 8801/8803/8802/8804 | 宿主发布端口冲突时改这里 |
-| `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；`deploy.sh` 会把解析结果写回 `.env` 钉住，避免漂到 `latest` |
-
-**账号不走环境变量、也不预置**：主应用首装零用户，商店管理员在 `/setup` 建。
-邮件 / 支付 / 站点文案等商店配置登录 `/admin` 后台改（免重启），全部变量见 `.env.example`。
-
-### 3. 厂商机：起中心商店
+### 第 1 步：厂商机（唯一一台，先跑）
 
 ```bash
 ./ops/deploy/deploy.sh --role store
 ```
 
-脚本会：解析 compose 目录并在缺 `.env` 时从模板生成 → 解析版本 tag 写回 `.env` → `pull` → `up -d`
-→ 轮询健康（商店最长 180s）→ 打印访问地址与客户机该执行的命令。之后到 `http://<商店IP>:8802/setup`
-建运营管理员。
+跑完它会**直接打印每台客户机该执行的那条命令**（已带好正确的 IP 与端口），照抄即可。
+然后浏览器打开 `http://<厂商机IP>:8802/setup` 建运营管理员（HTTPS 备用 `https://<厂商机IP>:8804/setup`）。
 
-### 4. 客户机：起主应用
-
-```bash
-./ops/deploy/deploy.sh --role app --license-server http://<中心商店>:8802
-```
-
-`--license-server` **必填**，写进 `.env` 的 `APP_LICENSE_SERVER_URL` 与 `APP_STORE_URL`。
-主应用会先准备好宿主标识符号链接（授权实例指纹读它）、拉镜像、`up -d`、等健康（最长 300s），
-并顺手把授权公钥从商店取回缓存。
-
-跨公网接入用真实证书域名，**不要**拿商店的 `https://<中心IP>:8804`（自签，客户机不信任）当授权地址，
-见 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md)。
-
-两个服务都自带内网 HTTPS（Caddy 按连入地址动态签发**自签**证书，反代与应用同容器）：
-主应用 `https://<IP>:8803`、商店 `https://<IP>:8804`，浏览器首次访问手动放行即可，**不需要**
-额外准备反代容器或证书。HTTP 的 8801 / 8802 不经反代，可直接备用。
-
-`deploy.sh` 的常用参数：`--role all|store|app`（形态，默认 `all`）、`--license-server URL`
-（客户机必填）、`--version TAG`（钉镜像 tag）、`--dir DIR`、`--host-binds auto|force|skip`、
-`--dry-run`（只打印命令）、`--yes`（非交互，`sudo` 只用 `sudo -n`）。同机 `--role all` 只用于
-开发 / 自测，**不要用于客户交付**。
-
-### 5. 首次初始化
-
-1. **商店**：`http://<商店IP>:8802/setup` 建运营管理员 → 在 `/admin` 配邮件 SMTP、支付渠道
-   （未配真实凭据时下单会 503，刻意 fail-closed）。
-2. **主应用**：`http://<主机IP>:8801/register`（HTTPS 8803）注册本机唯一账号。首装零用户时任何
-   地址都会跳到注册页，账号建好后该入口即关闭。
-3. **激活**：注册后自动登录并检测授权，未激活跳 `/activate`，填入商店购买邮箱与激活码绑定本机
-   （1 激活码 : 1 设备）。之后配 HA、在 `/3d-studio` 保存户型。
-
-### 6. 确认健康
+### 第 2 步：客户机（每台一次）
 
 ```bash
-curl -fsS http://127.0.0.1:8801/health/ready   # 主应用
-curl -fsS http://127.0.0.1:8802/healthz        # 商店
-docker compose -f docker-compose.app.yml ps
-docker logs homeos | head
+./ops/deploy/deploy.sh --role app --license-server http://<厂商机IP>:8802
 ```
 
-### 7. 备份数据卷
+把 `http://<厂商机IP>:8802` 换成第 1 步打印出来的那个地址。跑完浏览器打开
+`http://<客户机IP>:8801/register` 注册本机唯一账号（验证码由厂商机商店代发），登录后未激活会跳
+`/activate`，填入商店购买邮箱与激活码即完成绑定。
 
-**勿删 volume**（`docker compose down -v` 会连数据一起删）。卷名带 compose 项目名前缀：
+> 跨公网接入时用**真实证书域名**，不要拿商店的 `https://<厂商机IP>:8804`（自签，客户机不信任）
+> 当授权地址，见 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md)。
+> 只想看脚本会做什么：加 `--dry-run`（不写文件、不调 docker）。
+
+### 脚本替你做了什么
+
+1. 自检 docker / docker compose v2 / 守护进程，说清楚缺什么。
+2. 缺 `.env` 就从 `.env.example` 生成，并钉上 `APP_ENVIRONMENT=production`（授权门禁与 5xx 脱敏据此生效）。
+3. 从 `package.json` 解析版本号当镜像 tag，写回 `.env` 钉住 —— 中心与各客户机不会各自漂到 `latest`。
+4. 客户机：准备宿主标识符号链接（授权实例指纹读它），启动后自动向商店取回授权公钥并缓存到数据卷。
+5. `pull` → `up -d` → 轮询健康（商店 ≤ 180s、主应用 ≤ 300s，失败会把日志尾巴打出来）。
+6. 打印访问地址、激活入口、升级命令与「不要删数据卷」的提醒。
+
+内网 HTTPS 开箱即用：反代（Caddy）内置在镜像里、与应用同容器，按连入地址动态签发**自签**证书，
+浏览器首次访问手动放行即可 —— 不需要另备反代容器或证书。HTTP 的 8801 / 8802 不经反代，可直接备用。
+
+`deploy.sh` 参数（用到再看）：`--role all|store|app`（形态，默认 `all`）、`--license-server URL`
+（客户机必填，也可写进 `.env` 的 `APP_LICENSE_SERVER_URL`）、`--version TAG`（钉版本）、`--dir DIR`、
+`--host-binds auto|force|skip`、`--dry-run`（只打印命令）。脚本本身就是非交互的（没有任何提问，
+`sudo` 一律走 `sudo -n`），所以只有兼容旧调用而保留的 `--yes` 空开关。
+同机 `--role all` 是开发 / 自测形态，**不要用于客户交付**。
+
+### 需要时才改的 `.env`
+
+默认值全都能直接跑（`.env.example` 里全部注释掉，复制不改也能启动）。只有这几种情况要动手：
+
+| 情况 | 改什么 |
+| --- | --- |
+| 宿主端口被占用 | `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` / `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT` |
+| 要固定访问地址（IP 不固定就留空） | `APP_BASE_URL` / `STORE_BASE_URL` |
+| 出问题要临时放开授权门禁 | `LICENSE_REQUIRED=0`（**仅排障**，勿在客户机长期保留） |
+
+`APP_TRUSTED_PROXIES` / `UVICORN_FORWARDED_ALLOW_IPS` 保持默认回环值，**不要**填 `*` 或 docker 网段。
+商店的邮件 SMTP、支付渠道、站点文案登录 `/admin` 后台改（免重启），未配真实凭据时下单会返回 503（刻意 fail-closed）。
+
+### 升级与回滚（同样一条命令）
+
+**先中心商店、后客户机**，两头用同一个 tag：
+
+```bash
+./ops/deploy/upgrade.sh --role store --version 0.7.6   # ① 厂商机
+./ops/deploy/upgrade.sh --role app   --version 0.7.6   # ② 每台客户机
+```
+
+`upgrade.sh --check` 可先核对本机钉住的版本与容器实际版本。回滚＝把 `--version` 换成上一个版本重跑。
+**永远不要执行 `docker compose down -v`** —— 那会连数据一起删。完整清单与客户通知模板见
+[UPGRADE.md](ops/deploy/UPGRADE.md)。
+
+### 备份数据卷
+
+卷名带 compose 项目名前缀：
 
 | 卷 | 归属 |
 | --- | --- |
@@ -203,32 +199,28 @@ docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
 
 授权私钥卷丢了等于所有已激活客户端失效；公钥丢了不用慌，主应用下次启动会自己取回。
 
-### 8. 升级与回滚
+### 出问题
 
-升级＝拉新镜像 + `up -d`，**先中心商店、后客户机**，两头同一个 tag：
+| 现象 | 处理 |
+| --- | --- |
+| `pull` 报 `unauthorized` / `denied` | GHCR 包是私有的：先 `docker login ghcr.io`（PAT 需 `read:packages`） |
+| `manifest unknown` / `not found` | 该 tag 还没构建：到 GitHub Actions 手动 Run workflow，或改用 `--version latest` |
+| `no matching manifest` | 宿主架构缺镜像层：确认宿主是 amd64 / arm64 |
+| 主应用启动即退出、提示取回授权公钥超时 | 连不上 `APP_LICENSE_SERVER_URL`：确认商店已起、客户机能访问该地址与端口 |
+| 客户机连不上，地址写的是 `https://…:8804` | 那是商店内置反代的自签证书：改用 `http://<商店>:8802`，或上真实证书域名 |
+| 激活报「租约使用了不受信任的授权公钥」 | 数据卷是别台机器搬来的：删掉主应用数据卷里的 `client-keys` 后重启即会重新取回 |
+| 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：商店后台解绑后重新激活，或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
 
-```bash
-./ops/deploy/upgrade.sh --role store --version 0.7.6   # ① 厂商机
-./ops/deploy/upgrade.sh --role app   --version 0.7.6   # ② 每台客户机
-```
+健康检查：`curl -fsS http://127.0.0.1:8801/health/ready`（主应用）、
+`curl -fsS http://127.0.0.1:8802/healthz`（商店）；容器与日志用 `docker compose ps` / `docker logs homeos`。
 
-`upgrade.sh --check` 可先核对本机钉住的版本与容器实际版本。回滚＝把 `--version` 换成上一个版本重跑，
-**不要删数据卷**。完整清单与客户通知模板见 [UPGRADE.md](ops/deploy/UPGRADE.md)。
+### 可选：精简分发包 / 自己构建镜像
 
-### 客户机精简分发包（可选）
+客户机上不必放整份仓库：`./ops/deploy/pack-customer.sh` 产出**只含主应用侧文件**的压缩包
+（不含商店源码与密钥）→ `build/customer-pack/homeos-app-<版本>.tar.gz`，客户机解包后
+`./install.sh --license-server http://<厂商机IP>:8802` 即可，见 [CUSTOMER.md](ops/deploy/CUSTOMER.md)。
 
-不想在客户机上放整份仓库时，产出只含主应用侧文件的压缩包（不含商店源码与密钥）：
-
-```bash
-./ops/deploy/pack-customer.sh     # → build/customer-pack/homeos-app-<版本>.tar.gz
-```
-
-客户机解包后 `./install.sh --license-server http://<中心商店>:8802` 即可，详见
-[CUSTOMER.md](ops/deploy/CUSTOMER.md)。
-
-### 从源码构建镜像（可选）
-
-不走 GHCR、要自己出镜像时（需要 Bun + Python 3.12+ + Docker）：
+不走 GHCR、要自己出镜像时：
 
 ```bash
 bun install
@@ -240,19 +232,6 @@ HOMEOS_IMAGE=homeos:local ./ops/deploy/deploy.sh
 
 细节（为什么产物里没有明文 `.py`、架构绑定、基础镜像钉版真源、拉不动 Docker Hub 时换镜像站）
 见 [ops/deploy/BUILD.md](ops/deploy/BUILD.md)。
-
-### 常见问题
-
-| 现象 | 原因与处理 |
-| --- | --- |
-| `pull` 报 `unauthorized` / `denied` | GHCR 包是私有的：先 `docker login ghcr.io`（PAT 需 `read:packages`） |
-| `manifest unknown` / `not found` | 该 tag 还没构建：到 GitHub Actions 手动 Run workflow，或改用 `--version latest` |
-| `no matching manifest` | 宿主架构缺镜像层：确认宿主是 amd64 / arm64 |
-| 主应用启动即退出、提示取回授权公钥超时 | 连不上 `APP_LICENSE_SERVER_URL`：确认商店已起、客户机能访问该地址与端口 |
-| 客户机连不上，地址写的是 `https://…:8804` | 那是商店内置反代的自签证书：改用 `http://<商店>:8802`，或上真实证书域名 |
-| 激活报「租约使用了不受信任的授权公钥」 | 数据卷是别台机器搬来的：删掉主应用数据卷里的 `client-keys` 后重启即会重新取回 |
-| 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：商店后台解绑后重新激活，或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
-| 只想看脚本会做什么 | `./ops/deploy/deploy.sh --dry-run`（不写文件、不调 docker） |
 
 ---
 
