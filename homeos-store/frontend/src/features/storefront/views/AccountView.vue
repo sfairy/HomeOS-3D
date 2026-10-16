@@ -391,7 +391,7 @@ async function copyCommand(command: string) {
                   <section v-if="item.active && deployScripts.length" class="hb-deploy" aria-label="一键部署指令">
                     <header class="hb-deploy__head">
                       <span class="hb-deploy__icon" aria-hidden="true"><i class="fa-duotone fa-regular fa-rocket-launch"></i></span>
-                      <div class="hb-deploy__title"><strong>一键部署 HomeOS</strong><small>复制到服务器的终端执行，脚本会自动拉取并启动服务。</small></div>
+                      <div class="hb-deploy__title"><strong>一键部署 HomeOS</strong><small>复制到服务器终端执行：下载编排文件并直接启动服务。</small></div>
                     </header>
                     <div class="hb-deploy__commands">
                       <article v-for="script in deployScripts" :key="script.command" class="hb-deploy-cmd">

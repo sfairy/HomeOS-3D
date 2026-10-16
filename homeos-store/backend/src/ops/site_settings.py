@@ -17,8 +17,16 @@ from ..security.security import iso, utcnow
 
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
 
-DEPLOY_SCRIPTS: tuple[tuple[str, str], ...] = (
-    ("OFFICIAL-SCRIPT（官方源）", "install.sh"),
+# 账号中心「一键部署」面板展示的指令：(标签, 托管目录下的文件名, 组装模板)。
+# 客户机侧的交付物就是仓库根那份 docker-compose.app.yml（自包含，值写死在文件里），
+# 托管在站点配置的 deployBaseUrl 指向的静态目录；指令下载它并直接起容器。
+# 不再有 install.sh —— 部署已收敛到 compose 文件，脚本体系已退役。
+DEPLOY_SCRIPTS: tuple[tuple[str, str, str], ...] = (
+    (
+        "OFFICIAL-COMPOSE（官方源）",
+        "docker-compose.app.yml",
+        "curl -sSL {base}/{path} -o docker-compose.app.yml && docker compose -f docker-compose.app.yml up -d",
+    ),
 )
 
 
@@ -74,8 +82,8 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         "logoUrl": setting.logo_url,
         "deployBaseUrl": deploy_base,
         "deployScripts": [
-            {"label": label, "command": f"curl -sSL {deploy_base}/{path} | bash"}
-            for label, path in DEPLOY_SCRIPTS
+            {"label": label, "command": template.format(base=deploy_base, path=path)}
+            for label, path, template in DEPLOY_SCRIPTS
         ]
         if deploy_base
         else [],

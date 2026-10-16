@@ -4,7 +4,6 @@
  *
  *   bun homeos/scripts/set-version.mjs 0.7.2              # 改写 + 自检
  *   bun homeos/scripts/set-version.mjs 0.7.2 --check      # 只自检，不改写（CI 可用）
- *   bun homeos/scripts/set-version.mjs 0.7.2 --prev 0.7.1 # 显式指定上一版（默认自动推断）
  *
  * 面向「指定语义化版本、全仓库对齐」。
  *
@@ -14,8 +13,7 @@
  * 2. 槽位用「文件 glob」而不是固定文件名，新增文档 / 新增 .env.example 会自动纳入。
  * 3. 三层自检（任何一层不过就非零退出）：
  *    - 严格层：全仓库重跑一遍槽位规则，必须 0 变更（证明没有漏网的槽位）；
- *    - 泄漏层：文档 / 脚本 / 清单里凡「版本语义行」出现的三段式版本号，必须等于目标
- *      版本（仅 `deploy.sh` 的示意注释允许同时出现上一版）；
+ *    - 泄漏层：文档 / 脚本 / 清单里凡「版本语义行」出现的三段式版本号，必须等于目标版本；
  *    - 归档层：`源代码/` 为上游发布包留档，脚本永不改动（列出来提醒）。
  *
  * 不动的目录：`源代码`（留档）、`node_modules`、`.git`、`dist`、`build`、
@@ -98,7 +96,7 @@ const PACKAGE_JSON_FILES = [
 
 /**
  * 槽位清单。每条：`files`（glob 数组）、`label`、`pattern`（带 g/m 标志）、
- * `replace`（普通替换串；`__V__` = 目标版本，`__PREV__` = 上一版）。
+ * `replace`（普通替换串；`__V__` = 目标版本）。
  */
 const SLOTS = [
   // ── 各 workspace package.json 的顶层 version ───────────────────────────────
@@ -159,22 +157,6 @@ const SLOTS = [
     label: 'CI 注释「该版本号（如 x）」',
     pattern: new RegExp(`(该版本号（如 )${VER_OPT_V}(）)`, 'g'),
     replace: '$1__V__$2',
-  },
-
-  // ── deploy.sh 的「.env 钉住 A、package.json 已是 B」示意 ─────────────────
-  // 这一处刻意同时出现「上一版 + 目标版」来解释优先级，所以要单独处理，
-  // 不能跟着通用规则一起被抹成同一个值。
-  {
-    files: ['ops/deploy/deploy.sh'],
-    label: 'deploy.sh 版本优先级示意（上一版 → 目标版）',
-    pattern: /(「\.env 钉住 )[\d.]+(、package\.json 已是 )[\d.]+(」)/g,
-    replace: '$1__PREV__$2__V__$3',
-  },
-  {
-    files: ['ops/deploy/deploy.sh'],
-    label: 'deploy.sh 镜像 tag 示意（目标版 vs 上一版）',
-    pattern: /(「镜像 tag：)[\d.]+(」却沿用 )[\d.]+( 的镜像)/g,
-    replace: '$1__V__$2__PREV__$3',
   },
 
   // ── 界面兜底版本号（后端没下发 site.version 时显示） ─────────────────────
@@ -289,11 +271,11 @@ function walk(dir, out = []) {
 const relOf = (filePath) => path.relative(REPO_ROOT, filePath).split(path.sep).join('/')
 
 // ── 规则执行 ───────────────────────────────────────────────────────────────
-function buildReplace(slot, version, prev) {
-  return slot.replace.replaceAll('__V__', version).replaceAll('__PREV__', prev || version)
+function buildReplace(slot, version) {
+  return slot.replace.replaceAll('__V__', version)
 }
 
-function readSlotValue(slot, text, version, prev) {
+function readSlotValue(slot, text) {
   const probe = new RegExp(slot.pattern.source, slot.pattern.flags.replace('g', ''))
   const match = probe.exec(text)
   return match ? match[0] : null
@@ -319,13 +301,13 @@ function rewriteLockfile(text, version) {
  * 对单个文件应用槽位规则。
  * @returns {{ text: string, hits: { label: string, from: string, to: string }[] }}
  */
-function applySlotsToFile(relPath, text, version, prev) {
+function applySlotsToFile(relPath, text, version) {
   let next = text
   const hits = []
   for (const slot of SLOTS) {
     if (!slotAppliesTo(slot, relPath)) continue
-    const before = readSlotValue(slot, next, version, prev)
-    const replaced = next.replace(slot.pattern, buildReplace(slot, version, prev))
+    const before = readSlotValue(slot, next)
+    const replaced = next.replace(slot.pattern, buildReplace(slot, version))
     if (replaced !== next) {
       hits.push({ label: slot.label, from: before || '(未匹配到旧值)', to: changedSnippet(slot, replaced, version) })
       next = replaced
@@ -348,50 +330,16 @@ function changedSnippet(slot, text, version) {
   return match ? match[0].trim() : version
 }
 
-function collectVersions(texts) {
-  const counts = new Map()
-  const bump = (value) => {
-    if (!value || !ONLY_DIGITS_VERSION.test(value)) return
-    counts.set(value, (counts.get(value) || 0) + 1)
-  }
-  const tokenRe = new RegExp(VER, 'g')
-  for (const { relPath, text } of texts) {
-    for (const slot of SLOTS) {
-      if (!slotAppliesTo(slot, relPath)) continue
-      const global = new RegExp(slot.pattern.source, `${slot.pattern.flags.replace('g', '')}g`)
-      for (const match of text.matchAll(global)) {
-        // 一处槽位可能同时含「上一版 + 目标版」（deploy.sh 的示意注释），逐个计入。
-        const versions = match[0].match(tokenRe) || []
-        const names = match[0].matchAll(/:\s*"(\d+\.\d+\.\d+)"/g)
-        const captured = [...names].map((item) => item[1])
-        for (const value of (captured.length ? captured : versions)) bump(value)
-      }
-    }
-    if (relPath === 'bun.lock') {
-      const lines = text.split('\n')
-      for (let index = 1; index < lines.length; index += 1) {
-        if (/^\s+"version": "(\d+\.\d+\.\d+)",\s*$/.test(lines[index]) && /^\s+"name": /.test(lines[index - 1])) {
-          bump(lines[index].match(/"(\d+\.\d+\.\d+)"/)[1])
-        }
-      }
-    }
-  }
-  return counts
-}
-
 // ── 主流程 ─────────────────────────────────────────────────────────────────
 const [, , rawVersion, ...rest] = process.argv
 const flags = new Set(rest.filter((arg) => arg.startsWith('--')))
-const prevIndex = rest.indexOf('--prev')
-const explicitPrev = prevIndex >= 0 ? rest[prevIndex + 1] : ''
 
 if (!rawVersion || flags.has('--help')) {
   console.log(
     [
-      '用法: bun homeos/scripts/set-version.mjs <版本> [--prev <上一版>] [--check] [--dry-run]',
+      '用法: bun homeos/scripts/set-version.mjs <版本> [--check] [--dry-run]',
       '',
       '  <版本>        目标版本，形如 0.7.2',
-      '  --prev <版本> 上一版；仅用于 deploy.sh 的优先级示意注释，默认自动推断',
       '  --check       只自检不改写（发现任何遗漏即非零退出）',
       '  --dry-run     打印将要改动的内容，但不落盘',
     ].join('\n'),
@@ -420,19 +368,12 @@ if (staleSlotFiles.length) {
 
 const files = walk(REPO_ROOT)
 
-// 上一版：优先 --prev，否则取「槽位里出现次数最多的非目标版本」。
 const versionTexts = files.map((filePath) => ({
   relPath: relOf(filePath),
   text: fs.readFileSync(filePath, 'utf-8'),
 }))
-const versionCounts = collectVersions(versionTexts)
-const inferredPrev = [...versionCounts.entries()]
-  .filter(([value]) => value !== version)
-  .sort((left, right) => right[1] - left[1])[0]?.[0]
-const prev = explicitPrev || inferredPrev || version
 
 console.log(`▶ 目标版本：${version}`)
-console.log(`  上一版（用于示意注释）：${prev}${explicitPrev ? '（--prev）' : inferredPrev ? '（自动推断）' : '（未知，沿用目标版）'}`)
 console.log(`  仓库根：${REPO_ROOT}`)
 console.log('')
 
@@ -443,7 +384,7 @@ let slotHits = 0
 const reports = []
 const nextByPath = new Map()
 for (const { relPath, text } of versionTexts) {
-  const { text: next, hits } = applySlotsToFile(relPath, text, version, prev)
+  const { text: next, hits } = applySlotsToFile(relPath, text, version)
   nextByPath.set(relPath, next)
   if (next === text) continue
   changedFiles += 1
@@ -463,7 +404,7 @@ console.log('')
 const strictLeftovers = []
 for (const { relPath } of versionTexts) {
   const text = nextByPath.get(relPath)
-  const { text: next, hits } = applySlotsToFile(relPath, text, version, prev)
+  const { text: next, hits } = applySlotsToFile(relPath, text, version)
   if (next !== text) strictLeftovers.push({ relPath, hits })
 }
 
@@ -477,7 +418,7 @@ for (const { relPath } of versionTexts) {
     // 占位符（`<新版本>` / `<上一个版本>` / `$VERSION` / `[:tag]`）不参与比较。
     if (/<[^>]*>|\$[A-Z_]+|\[:tag\]/.test(line)) return
     const tokens = line.match(new RegExp(VER, 'g')) || []
-    const stray = tokens.filter((token) => token !== version && !(relPath === 'ops/deploy/deploy.sh' && token === prev))
+    const stray = tokens.filter((token) => token !== version)
     if (stray.length) leaks.push({ relPath, line: lineIndex + 1, stray, text: line.trim() })
   })
 }

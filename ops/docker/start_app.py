@@ -72,7 +72,7 @@ def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) 
             raise SystemExit(
                 f'等待授权公钥超时（{timeout_seconds:.0f}s）：{client_keys_dir}（{detail}）。'
                 '分拆部署请确认主应用能访问 APP_LICENSE_SERVER_URL（启动时会自动取回公钥）；'
-                '同机部署请确认商店已启动且 docker-compose.app.shared.yml 挂载了共享公钥卷；'
+                '同机部署请确认商店已启动且 docker-compose.yml 挂载了共享公钥卷；'
                 '目录与 PEM 权限须为 644。'
             )
         time.sleep(0.5)
@@ -92,8 +92,8 @@ def main() -> None:
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
         raise SystemExit(
             '未设置 APP_LICENSE_SERVER_URL。'
-            '分拆部署请传 --license-server http://<商店IP>:8802；'
-            '同机部署请用 --role all（会叠加 docker-compose.app.shared.yml 注入商店内网地址）。'
+            '客户机请用 docker-compose.app.yml（里面已写好商店地址）；'
+            '同机部署用 docker-compose.yml（商店地址走容器内网服务名，已注入）。'
         )
 
     app_port = environment.get("APP_PORT", "8801").strip() or "8801"

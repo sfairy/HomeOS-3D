@@ -100,7 +100,7 @@ _PLACEHOLDER_HOSTS = frozenset(
 
 
 def _validate_deploy_base_url(value: str) -> None:
-    """校验一键部署的脚本托管地址。空串合法（表示整块不显示）。
+    """校验「一键部署」面板的静态托管目录地址。空串合法（表示整块不显示）。
 
     这里只拦「明显不能用」的写法。localhost / 内网地址**允许**保存：本地联调与
     内网部署是真实存在的用法（支付宝回调地址另有更严的校验，因为那是渠道要来访问的）。
@@ -111,15 +111,15 @@ def _validate_deploy_base_url(value: str) -> None:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="一键部署脚本地址必须是完整的 http(s):// 地址，留空表示不显示这块。",
+            detail="一键部署地址必须是完整的 http(s):// 地址，留空表示不显示这块。",
         )
     host = (parsed.hostname or "").strip().lower()
     if host in _PLACEHOLDER_HOSTS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
-                f"「{host}」是文档占位域名，不是你的服务器。请填写真正托管 install.sh 的地址，"
-                "或留空以隐藏「一键部署」整块。"
+                f"「{host}」是文档占位域名，不是你的服务器。请填写真正托管客户机编排文件"
+                "（docker-compose.app.yml）的地址，或留空以隐藏「一键部署」整块。"
             ),
         )
 

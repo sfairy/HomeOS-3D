@@ -1,7 +1,7 @@
 # HomeOS 主应用后端（backend/src/）
 
 FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、互不 import**。
-发行版把本目录编译成 Cython `.so`（源码不随镜像分发），详见 [ops/deploy/BUILD.md](../../../ops/deploy/BUILD.md)。
+发行版把本目录编译成 Cython `.so`（源码不随镜像分发），详见 [ops/BUILD.md](../../../ops/BUILD.md)。
 
 ## 包名：源码态 `src`，镜像里 `app`
 

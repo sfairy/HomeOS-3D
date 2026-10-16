@@ -1,7 +1,7 @@
 # 镜像构建细节
 
 README 的「从源码构建镜像」只给命令；这份文档解释那条命令**为什么长这样**，以及出问题时的处置。
-只想把镜像跑起来的话看 [README](../../README.md) 与 [PRODUCTION.md](PRODUCTION.md) 就够了。
+只想把镜像跑起来的话看 [README](../README.md) 就够了。
 
 ## 两阶段：先产出 dist/，再组装镜像
 
@@ -50,10 +50,10 @@ python3 ops/build.py image --project store --tag homeos-store:local
 
 ## 基础镜像的版本真源
 
-默认基础镜像写在**唯一真源** [`ops/docker-pins.json`](../docker-pins.json)（`upstream_tag` 与
-`digest` 分开两行），并写进 `Dockerfile` 的 `ARG` 默认值与 `docker-compose.store.public.yml`
-的公网 Caddy 兜底值。升级基础镜像时改真源，并同步更新 Dockerfile / compose 中的引用 ——
-这三处是人工对账，没有脚本挡着。
+默认基础镜像写在**唯一真源** [`ops/docker-pins.json`](docker-pins.json)（`upstream_tag` 与
+`digest` 分开两行），并写进 `Dockerfile` 的 `ARG` 默认值与 `docker-compose.yml` 里那段
+「可选：公网接入」的 caddy 镜像。升级基础镜像时改真源，并同步更新 Dockerfile / compose 中
+的引用 —— 这三处是人工对账，没有脚本挡着。
 
 ### 构建期工具的精确版本
 

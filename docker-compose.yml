@@ -1,0 +1,224 @@
+# HomeOS —— 开发者 / 管理员部署（授权商店 + 主应用，一份文件）
+#
+#   docker compose up -d
+#
+# 这份是**你（开发 / 运营）自己这台**用的：商店与主应用一起起，开箱即用。
+# 发给客户的那份是 docker-compose.app.yml（只有主应用，填两行商店地址即可）。
+# 两份同项目名 / 同服务名 / 同卷名，所以客户机将来若想换成这份也不会换错数据。
+#
+# 自包含：不需要 .env、不需要脚本、不依赖仓库其余部分，值全部写死在文件里，
+# 所以也可以直接粘进 NAS（飞牛 / 群晖 / unRAID）的 Docker 界面「项目」里 —— 界面不读 .env，
+# 占位符反而要在界面里手填一堆。
+#
+# 两个服务：
+#   homeos-store  授权商店：发授权公钥、发激活码、代发主应用注册用的邮箱验证码。
+#                 客户机的 docker-compose.app.yml 会连到它，所以这台的地址别随便换。
+#   homeos        主应用（就是你要用的那套面板）。
+#
+# 版本用 :latest 跟随最新发布；想钉版就换成具体 tag（amd64 / arm64 同一份 tag，Docker 按
+# 宿主架构自动选）。已发布的 tag 见 https://github.com/sfairy/HomeOS-3D/pkgs/container/homeos
+#
+# ---------------------------------------------------------------- 用之前只需改一处
+# 把下面标了 ← 的那行换成这台机器的局域网 IP（或域名），示例值 192.168.1.20 是占位。
+# 注意区分两个地址：
+#   APP_LICENSE_SERVER_URL  容器**自己**去连商店，同机部署走容器内网服务名，不用改
+#   APP_STORE_URL           浏览器点「忘记密码 / 商店」时跳转的目标，必须是浏览器打得开的地址
+#
+# 占用端口：8801 / 8803（主应用 HTTP / 内置 HTTPS）、8802 / 8804（商店 HTTP / 内置 HTTPS）。
+# 冲突时改 `ports:` 左侧的宿主端口即可（容器内端口不变）。
+#
+# ---------------------------------------------------------------- 首次启动
+# ① 先建 /host 符号链接（必须在第一次 up -d **之前**，否则 Docker 会把路径建成目录，
+#    之后再也 ln 不上去，授权指纹退化成可拷贝的兜底 ID）：
+#      sudo mkdir -p /host/etc /host/sys/class/dmi
+#      sudo ln -sfn /etc/machine-id   /host/etc/machine-id
+#      sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
+# ② docker compose up -d（或界面里启动），等两个容器 healthy。
+# ③ 创建商店管理员：商店还没有管理员时，启动日志里有引导密钥
+#      docker logs homeos-store | grep -A4 '引导密钥'
+#    打开 http://192.168.1.20:8802/setup 填入（在商店本机用 localhost 打开可留空）。
+# ④ 商店前台注册一个客户账号：http://192.168.1.20:8802/user/authentication/register
+#    验证码默认走**日志**（STORE_MAIL_MODE=log，见下），取码：
+#      docker logs homeos-store | grep 验证码
+# ⑤ 后台 http://192.168.1.20:8802/admin/licenses（「激活码」页）给这个邮箱发一个激活码。
+#    注意该页要求邮箱**已有商店账号**（否则报「该邮箱尚未注册账号」），所以第 ④ 步不能跳。
+#    发给客户时，把 ② 里那份 docker-compose.app.yml 连同这个地址和激活码一起交出去。
+# ⑥ 主应用打开 http://192.168.1.20:8801/register 注册本机账号（验证码同样在商店日志里），
+#    随后按提示填第 ⑤ 步的激活码。（HTTPS 入口 https://192.168.1.20:8803，自签证书点继续访问。）
+#
+# ---------------------------------------------------------------- 公网商店（卖授权 / 跨网络）
+# 客户机分布在不同网络、或要收款（支付宝 / 微信的异步回调必须公网可达）时，需要真实域名 +
+# 可信证书 HTTPS（镜像内置的 8804 是自签，客户机与支付平台都不认）。
+#
+# 看到下面的 services: 里那段「可选：公网接入」——取消注释 + 改域名即可；
+# 同时按商店 environment 里标的四行改成公网口径。前提与验证见 ops/deploy/PUBLIC-ACCESS.md。
+#
+# ---------------------------------------------------------------- 升级 / 回滚
+# 改镜像 tag（或就用 :latest）后：
+#   docker compose pull && docker compose up -d
+# 只重启容器不会换镜像；**永远不要** `docker compose down -v`（那会连数据卷一起删）。
+#
+# 数据卷名都带项目名 homeos 前缀（见文件末尾 volumes:）。从更早的多文件编排迁过来时注意
+# 商店侧卷名会变（旧的 `homeos-store_*` → 新的 `homeos_*`），直接切会看到空商店；
+# 需要保留就先把旧卷内容拷进新卷再启动。主应用侧卷名不变，可直接沿用。
+#
+# 数据/端口/前端目录等默认值镜像里都有（/data、/data/backups、8801、/app/dist），故不写。
+
+name: homeos
+
+services:
+  homeos-store:
+    image: ghcr.io/sfairy/homeos-store:latest
+    container_name: homeos-store
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      # 8802：HTTP 直连（客户机与浏览器都用它）；8804：内置 Caddy 的内网 HTTPS 入口。
+      # 启用下面的「公网接入」时，把这两行改成回环（"127.0.0.1:8802:8802"），公网只留 80/443。
+      - "8802:8802"
+      - "8804:8804"
+    environment:
+      APP_ENVIRONMENT: production
+      STORE_DATA_DIR: /data
+      # 授权密钥：空卷也没关系，启动器会在首次启动时生成并同步公钥镜像。
+      STORE_LICENSE_KEYS_DIR: /data/license-keys
+      # 公钥镜像目录：主应用只读挂载它（同机部署不必走网络取回公钥）。
+      APP_CLIENT_KEYS_DIR: /data/client-keys
+      STORE_HOST: 0.0.0.0
+      STORE_PORT: "8802"
+      # 内网 HTTP/HTTPS 都能登录，所以是 false；只走 HTTPS 时改 true。
+      STORE_COOKIE_SECURE: "false"
+      STORE_TRUSTED_PROXIES: 127.0.0.1,::1
+      # 验证码投递方式。log = 只写日志（docker logs homeos-store | grep 验证码），
+      # 适合还没配 SMTP 的首装；配好 SMTP 在后台「站点配置 → 邮件」切到 smtp 即可，
+      # 也可以在这里直接写 smtp 并补 STORE_SMTP_* 环境变量。
+      STORE_MAIL_MODE: log
+      # 商店定时问 GitHub 拿最新版本（客户机在内网只问商店）。这台出不了外网就填 "0" 关掉，
+      # 否则会周期性在日志里留一条 GitHub 连接失败。
+      # STORE_RELEASE_SYNC_INTERVAL_SECONDS: "21600"
+      #
+      # ↑ 启用下面的「公网接入」时，上面四行要一起改（compose 没法按段条件化 env）：
+      #   STORE_BASE_URL: https://<商店域名>          # 支付回调按它推导
+      #   STORE_COOKIE_SECURE: "true"                # 公网只走 HTTPS
+      #   STORE_TRUSTED_PROXIES: 172.16.0.0/12       # 反代在容器之外了
+      #   UVICORN_FORWARDED_ALLOW_IPS: 172.16.0.0/12
+    volumes:
+      - homeos-store-data:/data
+      - homeos-license-keys:/data/license-keys
+      - homeos-client-keys:/data/client-keys
+    networks:
+      - homeos-net
+    healthcheck:
+      # 与镜像内 HEALTHCHECK 对齐：商店和内置反代都要活着才算健康
+      # （HTTP 直连端口此时可能仍然可用，所以必须单独探一次 HTTPS）。
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8802/healthz >/dev/null && curl -fsSk https://localhost:8804/healthz >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  homeos:
+    image: ghcr.io/sfairy/homeos:latest
+    container_name: homeos
+    # 固定 hostname：授权实例指纹在缺少机器/主板标识时会把容器 hostname 编进去，
+    # 换掉它等于换设备。别改这行。
+    hostname: homeos
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # 商店先 healthy 再起主应用：公钥镜像已写好，省掉首次启动的取回等待。
+    depends_on:
+      homeos-store:
+        condition: service_healthy
+    ports:
+      # 8801：HTTP 直连；8803：镜像内置 Caddy 的 HTTPS 入口（自签证书）。
+      - "8801:8801"
+      - "8803:8803"
+    environment:
+      APP_ENVIRONMENT: production
+      # 容器内部直连商店：同一个 compose 项目里用**服务名**解析即可，不必走宿主 IP。
+      APP_LICENSE_SERVER_URL: http://homeos-store:8802
+      # ← 改：商店的**浏览器入口**（登录页「忘记密码」「商店」按它跳转）。必须是浏览器
+      # 打得开的地址，所以用宿主 IP / 域名，不能用容器服务名。
+      # 留空会退回 APP_LICENSE_SERVER_URL 的值 —— 那是容器服务名，浏览器打不开，别留空。
+      APP_STORE_URL: http://192.168.1.20:8802
+      # 公钥目录改挂商店写出的共享卷（只读）：这条路径不联网、也不写盘。
+      APP_CLIENT_KEYS_DIR: /shared-keys
+      APP_COOKIE_SECURE: "false"
+      # 内置反代就在同容器回环上：只信回环，**不要**放宽到 docker 网段。
+      APP_TRUSTED_PROXIES: 127.0.0.1,::1
+      UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1
+    volumes:
+      - homeos-data:/data
+      - homeos-secrets:/run/secrets
+      - homeos-client-keys:/shared-keys:ro
+      # 授权实例指纹的来源（宿主标识）。**必须先建好符号链接**，见文件头 ①。
+      - /host/etc/machine-id:/host/etc/machine-id:ro
+      - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
+    networks:
+      - homeos-net
+    healthcheck:
+      # 应用和镜像内置反代都要活着才算健康（HTTP 直连端口可能仍可用，故单独探一次 HTTPS）。
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 可选：公网接入（真实域名 + 可信证书 HTTPS）
+  #
+  # 客户机分布在不同网络、或你要收款（支付宝 / 微信的异步回调必须公网可达）时，把下面这一
+  # 整段取消注释（含文件末尾 volumes: 里那两行），并替换 <商店域名> / <证书通知邮箱>。
+  # 公网只留 80 / 443；商店自身端口请改成回环（见上面 homeos-store 的 ports 注释）。
+  #
+  # 为什么不能直接用镜像内置的 8804：那是 Caddy 内部 CA 的**自签**证书，客户机里的主应用
+  # （httpx / urllib 按系统 CA 校验）会直接拒绝，支付平台也不认。
+  #
+  # 同时必须按上面 homeos-store 的 environment 里标的那四行改成公网口径
+  # （STORE_BASE_URL / STORE_COOKIE_SECURE / STORE_TRUSTED_PROXIES /
+  #  UVICORN_FORWARDED_ALLOW_IPS —— compose 没法按段条件化 env，所以是「改」不是「加」）。
+  #
+  # caddy-public:
+  #   # 按 digest 钉死（真源 ops/docker-pins.json）。这个容器在**公网**上（80/443），并且
+  #   # 握着 ACME 账号与证书：只写 `caddy:2.11.4-alpine` 是可变引用，上游重推 tag 后同一份
+  #   # compose 会拉起成分不同的入口进程。钉的是多架构清单摘要，amd64 / arm64 都能解析。
+  #   image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+  #   container_name: homeos-store-caddy
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - homeos-store
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   environment:
+  #     STORE_DOMAIN: <商店域名>
+  #     # Caddy 的 email 指令不接受空值（空会让配置解析失败），所以必填。
+  #     ACME_EMAIL: <证书通知邮箱>
+  #   volumes:
+  #     - ./ops/deploy/Caddyfile.public.example:/etc/caddy/Caddyfile:ro
+  #     # 证书与 ACME 账号数据：容器重建不丢，删卷会重新申请（可能触发 ACME 限流）。
+  #     - caddy-public-data:/data
+  #     - caddy-public-config:/config
+  #   networks:
+  #     - homeos-net
+  #   # 改完还是同一条命令：
+  #   #   docker compose up -d
+  #   # 验证、回调地址与排错见 ops/deploy/PUBLIC-ACCESS.md。
+  # ─────────────────────────────────────────────────────────────────────────────
+networks:
+  # 固定名字：公网接入段里的 caddy-public 也加入这个网络才能反代到商店。
+  homeos-net:
+    name: homeos-net
+
+volumes:
+  # 商店：库、订单、审计与授权私钥
+  homeos-store-data:
+  homeos-license-keys:
+  # 商店写、主应用只读的授权公钥镜像
+  homeos-client-keys:
+  # 主应用：数据（含 backups）与签名密钥
+  homeos-data:
+  homeos-secrets:
+  # 用到上面的「公网接入」段时，把这两行也取消注释：
+  # caddy-public-data:
+  # caddy-public-config:

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 源码态启动主应用后端（非 Docker 生产路径）。
-# Docker 一键部署请用仓库根：./ops/deploy/deploy.sh
+# Docker 部署请用仓库根的编排文件：docker-compose.yml（管理员这台：商店 + 主应用）、
+# docker-compose.app.yml（客户机：只有主应用）
 #
 # 用法：
 #   bash deploy/run-backend.sh         # 或：bun run --cwd homeos start:prod

@@ -1,82 +1,78 @@
-# HomeOS 主应用 —— 独立部署（给客户的机器，可单独跑，不需要商店在同一台机器）
+# HomeOS 主应用 —— 客户机部署（发给客户的就是这一份）
 #
-#   ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802
+#   docker compose -f docker-compose.app.yml up -d
 #
-# 与商店同机部署时叠加 docker-compose.app.shared.yml（deploy.sh --role all 会自动加）。
+# 这份**只有主应用**，用于「厂商机跑商店 + 每台客户机跑主应用」的拓扑：授权公钥由主应用启动时
+# 向商店取回（落到数据卷 /data/client-keys），所以不需要商店在本机，也不需要共享卷。
+# 厂商 / 管理员自己那台（商店 + 主应用一起起）用 docker-compose.yml。
+#
+# 自包含：不需要 .env、不需要脚本、不依赖仓库其余部分，值全部写死在文件里。
+# 本项目名固定为 homeos，卷名与管理员那份一致（homeos_homeos-data / homeos_homeos-secrets）。
+#
+# 版本用 :latest 跟随最新发布；想钉版就换具体 tag。已发布的 tag 见
+# https://github.com/sfairy/HomeOS-3D/pkgs/container/homeos
+#
+# ---------------------------------------------------------------- 用之前只需改一处
+# 把下面标了 ← 的两行换成厂商给你的**商店**地址（内网 IP 或公网域名，两者通常同一个）。
+# 不要填 https://<商店IP>:8804：那是商店内置反代的自签证书，本容器会拒绝。
+# 商店上了真实证书（公网接入）就用它的域名，见 ops/deploy/PUBLIC-ACCESS.md。改完再往上滚一眼
+# 端口：8801（HTTP）/ 8803（内置 HTTPS），冲突就改 `ports:` 左侧。
+#
+# ---------------------------------------------------------------- 首次启动
+# ① 先建 /host 符号链接（必须在第一次 up -d **之前**，否则 Docker 会把路径建成目录，
+#    之后再也 ln 不上去，授权指纹退化成可拷贝的兜底 ID）：
+#      sudo mkdir -p /host/etc /host/sys/class/dmi
+#      sudo ln -sfn /etc/machine-id   /host/etc/machine-id
+#      sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
+# ② docker compose -f docker-compose.app.yml up -d，等容器 healthy（首次会向商店取回授权公钥）。
+# ③ 浏览器打开 http://<本机地址>:8801/register 注册本机唯一账号 —— 需要邮箱验证码，而验证码由
+#    **商店**代发（厂商机日志里取码，除非厂商配了 SMTP），所以这台必须能出站访问商店的 8802。
+# ④ 注册后未激活会跳 /activate，填厂商给的激活码即完成绑定。
+#    （HTTPS 入口 https://<本机地址>:8803，自签证书点「继续访问」。）
+#
+# ---------------------------------------------------------------- 升级 / 备份
+#   docker compose -f docker-compose.app.yml pull && docker compose -f docker-compose.app.yml up -d
+# 只重启容器不会换镜像；升级不动数据卷；**永远不要** `down -v`（会连卷一起删）。
+# 数据在 homeos_homeos-data（含 backups 与取回的公钥缓存）；homeos_homeos-secrets 是签名密钥。
+# 授权是 1 激活码 : 1 设备，换机器 / 改 hostname / 改 /host 挂载都会换指纹，需厂商后台解绑。
 
 name: homeos
 
 services:
   homeos:
-    image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos:latest}
+    image: ghcr.io/sfairy/homeos:latest
     container_name: homeos
     # 固定 hostname：授权实例指纹在缺少机器/主板标识时会把容器 hostname 编进去，
-    # 换掉它等于换设备。
+    # 换掉它等于换设备。别改这行。
     hostname: homeos
     restart: unless-stopped
-    # 容器内先转 SIGTERM 给 uvicorn（优雅关连接）再停 Caddy，最多各 10s；
-    # 比 docker 默认的 10s 宽裕，避免收尾未完成就被 SIGKILL。
     stop_grace_period: 30s
     ports:
-      # 8801：HTTP 直连备用；8803：镜像内置 Caddy 的内网 HTTPS 入口。
-      - "${APP_PUBLISH_PORT:-8801}:8801"
-      - "${APP_PROXY_PUBLISH_PORT:-8803}:8803"
+      # 8801：HTTP 直连；8803：镜像内置 Caddy 的 HTTPS 入口（自签证书）。
+      - "8801:8801"
+      - "8803:8803"
     environment:
-      # 生产标记与授权门禁：镜像已内置 APP_ENVIRONMENT=production，这里显式透出，
-      # 让宿主可以用 .env 覆盖（例如拿生产镜像跑演示）。
-      # LICENSE_REQUIRED 留空即按环境标记取默认（生产=授权门禁开启）；置 0 可临时关闭排障。
-      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
-      LICENSE_REQUIRED: ${LICENSE_REQUIRED:-}
-      APP_DATA_DIR: /data
-      # homeos 后端读 HOMEOS_* 口径；APP_* 是镜像内启动器与 compose 的既有变量名，
-      # 两者指向同一处，避免升级时因为改名而换错数据目录。
-      HOMEOS_DATA_DIR: /data
-      HOMEOS_FRONTEND_DIR: /app/dist
-      HOMEOS_IMAGE_DIR: /app/image
-      APP_PORT: "8801"
-      HOMEOS_PORT: "8801"
-      APP_BASE_URL: ${APP_BASE_URL:-}
-      # 商店的**浏览器入口**（登录页「忘记密码」「商店」按它跳转）。
-      # 留空时前端回退到本机默认；分拆部署用 deploy.sh --license-server 时会与
-      # APP_LICENSE_SERVER_URL 一并写入（通常填同一个可达 URL）。
-      APP_STORE_URL: ${APP_STORE_URL:-}
-      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
-      # 应用自身的可信代理网段：只有同容器回环上的内置反代能作为对端，故固定收敛到回环。
-      # 放宽到 docker 网段等于让同网段任何容器都能伪造来源 IP（限流与审计会一起失效）。
-      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-127.0.0.1,::1}
-      APP_UPDATE_CHANNEL: docker
-      # 授权公钥目录：落在数据卷里，主应用启动时向授权服务器取回后缓存于此（离线也能起）。
+      APP_ENVIRONMENT: production
+      # ← 改：厂商授权服务器地址。留空会退回 http://127.0.0.1:8802（容器内没人监听），
+      # 表现为启动即退出、日志「取回授权公钥超时」。
+      APP_LICENSE_SERVER_URL: http://192.168.1.20:8802
+      # ← 改：商店的**浏览器入口**（登录页「忘记密码」「商店」按它跳转），通常同上。
+      APP_STORE_URL: http://192.168.1.20:8802
+      # 公钥落在这里（数据卷内），首次取回后商店不可达也能离线启动；丢掉会自动重新取回。
       APP_CLIENT_KEYS_DIR: /data/client-keys
-      # 关掉自动取回就填 off（此时必须由共享卷或预先放好的 PEM 提供公钥）。
-      APP_CLIENT_KEYS_FETCH: ${APP_CLIENT_KEYS_FETCH:-auto}
-      APP_HARDWARE_MACHINE_ID: ${APP_HARDWARE_MACHINE_ID:-}
-      APP_HARDWARE_BOARD_ID: ${APP_HARDWARE_BOARD_ID:-}
-      # 厂商授权服务器的公网地址。留空会退回 http://127.0.0.1:8802（容器内没人监听），
-      # 表现为授权一直连不上，所以独立部署必须填。
-      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-}
-      # uvicorn 的转发头信任范围。内置反代（Caddy）就在同容器的回环上，默认只信
-      # 回环即可；不要为「反代在别处」把它放宽到 docker 网段——那等于让同网段
-      # 任何容器都能改写来源 IP，限流与审计会一起失效。
-      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
+      # 内网反代下 HTTP(8801) 与 HTTPS(8803) 都要能登录，所以是 false；只走 HTTPS 改 true。
+      APP_COOKIE_SECURE: "false"
+      # 内置反代就在同容器回环上：只信回环，**不要**放宽到 docker 网段。
+      APP_TRUSTED_PROXIES: 127.0.0.1,::1
+      UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
-      # 授权公钥：主应用启动时从授权服务器 `GET /v2/keys` 取回，
-      # 落到数据卷 /data/client-keys；同机部署由 docker-compose.app.shared.yml
-      # 挂商店写出的共享卷（只读）。
-      # 宿主标识：授权实例指纹的来源（见 backend/src/license/hardware.py）。缺了也能起，
-      # 指纹退到 data/ 下的兜底 ID；deploy.sh --host-binds 会自动建这两个符号链接。
-      - type: bind
-        source: /host/etc/machine-id
-        target: /host/etc/machine-id
-        read_only: true
-      - type: bind
-        source: /host/sys/class/dmi/id
-        target: /host/sys/class/dmi/id
-        read_only: true
+      # 授权实例指纹的来源（宿主标识）。**必须先建好符号链接**，见文件头 ①。
+      - /host/etc/machine-id:/host/etc/machine-id:ro
+      - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
     healthcheck:
-      # 与镜像内 HEALTHCHECK 对齐：应用和镜像内置反代都要活着才算健康
-      # （HTTP 直连端口此时可能仍然可用，所以必须单独探一次 HTTPS）。
+      # 应用和镜像内置反代都要活着才算健康（HTTP 直连端口可能仍可用，故单独探一次 HTTPS）。
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]
       interval: 30s
       timeout: 5s

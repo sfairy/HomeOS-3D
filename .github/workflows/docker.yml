@@ -1,8 +1,10 @@
 name: Docker
 
 on:
-  # 本工作流只负责「构建并推送镜像」。部署不在 CI 里做：镜像推到 GHCR 后，
-  # 在目标机上跑 ops/deploy/deploy.sh（三种形态与跨机拓扑见 ops/deploy/SPLIT-DEPLOY.md）。
+  # 本工作流只负责「构建并推送镜像」。部署不在 CI 里做：镜像推到 GHCR 后，在目标机上用
+  # 仓库根的两份 compose 文件起容器（开发者 / 管理员这台 docker-compose.yml（含商店）、
+  # 客户机 docker-compose.app.yml）。公网接入不是第三个文件，而是 docker-compose.yml
+  # 里那段注释配置。
   workflow_dispatch:
 
 permissions:

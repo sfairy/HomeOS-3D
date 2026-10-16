@@ -14,7 +14,7 @@ defineProps<{ form: SettingsForm }>();
       <input v-model="form.logoUrl" class="hb-input is-mono" />
     </label>
     <label class="hb-field admin-grid__wide">
-      <span>一键部署脚本地址（账号中心授权卡展示；留空则不显示，无结尾斜杠）</span>
+      <span>一键部署文件地址（账号中心授权卡展示；留空则不显示，无结尾斜杠）</span>
       <input v-model="form.deployBaseUrl" class="hb-input is-mono" placeholder="https://example.com/deploy" />
     </label>
     <label class="hb-field admin-grid__full">
