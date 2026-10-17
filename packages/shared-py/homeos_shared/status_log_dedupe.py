@@ -53,6 +53,10 @@ FOLD_REPORT_AT = (10, 100, 1_000, 10_000, 100_000)
 #: 放行时补在行尾的说明
 FOLD_NOTE = "（同类已折叠 {count} 条）"
 
+#: 访问日志的日志器名：其详略由 ``http_access_log`` 单独决定，本模块一律放行
+#: （见 :class:`StatusLogDedupeFilter` 的说明）
+ACCESS_LOGGER = "uvicorn.access"
+
 #: 连接 / 启停生命周期文案：允许重复出现
 _LIFECYCLE_RE = re.compile(
     r"正在连接|已连接|连接已建立|已关闭|断开|重连|未连通|将在.*后重试|切换到外网|切换到局域网"
@@ -212,13 +216,35 @@ class StatusLogDedupeFilter(logging.Filter):
 
     ``env_var`` 由调用方给（主应用 ``LOG_STATUS_DEDUPE_MS``、商店 ``STORE_LOG_STATUS_DEDUPE_MS``）：
     共享模块不替任何一方决定读哪个变量名。
+
+    两类记录**一律放行**（各自有更明确的策略，本过滤器不该插手）：
+
+    - ``ACCESS_LOGGER``（``uvicorn.access``）：访问日志的详略由 ``http_access_log`` 决定。
+      实测漏掉这条的后果是 ``LOG_HTTP_ACCESS=all`` 也只剩 3 行 —— 浏览器 keep-alive 下
+      「同一条连接 = 同一个客户端端口」，30 次请求的归纳键相同，于是被这里折成一行，
+      而 ``all`` 的契约是「恢复 uvicorn 原样、逐条可见」（排障时要能逐条核对重试节奏）。
+    - ``never_fold_prefixes``：调用方点名的日志树（商店侧是支付与巡检：每一条都对应一笔
+      真实资金动作，条数本身就是信息，不能折）。
     """
 
-    def __init__(self, env_var: str, name: str = "homeos-status-dedupe") -> None:
+    def __init__(
+        self,
+        env_var: str,
+        name: str = "homeos-status-dedupe",
+        never_fold_prefixes: tuple[str, ...] = (),
+    ) -> None:
         super().__init__(name)
         self._env_var = env_var
+        self._never_fold_prefixes = never_fold_prefixes
+
+    def _passes_through(self, record: logging.LogRecord) -> bool:
+        if record.name == ACCESS_LOGGER:
+            return True
+        return any(record.name.startswith(prefix) for prefix in self._never_fold_prefixes)
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if self._passes_through(record):
+            return True
         decided = getattr(record, _DECIDED_ATTR, None)
         if decided is None:
             try:
@@ -250,6 +276,7 @@ class StatusLogDedupeFilter(logging.Filter):
 
 
 __all__ = [
+    "ACCESS_LOGGER",
     "DEFAULT_DEDUPE_MS",
     "FOLD_NOTE",
     "FOLD_REPORT_AT",

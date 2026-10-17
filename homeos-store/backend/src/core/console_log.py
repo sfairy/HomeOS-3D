@@ -44,7 +44,11 @@ import logging
 import sys
 
 from homeos_shared.status_log_dedupe import StatusLogDedupeFilter
-from homeos_shared.uvicorn_messages import localize_uvicorn_context, localize_uvicorn_message
+from homeos_shared.uvicorn_messages import (
+    is_uvicorn_logger,
+    localize_uvicorn_context,
+    localize_uvicorn_message,
+)
 
 #: 控制台行格式：时间、级别、logger 名、消息
 FORMAT = "%(asctime)s %(levelname)-7s %(name)s | %(message)s"
@@ -59,6 +63,10 @@ UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
 
 #: 重复状态去重的窗口变量（主应用侧是 ``LOG_STATUS_DEDUPE_MS``）
 STATUS_DEDUPE_ENV_VAR = "STORE_LOG_STATUS_DEDUPE_MS"
+
+#: **永不去重**的日志树：每一条都对应一笔真实资金动作或一条运营异常记录，
+#: 条数本身就是信息（少一条都可能意味着少一笔钱）。其余日志仍按窗口折叠。
+NEVER_FOLD_PREFIXES = ("src.payments", "src.ops.incidents")
 
 #: 标记自建 handler，便于幂等判断
 _HANDLER_FLAG = "_store_console_handler"
@@ -80,9 +88,16 @@ class StoreConsoleFormatter(logging.Formatter):
 
 
 class UvicornMessageFilter(logging.Filter):
-    """把 uvicorn 的英文启动/关闭文案翻成中文；未命中规则原样放行（不吞行）。"""
+    """把 uvicorn 的英文启动/关闭文案翻成中文；未命中规则或不是 uvicorn 的日志器时原样放行。
+
+    判 ``record.name`` 而不是只判文案：本过滤器挂在 root 与 uvicorn 的 handler 上，
+    业务日志（``src.*``）也会流经这里；只按文案匹配的话，一条恰好等于
+    ``Shutting down`` 的业务日志会被改写成中文，虽然罕见但没必要留这种可能。
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if not is_uvicorn_logger(record.name):
+            return True
         try:
             message = record.getMessage()
         except Exception:
@@ -98,7 +113,9 @@ def _console_handler(level: int) -> logging.Handler:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(StoreConsoleFormatter(FORMAT))
     # 去重判定缓存在记录上，与 root 的 handler 共享同一次判定（不会一边折叠一边漏出）
-    handler.addFilter(StatusLogDedupeFilter(STATUS_DEDUPE_ENV_VAR))
+    handler.addFilter(
+        StatusLogDedupeFilter(STATUS_DEDUPE_ENV_VAR, never_fold_prefixes=NEVER_FOLD_PREFIXES)
+    )
     handler.addFilter(UvicornMessageFilter())
     setattr(handler, _HANDLER_FLAG, True)
     return handler
@@ -143,6 +160,7 @@ def configure_console_logging(level: int = logging.INFO) -> None:
 
 __all__ = [
     "FORMAT",
+    "NEVER_FOLD_PREFIXES",
     "QUIET_LOGGERS",
     "STATUS_DEDUPE_ENV_VAR",
     "UVICORN_LOGGERS",
