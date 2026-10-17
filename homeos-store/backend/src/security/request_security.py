@@ -2,6 +2,7 @@
 """
 from __future__ import annotations
 
+import ipaddress
 import secrets
 from urllib.parse import urlsplit
 
@@ -22,6 +23,7 @@ __all__ = [
     "FORWARDED_HEADERS",
     "ClientAddress",
     "actual_request_scheme",
+    "browser_trustworthy_origin",
     "error_page_html",
     "expected_request_scheme",
     "forwarded_headers_present",
@@ -33,6 +35,10 @@ __all__ = [
     "same_origin_request",
     "secure_cookies_required",
 ]
+
+#: 会被浏览器当作「潜在可信来源」的主机名。回环 IP（``127.0.0.0/8`` / ``::1``）按地址判，
+#: 见 :func:`browser_trustworthy_origin`。
+TRUSTWORTHY_HOST_NAMES = frozenset({"localhost"})
 
 
 def _peer_host(request: Request) -> str:
@@ -135,6 +141,39 @@ def actual_request_scheme(request: Request) -> str:
         if forwarded_proto in {"http", "https"}:
             return forwarded_proto
     return (request.url.scheme or "http").lower()
+
+
+def browser_trustworthy_origin(request: Request) -> bool:
+    """浏览器是否会把本次响应当作「潜在可信来源」（potentially trustworthy origin）。
+
+    用来决定**哪些只在可信来源上生效的安全头值得发** —— 目前只有 ``Cross-Origin-Opener-Policy``：
+
+    - 判为可信（HTTPS，或 ``localhost`` / 回环地址 —— 这两个在明文下也算可信）：正常发送；
+    - 判为不可信（明文访问局域网 IP / 域名）：浏览器**会直接忽略**该头，并在控制台留一条
+      ``The Cross-Origin-Opener-Policy header has been ignored, because the URL's origin was
+      untrustworthy`` —— 发出去换不来任何防护，只会让看控制台的人以为部署配错了。
+
+    为什么不能用 :func:`request_is_https` 当判据：那个回答的是「本商店应当按 HTTPS 对待」，
+    在 ``STORE_COOKIE_SECURE=true`` 或 ``STORE_BASE_URL`` 是 ``https://`` 时**恒为真**
+    （公网接入的本机调试正是这种形态），拿它判断等于没判断。这里要的是「浏览器真正用的是哪一层」，
+    所以取 :func:`actual_request_scheme`（可信代理声明的 scheme 优先，否则看请求自身）。
+
+    已知边界：反代终止 TLS 却不同时透传 ``X-Forwarded-Proto`` 时，这里会判成明文而少发一个 COOP。
+    这种拓扑下浏览器大概率同样没把它当可信来源（同一份信息缺失），本项目也不依赖跨源隔离
+    （没有 ``SharedArrayBuffer``），故代价可接受；何况「透传 X-Forwarded-Proto」本就是公网接入的
+    硬要求（同源判定、Cookie 的 ``Secure`` 都读它，两份示例入口配置里都写明了必须透传）。
+    """
+    if actual_request_scheme(request) == "https":
+        return True
+    host = (request.url.hostname or "").strip().lower()
+    if not host:
+        return False
+    if host in TRUSTWORTHY_HOST_NAMES:
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def expected_request_scheme(request: Request) -> str:
@@ -320,6 +359,10 @@ def csp_header(nonce: str) -> str:
 
 def security_headers(request: Request) -> dict[str, str]:
     """商店所有响应统一加的安全头。
+
+    除 COOP 外都与来源可信与否无关（``nosniff`` / CSP / ``frame-ancestors`` / 权限策略等在明文
+    下同样生效），所以只有 COOP 需要按 :func:`browser_trustworthy_origin` 判断：它只在可信来源
+    上被浏览器采纳，明文访问局域网地址时发了也只会换来一条「origin was untrustworthy」提示。
     """
     nonce = str(getattr(request.state, "csp_nonce", "") or "")
     headers = {
@@ -328,8 +371,9 @@ def security_headers(request: Request) -> dict[str, str]:
         "Content-Security-Policy": csp_header(nonce),
         "X-Frame-Options": "DENY",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-        "Cross-Origin-Opener-Policy": "same-origin",
     }
+    if browser_trustworthy_origin(request):
+        headers["Cross-Origin-Opener-Policy"] = "same-origin"
     if request_is_https(request):
         headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return headers
