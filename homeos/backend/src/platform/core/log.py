@@ -108,6 +108,7 @@ _CONTEXT_ZH: dict[str, str] = {
     "homeos.ha_rest": "HA REST客户端",
     "homeos.ha_config": "HA配置",
     "homeos.ha_connector": "HA连接器",
+    "homeos.ha_setup": "HA连接配置",
     "homeos.ha_command_queue": "HA指令队列",
     "homeos.state_ingress_coalesce": "HA状态入站合并",
     "homeos.state_store.entity_area": "实体区域补全",
@@ -195,6 +196,9 @@ _CONTEXT_ZH: dict[str, str] = {
     "homeos.earthquake.place": "震中地名",
     "homeos.weather.linkage": "天气自动联动",
     "homeos.weather.watch": "天气监视",
+    # 商店 / 3D 交互
+    "homeos.store_discovery": "商店地址发现",
+    "homeos.interaction3d": "3D交互",
 }
 
 # uvicorn 文案与上下文名的真源在共享包（商店侧启动日志用同一份规则，避免一边中文一边英文）

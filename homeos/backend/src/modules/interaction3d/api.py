@@ -38,7 +38,7 @@ from ...schemas import HAServiceCallRequest
 
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("homeos.interaction3d")
 
 SCENE_SOURCE_KEY = 'interaction3dSource'
 

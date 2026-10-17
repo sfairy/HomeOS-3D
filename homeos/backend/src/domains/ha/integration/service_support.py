@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import logging
 
-#: 与拆分前同名（``service`` 模块的完整路径名）：各族写同一路日志，日志前缀不变。
-LOGGER = logging.getLogger(f"{__package__}.service")
+#: 各族写同一路日志。名字必须落在 ``homeos`` 树里：主应用只给 ``homeos.*`` 与 uvicorn
+#: 挂 handler（见 ``platform/core/log.py:configure_app_logging``），root 上没有 handler，
+#: 树外日志会落到 ``logging.lastResort`` —— 无时间戳 / 无 pid 的裸消息写 stderr，且只放行
+#: WARNING 以上。``homeos.ha_connector`` 在 ``log.py`` 的中文映射表里显示为「HA连接器」。
+LOGGER = logging.getLogger("homeos.ha_connector")
 HA_ENDPOINT_RECHECK_SECONDS = 60
 LIVE_EVENT_TYPES = ('state_changed', 'entity_registry_updated', 'device_registry_updated', 'area_registry_updated')
 INCREMENTAL_FLUSH_SECONDS = 10

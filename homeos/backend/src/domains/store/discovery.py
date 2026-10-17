@@ -30,7 +30,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("homeos.store_discovery")
 
 #: 商店侧的「我的对外地址」端点（相对商店根地址）。
 STORE_BASE_URL_PATH = '/store/v1/base-url'

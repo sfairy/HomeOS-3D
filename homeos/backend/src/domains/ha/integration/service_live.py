@@ -22,6 +22,10 @@ class HALiveMixin(HAConnectorHost):
     async def _run(self) -> None:
         attempt = 0
         backoff = self._reconnect_base_backoff()
+        # 重连期间只在「一轮全量同步成功之后」或「异常类型变了」时打完整堆栈：
+        # HA 停机时每轮都打一次 12k 堆栈（退避封顶 10s ≈ 每分钟 6 条），把控制台刷满却
+        # 没有新增信息。同一类故障的第二轮起降为一行摘要，堆栈仍由 _log_event 入库。
+        failure_kind: str | None = None
         while True:
             connection_id = None
             try:
@@ -33,6 +37,8 @@ class HALiveMixin(HAConnectorHost):
                 connection_id = connection.id
                 await self.refresh_persistent_entity_ids(ensure_states = False)
                 await self.sync_once(connection_id)
+                # 同步成功即视为已恢复：下一次失败重新给完整堆栈。
+                failure_kind = None
                 await self._live_connection(connection_id)
                 backoff = self._reconnect_base_backoff()
                 attempt = 0
@@ -45,7 +51,12 @@ class HALiveMixin(HAConnectorHost):
                 attempt += 1
                 await self._notify_connection('disconnected', error = str(error))
                 self._log_event('error', '连接', f'Home Assistant 连接异常：{error}', details = traceback.format_exc())
-                LOGGER.error('HA connector cycle failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
+                kind = type(error).__name__
+                if kind == failure_kind:
+                    LOGGER.warning('HA connector cycle failed (attempt %d): %s', attempt, _safe_text(str(error), limit = 500))
+                else:
+                    LOGGER.error('HA connector cycle failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
+                    failure_kind = kind
                 if connection_id:
                     await self._run_database(self._safe_record_error, connection_id, str(error))
                 await asyncio.sleep(backoff)

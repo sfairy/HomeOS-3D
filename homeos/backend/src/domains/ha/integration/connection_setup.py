@@ -15,7 +15,7 @@ from .client import HAClient, HAClientError, bypass_environment_proxy, normalize
 from .endpoints import HAEndpoint
 from .errors import connection_error_message, is_certificate_error
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("homeos.ha_setup")
 
 HA_ENDPOINT_PROBE_TIMEOUT_SECONDS = 2.5
 

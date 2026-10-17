@@ -17,7 +17,10 @@ import websockets
 
 from .control_pool import HAControlConfiguration, HAControlPool
 
-LOGGER = logging.getLogger(__name__)
+#: 必须挂在 ``homeos`` 树下：主应用的控制台 handler 只装在 ``homeos.*`` 与 uvicorn 上，
+#: 用 ``__name__`` 会得到 ``src.*``，冒到没有 handler 的 root 后走 ``logging.lastResort``
+#: （裸消息写 stderr、只放行 WARNING 以上）。
+LOGGER = logging.getLogger("homeos.ha_rest")
 
 
 class HAClientError(RuntimeError):
