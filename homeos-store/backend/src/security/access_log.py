@@ -25,7 +25,10 @@ from homeos_shared.http_access_log import MODE_OFF, HttpAccessLogFilter
 from homeos_shared.http_access_log import (
     install_http_access_log_filter as _install_http_access_log_filter,
 )
-from src.core.console_log import STATUS_DEDUPE_ENV_VAR
+
+# 相对导入：`src/` 下的模块在镜像里被编译进 `app` 包（绝对 `src.` 导入在产物中不存在，
+# 会被 ops/docker/compile_python.py 的 import 门禁挡下）。migrations/ 不受此限 —— 它不进镜像。
+from ..core.console_log import STATUS_DEDUPE_ENV_VAR
 
 #: 商店这一侧的访问日志详略变量（主应用侧是 ``LOG_HTTP_ACCESS``）
 HTTP_ACCESS_ENV_VAR = "STORE_LOG_HTTP_ACCESS"
