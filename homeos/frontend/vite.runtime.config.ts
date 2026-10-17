@@ -218,6 +218,13 @@ export default defineConfig({
     // 模块经 /api/v1/modules/interaction3d/* 下发；默认 base=/ 会把 modulepreload 写成
     // /assets/*.js，浏览器会打到主站根路径 404。关掉 preload 后只走相对 import。
     modulePreload: false,
+    /**
+     * 默认阈值 500 kB 会刷 `panel-renderer` 这条 530 kB 的告警：它是运行时模块
+     * （`/api/v1/modules/interaction3d/*` 按需下发）里给所有面板共用的渲染器，
+     * 只有真正打开面板时才拉，且已按源码路径切成 chunks/，再拆只会增加往返次数。
+     * 与主应用（1200）/ 商店（800）保持同一口径，别让一条已知无害的告警常驻。
+     */
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       input: entries,
       external: isRuntimeExternal,

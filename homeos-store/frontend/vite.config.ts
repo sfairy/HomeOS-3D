@@ -240,6 +240,11 @@ export default defineConfig(({ command }) => {
       fs: {
         allow: [path.join(repoRoot, "packages", "shared"), projectRoot],
       },
+      //: 不写 host 时 Vite 默认 `localhost`，macOS 上会解析成 ::1 只绑 IPv6：
+      //: 于是 dev.mjs 打印的 http://127.0.0.1:8806 连不上、ops/ports.mjs 的 IPv4 就绪探测
+      //: 也永远超时（误报「20 秒内未进入监听态」）。显式绑回环 IPv4；`bun run dev --lan`
+      //: 由 dev.mjs 传 `--host 0.0.0.0` 覆盖，不受影响。
+      host: "127.0.0.1",
       port: 8806,
       strictPort: true,
       proxy: {
