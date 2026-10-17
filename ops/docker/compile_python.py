@@ -71,6 +71,27 @@ def _precheck(sources: list[Path]) -> None:
         )
 
 
+def precheck_tree(root: Path) -> int:
+    """对单个「镜像源路径」跑一遍 import 门禁，返回扫到的文件数（给 push 阶段的 CI 复用）。
+
+    构建期走 ``compile_tree``（它内部也调 ``_precheck``），而 ``ops/ci/image_imports.py``
+    在 push 阶段按同一份清单扫一遍 —— 两边调的是**同一个** ``_precheck``，不会出现
+    「门禁过、构建炸」的两份实现漂移。
+
+    只在一个架构的手动发版（``.github/workflows/docker.yml`` 是 ``workflow_dispatch``）
+    里才炸的错，代价是「push 全绿、发版当场红」，所以这里把判定提前。
+    """
+    root = root.resolve()
+    if root.is_file():
+        sources = [root]
+    elif root.is_dir():
+        sources = _iter_sources(root)
+    else:
+        raise SystemExit(f"不是文件也不是目录：{root}")
+    _precheck(sources)
+    return len(sources)
+
+
 def _clean_caches(root: Path) -> None:
     for cache in sorted(root.rglob("__pycache__"), reverse=True):
         shutil.rmtree(cache, ignore_errors=True)

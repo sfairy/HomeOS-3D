@@ -157,7 +157,9 @@ RUN case "$PROJECT" in \
     && if [ -z "$version" ]; then \
          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \
        fi \
-    && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
+    # 这里同样用 if 而不是 `|| { … }`：`||` 会兜住整条 && 链的失败，链上更早的一步出错
+    # 也会打出「无法确定版本号」这条与真实原因无关的报错（理由详见末尾的 stray 断言）。
+    && if [ -z "$version" ]; then echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; fi \
     && printf '__version__ = "%s"\n' "$version" > /app/app/_version.py \
     && echo "后端构建版本：$version（$PROJECT → /app/app）" \
     && python /tmp/compile_python.py /app \
@@ -179,8 +181,11 @@ RUN case "$PROJECT" in \
     # 共享包必须真的编译到位。只断言 __init__（每个共享包都有），新增模块不必改这一行。
     && test -f /app/homeos_shared/__init__.*.so \
     # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md 都算加密没做完整；报出具体文件名便于排查。
+    # 刻意写成 `if` 而不是 `test -z "$stray" || { …; exit 1; }`：`||` 会兜住**整条 && 链**的失败，
+    # 于是链上任何一步出错（实测：compile_python 的 import 门禁拦下绝对 `src.` 导入）都会打这一行，
+    # 而那时 $stray 根本没被赋值 —— 报出来的是一条**空清单**，把排查方向带偏到「混入文件」。
     && stray="$(find /app/app /app/ops /app/homeos_shared -type f ! -name '*.so' -print)" \
-    && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
+    && if [ -n "$stray" ]; then echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; fi
 
 # 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净 /app 而非整个 rootfs。
 FROM scratch AS backend-export

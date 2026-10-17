@@ -245,3 +245,13 @@ jobs:
       # 而那正是这个锁要解决的问题。这里靠 sha256 指纹把它挡在合并之前。
       - name: Check requirements lock
         run: python3 ops/ci/python_lock.py verify
+
+      # 镜像包的导入门禁：镜像里源码目录被 `COPY <项目>/backend/src ./app` 改名成 app 包，
+      # 绝对 `src.` 导入在产物里根本没有这个包（构建期的 import 门禁会拦、漏过去运行期是
+      # ModuleNotFoundError）。判定不在这里重写 —— 脚本直接调构建期那份 `_precheck`。
+      # 放在这个 job 与上面同一条理由：已经有 python3，且纯静态、不联网、不编译。
+      # 不靠构建期门禁兜底是因为 `ops/build.py backend` 只在 docker.yml（**手动 dispatch**
+      # 的发版工作流）里跑：2026-10-17 的商店镜像正是 push 全绿、发版才红（store 两个架构
+      # 双双失败），排查时还被构建脚本那条会误报的断言带偏过一次。
+      - name: Check image import gate
+        run: python3 ops/ci/image_imports.py
