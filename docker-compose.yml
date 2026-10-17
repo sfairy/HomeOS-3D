@@ -38,8 +38,11 @@
 #      sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 # ② 确认域名已指向本机、入口放行 80/443，然后 docker compose up -d（或界面里启动），
 #    等两个容器 healthy。
-# ③ 创建商店管理员：商店还没有管理员时，启动日志里有引导密钥
-#      docker logs homeos-store | grep -A4 '引导密钥'
+# ③ 创建商店管理员：商店还没有管理员时，启动日志里有引导密钥（**只打印一次**，
+#    别用 docker logs -f 边刷边找；成功请求已被收成只打 4xx/5xx，横幅不会被顶走）
+#      docker logs homeos-store 2>&1 | grep -m1 SETUP-TOKEN=
+#    取不到（日志已轮转 / 服务已初始化过）时读文件：
+#      docker exec homeos-store cat /data/setup-token
 #    打开 https://homelifepay.iepose.cn/setup 填入（本机调试也可以走
 #    http://127.0.0.1:8802/setup；注意 STORE_COOKIE_SECURE 已开，会话 Cookie 带 Secure，
 #    个别浏览器会拒收 http 下的 Secure Cookie —— 那就改用 https://127.0.0.1:8804/setup）。
