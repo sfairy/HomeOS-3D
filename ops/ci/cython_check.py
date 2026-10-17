@@ -73,8 +73,11 @@ def _cythonize_one(path: str) -> str | None:
     而不是记一条诊断，整批调用只会在第一个失败处中断，后面的问题被掩盖。
     生成的 .c 落到临时目录，不污染工作树。
     """
-    from Cython.Build import cythonize
-    from setuptools import Extension
+    # 构建期依赖：只在「装了 Dockerfile 里钉的那两个版本」的环境里可导入（CI 的 ruff job
+    # 与镜像构建阶段），本地 .venv-store 刻意不带它们 —— 这是本文件存在的意义，不是缺失。
+    # 与 ops/docker/compile_python.py 的开头两行同一处理方式。
+    from Cython.Build import cythonize  # type: ignore[import-not-found]
+    from setuptools import Extension  # type: ignore[import-not-found]
 
     target = Path(path)
     module = f'_cython_check_{abs(hash(path))}'
@@ -96,7 +99,9 @@ def _cythonize_one(path: str) -> str | None:
 def main() -> None:
     pinned = pinned_cython_version()
     try:
-        import Cython
+        # 同上：构建期依赖，本地 venv 里没有是常态 —— daemon 里的版本检查就是给这种
+        # 「忘了装 / 装错版本」用的，不能让静态分析先报一条噪音把真正的提示淹掉。
+        import Cython  # type: ignore[import-not-found]
     except ModuleNotFoundError:
         raise SystemExit(f'未安装 Cython；先执行 pip install "cython=={pinned}"') from None
     if Cython.__version__ != pinned:
