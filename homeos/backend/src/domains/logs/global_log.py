@@ -103,7 +103,11 @@ def _safe_text(value: Any, *, limit: int) -> str:
 
 def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
     result = {}
-    for key, item in (value or {}).items():
+    # 先落到局部变量再迭代：Cython 3.3.0 会在 `(value or {}).items()` 这种
+    # 「带 `dict[...] | None` 注解的参数 + or 兜底 + 直接 .items()」的组合上崩在
+    # AnalyseExpressionsTransform（SimpleCallNode.args 为 None），构建期直接失败。
+    source = value or {}
+    for key, item in source.items():
         if key not in CONTEXT_KEYS or item is None:
             continue
         if isinstance(item, (int, float, bool)):

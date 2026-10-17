@@ -230,7 +230,10 @@ class MoviePilotProxyService:
         logger.debug("代理 %s 请求到:%s", method, target_url)
 
         headers = filter_forward_headers(incoming_headers)
-        params = {str(key): value for key, value in (query or {}).items()}
+        # 同 safe_context：带 `dict[...] | None` 注解的参数直接 `(query or {}).items()`
+        # 会让 Cython 3.3.0 在 AnalyseExpressionsTransform 里崩溃，先落局部变量绕开。
+        query_items = query or {}
+        params = {str(key): value for key, value in query_items.items()}
         try:
             response = await self._http_fetch(
                 target_url,
@@ -263,7 +266,9 @@ FORWARD_HEADER_EXCLUDE = frozenset(
 def filter_forward_headers(incoming_headers: dict[str, Any] | None) -> dict[str, str]:
     """过滤待转发的请求头（移除 host / connection 等）。"""
     out: dict[str, str] = {}
-    for key, value in (incoming_headers or {}).items():
+    # 同上：Cython 3.3.0 不接受带 `dict[...] | None` 注解的参数直接 `(x or {}).items()`。
+    headers = incoming_headers or {}
+    for key, value in headers.items():
         if key.lower() in FORWARD_HEADER_EXCLUDE:
             continue
         if isinstance(value, str):
