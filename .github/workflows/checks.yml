@@ -169,37 +169,74 @@ jobs:
           docker compose -f docker-compose.app.yml config -q
 
       - name: Compose config（内置 Caddy 入口段取消注释后）
+        env:
+          # 该段里的 ACME_EMAIL 是 `${ACME_EMAIL:?…}` 必填占位符（邮箱不能给默认值）：
+          # 不注入的话 `compose config` 会在插值阶段先失败，掩盖掉真正要验的缩进问题。
+          ACME_EMAIL: ops@example.com
         run: |
           # 公网接入不是独立文件，而是 docker-compose.yml 里的注释段（「可选：内置 Caddy
           # 入口」）：**启用时才取消注释**，而注释里的缩进只有取消注释后才会被 YAML 解析，
           # 写错了平时看不出来。所以这里模拟启用一次（取消注释 + 补上 volumes 两行），
           # 让它立刻报错。
+          #
+          # 段的边界按**内容**定位（注释态的 `caddy-public:` 行），不按装饰性分隔线：
+          # 那种 `# ───…` 围栏在这个文件改版时被删过一次，硬编码长度会让本步骤直接
+          # ValueError 挂掉，且报错与真正的问题（缩进）毫无关系。
           python3 - <<'PY'
           import pathlib, re, sys
 
           src = pathlib.Path("docker-compose.yml").read_text(encoding="utf-8")
-          fence = "  # " + "\u2500" * 77
-          start = src.index(fence)
-          end = src.index(fence, start + 5) + len(fence)
-          lines, inner = [], False
-          for line in src[start:end].splitlines():
+          lines = src.splitlines(keepends=True)
+
+          start = next(
+              (i for i, l in enumerate(lines) if re.match(r"^\s*#\s*caddy-public:\s*$", l)),
+              None,
+          )
+          if start is None:
+              sys.exit(
+                  "::error::docker-compose.yml 里找不到注释态的 `caddy-public:` 服务块 —— "
+                  "「可选：内置 Caddy 入口」段被改了写法，请同步修改本步骤"
+              )
+
+          # 往前吞掉紧邻的纯注释行（说明文字与 `#` 分隔行），启用后块前后都是干净的空行。
+          begin = start
+          while begin > 0 and re.match(r"^\s*#", lines[begin - 1]):
+              begin -= 1
+          end = start
+          while end < len(lines) and re.match(r"^\s*#", lines[end]):
+              end += 1
+
+          block = []
+          for line in lines[begin:end]:
+              # 只去掉注释标记，**保留缩进**：这段是 services: 下的一个兄弟服务，缩进掉了
+              # 就变成顶层键，compose 会以「additional properties 'caddy-public' not
+              # allowed」拒绝 —— 正是本步骤要抓的那类错。
               body = re.sub(r"^(\s*)#\s?", r"\1", line)
-              if re.match(r"^\s*caddy-public:\s*$", body):
-                  inner = True
-              if not inner:
-                  continue
-              # 保留服务块本身的键与列表项，丢掉面向人的说明文字
-              if re.match(r"^\s*(#|$)", body) or re.match(r"^\s*[A-Za-z][A-Za-z_-]*:", body) \
-                      or re.match(r"^\s+- ", body):
-                  lines.append(body)
-          if len(lines) < 10 or "caddy-public:" not in lines[0]:
-              sys.exit("::error::「可选：内置 Caddy 入口」段解析失败 —— 注释块结构与本步骤的假设不一致，请同步修改")
-          out = src[:start] + "\n".join(lines) + "\n" + src[end:]
-          out = out.replace("  # caddy-public-data:\n  # caddy-public-config:\n",
-                            "  caddy-public-data:\n  caddy-public-config:\n")
+              # 保留服务块本身的键与列表项，丢掉面向人的说明文字（注释行）。
+              if re.match(r"^\s*(caddy-public:|[A-Za-z][A-Za-z_-]*:|- )", body):
+                  block.append(body.rstrip() + "\n")
+
+          if not block or not block[0].strip().startswith("caddy-public:") or len(block) < 10:
+              sys.exit(
+                  "::error::「可选：内置 Caddy 入口」段解析失败 —— 注释块结构与提取逻辑不符，请同步修改"
+              )
+
+          out = "".join(lines[:begin]) + "".join(block) + "".join(lines[end:])
+
+          # 文件末尾两个卷默认也是注释态，启用 Caddy 时必须一起放开，否则挂载点没有对应卷。
+          old_volumes = "  # caddy-public-data:\n  # caddy-public-config:\n"
+          if old_volumes not in out:
+              sys.exit(
+                  "::error::文件末尾的 caddy-public-data / caddy-public-config 卷不是预期的注释态，请同步修改"
+              )
+          out = out.replace(old_volumes, "  caddy-public-data:\n  caddy-public-config:\n")
+
           pathlib.Path("/tmp/compose-public.yml").write_text(out, encoding="utf-8")
+          print("已生成 /tmp/compose-public.yml（服务块 %d 行）" % len(block))
           PY
           docker compose -f /tmp/compose-public.yml config -q
+          # 光「能解析」不够：还要确认 caddy-public 真的落在 services 下（没被顶成顶层键）。
+          docker compose -f /tmp/compose-public.yml config --services | grep -qx 'caddy-public'
 
       - name: Caddy validate
         run: |
