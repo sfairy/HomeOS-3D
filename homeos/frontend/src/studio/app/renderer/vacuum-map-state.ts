@@ -7,7 +7,7 @@ export function vacuumMapAvailable(stateEntry: any) {
   )
     return false;
   const stateAttributes = entityState.attributes || {};
-  // 0.7.2：首次地图校准尚未生成时仍允许加载地图/机器人位置（空标定不直接判不可用）
+  // 首次地图校准尚未生成时仍允许加载地图/机器人位置（空标定不直接判不可用）
   if (stateAttributes.is_empty === true || stateAttributes.empty_map === true) {
     const hasRobotPosition =
       stateAttributes.vacuum_position != null ||

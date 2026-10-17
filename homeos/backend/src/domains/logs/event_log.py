@@ -520,8 +520,8 @@ class EventLogService(EventLogReportMixin):
         """清空全部事件记录（分批删除），返回 ``deleted`` 与 ``complete``。
 
         ``complete`` 是必须有的：批数有**上限**（`CLEAR_ALL_MAX_BATCHES` × 批大小），
-        触顶时库里仍有记录，而旧实现只返回条数 —— 界面会按「已清空」提示用户，
-        实际却还剩一大截，且没有任何地方能察觉。触顶与否用一次 `LIMIT 1` 探针判定，
+        触顶时库里仍有记录。只返回条数会让界面按「已清空」提示用户，实际却还剩一大截，
+        且没有任何地方能察觉。触顶与否用一次 `LIMIT 1` 探针判定，
         比 `count(*)` 便宜得多。
 
         删除与批量写入共用 ``_write_lock`` 并借 ``_clear_epoch`` 作废在途批次：否则一个

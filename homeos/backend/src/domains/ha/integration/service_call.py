@@ -162,7 +162,7 @@ async def execute_service_call(
         raise ServiceCallRejected(_CONFLICT, '请先配置 Home Assistant 连接。')
     if not entity_exists:
         raise ServiceCallRejected(_NOT_FOUND, '实体不存在、已禁用或已失联。')
-    # A6 收敛：与 ``/services/call`` 共用 homeos 实体级白名单（当前恒为空 → 恒放行）。
+    # 与 ``/services/call`` 共用实体级白名单（当前恒为空 → 恒放行）。
     await assert_command_proxy_authorized(
         {
             'domain': payload.domain,
@@ -174,7 +174,7 @@ async def execute_service_call(
         RegistryTargetResolver(request),
     )
     try:
-        # A6 收敛：唯一执行出口 —— CommandProxyService（幂等去重 → 高风险拦截 → HA 下发）。
+        # 唯一执行出口：CommandProxyService（幂等去重 → 高风险拦截 → HA 下发）。
         envelope = await dispatch_service_call(
             request.app.state.command_proxy,
             build_service_call_dto(

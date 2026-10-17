@@ -239,7 +239,7 @@ export async function loadEntityCache(
 }
 
 /**
- * 分片增量写入 IndexedDB（Task 23：IndexedDB 分片）。
+ * 分片增量写入 IndexedDB。
  * 仅重写传入的分片（按域分组），未涉及的域分片保持不变，
  * 显著降低高频状态推送下的 IDB 写入量。
  */

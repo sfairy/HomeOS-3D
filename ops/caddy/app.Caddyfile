@@ -3,7 +3,10 @@
 # 由 ops/docker/start_app.py 在容器内与 uvicorn 同容器拉起：监听 :8803，
 # 反代到同容器的 127.0.0.1:8801。因为反代就在应用旁边：
 #   - 不要求把 8801 先发布到宿主机；
-#   - uvicorn 的转发头信任范围保持默认回环（127.0.0.1,::1）即可，无需放宽到 docker 网段。
+#   - 这条内置反代的对端永远是回环，uvicorn 信任 127.0.0.1,::1 就够。compose 里之所以还写了
+#     docker 网段（APP_TRUSTED_PROXIES / UVICORN_FORWARDED_ALLOW_IPS 含 172.16.0.0/12），
+#     是为了**另一条**链路：内网穿透 / 宿主反代回灌到已发布的 8801 时，容器看到的源是网桥
+#     网关 172.x。两者互不影响。
 # Dockerfile 会在构建时把本文件复制为 /etc/caddy/Caddyfile。
 #
 #   - 裸 :8803 站点 + tls internal { on_demand }：证书按连入的 SNI 动态签发 —— 用**主机名**
@@ -47,7 +50,12 @@
 	}
 
 	reverse_proxy 127.0.0.1:8801 {
-		header_up Host {host}
+		# 必须用 hostport，不能写 {host}：{host} 等价于 {http.request.host}，Caddy 会做
+		# net.SplitHostPort 把端口摘掉。于是上游收到的 Host 是「192.168.1.20」，而浏览器
+		# 发来的 Origin 是「https://192.168.1.20:8803」—— 应用的来源校验按 netloc 逐字比对
+		# （platform/security/request_origin.py、api/ha.py 的 WebSocket 校验），
+		# 结果是 8803 入口下写操作 / HA / go2rtc 实时通道 403，而 8801 与 443 都正常。
+		header_up Host {http.request.hostport}
 		header_up X-Real-IP {remote_host}
 	}
 }

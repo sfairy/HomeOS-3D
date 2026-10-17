@@ -106,12 +106,16 @@ async function onSubmit(): Promise<void> {
           <!-- 这一行借用 .hos-panel__meta 的 flex 排布：分隔条是 1px 的 <i>，
                只有在 flex 容器里才拿得到宽度，否则会缩成看不见的一个点。 -->
           <p class="hos-panel__meta">
+            <!-- 站内找回：改的是**本机**管理员密码（注册邮箱 + 商店代发验证码），
+                 不是商店账号。 -->
+            <a class="hos-text-button" href="/reset-password">忘记本机密码</a>
+            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
             <!-- href 只是挂载前的占位：useStoreLinks 会把它们改写成后端 /public/config
                  下发的商店地址（后端会先向商店问回它的对外地址，见
                  domains/store/discovery.py）。 -->
             <a class="hos-text-button" data-store-password-reset-link
               href="http://127.0.0.1:8802/user/authentication/forget" target="_blank"
-              rel="noopener noreferrer">忘记密码</a>
+              rel="noopener noreferrer">重置商店密码</a>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
             <a class="hos-text-button" data-store-link href="http://127.0.0.1:8802/" target="_blank"
               rel="noopener noreferrer">商店</a>

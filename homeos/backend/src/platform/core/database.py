@@ -24,7 +24,7 @@ SQLITE_BUSY_TIMEOUT_MS = 5000
 
 
 class Base(DeclarativeBase):
-    """所有 ORM 模型基类（Alembic autogenerate 的元数据来源）。"""
+    """所有 ORM 模型基类。"""
 
 
 def _configure_sqlite(dbapi_connection, _connection_record) -> None:

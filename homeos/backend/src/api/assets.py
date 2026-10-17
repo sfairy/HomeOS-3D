@@ -74,7 +74,7 @@ NORMALIZE_UPLOAD_SUFFIXES = {
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
 #: 内置素材目录的重扫间隔（秒）：部署方在运行期增删 ``built_in_assets_dir`` 里的文件
-#: 后，无需重启即可在 ``catalogVersion`` 变化后生效（旧实现只加载一次、永不失效）。
+#: 后，无需重启即可在 ``catalogVersion`` 变化后生效。
 BUILTIN_REFRESH_TTL_SECONDS = 60.0
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_UPLOAD_SVG_BYTES = 5000000
@@ -470,9 +470,9 @@ class AssetCatalog:
             now = time.monotonic()
             if self._builtin_loaded and (now - self._builtin_loaded_at) < BUILTIN_REFRESH_TTL_SECONDS:
                 return
-            # 重扫前清空：内置目录可能被部署方增删文件（配置注释里明确支持），旧实现
-            # 用一次性 latch，于是新增的图永远不出现、删掉的文件依旧解析得到
-            # （FileResponse 命中不存在的路径直接 500 而不是 404）。
+            # 重扫前清空：内置目录可能被部署方增删文件（配置注释里明确支持）。只加载一次
+            # 会让新增的图永远不出现、删掉的文件依旧解析得到（FileResponse 命中不存在的
+            # 路径直接 500 而不是 404）。
             self._builtin_items.clear()
             self._builtin_paths.clear()
             for stale in [key for key in self._effect_variant_paths if key.startswith('builtin:')]:
@@ -683,7 +683,7 @@ class AssetCatalog:
         return path if path is not None and path.is_file() else None
 
 def document_uses_asset(value, asset_id: str) -> bool:
-    """``asset_id`` 可为 ``user:<hex>`` 或裸 hex（电视 ``screenImage.assetId`` / 旧 ``posterAssetId``）。"""
+    """``asset_id`` 可为 ``user:<hex>`` 或裸 hex（如电视 ``screenImage.assetId``）。"""
     bare = asset_id.removeprefix('user:')
     if isinstance(value, dict):
         return any(document_uses_asset(item, asset_id) for item in value.values())

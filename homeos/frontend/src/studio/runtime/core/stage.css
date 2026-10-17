@@ -2454,7 +2454,7 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-alarm-card-work[data-status="normal"] {
   color: #8fd4a8;
 }
-/* 0.7.2：水浸双状态分行 */
+/* 水浸双状态分行 */
 .interaction3d-stage .i3d-alarm-source {
   display: block;
 }

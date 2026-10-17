@@ -81,14 +81,10 @@ def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) 
 def main() -> None:
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(ROOT)
-    environment.setdefault("APP_DATA_DIR", "/data")
-    environment.setdefault("HOMEOS_DATA_DIR", environment["APP_DATA_DIR"])
+    environment.setdefault("HOMEOS_DATA_DIR", "/data")
     environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/client-keys")
     environment.setdefault("HOMEOS_IMAGE_DIR", "/app/image")
     environment.setdefault("APP_UPDATE_CHANNEL", "docker")
-    # Compose / 文档使用 APP_COOKIE_SECURE；运行时 cookies 读 COOKIE_SECURE。
-    if "COOKIE_SECURE" not in environment and "APP_COOKIE_SECURE" in environment:
-        environment["COOKIE_SECURE"] = environment["APP_COOKIE_SECURE"]
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
         raise SystemExit(
             '未设置 APP_LICENSE_SERVER_URL。'
@@ -97,21 +93,21 @@ def main() -> None:
         )
 
     license_url = environment['APP_LICENSE_SERVER_URL'].strip().rstrip('/')
-    # 8804 是镜像内置反代的端口，用的是 Caddy **内部 CA 的自签**证书：跨机（或从容器里）
-    # 用 https 连它，httpx 会按系统 CA 校验并直接拒绝。这是文档里反复警告的坑，
-    # 所以在启动时就把它说破 —— 否则症状只是「取回授权公钥超时」，很难查到根因。
+    # 商店**没有任何 HTTPS 入口**：内网只有 http://<商店IP>:8802，公网是隧道 / 反代在 80·443
+    # 上用真实证书终止 TLS。所以历史文档里的 https://…:8804 已经不存在了 —— 写它会直接
+    # 「连接被拒」，症状只表现为「取回授权公钥超时 / 无法连接授权服务器」，很难查到根因。
     if license_url.lower().startswith('https://') and license_url.rsplit(':', 1)[-1] == '8804':
         print(
-            f'警告：APP_LICENSE_SERVER_URL={license_url} 用的是商店内置反代的 8804 端口，'
-            '它的证书是自签的（本容器会拒绝）。请改成厂商那台机器的 HTTP 地址或公网域名，'
-            '例如 http://192.168.1.20:8802 或 https://store.example.com。',
+            f'警告：APP_LICENSE_SERVER_URL={license_url} 指向 8804，该端口已随商店内置反代一起移除'
+            '（现在会连接被拒）。请改成公网真实证书域名；仅两台机器同处可信局域网时才用'
+            ' http://<商店IP>:8802。',
             file=sys.stderr,
             flush=True,
         )
 
     app_port = environment.get("APP_PORT", "8801").strip() or "8801"
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()
-    Path(environment["APP_DATA_DIR"]).mkdir(parents=True, exist_ok=True)
+    Path(environment["HOMEOS_DATA_DIR"]).mkdir(parents=True, exist_ok=True)
 
     def log(message: str) -> None:
         print(f'授权公钥：{message}', flush=True)
@@ -183,7 +179,7 @@ def main() -> None:
                 "--forwarded-allow-ips",
                 forwarded_allow_ips,
             ],
-            data_dir=Path(environment["APP_DATA_DIR"]),
+            data_dir=Path(environment["HOMEOS_DATA_DIR"]),
             service_label="主应用",
         )
     )

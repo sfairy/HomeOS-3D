@@ -3,7 +3,6 @@ import { APPLIANCE_TYPE_IDS, getRequiredSlotGroups } from './appliance-catalog';
 import { hasOrchestratorPlaceholder } from './placeholder-marker.util';
 
 export { getRequiredSlotGroups };
-import { normalizeSlotPayload } from './slot-schema';
 
 /** 家电模板类型（含槽位映射的类型） */
 export const APPLIANCE_TEMPLATE_TYPES = APPLIANCE_TYPE_IDS;
@@ -48,62 +47,6 @@ export function findPlaceholderEntityIdsInYaml(yamlStr: string): string[] {
     }
   }
   return [...found];
-}
-
-/**
- * 解析槽位配置对象：优先兼容新格式 { mapping?: Record }（含 slotsMeta + mapping），
- * 否则按旧格式（直接就是 mapping 对象）处理，前后端过渡期双形态均接受。
- *
- * @param slots 新或旧形态的槽位配置
- * @returns 扁平后的 mapping（key → entity_id 或空/undefined/null）
- */
-function resolveSlotMapping(
-  slots: Record<string, string | undefined | null> | { mapping?: Record<string, string> },
-): Record<string, string | undefined | null> {
-  if (slots && typeof slots === 'object' && 'mapping' in slots) {
-    return normalizeSlotPayload(slots).mapping;
-  }
-  return slots as Record<string, string | undefined | null>;
-}
-
-/**
- * 校验家电模板的槽位映射：必填槽位组至少有一组全部绑定了真实实体，且绑定值不含占位符 ID。
- *
- * @param type  家电类型 ID（如 "ac" / "tv"）；未知类型直接通过（宽松兼容新家电）
- * @param slots 槽位配置（新格式 { mapping, slotsMeta } 或旧格式 flat mapping）
- * @returns { valid, message } valid=false 时 message 为中文错误提示
- */
-export function validateApplianceSlotMapping(
-  type: string,
-  slots: Record<string, string | undefined | null> | { mapping?: Record<string, string> },
-): { valid: boolean; message: string } {
-  if (!type || typeof type !== 'string') {
-    return { valid: false, message: '设备类型不能为空' };
-  }
-  if (!APPLIANCE_TEMPLATE_TYPES.has(type)) {
-    return { valid: true, message: '' };
-  }
-  if (!slots || typeof slots !== 'object') {
-    return { valid: false, message: '槽位配置无效' };
-  }
-  const mapping = resolveSlotMapping(slots);
-  const groups = getRequiredSlotGroups(type);
-  const satisfied = groups.some((group) =>
-    group.every((key) => {
-      const val = mapping[key]?.trim();
-      return val && !isPlaceholderEntityId(val);
-    }),
-  );
-  if (!satisfied) {
-    const hint = groups.map((g) => g.join('+')).join(' 或 ');
-    return { valid: false, message: `请至少填写必填槽位：${hint}` };
-  }
-  for (const [key, val] of Object.entries(mapping)) {
-    if (val?.trim() && isPlaceholderEntityId(val)) {
-      return { valid: false, message: `槽位「${key}」含占位实体 ID，请选择真实实体` };
-    }
-  }
-  return { valid: true, message: '' };
 }
 
 /**

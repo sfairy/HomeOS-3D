@@ -133,7 +133,7 @@ const shellRouteKey = computed(() => route.matched[0]?.path ?? route.path)
 
 /**
  * 创作面（仪表编辑器 / 户型图绘制）各有一套互斥的 static 全局 CSS。
- * 旧行为是 `location.assign` 整页换装；SPA 滑动会让两页并存 + 两套 CSS 叠层，
+ * 不做 `location.assign` 整页换装；SPA 滑动会让两页并存 + 两套 CSS 叠层，
  * 背景里会出现无样式文字或样式串味。凡进出创作面都切成瞬时换页（route-cut）。
  */
 const STUDIO_CREATOR_ROUTES = new Set(['studio', 'studio-editor'])

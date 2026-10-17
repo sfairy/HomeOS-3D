@@ -32,11 +32,10 @@ python3 ops/build.py image --project store --tag homeos-store:local
   `COPY homeos/backend/src ./app` 映射过去再交给 Cython —— 模块名取自文件路径，映射之后
   `.so` 里烤进去的就是 `app.*`。主应用与商店用**同一条**映射（`.../src → ./app`），镜像里
   都是 `/app/app`，区别只在装什么、以什么入口启动。
-- **没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 同样不进 `dist/`
+- **没有任何明文 `.py`**：后端包之外，`dist/` 里也不含构建期脚本
   （Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。
-  发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号
-  （见主应用 `backend/src/platform/core/migrations.py` 与商店 `backend/src/core/migrations.py`
-  的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。
+  全新库由后端按 ORM 元数据直接建（见主应用 `backend/src/platform/core/schema.py` 与商店
+  `backend/src/core/schema.py` 的 `prepare_schema`）。
 
 ### strip 掉调试信息，但保留异常行号
 
@@ -68,7 +67,7 @@ python3 ops/build.py image --project store --tag homeos-store:local
 
 ## 拉不动 Docker Hub / 要用私有仓库
 
-典型报错是 `load metadata for docker.io/library/python:3.14-slim-bookworm` → `auth.docker.io`
+典型报错是 `load metadata for docker.io/library/python:3.15-slim-bookworm` → `auth.docker.io`
 超时。把基础镜像切到镜像站即可，**不必改 Dockerfile**：
 
 ```bash

@@ -302,7 +302,7 @@ class DeviceBinding(Base):
     )
     instance_id: Mapped[str] = mapped_column(String(128), index=True)
     client_version: Mapped[str] = mapped_column(String(32), default="")
-    #: 激活时客户端上报的本机账号名（「授权用户增设账户名」）；旧客户端为空。
+    #: 激活时客户端上报的本机账号名（「授权用户增设账户名」）；未上报时为空。
     account_name: Mapped[str | None] = mapped_column(String(255))
     last_ip: Mapped[str | None] = mapped_column(String(64))
     active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)

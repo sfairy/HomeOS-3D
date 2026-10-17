@@ -12,11 +12,11 @@ import {
 } from "./_shared";
 
 /**
- * 0.7.6 收藏模型（98 款新增 + 12 款重绘）的描述符：尺寸、挂载与角色统一取注册表，
- * 因此重绘款（如台盆拔高到 1.14m）会以 0.7.6 的尺寸覆盖旧定义。
+ * 收藏模型（98 款新增 + 12 款重绘）的描述符：尺寸、挂载与角色统一取注册表，
+ * 因此重绘款（如台盆拔高到 1.14m）以注册表尺寸为准。
  *
- * URL 带上注册表的 `assetVersion`：这批 110 款的 GLB 全是 0.7.6 新落地或重绘的，
- * 不带缓存键的话老用户会一直命中浏览器里那份旧字节（见 `MODEL_ASSET_CACHE_KEYS`）。
+ * URL 带上注册表的 `assetVersion`：这批 110 款的 GLB 均为新落地或重绘，
+ * 不带缓存键会命中浏览器里的旧字节（见 `MODEL_ASSET_CACHE_KEYS`）。
  * `collection: true` 标记「收藏批」家族，供渲染期判断能否退化成降级盒。
  */
 const COLLECTION_ITEM_MODELS = Object.freeze(
@@ -41,13 +41,13 @@ const COLLECTION_ITEM_MODELS = Object.freeze(
 );
 
 /**
- * 0.7.6 起「必须用真模型」的家族：收藏批（`collection`）、减面优化款（`optimized`）、
- * 以及卫浴两款（`toilet` / `squattoilet`，它们的 `-lite` 就是 0.7.6 的减面版）。
+ * 「必须用真模型」的家族：收藏批（`collection`）、减面优化款（`optimized`）、
+ * 以及卫浴两款（`toilet` / `squattoilet`，它们的 `-lite` 就是减面版）。
  * 这些款的 `-lite.glb` 已经比统一降级盒更省，离线导出时也必须拿到真资源而不是方盒。
  */
 const ALWAYS_REAL_MODEL_ASSET_ITEM_TYPES = new Set(["toilet", "squattoilet"]);
 
-/** 该模型类型是否属于「必须用真 GLB」的家族（0.7.6 渲染/导出闸门用）。 */
+/** 该模型类型是否属于「必须用真 GLB」的家族（渲染/导出闸门用）。 */
 export function needsExternalModelAsset(modelType: string) {
   const modelDefinition = (ALL_ITEM_MODELS as Record<string, any>)[modelType];
   return Boolean(

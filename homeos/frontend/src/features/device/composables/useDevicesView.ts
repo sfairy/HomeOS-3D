@@ -308,7 +308,7 @@ export function useDevicesView() {
 
   function openControl(device: DeviceListItem) {
     if (!device.entity_id || device.unavailable) return
-    if (!hasEntityControlPopup(device.entity_id, entitiesStore.entities)) {
+    if (!hasEntityControlPopup(device.entity_id)) {
       chrome.notify('该设备暂无快捷控制弹窗，请打开详情查看', 'info')
       return
     }

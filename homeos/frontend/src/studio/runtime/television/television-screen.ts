@@ -194,7 +194,7 @@ export function createTelevisionScreens({
             deviceState.name,
             deviceState.artwork,
             deviceState.customPosterUrl,
-            bindingEntry.screenImage?.assetId || bindingEntry.posterAssetId || "",
+            bindingEntry.screenImage?.assetId || "",
           ]);
         screenEntry.state = deviceState;
         const colorLevel =

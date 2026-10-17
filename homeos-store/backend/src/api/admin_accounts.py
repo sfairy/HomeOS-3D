@@ -19,7 +19,9 @@ from ..core.schemas import (
     AdminAccountPatch,
 )
 from ..security.security import (
+    PASSWORD_POLICY_MESSAGE,
     hash_password,
+    is_password_policy_compliant,
     is_valid_email,
     normalize_email,
     normalize_username,
@@ -193,6 +195,12 @@ def admin_patch_account(
         changed.append("email_verified")
 
     if data.get("new_password"):
+        # schema 已按统一策略校验过；这里兜住直接调用本函数（批量/脚本）的路径。
+        if not is_password_policy_compliant(data["new_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=PASSWORD_POLICY_MESSAGE,
+            )
         account.password_hash = hash_password(data["new_password"])
         _drop_account_sessions(session, account.id)
         changed.append("new_password")

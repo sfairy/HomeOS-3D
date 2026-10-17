@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from sqlalchemy import (
@@ -20,7 +21,9 @@ from ..security.security import new_uuid, utcnow
 
 def _id() -> str:
     return new_uuid()
-DEFAULT_SUPPORT_EMAIL = "156120718@qq.com"
+#: 新建站点写入的默认客服邮箱。可在容器启动时用 ``STORE_SUPPORT_EMAIL`` 覆盖；已有站点
+#: 以库里的值为准（后台「站点配置 → 支持邮箱」）。默认值只是占位，商用前务必替换。
+DEFAULT_SUPPORT_EMAIL = (os.getenv("STORE_SUPPORT_EMAIL") or "").strip() or "156120718@qq.com"
 class StoreSetting(Base):
     """站点级运行时配置（单例，id 固定为 1）。"""
 

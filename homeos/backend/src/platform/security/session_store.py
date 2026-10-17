@@ -1,12 +1,10 @@
 """DB 会话（LoginSession）：签发 / 解析 / 吊销 与 Cookie 读写。
 
-并入 homeos-3d 的会话模型后，会话不再只依赖无状态 JWT，而是在 ``sessions`` 表里留一条
-``id_hash``（会话令牌的 sha256）记录，因而可以**服务端吊销**，并能看到最后活跃时间与
-来源 IP/UA。
+会话不只依赖无状态 JWT，而是在 ``sessions`` 表里留一条 ``id_hash``（会话令牌的
+sha256）记录，因而可以**服务端吊销**，并能看到最后活跃时间与来源 IP/UA。
 
-过渡策略：JWT 通道**保留**（``security.auth_context.get_current_user`` 两路都认），
-现有前端与既有会话不受影响；新登录同时写入 DB 会话，供移植自 homeos-3d 的路由
-（其 ``dependencies`` 读 ``settings.cookie_name`` 口径）与可吊销需求使用。
+JWT 通道与 DB 会话并存（``security.auth_context.get_current_user`` 两路都认）；
+新登录同时写入 DB 会话，供依赖 ``settings.cookie_name`` 口径的路由与可吊销需求使用。
 """
 
 from __future__ import annotations
@@ -126,19 +124,10 @@ def set_session_cookie(
     token: str,
     *,
     max_age_seconds: int,
-    request: Request | None = None,
+    request: Request,
 ) -> None:
-    """写入会话 Cookie。
-
-    ``Secure`` 走 ``cookies.resolve_session_cookie_secure``（与 CSRF 同一套三态判定），
-    而不是直接吃布尔的 ``settings.cookie_secure`` —— 否则 ``COOKIE_SECURE=auto`` 在
-    HTTPS 下会写出「csrf_token 是 Secure、auth_token 不是」的错配。
-    """
-    secure = (
-        resolve_session_cookie_secure(request, settings)
-        if request is not None
-        else bool(getattr(settings, "cookie_secure", False))
-    )
+    """写入会话 Cookie；``Secure`` 与 CSRF Cookie 同源判定。"""
+    secure = resolve_session_cookie_secure(request)
     response.set_cookie(
         key=settings.cookie_name,
         value=token,
@@ -151,14 +140,10 @@ def set_session_cookie(
     )
 
 
-def clear_session_cookie(response: Response, settings, request: Request | None = None) -> None:
+def clear_session_cookie(response: Response, settings, request: Request) -> None:
     # 与 set_session_cookie 的 Secure/SameSite 对齐：两处必须同源解析，否则
     # HTTPS 下写入的是 Secure Cookie、删除时声明非 Secure，属性对不上。
-    secure = (
-        resolve_session_cookie_secure(request, settings)
-        if request is not None
-        else bool(getattr(settings, "cookie_secure", False))
-    )
+    secure = resolve_session_cookie_secure(request)
     response.delete_cookie(
         settings.cookie_name,
         path="/",

@@ -3,7 +3,7 @@
  *
  * homeos 后端启用了 CSRF 双提交校验（`backend/src/platform/security/csrf.py`）：变更类请求必须
  * 携带 `X-CSRF-Token` 头，值与 `csrf_token` Cookie 一致。axios（`api-client`）在请求
- * 拦截器里自动注入；但并入的 studio 遗留代码仍大量使用**裸 `fetch`**，无法走拦截器，
+ * 拦截器里自动注入；但 studio 代码仍大量使用**裸 `fetch`**，无法走拦截器，
  * 因此这里提供两件事：
  *
  * 1. `withCsrf` / `csrfToken`：调用方在裸 fetch 时手动合并 CSRF 头；

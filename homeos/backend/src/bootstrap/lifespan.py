@@ -8,7 +8,6 @@ import os
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -79,7 +78,7 @@ from ..domains.system.ops import ExternalApiService, MoviePilotProxyService
 from ..domains.system.updates import STORE_UPDATES_PATH, UpdateChecker
 from ..domains.ui_config import UiConfigService
 from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
-from ..platform.core import migrations
+from ..platform.core import schema
 from ..platform.core.database import Database
 from ..platform.core.distributed_lock import DistributedLockService
 from ..platform.core.log import configure_app_logging
@@ -289,7 +288,6 @@ class _StartupContext:
     app_settings: Settings
     version: str
     recovery_required: bool
-    migration_backup: Path | None
     app_config: AppConfigService = _pending()
     license_service: LicenseService = _pending()
     database_retention: DatabaseRetentionService = _pending()
@@ -327,7 +325,6 @@ class _StartupContext:
         self.app_settings = app_settings
         self.version = version
         self.recovery_required = False
-        self.migration_backup = None
 
 
 def _endpoint_loader(app: FastAPI) -> Any:
@@ -356,12 +353,12 @@ def _make_voice_rest_config(app: FastAPI) -> Callable[[], Awaitable[dict[str, An
 
 
 async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
-    """启动第一阶段：数据目录 / 迁移 / 数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
+    """启动第一阶段：数据目录 / 建库 / 数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
     app_settings = startup.app_settings
     app_settings.data_dir.mkdir(parents=True, exist_ok=True)
-    # 必须早于迁移：先回滚中断的还原，避免在半还原的结构上跑升级。
+    # 必须早于建库：先回滚中断的还原，避免在半还原的结构上继续建表。
     startup.recovery_required = recover_interrupted_restore(app_settings)
-    startup.migration_backup = migrations.run_migrations(app_settings)
+    schema.prepare_schema(app_settings)
     app.state.database = Database(app_settings.database_url)
     app.state.settings = app_settings
     app.state.version = startup.version
@@ -579,8 +576,6 @@ def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) -> Non
         ui_assets_root=app_settings.ui_assets_dir,
     )
     ui_config._static_assets.ensure_dirs()
-    # 一次性清理已下线的 layout.wholeHomeOff.roles，避免等用户再次保存才删除。
-    ui_config.normalize_retired_layout_keys()
     app.state.ui_config = ui_config
     startup.ui_config = ui_config
 
@@ -714,7 +709,7 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
             # 这条分支只在安防域被裁掉时才会走到）。
             logger.warning("家庭模式请求切换安防，但安防面板未启动：mode=%s", mode)
             return False
-        # set_mode 是 async：旧实现 bool(coroutine) 恒为 True，安防动作从未真正执行。
+        # set_mode 是 async，必须 await：bool(coroutine) 恒为 True，会让安防动作看似成功。
         result = await panel.set_mode(mode, source)
         if isinstance(result, dict):
             if result.get("success"):
@@ -1104,7 +1099,6 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     database = getattr(app.state, "database", None)
     if database is not None:
         database.dispose()
-    _ = startup.migration_backup
 
 
 def create_lifespan(app_settings: Settings, version: str):

@@ -1,4 +1,4 @@
-/** 0.7.2 fan / ceiling-fan runtime state helper. */
+/** HA fan / 吊扇运行时状态助手。 */
 
 const isAvailableRecord = (record: any) =>
   record &&
@@ -77,9 +77,9 @@ export function fanSourceAllowed(
   );
 }
 
-/** Normalize HA fan / switch / input_* into a visual motion state (0.7.2 fanBindingState). */
+/** 把 HA fan / switch / input_* 归一化为可视运动状态。 */
 export function fanMotionState(entityState: any, binding: any = {}) {
-  // Legacy single-entity path used by unbound model preview.
+  // 未绑定模型的预览走单实体分支。
   entityState = entityState?.newState || entityState || {};
   const attributes = entityState.attributes || {};
   const isOn =

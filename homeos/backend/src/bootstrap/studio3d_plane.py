@@ -1,14 +1,12 @@
-"""3D Studio 后端平面（阶段 3/4）在 homeos 上的装配入口。
+"""3D Studio 后端平面的装配入口。
 
-把并入 homeos 的 homeos-3d 后端资产收敛成**一次调用**，避免把大段 3D 专有装配散落进
-homeos 的 ``app.py``：
+把 3D 专有装配收敛成**一次调用**，避免大段逻辑散落进 ``app.py``：
 
 - 数据面服务：``GlobalLogStore``（全局日志）、``AssetCatalog``（素材目录）；
-- HA 平面：以并入的 ``src.ha.service.HAConnectorService`` 作为**唯一 HA 连接**与状态
-  事实源。它把全量快照与全量增量直接交给 homeos 状态监听（``bootstrap.lifespan`` 的
+- HA 平面：以 ``src.ha.service.HAConnectorService`` 作为**唯一 HA 连接**与状态事实源。它把全量快照与全量增量直接交给 homeos 状态监听（``bootstrap.lifespan`` 的
   ``_make_state_listener``）写入 ``StateStore`` 读模型并广播，而 ``StateHub`` 只承载
   3D 侧 watched 子集供 ``/ws/runtime`` 用 —— 单连接、单事实源，homeos 消费者不改动；
-- 路由：挂载并入的 ``/api/v1`` 数据面路由（ha / ha_proxy / projects / studio3d / assets /
+- 路由：挂载 ``/api/v1`` 数据面路由（ha / ha_proxy / projects / studio3d / assets /
   assets / icons / global_logs / public_config / interaction3d）与 ``/ws/runtime``。
 
 homeos 原有的 2D 画布业务消费者仍按其既有接口工作；其与 3D 的重叠能力（HA 控制、
@@ -92,9 +90,9 @@ async def shutdown(app: FastAPI) -> None:
 
 
 def mount(app: FastAPI, settings: Any) -> None:
-    """挂载并入的 3D 数据面路由（须在应用装配期调用，不能在 lifespan 内）。
+    """挂载 3D 数据面路由（须在应用装配期调用，不能在 lifespan 内）。
 
-    授权路由仍用 homeos 已并入的实现，不重复挂载。中控设备配对（displays 路由）
+    授权路由用 homeos 侧现成实现，不重复挂载。中控设备配对（displays 路由）
     已随配对码机制移除。路由注册已收敛到 ``bootstrap.router_registry``。
     """
     del settings  # 目前路由挂载不需要 settings，保留形参以便后续扩展。

@@ -69,16 +69,24 @@ def signed_in(request: Request) -> bool:
 
 
 def page_license_feature(path: str) -> str | None:
-    """页面路径对应的授权能力；无需判定时返回 ``None``。"""
+    """页面路径对应的授权能力；无需判定时返回 ``None``。
+
+    ``"/"`` 是**精确**页面（总览），不能当成前缀：否则 ``prefix.endswith("/")`` 会让
+    它匹配到 ``/login`` / ``/register`` / ``/activate`` / ``/reset-password`` 等入户页，
+    授权过期时这些页面也会被 ``data-license-blocked`` 就地替换成授权恢复页 ——
+    而激活本身要求登录、找回密码更是唯一的账号修复入口，等于把钥匙锁在门里。
+    """
     for prefixes, feature in _PAGE_LICENSE_FEATURE:
         for prefix in prefixes:
-            if (path == prefix) or (prefix.endswith("/") and path.startswith(prefix)):
+            if path == prefix:
+                return feature
+            if prefix != "/" and prefix.endswith("/") and path.startswith(prefix):
                 return feature
     return None
 
 
 def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
-    """页面级图标与内置素材（并入 homeos-3d 的公开 / 受保护资源路由）。"""
+    """页面级图标与内置素材（公开 / 受保护资源路由）。"""
 
     @app.get(FAVICON_PATH, include_in_schema=False)
     def favicon() -> FileResponse:

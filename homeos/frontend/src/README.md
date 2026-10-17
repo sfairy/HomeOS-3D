@@ -29,11 +29,10 @@ views (router)  -.->  studio  (只经 `@/studio` barrel 的懒加载器；不直
 
 `utils` → composables/stores/components 的白名单**为空**。  
 `composables` → components 仍放行 `composables/shell/useFloatingHub.ts`（异步弹层挂载点），直到这些件搬进 components。  
-原层违规存量白名单（`LAYER_WHITELIST`）**已清零**：`utils/entity/popup-registry.ts` deprecated 桩已按
-「纯元数据 / 组件映射」两层拆分 —— 纯判定「entity_id → 弹窗种类」下沉到
-`@/shared/entity/utils/popup-registry.util`（可被 utils/composables/stores 安全引用），
-「种类 → 懒加载组件」映射留在 `@/components/entities/popup-registry`（需要 `components/`）。
-拆完后 `utils` 不再向上引用 `components`，分层倒置消除。
+层违规白名单（`LAYER_WHITELIST`）为**空**。弹窗注册按「纯元数据 / 组件映射」两层拆分：
+纯判定「entity_id → 弹窗种类」在 `@/shared/entity/utils/popup-registry.util`（可被
+utils/composables/stores 安全引用），「种类 → 懒加载组件」映射在
+`@/components/entities/popup-registry`（需要 `components/`）。
 
 **P2 utils 收尾（本轮）**：根级 `src/utils/` **整个目录已清零** —— 8 个域桶按「纯逻辑落共享域」
 重排为 `shared/{agent,client,earthquake,floorplan,presence,recommend,security,voice}/utils/`。
@@ -141,11 +140,9 @@ import Overview from '@/features/security/Overview.vue'
 `shared/<域>/index.ts` 与 `features/<域>/index.ts` 不做 `export *` 全量再导出。口径不是「这个概念
 在外被人用」，而是**「有没有人真的从这条 barrel import 它」**。
 
-> **本批实测的教训**：域优先迁移期间，各 barrel 是按「把上面几层的域内件整批再导出」写出来的，
-> 于是积了 **7 个文件 / 58 条死导出**，而且全部躲过了 typecheck / lint
-> （多导出一条不需要的东西，这两层都不会报错）。文档描述的接口面往往比实际入边更宽：展示面的
-> 条目**没有任何跨域消费者从 barrel 取**，它们全走深路径。**文档描述的设计意图会漂移，
-> `export` 的实际入边不会**，所以接口面以真实 import 为准，文档改来描述现实。
+> barrel 不写 `export *`：死导出躲得过 typecheck / lint（多导出一条不需要的东西，这两层都不会报错）。
+> 文档描述的接口面往往比实际入边更宽，**文档描述的设计意图会漂移，`export` 的实际入边不会**，
+> 所以接口面以真实 import 为准。
 
 理由有三：
 
@@ -246,16 +243,16 @@ import Overview from '@/features/security/Overview.vue'
 ### 构建分块组不能悬空
 
 `vite.config.ts` 的 `codeSplitting.groups` 是**纯配置**：文件被搬走后正则照样编译、构建照样成功，那条分组只是
-静默失效（表现是「没报错，但产物里那个 chunk 不见了」）。本仓库已经历五次以上：`utils/weather/webgl-weather-renderer`
-（P2 手删）、`views/(Login|Setup|Guest)View.vue`、`views/Mobile*View.vue`、`components/dashboard/.*Builder`、
-`components/widgets/{energy,orchestrator,device,care}`、`views/dashboard-chrome.ts`。
+静默失效（表现是「没报错，但产物里那个 chunk 不见了」）。文件被搬走或删除后，
+对应分组必须同步删除。
 
 改 `codeSplitting.groups` 时请人工核对：每组的 `test` 仍能命中真实模块；`(media|weather)` 这类
 alternation 的每条分支都要有文件，否则只是静默少覆盖一块。
 
-与之相邻的存量本轮已清理：`wr-*` 命名空间（更早的 widget-renderer 外壳遗留）在 6 个样式表
-（`features/settings/shared/styles/*`、`assets/styles/*`、`features/home-mode/editor/styles/HomeMode.css`）
-里定义了 100+ 类名，而应用侧没有任何地方把 `wr-*` 加到元素上。
+`wr-*` 命名空间没有应用侧消费者，不要再往样式表里新增。
+
+判定：一个**规则块**只要其**每条逗号分支**都硬依赖某个**不可发射**的类名（该分支永远不会匹配），
+整块可判死、直接删除。
 
 判定与删除口径：一个**规则块**只要其**每条逗号分支**都硬依赖某个**不可发射**的类名（该分支永远不会
 匹配），整块可判死、直接删除。残留仅剩「活选择器里的 no-op 守卫 / 混合选择器列表里的死分支」，
@@ -290,7 +287,7 @@ WS 事件名、可控实体域、通知来源与过滤优先级、实体引用�
   否则 `.vue` 合过来后只剩各应用侧的 vue-tsc —— 那只查类型、不查规则。
 
 `.vue` 只收**两侧逐字同构**的展示件；**数据 / 文案 / 版本号来源的差异一律留应用侧的薄适配层**
-（样板：本应用 `components/common/SceneStage.vue` 只做 `values` + `version` 注入，商店同名文件读 `site.version`）。
+（样板：本应用 `components/common/SceneStage.vue` 只做 `values` + `version` 注入，版本来自本包 `package.json`；商店同名文件读 `site.version`）。
 
 ## 设置功能模块
 

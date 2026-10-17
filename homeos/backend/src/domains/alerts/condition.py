@@ -7,7 +7,7 @@
 - 数值两侧都能解析时按数值比较，否则按字符串比较；
 - **无有效读数不算命中**：状态是 ``unavailable`` / ``unknown``，或 ``attr:`` 指定的属性缺失时，
   条件一律不成立（除非条件本身显式比较 ``unavailable`` / ``unknown``）。
-  这类「读数缺失」不是读数，旧实现按空串参与比较，``!=`` 会因此恒真。
+  这类「读数缺失」不是读数，按空串参与比较会让 ``!=`` 恒真。
 """
 
 from __future__ import annotations
@@ -63,8 +63,8 @@ def _evaluate_single(
         attr_value = (attributes or {}).get(attr_match.group(1))
         if attr_value is None:
             # 属性缺失（实体不可用 / 该属性本轮未上报）：没有读数就谈不上满足条件。
-            # 旧实现把它当空串参与比较，``attr:brightness != 0`` 会因此恒真 —— 中枢一断，
-            # 每条属性类规则都会误报一次。
+            # 把它当空串参与比较，``attr:brightness != 0`` 会恒真 —— 中枢一断，每条属性类
+            # 规则都会误报一次。
             return False
         lhs_raw = str(attr_value)
         rest = attr_match.group(2).strip()

@@ -64,17 +64,10 @@ onMounted(async () => {
     // 首屏商品目录拉不下来 = 首页看着像「没上架」，属于用户可感知，必须说话。
     toast.show(errorMessage(error, "商品目录加载失败，请刷新重试。"), "err");
   });
-  // 首屏之前 auth-bootstrap 已按 `homeos_store_hint` cookie 给 <html> 打过登录态类。
-  // 服务端渲染这一页时给出的 `data-auth` 更权威 —— 优先级链见 utils/session-probe.ts：
-  //   guest   —— 确实没有会话。既不必打一发注定 401 的 `/auth/me`，
-  //              需要登录的页面也可以直接转登录。
+  // 服务端渲染这一页时给出的 `data-auth` 是登录态的唯一来源：
+  //   guest —— 确实没有会话，不打注定 401 的 `/auth/me`；
   //   user/admin —— 有会话，探一次把账号、授权与订单读下来。
-  //   unknown —— 外壳没注入（老模板），退回「按 hint 猜」的老行为。
-  const probe = shouldProbeSession({
-    serverAuth: serverAuthState(),
-    hinted: document.documentElement.classList.contains("hb-auth-hint"),
-    requiresAuth: requiresAuth.value,
-  });
+  const probe = shouldProbeSession(serverAuthState());
   if (probe) {
     // 会话探针失败是**可降级**的：拿不到账号就按未登录处理（下面会转登录页），
     // 但必须留痕 —— 否则「会话过期」与「网络抖动」在日志里长得一模一样。

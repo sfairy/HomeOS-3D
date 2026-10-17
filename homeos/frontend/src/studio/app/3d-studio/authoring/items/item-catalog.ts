@@ -1870,7 +1870,7 @@ export const itemTypeCatalog = {
     glyph: "◉",
     width: 0.9,
     depth: 0.5,
-    // 0.7.6 重绘把台盆拔高到 1.14m（原 0.88m 是旧模型的柜体高度）：目录尺寸与
+    // 重绘把台盆拔高到 1.14m（0.88m 是柜体高度）：目录尺寸与
     // `COLLECTION_MODELS.basin.size` 必须一致，否则加载器会按 0.88 / 1.14 = 0.772
     // 把整件模型**纵向压扁**。
     height: 1.14,

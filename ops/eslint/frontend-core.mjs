@@ -28,7 +28,7 @@ const coreRules = {
   // `/^\/\*[\s\S]*\*\/$/` 这种「空体里只写一句中文理由」的写法是**允许**的
   // （eslint 的 no-empty 本身忽略含注释的块，这正是我们要的：拦「什么都不说」而不是「不许忽略」）。
   "no-empty": ["error", { allowEmptyCatch: false }],
-  // 这两条是 eslint 10 的新规则，存量代码命中即为噪音，显式关掉（关掉也是一种声明）。
+  // 这两条是 eslint 10 的新规则，当前代码命中即为噪音，显式关掉（关掉也是一种声明）。
   "no-useless-assignment": "off",
   "preserve-caught-error": "off",
 };

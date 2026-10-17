@@ -229,9 +229,9 @@ class NotificationEventHandlersHelper:
         event = event or {}
         rule_id = event.get("ruleId") or "unknown"
         # HA（中枢）不可达时**每条**自动化都会失败，而根因只有一个 —— 中枢失联本身已经单独
-        # 告过警了。旧实现按 ruleId 各自冷却，所以一次中枢抖动会变成「N 条自动化失败」的
-        # 风暴，且每条每 30 分钟重来一轮。这里直接静默：这类失败在中枢恢复后会重现，不会
-        # 永久丢失信息，而此刻重复 N 遍只会把真正要看的告警淹掉。
+        # 告过警了。按 ruleId 各自冷却会让一次中枢抖动变成「N 条自动化失败」的风暴，且每条
+        # 每 30 分钟重来一轮。这里直接静默：这类失败在中枢恢复后会重现，不会永久丢失信息，
+        # 而此刻重复 N 遍只会把真正要看的告警淹掉。
         if not self._ha_states_trustworthy():
             logger.info("HA 连接不可信,跳过自动化失败通知: %s", rule_id)
             return

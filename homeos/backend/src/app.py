@@ -62,16 +62,11 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
         ha_registry_available = ha_connected and not bool(
             getattr(request.app.state, "ha_registry_degraded", False)
         )
-        # 启动期已跑迁移 + drift 守卫；此处只暴露期望 revision，不扫库列明细。
-        from .platform.core.migrations import SCHEMA_REVISION
-
+        # 启动期已建库并核对结构；健康检查只反映数据库可用性。
         return {
             "status": "ok" if db_ok else "degraded",
             "ha_registry_available": ha_registry_available,
-            "schema": {
-                "ok": db_ok,
-                "revision": SCHEMA_REVISION,
-            },
+            "schema": {"ok": db_ok},
             "timestamp": iso_timestamp(),
         }
 
@@ -147,7 +142,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     mount_spa_static(app, app_settings, version)
 
-    # 静态资源门禁 / SPA 外壳安全头（并入 homeos-3d main.py 的保护层）
+    # 静态资源门禁 / SPA 外壳安全头
     # 注册在最外层：授权判定要在任何业务中间件之前短路，未登录请求不会触达下游。
     install_studio_shell(
         app,

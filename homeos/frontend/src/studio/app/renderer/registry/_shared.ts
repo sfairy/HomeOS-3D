@@ -329,7 +329,7 @@ export function createHoverLineChart(
 }
 
 /**
- * 摄像机舞台的视觉状态机（对齐 HA Bridge 0.7.5 的 `createCameraVisualState`）。
+ * 摄像机舞台的视觉状态机。
  *
  * 单一来源：状态写进 `dataset.cameraVisualState`，同时切换 `is-connecting` / `is-ready` /
  * `is-unavailable` / `is-suspended` 与 `aria-busy`，样式全在 `renderer.css` 里（增量补齐）。

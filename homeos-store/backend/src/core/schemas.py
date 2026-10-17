@@ -3,10 +3,33 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-from ..security.security import normalize_username
+from ..security.security import (
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+    PASSWORD_POLICY_MESSAGE,
+    is_password_policy_compliant,
+    normalize_username,
+)
+
+
+def _check_password_policy(value: str) -> str:
+    """请求解析期就挡下弱口令（早于任何「消费验证码」的副作用）。"""
+    if not is_password_policy_compliant(value):
+        raise ValueError(PASSWORD_POLICY_MESSAGE)
+    return value
+
+
+#: 统一口令策略类型：长度 + 字母/数字要求都在解析期生效。
+#: 用在所有「设置新密码」的入口（注册、找回、改密、管理员重置）；登录请求**不用**它。
+StrongPassword = Annotated[
+    str,
+    Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH),
+    AfterValidator(_check_password_policy),
+]
 
 
 class _Camel(BaseModel):
@@ -16,15 +39,17 @@ class _Camel(BaseModel):
 class VerificationRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
     purpose: str = Field(
-        default="register", pattern="^(register|reset|verify|change_email|homeos_register)$"
+        default="register",
+        pattern="^(register|reset|verify|change_email|homeos_register|homeos_reset)$",
     )
 
 
 class VerifyCodeRequest(_Camel):
     """服务端/客户端通用验码请求（不依赖已登录账号）。
 
-    主应用（homeos）首装注册用它校验并消费发到注册邮箱的验证码：``purpose`` 限定为
-    ``homeos_register``，避免这个公开端点被拿去替商店自身账号流程验码。
+    主应用（homeos）首装注册与找回本机密码用它校验并消费发到注册邮箱的验证码：
+    ``purpose`` 被端点限定为 ``homeos_register`` / ``homeos_reset``，避免这个公开端点
+    被拿去替商店自身账号流程验码。
     """
 
     email: str = Field(min_length=3, max_length=255)
@@ -46,8 +71,8 @@ class ChangePasswordRequest(_Camel):
     """
 
     old_password: str = Field(min_length=1, max_length=128, alias="oldPassword")
-    new_password: str = Field(min_length=8, max_length=128, alias="newPassword")
-    confirm_password: str = Field(min_length=8, max_length=128, alias="confirmPassword")
+    new_password: StrongPassword = Field(alias="newPassword")
+    confirm_password: StrongPassword = Field(alias="confirmPassword")
 
 
 class VerifyEmailRequest(_Camel):
@@ -66,7 +91,7 @@ class RegisterRequest(_Camel):
     username: str = Field(min_length=3, max_length=64)
     email: str = Field(min_length=3, max_length=255)
     code: str = Field(min_length=4, max_length=12)
-    password: str = Field(min_length=8, max_length=128)
+    password: StrongPassword
     confirm_password: str = Field(default="", alias="confirmPassword", max_length=128)
     referral_code: str | None = Field(default=None, alias="referralCode", max_length=16)
 
@@ -78,25 +103,16 @@ class RegisterRequest(_Camel):
 
 
 class LoginRequest(_Camel):
-    """登录：``account`` 可填账号名或注册邮箱；兼容旧客户端仍传 ``email``。"""
+    """登录：``account`` 可填账号名或注册邮箱。"""
 
-    account: str | None = Field(default=None, min_length=1, max_length=255)
-    email: str | None = Field(default=None, min_length=1, max_length=255)
+    account: str = Field(min_length=1, max_length=255)
     password: str = Field(min_length=1, max_length=128)
-
-    @model_validator(mode="after")
-    def resolve_account(self) -> LoginRequest:
-        key = (self.account or self.email or "").strip()
-        if not key:
-            raise ValueError("请填写账号或邮箱。")
-        self.account = key
-        return self
 
 
 class PasswordResetRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
     code: str = Field(min_length=4, max_length=12)
-    password: str = Field(min_length=8, max_length=128)
+    password: StrongPassword
     confirm_password: str = Field(default="", alias="confirmPassword", max_length=128)
 
 
@@ -373,7 +389,7 @@ class AdminAccountPatch(_AdminBase):
     is_admin: bool | None = Field(default=None, alias="isAdmin")
     is_active: bool | None = Field(default=None, alias="isActive")
     email_verified: bool | None = Field(default=None, alias="emailVerified")
-    new_password: str | None = Field(default=None, alias="newPassword", min_length=8, max_length=128)
+    new_password: StrongPassword | None = Field(default=None, alias="newPassword")
 
 
 class AdminWalletAdjustRequest(_AdminBase):

@@ -1,9 +1,9 @@
 /**
  * 每个路由对应的 `<head>` 资产。
  *
- * 按路由在运行时同步到 `<head>`（``App.vue`` 的 route.name watcher）。这**不是**旧的
- * 「整页跳转换装」：样式表按声明安装 / 卸载，离开 studio 路由时 ``PAGE_ASSETS.shell``
- * （空样式表清单）会把 display.css / renderer.css / app.css 清掉，避免残留到设备页。
+ * 按路由在运行时同步到 `<head>`（``App.vue`` 的 route.name watcher）。样式表按声明
+ * 安装 / 卸载，离开 studio 路由时 ``PAGE_ASSETS.shell``（空样式表清单）会把
+ * display.css / renderer.css / app.css 清掉，避免残留到设备页。
  * 样式表顺序即数组顺序 —— 例如 appearance.css 必须排在 auth/scene 四片之后
  * （同为 :root 令牌，后加载的赢）。
  */
@@ -32,10 +32,9 @@ const AUTH_SCENE_STYLESHEETS = [
 /**
  * 站点配色令牌（`--hb-accent-rgb` / `--hb-lumen-rgb` / `--hb-aura-rgb` / `--hb-eco-rgb`）。
  *
- * 原先它只在运行时后置加载，而 page.css 里 `--hos-tone-rgb: var(--hb-accent-rgb)` **没有兜底值**
- * —— 实测首帧到约 400ms 之间 `--hos-tone-rgb` 恒为 UNDEF，`rgb(var(--hos-tone-rgb), …)`
- * 整片解析失败、场景发黑，令牌落地后整屏「弹」出来。现在与场景四片一起在 index.html 预装，
- * 运行时复用同一批节点。**顺序即数组顺序**：它必须排在场景四片之后（同为 `:root` 令牌，后加载的赢）。
+ * page.css 里 `--hos-tone-rgb: var(--hb-accent-rgb)` **没有兜底值**：若只在运行时后置加载，
+ * 首帧到令牌落地之间 `rgb(var(--hos-tone-rgb), …)` 会整片解析失败、场景发黑。
+ * 因此与场景四片一起在 index.html 预装，运行时复用同一批节点。**顺序即数组顺序**：它必须排在场景四片之后（同为 `:root` 令牌，后加载的赢）。
  */
 const APPEARANCE_STYLESHEET = "/static/appearance.css";
 
@@ -127,8 +126,7 @@ const ANCHOR_SELECTOR = 'link[href$="/static/spa-shell.css"]';
  *
  * 路线由外观（app.css / display.css / 3d-studio/studio.css…）必须排在打包 CSS **之前**：
  * 一旦被追加到 `<head>` 末尾，它们就晚于 Vite CSS，于是「后加载的赢」反过来成立，
- * studio-chrome.css 只能靠 52 条 `!important` 硬压（历史上正是如此）。宁可排前面，
- * 也不要制造这种隐式优先级倒挂。
+ * studio-chrome.css 只能靠大量 `!important` 硬压。宁可排前面，也不要制造这种隐式优先级倒挂。
  */
 const UNMANAGED_STYLESHEET_SELECTOR = `link[rel="stylesheet"]:not([${MANAGED_ATTR}])`;
 
@@ -202,9 +200,8 @@ function applyStylesheets(urls: readonly string[]): void {
   /**
    * 逐个节点就位，**只移动真正不在位的那个**。
    *
-   * 之前是「先整组判断、只要有一个不在位就把整组重新 append 一遍」，于是跨壳换装时
-   * （旧表靠 keepStylesheets 保留 + 新表追加）已经就位的场景四片也被连坐摘挂一次。
-   * 逐个判断后：就位的原地不动，新增的插到游标之后，顺序错的才搬。
+   * 逐个判断：就位的原地不动，新增的插到游标之后，顺序错的才搬。整组重排会让跨壳
+   * 换装时（keepStylesheets 保留 + 新表追加）已经就位的场景四片被无谓摘挂一次。
    */
   let cursor: Element | null = anchor;
   for (const url of urls) {
@@ -241,8 +238,8 @@ function setMeta(id: string, attr: "content", value: string): void {
 
 export type ApplyPageAssetsOptions = {
   /**
-   * 过渡期间额外保留的样式表（通常是离开页仍在 DOM 里时的旧清单）。
-   * 新路由样式会立刻装上，旧表延后到 leave 结束再卸，避免滑动背景里露出无样式 HTML。
+   * 跨页过渡期间额外保留的上一页样式表。
+   * 新路由样式立刻装上，被替换的样式表延后到 leave 结束再卸，避免滑动背景露出无样式 HTML。
    */
   keepStylesheets?: readonly string[];
 };

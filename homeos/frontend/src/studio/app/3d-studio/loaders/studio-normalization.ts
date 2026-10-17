@@ -2,9 +2,8 @@ export {
   isCourtyardDrawing,
   normalizeCourtyardDrawing,
 } from "../plan/courtyard-drawing";
-// 0.7.6 `studio-normalization.js` 的同名依赖：收藏模型（3D Studio 的 98 款新增 + 12 款
-// 改写）要按自己的尺寸下限摆放，不能一律套用遗留的 10cm / 5cm。`collection-models.ts`
-// 只有一条 `import type`，不会与这里形成运行期环。
+// 收藏模型（98 款新增 + 12 款改写）要按自己的尺寸下限摆放，不能一律套用
+// 通用的 10cm / 5cm。`collection-models.ts` 只有一条 `import type`，不会形成运行期环。
 import { COLLECTION_MODELS } from "./external-models/collection-models";
 function clamp(rawValue: any, minValue: any, maxValue: any) {
   return Math.min(maxValue, Math.max(minValue, rawValue));
@@ -20,8 +19,7 @@ export function normalizeFullRotation(angleDeg: any, fallbackAngleDeg = 0) {
     : ((normalizedAngleDeg % 360) + 360) % 360;
 }
 /**
- * 这些「小件 / 挂墙件」同样按 1cm 级别下限处理（0.7.6 清单，逐字对齐
- * `studio-normalization.js` 的 `itemMinimumFootprint`）。
+ * 这些「小件 / 挂墙件」按 1cm 级别下限处理。
  */
 const MIN_FOOTPRINT_ITEM_TYPES = [
   "airer",
@@ -35,11 +33,11 @@ const MIN_FOOTPRINT_ITEM_TYPES = [
 ];
 
 /**
- * 该款模型是否属于「0.7.6 收藏模型」且**不是**改写既有款。
+ * 该款模型是否属于「收藏模型」且**不是**改写既有款。
  *
  * `replaces: true` 的 12 款是重绘既有模型（`microwave` / `bed` / `basin`…），尺寸下限要
- * 沿用被替换款的 10cm / 5cm —— 否则同一件家具在 0.7.5 能放进 12cm 的缝、升到 0.7.6
- * 反而被 1cm 下限放开，历史户型里已保存的摆放校验会跟着变。
+ * 沿用被替换款的 10cm / 5cm —— 否则同一件家具从 10cm 下限放宽到 1cm，已保存户型的
+ * 摆放校验会跟着变。
  */
 function isNewCollectionModel(itemType: any) {
   const collectionModel = COLLECTION_MODELS[itemType];

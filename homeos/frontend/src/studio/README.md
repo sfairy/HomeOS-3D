@@ -12,7 +12,7 @@
 | 创作 | `app/3d-studio/`（+ `authoring/{scene,items,lights,ui,boot,types}` 下的域文件夹） | 平面图 / 场景创作 |
 | 面板 | `app/editor/`, `app/renderer/`, `app/display/` | 2D 面板编辑器、`PanelRenderer`、显示端启动 |
 | 平台 | `platform/`、叶子 `app/bridge/**`、叶子 `app/shared/**`（含 `app/shared/util/**`） | 共享适配层 —— **禁止** import editor/renderer/creator |
-| 舞台 | `runtime/`（优先 `config-ui/`，而非已废弃的 `editor/`）、`shims/` | 实时 3D 舞台 + 设备；多入口经 `vite.runtime.config.ts` |
+| 舞台 | `runtime/`（配置编辑器在 `config-ui/`）、`shims/` | 实时 3D 舞台 + 设备；多入口经 `vite.runtime.config.ts` |
 
 别名：`@app` → `app/`，`@runtime` → `runtime/`。
 
@@ -21,14 +21,14 @@
 
 ## 为什么这里没有 `components/` `composables/` `views/`
 
-studio 是**子系统**，不是应用根。历史上它复用过应用根的通用桶名（`components/`、`composables/`、`views/`、`utils/`），
-导致同名不同义、路径无法自解释。现已消除：
+studio 是**子系统**，不是应用根，因此不复用应用根的通用桶名（`components/`、`composables/`、`views/`、`utils/`），
+避免同名不同义、路径无法自解释：
 
-- 路由入口页 → `entries/`（不再是 `views/`）
-- `useLegacyPage` → `platform/`
-- `app/utils/` → `app/shared/util/`（并入既有叶子层）
-- 认证页与 `SceneStage`/`PasswordField` 等**应用级**件已迁出 studio → `src/views/auth/`、`src/components/common/`
-  （P3b-2 起这两件与商店共用一份：壳在 `@homeos/shared/components/*.vue`，本目录只剩 `src/components/common/SceneStage.vue` 这个薄适配层）
+- 路由入口页 → `entries/`
+- 经典脚本加载 → `platform/`
+- 叶子工具 → `app/shared/util/`
+- 认证页与 `SceneStage`/`PasswordField` 等**应用级**件位于 `src/views/auth/`、`src/components/common/`
+  （壳在 `@homeos/shared/components/*.vue`，本目录只剩 `src/components/common/SceneStage.vue` 这个薄适配层）
 
 新增目录前请自问：这是「子系统内部」还是「应用级」？应用级的不要放进 studio。
 
@@ -60,11 +60,11 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 | 文件夹 | 内容 |
 |--------|----------|
 | `lifecycle.ts` | 生命周期再导出（原 `boot.ts`，改名以避开与 `boot/` 的同名冲突） |
-| `boot/` | 引导序列（P4 搬入：`studio-boot.ts` = `startupStudio`（入口判定 → 渲染器 → 拉草稿 → 净化 → 应用 → 挂载舞台 / 开导出面板），15 项依赖按 `StudioBootDeps` 注入） |
-| `scene/` | 相机、阴影、总览、运动呈现（P4 搬入：`studio-view-settings.ts` = 场景默认视图/曝光；`studio-scene-payload.ts` = 场景负载净化；`studio-document-payload.ts` = 楼层文档净化；`studio-box-mesh.ts` = 盒子网格构件） |
-| `items/` | 家具 / 设备物件助手（P4 搬入：`item-catalog.ts` = 1909 行类型目录 + 8 个类型集合 + `nextBatchItemTypeSet`；`studio-television-model.ts` = 电视模型构件） |
+| `boot/` | 引导序列（`studio-boot.ts` = `startupStudio`（入口判定 → 渲染器 → 拉草稿 → 净化 → 应用 → 挂载舞台 / 开导出面板），15 项依赖按 `StudioBootDeps` 注入） |
+| `scene/` | 相机、阴影、总览、运动呈现（`studio-view-settings.ts` = 场景默认视图/曝光；`studio-scene-payload.ts` = 场景负载净化；`studio-document-payload.ts` = 楼层文档净化；`studio-box-mesh.ts` = 盒子网格构件） |
+| `items/` | 家具 / 设备物件助手（`item-catalog.ts` = 类型目录 + 8 个类型集合 + `nextBatchItemTypeSet`；`studio-television-model.ts` = 电视模型构件） |
 | `lights/` | 灯光预设数据 |
-| `ui/` | 微件、历史、纯函数助手（P4 搬入：`studio-export-layers.ts` = 导出图层清单渲染 + 导出名净化） |
+| `ui/` | 微件、历史、纯函数助手（`studio-export-layers.ts` = 导出图层清单渲染 + 导出名净化） |
 | `types/` | 共享的 studio-app 类型 |
 
 `authoring/` 之外，`app/3d-studio/` 顶层还有一批同级的创作域：
@@ -97,27 +97,27 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 - `copy-backup/` — 备份 / 复制对话框装配与执行（声明级切片）
 - `inspectors/` — 流程线 / 百分比条检查器（从 `shared/` 搬出）
 - `menus/` — 标题按钮图标菜单（定位 / 悬停滚动 / 图标选项装载）
-- `metadata/` — 导航 / 样式属性元数据表（纯数据）与透视常量（P4 从 `home.ts` 切出）
+- `metadata/` — 导航 / 样式属性元数据表（纯数据）与透视常量
 - `navigation-style-apply/` — 导航「套用到其它控件」弹窗
-- `net/` — 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩（P4 6e 从 `home.ts` 切出）
+- `net/` — 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩
 - `picker/` — 取数弹层
 - `selection/` — 选中组件方向键微调（nudge）
 - `boot.ts` — 生命周期
 
-`app/renderer/` 的域文件夹：`controls/`（控件渲染）、`flow-line/`（流线绘制）、`geometry/`（几何计算）、`registry/`（组件注册表）、`panel-seams/`（见下）。`app/editor` 侧的 `document.ts` / `selection.ts` / `components.ts` 等薄 facade 已并入上方域文件夹或上提为顶层文件。
+`app/renderer/` 的域文件夹：`controls/`（控件渲染）、`flow-line/`（流线绘制）、`geometry/`（几何计算）、`registry/`（组件注册表）、`panel-seams/`（见下）。`app/editor` 侧的 `document.ts` / `selection.ts` / `components.ts` 等薄 facade 位于上方域文件夹或顶层。
 
 ## 面板渲染器命名
 
-- 优先 `panel-renderer.ts`，而非已废弃的 `renderer.ts` 再导出
-- 优先 `panel-document.ts` / `panel-caches.ts` / `panel-dialog-motion.ts`，而非 `runtime-*.ts` 桩
-- **`app/renderer/panel-seams/` 是「面板渲染器方法」域**（P4 7b + 7c 落地）：原 `panel-renderer-bulk-methods.ts`（10.9k 行）按 seam 拆成 12 个文件（`render-component` / `connect-runtime` / `{capability,light,cover,climate,water-heater}-controls` / `{air-purifier,vacuum,presence,entity}-details` / `custom-popup`），宿主文件已删，调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
-- **class 方法域同在此目录**（P4 7c 落地）：`panel-renderer.ts` 的 70 个类方法按 seam 搬进 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场红；这是 7b 删宿主文件时学到的教训）。工具：`ops/studio/studio_slice_extract.mjs --method-form`（`ops/studio/studio_slice_analyze.mjs --rank` 也认类方法）—— **两者均已随工具链退役移除**
-- 去重收尾把原 `renderer/core/renderer/`（12 个 mixin 刀）与 `renderer/core/renderer/methods/`（8 个类方法刀 + `optimistic-state`）合并压平为单层 `panel-seams/`（21 文件），并把 `renderer/core/*` 整体上提到 `app/renderer/`
-- 该目录里 `paint.ts` 仍是 **planned**（那是 `panel-renderer.ts` 自己的绘制 seam，未建）；原 `dialogs.ts` 计划条目已被上面这 12 刀取代、从清单删除。
+- 使用 `panel-renderer.ts`，不要再导出 `renderer.ts`
+- 使用 `panel-document.ts` / `panel-caches.ts` / `panel-dialog-motion.ts`，不要使用 `runtime-*.ts` 桩
+- **`app/renderer/panel-seams/` 是「面板渲染器方法」域**：按 seam 拆成 12 个文件（`render-component` / `connect-runtime` / `{capability,light,cover,climate,water-heater}-controls` / `{air-purifier,vacuum,presence,entity}-details` / `custom-popup`），调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
+- **class 方法域同在此目录**：`panel-renderer.ts` 的 70 个类方法按 seam 分布在 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场报错）
+- `panel-seams/` 共 21 个文件；`renderer/core/*` 已上提到 `app/renderer/`
+- `paint.ts`（`panel-renderer.ts` 自己的绘制 seam）尚未建立
 
 ## 舞台配置 UI
 
-优先 `@runtime/config-ui/*`。已废弃的 `@runtime/editor/*` 路径是纯再导出桩，以保证已投放的模块 URL 仍然有效。
+配置编辑器统一使用 `@runtime/config-ui/*`。
 
 ## 依赖规则（约定）
 

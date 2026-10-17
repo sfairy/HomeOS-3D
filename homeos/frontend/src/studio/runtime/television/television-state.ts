@@ -1,16 +1,12 @@
 const readEntityState = (stateSource: any, entityId: any) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
 
-/** 0.7.2：screenImage.assetId = user:<32hex>；兼容旧 posterAssetId（裸 hex 或 user:） */
+/** ``screenImage.assetId`` 形如 ``user:<32hex>``。 */
 export function televisionScreenAssetId(televisionConfig: any = {}) {
-  const fromScreen = televisionConfig?.screenImage?.assetId;
-  if (typeof fromScreen == "string" && /^user:[0-9a-f]{32}$/i.test(fromScreen.trim()))
-    return fromScreen.trim().toLowerCase();
-  const legacy = String(televisionConfig?.posterAssetId || "")
-    .trim()
-    .toLowerCase();
-  const bare = legacy.replace(/^user:/, "");
-  return /^[0-9a-f]{32}$/.test(bare) ? "user:" + bare : "";
+  const assetId = televisionConfig?.screenImage?.assetId;
+  if (typeof assetId == "string" && /^user:[0-9a-f]{32}$/i.test(assetId.trim()))
+    return assetId.trim().toLowerCase();
+  return "";
 }
 
 function televisionPosterAssetUrl(televisionConfig: any) {

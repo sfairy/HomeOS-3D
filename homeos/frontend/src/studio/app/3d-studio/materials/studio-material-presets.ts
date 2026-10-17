@@ -133,7 +133,7 @@ const STYLE_ROLE_DERIVATIONS: ReadonlyArray<{
   { role: "foliage", from: ["interior", "frame"], surface: "foliage" },
 
   /* ------------------------------------------------------------------ *
-   * 0.7.6 恢复出来的**真实构件角色**（`model-slot-roles.ts` / `studio-semantic-roles.ts`）：
+   * **真实构件角色**（`model-slot-roles.ts` / `studio-semantic-roles.ts`）：
    * 各档位组合（combo）里没有这些角色，于是「选了档位却不改变任何槽位」（空转）或只改一半
    * （半生效）。这里按**语义近邻**把它们挂到档位已有的角色上，档位才能真正接管配色。
    * ------------------------------------------------------------------ */
@@ -737,7 +737,7 @@ function plantCombo({ foliage, pot, saucer, trunk, soil, flower, flowerCenter }:
     /** 同一株上的新叶 / 受光叶：比主叶亮一档，别让整株塌成一个色号。 */
     foliageLight: { surface: "foliage", color: shadeColor(foliage.color as number, 0.2) },
     pot,
-    /** `saucer` 与 `base` 是同一块接水盘的两种叫法（旧槽位叫 `base`）。 */
+    /** `saucer` 与 `base` 是同一块接水盘的两种叫法。 */
     saucer: saucer ?? derivedSaucer,
     base: saucer ?? derivedSaucer,
     frame: trunk ?? derivedTrunk,
@@ -2537,10 +2537,10 @@ const DOOR_STYLES: readonly MaterialStylePreset[] = Object.freeze([
 
 
 /* ------------------------------------------------------------------ *
- * 0.7.6 新增品类档位：宠物 / 儿童 / 影音 / 健身 / 器皿 / 庭院
+ * 新增品类档位：宠物 / 儿童 / 影音 / 健身 / 器皿 / 庭院
  *
- * 这些品类原来没有任何档位（面板上「材质风格」是空的），且它们的角色名（`petPad` /
- * `playBody` / `sportFrame` / `basket` / `leaf`…）也不在旧档位表的词表里。这里按**真实语义**
+ * 这些品类没有既有档位（面板上「材质风格」是空的），且它们的角色名（`petPad` /
+ * `playBody` / `sportFrame` / `basket` / `leaf`…）也不在既有档位表的词表里。这里按**真实语义**
  * 给每组 4 个档位，并把该品类出现过的角色**显式写全**，保证「档位 → 槽位」交集非空（不空转）。
  * ------------------------------------------------------------------ */
 

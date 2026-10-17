@@ -128,7 +128,7 @@ function buildClimateDrawing(doc: Document, kind: StageDeviceVisualKind) {
 }
 
 /**
- * 梦幻帘完全收拢时相邻叶片的堆叠步距（px）：与 0.6.5 同口径，取略小于叶片间距的值，
+ * 梦幻帘完全收拢时相邻叶片的堆叠步距（px）：取略小于叶片间距的值，
  * 让收拢后的叶片互相压住而不是完全重合成一条线。
  */
 const SLAT_GATHER_STEP_PX = 6.5;
@@ -141,7 +141,7 @@ function buildCoverDrawing(doc: Document, kind: StageDeviceVisualKind) {
   const left = el(doc, "i", "i3d-device-cover-panel left");
   const right = el(doc, "i", "i3d-device-cover-panel right");
   const slats = el(doc, "span", "i3d-device-cover-slats");
-  // 叶片数固定 13，与 0.6.5 一致：再密会在窗洞里糊成一片，再疏则看不出「帘」。
+  // 叶片数固定 13：再密会在窗洞里糊成一片，再疏则看不出「帘」。
   const slatTotal = 13;
   for (let i = 0; i < slatTotal; i += 1) {
     const slat = el(doc, "span", "i3d-device-cover-slat");
@@ -393,13 +393,13 @@ export function createStageDeviceVisual({
       root.style.setProperty("--i3d-cover-tilt", String(tiltRatio));
       root.style.setProperty("--i3d-cover-tilt-position", tilt + "%");
       root.style.setProperty("--i3d-cover-blade-open", String(bladeOpen));
-      // 梦幻帘：叶片翻转角度按 1.8°/格线性换算，50% 正好 90°（对齐 0.6.5）。
+      // 梦幻帘：叶片翻转角度按 1.8°/格线性换算，50% 正好 90°。
       root.style.setProperty("--i3d-cover-slat-angle", tilt * 1.8 + "deg");
       // 轨道开合（0–1）驱动叶片往收拢侧聚拢；普通窗帘恒为 0。
       const retractRatio = isDream ? Math.max(0, Math.min(1, position / 100)) : 0;
       root.style.setProperty("--i3d-cover-retract-ratio", String(retractRatio));
       const direction = state.coverDirection || "split";
-      // 每片叶片的收拢位移：左收从左起、右收从右起、对开从中间往两边（对齐 0.6.5）。
+      // 每片叶片的收拢位移：左收从左起、右收从右起、对开从中间往两边。
       const slatElements = root.querySelectorAll(".i3d-device-cover-slat"),
         slatLastIndex = slatElements.length - 1;
       for (let slatIndex = 0; slatIndex <= slatLastIndex; slatIndex += 1) {

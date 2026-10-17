@@ -38,7 +38,7 @@ def _iso_now() -> str:
 def normalize_level(level: Any) -> float | None:
     """归一化电量到 0–100 的两位小数百分比（契约单位为百分比，不做 <=1 启发式）。
 
-    历史 ``<= 1`` 启发式会把整数 1% 误判为 100%，导致低电告警与充电联动失效。
+    ``<= 1`` 的启发式会把整数 1% 误判为 100%，导致低电告警与充电联动失效。
     """
     if level is None or isinstance(level, bool):
         return None

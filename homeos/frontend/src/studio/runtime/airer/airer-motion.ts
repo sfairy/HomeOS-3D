@@ -2,7 +2,6 @@ import { coverState } from "../cover/cover-state";
 import {
   airerAnimationPosePosition,
   airerVisualPosition,
-  migrateAirerDirectionFields,
   normalizeAirerDirection,
 } from "./airer-direction";
 export function createAirerMotion({
@@ -25,7 +24,7 @@ export function createAirerMotion({
   /** 面板读数：positionReversed */
   const panelVisualOf = (airerEntry: any) =>
     airerVisualPosition(airerEntry.position, airerEntry.directionBinding || {});
-  /** 3D pose：仅 animationReversed（0.7.2） */
+  /** 3D pose：仅 animationReversed 生效 */
   const posePositionOf = (airerEntry: any) =>
     airerAnimationPosePosition(airerEntry.position, {
       animationReversed: airerEntry.animationReversed,
@@ -77,13 +76,12 @@ export function createAirerMotion({
           ),
           cover = coverState(airerBinding?.entityId || "", states[airerBinding?.entityId]),
           entityId = airerBinding?.entityId || "";
-        migrateAirerDirectionFields(airerBinding);
         airerEntry.directionBinding = airerBinding || {};
         const direction = normalizeAirerDirection(airerBinding);
-        // 0.7.2：有实体且开启动画反向时，pose 路径才反转
+        // 有实体且开启动画反向时，pose 路径才反转
         airerEntry.animationReversed = !!(entityId && airerBinding?.animationReversed === true);
         const unboundPosition = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55,
-          // 无位置回传时的目标：按 animationReversed 映射（0.7.2）
+          // 无位置回传时的目标：按 animationReversed 映射
           unboundTarget = airerEntry.animationReversed ? 100 - unboundPosition : unboundPosition,
           signature = JSON.stringify([
             entityId,

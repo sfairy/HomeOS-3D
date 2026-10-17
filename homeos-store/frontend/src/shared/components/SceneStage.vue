@@ -7,6 +7,7 @@
  * （`./scene-values`）与站点版本（`site.version`，来自 `/healthz`）喂给共享壳。
  */
 import { computed } from "vue";
+import pkg from "../../../../package.json";
 import SharedSceneStage from "@homeos/shared/components/SceneStage.vue";
 import { useSiteStore } from "@store/shared/stores/site";
 import { sceneValues } from "./scene-values";
@@ -15,7 +16,7 @@ const props = withDefaults(defineProps<{ page?: string }>(), { page: "store" });
 
 const site = useSiteStore();
 const values = computed(() => sceneValues(props.page));
-const version = computed(() => site.version || "0.7.6");
+const version = computed(() => site.version || pkg.version);
 </script>
 
 <template>

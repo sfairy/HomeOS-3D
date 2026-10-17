@@ -67,7 +67,7 @@
   position: relative;
   z-index: 2;
   display: flex;
-  /* 允许换行：原先 nowrap 会把卡片压扁并裁切内容 */
+  /* 允许换行：nowrap 会把卡片压扁并裁切内容 */
   flex-wrap: wrap;
   align-items: stretch;
   width: 100%;

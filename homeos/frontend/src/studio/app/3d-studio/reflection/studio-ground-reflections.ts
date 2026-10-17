@@ -683,7 +683,7 @@ export function createGroundReflections({
           hasCapture: false,
         }),
         (record.onSourceDispose = () => {
-          // 源几何被销毁时立刻释放整条记录，避免贴图/克隆几何悬空（0.7.1 修复）。
+          // 源几何被销毁时立刻释放整条记录，避免贴图/克隆几何悬空。
           disposeRecord(record);
         }),
         sourceMesh.geometry.addEventListener("dispose", record.onSourceDispose),

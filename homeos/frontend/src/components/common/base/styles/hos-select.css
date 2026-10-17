@@ -41,8 +41,8 @@
   gap: 4px;
   width: 100%;
   box-sizing: border-box;
-  /* 用 height 而非 min-height 钉高：min-height 只托底、拦不住内容（行高+内边距+发丝边框）
-     把控件顶高，之前各档位因此普遍比目标高 3–5px。 */
+  /* 用 height 而非 min-height 钉高：min-height 只托底，拦不住内容（行高+内边距+发丝边框）
+     把控件顶高约 3–5px。 */
   height: var(--control-height-md);
   min-width: 0;
   padding: 0 6px 0 10px;

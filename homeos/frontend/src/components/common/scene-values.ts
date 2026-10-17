@@ -40,6 +40,18 @@ const VALUES: Record<string, SceneValues> = {
       ['之后', '检测本机授权状态'],
     ],
   },
+  reset: {
+    STATUS_LABEL: '邮箱验证',
+    TITLE: '把钥匙重新配一把',
+    TAGLINE: '用注册邮箱收一枚验证码，验证通过即可重设本机管理员密码',
+    DOSSIER_LABEL: '找回档案',
+    DOSSIER: [
+      ['凭据', '注册邮箱收到的 6 位验证码'],
+      ['范围', '只重置本机账号，不影响商店账号'],
+      ['会话', '重置成功后旧会话全部失效'],
+      ['之后', '用新密码重新登录本机'],
+    ],
+  },
   activate: {
     STATUS_LABEL: '等待授权',
     TITLE: '给这台机器一枚授权',

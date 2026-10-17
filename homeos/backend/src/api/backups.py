@@ -1,7 +1,7 @@
 """管理员加密业务备份路由（``/api/v1/backups/*``）。
 
-对齐 HA Bridge 0.7.1：export / inspect / cancel job / restore，
-含会话绑定票据、管理员密码限流、导出前 flush、恢复后素材目录刷新。
+export / inspect / cancel job / restore，含会话绑定票据、管理员密码限流、导出前 flush、
+恢复后素材目录刷新。
 """
 
 from __future__ import annotations
@@ -102,7 +102,7 @@ def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) -> None:
 def _ensure_same_admin_session(
     request: Request, user: dict[str, Any]
 ) -> JSONResponse | None:
-    """对齐 0.7.1 current_admin：恢复/检查前再验短会话，防止登录态中途变化。"""
+    """恢复/检查前再验短会话，防止登录态中途变化。"""
     try:
         fresh = authenticated_short_lived_user(request, Response())
     except Exception:

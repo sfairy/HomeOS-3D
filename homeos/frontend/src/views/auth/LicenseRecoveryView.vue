@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
                         <span>租约内照常可用</span>
                     </div>
                     <p>已有项目和连接信息不会被清除。</p>
-                    <a class="hos-text-button" href="/license">本机重新激活</a>
+                    <a class="hos-text-button" href="/activate">本机重新激活</a>
                 </div>
             </section>
         </main>

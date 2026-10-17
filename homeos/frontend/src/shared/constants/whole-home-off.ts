@@ -32,8 +32,6 @@ export function createDefaultWholeHomeOff(): WholeHomeOffConfig {
 /**
  * 规范化全屋关闭配置：合并默认值、校验数组字段。
  *
- * 返回对象**不含** `roles` —— 传入的存量 `roles` 会被丢弃（单一管理员模型下无角色维度）。
- *
  * @param raw - 用户输入的部分配置；为空时使用全部默认值。
  * @returns 合并并清洗后的完整 WholeHomeOffConfig。
  */

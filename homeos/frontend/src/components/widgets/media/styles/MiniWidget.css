@@ -145,9 +145,8 @@
 }
 
 /*
- * 「打开播放器」主操作：原来整块 .mm-controls 带 @click，键盘不可达。
- * 现在封面 + 曲目信息是这枚按钮，右侧三个传输按钮是它的同级（禁止按钮嵌套），
- * 视觉与改造前一致（gap 12px、曲目信息 flex:1）。
+ * 「打开播放器」主操作：封面 + 曲目信息必须是真按钮，右侧三个传输按钮为同级
+ * （按钮不可嵌套），间距保持 gap 12px、曲目信息 flex:1。
  */
 .mm-open {
   flex: 1;
@@ -245,8 +244,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  /* 与同一排的 .mm-btn-play 统一到 sm 档：原先仅靠 5px 内边距撑着内容高度，
-     渲染出 25px，比同行 32px 的播放键矮 7px 且不在尺度上。 */
+  /* 与同一排的 .mm-btn-play 统一到 sm 档：只靠内边距撑高会比播放键矮约 7px。 */
   height: var(--control-height-sm);
   padding: 0 5px;
   border-radius: var(--hos-radius-card);

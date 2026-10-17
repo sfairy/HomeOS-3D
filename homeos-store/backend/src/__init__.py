@@ -1,6 +1,6 @@
 """HomeOS 授权商店与授权服务器（独立服务，默认端口 8802）。
 
-与主应用共用的叶子模块（``logging_noise`` / ``file_lock`` / ``migrations_core`` / ``client_ip`` /
+与主应用共用的叶子模块（``logging_noise`` / ``file_lock`` / ``schema_core`` / ``client_ip`` /
 ``rate_limit`` / ``license_transport``）**不在本包内**：它们在 ``packages/shared-py/homeos_shared``，
 由本包导入时挂好 ``sys.path``（见下）。
 """
@@ -22,8 +22,8 @@ def _register_shared_python_root() -> Path | None:
     可解析。判据是「上溯祖先目录里有没有 ``packages/shared-py/homeos_shared/__init__.py``」——
     镜像里 ``__file__`` 是 ``/app/app/__init__*.so``，一路查到 ``/`` 都落空，自然无害跳过。
 
-    为什么放在包入口而不是各启动脚本里：仓库里有多处迁移入口 / 工具脚本各自往
-    ``sys.path`` 插后端目录（``ops/license_keys.py``、两个 ``migrations/env.py`` 等），
+    为什么放在包入口而不是各启动脚本里：仓库里有多处工具脚本各自往
+    ``sys.path`` 插后端目录（``ops/license_keys.py`` 等），
     逐个补一行必然漏；而它们**都**要 ``import src.*``，所以包入口这一次注册就全覆盖了。
 
     与主应用 ``src/__init__.py`` 里的同名函数是刻意重复的引导代码：它必须在

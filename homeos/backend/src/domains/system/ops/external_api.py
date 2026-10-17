@@ -488,7 +488,7 @@ class ExternalApiService:
         parts = str(value).split(":")
         hour = int(parts[0]) if parts and parts[0].isdigit() else 0
         minutes_source = parts[1] if len(parts) > 1 else "0"
-        # 只匹配一次：旧写法把同一段文本匹配两遍，且未判 None。
+        # 只匹配一次，并对无匹配结果兜底。
         minutes_match = _LEADING_DIGITS_RE.match(minutes_source)
         minutes = int(minutes_match.group(0)) if minutes_match else 0
         return hour * 60 + minutes

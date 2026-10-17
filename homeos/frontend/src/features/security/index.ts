@@ -13,7 +13,7 @@
  * 这 4 个纯函数必须落在 shared 侧才够得着。
  * `useSecurityPanelStatus` 带 store 依赖（`@/stores/auth.store`），进不了 `shared/`，故它的
  * **真源**落在 `@/composables/security/useSecurityPanelStatus`（「store 耦合件留 composables/」
- * 的既有规则），本 barrel 仅转出。原先的 `@/composables/security/*` 兼容桩已全部删除。
+ * 的既有规则），本 barrel 仅转出。
  */
 
 // ── 域入口组件 ──

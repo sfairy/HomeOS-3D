@@ -62,7 +62,7 @@ export interface SystemConfig {
   webrtc?: Partial<SharedWebrtcConfig>
 }
 
-/** PUT /system/config 局部 patch（任意分区均可部分更新；保留 index 以兼容动态分区键） */
+/** PUT /system/config 局部 patch（任意分区均可部分更新；index 支持动态分区键） */
 export type SystemConfigPatch = {
   [K in keyof SystemConfig]?: SystemConfig[K]
 } & Record<string, unknown>

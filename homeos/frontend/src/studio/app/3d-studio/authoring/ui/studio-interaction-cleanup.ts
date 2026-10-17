@@ -1,16 +1,16 @@
 /** 「保存并退出」/ 删除前的交互收尾确认弹窗：等待进行中的保存、等用户确认后再落盘。
  *
- * 从 `../studio-app.ts` 的巨型闭包抽出（P4 拆单体）：两个同宿主助手（抹选、toast）改为显式传参。
+ * 两个同宿主助手（撤销删除、toast）显式传参，便于独立复用。
  */
 
 /**
  * @param interactionImpact 保存失败详情（`null` 表示只是普通交互收尾）
- * @param deleteSelectedObjects 抹掉当前选中（同宿主助手，显式传入）
+ * @param undoDeletion 撤销本次待保存的删除（同宿主助手，显式传入）
  * @param showToast 提示气泡（同宿主助手，显式传入）
  */
 export function resolveInteractionCleanup(
   interactionImpact: any,
-  deleteSelectedObjects: () => Promise<any> | any,
+  undoDeletion: () => Promise<any> | any,
   showToast: (message: string, kind?: string) => void,
 ) {
   return new Promise((cleanupResolve) => {
@@ -55,7 +55,7 @@ export function resolveInteractionCleanup(
           cleanupCloseButton.disabled =
             true);
         try {
-          (await deleteSelectedObjects(), finishCleanup(false));
+          (await undoDeletion(), finishCleanup(false));
         } catch (cleanupRestoreFailure: any) {
           showToast(cleanupRestoreFailure.message || "恢复删除失败，请重试。", "error");
         } finally {

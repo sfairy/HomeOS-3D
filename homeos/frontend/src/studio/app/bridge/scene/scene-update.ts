@@ -38,12 +38,11 @@ function omitKeys(source: any, excludedKeys: any) {
  * 结构化相等（键无序）：等价于「``JSON.stringify(sortDeep(x))`` 后比字符串」，
  * 但**不构建字符串**、不做中间对象克隆，且在第一个不同处提前返回。
  *
- * 原实现对整份场景做两轮 ``sortDeep``（每层都排序 + ``Object.fromEntries`` 重建）
- * 再各序列化成一个长字符串，编辑一次场景就是两次全量深拷贝。这里只遍历、不落地。
+ * 直接遍历比较，不构建字符串、不做中间对象克隆，且在第一个不同处提前返回。
  *
- * 口径：与旧的字符串比较相比**更保守**（任何拿不准的情况都判为「不相等」），
- * 即最多多报一次变更，绝不会漏报。差异点（都是「旧版认为相等」而这里认为不等）：
- * 值为 ``undefined`` / 函数 / ``NaN`` 的字段，以及数组里的 ``undefined`` 元素。
+ * 口径刻意**保守**（任何拿不准的情况都判为「不相等」），即最多多报一次变更，
+ * 绝不会漏报：值为 ``undefined`` / 函数 / ``NaN`` 的字段，以及数组里的 ``undefined``
+ * 元素都判为不同。
  */
 function stableEquals(left: any, right: any): boolean {
   if (left === right) return true;
@@ -58,7 +57,7 @@ function stableEquals(left: any, right: any): boolean {
     rightIsObject = !!right && typeof right === "object";
   if (leftIsObject || rightIsObject) {
     if (!leftIsObject || !rightIsObject) return false;
-    // 非普通对象（Date / Map / 类实例）与旧版口径一致：只看自有可枚举键
+    // 非普通对象（Date / Map / 类实例）只看自有可枚举键
     const leftKeys = Object.keys(left).sort(),
       rightKeys = Object.keys(right).sort();
     if (leftKeys.length !== rightKeys.length) return false;

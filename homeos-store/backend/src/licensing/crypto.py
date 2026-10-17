@@ -84,9 +84,9 @@ class LicenseServerError(Exception):
     def structured_code(self) -> str:
         """这个错误最终发给客户端的码：显式指定 > 吊销兜底 > 状态码默认 > 通用兜底。
 
-        ``revoked`` 为真却不给码时兜到 ``REVOKED`` —— 保留历史行为（只声明 revoked 的
-        吊销错误仍然按吊销处理），但显式码优先，因为「实例不匹配」「被解绑」这些场景
-        都该有自己的码：客户端据此判断是「重新激活」还是「找管理员」。
+        ``revoked`` 为真却不给码时兜到 ``REVOKED``（只声明 revoked 的吊销错误仍按吊销
+        处理），但显式码优先，因为「实例不匹配」「被解绑」这些场景都该有自己的码：
+        客户端据此判断是「重新激活」还是「找管理员」。
         """
         if self.code:
             return self.code

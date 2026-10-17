@@ -25,7 +25,7 @@
       <template v-else>
         <div v-if="albumBg" class="mm-album-bg" :style="{ backgroundImage: `url(${albumBg})` }" />
         <div v-if="playerIds.length > 1" class="mm-dots">
-          <!-- 分页点必须是真按钮：原来是无键盘路径的 div，键盘用户无法切换播放器 -->
+          <!-- 分页点必须是真按钮，保证键盘用户可切换播放器 -->
           <button
             v-for="(eid, idx) in playerIds"
             :key="eid"
@@ -60,9 +60,8 @@
                   </div>
                 </div>
                 <!--
-                  「打开播放器」原来是 .mm-controls 上的 @click，键盘不可达。
-                  这里把封面 + 曲目信息包成真按钮，三个传输控制是它的同级按钮
-                  （HTML 不允许按钮嵌套）。
+                  「打开播放器」的封面 + 曲目信息必须是真按钮，保证键盘可达；
+                  三个传输控制是它的同级按钮（HTML 不允许按钮嵌套）。
                 -->
                 <div class="mm-controls" @mousedown.stop>
                   <button

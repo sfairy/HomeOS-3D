@@ -2,7 +2,7 @@ import { appendBackgroundOpacityControl } from "../core/label-appearance";
 import {
   openBatchApply,
   copyBatchFields,
-} from "../editor/batch-apply";
+} from "../config-ui/batch-apply";
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed,
@@ -1048,7 +1048,7 @@ export async function openSecurityEditor({
         async () => {
           const pickerRequestGeneration = ++pickerGeneration;
           try {
-            // 0.7.2：烟感/气感/水浸电量与门锁共用 lock-battery（sensor.*），不是泛 sensor/灯光开关目录
+            // 烟感/气感/水浸电量与门锁共用 lock-battery（sensor.*），不是泛 sensor/灯光开关目录
             const batteryPickerHandle = await pickers.entity({
               trigger: batteryEntityButton,
               deviceKind: "lock-battery",
@@ -1094,7 +1094,7 @@ export async function openSecurityEditor({
         ["y", "位置 Y", -1000000, 1000000, 1, 0],
         ["height", "离地高度（米）", 0, 20, 0.1, 1.8],
         ["size", "卡片宽度（px）", 100, 600, 1, 340],
-        // 与后端 validate_config / 0.7.2 一致：fontSize 上限 24
+        // 与后端 validate_config 一致：fontSize 上限 24
         ["fontSize", "文字大小（px）", 9, 24, 1, 21],
       ] as const) {
         createNumberField(
@@ -1116,7 +1116,7 @@ export async function openSecurityEditor({
           "opacity",
           markPropertiesDirty,
         ));
-      // 0.7.2：位置与外观仅坐标/尺寸/背景不透明度，无「显示卡片」「参与全屏」开关
+      // 位置与外观仅坐标/尺寸/背景不透明度，无「显示卡片」「参与全屏」开关
       const previewSection = createSectionHeading("报警效果预览");
       const alarmProfile =
         SECURITY_ALARM_TYPES[securityKind] || SECURITY_ALARM_TYPES.smoke;
@@ -1124,7 +1124,7 @@ export async function openSecurityEditor({
         alarmPreviewOverlay ? "结束预览" : "预览报警",
         () => {
           const wasRunning = previewButton.dataset.running === "true";
-          // 对齐 0.7.1：每次点击先 dispose 再建，避免关闭提示后状态残留。
+          // 每次点击先 dispose 再建，避免关闭提示后状态残留。
           alarmPreviewOverlay?.dispose();
           alarmPreviewOverlay = createSecurityAlarmOverlay(stageHostElement, {
             onDismiss() {
@@ -1858,7 +1858,7 @@ export async function openSecurityEditor({
             placeholder: "http://192.168.1.100:1984/stream.html?src=camera1",
           }),
           cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 网页播放地址"),
-          // 0.7.6 起改用 input：边输边写进草稿，保存时不必先让输入框失焦。
+          // 用 input：边输边写进草稿，保存时不必先让输入框失焦。
           cameraGo2rtcUrlInputElement.addEventListener("input", () => {
             (selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim(),
               markPropertiesDirty());

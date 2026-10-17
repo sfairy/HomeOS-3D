@@ -11,7 +11,8 @@
  * - `proxy` —— 镜像内置 Caddy 反代监听，容器内固定，宿主发布端口由 compose 变量覆盖；
  * - `debug` —— 仅 `--debug` 时给 IDE attach。
  *
- * 容器内固定端口（8801/8802 与反代 8803/8804）与 compose 的默认值必须与下表一致。
+ * 容器内固定端口（8801 / 8802，以及主应用的 8803 反代）与 compose 的默认值必须与下表一致。
+ * 商店**没有**反代端口：它不提供 HTTPS，公网 TLS 由隧道 / 跳板机终止。
  */
 
 /** 端口表：键为语义名，值为 `{ port, bind, project, role }`。 */
@@ -22,8 +23,6 @@ export const PORTS = {
   storeApi: { port: 8802, project: 'homeos-store', role: 'dev', description: '授权商店 API' },
   /** 主应用镜像内置反代（Caddy → 127.0.0.1:8801）。 */
   appProxy: { port: 8803, project: 'homeos', role: 'proxy', description: '主应用内置反代' },
-  /** 商店镜像内置反代（Caddy → 127.0.0.1:8802）。 */
-  storeProxy: { port: 8804, project: 'homeos-store', role: 'proxy', description: '授权商店内置反代' },
   /** 源码态主应用 Vite（HMR）。 */
   viteApp: { port: 8805, project: 'homeos', role: 'dev', description: '主应用 Vite' },
   /** 源码态商店 Vite（HMR）。 */

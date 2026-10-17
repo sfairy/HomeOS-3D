@@ -203,7 +203,7 @@ export function buildMetadata(
             )
             .map((fanMetadataItem: any, fanMetadataIndex: any) => ({
               ...fanMetadataItem,
-              // 0.7.2：吊扇锚点在机身中心（elevation 向下半个高度）
+              // 吊扇锚点在机身中心（elevation 向下半个高度）
               ...(fanMetadataItem.type === "ceiling-fan"
                 ? {
                     height:

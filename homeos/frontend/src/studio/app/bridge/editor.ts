@@ -1737,7 +1737,7 @@ type PopupPresetConfig = {
       (candidateWeatherEntity: any) =>
         (candidateWeatherEntity.entityId || candidateWeatherEntity.entity_id) === weatherEntityId,
     ),
-    // 按钮显示**实体名**（0.7.6 印的是 `weather.wulumuqi` 这种 ID，用户读不出所以然）；
+    // 按钮显示**实体名**；实体 ID（如 `weather.wulumuqi`）对用户没有语义；
     // ID 退到 `title`，悬停仍可见。
     weatherEntityButton = createElement(
       "button",
@@ -1748,7 +1748,7 @@ type PopupPresetConfig = {
         weatherEntityState(editorOptions.states, weatherEntityId),
       ) || "绑定天气实体",
     );
-  // 0.7.6 把这一组的标题隐藏：分组靠下面「天气实体 / 天气预览」两行自述。
+  // 这一组不显示标题：分组靠下面「天气实体 / 天气预览」两行自述。
   (weatherSection.children[0] as HTMLElement).hidden = true;
   ((weatherEntityButton.type = "button"),
     (weatherEntityButton.name = "i3d-weather-entity"),

@@ -27,8 +27,8 @@ from ...config import Settings
 from ...platform.core.database import Database
 from ...platform.core.models import LicenseState
 
-# 事件日志是可选的：homeos 侧由 GlobalLogStore（Phase 4 随数据面一并并入）提供，
-# 未注入时授权服务只做本地状态记录，不阻塞任何流程。
+# 事件日志是可选的：由 GlobalLogStore 注入；未注入时授权服务只做本地状态记录，
+# 不阻塞任何流程。
 EventLogLike = Any
 
 logger = logging.getLogger("homeos.license.service")
@@ -54,6 +54,39 @@ ACCESS_EXPIRED_CODES = frozenset({'ACCESS_EXPIRED'})
 #: 商店重放保护拒收随机数时用的文案。线上协议的一部分：靠它才认得出
 #: 「上一次其实已经受理、只是响应丢了」这种可以换随机数自愈的情况。
 NONCE_REPLAY_DETAIL = '请求随机数已使用，请重新发起请求。'
+
+#: 租约商品里「附加项」的类型：它们描述的是加购模块 / 模板，不是授权版本本身。
+_ADDON_PRODUCT_TYPES = frozenset({'module', 'template'})
+
+
+def edition_from_products(products: list[Any]) -> str:
+    """从租约商品列表推导「授权版本」。
+
+    取第一个**非附加项**的 ``type``（商店侧形如 ``base`` / ``pro``）。租约里没有可判定
+    的商品时回落 ``'base'`` —— ``_lease_features_and_products`` 在空列表时补的「基础版」
+    与之一致。``lease_product_edition`` 与 ``/status`` 读路径共用本函数：老库的
+    ``product_edition`` 仍是 NULL 时，也能按当前租约给出正确版本，而不是硬编码 ``full``。
+    """
+    for entry in products:
+        if not isinstance(entry, dict):
+            continue
+        product_type = entry.get('type')
+        if not isinstance(product_type, str):
+            continue
+        normalized = product_type.strip()
+        if normalized and normalized.lower() not in _ADDON_PRODUCT_TYPES:
+            return normalized
+    return 'base'
+
+
+def lease_product_edition(lease: dict) -> str:
+    """从签名租约推导「授权版本」（写进 ``LicenseState.product_edition``）。
+
+    取租约 ``products`` 里第一个**非附加项**的 ``type``（商店侧形如 ``base`` / ``pro``），
+    不能固定写 ``'full'``，否则只买了基础版的机器也会显示「完整版」。
+    """
+    products = lease.get('products')
+    return edition_from_products(products) if isinstance(products, list) else 'base'
 
 
 class LicenseClientError(RuntimeError):
@@ -556,7 +589,7 @@ class LicenseService:
             state.lease_expires_at = expires_at
             state.last_heartbeat_at = now
             state.last_verified_at = now
-            state.product_edition = 'full'
+            state.product_edition = lease_product_edition(body)
             features = body.get('features')
             if not isinstance(features, list) or not all(isinstance(item, str) for item in features):
                 state.status = 'INVALID'
@@ -1140,7 +1173,9 @@ class LicenseService:
             'publicKeyFingerprint': self._public_key_fingerprint(),
             'leaseId': state.lease_id,
             'leaseSequence': state.lease_sequence,
-            'edition': (state.product_edition or 'full') if allowed else None,
+            'edition': (
+                state.product_edition or edition_from_products(visible_products)
+            ) if allowed else None,
             'features': visible_features if allowed else [],
             'featureAccess': {
                 'editor': _granted(feature_codes.FEATURE_EDITOR),

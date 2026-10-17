@@ -24,9 +24,11 @@ __all__ = [
     "ClientAddress",
     "actual_request_scheme",
     "browser_trustworthy_origin",
+    "cookie_secure_mode",
     "error_page_html",
     "expected_request_scheme",
     "forwarded_headers_present",
+    "hsts_eligible_host",
     "new_csp_nonce",
     "parse_trusted_proxies",
     "request_is_https",
@@ -71,26 +73,60 @@ def resolve_client_ip(request: Request) -> ClientAddress:
 
 
 def secure_cookies_required(request: Request) -> bool:
-    """本次请求是否必须给 Cookie 加 ``Secure``。
+    """本次请求是否必须给 Cookie 加 ``Secure`` —— 判据是**这一次请求**走的哪一层。
+
+    双入口部署（公网穿透 + 内网直连）里，浏览器会用两条路同时访问同一个商店：
+
+    ========================================  =========================  ============
+    入口                                      本次请求的 scheme（实测）   Cookie Secure
+    ========================================  =========================  ============
+    ``https://<域名>``（隧道 / 反代）          https                      **带**
+    ``http://<局域网IP>:8802``（现场直连）     http                       **不带**
+    ========================================  =========================  ============
+
+    （商店没有内置 HTTPS 端口，所以不存在「自签也算 https 入口」这条；公网 https 一律由
+    隧道 / 反代在 80·443 终止。）
+
+    不能按「部署形态是 https」（``STORE_COOKIE_SECURE=true`` / ``STORE_BASE_URL`` 是
+    https）一刀切：那样明文直连也会拿到带 ``Secure`` 的会话 Cookie，浏览器直接丢弃，表现
+    为「提示登录成功，刷新又变未登录」；反过来恒不带，公网那条的会话就能被明文重放。
+    按请求判定是两条入口并存时唯一自洽的口径。
+
+    前提是入口透传 ``X-Forwarded-Proto``（反代、隧道都会带）。漏传只是让该入口退化成
+    「不带 Secure」，登录仍可用 —— 失败方向是「少一层保护」，不是「登不上」。
+
+    ``STORE_COOKIE_SECURE`` 仍可覆盖这个判据（运营明确知道自己在做什么时）：
+
+    - ``auto``（默认）—— 就是上面的按请求判定，双入口部署用它；
+    - ``true``  —— 恒带 Secure。只适用于「只有 HTTPS 入口」的部署；内网明文直连会登录不上；
+    - ``false`` —— 恒不带。只适用于「只有明文入口」的部署（公网会话可被明文重放）。
     """
+    mode = cookie_secure_mode(request)
+    if mode == "true":
+        return True
+    if mode == "false":
+        return False
     return request_is_https(request)
 
 
-def request_is_https(request: Request) -> bool:
-    """本次请求是不是走 HTTPS（Cookie 的 ``Secure`` 与 HSTS 共用这一份判据）。
-    """
+def cookie_secure_mode(request: Request) -> str:
+    """``STORE_COOKIE_SECURE`` 的三态值（``auto`` / ``true`` / ``false``，未知值按 auto）。"""
     settings = _settings(request)
-    if settings is not None and getattr(settings, "cookie_secure", False):
-        return True
-    base_url = str(getattr(settings, "public_base_url", "") or "").strip().lower()
-    if base_url.startswith("https://"):
-        return True
-    address = resolve_client_ip(request)
-    if address.via_proxy:
-        forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
-        if forwarded_proto == "https":
-            return True
-    return request.url.scheme == "https"
+    mode = str(getattr(settings, "cookie_secure_mode", "") or "").strip().lower()
+    if mode in {"true", "false"}:
+        return mode
+    return "auto"
+
+
+def request_is_https(request: Request) -> bool:
+    """本次请求是不是**真的**走 HTTPS（``STORE_COOKIE_SECURE=auto`` 时 Cookie 的判据）。
+
+    只看请求实际经过的那一层：可信代理声明的 ``X-Forwarded-Proto`` 优先，否则看请求自身。
+    不再参考 ``STORE_COOKIE_SECURE`` / ``STORE_BASE_URL``：那两个描述的是「本商店对外的
+    身份」，不是「这一条连接用的协议」。混用会让「https 域名 + http 局域网 IP」并存时，
+    明文那条也被当成 https（见 :func:`secure_cookies_required` 的表格）。
+    """
+    return actual_request_scheme(request) == "https"
 
 
 def _origin_from_referer(referer: str) -> str:
@@ -357,6 +393,34 @@ def csp_header(nonce: str) -> str:
     )
 
 
+#: 局域网 / 本机专用后缀：这些名字下同一台机器对外只提供明文 8802（商店没有 HTTPS 端口），
+#: 给它们发 HSTS 会把「http://name:8802」也一并升级到 https，而那个端口没有 TLS。
+LAN_HOST_SUFFIXES = (".local", ".localhost", ".localdomain", ".lan", ".home", ".internal")
+
+
+def hsts_eligible_host(request: Request) -> bool:
+    """是否值得给这个主机发 ``Strict-Transport-Security``。
+
+    只给**公网 FQDN** 发。内网 IP 字面量与 ``*.local`` 这类名字要排除，理由是双入口：
+
+    - 同一台机器上明文端口（``:8802``）与 https 域名（隧道 / 反代）并存；
+    - 浏览器一旦收下 HSTS，会把该主机的**所有端口**升级到 https，``:8802`` 立刻打不开
+      （表现为「昨天还能用的内网 http 入口今天直接连不上」，且清除很麻烦）。
+
+    IP 字面量按规范本来就会被浏览器忽略，这里一并排除，省得响应头与实际行为不一致。
+    """
+    host = (request.url.hostname or "").strip().lower()
+    if not host or "." not in host:
+        # 单标签主机名（localhost / 机器名）都属于「内网」，不发。
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not host.endswith(LAN_HOST_SUFFIXES)
+
+
 def security_headers(request: Request) -> dict[str, str]:
     """商店所有响应统一加的安全头。
 
@@ -374,7 +438,8 @@ def security_headers(request: Request) -> dict[str, str]:
     }
     if browser_trustworthy_origin(request):
         headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    if request_is_https(request):
+    # HSTS 只在「会话 Cookie 也带 Secure」时发，否则等于承诺了一个自己没做到的口径。
+    if secure_cookies_required(request) and hsts_eligible_host(request):
         headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return headers
 

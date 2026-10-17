@@ -19,12 +19,10 @@ export {
 };
 
 /**
- * 模型 GLB 的 **HTTP 缓存键**（0.7.6 引入）。
+ * 模型 GLB 的 **HTTP 缓存键**。
  *
- * 0.7.6 重写了 41 个 GLB（床 / 钢琴 / 钢楼梯 / 茶吧机 / 前置净水器 / 滑板车 / 庭院躺椅 /
- * 坐便器 / 蹲便器 及各自 `-lite`），但文件路径没变 —— 老用户浏览器里那份 0.7.5 的字节
- * 会一直被命中，看到的仍是旧模型。0.7.6 的做法是给**字节真的变过的批次**换 URL
- * （`?v=<批次>`），没动过的模型保持原 URL，继续吃已有缓存、不制造无谓回源。
+ * 模型重写后文件路径不变，浏览器会继续命中旧字节。做法是给**字节真的变过的批次**
+ * 换 URL（`?v=<批次>`），没动过的模型保持原 URL，继续吃已有缓存、不制造无谓回源。
  *
  * 本仓库把同一批次的模型合并成 3 个键：减面重写批、卫浴重写批、家用收藏批。
  */
@@ -35,11 +33,11 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
   sanitary: "20261013-sanitary-v1",
   /** 家用收藏批：98 款新增 + 12 款重绘（`collection-models.ts` 的 `assetVersion`）。 */
   household: "20261013-household-v2",
-  /** 庭院植被/家具批：0.7.6 未改动，沿用 0.7.5 的键。 */
+  /** 庭院植被/家具批：字节未变，沿用既有键。 */
   garden: "20260927-garden-v5",
-  /** 茶台套装批：0.7.6 未改动，沿用 0.7.5 的键。 */
+  /** 茶台套装批：字节未变，沿用既有键。 */
   teaTable: "20260927-tea-table-v1",
-  /** 0.7.2 approved 外购模型批：0.7.6 未改动，沿用 0.7.5 的键。 */
+  /** approved 外购模型批：字节未变，沿用既有键。 */
   approved: "20261009-approved-v1",
 });
 
@@ -227,7 +225,7 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
               ? MODEL_ASSET_CACHE_KEYS.modelOptimization
               : MODEL_ASSET_CACHE_KEYS.garden,
           ),
-          // 0.7.6 只把躺椅做了减面，其余庭院款沿用 0.7.5 的那一份。
+          // 只有躺椅做了减面，其余庭院款沿用既有资源。
           optimized: courtyardModelId === "garden-lounger",
           scaleBasis: courtyardModelDefinition.size,
           preserveOrigin: true,

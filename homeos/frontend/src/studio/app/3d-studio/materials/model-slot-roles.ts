@@ -1,7 +1,7 @@
 /**
  * **模型 × 槽位 → 语义角色** 对照表。
  *
- * 为什么需要它：0.7.6 批量导出把外部模型材质名统一改成「模型名 + 候选明度」
+ * 为什么需要它：外部模型材质名统一为「模型名 + 候选明度」
  * （`<模型>-candidate-<token>`，token ∈ body/dark/light/soft/accent/glass，个别模型是
  * `<模型>-foliage-<token>` / `<模型>-detail-<token>`），**真实构件语义在命名里就丢了**。
  * 光看材质名，`plant-candidate-dark` 与 `microwave-candidate-dark` 长得一样，但前者是
@@ -421,7 +421,7 @@ export const FAMILY_TOKEN_ROLES: Readonly<Record<string, Readonly<Record<string,
 export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   Record<string, Readonly<Record<string, string>>>
 > = Object.freeze({
-  /* ── 绿植（0.7.6 重绘 + 收藏批） ─────────────────────────────── */
+  /* ── 绿植（重绘 + 收藏批） ───────────────────────────────────── */
   plant: { body: "pot", glass: "saucer", dark: "foliage", soft: "foliageSoft", light: "foliageLight" },
   "plant-monstera": { body: "pot", glass: "saucer", dark: "stem", soft: "foliage", light: "foliageLight" },
   "plant-snake": { body: "pot", glass: "saucer", soft: "foliageSoft", light: "foliage" },
@@ -484,7 +484,7 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "mop-sink": { light: "ceramic", dark: "faucet", body: "bowl" },
   "foot-spa": { body: "ceramic", dark: "base", soft: "rim", light: "panel" },
 
-  /* ── 厨房电器（0.7.6 收藏批） ────────────────────────────────── */
+  /* ── 厨房电器（收藏批） ──────────────────────────────────────── */
   microwave: { body: "shell", dark: "door", soft: "panel", light: "handle" },
   steamoven: { body: "shell", dark: "door", light: "panel", glass: "window" },
   rangehood: { body: "shell", soft: "trim", dark: "grille", light: "grille" },
@@ -606,7 +606,7 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "table-lamp": { body: "lampBody", shade: "lampShade", stem: "lampBody" },
   "up-down-wall-lamp": { body: "lampBody", diffuser: "diffuser" },
 
-  /* ── 旧命名 / 无中缀槽位 ─────────────────────────────────────── */
+  /* ── 别名 / 无中缀槽位 ───────────────────────────────────────── */
   "yoga-set": { soft: "pad", accent: "grip", light: "pad", dark: "grip" },
   "round-rug": { border: "rugBorder", inset: "rugPile", body: "rugPile" },
   "storage-box": { body: "carcass", detail: "shelf", lid: "cabinetDoor" },
@@ -641,7 +641,7 @@ export const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
  * ------------------------------------------------------------------ */
 
 /**
- * 0.7.2 外购 approved 批（`approved-item-models.ts`，见 `APPROVED_ITEM_META`）与其余「材质名
+ * 外购 approved 批（`approved-item-models.ts`，见 `APPROVED_ITEM_META`）与其余「材质名
  * 直写 `<type>-<role>`、但没有逐模型角色表」的模型。
  *
  * 它们的 `body` / `dark` / `soft` / `light` / `accent` 并不是「明度候选色」，而是家族里**另有
@@ -732,8 +732,3 @@ export function resolveSemanticSlotRole(
   if (familyTokenRoles && familyTokenRoles[token]) return familyTokenRoles[token];
   return GENERIC_TOKEN_ROLES[token] ?? null;
 }
-
-/* 注：0.7.6 移植期这里曾有一层 `requiresSemanticSlotRoles()` 别名（与
- * `hasSemanticSlotRoles` 完全同义），供 `applyItemDetailMaterial` 把「候选色命名」
- * 的模型拉回角色表。调用点最终直接用 `hasSemanticSlotRoles`，别名零消费者
- * 且被 knip 判为 unused export，故删除，避免留下两个同义入口。 */

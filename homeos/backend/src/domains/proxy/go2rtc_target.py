@@ -6,8 +6,7 @@
 放在 ``domains`` 而非 ``api`` 是为了让配置校验（``modules/interaction3d/config.py``）
 与中继路由（``api/go2rtc.py``）共用同一份判定，而不产生 ``modules → api`` 的导入环。
 
-0.7.6 起面向对象的文案改成「网页播放地址 …」全称（旧版「试验版」措辞全部下线），
-并补了非文本、超长、域名三类更早失败的判定。
+非文本、超长、域名三类输入在进入白名单前就判失败。
 """
 
 from __future__ import annotations

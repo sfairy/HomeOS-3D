@@ -7,7 +7,7 @@
 - 其它模块复用的 :func:`validate_device_status_rules`（状态灯契约，热水器也用）。
 
 判定口径与原实现逐条一致，只有一处**有意**差异：非字符串的 ``entityId`` 由
-``ctx.pattern`` 归为 422，而旧实现 ``re.fullmatch(pattern, 123)`` 会抛 ``TypeError`` 冒成 500。
+``ctx.pattern`` 归为 422，不能直接用 ``re.fullmatch``（非字符串会抛 ``TypeError`` 冒成 500）。
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ DEVICE_FIELDS_BY_MODEL: dict[str, frozenset[str]] = {
     | (SMALLCAR_EXTRA_FIELDS if model_type == 'smallcar' else frozenset())
     for model_type in DEVICE_PROFILES
 }
-#: 坐标/高度/尺寸边界（尺寸下限极小而不用 ``positive_number``：旧实现是 ``1e-06``）。
+#: 坐标 / 高度 / 尺寸边界（尺寸下限极小，不用 ``positive_number``）。
 DEVICE_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (
     ('x', -1_000_000, 1_000_000),
     ('y', -1_000_000, 1_000_000),
@@ -210,7 +210,7 @@ def _validate_smallcar_bindings(
             _fail_device(profile)
     if not ctx.numbers_within(item, SMALLCAR_CARD_BOUNDS):
         _fail_device(profile)
-    # 字号不再设上限（旧的 9-32 夹紧会把放大后的读数裁掉），只要求为正数。
+    # 字号不设上限（9-32 夹紧会把放大后的读数裁掉），只要求为正数。
     if 'cardFontSize' in item and not ctx.positive_number(item['cardFontSize']):
         _fail_device(profile)
     if 'chargingStates' in item:

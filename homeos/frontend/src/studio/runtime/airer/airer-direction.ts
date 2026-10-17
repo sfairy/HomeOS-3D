@@ -1,22 +1,11 @@
-/** 晾衣架方向：对齐 0.7.2
- * 规范字段：positionReversed / liftReversed / animationReversed
- * 兼容旧 HomeOS：positionInverted / commandInverted
- * animationReversed 仅反转 3D 动画，不参与位置/指令语义
+/** 晾衣架方向：规范字段 positionReversed / liftReversed / animationReversed。
+ * animationReversed 仅反转 3D 动画，不参与位置/指令语义。
  */
 export function normalizeAirerDirection(binding: any = {}) {
-  let positionReversed = binding.positionReversed;
-  if (positionReversed === undefined && typeof binding.positionInverted === "boolean")
-    positionReversed = binding.positionInverted;
-  let liftReversed = binding.liftReversed;
-  if (liftReversed === undefined && typeof binding.commandInverted === "boolean")
-    liftReversed = binding.commandInverted;
   return {
-    positionReversed: positionReversed === true,
-    liftReversed: liftReversed === true,
+    positionReversed: binding.positionReversed === true,
+    liftReversed: binding.liftReversed === true,
     animationReversed: binding.animationReversed === true,
-    // 兼容旧调用方属性名
-    positionInverted: positionReversed === true,
-    commandInverted: liftReversed === true,
   };
 }
 
@@ -29,7 +18,7 @@ export function airerVisualPosition(rawPosition: any, binding: any = {}) {
   return positionReversed ? 100 - clamped : clamped;
 }
 
-/** 3D 模型 pose 高度：仅 animationReversed，对齐 0.7.2 airer-motion */
+/** 3D 模型 pose 高度：仅 animationReversed */
 export function airerAnimationPosePosition(rawPosition: any, binding: any = {}) {
   const position = Number(rawPosition);
   if (!Number.isFinite(position)) return null;
@@ -52,17 +41,4 @@ export function airerMapControlPosition(visualPosition: any, binding: any = {}) 
   const clamped = Math.max(0, Math.min(100, position));
   const { positionReversed } = normalizeAirerDirection(binding);
   return positionReversed ? 100 - clamped : clamped;
-}
-
-/** 规范化为 0.7.2 字段，并去掉会令后端拒存的旧别名 */
-export function migrateAirerDirectionFields(binding: any) {
-  if (!binding || typeof binding != "object") return binding;
-  const normalized = normalizeAirerDirection(binding);
-  binding.positionReversed = normalized.positionReversed;
-  binding.liftReversed = normalized.liftReversed;
-  if (typeof binding.animationReversed === "boolean")
-    binding.animationReversed = binding.animationReversed === true;
-  delete binding.positionInverted;
-  delete binding.commandInverted;
-  return binding;
 }

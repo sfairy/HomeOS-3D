@@ -6,9 +6,9 @@
  * - `<type>-material-N`（无角色，需靠 slot 表定位）
  * - `material-N-role`
  * - `<type>-furniture-role` / `<type>-detail-role`
- * - `<type>-aquatic-role` / `<type>-garden-role` / `<type>-decor-N` / `<type>-tea-role`
- * - `<type>-candidate-role`（0.7.6 批量导出批次）与 `<type>-role`（尾词为已知角色）
- * - legacy 名（`004`、`car_tms`、`金色金属材料` …）
+ * -  * `<type>-aquatic-role` / `<type>-garden-role` / `<type>-decor-N` / `<type>-tea-role`
+ * - `<type>-candidate-role`（批量导出批次）与 `<type>-role`（尾词为已知角色）
+ * - 其他历史名（`004`、`car_tms`、`金色金属材料` …）
  * 本模块把这些体系统一解析成角色，再按「家族 → 角色 → 配方」给出颜色与表面参数，让调色板按
  * 角色着色，而不是靠亮度 / 槽位号猜。
  */
@@ -688,8 +688,8 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
 /**
  * 收藏模型**细分类目 → 材质家族**（`COLLECTION_MODELS[id].group`）。
  *
- * 0.7.6 的 110 款收藏模型只登记了「摆放细分类目」（`LibraryGroupId`），没有材质家族，
- * 于是 `resolveModelFamily` 全落 `misc`（97/110）+ 默认家族配方命中不了真实构件。
+ * 110 款收藏模型只登记了「摆放细分类目」（`LibraryGroupId`），没有材质家族，
+ * 若只按模型名推断会大量落 `misc`，默认家族配方命中不了真实构件。
  * 这里把细分类目一次映射到家族，`resolveModelFamily` 据此数据驱动兜底。
  */
 const FAMILY_BY_COLLECTION_GROUP: Readonly<Record<string, string>> = Object.freeze({
@@ -1157,7 +1157,7 @@ const MATERIAL_ROLE_PATTERNS: readonly RegExp[] = [
 ];
 
 /**
- * 0.7.6 起外部模型导出改用「**模型名 + 角色**」直接给材质命名，两套写法：
+ * 外部模型导出用「**模型名 + 角色**」直接给材质命名，两套写法：
  *
  * - `<模型>-candidate-<角色>`：20261013 批次统一导出，角色为
  *   `body` / `dark` / `soft` / `light` / `accent` / `glass`（同款 4–6 个候选色）。
@@ -1188,12 +1188,12 @@ const MODEL_SUFFIX_ROLE_VOCABULARY: ReadonlySet<string> = new Set([
   "water",
 ]);
 
-/** `<模型>-candidate-<角色>`（0.7.6 批量导出批次）。 */
+/** `<模型>-candidate-<角色>`（批量导出批次）。 */
 const CANDIDATE_ROLE_PATTERN = /-candidate-([a-z][a-z0-9]*)$/;
 /** `<模型>-<角色>`：尾词命中角色词表才算。 */
 const MODEL_SUFFIX_ROLE_PATTERN = /-([a-z][a-z0-9]*)$/;
 
-/** 从 `0.7.6` 的「模型名 + 角色」命名里取角色；不是这套命名返回 `null`。 */
+/** 从「模型名 + 角色」命名里取角色；不是这套命名返回 `null`。 */
 function suffixRoleFromMaterialName(lowerName: string): string | null {
   const candidateMatch = lowerName.match(CANDIDATE_ROLE_PATTERN);
   if (candidateMatch?.[1]) return candidateMatch[1];
@@ -1217,7 +1217,7 @@ export function resolveModelMaterialRole(
 ): RoleResolution {
   const lowerName = (materialName || "").toLowerCase();
 
-  // 语义槽位表优先：登记在 `model-slot-roles.ts` 的模型（0.7.6 候选色命名、语义中缀
+  // 语义槽位表优先：登记在 `model-slot-roles.ts` 的模型（候选色命名、语义中缀
   // `-foliage-`/`-sanitary-` 等）直接还原本槽位的**真实构件角色**，不再被「候选明度」压平。
   if (hasSemanticSlotRoles(itemType)) {
     const semanticSlotRole = resolveSemanticSlotRole(itemType, resolveModelFamily(itemType), lowerName);
@@ -1248,7 +1248,7 @@ export function resolveModelMaterialRole(
     }
   }
 
-  // 0.7.6 的「模型名 + 角色」命名（`<模型>-candidate-<角色>` / `<模型>-<角色>`）。
+  // 「模型名 + 角色」命名（`<模型>-candidate-<角色>` / `<模型>-<角色>`）。
   // 放在显式槽位表之前：名字里既然写了角色，就比按槽位号推断更可信。
   const suffixRole = suffixRoleFromMaterialName(lowerName);
   if (suffixRole) {
@@ -1386,8 +1386,8 @@ export function materialRoleRecipeForRole(
     };
   }
 
-  // 0.7.6 收藏模型（`collection-models.ts`）自带「角色 → [冷色, 暖木色]」配色：命中即用注册表的
-  // 色号盖掉通用配方的主色。这些模型是按候选色导出的，注册表的二元组才是 0.7.6 的设计取值；
+  // 收藏模型（`collection-models.ts`）自带「角色 → [冷色, 暖木色]」配色：命中即用注册表的
+  // 色号盖掉通用配方的主色。这些模型按候选色导出，注册表的二元组才是设计取值；
   // 表面参数（粗糙度 / 金属度 / 透明）仍走通用配方，不跟着注册表变。
   const collectionColorSpec = collectionRoleColorSpec(itemType, role, warm);
   const baseRecipe: RoleRecipe | undefined =
@@ -1410,7 +1410,7 @@ export function materialRoleRecipeForRole(
   const recipeCollapsedToGrey = baseColorValue !== undefined && baseColorValue === fallbackGrey;
 
   // 三级取值：
-  // 1) 收藏注册表登记了该角色的色号 → 注册表优先（0.7.6 的设计取值）；
+  // 1) 收藏注册表登记了该角色的色号 → 注册表优先（设计取值）；
   // 2) 否则语义角色（foliage / pot / soil / ceramic / seat / shell / door / vase …）按
   //    `studio-semantic-roles.ts` 的**写实外观**出图 —— 即使配方缺失或配方色被调色板吞掉，
   //    也绝不塌成家具灰（「选鲜绿却全是棕」「所有槽位同一个灰」的根因）；
@@ -1478,7 +1478,7 @@ export function stoneSlabFlavorForMaterial(
   return isStoneSlabFlavor(roleRecipe?.slab) ? roleRecipe.slab : null;
 }
 
-/** 材质名是否已经自带**显式角色**（`material-<n>-<role>` / `<type>-furniture|detail|aquatic|tea|garden|decor-<role>` / 0.7.6 的 `<type>[-candidate]-<role>`）。 */
+/** 材质名是否已经自带**显式角色**（`material-<n>-<role>` / `<type>-furniture|detail|aquatic|tea|garden|decor-<role>` / `<type>[-candidate]-<role>`）。 */
 export function usesNamedMaterialRole(materialName: string | undefined): boolean {
   const name = (materialName || "").toLowerCase();
   return (

@@ -227,11 +227,10 @@ export function useLightControlPopup(props: {
   /**
    * 色盘拖拽的全局监听清理句柄。
    *
-   * 旧实现只在 mouseup/touchend 里解绑：若拖拽过程中弹窗被关闭 / 组件卸载
-   * （用户点完抬起手指前 popup 消失、路由切换、实体切换等），监听不会解绑；
-   * 之后任意一次全局 mouseup 都会触发 up() → commitPickerColor()，对已关闭的
-   * 面板下发一次多余的 light.turn_on。这里把清理句柄保留在作用域上，
-   * 由 onBeforeUnmount 兜底解绑，并禁止卸载后的意外提交。
+   * 拖拽过程中弹窗可能被关闭或组件卸载（popup 消失、路由切换、实体切换等），
+   * 仅在 mouseup/touchend 解绑会漏掉全局监听，之后任意 mouseup 都会对已关闭的
+   * 面板下发多余的 light.turn_on。因此把清理句柄保留在作用域上，由
+   * onBeforeUnmount 兜底解绑，并禁止卸载后的意外提交。
    */
   let stopPicking: (() => void) | null = null
 

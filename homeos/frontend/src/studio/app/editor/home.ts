@@ -7083,7 +7083,7 @@ async function saveDraft() {
       documentSignature2(editorCtx.baselineDocument.customPopups || []);
   ((editorCtx.isSaving = true), writeError(), syncHistoryButtons());
   try {
-    // 0.7.6 §5⑨：地址框不必先失焦 —— 保存前先本地拦一道，非法地址就别把整份草稿发上去。
+    // 地址框不必先失焦：保存前先本地校验，非法地址不把整份草稿发上去。
     validateGo2rtcDocument(draftBeforeSave);
     const saveResponse = await requestJson("/projects/" + projectId2 + "/draft", {
       method: "PUT",
@@ -8778,8 +8778,8 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
         startY: onFloorplanAutoLightingHandlePointermove.clientY,
         startLeft: targetBoundsEntry.left,
         startTop: targetBoundsEntry.top,
-        // 尺寸与「不越出视口」的上限只在按下时量一次：原来每次 pointermove 都重新
-        // getBoundingClientRect（拖拽中样式刚写过，这次读会强制同步布局）。
+        // 尺寸与「不越出视口」的上限只在按下时量一次：pointermove 里再读
+        // getBoundingClientRect 会因刚写过样式而强制同步布局。
         maxLeft: Math.max(8, window.innerWidth - targetBoundsEntry.width - 8),
         maxTop: Math.max(8, window.innerHeight - targetBoundsEntry.height - 8),
       };

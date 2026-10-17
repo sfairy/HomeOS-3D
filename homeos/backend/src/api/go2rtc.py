@@ -96,8 +96,7 @@ GO2RTC_STREAM_FALLBACK = "go2rtc 无法输出视频，请检查视频源和 MSE 
 #: 连接期失败（尚未进入中继）与中继期失败的区分标记。
 _HTTP_DENIED_STATUS = frozenset({401, 403})
 
-# 文案口径：本表逐字对齐 0.7.6 `api/go2rtc.py`，其中两处自指沿用上游的 **HA Bridge**
-# 品牌名（而不是「HomeOS」）——上游把「桥」这个构件就叫 HA Bridge，前端同源的摄像头
+# 文案口径：其中两处自指用 **HA Bridge** 品牌名（而不是「HomeOS」）——前端同源的摄像头
 # 说明文案（`home-camera-inspector.ts` / `EditorMediaInspectors.vue` 的「视频经 HA Bridge
 # 中转」）也是这个词。改回「HomeOS」会让同一条视频链路在界面里出现两种叫法。
 
@@ -236,8 +235,7 @@ def _layout_camera_go2rtc_url(cameras: Any, camera_id: str) -> str | None:
     """在布局方案的 ``securityCameras`` 里按前端上报的 key 找回这一路的 go2rtc 地址。
 
     Vue 安防页绑定的 key 有两种：有 HA 实体时就是实体 ID，只有 go2rtc 地址时是
-    ``go2rtc:<索引>``（与前端 ``MonitorPanel`` 生成的 key 一致）。旧数据里的裸
-    ``string`` 项按实体 ID 处理。
+    ``go2rtc:<索引>``（与前端 ``MonitorPanel`` 生成的 key 一致）。
 
     ``<索引>`` 必须与前端一致：前端先经 ``normalizeSecurityCameras`` 丢掉 ``null`` /
     非对象卡位**再**编号，所以这里也只给「能成为绑定项的卡位」计数，否则存了空位的
@@ -247,15 +245,10 @@ def _layout_camera_go2rtc_url(cameras: Any, camera_id: str) -> str | None:
         return None
     binding_index = 0
     for item in cameras:
-        is_legacy_string = isinstance(item, str)
-        if not is_legacy_string and not isinstance(item, dict):
+        if not isinstance(item, dict):
             continue
         index = binding_index
         binding_index += 1
-        if is_legacy_string:
-            if item.strip() == camera_id:
-                return ""
-            continue
         entity_id = str(item.get("entityId") or "").strip()
         if (entity_id and entity_id == camera_id) or camera_id == f"go2rtc:{index}":
             return str(item.get("go2rtcUrl") or "").strip()
@@ -360,7 +353,7 @@ def _resolve_camera_target(websocket: WebSocket, viewer: Any) -> str | None:
     带账号密码、非 ``/stream.html``、缺 ``src``）都走这里。
 
     捕获范围还包含 ``AttributeError`` / ``TypeError`` / ``KeyError``：这三个不是「拒绝」，
-    而是**文档形状异常**（手改过的库、旧版本表单，例如 ``security`` 是数组、组件项是字符串）。
+    而是**文档形状异常**（手改过的库或错位的表单数据，例如 ``security`` 是数组）。
     对它们同样只能给终态关闭码 —— 换成未处理异常就退化成同一条无限重连的故障，只是入口不同。
     真正的后端故障（数据库、IO）不在此列，仍按 5xx 冒泡出来。
     """

@@ -279,17 +279,21 @@ def send_verification(
     return body
 
 
-#: 这个公开验码端点只服务「主应用首装注册」，不接受商店自身账号流程的 purpose。
-_HOMEOS_VERIFY_PURPOSES = frozenset({"homeos_register"})
+#: 这个公开验码端点只服务主应用（homeos）的账号流程，不接受商店自身账号流程的 purpose。
+_HOMEOS_VERIFY_PURPOSES = frozenset({"homeos_register", "homeos_reset"})
+
+#: purpose → 日志里的中文动作，避免用英文码刷日志。
+_HOMEOS_PURPOSE_LABELS = {"homeos_register": "注册", "homeos_reset": "重置密码"}
 
 
 @router.post("/verifications/verify")
 def verify_verification(payload: VerifyCodeRequest, session: DbSession) -> dict:
     """校验并消费一个验证码（公开）。
 
-    主应用（homeos）首装注册时调用：它自己没有 SMTP，发码与验码都委托商店。为了不让
-    这个匿名端点被拿去替商店账号流程（verify / reset / change_email）消费验证码，
-    ``purpose`` 被限定为 ``homeos_register``。
+    主应用（homeos）首装注册与找回本机密码时调用：它自己没有 SMTP，发码与验码都委托
+    商店。为了不让这个匿名端点被拿去替商店账号流程（verify / reset / change_email）
+    消费验证码，``purpose`` 被限定为 ``homeos_register`` / ``homeos_reset`` 两个用途 ——
+    它们各自独立发码、独立消费，互不通用。
     """
     email = payload.email.strip().lower()
     if not is_valid_email(email):
@@ -300,7 +304,7 @@ def verify_verification(payload: VerifyCodeRequest, session: DbSession) -> dict:
             status_code=status.HTTP_403_FORBIDDEN, detail="该用途的验证码不支持在此校验。"
         )
     _consume_verification(session, email=email, purpose=purpose, code=payload.code)
-    logger.info("主应用注册验证码校验通过 email=%s", email)
+    logger.info("主应用%s验证码校验通过 email=%s", _HOMEOS_PURPOSE_LABELS[purpose], email)
     return {"email": email, "purpose": purpose, "verified": True}
 
 router.include_router(store_auth.router)

@@ -15,7 +15,7 @@ COVER_SERVICES = {
     'close_cover': 2,
     'set_cover_position': 4,
     'stop_cover': 8,
-    # 叶片（倾斜）控制：0.6.8 起单独放行，不再只能靠 set_cover_tilt_position 一次到位。
+    # 叶片（倾斜）控制。
     'open_cover_tilt': 16,
     'close_cover_tilt': 32,
     'stop_cover_tilt': 64,
@@ -53,7 +53,7 @@ def validate_cover_command(
     """校验一次窗帘服务调用是否被当前设备能力支持。
 
     ``data`` 按服务类型要求恰好带 ``position`` 或 ``tilt_position``，其余服务必须为空。
-    晾衣架在状态 unknown 时仍允许 open/close/stop（0.7.2 ``airer=True``）。
+    晾衣架在状态 unknown 时仍允许 open/close/stop（``airer=True``）。
     """
     required_feature = COVER_SERVICES.get(service)
     # 每类服务允许出现的参数集合是固定的：位置类带一个位置值，其余服务必须不带参数。

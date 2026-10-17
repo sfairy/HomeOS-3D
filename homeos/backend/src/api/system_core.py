@@ -10,7 +10,7 @@
 
 鉴权：JwtAuthGuard 通用；admin 专属接口叠加 RolesGuard。
 
-注意：``GET system/img/0``（MoviePilot 图片代理）随 MoviePilot 代理服务一并迁移。
+注意：``GET system/img/0``（MoviePilot 图片代理）由 MoviePilot 代理服务提供。
 """
 
 from __future__ import annotations

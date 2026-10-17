@@ -806,20 +806,32 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
 
 
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
-    """要求浏览器 WebSocket 必须源自本应用主机。"""
+    """要求浏览器 WebSocket 必须源自本应用（配置的对外地址，或本请求的 Host）。"""
     origin = websocket.headers.get('origin', '').strip()
     if not origin:
+        return False
+    parsed_origin = urlsplit(origin)
+    if (
+        parsed_origin.scheme not in {'http', 'https'}
+        or not parsed_origin.netloc
+        or parsed_origin.username is not None
+        or parsed_origin.password is not None
+        or parsed_origin.path not in {'', '/'}
+        or parsed_origin.query
+        or parsed_origin.fragment
+    ):
         return False
     configured_base_url = websocket.app.state.settings.app_base_url
     if configured_base_url:
         parsed = urlsplit(configured_base_url)
-        expected_origin = f'{parsed.scheme}://{parsed.netloc}' if parsed.scheme in {'http', 'https'} and parsed.netloc else ''
-        return bool(expected_origin) and origin == expected_origin
-    parsed_origin = urlsplit(origin)
+        if parsed.scheme in {'http', 'https'} and parsed.netloc:
+            if origin.casefold() == f'{parsed.scheme}://{parsed.netloc}'.casefold():
+                return True
+    # 内网穿透部署里 ``APP_BASE_URL`` 写的是公网域名，但同一套服务仍可能从局域网 IP 直接
+    # 访问：那条连接的 Origin 与 Host 同值，也是同源。只认配置值会让这种访问的实时通道
+    # 一律 403（表现为面板连上又掉、状态不刷新）。
     host = websocket.headers.get('host', '').strip()
-    if parsed_origin.scheme not in {'http', 'https'} or not parsed_origin.netloc or parsed_origin.username is not None or parsed_origin.password is not None or parsed_origin.path not in {'', '/'} or parsed_origin.query or parsed_origin.fragment or not host:
-        return False
-    return parsed_origin.netloc.casefold() == host.casefold()
+    return bool(host) and parsed_origin.netloc.casefold() == host.casefold()
 
 
 @runtime_router.websocket('/ws/runtime')

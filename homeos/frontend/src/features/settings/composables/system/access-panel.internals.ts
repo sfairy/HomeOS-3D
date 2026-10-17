@@ -98,7 +98,7 @@ export function useAccessPanel() {
     canEnableLock.value ? '' : '请先设置 4–6 位数字 PIN，再开启设置锁',
   )
 
-  /** 确保 settingsLock 存在（旧持久化配置可能缺该字段） */
+  /** 确保 settingsLock 存在（持久化配置可能缺该字段） */
   function ensureLock() {
     if (!layoutStore.layoutConfig.settingsLock) {
       layoutStore.layoutConfig.settingsLock = { enabled: false, pin: '' }

@@ -645,7 +645,6 @@ async function main() {
   const appEnvironment = {
     ...baseEnvironment,
     HOMEOS_DATA_DIR: path.join(HOMEOS_APP, "data"),
-    APP_DATA_DIR: path.join(HOMEOS_APP, "data"),
     HOMEOS_FRONTEND_DIR: APP_FRONTEND,
     HOMEOS_PORT: APP_PORT,
     HOMEOS_HOST: options.host,
@@ -710,7 +709,7 @@ async function main() {
       console.log(`调试器    主应用   ${DEBUG_APP_PORT}（IDE attach，热重载保留）`);
       console.log(`          授权商店 ${DEBUG_STORE_PORT}（IDE attach，热重载保留）`);
     }
-    // 就绪确认：端口进入监听态即返回，而不是等一个固定时长 —— 依赖安装 / alembic 迁移 /
+    // 就绪确认：端口进入监听态即返回，而不是等一个固定时长 —— 依赖安装 / 建库 /
     // reload 守护启动各自耗时不同，固定 sleep 只能靠猜（猜短了后续步骤偶发失败，猜长了白等）。
     // 打印在 URL 之后：用户看到地址却连不上时，能直接分清「还没起来」与「起错了」。
     {

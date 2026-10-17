@@ -6,7 +6,7 @@
       <template v-for="(item, idx) in pendingItems" :key="item.id">
         <RouterLink
           v-if="item.route"
-          :to="hashRoute(item.route)"
+          :to="item.route || '/'"
           class="setup-checklist-bar__link"
           >{{ item.label }}</RouterLink
         >
@@ -15,7 +15,7 @@
       </template>
     </span>
     <div class="setup-checklist-bar__actions">
-      <RouterLink :to="hashRoute('/settings?tab=setup-wizard')" class="setup-checklist-bar__btn">{{
+      <RouterLink :to="'/settings?tab=setup-wizard'" class="setup-checklist-bar__btn">{{
         '查看清单'
       }}</RouterLink>
       <button
@@ -42,11 +42,6 @@ const pendingItems = computed(() =>
   (checklist.value?.items || []).filter((i) => !i.done).slice(0, 3),
 )
 
-function hashRoute(path) {
-  // 将普通路径包装为 hash 路由路径（适配旧版 hash router）
-  const p = String(path || '').replace(/^\//, '')
-  return p.startsWith('#') ? p : `#/${p}`
-}
 </script>
 
 <style scoped src="./styles/setup-banners.css"></style>

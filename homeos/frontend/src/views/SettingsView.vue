@@ -322,22 +322,6 @@ watch(
   { immediate: true },
 )
 
-// 旧深链 ?tab=orchestrator&orchTab=home-mode → ?tab=home-mode
-watch(
-  () => [route.query.tab, route.query.orchTab, route.path],
-  ([tab, orchTab]) => {
-    if (!isOnSettingsRoute()) return
-    if (String(tab || '') === 'orchestrator' && orchTab === 'home-mode') {
-      const query = { ...route.query, tab: 'home-mode' }
-      delete query.orchTab
-      delete query.edit
-      delete query.wizard
-      router.replace({ path: '/settings', query })
-    }
-  },
-  { immediate: true },
-)
-
 // 无效 ?tab= 纠偏
 watch(
   () => [route.query.tab, route.path],

@@ -66,7 +66,7 @@ body.interaction3d-stage > #app {
  * 一起不可见；boot-guard 的残留保护随即把 body class 当垃圾摘掉，舞台于是退回**带绘制工具、
  * 属性面板与模型库的全量界面**，总览里的 3D 户型图就变成了户型图绘制页。
  *
- * 因此改为精确丢弃舞台页多余壳层：Vue 顶栏 / 快捷键浮层 / 旧 header / chrome-root 里
+ * 因此精确丢弃舞台页多余壳层：Vue 顶栏 / 快捷键浮层 / 隐藏 header / chrome-root 里
  * 除 `.studio-shell` 外的兄弟节点，以及应用根的氛围光层。
  */
 body.interaction3d-stage .studio-header,

@@ -14,6 +14,9 @@
     body-class="general-hub__body"
   >
     <template #actions>
+      <button class="settings-btn-ghost settings-btn-ghost--purple" type="button" @click="changePasswordDialog?.open()">
+        {{ '修改密码' }}
+      </button>
       <button class="settings-btn-ghost settings-btn-ghost--danger" @click="onLogout">
         {{ '退出大屏终端' }}
       </button>
@@ -220,6 +223,9 @@
     <div v-show="generalSection === 'whole-home-off'" class="settings-hub-section">
       <SettingsWholeHomeOffSection />
     </div>
+
+    <!-- 修改本机密码：成功后服务端轮换会话 Cookie，这里只负责提示与关闭。 -->
+    <ChangePasswordDialog ref="changePasswordDialog" />
   </SettingsPageShell>
 </template>
 
@@ -247,6 +253,7 @@ import SettingsWholeHomeOffSection from '@/features/settings/display/SettingsWho
 import SettingsScreensaverSection from '@/features/settings/display/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/display/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/display/layout/SettingsLayoutFooterSection.vue'
+import ChangePasswordDialog from '@/features/settings/display/ChangePasswordDialog.vue'
 import { useDashboardFooterEditor } from '@/features/settings/composables/display/layout-dashboard.internals'
 import { useScaling } from '@/composables/ui/useScaling'
 import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
@@ -269,6 +276,9 @@ const props = defineProps({ activeTab: { type: String, default: 'general' } })
 const router = useRouter()
 const authStore = useAuthStore()
 const chrome = useChromeStore()
+// 「修改密码」弹窗：模板里 `ref="changePasswordDialog"` 需要同名变量才拿得到实例。
+// 本文件是 `<script setup>`（非 TS），不能写泛型；实例只用到 `open()`。
+const changePasswordDialog = ref(null)
 const { layoutStore, layoutConfig } = useLayoutConfigRef()
 // 当前激活的子导航区段
 const generalSection = ref('brand')

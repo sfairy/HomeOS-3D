@@ -3,7 +3,7 @@ import {
   SMOKE_ENUM_STATES,
   SMOKE_EVENT_TYPE,
   securityAlarmEntityMode,
-} from "./security-alarm-profile";
+} from "@/studio/platform/security-alarm-profile";
 
 const MDI_SVG = "/static/vendor/mdi/7.4.47/svg/";
 
@@ -64,7 +64,7 @@ function moistureSourceDetail(status: string) {
 const SMOKE_EVENT_ALERT_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
- * 0.7.2：烟雾 event 实体的 state 本身是 ISO 时间戳。
+ * 烟雾 event 实体的 state 本身是 ISO 时间戳。
  * 解析成功返回 { key, label, ms }；label 用 zh-CN 本地化（如 2026/10/3 09:13:19）。
  * HA event.* 会长期保留「最近一次」时间戳与 event_type，不能把历史记录当成正在报警。
  */
@@ -115,7 +115,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
   let smokeEventParsed: ReturnType<typeof parseSmokeEventTime> = null;
 
   if (kind === "moisture") {
-    // 0.7.2：浸没 = entityId，淋水 = secondaryEntityId（可选）；任一个 on 即报警
+    // 浸没 = entityId，淋水 = secondaryEntityId（可选）；任一个 on 即报警
     immersionStatus = alarmConfig?.entityId
       ? binaryAlarmStatus(entityState)
       : "unbound";
@@ -226,7 +226,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
     kind === "smoke" && /^event\.[a-z0-9_]+$/.test(alarmConfig?.entityId || "");
   return {
     status,
-    // 0.7.2：reading.on 仅 binary/enum 报警；烟雾 event 由 overlay 按「新事件」置 on
+    // reading.on 仅 binary/enum 报警；烟雾 event 由 overlay 按「新事件」置 on
     on: status === "alarm",
     available: [
       "alarm",
@@ -544,7 +544,7 @@ export function createSecurityAlarmOverlay(
   shared.owners.set(ownerKey, []);
   if (onDismiss) shared.dismissHandlers.set(ownerKey, onDismiss);
 
-  // 对齐 0.7.2：incidentKey 优先；烟雾 event 按「新事件」才弹，确认后同一次不重弹
+  // incidentKey 优先；烟雾 event 按「新事件」才弹，确认后同一次不重弹
   const readingKey = (reading: any) =>
     reading.incidentKey || reading.entityId || reading.id || "";
   const isAlerting = (reading: any) =>
@@ -726,20 +726,6 @@ export function createSecurityAlarmOverlay(
         overlayRegistry.delete(hostElement);
       }
     },
-  };
-}
-
-/** 兼容旧调用名 */
-export function securityAlarmPresentation(alarmConfig: any, stateSource: any = {}) {
-  const reading = securityAlarmReading(alarmConfig, stateSource);
-  return {
-    ...reading,
-    kindLabel: securityAlarmKindLabel(reading.kind),
-    alerting: reading.on,
-    statusLabel: reading.detail,
-    battery: "",
-    theme: "default",
-    available: reading.available || reading.status === "unbound",
   };
 }
 

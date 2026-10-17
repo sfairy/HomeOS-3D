@@ -5,11 +5,9 @@
 # 为什么抽成脚本：这段逻辑有两个调用方 ——
 #   1. `.github/workflows/docker.yml` 的 frontend job（构建出的 dist/ 作为制品交给镜像矩阵）；
 #   2. `.github/workflows/build-check.yml`（只构建、不推镜像的手动验证入口）。
-# 复制两份必然漂移，而「一处改了另一处没改」在本仓已经出过事：
-# 8d3be3e7 搬走 SettingsLicensePanel.vue 后，旧路径校验没跟着改，
-# 红灯在 main 上躺到下一次手动 dispatch 才暴露。
+# 复制两份必然漂移：一处改了另一处没改，红灯只会在下一次手动 dispatch 才暴露。
 #
-# 在这里跑得通 ≠ 在 CI 上跑得通的历史教训：`dist/` 被 gitignore，本地通常有历史产物兜着。
+# 在本地跑得通不等于在 CI 上跑得通：`dist/` 被 gitignore，本地可能有旧产物兜着。
 # 2026-10-10 的构建锁 ENOENT 就是「本地绿、CI 红」—— 锁文件父目录 `dist/homeos/` 在
 # 干净检出里不存在。所以**本地验证本脚本时必须先 `rm -rf dist`**，否则等于没测。
 set -euo pipefail

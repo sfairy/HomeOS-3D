@@ -531,7 +531,7 @@ function cardWhen(row) {
 
 function rowKind(row) {
   if (row.alertKind === 'confirmation' || row.alertKind === 'early') return row.alertKind
-  // 旧记录无 alertKind：与后端一致，countdown < -60 视为确认通报
+  // 记录可能没有 alertKind：与后端一致，countdown < -60 视为确认通报
   if (row.countdown != null && Number(row.countdown) < -60) return 'confirmation'
   return 'early'
 }

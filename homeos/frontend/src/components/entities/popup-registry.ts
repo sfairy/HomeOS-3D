@@ -1,7 +1,6 @@
 /** 设备弹窗栈约定： */
 import type { Component } from 'vue'
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
-import type { EntitiesMap } from '@/shared/types/entity-store'
 import {
   resolveEntityPopupKind,
   type EntityPopupKind,
@@ -41,14 +40,9 @@ const popupComponentMap: Record<EntityPopupKind, Component> = {
  * 种类判定见 `@/shared/entity/utils/popup-registry.util`；本函数只负责种类 → 组件。
  *
  * @param entityId 实体 ID。
- * @param entities 实体映射表（当前未使用，保留以兼容旧调用）。
  * @returns 弹窗组件；无匹配时返回 null。
  */
-export function resolveEntityPopupComponent(
-  entityId: string,
-  entities: EntitiesMap = {},
-): Component | null {
-  void entities
+export function resolveEntityPopupComponent(entityId: string): Component | null {
   const kind = resolveEntityPopupKind(entityId)
   return kind ? popupComponentMap[kind] : null
 }

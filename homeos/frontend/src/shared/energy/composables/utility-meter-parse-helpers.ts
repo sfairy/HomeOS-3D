@@ -77,10 +77,10 @@ export const parseGasDayItem = makeUtilityMeterParser({
 /**
  * 燃气 / 水表的通用字段名。
  *
- * 这两类表的历史列表由供应商集成直接给出，字段名必须是「气/水」语义；
- * 旧实现复用了电力字段名（`monthEleNum` / `monthEleCost` / `yearEleNum` / `ele`），
- * 而 useUtilityMeterPopup 调用月/年解析器时并不传 amountKey/usageKey，
- * 于是燃气弹窗的月度曲线会把同一份 payload 里的电力用量（kWh）当成用气量（m³）渲染。
+ * 这两类表的历史列表由供应商集成直接给出，字段名必须是「气/水」语义，不能复用电力字段名
+ * （`monthEleNum` / `monthEleCost` / `yearEleNum` / `ele`）：useUtilityMeterPopup 调用
+ * 月/年解析器时并不传 amountKey/usageKey，复用会把同一份 payload 里的电力用量（kWh）
+ * 当成用气量（m³）渲染。
  */
 const FLUID_USAGE_KEYS = ['usage', 'cycleTotalVolume']
 const FLUID_COST_KEYS = ['amount', 'cycleTotalValues', 'money', 'cost']

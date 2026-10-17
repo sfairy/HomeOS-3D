@@ -11,9 +11,9 @@ type HomeOsResolvedTheme = 'slate-navy'
 const STORAGE_KEY = 'homeos_ui_theme'
 
 /**
- * 写入 html[data-theme="slate-navy"]。参数保留仅为兼容旧调用点。
+ * 写入 html[data-theme="slate-navy"]，并清掉历史切换偏好。
  */
-export function applyHomeOsTheme(_mode?: string, _persist = true): HomeOsResolvedTheme {
+export function applyHomeOsTheme(): HomeOsResolvedTheme {
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-theme', 'slate-navy')
   }

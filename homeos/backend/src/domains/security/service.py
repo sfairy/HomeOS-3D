@@ -61,7 +61,7 @@ class SecurityService:
                 return {**cached, "haUrl": live_url, "token": endpoints.token}
 
             # 未配置 eventsPath 时保持为空：由 fetch_events 提前返回，不去请求一个
-            # 并不存在的路径（旧实现兜底到虚构的 doorbell_snapshots，必然 404 并打出误导性告警）。
+            # 不存在的路径，否则必然 404 并打出误导性告警。
             events_path = ""
             try:
                 raw = load_raw_config(session)
@@ -112,7 +112,7 @@ class SecurityService:
                 logger.warning("在 HA 中未找到 events.jsonl.假设尚无事件.")
                 return []
             if response.status_code != 200:
-                # 旧实现这里静默返回空列表：上游 5xx / 反代 502 时界面显示「路径可读但暂无事件」，
+                # 不能静默返回空列表：上游 5xx / 反代 502 时界面会显示「路径可读但暂无事件」，
                 # 用户被引去改 eventsPath，真正的原因却没有任何地方留下痕迹。
                 logger.warning(
                     "从 HA 获取事件返回非 200：HTTP %s（%s）", response.status_code, events_url

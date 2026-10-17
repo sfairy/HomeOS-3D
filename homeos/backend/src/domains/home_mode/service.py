@@ -75,8 +75,8 @@ def _parse_json_loud(raw: Any, fallback: Any, *, field: str, mode_id: str) -> An
     """与 :func:`_parse_json` 同口径，但解析失败会**留下日志**，不再静默返回兜底值。
 
     `config` 解析失败 = 这个模式的动作全丢了（激活后什么都不会发生）；`triggers` 解析失败 =
-    自动化静默失效。旧实现两者都悄悄变成 `[]`/`None`，界面上完全看不出异常，用户只会觉得
-    「这个模式坏了」却拿不到任何线索。
+    自动化静默失效。若悄悄变成 `[]`/`None`，界面上完全看不出异常，用户只会觉得「这个模式
+    坏了」却拿不到任何线索。
 
     这里刻意**不抛异常**：列表接口会被一行脏数据整体打挂（连删掉它的机会都没有），
     所以改成点名 id 与字段的错误日志 —— 真要在写前拦，走 `normalize_home_mode_json_array`。
@@ -100,8 +100,9 @@ def _parse_json_loud(raw: Any, fallback: Any, *, field: str, mode_id: str) -> An
 def _coerce_int_field(fields: dict[str, Any], key: str, default: int) -> int:
     """把请求体里的可选整数字段解析成 int；非法值给 **400** 而不是让 `int()` 炸成 500。
 
-    旧实现是裸 `int(fields.get("sortOrder") or 0)`：客户端传 `"abc"`（或对象、小数串）时
-    在服务里抛 ValueError，被全局处理器当未知异常 —— 一个「参数不对」的错误看起来像服务端崩了。
+    不能用裸 `int(fields.get("sortOrder") or 0)`：客户端传 `"abc"`（或对象、小数串）时
+    会在服务里抛 ValueError，被全局处理器当未知异常 —— 一个「参数不对」的错误看起来像
+    服务端崩了。
     """
     raw = fields.get(key)
     if raw is None or raw == "":
@@ -403,8 +404,8 @@ class HomeModeService:
         )
 
     async def reorder(self, order_entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        # 一次性 IN 查询取回全部目标模式：原实现按条目逐个 `session.get`，
-        # 拖拽排序 N 个模式就是 N 次往返（N+1）。
+        # 一次性 IN 查询取回全部目标模式：逐条 `session.get` 会让拖拽排序 N 个模式
+        # 产生 N 次往返（N+1）。
         order_by_id = {
             str(entry.get('id')): _coerce_int_field(entry, "sortOrder", 0)
             for entry in order_entries

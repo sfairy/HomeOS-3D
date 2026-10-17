@@ -1,15 +1,12 @@
 /**
  * 摄像头弹窗里 go2rtc 播放地址的前端预校验。
  *
- * 从 0.7.6 `static/go2rtc-url.js`（`home.js` 里的
- * `./go2rtc-url.js?v=20261013-go2rtc-validation-v1`）语义重实现。前端这一层只为
- * 「输错立刻提示」，**不是安全边界** —— 真正的白名单判定在后端
+ * 前端这一层只为「输错立刻提示」，**不是安全边界** —— 真正的白名单判定在后端
  * `domains/proxy/go2rtc_target.py`，两边规则刻意保持一致（局域网字面量 IP +
  * `/stream.html?src=`），避免出现「前端放行、后端 422」的错位体验。
  *
- * 放在 platform 而不是 `runtime/camera/go2rtc-url.ts`：**保存草稿**前的整体预校验
- * （`app/editor/home.ts`）与运行时摄像头挂载都要用同一份规则，而 app ↛ runtime 是硬边界
- * 。运行时入口
+ * 放在 platform 而不是 runtime：**保存草稿**前的整体预校验（`app/editor/home.ts`）
+ * 与运行时摄像头挂载都要用同一份规则，而 app ↛ runtime 是硬边界。运行时入口
  * `runtime/camera/go2rtc-url.ts` 保留为再导出，构建产物与清单路径不变。
  */
 

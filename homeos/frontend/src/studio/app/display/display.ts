@@ -6,8 +6,8 @@
  * 因此 DOM 契约查询、宿主判定（整屏 vs 嵌入总览）、全局状态都在 boot 时重建，监听/定时器/观察者
  * 与 `PanelRenderer` 在 teardown 时回收。
  *
- * 引导体沿用原文件逐行搬入（未重新缩进），以保证移植语义零偏差；仅把顶层状态改为 boot 局部、
- * 把匿名处理器提为具名（否则 `removeEventListener` 无法命中）。
+ * 引导体保持逐行结构（未重新缩进）；顶层状态改为 boot 局部，匿名处理器提为具名
+ * （否则 `removeEventListener` 无法命中）。
  */
 import { PanelRenderer } from "../renderer/panel-renderer";
 import { createButtonSound } from "../shared/sound-effects";
@@ -330,16 +330,8 @@ async function resolveOverviewProject() {
   // 由后端 `GET /projects/active` 单源解析（偏好键 → 最近更新的项目），前端不再把
   // `/projects` 的 id 与 `/config/project/active` 的 `activeProfileId` 对一遍 ——
   // 那是布局方案的 id 空间（如 `default`），与仪表盘 UUID 不是一回事，比对必然落空。
-  try {
-    const activeResponse = await apiRequest("/projects/active");
-    return activeResponse?.active || null;
-  } catch {
-    // 前后端版本错位（旧后端没有这个端点）时退化为「列表首项」，即旧实现的等价兜底；
-    // 正常路径只有一次请求，且不存在 id 空间交叉比对。
-    const projectsResponse = await apiRequest("/projects");
-    const projectItems = projectsResponse?.items || [];
-    return projectItems.length ? projectItems[0] : null;
-  }
+  const activeResponse = await apiRequest("/projects/active");
+  return activeResponse?.active || null;
 }
 async function resolveProject() {
   const pathname = window.location.pathname;

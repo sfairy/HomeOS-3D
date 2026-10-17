@@ -22,6 +22,7 @@ import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license
 import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
+import ResetPasswordView from '@/views/auth/ResetPasswordView.vue'
 import LicenseView from '@/views/auth/LicenseView.vue'
 import LicenseRecoveryView from '@/views/auth/LicenseRecoveryView.vue'
 
@@ -58,16 +59,18 @@ const routes: RouteRecordRaw[] = [
     meta: { assets: STUDIO_ASSETS.register },
   },
   {
+    // 找回本机密码：未登录 / 未激活时都要能进（邮箱验证码由商店代发）
+    path: '/reset-password',
+    name: 'reset-password',
+    component: ResetPasswordView,
+    meta: { assets: STUDIO_ASSETS.login },
+  },
+  {
     // 商业授权激活
     path: '/activate',
     name: 'activation',
     component: LicenseView,
     meta: { assets: STUDIO_ASSETS.license },
-  },
-  {
-    // 兼容旧入口与部署文档里的 /license：授权页现为 /activate（后台「授权状态」面板另有入口）
-    path: '/license',
-    redirect: '/activate',
   },
   {
     // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
@@ -76,7 +79,7 @@ const routes: RouteRecordRaw[] = [
     component: LicenseRecoveryView,
     meta: { assets: STUDIO_ASSETS.licenseRecovery },
   },
-  // ── 3D Studio 视图（并入 homeos-3d 的 SPA 路由；hash 历史）──
+  // ── 3D Studio 视图 ──
   // 展示页（渲染 3D 仪表盘）
   {
     path: '/display/:projectId',
@@ -300,10 +303,8 @@ const router = createRouter({
   },
 })
 
-// 把外壳导航入口交给 studio 内的旧命令式运行时：编辑器 / 户型图绘制 / 展示页之间的
-// 跳转原本是 `window.location.assign(...)` 整页导航（那些模块只能求值一次），现在它们
-// 具备 boot/teardown 生命周期，可以同文档内路由；未注册时 `navigateInShell` 仍退回整页
-// 跳转，保证嵌入式 stage 壳等场景行为不变。
+// 把外壳导航入口交给 studio 运行时：编辑器 / 户型图绘制 / 展示页之间走同文档内路由；
+// 未注册时 `navigateInShell` 退回整页跳转，保证嵌入式 stage 壳等场景行为不变。
 registerShellNavigation((path) => router.push(path))
 
 // 导航渲染完成后恢复内层可滚动容器的滚动位置（window 滚动由 scrollBehavior 返回值处理）
@@ -375,7 +376,13 @@ router.beforeEach(async (to, from) => {
 
   // 后端不可达：放行入户页，其余阻断（不假装已授权）
   if (systemInitialized === 'offline') {
-    if (to.name === 'register' || to.name === 'login' || to.name === 'activation') return
+    if (
+      to.name === 'register' ||
+      to.name === 'login' ||
+      to.name === 'activation' ||
+      to.name === 'reset-password'
+    )
+      return
     return false
   }
 
@@ -426,7 +433,14 @@ router.beforeEach(async (to, from) => {
   // 未激活：激活需本机会话，故放行 login / activation；其余按登录态分流，
   // 避免「未登录 → 激活页 401 → 想去登录又被踢回激活」的死锁。
   if (getLicenseActivated() === false) {
-    if (to.name === 'activation' || to.name === 'login') return
+    // `reset-password` 与登录页同属「未激活也要能进的修复入口」：授权过期时用户仍可能
+    // 忘记本机密码，把找回页挡掉等于把唯一的门也锁了。
+    if (
+      to.name === 'activation' ||
+      to.name === 'login' ||
+      to.name === 'reset-password'
+    )
+      return
     return auth.isAuthenticated ? '/activate' : '/login'
   }
 
@@ -439,7 +453,7 @@ router.beforeEach(async (to, from) => {
         chrome.notify(getBackendUnreachableHint(), 'error')
       }
     }
-    if (to.name === 'login' || to.name === 'activation') return
+    if (to.name === 'login' || to.name === 'activation' || to.name === 'reset-password') return
     return false
   }
 

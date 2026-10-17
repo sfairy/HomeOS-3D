@@ -1,16 +1,9 @@
 """统一错误码、业务异常、HTTP 文案本地化与 ``apiErrorCode`` 解析。
 
-逐字段复刻 Nest 侧 ``business-exception.ts`` / ``http-exception-message.util.ts`` /
-``api-error-resolver.util.ts`` / ``api-error-messages.ts`` 与共享包
-``@homeos/shared/errors/http-messages`` 的行为，保证：
+响应体结构、中文文案与共享包 ``@homeos/shared/errors/http-messages`` 保持一致，
+``apiErrorCode`` 是前端 i18n 依赖的稳定契约。
 
-- 响应体结构与中文文案与 Nest 版逐字节一致；
-- ``apiErrorCode`` 正查表命中结果一致（前端 i18n 依赖此稳定码）。
-
-**码表已收敛为「有真实失败点」的集合**：Nest 侧退役后，角色 / MFA / 访客账户 / 旧 HA
-直连（``HA_*``）等能力一并下线，其错误码在四个项目里**零引用**却仍留在表里，既误导调用方
-（以为有分支可走），也让前端 i18n 表无法判断哪些码是活的。本轮删除 98 个零引用码，
-只保留在真实失败点抛出的 90 个；新增错误码时请确认有真实失败点引用，避免再堆死码。
+码表只收录在真实失败点抛出的错误码；新增前请确认有引用，避免堆积死码。
 """
 
 from __future__ import annotations
@@ -316,7 +309,7 @@ API_ERROR: dict[str, str | _F] = {
     "UI_CONFIG_LOAD_FAILED": lambda detail: f"无法加载配置。请确认已执行数据库初始化：{detail}",
 }
 
-#: 静态文案 → 错误码（保留首个出现，与旧实现顺序优先语义一致）。
+#: 静态文案 → 错误码（重复文案保留首个出现）。
 _STATIC_CODE_BY_MESSAGE: dict[str, str] = {}
 #: 动态文案前缀 → 错误码（自动推导 + 手工兜底）。
 _DYNAMIC_PREFIX_CODES: dict[str, str] = {}

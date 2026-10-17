@@ -200,7 +200,7 @@ class NotificationDispatchHelper:
 
         async def _deliver_with_retry() -> None:
             # 只把**在通道列表里的外部通道**当作待投递目标：纯站内 / socket 通知没有任何
-            # 外部通道可投，绝不能标记 delivered_at（旧实现会，且照样广播 delivered 事件）。
+            # 外部通道可投，绝不能标记 delivered_at 或广播 delivered 事件。
             pending = [channel for channel in _EXTERNAL_CHANNELS if channel in channels]
             if not pending:
                 return
@@ -218,7 +218,7 @@ class NotificationDispatchHelper:
                 delivered |= {
                     channel for channel in pending if outcomes.get(channel) == "ok"
                 }
-                # 结果里没出现的通道（发送器抛异常、或旧实现无返回）按失败处理，
+                # 结果里没出现的通道（发送器抛异常或无返回）按失败处理，
                 # 避免「通道凭空消失」被当成成功。
                 failed = [
                     channel

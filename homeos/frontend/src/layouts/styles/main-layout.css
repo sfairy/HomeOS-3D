@@ -688,7 +688,7 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
   }
 }
 
-/* 平板 (768px - 1024px)：紧凑导航栏 — 保留兼容 */
+/* 平板 (768px - 1024px)：紧凑导航栏 */
 @media (max-width: 1024px) {
   .tab-bar {
     padding-left: 12px;

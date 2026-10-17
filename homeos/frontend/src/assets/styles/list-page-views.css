@@ -72,7 +72,7 @@
 /* ── 页面主题色（仅 Tab / 主按钮 / 链接） ──
    注：--page-accent / --page-accent-rgb 由各 View 组件 :style 注入
        （DevicesView / DeviceDetailView 使用 --module-accent-devices）。
-       这里仅保留二级色与 rgb 派生（兼容历史 --dev-accent-rgb 引用）。 */
+       这里仅保留二级色与 rgb 派生（`--dev-accent-rgb` 供本域样式引用）。 */
 /* 页面强调色三件套（--page-accent / --page-accent-secondary / --page-accent-rgb）
    必须同时给出：--page-accent-rgb 是派生色（--page-accent-bg / -border / -glow / -text）
    的唯一色源，缺了它，本页派生面色会停留在全局默认色。

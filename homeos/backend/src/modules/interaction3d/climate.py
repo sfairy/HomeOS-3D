@@ -87,11 +87,11 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         raise HTTPException(409, detail='空调能力尚未载入，请稍后重试。')
     # 能力位经 capabilities.feature_flags 归一：字符串 / 负数 / bool 一律按「没有此能力位」处理。
     features = feature_flags(attributes)
-    # 是否真的上报过 supported_features：没上报时 supports() 退化为旧版集成的属性判据。
+    # 是否真的上报过 supported_features：没上报时 supports() 退化为属性判据。
     declared = 'supported_features' in attributes
 
     def supports(bit: int, legacy: bool = False) -> bool:
-        """HA 能力码声明了 ``supported_features`` 时按位判断；没声明（旧版/精简集成）时退回调用方给出的经验判据。"""
+        """HA 能力码声明了 ``supported_features`` 时按位判断；没声明时退回调用方给出的属性判据。"""
         return bool(features & bit) if declared else legacy
 
     if power:
@@ -106,7 +106,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         raw_step = attributes.get('target_temp_step')
         step = attribute_number(raw_step)
         # 调温能力的证据有两条：HA 上报了 numeric 位（TARGET_TEMPERATURE = 1，温区形式是
-        # TARGET_TEMPERATURE_RANGE = 2），或旧版集成直接上报了 temperature / target_temp_* 属性。
+        # TARGET_TEMPERATURE_RANGE = 2），或集成直接上报了 temperature / target_temp_* 属性。
         if (
             not supports(2 if is_range else 1, legacy)
             or not all(_number(v) for v in (minimum, maximum))
@@ -130,7 +130,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
             raise HTTPException(422, detail='温区下限不能高于上限。')
         return
     # 模式类服务：取值必须命中 HA 当前上报的候选列表，且设备声明了对应的能力位
-    # （没声明能力位的旧版集成退化为「候选列表非空」）。feature 为 None 表示该模式
+    # （没声明能力位时退化为「候选列表非空」）。feature 为 None 表示该模式
     # 在 HA 里没有独立能力位（hvac_mode），只看候选列表。
     options = {
         'hvac_mode': ('hvac_modes', None),

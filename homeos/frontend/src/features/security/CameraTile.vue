@@ -27,8 +27,7 @@
       @error="emit('stream-error', camId)"
     />
     <!--
-      键盘可达性：整格点击（select）与「点击加载/重试」原来是 div 上的 @click，
-      键盘完全不可达。两者互斥，各自落成真 <button>：
+      键盘可达性：整格点击（select）与「点击加载/重试」互斥，各自必须是真 <button>：
         · 拉流中 → 覆盖整格的透明按钮 = 选中该摄像头
         · 未拉流 / 流失败 → 占位按钮本身即操作（加载 / 重试）
       覆盖层不会挡住下面已挂载的流：HaCameraStream 内部没有任何可交互元素。
@@ -88,7 +87,7 @@ const props = defineProps({
   activeSlot: { type: Number, default: -1 },
   focused: { type: Boolean, default: false },
   streamsEnabled: { type: Boolean, default: true },
-  /** 与 0.7.2 / 3D 一致：默认关 WebRTC，走 HLS → MJPEG → 快照 */
+  /** 默认关 WebRTC，走 HLS → MJPEG → 快照 */
   preferWebrtc: { type: Boolean, default: false },
   /** 摄像头来源：`entity` 走 HA 实体通路，`go2rtc` 走局域网 MSE 中继 */
   cameraSource: { type: String, default: 'entity' },

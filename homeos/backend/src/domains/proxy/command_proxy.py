@@ -34,10 +34,9 @@ def _load_section(session, key: str, defaults: dict[str, Any]) -> dict[str, Any]
 class CommandProxyService:
     """homeos 命令通道：ACL/去重/队列 + 唯一 HA 下发出口。
 
-    **A6 收敛**：``/services/call``、``/ha/services/call`` 与
-    ``/modules/interaction3d/control`` 三条 HTTP 入口不再各自实现下发逻辑，
-    统一走 ``dispatch`` —— 校验（鉴权、服务白名单、实体授权）留在各入口，
-    执行只此一处：幂等去重 → HA 未连接时拦截高风险 → 连接器下发。
+    ``/services/call``、``/ha/services/call`` 与 ``/modules/interaction3d/control``
+    三条 HTTP 入口不各自实现下发逻辑，统一走 ``dispatch`` —— 校验（鉴权、服务白名单、
+    实体授权）留在各入口，执行只此一处：幂等去重 → HA 未连接时拦截高风险 → 连接器下发。
     """
 
     def __init__(self, session_factory, connector) -> None:

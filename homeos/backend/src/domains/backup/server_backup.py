@@ -113,8 +113,8 @@ class ServerBackupService:
             bad_request(api_error("BACKUP_CONFIRM_REQUIRED"))
         full = self.resolve_file_path(raw_name)
         # 恢复工作目录必须落在 data_dir **之外**：恢复过程会把数据目录里的顶层条目逐个
-        # 挪到一边，若工作目录正好在 data_dir 内（旧实现放在备份目录里），它会亲手把
-        # 自己挪走，后续步骤随即失败。系统临时目录不属于任何被替换的路径。
+        # 挪到一边，工作目录若在 data_dir 内会把自己也挪走，后续步骤随即失败。
+        # 系统临时目录不属于任何被替换的路径。
         work = Path(tempfile.mkdtemp(prefix="homeos-restore-"))
         try:
             stage_payload(full, work, None)

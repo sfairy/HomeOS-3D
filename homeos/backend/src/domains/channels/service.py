@@ -25,7 +25,7 @@ def _webpush_outcome_state(outcome: Any) -> str:
         if int(outcome.get("attempted") or 0) <= 0:
             return "skipped"
         return "ok" if int(outcome.get("delivered") or 0) > 0 else "failed"
-    # 兼容无返回值的旧实现：按「未抛异常即成功」处理，但绝不能凭空当成已投递的借口
+    # 无返回值按「未抛异常即成功」处理，但不能据此认为已投递
     # （调用方只在至少一个通道为 ok 且无 failed 时才记投递成功）。
     return "ok" if outcome is None or outcome else "failed"
 
@@ -128,8 +128,8 @@ class ChannelsService:
         主动推送正文统一前置 ``[YYYY-MM-DD HH:mm:ss]`` 时间戳（Asia/Shanghai）。
 
         返回**逐通道结果**：``"ok"``（真正送出）/ ``"failed"``（启用且尝试过但失败）/
-        ``"skipped"``（未启用或未配置，根本没尝试）。调用方据此判断是否算「已投递」——
-        旧实现吞掉所有异常并返回 ``None``，导致调用方把「什么都没发出去」也记成投递成功。
+        ``"skipped"``（未启用或未配置，根本没尝试）。调用方据此判断是否算「已投递」，
+        不能吞掉异常后把「什么都没发出去」记成成功。
         """
         if not isinstance(channels, list) or not channels or not str(message or "").strip():
             return {}

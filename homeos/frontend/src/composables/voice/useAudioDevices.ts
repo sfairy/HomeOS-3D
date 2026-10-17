@@ -56,7 +56,11 @@ function isNoDeviceError(err: unknown) {
  */
 export async function openAudioInputStream(): Promise<MediaStream> {
   if (typeof window !== 'undefined' && !window.isSecureContext) {
-    throw Object.assign(new Error('需 HTTPS 安全上下文才能访问麦克风'), { name: 'SecurityError' })
+    // 措辞要能直接照做：镜像自带 https 入口（8803），内网把 http://<IP>:8801 换掉即可。
+    throw Object.assign(
+      new Error('需 HTTPS 安全上下文才能访问麦克风：把地址换成面板内置的 https 入口（如 https://<本机IP>:8803）'),
+      { name: 'SecurityError' },
+    )
   }
   if (!navigator.mediaDevices?.getUserMedia) {
     throw Object.assign(new Error('浏览器不支持麦克风'), { name: 'NotSupportedError' })
@@ -255,7 +259,7 @@ export function useAudioDevices() {
   async function ensureMicPermission(): Promise<boolean> {
     errorTip.value = ''
     if (!secureContext) {
-      errorTip.value = '需 HTTPS 安全上下文才能访问麦克风'
+      errorTip.value = '需 HTTPS（把 http://<本机IP>:8801 换成 https://<本机IP>:8803）才能访问麦克风'
       permission.value = 'unsupported'
       return false
     }

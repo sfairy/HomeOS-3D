@@ -63,7 +63,7 @@ export function useEarthquakeSetupWizard(
   /**
    * 判断系统中是否已配置 HOME ASSISTANT（有连接记录且保存过令牌）。
    *
-   * 阶段 3.3 起不再读 `layoutConfig.haConfig.url/token` —— 那是第二份连接配置源。
+   * 连接地址与令牌的唯一来源是 ha-connection store，不读 `layoutConfig.haConfig`。
    */
   function isHaConfiguredInSystem() {
     return haConnectionStore.configured && haConnectionStore.hasToken

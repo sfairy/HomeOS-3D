@@ -1,9 +1,7 @@
 """授权门禁的路径豁免与开关判定（HomeOS 侧口径）。
 
-并入 homeos-3d 的授权服务后，``LicenseService`` 只负责「状态机 + 能力判定 + 在线续租」，
-不再内置路径白名单 —— homeos-3d 的门禁是**按路由依赖**做的，而 HomeOS 沿用中间件式
-严格门禁（对齐迁移前的 Nest ``LicenseGuard``）。因此把「哪些路径必须在未激活时仍可访问」
-留在 HomeOS 这一侧维护，语义与旧实现一致：
+``LicenseService`` 只负责「状态机 + 能力判定 + 在线续租」，不内置路径白名单；
+HomeOS 采用中间件式严格门禁，因此「哪些路径必须在未激活时仍可访问」由本模块维护：
 
 - ``LICENSE_EXEMPT_EXACT``  精确匹配的引导 / 登录 / 公共配置路径；
 - ``LICENSE_EXEMPT_LICENSE_PATHS`` 授权接口白名单（逐条枚举，不再按前缀放行）；
@@ -52,19 +50,23 @@ LICENSE_EXEMPT_EXACT = frozenset(
         "/api/v1/auth/login",
         "/api/v1/auth/logout",
         "/api/v1/auth/me",
+        # 找回本机密码：邮箱验证码由商店代发，与授权无关。授权过期 / 未激活时如果把它
+        # 挡在门禁外，用户会陷入「进不去设置改授权、也改不了密码」的死锁。
+        # 该端点自身有同源校验 + 限流 + 双提交 CSRF，豁免授权门禁不等于放松鉴权。
+        "/api/v1/auth/password/reset",
         "/api/v1/system/config/public",
-        # 登录页「忘记密码 / 商店」的地址来源（``api/public_config.py``）。它与上面的
+        # 登录页「重置商店密码 / 商店」的地址来源（``api/public_config.py``）。它与上面的
         # ``/api/v1/system/config/public`` 是**两个**端点：那个是系统公开配置（HA 区域索引），
         # 这个是匿名下发的商店入口地址。漏掉它不会白屏，但登录页的商店链接会静默回落到
-        # 前端内置的 ``http://127.0.0.1:8802`` —— 用户点「忘记密码」跳到一个不存在的地址。
+        # 前端内置的 ``http://127.0.0.1:8802`` —— 用户点「重置商店密码」跳到一个不存在的地址。
         "/api/v1/public/config",
         # SPA 页面：必须能下发外壳，才能由前端就地渲染「注册 / 登录 / 授权恢复 / 激活」页。
         # 未激活时后端会给外壳打 data-license-blocked（见 spa_static.py ``_spa_shell``）。
         "/",
         "/login",
         "/register",
+        "/reset-password",
         "/activate",
-        "/license",
         "/license-recovery",
         "/3d-studio",
         "/studio/editor",

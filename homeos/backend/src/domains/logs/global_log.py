@@ -169,7 +169,7 @@ def _event_signature(event: dict[str, Any], metadata: dict[str, Any]) -> str:
 
 
 class GlobalLogStore:
-    """存储在持久化数据目录中的免迁移 JSONL 事件日志。"""
+    """存储在持久化数据目录中的 JSONL 事件日志。"""
 
     def __init__(
         self, data_dir: Path, *, retention_days: int = 7, max_bytes: int = 5242880

@@ -98,14 +98,11 @@ function isSidebarWidgetType(type: string): boolean {
 
 /**
  * 克隆布局并清理运行时字段以适配 API 写入格式。
- * - 删除 energyFooter（已废弃）
- * - 通过 sanitizeStatsSensors 规范化统计传感器字段
  * @param layout 原始布局对象
  * @returns 清理后的布局副本
  */
 function cloneLayoutForApi(layout: Record<string, unknown>) {
   const copy = clonePlain(layout) as Record<string, unknown>
-  delete copy.energyFooter
   copy.statsSensors = sanitizeStatsSensors(copy.statsSensors as Record<string, unknown>)
   return copy
 }
@@ -135,24 +132,9 @@ interface LayoutPersistenceDeps {
  * @param raw 原始 statsSensors 对象
  * @returns 规范化后的配置
  */
-/**
- * 展示页开关灯背景图的**历史默认值**映射。
- *
- * 默认底图从 PNG 换成无损 WebP（体积降约 35% 且像素逐一相同），但这两个 URL 是
- * **持久化**在 `layoutConfig.lightOn/OffBackgroundUrl` 里的：老存档与老导出布局存着
- * `.png` 路径，文件已删，不迁移就是 404。这里只重写这两个历史默认值，
- * 用户自己上传/拾取的地址原样保留（不在表里就透传）。
- */
-const LEGACY_BACKDROP_URLS: Record<string, string> = {
-  '/backgrounds/light_on.png': '/backgrounds/light_on.webp',
-  '/backgrounds/light_off.png': '/backgrounds/light_off.webp',
-}
-
-/** 归一化背景图 URL：空值返回 `undefined`（由调用方回落到默认值），历史默认值转成新路径。 */
+/** 归一化背景图 URL：空值返回 `undefined`（由调用方回落到默认值）。 */
 function normalizeDisplayBackdropUrl(raw: unknown): string | undefined {
-  const url = String(raw ?? '').trim()
-  if (!url) return undefined
-  return LEGACY_BACKDROP_URLS[url] ?? url
+  return String(raw ?? '').trim() || undefined
 }
 
 function sanitizeStatsSensors(raw: Record<string, unknown> | null | undefined) {
@@ -175,7 +157,7 @@ function sanitizeStatsSensors(raw: Record<string, unknown> | null | undefined) {
  * - ensureDoorbellList 补齐门铃
  * - 规范化 hazard*EntityIds 数组
  * - 校正门铃摄像头引用（不在 securityCameras 列表中则清空）
- * - securityCameras 归一成 `[{entityId, go2rtcUrl?}]`（旧 `string[]` 无损升级）
+ * - securityCameras 归一成 `[{entityId, go2rtcUrl?}]`
  * @param raw 原始 haConfig 对象
  * @returns 规范化后的配置
  */
@@ -186,7 +168,6 @@ function sanitizeHaConfig(raw: Record<string, unknown> | null | undefined) {
   merged.hazardSmokeEntityIds = normalizeHazardEntityIds(merged.hazardSmokeEntityIds)
   merged.hazardGasEntityIds = normalizeHazardEntityIds(merged.hazardGasEntityIds)
   merged.hazardLeakEntityIds = normalizeHazardEntityIds(merged.hazardLeakEntityIds)
-  // 摄像头绑定统一升级成结构化项：旧数据里的裸实体 ID 会被包成 `{ entityId }`。
   const securityCameras = normalizeSecurityCameras(merged.securityCameras)
   merged.securityCameras = securityCameras
   // 校正门铃摄像头引用：若不在 securityCameras 列表中则清空，避免失效引用
@@ -285,29 +266,6 @@ export function createLayoutPersistence({
    * @param layout 远端原始布局
    * @returns 合并默认值后的布局对象
    */
-  /**
-   * 把旧 2D 楼层模型迁移到顶层浮动组件。
-   *
-   * - 顶层 `floatingWidgets` 非空视为已迁移，直接采用；
-   * - 否则拍平各楼层的 `floatingWidgets`（安防面板 zones 就存在其中的 config.zones，随组件一起上提）；
-   * - 同 id 去重，先出现者胜。
-   */
-  function migrateLayoutFloors(layout: Record<string, unknown>): FloatingWidget[] {
-    const topLevel = sanitizeFloatingWidgets(layout.floatingWidgets)
-    if (topLevel.length > 0) return topLevel
-    const floors = Array.isArray(layout.floors) ? (layout.floors as Record<string, unknown>[]) : []
-    const merged: FloatingWidget[] = []
-    const seen = new Set<string>()
-    for (const floor of floors) {
-      for (const widget of sanitizeFloatingWidgets(floor?.floatingWidgets)) {
-        if (seen.has(widget.id)) continue
-        seen.add(widget.id)
-        merged.push(widget)
-      }
-    }
-    return merged
-  }
-
   function mergeLayoutWithDefaults(layout: Record<string, unknown>) {
     const securityEmergency = layout.securityEmergency as Record<string, unknown> | undefined
     const haConfig = layout.haConfig as Record<string, unknown> | undefined
@@ -315,7 +273,7 @@ export function createLayoutPersistence({
     const merged: Record<string, unknown> = {
       ...getDefaultLayout(),
       ...layout,
-      floatingWidgets: migrateLayoutFloors(layout),
+      floatingWidgets: sanitizeFloatingWidgets(layout.floatingWidgets),
       lightOnBackgroundUrl:
         normalizeDisplayBackdropUrl(layout.lightOnBackgroundUrl) ??
         getDefaultLayout().lightOnBackgroundUrl,
@@ -401,8 +359,6 @@ export function createLayoutPersistence({
         ...((layout.mobileRoomStats as object) || {}),
       },
     }
-    // 清理已废弃字段
-    delete merged.energyFooter
     delete merged.widgets
     delete merged.rightPanelCards
     // 退役 2D 楼层字段（数据已在 migrateLayoutFloors 提升到顶层 floatingWidgets）

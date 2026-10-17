@@ -157,7 +157,7 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
                 continue
             raise HTTPException(422, f'{json_name} 内容无效。')
         for image_name in (name for name in names if Path(name).suffix.lower() in {'.png', '.webp'}):
-            # 只取文件头做魔数校验：没必要把整张图读进内存（旧实现 archive.read 全量读）。
+            # 只取文件头做魔数校验：没必要把整张图读进内存。
             with archive.open(image_name) as stream:
                 head = stream.read(12)
             suffix = Path(image_name).suffix.lower()

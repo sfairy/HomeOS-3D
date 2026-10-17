@@ -1,11 +1,8 @@
 """运行期配置：常量默认值、环境变量解析与路径推导。
 
-对齐 Nest 侧 ``backend/src/config`` / ``app.module.ts`` 的 env 装配口径，以及仓库
-既有 Python 后端（homeos-3d）的冻结 dataclass 约定。本模块只做
-「读环境变量 → 拼出不可变 Settings 对象」，不建立目录、不连数据库。
+本模块只做「读环境变量 → 拼出不可变 Settings 对象」，不建立目录、不连数据库。
 
-数据库已按迁移决策改为 **SQLite**（WAL），因此不再有 ``DATABASE_URL`` 的 PostgreSQL
-语义；``HOMEOS_DATABASE_URL`` 仅在测试时覆盖为内存库。
+数据库为 **SQLite**（WAL）；``HOMEOS_DATABASE_URL`` 仅在测试时覆盖为内存库。
 """
 
 from __future__ import annotations
@@ -39,23 +36,20 @@ def _environment_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "on", "yes", "true"}
 
 
-#: 生产环境标记的**唯一真源**：``APP_ENVIRONMENT``（推荐，显式、与 Node 语义解耦）。
-#: 兼容回退 ``NODE_ENV=production`` —— 迁移前的历史口径，避免存量部署一夜之间改行为。
+#: 生产环境标记的**唯一真源**：``APP_ENVIRONMENT``。
 #: 两个后端、容器启动器、部署脚本与门禁都读这一个函数，不再各写一份字符串比较。
 PRODUCTION_ENV_VALUES = {"production", "prod"}
 
 
 def environment_is_production() -> bool:
-    """是否生产环境（单一真源，``APP_ENVIRONMENT`` 优先，``NODE_ENV`` 兼容回退）。"""
+    """是否生产环境（读取 ``APP_ENVIRONMENT``）。"""
     return environment_is_production_from(os.environ)
 
 
 def environment_is_production_from(source: Mapping[str, str]) -> bool:
     """``environment_is_production`` 的映射版：供持有自定义 env 映射的调用方复用同一口径。"""
     explicit = str(source.get("APP_ENVIRONMENT", "") or "").strip().lower()
-    if explicit:
-        return explicit in PRODUCTION_ENV_VALUES
-    return str(source.get("NODE_ENV", "") or "").strip().lower() == "production"
+    return explicit in PRODUCTION_ENV_VALUES
 
 
 def _environment_path(name: str) -> Path | None:
@@ -76,7 +70,7 @@ BACKUP_DIR_NAME = "backups"
 BACKEND_DIR_NAMES = frozenset({"backend"})
 
 
-# ---- 授权服务常量（并入 homeos-3d 授权服务）----
+# ---- 授权服务常量 ----
 # 公钥指纹只作兜底：ops/license_keys.py 在容器启动期按**实际公钥文件字节**注入
 # APP_LICENSE_PUBLIC_KEY_SHA256 / APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
 # （商店首次启动随机生成密钥对，写死常量必然对不上，自检只会报「指纹不匹配」）。
@@ -98,14 +92,6 @@ def _derive_key_id(public_key_path: Path) -> str | None:
     except OSError:
         return None
     return f"hb-{hashlib.sha256(payload).hexdigest()[:16]}"
-
-
-def _environment_endpoints(name: str) -> tuple[str, ...]:
-    """逗号分隔的端点列表（按序回退）；留空返回空元组。"""
-    value = os.getenv(name, "").strip()
-    if not value:
-        return ()
-    return tuple(item.strip().rstrip("/") for item in value.split(",") if item.strip())
 
 
 def _environment_batches(name: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -139,7 +125,7 @@ def _read_package_version() -> str:
 
 
 def _license_required_from_env() -> bool:
-    """是否启用商业授权门禁（与迁移前口径一致）。
+    """是否启用商业授权门禁。
 
     ``LICENSE_REQUIRED`` 显式取值优先；未设置时按生产环境标记默认开启
     （见 ``environment_is_production``），其它环境默认关闭（开发态不强制激活）。
@@ -162,7 +148,7 @@ class Settings:
     #: 主机名（同机部署的容器服务名 → 浏览器正在用的宿主 / 域名，见
     #: ``domains/store/discovery.py``）。只有地址特殊到推导不出来时才显式写死。
     store_url: str = ""
-    # 版本更新发现（并入 homeos-3d ``/api/v1/updates``）：可选的发布发现，与授权/编辑器隔离。
+    # 版本更新发现（``/api/v1/updates``）：可选的发布发现，与授权/编辑器隔离。
     update_checks_enabled: bool = True
     update_channel: str = "docker"
     #: 更新检查端点（逗号分隔，可多个按序回退）。留空则用 ``store_url`` 拼出商店端点。
@@ -174,7 +160,6 @@ class Settings:
     cookie_name: str = "auth_token"
     csrf_cookie_name: str = "csrf_token"
     csrf_header_name: str = "X-CSRF-Token"
-    cookie_secure: bool = False
     # 基础设施
     metrics_token: str = ""
     is_production: bool = False
@@ -194,7 +179,7 @@ class Settings:
     credential_key_path_override: Path | None = None
     # 部署对外基地址（反代场景）：来源校验与绝对链接拼接用。
     app_base_url: str = ""
-    # 授权服务（并入 homeos-3d 授权服务；字段语义与 homeos-3d Settings 对齐）
+    # 授权服务
     license_required: bool = False
     license_server_url: str = DEFAULT_LICENSE_SERVER_URL
     license_server_batches: tuple[tuple[str, tuple[str, ...]], ...] = ()
@@ -454,15 +439,11 @@ def load_settings() -> Settings:
     """从环境变量装配 Settings。
 
     环境变量命名与 Nest 侧保持一致（``JWT_SECRET`` / ``METRICS_TOKEN`` /
-    ``NODE_ENV`` / ``CORS_ORIGINS`` 等），使同一份 ``backend/.env`` 可被两套后端共用。
+    ``CORS_ORIGINS`` 等），使同一份 ``backend/.env`` 可被两套后端共用。
     """
-    # 数据目录：HOMEOS_DATA_DIR（源码/dev）→ APP_DATA_DIR（镜像/compose 沿用 3D 时代变量名）
-    # → 兜底 <repo>/homeos/data。
-    # 兜底值必须与 `.env.example` 的 `#HOMEOS_DATA_DIR=./homeos/data` 及 `ops/dev.mjs` 一致：
-    # 早先兜底到 backend/data，那目录是 Nest/2D 时代遗留，schema 与现役库已分叉，裸跑会静默
-    # 用上过期库。
+    # 兜底值必须与 `.env.example` 的 `#HOMEOS_DATA_DIR=./homeos/data` 及 `ops/dev.mjs` 一致。
     data_dir = Path(
-        os.getenv("HOMEOS_DATA_DIR") or os.getenv("APP_DATA_DIR") or PROJECT_ROOT.parent / "data"
+        os.getenv("HOMEOS_DATA_DIR") or PROJECT_ROOT.parent / "data"
     ).expanduser().resolve()
     return Settings(
         data_dir=data_dir,
@@ -477,7 +458,6 @@ def load_settings() -> Settings:
         cookie_name=os.getenv("COOKIE_NAME", "auth_token").strip() or "auth_token",
         csrf_cookie_name=os.getenv("CSRF_COOKIE_NAME", "csrf_token").strip() or "csrf_token",
         csrf_header_name=os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token").strip() or "X-CSRF-Token",
-        cookie_secure=_environment_bool("COOKIE_SECURE"),
         metrics_token=os.getenv("METRICS_TOKEN", "").strip(),
         is_production=environment_is_production(),
         allowed_origins=_environment_csv("CORS_ORIGINS"),

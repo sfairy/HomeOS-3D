@@ -89,7 +89,7 @@
   display: none;
 }
 .i3d-editor {
-  /* 钉死 0.7.2 金色强调色，避免继承 HA 主题 --accent（蓝）导致滑条/勾选变色 */
+  /* 固定金色强调色，避免继承 HA 主题 --accent（蓝）导致滑条/勾选变色 */
   --accent: #f2a20d;
   --accent-bright: #f5bd53;
   --accent-soft: #f2a20d18;
@@ -1827,7 +1827,7 @@
   gap: 12px;
 }
 
-/* 0.7.1 全屏/预览报警遮罩 */
+/* 全屏/预览报警遮罩 */
 .i3d-alarm-overlay {
   position: fixed;
   inset: 0;

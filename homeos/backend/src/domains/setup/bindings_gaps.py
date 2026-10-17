@@ -34,16 +34,11 @@ def resolve_binding_gap_section(gap_id: str) -> str:
 def has_camera_binding(cameras: Any) -> bool:
     """判断安防摄像头绑定是否至少有一路有效。
 
-    0.7.5 起 ``securityCameras`` 支持结构化项 ``{entityId, go2rtcUrl?}``：只填 go2rtc
-    局域网地址也算已绑定；旧 ``string[]`` 仍按原语义判断非空。
+    ``securityCameras`` 的项为 ``{entityId, go2rtcUrl?}``：只填 go2rtc 局域网地址也算已绑定。
     """
     if not isinstance(cameras, list):
         return False
     for cam in cameras:
-        if isinstance(cam, str):
-            if cam.strip():
-                return True
-            continue
         if isinstance(cam, dict):
             if str(cam.get("entityId") or "").strip() or str(cam.get("go2rtcUrl") or "").strip():
                 return True

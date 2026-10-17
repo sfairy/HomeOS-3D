@@ -287,9 +287,9 @@ class NotificationService:
         cooldown_key = f"offline:{entity_id}"
         if self.is_in_cooldown(cooldown_key):
             return
-        # HA 断连 / 重启 / 集成重载期间「所有实体同时 unavailable」不是设备故障。旧实现
-        # 逐实体立刻推送（且默认通道会展开成邮件 + WebPush + 企微），一次重启就是几十条
-        # 告警，用户很快就去静音告警了 —— 真正的告警反而收不到。
+        # HA 断连 / 重启 / 集成重载期间「所有实体同时 unavailable」不是设备故障。逐实体
+        # 立刻推送（默认通道还会展开成邮件 + WebPush + 企微）意味着一次重启就是几十条告警，
+        # 用户很快就会静音告警 —— 真正的告警反而收不到。
         if not self._ha_states_trustworthy():
             logger.info("HA 连接未就绪,跳过设备离线告警: %s", entity_id)
             return

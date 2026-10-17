@@ -4,6 +4,7 @@ from .discovery import StoreBaseUrlResolver, discover_store_base_url
 from .verification import (
     StoreVerificationClient,
     StoreVerificationError,
+    VerificationPurpose,
     verification_client_from_settings,
 )
 
@@ -11,6 +12,7 @@ __all__ = [
     "StoreBaseUrlResolver",
     "StoreVerificationClient",
     "StoreVerificationError",
+    "VerificationPurpose",
     "discover_store_base_url",
     "verification_client_from_settings",
 ]

@@ -93,7 +93,7 @@ class StateHub:
                     )
                 )
             ),
-            # 供前端区分「事件实体空闲」与真不可用（对齐 0.7.2 availabilityReason）
+            # 供前端区分「事件实体空闲」与真不可用。
             **(
                 {"availabilityReason": "event-idle"}
                 if domain == "event" and raw.get("state") == "unknown"

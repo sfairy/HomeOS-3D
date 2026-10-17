@@ -11,9 +11,16 @@
 #     用的 Caddy 内部 CA 自签证书不同：自签在跨机 HTTPS 时会被 httpx/urllib 拒绝）；
 #   - 反代在商店容器**之外**（另一个容器），终止 TLS 后按内网明文转给商店的 8802。
 #
-# 因此商店侧必须放宽可信代理（见 overlay 里的 STORE_TRUSTED_PROXIES /
-# UVICORN_FORWARDED_ALLOW_IPS）：否则 uvicorn 会把反代容器当成客户端本人，
-# 真实来源 IP、登录限流与审计一起失真。收敛到 docker 网段即可，别填 *。
+# 因此商店侧必须放宽可信代理（docker-compose.yml 里的 STORE_TRUSTED_PROXIES）：
+# 否则商店会把反代容器当成客户端本人，真实来源 IP、登录限流与审计一起失真。
+# 收敛到 docker 网段即可（本文件的上游是 homeos-store，从 172.16.0.0/12 连进来），别填 *。
+#
+# 商店侧**没有** UVICORN_FORWARDED_ALLOW_IPS：商店的 uvicorn 不带 --proxy-headers
+# （homeos-store/backend/src/run.py），转发头完全由 STORE_TRUSTED_PROXIES 判定。
+#
+# Caddy 默认不限制请求体大小，所以商品图上传（商店侧上限 16 MiB，见
+# homeos-store/backend/src/security/body_guard.py）不会被这一层拦掉；
+# 换成 nginx / OpenResty 时记得设 client_max_body_size 16m（见 openresty.store.conf.example）。
 #
 # 域名与邮箱都走环境变量，本文件不用改。
 
@@ -34,7 +41,9 @@
 
 	# 上游固定为同项目内的商店服务名（compose 网络内解析）。
 	reverse_proxy homeos-store:8802 {
-		header_up Host {host}
+		# 用 hostport：域名在 443 上两者等价，但一旦换成非默认端口（本地调试常这么干），
+		# {host} 会摘掉端口，商店的 same_origin_request 按 netloc 比对就会 403。
+		header_up Host {http.request.hostport}
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto {scheme}
 	}

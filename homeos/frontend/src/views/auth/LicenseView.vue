@@ -16,6 +16,7 @@ import {
   LICENSE_TERMINAL_STATUSES,
   activateLicense,
   getLicenseAvailability,
+  licenseErrorCode,
   licenseErrorMessage,
   licenseMessage,
   retryLicense,
@@ -76,8 +77,10 @@ function applyStatus(payload: LicenseMessageState & { allowed?: boolean; editorA
     return
   }
   if (payload.editorAllowed) {
-    statusText.value =
-      (payload.lastError || '').trim() || '授权连接异常，请重新连接授权后台后再进入编辑器。'
+    statusText.value = licenseMessage({
+      status: payload.status,
+      errorCode: payload.errorCode,
+    })
     statusTone.value = 'lumen'
     setRecoveryHint(String(payload.status || ''))
   } else if (payload.allowed) {
@@ -85,7 +88,8 @@ function applyStatus(payload: LicenseMessageState & { allowed?: boolean; editorA
     statusTone.value = 'lumen'
     setRecoveryHint('')
   } else {
-    statusText.value = licenseMessage(payload, (payload.lastError || '').trim())
+    // 公开可用性接口不下发 `lastError`（脱敏），文案只能由状态码 + errorCode 合成。
+    statusText.value = licenseMessage(payload)
     statusTone.value = payload.status === 'INSTANCE_MISMATCH' ? 'alert' : 'lumen'
     setRecoveryHint(String(payload.status || ''))
   }
@@ -170,6 +174,12 @@ async function onSubmit(): Promise<void> {
     enterEditor()
   } catch (activateError) {
     errorMessage.value = licenseErrorMessage(activateError, '激活失败，请稍后重试。')
+    // 绑定冲突是唯一需要「先去商店解绑」的处置步骤：把说明同步显示在表单下方，
+    // 而不是只把一句「已绑定其他设备」丢给用户。
+    if (licenseErrorCode(activateError) === 'INSTANCE_MISMATCH') {
+      statusTone.value = 'alert'
+      setRecoveryHint('INSTANCE_MISMATCH')
+    }
     if (isUnauthorizedError(activateError)) {
       window.setTimeout(() => window.location.assign(loginHref), 600)
     }

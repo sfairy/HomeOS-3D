@@ -8,7 +8,7 @@ from .config_ctx import (
     ValidationContext,
 )
 
-#: 0.7.6 天气实体：只接受 ``weather.*``，长度上限 200 与其它实体校验保持同一档。
+#: 天气实体：只接受 ``weather.*``，长度上限 200 与其它实体校验保持同一档。
 WEATHER_ENTITY_PATTERN = 'weather\\.[a-z0-9_]{1,200}'
 
 
@@ -59,7 +59,7 @@ def validate_core_sections(ctx: ValidationContext, properties: dict) -> None:
         'focusVignetteStrength',
         'hideIconsWhileRotating'}:
         ctx.fail()
-    # 0.7.6：天气实体绑定。空表示不绑定（现场天气仍可用），只接受 weather.* 实体。
+    # 天气实体绑定：空表示不绑定（现场天气仍可用），只接受 weather.* 实体。
     weather = properties.get('weather', {})
     if not isinstance(weather, dict) or set(weather) - {'entityId'}:
         ctx.fail()

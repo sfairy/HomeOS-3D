@@ -11,7 +11,7 @@ const SECURITY_MODE_TAB_EMOJI: Record<string, string> = {
   emergency: '🆘',
 }
 
-/** 家庭模式 lucide key / 旧配置 → emoji */
+/** 家庭模式 lucide key / 历史配置 → emoji */
 const HOME_MODE_TAB_EMOJI: Record<string, string> = {
   '🏠': '🏠',
   '🚪': '🚪',

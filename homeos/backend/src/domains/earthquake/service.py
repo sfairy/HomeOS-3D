@@ -54,8 +54,8 @@ logger = logging.getLogger("homeos.earthquake")
 DEDUPE_CLEAR_DELAY_MS = 120_000
 LATEST_ALERT_TTL_MS = 5 * 60 * 1000
 CONFIG_CACHE_MS = 5_000
-#: 已关闭预警事件 id 的保留条数。id 来自外部推送，旧实现只增不减（进程活得越久越大）；
-#: 只需要记住「最近关掉的那些」——更早的预警连 payload 都过了 TTL，不可能再被展示。
+#: 已关闭预警事件 id 的保留条数。id 来自外部推送且无上限，只需要记住「最近关掉的那些」
+#: ——更早的预警连 payload 都过了 TTL，不可能再被展示。
 DISMISSED_EVENT_IDS_MAX = 200
 #: 后台补任务的在途上限：同一秒里连来几次配置变更只需补一次，堆积起来只是白烧 CPU。
 SPAWN_INFLIGHT_MAX = 8
@@ -173,9 +173,9 @@ class EarthquakeService:
     def _spawn(self, coro: Any) -> None:
         """把协程挂到事件循环上，**持有引用并回收异常**，且在途数量有上限。
 
-        旧实现直接 `create_task(coro)` 后丢掉返回值：没有强引用时任务可能在执行途中被 GC
-        回收（asyncio 官方文档专门警告过），而任务里的异常也永远没人取 —— 配置探测失败只剩
-        一句 `Task exception was never retrieved` 的噪声，看不出是哪次配置变更挂的。
+        `create_task(coro)` 后必须保留返回值：没有强引用时任务可能在执行途中被 GC 回收
+        （asyncio 官方文档专门警告过），任务里的异常也没人取 —— 配置探测失败只剩一句
+        `Task exception was never retrieved` 的噪声，看不出是哪次配置变更挂的。
         """
         try:
             loop = asyncio.get_running_loop()

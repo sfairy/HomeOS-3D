@@ -159,7 +159,7 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
 
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, session: DbSession) -> Response:
-    account_key = (payload.account or "").strip()
+    account_key = payload.account.strip()
     password_gate.maybe_prune(session)
     account_scope = f"login:{account_key.lower()}"
     address = resolve_client_ip(request)

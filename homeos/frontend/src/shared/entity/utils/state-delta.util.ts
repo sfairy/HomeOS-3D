@@ -8,7 +8,7 @@ export interface WsDeltaChange {
   entity_id: string
   state?: string
   changed_attributes?: Record<string, unknown>
-  /** 本次 delta 中被删除的属性名（协议扩展；旧服务端无此字段，需兼容 undefined） */
+  /** 本次 delta 中被删除的属性名；服务端未提供时为 undefined */
   removed_attributes?: string[]
   changed_at?: string
   old_state?: HaEntityState | null

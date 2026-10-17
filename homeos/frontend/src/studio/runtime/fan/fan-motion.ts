@@ -73,7 +73,7 @@ export function createFanMotion({
                 statesByEntityId,
               )
             : fanMotionState(null, { visualMode: syncFanModel.visualMode });
-        // 0.7.2：动画开关跟 running；保留外观 visualMode（tower/ceiling）
+        // 动画开关跟 running；外观保留 visualMode（tower/ceiling）
         const motionView = {
           ...nextMotionState,
           on: !!(nextMotionState as any).running,

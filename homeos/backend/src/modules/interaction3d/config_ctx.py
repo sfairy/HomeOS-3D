@@ -16,9 +16,8 @@
 
 - 空串一律视为「未绑定」而放行，缺字段与 ``None`` 在多数判定里等价；
 - ``bool`` 不算数字（``number`` 显式排除）；
-- 非字符串的实体 id 按不合规处理 → 422（旧实现直接 ``re.fullmatch`` 会抛 ``TypeError``
-  冒成 500，这是本轮**有意**修正的一类结果）；
-- 接受/拒绝集合须保持稳定（重构时勿静默漂移）。
+- 非字符串的实体 id 按不合规处理 → 422（直接 ``re.fullmatch`` 会抛 ``TypeError`` 冒成 500）；
+- 接受/拒绝集合须保持稳定。
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ _EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId
 ENTITY_ID_PATTERN = re.compile(r'[a-z_]+\.[a-z0-9_]+')
 #: 图标（严格式）：``mdi:`` + 数字/字母开头。
 MDI_ICON_PATTERN = re.compile(r'mdi:[a-z0-9][a-z0-9-]{0,119}')
-#: 图标（宽松式，电视/扫地机/门锁等历史控件沿用）。
+#: 图标（宽松式：电视 / 扫地机 / 门锁等控件沿用）。
 MDI_ICON_LOOSE_PATTERN = re.compile(r'mdi:[a-z0-9-]{1,120}')
 
 # ── 控件共用边界 ───────────────────────────────────────────────────────────
@@ -59,10 +58,10 @@ POSITION_BOUNDS: tuple[tuple[str, float, float], ...] = (
 )
 #: 尺寸：出现即必须为正数（上限刻意不设，放大控件是用户明确意图）。
 SIZE_FIELDS = ('size', 'iconSize', 'hitSize')
-#: 开关字段：前三个当前有效，后两个是历史遗留（只做类型校验，不再有读写方）。
+#: 控件通用开关字段。
 WIDGET_FLAG_FIELDS = ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')
 
-# ── 点击动作枚举（各控件历史档位不同，分开列出而非强行合并） ─────────────────────
+# ── 点击动作枚举（各控件档位不同，分开列出而非强行合并） ─────────────────────
 #: 灯 / 空调 / 床帘组等：聚焦 + 开灯三档。
 CLICK_ACTIONS = ('focus', 'turn-on-focus', 'turn-on', 'turn-on-panel')
 #: 窗帘 / 窗帘组：多一档「打开面板」。
@@ -77,7 +76,7 @@ CLICK_ACTIONS_PANEL_ONLY = ('focus', 'panel')
 
 #: ``bound_entity_id`` 是控件自身绑定的实体：附加控制不许与它重复。
 def validate_appliance_extras(ctx: ValidationContext, widget: dict, bound_entity_id: str) -> None:
-    """家电「附加控制」白名单与能力位校验（0.7.2 起与净化器共用同一份类型表）。"""
+    """家电「附加控制」白名单与能力位校验（与净化器共用同一份类型表）。"""
     controls = widget.get('extraControls', [])
     if not isinstance(controls, list) or len(controls) > MAX_EXTRA_CONTROLS:
         ctx.fail()
@@ -129,7 +128,7 @@ class WidgetRules:
     #: 点击动作枚举与默认值。
     click_actions: tuple[str, ...] = CLICK_ACTIONS
     default_click_action: str = 'focus'
-    #: 图标正则（新控件严格、历史控件宽松）。
+    #: 图标正则（多数控件严格，部分设备控件放宽）。
     icon_pattern: re.Pattern[str] = MDI_ICON_PATTERN
     #: 开关字段与坐标/尺寸边界（个别控件档位不同）。
     flag_fields: tuple[str, ...] = WIDGET_FLAG_FIELDS
@@ -144,10 +143,7 @@ class WidgetRules:
 
 
 class ValidationContext:
-    """校验原语：与拆分前嵌在 ``validate_config`` 里的闭包等价。
-
-    全部判定原语返回 ``bool``（而不是自己抛错），这样调用方能一次性表达
-    「多条判定都通过才继续」，重构时也更容易与旧实现逐条对齐。
+    """校验原语：全部返回 ``bool`` 而不自己抛错，调用方才能表达「多条判定都通过才继续」。
     """
 
     def fail(self) -> NoReturn:
@@ -173,7 +169,7 @@ class ValidationContext:
     def pattern(self, candidate: Any, regex: re.Pattern[str]) -> bool:
         """非空值必须匹配 ``regex``；空串 / ``None`` 视为「未绑定」而放行。
 
-        非字符串按不合规处理（旧实现会抛 ``TypeError`` 冒成 500）。
+        非字符串按不合规处理，不能用 ``re.fullmatch`` 直接匹配（会抛 ``TypeError`` 冒成 500）。
         """
         if not candidate:
             return True

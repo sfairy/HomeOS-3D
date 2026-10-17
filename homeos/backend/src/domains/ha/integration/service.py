@@ -84,8 +84,8 @@ class HAConnectorService(
         self._watch_lock = asyncio.Lock()
         self._registry_refresh_tasks = { }
         self._history_semaphore = asyncio.Semaphore(HISTORY_FETCH_CONCURRENCY)
-        # 缓存用 OrderedDict 做 O(1) LRU：原实现超限时 `min(...)` 全表扫描找最旧键，
-        # 历史缓存上限 256、翻译缓存 32，虽然不常触发，但触发时是 O(n) 且持锁执行。
+        # 缓存用 OrderedDict 做 O(1) LRU：超限时用 `min(...)` 找最旧键是 O(n) 且持锁执行，
+        # 而历史缓存上限 256、翻译缓存 32，清理一旦触发就会阻塞并发请求。
         self._history_cache: OrderedDict[tuple[str, str, int], tuple[float, list[dict[str, Any]]]] = OrderedDict()
         self._history_fetches: dict[tuple[str, str, int], asyncio.Task[list[dict[str, Any]]]] = {}
         self._history_cache_lock = asyncio.Lock()

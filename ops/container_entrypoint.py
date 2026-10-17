@@ -23,13 +23,9 @@ def sync_license_keys(environment: MutableMapping[str, str]) -> None:
 
 
 def _app_data_dir(environment: Mapping[str, str]) -> str | None:
-    """主应用数据目录：homeos 后端读 ``HOMEOS_DATA_DIR``，镜像启动器与 compose 用
-    ``APP_DATA_DIR``（旧版 ``homeos-3d`` 时代的变量名）。两者任一存在即算已声明。"""
-    for name in ("HOMEOS_DATA_DIR", "APP_DATA_DIR"):
-        value = (environment.get(name) or "").strip()
-        if value:
-            return value
-    return None
+    """主应用数据目录（``HOMEOS_DATA_DIR``）。"""
+    value = (environment.get("HOMEOS_DATA_DIR") or "").strip()
+    return value or None
 
 
 def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:

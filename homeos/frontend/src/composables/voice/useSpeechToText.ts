@@ -21,8 +21,18 @@ function isSecureMicContext() {
   return typeof window !== 'undefined' && window.isSecureContext
 }
 
+/**
+ * 非安全上下文下麦克风必被浏览器拦截。
+ *
+ * 必须给出**可照做的地址**：本项目的镜像内置了 https 入口（8803 → 8801），内网直连时
+ * 把 `http://<IP>:8801` 换成 `https://<同一IP>:8803` 即可（自签证书首次点「继续前往」）。
+ * 只写「请改用 HTTPS」的话，用户往往不知道同一台机器上就有这个入口。
+ */
 function insecureMicMessage() {
-  return '当前不是安全连接（需 HTTPS 或 localhost），浏览器会拦截麦克风。请改用 https 访问后再试'
+  return (
+    '当前不是安全连接（需 HTTPS 或 localhost），浏览器会拦截麦克风。' +
+    '请把地址换成面板内置的 https 入口再试（例如 http://192.168.1.20:8801 → https://192.168.1.20:8803）'
+  )
 }
 
 async function explainOpenMicFailure(err: unknown) {

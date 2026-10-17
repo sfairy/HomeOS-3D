@@ -11,8 +11,8 @@
 的「最大参数个数」是逐文件棘轮（本文件现为 2，只允许降）。类方法只把 ``self`` 之后的对象
 算作参数，于是「一次校验 = 一个实例」既保住了共享状态，也不动门禁基线。
 
-判定口径与拆分前逐条对齐（``ctx.fail()`` 立即抛 422 而非累计，所以判定顺序不影响结果）。
-唯一**有意**的差异是非字符串实体 id：旧实现 ``re.fullmatch(pattern, 123)`` 抛
+判定口径：``ctx.fail()`` 立即抛 422 而非累计，所以判定顺序不影响结果。
+唯一**有意**的差异是非字符串实体 id：``re.fullmatch(pattern, 123)`` 会抛
 ``TypeError`` 冒成 500，现在经 ``ctx.pattern`` / ``ctx.optional_patterns`` 归为 422。
 """
 
@@ -157,8 +157,7 @@ WORKING_STATE_KINDS = ('flow', 'burning', 'heating')
 WORKING_STATE_KIND_ENUM = EnumSpec('kind', WORKING_STATE_KINDS, '')
 WORKING_STATE_ENTITY = re.compile(r'(?:binary_sensor|sensor)\.[a-z0-9_]+')
 WORKING_STATE_TEXT_LIMIT = 120
-#: 衣架：历史字段 → 规范字段、开关字段、行程时长（秒）边界。
-AIRER_LEGACY_FLAGS = (('positionInverted', 'positionReversed'), ('commandInverted', 'liftReversed'))
+#: 衣架开关字段与行程时长（秒）边界。
 AIRER_FLAG_FIELDS = ('animationReversed', 'positionReversed', 'liftReversed')
 AIRER_TRAVEL_SECONDS = (5, 180)
 
@@ -455,8 +454,6 @@ class EnvironmentSectionValidator:
                 self.ctx.fail()
             self.reset_seen()
             for appliance in appliances:
-                if collection == 'airers':
-                    self.normalize_airer_legacy_fields(appliance)
                 if not self.ctx.has_only(appliance, rules.allowed_fields):
                     self.ctx.fail()
                 if not self.register_widget(appliance):
@@ -556,19 +553,6 @@ class EnvironmentSectionValidator:
             self.ctx.fail()
         if active_state == inactive_state:
             self.ctx.fail()
-
-    @staticmethod
-    def normalize_airer_legacy_fields(airer: Any) -> None:
-        """衣架历史字段归一：``positionInverted``/``commandInverted`` → 规范字段。
-
-        只对字典生效：非字典元素交给白名单判定去拒（旧实现在这里会 ``AttributeError`` 冒 500）。
-        """
-        if not isinstance(airer, dict):
-            return
-        for legacy_field, canonical_field in AIRER_LEGACY_FLAGS:
-            if canonical_field not in airer and airer.get(legacy_field) is True:
-                airer[canonical_field] = True
-            airer.pop(legacy_field, None)
 
     # ── 窗帘 ────────────────────────────────────────────────────────────
 
@@ -710,8 +694,8 @@ class EnvironmentSectionValidator:
     def register_widget(self, widget: Any) -> bool:
         """登记控件的 ``id`` 与 ``(floorId, modelId)``；任一重复即返回 ``False``。
 
-        ``(floorId, modelId)`` 只有两边都非空时才参与去重 —— 拆分前就是如此：
-        缺 ``modelId`` 的控件它们之间不算"同一个模型"。
+        ``(floorId, modelId)`` 只有两边都非空时才参与去重：缺 ``modelId`` 的控件
+        之间不算"同一个模型"。
         """
         if not isinstance(widget, dict):
             return False

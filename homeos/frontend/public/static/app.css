@@ -60,7 +60,7 @@ html.editor-viewport-fit {
   overflow: hidden;
 }
 /*
- * 旧的「整页 1020px 基准缩放」已废除：壳层（`.editor-chrome-root` / `.studio-chrome-root`）
+ * 不使用「整页 1020px 基准缩放」：壳层（`.editor-chrome-root` / `.studio-chrome-root`）
  * 自适应视口，画布自己在 `#preview-3d` 内做 letterbox。
  *
  * 这条规则曾把 body 钉成 1020×612 再 `scale(var(--editor-viewport-scale))`，而
@@ -1308,7 +1308,7 @@ h2 {
 }
 .workspace-modes {
   display: grid;
-  /* 仅「编辑 / 仪表盘」两档；旧版 3×52px 会多出一列空白，右侧文字显得左偏 */
+  /* 仅「编辑 / 仪表盘」两档；3×52px 会多出一列空白，右侧文字显得左偏 */
   grid-template-columns: repeat(2, minmax(64px, 1fr));
   align-items: stretch;
   gap: 0;

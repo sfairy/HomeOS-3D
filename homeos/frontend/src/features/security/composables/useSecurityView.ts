@@ -137,7 +137,7 @@ export function useSecurityView() {
     { label: '集成绑定', to: SETTINGS_ROUTES.bindings() },
   ])
 
-  // 全部摄像头实体 ID 列表（haConfig.securityCameras 0.7.5 起为结构化绑定，这里只取实体）
+  // 全部摄像头实体 ID 列表（haConfig.securityCameras 为结构化绑定，这里只取实体）
   const allCameras = computed(() => securityCameraEntityIds(layoutStore.layoutConfig.haConfig))
 
   // 当前模式名称：优先使用配置名称，缺省回退到中文映射

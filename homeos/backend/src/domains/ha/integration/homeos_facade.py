@@ -1,8 +1,8 @@
-"""并入 HA 层之上的 homeos 兼容门面。
+"""HA 连接器上的兼容门面。
 
-homeos 侧约 190 处消费者调用 ``HaConnectorService`` 形状的接口
+约 190 处消费者调用 ``HaConnectorService`` 形状的接口
 （``fetch_entities_by_domain`` / ``call_service`` / ``get_status`` / ``resync_from_ha`` /
-实体与区域注册表读写 …）：这些门面方法直接并入 ``HAConnectorService``（本 mixin），
+实体与区域注册表读写 …）：这些门面方法直接挂在 ``HAConnectorService``（本 mixin）上，
 于是 ``app.state.studio_ha`` 与 ``app.state.ha_connector`` 指向**同一个对象**，
 消费点无需改名，也不再存在第二条 HA 连接、第二个状态源或第二跳转发。
 
@@ -19,10 +19,9 @@ homeos 侧约 190 处消费者调用 ``HaConnectorService`` 形状的接口
   ``self.database`` 会在 mixin 上找不到符号。装配期钩子（``_sync_filter`` 等）在类体给
   ``None`` 默认值，既满足 ``reportUninitializedInstanceVariable``，也让读取处不必再
   ``getattr`` 兜底。
-- ``fetch_history`` 的旧适配器实现把 ``hours: int`` 当 ``start_time: str`` 传给了客户端
-  （``filter_entity_id`` 收到 ``list``、``quote(6)`` 必抛 ``TypeError``），且全仓无人调用，
-  故不再迁移；历史读取一律走连接器自身的 ``fetch_history(connection, entity_id,
-  start_time, hours)``。
+- 历史读取一律走连接器自身的 ``fetch_history(connection, entity_id, start_time, hours)``：
+  不要把 ``hours: int`` 当 ``start_time: str`` 传（``filter_entity_id`` 收到 ``list``、
+  ``quote(6)`` 必抛 ``TypeError``）。
 """
 
 from __future__ import annotations
@@ -288,7 +287,7 @@ class HomeOSFacadeMixin:
             "haSynced": True,
         }
 
-    # WS 生命周期钩子（连接状态已由连接器自身维护，这里保留为兼容空实现）
+    # WS 生命周期钩子（连接状态由连接器自身维护，这里无需额外动作）。
     async def on_ws_connected(self) -> None:
         return None
 

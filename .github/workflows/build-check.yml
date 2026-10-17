@@ -30,7 +30,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.3
 
       # 与 checks.yml build job 的对应步骤共用同一份定义，包括那 6 条产物结构断言。
       # checkout 出来就是干净树（没有 gitignore 的 dist/），正是当年出错的那种状态。

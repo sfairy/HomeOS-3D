@@ -135,9 +135,9 @@ export const useEntitiesStore = defineStore('entities', () => {
 
   /**
    * 递增状态版本号，触发依赖该值的 UI 计算属性重算。
-   * 粒度化失效（Task 23）：传入 entityId 时仅递增该实体与其所属域的版本号，
-   * 依赖 getEntityRevision / getDomainRevision 的派生计算只重算受影响范围，
-   * 未受影响区域的派生计算保持有效；全局 entityStateRevision 保留为兜底兼容。
+   * 粒度化失效：传入 entityId 时仅递增该实体与其所属域的版本号，
+   * 依赖 getEntityRevision / getDomainRevision 的派生计算只重算受影响范围；
+   * 全局 entityStateRevision 仍作为兜底。
    * @param entityId - 发生变更的实体 ID（可选；缺省时仅递增全局版本号）
    */
   function bumpEntityStateRevision(entityId?: string) {

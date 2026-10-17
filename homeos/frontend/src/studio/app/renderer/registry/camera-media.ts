@@ -561,7 +561,7 @@ export function mountCameraMedia({
     cameraVideoElement.load();
     cameraVideoElement.remove();
     legacyContainerElement.prepend(fallbackImageElement);
-    // 与 0.7.2 同 URL，无 query
+    // 快照 URL 不带 query，避免缓存失效
     fallbackImageElement.src = mjpegStreamUrl();
     armLegacyFrameWatch(probeGeneration);
   };

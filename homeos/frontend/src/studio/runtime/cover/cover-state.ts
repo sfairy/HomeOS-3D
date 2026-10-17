@@ -3,7 +3,7 @@ import {
   airerVisualPosition,
   normalizeAirerDirection,
 } from "../airer/airer-direction";
-/** HA 窗帘能力位（与 0.6.5 cover-features 同口径）。 */
+/** HA 窗帘能力位。 */
 const COVER_FEATURE_OPEN = 1,
   COVER_FEATURE_CLOSE = 2,
   COVER_FEATURE_SET_POSITION = 4,
@@ -51,7 +51,7 @@ export function coverStateLabel(stateKey: any, options: { airer?: boolean } = {}
   }
   return Object.hasOwn(stateLabelByState, stateKey) ? (stateLabelByState as any)[stateKey] : "设备不可用";
 }
-/** 对齐 0.7.2 airerState：positionReversed + liftReversed 交换 opening/capabilities。 */
+/** 晾衣架状态：positionReversed + liftReversed 交换 opening/capabilities。 */
 export function airerState(coverStatus: any, binding: any = {}) {
   const direction = normalizeAirerDirection(binding);
   const source = coverStatus?.airerAdapted
@@ -86,7 +86,7 @@ export function airerState(coverStatus: any, binding: any = {}) {
 export function coverIconIsOn(component: any, coverFeedback: any) {
   if (!coverFeedback?.available) return false;
   const isAirer = !!(component?.airer || component?.coverKind === "airer");
-  // 0.7.2：晾衣架 unknown 时图标不亮
+  // 晾衣架 unknown 时图标不亮
   if (isAirer && coverFeedback.state === "unknown") return false;
   const adapted = isAirer ? airerState(coverFeedback, component) : coverFeedback;
   const isCoverOn = isAirer
@@ -155,7 +155,7 @@ export function coverState(entityId: any, stateChange: any, options: { coverKind
     computedTiltPosition = hasTiltFeedback ? currentTiltPosition : currentPosition,
     isKnownRailState = Object.hasOwn(stateLabelByState, normalizedState),
     isBoundCover = /^cover\.[a-z0-9_]+$/.test(entityId) && rawState.available !== false,
-    // 0.7.2：晾衣架需具备 open/close/stop（features & 0xb），且
+    // 晾衣架需具备 open/close/stop（features & 0xb），且
     // available!==false 或 availabilityReason==='unknown'（状态 unknown 亦可交互）
     isAirerDevice = !!(options as any).airer || options.coverKind === "airer",
     isAvailable = isAirerDevice

@@ -14,6 +14,7 @@ import { useToastStore } from "@store/shared/stores/toast";
 import { useConfirmStore } from "@store/shared/stores/confirm";
 import { useAdminDialogsStore } from "@store/features/admin/stores/adminDialogs";
 import { num } from "@store/features/admin/utils/format";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
 
 interface Account {
   id: string;
@@ -114,7 +115,13 @@ async function save() {
   const username = draft.username.trim();
   if (username) payload.username = username;
   const password = draft.newPassword;
-  if (password) payload.newPassword = password;
+  if (password) {
+    if (!isPasswordPolicyCompliant(password)) {
+      toast.push(PASSWORD_POLICY_MESSAGE, "danger");
+      return;
+    }
+    payload.newPassword = password;
+  }
   saving.value = true;
   try {
     await adminApi(`/accounts/${draft.id}`, { method: "PATCH", body: JSON.stringify(payload) });
@@ -260,14 +267,14 @@ async function removeAccount(account: Account) {
               <input v-model="draft.email" class="hb-input" type="email" required />
             </label>
             <label class="hb-field">
-              <span>新密码（留空则不改）</span>
+              <span>新密码（留空则不改，至少 8 位且含字母与数字）</span>
               <input
                 v-model="draft.newPassword"
                 class="hb-input"
                 type="password"
                 minlength="8"
                 autocomplete="new-password"
-                placeholder="至少 8 位"
+                placeholder="至少 8 位，含字母与数字"
               />
             </label>
             <div class="hb-check-group">

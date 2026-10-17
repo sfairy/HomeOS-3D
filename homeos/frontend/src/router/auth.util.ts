@@ -2,7 +2,13 @@
 import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/shared/types/router'
 
 /** 未登录也允许停留的入户页路由名（后端离线时仅放行这些）。 */
-const GUEST_ROUTES = new Set(['register', 'login', 'activation', 'license-recovery'])
+const GUEST_ROUTES = new Set([
+  'register',
+  'login',
+  'activation',
+  'license-recovery',
+  'reset-password',
+])
 
 /**
  * 根据导航上下文决策目标路由的走向。
@@ -14,8 +20,8 @@ const GUEST_ROUTES = new Set(['register', 'login', 'activation', 'license-recove
  * 4. 已初始化但仍在注册页 → 已登录回首页，未登录去登录页
  * 5. 需认证但未登录 → 登录页
  * 6. 授权状态未确定 → 中止
- * 7. 未激活 → 激活页
- * 8. 已登录仍在登录页 / 已激活仍在激活页 → 首页
+ * 7. 未激活 → 激活页（`login` / `activation` / `reset-password` 例外）
+ * 8. 已登录仍在登录页 / 找回密码页 / 已激活仍在激活页 → 首页
  * 9. 设置锁 → 拦截
  * 10. 默认放行（公开展示页无需登录）
  */
@@ -68,13 +74,18 @@ export function resolveNavigationTarget(
   // 7. 商业授权门禁（LICENSE_REQUIRED 关闭时调用方传入 true）
   // `/activate` 现要求本机会话，故未登录时必须能停留在 `/login`，否则会与激活页互踢。
   if (licenseActivated === false) {
-    if (routeName === 'activation' || routeName === 'login') return null
+    if (routeName === 'activation' || routeName === 'login' || routeName === 'reset-password')
+      return null
     return isAuthenticated ? '/activate' : '/login'
   }
 
   // 8. 已登录且已授权仍停在入户页 → 首页。
   // 未登录时必须能停留在 /login（否则会 /login → / → /login 死循环，启动覆盖层永不收起）。
   if (routeName === 'login') {
+    return isAuthenticated ? '/' : null
+  }
+  // 已登录还去「找回密码」没有意义：账号就在手上，回首页。
+  if (routeName === 'reset-password') {
     return isAuthenticated ? '/' : null
   }
   if (routeName === 'activation') {

@@ -1,6 +1,6 @@
 import { scenePreparationKey } from "../scene-persistent-cache";
 
-/** 接触阴影烘焙算法的版本指纹：算法变了，旧快照必须整体失效。 */
+/** 接触阴影烘焙算法的版本指纹：算法变化时让已有快照整体失效。 */
 export const CONTACT_SHADOW_ALGORITHM_REVISION =
   "5d70477edac6294f0ef28c0e93ee64d724862b0a7aa4399be716e72ec72b6066";
 

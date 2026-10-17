@@ -27,7 +27,7 @@ from .config import PROJECT_ROOT, StoreSettings, load_settings
 from .core.bootstrap import ensure_default_products, ensure_default_settings
 from .core.console_log import configure_console_logging
 from .core.database import Database
-from .core.migrations import run_migrations
+from .core.schema import prepare_schema
 from .licensing import keys
 from .licensing.crypto import (
     KeyGeneration,
@@ -61,7 +61,6 @@ from .security.request_security import (
     same_origin_request,
     security_headers,
 )
-from .security.schema_guard import SchemaDrift, inspect_schema, log_drift
 from .security.setup_guard import SetupGuard, announce_setup_window
 from .security.static_cache import StaticAssetCacheMiddleware
 
@@ -241,7 +240,6 @@ class _StoreRuntime:
 
     settings: StoreSettings
     database: Database
-    schema_drift: SchemaDrift
     authority: LicenseAuthority
     setup_guard: SetupGuard
     trusted_proxies: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]
@@ -262,15 +260,10 @@ def _prepare_settings(settings: StoreSettings) -> tuple[ipaddress.IPv4Network | 
     return trusted_proxies
 
 
-def _open_database(settings: StoreSettings) -> tuple[Database, SchemaDrift]:
-    """跑迁移、打开数据库、检查 schema 漂移，并补齐种子数据。"""
-    for step in run_migrations(settings):
-        logger.info("数据库迁移：%s", step)
-
+def _open_database(settings: StoreSettings) -> Database:
+    """建库、打开数据库并补齐种子数据。"""
+    prepare_schema(settings)
     database = Database(settings)
-
-    schema_drift = inspect_schema(database.engine)
-    log_drift(schema_drift)
 
     with database.session() as session:
         released = ensure_current_release(session)
@@ -278,19 +271,18 @@ def _open_database(settings: StoreSettings) -> tuple[Database, SchemaDrift]:
         ensure_default_products(session)
     if released:
         logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
-    return database, schema_drift
+    return database
 
 
 def _build_runtime(settings: StoreSettings) -> _StoreRuntime:
     """把这份进程要用的一整套运行时零件准备好。"""
     trusted_proxies = _prepare_settings(settings)
-    database, schema_drift = _open_database(settings)
+    database = _open_database(settings)
     authority = LicenseAuthority(settings, database, build_key_registry(settings))
     setup_guard = SetupGuard(settings.data_dir, settings.setup_token)
     return _StoreRuntime(
         settings=settings,
         database=database,
-        schema_drift=schema_drift,
         authority=authority,
         setup_guard=setup_guard,
         trusted_proxies=trusted_proxies,
@@ -375,8 +367,7 @@ def _make_lifespan(runtime: _StoreRuntime):
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # 先恢复控制台日志：迁移里的 alembic fileConfig 会把 root 配置顶掉（级别压到 WARN、
-        # handler 换成它自己那份），此前的 ``src.*`` INFO 都在静默丢弃，见 core/console_log.py。
+        # reload 的 worker 不继承 run.py 装好的日志配置，这里再装一次，见 core/console_log.py。
         configure_console_logging()
         # 降噪要在下面那行启动日志之前生效：首装时引导密钥横幅紧随其后，只打印一次，
         # 而客户机轮询与健康检查几秒就能把它顶出 docker logs 的可见范围。
@@ -410,7 +401,6 @@ def _attach_runtime_state(app: FastAPI, runtime: _StoreRuntime) -> None:
     """把运行时零件挂到 ``app.state``（路由与中间件都从这里取）。"""
     app.state.settings = runtime.settings
     app.state.database = runtime.database
-    app.state.schema_drift = runtime.schema_drift
     app.state.license_authority = runtime.authority
     app.state.setup_guard = runtime.setup_guard
     app.state.appearance = AppearanceStore(runtime.settings.appearance_path)
@@ -518,18 +508,12 @@ def _install_healthz(app: FastAPI, runtime: _StoreRuntime) -> None:
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
-        drift = app.state.schema_drift
         return {
             "status": "ok",
             "version": __version__,
             "port": runtime.settings.port,
             "paymentSweep": sweep_status(),
             "incidents": incidents.status(),
-            "schema": {
-                "ok": drift.clean,
-                "summary": drift.summary(),
-                "drift": None if drift.clean else drift.as_dict(),
-            },
         }
 
 

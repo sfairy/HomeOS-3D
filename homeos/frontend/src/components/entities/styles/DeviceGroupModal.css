@@ -1,5 +1,4 @@
-/* 淡入淡出不再在本文件重复定义：全局唯一来源是 modal-theme.css 的 .fade-*（opacity 0.3s ease），
-   这里原先是一份逐字等义的副本，只会制造「改一处漏一处」的漂移。 */
+/* 淡入淡出由 modal-theme.css 的 .fade-* 统一定义（opacity 0.3s ease），此处不要重复。 */
 
 
 .dgm-header-title {
@@ -410,8 +409,8 @@
   box-shadow: 0 4px 16px rgba(10,132,255,0.15);
 }
 
-.dgm-temp-btn:active { 
-  transform: scale(0.92); 
+.dgm-temp-btn:active {
+  transform: scale(0.92);
   background: rgba(10,132,255,0.18);
 }
 
@@ -1035,14 +1034,6 @@ button.dgm-light-card:focus-visible {
   white-space: nowrap;
 }
 
-/* === 旧 diag 类名保留供 JS 引用，已重做样式 === */
-
-
-
-.diag-neon-glow { filter: drop-shadow(0 0 8px rgba(255,55,95,0.5)); }
-
-
-@keyframes pulse-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .dgm-batch-bar {
   display: flex;
   align-items: center;

@@ -1,43 +1,28 @@
-# HomeOS 主应用 —— 客户机部署（发给客户的就是这一份）
+# HomeOS —— 客户机部署（发给客户的就是这一份，自包含，不需要 .env）
 #
 #   docker compose -f docker-compose.app.yml up -d
 #
-# 这份**只有主应用**，用于「厂商机跑商店 + 每台客户机跑主应用」的拓扑：授权公钥由主应用启动时
-# 向商店取回（落到数据卷 /data/client-keys），所以不需要商店在本机，也不需要共享卷。
-# 厂商 / 管理员自己那台（商店 + 主应用一起起）用 docker-compose.yml。
+# 只有主应用。商店在厂商那台（docker-compose.yml），本机通过公网域名访问它：
+#   APP_LICENSE_SERVER_URL  容器出站（取公钥 / 激活 / 心跳 / 代发验证码）
+#   APP_STORE_URL           登录页「忘记密码 / 商店」链接（给浏览器）
 #
-# 自包含：不需要 .env、不需要脚本、不依赖仓库其余部分，值全部写死在文件里。
-# 本项目名固定为 homeos，卷名与管理员那份一致（homeos_homeos-data / homeos_homeos-secrets）。
+# 不变式：两条商店地址永远是 https://homelifepay.iepose.cn，**不要改**。客户机不在厂商
+# 局域网内，私网地址装到别处就连不上；商店也没有 HTTPS 端口（没有 8804），别往那边指。
 #
-# 版本用 :latest 跟随最新发布；想钉版就换具体 tag。已发布的 tag 见
-# https://github.com/sfairy/HomeOS-3D/pkgs/container/homeos
+# 端口：8801（HTTP）/ 8803（内置自签 HTTPS），冲突就改 `ports:` 左侧。
+# 内网直连用这两个端口；要让外网访问，由隧道 / 反代把 443 回灌到 127.0.0.1:8801，
+# 并把本机的公网地址填进 APP_BASE_URL（见下方 environment 与 ops/deploy/TUNNEL-ACCESS.md）。
 #
-# ---------------------------------------------------------------- 用之前只需改一处
-# 下面标了 ← 的那行**已经填好厂商的商店地址**（公网域名），通常不用动；只有当厂商那台
-# 只在内网可达时才把它换成厂商给的局域网地址（例如 http://192.168.1.20:8802）。
-# 不要填 https://<商店IP>:8804：那是商店内置反代的自签证书，本容器会拒绝。
-# 商店上了真实证书（公网接入）就用它的域名，见 ops/deploy/PUBLIC-ACCESS.md。改完再往上滚一眼
-# 端口：8801（HTTP）/ 8803（内置 HTTPS），冲突就改 `ports:` 左侧。
+# 首次启动：
+#   sudo mkdir -p /host/etc /host/sys/class/dmi
+#   sudo ln -sfn /etc/machine-id   /host/etc/machine-id
+#   sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id     # 必须在首次 up 之前建好
+#   curl -fsS https://homelifepay.iepose.cn/v2/keys | head -c 120   # 先在客户机验证可达
+#   docker compose -f docker-compose.app.yml up -d
+# 然后打开 http://<本机地址>:8801/register 注册，按提示填厂商给的激活码。
 #
-# 登录页上的商店入口地址不用配：主应用向商店问回来（厂商那台换 IP / 换域名都不用管这里）。
-#
-# ---------------------------------------------------------------- 首次启动
-# ① 先建 /host 符号链接（必须在第一次 up -d **之前**，否则 Docker 会把路径建成目录，
-#    之后再也 ln 不上去，授权指纹退化成可拷贝的兜底 ID）：
-#      sudo mkdir -p /host/etc /host/sys/class/dmi
-#      sudo ln -sfn /etc/machine-id   /host/etc/machine-id
-#      sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
-# ② docker compose -f docker-compose.app.yml up -d，等容器 healthy（首次会向商店取回授权公钥）。
-# ③ 浏览器打开 http://<本机地址>:8801/register 注册本机唯一账号 —— 需要邮箱验证码，而验证码由
-#    **商店**代发（厂商机日志里取码，除非厂商配了 SMTP），所以这台必须能出站访问商店的 8802。
-# ④ 注册后未激活会跳 /activate，填厂商给的激活码即完成绑定。
-#    （HTTPS 入口 https://<本机地址>:8803，自签证书点「继续访问」。）
-#
-# ---------------------------------------------------------------- 升级 / 备份
-#   docker compose -f docker-compose.app.yml pull && docker compose -f docker-compose.app.yml up -d
-# 只重启容器不会换镜像；升级不动数据卷；**永远不要** `down -v`（会连卷一起删）。
-# 数据在 homeos_homeos-data（含 backups 与取回的公钥缓存）；homeos_homeos-secrets 是签名密钥。
-# 授权是 1 激活码 : 1 设备，换机器 / 改 hostname / 改 /host 挂载都会换指纹，需厂商后台解绑。
+# 升级：pull + up -d。升级不动数据卷；永远不要 down -v。
+# 授权 1 激活码 : 1 设备，换机器 / 改 hostname / 改 /host 挂载都会换指纹，需厂商后台解绑。
 
 name: homeos
 
@@ -45,49 +30,41 @@ services:
   homeos:
     image: ghcr.io/sfairy/homeos:latest
     container_name: homeos
-    # 固定 hostname：授权实例指纹在缺少机器/主板标识时会把容器 hostname 编进去，
-    # 换掉它等于换设备。别改这行。
+    # 固定 hostname：授权实例指纹会把它编进去，换掉等于换设备。
     hostname: homeos
     restart: unless-stopped
     stop_grace_period: 30s
     ports:
-      # 8801：HTTP 直连；8803：镜像内置 Caddy 的 HTTPS 入口（自签证书）。
+      # 8801：HTTP 直连；8803：内置 Caddy 的 HTTPS（自签证书）。
       - "8801:8801"
       - "8803:8803"
     environment:
       APP_ENVIRONMENT: production
-      # ← 厂商给你的**商店**地址（已填公网域名）。只有当厂商那台只在内网可达时才换成
-      # 它的局域网地址（例如 http://192.168.1.20:8802）。
-      # 别带结尾斜杠，也别写商店内置反代的 https://<IP>:8804（自签证书，本容器会拒绝）。
-      # 容器自己出站用它：取授权公钥 / 激活 / 心跳 / 代发注册验证码 / 查更新。
-      # 留空会让容器启动时直接报错退出（启动器要求显式配置；只有本地直跑后端才用回环默认值）。
+      # 厂商公网商店地址，写死不要改（详见文件头）。留空会导致容器启动即退出。
       APP_LICENSE_SERVER_URL: https://homelifepay.iepose.cn
-      # 登录页「忘记密码 / 商店」链接指向的商店地址**不用填**：主应用会问商店「你的对外
-      # 地址是什么」（商店配了 STORE_BASE_URL 就答它，公网部署下就是这个域名），并在答回来
-      # 的是浏览器解析不了的主机名（容器服务名 / 回环）时自动换成你正在用的地址 —— 所以
-      # 厂商那台换 IP / 换域名都不用改这里。
-      # 只有推导结果不合期望（例如商店另加了一层只给浏览器用的反代）才取消注释显式写死。
-      # APP_STORE_URL: https://homelifepay.iepose.cn
-      # 公钥落在这里（数据卷内），首次取回后商店不可达也能离线启动；丢掉会自动重新取回。
+      # 登录页商店链接（浏览器用）。显式写死，避免商店不可达时兜底成 127.0.0.1。
+      APP_STORE_URL: https://homelifepay.iepose.cn
+      # 公钥缓存：首次从商店取回后即可离线启动。
       APP_CLIENT_KEYS_DIR: /data/client-keys
-      # 内网反代下 HTTP(8801) 与 HTTPS(8803) 都要能登录，所以是 false；只走 HTTPS 改 true。
-      APP_COOKIE_SECURE: "false"
-      # 内置反代就在同容器回环上：只信回环，**不要**放宽到 docker 网段。
-      APP_TRUSTED_PROXIES: 127.0.0.1,::1
-      UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1
-      # 内置 HTTPS(8803) 的证书签给谁：填你**实际输入**的那个地址（一般就是本机局域网 IP）。
-      # 浏览器用 IP 访问不发 SNI，不填这个名字 Caddy 只能签给容器自己的 docker IP，浏览器
-      # 会判「证书与地址不匹配」而打不开（见 ops/caddy/app.Caddyfile 的说明）。
-      # 用主机名访问（https://homeos.local:8803）则天然匹配，不改这行也行。
+      # 会话 / CSRF Cookie：auto = 按本次请求实际协议判定（8801 明文不带、8803 或反代带）。
+      COOKIE_SECURE: "auto"
+      # 可信代理：回环 = 容器内 Caddy；docker 网段 = 宿主机 / 其它容器里的隧道客户端
+      # （纯局域网部署可删回 127.0.0.1,::1）。
+      APP_TRUSTED_PROXIES: 127.0.0.1,::1,172.16.0.0/12
+      UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1,172.16.0.0/12
+      # 本机也走反代 / 内网穿透时填浏览器用的公网地址（例如 https://home.example.com）；
+      # 纯局域网留空即可。不填走穿透会让 socket.io 拒掉公网来源（面板一直重连）。
+      APP_BASE_URL: ${HOMEOS_PUBLIC_URL:-}
+      # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
-      # 授权实例指纹的来源（宿主标识）。**必须先建好符号链接**，见文件头 ①。
+      # 授权实例指纹来源，必须先建好符号链接（见文件头）。
       - /host/etc/machine-id:/host/etc/machine-id:ro
       - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
     healthcheck:
-      # 应用和镜像内置反代都要活着才算健康（HTTP 直连端口可能仍可用，故单独探一次 HTTPS）。
+      # 应用与内置反代都要活着才算健康。
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]
       interval: 30s
       timeout: 5s
@@ -95,5 +72,5 @@ services:
       start_period: 60s
 
 volumes:
-  homeos-data:
-  homeos-secrets:
+  homeos-data:      # 数据（含 backups 与公钥缓存）
+  homeos-secrets:   # 签名密钥

@@ -1,8 +1,7 @@
 """HA 摄像头 WebRTC 信令桥（``/api/v1/ha/webrtc/*``）。
 
-阶段 3 下线了 homeos 旧的 WebRTC REST 面后，前端 ``useHaWebRtcPlayer`` 仍调用
-``/ha/webrtc/client-config|negotiate|candidate|close``，但后端没有实现 —— H265 摄像头
-的 HLS（hev1）在部分浏览器播不了，必须走 WebRTC。本模块用 ``studio_ha`` 的 WebSocket
+前端 ``useHaWebRtcPlayer`` 调用 ``/ha/webrtc/client-config|negotiate|candidate|close``；
+H265 摄像头的 HLS（hev1）在部分浏览器播不了，必须走 WebRTC。本模块用 ``studio_ha`` 的 WebSocket
 把上述 REST 转成 HA ``camera/webrtc/*`` 命令，会话期内保持上游连接以便补 ICE。
 """
 

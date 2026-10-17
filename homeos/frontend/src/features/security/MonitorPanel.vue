@@ -212,7 +212,7 @@ const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
 const cameraDisplayEpoch = useEntityDisplayEpoch('camera')
 
-// 已绑定的摄像头列表（haConfig.securityCameras：0.7.5 起为 `[{entityId, go2rtcUrl?}]`）。
+// 已绑定的摄像头列表（haConfig.securityCameras 为 `[{entityId, go2rtcUrl?}]`）。
 // 每项带稳定 key：绑定实体时直接用实体 ID，只填 go2rtc 地址时用索引占位键。
 const cameraItems = computed(() =>
   normalizeSecurityCameras(layoutStore.layoutConfig.haConfig.securityCameras)

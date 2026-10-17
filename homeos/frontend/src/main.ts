@@ -196,7 +196,7 @@ if (typeof document !== 'undefined') {
 applyHomeOsTheme()
 
 /** 入户认证页不依赖完整 public config；等配置再 mount 会空等一整段，放大首屏闪烁。 */
-const isEntryAuthRoute = /^\/(login|register|setup|activate|license)(\/|$)/.test(
+const isEntryAuthRoute = /^\/(login|register|setup|activate|license|reset-password)(\/|$)/.test(
   typeof location !== 'undefined' ? location.pathname : '',
 )
 

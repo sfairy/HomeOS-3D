@@ -407,7 +407,7 @@ export function createExternalModelManager({
       }),
       templateScene.updateMatrixWorld(true));
     // 取尺寸优先用模型里烘焙的 `homeosPlacementBounds`（省一次整树遍历、结果确定）；
-    // 没烘焙 / 烘焙不可信时回退几何体自算 —— 与 0.7.6 的取尺寸口径一致。
+    // 没烘焙 / 烘焙不可信时回退几何体自算。
     const modelSize = (
       modelPlacementBounds(threeNamespace, templateScene) ??
       new threeNamespace.Box3().setFromObject(templateScene)

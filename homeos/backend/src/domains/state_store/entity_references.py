@@ -262,8 +262,8 @@ def _push_reference(
 ) -> None:
     """把引用挂到 ``entity_id`` 的桶里（去重是 **O(1)**：键算一次、集合查一次）。
 
-    旧实现每插一条都要**遍历整桶**并把 f-string 重新拼一遍来比较：桶大时是 O(n²)，
-    而这段拼串逻辑与插入处重复。改成"算一次键 + 集合"后，两者共用 :func:`_reference_key`。
+    每插一条都遍历整桶并重拼 f-string 来比较，桶大时是 O(n²)。改为「算一次键 + 集合」
+    后，插入与去重共用 :func:`_reference_key`。
     """
     key = f"{entity_id}\x00{_reference_key(reference)}"
     if key in seen_keys:
@@ -962,8 +962,8 @@ def _strip_targeted_widgets(
 ) -> tuple[list[Any], bool, int]:
     """删除命中 ``item_id`` 的组件（按下标或按 ``id``），返回 ``(保留列表, 是否变更, 下一个累计下标)``。
 
-    ``start_index`` 是跨两个列表（rightPanelWidgets → floatingWidgets）累计的下标：旧实现用
-    闭包里的 ``nonlocal combined_idx`` 维护它，拆出来后改成显式传入/传出，行为一致。
+    ``start_index`` 是跨两个列表（rightPanelWidgets → floatingWidgets）累计的下标，
+    由调用方显式传入 / 传出，避免依赖闭包里的 ``nonlocal``。
     """
     kept_widgets: list[Any] = []
     changed = False
@@ -1142,7 +1142,7 @@ def _unlink_layout_json_field(
 ) -> UnlinkResult:
     layout = dict(deps["load_layout"]())
     handler = _LAYOUT_UNLINK_HANDLERS.get(kind)
-    # 调用方按 kind 分发，理论到不了 else；保持与旧实现一致的提示语。
+    # 调用方按 kind 分发，理论到不了这里。
     changed = handler(layout, item_id, entity_id) if handler is not None else False
     if not changed:
         return _fail("未找到可移除的布局引用")

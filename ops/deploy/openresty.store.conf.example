@@ -1,0 +1,122 @@
+# HomeOS 授权商店 —— OpenResty / Nginx 公网入口示例
+#
+# 用途：把 https://homelifepay.iepose.cn 转到宿主机上的商店容器（127.0.0.1:8802）。
+#
+# 这是**必配项，不是可选优化**：客户机那份 docker-compose.app.yml 把商店地址写死成这个
+# 域名，它既是容器出站（取公钥 / 激活 / 心跳 / 注册验证码）的唯一入口，也是浏览器里
+# 「忘记密码 / 商店」链接与支付回调的地址。
+# 少了这一段，域名会返回 **404 page not found**（那是 OpenResty 自己的 404，
+# 不是商店的 404 —— 商店的 404 是 JSON），客户机取公钥、激活、心跳、注册验证码
+# 全部失败，而且症状只是「连接失败」，很难一眼看出是入口没配对。
+# 判断方法见 ops/deploy/PUBLIC-ACCESS.md §3.3。
+#
+# 放置方式（任选其一）：
+#   - 直接并进 nginx.conf 的 http {} 里；
+#   - 放到 conf.d/ 目录（OpenResty 默认已 include conf.d/*.conf）。
+#
+# 前置条件：
+#   1. 域名 A/AAAA 记录指向这台机器的公网 IP；
+#   2. 80 / 443 已放行，且**没有**别的 server 块先匹配到这个域名
+#      （default_server 抢走域名是最常见的「配了却不生效」原因）；
+#   3. 证书路径改成你自己的（本示例走绝对路径，避免 include 时相对路径歧义）。
+#
+# ⚠ 关键三条（少任何一条都会出问题，症状见 PUBLIC-ACCESS.md §6）：
+#   Host              必须原样透传 —— 同源校验、商店自报对外地址都按它比对；
+#   X-Forwarded-Proto 必须是 https —— 少了它商店会以为自己在 http 上；
+#   client_max_body_size 要 ≥ 商店的 multipart 上限 16 MiB —— 否则后台上传商品图
+#                      会在入口就被 413 拦掉，而商店日志里什么都看不到。
+#
+# 本文件用 `upstream` 命名上游，方便你在「宿主 OpenResty」与「容器里的 OpenResty」
+# 两种形态间切换（容器形态见文件末尾的说明）。
+
+upstream homeos_store_upstream {
+    # 宿主上的 OpenResty / Nginx：走 Docker 发布的回环端口。
+    server 127.0.0.1:8802;
+    keepalive 16;
+}
+
+# ── 80：只做跳转（ACME HTTP-01 若也在这个入口上，需要保留 /.well-known/acme-challenge/）
+server {
+    listen 80;
+    listen [::]:80;
+    server_name homelifepay.iepose.cn;
+
+    # 用别的工具签证书时，把这段留下即可（证书续期走 80 校验）。
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/acme;
+        default_type "text/plain";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ── 443：真实证书 + 反代到商店
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name homelifepay.iepose.cn;
+
+    # 换成你的证书链与私钥。证书必须是**公共 CA** 签的：
+    # 客户机里的主应用按系统 CA 校验，自签证书会被直接拒绝（商店自己也不提供 HTTPS 端口）。
+    ssl_certificate     /etc/nginx/ssl/homelifepay.iepose.cn.fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/homelifepay.iepose.cn.key;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # 商店的商品图上传是 multipart，商店自己允许到 16 MiB（security/body_guard.py）。
+    # 这里必须 ≥ 那个值，否则请求在入口就被拒绝（默认 1m 会让 8MB 的图直接 413）。
+    client_max_body_size 16m;
+
+    # 授权 / 心跳 / 支付回调都是短请求，超时不用放太长；
+    # 后台上传大图时 60s 也足够。
+    proxy_connect_timeout 10s;
+    proxy_send_timeout    60s;
+    proxy_read_timeout    60s;
+
+    # 商店没有 WebSocket 端点（与主应用不同），这里不需要 Upgrade 头。
+    # 真要加也不影响，只是没用。
+    location / {
+        proxy_pass http://homeos_store_upstream;
+
+        # 必须：同源校验 + 商店回显「调用方是怎么连上我的」都读 Host。
+        # 用 $http_host（带端口）而不是 $host：$host 会丢掉端口，一旦入口不是 443
+        # （本地拿 8443 试、或改成其它端口），Origin 带「:8443」而 Host 不带，
+        # 商店的 same_origin_request 会判否 —— 写操作 403，读接口却正常，很难定位。
+        proxy_set_header Host              $http_host;
+        # 必须：少了它商店会判成 http（Cookie 的 Secure、绝对链接都会错）。
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+
+        # 商店的响应带 CSP nonce 与 Vary，别让入口层改写或缓存。
+        proxy_buffering off;
+        proxy_http_version 1.1;
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 如果 OpenResty 本身也跑在容器里（而不是宿主机上）：
+#
+#   1. 把上面的 `server 127.0.0.1:8802;` 换成 `server homeos-store:8802;`
+#   2. 让这个容器加入商店所在的网络：
+#        docker network connect homeos-net <openresty容器名>
+#      （或在它的 compose 里声明 external network `homeos-net`）
+#   3. 商店侧的可信代理已经包含 docker 网段（docker-compose.yml 的
+#      STORE_TRUSTED_PROXIES=127.0.0.1,::1,172.16.0.0/12），不用再改：
+#      入口容器从 172.16.0.0/12 里连进来，X-Real-IP / X-Forwarded-For 会被采信。
+#
+# 验证清单（在公网机器上执行，全部应通过）：
+#   curl -fsS https://homelifepay.iepose.cn/healthz
+#   curl -fsS https://homelifepay.iepose.cn/store/v1/base-url
+#        → {"baseUrl":"https://homelifepay.iepose.cn","declared":true}
+#   curl -fsS https://homelifepay.iepose.cn/v2/keys | head -c 200
+#   curl -sS -o /dev/null -w '%{http_code}\n' https://homelifepay.iepose.cn/setup
+#
+# 反向自检（从**外网**执行，必须超时 / 拒绝，否则就是绕过 HTTPS 的明文入口）：
+#   curl -m 5 http://<公网IP>:8802/healthz
+# 商店没有任何 HTTPS 端口（8804 已随内置反代移除），所以
+#   curl -m 5 -k https://<公网IP>:8804/healthz
+# 应当是「连接被拒」而不是证书告警 / 404。

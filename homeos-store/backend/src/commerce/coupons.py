@@ -141,7 +141,7 @@ def recompute_coupon_slots(session: Session) -> dict[str, int]:
     """
     changes: dict[str, int] = {}
     # 真相在 coupon_redemptions：一次分组聚合拿到全部码的真实占用，再和反规范化
-    # 计数列比对。原实现对每个码都跑一次 count（1 + N 次查询），码多时是明显 N+1。
+    # 计数列比对；逐码 count 会是 1 + N 次查询。
     counted = {
         str(coupon_id): int(total or 0)
         for coupon_id, total in session.execute(
@@ -188,9 +188,9 @@ def release_coupon(
 def reoccupy_coupon(session: Session, order: Order) -> bool:
     """订单「复活」成交时把名额重新占回来，返回是否真的占回。
 
-    守卫必须与下单时的 redeem_coupon 一致：旧实现只重查 max_redemptions，
-    于是「超时关闭期间码被后台停用」「该账号本已用满 per_account_limit」这两种
-    情况下的后到账会被照常放行，等于绕过运营刚设下的限制。
+    守卫必须与下单时的 redeem_coupon 一致：只重查 max_redemptions 会让「超时关闭期间码
+    被后台停用」「该账号本已用满 per_account_limit」这两种情况下的后到账被照常放行，
+    等于绕过运营刚设下的限制。
     """
     if not order.coupon_code:
         return True

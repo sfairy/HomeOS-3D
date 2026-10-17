@@ -12,6 +12,7 @@ import { api, onAdminUnauthorized } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
 import { localZoneLabel } from "@store/features/admin/utils/format";
 import { useToastStore } from "@store/shared/stores/toast";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
 
 interface NavItem {
   page: string;
@@ -148,8 +149,8 @@ async function submitPassword() {
     pwError.value = "请输入当前密码。";
     return;
   }
-  if (pwForm.newPassword.length < 8) {
-    pwError.value = "新密码至少 8 位。";
+  if (!isPasswordPolicyCompliant(pwForm.newPassword)) {
+    pwError.value = PASSWORD_POLICY_MESSAGE;
     return;
   }
   if (pwForm.newPassword !== pwForm.confirmPassword) {
@@ -371,8 +372,8 @@ onBeforeUnmount(() => {
           <input v-model="pwForm.oldPassword" class="hb-input" type="password" autocomplete="current-password" placeholder="请输入当前密码" />
         </label>
         <label class="hb-field">
-          <span>新密码（至少 8 位）</span>
-          <input v-model="pwForm.newPassword" class="hb-input" type="password" autocomplete="new-password" placeholder="至少 8 位" />
+          <span>新密码（至少 8 位，含字母与数字）</span>
+          <input v-model="pwForm.newPassword" class="hb-input" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" />
         </label>
         <label class="hb-field">
           <span>确认新密码</span>

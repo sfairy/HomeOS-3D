@@ -1,13 +1,11 @@
 """商业授权路由（``/api/v1/license/*``）。
 
-并入 homeos-3d 授权服务后，本模块只做「HTTP 适配」：把服务层的状态机查询、激活、
-重新激活与显式重试暴露成 Nest 风格端点，错误按 ``LicenseClientError`` 的
-``status_code`` / ``code`` 映射成统一错误信封。
+本模块只做「HTTP 适配」：把服务层的状态机查询、激活、重新激活与显式重试暴露成端点，
+错误按 ``LicenseClientError`` 的 ``status_code`` / ``code`` 映射成统一错误信封。
 
-限流沿用 homeos 的 ``rate_limit`` 依赖（激活 5 次/分钟、重试 10 次/分钟），与迁移前
-的 ``LICENSE_ACTIVATION_LIMIT`` 语义一致。
+限流沿用 ``rate_limit`` 依赖（激活 5 次/分钟、重试 10 次/分钟）。
 
-鉴权口径（Phase 2b）：
+鉴权口径：
 
 - ``/availability`` —— **公开**。只下发门禁判定所需的粗粒度布尔与脱敏状态；未登录的
   首屏也要能读到它，才能决定该去激活页还是登录页。
@@ -98,8 +96,15 @@ async def activate(payload: ActivateDto, request: Request, user: CurrentUser) ->
             payload.activationCode or "", payload.email or None, user.username
         )
     except LicenseClientError as error:
+        # 固定 422（不直接透传授权服务器的 status）：授权服务器返回 401 时如果照搬，
+        # 前端拦截器会当成「本机会话失效」把用户登出 —— 那其实是商店侧的鉴权问题。
+        # 但错误码必须保住：前端靠 ``code`` 区分 ``INSTANCE_MISMATCH`` 等需要用户动手的情形。
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": error.code or "LICENSE_ACTIVATION_FAILED",
+                "message": str(error),
+            },
         ) from error
 
 

@@ -41,7 +41,7 @@ export interface HomeModeTriggerLogEntry {
   source: HomeModeTriggerLogSource
   /** 触发原因文案 / 英文 key（前端用 HOME_MODE_LOG_REASON_LABELS 渲染） */
   reason: string
-  /** 是否执行成功；缺省视为成功（兼容历史数据） */
+  /** 是否执行成功；缺省视为成功 */
   success?: boolean
   /** 执行时间 ISO 字符串（前端按本地时区渲染） */
   executedAt: string

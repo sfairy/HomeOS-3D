@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from ..commerce import coupons, referrals
 from ..commerce.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
-from ..config import StoreSettings
 from ..core.models import (
     Customer,
     Entitlement,
@@ -750,12 +749,9 @@ def fulfill_order(
     *,
     order: Order,
     setting: StoreSetting,
-    settings: StoreSettings | None = None,
     now: datetime | None = None,
 ) -> dict:
-    """履约。幂等：已履约的订单直接返回。
-    """
-    del settings  # 保留签名兼容
+    """履约。幂等：已履约的订单直接返回。"""
     moment = now or utcnow()
     early = _claim_order_for_fulfillment(session, order, moment)
     if early is not None:

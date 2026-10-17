@@ -5,7 +5,7 @@ export const WS_CLIENT_EVENTS = {
   // 模式自动化 / 安防 / 人员在场 / 能耗·AI·地震
   HA_STATUS: 'ha_status', // [HA连接] HA 连接状态变更
   HA_QUEUE_DROPPED: 'ha_queue_dropped', // [HA连接] 队列丢弃告警
-  INITIAL_STATES: 'initial_states', // [实体同步] 初始全量状态（兼容旧版入口）
+  INITIAL_STATES: 'initial_states', // [实体同步] 初始全量状态
   INITIAL_STATES_BEGIN: 'initial_states_begin', // [实体同步] 全量分片开始
   INITIAL_STATES_CHUNK: 'initial_states_chunk', // [实体同步] 全量分片数据块
   INITIAL_STATES_END: 'initial_states_end', // [实体同步] 全量分片结束
@@ -72,7 +72,7 @@ export interface WsEntityStatePayload {
  * _delta 压缩模式下 changed_attributes 列出变动字段名，客户端可只 patch 对应 attributes。
  */
 export interface WsStateChangedBatchPayload {
-  type?: 'state_changed_batch';       /** 事件类型守卫（某些旧网关可能省略） */
+  type?: 'state_changed_batch';       /** 事件类型守卫（可省略） */
   changes: WsEntityStatePayload[];    /** 本次批量推送的实体快照数组（至少 1 条） */
   timestamp?: string;                 /** 服务端发送时间（可选；缺省由客户端记录接收时间） */
 }

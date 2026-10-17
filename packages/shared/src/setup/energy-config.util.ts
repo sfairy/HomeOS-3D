@@ -24,7 +24,7 @@ function createDefaultEnergySource(): EnergySourceConfig {
 }
 
 /**
- * 从户号字符串（可能逗号拼接多个）中取第一个非空户号（前端表单支持「多账户逗号分隔」旧写法时使用）。
+ * 从户号字符串（可能逗号拼接多个）中取第一个非空户号，供「多账户逗号分隔」的表单使用。
  *
  * @param raw 户号原始字符串（可 null/undefined）
  * @returns 第一个户号 trim 后字符串；空/非法返回空串

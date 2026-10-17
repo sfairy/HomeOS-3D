@@ -55,8 +55,8 @@ PUBLIC_PAGES = {
     '/pair',
     '/login',
     '/register',
+    '/reset-password',
     '/display',
-    '/license',
     '/license-recovery',
     '/3d-studio',
 }

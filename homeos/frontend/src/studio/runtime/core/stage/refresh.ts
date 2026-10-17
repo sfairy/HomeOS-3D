@@ -7,7 +7,7 @@
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from "../../device/generic-device-catalog";
 import { buildMetadata } from "./build-metadata";
 import { expandGroupMembers, postHostMessage } from "./_shared";
-import { mountRegionRangeEditor as mountRegionRangeEditor2 } from "../../editor/light-range-editor";
+import { mountRegionRangeEditor as mountRegionRangeEditor2 } from "../../config-ui/light-range-editor";
 import { pageDimming as pageDimming2, pageModelBindings as pageModelBindings2 } from "../../environment/environment-scene";
 
 /** 依赖袋（宿主 `bootEditor` 作用域）：**每次调用现取**的普通对象，等价于闭包读值。

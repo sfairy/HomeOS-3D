@@ -13,6 +13,10 @@ import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import {
+  PASSWORD_POLICY_MESSAGE,
+  isPasswordPolicyCompliant,
+} from '@/shared/utils/core/password.util'
 
 const authStore = useAuthStore()
 const chrome = useChromeStore()
@@ -27,7 +31,7 @@ const sending = ref(false)
 const errorMessage = ref('')
 const mismatch = computed(() => Boolean(passwordConfirmation.value) && password.value !== passwordConfirmation.value)
 
-/** 发码倒计时（秒）；商店会返回 resendAfter，缺省 120 秒。 */
+/** 发码倒计时（秒）；商店会返回 resendAfter，缺省取商店默认冷却 60 秒。 */
 const cooldown = ref(0)
 let cooldownTimer: number | undefined
 
@@ -53,7 +57,7 @@ async function onSendCode(): Promise<void> {
   sending.value = true
   try {
     const result = await authStore.sendVerificationCode(target)
-    startCooldown(Number(result.resendAfter) || 120)
+    startCooldown(Number(result.resendAfter) || 60)
     chrome.notify(result.delivered === false ? '验证码已生成，但邮件投递失败，请联系客服。' : '验证码已发送，请检查邮箱。', result.delivered === false ? 'warning' : 'success')
   } catch (caughtError) {
     errorMessage.value = getApiErrorMessage(caughtError, '验证码发送失败。')
@@ -65,6 +69,10 @@ async function onSendCode(): Promise<void> {
 async function onSubmit(): Promise<void> {
   if (submitting.value) return
   errorMessage.value = ''
+  if (!isPasswordPolicyCompliant(password.value)) {
+    errorMessage.value = PASSWORD_POLICY_MESSAGE
+    return
+  }
   if (mismatch.value) {
     errorMessage.value = '两次输入的密码不一致。'
     return
@@ -171,11 +179,11 @@ async function onSubmit(): Promise<void> {
           <div class="hos-panel__meta">
             <span>本机唯一账号</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>密码至少 8 位</span>
+            <span>密码至少 8 位，含字母与数字</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
             <span>注册后进入授权检测</span>
           </div>
-          <p>忘记口令时可由管理员按文档删除本机用户行后重新注册。</p>
+          <p>忘记口令不必删账号：登录页「忘记本机密码」用注册邮箱验证码即可重置。</p>
         </div>
       </section>
     </main>

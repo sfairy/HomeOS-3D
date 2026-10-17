@@ -1,6 +1,6 @@
 /**
  * studio 子系统的唯一公开面：根（非 studio）代码只允许 `import ... from '@/studio'`，
- * 由 `scripts/check-studio-deps.mjs` 强制（存量白名单只减不增）。
+ * 由 `scripts/check-studio-deps.mjs` 强制（白名单只减不增）。
  *
  * 这里只登记根真正需要的稳定启动/装配 API：页面资源注入、facade 引擎、shell 导航注册、
  * 路由懒加载器。新增导出前先自问：这是「子系统对外契约」还是「内部实现细节」？后者不加。

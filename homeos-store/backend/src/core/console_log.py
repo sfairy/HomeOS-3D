@@ -2,20 +2,9 @@
 
 为什么要装两次
 --------------
-``run.py`` 起进程时先装一次（``basicConfig``）。但它会被随后的迁移顶掉：
-``create_app()`` 会跑 alembic，``migrations/env.py`` 的 ``fileConfig(alembic.ini)`` 按
-``logging.config`` 的语义**替换 root 上的 handler**（换成 alembic 那份 console）并**把 root
-级别改成 ``alembic.ini`` 里的 ``level = WARN``。后果是：
-
-- ``src.*`` 继承到 root 的 WARN，**INFO 全部静默丢弃** —— 「授权商店服务已启动」「商店管理员
-  初始化成功」这类本该在启动日志里的话一句都看不到；
-- 幸存的 WARNING/ERROR 走 alembic 的 ``%(levelname)-5.5s [%(name)s] %(message)s``，
-  于是日志里只有 ``WARNI [src] …``：没有时间戳，也不知道是哪个进程起的；
-- reload 模式下更彻底：worker 是 spawn 出来的子进程，既不继承父进程的 handler，
-  也没有任何人再装一次。
-
-所以在应用 lifespan 里 ``force=True`` 再装一次。lifespan 一定晚于「工厂（含迁移）」
-与「uvicorn 自己的 ``dictConfig``」运行，且 reload 的 worker 也会走到它，两条路径一起盖住。
+``run.py`` 起进程时先装一次（``basicConfig``），应用 lifespan 里再用 ``force=True`` 装一次。
+reload 模式下 worker 是 spawn 出来的子进程，既不继承父进程的 handler，也没有人替它装；
+lifespan 那次覆盖的是这条路径。
 
 顺带接管 uvicorn 的日志器
 -------------------------

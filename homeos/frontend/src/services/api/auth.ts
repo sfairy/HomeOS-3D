@@ -14,12 +14,18 @@ export interface VerificationResult {
   email: string
   delivered: boolean
   resendAfter?: number | null
-  deliveryMode?: string | null
 }
 
-/** 请求注册邮箱验证码。对应后端 endpoint：POST /auth/verification */
-export function sendVerificationCode(email: string, config?: AxiosRequestConfig) {
-  return apiPost<VerificationResult>('/auth/verification', { email }, config)
+/** 请求验证码的用途：首装注册 / 找回本机密码（服务端再映射成商店侧用途）。 */
+export type VerificationPurpose = 'register' | 'reset'
+
+/** 请求邮箱验证码。对应后端 endpoint：POST /auth/verification */
+export function sendVerificationCode(
+  email: string,
+  purpose: VerificationPurpose = 'register',
+  config?: AxiosRequestConfig,
+) {
+  return apiPost<VerificationResult>('/auth/verification', { email, purpose }, config)
 }
 
 /** 注册请求体。 */
@@ -44,6 +50,31 @@ export function login(username: string, password: string, config?: AxiosRequestC
 /** 登出当前会话。对应后端 endpoint：POST /auth/logout */
 export function logout(config?: AxiosRequestConfig) {
   return apiPost('/auth/logout', undefined, config)
+}
+
+/** 找回本机密码请求体（邮箱验证码证明邮箱归属）。 */
+export interface PasswordResetPayload {
+  email: string
+  code: string
+  password: string
+  passwordConfirmation: string
+}
+
+/** 用注册邮箱验证码重置本机密码；成功后不发会话，需要重新登录。 */
+export function resetPassword(payload: PasswordResetPayload, config?: AxiosRequestConfig) {
+  return apiPost<{ reset: boolean }>('/auth/password/reset', payload, config)
+}
+
+/** 修改本机密码请求体（需已登录）。 */
+export interface PasswordChangePayload {
+  currentPassword: string
+  newPassword: string
+  newPasswordConfirmation: string
+}
+
+/** 已登录状态修改密码；成功后服务端会轮换会话 Cookie。 */
+export function changePassword(payload: PasswordChangePayload, config?: AxiosRequestConfig) {
+  return apiPost<AuthUserPayload>('/auth/password/change', payload, config)
 }
 
 /** 查询当前登录身份。对应后端 endpoint：GET /auth/me */

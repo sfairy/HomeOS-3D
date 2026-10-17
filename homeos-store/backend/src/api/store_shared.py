@@ -175,7 +175,7 @@ def _assert_purpose_allowed(
         )
 
 
-    if purpose in {"register", "reset", "homeos_register"}:
+    if purpose in {"register", "reset", "homeos_register", "homeos_reset"}:
         return
 
     if purpose == "verify":
@@ -347,7 +347,7 @@ def close_order_channel_best_effort(
     """取消订单第一步：best-effort 关闭支付渠道，返回「渠道是否已明确关单」。
 
     买家自助取消（store_orders.cancel_order）与后台取消（admin_orders.admin_cancel）必须
-    **同一口径**：少了这一步，旧二维码在巡检关单前（最长 RECONCILE_LOOKBACK_HOURS）仍可被支付，
+    **同一口径**：少了这一步，已生成的二维码在巡检关单前（最长 RECONCILE_LOOKBACK_HOURS）仍可被支付，
     一笔迟到的成功付款会把已取消单「复活」并自动发码，取消意图被静默推翻。两条路径共用这一份
     实现，避免「改了一处忘了另一处」再次分叉。
 

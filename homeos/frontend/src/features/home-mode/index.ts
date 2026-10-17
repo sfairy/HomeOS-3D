@@ -69,8 +69,7 @@ export type { ModeLogAnalytics } from './composables/useModeLogsAnalytics'
 
 // ── 编辑器契约 ──
 // 跨域：features/settings 的自动化面板、features/security 的区域编辑器都复用这些。
-// 名字里的 `.internals` 是历史命名（原属 settings 域内部），迁移后它们已是**跨域契约**；
-// 待后续批次更名去掉 internals 后缀，届时同步更新本 barrel。
+// 名字里的 `.internals` 沿用既有的跨域契约命名，改名时需同步更新本 barrel。
 // `useHomeModeEditor` 与类型 `ActionTemplate` / `ModeActionDraft` **不在此导出**：
 // 它们只被域内 `home-mode-panel.internals.ts` / `editor.internals.ts` 相对引用，
 // 不构成跨域契约（跨域用的是下面这几个 bridge / section / item 组合式）。

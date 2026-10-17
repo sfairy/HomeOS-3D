@@ -42,14 +42,6 @@ export function interpretSecurityArmResult(
   const persistWarning = '（未能写入本机存储，重启后可能回退）'
 
   if (data?.success === false) {
-    // 兼容旧后端：撤防已提交但仍返回 success=false
-    if (committedDisarm) {
-      return {
-        kind: 'partial',
-        message:
-          failed > 0 ? `已撤防，但 ${failed} 条联动失败` : '已撤防，但部分联动未完成',
-      }
-    }
     return {
       kind: 'failed',
       message:

@@ -1,6 +1,6 @@
 /**
  * HomeOS 统一设计令牌（权威源）
- * 中控风格固定石板深蓝；旧变量通过别名映射，逐步淘汰硬编码。
+ * 中控风格固定石板深蓝；页面级变量通过别名映射到 hos-* 令牌。
  */
 :root {
   color-scheme: dark;
@@ -161,24 +161,11 @@
   --hos-transition-panel: 0.25s cubic-bezier(0.32, 0.72, 0, 1);
   --hos-hover-lift: -1px;
 
-  /* ══ 旧变量别名（兼容层；page 对齐 hos-page） ══ */
-  --space-1: var(--hos-space-xs);
-  --space-2: var(--hos-space-sm);
-  --space-3: var(--hos-space-md);
-  --space-4: var(--hos-space-md);
-  --space-5: var(--hos-space-xl);
-  --space-6: var(--hos-space-2xl);
-  --space-7: 28px;
+  /* ══ 页面间距与卡片表面别名（映射到 hos-* 令牌） ══ */
   --space-page-x: var(--hos-page-x);
   --space-page-y-top: var(--hos-page-y-top);
   --space-page-y-bottom: var(--hos-page-y-bottom);
   --space-page-gap: var(--hos-page-gap);
-
-  /* 圆角兼容别名：容器档位只有 card / panel 两级（见文件顶部圆角契约）。
-     原先 --radius-md 硬写 16px，成了契约里明令避免的「第三档容器圆角」，
-     且与同区其它别名（一律 var(--hos-*)）不成一体，故对齐到 card 档。 */
-  --radius-md: var(--hos-radius-card);
-  --radius-lg: var(--hos-radius-panel);
 
   --text-primary: var(--hos-text-primary);
 

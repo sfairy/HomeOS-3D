@@ -31,9 +31,6 @@ dispatch**的发版工作流）里跑。绝对导入写进去之后，push 阶�
 
 **改 Dockerfile 的 COPY 就要同步改下面的清单**（多一条少一条都会让门禁与构建错位）。
 
-刻意**不含** ``<项目>/backend/migrations``：它不进镜像，alembic 按源码态用绝对
-``src.`` 加载，不受本门禁约束（理由与 ``compile_python.py`` 的 ``_precheck`` 注释一致）。
-
 用法：
     python3 ops/ci/image_imports.py     # CI 与本地都能跑，不联网、不编译
 """

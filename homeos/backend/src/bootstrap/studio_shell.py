@@ -1,6 +1,6 @@
-"""SPA 外壳与静态资源门禁（并入 homeos-3d ``main.py`` 的页面 / 资源保护层）。
+"""SPA 外壳与静态资源门禁。
 
-homeos-3d 的后端把「3D 查看器 / 编辑器」的全部代码与素材放在 ``/static/**`` 下，并用
+后端把「3D 查看器 / 编辑器」的全部代码与素材放在 ``/static/**`` 下，并用
 一份**匿名白名单**（构建产物 ``dist/frontend/public-static.json``）划出「未登录也必须能
 加载」的那一小撮资源（登录页场景样式、图标、manifest、SPA 外壳样式、错误上报脚本）。
 其余 ``/static/**`` 只有已登录会话可读 —— 换句话说，授权与户型图绘制能力不会被匿名拉走。
@@ -8,11 +8,11 @@ homeos-3d 的后端把「3D 查看器 / 编辑器」的全部代码与素材放�
 homeos 侧沿用同一口径，本模块只负责：
 
 - 读取匿名白名单并判定「是否受保护资源」；
-- 缓存头 / ETag / CSP / 框架策略（与 homeos-3d 逐条对齐）；
+- 缓存头 / ETag / CSP / 框架策略；
 - 把「授权未放行」表达为 SPA 外壳上的 ``data-license-blocked="1"``，由前端在原地址就地
   渲染授权恢复页。
 
-路径集合按并入后的路由表更新：总览 ``/`` 是只读展示，创作能力在 ``/3d-studio`` 与
+路径集合：总览 ``/`` 是只读展示，创作能力在 ``/3d-studio`` 与
 ``/studio/editor``；中控设备配对（``/pair``、``/display`` 配对码）随配对码机制移除，
 但 ``/display/{project_id}`` 与 ``/homeos/{name}`` 仍作为展示页地址保留。
 """
@@ -36,8 +36,9 @@ SPA_PAGE_PATHS = frozenset(
         "/",
         "/login",
         "/register",
+        # 找回本机密码：与登录页同属匿名入户页，缺了它会拿不到 CSP / no-store 头。
+        "/reset-password",
         "/activate",
-        "/license",
         "/license-recovery",
         "/guest",
         "/3d-studio",
@@ -246,7 +247,7 @@ def _apply_cache_headers(request: Request, response: Response) -> None:
     # 「私有 no-cache」，靠响应上的 ETag / Last-Modified 回源校验（命中即 304）。
     #
     # ``/assets/**`` 的哈希产物虽是内容寻址、理论上可长期 immutable，但这里同样回源
-    # 校验：一方面统一口径，另一方面让「旧外壳引用已删除 chunk」得到明确 404，而不是
+    # 校验：一方面统一口径，另一方面让「缓存中的外壳引用已删除 chunk」得到明确 404，而不是
     # 从 HTTP 缓存里取到一份陈旧副本。代价是每次多一次 304 往返。
     if response.status_code in {200, 304} and (
         path.startswith(("/static/", "/modules/"))

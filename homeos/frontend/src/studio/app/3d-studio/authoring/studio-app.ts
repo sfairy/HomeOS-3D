@@ -2832,7 +2832,7 @@ function syncStudioHistoryFacade() {
   });
 }
 
-/** 语义正确的撤销 / 重做（旧名 deleteSelectedObjects / duplicateSelectedObjects 易误导）。 */
+/** 撤销 / 重做。 */
 async function undoStudioHistory() {
   if (!appCtx.undoRecords.length) return;
   appCtx.redoRecords.push(captureUndoSnapshot());
@@ -2876,7 +2876,7 @@ function applyPlacementChange(undoSnapshot: any) {
 }
 async function restoreSnapshot(snapshotDocument: any) {
   /**
-   * 0.6.8 合并墙保护：恢复删除备份前，若恢复会改写一面当前仍存在的墙，
+   * 合并墙保护：恢复删除备份前，若恢复会改写一面当前仍存在的墙，
    * 而当前场景在这面墙上新增了门窗或栏杆（不在备份的 attachmentIds 内），
    * 说明合并墙在备份之后又发生变化，此时拒绝恢复，提示先撤销这些改动。
    */
@@ -2920,14 +2920,6 @@ async function restoreSnapshot(snapshotDocument: any) {
     await loadBackgroundImage(),
     refreshScopeItems(),
     markDocumentDirty());
-}
-/** @deprecated 误导性旧名，实际为 undo；请用 undoStudioHistory */
-async function deleteSelectedObjects() {
-  await undoStudioHistory();
-}
-/** @deprecated 误导性旧名，实际为 redo；请用 redoStudioHistory */
-async function duplicateSelectedObjects() {
-  await redoStudioHistory();
 }
 function markDocumentDirty() {
   isEmbeddedStage ||
@@ -3068,7 +3060,7 @@ function recordSaveConflict(conflictLatest: any, conflictLocalScene: any, confli
     showSaveState("等待处理保存冲突", "error"),
     saveConflictDialogElement.open || saveConflictDialogElement.showModal());
 }
-/** 0.6.8 退出保护：非重试性保存失败后锁定的版本；自动保存重试状态与退出请求状态。 */
+/** 退出保护：非重试性保存失败后锁定的版本；自动保存重试状态与退出请求状态。 */
 /** 自动保存节奏：最后一次修改后 3s 合并保存，首次修改后最多 15s 兜底。 */
 const AUTOSAVE_DEBOUNCE_MS = 3000,
   AUTOSAVE_MAX_DELAY_MS = 15000;
@@ -3199,7 +3191,7 @@ async function flushAutosave() {
       const saveErrorDetail = saveError.payload?.detail;
       if (saveError.status !== 428 || saveErrorDetail?.code !== "STUDIO3D_INTERACTION_CONFIRMATION")
         throw saveError;
-      return (await resolveInteractionCleanup(saveErrorDetail, deleteSelectedObjects, showToast))
+      return (await resolveInteractionCleanup(saveErrorDetail, undoStudioHistory, showToast))
         ? putStudioDraft(saveErrorDetail.token)
         : ((appCtx.blockedSaveRevision = saveRevisionAtStart),
           showSaveState("删除未确认，尚未保存", "error"),
@@ -15239,7 +15231,7 @@ function filterAssetList() {
               null,
               librarySearchText,
             ) &&
-            // 庭院门是画在平面上的构件，不进模型卡列表（与 0.7.6 的 `libraryCardVisible` 调用点多一层收窄）。
+            // 庭院门是画在平面上的构件，不进模型卡列表。
             (activeLibraryCategory !== "courtyard" || !isCourtyardGate2({ type: itemType }));
     assetToolbarEntryButton.hidden = !isAssetCardVisible;
     assetToolbarEntryButton.hidden || (assetMatchCount += 1);

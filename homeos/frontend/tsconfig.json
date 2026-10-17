@@ -1,7 +1,6 @@
 {
   "//": "单一类型工程：主应用与并入的 3D Studio 源码（src/studio/**）共用同一严格档。",
-  "//2": "历史上 studio 走独立的宽松档（tsconfig.studio.json，strict:false）+ 路由 glob 类型隔离，",
-  "//3": "导致两套严格度互相污染；阶段 3.2 起合并为一个工程，studio 与主应用同档检查。",
+  "//2": "studio 与主应用共用一个工程、同一严格档，避免两套严格度互相污染。",
   "compilerOptions": {
     "target": "ES2022",
 

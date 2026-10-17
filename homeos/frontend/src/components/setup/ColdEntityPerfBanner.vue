@@ -7,7 +7,7 @@
     </span>
     <div class="cold-entity-perf-bar__actions">
       <RouterLink
-        :to="hashRoute('/settings?tab=params&section=wsPush')"
+        :to="'/settings?tab=params&section=wsPush'"
         class="cold-entity-perf-bar__btn"
         @click="dismiss"
       >
@@ -61,11 +61,6 @@ function dismiss() {
   }
 }
 
-function hashRoute(path) {
-  // 将普通路径包装为 hash 路由路径（适配旧版 hash router）
-  const p = String(path || '').replace(/^\//, '')
-  return p.startsWith('#') ? p : `#/${p}`
-}
 </script>
 
 <style scoped src="./styles/setup-banners.css"></style>

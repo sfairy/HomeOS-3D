@@ -218,8 +218,8 @@ def _flush_order_with_retry(session, order: Order, account: AuthedAccount) -> No
     for _ in range(_ORDER_NO_ATTEMPTS - 1):
         if outcome != "retry":
             break
-        # 订单号撞车：换一个号重试。旧实现把它直接当成「请求过于频繁」抛给顾客，
-        # 但撞号是服务端随机数的事，跟顾客的请求频率没有关系；换号重试才是正确处置。
+        # 订单号撞车：换一个号重试。撞号是服务端随机数的事，与顾客的请求频率无关，
+        # 不能报成「请求过于频繁」。
         logger.warning("订单号 %s 冲突，重新生成后重试", order.order_no)
         order.order_no = new_order_no(account.email)
         outcome = _flush_order(session, order)

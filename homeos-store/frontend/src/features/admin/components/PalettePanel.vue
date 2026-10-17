@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
       <small>自定义只换主控色，暖光 / 极光紫 / 薄荷沿用所选预设。</small>
     </div>
     <div class="admin-palette-preview admin-grid__full" aria-hidden="true">
-      <span v-for="name in CONFIGURABLE" :key="name" :style="{ '--sw': tokens[`--hos-${name}`] }"></span>
+      <span v-for="name in CONFIGURABLE" :key="name" :style="{ '--sw': tokens[`--hb-${name}`] }"></span>
     </div>
     <p
       class="admin-inline-msg admin-grid__full"

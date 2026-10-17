@@ -4,7 +4,13 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { adminApi, api } from "@store/shared/api/http";
 import { errorMessage } from "@store/shared/types/store";
-import { serverAuthState, setAuthHint, setServerAuthState } from "@store/shared/stores/session";
+import {
+  serverAuthState,
+  sessionNotPersistedMessage,
+  sessionPersisted,
+  setAuthHint,
+  setServerAuthState,
+} from "@store/shared/stores/session";
 import { useSiteStore } from "@store/shared/stores/site";
 import { logAndIgnore } from "@store/shared/utils/best-effort";
 
@@ -114,8 +120,14 @@ export const useAdminStore = defineStore("admin", () => {
     loginError.value = "";
     await api("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email: emailValue.trim(), password }),
+      body: JSON.stringify({ account: emailValue.trim(), password }),
     });
+    // 先确认会话真的存住了：Cookie 被丢弃时 `resolveSession` 只会得到 401，
+    // 沿用下面的「检查账号权限」会把人往错误方向带（见 sessionPersisted 的注释）。
+    if ((await sessionPersisted()) === false) {
+      clearAuthState();
+      throw new Error(sessionNotPersistedMessage("登录"));
+    }
     const ok = await resolveSession();
     phase.value = ok ? "ready" : "login";
     if (!ok) throw new Error("登录成功但无法进入后台，请检查账号权限。");

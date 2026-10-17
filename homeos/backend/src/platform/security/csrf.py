@@ -40,7 +40,7 @@ CSRF_SKIP_PATHS = frozenset(
         "/api/v1/license/reactivate",
         "/api/v1/license/retry",
         "/api/v1/channels/wecom/callback",
-        # 未登录页面的异常上报（并入 homeos-3d）：上报方是构建期产出的经典 IIFE
+        # 未登录页面的异常上报：上报方是构建期产出的经典 IIFE
         # `/static/logging/client-log.js`，用裸 fetch 发送、只带 Content-Type，**不会**
         # 也不能带 X-CSRF-Token（首屏可能尚无 csrf_token Cookie）。路由自身已做同源
         # Origin/Host 校验 + 仅允许 error/warning + 页面白名单 + 匿名限流，跨站写入被

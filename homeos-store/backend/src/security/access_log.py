@@ -94,8 +94,7 @@ def install_access_log_filters() -> HttpAccessLogFilter:
     （与主应用 ``platform/core/log.py`` 的处理一致）。
 
     说明日志挂 ``uvicorn.error``：uvicorn 给这棵日志树配了自己的 handler，不依赖 root 的
-    配置是否被 alembic 的 ``fileConfig`` 顶过（同文件第二层过滤器的说明也挂在这里），
-    因此这条「降噪已启用」在任何启动路径下都看得见。
+    配置，因此这条「降噪已启用」在任何启动路径下都看得见。
     """
     installed = _install_http_access_log_filter(
         env_var=HTTP_ACCESS_ENV_VAR,

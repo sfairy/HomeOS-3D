@@ -59,7 +59,7 @@ const entitiesStore = useEntitiesStore()
  */
 const PopupComp = computed(() => {
   if (!props.entityId) return null
-  return resolveEntityPopupComponent(props.entityId, entitiesStore.entities)
+  return resolveEntityPopupComponent(props.entityId)
 })
 
 /**

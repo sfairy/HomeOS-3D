@@ -1,6 +1,6 @@
 /** 实体弹窗解析（纯元数据层）——「entity_id → 弹窗种类」的判定与 props 构造。 */
 import { getEntityDomain } from '@homeos/shared'
-import type { HaEntityState, EntitiesMap } from '@/shared/types/entity-store'
+import type { HaEntityState } from '@/shared/types/entity-store'
 import {
   isCommEntity,
   isElectricityEntity,
@@ -60,10 +60,8 @@ export function resolveEntityPopupKind(entityId: string): EntityPopupKind | null
  * 判断实体是否可打开控制/信息弹窗。
  *
  * @param entityId 实体 ID。
- * @param entities 实体映射表（当前未使用，保留以兼容旧调用）。
  */
-export function hasEntityControlPopup(entityId: string, entities: EntitiesMap = {}): boolean {
-  void entities
+export function hasEntityControlPopup(entityId: string): boolean {
   return resolveEntityPopupKind(entityId) != null
 }
 

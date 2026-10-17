@@ -52,7 +52,7 @@ INPUTS = (
 FINGERPRINT_PREFIX = "# inputs-sha256: "
 #: 目标解释器与平台。锁必须覆盖两个架构的 linux 镜像，因此走 uv 的 universal 解析：
 #: 平台专属依赖（uvloop / watchfiles / PyYAML）会带上环境标记，其余解析成唯一 pin。
-PYTHON_VERSION = "3.14"
+PYTHON_VERSION = "3.15"
 
 #: 传给 uv 的既有参数。`--no-emit-index-url` 是**必须**的：锁里一旦写死 index-url，
 #: Dockerfile 的 `--pip-index`（镜像站）覆盖就失效了，构建会去连可能不通的 pypi.org。

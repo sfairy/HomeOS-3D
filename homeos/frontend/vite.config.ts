@@ -142,9 +142,9 @@ const publishLockPath = `${finalOutDir}.publish.lock`
 /**
  * 把旁路 ``frontend.building.<pid>`` 发布进线上 ``frontend/``，且**不删掉线上根目录**。
  *
- * 旧实现 ``rename(live→prev) + rename(building→live)`` 中间有空窗：``/assets`` mount
- * 找不到目录时请求会落到 SPA 外壳（text/html），浏览器对 ``shared-*.js`` 报 Strict MIME。
- * 这里改为：先覆盖拷贝（``index.html`` 最后），再修剪旧 hash 文件，全程根路径常在。
+ * 不能先 rename 掉线上根目录再换入：空窗期 ``/assets`` mount 找不到目录，请求会落到 SPA
+ * 外壳（text/html），浏览器对 ``shared-*.js`` 报 Strict MIME。做法是先覆盖拷贝
+ * （``index.html`` 最后），再修剪旧 hash 文件，全程根路径常在。
  */
 async function publishStagingToLive(): Promise<void> {
   if (!fs.existsSync(outDir)) return
@@ -807,7 +807,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
               { name: 'charts', test: /node_modules[\\/]echarts/, priority: 28 },
               { name: 'hls', test: /node_modules[\\/]hls\.js/, priority: 28 },
               {
-                // 认证页 P6-1 起位于 `views/auth/`（Login / Register / License / LicenseRecovery）。
+                // 认证页位于 `views/auth/`（Login / Register / License / LicenseRecovery）。
                 name: 'views-auth',
                 test: /src[\\/]views[\\/]auth[\\/]/,
                 priority: 26,

@@ -78,7 +78,7 @@ const indexCompactionTypeSet = new Set([
     "dryer",
     "desktop",
     "laptop",
-    // 0.7.2 approved external models（排除 kitchen-island，保留原 kitchenisland）
+    // approved external models（排除 kitchen-island，保留原 kitchenisland）
     "ceiling-fan",
     "table-lamp",
     "up-down-wall-lamp",

@@ -806,8 +806,7 @@ export function createInteraction3dEditorPickers({
         { editorEntityMatches: entityMatches } = createEditorPickerQueries({
           entityPickerConfig: () => ({
             recommended: (candidateEntity: any) => {
-              // 0.7.6：天气实体一律置顶（`weather.*` 优先），判据与 dist 的
-              // `deviceKind === 'weather' ? entityId.startsWith('weather.')` 一致。
+              // 天气实体一律置顶（`weather.*` 优先）。
               if (entityDeviceKind === "weather")
                 return candidateEntity.entityId.startsWith("weather.");
               if (entityDeviceKind === "vacuum-room")
@@ -962,7 +961,7 @@ export function createInteraction3dEditorPickers({
                                           : isTelevisionPowerEntity
                                             ? "选择电视电源状态"
                                             : entityDeviceKind === "nas"
-                                              ? "选择 NAS 指示灯状态实体（旧版兼容）"
+                                              ? "选择 NAS 指示灯状态实体（仅指示灯）"
                                               : isCoverEntity
                                               ? "选择窗帘实体"
                                               : isClimateEntity
@@ -981,8 +980,7 @@ export function createInteraction3dEditorPickers({
         emptyText: entityDeviceKind === "security-alarm"
           ? "没有匹配的实体，请检查搜索条件或 Home Assistant 的实体列表"
           : entityDeviceKind === "weather"
-            ? // 0.7.6 这条链上没有 weather 分支，会一路落到链尾说「没有匹配的灯光或开关」。
-              // 天气选择器返回这句话是答非所问（用户正是被它绕住，以为实体没同步）。
+            ? // 天气选择器需要专属空态：沿用灯光/开关的文案会答非所问。
               "没有匹配的天气（weather）实体，请先在 Home Assistant 接入天气服务"
             : environmentSensorKey
               ? "没有匹配的" +

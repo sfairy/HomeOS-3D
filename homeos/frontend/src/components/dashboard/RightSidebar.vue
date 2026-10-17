@@ -123,9 +123,7 @@ const { scalingEnabled } = useScaling(computed(() => layoutStore.layoutConfig.pa
 const panelOuterStyle = computed(() => {
   if (collapsed.value) return { width: '0px' }
   let w = layoutStore.layoutConfig.rightPanelWidth || 260
-  // 平板未开缩放：侧栏不超过视口 30%，避免挤压户型图。
-  // 采用 Math.min 结构直接以 30% 视口宽为上限，避免旧实现的 220px 下限
-  // 在窄视口下反向挤压主体区域。
+  // 平板未开缩放：侧栏上限为视口 30%，避免在窄视口挤压户型图。
   if (!scalingEnabled.value && isTabletCompactViewport()) {
     const viewportW = typeof window !== 'undefined' ? window.innerWidth : w
     w = Math.min(w, Math.round(viewportW * 0.3))

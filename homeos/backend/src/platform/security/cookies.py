@@ -42,18 +42,8 @@ def resolve_cookie_secure_for_request(request: Request) -> bool:
     return is_request_secure(request)
 
 
-def resolve_session_cookie_secure(request: Request, settings) -> bool:
-    """会话 Cookie 的 ``Secure``：与 CSRF Cookie 共用同一套三态判定。
-
-    此前会话 Cookie 直接吃 ``settings.cookie_secure``（布尔），而 ``COOKIE_SECURE=auto``
-    会被 ``_environment_bool`` 判成 False —— HTTPS 部署下同一次响应里 ``csrf_token`` 带
-    Secure、``auth_token`` 不带，属性互相矛盾，会话 Cookie 的传输要求反而更弱。
-
-    这里统一口径：显式置真/置假照旧，``auto``（含未设置）跟随请求实际协议
-    （含反向代理下的 ``X-Forwarded-Proto``）。
-    """
-    if getattr(settings, "cookie_secure", False):
-        return True
+def resolve_session_cookie_secure(request: Request) -> bool:
+    """会话 Cookie 的 ``Secure``：与 CSRF Cookie 共用同一套三态判定。"""
     return resolve_cookie_secure_for_request(request)
 
 
@@ -62,9 +52,33 @@ def is_https_deploy_mode() -> bool:
 
 
 # CORS 来源判定（与 Nest cookie-cors.util 等价）
+def _origin_of(url: str) -> str:
+    """把 ``https://host:port/path`` 收敛成浏览器 ``Origin`` 的口径 ``scheme://host[:port]``。
+
+    统一小写：浏览器发出的 ``Origin`` 里 scheme / host 一定是小写，配置里手写的
+    ``https://HomeOS.Example.com`` 若原样比较就会永远不匹配。
+    """
+    try:
+        parsed = urlparse((url or "").strip())
+    except ValueError:
+        return ""
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}".lower()
+
+
 def resolve_allowed_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS", "")
-    return [item.strip() for item in raw.split(",") if item.strip()] if raw else []
+    origins = [item.strip() for item in raw.split(",") if item.strip()] if raw else []
+    # ``APP_BASE_URL`` 自动算一条白名单。反代 / 内网穿透部署里对外域名通常只写在那里
+    # （同源校验、WebSocket 来源、绝对链接都按它），若还要在 ``CORS_ORIGINS`` 里再抄一遍，
+    # 就是同一个值两处维护。漏抄的直接症状是 **socket.io 握手被拒**：浏览器 WebSocket
+    # 一定带 ``Origin``，engineio 会拿它比对白名单，而白名单为空时只放行局域网来源
+    # （见 :func:`is_lan_origin`），公网域名会被判「Not an accepted origin」。
+    base = _origin_of(os.getenv("APP_BASE_URL", ""))
+    if base and base not in origins:
+        origins.append(base)
+    return origins
 
 
 def is_lan_origin(origin: str) -> bool:

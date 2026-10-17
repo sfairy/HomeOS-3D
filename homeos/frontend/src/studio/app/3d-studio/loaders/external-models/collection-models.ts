@@ -1,10 +1,10 @@
 /**
- * 家用收藏模型注册表：0.7.6 新增 98 款 + 重绘替换 12 款，共 110 条，另外收录事后
- * 从其中一款**派生**出来的单件模型（`台面`，取 `basin` 的台面构件）。
+ * 家用收藏模型注册表：98 款新增 + 重绘替换 12 款，共 110 条，另外收录从其中一款
+ * **派生**出来的单件模型（`台面`，取 `basin` 的台面构件）。
  *
  * 每款给出摆放尺寸、挂载方式、细分类目与角色配色。`replaces` 为 `true` 的 12 款是
  * 重绘后顶替既有同名模型的（微波炉 / 洗衣机 / 烘干机 / 台盆 / 绿植 …），它们的
- * `-lite` 与完整 GLB 都已按 0.7.6 覆盖。
+ * `-lite` 与完整 GLB 均已覆盖。
  *
  * 角色配色是 `[冷色, 暖木色]` 二元组：取值为名字时由调用方传入的调色板解析，
  * 为数字时直接当色值用（见 `collectionRoleColorSpec`）。
@@ -22,9 +22,9 @@ export type CollectionModelDefinition = {
   mount: CollectionModelMount;
   category: CollectionModelCategory;
   group: LibraryGroupId;
-  /** 资源缓存键后缀，随 0.7.6 批次走。 */
+  /** 资源缓存键后缀。 */
   assetVersion: string;
-  /** `true` 表示 0.7.6 重绘并替换了既有同名模型。 */
+  /** `true` 表示重绘并替换了既有同名模型。 */
   replaces: boolean;
   /** 角色 → `[冷色, 暖木色]`。 */
   roles: Readonly<Record<string, CollectionModelRolePair>>;

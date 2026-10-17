@@ -1044,7 +1044,7 @@ export function mountInteraction3d(
   let securityAlarmOverlay: any = null;
   const syncSecurityAlarmOverlay = (states: any = null) => {
     if (isDisposed) return;
-    // 对齐 0.7.1：仪表盘挂 document.body；编辑画布挂宿主。编辑模块内由 security-editor 自管预览。
+    // 仪表盘挂 document.body；编辑画布挂宿主。编辑模块内由 security-editor 自管预览。
     if (isEditing || !isAuthorized) {
       securityAlarmOverlay?.update([], false);
       return;
@@ -2025,7 +2025,7 @@ export function mountInteraction3d(
       ((componentDescriptor = nextDescriptor),
         isEditing && nextEditing && nextEditing.module === "security"
           ? ((editingModuleKind = "security"),
-            // 0.7.2：烟雾/水浸/天然气各自为 securityKind，不能收敛成 alarm
+            // 烟雾/水浸/天然气各自为 securityKind，不能收敛成 alarm
             (editingSecurityKind = [
               "camera",
               "presence",

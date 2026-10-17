@@ -121,8 +121,8 @@ def _bucket_frame_ms(reference: datetime) -> int:
 
     ``_bucket_expr`` 先把 UTC 存储值平移家庭时区偏移再截取，得到的是家庭墙钟文本
     （东八区 ``2026-10-15 20``）；:func:`_parse_bucket_key` 又把它当 UTC 解析。两者相抵，
-    坐标轴就必须用同一种「墙钟字段按 UTC 解释」的毫秒。旧实现拿 ``datetime.now()``（naive
-    本地时间）当坐标轴，在 UTC 容器里会与东八区数据整体错位 8 小时，还把窗口外的数据
+    坐标轴就必须用同一种「墙钟字段按 UTC 解释」的毫秒。用 ``datetime.now()``（naive
+    本地时间）当坐标轴，在 UTC 容器里会与东八区数据整体错位 8 小时，还会把窗口外的数据
     塞成额外的时间点。
     """
     wall_clock = reference.replace(tzinfo=None) if reference.tzinfo is not None else reference

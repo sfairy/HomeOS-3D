@@ -90,7 +90,7 @@ class LicenseAuthority:
         email = str(payload.get("email") or "").strip().lower()
         client_version = str(payload.get("clientVersion") or "").strip()
         product = str(payload.get("product") or "homeos").strip()
-        # 「授权用户增设账户名」：主应用登录态激活时上报的本机账号名（旧客户端为空）。
+        # 「授权用户增设账户名」：主应用登录态激活时上报的本机账号名；未上报时为空。
         account_name = str(payload.get("accountName") or "").strip()[:255]
 
         if not code:
@@ -155,8 +155,8 @@ class LicenseAuthority:
         """心跳续期。
 
         会话必须属于当前绑定在该授权上的实例，否则管理员刚做的解绑对老客户端无效。
-        但「字段缺失」与「实例不匹配」是两类问题：缺 instanceId 的畸形/旧版客户端回 422
-        引导重新激活，绝不能按已吊销（``revoked=True``）处理 —— 那会让客户端清掉本地授权、
+        但「字段缺失」与「实例不匹配」是两类问题：缺 instanceId 的畸形请求回 422 引导
+        重新激活，绝不能按已吊销（``revoked=True``）处理 —— 那会让客户端清掉本地授权、
         停用功能。
         """
         token = str(payload.get("sessionToken") or "")
@@ -309,8 +309,8 @@ class LicenseAuthority:
         判重只按哈希，不按明文 —— 这张表看一眼就知道有哪些随机数还没被用掉，
         留明文等于泄一份可重放的凭据清单。
 
-        随机数缺失按 422 硬拒：客户端从引入该字段起就一直在发，收不到说明对端是旧版本，
-        此时「放行」等于给旧版本开后门，不如明确让它升级（与 instanceId 同一口径）。
+        随机数缺失按 422 硬拒：正常客户端一定会发这个字段，放行等于给重放留后门，
+        不如明确拒绝（与 instanceId 同一口径）。
         """
         nonce = str(payload.get("nonce") or "").strip()
         if not nonce:

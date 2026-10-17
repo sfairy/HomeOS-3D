@@ -22,8 +22,7 @@ def inject_auth_state(text: str, account) -> str:
     """把服务端已知的登录态写成 ``<html ... data-auth="guest|user|admin">``。
 
     ``account`` 是 ``core.deps.current_account`` 的结果（游客为 ``None``）。模板里
-    找不到 ``<html>`` 开标签时原样返回：前端读到空属性会退回「按 cookie 提示决定
-    要不要探针」的旧行为，页面照样能开，只是多一发请求。
+    找不到 ``<html>`` 开标签时原样返回，前端读不到 ``data-auth`` 会按游客处理。
     """
     if HTML_OPEN_TAG not in text:
         return text

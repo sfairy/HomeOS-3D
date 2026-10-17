@@ -54,7 +54,6 @@ interface EventLogConfig {
  *
  * `entityId` 用来取 HA 实体状态（在线色、快照兜底）；`go2rtcUrl` 是局域网
  * `http://IP:1984/stream.html?src=…` 地址，填了就优先走同源 MSE 中继（可以没有 HA 实体）。
- * 0.7.5 之前这里是纯 `string[]`，读取侧统一经 `normalizeSecurityCameras` 升级。
  */
 export interface SecurityCameraBinding {
   entityId: string
@@ -64,7 +63,7 @@ export interface SecurityCameraBinding {
 /**
  * HA 实体绑定与设备配置。
  *
- * 阶段 3.3 起这里**不再包含连接凭据**（`url` / `fallbackUrl` / `token`）：
+ * 这里**不包含连接凭据**（`url` / `fallbackUrl` / `token`）：
  * 连接地址与令牌是 `ha_connections` 表的单源数据，经 `GET/PUT /ha/connection` 读写
  * （前端见 `stores/ha-connection.store.ts`）。本结构只承载与项目布局绑定的实体引用。
  */
@@ -143,7 +142,7 @@ export interface UILayoutConfig {
   lightOnBackgroundUrl: string
   /** 仪表盘关灯氛围背景图 URL（全部灯光关闭时） */
   lightOffBackgroundUrl: string
-  /** 悬浮组件（顶层；原 per-floor floatingWidgets 已迁移到此处） */
+  /** 悬浮组件（顶层） */
   floatingWidgets: FloatingWidget[]
   pageMaxWidth: number // 页面最大宽度（像素）
   siteTitle: string // 站点标题

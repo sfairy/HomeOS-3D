@@ -1,12 +1,9 @@
 /**
  * 天气特效的纯函数层：实体 ID 校验 + 实体显示名 + HA 状态 → 可渲染的天气态。
  *
- * 从 0.7.6 `static/modules/interaction3d/weather-settings.js` 语义重实现。
- * 放在 platform 而不是 `runtime/environment/weather-settings.ts`：**配置面板**
- * （`app/bridge/editor.ts` 的天气预览按钮组）与运行时特效（`runtime/environment/weather-effects.ts`）
- * 都要用同一张「哪些 HA 状态有对应 3D 效果」的表，而 app ↛ runtime 是硬边界
- * 。运行时入口
- * `runtime/environment/weather-settings.ts` 保留为再导出，构建产物与清单路径不变。
+ * 放在 platform 而不是 runtime：配置面板（`app/bridge/editor.ts` 的天气预览按钮组）
+ * 与运行时特效（`runtime/environment/weather-effects.ts`）都要用同一张
+ * 「哪些 HA 状态有对应 3D 效果」的表，而 app ↛ runtime 是硬边界。
  */
 
 /** 可预览/可渲染的天气态与中文名。顺序即预览面板的按钮顺序。 */
@@ -47,8 +44,8 @@ export function weatherEntityState(states: any, entityId: string): any {
  * 天气绑定按钮的显示文案：优先 HA 实时 `friendly_name`，其次实体目录里的 `name`，
  * 最后才回落到实体 ID。
  *
- * 0.7.6 的按钮直接把 `entityId` 印在按钮上（`weather.wulumuqi`），对用户没有任何
- * 语义；这里改成显示名，ID 退到按钮的 `title`（悬停可见），排障时仍拿得到。
+ * 按钮显示名而不是 `entityId`（如 `weather.wulumuqi`），ID 退到按钮的 `title`
+ * （悬停可见），排障时仍拿得到。
  */
 export function weatherEntityLabel(entityId: string, entity?: any, state?: any): string {
   // 空 ID 就是「未绑定」：哪怕调用方顺手塞了实体对象，也不能把名字当成已绑定。

@@ -124,10 +124,6 @@ function deriveShades(hex: string): ShadePair {
     const bright = normalizeHex(shades.bright) || deriveShades(base).bright;
     const deep = normalizeHex(shades.deep) || deriveShades(base).deep;
     const triplet = rgbTriplet(base);
-    tokens[`--hos-${name}`] = base;
-    tokens[`--hos-${name}-rgb`] = triplet;
-    tokens[`--hos-${name}-bright`] = bright;
-    tokens[`--hos-${name}-deep`] = deep;
     tokens[`--hb-${name}`] = base;
     tokens[`--hb-${name}-rgb`] = triplet;
     tokens[`--hb-${name}-bright`] = bright;

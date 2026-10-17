@@ -100,9 +100,6 @@ PROJECTS: dict[str, Project] = {
     'store': Project('store', 'homeos-store', 'homeos-store', 'backend-export', 'store'),
 }
 
-#: 兼容旧脚本 / 文档里的 ``--project 3d``（主应用已并入 homeos，键名随之改名）。
-LEGACY_PROJECT_ALIASES = {'3d': 'app'}
-
 ARCH_ALIASES = {
     'x86_64': 'amd64',
     'amd64': 'amd64',
@@ -147,7 +144,6 @@ def host_arch() -> str:
 
 
 def selected_projects(value: str) -> list[Project]:
-    value = LEGACY_PROJECT_ALIASES.get(value, value)
     if value == 'all':
         return list(PROJECTS.values())
     return [PROJECTS[value]]
@@ -274,9 +270,9 @@ def clean(args: argparse.Namespace) -> None:
 def _add_common_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--project',
-        choices=['app', 'store', 'all', '3d'],
+        choices=['app', 'store', 'all'],
         default='all',
-        help='目标项目（默认 all）；app 即主应用（旧名 3d）',
+        help='目标项目（默认 all）；app 即主应用',
     )
 
 

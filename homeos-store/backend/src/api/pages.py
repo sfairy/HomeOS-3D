@@ -71,7 +71,16 @@ def home(request: Request, session: DbSession, account: CurrentAccount) -> Respo
 
 
 @router.get("/setup", include_in_schema=False)
-def setup_page(request: Request, account: CurrentAccount) -> HTMLResponse:
+def setup_page(request: Request, session: DbSession, account: CurrentAccount) -> Response:
+    """首次初始化页：**已有管理员就不再下发这一页**。
+
+    直接 302 到 `/admin`（后台登录屏），而不是渲染「已初始化」面板：管理员建好之后，
+    这个入口就该彻底消失 —— 前端即便读到残留的 `/setup` 书签，也不该再看到创建表单或
+    任何「可以再建一个管理员」的暗示。判定放在服务端渲染这一层，浏览器拿到的第一份 HTML
+    就是后台页面，不会先闪一帧初始化界面。
+    """
+    if _admin_count(session) > 0:
+        return RedirectResponse(url="/admin", status_code=302)
     return _render_shell(request, account)
 
 

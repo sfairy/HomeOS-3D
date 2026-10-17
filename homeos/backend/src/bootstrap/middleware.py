@@ -191,7 +191,6 @@ def register_backup_maintenance_middleware(app: FastAPI) -> None:
 
 # 长连接媒体绝不能走 GZip：Starlette GZipMiddleware 会缓冲 body，
 # multipart MJPEG / HLS 分片首帧到不了 <img>/<video>，表现为 naturalWidth 一直为 0。
-# 0.7.2 发布包没有对 API 开 compression，所以同实体在那边能秒出画面。
 _GZIP_SKIP_PREFIXES = (
     "/api/camera_proxy_stream/",
     "/api/camera_proxy/",

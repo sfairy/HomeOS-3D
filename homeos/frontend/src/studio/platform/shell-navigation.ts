@@ -1,13 +1,9 @@
 /**
- * 旧命令式运行时 → 外壳（Vue Router）的导航桥。
+ * 命令式运行时（编辑器 / 户型图绘制）→ 外壳（Vue Router）的导航桥。
  *
- * 背景：编辑器（`app/editor/home.ts`）与户型图绘制（`app/3d-studio/authoring/studio-app.ts`）
- * 原本是「模块求值即执行」的一次性引导脚本，ESM 只求值一次，卸载后无法在同一文档里重挂，
- * 所以跨视图跳转一律走 `window.location.assign(...)` 整页导航。
- *
- * 现在两个运行时都具备 `boot*()` / `teardown*()` 生命周期（见 `platform/legacy-scope.ts`），
- * 可以在同一个文档内进出，于是把这类跳转改成本模块：外壳注册了导航实现就走路由，没有的话
- * （例如 `stage.html` 嵌入式外壳、单页面调试页）退回整页跳转，行为与改造前一致。
+ * 运行时具备 `boot*()` / `teardown*()` 生命周期（见 `platform/legacy-scope.ts`），
+ * 可在同一文档内进出：外壳注册了导航实现就走路由，没有的话（例如 `stage.html`
+ * 嵌入式外壳、单页面调试页）退回整页跳转。
  */
 
 type ShellNavigate = (path: string) => void | Promise<unknown>;
@@ -23,7 +19,7 @@ export function registerShellNavigation(navigate: ShellNavigate): void {
  * 把目标规整成外壳可用的应用内路径。
  *
  * 支持 `"/3d-studio"` 这样的路径、`"/studio/editor?tab=1#x"` 这样的带查询/锚点路径，以及
- * 同源的绝对地址（旧代码里 `studioBackLinkElement.href` 就是绝对地址）。跨源地址或非法
+ * 同源的绝对地址（如 `studioBackLinkElement.href`）。跨源地址或非法
  * 地址返回 `null`，由调用方退回整页跳转。
  */
 function toShellPath(target: string): string | null {

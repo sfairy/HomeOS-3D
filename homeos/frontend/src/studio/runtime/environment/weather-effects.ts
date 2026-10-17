@@ -1,7 +1,7 @@
 /**
  * 3D 场景的天气特效层：一块盖在舞台上的 2D canvas，画雨/雪/闪电。
  *
- * 从 0.7.6 `modules/interaction3d/weather-effects.js` 语义重实现。要点：
+ * 要点：
  * - **按需出帧**：只在下雨/下雪且页面可见时才起帧循环，暂停时完全不出帧
  *   （`createDemandFrameLoop`），因此「没绑天气实体」的户型不承担任何开销。
  * - **按面积降档**：设备像素比最高 1.5，再按「画布面积不超过 240 万像素」继续压，
@@ -11,7 +11,7 @@
  */
 import { createDemandFrameLoop } from "@app/bridge/scene/frame-loop";
 
-import { weatherEffectState } from "./weather-settings";
+import { weatherEffectState } from "@/studio/platform/weather-settings";
 
 /** 单个天气态对应的粒子参数。`thunder` 打开闪电；`snowScale` 放大雪花半径。 */
 type WeatherEffectPreset = {

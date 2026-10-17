@@ -1,6 +1,4 @@
-<!--
-  对齐 HA Bridge 0.7.1「备份与恢复」弹窗（创建 / 恢复双 Tab、密码加密 .habackup）。
--->
+<!--「备份与恢复」弹窗：创建 / 恢复双 Tab，密码加密 .habackup。-->
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
   <dialog

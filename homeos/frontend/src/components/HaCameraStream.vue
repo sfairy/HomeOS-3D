@@ -18,7 +18,7 @@
 
 <script setup>
 /**
- * 与 3D / 0.7.2 mountCameraMedia 同一条通路：HLS → MJPEG → 快照。
+ * 与 3D scene 的 mountCameraMedia 同一条通路：HLS → MJPEG → 快照。
  * preferWebrtc 仅门铃等场景额外先试 WebRTC，失败后仍落入上述通路。
  * go2rtcUrl 非空时优先走局域网 go2rtc（同源 MSE 中继），只有它宣告终态才落回上述通路。
  */

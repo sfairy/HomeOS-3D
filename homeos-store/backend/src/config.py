@@ -96,6 +96,36 @@ def _env_bool(name: str, default: bool = False) -> bool:
     raise ValueError(f"环境变量 {name} 需要布尔值（true/false/1/0/yes/no/on/off），实际是 {raw!r}")
 
 
+#: ``STORE_COOKIE_SECURE`` 的三态取值。``auto`` 是默认：按**本次请求实际用的协议**决定
+#: 会话 Cookie 要不要 ``Secure`` —— 同一套商店同时被 ``https://域名``（反代 / 隧道）与
+#: ``http://<局域网IP>:8802``（现场直连）访问时，只有按请求判定才不会一边丢 Cookie
+#: （明文链路上带 Secure 会被浏览器丢弃）、一边少一层保护（公网链路上不带 Secure）。
+COOKIE_SECURE_MODES = ("auto", "true", "false")
+
+
+def _env_cookie_secure_mode() -> str:
+    """读 ``STORE_COOKIE_SECURE``：``auto`` / ``true`` / ``false``（缺省 ``auto``）。
+
+    单独一个解析器而不是复用 :func:`_env_bool`：那个只认布尔值，而这里第三种取值
+    ``auto`` 才是双入口部署的正确口径。拼错仍然硬失败（与其它环境变量的口径一致），
+    避免把 ``ture`` 之类静默当成 ``auto``。
+    """
+    raw = os.getenv("STORE_COOKIE_SECURE")
+    if raw is None or not raw.strip():
+        return "auto"
+    text = raw.strip().lower()
+    if text in _ENV_TRUE:
+        return "true"
+    if text in _ENV_FALSE:
+        return "false"
+    if text == "auto":
+        return "auto"
+    raise ValueError(
+        f"环境变量 STORE_COOKIE_SECURE 需要 auto / true / false"
+        f"（true=强制 Secure、false=从不 Secure、auto=按请求协议），实际是 {raw!r}"
+    )
+
+
 def _env_int(
     name: str,
     default: int,
@@ -166,7 +196,8 @@ class StoreSettings:
 
     cookie_name: str = "homeos_store_session"
     hint_cookie_name: str = "homeos_store_hint"
-    cookie_secure: bool = False
+    #: ``auto`` / ``true`` / ``false``，见 :data:`COOKIE_SECURE_MODES`。
+    cookie_secure_mode: str = "auto"
     trusted_proxies: tuple[str, ...] = ()
     session_max_age_seconds: int = DEFAULT_SESSION_MAX_AGE_SECONDS
 
@@ -354,6 +385,11 @@ class StoreSettings:
         return _read_secret_file(self.alipay_public_key_path) or self.alipay_public_key
 
 
+def _cookie_secure_settings() -> dict[str, Any]:
+    """``STORE_COOKIE_SECURE`` → ``cookie_secure_mode``。"""
+    return {"cookie_secure_mode": _env_cookie_secure_mode()}
+
+
 def _env_core_values() -> dict[str, Any]:
     """进程/会话/静态挂载相关环境变量。"""
     return {
@@ -368,7 +404,8 @@ def _env_core_values() -> dict[str, Any]:
         "port": _env_int("STORE_PORT", DEFAULT_PORT, minimum=1, maximum=65535),
         "base_url": _env_str("STORE_BASE_URL"),
         "cookie_name": _env_str("STORE_COOKIE_NAME", "homeos_store_session") or "homeos_store_session",
-        "cookie_secure": _env_bool("STORE_COOKIE_SECURE"),
+        # 只解析一次，避免同一份取值被两处读到不同结果。
+        **_cookie_secure_settings(),
         "trusted_proxies": tuple(
             piece.strip()
             for piece in _env_str("STORE_TRUSTED_PROXIES").split(",")

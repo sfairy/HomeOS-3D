@@ -128,11 +128,10 @@ const moreMenuRef = ref(null)
 
 /**
  * 三点更多菜单的显式切换函数。
- * 【说明】原本 template 中直接写 `@click.stop="showMore = !showMore"`，
- * 在 defineAsyncComponent（媒体播放器弹窗）+ Transition + defineModel
- * 的组合场景下，极少数浏览器/构建产物中 template 级 setter 未能正确
- * 触发 emit，导致"视觉 hover 正常但点击无反应"。改为显式函数调用，
- * 保证在任何挂载时机下 showMore 的 v-model 链路都能闭环。
+ *
+ * 在 defineAsyncComponent（媒体播放器弹窗）+ Transition + defineModel 的组合下，
+ * template 级 setter 在少数浏览器/构建产物中可能未能触发 emit（视觉 hover 正常
+ * 但点击无反应）；显式函数调用保证任何挂载时机下 v-model 链路都能闭环。
  */
 function toggleShowMore() {
   showMore.value = !showMore.value

@@ -4,6 +4,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import pkg from "../../../package.json";
 import { loadClassicScript } from "@/studio/platform/useLegacyPage";
 import { useStudioEditorStore } from "@/stores/studio-editor.store";
 import {
@@ -158,11 +159,11 @@ watch(
       @close="editorStore.showShortcuts = false"
     />
 
-    <!-- 保留旧 header / #save 供引擎查询，视觉由 Vue 顶栏接管 -->
+    <!-- 隐藏的 DOM 契约：引擎查询 .editor-header / #save，视觉由 Vue 顶栏接管 -->
     <header class="editor-header sc-legacy-hidden" aria-hidden="true">
         <div class="brand-lockup"><img class="brand-icon"
                 src="/static/assets/icons/homeos-mark-white-orange.svg" alt=""><strong>HomeOS</strong><span
-                class="version">0.7.6</span></div>
+                class="version">{{ pkg.version }}</span></div>
         <button id="save" class="primary editor-save" type="button" disabled>保存</button>
     </header>
     <main class="editor-shell">

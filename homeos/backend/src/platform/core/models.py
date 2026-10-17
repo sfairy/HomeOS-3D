@@ -1,17 +1,10 @@
-"""ORM 模型：映射 Nest 侧 Prisma schema 的全部业务表到 SQLite。
+"""ORM 模型：HomeOS 全部业务表（SQLite）。
 
-迁移决策为「完全改用 SQLite」，因此相对 ``backend/prisma/schema.prisma`` 做了如下
-**受控调整**（业务语义不变，仅存储形态适配 SQLite）：
+- JSON 字段存为 ``Text``，读取时 ``json.loads``；
+- ``EventLog`` 用自增主键 + 三个 B-tree 复合索引，由保留策略任务按 ``createdAt`` 删除；
+- ``HomeMode`` 用 ``sqlite_where`` 部分索引保证「同组仅一条 isActive」。
 
-- ``Json`` / ``JsonB`` → ``Text`` 存 JSON 文本（读取时 ``json.loads``）；
-- ``EventLog`` 的 ``@@id([createdAt, id])`` + 原生按月分区 + BRIN 索引 → 普通自增主键表
-  + 三个 B-tree 复合索引（SQLite 无分区/BRIN，改由保留策略任务按 ``createdAt`` 删除）；
-- ``HomeMode`` 的「同组仅一条 isActive」部分唯一索引 → ``sqlite_where`` 部分索引；
-- ``BigInt`` → ``Integer``（SQLite INTEGER 即 64 位）。
-
-表名按 SQLite 惯例改为 snake_case 复数（如 Prisma ``EventLog`` → ``event_logs``）；
-列名与 Prisma 保持一致（camelCase，如 ``createdAt`` / ``entityId``），以便既有
-PostgreSQL 数据经一次性迁移脚本（``scripts/import_from_postgres.py``）原样导入。
+表名为 snake_case 复数，列名保持 camelCase（如 ``createdAt`` / ``entityId``）。
 """
 
 from __future__ import annotations
@@ -55,15 +48,13 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         # email 的唯一性用**具名唯一索引**表达，而不是列级 ``unique=True``：
-        # 迁移 0008 建的是 ``users_email_idx``，而列级 unique 会让 ``create_all``（发行路径）
-        # 生成一个匿名 UNIQUE 约束——两者结构不等价，勿混用。
-        # 具名索引也是本文件既有约定（见 HomeMode 的 __table_args__）。
+        # 后者会让 ``create_all`` 生成一个匿名 UNIQUE 约束，两者结构不等价。
         Index("users_email_idx", "email", unique=True),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    #: 注册邮箱（唯一）；单用户注册流程要求必填，库层允许 NULL 只为兼容存量安装。
+    #: 注册邮箱（唯一）；注册流程要求必填，备份导入的无凭据账号可缺省。
     #: 唯一性由上面的 users_email_idx 承担，这里不能再写 unique=True（会变成匿名约束）。
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     #: 邮箱验证码校验通过的时间；未验证为 NULL。
@@ -71,15 +62,9 @@ class User(Base):
         "emailVerifiedAt", DateTime(timezone=True), nullable=True
     )
     password: Mapped[str] = mapped_column(String(512), nullable=False)
-    #: 两列都带 server_default，与迁移 0006 的 ALTER 保持一致：0006 用 server_default 给
-    #: 存量行补值，若 ORM 只声明 Python 侧 default，发行路径（create_all 建库）就会少一个
-    #: DEFAULT，与迁移建出的库不等价。
+    #: 带 server_default，保证 ORM 建库与直接 INSERT 时的默认值一致。
     is_active: Mapped[bool] = mapped_column(
         "isActive", Boolean, nullable=False, default=True, server_default=text("1")
-    )
-    #: 保留列以兼容存量数据；单用户注册流程下密码恒为 argon2 入库哈希，不再外置。
-    auth_externalized: Mapped[bool] = mapped_column(
-        "authExternalized", Boolean, nullable=False, default=False, server_default=text("0")
     )
     preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_version: Mapped[int] = mapped_column("tokenVersion", Integer, nullable=False, default=0)
@@ -94,7 +79,7 @@ class User(Base):
 
 
 class LoginSession(Base):
-    """DB 会话（并入 homeos-3d 的 LoginSession 会话模型）。
+    """DB 会话（LoginSession）。
 
     ``id_hash`` 是会话令牌的 sha256（令牌本身绝不落库），作为主键，因而会话**可服务端
     吊销**，也便于审计最后活跃时间与来源 IP/UA。
@@ -371,8 +356,8 @@ class DeviceUsageStat(Base):
 class EnvironmentRecord(Base):
     """环境读数历史（温湿度 / IAQ），供周期对比报表按天均值统计。
 
-    Nest 侧以原生 SQL 引用 ``EnvironmentRecord``（未在 Prisma schema 中声明），
-    这里显式建模并由基线迁移建表，保证 environment 指标可用。
+    ``EnvironmentRecord`` 以原生 SQL 引用，
+    这里显式建模，保证 environment 指标可用。
     """
 
     __tablename__ = "environment_records"
@@ -437,7 +422,7 @@ class EnergyUsageMonthly(Base):
     )
 
 
-# 商业授权（并入 homeos-3d 授权服务）
+# 商业授权
 class LicenseState(Base):
     """授权单例状态行（``id`` 恒为 1），与 homeos-3d 的 license_state 表逐列对齐。
 
@@ -477,7 +462,7 @@ class LicenseState(Base):
     activated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
-# 3D Studio 数据面（并入 homeos-3d：项目 / HA 目录 / 全局弹窗）
+# 3D Studio 数据面（项目 / HA 目录 / 全局弹窗）
 #
 # 表名与列名一律保持 homeos-3d 的 snake_case：移植来的 ha/**、panel/**、
 # modules/interaction3d/** 与 api/{projects,studio3d,assets,...}.py 直接按属性名访问，
@@ -662,23 +647,6 @@ class HAArea(Base):
         DateTime(timezone=True), nullable=False, default=utc_now
     )
     missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class DataCompatibility(Base):
-    """数据目录最低程序版本地板（单例行 ``id=1``）。
-
-    用于阻止旧版二进制读写已被新版写入的数据目录；与 ``data-compatibility.json`` 联动。
-    """
-
-    __tablename__ = "data_compatibility"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    minimum_application_version: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="0.0.0"
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
-    )
 
 
 class HASyncState(Base):

@@ -902,7 +902,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 e.createElement(
                   "p",
                   "i3d-note",
-                  "旧版绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换旧绑定。",
+                  "当前绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换当前绑定。",
                 ),
               );
             }
@@ -1119,14 +1119,6 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             });
           }
           if (e.isAirerMode) {
-            // 兼容旧 HomeOS Inverted 别名 → 0.7.2 Reversed
-            if (vector.positionReversed === undefined && vector.positionInverted === true)
-              vector.positionReversed = true;
-            if (vector.liftReversed === undefined && vector.commandInverted === true)
-              vector.liftReversed = true;
-            delete vector.positionInverted;
-            delete vector.commandInverted;
-
             const airerDirectionSectionElement = createConfigSection("实体升降方向");
             createSelectRow(
               airerDirectionSectionElement,
@@ -1198,7 +1190,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               ));
           }
           if (e.deviceKind === "fan") {
-            const fanControlSection = createConfigSection("风扇控制（0.7.2）");
+            const fanControlSection = createConfigSection("风扇控制");
             createSelectRow(
               fanControlSection,
               "外观模式",
@@ -1983,16 +1975,6 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   "可绑定能提供开关状态的实体；不单独绑定电源时跟随媒体播放器状态。电视开启时优先显示可用节目封面，没有封面时显示自定义图片；未上传图片则显示当前播放状态，关闭时显示深色玻璃。",
                 ),
               ));
-            // 兼容旧 posterAssetId → 0.7.2 screenImage
-            if (!vector.screenImage?.assetId && vector.posterAssetId) {
-              const legacyBare = String(vector.posterAssetId)
-                .trim()
-                .toLowerCase()
-                .replace(/^user:/, "");
-              if (/^[0-9a-f]{32}$/.test(legacyBare))
-                vector.screenImage = { assetId: "user:" + legacyBare };
-              delete vector.posterAssetId;
-            }
             const posterAssetSection = createConfigSection("电视自定义图片"),
               posterAssetStatusElement = e.createElement("p", "i3d-note", "无封面时的图片"),
               posterAssetUploadInput = e.createElement("input");
@@ -2037,20 +2019,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                         uploadPayload.error ||
                         "图片上传失败，请重试。",
                     );
-                  const uploadedRaw = String(
+                  const uploadedAssetId = String(
                     uploadPayload.assetId || uploadPayload.data?.assetId || "",
                   )
                     .trim()
                     .toLowerCase();
-                  const uploadedAssetId = uploadedRaw.startsWith("user:")
-                    ? uploadedRaw
-                    : /^[0-9a-f]{32}$/.test(uploadedRaw)
-                      ? "user:" + uploadedRaw
-                      : "";
                   if (!/^user:[0-9a-f]{32}$/.test(uploadedAssetId))
                     throw new Error("图片上传结果无效，请重试。");
                   vector.screenImage = { assetId: uploadedAssetId };
-                  delete vector.posterAssetId;
                   refreshEditorPreview();
                 } catch (uploadError: any) {
                   posterAssetStatusElement.textContent =
@@ -2084,7 +2060,6 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     });
                   } catch { /* 网络副作用失败不影响本地状态：调用方会在下一轮刷新或用户重试时收敛 */ }
                   delete vector.screenImage;
-                  delete vector.posterAssetId;
                   refreshPosterAssetUi();
                   rebuildPosterActions();
                   refreshEditorPreview();

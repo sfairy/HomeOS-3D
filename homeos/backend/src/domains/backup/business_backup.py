@@ -15,15 +15,14 @@ HA 目录缓存。
 
 排除项：``cache/``、``logs/``（含操作日志 JSONL）、``backup-work/``、``backup-recovery/``、
 备份包目录（``settings.backups_dir``；容器里位于 ``data_dir`` 内部，必须排除，否则新包会
-吞掉全部旧包与自己）、渲染缓存、迁移备份（``*.pre-*.bak``）、``data-compatibility.json``
-（还原后重新写入）与数据库文件本身。
+吞掉全部旧包与自己）、渲染缓存与数据库文件本身。
 
 **为什么必须带 ``secrets/``**：HA access token 与 license 凭证用 ``data_dir/secrets/*.key``
 （Fernet）加密后落库（见 :mod:`src.domains.ha.integration.crypto`）。只备份数据库、不带密钥，
 换机后这些密文无法解密。
 
 恢复采用「整库原样还原」：先把当前数据库与数据文件留一份回退快照，再原子替换，
-最后把还原出来的库迁移到当前程序 head，全程可回滚。
+最后校验还原出来的库结构与完整性，全程可回滚。
 """
 
 from __future__ import annotations
@@ -49,12 +48,7 @@ from zipfile import ZipFile
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-from ...platform.core.migrations import (
-    compare_application_versions,
-    read_recorded_revision,
-    run_migrations,
-    write_data_compatibility_marker,
-)
+from ...platform.core.schema import prepare_schema
 from ...platform.core.upload_limits import MAX_BACKUP_ARCHIVE_BYTES
 from ...platform.security.login_limiter import LoginAttemptLimiter
 
@@ -83,15 +77,12 @@ ROLLBACK_KEEP = 1
 
 PRODUCT = "HomeOS"
 KIND = "homeos-full-backup"
-SCHEMA_VERSION = 2
 FORMAT_VERSION = 2
 
 #: 数据目录中不进入备份的顶层目录（运行时产物，与业务数据无关）
 EXCLUDED_TOP_DIRS = frozenset({"cache", "logs", "backup-work", "backup-recovery"})
 #: 需要整体排除的相对路径前缀
 EXCLUDED_REL_PREFIXES = ("modules/interaction3d/render-cache",)
-#: 运行时生成的标记文件：还原后由程序重新写入，避免旧标记挡住启动
-EXCLUDED_REL_FILES = frozenset({"data-compatibility.json"})
 
 #: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。
 #: 分三类——
@@ -169,19 +160,13 @@ def _is_excluded(relative: str) -> bool:
     parts = PurePosixPath(relative).parts
     if parts and parts[0] in EXCLUDED_TOP_DIRS:
         return True
-    if relative in EXCLUDED_REL_FILES:
-        return True
     if any(
         relative == prefix or relative.startswith(prefix + "/")
         for prefix in EXCLUDED_REL_PREFIXES
     ):
         return True
     name = parts[-1] if parts else relative
-    if name == DB_NAME or name in {f"{DB_NAME}{suffix}" for suffix in DB_SIDECARS}:
-        return True
-    if ".pre-" in name and name.endswith(".bak"):
-        return True
-    return name.endswith(".migrate.lock")
+    return name == DB_NAME or name in {f"{DB_NAME}{suffix}" for suffix in DB_SIDECARS}
 
 
 def _resolved(path: Any) -> Path | None:
@@ -284,6 +269,8 @@ def decrypt_archive(source: Path, target: Path, password: str) -> None:
 
 # 数据库快照
 def _validate_database_file(path: Path) -> None:
+    """整库快照校验：完整性、外键与必需业务表。"""
+    required = _required_tables()
     with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
         integrity = connection.execute("PRAGMA integrity_check").fetchone()
         if integrity is None or integrity[0] != "ok":
@@ -291,6 +278,20 @@ def _validate_database_file(path: Path) -> None:
             raise BackupError(f"数据库完整性校验失败：{detail}")
         if connection.execute("PRAGMA foreign_key_check").fetchall():
             raise BackupError("数据库外键校验失败。")
+        live = {
+            str(row[0])
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+    missing = sorted(required - live)
+    if missing:
+        raise BackupError(f"数据库缺少业务表：{', '.join(missing)}")
+
+
+def _required_tables() -> set[str]:
+    from ...platform.core import models  # noqa: F401  # 注册模型到 Base.metadata
+    from ...platform.core.database import Base
+
+    return set(Base.metadata.tables)
 
 
 def snapshot_database(settings: Any, target: Path) -> None:
@@ -315,7 +316,7 @@ def snapshot_database(settings: Any, target: Path) -> None:
 def purge_excluded_tables(path: Path) -> list[str]:
     """清空快照中历史/日志/缓存表的数据（保留表结构），并回收空间。
 
-    只作用于备份快照副本，绝不触碰线上库；缺失的表自动跳过（兼容旧库 schema）。
+    只作用于备份快照副本，绝不触碰线上库；缺失的表跳过。
     """
     purged: list[str] = []
     connection = sqlite3.connect(path, isolation_level=None)
@@ -405,10 +406,8 @@ def create_payload(settings: Any, directory: Path) -> Path:
             manifest = {
                 "kind": KIND,
                 "product": PRODUCT,
-                "schemaVersion": SCHEMA_VERSION,
                 "formatVersion": FORMAT_VERSION,
                 "version": settings.version,
-                "minimumApplicationVersion": settings.version,
                 "createdAt": _now_iso(),
                 "database": {
                     "name": DB_NAME,
@@ -479,8 +478,8 @@ def _verify_archive(archive: ZipFile, manifest: dict[str, Any]) -> None:
             raise BackupError(f"备份缺少清单文件：{relative}")
         if not isinstance(meta, dict):
             raise BackupError(f"备份清单条目无效：{relative}")
-        # 大小与摘要都必须存在：旧实现在缺字段时**静默跳过**校验，于是「清单里只写个名字」
-        # 就能让一个空文件通过全部校验 —— 对数据库条目而言，那等于把整库换成空库后照报成功。
+        # 大小与摘要都必须存在：缺字段就静默跳过校验，会让「清单里只写个名字」的空文件
+        # 通过全部校验 —— 对数据库条目而言，等于把整库换成空库后照报成功。
         expected_size = int(meta.get("size") or -1)
         if expected_size < 0:
             raise BackupError(f"备份清单缺少文件大小：{relative}")
@@ -538,7 +537,7 @@ def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
     (directory / MANIFEST_NAME).write_bytes(
         json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     )
-    validate_full_backup(settings, manifest)
+    validate_full_backup(manifest)
 
     stats_path = directory / f"inspect-{uuid4().hex}.db"
     try:
@@ -555,9 +554,6 @@ def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
         "kind": manifest.get("kind") or KIND,
         "product": manifest.get("product") or PRODUCT,
         "version": manifest.get("version") or "",
-        "minimumApplicationVersion": manifest.get("minimumApplicationVersion")
-        or manifest.get("version")
-        or "",
         "createdAt": manifest.get("createdAt") or "",
         "projects": counts["projects"],
         "connections": counts["connections"],
@@ -580,28 +576,16 @@ def inspect_archive(settings: Any, directory: Path, password: str) -> dict[str, 
     return inspect_payload(settings, directory)
 
 
-def validate_full_backup(settings: Any, value: dict[str, Any]) -> None:
+def validate_full_backup(value: dict[str, Any]) -> None:
     if not isinstance(value, dict):
         raise BackupError("备份元数据无效。")
     kind = value.get("kind")
-    if kind not in {KIND, None} and not str(kind).endswith("full-backup"):
+    if kind != KIND:
         raise BackupError("不是 HomeOS 全量备份包。")
     format_version = int(value.get("formatVersion") or 0)
-    if format_version and format_version > FORMAT_VERSION:
+    if format_version > FORMAT_VERSION:
         raise BackupError(
             f"备份格式版本 {format_version} 高于当前程序支持的 {FORMAT_VERSION}，请先升级程序。"
-        )
-    schema = int(value.get("schemaVersion") or 0)
-    if schema > SCHEMA_VERSION:
-        raise BackupError(
-            f"备份格式版本 {schema} 高于当前程序支持的 {SCHEMA_VERSION}，请先升级程序。"
-        )
-    minimum = str(
-        value.get("minimumApplicationVersion") or value.get("version") or ""
-    ).strip()
-    if minimum and compare_application_versions(settings.version, minimum) < 0:
-        raise BackupError(
-            f"此备份要求程序版本 ≥ {minimum}，当前为 {settings.version}。请升级后再恢复。"
         )
     database = value.get("database")
     if not isinstance(database, dict) or not database.get("name"):
@@ -645,9 +629,9 @@ def _extract_data_files(
     写入侧（``create_payload``）有 4 GB / 50000 文件的上限，但那只约束「我们自己造包时」；
     恢复入口接受外部上传的 zip，条目数与解压后体积都由上传方说了算，所以这里必须再数一遍。
 
-    ``allowed`` 是清单里列出的数据文件集合：**只有**清单成员才允许落盘。旧实现只遍历
-    归档条目、不比对清单，于是任何未列出的成员（例如 ``secrets/ha_credentials.key``）
-    都能被原样写进数据目录，且没有任何大小 / 摘要校验 —— 清单与内容的约束是单向的。
+    ``allowed`` 是清单里列出的数据文件集合：**只有**清单成员才允许落盘。只遍历归档条目
+    而不比对清单，任何未列出的成员（例如 ``secrets/ha_credentials.key``）都能被原样写进
+    数据目录，且没有任何大小 / 摘要校验。
     """
     total = 0
     count = 0
@@ -768,7 +752,7 @@ def restore_business(
     """
     payload = directory / PAYLOAD_NAME
     manifest = read_manifest(payload)
-    validate_full_backup(settings, manifest)
+    validate_full_backup(manifest)
 
     recovery = _recovery_root(settings)
     recovery.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -812,24 +796,13 @@ def restore_business(
             except Exception:
                 logger.warning("释放数据库连接池失败", exc_info=True)
         _remove_sidecars(settings.database_path)
-        # 先落盘「回退意图」再替换数据库，与数据文件那一段同序。旧实现把 dbReplaced 写在
-        # os.replace **之后**：在两步之间崩溃/断电时，journal 记着 dbReplaced=False，启动期
-        # 回滚只还原数据文件、数据库却已是还原后的内容，随后回退目录（含还原前唯一的库
-        # 快照）还会被清理掉 —— 留下一对静默不一致的库与数据，且无从追回。
         journal["dbReplaced"] = True
         _write_journal(rollback_dir, journal)
         os.replace(restored_db, settings.database_path)
         os.chmod(settings.database_path, 0o600)
-        # 替换后立刻确认「这确实是一个 HomeOS 业务库」。空文件 / 无 schema 的库会被
-        # PRAGMA integrity_check 判为 ok，然后 run_migrations 建出一套全新空表，删除动作
-        # 照做、成功照报 —— 全部账号、授权、项目与实体就此消失且界面毫无提示。
-        # 记录不到迁移版本就说明它没有我们的 schema，必须回滚。
-        if read_recorded_revision(settings.database_path) is None:
-            raise BackupError("备份中的数据库快照不是有效的 HomeOS 业务库，已中止并回滚。")
 
-        # 4) 迁移到当前程序 head + 写数据兼容标记
-        run_migrations(settings)
-        write_data_compatibility_marker(settings)
+        # 4) 补齐缺失的表并校验结构与完整性
+        prepare_schema(settings)
 
         journal["phase"] = "done"
         journal["finishedAt"] = _now_iso()

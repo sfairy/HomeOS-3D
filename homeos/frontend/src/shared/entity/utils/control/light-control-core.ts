@@ -79,8 +79,7 @@ export function lightBrightnessFromPct(pct: number): number {
  * HSV → RGB（亮度取满 V=1）。
  *
  * 注意：HA 的 `hs_color` / 取色盘用的都是 **HSV**（饱和度 = d/max），不是 HSL。
- * 旧函数名 `hslToRgb` 与 HA 语义不符，公式本身也是 HSV（c = s·v、m = v − c），
- * 这里按真实语义改名为 hsvToRgb，避免调用方误把它当 HSL 用。
+ * 公式是 HSV（c = s·v、m = v − c），调用方不要按 HSL 解释。
  */
 export function hsvToRgb(h: number, s: number): { r: number; g: number; b: number } {
   const c = s / 100
@@ -118,9 +117,9 @@ export function hsvToRgb(h: number, s: number): { r: number; g: number; b: numbe
 /**
  * RGB → HSV（对齐 HA `hs_color`：hue 0-360、saturation 0-100、亮度取满 V=1）。
  *
- * 旧实现对饱和度误用了 HSL 公式（`l > 0.5 ? d/(2-max-min) : d/(max+min)`），
- * 与 hsvToRgb 的 HSV 公式互逆性不成立：非纯色（如 rgb(200,100,100)）
- * 回显饱和度会偏小，取色盘位置与实体实际颜色对不上。
+ * 饱和度必须走 HSV 公式（`d/(max+min)`）而非 HSL（`l > 0.5 ? d/(2-max-min) : …`）：
+ * 后者与 hsvToRgb 不互逆，非纯色（如 rgb(200,100,100)）回显饱和度偏小，
+ * 取色盘位置与实体实际颜色对不上。
  */
 export function rgbToHs(r: number, g: number, b: number): { h: number; s: number } {
   r /= 255

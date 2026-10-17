@@ -552,6 +552,64 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   gap: 14px;
 }
 
+/* 首屏四个入口只分三档：实心暖金 → 实底玻璃 → 深底玻璃。
+   原先 ghost 无描边无底色，和主按钮并排像三段纯文本；这里把「对比版本 /
+   登录 / 注册」都做成厚实的面：白高光叠在 surface 上，配描边、顶缘内高光
+   和一层外投影，只靠面与文字的明度分档。hover 统一点亮琥珀，避免首屏出现
+   第二种强调色。 */
+.hb-hero__actions .hb-button--secondary,
+.hb-hero__actions .hb-button--ghost {
+  border-color: var(--hb-line-strong);
+  color: var(--hb-ink);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    linear-gradient(180deg, var(--hb-surface-raised), var(--hb-surface-soft));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 10px 24px -16px rgba(0, 0, 0, 0.95);
+  font-weight: 680;
+  letter-spacing: 0.012em;
+}
+
+/* 登录 / 注册再降半档：面与描边各收一档，仍保留实体感，
+   不靠「去掉底面」来弱化，否则又回到看不见可点区域的老问题。 */
+.hb-hero__actions .hb-button--ghost {
+  border-color: var(--hb-line);
+  color: var(--hb-ink-soft);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+    linear-gradient(180deg, var(--hb-surface-soft), var(--hb-surface));
+}
+
+/* 图标压到和文字同一档明度，别让 duotone 的亮面在主按钮旁边抢注意力。 */
+.hb-hero__actions .hb-button--secondary i,
+.hb-hero__actions .hb-button--ghost i {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.hb-hero__actions .hb-button--secondary:hover,
+.hb-hero__actions .hb-button--ghost:hover {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  /* 琥珀只作叠色，底仍是那块实心面：hover 不该把按钮「洗」回透明。 */
+  background: linear-gradient(180deg, rgba(var(--hb-accent-rgb), 0.2), rgba(var(--hb-accent-rgb), 0.06)),
+    linear-gradient(180deg, var(--hb-surface-raised), var(--hb-surface-soft));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 10px 24px -16px rgba(var(--hb-accent-rgb), 0.7);
+}
+
+.hb-hero__actions .hb-button--secondary:hover i,
+.hb-hero__actions .hb-button--ghost:hover i {
+  opacity: 1;
+}
+
+/* 主按钮 hover 补一层顶缘高光，和右侧玻璃按钮的 inset 高光对齐。 */
+.hb-hero__actions .hb-button--primary {
+  box-shadow: var(--hb-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.hb-hero__actions .hb-button--primary:hover {
+  box-shadow: var(--hb-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
 .hb-hero__empty {
   margin-top: 16px;
   color: var(--hb-muted);

@@ -24,8 +24,7 @@ def reload_enabled() -> bool:
 
 
 def main() -> None:
-    # 唯一来源在 core/console_log.py：迁移里的 alembic fileConfig 会顶掉这里装的东西，
-    # 所以 lifespan 还会再装一次（reload 的 worker 也只能靠那一次）。
+    # 唯一来源在 core/console_log.py；lifespan 还会再装一次以覆盖 reload 的 worker。
     configure_console_logging()
     settings = load_settings()
     if reload_enabled():

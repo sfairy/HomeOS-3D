@@ -63,7 +63,7 @@ def _admin_session(
                         value=token,
                         max_age=max_age,
                         httponly=True,
-                        secure=resolve_session_cookie_secure(request, settings),
+                        secure=resolve_session_cookie_secure(request),
                         samesite='lax',
                         path='/',
                     )

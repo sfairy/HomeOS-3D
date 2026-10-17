@@ -1,16 +1,8 @@
 """security 分区校验：告警卡片、摄像头、人体感应。
 
-判定口径与拆分前的 254 行大函数逐条对齐（黄金用例见
-黄金用例曾覆盖接受/拒绝集合）。重构只做三件事：
-
-- 按集合把大函数拆成 :class:`SecuritySectionValidator` 的小方法；
-- 把散在函数体里的 ``re.fullmatch`` 字面量提成模块级预编译正则；
-- 跨件状态（重复 ``id`` / ``(floorId, modelId)``）挂到校验器实例上，不再靠长参数表传递。
-
-两处**有意**的行为修正（原实现会抛 ``TypeError``/``KeyError`` 冒成 500）：
-
-- 非字符串的实体 id 按不合规处理 → 422（与 ``config_ctx`` 的口径一致）；
-- 告警卡片缺 ``id`` / ``floorId`` 时同样给 422，而不是 ``KeyError``。
+判定顺序：``ctx.fail()`` 立即抛 422，所以顺序不影响结果。非字符串的实体 id、缺失
+``id`` / ``floorId`` 的告警卡片一律按不合规处理（422），不能让 ``TypeError`` /
+``KeyError`` 冒成 500。
 """
 
 from __future__ import annotations
@@ -30,7 +22,7 @@ SECURITY_SECTIONS = frozenset({'presenceSensors', 'cameras', 'locks', 'alarms'})
 
 #: 告警卡片数量上限。
 MAX_ALARMS = 100
-#: 告警卡片字段白名单（对齐 0.7.1：独立浮动卡片字段；兼容历史 modelId / theme / workStateEntityId）。
+#: 告警卡片字段白名单。
 ALARM_FIELDS = frozenset(
     {
         'id',
@@ -64,7 +56,7 @@ ALARM_FIELDS = frozenset(
 ALARM_KIND = EnumSpec('kind', ('moisture', 'smoke', 'gas'), '')
 #: 告警主题枚举。
 ALARM_THEME = EnumSpec('theme', ('default', 'warm-wood'), 'default')
-#: 主实体：按类型区分可接受的域（0.7.2 起烟雾额外接受 ``event.*``）。
+#: 主实体：按类型区分可接受的域（烟雾额外接受 ``event.*``）。
 ALARM_ENTITY_PATTERNS: dict[str, re.Pattern[str]] = {
     'gas': re.compile(r'(?:binary_sensor|sensor)\.[a-z0-9_]+'),
     'smoke': re.compile(r'(?:binary_sensor|sensor|event)\.[a-z0-9_]+'),
@@ -87,7 +79,7 @@ ALARM_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (
 )
 #: 告警卡片「只要求为正数」的字段（字号不设上限：放大字号是用户明确意图）。
 ALARM_SIZE_FIELDS = ('iconSize', 'hitSize', 'fontSize')
-#: 告警卡片开关字段（含历史遗留的 ``overlay``）。
+#: 告警卡片开关字段。
 ALARM_FLAG_FIELDS = ('visible', 'overlay', 'buttonHidden', 'hiddenClickable')
 
 #: 摄像头字段白名单。
@@ -167,7 +159,7 @@ PRESENCE_FIELDS = frozenset(
         'triggerThreshold',
     }
 )
-#: 人物造型 / 配色 / 触发方式枚举（默认值与旧实现一致）。
+#: 人物造型 / 配色 / 触发方式枚举。
 PRESENCE_CHARACTER = EnumSpec('character', ('traveler', 'bean', 'glow'), 'traveler')
 PRESENCE_COLOR = EnumSpec('color', ('cyan', 'orange'), 'cyan')
 PRESENCE_TRIGGER_MODE = EnumSpec('triggerMode', ('auto', 'threshold', 'equals', 'change'), 'auto')

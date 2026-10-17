@@ -12,6 +12,7 @@ import { useSiteStore } from "@store/shared/stores/site";
 import { useStoreToast } from "@store/shared/stores/toast";
 import { useCooldown } from "@store/features/storefront/composables/useCooldown";
 import { clearInvite, readInvite } from "@store/features/storefront/utils/invite";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
 
 const props = defineProps<{ mode: string }>();
 const router = useRouter();
@@ -50,6 +51,10 @@ watch(mode, () => {
 
 function validatePasswords(password: string, confirmation: string) {
   mismatch.value = Boolean(confirmation) && password !== confirmation;
+  if (!isPasswordPolicyCompliant(password)) {
+    errorText.value = PASSWORD_POLICY_MESSAGE;
+    return false;
+  }
   return !mismatch.value;
 }
 
@@ -279,7 +284,7 @@ async function submitForget() {
           <div class="hos-row-2">
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
-              <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位" :minlength="8" />
+              <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
             </div>
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
@@ -298,7 +303,7 @@ async function submitForget() {
           <div class="hos-panel__meta">
             <span>验证码有时效</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>新密码至少 8 位</span>
+            <span>新密码至少 8 位，含字母与数字</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
             <span>不影响已授权设备</span>
           </div>
@@ -375,7 +380,7 @@ async function submitForget() {
           <div class="hos-row-2">
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-register-password">密码</label></div>
-              <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位" :minlength="8" />
+              <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
             </div>
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>

@@ -13,7 +13,7 @@ const ALARM_DEVICE_CLASSES: Record<string, string[]> = {
   gas: ["gas", "carbon_monoxide"],
 };
 
-/** 小米气感 enum → 内部 status（对齐 0.7.2） */
+/** 小米气感 enum → 内部 status */
 export const GAS_ENUM_STATES: Record<string, string> = {
   预热: "warming",
   监测正常: "normal",
@@ -24,7 +24,7 @@ export const GAS_ENUM_STATES: Record<string, string> = {
   天然气泄漏报警: "alarm",
 };
 
-/** 0.7.2 烟雾 enum → 内部 status */
+/** 烟雾 enum → 内部 status */
 export const SMOKE_ENUM_STATES: Record<string, string> = {
   监测正常: "normal",
   监测中: "normal",
@@ -34,7 +34,7 @@ export const SMOKE_ENUM_STATES: Record<string, string> = {
   温度过高: "alarm",
 };
 
-/** HA event.* 烟雾事件类型（0.7.2 SMOKE_EVENT_TYPE） */
+/** HA event.* 烟雾事件类型 */
 export const SMOKE_EVENT_TYPE = "检测到高浓度烟雾";
 
 export function securityAlarmEntityMode(

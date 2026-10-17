@@ -2,8 +2,7 @@
 
 灯光卡片是本仓字段最多的一类控件，因此这里复用 :func:`validate_layout_widget` 的共用骨架
 （坐标 / 开关 / 点击动作 / 图标 / 相机），只把「灯的尺寸必须存在且为正数」「效果默认值与
-效果范围」这类灯特有判定留在本模块。判定口径与拆分前的 101 行大函数逐条对齐
-（黄金用例曾覆盖接受/拒绝集合）。
+效果范围」这类灯特有判定留在本模块。接受 / 拒绝集合以黄金用例为准。
 """
 
 from __future__ import annotations
@@ -85,8 +84,8 @@ LIGHT_RULES = WidgetRules(
     size_fields=(),
     position_required=True,
 )
-#: 默认灯光效果（亮度 / 色温 K）。上限放宽到 150 是为了兼容存量草稿（前端 ``LIGHT_EFFECT_DEFAULTS``
-#: 也是 150）；收紧到 100 会让含这些灯光的控件在保存时整份 422，读入侧不放大、渲染侧按 100 封顶即可。
+#: 默认灯光效果（亮度 / 色温 K）。上限 150 与前端 ``LIGHT_EFFECT_DEFAULTS`` 一致；
+#: 收紧到 100 会让含这些灯光的控件在保存时整份 422。
 LIGHT_EFFECT_BOUNDS: dict[str, tuple[float, float]] = {
     'brightness': (0, 150),
     'kelvin': (1000, 20000),

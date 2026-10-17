@@ -1,8 +1,13 @@
 """主应用调用商店「邮箱验证码」接口的客户端。
 
-首装注册的邮箱验证码由**商店服务器**发送与校验（主应用不自带 SMTP）。本模块只做
-「HTTP 适配」：把注册/找回场景的发码与验码封成两个方法，并把商店的错误信封翻译成
+首装注册与找回本机密码的邮箱验证码由**商店服务器**发送与校验（主应用不自带 SMTP）。
+本模块只做「HTTP 适配」：把发码与验码封成两个方法，并把商店的错误信封翻译成
 ``StoreVerificationError``，由路由层映射成统一的 422/429。
+
+用途（``purpose``）只有两个取值，且必须与商店侧白名单一致：
+- ``homeos_register`` —— 首装注册；
+- ``homeos_reset``    —— 找回本机管理员密码。
+两者独立发码、独立消费，注册码不能拿来重置密码（反之亦然）。
 
 商店端点（相对商店后端根地址）：
 - ``POST /store/v1/verifications``          发码（公开、按 IP/邮箱限流）
@@ -15,7 +20,12 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import httpx
+
+#: 商店侧认的两个主应用验证码用途。
+VerificationPurpose = Literal["homeos_register", "homeos_reset"]
 
 
 class StoreVerificationError(RuntimeError):
@@ -72,17 +82,19 @@ class StoreVerificationClient:
             return {}
         return parsed if isinstance(parsed, dict) else {}
 
-    async def send_code(self, email: str) -> dict:
-        """请求商店向 ``email`` 发送注册验证码。"""
-        return await self._post(
-            "/verifications", {"email": email, "purpose": "homeos_register"}
-        )
+    async def send_code(
+        self, email: str, purpose: VerificationPurpose = "homeos_register"
+    ) -> dict:
+        """请求商店向 ``email`` 发送指定用途的验证码（默认首装注册）。"""
+        return await self._post("/verifications", {"email": email, "purpose": purpose})
 
-    async def verify_code(self, email: str, code: str) -> dict:
-        """请求商店校验并消费 ``email`` 的注册验证码。"""
+    async def verify_code(
+        self, email: str, code: str, purpose: VerificationPurpose = "homeos_register"
+    ) -> dict:
+        """请求商店校验并消费 ``email`` 的指定用途验证码；用途必须与发码时一致。"""
         return await self._post(
             "/verifications/verify",
-            {"email": email, "purpose": "homeos_register", "code": code},
+            {"email": email, "purpose": purpose, "code": code},
         )
 
 
@@ -101,5 +113,6 @@ def verification_client_from_settings(settings) -> StoreVerificationClient:
 __all__ = [
     "StoreVerificationClient",
     "StoreVerificationError",
+    "VerificationPurpose",
     "verification_client_from_settings",
 ]

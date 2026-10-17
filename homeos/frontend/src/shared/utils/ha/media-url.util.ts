@@ -1,9 +1,6 @@
 /** HA 资源 URL 工具。 */
 import { normalizeHaUrl } from '@homeos/shared'
 
-/** HA 代理端点类型：media（媒体/快照）/ stream（流） */
-type HaProxyKind = 'media' | 'stream'
-
 /**
  * 浏览器侧 HA 媒体一律走 HomeOS 同源代理。
  * 直连 HA（尤其前面还有 nginx/:80）时 camera_proxy_stream 常 502；后端用长期 Token 拉取更稳。
@@ -15,15 +12,14 @@ function needsHaMediaProxy(resourceUrl: string): boolean {
 /**
  * 构造 HomeOS 同源代理 URL。
  *
- * 阶段 3 起 `ha_proxy` 在同源挂载与 HA 相同的路径前缀
+ * `ha_proxy` 在同源挂载与 HA 相同的路径前缀
  *（`/api/camera_proxy`、`/api/camera_proxy_stream`、`/api/hls` 等）。
  * `kind` 由调用方写进 HA 路径（快照 vs 流），此处仅做同源路径归一化。
  *
  * @param haPath HA 相对路径（自动补前导斜杠）
- * @param _kind 保留参数以兼容既有调用方（media / stream）
  * @returns 形如 `/api/camera_proxy/<entity>` 的同源地址（鉴权由后端 Bearer 完成）
  */
-function buildHaProxyUrl(haPath: string, _kind: HaProxyKind = 'media'): string {
+function buildHaProxyUrl(haPath: string): string {
   return haPath.startsWith('/') ? haPath : `/${haPath}`
 }
 
@@ -60,13 +56,11 @@ function extractHaPathFromAbsolute(haUrl: string, absolute: string): string | nu
  *
  * @param haUrl HA 基地址
  * @param haPath HA 相对路径或绝对地址
- * @param kind 代理类型（走代理时使用）
  * @returns 可直接加载的资源 URL；入参为空时返回空串
  */
 function resolveHaResourceUrl(
   haUrl: string | null | undefined,
   haPath: string,
-  kind: HaProxyKind = 'media',
 ): string {
   if (!haUrl?.trim() || !haPath?.trim()) return ''
 
@@ -78,7 +72,7 @@ function resolveHaResourceUrl(
   if (!needsHaMediaProxy(absolute)) return absolute
 
   const relative = extractHaPathFromAbsolute(haUrl, absolute)
-  if (relative) return buildHaProxyUrl(relative, kind)
+  if (relative) return buildHaProxyUrl(relative)
 
   return absolute
 }
@@ -87,13 +81,11 @@ function resolveHaResourceUrl(
  * 解析 entity_picture / snapshot 等 HA 相对或绝对路径为可加载 URL。
  * @param haUrl HA 基地址
  * @param picture HA 返回的图片路径（data: / /api/ / /local/ / /media/ / http(s): 或其它）
- * @param kind 代理类型
  * @returns 可加载的 URL 或原值；data: 与无法解析的路径原样返回；空值返回 null
  */
 export function resolveHaEntityPicture(
   haUrl: string | null | undefined,
   picture: string | null | undefined,
-  kind: HaProxyKind = 'media',
 ): string | null {
   if (!picture?.trim()) return null
   const pic = picture.trim()
@@ -102,12 +94,12 @@ export function resolveHaEntityPicture(
   // HA 相对路径：需拼接 HA 基地址并按需代理
   if (pic.startsWith('/api/') || pic.startsWith('/local/') || pic.startsWith('/media/')) {
     if (!haUrl?.trim()) return null
-    return resolveHaResourceUrl(haUrl, pic, kind)
+    return resolveHaResourceUrl(haUrl, pic)
   }
   // 绝对地址：有 HA 基地址时走代理逻辑，否则原样返回
   if (pic.startsWith('http://') || pic.startsWith('https://')) {
     if (!haUrl?.trim()) return pic
-    return resolveHaResourceUrl(haUrl, pic, kind)
+    return resolveHaResourceUrl(haUrl, pic)
   }
   return pic
 }

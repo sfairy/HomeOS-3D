@@ -6,12 +6,10 @@
 - :func:`require_lock_model` —— 落库前确认门模型在场景里仍然存在；
 - :func:`validate_lock_command` —— 设备侧：``lock`` / ``open`` / ``unlock`` 的能力位与密码校验。
 
-判定口径与拆分前逐条对齐（黄金用例见
-黄金用例曾覆盖）。两点需要留意：
+两点需要留意：
 
-- 门绑定**没有字段白名单**：未知字段一直是被放行的，只有已知字段参与类型与数值校验；
-- 非字符串 / 非数字的绑定值由 :class:`ValidationContext` 收敛成 422，旧实现会抛 ``TypeError``
-  冒成 500（这是本轮**有意**修正的一类结果）。
+- 门绑定**没有字段白名单**：未知字段放行，只有已知字段参与类型与数值校验；
+- 非字符串 / 非数字的绑定值由 :class:`ValidationContext` 收敛成 422。
 """
 
 from __future__ import annotations
@@ -137,7 +135,7 @@ LOCK_BUSY_STATES = frozenset({'locking', 'opening', 'unlocking'})
 
 
 def _fail_lock() -> NoReturn:
-    """门绑定不合规：与拆分前同一条错误文案。"""
+    """门绑定不合规。"""
     raise HTTPException(422, detail='门锁配置无效，请检查门模型、实体及动画设置。')
 
 
@@ -147,7 +145,7 @@ def _validate_door_binding(ctx: ValidationContext, binding: Any) -> None:
         _fail_lock()
     model_id = binding.get('modelId')
     if isinstance(model_id, str) and model_id:
-        # 兼容历史配置：只写 ``<id>`` 时补上 ``door:`` 前缀。
+        # 门模型 id 统一带 ``door:`` 前缀。
         binding['modelId'] = model_id if model_id.startswith(DOOR_MODEL_PREFIX) else f'{DOOR_MODEL_PREFIX}{model_id}'
     if not ctx.require_text(binding, tuple(LOCK_TEXT_FIELDS), MAX_LOCK_TEXT_LENGTH):
         _fail_lock()
@@ -190,7 +188,7 @@ def _validate_door_binding(ctx: ValidationContext, binding: Any) -> None:
             continue
         if not ctx.number(dimension, low, high):
             _fail_lock()
-    # 字号不再设上限（旧的 8-100 夹紧会把放大后的标签裁掉），只要求为正数。
+    # 字号不设上限（8-100 夹紧会把放大后的标签裁掉），只要求为正数。
     font_size = binding.get('fontSize')
     if font_size not in (None, '') and not ctx.positive_number(font_size):
         _fail_lock()

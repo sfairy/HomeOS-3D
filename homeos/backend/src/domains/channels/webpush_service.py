@@ -261,8 +261,7 @@ def encrypt_webpush_payload(
     # 单记录：正文 + 0x02 填充分隔符（最后一条记录）
     #
     # 负载必须先裁剪：FCM 等推送服务对整包 body 有 4096 字节硬上限，超了直接 413、整条
-    # 推送被丢。旧实现照发不悟，只是打条日志 —— 站内留痕还在，用户永远不知道手机没收到。
-    # 裁到上限并保留开头（告警最关键的信息在开头），同时明确记录截断。
+    # 推送被丢。裁到上限并保留开头（告警最关键的信息在开头），同时明确记录截断。
     if len(payload) > MAX_PUSH_PLAINTEXT_BYTES:
         clipped = payload[:MAX_PUSH_PLAINTEXT_BYTES].decode("utf-8", errors="ignore")
         payload = clipped.encode("utf-8")
@@ -599,9 +598,8 @@ class WebPushService:
         """投递单条订阅，返回是否真正送达（2xx）。
 
         瞬时失败（429 限流 / 5xx 网关错误 / 连接未建立）会**逐订阅**退避重试：推送服务
-        常在响应里给出 ``Retry-After``，照它等才有意义；旧实现一失败就返回 False，上层
-        的固定 1s/2s 重试远早于服务端允许的时间，于是三次全部撞在同一段限流窗口里，
-        这条通知就永远送不出去（而站内留痕看着一切正常）。
+        常在响应里给出 ``Retry-After``，照它等才有意义。固定 1s/2s 的重试远早于服务端
+        允许的时间，三次会全部撞在同一段限流窗口里，这条通知就永远送不出去。
         """
         remaining = self._backoff_remaining(sub.endpoint)
         if remaining > 0:

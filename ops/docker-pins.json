@@ -15,13 +15,13 @@
   ],
   "images": {
     "python": {
-      "upstream_tag": "python:3.14-slim-bookworm",
-      "digest": "sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83",
+      "upstream_tag": "python:3.15-slim-bookworm",
+      "digest": "sha256:2a41267d9de9d358f77a1de356e0f16ecba8d39827855be0ce9ef4792edce402",
       "role": "后端编译与运行基础镜像（app / store 两个运行镜像都基于它）"
     },
     "caddy": {
-      "upstream_tag": "caddy:2.11.4-alpine",
-      "digest": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+      "upstream_tag": "caddy:2.11.7-alpine",
+      "digest": "sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
       "role": "内置反代（镜像内取静态二进制）+ 「可选：内置 Caddy 入口」段的 caddy-public 容器"
     }
   }

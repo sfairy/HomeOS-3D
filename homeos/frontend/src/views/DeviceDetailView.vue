@@ -146,7 +146,7 @@ import {
 } from '@/features/device'
 
 /**
- * 页面主色注入（Task 4：DeviceDetail 同步 Devices 的 sky 主题）
+ * 页面主色注入（DeviceDetail 与 Devices 共用 sky 主题）
  * 通过 :style 在根元素注入 --page-accent / --page-accent-rgb，
  * 配合 list-page-views.css 与 devices-theme.css 中已有的 var(--page-accent) 引用，
  * 并在 scoped CSS 中派生 --page-accent-bg/border/glow/text 与 --set-* 语义色。

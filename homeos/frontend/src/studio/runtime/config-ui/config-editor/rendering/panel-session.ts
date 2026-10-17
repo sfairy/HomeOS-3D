@@ -2,8 +2,7 @@
  * 配置编辑器「编辑会话」域：条目 → 可持久化形状（`buildItemPayload`）、
  * 与基线的字段差异（`listChangedFields`）、切换设备种类的会话重建（`switchEditorKind`）。
  *
- * 从 panel-rendering.ts 单体切出（P4 6d-3）。正文逐字复制 —— 仅有的改动是把原先宿主 `let`
- * 的 `fieldDefs` / `baselineItemsById` 改写为 `editorSession.*`（可变单元，见接口注释）。
+ * `fieldDefs` / `baselineItemsById` 是 `editorSession.*` 上的可变单元（见接口注释）。
  */
 
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";

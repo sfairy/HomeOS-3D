@@ -1,8 +1,7 @@
 /**
- * 旧命令式运行时 → 外壳 chrome（toast / confirm / media modal）的桥。
+ * 命令式运行时 → 外壳 chrome（toast / confirm / media modal）的桥。
  *
- * 编辑器 / 户型图绘制 / 展示页里原先各自维护 DOM toast（`.toast`）与独立
- * ``ui-confirm`` 对话框；现在统一走 Pinia ``chrome.store``，由 App 根挂载的
+ * 编辑器 / 户型图绘制 / 展示页统一走 Pinia ``chrome.store``，由 App 根挂载的
  * ``VNotification`` / ``VConfirmModal`` / ``MediaPlayerModal`` 渲染，
  * 和设备页等 shell 路由同一套原语。
  */

@@ -8,15 +8,8 @@ import re
 import secrets
 from pathlib import Path
 
-# 暖金区令牌一律落 --hb-*：历史配置里的 --hos-* 键读入时改指，不用人工迁移。
-# `_TOKEN_NAME` 描述的是「接口**接受**哪些名字」，不是「存下来叫什么」：规范化在匹配之前，
-# 存下来的始终是 --hb-*。`--hos-*` 是 0.6.2 的原始命名，前端 `appearance.ts` 至今仍作为
-# 兼容镜像一并生成（商店侧已无消费者，但对外生成的 CSS 可能有引用方），故必须继续接受。
-# 前端 `appearance.ts` 仍可能生成 --hos-* 兼容名，后端必须继续认得出。
-# 要真正下线 --hos-*，得先让前端停止生成，再删这里的分支与上面的改写。
-_LEGACY_HOS_PREFIX = re.compile(r'^--hos-(?=(?:accent|lumen|aura|eco)(?:-|$))')
 _TOKEN_NAME = re.compile(
-    r'^--(?:hos|hb)-(?:accent|lumen|aura|eco)(?:-rgb|-bright|-deep|-soft|-line|-text)?$'
+    r'^--hb-(?:accent|lumen|aura|eco)(?:-rgb|-bright|-deep|-soft|-line|-text)?$'
 )
 _TOKEN_NAME_EXTRA = frozenset({'--hb-accent-grad-hover'})
 
@@ -61,17 +54,16 @@ def validate_tokens(tokens: object) -> dict[str, str]:
         raise AppearanceError(f'配色令牌最多 {_MAX_TOKENS} 枚。')
     normalized: dict[str, str] = {}
     for raw_name, raw_value in tokens.items():
-        raw = str(raw_name).strip()
-        name = _LEGACY_HOS_PREFIX.sub('--hb-', raw)
+        name = str(raw_name).strip()
         if name not in _TOKEN_NAME_EXTRA and not _TOKEN_NAME.match(name):
             raise AppearanceError(
-                f'「{raw}」不是可配置的配色令牌；可配置的是主控色 / 暖光 / 极光紫 / 生态薄荷这四束光。'
+                f'「{name}」不是可配置的配色令牌；可配置的是主控色 / 暖光 / 极光紫 / 生态薄荷这四束光。'
             )
         if not isinstance(raw_value, str):
-            raise AppearanceError(f'「{raw}」的取值必须是字符串。')
+            raise AppearanceError(f'「{name}」的取值必须是字符串。')
         value = raw_value.strip().lower()
         if not _value_pattern(name).match(value):
-            raise AppearanceError(f'「{raw}」的取值「{raw_value}」不是合法的颜色写法。')
+            raise AppearanceError(f'「{name}」的取值「{raw_value}」不是合法的颜色写法。')
         normalized[name] = value
     return normalized
 

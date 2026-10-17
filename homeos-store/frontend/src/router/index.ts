@@ -44,11 +44,6 @@ const routes: RouteRecordRaw[] = [
         meta: ACCOUNT_META,
       },
       {
-        // 旧路径兼容：不再单独挂页面，统一进账号中心。
-        path: "user/index/query",
-        redirect: { name: "account" },
-      },
-      {
         path: "user/referrals",
         name: "referrals",
         component: ReferralsView,

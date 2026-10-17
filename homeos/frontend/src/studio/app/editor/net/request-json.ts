@@ -91,7 +91,7 @@ export async function requestJson(
     throw window.HomeOSLog?.linkError!(error, responseText)! || error;
   }
   if (responseText.status === 403 && responseBody?.detail?.code === "LICENSE_RESTRICTED") {
-    startAuthRedirect(deps, "/license", true);
+    startAuthRedirect(deps, "/activate", true);
     const errorPhaseState = new Error("授权已失效，请重新激活。");
     throw window.HomeOSLog?.linkError!(errorPhaseState, responseText)! || errorPhaseState;
   }

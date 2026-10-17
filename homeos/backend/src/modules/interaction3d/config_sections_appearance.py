@@ -4,9 +4,8 @@
 对齐本文件的参数棘轮），共用判定表放在模块顶部。
 
 ``pageBehaviors[page]`` 是**覆盖**而不是完整配置：先按 :data:`BEHAVIOR_FIELDS` 归一化
-（``autoRotate: true`` 这种布尔简写补成 ``{'enabled': True}``），再用同一套行为判定复校验。
-旧实现把归一化后的子字典当整份配置重跑入口，于是永远缺少 ``sceneId`` → 恒 422，
-分页行为覆盖功能整条死掉；这里改为只校验行为字段本身。
+（``autoRotate: true`` 这种布尔简写补成 ``{'enabled': True}``），再只校验行为字段本身，
+不能用整份配置的入口复校验——覆盖项不会带 ``sceneId``。
 """
 
 from __future__ import annotations

@@ -153,7 +153,7 @@ export function resolveSubscribeDomains(
       }
       const entityId = ref.entityId
       if (!entityId) return
-      // 与历史行为一致：浮窗/统计传感器的引用需形如 domain.entity 才计入域订阅
+      // 浮窗/统计传感器的引用需形如 domain.entity 才计入域订阅
       const needsEntityDot = ref.source === 'floatingWidget' || ref.source === 'statSensor'
       if (needsEntityDot && !entityId.includes('.')) return
       domains.add(getEntityDomain(entityId))

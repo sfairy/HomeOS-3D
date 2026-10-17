@@ -25,7 +25,7 @@
     "typecheck": "tsc -p tsconfig.esm.json --noEmit"
   },
   "dependencies": {
-    "js-yaml": "^5.4.3"
+    "js-yaml": "^5.5.0"
   },
   "peerDependencies": {
     "vue": "^3.5"
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@typescript-eslint/parser": "^8.71.2",
-    "eslint": "^10.12.0",
+    "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.11.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",

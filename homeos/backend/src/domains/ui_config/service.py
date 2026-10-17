@@ -21,8 +21,6 @@ from sqlalchemy import select
 from .layout_secrets import (
     mask_layout,
     merge_layout_secrets_on_save,
-    strip_legacy_ha_connection,
-    strip_retired_layout_keys,
 )
 from .static_assets import UiConfigStaticAssetService
 from ...platform.core.asset_paths import get_ui_assets_dir
@@ -81,34 +79,10 @@ class UiConfigService:
         return {
             "id": config.id,
             "projectId": config.project_id,
-            # 读路径统一清掉历史 layout.haConfig 里的连接凭据（3.3 起单源到 ha_connections）
-            # 与已退役的结构键（角色维度）。
-            "layout": strip_retired_layout_keys(strip_legacy_ha_connection(read_json_object(config.layout))),
+            "layout": read_json_object(config.layout),
             "createdAt": _iso(config.created_at),
             "updatedAt": _iso(config.updated_at),
         }
-
-    def normalize_retired_layout_keys(self) -> int:
-        """一次性清掉库里 layout 中的退役键，返回被改写的项目数（启动期调用）。
-
-        前端 / 读路径只是「读到的时候不认」，键会一直躺在库里直到该项目下次保存；
-        存量安装不可能人人再保存一次，所以启动时补一遍。解析失败的 layout 原样跳过，
-        绝不用空对象覆盖。
-        """
-        changed = 0
-        with self._session_factory() as session:
-            for config in session.execute(select(ProjectConfig)).scalars().all():
-                raw = read_json_object(config.layout)
-                cleaned = strip_retired_layout_keys(raw)
-                if cleaned == raw:
-                    continue
-                config.layout = json.dumps(cleaned, ensure_ascii=False)
-                changed += 1
-            if changed:
-                session.commit()
-        if changed:
-            logger.info("已清理 %d 个布局中的退役键", changed)
-        return changed
 
     def _find(self, session, project_id: str) -> ProjectConfig | None:
         return session.execute(
@@ -326,7 +300,7 @@ class UiConfigService:
         ``SYSTEM_CONFIG_UPDATED``，供其它读 layout 的消费者（安防事件路径、绑定等）刷新。
         """
         logger.info("正在保存项目布局配置:%s", project_id)
-        layout_json = strip_retired_layout_keys(strip_legacy_ha_connection(to_input_json(layout, {})))
+        layout_json = to_input_json(layout, {})
         with self._session_factory() as session:
             config = self._find(session, project_id)
             now = datetime.now(UTC)
@@ -451,10 +425,9 @@ class UiConfigService:
                 logger.warning("跳过损坏的布局配置 projectId=%s", item.get("projectId"))
                 continue
             project_id = str(item["projectId"])
-            # 只在「该 profile 本来就在库里」时做密钥兜底合并。
-            # 旧实现写成 `existing.get(...) or active_layout`：导入一个全新 profile 时会把
-            # **当前激活 profile** 的密钥（HA 令牌 / MCP 网关密钥 / SMTP / VAPID 私钥）
-            # 一并写进这份导入的配置里 —— 跨 profile 泄漏，且导入方完全看不出来。
+            # 只在「该 profile 本来就在库里」时做密钥兜底合并。不要回落到 active_layout：
+            # 导入一个全新 profile 时会把**当前激活 profile** 的密钥（HA 令牌 / MCP 网关
+            # 密钥 / SMTP / VAPID 私钥）写进这份导入的配置里 —— 跨 profile 泄漏。
             merged = merge_layout_secrets_on_save(layout_obj, existing.get(project_id))
             rows_to_write.append({"projectId": project_id, "layout": merged})
 

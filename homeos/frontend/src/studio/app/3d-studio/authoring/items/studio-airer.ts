@@ -33,7 +33,7 @@ export function airerDimensions(options: AirerDimensionOptions = {}) {
   };
 }
 
-/** 0.7.2 电动单杆晾衣架（吊线）。 */
+/** 电动单杆晾衣架（吊线）。 */
 function createSingleAirerModel(three: any, airerConfig: any, palette: any) {
   const dimensions = airerDimensions(airerConfig),
     materialColors = {

@@ -182,21 +182,21 @@ const moduleShelf = computed(() =>
             class="hb-button hb-button--secondary hb-button--lg"
             href="#home-tiers-title"
           >
-            对比版本
+            <i class="fa-duotone fa-regular fa-scale-balanced"></i> 对比版本
           </a>
           <RouterLink
             v-if="!authenticated"
             class="hb-button hb-button--ghost hb-button--lg"
             to="/user/authentication/login"
           >
-            登录
+            <i class="fa-duotone fa-regular fa-arrow-right-to-bracket"></i> 登录
           </RouterLink>
           <RouterLink
             v-if="!authenticated"
             class="hb-button hb-button--ghost hb-button--lg"
             to="/user/authentication/register"
           >
-            注册
+            <i class="fa-duotone fa-regular fa-user-plus"></i> 注册
           </RouterLink>
           <RouterLink
             v-if="authenticated"

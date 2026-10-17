@@ -2171,35 +2171,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 旧 chip 筛选（其他页面若仍引用） */
-.device-filter__section {
-  margin-bottom: 14px;
-}
-
-.device-filter__section:last-child {
-  margin-bottom: 0;
-}
-
-.device-filter__section-title {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-label);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 10px;
-  display: block;
-}
-
-.device-filter__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.device-filter__tags--scroll {
-  max-height: 120px;
-  overflow-y: auto;
-}
-
 /* chip 语义色（在线/离线/低电量） */
 .devices-view .list-page__chip--online.list-page__chip--accent {
   border-color: color-mix(in srgb, var(--premium-accent-green, #34c759) 38%, rgba(0, 0, 0, 0));

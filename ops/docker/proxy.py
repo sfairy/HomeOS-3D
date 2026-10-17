@@ -1,16 +1,16 @@
 """容器内 Caddy 反代与应用进程的守护（反代已内置进镜像，见 Dockerfile）。
 
-两个镜像各自内置自己那一侧的反代，并由本模块在容器里与后端一起拉起：
-
-  - 主应用镜像：Caddy 监听 :8803 → 反代同容器 127.0.0.1:8801（uvicorn）
-  - 商店镜像：  Caddy 监听 :8804 → 反代同容器 127.0.0.1:8802（商店）
+**只有主应用**用这套：Caddy 监听 :8803 → 反代同容器 127.0.0.1:8801（uvicorn）。商店没有任何
+HTTPS 入口（内网 http://<局域网IP>:8802，公网由隧道 / 跳板机在 80·443 用真实证书终止 TLS），
+所以它由 ``start_store.py`` 直接 exec 起来，不经过本模块。
 
 反代与应用同容器、同镜像 tag、同生命周期，因此：
 
   - 配置随镜像发布，不会和宿主机上的文件漂移；
-  - 不要求先把应用端口发布到宿主机；
-  - 对端固定是回环，uvicorn 的转发头信任范围保持默认 ``127.0.0.1,::1`` 即可，
-    不必放宽到 docker 网段（限流与审计的来源地址因此保持可信）。
+  - 不要求先把 8801 发布到宿主机；
+  - 这条内置反代的对端固定是回环，信任 127.0.0.1,::1 就够。compose 里额外把 docker 网段
+    （172.16.0.0/12）写进 ``APP_TRUSTED_PROXIES`` / ``STORE_TRUSTED_PROXIES``，是为**另一条**
+    链路服务：内网穿透或宿主反代回灌到已发布的 8801 / 8802 时，容器看到的源是网桥网关。
 
 Caddy 退出会被记录并按节奏重启；超过上限后放弃反代但**不**拖垮应用进程（HTTP 直连
 端口仍可用）。主进程退出会连带停掉 Caddy，让容器一起退出并由 restart 策略接管。
@@ -37,11 +37,9 @@ TERMINATE_GRACE_SECONDS = 10.0
 POLL_INTERVAL_SECONDS = 0.5
 
 #: Caddyfile 里 ``default_sni`` 的取值变量名 → 默认名。默认名必须与
-#: ``ops/caddy/*.Caddyfile`` 的 ``{$VAR:默认名}`` 逐字一致，否则这里打印的提示就是错的。
+#: ``ops/caddy/app.Caddyfile`` 的 ``{$VAR:默认名}`` 逐字一致，否则这里打印的提示就是错的。
 DEFAULT_SNI_VARIABLE = 'APP_HTTPS_DEFAULT_SNI'
 DEFAULT_SNI_FALLBACK = 'homeos.local'
-STORE_DEFAULT_SNI_VARIABLE = 'STORE_HTTPS_DEFAULT_SNI'
-STORE_DEFAULT_SNI_FALLBACK = 'store.local'
 
 
 def _note(message: str) -> None:
@@ -86,7 +84,7 @@ def _default_sni_problem(value: str) -> str:
         try:
             ipaddress.IPv6Address(value)
         except ValueError:
-            return '带上了端口号，而 default_sni 只接受主机名或 IP（端口由 8803 / 8804 决定）'
+            return '带上了端口号，而 default_sni 只接受主机名或 IP（端口由 8803 决定）'
     return ''
 
 

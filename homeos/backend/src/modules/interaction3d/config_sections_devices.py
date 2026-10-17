@@ -57,12 +57,10 @@ TELEVISION_FIELDS = frozenset(
         'screenImage',
     }
 )
-#: 0.7.2：``powerEntityId`` 可选（不单独绑定时跟随 ``media_player``）。
+#: ``powerEntityId`` 可选，不单独绑定时跟随 ``media_player``。
 TELEVISION_ENTITY = re.compile(r'media_player\.[a-z0-9_]+')
 #: 屏幕图片资源：``user:`` + 32 位十六进制（空值也拒绝：有 ``screenImage`` 就必须有资源）。
 SCREEN_IMAGE_ASSET = re.compile(r'user:[0-9a-f]{32}')
-#: 旧 HomeOS ``posterAssetId`` 的裸 id 形式。
-LEGACY_ASSET_ID = re.compile(r'[0-9a-f]{32}')
 TELEVISION_RULES = WidgetRules(
     allowed_fields=TELEVISION_FIELDS,
     click_actions=CLICK_ACTIONS_FULL,
@@ -298,25 +296,8 @@ def _unique_layout_widgets(ctx: ValidationContext, spec: _CollectionSpec) -> Ite
 
 def _validate_televisions(ctx: ValidationContext, devices: dict) -> None:
     spec = _CollectionSpec(devices, 'televisions', TELEVISION_FIELDS)
-    for television in _layout_devices(ctx, spec):
-        _normalize_television_image(television)
     for television in _unique_layout_widgets(ctx, spec):
         _validate_television(ctx, television)
-
-
-def _normalize_television_image(television: Any) -> None:
-    """兼容旧 HomeOS ``posterAssetId`` → 0.7.2 ``screenImage``。
-
-    非字典元素交给白名单判定去拒（旧实现在这里直接 ``AttributeError`` 冒 500）。
-    """
-    if not isinstance(television, dict):
-        return
-    poster_legacy = television.get('posterAssetId', '')
-    if isinstance(poster_legacy, str) and poster_legacy and 'screenImage' not in television:
-        bare_asset_id = poster_legacy.removeprefix('user:').lower()
-        if LEGACY_ASSET_ID.fullmatch(bare_asset_id):
-            television['screenImage'] = {'assetId': 'user:' + bare_asset_id}
-    television.pop('posterAssetId', None)
 
 
 def _validate_television(ctx: ValidationContext, television: Any) -> None:

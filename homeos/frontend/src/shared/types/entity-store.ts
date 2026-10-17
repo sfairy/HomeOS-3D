@@ -311,7 +311,7 @@ export interface EntityInitDeps {
   clearAllEntities: () => void // 清空所有实体
   cancelPersistCacheTimer: () => void // 取消缓存持久化定时器
   persistEntityCacheNow: () => Promise<void> // 立即持久化缓存
-  /** 当前访问权限指纹（restrictions），变化时强制接受缩小快照（B5 权限收紧清陈旧数据） */
+  /** 当前访问权限指纹（restrictions），变化时强制接受缩小快照并清除陈旧数据 */
   restrictionsVersion?: () => string
 }
 

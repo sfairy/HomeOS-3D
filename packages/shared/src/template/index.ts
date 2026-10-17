@@ -49,7 +49,6 @@ export {
   isPlaceholderEntityId,
   findPlaceholderEntityIdsInYaml,
   getRequiredSlotGroups,
-  validateApplianceSlotMapping,
   yamlHasNonStandardTemplateAttributes,
 } from './entity-validate';
 export {

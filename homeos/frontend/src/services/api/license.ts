@@ -86,7 +86,6 @@ export type LicenseAvailability = {
   retryAttempt?: number
   nextRetryAt?: string | null
   errorCode?: string | null
-  lastError?: string | null
 }
 
 /** 文案渲染只需要这些字段；status / availability 两种响应都能传进来。 */
@@ -123,7 +122,7 @@ const LICENSE_STATUS_MESSAGES: Record<string, string> = {
 /**
  * 状态码 → 中文短标签（面板徽标 / 键值表共用）。
  * 与后端 `services/license/service.py::STATUS_LABELS` 同源；后端已下发 `statusLabel` 时优先后端值，
- * 这张表只做兜底（旧后端字段缺失）与前端本地判定，避免直接暴露 `ACTIVE` 这类英文码。
+ * 这张表用于前端本地判定，避免直接暴露 `ACTIVE` 这类英文码。
  */
 export const LICENSE_STATUS_LABELS: Record<string, string> = {
   UNACTIVATED: '未激活',
@@ -226,7 +225,7 @@ export function licenseMessage(state: LicenseMessageState = {}, detail = ''): st
   return message
 }
 
-/** 后端授权错误信封里的 detail（`{ code, message, retryable }`，也兼容 string）。 */
+/** 后端授权错误信封里的 detail（`{ code, message, retryable }`）。 */
 type LicenseErrorDetail = { code?: string; message?: string; retryable?: boolean }
 
 /** 从 axios 错误里解析后端 detail；形状不认识时返回 null。 */
@@ -255,6 +254,16 @@ export function licenseErrorMessage(error: unknown, fallback: string): string {
   const detail = readLicenseErrorDetail(error)
   if (detail?.message) return appendRateLimitHint(detail.message, detail.code)
   return getApiErrorMessage(error, fallback)
+}
+
+/**
+ * 从授权接口错误里取出机器可读的错误码（如 `INSTANCE_MISMATCH`）。
+ *
+ * 激活失败是 422，后端用 `{ code, message }` 下发；前端据此决定是否显示「先去商店解绑」
+ * 这类需要用户动手的处置步骤 —— 只靠中文文案匹配太脆。
+ */
+export function licenseErrorCode(error: unknown): string {
+  return readLicenseErrorDetail(error)?.code || ''
 }
 
 /** 后端是否明确表示「重试无意义」（false 时前端应隐藏重试按钮）。 */

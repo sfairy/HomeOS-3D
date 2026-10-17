@@ -31,7 +31,7 @@ class RestoreServerBackupRequest(BaseModel):
 
     ``adminPassword`` 是**强制**的：这条路由会用备份包整体覆盖数据库（含账号与授权），
     与业务备份恢复同样不可撤销。只有 ``confirm`` 不足以证明此刻是本人操作 —— 一条被窃取
-    的会话 Cookie 就能完成清库。旧实现正是如此：只校验 ``confirm``。
+    的会话 Cookie 就能完成清库。
     """
 
     name: str = Field(default="", max_length=255)

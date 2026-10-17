@@ -4,14 +4,21 @@ import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalS
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
+  changePassword as apiChangePassword,
   getMe,
   getSetupStatus as apiGetSetupStatus,
   login as apiLogin,
   logout as apiLogout,
   register as apiRegister,
+  resetPassword as apiResetPassword,
   sendVerificationCode as apiSendVerificationCode,
 } from '@/services/api/auth'
-import type { RegisterPayload } from '@/services/api/auth'
+import type {
+  PasswordChangePayload,
+  PasswordResetPayload,
+  RegisterPayload,
+  VerificationPurpose,
+} from '@/services/api/auth'
 import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
 import { isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
 import { notifyAuthChanged } from '@/shared/utils/bridge/store-bridge'
@@ -275,12 +282,42 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 请求注册邮箱验证码（商店服务器代发）
+   * 请求邮箱验证码（商店服务器代发）
    * @param email - 接收验证码的邮箱
+   * @param purpose - 用途：首装注册 / 找回本机密码
    * @returns 发码结果（含重发冷却秒数）
    */
-  async function sendVerificationCode(email: string) {
-    const res = await apiSendVerificationCode(email)
+  async function sendVerificationCode(
+    email: string,
+    purpose: VerificationPurpose = 'register',
+  ) {
+    const res = await apiSendVerificationCode(email, purpose)
+    return res.data
+  }
+
+  /**
+   * 用注册邮箱验证码重置本机密码
+   *
+   * 成功后**不**建立会话：服务端会吊销该账号全部会话，用户必须重新登录，
+   * 所以这里也不改 ``isAuthenticated``（保持调用前的状态即可）。
+   */
+  async function resetPassword(payload: PasswordResetPayload) {
+    const res = await apiResetPassword(payload)
+    return res.data
+  }
+
+  /**
+   * 已登录状态修改本机密码
+   *
+   * 服务端在成功响应里轮换了会话 Cookie；这里递增认证世代并重建实体订阅，
+   * 让随后发出的请求与新会话对齐（旧令牌已在服务端被清掉）。
+   */
+  async function changePassword(payload: PasswordChangePayload) {
+    const res = await apiChangePassword(payload)
+    bumpAuthGeneration()
+    syncAuthFromResponse(res.data)
+    isAuthenticated.value = true
+    reconnectEntitiesAfterAuthChange()
     return res.data
   }
 
@@ -311,6 +348,8 @@ export const useAuthStore = defineStore('auth', () => {
     getSetupStatus,
     register,
     sendVerificationCode,
+    resetPassword,
+    changePassword,
     refreshSession,
     startSessionRefresh,
     stopSessionRefresh,

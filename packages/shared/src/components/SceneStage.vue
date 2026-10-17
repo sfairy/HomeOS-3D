@@ -14,7 +14,7 @@ import type { SceneTokens } from '../scene/scene-values'
 defineProps<{
   /** 壳信息 + 当前页文案（`resolveSceneValues` 的产物）。 */
   values: SceneTokens
-  /** 站点版本号：由调用方给真源（商店读站点 healthz；主应用入户页目前是固定站点版本）。 */
+  /** 应用版本号：由调用方给真源（商店读站点 healthz，主应用读 package.json）。 */
   version: string
 }>()
 </script>

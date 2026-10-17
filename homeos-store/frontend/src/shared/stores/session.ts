@@ -150,12 +150,21 @@ export const useSessionStore = defineStore("session", () => {
     ordersTotal.value = Number(data.ordersTotal ?? ordersTotal.value);
   }
 
+  /** 认证接口已通过但「会话没存住」时回滚本地态并抛错，绝不让调用方提示成功。 */
+  async function requirePersistedSession(action: "登录" | "注册"): Promise<void> {
+    if ((await sessionPersisted()) === false) {
+      resetSession();
+      throw new Error(sessionNotPersistedMessage(action));
+    }
+  }
+
   async function login(account: string, password: string) {
     const result = await api<AccountPayload>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ account: account.trim(), password }),
     });
     applyAccount(result);
+    await requirePersistedSession("登录");
     return result;
   }
 
@@ -176,6 +185,7 @@ export const useSessionStore = defineStore("session", () => {
       }),
     });
     applyAccount(result);
+    await requirePersistedSession("注册");
     return result;
   }
 
@@ -227,6 +237,54 @@ export const useSessionStore = defineStore("session", () => {
     ownedPermanentLicense,
   };
 });
+
+/**
+ * 认证成功后确认「会话真的被浏览器收下了」。
+ *
+ * 服务端在登录 / 注册的响应里 `Set-Cookie`，但浏览器**可能直接丢弃**：例如入口把请求
+ * 误标成 https（`X-Forwarded-Proto` 与实际不符）—— 带 `Secure` 的 Cookie 在明文地址下
+ * 不会被保存（localhost / 127.0.0.1 除外）；也可能是浏览器策略（禁 Cookie、无痕、
+ * 第三方 Cookie 限制）拦下了它。
+ *
+ * 注意 Secure 属性本身是**按本次请求实际用的那层**判定的（见后端
+ * `secure_cookies_required`）：内网 `http://<IP>:8802` 直连与公网 https 入口并存时，
+ * 明文那条不会被写成 Secure，所以「配了 STORE_COOKIE_SECURE 就必然存不住」不再成立。
+ * 此时接口是 200，前端若照常提示「登录成功」，紧接着 StoreLayout 的 `/auth/me` 探针
+ * 就会 401，界面又退回游客：用户看到的就是「提示登录成功，但前端仍是未登录」。
+ *
+ * 这里用一次 `/auth/me` 做确定性判定：
+ * - 200 且带 `account` → 会话确实可用；
+ * - 401 / 403 → Cookie 没落盘，调用方必须**按失败处理**，绝不能提示成功；
+ * - 其它错误（网络抖动 / 5xx）→ 无法判定，返回 `null` 不阻断，交给页面里的探针
+ *   按既有口径降级（探针自己会把 401 当未登录）。
+ *
+ * 放在模块级而不是 store 里：后台登录页（`features/admin/stores/admin.ts`）与
+ * `/setup` 初始化页也要做同一条确认，它们不需要 store 实例。
+ */
+export async function sessionPersisted(): Promise<boolean | null> {
+  try {
+    const payload = await api<AccountPayload>("/auth/me");
+    return Boolean(payload?.account);
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status === 401 || status === 403) return false;
+    return null;
+  }
+}
+
+/**
+ * 「接口通过但会话没存住」的提示语。
+ *
+ * 必须把处置写出来：这不是账号密码错误，重试多少次都一样；根因在访问方式 / 浏览器策略。
+ */
+export function sessionNotPersistedMessage(action: "登录" | "注册"): string {
+  return (
+    `${action}请求已通过，但浏览器没有保存登录会话（Cookie 被丢弃），仍按未登录处理。` +
+    "请检查浏览器是否禁用了 Cookie（无痕模式 / 第三方 Cookie 限制也会这样）；" +
+    "若站点由反向代理或内网穿透提供，还要确认入口透传了 X-Forwarded-Proto。" +
+    "重试无效时把这条提示和当前访问地址一起报给运维。"
+  );
+}
 
 /** `homeos_store_hint` cookie：给首屏之前的外壳读，刷新后仍记得登录态。 */
 export function setAuthHint(

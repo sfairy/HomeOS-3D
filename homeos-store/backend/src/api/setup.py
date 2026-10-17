@@ -8,18 +8,22 @@ from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal, select
 
-from .store_shared import _set_session_cookies
+from .store_shared import _customer_for, _set_session_cookies
 from ..core.deps import DbSession
 from ..core.models import Account, AccountSession
+from ..core.schemas import StrongPassword
 from ..security.request_security import resolve_client_ip
 from ..security.security import (
+    PASSWORD_POLICY_MESSAGE,
     hash_password,
+    is_password_policy_compliant,
     is_valid_email,
     new_token,
     new_uuid,
+    normalize_username,
     token_hash,
     utcnow,
 )
@@ -28,14 +32,26 @@ logger = logging.getLogger("src.setup")
 
 router = APIRouter(prefix="/store/v1/setup", tags=["setup"])
 
-MIN_PASSWORD_LENGTH = 8
-
 
 class SetupAdminRequest(BaseModel):
+    #: 登录账号名：与商店注册同口径（3–64 位，不含 ``@`` 与空白）。
+    #: 建好的管理员同时也是商店用户，之后可像普通用户一样用账号名或邮箱登录前台。
+    username: str = Field(min_length=3, max_length=64)
     email: str = Field(min_length=3, max_length=255)
-    password: str = Field(min_length=MIN_PASSWORD_LENGTH)
-    confirm_password: str = Field(min_length=MIN_PASSWORD_LENGTH)
+    password: StrongPassword
+    confirm_password: StrongPassword
     setup_token: str = Field(default="", max_length=512)
+
+    @model_validator(mode="after")
+    def normalize(self) -> SetupAdminRequest:
+        # 清洗口径与注册完全一致（`RegisterRequest.validate_register`）：
+        # 非法账号（含 @ / 空白 / 控制字符）在这里就 422，不等到 insert 撞库再报。
+        try:
+            self.username = normalize_username(self.username)
+        except ValueError as error:
+            raise ValueError(str(error)) from error
+        self.email = self.email.strip().lower()
+        return self
 
 
 def admin_exists(session) -> bool:
@@ -63,13 +79,20 @@ def setup_status(request: Request, session: DbSession) -> dict:
 def _validate_setup_admin_input(payload: SetupAdminRequest, session: DbSession) -> str:
     """校验邮箱格式、确认密码与「尚未初始化」；返回规范化邮箱。
 
-    邮箱唯一性检查仍在 ``setup_admin`` 里、``guard.authorize`` 之后执行（保持原顺序）。
+    邮箱 / 账号名唯一性检查仍在 ``setup_admin`` 里、``guard.authorize`` 之后执行（保持原顺序：
+    未通过引导密钥的调用方问不出「某个邮箱或账号名是否已被占用」）。
     """
     email = payload.email.strip().lower()
     if not is_valid_email(email):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="请输入有效的邮箱地址（形如 name@example.com）。",
+        )
+    # schema 已在解析期挡过一次；这里再兜一次，防止有人用 ``model_construct`` 绕过校验。
+    if not is_password_policy_compliant(payload.password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=PASSWORD_POLICY_MESSAGE,
         )
     if payload.confirm_password != payload.password:
         raise HTTPException(
@@ -84,7 +107,9 @@ def _validate_setup_admin_input(payload: SetupAdminRequest, session: DbSession) 
     return email
 
 
-def _insert_admin_account(session: DbSession, *, email: str, password: str, moment) -> str:
+def _insert_admin_account(
+    session: DbSession, *, username: str, email: str, password: str, moment
+) -> str:
     account_id = new_uuid()
     password_hash = hash_password(password)
     statement = (
@@ -92,6 +117,7 @@ def _insert_admin_account(session: DbSession, *, email: str, password: str, mome
         .from_select(
             [
                 "id",
+                "username",
                 "email",
                 "password_hash",
                 "email_verified_at",
@@ -102,6 +128,7 @@ def _insert_admin_account(session: DbSession, *, email: str, password: str, mome
             ],
             select(
                 literal(account_id, String(36)),
+                literal(username, String(64)),
                 literal(email, String(255)),
                 literal(password_hash, String(512)),
                 literal(moment, DateTime),
@@ -168,12 +195,26 @@ def setup_admin(
             status_code=status.HTTP_409_CONFLICT,
             detail="该邮箱已被注册，请更换邮箱或直接登录。",
         )
+    taken = session.scalar(select(Account).where(Account.username == payload.username))
+    if taken is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该账号名已被占用，请更换账号名。",
+        )
 
     settings = request.app.state.settings
     moment = utcnow()
     account_id = _insert_admin_account(
-        session, email=email, password=payload.password, moment=moment
+        session,
+        username=payload.username,
+        email=email,
+        password=payload.password,
+        moment=moment,
     )
+    # 管理员同时也是商店用户：立刻补建客户档案，账号中心 / 下单不必再等第一次下单时补建。
+    account = session.get(Account, account_id)
+    if account is not None:
+        _customer_for(session, account)
     token = _create_admin_session(
         session, request, account_id=account_id, moment=moment, settings=settings
     )
@@ -183,9 +224,19 @@ def setup_admin(
     if guard is not None:
         guard.consume()
 
-    logger.info("商店管理员初始化成功 email=%s", email)
+    logger.info("商店管理员初始化成功 username=%s email=%s", payload.username, email)
     response = JSONResponse(
-        {"email": email, "isAdmin": True},
+        {
+            "account": {
+                "id": account_id,
+                "username": payload.username,
+                "email": email,
+                "isAdmin": True,
+            },
+            "email": email,
+            "username": payload.username,
+            "isAdmin": True,
+        },
         status_code=status.HTTP_201_CREATED,
     )
     # 与 `/store/v1/auth/login` 口径一致：会话 cookie 之外还要写 hint cookie。

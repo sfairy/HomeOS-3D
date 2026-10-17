@@ -149,7 +149,7 @@ export function refreshCsrfToken(forceReset = false): Promise<void> {
 apiClient.interceptors.request.use(async (config) => {
   const cfg = getFrontendConfig()
   // axios 在进入拦截器前已把实例 defaults 合并进 config，因此 config.timeout 不会是 undefined。
-  // 未显式传入 timeout 时其值等于实例默认超时，此时对齐到运行配置；显式传入的值（含等于旧默认值）则保留。
+  // 未显式传入 timeout 时其值等于实例默认超时，此时对齐到运行配置；显式传入的值则保留。
   if (config.timeout === apiClient.defaults.timeout) {
     config.timeout = cfg.apiTimeoutMs
   }
@@ -364,6 +364,6 @@ export const apiPut = <T = any>(url: string, data?: unknown, config?: ApiRequest
 export const apiDelete = <T = any>(url: string, config?: ApiRequestConfig) =>
   apiClient.delete<T>(url, config)
 
-// 为并入的 studio 遗留裸 fetch 兜底注入 CSRF 头（幂等，仅同源 /api/** 变更类请求）。
+// 为 studio 的裸 fetch 兜底注入 CSRF 头（幂等，仅同源 /api/** 变更类请求）。
 // 单 HTTP 栈：CSRF 逻辑全部收敛在本模块 + ./api/csrf，auth 视图不再持有 HTTP 细节。
 installFetchCsrf()

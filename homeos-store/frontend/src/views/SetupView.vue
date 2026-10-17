@@ -4,8 +4,11 @@ import SceneStage from "@store/shared/components/SceneStage.vue";
 import DeckTiles from "@store/shared/components/DeckTiles.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { fromResponse } from "@store/shared/api/error";
+import { isPasswordPolicyCompliant, PASSWORD_POLICY_MESSAGE } from "@store/shared/utils/password";
+import { sessionPersisted } from "@store/shared/stores/session";
 import { reportBestEffort, runBestEffort } from "@store/shared/utils/best-effort";
 
+const username = ref("");
 const email = ref("");
 const password = ref("");
 const confirmPassword = ref("");
@@ -13,6 +16,12 @@ const setupToken = ref("");
 const errorText = ref("");
 const submitting = ref(false);
 const showRedirect = ref(false);
+/**
+ * 管理员已创建，但浏览器把登录 Cookie 丢了（典型：浏览器策略，或商店在明文入口上下发了
+ * 带 Secure 的 Cookie —— 例如 STORE_COOKIE_SECURE 写死成 true）。此时再跳 `/admin`
+ * 只会看到登录屏，用户会以为初始化失败 —— 单独一屏说明。
+ */
+const sessionLost = ref(false);
 
 function tokenFromFragment() {
   const match = /(?:^|[#&])token=([^&]+)/.exec(location.hash || "");
@@ -43,11 +52,13 @@ onMounted(async () => {
       headers: fragmentToken ? { "X-Setup-Token": fragmentToken } : {},
     });
     const data = (await response.json()) as { initialized?: boolean };
-    if (data?.initialized && fragmentToken) {
+    // 已有管理员：这一页从此刻起**不再提供创建入口**（服务端 `/setup` 本身也已经 302 到
+    // `/admin`，这里兜住「客户端直接进 SPA 路由」与「页面已渲染后才完成初始化」两种情形）。
+    if (data?.initialized) {
       showRedirect.value = true;
       window.setTimeout(() => {
-        window.location.assign("/admin");
-      }, 1500);
+        window.location.replace("/admin");
+      }, 800);
     }
   } catch (error) {
     // 可降级：读不到状态就照常让用户尝试初始化，服务端会给出权威判定（409 → 已初始化）。
@@ -61,13 +72,22 @@ function showError(message: string) {
 
 async function submit() {
   errorText.value = "";
+  const trimmedUsername = username.value.trim();
   const trimmedEmail = email.value.trim();
+  if (!trimmedUsername) {
+    showError("请输入管理员账号。");
+    return;
+  }
+  if (trimmedUsername.length < 3) {
+    showError("账号至少需要 3 位，且不能包含 @ 或空格。");
+    return;
+  }
   if (!trimmedEmail) {
     showError("请输入管理员邮箱。");
     return;
   }
-  if (password.value.length < 8) {
-    showError("密码至少需要 8 位。");
+  if (!isPasswordPolicyCompliant(password.value)) {
+    showError(PASSWORD_POLICY_MESSAGE);
     return;
   }
   if (password.value !== confirmPassword.value) {
@@ -81,6 +101,7 @@ async function submit() {
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        username: trimmedUsername,
         email: trimmedEmail,
         password: password.value,
         confirm_password: confirmPassword.value,
@@ -90,6 +111,13 @@ async function submit() {
     // 空体或 HTML 错误页时保持空对象：只为了拿到 `detail`，真正的判定看状态码。
     const body = await response.json().catch(() => ({}));
     if (response.status === 201) {
+      // 与登录同一条判据：接口成功不代表会话被浏览器收下了（http + Secure Cookie 会丢）。
+      // 会话没存住时**不要**跳 `/admin`（那里只会显示登录屏），改为就地说明怎么修。
+      if ((await sessionPersisted()) === false) {
+        sessionLost.value = true;
+        submitting.value = false;
+        return;
+      }
       window.location.assign("/admin");
       return;
     }
@@ -114,7 +142,45 @@ async function submit() {
     <SceneStage page="setup" />
 
     <main class="hos-dock">
-      <section v-if="!showRedirect" class="hos-panel hos-rise">
+      <section v-if="sessionLost" class="hos-panel hos-rise">
+        <span class="hos-panel__edge" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+        <div class="hos-panel__head">
+          <div class="hos-eyebrow-row">
+            <p class="hos-eyebrow">已创建 · 会话未保存</p>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>无需重复初始化</span>
+          </div>
+          <h1>管理员已创建，但登录状态没存住</h1>
+          <p class="hos-panel__desc">
+            账号已写入数据库，可以直接登录。浏览器丢弃了登录 Cookie，通常是浏览器策略
+            （无痕模式 / 禁用 Cookie / 第三方 Cookie 限制）；也可能是
+            <code>STORE_COOKIE_SECURE</code> 被写死成 <code>true</code>，而你是用
+            <code>http://</code> 打开的 —— 带 <code>Secure</code> 的 Cookie 在明文下会被丢弃。
+            改回默认的 <code>auto</code> 即可（它按本次请求的实际协议判定）。
+            若你走的是 HTTPS 入口，还要确认入口透传了
+            <code>X-Forwarded-Proto: https</code>。
+          </p>
+        </div>
+        <DeckTiles page="setup" />
+        <div class="hos-actions">
+          <RouterLink class="hos-btn-primary" to="/admin">前往管理员登录</RouterLink>
+        </div>
+        <div class="hos-panel__copy">
+          <div class="hos-panel__meta">
+            <span>账号已写入</span>
+            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+            <span>检查浏览器 Cookie 设置</span>
+            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+            <span>确认入口透传 X-Forwarded-Proto</span>
+          </div>
+          <p>若浏览器允许本站 Cookie 仍出现此提示，请让运维核对入口的 X-Forwarded-Proto 与 STORE_COOKIE_SECURE。</p>
+        </div>
+      </section>
+
+      <section v-else-if="!showRedirect" class="hos-panel hos-rise">
         <span class="hos-panel__edge" aria-hidden="true"></span>
         <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
         <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
@@ -127,21 +193,43 @@ async function submit() {
           </div>
           <h1>给这套授权服务开一个管理员</h1>
           <p class="hos-panel__desc">
-            这是商店首次启动后的唯一一次初始化：设置管理员邮箱与密码，创建后自动登录后台，本页随即关闭。
+            这是商店首次启动后的唯一一次初始化：设置账号、邮箱与密码，创建后自动登录后台，本页随即关闭。
+            管理员同时也是商店用户，可以像普通客户一样登录前台、下单与管理自己的授权。
           </p>
         </div>
         <DeckTiles page="setup" />
         <form class="hos-form" autocomplete="off" @submit.prevent="submit">
-          <div class="hos-field">
-            <div class="hos-label-row"><label for="email">管理员邮箱</label></div>
-            <div class="hos-control">
-              <input id="email" v-model="email" type="email" placeholder="admin@example.com" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" required />
+          <div class="hos-row-2">
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="username">账号</label></div>
+              <div class="hos-control">
+                <input
+                  id="username"
+                  v-model="username"
+                  autocomplete="username"
+                  placeholder="登录用账号"
+                  minlength="3"
+                  maxlength="64"
+                  pattern="[^@\s]{3,64}"
+                  title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）"
+                  autocapitalize="off"
+                  autocorrect="off"
+                  spellcheck="false"
+                  required
+                />
+              </div>
+            </div>
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="email">管理员邮箱</label></div>
+              <div class="hos-control">
+                <input id="email" v-model="email" type="email" placeholder="admin@example.com" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" required />
+              </div>
             </div>
           </div>
           <div class="hos-row-2">
             <div class="hos-field">
               <div class="hos-label-row"><label for="password">密码</label></div>
-              <PasswordField id="password" v-model="password" placeholder="至少 8 位" autocomplete="new-password" :minlength="8" />
+              <PasswordField id="password" v-model="password" placeholder="至少 8 位，含字母与数字" autocomplete="new-password" :minlength="8" />
             </div>
             <div class="hos-field">
               <div class="hos-label-row"><label for="confirm-password">确认密码</label></div>

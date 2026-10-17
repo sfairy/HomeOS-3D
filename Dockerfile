@@ -2,7 +2,7 @@
 
 # 基础镜像：**按 digest 钉死**（tag 后面跟 @sha256:<manifest-list 摘要>）。
 #
-# 只写 tag（`python:3.14-slim-bookworm`）是**可变引用**：上游随时重推同一个 tag，同一份
+# 只写 tag（`python:3.15-slim-bookworm`）是**可变引用**：上游随时重推同一个 tag，同一份
 # 源码在不同时间构建出的镜像不同，且此前构建过的产物无法复现 —— 对「出货给客户的私有化
 # 部署」是实打实的供应链风险（也是 .github/workflows/docker.yml 里 release 必须在
 # 不可取消的 concurrency group 里跑的原因：单架构镜像已推、manifest list 没合成，就会留下
@@ -23,11 +23,11 @@
 #
 # 两个 ARG 整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）：镜像站是**另一个仓库**，
 # 摘要必然不同，所以走镜像站时会显式去掉 `@sha256:…` 并在构建期打印警告（见 ops/build.py）。
-ARG PYTHON_IMAGE=python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83
-ARG CADDY_IMAGE=caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+ARG PYTHON_IMAGE=python:3.15-slim-bookworm@sha256:2a41267d9de9d358f77a1de356e0f16ecba8d39827855be0ce9ef4792edce402
+ARG CADDY_IMAGE=caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
 
 #: 版本号来自仓库根 package.json，构建期写成 <包>/_version.py 随源码编译。
-ARG CYTHON_VERSION=3.2.9
+ARG CYTHON_VERSION=3.3.0
 #: 构建期工具链版本。与基础镜像摘要同理：裸写包名（更别说 `pip install --upgrade pip`）
 #: 会让「同一份源码、不同时间构建」装上不同版本的 pip / setuptools，而这两者恰恰是
 #: 「昨天能编、今天编不过」的常客（setuptools 收紧过 `setuptools.command.*` 的兼容面，
@@ -38,7 +38,9 @@ ARG CYTHON_VERSION=3.2.9
 ARG PIP_VERSION=26.2.1
 ARG SETUPTOOLS_VERSION=84.0.0
 
-# ─── 内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
+# ─── 主应用内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
+# 只有 app 运行镜像需要它（商店不提供 HTTPS，见下方 store 阶段），所以不放进 base，
+# 免得白白把 ~50MB 的二进制带进商店镜像。
 FROM ${CADDY_IMAGE} AS caddy-bin
 
 FROM ${PYTHON_IMAGE} AS base
@@ -56,10 +58,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 1000 homeos \
     && useradd --system --uid 1000 --gid homeos --home-dir /home/homeos --create-home --shell /usr/sbin/nologin homeos
-
-# 镜像内置反代：Caddy 静态二进制（配置由各角色最终阶段复制到 /etc/caddy/Caddyfile）。
-# 放在 base 里，app / store 两个运行镜像都自带，不需要再单独拉一个 caddy 容器。
-COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 
 WORKDIR /app
 
@@ -85,8 +83,11 @@ ARG PIP_VERSION
 #: `--require-hashes` 是刻意的硬约束：锁里每个 pin 都必须带哈希，任何一项对不上（版本被改、
 #: 镜像站的包与 PyPI 不一致）就直接失败，不留「警告后继续」的口子；它同时让 pip 拒绝一切
 #: 没出现在锁里的传递依赖，等于把「运行期到底装了哪些包」钉死在这一个文件上。
-RUN pip install --upgrade "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
-    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes \
+#: PyYAML 6.0.3（uvicorn[standard] 的依赖）尚未发布 cp315 wheel，而本阶段没有编译器。
+#: PYYAML_FORCE_LIBYAML=0 让它的构建关闭 C 扩展、产出纯 Python wheel —— PyYAML 在这里
+#: 只服务于 uvicorn 的 YAML 日志配置，纯 Python 实现足够；等上游发布 cp315 wheel 后删掉。
+RUN PYYAML_FORCE_LIBYAML=0 pip install --upgrade "pip==${PIP_VERSION}" ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
+    && PYYAML_FORCE_LIBYAML=0 pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} --require-hashes \
         -r /tmp/requirements.lock \
     && rm /tmp/requirements.lock
 
@@ -139,16 +140,13 @@ COPY ${PROJECT}/backend/src ./app
 # /app/homeos_shared/homeos_shared/。
 # 落点是 ./homeos_shared（而非 ./app 下）：PYTHONPATH=/app，包名要能在该根下直接解析。
 COPY packages/shared-py/homeos_shared ./homeos_shared
-# 迁移脚本（主应用的 migrations/ 与 alembic.ini、商店的 db/）**不进产物**：发行版里没有
-# Alembic，新库由 app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
-# 结构由 ORM 元数据与迁移脚本共同约定）。位置与两个项目一致：后端落在 /app/app，
-# PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。该禁哪个目录由下面的 case 给出。
+# 位置与两个项目一致：后端落在 /app/app，PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。
 # /app/image：内置素材目录（settings.built_in_assets_dir，由 HOMEOS_IMAGE_DIR 指到此处），
 # 默认空，可另行挂载增删。
 # app/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
 RUN case "$PROJECT" in \
-        homeos) start=app; banned=migrations ;; \
-        homeos-store) start=store; banned=db ;; \
+        homeos) start=app ;; \
+        homeos-store) start=store ;; \
         *) echo "未知 PROJECT='$PROJECT'：本阶段只认 homeos / homeos-store；新增项目要同时改 ops/build.py 的 PROJECTS 与本行" >&2; exit 1 ;; \
     esac \
     && mkdir -p /app/image \
@@ -175,9 +173,6 @@ RUN case "$PROJECT" in \
     && test ! -f /app/app/app.py \
     && test ! -f /app/app/run.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    # 遗留目录（应用 migrations/、商店 db/）与 alembic.ini 都不该出现在产物里。
-    && test ! -e /app/${banned} \
-    && test ! -e /app/alembic.ini \
     # 共享包必须真的编译到位。只断言 __init__（每个共享包都有），新增模块不必改这一行。
     && test -f /app/homeos_shared/__init__.*.so \
     # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md 都算加密没做完整；报出具体文件名便于排查。
@@ -200,7 +195,6 @@ FROM base AS app
 #: 见 backend/src/config.py 的 environment_is_production）。这是**镜像层**的默认，宿主要覆盖
 #: 可在 .env / compose 里显式改；LICENSE_REQUIRED 仍可单独覆盖（显式值优先）。
 ENV APP_ENVIRONMENT=production \
-    APP_DATA_DIR=/data \
     HOMEOS_DATA_DIR=/data \
     HOMEOS_BACKUPS_DIR=/data/backups \
     HOMEOS_PORT=8801 \
@@ -223,7 +217,9 @@ COPY --chown=homeos:homeos dist/homeos/backend/${BACKEND_PLATFORM} /app
 COPY --chown=homeos:homeos dist/homeos/frontend /app/dist
 # 内置素材目录：空目录可能不被 local 导出保留，这里补建。
 RUN mkdir -p /app/image && chown homeos:homeos /app/image
-# 内置反代配置（Caddy 与 uvicorn 同容器，见 ops/docker/start_app.py）。
+# 内置反代：Caddy 静态二进制 + 配置（与 uvicorn 同容器，见 ops/docker/start_app.py）。
+# 只装在 app 阶段：商店没有 HTTPS 入口，不需要这个二进制。
+COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 COPY ops/caddy/app.Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 8801 8803
@@ -254,14 +250,14 @@ RUN mkdir -p /data /data/license-keys /data/client-keys \
 # 加密后端（纯 Cython .so，无任何明文 .py）与前端产物都来自工作区根 dist/。
 COPY --chown=homeos:homeos dist/homeos-store/backend/${BACKEND_PLATFORM} /app
 COPY --chown=homeos:homeos dist/homeos-store/frontend /app/dist
-# 内置反代配置（Caddy 与商店同容器，见 ops/docker/start_store.py）。
-COPY ops/caddy/store.Caddyfile /etc/caddy/Caddyfile
-
-EXPOSE 8802 8804
+# 商店**没有** HTTPS 入口：内网走 http://<局域网IP>:8802，公网由隧道 / 跳板机在 80·443 上
+# 用真实证书终止 TLS（见 ops/deploy/TUNNEL-ACCESS.md）。镜像里不再内置 Caddy 反代，也就不存在
+# 8804 —— 那是个自签端口，客户机（httpx 按系统 CA 校验）和支付平台都必然拒绝它。
+EXPOSE 8802
 VOLUME ["/data"]
 
 ENTRYPOINT ["/usr/bin/tini", "--", "python", "-c", "import ops.container_entrypoint as m; m.main()"]
 CMD ["python", "-c", "import ops.docker.start_store as m; m.main()"]
 
-# 同时探活应用与内置反代：反代挂了也算不健康（HTTP 直连端口此时仍可用）。
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 CMD curl -fsS "http://127.0.0.1:${STORE_PORT:-8802}/healthz" >/dev/null && curl -fsSk "https://localhost:8804/healthz" >/dev/null
+# 商店对外提供的服务就是 8802，健康判定只探它。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 CMD curl -fsS "http://127.0.0.1:${STORE_PORT:-8802}/healthz" >/dev/null

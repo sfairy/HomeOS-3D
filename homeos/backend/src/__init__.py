@@ -1,12 +1,12 @@
 """HomeOS Python 后端包。
 
 - ``src.config``         运行期不可变配置（env 装配）
-- ``src.platform.core.*`` 数据库、模型、错误、可观测性、迁移
+- ``src.platform.core.*`` 数据库、模型、错误、可观测性
 - ``src.domains.*``      业务域（含 ``ha/{integration,config}``）
 - ``src.app``            FastAPI 应用工厂（lifespan / 中间件 / 路由 / 静态资源）
 - ``src.run``            uvicorn 启动入口
 
-与商店共用的叶子模块（``logging_noise`` / ``file_lock`` / ``migrations_core`` / ``client_ip`` /
+与商店共用的叶子模块（``logging_noise`` / ``file_lock`` / ``schema_core`` / ``client_ip`` /
 ``rate_limit`` / ``license_transport``）**不在本包内**：它们在 ``packages/shared-py/homeos_shared``，
 由本包导入时挂好 ``sys.path``（见下）。
 
@@ -30,9 +30,9 @@ def _register_shared_python_root() -> Path | None:
     可解析。判据是「上溯祖先目录里有没有 ``packages/shared-py/homeos_shared/__init__.py``」——
     镜像里 ``__file__`` 是 ``/app/app/__init__*.so``，一路查到 ``/`` 都落空，自然无害跳过。
 
-    为什么放在包入口而不是各启动脚本里：仓库里有多处迁移入口 / 工具脚本各自往
-    ``sys.path`` 插后端目录（``ops/license_keys.py``、两个 ``migrations/env.py`` 等），
-    逐个补一行必然漏；而它们**都**要 ``import src.*``，所以包入口这一次注册就全覆盖了。
+    为什么放在包入口而不是各启动脚本里：多个工具脚本各自往 ``sys.path`` 插后端目录
+    （``ops/license_keys.py`` 等），逐个补一行必然漏；而它们**都**要 ``import src.*``，
+    所以包入口这一次注册就全覆盖了。
     """
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "packages" / "shared-py"

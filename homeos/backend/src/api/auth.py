@@ -24,27 +24,34 @@ from homeos_shared.file_lock import locked_file
 from .router import NestRouter
 from .schemas.auth import (
     LoginRequest,
+    PasswordChangeRequest,
+    PasswordResetRequest,
     RegisterRequest,
     SetupStatusResponse,
     UserResponse,
     VerificationRequest,
 )
 from ..dependencies import CurrentUser
-from ..domains.store import StoreVerificationError, verification_client_from_settings
+from ..domains.store import (
+    StoreVerificationError,
+    VerificationPurpose,
+    verification_client_from_settings,
+)
 from ..platform.core.deps import get_session
 from ..platform.core.models import LoginSession, User
 from ..platform.security.cookies import ensure_csrf_cookie
+from ..platform.security.limiter import rate_limit
 from ..platform.security.login_limiter import LoginAttemptLimiter, retry_after_headers
 from ..platform.security.passwords import (
     PASSWORD_POLICY_MESSAGE,
     hash_password,
     is_credentialless,
     is_password_policy_compliant,
-    needs_rehash,
     verify_password,
 )
 from ..platform.security.request_origin import require_same_origin_write
 from ..platform.security.session_store import (
+    clear_login_sessions,
     clear_session_cookie,
     create_login_session,
     set_session_cookie,
@@ -73,23 +80,15 @@ def _has_any_user(session: Session) -> bool:
     return session.scalar(select(User.id).limit(1)) is not None
 
 
-def _claimable_legacy_user(session: Session) -> User | None:
-    """找出可被首装注册**就地接管**的无凭据老行，没有则返回 ``None``。
+def _claimable_credentialless_user(session: Session) -> User | None:
+    """找出可被首装注册**就地接管**的无凭据行，没有则返回 ``None``。
 
-    这类行只可能来自两条历史路径：删号前的本机管理员账号文件，或备份导入的账号。
-    它们的共同点是口令被写成哨兵值（``security.passwords.CREDENTIALLESS_SENTINELS``），
-    而哨兵不是任何哈希算法可产生的格式 —— ``verify_password`` 对**任何**输入都返回
-    False，所以这一行根本登不进来。
+    这类行来自备份导入：口令被写成哨兵值（``security.passwords.EXTERNAL_PASSWORD_SENTINEL``），
+    哨兵不是任何哈希算法可产生的格式 —— ``verify_password`` 对**任何**输入都返回 False，
+    所以这一行根本登不进来。若同时被 ``_has_any_user`` 算作「本机已有账号」，首装注册就会
+    被永久挡在 409 之外、登录又永远 401。因此注册时允许接管它。
 
-    问题在于它同时会被 ``_has_any_user`` 算作「本机已有账号」，于是首装注册被永久挡在
-    409 之外、登录又永远 401：升级安装直接锁死（本机就是这么中招的）。因此注册时要
-    允许接管它。
-
-    判定刻意取「口令是哨兵」而不是「口令是哨兵**且**邮箱为空」：只要口令是哨兵，这行就
-    **必然**无法登录，接管它不可能夺走任何可用账号（安全性不受影响）；反之若把「邮箱为空」
-    也作为条件，一个哨兵口令却有邮箱的行就会永久无法注册、也无法登录 —— 又回到锁死。
-
-    只认「全库唯一一行」：多用户库里不做接管，行为与原先一致（409）。
+    只认「全库唯一一行」：多用户库里不做接管（409）。
     """
     rows = session.scalars(select(User).limit(2)).all()
     if len(rows) != 1:
@@ -102,11 +101,13 @@ def _verification_client(request: Request):
     return verification_client_from_settings(request.app.state.settings)
 
 
-async def _verify_email_code(request: Request, email: str, code: str) -> None:
-    """调用商店校验并消费注册验证码；失败统一映射成 422。"""
+async def _verify_email_code(
+    request: Request, email: str, code: str, *, purpose: VerificationPurpose
+) -> None:
+    """调用商店校验并消费指定用途的验证码；失败统一映射成 422/429。"""
     client = _verification_client(request)
     try:
-        await client.verify_code(email, code)
+        await client.verify_code(email, code, purpose=purpose)
     except StoreVerificationError as error:
         status_code = (
             status.HTTP_429_TOO_MANY_REQUESTS
@@ -128,17 +129,55 @@ def setup_status(request: Request, response: Response) -> SetupStatusResponse:
     settings = request.app.state.settings
     ensure_csrf_cookie(response, request, settings.csrf_cookie_name, CSRF_MAX_AGE_MS)
     with request.app.state.database.session_factory() as session:
-        initialized = _has_any_user(session) and _claimable_legacy_user(session) is None
+        initialized = _has_any_user(session) and _claimable_credentialless_user(session) is None
         return SetupStatusResponse(initialized=initialized)
 
 
-@router.post("/auth/verification", status_code=status.HTTP_200_OK)
-async def send_verification(payload: VerificationRequest, request: Request) -> dict:
-    """请求商店向指定邮箱发送注册验证码（公开，但要求同源写）。"""
+@router.post(
+    "/auth/verification",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit(5, 60.0))],
+)
+async def send_verification(
+    payload: VerificationRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+) -> dict:
+    """请求商店向指定邮箱发送验证码（公开，但要求同源写 + 限流）。
+
+    密码找回依赖「能读注册邮箱」这个前提，所以这里刻意做两件事：
+
+    - **注册用途在本机已有账号后关闭**：否则这台机器会变成一个对任意邮箱群发
+      「注册本机账号」验证码的中继；
+    - **重置用途只对本机已登记的邮箱真的发信**：查不到用户时直接返回与成功完全同形状的
+      响应（不发信、也不告诉调用方「这个邮箱不存在」），账号存在与否不泄露。
+    """
     require_same_origin_write(request)
+    store_purpose: VerificationPurpose
+    if payload.purpose == "register":
+        if _has_any_user(session) and _claimable_credentialless_user(session) is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="本机已有账号，请直接登录或重置密码。",
+            )
+        store_purpose = "homeos_register"
+    else:
+        user = session.scalar(select(User).where(func.lower(User.email) == payload.email))
+        if user is None:
+            # 与成功响应**逐字段同形**：不泄露「该邮箱不是本机账号」，也不消耗商店的发信配额。
+            # ``resendAfter`` 取商店默认冷却（60s）而不是随手写 120 —— 否则默认配置下
+            # 「已注册 → 60 / 未注册 → 120」本身就是一枚可观测的账号枚举探针。
+            # 不回 ``deliveryMode``：真实响应的该字段随商店投递方式变化，留着同样会泄露。
+            return {
+                "email": payload.email,
+                "delivered": True,
+                "resendAfter": 60,
+            }
+        store_purpose = "homeos_reset"
+
     client = _verification_client(request)
     try:
-        result = await client.send_code(payload.email)
+        result = await client.send_code(payload.email, purpose=store_purpose)
     except StoreVerificationError as error:
         status_code = (
             status.HTTP_429_TOO_MANY_REQUESTS
@@ -150,7 +189,6 @@ async def send_verification(payload: VerificationRequest, request: Request) -> d
         "email": payload.email,
         "delivered": bool(result.get("delivered", True)),
         "resendAfter": result.get("resendAfter"),
-        "deliveryMode": result.get("deliveryMode"),
     }
 
 
@@ -163,7 +201,7 @@ async def register(
 ) -> UserResponse:
     """单用户注册：账号 + 邮箱 + 密码 + 邮箱验证码，建号后立即登录。
 
-    升级安装里若只躺着一行「无凭据老行」（哨兵口令，见 ``_claimable_legacy_user``），
+    备份导入的库里若只有一行「无凭据行」（哨兵口令，见 ``_claimable_credentialless_user``），
     这里**就地接管那一行**而不是插新行：保留 ``id``，``projects.created_by`` /
     ``project_drafts.updated_by`` 这些 RESTRICT 外键因此继续成立 —— 用户已有的 3D
     仪表盘不会因为重新注册而失去归属（实测直接删号会被外键拒绝）。
@@ -177,7 +215,7 @@ async def register(
     # 跨进程串行化首注册，避免双并发都通过「尚无用户」检查。
     lock_path = request.app.state.settings.data_dir / ".register.lock"
     with locked_file(lock_path):
-        claim = _claimable_legacy_user(session)
+        claim = _claimable_credentialless_user(session)
         if claim is None and _has_any_user(session):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -193,7 +231,9 @@ async def register(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="账号或邮箱已被使用。"
             )
-        await _verify_email_code(request, payload.email, payload.code)
+        await _verify_email_code(
+            request, payload.email, payload.code, purpose="homeos_register"
+        )
 
         if claim is not None:
             user = claim
@@ -202,9 +242,7 @@ async def register(
             user.password = hash_password(payload.password)
             user.is_active = True
             user.email_verified_at = datetime.now(UTC)
-            # 凭据已落到本地，这行不再是「外置凭据」行。
-            user.auth_externalized = False
-            registered_note = f"账号 {user.username} 接管了无凭据老行并完成注册"
+            registered_note = f"账号 {user.username} 接管了无凭据行并完成注册"
         else:
             user = User(
                 username=payload.username,
@@ -268,9 +306,6 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="账号或密码错误。",
         )
-    # 存量 bcrypt 哈希在登录成功后平滑升级为 argon2。
-    if needs_rehash(user.password):
-        user.password = hash_password(payload.password)
     for key in limiter_keys:
         limiter.reset(key)
     token = create_login_session(
@@ -288,6 +323,116 @@ def login(
         "success", "系统后台", "账号", f"账号 {user.username} 已登录"
     )
     return public_user(user)
+
+
+async def _disconnect_realtime(request: Request, user_id: str) -> None:
+    """切断某账号的实时连接（登出 / 改密 / 重置密码共用）。"""
+    gateway = getattr(request.app.state, "realtime", None)
+    if gateway is not None and user_id:
+        await gateway.disconnect_user(user_id)
+
+
+@router.post(
+    "/auth/password/reset",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit(5, 60.0))],
+)
+async def reset_password(
+    payload: PasswordResetRequest,
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+) -> dict:
+    """用注册邮箱验证码重置本机管理员密码（未登录可调用）。
+
+    顺序是「**先验码**、再查库」：验证码由商店校验并消费，没有码的人拿不到任何关于
+    「这个邮箱是不是本机账号」的差异化响应。验码通过后邮箱必然已通过商店验证，
+    因此命中用户时也顺带把 ``email_verified_at`` 补上。
+
+    改密后**吊销全部会话**并清掉当前 Cookie —— 与 ``clear_login_sessions`` 的既有语义
+    一致（改密即全端下线）。刻意**不**改 ``is_active``：被停用的账号重置完仍然登不进来。
+    """
+    require_same_origin_write(request)
+    if not is_password_policy_compliant(payload.password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=PASSWORD_POLICY_MESSAGE,
+        )
+    await _verify_email_code(
+        request, payload.email, payload.code, purpose="homeos_reset"
+    )
+    user = session.scalar(select(User).where(func.lower(User.email) == payload.email))
+    if user is None:
+        # 与「验证码错误」同一句：不区分「码不对」与「邮箱不匹配本机账号」。
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="邮箱或验证码无效。",
+        )
+    user.password = hash_password(payload.password)
+    user.email_verified_at = datetime.now(UTC)
+    clear_login_sessions(session, user.id)
+    session.commit()
+    clear_session_cookie(response, request.app.state.settings, request)
+    request.app.state.global_log.append(
+        "success", "系统后台", "账号", f"账号 {user.username} 通过邮箱验证码重置了密码"
+    )
+    # 光删 DB 会话不够：WS 在握手时一次性鉴权、之后不再查库，必须显式切断。
+    await _disconnect_realtime(request, user.id)
+    return {"reset": True}
+
+
+@router.post(
+    "/auth/password/change",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit(5, 60.0))],
+)
+async def change_password(
+    payload: PasswordChangeRequest,
+    request: Request,
+    response: Response,
+    user: CurrentUser,
+    session: Session = Depends(get_session),
+) -> UserResponse:
+    """已登录管理员修改本机密码。
+
+    改密即轮换会话：清掉该账号的全部 DB 会话后立刻签发一条新的给当前浏览器 ——
+    否则被盗的旧 Cookie 在改密后仍然有效，改密就失去了「止血」的意义。
+    """
+    require_same_origin_write(request)
+    # ``CurrentUser`` 来自短生命周期会话，行已 detach；写回必须取本会话里的实例。
+    account = session.get(User, user.id)
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="登录状态已失效，请重新登录。"
+        )
+    if not verify_password(payload.current_password, account.password):
+        # 用 422 而不是 403：403 在本项目里还表示「CSRF 失效 / 授权受限」，会误导前端。
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="当前密码不正确。"
+        )
+    if verify_password(payload.new_password, account.password):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="新密码与当前密码相同。"
+        )
+    account.password = hash_password(payload.new_password)
+    clear_login_sessions(session, account.id)
+    token = create_login_session(
+        session, request, account.id, max_age_seconds=_session_max_age(request)
+    )
+    session.commit()
+    set_session_cookie(
+        response,
+        request.app.state.settings,
+        token,
+        max_age_seconds=_session_max_age(request),
+        request=request,
+    )
+    request.app.state.global_log.append(
+        "success", "系统后台", "账号", f"账号 {account.username} 已修改密码"
+    )
+    await _disconnect_realtime(request, account.id)
+    return public_user(account)
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

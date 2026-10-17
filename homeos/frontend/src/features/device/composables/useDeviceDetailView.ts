@@ -83,7 +83,7 @@ export function useDeviceDetailView() {
   })
   const area = computed(() => resolveEntityArea(entity.value?.attributes)?.display ?? '')
   const controllable = computed(
-    () => entityId.value && hasEntityControlPopup(entityId.value, entitiesStore.entities),
+    () => entityId.value && hasEntityControlPopup(entityId.value),
   )
 
   const detailStatCells = computed(() => {
