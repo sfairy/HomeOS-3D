@@ -10,8 +10,10 @@ name: Build Check
 # 才炸；`verify:*` 那些门禁不跑构建，Docker 又太重。这个工作流把那一步单独拎出来。
 #
 # 触发：`workflow_dispatch`，Actions 页面 Run workflow。
-# 这只是一个「临时想单独验证构建」的入口；常态化的构建验证在 `checks.yml` 的 build job
-# （2026-10-16 起随 push / PR 自动跑），两者跑的是同一份 ops/ci/build_frontend_verify.sh。
+# 这只是一个「临时想单独验证构建」的入口（只跑构建，不跑 typecheck / ruff / 基建 lint）；
+# `checks.yml` 的 build job 跑的是同一份 ops/ci/build_frontend_verify.sh，并额外带着门禁。
+# 2026-10-17 起 checks.yml 也不再随 push / PR 自动跑 —— 三个工作流全部只手动触发，
+# 推送本身不会构建任何东西。
 on:
   workflow_dispatch:
 

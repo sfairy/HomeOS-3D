@@ -87,9 +87,9 @@ jobs:
   # 自定义门禁与冒烟已拆除；这里调用而不是内联复制，避免两处漂移。
   # 调用时 checks 的 build job 会把前端产物传成 frontend-app / frontend-store 制品 ——
   # 前端与 CPU 架构无关，全流水线只该构建一次，再由下面的矩阵按项目取用。
-  # 上传的开关在 checks.yml 里（按 `github.event_name` 判定，本工作流是手动 dispatch 所以为真）；
-  # 本工作流若哪天改成 push / tag 自动触发，那边的 upload 会静默跳过，而这里的
-  # download 会立刻报「artifact not found」—— 是响亮的失败，不是静默出坏镜像。
+  # checks.yml 自己只挂在手动 dispatch 上（push / PR 不再触发），但 `uses:` 调用一定会跑，
+  # 发版路径不依赖任何自动触发器；那边也不再按 event_name 门控制品上传，所以下面的
+  # download 不会因为「调用方事件类型」不同而落空。
   checks:
     uses: ./.github/workflows/checks.yml
 

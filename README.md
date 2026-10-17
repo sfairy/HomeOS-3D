@@ -445,5 +445,7 @@ python3 ops/build.py image --project store --tag homeos-store:local
 | [homeos-store/backend/src/README.md](homeos-store/backend/src/README.md) | 商店 / 授权服务器细节 |
 | `.env.example` | 全部环境变量（按 A–G 分区注释；compose 文件已写死常用值） |
 
-CI：`.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint）在 `push(main)`
-与全部 PR 上自动跑；镜像构建与推送（`.github/workflows/docker.yml`）保持手动 `workflow_dispatch`。
+CI：三个工作流**全部手动触发**（Actions 页面 Run workflow），推送不会自动构建。
+`.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint）既可以在
+Actions 页面单独跑，也由 `.github/workflows/docker.yml` 通过 `uses:` 复用于发版前检查；
+镜像构建与推送（`docker.yml`）保持手动 `workflow_dispatch`。
