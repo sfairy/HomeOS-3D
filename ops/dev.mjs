@@ -61,19 +61,47 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Bun 自身的可执行文件：用它跑 vite / bun install，避免再依赖 PATH 里的 bun。 */
 const BUN_BIN = process.execPath;
 
+// 本地开发要求的 Python 下限，须与 README / Dockerfile / CI 的 3.15 对齐。
+//
+// 只比主次版本号：补丁号随上游滚动，写死会让每次安全更新都白重建一次 venv。
+// 这条校验存在的理由：旧 venv 是「目录在 + 依赖能 import」就放行，于是解释器比镜像低
+// 一个次版本也能一直用下去 —— 本地全绿、镜像里炸，正是最难排查的那类版本差。
+const MIN_PYTHON = [3, 15];
+const MIN_PYTHON_TEXT = MIN_PYTHON.join(".") + "+";
+
+/** 探测目标解释器的 (主版本, 次版本)；跑不起来或输出不合预期返回 null。 */
+function pythonVersionOf(executable) {
+  const probe = spawnSync(executable, ["-c", "import sys; print(*sys.version_info[:2])"], {
+    encoding: "utf8",
+  });
+  if (probe.error || probe.status !== 0) return null;
+  const [major, minor] = String(probe.stdout).trim().split(/\s+/).map(Number);
+  return Number.isInteger(major) && Number.isInteger(minor) ? [major, minor] : null;
+}
+
+function meetsMinPython(version) {
+  if (!version) return false;
+  const [major, minor] = version;
+  return major > MIN_PYTHON[0] || (major === MIN_PYTHON[0] && minor >= MIN_PYTHON[1]);
+}
+
 function resolveSystemPython() {
   const candidates = process.env.HOMEOS_DEV_PYTHON
     ? [process.env.HOMEOS_DEV_PYTHON]
     : IS_WINDOWS
       ? ["python", "py"]
       : ["python3", "python"];
+  const tooOld = [];
   for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ["-c", "import sys; print(sys.version_info[0])"], {
-      stdio: "ignore",
-    });
-    if (!probe.error && probe.status === 0) return candidate;
+    const version = pythonVersionOf(candidate);
+    if (meetsMinPython(version)) return candidate;
+    // 记下来只为报错时能直接看出「装是装了，但版本不够」，省掉一轮猜谜。
+    if (version) tooOld.push(`${candidate} ${version.join(".")}`);
   }
-  throw new Error("未找到 Python 3.12+；请安装，或用 HOMEOS_DEV_PYTHON 指定解释器路径。");
+  const detail = tooOld.length ? `（已找到但版本过低：${tooOld.join("、")}）` : "";
+  throw new Error(
+    `未找到 Python ${MIN_PYTHON_TEXT}${detail}；请安装，或用 HOMEOS_DEV_PYTHON 指定解释器路径。`,
+  );
 }
 
 function runSync(command, args, options = {}) {
@@ -112,10 +140,19 @@ function venvDependenciesReady() {
 /** 返回用于启动两个服务的 Python 解释器。 */
 function ensureVenv() {
   if (fs.existsSync(VENV_PYTHON)) {
-    if (venvDependenciesReady()) return VENV_PYTHON;
-    console.log("共享 venv 缺少依赖，正在补装…");
-    installRequirements();
-    return VENV_PYTHON;
+    const venvVersion = pythonVersionOf(VENV_PYTHON);
+    if (meetsMinPython(venvVersion)) {
+      if (venvDependenciesReady()) return VENV_PYTHON;
+      console.log("共享 venv 缺少依赖，正在补装…");
+      installRequirements();
+      return VENV_PYTHON;
+    }
+    // 版本不够才重建。venv 本身是可再生缓存，但里面可能有手装包（基于 --debug 的 debugpy
+    // 由 ensureDebugpy 会补），所以只在「解释器本身不合规」时删 —— 这是新旧版本混用
+    // 唯一能被自动发现并纠正的时机：目录和依赖都齐全，只有版本不对。
+    const text = venvVersion ? venvVersion.join(".") : "版本未知";
+    console.log(`共享 venv 的 Python ${text} 低于要求的 ${MIN_PYTHON_TEXT}，正在重建…`);
+    fs.rmSync(VENV_DIR, { recursive: true, force: true });
   }
   runSync(resolveSystemPython(), ["-m", "venv", VENV_DIR]);
   installRequirements();
