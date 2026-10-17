@@ -32,6 +32,9 @@
 
 - **客户机里的主应用不会放行**：它用 httpx / urllib 按系统 CA 校验，自签会被拒——
   表现是「无法连接授权服务器」+「取回授权公钥超时」；
+- **浏览器也不一定放行**：IP 访问不带 SNI，证书只能签给容器自己的 docker IP，浏览器会判
+  「证书与地址不匹配」（部分 WebView / PWA 安装直接硬拦）。局域网内要用就设
+  `STORE_HTTPS_DEFAULT_SNI=<你输入的那个 IP>`（主应用侧 `APP_HTTPS_DEFAULT_SNI`）；
 - 支付宝 / 微信也不会信任自签证书的回调地址。
 
 > 镜像启动器会在日志里主动警告你把 `APP_LICENSE_SERVER_URL` 写成了 `https://…:8804`。

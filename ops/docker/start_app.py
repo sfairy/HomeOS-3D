@@ -23,7 +23,7 @@ from ops.docker.bootstrap_keys import (
     ensure_client_keys,
 )
 from ops.docker.http_security import forwarded_allow_ips_warning
-from ops.docker.proxy import run_with_proxy
+from ops.docker.proxy import resolve_default_sni, run_with_proxy
 from ops.license_keys import apply_client_key_env
 
 DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
@@ -135,8 +135,33 @@ def main() -> None:
     if forwarded_warning:
         print(f'警告：{forwarded_warning}', file=sys.stderr, flush=True)
 
+    # 内置反代（:8803）证书签给谁：浏览器用 IP 访问时不发 SNI，只能靠 default_sni 兜底。
+    # 取值有问题时 resolve_default_sni 会摘掉变量并在 warning 里说明（见 ops/docker/proxy.py）。
+    default_sni = resolve_default_sni(
+        environment,
+        hint='要用 https://<局域网IP>:8803 打开，请把它设成那个 IP（例如 192.168.1.10）。',
+    )
+    if default_sni.warning:
+        print(f'警告：{default_sni.warning}', file=sys.stderr, flush=True)
+
     print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/register", flush=True)
-    print("主应用 HTTPS    https://<本机局域网IP>:8803/register（镜像内置反代，自签证书首次需放行）", flush=True)
+    if default_sni.configured:
+        print(
+            f"主应用 HTTPS    https://{default_sni.value}:8803/register"
+            "（镜像内置反代，自签证书首次需放行）",
+            flush=True,
+        )
+    else:
+        print(
+            "主应用 HTTPS    https://<本机局域网IP>:8803/register"
+            "（镜像内置反代，自签证书首次需放行）",
+            flush=True,
+        )
+        print(
+            f"  提示：证书默认签给 {default_sni.value}，用 https://<局域网IP>:8803 打开会报"
+            "「证书与地址不匹配」。要避免就设 APP_HTTPS_DEFAULT_SNI=<你输入的那个IP>。",
+            flush=True,
+        )
     print("首次部署此处为“注册本机唯一账号”（账号 / 密码 / 邮箱 / 邮箱验证码）", flush=True)
     print(f"授权服务器      {environment['APP_LICENSE_SERVER_URL']}", flush=True)
 

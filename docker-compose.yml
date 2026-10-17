@@ -110,6 +110,10 @@ services:
       # 真实来源 IP、登录限流与审计一起失真，同源判定也会跟着错。
       STORE_TRUSTED_PROXIES: 172.16.0.0/12
       UVICORN_FORWARDED_ALLOW_IPS: 172.16.0.0/12
+      # 内置 HTTPS(8804) 的证书签给谁：同 APP_HTTPS_DEFAULT_SNI，填你实际输入的地址
+      # （局域网 IP 或主机名）。留空/默认 = store.local。公网接入用的是真实证书域名，
+      # 与这里无关（见 ops/deploy/Caddyfile.public.example）。
+      STORE_HTTPS_DEFAULT_SNI: ${STORE_HTTPS_DEFAULT_SNI:-store.local}
       # 验证码投递方式。log = 只写日志（docker logs homeos-store | grep 验证码），
       # 适合还没配 SMTP 的首装；配好 SMTP 在后台「站点配置 → 邮件」切到 smtp 即可，
       # 也可以在这里直接写 smtp 并补 STORE_SMTP_* 环境变量。
@@ -167,6 +171,11 @@ services:
       # 内置反代就在同容器回环上：只信回环，**不要**放宽到 docker 网段。
       APP_TRUSTED_PROXIES: 127.0.0.1,::1
       UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1
+      # 内置 HTTPS(8803) 的证书签给谁：填你**实际输入**的那个地址（一般就是本机局域网 IP）。
+      # 浏览器用 IP 访问不发 SNI，不填这个名字 Caddy 只能签给容器自己的 docker IP，浏览器
+      # 会判「证书与地址不匹配」而打不开（见 ops/caddy/app.Caddyfile 的说明）。
+      # 用主机名访问（https://homeos.local:8803）则天然匹配，不改这行也行。
+      APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets

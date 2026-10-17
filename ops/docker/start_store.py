@@ -11,7 +11,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ops.docker.proxy import run_with_proxy
+from ops.docker.proxy import (
+    STORE_DEFAULT_SNI_FALLBACK,
+    STORE_DEFAULT_SNI_VARIABLE,
+    resolve_default_sni,
+    run_with_proxy,
+)
 from ops.license_keys import ensure_store_keys, sync_store_keys
 
 
@@ -59,6 +64,17 @@ def main() -> None:
     data_dir = Path(environment["STORE_DATA_DIR"]).expanduser()
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    # 内置反代（:8804）证书签给谁：浏览器用 IP 访问时不发 SNI，只能靠 default_sni 兜底。
+    # 取值有问题时 resolve_default_sni 会摘掉变量并在 warning 里说明（见 ops/docker/proxy.py）。
+    default_sni = resolve_default_sni(
+        environment,
+        variable=STORE_DEFAULT_SNI_VARIABLE,
+        fallback=STORE_DEFAULT_SNI_FALLBACK,
+        hint='要用 https://<局域网IP>:8804 打开，请把它设成那个 IP（例如 192.168.1.20）。',
+    )
+    if default_sni.warning:
+        print(f"警告：{default_sni.warning}", file=sys.stderr, flush=True)
+
     store_port = environment.get("STORE_PORT", "8802")
     # 首装引导地址：配了 STORE_BASE_URL 就用它（公网部署时那才是用户真正能打开的地址），
     # 否则退回「容器自己看到的 host:port」。同机部署里后者是服务名 / 0.0.0.0，
@@ -93,6 +109,17 @@ def main() -> None:
         )
     else:
         print(f"商店已有管理员，跳过初始化。服务端口 {store_port}。", flush=True)
+
+    # 内置 HTTPS 入口在不在、证书签给谁 —— 用 IP 打开却报「证书与地址不匹配」时看这一行。
+    if default_sni.configured:
+        print(f"内置 HTTPS：https://{default_sni.value}:8804（自签证书首次需放行）", flush=True)
+    else:
+        print(
+            f"内置 HTTPS：https://<本机局域网IP>:8804（自签证书首次需放行）；证书默认签给 "
+            f"{default_sni.value}，用 IP 打开会报「证书与地址不匹配」——"
+            "设 STORE_HTTPS_DEFAULT_SNI=<你输入的那个IP> 即可修。",
+            flush=True,
+        )
 
     os.environ.clear()
     os.environ.update(environment)

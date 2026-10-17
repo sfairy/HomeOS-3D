@@ -17,15 +17,16 @@ Caddy 退出会被记录并按节奏重启；超过上限后放弃反代但**不
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 import shutil
 import signal
 import subprocess
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 CADDY_BINARY = 'caddy'
 CADDY_CONFIG = Path('/etc/caddy/Caddyfile')
@@ -34,6 +35,13 @@ RESTART_DELAY_SECONDS = 1.0
 MAX_CADDY_RESTARTS = 5
 TERMINATE_GRACE_SECONDS = 10.0
 POLL_INTERVAL_SECONDS = 0.5
+
+#: Caddyfile 里 ``default_sni`` 的取值变量名 → 默认名。默认名必须与
+#: ``ops/caddy/*.Caddyfile`` 的 ``{$VAR:默认名}`` 逐字一致，否则这里打印的提示就是错的。
+DEFAULT_SNI_VARIABLE = 'APP_HTTPS_DEFAULT_SNI'
+DEFAULT_SNI_FALLBACK = 'homeos.local'
+STORE_DEFAULT_SNI_VARIABLE = 'STORE_HTTPS_DEFAULT_SNI'
+STORE_DEFAULT_SNI_FALLBACK = 'store.local'
 
 
 def _note(message: str) -> None:
@@ -55,6 +63,73 @@ def caddy_environment(environment: Mapping[str, str], data_dir: Path) -> dict[st
     env.setdefault('XDG_DATA_HOME', str(home / 'data'))
     env.setdefault('XDG_CONFIG_HOME', str(home / 'config'))
     return env
+
+
+class DefaultSni(NamedTuple):
+    """内置反代证书的默认名字（Caddyfile 的 ``default_sni``）解析结果。"""
+
+    #: 最终生效的名字：证书会签给它，也就是「用 IP 访问时不会再报地址不匹配」的那个地址。
+    value: str
+    #: 是否由环境变量显式指定（``False`` 表示用的是 Caddyfile 里的默认名）。
+    configured: bool
+    #: 非空表示取值有问题、已被忽略（只影响提示文案，不影响启动）。
+    warning: str
+
+
+def _default_sni_problem(value: str) -> str:
+    """取值不像「单个主机名或 IP」时给出原因；看起来正常则返回空串。"""
+    if '://' in value or '/' in value:
+        return '看起来是一个 URL，而 default_sni 只接受主机名或 IP（去掉 https:// 与端口）'
+    if ',' in value or any(character.isspace() for character in value):
+        return '看起来填了多个名字，而 default_sni 只接受一个（多个地址请只填你最常输入的那个）'
+    if ':' in value:
+        try:
+            ipaddress.IPv6Address(value)
+        except ValueError:
+            return '带上了端口号，而 default_sni 只接受主机名或 IP（端口由 8803 / 8804 决定）'
+    return ''
+
+
+def resolve_default_sni(
+    environment: MutableMapping[str, str],
+    *,
+    variable: str = DEFAULT_SNI_VARIABLE,
+    fallback: str = DEFAULT_SNI_FALLBACK,
+    hint: str = '',
+) -> DefaultSni:
+    """读取并校验内置反代证书的默认名字，必要时把变量摘掉。
+
+    为什么需要这一步：浏览器用 **IP** 访问时不发 SNI（RFC 6066），Caddy 的 ``on_demand``
+    拿不到名字，就只能按容器自己的 docker IP 签证书，浏览器随即判「证书与地址不匹配」。
+    ``default_sni`` 给这类连接兜底，取值只能来自配置 —— 容器无法预知宿主的局域网地址。
+
+    两种取值必须处理掉，否则故障很难读：
+    - **空值**：Caddy 的 ``default_sni`` 收到空值会直接解析失败，反代起不来（重试 5 次后
+      只剩一句「HTTPS 不可用」）。这里摘掉变量，让 Caddyfile 的默认值生效。
+    - **不像名字的值**（URL / host:port / 逗号列表）：要么让 on_demand 去签一个不可能的名字
+      （握手直接失败），要么静默签错名字。一律忽略并在启动日志里说清楚。
+
+    摘变量而不是报错退出：内置反代是可选的旁路（见模块 docstring），不该因为它把一个
+    本来能跑的应用拦在启动之外 —— 与 ``run_with_proxy`` 对 Caddy 崩溃的处理口径一致。
+
+    ``hint`` 由调用方给（各角色知道自己的端口），拼在告警末尾告诉用户该怎么改。
+    """
+    raw = str(environment.get(variable) or '').strip()
+    if not raw:
+        # 没设是正常的（用默认名）；设成空串则必须摘掉，见上面「空值」那条。
+        environment.pop(variable, None)
+        return DefaultSni(fallback, configured=False, warning='')
+    problem = _default_sni_problem(raw)
+    if problem:
+        environment.pop(variable, None)
+        return DefaultSni(
+            fallback,
+            configured=False,
+            warning=(
+                f'{variable}={raw!r} {problem}；已忽略该取值，内置反代改用默认名 {fallback}。{hint}'
+            ),
+        )
+    return DefaultSni(raw, configured=True, warning='')
 
 
 def _caddy_command() -> list[str]:

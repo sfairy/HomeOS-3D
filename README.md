@@ -35,6 +35,19 @@
 | 主应用 | `homeos` | 8801 | 8803 | `/register` 注册本机账号（首装零用户，任意地址都会跳这里） |
 | 授权商店 | `homeos-store` | 8802 | 8804 | `/setup` 建运营管理员，`/admin` 运营后台 |
 
+> **内置 HTTPS（8803 / 8804）用 IP 打开会报证书错误**，这是设计使然，不是坏了：浏览器访问
+> IP 字面量时**不发 SNI**（RFC 6066：SNI 只能是主机名），Caddy 只能按容器自己的 docker IP
+> 签证书（实测 SAN=`IP:172.19.0.x`），浏览器遂判「证书与地址不匹配」——部分 WebView / PWA
+> 安装会硬拦，连「继续前往」都没有。两种解法，任选其一：
+>
+> - **填一个变量**（推荐）：`APP_HTTPS_DEFAULT_SNI=<你输入的那个IP>`（商店侧是
+>   `STORE_HTTPS_DEFAULT_SNI`），证书就签给这个地址，浏览器只剩「不受信任的 CA」这一步；
+> - 或改用**主机名**访问（如 `https://homeos.local:8803`）：有 SNI，证书天然匹配。
+>
+> 想彻底不报警告，把容器里的 Caddy 根证书装到客户端：
+> `docker cp homeos:/data/caddy/data/caddy/pki/authorities/local/root.crt .`。公网接入请用真实
+> 证书域名（见 `ops/deploy/PUBLIC-ACCESS.md`），不要依赖这套自签入口。
+
 > 运行期的容器名 / 镜像名 / **数据卷名**里的 `homeos` 是刻意保留的：改了就等于换一套卷，
 > 存量部署的数据会看起来「丢了」，而且容器 hostname 参与授权实例指纹。所以运行期身份一律不动；
 > 从更早的多文件编排迁过来时商店侧卷名会从 `homeos-store_*` 变成 `homeos_*`，需要保留数据就先
@@ -202,8 +215,15 @@ docker compose -f docker-compose.yml up -d      # 商店那台
 
 ### 内网 HTTPS 与端口
 
-内网 HTTPS 开箱即用：反代（Caddy）内置在镜像里、与应用同容器，按连入地址动态签发**自签**证书，
-浏览器首次访问手动放行即可 —— 不需要另备反代容器或证书。HTTP 的 8801 / 8802 不经反代，可直接备用。
+内网 HTTPS 开箱即用：反代（Caddy）内置在镜像里、与应用同容器，按连入的 SNI 动态签发**自签**
+证书，浏览器首次访问手动放行即可 —— 不需要另备反代容器或证书。HTTP 的 8801 / 8802 不经反代，
+可直接备用。
+
+用 **IP** 打开 `https://…:8803` 时会多一条「证书与地址不匹配」：浏览器访问 IP 字面量**不发
+SNI**，Caddy 只能签给容器自己的 docker IP。设 `APP_HTTPS_DEFAULT_SNI=<你输入的那个IP>`
+（商店侧 `STORE_HTTPS_DEFAULT_SNI`）即可修掉，改用主机名访问则天然匹配；要把根证书装进客户端
+做到零告警：`docker cp homeos:/data/caddy/data/caddy/pki/authorities/local/root.crt .`。
+原因与实测见 `ops/caddy/app.Caddyfile` 的注释。
 
 端口冲突就改 compose 文件里 `ports:` 的**左侧**（容器内端口不变）：
 8801 / 8803 是主应用，8802 / 8804 是商店。要固定对外访问地址时，`APP_BASE_URL` /
@@ -260,6 +280,8 @@ docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
 | `no matching manifest` | 宿主架构缺镜像层：确认宿主是 amd64 / arm64 |
 | 主应用启动即退出、提示取回授权公钥超时 | 连不上 `APP_LICENSE_SERVER_URL`：确认商店已起、客户机能访问该地址与端口 |
 | 客户机连不上，地址写的是 `https://…:8804` | 那是商店内置反代的自签证书：改用 `http://<商店>:8802`，或上真实证书域名 |
+| `https://<局域网IP>:8803` 打不开 / 报「证书与地址不匹配」 | 浏览器用 IP 访问不发 SNI，证书只能签给容器 IP：设 `APP_HTTPS_DEFAULT_SNI=<该IP>`（商店侧 `STORE_HTTPS_DEFAULT_SNI`），或改用主机名访问。页面白屏且控制台报 `MIME type ('application/json')` 是另一回事（静态资源被授权门禁挡成 401），见下面的 401 一条 |
+| 未激活时页面白屏、资源全 401 | 生产默认开启授权门禁：确认 `/assets/**`、`/static/**` 等前端产物未被门禁拦下（`docker logs homeos \| grep 授权门禁`），升级到修掉该问题的镜像 |
 | 激活报「租约使用了不受信任的授权公钥」 | 数据卷是别台机器搬来的：删掉主应用数据卷里的 `client-keys` 后重启即会重新取回 |
 | 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：商店后台解绑后重新激活，或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
 | 商店注册 / 登录 / 下单一律 403 | 反代没透传 `Host` 与 `X-Forwarded-Proto`（公网接入时必配，见 PUBLIC-ACCESS.md） |
