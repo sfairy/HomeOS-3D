@@ -176,6 +176,8 @@ const licenseBlocked = ref(
  * `route-cut`（创作面）离开页立刻隐藏，必须马上严格换装，不能两套全局 CSS 叠在一起。
  */
 let previousShellRouteKey = shellRouteKey.value
+/** 是否已经有一次**真正的路由**定过档。START_LOCATION（matched 为空）不算，见下面的 watcher。 */
+let routeAssetsResolved = false
 /** 是否有一次「等 leave 结束再卸旧 CSS」的挂起收敛。 */
 let pageAssetsFlushPending = false
 
@@ -193,10 +195,29 @@ function flushDeferredPageAssets() {
 watch(
   () => route.name,
   () => {
+    /**
+     * 首个路由还没落地（START_LOCATION：matched 为空、meta 为空）时**一律不动样式表**。
+     *
+     * 入户页是 `mountApp()` 先挂载、`router.isReady()` 后完成（见 main.ts 的 isEntryAuthRoute），
+     * 所以这个 watcher 的 immediate 首跑发生在路由解析之前：`route.meta.assets` 为空 →
+     * `resolveRoutePageAssets()` 落到 `PAGE_ASSETS.shell`（stylesheets 为空）→ 把
+     * index.html 预装的认证场景四片 + appearance.css **整批摘掉**。
+     *
+     * 实测代价：摘除后约 55ms 内 `document.styleSheets` 6→25、`--hos-tone-rgb` 从
+     * `255, 196, 106` 变成 EMPTY（场景整片掉色），随后这 5 张表被重新创建、重新下载
+     * （`link.sheet` 回到 pending）再挂回 —— 就是用户看到的「反复闪 / 发黑」。
+     * 等真正的路由落地再定档；这一次「什么都不做」正是入户页冷开不闪的前提。
+     */
+    if (route.matched.length === 0) return
+
     const nextAssets = resolveRoutePageAssets()
     const nextShellKey = shellRouteKey.value
-    const shellKeyChanged = nextShellKey !== previousShellRouteKey
+    // 首次真正定档不算「壳切换」：目标清单与预装清单一致时应当原样留用（applyStylesheets
+    // 已在位就一条 DOM 变更都不产生），不一致时必须**严格**换装 —— 首次渲染没有 leave 事件，
+    // 靠 after-leave 收敛的旧表会永远留在 <head> 里。
+    const shellKeyChanged = routeAssetsResolved && nextShellKey !== previousShellRouteKey
     previousShellRouteKey = nextShellKey
+    routeAssetsResolved = true
 
     const deferStyles =
       shellKeyChanged && routeTransitionName.value === 'route-fade'

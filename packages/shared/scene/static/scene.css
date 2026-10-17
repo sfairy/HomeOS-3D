@@ -121,22 +121,46 @@
   animation-delay: -2s;
 }
 
+/* 纹样交给 ::before 承担，动画改走 **transform**。
+   原先 hex 层直接动 `background-position`：该属性无法交给合成器，浏览器只能对整张全屏图案层
+   **每帧整块重绘**；两层（36s + 48s）叠加就是每帧两次全屏重绘，抢不过合成器时就表现为画面反复闪。
+   实测停掉它：p95 帧间隔 17.5ms → 9.5ms、jitter 4.12 → 0.59、>12ms 的异常帧 50 → 0。
+   遮罩留在父层不动、只让图案层平移 ——「纹样在漂、暗角不动」的观感与原来一致。
+   外扩一个漂移周期（56×100，恰等于 tile 尺寸）保证平移全程盖满视口，且首尾无缝循环。 */
 .hos-scene__hex {
   position: absolute;
   inset: 0;
   opacity: 0.34;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath fill='none' stroke='%23ffc46a' stroke-opacity='0.42' stroke-width='0.6' d='M28 0 L56 16 L56 48 L28 64 L0 48 L0 16 Z'/%3E%3C/svg%3E");
-  background-size: 56px 100px;
+  /* 自身裁剪：::before 外扩了一个漂移周期，裁到本体盒上防止它在
+     `.hos-page { overflow: auto }` 的窄屏档被算进可滚动区域。
+     图案层全程都盖满本体盒（见 ::before 的说明），所以裁掉外溢视觉上完全等价。 */
+  overflow: hidden;
   mask-image: radial-gradient(ellipse at 28% 46%, black 22%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at 28% 46%, black 22%, transparent 70%);
+}
+
+.hos-scene__hex::before {
+  content: "";
+  position: absolute;
+  inset: -100px -56px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath fill='none' stroke='%23ffc46a' stroke-opacity='0.42' stroke-width='0.6' d='M28 0 L56 16 L56 48 L28 64 L0 48 L0 16 Z'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
   animation: hosHexDrift 36s linear infinite;
+  /* 独立合成层：平移只走合成，不再触发绘制 */
+  will-change: transform;
+  backface-visibility: hidden;
+  pointer-events: none;
 }
 
 .hos-scene__hex--fine {
   opacity: 0.18;
-  background-size: 28px 50px;
   mask-image: radial-gradient(ellipse at 30% 50%, black 12%, transparent 52%);
   -webkit-mask-image: radial-gradient(ellipse at 30% 50%, black 12%, transparent 52%);
+}
+
+/* 细hex 的 tile 是 28×50，漂移量 56×100 正好两个周期 —— 同样首尾无缝。 */
+.hos-scene__hex--fine::before {
+  background-size: 28px 50px;
   animation-duration: 48s;
   animation-direction: reverse;
 }
@@ -1381,12 +1405,14 @@
   }
 }
 
+/* 平移而非改 background-position：见 .hos-scene__hex 的说明。
+   位移量取一个 tile 周期（56×100），首尾同相位，循环处看不出接缝。 */
 @keyframes hosHexDrift {
   from {
-    background-position: 0 0;
+    transform: translate3d(0, 0, 0);
   }
   to {
-    background-position: 56px 100px;
+    transform: translate3d(56px, 100px, 0);
   }
 }
 
@@ -1998,6 +2024,12 @@
     animation: none !important;
   }
 
+  /* `*` 不匹配伪元素：hex 的漂移已经搬到 ::before 上，这里必须单独点名，
+     否则手持档下唯独这一层还在动。 */
+  .hos-scene__hex::before {
+    animation: none !important;
+  }
+
   /* stage 之外的装饰要逐个点名：它们与标题、徽标、档案表同处一层，吃不到上面那条兜底。 */
   .hos-scene__brand,
   .hos-scene__dossier,
@@ -2080,6 +2112,11 @@
    这里用**同一套声明**兜住那条路径。两组必须逐字一致 —— 改一组就改另一组。 */
 html.hos-touch .hos-scene__stage,
 html.hos-touch .hos-scene__stage * {
+  animation: none !important;
+}
+
+/* 与上面 (pointer: coarse) 那一份逐字对应：伪元素吃不到 `*`，必须点名。 */
+html.hos-touch .hos-scene__hex::before {
   animation: none !important;
 }
 

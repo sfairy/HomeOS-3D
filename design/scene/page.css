@@ -150,7 +150,10 @@
   /* 页面色调开关，默认「主控暖金」。
      也不会因为这些页面共用一份 panel.css 而糊成同一个颜色。 */
   --hos-tone: var(--hb-accent);
-  --hos-tone-rgb: var(--hb-accent-rgb);
+  /* 兜底值必须与 appearance.css 的默认档一致：`--hb-*-rgb` 缺席时 `rgb(var(…), a)`
+     会在「计算值阶段」整条声明失效（背景 / 阴影直接消失，而不是退成透明），
+     所以这里给字面量 —— 宁可色相晚一帧变，也不要整片发黑。 */
+  --hos-tone-rgb: var(--hb-accent-rgb, 255, 196, 106);
   --hos-tone-bright: var(--hb-accent-bright);
   --hos-tone-deep: var(--hb-accent-deep);
   --hos-grad-tone: var(--hos-grad-accent);
@@ -203,7 +206,10 @@
    另外四页是冻结的字面色相 —— 机制不同，改主控色时只有它一个人动。 */
 .hos-tone--accent {
   --hos-tone: var(--hb-accent);
-  --hos-tone-rgb: var(--hb-accent-rgb);
+  /* 兜底值必须与 appearance.css 的默认档一致：`--hb-*-rgb` 缺席时 `rgb(var(…), a)`
+     会在「计算值阶段」整条声明失效（背景 / 阴影直接消失，而不是退成透明），
+     所以这里给字面量 —— 宁可色相晚一帧变，也不要整片发黑。 */
+  --hos-tone-rgb: var(--hb-accent-rgb, 255, 196, 106);
   --hos-tone-bright: var(--hb-accent-bright);
   --hos-tone-deep: var(--hb-accent-deep);
   --hos-grad-tone: var(--hos-grad-accent);
@@ -212,7 +218,7 @@
 
 .hos-tone--lumen {
   --hos-tone: var(--hb-lumen);
-  --hos-tone-rgb: var(--hb-lumen-rgb);
+  --hos-tone-rgb: var(--hb-lumen-rgb, 255, 157, 77);
   --hos-tone-bright: var(--hb-lumen-bright);
   --hos-tone-deep: var(--hb-lumen-deep);
   --hos-grad-tone: var(--hos-grad-lumen);
@@ -221,7 +227,7 @@
 
 .hos-tone--aura {
   --hos-tone: var(--hb-aura);
-  --hos-tone-rgb: var(--hb-aura-rgb);
+  --hos-tone-rgb: var(--hb-aura-rgb, 201, 160, 255);
   --hos-tone-bright: var(--hb-aura-bright);
   --hos-tone-deep: var(--hb-aura-deep);
   --hos-grad-tone: var(--hos-grad-aura);
@@ -230,7 +236,7 @@
 
 .hos-tone--eco {
   --hos-tone: var(--hb-eco);
-  --hos-tone-rgb: var(--hb-eco-rgb);
+  --hos-tone-rgb: var(--hb-eco-rgb, 95, 208, 168);
   --hos-tone-bright: var(--hb-eco-bright);
   --hos-tone-deep: var(--hb-eco-deep);
   --hos-grad-tone: var(--hos-grad-eco);
@@ -343,6 +349,14 @@
     display: flex;
     flex-direction: column;
     overflow: auto;
+    /* 窄屏把滚动交给 .hos-page（坞体改成 overflow: visible，不再自己滚）。两件必做的事：
+       - scrollbar-gutter: stable —— 内容高度刚好卡在「要不要滚动条」的临界点上时，滚动条
+         出现 → 可用宽度少约 15px → 布局重排 → 高度变化 → 滚动条又消失，如此来回。预留
+         gutter 把这条振荡一次性掐掉（移动端的 overlay 滚动条本来就不占宽度，无副作用）。
+       - overscroll-behavior: contain —— 阻止滚动链传到 body：iOS 上继续下拉会把整页当橡皮筋
+         拉走，视觉上就是「页面在抖」。 */
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
   }
 
   /* 窄屏：表单坞置顶。原先场景在上且很高，首屏只见山景/文案、表单在折叠线下，

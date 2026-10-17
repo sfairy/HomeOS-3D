@@ -29,9 +29,20 @@ const AUTH_SCENE_STYLESHEETS = [
   "/static/auth/scene/panel.css",
 ] as const;
 
+/**
+ * 站点配色令牌（`--hb-accent-rgb` / `--hb-lumen-rgb` / `--hb-aura-rgb` / `--hb-eco-rgb`）。
+ *
+ * 原先它只在运行时后置加载，而 page.css 里 `--hos-tone-rgb: var(--hb-accent-rgb)` **没有兜底值**
+ * —— 实测首帧到约 400ms 之间 `--hos-tone-rgb` 恒为 UNDEF，`rgb(var(--hos-tone-rgb), …)`
+ * 整片解析失败、场景发黑，令牌落地后整屏「弹」出来。现在与场景四片一起在 index.html 预装，
+ * 运行时复用同一批节点。**顺序即数组顺序**：它必须排在场景四片之后（同为 `:root` 令牌，后加载的赢）。
+ */
+const APPEARANCE_STYLESHEET = "/static/appearance.css";
+
+/** index.html 预装清单（顺序必须与这里逐条一致，否则运行时会把表摘下来重挂）。 */
 const AUTH_STYLESHEETS = [
   ...AUTH_SCENE_STYLESHEETS,
-  "/static/appearance.css",
+  APPEARANCE_STYLESHEET,
 ];
 
 /** 认证相关页（初始化/登录/激活/恢复）共用一套场景样式与视口。 */
@@ -128,7 +139,53 @@ export function listManagedStylesheets(): string[] {
     .filter(Boolean);
 }
 
-/** 让受管样式表按 `urls` 的顺序、紧跟在 SPA 外壳样式之后挂载。 */
+/**
+ * 跳过一切**非元素**节点（空白文本、注释），取其后第一个元素兄弟。
+ *
+ * 必须连注释一起跳过：index.html 里锚点与场景四片之间就夹着一段说明注释，
+ * 「只看下一个兄弟」会把它们判成「不在位」而整体摘挂一次 —— 正是要消除的那种闪烁。
+ */
+function nextMeaningfulSibling(node: Node): Node | null {
+  let cur = node.nextSibling;
+  while (cur && cur.nodeType !== Node.ELEMENT_NODE) {
+    cur = cur.nextSibling;
+  }
+  return cur;
+}
+
+/** 跳过一切非元素节点（空白文本、注释），取其前第一个元素兄弟。 */
+function previousMeaningfulSibling(node: Node): Node | null {
+  let cur = node.previousSibling;
+  while (cur && cur.nodeType !== Node.ELEMENT_NODE) {
+    cur = cur.previousSibling;
+  }
+  return cur;
+}
+
+/**
+ * 元素是否**已经**落在期望位置上（`ref` 之后 / `boundary` 之前 / `<head>` 末尾）。
+ *
+ * 「已在位就不动」不是微优化，而是消除入户页闪烁的关键：`Node.after()` / `insertBefore()`
+ * 即使目标位置与当前位置相同，语义仍是「先摘除再插入」，而样式表被摘除的那一帧它的规则
+ * 立即失效。实测把 scene.css 摘掉 3 帧，`.hos-scene__sky` 的计算值就变成
+ * `background-image: none`（天空 / 极光 / 星野整片消失 = 画面发黑）；真实链路里 5 张表
+ * 被整体摘下再挂回还会让 `--hos-tone-rgb` 一度变空、link 重新进入 pending。
+ * 入口页每次路由切换都会走到这里，所以「零摘挂」是硬要求。
+ */
+function isInPlace(
+  el: Element,
+  ref: Element | null,
+  boundary: Element | null,
+): boolean {
+  if (!el.isConnected) return false;
+  if (ref) return nextMeaningfulSibling(ref) === el;
+  if (boundary) return previousMeaningfulSibling(boundary) === el;
+  /* 既没有锚点也没有兜底边界（精简入口 / 独立页）：只要求它已经在 <head> 里，
+     相对顺序由调用方的游标逐条保证 —— 此时再强行搬到末尾只会白白制造摘挂。 */
+  return el.parentNode === document.head;
+}
+
+/** 让受管样式表按 `urls` 的顺序、紧跟在 SPA 外壳样式之后挂载（已在位则一条 DOM 变更都不产生）。 */
 function applyStylesheets(urls: readonly string[]): void {
   const anchor = document.head.querySelector(ANCHOR_SELECTOR);
   const desired = new Set(urls);
@@ -142,6 +199,13 @@ function applyStylesheets(urls: readonly string[]): void {
    * 而不是 `appendChild` 到 `<head>` 末尾 —— 见 UNMANAGED_STYLESHEET_SELECTOR 的说明。
    */
   const boundary = anchor ?? document.head.querySelector(UNMANAGED_STYLESHEET_SELECTOR);
+  /**
+   * 逐个节点就位，**只移动真正不在位的那个**。
+   *
+   * 之前是「先整组判断、只要有一个不在位就把整组重新 append 一遍」，于是跨壳换装时
+   * （旧表靠 keepStylesheets 保留 + 新表追加）已经就位的场景四片也被连坐摘挂一次。
+   * 逐个判断后：就位的原地不动，新增的插到游标之后，顺序错的才搬。
+   */
   let cursor: Element | null = anchor;
   for (const url of urls) {
     // 预装表可能已在 index.html 中（同 href）；复用节点，避免重复 <link> 与二次下载闪烁。
@@ -155,12 +219,17 @@ function applyStylesheets(urls: readonly string[]): void {
     if (!el) {
       el = document.createElement("link");
       el.rel = "stylesheet";
-      el.href = url;
+      // 必须写 attribute 而不是 IDL 的 `el.href`：后者会被解析成**绝对 URL**，于是
+      // 上面的 querySelector 与 `desired.has(getAttribute('href'))` 两条（都用声明里的
+      // 相对路径比对）下一轮全部落空 —— 表会被判成「不在期望集合里」反复摘掉重挂。
+      el.setAttribute("href", url);
     }
     el.setAttribute(MANAGED_ATTR, "css");
-    if (cursor) cursor.after(el);
-    else if (boundary) boundary.before(el);
-    else document.head.appendChild(el);
+    if (!isInPlace(el, cursor, boundary)) {
+      if (cursor) cursor.after(el);
+      else if (boundary) boundary.before(el);
+      else document.head.appendChild(el);
+    }
     cursor = el;
   }
 }

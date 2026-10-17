@@ -581,6 +581,24 @@ export default defineConfig(async (): Promise<UserConfig> => {
     root: __dirname,
     // 预打包缓存落在工作区根，避免默认 node_modules/.vite 在 frontend 下再长出 node_modules。
     cacheDir: resolve(__dirname, '../../node_modules/.vite/homeos-dashboard'),
+    /**
+     * 预打包清单：`echarts/*` 的子入口**只出现在运行期动态 import 里**
+     * （`components/widgets/widget-registry.ts` → `HomeClimateChartWidget.vue` →
+     * `components/widgets/climate/home-climate-chart/useHomeClimateChart.ts` →
+     * `import('@/shared/utils/chart/echarts')`），启动期的依赖扫描发现不了它们。
+     *
+     * 不显式列出的后果：首页仪表盘第一次真正要画图表时才「发现」这 4 个依赖，Vite 当场重新
+     * 预打包并重启服务。这一两秒窗口里该动态 import 报
+     * `Failed to fetch dynamically imported module`、在途的 `/api/v1/**` 全变
+     * `TypeError: Failed to fetch`，而这两类错误恰好命中前端的自愈重载
+     * （`public/static/boot-guard.js` 与 `shared/utils/core/lazy-component.ts`）→ 每次刷新后的
+     * 页面都能正常渲染、接着又失败 → **整页刷新被反复触发（实测 1.3s 一次，持续数分钟）**。
+     *
+     * 列进来之后它们在服务启动时就打包好，`_metadata.json` 里也不再出现「运行期新增依赖」。
+     */
+    optimizeDeps: {
+      include: ['echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers'],
+    },
     customLogger,
     plugins,
     resolve: {

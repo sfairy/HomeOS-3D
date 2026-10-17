@@ -1881,9 +1881,15 @@
 }
 
 /* ===== 静止档（触摸设备）：坞体玻璃降级为实底 =====
-   只作用于触摸设备：桌面浏览器实测不闪，玻璃是这套页面的质感，不该白扣。 */
+   只作用于触摸设备：桌面浏览器实测不闪，玻璃是这套页面的质感，不该白扣。
+
+   选择器必须写成 `.hos-page .hos-panel`（而不是裸 `.hos-panel`）：坞体基础样式用的是
+   `.hos-page .hos-panel`（见文件开头的说明，那里用 .hos-page 压过 design-system 的裸规则），
+   特异性 (0,2,0)。裸 `.hos-panel` 只有 (0,1,0)，**即使排在后面也赢不了** —— 实测触摸档下
+   backdrop-filter 仍是 blur(22px)，坞体在大面积场景之上保留实时模糊，DPR 3 的移动模拟里
+   每帧重模糊，这正是入户页反复闪的来源之一。 */
 @media (pointer: coarse), (hover: none) {
-  .hos-panel {
+  .hos-page .hos-panel {
     background: linear-gradient(165deg, var(--hos-sky-mid) 0%, var(--hos-sky-low) 100%);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

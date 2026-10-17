@@ -341,7 +341,12 @@ function startFrontendWatchBuild() {
     },
     {
       label: "授权商店",
-      sources: [path.join(HOMEOS_STORE, "frontend", "src")],
+      sources: [
+        path.join(HOMEOS_STORE, "frontend", "src"),
+        // 商店的 /store-static/** 在 dev 下也由后端从 dist 下发，所以 public 里的场景 CSS
+        // 改了同样必须重建 —— 漏掉这一条就表现为「改了 CSS 没效果」。
+        path.join(HOMEOS_STORE, "frontend", "public"),
+      ],
       buildArgs: ["run", "--cwd", HOMEOS_STORE, "build"],
       refreshPort: STORE_PORT,
     },

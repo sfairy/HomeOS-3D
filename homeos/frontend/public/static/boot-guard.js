@@ -22,6 +22,9 @@
   var READY_ATTR = 'data-homeos-ready'
   var MOUNTED_ATTR = 'data-homeos-mounted'
   var RELOAD_KEY = 'homeos:boot-auto-reload'
+  /** 自愈重载预算：窗口（毫秒）与窗口内最多自动重载次数。 */
+  var RELOAD_WINDOW_MS = 120000
+  var RELOAD_MAX_IN_WINDOW = 2
   /** 超过这个时长仍未就绪，就把「正在连接…」升级为带重载按钮的可操作提示。 */
   var ESCALATE_MS = 25000
   /**
@@ -36,7 +39,7 @@
    * （旧行为：ready 后第一个 200ms 轮询就升级，必然命中）。
    */
   var READY_GRACE_MS = 8000
-  /** 自动自愈重载最多做一次，避免重载风暴。 */
+  /** 轮询句柄：覆盖层收起、以及「已就绪但未渲染出内容」的升级判定都靠它。 */
   var pollTimer = null
   /** ready=1 首次被观测到的时间戳；内容可见后清零。用于上面那条宽限期判定。 */
   var readySince = 0
@@ -45,27 +48,40 @@
     return document.getElementById(id)
   }
 
-  function readFlag() {
+  /**
+   * 自愈重载预算（sessionStorage 里的 `{count, start}`）。
+   *
+   * 与旧实现的差别只有一条，但很关键：预算**只在窗口过期时重置**，不再在「渲染成功」时清零。
+   * 旧实现是「渲染成功 → clearFlag → 下次失败又能自愈重载」，于是 dev 下依赖重打包 / 服务
+   * 重启的那一两秒里（动态 import 与 /api/** 同时失败），每次刷新后的页面都能正常渲染、
+   * 紧接着又失败 → 整页刷新被反复触发（实测 1.3s 一次、持续数分钟，即「首页一直在刷新」）。
+   * 预算用尽就停在带现场信息的提示态；用户点「重新加载」仍可手动刷新。
+   */
+  function readReloadBudget(now) {
     try {
-      return sessionStorage.getItem(RELOAD_KEY) === '1'
+      var raw = sessionStorage.getItem(RELOAD_KEY)
+      if (raw) {
+        var parsed = JSON.parse(raw)
+        if (
+          parsed &&
+          typeof parsed.count === 'number' &&
+          typeof parsed.start === 'number' &&
+          now - parsed.start < RELOAD_WINDOW_MS
+        ) {
+          return { count: parsed.count, start: parsed.start }
+        }
+      }
     } catch (e) {
-      return false
+      /* 隐私模式下 sessionStorage 不可用 / 脏数据：等价于没有预算 */
     }
+    return { count: 0, start: now }
   }
 
-  function writeFlag() {
+  function writeReloadBudget(budget) {
     try {
-      sessionStorage.setItem(RELOAD_KEY, '1')
+      sessionStorage.setItem(RELOAD_KEY, JSON.stringify(budget))
     } catch (e) {
-      /* 隐私模式下 sessionStorage 不可用：退化为「只提示、不自动重载」 */
-    }
-  }
-
-  function clearFlag() {
-    try {
-      sessionStorage.removeItem(RELOAD_KEY)
-    } catch (e) {
-      /* ignore */
+      /* best-effort：写不进去就退化为「只提示、不自动重载」 */
     }
   }
 
@@ -305,24 +321,37 @@
    * 合成首帧 —— 内容其实已经渲染好，但屏幕上是全黑，且**零报错**；用户一旦改变窗口尺寸
    * 才会触发重新合成，画面立刻出现。这与「Vue 已挂载、内容有尺寸、无报错，却全黑」完全吻合。
    *
-   * 这里主动制造一次布局与合成状态变化，等价于用户拖动窗口宽度的效果。
-   * 幂等、无副作用：只读一次布局并派发一次 resize，不改变任何可见样式。
+   * 这里在下一帧里读一次布局属性（rAF → 强制样式 / 布局重算 → 重新合成），**不再伪造
+   * `resize` 事件**：合成 resize 会被设备工具栏 / 移动浏览器的尺寸监听当成真 resize 处理，
+   * 触发一轮整页重排重绘 —— 那正是入户页「反复闪」的来源之一。后台标签页直接跳过，
+   * 免得在不可见时反复触发布局。
    */
   function nudgeFirstPaint() {
     if (nudgeCount >= NUDGE_MAX) return
     nudgeCount += 1
     try {
-      // 读取布局属性强制一次同步重排，再派发 resize 让合成器重新评估绘制。
-      void document.documentElement.offsetHeight
-      void document.body.offsetHeight
-      window.dispatchEvent(new Event('resize'))
+      if (document.visibilityState === 'hidden') return
+      window.requestAnimationFrame(function () {
+        try {
+          void document.documentElement.offsetHeight
+          void document.body.offsetHeight
+          void document.documentElement.getBoundingClientRect().height
+        } catch (e) {
+          /* ignore */
+        }
+      })
     } catch (e) {
       /* ignore */
     }
   }
 
   /** 就绪后按 0 / 500 / 1500ms 补推，覆盖字体与异步 chunk 落地的时间差。 */
+  var paintNudgesScheduled = false
   function schedulePaintNudges() {
+    // 幂等：轮询每轮都会走到这里，没有这个闸门就会各自排一串定时器，
+    // 而 NUDGE_MAX 只挡住真正派发的那一步、挡不住定时器堆积。
+    if (paintNudgesScheduled) return
+    paintNudgesScheduled = true
     nudgeFirstPaint()
     window.setTimeout(nudgeFirstPaint, 500)
     window.setTimeout(nudgeFirstPaint, 1500)
@@ -402,8 +431,10 @@
     // 启动期：入口 chunk 404 → 清 SW/缓存后自愈重载。
     // 已就绪后仍可能命中：dev 下 dist 重建砍掉旧 hash，或 SW 曾缓存生产外壳，
     // StudioView / 动态 import 会 Failed to fetch …/assets/js/<old>.js —— 同样走一次自愈。
-    if (!readFlag()) {
-      writeFlag()
+    var now = Date.now()
+    var budget = readReloadBudget(now)
+    if (budget.count < RELOAD_MAX_IN_WINDOW) {
+      writeReloadBudget({ count: budget.count + 1, start: budget.start })
       escalate('正在重新加载…', '页面资源已更新，正在清理缓存并重新加载。')
       purgeClientCaches()
       window.setTimeout(function () {
@@ -458,36 +489,76 @@
   else document.addEventListener('DOMContentLoaded', armDeferredOverlay)
 
   // 就绪后收掉覆盖层 —— 但必须先确认**真的渲染出了可见内容**，否则会把「全黑页」当成成功。
-  // 轮询持续存在：即使已升级为说明态，之后一旦内容可见（例如用户点了导航）也会自动放行。
-  pollTimer = window.setInterval(function () {
+  //
+  // 轮询用 setTimeout 自循环而不是固定 setInterval：`hasVisibleContent()` 每轮都要读
+  // getComputedStyle + getBoundingClientRect，200ms 一次就是每 200ms 强制一次同步布局，
+  // 在入户页这种大面积模糊 / 动画的场景里直接变成掉帧源。所以：
+  //   - 内容可见 → 收掉覆盖层并**停掉轮询**（启动期结束，不再需要它）；
+  //   - 已升级为说明态 → 降到 1s 一次继续守望（用户点导航后内容出现仍能自动放行）；
+  //   - 启动期（未就绪 / 未到宽限期）→ 保持 200ms，这段窗口短且需要及时放行。
+  // 最长守望 POLL_MAX_MS：超时后停掉，避免一个标签页永久每 200ms 触发布局。
+  var POLL_INTERVAL_MS = 200
+  var ESCALATED_POLL_INTERVAL_MS = 1000
+  var POLL_MAX_MS = 180000
+  var pollStartedAt = Date.now()
+
+  function stopPolling() {
+    if (pollTimer != null) {
+      window.clearTimeout(pollTimer)
+      pollTimer = null
+    }
+  }
+
+  function schedulePoll(delay) {
+    if (pollTimer != null) return
+    if (Date.now() - pollStartedAt > POLL_MAX_MS) {
+      stopPolling()
+      return
+    }
+    pollTimer = window.setTimeout(pollTick, delay)
+  }
+
+  function pollTick() {
+    pollTimer = null
     if (!isReady()) {
       readySince = 0
+      schedulePoll(POLL_INTERVAL_MS)
       return
     }
     if (hasVisibleContent()) {
       readySince = 0
       hide()
-      clearFlag()
       // 内容已渲染：轻推一次，绕开「首帧未被合成」导致的假性全黑（见 nudgeFirstPaint）。
       schedulePaintNudges()
+      stopPolling()
       return
     }
-    if (escalated) return
+    if (escalated) {
+      schedulePoll(ESCALATED_POLL_INTERVAL_MS)
+      return
+    }
     // 已就绪但内容不可见：先尝试移除残留的 body class，成功则放行。
     if (tryHealHidingBodyClasses() && hasVisibleContent()) {
       readySince = 0
       hide()
-      clearFlag()
+      schedulePaintNudges()
+      stopPolling()
       return
     }
     // 自愈无效：区分「仍在正常启动」与「真的没渲染出来」。
     // ready 只代表首个路由解析完成，app.mount('#app') 还在等 loadFrontendConfig()
     //（后端 /system/config/public 最多等 2s HA 区域），这段窗口里 #app 必为空且属正常。
     if (!readySince) readySince = Date.now()
-    if (Date.now() - readySince < READY_GRACE_MS) return
+    if (Date.now() - readySince < READY_GRACE_MS) {
+      schedulePoll(POLL_INTERVAL_MS)
+      return
+    }
     // 宽限期后仍无可见内容：不要隐藏覆盖层（隐藏了就是黑屏），改为把现场信息摆出来。
     escalate('界面已就绪但未渲染出内容', '请把以下信息反馈给开发：' + domDiagnostics())
-  }, 200)
+    schedulePoll(ESCALATED_POLL_INTERVAL_MS)
+  }
+
+  schedulePoll(POLL_INTERVAL_MS)
 
   // 迟迟不就绪：升级提示但保持可见。最常见的成因是后端还在冷启动 / 热重载
   // （前端会重试约 2 分钟），所以要给出「等待中」而不是「失败」的语义。

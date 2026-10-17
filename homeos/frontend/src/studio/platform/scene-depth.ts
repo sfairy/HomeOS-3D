@@ -13,6 +13,9 @@
  * 唯一的手抄件是 ``public/static/auth/scene/scene-depth.js``：它是构建缺口时的兜底资源，
  * 由后端直接伺服、不经过打包，无法 import，改动判据时须与 ``@homeos/shared/scene/touch-profile`` 同步。
  */
-import { applyTouchProfile } from '@homeos/shared/scene/touch-profile'
+import { applyTouchProfile, watchTouchProfile } from '@homeos/shared/scene/touch-profile'
 
 applyTouchProfile()
+// 设备工具栏开关 / iPad 插拔妙控键盘会让媒体查询在页面存活期间改口，必须跟着重算，
+// 否则 html.hos-touch 那一组规则失效：坞体保留实时 backdrop-filter，DPR 3 下每帧重模糊。
+watchTouchProfile()

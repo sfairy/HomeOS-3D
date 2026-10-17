@@ -10,11 +10,33 @@
  */
 (function () {
   'use strict'
-  var coarsePointer = window.matchMedia('(pointer: coarse)').matches
-  var noHover = window.matchMedia('(hover: none)').matches
-  var iPadInDisguise =
-    navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '')
-  if (coarsePointer || noHover || iPadInDisguise) {
-    document.documentElement.classList.add('hos-touch')
+  var MEDIA_QUERIES = ['(pointer: coarse)', '(hover: none)']
+  function isTouchProfile() {
+    var coarsePointer = window.matchMedia('(pointer: coarse)').matches
+    var noHover = window.matchMedia('(hover: none)').matches
+    // iPadOS 装在 Mac 上：platform 报 Mac，但触点数 > 1，按手持档处理。
+    var iPadInDisguise =
+      navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '')
+    return coarsePointer || noHover || iPadInDisguise
+  }
+  function applyTouchProfile() {
+    document.documentElement.classList.toggle('hos-touch', isTouchProfile())
+  }
+  applyTouchProfile()
+  /**
+   * 判据是**一次性快照**，而媒体查询会在页面存活期间改口：PC 浏览器 DevTools 的设备工具栏
+   * （移动模拟）开关、iPad 插拔妙控键盘 / 触控板都会触发。不跟着重算的话 `html.hos-touch …`
+   * 那一整组「手持档关重动效 + 关掉坞体实时模糊」的规则全部失效，坞体在大面积场景上保留
+   * `backdrop-filter: blur(22px)`，DPR 3 下每帧重模糊 = 反复闪。
+   * 注意只有首次需要「首帧前同步执行」，后续 change 回调早于首帧也没关系。
+   */
+  for (var i = 0; i < MEDIA_QUERIES.length; i++) {
+    try {
+      var mql = window.matchMedia(MEDIA_QUERIES[i])
+      if (typeof mql.addEventListener === 'function') mql.addEventListener('change', applyTouchProfile)
+      else if (typeof mql.addListener === 'function') mql.addListener(applyTouchProfile)
+    } catch (e) {
+      /* 个别环境对未知媒体查询抛错：忽略即可，已应用的那一档不受影响 */
+    }
   }
 })()
