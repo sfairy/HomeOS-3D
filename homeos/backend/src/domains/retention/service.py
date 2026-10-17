@@ -51,6 +51,43 @@ _RETENTION_MODELS: dict[str, Any] = {
     "securityEvent": (SecurityEvent, "security_events"),
 }
 
+#: 清理结果里的键 → 中文短名。直接打 ``dict`` 会变成 ``{'eventLog': 1}``，
+#: 读日志的人还得在脑子里翻译一遍键名。
+_CLEANUP_LABELS: dict[str, str] = {
+    "eventLog": "事件日志",
+    "notification": "通知记录",
+    "securityEvent": "安防事件",
+    "notificationCooldownPruned": "通知冷却条目",
+}
+
+
+def _describe_deleted(deleted: dict[str, Any]) -> str:
+    """把清理计数表写成「事件日志 6 条、安防事件 2 条」。"""
+    parts = []
+    for key, value in deleted.items():
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            continue
+        if count <= 0:
+            continue
+        parts.append(f"{_CLEANUP_LABELS.get(key, key)} {count} 条")
+    return "、".join(parts) or "无明细"
+
+
+def _describe_retention(days: dict[str, Any]) -> str:
+    """把保留策略写成「事件日志 7 天、安防事件 30 天」，避免直接打 dict repr。"""
+    parts = []
+    for key, value in days.items():
+        try:
+            count = int(value)
+        except (TypeError, ValueError):
+            continue
+        if count <= 0:
+            continue
+        parts.append(f"{_CLEANUP_LABELS.get(key, key)} {count} 天")
+    return "、".join(parts) or "未更改"
+
 
 def parse_positive_int(raw: Any) -> int | None:
     if raw is None or raw == "":
@@ -139,10 +176,12 @@ class DatabaseRetentionService:
             return
         self._stop = False
         self._task = asyncio.create_task(self._loop())
+        first_delay = self.first_delay_ms() / 1000
+        interval_hours = self.cleanup_interval_ms() / 3_600_000
         logger.info(
-            "数据库清理调度已更新: 首次 %ss 后,之后每 %s 小时",
-            self.first_delay_ms() / 1000,
-            self.cleanup_interval_ms() / 3_600_000,
+            "数据库清理计划：%.0f 秒后首次执行，之后每 %g 小时一次",
+            first_delay,
+            interval_hours,
         )
 
     def restart_schedule(self) -> None:
@@ -255,7 +294,7 @@ class DatabaseRetentionService:
     def update_retention_policies(self, days: dict[str, Any]) -> list[dict[str, Any]]:
         self._app_config.update({"retention": days})
         self._retention_days = self.resolve_retention_days()
-        logger.info("数据保留策略已更新: %s", days)
+        logger.info("数据保留策略已更新：%s", _describe_retention(days))
         return self.get_retention_policies()
 
     # 清理
@@ -348,7 +387,7 @@ class DatabaseRetentionService:
         }
         self._persist_cleanup_stats(result)
         if total > 0:
-            logger.info("已清理 %s 条超期历史记录: %s", total, deleted)
+            logger.info("数据库清理完成：共删除 %s 条超期记录（%s）", total, _describe_deleted(deleted))
         return result
 
     # 附加清理步骤

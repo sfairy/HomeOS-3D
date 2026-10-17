@@ -164,7 +164,7 @@ class AwaySimulationService:
                     "hour": row.hour,
                     "lightOnProb": row.light_on_prob,
                 }
-            logger.info("离家模拟已加载 %s 个 hour×dow 模式桶", len(rows))
+            logger.debug("离家模拟已加载 %s 个时段模式", len(rows))
         except Exception as exc:
             logger.warning("加载 AwayPatternBucket 失败: %s", exc)
 

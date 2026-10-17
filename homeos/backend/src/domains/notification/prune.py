@@ -118,7 +118,9 @@ class NotificationPruneHelper:
                 if len(oldest) < to_delete:
                     break
         if total_deleted > 0:
-            logger.info("自动清理 %s 条通知(条数软上限,优先已读)", total_deleted)
+            logger.info(
+                "通知数量超过保留上限，已自动清理 %s 条（优先清理已读）", total_deleted
+            )
 
 
 __all__ = ["PRUNE_BATCH_SIZE", "PRUNE_DEBOUNCE_MS", "NotificationPruneHelper"]

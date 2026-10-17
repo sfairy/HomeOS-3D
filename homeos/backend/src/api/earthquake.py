@@ -88,12 +88,12 @@ class DismissEarthquakeDto(BaseModel):
 async def test_earthquake(request: Request, user: dict[str, Any] = Depends(require_user)):
     """触发模拟演练预警（仅管理员；3 秒后触发）。"""
     _ = user
-    logger.info("🧪 地震测试端点被调用.将在 3 秒后触发模拟警报...")
+    logger.info("🧪 已触发地震演练：3 秒后推送模拟预警")
     service = _service(request)
     await service.ensure_runtime_config(force=True)
     cfg = service.get_runtime_config()
     if not cfg.enabled:
-        logger.warning("配置中已禁用 EEW;若已配置坐标,测试仍会触发")
+        logger.warning("EEW 在配置中已禁用；若已设置家庭坐标，测试仍会触发一次模拟预警")
     await asyncio.sleep(SIMULATION_TRIGGER_DELAY_MS / 1000)
     result = await service.try_fire_simulated_alert()
     if not result.get("ok"):

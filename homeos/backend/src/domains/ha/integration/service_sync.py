@@ -111,7 +111,7 @@ class HASyncMixin(HAConnectorHost):
         if connection is None:
             return
         client = await self.client_for(connection)
-        for delay in (0, *STATE_FETCH_RETRY_DELAYS):
+        for index, delay in enumerate((0, *STATE_FETCH_RETRY_DELAYS)):
             if delay:
                 await asyncio.sleep(delay)
             requested = set(pending)
@@ -124,7 +124,15 @@ class HASyncMixin(HAConnectorHost):
                     # 兜底：fetch_states 内部已逐实体容错，这里防的是连接级失败（如 Client 建连即失败）。
                     # 不能把异常抛到实时推送链路上（会拆掉整条 runtime WebSocket）；
                     # 按「本轮无数据」处理，下面的 returned 为空集，所有实体留在 pending 里退避重试。
-                    LOGGER.warning('批量拉取实体状态失败，本轮跳过：%s', error)
+                    # 重试期间只写 DEBUG，三轮都失败才给一行 WARNING：HA 掉线时每轮刷三行太吵。
+                    if index == len(STATE_FETCH_RETRY_DELAYS):
+                        LOGGER.warning(
+                            '批量拉取实体状态失败，本轮已跳过（重试 %d 次后仍失败）：%s',
+                            len(STATE_FETCH_RETRY_DELAYS),
+                            error,
+                        )
+                    else:
+                        LOGGER.debug('批量拉取实体状态失败，稍后重试：%s', error)
                     states = []
                 await self.state_hub.merge(states, invalidated = invalidated)
             # 本轮「请求了但没返回」的实体 = 网络失败，或 HA 侧暂时还没有这个实体（404）。
@@ -225,7 +233,7 @@ class HASyncMixin(HAConnectorHost):
         try:
             self._record_error(connection_id, message)
         except Exception:
-            LOGGER.error('Unable to persist HA connector error\n%s', _safe_text(traceback.format_exc(), limit = 12000))
+            LOGGER.error('Home Assistant 连接错误写入失败\n%s', _safe_text(traceback.format_exc(), limit = 12000))
 
     def _mark_connected(self, connection_id: str) -> None:
         with self.database.session_factory() as database:

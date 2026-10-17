@@ -110,7 +110,7 @@ class AgentConfigService:
             return
 
         def on_system_config_updated(_payload: Any = None) -> None:
-            logger.info("检测到配置更新,正在使 Agent 配置缓存失效")
+            logger.debug("检测到配置更新，正在使 Agent 配置缓存失效")
             self.invalidate_cache()
 
         self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
@@ -132,13 +132,13 @@ class AgentConfigService:
 
         db = self._read_from_db()
         if db is not None and db.api_key and not self._is_unconfigured_key(db.api_key):
-            logger.info("使用数据库配置:提供商=%s,模型=%s", db.provider, db.model)
+            logger.debug("使用数据库配置:提供商=%s,模型=%s", db.provider, db.model)
             self._cached_config = db
             return db
 
         env = self._read_from_env()
         if env.api_key and not self._is_unconfigured_key(env.api_key):
-            logger.info("使用 .env 回退配置:提供商=%s,模型=%s", env.provider, env.model)
+            logger.debug("使用 .env 回退配置:提供商=%s,模型=%s", env.provider, env.model)
             # DB 有非密钥字段时合并（provider/model 等），密钥用 env
             if db is not None:
                 self._cached_config = AgentLlmConfig(
@@ -153,7 +153,7 @@ class AgentConfigService:
             self._cached_config = env
             return env
 
-        logger.info("未配置 API Key,默认使用 mock 提供商")
+        logger.debug("未配置 API Key，使用模拟提供商")
         self._cached_config = AgentLlmConfig(
             provider="mock",
             api_key="",

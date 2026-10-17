@@ -34,6 +34,13 @@ _EXTERNAL_MAX_ATTEMPTS = 3
 #: 需要**外部投递**的通道（站内 / socket 不算）：只有它们才能决定 delivered_at。
 _EXTERNAL_CHANNELS = ("email", "webpush", "wecom")
 
+#: 通道 id → 中文名（日志里给人看）
+_CHANNEL_LABELS: dict[str, str] = {
+    "email": "邮件",
+    "webpush": "WebPush",
+    "wecom": "企业微信",
+}
+
 _ID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
@@ -240,11 +247,19 @@ class NotificationDispatchHelper:
                     )
                 except Exception as exc:
                     logger.debug("广播投递失败事件失败: %s", exc)
-                logger.warning("外部通道投递失败，未标记已投递：%s", failed)
+                logger.warning(
+                    "外部通知发送失败（已重试 %s 次）：%s；站内通知不受影响",
+                    _EXTERNAL_MAX_ATTEMPTS,
+                    "、".join(_CHANNEL_LABELS.get(channel, channel) for channel in failed),
+                )
                 return
             if not delivered:
-                # 所有外部通道都未启用/未就绪：既没送达也不算失败。
-                logger.warning("外部通道均未启用或未就绪，通知未标记为已投递")
+                # 所有外部通道都未启用/未就绪：既没送达也不算失败。这是配置状态而非故障，
+                # 每条通知都 WARN 会让人误以为系统坏了；站内通知本身已经送达。
+                logger.info(
+                    "通知已写入站内，但目标外部通道均未启用：%s",
+                    "、".join(_CHANNEL_LABELS.get(channel, channel) for channel in pending),
+                )
                 return
             await asyncio.to_thread(self._mark_delivered, notification_id)
             try:

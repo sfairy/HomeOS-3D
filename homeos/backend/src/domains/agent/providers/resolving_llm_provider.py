@@ -93,16 +93,19 @@ class ResolvingLlmProvider:
                         "model": cfg.model,
                     }
                 )
-            logger.info("LLM 提供商已就绪:%s,模型=%s", cfg.provider, cfg.model)
+            logger.info("LLM 提供商已就绪：%s（模型 %s）", cfg.provider, cfg.model)
             return
 
         if not is_mock_allowed(self._agent_config.env):
             self._inner = self._unavailable
-            logger.warning("LLM 未配置且 AGENT_ALLOW_MOCK=false,智能管家不可用")
+            logger.warning(
+                "未配置大模型，智能管家暂不可用；"
+                "请在「设置 → 智能管家」填写 API Key（开发时可设 AGENT_ALLOW_MOCK=true 使用模拟回复）"
+            )
             return
 
         self._inner = MockLlmProvider()
-        logger.info("LLM 提供商:mock(模拟)")
+        logger.info("LLM 提供商：模拟模式（未配置 API Key，回复仅用于联调）")
 
 
 __all__ = ["ResolvingLlmProvider"]

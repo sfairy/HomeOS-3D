@@ -55,7 +55,7 @@ class DeviceManagementService:
                 "haSynced": self._state_store.is_ha_synced(),
             }
         ):
-            logger.warning("跳过僵尸绑定扫描: Home Assistant 尚未同步，无法判断实体是否仍存在")
+            logger.info("跳过僵尸绑定扫描：Home Assistant 尚未完成同步，暂无法判断实体是否仍存在")
             return []
 
         alive = build_alive_entity_id_set(

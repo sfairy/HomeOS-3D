@@ -17,7 +17,7 @@ from typing import Any
 
 from .bus import LocalEventBus
 from .layout import load_active_project_layout, schedule_security_event
-from .zones import resolve_home_mode_link_for_security_change
+from .zones import resolve_home_mode_link_for_security_change, security_mode_label
 from ...platform.core.background import spawn_background
 
 logger = logging.getLogger("homeos.security.linkage")
@@ -87,14 +87,16 @@ class SecurityLinkageService:
         try:
             if current == "disarmed" and cfg.get("autoArmOnEveryoneLeft"):
                 await self._panel.arm("armed_away", None, {"source": "presence"})
-                logger.info("全员离家:已自动布防 armed_away")
+                logger.info("全员离家：已自动切换为离家布防")
             elif current in ("armed_home", "armed_night") and cfg.get(
                 "autoUpgradeToAwayOnEveryoneLeft"
             ):
                 await self._panel.arm(
                     "armed_away", None, {"source": "presence", "force": True}
                 )
-                logger.info("全员离家:%s 已升级为 armed_away", current)
+                logger.info(
+                    "全员离家：安防从%s升级为离家布防", security_mode_label(current)
+                )
         except Exception as exc:
             self._log_linkage_failure("linkage_auto_arm_failed", f"全员离家自动布防失败: {exc}")
 
@@ -148,7 +150,7 @@ class SecurityLinkageService:
             return
         try:
             await self._panel.arm("armed_home", None, {"source": "presence", "force": True})
-            logger.info("首人到家:已自动切换安防为 armed_home(居家)")
+            logger.info("首人到家：已自动切换为在家布防")
         except Exception as exc:
             self._log_linkage_failure(
                 "linkage_auto_arm_home_failed", f"首人到家自动切居家失败: {exc}"
@@ -162,19 +164,21 @@ class SecurityLinkageService:
             if away and cfg.get("calendarArmOnAway"):
                 if current == "disarmed":
                     await self._panel.arm("armed_away", None, {"source": "calendar"})
-                    logger.info("日历外出开始:已自动布防 armed_away")
+                    logger.info("日历显示外出：已自动切换为离家布防")
                 elif current in ("armed_home", "armed_night") and cfg.get(
                     "autoUpgradeToAwayOnEveryoneLeft"
                 ):
                     await self._panel.arm(
                         "armed_away", None, {"source": "calendar", "force": True}
                     )
-                    logger.info("日历外出开始:%s 已升级为 armed_away", current)
+                    logger.info(
+                        "日历显示外出：安防从%s升级为离家布防", security_mode_label(current)
+                    )
             elif not away and cfg.get("autoDisarmOnFirstHome") and current == "armed_away":
                 await self._panel.arm(
                     "armed_home", None, {"source": "calendar", "force": True}
                 )
-                logger.info("日历外出结束:已恢复 armed_home 居家布防")
+                logger.info("日历外出结束：已恢复为在家布防")
         except Exception as exc:
             self._log_linkage_failure("linkage_calendar_arm_failed", f"日历外出联动布防失败: {exc}")
 
@@ -201,12 +205,24 @@ class SecurityLinkageService:
                 )
                 if decision["action"] == "deactivate":
                     await self._home_mode.deactivate()
-                    logger.info("安防撤防:已退出家庭模式")
+                    logger.info("安防撤防：已退出家庭模式")
                 elif decision["action"] == "activate":
                     await self._home_mode.activate(
                         decision["modeId"], {"source": "security", "reason": f"安防模式 {mode}"}
                     )
-                    logger.info("安防 %s:已联动家庭模式 %s", mode, decision["modeId"])
+                    mode_name = next(
+                        (
+                            str(item.get("name") or "")
+                            for item in modes
+                            if str(item.get("id")) == str(decision["modeId"])
+                        ),
+                        "",
+                    )
+                    logger.info(
+                        "安防：%s，已联动家庭模式「%s」",
+                        security_mode_label(mode),
+                        mode_name or decision["modeId"],
+                    )
         except Exception as exc:
             self._log_linkage_failure("linkage_home_mode_failed", f"安防联动家庭模式失败: {exc}", mode)
 
@@ -224,7 +240,7 @@ class SecurityLinkageService:
         elif mode != "armed_away" and self._away_sim.get_status().get("enabled"):
             try:
                 await self._away_sim.disable()
-                logger.info("安防 %s:已关闭离家模拟", mode)
+                logger.info("安防：%s，已关闭离家模拟", security_mode_label(mode))
             except Exception as exc:
                 self._log_linkage_failure(
                     "linkage_away_sim_disable_failed", f"联动关闭离家模拟失败: {exc}", mode

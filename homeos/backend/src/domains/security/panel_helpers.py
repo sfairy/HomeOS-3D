@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -24,7 +25,7 @@ from .layout import (
     schedule_security_event_silent,
     summarize_hazard_action_failures,
 )
-from .zones import normalize_zone_type, should_zone_alarm_in_mode
+from .zones import normalize_zone_type, security_mode_label, should_zone_alarm_in_mode
 from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
@@ -88,6 +89,22 @@ def is_security_alarm_trigger(
         or (entity_id.startswith("lock.") and new_state == "unlocked" and not lock_unlock_in_grace)
         or (entity_id.startswith("alarm_control_panel.") and new_state == "triggered")
     )
+
+
+# ── 重连后的告警基线保护 ────────────────────────────────────────────────
+
+#: 重连保护窗口（秒）。HA 断线重连 / 重启后会把当前状态重新补发一遍，其中
+#: ``unavailable → on`` 只是「又读到了这个值」，并不是刚刚发生的触发；
+#: 窗口内这类过渡按基线处理，避免重连瞬间凭空多出几条安防告警。
+RECONNECT_BASELINE_WARMUP_SECONDS = 30.0
+
+#: 不携带判定含义的过渡态：断连、实体重载、集成未就绪时都会出现。
+TRANSIENT_STATES = frozenset({"unavailable", "unknown", "none", ""})
+
+
+def is_transient_state(state: Any) -> bool:
+    """状态是否是过渡态（unavailable / unknown / 空），不能作为触发边沿的起点。"""
+    return str(state or "").strip().lower() in TRANSIENT_STATES
 
 
 # ── 紧急求助配置 ────────────────────────────────────────────────────────
@@ -181,8 +198,8 @@ class SecurityPanelStateHelper:
         if isinstance(armed_at, (int, float)):
             self._state["setArmedAt"](int(armed_at))
         logger.info(
-            "安防面板状态已恢复: 模式=%s, 区域=%s",
-            self._state["getMode"](),
+            "安防面板状态已恢复：%s，%s 个区域",
+            security_mode_label(self._state["getMode"]()),
             len(self._state["getZones"]()),
         )
 
@@ -381,6 +398,46 @@ class SecurityAlarmHelper:
         self._is_zone_alarm_in_cooldown = is_zone_alarm_in_cooldown
         self._set_zone_alarm_cooldown = set_zone_alarm_cooldown
         self._safety_last_alarm: dict[str, int] = {}
+        # 进程刚启动、还没走满一个 HA 连接周期时，同样按「建立基线」处理：
+        # 启动瞬间补发的状态里没有真实的触发边沿。
+        self._baseline_warmup_until = time.monotonic() + RECONNECT_BASELINE_WARMUP_SECONDS
+        self._ha_link_down = False
+        bus.on("ha.disconnected", self._on_ha_disconnected)
+        bus.on("ha.connected", self._on_ha_connected)
+
+    def _on_ha_disconnected(self, _payload: Any = None) -> None:
+        """HA 断连：断连期间的实体状态不可信，重连后需要重新建立基线。"""
+        self._ha_link_down = True
+
+    def _on_ha_connected(self, _payload: Any = None) -> None:
+        """HA 重新连上：开一个短暂保护窗口，压掉重连补发造成的伪触发。"""
+        if not self._ha_link_down:
+            return
+        self._ha_link_down = False
+        self._baseline_warmup_until = time.monotonic() + RECONNECT_BASELINE_WARMUP_SECONDS
+        logger.debug("HA 已重新连接，安防告警在 %.0f 秒内按基线处理", RECONNECT_BASELINE_WARMUP_SECONDS)
+
+    def _is_baseline_event(self, entity_id: str, old_state: Any, new_state: Any) -> bool:
+        """这条变更是否只是在建立基线，而不是一次真实触发。
+
+        - 旧状态缺失：HA 重连/重启后补发的快照、新建实体没有 ``old_state``，
+          无法构成 ``off → on`` 边沿；
+        - 保护窗口内旧状态是过渡态（``unavailable`` / ``unknown``）：重连后读到的是
+          当前值，不代表刚刚发生。
+        窗口之外 ``unavailable → on`` 仍按真实触发处理，避免漏报。
+        """
+        if old_state is None or str(old_state).strip() == "":
+            logger.debug("安防基线：%s 首次上报状态 %s，不视为触发", entity_id, new_state)
+            return True
+        if is_transient_state(old_state) and time.monotonic() < self._baseline_warmup_until:
+            logger.debug(
+                "安防基线：%s 由过渡态 %s 恢复为 %s，保护窗口内不视为触发",
+                entity_id,
+                old_state,
+                new_state,
+            )
+            return True
+        return False
 
     def _prune_safety_last_alarm(self, now: int, cooldown_ms: int) -> None:
         if cooldown_ms <= 0:
@@ -398,8 +455,6 @@ class SecurityAlarmHelper:
         armed_at = self._get_armed_at()
         if armed_at is None:
             return False
-        import time
-
         return time.time() * 1000 - armed_at < grace_sec * 1000
 
     async def handle_sensor_trigger(self, event: dict[str, Any]) -> None:
@@ -428,6 +483,10 @@ class SecurityAlarmHelper:
             self._is_lock_unlock_in_arm_exit_grace(entity_id, new_state),
         ):
             return
+        # 重连/重启后补发的状态没有真实的触发边沿：判完「像不像触发」再判基线，
+        # 这样只有候选告警才会留下 DEBUG 记录。
+        if self._is_baseline_event(entity_id, old_state, new_state):
+            return
 
         cooldown_sec = int(self._config_reader().get("sensorAlertCooldownSec") or 0)
         zones_to_alert = (
@@ -443,7 +502,7 @@ class SecurityAlarmHelper:
 
         friendly_name = (new_state_obj.get("attributes") or {}).get("friendly_name") or entity_id
         zone_names = "、".join(str(z.get("name")) for z in zones_to_alert)
-        logger.warning("🚨 安防告警: %s 触发 (%s)", friendly_name, zone_names)
+        logger.warning("🚨 安防告警：%s 触发（区域：%s）", friendly_name, zone_names)
 
         zone_ids = [str(z.get("id")) for z in zones_to_alert]
         await self._bus.emit(
@@ -484,8 +543,9 @@ class SecurityAlarmHelper:
             hazard = resolve_bound_hazard_kind(entity_id, bindings)
         if not hazard:
             return
-
-        import time
+        # 与入侵告警同一套基线规则：重连补发的「恢复为 on」不触发危险联动。
+        if self._is_baseline_event(entity_id, old_state, new_state):
+            return
 
         now = int(time.time() * 1000)
         cooldown_ms = int(self._config_reader().get("sensorAlertCooldownSec") or 0) * 1000
@@ -498,8 +558,8 @@ class SecurityAlarmHelper:
         is_smoke = hazard == "smoke"
         is_gas = hazard == "gas"
         friendly_name = (new_state_obj.get("attributes") or {}).get("friendly_name") or entity_id
-        label = "烟雾" if is_smoke else ("燃气" if is_gas else "漏水")
-        logger.warning("🔴 安全传感器触发: %s (%s)", friendly_name, label)
+        label = "烟雾" if is_smoke else ("燃气泄漏" if is_gas else "漏水")
+        logger.warning("🔴 安全告警：%s 检测到%s", friendly_name, label)
 
         drill_mode = bindings.hazard_drill_mode
         action_results: list[dict[str, Any]] = []
@@ -511,9 +571,9 @@ class SecurityAlarmHelper:
             )
             failures = summarize_hazard_action_failures(action_results)
             if failures:
-                logger.warning("危险传感器联动部分失败: %s", ",".join(failures))
+                logger.warning("危险传感器联动部分失败：%s", "、".join(failures))
         else:
-            logger.warning("演习模式:已跳过关阀/排风自动动作")
+            logger.warning("演习模式：已跳过关阀 / 排风自动动作")
 
         action_failures = summarize_hazard_action_failures(action_results)
         await self._bus.emit(

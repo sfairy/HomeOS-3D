@@ -10,7 +10,7 @@ lifespan 那次覆盖的是这条路径。
 -------------------------
 不接管的话，同一份启动日志里会有**两套格式**：
 
-    2026-10-17 08:38:57,066 INFO    src | 授权商店服务已启动：http://127.0.0.1:8898
+    2026-10-17 08:38:57,066 INFO    授权商店 | 服务已启动：http://127.0.0.1:8898
     INFO:     Started server process [94945]
     INFO:     Uvicorn running on http://127.0.0.1:8898 (Press CTRL+C to quit)
 
@@ -62,12 +62,15 @@ _HANDLER_FLAG = "_store_console_handler"
 
 
 class StoreConsoleFormatter(logging.Formatter):
-    """uvicorn 日志器名换成中文展示名，其余日志器原样（``src.*`` 保持可 grep）。"""
+    """uvicorn 日志器名换成中文展示名，商店根日志器显示为「授权商店」，其余 ``src.*`` 原样（可 grep）。"""
 
     def format(self, record: logging.LogRecord) -> str:
         context = localize_uvicorn_context(record.name)
         if context is None:
-            return super().format(record)
+            if record.name != "src":
+                return super().format(record)
+            # 商店 App 自己的 logger 名就是 ``src``：直接打出来是个没有信息量的前缀。
+            context = "授权商店"
         original = record.name
         record.name = context
         try:

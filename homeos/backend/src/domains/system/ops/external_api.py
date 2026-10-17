@@ -406,7 +406,8 @@ class ExternalApiService:
         """手动更新电价配置（覆盖内存快照）。"""
         self._electricity_price.update(config)
         self._electricity_price["lastUpdated"] = _iso_now()
-        logger.info("电价已更新: %s", config)
+        # 调用方（动态电价同步）会输出汇总行；这里只留 DEBUG 供排查。
+        logger.debug("电价配置已更新（%s 项）", len(config))
 
     def get_pricing(self) -> dict[str, Any]:
         return dict(self._electricity_price)

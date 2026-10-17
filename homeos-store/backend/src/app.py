@@ -300,7 +300,7 @@ def _make_payment_sweep_loop(runtime: _StoreRuntime):
         interval = int(settings.payment_sweep_interval_seconds or 0)
         generation = configure_sweep_loop(interval)
         if interval <= 0:
-            logger.info("支付巡检已关闭（STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0）")
+            logger.debug("支付巡检已关闭（STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0）")
             return
         delay = min(interval, 5)
         try:
@@ -330,7 +330,7 @@ def _make_release_sync_loop(runtime: _StoreRuntime):
         """
         interval = int(settings.release_sync_interval_seconds or 0)
         if interval <= 0:
-            logger.info("发布版本同步已关闭（STORE_RELEASE_SYNC_INTERVAL_SECONDS=0）")
+            logger.debug("发布版本同步已关闭（STORE_RELEASE_SYNC_INTERVAL_SECONDS=0）")
             return
         while True:
             ok = False
@@ -373,7 +373,7 @@ def _make_lifespan(runtime: _StoreRuntime):
         # 而客户机轮询与健康检查几秒就能把它顶出 docker logs 的可见范围。
         install_access_log_filters()
         logger.info(
-            "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
+            "服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )
         with database.session() as session:
             if not setup_api.admin_exists(session):

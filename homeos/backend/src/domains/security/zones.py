@@ -7,6 +7,20 @@ from typing import Any
 
 SECURITY_ARMING_MODES = ("armed_home", "armed_away", "armed_night", "disarmed")
 
+#: 安防模式的中文名（日志与提示里用；``armed_home`` 这种枚举值对用户没有意义）。
+SECURITY_MODE_LABELS: dict[str, str] = {
+    "armed_home": "在家布防",
+    "armed_away": "离家布防",
+    "armed_night": "夜间布防",
+    "disarmed": "撤防",
+}
+
+
+def security_mode_label(mode: Any) -> str:
+    """安防模式 → 中文名；未知值原样返回（不吞信息）。"""
+    text = str(mode or "").strip()
+    return SECURITY_MODE_LABELS.get(text, text or "未知")
+
 #: 安防模式 → 匹配家庭模式名称的正则。
 SECURITY_TO_HOME_MODE_NAME_PATTERN: dict[str, str] = {
     "armed_away": r"离家|away|外出|度假",

@@ -381,9 +381,26 @@ class WebPushService:
     async def reload(self) -> None:
         cfg = await self._channel_config.get_webpush_config()
         self._enabled = bool(cfg and cfg.enabled)
-        if not self._enabled or not cfg or not cfg.vapid_public_key or not cfg.vapid_private_key:
-            logger.warning("WebPush 通道配置不完整或已禁用")
+        if not self._enabled:
+            # 未启用是预期状态（只用 App / 邮件），不必每次启动都报 WARN。
+            logger.debug("WebPush 通道未启用，已跳过")
             self._vapid = {}
+            return
+        missing = [
+            label
+            for label, value in (
+                ("VAPID 公钥", cfg.vapid_public_key),
+                ("VAPID 私钥", cfg.vapid_private_key),
+            )
+            if not value
+        ]
+        if missing:
+            logger.warning(
+                "WebPush 通道已启用但缺少%s，浏览器推送暂不可用；在「系统设置 → 通知通道」重新生成密钥后生效",
+                "、".join(missing),
+            )
+            self._vapid = {}
+            self._enabled = False
             return
         self._vapid = {
             "publicKey": cfg.vapid_public_key,
@@ -425,10 +442,12 @@ class WebPushService:
             rows = await asyncio.to_thread(self._load_rows)
             self._subscriptions.clear()
             self._endpoint_backoff_until.clear()
+            skipped = 0
             for row in rows:
                 endpoint = str(row.endpoint or "")
                 if not is_safe_webpush_endpoint(endpoint):
-                    logger.warning("跳过不安全 WebPush 订阅 endpoint: %s", endpoint[:60])
+                    skipped += 1
+                    logger.debug("跳过不安全的 WebPush 订阅 endpoint: %s", endpoint[:60])
                     continue
                 self._subscriptions[endpoint] = PushSubscription(
                     endpoint=endpoint,
@@ -439,9 +458,15 @@ class WebPushService:
                     id=row.id,
                     created_at=row.created_at,
                 )
-            logger.info("已从数据库加载 %s 条 WebPush 订阅", len(rows))
+            loaded = len(self._subscriptions)
+            if loaded:
+                note = f"，跳过 {skipped} 条不安全的 endpoint" if skipped else ""
+                logger.info("已恢复 %s 条 WebPush 订阅%s", loaded, note)
+            else:
+                # 「0 条订阅」在通道未启用时是常态，INFO 只会陪跑一行噪音。
+                logger.debug("暂无 WebPush 订阅（浏览器授权推送后会自动登记）")
         except Exception as exc:
-            logger.warning("加载 WebPush 订阅失败(表可能尚未迁移): %s", exc)
+            logger.warning("加载 WebPush 订阅失败（数据表可能尚未迁移）: %s", exc)
 
     # 状态 / 订阅管理
     async def get_status(self) -> dict[str, Any]:

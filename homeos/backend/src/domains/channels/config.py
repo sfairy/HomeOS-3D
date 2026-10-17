@@ -105,7 +105,7 @@ class ChannelConfigService:
             return
 
         def on_system_config_updated(_payload: Any = None) -> None:
-            logger.info("检测到配置更新,正在使通道配置缓存失效")
+            logger.debug("检测到配置更新，正在使通道配置缓存失效")
             self.invalidate_cache()
 
         self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)

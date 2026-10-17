@@ -211,9 +211,10 @@ class UiConfigStaticAssetService:
             ("背景图", self.backgrounds_root),
             ("图标", self.icons_root),
         ):
-            logger.info("%s资源目录:%s", label, directory)
+            # 绝对路径只在开发者排查「上传的图去哪了」时有用，启动日志里打两行纯属噪音。
+            logger.debug("%s资源目录:%s", label, directory)
             if not Path(directory).exists():
-                logger.info("正在创建资源目录:%s", directory)
+                logger.info("已创建%s资源目录:%s", label, directory)
                 os.makedirs(directory, mode=0o755, exist_ok=True)
 
     # 安全路径（用户层：写入永远落在这里）

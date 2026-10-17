@@ -179,11 +179,12 @@ class SmartAdvisorUsageHelper:
             # 整体替换：避免「先清空、再中途失败」把可用映射打坏
             self.room_device_map = built
             if built:
-                logger.info("房间设备映射已建立: %s 个房间", len(built))
+                logger.debug("房间设备映射已建立: %s 个房间", len(built))
                 return True
             logger.warning(
-                "房间设备映射为空:%s 个房间均未匹配到任何设备"
-                "(检查 HA 区域归属与实体命名是否含房间标识),遗忘设备检测将不生效",
+                "房间设备映射为空：%s 个房间均未匹配到任何设备"
+                "（请检查 HA 中设备所属区域、以及实体名称是否含房间标识），"
+                "「遗忘设备」检测将暂不生效",
                 len(rooms),
             )
             return False

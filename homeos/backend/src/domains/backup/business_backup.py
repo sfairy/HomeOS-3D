@@ -839,10 +839,14 @@ def recover_interrupted_restore(settings: Any) -> bool:
         try:
             _rollback_restore(settings, rollback_dir, journal, None)
             shutil.rmtree(rollback_dir, ignore_errors=True)
-            logger.warning("未完成的全量恢复已自动回滚（phase=%s）。", phase)
+            logger.warning(
+                "检测到上次全量恢复未完成，已自动回滚到恢复前状态（中断阶段：%s）", phase
+            )
         except Exception:
             failed = True
-            logger.exception("检测到未完成的全量恢复（phase=%s），自动回滚失败。", phase)
+            logger.exception(
+                "检测到未完成的全量恢复，自动回滚失败（中断阶段：%s），请检查数据目录", phase
+            )
     return failed
 
 

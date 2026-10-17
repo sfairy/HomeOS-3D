@@ -238,14 +238,21 @@ class EarthquakeService:
             if status_key != self._eew_config_status_key:
                 self._eew_config_status_key = status_key
                 if nxt.home_lat is not None and nxt.home_lon is not None:
+                    # 保留 5 位小数（约 1 米精度）：15 位的双精度原样打出来只是噪音。
                     logger.info(
-                        "📍 EEW 家庭坐标: (%s, %s) %s",
+                        "📍 EEW 家庭坐标: (%.5f, %.5f) %s",
                         nxt.home_lat,
                         nxt.home_lon,
                         "已启用" if nxt.enabled else "未启用",
                     )
                 else:
-                    logger.warning("⚠️ 未配置 EEW 家庭坐标")
+                    if nxt.enabled:
+                        logger.warning(
+                            "EEW 已启用但未配置家庭坐标，无法按距离/烈度筛选地震；"
+                            "请在「警报规则 → 地震预警」中设置"
+                        )
+                    else:
+                        logger.debug("EEW 未启用，跳过家庭坐标检查")
         except Exception as exc:
             logger.error("加载 EEW 配置失败: %s", exc)
 
@@ -438,7 +445,9 @@ class EarthquakeService:
             if message.startswith("⚠️"):
                 logger.warning("%s", message)
             else:
-                logger.info("%s", message)
+                # 「距离 1540km 超过上限」「震级不够」这类过滤是每个事件都会走一遍的常规判定，
+                # 详情已进诊断面板；打 INFO 会让控制台被远震刷满。
+                logger.debug("%s", message)
             return
 
         if kind == "suppress_duplicate":

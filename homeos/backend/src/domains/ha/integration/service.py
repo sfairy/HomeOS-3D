@@ -70,6 +70,11 @@ class HAConnectorService(
         self._database_lock = asyncio.Lock()
         self._connected = False
         self._runtime_error = None
+        # 重连失败日志状态（见 service_live._log_cycle_failure）：本轮故障归类和上次提示时刻，
+        # 用来把「HA 停机时每分钟 6 轮」的同一条失败压成一行。
+        self._failure_kind: str | None = None
+        self._failure_logged_at = 0.0
+        self._offline_since: float | None = None
         # 连接生命周期外发通道：homeos 侧据此维护 app.state.ha_connected 与 ha.* 事件。
         # 融合后本连接器是唯一 HA 连接，因此它也是「HA 是否在线」的唯一事实源。
         self._connection_listener: Any = None

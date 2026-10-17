@@ -37,21 +37,22 @@ UVICORN_CONTEXT_ZH: dict[str, str] = {
 
 #: uvicorn 英文文案 → 中文（``pattern.match`` 从头匹配，未命中保持原文）
 UVICORN_MESSAGE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"^Will watch for changes in these directories: (.+)$"), r"监听目录变更: \1"),
+    (re.compile(r"^Will watch for changes in these directories: (.+)$"), r"监听目录变更（热重载）: \1"),
     (
         re.compile(r"^Uvicorn running on (\S+) \(Press CTRL\+C to quit\)$"),
-        r"服务运行在 \1 (按 CTRL+C 退出)",
+        r"服务已就绪: \1 (按 CTRL+C 退出)",
     ),
     (
         re.compile(r"^Started reloader process \[(\d+)\] using (.+)$"),
         r"已启动重载进程 [\1] (\2)",
     ),
-    (re.compile(r"^Started server process \[(\d+)\]$"), r"已启动服务进程 [\1]"),
-    (re.compile(r"^Waiting for application startup\.$"), "正在等待应用启动..."),
+    (re.compile(r"^Started server process \[(\d+)\]$"), r"服务进程已启动 [\1]"),
+    # 「等待启动 / 关闭」是 uvicorn 的说法，读起来像正在等别人；用户看到的是应用在起停。
+    (re.compile(r"^Waiting for application startup\.$"), "正在启动应用..."),
     (re.compile(r"^Application startup complete\.$"), "应用启动完成"),
-    (re.compile(r"^Waiting for application shutdown\.$"), "正在等待应用关闭..."),
-    (re.compile(r"^Application shutdown complete\.$"), "应用关闭完成"),
-    (re.compile(r"^Finished server process \[(\d+)\]$"), r"服务进程已结束 [\1]"),
+    (re.compile(r"^Waiting for application shutdown\.$"), "正在停止应用..."),
+    (re.compile(r"^Application shutdown complete\.$"), "应用已停止"),
+    (re.compile(r"^Finished server process \[(\d+)\]$"), r"服务进程已退出 [\1]"),
     (re.compile(r"^Shutting down$"), "正在关闭"),
 )
 

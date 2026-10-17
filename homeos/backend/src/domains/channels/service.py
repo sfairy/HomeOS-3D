@@ -68,7 +68,7 @@ class ChannelsService:
         self._providers[getattr(self._webpush, "name", "webpush")] = self._webpush
         self._providers[getattr(self._wecom, "name", "wecom")] = self._wecom
         self._wecom.on_message(lambda msg: self.handle_channel_message(msg, self._wecom))
-        logger.info("消息通道分发服务已初始化(含企业微信)")
+        logger.info("消息通道分发服务已就绪（Email / WebPush / 企业微信）")
 
     # 渠道身份解析
     async def resolve_channel_actor(self, channel: str) -> Any:

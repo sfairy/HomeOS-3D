@@ -291,7 +291,9 @@ class NotificationService:
         # 立刻推送（默认通道还会展开成邮件 + WebPush + 企微）意味着一次重启就是几十条告警，
         # 用户很快就会静音告警 —— 真正的告警反而收不到。
         if not self._ha_states_trustworthy():
-            logger.info("HA 连接未就绪,跳过设备离线告警: %s", entity_id)
+            # HA 断连时所有实体都会短暂 unavailable；逐实体打一行 INFO 会瞬间刷满控制台，
+            # 而这里的结论是「不告警」——留在 DEBUG 供排查即可。
+            logger.debug("HA 连接未就绪，跳过设备离线告警: %s", entity_id)
             return
         # 同一实体只允许有一个宽限期计时器：属性抖动会让同一状态反复触发本方法，否则
         # 会为一堆注定被冷却拦下的检查各挂一个 90 秒的休眠任务。
@@ -365,7 +367,7 @@ class NotificationService:
         # 休眠任务（虽然最终不告警，但白占任务）。配置在宽限期内被补上也没关系 ——
         # 连接器会重新走一轮连接，那时再判断。
         if not self._ha_configured():
-            logger.info("HA 未配置连接,跳过中枢失联告警")
+            logger.debug("HA 未配置连接，跳过中枢失联告警")
             return
         self._ha_outage_inflight = True
         try:

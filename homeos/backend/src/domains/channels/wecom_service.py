@@ -58,7 +58,7 @@ class WecomService:
             return
 
         async def on_system_config_updated(_payload: Any = None) -> None:
-            logger.info("检测到配置更新,正在热重载企业微信通道...")
+            logger.debug("检测到配置更新，正在热重载企业微信通道...")
             self._channel_config.invalidate_cache()
             await self.reload()
 
@@ -72,18 +72,22 @@ class WecomService:
     async def reload(self) -> None:
         """重新加载企微通道配置；不完整或未启用时清空运行时状态并停用通道。"""
         cfg = await self._channel_config.get_wecom_config()
-        if not cfg or not cfg.enabled or not cfg.corp_id or not cfg.corp_secret:
-            logger.warning("企业微信未启用或配置不完整,通道停用")
-            self._corp_id = None
-            self._corp_secret = None
-            self._agent_id = 0
-            self._callback_token = None
-            self._aes_key = None
-            self._api_proxy = None
-            self._allowed_users = []
-            self._allowed_users_lower = set()
-            self._access_token = None
-            self._token_expires_at = 0.0
+        if not cfg or not cfg.enabled:
+            # 未启用是预期状态（多数家庭只用 App / WebPush），不必每次启动都报 WARN。
+            logger.debug("企业微信通道未启用，已跳过")
+            self._clear_state()
+            return
+        missing = [
+            label
+            for label, value in (("企业 ID", cfg.corp_id), ("应用 Secret", cfg.corp_secret))
+            if not value
+        ]
+        if missing:
+            logger.warning(
+                "企业微信通道已启用但缺少%s，暂不投递；在「系统设置 → 通知通道」补全后会自动生效",
+                "、".join(missing),
+            )
+            self._clear_state()
             return
         self._corp_id = cfg.corp_id
         self._corp_secret = cfg.corp_secret
@@ -103,6 +107,19 @@ class WecomService:
         self._access_token = None
         self._token_expires_at = 0.0
         logger.info("企业微信通道已热重载")
+
+    def _clear_state(self) -> None:
+        """配置不可用时清空运行时状态，避免继续用旧凭据投递。"""
+        self._corp_id = None
+        self._corp_secret = None
+        self._agent_id = 0
+        self._callback_token = None
+        self._aes_key = None
+        self._api_proxy = None
+        self._allowed_users = []
+        self._allowed_users_lower = set()
+        self._access_token = None
+        self._token_expires_at = 0.0
 
     def get_security_config(self) -> dict[str, str | None]:
         """返回回调鉴权所需配置（token / aesKey / corpId）。"""

@@ -264,7 +264,7 @@ class EntityAreaEnrichmentService:
             self._index = build_entity_area_index(registry, area_name_by_id, device_area_by_id)
             self._index_at = time.monotonic() * 1000
             if self._index:
-                logger.info("实体区域索引已加载: %s 条", len(self._index))
+                logger.debug("实体区域索引已加载: %s 条", len(self._index))
         except Exception as exc:
             if gen != self._load_gen:
                 return self._index

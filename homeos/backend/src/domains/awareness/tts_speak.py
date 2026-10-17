@@ -75,7 +75,9 @@ class TtsSpeakService:
             return {"success": False, "message": "播报内容为空"}
         media_player = str((opts or {}).get("mediaPlayer") or "").strip() or self.get_configured_media_player()
         if not media_player:
-            logger.warning("TTS 跳过:未配置 TTS 播报实体 - %s", text[:48])
+            # 结果里已经带了「去设置里填写音箱」的提示，日志再刷 WARNING 只是重复；
+            # 真正排查没声音时开 DEBUG 即可。
+            logger.debug("TTS 跳过播报：未配置播报音箱（%s）", text[:24])
             return {
                 "success": False,
                 "message": "未配置 TTS 播报音箱，请在设置 → 语音中填写默认播报音箱",
@@ -95,7 +97,9 @@ class TtsSpeakService:
         else:
             media_players = self.get_configured_media_players()
         if not media_players:
-            logger.warning("TTS 跳过:未配置 TTS 播报实体 - %s", text[:48])
+            # 结果里已经带了「去设置里填写音箱」的提示，日志再刷 WARNING 只是重复；
+            # 真正排查没声音时开 DEBUG 即可。
+            logger.debug("TTS 跳过播报：未配置播报音箱（%s）", text[:24])
             return {
                 "success": False,
                 "message": "未配置 TTS 播报音箱，请在设置 → 语音中填写默认播报音箱",

@@ -35,7 +35,7 @@ uvicorn 默认把**每一条**请求（含静态资源的 ``200`` / ``304``、�
 
 为什么在共享包里
 ----------------
-两个后端的差别只有「变量名」与「降噪已启用那条日志挂哪个 logger」，逻辑本身逐字相同；
+两个后端的差别只有「变量名」与「模式说明挂哪个 logger」，逻辑本身逐字相同；
 两处各存一份的代价是分叉（见 ``packages/shared-py/README.md`` 的分诊台账）。
 本模块不依赖 FastAPI、不读任何一方的配置，故可安全共享。
 """
@@ -68,12 +68,22 @@ _FILTER_NAME = "homeos-http-access"
 
 
 def mode_label(mode: str, env_var: str) -> str:
-    """模式 → 人话（安装时打一行，方便确认降噪已生效）。"""
+    """模式 → 人话（仅在用户**显式**配置过时才打一行，方便确认降噪真的生效）。"""
     if mode == MODE_OFF:
-        return f"已全部静默（{env_var}=all 恢复全部）"
+        return f"已全部静默（{env_var}=errors 恢复默认、=all 逐条可见）"
     if mode == MODE_ALL:
-        return "未过滤"
-    return f"仅保留 4xx/5xx 并按来源折叠重复（{env_var}=all 恢复全部、逐条可见，=off 全部静默）"
+        return f"未过滤，逐条可见（{env_var}=errors 恢复默认）"
+    return f"仅保留 4xx/5xx，重复请求折叠为一行（{env_var}=all 逐条可见、=off 全部静默）"
+
+
+def access_mode_env_set(env_var: str) -> bool:
+    """用户是否显式配置了详略（空串与未设置都算「没配」）。
+
+    默认行为不该每次启动都播报一遍：``errors`` 是内置默认，两个后端又各是一个进程
+    （开发时主应用 + 商店、容器里也常各起一份），一条「降噪已启用」等于每个进程各喊一次，
+    把真正只打印一次的启动横幅顶出可见范围 —— 与这个模块想解决的问题正好相反。
+    """
+    return bool((os.getenv(env_var) or "").strip())
 
 
 def resolve_http_access_mode(env_var: str) -> str:
@@ -174,9 +184,13 @@ def install_http_access_log_filter(
 
     ``env_var`` 决定详略（见模块 docstring）；``dedupe_env_var`` 是**折叠窗口**用哪个环境变量
     （与状态日志共用同一个窗口，主应用 ``LOG_STATUS_DEDUPE_MS`` / 商店
-    ``STORE_LOG_STATUS_DEDUPE_MS``），``0`` 即关闭折叠；``announce_logger`` 只是「降噪已启用」
-    这条说明挂到哪棵日志树上。日志记录上的 filter 在 ``Logger.handle`` 里判定，所以在应用
+    ``STORE_LOG_STATUS_DEDUPE_MS``），``0`` 即关闭折叠；``announce_logger`` 只是模式说明
+    挂到哪棵日志树上。日志记录上的 filter 在 ``Logger.handle`` 里判定，所以在应用
     lifespan 里调用同样生效 —— 不必抢在 uvicorn 自己的 ``dictConfig`` 之前。
+
+    播报规则：只有用户**显式**设了 ``env_var`` 才按 INFO 说明一次（他们要确认的就是这个），
+    默认配置下退到 DEBUG —— 两个后端各一个进程，默认值也播报等于每次启动多两行噪音，
+    反而会把只出现一次的启动横幅顶出 ``docker logs`` 的可见范围。
     """
     logger = logging.getLogger("uvicorn.access")
     installed = next(
@@ -185,10 +199,11 @@ def install_http_access_log_filter(
     if installed is None:
         installed = HttpAccessLogFilter(resolve_http_access_mode(env_var), dedupe_env_var)
         logger.addFilter(installed)
-        if installed.mode != MODE_ALL:
-            logging.getLogger(announce_logger).info(
-                "HTTP 访问日志降噪已启用: %s", mode_label(installed.mode, env_var)
-            )
+        announce = logging.getLogger(announce_logger)
+        if access_mode_env_set(env_var):
+            announce.info("HTTP 访问日志：%s", mode_label(installed.mode, env_var))
+        else:
+            announce.debug("HTTP 访问日志：%s（默认，未显式配置 %s）", mode_label(installed.mode, env_var), env_var)
     return installed
 
 
@@ -197,6 +212,7 @@ __all__ = [
     "MODE_ERRORS",
     "MODE_OFF",
     "HttpAccessLogFilter",
+    "access_mode_env_set",
     "access_signature",
     "install_http_access_log_filter",
     "mode_label",

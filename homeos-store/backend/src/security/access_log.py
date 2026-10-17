@@ -94,7 +94,8 @@ def install_access_log_filters() -> HttpAccessLogFilter:
     （与主应用 ``platform/core/log.py`` 的处理一致）。
 
     说明日志挂 ``uvicorn.error``：uvicorn 给这棵日志树配了自己的 handler，不依赖 root 的
-    配置，因此这条「降噪已启用」在任何启动路径下都看得见。
+    配置，因此「模式说明」在任何启动路径下都看得见（但只在用户显式配置时才输出 —— 默认
+    ``errors`` 不播报，否则每次启动多一行，与「让启动横幅留在可读范围」的初衷相反）。
     """
     installed = _install_http_access_log_filter(
         env_var=HTTP_ACCESS_ENV_VAR,

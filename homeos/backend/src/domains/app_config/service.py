@@ -143,7 +143,7 @@ class AppConfigService:
                     migrated.append("missing-sections")
                 if migrated:
                     self._persist()
-                logger.info("系统配置已从 DB 加载")
+                logger.debug("系统配置已从 DB 加载")
             else:
                 now = datetime.now(UTC)
                 session.add(

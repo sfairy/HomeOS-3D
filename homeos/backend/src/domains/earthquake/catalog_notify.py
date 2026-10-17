@@ -119,7 +119,7 @@ class EarthquakeCatalogNotifyService:
         seen = await self._load_seen_ids()
         if not seen:
             await self._save_seen_ids(ids)
-            logger.info("CENC 震情通知: 已初始化 %s 条已知事件", len(ids))
+            logger.debug("CENC 震情通知: 已初始化 %s 条已知事件", len(ids))
             return
 
         if runtime.enabled and home.get("lat") is not None and home.get("lon") is not None:

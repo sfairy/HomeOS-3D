@@ -16,6 +16,7 @@ import httpx
 import websockets
 
 from .control_pool import HAControlConfiguration, HAControlPool
+from .errors import endpoint_failure_reason
 
 #: 必须挂在 ``homeos`` 树下：主应用的控制台 handler 只装在 ``homeos.*`` 与 uvicorn 上，
 #: 用 ``__name__`` 会得到 ``src.*``，冒到没有 handler 的 root 后走 ``logging.lastResort``
@@ -271,7 +272,8 @@ class HAClient:
             except HAClientError:
                 raise
             except (httpx.HTTPError, ValueError) as error:
-                LOGGER.warning('批量拉取 /api/states 失败，回退逐实体：%s', error)
+                # 回退成功时没有用户可操作的信息；真失败会在下面聚合成一行 WARNING。
+                LOGGER.debug('批量拉取 /api/states 失败，回退逐实体：%s', error)
 
         semaphore = asyncio.Semaphore(8)
         async with httpx.AsyncClient(
@@ -306,14 +308,25 @@ class HAClient:
             )
 
         states: list[dict[str, Any]] = []
+        failed: list[tuple[str, BaseException]] = []
         for entity_id, result in zip(requested, results, strict=True):
             if isinstance(result, BaseException):
-                LOGGER.warning(
-                    '拉取 Home Assistant 实体状态失败，跳过本次刷新：%s（%s）', entity_id, result
-                )
+                failed.append((entity_id, result))
                 continue
             if result is not None:
                 states.append(result)
+        if failed:
+            # 逐实体刷 WARNING 会在大批量实体时刷满控制台（一次 400 条），这里压成一行：
+            # 列前三个实体 + 总数 + 一句原因，逐实体明细留在 DEBUG。
+            causes = {reason.__cause__ or reason for _, reason in failed}
+            detail = (
+                endpoint_failure_reason(next(iter(causes))) if len(causes) == 1 else '原因不一，详见 DEBUG 日志'
+            )
+            sample = '、'.join(entity_id for entity_id, _ in failed[:3])
+            count = f' 等 {len(failed)} 个实体' if len(failed) > 3 else ''
+            LOGGER.warning('拉取 Home Assistant 实体状态失败，已跳过%s%s（%s）', sample, count, detail)
+            for entity_id, reason in failed:
+                LOGGER.debug('实体状态拉取失败：%s（%s）', entity_id, reason)
         return states
 
     def _ssl_context(self):

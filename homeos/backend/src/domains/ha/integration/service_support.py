@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import logging
 
+import httpx
+import websockets.exceptions
+
+from .client import HAClientError
+
 #: 各族写同一路日志。名字必须落在 ``homeos`` 树里：主应用只给 ``homeos.*`` 与 uvicorn
 #: 挂 handler（见 ``platform/core/log.py:configure_app_logging``），root 上没有 handler，
 #: 树外日志会落到 ``logging.lastResort`` —— 无时间戳 / 无 pid 的裸消息写 stderr，且只放行
@@ -31,6 +36,42 @@ STATE_FETCH_REQUIRED_ATTRIBUTES = {
         'preset_modes',
         'supported_features',
         'current_temperature'} }
+
+#: 一轮失败的归类：决定控制台用哪一档日志、要不要打堆栈（见 :func:`classify_connector_failure`）。
+FAILURE_DISCONNECTED = 'disconnected'
+FAILURE_OFFLINE = 'offline'
+FAILURE_UNEXPECTED = 'unexpected'
+
+#: 同类故障在控制台的重复提示间隔（秒）。
+#:
+#: HA 停机时重连退避封顶 10s ≈ 每分钟 6 轮，逐轮打一行会把控制台变成心跳；而原因没变时
+#: 第 6 行不比第 1 行多任何信息。这里压到一分钟一行，其余降到 DEBUG（默认 info 级别看不到）。
+OFFLINE_LOG_INTERVAL_SECONDS = 60.0
+
+
+def classify_connector_failure(error: BaseException) -> str:
+    """把一轮连接失败归成三类，决定日志应当多详细。
+
+    HA 停机、Wi-Fi 切换、反向代理重启之后连接器会持续重试，这些失败对用户只有一句话的
+    价值，堆栈也没有新增信息（每一轮的调用点是同一个），却会把控制台刷满：
+
+    - ``FAILURE_DISCONNECTED``：实时连接被对端正常关闭（1000 / 1001），不是故障；
+    - ``FAILURE_OFFLINE``：地址连不上、令牌失效、证书不受信任等**已知原因**的不可用
+      （``HAClientError`` 已经把原因翻成了中文短句），只需要一行摘要；
+    - ``FAILURE_UNEXPECTED``：其他异常，才值得保留完整堆栈。
+    """
+    if isinstance(error, websockets.exceptions.ConnectionClosedOK):
+        return FAILURE_DISCONNECTED
+    if isinstance(error, (
+        websockets.exceptions.ConnectionClosed,
+        HAClientError,
+        httpx.HTTPError,
+        OSError,
+        TimeoutError,
+    )):
+        return FAILURE_OFFLINE
+    return FAILURE_UNEXPECTED
+
 
 def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
     """判断某个实体的状态是否缺失或残缺、需要重新拉取。

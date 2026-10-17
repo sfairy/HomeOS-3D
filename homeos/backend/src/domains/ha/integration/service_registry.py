@@ -233,7 +233,7 @@ class HARegistryMixin(HAConnectorHost):
             raise
         except Exception as error:
             self._log_event('error', '实体同步', f'Home Assistant 实体目录刷新失败：{error}', details = traceback.format_exc())
-            LOGGER.error('HA registry metadata refresh failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
+            LOGGER.error('Home Assistant 实体目录刷新失败\n%s', _safe_text(traceback.format_exc(), limit = 12000))
         finally:
             current = self._registry_refresh_tasks.get(connection_id)
             if current is asyncio.current_task():

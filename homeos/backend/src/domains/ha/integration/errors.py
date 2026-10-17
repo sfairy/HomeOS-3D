@@ -66,3 +66,43 @@ def connection_error_message(error: Exception | str | None) -> str | None:
     if re.search('[一-鿿]', text) and not re.search(r'[：:]\s*[A-Za-z\[{]', text):
         return text[:1000]
     return '连接 Home Assistant 失败，请检查服务地址和网络；详细原因可在日志中查看。'
+
+
+def endpoint_failure_reason(error: BaseException | str) -> str:
+    """把单个端点的探测失败压成一句短语，供「内网与外网都连不上」的汇总行使用。
+
+    ``connection_error_message`` 给的是「怎么办」的整句建议；多个端点要拼进同一行日志时，
+    每段都贴完整建议会把真正的原因淹掉。这里只回答「为什么」：网络不可达、HTTP 404、
+    令牌无效……完整建议仍由界面上的错误提示负责。
+    """
+    text = str(error or '').strip()
+    if not text:
+        # httpx 的超时/连接异常常常没有消息体（如 httpx.ReadTimeout()），直接 str() 只会得到空串，
+        # 日志里就剩一个光秃秃的「连接失败」。这里按异常类型补一句人话。
+        name = type(error).__name__.casefold() if isinstance(error, BaseException) else ''
+        if 'timeout' in name:
+            return '连接超时'
+        if 'connect' in name:
+            return '连接失败'
+        return '请求失败'
+    detail = text.casefold()
+    if '解密' in text or '密钥文件' in text:
+        return '访问令牌无法解密'
+    if any(word in detail for word in ('certificate', 'cert_verify')) or '证书' in text:
+        return '证书不受信任'
+    if any(word in detail for word in ('token', 'auth_invalid', 'unauthorized', 'forbidden')) or re.search(r'\b(401|403)\b', detail):
+        return '访问令牌无效或权限不足'
+    if 'timed out' in detail or 'timeout' in detail:
+        return '连接超时'
+    if any(word in detail for word in ('name or service not known', 'nodename nor servname', 'getaddrinfo', 'name resolution')):
+        return '域名解析失败'
+    if 'refused' in detail:
+        return '连接被拒绝'
+    if any(word in detail for word in ('no route', 'network is unreachable', 'all connection attempts failed', 'connection reset', 'connection aborted')):
+        return '网络不可达'
+    if 'websocket' in detail or 'opening handshake' in detail or 'close frame' in detail:
+        return 'WebSocket 握手失败'
+    status = re.search(r'\b(?:http|status(?: code)?[ :\']*)\s*(\d{3})\b', detail)
+    if status:
+        return f'HTTP {status.group(1)}'
+    return text[:60] or '连接失败'

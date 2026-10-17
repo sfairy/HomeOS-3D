@@ -299,7 +299,7 @@ class UiConfigService:
         令牌的变更路径是 ``PUT /ha/connection``（由它自己重启连接器）。这里照旧广播
         ``SYSTEM_CONFIG_UPDATED``，供其它读 layout 的消费者（安防事件路径、绑定等）刷新。
         """
-        logger.info("正在保存项目布局配置:%s", project_id)
+        logger.debug("正在保存项目布局配置:%s", project_id)
         layout_json = to_input_json(layout, {})
         with self._session_factory() as session:
             config = self._find(session, project_id)

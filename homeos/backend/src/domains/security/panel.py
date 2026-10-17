@@ -23,7 +23,7 @@ from .panel_helpers import (
     SecurityLinkageHelper,
     SecurityPanelStateHelper,
 )
-from .zones import normalize_zone_type
+from .zones import normalize_zone_type, security_mode_label
 from ...platform.core.errors import api_error, bad_request
 from ...platform.core.models import SecurityEvent
 
@@ -272,10 +272,10 @@ class SecurityPanelService:
                 "failedItems": [],
             },
         )
-        logger.info("安防已布防: %s (%s 个区域)", mode, len(target_zones))
+        logger.info("安防已布防：%s（%s 个区域）", security_mode_label(mode), len(target_zones))
         persisted = self.state_helper.persist_panel_state()
         self.state_helper.schedule_security_event(
-            "arm", f"布防: {mode}", mode=mode, zones=armed_zone_ids
+            "arm", f"布防: {security_mode_label(mode)}", mode=mode, zones=armed_zone_ids
         )
         return {
             "success": True,

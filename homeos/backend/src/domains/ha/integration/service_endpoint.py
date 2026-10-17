@@ -19,6 +19,7 @@ from .endpoints import (
     connection_endpoints,
     endpoint_signature,
 )
+from .errors import endpoint_failure_reason
 from .service_contract import HAConnectorHost
 from .service_support import (
     ENDPOINT_PRIORITY_GRACE_SECONDS,
@@ -40,7 +41,7 @@ class HAEndpointMixin(HAConnectorHost):
     async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
         await HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes).test_connection()
 
-    async def _probe_endpoints(self, connection: HAConnection, token: str) -> tuple[HAEndpoint | None, list[str]]:
+    async def _probe_endpoints(self, connection: HAConnection, token: str) -> tuple[HAEndpoint | None, dict[HAEndpoint, str]]:
         """并发探测所有候选端点，按配置顺序（内网优先）挑第一个可达的。
 
         顺序探测时，挂掉的内网端点必须把 HA_ENDPOINT_PROBE_TIMEOUT_SECONDS 等满才轮到外网，
@@ -86,12 +87,10 @@ class HAEndpointMixin(HAConnectorHost):
             if pending:
                 await asyncio.gather(*pending, return_exceptions = True)
         if reachable:
-            return min(reachable, key = lambda endpoint: order[endpoint]), []
-        return None, [
-            f'{endpoint.label}（{endpoint.base_url}）：{failures[endpoint]}'
-            for endpoint in endpoints
-            if endpoint in failures
-        ]
+            return min(reachable, key = lambda endpoint: order[endpoint]), { }
+        # 失败原因按端点返回原始异常文本：调用方要用 :func:`endpoint_failure_reason` 压成短句，
+        # 多个端点拼在同一行日志里才读得动。
+        return None, failures
 
     async def active_endpoint(self, connection: HAConnection) -> HAEndpoint:
         signature = endpoint_signature(connection)
@@ -108,7 +107,18 @@ class HAEndpointMixin(HAConnectorHost):
             if reachable is None:
                 self._endpoint = None
                 self._endpoint_signature = signature
-                raise HAClientError('Home Assistant 的内网与外网地址都连不上。' + '；'.join(failures))
+                candidates = [endpoint for endpoint in connection_endpoints(connection) if endpoint in failures]
+                reasons = {
+                    endpoint: endpoint_failure_reason(failures[endpoint])
+                    for endpoint in candidates
+                }
+                if len(candidates) == 1:
+                    raise HAClientError(f'Home Assistant 的{candidates[0].label}地址连不上：{reasons[candidates[0]]}。')
+                detail = '；'.join(
+                    f'{endpoint.label}（{endpoint.base_url}）：{reasons[endpoint]}'
+                    for endpoint in candidates
+                )
+                raise HAClientError(f'Home Assistant 的内网与外网地址都连不上（{detail}）。')
             previous = self._endpoint
             self._endpoint = reachable
             self._endpoint_signature = signature

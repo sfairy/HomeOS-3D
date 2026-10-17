@@ -51,7 +51,7 @@ class EmailService:
             return
 
         async def on_system_config_updated(_payload: Any = None) -> None:
-            logger.info("检测到配置更新,正在热重载 Email 通道...")
+            logger.debug("检测到配置更新，正在热重载 Email 通道...")
             self._channel_config.invalidate_cache()
             await self.reload()
 
@@ -63,15 +63,34 @@ class EmailService:
         cfg = await self._channel_config.get_email_config()
         self._enabled = bool(cfg and cfg.enabled)
 
-        if not self._enabled or not cfg or not cfg.smtp_host or not cfg.smtp_user or not cfg.smtp_password:
-            logger.warning("Email 通道配置不完整或已禁用")
+        if not self._enabled:
+            # 「没启用」不是故障：只用 WebPush 的家庭每次启动都会看到一条 WARN，
+            # 看起来像坏了。降为 DEBUG，真正的配置残缺仍然告警。
+            logger.debug("Email 通道未启用，已跳过")
+            self._reset()
+            return
+
+        missing = [
+            label
+            for label, value in (
+                ("SMTP 服务器", cfg.smtp_host),
+                ("SMTP 用户名", cfg.smtp_user),
+                ("SMTP 密码", cfg.smtp_password),
+            )
+            if not value
+        ]
+        if missing:
+            logger.warning(
+                "Email 通道已启用但缺少%s，暂不投递；在「系统设置 → 通知通道」补全后会自动生效",
+                "、".join(missing),
+            )
             self._reset()
             return
 
         self._from_address = cfg.from_address or cfg.smtp_user
         self._to_addresses = [addr.strip() for addr in (cfg.to_addresses or "").split(",") if addr.strip()]
         if not self._to_addresses:
-            logger.warning("Email 收件人列表为空")
+            logger.warning("Email 收件人列表为空，邮件通知无法投递；请在「系统设置 → 通知通道」填写收件人")
 
         self._smtp = {
             "host": cfg.smtp_host,

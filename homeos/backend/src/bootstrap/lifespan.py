@@ -101,7 +101,9 @@ def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str
     if change.get("old_state") is None:
         previous = store.get(str(entity_id))
         if previous is not None:
-            change = {**change, "old_state": previous}
+            # 就地补全：下游（安防边沿判定、通知规则、家庭模式触发）都在同一个 dict 上做
+            # 「旧态 → 新态」比较，只改局部变量会让它们全部看到 old_state=None。
+            change["old_state"] = previous
     store.apply_change(str(entity_id), change.get("new_state"), change.get("changed_at"))
 
 

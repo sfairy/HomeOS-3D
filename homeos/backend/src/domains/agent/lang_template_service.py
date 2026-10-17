@@ -39,7 +39,7 @@ class LangTemplateService:
         """重新读取语言并刷新模板。"""
         lang = await self._agent_config.get_language()
         self._template = get_lang_template(lang)
-        logger.info("Agent 语言模板已就绪:%s", lang)
+        logger.debug("Agent 语言模板已就绪:%s", lang)
 
 
 __all__ = ["LangTemplateService"]

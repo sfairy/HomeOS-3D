@@ -92,7 +92,7 @@ class WolfxWsClient:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.warning("Wolfx WebSocket 连接异常: %s", exc)
+                logger.warning("Wolfx EEW 数据源连接异常：%s", exc)
             finally:
                 self._state = "closed"
                 await self._stop_heartbeat()
@@ -100,7 +100,12 @@ class WolfxWsClient:
             if self._stop.is_set() or self._destroyed or not self._can_connect():
                 break
             delay = self._reconnect_delay
-            logger.warning("%ss 后重连 Wolfx...", delay / 1000)
+            # 退避阶梯（30→60→120s）只在第一档说明一次，后续留在 DEBUG：
+            # 断网时每轮都打一行「N 秒后重连」正是要避免的刷屏。
+            if delay == INITIAL_RECONNECT_DELAY_MS:
+                logger.info("Wolfx EEW 连接已断开，将自动重连（不影响其他功能）")
+            else:
+                logger.debug("Wolfx EEW 将在 %.0f 秒后重连", delay / 1000)
             self._reconnect_delay = min(self._reconnect_delay * 2, MAX_RECONNECT_DELAY_MS)
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=delay / 1000)
@@ -111,7 +116,7 @@ class WolfxWsClient:
     async def _connect_once(self) -> None:
         if websockets is None:  # pragma: no cover
             raise RuntimeError("websockets 依赖缺失")
-        logger.info("正在连接 Wolfx EEW WebSocket:%s", WOLFX_WS_URL)
+        logger.info("正在连接 Wolfx EEW WebSocket：%s", WOLFX_WS_URL)
         self._state = "connecting"
         # ``proxy=None``：同 HaWsClient —— 显式禁用代理，否则 websockets 会经
         # ``urllib.request.getproxies()`` 读取到的 macOS 系统 SOCKS 代理连接，
@@ -141,7 +146,7 @@ class WolfxWsClient:
                     await self._ws.send("ping")
                     await self._touch()
             except Exception as exc:
-                logger.warning("心跳发送失败:%s", exc)
+                logger.warning("Wolfx EEW 心跳发送失败：%s", exc)
 
     async def _stop_heartbeat(self) -> None:
         if self._heartbeat_task is not None and not self._heartbeat_task.done():
@@ -161,7 +166,7 @@ class WolfxWsClient:
             try:
                 msg = json.loads(text)
             except (ValueError, TypeError):
-                logger.error("解析 Wolfx 消息失败:%s", text[:200])
+                logger.error("Wolfx EEW 消息解析失败（上游格式可能已变化）：%s", text[:200])
                 continue
             if isinstance(msg, dict):
                 result = self._on_message(msg)

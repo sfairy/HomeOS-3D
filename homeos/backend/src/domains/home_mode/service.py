@@ -261,7 +261,7 @@ class HomeModeService:
         self._trigger_state.cached_modes = modes
         self._trigger_state.trigger_bindings = parse_home_mode_trigger_bindings(modes)
         prune_home_mode_trigger_cooldown(self._trigger_state.trigger_cooldown)
-        logger.info("全屋模式触发器已加载: %s 条", len(self._trigger_state.trigger_bindings))
+        logger.debug("全屋模式触发器已加载: %s 条", len(self._trigger_state.trigger_bindings))
 
     # CRUD
     def find_all(self) -> list[dict[str, Any]]:

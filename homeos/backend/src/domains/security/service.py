@@ -109,7 +109,8 @@ class SecurityService:
             events_url = f"{ha_url}{events_path}"
             response = await self._get_events_file(events_url, config["token"])
             if response.status_code == 404:
-                logger.warning("在 HA 中未找到 events.jsonl.假设尚无事件.")
+                # 首次布防前这个文件本来就不存在：这是「还没有事件」，不是故障。
+                logger.debug("HA 中暂无安防事件文件（尚未产生事件），按空列表处理")
                 return []
             if response.status_code != 200:
                 # 不能静默返回空列表：上游 5xx / 反代 502 时界面会显示「路径可读但暂无事件」，

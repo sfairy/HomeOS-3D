@@ -233,7 +233,7 @@ class NotificationEventHandlersHelper:
         # 每 30 分钟重来一轮。这里直接静默：这类失败在中枢恢复后会重现，不会永久丢失信息，
         # 而此刻重复 N 遍只会把真正要看的告警淹掉。
         if not self._ha_states_trustworthy():
-            logger.info("HA 连接不可信,跳过自动化失败通知: %s", rule_id)
+            logger.debug("HA 连接不可信，跳过自动化失败通知: %s", rule_id)
             return
         cooldown_key = f"automation-failed:{rule_id}"
         if self._is_in_cooldown(cooldown_key):

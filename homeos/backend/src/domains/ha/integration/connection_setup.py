@@ -93,7 +93,7 @@ async def resolve_address(value: str, *, verify_tls: bool, timeout: float) -> st
                 raise HAClientError(message) from error
             failures.append(error)
     last = next((error for error in failures if isinstance(error, HAClientError)), failures[0])
-    LOGGER.info('HA address discovery failed: %s', last)
+    LOGGER.info('Home Assistant 地址自动探测未找到可用地址：%s', last)
     raise HAClientError(connection_error_message(last)) from last
 
 async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> bool:

@@ -42,6 +42,25 @@ async def _fetch_json(url: str, timeout_ms: int = 12_000) -> Any:
         return response.json()
 
 
+def poll_failure_text(error: Exception) -> str:
+    """把轮询异常翻成一句能直接读的原因。
+
+    ``str(httpx.ReadTimeout())`` 是空串 —— 直接 ``%s`` 会打出「CENC EEW 轮询失败: 」
+    这种没有任何信息、看起来像程序坏了的行。这里按异常类型补一句人话，兜底用类型名，
+    保证消息永远非空。
+    """
+    if isinstance(error, (TimeoutError, httpx.TimeoutException)):
+        return "请求超时"
+    if isinstance(error, httpx.ConnectError):
+        return "无法连接数据源"
+    if isinstance(error, httpx.HTTPStatusError):
+        return f"数据源返回 HTTP {error.response.status_code}"
+    text = str(error).strip()
+    if text:
+        return text
+    return f"{type(error).__name__}（无详情）"
+
+
 class EewPollService:
     """SC / CENC / USGS 主动轮询服务。"""
 
@@ -158,9 +177,9 @@ class EewPollService:
             self._last_sc_report = key
             self._earthquake.ingest_eew(eew)
         except Exception as exc:
-            message = str(exc)
+            message = poll_failure_text(exc)
             self._earthquake.record_source_poll("sc_eew", {"ok": False, "error": message})
-            logger.warning("SC EEW 轮询失败: %s", message)
+            logger.warning("四川局 EEW 数据拉取失败：%s（每 18 秒自动重试）", message)
 
     async def _poll_cenc_eew(self) -> None:
         try:
@@ -176,9 +195,9 @@ class EewPollService:
             self._last_cenc_report = key
             self._earthquake.ingest_eew(eew)
         except Exception as exc:
-            message = str(exc)
+            message = poll_failure_text(exc)
             self._earthquake.record_source_poll("cenc_eew", {"ok": False, "error": message})
-            logger.warning("CENC EEW 轮询失败: %s", message)
+            logger.warning("中国地震台网 EEW 数据拉取失败：%s（每 18 秒自动重试）", message)
 
     async def poll_usgs_backup(self) -> None:
         if not self._leader.is_eew_leader():
@@ -212,9 +231,9 @@ class EewPollService:
             if len(self._last_usgs_ids) > USGS_SEEN_MAX:
                 self._last_usgs_ids = self._last_usgs_ids[-40:]
         except Exception as exc:
-            message = str(exc)
+            message = poll_failure_text(exc)
             self._earthquake.record_source_poll("usgs", {"ok": False, "error": message})
-            logger.warning("USGS 兜底轮询失败: %s", message)
+            logger.warning("USGS 地震数据兜底拉取失败：%s（每分钟自动重试）", message)
 
 
 __all__ = ["CENC_EEW_URL", "SC_EEW_URL", "EewPollService"]

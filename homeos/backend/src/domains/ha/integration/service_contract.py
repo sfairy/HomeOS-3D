@@ -21,6 +21,9 @@ class HAConnectorHost:
     _endpoint_lock: Any = None
     _endpoint_probed_at: Any = None
     _endpoint_signature: Any = None
+    _failure_kind: Any = None
+    _failure_logged_at: Any = None
+    _offline_since: Any = None
     _ha_tuning_at: Any = None
     _ha_tuning_cache: Any = None
     _history_cache: Any = None
@@ -65,6 +68,7 @@ class HAConnectorHost:
     _load_connection: Any = None
     _load_persistent_entity_ids: Any = None
     _log_event: Any = None
+    _log_cycle_failure: Any = None
     _mark_connected: Any = None
     _mark_sync_started: Any = None
     _notify_connection: Any = None
@@ -74,6 +78,7 @@ class HAConnectorHost:
     _reconnect_base_backoff: Any = None
     _reconnect_max_backoff: Any = None
     _record_error: Any = None
+    _reset_failure_state: Any = None
     _run: Any = None
     _run_database: Any = None
     _safe_record_error: Any = None
