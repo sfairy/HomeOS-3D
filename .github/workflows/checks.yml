@@ -291,3 +291,21 @@ jobs:
       # 双双失败），排查时还被构建脚本那条会误报的断言带偏过一次。
       - name: Check image import gate
         run: python3 ops/ci/image_imports.py
+
+      # 镜像编译的 Cython 兼容性：Cython 自身也会崩（3.3.0 对「带 dict[...] | None 注解
+      # 的参数 + or {} 兜底 + 直接 .items()」抛 TypeError），而源码本身合法 —— ruff /
+      # pyright / 本地 dev 全绿也看不出来。同上面两条的理由：真正的编译只在 docker.yml
+      # （手动 dispatch）里跑，2026-10-17 的 app 镜像正是 push 全绿、发版才红在编译阶段。
+      # 只 cythonize、不编译 C，几秒钟；版本与扫描范围都取自构建期同一份真源。
+      - name: Install Cython（版本取自 Dockerfile）
+        run: |
+          cython_version="$(sed -n 's/^ARG CYTHON_VERSION=//p' Dockerfile | head -n1)"
+          setuptools_version="$(sed -n 's/^ARG SETUPTOOLS_VERSION=//p' Dockerfile | head -n1)"
+          if [ -z "$cython_version" ] || [ -z "$setuptools_version" ]; then
+            echo "::error::Dockerfile 里读不到 CYTHON_VERSION / SETUPTOOLS_VERSION（版本单一来源断了）"
+            exit 1
+          fi
+          pip install "cython==${cython_version}" "setuptools==${setuptools_version}"
+
+      - name: Check Cython compatibility
+        run: python3 ops/ci/cython_check.py
