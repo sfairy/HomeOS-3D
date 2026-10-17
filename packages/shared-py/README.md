@@ -15,7 +15,10 @@ packages/shared-py/
 ├── README.md            ← 本文件（**不进镜像**，故意放在包目录之外）
 └── homeos_shared/       ← 可导入的包，名字稳定，不随 src→app 改名而变
     ├── __init__.py
-    ├── logging_noise.py
+    ├── logging_noise.py   ← 重载提示与 alembic 例行播报的过滤
+    ├── status_log_dedupe.py ← 重复状态日志折叠（按数量级放行并注明折叠条数）
+    ├── uvicorn_messages.py ← uvicorn 英文启动文案 → 中文（两侧共用一份规则表）
+    ├── http_access_log.py ← HTTP 访问日志降噪（按状态码丢弃成功请求 + 折叠重复）
     ├── file_lock.py
     ├── migrations_core.py
     ├── client_ip.py       ← 可信代理链 → 真实客户端地址（安全判据，两侧共用）
@@ -72,4 +75,8 @@ packages/shared-py/
 | 能力码目录：主应用 `domains/license/features.py` ↔ 商店 `ops/features.py` | **部分共享** → `homeos_shared/feature_codes.py` | 只下沉目录加载与内嵌副本（两侧曾各粘一份 ~3KB JSON，且查找路径曾误写成 `ops/feature_codes.json` 永远 miss）。**留在各自包内**的是主应用门禁判定（`granted` / `expand` / `FEATURE_*`）与商店运营展示（`feature_catalog_payload` / 商品种子元组）。 |
 | 主应用 `platform/security/client_address.py` | **适配层，不是真源** | 只做 `Request` → `homeos_shared.client_ip.resolve_client_address` 的入参映射（共享包刻意不依赖 FastAPI）。判定逻辑一行都不在这里，避免出现「第二份判据」。 |
 | 口令哈希：主应用 `platform/security/passwords.py` ↔ 商店 `security/security.py` | **不共享** | 算法刻意不同：主应用 argon2id（兼容存量 bcrypt 首登迁移）；商店 pbkdf2。强行统一等于给存量库做一次密码学迁移，不在「抽共享」范围内。 |
+| 访问日志降噪：主应用 `platform/core/access_log_noise.py` ↔ 商店 `security/access_log.py` | **部分共享** → `homeos_shared/http_access_log.py` | 下沉「按状态码丢弃成功请求」的过滤器与模式解析（`errors` / `off` / `all`、fail-open 取舍），以及「同一来源的重复 4xx/5xx 折叠成一行」的归纳键（临时端口不进键）。两侧差别只有变量名（`LOG_HTTP_ACCESS` ↔ `STORE_LOG_HTTP_ACCESS`）与说明日志挂哪棵树，而逻辑逐字相同 —— 分叉的代价是「一边收掉了噪音、另一边还在刷屏」，正是首装时找引导密钥横幅最容易被坑的地方。**留在各自包内**的是商店那类「即便成交也永远不是 2xx」的已知路径过滤（`/sm/*.map` 404），以及各自的选择与安装入口。 |
+| 状态日志去重：主应用 `platform/core/status_log_dedupe.py` ↔ 商店（此前**没有**） | **已下沉** → `homeos_shared/status_log_dedupe.py` | 商店侧此前完全没有这一层，实测 110 次错误请求打出 80 行逐字相同的告警（有效信息 4 行，约 50:1）。判定与取舍（`error` 恒放行、生命周期文案恒放行、按数量级放行并补「同类已折叠 N 条」、多 handler 只判一次）逐字相同，两侧各存一份必然分叉。**留在各自包内**的是变量名绑定（`LOG_STATUS_DEDUPE_MS` ↔ `STORE_LOG_STATUS_DEDUPE_MS`）与「过滤器挂到哪些 handler」的装配。 |
+| uvicorn 文案与上下文名：主应用 `platform/core/log.py` ↔ 商店 `core/console_log.py` | **部分共享** → `homeos_shared/uvicorn_messages.py` | 只下沉「英文启动文案 → 中文」的规则表与「uvicorn 日志器名 → 中文展示名」的映射，它跟着 uvicorn 版本走、两侧必须一致（否则同一台机器上两个服务的启动日志风格不同）。**留在各自包内**的是装配：主应用是 Nest 风格（颜色 / pid / traceId / JSON 行），商店是自己的时间戳行格式，两者刻意不同。 |
+| alembic 例行播报过滤（「Context impl SQLiteImpl.」等） | **已下沉** → `homeos_shared/logging_noise.py`（与重载噪音同模块） | 两行常量每次启动都打、与本次迁移无关，却以另一套无时间戳格式混进启动日志。过滤规则逐字相同，且都必须在 `migrations/env.py` 的 `fileConfig` 之后安装，属于同一件事，故并入既有的降噪模块（该模块原先只放「重载噪音」）。 |
 """

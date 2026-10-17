@@ -229,12 +229,15 @@ class SetupGuard:
             )
 
         logger.warning(
-            "拒绝了未带正确引导密钥的初始化请求 对端=%s 经代理=%s Host=%s 有转发头=%s 已配置密钥=%s",
+            "拒绝了未带正确引导密钥的初始化请求 对端=%s 经代理=%s Host=%s 有转发头=%s 已配置密钥=%s 密钥位置=%s",
             host,
             address.via_proxy,
             host_header_name(request) or "(缺失)",
             forwarded_headers_present(request),
             bool(self._token),
+            # 被拒的时候正好是「密钥去哪找」的问题最需要答案的时刻，所以顺手指出位置
+            # （只给位置，不给密钥本身）。
+            "STORE_SETUP_TOKEN" if self.source == "env" else str(self.path),
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -248,6 +251,11 @@ class SetupGuard:
 
 def announce_setup_window(guard: SetupGuard) -> None:
     """把「实例尚未初始化」这件事连同引导密钥打印到启动日志。
+
+    横幅**只打印一次**（随启动），而 ``docker logs`` 与编排面板都只显示尾部 —— 所以除了
+    给人看的「密钥内容」，还打一行 ``SETUP-TOKEN=<密钥>``：它只在整份日志里出现一次，
+    且不含中文，``docker logs homeos-store 2>&1 | grep -m1 SETUP-TOKEN=`` 就能稳定取到
+    （访问日志的成功请求已由 ``security/access_log.py`` 收起，横幅不会几秒就被顶走）。
     """
     guard.ensure_token()
     location = "STORE_SETUP_TOKEN" if guard.source == "env" else str(guard.path)
@@ -258,6 +266,9 @@ def announce_setup_window(guard: SetupGuard) -> None:
         "首次设置需要一个引导密钥：",
         f"  密钥来源: {location}",
         f"  密钥内容: {guard.token}",
+        f"  SETUP-TOKEN={guard.token}",
+        "  （上两行是同一枚密钥；只想机器取用时 grep 这一行：",
+        "    docker logs homeos-store 2>&1 | grep -m1 SETUP-TOKEN=）",
         "  使用方式: 打开 /store/setup 页面填入「引导密钥」一栏；",
         "            或在 POST /store/v1/setup/admin 的请求体里加 \"setupToken\"（也可用 X-Setup-Token 头）。",
         "  用 localhost / 127.0.0.1 从本机（未经代理）访问时无需填写。",

@@ -19,10 +19,17 @@ from sqlalchemy.exc import SAWarning
 from src.core import models, models_engagement  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from src.core.database import BUSY_TIMEOUT_SECONDS, Base
 
+# 放在 src 导入之后：``homeos_shared`` 的源码态挂载由 ``src/__init__.py`` 完成。
+from homeos_shared.logging_noise import install_alembic_noise_filter
+
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
+
+# alembic 每次启动都打的常量行（「Context impl SQLiteImpl.」等）只对 alembic 自己有意义，
+# 却会以另一套格式混进启动日志 —— 过滤规则与取舍见 homeos_shared/logging_noise.py 第二节。
+install_alembic_noise_filter()
 
 target_metadata = Base.metadata
 

@@ -25,6 +25,7 @@ from .api import store as store_api
 from .api import wechat as wechat_api
 from .config import PROJECT_ROOT, StoreSettings, load_settings
 from .core.bootstrap import ensure_default_products, ensure_default_settings
+from .core.console_log import configure_console_logging
 from .core.database import Database
 from .core.migrations import run_migrations
 from .licensing import keys
@@ -48,7 +49,7 @@ from .payments.sweeper import (
     sweep_round,
     sweep_status,
 )
-from .security.access_log import install_access_log_noise_filter
+from .security.access_log import install_access_log_filters
 from .security.body_guard import RequestBodyGuard
 from .security.compression import SelectiveGZipMiddleware
 from .security.request_security import (
@@ -117,7 +118,8 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         result = keys.generate_ed25519(
             keys.KeyPairPaths(settings.private_key_path, settings.public_key_path)
         )
-        logger.warning(
+        # 首启生成属于正常流程（不是「有问题」），用 INFO：WARNING 会被巡检与告警按「需要人看」处理
+        logger.info(
             "已生成授权签名密钥对：%s（sha256=%s）", result.public_path, result.sha256
         )
     if missing_transport:
@@ -126,7 +128,7 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
                 settings.transport_private_key_path, settings.transport_public_key_path
             )
         )
-        logger.warning(
+        logger.info(
             "已生成授权传输密钥对：%s（sha256=%s）", result.public_path, result.sha256
         )
 
@@ -175,7 +177,8 @@ def _load_retired_generation(settings: StoreSettings) -> KeyGeneration | None:
         return None
 
     retired_at = _retired_at(settings)
-    logger.warning(
+    # 退役窗口内同时接受两代密钥是**设计内的正常状态**（不是异常），故用 INFO 说明事实
+    logger.info(
         "启用退役代授权密钥：退役时间 %sZ（接收窗口 %d 天）",
         retired_at.isoformat(),
         settings.license_key_retirement_days,
@@ -372,7 +375,12 @@ def _make_lifespan(runtime: _StoreRuntime):
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        install_access_log_noise_filter()
+        # 先恢复控制台日志：迁移里的 alembic fileConfig 会把 root 配置顶掉（级别压到 WARN、
+        # handler 换成它自己那份），此前的 ``src.*`` INFO 都在静默丢弃，见 core/console_log.py。
+        configure_console_logging()
+        # 降噪要在下面那行启动日志之前生效：首装时引导密钥横幅紧随其后，只打印一次，
+        # 而客户机轮询与健康检查几秒就能把它顶出 docker logs 的可见范围。
+        install_access_log_filters()
         logger.info(
             "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )

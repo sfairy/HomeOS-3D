@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 
 import uvicorn
@@ -15,6 +14,7 @@ from homeos_shared.logging_noise import install_reload_noise_filter
 
 from .app import create_app
 from .config import STORE_ROOT, load_settings
+from .core.console_log import configure_console_logging
 
 _TRUTHY = frozenset({'1', 'true', 'yes', 'on'})
 
@@ -24,10 +24,9 @@ def reload_enabled() -> bool:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-7s %(name)s | %(message)s",
-    )
+    # 唯一来源在 core/console_log.py：迁移里的 alembic fileConfig 会顶掉这里装的东西，
+    # 所以 lifespan 还会再装一次（reload 的 worker 也只能靠那一次）。
+    configure_console_logging()
     settings = load_settings()
     if reload_enabled():
         install_reload_noise_filter()
@@ -40,9 +39,18 @@ def main() -> None:
             log_level="info",
             reload=True,
             reload_dirs=[str(STORE_ROOT)],
+            # log_config=None：别让 uvicorn 用它自己那套 handler 顶掉 console_log 装好的
+            # （否则启动日志里会同时出现「带时间戳的中文行」与「INFO:  Started server process」两套格式）。
+            log_config=None,
         )
         return
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level="info")
+    uvicorn.run(
+        create_app(settings),
+        host=settings.host,
+        port=settings.port,
+        log_level="info",
+        log_config=None,
+    )
 
 
 if __name__ == "__main__":

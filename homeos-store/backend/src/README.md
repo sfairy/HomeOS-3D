@@ -36,6 +36,8 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 
 首次访问会进 `/setup` 建管理员。密钥在启动时生成（私钥 `homeos-store/keys/local/`，公钥镜像到仓库根 `keys/`）。
 
+`/setup` 的**引导密钥**（`STORE_SETUP_TOKEN` 那份，空则由服务生成后落到 `<数据目录>/setup-token`）在未初始化时随启动打印一次。它只出现一次，所以取它用：`docker logs homeos-store 2>&1 | grep -m1 SETUP-TOKEN=`（或直接读 `docker exec homeos-store cat /data/setup-token`）；用 `localhost` / `127.0.0.1` **未经代理**直连本机时这一栏留空即可。
+
 ### 邮件
 
 | `STORE_MAIL_MODE` | 用途 |
@@ -76,6 +78,10 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 | 验签失败 | 填成了应用公钥 / 密钥不匹配 |
 | 付了钱订单不动 | 回调不可达；等轮询/巡检，或查穿透 |
 | 改了 `.env` 无效 | 后台仍存着旧渠道值 → 站点配置改回「跟随环境变量」 |
+| 启动日志里找不到 `/setup` 引导密钥 | 那一段**只在未初始化时随启动打印一次**：别用 `docker logs -f` 边刷边找（正常请求的访问日志已不显示，横幅不会再被顶走）；日志轮转过就直接读文件 `docker exec homeos-store cat /data/setup-token`，若文件不存在说明已有管理员、窗口早已关闭 |
+| 排查时想看到每一条请求 | 设 `STORE_LOG_HTTP_ACCESS=all`：恢复正常返回也会逐条显示（默认只显示 4xx/5xx），且关掉重复折叠 |
+| 同一条告警只看到一次，后面只写着「同类已折叠 N 条」 | 这是刻意的：重复告警按窗口折叠（`STORE_LOG_STATUS_DEDUPE_MS`，默认 30 分钟，`0` 关闭）。安全类告警（限流触顶等）会在折叠满 10 / 100 / … 条时各补一行，规模仍看得见 |
+| 日志里只有 `WARNI [src] …`（没时间戳）且看不到 INFO | 说明进程没走到应用 lifespan（`core/console_log.py` 会在那里重装 root 日志；迁移里的 alembic `fileConfig` 会把 root 压到 WARN） |
 
 巡检与入账异常见后台「运营概览」卡片，机器可读 `GET /healthz` 的 `paymentSweep` / `incidents`。
 
@@ -93,7 +99,9 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 | `STORE_ALIPAY_*` / `STORE_WECHAT_*` | 渠道凭据 |
 | `STORE_LEASE_TTL_SECONDS` | 租约时长（默认 72h，亦为超时吊销上界） |
 | `STORE_ORDER_TTL_SECONDS` | 订单有效期（建议 600–1800，过短易「过期才到账」） |
-| `STORE_SETUP_TOKEN` | `/setup` 引导口令；空则自动生成 |
+| `STORE_SETUP_TOKEN` | `/setup` 引导口令；空则自动生成（未初始化时随启动打印，取法见上文） |
+| `STORE_LOG_HTTP_ACCESS` | 访问日志详略：`errors`（默认，只显示 4xx/5xx）/ `all`（逐条显示）/ `off`（静默）。与主应用 `LOG_HTTP_ACCESS` 同一份实现；写错按默认处理，**不**拒绝启动 |
+| `STORE_LOG_STATUS_DEDUPE_MS` | 重复日志折叠窗口（毫秒，默认 30 分钟，`0` 关闭）：同一来源反复触发的 4xx/5xx 与同一条状态告警只显示一次，跨数量级时补「同类已折叠 N 条」 |
 
 数值 / 布尔写错会**拒绝启动**（刻意）。站点名、公告、邀请、解绑冷却等在 `/admin` 改，免重启。
 

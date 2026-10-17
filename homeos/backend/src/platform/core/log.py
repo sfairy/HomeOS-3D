@@ -18,6 +18,12 @@ import sys
 from datetime import UTC, datetime
 from typing import Any
 
+from homeos_shared.uvicorn_messages import (
+    is_uvicorn_logger,
+    localize_uvicorn_context,
+    localize_uvicorn_message,
+)
+
 from .access_log_noise import MODE_OFF, install_http_access_log_filter
 from .observability import get_trace_id
 from .status_log_dedupe import StatusLogDedupeFilter
@@ -191,38 +197,8 @@ _CONTEXT_ZH: dict[str, str] = {
     "homeos.weather.watch": "天气监视",
 }
 
-#: uvicorn 日志器 → 中文展示名
-_UVICORN_CONTEXT_ZH = {
-    "uvicorn": "Web服务器",
-    "uvicorn.error": "Web服务器",
-    "uvicorn.access": "HTTP访问",
-    "uvicorn.asgi": "ASGI",
-    "uvicorn.lifespan": "应用生命周期",
-    "uvicorn.lifespan.on": "应用生命周期",
-    "uvicorn.lifespan.off": "应用生命周期",
-    "uvicorn.protocols.http": "HTTP协议",
-    "uvicorn.protocols.websockets": "WebSocket协议",
-}
-
-#: uvicorn 英文启动文案 → 中文（尽力匹配，未命中保持原文）
-_UVICORN_MESSAGE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"^Will watch for changes in these directories: (.+)$"), r"监听目录变更: \1"),
-    (
-        re.compile(r"^Uvicorn running on (\S+) \(Press CTRL\+C to quit\)$"),
-        r"服务运行在 \1 (按 CTRL+C 退出)",
-    ),
-    (
-        re.compile(r"^Started reloader process \[(\d+)\] using (.+)$"),
-        r"已启动重载进程 [\1] (\2)",
-    ),
-    (re.compile(r"^Started server process \[(\d+)\]$"), r"已启动服务进程 [\1]"),
-    (re.compile(r"^Waiting for application startup\.$"), "正在等待应用启动..."),
-    (re.compile(r"^Application startup complete\.$"), "应用启动完成"),
-    (re.compile(r"^Waiting for application shutdown\.$"), "正在等待应用关闭..."),
-    (re.compile(r"^Application shutdown complete\.$"), "应用关闭完成"),
-    (re.compile(r"^Finished server process \[(\d+)\]$"), r"服务进程已结束 [\1]"),
-    (re.compile(r"^Shutting down$"), "正在关闭"),
-)
+# uvicorn 文案与上下文名的真源在共享包（商店侧启动日志用同一份规则，避免一边中文一边英文）
+# 见 ``homeos_shared/uvicorn_messages.py``：那边只放翻译规则，装配（handler / 颜色 / 进程身份）在这里。
 
 
 def localize_logger_context(name: str) -> str:
@@ -232,7 +208,7 @@ def localize_logger_context(name: str) -> str:
     exact = _CONTEXT_ZH.get(name)
     if exact is not None:
         return exact
-    uvicorn = _UVICORN_CONTEXT_ZH.get(name)
+    uvicorn = localize_uvicorn_context(name)
     if uvicorn is not None:
         return uvicorn
     if name.startswith("homeos."):
@@ -315,16 +291,9 @@ def localize_log_record(name: str, message: str) -> str:
 
     抽成公共函数，避免控制台与运行日志缓冲各写一套导致展示不一致。
     """
-    if name.startswith("uvicorn"):
-        message = _localize_uvicorn_message(message)
+    if is_uvicorn_logger(name):
+        message = localize_uvicorn_message(message)
     return localize_log_message(message)
-
-
-def _localize_uvicorn_message(text: str) -> str:
-    for pattern, repl in _UVICORN_MESSAGE_RULES:
-        if pattern.match(text):
-            return pattern.sub(repl, text)
-    return text
 
 
 # 时间戳

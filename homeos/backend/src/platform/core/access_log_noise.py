@@ -1,15 +1,14 @@
-"""HTTP 访问日志降噪（主应用侧）。
+"""HTTP 访问日志降噪（主应用侧；真源见 ``homeos_shared.http_access_log``）。
 
-uvicorn 默认把**每一条**请求（含静态资源 ``200`` / ``304``）都按 INFO 打进
-``uvicorn.access``，开发时刷屏、生产上也把真正有用的信息淹掉。这里在
-``uvicorn.access`` 的 logger 上挂一个按状态码判定的过滤器，只保留「值得看」的请求：
+本模块只做一层薄转发 + 钉住主应用这一侧的变量名与说明日志的挂载点：
 
-- ``errors``（默认）：丢弃 ``2xx`` / ``3xx``（成功与重定向），保留 ``4xx`` / ``5xx``；
-- ``off``：整条链路静默（排障想完全安静时用）；
-- ``all``：不做过滤，恢复 uvicorn 原样。
+- 详略由 ``LOG_HTTP_ACCESS`` 选择（``errors`` 默认 / ``off`` / ``all``，非法值回退 ``errors``）；
+  折叠重复请求的窗口取 ``LOG_STATUS_DEDUPE_MS``（与状态日志同一个窗口，``0`` 关闭折叠）；
+- 「降噪已启用」那条说明挂到 ``homeos`` 日志树上。
 
-由环境变量 ``LOG_HTTP_ACCESS`` 选择，非法 / 未设置回退 ``errors``。解析不到状态码时
-**保留**记录（fail-open），避免误吞未知格式的日志。
+实现必须与商店共用一份（商店读 ``STORE_LOG_HTTP_ACCESS``）：两侧逐字相同的逻辑各存一份，
+改动就会漏掉另一侧。判定细节、fail-open 取舍、以及要「给只打印一次的启动横幅让出可读范围」
+这个动机都写在共享模块里。
 
 只在控制台侧生效：运行日志缓冲 handler（``/system/runtime-logs``）只挂在 ``homeos``
 日志树上，本就不会镜像 ``uvicorn.access``。
@@ -17,91 +16,50 @@ uvicorn 默认把**每一条**请求（含静态资源 ``200`` / ``304``）都�
 
 from __future__ import annotations
 
-import logging
-import os
-import re
+from homeos_shared.http_access_log import (
+    MODE_ALL,
+    MODE_ERRORS,
+    MODE_OFF,
+    HttpAccessLogFilter,
+    mode_label,
+)
+from homeos_shared.http_access_log import (
+    install_http_access_log_filter as _install_http_access_log_filter,
+)
+from homeos_shared.http_access_log import (
+    resolve_http_access_mode as _resolve_http_access_mode,
+)
 
-#: 过滤模式
-MODE_ALL = "all"
-MODE_ERRORS = "errors"
-MODE_OFF = "off"
+#: 主应用这一侧的变量名（商店侧是 ``STORE_LOG_HTTP_ACCESS``）
+ENV_VAR = "LOG_HTTP_ACCESS"
+
+#: 保留的 4xx/5xx 用哪个窗口折叠重复（与状态日志共用，``0`` 关闭折叠）
+DEDUPE_ENV_VAR = "LOG_STATUS_DEDUPE_MS"
 
 #: 展示用说明（安装时打一行，方便确认降噪已生效）
 MODE_LABEL = {
-    MODE_ERRORS: "仅保留 4xx/5xx（LOG_HTTP_ACCESS=all 恢复全部，=off 全部静默）",
-    MODE_OFF: "已全部静默（LOG_HTTP_ACCESS=all 恢复全部）",
+    MODE_ERRORS: mode_label(MODE_ERRORS, ENV_VAR),
+    MODE_OFF: mode_label(MODE_OFF, ENV_VAR),
 }
-
-#: 状态码提取兜底：uvicorn access 文案形如 ``... "GET /x HTTP/1.1" 200``
-_STATUS_RE = re.compile(r'"\s+(\d{3})(?:\s|$)')
-
-_FILTER_NAME = "homeos-http-access"
 
 
 def resolve_http_access_mode() -> str:
     """解析 ``LOG_HTTP_ACCESS``：``all`` / ``off`` 原样返回，其余一律按 ``errors``。"""
-    raw = (os.getenv("LOG_HTTP_ACCESS") or "").strip().lower()
-    return raw if raw in (MODE_ALL, MODE_OFF) else MODE_ERRORS
-
-
-def _extract_status(record: logging.LogRecord) -> int | None:
-    """从日志记录里取出 HTTP 状态码；取不到返回 ``None``。
-
-    优先读 ``record.args``（uvicorn 用 ``logger.info('%s - "%s %s HTTP/%s" %d', ...)``
-    打日志，末位参数即状态码），失败再退回正则解析已格式化的文案。
-    """
-    args = record.args
-    if isinstance(args, tuple) and args:
-        try:
-            return int(args[-1])
-        except (TypeError, ValueError):
-            pass
-    try:
-        message = record.getMessage()
-    except Exception:
-        return None
-    match = _STATUS_RE.search(message)
-    return int(match.group(1)) if match else None
-
-
-class HttpAccessLogFilter(logging.Filter):
-    """按状态码丢弃「正常」访问日志；判定规则见模块 docstring。"""
-
-    def __init__(self, mode: str | None = None) -> None:
-        super().__init__(_FILTER_NAME)
-        self._mode = mode or resolve_http_access_mode()
-
-    @property
-    def mode(self) -> str:
-        return self._mode
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if self._mode == MODE_ALL:
-            return True
-        if self._mode == MODE_OFF:
-            return False
-        status = _extract_status(record)
-        # 取不到状态码时保留，宁可多打一条也不吞掉未知格式的日志
-        return status is None or status >= 400
+    return _resolve_http_access_mode(ENV_VAR)
 
 
 def install_http_access_log_filter() -> HttpAccessLogFilter:
     """把过滤器挂到 ``uvicorn.access``（幂等，可在每次启动时调用）。"""
-    logger = logging.getLogger("uvicorn.access")
-    installed = next(
-        (item for item in logger.filters if isinstance(item, HttpAccessLogFilter)), None
+    return _install_http_access_log_filter(
+        env_var=ENV_VAR,
+        announce_logger="homeos",
+        dedupe_env_var=DEDUPE_ENV_VAR,
     )
-    if installed is None:
-        installed = HttpAccessLogFilter()
-        logger.addFilter(installed)
-        if installed.mode != MODE_ALL:
-            logging.getLogger("homeos").info(
-                "HTTP 访问日志降噪已启用: %s", MODE_LABEL[installed.mode]
-            )
-    return installed
 
 
 __all__ = [
+    "DEDUPE_ENV_VAR",
+    "ENV_VAR",
     "MODE_ALL",
     "MODE_ERRORS",
     "MODE_LABEL",
