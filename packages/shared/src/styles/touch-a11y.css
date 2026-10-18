@@ -1,0 +1,150 @@
+/**
+ * 触控与可访问性基线（canonical）
+ * ---------------------------------------------------------------
+ * 加载顺序：design-tokens.css → 各页面样式 → legacy-token-bridge.css → 本文件（最后）。
+ * 本文件只做「平台级」约定，不承担业务视觉：
+ *   1) 焦点环统一（旧样式表里 scattered 的 outline:none 在此改回可见环）
+ *   2) 触控目标 ≥ 44px（仅在 pointer:coarse 生效，鼠标环境不改布局密度）
+ *   3) 指针粗粒度下的几何修正（覆盖 legacy 桥接层冻结的 :root 值）
+ *   4) reduced-motion / prefers-contrast / forced-colors 兜底
+ *   5) 少量工具类（.hos-visually-hidden / .hos-tap-target）
+ */
+
+/* ══ 1. 焦点可见性 ═════════════════════════════════════════════
+   旧样式（main.css:1171/1201、motion.css:53）用 .focus-ring / .icon-btn 的
+   outline:none 关掉了焦点环。这里用同等特异性 + 更晚的源序改回可见环，
+   并统一为「画布底 + 铜色环」两层（见 --hos-focus-ring 定义）。 */
+:where(a, button, [role='button'], summary, [tabindex], input, select, textarea):focus-visible {
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
+}
+
+.icon-btn:focus-visible,
+.focus-ring:focus-visible,
+.tap-active:focus-visible,
+.tab-bar__tab:focus-visible,
+.tab-bar__more-item:focus-visible,
+.v-empty__link:focus-visible {
+  outline: var(--hos-focus-outline);
+  outline-offset: var(--hos-focus-offset);
+  box-shadow: var(--hos-focus-ring);
+}
+
+/* 键盘聚焦时不要让 outline 被 overflow:hidden 的父级裁掉 */
+:where(main, [role='main'], .main-content):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ══ 2. 触控目标 ═══════════════════════════════════════════════
+   只在指针粗粒度（平板 / 触屏）下放大；鼠标端保持信息密度。
+   强制 44px 只作用于「独立可点控件」，不含行内文字链接与表格行内链接。 */
+@media (pointer: coarse) {
+  :where(
+      .icon-btn,
+      .hos-btn,
+      .tab-bar__tab,
+      .tab-bar__more-item,
+      .v-empty__link
+    ) {
+    min-block-size: var(--hos-touch-min);
+    min-inline-size: var(--hos-touch-min);
+  }
+
+  /* 图标按钮视觉尺寸不变，用伪元素把热区外扩到 44px（不参与布局） */
+  :where(.icon-btn) {
+    position: relative;
+  }
+  :where(.icon-btn)::after {
+    content: '';
+    position: absolute;
+    inset: 50%;
+    inline-size: var(--hos-touch-min);
+    block-size: var(--hos-touch-min);
+    translate: -50% -50%;
+  }
+
+  /* 相邻可点元素之间至少留 8px，避免误触 */
+  :where(.tab-bar__tabs, .tab-bar__actions, .tab-bar__more-menu) {
+    gap: max(var(--hos-touch-gap), 2px);
+  }
+}
+
+/* 触控目标工具类：显式声明需要 44px 的元素（旧组件逐步迁移用） */
+.hos-tap-target {
+  min-block-size: var(--hos-touch-min);
+  min-inline-size: var(--hos-touch-min);
+}
+
+/* ══ 3. 粗粒度指针的几何修正 ═══════════════════════════════════
+   legacy-token-bridge.css 在 :root 重设了 --hos-surface-inset / --premium-shadow /
+   --page-accent-glow；这些 :root 声明源序晚于 hos-design-system.css:189-211 的
+   @media (pointer:coarse) 块，会把那份触控适配盖掉。此处重新声明一份。 */
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  :root {
+    --hos-hairline: 1px;
+    --hos-line-width: 1px;
+    --hos-surface-inset: none;
+    --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --premium-shadow: var(--hos-shadow-2);
+    --premium-shadow-open: 0 0 0 1px var(--hos-color-accent-line), var(--hos-shadow-2);
+    --page-accent-glow: transparent;
+  }
+}
+
+/* ══ 4. 系统偏好兜底 ═══════════════════════════════════════════ */
+
+/* 减弱动效：全局兜底（此前只有 18 个文件各自处理，漏网动画仍会晃动） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 高对比度：加强描边与次级文字（深色大屏 + 强光环境的关键可读性档） */
+@media (prefers-contrast: more) {
+  :root {
+    --hos-line-1: rgba(255, 255, 255, 0.2);
+    --hos-line-2: rgba(255, 255, 255, 0.3);
+    --hos-line-3: rgba(255, 255, 255, 0.42);
+    --hos-fg-2: #c6d1de;
+    --hos-fg-3: #a3b1c0;
+  }
+}
+
+/* Windows 高对比 / 强制颜色模式：去掉玻璃与渐变，交给系统色 */
+@media (forced-colors: active) {
+  *,
+  *::before,
+  *::after {
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* ══ 5. 工具类 ═════════════════════════════════════════════════ */
+.hos-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 忙态：挡住重复点击，同时保留可见的等待光标 */
+[aria-busy='true'] {
+  cursor: progress;
+}
+[aria-busy='true'] :where(button, a, [role='button']) {
+  pointer-events: none;
+}

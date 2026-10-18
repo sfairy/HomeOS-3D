@@ -1,0 +1,248 @@
+/**
+ * HomeOS 设计令牌 · 单一来源（canonical）
+ * ---------------------------------------------------------------
+ * 定位：主应用（homeos）与授权商店（homeos-store）共用的唯一取值层。
+ * 只放「值」，不放任何组件/页面选择器；旧令牌一律不在这里重声明。
+ *
+ * 层级（加载顺序即层叠顺序）：
+ *   1) design-tokens.css      ← 本文件：canonical 值（--hos-* / --hos-color-*）
+ *   2) 各 app 既有样式表        ← 旧令牌（--accent / --page-accent / --module-accent-* /
+ *                                --premium-accent-* / --hb-* …）仍按老值声明
+ *   3) legacy-token-bridge.css ← 兼容层：把旧令牌重新指向本文件的 canonical 值，
+ *                                并把旧文件里被「var() 冻结」的派生别名重新求值
+ *   4) touch-a11y.css          ← 触控/无障碍兜底层
+ * 因此入口必须：本文件最先、bridge 最后。新代码只用 --hos-* / --hos-color-*，
+ * 不要再写裸 hex；旧令牌只会随页面迁移逐个删除。
+ *
+ * 配色口径：深墨底 + 暖铜。暖铜取商店/场景既有那枚暖金（#ffc46a），
+ * 这样主应用与商店、与 design/scene 的 --hos-accent 是同一枚金色，不会同屏双金。
+ *
+ * 命名约定：
+ *   --hos-bg-*      背景面（画布 / 抬升 / 内凹 / 玻璃）
+ *   --hos-fg-*      文字层级（1 最强 → 4 最弱）
+ *   --hos-color-*   强调色与语义色（-rgb 供 rgba() 使用，-soft/-line 供面/线使用）
+ *   --hos-line-*    描边 / 分隔线
+ *   --hos-r-*       圆角（四档）
+ *   --hos-space-*   间距（8px 网格，1 档 = 4px）
+ *   --hos-fs-*      字号（十档）+ --hos-lh-* / --hos-fw-*
+ *   --hos-dur-*     动效时长 + --hos-ease-*
+ *   --hos-shadow-*  阴影 / 光晕
+ *   --hos-z-*       层级
+ */
+
+:root {
+  color-scheme: dark;
+  accent-color: var(--hos-color-accent);
+
+  /* ══ 1. 背景面 ══════════════════════════════════════════════ */
+  --hos-bg-canvas: #070a0f;          /* 最底层画布：整屏底色，与首帧 display-boot 同值 */
+  --hos-bg-elev-1: #0d131b;          /* 一级抬升：顶栏 / 底栏 / 侧栏实底 */
+  --hos-bg-elev-2: #121a24;          /* 二级：卡片 / 面板实底 */
+  --hos-bg-elev-3: #18222e;          /* 三级：控件 / chip / hover 实底 */
+  --hos-bg-well: #04070a;            /* 内凹井：输入框 / 列表容器 */
+  --hos-bg-scrim: rgba(4, 7, 10, 0.72);   /* 遮罩层 */
+
+  /* 半透明抬升（叠在任意背景上的玻璃层，不依赖底色） */
+  --hos-bg-tint-1: rgba(255, 255, 255, 0.045);
+  --hos-bg-tint-2: rgba(255, 255, 255, 0.075);
+  --hos-bg-tint-3: rgba(255, 255, 255, 0.11);
+
+  /* 主面板实体感（渐变 + 深底）：卡片/弹窗/侧栏通用 */
+  --hos-panel-surface:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 100%),
+    rgba(18, 26, 36, 0.86);
+  --hos-panel-surface-hover:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 100%),
+    rgba(24, 34, 46, 0.92);
+  --hos-panel-elevated: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.025) 100%
+  );
+  --hos-sidebar-surface: linear-gradient(
+    180deg,
+    rgba(13, 19, 27, 0.86) 0%,
+    rgba(7, 10, 15, 0.92) 100%
+  );
+
+  /* ══ 2. 玻璃拟态（三档，全站只有这三档） ═════════════════════ */
+  --hos-glass-blur-1: 16px;          /* 轻：底栏 / chip / 行内玻璃 */
+  --hos-glass-blur-2: 24px;          /* 中：卡片 / 侧栏 / 弹层 */
+  --hos-glass-blur-3: 36px;          /* 重：全屏遮罩层上的模态 */
+  --hos-glass-sat: 170%;
+  --hos-glass-tint: rgba(13, 19, 27, 0.66);
+  --hos-glass-tint-strong: rgba(13, 19, 27, 0.84);
+  --hos-glass-border: rgba(255, 255, 255, 0.08);
+  --hos-glass-border-accent: rgba(var(--hos-color-accent-rgb), 0.18);
+  --hos-blur-1: blur(var(--hos-glass-blur-1)) saturate(var(--hos-glass-sat));
+  --hos-blur-2: blur(var(--hos-glass-blur-2)) saturate(var(--hos-glass-sat));
+  --hos-blur-3: blur(var(--hos-glass-blur-3)) saturate(var(--hos-glass-sat));
+
+  /* ══ 3. 文字层级（三档主用 + 一档禁用） ═════════════════════ */
+  --hos-fg-1: #f2f5f8;               /* 标题 / 关键数值 */
+  --hos-fg-body: #e3e9ef;            /* 正文（略低于标题，避免整屏过曝） */
+  --hos-fg-2: #a7b4c2;               /* 次要说明 / 标签 */
+  --hos-fg-3: #6f7f90;              /* 第三级：占位 / 单位 / 弱提示（对比度 ≥ 4.5:1） */
+  --hos-fg-4: #55616f;               /* 禁用 / 装饰性文字，不承载信息 */
+  --hos-fg-on-accent: #041018;        /* 亮铜底上用深字（主按钮 / 选中态） */
+
+  /* ══ 4. 强调色（唯一一枚；模块色已收敛于此） ═══════════════ */
+  --hos-color-accent-rgb: 255, 196, 106;
+  --hos-color-accent: #ffc46a;
+  --hos-color-accent-strong: #ffd9a0;
+  --hos-color-accent-deep: #e09523;
+  --hos-color-accent-deep-rgb: 224, 149, 35;
+  --hos-color-accent-strong-rgb: 255, 217, 160;
+  --hos-color-accent-soft: rgba(var(--hos-color-accent-rgb), 0.13);
+  --hos-color-accent-soft-strong: rgba(var(--hos-color-accent-rgb), 0.2);
+  --hos-color-accent-line: rgba(var(--hos-color-accent-rgb), 0.32);
+  --hos-color-accent-faint: rgba(var(--hos-color-accent-rgb), 0.06);
+  --hos-color-accent-grad: linear-gradient(
+    180deg,
+    var(--hos-color-accent-strong),
+    var(--hos-color-accent-deep)
+  );
+  --hos-color-accent-grad-hover: linear-gradient(
+    180deg,
+    var(--hos-color-accent-strong),
+    var(--hos-color-accent)
+  );
+  --hos-color-accent-glow: 0 10px 26px -14px rgba(var(--hos-color-accent-rgb), 0.8);
+
+  /* ══ 5. 语义色（状态唯一口径；不要再写 #fb7185 / #34d399 之类） ══ */
+  --hos-color-info: #59d3c0;
+  --hos-color-info-rgb: 89, 211, 192;
+  --hos-color-info-soft: rgba(var(--hos-color-info-rgb), 0.13);
+  --hos-color-info-line: rgba(var(--hos-color-info-rgb), 0.32);
+  --hos-color-info-text: #8ce8db;
+
+  --hos-color-success: #3ddc97;
+  --hos-color-success-rgb: 61, 220, 151;
+  --hos-color-success-soft: rgba(var(--hos-color-success-rgb), 0.13);
+  --hos-color-success-line: rgba(var(--hos-color-success-rgb), 0.32);
+  --hos-color-success-text: #7ff0bd;
+
+  --hos-color-warning: #ffb020;
+  --hos-color-warning-rgb: 255, 176, 32;
+  --hos-color-warning-soft: rgba(var(--hos-color-warning-rgb), 0.13);
+  --hos-color-warning-line: rgba(var(--hos-color-warning-rgb), 0.32);
+  --hos-color-warning-text: #ffd07a;
+
+  --hos-color-danger: #ff5a5f;
+  --hos-color-danger-rgb: 255, 90, 95;
+  --hos-color-danger-soft: rgba(var(--hos-color-danger-rgb), 0.13);
+  --hos-color-danger-line: rgba(var(--hos-color-danger-rgb), 0.32);
+  --hos-color-danger-text: #ff9aa0;
+
+  /* ══ 6. 描边 / 分隔线 ═════════════════════════════════════ */
+  --hos-line-1: rgba(255, 255, 255, 0.06);   /* 分隔线 / 极弱描边 */
+  --hos-line-2: rgba(255, 255, 255, 0.1);    /* 卡片描边（默认） */
+  --hos-line-3: rgba(255, 255, 255, 0.16);   /* 控件描边 / hover 描边 */
+  --hos-line-accent: var(--hos-color-accent-line);
+  --hos-line-width: 0.5px;                   /* 发丝：触屏由 touch-a11y 抬到 1px */
+
+  /* ══ 7. 圆角（四档 + 胶囊；控件/卡片/面板/容器） ═══════════ */
+  --hos-r-1: 10px;
+  --hos-r-2: 14px;
+  --hos-r-3: 20px;
+  --hos-r-4: 28px;
+  --hos-r-pill: 9999px;
+  --hos-r-icon: 8px;
+
+  /* ══ 8. 间距（8px 网格；1 档 = 4px） ═══════════════════════ */
+  --hos-space-0: 0;
+  --hos-space-1: 4px;
+  --hos-space-2: 8px;
+  --hos-space-3: 12px;
+  --hos-space-4: 16px;
+  --hos-space-5: 20px;
+  --hos-space-6: 24px;
+  --hos-space-7: 32px;
+  --hos-space-8: 40px;
+  --hos-space-9: 48px;
+  --hos-space-10: 64px;
+
+  /* ══ 9. 排版（十档字号；页面只允许用这十档） ═══════════════ */
+  --hos-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    'Helvetica Neue', 'Inter', 'Noto Sans SC', sans-serif;
+  --hos-font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --hos-fs-1: 11px;   /* 角标 / 极弱元数据 */
+  --hos-fs-2: 12px;   /* 微标签 */
+  --hos-fs-3: 13px;   /* 标签 / 表格头 */
+  --hos-fs-4: 14px;   /* 次要正文 */
+  --hos-fs-5: 15px;   /* 正文 */
+  --hos-fs-6: 17px;   /* 小标题 */
+  --hos-fs-7: 20px;   /* 卡片标题 */
+  --hos-fs-8: 24px;   /* 区块标题 */
+  --hos-fs-9: 30px;   /* 页面主数值 */
+  --hos-fs-10: 38px;  /* Hero 数值 */
+  --hos-lh-tight: 1.16;
+  --hos-lh-snug: 1.35;
+  --hos-lh-normal: 1.5;
+  --hos-fw-regular: 400;
+  --hos-fw-medium: 500;
+  --hos-fw-semibold: 600;
+  --hos-fw-bold: 700;
+  --hos-tracking-wide: 0.04em;
+  --hos-tracking-tight: -0.01em;
+
+  /* ══ 10. 动效（四档时长；交互反馈只用 fast/base） ══════════ */
+  --hos-dur-fast: 120ms;    /* 按下 / hover / 淡入 */
+  --hos-dur-base: 200ms;    /* 常规过渡 */
+  --hos-dur-slow: 320ms;    /* 面板进出 */
+  --hos-dur-slower: 480ms;  /* 页面级进场 */
+  --hos-ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --hos-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --hos-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --hos-motion-page: var(--hos-dur-slower) var(--hos-ease-spring);
+
+  /* ══ 11. 阴影 / 光晕（四档；不要逐页写 rgba(0,0,0,…)） ══════ */
+  --hos-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.36);
+  --hos-shadow-2: 0 6px 18px rgba(0, 0, 0, 0.34);
+  --hos-shadow-3: 0 10px 36px rgba(0, 0, 0, 0.42);
+  --hos-shadow-4: 0 24px 64px rgba(0, 0, 0, 0.52);
+  --hos-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --hos-shadow-accent: 0 0 0 1px var(--hos-color-accent-line),
+    0 12px 32px -16px rgba(var(--hos-color-accent-rgb), 0.6);
+
+  /* ══ 12. 焦点环（键盘可见性唯一口径） ═══════════════════════ */
+  --hos-focus-color: var(--hos-color-accent);
+  --hos-focus-width: 2px;
+  --hos-focus-offset: 2px;
+  --hos-focus-outline: var(--hos-focus-width) solid var(--hos-focus-color);
+  --hos-focus-ring: 0 0 0 2px var(--hos-bg-canvas), 0 0 0 4px var(--hos-focus-color);
+
+  /* ══ 13. 触控目标（墙屏/平板优先） ═════════════════════════ */
+  --hos-touch-min: 44px;     /* WCAG 2.5.5 / iOS HIG 下限 */
+  --hos-touch-comfy: 52px;   /* 主操作 / 底部栏 */
+  --hos-touch-gap: 8px;      /* 相邻触控目标最小间隙 */
+  --hos-control-h-xs: 28px;
+  --hos-control-h-sm: 32px;
+  --hos-control-h-md: 36px;
+  --hos-control-h-lg: 44px;
+
+  /* ══ 14. 布局骨架 ═════════════════════════════════════════ */
+  --hos-content-max: 1680px;   /* 内容最大宽度：超宽屏不再拉满，靠留白收住视觉重心 */
+  --hos-shell-gutter: var(--hos-space-6);
+  --hos-nav-h: 56px;
+  --hos-footer-h: 44px;
+  --hos-sidebar-w: 340px;
+
+  /* ══ 15. 层级 ════════════════════════════════════════════ */
+  --hos-z-canvas: 0;
+  --hos-z-content: 1;
+  --hos-z-sticky: 10;
+  --hos-z-nav: 20;
+  --hos-z-hub: 30;
+  --hos-z-overlay: 40;
+  --hos-z-popup: 60;
+  --hos-z-modal: 80;
+  --hos-z-toast: 100;
+  --hos-z-max: 2147483000;
+}
+
+/* 文字选中：暖铜半透明底 + 近白字（旧规则用 --accent-rgb，桥接后同色） */
+::selection {
+  background: var(--hos-color-accent-soft-strong);
+  color: var(--hos-fg-1);
+}

@@ -160,13 +160,9 @@
   --hb-grad-alert: linear-gradient(180deg, var(--hb-alert-bright), var(--hb-alert-deep));
   --hb-grad-sensor: linear-gradient(180deg, var(--hb-sensor-bright), var(--hb-sensor-deep));
 
-  /* 组件色调的默认值：主控暖金。由下面的 [data-tone] 逐项覆写。 */
-  --hb-tone: var(--hb-accent);
-  --hb-tone-rgb: var(--hb-accent-rgb);
-  --hb-tone-soft: var(--hb-accent-soft);
-  --hb-tone-line: var(--hb-accent-line);
-  --hb-tone-text: var(--hb-accent-text);
-  --hb-grad-tone: var(--hb-accent-grad);
+  /* 组件色调令牌（--hb-tone* / --hb-grad-tone）只在下面 [data-tone='accent'] 那一组里
+     定义一次：:root 拿到的是主控暖金，元素挂 data-tone 时用同一份声明覆写。
+     这里不再重复一份默认值 —— 两份字面量早晚会不同步。 */
 
   /* 圆角：控制台风格的「小圆角」，比场景坞（20px）收一档 */
   --hb-radius-xs: 6px;
@@ -251,8 +247,10 @@
 }
 
 /* 组件色调开关，默认主控暖金。它是布局钩子：任何挂了 data-tone 的元素都能读
-   --hb-tone* / --hb-grad-tone，共享原语（chip / stat / panel）因此不必各自写分色。 */
+   --hb-tone* / --hb-grad-tone，共享原语（chip / stat / panel）因此不必各自写分色。
+   默认值（:root）与 data-tone='accent' 是同一份声明，所以两者共用一个选择器。 */
 
+:root,
 [data-tone='accent'] {
   --hb-tone: var(--hb-accent);
   --hb-tone-rgb: var(--hb-accent-rgb);
@@ -1619,7 +1617,7 @@ html.hb-auth-hint .hb-guest-only {
     font-size: 24px;
   }
 
-    .hb-section-head {
+  .hb-section-head {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1628,7 +1626,7 @@ html.hb-auth-hint .hb-guest-only {
     padding: var(--hb-space-5) var(--hb-space-4);
   }
 
-    .hb-dialog__foot--split {
+  .hb-dialog__foot--split {
     grid-template-columns: 1fr;
   }
 }
