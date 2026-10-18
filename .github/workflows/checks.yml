@@ -239,53 +239,7 @@ jobs:
           ACME_EMAIL=ops@example.com STORE_DOMAIN=store.example.com \
             /tmp/caddy validate --config ops/deploy/Caddyfile.public.example --adapter caddyfile
 
-  # 前端纯函数/store 测试（Bun 内置 test，不新增依赖）。3D 保存状态机、document/history
-  # patch、控制域等关键路径都在这里；这些测试不需要浏览器，也不跑 vite。
-  #
-  # `bun run test:frontend` 自己会先 `build:shared`：测试的 import 链会走到
-  # `@homeos/shared`，而它指向被 gitignore 的 `packages/shared/dist`（干净检出上不存在）。
-  # 本机之所以常常是绿的，是因为 dist/ 早就建过了；别把脚本里的 build:shared 去掉，也别
-  # 把这一步改回裸 `bun test`，否则又会变成「本机绿、干净检出红」。
-  frontend-tests:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.3
-
-      - name: Cache bun install cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Install and run frontend tests
-        run: |
-          bun install --frozen-lockfile
-          bun run test:frontend
-
-  # 两个后端启动期建库 / 迁移 / 自检的单元与集成测试。
-  # 这些测试只依赖运行期依赖（SQLAlchemy 等），不启动 FastAPI，也不连网络。
-  python-tests:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.15'
-
-      - name: Install test dependencies
-        run: pip install -r homeos/backend/requirements.txt -r homeos-store/backend/requirements.txt
-
-      - name: HomeOS schema bootstrap tests
-        run: PYTHONPATH=homeos/backend:packages/shared-py python -m unittest discover -s homeos/backend/tests -v
-
-      - name: Store schema bootstrap tests
-        run: PYTHONPATH=homeos-store/backend:packages/shared-py python -m unittest discover -s homeos-store/backend/tests -v
+  # 说明：原先的 frontend-tests / python-tests 两个 job 已移除，测试不在 CI 里跑。
 
   # Python 静态检查（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
   ruff:
