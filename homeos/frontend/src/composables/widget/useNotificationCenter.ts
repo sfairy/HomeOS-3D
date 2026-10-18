@@ -399,10 +399,10 @@ export function useNotificationCenter() {
    * @returns 颜色 class 字符串
    */
   function levelColor(l: string) {
-    if (l === 'danger') return 'text-red-400'
-    if (l === 'warn') return 'text-yellow-400'
-    if (l === 'success') return 'text-green-400'
-    return 'text-blue-400'
+    if (l === 'danger') return 'nc-level--danger'
+    if (l === 'warn') return 'nc-level--warn'
+    if (l === 'success') return 'nc-level--success'
+    return 'nc-level--info'
   }
 
   onMounted(() => {

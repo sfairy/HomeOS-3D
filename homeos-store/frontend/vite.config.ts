@@ -248,8 +248,11 @@ export default defineConfig(({ command }) => {
       port: 8806,
       strictPort: true,
       proxy: {
-        "/store/v1": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
-        "/store-admin/v1": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        //: 商店写接口不能改写 Host：后端 same_origin_request() 按 Origin↔Host 判定同源，
+        //: changeOrigin 会把 Host 改成 127.0.0.1:8802，浏览器 Origin 仍是 127.0.0.1:8806，
+        //: 登录/下单/后台写操作一律 403「跨站请求已被拒绝」。只读静态资源才可改 Host。
+        "/store/v1": { target: "http://127.0.0.1:8802", changeOrigin: false, ...proxyErrorHandling },
+        "/store-admin/v1": { target: "http://127.0.0.1:8802", changeOrigin: false, ...proxyErrorHandling },
         "/store-appearance.css": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
         "/v2": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
         "/store-static": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },

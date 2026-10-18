@@ -56,7 +56,7 @@
 
 .hm-trigger-card__enable-input:checked + .hm-trigger-card__enable-switch::before {
   left: calc(var(--hos-switch-thumb-inset) + var(--hos-switch-travel-xs));
-  background: var(--page-accent-text, #818cf8);
+  background: var(--page-accent-text, var(--hos-color-accent));
   box-shadow: none;
 }
 

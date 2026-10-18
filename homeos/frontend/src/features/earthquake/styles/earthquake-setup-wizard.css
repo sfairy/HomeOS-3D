@@ -86,7 +86,7 @@
   font-weight: 700;
   border: 1px solid rgb(59 130 246 / 0.25);
   background: rgb(59 130 246 / 0.1);
-  color: #93c5fd;
+  color: var(--hos-color-info-text);
 }
 
 .eew-wizard-system-badge {

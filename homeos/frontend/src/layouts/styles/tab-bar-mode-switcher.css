@@ -149,7 +149,12 @@
     padding-right: 3px;
   }
 
-  .tab-bar .home-mode-switcher__presence,
+  /* 390px 顶栏只留两行：模式芯片里的「2 人在家」占 84px，会和 5 个操作按钮
+     一起把 header 撑成三行；隐藏后模式按钮仍带图标+模式名，点击弹层功能不变。 */
+  .tab-bar .home-mode-switcher__presence {
+    display: none;
+  }
+
   .tab-bar .home-mode-switcher__btn {
     min-height: 36px;
     padding: 4px 8px;

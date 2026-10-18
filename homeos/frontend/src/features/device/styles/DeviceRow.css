@@ -12,8 +12,8 @@
 }
 
 .device-row--selected {
-  background: rgba(var(--dev-accent-rgb, 56, 189, 248), 0.06);
-  border-color: rgba(var(--dev-accent-rgb, 56, 189, 248), 0.2);
+  background: rgba(var(--dev-accent-rgb, 255, 196, 106), 0.06);
+  border-color: rgba(var(--dev-accent-rgb, 255, 196, 106), 0.2);
 }
 
 .device-row__checkbox {
@@ -35,14 +35,14 @@
 }
 
 .device-row__checkbox:hover {
-  border-color: var(--dev-accent-border, rgba(56, 189, 248, 0.4));
-  background: var(--dev-accent-soft, rgba(56, 189, 248, 0.08));
+  border-color: var(--dev-accent-border, rgba(255, 196, 106, 0.4));
+  background: var(--dev-accent-soft, rgba(255, 196, 106, 0.08));
 }
 
 .device-row--selected .device-row__checkbox {
-  background: rgba(var(--dev-accent-rgb, 56, 189, 248), 0.2);
+  background: rgba(var(--dev-accent-rgb, 255, 196, 106), 0.2);
   border-color: var(--dev-accent-border);
-  color: var(--dev-accent-text, #93c5fd);
+  color: var(--dev-accent-text, var(--hos-color-accent-strong));
 }
 
 .device-row__battery {
@@ -55,10 +55,10 @@
 }
 
 .device-row__battery--medium {
-  color: #fbbf24;
+  color: var(--hos-color-warning);
 }
 .device-row__battery--low {
-  color: #f87171;
+  color: var(--hos-color-danger);
 }
 
 .device-row__toggle {
@@ -74,8 +74,8 @@
   border: var(--hos-hairline) solid var(--dev-accent-border);
   background: linear-gradient(
     135deg,
-    rgba(var(--dev-accent-rgb, 56, 189, 248), 0.25),
-    rgba(94, 92, 230, 0.2)
+    rgba(var(--dev-accent-rgb, 255, 196, 106), 0.3),
+    rgba(var(--dev-accent-rgb, 255, 196, 106), 0.08)
   );
   color: #fff;
   cursor: pointer;
@@ -83,12 +83,12 @@
   transition:
     transform 0.2s var(--ease-spring, ease),
     box-shadow 0.2s;
-  box-shadow: 0 4px 14px rgba(var(--dev-accent-rgb, 56, 189, 248), 0.2);
+  box-shadow: 0 4px 14px rgba(var(--dev-accent-rgb, 255, 196, 106), 0.2);
 }
 
 .device-row__toggle:hover {
   transform: scale(1.06);
-  box-shadow: 0 6px 20px rgba(var(--dev-accent-rgb, 56, 189, 248), 0.35);
+  box-shadow: 0 6px 20px rgba(var(--dev-accent-rgb, 255, 196, 106), 0.35);
 }
 
 .device-row__detail {

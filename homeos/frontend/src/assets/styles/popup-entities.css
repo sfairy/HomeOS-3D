@@ -7,7 +7,7 @@
    使用方式：
      @import '@/assets/styles/popup-base.css';
      @import '@/assets/styles/popup-entities.css';
-     .popup-shell { --accent: #38bdf8; --accent-rgb: 56,189,248; }
+     .popup-shell { --accent: var(--hos-color-accent); --accent-rgb: var(--hos-color-accent-rgb); }
    ========================================================================== */
 
 /* 大数字下方的中文计量标签：避免 line-height:1 / 负 margin / 过宽字距裁切字脚 */
@@ -71,8 +71,8 @@
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
 }
@@ -87,8 +87,8 @@
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))),
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))));
 }
 
 .temp-slider::-webkit-slider-thumb {
@@ -145,8 +145,8 @@
   appearance: none;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
 }
@@ -163,8 +163,8 @@
 .cover-slider::-moz-range-progress {
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))),
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))));
 }
 
 .cover-slider::-moz-range-progress { height: 6px; }
@@ -173,10 +173,10 @@
   -webkit-appearance: none;
   appearance: none;
   border-radius: 50%;
-  background: var(--accent, #0A84FF);
+  background: var(--accent, var(--hos-color-accent));
   border: 2px solid #fff;
   cursor: pointer;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, var(--hos-color-accent)) 50%, rgba(0, 0, 0, 0));
 }
 
 .cover-slider::-webkit-slider-thumb {
@@ -188,7 +188,7 @@
 
 .cover-slider::-moz-range-thumb {
   border-radius: 50%;
-  background: var(--accent, #0A84FF);
+  background: var(--accent, var(--hos-color-accent));
   border: 2px solid #fff;
   cursor: pointer;
 }
@@ -196,7 +196,7 @@
 .cover-slider::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, var(--hos-color-accent)) 50%, rgba(0, 0, 0, 0));
 }
 
 
@@ -284,7 +284,7 @@
 .fan-mode-btn.active {
   background: rgba(var(--accent-rgb, 34, 211, 238), 0.14);
   border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.3);
-  color: var(--accent, #22d3ee);
+  color: var(--accent, var(--hos-color-accent));
   box-shadow: 0 2px 12px rgba(var(--accent-rgb, 34, 211, 238), 0.15);
 }
 

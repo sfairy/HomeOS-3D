@@ -212,7 +212,7 @@ def _default_energy_and_frontend_sections() -> dict[str, Any]:
         "ui": {
             "scaleBaseWidth": 1366,
             "scaleBaseHeight": 1024,
-            "accentColor": "#3b82f6",
+            "accentColor": "#ffc46a",
         },
     }
 

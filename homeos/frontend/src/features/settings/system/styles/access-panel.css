@@ -70,13 +70,13 @@
 }
 
 .access-security-pane__status--on {
-  color: #c084fc;
+  color: var(--hos-color-accent-strong);
 }
 
 /* 本文件是 scoped 样式（`<style scoped src>`），选择器带 [data-v-*] 属性，
    特异性高于全局 `.toggle-btn.on`，无需 !important 压权重。 */
 .access-security-toggle.on {
-  background: #c084fc;
+  background: var(--hos-color-accent-strong);
   box-shadow: none;
 }
 
@@ -117,7 +117,7 @@
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55);
   }
   .access-security-toggle.on {
-    background: #c084fc;
+    background: var(--hos-color-accent-strong);
     box-shadow: none;
   }
 }
@@ -143,7 +143,7 @@
 }
 
 .access-security-pane--active .access-security-pane__foot {
-  border-top-color: rgba(192, 132, 252, 0.12);
+  border-top-color: rgba(var(--hos-color-accent-strong-rgb), 0.12);
 }
 
 .access-pin-panel {
@@ -180,8 +180,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(192, 132, 252, 0.06);
-  border: var(--hos-hairline) solid rgba(192, 132, 252, 0.12);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.06);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.12);
   margin-bottom: 10px;
 }
 
@@ -226,20 +226,20 @@
 }
 
 .access-pin-box--filled {
-  border-color: rgba(192, 132, 252, 0.35);
-  background: rgba(192, 132, 252, 0.06);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.35);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.06);
 }
 
 .access-pin-box--cursor {
-  border-color: rgba(192, 132, 252, 0.5);
-  box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.15);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(var(--hos-color-accent-strong-rgb), 0.15);
 }
 
 .access-pin-box__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #c084fc;
+  background: var(--hos-color-accent-strong);
   box-shadow: none;
 }
 
@@ -276,7 +276,7 @@
   gap: 6px;
   font-size: var(--premium-fs-caption);
   line-height: 1.45;
-  color: rgba(251, 191, 36, 0.85);
+  color: rgba(var(--hos-color-warning-rgb), 0.85);
 }
 
 .access-pin-hint--info {
@@ -304,11 +304,11 @@
 }
 
 .asl-icon-accent {
-  color: var(--premium-accent-violet, #c084fc);
+  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
 }
 
 .asl-icon-accent-soft {
-  color: var(--premium-accent-violet, #c084fc);
+  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
   opacity: 0.5;
 }
 

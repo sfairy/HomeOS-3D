@@ -122,8 +122,8 @@ const links = [
 }
 
 .sw-dashboard-step__link:hover {
-  background: rgba(10, 132, 255, 0.1);
-  border-color: rgba(10, 132, 255, 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 .sw-dashboard-step__orb {
@@ -133,8 +133,8 @@ const links = [
   width: 36px;
   height: 36px;
   border-radius: var(--hos-radius-card);
-  background: rgba(10, 132, 255, 0.14);
-  color: #7dd3fc;
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
+  color: var(--hos-color-info-text);
 }
 
 .sw-dashboard-step__title {

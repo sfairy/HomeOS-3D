@@ -113,12 +113,12 @@
 @keyframes clockGlow {
   0%,
   100% {
-    filter: drop-shadow(0 0 10px rgba(10, 132, 255, 0.05));
+    filter: drop-shadow(0 0 10px rgba(var(--hos-color-accent-rgb), 0.05));
   }
   33% {
     filter: drop-shadow(0 0 18px rgba(0, 212, 255, 0.12));
   }
   66% {
-    filter: drop-shadow(0 0 14px rgba(191, 90, 242, 0.1));
+    filter: drop-shadow(0 0 14px rgba(var(--hos-color-accent-strong-rgb), 0.1));
   }
 }

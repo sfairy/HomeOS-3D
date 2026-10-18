@@ -38,8 +38,8 @@
 }
 
 .params-cell--modified {
-  border-color: rgba(251, 191, 36, 0.35);
-  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.75);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.35);
+  box-shadow: inset 3px 0 0 rgba(var(--hos-color-warning-rgb), 0.75);
 }
 
 .params-cell--row {
@@ -75,11 +75,11 @@
 }
 
 .params-cell:hover {
-  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 22%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 22%, rgba(0, 0, 0, 0));
   background:
     radial-gradient(
       ellipse at 0% 0%,
-      color-mix(in srgb, var(--panel-accent, #0a84ff) 6%, rgba(0, 0, 0, 0)) 0%,
+      color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 6%, rgba(0, 0, 0, 0)) 0%,
       transparent 65%
     ),
     rgba(255, 255, 255, 0.02);
@@ -132,10 +132,10 @@
 }
 
 .params-cell--focus {
-  border-color: rgba(251, 191, 36, 0.55);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.55);
   box-shadow:
-    inset 3px 0 0 rgba(251, 191, 36, 0.85),
-    0 0 0 1px rgba(251, 191, 36, 0.25);
+    inset 3px 0 0 rgba(var(--hos-color-warning-rgb), 0.85),
+    0 0 0 1px rgba(var(--hos-color-warning-rgb), 0.25);
 }
 
 .params-cell-control {
@@ -215,8 +215,8 @@
 }
 
 .params-cell-input:focus {
-  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 45%, rgba(0, 0, 0, 0));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, #0a84ff) 12%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 12%, rgba(0, 0, 0, 0));
   background: rgba(0, 0, 0, 0.42);
 }
 
@@ -258,8 +258,8 @@
 
 .params-cell-entity-wrap .ems-trigger:focus-visible,
 .params-cell-entity-wrap .ems-trigger--open {
-  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 45%, rgba(0, 0, 0, 0));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, #0a84ff) 12%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 12%, rgba(0, 0, 0, 0));
   background: rgba(0, 0, 0, 0.42);
 }
 

@@ -1295,13 +1295,32 @@ export function mountInteraction3d(
     (keyEvent.key === "Escape" && closePopupLayoutPreview(),
       (isFocusActive || isFocusPanelOpen) && keyEvent.key === "Escape" && dismissFocus());
   }
+  /**
+   * 把 3D 阶段运行时抛出的技术性异常收敛成用户能看懂的降级文案。
+   * headless / 无 GPU / 禁用 WebGL 等场景下，阶段 iframe 会把
+   * "Cannot read properties of null (reading 'render')" 之类的原始异常
+   * 通过 type:"error" 消息透传上来；直接展示在画布中央既不可读也像崩溃。
+   */
+  function friendly3dErrorMessage(failureMessage: any) {
+    const raw =
+      typeof failureMessage === "string"
+        ? failureMessage.trim()
+        : failureMessage instanceof Error
+          ? failureMessage.message.trim()
+          : "";
+    if (!raw) return "3D 画布初始化失败，请重试或改用 2D 控件。";
+    return /webgl|webgpu|context lost|renderer|three\.|reading 'render'|cannot read propert/i.test(raw)
+      ? "当前设备无法创建 3D 画面（WebGL 不可用），可重试或改用 2D 控件。"
+      : raw;
+  }
   function failSceneLoad(failureMessage: any) {
+    const friendlyMessage = friendly3dErrorMessage(failureMessage);
     ((hasLoadFailed = true),
       (isScenePresented = false),
       (hasPresentedStage = false),
       (isReloadPending = false),
       refreshActivityState(true),
-      rejectPendingRangeRequests(failureMessage || "户型画面已关闭，请重新调整照射范围。"),
+      rejectPendingRangeRequests(friendlyMessage || "户型画面已关闭，请重新调整照射范围。"),
       postToStageFrame({
         type: "range-editor",
         open: false,
@@ -1314,7 +1333,7 @@ export function mountInteraction3d(
       hostElement.classList.remove("is-loading"),
       hostElement.classList.add("is-load-error"),
       (loadingElement.hidden = false),
-      (loadingElement.textContent = failureMessage || "3D 户型加载失败，请重新载入户型。"),
+      (loadingElement.textContent = friendlyMessage || "3D 户型加载失败，请重新载入户型。"),
       onLoadError(new Error(loadingElement.textContent)));
   }
   function reloadStageFrame(reloadReason = "") {

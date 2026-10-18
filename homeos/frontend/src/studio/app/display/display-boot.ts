@@ -229,8 +229,33 @@ export function bootDisplayBoot(): void {
         }
     return hasPending;
   }
+  /**
+   * 探测浏览器是否可用 WebGL。
+   * 展示页的 3D 户型是总览的视觉主体，但 GPU / 驱动 / 远程桌面环境可能拿不到 WebGL 上下文；
+   * 此时 Interaction3D 运行时永远不会把 host 标记为就绪，splash 只能干等到超时。
+   * 提前探测并给出「先进入仪表盘」，让顶栏 / 侧边栏 / 底部 dock 仍可用。
+   */
+  function isWebglAvailable() {
+    try {
+      const probeCanvas = document.createElement("canvas");
+      const gl = probeCanvas.getContext("webgl2") || probeCanvas.getContext("webgl");
+      if (!gl) return false;
+      const loseContext = (gl as WebGLRenderingContext).getExtension?.("WEBGL_lose_context");
+      loseContext?.loseContext?.();
+      return true;
+    } catch {
+      return false;
+    }
+  }
   function handleReady(readyShellElement: any) {
     if (splashPhase !== SPLASH_PHASE_LOADING) return;
+    if (!isWebglAvailable()) {
+      showError(
+        new Error("当前设备未启用 WebGL，3D 户型无法渲染。可先进入仪表盘使用其他功能。"),
+        true,
+      );
+      return;
+    }
     ((shellElement = readyShellElement),
       (splashPhase = "waiting"),
       logBootPhase("document-ready"),
@@ -324,7 +349,9 @@ export function bootDisplayBoot(): void {
           (displaySplashMessageLookup!()!.textContent = "正在准备你的家，请稍候…");
       }, 8000)),
       (loadingTimeoutTimer = setTimeout(
-        () => showError(new Error("仪表盘加载超时，请检查网络后重试。")),
+        // 超时不再把用户锁死在 splash：仍然允许「先进入仪表盘」，
+        // 否则 3D 资源失败时连顶栏 / 侧边栏都点不到。
+        () => showError(new Error("仪表盘加载超时，可重试或先进入仪表盘。"), true),
         45000,
       )),
       document.addEventListener("focusin", handleFocusIn)));

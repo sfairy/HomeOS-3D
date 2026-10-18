@@ -3,10 +3,10 @@
  */
 
 .life-indices {
-  --li-ok: #6ee7b7;
-  --li-caution: #fbbf24;
-  --li-warn: #fda4af;
-  --li-info: #7dd3fc;
+  --li-ok: var(--hos-color-success-text);
+  --li-caution: var(--hos-color-accent);
+  --li-warn: var(--hos-color-danger-text);
+  --li-info: var(--hos-color-info-text);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -62,12 +62,12 @@
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #7dd3fc;
+  color: var(--hos-color-info-text);
   text-decoration: none;
 }
 
 .life-indices__link:hover {
-  color: #bae6fd;
+  color: var(--hos-color-info-text);
 }
 
 .life-indices__tone-pills {
@@ -115,20 +115,20 @@
   align-items: flex-start;
   padding: 12px 14px;
   border-radius: var(--hos-radius-card);
-  border: 1px solid rgba(251, 113, 133, 0.35);
+  border: 1px solid rgba(var(--hos-color-danger-rgb), 0.35);
   background:
-    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(251, 113, 133, 0.18), transparent 55%),
-    linear-gradient(155deg, rgba(251, 113, 133, 0.1), rgba(0, 0, 0, 0.28));
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(var(--hos-color-danger-rgb), 0.18), transparent 55%),
+    linear-gradient(155deg, rgba(var(--hos-color-danger-rgb), 0.1), rgba(0, 0, 0, 0.28));
   animation: li-pulse-border 2.8s ease-in-out infinite;
 }
 
 @keyframes li-pulse-border {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
+    box-shadow: 0 0 0 0 rgba(var(--hos-color-danger-rgb), 0);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.08);
+    box-shadow: 0 0 0 4px rgba(var(--hos-color-danger-rgb), 0.08);
   }
 }
 
@@ -140,7 +140,7 @@
   height: 28px;
   border-radius: var(--hos-radius-control);
   color: var(--li-warn);
-  background: rgba(251, 113, 133, 0.16);
+  background: rgba(var(--hos-color-danger-rgb), 0.16);
 }
 
 .life-indices__alert-body {
@@ -152,7 +152,7 @@
 .life-indices__alert-body strong {
   font-size: 13px;
   font-weight: 700;
-  color: #fecdd3;
+  color: var(--hos-color-danger-text);
 }
 
 .life-indices__alert-body p {
@@ -202,16 +202,16 @@
 }
 
 .life-indices__live-chip.is-tone-0 {
-  border-color: rgba(56, 189, 248, 0.22);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 .life-indices__live-chip.is-tone-1 {
-  border-color: rgba(52, 211, 153, 0.2);
+  border-color: rgba(var(--hos-color-success-rgb), 0.2);
 }
 .life-indices__live-chip.is-tone-2 {
-  border-color: rgba(251, 191, 36, 0.2);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.2);
 }
 .life-indices__live-chip.is-tone-3 {
-  border-color: rgba(167, 139, 250, 0.22);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.22);
 }
 
 /* Spotlight 拼贴宫格布局 */
@@ -230,7 +230,7 @@
   border-radius: var(--hos-radius-panel);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(ellipse 90% 70% at 0% 0%, rgba(56, 189, 248, 0.12), transparent 55%),
+    radial-gradient(ellipse 90% 70% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.12), transparent 55%),
     linear-gradient(155deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.28));
   transition:
     transform 0.2s ease,
@@ -243,9 +243,9 @@
 
 .life-indices__spot--hero {
   min-height: 118px;
-  border-color: rgba(56, 189, 248, 0.28);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
   background:
-    radial-gradient(ellipse 100% 90% at 10% 0%, rgba(56, 189, 248, 0.2), transparent 58%),
+    radial-gradient(ellipse 100% 90% at 10% 0%, rgba(var(--hos-color-accent-rgb), 0.2), transparent 58%),
     linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.3));
 }
 
@@ -262,7 +262,7 @@
   height: 28px;
   border-radius: var(--hos-radius-control);
   color: var(--li-info);
-  background: rgba(125, 211, 252, 0.12);
+  background: rgba(var(--hos-color-info-rgb), 0.12);
 }
 
 .life-indices__spot-label {
@@ -270,14 +270,14 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(125, 211, 252, 0.78);
+  color: rgba(var(--hos-color-info-rgb), 0.78);
 }
 
 .life-indices__spot-state {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: #e0f2fe;
+  color: var(--hos-color-info-text);
   line-height: 1.2;
 }
 
@@ -298,7 +298,7 @@
 
 .life-indices__spot.is-ok .life-indices__spot-icon {
   color: var(--li-ok);
-  background: rgba(52, 211, 153, 0.14);
+  background: rgba(var(--hos-color-success-rgb), 0.14);
 }
 .life-indices__spot.is-ok .life-indices__spot-state {
   color: var(--li-ok);
@@ -309,18 +309,18 @@
 
 .life-indices__spot.is-caution .life-indices__spot-icon {
   color: var(--li-caution);
-  background: rgba(251, 191, 36, 0.14);
+  background: rgba(var(--hos-color-warning-rgb), 0.14);
 }
 .life-indices__spot.is-caution .life-indices__spot-state {
   color: var(--li-caution);
 }
 .life-indices__spot.is-caution .life-indices__spot-label {
-  color: rgba(251, 191, 36, 0.82);
+  color: rgba(var(--hos-color-warning-rgb), 0.82);
 }
 
 .life-indices__spot.is-warn .life-indices__spot-icon {
   color: var(--li-warn);
-  background: rgba(251, 113, 133, 0.14);
+  background: rgba(var(--hos-color-danger-rgb), 0.14);
 }
 .life-indices__spot.is-warn .life-indices__spot-state {
   color: var(--li-warn);
@@ -398,22 +398,22 @@
 }
 
 .life-indices__attention-item.is-caution {
-  border-color: rgba(251, 191, 36, 0.28);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.28);
 }
 .life-indices__attention-item.is-caution .life-indices__attention-icon {
   color: var(--li-caution);
-  background: rgba(251, 191, 36, 0.12);
+  background: rgba(var(--hos-color-warning-rgb), 0.12);
 }
 .life-indices__attention-item.is-caution .life-indices__attention-copy span {
   color: var(--li-caution);
 }
 
 .life-indices__attention-item.is-warn {
-  border-color: rgba(251, 113, 133, 0.3);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.3);
 }
 .life-indices__attention-item.is-warn .life-indices__attention-icon {
   color: var(--li-warn);
-  background: rgba(251, 113, 133, 0.12);
+  background: rgba(var(--hos-color-danger-rgb), 0.12);
 }
 .life-indices__attention-item.is-warn .life-indices__attention-copy span {
   color: var(--li-warn);
@@ -522,43 +522,43 @@
 }
 
 .life-indices__card.is-ok {
-  border-color: rgba(52, 211, 153, 0.28);
-  background: linear-gradient(155deg, rgba(52, 211, 153, 0.1), rgba(0, 0, 0, 0.26));
+  border-color: rgba(var(--hos-color-success-rgb), 0.28);
+  background: linear-gradient(155deg, rgba(var(--hos-color-success-rgb), 0.1), rgba(0, 0, 0, 0.26));
 }
 .life-indices__card.is-ok .life-indices__card-state {
   color: var(--li-ok);
 }
 .life-indices__card.is-ok .life-indices__card-icon {
   color: var(--li-ok);
-  background: rgba(52, 211, 153, 0.14);
+  background: rgba(var(--hos-color-success-rgb), 0.14);
 }
 
 .life-indices__card.is-caution {
-  border-color: rgba(251, 191, 36, 0.3);
-  background: linear-gradient(155deg, rgba(251, 191, 36, 0.1), rgba(0, 0, 0, 0.26));
+  border-color: rgba(var(--hos-color-warning-rgb), 0.3);
+  background: linear-gradient(155deg, rgba(var(--hos-color-warning-rgb), 0.1), rgba(0, 0, 0, 0.26));
 }
 .life-indices__card.is-caution .life-indices__card-state {
   color: var(--li-caution);
 }
 .life-indices__card.is-caution .life-indices__card-icon {
   color: var(--li-caution);
-  background: rgba(251, 191, 36, 0.14);
+  background: rgba(var(--hos-color-warning-rgb), 0.14);
 }
 
 .life-indices__card.is-warn {
-  border-color: rgba(251, 113, 133, 0.32);
-  background: linear-gradient(155deg, rgba(251, 113, 133, 0.12), rgba(0, 0, 0, 0.26));
+  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
+  background: linear-gradient(155deg, rgba(var(--hos-color-danger-rgb), 0.12), rgba(0, 0, 0, 0.26));
 }
 .life-indices__card.is-warn .life-indices__card-state {
   color: var(--li-warn);
 }
 .life-indices__card.is-warn .life-indices__card-icon {
   color: var(--li-warn);
-  background: rgba(251, 113, 133, 0.14);
+  background: rgba(var(--hos-color-danger-rgb), 0.14);
 }
 
 .life-indices__card.is-neutral .life-indices__card-state {
-  color: #bae6fd;
+  color: var(--hos-color-info-text);
 }
 
 @media (max-width: 720px) {

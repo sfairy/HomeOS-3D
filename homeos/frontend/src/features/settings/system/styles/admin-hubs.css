@@ -103,7 +103,7 @@
 }
 
 .access-hub .access-guest-preset--active {
-  box-shadow: 0 6px 20px var(--set-info-glow, rgba(34, 211, 238, 0.12));
+  box-shadow: 0 6px 20px var(--set-info-glow, rgba(var(--hos-color-info-rgb), 0.12));
   transform: translateY(-1px);
 }
 

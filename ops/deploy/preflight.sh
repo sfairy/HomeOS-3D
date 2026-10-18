@@ -56,6 +56,10 @@ svc_container() {
 APP_CT="$(svc_container homeos)"
 STORE_CT="$(svc_container homeos-store)"
 
+# 本机局域网 IP：后面既用来比对证书名字，也用来推导「浏览器从内网打开时该拿到哪个商店地址」。
+LAN_IP="${LAN_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+[ -n "$LAN_IP" ] || LAN_IP="127.0.0.1"
+
 head_ "1. 容器"
 if [ -n "$APP_CT" ]; then ok "主应用容器：$APP_CT"; else bad "主应用容器未运行（$DC ps）"; fi
 if [ -n "$STORE_CT" ]; then ok "商店容器：$STORE_CT"; else warn "商店容器未运行（客户机部署只有主应用时属正常）"; fi
@@ -72,6 +76,43 @@ elif [ -z "$STORE_CT" ]; then
   warn "商店不在本机（客户机部署），跳过"
 else
   bad "商店 $STORE_PORT 不健康（看 docker logs $STORE_CT）"
+fi
+
+head_ "2b. 内置 HTTPS 反代（:8803）"
+# :8803 是**只讲 TLS** 的端口（ops/caddy/app.Caddyfile 只写了 :8803 + tls internal）。
+# 用 http:// 打开一定失败 —— 那不是故障，而是协议用错了；真正会坏的是下面两件事：
+# 反代没起来，或者证书签给的名字与浏览器输入的地址不一致。
+if curl -fsSk -m 5 "https://127.0.0.1:8803/health/ready" >/dev/null 2>&1; then
+  ok "https://127.0.0.1:8803/health/ready（自签证书，已跳过校验）"
+else
+  warn "内置 HTTPS 反代没起来：看 docker logs $APP_CT 里 [proxy] 开头的行（Caddy 连退 5 次会放弃）"
+fi
+SNI="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$APP_CT" 2>/dev/null \
+  | awk -F= '/^APP_HTTPS_DEFAULT_SNI=/{sub(/^APP_HTTPS_DEFAULT_SNI=/,""); print; exit}')"
+if [ -n "$SNI" ]; then
+  ok "APP_HTTPS_DEFAULT_SNI=$SNI（自签证书签给这个名字）"
+  if [ "$SNI" != "$LAN_IP" ]; then
+    warn "证书签给 $SNI，而本机局域网 IP 是 $LAN_IP：https://$LAN_IP:8803 会报「证书与地址不匹配」（仍可手动放行）"
+  fi
+else
+  warn "没设 APP_HTTPS_DEFAULT_SNI：证书默认签给 homeos.local，https://<局域网IP>:8803 会报地址不匹配"
+fi
+
+head_ "2c. 备份目录（宿主机可见性）"
+# 备份默认落在数据卷里，宿主机看不见、只能 docker cp。compose 把 ./backups 挂到
+# /data/backups，这里确认三件事：挂载在、容器可写、宿主目录不是只读的 root 目录。
+BACKUPS_MOUNT="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data/backups"}}{{.Type}} {{.Source}}{{end}}{{end}}' "$APP_CT" 2>/dev/null || true)"
+if [ -z "$BACKUPS_MOUNT" ]; then
+  warn "/data/backups 没有独立挂载：备份包只在数据卷里，宿主机看不到（要 shell 拷出用 docker cp）"
+elif [ "${BACKUPS_MOUNT%% *}" = "bind" ]; then
+  ok "备份目录 bind mount：${BACKUPS_MOUNT#* }（宿主机直接可见）"
+else
+  ok "备份目录挂载：$BACKUPS_MOUNT"
+fi
+if docker exec "$APP_CT" sh -c 'test -w /data/backups' 2>/dev/null; then
+  ok "容器内 /data/backups 可写（属主已由 entrypoint 校正为 uid 1000）"
+else
+  bad "容器内 /data/backups 不可写：备份会全部失败（bind mount 的宿主目录属主不对，见 ops/container_entrypoint.py）"
 fi
 
 head_ "3. 容器出站：主应用 → 商店（APP_LICENSE_SERVER_URL）"
@@ -135,8 +176,6 @@ head_ "6. 浏览器视角：商店入口（按访问地址推导，不是写死�
 # 同一个主应用会被三种地址访问：局域网 IP:端口、内置自签 HTTPS、公网域名。商店入口必须跟着
 # **访问者当前用的那个地址**走，否则局域网用户点「商店」会被送去公网域名（穿透一抖就 404，
 # 而旁边的 :8802 明明是通的）。这里分别用这三种 Host 探一次。
-LAN_IP="${LAN_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
-[ -n "$LAN_IP" ] || LAN_IP="127.0.0.1"
 
 probe_store_url() {
   # $1 = 说明, $2 = Host 头, $3 = 期望值

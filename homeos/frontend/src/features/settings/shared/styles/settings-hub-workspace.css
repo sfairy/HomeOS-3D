@@ -27,15 +27,15 @@
 }
 
 [class*='-stat--sky'] {
-  border-left-color: var(--set-info, #38bdf8) !important;
+  border-left-color: var(--set-info, var(--hos-color-accent)) !important;
 }
 
 [class*='-stat--emerald'] {
-  border-left-color: var(--set-success, #34d399) !important;
+  border-left-color: var(--set-success, var(--hos-color-success)) !important;
 }
 
 [class*='-stat--amber'] {
-  border-left-color: var(--set-warn, #fbbf24) !important;
+  border-left-color: var(--set-warn, var(--hos-color-warning)) !important;
 }
 
 [class*='-stat--accent'] {

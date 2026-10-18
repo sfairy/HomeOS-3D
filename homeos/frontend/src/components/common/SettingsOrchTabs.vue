@@ -151,11 +151,11 @@ let indicatorFrame = 0
 
 const activeAccent = computed(() => {
   const tab = safeTabs.value.find((item) => item.id === props.modelValue)
-  return tab?.accent || '#0A84FF'
+  return tab?.accent || 'var(--hos-color-accent)'
 })
 
 function tabAccent(tab) {
-  return tab.accent || '#0A84FF'
+  return tab.accent || 'var(--hos-color-accent)'
 }
 
 function resolveTabEl(el) {

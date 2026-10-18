@@ -7,7 +7,7 @@
   background:
     linear-gradient(135deg, rgba(250, 45, 72, 0.16), rgba(190, 24, 93, 0.09) 48%, rgba(15, 23, 42, 0.3)),
     var(--hos-surface-panel, rgba(15, 23, 42, 0.72));
-  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(var(--hos-color-warning-rgb), 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 .media-mini-widget::after {
   content: '';
@@ -20,8 +20,8 @@
 }
 .media-mini-widget:has(.mmw-dot-playing) { animation: media-crimson-breathe 3.4s ease-in-out infinite; }
 @keyframes media-crimson-breathe {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.22), 0 0 18px rgba(250, 45, 72, 0.08), inset 0 1px 0 rgba(255,255,255,.1); }
-  50% { box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.28), 0 0 30px rgba(250, 45, 72, 0.18), inset 0 1px 0 rgba(255,255,255,.14); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--hos-color-warning-rgb), 0.22), 0 0 18px rgba(250, 45, 72, 0.08), inset 0 1px 0 rgba(255,255,255,.1); }
+  50% { box-shadow: 0 0 0 1px rgba(var(--hos-color-warning-rgb), 0.28), 0 0 30px rgba(250, 45, 72, 0.18), inset 0 1px 0 rgba(255,255,255,.14); }
 }
 
 .media-mini-widget--hub {
@@ -303,16 +303,16 @@
 }
 
 .mmw-dot-playing {
-  background-color: var(--set-success, #22c55e);
+  background-color: var(--hos-color-success);
 }
 .mmw-dot-paused {
-  background-color: var(--set-warn, #fbbf24);
+  background-color: var(--set-warn, var(--hos-color-accent));
 }
 .mmw-dot-off {
   background-color: var(--set-text-tertiary);
 }
 .mmw-dot-default {
-  background-color: var(--set-info, #60a5fa);
+  background-color: var(--set-info, var(--hos-color-info-text));
 }
 
 @media (max-width: 768px) {

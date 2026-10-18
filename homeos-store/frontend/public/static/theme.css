@@ -1210,12 +1210,12 @@ b {
 /* 13. 商品卡（前台商品网格与账号中心共用） */
 .hb-addons-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
   gap: 14px;
 }
 
 .hb-addons-grid--compact {
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
 }
 
 /* 纵向 flex + 页脚 margin-top:auto 是「等高网格不拉伸徽标行」的关键：

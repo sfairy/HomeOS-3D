@@ -25,7 +25,7 @@
   background:
     var(--page-card-tint),
     var(--hos-surface-panel-hover);
-  border-color: color-mix(in srgb, var(--page-accent, #0a84ff) 26%, var(--hos-border-strong, var(--premium-border-strong)));
+  border-color: color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 26%, var(--hos-border-strong, var(--premium-border-strong)));
   box-shadow: var(--hos-shadow-card-hover, 0 8px 28px rgba(0, 0, 0, 0.34)), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
 }
 

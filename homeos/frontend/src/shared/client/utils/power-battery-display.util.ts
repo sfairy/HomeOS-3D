@@ -29,16 +29,16 @@ function batteryBarPalette(pct: number, charging = false): [string, string, stri
   const p = Math.max(0, Math.min(100, pct))
   let stops: [string, string, string]
 
-  if (p <= 15) stops = ['#991b1b', '#dc2626', '#fb923c']
-  else if (p <= 30) stops = ['#c2410c', '#ea580c', '#fbbf24']
-  else if (p <= 45) stops = ['#b45309', '#f59e0b', '#fde047']
-  else if (p <= 60) stops = ['#a16207', '#eab308', '#a3e635']
-  else if (p <= 75) stops = ['#15803d', '#22c55e', '#4ade80']
-  else if (p <= 90) stops = ['#047857', '#10b981', '#6ee7b7']
-  else stops = ['#065f46', '#059669', '#34d399']
+  if (p <= 15) stops = ['#7a2226', '#c0343a', '#ff5a5f']
+  else if (p <= 30) stops = ['#7a3a1a', '#c96f1a', '#ffb020']
+  else if (p <= 45) stops = ['#7d5a16', '#d9a51f', '#ffd9a0']
+  else if (p <= 60) stops = ['#7d5a16', '#e09523', '#ffc46a']
+  else if (p <= 75) stops = ['#1c6b4a', '#2bbf82', '#3ddc97']
+  else if (p <= 90) stops = ['#155a3d', '#25a877', '#3ddc97']
+  else stops = ['#0f4630', '#1f8f63', '#2bbf82']
 
   if (charging) {
-    stops = [stops[0], stops[1], p <= 45 ? '#38bdf8' : '#2dd4bf']
+    stops = [stops[0], stops[1], p <= 45 ? '#59d3c0' : '#3ddc97']
   }
   return stops
 }

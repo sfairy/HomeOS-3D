@@ -480,7 +480,15 @@ def _verify_archive(archive: ZipFile, manifest: dict[str, Any]) -> None:
             raise BackupError(f"备份清单条目无效：{relative}")
         # 大小与摘要都必须存在：缺字段就静默跳过校验，会让「清单里只写个名字」的空文件
         # 通过全部校验 —— 对数据库条目而言，等于把整库换成空库后照报成功。
-        expected_size = int(meta.get("size") or -1)
+        #
+        # ⚠ 这里**必须**判 None / 类型，不能写 ``int(meta.get("size") or -1)``：
+        # ``0`` 是合法值（空文件），而 ``or`` 会把 0 一并折成 -1，于是「数据目录里只要
+        # 有一个 0 字节文件（.lock / 空占位），整包备份就永远恢复不了」—— 自己导出的包
+        # 自己读不回来，报的还是「缺少文件大小」这种与 0 字节毫无关系的文案。
+        raw_size = meta.get("size")
+        if isinstance(raw_size, bool) or not isinstance(raw_size, (int, float)):
+            raise BackupError(f"备份清单缺少文件大小：{relative}")
+        expected_size = int(raw_size)
         if expected_size < 0:
             raise BackupError(f"备份清单缺少文件大小：{relative}")
         info = archive.getinfo(relative)

@@ -1,8 +1,8 @@
 .device-health {
-  --dhs-ok: #34d399;
-  --dhs-warn: #fbbf24;
-  --dhs-bad: #f87171;
-  --dhs-info: #7dd3fc;
+  --dhs-ok: var(--hos-color-success);
+  --dhs-warn: var(--hos-color-warning);
+  --dhs-bad: var(--hos-color-danger);
+  --dhs-info: var(--hos-color-info-text);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -303,13 +303,13 @@
 
 .device-health__tip--ok {
   align-items: center;
-  background: rgba(52, 211, 153, 0.07);
-  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.2);
+  background: rgba(var(--hos-color-success-rgb), 0.07);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.2);
 }
 
 .device-health__tip--warn {
-  background: rgba(251, 191, 36, 0.06);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.18);
+  background: rgba(var(--hos-color-warning-rgb), 0.06);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.18);
 }
 
 .device-health__tip-icon {

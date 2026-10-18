@@ -183,7 +183,7 @@
 }
 
 .alert-rule-row__btn--primary {
-  color: rgba(125, 211, 252, 0.9);
+  color: rgba(var(--hos-color-info-rgb), 0.9);
   background: rgba(var(--page-accent-rgb), 0.08);
   border-color: rgba(var(--page-accent-rgb), 0.2);
 }
@@ -195,8 +195,8 @@
   width: 32px;
   padding: 6px;
   color: rgba(253, 164, 175, 0.88);
-  background: rgba(251, 113, 133, 0.06);
-  border-color: rgba(251, 113, 133, 0.18);
+  background: rgba(var(--hos-color-danger-rgb), 0.06);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.18);
 }
 
 /* 三个 hub-stat 数值（应用内规则/语音播报/自定义语音） */
@@ -210,7 +210,7 @@
   background: var(--premium-accent-violet-bg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.05)) !important;
 }
 .ar-voice-title {
-  color: var(--premium-accent-violet-text, var(--page-accent, #7eb8ff));
+  color: var(--premium-accent-violet-text, var(--page-accent, var(--hos-color-accent)));
 }
 .ar-voice-desc {
   color: var(--set-text-secondary);

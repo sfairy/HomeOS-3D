@@ -11,7 +11,7 @@
   color: var(--set-text-tertiary);
 }
 .lcp-power-on {
-  background-color: var(--accent, #fbbf24);
+  background-color: var(--accent, var(--hos-color-warning));
 }
 .lcp-power-off {
   background-color: rgb(55, 65, 81);

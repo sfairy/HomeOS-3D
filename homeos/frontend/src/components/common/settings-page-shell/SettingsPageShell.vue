@@ -77,7 +77,7 @@ const props = defineProps({
   /** 直接传入的图标组件 */
   icon: { type: [Object, Function], default: null },
   /** 强调色 */
-  accent: { type: String, default: '#0A84FF' },
+  accent: { type: String, default: 'var(--hos-color-accent)' },
   /** 整体紧凑布局 */
   compact: { type: Boolean, default: false },
   /** 头部紧凑布局 */

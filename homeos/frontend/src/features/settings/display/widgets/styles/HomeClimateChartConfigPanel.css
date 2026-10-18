@@ -12,7 +12,7 @@
   border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background:
-    linear-gradient(165deg, rgba(52, 211, 153, 0.07) 0%, transparent 42%),
+    linear-gradient(165deg, rgba(var(--hos-color-success-rgb), 0.07) 0%, transparent 42%),
     rgba(255, 255, 255, 0.025);
   overflow: hidden;
 }
@@ -28,7 +28,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(52, 211, 153, 0.88);
+  color: rgba(var(--hos-color-success-rgb), 0.88);
 }
 
 .hcc-config__desc {
@@ -82,9 +82,9 @@
 }
 
 .hcc-config__segment--active {
-  background: rgba(52, 211, 153, 0.14);
+  background: rgba(var(--hos-color-success-rgb), 0.14);
   color: rgb(167, 243, 208);
-  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(52, 211, 153, 0.28);
+  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(var(--hos-color-success-rgb), 0.28);
 }
 
 .hcc-config__foot {

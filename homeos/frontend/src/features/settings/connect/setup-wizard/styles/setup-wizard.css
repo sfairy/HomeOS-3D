@@ -2,8 +2,8 @@
 
 /* ── setup-wizard-tokens.css ── */
 /* ── 首装向导 · 配色令牌 ──
- * 主线程：automation 模块琥珀 + 紫罗兰辅色（--page-accent-rgb）
- * 步骤色谱：天蓝 → 玫红 → 琥珀 → 青绿 → 翡翠（完成/进度）
+ * 全部映射到 canonical 设计令牌：暖铜为主，青绿/成功/警示/危险只承担语义。
+ * 不再按步骤区分彩虹色，视觉重心落在「当前步骤」而非「第几步」。
  * 表面层：对齐 --set-card-surface / --set-mini-surface
  */
 .setup-wizard-hub,
@@ -14,69 +14,69 @@
   --sw-border-subtle: rgba(255, 255, 255, 0.06);
   --sw-border: rgba(255, 255, 255, 0.1);
 
-  /* 翡翠 · 完成 / 进度 / 成功 */
-  --sw-emerald: #34d399;
-  --sw-emerald-light: #6ee7b7;
-  --sw-emerald-text: #a7f3d0;
-  --sw-emerald-bg: rgba(52, 211, 153, 0.09);
-  --sw-emerald-bg-icon: rgba(52, 211, 153, 0.13);
-  --sw-emerald-border: rgba(52, 211, 153, 0.2);
-  --sw-emerald-border-icon: rgba(52, 211, 153, 0.26);
-  --sw-emerald-border-strong: rgba(52, 211, 153, 0.42);
-  --sw-emerald-glow: rgba(16, 185, 129, 0.22);
-  --sw-emerald-btn-from: rgba(16, 185, 129, 0.88);
-  --sw-emerald-btn-to: rgba(5, 150, 105, 0.92);
+  /* 成功 · 完成 / 进度 / 健康 */
+  --sw-emerald: var(--hos-color-success);
+  --sw-emerald-light: var(--hos-color-success-text);
+  --sw-emerald-text: var(--hos-color-success-text);
+  --sw-emerald-bg: var(--hos-color-success-soft);
+  --sw-emerald-bg-icon: rgba(var(--hos-color-success-rgb), 0.16);
+  --sw-emerald-border: var(--hos-color-success-line);
+  --sw-emerald-border-icon: rgba(var(--hos-color-success-rgb), 0.3);
+  --sw-emerald-border-strong: rgba(var(--hos-color-success-rgb), 0.46);
+  --sw-emerald-glow: rgba(var(--hos-color-success-rgb), 0.24);
+  --sw-emerald-btn-from: var(--hos-color-success);
+  --sw-emerald-btn-to: #22b87a;
 
-  /* 天蓝 · 连接 */
-  --sw-sky: #38bdf8;
-  --sw-sky-light: #7dd3fc;
-  --sw-sky-text: #bae6fd;
-  --sw-sky-bg: rgba(56, 189, 248, 0.08);
-  --sw-sky-bg-icon: rgba(56, 189, 248, 0.12);
-  --sw-sky-border: rgba(56, 189, 248, 0.2);
-  --sw-sky-border-icon: rgba(56, 189, 248, 0.26);
-  --sw-sky-border-strong: rgba(56, 189, 248, 0.38);
-  --sw-sky-glow: rgba(56, 189, 248, 0.18);
+  /* 信息 · 连接 / 网络 / 数据 */
+  --sw-sky: var(--hos-color-info);
+  --sw-sky-light: var(--hos-color-info-text);
+  --sw-sky-text: var(--hos-color-info-text);
+  --sw-sky-bg: var(--hos-color-info-soft);
+  --sw-sky-bg-icon: rgba(var(--hos-color-info-rgb), 0.16);
+  --sw-sky-border: var(--hos-color-info-line);
+  --sw-sky-border-icon: rgba(var(--hos-color-info-rgb), 0.3);
+  --sw-sky-border-strong: rgba(var(--hos-color-info-rgb), 0.46);
+  --sw-sky-glow: rgba(var(--hos-color-info-rgb), 0.22);
 
-  /* 玫红 · 安防（统一 rose 色阶，避免 pink 漂移） */
-  --sw-rose: #f472b6;
-  --sw-rose-light: #f9a8d4;
-  --sw-rose-text: #fbcfe8;
-  --sw-rose-bg: rgba(244, 114, 182, 0.08);
-  --sw-rose-bg-icon: rgba(244, 114, 182, 0.12);
-  --sw-rose-border: rgba(244, 114, 182, 0.2);
-  --sw-rose-border-icon: rgba(244, 114, 182, 0.26);
-  --sw-rose-border-strong: rgba(244, 114, 182, 0.38);
-  --sw-rose-glow: rgba(244, 114, 182, 0.18);
+  /* 危险 · 安防 / 告警 */
+  --sw-rose: var(--hos-color-danger);
+  --sw-rose-light: var(--hos-color-danger-text);
+  --sw-rose-text: var(--hos-color-danger-text);
+  --sw-rose-bg: var(--hos-color-danger-soft);
+  --sw-rose-bg-icon: rgba(var(--hos-color-danger-rgb), 0.16);
+  --sw-rose-border: var(--hos-color-danger-line);
+  --sw-rose-border-icon: rgba(var(--hos-color-danger-rgb), 0.3);
+  --sw-rose-border-strong: rgba(var(--hos-color-danger-rgb), 0.46);
+  --sw-rose-glow: rgba(var(--hos-color-danger-rgb), 0.24);
 
-  /* 琥珀 · 能源（呼应 automation 模块主色） */
-  --sw-amber: #fbbf24;
-  --sw-amber-light: #fcd34d;
-  --sw-amber-text: #fde68a;
-  --sw-amber-bg: rgba(251, 191, 36, 0.09);
-  --sw-amber-bg-icon: rgba(251, 191, 36, 0.13);
-  --sw-amber-border: rgba(251, 191, 36, 0.22);
-  --sw-amber-border-icon: rgba(251, 191, 36, 0.28);
-  --sw-amber-glow: rgba(251, 191, 36, 0.2);
+  /* 主色 · 能源 / 主行动 */
+  --sw-amber: var(--hos-color-accent);
+  --sw-amber-light: var(--hos-color-accent-strong);
+  --sw-amber-text: var(--hos-color-accent-strong);
+  --sw-amber-bg: var(--hos-color-accent-soft);
+  --sw-amber-bg-icon: rgba(var(--hos-color-accent-rgb), 0.16);
+  --sw-amber-border: var(--hos-color-accent-line);
+  --sw-amber-border-icon: rgba(var(--hos-color-accent-rgb), 0.3);
+  --sw-amber-glow: rgba(var(--hos-color-accent-rgb), 0.24);
 
-  /* 青绿 · 环境（与琥珀能源步区分） */
-  --sw-teal: #2dd4bf;
-  --sw-teal-light: #5eead4;
-  --sw-teal-text: #99f6e4;
-  --sw-teal-bg: rgba(45, 212, 191, 0.08);
-  --sw-teal-bg-icon: rgba(45, 212, 191, 0.12);
-  --sw-teal-border: rgba(45, 212, 191, 0.2);
-  --sw-teal-border-icon: rgba(45, 212, 191, 0.26);
-  --sw-teal-glow: rgba(45, 212, 191, 0.18);
+  /* 信息 · 环境 / 传感器（与连接同族，靠图标/文案区分） */
+  --sw-teal: var(--hos-color-info);
+  --sw-teal-light: var(--hos-color-info-text);
+  --sw-teal-text: var(--hos-color-info-text);
+  --sw-teal-bg: var(--hos-color-info-soft);
+  --sw-teal-bg-icon: rgba(var(--hos-color-info-rgb), 0.16);
+  --sw-teal-border: var(--hos-color-info-line);
+  --sw-teal-border-icon: rgba(var(--hos-color-info-rgb), 0.3);
+  --sw-teal-glow: rgba(var(--hos-color-info-rgb), 0.22);
 
-  /* 紫罗兰 · 辅助（推断 / presence 等） */
-  --sw-violet-light: var(--page-accent, #7eb8ff);
-  --sw-violet-text: var(--page-accent, #7eb8ff);
-  --sw-violet-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.08);
-  --sw-violet-bg-icon: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
-  --sw-violet-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.2);
-  --sw-violet-border-icon: rgba(var(--page-accent-rgb, 126, 184, 255), 0.26);
-  --sw-violet-border-strong: rgba(var(--page-accent-rgb, 126, 184, 255), 0.36);
+  /* 主色 · 辅助 / 推断 / presence */
+  --sw-violet-light: var(--hos-color-accent);
+  --sw-violet-text: var(--hos-color-accent);
+  --sw-violet-bg: var(--hos-color-accent-soft);
+  --sw-violet-bg-icon: rgba(var(--hos-color-accent-rgb), 0.16);
+  --sw-violet-border: var(--hos-color-accent-line);
+  --sw-violet-border-icon: rgba(var(--hos-color-accent-rgb), 0.3);
+  --sw-violet-border-strong: rgba(var(--hos-color-accent-rgb), 0.4);
 }
 
 /* ── setup-wizard-shared.css ── */
@@ -259,7 +259,7 @@
 }
 
 .sw-btn--rose:hover:not(:disabled) {
-  background: rgba(244, 114, 182, 0.18);
+  background: rgba(var(--hos-color-danger-rgb), 0.18);
   border-color: var(--sw-rose-border-strong);
 }
 
@@ -271,7 +271,7 @@
 }
 
 .sw-btn--sky:hover:not(:disabled) {
-  background: rgba(56, 189, 248, 0.18);
+  background: rgba(var(--hos-color-accent-rgb), 0.18);
   border-color: var(--sw-sky-border-strong);
   color: #fff;
 }
@@ -459,19 +459,26 @@
   align-items: flex-start;
   gap: 0;
   margin-top: 14px;
-  padding: 12px 8px 10px;
+  padding: 14px 10px 12px;
   border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.16);
   border: var(--hos-hairline) solid var(--sw-border-subtle);
+  /* 步骤多时横向滚动，节点永不互相挤压或被裁切 */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
 }
+
+.sw-timeline::-webkit-scrollbar { display: none; }
 
 .sw-timeline__node {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 96px;
+  min-width: 96px;
   padding: 8px 2px 6px;
   border: none;
   border-radius: var(--hos-radius-card);
@@ -486,6 +493,7 @@
 
 .sw-timeline__node-icon {
   position: relative;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -503,8 +511,8 @@
   height: 22px;
 }
 
-.sw-timeline__node--sky .sw-timeline__node-icon { color: rgba(125, 211, 252, 0.72); }
-.sw-timeline__node--rose .sw-timeline__node-icon { color: rgba(249, 168, 212, 0.72); }
+.sw-timeline__node--sky .sw-timeline__node-icon { color: rgba(var(--hos-color-info-rgb), 0.72); }
+.sw-timeline__node--rose .sw-timeline__node-icon { color: rgba(var(--hos-color-danger-rgb), 0.72); }
 .sw-timeline__node--amber .sw-timeline__node-icon { color: rgba(252, 211, 77, 0.72); }
 .sw-timeline__node--teal .sw-timeline__node-icon,
 .sw-timeline__node--orange .sw-timeline__node-icon { color: rgba(94, 234, 212, 0.72); }
@@ -703,7 +711,7 @@
 .sw-env-progress__hint {
   margin-top: 8px;
   font-size: var(--premium-fs-caption);
-  color: rgba(251, 191, 36, 0.85);
+  color: rgba(var(--hos-color-warning-rgb), 0.85);
 }
 
 .sw-env-infer {
@@ -780,9 +788,9 @@
   align-items: center;
   gap: 8px;
   padding: var(--hos-panel-padding-default, 20px) var(--hos-panel-padding-compact-x, 16px);
-  background: linear-gradient(160deg, rgba(52, 211, 153, 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
+  background: linear-gradient(160deg, rgba(var(--hos-color-success-rgb), 0.04) 0%, rgba(0, 0, 0, 0.12) 100%);
 }
-.sw-env-loading__icon { width: 24px; height: 24px; color: rgba(52, 211, 153, 0.5); }
+.sw-env-loading__icon { width: 24px; height: 24px; color: rgba(var(--hos-color-success-rgb), 0.5); }
 .sw-env-loading__title { margin: 0; font-size: var(--premium-fs-caption); font-weight: 700; color: var(--set-text-secondary); }
 
 .sw-env-room-tabs {
@@ -889,7 +897,7 @@
 .sw-env-sensor-icon--humid { color: var(--sw-sky-light); background: var(--sw-sky-bg-icon); border: var(--hos-hairline) solid var(--sw-sky-border-icon); }
 .sw-env-sensor-icon--pm25 { color: var(--sw-violet-light); background: var(--sw-violet-bg-icon); border: var(--hos-hairline) solid var(--sw-violet-border-icon); }
 .sw-env-sensor-icon--co2 { color: var(--sw-emerald-light); background: var(--sw-emerald-bg-icon); border: var(--hos-hairline) solid var(--sw-emerald-border-icon); }
-.sw-env-sensor-icon--tvoc { color: #e879f9; background: rgba(232, 121, 249, 0.12); border: var(--hos-hairline) solid rgba(232, 121, 249, 0.28); }
+.sw-env-sensor-icon--tvoc { color: var(--hos-color-danger); background: rgba(var(--hos-color-danger-rgb), 0.12); border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.28); }
 
 .sw-env-sensor-label {
   margin-bottom: 0 !important;
@@ -931,8 +939,8 @@
   backdrop-filter: blur(18px) saturate(140%);
 }
 
-.sw-presence--occupied { border-color: rgba(52, 211, 153, 0.22); }
-.sw-presence--armed { border-color: rgba(52, 211, 153, 0.32); }
+.sw-presence--occupied { border-color: rgba(var(--hos-color-success-rgb), 0.22); }
+.sw-presence--armed { border-color: rgba(var(--hos-color-success-rgb), 0.32); }
 
 .sw-presence__glow {
   pointer-events: none;
@@ -941,12 +949,12 @@
   height: 58%;
   background:
     radial-gradient(ellipse 70% 55% at 12% 0%, rgba(var(--page-accent-rgb, 126, 184, 255), 0.2), transparent 60%),
-    radial-gradient(ellipse 50% 45% at 88% 8%, rgba(52, 211, 153, 0.1), transparent 55%);
+    radial-gradient(ellipse 50% 45% at 88% 8%, rgba(var(--hos-color-success-rgb), 0.1), transparent 55%);
 }
 
 .sw-presence--occupied .sw-presence__glow {
   background:
-    radial-gradient(ellipse 70% 55% at 10% 0%, rgba(52, 211, 153, 0.16), transparent 58%),
+    radial-gradient(ellipse 70% 55% at 10% 0%, rgba(var(--hos-color-success-rgb), 0.16), transparent 58%),
     radial-gradient(ellipse 45% 40% at 90% 5%, rgba(var(--page-accent-rgb, 126, 184, 255), 0.12), transparent 55%);
 }
 
@@ -976,7 +984,7 @@
   font-weight: 750;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(196, 181, 253, 0.7);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.7);
 }
 
 .sw-presence__title {
@@ -1082,11 +1090,11 @@
 
 .sw-presence__stack-av:first-child { margin-left: 0; }
 
-.sw-presence__stack-av--cyan { color: #67e8f9; background: rgba(34, 211, 238, 0.2); }
-.sw-presence__stack-av--violet { color: var(--page-accent, #7eb8ff); background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.22); }
-.sw-presence__stack-av--emerald { color: #a7f3d0; background: rgba(52, 211, 153, 0.22); }
-.sw-presence__stack-av--amber { color: #fde68a; background: rgba(251, 191, 36, 0.2); }
-.sw-presence__stack-av--rose { color: #fecdd3; background: rgba(251, 113, 133, 0.2); }
+.sw-presence__stack-av--cyan { color: var(--hos-color-info-text); background: rgba(var(--hos-color-info-rgb), 0.2); }
+.sw-presence__stack-av--violet { color: var(--page-accent, var(--hos-color-accent)); background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.22); }
+.sw-presence__stack-av--emerald { color: var(--hos-color-success-text); background: rgba(var(--hos-color-success-rgb), 0.22); }
+.sw-presence__stack-av--amber { color: var(--hos-color-warning-text); background: rgba(var(--hos-color-warning-rgb), 0.2); }
+.sw-presence__stack-av--rose { color: #fecdd3; background: rgba(var(--hos-color-danger-rgb), 0.2); }
 
 .sw-presence__hero-copy { min-width: 0; }
 
@@ -1098,7 +1106,7 @@
   color: rgba(255, 255, 255, 0.96);
 }
 
-.sw-presence--occupied .sw-presence__hero-kicker { color: #a7f3d0; }
+.sw-presence--occupied .sw-presence__hero-kicker { color: var(--hos-color-success-text); }
 
 .sw-presence__hero-sub {
   margin: 1px 0 0;
@@ -1136,8 +1144,8 @@
 }
 
 .sw-presence__stat--home {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.22);
 }
 
 .sw-presence__stat-n {
@@ -1196,8 +1204,8 @@
 }
 
 .sw-presence__lane-mark--home {
-  background: #34d399;
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+  background: var(--hos-color-success);
+  box-shadow: 0 0 8px rgba(var(--hos-color-success-rgb), 0.6);
 }
 
 .sw-presence__lane-mark--away {
@@ -1239,8 +1247,8 @@
 }
 
 .sw-presence__cell--home {
-  background: rgba(52, 211, 153, 0.08);
-  border-color: rgba(52, 211, 153, 0.16);
+  background: rgba(var(--hos-color-success-rgb), 0.08);
+  border-color: rgba(var(--hos-color-success-rgb), 0.16);
 }
 
 .sw-presence__cell--away { opacity: 0.88; }
@@ -1250,7 +1258,7 @@
 }
 
 .sw-presence__cell--home:hover {
-  background: rgba(52, 211, 153, 0.12);
+  background: rgba(var(--hos-color-success-rgb), 0.12);
 }
 
 .sw-presence__cell-av {
@@ -1265,11 +1273,11 @@
   font-weight: 800;
 }
 
-.sw-presence__cell--cyan .sw-presence__cell-av { color: #67e8f9; background: rgba(34, 211, 238, 0.16); }
-.sw-presence__cell--violet .sw-presence__cell-av { color: var(--page-accent, #7eb8ff); background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16); }
-.sw-presence__cell--emerald .sw-presence__cell-av { color: #6ee7b7; background: rgba(52, 211, 153, 0.16); }
-.sw-presence__cell--amber .sw-presence__cell-av { color: #fcd34d; background: rgba(251, 191, 36, 0.16); }
-.sw-presence__cell--rose .sw-presence__cell-av { color: #fda4af; background: rgba(251, 113, 133, 0.16); }
+.sw-presence__cell--cyan .sw-presence__cell-av { color: var(--hos-color-info-text); background: rgba(var(--hos-color-info-rgb), 0.16); }
+.sw-presence__cell--violet .sw-presence__cell-av { color: var(--page-accent, var(--hos-color-accent)); background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16); }
+.sw-presence__cell--emerald .sw-presence__cell-av { color: #6ee7b7; background: rgba(var(--hos-color-success-rgb), 0.16); }
+.sw-presence__cell--amber .sw-presence__cell-av { color: #fcd34d; background: rgba(var(--hos-color-warning-rgb), 0.16); }
+.sw-presence__cell--rose .sw-presence__cell-av { color: #fda4af; background: rgba(var(--hos-color-danger-rgb), 0.16); }
 
 .sw-presence__cell-text {
   flex: 1;
@@ -1371,9 +1379,9 @@
 }
 
 .sw-presence__switch--on {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.55), rgba(16, 185, 129, 0.7));
+  background: linear-gradient(135deg, rgba(var(--hos-color-success-rgb), 0.55), rgba(var(--hos-color-success-rgb), 0.7));
   border-color: rgba(110, 231, 183, 0.45);
-  box-shadow: 0 0 14px rgba(52, 211, 153, 0.22);
+  box-shadow: 0 0 14px rgba(var(--hos-color-success-rgb), 0.22);
 }
 
 .sw-presence__switch-knob {
@@ -1407,7 +1415,7 @@
   padding: 9px 12px;
   font-size: var(--set-fs-micro, 12px);
   font-weight: 650;
-  color: rgba(196, 181, 253, 0.88);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.88);
   text-decoration: none;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -1604,13 +1612,13 @@
   flex-shrink: 0;
   border-radius: var(--hos-radius-card);
   color: var(--sw-rose-light);
-  background: rgba(251, 113, 133, 0.1);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
   border: var(--hos-hairline) solid var(--sw-rose-border);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .sw-doorbell-card__delete:hover {
-  background: rgba(251, 113, 133, 0.16);
+  background: rgba(var(--hos-color-danger-rgb), 0.16);
 }
 
 .sw-doorbell-card__fields {

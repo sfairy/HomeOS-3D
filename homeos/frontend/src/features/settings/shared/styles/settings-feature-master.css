@@ -32,9 +32,9 @@
   width: 36px;
   height: 36px;
   border-radius: var(--hos-radius-card);
-  color: var(--sfm-accent, var(--set-info, #7dd3fc));
-  background: var(--sfm-accent-bg, rgba(56, 189, 248, 0.12));
-  border: var(--hos-hairline) solid var(--sfm-accent-border, rgba(56, 189, 248, 0.22));
+  color: var(--sfm-accent, var(--set-info, var(--hos-color-info-text)));
+  background: var(--sfm-accent-bg, rgba(var(--hos-color-accent-rgb), 0.12));
+  border: var(--hos-hairline) solid var(--sfm-accent-border, rgba(var(--hos-color-accent-rgb), 0.22));
 }
 
 .settings-feature-master__icon-svg {
@@ -74,34 +74,34 @@
 
 /* 色调 token */
 .settings-feature-master--sky {
-  --sfm-accent: var(--set-info, #7dd3fc);
-  --sfm-accent-bg: rgba(56, 189, 248, 0.12);
-  --sfm-accent-border: rgba(56, 189, 248, 0.22);
-  --sfm-on-bg: rgba(56, 189, 248, 0.14);
-  --sfm-on-border: rgba(56, 189, 248, 0.3);
+  --sfm-accent: var(--set-info, var(--hos-color-info-text));
+  --sfm-accent-bg: rgba(var(--hos-color-accent-rgb), 0.12);
+  --sfm-accent-border: rgba(var(--hos-color-accent-rgb), 0.22);
+  --sfm-on-bg: rgba(var(--hos-color-accent-rgb), 0.14);
+  --sfm-on-border: rgba(var(--hos-color-accent-rgb), 0.3);
   --sfm-on-icon-bg: rgba(14, 165, 233, 0.32);
 }
 
 .settings-feature-master--info {
-  --sfm-accent: var(--set-info, #38bdf8);
-  --sfm-accent-bg: var(--set-info-bg, rgba(56, 189, 248, 0.12));
-  --sfm-accent-border: var(--set-info-border, rgba(56, 189, 248, 0.22));
-  --sfm-on-bg: rgba(56, 189, 248, 0.12);
-  --sfm-on-border: rgba(56, 189, 248, 0.28);
+  --sfm-accent: var(--set-info, var(--hos-color-accent));
+  --sfm-accent-bg: var(--set-info-bg, rgba(var(--hos-color-accent-rgb), 0.12));
+  --sfm-accent-border: var(--set-info-border, rgba(var(--hos-color-accent-rgb), 0.22));
+  --sfm-on-bg: rgba(var(--hos-color-accent-rgb), 0.12);
+  --sfm-on-border: rgba(var(--hos-color-accent-rgb), 0.28);
   --sfm-on-icon-bg: rgba(14, 165, 233, 0.32);
 }
 
 .settings-feature-master--rose {
   --sfm-accent: #fda4af;
-  --sfm-accent-bg: rgba(251, 113, 133, 0.12);
-  --sfm-accent-border: rgba(251, 113, 133, 0.22);
-  --sfm-on-bg: rgba(244, 63, 94, 0.12);
-  --sfm-on-border: rgba(251, 113, 133, 0.28);
-  --sfm-on-icon-bg: rgba(244, 63, 94, 0.28);
+  --sfm-accent-bg: rgba(var(--hos-color-danger-rgb), 0.12);
+  --sfm-accent-border: rgba(var(--hos-color-danger-rgb), 0.22);
+  --sfm-on-bg: rgba(var(--hos-color-danger-rgb), 0.12);
+  --sfm-on-border: rgba(var(--hos-color-danger-rgb), 0.28);
+  --sfm-on-icon-bg: rgba(var(--hos-color-danger-rgb), 0.28);
 }
 
 .settings-feature-master--amber {
-  --sfm-accent: #fdba74;
+  --sfm-accent: var(--hos-color-warning-text);
   --sfm-accent-bg: rgba(251, 146, 60, 0.12);
   --sfm-accent-border: rgba(251, 146, 60, 0.22);
   --sfm-on-bg: rgba(251, 146, 60, 0.14);
@@ -110,7 +110,7 @@
 }
 
 .settings-feature-master--accent {
-  --sfm-accent: var(--page-accent, #7eb8ff);
+  --sfm-accent: var(--page-accent, var(--hos-color-accent));
   --sfm-accent-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
   --sfm-accent-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
   --sfm-on-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
@@ -119,12 +119,12 @@
 }
 
 .settings-feature-master--emerald {
-  --sfm-accent: var(--set-success, #34d399);
-  --sfm-accent-bg: rgba(52, 211, 153, 0.12);
-  --sfm-accent-border: rgba(52, 211, 153, 0.22);
-  --sfm-on-bg: rgba(52, 211, 153, 0.12);
-  --sfm-on-border: rgba(52, 211, 153, 0.28);
-  --sfm-on-icon-bg: rgba(16, 185, 129, 0.32);
+  --sfm-accent: var(--set-success, var(--hos-color-success));
+  --sfm-accent-bg: rgba(var(--hos-color-success-rgb), 0.12);
+  --sfm-accent-border: rgba(var(--hos-color-success-rgb), 0.22);
+  --sfm-on-bg: rgba(var(--hos-color-success-rgb), 0.12);
+  --sfm-on-border: rgba(var(--hos-color-success-rgb), 0.28);
+  --sfm-on-icon-bg: rgba(var(--hos-color-success-rgb), 0.32);
 }
 
 .settings-feature-master--on {

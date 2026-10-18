@@ -98,7 +98,7 @@
 
 .voice-stt-flow-band__shell {
   --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+  --flow-glow-b: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-b));
 }
 
 .voice-stt-status,
@@ -156,8 +156,8 @@
   margin: 0;
 }
 .voice-field-hint--warn {
-  color: var(--set-warn, #fbbf24);
+  color: var(--set-warn, var(--hos-color-warning));
 }
 .voice-field-hint--ok {
-  color: var(--set-success, #34d399);
+  color: var(--set-success, var(--hos-color-success));
 }

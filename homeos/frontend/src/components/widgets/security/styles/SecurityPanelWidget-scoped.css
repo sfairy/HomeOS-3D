@@ -133,7 +133,7 @@
 .sp-action-btn--disarmed.sp-action-btn--active {
   background: color-mix(in srgb, var(--premium-accent-green) 16%, rgba(0, 0, 0, 0));
   border-color: color-mix(in srgb, var(--premium-accent-green) 34%, rgba(0, 0, 0, 0));
-  color: #6ee7b7;
+  color: var(--hos-color-success-text);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-green) 28%, rgba(0, 0, 0, 0));
 }
 
@@ -141,7 +141,7 @@
 .sp-action-btn--armed-home.sp-action-btn--active {
   background: color-mix(in srgb, var(--premium-accent-amber) 16%, rgba(0, 0, 0, 0));
   border-color: color-mix(in srgb, var(--premium-accent-amber) 34%, rgba(0, 0, 0, 0));
-  color: #fcd34d;
+  color: var(--hos-color-warning-text);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-amber) 28%, rgba(0, 0, 0, 0));
 }
 
@@ -149,7 +149,7 @@
 .sp-action-btn--armed-away.sp-action-btn--active {
   background: color-mix(in srgb, var(--premium-accent-red) 16%, rgba(0, 0, 0, 0));
   border-color: color-mix(in srgb, var(--premium-accent-red) 34%, rgba(0, 0, 0, 0));
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-red) 28%, rgba(0, 0, 0, 0));
 }
 
@@ -157,7 +157,7 @@
 .sp-action-btn--armed-night.sp-action-btn--active {
   background: color-mix(in srgb, var(--premium-accent-violet) 16%, rgba(0, 0, 0, 0));
   border-color: color-mix(in srgb, var(--premium-accent-violet) 34%, rgba(0, 0, 0, 0));
-  color: #c4b5fd;
+  color: var(--hos-color-accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-violet) 28%, rgba(0, 0, 0, 0));
 }
 
@@ -219,7 +219,7 @@
 .sp-zones-retry {
   margin: 0 0 8px;
   font-size: var(--premium-fs-micro);
-  color: #f87171;
+  color: var(--hos-color-danger);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -229,9 +229,9 @@
   font-size: var(--premium-fs-micro);
   padding: 2px 8px;
   border-radius: 6px;
-  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.35);
-  background: rgba(248, 113, 113, 0.08);
-  color: #fca5a5;
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.35);
+  background: rgba(var(--hos-color-danger-rgb), 0.08);
+  color: var(--hos-color-danger-text);
   cursor: pointer;
 }
 
@@ -263,8 +263,8 @@
 }
 
 .sp-zone-dot--armed {
-  background: #ff3b30;
-  box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
+  background: var(--hos-color-danger);
+  box-shadow: 0 0 6px rgba(var(--hos-color-danger-rgb), 0.6);
 }
 
 .sp-zone-dot--disarmed {
@@ -328,7 +328,7 @@
 .sp-zone-check input {
   width: 14px;
   height: 14px;
-  accent-color: var(--premium-accent-blue, #0a84ff);
+  accent-color: var(--premium-accent-blue, var(--hos-color-accent));
 }
 
 .sp-empty-zones {
@@ -350,16 +350,16 @@
 }
 
 .sp-icon-disarmed {
-  color: var(--set-success, #6ee7b7);
+  color: var(--set-success, var(--hos-color-success-text));
 }
 .sp-icon-home {
-  color: var(--set-warn, #fcd34d);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 .sp-icon-away {
-  color: var(--set-danger, #fda4af);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 .sp-icon-night {
-  color: var(--premium-accent-violet, #a78bfa);
+  color: var(--premium-accent-violet, var(--hos-color-accent));
 }
 .sp-icon-default {
   color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));

@@ -9,7 +9,7 @@
     :anchor-y="anchorY"
     :width="288"
     :height="296"
-    accent="#a78bfa"
+    accent="var(--hos-color-accent-strong)"
     accent-rgb="167, 139, 250"
     @close="$emit('close')"
   >

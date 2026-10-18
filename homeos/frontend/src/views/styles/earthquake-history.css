@@ -2,16 +2,16 @@
  * 地震信息页 · 高大上主题
  */
 .earthquake-history-view {
-  --eq-accent: var(--page-accent, #fbbf24);
-  --eq-accent-secondary: var(--page-accent-secondary, #fb923c);
-  --eq-accent-rgb: var(--page-accent-rgb, 251, 191, 36);
+  --eq-accent: var(--page-accent, var(--hos-color-accent));
+  --eq-accent-secondary: var(--page-accent-secondary, var(--hos-color-accent-deep));
+  --eq-accent-rgb: var(--page-accent-rgb, var(--hos-color-accent-rgb));
   --eq-glass: rgba(255, 255, 255, 0.025);
   overflow: hidden;
   background:
     radial-gradient(ellipse 85% 55% at 8% -8%, rgba(var(--eq-accent-rgb), 0.09) 0%, transparent 58%),
-    radial-gradient(ellipse 60% 45% at 96% 105%, rgba(251, 146, 60, 0.05) 0%, transparent 52%),
-    radial-gradient(ellipse 90% 50% at 10% -10%, rgba(10, 132, 255, 0.05) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 40% at 95% 0%, rgba(191, 90, 242, 0.04) 0%, transparent 50%);
+    radial-gradient(ellipse 60% 45% at 96% 105%, rgba(var(--hos-color-warning-rgb), 0.05) 0%, transparent 52%),
+    radial-gradient(ellipse 90% 50% at 10% -10%, rgba(var(--hos-color-accent-rgb), 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 40% at 95% 0%, rgba(var(--hos-color-info-rgb), 0.04) 0%, transparent 50%);
 }
 
 .earthquake-history-view__toolbar {
@@ -73,7 +73,7 @@
   width: 0;
   height: 2px;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--eq-accent), color-mix(in srgb, var(--eq-accent-secondary) 70%, #bf5af2));
+  background: linear-gradient(90deg, var(--eq-accent), color-mix(in srgb, var(--eq-accent-secondary) 70%, var(--hos-color-info)));
   transform: translateX(-50%);
   transition: width 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
   opacity: 0;
@@ -170,9 +170,9 @@
 }
 
 .earthquake-history-view__meta--stale {
-  color: #fdba74;
-  border-color: rgba(251, 146, 60, 0.35);
-  background: rgba(251, 146, 60, 0.1);
+  color: var(--hos-color-warning-text);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.35);
+  background: rgba(var(--hos-color-warning-rgb), 0.1);
 }
 
 .earthquake-history-view__layout {
@@ -224,7 +224,7 @@
     90deg,
     transparent,
     var(--eq-accent),
-    color-mix(in srgb, var(--eq-accent-secondary) 80%, #bf5af2),
+    color-mix(in srgb, var(--eq-accent-secondary) 80%, var(--hos-color-info)),
     transparent
   );
   opacity: 0.85;
@@ -327,15 +327,15 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
 }
 
-.earthquake-history-view__card--mag-sky::before { background: #7dd3fc; box-shadow: 0 0 8px rgba(125, 211, 252, 0.45); }
-.earthquake-history-view__card--mag-amber::before { background: #fde68a; box-shadow: 0 0 8px rgba(251, 191, 36, 0.4); }
-.earthquake-history-view__card--mag-orange::before { background: #fdba74; box-shadow: 0 0 8px rgba(251, 146, 60, 0.45); }
-.earthquake-history-view__card--mag-danger::before { background: #fca5a5; box-shadow: 0 0 10px rgba(248, 113, 113, 0.55); }
+.earthquake-history-view__card--mag-sky::before { background: var(--hos-color-info-text); box-shadow: 0 0 8px rgba(var(--hos-color-info-rgb), 0.45); }
+.earthquake-history-view__card--mag-amber::before { background: var(--hos-color-warning-text); box-shadow: 0 0 8px rgba(var(--hos-color-accent-rgb), 0.4); }
+.earthquake-history-view__card--mag-orange::before { background: var(--hos-color-warning-text); box-shadow: 0 0 8px rgba(var(--hos-color-warning-rgb), 0.45); }
+.earthquake-history-view__card--mag-danger::before { background: var(--hos-color-danger-text); box-shadow: 0 0 10px rgba(var(--hos-color-danger-rgb), 0.55); }
 
 .earthquake-history-view__card--sim {
-  border-color: rgba(244, 114, 182, 0.16);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.16);
   background:
-    linear-gradient(90deg, rgba(236, 72, 153, 0.06), transparent 42%),
+    linear-gradient(90deg, rgba(var(--hos-color-danger-rgb), 0.06), transparent 42%),
     rgba(255, 255, 255, 0.03);
 }
 
@@ -417,15 +417,15 @@
 }
 
 .earthquake-history-view__badge--early {
-  color: #fde68a;
-  border-color: rgba(251, 191, 36, 0.35);
-  background: rgba(251, 191, 36, 0.1);
+  color: var(--hos-color-warning-text);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.35);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
 }
 
 .earthquake-history-view__badge--confirm {
-  color: #93c5fd;
-  border-color: rgba(96, 165, 250, 0.35);
-  background: rgba(59, 130, 246, 0.12);
+  color: var(--hos-color-info-text);
+  border-color: rgba(var(--hos-color-info-rgb), 0.35);
+  background: rgba(var(--hos-color-info-rgb), 0.12);
 }
 
 .earthquake-history-view__badge--source {
@@ -433,34 +433,34 @@
 }
 
 .earthquake-history-view__badge--src-wolfx {
-  color: #fdba74;
-  border-color: rgba(251, 146, 60, 0.32);
-  background: rgba(251, 146, 60, 0.1);
+  color: var(--hos-color-warning-text);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.32);
+  background: rgba(var(--hos-color-warning-rgb), 0.1);
 }
 
 .earthquake-history-view__badge--src-sc_eew {
-  color: #86efac;
-  border-color: rgba(74, 222, 128, 0.32);
-  background: rgba(34, 197, 94, 0.1);
+  color: var(--hos-color-success-text);
+  border-color: rgba(var(--hos-color-success-rgb), 0.32);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
 }
 
 .earthquake-history-view__badge--src-cenc_eew,
 .earthquake-history-view__badge--src-cenc {
-  color: #7dd3fc;
-  border-color: rgba(56, 189, 248, 0.32);
-  background: rgba(14, 165, 233, 0.1);
+  color: var(--hos-color-info-text);
+  border-color: rgba(var(--hos-color-info-rgb), 0.32);
+  background: rgba(var(--hos-color-info-rgb), 0.1);
 }
 
 .earthquake-history-view__badge--src-usgs {
-  color: #c4b5fd;
-  border-color: rgba(167, 139, 250, 0.32);
-  background: rgba(139, 92, 246, 0.1);
+  color: var(--hos-color-accent);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.32);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
 }
 
 .earthquake-history-view__badge--src-test {
-  color: #f9a8d4;
-  border-color: rgba(244, 114, 182, 0.32);
-  background: rgba(236, 72, 153, 0.1);
+  color: var(--hos-color-danger-text);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
 }
 
 .earthquake-history-view__place {
@@ -519,8 +519,8 @@
 
 .earthquake-history-view__clear-sim {
   margin-left: 4px;
-  color: #f9a8d4;
-  border-color: rgba(244, 114, 182, 0.35);
+  color: var(--hos-color-danger-text);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.35);
 }
 
 .earthquake-history-view__delete {
@@ -532,8 +532,8 @@
   height: var(--control-height-xs);
   border-radius: var(--hos-radius-control);
   border: none;
-  background: rgba(236, 72, 153, 0.12);
-  color: #f9a8d4;
+  background: rgba(var(--hos-color-danger-rgb), 0.12);
+  color: var(--hos-color-danger-text);
   cursor: pointer;
   opacity: 0.75;
   transition:
@@ -548,8 +548,8 @@
 }
 
 .earthquake-history-view__delete:hover:not(:disabled) {
-  background: rgba(236, 72, 153, 0.28);
-  color: #fbcfe8;
+  background: rgba(var(--hos-color-danger-rgb), 0.28);
+  color: color-mix(in srgb, var(--hos-color-danger) 55%, white);
 }
 
 .earthquake-history-view__delete:disabled {
@@ -586,27 +586,27 @@
 
 .earthquake-history-view__mag--muted { color: rgba(255, 255, 255, 0.55); }
 .earthquake-history-view__mag--sky {
-  color: #7dd3fc;
-  border-color: rgba(125, 211, 252, 0.3);
-  background: linear-gradient(135deg, rgba(125, 211, 252, 0.12), rgba(0, 0, 0, 0.28));
+  color: var(--hos-color-info-text);
+  border-color: rgba(var(--hos-color-info-rgb), 0.3);
+  background: linear-gradient(135deg, rgba(var(--hos-color-info-rgb), 0.12), rgba(0, 0, 0, 0.28));
 }
 .earthquake-history-view__mag--amber {
-  color: #fde68a;
-  border-color: rgba(251, 191, 36, 0.38);
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.14), rgba(0, 0, 0, 0.28));
+  color: var(--hos-color-warning-text);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.38);
+  background: linear-gradient(135deg, rgba(var(--hos-color-accent-rgb), 0.14), rgba(0, 0, 0, 0.28));
 }
 .earthquake-history-view__mag--orange {
-  color: #fdba74;
-  border-color: rgba(251, 146, 60, 0.42);
-  background: linear-gradient(135deg, rgba(251, 146, 60, 0.14), rgba(0, 0, 0, 0.28));
+  color: var(--hos-color-warning-text);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.42);
+  background: linear-gradient(135deg, rgba(var(--hos-color-warning-rgb), 0.14), rgba(0, 0, 0, 0.28));
 }
 .earthquake-history-view__mag--danger {
-  color: #fca5a5;
-  border-color: rgba(248, 113, 113, 0.48);
-  background: linear-gradient(135deg, rgba(248, 113, 113, 0.16), rgba(0, 0, 0, 0.28));
+  color: var(--hos-color-danger-text);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.48);
+  background: linear-gradient(135deg, rgba(var(--hos-color-danger-rgb), 0.16), rgba(0, 0, 0, 0.28));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 14px rgba(248, 113, 113, 0.18);
+    0 0 14px rgba(var(--hos-color-danger-rgb), 0.18);
 }
 
 .earthquake-history-view__pager {

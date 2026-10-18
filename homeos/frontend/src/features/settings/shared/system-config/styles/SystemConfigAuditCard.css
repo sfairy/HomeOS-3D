@@ -40,12 +40,12 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   text-transform: uppercase;
-  color: #93c5fd;
-  background: rgba(59, 130, 246, 0.2);
+  color: var(--hos-color-info-text);
+  background: rgba(var(--hos-color-accent-rgb), 0.2);
 }
 .config-audit__badge--reset {
   color: #fcd34d;
-  background: rgba(245, 158, 11, 0.2);
+  background: rgba(var(--hos-color-warning-rgb), 0.2);
 }
 .config-audit__body {
   min-width: 0;

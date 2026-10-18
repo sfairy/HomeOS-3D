@@ -3,7 +3,7 @@
  * SettingsPageHeader、list-page__hero、PremiumPageHeader
  */
 .premium-head {
-  --head-accent: var(--hero-accent, var(--premium-accent-blue, #0a84ff));
+  --head-accent: var(--hero-accent, var(--premium-accent-blue, var(--hos-color-accent)));
   position: relative;
   overflow: hidden;
 }
@@ -43,9 +43,9 @@
   border-radius: 0 0 4px 4px;
   background: linear-gradient(
     90deg,
-    var(--head-accent, #0a84ff),
-    var(--premium-accent-cyan, #5fd4ff),
-    color-mix(in srgb, var(--premium-accent-cyan, #5fd4ff) 55%, transparent)
+    var(--head-accent, var(--hos-color-accent)),
+    var(--premium-accent-cyan, var(--hos-color-info)),
+    color-mix(in srgb, var(--premium-accent-cyan, var(--hos-color-info)) 55%, transparent)
   );
   pointer-events: none;
   z-index: 2;
@@ -83,11 +83,11 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--head-accent, #60a5fa);
+  color: var(--head-accent, var(--hos-color-info-text));
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--head-accent) 22%, #0c0e14),
-    color-mix(in srgb, #5e5ce6 12%, #0c0e14)
+    color-mix(in srgb, var(--hos-color-accent-deep) 12%, #0c0e14)
   );
   border: 1px solid color-mix(in srgb, var(--head-accent) 36%, #1a1d28);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
@@ -176,7 +176,7 @@
   -webkit-background-clip: initial;
   background-clip: initial;
   -webkit-text-fill-color: initial;
-  color: color-mix(in srgb, var(--page-accent, #0a84ff) 78%, white);
+  color: color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 78%, white);
 }
 
 .premium-head__text--inline {

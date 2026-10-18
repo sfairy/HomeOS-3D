@@ -96,16 +96,16 @@
   flex-shrink: 0;
   border-radius: var(--hos-radius-card);
   color: rgba(253, 164, 175, 0.88);
-  background: rgba(251, 113, 133, 0.08);
-  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.2);
+  background: rgba(var(--hos-color-danger-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
 }
 
 .bind-cam-card__delete:hover {
-  background: rgba(251, 113, 133, 0.14);
-  border-color: rgba(251, 113, 133, 0.32);
+  background: rgba(var(--hos-color-danger-rgb), 0.14);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
 }
 
 .bind-cam-card__go2rtc {

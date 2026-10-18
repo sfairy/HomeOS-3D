@@ -34,6 +34,10 @@
 #   README.md · ops/deploy/PUBLIC-ACCESS.md · ops/deploy/TUNNEL-ACCESS.md
 #
 # 升级：docker compose pull && docker compose up -d。永远不要 down -v（会连数据卷一起删）。
+#
+# 备份包放在本文件同目录的 ./backups（bind mount 到容器 /data/backups）：服务器全量 /
+# 自动备份 / 网页导出的 .habackup 都在那里，宿主机直接可见，换机时整目录拷走即可。
+# 首次 up 前不必手工建 —— Docker 会建；但宿主目录属主必须是容器 uid 1000（entrypoint 会校正）。
 
 name: homeos
 
@@ -132,6 +136,13 @@ services:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
       - homeos-client-keys:/shared-keys:ro
+      # 备份包（服务器全量 / 自动备份 / 业务导出 .habackup）落到**本文件同目录**的
+      # ./backups，宿主机直接可见、可拷走，不必 docker cp。
+      # 容器内路径不变（仍是 /data/backups），所以「备份不能把自己装进包里」的排除逻辑
+      # 与镜像默认完全一致；这里只是在数据卷上叠一层 bind mount。
+      # 属主由 ops/container_entrypoint.py 在降权前校正为 uid 1000（homeos），
+      # 否则宿主上 root 建的目录会让备份写入失败。
+      - ./backups:/data/backups
       # 授权实例指纹来源，必须先建好符号链接（见文件头）。
       - /host/etc/machine-id:/host/etc/machine-id:ro
       - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
@@ -177,7 +188,7 @@ volumes:
   homeos-store-data:     # 商店：库、订单、审计、授权私钥
   homeos-license-keys:
   homeos-client-keys:    # 商店写、主应用只读的公钥镜像
-  homeos-data:           # 主应用：数据（含 backups）
+  homeos-data:           # 主应用：数据（备份包已改用 ./backups bind mount，见 homeos.volumes）
   homeos-secrets:        # 主应用：签名密钥
   # 开启上方 caddy-public 时取消注释：
   # caddy-public-data:

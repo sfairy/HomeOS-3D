@@ -46,6 +46,11 @@ dist/
 # 系统导出包（hub 备份，含真实用户与布局数据）
 homeos-bundle-*.json
 
+# 容器部署的备份包目录（compose 把 ./backups bind mount 到 /data/backups）。
+# 里面是整库快照与加密导出包，只能在现场保留，永远不入库。
+backups/*
+!backups/.gitkeep
+
 # 客户分发包（导出的 customer-pack / 打包脚本默认输出到 build/）
 /build/
 

@@ -41,7 +41,7 @@ export function useCoverControlPopup(props: EntityPopupBaseProps) {
       min: 0,
       max: 100,
       step: 1,
-      color: '#a78bfa',
+      color: '#59d3c0',
       trackColor: 'rgba(255,255,255,0.1)',
     }),
   })

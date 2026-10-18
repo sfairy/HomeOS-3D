@@ -104,7 +104,7 @@
 }
 
 .sw-flow-band__shell {
-  --flow-glow-a: rgba(251, 191, 36, var(--flow-glow-alpha-strong));
-  --flow-glow-b: rgba(245, 158, 11, var(--flow-glow-alpha-b));
+  --flow-glow-a: rgba(var(--hos-color-warning-rgb), var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(var(--hos-color-warning-rgb), var(--flow-glow-alpha-b));
 }
 

@@ -190,8 +190,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    color-mix(in srgb, var(--page-accent, #0a84ff) 40%, white),
-    color-mix(in srgb, var(--page-accent, #0a84ff) 20%, white),
+    color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 40%, white),
+    color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 20%, white),
     transparent
   );
   z-index: 2;

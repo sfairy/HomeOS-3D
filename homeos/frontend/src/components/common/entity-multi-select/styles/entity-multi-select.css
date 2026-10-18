@@ -86,32 +86,32 @@
 }
 
 .ems-inline-chip--tone-0 {
-  background: rgba(34, 211, 238, 0.1);
-  border-color: rgba(34, 211, 238, 0.24);
+  background: rgba(var(--hos-color-info-rgb), 0.1);
+  border-color: rgba(var(--hos-color-info-rgb), 0.24);
   color: #bae6fd;
 }
 
 .ems-inline-chip--tone-1 {
-  background: rgba(167, 139, 250, 0.1);
-  border-color: rgba(167, 139, 250, 0.24);
-  color: #ddd6fe;
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.24);
+  color: var(--hos-color-accent-strong);
 }
 
 .ems-inline-chip--tone-2 {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.24);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.24);
   color: #bbf7d0;
 }
 
 .ems-inline-chip--tone-3 {
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.24);
-  color: #fde68a;
+  background: rgba(var(--hos-color-warning-rgb), 0.1);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.24);
+  color: var(--hos-color-warning-text);
 }
 
 .ems-inline-chip--tone-4 {
-  background: rgba(251, 113, 133, 0.1);
-  border-color: rgba(251, 113, 133, 0.24);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.24);
   color: #fecdd3;
 }
 
@@ -142,8 +142,8 @@
 }
 
 .ems-inline-chip__remove:hover {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.16);
+  color: var(--hos-color-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.16);
 }
 
 .ems-trigger--open {
@@ -229,7 +229,7 @@
 }
 
 .ems-clear:hover {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.22);
+  color: var(--hos-color-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.22);
 }

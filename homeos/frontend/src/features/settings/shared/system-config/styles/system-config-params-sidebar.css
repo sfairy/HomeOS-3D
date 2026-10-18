@@ -124,8 +124,8 @@
   width: 6px;
   height: 6px;
   border-radius: var(--hos-radius-pill);
-  background: #fbbf24;
-  box-shadow: 0 0 6px rgba(251, 191, 36, 0.55);
+  background: var(--hos-color-warning);
+  box-shadow: 0 0 6px rgba(var(--hos-color-warning-rgb), 0.55);
 }
 
 .params-sidebar__group-chev {
@@ -170,8 +170,8 @@
 
 .params-sidebar__item--active {
   color: var(--set-text-primary, #fff);
-  background: color-mix(in srgb, var(--item-accent, #60a5fa) 14%, rgba(0, 0, 0, 0));
-  box-shadow: inset 3px 0 0 var(--item-accent, #60a5fa);
+  background: color-mix(in srgb, var(--item-accent, var(--hos-color-info)) 14%, rgba(0, 0, 0, 0));
+  box-shadow: inset 3px 0 0 var(--item-accent, var(--hos-color-info));
 }
 
 .params-sidebar__item-label {
@@ -197,9 +197,9 @@
   border-radius: var(--hos-radius-pill);
   font-size: var(--premium-fs-micro);
   font-weight: 800;
-  color: var(--set-warn, #fbbf24);
-  background: rgba(251, 191, 36, 0.14);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
+  color: var(--set-warn, var(--hos-color-warning));
+  background: rgba(var(--hos-color-warning-rgb), 0.14);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.28);
 }
 
 .params-sidebar__item-match {
@@ -231,12 +231,12 @@
 
 .params-sidebar__item--active .params-sidebar__item-pending {
   color: #fff;
-  background: color-mix(in srgb, var(--item-accent, #60a5fa) 35%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--item-accent, #60a5fa) 45%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--item-accent, var(--hos-color-info)) 35%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--item-accent, var(--hos-color-info)) 45%, rgba(0, 0, 0, 0));
 }
 
 .params-sidebar__item--active .params-sidebar__item-count {
-  color: color-mix(in srgb, var(--item-accent, #60a5fa) 75%, white);
+  color: color-mix(in srgb, var(--item-accent, var(--hos-color-info)) 75%, white);
 }
 
 .params-sidebar__foot {
@@ -271,9 +271,9 @@
   font-weight: 600;
   padding: 4px 8px;
   border-radius: var(--hos-radius-pill);
-  color: rgba(96, 165, 250, 0.9);
-  background: rgba(59, 130, 246, 0.1);
-  border: var(--hos-hairline) solid rgba(59, 130, 246, 0.2);
+  color: rgba(var(--hos-color-info-rgb), 0.9);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.2);
   text-decoration: none;
 }
 

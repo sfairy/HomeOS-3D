@@ -2,7 +2,7 @@
  * 事件历史页 · 域专属样式（壳层见 list-page-dual-pane.css）
  */
 .events-view {
-  --ev-accent: var(--page-accent, #22d3ee);
+  --ev-accent: var(--page-accent, var(--hos-color-info));
 }
 
 .events-view__cards {
@@ -41,9 +41,9 @@
   box-shadow: 0 0 8px color-mix(in srgb, var(--ev-accent) 45%, rgba(0, 0, 0, 0));
 }
 
-.events-view__card[data-domain="light"] .events-view__card-accent { background: #fde68a; }
-.events-view__card[data-domain="climate"] .events-view__card-accent { background: #fdba74; }
-.events-view__card[data-domain="camera"] .events-view__card-accent { background: #fca5a5; }
+.events-view__card[data-domain="light"] .events-view__card-accent { background: var(--hos-color-warning-text); }
+.events-view__card[data-domain="climate"] .events-view__card-accent { background: var(--hos-color-warning-text); }
+.events-view__card[data-domain="camera"] .events-view__card-accent { background: var(--hos-color-danger-text); }
 .events-view__card[data-domain="sensor"] .events-view__card-accent,
 .events-view__card[data-domain="binary_sensor"] .events-view__card-accent { background: #6ee7b7; }
 
@@ -152,8 +152,8 @@
 
 .events-view__state--new {
   color: #6ee7b7;
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.22);
 }
 
 .events-view__state--old {

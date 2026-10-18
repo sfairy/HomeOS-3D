@@ -3,14 +3,14 @@ import { EMBED_ICON_ACCENTS } from '@/shared/utils/layout/embed-icons.util'
 
 /** 内嵌页列表序号 → Tab 主题色（按序循环） */
 export const EMBED_TAB_ACCENTS = [
-  '#22d3ee', // 0 青
-  '#c084fc', // 1 紫
-  '#4ade80', // 2 绿
-  '#fbbf24', // 3 琥珀
-  '#fb7185', // 4 玫红
-  '#60a5fa', // 5 蓝
-  '#fb923c', // 6 橙
-  '#2dd4bf', // 7 蓝绿
+  'var(--hos-color-accent)', // 0 暖铜
+  'var(--hos-color-accent-strong)', // 1 亮铜
+  'var(--hos-color-info)', // 2 青
+  'var(--hos-color-accent-deep)', // 3 深铜
+  'var(--hos-color-warning)', // 4 琥珀
+  'var(--hos-color-accent-soft-strong)', // 5 浅铜
+  'var(--hos-color-success)', // 6 绿
+  'var(--hos-color-danger)', // 7 珊瑚
 ]
 
 /**

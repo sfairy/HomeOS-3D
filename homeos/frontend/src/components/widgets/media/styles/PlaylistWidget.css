@@ -60,7 +60,7 @@
   background: rgba(255, 255, 255, 0.03);
 }
 .media-playlist__item--active {
-  color: #f9a8d4;
+  color: var(--hos-color-danger-text);
   border: 1px solid rgba(236, 72, 153, 0.25);
 }
 .media-playlist__actions {
@@ -75,7 +75,7 @@
   cursor: pointer;
   border: 1px solid rgba(236, 72, 153, 0.25);
   background: rgba(236, 72, 153, 0.12);
-  color: #f9a8d4;
+  color: var(--hos-color-danger-text);
 }
 .media-playlist__btn--ghost {
   background: rgba(255, 255, 255, 0.04);

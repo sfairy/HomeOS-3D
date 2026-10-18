@@ -108,29 +108,53 @@
 }
 
 .ev-analytics__kpi-value--accent,
+.ev-analytics__kpi-value--info,
 .ev-analytics__kpi-value--sky,
 .ev-analytics__kpi-value--warn,
+.ev-analytics__kpi-value--warning,
 .ev-analytics__kpi-value--pink,
+.ev-analytics__kpi-value--danger,
+.ev-analytics__kpi-value--success,
 .ev-analytics__kpi-value--muted,
 .nc-analytics__kpi-value--accent,
+.nc-analytics__kpi-value--info,
 .nc-analytics__kpi-value--sky,
 .nc-analytics__kpi-value--warn,
+.nc-analytics__kpi-value--warning,
 .nc-analytics__kpi-value--pink,
+.nc-analytics__kpi-value--danger,
+.nc-analytics__kpi-value--success,
 .nc-analytics__kpi-value--muted {
   background: none;
   -webkit-text-fill-color: currentColor;
 }
 
-.ev-analytics__kpi-value--accent { color: #67e8f9; }
-.nc-analytics__kpi-value--accent { color: #f9a8d4; }
+.ev-analytics__kpi-value--accent,
+.nc-analytics__kpi-value--accent { color: var(--hos-color-accent); }
+.ev-analytics__kpi-value--info,
 .ev-analytics__kpi-value--sky,
-.nc-analytics__kpi-value--sky { color: #7dd3fc; }
+.nc-analytics__kpi-value--info,
+.nc-analytics__kpi-value--sky { color: var(--hos-color-info); }
 .ev-analytics__kpi-value--warn,
-.nc-analytics__kpi-value--warn { color: #fdba74; }
-.ev-analytics__kpi-value--pink { color: #f9a8d4; }
-.nc-analytics__kpi-value--pink { color: #f472b6; }
+.ev-analytics__kpi-value--warning,
+.nc-analytics__kpi-value--warn,
+.nc-analytics__kpi-value--warning { color: var(--hos-color-warning); }
+.ev-analytics__kpi-value--pink,
+.ev-analytics__kpi-value--danger,
+.nc-analytics__kpi-value--pink,
+.nc-analytics__kpi-value--danger { color: var(--hos-color-danger); }
+.ev-analytics__kpi-value--success,
+.nc-analytics__kpi-value--success { color: var(--hos-color-success); }
 .ev-analytics__kpi-value--muted,
-.nc-analytics__kpi-value--muted { color: rgba(255, 255, 255, 0.55); }
+.nc-analytics__kpi-value--muted { color: var(--hos-text-secondary); }
+
+.ev-analytics__kpi--info::before,
+.ev-analytics__kpi--sky::before { background: linear-gradient(90deg, var(--hos-color-info), transparent); }
+.ev-analytics__kpi--warning::before,
+.ev-analytics__kpi--warn::before { background: linear-gradient(90deg, var(--hos-color-warning), transparent); }
+.ev-analytics__kpi--danger::before,
+.ev-analytics__kpi--pink::before { background: linear-gradient(90deg, var(--hos-color-danger), transparent); }
+.ev-analytics__kpi--success::before { background: linear-gradient(90deg, var(--hos-color-success), transparent); }
 
 .ev-analytics__kpi-hint,
 .nc-analytics__kpi-hint {

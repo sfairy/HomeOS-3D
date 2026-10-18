@@ -12,7 +12,7 @@
 -->
 <template>
   <div class="list-page device-detail-view" :style="pageAccentStyle">
-    <ListPageHero v-if="entityId" :title="entityName" :hint="entityId" tone="sky">
+    <ListPageHero v-if="entityId" :title="entityName" :hint="entityId">
       <template #icon>
         <Cpu class="w-5 h-5" />
       </template>

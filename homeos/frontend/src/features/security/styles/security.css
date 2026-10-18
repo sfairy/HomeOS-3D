@@ -646,7 +646,7 @@
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.14);
   background:
     radial-gradient(ellipse 90% 55% at 12% -8%, rgba(var(--page-accent-rgb), 0.14) 0%, transparent 52%),
-    radial-gradient(ellipse 60% 40% at 95% 100%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 95% 100%, rgba(var(--hos-color-accent-strong-rgb), 0.08) 0%, transparent 50%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.008) 48%, rgba(0, 0, 0, 0.12) 100%),
     rgba(6, 8, 16, 0.72);
   backdrop-filter: var(--premium-blur);
@@ -934,7 +934,7 @@
 }
 
 .sov-pill--on.sov-pill--danger {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
   border-color: rgba(var(--set-danger-rgb), 0.4);
   background: rgba(var(--set-danger-rgb), 0.12);
 }
@@ -1024,7 +1024,7 @@
 }
 
 .sov-sensor-card--alert .sov-sensor-card__state {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
   font-weight: 700;
 }
 
@@ -1473,7 +1473,7 @@
 }
 
 .sec-dash-chip--alert {
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
   background: rgba(var(--set-danger-rgb), 0.12);
   border-color: rgba(var(--set-danger-rgb), 0.28);
 }
@@ -1593,7 +1593,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
   font-size: var(--premium-fs-micro);
   font-weight: 800;
   white-space: nowrap;
@@ -1735,7 +1735,7 @@
 }
 
 .sec-dash-status-meta--warn {
-  color: #fbbf24;
+  color: var(--hos-color-warning);
   white-space: normal;
 }
 
@@ -2542,7 +2542,7 @@
 }
 
 .szm-stat--armed .szm-stat__val {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-stat--alert {
@@ -2753,15 +2753,15 @@
 }
 
 .szm-badge--perimeter {
-  border-color: rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.1);
-  color: #7dd3fc;
+  border-color: rgba(var(--hos-color-accent-rgb), 0.35);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  color: var(--hos-color-info-text);
 }
 
 .szm-badge--interior {
-  border-color: rgba(167, 139, 250, 0.35);
-  background: rgba(167, 139, 250, 0.1);
-  color: #c4b5fd;
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.35);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.1);
+  color: var(--hos-color-accent-strong);
 }
 
 .szm-badge--all {
@@ -2773,7 +2773,7 @@
 .szm-badge--armed {
   border-color: rgba(var(--set-danger-rgb), 0.4);
   background: rgba(var(--set-danger-rgb), 0.12);
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-badge--idle {
@@ -2801,7 +2801,7 @@
 }
 
 .szm-card__metrics .is-alert {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-metric-link {
@@ -2817,7 +2817,7 @@
 }
 
 .szm-metric-link.is-alert:hover {
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-card__metrics .is-offline {
@@ -2885,7 +2885,7 @@
 }
 
 .szm-sensor-row.is-alert .szm-sensor-row__state {
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .szm-sensor-row.is-offline .szm-sensor-row__state {

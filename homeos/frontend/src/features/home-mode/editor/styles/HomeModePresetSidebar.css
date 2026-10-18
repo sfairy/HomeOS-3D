@@ -26,7 +26,7 @@
   flex-shrink: 0;
   color: #c7d2fe;
   background: rgba(99, 102, 241, 0.14);
-  border: var(--hos-hairline) solid rgba(129, 140, 248, 0.22);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.22);
 }
 
 .hm-preset-sidebar__intro {

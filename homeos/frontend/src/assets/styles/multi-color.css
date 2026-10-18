@@ -12,17 +12,17 @@
   /* 页面主色 → 次色 135° 渐变；次色缺失时回退主色提亮版，仍能呈现柔和双色 */
   --page-gradient: linear-gradient(
     135deg,
-    var(--page-accent, #34d399) 0%,
-    var(--page-accent-secondary, color-mix(in srgb, var(--page-accent, #34d399) 62%, white)) 100%
+    var(--page-accent, var(--hos-color-accent)) 0%,
+    var(--page-accent-secondary, color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 62%, white)) 100%
   );
   /* 提亮版（向白方向混合），用于需要更柔和对比的场景 */
   --page-gradient-soft: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--page-accent, #34d399) 76%, white) 0%,
-    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, #38bdf8)) 68%, white) 100%
+    color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 76%, white) 0%,
+    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, var(--hos-color-accent))) 68%, white) 100%
   );
   /* 页面色外发光，用于 hover / 重点卡 */
-  --page-glow: 0 8px 28px color-mix(in srgb, var(--page-accent, #34d399) 22%, transparent);
+  --page-glow: 0 8px 28px color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 22%, transparent);
   /* 卡片左上氛围层（低透明度 radial），供各卡片 background 叠加 */
   --page-card-tint: radial-gradient(
     ellipse 110% 72% at 0% 0%,
@@ -45,7 +45,7 @@
 
 
 .text-gradient-sunset {
-  background: var(--gradient-sunset, linear-gradient(135deg, #ff6b3d 0%, #ff3b8b 50%, #bf5af2 100%));
+  background: var(--gradient-sunset, linear-gradient(135deg, var(--hos-color-accent-deep) 0%, var(--hos-color-accent) 100%));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;

@@ -123,16 +123,16 @@
    * 非整数 DPR（常见于 Android）下 0.5px 会被抗锯齿成光晕。
    */
   --hos-hairline: 0.5px;
-  --hos-border-subtle: rgba(96, 165, 250, 0.18);
-  --hos-border-strong: rgba(125, 211, 252, 0.3);
-  /* 中性发丝边框：与上方蓝色语义边框区分，用于列表分隔 / 控件描边 */
-  --hos-border-hairline-soft: rgba(255, 255, 255, 0.06);
-  --hos-border-hairline: rgba(255, 255, 255, 0.08);
-  --hos-border-hairline-strong: rgba(255, 255, 255, 0.14);
-  --page-accent: #60a5fa;
-  --page-accent-rgb: 96, 165, 250;
-  --theme-glow-a: rgba(37, 99, 235, 0.16);
-  --theme-glow-b: rgba(14, 165, 233, 0.1);
+  --hos-border-subtle: var(--hos-line-2);
+  --hos-border-strong: var(--hos-line-3);
+  /* 中性发丝边框：列表分隔 / 控件描边 */
+  --hos-border-hairline-soft: var(--hos-line-1);
+  --hos-border-hairline: var(--hos-line-2);
+  --hos-border-hairline-strong: var(--hos-line-3);
+  --page-accent: var(--hos-color-accent);
+  --page-accent-rgb: var(--hos-color-accent-rgb);
+  --theme-glow-a: rgba(var(--hos-color-accent-rgb), 0.16);
+  --theme-glow-b: rgba(var(--hos-color-accent-rgb), 0.1);
   --hos-shadow-panel: 0 10px 36px rgba(0, 0, 0, 0.38);
   --hos-shadow-card: 0 4px 18px rgba(0, 0, 0, 0.28);
   --hos-shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.34);

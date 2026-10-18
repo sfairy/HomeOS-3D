@@ -20,8 +20,8 @@
   border-radius: var(--hos-radius-card);
   font-size: var(--premium-fs-micro);
   color: #fcd34d;
-  background: rgba(251, 191, 36, 0.08);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.22);
+  background: rgba(var(--hos-color-warning-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.22);
   line-height: 1.45;
 }
 
@@ -30,7 +30,7 @@
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: 6px;
-  background: rgba(251, 191, 36, 0.15);
+  background: rgba(var(--hos-color-warning-rgb), 0.15);
   font-weight: 700;
 }
 
@@ -81,15 +81,15 @@
 
 .account-list-editor__primary:hover {
   color: rgba(253, 224, 71, 0.85);
-  background: rgba(251, 191, 36, 0.08);
+  background: rgba(var(--hos-color-warning-rgb), 0.08);
   transform: scale(1.04);
 }
 
 .account-list-editor__primary--active {
   color: #fcd34d;
-  background: rgba(251, 191, 36, 0.14);
-  border-color: rgba(251, 191, 36, 0.32);
-  box-shadow: 0 4px 14px rgba(251, 191, 36, 0.12);
+  background: rgba(var(--hos-color-warning-rgb), 0.14);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.32);
+  box-shadow: 0 4px 14px rgba(var(--hos-color-warning-rgb), 0.12);
 }
 
 .account-list-editor__number {
@@ -121,8 +121,8 @@
 }
 
 .account-list-editor__remove:hover:not(:disabled) {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--hos-color-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
 }
 
 .account-list-editor__remove:disabled {

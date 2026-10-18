@@ -116,7 +116,7 @@ const LICENSE_STATUS_MESSAGES: Record<string, string> = {
   ACCESS_EXPIRED: '授权已到期，请到商店续费；续费成功后会自动恢复，无需重新激活。',
   STARTUP_VALIDATION_REQUIRED: '服务已启动，正在后台验证授权。本地有效授权可继续使用。',
   CONNECTION_WARNING: '暂时无法完成授权联网验证，后台会自动重试；仅在本地租约有效期内继续使用。',
-  ACTIVE: '授权有效，正在打开页面…',
+  ACTIVE: '授权有效，本机功能可正常使用。',
 }
 
 /**

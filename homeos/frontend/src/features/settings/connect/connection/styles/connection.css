@@ -20,8 +20,8 @@
 }
 
 .el-record-filter__toggle--on {
-  border-color: rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.07);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.35);
+  background: rgba(var(--hos-color-accent-rgb), 0.07);
 }
 
 
@@ -58,9 +58,9 @@
 }
 
 .el-record-filter__icon--on {
-  color: #7dd3fc;
-  background: rgba(56, 189, 248, 0.14);
-  border-color: rgba(56, 189, 248, 0.28);
+  color: var(--hos-color-info-text);
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 .el-record-filter__icon--off {
@@ -109,8 +109,8 @@
   gap: 2px 4px;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.22);
-  background: rgba(56, 189, 248, 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
   font-size: var(--premium-fs-micro);
   font-weight: 600;
   color: #bae6fd;
@@ -155,20 +155,20 @@
 }
 
 .el-record-filter__mode-seg:hover {
-  border-color: rgba(56, 189, 248, 0.28);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
   background: rgba(255, 255, 255, 0.03);
 }
 
 .el-record-filter__mode-seg--active {
-  border-color: rgba(56, 189, 248, 0.42);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.42);
   background: rgba(14, 165, 233, 0.12);
-  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(56, 189, 248, 0.22);
+  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .el-record-filter__mode-seg-icon {
   width: 16px;
   height: 16px;
-  color: rgba(125, 211, 252, 0.85);
+  color: rgba(var(--hos-color-info-rgb), 0.85);
 }
 
 .el-record-filter__mode-seg-title {
@@ -194,8 +194,8 @@
 }
 
 .el-record-filter__card--entity {
-  border-color: rgba(251, 113, 133, 0.16);
-  background: rgba(251, 113, 133, 0.04);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.16);
+  background: rgba(var(--hos-color-danger-rgb), 0.04);
 }
 
 .el-record-filter__card-head {
@@ -228,14 +228,14 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   color: #bae6fd;
-  background: rgba(56, 189, 248, 0.14);
-  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 .el-record-filter__card--entity .el-record-filter__badge {
   color: #fda4af;
-  background: rgba(251, 113, 133, 0.12);
-  border-color: rgba(251, 113, 133, 0.28);
+  background: rgba(var(--hos-color-danger-rgb), 0.12);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.28);
 }
 
 .el-record-filter__entity-head {
@@ -254,8 +254,8 @@
   height: 32px;
   border-radius: var(--hos-radius-card);
   color: #fda4af;
-  background: rgba(251, 113, 133, 0.12);
-  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.22);
+  background: rgba(var(--hos-color-danger-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.22);
 }
 
 .el-record-filter__toolbar {
@@ -287,14 +287,14 @@
 }
 
 .el-record-filter__tool-btn--accent {
-  border-color: rgba(56, 189, 248, 0.28);
-  background: rgba(56, 189, 248, 0.08);
-  color: #7dd3fc;
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
+  color: var(--hos-color-info-text);
 }
 
 .el-record-filter__tool-btn--accent:hover {
-  border-color: rgba(56, 189, 248, 0.42);
-  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.42);
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
   color: #bae6fd;
 }
 
@@ -331,8 +331,8 @@
 }
 
 .el-record-filter__domain-chip--active {
-  border-color: rgba(56, 189, 248, 0.4);
-  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.4);
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
   color: #bae6fd;
 }
 
@@ -368,8 +368,8 @@
   margin-top: 8px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.16);
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.07) 0%, rgba(0, 0, 0, 0.12) 100%);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.16);
+  background: linear-gradient(180deg, rgba(var(--hos-color-accent-rgb), 0.07) 0%, rgba(0, 0, 0, 0.12) 100%);
 }
 
 .el-record-filter__footer--disabled {
@@ -388,8 +388,8 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   color: #f0f9ff;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.82) 0%, rgba(56, 189, 248, 0.62) 100%);
-  border: var(--hos-hairline) solid rgba(125, 211, 252, 0.45);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.82) 0%, rgba(var(--hos-color-accent-rgb), 0.62) 100%);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-info-rgb), 0.45);
   box-shadow:
     0 4px 14px rgba(14, 165, 233, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -438,8 +438,8 @@
 }
 
 .el-record-filter__feedback--ok { color: #6ee7b7; }
-.el-record-filter__feedback--err { color: #fca5a5; }
-.el-record-filter__feedback--warn { color: #fde68a; }
+.el-record-filter__feedback--err { color: var(--hos-color-danger-text); }
+.el-record-filter__feedback--warn { color: var(--hos-color-warning-text); }
 
 @media (max-width: 639px) {
   .el-record-filter__mode-segments {
@@ -605,18 +605,18 @@
 
 .settings-conn-role-badge--leader {
   color: var(--set-success);
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.28);
 }
 
 .settings-conn-role-badge--leader .settings-conn-role-badge__dot {
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+  box-shadow: 0 0 8px rgba(var(--hos-color-success-rgb), 0.7);
 }
 
 .settings-conn-role-badge--follower {
   color: var(--set-warn);
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(var(--hos-color-warning-rgb), 0.1);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.28);
 }
 
 .settings-conn-role-badge--standalone {

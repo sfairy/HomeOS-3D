@@ -27,14 +27,14 @@
 
 /** 头部图标容器：蓝色发光圆角 */
 .wf-header-icon {
-  background: rgba(10, 132, 255, 0.12);
-  border: var(--hos-hairline) solid rgba(10, 132, 255, 0.15);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.15);
   border-radius: var(--hos-radius-card);
   padding: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(var(--hos-color-accent-rgb), 0.15);
 }
 
 /** 标题文字 */
@@ -155,7 +155,7 @@
 
 /** 最低温度：天蓝色 */
 .wf-low {
-  color: #64d2ff;
+  color: var(--hos-color-info);
   font-size: var(--premium-fs-caption);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -164,7 +164,7 @@
 /* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
 
 .wf-ic-blue {
-  color: var(--premium-accent-blue, #0a84ff);
+  color: var(--premium-accent-blue, var(--hos-color-accent));
 }
 
 .wf-c-lbl {
@@ -180,29 +180,29 @@
   color: #ffffff;
 }
 .wf-c-success {
-  color: var(--set-success, #6ee7b7);
+  color: var(--set-success, var(--hos-color-success-text));
 }
 .wf-c-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 .wf-c-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 .wf-c-warn-deep {
-  color: var(--premium-accent-amber, #ff9500);
+  color: var(--premium-accent-amber, var(--hos-color-warning));
 }
 .wf-c-info {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 .wf-c-blue {
-  color: var(--premium-accent-blue, #0a84ff);
+  color: var(--premium-accent-blue, var(--hos-color-accent));
 }
 .wf-c-blue-soft {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 .wf-c-violet {
-  color: var(--premium-accent-violet, #c084fc);
+  color: var(--premium-accent-violet, var(--hos-color-accent));
 }
 .wf-c-cyan {
-  color: var(--premium-accent-cyan, #22d3ee);
+  color: var(--premium-accent-cyan, var(--hos-color-info));
 }

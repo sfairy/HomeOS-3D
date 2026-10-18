@@ -33,9 +33,9 @@
 }
 
 .home-mode-switcher__item--active {
-  background: rgba(52, 211, 153, 0.12);
+  background: rgba(var(--hos-color-success-rgb), 0.12);
   color: #6ee7b7;
-  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.22);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.22);
 }
 
 .home-mode-switcher__item-label {
@@ -50,7 +50,7 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #34d399;
+  color: var(--hos-color-success);
 }
 
 .home-mode-switcher__section-label {
@@ -70,7 +70,7 @@
   font-size: var(--premium-fs-micro);
   font-weight: 600;
   text-align: center;
-  color: rgba(129, 140, 248, 0.85);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.85);
   text-decoration: none;
   transition: color 0.15s;
 }

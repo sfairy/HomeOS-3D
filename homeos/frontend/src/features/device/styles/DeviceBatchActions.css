@@ -1,5 +1,5 @@
 .dba-icon-info {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 
 .device-batch__empty-hint {
@@ -28,7 +28,7 @@
   background:
     radial-gradient(
       ellipse 80% 50% at 0% 0%,
-      color-mix(in srgb, var(--page-accent, #38bdf8) 10%, rgba(0, 0, 0, 0)) 0%,
+      color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 10%, rgba(0, 0, 0, 0)) 0%,
       transparent 55%
     ),
     rgba(12, 14, 24, 0.96);

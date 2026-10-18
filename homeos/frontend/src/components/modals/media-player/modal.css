@@ -66,7 +66,7 @@
   transform: scale(1.02);
   box-shadow:
     0 28px 72px rgba(0, 0, 0, 0.6),
-    0 0 48px rgba(10, 132, 255, 0.12),
+    0 0 48px rgba(var(--hos-color-accent-rgb), 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -179,8 +179,8 @@
 }
 
 .media-modal__status-dot--paused {
-  background: #fbbf24;
-  box-shadow: 0 0 6px rgba(251, 191, 36, 0.45);
+  background: var(--hos-color-warning);
+  box-shadow: 0 0 6px rgba(var(--hos-color-warning-rgb), 0.45);
 }
 
 .media-modal__status-dot--off {
@@ -188,8 +188,8 @@
 }
 
 .media-modal__status-dot--idle {
-  background: #60a5fa;
-  box-shadow: 0 0 6px rgba(96, 165, 250, 0.4);
+  background: var(--hos-color-info);
+  box-shadow: 0 0 6px rgba(var(--hos-color-info-rgb), 0.4);
 }
 
 @keyframes media-pulse {
@@ -310,7 +310,7 @@
 }
 
 .media-modal__menu-item--on {
-  color: var(--accent, #0a84ff);
+  color: var(--accent, var(--hos-color-accent));
 }
 
 .media-modal__menu-section {
@@ -348,9 +348,9 @@
 }
 
 .media-modal__menu-chip--active {
-  background: rgba(10, 132, 255, 0.18);
-  border-color: rgba(10, 132, 255, 0.3);
-  color: var(--accent, #0a84ff);
+  background: rgba(var(--hos-color-accent-rgb), 0.18);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.3);
+  color: var(--accent, var(--hos-color-accent));
 }
 
 .media-modal__menu-tts {
@@ -378,7 +378,7 @@
 }
 
 .media-modal__tts-input:focus {
-  border-color: rgba(10, 132, 255, 0.4);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.4);
 }
 
 .media-modal__tts-btn {
@@ -389,15 +389,15 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid rgba(10, 132, 255, 0.2);
-  background: rgba(10, 132, 255, 0.15);
-  color: var(--accent, #0a84ff);
+  border: 1px solid rgba(var(--hos-color-accent-rgb), 0.2);
+  background: rgba(var(--hos-color-accent-rgb), 0.15);
+  color: var(--accent, var(--hos-color-accent));
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .media-modal__tts-btn:hover:not(:disabled) {
-  background: rgba(10, 132, 255, 0.3);
+  background: rgba(var(--hos-color-accent-rgb), 0.3);
 }
 
 .media-modal__tts-btn:disabled {
@@ -502,7 +502,7 @@
 }
 
 .media-modal__aux--on {
-  color: var(--accent, #0a84ff);
+  color: var(--accent, var(--hos-color-accent));
 }
 
 .media-modal__nav {

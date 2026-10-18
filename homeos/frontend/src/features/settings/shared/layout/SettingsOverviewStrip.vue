@@ -221,7 +221,7 @@ onMounted(() => {
 }
 
 .settings-overview-tile.is-sky {
-  border-left-color: var(--set-info, #38bdf8);
+  border-left-color: var(--set-info, var(--hos-color-info-text));
   background: linear-gradient(165deg, rgba(56, 189, 248, 0.12) 0%, rgba(0, 0, 0, 0.22) 100%);
 }
 
@@ -253,7 +253,7 @@ onMounted(() => {
 }
 
 .settings-overview-tile.is-sky .settings-overview-tile__val {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 
 .settings-overview-tile__copy {
@@ -277,7 +277,7 @@ onMounted(() => {
 .settings-overview-tile__cta {
   font-size: var(--premium-fs-micro, 12px);
   font-weight: 700;
-  color: #7dd3fc;
+  color: var(--hos-color-info-text);
   opacity: 0.9;
 }
 

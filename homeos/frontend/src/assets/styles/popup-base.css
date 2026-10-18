@@ -7,7 +7,7 @@
    使用方式（在 Vue SFC 的 <style scoped> 块顶部）：
      @import '@/assets/styles/popup-base.css';
      .popup-shell {
-       --accent: #0A84FF;
+       --accent: var(--hos-color-accent);
        --accent-rgb: 10, 132, 255;
      }
    ========================================================================== */
@@ -24,7 +24,7 @@
 }
 
 .popup-shell {
-  --accent: #fbbf24;
+  --accent: var(--hos-color-warning);
   --accent-rgb: 251, 191, 36;
 
   /* 玻璃壳配方参数（配方本体见 hos-glass-shell.css） */

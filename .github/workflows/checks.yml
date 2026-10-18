@@ -267,7 +267,7 @@ jobs:
           bun install --frozen-lockfile
           bun run test:frontend
 
-  # 迁移内核 + 两个后端启动期建库/迁移/自检的单元与集成测试。
+  # 两个后端启动期建库 / 迁移 / 自检的单元与集成测试。
   # 这些测试只依赖运行期依赖（SQLAlchemy 等），不启动 FastAPI，也不连网络。
   python-tests:
     runs-on: ubuntu-24.04
@@ -280,9 +280,6 @@ jobs:
 
       - name: Install test dependencies
         run: pip install -r homeos/backend/requirements.txt -r homeos-store/backend/requirements.txt
-
-      - name: Migration kernel tests
-        run: PYTHONPATH=packages/shared-py python -m unittest discover -s packages/shared-py/tests -v
 
       - name: HomeOS schema bootstrap tests
         run: PYTHONPATH=homeos/backend:packages/shared-py python -m unittest discover -s homeos/backend/tests -v

@@ -397,7 +397,7 @@ async function renderRadarChart() {
     ...deviceChartBase(),
     legend: {
       data: ['本设备', '域平均'],
-      textStyle: { color: DEVICE_CHART_COLORS.axis, fontSize: 10 },
+      textStyle: { color: DEVICE_CHART_COLORS.axis, fontSize: 11 },
       bottom: 0,
     },
     radar: {
@@ -408,7 +408,7 @@ async function renderRadarChart() {
         { name: '运行时长(分)', max: maxRuntime * 1.2 },
         { name: '事件数', max: maxEvents * 1.2 },
       ],
-      axisName: { color: DEVICE_CHART_COLORS.axisName, fontSize: 10 },
+      axisName: { color: DEVICE_CHART_COLORS.axisName, fontSize: 11 },
       splitLine: { lineStyle: { color: DEVICE_CHART_COLORS.grid } },
       splitArea: { areaStyle: { color: ['rgba(255,255,255,0.02)', 'rgba(255,255,255,0.04)'] } },
     },
@@ -419,7 +419,7 @@ async function renderRadarChart() {
           {
             value: [deviceOn, deviceRuntime, deviceEvents],
             name: '本设备',
-            areaStyle: { color: 'rgba(56,189,248,0.2)' },
+            areaStyle: { color: `${DEVICE_CHART_COLORS.accent}33` },
             lineStyle: { color: DEVICE_CHART_COLORS.accent },
           },
           {
@@ -429,7 +429,7 @@ async function renderRadarChart() {
               domainMedian.value.events,
             ],
             name: '域平均',
-            areaStyle: { color: 'rgba(167,139,250,0.15)' },
+            areaStyle: { color: `${DEVICE_CHART_COLORS.purple}26` },
             lineStyle: { color: DEVICE_CHART_COLORS.purple },
           },
         ],

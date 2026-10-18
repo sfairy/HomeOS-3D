@@ -32,7 +32,7 @@
 
 .lp-metrics__item:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--page-accent, #0a84ff) 24%, #1a1d28);
+  border-color: color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 24%, #1a1d28);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
 }
 
@@ -59,14 +59,14 @@
   line-height: 1.2;
 }
 
-.lp-metrics__item--sky .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #7dd3fc; }
-.lp-metrics__item--green .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #6ee7b7; }
-.lp-metrics__item--red .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fca5a5; }
-.lp-metrics__item--amber .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fde68a; }
-.lp-metrics__item--orange .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fdba74; }
-.lp-metrics__item--pink .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #f9a8d4; }
-.lp-metrics__item--emerald .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #6ee7b7; }
-.lp-metrics__item--violet .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #c4b5fd; }
+.lp-metrics__item--sky .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-info-text); }
+.lp-metrics__item--green .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-success-text); }
+.lp-metrics__item--red .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-danger-text); }
+.lp-metrics__item--amber .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-warning-text); }
+.lp-metrics__item--orange .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-warning-text); }
+.lp-metrics__item--pink .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-danger-text); }
+.lp-metrics__item--emerald .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-success-text); }
+.lp-metrics__item--violet .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-accent); }
 .lp-metrics__item--muted .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-text-secondary); }
 
 /* ── 页面主题色（仅 Tab / 主按钮 / 链接） ──
@@ -81,19 +81,15 @@
 .device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
 .security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
 .mode-logs-view {
-  --page-accent: var(--module-accent-home-mode, #fbbf24);
-  --page-accent-secondary: var(--module-accent-home-mode-sub, #fb7185);
-  --page-accent-rgb: var(--module-accent-home-mode-rgb, 251, 191, 36);
+  --page-accent: var(--module-accent-home-mode, var(--hos-color-accent));
+  --page-accent-secondary: var(--module-accent-home-mode-sub, var(--hos-color-accent-strong));
+  --page-accent-rgb: var(--module-accent-home-mode-rgb, var(--hos-color-accent-rgb));
 }
-.notifications-view {
-  --page-accent: #f472b6;
-  --page-accent-secondary: #fb7185;
-  --page-accent-rgb: 244, 114, 182;
-}
+.notifications-view,
 .earthquake-history-view {
-  --page-accent: #fbbf24;
-  --page-accent-secondary: #fb923c;
-  --page-accent-rgb: 251, 191, 36;
+  --page-accent: var(--hos-color-accent);
+  --page-accent-secondary: var(--hos-color-accent-strong);
+  --page-accent-rgb: var(--hos-color-accent-rgb);
 }
 
 .list-page[class*='-view'] .list-page__tab--on {
@@ -169,7 +165,7 @@
   color: color-mix(in srgb, var(--page-accent) 45%, white);
 }
 .rooms-view__chev--open { transform: rotate(90deg); opacity: 0.85; }
-.rooms-view__dot--on { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.45); }
+.rooms-view__dot--on { background: var(--hos-color-success); box-shadow: 0 0 8px rgba(var(--hos-color-success-rgb), 0.45); }
 .list-page__form-title { margin: 0 0 10px; font-size: var(--premium-fs-caption); font-weight: 600; }
 
 /* ── 设备 ── */

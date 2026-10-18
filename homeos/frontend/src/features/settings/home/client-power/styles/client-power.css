@@ -29,7 +29,7 @@
 }
 
 .charge-control-head__icon {
-  color: var(--page-accent, var(--set-success, #34d399));
+  color: var(--page-accent, var(--set-success, var(--hos-color-success)));
 }
 
 .charge-control-head__orb {
@@ -225,7 +225,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--page-accent-secondary, #fbbf24);
+  background: var(--page-accent-secondary, var(--hos-color-accent));
   box-shadow: 0 0 10px rgba(var(--page-accent-secondary-rgb), 0.75);
   animation: setPulse 2s ease-in-out infinite;
 }
@@ -235,12 +235,12 @@
 }
 
 .charge-section-kicker--emerald .charge-section-kicker__dot {
-  background: var(--page-accent, #34d399);
+  background: var(--page-accent, var(--hos-color-success));
   box-shadow: 0 0 10px rgba(var(--page-accent-rgb), 0.65);
 }
 
 .charge-section-kicker--wake-hint {
-  color: #fcd34d;
+  color: var(--hos-color-warning-text);
 }
 
 .charge-device-list--pending {
@@ -260,9 +260,9 @@
   border-color: var(--set-info-border);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 36px rgba(56, 189, 248, 0.06);
+    0 10px 36px rgba(var(--hos-color-accent-rgb), 0.06);
   background:
-    linear-gradient(160deg, rgba(56, 189, 248, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+    linear-gradient(160deg, rgba(var(--hos-color-accent-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card--kind-desktop.charge-device-card--pending {
@@ -325,15 +325,15 @@
   flex-shrink: 0;
   border-radius: var(--hos-radius-card);
   color: var(--set-danger);
-  background: rgba(251, 113, 133, 0.08);
+  background: rgba(var(--hos-color-danger-rgb), 0.08);
   border: var(--hos-hairline) solid var(--set-danger-border);
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
 .charge-pending-clear-btn:hover {
   color: #fecdd3;
-  background: rgba(251, 113, 133, 0.16);
-  border-color: rgba(251, 113, 133, 0.4);
+  background: rgba(var(--hos-color-danger-rgb), 0.16);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.4);
 }
 
 .charge-metric-pill {
@@ -519,19 +519,19 @@
 }
 
 .charge-device-card__avatar--tablet {
-  color: #fde68a;
+  color: var(--hos-color-warning-text);
   background: linear-gradient(145deg, rgba(var(--page-accent-secondary-rgb), 0.18) 0%, rgba(var(--page-accent-secondary-rgb), 0.05) 100%);
   border-color: rgba(var(--page-accent-secondary-rgb), 0.28);
 }
 
 .charge-device-card__avatar--phone {
   color: var(--set-info);
-  background: linear-gradient(145deg, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0.05) 100%);
-  border-color: rgba(56, 189, 248, 0.26);
+  background: linear-gradient(145deg, rgba(var(--hos-color-accent-rgb), 0.16) 0%, rgba(var(--hos-color-accent-rgb), 0.05) 100%);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.26);
 }
 
 .charge-device-card__avatar--desktop {
-  color: var(--page-accent, #7eb8ff);
+  color: var(--page-accent, var(--hos-color-accent));
   background: linear-gradient(145deg, rgba(var(--module-accent-automation-sub-rgb), 0.16) 0%, rgba(var(--module-accent-automation-sub-rgb), 0.05) 100%);
   border-color: rgba(var(--module-accent-automation-sub-rgb), 0.26);
 }
@@ -587,11 +587,11 @@
   letter-spacing: 0.04em;
   background: linear-gradient(
     90deg,
-    #22d3ee 0%,
-    #34d399 35%,
+    var(--hos-color-info) 0%,
+    var(--hos-color-success) 35%,
     #a3e635 55%,
-    #2dd4bf 75%,
-    #38bdf8 100%
+    var(--hos-color-info) 75%,
+    var(--hos-color-accent) 100%
   );
   background-size: 220% 100%;
   -webkit-background-clip: text;
@@ -614,7 +614,7 @@
 }
 
 .charge-online-dot--on {
-  background: #34d399;
+  background: var(--hos-color-success);
   box-shadow: 0 0 8px rgba(var(--page-accent-rgb), 0.6);
 }
 
@@ -632,9 +632,9 @@
   width: 32px;
   height: 32px;
   border-radius: var(--hos-radius-card);
-  color: #fb7185;
-  background: rgba(251, 113, 133, 0.08);
-  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.2);
+  color: var(--hos-color-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
 }
 
 /* ── client-power-battery.css ── */
@@ -644,7 +644,7 @@
 
 .charge-battery--charging .charge-battery__track {
   border-color: var(--set-info-border);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 20px rgba(56, 189, 248, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 20px rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 .charge-battery__track {
@@ -721,12 +721,12 @@
 }
 
 .charge-battery__marker--low {
-  background: #fbbf24;
+  background: var(--hos-color-accent);
   box-shadow: 0 0 6px rgba(var(--page-accent-secondary-rgb), 0.5);
 }
 
 .charge-battery__marker--high {
-  background: #34d399;
+  background: var(--hos-color-success);
   box-shadow: 0 0 6px rgba(var(--page-accent-rgb), 0.5);
 }
 
@@ -779,9 +779,9 @@
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #fcd34d;
-  background: rgba(251, 191, 36, 0.12);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
+  color: var(--hos-color-warning-text);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 .charge-field--entity {
@@ -794,8 +794,8 @@
 }
 
 .charge-entity-input--warn .ei-input-row {
-  border-color: rgba(251, 191, 36, 0.42);
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.12);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.42);
+  box-shadow: 0 0 0 1px rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 .charge-device-card__thresholds {
@@ -821,14 +821,14 @@
 }
 
 .charge-threshold-input--invalid {
-  border-color: rgba(251, 191, 36, 0.5);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.5);
 }
 
 .charge-device-card__hint {
   margin: -4px 0 0;
   font-size: 11px;
   font-weight: 600;
-  color: #fcd34d;
+  color: var(--hos-color-warning-text);
   line-height: 1.4;
 }
 
@@ -875,7 +875,7 @@
 }
 
 .charge-option__text small.charge-option__hint {
-  color: #fcd34d;
+  color: var(--hos-color-warning-text);
 }
 
 .charge-device-card__foot {
@@ -935,20 +935,20 @@
 
 /* ── ClientPowerDevicesSection ── */
 .cpd-icon-success {
-  color: var(--set-success, #6ee7b7);
+  color: var(--set-success, var(--hos-color-success-text));
 }
 .cpd-orb-success {
-  background: var(--set-success-bg, rgba(16, 185, 129, 0.12));
-  border: var(--hos-hairline) solid var(--set-success-border, rgba(52, 211, 153, 0.22));
+  background: var(--set-success-bg, rgba(var(--hos-color-success-rgb), 0.12));
+  border: var(--hos-hairline) solid var(--set-success-border, rgba(var(--hos-color-success-rgb), 0.22));
 }
 
 /* ── ClientPowerPendingSection ── */
 .cpp-icon-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 .cpp-orb-warn {
-  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
-  border: var(--hos-hairline) solid var(--set-warn-border, rgba(251, 191, 36, 0.22));
+  background: var(--set-warn-bg, rgba(var(--hos-color-accent-rgb), 0.12));
+  border: var(--hos-hairline) solid var(--set-warn-border, rgba(var(--hos-color-accent-rgb), 0.22));
 }
 
 /* ── ClientPowerHeroSection ── */

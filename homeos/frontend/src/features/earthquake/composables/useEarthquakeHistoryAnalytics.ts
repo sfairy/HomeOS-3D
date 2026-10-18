@@ -166,12 +166,12 @@ export function useEarthquakeHistoryAnalytics(
   })
 
   /** 震级分桶配色（按桶序，从灰到红渐变） */
-  const MAG_COLORS = ['#94a3b8', '#7dd3fc', '#fbbf24', '#fb923c', '#f87171']
+  const MAG_COLORS = ['#a7b4c2', '#59d3c0', '#ffc46a', '#ffb020', '#ff5a5f']
 
   /** 图表 tooltip 共用样式（深色背景 + 暖色文字） */
   const chartTooltip = {
     backgroundColor: 'rgba(12, 12, 18, 0.94)',
-    borderColor: 'rgba(251, 191, 36, 0.32)',
+    borderColor: 'rgba(255, 196, 106, 0.32)',
     borderWidth: 1,
     padding: [8, 12],
     extraCssText:
@@ -368,7 +368,7 @@ export function useEarthquakeHistoryAnalytics(
             data: values,
             barWidth: 10,
             itemStyle: {
-              color: barGradient('#7dd3fc'),
+              color: barGradient('#59d3c0'),
               borderRadius: [0, 6, 6, 0],
               shadowBlur: 6,
               shadowColor: 'rgba(125, 211, 252, 0.2)',
@@ -404,7 +404,7 @@ export function useEarthquakeHistoryAnalytics(
           data: counts,
           barWidth: '52%',
           itemStyle: {
-            color: barGradient('#7dd3fc'),
+            color: barGradient('#59d3c0'),
             borderRadius: [6, 6, 0, 0],
             shadowBlur: 6,
             shadowColor: 'rgba(125, 211, 252, 0.2)',

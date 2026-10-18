@@ -120,7 +120,7 @@
 }
 
 .agent-save-tip--err {
-  color: var(--set-danger, #ef4444);
+  color: var(--set-danger, var(--hos-color-danger));
 }
 
 /* ── Workspace 壳（模型 / 通道共用零 padding 卡片） ── */
@@ -155,28 +155,28 @@
   margin: 6px var(--agent-inset-x) 0;
   font-size: 0.75rem;
   line-height: 1.4;
-  color: rgba(251, 191, 36, 0.85);
+  color: rgba(var(--hos-color-accent-rgb), 0.85);
 }
 
 .agent-stat--emerald {
-  background: linear-gradient(165deg, rgba(52, 211, 153, 0.12) 0%, rgba(0, 0, 0, 0.28) 100%);
+  background: linear-gradient(165deg, rgba(var(--hos-color-success-rgb), 0.12) 0%, rgba(0, 0, 0, 0.28) 100%);
   border-color: var(--set-success-border);
   border-left-width: 3px;
-  border-left-color: var(--set-success, #34d399);
+  border-left-color: var(--set-success, var(--hos-color-success));
 }
 
 .agent-stat--amber {
   background: linear-gradient(165deg, var(--set-warn-bg) 0%, rgba(0, 0, 0, 0.28) 100%);
   border-color: var(--set-warn-border);
   border-left-width: 3px;
-  border-left-color: var(--set-warn, #fbbf24);
+  border-left-color: var(--set-warn, var(--hos-color-accent));
 }
 
 .agent-stat--sky {
-  background: linear-gradient(165deg, rgba(56, 189, 248, 0.1) 0%, rgba(0, 0, 0, 0.28) 100%);
-  border-color: rgba(56, 189, 248, 0.22);
+  background: linear-gradient(165deg, rgba(var(--hos-color-accent-rgb), 0.1) 0%, rgba(0, 0, 0, 0.28) 100%);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
   border-left-width: 3px;
-  border-left-color: var(--set-info, #38bdf8);
+  border-left-color: var(--set-info, var(--hos-color-accent));
 }
 
 .agent-stat-val--emerald,
@@ -288,7 +288,7 @@
 
 .agent-channel-flow-band__shell {
   --flow-glow-a: rgba(var(--page-accent-rgb), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
+  --flow-glow-b: rgba(var(--hos-color-success-rgb), var(--flow-glow-alpha-b));
 }
 
 .agent-channel-stat {
@@ -347,7 +347,7 @@
 }
 
 .agent-channel-master-switch:has(input:checked) {
-  color: var(--page-accent, #34d399);
+  color: var(--page-accent, var(--hos-color-success));
   border-color: rgba(var(--page-accent-rgb), 0.35);
   background: rgba(var(--page-accent-rgb), 0.12);
 }
@@ -481,9 +481,9 @@
   width: 36px;
   height: 36px;
   border-radius: var(--hos-radius-card);
-  color: var(--page-accent-text, #6ee7b7);
-  background: var(--page-accent-bg, rgba(16, 185, 129, 0.12));
-  border: var(--hos-hairline) solid var(--page-accent-border, rgba(16, 185, 129, 0.28));
+  color: var(--page-accent-text, var(--hos-color-success-text));
+  background: var(--page-accent-bg, rgba(var(--hos-color-success-rgb), 0.12));
+  border: var(--hos-hairline) solid var(--page-accent-border, rgba(var(--hos-color-success-rgb), 0.28));
 }
 
 .agent-secret-secure__body {
@@ -510,9 +510,9 @@
   letter-spacing: 0.04em;
   padding: 2px 8px;
   border-radius: var(--hos-radius-pill);
-  color: var(--page-accent-text, #6ee7b7);
-  background: var(--page-accent-bg, rgba(16, 185, 129, 0.14));
-  border: var(--hos-hairline) solid var(--page-accent-border, rgba(16, 185, 129, 0.28));
+  color: var(--page-accent-text, var(--hos-color-success-text));
+  background: var(--page-accent-bg, rgba(var(--hos-color-success-rgb), 0.14));
+  border: var(--hos-hairline) solid var(--page-accent-border, rgba(var(--hos-color-success-rgb), 0.28));
 }
 
 .agent-secret-secure__hint {
@@ -611,14 +611,14 @@
 }
 
 .agent-stat--rose {
-  background: linear-gradient(165deg, rgba(244, 63, 94, 0.12) 0%, rgba(0, 0, 0, 0.28) 100%);
-  border-color: rgba(244, 63, 94, 0.22);
+  background: linear-gradient(165deg, rgba(var(--hos-color-danger-rgb), 0.12) 0%, rgba(0, 0, 0, 0.28) 100%);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.22);
   border-left-width: 3px;
-  border-left-color: #f43f5e;
+  border-left-color: var(--hos-color-danger);
 }
 
 .agent-stat-val--rose {
-  color: #fb7185;
+  color: var(--hos-color-danger);
   font-size: var(--premium-fs-title);
 }
 
@@ -772,26 +772,26 @@
 
 .agent-chat-bubble__pill[data-tone='emerald'] {
   color: var(--set-success);
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.22);
 }
 
 .agent-chat-bubble__pill[data-tone='amber'] {
   color: var(--set-warn);
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .agent-chat-bubble__pill[data-tone='rose'] {
-  color: #fb7185;
-  background: rgba(244, 63, 94, 0.1);
-  border-color: rgba(244, 63, 94, 0.22);
+  color: var(--hos-color-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.22);
 }
 
 .agent-chat-bubble__pill[data-tone='sky'] {
-  color: var(--set-info, #38bdf8);
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.22);
+  color: var(--set-info, var(--hos-color-accent));
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .agent-chat-bubble__body {
@@ -977,7 +977,7 @@
 .agent-chat-voice-err {
   margin: 8px 0 0;
   font-size: 12px;
-  color: #fca5a5;
+  color: var(--hos-color-danger-text);
 }
 
 .agent-chat-composer__send {
@@ -1064,14 +1064,14 @@
   gap: 12px;
   padding: 12px 14px;
   border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
-  background: rgba(251, 191, 36, 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
 }
 .agent-mock-banner__icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: #fbbf24;
+  color: var(--hos-color-accent);
   margin-top: 2px;
 }
 .agent-mock-banner__title {

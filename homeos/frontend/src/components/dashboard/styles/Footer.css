@@ -1,8 +1,8 @@
 /* 从 DashboardFooter.vue 抽出 */
 .power-panel {
   background: rgba(var(--shell-scrim-frame-rgb), 0.82);
-  -webkit-backdrop-filter: blur(80px) saturate(260%);
-  backdrop-filter: blur(80px) saturate(260%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
   border-top: var(--hos-hairline) solid var(--premium-border-strong);
   flex-shrink: 0;
   z-index: 20;
@@ -23,8 +23,8 @@
   height: 80px;
   background: radial-gradient(
     ellipse 80% 100% at 50% 100%,
-    rgba(10, 132, 255, 0.06),
-    rgba(191, 90, 242, 0.04),
+    rgba(var(--hos-color-accent-rgb), 0.1),
+    rgba(var(--hos-color-accent-rgb), 0.04),
     transparent 80%
   );
   pointer-events: none;
@@ -53,9 +53,9 @@
   background: linear-gradient(
     90deg,
     rgba(0, 0, 0, 0),
-    rgba(255, 159, 10, 0.25) 15%,
-    rgba(10, 132, 255, 0.2) 50%,
-    rgba(191, 90, 242, 0.2) 85%,
+    rgba(var(--hos-color-accent-rgb), 0.28) 18%,
+    rgba(var(--hos-color-accent-rgb), 0.16) 50%,
+    rgba(var(--hos-color-accent-rgb), 0.24) 82%,
     rgba(0, 0, 0, 0)
   );
   opacity: 0.6;
@@ -96,7 +96,7 @@
 }
 
 .power-card {
-  --ef-accent: #fbbf24;
+  --ef-accent: var(--hos-color-warning);
   position: relative;
   /* 网格项：宽度由列宽决定，显式 width:100% 避免被内容宽度反向撑开 */
   width: 100%;
@@ -134,6 +134,11 @@
   pointer-events: none;
 }
 
+.power-card:focus-visible {
+  outline: var(--hos-focus-outline);
+  outline-offset: 2px;
+}
+
 .power-card:hover {
   transform: translateY(-2px);
   border-color: var(--hos-border-hairline-strong);
@@ -142,32 +147,24 @@
     rgba(var(--shell-scrim-card-rgb), 0.4);
 }
 
-.power-card--yellow {
-  --ef-accent: #fbbf24;
+.power-card--yellow,
+.power-card--gold,
+.power-card--orange {
+  --ef-accent: var(--hos-color-accent);
 }
 .power-card--purple {
-  --ef-accent: #c084fc;
+  --ef-accent: var(--hos-color-accent-strong);
 }
-.power-card--cyan {
-  --ef-accent: #22d3ee;
+.power-card--cyan,
+.power-card--blue,
+.power-card--teal {
+  --ef-accent: var(--hos-color-info);
 }
 .power-card--green {
-  --ef-accent: #4ade80;
-}
-.power-card--gold {
-  --ef-accent: #f5d76e;
-}
-.power-card--blue {
-  --ef-accent: #60a5fa;
-}
-.power-card--orange {
-  --ef-accent: #fb923c;
+  --ef-accent: var(--hos-color-success);
 }
 .power-card--rose {
-  --ef-accent: #fb7185;
-}
-.power-card--teal {
-  --ef-accent: #2dd4bf;
+  --ef-accent: var(--hos-color-danger);
 }
 
 @media (max-width: 639px), (pointer: coarse), (hover: none) {

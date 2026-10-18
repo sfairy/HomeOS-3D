@@ -19,8 +19,8 @@
 }
 
 .home-mode-switcher__btn--active {
-  border-color: rgba(129, 140, 248, 0.4);
-  background: rgba(129, 140, 248, 0.12);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.4);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.12);
 }
 
 .home-mode-switcher__icon {

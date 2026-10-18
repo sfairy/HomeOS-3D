@@ -210,7 +210,7 @@
 .bind-account-mapping__orb--sky {
   background: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.12);
   border-color: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.22);
-  color: var(--page-accent, var(--module-accent-bindings, #38bdf8));
+  color: var(--page-accent, var(--module-accent-bindings, var(--hos-color-accent)));
 }
 
 .bind-account-mapping__orb-icon {
@@ -286,7 +286,7 @@
   border-radius: var(--hos-radius-card);
   background: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.14);
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.24);
-  color: var(--page-accent, var(--module-accent-bindings, #38bdf8));
+  color: var(--page-accent, var(--module-accent-bindings, var(--hos-color-accent)));
 }
 
 .bind-account-anchor-card__orb-icon {

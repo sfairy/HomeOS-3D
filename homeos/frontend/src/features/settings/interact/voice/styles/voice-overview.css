@@ -87,7 +87,7 @@
 }
 
 .voice-status-metric__v--sky {
-  color: var(--page-accent-secondary, #7dd3fc);
+  color: var(--page-accent-secondary, var(--hos-color-info-text));
 }
 
 .voice-status-metric__v--success {

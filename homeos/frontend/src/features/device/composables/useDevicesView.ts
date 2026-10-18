@@ -236,12 +236,37 @@ export function useDevicesView() {
     useRestList.value ? restTotal.value : memoryItems.value.length,
   )
 
+  // 在线/离线来自全量实体，不随筛选变化，放 hero 才能一眼看到家里是否有设备掉线。
+  const healthStat = computed(() => {
+    let online = 0
+    let offline = 0
+    const devices = entitiesStore.entities
+    for (const key of Object.keys(devices)) {
+      const state = devices[key]?.state
+      if (!state || state === 'unavailable' || state === 'unknown') offline++
+      else online++
+    }
+    return { online, offline }
+  })
+
   const deviceStatCells = computed(() => {
     const cells = [
       {
         key: 'total',
         label: useRestList.value ? '实体总数' : '全部设备',
         value: String(totalCount.value),
+      },
+      {
+        key: 'online',
+        label: '在线',
+        value: String(healthStat.value.online),
+        tone: 'emerald',
+      },
+      {
+        key: 'offline',
+        label: '离线',
+        value: String(healthStat.value.offline),
+        tone: healthStat.value.offline > 0 ? 'red' : 'muted',
       },
       {
         key: 'visible',

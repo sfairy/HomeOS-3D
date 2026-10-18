@@ -1,5 +1,5 @@
 .est-info {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 .est-warn {
   color: var(--set-warn, #fcd34d);

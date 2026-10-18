@@ -52,7 +52,7 @@
 }
 
 .cvr-dot-on {
-  background-color: var(--set-info, #60a5fa);
+  background-color: var(--set-info, var(--hos-color-info));
 }
 .cvr-pos-gradient {
   background-image: linear-gradient(to top, rgba(37, 99, 235, 0.2), transparent);

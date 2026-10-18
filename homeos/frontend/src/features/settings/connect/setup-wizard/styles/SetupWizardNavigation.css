@@ -23,11 +23,11 @@
 }
 
 .sw-nav__hint--ok {
-  color: var(--sw-emerald-text, #a7f3d0);
+  color: var(--sw-emerald-text, var(--hos-color-success-text));
 }
 
 .sw-nav__hint--err {
-  color: var(--sw-amber-text, #fde68a);
+  color: var(--sw-amber-text, var(--hos-color-warning-text));
 }
 
 .sw-nav__prev {

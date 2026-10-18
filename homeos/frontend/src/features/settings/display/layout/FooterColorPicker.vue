@@ -56,15 +56,15 @@ import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
 
 // 颜色 key → 中文标签映射
 const COLOR_LABELS = {
-  blue: '蓝色',
-  cyan: '青色',
-  gold: '金色',
-  green: '绿色',
-  orange: '橙色',
-  purple: '紫色',
-  rose: '玫红',
-  teal: '蓝绿',
-  yellow: '黄色',
+  blue: '天青',
+  cyan: '青绿',
+  gold: '深铜',
+  green: '成功绿',
+  orange: '暖砂',
+  purple: '浅铜',
+  rose: '告警红',
+  teal: '薄荷',
+  yellow: '主控铜',
 }
 
 const props = defineProps({

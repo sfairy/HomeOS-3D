@@ -70,6 +70,9 @@ services:
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
+      # 备份包落到**本文件同目录**的 ./backups，宿主机直接可见（拷贝 / 归档 / 换机迁移
+      # 都不必再 docker cp）。容器内路径仍是 /data/backups，与镜像默认一致。
+      - ./backups:/data/backups
       # 授权实例指纹来源，必须先建好符号链接（见文件头）。
       - /host/etc/machine-id:/host/etc/machine-id:ro
       - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
@@ -82,5 +85,5 @@ services:
       start_period: 60s
 
 volumes:
-  homeos-data:      # 数据（含 backups 与公钥缓存）
+  homeos-data:      # 数据（公钥缓存等；备份包走 ./backups 的 bind mount）
   homeos-secrets:   # 签名密钥

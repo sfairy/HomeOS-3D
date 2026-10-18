@@ -11,7 +11,7 @@
   background: rgb(245 158 11 / 0.1);
   border-bottom: 1px solid rgb(245 158 11 / 0.22);
   font-size: var(--premium-fs-micro);
-  color: #fde68a;
+  color: var(--hos-color-warning-text);
 }
 .cold-entity-perf-bar__text {
   flex: 1;
@@ -48,7 +48,7 @@
   background: rgb(16 185 129 / 0.1);
   border-bottom: 1px solid rgb(16 185 129 / 0.22);
   font-size: var(--premium-fs-micro);
-  color: #a7f3d0;
+  color: var(--hos-color-success-text);
 }
 .setup-checklist-bar__text {
   flex: 1;

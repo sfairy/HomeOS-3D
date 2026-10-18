@@ -7,7 +7,7 @@
   margin-top: 6px;
   font-size: var(--premium-fs-caption);
   font-weight: 600;
-  color: #fbbf24;
+  color: var(--hos-color-warning);
   text-decoration: none;
 }
 
@@ -673,7 +673,7 @@
   transition: all 0.15s;
 }
 .home-mode-panel .hm-chip-btn:hover { background: var(--premium-glass-bg-hover); color: #fff; }
-.home-mode-panel .hm-chip-btn--blue { color: var(--module-accent-home-mode-sub, #fb7185); border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.2); background: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.08); }
+.home-mode-panel .hm-chip-btn--blue { color: var(--module-accent-home-mode-sub, var(--hos-color-danger)); border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.2); background: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.08); }
 .home-mode-panel .hm-chip-btn--green { color: var(--set-success); border-color: rgba(var(--set-success-rgb), 0.2); background: rgba(var(--set-success-rgb), 0.08); }
 .home-mode-panel .hm-chip-btn--sky { color: var(--set-info); border-color: rgba(var(--set-info-rgb), 0.2); background: rgba(var(--set-info-rgb), 0.08); }
 
@@ -681,7 +681,7 @@
 .home-mode-panel .hm-link {
   font-size: var(--premium-fs-caption);
   font-weight: 600;
-  color: var(--module-accent-home-mode-sub, #fb7185);
+  color: var(--module-accent-home-mode-sub, var(--hos-color-danger));
   white-space: nowrap;
 }
 .home-mode-panel .hm-link:hover { color: var(--set-info); text-decoration: underline; }
@@ -814,31 +814,31 @@
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
 }
 .home-mode-panel .hm-toolbar-btn--success {
-  color: rgba(52, 211, 153, 0.9);
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.25);
-  box-shadow: 0 1px 4px rgba(52, 211, 153, 0.1);
+  color: rgba(var(--hos-color-success-rgb), 0.9);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.25);
+  box-shadow: 0 1px 4px rgba(var(--hos-color-success-rgb), 0.1);
 }
 .home-mode-panel .hm-toolbar-btn--success:hover:not(:disabled) {
-  background: rgba(52, 211, 153, 0.15);
-  border-color: rgba(52, 211, 153, 0.4);
-  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.2);
+  background: rgba(var(--hos-color-success-rgb), 0.15);
+  border-color: rgba(var(--hos-color-success-rgb), 0.4);
+  box-shadow: 0 2px 8px rgba(var(--hos-color-success-rgb), 0.2);
 }
 .home-mode-panel .hm-toolbar-btn--danger {
-  color: rgba(251, 113, 133, 0.9);
-  background: rgba(251, 113, 133, 0.1);
-  border-color: rgba(251, 113, 133, 0.25);
-  box-shadow: 0 1px 4px rgba(251, 113, 133, 0.1);
+  color: rgba(var(--hos-color-danger-rgb), 0.9);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.25);
+  box-shadow: 0 1px 4px rgba(var(--hos-color-danger-rgb), 0.1);
 }
 .home-mode-panel .hm-toolbar-btn--danger:hover:not(:disabled) {
-  background: rgba(251, 113, 133, 0.15);
-  border-color: rgba(251, 113, 133, 0.4);
-  box-shadow: 0 2px 8px rgba(251, 113, 133, 0.2);
+  background: rgba(var(--hos-color-danger-rgb), 0.15);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.4);
+  box-shadow: 0 2px 8px rgba(var(--hos-color-danger-rgb), 0.2);
 }
 .home-mode-panel .hm-delete-mode-btn {
-  color: rgba(251, 113, 133, 0.5);
+  color: rgba(var(--hos-color-danger-rgb), 0.5);
   background: transparent;
-  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.2);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -846,9 +846,9 @@
   letter-spacing: 0.05em;
 }
 .home-mode-panel .hm-delete-mode-btn:hover {
-  color: rgba(251, 113, 133, 0.9);
-  background: rgba(251, 113, 133, 0.1);
-  border-color: rgba(251, 113, 133, 0.4);
+  color: rgba(var(--hos-color-danger-rgb), 0.9);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.4);
 }
 
 .home-mode-panel .hm-action-row {
@@ -987,7 +987,7 @@
   border-radius: 8px;
   font-size: var(--premium-fs-micro);
   font-weight: 800;
-  color: var(--module-accent-home-mode-sub, #fb7185);
+  color: var(--module-accent-home-mode-sub, var(--hos-color-danger));
   background: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.12);
   border: var(--hos-hairline) solid rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.22);
 }
@@ -1172,7 +1172,7 @@
 .home-mode-panel .hm-premium-empty--sky .hm-premium-empty__icon {
   width: 32px;
   height: 32px;
-  color: var(--module-accent-home-mode-sub, #fb7185);
+  color: var(--module-accent-home-mode-sub, var(--hos-color-danger));
 }
 .home-mode-panel .hm-premium-empty--indigo .hm-premium-empty__icon {
   color: var(--page-accent-text);
@@ -1211,7 +1211,7 @@
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 .home-mode-panel .hm-premium-empty--sky .hm-premium-empty__btn {
-  color: var(--module-accent-home-mode-sub, #fb7185);
+  color: var(--module-accent-home-mode-sub, var(--hos-color-danger));
   background: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.1);
   border-color: rgba(var(--module-accent-home-mode-sub-rgb, 251, 113, 133), 0.22);
 }
@@ -2039,7 +2039,7 @@
 }
 
 .hm-logs-head__icon--sky {
-  color: rgba(56, 189, 248, 0.85);
+  color: rgba(var(--hos-color-accent-rgb), 0.85);
 }
 
 .hm-logs-head__eyebrow {
@@ -2099,18 +2099,18 @@
 }
 
 .hm-log-card--trigger {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.04) 0%, rgba(0, 0, 0, 0.16) 100%);
-  border-color: rgba(56, 189, 248, 0.12);
+  background: linear-gradient(135deg, rgba(var(--hos-color-accent-rgb), 0.04) 0%, rgba(0, 0, 0, 0.16) 100%);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 .hm-log-card--ok {
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.05) 0%, rgba(0, 0, 0, 0.16) 100%);
-  border-color: rgba(52, 211, 153, 0.14);
+  background: linear-gradient(135deg, rgba(var(--hos-color-success-rgb), 0.05) 0%, rgba(0, 0, 0, 0.16) 100%);
+  border-color: rgba(var(--hos-color-success-rgb), 0.14);
 }
 
 .hm-log-card--fail {
-  background: linear-gradient(135deg, rgba(251, 113, 133, 0.06) 0%, rgba(0, 0, 0, 0.16) 100%);
-  border-color: rgba(251, 113, 133, 0.16);
+  background: linear-gradient(135deg, rgba(var(--hos-color-danger-rgb), 0.06) 0%, rgba(0, 0, 0, 0.16) 100%);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.16);
 }
 
 .hm-log-card--expanded {
@@ -2133,12 +2133,12 @@
 }
 
 .hm-log-card--ok .hm-log-card__status-btn {
-  background: rgba(52, 211, 153, 0.12);
+  background: rgba(var(--hos-color-success-rgb), 0.12);
   color: rgba(110, 231, 183, 0.95);
 }
 
 .hm-log-card--fail .hm-log-card__status-btn {
-  background: rgba(251, 113, 133, 0.12);
+  background: rgba(var(--hos-color-danger-rgb), 0.12);
   color: rgba(253, 164, 175, 0.95);
 }
 
@@ -2156,10 +2156,10 @@
   font-size: var(--premium-fs-micro);
   font-weight: 700;
   font-family: ui-monospace, monospace;
-  color: rgba(56, 189, 248, 0.85);
+  color: rgba(var(--hos-color-accent-rgb), 0.85);
   padding: 3px 7px;
   border-radius: 6px;
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 .hm-log-card__main {

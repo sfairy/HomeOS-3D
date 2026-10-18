@@ -47,6 +47,8 @@
 /* 仪表盘路由：内容区与右栏并排 */
 .dashboard-shell--dashboard {
   flex-direction: row;
+  /* 窄屏（≤900px）右栏改为覆盖式抽屉时，以内容行为定位基准 */
+  position: relative;
 }
 .dashboard-shell--dashboard > .main-content {
   /* 关键：作为 #display-shell（position: absolute）的定位祖先。
@@ -79,8 +81,8 @@
   background:
     linear-gradient(180deg, var(--hos-surface-1) 0%, transparent 38%),
     rgba(var(--shell-scrim-topbar-rgb), 0.78);
-  -webkit-backdrop-filter: blur(72px) saturate(220%);
-  backdrop-filter: blur(72px) saturate(220%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
   border-bottom: var(--hos-hairline) solid var(--glass-border);
   box-shadow:
     0 1px 0 var(--glass-bg-sm) inset,
@@ -123,21 +125,12 @@
   background: linear-gradient(
     90deg,
     transparent,
-    var(--nav-glow, rgba(var(--premium-accent-cyan-rgb), 0.22)),
-    rgba(var(--premium-accent-cyan-rgb), 0.12),
-    var(--nav-tint, rgba(255, 159, 10, 0.06)),
+    rgba(var(--hos-color-accent-rgb), 0.24),
+    rgba(var(--hos-color-accent-rgb), 0.1),
     transparent
   );
-  opacity: 0.55;
+  opacity: 0.5;
   pointer-events: none;
-  animation: tabGlowFlow 10s ease-in-out infinite;
-}
-
-@keyframes tabGlowFlow {
-  0%, 100% { opacity: 0.4; }
-  25% { opacity: 0.65; }
-  50% { opacity: 0.5; }
-  75% { opacity: 0.7; }
 }
 
 .tab-bar__brand {
@@ -256,15 +249,15 @@
   min-height: 44px;
   padding: 0 16px;
   background: rgba(220, 38, 38, 0.15);
-  border-bottom: 1px solid rgba(248, 113, 113, 0.35);
+  border-bottom: 1px solid rgba(var(--hos-color-danger-rgb), 0.35);
   font-size: var(--premium-fs-caption);
-  color: #fecaca;
+  color: var(--hos-color-danger-text);
   flex-shrink: 0;
 }
 .ha-status-bar--info {
-  background: rgba(59, 130, 246, 0.12);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
   border-bottom-color: rgba(147, 197, 253, 0.35);
-  color: #bfdbfe;
+  color: var(--hos-color-info-text);
 }
 .ha-status-bar__text { flex: 1; }
 
@@ -412,8 +405,8 @@
 }
 
 .tab-bar__tab--active {
-  color: #fff;
-  font-weight: 650;
+  color: var(--hos-fg-1);
+  font-weight: 600;
   background:
     linear-gradient(
       180deg,
@@ -525,8 +518,8 @@
 }
 
 .tab-bar__more-item--active {
-  color: #fff;
-  background: color-mix(in srgb, var(--tab-accent, #0A84FF) 14%, var(--glass-bg-md));
+  color: var(--hos-fg-1);
+  background: color-mix(in srgb, var(--tab-accent, var(--hos-color-accent)) 14%, var(--glass-bg-md));
 }
 
 .tab-bar__more-item-icon {
@@ -586,8 +579,8 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
 .icon-btn a.router-link-active { color: #94a3b8; }
 
 .icon-btn--active {
-  background: rgba(var(--premium-accent-cyan-rgb), 0.14);
-  color: var(--premium-accent-cyan, #5fd4ff);
+  background: var(--hos-color-accent-soft);
+  color: var(--hos-color-accent);
 }
 
 .icon-btn--notify .notify-badge {
@@ -762,5 +755,123 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
   .tab-bar__more-menu {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   窄平板 / 手机：顶栏增强
+   —— ≤1180：品牌标题让位给导航（logo 保留）；导航项上限由 JS 收到「更多」；
+   —— ≤639：顶栏两行，第一行品牌 + 模式 + 操作，第二行导航可横向滚动，
+      避免 6 个 Tab 与 5 个操作按钮在 390px 内互相挤压/被裁切。
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 1180px) {
+  .tab-bar__brand-text {
+    display: none;
+  }
+
+  .tab-bar__brand {
+    padding-right: 4px;
+    margin-right: 0;
+    border-right: none;
+  }
+
+  .tab-bar__mode-switcher {
+    padding-right: 4px;
+    margin-right: 0;
+  }
+
+  .tab-bar__mode-switcher .home-mode-switcher__label {
+    max-width: 56px;
+  }
+}
+
+@media (max-width: 639px) {
+  .tab-bar {
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    padding: 4px 8px;
+    min-height: 0;
+  }
+
+  .tab-bar__brand {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  .tab-bar__mode-switcher {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: auto;
+  }
+
+  /* presence 是 HomeModeSwitcher 子组件内部元素，scoped 选择器打不中；
+     隐藏规则放在全局 styles/tab-bar-mode-switcher.css 的同一断点里。 */
+  .tab-bar__tab-label {
+    display: inline;
+  }
+
+  .tab-bar__nav-wrap {
+    order: 10;
+    flex: 1 0 100%;
+    width: 100%;
+    padding: 0;
+    overflow-x: auto;
+  }
+
+  .tab-bar__tabs {
+    width: max-content;
+  }
+
+  .tab-bar__actions {
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+
+  .tab-bar__actions .icon-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+  }
+}
+
+/* ≤900px：右栏不再参与内容行宽分配，改为覆盖在内容区右侧的抽屉。
+   折叠状态宽度为 0，只剩左侧 22px 把手；展开时宽度由 RightSidebar.vue 按视口钳制。 */
+@media (max-width: 900px) {
+  .shell-right-sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+  }
+
+  /* RightSidebar 子组件内部结构不在父 scoped 作用域里，用 :deep 穿透 */
+  .shell-right-sidebar :deep(.info-panel-outer) {
+    height: 100%;
+  }
+
+  .shell-right-sidebar :deep(.info-panel) {
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: -24px 0 80px rgba(0, 0, 0, 0.55);
+  }
+
+  /* 抽屉展开/收起手柄：窄屏默认收起时外层宽度为 0，手柄是唯一可见入口，
+     放大到 34×56 并加暖铜描边，避免在深色背景上「看不见」。 */
+  .shell-right-sidebar :deep(.panel-collapse-btn) {
+    left: -34px;
+    width: 34px;
+    height: 56px;
+    border-radius: 10px 0 0 10px;
+    background: rgba(var(--shell-scrim-dock-rgb), 0.9);
+    border-color: rgba(var(--hos-color-accent-rgb), 0.3);
+    color: var(--hos-text-primary);
+  }
+
+  .shell-right-sidebar :deep(.panel-collapse-btn:hover) {
+    background: rgba(var(--hos-color-accent-rgb), 0.18);
+    border-color: rgba(var(--hos-color-accent-rgb), 0.45);
   }
 }

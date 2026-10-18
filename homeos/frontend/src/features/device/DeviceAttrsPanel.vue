@@ -141,6 +141,6 @@ const countLabel = computed(() => {
 
 .device-attrs-tab__more:hover {
   color: var(--set-fg, #e2e8f0);
-  border-color: color-mix(in srgb, var(--set-accent, #38bdf8) 40%, transparent);
+  border-color: color-mix(in srgb, var(--set-accent, var(--hos-color-accent)) 40%, transparent);
 }
 </style>

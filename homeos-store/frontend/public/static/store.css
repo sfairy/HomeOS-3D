@@ -296,7 +296,7 @@
 
 /* 4. 商品列表：筛选 tab */
 .hb-filter {
-  display: flex;
+  display: inline-flex;
   margin-bottom: 18px;
   flex-wrap: wrap;
   gap: 6px;

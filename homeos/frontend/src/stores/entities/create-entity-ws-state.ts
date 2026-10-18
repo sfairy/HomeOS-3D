@@ -529,6 +529,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     emitStateListeners,
     onStateChanged,
     remoteNotifications,
+    addRemoteNotification,
     clearRemoteNotifications,
     fetchEntitiesFallback,
     connect,

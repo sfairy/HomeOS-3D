@@ -92,7 +92,7 @@ a.device-refs-panel__link:hover {
   border: none;
   border-left: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   background: transparent;
-  color: rgba(252, 165, 165, 0.75);
+  color: rgba(var(--hos-color-danger-rgb), 0.75);
   cursor: pointer;
   transition:
     background 0.15s ease,
@@ -100,8 +100,8 @@ a.device-refs-panel__link:hover {
 }
 
 .device-refs-panel__unlink:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.1);
-  color: #fca5a5;
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  color: var(--hos-color-danger-text);
 }
 
 .device-refs-panel__unlink:disabled {
@@ -163,8 +163,8 @@ a.device-refs-panel__link:hover {
 
 .device-refs-panel__badge--on {
   color: #6ee7b7;
-  background: rgba(52, 211, 153, 0.1);
-  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.22);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.22);
 }
 
 .device-refs-panel__badge--off {
@@ -178,7 +178,7 @@ a.device-refs-panel__link:hover {
 }
 
 .der-icon-info {
-  color: var(--page-accent, #38bdf8);
+  color: var(--page-accent, var(--hos-color-accent));
 }
 
 @media (max-width: 639px) {

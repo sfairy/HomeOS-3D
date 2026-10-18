@@ -15,7 +15,7 @@
     inner-swipe-close
     @close="$emit('close')"
   >
-    <div class="media-popup-head" style="--accent: #c084fc; --accent-rgb: 192, 132, 252">
+    <div class="media-popup-head" style="--accent: var(--hos-color-accent); --accent-rgb: var(--hos-color-accent-rgb)">
       <PopupHead :title="deviceName || '媒体播放器'" :icon="Music">
         <template #status>
           <span

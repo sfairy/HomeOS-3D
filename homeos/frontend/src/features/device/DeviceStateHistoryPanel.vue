@@ -353,17 +353,17 @@ function formatListTime(iso: string) {
 
 function stateColor(state: string): string {
   const map: Record<string, string> = {
-    on: '#34d399',
-    off: '#6b7280',
-    open: '#34d399',
-    closed: '#6b7280',
-    locked: '#34d399',
-    unlocked: '#6b7280',
-    playing: '#c084fc',
-    idle: '#6b7280',
-    unavailable: '#f87171',
-    unknown: '#94a3b8',
-    属性变更: '#a78bfa',
+    on: DEVICE_CHART_COLORS.green,
+    off: '#6f7f90',
+    open: DEVICE_CHART_COLORS.green,
+    closed: '#6f7f90',
+    locked: DEVICE_CHART_COLORS.green,
+    unlocked: '#6f7f90',
+    playing: DEVICE_CHART_COLORS.purple,
+    idle: '#6f7f90',
+    unavailable: DEVICE_CHART_COLORS.red,
+    unknown: DEVICE_CHART_COLORS.axis,
+    属性变更: DEVICE_CHART_COLORS.accent,
   }
   return map[state] || DEVICE_CHART_COLORS.accent
 }
@@ -434,10 +434,10 @@ async function renderChart() {
           return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${displayEventState(evt)}</div>`
         }
         const from = evt.oldState
-          ? `<span style="color:#fca5a5">${formatEventState(evt.oldState)}</span>`
+          ? `<span style="color:#ff9aa0">${formatEventState(evt.oldState)}</span>`
           : '—'
         const to = evt.state
-          ? `<span style="color:#6ee7b7">${formatEventState(evt.state)}</span>`
+          ? `<span style="color:#7ff0bd">${formatEventState(evt.state)}</span>`
           : '—'
         return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${from} → ${to}</div>`
       },
@@ -449,7 +449,7 @@ async function renderChart() {
       axisTick: { show: false },
       axisLabel: {
         color: DEVICE_CHART_COLORS.axis,
-        fontSize: 9,
+        fontSize: 11,
         formatter: (value: number) => {
           const d = new Date(value)
           if (selectedRange.value === '7d' || selectedRange.value === '30d') {
@@ -463,13 +463,13 @@ async function renderChart() {
     yAxis: {
       type: 'category',
       name: '状态类别',
-      nameTextStyle: { color: DEVICE_CHART_COLORS.axisName, fontSize: 10 },
+      nameTextStyle: { color: DEVICE_CHART_COLORS.axisName, fontSize: 11 },
       data: categories,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
         color: DEVICE_CHART_COLORS.axis,
-        fontSize: 10,
+        fontSize: 11,
         formatter: (val: string) => {
           const label = val === '属性变更' ? val : formatEventState(val)
           return label.length > 10 ? `${label.slice(0, 9)}…` : label

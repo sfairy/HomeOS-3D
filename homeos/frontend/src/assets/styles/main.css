@@ -154,8 +154,8 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.04)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.04)) 100%);
 }
@@ -171,8 +171,8 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))),
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))));
 }
 
 /**
@@ -213,8 +213,8 @@ input[type="range"].sm-emergency-range::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, var(--premium-border-strong)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, var(--premium-border-strong)) 100%);
 }
@@ -234,8 +234,8 @@ input[type="range"].sm-emergency-range::-moz-range-progress {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))),
+    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))));
 }
 
 input[type="range"].hos-range::-webkit-slider-thumb,
@@ -387,62 +387,51 @@ input[type="range"].hos-range-ui:disabled {
      17 种主色调，覆盖蓝/紫/橙/绿/红/黄等色系
      通过 .color-accent-* 工具类可动态切换 --accent 变量
      */
-  --accent: #0A84FF;                                        /* 主色调——系统蓝（交互可读） */
-  /**
-   * `hos-range-ui` 统一滑条的强调色（填充 + 圆点）。
-   *
-   * 这里钉金色而不是跟随 `--accent`：本文件的 `:root` 排在路线样式表之后，会把 studio /
-   * display 各自的 `--accent` 覆盖成系统蓝，滑条跟着变蓝就与检查器、材质槽面板那两处
-   * 已经过审的观感割裂。宿主若要自己的色相，在宿主规则里写一行覆盖即可。
-   */
-  --hos-range-ui-accent: #f2a20d;
-  --accent-rgb: 10, 132, 255;                               /* 主色调 RGB，供 rgba() 使用 */
-  --accent-secondary: #5fd4ff;                              /* 次要色调——登录青（品牌中性强调） */
-  --accent-tertiary: #7eb8ff;                               /* 第三色调——冰蓝（替代默认紫光晕） */
-  --accent-warm: #FF9F0A;                                   /* 暖色调——琥珀橙 */
-  --accent-rose: #FF375F;                                   /* 玫瑰红 */
-  --accent-mint: #66D4CF;                                   /* 薄荷青 */
-  --accent-teal: #40C8E0;                                   /* 青蓝 */
-  --accent-green: #34C759;                                  /* 翠绿（与 premium 对齐） */
-  --accent-coral: #FF6B6B;                                  /* 珊瑚红 */
-  --accent-gold: #FFD60A;                                   /* 金色 */
-  --accent-indigo: #5856D6;                                 /* 靛蓝 */
-  --accent-cyan: #5fd4ff;                                   /* 品牌青（与登录/premium 对齐） */
-  --accent-pink: #FF2D55;                                   /* 粉红 */
-  --accent-orange: #FF9500;                                 /* 橘橙 */
-  --accent-yellow: #FFCC00;                                 /* 明黄 */
-  --accent-lime: #32D74B;                                   /* 青柠绿 */
-  --accent-purple-deep: #8E8EFF;                            /* 深紫 */
+  /* 单一暖铜主色 + 语义状态色。所有旧命名都保留为别名，
+     色相由 canonical 令牌统一提供，避免 17 种主色在同一屏上互相冲突。 */
+  --accent: var(--hos-color-accent);
+  --hos-range-ui-accent: var(--hos-color-accent);
+  --accent-rgb: var(--hos-color-accent-rgb);
+  --accent-secondary: var(--hos-color-accent-strong);
+  --accent-tertiary: var(--hos-color-accent-deep);
+  --accent-warm: var(--hos-color-warning);
+  --accent-rose: var(--hos-color-danger);
+  --accent-mint: var(--hos-color-info);
+  --accent-teal: var(--hos-color-info);
+  --accent-green: var(--hos-color-success);
+  --accent-coral: var(--hos-color-danger);
+  --accent-gold: var(--hos-color-accent-strong);
+  --accent-indigo: var(--hos-color-accent-deep);
+  --accent-cyan: var(--hos-color-info);
+  --accent-pink: var(--hos-color-danger);
+  --accent-orange: var(--hos-color-warning);
+  --accent-yellow: var(--hos-color-accent-strong);
+  --accent-lime: var(--hos-color-success);
+  --accent-purple-deep: var(--hos-color-accent-deep);
 
-  /* 7.3c 渐变预设（Gradient Presets）
-     预定义的渐变色组合，用于按钮、文字、装饰线
-     */
-  --gradient-blue-purple: linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%);
-  --gradient-cyan-blue: linear-gradient(135deg, #00D4FF 0%, #0A84FF 100%);
-  --gradient-sunset: linear-gradient(135deg, #FF6B3D 0%, #FF3B8B 50%, #BF5AF2 100%);
-  --gradient-aurora: linear-gradient(135deg, #00F593 0%, #00D4FF 50%, #B44DFF 100%);
-  --gradient-fire: linear-gradient(135deg, #FF9500 0%, #FF375F 100%);
-  --gradient-ocean: linear-gradient(135deg, #0A84FF 0%, #66D4CF 100%);
-  --gradient-forest: linear-gradient(135deg, #30D158 0%, #40C8E0 100%);
-  --gradient-royal: linear-gradient(135deg, #5856D6 0%, #BF5AF2 50%, #FF2D55 100%);
-  --gradient-golden: linear-gradient(135deg, #FFD60A 0%, #FF9F0A 50%, #FF375F 100%);
+  /* 渐变只做同一色相的明暗/语义过渡，不再出现蓝紫青粉拼色。 */
+  --gradient-blue-purple: linear-gradient(135deg, var(--hos-color-accent-deep) 0%, var(--hos-color-accent) 100%);
+  --gradient-cyan-blue: linear-gradient(135deg, var(--hos-color-accent-strong) 0%, var(--hos-color-accent) 100%);
+  --gradient-sunset: linear-gradient(135deg, var(--hos-color-warning) 0%, var(--hos-color-accent) 55%, var(--hos-color-danger) 100%);
+  --gradient-aurora: linear-gradient(135deg, var(--hos-color-success) 0%, var(--hos-color-info) 52%, var(--hos-color-accent) 100%);
+  --gradient-fire: linear-gradient(135deg, var(--hos-color-warning) 0%, var(--hos-color-danger) 100%);
+  --gradient-ocean: linear-gradient(135deg, var(--hos-color-info) 0%, var(--hos-color-accent) 100%);
+  --gradient-forest: linear-gradient(135deg, var(--hos-color-success) 0%, var(--hos-color-info) 100%);
+  --gradient-royal: linear-gradient(135deg, var(--hos-color-accent-deep) 0%, var(--hos-color-accent) 50%, var(--hos-color-accent-strong) 100%);
+  --gradient-golden: linear-gradient(135deg, var(--hos-color-accent-strong) 0%, var(--hos-color-accent) 55%, var(--hos-color-accent-deep) 100%);
 
-  /* 7.4 光晕色（Glow Colors）
-     各主题色对应的发光/辉光版本，用于 box-shadow 和 filter
-     透明度统一为 0.3~0.4，确保大面积使用时不过曝
-     */
-  --accent-glow: rgba(10,132,255,0.4);                      /* 蓝色光晕 */
-  --accent-glow-2: rgba(94,92,230,0.35);                    /* 紫色光晕 */
-  --accent-glow-3: rgba(191,90,242,0.35);                   /* 亮紫光晕 */
-  --accent-glow-warm: rgba(255,159,10,0.32);                /* 暖色光晕 */
-  --accent-glow-rose: rgba(255,55,95,0.32);                 /* 玫瑰光晕 */
-  --accent-glow-mint: rgba(102,212,207,0.32);               /* 薄荷光晕 */
-  --accent-glow-teal: rgba(64,200,224,0.32);                /* 青蓝光晕 */
-  --accent-glow-green: rgba(48,209,88,0.32);                /* 绿色光晕 */
-  --accent-glow-coral: rgba(255,107,107,0.32);              /* 珊瑚光晕 */
-  --accent-glow-gold: rgba(255,214,10,0.32);                /* 金色光晕 */
-  --accent-glow-orange: rgba(255,149,0,0.3);                /* 橘色光晕 */
-  --accent-glow-purple: rgba(142,142,255,0.3);              /* 深紫光晕 */
+  --accent-glow: rgba(var(--hos-color-accent-rgb), 0.4);
+  --accent-glow-2: rgba(var(--hos-color-accent-deep-rgb), 0.35);
+  --accent-glow-3: rgba(var(--hos-color-accent-deep-rgb), 0.35);
+  --accent-glow-warm: rgba(var(--hos-color-warning-rgb), 0.32);
+  --accent-glow-rose: rgba(var(--hos-color-danger-rgb), 0.32);
+  --accent-glow-mint: rgba(var(--hos-color-info-rgb), 0.32);
+  --accent-glow-teal: rgba(var(--hos-color-info-rgb), 0.32);
+  --accent-glow-green: rgba(var(--hos-color-success-rgb), 0.32);
+  --accent-glow-coral: rgba(var(--hos-color-danger-rgb), 0.32);
+  --accent-glow-gold: rgba(var(--hos-color-accent-rgb), 0.32);
+  --accent-glow-orange: rgba(var(--hos-color-warning-rgb), 0.3);
+  --accent-glow-purple: rgba(var(--hos-color-accent-deep-rgb), 0.3);
 
   /* 7.5 文字颜色层级（Text Hierarchy）
      五级透明度对应：主文字 / 次要 / 辅助 / 禁用 / 占位
@@ -603,7 +592,7 @@ input[type="range"].hos-range-ui:disabled {
   --shadow-ipad-md: 0 4px 16px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
   --shadow-ipad-lg: 0 8px 32px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.1);
   --shadow-ipad-xl: 0 16px 48px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.12);
-  --shadow-ipad-glow: 0 0 40px rgba(10,132,255,0.08), 0 8px 32px rgba(0,0,0,0.16);
+  --shadow-ipad-glow: 0 0 40px rgba(var(--hos-color-accent-rgb),0.08), 0 8px 32px rgba(0,0,0,0.16);
 
   /* 7.10d iPad 玻璃增强
      更强的毛玻璃效果——更大模糊半径、更高饱和度
@@ -649,7 +638,7 @@ input[type="range"].hos-range-ui:disabled {
 /** 顶部页面色渐变光带：模拟玻璃折射的亮边 + 模块主题色 */
 .ios-card::after {
   content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0), color-mix(in srgb, var(--page-accent, #0a84ff) 55%, white), rgba(0, 0, 0, 0));
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 55%, white), rgba(0, 0, 0, 0));
   opacity: 0.6;
   pointer-events: none;
 }

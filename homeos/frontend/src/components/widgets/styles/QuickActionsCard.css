@@ -1,6 +1,6 @@
 /* 从 QuickActionsCard.vue 抽出 */
 .qac-link {
-  color: var(--premium-accent-violet, #c4b5fd);
+  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
 }
 
 .quick-actions-card {
@@ -85,7 +85,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--hos-radius-pill);
-  background: #ff3b30;
+  background: var(--hos-color-danger);
   color: #fff;
   font-family:
     -apple-system,
@@ -156,15 +156,15 @@
 }
 
 .action-btn--lights.action-btn--active {
-  background: rgba(251, 191, 36, 0.13);
-  border-color: rgba(251, 191, 36, 0.3);
-  box-shadow: inset 0 0 20px rgba(251, 191, 36, 0.06);
+  background: rgba(var(--hos-color-warning-rgb), 0.13);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.3);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-warning-rgb), 0.06);
 }
 .action-btn--lights.action-btn--active::before {
   background: rgb(251, 191, 36);
 }
 .action-btn--lights.action-btn--active .icon-wrapper {
-  background: rgba(251, 191, 36, 0.22);
+  background: rgba(var(--hos-color-warning-rgb), 0.22);
 }
 .action-btn--lights.action-btn--active .stat-icon {
   color: rgb(252, 211, 77);
@@ -173,22 +173,22 @@
   color: rgba(252, 211, 77, 0.62);
 }
 .action-btn--lights.action-btn--active:hover {
-  border-color: rgba(251, 191, 36, 0.45);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.45);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(251, 191, 36, 0.1);
+    0 0 16px rgba(var(--hos-color-warning-rgb), 0.1);
 }
 
 .action-btn--climates.action-btn--active {
-  background: rgba(59, 130, 246, 0.13);
-  border-color: rgba(59, 130, 246, 0.32);
-  box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.06);
+  background: rgba(var(--hos-color-accent-rgb), 0.13);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.32);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-accent-rgb), 0.06);
 }
 .action-btn--climates.action-btn--active::before {
   background: rgb(59, 130, 246);
 }
 .action-btn--climates.action-btn--active .icon-wrapper {
-  background: rgba(59, 130, 246, 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 .action-btn--climates.action-btn--active .stat-icon {
   color: rgb(96, 165, 250);
@@ -197,22 +197,22 @@
   color: rgba(147, 197, 253, 0.75);
 }
 .action-btn--climates.action-btn--active:hover {
-  border-color: rgba(59, 130, 246, 0.48);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.48);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(59, 130, 246, 0.12);
+    0 0 16px rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 .action-btn--battery.action-btn--active {
-  background: rgba(244, 63, 94, 0.14);
-  border-color: rgba(244, 63, 94, 0.32);
-  box-shadow: inset 0 0 20px rgba(244, 63, 94, 0.07);
+  background: rgba(var(--hos-color-danger-rgb), 0.14);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-danger-rgb), 0.07);
 }
 .action-btn--battery.action-btn--active::before {
   background: rgb(244, 63, 94);
 }
 .action-btn--battery.action-btn--active .icon-wrapper {
-  background: rgba(244, 63, 94, 0.24);
+  background: rgba(var(--hos-color-danger-rgb), 0.24);
 }
 .action-btn--battery.action-btn--active .stat-icon {
   color: rgb(251, 113, 133);
@@ -221,70 +221,70 @@
   color: rgba(253, 164, 175, 0.75);
 }
 .action-btn--battery.action-btn--active:hover {
-  border-color: rgba(244, 63, 94, 0.48);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.48);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(244, 63, 94, 0.12);
+    0 0 16px rgba(var(--hos-color-danger-rgb), 0.12);
 }
 
 .action-btn--offline.action-btn--active {
-  background: rgba(139, 92, 246, 0.14);
-  border-color: rgba(139, 92, 246, 0.32);
-  box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.07);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.14);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.32);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-accent-strong-rgb), 0.07);
 }
 .action-btn--offline.action-btn--active::before {
   background: rgb(139, 92, 246);
 }
 .action-btn--offline.action-btn--active .icon-wrapper {
-  background: rgba(139, 92, 246, 0.24);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.24);
 }
 .action-btn--offline.action-btn--active .stat-icon {
   color: rgb(167, 139, 250);
 }
 .action-btn--offline.action-btn--active .stat-label {
-  color: rgba(196, 181, 253, 0.75);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.75);
 }
 .action-btn--offline.action-btn--active:hover {
-  border-color: rgba(139, 92, 246, 0.48);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.48);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(139, 92, 246, 0.12);
+    0 0 16px rgba(var(--hos-color-accent-strong-rgb), 0.12);
 }
 
 .action-btn--cover.action-btn--active {
-  background: rgba(56, 189, 248, 0.13);
-  border-color: rgba(56, 189, 248, 0.32);
-  box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.06);
+  background: rgba(var(--hos-color-accent-rgb), 0.13);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.32);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-accent-rgb), 0.06);
 }
 .action-btn--cover.action-btn--active::before {
   background: rgb(56, 189, 248);
 }
 .action-btn--cover.action-btn--active .icon-wrapper {
-  background: rgba(56, 189, 248, 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 .action-btn--cover.action-btn--active .stat-icon {
   color: rgb(125, 211, 252);
 }
 .action-btn--cover.action-btn--active .stat-label {
-  color: rgba(125, 211, 252, 0.75);
+  color: rgba(var(--hos-color-info-rgb), 0.75);
 }
 .action-btn--cover.action-btn--active:hover {
-  border-color: rgba(56, 189, 248, 0.48);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.48);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(56, 189, 248, 0.12);
+    0 0 16px rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 .action-btn--media_player.action-btn--active {
-  background: rgba(129, 140, 248, 0.13);
-  border-color: rgba(129, 140, 248, 0.32);
-  box-shadow: inset 0 0 20px rgba(129, 140, 248, 0.06);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.13);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.32);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-accent-strong-rgb), 0.06);
 }
 .action-btn--media_player.action-btn--active::before {
   background: rgb(129, 140, 248);
 }
 .action-btn--media_player.action-btn--active .icon-wrapper {
-  background: rgba(129, 140, 248, 0.22);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.22);
 }
 .action-btn--media_player.action-btn--active .stat-icon {
   color: rgb(165, 180, 252);
@@ -293,34 +293,34 @@
   color: rgba(165, 180, 252, 0.75);
 }
 .action-btn--media_player.action-btn--active:hover {
-  border-color: rgba(129, 140, 248, 0.48);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.48);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(129, 140, 248, 0.12);
+    0 0 16px rgba(var(--hos-color-accent-strong-rgb), 0.12);
 }
 
 .action-btn--fan.action-btn--active {
-  background: rgba(34, 211, 238, 0.13);
-  border-color: rgba(34, 211, 238, 0.32);
-  box-shadow: inset 0 0 20px rgba(34, 211, 238, 0.06);
+  background: rgba(var(--hos-color-info-rgb), 0.13);
+  border-color: rgba(var(--hos-color-info-rgb), 0.32);
+  box-shadow: inset 0 0 20px rgba(var(--hos-color-info-rgb), 0.06);
 }
 .action-btn--fan.action-btn--active::before {
   background: rgb(34, 211, 238);
 }
 .action-btn--fan.action-btn--active .icon-wrapper {
-  background: rgba(34, 211, 238, 0.22);
+  background: rgba(var(--hos-color-info-rgb), 0.22);
 }
 .action-btn--fan.action-btn--active .stat-icon {
   color: rgb(103, 232, 249);
 }
 .action-btn--fan.action-btn--active .stat-label {
-  color: rgba(103, 232, 249, 0.75);
+  color: rgba(var(--hos-color-info-rgb), 0.75);
 }
 .action-btn--fan.action-btn--active:hover {
-  border-color: rgba(34, 211, 238, 0.48);
+  border-color: rgba(var(--hos-color-info-rgb), 0.48);
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.18),
-    0 0 16px rgba(34, 211, 238, 0.12);
+    0 0 16px rgba(var(--hos-color-info-rgb), 0.12);
 }
 
 .action-btn--lock.action-btn--active {
@@ -338,7 +338,7 @@
   color: rgb(253, 186, 116);
 }
 .action-btn--lock.action-btn--active .stat-label {
-  color: rgba(253, 186, 116, 0.75);
+  color: rgba(var(--hos-color-warning-rgb), 0.75);
 }
 .action-btn--lock.action-btn--active:hover {
   border-color: rgba(251, 146, 60, 0.48);

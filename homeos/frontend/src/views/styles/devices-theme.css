@@ -11,6 +11,7 @@
 .device-detail-view,
 .device-analytics {
   --dev-accent: var(--page-accent, var(--module-accent-devices));
+  --dev-accent-rgb: var(--page-accent-rgb, var(--hos-color-accent-rgb));
   --dev-accent-soft: color-mix(in srgb, var(--dev-accent) 14%, rgba(0, 0, 0, 0));
   --dev-accent-border: color-mix(in srgb, var(--dev-accent) 38%, rgba(0, 0, 0, 0));
   --dev-accent-text: color-mix(in srgb, var(--dev-accent) 55%, white);
@@ -76,8 +77,8 @@
 }
 
 .dev-metric__value--green { color: var(--set-success, #6ee7b7); }
-.dev-metric__value--red { color: var(--set-danger, #fca5a5); }
-.dev-metric__value--amber { color: var(--set-warn, #fde68a); }
+.dev-metric__value--red { color: var(--set-danger, var(--hos-color-danger-text)); }
+.dev-metric__value--amber { color: var(--set-warn, var(--hos-color-warning-text)); }
 
 /* ── 时间范围按钮（对齐 list-page chip） ── */
 .dev-range {
@@ -160,8 +161,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--dev-accent, #38bdf8) 16%, #0c0e14);
-  border: 1px solid color-mix(in srgb, var(--dev-accent, #38bdf8) 32%, #1a1d28);
+  background: color-mix(in srgb, var(--dev-accent, var(--hos-color-accent)) 16%, #0c0e14);
+  border: 1px solid color-mix(in srgb, var(--dev-accent, var(--hos-color-accent)) 32%, #1a1d28);
   color: var(--dev-accent-text);
   box-shadow: none;
   -webkit-backface-visibility: hidden;
@@ -176,15 +177,15 @@
 }
 
 .dev-metric__icon--red {
-  background: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 16%, #0c0e14);
-  border-color: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 32%, #1a1d28);
-  color: var(--set-danger, #fca5a5);
+  background: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 16%, #0c0e14);
+  border-color: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 32%, #1a1d28);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 
 .dev-metric__icon--amber {
   background: color-mix(in srgb, var(--premium-accent-amber, #ff9500) 16%, #0c0e14);
   border-color: color-mix(in srgb, var(--premium-accent-amber, #ff9500) 32%, #1a1d28);
-  color: var(--set-warn, #fde68a);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 
 .dev-metric__value {
@@ -208,12 +209,12 @@
 .dev-metric__value--red {
   background: none;
   -webkit-text-fill-color: currentColor;
-  color: var(--set-danger, #fca5a5);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 .dev-metric__value--amber {
   background: none;
   -webkit-text-fill-color: currentColor;
-  color: var(--set-warn, #fde68a);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 
 .dev-metric__label {
@@ -276,7 +277,7 @@
 }
 
 .dev-state-block--error {
-  color: var(--set-danger, #fca5a5);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 
 /* ── 分析面板网格 ── */
@@ -354,8 +355,8 @@
 }
 
 .dev-hint-item--danger {
-  background: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 10%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 28%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 10%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 28%, rgba(0, 0, 0, 0));
 }
 
 .dev-hint-item--warn {
@@ -505,8 +506,8 @@
 }
 
 .device-analytics__kpi--green svg { color: var(--set-success, #6ee7b7); }
-.device-analytics__kpi--red svg { color: var(--set-danger, #fca5a5); }
-.device-analytics__kpi--amber svg { color: var(--set-warn, #fde68a); }
+.device-analytics__kpi--red svg { color: var(--set-danger, var(--hos-color-danger-text)); }
+.device-analytics__kpi--amber svg { color: var(--set-warn, var(--hos-color-warning-text)); }
 
 .device-analytics__kpi-value {
   font-size: var(--premium-fs-title);
@@ -517,8 +518,8 @@
 }
 
 .device-analytics__kpi--green .device-analytics__kpi-value { color: var(--set-success, #6ee7b7); }
-.device-analytics__kpi--red .device-analytics__kpi-value { color: var(--set-danger, #fca5a5); }
-.device-analytics__kpi--amber .device-analytics__kpi-value { color: var(--set-warn, #fde68a); }
+.device-analytics__kpi--red .device-analytics__kpi-value { color: var(--set-danger, var(--hos-color-danger-text)); }
+.device-analytics__kpi--amber .device-analytics__kpi-value { color: var(--set-warn, var(--hos-color-warning-text)); }
 
 .device-analytics__kpi-label {
   font-size: var(--premium-fs-micro);
@@ -750,12 +751,12 @@
 }
 
 .device-analytics__hint-badge--spike {
-  color: var(--set-warn, #fde68a);
+  color: var(--set-warn, var(--hos-color-warning-text));
   background: rgba(var(--set-warn-rgb, 251, 191, 36), 0.15);
 }
 
 .device-analytics__hint-badge--forgotten {
-  color: var(--set-danger, #fca5a5);
+  color: var(--set-danger, var(--hos-color-danger-text));
   background: rgba(var(--set-danger-rgb, 251, 113, 133), 0.15);
 }
 
@@ -902,9 +903,9 @@
 }
 
 .device-overview__identity-icon--bad {
-  color: var(--set-danger, #fca5a5);
-  background: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 14%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 32%, rgba(0, 0, 0, 0));
+  color: var(--set-danger, var(--hos-color-danger-text));
+  background: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 14%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 32%, rgba(0, 0, 0, 0));
 }
 
 .device-overview__identity-copy {
@@ -922,7 +923,7 @@
 }
 
 .device-overview__identity-state--bad {
-  color: var(--set-danger, #fca5a5);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 
 .device-overview__identity-tags {
@@ -1174,8 +1175,8 @@
   line-height: 1.25;
   padding: 5px 10px;
   border-radius: var(--hos-radius-pill);
-  border: var(--hos-hairline) solid rgba(125, 211, 252, 0.22);
-  background: rgba(125, 211, 252, 0.06);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-info-rgb), 0.22);
+  background: rgba(var(--hos-color-info-rgb), 0.06);
   color: var(--dev-accent-text);
   text-decoration: none;
   white-space: nowrap;
@@ -1341,7 +1342,7 @@
 }
 
 .device-overview__state-new {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
   background: color-mix(in srgb, var(--dev-accent) 14%, rgba(0, 0, 0, 0));
 }
 
@@ -1709,9 +1710,9 @@
   font-size: var(--premium-fs-micro);
   font-weight: 600;
   line-height: 1.35;
-  color: var(--dev-accent-text, rgba(125, 211, 252, 0.95));
-  background: var(--dev-accent-soft, rgba(56, 189, 248, 0.12));
-  border: var(--hos-hairline) solid var(--dev-accent-border, rgba(56, 189, 248, 0.28));
+  color: var(--dev-accent-text, rgba(var(--hos-color-info-rgb), 0.95));
+  background: var(--dev-accent-soft, rgba(var(--hos-color-accent-rgb), 0.12));
+  border: var(--hos-hairline) solid var(--dev-accent-border, rgba(var(--hos-color-accent-rgb), 0.28));
   word-break: break-word;
 }
 
@@ -1759,7 +1760,7 @@
 }
 
 .device-analytics-tab__compare-chip--low {
-  color: var(--set-warn, #fde68a);
+  color: var(--set-warn, var(--hos-color-warning-text));
   background: rgba(var(--set-warn-rgb, 251, 191, 36), 0.12);
   border-color: rgba(var(--set-warn-rgb, 251, 191, 36), 0.28);
 }
@@ -1780,8 +1781,8 @@
   margin: 0 0 10px;
   padding: 8px 12px;
   border-radius: var(--hos-radius-control);
-  border: 1px solid rgba(251, 191, 36, 0.25);
-  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(var(--hos-color-warning-rgb), 0.25);
+  background: rgba(var(--hos-color-warning-rgb), 0.08);
   color: rgba(253, 230, 138, 0.92);
   font-size: var(--premium-fs-micro);
   line-height: 1.45;
@@ -1947,15 +1948,15 @@
 }
 
 .device-history-panel__state--old {
-  color: var(--set-danger, #fca5a5);
+  color: var(--set-danger, var(--hos-color-danger-text));
   background: rgba(var(--set-danger-rgb, 251, 113, 133), 0.1);
   border: var(--hos-hairline) solid rgba(var(--set-danger-rgb, 251, 113, 133), 0.22);
 }
 
 .device-history-panel__state--attr {
-  color: var(--premium-accent-violet, #c4b5fd);
-  background: rgba(167, 139, 250, 0.12);
-  border: var(--hos-hairline) solid rgba(167, 139, 250, 0.28);
+  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.28);
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2071,9 +2072,9 @@
 }
 
 .device-batch__clear:hover {
-  color: var(--set-danger, #fca5a5);
-  background: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 12%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 28%, rgba(0, 0, 0, 0));
+  color: var(--set-danger, var(--hos-color-danger-text));
+  background: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 12%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 28%, rgba(0, 0, 0, 0));
 }
 
 .device-batch__actions {
@@ -2121,15 +2122,15 @@
 }
 
 .device-filter__select:hover {
-  border-color: var(--page-accent-border, color-mix(in srgb, var(--page-accent, #38bdf8) 28%, rgba(0, 0, 0, 0)));
+  border-color: var(--page-accent-border, color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 28%, rgba(0, 0, 0, 0)));
   background-color: rgba(0, 0, 0, 0.38);
 }
 
 .device-filter__select:focus,
 .device-filter__select.hos-select__trigger--open {
   outline: none;
-  border-color: var(--page-accent, #38bdf8);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-accent, #38bdf8) 12%, rgba(0, 0, 0, 0));
+  border-color: var(--page-accent, var(--hos-color-accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 12%, rgba(0, 0, 0, 0));
 }
 
 .device-filter__check {
@@ -2155,7 +2156,7 @@
 .device-filter__checkbox {
   width: 15px;
   height: 15px;
-  accent-color: var(--page-accent, #38bdf8);
+  accent-color: var(--page-accent, var(--hos-color-accent));
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -2179,15 +2180,15 @@
 }
 
 .devices-view .list-page__chip--offline.list-page__chip--accent {
-  border-color: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 38%, rgba(0, 0, 0, 0));
-  background: color-mix(in srgb, var(--premium-accent-red, #ff3b30) 14%, rgba(0, 0, 0, 0));
-  color: var(--set-danger, #fca5a5);
+  border-color: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 38%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-red, var(--hos-color-danger)) 14%, rgba(0, 0, 0, 0));
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 
 .devices-view .list-page__chip--low-battery.list-page__chip--accent {
   border-color: color-mix(in srgb, var(--premium-accent-amber, #ff9500) 38%, rgba(0, 0, 0, 0));
   background: color-mix(in srgb, var(--premium-accent-amber, #ff9500) 14%, rgba(0, 0, 0, 0));
-  color: var(--set-warn, #fde68a);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 
 /* 手机 / 触控端：关闭毛玻璃与 inset 光晕以减轻性能负担 */

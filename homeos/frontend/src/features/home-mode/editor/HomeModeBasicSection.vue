@@ -129,7 +129,7 @@ const templateCards = computed(() =>
 
 // 未在 ENTITY_DOMAIN_COLORS 中定义的域回退配色
 const DOMAIN_FALLBACK_COLORS = {
-  notify: '#38bdf8',
+  notify: '#59d3c0',
   script: '#2dd4bf',
   automation: '#f59e0b',
 }

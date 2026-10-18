@@ -107,7 +107,7 @@
   background-color: var(--set-success, #22c55e);
 }
 .mcp-playing-overlay {
-  background-color: rgba(59, 130, 246, 0.1);
+  background-color: rgba(var(--hos-color-accent-rgb), 0.1);
 }
 .mcp-subtitle {
   color: var(--set-text-tertiary);

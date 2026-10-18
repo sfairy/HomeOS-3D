@@ -149,7 +149,7 @@ onUnmounted(() => {
 
 <style scoped>
 .sct-focused-border {
-  border-color: var(--set-info, #7dd3fc);
+  border-color: var(--set-info, var(--hos-color-info-text));
 }
 .sct-focused-ring {
   --tw-ring-color: rgba(var(--set-info-rgb), 0.6);
@@ -161,7 +161,7 @@ onUnmounted(() => {
   color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
 }
 .sct-text-info {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 .sct-live-bg {
   background: rgba(var(--set-danger-rgb), 0.9);

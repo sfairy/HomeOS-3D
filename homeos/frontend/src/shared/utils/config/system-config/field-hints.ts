@@ -6,7 +6,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.eventLogTimelineHours':
     '系统时间线（事件日志）默认回溯的小时数。推荐 12',
   'settings.systemConfig.fieldHint.accentColor':
-    '界面强调色，用于按钮、链接、选中态等关键交互元素。推荐 #3b82f6（蓝色）',
+    '界面强调色，用于按钮、链接、选中态等关键交互元素。推荐暖铜 #ffc46a',
   'settings.systemConfig.fieldHint.alertBypassDnd':
     '开启后安防告警投递不受免打扰时段限制，紧急事件天然绕过 DND。推荐开启',
   'settings.systemConfig.fieldHint.alertChannels':

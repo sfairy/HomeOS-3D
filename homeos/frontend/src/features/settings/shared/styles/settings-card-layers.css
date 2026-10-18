@@ -85,18 +85,18 @@
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--emerald {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border-color: rgba(52, 211, 153, 0.16);
+  background: linear-gradient(135deg, rgba(var(--hos-color-success-rgb), 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border-color: rgba(var(--hos-color-success-rgb), 0.16);
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--sky {
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border-color: rgba(56, 189, 248, 0.16);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.16);
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--indigo {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border-color: rgba(129, 140, 248, 0.16);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.16);
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--violet {
@@ -105,13 +105,13 @@
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--amber {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border-color: rgba(251, 191, 36, 0.16);
+  background: linear-gradient(135deg, rgba(var(--hos-color-warning-rgb), 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.16);
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--pink {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border-color: rgba(244, 114, 182, 0.16);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.16);
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .voice-status-metric,

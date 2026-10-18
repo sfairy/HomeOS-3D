@@ -71,15 +71,15 @@ export const DASHBOARD_FOOTER_COLORS = [
 ] as const
 /** 标签高亮色（与卡片配色对应） */
 export const DASHBOARD_FOOTER_COLOR_ACCENT: Record<DashboardFooterColor, string> = {
-  yellow: '#fbbf24',
-  purple: '#c084fc',
-  cyan: '#22d3ee',
-  green: '#4ade80',
-  gold: '#f5d76e',
-  blue: '#60a5fa',
-  orange: '#fb923c',
-  rose: '#fb7185',
-  teal: '#2dd4bf',
+  yellow: '#ffc46a',
+  purple: '#ffd9a0',
+  cyan: '#59d3c0',
+  green: '#3ddc97',
+  gold: '#e09523',
+  blue: '#59d3c0',
+  orange: '#ffb020',
+  rose: '#ff5a5f',
+  teal: '#59d3c0',
 }
 
 /**

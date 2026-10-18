@@ -55,7 +55,7 @@
 }
 
 .voice-tts-master-switch:has(input:checked) {
-  color: var(--page-accent, #7eb8ff);
+  color: var(--page-accent, var(--hos-color-accent));
   border-color: rgba(var(--page-accent-rgb, 129, 140, 248), 0.35);
   background: rgba(var(--page-accent-rgb, 129, 140, 248), 0.12);
 }
@@ -89,7 +89,7 @@
 
 .voice-tts-flow-band__shell {
   --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
+  --flow-glow-b: rgba(var(--hos-color-success-rgb), var(--flow-glow-alpha-b));
 }
 
 .voice-field-hint {
@@ -99,9 +99,9 @@
   margin: 0;
 }
 .voice-field-hint--warn {
-  color: var(--set-warn, #fbbf24);
+  color: var(--set-warn, var(--hos-color-warning));
 }
 .voice-field-hint--ok {
-  color: var(--set-success, #34d399);
+  color: var(--set-success, var(--hos-color-success));
 }
 

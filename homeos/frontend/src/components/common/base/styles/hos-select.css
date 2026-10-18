@@ -83,8 +83,8 @@
 }
 
 .hos-select__trigger--unsupported {
-  border-color: rgba(248, 113, 113, 0.45) !important;
-  color: #fca5a5;
+  border-color: rgba(var(--hos-color-danger-rgb), 0.45) !important;
+  color: var(--hos-color-danger-text);
 }
 
 .hos-select__trigger:disabled {
@@ -227,9 +227,9 @@
 
 .hos-select--orchestrator .hos-select__trigger:hover:not(:disabled),
 .hos-select--orchestrator .hos-select__trigger--open {
-  border-color: rgba(59, 130, 246, 0.38);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.38);
   background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 2px rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 /* variant: settings — 与 .settings-field 同高同外观，并排时对齐 */
@@ -252,9 +252,9 @@
 }
 
 .hos-select--settings .hos-select__trigger--open {
-  border-color: var(--premium-border-open, rgba(10, 132, 255, 0.55));
+  border-color: var(--premium-border-open, rgba(var(--hos-color-accent-rgb), 0.55));
   background: var(--premium-glass-bg-open, rgba(255, 255, 255, 0.07));
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 /* 变体：widget（ws-select） */

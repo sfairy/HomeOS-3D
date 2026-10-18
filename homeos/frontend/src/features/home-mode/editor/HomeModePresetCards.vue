@@ -141,7 +141,7 @@ const PRESET_ACCENTS = {
   preset_sleep: '#818cf8',
   preset_cinema: '#f472b6',
   preset_guest: '#60a5fa',
-  preset_cleaning: '#22d3ee',
+  preset_cleaning: '#59d3c0',
 }
 
 // 预设列表变化时初始化各预设的实体覆盖默认值（优先取建议值，回退占位符）

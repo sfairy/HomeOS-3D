@@ -206,7 +206,7 @@
 }
 
 .bind-sec-path--ha .bind-sec-path__icon-wrap {
-  color: var(--module-accent-bindings, #38bdf8);
+  color: var(--module-accent-bindings, var(--hos-color-accent));
   background: rgba(var(--module-accent-bindings-rgb), 0.12);
   border-color: rgba(var(--module-accent-bindings-rgb), 0.2);
 }
@@ -368,11 +368,11 @@
 .config-actions__pending {
   font-size: var(--premium-fs-micro);
   font-weight: 700;
-  color: var(--set-warn, #fbbf24);
+  color: var(--set-warn, var(--hos-color-warning));
   padding: 4px 10px;
   border-radius: var(--hos-radius-pill);
-  background: rgba(251, 191, 36, 0.12);
-  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
+  background: rgba(var(--hos-color-warning-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.28);
 }
 
 
@@ -804,18 +804,18 @@
 }
 
 .rooms-hub-scope-item:nth-child(6n + 1) .rooms-hub-scope-item__emoji {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.2);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
+  border-color: rgba(var(--hos-color-success-rgb), 0.2);
 }
 
 .rooms-hub-scope-item:nth-child(6n + 2) .rooms-hub-scope-item__emoji {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.2);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.2);
 }
 
 .rooms-hub-scope-item:nth-child(6n + 3) .rooms-hub-scope-item__emoji {
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.2);
+  background: rgba(var(--hos-color-warning-rgb), 0.1);
+  border-color: rgba(var(--hos-color-warning-rgb), 0.2);
 }
 
 .rooms-hub-scope-item:nth-child(6n + 4) .rooms-hub-scope-item__emoji {
@@ -824,8 +824,8 @@
 }
 
 .rooms-hub-scope-item:nth-child(6n + 5) .rooms-hub-scope-item__emoji {
-  background: rgba(244, 114, 182, 0.1);
-  border-color: rgba(244, 114, 182, 0.2);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.2);
 }
 
 .rooms-hub-scope-item:nth-child(6n + 6) .rooms-hub-scope-item__emoji {
@@ -854,7 +854,7 @@
   border-radius: 8px;
   font-size: var(--premium-fs-micro);
   font-weight: 700;
-  color: rgba(196, 181, 253, 0.92);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.92);
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
   text-decoration: none;
@@ -876,5 +876,5 @@
 /* rooms 绑定区沿用页面主强调色 + sky 次光晕；透明度统一走共享令牌，色相在此显式固定 */
 .rooms-flow-band__shell {
   --flow-glow-a: rgba(var(--page-accent-rgb), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+  --flow-glow-b: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-b));
 }

@@ -33,7 +33,7 @@
 }
 
 .v-progress--interactive:focus-visible {
-  outline: 2px solid rgba(10, 132, 255, 0.55);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.55);
   outline-offset: 2px;
 }
 

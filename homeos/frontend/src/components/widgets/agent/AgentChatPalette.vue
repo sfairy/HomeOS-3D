@@ -472,7 +472,7 @@ async function send(raw?: string) {
 }
 
 .acp-status--sky {
-  color: #38bdf8;
+  color: var(--hos-color-accent);
 }
 
 .acp-status--amber {
@@ -480,7 +480,7 @@ async function send(raw?: string) {
 }
 
 .acp-status--rose {
-  color: #fb7185;
+  color: var(--hos-color-danger);
 }
 
 .acp-close {

@@ -95,8 +95,8 @@
 }
 
 .env-room-editor__remove:hover {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--hos-color-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
 }
 
 .env-room-form {

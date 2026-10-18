@@ -195,7 +195,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
       min: minTemp.value,
       max: maxTemp.value,
       step: tempStep.value,
-      color: '#38bdf8',
+      color: '#ffc46a',
     }),
   })
 

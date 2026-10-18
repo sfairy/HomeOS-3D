@@ -20,7 +20,7 @@ const homeModeAccentVars = computed(() => {
   return {
     '--page-accent': 'var(--module-accent-home-mode, #fbbf24)',
     '--page-accent-rgb': rgb,
-    '--page-accent-secondary': 'var(--module-accent-home-mode-sub, #fb7185)',
+    '--page-accent-secondary': 'var(--hos-color-info)',
     '--page-accent-secondary-rgb': 'var(--module-accent-home-mode-sub-rgb, 251, 113, 133)',
     '--page-accent-bg': `rgba(${rgb}, 0.12)`,
     '--page-accent-bg-strong': `rgba(${rgb}, 0.18)`,

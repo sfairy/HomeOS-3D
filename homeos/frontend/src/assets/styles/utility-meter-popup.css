@@ -234,8 +234,8 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
-.um-stat-trend.up { color: #f87171; }
-.um-stat-trend.down { color: #4ade80; }
+.um-stat-trend.up { color: var(--hos-color-danger); }
+.um-stat-trend.down { color: var(--hos-color-success); }
 
 .um-stat-label {
   font-size: var(--premium-fs-micro);
@@ -699,13 +699,13 @@
 .gas-list-row--max,
 .ele-list-row--max,
 .w-list-row--max {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
 }
 
 .gas-list-row--min,
 .ele-list-row--min,
 .w-list-row--min {
-  background: rgba(74, 222, 128, 0.1);
+  background: rgba(var(--hos-color-success-rgb), 0.1);
 }
 
 .gas-list-day,

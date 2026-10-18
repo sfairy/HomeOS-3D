@@ -15,17 +15,17 @@
   font-size: var(--set-fs-btn);
   font-weight: 700;
   color: var(--set-success);
-  background: rgba(52, 211, 153, 0.12);
-  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.35);
-  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.12);
+  background: rgba(var(--hos-color-success-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.35);
+  box-shadow: 0 4px 14px rgba(var(--hos-color-success-rgb), 0.12);
   cursor: pointer;
   transition: all 0.22s ease;
 }
 
 .settings-btn-primary:hover:not(:disabled) {
-  color: #a7f3d0;
-  background: rgba(52, 211, 153, 0.2);
-  border-color: rgba(52, 211, 153, 0.5);
+  color: var(--hos-color-success-text);
+  background: rgba(var(--hos-color-success-rgb), 0.2);
+  border-color: rgba(var(--hos-color-success-rgb), 0.5);
   transform: translateY(-1px);
 }
 
@@ -49,7 +49,7 @@
   background: linear-gradient(
     135deg,
     rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.88),
-    rgba(10, 132, 255, 0.82)
+    rgba(var(--hos-color-accent-rgb), 0.82)
   );
   border: var(--hos-hairline) solid var(--set-border-strong);
   box-shadow: 0 4px 16px rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.2);
@@ -128,14 +128,14 @@
 }
 
 .settings-btn-ghost--sky-active {
-  color: rgba(125, 211, 252, 0.98);
-  background: rgba(56, 189, 248, 0.24);
-  border-color: rgba(56, 189, 248, 0.4);
+  color: rgba(var(--hos-color-info-rgb), 0.98);
+  background: rgba(var(--hos-color-accent-rgb), 0.24);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.4);
 }
 
 .settings-btn-ghost--sky-active:hover:not(:disabled) {
   color: rgba(186, 230, 253, 1);
-  background: rgba(56, 189, 248, 0.3);
+  background: rgba(var(--hos-color-accent-rgb), 0.3);
 }
 
 /* 危险态幽灵按钮：用于管理面板（execution-history 等删除/清空操作） */
@@ -170,20 +170,20 @@
 
 .settings-connection-feedback--ok {
   color: var(--set-success);
-  background: rgba(52, 211, 153, 0.08);
-  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.2);
+  background: rgba(var(--hos-color-success-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.2);
 }
 
 .settings-connection-feedback--err {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.08);
-  border: var(--hos-hairline) solid rgba(239, 68, 68, 0.2);
+  color: var(--hos-color-danger-text);
+  background: rgba(var(--hos-color-danger-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
 }
 
 .settings-connection-feedback--warn {
   color: var(--set-warn);
   background: var(--set-warn-deep);
-  border: var(--hos-hairline) solid rgba(245, 158, 11, 0.2);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.2);
 }
 
 /* ── 表单网格 / 弹窗 / 空状态 / 列表操作 ── */
@@ -313,13 +313,13 @@
 }
 
 .settings-list-btn--danger {
-  color: rgba(248, 113, 113, 0.8);
-  border-color: rgba(248, 113, 113, 0.12);
+  color: rgba(var(--hos-color-danger-rgb), 0.8);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.12);
 }
 
 .settings-list-btn--danger:hover {
-  color: #fca5a5;
-  background: rgba(248, 113, 113, 0.1);
+  color: var(--hos-color-danger-text);
+  background: rgba(var(--hos-color-danger-rgb), 0.1);
 }
 
 .settings-chip-toggle--active {
@@ -334,8 +334,8 @@
 }
 
 .settings-chip-toggle--emerald.settings-chip-toggle--active {
-  background: #10b981;
-  border-color: #34d399;
+  background: var(--hos-color-success);
+  border-color: var(--hos-color-success);
 }
 
 .settings-note-box {
@@ -372,31 +372,31 @@
 }
 
 .settings-note-callout--sky {
-  --callout-accent: rgba(56, 189, 248, 0.55);
+  --callout-accent: rgba(var(--hos-color-accent-rgb), 0.55);
   --callout-label: var(--set-info);
   background: linear-gradient(90deg, rgba(14, 165, 233, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
   border-color: var(--set-info-bg);
 }
 
 .settings-note-callout--pink {
-  --callout-accent: rgba(244, 114, 182, 0.55);
-  --callout-label: #f9a8d4;
+  --callout-accent: rgba(var(--hos-color-danger-rgb), 0.55);
+  --callout-label: var(--hos-color-danger-text);
   background: linear-gradient(90deg, rgba(236, 72, 153, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: rgba(244, 114, 182, 0.12);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.12);
 }
 
 .settings-note-callout--emerald {
-  --callout-accent: rgba(52, 211, 153, 0.55);
+  --callout-accent: rgba(var(--hos-color-success-rgb), 0.55);
   --callout-label: var(--set-success);
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: rgba(52, 211, 153, 0.12);
+  background: linear-gradient(90deg, rgba(var(--hos-color-success-rgb), 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
+  border-color: rgba(var(--hos-color-success-rgb), 0.12);
 }
 
 .settings-note-callout--amber {
-  --callout-accent: rgba(251, 191, 36, 0.55);
+  --callout-accent: rgba(var(--hos-color-accent-rgb), 0.55);
   --callout-label: var(--set-warn);
   background: linear-gradient(90deg, var(--set-warn-deep) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: rgba(251, 191, 36, 0.14);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.14);
 }
 
 .settings-note-callout code {
@@ -418,8 +418,8 @@
 }
 
 .settings-env-room-manager__item--active {
-  border-color: rgba(52, 211, 153, 0.28);
-  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(var(--hos-color-success-rgb), 0.28);
+  background: rgba(var(--hos-color-success-rgb), 0.08);
 }
 
 /* .settings-inline-hint--* 已抽离至 components/common/styles/status-hint.css */
@@ -479,9 +479,9 @@
 }
 
 .settings-profile-active {
-  border-color: rgba(129, 140, 248, 0.35) !important;
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.35) !important;
   background: rgba(99, 102, 241, 0.08) !important;
-  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.15);
+  box-shadow: 0 0 0 1px rgba(var(--hos-color-accent-strong-rgb), 0.15);
 }
 
 @media (max-width: 768px) {
@@ -530,24 +530,24 @@
 
 .settings-choice-btn--active {
   color: #fff;
-  border-color: color-mix(in srgb, var(--choice-accent, #0A84FF) 88%, transparent);
+  border-color: color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 88%, transparent);
   background:
     linear-gradient(
       165deg,
-      color-mix(in srgb, var(--choice-accent, #0A84FF) 42%, transparent) 0%,
-      color-mix(in srgb, var(--choice-accent, #0A84FF) 16%, rgba(255, 255, 255, 0.04)) 100%
+      color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 42%, transparent) 0%,
+      color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 16%, rgba(255, 255, 255, 0.04)) 100%
     );
   /* 选中：实边 + 内高光，不加外扩彩光晕 */
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--choice-accent, #0A84FF) 40%, rgba(255, 255, 255, 0.25));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 40%, rgba(255, 255, 255, 0.25));
 }
 
 .settings-choice-btn--active svg {
-  color: var(--choice-accent, #0A84FF);
+  color: var(--choice-accent, var(--hos-color-accent));
 }
 
 .settings-choice-btn--active .sys-hint-micro,
 .settings-choice-btn--active .text-\[9px\] {
-  color: color-mix(in srgb, var(--choice-accent, #0A84FF) 55%, rgba(255, 255, 255, 0.92));
+  color: color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 55%, rgba(255, 255, 255, 0.92));
   opacity: 1;
 }
 
@@ -619,8 +619,8 @@
 
 .settings-btn-ghost--active {
   color: var(--set-success) !important;
-  border-color: rgba(52, 211, 153, 0.35) !important;
-  background: rgba(52, 211, 153, 0.1) !important;
+  border-color: rgba(var(--hos-color-success-rgb), 0.35) !important;
+  background: rgba(var(--hos-color-success-rgb), 0.1) !important;
 }
 
 
@@ -653,9 +653,9 @@
 }
 
 .orch-toolbar-btn--accent {
-  color: #60a5fa;
-  border-color: rgba(96, 165, 250, 0.2);
-  background: rgba(96, 165, 250, 0.08);
+  color: var(--hos-color-info-text);
+  border-color: rgba(var(--hos-color-info-rgb), 0.2);
+  background: rgba(var(--hos-color-info-rgb), 0.08);
 }
 
 .orch-toolbar-btn--compact {

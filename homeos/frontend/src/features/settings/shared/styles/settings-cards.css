@@ -162,7 +162,7 @@
   flex-shrink: 0;
 }
 
-.voice-hub { --hub-accent: var(--module-accent-voice, var(--page-accent, #a78bfa)); }
+.voice-hub { --hub-accent: var(--module-accent-voice, var(--page-accent, var(--hos-color-accent-strong))); }
 .general-hub { --hub-accent: var(--module-accent-admin, var(--page-accent, #94a3b8)); }
 .diagnostics-hub { --hub-accent: var(--module-accent-events, #2dd4bf); }
 
@@ -175,7 +175,7 @@
   font-size: var(--premium-fs-body);
   gap: 8px;
 }
-.alert-hub { --hub-accent: var(--module-accent-security, #f87171); }
+.alert-hub { --hub-accent: var(--module-accent-security, var(--hos-color-danger)); }
 
 .settings-page__stage {
   flex: 1 1 0;
@@ -398,7 +398,7 @@
   font-size: var(--set-fs-body);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--page-accent, #7eb8ff);
+  color: var(--page-accent, var(--hos-color-accent));
   font-family: ui-monospace, monospace;
   letter-spacing: 0.02em;
   flex-shrink: 0;
@@ -467,7 +467,7 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   font-family: ui-monospace, monospace;
-  color: var(--page-accent, #7eb8ff);
+  color: var(--page-accent, var(--hos-color-accent));
   text-align: center;
   outline: none;
   -moz-appearance: textfield;
@@ -513,7 +513,7 @@
 
 .settings-range-field__spin-btn:hover:not(:disabled) {
   background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
-  color: var(--page-accent, #7eb8ff);
+  color: var(--page-accent, var(--hos-color-accent));
 }
 
 .settings-range-field__spin-btn:active:not(:disabled) {
@@ -594,14 +594,14 @@
   color: var(--set-text-tertiary);
 }
 .wpl-row--dashboard:hover {
-  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
+  background: var(--set-warn-bg, rgba(var(--hos-color-warning-rgb), 0.12));
   color: var(--set-warn, #fcd34d);
 }
 .wpl-row--floating {
   color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
 }
 .wpl-row--floating:hover {
-  background: rgba(10, 132, 255, 0.1);
-  color: #0a84ff;
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  color: var(--hos-color-accent);
 }
 

@@ -182,7 +182,7 @@
 
 .profile-card__btn--switch:hover {
   color: var(--module-accent-admin-sub);
-  background: var(--module-accent-admin-sub-bg, rgba(52, 211, 153, 0.1));
+  background: var(--module-accent-admin-sub-bg, rgba(var(--hos-color-success-rgb), 0.1));
   border-color: var(--module-accent-admin-sub-border, var(--set-success-border));
 }
 
@@ -222,8 +222,8 @@
   color: var(--set-text-secondary);
 }
 .pb-flow-band__shell {
-  --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
-  --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
+  --flow-glow-a: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(var(--hos-color-success-rgb), var(--flow-glow-alpha-b));
 }
 @media (min-width: 640px) {
 }
@@ -233,8 +233,8 @@
   margin-top: 14px;
   padding: 12px;
   border-radius: var(--hos-radius-card);
-  background: linear-gradient(160deg, rgba(56, 189, 248, 0.06) 0%, rgba(0, 0, 0, 0.18) 100%);
-  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.22);
+  background: linear-gradient(160deg, rgba(var(--hos-color-accent-rgb), 0.06) 0%, rgba(0, 0, 0, 0.18) 100%);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .pb-auto-backup__row {
@@ -286,8 +286,8 @@
 }
 
 .pb-auto-switch--on {
-  background: linear-gradient(135deg, #22d3ee, #0ea5e9);
-  border-color: rgba(34, 211, 238, 0.5);
+  background: linear-gradient(135deg, var(--hos-color-info), #0ea5e9);
+  border-color: rgba(var(--hos-color-info-rgb), 0.5);
 }
 
 .pb-auto-switch__knob {
@@ -343,6 +343,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  /* 与上方定时自动备份卡片之间必须有间距：这张卡片自己是 margin-top，
+     没有 margin-bottom，而按钮组紧贴在它后面；都不给就会贴死成一条。
+     用 12px 与下面 .pb-server-files 的节奏保持一致。 */
+  margin-top: var(--hos-space-md, 12px);
 }
 .pb-server-files {
   margin-top: 12px;

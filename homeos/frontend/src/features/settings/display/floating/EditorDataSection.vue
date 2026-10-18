@@ -176,7 +176,7 @@ function applyPreset(accent) {
               v-model="customColorAccentModel"
               type="text"
               class="afh-input afh-color-editor__hex"
-              placeholder="#22d3ee"
+              placeholder="#59d3c0"
             />
           </label>
 

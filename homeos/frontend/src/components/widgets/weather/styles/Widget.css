@@ -12,52 +12,52 @@
 
 /* ── 图标颜色 ── */
 .weather-ic-blue {
-  color: var(--premium-accent-blue, #0a84ff);
+  color: var(--premium-accent-blue, var(--hos-color-accent));
 }
 .weather-ic-cyan {
-  color: var(--premium-accent-cyan, #22d3ee);
+  color: var(--premium-accent-cyan, var(--hos-color-info));
 }
 .weather-ic-amber {
-  color: var(--set-warn, #fcd34d);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 .weather-ic-violet {
-  color: var(--premium-accent-violet, #c084fc);
+  color: var(--premium-accent-violet, var(--hos-color-accent));
 }
 .weather-ic-success {
-  color: var(--set-success, #6ee7b7);
+  color: var(--set-success, var(--hos-color-success-text));
 }
 
 /* ── 数值颜色（语义映射） ── */
 .weather-c-success {
-  color: var(--set-success, #6ee7b7);
+  color: var(--set-success, var(--hos-color-success-text));
 }
 .weather-c-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--set-danger, var(--hos-color-danger-text));
 }
 .weather-c-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 .weather-c-warn-deep {
-  color: var(--premium-accent-amber, #ff9500);
+  color: var(--premium-accent-amber, var(--hos-color-warning));
 }
 .weather-c-warn-soft {
-  color: var(--set-warn, #fcd34d);
+  color: var(--set-warn, var(--hos-color-warning-text));
   opacity: 0.7;
 }
 .weather-c-info {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 .weather-c-blue {
-  color: var(--premium-accent-blue, #0a84ff);
+  color: var(--premium-accent-blue, var(--hos-color-accent));
 }
 .weather-c-blue-soft {
-  color: var(--set-info, #7dd3fc);
+  color: var(--set-info, var(--hos-color-info-text));
 }
 .weather-c-violet {
-  color: var(--premium-accent-violet, #c084fc);
+  color: var(--premium-accent-violet, var(--hos-color-accent));
 }
 .weather-c-cyan {
-  color: var(--premium-accent-cyan, #22d3ee);
+  color: var(--premium-accent-cyan, var(--hos-color-info));
 }
 .weather-c-white {
   color: #ffffff;
@@ -65,18 +65,18 @@
 
 /* ── AQI 徽章 ── */
 .weather-badge-success {
-  background: var(--set-success-bg, rgba(16, 185, 129, 0.12));
-  color: var(--set-success, #6ee7b7);
+  background: var(--set-success-bg, rgba(var(--hos-color-success-rgb), 0.12));
+  color: var(--set-success, var(--hos-color-success-text));
 }
 .weather-badge-warn {
-  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
-  color: var(--set-warn, #fcd34d);
+  background: var(--set-warn-bg, rgba(var(--hos-color-warning-rgb), 0.12));
+  color: var(--set-warn, var(--hos-color-warning-text));
 }
 .weather-badge-warn-deep {
   background: rgba(255, 149, 0, 0.18);
-  color: var(--premium-accent-amber, #ff9500);
+  color: var(--premium-accent-amber, var(--hos-color-warning));
 }
 .weather-badge-danger {
-  background: var(--set-danger-bg, rgba(251, 113, 133, 0.12));
-  color: var(--set-danger, #fda4af);
+  background: var(--set-danger-bg, rgba(var(--hos-color-danger-rgb), 0.12));
+  color: var(--set-danger, var(--hos-color-danger-text));
 }

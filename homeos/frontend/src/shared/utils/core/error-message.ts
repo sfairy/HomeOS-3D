@@ -3,7 +3,13 @@ import { HTTP_MESSAGE_PATTERNS, HTTP_MESSAGE_TEXTS } from '@homeos/shared'
 /** Axios 风格错误的最小结构（无需引入 axios 类型） */
 type AxiosLikeError = {
   response?: {
-    data?: { message?: string | string[]; traceId?: string; apiErrorCode?: string }
+    data?: {
+      message?: string | string[]
+      /** 后端口径的补充字段：``{"detail": "…"}``（备份 / 系统备份等端点直接返回它）。 */
+      detail?: unknown
+      traceId?: string
+      apiErrorCode?: string
+    }
     status?: number
     headers?: Record<string, unknown>
   }
@@ -90,6 +96,17 @@ function flattenApiMessage(raw: unknown): string {
   return String(raw).trim()
 }
 
+/**
+ * 读取 ``detail`` 里的**字符串**文案。
+ *
+ * 备份 / 系统备份 / 维护类端点刻意返回精简的 ``{"detail": "备份密码不正确…"}``（不套 Nest
+ * 信封），这些文案是用户唯一能看懂的部分。只认字符串：``detail`` 为 pydantic 校验数组时
+ * 由 ``message`` 承载可读文案，这里再拼一次只会得到一串 ``[object Object]``。
+ */
+function detailMessage(raw: unknown): string {
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
 /** 商业授权未激活导致的 401（勿当登录过期处理）
  *
  * 主判据是门禁下发的结构化 ``apiErrorCode``；再用信封文案兜底一层：
@@ -126,7 +143,10 @@ export function extractErrorMessage(error: unknown): string {
   if (typeof error === 'object') {
     const e = error as AxiosLikeError
     const data = e.response?.data
-    const apiMsg = flattenApiMessage(data?.message)
+    // 后端两种错误形状并存：Nest 信封读 ``message``，备份类端点读 ``detail``。
+    // 只读 ``message`` 会让后者退化成 axios 的英文 "Request failed with status code 400"，
+    // 真正原因（密码不对 / 不是有效备份 / 版本不兼容）被整条丢掉。
+    const apiMsg = flattenApiMessage(data?.message) || detailMessage(data?.detail)
     const status = e.response?.status
     const retryAfter = readRetryAfterSeconds(e.response?.headers)
 
@@ -193,7 +213,9 @@ function localizeAxiosishMessage(message: string, status?: number): string {
     return formatRateLimitMessage(null)
   }
   if (code === 400) {
-    // 有具体校验细节时保留（多为 class-validator 英文），仅空/笼统时回退
+    // 有具体校验细节时保留（多为 class-validator 英文），仅空/笼统时回退。
+    // axios 自己的样板文案（响应体里压根没有可读原因）没有信息量，直接换成中文提示。
+    if (/^request failed with status code/i.test(m)) return HTTP_MESSAGE_TEXTS.badRequest
     return m || HTTP_MESSAGE_TEXTS.badRequest
   }
   if (code === 500 || HTTP_MESSAGE_PATTERNS.internalServerError.test(m)) {

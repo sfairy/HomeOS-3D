@@ -32,11 +32,11 @@ export function buildModeSourcePieOption(
 ) {
   const palette = [
     hubAccentColor('home-mode'),
-    '#38bdf8',
-    '#34d399',
-    '#fb7185',
-    '#a78bfa',
-    '#94a3b8',
+    '#59d3c0',
+    '#3ddc97',
+    '#ff5a5f',
+    '#ffc46a',
+    '#a7b4c2',
   ]
   const data = buckets.map((b, i) => ({
     name: (HOME_MODE_LOG_SOURCE_LABELS as Record<string, string>)[b.key] || b.key,

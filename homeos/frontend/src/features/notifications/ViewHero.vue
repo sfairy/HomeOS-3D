@@ -27,7 +27,7 @@ const emit = defineEmits(['reload', 'mark-all-read', 'clear-all'])
 </script>
 
 <template>
-  <ListPageHero :title="'通知中心'" :hint="pageHint" tone="pink">
+  <ListPageHero :title="'通知中心'" :hint="pageHint">
     <template #icon>
       <Bell class="w-5 h-5" />
     </template>

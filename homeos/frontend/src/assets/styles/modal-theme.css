@@ -80,7 +80,7 @@
   background: linear-gradient(135deg,
     rgba(var(--hos-accent), 0.02) 0%,
     transparent 42%,
-    rgba(191, 90, 242, 0.02) 100%);
+    rgba(var(--hos-color-accent-strong-rgb), 0.02) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -286,26 +286,26 @@
 
 .hos-modal-btn--primary {
   color: #fff;
-  background: linear-gradient(135deg, #0A84FF, #5856D6);
-  box-shadow: 0 4px 20px rgba(10, 132, 255, 0.38);
+  background: linear-gradient(135deg, var(--hos-color-accent), var(--hos-color-accent-deep));
+  box-shadow: 0 4px 20px rgba(var(--hos-color-accent-rgb), 0.38);
 }
 
 .hos-modal-btn--primary:hover {
   filter: brightness(1.08);
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 28px rgba(10, 132, 255, 0.48);
+  box-shadow: 0 8px 28px rgba(var(--hos-color-accent-rgb), 0.48);
 }
 
 .hos-modal-btn--danger {
   color: #fff;
-  background: linear-gradient(135deg, #FF453A, #dc2626);
-  box-shadow: 0 4px 20px rgba(255, 69, 58, 0.38);
+  background: linear-gradient(135deg, var(--hos-color-danger), #c0343a);
+  box-shadow: 0 4px 20px rgba(var(--hos-color-danger-rgb), 0.38);
 }
 
 .hos-modal-btn--danger:hover {
   filter: brightness(1.08);
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(255, 69, 58, 0.48);
+  box-shadow: 0 8px 28px rgba(var(--hos-color-danger-rgb), 0.48);
 }
 
 .hos-modal-btn--full { width: 100%; }
@@ -337,16 +337,16 @@
 .hos-modal-search { padding-left: 40px; }
 .hos-modal-input:focus,
 .hos-modal-search:focus {
-  border-color: rgba(10, 132, 255, 0.45);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.08);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.45);
+  box-shadow: 0 0 0 3px rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 .hos-modal-input::placeholder,
 .hos-modal-search::placeholder { color: var(--hos-text-faint); }
 
 .hos-modal-dropzone--active {
-  box-shadow: 0 0 0 2px color-mix(in srgb, #BF5AF2 40%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, #BF5AF2 35%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hos-color-accent) 40%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--hos-color-accent) 35%, rgba(0, 0, 0, 0));
 }
 
 
@@ -405,8 +405,8 @@
 }
 
 .hos-modal-list-row--selected {
-  background: rgba(10, 132, 255, 0.06);
-  border-color: rgba(10, 132, 255, 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.06);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 /* ---- 辅助块 ---- */
@@ -417,14 +417,14 @@
 .hos-modal-link {
   font-size: var(--premium-fs-caption);
   font-weight: 700;
-  color: #60a5fa;
+  color: var(--hos-color-info-text);
   background: none;
   border: none;
   cursor: pointer;
   transition: color 0.2s;
 }
 
-.hos-modal-link:hover { color: #93c5fd; }
+.hos-modal-link:hover { color: var(--hos-color-info-text); }
 
 .hos-modal-empty {
   text-align: center;
@@ -450,20 +450,20 @@
 }
 
 .hos-modal-pin-dot--filled {
-  background: #60a5fa;
-  border-color: #60a5fa;
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+  background: var(--hos-color-info-text);
+  border-color: var(--hos-color-info-text);
+  box-shadow: 0 0 10px rgba(var(--hos-color-info-rgb), 0.5);
 }
 
 .hos-modal-pin-dot--success {
-  background: #34d399;
-  border-color: #34d399;
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+  background: var(--hos-color-success);
+  border-color: var(--hos-color-success);
+  box-shadow: 0 0 10px rgba(var(--hos-color-success-rgb), 0.5);
 }
 
 .hos-modal-pin-dot--error {
-  background: #f87171;
-  border-color: #f87171;
+  background: var(--hos-color-danger);
+  border-color: var(--hos-color-danger);
 }
 
 .hos-modal-pin-grid {
@@ -504,7 +504,7 @@
   height: 14rem;
   top: -6rem;
   right: -6rem;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0.04) 42%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(var(--hos-color-accent-rgb), 0.14) 0%, rgba(var(--hos-color-accent-rgb), 0.04) 42%, rgba(0, 0, 0, 0) 70%);
 }
 .hos-modal-glow--purple {
   width: 14rem;

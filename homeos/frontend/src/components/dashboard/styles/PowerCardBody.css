@@ -5,9 +5,9 @@
   width: 34px;
   height: 34px;
   border-radius: var(--hos-radius-card);
-  background: color-mix(in srgb, var(--ef-accent, #fbbf24) 22%, #12141c);
+  background: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 22%, #12141c);
   /* 固定 1px 实色边，避免 0.5px 发丝边在移动端圆角处泛白晕 */
-  border: 1px solid color-mix(in srgb, var(--ef-accent, #fbbf24) 40%, #1a1d28);
+  border: 1px solid color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 40%, #1a1d28);
   flex-shrink: 0;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -39,7 +39,7 @@
 }
 
 .power-card__value {
-  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 72%, #fff);
+  color: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 72%, #fff);
   font-variant-numeric: tabular-nums;
   font-size: var(--premium-fs-title);
   font-weight: 700;
@@ -57,7 +57,7 @@
 .power-card__unit {
   font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 48%, rgba(255, 255, 255, 0.42));
+  color: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 48%, rgba(255, 255, 255, 0.42));
   letter-spacing: 0.02em;
   text-transform: lowercase;
 }
@@ -108,7 +108,7 @@
   font-size: var(--premium-fs-micro);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 62%, #fff);
+  color: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 62%, #fff);
   line-height: 1.3;
 }
 
@@ -134,6 +134,46 @@
   .power-card__bar {
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+/* 1024–1180 等中窄视口：底部 7 张能耗卡每张只有约 135px，
+   「图标 + 数值 + 日电量 | 日费用 x.xx 元」的单行排布会把金额截断。
+   改为图标缩小 + meta 两行（标签一行、金额一行），保持数值完整可读。 */
+@media (max-width: 1180px) {
+  .power-card__icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .power-card__col {
+    gap: 1px;
+  }
+
+  .power-card__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 0;
+  }
+
+  .power-card__label {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .power-card__secondary {
+    padding-left: 0;
+    margin-left: 0;
+    border-left: none;
+    gap: 3px;
+  }
+
+  .power-card__secondary-name,
+  .power-card__secondary-value {
+    font-size: 10px;
+    line-height: 1.25;
   }
 }
 

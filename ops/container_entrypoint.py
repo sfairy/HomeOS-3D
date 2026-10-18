@@ -39,6 +39,15 @@ def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:
     elif "STORE_DATA_DIR" not in environment:
         candidates.append(Path("/data"))
 
+    # 备份包目录（``HOMEOS_BACKUPS_DIR``）必须**单独**校正属主，不能指望上面那轮的递归。
+    # compose 把宿主机的 ``./backups`` bind mount 到 ``/data/backups``：bind mount 不继承
+    # 镜像里 ``chown homeos:homeos /data`` 的属主，宿主目录通常是 root 755 —— 而进程随后
+    # 以 uid 1000 运行，备份写入会直接 EACCES。另外上面那轮的 ``chown_tree_if_needed`` 在
+    # ``/data`` 属主已经正确时会**提前返回**，根本不会走到这个子目录。
+    backups_dir = (environment.get("HOMEOS_BACKUPS_DIR") or "").strip()
+    if backups_dir:
+        candidates.append(Path(backups_dir))
+
     if "STORE_DATA_DIR" in environment:
         candidates.append(Path(environment["STORE_DATA_DIR"]))
     if "STORE_LICENSE_KEYS_DIR" in environment:
@@ -84,10 +93,16 @@ def initialize_permissions(
         return
 
     account = pwd.getpwnam(user_name)
+    # 备份目录只校正属主，**不**收紧成 0700：它常常是宿主机 bind mount 进来看的目录
+    # （compose 的 ``./backups``），宿主上的管理员账号（uid 往往不是 1000）需要能读走
+    # 备份包。目录保持原模式（Docker 新建时是 0755），数据目录自身仍然收紧为 0700。
+    backups = (environment.get("HOMEOS_BACKUPS_DIR") or "").strip()
+    backups_path = Path(backups).resolve() if backups else None
     for directory in storage_directories(environment):
         try:
             chown_tree_if_needed(directory, account.pw_uid, account.pw_gid)
-            os.chmod(directory, 0o700)
+            if directory != backups_path:
+                os.chmod(directory, 0o700)
         except OSError as error:
             if error.errno in {errno.EROFS, errno.EACCES, errno.EPERM}:
                 print(
