@@ -417,6 +417,29 @@ docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
 
 授权私钥卷丢了等于所有已激活客户端失效；公钥丢了不用慌，主应用下次启动会自己取回。
 
+### 替换 UI 素材（图标 / 背景图 / 音效 / Logo）
+
+随包的默认素材（`homeos/assets`）在镜像里是**种子**，compose 把仓库根的 `./assets`
+bind mount 到容器 `/app/assets` 作为**实例目录**。替换素材不用重建镜像、不用进容器：
+
+```bash
+# 首次 up 后 entrypoint 会自动铺好 ./assets/{icons,backgrounds,sounds,logo}
+ls assets/logo                     # 例如 logo.svg
+cp my-logo.svg assets/logo/logo.svg   # 直接覆盖同名文件
+# 浏览器刷新即可（前端按 URL 缓存，必要时 Ctrl/Cmd+Shift+R 或清一次站点缓存）
+```
+
+规则只有一条，**按子目录判定**：
+
+| `./assets/<子目录>` 状态 | 启动时的行为 |
+| --- | --- |
+| 不存在 / 空 | 从镜像种子铺满该子目录（首次启动、或你想恢复出厂默认时） |
+| 有任何文件 | 整棵视为你自己的素材，**一个文件都不动**（替换过的不会被覆盖，删掉的单个文件也不会复活） |
+
+所以恢复出厂默认只要 `rm -rf assets/logo`（清空那个子目录）后
+`docker compose restart homeos`。想在 UI 里隐藏某个默认素材，用界面上的隐藏功能
+（记录在数据卷的 `.hidden-assets.json`），别去改这个只读层的文件。
+
 ### 出问题
 
 | 现象 | 处理 |

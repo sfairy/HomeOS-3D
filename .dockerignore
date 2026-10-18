@@ -27,6 +27,11 @@ homeos/backend/image
 # 同机部署则由商店写出的共享卷注入，不在镜像里烘焙。
 /keys
 
+# 宿主机上的 UI 素材实例目录（compose 把 ./assets bind mount 到 /app/assets）。
+# 内容是现场替换过的图标 / 背景图 / 音效 / Logo，不该进构建上下文：
+# 镜像只烘焙 homeos/assets 这份种子（→ /app/assets-default）。
+/assets
+
 # 构建期由 Dockerfile 生成的版本模块（唯一来源是仓库根 package.json 的 version）。
 **/_version.py
 

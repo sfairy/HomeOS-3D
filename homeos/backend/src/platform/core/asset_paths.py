@@ -1,7 +1,8 @@
 """静态资源路径与公开 URL 工具（对齐 ``project-paths.util.ts`` / ``public-url.util.ts`` /
 ``http-security/path.util.ts`` 的 SVG 消毒子集）。
 
-目录解析顺序：环境变量覆盖 → 仓库 ``assets/<name>`` → ``backend/assets/<name>``。
+目录解析顺序：单项环境变量（``ICONS_DIR`` 等）→ ``HOMEOS_ASSETS_DIR``（实例目录，容器里
+跟宿主机 ``./assets`` bind mount）→ 仓库 ``assets/<name>`` → ``backend/assets/<name>``。
 """
 
 from __future__ import annotations
@@ -68,6 +69,17 @@ _LOCAL_ASSETS = PROJECT_ROOT / "assets"
 
 
 def _assets_root() -> Path:
+    """素材根目录。
+
+    优先级：``HOMEOS_ASSETS_DIR``（容器里的实例目录，跟宿主机 ``./assets`` bind mount）→
+    仓库 ``assets/``（monorepo 开发态）→ 后端本级 ``assets/``（独立部署）。
+
+    容器镜像里只装了种子 ``/app/assets-default``，实例目录由 entrypoint 首次启动铺入，
+    所以这里读不到就真是「没素材」，不要再去猜别的路径。
+    """
+    override = os.getenv("HOMEOS_ASSETS_DIR", "").strip()
+    if override:
+        return Path(override).expanduser()
     return _REPO_ASSETS if _REPO_ASSETS.is_dir() else _LOCAL_ASSETS
 
 

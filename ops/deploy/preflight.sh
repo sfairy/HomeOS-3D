@@ -115,6 +115,23 @@ else
   bad "容器内 /data/backups 不可写：备份会全部失败（bind mount 的宿主目录属主不对，见 ops/container_entrypoint.py）"
 fi
 
+head_ "2d. UI 素材目录（宿主机可替换性）"
+# 随包素材（图标 / 背景图 / 音效 / Logo）在镜像里是种子 /app/assets-default，compose 把
+# ./assets 挂到 /app/assets 作为实例目录：换图 / 换音效直接改宿主机文件即可。
+ASSETS_MOUNT="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/app/assets"}}{{.Type}} {{.Source}}{{end}}{{end}}' "$APP_CT" 2>/dev/null || true)"
+if [ -z "$ASSETS_MOUNT" ]; then
+  warn "/app/assets 没有独立挂载：素材只在镜像里，替换要重建镜像"
+elif [ "${ASSETS_MOUNT%% *}" = "bind" ]; then
+  ok "素材目录 bind mount：${ASSETS_MOUNT#* }（宿主机可直接替换）"
+else
+  ok "素材目录挂载：$ASSETS_MOUNT"
+fi
+if docker exec -u homeos "$APP_CT" sh -c 'test -r /app/assets/logo/logo.svg' 2>/dev/null; then
+  ok "容器内 /app/assets/logo/logo.svg 可读（uid 1000）"
+else
+  bad "容器内缺 /app/assets/logo/logo.svg：默认素材没铺进去，/logo /icons /backgrounds 会 404，sw.js 预缓存也会失败（见 ops/container_entrypoint.py）"
+fi
+
 head_ "3. 容器出站：主应用 → 商店（APP_LICENSE_SERVER_URL）"
 LICENSE_URL="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$APP_CT" 2>/dev/null \
   | awk -F= '/^APP_LICENSE_SERVER_URL=/{sub(/^APP_LICENSE_SERVER_URL=/,""); print; exit}')"

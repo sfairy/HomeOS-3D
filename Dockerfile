@@ -200,6 +200,7 @@ ENV APP_ENVIRONMENT=production \
     HOMEOS_PORT=8801 \
     APP_PORT=8801 \
     HOMEOS_IMAGE_DIR=/app/image \
+    HOMEOS_ASSETS_DIR=/app/assets \
     HOMEOS_FRONTEND_DIR=/app/dist \
     APP_CLIENT_KEYS_DIR=/data/client-keys \
     APP_LICENSE_SERVER_URL=\
@@ -215,6 +216,31 @@ RUN mkdir -p /data /data/backups /data/client-keys /run/secrets \
 # 加密后端（纯 Cython .so，无任何明文 .py）与前端产物都来自工作区根 dist/。
 COPY --chown=homeos:homeos dist/homeos/backend/${BACKEND_PLATFORM} /app
 COPY --chown=homeos:homeos dist/homeos/frontend /app/dist
+
+# 随包默认 UI 素材（图标 / 背景图 / 音效 / Logo）。
+#
+# 落点分两处，职责不同：
+#   - ``/app/assets-default``：镜像内的**种子**，只读、随镜像升级而更新；
+#   - ``/app/assets``：运行期的**实例目录**，compose 把宿主机 ``./assets`` bind mount 到这里，
+#     管理员可以直接替换图 / 音效，不必重建镜像。
+#
+# bind mount 会整个遮住镜像里的同名目录，所以默认素材**不能只放 /app/assets**：
+# 首次启动必须由 ``ops/container_entrypoint.py`` 从种子铺一份进去，否则
+# ``/icons``、``/backgrounds``、``/sounds``、``/logo`` 会全部 404，并连带
+# ``sw.js`` 的 ``cache.addAll(['/logo/logo.svg', …])`` 失败、Service Worker 装不上。
+#
+# 路径口径：``asset_paths`` 的解析顺序是「单项 env（ICONS_DIR 等）→ HOMEOS_ASSETS_DIR →
+# REPO_ROOT/assets → PROJECT_ROOT/assets」。镜像里 PROJECT_ROOT=/app，所以不设 env 时实例
+# 目录也正是 /app/assets；这里显式钉住 HOMEOS_ASSETS_DIR，让 entrypoint 与后端读同一份
+# 环境变量，不给「两边各推一次」留漂移空间。
+COPY --chown=homeos:homeos homeos/assets /app/assets-default
+RUN mkdir -p /app/assets \
+    && chown homeos:homeos /app/assets \
+    && test -f /app/assets-default/logo/logo.svg \
+    && test -d /app/assets-default/icons \
+    && test -d /app/assets-default/backgrounds \
+    && test -d /app/assets-default/sounds
+
 # 内置素材目录：空目录可能不被 local 导出保留，这里补建。
 RUN mkdir -p /app/image && chown homeos:homeos /app/image
 # 内置反代：Caddy 静态二进制 + 配置（与 uvicorn 同容器，见 ops/docker/start_app.py）。

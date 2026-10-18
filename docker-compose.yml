@@ -38,6 +38,11 @@
 # 备份包放在本文件同目录的 ./backups（bind mount 到容器 /data/backups）：服务器全量 /
 # 自动备份 / 网页导出的 .habackup 都在那里，宿主机直接可见，换机时整目录拷走即可。
 # 首次 up 前不必手工建 —— Docker 会建；但宿主目录属主必须是容器 uid 1000（entrypoint 会校正）。
+#
+# UI 素材放在本文件同目录的 ./assets（bind mount 到容器 /app/assets）：图标 / 背景图 /
+# 音效 / Logo 直接在宿主机替换同名文件即可，刷新页面生效，不用重建镜像。首次启动由
+# entrypoint 从镜像内置种子（/app/assets-default）铺入空子目录；已有内容的子目录不动，
+# 因此替换过的不会被覆盖、删掉的单个文件也不会复活。恢复出厂默认：清空该子目录后 restart。
 
 name: homeos
 
@@ -143,6 +148,12 @@ services:
       # 属主由 ops/container_entrypoint.py 在降权前校正为 uid 1000（homeos），
       # 否则宿主上 root 建的目录会让备份写入失败。
       - ./backups:/data/backups
+      # 随包 UI 素材（图标 / 背景图 / 音效 / Logo）落到**本文件同目录**的 ./assets，
+      # 宿主机上直接替换同名文件即可生效（刷新页面，不用重建镜像、不用进容器）。
+      # 首次启动时 entrypoint 会从镜像内置种子（/app/assets-default）把空子目录铺满；
+      # 已有内容的子目录原样保留：替换过的文件不会被覆盖，删掉的单个文件也不会复活。
+      # 想让某个子目录恢复出厂默认：清空它（如 rm -rf ./assets/logo）再 restart homeos。
+      - ./assets:/app/assets
       # 授权实例指纹来源，必须先建好符号链接（见文件头）。
       - /host/etc/machine-id:/host/etc/machine-id:ro
       - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
