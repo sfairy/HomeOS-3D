@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from fastapi import Request
 
 from ..core.errors import RequestRejected
+from ..core.hostnames import browser_reachable
 
 _REJECTION = "此操作只允许从当前应用页面发起。"
 
@@ -23,21 +24,34 @@ _REJECTION = "此操作只允许从当前应用页面发起。"
 def browser_origin(request: Request) -> str:
     """浏览器**正在用**的站点来源 ``scheme://host[:port]``；判不出来时返回空串。
 
-    与 :func:`require_same_origin_write` 取的是同一份基准（``APP_BASE_URL`` 优先，
-    否则请求的 scheme + ``Host``）—— 这样「同源校验认可的那个来源」与「拼绝对链接时
-    用的那个来源」永远一致：两处一旦分叉，就会出现「校验通过、但链接指向别处」。
+    取值顺序变了，原因是这套系统同时有三个入口（局域网 HTTP、内置自签 HTTPS、公网域名），
+    而 ``APP_BASE_URL`` 只能描述其中一个。原来的「配置值优先」会让局域网用户拿到的商店
+    入口是公网域名 —— 穿透抖一下或离线时，明明同机的 ``:8802`` 就在旁边却点不开。
 
-    用途：拼那种**必须由浏览器打开**的绝对地址（如商店入口）。这类地址不能用容器自己
-    看到的地址来填 —— 容器走的是内网服务名，浏览器走的是宿主 IP / 域名。
+    所以：
+
+    1. 请求的 ``Host`` 浏览器**可能**用（IP / 带点域名）→ 就用它 —— 这是用户此刻真实
+       在用的那个地址，也是唯一能保证「点了就能打开」的那个；
+    2. ``Host`` 只是容器内部名（反代没透传 ``Host`` 时会变成 ``homeos`` / ``127.0.0.1``）
+       → 退回 ``APP_BASE_URL``；
+    3. 两者都没有 → 空串。
+
+    这个值只用于**拼给浏览器打开的绝对地址**（商店入口），不参与安全判定 —— 来源校验在
+    :func:`require_same_origin_write` 里另有更严格的判据。
     """
-    settings = getattr(getattr(request, "app", None), "state", None)
-    configured = str(getattr(getattr(settings, "settings", None), "app_base_url", "") or "").strip()
+    state = getattr(getattr(request, "app", None), "state", None)
+    configured = str(getattr(getattr(state, "settings", None), "app_base_url", "") or "").strip()
+    host = request.headers.get("host", "").strip()
+    if host:
+        try:
+            hostname = (urlsplit(f"//{host}").hostname or "").strip()
+        except ValueError:
+            hostname = ""
+        if hostname and browser_reachable(hostname):
+            return f"{request.url.scheme}://{host}"
     if configured:
         return configured.rstrip("/")
-    host = request.headers.get("host", "").strip()
-    if not host:
-        return ""
-    return f"{request.url.scheme}://{host}"
+    return f"{request.url.scheme}://{host}" if host else ""
 
 
 def require_same_origin_write(request: Request) -> None:

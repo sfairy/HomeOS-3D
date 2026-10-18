@@ -9,8 +9,15 @@
 # 四条地址链路，别混：
 #   ① 容器 → 商店      APP_LICENSE_SERVER_URL=http://homeos-store:8802（写死，别改成域名）
 #   ② 浏览器 → 主应用  https://homelife.iepose.cn（穿透）/ http://<IP>:8801、https://<IP>:8803（内网）
-#   ③ 浏览器 → 商店    https://homelifepay.iepose.cn（穿透）/ http://<IP>:8802（内网）
-#   ④ 支付平台 → 商店  由 STORE_BASE_URL 推导的回调地址（必须是公网域名）
+#   ③ 浏览器 → 商店    **跟着访问者走**：从内网 IP 打开主应用 → http://<同一IP>:8802；
+#                      从公网域名打开 → https://homelifepay.iepose.cn。APP_STORE_URL 留空，
+#                      由 domains/store/discovery.py 推导（同机 IP 访问时不联网、不依赖穿透状态）。
+#   ④ 支付平台 → 商店  由 STORE_BASE_URL 推导的回调地址（必须填公网域名）
+#
+# 入口组合（两条入口必须同时可用，缺一不可）：
+#   ├ 内网  http://<IP>:8801 · https://<IP>:8803（自签）· 商店 http://<IP>:8802
+#   └ 公网  https://homelife（主应用）· https://homelifepay（商店），TLS 在隧道/跳板机边缘终止
+#   公网只解析到一个域名时，另一条入口的链接会指不过去；两条都要映射（见 TUNNEL-ACCESS.md）。
 #
 # 端口：8801 / 8803 主应用（HTTP / 镜像内置自签 HTTPS）、8802 商店（HTTP）。
 # 商店不提供 HTTPS，也没有 8804 —— 公网 TLS 只终止在隧道 / 跳板机的 80·443 上。
@@ -51,7 +58,8 @@ services:
       STORE_PORT: "8802"
       # 商店的对外身份：支付回调、同源判定、商店链接都按它推导。
       # 必须是公网域名（不能是 8802 / 服务名）；内网 http 直连是另一个入口，不改这里。
-      STORE_BASE_URL: https://homelifepay.iepose.cn
+      # 换域名时用同名环境变量覆盖，别改这份被跟踪的文件（改完容易连自己的域名一起提交）。
+      STORE_BASE_URL: ${STORE_BASE_URL:-https://homelifepay.iepose.cn}
       # 站点默认客服邮箱（只影响新建站点；之后在 /admin 改）。留空 = 内置默认值。
       STORE_SUPPORT_EMAIL: ${STORE_SUPPORT_EMAIL:-}
       # 会话 Cookie 的 Secure：auto = 按本次请求实际协议判定（https 带、内网 http 不带）。
@@ -100,7 +108,13 @@ services:
       # 容器出站：同项目服务名，永远不用改（换 IP / 域名 / 入口抖动都不影响）。
       APP_LICENSE_SERVER_URL: http://homeos-store:8802
       # 浏览器打开的商店地址（登录页「忘记密码 / 商店」）。与上一行用途不同，别混。
-      APP_STORE_URL: https://homelifepay.iepose.cn
+      #
+      # 这里**留空**是有意的：开发者这台有两个入口 —— 局域网 `http://<IP>:8801` 与公网
+      # 域名 —— 商店入口必须跟着**访问者此刻用的那个**走（局域网 → `<同一 IP>:8802`，
+      # 公网 → STORE_BASE_URL 声明的商店域名）。写死任一个都会让另一条入口点不过去：
+      # 局域网用户被送去公网域名（穿透一抖就 404，而旁边的 :8802 明明是通的）。
+      # 推导逻辑见 domains/store/discovery.py（同机 + IP 访问时不联网）。
+      APP_STORE_URL: ${APP_STORE_URL:-}
       # 公钥来自共享卷（只读），这条路径不联网。
       APP_CLIENT_KEYS_DIR: /shared-keys
       # 会话 / CSRF Cookie：auto = 按本次请求实际协议判定（双入口部署必须用它）。
@@ -111,7 +125,7 @@ services:
       UVICORN_FORWARDED_ALLOW_IPS: 127.0.0.1,::1,172.16.0.0/12
       # 主应用公网地址（穿透后的域名）。同源校验、WebSocket 来源、socket.io 白名单都认它；
       # 填了之后局域网 IP 直连仍然可用（校验同时接受与本请求 Host 同源）。
-      APP_BASE_URL: https://homelife.iepose.cn
+      APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
       # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
     volumes:
@@ -146,7 +160,7 @@ services:
   #     - "80:80"
   #     - "443:443"
   #   environment:
-  #     STORE_DOMAIN: homelifepay.iepose.cn
+  #     STORE_DOMAIN: ${STORE_DOMAIN:-homelifepay.iepose.cn}
   #     ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL 必填}   # 证书通知邮箱，不能是个人默认值
   #   volumes:
   #     - ./ops/deploy/Caddyfile.public.example:/etc/caddy/Caddyfile:ro

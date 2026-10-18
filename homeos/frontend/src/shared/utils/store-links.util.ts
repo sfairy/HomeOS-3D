@@ -4,10 +4,16 @@ interface StoreConfig {
   storePasswordResetPath: string;
 }
 
-/** 取不到配置时的兜底：只可能发生在后端完全没答上来（商店不可达等）。
- *  正常情况下后端会站在浏览器视角给出可用地址，见 domains/store/discovery.py。 */
+/**
+ * 取不到配置时的兜底：**不回落到任何地址**。
+ *
+ * 这里原来写的是 `http://127.0.0.1:8802`，那是所有兜底里错得最离谱的一个：它指向
+ * **访问者自己那台电脑**的 8802 —— 客户机上一定打不开，开发机上又恰好"看起来能用"，
+ * 于是这个 bug 只会在生产暴露。宁可把入口藏起来（见 `applyStoreLinks` 的 `hidden`），
+ * 也不要给用户一个假链接：商店地址取不到，说明商店此刻就是不可达的。
+ */
 const FALLBACK_STORE_CONFIG: StoreConfig = {
-  storeUrl: 'http://127.0.0.1:8802',
+  storeUrl: '',
   storePasswordResetPath: '/user/authentication/forget',
 }
 
@@ -41,18 +47,29 @@ async function loadStoreConfig(): Promise<StoreConfig> {
 
 export async function applyStoreLinks(): Promise<void> {
   const config = await loadStoreConfig(),
-    storeHomeUrl = `${config.storeUrl}/`,
-    passwordResetUrl = `${config.storeUrl}${
-      config.storePasswordResetPath.startsWith('/')
-        ? config.storePasswordResetPath
-        : `/${config.storePasswordResetPath}`
-    }`
-  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[data-store-link]')) {
-    link.href = storeHomeUrl
+    storeHomeUrl = config.storeUrl ? `${config.storeUrl}/` : '',
+    passwordResetUrl = config.storeUrl
+      ? `${config.storeUrl}${
+          config.storePasswordResetPath.startsWith('/')
+            ? config.storePasswordResetPath
+            : `/${config.storePasswordResetPath}`
+        }`
+      : ''
+
+  /** 地址不可用就把入口藏起来：留着一个 href 会把人送到 404 或不存在的 127.0.0.1。 */
+  const paint = (selector: string, url: string): void => {
+    for (const link of document.querySelectorAll<HTMLAnchorElement>(selector)) {
+      if (url) {
+        link.hidden = false
+        link.href = url
+      } else {
+        link.hidden = true
+        link.removeAttribute('href')
+      }
+    }
   }
-  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[data-store-password-reset-link]')) {
-    link.href = passwordResetUrl
-  }
+  paint('a[data-store-link]', storeHomeUrl)
+  paint('a[data-store-password-reset-link]', passwordResetUrl)
 }
 
 /**

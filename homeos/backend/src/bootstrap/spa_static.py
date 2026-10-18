@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from html import escape as html_escape
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -233,31 +234,57 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
     def _spa_index() -> Path:
         return settings.frontend_dir / "index.html"
 
-    async def _page_license_blocked(request: Request) -> bool:
-        """当前页面路径对应的授权能力是否未放行（据此就地渲染授权恢复页）。"""
+    async def _page_license_status(request: Request) -> str | None:
+        """当前页面被授权门禁拦下时返回**被拦的原因**（状态码）；放行返回 ``None``。
+
+        只回布尔值是这里上一版的真实事故：``UNACTIVATED``（本机压根没激活）与
+        ``RECOVERY_RETRY``（有授权、只是续租没成功）在浏览器里被渲染成同一张「授权恢复」页，
+        而那张页的文案写着「本机授权仍在」—— 全新生产部署的用户于是看到一句假话，
+        并在一个没有重试按钮的页面上找不到「去激活」的入口（``canRetry`` 依赖
+        ``license_id``，未激活时恒为 false）。
+
+        把状态码交给前端之后，「该去激活」与「该等重连」就能分开渲染（见 ``App.vue``）。
+        """
         if not settings.license_required:
-            return False
+            return None
         feature = page_license_feature(request.url.path)
         service = getattr(request.app.state, "license_service", None)
         if feature is None or service is None:
-            return False
+            return None
         try:
-            return not await asyncio.to_thread(service.allows, feature)
+            allowed = await asyncio.to_thread(service.allows, feature)
         except Exception:
-            return False
+            # 判定本身失败时保持原口径：不拦、也不假装知道原因。
+            return None
+        if allowed:
+            return None
+        try:
+            payload = await asyncio.to_thread(service.availability)
+        except Exception:
+            payload = None
+        status = str((payload or {}).get("status") or "").strip()
+        # 已经确认被拦、但拿不到具体状态时按「未知」处理：前端会走恢复页（中性、可重试），
+        # 而不是把用户直接推进激活表单。
+        return status or "UNKNOWN"
 
     async def _spa_shell(request: Request) -> HTMLResponse:
         """统一 SPA 外壳出口。
 
-        授权未放行时给 ``<html>`` 打 ``data-license-blocked="1"``：前端据此在**原地址**就地
-        渲染授权恢复页，保留地址，授权恢复后重载即回到原页。
+        授权未放行时给 ``<html>`` 打 ``data-license-blocked="1"`` 与
+        ``data-license-status="<状态码>"``：前端据此决定是在**原地址**就地渲染授权恢复页
+        （等待重连），还是把「未激活」交给路由守卫送去注册 / 登录 / 激活。
         """
         index = _spa_index()
         if not index.is_file():
             raise HTTPException(status_code=404)
         html = index.read_text(encoding="utf-8")
-        if await _page_license_blocked(request):
-            html = html.replace("<html", '<html data-license-blocked="1"', 1)
+        blocked = await _page_license_status(request)
+        if blocked is not None:
+            html = html.replace(
+                "<html",
+                f'<html data-license-blocked="1" data-license-status="{html_escape(blocked)}"',
+                1,
+            )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     @app.get("/", include_in_schema=False)

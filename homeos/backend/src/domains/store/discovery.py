@@ -12,9 +12,16 @@
 的地址），所以问商店本人：``GET /store/v1/base-url``（见商店侧
 ``security.request_security.request_origin``）。商店的回答带一个 ``declared`` 标记：
 
-- ``declared=true``：商店显式配了 ``STORE_BASE_URL`` —— 那是运维的声明，**原样采信**；
+- ``declared=true``：商店显式配了 ``STORE_BASE_URL`` —— 那是运维的声明，**原样采信**
+  （但同机 + 浏览器在用 IP 访问时另有一条更可靠的推断，见下）；
 - ``declared=false``：回答只是回显「你是怎么连上我的」—— 同机部署下它就是容器服务名，
   于是把主机名换成浏览器正在用的那个（见 :func:`resolve_browser_store_url`）。
+
+**同机 + IP 访问**（``http://192.168.31.175:8801``）不走上面任何一条：那时商店必然在
+同一台机器的 ``:8802`` 上（compose 只差端口），直接把链接拼成 ``http://192.168.31.175:8802``。
+这个判断依据是**容器出站主机名**（:func:`same_machine_store`），不受 ``STORE_BASE_URL``
+里写的公网域名影响 —— 否则局域网用户会被送去公网域名，穿透一抖就打不开，而明明旁边的
+``:8802`` 是通的。
 
 显式配置了 ``APP_STORE_URL`` 时本模块不产生任何网络请求 —— 显式值永远优先。
 """
@@ -22,7 +29,6 @@
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import logging
 import time
 from typing import NamedTuple
@@ -30,10 +36,16 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from ...platform.core.hostnames import authority, browser_reachable, direct_port_host
+
 logger = logging.getLogger("homeos.store_discovery")
 
 #: 商店侧的「我的对外地址」端点（相对商店根地址）。
 STORE_BASE_URL_PATH = '/store/v1/base-url'
+
+#: 商店的 HTTP 端口默认值（与 ``ops/ports.mjs`` / compose 一致）。同机部署时，
+#: 浏览器用 ``<IP>:<这个端口>`` 直连商店。
+DEFAULT_STORE_PORT = 8802
 
 #: 这一步的超时上限（秒）。它只服务登录页的两个链接，不该让容器启动 / 用户打开登录页
 #: 等满授权请求的超时（默认 10s）—— 商店不可达时那是白等。
@@ -68,60 +80,82 @@ def _normalize(value: object) -> str:
     return text
 
 
-def browser_reachable(host: str) -> bool:
-    """浏览器能不能靠这个主机名找到商店？
+def store_port(settings: object) -> int:
+    """商店的 HTTP 端口：从容器出站地址（``APP_LICENSE_SERVER_URL``）的端口取。
 
-    否，只可能是两种「只有本机 / 容器网络内部才有意义」的写法：
-
-    - 回环与未指定地址（``127.x`` / ``::1`` / ``localhost`` / ``0.0.0.0`` / ``::``）；
-    - **不带点的单段名**（``homeos-store`` 这类 Docker Compose 服务名 / 容器别名）。
-
-    是：其余 IP 字面量（含 IPv6）与带点的域名。注意判的是**语法**，不是可达性 ——
-    判断不了的东西（跨网络的私网 IP、解析不到的域名）都算「是」，不在这个函数里纠正。
-
-    单段名的例外：内网 DNS 里真有一个叫 ``store`` 的主机时这里会误判。那种部署应当在商店上
-    显式配 ``STORE_BASE_URL``（``declared=true`` 时本函数不会被调用）。
+    同机部署时浏览器要用 ``<同一个 IP>:<这个端口>`` 直连商店。取不到就用默认 8802 ——
+    这里绝不能猜成 443：商店没有 HTTPS 入口。
     """
-    name = host.strip().strip('[]').casefold()
-    if not name:
-        return False
+    base = _normalize(str(getattr(settings, 'license_server_url', '') or ''))
     try:
-        address = ipaddress.ip_address(name)
+        port = urlsplit(base).port
     except ValueError:
-        return '.' in name
-    return not (address.is_loopback or address.is_unspecified)
+        port = None
+    return port or DEFAULT_STORE_PORT
 
 
-def resolve_browser_store_url(answer: StoreAnswer, browser_origin: str) -> str:
+def same_machine_store(settings: object) -> bool:
+    """商店是否与主应用跑在同一台机器上（同 IP、只差端口）？
+
+    判据是**容器出站地址的主机名**：同机 compose 用服务名 ``homeos-store``（浏览器解析
+    不了），分机部署用公网域名（浏览器解析得了）。这个判据不受 ``STORE_BASE_URL`` 影响 ——
+    商店声明了公网域名也不会把「同机」这件事掩盖掉。
+    """
+    base = _normalize(str(getattr(settings, 'license_server_url', '') or ''))
+    try:
+        host = urlsplit(base).hostname or ''
+    except ValueError:
+        return False
+    return bool(host) and not browser_reachable(host)
+
+
+def resolve_browser_store_url(
+    answer: StoreAnswer,
+    browser_origin: str,
+    *,
+    same_machine: bool = False,
+    port: int = DEFAULT_STORE_PORT,
+) -> str:
     """把商店的回答整理成**浏览器能用**的商店地址。
 
-    商店回显的是「你是怎么连上我的」，于是：
+    三种情形，按优先级：
 
-    - 分机部署：调用方（客户机上的主应用容器）与浏览器的路径一致 —— 直接可用；
-    - 同机部署：容器走的是 compose 服务名，拿到 ``http://homeos-store:8802``，
-      浏览器解析不了 —— 这时把**主机名**换成浏览器自己访问主应用用的那个，端口与
-      scheme 沿用商店的回答（``http://<宿主IP>:8802``）。
+    1. **同机 + 浏览器在用 IP/端口访问**（``http://192.168.31.175:8801``）：商店就在同一
+       台机器的 ``:8802`` 上，直接用 ``http://192.168.31.175:8802``。这条推断不依赖任何
+       配置、不依赖公网、离线也成立 —— 局域网现场访问时它永远是对的。
+       scheme 固定 ``http``：商店**没有** HTTPS 入口；从 ``:8803`` 的自签 HTTPS 页面点过去
+       是一次顶层跳转（不是混合内容请求），浏览器允许。
+    2. 商店显式声明了 ``STORE_BASE_URL``（``declared=true``）：原样采信 —— 那是运维的声明，
+       公网域名访问时就是它。
+    3. 否则（商店回显「你怎么连上我的」）：回答里的主机名浏览器能用（分机部署的公网域名）
+       就原样用；不能用（同机部署的容器服务名）且当前是公网域名访问时，说明这个部署没有
+       声明商店的公网入口 —— 返回空串，让前端隐藏入口，而不是拼一个 ``:8802`` 的 404。
 
-    只换主机名，不换端口 / 协议：那是商店自己的口径。宿主端口被改过（``18802:8802``）
-    或商店另有一层只给浏览器的反代时，需要显式 ``APP_STORE_URL``。
-
-    ``answer.declared`` 为真（商店配了 ``STORE_BASE_URL``）时原样返回 —— 运维的声明
-    比我们的推断可信，也避免把单段名的内网域名当成容器服务名换掉。
+    返回空串表示「没有可用入口」，调用方据此隐藏链接，而不是给用户一个假地址。
     """
+    source = urlsplit(_normalize(browser_origin))
+    host = source.hostname or ''
+    if same_machine and host and direct_port_host(host):
+        return f'http://{authority(host, port)}'
+
     text = _normalize(answer.url)
-    if not text or answer.declared:
+    if not text:
+        return ''
+    if answer.declared:
         return text
+    if same_machine and host and browser_reachable(host):
+        # 同机但走的是公网域名，而商店没声明自己的公网地址：`<这个域名>:8802` 几乎肯定
+        # 没被发布（公网只开 443）。宁可返回空串让前端隐藏入口，也不给一个 404 链接。
+        logger.info(
+            '商店未声明 STORE_BASE_URL，无法推断域名入口（当前浏览器来源 %s）', browser_origin
+        )
+        return ''
     parts = urlsplit(text)
     if browser_reachable(parts.hostname or ''):
         return text
-    source = urlsplit(_normalize(browser_origin))
-    host = source.hostname or ''
     if not host:
         return ''
-    if ':' in host:  # IPv6 字面量要带方括号才是合法 URL
-        host = f'[{host}]'
-    port = f':{parts.port}' if parts.port else ''
-    return f'{parts.scheme}://{host}{port}'
+    return f'{parts.scheme}://{authority(host, parts.port)}'
 
 
 async def discover_store_base_url(
@@ -177,11 +211,26 @@ class StoreBaseUrlResolver:
         return str(getattr(self._settings, 'store_url', '') or '').strip().rstrip('/')
 
     async def resolve_for_browser(self, browser_origin: str) -> str:
-        """商店的对外地址，**浏览器的口径**：显式配置原样返回，问回来的值按需换主机名。"""
+        """商店的对外地址，**浏览器的口径**。
+
+        显式 ``APP_STORE_URL`` 永远优先；否则同机 + IP 访问直接拼 ``<同一 IP>:<商店端口>``
+        （不联网、不受穿透状态影响）；其余情形才问商店要它的对外地址并按需换主机名。
+        """
         explicit = self._explicit()
         if explicit:
             return explicit
-        return resolve_browser_store_url(await self._discover(), browser_origin)
+        same_machine = same_machine_store(self._settings)
+        port = store_port(self._settings)
+        if same_machine:
+            source = urlsplit(_normalize(browser_origin))
+            host = source.hostname or ''
+            if host and direct_port_host(host):
+                # 同机直连：连商店的回答都不需要，`/public/config` 因此永远不会被商店
+                # 不可达拖慢（这条最常被 LAN 现场访问命中）。
+                return f'http://{authority(host, port)}'
+        return resolve_browser_store_url(
+            await self._discover(), browser_origin, same_machine=same_machine, port=port
+        )
 
     async def _discover(self) -> StoreAnswer:
         """带回缓存与失败退避的取回。"""
@@ -202,12 +251,16 @@ class StoreBaseUrlResolver:
 
 
 __all__ = [
+    'DEFAULT_STORE_PORT',
     'MAX_TIMEOUT_SECONDS',
     'RETRY_COOLDOWN_SECONDS',
     'STORE_BASE_URL_PATH',
     'StoreAnswer',
     'StoreBaseUrlResolver',
     'browser_reachable',
+    'direct_port_host',
     'discover_store_base_url',
     'resolve_browser_store_url',
+    'same_machine_store',
+    'store_port',
 ]

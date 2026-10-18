@@ -159,13 +159,23 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | 地址 | 谁在用 | 同机部署 | 分机部署 |
 | --- | --- | --- | --- |
 | `APP_LICENSE_SERVER_URL` | **主应用容器出站**：取授权公钥 / 激活 / 心跳 / 代发验证码 | `http://homeos-store:8802`（compose 服务名，写死，**永远不变**） | `https://homelifepay.iepose.cn`（写死，公网域名） |
-| `APP_STORE_URL` | **浏览器**：登录页「重置商店密码 / 商店」链接 | 已写死为商店域名 | 已写死为商店域名 |
+| `APP_STORE_URL` | **浏览器**：登录页「重置商店密码 / 商店」链接 | **留空**：跟着访问者当前入口走（内网 IP → `<同一 IP>:8802`，公网域名 → 商店域名） | `https://homelifepay.iepose.cn`（写死；客户机没有本机商店，只能公网） |
 | `STORE_BASE_URL`（商店侧） | 商店对外身份：支付回调、同源判定、Cookie | 商店域名（**不能**是 8802） | 同左 |
-| `APP_BASE_URL`（主应用侧） | 主应用对外身份：同源判定、WebSocket / socket.io 来源、绝对链接 | `https://homelife.iepose.cn`（穿透）；纯局域网可留空 | 客户自己的公网地址；纯局域网留空 |
+| `APP_BASE_URL`（主应用侧） | 主应用对外身份：WebSocket / socket.io 来源、绝对链接（同源校验**不再**只认它） | `https://homelife.iepose.cn`（穿透）；纯局域网可留空 | 客户自己的公网地址；纯局域网留空 |
 
-`APP_STORE_URL` 不填也能工作（主应用向商店问回来，答的是服务名时自动换成浏览器正在用的
-地址），但商店不可达时前端会兜底成 `http://127.0.0.1:8802`，用户点开的是自己的电脑 ——
-所以两份 compose 都显式写死。显式值永远优先。
+两条入口必须**同时**能开，这是这套部署的硬要求：
+
+| 入口 | 主应用 | 商店（同机部署） | 商店（客户机） |
+| --- | --- | --- | --- |
+| 内网 `IP:端口` | `http://<IP>:8801` / `https://<IP>:8803`（自签） | `http://<IP>:8802` | 不适用（只能公网） |
+| 公网域名 | `https://homelife.iepose.cn` | `https://homelifepay.iepose.cn` | `https://homelifepay.iepose.cn` |
+
+`APP_STORE_URL` 在**开发者那份**留空是有意的：同一台机器会被两种地址访问，商店入口必须
+跟着访问者走。推导规则在 `domains/store/discovery.py` —— 判据是**容器出站主机名**（同机
+用服务名 `homeos-store`，浏览器解析不了），所以它不受 `STORE_BASE_URL` 里那串公网域名
+影响；同机 + IP 访问时**连商店都不问**，直接拼 `<同一 IP>:8802`，穿透抖动 / 离线也成立。
+**取不到地址时前端隐藏商店入口**，不再兜底成 `http://127.0.0.1:8802` —— 那个地址在
+客户机上指向用户自己的电脑，只会在生产暴露。
 
 ### 前置条件
 
@@ -184,10 +194,19 @@ docker compose up -d
 docker logs homeos-store | grep -A4 '引导密钥'
 ```
 
+起完先跑一次自检（在仓库根执行；目标机只放了 compose 的话可跳过，它只是把下面这些链路
+一次性验完：容器 / 端口 / 容器→商店 / 公钥 / 授权状态 / 指纹绑定源）：
+
+```bash
+bash ops/deploy/preflight.sh --app-domain https://homelife.iepose.cn \
+                             --store-domain https://homelifepay.iepose.cn
+```
+
 **容器出站地址不用改**（`APP_LICENSE_SERVER_URL` 写死成容器内网服务名
-`http://homeos-store:8802`，同一份 compose 里就是它）；登录页「重置商店密码 / 商店」用的
-`APP_STORE_URL` 也已写死成商店域名。换域名时改**三处**：商店的 `STORE_BASE_URL`、主应用的
-`APP_STORE_URL` 与 `APP_BASE_URL`（客户机那份对应是 `APP_LICENSE_SERVER_URL` 与 `APP_STORE_URL`）。
+`http://homeos-store:8802`，同一份 compose 里就是它）；登录页的商店入口也不用配 —— 它会
+跟着浏览器当前用的地址走（内网 IP → `<同一 IP>:8802`，公网域名 → `STORE_BASE_URL`）。
+换域名时用**同名环境变量**覆盖，不必改这两份被跟踪的文件：商店侧 `STORE_BASE_URL`，
+主应用侧 `APP_BASE_URL`（客户机那份是 `APP_LICENSE_SERVER_URL` / `APP_STORE_URL`）。
 两条容易踩的：
 
 - **先建 `/host` 符号链接**（命令见 `docker-compose.yml` 文件头），必须在第一次 `up -d`
@@ -226,9 +245,12 @@ curl -fsS https://homelifepay.iepose.cn/healthz
 curl -fsS https://homelifepay.iepose.cn/v2/keys | head -c 120
 ```
 
-跑完浏览器 `http://<客户机IP>:8801/register` 注册本机唯一账号（验证码由商店代发，所以这台
-必须能出站访问商店的 HTTPS 443；内网部署则是对应 IP 的 8802），登录后未激活会跳 `/activate`，
-填第 1 步发出去的激活码即完成绑定。
+跑完浏览器打开 `http://<客户机IP>:8801/` ：未注册时会被直接送到 `/register`（手动直达也行），
+注册本机唯一账号（验证码由商店代发，所以这台必须能出站访问商店的 HTTPS 443；内网部署则是
+对应 IP 的 8802），登录后未激活会跳 `/activate`，填第 1 步发出去的激活码即完成绑定。
+
+> 未激活**不会**停在「授权恢复」页：那张页只服务「授权仍在、只是暂时连不上」。未激活走的是
+> 注册 → 登录 → 激活这条漏斗；如果你的旧镜像停在恢复页，直接访问 `/register` 即可绕过。
 
 > 跨公网接入时用**真实证书域名**。商店**没有** `https://<厂商机IP>:8804` 这种入口（该端口已
 > 随商店内置反代一起移除），别把它写进 `APP_LICENSE_SERVER_URL`，见
@@ -267,12 +289,12 @@ docker compose -f docker-compose.yml up -d      # 商店那台
 `127.0.0.1:8801`（主应用）——本机不用公网 IP、不用在路由器上开端口，对外仍是 `https://域名`。
 
 两条隧道、两个域名：商店 `https://homelifepay.iepose.cn`、主应用 `https://homelife.iepose.cn`。
-商店侧配置一个字都不用改（`STORE_BASE_URL` / 可信代理已是公网口径）；主应用域名已写进
-`docker-compose.yml` 的 `APP_BASE_URL`，换域名时改那一行（客户机那份用 `HOMEOS_PUBLIC_URL`
-覆盖）：
+商店侧配置一个字都不用改（`STORE_BASE_URL` / 可信代理已是公网口径）；主应用域名默认已写进
+`docker-compose.yml` 的 `APP_BASE_URL`，换域名用同名环境变量覆盖即可（客户机那份用
+`HOMEOS_PUBLIC_URL`）：
 
 ```yaml
-      APP_BASE_URL: https://homelife.iepose.cn
+      APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
 ```
 
 它同时是同源校验基准、WebSocket 来源基准与 socket.io 的 CORS 白名单（自动并入，不必再抄一份
@@ -280,6 +302,11 @@ docker compose -f docker-compose.yml up -d      # 商店那台
 IP 直连仍然可用。隧道入口必须透传 `Host`、`X-Forwarded-Proto: https`、真实客户端 IP，并允许
 **WebSocket 升级**（面板实时状态走它）。完整示例（frpc / frps / cloudflared）与自检清单见
 [TUNNEL-ACCESS.md](ops/deploy/TUNNEL-ACCESS.md)。
+
+> 在飞牛 / 群晖这类 NAS 上用「节点小宝」这类客户端穿透时，映射登记在厂商控制台，本机看不到
+> 配置 —— 没登记的子域名会由**边缘**回一句 19 字节的 `404 page not found`，看起来和应用 404
+> 一模一样。协议选 `http`、内网地址填 NAS 的局域网 IP（别填 `127.0.0.1`）、访问规则设为
+> 「公开访问」，细节与验证见 TUNNEL-ACCESS.md §5.5。
 
 
 ### 内网直连：主应用 HTTP + HTTPS，商店只走 HTTP

@@ -72,9 +72,21 @@ async function check(manual = false): Promise<void> {
   }
 }
 
+/**
+ * 去激活页补凭据。
+ *
+ * 这个按钮是「没有可点的出路」的兜底：`canRetry` 依赖本机 `license_id`，未激活时恒为
+ * false —— 一旦某种原因（旧后端、未知状态）让本页在没有重试按钮的情况下出现，用户至少
+ * 还有一条能走的门，而不是只能看着倒计时。
+ */
+function goActivate(): void {
+  window.location.assign('/activate')
+}
+
 function onOnline(): void {
   void check()
 }
+
 function onPageHide(): void {
   done = true
   clearTimeout(recheckTimer)
@@ -130,6 +142,9 @@ onBeforeUnmount(() => {
                 <div class="hos-actions">
                     <button id="recovery-retry" class="hos-btn-primary" type="button" v-show="retryVisible"
                         :disabled="retryDisabled" @click="check(true)">重新连接授权后台</button>
+                    <!-- 重试按钮被后端判定为「无意义」时也必须留一条出路：本页永远不能只有倒计时。 -->
+                    <button id="recovery-activate" class="hos-btn-primary" type="button" v-show="!retryVisible"
+                        @click="goActivate">去激活这台机器</button>
                 </div>
 
                 <div class="hos-panel__copy">

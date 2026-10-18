@@ -20,6 +20,7 @@ import os
 import time
 from datetime import UTC, datetime
 from typing import Any, TypedDict
+from urllib.parse import urlsplit
 
 import socketio
 from socketio.exceptions import ConnectionRefusedError as SocketConnectionRefusedError
@@ -141,12 +142,26 @@ class RealtimeGateway:
 
     # CORS
     @staticmethod
-    def _is_origin_allowed(origin: str | None) -> bool:
+    def _is_origin_allowed(origin: str | None, environ: dict | None = None) -> bool:
         if not origin:
             return True
         from ..platform.security.cookies import is_origin_allowed, resolve_allowed_origins
 
-        return is_origin_allowed(origin, resolve_allowed_origins())
+        if is_origin_allowed(origin, resolve_allowed_origins()):
+            return True
+        # 同源兜底：握手一定带 Origin，而请求的 Host 就是浏览器此刻真正在访问的地址。
+        # 这条不能只靠白名单：`APP_BASE_URL` 在客户机那份 compose 里默认留空（客户用
+        # 自己的域名 / 穿透域名访问时根本不知道该填什么），只认白名单会把公网域名的实时
+        # 通道判成「Not an accepted origin」，表现为面板连上又掉、状态不刷新。
+        # 只比 netloc（主机 + 端口）：scheme 在隧道 / 内置 HTTPS 两条链路上不可靠，
+        # 跨站页面无法把自己的 Origin 写成目标主机，所以这不削弱 CSRF 面。
+        host = str((environ or {}).get('HTTP_HOST') or '').strip()
+        if not host:
+            return False
+        try:
+            return (urlsplit(origin).netloc or '').casefold() == host.casefold()
+        except ValueError:
+            return False
 
     # 依赖读取（lifespan 之后才可用）
     @property

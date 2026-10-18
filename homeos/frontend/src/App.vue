@@ -20,10 +20,12 @@
       aria-hidden="true"
     />
     <!--
-      授权门禁就地渲染：后端在返回 SPA 外壳时给 `<html>`
-      标 `data-license-blocked="1"`，此时原样保留当前地址渲染授权恢复页；恢复后重载回到原地址。
+      授权门禁就地渲染：只对「授权仍在、只是暂时连不上 / 租约待重续」生效。
+      后端在返回 SPA 外壳时给 `<html>` 标 `data-license-blocked="1"` 与
+      `data-license-status="<状态码>"`；「本机没激活 / 凭据失效」不在这里停，
+      交给路由守卫送去注册、登录或激活页（见下方 `licenseRecoveryVisible`）。
     -->
-    <LicenseRecoveryView v-if="licenseBlocked" />
+    <LicenseRecoveryView v-if="licenseRecoveryVisible" />
     <!-- 路由视图，带淡入淡出过渡动画 -->
     <ErrorBoundary v-else :title="'页面加载失败'">
       <router-view v-slot="{ Component }">
@@ -158,9 +160,44 @@ onBeforeUnmount(removeRouteTransitionGuard)
 const isAppChromeToastHost = computed(() => route.matched.length <= 1)
 
 // ── 3D Studio 页面资产调度 ──
-// 后端在返回 SPA 外壳时给 <html> 标 data-license-blocked="1"：此时就地渲染授权恢复页。
+// 后端在返回 SPA 外壳时给 <html> 标 data-license-blocked="1"：此时按原因决定渲染哪一页。
 const licenseBlocked = ref(
   typeof document !== 'undefined' && document.documentElement.dataset.licenseBlocked === '1',
+)
+
+/** 后端写在 `<html data-license-status>` 上的阻断原因（状态码）；未阻断时为空串。 */
+const licenseBlockedStatus = (
+  typeof document === 'undefined' ? '' : document.documentElement.dataset.licenseStatus || ''
+).trim()
+
+/**
+ * 「本机没有可用授权凭据」的状态：用户该做的是注册 / 登录 / 激活，而不是等自动重连。
+ *
+ * 与 `services/api/license.ts` 的 `LICENSE_TERMINAL_STATUSES` 同一组码（那边管文案，
+ * 这边管分流）。`INSTANCE_MISMATCH` / `REVOKED` 也在这里：它们同样要靠重新激活才能解除，
+ * 停在恢复页只会让用户对着一个没有重试按钮的页面等下去（`canRetry` 依赖 `license_id`）。
+ */
+const LICENSE_CREDENTIAL_STATUSES = new Set([
+  'UNACTIVATED',
+  'DEACTIVATED',
+  'RECOVERY_REQUIRED',
+  'REMOTE_REJECTED',
+  'REVOKED',
+  'INVALID',
+  'INSTANCE_CHANGED',
+  'INSTANCE_MISMATCH',
+])
+
+/**
+ * 是否就地渲染「授权恢复」页。
+ *
+ * 只有「授权仍在、只是暂时连不上 / 租约待重续」交给这张页 —— 它每 5 秒自动重连。
+ * 其余（尤其全新部署的 `UNACTIVATED`）放行 `router-view`，由 `router/index.ts` 的守卫
+ * 分流到 `/register`、`/login` 或 `/activate`：那张恢复页上的「本机授权仍在」对未激活
+ * 机器是假话，而且未激活时 `canRetry` 恒为 false，页面上根本没有可点的出路。
+ */
+const licenseRecoveryVisible = computed(
+  () => licenseBlocked.value && !LICENSE_CREDENTIAL_STATUSES.has(licenseBlockedStatus),
 )
 
 /**
@@ -182,7 +219,7 @@ let routeAssetsResolved = false
 let pageAssetsFlushPending = false
 
 function resolveRoutePageAssets() {
-  if (licenseBlocked.value) return PAGE_ASSETS.licenseRecovery
+  if (licenseRecoveryVisible.value) return PAGE_ASSETS.licenseRecovery
   return route.meta.assets ?? PAGE_ASSETS.shell
 }
 

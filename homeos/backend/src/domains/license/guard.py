@@ -57,11 +57,12 @@ LICENSE_EXEMPT_EXACT = frozenset(
         "/api/v1/system/config/public",
         # 登录页「重置商店密码 / 商店」的地址来源（``api/public_config.py``）。它与上面的
         # ``/api/v1/system/config/public`` 是**两个**端点：那个是系统公开配置（HA 区域索引），
-        # 这个是匿名下发的商店入口地址。漏掉它不会白屏，但登录页的商店链接会静默回落到
-        # 前端内置的 ``http://127.0.0.1:8802`` —— 用户点「重置商店密码」跳到一个不存在的地址。
+        # 这个是匿名下发的商店入口地址。漏掉它不会白屏，但登录页的商店链接会静默消失
+        # （前端在拿不到地址时会隐藏入口，而不是回落到 ``127.0.0.1``）。
         "/api/v1/public/config",
         # SPA 页面：必须能下发外壳，才能由前端就地渲染「注册 / 登录 / 授权恢复 / 激活」页。
-        # 未激活时后端会给外壳打 data-license-blocked（见 spa_static.py ``_spa_shell``）。
+        # 未激活时后端会给外壳打 data-license-blocked / data-license-status（见
+        # spa_static.py ``_spa_shell``）：前端据此分流到恢复页或注册 / 登录 / 激活。
         "/",
         "/login",
         "/register",

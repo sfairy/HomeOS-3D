@@ -42,9 +42,13 @@
 | 项 | 商店 | 主应用 |
 | --- | --- | --- |
 | 隧道回灌到 | `127.0.0.1:8802`（HTTP 直连端口） | `127.0.0.1:8801`（HTTP 直连端口） |
-| 对外地址写进 | `STORE_BASE_URL`（已写死为 `https://homelifepay.iepose.cn`） | `APP_BASE_URL`（已写死为 `https://homelife.iepose.cn`） |
-| 浏览器链接 | `APP_STORE_URL`（已写死） | —— |
-| 客户机连过来用 | `APP_LICENSE_SERVER_URL`（客户机那份已写死域名） | —— |
+| 对外地址写进 | `STORE_BASE_URL`（默认 `https://homelifepay.iepose.cn`） | `APP_BASE_URL`（默认 `https://homelife.iepose.cn`） |
+| 浏览器链接 | 由主应用推导（`APP_STORE_URL` 留空） | —— |
+| 客户机连过来用 | `APP_LICENSE_SERVER_URL`（客户机那份写死域名） | —— |
+
+**两个域名都必须映射**，哪怕你平时只用其中一个访问：从公网域名打开主应用时，登录页的
+「商店 / 重置密码」指向商店域名；从局域网打开时指向 `<同一 IP>:8802`。少映射一个，另一条
+链接就是 404（`*.iepose.cn` 这类泛解析会实打实回一句 `404 page not found`）。
 
 **不要**把隧道指到 8803：那是主应用镜像内置 Caddy 的**自签**入口，客户机（httpx / urllib 按系统
 CA 校验）和支付平台都会拒绝。商店连这样的端口都没有（没有 8804，也没有任何 HTTPS 监听）；TLS
@@ -75,25 +79,49 @@ CA 校验）和支付平台都会拒绝。商店连这样的端口都没有（�
 
 ---
 
-## 3. compose 侧：两个域名都已写死，通常不用改
+## 3. compose 侧：公网域名已写死，商店入口会自己跟着走
 
 商店的 `STORE_BASE_URL` / `STORE_COOKIE_SECURE` / `STORE_TRUSTED_PROXIES` **已经是公网口径**，
 穿透不需要动：隧道客户端跑在宿主上时，反代到发布端口 → 容器看到的是 docker 网桥网关
 （`172.x`，可信）；跑在容器里时源是那个容器的 `172.x`（也可信）。两条都已被
 `STORE_TRUSTED_PROXIES` 里的 docker 网段覆盖。
 
-主应用同理，`docker-compose.yml` 里已写死公网域名：
+主应用同理，`docker-compose.yml` 里默认已写死公网域名：
 
 ```yaml
-      APP_BASE_URL: https://homelife.iepose.cn
+      APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
 ```
 
-换域名时只改这一行（客户机那份用 `HOMEOS_PUBLIC_URL` 覆盖，或在它的 `APP_BASE_URL` 里直接
-写字面地址）。**不要**把它留空：留空只适合「公网域名与本机直连用的 Host 相同」的部署，
-否则 socket.io 会把公网来源判成非法（面板一直重连）。
+换域名时用同名环境变量覆盖（客户机那份用 `HOMEOS_PUBLIC_URL`），不必改被跟踪的文件。
+**不要**把它留空：留空只适合「公网域名与本机直连用的 Host 相同」的部署，否则一旦入口
+改写了 `Host`，socket.io 会把公网来源判成非法（面板一直重连）。
 
-填了之后**局域网 IP 直连仍然可用**：来源校验同时接受「与本请求 `Host` 同源」，
-不会因为配了公网域名就把局域网访问拒掉。
+填了之后**局域网 IP 直连仍然可用**：来源校验同时接受「与本请求 `Host` 同源」，WebSocket
+握手也补了同源兜底，不会因为配了公网域名就把局域网访问拒掉。
+
+### 商店入口（登录页「商店 / 重置密码」）不需要配
+
+`docker-compose.yml` 里 `APP_STORE_URL` 是**留空**的，由主应用按访问者当前入口推导：
+
+| 浏览器打开的地址 | 商店链接 |
+| --- | --- |
+| `http://<局域网IP>:8801` | `http://<同一 IP>:8802`（不联网、不依赖穿透） |
+| `https://<局域网IP>:8803` | `http://<同一 IP>:8802` |
+| `https://homelife.iepose.cn` | `STORE_BASE_URL` 声明的 `https://homelifepay.iepose.cn` |
+
+判据是**容器出站主机名**（同机 compose 用服务名 `homeos-store`，浏览器解析不了），
+所以写死的公网域名不会把「同机、只差端口」这件事掩盖掉。客户机那份
+（`docker-compose.app.yml`）没有本机商店，`APP_STORE_URL` 直接写死公网域名。
+
+**前提：商店自己的公网域名也必须能打开。** 主应用只给一个跳转链接，打不开是商店那条
+入口的问题（映射没建 / 上游端口错），不是链接错了 —— 用 `preflight.sh` 的第 8 节验。
+一句话检查：
+
+```bash
+curl -fsS https://homelife.iepose.cn/api/v1/public/config; echo
+# {"storeUrl":"https://homelifepay.iepose.cn", ...} ← 从公网打开时应该是这个
+# 从局域网打开则应变成 http://<你的 NAS IP>:8802
+```
 
 ### 主应用的可信代理
 
@@ -310,7 +338,77 @@ ngrok 一类工具同理：确认它保留了 `Host` 与 `X-Forwarded-Proto`，�
 
 ---
 
+## 5.5 方案三：节点小宝（飞牛 / 群晖这类 NAS 的客户端穿透）
+
+NAS 上最常见的做法：装「节点小宝」客户端，用它的 `*.iepose.cn` 域名做外网入口。
+它和 frp / Cloudflare 的差别在于**映射登记在厂商控制台**，本机看不到配置，所以出错时
+现象只有一句 404。下面几条是这套拓扑特有的。
+
+### 5.5.1 先认出「边缘 404」——它不是应用返回的
+
+```bash
+curl -sS -D- -o /dev/null https://<你的域名>/
+```
+
+| 响应 | 含义 |
+| --- | --- |
+| `404`、`content-length: 19`、正文 `404 page not found`、带 `x-content-type-options: nosniff` | **穿透边缘**没找到这个 Host 的映射（Go 的默认 404）。流量没到 NAS |
+| JSON 正文、带 `x-request-id` / CSP / `referrer-policy` 等一长串头 | 到了商店或主应用（应用自己的 404 是 JSON） |
+
+`*.iepose.cn` 是**泛解析**：任何没登记的子域名都会解析到边缘并回同一句 19 字节 404。
+所以「域名解析成功」完全不代表映射存在。
+
+### 5.5.2 控制台里四条必须对齐
+
+控制台 → 内网穿透 → 添加服务，各建一条：
+
+| 字段 | 主应用 | 商店 |
+| --- | --- | --- |
+| 转发设备 | 这台 NAS（客户端已在线） | 同左 |
+| 内网地址 | `<NAS 局域网 IP>:8801` | `<NAS 局域网 IP>:8802` |
+| 外网域名 | `homelife.iepose.cn` | `homelifepay.iepose.cn` |
+| 协议 | `http` | `http` |
+
+四个易错点：
+
+1. **内网地址填局域网 IP，别填 `127.0.0.1`**。客户端以容器方式跑时，`127.0.0.1`
+   指的是那个容器自己；填 `ip -4 addr` 里 NAS 的地址最稳（Docker 已把 8801/8802
+   发布到宿主机）。
+2. **别映射 8803**。那是主应用镜像内置 Caddy 的**自签** HTTPS，穿透边缘再过一层会
+   双重 TLS；客户机里的 httpx 按系统 CA 校验，遇到自签直接失败。
+3. **访问规则必须是「公开访问 + 关闭认证访问」**。认证墙（扫码 / 密码）会把
+   **客户机容器**挡在外面 —— 它无法扫码，取公钥 `/v2/keys`、激活、心跳、验证码全都会失败。
+   公开访问需要先完成实名认证。
+4. 新建后约 20 秒生效；期间 404 属正常。
+
+### 5.5.3 验证
+
+```bash
+curl -fsS https://homelife.iepose.cn/health/ready && echo APP_OK
+curl -fsS https://homelifepay.iepose.cn/healthz && echo STORE_OK
+curl -fsS https://homelifepay.iepose.cn/store/v1/base-url; echo   # 期望 declared:true
+curl -fsS https://homelifepay.iepose.cn/v2/keys | head -c 120
+```
+
+建好映射仍是 404 → 内网地址填错，或转发设备离线；其余报错按「§8 常见故障对照」处理。
+
+### 5.5.4 它不适合长期当商店入口
+
+| 限制 | 后果 |
+| --- | --- |
+| 公开访问同时**最多 5 个**用户，超出要扫码 | 多台客户机同时心跳 / 注册就会撞上限；支付回调无人值守，直接签不出码 |
+| 只支持 http / https，**不支持 TCP / UDP** | 任何非 HTTP 场景都得另找通道 |
+| 映射不可版本化 | 换域名 / 换 NAS IP 只能去控制台手改，排错也拿不到本地配置 |
+
+建议分工：**`homelife`（只给自己远程看面板）用节点小宝**；**`homelifepay`（面向全部
+客户机 + 支付回调）换 Cloudflare Named Tunnel（§5）或公网 VPS 上的 frp + OpenResty（§4）**。
+
+---
+
 ## 6. 上线自检（在**外网**、不要在本机执行）
+
+> 本机侧（容器 / 端口 / 出站 / 授权状态 / 指纹）先用 `bash ops/deploy/preflight.sh`
+> 一次跑完，它会把上面这些链路逐条标 ✓ / ✗；本节只补「从外网看」的那几项。
 
 ```bash
 # 1. 商店：入口真的到了商店（不是入口自己的 404）
@@ -404,6 +502,7 @@ curl -m 5 http://<本机公网IP或域名>:8802/healthz
 | 隧道连上几分钟后全部 502 | 反代 `proxy_read_timeout` 太短或 frp 心跳没配；调 §4.2 的心跳与 §4.3 的超时 |
 | 限流 / 审计里 IP 全是 `127.0.0.1` 或 `172.x` | 隧道/反代没带 `X-Real-IP` / `X-Forwarded-For`；商店侧再核对 `STORE_TRUSTED_PROXIES` 是否包含隧道客户端的来源 |
 | 商店返回 `404 page not found`（`server: openresty`） | 跳板机入口没匹配到 `server_name` 或上游端口写错（隧道端口 vs 8802）；商店自己的 404 是 JSON |
+| 两个域名都返回 19 字节 `404 page not found` + `x-content-type-options: nosniff` | **穿透边缘**的默认 404（Go），流量没到 NAS。`*.iepose.cn` 是泛解析，随机子域名也是这个响应 —— 去穿透控制台确认映射已建、内网地址是 NAS 的局域网 IP、协议是 http（见 §5.5） |
 | 登录成功立刻又变未登录 | `STORE_COOKIE_SECURE` 被写成了 `true`（恒带 Secure）却从 `http://` 进来，或入口丢了 `X-Forwarded-Proto` 让商店把 https 请求当成 http。保持默认 `auto` 并透传该头 |
 | 内网 `https://<IP>:8804` 连不上 | 预期：商店没有 HTTPS 端口（8804 已移除），内网走 `http://<IP>:8802`、公网走域名 |
 | 内网 `https://<IP>:8803` 能打开，但保存 / 开关 / HA 摄像头报 403 | 内置 Caddy 把端口摘了（`header_up Host {host}`）。镜像已改为 `{http.request.hostport}`；自己另配入口时同样别丢端口 |
