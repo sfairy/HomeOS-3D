@@ -326,7 +326,7 @@ function appFrontendBuildCurrent() {
 
 /**
  * 前端构建产物缺失、或落后于 `frontend/{index.html,src,public}` 时，跑一次
- * `bun run build:vite`（开发用，不混淆）。
+ * `bun run build:vite`（开发用，与发布构建同一份 Vite 配置）。
  */
 function ensureFrontendBuild() {
   const ready =
@@ -338,7 +338,7 @@ function ensureFrontendBuild() {
     storeFrontendBuildCurrent();
   if (ready) return;
 
-  console.log("前端构建产物缺失或落后于源码，正在执行 bun run build:vite（开发构建，跳过混淆）…");
+  console.log("前端构建产物缺失或落后于源码，正在执行 bun run build:vite …");
   runSync(BUN_BIN, ["install"]);
   runSync(BUN_BIN, ["run", "build:vite"]);
 }

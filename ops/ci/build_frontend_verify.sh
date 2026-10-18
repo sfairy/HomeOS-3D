@@ -26,13 +26,10 @@ bun run --cwd homeos/frontend sync:three:check
 
 bun run build:frontend
 
-# 混淆与产物结构断言。
-grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
-grep -q '_0x' dist/homeos/frontend/static/assets/index-*.js
-# 商店是自用后台，构建**不做混淆**（见 ops/docker/obfuscate_javascript.mjs 的配置说明）。
-# 这条反向断言是必要的：脚本一旦被重新挂回 build:store，产物会无声变大、堆栈变成 _0x。
-if grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js; then
-    echo "商店产物出现了 _0x 标识符：build:store 不应混淆（自用后台，无保护收益）。" >&2
+# 前端产物是 Vite 压缩产物（**不混淆**，见 ops/BUILD.md）。
+# 这条断言防止 `_0x` 标识符重新出现：混淆对体积的代价是 5.6x、且线上堆栈会彻底失去可读性。
+if grep -q '_0x' dist/homeos/frontend/static/assets/index-*.js; then
+    echo "主应用产物出现了 _0x 标识符：前端构建不应再走混淆（见 ops/BUILD.md）。" >&2
     exit 1
 fi
 test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
@@ -46,10 +43,9 @@ test -f dist/homeos/frontend/static/assets/index-*.js
 test -f dist/homeos/frontend/static/assets/index-*.css
 # 外壳必须真的引用新路径；否则说明 output 模板与 assetsDir 有一处没改。
 grep -q '/static/assets/index-' dist/homeos/frontend/index.html
-# 第三方插件整棵子树不混淆：public/static/vendor 由 Vite 原样复制，产物必须与源逐字节一致。
-# 混淆会改写标识符与字符串，这里一旦不一致，就等于混淆脚本漏掉了 vendor/。
+# 第三方插件整棵子树原样复制：public/static/vendor 由 Vite 逐字节搬进产物，不经任何改写。
 if ! diff -rq homeos/frontend/public/static/vendor dist/homeos/frontend/static/vendor; then
-    echo "static/vendor 与源不一致：第三方插件目录必须原样复制，不参与混淆。" >&2
+    echo "static/vendor 与源不一致：第三方插件目录必须原样复制。" >&2
     exit 1
 fi
 test -f dist/homeos-store/frontend/static/store.css

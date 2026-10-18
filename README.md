@@ -94,7 +94,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | http://127.0.0.1:8801/register | 主应用 API / 首次注册本机唯一账号 |
 | http://127.0.0.1:8802/setup | 商店 API / 首次建运营管理员 |
 
-`bun run dev` 只绑 `127.0.0.1`，缺前端产物时会自动跑一次不混淆的 Vite 构建，本地验证码默认
+`bun run dev` 只绑 `127.0.0.1`，缺前端产物时会自动跑一次 Vite 构建，本地验证码默认
 打印在启动终端（`STORE_MAIL_MODE=log`）。**它不是部署脚本**。
 
 常用脚本：
@@ -105,8 +105,8 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run dev:app` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端，各开一个终端） |
 | `bun run dev:prepare` | 只装 Python 环境（仓库根共享 venv `.venv-store`），不起服务 |
 | `bun run dev:runtime` | watch 3D runtime 模块 → 根 `dist/homeos/frontend/modules/runtime` |
-| `bun run build` | 完整构建：前端（Vite，主应用混淆 / 商店不混淆）+ 后端（Cython `.so`）→ 根 `dist/` |
-| `bun run build:app` / `build:store` | 只构建一侧前端（主应用混淆；商店自用后台，不混淆） |
+| `bun run build` | 完整构建：前端（Vite 压缩产物）+ 后端（Cython `.so`）→ 根 `dist/` |
+| `bun run build:app` / `build:store` | 只构建一侧前端 |
 | `bun run image:app` / `image:store` | 从根 `dist/` 组装运行镜像 |
 | `bun run typecheck` | 两个前端的 `vue-tsc`。Python 侧**没有**类型检查命令（历史入口已拆），CI 只跑 `ruff`；Pylance / 手动 `basedpyright` 读仓库根 `pyrightconfig.json` |
 

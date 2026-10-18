@@ -143,7 +143,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # 前端产物由 checks.build 在宿主机构建（主应用混淆、商店不混淆），这里只取回自己项目的那一份。
+      # 前端产物由 checks.build 在宿主机构建，这里只取回自己项目的那一份。
       # 取回后落在 frontend_path，与当初构建时的工作区布局一致，Dockerfile 无需改动。
       - name: Download prebuilt frontend dist
         uses: actions/download-artifact@v8

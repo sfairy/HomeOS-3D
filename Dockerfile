@@ -150,7 +150,7 @@ RUN case "$PROJECT" in \
         *) echo "未知 PROJECT='$PROJECT'：本阶段只认 homeos / homeos-store；新增项目要同时改 ops/build.py 的 PROJECTS 与本行" >&2; exit 1 ;; \
     esac \
     && mkdir -p /app/image \
-    && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
+    && rm -f /app/ops/docker/compile_python.py \
     && version="${HOMEOS_VERSION}" \
     && if [ -z "$version" ]; then \
          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \

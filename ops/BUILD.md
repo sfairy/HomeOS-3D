@@ -6,7 +6,7 @@ README 的「从源码构建镜像」只给命令；这份文档解释那条命�
 ## 两阶段：先产出 dist/，再组装镜像
 
 ```
-源码 ──①前端 Vite（主应用混淆 / 商店不混淆）+ ②后端 Cython──▶ 工作区根 dist/ ──③Dockerfile──▶ 运行镜像
+源码 ──①前端 Vite / ②后端 Cython──▶ 工作区根 dist/ ──③Dockerfile──▶ 运行镜像
 ```
 
 镜像内**不再编译后端**，也不装前端依赖：它只消费根 `dist/`。所以本地构建必须按上面的顺序来，
@@ -21,6 +21,28 @@ python3 ops/build.py backend              # 默认跟随宿主 Docker 架构
 python3 ops/build.py image --project app   --tag homeos:local
 python3 ops/build.py image --project store --tag homeos-store:local
 ```
+
+## 前端为什么不做混淆
+
+Vite 的 `build` 已经产出压缩产物：删注释、删类型、局部变量压到 1–2 字符、不生成 sourcemap。
+`obfuscate_javascript.mjs`（已删除）曾在这之上再做一层 `stringArray` + 控制流平坦化，实测是负优化：
+
+| 配置 | `static/assets/*.js` raw | gzip | 首屏 12 个 js（gzip） | 业务关键词命中数 |
+| --- | --- | --- | --- | --- |
+| Vite 压缩（现状） | 5.87 MB | 1.79 MB | 261 KB | 2,165 |
+| 重型混淆（已移除） | 33.13 MB | 11.48 MB | 1,591 KB | 797 |
+
+体积之外还有两点决定不再保留：
+
+- **保护收益接近零**：`renameProperties: false` 是硬约束（属性名就是 API 契约），所以
+  `scene` / `light` / `entity` 这些业务标识一律原样保留，grep 难度没有变化；UI 文案与
+  `'/api/v1/...'` 路径也都在。`stringArray` 的 base64 表用 de4js 可直接 dump。
+- **调试成本是真实的**：混淆后线上堆栈只剩 `_0x51e24b`，前端无法从错误报告反推函数；
+  而授权判定在后端（`license_service`），前端不持有任何密钥。
+
+真正需要保护的东西在后端：Cython `.so` + `strip --strip-all`，以及所有授权与密钥校验都在服务端。
+`ops/ci/build_frontend_verify.sh` 保留了一条反向断言（产物里出现 `_0x` 即失败），
+防止有人重新把这层加回来。
 
 ## 产物里为什么没有明文 `.py`
 
