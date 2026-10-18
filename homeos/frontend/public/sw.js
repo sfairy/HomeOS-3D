@@ -16,7 +16,21 @@ const STATIC_PREFIXES = [
 self.addEventListener('install', (event) => {
   // 不再自动 skipWaiting：版本更新由客户端用户确认后通过 SKIP_WAITING 消息激活，
   // 避免新 SW 静默接管导致「旧页面 + 新缓存」的版本错配
-  event.waitUntil(caches.open(CACHE_SHELL).then((cache) => cache.addAll(SHELL_URLS)))
+  event.waitUntil(
+    caches.open(CACHE_SHELL).then((cache) =>
+      // 逐条 add，不用 addAll：addAll 全有或全无，任一 URL 404 就 reject，
+      // install 随之失败、SW 永远装不上（控制台刷 `Failed to execute 'addAll' on 'Cache'`）。
+      // 典型触发：宿主机 ./assets 没铺默认素材时 /logo/logo.svg 为空目录 → 404。
+      // 离线壳真正的关键只有 / 与 /index.html，装饰性素材缺失不该连坐。
+      Promise.all(
+        SHELL_URLS.map((url) =>
+          cache.add(url).catch((error) => {
+            console.warn('[sw] precache skipped:', url, error)
+          }),
+        ),
+      ),
+    ),
+  )
 })
 
 self.addEventListener('message', (event) => {
