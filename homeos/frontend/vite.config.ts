@@ -142,7 +142,7 @@ const publishLockPath = `${finalOutDir}.publish.lock`
 /**
  * 把旁路 ``frontend.building.<pid>`` 发布进线上 ``frontend/``，且**不删掉线上根目录**。
  *
- * 不能先 rename 掉线上根目录再换入：空窗期 ``/assets`` mount 找不到目录，请求会落到 SPA
+ * 不能先 rename 掉线上根目录再换入：空窗期 ``/static`` mount 找不到目录，请求会落到 SPA
  * 外壳（text/html），浏览器对 ``shared-*.js`` 报 Strict MIME。做法是先覆盖拷贝
  * （``index.html`` 最后），再修剪旧 hash 文件，全程根路径常在。
  */
@@ -168,7 +168,7 @@ async function publishStagingToLive(): Promise<void> {
       const to = resolve(finalOutDir, name)
       fs.cpSync(from, to, { recursive: true, force: true })
     }
-    for (const bucket of ['assets', 'static'] as const) {
+    for (const bucket of ['static'] as const) {
       pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
     }
     // 根层残留清理：删掉本次未发布的顶层条目（旧 ``.vite/``、调试用 ``__fridge_*.html``、
@@ -428,10 +428,10 @@ function finalizeBuildPlugin(): Plugin {
       try {
         await tryFinalize()
         if (!finalized) {
+          const assetsDir = resolve(outDir, 'static', 'assets')
           const hasAssets =
-            fs.existsSync(resolve(outDir, 'assets')) &&
-            fs.readdirSync(resolve(outDir, 'assets')).length > 0
-          // 有 assets 却没有外壳 = 产物不完整（真·空构建不在这里报错）；报错内容由共用助手
+            fs.existsSync(assetsDir) && fs.readdirSync(assetsDir).length > 0
+          // 有产物却没有外壳 = 产物不完整（真·空构建不在这里报错）；报错内容由共用助手
           // 统一给出 outDir 实际清单 —— 缺外壳时第一个要回答的就是「目录里到底有没有东西」。
           if (hasAssets) {
             assertSpaShellPresent(outDir, '产物不完整；请重跑 bun run build:app。')
@@ -529,6 +529,23 @@ function updatePublicStaticManifest(): void {
         '常见原因：① 源文件缺失（vite 入口指向不存在的文件时不会报错、只是不产出）；' +
         '② 并发构建清空了旁路 dist（应已由 frontend.building.<pid> 隔离）。请补齐源文件或重跑构建。',
     )
+  }
+  // 哈希构建产物（``static/assets/**``）整体匿名可加载。
+  //
+  // 这些 chunk 原来放在根级 ``/assets/**``，根本不过登录门禁；搬进 ``/static/`` 之后，
+  // 若只登记 index.html 直接引用的那几个，展示页（``/display/**``、``/homeos/**``）
+  // 与 ``/3d-studio``、``/guest`` 的懒加载 chunk 会被 ``ProtectAssetsMiddleware``
+  // 判成「白名单之外的 /static 资源」一律 401 —— 外壳能下发、页面却白屏。
+  //
+  // 按现实产物逐个登记（不改成后端的前缀豁免）：保持「白名单之外一律受保护」的默认语义，
+  // 各项目真实加载了哪些文件仍然可审计。目录里也包含 public 的 icons / manifest，
+  // 它们要么已被种子清单登记、要么已被 index.html 发现，``seen`` 会去重。
+  const buildOutputRoot = resolve(outDir, 'static/assets')
+  for (const file of walkFiles(buildOutputRoot)) {
+    const urlPath = `/${file.slice(outDir.length + 1).replace(/\\/g, '/')}`
+    if (seen.has(urlPath)) continue
+    seen.add(urlPath)
+    kept.push({ path: urlPath, why: '构建产物哈希 chunk，未登录的公开页也要加载。' })
   }
   payload.files = kept
   // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。
@@ -717,8 +734,8 @@ export default defineConfig(async (): Promise<UserConfig> => {
         // Worker 子构建是独立的 rollup 调用，不继承主构建的 external，必须再声明一次。
         external: isRuntimeExternal,
         output: {
-          entryFileNames: 'assets/js/[name]-[hash].js',
-          chunkFileNames: 'assets/js/[name]-[hash].js',
+          entryFileNames: 'static/assets/[name]-[hash].js',
+          chunkFileNames: 'static/assets/[name]-[hash].js',
         },
       },
     },
@@ -726,7 +743,18 @@ export default defineConfig(async (): Promise<UserConfig> => {
       outDir,
       // 只清空旁路 ``frontend.building``；线上 ``frontend/`` 在 closeBundle 原子替换前保持可伺服。
       emptyOutDir: true,
-      assetsDir: 'assets',
+      /**
+       * 哈希产物落在 ``static/assets/``（与商店同构）：
+       *   - ``static/`` 是后端的挂载根（``/static``），``assets/`` 是它下面的产物层；
+       *   - 旧布局把 chunk 放在根级 ``assets/``、另挂一个 ``/assets``，与商店不一致，
+       *     后端还多一份挂载点与 dev 兜底要维护；
+       *   - 不分子目录：js / css 同层，与商店 ``assets/<name>-<hash>`` 一致；
+       *   - ``static/assets/icons`` / ``static/assets/manifest`` 是 public 里的随包素材，
+       *     与本层共存在同一父目录但互不覆盖（chunk 名字带内容哈希）。
+       * 注意 ``assetsDir`` 只对未显式给出 ``assetFileNames`` 的产物生效（Worker 已经
+       * 在 ``worker.rollupOptions`` 里另写模板），这里仍保持一致，避免只看这一行误判。
+       */
+      assetsDir: 'static/assets',
       manifest: true,
       sourcemap: false,
       /**
@@ -765,16 +793,13 @@ export default defineConfig(async (): Promise<UserConfig> => {
           pluginTimings: false,
         },
         output: {
-          entryFileNames: 'assets/js/[name]-[hash].js',
+          entryFileNames: 'static/assets/[name]-[hash].js',
           chunkFileNames: (chunk) =>
-            `assets/js/${sanitizeChunkBaseName(chunk.name)}-[hash].js`,
-          assetFileNames: ({ name }) => {
-            const safe = sanitizeChunkBaseName(name)
-            if (/\.css$/.test(name ?? '')) {
-              return `assets/css/${safe}-[hash][extname]`
-            }
-            return `assets/${safe}-[hash][extname]`
-          },
+            `static/assets/${sanitizeChunkBaseName(chunk.name)}-[hash].js`,
+          // 扁平一层（不建 js/ css/ 子目录），与商店 `assets/<name>-<hash>` 同构：
+          // 同名的 js 与 css 靠扩展名区分，hash 由内容决定，不会互相覆盖。
+          assetFileNames: ({ name }) =>
+            `static/assets/${sanitizeChunkBaseName(name)}-[hash][extname]`,
           minify: isProduction,
           /**
            * 分包策略：**只给第三方库与 entriesAware 兜底组建命名 chunk**，业务域不再并组。

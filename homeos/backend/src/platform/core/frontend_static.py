@@ -3,7 +3,7 @@
 这份常量存在的理由是一次真实的死锁事故：授权门禁（``domains/license/guard.py``）按
 「哪些路径未激活也必须能加载」维护了一份豁免名单，而挂载点清单在 ``bootstrap/spa_static.py``
 里另写了一份 —— 两边一旦不一致，未激活的生产实例就会白屏：外壳能下发，但它引用的
-``/assets/js/**``、``/assets/css/**`` 被门禁挡成 401（响应体是 JSON，于是 CSS 还会额外报
+``/static/assets/**``（哈希 chunk）被门禁挡成 401（响应体是 JSON，于是 CSS 还会额外报
 ``MIME type ('application/json') is not a supported stylesheet``），而**激活页自身也是用这些
 产物渲染的** —— 用户永远走不到激活那一步。
 
@@ -18,9 +18,15 @@
 from __future__ import annotations
 
 #: 由 ``spa_static._mount_frontend_build_dirs`` 挂载的 vite 构建产物目录。
+#: 哈希 chunk 与 public 静态资源同处 ``/static`` 下（``static/assets/**``），与商店同构。
 STATIC_MOUNT_PREFIX = "/static"
-ASSETS_MOUNT_PREFIX = "/assets"
 MODULES_MOUNT_PREFIX = "/modules"
+
+#: 内置 3D 素材的**路由**前缀（``api/assets.py`` 的 ``/assets/builtin/{path}``）。
+#: 它不再是产物挂载点 —— 根级 ``dist/<项目>/frontend/assets`` 已随 chunk 迁入
+#: ``static/assets`` 而消失，``/assets`` 下只剩这一条 API 路由。
+#: 仍留在下面的豁免元组里：未激活 / 未登录时展示页的 3D 场景也要能取内置素材。
+ASSETS_MOUNT_PREFIX = "/assets"
 
 #: 由 ``spa_static._mount_replaceable_asset_dirs`` 挂载 / 登记的可替换素材目录
 #: （图标 / 背景图 / 音效 / Logo；用户上传的版本优先于随包默认素材）。
@@ -30,6 +36,8 @@ SOUNDS_MOUNT_PREFIX = "/sounds"
 LOGO_MOUNT_PREFIX = "/logo"
 
 #: 全部静态挂载前缀（授权门禁据此整体豁免，见模块 docstring）。
+#: 注意 ``/assets`` 一项现在只覆盖内置素材路由，真正的产物挂载点只有 ``/static``
+#: 与 ``/modules`` —— 哈希 chunk 已并入 ``/static/assets/**``。
 FRONTEND_STATIC_MOUNT_PREFIXES = (
     STATIC_MOUNT_PREFIX,
     ASSETS_MOUNT_PREFIX,

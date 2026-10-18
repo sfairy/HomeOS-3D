@@ -172,7 +172,7 @@ class EmbedProxyService:
         sub_path: str,
         request: Request,
     ) -> Response | None:
-        """同机内嵌时从本地 dist 直接伺服 ``/assets/*``（避免经 LAN/HTTPS 回环）。"""
+        """同机内嵌时从本地 dist 直接伺服 ``/static/assets/*``（避免经 LAN/HTTPS 回环）。"""
         req_secure = is_request_secure(request)
         if not is_embed_same_origin_as_request(
             embed_base, request.headers.get("host"), req_secure
@@ -184,7 +184,9 @@ class EmbedProxyService:
 
         mime = STATIC_MIME.get(local_path.suffix.lower(), "application/octet-stream")
         headers: dict[str, str] = {}
-        if "/assets/" in str(local_path):
+        # 产物是内容哈希文件名，但仍回源校验（与 studio_shell 的口径一致）：让
+        # 「外壳引用了已删除 chunk」得到明确 404，而不是从 HTTP 缓存取到陈旧副本。
+        if "/static/assets/" in str(local_path):
             headers["Cache-Control"] = "private, no-cache"
         if is_embed_rewriteable_content_type(mime):
             text = local_path.read_text(encoding="utf-8", errors="replace")

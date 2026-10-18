@@ -18,13 +18,13 @@ const DIST_ROOT = path.resolve(HERE, '../../dist/homeos/frontend')
 /**
  * 「只由构建产物提供、dev 下 Vite 不会伺服」的路径前缀。
  *
- * - `/static/**`：`classicIifePlugin` 只把经典 IIFE 包写进 dist，`public/` 里没有；
- * - `/assets/**`：Vite 的产物目录（`assets/js|css/<name>-<hash>`）。dev 下 Vite 只伺服
- *   `/src`、`/@fs`、`node_modules/.vite` 这类模块路径，**不提供 `/assets/**`**；而 3D 舞台页
- *   是后端下发的构建产物 index.html（`/api/v1/modules/interaction3d/stage.html`），它引用的
- *   正是这些哈希 chunk —— 缺兜底就落进 SPA 回退拿到 `text/html`，脚本加载报 404/ERR_ABORTED。
+ * - `/static/**`：经典 IIFE 与 Vite 哈希 chunk（`static/assets/<name>-<hash>`）都落在这里；
+ *   dev 下 Vite 只伺服 `/src`、`/@fs`、`node_modules/.vite` 这类模块路径，**不提供**这些
+ *   构建产物；而 3D 舞台页是后端下发的构建产物 index.html
+ *   （`/api/v1/modules/interaction3d/stage.html`），它引用的正是这些哈希 chunk —— 缺兜底
+ *   就落进 SPA 回退拿到 `text/html`，脚本加载报 404/ERR_ABORTED。
  */
-const DEV_BUILD_OUTPUT_PREFIXES = ['/static/', '/assets/'] as const
+const DEV_BUILD_OUTPUT_PREFIXES = ['/static/'] as const
 
 /**
  * 缺失即判 404（而非放行给 SPA 回退）的扩展名。
@@ -131,8 +131,8 @@ function serveDiskFile(res: ServerResponse, file: string): void {
 /**
  * 开发态补齐三类「生产由后端伺服、dev 由 Vite 伺服」的静态文件：
  *   1. 仓库根 `assets/logo`、`assets/sounds`（生产由 ServeStatic + Docker 挂载卷托管，不写入 dist）；
- *   2. 只存在于构建产物 `dist/homeos/frontend/static/**` 的 `/static/**`；
- *   3. 只存在于构建产物 `dist/homeos/frontend/assets/**` 的 `/assets/**`（3D 舞台页的哈希 chunk）。
+ *   2. 只存在于构建产物 `dist/homeos/frontend/static/**` 的 `/static/**`
+ *      —— 含经典 IIFE 与哈希 chunk（`static/assets/<name>-<hash>.js|css`，3D 舞台页要用）。
  */
 export default function rootAssetsPlugin(): Plugin {
   return {

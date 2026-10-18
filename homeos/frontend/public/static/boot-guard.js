@@ -388,8 +388,8 @@
   /**
    * 清掉可能仍在接管旧资源的 Service Worker 与缓存。
    *
-   * 旧版 SW 会把 SPA 外壳与 `/assets/*` 一并缓存，重建后会一直喂回引用了
-   * 已被删除 chunk 的旧外壳，导致「重载也修不好」。整组清掉最省事。
+   * SW 会把 SPA 外壳一并缓存，重建后会一直喂回引用了已被删除 chunk 的旧外壳，
+   * 导致「重载也修不好」。整组清掉最省事。
    */
   function purgeClientCaches() {
     try {
@@ -429,7 +429,7 @@
   function recoverOrReport(reasonText) {
     // 启动期：入口 chunk 404 → 清 SW/缓存后自愈重载。
     // 已就绪后仍可能命中：dev 下 dist 重建砍掉旧 hash，或 SW 曾缓存生产外壳，
-    // StudioView / 动态 import 会 Failed to fetch …/assets/js/<old>.js —— 同样走一次自愈。
+    // StudioView / 动态 import 会 Failed to fetch …/static/assets/<old>.js —— 同样走一次自愈。
     var now = Date.now()
     var budget = readReloadBudget(now)
     if (budget.count < RELOAD_MAX_IN_WINDOW) {
@@ -465,7 +465,7 @@
       // 资源加载失败：script/link 的 error 事件不带 message，只有 target
       if (target && target !== window && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
         var url = target.src || target.href || ''
-        if (url.indexOf('/assets/') !== -1) {
+        if (url.indexOf('/static/assets/') !== -1) {
           recoverOrReport('页面资源加载失败：' + url)
         }
         return

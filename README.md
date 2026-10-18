@@ -427,7 +427,7 @@ docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
 | 主应用启动即退出、提示取回授权公钥超时 | 连不上 `APP_LICENSE_SERVER_URL`：确认商店已起、客户机能访问该地址与端口 |
 | 客户机连不上，地址写的是 `https://…:8804` | 商店没有 8804（该端口已随商店内置反代移除），连接必然被拒：客户机必须填公网真实证书域名；内网临时调试可填 `http://<商店>:8802` |
 | `https://<局域网IP>:8803` 打不开 / 报「证书与地址不匹配」 | 浏览器用 IP 访问不发 SNI，证书只能签给容器 IP：设 `APP_HTTPS_DEFAULT_SNI=<该IP>`，或改用主机名访问。商店侧没有 HTTPS 入口，内网请用 `http://<IP>:8802`。页面白屏且控制台报 `MIME type ('application/json')` 是另一回事（静态资源被授权门禁挡成 401），见下面的 401 一条 |
-| 未激活时页面白屏、资源全 401 | 生产默认开启授权门禁：确认 `/assets/**`、`/static/**` 等前端产物未被门禁拦下（`docker logs homeos \| grep 授权门禁`），升级到修掉该问题的镜像 |
+| 未激活时页面白屏、资源全 401 | 生产默认开启授权门禁：确认 `/static/assets/**`、`/static/**` 等前端产物未被门禁拦下（`docker logs homeos \| grep 授权门禁`），升级到修掉该问题的镜像 |
 | 激活报「租约使用了不受信任的授权公钥」 | 数据卷是别台机器搬来的：删掉主应用数据卷里的 `client-keys` 后重启即会重新取回 |
 | 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：商店后台解绑后重新激活，或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
 | 商店注册 / 登录 / 下单一律 403 | 反代没透传 `Host` 与 `X-Forwarded-Proto`（公网接入时必配，见 PUBLIC-ACCESS.md） |

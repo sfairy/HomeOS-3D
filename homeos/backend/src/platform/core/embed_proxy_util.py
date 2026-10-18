@@ -92,6 +92,9 @@ EMBED_STATIC_ASSET_EXT = (
 )
 
 _HOMEOS_FRONTEND_RESOURCE_PREFIXES = (
+    # 哈希 chunk（static/assets/<name>-<hash>.js|css）：绝不能被子资源兜底重定向劫持。
+    "/static/assets/",
+    # 内置 3D 素材路由（/assets/builtin/**）。
     "/assets/",
     "/backgrounds/",
     "/icons/",
@@ -174,9 +177,13 @@ def is_embed_same_origin_as_request(
 
 
 def is_frontend_dist_asset_path(sub_path: str) -> bool:
-    """是否为前端 dist 下的静态资源路径（``/assets/...``）。"""
+    """是否为前端 dist 下的构建产物路径（``/static/assets/...``）。
+
+    哈希 chunk 与商店同构地落在挂载根 ``/static`` 之下；根级 ``/assets/**`` 现在只剩
+    内置素材路由（``/assets/builtin/**``），dist 里没有对应目录，故不再算产物路径。
+    """
     path = (sub_path or "/").split("?")[0].split("#")[0]
-    return path.startswith("/assets/")
+    return path.startswith("/static/assets/")
 
 
 def build_embed_upstream_url(base: str, sub_path: str, search: str) -> str:

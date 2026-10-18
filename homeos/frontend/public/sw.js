@@ -4,7 +4,8 @@
 const CACHE_SHELL = 'homeos-shell-v7'
 const CACHE_STATIC = 'homeos-static-v5'
 const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
-/** 由 SW 接管的静态资源前缀；`/assets/` 由 HTTP 缓存（no-cache + ETag）负责，故意不在其中（见 fetch 处理器） */
+/** 由 SW 接管的静态资源前缀：只有稳定 URL 的可替换素材。
+ *  `/static/assets/` 是内容哈希产物，由 HTTP 缓存（no-cache + ETag）负责，见 fetch 处理器。 */
 const STATIC_PREFIXES = [
   '/icons/',
   '/backgrounds/',
@@ -24,28 +25,6 @@ self.addEventListener('message', (event) => {
   }
 })
 
-/**
- * 清理历史版本在静态缓存里留下的 `/assets/*` 条目。
- * 本版本起 `/assets/` 不再由 SW 接管（见 fetch 处理器），这些条目既不会被读取
- * 也不会被覆盖，留着只会永久占用 CacheStorage，因此激活时顺手清掉一次。
- */
-function pruneLegacyAssetEntries() {
-  return caches
-    .open(CACHE_STATIC)
-    .then((cache) =>
-      cache
-        .keys()
-        .then((requests) =>
-          Promise.all(
-            requests
-              .filter((req) => new URL(req.url).pathname.startsWith('/assets/'))
-              .map((req) => cache.delete(req)),
-          ),
-        ),
-    )
-    .catch(() => undefined)
-}
-
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
@@ -59,7 +38,6 @@ self.addEventListener('activate', (event) => {
         await Promise.all(
           keys.filter((k) => k !== CACHE_SHELL && k !== CACHE_STATIC).map((k) => caches.delete(k)),
         )
-        await pruneLegacyAssetEntries()
       } catch {
         /* 缓存清理失败不应阻塞激活 */
       }
@@ -138,8 +116,8 @@ self.addEventListener('fetch', (event) => {
   /**
    * 只接管「非哈希」静态资源（图片 / 音效 / 户型图等）。
    *
-   * `/assets/*` 是内容哈希文件名，后端下发 `Cache-Control: no-cache` + ETag 由 HTTP 缓存
-   * 回源校验（命中即 304）；再由 SW 的 CacheStorage 兜一层反而有害：
+   * `/static/assets/*` 是内容哈希文件名，后端下发 `Cache-Control: no-cache` + ETag 由
+   * HTTP 缓存回源校验（命中即 304）；再由 SW 的 CacheStorage 兜一层反而有害：
    *  1) `staleWhileRevalidate` 里 `cached` 恒优先于 `network`，让条件请求形同虚设；
    *  2) 响应经 SW 世界返回，document 世界声明的 `<link rel="modulepreload">` 无法被采用，
    *     Chromium 会报 cross-world service worker resource mismatch / preload not used；

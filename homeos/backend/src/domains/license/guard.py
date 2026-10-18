@@ -14,8 +14,8 @@ HomeOS 采用中间件式严格门禁，因此「哪些路径必须在未激活�
 
 未激活时能下发的只有 SPA 外壳（``index.html``），而外壳要自己去拉 JS / CSS 才能渲染 ——
 包括前端用来就地画「注册 / 激活 / 授权恢复」页面的那份代码。外壳的引用面**不止
-``/static/**``**：vite 产物的入口与分包在 ``/assets/js|css/**``，外壳还引用 ``/icons``、
-``/backgrounds``、``/logo``、``/sounds``、``/manifest.json``、``/sw.js``。
+``/static/**`` 的 public 资源**：vite 的哈希 chunk 也在 ``/static/assets/**``，外壳还引用
+``/icons``、``/backgrounds``、``/logo``、``/sounds``、``/manifest.json``、``/sw.js``。
 
 一旦这些被门禁挡成 401，浏览器拿到的是「外壳 + 全部 401 的脚本」：页面白屏（CSS 还报
 ``MIME type ('application/json') is not a supported stylesheet``，因为 401 的响应体是 JSON），

@@ -15,7 +15,6 @@ from ..config import Settings
 from ..domains.license import features as feature_codes
 from ..platform.core.frontend_static import (
     APPLE_TOUCH_ICON_PATHS,
-    ASSETS_MOUNT_PREFIX,
     BACKGROUNDS_MOUNT_PREFIX,
     FAVICON_PATH,
     FRONTEND_ASSET_SUFFIXES,
@@ -113,26 +112,26 @@ def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
 
 
 def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
-    """挂载 vite 构建产物目录（``/static`` / ``/assets`` / ``/modules``）。
+    """挂载 vite 构建产物目录（``/static`` 与 ``/modules``）。
 
-    目录必须在启动时 mkdir：watch-build / 原子发布窗口里 ``assets/`` 可能短暂不存在，
+    ``/static`` 同时承载 public 静态资源与哈希 chunk（``static/assets/<name>-<hash>``，
+    与商店同构）；根级 ``assets/`` 不再是产物目录，因此这里**不再** mkdir/mount ``/assets``
+    —— 那会在每次启动时凭空重建一个空目录，让人误以为产物仍分两处。
+
+    目录必须在启动时 mkdir：watch-build / 原子发布窗口里 ``modules/`` 可能短暂不存在，
     若这里 ``is_dir()`` 失败就永远不 mount，之后即使 dist 已恢复，进程不重启也会一直把
-    ``/assets/*.js`` 回成 HTML（Strict MIME 报错）。
+    ``/modules/*.js`` 回成 HTML（Strict MIME 报错）。
     """
     static_dir = frontend_dir / "static"
     if static_dir.is_dir():
         app.mount(STATIC_MOUNT_PREFIX, StaticFiles(directory=str(static_dir)), name="static")
-    for mount_path, sub_dir in (
-        (ASSETS_MOUNT_PREFIX, "assets"),
-        (MODULES_MOUNT_PREFIX, "modules"),
-    ):
-        directory = frontend_dir / sub_dir
-        directory.mkdir(parents=True, exist_ok=True)
-        app.mount(
-            mount_path,
-            StaticFiles(directory=str(directory)),
-            name=mount_path.strip("/"),
-        )
+    modules_dir = frontend_dir / "modules"
+    modules_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        MODULES_MOUNT_PREFIX,
+        StaticFiles(directory=str(modules_dir)),
+        name=MODULES_MOUNT_PREFIX.strip("/"),
+    )
 
 
 def _register_pwa_asset_routes(app: FastAPI, frontend_dir: Path) -> None:

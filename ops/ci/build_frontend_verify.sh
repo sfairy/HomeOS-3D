@@ -29,7 +29,18 @@ bun run build:frontend
 # 混淆与产物结构断言。
 grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
 grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
+grep -q '_0x' dist/homeos/frontend/static/assets/index-*.js
 test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
+# 哈希 chunk 与商店同构地落在 /static/assets/ 这一层（扁平，不建 js/ css/ 子目录）：
+# 根级 dist/homeos/frontend/assets 必须不存在 —— 后端已不再挂载 /assets，留在这里
+# 只会得到一堆「文件在、线上 404」的产物。
+test ! -e dist/homeos/frontend/assets
+test ! -e dist/homeos/frontend/static/assets/js
+test ! -e dist/homeos/frontend/static/assets/css
+test -f dist/homeos/frontend/static/assets/index-*.js
+test -f dist/homeos/frontend/static/assets/index-*.css
+# 外壳必须真的引用新路径；否则说明 output 模板与 assetsDir 有一处没改。
+grep -q '/static/assets/index-' dist/homeos/frontend/index.html
 # 第三方插件整棵子树不混淆：public/static/vendor 由 Vite 原样复制，产物必须与源逐字节一致。
 # 混淆会改写标识符与字符串，这里一旦不一致，就等于混淆脚本漏掉了 vendor/。
 if ! diff -rq homeos/frontend/public/static/vendor dist/homeos/frontend/static/vendor; then

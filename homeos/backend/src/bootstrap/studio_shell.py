@@ -248,13 +248,14 @@ def _apply_cache_headers(request: Request, response: Response) -> None:
     # （``/api/v1/modules/interaction3d/*.js|.css``）：不再发 ``?v=`` 版本戳，统一
     # 「私有 no-cache」，靠响应上的 ETag / Last-Modified 回源校验（命中即 304）。
     #
-    # ``/assets/**`` 的哈希产物虽是内容寻址、理论上可长期 immutable，但这里同样回源
-    # 校验：一方面统一口径，另一方面让「缓存中的外壳引用已删除 chunk」得到明确 404，而不是
-    # 从 HTTP 缓存里取到一份陈旧副本。代价是每次多一次 304 往返。
+    # ``/static/assets/**`` 里的哈希产物虽是内容寻址、理论上可长期 immutable，但这里同样
+    # 回源校验：一方面统一口径，另一方面让「缓存中的外壳引用已删除 chunk」得到明确 404，
+    # 而不是从 HTTP 缓存里取到一份陈旧副本。代价是每次多一次 304 往返。
+    #
+    # 不再单列 ``/assets/**``：根级 assets 已并入 ``/static/assets``，``/assets`` 下只剩
+    # ``/assets/builtin/**`` 内置素材路由，缓存头由它自己的 FileResponse 设置。
     if response.status_code in {200, 304} and (
-        path.startswith(("/static/", "/modules/"))
-        or (path.startswith("/assets/") and not path.startswith("/assets/builtin/"))
-        or interaction_module
+        path.startswith(("/static/", "/modules/")) or interaction_module
     ):
         response.headers["Cache-Control"] = "private, no-cache"
         return
