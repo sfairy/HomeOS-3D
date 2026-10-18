@@ -245,14 +245,13 @@ class EarthquakeService:
                         nxt.home_lon,
                         "已启用" if nxt.enabled else "未启用",
                     )
+                elif nxt.enabled:
+                    logger.warning(
+                        "EEW 已启用但未配置家庭坐标，无法按距离/烈度筛选地震；"
+                        "请在「警报规则 → 地震预警」中设置"
+                    )
                 else:
-                    if nxt.enabled:
-                        logger.warning(
-                            "EEW 已启用但未配置家庭坐标，无法按距离/烈度筛选地震；"
-                            "请在「警报规则 → 地震预警」中设置"
-                        )
-                    else:
-                        logger.debug("EEW 未启用，跳过家庭坐标检查")
+                    logger.debug("EEW 未启用，跳过家庭坐标检查")
         except Exception as exc:
             logger.error("加载 EEW 配置失败: %s", exc)
 
