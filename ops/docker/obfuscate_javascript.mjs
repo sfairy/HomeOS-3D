@@ -2,6 +2,9 @@
 /**
  * 构建期混淆业务 JavaScript，写入原路径（就地替换）。
  *
+ * 只针对**主应用**（`dist/homeos/frontend`）。商店（`dist/homeos-store/frontend`）是自用
+ * 后台，不混淆：`build:store` 不再调用本脚本，`obfuscate_javascript.mjs` 也不再接受该目录。
+ *
  * `homeos/frontend/public/static/vendor/`（three / hls.js / mdi / meteocons /
  * meshoptimizer / qrcode-generator）是第三方插件：构建时由 Vite 原样复制到
  * `dist/<项目>/frontend/static/vendor/`，**整棵子树都不混淆**。它们不是本项目代码，
@@ -27,41 +30,62 @@ const SKIP_FILE_NAMES = new Set([
   "hls.min.js",
 ]);
 
+/**
+ * 只做「标识符改名 + 紧凑」，**不再开启字符串数组 / 控制流平坦化 / 数字表达式化 /
+ * splitStrings**。这不是保守，是实测结论（同一份 `vendor-vue` 产物，gzip -9）：
+ *
+ *   配置                        raw      gzip    解析+编译
+ *   Vite 压缩后原始             207KB     76KB     2.7ms
+ *   旧配置（上列全开 + base64） 1496KB    531KB    10.0ms
+ *   本配置（仅改名）             400KB    122KB     3.2ms
+ *
+ * 换成整份产物看（`build:frontend` 前后各测一次，同一批文件，仅主应用）：
+ *
+ *   `static/assets/*.js`（66 个）   raw        gzip
+ *   不混淆                          5.87MB     1.79MB
+ *   旧配置                         33.13MB    11.48MB   (5.6x / 6.4x)
+ *   本配置                          9.44MB     2.52MB   (1.6x / 1.4x)
+ *
+ * 首屏 12 个 js 引用：gzip 261KB → 旧配置 1591KB（6.1x），本配置 364KB（1.4x）。
+ * 全量 352 个文件：7.76MB → 12.70MB（1.64x），耗时约 11s。
+ *
+ * 膨胀几乎全部来自 `stringArray`（含包装器链）与 `controlFlowFlattening`：前者让每个
+ * 字符串字面量变成 `_0x…[n]` 查表，后者把函数体拆成 switch 状态机，V8 既难压缩也难
+ * 优化 —— 而 gzip 对 base64 高熵数据无效（压缩率 31% → 35%），服务端压不回原来的
+ * 量级。单项消融（`vendor-vue`）：去掉 `controlFlowFlattening` 仍是 5.5x，把
+ * `stringArrayEncoding` 换成 none 仍有 7.2x，说明是这两族选项本身，不是 base64。
+ *
+ * 收益侧几乎没有损失：这类变换本来就能被 de4js / webcrack 整份还原，真正的授权与
+ * 密钥校验在后端（前端不持有任何秘密）。所以这里换掉的是「体积与执行速度」，
+ * 保留的是「不想被人一眼读懂」的最低成本形态。
+ */
 const OBFUSCATOR_OPTIONS = {
   compact: true,
-  controlFlowFlattening: true,
-  controlFlowFlatteningThreshold: 0.45,
-  deadCodeInjection: false,
-  debugProtection: false,
-  disableConsoleOutput: false,
   identifierNamesGenerator: "hexadecimal",
   ignoreImports: true,
   log: false,
-  numbersToExpressions: true,
   renameGlobals: false,
   renameProperties: false,
   reservedNames: ["^homeos", "^THREE$", "^Hls$", "^jQuery$", "^\\$"],
-  reservedStrings: [],
   seed: 0x486f6d65,
   selfDefending: false,
   simplify: true,
-  splitStrings: true,
-  splitStringsChunkLength: 8,
-  stringArray: true,
-  stringArrayCallsTransform: true,
-  stringArrayEncoding: ["base64"],
-  stringArrayIndexShift: true,
-  stringArrayRotate: true,
-  stringArrayShuffle: true,
-  stringArrayWrappersCount: 2,
-  stringArrayWrappersChainedCalls: true,
-  stringArrayWrappersParametersMaxCount: 3,
-  stringArrayWrappersType: "function",
-  stringArrayThreshold: 0.75,
-  transformObjectKeys: false,
-  unicodeEscapeSequence: false,
   target: "browser",
   sourceMap: false,
+  // 显式关掉（而不是「删掉这行靠默认值」）：这些选项一旦被默认值或后来者打开，
+  // 就是上面那组 5.6x 的体积回归，必须保持可读的 false。
+  controlFlowFlattening: false,
+  deadCodeInjection: false,
+  debugProtection: false,
+  disableConsoleOutput: false,
+  numbersToExpressions: false,
+  splitStrings: false,
+  stringArray: false,
+  stringArrayCallsTransform: false,
+  stringArrayEncoding: ["none"],
+  stringArrayThreshold: 0,
+  transformObjectKeys: false,
+  unicodeEscapeSequence: false,
 };
 
 function shouldSkipFile(filePath) {

@@ -5,7 +5,7 @@
 
   dist/
     homeos/
-      frontend/                 # 前端产物（宿主机构建并混淆）
+      frontend/                 # 前端产物（宿主机构建；主应用混淆，商店不混淆）
       backend/linux-<arch>/     # Cython 编译后的后端（.so，无 .py 源码）
     homeos-store/
       frontend/
@@ -28,7 +28,8 @@
   clean [--project app|store|all]
       删除工作区根 ``dist/`` 下对应项目的产物。
 
-前端（含混淆）由宿主机执行 ``bun run build:frontend`` 产出；本脚本只管后端与镜像。
+前端由宿主机执行 ``bun run build:frontend`` 产出（主应用混淆、商店不混淆）；
+本脚本只管后端与镜像。
 """
 from __future__ import annotations
 

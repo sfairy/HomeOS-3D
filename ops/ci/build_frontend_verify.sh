@@ -28,8 +28,13 @@ bun run build:frontend
 
 # 混淆与产物结构断言。
 grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
-grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
 grep -q '_0x' dist/homeos/frontend/static/assets/index-*.js
+# 商店是自用后台，构建**不做混淆**（见 ops/docker/obfuscate_javascript.mjs 的配置说明）。
+# 这条反向断言是必要的：脚本一旦被重新挂回 build:store，产物会无声变大、堆栈变成 _0x。
+if grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js; then
+    echo "商店产物出现了 _0x 标识符：build:store 不应混淆（自用后台，无保护收益）。" >&2
+    exit 1
+fi
 test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
 # 哈希 chunk 与商店同构地落在 /static/assets/ 这一层（扁平，不建 js/ css/ 子目录）：
 # 根级 dist/homeos/frontend/assets 必须不存在 —— 后端已不再挂载 /assets，留在这里
