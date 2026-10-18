@@ -30,7 +30,9 @@ class HAConnectorHost:
     _history_cache_lock: Any = None
     _history_fetches: Any = None
     _history_semaphore: Any = None
+    _http_pool: Any = None
     _incremental_flushed_at: Any = None
+    _jitter_random: Any = None
     _initial_sync_logged: Any = None
     _known_entity_ids: Any = None
     _last_connection_status: Any = None
@@ -53,6 +55,7 @@ class HAConnectorHost:
 
     _active_catalog_counts: Any = None
     _apply_incremental_state: Any = None
+    _apply_incremental_states: Any = None
     _apply_registry_event: Any = None
     _apply_registry_snapshot: Any = None
     _apply_snapshot: Any = None
@@ -60,17 +63,21 @@ class HAConnectorHost:
     _debounced_registry_refresh: Any = None
     _device_registry_metadata: Any = None
     _discard_history_fetch: Any = None
+    _dispatch_live_event: Any = None
     _fetch_and_cache_history: Any = None
+    _flush_live_state_changes: Any = None
     _ha_tuning: Any = None
     _handle_live_event: Any = None
     _history_cache_limits: Any = None
     _live_connection: Any = None
+    _live_event_batch_window: Any = None
     _load_connection: Any = None
     _load_persistent_entity_ids: Any = None
     _log_event: Any = None
     _log_cycle_failure: Any = None
     _mark_connected: Any = None
     _mark_sync_started: Any = None
+    _next_backoff: Any = None
     _notify_connection: Any = None
     _notify_state: Any = None
     _probe_endpoint: Any = None

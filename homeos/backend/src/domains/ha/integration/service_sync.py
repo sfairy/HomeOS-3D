@@ -470,24 +470,42 @@ class HASyncMixin(HAConnectorHost):
             'areas': len(seen_areas) }
 
     def _apply_incremental_state(self, connection_id: str, raw_state: dict[str, Any]) -> bool:
-        entity_id = str(raw_state.get('entity_id') or '')
-        if not entity_id:
-            return False
-        key = (connection_id, entity_id)
-        known = key in self._known_entity_ids
+        """单条入口（供一次性调用方使用；实时链路走批量版）。"""
+        return self._apply_incremental_states(connection_id, [raw_state])
+
+    def _apply_incremental_states(self, connection_id: str, raw_states: list[dict[str, Any]]) -> bool:
+        """批量落库一批增量状态，返回实体目录是否有变化。
+
+        `_apply_incremental_state` 的批量化版本：WS 场景切换 / 全屋开关时 HA 一次推送几十上百条
+        `state_changed`，逐条各开一次 session + commit 就是 N 次 fsync，这里合成一次事务。
+        逐条语义不变：只更新「未登记」或「到了刷盘窗口」的实体，目录版本号按新增条数累加。
+        """
         monotonic_now = time.monotonic()
         flush_incremental = monotonic_now - self._incremental_flushed_at.get(connection_id, 0) >= INCREMENTAL_FLUSH_SECONDS
-        if known and not flush_incremental:
+        targets: list[tuple[str, dict[str, Any]]] = []
+        for raw_state in raw_states:
+            entity_id = str(raw_state.get('entity_id') or '')
+            if not entity_id:
+                continue
+            if (connection_id, entity_id) in self._known_entity_ids and not flush_incremental:
+                continue
+            targets.append((entity_id, raw_state))
+        if not targets:
             return False
-        attributes = raw_state.get('attributes') or { }
         catalog_changed = False
+        added_count = 0
         with self.database.session_factory() as database:
-            if not known:
+            for entity_id, raw_state in targets:
+                if (connection_id, entity_id) in self._known_entity_ids:
+                    # 已登记且到了刷盘窗口：只更新同步时间，不动实体行（与逐条实现一致）。
+                    continue
+                attributes = raw_state.get('attributes') or { }
                 record = database.scalar(select(HAEntity).where(HAEntity.connection_id == connection_id, HAEntity.entity_id == entity_id))
                 if record is None:
                     record = HAEntity(connection_id = connection_id, entity_id = entity_id, domain = entity_id.partition('.')[0], name = attributes.get('friendly_name'), icon = attributes.get('icon'))
                     database.add(record)
                     catalog_changed = True
+                    added_count += 1
                 elif record.sync_status == 'missing':
                     catalog_changed = True
                 record.sync_status = 'active'
@@ -495,20 +513,19 @@ class HASyncMixin(HAConnectorHost):
                 record.icon = attributes.get('icon') or record.icon
                 record.last_seen_at = utc_now()
                 record.missing_since = None
-                self._known_entity_ids.add(key)
+                self._known_entity_ids.add((connection_id, entity_id))
             if flush_incremental or catalog_changed:
                 state = database.get(HASyncState, connection_id) or HASyncState(connection_id = connection_id, status = 'connected')
                 if flush_incremental:
                     state.last_incremental_at = utc_now()
                 if catalog_changed:
                     state.catalog_revision = (state.catalog_revision or 0) + 1
-                    state.entity_count += 1
+                    state.entity_count = (state.entity_count or 0) + max(added_count, 1)
                 database.add(state)
             if flush_incremental:
                 self._incremental_flushed_at[connection_id] = monotonic_now
             database.commit()
         return catalog_changed
-
     def catalog_counts(self, connection_id: str) -> dict[str, int]:
         with self.database.session_factory() as database:
             return self._active_catalog_counts(database, connection_id)

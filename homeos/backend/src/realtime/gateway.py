@@ -34,6 +34,8 @@ from .state_store import StateStore
 from .subscription import is_entity_visible_to_client, resolve_user_room_key
 from .ws_buffer import resolve_ws_max_buffer_bytes
 from .ws_config import load_state_store_config, load_ws_push_config
+from ..domains.license import features as feature_codes
+from ..domains.license.service import TERMINAL_STATES as LICENSE_TERMINAL_STATES
 from ..platform.core.entity_domain import get_entity_domain
 from ..platform.core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 from ..platform.security.entity_access import filter_entities_by_access, sort_entities_by_sync_priority
@@ -126,6 +128,11 @@ class RealtimeGateway:
         #: engineio 的无界写队列里继续灌水，形成正反馈；同一轮背压内只提示一次，
         #: 待该连接恢复正常（不再背压）后清除，下次真正背压时再提示。
         self._resync_pending: set[str] = set()
+        #: 授权终态监听器只注册一次。注册时机只能是首次 connect：__init__ 跑在 lifespan
+        #: 之前，那时 app.state.license_service 还不存在。
+        self._license_listener_registered = False
+        #: 监听器可能在任意线程被调用，跨线程调度协程需要事件循环句柄。
+        self._loop: asyncio.AbstractEventLoop | None = None
         self.state_store: StateStore = StateStore()
         self._state_cfg_at = 0.0
         self._ws_cfg_cache: Any | None = None
@@ -294,6 +301,20 @@ class RealtimeGateway:
         except Exception:
             raise SocketConnectionRefusedError("unauthorized") from None
 
+        # 授权门禁：HTTP 侧由 LicenseGuardMiddleware 拦，但 socket.io 的流量走
+        # socketio.ASGIApp，根本不经过 FastAPI 中间件栈 —— 这里必须自己再判一次，
+        # 否则授权失效后已登录账号仍能通过 WS 持续收到家中状态与站内通知。
+        service = getattr(self.app.state, "license_service", None)
+        self._watch_license(service)
+        if service is not None and self.settings.license_required:
+            try:
+                allowed = await asyncio.to_thread(service.allows, feature_codes.FEATURE_API)
+            except Exception:
+                logger.warning("WebSocket 握手读取授权状态失败，按未授权拒绝。", exc_info=True)
+                allowed = False
+            if not allowed:
+                raise SocketConnectionRefusedError("license inactive")
+
         auth_fields = auth if isinstance(auth, dict) else {}
         session_fields = {
             "user": user,
@@ -345,6 +366,58 @@ class RealtimeGateway:
             sid, user, auth_fields, entities, ws_cfg.replay_chunk_size
         )
 
+    def _watch_license(self, service: Any) -> None:
+        """惰性把授权终态监听器挂到授权服务上（只挂一次）。
+
+        WS 连接在握手时一次性完成鉴权，之后不会再查库/查授权，所以授权被吊销后这些
+        连接必须被主动踢掉；靠状态监听器而不是轮询，是为了让吊销在秒级生效。
+        """
+        if service is None or self._license_listener_registered:
+            return
+        try:
+            self._loop = asyncio.get_running_loop()
+            service.add_status_listener(self._on_license_status)
+        except Exception:
+            logger.warning("注册授权状态监听器失败，WS 连接不会主动断开。", exc_info=True)
+            return
+        self._license_listener_registered = True
+
+    def _on_license_status(self, status: str) -> None:
+        """授权进入终态（吊销/停用/实例冲突…）时断开通往客户端的全部 WS 连接。"""
+        if status not in LICENSE_TERMINAL_STATES:
+            return
+        loop = self._loop
+        if loop is None or loop.is_closed():
+            return
+        try:
+            future = asyncio.run_coroutine_threadsafe(
+                self.disconnect_all(reason=f"license_{status.lower()}"), loop
+            )
+        except RuntimeError:
+            # 事件循环已关闭（进程正在退出）：没有需要保护的连接了。
+            return
+        future.add_done_callback(self._log_disconnect_all_result)
+
+    @staticmethod
+    def _log_disconnect_all_result(future: Any) -> None:
+        try:
+            closed = future.result()
+        except Exception:
+            logger.warning("授权进入终态后断开 WS 连接失败。", exc_info=True)
+            return
+        if closed:
+            logger.info("授权进入终态，已断开 %s 条 WS 连接。", closed)
+
+    async def _disconnect_sids(self, sids: list[str], *, reason: str) -> int:
+        closed = 0
+        for sid in sids:
+            try:
+                await self.sio.disconnect(sid)
+                closed += 1
+            except Exception:
+                logger.warning("断开 WS 连接失败 sid=%s reason=%s", sid, reason)
+        return closed
+
     async def _on_disconnect(self, sid: str, reason: Any = None) -> None:
         self.connected.discard(sid)
         self._baseline_ready.discard(sid)
@@ -369,14 +442,15 @@ class RealtimeGateway:
             for sid in list(self.connected)
             if str((self._session_for(sid).get("user") or {}).get("userId") or "") == key
         ]
-        closed = 0
-        for sid in targets:
-            try:
-                await self.sio.disconnect(sid)
-                closed += 1
-            except Exception:
-                logger.warning("吊销会话时断开连接失败 sid=%s reason=%s", sid, reason)
-        return closed
+        return await self._disconnect_sids(targets, reason=reason)
+
+    async def disconnect_all(self, *, reason: str = "license_revoked") -> int:
+        """断开全部在线连接，返回断开条数（授权进入终态时调用）。
+
+        授权被吊销/停用后，已建立的 WS 连接仍会持续推送状态变更与通知；这里统一走
+        _on_disconnect 的清理路径，与正常断线、会话吊销保持同一套收尾逻辑。
+        """
+        return await self._disconnect_sids(list(self.connected), reason=reason)
 
     def _session_for(self, sid: str) -> dict[str, Any]:
         """取 sid 的会话（内存镜像优先）。镜像未命中时返回空 dict（fail-open：

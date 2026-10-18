@@ -66,7 +66,14 @@ class LicenseGuardMiddleware:
         self.settings = settings
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        scope_type = scope["type"]
+        if scope_type != "http":
+            # 非 HTTP 不等于「无需授权」：WebSocket 握手是一条长连接入口，一旦放过去，
+            # 之后的推送再也不经过任何 HTTP 门禁。旧实现在这里整体放行，等于把 WS 变成
+            # 绕过授权检查的旁路（socket.io 另见 realtime/gateway.py 的握手校验）。
+            if scope_type == "websocket":
+                await self._guard_websocket(scope, receive, send)
+                return
             await self.app(scope, receive, send)
             return
         request = Request(scope, receive)
@@ -88,6 +95,27 @@ class LicenseGuardMiddleware:
                     )
                     await response(scope, receive, send)
                     return
+        await self.app(scope, receive, send)
+
+    async def _guard_websocket(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """WS 握手授权检查：未授权时按 1008（policy violation）关闭连接。
+
+        这里必须就地拒绝、不能先交给路由再判：握手一旦被接受，后续推送就绕过了所有
+        HTTP 门禁。ASGI 允许在接受握手前直接发 websocket.close，浏览器会把它当成
+        握手失败（uvicorn 回 403），因此不会下发任何业务数据。
+        """
+        app = scope.get("app")
+        service = getattr(getattr(app, "state", None), "license_service", None)
+        path = scope.get("path") or ""
+        if (
+            service is not None
+            and self.settings.license_required
+            and not is_license_exempt_path(path, "GET")
+        ):
+            allowed = await asyncio.to_thread(service.allows, feature_codes.FEATURE_API)
+            if not allowed:
+                await send({"type": "websocket.close", "code": 1008})
+                return
         await self.app(scope, receive, send)
 
 

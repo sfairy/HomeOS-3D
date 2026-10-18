@@ -7,17 +7,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, Response, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .platform.core.errors import unauthorized
-from .platform.core.models import LoginSession, User
-from .platform.security.cookies import resolve_session_cookie_secure
-from .platform.security.session_store import session_token_hash
+from .platform.core.models import User
+from .platform.security.auth_context import authenticate_session
 
 
 def get_database_session(request: Request):
@@ -27,51 +24,20 @@ def get_database_session(request: Request):
 DatabaseSession = Annotated[Session, Depends(get_database_session)]
 
 
-def _aware(value: datetime) -> datetime:
-    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
-
-
 def _admin_session(
     request: Request, response: Response, database: DatabaseSession
 ) -> User | None:
     """解析当前用户（ORM 实体）：homeos-3d 的 DB 会话（``sessions`` 表）。
 
-    Cookie ``settings.cookie_name`` 携带不透明令牌，可服务端吊销并滑动续期。
+    解析 / 续期 / 回写 Cookie 的唯一实现在 ``security.auth_context.authenticate_session``
+    —— 与 ``get_current_user`` 共用同一份逻辑与同一个会话生存期配置。
     """
-    settings = request.app.state.settings
-    token = request.cookies.get(settings.cookie_name, '')
-    if token:
-        record = database.scalar(
-            select(LoginSession).where(LoginSession.id_hash == session_token_hash(token))
-        )
-        now = datetime.now(UTC)
-        if record is None or _aware(record.expires_at) <= now:
-            if record is not None:
-                database.delete(record)
-                database.commit()
-        else:
-            user = database.get(User, record.user_id)
-            if user is not None and getattr(user, 'is_active', True):
-                max_age = settings.jwt_expires_in_seconds
-                refresh_interval = min(300, max(1, max_age // 2))
-                if now - _aware(record.last_seen_at) >= timedelta(seconds=refresh_interval):
-                    record.last_seen_at = now
-                    record.expires_at = now + timedelta(seconds=max_age)
-                    database.commit()
-                    response.set_cookie(
-                        key=settings.cookie_name,
-                        value=token,
-                        max_age=max_age,
-                        httponly=True,
-                        secure=resolve_session_cookie_secure(request),
-                        samesite='lax',
-                        path='/',
-                    )
-                context = getattr(request.state, 'log_context', None)
-                if context is not None:
-                    context['actor'] = user.username
-                return user
-    return None
+    user = authenticate_session(request, response, database)
+    if user is not None:
+        context = getattr(request.state, 'log_context', None)
+        if context is not None:
+            context['actor'] = user.username
+    return user
 
 
 def authenticated_user(
@@ -89,13 +55,19 @@ def authenticated_user(
 def authenticated_short_lived_user(
     request: Request, response: Response
 ) -> User:
+    """**兼容入口**：自取一条短会话并把用户 detach 后返回。
+
+    路由请用 ``CurrentUser`` —— 它复用请求级会话（``authenticated_user``），不再为
+    每个请求额外开第二条数据库连接；本函数只保留给历史的**直接调用点**
+    （``api/backups.py`` 在后台线程里调用它取一份脱离会话的用户快照）。
+    """
     with request.app.state.database.session_factory() as database:
         user = authenticated_user(request, response, database)
         database.expunge(user)
         return user
 
 
-CurrentUser = Annotated[User, Depends(authenticated_short_lived_user)]
+CurrentUser = Annotated[User, Depends(authenticated_user)]
 
 
 def _license_restricted(request: Request) -> HTTPException:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import time
 from collections import (
     Counter,
@@ -17,6 +18,7 @@ from .control_pool import HAControlPool
 from .crypto import CredentialCipher
 from .endpoints import HAEndpoint
 from .homeos_facade import HomeOSFacadeMixin
+from .http_pool import HAHttpClientPool
 from .service_contract import HAConnectorHost
 from .service_endpoint import HAEndpointMixin
 from .service_live import HALiveMixin
@@ -66,6 +68,10 @@ class HAConnectorService(
         # 设备控制请求的连接池（按连接隔离，见 HAControlPool）。
         # 传方法引用而非实例：池要取「当前活跃连接」的配置，而活跃连接随时可能换。
         self._control_pool = HAControlPool(self._control_configuration)
+        # 读取类请求（探测 / 状态 / 历史）的共享 HTTP 池，与上面的控制池同生命周期。
+        self._http_pool = HAHttpClientPool()
+        # 重连抖动专用随机源：可注入（测试断言上下界），也不与全局 random 抢种子。
+        self._jitter_random = random.Random()
         self._sync_lock = asyncio.Lock()
         self._database_lock = asyncio.Lock()
         self._connected = False
@@ -163,6 +169,8 @@ class HAConnectorService(
         # stop() 关过连接池（aclose 之后不可再用）：重启前换一个新的。
         if self._control_pool.closed:
             self._control_pool = HAControlPool(self._control_configuration)
+        if self._http_pool.closed:
+            self._http_pool = HAHttpClientPool()
         context = copy_context()
         context.run(event_context.set, { })
         self._runner = asyncio.create_task(self._run(), name = 'ha-connector', context = context)
@@ -183,13 +191,16 @@ class HAConnectorService(
         而不是排在一个即将关闭的池后面干等。
         """
         pool = self._control_pool
+        http_pool = self._http_pool
         pool.invalidate()
+        http_pool.invalidate()
         try:
             await self._stop_tasks()
         finally:
             # 无论任务收尾是否正常，连接都必须关掉，字段也要复位。
             self._connected = False
             await pool.aclose()
+            await http_pool.aclose()
 
     async def _stop_tasks(self) -> None:
         """取消并等待所有后台子任务与主循环。

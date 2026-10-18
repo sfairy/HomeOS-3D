@@ -36,6 +36,7 @@ from ..domains.ha.integration.service_call import ServiceCallRejected, execute_s
 from ..domains.license import features as feature_codes
 from ..domains.logs.global_log import event_context
 from ..platform.core.database import Database
+from ..platform.core.db_exec import run_db
 from ..platform.core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ..platform.security.session_store import session_token_hash
 from ..schemas import (
@@ -150,8 +151,11 @@ async def delete_connection(request: Request, database: DatabaseSession, _user: 
     connector = request.app.state.studio_ha
     await connector.stop()
     try:
-        database.delete(connection)
-        database.commit()
+        def _delete_connection_row() -> None:
+            database.delete(connection)
+            database.commit()
+
+        await run_db(_delete_connection_row)
         await connector.state_hub.replace([])
         await connector.state_hub.publish(
             {
@@ -414,13 +418,18 @@ async def save_connection(
     token = _connection_access_token(command, connection, connector, new_addresses, previous_addresses)
     test_results = await _probe_connection_endpoints(request, endpoints, token)
     targets = _resolved_connection_targets(test_results, command)
-    if connection is None:
-        connection = _create_connection_row(command, connector, token, verify_tls, external_verify_tls, targets)
-        database.add(connection)
-    else:
-        _update_connection_row(connection, command, connector, verify_tls, external_verify_tls, targets)
-    database.commit()
-    database.refresh(connection)
+    def _persist_connection() -> HAConnection:
+        row = connection
+        if row is None:
+            row = _create_connection_row(command, connector, token, verify_tls, external_verify_tls, targets)
+            database.add(row)
+        else:
+            _update_connection_row(row, command, connector, verify_tls, external_verify_tls, targets)
+        database.commit()
+        database.refresh(row)
+        return row
+
+    connection = await run_db(_persist_connection)
     await connector.restart()
     _log_connection_address_change(request, command, previous_addresses, connection)
     _log_connection_endpoint_warnings(request, test_results, connection)
@@ -503,14 +512,16 @@ async def list_percentage_sources(
     connection = active_connection(database)
     if connection is None:
         return {'items': []}
-    allowed_ids = set(
-        database.scalars(
-            select(HAEntity.entity_id).where(
-                HAEntity.connection_id == connection.id,
-                HAEntity.sync_status != 'missing',
-                HAEntity.disabled_by.is_(None),
-            )
-        ).all()
+    allowed_ids = await run_db(
+        lambda: set(
+            database.scalars(
+                select(HAEntity.entity_id).where(
+                    HAEntity.connection_id == connection.id,
+                    HAEntity.sync_status != 'missing',
+                    HAEntity.disabled_by.is_(None),
+                )
+            ).all()
+        )
     )
     try:
         states = await (await request.app.state.studio_ha.client_for(connection)).fetch_all_states()
@@ -528,15 +539,17 @@ async def list_numeric_sources(
     connection = active_connection(database)
     if connection is None:
         return {'items': []}
-    allowed_ids = set(
-        database.scalars(
-            select(HAEntity.entity_id).where(
-                HAEntity.connection_id == connection.id,
-                HAEntity.sync_status.notin_(['missing', 'disabled']),
-                HAEntity.disabled_by.is_(None),
-                HAEntity.domain.in_(['sensor', 'number', 'input_number']),
-            )
-        ).all()
+    allowed_ids = await run_db(
+        lambda: set(
+            database.scalars(
+                select(HAEntity.entity_id).where(
+                    HAEntity.connection_id == connection.id,
+                    HAEntity.sync_status.notin_(['missing', 'disabled']),
+                    HAEntity.disabled_by.is_(None),
+                    HAEntity.domain.in_(['sensor', 'number', 'input_number']),
+                )
+            ).all()
+        )
     )
     try:
         states = await (await request.app.state.studio_ha.client_for(connection)).fetch_all_states()

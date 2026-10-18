@@ -7,7 +7,11 @@ import logging
 import httpx
 import websockets.exceptions
 
-from .client import HAClientError
+from .client import (
+    HAAuthError,
+    HAClientError,
+    HAProtocolError,
+)
 
 #: 各族写同一路日志。名字必须落在 ``homeos`` 树里：主应用只给 ``homeos.*`` 与 uvicorn
 #: 挂 handler（见 ``platform/core/log.py:configure_app_logging``），root 上没有 handler，
@@ -71,6 +75,49 @@ def classify_connector_failure(error: BaseException) -> str:
     )):
         return FAILURE_OFFLINE
     return FAILURE_UNEXPECTED
+
+
+#: 断开**原因**分类：决定重连提示里给用户什么建议（与上面「日志档位」正交）。
+#:
+#: 同为 ``FAILURE_OFFLINE``（一行摘要就够），令牌失效和网线掉了对用户的意义完全不同：
+#: 前者重试一万次也不会成功、必须让用户换令牌，后者等 HA 起来即可。所以再分一层，
+#: 只用来选提示语（见 :data:`DISCONNECT_REASON_HINTS`），不改日志档位。
+FAILURE_AUTH = 'auth'
+FAILURE_NETWORK = 'network'
+FAILURE_PROTOCOL = 'protocol'
+FAILURE_UNKNOWN = 'unknown'
+
+#: 各原因的「下一步怎么办」简短提示；没有可操作项的原因（正常断开）不在此表。
+DISCONNECT_REASON_HINTS = {
+    FAILURE_AUTH: 'Home Assistant 令牌可能已失效或被停用，请到 HA「安全 → 长期访问令牌」重新生成并更新连接',
+    FAILURE_NETWORK: '请确认 Home Assistant 正在运行，地址与端口可达（内网优先）',
+    FAILURE_PROTOCOL: '对端返回的内容不像 Home Assistant，请确认地址指向 HA 本体而非反向代理登录页',
+}
+
+
+def classify_disconnect_reason(error: BaseException) -> str:
+    """把一次断开按「用户能不能自己修」重新分类，用于重连提示语。
+
+    与 :func:`classify_connector_failure` 正交：那边决定打哪一档日志（要不要堆栈），
+    这边决定是否值得提示用户动手。判断顺序按「越能归因越先判」：
+    鉴权类异常在 ``HAClient`` 里已经翻译成中文短句，这里只认类型。
+    """
+    if isinstance(error, HAAuthError):
+        return FAILURE_AUTH
+    if isinstance(error, HAProtocolError):
+        return FAILURE_PROTOCOL
+    if isinstance(error, websockets.exceptions.ConnectionClosedOK):
+        # 对端正常关连接（HA 重启 / 反代换后端）：不是故障，也没有可操作项。
+        return FAILURE_DISCONNECTED
+    if isinstance(error, (
+        websockets.exceptions.ConnectionClosed,
+        HAClientError,
+        httpx.HTTPError,
+        OSError,
+        TimeoutError,
+    )):
+        return FAILURE_NETWORK
+    return FAILURE_UNKNOWN
 
 
 def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:

@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import ssl
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from ipaddress import ip_address
@@ -17,6 +18,7 @@ import websockets
 
 from .control_pool import HAControlConfiguration, HAControlPool
 from .errors import endpoint_failure_reason
+from .http_pool import HAHttpClientPool, HAHttpConfiguration
 
 #: 必须挂在 ``homeos`` 树下：主应用的控制台 handler 只装在 ``homeos.*`` 与 uvicorn 上，
 #: 用 ``__name__`` 会得到 ``src.*``，冒到没有 handler 的 root 后走 ``logging.lastResort``
@@ -27,6 +29,21 @@ LOGGER = logging.getLogger("homeos.ha_rest")
 class HAClientError(RuntimeError):
 
     pass
+
+
+class HAAuthError(HAClientError):
+    """凭据层面的失败：令牌无效 / 权限不足（HTTP 401/403、WS auth_invalid）。
+
+    单独成类是为了让重连循环能区分「换令牌才有救」和「网络恢复就好」——两者的提示语
+    与用户动作完全不同。继承 ``HAClientError``，既有的捕获点语义不变。
+    """
+
+
+class HAProtocolError(HAClientError):
+    """协议层面的失败：对端答非所问（缺 auth_required、单条数据超限）。
+
+    通常意味着地址指向的不是 HA 本体（反代登录页）或版本/配置不匹配，重试无用。
+    """
 
 
 def normalize_base_url(value: str) -> str:
@@ -164,6 +181,7 @@ class HAClient:
         *,
         control_pool: HAControlPool | None = None,
         control_connection_id: str | None = None,
+        http_pool: HAHttpClientPool | None = None,
         ws_ping_interval: float | None = None,
         ws_ping_timeout: float | None = None,
     ) -> None:
@@ -183,6 +201,9 @@ class HAClient:
         self._control_pool = control_pool
         # 连接池按「连接」隔离：同一个 HA 实例的两条连接记录不能共用同一条长连接。
         self._control_connection_id = control_connection_id
+        # http_pool 非空时，读取类请求（探测 / 状态 / 历史）复用共享 client（keep-alive）；
+        # 缺省 None 表示每次新建，保持测试与一次性脚本的既有语义。
+        self._http_pool = http_pool
 
     @property
     def headers(self) -> dict[str, str]:
@@ -191,17 +212,43 @@ class HAClient:
             'Content-Type': 'application/json',
         }
 
+    @property
+    def http_configuration(self) -> HAHttpConfiguration:
+        """读取类请求的共享池租约参数（令牌走请求头，不进池键）。"""
+        return HAHttpConfiguration(
+            verify_tls=self.verify_tls,
+            trust_env=not self._bypass_environment_proxy,
+        )
+
+    @asynccontextmanager
+    async def _http_client(self) -> AsyncGenerator[httpx.AsyncClient]:
+        """读取类请求的客户端来源：有池走池（keep-alive 复用），无池每次新建。
+
+        池里的 client 只固定传输参数（TLS / 代理 / 连接数上限），因此 ``headers`` 与
+        ``timeout`` 必须逐请求传 —— 一次性客户端路径也照此写，两条路径的语义才一致。
+        """
+        if self._http_pool is not None:
+            async with self._http_pool.lease(self.http_configuration) as client:
+                yield client
+            return
+        async with httpx.AsyncClient(
+            verify=self.verify_tls,
+            timeout=self.timeout,
+            headers=self.headers,
+            trust_env=not self._bypass_environment_proxy,
+        ) as client:
+            yield client
+
     async def test_connection(
         self, *, include_temperature_unit: bool = False
     ) -> dict[str, Any]:
         try:
-            async with httpx.AsyncClient(
-                verify=self.verify_tls,
-                timeout=self.timeout,
-                headers=self.headers,
-                trust_env=not self._bypass_environment_proxy,
-            ) as client:
-                response = await client.get(f'{self.base_url}/api/config')
+            async with self._http_client() as client:
+                response = await client.get(
+                    f'{self.base_url}/api/config',
+                    headers=self.headers,
+                    timeout=self.timeout,
+                )
                 response.raise_for_status()
                 try:
                     config = response.json()
@@ -213,7 +260,7 @@ class HAClient:
                     raise HAClientError('该地址未返回有效的 Home Assistant 配置，请检查服务地址及反向代理。')
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
-                raise HAClientError('Home Assistant Token 无效或权限不足。') from error
+                raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
             raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
         except (httpx.HTTPError, ValueError) as error:
             raise HAClientError(f'无法连接 Home Assistant：{error}') from error
@@ -252,15 +299,14 @@ class HAClient:
         # 批量路径：一次 GET /api/states，再本地过滤。实体较多时显著减少 HA 往返。
         if len(requested) >= 4:
             try:
-                async with httpx.AsyncClient(
-                    verify=self.verify_tls,
-                    timeout=self.timeout,
-                    headers=self.headers,
-                    trust_env=not self._bypass_environment_proxy,
-                ) as client:
-                    response = await client.get(f'{self.base_url}/api/states')
+                async with self._http_client() as client:
+                    response = await client.get(
+                        f'{self.base_url}/api/states',
+                        headers=self.headers,
+                        timeout=self.timeout,
+                    )
                     if response.status_code in {401, 403}:
-                        raise HAClientError('Home Assistant Token 无效或权限不足。')
+                        raise HAAuthError('Home Assistant Token 无效或权限不足。')
                     response.raise_for_status()
                     payload = response.json()
                 if isinstance(payload, list):
@@ -276,19 +322,16 @@ class HAClient:
                 LOGGER.debug('批量拉取 /api/states 失败，回退逐实体：%s', error)
 
         semaphore = asyncio.Semaphore(8)
-        async with httpx.AsyncClient(
-            verify=self.verify_tls,
-            timeout=self.timeout,
-            headers=self.headers,
-            trust_env=not self._bypass_environment_proxy,
-        ) as client:
+        async with self._http_client() as client:
 
             async def fetch_one(entity_id: str) -> dict[str, Any] | None:
                 """拉取单个实体的状态；实体已不存在时返回 None 而不是抛错。"""
                 async with semaphore:
                     try:
                         response = await client.get(
-                            f'{self.base_url}/api/states/{quote(entity_id, safe="")}'
+                            f'{self.base_url}/api/states/{quote(entity_id, safe="")}',
+                            headers=self.headers,
+                            timeout=self.timeout,
                         )
                         if response.status_code == 404:
                             return None
@@ -296,7 +339,7 @@ class HAClient:
                         payload = response.json()
                     except httpx.HTTPStatusError as error:
                         if error.response.status_code in {401, 403}:
-                            raise HAClientError('Home Assistant Token 无效或权限不足。') from error
+                            raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
                         raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
                     except (httpx.HTTPError, ValueError) as error:
                         raise HAClientError(f'无法获取 Home Assistant 实体 {entity_id}：{error}') from error
@@ -339,7 +382,7 @@ class HAClient:
         try:
             required = json.loads(await websocket.recv())
             if not isinstance(required, dict) or required.get('type') != 'auth_required':
-                raise HAClientError('Home Assistant WebSocket 未返回鉴权请求。')
+                raise HAProtocolError('Home Assistant WebSocket 未返回鉴权请求。')
             await websocket.send(json.dumps({
                 'type': 'auth',
                 'access_token': self.access_token,
@@ -348,7 +391,7 @@ class HAClient:
         except (json.JSONDecodeError, websockets.WebSocketException) as error:
             raise HAClientError(f'Home Assistant WebSocket 鉴权失败：{error}') from error
         if not isinstance(result, dict) or result.get('type') != 'auth_ok':
-            raise HAClientError('Home Assistant WebSocket Token 无效或鉴权失败。')
+            raise HAAuthError('Home Assistant WebSocket Token 无效或鉴权失败。')
 
     async def connect_websocket(self):
         try:
@@ -371,7 +414,7 @@ class HAClient:
         except (OSError, TimeoutError, websockets.WebSocketException) as error:
             if 'message too big' in str(error).lower() or '1009' in str(error):
                 maximum_mb = self.websocket_max_size_bytes // 1048576
-                raise HAClientError(
+                raise HAProtocolError(
                     f'Home Assistant 返回的单条数据超过 {maximum_mb} MB，'
                     '请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。'
                 ) from error
@@ -397,7 +440,7 @@ class HAClient:
                     or '1009' in str(error)
                 ):
                     maximum_mb = self.websocket_max_size_bytes // 1048576
-                    raise HAClientError(
+                    raise HAProtocolError(
                         f'Home Assistant 命令 {command_type} 返回的单条数据超过 {maximum_mb} MB，'
                         '请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。'
                     ) from error
@@ -600,6 +643,8 @@ class HAClient:
                 response.raise_for_status()
                 body = response.json()
         except httpx.HTTPStatusError as error:
+            if error.response.status_code in {401, 403}:
+                raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
             raise HAClientError(
                 f'Home Assistant 服务调用返回 HTTP {error.response.status_code}。'
             ) from error
@@ -652,15 +697,12 @@ class HAClient:
             'significant_changes_only': '1',
         }
         try:
-            async with httpx.AsyncClient(
-                verify=self.verify_tls,
-                timeout=self.timeout,
-                headers=self.headers,
-                trust_env=not self._bypass_environment_proxy,
-            ) as client:
+            async with self._http_client() as client:
                 response = await client.get(
                     f'{self.base_url}/api/history/period/{encoded_start}',
                     params=params,
+                    headers=self.headers,
+                    timeout=self.timeout,
                 )
                 response.raise_for_status()
                 payload = response.json()

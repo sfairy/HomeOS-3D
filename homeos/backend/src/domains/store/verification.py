@@ -29,11 +29,31 @@ VerificationPurpose = Literal["homeos_register", "homeos_reset"]
 
 
 class StoreVerificationError(RuntimeError):
-    """商店发码 / 验码失败。``status_code`` 透传商店返回的状态码（若有）。"""
+    """商店发码 / 验码失败。
 
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    ``status_code`` 透传商店返回的状态码（无响应时为 ``None``），``retry_after``
+    透传商店在 429 上给出的 ``Retry-After`` 秒数（供 API 层原样回给浏览器）。
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        retry_after: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.retry_after = retry_after
+
+    @property
+    def unavailable(self) -> bool:
+        """商店本身不可用（未配置 / 连不上 / 5xx），**不是**验证码错误。
+
+        API 层据此返回 503 ``STORE_UNAVAILABLE``，而不是伪装成 422 的
+        「验证码错误」——后者会让用户反复重输一个其实没问题的验证码。
+        """
+        return self.status_code is None or self.status_code >= 500
 
 
 class StoreVerificationClient:
@@ -73,7 +93,11 @@ class StoreVerificationClient:
                     detail = parsed["detail"]
             except ValueError:
                 pass
-            raise StoreVerificationError(detail, status_code=response.status_code)
+            raise StoreVerificationError(
+                detail,
+                status_code=response.status_code,
+                retry_after=_parse_retry_after(response.headers.get("Retry-After")),
+            )
         if not response.content:
             return {}
         try:
@@ -96,6 +120,17 @@ class StoreVerificationClient:
             "/verifications/verify",
             {"email": email, "purpose": purpose, "code": code},
         )
+
+
+def _parse_retry_after(raw: str | None) -> int | None:
+    """解析 ``Retry-After``（商店只给秒数；HTTP-date 形式忽略，退化为默认退避）。"""
+    if not raw:
+        return None
+    try:
+        seconds = int(raw.strip())
+    except ValueError:
+        return None
+    return seconds if seconds > 0 else None
 
 
 def verification_client_from_settings(settings) -> StoreVerificationClient:

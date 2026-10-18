@@ -156,6 +156,11 @@ class Settings:
     # 认证
     jwt_secret: str = ""
     jwt_expires_in_seconds: int = 86400
+    #: DB 会话（``sessions`` 表 / ``auth_token`` Cookie）的最长存活时间。与 JWT 通道分离：
+    #: JWT 只用于短时效的一次性场景，浏览器登录会话默认 30 天并滑动续期。
+    session_max_age_seconds: int = 30 * 24 * 60 * 60
+    #: 数据库迁移模式：auto（默认）/ check（只检测，有待执行迁移即启动失败）/ off（仅紧急逃生）。
+    schema_mode: str = "auto"
     #: 会话令牌 Cookie（homeos-3d 原生口径：``sessions`` 表的不透明令牌）。
     cookie_name: str = "auth_token"
     csrf_cookie_name: str = "csrf_token"
@@ -231,11 +236,6 @@ class Settings:
     def credential_key_path(self) -> Path:
         """HA access token 落库加密密钥（与数据库分离）。"""
         return self.credential_key_path_override or self.secrets_dir / "ha_credentials.key"
-
-    @property
-    def session_max_age_seconds(self) -> int:
-        """DB 会话最长存活时间（沿用 JWT 过期配置，保证两条通道口径一致）。"""
-        return self.jwt_expires_in_seconds
 
     @property
     def user_assets_dir(self) -> Path:
@@ -455,6 +455,10 @@ def load_settings() -> Settings:
         update_endpoints=_environment_csv("APP_UPDATE_ENDPOINTS"),
         jwt_secret=os.getenv("JWT_SECRET", "").strip(),
         jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "86400")),
+        session_max_age_seconds=max(
+            1, int(os.getenv("HOMEOS_SESSION_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60)))
+        ),
+        schema_mode=os.getenv("HOMEOS_SCHEMA_MODE", "auto").strip().lower() or "auto",
         cookie_name=os.getenv("COOKIE_NAME", "auth_token").strip() or "auth_token",
         csrf_cookie_name=os.getenv("CSRF_COOKIE_NAME", "csrf_token").strip() or "csrf_token",
         csrf_header_name=os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token").strip() or "X-CSRF-Token",

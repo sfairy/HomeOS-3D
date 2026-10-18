@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -515,6 +516,27 @@ class StudioInteractionSync(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     document_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
+
+class StudioDraft(Base):
+    """3D 户型图工作台草稿（单例行，id 恒为 1；全局一份 + 每项目快照）。"""
+
+    __tablename__ = "studio_drafts"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_studio_drafts_singleton"),
+        CheckConstraint("json_valid(scene_json)", name="ck_studio_drafts_scene_json"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    scene_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+    updated_by: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
 
 class GlobalCustomPopupState(Base):

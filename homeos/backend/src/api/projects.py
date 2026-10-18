@@ -30,6 +30,7 @@ from ..domains.ui_config.global_popups import (
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
+from ..platform.core.db_exec import run_db
 from ..platform.core.models import GlobalCustomPopupState, Project, ProjectDraft
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
@@ -273,15 +274,21 @@ def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request
 async def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     await request.app.state.license_service.confirm_binding()
     require_viewer_project(viewer, project_id)
-    draft = database.get(ProjectDraft, project_id)
+    def _load_draft_payload() -> tuple[ProjectDraft | None, dict | None, int]:
+        draft = database.get(ProjectDraft, project_id)
+        if draft is None:
+            return None, None, 0
+        document = hydrate_document_popups(database, json.loads(draft.document_json))
+        return draft, document, global_popup_state(database).revision
+
+    draft, document, popup_revision = await run_db(_load_draft_payload)
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
-    document = hydrate_document_popups(database, json.loads(draft.document_json))
     return {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,
         'revision': draft.revision,
-        'globalPopupRevision': global_popup_state(database).revision,
+        'globalPopupRevision': popup_revision,
         'document': document,
         'updatedAt': draft.updated_at}
 

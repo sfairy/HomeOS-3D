@@ -107,12 +107,25 @@ def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str
     store.apply_change(str(entity_id), change.get("new_state"), change.get("changed_at"))
 
 
-async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
-    """冷路径副作用：家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。"""
+async def _run_state_change_effects(
+    app: FastAPI,
+    gateway: Any,
+    store: Any,
+    change: dict[str, Any],
+    *,
+    broadcast: bool = True,
+) -> dict[str, Any] | None:
+    """冷路径副作用：家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。
+
+    批量调用时传 ``broadcast=False``，由调用方把整批变更一次性交给网关，
+    避免每个实体各开一轮广播（每轮都会重算订阅与可见性并逐连接 emit）。
+    """
     entity_id = change.get("entity_id")
+    if not entity_id:
+        return None
     sync_filter = getattr(app.state, "entity_sync_filter", None)
     if sync_filter is not None and not sync_filter.is_entity_syncable(str(entity_id)):
-        return
+        return None
     _apply_state_change(app, gateway, store, change)
     home_mode = getattr(app.state, "home_mode", None)
     if home_mode is not None:
@@ -153,7 +166,9 @@ async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, chan
             advisor_usage.track_usage(change)
         except Exception:  # 用量统计属旁路观测，失败不得阻断状态广播
             logger.debug("顾问用量统计失败: entity=%s", entity_id, exc_info=True)
-    await gateway.broadcast_state_changed_batch([change])
+    if broadcast:
+        await gateway.broadcast_state_changed_batch([change])
+    return change
 
 
 def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
@@ -216,10 +231,15 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         changes = payload.get("changes") if isinstance(payload, dict) else None
         if not isinstance(changes, list):
             return
+        applied: list[dict[str, Any]] = []
         for change in changes:
             if not isinstance(change, dict) or not change.get("entity_id"):
                 continue
-            await _run_state_change_effects(app, gateway, store, change)
+            result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
+            if result is not None:
+                applied.append(result)
+        if applied:
+            await gateway.broadcast_state_changed_batch(applied)
 
     async def _handle_state_changed(payload: Any) -> None:
         # 单条状态变更（区域补全等本地生产者走这条）→ 复用批量路径

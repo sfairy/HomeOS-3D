@@ -21,6 +21,7 @@ from .access import access_grant, is_scene_id, module_components, require_access
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
+from .studio_draft_scene import read_current_studio_draft
 from ...config import Settings
 from ...dependencies import (
     DatabaseSession,
@@ -156,28 +157,24 @@ def require_scene_transfer(request, viewer, scene_id, project_id):
 
 
 def current_scene_payload(request: Request, database, scene_id: str, reference: dict, *, since: str = '') -> dict:
-    settings = request.app.state.settings
-    source = settings.studio3d_draft_path
-    if since and not source.is_file():
-        raise ValueError('saved source unavailable')
-    if source.is_file():
-        return json.loads(source.read_text(encoding='utf-8'))
-    return reference
+    # 草稿权威在 studio_drafts：读旧文件会让交互侧永远停在迁移前那一版户型。
+    payload = read_current_studio_draft(database, request.app.state.settings)
+    if payload is None:
+        if since:
+            raise ValueError('saved source unavailable')
+        return reference
+    return payload
 
 
 @router.post('/scenes', status_code=201)
 def snapshot_scene(request: Request, database: DatabaseSession, _user: LicensedUser):
     require_same_origin_write(request)
     require_access(request)
-    source = request.app.state.settings.studio3d_draft_path
-    if not source.is_file():
+    command = read_current_studio_draft(database, request.app.state.settings)
+    if command is None:
         raise HTTPException(409, detail='请先在 3D 户型图绘制中绘制并保存户型。')
-    try:
-        command = json.loads(source.read_text(encoding='utf-8'))
-        if not isinstance(command, dict) or not isinstance(command.get('scene'), dict):
-            raise HTTPException(409, detail='户型数据为空，请先在 3D 户型图绘制中保存户型。')
-    except (OSError, ValueError) as error:
-        raise HTTPException(409, detail='户型暂时无法读取，请检查保存状态。') from error
+    if not isinstance(command.get('scene'), dict):
+        raise HTTPException(409, detail='户型数据为空，请先在 3D 户型图绘制中保存户型。')
     command[SCENE_SOURCE_KEY] = 'studio'
     scene_id = uuid4().hex
     folder = request.app.state.settings.data_dir / 'modules' / 'interaction3d' / 'scenes'
@@ -238,12 +235,8 @@ def referenced_scene_ids(request: Request, database: DatabaseSession) -> set[str
             _collect_scene_ids(json.loads(document_json), referenced)
         except ValueError:
             continue
-    draft = getattr(settings, 'studio3d_draft_path', None)
-    try:
-        if draft is not None and Path(draft).is_file():
-            _collect_scene_ids(json.loads(Path(draft).read_text(encoding='utf-8')), referenced)
-    except (OSError, ValueError):
-        pass
+    # 数据库里的草稿才是当前户型：漏掉它会把仍在使用的快照当垃圾清掉。
+    _collect_scene_ids(read_current_studio_draft(database, settings) or {}, referenced)
     return referenced
 
 
@@ -348,14 +341,17 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
                 continue
             return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'no-store'})
     try:
-        scene = json.loads(
-            request.app.state.settings.studio3d_draft_path.read_text(encoding='utf-8')
-        )['scene']
+        settings = request.app.state.settings
+        # 快照里没有底图副本时回退到用户资源，但只允许「当前草稿仍在引用」的图：
+        # 当前草稿在 studio_drafts，读旧文件会漏掉迁移后新选的底图。
+        with request.app.state.database.session_factory() as database:
+            payload = read_current_studio_draft(database, settings)
+        scene = (payload or {}).get('scene') or {}
         referenced = any(
             str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:') == asset_id
             for floor in scene.get('floors', [])
         )
-        asset = user_asset_file(request.app.state.settings.user_assets_dir.resolve(), asset_id) if referenced else None
+        asset = user_asset_file(settings.user_assets_dir.resolve(), asset_id) if referenced else None
         if asset:
             return FileResponse(asset, headers={'Cache-Control': 'no-store'})
     except (OSError, ValueError, KeyError, AttributeError):

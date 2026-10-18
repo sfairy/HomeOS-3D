@@ -39,7 +39,7 @@ class HAEndpointMixin(HAConnectorHost):
         self._endpoint_probed_at = 0.0
 
     async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
-        await HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes).test_connection()
+        await HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes, http_pool = self._http_pool).test_connection()
 
     async def _probe_endpoints(self, connection: HAConnection, token: str) -> tuple[HAEndpoint | None, dict[HAEndpoint, str]]:
         """并发探测所有候选端点，按配置顺序（内网优先）挑第一个可达的。
@@ -162,6 +162,7 @@ class HAEndpointMixin(HAConnectorHost):
             websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes,
             control_pool = self._control_pool,
             control_connection_id = connection.id,
+            http_pool = self._http_pool,
             ws_ping_interval = ping_interval,
             ws_ping_timeout = ping_timeout,
         )

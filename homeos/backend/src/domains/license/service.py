@@ -34,6 +34,24 @@ EventLogLike = Any
 logger = logging.getLogger("homeos.license.service")
 
 RETRY_DELAYS = (2, 5, 10, 30, 60, 300)
+
+#: 心跳间隔下限（秒）：商店下发的 heartbeatIn 再小也不能低于这个值，否则会把商店打爆。
+#: 允许用 HOMEOS_LICENSE_HEARTBEAT_SECONDS 覆盖（现场排障时想更频繁地拉状态）。
+DEFAULT_MIN_HEARTBEAT_SECONDS = 30
+
+
+def min_heartbeat_seconds() -> int:
+    """心跳间隔下限（秒）：环境变量优先，缺失或非法值回落到 30，且至少 1 秒。"""
+    raw = os.getenv('HOMEOS_LICENSE_HEARTBEAT_SECONDS')
+    if not raw:
+        return DEFAULT_MIN_HEARTBEAT_SECONDS
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_MIN_HEARTBEAT_SECONDS
+    return max(1, value)
+
+
 TERMINAL_STATES = {
     'INVALID',
     'REVOKED',
@@ -218,6 +236,15 @@ class LicenseService:
         # allows() 热路径缓存：key=(lease_id, sequence, feature) → (monotonic_deadline, allowed)
         self._allow_cache: dict[tuple[str, int, str], tuple[float, bool]] = {}
         self._allow_cache_ttl_seconds = 2.0
+        #: 授权状态变化监听器（同步回调，在状态真正变化时才触发）。WebSocket 网关靠它把
+        #: 「授权已被吊销」这类终态第一时间推给在线连接，而不必等下一次心跳轮询。
+        self._status_listeners: list[Any] = []
+
+    def add_status_listener(self, listener) -> None:
+        """注册状态变化回调；同一回调只注册一次（网关重连时不会越积越多）。"""
+        with self._event_lock:
+            if listener not in self._status_listeners:
+                self._status_listeners.append(listener)
 
     def _rate_limit_remaining(self) -> float:
         return max(0.0, self._rate_limited_until - time.monotonic())
@@ -275,6 +302,13 @@ class LicenseService:
             if status in {'INVALID', 'REVOKED', 'CLOCK_ROLLBACK', 'INSTANCE_MISMATCH', 'RECOVERY_REQUIRED', 'REMOTE_REJECTED'}:
                 level = 'error'
             self._log_event(level, message)
+            # 锁内只取快照：监听器可能做 I/O（如断开 WebSocket），不能一直占着事件日志的锁。
+            listeners = tuple(self._status_listeners)
+        for listener in listeners:
+            try:
+                listener(status)
+            except Exception as exc:
+                logger.warning('授权状态监听器执行失败 status=%s: %s', status, exc)
 
     def _record_failure(self, operation: str, error: Exception | str, *, sensitive_values: tuple[str, ...] = ()) -> None:
         reason = str(error)
@@ -598,7 +632,7 @@ class LicenseService:
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error or '')
             state.feature_set = json.dumps(features)
-            state.heartbeat_interval_seconds = max(30, int(response.get('heartbeatIn', 300)))
+            state.heartbeat_interval_seconds = max(min_heartbeat_seconds(), int(response.get('heartbeatIn', 300)))
             state.last_error = None
             state.deactivated_at = None
             if state.activated_at is None:
@@ -813,6 +847,8 @@ class LicenseService:
         if not encrypted:
             self._record_failure('租约恢复', '没有可用的租约恢复凭证，请重新激活。')
             error = LicenseClientError('没有可用的租约恢复凭证，请重新激活。', code='CREDENTIAL_MISSING')
+            if self._keep_valid_session('没有可用的租约恢复凭证'):
+                return self.status()
             self._mark_failure(error)
             raise error
         recovery_token = ''
@@ -841,8 +877,46 @@ class LicenseService:
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 self._mark_revoked(str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code) from error
+            # 恢复请求被拒 / 网络失败但本地签名租约仍有效：保持现状，不把可用授权打成终态。
+            if self._keep_valid_session(str(error)):
+                return self.status()
             self._mark_failure(error)
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=self._error_code) from error
+
+    def _keep_valid_session(self, reason: str) -> bool:
+        """恢复票据不可用、但本地签名租约仍有效时，不让授权状态降级。
+
+        恢复流程依赖商店下发的 recoveryToken：令牌在服务端被清理、或本地解密失败时，
+        旧实现会把状态直接打成 RECOVERY_REQUIRED（终态），于是「授权其实还在有效期内、
+        只是暂时拿不到新租约」的机器会立刻停摆。这里改为：只要本地签名租约验签通过
+        且未到期，就保持现状继续提供服务，只记一条警告等下一次恢复尝试。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            if state.status not in {'ACTIVE', 'CONNECTION_WARNING', 'LEASE_EXPIRED'}:
+                return False
+            signed_lease = state.signed_lease or ''
+            instance_id = state.instance_id
+        if not signed_lease:
+            return False
+        try:
+            body = self.verifier.verify(signed_lease, instance_id)
+            expires_at = parse_timestamp(body['expiresAt'])
+            issued_at = parse_timestamp(body['issuedAt'])
+        except (LicenseCryptoError, KeyError, TypeError, ValueError):
+            return False
+        now = datetime.now(UTC)
+        if issued_at > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
+            return False
+        if expires_at <= now:
+            return False
+        self._error_code = None
+        self._next_attempt = None
+        self._log_event(
+            'warning',
+            f'授权租约恢复失败（{reason}），但本地租约仍有效，继续提供服务。',
+        )
+        return True
 
     def _mark_revoked(self, message: str) -> None:
         with self.database.session_factory() as database:
@@ -850,6 +924,8 @@ class LicenseService:
             state.status = 'REVOKED'
             state.last_error = message[:1000]
             database.commit()
+        # 吊销是终态：允许缓存必须立刻失效，否则最坏情况下还能再放行 2 秒。
+        self.invalidate_allow_cache()
         self._error_code = 'LICENSE_REVOKED'
         self._startup_validation_pending = False
         self._next_attempt = None
@@ -948,7 +1024,7 @@ class LicenseService:
             return 2
         if state.status == 'LEASE_EXPIRED':
             return float(LICENSE_RETRY_SECONDS)
-        interval = float(LICENSE_RETRY_SECONDS if state.status == 'CONNECTION_WARNING' else max(30, state.heartbeat_interval_seconds))
+        interval = float(LICENSE_RETRY_SECONDS if state.status == 'CONNECTION_WARNING' else max(min_heartbeat_seconds(), state.heartbeat_interval_seconds))
         expires = aware(state.lease_expires_at)
         if expires is None:
             return interval

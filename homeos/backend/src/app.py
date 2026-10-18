@@ -14,7 +14,7 @@ import asyncio
 import time
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from . import load_app_version
 from .bootstrap.exception_handlers import iso_timestamp, register_exception_handlers
@@ -77,9 +77,37 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
     @app.get("/health/ready", include_in_schema=False)
     async def health_ready(request: Request):
         database: Database = request.app.state.database
-        with database.engine.connect() as connection:
-            connection.exec_driver_sql("SELECT 1")
-        return {"status": "ready", "version": version}
+
+        def _probe() -> int:
+            with database.engine.connect() as connection:
+                connection.exec_driver_sql("SELECT 1")
+                # 迁移版本进 readiness：镜像启动后若 schema 落后或版本表丢失，立即摘流量。
+                applied = connection.exec_driver_sql(
+                    "SELECT MAX(version) FROM schema_migrations"
+                ).scalar()
+            if applied is None:
+                raise RuntimeError("schema_migrations 为空，数据库未完成初始化")
+            return int(applied)
+
+        # 与 /health 同口径做 TTL 缓存：readiness 也是高频轮询端点。
+        cached = getattr(request.app.state, "db_ready_probe", None)
+        if cached is not None and time.monotonic() - cached[0] < DB_PROBE_TTL_SECONDS:
+            schema_version = cached[1]
+        else:
+            try:
+                schema_version = await asyncio.wait_for(asyncio.to_thread(_probe), timeout=3.0)
+            except Exception as error:
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        "status": "degraded",
+                        "version": version,
+                        "database": "unavailable",
+                        "error": type(error).__name__,
+                    },
+                )
+            request.app.state.db_ready_probe = (time.monotonic(), schema_version)
+        return {"status": "ready", "version": version, "database": "ok", "schemaVersion": schema_version}
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics(request: Request):

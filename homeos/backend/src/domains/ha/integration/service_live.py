@@ -8,14 +8,21 @@ import time
 import traceback
 from typing import Any
 
+from .live_events import (
+    LIVE_EVENT_BATCH_WINDOW_MS,
+    LiveStateEventQueue,
+    live_state_change,
+)
 from .service_contract import HAConnectorHost
 from .service_support import (
+    DISCONNECT_REASON_HINTS,
     FAILURE_DISCONNECTED,
     FAILURE_UNEXPECTED,
     LIVE_EVENT_TYPES,
     LOGGER,
     OFFLINE_LOG_INTERVAL_SECONDS,
     classify_connector_failure,
+    classify_disconnect_reason,
 )
 from ...logs.global_log import _safe_text
 
@@ -56,6 +63,8 @@ class HALiveMixin(HAConnectorHost):
                 attempt = 1 if self._failure_kind is None else attempt + 1
                 await self._notify_connection('disconnected', error = str(error))
                 kind = classify_connector_failure(error)
+                # 原因分类与日志档位正交：决定重连提示里给用户什么建议（换令牌 / 等网络 / 改地址）。
+                reason = classify_disconnect_reason(error)
                 first_of_kind = kind != self._failure_kind
                 if first_of_kind and kind != FAILURE_DISCONNECTED:
                     # 只有原因变了才入库：同一种离线每 10s 记一条，日志页同样会被刷满，
@@ -68,11 +77,14 @@ class HALiveMixin(HAConnectorHost):
                         details = traceback.format_exc(),
                     )
                 self._failure_kind = kind
-                self._log_cycle_failure(error, kind, attempt, backoff, first_of_kind)
+                # 本轮实际等待时间：指数退避加抖动。墙屏、手机、家里多个 HomeOS 进程在同一个
+                # HA 重启后往往同时重连，固定间隔会让它们每一轮都撞在一起（同刻 SYN、同刻超时）。
+                delay = self._next_backoff(backoff)
+                self._log_cycle_failure(error, kind, attempt, delay, first_of_kind, reason = reason)
                 if connection_id:
                     await self._run_database(self._safe_record_error, connection_id, str(error))
-                await asyncio.sleep(backoff)
-                await self._notify_connection('reconnecting', attempt = attempt)
+                await asyncio.sleep(delay)
+                await self._notify_connection('reconnecting', attempt = attempt, reason = reason)
                 # 重连退避取自 haConnector（reconnectBaseMs / maxReconnectDelayMs），
                 # 每次失败都重读，用户改参数后下一轮即生效。
                 backoff = min(backoff * 2, self._reconnect_max_backoff())
@@ -83,8 +95,20 @@ class HALiveMixin(HAConnectorHost):
         self._failure_logged_at = 0.0
         self._offline_since = None
 
-    def _log_cycle_failure(self, error: BaseException, kind: str, attempt: int, backoff: float, first_of_kind: bool) -> None:
-        """写一行重连失败摘要：断连 / 离线不打堆栈，同一原因按分钟限流。"""
+    def _log_cycle_failure(
+        self,
+        error: BaseException,
+        kind: str,
+        attempt: int,
+        delay: float,
+        first_of_kind: bool,
+        *,
+        reason: str | None = None,
+    ) -> None:
+        """写一行重连失败摘要：断连 / 离线不打堆栈，同一原因按分钟限流。
+
+        delay 是本轮实际等待秒数（已带抖动）；reason 是给用户的下一步建议。
+        """
         now = time.monotonic()
         if self._offline_since is None:
             self._offline_since = now
@@ -101,18 +125,21 @@ class HALiveMixin(HAConnectorHost):
             LOGGER.debug('HA 连接重试失败（第 %d 次）：%s', attempt, error)
             return
         self._failure_logged_at = now
-        delay = f'{backoff:.0f} 秒' if backoff >= 1 else f'{backoff * 1000:.0f} 毫秒'
+        delay_text = f'{delay:.0f} 秒' if delay >= 1 else f'{delay * 1000:.0f} 毫秒'
         if kind == FAILURE_DISCONNECTED:
-            LOGGER.info('Home Assistant 断开了实时连接，%s后重连（第 %d 次）', delay, attempt)
+            LOGGER.info('Home Assistant 断开了实时连接，%s后重连（第 %d 次）', delay_text, attempt)
             return
+        # 认证失败重试一万次也不会成功、网络断了等着就好 —— 提示语必须不一样。
+        hint = DISCONNECT_REASON_HINTS.get(reason) if reason else None
+        suffix = f'。{hint}' if hint else ''
         summary = _safe_text(str(error), limit = 300).rstrip('。')
         # 端点汇总等文案自身已经点名 Home Assistant，这里只兜没有主语的短原因（超时、拒绝连接…）。
         headline = summary if 'Home Assistant' in summary else f'Home Assistant 连接失败：{summary}'
         if first_of_kind:
-            LOGGER.warning('%s；%s后自动重连（第 %d 次）', headline, delay, attempt)
+            LOGGER.warning('%s；%s后自动重连（第 %d 次）%s', headline, delay_text, attempt, suffix)
         else:
             elapsed = int(now - self._offline_since)
-            LOGGER.warning('%s；已持续 %d 秒，仍在重试（第 %d 次）', headline, elapsed, attempt)
+            LOGGER.warning('%s；已持续 %d 秒，仍在重试（第 %d 次）%s', headline, elapsed, attempt, suffix)
 
     def _reconnect_base_backoff(self) -> float:
         """首次重连等待秒数：haConnector.reconnectBaseMs（默认 1000ms）。"""
@@ -131,10 +158,38 @@ class HALiveMixin(HAConnectorHost):
             value = 10.0
         return max(value, self._reconnect_base_backoff())
 
+    def _next_backoff(self, backoff: float) -> float:
+        """本轮重连等待秒数：指数退避乘 0.5~1.0 的抖动，上限仍由 maxReconnectDelayMs 封顶。
+
+        抖动是刚需而不是美化：墙屏、手机、家里多个 HomeOS 进程常常在同一个 HA 重启后同时
+        重连，固定间隔会让它们每一轮都撞在同一时刻（同刻 SYN、同刻超时），把恢复拖慢。
+        抖动只向下取，因此等待时间永远不会超过配置的上限。
+        """
+        maximum = self._reconnect_max_backoff()
+        jittered = min(backoff, maximum) * self._jitter_random.uniform(0.5, 1.0)
+        return min(max(jittered, 0.05), maximum)
+
+    def _live_event_batch_window(self) -> float:
+        """实时状态合并窗口秒数：haConnector.liveEventBatchWindowMs（默认 50ms，0 表示不合并）。"""
+        connector = self._ha_tuning()['haConnector']
+        raw = connector.get('liveEventBatchWindowMs')
+        if raw is None:
+            return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
+        try:
+            return max(int(raw), 0) / 1000.0
+        except (TypeError, ValueError):
+            return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
+
     async def _live_connection(self, connection_id: str) -> None:
         connection = await self._run_database(self._load_connection, connection_id)
         client = await self.client_for(connection)
         websocket = await client.connect_websocket()
+        # 状态事件先合批再落地：HA 场景切换 / 全屋开关会一次推几十上百条 state_changed，
+        # 逐条各开一次数据库事务 + 逐条广播，读写两端都会被放大成卡顿。
+        events = LiveStateEventQueue(
+            lambda changes: self._flush_live_state_changes(connection_id, changes),
+            window_seconds = self._live_event_batch_window(),
+        )
         try:
             buffered_events = await client.subscribe_events(websocket, LIVE_EVENT_TYPES, required_event_types={'state_changed'})
             await self._run_database(self._mark_connected, connection_id)
@@ -147,8 +202,9 @@ class HALiveMixin(HAConnectorHost):
             await self._notify_connection(
                 'connected', ha_version = getattr(connection, 'ha_version', None)
             )
+            events.start()
             for message in buffered_events:
-                await self._handle_live_event(connection_id, message)
+                await self._dispatch_live_event(events, connection_id, message)
             reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
             while True:
                 wait_seconds = max(0.1, reconcile_at - time.monotonic())
@@ -158,48 +214,71 @@ class HALiveMixin(HAConnectorHost):
                     await self.sync_once(connection_id, reconciled = True)
                     reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
                     continue
-                await self._handle_live_event(connection_id, json.loads(raw_message))
+                await self._dispatch_live_event(events, connection_id, json.loads(raw_message))
                 if time.monotonic() >= reconcile_at:
                     await self.sync_once(connection_id, reconciled = True)
                     reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
         finally:
             self._connected = False
+            # 断开前把已收到但还没落地的变化冲出去：最后一帧也要进读模型与广播。
+            await events.aclose()
             await self._notify_connection('disconnected')
             await websocket.close()
 
+    async def _dispatch_live_event(self, events: LiveStateEventQueue, connection_id: str, message: dict[str, Any]) -> None:
+        """分派一条 WS 消息：state_changed 进合并队列，其余事件保持即时处理。"""
+        change = live_state_change(message)
+        if change is None:
+            await self._handle_live_event(connection_id, message)
+            return
+        entity_id = str(change.get('entity_id') or change.get('removed_entity_id') or '')
+        events.enqueue(change, entity_id = entity_id or None)
+
+    async def _flush_live_state_changes(self, connection_id: str, changes: list[dict[str, Any]]) -> None:
+        """把一批合并后的状态变化落地。
+
+        外发仍逐条：监听器契约（kind=change，载荷含 entity_id / old_state / new_state /
+        time_fired）不变，homeos 读模型与 socket.io 广播的语义与逐条路径完全一致；
+        数据库写入与目录计数则按批处理 —— 一批一次事务、最多一次 catalog_counts。
+        """
+        states: list[dict[str, Any]] = []
+        removed_entity_ids: list[str] = []
+        for change in changes:
+            removed_entity_id = str(change.get('removed_entity_id') or '')
+            if removed_entity_id:
+                removed_entity_ids.append(removed_entity_id)
+            new_state = change.get('new_state')
+            await self._notify_state('change', {
+                'entity_id': change.get('entity_id'),
+                'old_state': change.get('old_state'),
+                'new_state': new_state,
+                'time_fired': change.get('time_fired'),
+            })
+            if isinstance(new_state, dict):
+                states.append(new_state)
+        watched = await self.watched_entity_ids()
+        for new_state in states:
+            if str(new_state.get('entity_id') or '') in watched:
+                await self.state_hub.update(new_state)
+        for removed_entity_id in removed_entity_ids:
+            await self.state_hub.remove(removed_entity_id)
+        if not states:
+            return
+        catalog_changed = await self._run_database(self._apply_incremental_states, connection_id, states)
+        if catalog_changed:
+            await self.state_hub.publish({
+                'type': 'entity_catalog_changed',
+                'operation': 'added',
+                'counts': await self._run_database(self.catalog_counts, connection_id) })
+
     async def _handle_live_event(self, connection_id: str, message: dict[str, Any]) -> None:
+        """非状态类事件（三类注册表变更）的即时处理。"""
         if message.get('type') != 'event':
             return
         event = message.get('event') or { }
         event_type = event.get('event_type')
         event_data = event.get('data') or { }
-        if event_type == 'state_changed' and isinstance(event_data, dict):
-            # 全量增量转发给 homeos 状态监听：读模型与广播不能只覆盖 3D watched 子集。
-            new_state = event_data.get('new_state')
-            await self._notify_state('change', {
-                'entity_id': (new_state or { }).get('entity_id') if isinstance(new_state, dict) else None,
-                'old_state': event_data.get('old_state'),
-                'new_state': new_state,
-                'time_fired': event.get('time_fired'),
-            })
-        if event_type == 'state_changed':
-            new_state = event_data.get('new_state')
-            if isinstance(new_state, dict):
-                entity_id = str(new_state.get('entity_id') or '')
-                watched = await self.watched_entity_ids()
-                if entity_id in watched:
-                    await self.state_hub.update(new_state)
-                known = (connection_id, entity_id) in self._known_entity_ids
-                if not known and await self._run_database(self._apply_incremental_state, connection_id, new_state):
-                    await self.state_hub.publish({
-                        'type': 'entity_catalog_changed',
-                        'operation': 'added',
-                        'counts': await self._run_database(self.catalog_counts, connection_id) })
-            else:
-                entity_id = str(event_data.get('entity_id') or '')
-                if entity_id:
-                    await self.state_hub.remove(entity_id)
-        elif event_type in {'entity_registry_updated', 'device_registry_updated', 'area_registry_updated'}:
+        if event_type in {'entity_registry_updated', 'device_registry_updated', 'area_registry_updated'}:
             operation = await self._run_database(self._apply_registry_event, connection_id, event_type, event_data)
             if operation:
                 if event_type == 'entity_registry_updated':

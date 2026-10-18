@@ -13,14 +13,21 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .session_store import resolve_login_session
+from .session_store import (
+    LAST_SEEN_REFRESH_SECONDS,
+    session_token_hash,
+    set_session_cookie,
+)
 from ..core.deps import get_session
 from ..core.errors import unauthorized
+from ..core.models import LoginSession, User
 
 WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -54,18 +61,68 @@ def _user_from_db(user: Any) -> dict[str, Any]:
     }
 
 
-async def get_current_user(
-    request: Request, session: Session = Depends(get_session)
-) -> dict[str, Any]:
-    """解析当前用户；无有效会话时抛 401。"""
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def authenticate_session(
+    request: Request, response: Response, session: Session
+) -> User | None:
+    """HTTP 请求唯一的 DB 会话入口：解析 + 滑动续期 + 回写 Cookie。
+
+    设计要点：
+
+    - **Cookie 与服务端记录同寿**：会话记录续期后立即把新的到期时间写回 Cookie，
+      否则服务端已续、浏览器却按旧期限丢弃 Cookie，表现为「用着用着就掉线」。
+    - 只有超过 ``LAST_SEEN_REFRESH_SECONDS`` 才写库与 ``Set-Cookie``，避免只读请求
+      写放大（与 ``session_store.resolve_login_session`` 的阈值一致）。
+    - 过期、账号删除 / 停用的会话立即清理并返回 ``None``（吊销即时生效）。
+
+    不用 ``session_store.resolve_login_session`` 是因为那个函数不返回「是否续期」
+    的信号，而这里必须知道该不该补 ``Set-Cookie``；两处阈值与判定保持同源常量。
+    """
     settings = _settings(request)
     token = request.cookies.get(settings.cookie_name, "")
-    if token:
-        user = resolve_login_session(
-            session, token, max_age_seconds=settings.session_max_age_seconds
+    if not token:
+        return None
+    record = session.scalar(
+        select(LoginSession).where(LoginSession.id_hash == session_token_hash(token))
+    )
+    if record is None:
+        return None
+    now = datetime.now(UTC)
+    if _aware(record.expires_at) <= now:
+        session.delete(record)
+        session.commit()
+        return None
+    max_age = settings.session_max_age_seconds
+    if now - _aware(record.last_seen_at) >= timedelta(seconds=LAST_SEEN_REFRESH_SECONDS):
+        record.last_seen_at = now
+        record.expires_at = now + timedelta(seconds=max_age)
+        session.commit()
+        set_session_cookie(
+            response, settings, token, max_age_seconds=max_age, request=request
         )
-        if user is not None:
-            return _user_from_db(user)
+    user = session.get(User, record.user_id)
+    if user is None or not getattr(user, "is_active", True):
+        session.delete(record)
+        session.commit()
+        return None
+    return user
+
+
+def get_current_user(
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """解析当前用户；无有效会话时抛 401。
+
+    同步实现是有意的：FastAPI 会把同步依赖丢到线程池，SQLite 查询不占事件循环。
+    """
+    user = authenticate_session(request, response, session)
+    if user is not None:
+        return _user_from_db(user)
     return unauthorized("未登录或登录已过期")
 
 
@@ -77,6 +134,7 @@ async def require_user(
 
 
 __all__ = [
+    "authenticate_session",
     "get_current_user",
     "require_user",
 ]
