@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useSessionStore } from "@store/shared/stores/session";
 import { useCatalogStore } from "@store/features/storefront/stores/catalog";
@@ -31,7 +31,21 @@ const labelValue = ref("");
 const labelDialog = ref<HTMLDialogElement | null>(null);
 const now = ref(Date.now());
 const loadingMore = ref(false);
+/** 倒计时视觉用的 1s 心跳；只在真的需要倒计时时才启动，避免整页常驻定时器。 */
 let tick: number | undefined;
+
+function startTicker() {
+  if (tick !== undefined) return;
+  tick = window.setInterval(() => {
+    now.value = Date.now();
+  }, 1000);
+}
+
+function stopTicker() {
+  if (tick === undefined) return;
+  window.clearInterval(tick);
+  tick = undefined;
+}
 
 const email = computed(() => session.account?.email || "—");
 const accountHeading = computed(() => {
@@ -159,15 +173,30 @@ async function refresh() {
   });
 }
 
+/**
+ * 什么时候需要 1s 心跳：
+ * - 还有待支付订单且未过期（订单卡片在倒计时）；
+ * - 解绑冷却弹窗开着（要每秒刷新「还需等待」与按钮禁用态）。
+ * 其余时刻不启动定时器；条件变回 false 时立刻停掉。
+ */
+const tickerNeeded = computed(() => {
+  if (releaseLicense.value) return true;
+  return session.orders.some(
+    (item) =>
+      item.status === "pending" &&
+      Boolean(item.expiresAt) &&
+      new Date(String(item.expiresAt)).getTime() > now.value,
+  );
+});
+
+watch(tickerNeeded, (needed) => (needed ? startTicker() : stopTicker()), { immediate: true });
+
 onMounted(async () => {
-  tick = window.setInterval(() => {
-    now.value = Date.now();
-  }, 1000);
   await site.load();
   await refresh();
 });
 
-onBeforeUnmount(() => window.clearInterval(tick));
+onBeforeUnmount(() => stopTicker());
 
 function switchTab(tab: "licenses" | "addons" | "orders") {
   activeTab.value = tab;
@@ -180,11 +209,14 @@ async function logout() {
 
 async function resendEmail(item: StoreLicense) {
   try {
-    const result = await api<{ sent?: boolean; email?: string; deliveryError?: string }>(
-      `/account/licenses/${item.activationCodeId}/email`,
-      { method: "POST" },
-    );
-    if (result.sent) toast.show(`激活码已发往 ${result.email}。`);
+    const result = await api<{
+      sent?: boolean | null;
+      queued?: boolean;
+      email?: string;
+      deliveryError?: string;
+    }>(`/account/licenses/${item.activationCodeId}/email`, { method: "POST" });
+    if (result.queued) toast.show(`重发请求已提交，激活码邮件会发往 ${result.email || "你的邮箱"}。`);
+    else if (result.sent) toast.show(`激活码已发往 ${result.email}。`);
     else toast.show(result.deliveryError || "邮件未能发出，请稍后再试或联系客服。", "err");
   } catch (error) {
     toast.show(errorMessage(error, "重发失败，请稍后再试。"), "err");

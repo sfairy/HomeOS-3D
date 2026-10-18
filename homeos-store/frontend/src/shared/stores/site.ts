@@ -66,8 +66,10 @@ export const useSiteStore = defineStore("site", () => {
       .catch(logAndIgnore("站点版本号 /healthz"));
   }
 
-  async function load(force = false) {
-    if (loaded.value && !force) return;
+  /** 并发 load()（布局与页面同时挂载）共用一个请求；显式 force 时仍然重新拉。 */
+  let loading: Promise<void> | null = null;
+
+  async function loadOnce(): Promise<void> {
     const [config] = await Promise.allSettled([
       api<StoreConfiguration>("/configuration"),
       loadVersion(),
@@ -82,6 +84,20 @@ export const useSiteStore = defineStore("site", () => {
     }
     configuration.value = config.value;
     loaded.value = true;
+  }
+
+  async function load(force = false) {
+    if (loaded.value && !force) return;
+    if (force) {
+      await loadOnce();
+      return;
+    }
+    if (!loading) {
+      loading = loadOnce().finally(() => {
+        loading = null;
+      });
+    }
+    await loading;
   }
 
   return {

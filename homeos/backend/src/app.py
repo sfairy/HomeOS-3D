@@ -122,6 +122,7 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
             raise HTTPException(status_code=404)
         if decision == "unauthorized":
             raise HTTPException(status_code=401)
+        loop_lag = getattr(request.app.state, "loop_lag", None)
         body = format_homeos_prometheus_metrics(
             ha_connected=bool(getattr(request.app.state, "ha_connected", False)),
             entity_count=int(getattr(request.app.state, "ha_entity_count", 0)),
@@ -129,6 +130,8 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
             uptime_seconds=int(
                 time.monotonic() - getattr(request.app.state, "started_at", time.monotonic())
             ),
+            loop_lag=loop_lag.snapshot() if loop_lag is not None else None,
+            startup_duration_ms=float(getattr(request.app.state, "startup_duration_ms", 0.0)),
         )
         return Response(
             content=body,

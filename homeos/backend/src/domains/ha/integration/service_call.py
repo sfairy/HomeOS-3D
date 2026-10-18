@@ -149,7 +149,9 @@ async def execute_service_call(
     ``request`` 是 Starlette ``Request``（只读 ``app.state`` / 写 ``state``），
     故不引 FastAPI 类型 —— 但保持与原先相同的诊断日志与状态码语义。
     """
-    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
+    if not await asyncio.to_thread(
+        request.app.state.license_service.allows, feature_codes.FEATURE_HA_CONTROL
+    ):
         raise ServiceCallRejected(_FORBIDDEN, '当前授权不允许控制 Home Assistant。')
     _validate_service_call(payload)
     connection, entity_exists = await asyncio.to_thread(

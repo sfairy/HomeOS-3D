@@ -9,11 +9,11 @@
  * @dependencies @homeos/shared, vue, @lucide/vue, @/stores/entities.store, @/stores/layout.store, @/shared/entity/utils/derived.util, @/features/security/utils/sensor-filter.util, @/features/security/utils/zone-mode.util
  */
 import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import { Activity, Flame, Droplets, Wind, DoorOpen } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { getEntityDisplayName, collectIndexedEntityIds } from '@/shared/entity/utils/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { isSecurityUtilityNoise } from '@/features/security/utils/sensor-filter.util'
 import { isSensorAlertState } from '@/features/security/utils/zone-mode.util'
 
@@ -161,6 +161,15 @@ function classifyBoundHazard(kind: HazardSensorKind) {
   }
 }
 
+type SensorClassification = ReturnType<typeof classifySensor>
+
+/** 实体名称与未绑定分类缓存（键为实体对象引用，见 sensorInfoFor 注释） */
+type EntitySensorInfo = {
+  name: string
+  sensor: SensorClassification
+}
+const entitySensorInfoCache = new WeakMap<object, EntitySensorInfo>()
+
 /** 模块级共享：告警确认状态在导航角标与总览间一致 */
 const acknowledgedSensorIds = ref(new Set<string>())
 
@@ -185,6 +194,24 @@ export function useSecuritySensors() {
     void layoutStore.layoutConfig.haConfig
 
     const bindingMap = hazardBindingMap.value
+    // toRaw 快照：避免对全量实体逐键建立响应式依赖；失效由显式域 epoch 承担
+    const raw = toRaw(entitiesStore.entities)
+
+    /**
+     * 解析名称与未绑定分类，按实体对象引用缓存。
+     * state-update 每次写入都以新对象整体替换实体，因此同一对象引用必然对应同一份
+     * 名称与属性，不会读到旧值；分类/关键字匹配因此只在新实体对象上执行一次。
+     */
+    function sensorInfoFor(eid: string, entity: (typeof raw)[string]) {
+      if (!entity) return { name: getEntityLeaf(eid), sensor: null }
+      const cached = entitySensorInfoCache.get(entity)
+      if (cached) return cached
+      const name = getEntityDisplayName(eid, entity)
+      const info: EntitySensorInfo = { name, sensor: classifySensor(eid.toLowerCase(), name) }
+      entitySensorInfoCache.set(entity, info)
+      return info
+    }
+
     // 去重集合：避免同一实体被绑定与未绑定两次计入
     const seen = new Set<string>()
     const list: Array<{
@@ -210,15 +237,13 @@ export function useSecuritySensors() {
     function pushSensor(eid: string, bound: boolean) {
       if (!eid || seen.has(eid)) return
       seen.add(eid)
-      const entity = entitiesStore.entities[eid]
+      const entity = raw[eid]
       // 离线判定：实体不存在或状态为 unavailable
       const offline = !entity || entity.state === 'unavailable'
-      const name = entity ? getEntityDisplayName(eid, entity) : getEntityLeaf(eid)
+      const { name, sensor } = sensorInfoFor(eid, entity)
       // 绑定传感器优先用绑定类型分类，否则按关键字分类
       const boundKind = bindingMap.get(eid)
-      const cls = boundKind
-        ? classifyBoundHazard(boundKind)
-        : classifySensor(eid.toLowerCase(), name)
+      const cls = boundKind ? classifyBoundHazard(boundKind) : sensor
       // 未分类传感器跳过
       if (!cls) return
       const isAlert = entity ? isSensorAlertState(entity.state) : false
@@ -243,13 +268,12 @@ export function useSecuritySensors() {
     for (const eid of bindingMap.keys()) pushSensor(eid, true)
 
     // 再推送未绑定的可用传感器
-    const ids =
-      collectIndexedEntityIds(entitiesStore.domainEntityIndex, {
-        domain: 'all',
-        groupDomainSet: new Set(['binary_sensor', 'sensor']),
-      }) || []
-    for (const eid of ids) {
-      const entity = entitiesStore.entities[eid]
+    // 直接扫描实体快照：binary_sensor/sensor 域 epoch 已覆盖其增删改，
+    // 不依赖 domainEntityIndex 的异步刷新，避免短暂漏掉新建实体。
+    for (const eid of Object.keys(raw)) {
+      const domain = getEntityDomain(eid)
+      if (domain !== 'binary_sensor' && domain !== 'sensor') continue
+      const entity = raw[eid]
       // 跳过离线传感器，避免列表过长
       if (!entity || entity.state === 'unavailable') continue
       pushSensor(eid, false)

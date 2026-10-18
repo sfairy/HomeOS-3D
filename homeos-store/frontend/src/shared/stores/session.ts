@@ -85,10 +85,25 @@ export const useSessionStore = defineStore("session", () => {
     if (current) setServerAuthState(current.isAdmin ? "admin" : "user");
   }
 
-  async function load() {
+  /** 并发加载（布局与页面同时 refresh）共用一个 /account 请求。 */
+  let loading: Promise<AccountPayload> | null = null;
+  /** 登出 / 会话失效时自增：在途请求回来后若 epoch 变了，绝不能再写回旧账号数据。 */
+  let sessionEpoch = 0;
+
+  async function loadOnce() {
+    const epoch = sessionEpoch;
     const payload = await api<AccountPayload>("/account");
-    applyAccount(payload);
+    if (epoch === sessionEpoch) applyAccount(payload);
     return payload;
+  }
+
+  function load(): Promise<AccountPayload> {
+    if (!loading) {
+      loading = loadOnce().finally(() => {
+        loading = null;
+      });
+    }
+    return loading;
   }
 
   /**
@@ -98,6 +113,7 @@ export const useSessionStore = defineStore("session", () => {
    * 会话过期或被踢下线后 UI 仍会显示「已授权」、甚至渲染上一个账号的订单与功能码。
    */
   function resetSession() {
+    sessionEpoch += 1;
     account.value = null;
     hasLicense.value = false;
     hasTemporaryLicense.value = false;

@@ -121,7 +121,7 @@ async def restore_server_backup_file(
         )
     # 覆盖数据库前重验当前管理员密码（含失败限流）：与 /backups/restore 同一道门，
     # 且必须在置 maintenance 之前完成，否则密码校验期间的并发请求会被误判为"正在恢复"。
-    password_error = verify_admin_password(request, user, payload.adminPassword)
+    password_error = await verify_admin_password(request, user, payload.adminPassword)
     if password_error is not None:
         return password_error
     database = getattr(request.app.state, "database", None)
@@ -154,5 +154,5 @@ async def restore_server_backup_file(
     # 数据库已整体替换：重建系统配置 / 素材目录 / HA 连接等进程内缓存
     await refresh_runtime_after_restore(request.app)
     if gate is not None:
-        gate.prune_rollbacks()
+        await gate.prune_rollbacks_async()
     return {"success": True, "data": result}

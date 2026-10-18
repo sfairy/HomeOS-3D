@@ -82,6 +82,7 @@ from ..platform.core import schema
 from ..platform.core.database import Database
 from ..platform.core.distributed_lock import DistributedLockService
 from ..platform.core.log import configure_app_logging
+from ..platform.core.observability import EventLoopLagMonitor
 from ..platform.core.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
 from ..realtime.domain_events import DomainEventBridge
 from ..realtime.gateway import RealtimeGateway
@@ -585,7 +586,7 @@ def _build_security_services(app: FastAPI, startup: _StartupContext) -> None:
     app.state.security_bus = security_bus
 
 
-def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) -> None:
+async def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) -> None:
     """构造 UI 配置 / 系统 / 影音 / 运维 / 备份 / 首装向导等基础域。"""
     app_settings = startup.app_settings
     app_config = startup.app_config
@@ -637,7 +638,9 @@ def _build_ui_and_system_services(app: FastAPI, startup: _StartupContext) -> Non
     auto_backup.start()
     startup.auto_backup = auto_backup
 
-    business_backup.cleanup_startup()
+    # 上次恢复中断时这里可能要复制/替换数据库并清理回退目录；放到线程池，
+    # 避免启动阶段卡住事件循环（启动耗时与日志时间线都受影响）。
+    await asyncio.to_thread(business_backup.cleanup_startup)
     if startup.recovery_required:
         business_backup.recovery_required = True
     app.state.business_backup = business_backup
@@ -1089,6 +1092,9 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
 
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
+    loop_lag = getattr(app.state, "loop_lag", None)
+    if loop_lag is not None:
+        await _shutdown("事件循环延迟采样", loop_lag.stop)
     await _shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
     await _shutdown("更新检查器", app.state.update_checker.stop)
     await _shutdown("授权服务", startup.license_service.stop)
@@ -1117,9 +1123,25 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     await _shutdown("HA 连接器", startup.ha_connector.stop)
     await _shutdown("状态汇聚", startup.state_ingress_coalesce.close)
     await _shutdown("事件日志刷盘", startup.event_log_service.flush)
+    # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志
+    # 会滞留在内存队列里丢掉。
+    global_log = getattr(app.state, "global_log", None)
+    if global_log is not None:
+        await _shutdown("全局日志刷盘", lambda: asyncio.to_thread(global_log.close, 5.0))
     startup.auto_backup.stop()
+    # 调度器停掉不代表正在跑的备份线程已经结束；先等协调器锁空闲再释放数据库，
+    # 否则备份线程可能在 VACUUM/zip 时撞上已 dispose 的连接。等待有上界，
+    # 超时则不 dispose（进程即将退出，交给 OS 回收），避免制造 use-after-dispose。
+    dispose_database = True
+    coordinator = getattr(app.state, "business_backup", None)
+    if coordinator is not None:
+        try:
+            await asyncio.wait_for(coordinator.wait_idle(), 10.0)
+        except TimeoutError:
+            dispose_database = False
+            logger.warning("备份作业仍在执行，跳过数据库 dispose 以免中途释放连接")
     database = getattr(app.state, "database", None)
-    if database is not None:
+    if database is not None and dispose_database:
         database.dispose()
 
 
@@ -1128,12 +1150,16 @@ def create_lifespan(app_settings: Settings, version: str):
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        startup_started = time.perf_counter()
         startup = _StartupContext(app_settings=app_settings, version=version)
         await _init_core_services(app, startup)
+        loop_lag = EventLoopLagMonitor()
+        app.state.loop_lag = loop_lag
+        await loop_lag.start()
         _install_realtime_state_pipeline(app, startup)
         _register_ha_event_handlers(app, startup)
         _build_security_services(app, startup)
-        _build_ui_and_system_services(app, startup)
+        await _build_ui_and_system_services(app, startup)
         _install_ha_reconnect_handlers(app, startup)
         _publish_security_services(app, startup)
         await _start_security_services(app, startup)
@@ -1143,6 +1169,8 @@ def create_lifespan(app_settings: Settings, version: str):
         await _build_awareness_and_events(app, startup)
         await _build_weather_and_earthquake(app, startup)
         await _start_ha_and_license(app, startup)
+        app.state.startup_duration_ms = round((time.perf_counter() - startup_started) * 1000.0, 2)
+        logger.info("应用启动完成: %.1f ms", app.state.startup_duration_ms)
 
         try:
             yield

@@ -84,7 +84,7 @@ class NotificationDispatchHelper:
         opts: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         opts = opts or {}
-        cfg = self._get_cfg()
+        cfg = await asyncio.to_thread(self._get_cfg)
         if cfg.get("globalNotifyEnabled") is False:
             return None
         life_safety = is_life_safety_notification(level, source)
@@ -94,7 +94,9 @@ class NotificationDispatchHelper:
             level != "danger"
             and not opts.get("bypassDnd")
             and not life_safety
-            and is_dnd_active_now(cfg, timezone_name=self._get_timezone())
+            and is_dnd_active_now(
+                cfg, timezone_name=await asyncio.to_thread(self._get_timezone)
+            )
         ):
             return None
 

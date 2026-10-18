@@ -36,7 +36,10 @@ from ..core.serializers import (
 )
 from ..ops import incidents
 from ..ops import site_settings as site_config
-from ..payments.reconcile import reconcile_channel_order
+from ..payments.reconcile import (
+    reconcile_channel_order,
+    reconcile_pending_orders_bounded,
+)
 from ..security import password_gate
 from ..security.security import (
     iso_z,
@@ -383,6 +386,27 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
     except Exception as error:
         incidents.note("reconcile.poll", order_no=order.order_no, error=error)
         logger.exception("订单查单对账失败 order=%s", order.order_no)
+
+
+def _reconcile_payments(session, request: Request, orders: list[Order]) -> None:
+    """订单列表的批量对账：有界并发 + 总预算，慢渠道不再拖垮列表响应。
+
+    超出预算的订单不在这里死等，交给既有的 payment_sweep_loop 后台巡检补账。
+    """
+    pending = [item for item in orders if item.status == "pending"]
+    if not pending:
+        return
+    setting = site_config.get_setting(session)
+    try:
+        reconcile_pending_orders_bounded(
+            session,
+            orders=pending,
+            settings=request.app.state.settings,
+            setting=setting,
+        )
+    except Exception as error:
+        incidents.note("reconcile.poll", error=error)
+        logger.exception("订单列表批量查单对账失败")
 
 
 def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:

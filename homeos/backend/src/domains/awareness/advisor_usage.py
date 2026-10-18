@@ -42,6 +42,9 @@ _ON_STATES = frozenset({"on", "home", "playing"})
 #: 视为「关闭」的状态集合
 _OFF_STATES = frozenset({"off", "idle", "standby", "paused"})
 
+#: 用量增量合并写库的延迟（秒）：一次状态批量里同设备多次切换合并为一个事务
+_USAGE_FLUSH_DELAY_SECONDS = 0.5
+
 
 def local_date_key(moment: datetime | None = None, timezone_name: str | None = None) -> str:
     """家庭时区下的日期键 ``YYYY-MM-DD``（对齐 ``localDateKey`` 语义）。
@@ -89,6 +92,11 @@ class SmartAdvisorUsageHelper:
         #: 家庭时区缓存（状态变更热路径，避免每条事件都读一次配置）
         self._tz_cache_at = 0.0
         self._tz_cache_value: str | None = None
+        #: 待落盘的用量增量（(entity_id, day) → patch）：批量状态变更合并为一次事务
+        self._pending_usage: dict[tuple[str, str], dict[str, Any]] = {}
+        self._usage_flush_task: asyncio.Task[Any] | None = None
+        #: 串行化「读己之写」：查询先 flush，且不与在途写并发交换批次
+        self._flush_lock = asyncio.Lock()
 
     # 家庭时区
     def _timezone(self) -> str | None:
@@ -401,41 +409,110 @@ class SmartAdvisorUsageHelper:
     async def persist_usage_stat(
         self, entity_id: str, day: str, patch: dict[str, Any]
     ) -> None:
-        """增量 upsert ``DeviceUsageStat``（on_count/total_runtime_ms 累加，last_on 覆盖）。"""
+        """累计增量到内存，延迟合并为一次事务写库（查询前 flush，保持读己之写）。
+
+        原实现每条状态变更各开一个线程任务 + 一次 SELECT + 独立事务；批量状态同步
+        （场景 / 批量控制）时同设备常连续多次切换，合并后写放大与锁竞争显著下降。
+        """
+        key = (entity_id, day)
+        pending = self._pending_usage.get(key)
+        if pending is None:
+            pending = {"onCount": 0, "totalRuntimeMs": 0}
+            self._pending_usage[key] = pending
+        if patch.get("onCount") is not None:
+            pending["onCount"] += int(patch["onCount"])
+        if patch.get("totalRuntimeMs") is not None:
+            pending["totalRuntimeMs"] += int(patch["totalRuntimeMs"])
+        if "lastOn" in patch:
+            pending["lastOn"] = patch["lastOn"]
+        self._schedule_usage_flush()
+
+    def _schedule_usage_flush(self) -> None:
+        task = self._usage_flush_task
+        if task is not None and not task.done():
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        self._usage_flush_task = loop.create_task(self._flush_usage_stats_later())
+
+    async def _flush_usage_stats_later(self) -> None:
+        try:
+            await asyncio.sleep(_USAGE_FLUSH_DELAY_SECONDS)
+            await self.flush_usage_stats()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # 后台任务异常不外抛，避免 "Task exception was never retrieved"
+            logger.debug("设备使用统计延迟落盘失败: %s", exc)
+        finally:
+            self._usage_flush_task = None
+            # flush 在途期间到达的增量需要再排一次，否则会滞留到下一次状态变更
+            if self._pending_usage:
+                self._schedule_usage_flush()
+
+    async def flush_usage_stats(self) -> None:
+        """把待落盘增量合并为一次事务写库（失败仅告警，不影响状态变更主流程）。"""
+        async with self._flush_lock:
+            if not self._pending_usage:
+                return
+            batch = self._pending_usage
+            self._pending_usage = {}
+            # 锁内完成写库：并发查询必须等本次事务提交后才能读到自己的写入
+            await self._write_usage_batch(batch)
+
+    async def _write_usage_batch(
+        self, batch: dict[tuple[str, str], dict[str, Any]]
+    ) -> None:
         session_factory = self._deps["session_factory"]
 
         def _write() -> None:
             try:
                 with session_factory() as session:
-                    row = session.execute(
-                        select(DeviceUsageStat).where(
-                            DeviceUsageStat.entity_id == entity_id,
-                            DeviceUsageStat.day == day,
-                        )
-                    ).scalar_one_or_none()
-                    if row is None:
-                        session.add(
-                            DeviceUsageStat(
-                                entity_id=entity_id,
-                                day=day,
-                                on_count=int(patch.get("onCount") or 0),
-                                total_runtime_ms=int(patch.get("totalRuntimeMs") or 0),
-                                last_on=patch.get("lastOn"),
+                    for (entity_id, day), patch in batch.items():
+                        row = session.execute(
+                            select(DeviceUsageStat).where(
+                                DeviceUsageStat.entity_id == entity_id,
+                                DeviceUsageStat.day == day,
                             )
-                        )
-                    else:
-                        if patch.get("onCount") is not None:
-                            row.on_count += int(patch["onCount"])
-                        if patch.get("totalRuntimeMs") is not None:
-                            row.total_runtime_ms += int(patch["totalRuntimeMs"])
-                        if "lastOn" in patch:
-                            row.last_on = patch["lastOn"]
-                        session.add(row)
+                        ).scalar_one_or_none()
+                        if row is None:
+                            session.add(
+                                DeviceUsageStat(
+                                    entity_id=entity_id,
+                                    day=day,
+                                    on_count=int(patch.get("onCount") or 0),
+                                    total_runtime_ms=int(patch.get("totalRuntimeMs") or 0),
+                                    last_on=patch.get("lastOn"),
+                                )
+                            )
+                        else:
+                            row.on_count = int(row.on_count or 0) + int(
+                                patch.get("onCount") or 0
+                            )
+                            row.total_runtime_ms = int(row.total_runtime_ms or 0) + int(
+                                patch.get("totalRuntimeMs") or 0
+                            )
+                            if "lastOn" in patch:
+                                row.last_on = patch["lastOn"]
+                            session.add(row)
                     session.commit()
             except Exception as exc:
-                logger.debug("DeviceUsageStat 写入失败 [%s]: %s", entity_id, exc)
+                logger.debug("DeviceUsageStat 批量写入失败: %s", exc)
 
         await asyncio.get_running_loop().run_in_executor(None, _write)
+
+    async def stop_usage_writer(self) -> None:
+        """停机：取消延迟任务并把剩余增量刷盘（幂等）。"""
+        task = self._usage_flush_task
+        self._usage_flush_task = None
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+        await self.flush_usage_stats()
 
     # 查询
     async def get_usage_report(self) -> dict[str, Any]:
@@ -449,6 +526,7 @@ class SmartAdvisorUsageHelper:
     async def get_entity_usage(self, entity_id: str, days: int = 7) -> dict[str, Any]:
         safe_days = min(max(int(days), 1), 90)
         since = self._local_day(safe_days)
+        await self.flush_usage_stats()
         session_factory = self._deps["session_factory"]
         with session_factory() as session:
             rows = (
@@ -488,6 +566,7 @@ class SmartAdvisorUsageHelper:
     async def get_usage_summary(self, days: int = 7) -> dict[str, Any]:
         safe_days = min(max(int(days), 1), 90)
         since = self._local_day(safe_days)
+        await self.flush_usage_stats()
         session_factory = self._deps["session_factory"]
 
         with session_factory() as session:
@@ -511,7 +590,7 @@ class SmartAdvisorUsageHelper:
                 .order_by(DeviceUsageStat.day.asc())
             ).all()
 
-        top_devices = sorted(
+        top_devices: list[dict[str, Any]] = sorted(
             (
                 {
                     "entityId": str(row[0]),
@@ -632,7 +711,10 @@ class SmartAdvisorUsageHelper:
                 session.commit()
                 return int(result.rowcount or 0)
 
-        count = await asyncio.get_running_loop().run_in_executor(None, _clear)
+        # 与在途 flush 串行：先丢弃 pending 再删库，避免清除后残留增量又把统计写回来
+        async with self._flush_lock:
+            self._pending_usage.clear()
+            count = await asyncio.get_running_loop().run_in_executor(None, _clear)
         self.device_usage.clear()
         logger.info("设备使用统计已清除: %s 条记录", count)
         return {"deleted": count}
@@ -725,6 +807,7 @@ class AdvisorUsageService:
                 except (asyncio.CancelledError, Exception):
                     pass
                 setattr(self, attr, None)
+        await self.usage.stop_usage_writer()
 
     async def on_app_config_updated(self, sections: Any) -> None:
         if not isinstance(sections, list) or "envSensorMap" not in sections:

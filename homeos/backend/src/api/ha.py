@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 import traceback
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from anyio import CancelScope, create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, or_, select
 
+from ..config import DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
 from ..dependencies import (
     DatabaseSession,
     LicensedUser,
@@ -52,6 +54,17 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
+
+
+def _runtime_access_cache_seconds(websocket: WebSocket) -> float:
+    """实时连接出站帧复用授权复检结果的秒数；非法值回落到默认 30 秒。"""
+    settings = getattr(websocket.app.state, 'settings', None)
+    value = getattr(settings, 'runtime_access_cache_seconds', DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS)
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        return DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
+    return seconds if seconds >= 0 else DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
 
 
 def load_translation_context(database_manager: Database) -> tuple[HAConnection | None, set[str]]:
@@ -1090,10 +1103,15 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     # 授权与登录态在长连期间仍会变化：access_closed 记住「已经因为授权/登录问题关过连接」，
     # 之后所有发送一律短路，避免在关闭途中继续往外推数据。
     access_closed = False
+    # 授权复检缓存：_runtime_authorize 刚刚做过「授权 + 登录会话」的权威校验，先 seed 缓存。
+    # 稳态下每条出站帧不再 to_thread 查库；周期复检任务仍按 RUNTIME_LICENSE_CHECK_SECONDS
+    # 做权威复检，因此吊销 / 会话失效的收敛延迟上限 = 缓存窗口 + 该间隔。
+    access_cache_seconds = _runtime_access_cache_seconds(websocket)
+    access_checked_at = time.monotonic()
 
-    async def access_allowed() -> bool:
-        """长连的授权复检：能力码仍在，且登录会话还是同一个管理员。"""
-        nonlocal access_closed
+    async def recheck_access() -> bool:
+        """权威复检：能力码仍有效，且登录会话还是同一个人；失败即关闭连接。"""
+        nonlocal access_closed, access_checked_at
         if access_closed:
             return False
         allowed = await asyncio.to_thread(
@@ -1111,7 +1129,20 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 access_closed = True
                 await close_with_log(4401, 'authentication expired', send_reason=False)
             return False
-        return not access_closed
+        access_checked_at = time.monotonic()
+        return True
+
+    async def access_allowed() -> bool:
+        """出站帧的授权判定：缓存窗口内直接放行，过期后回落到权威复检。"""
+        if access_closed:
+            return False
+        if (
+            access_cache_seconds > 0
+            and access_checked_at > 0
+            and time.monotonic() - access_checked_at < access_cache_seconds
+        ):
+            return True
+        return await recheck_access()
 
     async def send_licensed(command: dict) -> bool:
         """所有出站消息的唯一出口：先确认还有效，再发送。"""
@@ -1121,12 +1152,12 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         return True
 
     async def monitor_access() -> None:
-        """单独一路任务周期性复检授权，断开已经失效的长连。"""
-        if not await access_allowed():
+        """单独一路任务周期性复检授权，断开已经失效的长连（不复用缓存）。"""
+        if not await recheck_access():
             return
         while True:
             await asyncio.sleep(RUNTIME_LICENSE_CHECK_SECONDS)
-            if not await access_allowed():
+            if not await recheck_access():
                 return
 
     async def close_with_log(code: int, reason: str, *, send_reason: bool = True) -> None:

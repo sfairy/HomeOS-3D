@@ -156,6 +156,8 @@ class NotificationRulesHelper:
         if not self.rules_cache:
             return
         attributes = attributes or {}
+        bypass_dnd_config: bool | None = None
+        dnd_active_config: bool | None = None
         for rule in list(self.rules_cache):
             rule_entity_id = rule.get("entityId")
             if rule_entity_id and rule_entity_id != entity_id:
@@ -178,8 +180,15 @@ class NotificationRulesHelper:
             cooldown_key = f"rule:{rule_key}:{entity_id}"
             if self._is_in_cooldown(cooldown_key):
                 continue
-            bypass_dnd = rule.get("level") == "danger" or self._is_alert_bypass_dnd()
-            if self._is_dnd_active() and not bypass_dnd:
+            if rule.get("level") == "danger":
+                bypass_dnd = True
+            else:
+                if bypass_dnd_config is None:
+                    bypass_dnd_config = await asyncio.to_thread(self._is_alert_bypass_dnd)
+                bypass_dnd = bypass_dnd_config
+            if dnd_active_config is None:
+                dnd_active_config = await asyncio.to_thread(self._is_dnd_active)
+            if dnd_active_config and not bypass_dnd:
                 continue
 
             self._match_state[edge_key] = True

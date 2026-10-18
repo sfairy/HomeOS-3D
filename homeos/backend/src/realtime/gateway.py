@@ -18,8 +18,9 @@ import json
 import logging
 import os
 import time
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, TypedDict
+from typing import Any, Required, TypedDict
 from urllib.parse import urlsplit
 
 import socketio
@@ -57,7 +58,9 @@ class ResyncSuggestedPayload(TypedDict):
 
 
 class HaStatusSnapshot(TypedDict, total=False):
-    connected: bool
+    """HA 连接状态快照（``_ha_status_snapshot`` 恒填 connected，其余可缺省）。"""
+
+    connected: Required[bool]
     ha_version: str | None
     attempt: int | None
 
@@ -310,9 +313,15 @@ class RealtimeGateway:
             raise SocketConnectionRefusedError("auth required")
 
         database = self.app.state.database
-        try:
+
+        def _resolve_user() -> Any:
+            # 同步 SQLite 会话在握手路径里会阻塞事件循环（connect 处理函数本身是协程），
+            # 因此整个「开库 + 查会话 + 读用户」放进工作线程；返回值是纯 dict，不跨线程持有 ORM 对象。
             with database.session_factory() as session:
-                user = resolve_ws_user(token, session)
+                return resolve_ws_user(token, session)
+
+        try:
+            user = await asyncio.to_thread(_resolve_user)
         except Exception:
             raise SocketConnectionRefusedError("unauthorized") from None
 
@@ -654,6 +663,7 @@ class RealtimeGateway:
         # 这里按「限制列表指纹」复用同一批次内的判定结果。
         visibility_cache: dict[Any, dict[str, bool]] = {}
         # 先按域/钉选收窄候选，再对候选做精确可见性过滤（见 _baseline_ready 说明）
+        deliveries: list[tuple[str, list[dict[str, Any]], bool]] = []
         for sid in self._candidate_sids_for_changes(changes, critical):
             session = self._session_for(sid)
             user = session.get("user") or {}
@@ -681,14 +691,24 @@ class RealtimeGateway:
                 visible.append(message)
                 if pinned is not None and entity_id in pinned:
                     has_pinned = True
-            if not visible:
-                continue
-            try:
-                await self._emit_state_changes(sid, visible, timestamp, has_pinned)
-            except Exception:
-                # 单个连接发送失败（连接刚断、序列化异常等）不能让整轮广播中断，
-                # 否则后面所有订阅者都会漏掉这一批变更。
-                logger.warning("推送状态变更失败 sid=%s", sid, exc_info=True)
+            if visible:
+                deliveries.append((sid, visible, has_pinned))
+        if deliveries:
+            # 逐连接串行 await 会让一轮广播的耗时 = Σ 每个连接的写队列/背压耗时，
+            # 慢连接会拖住其后所有连接（队头阻塞）。这里并发投递：每个连接仍只收到
+            # 一条本批消息、批内顺序不变；整个 gather 结束后才返回，故跨批次顺序不变。
+            results = await asyncio.gather(
+                *(
+                    self._emit_state_changes(sid, visible, timestamp, has_pinned)
+                    for sid, visible, has_pinned in deliveries
+                ),
+                return_exceptions=True,
+            )
+            for (sid, _visible, _pinned), result in zip(deliveries, results, strict=False):
+                if isinstance(result, Exception):
+                    # 单个连接发送失败（连接刚断、序列化异常等）不能让整轮广播中断，
+                    # 否则后面所有订阅者都会漏掉这一批变更。
+                    logger.warning("推送状态变更失败 sid=%s", sid, exc_info=result)
         record_ha_sync_latency("ws_emit", (time.monotonic() - started) * 1000)
 
     async def _emit_state_changes(
@@ -741,9 +761,13 @@ class RealtimeGateway:
         size = getattr(queue, "qsize", None)
         if callable(size):
             try:
-                return int(size()) > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
+                pending = size()
             except Exception:
                 return False
+            # ``getattr`` 拿到的是 ``object``，先收窄再与阈值比较，避免误把非数值当 0/大数。
+            return (
+                isinstance(pending, int) and pending > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
+            )
         transport = getattr(eio_socket, "transport", None)
         buffer = getattr(transport, "write_buffer", None)
         if isinstance(buffer, list):
@@ -987,7 +1011,7 @@ def _visibility_cache_for(
     return bucket
 
 
-def _ha_status_payload(status: str, snapshot: dict[str, Any]) -> dict[str, Any]:
+def _ha_status_payload(status: str, snapshot: Mapping[str, Any]) -> dict[str, Any]:
     """构造 ha_status 负载：值为 ``None`` 的字段省略（对齐 JS ``undefined`` 不带键）。"""
     message: dict[str, Any] = {"type": "ha_status", "status": status}
     ha_version = snapshot.get("ha_version")

@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import threading
+import time
 from collections import deque
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
@@ -183,9 +184,17 @@ class GlobalLogStore:
         self.retention_days = max(1, int(retention_days))
         self.max_bytes = max(65536, int(max_bytes))
         self._lock = threading.RLock()
+        #: 后台落盘线程唤醒事件：append() 只入内存队列并置位，绝不在调用线程（通常是
+        #: 事件循环）里做 open/write/fsync。旧实现每条日志同步写盘，一个请求路径上的
+        #: 多条日志会直接叠加成事件循环的阻塞时间。
+        self._wake = threading.Event()
+        #: 落盘尝试计数 + 条件变量：flush() 用它等待「至少尝试过一次落盘」。
+        self._flush_attempts = 0
+        self._idle = threading.Condition()
+        self._closed = False
         self._last_pruned_at = None
         self._recent_events = {}
-        self._pending = deque(maxlen=200)
+        self._pending = deque(maxlen=2000)
         self._write_failures = 0
         self._dropped_events = 0
         self._last_error = None
@@ -195,6 +204,65 @@ class GlobalLogStore:
             self._prepare_directory()
         except OSError as error:
             self._io_failure(error)
+        self._writer = threading.Thread(
+            target=self._writer_loop, name="global-log-writer", daemon=True
+        )
+        self._writer.start()
+
+    #: 写盘失败后的重试间隔（秒）：内存队列里的事件在下次 append 前不会丢。
+    _WRITE_RETRY_SECONDS = 5.0
+
+    def _writer_loop(self) -> None:
+        """单写线程按序落盘；顺序由「单线程 + 同一把锁」保证。"""
+        retry_wait: float | None = None
+        while True:
+            self._wake.wait(retry_wait)
+            self._wake.clear()
+            with self._lock:
+                pending = bool(self._pending)
+                if pending:
+                    self._flush_pending()
+                    self._flush_attempts += 1
+                    pending = bool(self._pending)
+                closed = self._closed
+            with self._idle:
+                self._idle.notify_all()
+            if closed:
+                return
+            # 失败时定时重试；成功后阻塞到下一次 append 置位唤醒。
+            retry_wait = self._WRITE_RETRY_SECONDS if pending else None
+
+    def flush(self, timeout: float | None = 5.0) -> None:
+        """阻塞等待待写队列落盘（供停机 / 测试；不在事件循环内调用）。"""
+        with self._lock:
+            target = self._flush_attempts + 1
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._idle:
+            self._wake.set()
+            while True:
+                with self._lock:
+                    if not self._pending or self._flush_attempts >= target:
+                        return
+                if deadline is None:
+                    self._idle.wait(0.05)
+                    continue
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return
+                self._idle.wait(remaining)
+
+    def close(self, timeout: float | None = 5.0) -> None:
+        """停机：最后一次落盘后结束写线程（幂等）。"""
+        with self._idle:
+            self._closed = True
+            self._wake.set()
+        writer = getattr(self, "_writer", None)
+        if (
+            writer is not None
+            and writer.is_alive()
+            and threading.current_thread() is not writer
+        ):
+            writer.join(timeout)
 
     def _prepare_directory(self) -> None:
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -210,7 +278,7 @@ class GlobalLogStore:
         if self._last_warning_at is None or now - self._last_warning_at >= timedelta(
             seconds=30
         ):
-            _storage_diagnostic(f"全局日志存储不可用，暂存最近 200 条事件：{self._last_error}")
+            _storage_diagnostic(f"全局日志存储不可用，暂存最近 2000 条事件：{self._last_error}")
             self._last_warning_at = now
 
     def storage_status(self) -> dict[str, Any]:
@@ -314,7 +382,8 @@ class GlobalLogStore:
             if len(self._pending) == self._pending.maxlen:
                 self._dropped_events += 1
             self._pending.append(event)
-            self._flush_pending()
+            # 只置位唤醒写线程：查询路径（list_events）会合并 pending，立即可见。
+            self._wake.set()
         return event
 
     def list_events(

@@ -447,6 +447,9 @@ const wolfxStatusLabel = computed(() => {
 
 // 进入地震区段时按递增延迟（3s/8s/15s）安排多次状态重试，提升 Wolfx 首次连接成功率
 function scheduleStatusRetries() {
+  // 清掉上一轮尚未触发的重试，避免重复计时器累积
+  for (const t of statusRetryTimers) clearTimeout(t)
+  statusRetryTimers = []
   const delays = [3000, 8000, 15000]
   for (const delay of delays) {
     const t = setTimeout(() => {
@@ -482,8 +485,10 @@ watch(
   (sec) => {
     if (sec === 'earthquake') {
       void refreshStatus()
-      scheduleStatusRetries()
+      // 必须先启动轮询再安排重试：startStatusPolling 内部的 stopStatusPolling
+      // 会清空 statusRetryTimers，顺序颠倒会让首次连接重试永不执行。
       startStatusPolling()
+      scheduleStatusRetries()
     } else {
       stopStatusPolling()
     }

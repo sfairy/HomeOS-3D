@@ -3,8 +3,11 @@
 
 <head>
     <meta charset="utf-8">
-    <!-- 全局错误上报启动脚本：必须最先加载，且保持经典脚本（非 module），任何路由都需要。 -->
-    <script src="/static/logging/client-log.js"></script>
+    <!-- 全局错误上报启动脚本：必须保持经典脚本（非 module），任何路由都需要。
+         defer 使其不阻塞 HTML 解析；HTML 规范中 defer 经典脚本与 parser-inserted module
+         同属「解析结束后按树序执行」的列表，所以它仍早于下方 main.ts 执行，fetch/console
+         包装与 CSRF 自补顺序不变（见 src/studio/app/logging/client-log.ts 头部注释）。 -->
+    <script src="/static/logging/client-log.js" defer></script>
     <!-- 启动守卫：入口 chunk 加载失败时自愈重载并显示兜底面板，避免「黑屏 + 零提示」。
          必须早于入口 module 执行才能捕获其加载失败。 -->
     <script src="/static/boot-guard.js"></script>

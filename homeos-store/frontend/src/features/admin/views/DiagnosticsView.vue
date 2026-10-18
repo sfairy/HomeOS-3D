@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 诊断数据面板：会话、令牌与解绑、登录与验证码、优惠码核销。 */
 
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { AdminTabItem } from "@store/features/admin/composables/useAdminTabs";
 import { useAdminTabs } from "@store/features/admin/composables/useAdminTabs";
@@ -170,6 +170,22 @@ const tabs: AdminTabItem[] = [
 
 const { active, pick } = useAdminTabs("diagnostics", computed(() => tabs));
 
+/**
+ * 访问过的分区：隐藏 tab 首次激活时才挂载。
+ *
+ * 面板里有 7 张 DataTable，每张挂载即拉一次接口；用 v-show 一次性挂载全部会让
+ * 打开诊断页就连发 7 个请求。这里按需挂载（首次访问后保留，切回来不再重拉），
+ * 视觉与交互不变。
+ */
+const visitedTabs = ref<Set<string>>(new Set());
+watch(
+  active,
+  (key) => {
+    if (key) visitedTabs.value.add(key);
+  },
+  { immediate: true },
+);
+
 const couponId = computed(() => String(route.query.coupon_id || ""));
 const couponCode = computed(() => String(route.query.coupon_code || route.query.coupon_id || ""));
 
@@ -324,7 +340,7 @@ function clearCouponFilter() {
       </button>
     </div>
 
-    <div v-show="active === 'sessions'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('sessions')" v-show="active === 'sessions'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">登录会话</h3>
@@ -372,7 +388,7 @@ function clearCouponFilter() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'sessions'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('sessions')" v-show="active === 'sessions'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">客户端会话</h3>
@@ -419,7 +435,7 @@ function clearCouponFilter() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'tokens'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('tokens')" v-show="active === 'tokens'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">设备找回令牌</h3>
@@ -464,7 +480,7 @@ function clearCouponFilter() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'logs'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('logs')" v-show="active === 'logs'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">登录尝试</h3>
@@ -496,7 +512,7 @@ function clearCouponFilter() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'logs'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('logs')" v-show="active === 'logs'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">邮箱验证码</h3>
@@ -537,7 +553,7 @@ function clearCouponFilter() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'tokens'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('tokens')" v-show="active === 'tokens'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">设备解绑历史</h3>
@@ -572,7 +588,7 @@ function clearCouponFilter() {
       </DataTable>
     </div>
 
-    <div v-show="active === 'redeem'" class="admin-block admin-tab-pane" role="tabpanel">
+    <div v-if="visitedTabs.has('redeem')" v-show="active === 'redeem'" class="admin-block admin-tab-pane" role="tabpanel">
       <div class="admin-block__head">
         <div>
           <h3 class="admin-block-title">

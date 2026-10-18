@@ -5,7 +5,6 @@
 import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import pkg from "../../../package.json";
-import { loadClassicScript } from "@/studio/platform/useLegacyPage";
 import { useStudioEditorStore } from "@/stores/studio-editor.store";
 import {
   EDITOR_SHORTCUT_ROWS,
@@ -59,7 +58,8 @@ function openFloorplan() {
 onMounted(async () => {
   editorStore.bindFacade();
   document.documentElement.style.setProperty("--sc-canvas-zoom", String(editorStore.canvasZoom));
-  await loadClassicScript("/static/vendor/hls.js/1.7.3/hls.min.js");
+  // hls.min.js 不再在编辑器引导阶段阻塞加载：相机预览创建播放器前由
+  // @/shared/camera/hls-loader 按需加载，无摄像头页面完全不下发该脚本。
   await import("@app/logging/global-log-boot");
   await import("@app/shared/update-notice");
   const storeLinks = await import("@/shared/utils/store-links.util");

@@ -8,11 +8,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextvars
 import hashlib
 import math
 import os
 import threading
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -98,6 +100,93 @@ def get_ha_ws_deferred_dropped_total() -> int:
         return _ha_ws_deferred_dropped_total
 
 
+# 数据库查询计数（Phase 3 观测）：按语句首关键字分 select / write / other。
+# SQLAlchemy 的 before_cursor_execute 在 DB 线程回调，锁只保护三个整数，开销可忽略。
+_db_query_lock = threading.Lock()
+_db_query_counts: dict[str, int] = {"select": 0, "write": 0, "other": 0}
+
+
+def record_db_query(statement: str | None) -> None:
+    keyword = ""
+    if statement:
+        stripped = statement.lstrip()
+        keyword = stripped.split(None, 1)[0].upper() if stripped else ""
+    if keyword in {"SELECT", "WITH", "EXPLAIN"}:
+        kind = "select"
+    elif keyword in {"INSERT", "UPDATE", "DELETE", "REPLACE"}:
+        kind = "write"
+    else:
+        kind = "other"
+    with _db_query_lock:
+        _db_query_counts[kind] += 1
+
+
+def get_db_query_counts() -> dict[str, int]:
+    with _db_query_lock:
+        return dict(_db_query_counts)
+
+
+# 事件循环延迟采样（Phase 3 观测）：每 interval 秒测一次实际唤醒相对计划时间的偏差。
+@dataclass(frozen=True)
+class LoopLagSnapshot:
+    p50: float
+    p99: float
+    max: float
+    count: int
+
+
+class EventLoopLagMonitor:
+    """采样事件循环调度延迟；只保留最近 window 个样本，供 /metrics 导出。"""
+
+    def __init__(self, interval_seconds: float = 1.0, window: int = 120) -> None:
+        self.interval_seconds = max(0.05, float(interval_seconds))
+        self._samples: deque[float] = deque(maxlen=max(1, int(window)))
+        self._lock = threading.Lock()
+        self._task: asyncio.Task[None] | None = None
+
+    async def start(self) -> None:
+        if self._task is None or self._task.done():
+            self._task = asyncio.create_task(self._run(), name="homeos-loop-lag")
+
+    async def stop(self) -> None:
+        task = self._task
+        self._task = None
+        if task is None:
+            return
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    async def _run(self) -> None:
+        loop = asyncio.get_running_loop()
+        interval = self.interval_seconds
+        expected = loop.time() + interval
+        while True:
+            await asyncio.sleep(max(0.0, expected - loop.time()))
+            now = loop.time()
+            lag_ms = max(0.0, (now - expected) * 1000.0)
+            with self._lock:
+                self._samples.append(lag_ms)
+            expected += interval
+            # 事件循环被长时间阻塞时不要补采样，直接跳到下一个周期，避免虚假尖峰。
+            if expected < now:
+                expected = now + interval
+
+    def snapshot(self) -> LoopLagSnapshot:
+        with self._lock:
+            values = sorted(self._samples)
+        if not values:
+            return LoopLagSnapshot(p50=0.0, p99=0.0, max=0.0, count=0)
+        return LoopLagSnapshot(
+            p50=_round2(_percentile(values, 50)),
+            p99=_round2(_percentile(values, 99)),
+            max=_round2(values[-1]),
+            count=len(values),
+        )
+
+
 def record_ha_sync_fe_latency_samples(samples: Any) -> int:
     """批量接收前端上报的 apply 样本（白名单阶段 + 上限 60s + 最多 64 条）。"""
     if not isinstance(samples, list) or not samples:
@@ -167,6 +256,9 @@ def format_homeos_prometheus_metrics(
     uptime_seconds: int,
     latency: list[LatencySnapshot] | None = None,
     ha_ws_deferred_dropped_total: int | None = None,
+    loop_lag: LoopLagSnapshot | None = None,
+    db_query_counts: dict[str, int] | None = None,
+    startup_duration_ms: float | None = None,
 ) -> str:
     ha = 1 if ha_connected else 0
     deferred = (
@@ -174,6 +266,8 @@ def format_homeos_prometheus_metrics(
         if ha_ws_deferred_dropped_total is not None
         else get_ha_ws_deferred_dropped_total()
     )
+    lag = loop_lag or LoopLagSnapshot(p50=0.0, p99=0.0, max=0.0, count=0)
+    queries = db_query_counts if db_query_counts is not None else get_db_query_counts()
     lines = [
         "# HELP homeos_up HomeOS process is up",
         "# TYPE homeos_up gauge",
@@ -190,9 +284,25 @@ def format_homeos_prometheus_metrics(
         "# HELP homeos_uptime_seconds Process uptime in seconds",
         "# TYPE homeos_uptime_seconds gauge",
         f"homeos_uptime_seconds {uptime_seconds}",
+        "# HELP homeos_startup_duration_ms Time spent in application startup",
+        "# TYPE homeos_startup_duration_ms gauge",
+        f"homeos_startup_duration_ms {_metric_number(startup_duration_ms or 0.0)}",
         "# HELP homeos_ha_ws_deferred_dropped_total HA WS deferred ingress events dropped under overload",
         "# TYPE homeos_ha_ws_deferred_dropped_total counter",
         f"homeos_ha_ws_deferred_dropped_total {deferred}",
+        "# HELP homeos_event_loop_lag_ms Event loop scheduling lag milliseconds",
+        "# TYPE homeos_event_loop_lag_ms gauge",
+        f'homeos_event_loop_lag_ms{{quantile="p50"}} {_metric_number(lag.p50)}',
+        f'homeos_event_loop_lag_ms{{quantile="p99"}} {_metric_number(lag.p99)}',
+        f'homeos_event_loop_lag_ms{{quantile="max"}} {_metric_number(lag.max)}',
+        "# HELP homeos_event_loop_lag_samples Event loop lag sample count",
+        "# TYPE homeos_event_loop_lag_samples gauge",
+        f"homeos_event_loop_lag_samples {lag.count}",
+        "# HELP homeos_db_queries_total Database statements executed since process start",
+        "# TYPE homeos_db_queries_total counter",
+        f'homeos_db_queries_total{{kind="select"}} {queries.get("select", 0)}',
+        f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
+        f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
     ]
 
     snapshots = latency if latency is not None else get_ha_sync_latency_snapshots()

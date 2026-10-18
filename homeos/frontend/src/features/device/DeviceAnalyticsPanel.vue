@@ -162,6 +162,7 @@ import {
   chartVerticalGradient,
 } from '@/shared/utils/chart/device-chart-theme'
 import { ensureDeviceChartOnElement } from '@/shared/utils/chart/device-chart-boot.util'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS
@@ -216,6 +217,8 @@ let resizeObserver: ResizeObserver | null = null
 let renderScheduled = false
 
 const domainMedian = ref({ onCount: 0, runtime: 0, events: 0 })
+// 域中位数请求序号守卫：实体/天数快速切换时丢弃过期响应
+const domainMedianSeq = createFetchSequence()
 
 const analyticsMetrics = computed(() => {
   const summary = usageReport.value?.summary
@@ -271,13 +274,18 @@ function scheduleRender() {
 }
 
 async function fetchDomainMedian() {
+  const seq = domainMedianSeq.next()
+  const entityId = props.entityId
+  const daysValue = days.value
+  const domain = getEntityDomain(entityId)
+  const hours = daysValue * 24
   try {
-    const domain = getEntityDomain(props.entityId)
-    const hours = days.value * 24
     const [usageRes, eventsRes] = await Promise.all([
-      fetchAdvisorUsageSummary({ days: days.value }),
+      fetchAdvisorUsageSummary({ days: daysValue }),
       fetchEventStats({ hours }),
     ])
+    // 实体或天数已切换时丢弃过期响应，避免旧数据覆盖新数据
+    if (!domainMedianSeq.isCurrent(seq)) return
     const data = usageRes.data
     const eventsData = eventsRes.data as { byDomain?: Record<string, number> }
     const breakdown = (data?.domainBreakdown || []).find(
@@ -294,6 +302,7 @@ async function fetchDomainMedian() {
       domainMedian.value = { onCount: 0, runtime: 0, events: 0 }
     }
   } catch {
+    if (!domainMedianSeq.isCurrent(seq)) return
     domainMedian.value = { onCount: 0, runtime: 0, events: 0 }
   }
 }
@@ -479,23 +488,20 @@ function handleContainerResize() {
   scheduleRender()
 }
 
+// 唯一请求入口：实体/天数/可见性变化时刷新域中位数（原 3 个入口去重为 1 个）
 watch(
-  [usageReport, hourlyBuckets, days, () => props.visible, usageLoading, eventLoading],
+  [entityIdRef, daysRef, visibleRef],
   () => {
-    if (!props.visible) return
-    fetchDomainMedian().then(scheduleRender)
+    if (!visibleRef.value) return
+    void fetchDomainMedian().then(scheduleRender)
   },
-  { deep: true },
+  { immediate: true },
 )
 
-watch(
-  () => props.visible,
-  (visible) => {
-    if (visible) {
-      fetchDomainMedian().then(scheduleRender)
-    }
-  },
-)
+// 数据变化仅触发重绘，不再重复发起请求
+watch([usageReport, hourlyBuckets, eventStats, domainMedian, usageLoading, eventLoading], () => {
+  if (props.visible) scheduleRender()
+})
 
 watch([usageChartRef, hourlyChartRef, radarChartRef, gridRef], () => {
   observeChartContainers()
@@ -503,7 +509,6 @@ watch([usageChartRef, hourlyChartRef, radarChartRef, gridRef], () => {
 })
 
 onMounted(() => {
-  fetchDomainMedian().then(scheduleRender)
   resizeObserver = new ResizeObserver(() => handleContainerResize())
   if (panelRef.value) resizeObserver.observe(panelRef.value)
   observeChartContainers()

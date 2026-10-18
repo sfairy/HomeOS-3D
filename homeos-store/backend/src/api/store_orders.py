@@ -20,6 +20,7 @@ from .store_catalog import (
     _is_trial_product,
     _product_or_404,
     _reconcile_payment,
+    _reconcile_payments,
     _resolve_upgrade_target,
 )
 from .store_shared import (
@@ -111,8 +112,9 @@ def list_orders(
     skip = max(0, int(offset or 0))
     orders = _account_orders(session, account, limit=size, offset=skip)
     pending = [item for item in orders if item.status == "pending"]
-    for item in pending:
-        _reconcile_payment(session, request, item)
+    # 列表路径不再逐笔串行查单（一笔慢渠道就能把响应拖到几十秒）：有界并发 + 总预算，
+    # 超出预算的订单交给后台 payment_sweep_loop 巡检补账；响应字段与排序保持不变。
+    _reconcile_payments(session, request, pending)
     expire_stale_orders(session, settings)
     for item in pending:
         session.refresh(item)

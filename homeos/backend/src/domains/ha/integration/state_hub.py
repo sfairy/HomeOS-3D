@@ -238,14 +238,16 @@ class StateHub:
         return
 
     async def publish(self, event: dict[str, Any]) -> None:
+        # 一次发布只深拷贝一份载荷，所有订阅队列共享同一个 dict：订阅方（/ws/runtime）
+        # 只读取并交给了序列化，不会原地修改。旧实现为每个订阅者各拷一份，多端在线时
+        # 同一事件的深拷贝开销随连接数线性增长，是状态推送热路径上最大的一笔纯 CPU。
+        payload = deepcopy(event)
+        event_type = payload.get("type")
+        entity_id = payload.get("entityId")
         for queue in tuple(self._subscribers):
-            event_type = event.get("type")
             if event_type in {"state_changed", "state_removed"}:
                 subscribed_entities = self._subscriber_entities.get(queue)
-                if (
-                    subscribed_entities is not None
-                    and event.get("entityId") not in subscribed_entities
-                ):
+                if subscribed_entities is not None and entity_id not in subscribed_entities:
                     continue
             if queue.full():
                 try:
@@ -254,4 +256,4 @@ class StateHub:
                 except asyncio.QueueEmpty:
                     queue.put_nowait({"type": "resync_required"})
                     continue
-            queue.put_nowait(deepcopy(event))
+            queue.put_nowait(payload)

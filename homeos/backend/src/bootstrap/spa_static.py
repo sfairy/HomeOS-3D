@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from html import escape as html_escape
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -33,6 +35,33 @@ from ..platform.security.session_store import resolve_login_session
 _PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
     (("/3d-studio", "/studio/editor"), feature_codes.FEATURE_EDITOR),
     (("/", "/display/", "/homeos/"), feature_codes.FEATURE_DISPLAY),
+)
+
+#: 路由 → 首屏样式表（与 ``homeos/frontend/src/studio/page-assets.ts`` 的 ``PAGE_ASSETS`` 保持一致）。
+#: 只在 SPA 外壳里输出 ``rel=preload``：不改变前端「按路由挂载样式表」的时机与顺序，
+#: 只让浏览器在解析 HTML 时提前开始下载，把首屏 CSS 的串行等待压到 JS 执行之前。
+_ROUTE_PRELOAD_STYLESHEETS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("/3d-studio",), ("/static/3d-studio/studio.css",)),
+    (
+        ("/studio/editor",),
+        (
+            "/static/global-log.css",
+            "/static/app.css",
+            "/static/renderer/renderer.css",
+            "/static/modules/interaction3d/bridge.css",
+            "/static/flow-line-editor.css",
+        ),
+    ),
+    (
+        ("/", "/display/", "/homeos/"),
+        (
+            "/static/renderer/renderer.css",
+            "/static/display.css",
+            "/static/display-boot.css",
+            "/static/modules/interaction3d/bridge.css",
+            "/static/apple-install-guide.css",
+        ),
+    ),
 )
 
 #: Nest ``spaFallbackMiddleware`` 对所有方法生效（未匹配的任意方法都回退 index.html）
@@ -85,6 +114,33 @@ def page_license_feature(path: str) -> str | None:
     return None
 
 
+def page_preload_stylesheets(path: str) -> tuple[str, ...]:
+    """页面首屏样式表的预加载 URL；未映射 / 认证类路由返回空元组。
+
+    匹配口径与 :func:`page_license_feature` 一致：``/`` 精确、目录型前缀才按前缀匹配，
+    避免 ``/login`` 这类入户页误命中 ``/`` 的展示页样式。
+    """
+    for prefixes, urls in _ROUTE_PRELOAD_STYLESHEETS:
+        for prefix in prefixes:
+            if path == prefix:
+                return urls
+            if prefix != "/" and prefix.endswith("/") and path.startswith(prefix):
+                return urls
+    return ()
+
+
+def _inject_preload_stylesheets(html: str, urls: tuple[str, ...]) -> str:
+    """把首屏样式表以 ``rel=preload`` 注入外壳 ``<head>``（不激活、不改变挂载顺序）。"""
+    if not urls:
+        return html
+    tags = "".join(
+        f'<link rel="preload" as="style" href="{html_escape(url)}">' for url in urls
+    )
+    if "</head>" in html:
+        return html.replace("</head>", f"{tags}</head>", 1)
+    return f"{tags}{html}"
+
+
 def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
     """页面级图标与内置素材（公开 / 受保护资源路由）。"""
 
@@ -111,6 +167,23 @@ def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
         return read_builtin_asset(asset_path, request)
 
 
+#: 静态挂载点内「带版本号的 vendor 目录」：vendor/<库名>/<数字版本>/...。
+#: 这类目录的内容由版本号固定（three/0.186.1、hls.js/1.7.3、meshoptimizer/0.25、
+#: mdi/7.4.47 等），可安全长缓存；未版本化路径（qrcode-generator/qrcode.js、
+#: meteocons/fill、根级 LICENSE）不加，避免升级产物后命中旧内容。
+_IMMUTABLE_VENDOR_PATH = re.compile(r"^vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
+
+
+class _VersionedStaticFiles(StaticFiles):
+    """静态产物挂载：仅版本化 vendor 路径追加 immutable 长缓存头。"""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if _IMMUTABLE_VENDOR_PATH.match(path.replace("\\", "/")):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
     """挂载 vite 构建产物目录（``/static`` 与 ``/modules``）。
 
@@ -124,7 +197,7 @@ def _mount_frontend_build_dirs(app: FastAPI, frontend_dir: Path) -> None:
     """
     static_dir = frontend_dir / "static"
     if static_dir.is_dir():
-        app.mount(STATIC_MOUNT_PREFIX, StaticFiles(directory=str(static_dir)), name="static")
+        app.mount(STATIC_MOUNT_PREFIX, _VersionedStaticFiles(directory=str(static_dir)), name="static")
     modules_dir = frontend_dir / "modules"
     modules_dir.mkdir(parents=True, exist_ok=True)
     app.mount(
@@ -233,6 +306,32 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
     def _spa_index() -> Path:
         return settings.frontend_dir / "index.html"
 
+    #: SPA 外壳模板缓存（index.html 是构建产物，进程内基本不变）。
+    #: 原来每次前端路由跳转都同步 read_text 一次；改后只在 (mtime, size) 变化时重读。
+    index_cache: dict[str, Any] = {"fingerprint": None, "html": ""}
+
+    def _read_index_template() -> str | None:
+        index = _spa_index()
+        try:
+            stat = index.stat()
+        except OSError:
+            return None
+        fingerprint = (stat.st_mtime_ns, stat.st_size)
+        if index_cache["fingerprint"] == fingerprint:
+            return index_cache["html"] or None
+        try:
+            html = index.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        index_cache["fingerprint"] = fingerprint
+        index_cache["html"] = html
+        return html
+
+    def _has_login_cookie(request: Request) -> bool:
+        """是否携带登录 Cookie（只看存在性；资源门禁仍由 ``signed_in`` 做完整校验）。"""
+        cookie_name = getattr(settings, "cookie_name", "") or ""
+        return bool(cookie_name and request.cookies.get(cookie_name))
+
     async def _page_license_status(request: Request) -> str | None:
         """当前页面被授权门禁拦下时返回**被拦的原因**（状态码）；放行返回 ``None``。
 
@@ -273,16 +372,21 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
         ``data-license-status="<状态码>"``：前端据此决定是在**原地址**就地渲染授权恢复页
         （等待重连），还是把「未激活」交给路由守卫送去注册 / 登录 / 激活。
         """
-        index = _spa_index()
-        if not index.is_file():
+        html = _read_index_template()
+        if html is None:
             raise HTTPException(status_code=404)
-        html = index.read_text(encoding="utf-8")
         blocked = await _page_license_status(request)
         if blocked is not None:
             html = html.replace(
                 "<html",
                 f'<html data-license-blocked="1" data-license-status="{html_escape(blocked)}"',
                 1,
+            )
+        elif _has_login_cookie(request):
+            # 路由样式表属于「登录后可见」的静态资源：未带登录凭证时不预载，
+            # 否则匿名访问会打出一串 401 的预载请求（控制台噪音，且毫无收益）。
+            html = _inject_preload_stylesheets(
+                html, page_preload_stylesheets(request.url.path)
             )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 

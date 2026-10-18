@@ -33,6 +33,53 @@ def resolve_events_limit(raw: Any) -> int:
     return max(1, min(parsed, MAX_EVENTS))
 
 
+def _parse_events_text(text: str, ha_url: str, limit: int) -> list[dict[str, Any]]:
+    """解析 HA events.jsonl 文本并按时间倒序取最新 ``limit`` 条。
+
+    纯 CPU/JSON 逻辑，放到 worker 线程执行；上游文件行数无上界，不能让它和
+    实时推送共用事件循环。
+    """
+
+    def _sort_key(item: dict[str, Any]) -> float:
+        from datetime import datetime
+
+        try:
+            return datetime.fromisoformat(f"{item.get('date')}T{item.get('time')}").timestamp()
+        except (TypeError, ValueError):
+            return 0.0
+
+    # 小顶堆：(排序键, 行号, 事件)。行号只做同键时的确定性兜底，避免堆比较落到 dict 上。
+    newest: list[tuple[float, int, dict[str, Any]]] = []
+    index = 0
+    for line in text.split("\n"):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(event, dict):
+            continue
+        for key in ("img", "video", "clip", "mp4", "recording"):
+            value = event.get(key)
+            if isinstance(value, str) and value.startswith("/local/"):
+                event[key] = f"{ha_url}{value}"
+        if not event.get("video") and event.get("clip"):
+            event["video"] = event["clip"]
+        if not event.get("video") and event.get("mp4"):
+            event["video"] = event["mp4"]
+        if not event.get("video") and event.get("recording"):
+            event["video"] = event["recording"]
+        index += 1
+        heapq.heappush(newest, (_sort_key(event), index, event))
+        if len(newest) > limit:
+            heapq.heappop(newest)
+
+    # 同键时按行号升序（= 文件里的先后），保持与旧「稳定排序」一致的展示顺序。
+    ordered = sorted(newest, key=lambda item: (-item[0], item[1]))
+    return [event for _key, _index, event in ordered]
+
+
 class SecurityService:
     def __init__(self, session_factory, *, cipher=None) -> None:
         self._session_factory = session_factory
@@ -120,47 +167,7 @@ class SecurityService:
                 )
                 return []
             text = response.text
-
-            def _sort_key(item: dict[str, Any]) -> float:
-                from datetime import datetime
-
-                try:
-                    return datetime.fromisoformat(
-                        f"{item.get('date')}T{item.get('time')}"
-                    ).timestamp()
-                except (TypeError, ValueError):
-                    return 0.0
-
-            # 小顶堆：(排序键, 行号, 事件)。行号只做同键时的确定性兜底，避免堆比较落到 dict 上。
-            newest: list[tuple[float, int, dict[str, Any]]] = []
-            index = 0
-            for line in text.split("\n"):
-                if not line.strip():
-                    continue
-                try:
-                    event = json.loads(line)
-                except (TypeError, ValueError):
-                    continue
-                if not isinstance(event, dict):
-                    continue
-                for key in ("img", "video", "clip", "mp4", "recording"):
-                    value = event.get(key)
-                    if isinstance(value, str) and value.startswith("/local/"):
-                        event[key] = f"{ha_url}{value}"
-                if not event.get("video") and event.get("clip"):
-                    event["video"] = event["clip"]
-                if not event.get("video") and event.get("mp4"):
-                    event["video"] = event["mp4"]
-                if not event.get("video") and event.get("recording"):
-                    event["video"] = event["recording"]
-                index += 1
-                heapq.heappush(newest, (_sort_key(event), index, event))
-                if len(newest) > effective:
-                    heapq.heappop(newest)
-
-            # 同键时按行号升序（= 文件里的先后），保持与旧「稳定排序」一致的展示顺序。
-            ordered = sorted(newest, key=lambda item: (-item[0], item[1]))
-            return [event for _key, _index, event in ordered]
+            return await asyncio.to_thread(_parse_events_text, text, ha_url, effective)
         except Exception as exc:
             logger.error("从 HA 获取事件失败:%s", exc)
             return []

@@ -6,6 +6,7 @@ export / inspect / cancel job / restore，含会话绑定票据、管理员密�
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -68,9 +69,11 @@ def _busy_response(request: Request) -> JSONResponse | None:
     return None
 
 
-def _job_for(request: Request, user: dict[str, Any], ticket: str) -> dict[str, Any] | None:
+async def _job_for(
+    request: Request, user: dict[str, Any], ticket: str
+) -> dict[str, Any] | None:
     gate = _gate(request)
-    gate.expire_jobs()
+    await gate.expire_jobs_async()
     job = gate.jobs.get(ticket)
     if job is None:
         return None
@@ -87,7 +90,7 @@ def _flush_pending(request: Request) -> None:
         logger.warning("待投递后台任务 flush 失败（下轮重试）", exc_info=True)
 
 
-def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) -> None:
+async def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) -> None:
     stale = [
         ticket
         for ticket, job in gate.jobs.items()
@@ -96,13 +99,13 @@ def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) -> None:
     for ticket in stale:
         job = gate.jobs.pop(ticket, None)
         if job:
-            gate.cleanup_job(job.get("directory"))
+            await gate.cleanup_job_async(job.get("directory"))
 
 
-def _ensure_same_admin_session(
+def _check_same_admin_session(
     request: Request, user: dict[str, Any]
 ) -> JSONResponse | None:
-    """恢复/检查前再验短会话，防止登录态中途变化。"""
+    """恢复/检查前再验短会话（同步 DB 部分，由 ``_ensure_same_admin_session`` 放进线程池）。"""
     try:
         fresh = authenticated_short_lived_user(request, Response())
     except Exception:
@@ -116,6 +119,13 @@ def _ensure_same_admin_session(
     return None
 
 
+async def _ensure_same_admin_session(
+    request: Request, user: dict[str, Any]
+) -> JSONResponse | None:
+    """恢复/检查前再验短会话，防止登录态中途变化；同步 DB 鉴权放 worker 线程。"""
+    return await asyncio.to_thread(_check_same_admin_session, request, user)
+
+
 @router.post("/export", status_code=200)
 async def export_backup(
     payload: ExportRequest,
@@ -127,13 +137,13 @@ async def export_backup(
     if busy is not None:
         return busy
     gate = _gate(request)
-    gate.expire_jobs()
+    await gate.expire_jobs_async()
     if gate.recovery_required:
         return JSONResponse(
             status_code=503,
             content={"detail": "恢复回退尚未完成，请重启程序后再操作。"},
         )
-    _flush_pending(request)
+    await asyncio.to_thread(_flush_pending, request)
     directory = gate.workspace()
     try:
         archive = await gate.run_exclusive(
@@ -155,10 +165,10 @@ async def export_backup(
             },
         )
     except BackupError as error:
-        gate.cleanup_job(directory)
+        await gate.cleanup_job_async(directory)
         return JSONResponse(status_code=400, content={"detail": str(error)})
     except Exception:
-        gate.cleanup_job(directory)
+        await gate.cleanup_job_async(directory)
         raise
 
 
@@ -168,14 +178,14 @@ async def inspect_backup(
     user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
-    session_error = _ensure_same_admin_session(request, user)
+    session_error = await _ensure_same_admin_session(request, user)
     if session_error is not None:
         return session_error
     busy = _busy_response(request)
     if busy is not None:
         return busy
     gate = _gate(request)
-    gate.expire_jobs()
+    await gate.expire_jobs_async()
     if gate.recovery_required:
         return JSONResponse(
             status_code=503,
@@ -186,7 +196,7 @@ async def inspect_backup(
         return JSONResponse(status_code=400, content={"detail": "请提供 8–128 位备份密码。"})
     owner = _owner_key(request, user)
     if any(job.get("owner") == owner for job in gate.jobs.values()):
-        _drop_owner_jobs(gate, owner)
+        await _drop_owner_jobs(gate, owner)
     directory = gate.workspace()
     upload = directory / "upload.habackup"
     # 流式落盘而不是 ``await request.body()``：整包上限是 512MB，先整包读进内存等于让
@@ -203,21 +213,21 @@ async def inspect_backup(
             output.flush()
             os.fsync(output.fileno())
     except BackupError as error:
-        gate.cleanup_job(directory)
+        await gate.cleanup_job_async(directory)
         return JSONResponse(status_code=400, content={"detail": str(error)})
     except Exception:
         # 断开 / 磁盘写失败：清掉半截归档，别把 workspace 留成垃圾
-        gate.cleanup_job(directory)
+        await gate.cleanup_job_async(directory)
         return JSONResponse(status_code=400, content={"detail": "备份文件上传中断，请重试。"})
     if written == 0:
-        gate.cleanup_job(directory)
+        await gate.cleanup_job_async(directory)
         return JSONResponse(status_code=400, content={"detail": "请选择备份文件。"})
     try:
         preview = await durable_work(
             inspect_archive, request.app.state.settings, directory, password
         )
     except BackupError as error:
-        gate.cleanup_job(directory)
+        await gate.cleanup_job_async(directory)
         return JSONResponse(status_code=400, content={"detail": str(error)})
     ticket = uuid4().hex
     gate.jobs[ticket] = {
@@ -238,10 +248,10 @@ async def cancel_inspection(
 ):
     require_same_origin_write(request)
     gate = _gate(request)
-    job = _job_for(request, user, ticket)
+    job = await _job_for(request, user, ticket)
     if job:
         gate.jobs.pop(ticket, None)
-        gate.cleanup_job(job.get("directory"))
+        await gate.cleanup_job_async(job.get("directory"))
     elif ticket in gate.jobs:
         # 非本会话票据：不泄露是否存在，直接当作已清理。
         pass
@@ -255,14 +265,14 @@ async def restore_backup(
     user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
-    session_error = _ensure_same_admin_session(request, user)
+    session_error = await _ensure_same_admin_session(request, user)
     if session_error is not None:
         return session_error
     busy = _busy_response(request)
     if busy is not None:
         return busy
     gate = _gate(request)
-    gate.expire_jobs()
+    await gate.expire_jobs_async()
     if gate.recovery_required:
         return JSONResponse(
             status_code=503,
@@ -270,17 +280,17 @@ async def restore_backup(
         )
     if not payload.confirm:
         return JSONResponse(status_code=400, content={"detail": "请先确认覆盖当前业务数据。"})
-    job = _job_for(request, user, payload.ticket)
+    job = await _job_for(request, user, payload.ticket)
     if job is None:
         return JSONResponse(
             status_code=400,
             content={"detail": "检查结果已失效，请重新选择并检查备份文件。"},
         )
-    password_error = verify_admin_password(request, user, payload.adminPassword)
+    password_error = await verify_admin_password(request, user, payload.adminPassword)
     if password_error is not None:
         return password_error
     # 密码校验后、写入前再验一次，覆盖长时间停留在确认页的情况。
-    session_error = _ensure_same_admin_session(request, user)
+    session_error = await _ensure_same_admin_session(request, user)
     if session_error is not None:
         return session_error
     directory = job["directory"]
@@ -297,8 +307,8 @@ async def restore_backup(
         # 数据库已整体替换：重建系统配置 / 素材目录 / HA 连接等进程内缓存
         await refresh_runtime_after_restore(request.app)
         gate.jobs.pop(payload.ticket, None)
-        gate.cleanup_job(directory)
-        gate.prune_rollbacks()
+        await gate.cleanup_job_async(directory)
+        await gate.prune_rollbacks_async()
         try:
             request.app.state.global_log.append(
                 "success",

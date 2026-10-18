@@ -13,18 +13,57 @@ Socket.IO 多连接读）补齐连接级 PRAGMA：
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
+from .observability import record_db_query
 
 #: 写锁等待毫秒数（HA 状态批量写入与业务写入并发时的削峰阈值）。
 SQLITE_BUSY_TIMEOUT_MS = 5000
 
+#: 连接池默认值（可用 HOMEOS_DB_POOL_SIZE / HOMEOS_DB_MAX_OVERFLOW /
+#: HOMEOS_DB_POOL_TIMEOUT_SECONDS 覆盖）。SQLite 是单文件写，池开得过大只会放大
+#: 写锁竞争；8 + 4 覆盖状态管道写入与 HTTP 读线程，并给突发留出余量。
+DEFAULT_POOL_SIZE = 8
+DEFAULT_MAX_OVERFLOW = 4
+DEFAULT_POOL_TIMEOUT_SECONDS = 5.0
+
+
+def _environment_int(name: str, default: int, *, minimum: int = 0) -> int:
+    """读整型环境变量；缺省 / 非法 / 过小一律回落到 default。"""
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = int(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else default
+
+
+def _environment_float(name: str, default: float, *, minimum: float = 0.0) -> float:
+    """读浮点环境变量；缺省 / 非法 / 过小一律回落到 default。"""
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = float(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= minimum else default
+
 
 class Base(DeclarativeBase):
     """所有 ORM 模型基类。"""
+
+
+def _record_query(_connection, _cursor, statement, _parameters, _context, _executemany) -> None:
+    """SQLAlchemy 语句计数（只累加整数，不参与执行路径）。"""
+    record_db_query(statement)
 
 
 def _configure_sqlite(dbapi_connection, _connection_record) -> None:
@@ -44,17 +83,38 @@ class Database:
 
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
+        parsed_url = make_url(database_url)
+        is_sqlite = parsed_url.get_backend_name() == "sqlite"
         connect_args: dict[str, object] = {}
-        if database_url.startswith("sqlite"):
+        if is_sqlite:
             # FastAPI 线程池会在不同线程复用连接，关闭同线程检查。
             connect_args["check_same_thread"] = False
+        # SQLite 内存库由 SingletonThreadPool 承载，不接受 pool_size / max_overflow /
+        # pool_timeout；SQLite 文件与 Postgres 走可配的 QueuePool。
+        pool_kwargs: dict[str, object] = {}
+        if not (is_sqlite and parsed_url.database in (None, "", ":memory:")):
+            pool_kwargs = {
+                "pool_size": _environment_int(
+                    "HOMEOS_DB_POOL_SIZE", DEFAULT_POOL_SIZE, minimum=1
+                ),
+                "max_overflow": _environment_int(
+                    "HOMEOS_DB_MAX_OVERFLOW", DEFAULT_MAX_OVERFLOW
+                ),
+                "pool_timeout": _environment_float(
+                    "HOMEOS_DB_POOL_TIMEOUT_SECONDS",
+                    DEFAULT_POOL_TIMEOUT_SECONDS,
+                    minimum=0.1,
+                ),
+            }
         self.engine: Engine = create_engine(
             database_url,
             connect_args=connect_args,
             pool_pre_ping=True,
+            **pool_kwargs,
         )
         if database_url.startswith("sqlite"):
             event.listen(self.engine, "connect", _configure_sqlite)
+        event.listen(self.engine, "before_cursor_execute", _record_query)
         self.session_factory = sessionmaker(
             bind=self.engine,
             autoflush=False,

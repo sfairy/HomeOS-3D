@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import Request
@@ -33,17 +34,22 @@ def owner_session_key(request: Request, user: dict[str, Any]) -> str:
     return f"{user.get('userId')}:{session_token_hash(token)}"
 
 
-def verify_admin_password(
+def _verify_admin_password_blocking(
     request: Request,
     user: dict[str, Any],
     password: str,
     *,
     scope: str = BACKUP_PASSWORD_SCOPE,
 ) -> JSONResponse | None:
-    """校验当前管理员密码。
+    """校验当前管理员密码（同步实现，只允许经 ``asyncio.to_thread`` 调用）。
 
     ``None`` 表示通过（调用方可以继续执行破坏性写入），否则返回**应当直接回给客户端**
     的响应对象（429 限流 / 401 密码错误），调用方原样 return 即可。
+
+    为什么独立出同步实现：这里的 ``database.session_factory`` 是同步 SQLAlchemy 会话，
+    ``verify_password`` 是 argon2id（默认 64 MiB / 数十毫秒 CPU）。两者直接在 async
+    路由里执行会冻结事件循环，期间 WebSocket 推送、健康检查与其他请求全部停顿。
+    限流器 ``LoginAttemptLimiter`` 自带 ``threading.Lock``，整个函数放进线程池是安全的。
     """
     gate = getattr(request.app.state, "business_backup", None)
     limiter = getattr(gate, "backup_password_limiter", None)
@@ -68,6 +74,23 @@ def verify_admin_password(
     if limiter is not None:
         limiter.reset(limiter_key)
     return None
+
+
+async def verify_admin_password(
+    request: Request,
+    user: dict[str, Any],
+    password: str,
+    *,
+    scope: str = BACKUP_PASSWORD_SCOPE,
+) -> JSONResponse | None:
+    """异步门：DB 读取与 argon2 校验整体丢进线程池，避免阻塞事件循环。
+
+    返回语义与同步实现完全一致（``None`` 通过 / 429 或 401 响应对象）；调用方直接
+    ``await`` 后原样 return 错误响应即可，状态码与响应体不变。
+    """
+    return await asyncio.to_thread(
+        _verify_admin_password_blocking, request, user, password, scope=scope
+    )
 
 
 __all__ = ["BACKUP_PASSWORD_SCOPE", "owner_session_key", "verify_admin_password"]

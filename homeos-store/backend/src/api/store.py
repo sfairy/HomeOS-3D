@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -36,6 +36,7 @@ from .store_shared import (
 )
 from ..commerce import delivery
 from ..config import StoreSettings
+from ..core.database import Database
 from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from ..core.models import (
     Account,
@@ -195,10 +196,61 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
     response.headers["Cache-Control"] = "no-store"
     return response
 
+def _record_verification_delivery(
+    database: Database, *, record_id: str, email: str, result: mailer.MailResult
+) -> None:
+    """把一次投递结果写回验证码记录；独立短会话，失败只留 incident，不影响请求。"""
+    try:
+        with database.session() as session:
+            record = session.get(EmailVerification, record_id)
+            if record is None:
+                return
+            record.delivery_mode = result.mode
+            record.delivery_attempts = result.attempts
+            record.delivery_error = result.error
+            record.delivered = result.delivered if result.mode == "smtp" else None
+            record.delivered_at = utcnow()
+            session.commit()
+    except Exception as error:
+        incidents.note("verification.delivery_record", error=f"email={email} {error}")
+        logger.exception("验证码投递结果落库失败，验证码本身仍然有效 email=%s", email)
+
+
+def _send_verification_email_background(
+    database: Database,
+    settings: StoreSettings,
+    *,
+    record_id: str,
+    email: str,
+    code: str,
+    purpose: str,
+) -> None:
+    """响应发出之后才真正投递验证码邮件：SMTP 最坏 20s 不再卡住注册/重发请求。
+
+    验证码在排这个任务之前已经提交，所以发信再慢也不会影响验码；投递结果仍然写回
+    EmailVerification（后台审计与用户重试都看得到）。
+    """
+    try:
+        with database.session() as session:
+            setting = site_config.get_setting(session)
+            merged = mail_settings.merge_mail_settings(settings, setting)
+            result = mailer.send_verification_email(
+                merged, setting, email=email, code=code, purpose=purpose
+            )
+    except Exception as error:
+        incidents.note("verification.delivery", error=f"email={email} {error}")
+        logger.exception("验证码邮件后台发送失败 email=%s", email)
+        return
+    _record_verification_delivery(
+        database, record_id=record_id, email=email, result=result
+    )
+
+
 @router.post("/verifications")
 def send_verification(
     payload: VerificationRequest,
     request: Request,
+    background: BackgroundTasks,
     session: DbSession,
     account: CurrentAccount,
 ) -> dict:
@@ -258,6 +310,30 @@ def send_verification(
     session.add(record)
     password_gate.clear(session, f"verify:{email}")
     session.commit()
+
+    if settings.smtp_ready:
+        # SMTP 投递最坏 20s（含重试等待）：排到响应之后执行，注册/重发请求不再等邮件。
+        # 这里的 delivered=True 表示「已受理投递」；真正的投递结果由后台任务写回
+        # EmailVerification，响应里用 deliveryPending 标明还没拿到投递结果。
+        background.add_task(
+            _send_verification_email_background,
+            request.app.state.database,
+            request.app.state.settings,
+            record_id=record.id,
+            email=email,
+            code=code,
+            purpose=purpose,
+        )
+        return {
+            "email": email,
+            "purpose": purpose,
+            "expiresInSeconds": settings.verification_ttl_seconds,
+            "resendAfter": settings.verification_cooldown_seconds,
+            "delivered": True,
+            "deliveryMode": "smtp",
+            "deliveryAttempts": 0,
+            "deliveryPending": True,
+        }
 
     result = mailer.send_verification_email(
         settings, setting, email=email, code=code, purpose=purpose
@@ -407,7 +483,11 @@ _LICENSE_EMAIL_LIMITER = SlidingWindowLimiter(limit=5, window_seconds=3600.0)
 
 @router.post("/account/licenses/{license_id}/email")
 def resend_license_email(
-    license_id: str, request: Request, session: DbSession, account: AuthedAccount
+    license_id: str,
+    request: Request,
+    background: BackgroundTasks,
+    session: DbSession,
+    account: AuthedAccount,
 ) -> dict:
     """把这张授权的激活码重新发到购买邮箱。
 
@@ -438,16 +518,40 @@ def resend_license_email(
             headers={"Retry-After": str(retry_after)},
         )
 
-    result = delivery.notify_license_issued(
-        request.app.state.database, order_id=order.id, force=True
+    # 发信最坏 20s：排到响应之后执行，请求本身只做归属 / 履约 / 开关这几项便宜检查。
+    if order.status != "fulfilled" or not order.license_id:
+        return {
+            "email": order.email,
+            "sent": False,
+            "deliveryError": "订单尚未完成履约，暂时无法重发激活码邮件。",
+        }
+    setting = site_config.get_setting(session)
+    delivery_enabled = getattr(setting, "delivery_email_enabled", None)
+    if delivery_enabled is not None and not bool(delivery_enabled):
+        return {
+            "email": order.email,
+            "sent": False,
+            "deliveryError": "站点当前已关闭激活码邮件发送，请联系客服。",
+        }
+    recipient = (order.email or "").strip()
+    if not recipient:
+        return {
+            "email": order.email,
+            "sent": False,
+            "deliveryError": "这张订单没有可用的收件邮箱，请联系客服。",
+        }
+
+    background.add_task(
+        delivery.notify_license_issued,
+        request.app.state.database,
+        order_id=order.id,
+        force=True,
     )
-    sent = bool(result.get("sent"))
     return {
         "email": order.email,
-        "sent": sent,
-        "deliveryError": "" if sent else (
-            result.get("error") or "邮件未能发出，请稍后再试或联系客服。"
-        ),
+        "sent": None,
+        "queued": True,
+        "deliveryError": "",
     }
 
 @router.patch("/account/licenses/{license_id}/label")

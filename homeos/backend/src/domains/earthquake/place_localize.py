@@ -13,6 +13,8 @@ import asyncio
 import logging
 import math
 import re
+import time
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -25,6 +27,11 @@ PLACE_ZH_LOOKUP_TIMEOUT_MS = 4_000
 PLACE_ZH_MAX_LOOKUPS = 40
 #: 并发查询数
 PLACE_ZH_CONCURRENCY = 4
+#: 进程内地名缓存上限（LRU）
+PLACE_ZH_CACHE_MAX_ENTRIES = 512
+#: 正向结果缓存 24h；负向结果（无中文/上游失败）只缓存 5min，给网络恢复留余地
+PLACE_ZH_POSITIVE_TTL_SECONDS = 24 * 60 * 60
+PLACE_ZH_NEGATIVE_TTL_SECONDS = 5 * 60
 
 #: BigDataCloud 反向地理编码 API 地址（首选）
 BIGDATACLOUD_REVERSE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client"
@@ -32,6 +39,30 @@ BIGDATACLOUD_REVERSE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-cl
 NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 
 _CJK_RE = re.compile(r"[\u3400-\u9fff]")
+
+# 进程级反向地理编码缓存：结果与无结果都缓存，避免每轮震情刷新重复打上游。
+# 事件循环内只做同步 dict 操作，无 await，因此无需额外锁。
+_PLACE_ZH_CACHE: OrderedDict[str, tuple[str | None, float]] = OrderedDict()
+
+
+def _place_cache_get(key: str) -> tuple[str | None, bool]:
+    entry = _PLACE_ZH_CACHE.get(key)
+    if entry is None:
+        return None, False
+    value, expires_at = entry
+    if expires_at <= time.monotonic():
+        _PLACE_ZH_CACHE.pop(key, None)
+        return None, False
+    _PLACE_ZH_CACHE.move_to_end(key)
+    return value, True
+
+
+def _place_cache_set(key: str, value: str | None) -> None:
+    ttl = PLACE_ZH_POSITIVE_TTL_SECONDS if value else PLACE_ZH_NEGATIVE_TTL_SECONDS
+    _PLACE_ZH_CACHE[key] = (value, time.monotonic() + ttl)
+    _PLACE_ZH_CACHE.move_to_end(key)
+    while len(_PLACE_ZH_CACHE) > PLACE_ZH_CACHE_MAX_ENTRIES:
+        _PLACE_ZH_CACHE.popitem(last=False)
 
 
 @dataclass
@@ -166,8 +197,14 @@ async def _resolve_place_zh(
     if key in memory_cache:
         return memory_cache[key]
 
+    cached, found = _place_cache_get(key)
+    if found:
+        memory_cache[key] = cached
+        return cached
+
     remote = await lookup_place_zh_remote(deps, latitude, longitude)
     memory_cache[key] = remote
+    _place_cache_set(key, remote)
     return remote
 
 

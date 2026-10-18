@@ -119,11 +119,23 @@ export function usePaginatedEntityList({
   watch([domain, debouncedSearch], () => {
     page.value = 1
   })
-  // 任意过滤条件变化触发拉取（deep 监听 filter/roomAreaId 的对象变化）
-  watch([domain, debouncedSearch, page, () => filter?.value, () => roomAreaId?.value], fetchPage, {
-    immediate: true,
-    deep: true,
-  })
+  // 任意过滤条件变化触发拉取。
+  // 逐字段订阅而不是 deep 监听 filter 对象：fetchPage 只读取下面四个字段，字段级 getter
+  // 同时覆盖「整体替换 filter」和「原地改字段」两种写法，且无需在每次变化时深遍历对象。
+  watch(
+    [
+      domain,
+      debouncedSearch,
+      page,
+      () => filter?.value.status,
+      () => filter?.value.room,
+      () => filter?.value.sort,
+      () => filter?.value.controllableOnly,
+      () => roomAreaId?.value,
+    ],
+    fetchPage,
+    { immediate: true },
+  )
 
   return {
     items,

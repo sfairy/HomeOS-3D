@@ -154,8 +154,11 @@ export const useCatalogStore = defineStore("catalog", () => {
     return features.value;
   }
 
+  /** 并发调用（多个页面同时 ensureLoaded）共用一个请求，避免重复打 /products。 */
+  let loading: Promise<StoreProduct[]> | null = null;
+
   /** 商品是页面主数据；功能码目录失败只降级文案，不阻断商品。 */
-  async function load() {
+  async function loadOnce() {
     const [productsResult, featuresResult] = await Promise.allSettled([
       loadProducts(),
       loadFeatures(),
@@ -166,6 +169,15 @@ export const useCatalogStore = defineStore("catalog", () => {
     }
     if (productsResult.status === "rejected") throw productsResult.reason;
     return products.value;
+  }
+
+  function load(): Promise<StoreProduct[]> {
+    if (!loading) {
+      loading = loadOnce().finally(() => {
+        loading = null;
+      });
+    }
+    return loading;
   }
 
   async function ensureLoaded() {

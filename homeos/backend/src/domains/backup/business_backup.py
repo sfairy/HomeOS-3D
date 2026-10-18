@@ -921,6 +921,11 @@ class BackupCoordinator:
         async with self._lock:
             return await durable_work(function, *args, **kwargs)
 
+    async def wait_idle(self) -> None:
+        """等待正在执行的备份/恢复作业结束（停机释放数据库前用）。"""
+        async with self._lock:
+            return
+
     def cleanup_startup(self) -> None:
         settings = self.app.state.settings
         work = settings.data_dir / "backup-work"
@@ -947,6 +952,37 @@ class BackupCoordinator:
             job = self.jobs.pop(ticket, None)
             if job:
                 self.cleanup_job(job.get("directory"))
+
+    async def cleanup_job_async(self, directory: Path | None) -> None:
+        """``cleanup_job`` 的异步版本：目录删除放进 worker 线程，不阻塞事件循环。"""
+        if directory is not None:
+            await asyncio.to_thread(self.cleanup_job, directory)
+
+    async def expire_jobs_async(self) -> None:
+        """``expire_jobs`` 的异步版本：票据在事件循环里出队，磁盘删除进 worker 线程。
+
+        出队必须留在事件循环线程（``jobs`` 由多个请求协程共享，遍历中插入会让
+        ``dict.items()`` 抛 "dictionary changed size during iteration"）；只有
+        ``rmtree`` 这种纯文件系统动作才值得跨线程。
+        """
+        now = time.time()
+        expired = [
+            ticket for ticket, job in list(self.jobs.items()) if job["expiresAt"] <= now
+        ]
+        if not expired:
+            return
+        directories: list[Path | None] = []
+        for ticket in expired:
+            job = self.jobs.pop(ticket, None)
+            if job:
+                directories.append(job.get("directory"))
+        await asyncio.to_thread(self._remove_directories, directories)
+
+    @staticmethod
+    def _remove_directories(directories: list[Path | None]) -> None:
+        for directory in directories:
+            if directory is not None:
+                shutil.rmtree(directory, ignore_errors=True)
 
     def prune_rollbacks(self, keep: int = ROLLBACK_KEEP) -> None:
         """只保留最近若干个**已完成**的还原回退副本，避免磁盘无限增长。
@@ -978,6 +1014,10 @@ class BackupCoordinator:
         finished.sort(key=lambda path: path.stat().st_mtime, reverse=True)
         for stale in finished[max(0, keep):]:
             shutil.rmtree(stale, ignore_errors=True)
+
+    async def prune_rollbacks_async(self, keep: int = ROLLBACK_KEEP) -> None:
+        """``prune_rollbacks`` 的异步版本：目录扫描 + rmtree 放进 worker 线程。"""
+        await asyncio.to_thread(self.prune_rollbacks, keep)
 
 
 __all__ = [

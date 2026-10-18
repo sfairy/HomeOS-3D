@@ -85,6 +85,9 @@ jobs:
           rm -rf dist
           bash ops/ci/build_frontend_verify.sh
 
+      - name: Bundle budget
+        run: bun ops/checks/check_bundle_budget.mjs
+
       # 这两个制品总是上传：本工作流现在只有 workflow_call（docker.yml 发版取用）与手动
       # dispatch 两个入口，两者都需要这份产物。此前用 `github.event_name == 'workflow_dispatch'`
       # 做开关，是为了让 push / PR 那次纯检查不上传 100MB+ 的 dist；push / PR 触发已移除，

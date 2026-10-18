@@ -6,6 +6,7 @@ import {
   GO2RTC_TRANSPORT_NAME,
   type Go2RtcMseTransportHandle,
 } from "@/shared/camera/composables/useGo2RtcMseTransport";
+import { ensureHls, prefetchHlsOnIdle } from "@/shared/camera/hls-loader";
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from "./_shared";
 
 /**
@@ -192,6 +193,10 @@ export async function prewarmCameraMedia(cameraEntityIds: any[] = []) {
         .filter(Boolean),
     ),
   ].slice(0, CAMERA_MAX_SOURCES);
+  // 只有确有待预热的摄像头时才预取 620KB 的 hls.min.js：panel-renderer 传入的列表已按
+  // cameraRecordNeedsHlsPrewarm 过滤，为空即本页没有任何 HLS 摄像头组件，不下发该脚本。
+  if (!uniqueCameraEntityIds.length) return;
+  prefetchHlsOnIdle();
   await Promise.allSettled(
     uniqueCameraEntityIds.map((prewarmEntityId) => resolveCameraStreamSource(prewarmEntityId)),
   );
@@ -606,12 +611,16 @@ export function mountCameraMedia({
   legacyContainerElement.prepend(cameraVideoElement);
 
   const startHlsPlayback = async (playbackGeneration: number) => {
+    // hls.js 脚本按需加载：与流地址换票并行启动，避免首帧多等一个 RTT；失败时按原逻辑走快照/MJPEG。
+    const hlsRuntimePromise = ensureHls();
     try {
       const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId);
       if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration) return;
       legacyContainerElement.dataset.cameraHlsSource = hlsSourceUrl;
       legacyContainerElement.dataset.cameraTransport = "hls";
-      const hlsRuntime = window.Hls as HlsRuntime | undefined;
+      const hlsRuntime = (await hlsRuntimePromise) as HlsRuntime | null;
+      // 脚本加载期间页面可能已隐藏/卸载或已切走传输模式，恢复前必须重新校验。
+      if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration) return;
       if (hlsRuntime?.isSupported?.()) {
         const player = new hlsRuntime({
           lowLatencyMode: true,

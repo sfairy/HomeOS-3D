@@ -380,6 +380,13 @@ class SecurityPanelService:
 
     # 事件历史
     async def get_events(self, event_type: str | None = None, limit: Any = None) -> list[dict[str, Any]]:
+        # 同步 SQLAlchemy 查询放进 worker 线程：面板每 2-5s 轮询一次，直接在事件循环里
+        # 查库会把实时推送/设备控制的调度一起顶住。
+        return await asyncio.to_thread(self._get_events_blocking, event_type, limit)
+
+    def _get_events_blocking(
+        self, event_type: str | None, limit: Any
+    ) -> list[dict[str, Any]]:
         with self._session_factory() as session:
             from .config import load_frontend_config, load_notification_config
 

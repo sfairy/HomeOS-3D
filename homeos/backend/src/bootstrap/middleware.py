@@ -230,7 +230,9 @@ _GZIP_SKIP_PREFIXES = (
 class SelectiveGZipMiddleware:
     """对摄像头/HLS 长连接绕过 GZip，其余路径仍走 Starlette GZipMiddleware。"""
 
-    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compresslevel: int = 9) -> None:
+    #: 压缩级别：9 对 API JSON 只比 5 小约 1–2%，CPU 却高一个数量级；高 QPS 下
+    #: 这是每个响应都要付的阻塞成本，故取 5（对齐 nginx/compression 的常用默认）。
+    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compresslevel: int = 5) -> None:
         self.app = app
         self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
 
@@ -252,7 +254,7 @@ def register_outer_middleware(app: FastAPI, settings: Settings) -> None:
     )
     app.add_middleware(CorsMiddleware)
     # 对齐 Nest ``compression()``：默认阈值 1KB；媒体流必须排除（见 SelectiveGZipMiddleware）。
-    app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024)
+    app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024, compresslevel=5)
     # 对齐 Nest body-parser limit：公共端点 1MB、其余 50MB。
     # 但「其余 50MB」不能一刀切：有些端点的处理器自己就声明了更大的上限（3D 草稿 64MB、
     # 导出包 512MB），门禁不放行的话那些上限永远走不到，用户拿到的是与「文件太大」无关的

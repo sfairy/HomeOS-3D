@@ -13,6 +13,8 @@ import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 const POLL_MS = 4000
 const MAX_CLIENT_LINES = 1500
+// SSE 可能逐行高频推送：攒 50ms 批量落地，降低大列表重渲染次数（视觉上仍即时）
+const APPEND_FLUSH_MS = 50
 
 const LEVEL_OPTIONS: Array<{ id: string; label: string; levels?: RuntimeLogLevel[] }> = [
   { id: 'all', label: '全部' },
@@ -40,6 +42,12 @@ export function useRuntimeLogs(active: () => boolean) {
   let stream: EventSource | null = null
   let inFlight = false
   let streamFailCount = 0
+  // 增量日志的内存缓冲：pending 待落地行、seen 去重集合、retry SSE 重连 timer、disposed 卸载标记
+  let pendingRows: RuntimeLogEntry[] = []
+  let flushTimer: ReturnType<typeof setTimeout> | null = null
+  let seenIds = new Set<number>()
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
+  let disposed = false
 
   const levelParam = computed(() => {
     const opt = LEVEL_OPTIONS.find((o) => o.id === levelFilter.value)
@@ -55,16 +63,67 @@ export function useRuntimeLogs(active: () => boolean) {
     }
   }
 
+  function clearRetryTimer() {
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = null
+    }
+  }
+
+  function flushPending() {
+    if (flushTimer) {
+      clearTimeout(flushTimer)
+      flushTimer = null
+    }
+    if (!pendingRows.length) return
+    const rows = pendingRows
+    pendingRows = []
+    let next = items.value.concat(rows)
+    if (next.length > MAX_CLIENT_LINES) {
+      next = next.slice(-MAX_CLIENT_LINES)
+      // 被裁掉的行不再阻止后续同 id 行落地：按裁剪后的窗口重建去重集合
+      seenIds = new Set(next.map((e) => e.id))
+    }
+    items.value = next
+    const last = next[next.length - 1]
+    if (last?.id) newestId.value = Math.max(newestId.value, last.id)
+  }
+
+  function scheduleFlush() {
+    if (disposed || flushTimer) return
+    flushTimer = setTimeout(() => {
+      flushTimer = null
+      flushPending()
+    }, APPEND_FLUSH_MS)
+  }
+
+  function resetItems() {
+    pendingRows = []
+    seenIds = new Set<number>()
+    items.value = []
+  }
+
   function mergeItems(incoming: RuntimeLogEntry[], mode: 'replace' | 'append') {
     if (mode === 'replace') {
+      // 快照替换：丢弃尚未落地的增量，保持「以服务端快照为准」的语义
+      pendingRows = []
+      if (flushTimer) {
+        clearTimeout(flushTimer)
+        flushTimer = null
+      }
+      seenIds = new Set(incoming.map((e) => e.id))
       items.value = incoming
     } else if (incoming.length) {
-      const seen = new Set(items.value.map((e) => e.id))
-      const next = items.value.slice()
+      let appended = false
       for (const row of incoming) {
-        if (!seen.has(row.id)) next.push(row)
+        if (!row?.id || seenIds.has(row.id)) continue
+        seenIds.add(row.id)
+        pendingRows.push(row)
+        appended = true
+        // 立即推进 newestId，避免 50ms 窗口内 afterId 重复拉取同批日志
+        if (row.id > newestId.value) newestId.value = row.id
       }
-      items.value = next.length > MAX_CLIENT_LINES ? next.slice(-MAX_CLIENT_LINES) : next
+      if (appended) scheduleFlush()
     }
     const last = items.value[items.value.length - 1]
     if (last?.id) newestId.value = Math.max(newestId.value, last.id)
@@ -87,7 +146,7 @@ export function useRuntimeLogs(active: () => boolean) {
       loadError.value = ''
     } catch (e) {
       loadError.value = extractErrorMessage(e)
-      if (!incremental) items.value = []
+      if (!incremental) resetItems()
     } finally {
       loading.value = false
       inFlight = false
@@ -111,11 +170,13 @@ export function useRuntimeLogs(active: () => boolean) {
   function stopLive() {
     stopPoll()
     stopStream()
+    clearRetryTimer()
     liveMode.value = 'off'
   }
 
   function startPoll() {
     stopPoll()
+    clearRetryTimer()
     if (!live.value || !active()) return
     liveMode.value = 'poll'
     // 经全局调度器轮询：页面隐藏时自动暂停，恢复可见时立即刷新
@@ -182,9 +243,13 @@ export function useRuntimeLogs(active: () => boolean) {
         if (streamFailCount >= 2) {
           startPoll()
         } else {
-          // 短暂后重试 SSE
-          setTimeout(() => {
-            if (live.value && active() && !stream && liveMode.value !== 'poll') startStream()
+          // 短暂后重试 SSE：登记 timer，stopLive/卸载时取消，避免卸载后重连
+          clearRetryTimer()
+          retryTimer = setTimeout(() => {
+            retryTimer = null
+            if (!disposed && live.value && active() && !stream && liveMode.value !== 'poll') {
+              startStream()
+            }
           }, 1500)
         }
       }
@@ -211,7 +276,7 @@ export function useRuntimeLogs(active: () => boolean) {
     if (!ok) return
     try {
       await clearRuntimeLogs()
-      items.value = []
+      resetItems()
       newestId.value = 0
       buffered.value = 0
       chrome.notify('运行日志已清空', 'success')
@@ -253,6 +318,13 @@ export function useRuntimeLogs(active: () => boolean) {
   })
 
   onUnmounted(() => {
+    disposed = true
+    if (flushTimer) {
+      clearTimeout(flushTimer)
+      flushTimer = null
+    }
+    pendingRows = []
+    clearRetryTimer()
     stopLive()
     if (queryTimer) clearTimeout(queryTimer)
   })

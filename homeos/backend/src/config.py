@@ -64,6 +64,18 @@ def _environment_csv(name: str) -> tuple[str, ...]:
     return tuple(item.strip().rstrip("/") for item in value.split(",") if item.strip())
 
 
+def _environment_non_negative_float(name: str, default: float) -> float:
+    """读一个非负浮点环境变量；缺省 / 非法 / 负数一律回落到 ``default``。"""
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = float(value)
+    except ValueError:
+        return default
+    return parsed if parsed >= 0 else default
+
+
 #: 服务器全量备份包目录名（Nest 约定：仓库根 ``backups/``）。
 BACKUP_DIR_NAME = "backups"
 #: 运行目录落在这些名字下时视为「在仓库内运行」，备份目录取其上一级（仓库根）。
@@ -136,6 +148,11 @@ def _license_required_from_env() -> bool:
     return environment_is_production()
 
 
+#: 实时连接（``/ws/runtime``）授权复检结果的缓存窗口（秒）。
+#: 稳态下出站帧命中缓存、不再查库；真正的吊销收敛延迟 = 该窗口 + 周期复检间隔。
+DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS = 30.0
+
+
 @dataclass(frozen=True)
 class Settings:
     """不可变运行期配置。"""
@@ -181,6 +198,8 @@ class Settings:
     ha_request_timeout_seconds: float = 10.0
     ha_websocket_max_size_bytes: int = 67108864
     ha_reconcile_interval_seconds: int = 1800
+    #: 实时连接（``/ws/runtime``）出站帧复用授权复检结果的秒数。0 = 逐帧权威复检（旧行为）。
+    runtime_access_cache_seconds: float = DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
     credential_key_path_override: Path | None = None
     # 部署对外基地址（反代场景）：来源校验与绝对链接拼接用。
     app_base_url: str = ""
@@ -481,6 +500,9 @@ def load_settings() -> Settings:
             os.getenv("HA_WEBSOCKET_MAX_SIZE_BYTES", str(67108864))
         ),
         ha_reconcile_interval_seconds=int(os.getenv("HA_RECONCILE_INTERVAL_SECONDS", "1800")),
+        runtime_access_cache_seconds=_environment_non_negative_float(
+            "APP_RUNTIME_ACCESS_CACHE_SECONDS", DEFAULT_RUNTIME_ACCESS_CACHE_SECONDS
+        ),
         credential_key_path_override=_environment_path("APP_HA_CREDENTIAL_FILE"),
         app_base_url=os.getenv("APP_BASE_URL", "").strip().rstrip("/"),
         frontend_dir_override=_environment_path("HOMEOS_FRONTEND_DIR"),

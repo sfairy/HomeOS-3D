@@ -619,6 +619,10 @@ class SecurityEmergencyRunnerHelper:
         self._arm = arm
 
     async def load_emergency_layout(self) -> tuple[dict[str, Any], list[str]]:
+        # 紧急求助主路径不能把同步 DB 查询压在事件循环上；读取逻辑整体放 worker 线程。
+        return await asyncio.to_thread(self._load_emergency_layout_blocking)
+
+    def _load_emergency_layout_blocking(self) -> tuple[dict[str, Any], list[str]]:
         try:
             from sqlalchemy import select
 

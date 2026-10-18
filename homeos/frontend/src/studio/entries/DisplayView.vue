@@ -19,7 +19,6 @@ import {
   watch,
 } from "vue";
 import { useRoute } from "vue-router";
-import { loadClassicScript } from "@/studio/platform/useLegacyPage";
 
 const route = useRoute();
 
@@ -83,15 +82,24 @@ let isInactive = false;
  */
 let bootedInActiveCycle = false;
 
-/** 按原始依赖顺序加载引导模块（只求值一次）：boot → startup → hls → display → 安装引导。 */
+/**
+ * 加载引导模块（只求值一次）：boot → startup → display → 安装引导。
+ *
+ * 四个模块都是「零顶层副作用」的纯函数模块（只有 function/const 声明，无 import 期
+ * 读写 DOM/全局），因此 import 的求值顺序没有可观察差异；改成并行拉取可把 4 次串行
+ * 网络往返收敛成 1 次（首屏引导模块 = 首屏关键路径，墙面平板 RTT 明显）。
+ * 对外仍按 boot → startup → display → guide 的顺序组装，boot 调用顺序不变。
+ * hls.min.js 不再阻塞展示引导：相机播放前由 @/shared/camera/hls-loader 按需加载，
+ * 文档含 HLS 摄像头组件时由 renderer 的 prewarm 路径空闲预取。
+ */
 async function ensureModules(): Promise<DisplayModules> {
   if (modules) return modules;
-  const bootModule = await import("@app/display/display-boot");
-  const startupModule = await import("@app/display/display-startup");
-  // hls.min.js 必须在展示页模块之前就位（相机组件的 HLS 播放依赖它）。
-  await loadClassicScript("/static/vendor/hls.js/1.7.3/hls.min.js");
-  const displayModule = await import("@app/display/display");
-  const guideModule = await import("@app/display/apple-install-guide");
+  const [bootModule, startupModule, displayModule, guideModule] = await Promise.all([
+    import("@app/display/display-boot"),
+    import("@app/display/display-startup"),
+    import("@app/display/display"),
+    import("@app/display/apple-install-guide"),
+  ]);
   modules = {
     bootDisplayBoot: bootModule.bootDisplayBoot,
     teardownDisplayBoot: bootModule.teardownDisplayBoot,

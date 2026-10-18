@@ -80,9 +80,103 @@ def component_properties(database, project_id: str | None, component_id: str | N
     return component.get('properties', {}) if component else {}
 
 
+#: 场景快照 JSON 的解析缓存：键为 (路径, mtime_ns, size)，按文件变化自动失效。
+#: 控制链路在线程池里解析，控制请求只读消费；会修改返回值的 GET 路由仍走
+#: load_scene_document 的独立解析，避免污染缓存。
+_SCENE_DOCUMENT_CACHE_LIMIT = 8
+_scene_document_cache: dict[tuple[str, int, int], dict] = {}
+
+
+def _load_scene_document_cached(request: Request, scene_id: str) -> dict:
+    """读场景快照并缓存解析结果；返回的 dict 只读，调用方不得修改。"""
+    path = scene_path(request, scene_id)
+    try:
+        stat = path.stat()
+    except OSError as error:
+        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。') from error
+    key = (str(path), stat.st_mtime_ns, stat.st_size)
+    cached = _scene_document_cache.get(key)
+    if cached is not None:
+        return cached
+    try:
+        command = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as error:
+        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。') from error
+    if not isinstance(command, dict):
+        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。')
+    if len(_scene_document_cache) >= _SCENE_DOCUMENT_CACHE_LIMIT:
+        _scene_document_cache.clear()
+    _scene_document_cache[key] = command
+    return command
+
+
 def scene_snapshot(request: Request, database, scene_id: str) -> dict:
-    snapshot = load_scene_document(request, scene_id)
+    snapshot = _load_scene_document_cached(request, scene_id)
     return current_scene_payload(request, database, scene_id, snapshot)['scene']
+
+
+def _read_component_properties(request: Request, project_id: str | None, component_id: str | None) -> dict:
+    """线程内独立开库读取草稿属性；不把请求级 Session 带到线程池。"""
+    with request.app.state.database.session_factory() as database:
+        return component_properties(database, project_id, component_id)
+
+
+def _read_scene_snapshot(request: Request, scene_id: str) -> dict:
+    with request.app.state.database.session_factory() as database:
+        return scene_snapshot(request, database, scene_id)
+
+
+def _read_entity_device_id(request: Request, connection_id: str, entity_id: str, domain: str) -> str | None:
+    if not entity_id:
+        return None
+    with request.app.state.database.session_factory() as database:
+        entity = database.scalar(
+            select(HAEntity).where(
+                HAEntity.connection_id == connection_id,
+                HAEntity.entity_id == entity_id,
+                HAEntity.domain == domain,
+                HAEntity.sync_status == 'active',
+                HAEntity.disabled_by.is_(None),
+            )
+        )
+        return entity.device_id if entity is not None else None
+
+
+def _read_connection_and_entity(request: Request, entity_id: str, domain: str):
+    """一次线程内读连接 + 目标实体；ORM 对象在会话外使用前已 expunge。"""
+    with request.app.state.database.session_factory() as database:
+        connection = active_connection(database)
+        entity = None
+        if connection is not None:
+            entity = database.scalar(
+                select(HAEntity).where(
+                    HAEntity.connection_id == connection.id,
+                    HAEntity.entity_id == entity_id,
+                    HAEntity.domain == domain,
+                    HAEntity.sync_status == 'active',
+                    HAEntity.disabled_by.is_(None),
+                )
+            )
+            if entity is not None:
+                database.expunge(entity)
+            database.expunge(connection)
+        return connection, entity
+
+
+async def component_properties_async(request: Request, project_id: str | None, component_id: str | None) -> dict:
+    return await run_in_threadpool(_read_component_properties, request, project_id, component_id)
+
+
+async def scene_snapshot_async(request: Request, scene_id: str) -> dict:
+    return await run_in_threadpool(_read_scene_snapshot, request, scene_id)
+
+
+async def active_connection_and_entity_async(request: Request, entity_id: str, domain: str):
+    return await run_in_threadpool(_read_connection_and_entity, request, entity_id, domain)
+
+
+async def primary_entity_device_id_async(request: Request, connection_id: str, entity_id: str, domain: str):
+    return await run_in_threadpool(_read_entity_device_id, request, connection_id, entity_id, domain)
 
 class Interaction3dControlRequest(HAServiceCallRequest):
     project_id: str = Field(default='', alias='projectId', max_length=128)
@@ -366,7 +460,7 @@ async def water_heater_capabilities(
         database: DatabaseSession,
         viewer: LicensedViewer):
     """气候和热水器数值使用 HA 配置的显示单位。"""
-    require_access(request)
+    await run_in_threadpool(require_access, request)
     connection = active_connection(database)
     if connection is None:
         return {'temperatureUnit': None}
@@ -583,6 +677,8 @@ def _require_environment_binding_model(
         if flags.generic_device:
             from .device import require_device_model
 
+            if owner is None:
+                raise ValueError('设备绑定缺失。')
             profile = next(profile for profile, binding in scope.generic_bindings if binding is owner)
             require_device_model(owner, scene, profile['model_type'])
         elif flags.is_airer:
@@ -679,30 +775,21 @@ async def _control_extra_environment_entity(
                     raise HTTPException(403, detail='此实体不属于当前绑定设备，请重新选择。')
             else:
                 primary_id = owner.get('entityId', '')
-                primary_entity = (
-                    database.scalar(
-                        select(HAEntity).where(
-                            HAEntity.connection_id == connection.id,
-                            HAEntity.entity_id == primary_id,
-                            HAEntity.domain == (
-                                primary_id.split('.')[0]
-                                if flags.is_climate_extra and owner.get('climateType') == 'bath-heater'
-                                else 'climate'
-                                if flags.is_climate_extra
-                                else 'cover'
-                                if flags.is_airer
-                                else 'water_heater'
-                                if flags.is_water_heater
-                                else 'fan'
-                            ),
-                            HAEntity.sync_status == 'active',
-                            HAEntity.disabled_by.is_(None),
-                        )
-                    )
-                    if primary_id
-                    else None
+                primary_domain = (
+                    primary_id.split('.')[0]
+                    if flags.is_climate_extra and owner.get('climateType') == 'bath-heater'
+                    else 'climate'
+                    if flags.is_climate_extra
+                    else 'cover'
+                    if flags.is_airer
+                    else 'water_heater'
+                    if flags.is_water_heater
+                    else 'fan'
                 )
-                if primary_entity is not None and primary_entity.device_id and entity.device_id != primary_entity.device_id:
+                primary_device_id = await primary_entity_device_id_async(
+                    request, connection.id, primary_id, primary_domain
+                )
+                if primary_device_id and entity.device_id != primary_device_id:
                     raise HTTPException(403, detail=f'附加实体已不属于当前{context.name}，请重新绑定。')
             extra = next((extra for extra in owner['extraControls'] if extra.get('entityId') == command.entity_id), None)
             validate_extra_command(extra, command.domain, command.service, command.data, states[0] if states else None)
@@ -725,7 +812,7 @@ async def _control_speaker(
     if command.domain != 'media_player' or not command.project_id or not command.component_id:
         raise HTTPException(422, detail='智能音响控制缺少仪表盘、控件或媒体实体信息。')
     require_viewer_project(viewer, command.project_id)
-    properties = component_properties(database, command.project_id, command.component_id)
+    properties = await component_properties_async(request, command.project_id, command.component_id)
     matches = [
         binding
         for binding in properties.get('devices', {}).get('speakers', [])
@@ -735,7 +822,7 @@ async def _control_speaker(
         raise HTTPException(403, detail='此媒体实体未绑定到当前智能音响。')
     scene_id = properties.get('sceneId', '')
     try:
-        scene = scene_snapshot(request, database, scene_id)
+        scene = await scene_snapshot_async(request, scene_id)
         valid = _scene_has_model(scene, matches, 'speaker')
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
@@ -756,7 +843,7 @@ async def _control_television(
     if not command.project_id or not command.component_id:
         raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
     require_viewer_project(viewer, command.project_id)
-    properties = component_properties(database, command.project_id, command.component_id)
+    properties = await component_properties_async(request, command.project_id, command.component_id)
     bindings = properties.get('devices', {}).get('televisions', [])
     power_command = command.service in {'turn_on', 'turn_off'}
     matches = [
@@ -773,7 +860,7 @@ async def _control_television(
         raise HTTPException(403, detail='此电源实体未配置到当前电视。')
     scene_id = properties.get('sceneId', '')
     try:
-        scene = scene_snapshot(request, database, scene_id)
+        scene = await scene_snapshot_async(request, scene_id)
         valid = _scene_has_model(scene, matches, 'tv')
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
@@ -819,7 +906,7 @@ async def _control_lock(
     if command.domain != 'lock' or not command.project_id or not command.component_id:
         raise HTTPException(422, detail='门锁控制缺少仪表盘或控件信息。')
     require_viewer_project(viewer, command.project_id)
-    properties = component_properties(database, command.project_id, command.component_id)
+    properties = await component_properties_async(request, command.project_id, command.component_id)
     binding = next(
         (
             entry
@@ -832,23 +919,10 @@ async def _control_lock(
         raise HTTPException(403, detail='此门锁未绑定到当前控件。')
     scene_id = properties.get('sceneId', '')
     try:
-        require_lock_model(binding, scene_snapshot(request, database, scene_id))
+        require_lock_model(binding, await scene_snapshot_async(request, scene_id))
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取。') from error
-    connection = active_connection(database)
-    entity = (
-        database.scalar(
-            select(HAEntity).where(
-                HAEntity.connection_id == connection.id,
-                HAEntity.entity_id == command.entity_id,
-                HAEntity.domain == 'lock',
-                HAEntity.sync_status == 'active',
-                HAEntity.disabled_by.is_(None),
-            )
-        )
-        if connection
-        else None
-    )
+    _connection, entity = await active_connection_and_entity_async(request, command.entity_id, 'lock')
     if not entity:
         raise HTTPException(404, detail='门锁实体不存在、已禁用或已失联。')
     if binding.get('deviceId') and entity.device_id != binding['deviceId']:
@@ -870,7 +944,7 @@ async def _control_environment_device(
     if not command.project_id or not command.component_id:
         raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
     require_viewer_project(viewer, command.project_id)
-    properties = component_properties(database, command.project_id, command.component_id)
+    properties = await component_properties_async(request, command.project_id, command.component_id)
     bindings = _environment_declared_bindings(properties, command, flags)
     generic_bindings: list[tuple[dict, dict]] = []
     if flags.generic_device:
@@ -889,7 +963,7 @@ async def _control_environment_device(
         raise HTTPException(403, detail=f'此{name}未配置到当前 3D 交互控件。')
     scene_id = properties.get('sceneId', '')
     try:
-        scene = scene_snapshot(request, database, scene_id)
+        scene = await scene_snapshot_async(request, scene_id)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
 
@@ -910,18 +984,9 @@ async def _control_environment_device(
             raise failures[0]
     else:
         _require_environment_binding_model(command, scene, scope)
-    connection = active_connection(database)
+    connection, entity = await active_connection_and_entity_async(request, command.entity_id, command.domain)
     if connection is None:
         raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
-    entity = database.scalar(
-        select(HAEntity).where(
-            HAEntity.connection_id == connection.id,
-            HAEntity.entity_id == command.entity_id,
-            HAEntity.domain == command.domain,
-            HAEntity.sync_status == 'active',
-            HAEntity.disabled_by.is_(None),
-        )
-    )
     if entity is None:
         raise HTTPException(404, detail=f'{name}实体不存在、已禁用或已失联。')
     states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
@@ -948,7 +1013,8 @@ async def _control_environment_device(
 
 @router.post('/control')
 async def control_light(command: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
-    require_access(request)
+    # 授权校验（license.allows 内部可能开库）不能占住事件循环。
+    await run_in_threadpool(require_access, request)
     if command.device_kind == 'speaker':
         return await _control_speaker(command, request, database, viewer)
     if command.device_kind == 'television' or command.domain == 'media_player':

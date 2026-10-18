@@ -1,6 +1,6 @@
 /** 设备详情页视图模型 —— `views/DeviceDetailView.vue` 的薄壳后端。 */
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchEntity } from '@/services/api/entities'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
@@ -9,10 +9,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { hasEntityControlPopup } from '@/shared/entity/utils/popup-registry.util'
 import { useRouteEntityProjection } from '@/composables/entity/useRouteEntityProjection'
 import { useEntityProjection } from '@/composables/entity/useEntityProjection'
-import {
-  collectIndexedEntityIds,
-  getEntityDisplayName,
-} from '@/shared/entity/utils/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 import {
@@ -111,20 +108,22 @@ export function useDeviceDetailView() {
   })
 
   const relatedEntitiesAll = computed(() => {
-    if (!deviceId.value) return [] as Array<{ id: string; name: string }>
+    // 显式订阅：任意实体写入（状态/属性）都会递增 revision；实体增删直接体现在
+    // toRaw 快照的键集合上；derivedEpoch 兜底派生索引/归属变化。
+    void entitiesStore.entityStateRevision
+    void entitiesStore.derivedEpoch
+    const device = deviceId.value
+    if (!device) return [] as Array<{ id: string; name: string }>
     const matches: Array<{ id: string; name: string }> = []
-    const ids =
-      collectIndexedEntityIds(entitiesStore.domainEntityIndex, { domain: 'all' }) ||
-      Object.keys(entitiesStore.entities)
-    for (const key of ids) {
+    const raw = toRaw(entitiesStore.entities)
+    for (const key of Object.keys(raw)) {
       if (key === entityId.value) continue
-      const devId = entitiesStore.entities[key]?.attributes?.device_id
-      if (devId === deviceId.value) {
-        matches.push({
-          id: key,
-          name: getEntityDisplayName(key, entitiesStore.entities[key]) || key,
-        })
-      }
+      const entity = raw[key]
+      if (entity?.attributes?.device_id !== device) continue
+      matches.push({
+        id: key,
+        name: getEntityDisplayName(key, entity) || key,
+      })
     }
     return matches.sort((a, b) => a.name.localeCompare(b.name, 'zh'))
   })

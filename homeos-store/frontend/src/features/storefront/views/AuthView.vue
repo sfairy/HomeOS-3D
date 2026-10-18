@@ -118,12 +118,18 @@ async function applyVerification(
   result: {
     resendAfter?: number;
     delivered?: boolean;
+    deliveryPending?: boolean;
     deliveryError?: string;
     deliveryMode?: string;
   },
   cooldown: { start: (n: number) => void },
 ) {
   cooldown.start(Number(result.resendAfter) || 120);
+  if (result.deliveryPending) {
+    // 服务端已受理投递（SMTP 发信在响应之后），投递结果还没回来：按成功提示，不误报失败。
+    toast.show("验证码正在发送，请稍后查收邮箱。");
+    return;
+  }
   if (result.delivered === true) {
     toast.show("验证码已发送，请检查邮箱。");
     return;
@@ -151,6 +157,7 @@ async function sendCode(purpose: "register" | "reset") {
     const result = await api<{
       resendAfter?: number;
       delivered?: boolean;
+      deliveryPending?: boolean;
       deliveryError?: string;
       deliveryMode?: string;
     }>("/verifications", { method: "POST", body: JSON.stringify({ email, purpose }) });

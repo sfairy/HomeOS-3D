@@ -2,39 +2,15 @@
  * 与 3D / 0.7.2 mountCameraMedia 对齐：HLS → 12s/致命错误切 MJPEG（无 query）→ 7s 再快照。
  * 不因 hvc1 提前弃 HLS（本机可播 HEVC；HA MJPEG 常为空体）。
  */
-import type HlsJs from 'hls.js'
 import { resolveCameraHlsPlayUrl } from '@/shared/utils/ha/camera-stream.util'
 import { logger } from '@/shared/utils/core/logger'
+import { ensureHls, type HlsCtor } from '@/shared/camera/hls-loader'
 
-type HlsCtor = typeof HlsJs
 type HlsInstance = InstanceType<HlsCtor>
 type TransportMode = 'idle' | 'hls' | 'legacy' | 'snapshot'
 
 const HLS_FALLBACK_MS = 12000
 const MJPEG_PROBE_MS = 7000
-
-function loadClassicHlsScript(): Promise<HlsCtor | null> {
-  const w = window as Window & { Hls?: HlsCtor }
-  if (w.Hls?.isSupported?.()) return Promise.resolve(w.Hls)
-  return new Promise((resolve) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-homeos-hls="1.7.3"]')
-    if (existing) {
-      // 探活用的两个监听都带 `once: true`（触发即自摘），img/video 上的五个已配对摘除（见下方清理）。
-      existing.addEventListener('load', () => resolve(w.Hls?.isSupported?.() ? w.Hls! : null), {
-        once: true,
-      })
-      existing.addEventListener('error', () => resolve(null), { once: true })
-      return
-    }
-    const script = document.createElement('script')
-    script.src = '/static/vendor/hls.js/1.7.3/hls.min.js'
-    script.async = true
-    script.dataset.homeosHls = '1.7.3'
-    script.onload = () => resolve(w.Hls?.isSupported?.() ? w.Hls! : null)
-    script.onerror = () => resolve(null)
-    document.head.appendChild(script)
-  })
-}
 
 type CameraMediaStopFn = () => void
 
@@ -214,7 +190,7 @@ export async function startCameraMediaTransport(
         stop()
       }
     }
-    const Hls = await loadClassicHlsScript()
+    const Hls = await ensureHls()
     if (stopped || gen !== generation || mode !== 'hls') {
       /* 已降级 */
     } else if (!Hls) {

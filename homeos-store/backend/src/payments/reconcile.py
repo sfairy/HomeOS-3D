@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -19,11 +20,18 @@ from ..commerce import fulfill
 from ..commerce.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
 from ..config import StoreSettings
 from ..core.models import Order, Product, StoreSetting, utcnow
+from ..ops import incidents
 from ..payments import PROVIDER_NAMES, normalize_provider_name, resolve_provider
 
 logger = logging.getLogger("src.payments.reconcile")
 
 MIN_QUERY_INTERVAL_SECONDS = 3.0
+
+#: 账号中心订单列表最多当场查单几笔：列表是交互路径，宁可少查几笔也不能让顾客等。
+LIST_RECONCILE_LIMIT = 3
+
+#: 订单列表查单的总预算（秒）；预算内没回来的查单直接放弃，交给后台巡检补账。
+LIST_RECONCILE_BUDGET_SECONDS = 2.0
 
 _MAX_TRACKED_ORDERS = 1024
 
@@ -85,6 +93,58 @@ def _amount_matches(order: Order, node: dict, provider) -> bool:
     return True
 
 
+@dataclass(frozen=True)
+class _QueryOrder:
+    """线程池只需要的订单快照：避免把 ORM 实例带出请求线程。"""
+
+    order_no: str
+
+
+def _query_payment_without_session(
+    provider, settings: StoreSettings, order_no: str
+) -> dict | None:
+    """线程池里的查单探针：只发出 HTTP，绝不碰 ORM 会话或 ORM 实例。
+
+    SQLAlchemy 的 Session 不是线程安全的，所以并发只允许发生在「查单」这一步；
+    金额校验与入账（会写库）一律回到请求线程里串行执行。查单只依赖订单号，
+    线程内用不可变快照，请求结束/会话 expire 都不会影响在途查单。
+    """
+    order = _QueryOrder(order_no=order_no)
+    try:
+        return provider.query_payment(settings, order)
+    except PaymentError as error:
+        logger.warning("主动查单失败 order=%s error=%s", order.order_no, error)
+        return None
+    except Exception:
+        # 探针里的意外异常不能拖垮列表：记下来，剩下的交给后台巡检重试。
+        logger.exception("主动查单出现未预期异常 order=%s", order.order_no)
+        return None
+
+
+def _settle_paid_node(
+    session: Session,
+    *,
+    order: Order,
+    setting: StoreSetting,
+    channel: str,
+    provider,
+    node: dict,
+) -> bool:
+    """把一次已成功查单的结果入账；必须在持有会话的请求线程里调用。"""
+    if not provider.is_success_node(node):
+        return False
+    if not _amount_matches(order, node, provider):
+        return False
+    settle_paid_order(
+        session,
+        order=order,
+        setting=setting,
+        trade_no=provider.trade_no_of(node),
+        source=f"{channel}.query",
+    )
+    return True
+
+
 def reconcile_channel_order(
     session: Session,
     *,
@@ -119,20 +179,99 @@ def reconcile_channel_order(
     if not node:
         return False
 
-    if not provider.is_success_node(node):
-        return False
-
-    if not _amount_matches(order, node, provider):
-        return False
-
-    settle_paid_order(
+    return _settle_paid_node(
         session,
         order=order,
         setting=setting,
-        trade_no=provider.trade_no_of(node),
-        source=f"{channel}.query",
+        channel=channel,
+        provider=provider,
+        node=node,
     )
-    return True
+
+
+def reconcile_pending_orders_bounded(
+    session: Session,
+    *,
+    orders: list[Order],
+    settings: StoreSettings,
+    setting: StoreSetting,
+    limit: int = LIST_RECONCILE_LIMIT,
+    budget_seconds: float = LIST_RECONCILE_BUDGET_SECONDS,
+) -> int:
+    """账号中心订单列表的主动对账：有界并发 + 总预算，返回实际入账笔数。
+
+    列表是交互路径：若对每笔待支付订单串行查单，一笔慢渠道（HTTP 单次默认 15s 超时）
+    就能把响应时间拖到几十秒。这里只并发查最多的 limit 笔、最多等 budget_seconds；
+    预算内没回来的查单直接放弃，订单状态交给既有的 payment_sweep_loop 巡检查单补账。
+    响应字段与排序不变，只是不再保证「每次列表都当场对完所有 pending」。
+    """
+    candidates: list[tuple[Order, str, object]] = []
+    wanted = max(0, int(limit))
+    if wanted <= 0 or not orders:
+        return 0
+    for order in orders:
+        if order.status != "pending":
+            continue
+        channel = normalize_provider_name(order.payment_provider)
+        if channel not in PROVIDER_NAMES:
+            continue
+        provider = _reconcile_provider(settings, setting, channel)
+        if not provider.is_configured(settings):
+            continue
+        if not _allow_query(order.order_no):
+            continue
+        candidates.append((order, channel, provider))
+        if len(candidates) >= wanted:
+            break
+    if not candidates:
+        return 0
+
+    settled = 0
+    executor = ThreadPoolExecutor(
+        max_workers=len(candidates), thread_name_prefix="store-reconcile"
+    )
+    try:
+        futures = {
+            executor.submit(
+                _query_payment_without_session, provider, settings, order.order_no
+            ): (
+                order,
+                channel,
+                provider,
+            )
+            for order, channel, provider in candidates
+        }
+        done, not_done = wait(futures, timeout=max(0.0, float(budget_seconds)))
+        for future in done:
+            order, channel, provider = futures[future]
+            node = future.result()
+            if not node:
+                continue
+            try:
+                if _settle_paid_node(
+                    session,
+                    order=order,
+                    setting=setting,
+                    channel=channel,
+                    provider=provider,
+                    node=node,
+                ):
+                    settled += 1
+            except Exception as error:
+                # 单笔入账失败只影响这一笔：记 incident，列表照常返回。
+                incidents.note("reconcile.poll", order_no=order.order_no, error=error)
+                logger.exception("列表查单入账失败 order=%s", order.order_no)
+        if not_done:
+            # wait() 返回的是 future 集合，订单信息要经 futures 映射回查。
+            logger.info(
+                "订单列表查单超出 %.2fs 预算，%d 笔交给后台巡检 order=%s",
+                budget_seconds,
+                len(not_done),
+                ",".join(futures[future][0].order_no for future in not_done),
+            )
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+    return settled
 
 
 @dataclass

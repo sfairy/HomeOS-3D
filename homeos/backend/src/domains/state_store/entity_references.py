@@ -7,7 +7,9 @@ import json
 import logging
 import re
 import time
-from collections.abc import Callable
+from collections import OrderedDict
+from collections.abc import Callable, Sequence
+from contextlib import AbstractContextManager
 from functools import lru_cache
 from typing import Any, NotRequired, TypedDict
 
@@ -26,6 +28,7 @@ class EntityReference(TypedDict):
     detail: NotRequired[str]
     path: NotRequired[str]
     jumpTo: NotRequired[str]
+    enabled: NotRequired[bool]
 
 
 class UnlinkResult(TypedDict, total=False):
@@ -37,15 +40,20 @@ class UnlinkResult(TypedDict, total=False):
     layoutTouched: bool
 
 
-class EntityReferencesDeps(TypedDict, total=False):
-    """解绑/扫描依赖注入（session / 配置仓库 / layout 读写）。"""
+class EntityReferencesDeps(TypedDict):
+    """解绑/扫描依赖注入（session / 配置仓库 / layout 读写）。
+
+    ``load_layout`` / ``save_layout`` / ``session_factory`` / ``app_config`` /
+    ``ui_config`` 是必备依赖（唯一构造点 ``_deps`` 总是提供）；其余为可选能力，
+    调用方通过 ``deps.get(...)`` 探测。
+    """
 
     session_factory: Any
     app_config: Any
     ui_config: Any
-    alert_rule_watch_index: Any
-    update_home_mode: Callable[[str, dict[str, Any]], Any] | None
-    delete_alert_rule: Callable[[str], Any] | None
+    alert_rule_watch_index: NotRequired[Any]
+    update_home_mode: NotRequired[Callable[[str, dict[str, Any]], Any] | None]
+    delete_alert_rule: NotRequired[Callable[[str], Any] | None]
     load_layout: Callable[[], dict[str, Any]]
     save_layout: Callable[[dict[str, Any]], None]
 
@@ -356,7 +364,9 @@ def _index_home_modes(
             )
 
 
-def build_entity_references_inverted_index(session_factory: object) -> dict[str, list[EntityReference]]:
+def build_entity_references_inverted_index(
+    session_factory: Callable[[], AbstractContextManager[Any]],
+) -> dict[str, list[EntityReference]]:
     """一次扫描本地资源（告警规则 / 家庭模式），构建 entityId → references 倒排索引。
 
     这两张表**不能**加 ``limit``：倒排索引是「删除实体前清引用」的唯一依据，截断意味着
@@ -1333,6 +1343,9 @@ class EntityReferencesService:
 
     REF_CACHE_TTL_MS = 60_000
     INDEX_TTL_MS = 60_000
+    #: 引用结果缓存条目上限。缓存按实体 id 无界增长，实体多/扫描页面多时是常驻泄漏；
+    #: 超限按 LRU 淘汰最久未用的条目（60s TTL 内语义不变）。
+    REF_CACHE_MAX_ENTRIES = 1024
 
     def __init__(
         self,
@@ -1350,7 +1363,7 @@ class EntityReferencesService:
         self._watch_index = alert_rule_watch_index
         self._update_home_mode = update_home_mode
         self._delete_alert_rule = delete_alert_rule
-        self._ref_cache: dict[str, dict[str, Any]] = {}
+        self._ref_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._inverted_index: dict[str, list[EntityReference]] | None = None
         self._inverted_index_at = 0.0
 
@@ -1398,7 +1411,7 @@ class EntityReferencesService:
         self._inverted_index_at = time.monotonic() * 1000
 
     @staticmethod
-    def _to_response(entity_id: str, references: list[dict[str, Any]]) -> dict[str, Any]:
+    def _to_response(entity_id: str, references: Sequence[EntityReference]) -> dict[str, Any]:
         ordered = sorted(
             references,
             key=lambda reference: (str(reference.get("kind") or ""), str(reference.get("name") or "")),
@@ -1416,6 +1429,7 @@ class EntityReferencesService:
 
         cached = self._ref_cache.get(ident)
         if cached and time.monotonic() * 1000 - cached["at"] < self.REF_CACHE_TTL_MS:
+            self._ref_cache.move_to_end(ident)
             return cached["data"]
 
         await self._ensure_inverted_index()
@@ -1426,6 +1440,9 @@ class EntityReferencesService:
 
         references_response = self._to_response(ident, references)
         self._ref_cache[ident] = {"at": time.monotonic() * 1000, "data": references_response}
+        self._ref_cache.move_to_end(ident)
+        while len(self._ref_cache) > self.REF_CACHE_MAX_ENTRIES:
+            self._ref_cache.popitem(last=False)
         return references_response
 
     def _invalidate_reference_index(self) -> None:
