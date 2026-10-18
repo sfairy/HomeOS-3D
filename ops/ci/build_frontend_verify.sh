@@ -30,6 +30,12 @@ bun run build:frontend
 grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
 grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
 test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
+# 第三方插件整棵子树不混淆：public/static/vendor 由 Vite 原样复制，产物必须与源逐字节一致。
+# 混淆会改写标识符与字符串，这里一旦不一致，就等于混淆脚本漏掉了 vendor/。
+if ! diff -rq homeos/frontend/public/static/vendor dist/homeos/frontend/static/vendor; then
+    echo "static/vendor 与源不一致：第三方插件目录必须原样复制，不参与混淆。" >&2
+    exit 1
+fi
 test -f dist/homeos-store/frontend/static/store.css
 test -f dist/homeos-store/frontend/static/store-home.css
 # 首页样式是独立文件：index.html 里必须排在 store.css 之后（同优先级后加载者赢），

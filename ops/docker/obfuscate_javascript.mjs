@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-/** 构建期混淆业务 JavaScript，写入原路径（就地替换）。 */
+/**
+ * 构建期混淆业务 JavaScript，写入原路径（就地替换）。
+ *
+ * `homeos/frontend/public/static/vendor/`（three / hls.js / mdi / meteocons /
+ * meshoptimizer / qrcode-generator）是第三方插件：构建时由 Vite 原样复制到
+ * `dist/<项目>/frontend/static/vendor/`，**整棵子树都不混淆**。它们不是本项目代码，
+ * 混淆只会破坏与上游的一致性（ESM 说明符、sourcemap、许可证正文），没有保护收益。
+ */
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -9,7 +16,12 @@ process.env.CI ??= "1";
 
 const { default: JavaScriptObfuscator } = await import("javascript-obfuscator");
 
-const SKIP_DIR_NAMES = new Set(["vendor", "node_modules", ".git"]);
+/**
+ * 第三方代码目录名。按目录名而不是绝对路径判断：`public/` 会被构建原样搬到
+ * `dist/<项目>/frontend/static/`，路径前缀随 target 变化，目录名不变。
+ */
+const THIRD_PARTY_DIR_NAME = "vendor";
+const SKIP_DIR_NAMES = new Set([THIRD_PARTY_DIR_NAME, "node_modules", ".git"]);
 const SKIP_FILE_SUFFIXES = [".min.js", ".min.mjs"];
 const SKIP_FILE_NAMES = new Set([
   "hls.min.js",
@@ -60,8 +72,9 @@ function shouldSkipFile(filePath) {
   return parts.some((part) => SKIP_DIR_NAMES.has(part));
 }
 
-function listJavaScriptFiles(rootDir) {
-  const results = [];
+/** 递归统计目录下的 .js/.mjs 数量：只用于构建日志里交代跳过了多少第三方文件。 */
+function countJavaScriptFiles(rootDir) {
+  let count = 0;
   const stack = [rootDir];
   while (stack.length) {
     const current = stack.pop();
@@ -74,6 +87,38 @@ function listJavaScriptFiles(rootDir) {
     for (const entry of entries) {
       const fullPath = path.join(current, entry.name);
       if (entry.isDirectory()) {
+        stack.push(fullPath);
+      } else if (entry.isFile() && /\.m?js$/.test(entry.name)) {
+        count += 1;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * 列出待混淆文件，并统计被跳过的第三方目录（`vendor/`）文件数。
+ * 第三方目录整棵子树都不进入 `results`：其中的 .js/.mjs 一律不混淆。
+ */
+function listJavaScriptFiles(rootDir) {
+  const results = [];
+  let thirdPartyFiles = 0;
+  const stack = [rootDir];
+  while (stack.length) {
+    const current = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === THIRD_PARTY_DIR_NAME) {
+          thirdPartyFiles += countJavaScriptFiles(fullPath);
+          continue;
+        }
         if (!SKIP_DIR_NAMES.has(entry.name)) stack.push(fullPath);
         continue;
       }
@@ -83,7 +128,7 @@ function listJavaScriptFiles(rootDir) {
       results.push(fullPath);
     }
   }
-  return results.sort();
+  return { files: results.sort(), thirdPartyFiles };
 }
 
 function looksLikeModule(source) {
@@ -132,8 +177,10 @@ function main() {
     if (!fs.existsSync(root)) {
       throw new Error(`目录不存在: ${root}`);
     }
-    const files = listJavaScriptFiles(root);
-    console.log(`混淆 ${root}（${files.length} 个文件）`);
+    const { files, thirdPartyFiles } = listJavaScriptFiles(root);
+    console.log(
+      `混淆 ${root}（${files.length} 个文件；跳过第三方 ${THIRD_PARTY_DIR_NAME}/ ${thirdPartyFiles} 个）`,
+    );
     for (const filePath of files) {
       const outcome = obfuscateFile(filePath);
       if (outcome.skipped) continue;

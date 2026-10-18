@@ -239,6 +239,52 @@ jobs:
           ACME_EMAIL=ops@example.com STORE_DOMAIN=store.example.com \
             /tmp/caddy validate --config ops/deploy/Caddyfile.public.example --adapter caddyfile
 
+  # 前端纯函数/store 测试（Bun 内置 test，不新增依赖）。3D 保存状态机、document/history
+  # patch、控制域等关键路径都在这里；这些测试不需要浏览器，也不跑 vite。
+  frontend-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install and run frontend tests
+        run: |
+          bun install --frozen-lockfile
+          bun run test:frontend
+
+  # 迁移内核 + 两个后端启动期建库/迁移/自检的单元与集成测试。
+  # 这些测试只依赖运行期依赖（SQLAlchemy 等），不启动 FastAPI，也不连网络。
+  python-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.15'
+
+      - name: Install test dependencies
+        run: pip install -r homeos/backend/requirements.txt -r homeos-store/backend/requirements.txt
+
+      - name: Migration kernel tests
+        run: PYTHONPATH=packages/shared-py python -m unittest discover -s packages/shared-py/tests -v
+
+      - name: HomeOS schema bootstrap tests
+        run: PYTHONPATH=homeos/backend:packages/shared-py python -m unittest discover -s homeos/backend/tests -v
+
+      - name: Store schema bootstrap tests
+        run: PYTHONPATH=homeos-store/backend:packages/shared-py python -m unittest discover -s homeos-store/backend/tests -v
+
   # Python 静态检查（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
   ruff:
     runs-on: ubuntu-24.04
@@ -273,6 +319,12 @@ jobs:
       # （store 两个架构双双失败），排查时还被构建脚本那条会误报的断言带偏过一次。
       - name: Check image import gate
         run: python3 ops/ci/image_imports.py
+
+      # 异步路由里的同步数据库调用：SQLAlchemy 同步引擎会阻塞事件循环，最坏情况下被
+      # 自己的文件锁/写锁卡住整个进程（注册端点曾用 flock 跨 await 持有）。判定全部由
+      # ops/checks/check_async_db.py 完成，这里是唯一的强制入口。
+      - name: Check async DB calls
+        run: python3 ops/checks/check_async_db.py
 
       # 镜像编译的 Cython 兼容性：Cython 自身也会崩（3.3.0 对「带 dict[...] | None 注解
       # 的参数 + or {} 兜底 + 直接 .items()」抛 TypeError），而源码本身合法 —— ruff /
