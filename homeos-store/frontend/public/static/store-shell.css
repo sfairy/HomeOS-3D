@@ -133,6 +133,30 @@ body.hb-store-loading .hb-topbar::after {
   content: "";
 }
 
+/* 能力 / 部署这类「首页锚点」：比主导航轻一档，不与当前页争夺注意力。 */
+.hb-nav__link--anchor {
+  color: var(--hb-muted-dim);
+}
+
+.hb-topbar__support {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  font-size: 12px;
+  transition: var(--hb-transition);
+}
+
+.hb-topbar__support:hover {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
 .hb-topbar__actions {
   display: flex;
   flex: 0 0 auto;
@@ -144,14 +168,6 @@ body.hb-store-loading .hb-topbar::after {
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
-}
-
-/* 商店里一件主授权都没上架时（store.js 在 <html> 上切这个类），
-   注意语义是「完全没上架」，不是「你已买完」。 */
-html.hb-no-base-products .hb-nav__link[data-hb-nav="purchase"],
-html.hb-no-base-products #home-purchase-link,
-html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
-  display: none;
 }
 
 .hb-store-nav-toggle {
@@ -203,12 +219,11 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 .hb-site-footer__inner {
-  display: flex;
-  padding: 26px 24px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  padding: 34px var(--hb-gutter) 22px;
+  grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 0.7fr));
+  align-items: start;
+  gap: 26px;
 }
 
 .hb-site-footer__brand {
@@ -220,38 +235,76 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 .hb-site-footer__brand strong {
   display: block;
   color: var(--hb-ink);
-  font-size: 13.5px;
+  font-size: var(--hb-text-base);
   font-weight: 640;
 }
 
 .hb-site-footer__brand p {
-  margin-top: 3px;
+  max-width: 44ch;
+  margin-top: 4px;
   color: var(--hb-muted);
-  font-size: 12px;
+  font-size: var(--hb-text-sm);
+  line-height: var(--hb-leading-snug);
 }
 
-.hb-site-footer__meta {
+.hb-site-footer__col {
   display: grid;
-  gap: 10px;
-  justify-items: end;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
 }
 
-.hb-site-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+.hb-site-footer__col strong {
+  color: var(--hb-muted-dim);
+  font-family: var(--hb-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--hb-tracking-wider);
+  text-transform: uppercase;
 }
 
-.hb-site-footer__links a {
+.hb-site-footer__col a {
+  width: fit-content;
   color: var(--hb-muted);
-  font-size: 12.5px;
+  font-size: var(--hb-text-sm);
+  line-height: 1.5;
 }
 
-.hb-site-footer__links a:hover {
+.hb-site-footer__col a:hover {
   color: var(--hb-accent-bright);
 }
 
 .hb-site-footer__bottom {
+  display: flex;
+  padding-top: 14px;
+  padding-bottom: 22px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--hb-line-soft);
   color: var(--hb-muted-dim);
   font-size: 11.5px;
+}
+
+@media (max-width: 900px) {
+  .hb-site-footer__inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hb-site-footer__brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .hb-site-footer__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .hb-site-footer__bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
 }

@@ -58,7 +58,37 @@ export interface StoreProduct {
   availableStock?: number | null;
   imageUrl?: string | null;
   packageItems?: PackageItem[];
+  /** 营销档位名；早期种子商品可能为空，展示时要回落到 `name`。 */
+  edition?: string | null;
+  /** 组合商品包含的子商品 id（后台「自定义套餐」用）。 */
+  includedProductIds?: string[];
+  /** 套餐内容在售出后锁定，前端只做提示，不做判定。 */
+  packageContentsLocked?: boolean;
+  /** 已交付订单数；0 表示没有可展示的社会化证明。 */
+  purchaseCount?: number;
+  /** 拥有该商品的客户数。 */
+  customerCount?: number;
   [key: string]: unknown;
+}
+
+/** 功能码目录项（`GET /store/v1/features` 的 `items[]`）。 */
+export interface StoreFeature {
+  code: string;
+  label: string;
+  group: string;
+  groupLabel?: string;
+  description?: string;
+}
+
+/** 功能码分组（`GET /store/v1/features` 的 `groups[]`）。 */
+export interface StoreFeatureGroup {
+  key: string;
+  label: string;
+}
+
+export interface StoreFeatureCatalog {
+  groups: StoreFeatureGroup[];
+  items: StoreFeature[];
 }
 
  interface StorePayment {
@@ -93,18 +123,33 @@ export interface StoreAccount {
 export interface PaymentChannel {
   provider: string;
   displayName?: string;
+  /** 凭据齐全 = 真能收到钱。 */
+  configured?: boolean;
+  /** 凭据齐全且站点开启了支付。 */
   available?: boolean;
   isDefault?: boolean;
+  icon?: string;
+  note?: string;
   [key: string]: unknown;
+}
+
+/** 一键部署命令（站点配置的 `deployScripts[]`）。 */
+export interface StoreDeployScript {
+  label: string;
+  command: string;
 }
 
 export interface StoreSiteConfig {
   siteTitle?: string;
   siteName?: string;
+  description?: string;
   logoUrl?: string;
   announcement?: string;
   maintenanceMode?: boolean;
   maintenanceMessage?: string;
+  supportEmail?: string;
+  deployBaseUrl?: string;
+  deployScripts?: StoreDeployScript[];
   [key: string]: unknown;
 }
 

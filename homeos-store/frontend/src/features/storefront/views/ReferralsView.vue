@@ -251,14 +251,13 @@ async function submitWithdraw() {
       </section>
 
       <section class="referral-stats" aria-label="我的积分">
-        <article v-for="item in stats" :key="item.label" :data-tone="item.tone">
-          <small>{{ item.label }}</small>
-          <strong>{{ item.value.toFixed(2) }}</strong>
-          <small>积分</small>
+        <article v-for="item in stats" :key="item.label" class="hb-stat" :data-tone="item.tone">
+          <span class="hb-stat__label">{{ item.label }}</span>
+          <strong class="hb-stat__value">{{ item.value.toFixed(2) }}<small>积分</small></strong>
         </article>
       </section>
 
-      <section class="hb-block">
+      <section class="hb-panel">
         <div class="hb-section-heading hb-section-heading--compact">
           <h2>积分提现</h2>
         </div>
@@ -274,7 +273,7 @@ async function submitWithdraw() {
         <p role="status">{{ application }}</p>
       </section>
 
-      <section class="hb-block">
+      <section class="hb-panel">
         <div class="referral-history-tabs" role="tablist" aria-label="积分明细与提现记录">
           <button type="button" class="hb-button" :class="kind === 'ledger' ? 'hb-button--primary' : 'hb-button--secondary'" @click="switchHistory('ledger')">积分明细</button>
           <button type="button" class="hb-button" :class="kind === 'withdrawals' ? 'hb-button--primary' : 'hb-button--secondary'" @click="switchHistory('withdrawals')">提现记录</button>
@@ -321,7 +320,7 @@ async function submitWithdraw() {
         </div>
       </section>
 
-      <section class="hb-block referral-guide">
+      <section class="hb-panel hb-panel--quiet referral-guide">
         <details>
           <summary>邀请与提现说明</summary>
           <ol>

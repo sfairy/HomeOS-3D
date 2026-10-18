@@ -60,7 +60,7 @@ from ..core.serializers import (
     device_release_policy,
     product_payload,
 )
-from ..ops import incidents, mail_settings, mailer
+from ..ops import features, incidents, mail_settings, mailer
 from ..ops import site_settings as site_config
 from ..ops.release_sync import select_latest_release as _select_latest_release
 from ..security import password_gate
@@ -130,6 +130,22 @@ def shell_deck(request: Request, session: DbSession, page: str = "store") -> dic
             for (label, text, unit, spark, hook, stamp) in tiles
         ]
     }
+
+
+@router.get("/features")
+def list_features() -> JSONResponse:
+    """公开的功能码目录（商品卡片与首页营销面用）。
+
+    只暴露 ``code / label / group / groupLabel / description``：这些本来就是给顾客看的
+    中文文案。**不含** ``base`` / ``impliedBy`` 之类的授权判定字段 —— 判定只在客户端与服务端
+    的授权链里做，放到公开页面上只会让「哪个码是基础能力」变成两份口径。
+    """
+    payload = features.feature_catalog_payload()
+    response = JSONResponse(payload)
+    # 功能目录随仓库的 feature_codes.json 走，只在发版时变化；5 分钟缓存足以吃掉首页的重复拉取。
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return response
+
 
 @router.get("/products")
 def list_products(session: DbSession) -> dict:

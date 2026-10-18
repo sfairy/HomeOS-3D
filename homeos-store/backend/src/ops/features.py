@@ -44,7 +44,11 @@ MODULE_3D_FEATURES: tuple[str, ...] = tuple(
 
 
 def feature_catalog_payload() -> dict:
-    """后台下拉多选直接渲染这个结构。"""
+    """功能码目录的对外形状（后台下拉多选与商店前台共用）。
+
+    只含 ``code / label / group / groupLabel / description`` —— 全是给人看的中文文案，
+    可以公开下发。授权判定用的 ``base`` / ``impliedBy`` 之类**不进这里**。
+    """
     label_by_key = dict(FEATURE_GROUPS)
     return {
         "groups": [{"key": key, "label": label} for key, label in FEATURE_GROUPS],

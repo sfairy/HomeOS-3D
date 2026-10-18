@@ -148,7 +148,8 @@ homeos-store/
 
 ## 前端约定
 
-- 样式源：`frontend/public/static/` 的顺序是 `store-critical.css`（首屏关键样式）→ `theme.css` → `scene/*.css` → `store-shell.css` → `store.css`，以 `frontend/index.html` 为准；`admin.css` 由 `App.vue` 在后台路由下动态注入，须晚于 `theme.css`。
+- 样式源：`frontend/public/static/` 的顺序是 `store-critical.css`（首屏关键样式）→ `theme.css` → `scene/*.css` → `store-shell.css` → `store.css` → `store-home.css`（仅首页），以 `frontend/index.html` 为准；`admin.css` 由 `App.vue` 在后台路由下动态注入，须晚于 `theme.css`。**顺序是硬约束**：同优先级选择器后加载者赢，插错位置不会报错，只会静默套错样式；`ops/ci/build_frontend_verify.sh` 会断言产物里 `store.css` 早于 `store-home.css`。
+- 设计系统：颜色令牌（`--hb-*`）不重命名、不删除，后台配色覆盖依赖这些名字；尺度令牌（`--hb-space-*` / `--hb-text-*` / `--hb-dur-*`）与共享原语（`.hb-panel` / `.hb-chip` / `.hb-stat` / `.hb-grid` / `.hb-divider` / `.hb-badge`）在 `theme.css` 统一维护。首页文案在 `frontend/src/features/storefront/content/home.ts`，首页数据聚合在 `composables/useHomeView.ts`；商品名称 / 价格 / 包含模块一律取接口，文案只做兜底。
 - 构建：`bun run --cwd homeos-store build` → 工作区根 `dist/homeos-store/frontend/`；`auth-bootstrap` 仍为首屏前 IIFE。
 - 配色注入点：构建后的 `dist/homeos-store/frontend/index.html` 外壳里的 appearance 占位；漏一处会 500（刻意）。
 - 配色令牌名：本目录 `ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 须与前端

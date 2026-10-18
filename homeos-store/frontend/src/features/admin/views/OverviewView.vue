@@ -80,12 +80,12 @@ const REVENUE_WINDOW_LABELS: Record<string, string> = {
 };
 
 const SWEEP_HEALTH_TONE: Record<string, string> = {
-  ok: "hb-tag--success",
-  disabled: "hb-tag--warning",
-  pending: "hb-tag--warning",
-  never: "hb-tag--danger",
-  failing: "hb-tag--danger",
-  stopped: "hb-tag--danger",
+  ok: "success",
+  disabled: "warning",
+  pending: "warning",
+  never: "danger",
+  failing: "danger",
+  stopped: "danger",
 };
 
 interface OverviewJump {
@@ -185,9 +185,9 @@ function humanAge(seconds: unknown) {
 
 const sweepPill = computed(() => {
   const sweep = data.value.paymentSweep;
-  if (!sweep) return { text: "未知", cls: "hb-tag hb-tag--warning" };
-  const tone = SWEEP_HEALTH_TONE[sweep.health || ""] || "hb-tag--warning";
-  return { text: sweep.healthLabel || "未知", cls: `hb-tag ${tone}` };
+  if (!sweep) return { text: "未知", tone: "warning" };
+  const tone = SWEEP_HEALTH_TONE[sweep.health || ""] || "warning";
+  return { text: sweep.healthLabel || "未知", tone };
 });
 
 const sweepDetail = computed(() => {
@@ -226,11 +226,11 @@ const sweepDetail = computed(() => {
 
 const incidentsPill = computed(() => {
   const incidents = data.value.incidents;
-  if (!incidents) return { text: "未知", cls: "hb-tag hb-tag--warning" };
+  if (!incidents) return { text: "未知", tone: "warning" };
   const total = Number(incidents.total || 0);
   return {
     text: total ? `${num(total)} 次` : "无异常",
-    cls: `hb-tag ${total ? "hb-tag--danger" : "hb-tag--success"}`,
+    tone: total ? "danger" : "success",
   };
 });
 
@@ -517,7 +517,7 @@ onMounted(load);
         <div class="hb-card__body">
           <div class="setting-row">
             <div>
-              <strong>支付巡检 <span :class="sweepPill.cls">{{ sweepPill.text }}</span></strong>
+              <strong>支付巡检 <span class="hb-chip" :data-tone="sweepPill.tone">{{ sweepPill.text }}</span></strong>
               <p>{{ sweepDetail }}</p>
             </div>
           </div>
@@ -528,7 +528,7 @@ onMounted(load);
         <div class="hb-card__body">
           <div class="setting-row">
             <div>
-              <strong>入账异常 <span :class="incidentsPill.cls">{{ incidentsPill.text }}</span></strong>
+              <strong>入账异常 <span class="hb-chip" :data-tone="incidentsPill.tone">{{ incidentsPill.text }}</span></strong>
               <p>{{ incidentsDetail }}</p>
             </div>
             <button
@@ -580,7 +580,7 @@ onMounted(load);
                   <td class="is-mono">{{ num(item.stockQuantity) }}</td>
                   <td class="is-mono">{{ num(item.reservedStock) }}</td>
                   <td>
-                    <span class="hb-tag" :class="Number(item.availableStock || 0) <= 0 ? 'hb-tag--danger' : 'hb-tag--warning'">
+                    <span class="hb-chip" :data-tone="Number(item.availableStock || 0) <= 0 ? 'danger' : 'warning'">
                       <b>{{ Number(item.availableStock || 0) }}</b>
                     </span>
                   </td>

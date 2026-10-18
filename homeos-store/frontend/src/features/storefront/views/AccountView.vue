@@ -346,10 +346,10 @@ async function copyCommand(command: string) {
             </button>
           </nav>
           <section class="hb-account-stats" aria-label="账号概览">
-            <article data-tone="accent"><small>我的授权</small><strong>{{ licenses.length }}</strong></article>
-            <article data-tone="aura"><small>已购增量包</small><strong>{{ activeEntitlements.length }}</strong></article>
-            <article data-tone="eco"><small>订单记录</small><strong>{{ orders.length }}</strong></article>
-            <article data-tone="lumen"><small>待支付订单</small><strong>{{ pendingCount }}</strong></article>
+            <article class="hb-stat" data-tone="accent"><span class="hb-stat__label">我的授权</span><strong class="hb-stat__value">{{ licenses.length }}</strong></article>
+            <article class="hb-stat" data-tone="aura"><span class="hb-stat__label">已购增量包</span><strong class="hb-stat__value">{{ activeEntitlements.length }}</strong></article>
+            <article class="hb-stat" data-tone="eco"><span class="hb-stat__label">订单记录</span><strong class="hb-stat__value">{{ orders.length }}</strong></article>
+            <article class="hb-stat" data-tone="lumen"><span class="hb-stat__label">待支付订单</span><strong class="hb-stat__value">{{ pendingCount }}</strong></article>
           </section>
         </aside>
 
@@ -362,7 +362,7 @@ async function copyCommand(command: string) {
                   <div class="hb-account-ident">
                     <div class="hb-account-title">
                       <h3>{{ licenseTitle(item, index) }}</h3>
-                      <span class="hb-meta-chip" :class="`hb-meta-chip--${stateVariant(item)}`">{{ stateText(item) }}</span>
+                      <span class="hb-chip" :data-tone="stateVariant(item)">{{ stateText(item) }}</span>
                     </div>
                     <p v-if="item.userLabel">{{ item.productName }}</p>
                   </div>
@@ -429,7 +429,7 @@ async function copyCommand(command: string) {
                     <div class="hb-account-ident">
                       <div class="hb-account-title">
                         <h3>{{ item.productName }}</h3>
-                        <span class="hb-meta-chip hb-meta-chip--success">{{ entitlementStatus(item) }}</span>
+                        <span class="hb-chip" data-tone="success">{{ entitlementStatus(item) }}</span>
                       </div>
                       <p>{{ item.productType === "module" ? "功能增量包" : "UI 方案包" }}</p>
                     </div>
@@ -450,7 +450,7 @@ async function copyCommand(command: string) {
               </div>
               <div class="hb-addons-grid hb-addons-grid--compact">
                 <article v-for="product in addonOffers" :key="product.id" class="hb-addon-card">
-                  <span class="hb-addon-card__badge">{{ catalog.addonTypeLabel(product) }}</span>
+                  <span class="hb-chip" data-tone="accent">{{ catalog.addonTypeLabel(product) }}</span>
                   <h3>{{ product.name }}</h3>
                   <p>{{ product.displayDescription || product.note || "购买后追加到现有激活码。" }}</p>
                   <div class="hb-addon-card__footer">

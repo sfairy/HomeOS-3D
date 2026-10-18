@@ -336,19 +336,20 @@ loadMeta();
           <td class="nowrap">
             <span
               v-if="order.paymentProvider"
-              class="hb-meta-chip"
-              :class="{ 'hb-meta-chip--warning': !providerKnown(order) }"
+              class="hb-chip"
+              :data-tone="providerKnown(order) ? undefined : 'warning'"
               :title="providerKnown(order) ? String(order.paymentProvider) : `不是当前受支持的渠道：${order.paymentProvider}`"
             >
               {{ providerLabel(order) }}
             </span>
-            <span v-else class="hb-meta-chip" title="这笔订单没有渠道信息">—</span>
+            <span v-else class="hb-chip" title="这笔订单没有渠道信息">—</span>
           </td>
           <td class="nowrap">
             <StatusPill :status="order.status" :label="order.statusLabel" />
             <span
               v-if="order.manualSettlement"
-              class="hb-meta-chip hb-meta-chip--warning"
+              class="hb-chip"
+              data-tone="warning"
               title="人工补记：钱未经渠道确认，不计入营收"
             >人工补记</span>
           </td>

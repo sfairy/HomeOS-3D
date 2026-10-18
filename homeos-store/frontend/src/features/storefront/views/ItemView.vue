@@ -431,8 +431,8 @@ async function share() {
           </div>
           <div class="hb-product-summary__content">
             <div class="hb-product-summary__badges">
-              <span><i class="fa-duotone fa-regular fa-bolt"></i> <b>{{ deliveryLabel }}</b></span>
-              <span class="hb-product-summary__status"><i class="hb-dot"></i>授权服务在线</span>
+              <span class="hb-chip" data-tone="accent"><i class="fa-duotone fa-regular fa-bolt"></i> <b>{{ deliveryLabel }}</b></span>
+              <span class="hb-chip" data-tone="success"><i class="hb-dot"></i>授权服务在线</span>
             </div>
             <h1>{{ product.name }}</h1>
             <p>{{ description }}</p>

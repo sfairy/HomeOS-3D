@@ -11,6 +11,7 @@ interface DeckTile {
 }
 
 const props = defineProps<{ page: string }>();
+const emit = defineEmits<{ loaded: [] }>();
 
 const tiles = ref<DeckTile[]>([]);
 const now = ref(Date.now());
@@ -55,12 +56,17 @@ async function load() {
       `/store/v1/shell/deck?page=${encodeURIComponent(props.page)}`,
       { credentials: "same-origin" },
     );
-    if (!response.ok) return;
+    if (!response.ok) {
+      emit("loaded");
+      return;
+    }
     const data = (await response.json()) as { tiles?: DeckTile[] };
     tiles.value = data.tiles || [];
   } catch {
     tiles.value = [];
   }
+  // 甲板是首屏里最晚撑开布局的一块：消费方需要在这一刻重新对齐 hash 锚点。
+  emit("loaded");
 }
 
 onMounted(async () => {

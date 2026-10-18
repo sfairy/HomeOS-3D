@@ -200,10 +200,59 @@
   /* 尺寸 */
   --hb-topbar-h: 62px;
   --hb-container: 1180px;
+
+  /* ── v2 尺度令牌 ────────────────────────────────────────────────
+     颜色令牌一枚不动（`store-appearance.css` 按名字注入 --hb-*，改名/删名会让
+     管理员配好的配色静默失效）。这里只补与颜色无关的刻度：间距、字阶、行高、
+     字距、节奏、容器宽度与动效时长。 */
+  --hb-space-1: 4px;
+  --hb-space-2: 8px;
+  --hb-space-3: 12px;
+  --hb-space-4: 16px;
+  --hb-space-5: 20px;
+  --hb-space-6: 24px;
+  --hb-space-7: 36px;
+  --hb-space-8: 48px;
+  --hb-space-9: 64px;
+  --hb-space-10: 88px;
+
+  --hb-text-xs: 11px;
+  --hb-text-sm: 12px;
+  --hb-text-base: 13px;
+  --hb-text-md: 14px;
+  --hb-text-lg: 16px;
+  --hb-text-xl: 20px;
+  --hb-text-2xl: 26px;
+  --hb-text-3xl: 34px;
+  --hb-text-display: 46px;
+
+  --hb-leading-tight: 1.18;
+  --hb-leading-snug: 1.42;
+  --hb-leading-normal: 1.62;
+  --hb-leading-relaxed: 1.78;
+
+  --hb-tracking-tight: -0.02em;
+  --hb-tracking-normal: 0;
+  --hb-tracking-wide: 0.08em;
+  --hb-tracking-wider: 0.16em;
+
+  --hb-section-y: 72px;
+  --hb-section-y-sm: 44px;
+
+  --hb-container-wide: 1240px;
+  --hb-container-narrow: 880px;
+  --hb-gutter: 24px;
+
+  --hb-dur-fast: 120ms;
+  --hb-dur: 180ms;
+  --hb-dur-slow: 320ms;
+  --hb-ease-standard: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --hb-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 组件色调开关，默认主控暖金。
-   它是布局钩子。 */
+/* 组件色调开关，默认主控暖金。它是布局钩子：任何挂了 data-tone 的元素都能读
+   --hb-tone* / --hb-grad-tone，共享原语（chip / stat / panel）因此不必各自写分色。 */
+
 [data-tone='accent'] {
   --hb-tone: var(--hb-accent);
   --hb-tone-rgb: var(--hb-accent-rgb);
@@ -274,6 +323,35 @@
   --hb-tone-line: var(--hb-sensor-line);
   --hb-tone-text: var(--hb-sensor-text);
   --hb-grad-tone: var(--hb-grad-sensor);
+}
+
+/* 语义色：状态芯片（授权有效 / 临期 / 停用）与报警面板直接用这四档，
+   不用再为「成功、警告、危险」各写一套 --chip--xxx 变体。 */
+[data-tone='success'] {
+  --hb-tone: var(--hb-success);
+  --hb-tone-rgb: var(--hb-success-rgb);
+  --hb-tone-soft: var(--hb-success-soft);
+  --hb-tone-line: var(--hb-success-line);
+  --hb-tone-text: var(--hb-success-text);
+  --hb-grad-tone: linear-gradient(120deg, var(--hb-success), var(--hb-success-text));
+}
+
+[data-tone='warning'] {
+  --hb-tone: var(--hb-warning);
+  --hb-tone-rgb: var(--hb-warning-rgb);
+  --hb-tone-soft: var(--hb-warning-soft);
+  --hb-tone-line: var(--hb-warning-line);
+  --hb-tone-text: var(--hb-warning-text);
+  --hb-grad-tone: linear-gradient(120deg, var(--hb-warning), var(--hb-warning-text));
+}
+
+[data-tone='danger'] {
+  --hb-tone: var(--hb-danger);
+  --hb-tone-rgb: var(--hb-danger-rgb);
+  --hb-tone-soft: var(--hb-danger-soft);
+  --hb-tone-line: var(--hb-danger-line);
+  --hb-tone-text: var(--hb-danger-text);
+  --hb-grad-tone: linear-gradient(120deg, var(--hb-danger), var(--hb-danger-text));
 }
 
 /* 2. 重置与基础 */
@@ -480,7 +558,7 @@ b {
   width: 100%;
   max-width: var(--hb-container);
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 var(--hb-gutter);
 }
 
 /* 5. 按钮 */
@@ -875,97 +953,7 @@ b {
   padding: 20px;
 }
 
-/* 页面区块：外层留白更松，用于前台的内容段 */
-.hb-block {
-  padding: 26px;
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-lg);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-elev-1);
-}
-
-.hb-block + .hb-block {
-  margin-top: 18px;
-}
-
-/* 8. 徽标 / 胶囊 / 状态点 */
-.hb-tag {
-  display: inline-flex;
-  padding: 3px 10px;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-pill);
-  color: var(--hb-muted);
-  background: rgba(255, 255, 255, 0.04);
-  font-size: 11.5px;
-  font-weight: 620;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-
-.hb-tag--success {
-  border-color: var(--hb-success-line);
-  color: var(--hb-success-text);
-  background: var(--hb-success-soft);
-}
-
-.hb-tag--warning {
-  border-color: var(--hb-warning-line);
-  color: var(--hb-warning-text);
-  background: var(--hb-warning-soft);
-}
-
-.hb-tag--danger {
-  border-color: var(--hb-danger-line);
-  color: var(--hb-danger-text);
-  background: var(--hb-danger-soft);
-}
-
-.hb-tag b {
-  color: inherit;
-  font-weight: 700;
-}
-
-/* 账号中心的状态芯片（授权卡抬头、权益卡抬头各一枚）。变体**必须**写成
-   （0,1,1）规则，颜色会静默退回中性灰。 */
-.hb-meta-chip {
-  display: inline-flex;
-  padding: 3px 9px;
-  align-items: center;
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-pill);
-  color: var(--hb-muted);
-  background: rgba(255, 255, 255, 0.04);
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-
-.hb-meta-chip.hb-meta-chip--success {
-  border-color: var(--hb-success-line);
-  color: var(--hb-success-text);
-  background: var(--hb-success-soft);
-}
-
-.hb-meta-chip.hb-meta-chip--warning {
-  border-color: var(--hb-warning-line);
-  color: var(--hb-warning-text);
-  background: var(--hb-warning-soft);
-}
-
-.hb-meta-chip.hb-meta-chip--danger {
-  border-color: var(--hb-danger-line);
-  color: var(--hb-danger-text);
-  background: var(--hb-danger-soft);
-}
-
-.hb-meta-chip.hb-meta-chip--accent {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
+/* 8. 徽标 / 胶囊 / 状态点（统一走 v2 的 .hb-chip + data-tone） */
 
 /* 霓虹状态点 */
 .hb-dot {
@@ -1045,18 +1033,18 @@ b {
 .hb-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: var(--hb-text-sm);
 }
 
 .hb-table thead th {
   position: sticky;
   z-index: 3;
   top: 0;
-  padding: 10px 14px;
+  padding: var(--hb-space-3) var(--hb-space-4);
   border-bottom: 1px solid var(--hb-line);
   color: var(--hb-muted-dim);
   background: var(--hb-surface-soft);
-  font-size: 11px;
+  font-size: var(--hb-text-xs);
   font-weight: 650;
   letter-spacing: 0.05em;
   text-align: left;
@@ -1065,7 +1053,7 @@ b {
 }
 
 .hb-table tbody td {
-  padding: 11px 14px;
+  padding: var(--hb-space-3) var(--hb-space-4);
   border-bottom: 1px solid var(--hb-line-soft);
   color: var(--hb-ink-soft);
   overflow: hidden;
@@ -1277,16 +1265,9 @@ b {
   opacity: 0.72;
 }
 
-.hb-addon-card__badge {
+/* 商品卡是纵向 flex，芯片默认会被拉满整行；这里把它收回内容宽度。 */
+.hb-addon-card > .hb-chip {
   align-self: flex-start;
-  padding: 3px 10px;
-  border: 1px solid var(--hb-accent-line);
-  border-radius: var(--hb-radius-pill);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
 }
 
 .hb-addon-card h3 {
@@ -1346,7 +1327,257 @@ b {
   object-fit: contain;
 }
 
-/* 15. 可见性开关 */
+/* 15. v2 共享原语（跨页复用）
+   只做结构：面板、网格、间距、芯片、读数、分隔线。颜色一律从既有 --hb-* 派生，
+   需要分色时由 `data-tone` 驱动（与按钮 / 能力卡 / 后台面板同一套语言）。 */
+.hb-panel {
+  position: relative;
+  padding: var(--hb-space-6);
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-1);
+  min-width: 0;
+}
+
+/* 平面版：用在「只是分组」的地方（表单区、列表容器），不叠卡片的厚度 */
+.hb-panel--flat {
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: none;
+}
+
+/* 安静版：只有描边，用于把一整段内容从画布上「圈出来」 */
+.hb-panel--quiet {
+  border-color: var(--hb-line-soft);
+  background: transparent;
+  box-shadow: none;
+}
+
+.hb-panel__head {
+  display: flex;
+  margin-bottom: var(--hb-space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--hb-space-4);
+}
+
+.hb-panel__title {
+  color: var(--hb-ink);
+  font-size: var(--hb-text-lg);
+  font-weight: 650;
+  letter-spacing: var(--hb-tracking-tight);
+}
+
+.hb-panel__note {
+  margin-top: 2px;
+  color: var(--hb-muted);
+  font-size: var(--hb-text-sm);
+  line-height: var(--hb-leading-snug);
+}
+
+/* 网格：列数固定档位 + 一个自动填充档。`minmax(0, 1fr)` 必不可少 —— 默认的
+   min-width:auto 会让长激活码 / 长域名把整列撑破，而不是在卡内换行。 */
+.hb-grid {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+.hb-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hb-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hb-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.hb-grid--auto {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.hb-stack {
+  display: grid;
+  gap: var(--hb-space-3);
+  min-width: 0;
+}
+
+.hb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hb-space-2);
+}
+
+.hb-divider {
+  height: 1px;
+  margin: var(--hb-space-5) 0;
+  border: 0;
+  background: linear-gradient(90deg, var(--hb-line-soft), var(--hb-line), var(--hb-line-soft));
+}
+
+/* 芯片：中性态是灰，挂 data-tone 后取该色调。用于「包含 / 已购 / 需模块」这类
+   一行内的状态词，替代此前每页各写一遍的胶囊。 */
+.hb-chip {
+  display: inline-flex;
+  padding: 3px 10px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: var(--hb-text-xs);
+  font-weight: 620;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.hb-chip[data-tone] {
+  border-color: var(--hb-tone-line);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
+}
+
+.hb-chip--solid {
+  border-color: transparent;
+  color: var(--hb-on-bright);
+  background: var(--hb-grad-tone);
+}
+
+.hb-chip--mono {
+  font-family: var(--hb-font-mono);
+  letter-spacing: var(--hb-tracking-wide);
+  text-transform: uppercase;
+}
+
+/* 徽标：比芯片更「读数感」的短标记（计数、序号、推荐角标），等宽 + 大写 */
+.hb-badge {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hb-tone-line, var(--hb-line-strong));
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-tone-text, var(--hb-accent-bright));
+  background: var(--hb-tone-soft, var(--hb-accent-soft));
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-xs);
+  font-weight: 700;
+  letter-spacing: var(--hb-tracking-wide);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* 读数：一格「标签 + 数字 + 单位」。首页数据条与账号中心统计共用。 */
+.hb-stat {
+  display: grid;
+  padding: var(--hb-space-3) var(--hb-space-4);
+  gap: 2px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  min-width: 0;
+}
+
+.hb-stat__label {
+  color: var(--hb-muted);
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-xs);
+  letter-spacing: var(--hb-tracking-wider);
+  text-transform: uppercase;
+}
+
+.hb-stat__value {
+  color: var(--hb-ink);
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-xl);
+  font-weight: 700;
+  letter-spacing: var(--hb-tracking-tight);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.hb-stat__value small {
+  margin-left: 3px;
+  color: var(--hb-muted);
+  font-family: var(--hb-font);
+  font-size: var(--hb-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--hb-tracking-normal);
+}
+
+.hb-stat[data-tone] .hb-stat__value {
+  color: var(--hb-tone-text);
+}
+
+/* 排版辅助：等宽读数 / 次级小字，避免每页各写 font-family */
+.hb-mono {
+  font-family: var(--hb-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.hb-text-sm {
+  font-size: var(--hb-text-sm);
+  line-height: var(--hb-leading-snug);
+}
+
+.hb-text-xs {
+  color: var(--hb-muted);
+  font-size: var(--hb-text-xs);
+  line-height: var(--hb-leading-snug);
+}
+
+/* 段落头的两个插槽：左侧序号（等宽小字）与右侧补充说明 / 操作，
+   让「一个区块讲一件事」的节奏在长页里保持一致。 */
+.hb-section-head__index {
+  color: var(--hb-accent);
+  font-family: var(--hb-font-mono);
+  font-size: var(--hb-text-xs);
+  font-weight: 700;
+  letter-spacing: var(--hb-tracking-wider);
+}
+
+.hb-section-head__aside {
+  flex: 0 0 auto;
+  color: var(--hb-muted);
+  font-size: var(--hb-text-sm);
+  line-height: var(--hb-leading-snug);
+  text-align: right;
+}
+
+@media (max-width: 1020px) {
+  .hb-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hb-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .hb-grid--2,
+  .hb-grid--3,
+  .hb-grid--4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hb-panel {
+    padding: var(--hb-space-5);
+  }
+
+  .hb-section-head__aside {
+    text-align: left;
+  }
+}
+
+/* 16. 可见性开关 */
 /* auth-bootstrap.js 会在 <html> 上打 hb-auth-hint（读 cookie 的预判），
    store.js 还会在拿到 /auth/me 后再次校准。两处都只加类，不写行内样式。 */
 .hb-auth-only {
@@ -1373,13 +1604,17 @@ html.hb-auth-hint .hb-guest-only {
 
 /* 17. 窄屏 */
 @media (max-width: 1020px) {
-  .hb-container {
-    padding: 0 18px;
+  :root {
+    --hb-gutter: 18px;
   }
-
-    }
+}
 
 @media (max-width: 680px) {
+  :root {
+    --hb-section-y: 48px;
+    --hb-section-y-sm: 32px;
+  }
+
   h1 {
     font-size: 24px;
   }
@@ -1389,8 +1624,8 @@ html.hb-auth-hint .hb-guest-only {
     flex-direction: column;
   }
 
-  .hb-block {
-    padding: 20px 16px;
+  .hb-panel {
+    padding: var(--hb-space-5) var(--hb-space-4);
   }
 
     .hb-dialog__foot--split {

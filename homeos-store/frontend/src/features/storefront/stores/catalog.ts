@@ -1,49 +1,86 @@
-/** 商店前台的商品目录。 */
+/** 商店前台的商品目录与功能码目录。 */
 
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { api } from "@store/shared/api/http";
 import { useSessionStore } from "@store/shared/stores/session";
-import type { StoreProduct } from "@store/shared/types/store";
+import { reportBestEffort } from "@store/shared/utils/best-effort";
+import type {
+  StoreFeature,
+  StoreFeatureCatalog,
+  StoreFeatureGroup,
+  StoreProduct,
+} from "@store/shared/types/store";
 
-export const storePageHref = (path: string) => path;
+/** 主授权：决定基础能力的那一份授权。 */
+const PRIMARY_TYPES: readonly string[] = ["base", "bundle", "edition_full", "package"];
+/** 增量商品：模块包与 UI 方案包。 */
+const ADDON_TYPES: readonly string[] = ["template", "module"];
 
 export const useCatalogStore = defineStore("catalog", () => {
   const products = ref<StoreProduct[]>([]);
+  const features = ref<StoreFeature[]>([]);
+  const featureGroups = ref<StoreFeatureGroup[]>([]);
   const productFilter = ref("all");
   const loaded = ref(false);
+  /** 功能码目录单独记状态：它失败不该让商品目录也当成「没上架」。 */
+  const featuresLoaded = ref(false);
 
   const session = useSessionStore();
 
+  const featureByCode = computed(() => {
+    const map = new Map<string, StoreFeature>();
+    for (const item of features.value) map.set(item.code, item);
+    return map;
+  });
+
+  /** 增量模块（`group === "module"`），顺序沿用 `ops/check/feature_codes.json`。 */
+  const moduleFeatures = computed(() =>
+    features.value.filter((item) => item.group === "module"),
+  );
+
   const primaryProducts = computed(() =>
-    products.value.filter((item) =>
-      ["base", "bundle", "edition_full", "package"].includes(item.productType || ""),
-    ),
+    products.value.filter((item) => PRIMARY_TYPES.includes(item.productType || "")),
   );
 
   const addonProducts = computed(() =>
-    products.value.filter((item) => ["template", "module"].includes(item.productType || "")),
+    products.value.filter((item) => ADDON_TYPES.includes(item.productType || "")),
   );
 
   const availableAddonProducts = computed(() =>
-    addonProducts.value.filter((product) =>
-      session.eligiblePermanentLicenses.some((license) => {
+    addonProducts.value.filter((product) => {
+      const codes = product.featureCodes || [];
+      return session.eligiblePermanentLicenses.some((license) => {
         const owned = new Set(
           session.entitlements
             .filter((item) => item.active && item.licenseId === license.activationCodeId)
             .map((item) => item.featureCode as string)
             .filter(Boolean),
         );
-        return (
-          !(product.featureCodes || []).length ||
-          (product.featureCodes || []).some((code) => !owned.has(code))
-        );
-      }),
-    ),
+        return !codes.length || codes.some((code) => !owned.has(code));
+      });
+    }),
   );
 
+  /**
+   * 功能码 → 可单独购买它的商品。
+   *
+   * 一个增量包只对应一个模块码是当前运营口径；同一码被多个商品覆盖时取目录顺序里
+   * 第一个**在售**的，保证「首页价格」与「商品列表第一张卡」永远一致。
+   */
+  const addonByFeatureCode = computed(() => {
+    const map = new Map<string, StoreProduct>();
+    for (const product of addonProducts.value) {
+      if (product.soldOut) continue;
+      for (const code of product.featureCodes || []) {
+        if (!map.has(code)) map.set(code, product);
+      }
+    }
+    return map;
+  });
+
   function isAddonProduct(product: StoreProduct | null | undefined) {
-    return ["template", "module"].includes(product?.productType || "");
+    return ADDON_TYPES.includes(product?.productType || "");
   }
 
   function isTrialProduct(product: StoreProduct | null | undefined) {
@@ -80,10 +117,54 @@ export const useCatalogStore = defineStore("catalog", () => {
     return products.value.find((item) => item.id === id) || null;
   }
 
-  async function load() {
+  function featureLabel(code: string) {
+    return featureByCode.value.get(code)?.label || code;
+  }
+
+  function featureDescription(code: string) {
+    return featureByCode.value.get(code)?.description || "";
+  }
+
+  /** 某个功能码是否已在当前账号的权益里。游客恒为 false。 */
+  function ownsFeature(code: string) {
+    return session.ownedFeatureCodes.has(code);
+  }
+
+  /** 某个功能码对应的可加购商品（没有单独售卖时返回 null）。 */
+  function productForFeature(code: string) {
+    return addonByFeatureCode.value.get(code) || null;
+  }
+
+  function addonSoldForFeature(product: StoreProduct | null | undefined) {
+    return Boolean(product?.soldOut);
+  }
+
+  async function loadProducts() {
     const data = await api<{ items?: StoreProduct[] }>("/products");
     products.value = data.items || [];
     loaded.value = true;
+    return products.value;
+  }
+
+  async function loadFeatures() {
+    const data = await api<StoreFeatureCatalog>("/features");
+    features.value = data.items || [];
+    featureGroups.value = data.groups || [];
+    featuresLoaded.value = true;
+    return features.value;
+  }
+
+  /** 商品是页面主数据；功能码目录失败只降级文案，不阻断商品。 */
+  async function load() {
+    const [productsResult, featuresResult] = await Promise.allSettled([
+      loadProducts(),
+      loadFeatures(),
+    ]);
+    if (featuresResult.status === "rejected") {
+      // 目录没拉到时模块卡会退化成商品自带的码（原始 code），页面仍可用但可读性变差 —— 留痕。
+      reportBestEffort("功能码目录 /features（本次沿用商品自带的码）", featuresResult.reason);
+    }
+    if (productsResult.status === "rejected") throw productsResult.reason;
     return products.value;
   }
 
@@ -93,11 +174,17 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   return {
     products,
+    features,
+    featureGroups,
     productFilter,
     loaded,
+    featuresLoaded,
+    moduleFeatures,
+    featureByCode,
     primaryProducts,
     addonProducts,
     availableAddonProducts,
+    addonByFeatureCode,
     isAddonProduct,
     isTrialProduct,
     addonTypeLabel,
@@ -105,6 +192,11 @@ export const useCatalogStore = defineStore("catalog", () => {
     primaryProductUnavailable,
     packageContentsText,
     findProduct,
+    featureLabel,
+    featureDescription,
+    ownsFeature,
+    productForFeature,
+    addonSoldForFeature,
     load,
     ensureLoaded,
   };

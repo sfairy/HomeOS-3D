@@ -26,9 +26,34 @@ export const useSiteStore = defineStore("site", () => {
   const maintenanceMessage = computed(
     () => store.value?.maintenanceMessage || "系统正在升级维护，请稍后再试。",
   );
+  const supportEmail = computed(() => {
+    const raw = store.value?.supportEmail;
+    return typeof raw === "string" ? raw.trim() : "";
+  });
+  const description = computed(() => {
+    const raw = store.value?.description;
+    return typeof raw === "string" ? raw.trim() : "";
+  });
+  /** 一键部署命令：站点配置只托管官方 compose 那一条，取第一条即可。 */
+  const deployScripts = computed(() => {
+    const list = store.value?.deployScripts;
+    return Array.isArray(list) ? list.filter((item) => item?.command) : [];
+  });
+  const deployCommand = computed(() => deployScripts.value[0]?.command || "");
   const paymentChannels = computed<PaymentChannel[]>(
     () => (configuration.value?.payment?.channels as PaymentChannel[] | undefined) || [],
   );
+  /** 真正能收款的渠道（凭据齐全 + 站点开启支付）。 */
+  const availableChannels = computed(() =>
+    paymentChannels.value.filter((channel) => channel.available),
+  );
+  const defaultChannel = computed(
+    () =>
+      paymentChannels.value.find((channel) => channel.isDefault) ||
+      availableChannels.value[0] ||
+      null,
+  );
+
 
   async function loadVersion() {
     // /healthz 不在 /store/v1 之下，单独取一次；版本号只用于展示。
@@ -70,7 +95,13 @@ export const useSiteStore = defineStore("site", () => {
     announcement,
     maintenanceMode,
     maintenanceMessage,
+    supportEmail,
+    description,
+    deployScripts,
+    deployCommand,
     paymentChannels,
+    availableChannels,
+    defaultChannel,
     load,
     loadVersion,
   };

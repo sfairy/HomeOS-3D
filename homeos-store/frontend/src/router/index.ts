@@ -2,6 +2,7 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import { serverAuthState } from "@store/shared/stores/session";
+import { hashScrollOffset } from "@store/shared/utils/hash-scroll";
 // 跨域只走域根 barrel：admin 的会话态给后台闸门，storefront 的三个首屏页面给路由表。
 import { useAdminStore } from "@store/features/admin";
 import { StoreLayout, HomeView, AuthView } from "@store/features/storefront";
@@ -78,8 +79,15 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
-    return { top: 0 };
+  // 首页导航与页脚有 `/#home-tiers` 这类锚点：带 hash 时必须滚到目标区块，
+  // 一律 return { top: 0 } 会让「点能力/部署」看起来毫无反应。
+  // vue-router 的 `el` 定位不会读取 CSS 的 scroll-margin-top，所以这里把目标元素
+  // 的 scroll-margin-top 取出来当 `top` 偏移，否则 sticky 顶栏会盖住区块标题。
+  scrollBehavior(to) {
+    if (!to.hash) return { top: 0 };
+    const target = document.querySelector(to.hash);
+    if (!target) return { top: 0 };
+    return { el: to.hash, top: hashScrollOffset(target), behavior: "smooth" };
   },
 });
 

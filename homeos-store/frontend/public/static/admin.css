@@ -189,7 +189,7 @@ body {
   overflow-y: auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
-  padding: 10px 10px 12px;
+  padding: var(--hb-space-2) var(--hb-space-2) var(--hb-space-3);
 }
 
 /* 暗色侧栏上默认的亮色滚动条太抢眼，收成一根细线 */
@@ -488,8 +488,9 @@ body {
   flex: 1 1 auto;
   overflow: auto;
   /* 顶部不留内边距：sticky 表头的吸附位置由滚动容器的 padding-top 决定，
-     留了间距就会在表头上方露出空档，让表格内容从缝里穿过去。 */
-  padding: 0 26px 30px;
+     留了间距就会在表头上方露出空档，让表格内容从缝里穿过去。
+     水平留白用 v2 的 space-6，面板头用同一个值的负边距对齐到通栏。 */
+  padding: 0 var(--hb-space-6) var(--hb-space-7);
   overscroll-behavior: contain;
 }
 
@@ -498,8 +499,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0 10px;
+  gap: var(--hb-space-4);
+  padding: var(--hb-space-3) 0 var(--hb-space-2);
   border-bottom: 1px solid var(--hb-line);
   margin-bottom: 18px;
   position: sticky;
@@ -595,8 +596,8 @@ body {
 .panel-head {
   position: relative;
   display: flex;
-  margin: 0 -26px 20px;
-  padding: 28px 26px 24px;
+  margin: 0 calc(var(--hb-space-6) * -1) 20px;
+  padding: var(--hb-space-6) var(--hb-space-6) var(--hb-space-5);
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
@@ -1635,7 +1636,7 @@ body {
 }
 
 .table-wrap .hb-table tbody td {
-  padding: 11px 14px;
+  padding: var(--hb-space-3) var(--hb-space-4);
 }
 
 /* 悬停时左缘亮起域色条，与前台账号中心 / 邀请记录的列表保持同一套「行选中」语言。
@@ -1673,7 +1674,7 @@ body {
 
 /* 空态由 emptyRow() 注入 */
 .table-empty {
-  padding: 46px 16px;
+  padding: var(--hb-space-8) var(--hb-space-4);
   color: var(--hb-muted);
   font-size: 12.5px;
   text-align: center;
@@ -2629,7 +2630,7 @@ body {
   }
 
   .admin-side .brand {
-    padding: 12px 14px 10px;
+    padding: var(--hb-space-3) var(--hb-space-4) var(--hb-space-2);
   }
 
   /* 导航改为横向换行；display: contents 让分组容器不打断 flex 行 */
@@ -2638,8 +2639,8 @@ body {
     flex: 0 0 auto;
     flex-wrap: wrap;
     overflow: visible;
-    padding: 0 12px 10px;
-    gap: 4px;
+    padding: 0 var(--hb-space-3) var(--hb-space-2);
+    gap: var(--hb-space-1);
   }
 
   .nav-group {
@@ -2668,7 +2669,7 @@ body {
 
   .admin-side a.nav-link {
     margin: 0;
-    padding: 8px 10px;
+    padding: var(--hb-space-2) var(--hb-space-3);
   }
 
   .who {
@@ -2676,19 +2677,48 @@ body {
   }
 
   .admin-side__foot {
-    padding: 10px 12px 12px;
+    padding: var(--hb-space-2) var(--hb-space-3) var(--hb-space-3);
   }
 
-    .admin-main {
-    padding: 0 13px 26px;
+  .admin-main {
+    padding: 0 var(--hb-space-3) var(--hb-space-6);
+  }
+
+  /* 窄屏顶栏改为两行：身份在左、操作在右，各自可换行，避免按钮把主区撑出横向滚动。 */
+  .admin-topbar {
+    flex-wrap: wrap;
+    gap: var(--hb-space-2);
+    margin-bottom: var(--hb-space-4);
+  }
+
+  .admin-topbar__left {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: var(--hb-space-2);
+  }
+
+  .admin-topbar__email {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-topbar__tz {
+    display: none;
+  }
+
+  .admin-topbar__right {
+    flex-wrap: wrap;
+    gap: var(--hb-space-2);
   }
 
   .panel-head {
-    margin: 0 -13px 16px;
-    padding: 22px 13px 19px;
+    margin: 0 calc(var(--hb-space-3) * -1) var(--hb-space-4);
+    padding: var(--hb-space-5) var(--hb-space-3) var(--hb-space-4);
     align-items: flex-start;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--hb-space-3);
   }
 
   /* ::after 已改成 inset:0 + 多层背景，不再有 left/right 可收；

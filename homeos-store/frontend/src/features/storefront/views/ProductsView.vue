@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useCatalogStore, storePageHref } from "@store/features/storefront/stores/catalog";
+import { useCatalogStore } from "@store/features/storefront/stores/catalog";
 import { useSessionStore } from "@store/shared/stores/session";
 import { formatCents as money } from "@store/shared/utils/money";
 import type { StoreProduct } from "@store/shared/types/store";
@@ -54,7 +54,7 @@ function upgradeId() {
 }
 
 function productHref(product: StoreProduct) {
-  const base = storePageHref(`/item/${encodeURIComponent(product.id)}`);
+  const base = `/item/${encodeURIComponent(product.id)}`;
   const upgrade = upgradeId();
   return upgrade && !catalog.isTrialProduct(product)
     ? `${base}?upgrade=${encodeURIComponent(upgrade)}`
@@ -121,9 +121,10 @@ function addonDescription(product: StoreProduct) {
           v-for="card in visibleCards"
           :key="card.product.id"
           class="hb-addon-card"
+          :data-product-group="card.kind === 'primary' ? card.group : undefined"
           :class="{ 'is-purchased': card.kind === 'primary' && primaryUnavailable(card.product) }"
         >
-          <span class="hb-addon-card__badge">
+          <span class="hb-chip" data-tone="accent">
             {{ card.kind === "primary" ? primaryBadge(card.product) : catalog.addonTypeLabel(card.product) }}
           </span>
           <h3>{{ card.product.name }}</h3>

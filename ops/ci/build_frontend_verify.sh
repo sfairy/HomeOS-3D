@@ -31,6 +31,14 @@ grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
 grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
 test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
 test -f dist/homeos-store/frontend/static/store.css
+test -f dist/homeos-store/frontend/static/store-home.css
+# 首页样式是独立文件：index.html 里必须排在 store.css 之后（同优先级后加载者赢），
+# 漏掉这一条时页面不报错、只是首页静默套用旧样式 —— 只能在产物层断言。
+store_line=$(grep -n '/store-static/store.css' dist/homeos-store/frontend/index.html | head -1 | cut -d: -f1)
+home_line=$(grep -n '/store-static/store-home.css' dist/homeos-store/frontend/index.html | head -1 | cut -d: -f1)
+test -n "$store_line"
+test -n "$home_line"
+test "$store_line" -lt "$home_line"
 test -f dist/homeos/frontend/index.html
 test -f dist/homeos-store/frontend/index.html
 
