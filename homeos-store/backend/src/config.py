@@ -200,6 +200,8 @@ class StoreSettings:
     cookie_secure_mode: str = "auto"
     trusted_proxies: tuple[str, ...] = ()
     session_max_age_seconds: int = DEFAULT_SESSION_MAX_AGE_SECONDS
+    #: 数据库迁移模式：auto（默认）/ check（只检测，有待执行迁移即启动失败）/ off（仅紧急逃生）。
+    schema_mode: str = "auto"
 
     setup_token: str = ""
 
@@ -417,6 +419,7 @@ def _env_core_values() -> dict[str, Any]:
             minimum=60,
             maximum=365 * 24 * 3600,
         ),
+        "schema_mode": (_env_str("STORE_SCHEMA_MODE", "auto") or "auto").strip().lower(),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
     }
 

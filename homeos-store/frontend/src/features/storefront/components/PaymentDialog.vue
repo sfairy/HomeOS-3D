@@ -8,6 +8,10 @@ const order = useOrderStore();
 const confirm = useConfirmStore();
 const dialog = ref<HTMLDialogElement | null>(null);
 const now = ref(Date.now());
+const TITLE_ID = "payment-dialog-title";
+const SCAN_ID = "payment-dialog-scan";
+const NOTE_ID = "payment-dialog-note";
+const DESCRIBED_BY = `${SCAN_ID} ${NOTE_ID}`;
 let timer: number | undefined;
 
 const current = computed(() => order.currentOrder);
@@ -59,13 +63,21 @@ async function refresh() {
 </script>
 
 <template>
-  <dialog ref="dialog" class="hb-dialog hb-payment-dialog" @cancel.prevent="order.closePayment()">
+  <!-- Esc 只收起弹窗、不动订单（@cancel）：取消订单是显式按钮 + 二次确认的动作，
+       键盘误触 Esc 不应该造成关单后果。 -->
+  <dialog
+    ref="dialog"
+    class="hb-dialog hb-payment-dialog"
+    :aria-labelledby="TITLE_ID"
+    :aria-describedby="DESCRIBED_BY"
+    @cancel.prevent="order.closePayment()"
+  >
     <div class="hb-dialog__head">
       <button type="button" class="hb-dialog__close hb-payment-close" aria-label="关闭" @click="order.closePayment()">
         <i class="fa-duotone fa-regular fa-xmark"></i>
       </button>
       <span class="hb-kicker hb-kicker--plain">{{ order.paymentKicker }}</span>
-      <h2>{{ order.paymentTitle }}</h2>
+      <h2 :id="TITLE_ID">{{ order.paymentTitle }}</h2>
       <p>{{ current?.productName }}</p>
     </div>
     <div class="hb-dialog__body">
@@ -73,8 +85,8 @@ async function refresh() {
         <div id="payment-qr">
           <img v-if="order.qrDataUrl" :src="order.qrDataUrl" alt="支付二维码" width="198" height="198" />
         </div>
-        <p class="hb-pay-scan__hint">
-          <i class="fa-duotone fa-regular fa-mobile-notch"></i>
+        <p :id="SCAN_ID" class="hb-pay-scan__hint">
+          <i class="fa-duotone fa-regular fa-mobile-notch" aria-hidden="true"></i>
           <span>{{ order.paymentHint || "打开支付宝「扫一扫」完成付款" }}</span>
         </p>
       </div>
@@ -84,13 +96,14 @@ async function refresh() {
       </div>
       <div class="hb-pay-timer">
         <span class="hb-pay-timer__status">
-          <i class="hb-pay-timer__dot"></i><b>{{ order.paymentStatus }}</b>
+          <i class="hb-pay-timer__dot" aria-hidden="true"></i><b role="status" aria-live="polite">{{ order.paymentStatus }}</b>
         </span>
         <span class="hb-pay-timer__clock">
-          <i class="fa-duotone fa-regular fa-clock"></i><b>{{ countdown }}</b>
+          <!-- 倒计时每秒都在变，不能进 live region（否则读屏会被逐秒播报淹掉），只播报状态行。 -->
+          <i class="fa-duotone fa-regular fa-clock" aria-hidden="true"></i><b aria-live="off">{{ countdown }}</b>
         </span>
       </div>
-      <p class="hb-pay-note">倒计时结束后订单自动关闭，并释放库存和优惠码。</p>
+      <p :id="NOTE_ID" class="hb-pay-note">倒计时结束后订单自动关闭，并释放库存和优惠码。</p>
       <p class="hb-pay-closed">
         这张订单已关闭。如果你刚刚已经付款，请点下方「我已完成支付」再确认一次，付款成功的话激活码会自动补发。
       </p>

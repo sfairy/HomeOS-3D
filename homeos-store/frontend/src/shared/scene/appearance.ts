@@ -1,45 +1,62 @@
+/**
+ * 商店配色的第二处定义只应该有一个真源：public/static/theme.css。
+ *
+ * 所以本模块不再复制任何十六进制：默认值从 :root 的当前计算样式里读，
+ * 只把「管理员自定义的覆盖项」展开成字面量令牌，交给后端写进 /store-appearance.css。
+ * 默认配色保存后是空令牌表 —— 那样 theme.css 永远是唯一真源，
+ * 也不会出现「样式表改了一处、配色面板还写着旧值」的分裂。
+ */
 
-
- type ColorName = "accent" | "lumen" | "aura" | "eco";
+type ColorName = "accent" | "lumen" | "aura" | "eco";
 
 export const CONFIGURABLE: readonly ColorName[] = ["accent", "lumen", "aura", "eco"];
 
- type ShadePair = {
-  bright: string;
-  deep: string;
-};
+type ColorMap = Record<ColorName, string>;
 
- type ColorMap = Record<ColorName, string>;
-
- type ShadeMap = Partial<Record<ColorName, ShadePair>>;
-
- type AppearanceColors = ColorMap & {
-  accentShades?: ShadePair;
-  lumenShades?: ShadePair;
-  auraShades?: ShadePair;
-  ecoShades?: ShadePair;
-};
-
- type Preset = {
+type Preset = {
   id: string;
   label: string;
   hint: string;
-  colors: ColorMap;
-  shades: ShadeMap;
+  readonly colors: ColorMap;
 };
 
-/** 预设配色。 */
+/** 每个色在 theme.css 里的令牌家族后缀（顺序与样式表一致，便于对照）。 */
+const FAMILY_SUFFIXES = ["", "-rgb", "-bright", "-deep", "-soft", "-line", "-text"] as const;
+
+/** 读 :root 上某个自定义属性的当前生效值；无 DOM（构建期 / 单测）时返回空串。 */
+function readAppliedVar(name: string): string {
+  if (typeof document === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** 当前生效的基线令牌（全部来自 theme.css，不含管理员覆盖）。 */
+export function baselineTokens(): Record<string, string> {
+  const tokens: Record<string, string> = {};
+  for (const name of CONFIGURABLE) {
+    for (const suffix of FAMILY_SUFFIXES) {
+      const key = `--hb-${name}${suffix}`;
+      const value = readAppliedVar(key);
+      if (value) tokens[key] = value;
+    }
+  }
+  const hoverGrad = readAppliedVar("--hb-accent-grad-hover");
+  if (hoverGrad) tokens["--hb-accent-grad-hover"] = hoverGrad;
+  return tokens;
+}
+
+/** 预设配色。色值不在 TS 里复制：后台面板渲染预设点阵时读 theme.css 的当前生效值。 */
 export const PRESETS: Preset[] = [
   {
     id: "amber",
     label: "暖居琥珀",
     hint: "全站唯一配色：暖金主控，灯光 / 氛围 / 生态在线各占一束暖光",
-    colors: { accent: "#ffc46a", lumen: "#ff9d4d", aura: "#c9a0ff", eco: "#5fd0a8" },
-    shades: {
-      accent: { bright: "#ffd9a0", deep: "#e09523" },
-      lumen: { bright: "#ffba83", deep: "#c96a1d" },
-      aura: { bright: "#e7d6ff", deep: "#9253e6" },
-      eco: { bright: "#88dcbf", deep: "#3b8e71" },
+    get colors(): ColorMap {
+      return {
+        accent: readAppliedVar("--hb-accent"),
+        lumen: readAppliedVar("--hb-lumen"),
+        aura: readAppliedVar("--hb-aura"),
+        eco: readAppliedVar("--hb-eco"),
+      };
     },
   },
 ];
@@ -47,8 +64,7 @@ export const PRESETS: Preset[] = [
 /** 默认预设 id。 */
 export const DEFAULT_PRESET = "amber";
 
-
-/** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`； */
+/** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`；其余返回 null。 */
 export function normalizeHex(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const value = input.trim().replace(/^#/, "").toLowerCase();
@@ -69,7 +85,7 @@ function rgbTriplet(hex: string): string {
 }
 
 /** 由一个基色推出 `-bright` 与 `-deep`。 */
-function deriveShades(hex: string): ShadePair {
+function deriveShades(hex: string): { bright: string; deep: string } {
   const [r, g, b] = hexToRgb(hex).map((channel) => channel / 255);
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -112,56 +128,44 @@ function deriveShades(hex: string): ShadePair {
   };
 }
 
-
-/** 把四个基色展开成两张样式表要用的字面量令牌表。 */
- function appearanceTokens(colors: Partial<AppearanceColors>): Record<string, string> {
-  const tokens: Record<string, string> = {};
-  for (const name of CONFIGURABLE) {
-    const base = normalizeHex(colors[name]);
-    if (!base) continue;
-    const shadeKey = `${name}Shades` as const;
-    const shades = (colors[shadeKey] as ShadePair | undefined) || deriveShades(base);
-    const bright = normalizeHex(shades.bright) || deriveShades(base).bright;
-    const deep = normalizeHex(shades.deep) || deriveShades(base).deep;
-    const triplet = rgbTriplet(base);
-    tokens[`--hb-${name}`] = base;
-    tokens[`--hb-${name}-rgb`] = triplet;
-    tokens[`--hb-${name}-bright`] = bright;
-    tokens[`--hb-${name}-deep`] = deep;
-    tokens[`--hb-${name}-soft`] = `rgba(${triplet}, 0.13)`;
-    tokens[`--hb-${name}-line`] = `rgba(${triplet}, 0.32)`;
-    tokens[`--hb-${name}-text`] = bright;
-  }
-
-  const accent = normalizeHex(colors.accent);
-  if (accent) {
-    const shades = colors.accentShades || deriveShades(accent);
-    const bright = normalizeHex(shades.bright) || deriveShades(accent).bright;
-    tokens["--hb-accent-grad-hover"] = `linear-gradient(180deg, ${bright}, ${accent})`;
-  }
-  return tokens;
+/**
+ * 一个自定义主控色 → 只包含「主控色家族」的覆盖令牌。
+ *
+ * 三束居家光（lumen / aura / eco）沿用 theme.css：自定义只换主控色，
+ * 这也和后台页面上写给管理员的说明一致。
+ */
+function accentOverrideTokens(accent: string): Record<string, string> {
+  const { bright, deep } = deriveShades(accent);
+  const triplet = rgbTriplet(accent);
+  return {
+    "--hb-accent": accent,
+    "--hb-accent-rgb": triplet,
+    "--hb-accent-bright": bright,
+    "--hb-accent-deep": deep,
+    "--hb-accent-soft": `rgba(${triplet}, 0.13)`,
+    "--hb-accent-line": `rgba(${triplet}, 0.32)`,
+    "--hb-accent-text": bright,
+    "--hb-accent-grad-hover": `linear-gradient(180deg, ${bright}, ${accent})`,
+  };
 }
 
- type ResolveTokensInput = {
+type ResolveTokensInput = {
   presetId?: string;
   accentColor?: string | null;
 };
 
-/** 预设 + 可选的自定义主控色 → 展开好的令牌表。 */
+/**
+ * 预设 + 可选的自定义主控色 → 样式表要用的令牌表。
+ *
+ * 返回对象的**自有属性只有覆盖项**：走 JSON.stringify / Object.entries 得到的就是
+ * 「需要写出去的部分」，保存时不会把 theme.css 的默认值再抄一遍（默认配色存的是空表）；
+ * 而 `tokens['--hb-accent']` 这类读取会顺着原型链拿到基线值，后台预览不会出现空白。
+ */
 export function resolveTokens({ presetId, accentColor }: ResolveTokensInput = {}): Record<string, string> {
-  const preset = PRESETS.find((item) => item.id === presetId) || PRESETS.find((item) => item.id === DEFAULT_PRESET)!;
-  const colors: AppearanceColors = { ...preset.colors };
-  for (const name of CONFIGURABLE) {
-    const shades = preset.shades?.[name];
-    if (shades) {
-      (colors as Record<string, unknown>)[`${name}Shades`] = shades;
-    }
-  }
+  const preset =
+    PRESETS.find((item) => item.id === presetId) ?? PRESETS.find((item) => item.id === DEFAULT_PRESET)!;
   const custom = normalizeHex(accentColor);
-  if (custom && custom !== normalizeHex(preset.colors.accent)) {
-    colors.accent = custom;
-
-    delete colors.accentShades;
-  }
-  return appearanceTokens(colors);
+  const base = normalizeHex(preset.colors.accent);
+  const overrides = custom && custom !== base ? accentOverrideTokens(custom) : {};
+  return Object.assign(Object.create(baselineTokens()), overrides) as Record<string, string>;
 }

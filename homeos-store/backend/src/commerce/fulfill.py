@@ -267,6 +267,27 @@ def _entitlement_for(
     ).first()
 
 
+def _merge_entitlement_window(
+    entry: Entitlement, *, starts_at: datetime, expires_at: datetime | None
+) -> tuple[datetime, datetime | None]:
+    """把本次发放的窗口并进既有权益窗口，返回合并后的 (starts_at, expires_at)。
+
+    两条规则：
+    - 永久不会被限时降级：买过永久版之后再买一个限时增量包，这条权益仍然永久；
+    - 限时叠加而不是重置：既有有效期 + 本次时长，从「既有到期时间」往后顺延，
+      而不是用「现在 + 本次时长」把它截短（重复买同一个月应该是顺延一个月）。
+    """
+    existing_starts = entry.starts_at or starts_at
+    existing_expires = entry.expires_at
+    if expires_at is None:
+        return min(existing_starts, starts_at), None
+    if existing_expires is None:
+        return existing_starts, None
+    duration = max(expires_at - starts_at, timedelta(0))
+    base = max(existing_expires, starts_at)
+    return min(existing_starts, starts_at), base + duration
+
+
 def _apply_grant(
     entry: Entitlement,
     *,
@@ -275,13 +296,20 @@ def _apply_grant(
     expires_at: datetime | None,
     source_order_id: str | None = None,
 ) -> None:
-    """刷新一条既有权益：重新点亮并指向本次发放的商品与有效期。"""
+    """刷新一条既有权益：重新点亮并指向本次发放的商品与有效期。
+
+    有效期走合并口径（见 _merge_entitlement_window），不再无条件覆盖：以前一次
+    限时购买就会把永久权益改回限时，重复购买又把窗口重置到「现在」。
+    """
+    merged_start, merged_expires = _merge_entitlement_window(
+        entry, starts_at=starts_at, expires_at=expires_at
+    )
     entry.active = True
     entry.product_id = product.id
     entry.product_name = product.name
     entry.product_type = product.product_type
-    entry.starts_at = starts_at
-    entry.expires_at = expires_at
+    entry.starts_at = merged_start
+    entry.expires_at = merged_expires
     if source_order_id is not None:
         entry.source_order_id = source_order_id
 
@@ -713,6 +741,8 @@ def _apply_license_action(
         license = session.get(License, order.target_license_id) if order.target_license_id else None
         if license is None:
             raise RuntimeError(f"订单 {order.order_no} 缺少可追加的目标授权。")
+        if not license.active:
+            raise RuntimeError(f"订单 {order.order_no} 的目标授权已作废，不能追加权益。")
         apply_addon_to_license(
             session, order=order, product=product, license=license, customer=customer, now=moment
         )
@@ -720,6 +750,8 @@ def _apply_license_action(
         license = session.get(License, order.target_license_id) if order.target_license_id else None
         if license is None:
             raise RuntimeError(f"订单 {order.order_no} 缺少可升级的目标授权。")
+        if not license.active:
+            raise RuntimeError(f"订单 {order.order_no} 的目标授权已作废，不能升级。")
         upgrade_license_in_place(
             session, order=order, product=product, license=license, customer=customer, now=moment
         )

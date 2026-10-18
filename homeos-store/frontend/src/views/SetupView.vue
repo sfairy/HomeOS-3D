@@ -22,6 +22,25 @@ const showRedirect = ref(false);
  * 只会看到登录屏，用户会以为初始化失败 —— 单独一屏说明。
  */
 const sessionLost = ref(false);
+/**
+ * 初始化状态的三态判定（由服务端 /setup/status 给出，不再由前端猜）：
+ * - checking：还在问服务端；
+ * - open：库中没有管理员，可以初始化（requiresToken 表示这次访问是否必须带引导密钥）；
+ * - initialized：已有管理员，本页只负责跳转；
+ * - unreachable：状态都没读到（服务未起 / 装配异常返回 503），照实说明而不是假装可初始化。
+ */
+type SetupState = "checking" | "open" | "initialized" | "unreachable";
+type SetupStatus = {
+  initialized?: boolean;
+  canInitialize?: boolean;
+  requiresSetupToken?: boolean;
+  setupTokenHint?: string;
+  detail?: string;
+};
+const state = ref<SetupState>("checking");
+const requiresToken = ref(false);
+const statusHint = ref("");
+const statusError = ref("");
 
 function tokenFromFragment() {
   const match = /(?:^|[#&])token=([^&]+)/.exec(location.hash || "");
@@ -51,18 +70,31 @@ onMounted(async () => {
       credentials: "same-origin",
       headers: fragmentToken ? { "X-Setup-Token": fragmentToken } : {},
     });
-    const data = (await response.json()) as { initialized?: boolean };
+    const data = (await response.json().catch(() => ({}))) as SetupStatus;
+    if (!response.ok) {
+      // 服务端暂不能给状态（如 503 装配异常）：既不能装作可初始化，更不能谎报已初始化。
+      state.value = "unreachable";
+      statusError.value = fromResponse(response, data, "无法读取初始化状态，请确认商店服务已启动。").message;
+      return;
+    }
     // 已有管理员：这一页从此刻起**不再提供创建入口**（服务端 `/setup` 本身也已经 302 到
     // `/admin`，这里兜住「客户端直接进 SPA 路由」与「页面已渲染后才完成初始化」两种情形）。
     if (data?.initialized) {
+      state.value = "initialized";
       showRedirect.value = true;
       window.setTimeout(() => {
         window.location.replace("/admin");
       }, 800);
+      return;
     }
+    requiresToken.value = Boolean(data?.requiresSetupToken);
+    statusHint.value = (data?.setupTokenHint || "").trim();
+    state.value = "open";
   } catch (error) {
-    // 可降级：读不到状态就照常让用户尝试初始化，服务端会给出权威判定（409 → 已初始化）。
-    reportBestEffort("初始化状态 /setup/status（仍允许尝试初始化）", error);
+    // 读不到状态：照常允许尝试（服务端仍是权威判定），但要把「读到状态失败」说出来。
+    state.value = "unreachable";
+    statusError.value = "网络错误：读不到初始化状态。请确认商店服务已启动后重试。";
+    reportBestEffort("初始化状态 /setup/status", error);
   }
 });
 
@@ -94,6 +126,13 @@ async function submit() {
     showError("两次输入的密码不一致。");
     return;
   }
+  if (requiresToken.value && !setupToken.value.trim()) {
+    // 本机直连以外必须带引导密钥：先在本地说清楚，别等一次 403 再解释。
+    showError(
+      "当前不是本机直连访问：初始化必须填写服务端启动日志里的引导密钥（SETUP-TOKEN= 行），或用 STORE_SETUP_TOKEN 指定后重启服务。",
+    );
+    return;
+  }
   submitting.value = true;
   try {
     const response = await fetch("/store/v1/setup/admin", {
@@ -122,6 +161,7 @@ async function submit() {
       return;
     }
     if (response.status === 409) {
+      state.value = "initialized";
       showRedirect.value = true;
       window.setTimeout(() => {
         window.location.assign("/admin");
@@ -180,7 +220,32 @@ async function submit() {
         </div>
       </section>
 
-      <section v-else-if="!showRedirect" class="hos-panel hos-rise">
+      <section v-else-if="state === 'checking'" class="hos-panel hos-rise" aria-busy="true">
+        <span class="hos-panel__edge" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+        <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+        <div class="hos-panel__head">
+          <div class="hos-eyebrow-row">
+            <p class="hos-eyebrow">初始化 · 检查中</p>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>只读检查</span>
+          </div>
+          <h1>正在检查初始化状态…</h1>
+          <p class="hos-panel__desc">正在向商店服务确认是否已设置管理员，确认之前不会显示创建入口。</p>
+        </div>
+        <DeckTiles page="setup" />
+        <div class="hos-panel__copy">
+          <div class="hos-panel__meta">
+            <span>不写入任何数据</span>
+            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+            <span>通常不到一秒</span>
+          </div>
+          <p>若长时间停在这里，请确认商店服务已启动，然后刷新本页。</p>
+        </div>
+      </section>
+
+      <section v-else-if="!showRedirect && state !== 'initialized'" class="hos-panel hos-rise">
         <span class="hos-panel__edge" aria-hidden="true"></span>
         <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
         <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
@@ -198,6 +263,7 @@ async function submit() {
           </p>
         </div>
         <DeckTiles page="setup" />
+        <p v-if="state === 'unreachable'" class="hos-msg is-err" role="status">{{ statusError }}</p>
         <form class="hos-form" autocomplete="off" @submit.prevent="submit">
           <div class="hos-row-2">
             <div class="hos-field">
@@ -239,11 +305,33 @@ async function submit() {
           <div class="hos-field">
             <div class="hos-label-row">
               <label for="setup-token">引导密钥</label>
-              <span class="hos-hint">本机访问无需填写 · STORE_SETUP_TOKEN</span>
+              <span class="hos-hint">
+                {{ requiresToken ? "远程访问必填 · STORE_SETUP_TOKEN" : "本机访问无需填写 · STORE_SETUP_TOKEN" }}
+              </span>
             </div>
             <div class="hos-control">
-              <input id="setup-token" v-model="setupToken" type="text" placeholder="从服务启动日志中查找" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              <input
+                id="setup-token"
+                v-model="setupToken"
+                type="text"
+                placeholder="从服务启动日志中查找"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                :required="requiresToken"
+                :aria-required="requiresToken ? 'true' : undefined"
+                aria-describedby="setup-token-policy"
+              />
             </div>
+            <p id="setup-token-policy" class="hos-hint">
+              {{
+                requiresToken
+                  ? statusHint ||
+                    "当前不是本机直连访问：初始化必须填写服务启动日志里的引导密钥（SETUP-TOKEN= 行），或用 STORE_SETUP_TOKEN 指定后重启服务。"
+                  : "从本机 localhost / 127.0.0.1 直接打开本页时无需填写引导密钥。"
+              }}
+            </p>
           </div>
           <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
           <div class="hos-actions">

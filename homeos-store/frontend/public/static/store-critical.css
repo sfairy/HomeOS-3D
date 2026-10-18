@@ -1,6 +1,9 @@
 /*
  * 临界首屏：在长样式表链到达前锁住深色底，避免移动端默认白闪。
  * 取值与 theme.css 的 --hb-sky-deep / --hb-bg 一致，不改设计色。
+ *
+ * 这份内容已经内联进 frontend/index.html 的 <style>（外加首帧呼吸圆环），
+ * 不再作为阻塞 <link> 排在首屏链上；文件保留为「临界层取值」的说明与旧缓存外壳的兜底。
  */
 html {
   color-scheme: dark;

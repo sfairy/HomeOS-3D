@@ -64,16 +64,45 @@ def admin_exists(session) -> bool:
     ) > 0
 
 
+SETUP_TOKEN_HINT = (
+    "启动日志里的 SETUP-TOKEN= 行就是引导密钥；"
+    "也可以用 STORE_SETUP_TOKEN 指定一份后重启服务。"
+)
+SETUP_SERVICE_UNAVAILABLE = "初始化服务未就绪，请重启商店服务后再试。"
+
+
 @router.get("/status", include_in_schema=False)
 def setup_status(request: Request, session: DbSession) -> dict:
-    """检查是否需要初始化管理员。
+    """初始化状态：已初始化 / 可初始化（本机直连，或需引导密钥）/ 服务未就绪。
+
+    以前「没带引导密钥的远程访问者」也会拿到 initialized=true，初始化页于是直接
+    把人送去登录页；而库里其实一个管理员都没有 —— 实例就卡在谁也无法初始化的
+    状态里。现在的口径只有一条：只有库里真有管理员，才叫已初始化。
     """
+    guard = getattr(request.app.state, "setup_guard", None)
+    local_access = bool(guard is not None and guard.has_setup_privilege(request))
     if admin_exists(session):
-        return {"initialized": True}
-    guard = request.app.state.setup_guard
-    if guard.has_setup_privilege(request):
-        return {"initialized": False}
-    return {"initialized": True}
+        return {
+            "initialized": True,
+            "canInitialize": False,
+            "localAccess": local_access,
+            "requiresSetupToken": False,
+            "setupTokenHint": "",
+        }
+    if guard is None:
+        # 装配异常的兜底：宁可报 503 让运维重启，也不能谎报「已初始化」。
+        logger.error("初始化状态不可判定：app.state.setup_guard 缺失")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SETUP_SERVICE_UNAVAILABLE,
+        )
+    return {
+        "initialized": False,
+        "canInitialize": True,
+        "localAccess": local_access,
+        "requiresSetupToken": not local_access,
+        "setupTokenHint": "" if local_access else SETUP_TOKEN_HINT,
+    }
 
 
 def _validate_setup_admin_input(payload: SetupAdminRequest, session: DbSession) -> str:
@@ -184,10 +213,18 @@ def setup_admin(
     request: Request,
     session: DbSession,
 ) -> Response:
-    email = _validate_setup_admin_input(payload, session)
     guard = getattr(request.app.state, "setup_guard", None)
-    if guard is not None:
-        guard.authorize(request, payload.setup_token)
+    if guard is None:
+        # fail-closed：没有守卫就说明应用装配不完整，绝不能当成「本机放行」。
+        logger.error("初始化请求被拒：app.state.setup_guard 缺失（fail-closed）")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=SETUP_SERVICE_UNAVAILABLE,
+        )
+    # 先过守卫、再动输入：未通过引导密钥的调用方不该问出「管理员是否已存在」，
+    # 也不该问出某个邮箱 / 账号名是否已被占用。
+    guard.authorize(request, payload.setup_token)
+    email = _validate_setup_admin_input(payload, session)
 
     existing = session.scalar(select(Account).where(func.lower(Account.email) == email))
     if existing is not None:
@@ -221,8 +258,7 @@ def setup_admin(
     session.flush()
     session.commit()
 
-    if guard is not None:
-        guard.consume()
+    guard.consume()
 
     logger.info("商店管理员初始化成功 username=%s email=%s", payload.username, email)
     response = JSONResponse(

@@ -126,8 +126,19 @@ function breakdown(pointsValue: unknown, percent: unknown) {
   return { cents, fee, net: Math.max(0, cents - fee) };
 }
 
+/**
+ * 把后端的 UTC 时间戳格式化成本地时间。
+ *
+ * 后端统一存 naive UTC、序列化成带 Z 的 ISO 串；万一拿到没有时区后缀的历史数据，
+ * 也要按 UTC 补一个 Z —— 否则浏览器会当成本地时间，在北京时间机器上整体少 8 小时。
+ */
 function formatDate(value: unknown) {
-  return value ? new Date(String(value)).toLocaleString("zh-CN", { hour12: false }) : "—";
+  if (!value) return "—";
+  const text = String(value);
+  const iso = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text) ? text : `${text}Z`;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("zh-CN", { hour12: false });
 }
 
 async function refresh() {

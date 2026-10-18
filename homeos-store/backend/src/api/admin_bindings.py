@@ -107,6 +107,18 @@ def admin_release_binding(
     binding = session.get(DeviceBinding, binding_id)
     if binding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="设备绑定不存在。")
+    if not binding.is_live:
+        # 已经是未绑定状态：不再写第二条释放事件。device_release_events 决定解绑
+        # 冷却窗口，重复写等于把冷却一直往后推。
+        note = (payload.note or "").strip()
+        _audit(
+            session,
+            _admin_actor(admin),
+            "binding.release",
+            binding.id,
+            f"{note}｜已是未绑定状态，未重复记录解绑事件" if note else "已是未绑定状态，未重复记录解绑事件",
+        )
+        return {"bindingId": binding.id, "released": True, "alreadyReleased": True}
     license = session.get(License, binding.license_id)
     account_id = license.account_id if license is not None else None
     binding.active = False
@@ -129,17 +141,33 @@ def admin_release_binding(
 
 @router_extra.delete("/bindings/{binding_id}")
 def admin_delete_binding(binding_id: str, session: DbSession, admin: AdminAccount) -> dict:
-    """物理删除设备绑定记录。
+    """物理删除设备绑定记录；删的是「绑定着设备」的那行时先真正解绑。
     """
     binding = session.get(DeviceBinding, binding_id)
     if binding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="绑定记录不存在。")
     license_id = binding.license_id
     instance_id = binding.instance_id
+    released = bool(binding.is_live)
+    if released:
+        # 删行之前先把「这台设备被解绑了」这件事落库：删掉 live 行却只删行不写事件，
+        # 解绑冷却不会开始，运营侧也查不到这次强制解绑（只有一条 audit 文字）。
+        # 会话与找回凭证靠 device_bindings 上的 ON DELETE CASCADE 一起清掉。
+        binding.active = False
+        binding.released_at = utcnow()
+        license = session.get(License, binding.license_id)
+        session.add(
+            DeviceReleaseEvent(
+                license_id=license_id,
+                account_id=license.account_id if license is not None else None,
+                instance_id=instance_id,
+                source="admin",
+            )
+        )
     session.delete(binding)
     session.flush()
-    _audit(
-        session, _admin_actor(admin), "binding.delete", binding_id,
-        f"授权 {license_id} / 实例 {instance_id}",
-    )
-    return {"id": binding_id, "deleted": True, "licenseId": license_id}
+    detail = f"授权 {license_id} / 实例 {instance_id}"
+    if released:
+        detail = f"{detail}（删除前已强制解绑）"
+    _audit(session, _admin_actor(admin), "binding.delete", binding_id, detail)
+    return {"id": binding_id, "deleted": True, "licenseId": license_id, "released": released}

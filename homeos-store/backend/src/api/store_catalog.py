@@ -39,7 +39,7 @@ from ..ops import site_settings as site_config
 from ..payments.reconcile import reconcile_channel_order
 from ..security import password_gate
 from ..security.security import (
-    iso,
+    iso_z,
     utcnow,
 )
 
@@ -409,5 +409,5 @@ def _withdrawal_payload(withdrawal: ReferralWithdrawal) -> dict:
         "feePercent": money.format_centi(withdrawal.fee_bps).rstrip("0").rstrip("."),
         "netPoints": money.format_centi(withdrawal.net_points_centi),
         "status": withdrawal.status,
-        "createdAt": iso(withdrawal.created_at),
+        "createdAt": iso_z(withdrawal.created_at),
     }

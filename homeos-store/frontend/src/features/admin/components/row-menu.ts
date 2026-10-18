@@ -4,14 +4,21 @@ interface RowMenuHandle {
   root: HTMLElement;
   isOpen: () => boolean;
   open: () => void;
-  close: () => void;
+  close: (options?: { restoreFocus?: boolean }) => void;
 }
 
 const handles: RowMenuHandle[] = [];
 let installed = false;
+let menuSeq = 0;
 
-function closeRowMenus(): void {
-  for (const handle of [...handles]) handle.close();
+/** 每个行菜单一个稳定 id，供 aria-controls 指向浮层（组件内 setup 每实例都会重跑，计数器必须放模块级）。 */
+export function nextRowMenuId(): string {
+  menuSeq += 1;
+  return `row-menu-pop-${menuSeq}`;
+}
+
+function closeRowMenus(options: { restoreFocus?: boolean } = {}): void {
+  for (const handle of [...handles]) handle.close(options);
 }
 
 export function registerRowMenu(handle: RowMenuHandle): () => void {
@@ -54,9 +61,11 @@ function install(): void {
   );
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeRowMenus();
+    if (event.key !== "Escape") return;
+    // Esc 是「取消」：焦点要回到触发按钮，不能丢在页面顶部。
+    closeRowMenus({ restoreFocus: true });
   });
 
-  document.addEventListener("scroll", closeRowMenus, { passive: true, capture: true });
-  window.addEventListener("resize", closeRowMenus, { passive: true });
+  document.addEventListener("scroll", () => closeRowMenus(), { passive: true, capture: true });
+  window.addEventListener("resize", () => closeRowMenus(), { passive: true });
 }

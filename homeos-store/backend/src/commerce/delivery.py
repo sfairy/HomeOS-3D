@@ -7,13 +7,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.database import Database
 from ..core.models import License, Order, utcnow
+from ..core.timeutil import format_local
 from ..ops import incidents, mailer
 from ..ops import site_settings as site_config
 
@@ -21,17 +21,12 @@ logger = logging.getLogger("src.commerce.delivery")
 
 MAX_AUTO_DELIVERY_ATTEMPTS = 3
 
-_CHINA_TZ = timezone(timedelta(hours=8))
-
 
 def _expires_text(license_row: License) -> str:
     """把授权到期时刻渲染成买家看得懂的一句话（北京时间，与支付宝账单同一口径）。"""
-    moment = license_row.access_expires_at
-    if moment is None:
+    if license_row.access_expires_at is None:
         return "永久有效"
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=UTC)
-    return moment.astimezone(_CHINA_TZ).strftime("%Y-%m-%d %H:%M") + "（北京时间）"
+    return format_local(license_row.access_expires_at) + "（北京时间）"
 
 
 def notify_license_issued(

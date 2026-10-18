@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
@@ -16,9 +16,10 @@ from .pem import load_public_key as _parse_public_key
 from .urls import callback_url_check, url_port
 from .urls import validate_callback_url as _validate_callback_url
 from ..commerce import money
+from ..core.timeutil import STORE_TIMEZONE
 from ..payments.base import PaymentError
 
-CHINA_TZ = timezone(timedelta(hours=8))
+CHINA_TZ = STORE_TIMEZONE  # 支付宝接口时间戳固定用北京时间，与商店时区同源
 
 
 def yuan_from_cents(cents: int) -> str:

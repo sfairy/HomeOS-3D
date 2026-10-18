@@ -8,7 +8,9 @@ import hmac
 import re
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
+
+from ..core.timeutil import aware_now
 
 PBKDF2_ITERATIONS = 240_000
 PBKDF2_ALGORITHM = "sha256"
@@ -148,7 +150,7 @@ def code_hash(code: str, salt: str = "") -> str:
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
     """生成订单号：``HOMEOS-<本地时间14位>-<邮箱前缀>-<随机6位>``。
     """
-    moment = now or (datetime.now(UTC) + timedelta(hours=8))
+    moment = now or aware_now()
     local_prefix = "".join(ch for ch in (prefix_email or "").split("@")[0] if ch.isalnum())
     if not local_prefix:
         local_prefix = "customer"

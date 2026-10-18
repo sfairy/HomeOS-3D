@@ -134,6 +134,28 @@ def _drop_account_sessions(session, account_id: str, *, keep_hash: str | None = 
     return removed
 
 
+def _mark_admin_sessions(session, account_id: str) -> int:
+    """给某个账号全部未过期会话打上管理员标记，返回被更新的会话数。
+
+    后台接口（AdminAccount）同时校验账号的 is_admin 与本次会话的
+    is_admin_session。运营显式提权后，用户**已经登录**的会话要在服务端刷新标记，
+    否则他得退出重登才看得见后台入口——「刚给了权限却进不去」。
+    """
+    moment = utcnow()
+    records = list(
+        session.scalars(
+            select(AccountSession).where(
+                AccountSession.account_id == account_id,
+                AccountSession.expires_at > moment,
+                AccountSession.is_admin_session.is_(False),
+            )
+        )
+    )
+    for record in records:
+        record.is_admin_session = True
+    return len(records)
+
+
 def _cooldown(setting: StoreSetting, settings: SettingsDep) -> int:
     return site_config.resolve_device_release_cooldown(setting, settings)
 

@@ -47,8 +47,15 @@ def _resolve_session(request: Request, session: Session) -> AccountSession | Non
     return record
 
 
-def current_account(request: Request, session: DbSession) -> Account | None:
-    record = _resolve_session(request, session)
+def current_session(request: Request, session: DbSession) -> AccountSession | None:
+    """当前会话记录（Cookie → AccountSession）；没有会话或已过期返回 None。"""
+    return _resolve_session(request, session)
+
+
+CurrentSession = Annotated[AccountSession | None, Depends(current_session)]
+
+
+def current_account(session: DbSession, record: CurrentSession) -> Account | None:
     if record is None:
         return None
     account = session.get(Account, record.account_id)
@@ -71,10 +78,21 @@ def require_account(account: CurrentAccount) -> Account:
 AuthedAccount = Annotated[Account, Depends(require_account)]
 
 
-def require_admin(account: AuthedAccount) -> Account:
+def require_admin(account: AuthedAccount, record: CurrentSession) -> Account:
+    """后台门槛：账号本身是管理员，且**本次登录**也是管理员会话。
+
+    只看 account.is_admin 会让两类状态漏过去：运营刚把某人提权、但他的旧会话仍是
+    普通会话（后台入口该立刻出现）；或者该账号被降权后旧会话还留着后台入口。
+    is_admin_session 由登录/提权时在服务端写入，降权时随会话一起清掉。
+    """
     if not account.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限。"
+        )
+    if record is None or not record.is_admin_session:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="管理员登录状态已失效，请重新登录。",
         )
     return account
 

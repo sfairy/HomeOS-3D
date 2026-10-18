@@ -54,7 +54,17 @@ function clearPreview() {
   previewKeys.clear();
 }
 
-watch(tokens, (next) => applyPreview(next));
+/**
+ * 预览只跟随「覆盖项」。
+ *
+ * resolveTokens() 的自有属性只有自定义主色的覆盖令牌（默认配色是空表，基线值挂在原型链上），
+ * 所以从自定义色切回默认时 Object.entries 拿到的是空表 —— 必须先撤掉上一轮 setProperty 的内联变量，
+ * 否则色板会一直残留自定义主色，直到组件卸载。
+ */
+watch(tokens, (next) => {
+  clearPreview();
+  applyPreview(next);
+});
 
 watch(accent, (value) => {
   if (!colorValue.value || colorValue.value !== value) colorValue.value = value;
@@ -86,6 +96,39 @@ function onHexChange() {
 function pickPreset(id: string) {
   draft.value = { preset: id, accent: "" };
   setMessage("");
+}
+
+const presetButtons = new Map<number, HTMLButtonElement>();
+
+function setPresetRef(el: unknown, index: number) {
+  if (el instanceof HTMLButtonElement) presetButtons.set(index, el);
+  else presetButtons.delete(index);
+}
+
+/**
+ * roving tabindex：整个 radiogroup 只占一个 Tab 站。
+ *
+ * role=radio 的语义是「一组里单选」，用 Tab 逐个走完五个预设会和读屏/浏览器的预期打架；
+ * 正确做法是 Tab 进组、方向键在组内移动并即时选中（WAI-ARIA radio group 模式）。
+ */
+function presetTabIndex(index: number): number {
+  const active = PRESETS.findIndex((item) => item.id === draft.value.preset);
+  return index === (active >= 0 ? active : 0) ? 0 : -1;
+}
+
+function onPresetKeydown(event: KeyboardEvent, index: number) {
+  const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+  const last = PRESETS.length - 1;
+  let next = index;
+  if (step !== 0) next = (index + step + PRESETS.length) % PRESETS.length;
+  else if (event.key === "Home") next = 0;
+  else if (event.key === "End") next = last;
+  else return;
+  event.preventDefault();
+  const preset = PRESETS[next];
+  if (!preset) return;
+  pickPreset(preset.id);
+  presetButtons.get(next)?.focus();
 }
 
 function reset() {
@@ -166,13 +209,16 @@ onBeforeUnmount(() => {
     </p>
     <div class="admin-palette-presets admin-grid__full" role="radiogroup" aria-label="配色预设">
       <button
-        v-for="preset in PRESETS"
+        v-for="(preset, index) in PRESETS"
         :key="preset.id"
+        :ref="(el) => setPresetRef(el, index)"
         class="admin-palette-preset"
         type="button"
         role="radio"
         :aria-checked="preset.id === draft.preset"
+        :tabindex="presetTabIndex(index)"
         @click="pickPreset(preset.id)"
+        @keydown="onPresetKeydown($event, index)"
       >
         <span class="admin-palette-dots" aria-hidden="true">
           <i v-for="name in CONFIGURABLE" :key="name" :style="{ '--dot': preset.colors[name] }"></i>

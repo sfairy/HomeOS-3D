@@ -498,6 +498,15 @@ def release_device(
         .order_by(*DeviceBinding.liveness_order())
     ).first()
 
+    if binding is None or not binding.is_live:
+        # 没有活跃绑定就没得解绑。以前这里照样往下走并写一条释放事件，而事件是
+        # release_remaining_seconds 的唯一依据——白写一次等于凭空点燃 8 小时冷却，
+        # 用户随后重新激活的设备会被「刚解绑过」拦住。
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前没有已绑定的设备，无需解绑。",
+        )
+
     conflict = _release_snapshot_conflict(payload, binding)
     if conflict:
         raise HTTPException(
@@ -505,18 +514,16 @@ def release_device(
             detail=conflict,
         )
 
-    instance_id = binding.instance_id if binding is not None else None
-    if binding is not None:
-        binding.active = False
-        binding.released_at = moment
-        # 立刻废会话，避免宽限期内旧实例继续 heartbeat。
-        authority.revoke_binding_credentials(session, binding.id)
+    binding.active = False
+    binding.released_at = moment
+    # 立刻废会话，避免宽限期内旧实例继续 heartbeat。
+    authority.revoke_binding_credentials(session, binding.id)
 
     session.add(
         DeviceReleaseEvent(
             license_id=license.id,
             account_id=account.id,
-            instance_id=instance_id,
+            instance_id=binding.instance_id,
             source="self_service",
         )
     )

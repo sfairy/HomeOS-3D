@@ -24,7 +24,7 @@ from ..core.schemas import (
 )
 from ..ops import site_settings as site_config
 from ..security.security import (
-    iso,
+    iso_z,
 )
 
 router = APIRouter()
@@ -89,7 +89,7 @@ def referral_history(
             {
                 **_withdrawal_payload(row),
                 "note": row.note,
-                "resolvedAt": iso(row.resolved_at),
+                "resolvedAt": iso_z(row.resolved_at),
             }
             for row in rows
         ]
@@ -118,7 +118,7 @@ def referral_history(
             "frozenAfter": money.format_centi(row.frozen_after_centi),
             "note": row.note,
             "reference": row.reference,
-            "createdAt": iso(row.created_at),
+            "createdAt": iso_z(row.created_at),
         }
         for row in rows
     ]

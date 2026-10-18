@@ -7,16 +7,63 @@
   <meta name="description" content="注册账号、购买授权与管理激活设备">
   <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png">
   <title>HomeOS 授权服务 · HomeOS 授权中心</title>
-  <link rel="stylesheet" href="/store-static/store-critical.css">
-  <link rel="stylesheet" href="/store-static/font.min.css">
+  <!-- 设计令牌必须最先加载：store-critical / theme 里大量 --hb-* 派生值建立在 canonical 令牌之上。
+       源文件在 packages/shared/src/styles/，本文件只是 1 行 @import 转发（见 src/styles/design-tokens.css）。 -->
+  <link rel="stylesheet" href="/src/styles/design-tokens.css">
+  <!-- 首屏关键样式内联：首帧只需要 design-tokens 与 theme.css 两张阻塞样式表。
+       骨架（深墨底 + 呼吸圆环）内联在这里，保证模块脚本与其余样式表到达前不是纯黑一片。
+       与 public/static/store-critical.css 同源，那份文件留给旧缓存里的外壳引用。 -->
+  <style>
+    html { color-scheme: dark; background: #050912; }
+    body { margin: 0; background: #050912; }
+    .hb-boot-shell { position: fixed; inset: 0; display: grid; place-items: center; background: #050912; }
+    .hb-boot-shell__ring {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 2px solid rgba(255, 196, 106, 0.18); border-top-color: var(--hb-accent, #ffc46a);
+      animation: hb-boot-spin 0.9s linear infinite;
+    }
+    @keyframes hb-boot-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .hb-boot-shell__ring { animation: none; } }
+  </style>
+  <!-- 首帧视觉基线：theme.css 是 --hb-* 令牌的唯一定义处，必须阻塞（后台 admin.css 由 App.vue
+       动态注入，也依赖它先到位）；其余业务样式改为 media=print 先下载、加载完成后切回 all。 -->
   <link rel="stylesheet" href="/store-static/theme.css">
-  <link rel="stylesheet" href="/store-static/scene/fonts.css">
-  <link rel="stylesheet" href="/store-static/scene/page.css">
-  <link rel="stylesheet" href="/store-static/scene/scene.css">
-  <link rel="stylesheet" href="/store-static/scene/panel.css">
-  <link rel="stylesheet" href="/store-static/store-shell.css">
-  <link rel="stylesheet" href="/store-static/store.css">
-  <link rel="stylesheet" href="/store-static/store-home.css">
+  <link rel="stylesheet" href="/store-static/font.min.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/scene/fonts.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/scene/page.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/scene/scene.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/scene/panel.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/store-shell.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/store.css" media="print" data-defer-style>
+  <link rel="stylesheet" href="/store-static/store-home.css" media="print" data-defer-style>
+  <!-- 焦点环 / 44px 触控目标 / reduced-motion / 高对比度基线：必须排在业务样式之后，
+       否则会被主题里的 outline:none 与固定高度盖掉。 -->
+  <link rel="stylesheet" href="/src/styles/touch-a11y.css">
+  <!-- 没有 JS（或 nonce 被 CSP 拦掉）时退回同步加载：这些样式一次到位，只是不再省首帧。 -->
+  <noscript>
+    <link rel="stylesheet" href="/store-static/font.min.css">
+    <link rel="stylesheet" href="/store-static/scene/fonts.css">
+    <link rel="stylesheet" href="/store-static/scene/page.css">
+    <link rel="stylesheet" href="/store-static/scene/scene.css">
+    <link rel="stylesheet" href="/store-static/scene/panel.css">
+    <link rel="stylesheet" href="/store-static/store-shell.css">
+    <link rel="stylesheet" href="/store-static/store.css">
+    <link rel="stylesheet" href="/store-static/store-home.css">
+  </noscript>
+  <!-- CSP 的 script-src 只按 nonce 放行、没有 script-src-attr，所以不能用 onload= 内联事件；
+       这里用带 nonce 的内联脚本监听每张样式表的 load，加载完成再切回 all。
+       media=print 期间这些样式表不参与首帧渲染，骨架先画出来。 -->
+  <script nonce="{{NONCE}}">
+    (function () {
+      function reveal(link) { link.media = "all"; }
+      var links = document.querySelectorAll("link[data-defer-style]");
+      for (var i = 0; i < links.length; i += 1) {
+        var link = links[i];
+        if (link.sheet) reveal(link);
+        else link.addEventListener("load", function () { reveal(this); });
+      }
+    })();
+  </script>
   <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css` 的 <link>。
        必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
   <!--{{APPEARANCE}}-->
@@ -25,7 +72,9 @@
   <!-- 首屏之前：登录态 hint + store body class（须在 body 内才能挂 hb-store-body）。 -->
   <script src="/store-static/auth-bootstrap.js"></script>
   <!-- 静态占位必须在 #app 外：mount 会清空 #app，壳若在内会在内容出现前被揭掉。 -->
-  <div id="store-boot-shell" class="hb-boot-shell" aria-hidden="true"></div>
+  <div id="store-boot-shell" class="hb-boot-shell" aria-hidden="true">
+    <span class="hb-boot-shell__ring"></span>
+  </div>
   <div id="app"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

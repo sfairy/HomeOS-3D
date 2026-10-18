@@ -38,6 +38,7 @@ from .admin_shared import (
     _drop_account_sessions,
     _guard_last_active_admin,
     _guard_self_lockout,
+    _mark_admin_sessions,
     _page,
 )
 
@@ -180,6 +181,12 @@ def admin_patch_account(
         _guard_last_active_admin(session, account)
     if "is_admin" in data and data["is_admin"] is not None:
         account.is_admin = bool(data["is_admin"])
+        if account.is_admin:
+            # 提权：把该账号已登录的会话也标成管理员会话，后台入口立刻生效。
+            _mark_admin_sessions(session, account.id)
+        else:
+            # 降权：会话立即失效，别让旧会话还握着后台入口。
+            _drop_account_sessions(session, account.id)
         changed.append("is_admin")
 
     if "is_active" in data and data["is_active"] is not None:

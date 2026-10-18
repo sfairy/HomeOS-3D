@@ -9,6 +9,28 @@ interface Column {
   nowrap?: boolean;
 }
 
+/** 表格的无障碍名称：DataTable 被 11 个后台页面复用，逐页传 label 太啰嗦，按接口路径兜底。 */
+const PATH_LABELS: Record<string, string> = {
+  "/sessions": "登录会话列表",
+  "/license-sessions": "授权会话列表",
+  "/recovery-tokens": "找回令牌列表",
+  "/login-attempts": "登录尝试记录",
+  "/email-verifications": "邮箱验证码记录",
+  "/device-release-events": "设备解绑记录",
+  "/coupon-redemptions": "优惠码核销记录",
+  "/withdrawals": "提现申请列表",
+  "/bindings": "设备绑定列表",
+  "/coupons": "优惠码列表",
+  "/customers": "客户列表",
+  "/entitlements": "权益列表",
+  "/audit-logs": "审计日志",
+  "/accounts": "账号列表",
+  "/referral-ledger": "邀请积分流水",
+  "/orders": "订单列表",
+  "/licenses": "授权列表",
+  "/products": "商品列表",
+};
+
 interface TableData {
   items?: unknown[];
   total?: number;
@@ -24,9 +46,19 @@ const props = withDefaults(
     params?: Record<string, string>;
     emptyText?: string;
     pageSize?: number;
+    /** 表格的无障碍名称；不传时按 path 查 PATH_LABELS。 */
+    label?: string;
+    /** 可选的可见表标题（caption）；一般用不到，留作将来说明性的表格。 */
+    caption?: string;
   }>(),
   { params: () => ({}), emptyText: "暂无数据", pageSize: 50 },
 );
+
+const tableLabel = computed(() => {
+  if (props.label) return props.label;
+  const path = props.path.split("?")[0].replace(/\/$/, "");
+  return PATH_LABELS[path] ?? "数据表格";
+});
 
 const emit = defineEmits<{ loaded: [TableData]; failed: [string] }>();
 
@@ -109,11 +141,12 @@ defineExpose({ reload, search });
 </script>
 
 <template>
-  <div class="table-wrap" :class="{ 'is-busy': loading }">
-    <table class="hb-table">
+  <div class="table-wrap" :class="{ 'is-busy': loading }" :aria-busy="loading ? 'true' : 'false'">
+    <table class="hb-table" :aria-label="caption ? undefined : tableLabel">
+      <caption v-if="caption" class="hb-table__caption">{{ caption }}</caption>
       <thead>
         <tr>
-          <th v-for="column in columns" :key="column.key" :class="{ nowrap: column.nowrap }">
+          <th v-for="column in columns" :key="column.key" scope="col" :class="{ nowrap: column.nowrap }">
             {{ column.label }}
           </th>
         </tr>
@@ -121,14 +154,14 @@ defineExpose({ reload, search });
       <tbody>
         <tr v-if="loading && !items.length">
           <td :colspan="columns.length">
-            <div class="table-state is-loading">
+            <div class="table-state is-loading" role="status" aria-live="polite">
               <span class="table-state__spinner" aria-hidden="true"></span>正在读取…
             </div>
           </td>
         </tr>
         <tr v-else-if="error">
           <td :colspan="columns.length">
-            <div class="table-state is-error">
+            <div class="table-state is-error" role="alert">
               <i class="fa-duotone fa-regular fa-triangle-exclamation"></i>
               <div class="table-state__text">
                 <strong>读取出错</strong><small>{{ error }}</small>
@@ -141,18 +174,28 @@ defineExpose({ reload, search });
         </tr>
         <tr v-else-if="!items.length">
           <td :colspan="columns.length">
-            <div class="table-empty"><span>◌</span>{{ emptyText }}</div>
+            <div class="table-empty" role="status"><span aria-hidden="true">◌</span>{{ emptyText }}</div>
           </td>
         </tr>
         <slot v-else :items="items"></slot>
       </tbody>
     </table>
   </div>
-  <div class="admin-pager">
-    <span class="admin-pager__info">第 {{ page }}/{{ pages }} 页 · 显示 {{ from }}–{{ to }} / 共 {{ total }} 条</span>
-    <button class="hb-button hb-button--secondary hb-button--sm" :disabled="offset <= 0" @click="goto('first')">首页</button>
-    <button class="hb-button hb-button--secondary hb-button--sm" :disabled="offset <= 0" @click="goto('prev')">上一页</button>
-    <button class="hb-button hb-button--secondary hb-button--sm" :disabled="atLast" @click="goto('next')">下一页</button>
-    <button class="hb-button hb-button--secondary hb-button--sm" :disabled="atLast" @click="goto('last')">末页</button>
-  </div>
+  <nav class="admin-pager" aria-label="分页">
+    <span class="admin-pager__info" aria-live="polite">
+      第 {{ page }}/{{ pages }} 页 · 显示 {{ from }}–{{ to }} / 共 {{ total }} 条
+    </span>
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" :disabled="offset <= 0" @click="goto('first')">
+      首页
+    </button>
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" :disabled="offset <= 0" @click="goto('prev')">
+      上一页
+    </button>
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" :disabled="atLast" @click="goto('next')">
+      下一页
+    </button>
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" :disabled="atLast" @click="goto('last')">
+      末页
+    </button>
+  </nav>
 </template>
