@@ -79,6 +79,23 @@ const resolvedMaxWidth = computed(() => {
   return layoutStore.layoutConfig.pageMaxWidth || getConfigSection('ui').scaleBaseWidth || 1366
 })
 
+// 流式模式的宽度上限。
+// 旧行为：直接用 layoutConfig.pageMaxWidth（默认 1366）当 max-width，于是 1920/2560 的
+// 大屏两侧永远空出一大条，视觉重心被压回中间 —— 这正是「大屏上看起来像 16:9 电视机里
+// 嵌了一个 4:3 页面」的根因。新策略：
+//   · 单页显式传入 pageMaxWidth（如全屏构建器）→ 尊重它
+//   · 配置里用户改过 pageMaxWidth（> 旧默认 1366）→ 尊重用户
+//   · 其余情况 → 用 canonical 内容最大宽 1680px，其余空间交给布局（右栏/页脚/3D 画布）
+const LEGACY_DEFAULT_PAGE_MAX_WIDTH = 1366
+const FLUID_CONTENT_MAX = 1680
+const fluidMaxWidth = computed(() => {
+  configEpoch.value
+  if (props.pageMaxWidth != null && props.pageMaxWidth > 0) return props.pageMaxWidth
+  const configured = layoutStore.layoutConfig.pageMaxWidth || 0
+  if (configured > LEGACY_DEFAULT_PAGE_MAX_WIDTH) return configured
+  return FLUID_CONTENT_MAX
+})
+
 const {
   shellStyle: rawShellStyle,
   contentStyle,
@@ -102,7 +119,8 @@ const computedShellStyle = computed(() => {
   return {
     width: '100%',
     height: '100%',
-    maxWidth: `${resolvedMaxWidth.value}px`,
+    // 上限而不是固定宽：窄屏自然铺满，宽屏最多到 fluidMaxWidth，居中由 .viewport-frame 的 flex 完成
+    maxWidth: `${fluidMaxWidth.value}px`,
     '--hos-scale': '1',
   }
 })

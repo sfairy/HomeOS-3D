@@ -9,15 +9,22 @@
   left: -9999px;
   top: 0;
   z-index: var(--z-search);
-  padding: 8px 16px;
-  background: #1e3a8a;
-  color: #fff;
-  border-radius: 0 0 8px 0;
+  min-height: var(--hos-touch-min);
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  background: var(--hos-color-accent);
+  color: var(--hos-fg-on-accent);
+  border-radius: 0 0 var(--hos-r-1) 0;
   text-decoration: none;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-4);
+  font-weight: 600;
+  box-shadow: var(--hos-shadow-2);
 }
 .skip-link:focus {
   left: 0;
+  outline: var(--hos-focus-outline);
+  outline-offset: 2px;
 }
 .main-content {
   flex: 1;
@@ -277,8 +284,15 @@
   justify-content: flex-start;
   position: relative;
   padding: 0 4px;
-  overflow-x: hidden;
+  /* 允许横向滚动而不是裁切：Tab 数量超过容器宽时（窄平板 / 分屏 / 大字号），
+     旧版 overflow-x:hidden 会把后面的 Tab 直接切掉且无任何提示。
+     这里改成可滚动 + 滚动吸附，配合 main.ts 的「更多」收纳形成双保险。 */
+  overflow-x: auto;
   overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -294,12 +308,14 @@
 .tab-bar__tabs {
   flex: 0 0 auto;
   width: max-content;
-  max-width: 100%;
+  /* max-width:100% + overflow:hidden 组合会把溢出的 Tab 裁掉；改为允许撑开，
+     由 .tab-bar__nav-wrap 负责滚动。 */
+  max-width: none;
   min-width: 0;
   gap: 2px;
   display: inline-flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   padding: 3px;
   position: relative;
   z-index: 2;
@@ -335,6 +351,7 @@
   position: relative;
   flex-shrink: 0;
   white-space: nowrap;
+  scroll-snap-align: start;
 }
 
 .tab-bar__tab-icon {

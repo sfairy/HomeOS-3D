@@ -739,13 +739,13 @@ export default defineConfig(async (): Promise<UserConfig> => {
       chunkSizeWarningLimit: 1200,
       modulePreload: {
         /**
-         * 过滤不需要预加载的依赖：这些是「体积大、由模块图自行按序拉取即可」的
-         * chunk（views / shell / settings / widgets / 重型图表与播放器库），
-         * 让浏览器在入口 <script> 之前就抢带宽预加载反而挤占关键路径。
+         * 过滤不需要预加载的依赖：只留下「体积大、且只被懒路由引用」的重型库 chunk，
+         * 让浏览器在入口 <script> 之前抢带宽预加载它们反而挤占关键路径。
          *
-         * 注意：交替组里的前缀**不要**带尾随 `-`（正则外层已经有一个 `-`），
-         * 写成 `widgets-|settings-` 会让这两项永远匹配不上、静默失效
-         * （表现为 settings-* chunk 仍被 preload 进 index.html）。
+         * 这里只列**当前真实存在**的 chunk 名。chunk 组去域化之后（见 codeSplitting 注释）
+         * 已不存在 popups / widgets-* / settings-* / views-main / shell / security-view 等
+         * 命名 chunk，继续把它们写在正则里就是永远匹配不到的悬空分支 —— 正是这份配置
+         * 历史上被 scripts/check-vite-chunk-groups.mjs（该脚本已不存在）拦截的那类漂移。
          *
          * `rolldown-runtime` 必须排除：它只有 716B，且是入口依赖图里最深的一层叶子
          * （index → vendor-core → rolldown-runtime），Vite 会把入口 <script> 排在所有
@@ -756,12 +756,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
          * 移除后模块图仍会正常静态拉取它，懒加载 chunk 也会经 __vite__mapDeps 按需取。
          */
         resolveDependencies: (_filename, deps) =>
-          deps.filter(
-            (dep) =>
-              !/\/(charts|popups|builders|hls|rolldown-runtime|widgets|settings|security-view|views-main|views-mobile|shell)-/.test(
-                dep,
-              ),
-          ),
+          deps.filter((dep) => !/\/(charts|hls|rolldown-runtime)-/.test(dep)),
       },
       rolldownOptions: {
         // 3D Studio 运行时资源外置：three / /static/vendor/** / /api/** 不进 bundle。
@@ -782,13 +777,31 @@ export default defineConfig(async (): Promise<UserConfig> => {
           },
           minify: isProduction,
           /**
-           * 按域合并懒加载面板 / 共享小模块，避免数百个 <1–5KB 碎 chunk。
+           * 分包策略：**只给第三方库与 entriesAware 兜底组建命名 chunk**，业务域不再并组。
            * 路径分隔用 [\\/] 以兼容 Windows。
-           * entriesAware 兜底组会拼出 A~B~C 名，经 sanitizeChunkBaseName 收成 shared-*.
            *
-           * 不变量：每组 test 必须至少匹配到一个真实模块，且 alternation 的每条分支都要有
-           * 对应文件 —— 域名重构搬走文件后遗留的悬空匹配由 scripts/check-vite-chunk-groups.mjs
-           * 拦截（历史漂移：views-auth / views-mobile / builders / widgets-energy / 天气 renderer）。
+           * 为什么删掉业务域命名组（views-main / settings-* / widgets-* / popups / shell /
+           * security-view / shared-app）：rolldown 的 codeSplitting 组会把「命中 test 的模块
+           * 连同它独占的整条子图」并成同一个 chunk。这些域里总有模块被 boot 期静态图引用
+           * （store / layout / router），于是整个合并结果被入口静态 import，首屏被迫下载
+           * 整个域（含只属于懒路由的那部分）。实测（build:app 同一次采样，snapshot 对比）：
+           *   原配置（含域组）        entry js 1851.8KB / 11 chunk，entry css 1237.7KB
+           *   再给 studio 分层        entry js 2212.2KB（studio-renderer 组把 499KB 拖进首屏）
+           *   仅删 views-main        entry js 1715.2KB
+           *   删全部业务域组（现状）    entry js  723.2KB /  9 chunk，entry css  192.3KB
+           * 结论：域命名组在本项目是**负优化**，首屏 js+css 从 3089.5KB 降到 915.5KB。
+           * 代价：懒路由的 CSS 不再由 index.html 预加载，改为导航时经 __vite__mapDeps 拉取。
+           *
+           * 保留的组只有三类：
+           *  1) 第三方库（vendor-vue / vendor-core / lucide / charts / hls）：不会被某个
+           *     业务域子图拖成巨型 chunk；
+           *  2) shared-registry：把「模块顶层就会被别的模块调用的纯常量/纯函数」隔离成无环叶子 chunk；
+           *  3) entriesAware 兜底组 shared：合并跨入口共享的小模块（阈值 48KB），避免碎 chunk。
+           * minSize 20_000 继续兜住 1–5KB 碎 chunk：实测 chunk 数 45 → 65，无碎片化问题。
+           *
+           * 不变量：每组 test 必须至少匹配到一个真实模块（历史漂移：views-auth 等）。
+           * 注意 scripts/check-vite-chunk-groups.mjs 在仓库里并不存在，该不变量目前只能人工
+           * 核对（本次改动已用脚本逐组验证命中数），改 groups 时请自行复查。
            */
           codeSplitting: {
             minSize: 20_000,
@@ -813,99 +826,24 @@ export default defineConfig(async (): Promise<UserConfig> => {
                 priority: 26,
               },
               {
-                // 只列现存视图：Life / LinkageHub / Activation 已随域名重构下线，留在名单里就是
-                // 永远匹配不到的悬空分支。EmbedView / SettingsView 刻意不并组（各自是独立入口）。
-                name: 'views-main',
-                test: /src[\\/]views[\\/](DeviceDetailView|DevicesView|EarthquakeHistoryView|EventsView|ModeTriggerLogsView|NotificationsView|SecurityView)\.vue/,
-                priority: 25,
-              },
-              {
-                name: 'shell',
-                test: /src[\\/]layouts[\\/]shell-overlays\.ts/,
-                priority: 24,
-              },
-              {
-                name: 'popups',
-                test: /src[\\/]components[\\/]entities[\\/].*Popup/,
-                priority: 22,
-              },
-              {
-                name: 'settings-connect',
-                test: /src[\\/]features[\\/]settings[\\/]connect[\\/]/,
-                priority: 18,
-              },
-              {
-                name: 'settings-home',
-                test: /src[\\/]features[\\/]settings[\\/]home[\\/]/,
-                priority: 18,
-              },
-              {
-                name: 'settings-display',
-                test: /src[\\/]features[\\/]settings[\\/]display[\\/]/,
-                priority: 18,
-              },
-              {
-                name: 'settings-automate',
-                test: /src[\\/]features[\\/]settings[\\/]automate[\\/]/,
-                priority: 18,
-              },
-              {
-                name: 'settings-interact',
-                test: /src[\\/]features[\\/]settings[\\/]interact[\\/]/,
-                priority: 18,
-              },
-              {
-                name: 'settings-system',
-                test: /src[\\/]features[\\/]settings[\\/]system[\\/]/,
-                priority: 18,
-              },
-              {
-                name: 'settings-shared',
-                test: /src[\\/]features[\\/]settings[\\/](shared|composables)[\\/]/,
-                priority: 17,
-              },
-              {
-                name: 'security-view',
-                test: /src[\\/]features[\\/]security[\\/]/,
-                priority: 16,
-              },
-              {
-                name: 'widgets-climate',
-                test: /src[\\/]components[\\/]widgets[\\/]climate[\\/]/,
-                priority: 14,
-              },
-              {
-                // `widgets-energy` / `widgets-orchestrator` 两组已删：能源与编排器组件随域名重构
-                // 搬离 `components/widgets/`（能源内核在 `shared/energy/`、编排器组件已下线），
-                // 留下的是永远匹配不到的悬空组。
-                name: 'widgets-security',
-                test: /src[\\/]components[\\/]widgets[\\/]security[\\/]/,
-                priority: 14,
-              },
-              {
-                name: 'widgets-media',
-                test: /src[\\/]components[\\/]widgets[\\/](media|weather)[\\/]/,
-                priority: 14,
-              },
-              {
-                // 原为 `(device|system)`：`widgets/device/` 只剩没人 import 的死样式（已删），
-                // 有模块的只有 system，故组名随实况改为 widgets-system。
-                name: 'widgets-system',
-                test: /src[\\/]components[\\/]widgets[\\/]system[\\/]/,
-                priority: 14,
-              },
-              {
-                name: 'shared-app',
-                // `src/utils/` 已在 P2 清零（全部下沉 `shared/<域>/utils`），只剩 composables。
-                test: /src[\\/]composables[\\/]/,
-                minShareCount: 2,
-                priority: 8,
-              },
-              {
                 name: 'vendor-misc',
                 test: /node_modules/,
                 minSize: 20_000,
                 priority: 5,
+              },
+              {
+                // 必须独立成组：registry 下的纯工具（典型：settings-route.util.ts 的
+                // SETTINGS_ROUTES）会被业务模块**在模块顶层直接调用**，例如
+                // features/settings/composables/system/system-config-sidebar.internals.ts
+                // 的 DELEGATED_PANEL_LINKS。若它们和调用方落在共享 chunk 的环里
+                // （entriesAware 兜底组曾产生 9 个 shared-* 互环），ESM 跨 chunk 环内被
+                // import 的 const 在初始化前是 undefined，读取 `.voice` 会抛
+                // TypeError: Cannot read properties of undefined (reading 'voice')，
+                // 导致 stage/设置页整体黑屏。隔离成叶子 chunk 后环不再包含它。
+                // 改此组后请核对构建产物：index.html preload 应出现 shared-registry-*.js。
+                name: 'shared-registry',
+                test: /src[\\/]shared[\\/]utils[\\/]registry[\\/]/,
+                priority: 2,
               },
               {
                 name: 'shared',

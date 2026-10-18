@@ -286,6 +286,19 @@ import {
   sanitizeExportName,
 } from "./ui/studio-export-layers";
 import { startupStudio } from "./boot/studio-boot";
+import {
+  StudioDocumentStore,
+  applyDocumentPatch,
+  canApplyDocumentPatch,
+} from "./store/document-store";
+import type { DocumentPatch } from "./store/document-store";
+import { diffDocumentPatches, describeDocumentPatch } from "./store/document-diff";
+import { StudioHistoryStore } from "./store/history-store";
+import { StudioSceneSyncController, mergeFloors } from "./store/scene-sync-controller";
+import type { SceneSyncOutcome } from "./store/scene-sync-controller";
+import { StudioSaveStore } from "./store/save-store";
+import type { FlushResult, SaveStoreState } from "./store/save-store";
+import { createStudioDraftRepository } from "./store/studio-draft-repository";
 import { buildItemModel as buildItemModelCore } from "./items/studio-item-model";
 import {
   drawDoor as drawDoorCore,
@@ -300,6 +313,8 @@ import {
 } from "./items/studio-static-item-meshes";
 
 let disposeActiveStudio: (() => void) | null = null;
+/** teardown 前置落盘钩子（boot 闭包内注册；dispose 在闭包外执行，必须经此暴露）。 */
+let flushActiveStudioSave: (() => Promise<void>) | null = null;
 
 /**
  * 引导户型图绘制（重复调用会先回收上一次）。
@@ -1439,8 +1454,7 @@ async function selectFloor(targetFloorIdSelection: any, { persist: didFloorChang
     refreshPreviewScene(),
     planPainter?.setTool(appCtx.activeToolName),
     (appCtx.previewEndPoint = null),
-    (appCtx.undoRecords = []),
-    (appCtx.redoRecords = []),
+    // C5：切楼层不再清空撤销 / 重做栈（历史是跨楼层的文档补丁）。
     (appCtx.planView.rotation = appCtx.studioState.settings.planViewRotation),
     Promise.allSettled(preloadDefaultModels()));
   const gu2 = loadBackgroundImage();
@@ -2737,6 +2751,445 @@ function rebuildWallIndex() {
 function getPixelsPerMeter() {
   return appCtx.studioState.calibration?.pixelsPerMeter || 0;
 }
+/* ===== C2/C3 接线（task-8）：文档版本权威 + 保存状态机 =====
+ * 版本权威从 appCtx.localSaveRevision/remoteSaveRevision（UI 派生值）迁到 StudioDocumentStore；
+ * 保存流程（防抖 / 退避重试 / 409 / 428 / 退出 / pagehide）迁到 StudioSaveStore，
+ * 本文件只保留 DOM 闸门、状态文案与冲突三出口的交互。
+ */
+const studioDocumentStore = new StudioDocumentStore();
+const studioDraftRepository = createStudioDraftRepository();
+let studioSaveStore: StudioSaveStore | null = null;
+let studioDraftReadonly = false;
+let studioReadonlyBannerElement: HTMLElement | null = null;
+
+/* ===== C5 接线（task-11）：撤销 / 重做改走文档补丁历史栈 =====
+ * 历史条目是 DocumentPatch（跨楼层 add/remove/update/move 或 batch），选择、相机、
+ * 切楼层不产生补丁因此不入栈；编辑前快照先挂在 pendingHistoryScene，直到
+ * markDocumentDirty（= 一次操作真正落地）才 diff 入栈，于是纯选择 / 切换工具不留条目。
+ */
+let studioHistoryStore: StudioHistoryStore | null = null;
+let pendingHistoryScene: { floorId: string; scene: any } | null = null;
+
+function historyUndoDepth(): number {
+  return studioHistoryStore?.undoDepth ?? 0;
+}
+function historyRedoDepth(): number {
+  return studioHistoryStore?.redoDepth ?? 0;
+}
+
+studioHistoryStore = new StudioHistoryStore({
+  apply: (documentPatch) => applyDocumentPatch(appCtx.studioProject, documentPatch),
+  canApply: canApplyHistoryPatch,
+  onApplyFailure: (failedEntry) => showToast("撤销/重做未能应用：" + failedEntry.label, "error"),
+});
+
+function isStudioDraftReadonly(): boolean {
+  return studioDraftReadonly;
+}
+
+/** 保存草稿副本：409 第三出口、只读横幅入口共用（纯本地下载，不动服务器状态）。 */
+function downloadStudioLocalCopy(localSceneOverride?: any): boolean {
+  try {
+    let localScene = localSceneOverride;
+    if (localScene === undefined) {
+      try {
+        localScene = getLocalSaveRevision();
+      } catch {
+        localScene = appCtx.studioProject || null;
+      }
+    }
+    const exportedCopy = {
+      revision: studioDocumentStore.getLoadedRevision(),
+      exportedAt: new Date().toISOString(),
+      scene: localScene,
+    };
+    const localCopyBlob = new Blob([JSON.stringify(exportedCopy, null, 2)], {
+      type: "application/json",
+    });
+    const localCopyUrl = URL.createObjectURL(localCopyBlob);
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.href = localCopyUrl;
+    downloadAnchor.download =
+      "studio-draft-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json";
+    downloadAnchor.rel = "noopener";
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(localCopyUrl), 1000);
+    showToast("本地副本已导出。", "success");
+    return true;
+  } catch (exportFailure: any) {
+    showToast(exportFailure?.message || "导出本地副本失败。", "error");
+    return false;
+  }
+}
+
+function renderStudioReadonlyBanner(bannerMessage: string): void {
+  if (isEmbeddedStage) return;
+  if (!studioReadonlyBannerElement) {
+    const banner = document.createElement("div");
+    banner.id = "studio-readonly-banner";
+    banner.setAttribute("role", "status");
+    banner.style.cssText =
+      "position:fixed;left:0;right:0;bottom:0;z-index:80;display:flex;gap:12px;align-items:center;" +
+      "justify-content:center;padding:8px 16px;background:#7a2e2e;color:#fff;font-size:13px;";
+    const bannerLabel = document.createElement("span");
+    bannerLabel.className = "studio-readonly-message";
+    const retryLoadButton = document.createElement("button");
+    retryLoadButton.type = "button";
+    retryLoadButton.textContent = "重试载入";
+    retryLoadButton.addEventListener("click", () => {
+      void retryStudioDraftLoad();
+    });
+    const exportCopyButton = document.createElement("button");
+    exportCopyButton.type = "button";
+    exportCopyButton.textContent = "导出本地副本";
+    exportCopyButton.addEventListener("click", () => {
+      downloadStudioLocalCopy();
+    });
+    banner.append(bannerLabel, retryLoadButton, exportCopyButton);
+    document.body.appendChild(banner);
+    studioReadonlyBannerElement = banner;
+  }
+  const bannerMessageElement = studioReadonlyBannerElement.querySelector(".studio-readonly-message");
+  bannerMessageElement && (bannerMessageElement.textContent = bannerMessage);
+  studioReadonlyBannerElement.hidden = false;
+}
+
+function hideStudioReadonlyBanner(): void {
+  if (studioReadonlyBannerElement) studioReadonlyBannerElement.hidden = true;
+}
+
+/** 保存状态机 → 旧 header 文案 / appCtx 兼容字段 / 退出按钮 / 只读横幅。 */
+function applyStudioSaveState(saveState: SaveStoreState): void {
+  appCtx.isSaveInFlight = saveState.isSaveInFlight;
+  if (saveState.status === "saved") {
+    appCtx.remoteSaveRevision = appCtx.localSaveRevision;
+    studioDraftReadonly = false;
+    hideStudioReadonlyBanner();
+  }
+  switch (saveState.status) {
+    case "loading":
+      showSaveState("正在载入…", "saving");
+      break;
+    case "blocked-readonly":
+      studioDraftReadonly = true;
+      showSaveState("只读：草稿载入失败", "error");
+      renderStudioReadonlyBanner(
+        "草稿载入失败，当前为只读视图：修改不会保存。可重试载入，或导出本地副本。",
+      );
+      break;
+    case "saved":
+      showSaveState("已自动保存", "saved");
+      break;
+    case "dirty":
+      showSaveState("有未保存修改", "saving");
+      break;
+    case "saving":
+      showSaveState("正在保存…", "saving");
+      break;
+    case "retrying":
+      showSaveState("保存失败，稍后自动重试", "error");
+      break;
+    case "failed":
+      showSaveState("保存失败，修改后重试", "error");
+      break;
+    case "offline":
+      showSaveState("网络不可用，修改尚未保存", "error");
+      break;
+    case "conflict":
+      showSaveState("等待处理保存冲突", "error");
+      break;
+    case "blocked":
+      showSaveState("删除未确认，尚未保存", "error");
+      break;
+    default:
+      break;
+  }
+  refreshExitDialogButtons();
+}
+
+/** 保存状态机（transport 走 fetchStudioApi，保留 401/403 跳转与错误归一化；beacon 走 keepalive）。 */
+function getStudioSaveStore(): StudioSaveStore {
+  if (studioSaveStore) return studioSaveStore;
+  studioSaveStore = new StudioSaveStore({
+    documentStore: studioDocumentStore,
+    transport: {
+      load: () => studioDraftRepository.load(),
+      put: async (saveRequest) => {
+        try {
+          const savedPayload = await fetchStudioApi("/studio3d", {
+            method: "PUT",
+            hbLogContext: { phase: "studio-save" },
+            body: JSON.stringify({
+              revision: saveRequest.revision,
+              scene: saveRequest.scene,
+              interactionConfirmation: saveRequest.interactionConfirmation || "",
+            }),
+          });
+          if (!savedPayload || typeof savedPayload !== "object" || !("revision" in savedPayload)) {
+            return { ok: false, error: { message: "保存响应缺少 revision。" } };
+          }
+          return {
+            ok: true,
+            payload: {
+              revision: Math.max(0, Math.trunc(Number((savedPayload as any).revision) || 0)),
+              scene: (savedPayload as any).scene ?? saveRequest.scene,
+              updatedAt: (savedPayload as any).updatedAt ?? null,
+            },
+          };
+        } catch (saveError: any) {
+          return {
+            ok: false,
+            error: {
+              status: typeof saveError?.status === "number" ? saveError.status : undefined,
+              detail: saveError?.payload?.detail ?? saveError?.detail,
+              message: saveError?.message || "保存失败。",
+            },
+          };
+        }
+      },
+      beacon: (beaconRequest) =>
+        studioDraftRepository.beacon ? studioDraftRepository.beacon(beaconRequest) : false,
+    },
+    timers: {
+      setTimeout: (timerHandler, delayMs) => window.setTimeout(timerHandler, delayMs),
+      clearTimeout: (timerHandle) => window.clearTimeout(timerHandle),
+    },
+    isEmbedded: () => isEmbeddedStage,
+    isPageSuspended: () => !!appCtx.isPageSuspended,
+    isOnline: () => navigator.onLine !== false,
+    getScene: () => (appCtx.loadedDraft ? getLocalSaveRevision() : null),
+    exportLocalCopy: (localScene) => {
+      downloadStudioLocalCopy(localScene);
+    },
+    onStateChange: applyStudioSaveState,
+  });
+  return studioSaveStore;
+}
+
+/** PUT 成功：document store 已 applySaved，把 appCtx.loadedDraft 对齐成服务器返回的 revision/scene。 */
+function syncDraftPayloadAfterSave(): void {
+  appCtx.loadedDraft = {
+    ...(appCtx.loadedDraft || {}),
+    revision: studioDocumentStore.getLoadedRevision(),
+    scene: studioDocumentStore.getDocument(),
+  };
+}
+
+/** 409 冲突：取服务器最新版本并打开三出口对话框（GET 失败也打开，载入按钮会重取）。 */
+async function recordSaveConflictFromServer(): Promise<void> {
+  try {
+    const latestConflictPayload = await fetchStudioApi("/studio3d");
+    recordSaveConflict(
+      latestConflictPayload,
+      getLocalSaveRevision(),
+      studioDocumentStore.getLoadedRevision(),
+    );
+  } catch (conflictLoadFailure: any) {
+    recordSaveConflict(null, getLocalSaveRevision(), studioDocumentStore.getLoadedRevision());
+    window.HomeOSLog?.error!(conflictLoadFailure, { phase: "studio-save-conflict-load" });
+  }
+}
+
+/** 统一收尾：成功同步 loadedDraft；冲突开对话框；428 先确认交互清理；失败只 toast 一次。 */
+async function settleStudioSaveResult(saveResult: FlushResult): Promise<FlushResult> {
+  const saveStore = getStudioSaveStore();
+  if (saveResult.ok) {
+    syncDraftPayloadAfterSave();
+    appCtx.pendingConflict = null;
+    return saveResult;
+  }
+  if (saveResult.reason === "conflict") {
+    await recordSaveConflictFromServer();
+    return saveResult;
+  }
+  if (saveResult.reason === "confirmation-required") {
+    const pendingConfirmation = saveStore.getState().pendingConfirmation;
+    const confirmationDetail = {
+      code: "STUDIO3D_INTERACTION_CONFIRMATION",
+      token: pendingConfirmation?.token || saveResult.token,
+      message: pendingConfirmation?.message || "",
+      impacts: pendingConfirmation?.impacts ?? null,
+      projects: pendingConfirmation?.projects ?? null,
+    };
+    const shouldConfirmCleanup = await resolveInteractionCleanup(
+      confirmationDetail,
+      undoStudioHistory,
+      showToast,
+    );
+    if (!shouldConfirmCleanup) {
+      saveStore.cancelConfirmation();
+      showSaveState("删除未确认，尚未保存", "error");
+      return { ok: false, reason: "blocked" };
+    }
+    return settleStudioSaveResult(await saveStore.confirmInteraction(confirmationDetail.token));
+  }
+  if (saveResult.reason === "fatal") {
+    showToast(saveResult.error?.message || "3D 草稿保存失败。", "error");
+  } else if (saveResult.reason === "retry-scheduled" && saveStore.getState().attempt === 1) {
+    showToast(saveResult.error?.message || "3D 草稿保存失败，稍后自动重试。", "error");
+  }
+  return saveResult;
+}
+
+/** 退出保存要等交互结束（拖拽 / 画墙期间的场景快照不稳定）。 */
+async function waitForStudioInteractionIdle(): Promise<void> {
+  if (!isInteractionBusy()) return;
+  await new Promise<void>((resolve) => exitWaiterResolvers.add(resolve));
+}
+
+async function runStudioSaveOnce(
+  saveTrigger: "autosave" | "exit" | "overwrite",
+): Promise<FlushResult> {
+  const saveStore = getStudioSaveStore();
+  if (saveTrigger === "exit") {
+    await waitForStudioInteractionIdle();
+    // 等待交互期间用户可能已取消退出：不要再偷偷保存一次。
+    if (!studioExitDialogElement.open) return { ok: false, reason: "deferred" };
+    return settleStudioSaveResult(await saveStore.requestExit());
+  }
+  const rawResult =
+    saveTrigger === "overwrite"
+      ? await saveStore.resolveConflictOverwrite()
+      : await saveStore.flushNow();
+  return settleStudioSaveResult(rawResult);
+}
+
+/** 初载失败（boot 的 GET 抛错）：进入只读，横幅提示重试 / 导出本地副本，不谎报待保存。 */
+function notifyStudioDraftLoadFailure(loadError: any): void {
+  if (isEmbeddedStage) return;
+  studioDraftReadonly = true;
+  getStudioSaveStore().markLoadFailed({
+    status: typeof loadError?.status === "number" ? loadError.status : undefined,
+    detail: loadError?.payload?.detail ?? loadError?.detail,
+    message: loadError?.message || "草稿载入失败。",
+  });
+  // boot 的 catch 会随后写「载入失败」，这里补一次只读状态，确保最终文案是只读。
+  window.setTimeout(() => {
+    isStudioDraftReadonly() && showSaveState("只读：草稿载入失败", "error");
+  }, 0);
+}
+
+async function retryStudioDraftLoad(): Promise<void> {
+  try {
+    const latestDraftPayload = await fetchStudioApi("/studio3d");
+    await applyLoadedDraft(latestDraftPayload);
+    getStudioSaveStore().acceptLoaded();
+    studioDraftReadonly = false;
+    hideStudioReadonlyBanner();
+    showSaveState("已自动保存", "saved");
+    showToast("草稿已重新载入。", "success");
+  } catch (retryFailure: any) {
+    notifyStudioDraftLoadFailure(retryFailure);
+    showToast(retryFailure?.message || "草稿载入失败，可稍后重试。", "error");
+  }
+}
+
+/** SPA teardown 前置：有未保存改动或正在保存时先等待一次保存（不阻塞渲染回收）。 */
+flushActiveStudioSave = flushStudioSaveBeforeTeardown;
+
+async function flushStudioSaveBeforeTeardown(): Promise<void> {
+  if (isEmbeddedStage || appCtx.isLeavingStudio || isStudioDraftReadonly()) return;
+  const pendingSaveStore = studioSaveStore;
+  if (!pendingSaveStore) return;
+  if (!pendingSaveStore.hasUnsavedChanges() && !pendingSaveStore.getState().isSaveInFlight) return;
+  try {
+    await pendingSaveStore.requestExit();
+  } catch (flushFailure: any) {
+    window.HomeOSLog?.error!(flushFailure, { phase: "studio-teardown-save" });
+  }
+}
+
+/**
+ * C4 —— 场景同步接线（task-11）。
+ *
+ * 约束：
+ * 1. 轮询只读运行时快照 `appCtx.studioProject`，**绝不读写** `loadedDraft` / document-store 的
+ *    `loadedRevision` / `dirty`：非全量推送只就地更新楼层内容、baseLighting 与楼层名。
+ * 2. 全量推送且本地脏时先保存；保存冲突 / 失败时**不覆盖**本地（交给 409 三出口）；
+ *    保存成功后本轮载荷已是保存前的陈旧快照，直接丢弃，不用它回滚本地。
+ * 3. 本地干净的全量推送由 `readSceneUpdate` 把规范化后的远端载荷交回 stage 的 adopt 流程
+ *    （保留相机 / 活动楼层 / 灯光过渡），最终由 `replaceScene` → `applyLoadedDraft` 成为
+ *    新保存基线；revision 按“载荷带则用、不带则沿用”处理，绝不打回 0。
+ */
+function sceneSyncFlushIsDirty(): boolean {
+  if (studioDocumentStore.isDirty()) return true;
+  const runtimeSaveStore = studioSaveStore;
+  return (
+    !!runtimeSaveStore &&
+    (runtimeSaveStore.hasUnsavedChanges() || runtimeSaveStore.getState().isSaveInFlight)
+  );
+}
+
+async function flushSceneSyncRuntime(): Promise<"saved" | "conflict" | "failed"> {
+  try {
+    const sceneSyncFlushResult = await runStudioSaveOnce("autosave");
+    if (sceneSyncFlushResult.ok) return "saved";
+    return sceneSyncFlushResult.reason === "conflict" ||
+      sceneSyncFlushResult.reason === "confirmation-required"
+      ? "conflict"
+      : "failed";
+  } catch (sceneSyncFlushError: any) {
+    window.HomeOSLog?.error!(sceneSyncFlushError, { phase: "studio-scene-sync-flush" });
+    return "failed";
+  }
+}
+
+const studioSceneSyncController = new StudioSceneSyncController({
+  getRuntimeScene: () => appCtx.studioProject,
+  isDirty: sceneSyncFlushIsDirty,
+  flush: flushSceneSyncRuntime,
+  // 全量重建由 stage adopt 流程负责（见 readSceneUpdate 注释），这里不应被调用；
+  // 保持空实现，避免绕过保存基线 / 相机恢复逻辑。
+  replaceScene: () => {},
+  isEmbedded: () => isEmbeddedStage,
+  isPageSuspended: () => !!appCtx.isPageSuspended,
+});
+
+/** 灯光派生刷新钩子：`ctx` / `trimRetainedFloors` 只存在于渲染循环作用域，由循环内注册。 */
+let refreshSceneSyncLightingDerived: (() => void) | null = null;
+
+/**
+ * 轮询游标（服务端 `syncKey`）：仅用于让服务端在无变化时回 204，**不进入**保存文档 /
+ * 版本线（因此不写 `loadedDraft.syncKey`，避免把同步载荷当成保存基线）。
+ */
+let sceneSyncSinceKey: string | null = null;
+function currentSceneSyncSinceKey(): string {
+  if (sceneSyncSinceKey !== null) return sceneSyncSinceKey;
+  return typeof appCtx.loadedDraft?.syncKey === "string" ? appCtx.loadedDraft.syncKey : "";
+}
+function rememberSceneSyncKey(sceneUpdateResponse: any): void {
+  if (typeof sceneUpdateResponse?.syncKey === "string" && sceneUpdateResponse.syncKey)
+    sceneSyncSinceKey = sceneUpdateResponse.syncKey;
+}
+
+/** 非全量同步后就地刷新派生视图（不触碰保存版本线）。 */
+function refreshAfterSceneSyncOutcome(sceneSyncOutcome: SceneSyncOutcome) {
+  if (sceneSyncOutcome.kind === "merge-floors") {
+    if (sceneSyncOutcome.floorIds.length > 0) {
+      const activeFloorRecord = getActiveFloor();
+      if (activeFloorRecord && sceneSyncOutcome.floorIds.includes(activeFloorRecord.id))
+        appCtx.studioState = activeFloorRecord.scene;
+      syncFloorGroups(new Set(sceneSyncOutcome.floorIds));
+      Promise.allSettled(preloadDefaultModels());
+      refreshSelection();
+      refreshPreviewScene();
+      refreshScopeItems();
+    }
+    if (sceneSyncOutcome.lighting) refreshSceneSyncLightingDerived?.();
+  } else if (sceneSyncOutcome.kind === "lighting-only") {
+    if (sceneSyncOutcome.lighting) refreshSceneSyncLightingDerived?.();
+  }
+  if (
+    (sceneSyncOutcome.kind === "metadata-only" ||
+      sceneSyncOutcome.kind === "lighting-only" ||
+      sceneSyncOutcome.kind === "merge-floors") &&
+    sceneSyncOutcome.floorNameChanges.length > 0
+  )
+    renderFloorList();
+}
+
 class StudioApiError extends Error {
   /** HTTP 状态码，调用方按它分支（409 冲突 / 428 需要交互确认）。 */
   status: number;
@@ -2816,10 +3269,10 @@ function showSaveState(saveStateText: any, saveStateKind = "") {
     dirty: mapped === "dirty" || mapped === "saving",
     saveState: mapped as any,
     history: {
-      canUndo: appCtx.undoRecords.length > 0,
-      canRedo: appCtx.redoRecords.length > 0,
-      undoDepth: appCtx.undoRecords.length,
-      redoDepth: appCtx.redoRecords.length,
+      canUndo: historyUndoDepth() > 0,
+      canRedo: historyRedoDepth() > 0,
+      undoDepth: historyUndoDepth(),
+      redoDepth: historyRedoDepth(),
     },
     activeTool: appCtx.activeToolName,
   });
@@ -2827,25 +3280,123 @@ function showSaveState(saveStateText: any, saveStateKind = "") {
 
 function syncStudioHistoryFacade() {
   patchStudioFacadeState({
-    history: buildStudioHistoryPatch(appCtx.undoRecords.length, appCtx.redoRecords.length),
+    history: buildStudioHistoryPatch(historyUndoDepth(), historyRedoDepth()),
     activeTool: appCtx.activeToolName,
   });
 }
 
-/** 撤销 / 重做。 */
+/** 撤销 / 重做：先 canApply 再出栈；失败不出栈，应用失败由历史 store 压回并回调提示。 */
+function historyFailureMessage(direction: "undo" | "redo", reason: string): string {
+  const historyActionName = direction === "undo" ? "撤销" : "重做";
+  return reason === "not-applicable"
+    ? "无法" +
+        historyActionName +
+        "：该操作与后续改动冲突（例如合并墙上新增了门窗或栏杆）。"
+    : historyActionName + "失败：历史状态已失效，未做修改。";
+}
 async function undoStudioHistory() {
-  if (!appCtx.undoRecords.length) return;
-  appCtx.redoRecords.push(captureUndoSnapshot());
-  const pop = appCtx.undoRecords.pop();
-  await restoreSnapshot(pop);
-  syncStudioHistoryFacade();
+  await applyStudioHistoryDirection("undo");
 }
 async function redoStudioHistory() {
-  if (!appCtx.redoRecords.length) return;
-  appCtx.undoRecords.push(captureUndoSnapshot());
-  const pop2 = appCtx.redoRecords.pop();
-  await restoreSnapshot(pop2);
+  await applyStudioHistoryDirection("redo");
+}
+async function applyStudioHistoryDirection(direction: "undo" | "redo") {
+  const historyStore = studioHistoryStore;
+  if (!historyStore) return;
+  if (isStudioDraftReadonly()) {
+    showToast("只读：草稿载入失败，无法撤销 / 重做。", "error");
+    return;
+  }
+  pendingHistoryScene = null;
+  const historyResult = direction === "undo" ? historyStore.undo() : historyStore.redo();
+  if (!historyResult.ok) {
+    if (historyResult.reason !== "empty")
+      showToast(historyFailureMessage(direction, historyResult.reason), "warning");
+    syncStudioHistoryFacade();
+    return;
+  }
+  refreshAfterHistoryChange(historyResult.entry.patch);
   syncStudioHistoryFacade();
+}
+
+/** 补丁影响到的楼层 id（batch 递归展开），用于刷新楼层缩略图与楼层组。 */
+function collectPatchFloorIds(
+  documentPatch: DocumentPatch,
+  affectedFloorIds = new Set<string>(),
+): Set<string> {
+  if (documentPatch.kind === "batch") {
+    for (const nestedPatch of documentPatch.patches)
+      collectPatchFloorIds(nestedPatch, affectedFloorIds);
+    return affectedFloorIds;
+  }
+  if (documentPatch.floorId) affectedFloorIds.add(documentPatch.floorId);
+  return affectedFloorIds;
+}
+
+/** 合并墙保护：撤销会改写活动楼层的墙，而当前墙上已有新增门窗 / 栏杆时判定不可应用。 */
+function canApplyHistoryPatch(documentPatch: DocumentPatch): boolean {
+  try {
+    const currentProject = appCtx.studioProject;
+    if (!currentProject || !canApplyDocumentPatch(currentProject, documentPatch)) return false;
+    const targetProject = structuredClone(currentProject);
+    if (!applyDocumentPatch(targetProject, documentPatch)) return false;
+    const activeFloor = getActiveFloor();
+    const targetFloor = targetProject.floors?.find(
+      (floorRecord: any) => floorRecord.id === (activeFloor?.id ?? appCtx.activeFloorId),
+    );
+    if (!activeFloor?.scene || !targetFloor?.scene) return true;
+    const targetWallById = new Map<string, any>(
+      (targetFloor.scene.walls || []).map((targetWall: any) => [targetWall.id, targetWall]),
+    );
+    const changedWallIds = new Set<string>();
+    for (const currentWall of activeFloor.scene.walls || []) {
+      const targetWall = targetWallById.get(currentWall?.id);
+      if (
+        targetWall &&
+        (targetWall.start?.x !== currentWall.start?.x ||
+          targetWall.start?.y !== currentWall.start?.y ||
+          targetWall.end?.x !== currentWall.end?.x ||
+          targetWall.end?.y !== currentWall.end?.y)
+      )
+        changedWallIds.add(currentWall.id);
+    }
+    if (!changedWallIds.size) return true;
+    for (const attachmentKey of ["windows", "doors", "railings"]) {
+      const targetAttachmentIds = new Set(
+        (targetFloor.scene[attachmentKey] || []).map((attachmentRecord: any) => attachmentRecord.id),
+      );
+      if (
+        (activeFloor.scene[attachmentKey] || []).some(
+          (attachmentRecord: any) =>
+            changedWallIds.has(attachmentRecord.wallId) &&
+            !targetAttachmentIds.has(attachmentRecord.id),
+        )
+      )
+        return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 历史补丁已就地改完文档，这里只同步运行时派生视图（活动楼层场景 / 旋转 / 预览 / 楼层组）。 */
+function refreshAfterHistoryChange(documentPatch: DocumentPatch) {
+  const affectedFloorIds = collectPatchFloorIds(documentPatch);
+  const activeFloor = getActiveFloor();
+  if (activeFloor && affectedFloorIds.has(activeFloor.id)) {
+    appCtx.studioState = activeFloor.scene;
+    appCtx.planView.rotation =
+      appCtx.studioState?.settings?.planViewRotation ?? appCtx.planView.rotation;
+  }
+  (selectStudioTool("select"),
+    refreshSelection(),
+    refreshPreviewScene(),
+    refreshScopeItems(),
+    void loadBackgroundImage(),
+    syncFloorGroups(affectedFloorIds),
+    renderFloorList(),
+    markDocumentDirty());
 }
 function validateSelectionChange(placementChange: any) {
   const placementError = validatePlacementChange2(
@@ -2864,15 +3415,46 @@ function validateSelectionChange(placementChange: any) {
       false)
     : true;
 }
+/** 编辑前快照：同一楼层只保留最早一份（一次操作 = 一个事务）；切楼层后按新楼层重挂。 */
+function primeHistorySnapshot(snapshotScene: any = undefined) {
+  const floorId = getActiveFloor()?.id ?? appCtx.activeFloorId;
+  if (!floorId) return;
+  if (pendingHistoryScene?.floorId === floorId) return;
+  pendingHistoryScene = {
+    floorId,
+    scene: snapshotScene === undefined ? captureUndoSnapshot() : snapshotScene,
+  };
+}
 function deselectAll() {
-  (appCtx.undoRecords.push(captureUndoSnapshot()),
-    appCtx.undoRecords.length > 40 && appCtx.undoRecords.shift(),
-    (appCtx.redoRecords = []));
+  primeHistorySnapshot();
 }
 function applyPlacementChange(undoSnapshot: any) {
-  (appCtx.undoRecords.push(undoSnapshot),
-    appCtx.undoRecords.length > 40 && appCtx.undoRecords.shift(),
-    (appCtx.redoRecords = []));
+  primeHistorySnapshot(undoSnapshot);
+}
+/** markDocumentDirty 时把「编辑前快照 → 当前文档」的差异记成一条历史；纯选择没有 diff 条目。 */
+function flushPendingHistory() {
+  const pendingSnapshot = pendingHistoryScene;
+  pendingHistoryScene = null;
+  const historyStore = studioHistoryStore;
+  if (!pendingSnapshot || !historyStore) return;
+  const currentProject = appCtx.studioProject;
+  if (!currentProject?.floors?.some((floorRecord: any) => floorRecord.id === pendingSnapshot.floorId))
+    return;
+  let beforeDocument: any;
+  try {
+    beforeDocument = structuredClone(currentProject);
+  } catch {
+    return;
+  }
+  const beforeFloor = beforeDocument.floors.find(
+    (floorRecord: any) => floorRecord.id === pendingSnapshot.floorId,
+  );
+  if (!beforeFloor) return;
+  beforeFloor.scene = pendingSnapshot.scene;
+  const documentPatch = diffDocumentPatches(beforeDocument, currentProject);
+  if (!documentPatch) return;
+  historyStore.record(documentPatch, describeDocumentPatch(documentPatch));
+  syncStudioHistoryFacade();
 }
 async function restoreSnapshot(snapshotDocument: any) {
   /**
@@ -2922,12 +3504,25 @@ async function restoreSnapshot(snapshotDocument: any) {
     markDocumentDirty());
 }
 function markDocumentDirty() {
-  isEmbeddedStage ||
-    (syncCourtyardGates2(appCtx.studioState.items, getPixelsPerMeter() || 100),
+  if (isEmbeddedStage) {
+    pendingHistoryScene = null;
+    return;
+  }
+  if (isStudioDraftReadonly()) {
+    pendingHistoryScene = null;
+    showSaveState("只读：草稿载入失败，修改不会保存", "error");
+    return;
+  }
+  // C5：编辑真正落地时才把编辑前快照 diff 成 DocumentPatch 入栈。
+  flushPendingHistory();
+  (syncCourtyardGates2(appCtx.studioState.items, getPixelsPerMeter() || 100),
     (appCtx.isExporting = false),
     (appCtx.localSaveRevision += 1),
     (appCtx.firstLocalChangeAt ??= Date.now()),
     (appCtx.lastLocalChangeAt = Date.now()),
+    // C3：版本权威在 document store；marked 不产生补丁，但必须让 isDirty 为真。
+    studioDocumentStore.markWholeDocumentDirty(),
+    getStudioSaveStore().markDirty(),
     showSaveState("有未保存修改", "saving"),
     scheduleAutosave(),
     refreshStepChecklist());
@@ -2942,6 +3537,23 @@ async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
     (appCtx.isExternalModelLoadDeferred = false),
     (window.externalModelLoadsDeferred = false),
     (appCtx.loadedDraft = draftPayload),
+    // C3：GET / 冲突载入 / 只读重试的草稿在这里成为新的版本权威与干净基线。
+    // C4：全量同步载荷（interaction3d 场景）不带 revision —— 保留当前已载入 revision，
+    // 不把保存版本线打回 0（否则下一次 CAS PUT 必然 409）。
+    studioDocumentStore.applyLoaded({
+      revision:
+        typeof draftPayload?.revision === "number"
+          ? draftPayload.revision
+          : studioDocumentStore.getLoadedRevision(),
+      scene: draftPayload?.scene,
+    }),
+    getStudioSaveStore().acceptLoaded(),
+    (studioDraftReadonly = false),
+    hideStudioReadonlyBanner(),
+    (appCtx.localSaveRevision = 0),
+    (appCtx.remoteSaveRevision = 0),
+    (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
+    (appCtx.pendingConflict = null),
     (appCtx.isSceneStillLoading = isEmbeddedStage),
     (appCtx.studioProject = draftScene || normalizeStudioDocument(draftPayload.scene, studioDocumentDeps())),
     isEmbeddedStage)
@@ -2972,7 +3584,11 @@ async function applyLoadedDraft(draftPayload: any, draftScene: any = null) {
     refreshSelection(),
     refreshPreviewScene(),
     (appCtx.undoRecords = []),
-    (appCtx.redoRecords = []));
+    (appCtx.redoRecords = []),
+    studioHistoryStore?.clear(),
+    (pendingHistoryScene = null));
+  // 整篇载入 = 新基线，旧历史补丁不再适用。
+  syncStudioHistoryFacade();
 
   await refreshLightAreasFromHa();
   const selectedFloorRecords = collectSelectedFloors();
@@ -3071,35 +3687,25 @@ const saveWaiterResolvers = new Set<() => void>(),
 function resetSaveRetryState() {
   ((appCtx.saveFailureRetryCount = 0), (appCtx.saveRetryDueAt = 0), (appCtx.failedSaveRevision = -1));
 }
-/** 自动保存调度：合并 3s 内的多次修改，首次修改后最多 15s 兜底；失败重试按退避到期时间。 */
+/** 自动保存调度：宿主只保留闸门，防抖 / 首次 15s 兜底 / 退避重试全部交给 save-store。 */
 function scheduleAutosave(explicitDelayMs?: number) {
+  const pendingSaveStore = studioSaveStore;
   if (
-    (window.clearTimeout(appCtx.autosaveTimeoutId),
-    (appCtx.autosaveTimeoutId = null),
     isEmbeddedStage ||
-      appCtx.isPageSuspended ||
-      (document.hidden && appCtx.saveRetryDueAt > 0) ||
-      navigator.onLine === false ||
-      !appCtx.loadedDraft ||
-      appCtx.isSaveInFlight ||
-      studioExitDialogElement.open ||
-      appCtx.pendingConflict ||
-      appCtx.localSaveRevision === appCtx.remoteSaveRevision ||
-      appCtx.localSaveRevision === appCtx.blockedSaveRevision ||
-      appCtx.localSaveRevision === appCtx.failedSaveRevision)
+    appCtx.isPageSuspended ||
+    navigator.onLine === false ||
+    !appCtx.loadedDraft ||
+    isStudioDraftReadonly() ||
+    !pendingSaveStore ||
+    !studioDocumentStore.isDirty() ||
+    pendingSaveStore.getState().isSaveInFlight ||
+    pendingSaveStore.getState().status === "conflict" ||
+    pendingSaveStore.getState().status === "blocked" ||
+    studioExitDialogElement.open
   )
     return;
-  const now = Date.now(),
-    dueAt =
-      appCtx.saveRetryDueAt > 0
-        ? appCtx.saveRetryDueAt
-        : explicitDelayMs !== undefined
-          ? now + explicitDelayMs
-          : Math.min(
-              (appCtx.lastLocalChangeAt ?? now) + AUTOSAVE_DEBOUNCE_MS,
-              (appCtx.firstLocalChangeAt ?? now) + AUTOSAVE_MAX_DELAY_MS,
-            );
-  appCtx.autosaveTimeoutId = window.setTimeout(flushAutosave, Math.max(0, dueAt - now));
+  if (document.hidden && pendingSaveStore.getState().nextRetryAt !== null) return;
+  pendingSaveStore.scheduleAutosave(explicitDelayMs);
 }
 /** 交互（平面拖拽 / 渲染抑制 / 庭院绘制）结束后：释放退出等待者，并补一次被推迟的自动保存。 */
 function handleInteractionEnded() {
@@ -3112,19 +3718,26 @@ function handleInteractionEnded() {
 function isInteractionBusy() {
   return appCtx.isWindowHidden || appCtx.isRenderSuppressed || !!planPainter?.isDragging?.();
 }
-/** 退出前的未保存判定：进行中保存、版本差、导出存档脏、平面拖拽或庭院绘制待提交。 */
+/** 退出前的未保存判定：以 save-store / document-store 为权威；只读载入失败时不谎报待保存。 */
 function hasUnsavedChanges() {
+  const pendingSaveStore = studioSaveStore;
+  const saveState = pendingSaveStore?.getState();
   return (
-    appCtx.isSaveInFlight ||
-    appCtx.localSaveRevision !== appCtx.remoteSaveRevision ||
     appCtx.isExportPresetDirty ||
     !!appCtx.marqueeBox?.moved ||
-    !!planPainter?.hasPendingChange?.()
+    !!planPainter?.hasPendingChange?.() ||
+    !!(
+      pendingSaveStore &&
+      (pendingSaveStore.hasUnsavedChanges() ||
+        saveState?.isSaveInFlight ||
+        saveState?.status === "conflict")
+    )
   );
 }
 function refreshExitDialogButtons() {
+  const isSavingNow = !!appCtx.isSaveInFlight || !!studioSaveStore?.getState().isSaveInFlight;
   ((studioExitSaveButton.disabled = appCtx.isExitSaveInFlight),
-    (studioExitDiscardButton.disabled = appCtx.isSaveInFlight || appCtx.isExitSaveInFlight),
+    (studioExitDiscardButton.disabled = isSavingNow || appCtx.isExitSaveInFlight),
     (studioExitSaveButton.textContent = appCtx.isExitSaveInFlight ? "正在保存…" : "保存并退出"));
 }
 /** 「继续编辑」/ Esc：作废当前退出请求，释放等待者并关闭对话框。 */
@@ -3143,143 +3756,76 @@ function leaveStudio() {
     (appCtx.autosaveTimeoutId = null),
     navigateInShell(studioBackLinkElement.href));
 }
-async function flushAutosave() {
+/**
+ * 立即保存（自动保存 / 退出 / 手动保存共用）：闸门在本文件，状态机与退避在 save-store。
+ * 在途 PUT 由 save-store 去重；409 / 428 的结果统一在 settleStudioSaveResult 里处理。
+ */
+async function flushAutosave(): Promise<void> {
   if (
     isEmbeddedStage ||
     appCtx.isPageSuspended ||
-    (document.hidden && appCtx.saveRetryDueAt > 0) ||
-    navigator.onLine === false ||
     !appCtx.loadedDraft ||
-    appCtx.isSaveInFlight ||
-    appCtx.pendingConflict ||
-    appCtx.localSaveRevision === appCtx.remoteSaveRevision ||
-    appCtx.localSaveRevision === appCtx.failedSaveRevision
+    isStudioDraftReadonly()
   )
     return;
-  if (Date.now() < appCtx.saveRetryDueAt) {
-    scheduleAutosave();
-    return;
-  }
-  if (appCtx.localSaveRevision === appCtx.blockedSaveRevision) return;
   if (isInteractionBusy()) {
     appCtx.isInteractionDeferredSave = true;
     return;
   }
-  (window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null), (appCtx.isInteractionDeferredSave = false));
-  const previousFirstLocalChangeAt = appCtx.firstLocalChangeAt,
-    previousLastLocalChangeAt = appCtx.lastLocalChangeAt;
-  ((appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null), (appCtx.isSaveInFlight = true), refreshExitDialogButtons());
-  const saveRevisionAtStart = appCtx.localSaveRevision;
-  showSaveState("正在保存…", "saving");
-  const saveStudioDraft = async (draftToSave: any) => {
-    const latestLocalRevision = getLocalSaveRevision(),
-      putStudioDraft = (interactionConfirmationToken = "") =>
-        fetchStudioApi("/studio3d", {
-          method: "PUT",
-          hbLogContext: {
-            phase: "studio-save",
-          },
-          body: JSON.stringify({
-            revision: draftToSave.revision,
-            scene: latestLocalRevision,
-            interactionConfirmation: interactionConfirmationToken,
-          }),
-        });
-    try {
-      return await putStudioDraft();
-    } catch (saveError: any) {
-      const saveErrorDetail = saveError.payload?.detail;
-      if (saveError.status !== 428 || saveErrorDetail?.code !== "STUDIO3D_INTERACTION_CONFIRMATION")
-        throw saveError;
-      return (await resolveInteractionCleanup(saveErrorDetail, undoStudioHistory, showToast))
-        ? putStudioDraft(saveErrorDetail.token)
-        : ((appCtx.blockedSaveRevision = saveRevisionAtStart),
-          showSaveState("删除未确认，尚未保存", "error"),
-          null);
-    }
-  };
+  appCtx.isInteractionDeferredSave = false;
+  (window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null));
   try {
-    try {
-      const savedDraft = await saveStudioDraft(appCtx.loadedDraft);
-      if (!savedDraft) return;
-      appCtx.loadedDraft = savedDraft;
-    } catch (conflictError: any) {
-      if (conflictError.status !== 409) throw conflictError;
-      const xa2 = await fetchStudioApi("/studio3d");
-      recordSaveConflict(xa2, getLocalSaveRevision(), saveRevisionAtStart);
-      return;
-    }
-    (resetSaveRetryState(),
-      (appCtx.remoteSaveRevision = Math.max(appCtx.remoteSaveRevision, saveRevisionAtStart)),
-      appCtx.localSaveRevision === appCtx.remoteSaveRevision && showSaveState("已自动保存", "saved"));
-  } catch (saveFailure: any) {
-    (window.HomeOSLog?.error!(saveFailure, {
-      phase: "studio-save",
-    }),
-      (appCtx.saveFailureRetryCount += 1));
-    const isRetryableFailure =
-      !saveFailure.status ||
-      [408, 425, 429].includes(saveFailure.status) ||
-      saveFailure.status >= 500;
-    (isRetryableFailure
-      ? ((appCtx.saveRetryDueAt =
-          Date.now() + Math.min(30000, 2000 * 2 ** Math.min(appCtx.saveFailureRetryCount - 1, 4))),
-        showSaveState("保存失败，稍后自动重试", "error"))
-      : ((appCtx.failedSaveRevision = saveRevisionAtStart),
-        (appCtx.saveRetryDueAt = 0),
-        showSaveState("保存失败，修改后重试", "error")),
-      (appCtx.saveFailureRetryCount === 1 || !isRetryableFailure) &&
-        showToast(saveFailure.message || "3D 草稿保存失败。", "error"));
+    await runStudioSaveOnce("autosave");
   } finally {
-    (appCtx.remoteSaveRevision < saveRevisionAtStart &&
-      ((appCtx.firstLocalChangeAt = Math.min(
-        previousFirstLocalChangeAt ?? Date.now(),
-        appCtx.firstLocalChangeAt ?? Date.now(),
-      )),
-      (appCtx.lastLocalChangeAt = Math.max(previousLastLocalChangeAt ?? 0, appCtx.lastLocalChangeAt ?? 0))),
-      (appCtx.isSaveInFlight = false),
-      refreshExitDialogButtons());
     for (const saveWaiter of saveWaiterResolvers) saveWaiter();
     (saveWaiterResolvers.clear(), scheduleAutosave());
   }
 }
+// 409 三出口：加载服务器版本（先导出本地副本）/ 覆盖服务器（显式 currentRevision PUT）/ 导出本地副本。
+const saveConflictExportButton = document.createElement("button");
+saveConflictExportButton.id = "save-conflict-export";
+saveConflictExportButton.type = "button";
+saveConflictExportButton.textContent = "导出本地副本";
+saveConflictDialogElement.querySelector(".dialog-actions")?.appendChild(saveConflictExportButton);
 (saveConflictDialogElement.addEventListener("cancel", (dialogCancelEvent: any) =>
   dialogCancelEvent.preventDefault(),
 ),
   saveConflictLoadButton.addEventListener("click", async () => {
-    const Vr2 = appCtx.pendingConflict;
-    if (Vr2) {
-      ((appCtx.pendingConflict = null),
-        window.clearTimeout(appCtx.autosaveTimeoutId),
-        resetSaveRetryState(),
-        (appCtx.blockedSaveRevision = -1),
-        (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
-        saveConflictDialogElement.close());
-      try {
-        (await applyLoadedDraft(Vr2.latest),
-          (appCtx.remoteSaveRevision = appCtx.localSaveRevision),
-          showSaveState("已加载服务器版本", "saved"),
-          showToast("已加载另一页面保存的户型，当前页面没有执行覆盖。", "success"),
-          scheduleAutosave(0));
-      } catch (loadFailure: any) {
-        (showSaveState("载入失败", "error"),
-          showToast(loadFailure.message || "服务器版本载入失败。", "error"));
-      }
+    const pendingConflictSnapshot = appCtx.pendingConflict;
+    if (!pendingConflictSnapshot) return;
+    (window.clearTimeout(appCtx.autosaveTimeoutId),
+      (appCtx.autosaveTimeoutId = null),
+      (appCtx.pendingConflict = null),
+      (appCtx.blockedSaveRevision = -1),
+      (appCtx.firstLocalChangeAt = appCtx.lastLocalChangeAt = null),
+      saveConflictDialogElement.close());
+    // 出口一硬约束：先导出本地副本，再载入服务器版本（本地改动绝不静默丢失）。
+    downloadStudioLocalCopy(pendingConflictSnapshot.localScene);
+    try {
+      const latestConflictPayload =
+        pendingConflictSnapshot.latest || (await fetchStudioApi("/studio3d"));
+      await applyLoadedDraft(latestConflictPayload);
+      showSaveState("已加载服务器版本", "saved");
+      showToast("已加载另一页面保存的户型，本地副本已导出。", "success");
+    } catch (loadFailure: any) {
+      (showSaveState("载入失败", "error"),
+        showToast(loadFailure?.message || "服务器版本载入失败。", "error"));
     }
   }),
-  saveConflictOverwriteButton.addEventListener("click", () => {
-    const Vr3 = appCtx.pendingConflict;
-    Vr3 &&
-      (resetSaveRetryState(),
-      (appCtx.studioProject = normalizeStudioDocument(Vr3.localScene, studioDocumentDeps())),
-      (appCtx.activeFloorId = appCtx.studioProject.activeFloorId),
-      (appCtx.studioState = getActiveFloor().scene),
-      (appCtx.loadedDraft = Vr3.latest),
+  saveConflictOverwriteButton.addEventListener("click", async () => {
+    if (!appCtx.pendingConflict) return;
+    (window.clearTimeout(appCtx.autosaveTimeoutId),
+      (appCtx.autosaveTimeoutId = null),
       (appCtx.pendingConflict = null),
       saveConflictDialogElement.close(),
-      showSaveState("正在确认覆盖…", "saving"),
-      window.clearTimeout(appCtx.autosaveTimeoutId),
-      scheduleAutosave(0));
+      showSaveState("正在确认覆盖…", "saving"));
+    // 出口二：显式带 currentRevision 覆盖；local === remote 也必须发一次（markWholeDocumentDirty）。
+    studioDocumentStore.markWholeDocumentDirty();
+    appCtx.localSaveRevision += 1;
+    await runStudioSaveOnce("overwrite");
+  }),
+  saveConflictExportButton.addEventListener("click", () => {
+    downloadStudioLocalCopy();
   }));
 // 退出保护三态对话框：返回编辑器前的未保存拦截、等待保存完成后再退出、不保存直接退出。
 studioBackLinkElement.addEventListener("click", (studioBackLinkEvent: any) => {
@@ -3322,24 +3868,19 @@ studioExitSaveButton.addEventListener("click", async () => {
     refreshExitDialogButtons(),
     (studioExitMessageElement.textContent = "正在保存，成功后将返回编辑器。你也可以继续编辑。"));
   try {
-    if (
-      (appCtx.isSaveInFlight && (await new Promise<void>((resolve) => saveWaiterResolvers.add(resolve))),
-      exitSaveRequestToken !== appCtx.exitSaveRequestId ||
-        (isInteractionBusy() &&
-          (await new Promise<void>((resolve) => exitWaiterResolvers.add(resolve))),
-        exitSaveRequestToken !== appCtx.exitSaveRequestId) ||
-        (resetSaveRetryState(),
-        (appCtx.blockedSaveRevision = -1),
-        saveExportPreset(),
-        await flushAutosave(),
-        exitSaveRequestToken !== appCtx.exitSaveRequestId))
-    )
-      return;
-    if (appCtx.pendingConflict) {
+    saveExportPreset();
+    // 退出必须真正 await 保存：save-store 会对在途 PUT 去重，requestExit 遇到可重试失败会立刻再试一次。
+    const exitSaveResult = await runStudioSaveOnce("exit");
+    if (exitSaveRequestToken !== appCtx.exitSaveRequestId) return;
+    if (exitSaveResult.reason === "conflict") {
       (closeExitDialog(), showToast("请先处理保存冲突，再返回编辑器。", "error"));
       return;
     }
-    if (!hasUnsavedChanges()) {
+    if (exitSaveResult.ok) {
+      if (hasUnsavedChanges()) {
+        (closeExitDialog(), leaveStudio());
+        return;
+      }
       leaveStudio();
       return;
     }
@@ -11063,7 +11604,19 @@ const studioBootDeps = () => ({
   stageLoadTiming,
   showSaveState,
   showToast,
-  fetchStudioApi,
+  fetchStudioApi: (apiPath: any, options: any, response: any) => {
+    const pendingDraftFetch = fetchStudioApi(apiPath, options, response);
+    const requestedMethod = options && options.method ? options.method : "GET";
+    if (
+      !isEmbeddedStage &&
+      requestedMethod === "GET" &&
+      (!apiPath || String(apiPath).startsWith("/studio3d"))
+    ) {
+      // 初载 GET 抛错：进入 blocked-readonly（横幅 + 重试 + 导出本地副本），不再谎报可保存。
+      pendingDraftFetch.catch((draftLoadError: any) => notifyStudioDraftLoadFailure(draftLoadError));
+    }
+    return pendingDraftFetch;
+  },
   createStudioRenderer,
   resizePlanStage,
   applyLoadedDraft,
@@ -16776,13 +17329,19 @@ if (
       (appCtx.isSnapTemporarilyOff = false));
   }),
   window.addEventListener("online", () => {
-    ((appCtx.saveRetryDueAt = 0), scheduleAutosave(0));
+    ((appCtx.saveRetryDueAt = 0), studioSaveStore?.setOnline(true), scheduleAutosave(0));
   }),
   window.addEventListener("offline", () => {
-    (window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null));
+    (studioSaveStore?.setOnline(false),
+      window.clearTimeout(appCtx.autosaveTimeoutId),
+      (appCtx.autosaveTimeoutId = null));
   }),
   window.addEventListener("pagehide", () => {
-    ((appCtx.isPageSuspended = true), window.clearTimeout(appCtx.autosaveTimeoutId), (appCtx.autosaveTimeoutId = null));
+    ((appCtx.isPageSuspended = true),
+      window.clearTimeout(appCtx.autosaveTimeoutId),
+      (appCtx.autosaveTimeoutId = null),
+      // pagehide 用 keepalive PUT 尽力而为；不乐观推进 revision，下次 GET 为准。
+      !isEmbeddedStage && !appCtx.isLeavingStudio && studioSaveStore?.flushOnPageHide());
   }),
   window.addEventListener("pageshow", () => {
     ((appCtx.isPageSuspended = false), (appCtx.isLeavingStudio = false), scheduleAutosave());
@@ -17053,6 +17612,12 @@ function runStudioRenderLoop() {
         (keepKeySet && !keepKeySet.has(retainedKey)) ||
           (disposeRetainedNode(retainedEntry), retainedFloorsByKey.delete(retainedKey));
     };
+  // C4：同步到新的 baseLighting 后重建灯光派生状态（缓存裁剪 + 灯光应用），
+  // 与旧 readSceneUpdate 的非全量灯光分支语义一致。
+  refreshSceneSyncLightingDerived = () => {
+    if (ctx.hasBaseLightingApplied) return;
+    (trimRetainedFloors(), applyBaseLighting(appCtx.studioProject.baseLighting));
+  };
   function retainFloorNode(retainRequest: any) {
     if (!retainRequest.cacheKey || retainRequest.cacheEpoch !== ctx.cacheEpoch) return false;
     const retainFloorId = retainRequest.id,
@@ -18967,7 +19532,7 @@ function runStudioRenderLoop() {
       const sceneUpdateParams = new URLSearchParams(window.location.search),
         sceneUpdateQuery = new URLSearchParams({
           projectId: sceneUpdateParams.get("projectId") || "",
-          since: appCtx.loadedDraft.syncKey || "",
+          since: currentSceneSyncSinceKey(),
         }),
         sceneUpdateResponse = await withRequestTimeout2(
           15000,
@@ -18989,28 +19554,41 @@ function runStudioRenderLoop() {
           sceneUpdatePayload,
         );
       if (!sceneUpdateResponse) return null;
-      const sceneUpdatePlan = sceneUpdatePlan2(
-        normalizeStudioDocument(appCtx.loadedDraft.scene, studioDocumentDeps()),
-        normalizeStudioDocument(sceneUpdateResponse.scene, studioDocumentDeps()),
+      const remoteSceneDocument = normalizeStudioDocument(
+        sceneUpdateResponse.scene,
+        studioDocumentDeps(),
       );
-      if (!sceneUpdatePlan.full && !sceneUpdatePlan.floors.length) {
-        const zn5 = normalizeStudioDocument(sceneUpdateResponse.scene, studioDocumentDeps());
-        appCtx.studioProject.baseLighting = zn5.baseLighting;
-        for (const updatedFloorEntry of zn5.floors) {
-          const localFloorRecord = appCtx.studioProject.floors.find(
-            (existingFloorRecord: any) => existingFloorRecord.id === updatedFloorEntry.id,
-          );
-          localFloorRecord && (localFloorRecord.name = updatedFloorEntry.name);
-        }
-        return (
-          sceneUpdatePlan.lighting &&
-            !ctx.hasBaseLightingApplied &&
-            (trimRetainedFloors(), applyBaseLighting(zn5.baseLighting)),
-          (appCtx.loadedDraft = sceneUpdateResponse),
-          null
-        );
+      // C4：决策是纯函数（只读运行时快照与脏标记），不读写 loadedDraft / 保存版本线。
+      const sceneSyncDecision = studioSceneSyncController.decide(remoteSceneDocument);
+      if (sceneSyncDecision.kind === "deferred") return null;
+      if (sceneSyncDecision.kind === "ignored") {
+        // embedded 预览永不参与同步；「无视觉变化」说明内容已一致，推进游标避免重复传输。
+        if (sceneSyncDecision.reason === "no-visual-change") rememberSceneSyncKey(sceneUpdateResponse);
+        return null;
       }
-      return sceneUpdateResponse;
+      if (
+        sceneSyncDecision.kind === "full-reload" ||
+        sceneSyncDecision.kind === "flush-then-reload"
+      ) {
+        // 全量推送：本地脏时先保存；冲突 / 保存失败时绝不覆盖本地运行时草稿。
+        if (sceneSyncDecision.kind === "flush-then-reload") {
+          const sceneSyncFlushOutcome = await flushSceneSyncRuntime();
+          if (sceneSyncFlushOutcome !== "saved") return null;
+          // 保存成功后本地内容已经是服务端最新，而本轮载荷是保存前的陈旧快照；
+          // 直接丢弃本轮，下一轮再比较（一致即 ignored），避免用旧载荷回滚本地。
+          return null;
+        }
+        // 本地干净：交回 stage 的 adopt 流程（replaceScene(full) → applyLoadedDraft），
+        // 由它采纳新保存基线，同时保留相机 / 活动楼层 / 灯光过渡。
+        rememberSceneSyncKey(sceneUpdateResponse);
+        return { ...sceneUpdateResponse, scene: remoteSceneDocument };
+      }
+      // 非全量：只就地更新运行时楼层 / 灯光 / 楼层名，不碰 loadedDraft、dirty 与 revision。
+      const sceneSyncOutcome = await studioSceneSyncController.handleRemoteScene(remoteSceneDocument);
+      refreshAfterSceneSyncOutcome(sceneSyncOutcome);
+      if (sceneSyncOutcome.kind === "merge-floors" || sceneSyncOutcome.kind === "lighting-only")
+        rememberSceneSyncKey(sceneUpdateResponse);
+      return null;
     },
     get savedScene() {
       return appCtx.loadedDraft;
@@ -19037,39 +19615,13 @@ function runStudioRenderLoop() {
         (ctx.cameraFirstChildRef = null),
         !replaceScenePlan.full)
       ) {
-        ((zn6.activeFloorId = appCtx.activeFloorId),
-          (zn6.previewFloorMode = appCtx.studioProject.previewFloorMode),
-          (zn6.previewFloorGap = appCtx.studioProject.previewFloorGap));
-        for (const replacedFloorEntry of zn6.floors) {
-          replacedFloorEntry.scene.settings.livePreviewEnabled = true;
-          const localReplacedFloor = appCtx.studioProject.floors.find(
-            (replacementSceneMatchedFloor: any) =>
-              replacementSceneMatchedFloor.id === replacedFloorEntry.id,
-          );
-          if (localReplacedFloor && !replaceScenePlan.floors.includes(replacedFloorEntry.id)) {
-            for (const incomingLightGroup of replacedFloorEntry.scene.lightGroups) {
-              const localLightGroup = localReplacedFloor.scene.lightGroups.find(
-                (replacementSceneMatchedLightGroup: any) =>
-                  replacementSceneMatchedLightGroup.id === incomingLightGroup.id,
-              );
-              localLightGroup && (incomingLightGroup.enabled = localLightGroup.enabled);
-            }
-            for (const incomingLightItem of replacedFloorEntry.scene.items) {
-              if (!lampItemTypeSet.has(incomingLightItem.type)) continue;
-              const localLightItem = localReplacedFloor.scene.items.find(
-                (existingLightItem: any) => existingLightItem.id === incomingLightItem.id,
-              );
-              localLightItem &&
-                ((incomingLightItem.lightBrightness = localLightItem.lightBrightness),
-                (incomingLightItem.lightTemperature = localLightItem.lightTemperature),
-                (incomingLightItem.lightColorRgb = localLightItem.lightColorRgb));
-            }
-          }
-        }
-        ((appCtx.studioProject = zn6),
-          (appCtx.loadedDraft = replacementScene),
+        // 非全量（C4）：只就地合并受影响楼层与基础灯光（保留本地视图设置与灯组开关），
+        // 绝不整体替换 studioProject，也**不改写 loadedDraft** —— 保存基线只由全量路径维护。
+        const runtimeSceneProject = appCtx.studioProject;
+        ((runtimeSceneProject.baseLighting = zn6.baseLighting),
+          mergeFloors(runtimeSceneProject, zn6, replaceScenePlan.floors),
           ctx.overviewStackOption !== undefined &&
-            (appCtx.studioProject.uniformOverviewStack = ctx.overviewStackOption),
+            (runtimeSceneProject.uniformOverviewStack = ctx.overviewStackOption),
           (appCtx.studioState = getActiveFloor().scene),
           syncFloorGroups(new Set(replaceScenePlan.floors)),
           Promise.allSettled(preloadDefaultModels()));
@@ -20194,20 +20746,28 @@ startupStudio(studioBootDeps());
   };
   });
 
-  disposeActiveStudio = () => {
+  disposeActiveStudio = async () => {
     try {
-      innerCleanup?.();
+      // SPA teardown 前置：可等待地落盘一次（不丢未保存改动）；失败不阻塞回收。
+      await flushActiveStudioSave?.();
     } finally {
-      // 无论显式回收是否成功，登记过的全局监听/定时器/观察器都必须释放
-      scope.dispose();
-      resetStudioFacade();
+      try {
+        innerCleanup?.();
+      } finally {
+        // 无论显式回收是否成功，登记过的全局监听/定时器/观察器都必须释放
+        scope.dispose();
+        resetStudioFacade();
+      }
     }
   };
 }
 
 /** 回收户型图绘制（`/3d-studio`、`/stage`）：释放渲染器、观察者与引导期登记的全局副作用。 */
-export function teardownStudio(): void {
+export async function teardownStudio(): Promise<void> {
   const dispose = disposeActiveStudio;
   disposeActiveStudio = null;
-  dispose?.();
+  const flushBeforeTeardown = flushActiveStudioSave;
+  flushActiveStudioSave = null;
+  await flushBeforeTeardown?.();
+  await dispose?.();
 }

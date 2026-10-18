@@ -13,6 +13,8 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 import SceneStage from '@/components/common/SceneStage.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
+import AuthShell from '@/shared/components/auth/AuthShell.vue'
+import { AUTH_FLOW_ACCESS, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
@@ -108,86 +110,72 @@ async function onSubmit(): Promise<void> {
 </script>
 
 <template>
-  <div class="hos-page hos-tone--accent">
-    <SceneStage page="reset" />
+  <AuthShell
+    eyebrow="找回密码"
+    title="重置本机管理员密码"
+    description="用注册时登记的邮箱收验证码，验证通过即可设置新密码；重置后这台机器上的旧会话全部失效。"
+    secure="邮箱验证"
+    :steps="renderAuthSteps(AUTH_FLOW_ACCESS, 'reset')"
+    steps-label="账号访问进度"
+  >
+    <template #scene><SceneStage page="reset" /></template>
 
-    <main class="hos-dock">
-      <section class="hos-panel hos-rise">
-        <span class="hos-panel__edge" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+    <form id="reset-form" class="hos-form" @submit.prevent="onSubmit">
+      <p v-if="errorMessage" id="message" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
 
-        <div class="hos-panel__head">
-          <div class="hos-eyebrow-row">
-            <p class="hos-eyebrow">找回密码 · 02/03</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>邮箱验证</span>
-          </div>
-          <h1>重置本机管理员密码</h1>
-          <p class="hos-panel__desc">
-            用注册时登记的邮箱收验证码，验证通过即可设置新密码；重置后这台机器上的旧会话全部失效。
-          </p>
+      <div class="hos-field">
+        <div class="hos-label-row"><label for="reset-email">注册邮箱</label></div>
+        <div class="hos-control">
+          <input id="reset-email" name="email" v-model="email" :disabled="submitting"
+            type="email" placeholder="name@example.com" autocomplete="email" required>
         </div>
+      </div>
 
-        <form id="reset-form" class="hos-form" @submit.prevent="onSubmit">
-          <p v-if="errorMessage" id="message" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
+      <div class="hos-field hos-field--action">
+        <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
+        <button type="button" class="hos-btn-ghost" :disabled="sending || submitting || cooldown > 0" @click="onSendCode">
+          {{ cooldown > 0 ? `${cooldown} 秒后重发` : sending ? "发送中…" : "获取验证码" }}
+        </button>
+      </div>
 
-          <div class="hos-field">
-            <div class="hos-label-row"><label for="reset-email">注册邮箱</label></div>
-            <div class="hos-control">
-              <input id="reset-email" name="email" v-model="email" :disabled="submitting"
-                type="email" placeholder="name@example.com" autocomplete="email" required>
-            </div>
-          </div>
-
-          <div class="hos-field hos-field--action">
-            <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
-            <button type="button" class="hos-btn-ghost" :disabled="sending || submitting || cooldown > 0" @click="onSendCode">
-              {{ cooldown > 0 ? `${cooldown} 秒后重发` : sending ? "发送中…" : "获取验证码" }}
-            </button>
-          </div>
-
-          <div class="hos-field">
-            <div class="hos-label-row"><label for="reset-code">邮箱验证码</label></div>
-            <div class="hos-control">
-              <input id="reset-code" name="code" v-model="code" :disabled="submitting"
-                type="text" inputmode="numeric" maxlength="12" placeholder="邮箱收到的验证码" autocomplete="one-time-code" required>
-            </div>
-            <small v-if="sent">没收到？请确认该邮箱就是注册本机账号时用的那个。</small>
-          </div>
-
-          <div class="hos-row-2">
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="reset-password">新密码</label></div>
-              <PasswordField id="reset-password" v-model="password" autocomplete="new-password"
-                placeholder="至少 8 位，含字母与数字" :minlength="8" />
-            </div>
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="reset-confirm">确认新密码</label></div>
-              <PasswordField id="reset-confirm" v-model="passwordConfirmation" autocomplete="new-password"
-                placeholder="请再次输入新密码" :minlength="8" />
-            </div>
-          </div>
-
-          <div class="hos-actions">
-            <button class="hos-btn-primary" type="submit" :disabled="submitting">
-              {{ submitting ? "重置中…" : "重置密码" }}
-            </button>
-          </div>
-        </form>
-
-        <div class="hos-panel__copy">
-          <div class="hos-panel__meta">
-            <span>验证码由商店代发</span>
-            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>重置后需重新登录</span>
-          </div>
-          <p class="hos-panel__meta">
-            <a class="hos-text-button" href="/login">返回登录</a>
-          </p>
+      <div class="hos-field">
+        <div class="hos-label-row"><label for="reset-code">邮箱验证码</label></div>
+        <div class="hos-control">
+          <input id="reset-code" name="code" v-model="code" :disabled="submitting"
+            type="text" inputmode="numeric" maxlength="12" placeholder="邮箱收到的验证码" autocomplete="one-time-code" required>
         </div>
-      </section>
-    </main>
-  </div>
+        <small v-if="sent">没收到？请确认该邮箱就是注册本机账号时用的那个。</small>
+      </div>
+
+      <div class="hos-row-2">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="reset-password">新密码</label></div>
+          <PasswordField id="reset-password" v-model="password" autocomplete="new-password"
+            placeholder="至少 8 位，含字母与数字" :minlength="8" />
+        </div>
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="reset-confirm">确认新密码</label></div>
+          <PasswordField id="reset-confirm" v-model="passwordConfirmation" autocomplete="new-password"
+            placeholder="请再次输入新密码" :minlength="8" />
+        </div>
+      </div>
+
+      <div class="hos-actions">
+        <button class="hos-btn-primary" type="submit" :disabled="submitting">
+          {{ submitting ? "重置中…" : "重置密码" }}
+        </button>
+      </div>
+    </form>
+
+    <template #copy>
+      <div class="hos-panel__meta">
+        <span>验证码由商店代发</span>
+        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+        <span>重置后需重新登录</span>
+      </div>
+      <p class="hos-panel__meta">
+        <a class="hos-text-button" href="/login">返回登录</a>
+      </p>
+    </template>
+  </AuthShell>
 </template>

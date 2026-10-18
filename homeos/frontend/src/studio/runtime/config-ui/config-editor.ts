@@ -338,7 +338,6 @@ export async function openInteraction3dEditor({
       pickers,
       onSaveConfig,
       shouldStartAdding,
-      vacuumId,
       editingFloorId,
       includes,
       isDeviceKind,
@@ -348,6 +347,10 @@ export async function openInteraction3dEditor({
     __gs('deviceKind', () => deviceKind, (v) => { deviceKind = v; });
     __gs('isVacuumShortcutMode', () => isVacuumShortcutMode, (v) => { isVacuumShortcutMode = v; });
     __gs('isVacuumMode', () => isVacuumMode, (v) => { isVacuumMode = v; });
+    // 必须走 getter/setter：`findVacuumModel()` 闭包读的是这个变量，而各 panel 渲染器会写 `e.vacuumId`。
+    // 若只 `Object.assign` 一份快照，写入落在宿主属性上、闭包里的 vacuumId 永远是初始值，
+    // `findVacuumModel()` 返回 undefined → 「添加快捷指令」静默 return（点了没反应）。
+    __gs('vacuumId', () => vacuumId, (v) => { vacuumId = v; });
     __gs('usesStatusPanel', () => usesStatusPanel, (v) => { usesStatusPanel = v; });
     __gs('isTelevisionMode', () => isTelevisionMode, (v) => { isTelevisionMode = v; });
     __gs('isSpeakerMode', () => isSpeakerMode, (v) => { isSpeakerMode = v; });

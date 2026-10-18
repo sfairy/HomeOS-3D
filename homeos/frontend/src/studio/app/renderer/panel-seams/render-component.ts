@@ -536,7 +536,20 @@ export function renderComponent(this: PanelRenderer,
         ) &&
           ((runtimeActionHitboxElement = document.createElement("span")),
           (runtimeActionHitboxElement.className = "hb-runtime-action-hitbox"),
-          runtimeActionHitboxElement.setAttribute("aria-hidden", "true"),
+          // A3：热区是可点击控件，必须能被键盘聚焦并激活；aria-hidden 元素不可聚焦，
+          // 也会把可聚焦控件从无障碍树里隐藏，所以改用 role=button + tabIndex=0 + aria-label。
+          runtimeActionHitboxElement.setAttribute("role", "button"),
+          (runtimeActionHitboxElement.tabIndex = 0),
+          runtimeActionHitboxElement.setAttribute(
+            "aria-label",
+            String(
+              renderComponentRecord.title ||
+                renderComponentRecord.name ||
+                renderComponentRecord.label ||
+                renderComponentRecord.type ||
+                "交互组件",
+            ),
+          ),
           componentHostElement.classList.add("hb-runtime-fitted-hit-area"),
           componentHostElement.append(runtimeActionHitboxElement)),
           this.bindRuntimeActions(runtimeActionHitboxElement, runtimeActionOptions));

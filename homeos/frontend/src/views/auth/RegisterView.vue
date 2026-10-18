@@ -4,11 +4,12 @@
  *
  * 验证码由授权商店代发代验（后端 `/auth/verification` → `/auth/register`）；
  * 注册成功后服务端直接建立登录会话，这里整页跳转让所有 store 按新身份初始化。
- * 版式与商店注册页一致（SceneStage + hos-panel）。
+ * 版式由 AuthShell 统一；本页处在「首次开通」三步轨道的第 2 步。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import SceneStage from '@/components/common/SceneStage.vue'
+import AuthShell from '@/shared/components/auth/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -17,6 +18,7 @@ import {
   PASSWORD_POLICY_MESSAGE,
   isPasswordPolicyCompliant,
 } from '@/shared/utils/core/password.util'
+import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
 
 const authStore = useAuthStore()
 const chrome = useChromeStore()
@@ -30,6 +32,9 @@ const submitting = ref(false)
 const sending = ref(false)
 const errorMessage = ref('')
 const mismatch = computed(() => Boolean(passwordConfirmation.value) && password.value !== passwordConfirmation.value)
+
+/** 步骤轨道：首次开通（初始化 → 注册 → 激活），本页是注册这一步。 */
+const steps = renderAuthSteps(AUTH_FLOW_SETUP, 'register')
 
 /** 发码倒计时（秒）；商店会返回 resendAfter，缺省取商店默认冷却 60 秒。 */
 const cooldown = ref(0)
@@ -96,96 +101,82 @@ async function onSubmit(): Promise<void> {
 </script>
 
 <template>
-  <div class="hos-page hos-tone--accent">
-    <SceneStage page="register" />
+  <AuthShell
+    eyebrow="注册"
+    title="创建这台机器的唯一账号"
+    description="账号用于登录，邮箱收验证码；之后填「账号或邮箱」任一个都能进。注册完成后本入口即关闭。"
+    secure="账号 + 邮箱验证"
+    :steps="steps"
+    steps-label="首次开通进度"
+  >
+    <template #scene><SceneStage page="register" /></template>
 
-    <main class="hos-dock">
-      <section class="hos-panel hos-rise">
-        <span class="hos-panel__edge" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+    <form id="register-form" class="hos-form" @submit.prevent="onSubmit">
+      <p v-if="errorMessage" id="message" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
 
-        <div class="hos-panel__head">
-          <div class="hos-eyebrow-row">
-            <p class="hos-eyebrow">注册 · 01/03</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号 + 邮箱验证</span>
+      <div class="hos-row-id">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="register-username">账号</label></div>
+          <div class="hos-control">
+            <input id="register-username" name="username" v-model="username" :disabled="submitting"
+              placeholder="登录用账号" autocomplete="username" minlength="3" maxlength="64"
+              pattern="[^@\s]{3,64}" title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）" required>
           </div>
-          <h1>创建这台机器的唯一账号</h1>
-          <p class="hos-panel__desc">
-            账号用于登录，邮箱收验证码；之后填「账号或邮箱」任一个都能进。注册完成后本入口即关闭。
-          </p>
         </div>
-
-        <form id="register-form" class="hos-form" @submit.prevent="onSubmit">
-          <p v-if="errorMessage" id="message" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
-
-          <div class="hos-row-id">
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="register-username">账号</label></div>
-              <div class="hos-control">
-                <input id="register-username" name="username" v-model="username" :disabled="submitting"
-                  placeholder="登录用账号" autocomplete="username" minlength="3" maxlength="64"
-                  pattern="[^@\s]{3,64}" title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）" required>
-              </div>
-            </div>
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="register-email">邮箱</label></div>
-              <div class="hos-control">
-                <input id="register-email" name="email" v-model="email" :disabled="submitting"
-                  type="email" placeholder="name@example.com" autocomplete="email" required>
-              </div>
-            </div>
-            <div class="hos-field hos-field--action">
-              <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
-              <button type="button" class="hos-btn-ghost" :disabled="sending || cooldown > 0" @click="onSendCode">
-                {{ cooldown > 0 ? `${cooldown} 秒后重发` : sending ? "发送中…" : "获取验证码" }}
-              </button>
-            </div>
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="register-email">邮箱</label></div>
+          <div class="hos-control">
+            <input id="register-email" name="email" v-model="email" :disabled="submitting"
+              type="email" placeholder="name@example.com" autocomplete="email" required>
           </div>
-
-          <div class="hos-field">
-            <div class="hos-label-row"><label for="register-code">邮箱验证码</label></div>
-            <div class="hos-control">
-              <input id="register-code" name="code" v-model="code" :disabled="submitting"
-                type="text" inputmode="numeric" maxlength="12" placeholder="邮箱收到的验证码" autocomplete="one-time-code" required>
-            </div>
-          </div>
-
-          <div class="hos-row-2">
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="register-password">密码</label></div>
-              <PasswordField id="register-password" v-model="password" autocomplete="new-password"
-                placeholder="至少 8 位，含字母与数字" :minlength="8" />
-            </div>
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="register-confirm">确认密码</label></div>
-              <PasswordField id="register-confirm" v-model="passwordConfirmation" autocomplete="new-password"
-                placeholder="请再次输入密码" :minlength="8" />
-            </div>
-          </div>
-
-          <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
-
-          <div class="hos-actions">
-            <button class="hos-btn-primary" type="submit" :disabled="submitting">
-              {{ submitting ? "注册中…" : "注册并登录" }}
-            </button>
-          </div>
-        </form>
-
-        <div class="hos-panel__copy">
-          <div class="hos-panel__meta">
-            <span>本机唯一账号</span>
-            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>密码至少 8 位，含字母与数字</span>
-            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>注册后进入授权检测</span>
-          </div>
-          <p>忘记口令不必删账号：登录页「忘记本机密码」用注册邮箱验证码即可重置。</p>
         </div>
-      </section>
-    </main>
-  </div>
+        <div class="hos-field hos-field--action">
+          <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
+          <button type="button" class="hos-btn-ghost" :disabled="sending || cooldown > 0" @click="onSendCode">
+            {{ cooldown > 0 ? `${cooldown} 秒后重发` : sending ? "发送中…" : "获取验证码" }}
+          </button>
+        </div>
+      </div>
+
+      <div class="hos-field">
+        <div class="hos-label-row"><label for="register-code">邮箱验证码</label></div>
+        <div class="hos-control">
+          <input id="register-code" name="code" v-model="code" :disabled="submitting"
+            type="text" inputmode="numeric" maxlength="12" placeholder="邮箱收到的验证码" autocomplete="one-time-code" required>
+        </div>
+      </div>
+
+      <div class="hos-row-2">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="register-password">密码</label></div>
+          <PasswordField id="register-password" v-model="password" autocomplete="new-password"
+            placeholder="至少 8 位，含字母与数字" :minlength="8" />
+        </div>
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="register-confirm">确认密码</label></div>
+          <PasswordField id="register-confirm" v-model="passwordConfirmation" autocomplete="new-password"
+            placeholder="请再次输入密码" :minlength="8" />
+        </div>
+      </div>
+
+      <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
+
+      <div class="hos-actions">
+        <button class="hos-btn-primary" type="submit" :disabled="submitting">
+          {{ submitting ? "注册中…" : "注册并登录" }}
+        </button>
+      </div>
+    </form>
+
+    <template #copy>
+      <div class="hos-panel__meta">
+        <span>本机唯一账号</span>
+        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+        <span>密码至少 8 位，含字母与数字</span>
+        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+        <span>注册后进入授权检测</span>
+      </div>
+      <p>忘记口令不必删账号：登录页「忘记本机密码」用注册邮箱验证码即可重置。</p>
+    </template>
+  </AuthShell>
 </template>

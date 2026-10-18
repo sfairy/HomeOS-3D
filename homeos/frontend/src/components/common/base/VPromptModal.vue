@@ -2,22 +2,24 @@
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal">
-      <div v-if="chrome.activePrompt" class="hos-modal-root" @click.self="cancel">
+      <div v-if="chrome.activePrompt" ref="rootRef" class="hos-modal-root" @click.self="cancel">
         <div class="hos-modal-backdrop" />
         <div
           ref="panelRef"
           class="hos-modal-panel hos-modal-panel--sm hos-modal-panel--purple"
           role="dialog"
           aria-modal="true"
+          :aria-labelledby="titleId"
+          :aria-describedby="chrome.activePrompt.message ? descId : undefined"
         >
           <div class="hos-modal-head">
             <div class="hos-modal-head-left">
-              <div class="hos-modal-head-icon">
+              <div class="hos-modal-head-icon" aria-hidden="true">
                 <PencilLine class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="hos-modal-title">{{ chrome.activePrompt.title }}</h3>
-                <p v-if="chrome.activePrompt.message" class="hos-modal-subtitle">
+                <h3 :id="titleId" class="hos-modal-title">{{ chrome.activePrompt.title }}</h3>
+                <p v-if="chrome.activePrompt.message" :id="descId" class="hos-modal-subtitle">
                   {{ chrome.activePrompt.message }}
                 </p>
               </div>
@@ -38,10 +40,14 @@
               class="hos-modal-input"
               :placeholder="chrome.activePrompt.placeholder"
               :autocomplete="chrome.activePrompt.password ? 'current-password' : 'off'"
+              :aria-invalid="validationError ? 'true' : undefined"
+              :aria-describedby="validationError ? errorId : undefined"
               @keydown.enter.prevent="submit"
             />
-            <!-- 校验错误提示 -->
-            <p v-if="validationError" class="hos-modal-prompt-error">{{ validationError }}</p>
+            <!-- 校验错误提示：role=alert 让读屏在提交失败时立即播报 -->
+            <p v-if="validationError" :id="errorId" class="hos-modal-prompt-error" role="alert">
+              {{ validationError }}
+            </p>
           </div>
           <div class="hos-modal-footer">
             <button type="button" class="hos-modal-btn hos-modal-btn--ghost" @click="cancel">
@@ -62,16 +68,20 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { PencilLine } from '@lucide/vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useBackgroundInert } from '@/composables/ui/useBackgroundInert'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { useEscLayer } from '@/composables/ui/useEscStack'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 const chrome = useChromeStore()
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending
+const rootRef = ref(null)
 const panelRef = ref(null)
 // 焦点陷阱激活条件：存在激活的提示弹窗
 const trapActive = computed(() => !!chrome.activePrompt)
 useFocusTrap(panelRef, trapActive)
+// 背景隔离：弹窗打开时把其余内容从无障碍树与 Tab 序里摘出去（与 ExitEditConfirmDialog 一致）
+useBackgroundInert(rootRef, trapActive, '全局输入框')
 // 滚动锁激活条件（与 trapActive 同源，语义上拆开便于日后单独调整）
 const promptActive = computed(() => !!chrome.activePrompt)
 const inputRef = ref(null)
@@ -79,8 +89,12 @@ const inputRef = ref(null)
 const inputValue = ref('')
 /** 校验错误信息 */
 const validationError = ref('')
-// 输入框 id，用于 label 关联
-const inputId = `hos-prompt-input-${Math.random().toString(36).slice(2, 9)}`
+// 实例级 id：输入框 label 关联 + 标题/说明/错误关联（同一页面可能挂多个实例，不能写死 id）
+const uid = Math.random().toString(36).slice(2, 9)
+const inputId = `hos-prompt-input-${uid}`
+const titleId = `hos-prompt-title-${uid}`
+const descId = `hos-prompt-desc-${uid}`
+const errorId = `hos-prompt-error-${uid}`
 
 /**
  * 取消操作：清空错误并返回 null。

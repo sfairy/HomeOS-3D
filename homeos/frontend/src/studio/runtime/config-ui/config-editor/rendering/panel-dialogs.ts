@@ -247,7 +247,13 @@ export async function openVacuumRoomPicker(deps: PanelDialogsDeps, roomPickerTri
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
   const { e, refreshEditorPreview, renderPanel } = deps;
       const vacuumModelRecord = e.findVacuumModel();
-      if (!vacuumModelRecord) return;
+      if (!vacuumModelRecord) {
+        // 别再静默 return：宿主 `vacuumId` 与模型对不上时（例如切到「快捷指令」后没同步），
+        // 之前的表现就是「点了添加快捷指令完全没反应」。
+        e.errorMessageElement.textContent =
+          "未找到所属扫地机，请先回到「配置内容 - 设备与地图」添加并绑定扫地机。";
+        return;
+      }
       const vacuumPickerGeneration = ++e.pickerGeneration;
       e.pickerHandle?.close();
       try {

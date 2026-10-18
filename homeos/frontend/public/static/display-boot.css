@@ -1,19 +1,20 @@
+/**
+ * 展示页首帧（splash）配色
+ * ---------------------------------------------------------------
+ * 首帧必须恒为深墨底：此前这里带 prefers-color-scheme: light 分支，
+ * 在浅色模式的平板/大屏上开机会先闪一帧浅灰（#edf0f2），再切到应用深色主题，
+ * 视觉上等同「白闪」。产品是墙面中控常亮屏，首帧必须是最终配色的深色。
+ * 值与 packages/shared/src/styles/design-tokens.css 的 canonical 令牌一致：
+ *   --display-boot-bg   = --hos-bg-canvas  #070a0f
+ *   --display-boot-fg   = --hos-fg-1       #f2f5f8
+ *   --display-boot-muted= --hos-fg-3       #6f7f90
+ * 注意：本文件由 display.html 等首屏内联/前置加载，不能依赖应用样式表。
+ */
 :root {
-  --display-boot-bg: #11171d;
-  --display-boot-fg: #f1f4f5;
-  --display-boot-muted: #98a3ac;
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-display-theme="dark"]) {
-    --display-boot-bg: #edf0f2;
-    --display-boot-fg: #27323c;
-    --display-boot-muted: #64717c;
-  }
-}
-:root[data-display-theme="light"] {
-  --display-boot-bg: #edf0f2;
-  --display-boot-fg: #27323c;
-  --display-boot-muted: #64717c;
+  color-scheme: dark;
+  --display-boot-bg: #070a0f;
+  --display-boot-fg: #f2f5f8;
+  --display-boot-muted: #8c9aa9;
 }
 #display-splash {
   position: fixed;

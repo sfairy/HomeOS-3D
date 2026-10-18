@@ -22,7 +22,7 @@ import {
   provide,
   nextTick,
 } from 'vue'
-import { Bell, LayoutDashboard, ChevronDown, MessageCircle } from '@lucide/vue'
+import { Bell, Ellipsis, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
@@ -61,6 +61,7 @@ import { setDerivedRoutePath } from '@/shared/entity/utils/derived-route.util'
 import { resolvePerfShellClass } from '@/shared/utils/perf/adaptive-perf.util'
 import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
+import { useViewportTier } from '@/shared/utils/layout/viewport-tier.util'
 import {
   buildDropdownFixedStyle,
   rectToDropdownPosition,
@@ -263,8 +264,81 @@ function onNavMoreViewportChange() {
 }
 
 watch(navMoreOpen, (open) => {
-  if (open) scheduleNavMorePosition()
+  if (open) {
+    scheduleNavMorePosition()
+    // 打开后把焦点送进菜单（键盘用户不必再 Tab 逐个跳）；关闭时还给触发按钮
+    nextTick(() => focusMenuItem(0))
+  } else if (navMoreAnchorRef.value) {
+    const active = document.activeElement
+    const inMenu = !!active && !!navMoreMenuRef.value?.contains(active)
+    if (inMenu) navMoreAnchorRef.value.querySelector('button')?.focus()
+  }
 })
+
+/**
+ * 「更多」菜单的键盘导航（WAI-ARIA menu 模式）。
+ *
+ * 为什么必须有：顶栏 Tab 在窄视口/平板档会被收纳进「更多」（见 capBarItemsForViewport），
+ * 一旦收纳，鼠标/触控以外的用户只能靠 Tab 逐项跳，且没有视觉焦点顺序保障。
+ * 这里实现 roving focus：↑/↓ 循环、Home/End 跳首尾、Esc 关闭并归还焦点。
+ */
+function menuItemEls() {
+  const menuRoot = navMoreMenuRef.value
+  if (!menuRoot) return []
+  return Array.from(menuRoot.querySelectorAll('[role="menuitem"]'))
+}
+
+/**
+ * 把焦点移到第 index 项，并把其余项设为 tabindex=-1（roving tabindex）。
+ * @param index 目标项序号（越界会取模循环）
+ */
+function focusMenuItem(index) {
+  const items = menuItemEls()
+  if (!items.length) return
+  const next = ((index % items.length) + items.length) % items.length
+  items.forEach((el, i) => {
+    el.tabIndex = i === next ? 0 : -1
+  })
+  items[next].focus()
+}
+
+/**
+ * 菜单内按键处理。
+ * @param event 键盘事件
+ */
+function onNavMoreKeydown(event) {
+  const items = menuItemEls()
+  if (!items.length) return
+  const current = items.indexOf(document.activeElement)
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      focusMenuItem(current + 1)
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      focusMenuItem(current - 1)
+      break
+    case 'Home':
+      event.preventDefault()
+      focusMenuItem(0)
+      break
+    case 'End':
+      event.preventDefault()
+      focusMenuItem(items.length - 1)
+      break
+    case 'Escape':
+      event.preventDefault()
+      navMoreOpen.value = false
+      break
+    case 'Tab':
+      // 让 Tab 正常离开菜单并关闭，避免焦点停在被遮罩的菜单项上
+      navMoreOpen.value = false
+      break
+    default:
+      break
+  }
+}
 
 watch(dropdownMenuItems, () => {
   if (navMoreOpen.value) scheduleNavMorePosition()
@@ -330,6 +404,9 @@ watch(
   (path) => setDerivedRoutePath(path),
   { immediate: true },
 )
+// 视口档位：写 <html data-viewport-tier>，供壳层 / 大屏适配的 CSS 统一消费
+useViewportTier()
+
 // 玻璃拟态开关随配置变化：性能模式降级时强制关闭毛玻璃，避免低端设备掉帧
 watch(
   () => [layoutStore.layoutConfig.glassEffect, layoutStore.layoutConfig.performanceMode],
@@ -423,7 +500,7 @@ watch(
                 @click.stop="navMoreOpen = !navMoreOpen"
               >
                 <span class="tab-bar__tab-icon">
-                  <LayoutDashboard class="tab-bar__tab-svg" />
+                  <Ellipsis class="tab-bar__tab-svg" />
                 </span>
                 <span class="tab-bar__tab-label">{{ '更多' }}</span>
                 <ChevronDown class="tab-bar__more-chevron" aria-hidden="true" />
@@ -445,6 +522,7 @@ watch(
               :aria-label="'更多导航'"
               :style="navMoreMenuStyle"
               @click.stop
+              @keydown="onNavMoreKeydown"
             >
               <router-link
                 v-for="item in dropdownMenuItems"
@@ -593,9 +671,16 @@ watch(
       >
         <main id="main-content" class="main-content" tabindex="-1">
           <router-view v-slot="{ Component, route: childRoute }">
-            <!-- keep-alive 缓存最多 8 个路由组件实例：通过 childRoute.path 作为 key 决定何时复用/重建 -->
+            <!-- keep-alive 缓存最多 8 个路由组件实例。
+                 key 用 fullPath + projectId 而不用 path：同一路由下切换 query/项目（3D 编辑器按
+                 projectId 换户型）时，path 不变会让旧实例被复用 —— 表现为「换了项目但画面还是上一个」。
+                 带上 fullPath 后不同项目/查询各自成实例，:max=8 仍会淘汰最久未用的。 -->
             <keep-alive :max="8">
-              <component :is="Component" v-if="Component" :key="childRoute.path" />
+              <component
+                :is="Component"
+                v-if="Component"
+                :key="childRoute.fullPath + '|' + (childRoute.params.projectId ?? '')"
+              />
             </keep-alive>
           </router-view>
 

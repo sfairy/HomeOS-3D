@@ -66,16 +66,17 @@
 .power-panel__body {
   position: relative;
   z-index: 2;
-  display: flex;
-  /* 允许换行：nowrap 会把卡片压扁并裁切内容 */
-  flex-wrap: wrap;
+  /* 自适应网格而不是 flex:1 1 0：9 张卡在 1366 宽下 flex 会把每张压到约 100px，
+     数值被迫截断、单位换行。minmax(132px,1fr) 保证「图标 + 数值 + 单位」可读的最小宽度，
+     auto-fit 让卡片数少时自动撑满、卡片多时才换行。 */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   align-items: stretch;
   width: 100%;
   min-width: 0;
   padding: 10px 16px;
   min-height: 44px;
   gap: var(--hos-space-sm, 8px);
-  justify-content: stretch;
 }
 
 .power-panel-empty {
@@ -97,7 +98,8 @@
 .power-card {
   --ef-accent: #fbbf24;
   position: relative;
-  flex: 1 1 0;
+  /* 网格项：宽度由列宽决定，显式 width:100% 避免被内容宽度反向撑开 */
+  width: 100%;
   min-width: 0;
   max-width: none;
   display: flex;
@@ -184,17 +186,31 @@
     opacity: 0.4;
   }
 
+  /* 触控/窄屏：保持单行固定高度（底栏高度参与 dashboard 布局，换行会把内容区顶上去），
+     卡片不足宽度时不压扁而是横向滚动 + scroll-snap，每张卡保证 132px 起。 */
   .power-panel__body {
-    flex-wrap: nowrap;
-    justify-content: stretch;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(132px, 1fr);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     padding-inline: 10px;
     gap: 4px;
   }
 
+  .power-panel__body::-webkit-scrollbar {
+    display: none;
+  }
+
   .power-card {
-    flex: 1 1 0;
+    width: 100%;
     min-width: 0;
     max-width: none;
+    scroll-snap-align: start;
     padding: 6px 6px 6px 12px;
     gap: 6px;
   }

@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "lint:ci": "eslint . --max-warnings 0",
+    "test": "bun test",
     "typecheck": "node ../../ops/lib/run-vue-tsc.mjs -p tsconfig.json --noEmit",
     "sync:three": "node scripts/build-three-vendor.mjs",
     "sync:three:check": "node scripts/build-three-vendor.mjs --check"

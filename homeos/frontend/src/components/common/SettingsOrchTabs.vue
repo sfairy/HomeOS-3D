@@ -37,6 +37,8 @@
         <div
           ref="trackRef"
           :class="['settings-orch-track', hasOverflow && 'settings-orch-track--overflow']"
+          role="tablist"
+          :aria-label="ariaLabel"
           @scroll="onTrackScroll"
         >
           <button
@@ -44,6 +46,10 @@
             :key="tab.id"
             :ref="(el) => setTabRef(tab.id, el)"
             type="button"
+            role="tab"
+            :aria-selected="String(modelValue === tab.id)"
+            :aria-disabled="tab.disabled ? 'true' : undefined"
+            :tabindex="modelValue === tab.id && !tab.disabled ? 0 : -1"
             :class="[
               'settings-orch-tab',
               modelValue === tab.id && 'settings-orch-tab--active',
@@ -51,6 +57,7 @@
             ]"
             :style="{ '--tab-accent': tabAccent(tab) }"
             @click="select(tab.id)"
+            @keydown="onTabKeydown($event, tab)"
           >
             <div class="settings-orch-orb">
               <span v-if="tab.emoji" class="settings-orch-emoji">{{ tab.emoji }}</span>
@@ -114,6 +121,8 @@ const props = defineProps({
   sortable: { type: Boolean, default: false },
   /** 嵌套在 SettingsCard 内时去掉 dock 背景与底边 */
   plain: { type: Boolean, default: false },
+  /** tablist 的无障碍名称，默认「子导航」；父面板有更具体的叫法可覆盖 */
+  ariaLabel: { type: String, default: '子导航' },
 })
 
 const emit = defineEmits(['update:modelValue', 'reorder'])
@@ -267,6 +276,35 @@ function moveSort(delta) {
   const toIndex = fromIndex + delta
   if (toIndex < 0 || toIndex >= safeTabs.value.length) return
   emit('reorder', { fromIndex, toIndex })
+}
+
+/**
+ * 方向键 / Home / End 在 Tab 间移动（APG WAI-ARIA tabs 的自动激活模式）：
+ * 只跳过 disabled 项、首尾循环，选中即切换并聚焦，避免平板外接键盘时 Tab 键要按十几次。
+ * @param {KeyboardEvent} e - 键盘事件
+ * @param {{id: string, disabled?: boolean}} tab - 当前聚焦的 Tab
+ */
+function onTabKeydown(e, tab) {
+  const key = e.key
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return
+  const tabs = safeTabs.value
+  if (tabs.length < 2) return
+  const enabled = tabs.filter((t) => !t.disabled)
+  if (enabled.length === 0) return
+  const currentIndex = enabled.findIndex((t) => t.id === tab.id)
+  let nextIndex
+  if (key === 'Home') nextIndex = 0
+  else if (key === 'End') nextIndex = enabled.length - 1
+  else {
+    const delta = key === 'ArrowRight' ? 1 : -1
+    const base = currentIndex < 0 ? 0 : currentIndex
+    nextIndex = (base + delta + enabled.length) % enabled.length
+  }
+  const next = enabled[nextIndex]
+  if (!next) return
+  e.preventDefault()
+  select(next.id)
+  nextTick(() => resolveTabEl(tabRefs.value[next.id])?.focus())
 }
 
 function select(id) {

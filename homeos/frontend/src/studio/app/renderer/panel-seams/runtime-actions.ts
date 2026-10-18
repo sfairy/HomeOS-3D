@@ -57,6 +57,34 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
               optimisticPreviousState: previousEntityState,
             }));
       };
+    // A3：键盘激活（Enter / Space）复用 click 的二择语义，避免与 pointer click 双触发。
+    // 只有 role=button + 可聚焦（tabIndex>=0）的宿主才绑定，普通组件容器仍走 pointer。
+    const isKeyboardActionHost = () =>
+        actionHostElement.getAttribute("role") === "button" && actionHostElement.tabIndex >= 0,
+      runKeyboardActivation = () => {
+        ((hasTapAction || hasDoubleTapAction) && cancelHoldTimer(),
+          hasDoubleTapAction
+            ? (resetTapState(),
+              window.clearTimeout(tapTimeoutId),
+              (tapTimeoutId = window.setTimeout(() => {
+                resetPointerState();
+              }, 180)))
+            : hasTapAction
+              ? self.runAction(actionOptions, tap)
+              : hasHoldAction && self.runAction(actionOptions, hold));
+      },
+      handleKeyboardActivation = (keyboardEvent: any) => {
+        (keyboardEvent.repeat ||
+          keyboardEvent.target !== actionHostElement ||
+          !isKeyboardActionHost() ||
+          (keyboardEvent.key !== "Enter" &&
+            keyboardEvent.key !== " " &&
+            keyboardEvent.key !== "Spacebar") ||
+          (keyboardEvent.preventDefault(),
+          keyboardEvent.stopPropagation(),
+          (hasLongPressed = false),
+          runKeyboardActivation()));
+      };
     ((actionHostElement.style.touchAction = "manipulation"),
       actionHostElement.addEventListener("contextmenu", (menuPointerEvent: any) =>
         menuPointerEvent.preventDefault(),
@@ -159,6 +187,7 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
           clearTapTimers(),
           hasDoubleTapAction && self.runAction(actionOptions, doubleTap));
       }),
+      actionHostElement.addEventListener("keydown", handleKeyboardActivation),
       self.cleanups.push(() => {
         (window.clearTimeout(tapTimeoutId),
           window.clearTimeout(holdTimeoutId),
