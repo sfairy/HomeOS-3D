@@ -6,6 +6,10 @@
 
 .bindings-hub {
   --page-accent-rgb: var(--module-accent-bindings-rgb);
+  /* 子色（琥珀）：hub 工作区 / flow band 等共享样式会消费
+     --page-accent-secondary(-rgb)，没有声明时 rgba(var(--x)) 会整条失效。 */
+  --page-accent-secondary: var(--module-accent-bindings-sub);
+  --page-accent-secondary-rgb: var(--module-accent-bindings-sub-rgb);
 }
 
 /* 完整性检查卡片：amber 子色点缀 */

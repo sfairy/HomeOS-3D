@@ -6,8 +6,12 @@
     <!-- 全局错误上报启动脚本：必须保持经典脚本（非 module），任何路由都需要。
          defer 使其不阻塞 HTML 解析；HTML 规范中 defer 经典脚本与 parser-inserted module
          同属「解析结束后按树序执行」的列表，所以它仍早于下方 main.ts 执行，fetch/console
-         包装与 CSRF 自补顺序不变（见 src/studio/app/logging/client-log.ts 头部注释）。 -->
-    <script src="/static/logging/client-log.js" defer></script>
+         包装与 CSRF 自补顺序不变（见 src/studio/app/logging/client-log.ts 头部注释）。
+         vite-ignore：该文件不在 public/，而是由 vite-studio.ts 的 classicEntries 以 IIFE
+         单独产出到 /static/logging/client-log.js。build-html 只能识别 public/ 里的非
+         module 脚本，否则会报「can't be bundled without type="module"」——那是误报，
+         构建后该属性会被 Vite 自动摘掉。 -->
+    <script src="/static/logging/client-log.js" defer vite-ignore></script>
     <!-- 启动守卫：入口 chunk 加载失败时自愈重载并显示兜底面板，避免「黑屏 + 零提示」。
          必须早于入口 module 执行才能捕获其加载失败。 -->
     <script src="/static/boot-guard.js"></script>

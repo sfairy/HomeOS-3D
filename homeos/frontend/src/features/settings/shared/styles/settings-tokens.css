@@ -89,13 +89,9 @@
 .settings-page.profiles-hub,
 .settings-page.diagnostics-hub,
 .settings-page.access-hub,
-
 .settings-page.alert-hub,
-
-
 .settings-page.env-health-hub,
 .settings-page.life-accounts-hub,
-
 .settings-page.favorites-hub {
   --hos-color-accent-rgb: var(--hos-color-accent-strong-rgb);
   --hos-color-accent-strong: var(--hos-color-accent);
@@ -111,14 +107,15 @@
 
 .settings-page.widgets-hub,
 .settings-page.assets-hub-page,
-
 .settings-page.orchestrator-hub,
 .settings-page.sm-panel {
   --hos-color-accent-strong: var(--hos-color-accent);
   --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);
 }
 
-.settings-page.rooms-hub,
+/* rooms-hub / bindings-hub 的 accent 主色与子色由 bindings-theme.css 的 .rooms-hub /
+   .bindings-hub 规则统一声明，此处不重复（曾遗留一条只有选择器、没有声明块的
+   `.settings-page.rooms-hub,`，会把紧随其后的 @media 吞进选择器，导致 4K 档整体失效）。 */
 
 /* ══ 大屏 / 4K 适配 ══
  * 桌面端未开启整页等比缩放时，4K(3840×2160) 下 12-15px 字号会显得过小。
