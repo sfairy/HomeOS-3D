@@ -2654,6 +2654,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               "i3d-focus-settings i3d-config-section",
             );
             e.panelElement.append(coverFocusSectionElement);
+            // 设备大类以前没有挂错误提示节点，聚焦/保存视角失败时错误只写进了游离元素，界面完全没反馈。
             const cameraPropertyKey =
               e.isVacuumMode && e.vacuumCameraMode === "follow" ? "followCamera" : "focusCamera";
             if (
@@ -2703,8 +2704,16 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     ((e.isCameraCommandPending = true),
                     (e.errorMessageElement.textContent = ""),
                     renderPanel()));
+                // 预览重载后旧的相机快照已失效：必须给出提示，不能静默 return，
+                // 否则按钮会一直停在「保存视角 / 取消调整」。
+                const isPreviewStale = () => !e.isDisposed && sceneReadySnapshot !== e.num;
+                const reportStalePreview = () => {
+                  e.isDisposed ||
+                    (e.errorMessageElement.textContent = "预览已刷新，请重新调整视角。");
+                };
                 try {
-                  if ((await pendingCameraQueue, e.isDisposed || sceneReadySnapshot !== e.num)) return;
+                  if ((await pendingCameraQueue, e.isDisposed)) return;
+                  if (isPreviewStale()) return reportStalePreview();
                   const focusCommand2 = await e.editorRuntime.focusCommand(
                     cameraPropertyKey === "followCamera" && cameraCommand === "edit-light-camera"
                       ? "edit-follow-camera"
@@ -2712,7 +2721,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     vector.id,
                     cameraRangePayload,
                   );
-                  if (e.isDisposed || sceneReadySnapshot !== e.num) return;
+                  if (e.isDisposed) return;
+                  if (isPreviewStale()) return reportStalePreview();
                   cameraCommand === "save-light-camera"
                     ? ((vector[cameraPropertyKey] = focusCommand2.camera),
                       (e.isCameraEditing = false),
@@ -2723,13 +2733,13 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                       : cameraCommand !== "preview-light-camera" &&
                         ((e.isCameraEditing = true), (e.pendingCameraDraft = focusCommand2.camera));
                 } catch (cameraCommandError: any) {
-                  !e.isDisposed &&
-                    sceneReadySnapshot === e.num &&
+                  e.isDisposed ||
                     (e.errorMessageElement.textContent = cameraCommandError.message);
                 } finally {
+                  // 无论成功、失败还是预览已刷新都要清掉 pending 并重绘，
+                  // 否则相机按钮会永久禁用、视角状态卡死。
                   (cameraRangeResolve!(),
                     !e.isDisposed &&
-                      sceneReadySnapshot === e.num &&
                       !isFocalLengthRangeCommand &&
                       ((e.isCameraCommandPending = false), renderPanel()));
                 }
@@ -2806,6 +2816,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               ))
                 focusLockedControl.disabled = true;
             }
+            // 相机命令的失败原因直接挂在聚焦视角下方；以前设备面板没挂这个节点，失败是完全静默的。
+            e.errorMessageElement.isConnected ||
+              coverFocusSectionElement.append(e.errorMessageElement);
           }
           createConfigSection("绑定管理").append(removeItemButton);
         } else

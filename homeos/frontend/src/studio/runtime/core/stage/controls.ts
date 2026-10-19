@@ -122,7 +122,11 @@ export function updateEditorSelectionCore(deps: StageControlsDeps) {
     const editorSelectionEntry = deps.isEditing
       ? deps.currentModuleBindings().find(
           (editorTargetEntry: any) =>
-            editorTargetEntry.id === deps.text || editorTargetEntry.entryId === deps.text,
+            editorTargetEntry.id === deps.text ||
+            editorTargetEntry.entryId === deps.text ||
+            // 「设备」大类的绑定 id 带 `<deviceKind>:` 前缀，配置编辑器给的是裸 id。
+            (!!editorTargetEntry.deviceKind &&
+              editorTargetEntry.id === editorTargetEntry.deviceKind + ":" + deps.text),
         )
       : null;
     deps.editorSelectionElement.hidden = !deps.isEditing;

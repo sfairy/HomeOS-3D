@@ -259,7 +259,35 @@ export function exitFocusModeCore(deps: StageCameraMotionDeps, exitOptions: { im
 export function focusMarkerByIdCore(deps: StageCameraMotionDeps, targetMarkerId: any, focusMode = "runtime", isImmediate = false) {
     const targetMarkerItem = deps.findBindingById(targetMarkerId);
     // 门锁与其它 panel 设备一致：直播允许 focus / panel（lock-panel 负责控制）
-    if (!targetMarkerItem || targetMarkerItem.modelAvailable === false) return;
+    if (!targetMarkerItem) return;
+    const isCameraEditMode = focusMode === "edit";
+    /**
+     * 编辑态挂上选中/面板状态但不移动相机。
+     *
+     * 模型缺失或算不出聚焦点时，以前直接 return：相机不会切到自由模式，
+     * 「调整视角」看起来毫无反应，紧接着「保存视角」还会被会话守卫拒绝。
+     */
+    const applyFocusChrome = () => {
+      ((deps.focusedItemId = targetMarkerId),
+        (deps.panelDisplayMode = focusMode),
+        (deps.controlErrorElement.textContent = ""),
+        deps.isEditing ||
+        !deps.isPanelDeviceKind(targetMarkerItem) ||
+        targetMarkerItem.clickAction !== "focus"
+          ? (deps.lightPanelSection.removeAttribute("inert"),
+            deps.lightPanelSection.classList.add("is-open"))
+          : (deps.lightPanelSection.setAttribute("inert", ""),
+            deps.lightPanelSection.classList.remove("is-open")),
+        deps.mountOptions.setOrbitPivot(null),
+        deps.syncPanelChrome(),
+        deps.updateDevicePanel());
+    };
+    if (targetMarkerItem.modelAvailable === false) {
+      if (!isCameraEditMode) return;
+      (deps.idleReturnCamera ||= deps.mountOptions.cameraState(true));
+      (applyFocusChrome(), syncCameraInteractionCore(deps));
+      return;
+    }
     if (deps.focusedItemId !== targetMarkerId) {
       deps.lightModeMenu.close();
       deps.lightColorPicker.cancel();
@@ -321,17 +349,13 @@ export function focusMarkerByIdCore(deps: StageCameraMotionDeps, targetMarkerId:
             targetMarkerItem.height,
           )
           ?.toArray();
-    if (!focusWorldPoint) return;
-    ((deps.focusedItemId = targetMarkerId),
-      (deps.panelDisplayMode = focusMode),
-      (deps.controlErrorElement.textContent = ""),
-      deps.isEditing || !deps.isPanelDeviceKind(targetMarkerItem) || targetMarkerItem.clickAction !== "focus"
-        ? (deps.lightPanelSection.removeAttribute("inert"), deps.lightPanelSection.classList.add("is-open"))
-        : (deps.lightPanelSection.setAttribute("inert", ""),
-          deps.lightPanelSection.classList.remove("is-open")),
-      deps.mountOptions.setOrbitPivot(null),
-      deps.syncPanelChrome(),
-      deps.updateDevicePanel());
+    if (!focusWorldPoint) {
+      if (!isCameraEditMode) return;
+      (deps.idleReturnCamera ||= deps.mountOptions.cameraState(true));
+      (applyFocusChrome(), syncCameraInteractionCore(deps));
+      return;
+    }
+    applyFocusChrome();
     const camera = deps.options.camera || deps.activeCameraPose || deps.idleReturnCamera,
       focusCamera =
         targetMarkerItem.focusCamera ||
@@ -369,7 +393,8 @@ export function activateMarkerCore(deps: StageCameraMotionDeps, activatedMarkerI
     const activatedMarkerItem = deps.findBindingById(activatedMarkerId);
     if (
       !activatedMarkerItem ||
-      activatedMarkerItem.modelAvailable === false ||
+      // 编辑态允许选中「模型已被删除」的条目，否则这些设备在编辑器里点不开、也没法重设视角。
+      (!deps.isEditing && activatedMarkerItem.modelAvailable === false) ||
       (!deps.isEditing && (activatedMarkerItem.overviewQuip || activatedMarkerItem.passiveSensor)) ||
       (deps.followVacuumId && !deps.isEditing) ||
       (!deps.isEditing &&

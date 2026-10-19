@@ -1855,9 +1855,17 @@ export function createHandleHostMessage(host: StageHandlersHost) {
                                                     immediate: true,
                                                   });
                                                 else {
+                                                  // 保存视角以「当前相机」为准，只要条目还在就允许落盘：
+                                                  // 聚焦可能因模型缺失/标记未命中等原因没能开启编辑会话，
+                                                  // 此时仍要保存，否则面板会停在「保存视角/取消调整」且毫无反馈。
+                                                  if (!host.findBindingById(data.id))
+                                                    throw new Error(
+                                                      "找不到要保存视角的设备，请重新选择后再调整视角。",
+                                                    );
                                                   if (
-                                                    host.panelDisplayMode !== "edit" ||
-                                                    data.id !== host.focusedItemId
+                                                    data.command !== "save-light-camera" &&
+                                                    (host.panelDisplayMode !== "edit" ||
+                                                      data.id !== host.focusedItemId)
                                                   )
                                                     throw new Error("请先进入视角调整。");
                                                   (data.command === "focus-projection" &&

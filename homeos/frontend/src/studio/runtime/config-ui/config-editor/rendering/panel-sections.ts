@@ -806,14 +806,22 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
           resolveCameraCommand = finishCameraCommand;
         })),
           isFocalLengthCommand || ((e.isCameraCommandPending = true), renderPanel()));
+        // 同设备面板：预览刷新后不能静默 return，否则按钮会卡在「保存视角 / 取消调整」。
+        const isCommandStale = () =>
+          !e.isDisposed && cameraCommandGeneration !== e.num;
+        const reportStaleCommand = () => {
+          e.isDisposed || (e.errorMessageElement.textContent = "预览已刷新，请重新调整视角。");
+        };
         try {
-          if ((await previousCameraQueue, e.isDisposed || cameraCommandGeneration !== e.num)) return;
+          if ((await previousCameraQueue, e.isDisposed)) return;
+          if (isCommandStale()) return reportStaleCommand();
           const focusCommand = await e.editorRuntime.focusCommand(
             cameraCommandName,
             curtainGroupEntryId2(curtainGroup),
             cameraCommandPayload,
           );
-          if (e.isDisposed || cameraCommandGeneration !== e.num) return;
+          if (e.isDisposed) return;
+          if (isCommandStale()) return reportStaleCommand();
           cameraCommandName === "save-light-camera"
             ? ((curtainGroup.focusCamera = focusCommand.camera),
               (e.isCameraEditing = false),
@@ -825,9 +833,9 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
         } catch (cameraError: any) {
           e.isDisposed || (e.errorMessageElement.textContent = cameraError.message);
         } finally {
+          // pending 标志必须清掉，否则相机按钮会永久禁用。
           (resolveCameraCommand!(),
             !e.isDisposed &&
-              cameraCommandGeneration === e.num &&
               !isFocalLengthCommand &&
               ((e.isCameraCommandPending = false), renderPanel()));
         }

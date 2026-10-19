@@ -3040,8 +3040,20 @@ export function mountStage(mountOptions: any) {
       },
     };
   }
+  /**
+   * 「设备」大类里的绑定 id 带 `<deviceKind>:` 前缀（避免不同类别同 id 冲突），
+   * 但配置编辑器传过来的是裸 id。只按全等匹配会让聚焦/保存视角找不到条目而静默失败，
+   * 因此这里额外接受「前缀 + 裸 id」的写法。
+   */
+  const matchesBindingId = (bindingEntry: any, bindingLookupId: any) =>
+    bindingEntry.id === bindingLookupId ||
+    (!!bindingEntry.deviceKind &&
+      typeof bindingEntry.id === "string" &&
+      bindingEntry.id === bindingEntry.deviceKind + ":" + bindingLookupId);
   const findBindingById = (bindingLookupId: any) =>
-    currentModuleBindings().find((moduleBinding: any) => moduleBinding.id === bindingLookupId) ||
+    currentModuleBindings().find((moduleBinding: any) =>
+      matchesBindingId(moduleBinding, bindingLookupId),
+    ) ||
     lockBindings().find((lockLookupBinding: any) => lockLookupBinding.id === bindingLookupId) ||
     securityCameraBindings().find(
       (cameraLookupBinding: any) => cameraLookupBinding.id === bindingLookupId,
