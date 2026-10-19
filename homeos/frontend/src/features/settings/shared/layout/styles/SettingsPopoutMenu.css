@@ -33,7 +33,7 @@
   box-shadow: var(--hos-dd-panel-shadow);
   isolation: isolate;
   scrollbar-width: thin;
-  scrollbar-color: var(--premium-border-strong) transparent;
+  scrollbar-color: var(--hos-line-3) transparent;
 }
 
 .settings-popout-menu-panel::-webkit-scrollbar {
@@ -41,13 +41,13 @@
 }
 
 .settings-popout-menu-panel::-webkit-scrollbar-thumb {
-  background: var(--premium-border-strong);
+  background: var(--hos-line-3);
   border-radius: 4px;
 }
 
 .settings-popout-group-head {
   padding: 5px 12px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;

@@ -1,7 +1,7 @@
 .v-progress {
   position: relative;
   width: 100%;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
 }

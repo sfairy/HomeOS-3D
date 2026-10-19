@@ -209,9 +209,9 @@ function resetFilter() {
 
 <style scoped>
 .dfp-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .dfp-icon-info-soft {
-  color: color-mix(in srgb, var(--set-info, var(--hos-color-info-text)) 80%, rgba(0, 0, 0, 0));
+  color: color-mix(in srgb, var(--hos-color-info-text) 80%, rgba(0, 0, 0, 0));
 }
 </style>

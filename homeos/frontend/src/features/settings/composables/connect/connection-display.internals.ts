@@ -39,15 +39,15 @@ export function useConnectionDisplay() {
   })
 
   const connTabs = computed(() => [
-    { id: 'credentials', label: '连接凭证', emoji: '🔑', accent: 'var(--module-accent-connection)' },
+    { id: 'credentials', label: '连接凭证', emoji: '🔑', accent: 'var(--hos-color-accent)' },
     {
       id: 'entities',
       label: '实体同步',
       emoji: '🔄',
-      accent: 'var(--module-accent-connection-sub)',
+      accent: 'var(--hos-color-accent-strong)',
       count: entitiesStore.totalCount || undefined,
     },
-    { id: 'advanced', label: '高级', emoji: '⚙️', accent: 'var(--module-accent-automation)' },
+    { id: 'advanced', label: '高级', emoji: '⚙️', accent: 'var(--hos-color-accent)' },
   ])
 
   const haWsModeLabel = computed(() => {

@@ -38,6 +38,6 @@ withDefaults(
 
 <style scoped>
 .dch-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 </style>

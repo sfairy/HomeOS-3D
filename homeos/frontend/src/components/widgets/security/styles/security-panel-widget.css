@@ -10,7 +10,7 @@
   max-height: min(70vh, 480px);
   min-height: 0;
   overflow: hidden;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .sp-card__head {
@@ -38,7 +38,7 @@
   max-width: 100%;
   align-self: stretch;
   overflow: hidden;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.08);
 }

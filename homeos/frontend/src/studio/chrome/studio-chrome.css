@@ -6,8 +6,8 @@
 .studio-chrome-root,
 .editor-chrome-root {
   --sc-header-height: 52px;
-  color: var(--hos-text-primary);
-  background: var(--hos-surface-0);
+  color: var(--hos-fg-1);
+  background: var(--hos-bg-canvas);
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -28,9 +28,9 @@ html.editor-viewport-fit body {
   gap: var(--hos-space-md);
   padding: 0 var(--hos-space-lg);
   overflow: hidden;
-  border-bottom: var(--hos-hairline) solid var(--hos-border-subtle);
-  background: var(--hos-surface-panel);
-  box-shadow: var(--hos-shadow-card);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+  background: var(--hos-panel-surface);
+  box-shadow: var(--hos-shadow-2);
 }
 
 .sc-topbar__brand {
@@ -55,7 +55,7 @@ html.editor-viewport-fit body {
 
 .sc-topbar__eyebrow {
   margin: 0;
-  color: var(--hos-text-faint);
+  color: var(--hos-fg-3);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -64,7 +64,7 @@ html.editor-viewport-fit body {
 .sc-topbar__title {
   margin: 0;
   overflow: hidden;
-  color: var(--hos-text-primary);
+  color: var(--hos-fg-1);
   font-size: 14px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -102,22 +102,22 @@ html.editor-viewport-fit body {
   justify-content: center;
   gap: 6px;
   padding: 0 var(--hos-chip-pad-x);
-  border: var(--hos-hairline) solid var(--hos-border-subtle);
-  border-radius: var(--hos-radius-card);
-  color: var(--hos-text-secondary);
-  background: var(--hos-surface-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-2);
+  color: var(--hos-fg-2);
+  background: var(--hos-bg-tint-2);
   font-size: 12px;
   cursor: pointer;
   transition:
-    color var(--hos-transition-panel),
-    border-color var(--hos-transition-panel),
-    background var(--hos-transition-panel);
+    color var(--hos-dur-slow) var(--hos-ease-out),
+    border-color var(--hos-dur-slow) var(--hos-ease-out),
+    background var(--hos-dur-slow) var(--hos-ease-out);
 }
 
 .sc-btn:hover:not(:disabled) {
-  color: var(--hos-text-primary);
-  border-color: var(--hos-border-strong);
-  background: var(--hos-surface-3);
+  color: var(--hos-fg-1);
+  border-color: var(--hos-line-3);
+  background: var(--hos-bg-tint-3);
 }
 
 .sc-btn:disabled {
@@ -126,12 +126,12 @@ html.editor-viewport-fit body {
 }
 
 .sc-btn:focus-visible {
-  outline: 2px solid var(--page-accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
 }
 
 .sc-btn--primary {
-  border-color: rgba(var(--page-accent-rgb), 0.55);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.55);
   color: #0b1220;
   background: linear-gradient(180deg, #7dd3fc, #38bdf8);
   font-weight: 700;
@@ -149,16 +149,16 @@ html.editor-viewport-fit body {
 }
 
 .sc-btn--active {
-  border-color: var(--hos-border-strong);
-  color: var(--hos-text-primary);
-  background: rgba(var(--page-accent-rgb), 0.18);
+  border-color: var(--hos-line-3);
+  color: var(--hos-fg-1);
+  background: rgba(var(--hos-color-accent-rgb), 0.18);
 }
 
 .sc-save-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--hos-text-faint);
+  color: var(--hos-fg-3);
   font-size: 11px;
 }
 
@@ -166,20 +166,20 @@ html.editor-viewport-fit body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--hos-text-faint);
+  background: var(--hos-fg-3);
 }
 
 .sc-save-badge--dirty {
-  color: var(--page-accent);
+  color: var(--hos-color-accent);
 }
 
 .sc-save-badge--dirty .sc-save-badge__dot {
-  background: var(--page-accent);
-  box-shadow: 0 0 8px rgba(var(--page-accent-rgb), 0.55);
+  background: var(--hos-color-accent);
+  box-shadow: 0 0 8px rgba(var(--hos-color-accent-rgb), 0.55);
 }
 
 .sc-save-badge--saving {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 /* 可折叠三栏 */
@@ -210,14 +210,14 @@ html.editor-viewport-fit body {
   align-items: center;
   gap: 4px;
   padding: 2px;
-  border: var(--hos-hairline) solid var(--hos-border-subtle);
-  border-radius: var(--hos-radius-card);
-  background: var(--hos-surface-1);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
 }
 
 .sc-zoom-bar__label {
   min-width: 44px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-size: 11px;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -236,15 +236,15 @@ html.editor-viewport-fit body {
 .sc-shortcuts-card {
   width: min(440px, calc(100vw - 32px));
   padding: var(--hos-panel-padding-default);
-  border: var(--hos-hairline) solid var(--hos-border-subtle);
-  border-radius: var(--hos-radius-panel);
-  background: var(--hos-surface-panel);
-  box-shadow: var(--hos-shadow-panel);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-3);
+  background: var(--hos-panel-surface);
+  box-shadow: var(--hos-shadow-3);
 }
 
 .sc-shortcuts-card h3 {
   margin: 0 0 var(--hos-space-md);
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
 }
 
 .sc-shortcuts-card dl {
@@ -256,12 +256,12 @@ html.editor-viewport-fit body {
 }
 
 .sc-shortcuts-card dt {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .sc-shortcuts-card dd {
   margin: 0;
-  color: var(--hos-text-primary);
+  color: var(--hos-fg-1);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -291,8 +291,8 @@ html.editor-viewport-fit body {
   min-height: 28px;
   padding: 0 10px;
   border: var(--hos-hairline) solid transparent;
-  border-radius: var(--hos-radius-pill);
-  color: var(--hos-text-faint);
+  border-radius: var(--hos-r-pill);
+  color: var(--hos-fg-3);
   background: transparent;
   font-size: 11px;
   cursor: pointer;
@@ -304,19 +304,19 @@ html.editor-viewport-fit body {
   height: 16px;
   place-items: center;
   border-radius: 50%;
-  background: var(--hos-surface-3);
+  background: var(--hos-bg-tint-3);
   font-style: normal;
   font-size: 10px;
 }
 
 .sc-workflow__step.is-active {
-  color: var(--hos-text-primary);
-  border-color: var(--hos-border-strong);
-  background: rgba(var(--page-accent-rgb), 0.14);
+  color: var(--hos-fg-1);
+  border-color: var(--hos-line-3);
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
 }
 
 .sc-workflow__step.is-complete {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .sc-workflow__step.is-complete i {
@@ -340,7 +340,7 @@ html.editor-viewport-fit body {
   min-height: 480px;
   min-width: 0;
   overflow: hidden;
-  background: var(--hos-surface-0);
+  background: var(--hos-bg-canvas);
 }
 
 /* 固定三区占位，避免某一列 display:none 后轨道重排 */
@@ -373,8 +373,8 @@ html.editor-viewport-fit body {
 
 .editor-chrome-root .panel.navigator,
 .editor-chrome-root .panel.inspector {
-  background: var(--hos-surface-panel);
-  border-color: var(--hos-border-subtle);
+  background: var(--hos-panel-surface);
+  border-color: var(--hos-line-2);
   min-width: 0;
   overflow: auto;
 }
@@ -403,7 +403,7 @@ html.editor-viewport-fit body {
 }
 
 .editor-chrome-root .workspace-panel {
-  background: var(--hos-surface-0);
+  background: var(--hos-bg-canvas);
 }
 
 .studio-chrome-root .studio-shell {
@@ -538,8 +538,8 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   position: absolute;
   z-index: 20;
   pointer-events: none;
-  border: 1px solid rgba(var(--page-accent-rgb), 0.85);
-  background: rgba(var(--page-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--hos-color-accent-rgb), 0.85);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
   border-radius: 2px;
 }
 
@@ -549,9 +549,9 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
   gap: 2px;
   margin-left: var(--hos-space-sm);
   padding: 2px;
-  border: var(--hos-hairline) solid var(--hos-border-subtle);
-  border-radius: var(--hos-radius-card);
-  background: var(--hos-surface-1);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
 }
 
 .sc-align-bar[hidden] {
@@ -586,7 +586,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 /* 户型导入错误：人话主文案优先，诊断折叠 */
 .studio-chrome-root #background-import-error {
   border: var(--hos-hairline) solid rgba(248, 113, 113, 0.35);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(127, 29, 29, 0.28);
   padding: 10px 12px;
 }
@@ -597,7 +597,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 
 .studio-chrome-root #background-import-error summary {
   cursor: pointer;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-size: 12px;
 }
 

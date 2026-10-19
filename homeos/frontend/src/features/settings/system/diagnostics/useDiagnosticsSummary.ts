@@ -80,14 +80,14 @@ export function useDiagnosticsSummary(deps: {
   const memoryDetail = computed(() => diag.value?.memoryDetail ?? null)
 
   const summaryKpis = computed(() => [
-    { key: 'entities', label: '实体数', value: entityCount.value, icon: Layers, accent: 'var(--module-accent-admin-sub)' },
-    { key: 'ws', label: 'WS 客户端', value: wsClients.value, icon: Radio, accent: 'var(--module-accent-devices)' },
+    { key: 'entities', label: '实体数', value: entityCount.value, icon: Layers, accent: 'var(--hos-color-accent-strong)' },
+    { key: 'ws', label: 'WS 客户端', value: wsClients.value, icon: Radio, accent: 'var(--hos-color-accent)' },
     {
       key: 'uptime',
       label: '运行时间',
       value: health.value?.uptime ?? '—',
       icon: Timer,
-      accent: 'var(--module-accent-events)',
+      accent: 'var(--hos-color-accent)',
       small: true,
     },
     {
@@ -96,18 +96,18 @@ export function useDiagnosticsSummary(deps: {
       value: retentionDays.value,
       suffix: retentionDays.value !== '—' ? '天' : '',
       icon: HardDrive,
-      accent: 'var(--module-accent-life)',
+      accent: 'var(--hos-color-accent)',
     },
   ])
 
   const runtimeKpis = computed(() => [
-    { key: 'entities', label: '实体数', value: entityCount.value, icon: Layers, accent: 'var(--module-accent-admin-sub)' },
+    { key: 'entities', label: '实体数', value: entityCount.value, icon: Layers, accent: 'var(--hos-color-accent-strong)' },
     {
       key: 'uptime',
       label: '运行时间',
       value: health.value?.uptime ?? '—',
       icon: Timer,
-      accent: 'var(--module-accent-devices)',
+      accent: 'var(--hos-color-accent)',
       small: true,
     },
     {
@@ -116,14 +116,14 @@ export function useDiagnosticsSummary(deps: {
       value: retentionDays.value,
       suffix: retentionDays.value !== '—' ? '天' : '',
       icon: HardDrive,
-      accent: 'var(--module-accent-events)',
+      accent: 'var(--hos-color-accent)',
     },
     {
       key: 'version',
       label: '后端版本',
       value: health.value?.version ?? '—',
       icon: Cpu,
-      accent: 'var(--module-accent-life)',
+      accent: 'var(--hos-color-accent)',
       small: true,
     },
   ])

@@ -5,10 +5,10 @@
   设备行（每行支持选中、跳转详情、打开控制）；分析模式切换到 DeviceAnalyticsDashboard
   多维图表分析面板，底部支持库分页与批量操作栏 DeviceBatchActions。
   注意事项：DeviceRow 行高固定 72px 供 VirtualList 使用；搜索/筛选/分页/批量选择均由
-  useDevicesView 统一管理，避免视图层堆积状态；--page-accent 跟随 canonical 暖铜主色。
+  useDevicesView 统一管理，避免视图层堆积状态；页面主色跟随 canonical 暖铜。
 -->
 <template>
-  <div class="list-page devices-view" :style="pageAccentStyle">
+  <div class="list-page devices-view">
     <ListPageHero :title="'全部实体'" :hint="'搜索、筛选与批量控制 Home Assistant 实体'">
       <template #icon>
         <Layers class="w-5 h-5" />
@@ -253,7 +253,6 @@ import { useHorizontalScrollNav } from '@/composables/ui/useHorizontalScrollNav'
 const DEVICE_ROW_HEIGHT = 72
 
 const {
-  pageAccentStyle,
   query,
   activeDomain,
   selectedIds,

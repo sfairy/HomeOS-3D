@@ -232,7 +232,7 @@ def _register_export_assets(request: Request, name: str, target: Path, entries: 
             catalog.register_studio3d_export(name, target / entry.filename)
 
 
-def scan_usages(database: Session, settings, name: str) -> list[str]:
+def scan_usages(database: Session, name: str) -> list[str]:
     """扫描所有可能引用 studio3d:{name}/ 的存储面，返回可读的使用方名称。"""
     prefix = f"studio3d:{name}/"
     usages: list[str] = []
@@ -242,7 +242,7 @@ def scan_usages(database: Session, settings, name: str) -> list[str]:
             usages.append(project_names.get(draft.project_id, draft.project_id))
     if _document_uses_asset_prefix({"customPopups": global_popups(database)}, prefix):
         usages.append("全局组合弹窗")
-    scene = _draft_scene(database, settings)
+    scene = _draft_scene(database)
     if _document_uses_asset_prefix(scene, prefix):
         usages.append("户型图绘制")
     if _document_uses_asset_prefix(draft_repository.read_sync_document(database), prefix):
@@ -250,18 +250,14 @@ def scan_usages(database: Session, settings, name: str) -> list[str]:
     return list(dict.fromkeys(usages))
 
 
-def _draft_scene(database: Session, settings) -> dict:
-    """草稿场景；DB 无行时回退旧单文件（迁移未执行/失败的部署）。"""
+def _draft_scene(database: Session) -> dict:
+    """草稿场景；无行或损坏时按空场景处理。"""
     try:
         snapshot = draft_repository.read_snapshot(database)
-        if snapshot is not None:
-            return snapshot.scene
-        legacy = draft_repository.read_legacy_payload(settings.studio3d_draft_path)
     except HTTPException:
         # 草稿损坏不应让「删除图片」变成不可操作：跳过该项扫描，其它引用面照旧拦截。
         return {}
-    scene = (legacy or {}).get("scene")
-    return scene if isinstance(scene, dict) else {}
+    return snapshot.scene if snapshot is not None else {}
 
 
 def _decode_document(raw) -> dict:
@@ -274,7 +270,7 @@ def _decode_document(raw) -> dict:
 
 def delete_export_folder(request: Request, database: Session, name: str) -> None:
     settings = request.app.state.settings
-    usages = scan_usages(database, settings, name)
+    usages = scan_usages(database, name)
     if usages:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

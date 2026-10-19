@@ -8,7 +8,7 @@
     :active-tab="activeTab"
     tab="alerts"
     icon-key="bell"
-    accent="var(--module-accent-automation)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="alert-hub"
     body-class="alert-hub__body"
@@ -627,10 +627,10 @@ const customVoiceRuleCount = computed(
 
 // 语音告警 Tab 元信息（emoji + 强调色）
 const ALERT_VOICE_TAB_META = {
-  security: { emoji: '🛡️', accent: 'var(--set-info)' },
-  life: { emoji: '🌿', accent: 'var(--set-success)' },
-  notify: { emoji: '🔔', accent: 'var(--page-accent)' },
-  custom: { emoji: '✨', accent: 'var(--module-accent-automation-sub)' },
+  security: { emoji: '🛡️', accent: 'var(--hos-color-info-text)' },
+  life: { emoji: '🌿', accent: 'var(--hos-color-success-text)' },
+  notify: { emoji: '🔔', accent: 'var(--hos-color-accent)' },
+  custom: { emoji: '✨', accent: 'var(--hos-color-accent-strong)' },
 }
 
 // 语音告警 Tab 列表：规则分组 + 自定义 Tab
@@ -660,21 +660,21 @@ const alertCustomSubTabs = computed(() => [
     label: '实体播报',
     emoji: '📍',
     count: voice.value.entityTtsAlerts?.length || undefined,
-    accent: 'var(--module-accent-automation-sub)',
+    accent: 'var(--hos-color-accent-strong)',
   },
   {
     id: 'notify',
     label: '通知播报',
     emoji: '🔔',
     count: voice.value.customTtsAlerts?.length || undefined,
-    accent: 'var(--page-accent)',
+    accent: 'var(--hos-color-accent)',
   },
 ])
 
 // 免打扰子 Tab：静默时段 / 影响说明
 const alertDndTabs = [
-  { id: 'schedule', label: '静默时段', emoji: '🌙', accent: 'var(--module-accent-automation-sub)' },
-  { id: 'impact', label: '影响说明', emoji: '💡', accent: 'var(--page-accent)' },
+  { id: 'schedule', label: '静默时段', emoji: '🌙', accent: 'var(--hos-color-accent-strong)' },
+  { id: 'impact', label: '影响说明', emoji: '💡', accent: 'var(--hos-color-accent)' },
 ]
 
 /** 进入语音页签时可选子 Tab（避免 watch 把 custom 重置回 security） */

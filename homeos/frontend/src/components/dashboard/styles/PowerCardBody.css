@@ -4,7 +4,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 22%, #12141c);
   /* 固定 1px 实色边，避免 0.5px 发丝边在移动端圆角处泛白晕 */
   border: 1px solid color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 40%, #1a1d28);
@@ -15,7 +15,7 @@
 }
 
 .power-card__icon {
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   line-height: 1;
 }
 
@@ -41,7 +41,7 @@
 .power-card__value {
   color: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 72%, #fff);
   font-variant-numeric: tabular-nums;
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -49,13 +49,13 @@
 }
 
 .power-card__value--date {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 500;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .power-card__unit {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 48%, rgba(255, 255, 255, 0.42));
   letter-spacing: 0.02em;
@@ -73,8 +73,8 @@
 
 .power-card__label {
   flex-shrink: 0;
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-micro);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-2);
   font-weight: 500;
   line-height: 1.3;
   white-space: nowrap;
@@ -87,7 +87,7 @@
   flex-shrink: 0;
   padding-left: 8px;
   margin-left: 0;
-  border-left: 1px solid var(--hos-border-hairline-strong);
+  border-left: 1px solid var(--hos-line-3);
   white-space: nowrap;
 }
 
@@ -98,14 +98,14 @@
 }
 
 .power-card__secondary-name {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 500;
-  color: var(--hos-text-faint);
+  color: var(--hos-fg-3);
   line-height: 1.3;
 }
 
 .power-card__secondary-value {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--ef-accent, var(--hos-color-warning)) 62%, #fff);
@@ -179,8 +179,8 @@
 
 /* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
 .pcb-value-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 .pcb-value-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }

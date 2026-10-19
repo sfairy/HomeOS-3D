@@ -1,7 +1,7 @@
 @import 'setup-wizard.css';
 .sw-energy-panel {
   padding: 14px;
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid var(--sw-amber-border);
   background: rgba(0, 0, 0, 0.16);
 }
@@ -23,7 +23,7 @@
 .sw-energy-panel__sub {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   line-height: 1.4;
 }
 
@@ -57,5 +57,5 @@
 .sw-energy-field__hint {
   margin: 0;
   font-size: var(--set-fs-micro);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }

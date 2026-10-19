@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="floating"
     icon-key="grip"
-    accent="var(--module-accent-layout)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="floating-hub"
   >
@@ -112,8 +112,5 @@ const isAfhLocked = computed(() => layoutConfig.value.isAfhLocked !== false)
 <style>
 /* ── Floating 面板主题色 RGB 派生：violet 主色 + cyan 子色 ── */
 .floating-hub {
-  --page-accent-rgb: var(--module-accent-layout-rgb);
-  --page-accent-secondary: var(--module-accent-layout-sub);
-  --page-accent-secondary-rgb: var(--module-accent-layout-sub-rgb);
 }
 </style>

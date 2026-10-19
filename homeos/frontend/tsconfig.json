@@ -65,7 +65,7 @@
       "/api/v1/modules/interaction3d/core/stage.js": [
         "./src/studio/shims/interaction3d-stage.ts"
       ],
-      "/api/v1/modules/interaction3d/editor/config-editor.js": [
+      "/api/v1/modules/interaction3d/config-ui/config-editor.js": [
         "./src/studio/shims/interaction3d-config-editor.ts"
       ],
       "/api/v1/modules/interaction3d/security/security-editor.js": [

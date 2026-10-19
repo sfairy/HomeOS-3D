@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="widgets"
     icon-key="puzzle"
-    accent="var(--module-accent-layout)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="widgets-hub"
     body-class="widgets-hub__body"
@@ -103,8 +103,5 @@ const {
 <style>
 /* ── Widgets 面板主题色 RGB 派生：violet 主色 + cyan 子色 ── */
 .widgets-hub {
-  --page-accent-rgb: var(--module-accent-layout-rgb);
-  --page-accent-secondary: var(--module-accent-layout-sub);
-  --page-accent-secondary-rgb: var(--module-accent-layout-sub-rgb);
 }
 </style>

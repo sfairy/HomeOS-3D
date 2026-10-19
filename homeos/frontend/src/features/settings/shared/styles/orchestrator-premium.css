@@ -5,13 +5,13 @@
 
 :is(.settings-orchestrator-workspace, .orch-builder-workspace) {
   /* 与设置页 / premium 字阶对齐（原先整体偏小约 1–2px） */
-  --orch-fs-body: var(--premium-fs-body);
-  --orch-fs-caption: var(--premium-fs-caption);
+  --orch-fs-body: var(--hos-fs-5);
+  --orch-fs-caption: var(--hos-fs-3);
   --orch-control-h: 36px;
   --orch-radius: 10px;
-  --set-fs-body: var(--premium-fs-body);
-  --set-fs-body-sm: var(--premium-fs-body-sm);
-  --set-fs-caption: var(--premium-fs-caption);
-  --set-fs-micro: var(--premium-fs-micro);
+  --set-fs-body: var(--hos-fs-5);
+  --set-fs-body-sm: var(--hos-fs-4);
+  --set-fs-caption: var(--hos-fs-3);
+  --set-fs-micro: var(--hos-fs-2);
   --set-text-muted: rgba(255, 255, 255, 0.5);
 }

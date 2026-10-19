@@ -8,7 +8,7 @@
     :active-tab="activeTab"
     tab="general"
     icon-key="settings"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="general-hub"
     body-class="general-hub__body"
@@ -112,7 +112,7 @@
         <div class="settings-choice-grid mt-5">
           <button
             :class="perfBtnClass('high')"
-            style="--choice-accent: var(--module-accent-layout)"
+            style="--choice-accent: var(--hos-color-accent)"
             @click="setPerformanceMode('high')"
           >
             <Zap class="w-5 h-5" />
@@ -125,7 +125,7 @@
           </button>
           <button
             :class="perfBtnClass('medium')"
-            style="--choice-accent: var(--set-info)"
+            style="--choice-accent: var(--hos-color-info-text)"
             @click="setPerformanceMode('medium')"
           >
             <MonitorPlay class="w-5 h-5" />
@@ -136,7 +136,7 @@
           </button>
           <button
             :class="perfBtnClass('low')"
-            style="--choice-accent: var(--set-warn)"
+            style="--choice-accent: var(--hos-color-warning-text)"
             @click="setPerformanceMode('low')"
           >
             <SettingsIcon class="w-5 h-5" />

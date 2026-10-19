@@ -68,8 +68,8 @@ const shellStyle = computed(() => {
   const accent = props.accent || entityDomainColor(domain)
   return {
     width: `${props.width}px`,
-    '--accent': accent,
-    '--accent-rgb': props.accentRgb || hexToRgbChannels(accent),
+    '--hos-color-accent': accent,
+    '--hos-color-accent-rgb': props.accentRgb || hexToRgbChannels(accent),
   }
 })
 

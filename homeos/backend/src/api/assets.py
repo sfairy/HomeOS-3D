@@ -854,9 +854,7 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
             usages.append('全局组合弹窗')
         if usages:
             raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': f'图片正在被仪表盘“{"、".join(usages)}”使用，请先替换或移除后再删除。', 'projects': usages })
-        # 户型图草稿权威在 studio_drafts（旧 data/studio3d/draft.json 迁移后冻结）：只读旧文件会
-        # 漏掉迁移后新选的图，允许删除仍被户型图引用的素材（引用悬空、导出与展示 404）。
-        studio_draft = read_current_studio_draft(database, request.app.state.settings) or { }
+        studio_draft = read_current_studio_draft(database) or { }
         if document_uses_asset(studio_draft.get('scene') or { }, full_asset_id):
             raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': '图片正在被户型图绘制使用，请先替换或移除后再删除。' })
         path.unlink()

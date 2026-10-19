@@ -431,7 +431,7 @@ async function renderChart() {
         if (!evt) return ''
         const time = formatDetailedDateTimeOrDash(evt.createdAt)
         if (evt.attrText) {
-          return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${displayEventState(evt)}</div>`
+          return `<div style="font-size:var(--hos-fs-2);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${displayEventState(evt)}</div>`
         }
         const from = evt.oldState
           ? `<span style="color:#ff9aa0">${formatEventState(evt.oldState)}</span>`
@@ -439,7 +439,7 @@ async function renderChart() {
         const to = evt.state
           ? `<span style="color:#7ff0bd">${formatEventState(evt.state)}</span>`
           : '—'
-        return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${from} → ${to}</div>`
+        return `<div style="font-size:var(--hos-fs-2);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${from} → ${to}</div>`
       },
     },
     grid: { left: 48, right: 16, top: 20, bottom: 28 },

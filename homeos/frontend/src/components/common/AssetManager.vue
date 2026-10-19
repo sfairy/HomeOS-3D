@@ -185,7 +185,7 @@ function setSearchInput(el: Element | ComponentPublicInstance | null) {
 <style scoped>
 /* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
 .am-text-muted {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  color: var(--hos-fg-2);
 }
 
 .asset-manager {
@@ -232,7 +232,7 @@ function setSearchInput(el: Element | ComponentPublicInstance | null) {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: var(--hos-radius-input);
+  border-radius: var(--hos-r-1);
   font-size: 12px;
   color: #e8f1ff;
   background: rgba(8, 12, 20, 0.92);

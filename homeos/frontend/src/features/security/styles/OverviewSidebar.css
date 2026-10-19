@@ -37,9 +37,9 @@
 }
 
 .sov-sensor-card__group {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   padding: 1px 5px;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.05);

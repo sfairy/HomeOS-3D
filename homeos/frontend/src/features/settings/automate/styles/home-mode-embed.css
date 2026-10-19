@@ -40,14 +40,14 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  border-radius: var(--acc-radius, 14px);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 100%),
-    var(--premium-glass-bg);
-  -webkit-backdrop-filter: var(--premium-blur);
-  backdrop-filter: var(--premium-blur);
-  box-shadow: var(--premium-shadow);
+    var(--hos-bg-tint-1);
+  -webkit-backdrop-filter: var(--hos-blur-2);
+  backdrop-filter: var(--hos-blur-2);
+  box-shadow: var(--hos-shadow-3);
 }
 
 .settings-home-mode-workspace .home-mode-panel--embedded {
@@ -58,8 +58,8 @@
   flex: 1 1 0;
   height: 100%;
   box-sizing: border-box;
-  border-radius: var(--radius-ipad-xl);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-r-4);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(5, 8, 13, 0.55);
   overflow: hidden;
 }
@@ -86,7 +86,7 @@
   box-sizing: border-box;
   border: none;
   border-radius: 0;
-  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%),
     rgba(8, 11, 18, 0.55);
@@ -101,7 +101,7 @@
   background: transparent;
   border: none;
   box-shadow: none;
-  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .settings-home-mode-workspace .home-mode-panel--embedded .hm-segments {
@@ -138,7 +138,7 @@
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
   }
   .settings-home-mode-workspace .home-mode-panel--embedded {
-    border-radius: var(--hos-radius-card);
+    border-radius: var(--hos-r-2);
   }
   .settings-home-mode-workspace .home-mode-panel--embedded > .hm-mode-tabs-toolbar.settings-orch-dock--toolbar {
     padding: 8px 10px;
@@ -151,7 +151,7 @@
     width: 100%;
     padding-left: 0;
     border-left: none;
-    border-top: var(--hos-hairline) solid var(--set-border-subtle);
+    border-top: var(--hos-hairline) solid var(--hos-line-2);
     padding-top: 8px;
     justify-content: flex-end;
     flex-wrap: wrap;
@@ -160,6 +160,6 @@
 
 @media (min-width: 1400px) {
   .settings-home-mode-workspace .home-mode-panel--embedded {
-    border-radius: var(--radius-ipad-xl);
+    border-radius: var(--hos-r-4);
   }
 }

@@ -10,7 +10,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 12px 16px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.18) 100%);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   overflow: hidden;
@@ -29,13 +29,13 @@
 }
 
 .alert-rule-row--danger {
-  --rule-accent: var(--set-danger);
+  --rule-accent: var(--hos-color-danger-text);
 }
 .alert-rule-row--warn {
-  --rule-accent: var(--set-warn);
+  --rule-accent: var(--hos-color-warning-text);
 }
 .alert-rule-row--info {
-  --rule-accent: var(--set-info);
+  --rule-accent: var(--hos-color-info-text);
 }
 
 .alert-rule-row__accent {
@@ -45,7 +45,7 @@
   bottom: 8px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--rule-accent, var(--set-info));
+  background: var(--rule-accent, var(--hos-color-info-text));
   box-shadow: none;
 }
 
@@ -62,29 +62,29 @@
 }
 
 .alert-rule-row__name {
-  font-size: var(--premium-fs-body-sm, 13px);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .alert-rule-row__level {
   padding: 2px 7px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .alert-rule-row__off {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .alert-rule-row__entity {
   margin: 4px 0 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-family: ui-monospace, monospace;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -92,9 +92,9 @@
 
 .alert-rule-row__condition {
   margin: 3px 0 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-family: ui-monospace, monospace;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -127,7 +127,7 @@
   display: inline-block;
   width: var(--hos-switch-w-xs);
   height: var(--hos-switch-h-xs);
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.12);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.16);
   transition: background 0.18s ease, border-color 0.18s ease;
@@ -145,8 +145,8 @@
 }
 
 .alert-rule-switch__input:checked + .alert-rule-switch__track {
-  background: rgba(var(--page-accent-rgb), 0.42);
-  border-color: rgba(var(--page-accent-rgb), 0.55);
+  background: rgba(var(--hos-color-accent-rgb), 0.42);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.55);
 }
 
 .alert-rule-switch__input:checked + .alert-rule-switch__track .alert-rule-switch__thumb {
@@ -160,17 +160,17 @@
 }
 
 .alert-rule-switch__input:focus-visible + .alert-rule-switch__track {
-  box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.22);
+  box-shadow: 0 0 0 3px rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .alert-rule-row__btn {
   padding: 6px 10px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
@@ -179,13 +179,13 @@
 
 .alert-rule-row__btn:hover:not(:disabled) {
   color: rgba(255, 255, 255, 0.88);
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
 }
 
 .alert-rule-row__btn--primary {
   color: rgba(var(--hos-color-info-rgb), 0.9);
-  background: rgba(var(--page-accent-rgb), 0.08);
-  border-color: rgba(var(--page-accent-rgb), 0.2);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.2);
 }
 
 .alert-rule-row__btn--danger {
@@ -201,17 +201,17 @@
 
 /* 三个 hub-stat 数值（应用内规则/语音播报/自定义语音） */
 .ar-stat-custom {
-  color: var(--set-info);
+  color: var(--hos-color-info-text);
 }
 
 /* 实体自定义播报卡片 */
 .ar-voice-card {
-  border-color: var(--premium-accent-violet-border, rgba(var(--page-accent-rgb, 126, 184, 255), 0.25)) !important;
-  background: var(--premium-accent-violet-bg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.05)) !important;
+  border-color: var(--hos-color-accent-line) !important;
+  background: var(--hos-color-accent-faint) !important;
 }
 .ar-voice-title {
-  color: var(--premium-accent-violet-text, var(--page-accent, var(--hos-color-accent)));
+  color: var(--hos-color-accent);
 }
 .ar-voice-desc {
-  color: var(--set-text-secondary);
+  color: var(--hos-fg-2);
 }

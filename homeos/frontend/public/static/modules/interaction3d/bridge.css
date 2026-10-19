@@ -97,7 +97,7 @@
   min-width: 0;
   margin: 0;
   padding: 0;
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 #interaction3d-inspector .i3d-vignette-setting output {
   flex: none;
@@ -126,14 +126,14 @@
  * 检查器挂在宿主页面里，不钉就会把宿主的 `--accent`（蓝色）继承进来把滑条染蓝。
  */
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) {
-  --accent: #f2a20d;
   /* 填充段用金色渐变：亮金（主金提亮）→ 主金，方向与 `button.primary` 的
      `linear-gradient(180deg, #ffb82e, #ef9900)` 同源。亮端不复用 app.css 的
      `--accent-bright`：宿主页面若自带同名变量（runtime.css 的 `.i3d-editor` 就把它定义成
      另一个金）会串色，所以这里从已钉住的 `--accent` 现算；`--track-fill-to` 不写，落到
-     下面渐变里的 `var(--track-fill-to, var(--accent))` 兜底。
+     下面渐变里的 `var(--track-fill-to, var(--hos-color-accent))` 兜底。
      JS 仍可用内联 `--track-fill-*` 覆盖（内联优先于本类）。 */
-  --track-fill-from: color-mix(in srgb, var(--accent) 72%, white);
+  --track-fill-from: color-mix(in srgb, var(--hos-color-accent) 72%, white);
+  --hos-color-accent: #f2a20d;
 }
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"] {
   appearance: none;
@@ -149,8 +149,8 @@
   /* 渐变被 --progress-pct 截断：两个停靠色始终铺满「已填充」那一段，与滑条长度无关 */
   background: linear-gradient(
     to right,
-    var(--track-fill-from, var(--accent)) 0,
-    var(--track-fill-to, var(--accent)) var(--progress-pct, 0%),
+    var(--track-fill-from, var(--hos-color-accent)) 0,
+    var(--track-fill-to, var(--hos-color-accent)) var(--progress-pct, 0%),
     var(--line) var(--progress-pct, 0%),
     var(--line) 100%
   );
@@ -171,7 +171,7 @@
   margin-top: -5px;
   border: 0;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--hos-color-accent);
 }
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"]::-moz-range-track {
   box-sizing: border-box;
@@ -185,8 +185,8 @@
   border-radius: 99px;
   background: linear-gradient(
     to right,
-    var(--track-fill-from, var(--accent)),
-    var(--track-fill-to, var(--accent))
+    var(--track-fill-from, var(--hos-color-accent)),
+    var(--track-fill-to, var(--hos-color-accent))
   );
 }
 #interaction3d-inspector :is(.i3d-vignette-setting, .i3d-wall-opacity-row) input[type="range"]::-moz-range-thumb {
@@ -194,7 +194,7 @@
   height: 16px;
   border: 0;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--hos-color-accent);
 }
 /* 原生滑块禁用时会整体压暗；自绘轨道没有这层默认表现，必须自己补，否则「范围=关闭」
    时反射强度条看起来仍可拖动。 */

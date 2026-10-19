@@ -66,8 +66,8 @@ html {
  * 不做 background-color 过渡：入户冷开时 spa-shell / auth / main 多层 CSS 先后生效，
  * 1.2s 背景过渡会把层叠结算过程放大成「闪一下」，颜色取值保持不变。 */
 body {
-  background-color: var(--bg-viewport, #000000);
-  color: var(--text-primary, rgba(255,255,255,0.96));
+  background-color: var(--hos-bg-canvas);
+  color: var(--hos-fg-1);
   margin: 0; padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Inter', 'Noto Sans SC', sans-serif;
   overflow: hidden;
@@ -81,12 +81,12 @@ body {
 /** 全局默认滚动条：6px 宽、半透明白色滑块、hover 变亮 */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }                      /* 轨道透明融入背景 */
-::-webkit-scrollbar-thumb { background: var(--premium-glass-bg-hover); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--hos-bg-tint-2); border-radius: 3px; }
 
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
 
 /** 全局文本选中色：蓝色半透明背景 + 白色文字 */
-::selection { background: rgba(var(--accent-rgb), 0.35); color: #fff; /* 必要硬编码：选区高对比白色文字，无对应白色文字 token */ }
+::selection { background: rgba(var(--hos-color-accent-rgb), 0.35); color: #fff; /* 必要硬编码：选区高对比白色文字，无对应白色文字 token */ }
 
 
 /* ==========================================================================
@@ -142,7 +142,7 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   outline: none;
   height: 6px;
   position: relative;
@@ -152,27 +152,27 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
 input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-runnable-track {
   appearance: none;
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-fill-from, var(--accent-from, var(--hos-color-accent))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--hos-color-accent))) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.04)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.04)) 100%);
 }
 
 input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-track {
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: var(--track-bg, rgba(255, 255, 255, 0.04));
   border: none;
 }
 
 input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-moz-range-progress {
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))),
-    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))));
+    var(--track-fill-from, var(--accent-from, var(--hos-color-accent))),
+    var(--track-fill-to, var(--accent-to, var(--hos-color-accent))));
 }
 
 /**
@@ -182,16 +182,16 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
 input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb {
   appearance: none; cursor: pointer; background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */ border: none;
   border-radius: 50%; width: 24px; height: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 0 0 4px rgba(var(--accent-rgb), 0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 0 0 4px rgba(var(--hos-color-accent-rgb), 0.15);
   margin-top: -9px; transition: transform 0.4s var(--ease-bounce), box-shadow 0.4s var(--ease-bounce);
   position: relative; z-index: 1;
 }
 
 /** thumb 悬停：放大 1.1 倍 + 光晕扩展 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--hos-color-accent-rgb), 0.12); }
 
 /** thumb 拖拽中：放大 1.18 倍 + 光晕进一步扩大 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.hos-range-ui):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):not(.i3d-opacity-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--hos-color-accent-rgb), 0.08); }
 
 /* ---- 6b. 共享紧凑滑块（设置页 / 媒体音量等） ---- */
 input[type="range"].hos-range,
@@ -201,7 +201,7 @@ input[type="range"].sm-emergency-range {
   -webkit-appearance: none;
   width: 100%;
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: transparent;
   outline: none;
   cursor: pointer;
@@ -211,20 +211,20 @@ input[type="range"].hos-range::-webkit-slider-runnable-track,
 input[type="range"].media-range::-webkit-slider-runnable-track,
 input[type="range"].sm-emergency-range::-webkit-slider-runnable-track {
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))) var(--progress-pct, var(--progress, 0%)),
-    var(--track-bg, var(--premium-border-strong)) var(--progress-pct, var(--progress, 0%)),
-    var(--track-bg, var(--premium-border-strong)) 100%);
+    var(--track-fill-from, var(--accent-from, var(--hos-color-accent))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--hos-color-accent))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--hos-line-3)) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--hos-line-3)) 100%);
 }
 
 input[type="range"].hos-range::-moz-range-track,
 input[type="range"].media-range::-moz-range-track,
 input[type="range"].sm-emergency-range::-moz-range-track {
   height: 6px;
-  border-radius: var(--hos-radius-pill);
-  background: var(--track-bg, var(--premium-glass-bg-hover));
+  border-radius: var(--hos-r-pill);
+  background: var(--track-bg, var(--hos-bg-tint-2));
   border: none;
 }
 
@@ -232,10 +232,10 @@ input[type="range"].hos-range::-moz-range-progress,
 input[type="range"].media-range::-moz-range-progress,
 input[type="range"].sm-emergency-range::-moz-range-progress {
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--accent, var(--hos-color-accent)))),
-    var(--track-fill-to, var(--accent-to, var(--accent, var(--hos-color-accent)))));
+    var(--track-fill-from, var(--accent-from, var(--hos-color-accent))),
+    var(--track-fill-to, var(--accent-to, var(--hos-color-accent))));
 }
 
 input[type="range"].hos-range::-webkit-slider-thumb,
@@ -299,7 +299,7 @@ input[type="range"].hos-range-ui {
   height: 8px;
   padding: 0;
   border: 1px solid var(--muted);
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   outline: none;
   background: linear-gradient(
     to right,
@@ -314,7 +314,7 @@ input[type="range"].hos-range-ui {
 input[type="range"].hos-range-ui::-webkit-slider-runnable-track {
   height: 6px;
   border: 0;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: transparent;
 }
 
@@ -334,13 +334,13 @@ input[type="range"].hos-range-ui::-moz-range-track {
   box-sizing: border-box;
   height: 6px;
   border: 0;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: var(--line);
 }
 
 input[type="range"].hos-range-ui::-moz-range-progress {
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: var(--hos-range-ui-accent);
 }
 
@@ -378,7 +378,6 @@ input[type="range"].hos-range-ui:disabled {
   /* 7.2 视口与层级背景色（Background Depths）
      从深到浅四个深度层级，用于构建视觉层次感
      */
-  --bg-viewport: #000000;                                   /* 最底层视口背景——纯黑 */
   --bg-depth-1: rgba(255,255,255,0.02);                     /* 深度1——微亮 */
   --bg-depth-2: rgba(255,255,255,0.03);                     /* 深度2——稍亮 */
   --bg-depth-3: rgba(255,255,255,0.04);                     /* 深度3——更亮 */
@@ -389,12 +388,7 @@ input[type="range"].hos-range-ui:disabled {
      */
   /* 单一暖铜主色 + 语义状态色。所有旧命名都保留为别名，
      色相由 canonical 令牌统一提供，避免 17 种主色在同一屏上互相冲突。 */
-  --accent: var(--hos-color-accent);
   --hos-range-ui-accent: var(--hos-color-accent);
-  --accent-rgb: var(--hos-color-accent-rgb);
-  --accent-secondary: var(--hos-color-accent-strong);
-  --accent-tertiary: var(--hos-color-accent-deep);
-  --accent-warm: var(--hos-color-warning);
   --accent-rose: var(--hos-color-danger);
   --accent-mint: var(--hos-color-info);
   --accent-teal: var(--hos-color-info);
@@ -402,7 +396,6 @@ input[type="range"].hos-range-ui:disabled {
   --accent-coral: var(--hos-color-danger);
   --accent-gold: var(--hos-color-accent-strong);
   --accent-indigo: var(--hos-color-accent-deep);
-  --accent-cyan: var(--hos-color-info);
   --accent-pink: var(--hos-color-danger);
   --accent-orange: var(--hos-color-warning);
   --accent-yellow: var(--hos-color-accent-strong);
@@ -420,10 +413,8 @@ input[type="range"].hos-range-ui:disabled {
   --gradient-royal: linear-gradient(135deg, var(--hos-color-accent-deep) 0%, var(--hos-color-accent) 50%, var(--hos-color-accent-strong) 100%);
   --gradient-golden: linear-gradient(135deg, var(--hos-color-accent-strong) 0%, var(--hos-color-accent) 55%, var(--hos-color-accent-deep) 100%);
 
-  --accent-glow: rgba(var(--hos-color-accent-rgb), 0.4);
   --accent-glow-2: rgba(var(--hos-color-accent-deep-rgb), 0.35);
   --accent-glow-3: rgba(var(--hos-color-accent-deep-rgb), 0.35);
-  --accent-glow-warm: rgba(var(--hos-color-warning-rgb), 0.32);
   --accent-glow-rose: rgba(var(--hos-color-danger-rgb), 0.32);
   --accent-glow-mint: rgba(var(--hos-color-info-rgb), 0.32);
   --accent-glow-teal: rgba(var(--hos-color-info-rgb), 0.32);
@@ -478,7 +469,7 @@ input[type="range"].hos-range-ui:disabled {
      */
   --panel-bg: rgba(15,15,20,0.6);                           /* 面板背景——带蓝灰调 */
   --panel-bg-heavy: rgba(12,12,18,0.78);                    /* 面板背景——加厚版 */
-  --panel-border: var(--premium-border);                   /* 面板边框 */
+  --panel-border: var(--hos-line-2);                   /* 面板边框 */
 
   --surface-bg: rgba(255,255,255,0.02);                     /* 表面背景——最浅层 */
   --surface-border: rgba(255,255,255,0.05);                 /* 表面边框 */
@@ -555,26 +546,12 @@ input[type="range"].hos-range-ui:disabled {
   --z-max: 2147483647;    /* 绝对顶层：下拉选择器/拾色器/输入联想等浮层 */
 
   /* 7.10 圆角半径（Border Radius）
-     真源在 hos-design-system.css（--hos-radius-control / input / card / panel / shell），该表后加载。
-     --radius-md / --radius-lg 原先在此别名到 card / panel，但同一份 hos-design-system 又
-     把它们定义为 16px / var(--hos-radius-panel)——后者胜，别名从未生效，故删去重复声明。
-     下面这一族是**兼容别名**：只允许写 `var(--hos-radius-*)`，不得再出现裸长度
-     （`--radius-xs: 8px` / `--radius-sm: 12px` / `--radius-ipad-pill: 9999px` 就是这样长出了
-     契约之外的第四档尺度）。这条现在由令牌契约门禁的「圆角尺度单一化」判据钉住。 */
-  --radius-xs: var(--hos-radius-control);                   /* 极小圆角——按钮/标签 */
-  --radius-sm: var(--hos-radius-input);                     /* 小圆角——输入框 */
-  --radius-xl: var(--hos-radius-shell);                     /* 超大圆角——大卡片 */
-  --radius-2xl: var(--hos-radius-shell);                    /* 极大圆角——主卡片（.ios-card） */
+   真源只有 design-tokens.css 的 --hos-r-*（10 / 14 / 20 / 28 + pill）；
+   任何场景都用 var(--hos-r-*) 引用，不得再写裸长度或新增别名档位。 */
 
   /* 7.10b iPad 增强圆角
      大屏设备使用更大、更柔和的圆角
      */
-  --radius-ipad-sm: var(--hos-radius-card);
-  --radius-ipad-md: var(--hos-radius-panel);
-  --radius-ipad-lg: var(--hos-radius-panel);
-  --radius-ipad-xl: var(--hos-radius-shell);
-  --radius-ipad-2xl: var(--hos-radius-shell);
-  --radius-ipad-pill: var(--hos-radius-pill);
 
   /* 7.10e 毛玻璃禁用组
      ⚠️ 选择器清单**必须字面量内联**，不能写成 `:is(var(--glass-fallback-selectors))`：
@@ -598,9 +575,13 @@ input[type="range"].hos-range-ui:disabled {
      更强的毛玻璃效果——更大模糊半径、更高饱和度
      */
   --glass-ipad-bg: rgba(255,255,255,0.04);
-  --glass-ipad-border: var(--premium-border-strong);
+  --glass-ipad-border: var(--hos-line-3);
   --glass-ipad-blur: blur(60px) saturate(220%);
   --glass-ipad-blur-light: blur(40px) saturate(200%);
+  --hos-color-accent: var(--hos-color-info);
+  --hos-color-accent-deep: var(--hos-color-warning);
+  --hos-glow-accent-strong: rgba(var(--hos-color-accent-rgb), 0.4);
+  --hos-glow-accent: rgba(var(--hos-color-warning-rgb), 0.32);
 }
 
 /* ==========================================================================
@@ -616,12 +597,12 @@ input[type="range"].hos-range-ui:disabled {
  * - hover 时卡片抬升 2px + 边框高亮 + 阴影加深
  */
 .ios-card {
-  background-color: var(--card-bg-1);
+  background-color: var(--hos-bg-tint-1);
   background-image: var(--page-card-tint-soft);
   -webkit-backdrop-filter: blur(var(--blur-md)) saturate(200%);
   backdrop-filter: blur(var(--blur-md)) saturate(200%);                /* 毛玻璃核心 */
-  border: var(--hos-hairline) solid var(--card-border);
-  border-radius: var(--radius-2xl);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-4);
   transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);              /* Apple 风格缓动 */
   position: relative;
   overflow: hidden;
@@ -638,15 +619,15 @@ input[type="range"].hos-range-ui:disabled {
 /** 顶部页面色渐变光带：模拟玻璃折射的亮边 + 模块主题色 */
 .ios-card::after {
   content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0), color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 55%, white), rgba(0, 0, 0, 0));
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), color-mix(in srgb, var(--hos-color-accent) 55%, white), rgba(0, 0, 0, 0));
   opacity: 0.6;
   pointer-events: none;
 }
 
 /** 悬停态：背景加深、边框变亮、阴影扩展、卡片抬升 */
 .ios-card:hover {
-  background: var(--card-bg-2);
-  border-color: var(--card-border-hover);
+  background: var(--hos-bg-tint-2);
+  border-color: var(--hos-line-3);
   box-shadow: var(--card-shadow-hover);
   transform: translateY(-2px);                                          /* 轻微抬升 */
 }
@@ -730,7 +711,7 @@ input[type="range"].hos-range-ui:disabled {
  * 保留功能动画（spin/pulse/fade 路由过渡等），确保 UI 可交互性不降低
  * 适用于低端设备或节能需求
  */
-.perf-low { --card-bg-1: var(--premium-border-strong); }
+.perf-low { --card-bg-1: var(--hos-line-3); }
 
 .perf-low *,
 .perf-low ::before,
@@ -913,8 +894,8 @@ input[type="range"].hos-range-ui:disabled {
   .entity-item,
   .tab-item,
   .settings-sidebar .tab-item {
-    min-height: var(--touch-target-min, 44px);
-    min-width: var(--touch-target-min, 44px);
+    min-height: var(--hos-touch-min);
+    min-width: var(--hos-touch-min);
   }
 
   /* 设置页 / Widget 常用按钮：统一触控下限，覆盖 32–36px 硬编码。
@@ -931,11 +912,11 @@ input[type="range"].hos-range-ui:disabled {
   .hos-degrade-banner__retry,
   .widget-glass-card button:not(.widget-ignore-touch-min):not(.toggle-btn):not(.sg-toggle):not([role='switch']),
   .settings-card button:not([aria-hidden='true']):not(.widget-ignore-touch-min):not(.toggle-btn):not([role='switch']) {
-    min-height: var(--touch-target-min, 44px);
+    min-height: var(--hos-touch-min);
   }
 
   .icon-btn {
-    min-width: var(--touch-target-min, 44px);
+    min-width: var(--hos-touch-min);
   }
 
   .info-panel > .widget-wrapper {
@@ -1159,7 +1140,7 @@ html[data-glass-effect="static"] .popup-shell {
 }
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--hos-color-accent-rgb), 0.4), 0 0 0 5px rgba(var(--hos-color-accent-rgb), 0.15);
 }
 
 /** 触控 icon 按钮：最小 44×44 点击区 + 焦点环 */
@@ -1173,14 +1154,14 @@ html[data-glass-effect="static"] .popup-shell {
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   color: inherit;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s ease, transform 0.12s ease;
 }
 
 .icon-btn:hover {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
 }
 
 .icon-btn:active {
@@ -1189,7 +1170,7 @@ html[data-glass-effect="static"] .popup-shell {
 
 .icon-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--hos-color-accent-rgb), 0.4), 0 0 0 5px rgba(var(--hos-color-accent-rgb), 0.15);
 }
 
 /**
@@ -1198,12 +1179,12 @@ html[data-glass-effect="static"] .popup-shell {
  * 使用 :where() 保持 0 特异性，已有显式焦点样式仍可覆盖。
  */
 :where(a, button, [role="button"], summary, [tabindex]:not([tabindex="-1"])):focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.75);
   outline-offset: 2px;
 }
 
 :where(input, select, textarea):focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.75);
   outline-offset: 1px;
 }
 

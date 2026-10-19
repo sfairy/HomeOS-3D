@@ -80,18 +80,18 @@
   align-items: center;
   gap: 4px;
   padding: 12px 8px;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   background: rgb(255 255 255 / 0.03);
   border: 1px solid rgb(255 255 255 / 0.06);
 }
 
 .eew-info-card--sm {
   padding: 10px 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
 }
 
 .eew-info-label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -116,44 +116,44 @@
   color: #ffffff;
 }
 .eew-c-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 .eew-c-warn-deep {
-  color: var(--premium-accent-amber, #ff9500);
+  color: var(--hos-color-warning);
 }
 .eew-c-warn-soft {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
   opacity: 0.6;
 }
 .eew-c-warn-deep-soft {
-  color: var(--premium-accent-amber, #ff9500);
+  color: var(--hos-color-warning);
   opacity: 0.6;
 }
 .eew-c-danger-soft {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
   opacity: 0.85;
 }
 .eew-c-danger-faint {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
   opacity: 0.5;
 }
 .eew-c-danger-pulse {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
   animation: eew-bg-pulse 0.8s ease-in-out infinite;
 }
 
 .eew-ic-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 .eew-ic-danger-soft {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
   opacity: 0.85;
 }
 .eew-ic-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 .eew-ic-warn-deep {
-  color: var(--premium-accent-amber, #ff9500);
+  color: var(--hos-color-warning);
 }
 
 /* ── 矮屏适配（横屏手机 / 低高度视口）：弹层可纵向滚动，滑动解锁条不被裁切 ── */

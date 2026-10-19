@@ -7,8 +7,8 @@
   justify-content: space-between;
   gap: 12px 16px;
   padding: 12px 14px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--set-border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.22);
   transition:
     border-color 0.2s ease,
@@ -31,8 +31,8 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--hos-radius-card);
-  color: var(--sfm-accent, var(--set-info, var(--hos-color-info-text)));
+  border-radius: var(--hos-r-2);
+  color: var(--sfm-accent, var(--hos-color-info-text));
   background: var(--sfm-accent-bg, rgba(var(--hos-color-accent-rgb), 0.12));
   border: var(--hos-hairline) solid var(--sfm-accent-border, rgba(var(--hos-color-accent-rgb), 0.22));
 }
@@ -49,7 +49,7 @@
 
 .settings-feature-master__title {
   margin: 0;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   line-height: 1.3;
   color: #fff;
@@ -59,7 +59,7 @@
   margin: 3px 0 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.4;
-  color: var(--set-text-faint);
+  color: var(--hos-fg-3);
 }
 
 .settings-feature-master__actions {
@@ -74,7 +74,7 @@
 
 /* 色调 token */
 .settings-feature-master--sky {
-  --sfm-accent: var(--set-info, var(--hos-color-info-text));
+  --sfm-accent: var(--hos-color-info-text);
   --sfm-accent-bg: rgba(var(--hos-color-accent-rgb), 0.12);
   --sfm-accent-border: rgba(var(--hos-color-accent-rgb), 0.22);
   --sfm-on-bg: rgba(var(--hos-color-accent-rgb), 0.14);
@@ -83,9 +83,9 @@
 }
 
 .settings-feature-master--info {
-  --sfm-accent: var(--set-info, var(--hos-color-accent));
-  --sfm-accent-bg: var(--set-info-bg, rgba(var(--hos-color-accent-rgb), 0.12));
-  --sfm-accent-border: var(--set-info-border, rgba(var(--hos-color-accent-rgb), 0.22));
+  --sfm-accent: var(--hos-color-info-text);
+  --sfm-accent-bg: var(--hos-color-info-soft);
+  --sfm-accent-border: var(--hos-color-info-line);
   --sfm-on-bg: rgba(var(--hos-color-accent-rgb), 0.12);
   --sfm-on-border: rgba(var(--hos-color-accent-rgb), 0.28);
   --sfm-on-icon-bg: rgba(14, 165, 233, 0.32);
@@ -110,16 +110,16 @@
 }
 
 .settings-feature-master--accent {
-  --sfm-accent: var(--page-accent, var(--hos-color-accent));
-  --sfm-accent-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
-  --sfm-accent-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
-  --sfm-on-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
-  --sfm-on-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.3);
-  --sfm-on-icon-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.36);
+  --sfm-accent: var(--hos-color-accent);
+  --sfm-accent-bg: rgba(var(--hos-color-accent-rgb), 0.14);
+  --sfm-accent-border: rgba(var(--hos-color-accent-rgb), 0.24);
+  --sfm-on-bg: rgba(var(--hos-color-accent-rgb), 0.14);
+  --sfm-on-border: rgba(var(--hos-color-accent-rgb), 0.3);
+  --sfm-on-icon-bg: rgba(var(--hos-color-accent-rgb), 0.36);
 }
 
 .settings-feature-master--emerald {
-  --sfm-accent: var(--set-success, var(--hos-color-success));
+  --sfm-accent: var(--hos-color-success-text);
   --sfm-accent-bg: rgba(var(--hos-color-success-rgb), 0.12);
   --sfm-accent-border: rgba(var(--hos-color-success-rgb), 0.22);
   --sfm-on-bg: rgba(var(--hos-color-success-rgb), 0.12);

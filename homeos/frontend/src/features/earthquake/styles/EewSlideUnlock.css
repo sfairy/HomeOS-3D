@@ -11,7 +11,7 @@
 
 .eew-slide-hint {
   margin: 0 0 0.65rem;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -28,7 +28,7 @@
   position: relative;
   width: 100%;
   height: var(--track-h);
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   overflow: hidden;
   cursor: grab;
   user-select: none;
@@ -218,7 +218,7 @@
   justify-content: center;
   padding-left: calc(var(--handle) + 8px);
   padding-right: 46px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: transparent;
@@ -287,7 +287,7 @@
   }
 
   .eew-slide-label {
-    font-size: var(--premium-fs-micro);
+    font-size: var(--hos-fs-2);
     letter-spacing: 0.04em;
   }
 }

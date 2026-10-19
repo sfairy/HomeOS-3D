@@ -27,19 +27,9 @@ from ..schemas import Studio3DDraftUpdate
 router = APIRouter(prefix="/studio3d", tags=["studio3d"])
 
 
-def _deliver_pending(request: Request, database: DatabaseSession) -> None:
-    """兼容 api.backups 的历史导入：旧「待投递」指针现在并入 studio_drafts。
-
-    旧实现把「待写文件」放在 studio_interaction_sync.document_json.pending，并在每次
-    GET/PUT 时补写文件。文件不再是权威存储，这里只把残渣收敛进数据库然后清除，
-    不写任何文件 —— 备份链路因此也不再有机会回放一个旧场景。
-    """
-    service.deliver_legacy_pending(database, request.app.state.settings)
-
-
 @router.get("")
-def get_studio3d_draft(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
-    return service.get_draft(database, request.app.state.settings)
+def get_studio3d_draft(database: DatabaseSession, _user: LicensedUser) -> dict:
+    return service.get_draft(database)
 
 
 @router.put("")

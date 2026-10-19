@@ -6,11 +6,11 @@
   flex-direction: column;
   background: var(--hos-dd-panel-bg);
   border: var(--hos-hairline) solid var(--hos-dd-panel-border);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   box-shadow: var(--hos-dd-panel-shadow);
   isolation: isolate;
   scrollbar-width: thin;
-  scrollbar-color: var(--premium-border-strong) transparent;
+  scrollbar-color: var(--hos-line-3) transparent;
 }
 
 .ems-search-wrap {
@@ -27,7 +27,7 @@
 
 .ems-search-icon {
   flex-shrink: 0;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   transition: color 0.15s ease;
 }
 
@@ -41,13 +41,13 @@
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.92);
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   outline: none;
   line-height: 1.4;
 }
 
 .ems-search::placeholder {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .ems-filter-bar {
@@ -75,11 +75,11 @@
   width: 100%;
   height: 28px;
   padding: 0 8px 0 10px;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  border-radius: var(--hos-radius-pill);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.04);
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-micro);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -106,8 +106,8 @@
   position: fixed;
   z-index: var(--z-max);
   padding: 4px 0;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  border-radius: var(--hos-r-2);
   background: var(--hos-dd-domain-menu-bg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   overflow-y: auto;
@@ -118,7 +118,7 @@
 }
 
 .ems-domain-menu::-webkit-scrollbar-thumb {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   border-radius: 3px;
 }
 
@@ -127,9 +127,9 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   cursor: pointer;
   transition: all 0.12s ease;
 }
@@ -146,13 +146,13 @@
 
 .ems-count {
   flex-shrink: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   font-family: ui-monospace, monospace;
   color: rgba(var(--hos-dd-accent-rgb), 0.7);
   background: var(--hos-dd-accent-bg);
   padding: 2px 7px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   border: var(--hos-hairline) solid rgba(var(--hos-dd-accent-rgb), 0.14);
 }
 
@@ -171,7 +171,7 @@
   overflow-x: hidden;
   padding: 4px 0 12px;
   scrollbar-width: thin;
-  scrollbar-color: var(--premium-border-strong) transparent;
+  scrollbar-color: var(--hos-line-3) transparent;
   isolation: isolate;
 }
 
@@ -184,7 +184,7 @@
 }
 
 .ems-list::-webkit-scrollbar-thumb {
-  background: var(--premium-border-strong);
+  background: var(--hos-line-3);
   border-radius: 3px;
 }
 
@@ -208,7 +208,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   color: var(--hos-dd-group-color);
   text-transform: uppercase;
@@ -221,7 +221,7 @@
 .ems-group-header span:last-child {
   font-family: ui-monospace, monospace;
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .ems-item {
@@ -249,8 +249,8 @@
 .ems-item-badge {
   flex-shrink: 0;
   padding: 1px 6px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.03em;
   color: var(--hos-dd-accent-text);
@@ -306,9 +306,9 @@
 }
 
 .ems-item-id {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-family: ui-monospace, monospace;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -324,7 +324,7 @@
   flex-shrink: 0;
   padding: 20px 12px;
   text-align: center;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: var(--hos-dd-empty-color);
 }
 

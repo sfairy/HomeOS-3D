@@ -26,9 +26,9 @@
   --hos-dd-domain-menu-bg: #161a24;
 
   /** 默认触发器 caption(13) → 选项 micro(12) */
-  --hos-dd-fs-item: var(--premium-fs-micro);
+  --hos-dd-fs-item: var(--hos-fs-2);
   /** 触发器 body-sm(14) → 选项 caption(13) */
-  --hos-dd-fs-item-from-body-sm: var(--premium-fs-caption);
+  --hos-dd-fs-item-from-body-sm: var(--hos-fs-3);
   /** 触发器 body / set-fs-input(15) → 选项 body-sm(14) */
-  --hos-dd-fs-item-from-body: var(--premium-fs-body-sm);
+  --hos-dd-fs-item-from-body: var(--hos-fs-4);
 }

@@ -35,13 +35,6 @@ const FILTER_STORAGE_KEY = 'homeos:devices-filter'
  */
 const DEVICES_REST_FALLBACK_THRESHOLD = 1000
 
-const DEVICES_VIEW_PAGE_ACCENT_STYLE = {
-  '--page-accent': 'var(--module-accent-devices)',
-  '--page-accent-rgb': 'var(--module-accent-devices-rgb)',
-  '--page-accent-secondary': 'var(--module-accent-devices-sub)',
-  '--page-accent-secondary-rgb': 'var(--module-accent-devices-sub-rgb)',
-} as Record<string, string>
-
 export function useDevicesView() {
   const entitiesStore = useEntitiesStore()
   const authStore = useAuthStore()
@@ -390,7 +383,6 @@ export function useDevicesView() {
   }
 
   return {
-    pageAccentStyle: DEVICES_VIEW_PAGE_ACCENT_STYLE,
     query,
     activeDomain,
     selectedIds,

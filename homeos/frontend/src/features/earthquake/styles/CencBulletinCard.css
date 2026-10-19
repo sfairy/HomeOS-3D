@@ -13,7 +13,7 @@
 .cenc-card {
   width: min(420px, 94vw);
   padding: 1.25rem 1.35rem 1.15rem;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   border: 1px solid rgb(56 189 248 / 0.28);
   background:
     linear-gradient(165deg, rgb(8 28 48 / 0.96) 0%, rgb(4 16 32 / 0.98) 55%, rgb(2 10 22 / 0.98) 100%);
@@ -53,7 +53,7 @@
 .cenc-card__close {
   width: 36px;
   height: 36px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgb(148 163 184 / 0.25);
   background: rgb(255 255 255 / 0.04);
   color: rgb(203 213 225);
@@ -133,7 +133,7 @@
 .cenc-card__btn {
   width: 100%;
   height: 44px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgb(56 189 248 / 0.35);
   background: rgb(14 165 233 / 0.16);
   color: rgb(186 230 253);

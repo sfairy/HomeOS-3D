@@ -1,8 +1,8 @@
 .device-refs-panel__count {
   margin-left: 8px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .device-refs-panel__actions {
@@ -14,9 +14,9 @@
 
 .device-refs-panel__hint {
   margin: 0 0 12px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.45;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .device-refs-panel__body {
@@ -48,8 +48,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.18);
 }
 
@@ -117,15 +117,15 @@ a.device-refs-panel__link:hover {
 }
 
 .device-refs-panel__kind {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .device-refs-panel__name {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.88);
   overflow: hidden;
@@ -134,8 +134,8 @@ a.device-refs-panel__link:hover {
 }
 
 .device-refs-panel__detail {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -149,15 +149,15 @@ a.device-refs-panel__link:hover {
 }
 
 .device-refs-panel__role {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .device-refs-panel__badge {
   display: inline-block;
   padding: 1px 7px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
 }
 
@@ -168,17 +168,17 @@ a.device-refs-panel__link:hover {
 }
 
 .device-refs-panel__badge--off {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: rgba(255, 255, 255, 0.06);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
 }
 
 .device-refs-panel__chevron {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .der-icon-info {
-  color: var(--page-accent, var(--hos-color-accent));
+  color: var(--hos-color-accent);
 }
 
 @media (max-width: 639px) {

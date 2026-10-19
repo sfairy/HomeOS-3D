@@ -6,7 +6,7 @@
   overflow: hidden;
   background:
     linear-gradient(135deg, rgba(250, 45, 72, 0.16), rgba(190, 24, 93, 0.09) 48%, rgba(15, 23, 42, 0.3)),
-    var(--hos-surface-panel, rgba(15, 23, 42, 0.72));
+    var(--hos-panel-surface);
   box-shadow: 0 0 0 1px rgba(var(--hos-color-warning-rgb), 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 .media-mini-widget::after {
@@ -74,15 +74,15 @@
 }
 
 .mm-dot:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.85);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.85);
   outline-offset: 3px;
 }
 
 .mm-dot--active {
-  background: var(--premium-accent-blue);
+  background: var(--hos-color-accent);
   width: 18px;
   border-radius: 3px;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--premium-accent-blue) 60%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hos-color-accent) 60%, rgba(0, 0, 0, 0));
 }
 
 /* 滚动容器：snap 对齐，自行控制 cursor */
@@ -131,9 +131,9 @@
 }
 
 .mm-device-name {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -165,9 +165,9 @@
 }
 
 .mm-open:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.75);
   outline-offset: 2px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
 }
 
 .mm-cover {
@@ -175,7 +175,7 @@
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.4);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
@@ -214,9 +214,9 @@
 }
 
 .mm-title {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--hos-fg-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -225,7 +225,7 @@
 }
 
 .mm-subtitle {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
@@ -240,14 +240,14 @@
 }
 
 .mm-btn {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: none;
   border: none;
   cursor: pointer;
   /* 与同一排的 .mm-btn-play 统一到 sm 档：只靠内边距撑高会比播放键矮约 7px。 */
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   padding: 0 5px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -261,9 +261,9 @@
 
 .mm-btn-play {
   width: 34px;
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   border-radius: 50%;
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
@@ -275,10 +275,10 @@
 }
 
 .mm-btn-play:hover {
-  background: color-mix(in srgb, var(--premium-accent-blue) 25%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--premium-accent-blue) 35%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--hos-color-accent) 25%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--hos-color-accent) 35%, rgba(0, 0, 0, 0));
   transform: scale(1.08);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--premium-accent-blue) 30%, rgba(0, 0, 0, 0));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--hos-color-accent) 30%, rgba(0, 0, 0, 0));
 }
 
 /* 播放三角视觉居中：几何中心偏左，向右微调 */
@@ -306,13 +306,13 @@
   background-color: var(--hos-color-success);
 }
 .mmw-dot-paused {
-  background-color: var(--set-warn, var(--hos-color-accent));
+  background-color: var(--hos-color-warning-text);
 }
 .mmw-dot-off {
-  background-color: var(--set-text-tertiary);
+  background-color: var(--hos-fg-3);
 }
 .mmw-dot-default {
-  background-color: var(--set-info, var(--hos-color-info-text));
+  background-color: var(--hos-color-info-text);
 }
 
 @media (max-width: 768px) {

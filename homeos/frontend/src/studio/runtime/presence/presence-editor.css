@@ -30,7 +30,7 @@
   overflow-wrap: anywhere;
 }
 .i3d-presence-editor button[aria-pressed="true"] {
-  border-color: var(--accent, #f2a20d);
+  border-color: var(--hos-color-accent);
   color: var(--accent-bright, #f5bd53);
   background: var(--accent-soft, #f2a20d18);
 }

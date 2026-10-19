@@ -112,9 +112,10 @@ export function defaultDeviceStatusRule(entityRule: any, currentState: any, rule
     ruleKind === "health" ? statusChoices.reminderValue : statusChoices.options[0].value;
   return {
     entityId: entityRule.entityId,
-    active: activeValue,
-    inactive: statusChoices.options.find((choiceOption) => choiceOption.value !== activeValue)!
-      .value,
+    active: [activeValue],
+    inactive: [
+      statusChoices.options.find((choiceOption) => choiceOption.value !== activeValue)!.value,
+    ],
   };
 }
 export function deviceStatus(device: any, entityStates: Record<string, any> = {}) {

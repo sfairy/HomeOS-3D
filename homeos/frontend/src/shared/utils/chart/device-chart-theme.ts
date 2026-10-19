@@ -22,7 +22,7 @@ export function deviceChartTooltip(): NonNullable<EChartsCoreOption['tooltip']> 
   return {
     trigger: 'axis',
     ...createChartTooltip('rgba(18,18,28,0.98)', {
-      borderColor: 'var(--premium-border-strong)',
+      borderColor: 'var(--hos-line-3)',
       borderWidth: 1,
       padding: [8, 12],
       textStyle: { color: '#fff', fontSize: 11 },

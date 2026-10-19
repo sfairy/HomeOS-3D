@@ -13,17 +13,17 @@
 
 .bind-section__eyebrow {
   margin: 0 0 4px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--page-accent-secondary, var(--module-accent-bindings-sub));
+  color: var(--hos-color-accent-strong);
   opacity: 0.75;
 }
 
 .bind-section__title {
   margin: 0;
-  font-size: var(--premium-fs-body, 14px);
+  font-size: var(--hos-fs-5);
   font-weight: 800;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -33,7 +33,7 @@
   align-items: center;
   gap: 12px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.18);
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.12);
 }
@@ -41,10 +41,10 @@
 .bind-energy-status--bound {
   background: linear-gradient(
     135deg,
-    rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.08) 0%,
+    rgba(var(--hos-color-accent-strong-rgb), 0.08) 0%,
     rgba(0, 0, 0, 0.18) 100%
   );
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.22);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -52,12 +52,12 @@
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   transition: color 0.2s ease;
 }
 
 .bind-energy-status--bound .bind-energy-status__icon {
-  color: var(--page-accent-secondary, var(--module-accent-bindings-sub));
+  color: var(--hos-color-accent-strong);
 }
 
 .bind-energy-status__copy {
@@ -68,14 +68,14 @@
 }
 
 .bind-energy-status__title {
-  font-size: var(--premium-fs-body-sm, 13px);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.88);
 }
 
 .bind-energy-status__meta {
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-2);
 }
 
 .bind-energy-modes {
@@ -84,19 +84,19 @@
   gap: 4px;
   padding: 4px;
   margin-bottom: 8px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(0, 0, 0, 0.22);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
 }
 
 .bind-energy-mode {
   /* 高度钉到 sm 档：chip 内边距 + 行高 + 发丝边框凑出 33px。 */
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   padding: 0 var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: transparent;
   border: var(--hos-hairline) solid transparent;
   transition:
@@ -111,14 +111,14 @@
 }
 
 .bind-energy-mode--active {
-  color: var(--page-accent-secondary, var(--module-accent-bindings-sub));
-  background: rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.14);
-  border-color: rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.28);
+  color: var(--hos-color-accent-strong);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.14);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.28);
   box-shadow: none;
 }
 
 .bind-energy-mode:focus-visible {
-  outline: 2px solid var(--page-accent-secondary, var(--module-accent-bindings-sub));
+  outline: 2px solid var(--hos-color-accent-strong);
   outline-offset: 2px;
 }
 
@@ -139,10 +139,10 @@
 
 .bind-account-stage__tabs-label {
   margin: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 /* 字段映射面板 */
@@ -151,12 +151,12 @@
   flex-direction: column;
   gap: 14px;
   padding: 16px;
-  border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.18);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.18);
   background:
     radial-gradient(
       ellipse 80% 50% at 0% 0%,
-      rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.1) 0%,
+      rgba(var(--hos-color-accent-strong-rgb), 0.1) 0%,
       transparent 58%
     ),
     rgba(0, 0, 0, 0.2);
@@ -164,11 +164,11 @@
 }
 
 .bind-account-mapping--multi {
-  border-color: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.18);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.18);
   background:
     radial-gradient(
       ellipse 80% 50% at 100% 0%,
-      rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.08) 0%,
+      rgba(var(--hos-color-accent-rgb), 0.08) 0%,
       transparent 58%
     ),
     rgba(0, 0, 0, 0.2);
@@ -201,16 +201,16 @@
   width: 38px;
   height: 38px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
-  background: rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.14);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.24);
-  color: var(--page-accent-secondary, var(--module-accent-bindings-sub));
+  border-radius: var(--hos-r-2);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.14);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.24);
+  color: var(--hos-color-accent-strong);
 }
 
 .bind-account-mapping__orb--sky {
-  background: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.12);
-  border-color: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.22);
-  color: var(--page-accent, var(--module-accent-bindings, var(--hos-color-accent)));
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
+  color: var(--hos-color-accent);
 }
 
 .bind-account-mapping__orb-icon {
@@ -220,16 +220,16 @@
 
 .bind-account-mapping__title {
   margin: 0;
-  font-size: var(--premium-fs-body-sm, 13px);
+  font-size: var(--hos-fs-4);
   font-weight: 800;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .bind-account-mapping__desc {
   margin: 4px 0 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.5;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .bind-account-mapping__actions {
@@ -249,9 +249,9 @@
 
 .bind-account-mapping__chart-label {
   margin: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 /* 锚点实体卡片（多实体） */
@@ -260,14 +260,14 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.22);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.22);
   background: linear-gradient(
     155deg,
-    rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.12) 0%,
+    rgba(var(--hos-color-accent-rgb), 0.12) 0%,
     rgba(0, 0, 0, 0.24) 100%
   );
-  box-shadow: 0 8px 28px rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.08);
+  box-shadow: 0 8px 28px rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 .bind-account-anchor-card__head {
@@ -283,10 +283,10 @@
   width: 38px;
   height: 38px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
-  background: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.14);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.24);
-  color: var(--page-accent, var(--module-accent-bindings, var(--hos-color-accent)));
+  border-radius: var(--hos-r-2);
+  background: rgba(var(--hos-color-accent-rgb), 0.14);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.24);
+  color: var(--hos-color-accent);
 }
 
 .bind-account-anchor-card__orb-icon {
@@ -296,16 +296,16 @@
 
 .bind-account-anchor-card__title {
   margin: 0;
-  font-size: var(--premium-fs-body-sm, 13px);
+  font-size: var(--hos-fs-4);
   font-weight: 800;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .bind-account-anchor-card__desc {
   margin: 4px 0 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.5;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .bind-account-anchor-card__row {
@@ -325,10 +325,10 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: var(--control-height-md);
+  min-height: var(--hos-control-h-md);
   padding: 8px 14px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
@@ -366,18 +366,18 @@
   color: #fff;
   background: linear-gradient(
     155deg,
-    rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.58) 0%,
-    rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.32) 100%
+    rgba(var(--hos-color-accent-rgb), 0.58) 0%,
+    rgba(var(--hos-color-accent-rgb), 0.32) 100%
   );
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.42);
-  box-shadow: 0 6px 20px rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.18);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.42);
+  box-shadow: 0 6px 20px rgba(var(--hos-color-accent-rgb), 0.18);
 }
 
 .bind-account-action--primary:hover:not(:disabled) {
   background: linear-gradient(
     155deg,
-    rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.68) 0%,
-    rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.38) 100%
+    rgba(var(--hos-color-accent-rgb), 0.68) 0%,
+    rgba(var(--hos-color-accent-rgb), 0.38) 100%
   );
   transform: translateY(-1px);
 }
@@ -407,26 +407,26 @@
 /* 映射字段单元 */
 .bind-account-field {
   padding: 10px 10px 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .bind-account-field:focus-within {
-  border-color: rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.28);
-  background: rgba(var(--page-accent-secondary-rgb, var(--module-accent-bindings-sub-rgb)), 0.04);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.28);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.04);
 }
 
 .bind-account-mapping--multi .bind-account-field:focus-within {
-  border-color: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.28);
-  background: rgba(var(--page-accent-rgb, var(--module-accent-bindings-rgb)), 0.04);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.04);
 }
 
 .bind-account-field__label {
   display: block;
   margin: 0 0 6px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.58);
 }
@@ -434,12 +434,12 @@
 .bind-account-field__unit {
   margin-left: 2px;
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .bind-account-field__input {
   width: 100%;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .bind-account-field__entity {

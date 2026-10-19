@@ -5,23 +5,23 @@
  */
 
 /* ── Tailwind 标准档 → token ── */
-.text-xs { font-size: var(--premium-fs-caption); }
-.text-sm { font-size: var(--premium-fs-body-sm); }
-.text-base { font-size: var(--premium-fs-body); }
-.text-lg { font-size: var(--premium-fs-title); }
-.text-xl { font-size: var(--premium-fs-display); }
+.text-xs { font-size: var(--hos-fs-3); }
+.text-sm { font-size: var(--hos-fs-4); }
+.text-base { font-size: var(--hos-fs-5); }
+.text-lg { font-size: var(--hos-fs-6); }
+.text-xl { font-size: var(--hos-fs-8); }
 
 /* ── 列表页 / 页头 ── */
 .list-page {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
 }
 
 .list-page__chip {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .list-page__link-btn {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 /* ── Dashboard 侧栏 widget 区域基准 ── */
@@ -30,16 +30,16 @@
 .widget-fixed,
 .widget-compact,
 .widget-elastic {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
 }
 
 /* ── 实体弹窗基准 ── */
 .popup-base,
 .popup-card {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
 }
 
 /* ── 顶栏 Tab ── */
 .tab-bar {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
 }

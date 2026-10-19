@@ -478,7 +478,7 @@ type PopupPresetConfig = {
         if (!(await ensureEditorView())) return;
         await requestInteraction3dAccess();
         const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-          await import("/api/v1/modules/interaction3d/editor/config-editor.js");
+          await import("/api/v1/modules/interaction3d/config-ui/config-editor.js");
         await openAppearanceEditor({
           component: targetComponent,
           onSave: (savedBaseLighting: any) =>
@@ -513,7 +513,7 @@ type PopupPresetConfig = {
         const entry = await ensureConfigurationEntry();
         if (!entry) return;
         const { openInteraction3dEditor: openDevicesEditor } =
-          await import("/api/v1/modules/interaction3d/editor/config-editor.js");
+          await import("/api/v1/modules/interaction3d/config-ui/config-editor.js");
         await openDevicesEditor({
           component: targetComponent,
           deviceKind: "devices",
@@ -580,7 +580,7 @@ type PopupPresetConfig = {
         const entry = await ensureConfigurationEntry();
         if (!entry) return;
         const { openInteraction3dEditor: openVacuumEditor } =
-          await import("/api/v1/modules/interaction3d/editor/config-editor.js");
+          await import("/api/v1/modules/interaction3d/config-ui/config-editor.js");
         await openVacuumEditor({
           component: targetComponent,
           deviceKind: "vacuum",
@@ -649,7 +649,7 @@ type PopupPresetConfig = {
         if (!entry) return;
         await requestInteraction3dAccess();
         const { openInteraction3dEditor: openLightingEditor } =
-          await import("/api/v1/modules/interaction3d/editor/config-editor.js");
+          await import("/api/v1/modules/interaction3d/config-ui/config-editor.js");
         await openLightingEditor({
           component: targetComponent,
           ...entry,
@@ -680,7 +680,7 @@ type PopupPresetConfig = {
         if (!entry) return;
         await requestInteraction3dAccess();
         const { openInteraction3dEditor: openEnvironmentEditor } =
-          await import("/api/v1/modules/interaction3d/editor/config-editor.js");
+          await import("/api/v1/modules/interaction3d/config-ui/config-editor.js");
         await openEnvironmentEditor({
           component: targetComponent,
           deviceKind: "environment",

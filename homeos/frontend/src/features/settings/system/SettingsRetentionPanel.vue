@@ -9,7 +9,7 @@
     :active-tab="activeTab"
     tab="retention"
     icon-key="database"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="retention-hub"
   >
@@ -340,7 +340,7 @@ onMounted(load)
   flex-wrap: wrap;
   gap: 12px;
   padding: 18px 20px 14px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .retention-card__title {
@@ -357,16 +357,16 @@ onMounted(load)
 
 .retention-card__name {
   margin: 0;
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   font-weight: 600;
-  color: var(--hos-text-strong);
+  color: var(--hos-fg-1);
 }
 
 .retention-card__hint {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.5;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .retention-card__actions {
@@ -381,11 +381,11 @@ onMounted(load)
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--hos-border-hairline);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   white-space: nowrap;
 }
 
@@ -393,18 +393,18 @@ onMounted(load)
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--module-accent-admin, #facc15);
+  background: var(--hos-color-accent);
   box-shadow: 0 0 6px rgba(250, 204, 21, 0.6);
 }
 
 /* 已修改提示 chip */
 .retention-dirty-chip {
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-micro, 12px);
-  color: var(--module-accent-admin, #facc15);
-  background: rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.25);
+  color: var(--hos-color-accent);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.25);
   white-space: nowrap;
 }
 
@@ -417,17 +417,17 @@ onMounted(load)
   flex-wrap: wrap;
   gap: 10px;
   padding: 12px 20px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-1);
   background: linear-gradient(
     90deg,
-    rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.07),
-    rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.02)
+    rgba(var(--hos-color-accent-rgb), 0.07),
+    rgba(var(--hos-color-accent-rgb), 0.02)
   );
 }
 
 .retention-batch__label {
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .retention-batch__control {
@@ -440,14 +440,14 @@ onMounted(load)
   position: absolute;
   right: 8px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   pointer-events: none;
 }
 
 .retention-batch__meta {
   margin-left: auto;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 /* 清理统计 */
@@ -460,38 +460,38 @@ onMounted(load)
 
 .retention-stat {
   padding: 14px 16px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.03);
-  border: var(--hos-hairline) solid var(--hos-border-hairline);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .retention-stat--hero {
-  background: rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.08);
-  border-color: rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .retention-stat--muted .retention-stat__value {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 500;
   word-break: break-all;
 }
 
 .retention-stat__value {
   margin: 0;
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   font-weight: 600;
-  color: var(--hos-text-strong);
+  color: var(--hos-fg-1);
 }
 
 .retention-stat--hero .retention-stat__value {
   font-size: 24px;
-  color: var(--module-accent-admin, #facc15);
+  color: var(--hos-color-accent);
 }
 
 .retention-stat__label {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .retention-empty {
@@ -509,8 +509,8 @@ onMounted(load)
 
 .retention-empty__text {
   margin: 0;
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-2);
 }
 
 /* 保留策略表格 */
@@ -530,13 +530,13 @@ onMounted(load)
 
 .retention-table__head {
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
-  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
+  color: var(--hos-fg-2);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-1);
 }
 
 .retention-table__row {
   position: relative;
-  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-1);
   transition: background-color 0.15s ease;
 }
 
@@ -550,7 +550,7 @@ onMounted(load)
 
 /* 已修改行：accent 竖条 + 微亮背景 */
 .retention-table__row.is-modified {
-  background: rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.05);
+  background: rgba(var(--hos-color-accent-rgb), 0.05);
 }
 
 .retention-table__row.is-modified::before {
@@ -560,7 +560,7 @@ onMounted(load)
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--module-accent-admin, #facc15);
+  background: var(--hos-color-accent);
   border-radius: 0 3px 3px 0;
 }
 
@@ -570,25 +570,25 @@ onMounted(load)
 
 .retention-table__title {
   margin: 0;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 500;
-  color: var(--hos-text-body);
+  color: var(--hos-fg-body);
 }
 
 .retention-table__meta {
   margin: 3px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .retention-table__cell {
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-body);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-body);
   white-space: nowrap;
 }
 
 .retention-table__cell--rows {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .retention-table__input-wrap {
@@ -599,14 +599,14 @@ onMounted(load)
 
 .retention-table__input {
   /* 高度钉到 sm 档：6px 内边距 + 行高 + 发丝边框凑出 33px。 */
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   width: 76px;
   padding: 0 28px 0 8px;
   border-radius: 8px;
-  border: var(--hos-hairline) solid var(--hos-border-hairline-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(255, 255, 255, 0.04);
-  color: var(--hos-text-body);
-  font-size: var(--premium-fs-caption);
+  color: var(--hos-fg-body);
+  font-size: var(--hos-fs-3);
   outline: none;
   transition:
     border-color 0.15s ease,
@@ -614,19 +614,19 @@ onMounted(load)
 }
 
 .retention-table__input:focus {
-  border-color: var(--module-accent-admin, #facc15);
+  border-color: var(--hos-color-accent);
   background: rgba(255, 255, 255, 0.06);
 }
 
 .retention-table__input.is-modified {
-  border-color: rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.55);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.55);
 }
 
 .retention-table__input-unit {
   position: absolute;
   right: 8px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   pointer-events: none;
 }
 
@@ -638,8 +638,8 @@ onMounted(load)
   gap: 12px;
   padding: 10px 20px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
-  border-top: var(--hos-hairline) solid var(--hos-border-hairline-soft);
+  color: var(--hos-fg-2);
+  border-top: var(--hos-hairline) solid var(--hos-line-1);
   background: rgba(255, 255, 255, 0.02);
 }
 

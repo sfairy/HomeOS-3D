@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -30,22 +29,13 @@ from . import draft_repository
 from ...platform.core.models import Project, ProjectDraft
 from ...schemas import Studio3DDraftUpdate
 
-logger = logging.getLogger(__name__)
 
-
-def get_draft(database: Session, settings) -> dict:
-    """读当前草稿。只读：不建行、不提交、不回写旧文件。
-
-    旧实现的 GET 会先 ``_deliver_pending``（写文件 + 提交）再读文件 —— 一个 GET
-    竟然可能写盘，于是只读探针（备份、监控、另一个标签页初始化）会改变存储状态。
-    """
+def get_draft(database: Session) -> dict:
+    """读当前草稿。只读：不建行、不提交。"""
     snapshot = draft_repository.read_snapshot(database)
-    if snapshot is not None:
-        return {"revision": snapshot.revision, "scene": snapshot.scene, "updatedAt": snapshot.updated_at}
-    legacy = draft_repository.read_legacy_payload(settings.studio3d_draft_path)
-    if legacy is None:
+    if snapshot is None:
         return {"revision": 0, "scene": None, "updatedAt": None}
-    return {"revision": legacy["revision"], "scene": legacy.get("scene"), "updatedAt": legacy.get("updatedAt")}
+    return {"revision": snapshot.revision, "scene": snapshot.scene, "updatedAt": snapshot.updated_at}
 
 
 def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate) -> dict:
@@ -62,12 +52,11 @@ def save_draft(database: Session, settings, user, payload: Studio3DDraftUpdate) 
 
 def _save_draft_locked(database: Session, settings, user, payload: Studio3DDraftUpdate, scene_json: str) -> dict:
     snapshot = draft_repository.read_snapshot(database)
-    legacy = draft_repository.read_legacy_payload(settings.studio3d_draft_path) if snapshot is None else None
-    current_revision = _current_revision(snapshot, legacy)
+    current_revision = snapshot.revision if snapshot is not None else 0
     if payload.revision != current_revision:
         raise _conflict(current_revision)
-    previous_scene = (snapshot.scene if snapshot is not None else (legacy or {}).get("scene")) or {}
-    schema_version = _schema_version(payload.scene, snapshot, legacy)
+    previous_scene = snapshot.scene if snapshot is not None else {}
+    schema_version = _schema_version(payload.scene, snapshot)
     documents, changed, archive, impacts = _plan_interaction_cleanup(
         database, settings, previous_scene, payload.scene
     )
@@ -92,12 +81,6 @@ def _save_draft_locked(database: Session, settings, user, payload: Studio3DDraft
     _apply_cleanup(database, changed, archive, getattr(user, "id", None))
     database.commit()
     return {"revision": next_revision, "scene": payload.scene, "updatedAt": timestamp.isoformat()}
-
-
-def _current_revision(snapshot, legacy) -> int:
-    if snapshot is not None:
-        return snapshot.revision
-    return int(legacy["revision"]) if legacy else 0
 
 
 def _conflict(current_revision: int) -> HTTPException:
@@ -142,16 +125,12 @@ def _apply_cleanup(database: Session, changed: dict, archive: list | None, updat
         draft_repository.write_archive(database, archive)
 
 
-def _schema_version(scene: dict, snapshot, legacy) -> int:
+def _schema_version(scene: dict, snapshot) -> int:
     value = scene.get("schemaVersion")
     if isinstance(value, int) and not isinstance(value, bool):
         return value
     if snapshot is not None:
         return snapshot.schema_version
-    if isinstance(legacy, dict):
-        legacy_value = (legacy.get("scene") or {}).get("schemaVersion")
-        if isinstance(legacy_value, int) and not isinstance(legacy_value, bool):
-            return legacy_value
     return draft_repository.DEFAULT_SCHEMA_VERSION
 
 
@@ -177,30 +156,3 @@ def _decode_document(raw) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def deliver_legacy_pending(database: Session, settings) -> None:
-    """把旧实现遗留的 ``document_json.pending`` 收敛进 studio_drafts 后清除。
-
-    旧流程是「先库后文件」：崩溃会留下「库里 pending、文件还是旧的」。文件不再被写，
-    所以这里把 pending 当作尚未落库的一次保存补进去；新代码不再产生该字段。
-    """
-    pending = draft_repository.read_pending_legacy(database)
-    if pending is None:
-        return
-    archive = draft_repository.read_archive(database)
-    try:
-        scene = pending.get("scene")
-        revision = int(pending.get("revision") or 0)
-        current = draft_repository.read_snapshot(database)
-        if isinstance(scene, dict) and revision > 0 and (current is None or revision > current.revision):
-            draft_repository.force_write_snapshot(
-                database,
-                revision=revision,
-                schema_version=_schema_version(scene, current, None),
-                scene_json=draft_repository.encode_scene(scene),
-                updated_at=draft_repository.now_sqlite(),
-            )
-    except (TypeError, ValueError, HTTPException) as error:
-        # 旧 pending 只是残渣：修复失败不能阻塞备份/读取链路。
-        logger.warning("旧 3D 草稿 pending 投递失败，已丢弃：%s", error)
-    draft_repository.clear_pending_legacy(database, archive)
-    database.commit()

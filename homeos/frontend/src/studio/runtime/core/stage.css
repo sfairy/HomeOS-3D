@@ -1515,7 +1515,7 @@ body.interaction3d-stage.is-background-hidden,
   background: #1b2228;
 }
 .plan2-range-editor .custom-select-button[aria-expanded="true"] {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   box-shadow: 0 0 0 2px #f2a20d1f;
 }
 .plan2-range-editor .custom-select-button[aria-expanded="true"]:after {
@@ -1564,7 +1564,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .custom-select-option.active {
   color: #f3f5f6;
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   background: #252c32;
   box-shadow: inset 0 0 0 1px #f2a20d2e;
   font-weight: 680;
@@ -1635,7 +1635,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor {
   --field: #171d22;
-  --accent: #f2a20d;
+  --hos-color-accent: #f2a20d;
 }
 .plan2-range-editor .custom-select-menu {
   pointer-events: auto;

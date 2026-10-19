@@ -4,29 +4,29 @@
   backdrop-filter: none;
   background:
     var(--page-card-tint-soft),
-    var(--hos-surface-panel);
-  border: var(--hos-hairline) solid var(--hos-border-subtle, var(--premium-border));
-  border-radius: var(--hos-radius-card, 14px);
+    var(--hos-panel-surface);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-2);
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   gap: var(--hos-panel-gap-compact, 10px);
-  box-shadow: var(--hos-shadow-card), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+  box-shadow: var(--hos-shadow-2), var(--hos-shadow-inset);
   isolation: isolate;
   overflow: hidden;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transition:
-    transform var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    box-shadow var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    background var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    border-color var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1));
+    transform var(--hos-dur-slow) var(--hos-ease-out),
+    box-shadow var(--hos-dur-slow) var(--hos-ease-out),
+    background var(--hos-dur-slow) var(--hos-ease-out),
+    border-color var(--hos-dur-slow) var(--hos-ease-out);
 }
 
 .widget-glass-card:hover {
   background:
     var(--page-card-tint),
-    var(--hos-surface-panel-hover);
-  border-color: color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 26%, var(--hos-border-strong, var(--premium-border-strong)));
-  box-shadow: var(--hos-shadow-card-hover, 0 8px 28px rgba(0, 0, 0, 0.34)), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+    var(--hos-panel-surface-hover);
+  border-color: color-mix(in srgb, var(--hos-color-accent) 26%, var(--hos-line-3));
+  box-shadow: var(--hos-shadow-3), var(--hos-shadow-inset);
 }
 
 .info-panel .widget-glass-card {

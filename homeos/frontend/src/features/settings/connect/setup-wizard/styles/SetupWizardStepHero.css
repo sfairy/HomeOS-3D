@@ -6,7 +6,7 @@
   gap: 14px;
   margin-bottom: 14px;
   padding: var(--hos-panel-padding-default, 20px);
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid var(--sw-hero-border);
   background: var(--sw-hero-bg);
 }
@@ -87,7 +87,7 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: 26px;
   line-height: 1;
   color: var(--sw-hero-emoji-color);
@@ -122,7 +122,7 @@
   gap: 6px;
   margin: 10px 0 0;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-micro);
   font-weight: 700;
   color: var(--sw-hero-tip);

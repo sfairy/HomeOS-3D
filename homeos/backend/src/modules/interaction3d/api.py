@@ -251,8 +251,7 @@ def require_scene_transfer(request, viewer, scene_id, project_id):
 
 
 def current_scene_payload(request: Request, database, scene_id: str, reference: dict, *, since: str = '') -> dict:
-    # 草稿权威在 studio_drafts：读旧文件会让交互侧永远停在迁移前那一版户型。
-    payload = read_current_studio_draft(database, request.app.state.settings)
+    payload = read_current_studio_draft(database)
     if payload is None:
         if since:
             raise ValueError('saved source unavailable')
@@ -264,7 +263,7 @@ def current_scene_payload(request: Request, database, scene_id: str, reference: 
 def snapshot_scene(request: Request, database: DatabaseSession, _user: LicensedUser):
     require_same_origin_write(request)
     require_access(request)
-    command = read_current_studio_draft(database, request.app.state.settings)
+    command = read_current_studio_draft(database)
     if command is None:
         raise HTTPException(409, detail='请先在 3D 户型图绘制中绘制并保存户型。')
     if not isinstance(command.get('scene'), dict):
@@ -315,7 +314,6 @@ def _collect_scene_ids(node: object, out: set[str]) -> None:
 
 def referenced_scene_ids(request: Request, database: DatabaseSession) -> set[str] | None:
     """仍被项目草稿 / 编辑器草稿引用的场景 id；无法判定时返回 ``None``（调用方跳过清理）。"""
-    settings = request.app.state.settings
     try:
         documents = list(database.scalars(select(ProjectDraft.document_json)))
     except Exception:
@@ -330,7 +328,7 @@ def referenced_scene_ids(request: Request, database: DatabaseSession) -> set[str
         except ValueError:
             continue
     # 数据库里的草稿才是当前户型：漏掉它会把仍在使用的快照当垃圾清掉。
-    _collect_scene_ids(read_current_studio_draft(database, settings) or {}, referenced)
+    _collect_scene_ids(read_current_studio_draft(database) or {}, referenced)
     return referenced
 
 
@@ -434,12 +432,11 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
             if not copy_path.is_file():
                 continue
             return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'no-store'})
+    settings = request.app.state.settings
     try:
-        settings = request.app.state.settings
-        # 快照里没有底图副本时回退到用户资源，但只允许「当前草稿仍在引用」的图：
-        # 当前草稿在 studio_drafts，读旧文件会漏掉迁移后新选的底图。
+        # 快照里没有底图副本时回退到用户资源，但只允许「当前草稿仍在引用」的图。
         with request.app.state.database.session_factory() as database:
-            payload = read_current_studio_draft(database, settings)
+            payload = read_current_studio_draft(database)
         scene = (payload or {}).get('scene') or {}
         referenced = any(
             str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:') == asset_id

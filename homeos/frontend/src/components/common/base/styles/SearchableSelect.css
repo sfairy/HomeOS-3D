@@ -11,17 +11,17 @@
   /* 行高由 height 钉死（只写 min-height 时内部输入框的内边距会把整行撑到 40px）。
      描边用 inset 阴影而非 border：真 border 会让内容盒只有 35px，
      把行内的输入框/清除键压到比行矮 1px（35 vs 36）。 */
-  height: var(--control-height-md, 36px);
-  min-height: var(--control-height-md, 36px);
+  height: var(--hos-control-h-md);
+  min-height: var(--hos-control-h-md);
   background: rgba(255, 255, 255, 0.05);
   border: none;
   box-shadow: inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.1);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   overflow: hidden;
 }
 
 .ss-input-row:focus-within {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   box-shadow: inset 0 0 0 var(--hos-hairline) var(--hos-dd-accent-mid);
 }
 
@@ -40,7 +40,7 @@
   width: 100%;
   padding: 0 14px;
   color: inherit;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   outline: none;
   background: transparent;
 }
@@ -53,10 +53,10 @@
   flex-shrink: 0;
   min-width: 32px;
   width: 32px;
-  min-height: var(--control-height-md, 36px);
-  height: var(--control-height-md, 36px);
+  min-height: var(--hos-control-h-md);
+  height: var(--hos-control-h-md);
   padding: 0 6px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: transparent;
   border: none;
   transition:
@@ -93,7 +93,7 @@
   overflow-y: auto;
   padding: 4px 0;
   scrollbar-width: thin;
-  scrollbar-color: var(--premium-border-strong) transparent;
+  scrollbar-color: var(--hos-line-3) transparent;
 }
 
 .ss-item {
@@ -145,9 +145,9 @@
 }
 
 .ss-item-hint {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-family: ui-monospace, monospace;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   line-height: 1.35;
   white-space: normal;
   word-break: break-all;
@@ -162,7 +162,7 @@
   flex-shrink: 0;
   padding: 12px;
   text-align: center;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: var(--hos-dd-empty-color);
 }
 
@@ -170,8 +170,8 @@
   flex-shrink: 0;
   padding: 14px 12px;
   text-align: center;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .ss-drop-enter-active {

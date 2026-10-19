@@ -6,11 +6,11 @@
 
 .sw-refresh-btn {
   /* 高度钉到 sm 档：原先 6px 内边距 + 行高 + 发丝边框凑出 32.5px（渲染 33px），比 sm(32) 高 1px。 */
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   padding: 0 var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.28);
-  background: rgba(var(--page-accent-rgb), 0.1);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.28);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
   color: var(--sw-amber-text);
   font-size: var(--set-fs-caption);
   font-weight: 700;
@@ -19,8 +19,8 @@
 }
 
 .sw-refresh-btn:hover:not(:disabled) {
-  background: rgba(var(--page-accent-rgb), 0.16);
-  border-color: rgba(var(--page-accent-rgb), 0.38);
+  background: rgba(var(--hos-color-accent-rgb), 0.16);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.38);
   color: #fff;
 }
 
@@ -33,8 +33,8 @@
   min-width: 0;
   margin-top: 14px;
   padding: 16px;
-  border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid var(--sw-content-border, rgba(var(--page-accent-rgb), 0.12));
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--sw-content-border, rgba(var(--hos-color-accent-rgb), 0.12));
   background: var(--sw-content-bg, rgba(0, 0, 0, 0.14));
   transition:
     border-color 0.35s ease,
@@ -104,7 +104,7 @@
 }
 
 .sw-flow-band__shell {
-  --flow-glow-a: rgba(var(--hos-color-warning-rgb), var(--flow-glow-alpha-strong));
-  --flow-glow-b: rgba(var(--hos-color-warning-rgb), var(--flow-glow-alpha-b));
+  --hos-glow-flow-a: rgba(var(--hos-color-warning-rgb), var(--flow-glow-alpha-strong));
+  --hos-glow-flow-b: rgba(var(--hos-color-warning-rgb), var(--flow-glow-alpha-b));
 }
 

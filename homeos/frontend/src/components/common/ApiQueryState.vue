@@ -86,20 +86,20 @@ const isDegraded = computed(() => Boolean(unref(props.degraded)))
   border-radius: 8px;
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.25);
   background: rgba(251, 191, 36, 0.08);
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   color: rgba(251, 191, 36, 0.9);
 }
 .api-query-state__retry {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: inherit;
   cursor: pointer;
 }
 .api-query-state__retry:hover {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
 }
 </style>

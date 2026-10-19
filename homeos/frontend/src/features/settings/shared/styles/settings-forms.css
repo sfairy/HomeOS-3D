@@ -9,12 +9,12 @@
   justify-content: center;
   gap: 8px;
   /* 高度钉到 lg 档：10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 16px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-btn);
   font-weight: 700;
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
   background: rgba(var(--hos-color-success-rgb), 0.12);
   border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.35);
   box-shadow: 0 4px 14px rgba(var(--hos-color-success-rgb), 0.12);
@@ -40,19 +40,19 @@
   align-items: center;
   gap: 8px;
   /* 高度钉到 lg 档：10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 16px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-btn);
   font-weight: 700;
   color: #fff;
   background: linear-gradient(
     135deg,
-    rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.88),
+    rgba(var(--hos-color-accent-strong-rgb), 0.88),
     rgba(var(--hos-color-accent-rgb), 0.82)
   );
-  border: var(--hos-hairline) solid var(--set-border-strong);
-  box-shadow: 0 4px 16px rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  box-shadow: 0 4px 16px rgba(var(--hos-color-accent-strong-rgb), 0.2);
   cursor: pointer;
   transition: all 0.22s ease;
 }
@@ -74,20 +74,20 @@
   align-items: center;
   gap: 8px;
   /* 高度钉到 lg 档：10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-btn);
   font-weight: 700;
-  color: var(--set-text-secondary);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  color: var(--hos-fg-2);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .settings-btn-ghost:hover:not(:disabled) {
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
   background: rgba(255, 255, 255, 0.07);
 }
 
@@ -100,31 +100,31 @@
    的 scoped 样式里各重复定义了一份，而 scoped 会附 [data-v-*] 提升特异性，
    导致全局规则压不过它、两处实现还容易漂移；这里收敛为唯一实现，并钉到 sm 档。 */
 .settings-btn--sm {
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   padding: 0 12px;
   font-size: var(--set-fs-micro, 12px);
 }
 
 .settings-btn-ghost--purple {
-  color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.95);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.28);
+  color: rgba(var(--hos-color-accent-rgb), 0.95);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 .settings-btn-ghost--purple:hover:not(:disabled) {
-  color: rgba(var(--page-accent-rgb, 126, 184, 255), 1);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.2);
+  color: rgba(var(--hos-color-accent-rgb), 1);
+  background: rgba(var(--hos-color-accent-rgb), 0.2);
 }
 
 .settings-btn-ghost--purple-active {
-  color: rgba(var(--page-accent-rgb, 126, 184, 255), 1);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.38);
+  color: rgba(var(--hos-color-accent-rgb), 1);
+  background: rgba(var(--hos-color-accent-rgb), 0.24);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.38);
 }
 
 .settings-btn-ghost--purple-active:hover:not(:disabled) {
-  color: rgba(var(--page-accent-rgb, 126, 184, 255), 1);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.3);
+  color: rgba(var(--hos-color-accent-rgb), 1);
+  background: rgba(var(--hos-color-accent-rgb), 0.3);
 }
 
 .settings-btn-ghost--sky-active {
@@ -140,21 +140,21 @@
 
 /* 危险态幽灵按钮：用于管理面板（execution-history 等删除/清空操作） */
 .settings-btn-ghost--danger {
-  color: var(--premium-accent-red);
+  color: var(--hos-color-danger);
   background: rgba(255, 59, 48, 0.08);
   border-color: rgba(255, 59, 48, 0.22);
   transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-btn-ghost--danger:hover:not(:disabled) {
-  color: var(--premium-accent-red);
+  color: var(--hos-color-danger);
   background: rgba(255, 59, 48, 0.1);
   border-color: rgba(255, 59, 48, 0.4);
 }
 
 .settings-btn-ghost--danger:focus-visible {
   outline: none;
-  border-color: var(--premium-accent-red);
+  border-color: var(--hos-color-danger);
   box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.18);
 }
 
@@ -163,13 +163,13 @@
   align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-body-sm);
   line-height: 1.45;
 }
 
 .settings-connection-feedback--ok {
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
   background: rgba(var(--hos-color-success-rgb), 0.08);
   border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.2);
 }
@@ -181,8 +181,8 @@
 }
 
 .settings-connection-feedback--warn {
-  color: var(--set-warn);
-  background: var(--set-warn-deep);
+  color: var(--hos-color-warning-text);
+  background: var(--hos-color-warning-deep);
   border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.2);
 }
 
@@ -193,7 +193,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
 }
 
 .settings-form-grid {
@@ -259,11 +259,11 @@
   width: 100%;
   max-width: 28rem;
   padding: var(--hos-space-2xl, 24px);
-  border-radius: var(--hos-radius-panel, 20px);
+  border-radius: var(--hos-r-3);
   background:
     radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 55%),
     #161b22;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
@@ -284,7 +284,7 @@
   padding: 8px 16px;
   font-size: var(--set-fs-body);
   font-weight: 600;
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
   background: none;
   border: none;
   cursor: pointer;
@@ -295,20 +295,20 @@
 
 .settings-list-btn {
   /* 高度钉到 xs 档：6px 内边距 + 行高 + 发丝边框凑出 29px，比 xs(28) 高 1px。 */
-  height: var(--control-height-xs);
+  height: var(--hos-control-h-xs);
   padding: 0 10px;
   border-radius: 8px;
   font-size: var(--set-fs-caption);
   font-weight: 700;
-  color: var(--set-text-tertiary);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
+  color: var(--hos-fg-3);
+  background: var(--hos-bg-tint-1);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .settings-list-btn:hover {
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
   background: rgba(255, 255, 255, 0.07);
 }
 
@@ -340,12 +340,12 @@
 
 .settings-note-box {
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.28);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   font-size: var(--set-fs-body-sm);
   line-height: 1.5;
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
 }
 
 /* .settings-deploy-note--* 已抽离至 components/common/styles/status-hint.css */
@@ -357,13 +357,13 @@
   align-items: baseline;
   margin-top: 16px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-caption);
   line-height: 1.55;
   background: rgba(0, 0, 0, 0.22);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   box-shadow: inset 3px 0 0 var(--callout-accent, rgba(255, 255, 255, 0.2));
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
 }
 
 .settings-note-callout__label {
@@ -373,9 +373,9 @@
 
 .settings-note-callout--sky {
   --callout-accent: rgba(var(--hos-color-accent-rgb), 0.55);
-  --callout-label: var(--set-info);
+  --callout-label: var(--hos-color-info-text);
   background: linear-gradient(90deg, rgba(14, 165, 233, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: var(--set-info-bg);
+  border-color: var(--hos-color-info-soft);
 }
 
 .settings-note-callout--pink {
@@ -387,15 +387,15 @@
 
 .settings-note-callout--emerald {
   --callout-accent: rgba(var(--hos-color-success-rgb), 0.55);
-  --callout-label: var(--set-success);
+  --callout-label: var(--hos-color-success-text);
   background: linear-gradient(90deg, rgba(var(--hos-color-success-rgb), 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
   border-color: rgba(var(--hos-color-success-rgb), 0.12);
 }
 
 .settings-note-callout--amber {
   --callout-accent: rgba(var(--hos-color-accent-rgb), 0.55);
-  --callout-label: var(--set-warn);
-  background: linear-gradient(90deg, var(--set-warn-deep) 0%, rgba(0, 0, 0, 0.22) 100%);
+  --callout-label: var(--hos-color-warning-text);
+  background: linear-gradient(90deg, var(--hos-color-warning-deep) 0%, rgba(0, 0, 0, 0.22) 100%);
   border-color: rgba(var(--hos-color-accent-rgb), 0.14);
 }
 
@@ -404,8 +404,8 @@
   font-size: 0.92em;
   padding: 1px 5px;
   border-radius: 5px;
-  background: var(--set-glass-bg-hover);
-  color: var(--set-text-secondary);
+  background: var(--hos-bg-tint-3);
+  color: var(--hos-fg-2);
 }
 
 .settings-env-room-manager__list {
@@ -434,11 +434,11 @@
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.settings-widget-row:hover { background: var(--set-glass-bg-subtle); }
+.settings-widget-row:hover { background: var(--hos-bg-tint-1); }
 
 .settings-widget-row--active {
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.06);
-  box-shadow: inset 3px 0 0 rgba(var(--page-accent-rgb, 126, 184, 255), 0.55);
+  background: rgba(var(--hos-color-accent-rgb), 0.06);
+  box-shadow: inset 3px 0 0 rgba(var(--hos-color-accent-rgb), 0.55);
 }
 
 .settings-widget-row--hidden {
@@ -446,17 +446,17 @@
 }
 
 .settings-widget-list {
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   overflow: hidden;
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.12);
   background:
-    radial-gradient(ellipse 80% 40% at 0% 0%, rgba(var(--page-accent-rgb, 126, 184, 255), 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 40% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.06) 0%, transparent 55%),
     rgba(0, 0, 0, 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .settings-widget-list > * + * {
-  border-top: var(--hos-hairline) solid var(--set-border-subtle);
+  border-top: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .settings-widget-config {
@@ -465,7 +465,7 @@
   gap: 12px;
   padding: 16px;
   background: rgba(0, 0, 0, 0.3);
-  border-top: var(--hos-hairline) solid var(--set-border-subtle);
+  border-top: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .settings-widget-config__grid {
@@ -513,19 +513,19 @@
   align-items: center;
   gap: 8px;
   padding: 14px 10px;
-  border-radius: var(--hos-radius-card, 14px);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  background: var(--set-glass-bg-subtle);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  background: var(--hos-bg-tint-1);
   font-size: var(--set-fs-body-sm);
   font-weight: 700;
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-choice-btn:hover {
-  border-color: var(--set-border-strong);
-  color: var(--set-text-secondary);
+  border-color: var(--hos-line-3);
+  color: var(--hos-fg-2);
 }
 
 .settings-choice-btn--active {
@@ -556,7 +556,7 @@
 .settings-orch-dock--toolbar {
   padding: 10px 16px;
   background: rgba(0, 0, 0, 0.28);
-  border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .settings-orch-toolbar {
@@ -583,12 +583,12 @@
 
 .settings-orch-dock--toolbar .settings-orch-tab {
   /* 内边距随 chip 令牌浮动，高度会漂在 28 / 33px 之间；显式锁到 xs 档。 */
-  min-height: var(--control-height-xs);
+  min-height: var(--hos-control-h-xs);
   flex-direction: row;
   min-width: auto;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
   gap: 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
 }
 
 .settings-orch-dock--toolbar .settings-orch-orb {
@@ -614,11 +614,11 @@
   align-items: center;
   gap: 8px;
   padding-left: 4px;
-  border-left: var(--hos-hairline) solid var(--set-border-subtle);
+  border-left: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .settings-btn-ghost--active {
-  color: var(--set-success) !important;
+  color: var(--hos-color-success-text) !important;
   border-color: rgba(var(--hos-color-success-rgb), 0.35) !important;
   background: rgba(var(--hos-color-success-rgb), 0.1) !important;
 }
@@ -627,7 +627,7 @@
 
 .orch-toolbar-btn {
   /* 高度锁到 sm 档：7px 内边距 + 行高 + 发丝边框凑出的 31px 不在尺度上。 */
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -635,16 +635,16 @@
   font-weight: 600;
   padding: 0 10px;
   border-radius: 8px;
-  color: var(--set-text-tertiary);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
+  color: var(--hos-fg-3);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   transition: all 0.15s;
   white-space: nowrap;
 }
 
 .orch-toolbar-btn:hover:not(:disabled) {
-  background: var(--premium-glass-bg-hover);
-  color: var(--set-text-secondary);
+  background: var(--hos-bg-tint-2);
+  color: var(--hos-fg-2);
 }
 
 .orch-toolbar-btn:disabled {

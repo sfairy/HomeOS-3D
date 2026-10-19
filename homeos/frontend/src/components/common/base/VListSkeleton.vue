@@ -40,9 +40,9 @@ defineProps({
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card, 12px);
-  border: var(--hos-hairline, 1px) solid var(--premium-border-subtle, rgba(255, 255, 255, 0.08));
-  background: var(--premium-glass-bg, rgba(255, 255, 255, 0.04));
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline, 1px) solid var(--hos-line-2);
+  background: var(--hos-bg-tint-1);
 }
 
 /* 触控/窄屏下减少行数带来的高度浪费 */

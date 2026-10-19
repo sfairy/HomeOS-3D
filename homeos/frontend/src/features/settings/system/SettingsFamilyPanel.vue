@@ -6,7 +6,7 @@
     :active-tab="activeTab"
     tab="family"
     icon-key="home"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="family-hub"
     body-class="family-hub__body"

@@ -51,8 +51,6 @@ import './assets/styles/list-page.css'
 import './assets/styles/list-page-views.css'
 import './assets/styles/degrade-banner.css'
 import './assets/styles/multi-color.css'
-// 旧令牌 → canonical 兼容层：必须排在所有既有样式之后，才能覆盖它们冻结的别名值
-import './styles/legacy-token-bridge.css'
 // 触控 / 可访问性基线：最后加载，覆盖旧样式里的 outline:none 与触控几何
 import './styles/touch-a11y.css'
 import {

@@ -21,7 +21,6 @@ from starlette.background import BackgroundTask
 
 from .backup_guard import owner_session_key, verify_admin_password
 from .router import NestRouter
-from ..api.studio3d import _deliver_pending
 from ..dependencies import authenticated_short_lived_user
 from ..domains.backup.business_backup import (
     JOB_TTL_SECONDS,
@@ -82,14 +81,6 @@ async def _job_for(
     return job
 
 
-def _flush_pending(request: Request) -> None:
-    try:
-        with request.app.state.database.session_factory() as database:
-            _deliver_pending(request, database)
-    except Exception:  # 后台任务收尾，失败不能带塌当前请求；留痕由下轮 flush 重试
-        logger.warning("待投递后台任务 flush 失败（下轮重试）", exc_info=True)
-
-
 async def _drop_owner_jobs(gate: Any, owner: str, *, keep: str | None = None) -> None:
     stale = [
         ticket
@@ -143,7 +134,6 @@ async def export_backup(
             status_code=503,
             content={"detail": "恢复回退尚未完成，请重启程序后再操作。"},
         )
-    await asyncio.to_thread(_flush_pending, request)
     directory = gate.workspace()
     try:
         archive = await gate.run_exclusive(

@@ -23,9 +23,9 @@
   flex: 1;
   min-width: 72px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.18);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .presence-stat__val {
@@ -40,9 +40,9 @@
 }
 
 .presence-stat__lbl {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .presence-loading {
@@ -54,8 +54,8 @@
   align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-3);
   color: rgba(253, 224, 171, 0.85);
   background: rgba(var(--hos-color-warning-rgb), 0.06);
   line-height: 1.45;
@@ -63,8 +63,8 @@
 
 .presence-footnote {
   margin: 0;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   text-align: center;
   line-height: 1.4;
 }
@@ -81,7 +81,7 @@
   align-items: center;
   gap: 7px;
   padding: 6px 12px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-caption, 13px);
   font-weight: 600;
   color: rgba(186, 230, 253, 0.88);
@@ -96,8 +96,8 @@
 .presence-toolbar__mode {
   flex: 1;
   min-width: 0;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .presence-toolbar__actions {
@@ -112,7 +112,7 @@
   align-items: center;
   gap: 5px;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-caption, 13px);
   font-weight: 600;
   cursor: pointer;
@@ -136,9 +136,9 @@
 }
 
 .presence-btn--ghost {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   padding: 7px 9px;
 }
 

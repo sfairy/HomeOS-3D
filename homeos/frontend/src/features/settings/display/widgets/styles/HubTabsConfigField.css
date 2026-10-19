@@ -28,8 +28,8 @@
   justify-content: center;
   gap: 6px;
   padding: 8px 6px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(255, 255, 255, 0.03);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
@@ -63,7 +63,7 @@
 .hub-tabs-config__order {
   width: 18px;
   height: 18px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -84,8 +84,8 @@
   flex: 1 1 auto;
   min-width: 0;
   padding: 8px 10px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(255, 255, 255, 0.03);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;

@@ -3,25 +3,24 @@
 
 .devices-view {
   /* 设备页二级色调：cyan（与 sky 形成 sky + cyan 点缀） */
-  --page-accent-secondary: var(--module-accent-devices-sub);
 
-  /* 注：--page-accent-* 派生变量、--set-* 语义色、--set-transition-* 已移至
+  /* 注：主色派生色 派生变量、--set-* 语义色、--set-transition-* 已移至
          app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
-         --page-accent / --page-accent-rgb 后，全局派生变量自动跟随。 */
+         --hos-color-accent / -rgb 后，全局派生变量由 :where 块自动跟随。 */
 }
 
 /* ── 键盘焦点可见性：使用页面主色 outline ──
    覆盖设备页内所有可交互元素（搜索框、chip、tab、列表行、批量按钮）。 */
 .devices-view :focus-visible {
-  outline: 2px solid var(--page-accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
 /* ── 搜索/筛选 chip 的 hover/active 反馈跟随主题色 ── */
 .devices-view .list-page__chip--btn {
-  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
-    color var(--set-transition-fast), transform var(--set-transition-fast);
+  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard), transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .devices-view .list-page__chip--btn:active {
@@ -29,27 +28,27 @@
 }
 
 .devices-view .list-page__tab {
-  transition: background var(--set-transition-normal), box-shadow var(--set-transition-normal),
-    color var(--set-transition-fast);
+  transition: background var(--hos-dur-base) var(--hos-ease-standard), box-shadow var(--hos-dur-base) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 /* ── 侧栏切换按钮的 hover 反馈 ── */
 .devices-view .devices-view__sidebar-toggle {
-  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
-    color var(--set-transition-fast);
+  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 /* ── 域 tab 切换 hover 反馈（未选中态轻微高亮） ── */
 .devices-view .list-page__tab:not(.list-page__tab--on):hover {
-  background: var(--page-accent-bg);
-  border-color: var(--page-accent-border);
-  color: var(--page-accent-text);
+  background: var(--hos-color-accent-soft);
+  border-color: var(--hos-color-accent-line);
+  color: var(--hos-color-accent);
 }
 
 /* ── 全选按钮 active 反馈 ── */
 .devices-view .devices-view__select-all {
-  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
-    color var(--set-transition-fast), transform var(--set-transition-fast);
+  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    color var(--hos-dur-fast) var(--hos-ease-standard), transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .devices-view .devices-view__select-all:active {
@@ -60,15 +59,15 @@
    （复选框本身是原生控件，不适合拉伸视觉尺寸。） */
 @media (pointer: coarse), (hover: none) {
   .device-filter__check {
-    min-height: var(--control-height-lg);
+    min-height: var(--hos-control-h-lg);
   }
 }
 
-/* ── 列表行 hover 已在 list-page-views.css 跟随 --page-accent ──
+/* ── 列表行 hover 已在 list-page-views.css 跟随 --hos-color-accent ──
    这里补充 active 态的轻微下压反馈。 */
 .devices-view .list-page__row {
-  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
-    transform var(--set-transition-fast);
+  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .devices-view .list-page__row:active {
@@ -104,7 +103,7 @@
 
 .devices-view__mode-chips .list-page__chip--btn {
   padding: 6px 10px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   white-space: nowrap;
 }
 

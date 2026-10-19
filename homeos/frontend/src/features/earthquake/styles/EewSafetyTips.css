@@ -1,14 +1,14 @@
 .est-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .est-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 .est-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 .est-muted {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  color: var(--hos-fg-2);
 }
 
 .eew-safety {
@@ -30,7 +30,7 @@
   align-items: center;
   gap: 6px;
   padding: 16px 8px;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   background: rgb(255 255 255 / 0.02);
   border: 1px solid rgb(255 255 255 / 0.04);
   transition: all 0.3s;
@@ -47,12 +47,12 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid;
 }
 
 .eew-safety-icon--sm {
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
 }

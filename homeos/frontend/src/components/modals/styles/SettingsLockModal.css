@@ -1,23 +1,23 @@
 .slm-success-bg {
-  background: rgba(var(--set-success-rgb), 0.2);
+  background: rgba(var(--hos-color-success-rgb), 0.2);
 }
 .slm-success-border {
-  border-color: rgba(var(--set-success-rgb), 0.4);
+  border-color: rgba(var(--hos-color-success-rgb), 0.4);
 }
 .slm-success-text {
-  color: var(--set-success, #6ee7b7);
+  color: var(--hos-color-success-text);
 }
 .slm-error-bg {
-  background: rgba(var(--set-danger-rgb), 0.2);
+  background: rgba(var(--hos-color-danger-rgb), 0.2);
 }
 .slm-error-border {
-  border-color: rgba(var(--set-danger-rgb), 0.4);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.4);
 }
 .slm-error-text {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 .slm-default-text {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  color: var(--hos-fg-2);
 }
 
 .animate-shake {

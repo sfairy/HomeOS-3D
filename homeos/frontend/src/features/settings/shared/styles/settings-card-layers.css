@@ -19,14 +19,14 @@
 .settings-page--flush .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card):not(.settings-card--nested) {
   background: var(--set-card-surface-bg);
   border-color: var(--set-card-surface-border);
-  box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
+  box-shadow: var(--hos-shadow-2), var(--set-card-surface-inset);
 }
 
 .settings-page--flush .settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--elevated):not(.settings-card--popout):not(.params-panel-card):not(.settings-card--nested):hover {
   transform: none;
   background: var(--set-card-surface-bg-hover);
   border-color: var(--set-card-surface-border-hover);
-  box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
+  box-shadow: var(--hos-shadow-2), var(--set-card-surface-inset);
 }
 
 /* ── 外层透明：内层已是卡片网格 / Hero 流程 ── */
@@ -81,7 +81,7 @@
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note {
-  box-shadow: inset 3px 0 0 var(--deploy-accent, rgba(var(--page-accent-rgb), 0.45));
+  box-shadow: inset 3px 0 0 var(--deploy-accent, rgba(var(--hos-color-accent-rgb), 0.45));
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--emerald {
@@ -100,8 +100,8 @@
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--violet {
-  background: linear-gradient(135deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
+  background: linear-gradient(135deg, rgba(var(--hos-color-accent-rgb), 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.16);
 }
 
 .settings-card--static:not(.settings-card--keep-nested) .settings-deploy-note--amber {
@@ -146,7 +146,7 @@
 
 .settings-page-stack > .rec-insight {
   background:
-    radial-gradient(ellipse 80% 100% at 0% 0%, rgba(var(--page-accent-rgb), 0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 100% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.16) 0%, transparent 70%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.065) 0%, rgba(6, 8, 14, 0.72) 100%);
   border-color: var(--set-card-surface-border);
   box-shadow: var(--set-card-surface-inset);

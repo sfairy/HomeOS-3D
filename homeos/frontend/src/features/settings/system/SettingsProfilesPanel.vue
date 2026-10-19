@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="profiles"
     icon-key="monitor"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="profiles-hub"
     body-class="profiles-hub__body"

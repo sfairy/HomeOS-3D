@@ -290,9 +290,6 @@ CLIMATE_SENSOR_FIELDS = frozenset(
         'aqiEntityId',
         'illuminanceEntityId',
         'batteryEntityId',
-        # 环境信息框尺寸默认值的兼容标记：字段本身已无读写方，但现存草稿里仍带着它，
-        # 从白名单里删掉会让这些控件保存时整份 422。
-        'sizingVersion',
     }
 )
 #: 温湿度计的 10 个可选绑定实体（出现即必须是文本，非空必须匹配 ``sensor.*``）。
@@ -312,9 +309,8 @@ CLIMATE_SENSOR_BINDINGS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
     )
 )
 CLIMATE_SENSOR_FLAG_FIELDS = ('visible', 'showMetricNames')
-#: 信息框列数上限（0 表示自适应）、尺寸版本号上限。
+#: 信息框列数上限（0 表示自适应）。
 CLIMATE_SENSOR_MAX_COLUMNS = 4
-CLIMATE_SENSOR_MAX_SIZING_VERSION = 1000
 
 
 # ── 窗帘分组 ───────────────────────────────────────────────────────────────
@@ -625,12 +621,6 @@ class EnvironmentSectionValidator:
         ):
             self.ctx.fail()
         if 'opacity' in climate_sensor and not self.ctx.number(climate_sensor['opacity'], 0, 1):
-            self.ctx.fail()
-        # sizingVersion 只要求正整数，不枚举具体版本：前端再加档默认值不必连带发后端。
-        if 'sizingVersion' in climate_sensor and (
-            type(climate_sensor['sizingVersion']) is not int
-            or not 1 <= climate_sensor['sizingVersion'] <= CLIMATE_SENSOR_MAX_SIZING_VERSION
-        ):
             self.ctx.fail()
 
     # ── 窗帘分组 ────────────────────────────────────────────────────────

@@ -238,6 +238,166 @@ def _index_projects_updated_at(connection: sqlite3.Connection, _context: Migrati
     connection.execute("CREATE INDEX IF NOT EXISTS ix_projects_updated_at ON projects(updated_at)")
 
 
+#: 本迁移落地时的 3D 设备分类快照（迁移必须冻结口径，不随后续版本变化）。
+_DEVICE_COLLECTIONS = frozenset({
+    'nas',
+    'televisions',
+    'speakers',
+    'vacuums',
+    'airFryers',
+    'aromaDiffusers',
+    'beds',
+    'breadMakers',
+    'cars',
+    'coffeeMachines',
+    'computers',
+    'dishwashers',
+    'disinfectionCabinets',
+    'dryers',
+    'fridges',
+    'humidifiers',
+    'juicers',
+    'microwaves',
+    'networkCabinets',
+    'petDryers',
+    'petFeeders',
+    'petFountains',
+    'pipelineWaterPurifiers',
+    'plants',
+    'powerBlenders',
+    'pressureCookers',
+    'printers',
+    'printers3d',
+    'rangehoods',
+    'riceCookers',
+    'routers',
+    'smartSockets86',
+    'steamOvens',
+    'teaBarMachines',
+    'toilets',
+    'washers',
+    'waterPurifiers',
+})
+
+
+def _wrap_status_values(rule) -> bool:
+    """把旧的单值状态条件收紧成列表；返回是否发生改动。"""
+    if not isinstance(rule, dict):
+        return False
+    changed = False
+    for key in ('active', 'inactive'):
+        if isinstance(rule.get(key), str):
+            rule[key] = [rule[key]]
+            changed = True
+    return changed
+
+
+def _normalize_status_rules(status_rules) -> bool:
+    """状态灯规则：``active`` / ``inactive`` 由单值改为列表。"""
+    if not isinstance(status_rules, dict):
+        return False
+    changed = False
+    for rule in status_rules.values():
+        if isinstance(rule, list):
+            for item in rule:
+                changed |= _wrap_status_values(item)
+        else:
+            changed |= _wrap_status_values(rule)
+    return changed
+
+
+def _normalize_3d_properties(properties: dict) -> bool:
+    """清理 3D 组件 properties 中已不再支持的历史结构；幂等。"""
+    changed = False
+    devices = properties.get('devices')
+    if isinstance(devices, dict):
+        # 只删不带数据的未知分类；带内容的保留，让校验显式报错而不是静默丢数据。
+        for collection in [
+            name for name in devices
+            if name not in _DEVICE_COLLECTIONS and not devices[name]
+        ]:
+            del devices[collection]
+            changed = True
+    environment = properties.get('environment')
+    if isinstance(environment, dict):
+        for sensor in environment.get('temperatureHumidity') or []:
+            if isinstance(sensor, dict) and 'sizingVersion' in sensor:
+                del sensor['sizingVersion']
+                changed = True
+    return changed
+
+
+def _walk_3d_components(value) -> bool:
+    """递归遍历文档，收紧 ``type == 'interaction3d'`` 组件的配置；返回是否发生改动。"""
+    changed = False
+    if isinstance(value, dict):
+        if value.get('type') == 'interaction3d':
+            properties = value.get('properties')
+            if isinstance(properties, dict):
+                changed |= _normalize_3d_properties(properties)
+        for key, item in value.items():
+            if key == 'statusRules':
+                changed |= _normalize_status_rules(item)
+            changed |= _walk_3d_components(item)
+        return changed
+    if isinstance(value, list):
+        for item in value:
+            changed |= _walk_3d_components(item)
+    return changed
+
+
+def _drop_legacy_sync_pending(connection: sqlite3.Connection, context: MigrationContext) -> None:
+    """删除 ``studio_interaction_sync.document_json.pending``（旧「待写文件」指针）。"""
+    if not _table_exists(connection, 'studio_interaction_sync'):
+        return
+    row = connection.execute(
+        'SELECT document_json FROM studio_interaction_sync WHERE id = 1'
+    ).fetchone()
+    if row is None:
+        return
+    try:
+        document = json.loads(row[0])
+    except (TypeError, json.JSONDecodeError):
+        return
+    if not isinstance(document, dict) or 'pending' not in document:
+        return
+    document.pop('pending')
+    connection.execute(
+        'UPDATE studio_interaction_sync SET document_json = ? WHERE id = 1',
+        (json.dumps(document, ensure_ascii=False, separators=(',', ':')),),
+    )
+    context.logger.warning('已删除 3D 草稿同步表中的历史 pending 指针')
+
+
+def _normalize_project_draft_3d_config(
+    connection: sqlite3.Connection, context: MigrationContext
+) -> None:
+    """把项目草稿里的 3D 增量配置收紧到当前契约（一次性数据清理）。"""
+    if not _table_exists(connection, 'project_drafts'):
+        return
+    rows = connection.execute('SELECT project_id, document_json FROM project_drafts').fetchall()
+    migrated = 0
+    for project_id, document_json in rows:
+        try:
+            document = json.loads(document_json)
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(document, dict) or not _walk_3d_components(document):
+            continue
+        # 修订号 +1：持有旧结构的客户端必须重新拉取，否则会用旧载荷覆盖回历史字段。
+        connection.execute(
+            'UPDATE project_drafts SET document_json = ?, revision = revision + 1 '
+            'WHERE project_id = ?',
+            (
+                json.dumps(document, ensure_ascii=False, separators=(',', ':')),
+                project_id,
+            ),
+        )
+        migrated += 1
+    if migrated:
+        context.logger.warning('已清理 %s 份项目草稿中的 3D 历史配置结构', migrated)
+
+
 MIGRATIONS = (
     Migration(1, "users-email-normalize-unique", "h0002-v1", _normalize_users_email),
     Migration(2, "sessions-user-expires-index", "h0003-v1", _index_sessions_user_expires),
@@ -247,4 +407,6 @@ MIGRATIONS = (
     Migration(6, "singleton-table-guards", "h0008-v1", lambda connection, _ctx: _create_singleton_guards(connection)),
     Migration(7, "projects-updated-at-index", "h0007-v1", _index_projects_updated_at),
     Migration(8, "normalize-all-datetimes", "h0001-v1", _normalize_all_datetimes),
+    Migration(9, "project-draft-3d-strict-config", "h0009-v1", _normalize_project_draft_3d_config),
+    Migration(10, "drop-studio-sync-pending", "h0010-v1", _drop_legacy_sync_pending),
 )

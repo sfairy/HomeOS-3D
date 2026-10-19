@@ -12,15 +12,15 @@
   min-height: 0;
   gap: 12px;
   padding: 16px;
-  border-radius: var(--hos-radius-panel);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--page-accent) 24%, var(--premium-border));
+  border-radius: var(--hos-r-3);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--hos-color-accent) 24%, var(--hos-line-2));
   background:
-    radial-gradient(120% 80% at 0% 0%, rgba(var(--page-accent-rgb), 0.1), transparent 55%),
-    radial-gradient(80% 60% at 100% 100%, rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.06), transparent 50%),
+    radial-gradient(120% 80% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.1), transparent 55%),
+    radial-gradient(80% 60% at 100% 100%, rgba(var(--hos-color-accent-strong-rgb), 0.06), transparent 50%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.32));
   backdrop-filter: blur(20px);
   box-shadow:
-    var(--premium-shadow),
+    var(--hos-shadow-3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
@@ -36,7 +36,7 @@
   inset: -40% auto auto -20%;
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(var(--page-accent-rgb), 0.14), transparent 70%);
+  background: radial-gradient(circle, rgba(var(--hos-color-accent-rgb), 0.14), transparent 70%);
 }
 
 .ev-analytics__glow--br,
@@ -44,7 +44,7 @@
   inset: auto -15% -35% auto;
   width: 240px;
   height: 240px;
-  background: radial-gradient(circle, rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.08), transparent 72%);
+  background: radial-gradient(circle, rgba(var(--hos-color-accent-strong-rgb), 0.08), transparent 72%);
 }
 
 .ev-analytics__kpis,
@@ -64,8 +64,8 @@
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background:
     var(--page-card-tint-soft),
     rgba(0, 0, 0, 0.24);
@@ -81,17 +81,17 @@
   right: 12px;
   height: 2px;
   border-radius: 0 0 3px 3px;
-  background: linear-gradient(90deg, var(--page-accent), transparent);
+  background: linear-gradient(90deg, var(--hos-color-accent), transparent);
   opacity: 0.6;
 }
 
 .ev-analytics__kpi-label,
 .nc-analytics__kpi-label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .ev-analytics__kpi-value,
@@ -146,7 +146,7 @@
 .ev-analytics__kpi-value--success,
 .nc-analytics__kpi-value--success { color: var(--hos-color-success); }
 .ev-analytics__kpi-value--muted,
-.nc-analytics__kpi-value--muted { color: var(--hos-text-secondary); }
+.nc-analytics__kpi-value--muted { color: var(--hos-fg-2); }
 
 .ev-analytics__kpi--info::before,
 .ev-analytics__kpi--sky::before { background: linear-gradient(90deg, var(--hos-color-info), transparent); }
@@ -158,8 +158,8 @@
 
 .ev-analytics__kpi-hint,
 .nc-analytics__kpi-hint {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +190,7 @@
   flex-direction: column;
   min-height: 0;
   padding: 10px 10px 6px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background:
     var(--page-card-tint-soft),
@@ -217,7 +217,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.82);
 }
@@ -228,14 +228,14 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--page-accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--page-accent) 55%, transparent);
+  background: var(--hos-color-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hos-color-accent) 55%, transparent);
 }
 
 .ev-analytics__chart-hint,
 .nc-analytics__chart-hint {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .ev-analytics__chart,

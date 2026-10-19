@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="params"
     icon-key="sliders"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     :scroll-body="false"
     body-class="params-page__workspace"

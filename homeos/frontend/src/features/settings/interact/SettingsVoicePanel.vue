@@ -8,7 +8,7 @@
     :active-tab="activeTab"
     tab="voice"
     icon-key="mic"
-    accent="var(--module-accent-voice)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="voice-hub"
     body-class="voice-hub__body"
@@ -181,18 +181,18 @@ const voiceInputTab = ref('mode')
 const voiceOutputTab = ref('speaker')
 
 const voiceOutputTabs = [
-  { id: 'speaker', label: '音箱与冷却', emoji: '🔊', accent: 'var(--module-accent-voice)' },
-  { id: 'daily', label: '每日问候', emoji: '👋', accent: 'var(--set-warn)' },
+  { id: 'speaker', label: '音箱与冷却', emoji: '🔊', accent: 'var(--hos-color-accent)' },
+  { id: 'daily', label: '每日问候', emoji: '👋', accent: 'var(--hos-color-warning-text)' },
 ]
 
 const voiceInputTabs = computed(() => {
   const tabs = [
-    { id: 'mode', label: '交互方式', emoji: '🎙️', accent: 'var(--module-accent-voice-sub)' },
+    { id: 'mode', label: '交互方式', emoji: '🎙️', accent: 'var(--hos-color-accent-strong)' },
   ]
   if (voice.value.interactionMode === 'wake') {
-    tabs.push({ id: 'wake', label: '唤醒词', emoji: '📻', accent: 'var(--module-accent-voice)' })
+    tabs.push({ id: 'wake', label: '唤醒词', emoji: '📻', accent: 'var(--hos-color-accent)' })
   }
-  tabs.push({ id: 'stt', label: '识别引擎', emoji: '🧠', accent: 'var(--set-info)' })
+  tabs.push({ id: 'stt', label: '识别引擎', emoji: '🧠', accent: 'var(--hos-color-info-text)' })
   return tabs
 })
 

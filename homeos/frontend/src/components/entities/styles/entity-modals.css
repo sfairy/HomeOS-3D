@@ -16,33 +16,33 @@
 .epm-state-dot {
   width: 10px;
   height: 10px;
-  border-radius: var(--hos-radius-pill);
-  background: var(--premium-border-strong);
+  border-radius: var(--hos-r-pill);
+  background: var(--hos-line-3);
 }
 .epm-state-dot--on {
-  background: var(--premium-accent-amber);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--premium-accent-amber) 60%, rgba(0, 0, 0, 0));
+  background: var(--hos-color-warning);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hos-color-warning) 60%, rgba(0, 0, 0, 0));
 }
 .epm-entity-name {
-  font-size: var(--premium-fs-body-sm, 14px);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
 }
 .epm-entity-name--selected {
-  color: var(--premium-accent-blue);
+  color: var(--hos-color-accent);
 }
 .epm-entity-name--default {
   color: rgba(255, 255, 255, 0.85);
 }
 .epm-entity-id {
-  font-size: var(--premium-fs-widget-meta);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .epm-check-icon {
-  color: var(--premium-accent-blue);
+  color: var(--hos-color-accent);
 }
 .epm-circle-icon {
-  color: var(--premium-border-strong);
+  color: var(--hos-line-3);
 }

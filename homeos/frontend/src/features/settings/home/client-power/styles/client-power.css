@@ -9,15 +9,15 @@
 
 .charge-overview-card.settings-card--static {
   background:
-    radial-gradient(ellipse 70% 55% at 0% 0%, rgba(var(--page-accent-rgb), 0.14) 0%, transparent 52%),
-    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(var(--page-accent-rgb), 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 55% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.14) 0%, transparent 52%),
+    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(var(--hos-color-accent-strong-rgb), 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(var(--hos-color-accent-rgb), 0.06) 0%, transparent 55%),
     var(--set-card-surface-bg);
-  border-color: rgba(var(--page-accent-rgb), 0.18);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.18);
   box-shadow:
-    var(--set-card-surface-shadow),
+    var(--hos-shadow-2),
     var(--set-card-surface-inset),
-    0 14px 48px rgba(var(--page-accent-rgb), 0.06);
+    0 14px 48px rgba(var(--hos-color-accent-rgb), 0.06);
 }
 
 .charge-control-card.settings-card--static {
@@ -29,12 +29,12 @@
 }
 
 .charge-control-head__icon {
-  color: var(--page-accent, var(--set-success, var(--hos-color-success)));
+  color: var(--hos-color-accent);
 }
 
 .charge-control-head__orb {
-  background: rgba(var(--page-accent-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.24);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.24);
 }
 
 .charge-control-actions {
@@ -62,7 +62,7 @@
   gap: 14px 20px;
   margin-top: 16px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: var(--set-mini-surface-bg, rgba(0, 0, 0, 0.14));
   border: var(--hos-hairline) solid var(--set-mini-surface-border, rgba(255, 255, 255, 0.06));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -78,7 +78,7 @@
 .charge-control-meta__label {
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
-  color: var(--set-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .charge-control-meta__value {
@@ -94,8 +94,8 @@
   margin: 0;
   padding: 4px 8px;
   border-radius: 8px;
-  background: rgba(var(--page-accent-rgb), 0.12);
-  color: var(--page-accent, var(--set-success));
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  color: var(--hos-color-accent);
   font-size: var(--set-fs-micro, 12px);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   word-break: break-all;
@@ -108,28 +108,28 @@
   align-items: center;
   gap: 6px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
 }
 
 .charge-poll-setting__input {
   /* 高度钉到 xs 档：4px 内边距 + 行高 + 发丝边框凑出 27px。 */
-  height: var(--control-height-xs);
+  height: var(--hos-control-h-xs);
   width: 56px;
   padding: 0 8px;
   border-radius: 8px;
-  border: var(--hos-hairline) solid var(--set-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(0, 0, 0, 0.25);
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
   font-size: var(--set-fs-micro, 12px);
   text-align: center;
 }
 
 .charge-poll-setting__unit {
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
 }
 
 .charge-poll-setting__hint {
-  color: rgba(var(--page-accent-rgb), 0.75);
+  color: rgba(var(--hos-color-accent-rgb), 0.75);
   font-size: var(--set-fs-micro, 12px);
 }
 
@@ -140,9 +140,9 @@
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  color: var(--set-text-tertiary);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  color: var(--hos-fg-3);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   transition:
     color 0.15s ease,
     background 0.15s ease,
@@ -150,13 +150,13 @@
 }
 
 .charge-id-copy:hover {
-  color: var(--page-accent, var(--set-success));
-  background: rgba(var(--page-accent-rgb), 0.1);
-  border-color: rgba(var(--page-accent-rgb), 0.28);
+  color: var(--hos-color-accent);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
 }
 
 .charge-id-note__hint {
-  color: var(--set-text-faint);
+  color: var(--hos-fg-3);
   font-size: var(--set-fs-micro, 12px);
 }
 
@@ -168,9 +168,9 @@
   font-size: var(--set-fs-micro, 12px);
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--page-accent-secondary, var(--set-warn));
-  background: rgba(var(--page-accent-secondary-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.28);
+  color: var(--hos-color-accent-strong);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.28);
 }
 
 @media (max-width: 720px) {
@@ -191,9 +191,9 @@
 
 .charge-section-card--pending {
   background:
-    radial-gradient(ellipse 80% 50% at 0% 0%, rgba(var(--page-accent-secondary-rgb), 0.1) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(var(--page-accent-secondary-rgb), 0.04) 0%, transparent 50%) !important;
-  border-color: rgba(var(--page-accent-secondary-rgb), 0.14) !important;
+    radial-gradient(ellipse 80% 50% at 0% 0%, rgba(var(--hos-color-accent-strong-rgb), 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(var(--hos-color-accent-strong-rgb), 0.04) 0%, transparent 50%) !important;
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.14) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 20px 56px rgba(0, 0, 0, 0.28) !important;
@@ -201,9 +201,9 @@
 
 .charge-section-card--devices {
   background:
-    radial-gradient(ellipse 70% 45% at 100% 0%, rgba(var(--page-accent-rgb), 0.08) 0%, transparent 52%),
-    radial-gradient(ellipse 50% 35% at 0% 100%, rgba(var(--page-accent-rgb), 0.04) 0%, transparent 50%) !important;
-  border-color: rgba(var(--page-accent-rgb), 0.12) !important;
+    radial-gradient(ellipse 70% 45% at 100% 0%, rgba(var(--hos-color-accent-rgb), 0.08) 0%, transparent 52%),
+    radial-gradient(ellipse 50% 35% at 0% 100%, rgba(var(--hos-color-accent-rgb), 0.04) 0%, transparent 50%) !important;
+  border-color: rgba(var(--hos-color-accent-rgb), 0.12) !important;
 }
 
 .charge-section-card--pending .settings-card-intro {
@@ -218,25 +218,25 @@
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: rgba(var(--page-accent-secondary-rgb), 0.85);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.85);
 }
 
 .charge-section-kicker__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--page-accent-secondary, var(--hos-color-accent));
-  box-shadow: 0 0 10px rgba(var(--page-accent-secondary-rgb), 0.75);
+  background: var(--hos-color-accent-strong);
+  box-shadow: 0 0 10px rgba(var(--hos-color-accent-strong-rgb), 0.75);
   animation: setPulse 2s ease-in-out infinite;
 }
 
 .charge-section-kicker--emerald {
-  color: rgba(var(--page-accent-rgb), 0.88);
+  color: rgba(var(--hos-color-accent-rgb), 0.88);
 }
 
 .charge-section-kicker--emerald .charge-section-kicker__dot {
-  background: var(--page-accent, var(--hos-color-success));
-  box-shadow: 0 0 10px rgba(var(--page-accent-rgb), 0.65);
+  background: var(--hos-color-accent);
+  box-shadow: 0 0 10px rgba(var(--hos-color-accent-rgb), 0.65);
 }
 
 .charge-section-kicker--wake-hint {
@@ -248,16 +248,16 @@
 }
 
 .charge-device-card--pending {
-  border-color: var(--set-warn-border);
+  border-color: var(--hos-color-warning-line);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 36px rgba(var(--page-accent-secondary-rgb), 0.06);
+    0 10px 36px rgba(var(--hos-color-accent-strong-rgb), 0.06);
   background:
-    linear-gradient(160deg, rgba(var(--page-accent-secondary-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+    linear-gradient(160deg, rgba(var(--hos-color-accent-strong-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card--kind-phone.charge-device-card--pending {
-  border-color: var(--set-info-border);
+  border-color: var(--hos-color-info-line);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 36px rgba(var(--hos-color-accent-rgb), 0.06);
@@ -266,17 +266,17 @@
 }
 
 .charge-device-card--kind-desktop.charge-device-card--pending {
-  border-color: rgba(var(--module-accent-automation-sub-rgb), 0.22);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.22);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 36px rgba(var(--module-accent-automation-sub-rgb), 0.06);
+    0 10px 36px rgba(var(--hos-color-accent-strong-rgb), 0.06);
   background:
-    linear-gradient(160deg, rgba(var(--module-accent-automation-sub-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+    linear-gradient(160deg, rgba(var(--hos-color-accent-strong-rgb), 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card__alerts--discovery {
-  background: rgba(var(--page-accent-secondary-rgb), 0.08);
-  border-color: var(--set-warn-border);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.08);
+  border-color: var(--hos-color-warning-line);
 }
 
 .charge-device-card__title-row {
@@ -290,14 +290,14 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--set-warn);
-  background: var(--set-warn-bg);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.28);
+  color: var(--hos-color-warning-text);
+  background: var(--hos-color-warning-soft);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.28);
   flex-shrink: 0;
 }
 
@@ -323,10 +323,10 @@
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
-  color: var(--set-danger);
+  border-radius: var(--hos-r-2);
+  color: var(--hos-color-danger-text);
   background: rgba(var(--hos-color-danger-rgb), 0.08);
-  border: var(--hos-hairline) solid var(--set-danger-border);
+  border: var(--hos-hairline) solid var(--hos-color-danger-line);
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -340,20 +340,20 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 8px;
-  border-radius: var(--hos-radius-control);
+  border-radius: var(--hos-r-1);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 500;
   letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.58);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
 }
 
 .charge-metric-pill--accent {
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
   font-weight: 600;
-  background: rgba(var(--page-accent-rgb), 0.08);
-  border-color: var(--set-success-border);
+  background: rgba(var(--hos-color-accent-rgb), 0.08);
+  border-color: var(--hos-color-success-line);
 }
 
 .charge-loading {
@@ -362,7 +362,7 @@
   gap: 10px;
   margin-top: 20px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
 }
 
 .charge-device-list {
@@ -379,11 +379,11 @@
   gap: 10px;
   padding: 40px 24px 36px;
   text-align: center;
-  border-radius: var(--hos-radius-panel, 20px);
+  border-radius: var(--hos-r-3);
   background:
-    radial-gradient(ellipse 70% 55% at 50% 0%, rgba(var(--page-accent-rgb), 0.07) 0%, transparent 62%),
+    radial-gradient(ellipse 70% 55% at 50% 0%, rgba(var(--hos-color-accent-rgb), 0.07) 0%, transparent 62%),
     rgba(255, 255, 255, 0.02);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .charge-empty-premium__visual {
@@ -400,21 +400,21 @@
   position: absolute;
   inset: -8px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--page-accent-rgb), 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(var(--hos-color-accent-rgb), 0.2) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 .charge-empty-premium__icon {
   position: relative;
   width: 32px;
   height: 32px;
-  color: rgba(var(--page-accent-rgb), 0.55);
+  color: rgba(var(--hos-color-accent-rgb), 0.55);
 }
 
 .charge-empty-premium__title {
   margin: 0;
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
   font-weight: 700;
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
 }
 
 .charge-empty-premium__desc {
@@ -422,7 +422,7 @@
   max-width: 320px;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.55;
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
 }
 
 .charge-empty-premium__link {
@@ -431,43 +431,43 @@
   gap: 6px;
   margin-top: 6px;
   padding: 8px 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
-  color: var(--set-success);
-  background: rgba(var(--page-accent-rgb), 0.1);
-  border: var(--hos-hairline) solid var(--set-success-border);
+  color: var(--hos-color-success-text);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border: var(--hos-hairline) solid var(--hos-color-success-line);
   transition: background 0.15s ease;
 }
 
 .charge-empty-premium__link:hover {
-  background: rgba(var(--page-accent-rgb), 0.16);
+  background: rgba(var(--hos-color-accent-rgb), 0.16);
 }
 
 .charge-device-card {
   padding: var(--hos-panel-padding-default, 20px);
-  border-radius: var(--hos-radius-panel, 20px);
+  border-radius: var(--hos-r-3);
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .charge-device-card--on {
-  border-color: rgba(var(--page-accent-rgb), 0.3);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.3);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 10px 36px rgba(var(--page-accent-rgb), 0.08);
+    0 10px 36px rgba(var(--hos-color-accent-rgb), 0.08);
   background:
-    linear-gradient(160deg, rgba(var(--page-accent-rgb), 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    linear-gradient(160deg, rgba(var(--hos-color-accent-rgb), 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
 }
 
 .charge-device-card--warn {
-  border-color: rgba(var(--page-accent-secondary-rgb), 0.28);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.28);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 28px rgba(var(--page-accent-secondary-rgb), 0.06);
+    0 8px 28px rgba(var(--hos-color-accent-strong-rgb), 0.06);
 }
 
 .charge-device-card__alerts {
@@ -476,16 +476,16 @@
   gap: 6px;
   margin: -4px 0 12px;
   padding: 8px 10px;
-  border-radius: var(--hos-radius-card);
-  background: rgba(var(--page-accent-secondary-rgb), 0.06);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.18);
+  border-radius: var(--hos-r-2);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.06);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.18);
 }
 
 .charge-device-card__alert {
   margin: 0;
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
-  color: rgba(var(--page-accent-secondary-rgb), 0.92);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.92);
   line-height: 1.4;
 }
 
@@ -510,34 +510,34 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   flex-shrink: 0;
-  color: var(--set-text-secondary);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  color: var(--hos-fg-2);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .charge-device-card__avatar--tablet {
   color: var(--hos-color-warning-text);
-  background: linear-gradient(145deg, rgba(var(--page-accent-secondary-rgb), 0.18) 0%, rgba(var(--page-accent-secondary-rgb), 0.05) 100%);
-  border-color: rgba(var(--page-accent-secondary-rgb), 0.28);
+  background: linear-gradient(145deg, rgba(var(--hos-color-accent-strong-rgb), 0.18) 0%, rgba(var(--hos-color-accent-strong-rgb), 0.05) 100%);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.28);
 }
 
 .charge-device-card__avatar--phone {
-  color: var(--set-info);
+  color: var(--hos-color-info-text);
   background: linear-gradient(145deg, rgba(var(--hos-color-accent-rgb), 0.16) 0%, rgba(var(--hos-color-accent-rgb), 0.05) 100%);
   border-color: rgba(var(--hos-color-accent-rgb), 0.26);
 }
 
 .charge-device-card__avatar--desktop {
-  color: var(--page-accent, var(--hos-color-accent));
-  background: linear-gradient(145deg, rgba(var(--module-accent-automation-sub-rgb), 0.16) 0%, rgba(var(--module-accent-automation-sub-rgb), 0.05) 100%);
-  border-color: rgba(var(--module-accent-automation-sub-rgb), 0.26);
+  color: var(--hos-color-accent);
+  background: linear-gradient(145deg, rgba(var(--hos-color-accent-strong-rgb), 0.16) 0%, rgba(var(--hos-color-accent-strong-rgb), 0.05) 100%);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.26);
 }
 
 .charge-device-card__avatar--on {
-  box-shadow: 0 6px 18px rgba(var(--page-accent-rgb), 0.12);
+  box-shadow: 0 6px 18px rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 .charge-device-card__meta {
@@ -555,9 +555,9 @@
 
 .charge-device-card__name {
   margin: 0;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -567,7 +567,7 @@
 .charge-device-card__status {
   margin: 2px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -575,7 +575,7 @@
 }
 
 .charge-device-card__status--muted {
-  color: var(--set-text-faint);
+  color: var(--hos-fg-3);
 }
 
 .charge-status-charging {
@@ -615,7 +615,7 @@
 
 .charge-online-dot--on {
   background: var(--hos-color-success);
-  box-shadow: 0 0 8px rgba(var(--page-accent-rgb), 0.6);
+  box-shadow: 0 0 8px rgba(var(--hos-color-accent-rgb), 0.6);
 }
 
 .charge-device-card__actions {
@@ -631,7 +631,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   color: var(--hos-color-danger);
   background: rgba(var(--hos-color-danger-rgb), 0.08);
   border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
@@ -643,16 +643,16 @@
 }
 
 .charge-battery--charging .charge-battery__track {
-  border-color: var(--set-info-border);
+  border-color: var(--hos-color-info-line);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28), 0 0 20px rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 .charge-battery__track {
   position: relative;
   height: 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(255, 255, 255, 0.04) 100%);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.32);
   overflow: visible;
 }
@@ -660,7 +660,7 @@
 .charge-battery__fill {
   position: relative;
   height: 100%;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   overflow: hidden;
   transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease, box-shadow 0.4s ease;
 }
@@ -706,7 +706,7 @@
 }
 
 .charge-battery__fill--unknown {
-  background: var(--set-border-strong) !important;
+  background: var(--hos-line-3) !important;
   box-shadow: none !important;
   width: 0 !important;
 }
@@ -722,12 +722,12 @@
 
 .charge-battery__marker--low {
   background: var(--hos-color-accent);
-  box-shadow: 0 0 6px rgba(var(--page-accent-secondary-rgb), 0.5);
+  box-shadow: 0 0 6px rgba(var(--hos-color-accent-strong-rgb), 0.5);
 }
 
 .charge-battery__marker--high {
   background: var(--hos-color-success);
-  box-shadow: 0 0 6px rgba(var(--page-accent-rgb), 0.5);
+  box-shadow: 0 0 6px rgba(var(--hos-color-accent-rgb), 0.5);
 }
 
 .charge-battery__labels {
@@ -736,7 +736,7 @@
   align-items: center;
   margin-top: 7px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
 }
 
 .charge-battery__label-current {
@@ -758,7 +758,7 @@
   flex-direction: column;
   gap: 6px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--set-text-secondary);
+  color: var(--hos-fg-2);
   min-width: 0;
 }
 
@@ -774,7 +774,7 @@
   align-items: center;
   margin: 0;
   padding: 1px 7px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: 10px;
   font-style: normal;
   font-weight: 700;
@@ -844,15 +844,15 @@
   gap: 10px;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.07);
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .charge-option--on {
-  background: rgba(var(--page-accent-rgb), 0.07);
-  border-color: rgba(var(--page-accent-rgb), 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.07);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .charge-option__text {
@@ -865,13 +865,13 @@
 .charge-option__text strong {
   font-size: 12px;
   font-weight: 700;
-  color: var(--set-text-primary, rgba(255, 255, 255, 0.88));
+  color: var(--hos-fg-1);
 }
 
 .charge-option__text small {
   font-size: 10px;
   line-height: 1.35;
-  color: var(--set-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .charge-option__text small.charge-option__hint {
@@ -917,38 +917,38 @@
   gap: 8px;
   width: 100%;
   padding: 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
-  color: var(--set-text-secondary);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border);
+  color: var(--hos-fg-2);
+  background: var(--hos-bg-tint-1);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .charge-add-btn:hover {
-  border-color: rgba(var(--page-accent-rgb), 0.35);
-  color: var(--page-accent, var(--set-success));
-  background: rgba(var(--page-accent-rgb), 0.06);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.35);
+  color: var(--hos-color-accent);
+  background: rgba(var(--hos-color-accent-rgb), 0.06);
 }
 
 /* ── ClientPowerDevicesSection ── */
 .cpd-icon-success {
-  color: var(--set-success, var(--hos-color-success-text));
+  color: var(--hos-color-success-text);
 }
 .cpd-orb-success {
-  background: var(--set-success-bg, rgba(var(--hos-color-success-rgb), 0.12));
-  border: var(--hos-hairline) solid var(--set-success-border, rgba(var(--hos-color-success-rgb), 0.22));
+  background: var(--hos-color-success-soft);
+  border: var(--hos-hairline) solid var(--hos-color-success-line);
 }
 
 /* ── ClientPowerPendingSection ── */
 .cpp-icon-warn {
-  color: var(--set-warn, var(--hos-color-warning-text));
+  color: var(--hos-color-warning-text);
 }
 .cpp-orb-warn {
-  background: var(--set-warn-bg, rgba(var(--hos-color-accent-rgb), 0.12));
-  border: var(--hos-hairline) solid var(--set-warn-border, rgba(var(--hos-color-accent-rgb), 0.22));
+  background: var(--hos-color-warning-soft);
+  border: var(--hos-hairline) solid var(--hos-color-warning-line);
 }
 
 /* ── ClientPowerHeroSection ── */

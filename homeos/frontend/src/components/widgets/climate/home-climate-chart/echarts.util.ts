@@ -261,7 +261,7 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
       trigger: 'axis',
       confine: true,
       backgroundColor: 'rgba(18,18,28,0.98)',
-      borderColor: 'var(--premium-border-strong)',
+      borderColor: 'var(--hos-line-3)',
       borderWidth: 1,
       padding: [10, 14],
       textStyle: { color: '#fff', fontSize: 11 },
@@ -273,7 +273,7 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
             lineStyle: { color: 'rgba(255,255,255,0.12)', type: 'dashed', width: 1 },
             label: {
               backgroundColor: 'rgba(18,18,28,0.92)',
-              borderColor: 'var(--premium-border-strong)',
+              borderColor: 'var(--hos-line-3)',
               borderWidth: 1,
               color: '#fff',
               fontSize: 10,

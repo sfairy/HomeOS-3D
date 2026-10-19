@@ -15,7 +15,7 @@
 .flow-line-draw-stage {
   position: absolute;
   transform-origin: 0 0;
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--hos-color-accent);
   overflow: visible;
 }
 .flow-line-draw-stage > svg,
@@ -96,19 +96,19 @@
   margin: 0;
 }
 .flow-line-draw-tools [data-save] {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   color: #ffe6b9;
   background: var(--accent-soft);
 }
 .flow-line-axis-guide {
-  stroke: var(--accent);
+  stroke: var(--hos-color-accent);
   stroke-width: 1;
   stroke-dasharray: 5 7;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
 .flow-line-draw-ghost {
-  stroke: var(--accent);
+  stroke: var(--hos-color-accent);
   stroke-width: 2;
   stroke-dasharray: 5 7;
   opacity: 0.7;
@@ -121,12 +121,12 @@
 }
 .flow-line-node-handle {
   fill: #1b2227;
-  stroke: var(--accent);
+  stroke: var(--hos-color-accent);
   stroke-width: 2;
 }
 .flow-line-draw-node.selected .flow-line-node-handle,
 .flow-line-draw-node:focus .flow-line-node-handle {
-  fill: var(--accent);
+  fill: var(--hos-color-accent);
   stroke: #fff;
 }
 #flow-line-inspector .field-note {

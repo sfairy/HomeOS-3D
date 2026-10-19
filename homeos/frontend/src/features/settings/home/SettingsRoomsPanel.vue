@@ -8,7 +8,7 @@
     :active-tab="activeTab"
     tab="rooms"
     icon-key="map-pin"
-    accent="var(--module-accent-bindings)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="rooms-hub"
     body-class="rooms-hub__body"

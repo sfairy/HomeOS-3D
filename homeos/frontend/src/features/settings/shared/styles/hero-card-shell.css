@@ -8,7 +8,7 @@
 
 .settings-flow-overview__stats {
   padding-top: 12px;
-  border-top: var(--hos-hairline) solid var(--premium-border-strong);
+  border-top: var(--hos-hairline) solid var(--hos-line-3);
 }
 
 .settings-flow {
@@ -27,31 +27,31 @@
   gap: 4px;
   min-width: 88px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  color: var(--set-text-secondary);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  color: var(--hos-fg-2);
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .settings-flow__label {
   font-size: var(--set-fs-caption, 13px);
   font-weight: 700;
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
 }
 
 .settings-flow__meta {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-tertiary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-3);
   text-align: center;
   max-width: 120px;
   line-height: 1.3;
 }
 
 .settings-flow__arrow {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 300;
-  background: var(--hero-flow-arrow, linear-gradient(90deg, rgba(var(--hos-color-accent-rgb), 0.5), rgba(var(--page-accent-rgb, 126, 184, 255), 0.5), rgba(var(--hos-color-warning-rgb), 0.5)));
+  background: var(--hero-flow-arrow, linear-gradient(90deg, rgba(var(--hos-color-accent-rgb), 0.5), rgba(var(--hos-color-accent-rgb), 0.5), rgba(var(--hos-color-warning-rgb), 0.5)));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

@@ -1,10 +1,10 @@
 .dba-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 
 .device-batch__empty-hint {
-  font-size: var(--premium-fs-caption);
-  color: var(--set-text-tertiary);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-3);
   padding: 8px 0;
 }
 
@@ -24,17 +24,17 @@
 .device-batch__modal {
   width: 100%;
   max-width: 440px;
-  border-radius: var(--acc-radius, 14px);
+  border-radius: var(--hos-r-2);
   background:
     radial-gradient(
       ellipse 80% 50% at 0% 0%,
-      color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 10%, rgba(0, 0, 0, 0)) 0%,
+      color-mix(in srgb, var(--hos-color-accent) 10%, rgba(0, 0, 0, 0)) 0%,
       transparent 55%
     ),
     rgba(12, 14, 24, 0.96);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   overflow: hidden;
-  box-shadow: var(--premium-shadow);
+  box-shadow: var(--hos-shadow-3);
 }
 
 .device-batch__modal-header {
@@ -42,21 +42,21 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .device-batch__modal-header span {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 600;
-  color: var(--set-text-primary, rgba(255, 255, 255, 0.9));
+  color: var(--hos-fg-1);
 }
 
 .device-batch__modal-close {
   padding: 6px;
   border-radius: 8px;
-  color: var(--set-text-label, rgba(255, 255, 255, 0.4));
-  background: var(--premium-glass-bg-hover);
-  border: var(--hos-hairline) solid var(--premium-border);
+  color: var(--hos-fg-2);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   cursor: pointer;
 }
 
@@ -65,8 +65,8 @@
 }
 
 .device-batch__modal-label {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-label);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 10px;
@@ -85,5 +85,5 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 16px;
-  border-top: var(--hos-hairline) solid var(--premium-border);
+  border-top: var(--hos-hairline) solid var(--hos-line-2);
 }

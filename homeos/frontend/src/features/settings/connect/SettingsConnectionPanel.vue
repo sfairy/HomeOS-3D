@@ -3,7 +3,7 @@
     :active-tab="activeTab"
     tab="connection"
     icon-key="link"
-    accent="var(--module-accent-connection)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="connection-hub"
   >

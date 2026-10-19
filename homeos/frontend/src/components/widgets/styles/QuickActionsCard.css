@@ -1,6 +1,6 @@
 /* 从 QuickActionsCard.vue 抽出 */
 .qac-link {
-  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  color: var(--hos-color-accent-deep);
 }
 
 .quick-actions-card {
@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: center;
   padding: 8px 4px 6px;
-  border-radius: var(--radius-ipad-md);
+  border-radius: var(--hos-r-3);
   border: 1px solid transparent;
   cursor: pointer;
   position: relative;
@@ -48,7 +48,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   margin-bottom: 4px;
   transition:
     background 0.35s ease,
@@ -62,7 +62,7 @@
 }
 
 .stat-label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -84,7 +84,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: var(--hos-color-danger);
   color: #fff;
   font-family:
@@ -94,7 +94,7 @@
     'Segoe UI',
     system-ui,
     sans-serif;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 17px;
@@ -109,12 +109,12 @@
 }
 
 .action-btn--idle {
-  background: var(--premium-glass-bg);
-  border-color: var(--premium-border);
+  background: var(--hos-bg-tint-1);
+  border-color: var(--hos-line-2);
 }
 
 .action-btn--idle .icon-wrapper {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
 }
 
 .action-btn--idle .stat-icon {
@@ -126,8 +126,8 @@
 }
 
 .action-btn--idle:hover {
-  background: var(--premium-glass-bg-hover);
-  border-color: var(--premium-border-strong);
+  background: var(--hos-bg-tint-2);
+  border-color: var(--hos-line-3);
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
@@ -394,7 +394,7 @@
     min-width: 15px;
     height: 15px;
     padding: 0 4px;
-    font-size: var(--premium-fs-micro);
+    font-size: var(--hos-fs-2);
     line-height: 15px;
     transform: translate(38%, -38%);
   }

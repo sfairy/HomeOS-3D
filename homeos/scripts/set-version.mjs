@@ -178,7 +178,10 @@ const SLOTS = [
   {
     file: 'homeos/frontend/src/studio/entries/EditorView.vue',
     label: '编辑器页眉版本',
-    pattern: /(class="version">)[^<]*(<)/g,
+    // 页眉渲染的是 `{{ pkg.version }}`（package.json 的单一真源），动态绑定天然
+    // 跟随版本，不该被改写成死字面量 —— 那会让 `pkg` 导入变成没人使用的残留。
+    // 槽位因此只兜「有人手写成具体版本号」的情况，绑定表达式不再匹配。
+    pattern: /(class="version">)\d+\.\d+\.\d+(<)/g,
     replace: '$1__V__$2',
   },
 ]

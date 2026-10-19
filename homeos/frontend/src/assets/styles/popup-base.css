@@ -7,8 +7,7 @@
    使用方式（在 Vue SFC 的 <style scoped> 块顶部）：
      @import '@/assets/styles/popup-base.css';
      .popup-shell {
-       --accent: var(--hos-color-accent);
-       --accent-rgb: 10, 132, 255;
+       --hos-color-accent-rgb: 10, 132, 255;
      }
    ========================================================================== */
 
@@ -24,8 +23,6 @@
 }
 
 .popup-shell {
-  --accent: var(--hos-color-warning);
-  --accent-rgb: 251, 191, 36;
 
   /* 玻璃壳配方参数（配方本体见 hos-glass-shell.css） */
   --shell-blur: 80px;
@@ -33,12 +30,12 @@
   --shell-bg:
     radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 50%),
     rgba(18, 18, 26, 0.9);
-  --shell-border: var(--hos-hairline) solid var(--premium-border-strong);
-  --shell-radius: var(--hos-radius-shell, var(--radius-ipad-2xl));
+  --shell-border: var(--hos-hairline) solid var(--hos-line-3);
+  --shell-radius: var(--hos-r-4);
   --shell-shadow:
     0 40px 100px rgba(0, 0, 0, 0.65),
     0 0 0 1px rgba(255, 255, 255, 0.04),
-    var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+    var(--hos-shadow-inset);
 
   width: 320px;
   /* 小屏兜底：任何宽度变体都不得超出视口（配合下方断点自适应） */
@@ -49,7 +46,9 @@
   overflow: visible;
   isolation: isolate;
   --popup-pointer-bg: rgba(18, 18, 26, 0.9);
-  --popup-pointer-border: var(--premium-border-strong);
+  --popup-pointer-border: var(--hos-line-3);
+  --hos-color-accent: var(--hos-color-warning);
+  --hos-color-accent-rgb: 251, 191, 36;
 }
 
 @media (pointer: coarse), (hover: none) {
@@ -104,8 +103,8 @@
   height: 1px;
   background: linear-gradient(90deg,
     transparent 5%,
-    rgba(var(--accent-rgb), 0.5),
-    rgba(var(--accent-rgb), 0.35),
+    rgba(var(--hos-color-accent-rgb), 0.5),
+    rgba(var(--hos-color-accent-rgb), 0.35),
     transparent 95%);
   z-index: 2;
   pointer-events: none;
@@ -178,23 +177,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--hos-radius-card);
-  background: rgba(var(--accent-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--accent-rgb), 0.22);
-  color: var(--accent);
+  border-radius: var(--hos-r-2);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.22);
+  color: var(--hos-color-accent);
 }
 
 .popup-eyebrow {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   /* ≤12px 小字号弱化文字：透明度下限 ≥0.5，保证可读性 */
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .popup-title {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
   letter-spacing: -0.01em;
@@ -204,8 +203,8 @@
 }
 
 .popup-subtitle {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   margin-top: 2px;
 }
 
@@ -244,8 +243,8 @@
 
 .popup-status-badge {
   padding: 4px 12px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   border: var(--hos-hairline) solid transparent;
@@ -253,31 +252,31 @@
 
 .popup-status-badge--off {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .popup-status-badge--on {
-  background: color-mix(in srgb, var(--accent) 15%, rgba(0, 0, 0, 0));
-  color: color-mix(in srgb, var(--accent) 80%, white);
-  border-color: color-mix(in srgb, var(--accent) 20%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--hos-color-accent) 15%, rgba(0, 0, 0, 0));
+  color: color-mix(in srgb, var(--hos-color-accent) 80%, white);
+  border-color: color-mix(in srgb, var(--hos-color-accent) 20%, rgba(0, 0, 0, 0));
 }
 
 /* ---- 内部分区卡片 ---- */
 .popup-section {
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
   margin-bottom: 16px;
 }
 
 .popup-section-label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   /* ≤12px 小字号弱化文字：透明度下限 ≥0.5，保证可读性 */
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .popup-divider {

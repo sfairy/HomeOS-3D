@@ -8,7 +8,7 @@
   align-items: center;
   gap: 7px;
   padding: 6px 10px 6px 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid color-mix(in srgb, var(--swatch) 35%, rgba(255, 255, 255, 0.1));
   background: color-mix(in srgb, var(--swatch) 10%, rgba(255, 255, 255, 0.03));
   color: rgba(255, 255, 255, 0.78);
@@ -29,14 +29,14 @@
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: var(--swatch);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.22);
 }
 
 .ef-color-picker__label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -81,7 +81,7 @@
   align-items: center;
   gap: 5px;
   padding: 8px 4px 6px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid transparent;
   background: rgba(255, 255, 255, 0.025);
   cursor: pointer;
@@ -106,7 +106,7 @@
 .ef-color-picker__chip-fill {
   width: 28px;
   height: 28px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background:
     radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.35), transparent 45%), var(--swatch);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
@@ -119,7 +119,7 @@
   right: 10px;
   width: 18px;
   height: 18px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,9 +132,9 @@
 }
 
 .ef-color-picker__chip-name {
-  font-size: var(--premium-fs-micro, 12px);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   line-height: 1;
 }
 

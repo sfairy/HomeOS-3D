@@ -2,9 +2,9 @@
  * 地震信息页 · 高大上主题
  */
 .earthquake-history-view {
-  --eq-accent: var(--page-accent, var(--hos-color-accent));
-  --eq-accent-secondary: var(--page-accent-secondary, var(--hos-color-accent-deep));
-  --eq-accent-rgb: var(--page-accent-rgb, var(--hos-color-accent-rgb));
+  --eq-accent: var(--hos-color-accent);
+  --eq-accent-secondary: var(--hos-color-accent-strong);
+  --eq-accent-rgb: var(--hos-color-accent-rgb);
   --eq-glass: rgba(255, 255, 255, 0.025);
   overflow: hidden;
   background:
@@ -28,8 +28,8 @@
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
@@ -51,11 +51,11 @@
 .earthquake-history-view__tab {
   position: relative;
   padding: 8px 18px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.55);
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -109,8 +109,8 @@
   align-items: center;
   gap: 8px 12px;
   padding: 6px 10px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.18);
 }
 
@@ -120,9 +120,9 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .earthquake-history-view__filters .hos-select {
@@ -138,7 +138,7 @@
   padding: 0 10px;
   display: flex;
   align-items: center;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.82);
 }
@@ -160,12 +160,12 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.55);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(255, 255, 255, 0.04);
 }
 
@@ -199,15 +199,15 @@
   min-height: 0;
   height: 100%;
   padding: 14px;
-  border-radius: var(--hos-radius-panel);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--eq-accent) 22%, var(--premium-border));
+  border-radius: var(--hos-r-3);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--eq-accent) 22%, var(--hos-line-2));
   background:
     radial-gradient(ellipse 100% 70% at 100% 0%, rgba(var(--eq-accent-rgb), 0.07) 0%, transparent 55%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.32));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow:
-    var(--premium-shadow),
+    var(--hos-shadow-3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
@@ -248,7 +248,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 2px 2px 8px;
-  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .earthquake-history-view__stream-title {
@@ -256,7 +256,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: rgba(255, 255, 255, 0.92);
@@ -273,8 +273,8 @@
 
 .earthquake-history-view__stream-sub {
   margin: 3px 0 0 11px;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -296,7 +296,7 @@
   gap: 12px;
   min-height: 0;
   padding: 8px 10px 8px 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
@@ -389,7 +389,7 @@
 
 .earthquake-history-view__card-aside--with-action {
   padding: 3px 3px 3px 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   background: rgba(0, 0, 0, 0.18);
 }
@@ -405,7 +405,7 @@
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -466,7 +466,7 @@
 .earthquake-history-view__place {
   flex: 1;
   min-width: 0;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 650;
   color: rgba(255, 255, 255, 0.94);
   white-space: nowrap;
@@ -477,7 +477,7 @@
 .earthquake-history-view__when {
   font-size: 11px;
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
   line-height: 1;
@@ -498,7 +498,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -509,12 +509,12 @@
 .earthquake-history-view__metric + .earthquake-history-view__metric::before {
   content: '·';
   margin-right: 5px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-weight: 500;
 }
 
 .earthquake-history-view__metric--muted {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .earthquake-history-view__clear-sim {
@@ -528,9 +528,9 @@
   align-items: center;
   justify-content: center;
   /* 从 26×26 归到 xs 档，与同排控件对齐。 */
-  width: var(--control-height-xs);
-  height: var(--control-height-xs);
-  border-radius: var(--hos-radius-control);
+  width: var(--hos-control-h-xs);
+  height: var(--hos-control-h-xs);
+  border-radius: var(--hos-r-1);
   border: none;
   background: rgba(var(--hos-color-danger-rgb), 0.12);
   color: var(--hos-color-danger-text);
@@ -565,7 +565,7 @@
   min-width: 52px;
   justify-content: center;
   padding: 8px 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.32);
   font-variant-numeric: tabular-nums;
@@ -618,8 +618,8 @@
   justify-content: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--eq-accent) 22%, var(--premium-border-strong));
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--eq-accent) 22%, var(--hos-line-3));
   background: rgba(0, 0, 0, 0.28);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }

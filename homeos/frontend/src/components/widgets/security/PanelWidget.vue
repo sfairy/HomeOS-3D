@@ -8,7 +8,7 @@
     <WidgetHubHeader
       v-model="activeTab"
       title="全屋安防"
-      accent="var(--premium-accent-red)"
+      accent="var(--hos-color-danger)"
       :tabs="headerTabs"
       stacked
       class="sp-card__head"
@@ -186,7 +186,7 @@ const effectiveZones = computed(() => {
 const armZoneSelection = ref([])
 
 const ALL_HUB_TABS = [
-  { key: 'arm', label: '布防', accent: 'var(--premium-accent-red, #ff3b30)' },
+  { key: 'arm', label: '布防', accent: 'var(--hos-color-danger)' },
 ]
 
 const TAB_ACCENT_MAP = Object.fromEntries(ALL_HUB_TABS.map((t) => [t.key, t.accent]))

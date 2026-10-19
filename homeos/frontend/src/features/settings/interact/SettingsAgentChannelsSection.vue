@@ -267,7 +267,7 @@
                 {{ pushSubsLoading ? '刷新中…' : '刷新' }}
               </button>
             </header>
-            <p v-if="pushSubsError" class="agent-field-hint" style="color: var(--set-danger)">
+            <p v-if="pushSubsError" class="agent-field-hint" style="color: var(--hos-color-danger-text)">
               {{ pushSubsError }}
             </p>
             <p v-else-if="!pushSubs.length && !pushSubsLoading" class="agent-field-hint">
@@ -694,10 +694,10 @@ const channelFlowSteps = [
 ]
 
 const channelOrchTabs = [
-  { id: 'email', label: 'Email', icon: Mail, accent: 'var(--module-accent-devices)' },
-  { id: 'webpush', label: 'WebPush', icon: Smartphone, accent: 'var(--module-accent-agent)' },
-  { id: 'wecom', label: '企业微信', icon: MessagesSquare, accent: 'var(--module-accent-automation)' },
-  { id: 'mcp', label: 'MCP', icon: KeyRound, accent: 'var(--module-accent-template)' },
+  { id: 'email', label: 'Email', icon: Mail, accent: 'var(--hos-color-accent)' },
+  { id: 'webpush', label: 'WebPush', icon: Smartphone, accent: 'var(--hos-color-accent)' },
+  { id: 'wecom', label: '企业微信', icon: MessagesSquare, accent: 'var(--hos-color-accent)' },
+  { id: 'mcp', label: 'MCP', icon: KeyRound, accent: 'var(--hos-color-accent)' },
 ]
 
 function channelLabel(enabled?: boolean, configured?: boolean, extra = ''): string {

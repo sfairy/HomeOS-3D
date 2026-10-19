@@ -149,7 +149,7 @@ useBodyScrollLock(promptActive, '全局输入框')
 <style scoped>
 .hos-modal-prompt-error {
   margin-top: 8px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   color: #fca5a5;
 }
 </style>

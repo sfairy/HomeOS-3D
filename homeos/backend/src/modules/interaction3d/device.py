@@ -262,19 +262,15 @@ EXTRA_ENTITY_PREFIXES = ('fan.', 'scene.')
 
 
 def _status_values(value: Any) -> list[Any] | None:
-    """把 ``active`` / ``inactive`` 读成列表；单值按单元素列表处理（兼容旧配置）。"""
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, list):
-        return value
-    return None
+    """``active`` / ``inactive`` 必须是状态值列表；单值不合法。"""
+    return value if isinstance(value, list) else None
 
 
 def validate_device_status_rules(status_rules: Any, fail_validation) -> None:
     """各类家电（含热水器）共享的状态灯契约。
 
     ``health`` 允许写成列表（多个健康探针），其余键是单个规则对象。
-    ``active`` / ``inactive`` 既接受单个字符串（0.7.6 的旧写法），也接受字符串列表。
+    ``active`` / ``inactive`` 必须是字符串列表（两组互不重叠）。
     """
     if not isinstance(status_rules, dict) or set(status_rules) - {'power', 'health'}:
         fail_validation()

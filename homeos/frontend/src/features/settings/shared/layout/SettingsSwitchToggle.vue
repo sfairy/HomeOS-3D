@@ -42,8 +42,8 @@ defineEmits(['update:modelValue'])
   height: var(--hos-switch-h-md);
   padding: 0;
   border: none;
-  border-radius: var(--hos-radius-pill);
-  background: var(--hos-surface-3);
+  border-radius: var(--hos-r-pill);
+  background: var(--hos-bg-tint-3);
   cursor: pointer;
   transition:
     background 0.22s ease,
@@ -56,7 +56,7 @@ defineEmits(['update:modelValue'])
 }
 
 .settings-switch-toggle--on {
-  background: rgba(var(--premium-accent-cyan-rgb), 0.42);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.42);
   box-shadow: none;
 }
 
@@ -66,8 +66,8 @@ defineEmits(['update:modelValue'])
   height: var(--hos-switch-knob-md);
   margin-left: var(--hos-switch-inset);
   border-radius: 50%;
-  background: var(--hos-text-strong);
-  box-shadow: var(--hos-shadow-card);
+  background: var(--hos-fg-1);
+  box-shadow: var(--hos-shadow-2);
   transform: translateX(0);
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }

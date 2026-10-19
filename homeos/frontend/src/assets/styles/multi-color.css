@@ -1,7 +1,7 @@
 /**
  * 全站多色渲染工具层（均衡活力）
  *
- * 依赖三层令牌：--page-accent / --page-accent-secondary / --page-accent-rgb，
+ * 依赖 canonical 主色：--hos-color-accent / --hos-color-accent-strong / --hos-color-accent-rgb，
  * 由各视图 :style 注入（未注入时回退全局 emerald #34d399）。
  * 本层统一派生"双色页面渐变"并暴露渐变文字 / 卡片氛围工具类，
  * 供核心基元与卡片体系按页面模块色自动多彩化，不引入硬编码色值。
@@ -12,33 +12,31 @@
   /* 页面主色 → 次色 135° 渐变；次色缺失时回退主色提亮版，仍能呈现柔和双色 */
   --page-gradient: linear-gradient(
     135deg,
-    var(--page-accent, var(--hos-color-accent)) 0%,
-    var(--page-accent-secondary, color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 62%, white)) 100%
+    var(--hos-color-accent) 0%,
+    var(--hos-color-accent-strong) 100%
   );
   /* 提亮版（向白方向混合），用于需要更柔和对比的场景 */
   --page-gradient-soft: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 76%, white) 0%,
-    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, var(--hos-color-accent))) 68%, white) 100%
+    color-mix(in srgb, var(--hos-color-accent) 76%, white) 0%,
+    color-mix(in srgb, var(--hos-color-accent-strong) 68%, white) 100%
   );
   /* 页面色外发光，用于 hover / 重点卡 */
-  --page-glow: 0 8px 28px color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 22%, transparent);
+  --page-glow: 0 8px 28px color-mix(in srgb, var(--hos-color-accent) 22%, transparent);
   /* 卡片左上氛围层（低透明度 radial），供各卡片 background 叠加 */
   --page-card-tint: radial-gradient(
     ellipse 110% 72% at 0% 0%,
-    rgba(var(--page-accent-rgb, 52, 211, 153), 0.1) 0%,
-    rgba(var(--page-accent-rgb, 52, 211, 153), 0.035) 38%,
+    rgba(var(--hos-color-accent-rgb), 0.1) 0%,
+    rgba(var(--hos-color-accent-rgb), 0.035) 38%,
     transparent 62%
   );
   --page-card-tint-soft: radial-gradient(
     ellipse 100% 66% at 0% 0%,
-    rgba(var(--page-accent-rgb, 52, 211, 153), 0.07) 0%,
+    rgba(var(--hos-color-accent-rgb), 0.07) 0%,
     transparent 58%
   );
 }
 
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-}
 
 /* ── 预设多彩渐变文字（复用 main.css 既有 --gradient-* 预设） ── */
 
@@ -57,5 +55,5 @@
   box-shadow:
     var(--page-glow),
     0 16px 40px rgba(0, 0, 0, 0.35),
-    var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+    var(--hos-shadow-inset);
 }

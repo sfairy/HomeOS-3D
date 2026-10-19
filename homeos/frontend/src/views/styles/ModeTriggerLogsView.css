@@ -1,9 +1,9 @@
 /* 从 ModeTriggerLogsView.vue 抽出 */
-/* 注：--page-accent-* 派生变量、--set-* 语义色、--set-transition-* 已移至
+/* 注：主色派生色 派生变量、--set-* 语义色、--set-transition-* 已移至
    app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
-   --page-accent / --page-accent-rgb 后，全局派生变量自动跟随。 */
+   --hos-color-accent / -rgb 后，全局派生变量由 :where 块自动跟随。 */
 .mode-logs-view :focus-visible {
-  outline: 2px solid var(--page-accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -14,10 +14,10 @@
 }
 
 .mode-logs-view .hos-select--inline .mode-logs-view__filter:focus-visible {
-  outline: 2px solid var(--page-accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
-  border-color: var(--page-accent-border);
-  box-shadow: 0 0 0 3px var(--page-accent-glow);
+  border-color: var(--hos-color-accent-line);
+  box-shadow: 0 0 0 3px var(--hos-glow-accent-soft);
 }
 
 .mode-logs-view__links {
@@ -29,14 +29,14 @@
 
 .mode-logs-view__table-wrap {
   overflow: auto;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .mode-logs-view__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .mode-logs-view__table thead th {
@@ -46,12 +46,12 @@
   background: rgba(12, 14, 22, 0.98);
   padding: 10px 12px;
   text-align: left;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--set-text-label);
-  border-bottom: var(--hos-hairline) solid var(--premium-border-strong);
+  color: var(--hos-fg-2);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-3);
 }
 
 .mode-logs-view__table td {
@@ -62,23 +62,23 @@
 }
 
 .mode-logs-view__table tbody tr {
-  transition: background var(--set-transition-fast);
+  transition: background var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .mode-logs-view__table tbody tr:hover {
-  background: var(--page-accent-bg);
+  background: var(--hos-color-accent-soft);
 }
 
 .mode-logs-view__table tbody tr:focus-within {
-  background: var(--page-accent-bg);
-  box-shadow: inset 2px 0 0 var(--page-accent);
+  background: var(--hos-color-accent-soft);
+  box-shadow: inset 2px 0 0 var(--hos-color-accent);
 }
 
 .mode-logs-view__time {
   white-space: nowrap;
   font-family: ui-monospace, monospace;
-  font-size: var(--premium-fs-caption);
-  color: var(--module-accent-home-mode-sub);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-color-accent-strong);
 }
 
 .mode-logs-view__reason {
@@ -89,50 +89,50 @@
 }
 
 .mode-logs-view__ok {
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
 }
 .mode-logs-view__fail {
-  color: var(--set-danger);
+  color: var(--hos-color-danger-text);
 }
 
-/* 空状态：跟随 page-accent（amber）做点缀 */
+/* 空状态：跟随页面主色做点缀 */
 .mode-logs-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   padding: 36px 24px;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   text-align: center;
-  border: var(--hos-hairline) dashed var(--page-accent-border);
-  background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.12) 100%);
+  border: var(--hos-hairline) dashed var(--hos-color-accent-line);
+  background: linear-gradient(160deg, var(--hos-color-accent-soft) 0%, rgba(0, 0, 0, 0.12) 100%);
 }
 
 .mode-logs-empty__icon {
   width: 32px;
   height: 32px;
-  color: var(--page-accent-text);
+  color: var(--hos-color-accent);
   opacity: 0.55;
 }
 
 .mode-logs-empty--rose .mode-logs-empty__icon {
-  color: var(--set-danger);
+  color: var(--hos-color-danger-text);
   opacity: 0.55;
 }
 
 .mode-logs-empty__title {
   margin: 0;
-  font-size: var(--premium-fs-body-sm, 14px);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
-  color: var(--set-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .mode-logs-empty__desc {
   margin: 0;
   max-width: 320px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   line-height: 1.5;
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
 }
 
 .mode-logs-empty__btn {
@@ -140,23 +140,23 @@
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   cursor: pointer;
-  border: var(--hos-hairline) solid var(--page-accent-border);
-  background: var(--page-accent-bg);
-  color: var(--page-accent-text);
+  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  background: var(--hos-color-accent-soft);
+  color: var(--hos-color-accent);
   text-decoration: none;
   transition:
-    background var(--set-transition-fast),
-    border-color var(--set-transition-fast),
-    transform var(--set-transition-fast);
+    background var(--hos-dur-fast) var(--hos-ease-standard),
+    border-color var(--hos-dur-fast) var(--hos-ease-standard),
+    transform var(--hos-dur-fast) var(--hos-ease-standard);
 }
 
 .mode-logs-empty__btn:hover {
-  background: var(--page-accent-bg-strong);
-  border-color: var(--page-accent-text);
+  background: var(--hos-color-accent-soft-strong);
+  border-color: var(--hos-color-accent);
   transform: translateY(-1px);
 }
 
@@ -165,19 +165,19 @@
 }
 
 .mode-logs-empty__btn:focus-visible {
-  outline: 2px solid var(--page-accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
 }
 
 .mode-logs-empty--rose .mode-logs-empty__btn {
-  border-color: var(--set-danger-border);
-  background: var(--set-danger-bg);
-  color: var(--set-danger);
+  border-color: var(--hos-color-danger-line);
+  background: var(--hos-color-danger-soft);
+  color: var(--hos-color-danger-text);
 }
 
 .mode-logs-empty--rose .mode-logs-empty__btn:hover {
-  background: rgba(var(--set-danger-rgb), 0.18);
-  border-color: var(--set-danger);
+  background: rgba(var(--hos-color-danger-rgb), 0.18);
+  border-color: var(--hos-color-danger-text);
 }
 
 @media (max-width: 768px) {

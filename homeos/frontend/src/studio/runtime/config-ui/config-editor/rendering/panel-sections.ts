@@ -239,10 +239,12 @@ export function renderStatusRuleSection(
                     : statusChoiceDefinition.options[0].value;
                 return {
                   entityId: statusFallbackEntity.entityId,
-                  active: reminderValue,
-                  inactive: statusChoiceDefinition.options.find(
-                    (nonReminderChoice) => nonReminderChoice.value !== reminderValue,
-                  )!.value,
+                  active: [reminderValue],
+                  inactive: [
+                    statusChoiceDefinition.options.find(
+                      (nonReminderChoice) => nonReminderChoice.value !== reminderValue,
+                    )!.value,
+                  ],
                 };
               },
         readHealthRules = () =>
@@ -384,10 +386,8 @@ export function renderStatusRuleSection(
             (closeAddDialog(),
               writeStatusRule(dialogRuleKind, dialogRuleIndex, {
                 entityId: statusEntity.entityId,
-                active:
-                  statusValueGroups[0].length === 1 ? statusValueGroups[0][0] : statusValueGroups[0],
-                inactive:
-                  statusValueGroups[1].length === 1 ? statusValueGroups[1][0] : statusValueGroups[1],
+                active: statusValueGroups[0],
+                inactive: statusValueGroups[1],
               }));
           });
           confirmStatusValuesButton.className = "primary";
@@ -510,17 +510,27 @@ export function renderStatusRuleSection(
             return;
           }
           const choiceDefinition = deviceStatusChoicesProvider(
-            ruleCatalogEntry,
-            resolveEntityState(ruleEntity.entityId),
-          );
+              ruleCatalogEntry,
+              resolveEntityState(ruleEntity.entityId),
+            ),
+            singleActive =
+              Array.isArray(ruleEntity.active) && ruleEntity.active.length === 1
+                ? ruleEntity.active[0]
+                : null,
+            singleInactive =
+              Array.isArray(ruleEntity.inactive) && ruleEntity.inactive.length === 1
+                ? ruleEntity.inactive[0]
+                : null;
           if (
             choiceDefinition?.options.length === 2 &&
-            ruleEntity.active !== ruleEntity.inactive &&
+            singleActive !== null &&
+            singleInactive !== null &&
+            singleActive !== singleInactive &&
             choiceDefinition.options.some(
-              (activeChoiceProbe) => activeChoiceProbe.value === ruleEntity.active,
+              (activeChoiceProbe) => activeChoiceProbe.value === singleActive,
             ) &&
             choiceDefinition.options.some(
-              (inactiveChoiceProbe) => inactiveChoiceProbe.value === ruleEntity.inactive,
+              (inactiveChoiceProbe) => inactiveChoiceProbe.value === singleInactive,
             )
           ) {
             const ruleDefaultButton = e.createElement("select");
@@ -539,7 +549,7 @@ export function renderStatusRuleSection(
               ((reminderOptionElement.value = optionValue),
                 ruleDefaultButton.append(reminderOptionElement));
             }
-            ((ruleDefaultButton.value = ruleEntity.active),
+            ((ruleDefaultButton.value = singleActive),
               ruleDefaultButton.addEventListener("change", () => {
                 const inactiveOptionValue = ruleDefaultButton.value,
                   inactiveOption = choiceDefinition.options.find(
@@ -550,8 +560,8 @@ export function renderStatusRuleSection(
                     (matchingOptionProbe) => matchingOptionProbe.value === inactiveOptionValue,
                   ) ||
                   (Object.assign(ruleEntity, {
-                    active: inactiveOptionValue,
-                    inactive: inactiveOption,
+                    active: [inactiveOptionValue],
+                    inactive: [inactiveOption],
                   }),
                   refreshEditorPreview());
               }),

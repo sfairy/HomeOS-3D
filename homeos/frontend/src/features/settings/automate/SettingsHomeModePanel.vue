@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="home-mode"
     icon-key="house"
-    accent="var(--module-accent-home-mode, #fbbf24)"
+    accent="var(--hos-color-accent)"
     layout="single"
     :scroll-body="false"
     body-class="settings-page__stage--workspace settings-home-mode-workspace"

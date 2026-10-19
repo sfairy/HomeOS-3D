@@ -25,23 +25,18 @@ function applyUiConfig(ui: { accentColor?: string } | null | undefined) {
   const accent = configured && !LEGACY_DEFAULT_ACCENTS.has(configured) ? configured : BRAND_ACCENT
   const rgb = hexToRgb(accent)
   root.style.setProperty('--accent-color', accent)
-  root.style.setProperty('--accent', accent)
-  // 同步 canonical 主色：图表、空态、语义组件都从 --hos-color-accent 取色，
-  // 只在旧变量上覆盖会出现「导航变色、内容仍是默认铜」的割裂。
+  // canonical 主色：图表、空态、语义组件都从 --hos-color-accent 取色
   root.style.setProperty('--hos-color-accent', accent)
-  root.style.setProperty('--page-accent', accent)
   if (rgb) {
     // 解析成功时派生 rgba 形式的辅助变量（导航栏底色、光晕等）
     const triplet = `${rgb.r}, ${rgb.g}, ${rgb.b}`
-    root.style.setProperty('--accent-rgb', triplet)
     root.style.setProperty('--hos-color-accent-rgb', triplet)
-    root.style.setProperty('--page-accent-rgb', triplet)
-    root.style.setProperty('--page-accent-text', accent)
-    root.style.setProperty('--page-accent-bg', `rgba(${triplet}, 0.12)`)
-    root.style.setProperty('--page-accent-bg-strong', `rgba(${triplet}, 0.18)`)
-    root.style.setProperty('--page-accent-border', `rgba(${triplet}, 0.32)`)
-    root.style.setProperty('--page-accent-glow', `rgba(${triplet}, 0.16)`)
-    root.style.setProperty('--accent-glow', `rgba(${triplet},0.38)`)
+    root.style.setProperty('--hos-color-accent-soft', `rgba(${triplet}, 0.13)`)
+    root.style.setProperty('--hos-color-accent-soft-strong', `rgba(${triplet}, 0.2)`)
+    root.style.setProperty('--hos-color-accent-line', `rgba(${triplet}, 0.32)`)
+    root.style.setProperty('--hos-glow-accent-soft', `rgba(${triplet}, 0.16)`)
+    root.style.setProperty('--hos-glow-accent', `rgba(${triplet}, 0.32)`)
+    root.style.setProperty('--hos-glow-accent-strong', `rgba(${triplet}, 0.38)`)
     root.style.setProperty('--nav-brand', `rgba(${triplet},0.15)`)
     root.style.setProperty('--nav-tint', `rgba(${triplet},0.08)`)
     root.style.setProperty('--nav-glow', `rgba(${triplet},0.14)`)

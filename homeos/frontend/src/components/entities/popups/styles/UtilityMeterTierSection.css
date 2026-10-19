@@ -1,9 +1,9 @@
 .um-tier-section {
   margin-bottom: 8px;
   padding: 6px 8px 5px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--premium-border);
+  border: 1px solid var(--hos-line-2);
 }
 
 .um-tier-head {
@@ -19,13 +19,13 @@
 }
 
 .um-tier-badge {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   padding: 2px 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--premium-border);
+  border: 1px solid var(--hos-line-2);
   white-space: nowrap;
   line-height: 1.2;
 }
@@ -60,7 +60,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 8px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: #1a1a1a;
   text-align: center;
@@ -95,7 +95,7 @@
   gap: 1px;
   margin-top: 5px;
   text-align: center;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.2;
   color: rgba(255, 255, 255, 0.7);
 }
@@ -114,7 +114,7 @@
 
 .um-tier-price b {
   font-weight: 700;
-  font-size: calc(var(--premium-fs-micro) + 1px);
+  font-size: calc(var(--hos-fs-2) + 1px);
 }
 
 .um-tier--1 .um-tier-price {

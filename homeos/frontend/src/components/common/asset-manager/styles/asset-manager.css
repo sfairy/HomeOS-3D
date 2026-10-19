@@ -38,7 +38,7 @@
 .hos-modal-head-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   align-items: center;
   justify-content: center;

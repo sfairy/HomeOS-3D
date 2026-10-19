@@ -1,7 +1,7 @@
 /**
  * 触控与可访问性基线（canonical）
  * ---------------------------------------------------------------
- * 加载顺序：design-tokens.css → 各页面样式 → legacy-token-bridge.css → 本文件（最后）。
+ * 加载顺序：design-tokens.css → 各页面样式 → 本文件（最后）。
  * 本文件只做「平台级」约定，不承担业务视觉：
  *   1) 焦点环统一（旧样式表里 scattered 的 outline:none 在此改回可见环）
  *   2) 触控目标 ≥ 44px（仅在 pointer:coarse 生效，鼠标环境不改布局密度）
@@ -76,18 +76,16 @@
 }
 
 /* ══ 3. 粗粒度指针的几何修正 ═══════════════════════════════════
-   legacy-token-bridge.css 在 :root 重设了 --hos-surface-inset / --premium-shadow /
-   --page-accent-glow；这些 :root 声明源序晚于 hos-design-system.css:189-211 的
-   @media (pointer:coarse) 块，会把那份触控适配盖掉。此处重新声明一份。 */
+   触控/窄屏下：发丝边抬到 1px、去掉顶沿 inset 高光、关闭彩色外发光与重阴影。
+   这一层必须排在所有样式之后，否则会被 :root 的 canonical 声明盖掉。 */
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   :root {
     --hos-hairline: 1px;
     --hos-line-width: 1px;
-    --hos-surface-inset: none;
     --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --premium-shadow: var(--hos-shadow-2);
-    --premium-shadow-open: 0 0 0 1px var(--hos-color-accent-line), var(--hos-shadow-2);
-    --page-accent-glow: transparent;
+    --hos-shadow-inset: none;
+    --hos-shadow-3: var(--hos-shadow-2);
+    --hos-glow-accent-soft: transparent;
   }
 }
 

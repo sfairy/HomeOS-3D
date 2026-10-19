@@ -53,8 +53,8 @@
 .focus-ring:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--bg-viewport, #000),
-    0 0 0 4px var(--accent, var(--hos-color-accent));
+    0 0 0 2px var(--hos-bg-canvas),
+    0 0 0 4px var(--hos-color-accent);
 }
 
 html[data-kiosk="true"] .icon-btn[title*="命令"],

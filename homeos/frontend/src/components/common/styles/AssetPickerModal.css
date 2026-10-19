@@ -1,7 +1,7 @@
 .hos-modal-head-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,9 +18,9 @@
 }
 
 .selected-badge {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(var(--hos-color-accent-rgb), 0.15);
   color: var(--hos-color-info-text);
   border: 1px solid rgba(var(--hos-color-accent-rgb), 0.25);
@@ -58,6 +58,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-caption);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-3);
 }

@@ -71,14 +71,14 @@ useHubChart(
 .mode-logs-analytics__card {
   min-height: 200px;
   padding: 12px 14px;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   border: var(--hos-hairline, 1px) solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   display: flex;
   flex-direction: column;
 }
 .mode-logs-analytics__card-head {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.78);
   margin-bottom: 6px;

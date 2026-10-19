@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="diagnostics"
     icon-key="activity"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="diagnostics-hub"
     body-class="diagnostics-hub__body"

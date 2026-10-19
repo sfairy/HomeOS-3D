@@ -122,9 +122,9 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
 <style scoped>
 /* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
 .hmsm-dot-home {
-  color: var(--set-success, #6ee7b7);
+  color: var(--hos-color-success-text);
 }
 .hmsm-dot-fail {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 </style>

@@ -133,11 +133,11 @@ export function useDiagnosticsPerf() {
 
   const perfHeroMetrics = computed(() => {
     const fpsNum = Number(fps.value)
-    let fpsAccent = 'var(--module-accent-template)'
+    let fpsAccent = 'var(--hos-color-accent)'
     if (Number.isFinite(fpsNum)) {
-      if (fpsNum >= 55) fpsAccent = 'var(--module-accent-admin-sub)'
-      else if (fpsNum >= 45) fpsAccent = 'var(--set-warn, #fbbf24)'
-      else fpsAccent = 'var(--set-danger, #f87171)'
+      if (fpsNum >= 55) fpsAccent = 'var(--hos-color-accent-strong)'
+      else if (fpsNum >= 45) fpsAccent = 'var(--hos-color-warning-text, #fbbf24)'
+      else fpsAccent = 'var(--hos-color-danger-text, #f87171)'
     }
     const userMode = layoutStore.layoutConfig.performanceMode || 'high'
     const adaptive =
@@ -146,12 +146,12 @@ export function useDiagnosticsPerf() {
         : null
     return [
       { label: 'FPS', value: frontendFps.value, accent: fpsAccent },
-      { label: 'JS 堆内存', value: frontendMemoryLabel.value, accent: 'var(--module-accent-events)' },
+      { label: 'JS 堆内存', value: frontendMemoryLabel.value, accent: 'var(--hos-color-accent)' },
       {
         label: '性能档位',
         value: perfModeLabel(userMode),
         sub: adaptive,
-        accent: 'var(--module-accent-devices)',
+        accent: 'var(--hos-color-accent)',
       },
     ]
   })

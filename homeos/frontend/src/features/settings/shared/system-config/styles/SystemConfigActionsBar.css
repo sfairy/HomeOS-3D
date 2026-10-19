@@ -33,7 +33,7 @@
 .config-actions__divider {
   width: 1px;
   height: 22px;
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   margin: 0 2px;
 }
 
@@ -43,8 +43,8 @@
   gap: 5px;
   max-width: min(100%, 28rem);
   padding: 5px 11px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -66,8 +66,8 @@
 .config-actions__conflict-reload {
   margin-left: 4px;
   padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: var(--hos-color-danger-text);
   background: rgba(var(--hos-color-danger-rgb), 0.18);
@@ -88,10 +88,10 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
-  color: var(--set-warn, var(--hos-color-warning));
+  color: var(--hos-color-warning-text);
   background: rgba(var(--hos-color-warning-rgb), 0.12);
   border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.28);
 }

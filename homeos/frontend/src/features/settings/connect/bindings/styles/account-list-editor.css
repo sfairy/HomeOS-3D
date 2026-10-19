@@ -3,22 +3,22 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.14);
 }
 
 .account-list-editor > .settings-form-label {
   margin: 0;
-  font-size: var(--premium-fs-body-sm, 13px);
+  font-size: var(--hos-fs-4);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.82);
 }
 
 .account-list-editor__warn {
   padding: 8px 10px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-2);
   color: #fcd34d;
   background: rgba(var(--hos-color-warning-rgb), 0.08);
   border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.22);
@@ -46,15 +46,15 @@
   gap: 8px;
   min-width: 0;
   padding: 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .account-list-editor__row:focus-within {
-  border-color: rgba(var(--module-accent-bindings-sub-rgb), 0.22);
-  background: rgba(var(--module-accent-bindings-sub-rgb), 0.04);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.22);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.04);
 }
 
 .account-list-editor__row--entity {
@@ -64,13 +64,13 @@
 .account-list-editor__primary {
   flex-shrink: 0;
   /* 从 34×34 归到 sm 档，与同排控件同高。 */
-  width: var(--control-height-sm);
-  height: var(--control-height-sm);
-  border-radius: var(--hos-radius-card);
+  width: var(--hos-control-h-sm);
+  height: var(--hos-control-h-sm);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-body-sm);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-4);
   cursor: pointer;
   transition:
     background 0.15s ease,
@@ -110,12 +110,12 @@
 .account-list-editor__remove {
   flex-shrink: 0;
   /* 从 34×34 归到 sm 档，与同排控件同高。 */
-  width: var(--control-height-sm);
-  height: var(--control-height-sm);
+  width: var(--hos-control-h-sm);
+  height: var(--hos-control-h-sm);
   border: none;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: transparent;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
 }
@@ -140,7 +140,7 @@
 
 .account-list-editor__foot .settings-btn-ghost {
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-weight: 700;
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.14);
   transition:
@@ -150,16 +150,16 @@
 }
 
 .account-list-editor__foot .settings-btn-ghost:hover {
-  border-color: rgba(var(--module-accent-bindings-sub-rgb), 0.28);
-  background: rgba(var(--module-accent-bindings-sub-rgb), 0.06);
-  color: var(--module-accent-bindings-sub);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.28);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.06);
+  color: var(--hos-color-accent-strong);
 }
 
 .account-list-editor__hint {
   margin: 0;
-  font-size: var(--premium-fs-micro) !important;
+  font-size: var(--hos-fs-2) !important;
   line-height: 1.5 !important;
-  color: var(--hos-text-secondary) !important;
+  color: var(--hos-fg-2) !important;
   min-height: 0 !important;
   padding-left: 0 !important;
 }

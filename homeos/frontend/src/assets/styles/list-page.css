@@ -11,7 +11,7 @@
   overflow: auto;
   scrollbar-gutter: stable;
   background:
-    radial-gradient(ellipse 95% 55% at 8% -12%, rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.07) 0%, transparent 56%),
+    radial-gradient(ellipse 95% 55% at 8% -12%, rgba(var(--hos-color-accent-strong-rgb), 0.07) 0%, transparent 56%),
     radial-gradient(ellipse 70% 42% at 96% 0%, rgba(var(--hos-color-accent-rgb), 0.05) 0%, transparent 50%),
     radial-gradient(ellipse 60% 40% at 50% 110%, rgba(var(--hos-color-success-rgb), 0.03) 0%, transparent 48%),
     linear-gradient(180deg, #0b0e15 0%, #080a10 100%);
@@ -64,7 +64,7 @@
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: var(--hos-hairline) solid var(--premium-border);
+  border-top: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 /* 全宽工具行（搜索条等）占满一行，避免与其它控件挤在同一 flex 行 */
@@ -104,7 +104,7 @@
   min-height: 44px;
   padding: 10px 12px 8px;
   gap: 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
   font-weight: 600;
@@ -135,10 +135,10 @@
 }
 
 .list-page__chip {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   padding: 6px 12px;
-  border-radius: var(--hos-radius-pill, 9999px);
+  border-radius: var(--hos-r-pill);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.62);
@@ -150,8 +150,8 @@
 }
 
 .list-page__chip--accent {
-  border-color: color-mix(in srgb, var(--premium-accent-amber, var(--hos-color-warning)) 40%, #1a1d28);
-  background: color-mix(in srgb, var(--premium-accent-amber, var(--hos-color-warning)) 14%, #0c0e14);
+  border-color: color-mix(in srgb, var(--hos-color-warning) 40%, #1a1d28);
+  background: color-mix(in srgb, var(--hos-color-warning) 14%, #0c0e14);
   color: var(--hos-color-warning-text);
   box-shadow: none;
 }
@@ -162,7 +162,7 @@
   justify-content: center;
   gap: 6px;
   box-sizing: border-box;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   line-height: 1;
   color: color-mix(in srgb, var(--head-accent, var(--hos-color-accent)) 85%, white);
@@ -170,7 +170,7 @@
   /* 上略多于下：中文字形在 em-box 内偏上，光学居中 */
   padding: 10px 14px 8px;
   min-height: 44px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid color-mix(in srgb, var(--head-accent, var(--hos-color-accent)) 35%, rgba(0, 0, 0, 0));
   background: color-mix(in srgb, var(--head-accent, var(--hos-color-accent)) 12%, rgba(0, 0, 0, 0));
   transition: transform 0.2s var(--ease-spring), background 0.2s, box-shadow 0.2s;
@@ -202,7 +202,7 @@
 
 .list-page__filter-toolbar-search .ss-input-row {
   min-height: 44px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.35);
   border-color: rgba(255, 255, 255, 0.1);
 }
@@ -212,7 +212,7 @@
      否则三者同排两档（34 vs 44）。 */
   height: 100%;
   padding: 0 10px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .list-page__filter-toolbar-search .ss-clear,
@@ -252,7 +252,7 @@
 }
 
 .list-page__chip--btn:hover {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   color: rgba(255, 255, 255, 0.88);
 }
 
@@ -276,7 +276,7 @@
 .list-page__panel-toolbar {
   flex-shrink: 0;
   padding: 10px 14px;
-  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.15);
 }
 
@@ -286,8 +286,8 @@
   gap: 4px;
   overflow-x: auto;
   padding: 3px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.28);
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -299,14 +299,14 @@
 
 .list-page__tab {
   /* 高度钉到 sm 档：原先 7px 内边距 + 行高凑出 34px，比 sm(32) 高 2px（成簇差）。 */
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   padding: 0 16px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: none;
   background: transparent;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   transition: all 0.22s var(--ease-spring);
   white-space: nowrap;
   cursor: pointer;
@@ -353,7 +353,7 @@
   margin-left: 5px;
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
 }
 
 .list-page__panel {
@@ -361,7 +361,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   overflow: hidden;
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.28),
@@ -369,7 +369,7 @@
 }
 
 .list-page__section-title {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -386,7 +386,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--page-gradient);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 45%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--hos-color-accent) 45%, transparent);
 }
 
 .list-page__panel-body {
@@ -407,8 +407,8 @@
 
 .list-page__tag--off {
   background: rgba(255, 255, 255, 0.04);
-  border-color: var(--premium-border-strong);
-  color: var(--hos-text-secondary);
+  border-color: var(--hos-line-3);
+  color: var(--hos-fg-2);
 }
 
 .list-page__btn {
@@ -420,10 +420,10 @@
   /* 上略多于下：中文字形在 em-box 内偏上，光学居中 */
   padding: 10px 14px 8px;
   min-height: 44px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   line-height: 1;
   color: rgba(255, 255, 255, 0.88);
@@ -463,8 +463,8 @@
   justify-content: center;
   gap: 12px;
   padding: var(--hos-panel-padding-compact-y) var(--hos-panel-padding-compact-x);
-  border-radius: var(--hos-radius-panel);
-  border: 1px solid var(--premium-border-strong);
+  border-radius: var(--hos-r-3);
+  border: 1px solid var(--hos-line-3);
   background: rgba(0, 0, 0, 0.28);
   backdrop-filter: none;
 }
@@ -478,8 +478,8 @@
   gap: 12px;
   min-height: 52px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
-  border: 1px solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  border: 1px solid var(--hos-line-2);
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.12) 100%);
   isolation: isolate;
   -webkit-backface-visibility: hidden;
@@ -515,7 +515,7 @@
 }
 
 .list-page__row--dim:hover {
-  border-color: var(--premium-border);
+  border-color: var(--hos-line-2);
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.1) 100%);
   box-shadow: none;
 }
@@ -551,13 +551,13 @@
 }
 
 .list-page__domain {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.75);
   padding: 6px 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   min-width: 52px;
@@ -604,7 +604,7 @@
 }
 
 .list-page__row-name {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 600;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -614,9 +614,9 @@
 }
 
 .list-page__row-sub {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-family: ui-monospace, 'SF Mono', monospace;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -630,9 +630,9 @@
 }
 
 .list-page__row-area {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   max-width: 88px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -646,21 +646,21 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill, 999px);
+  border-radius: var(--hos-r-pill);
   /* 复用全局语义色 token，避免与 --set-* 设计系统分叉 */
-  color: var(--set-success);
-  background: var(--set-success-bg);
-  border: var(--hos-hairline) solid var(--set-success-border);
+  color: var(--hos-color-success-text);
+  background: var(--hos-color-success-soft);
+  border: var(--hos-hairline) solid var(--hos-color-success-line);
 }
 
 .list-page__state--bad {
-  color: var(--set-danger);
-  background: var(--set-danger-bg);
-  border-color: var(--set-danger-border);
+  color: var(--hos-color-danger-text);
+  background: var(--hos-color-danger-soft);
+  border-color: var(--hos-color-danger-line);
 }
 
 .list-page__state-icon {
@@ -671,22 +671,22 @@
 
 .list-page__btn--ghost {
   padding: 6px 12px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-2);
   background: transparent;
-  border-color: var(--premium-border-strong);
+  border-color: var(--hos-line-3);
 }
 
-.list-page__muted { font-size: var(--premium-fs-caption); color: var(--hos-text-secondary); font-variant-numeric: tabular-nums; }
+.list-page__muted { font-size: var(--hos-fs-3); color: var(--hos-fg-2); font-variant-numeric: tabular-nums; }
 
 .list-page__input {
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.35);
   color: inherit;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -697,9 +697,9 @@
 }
 
 .list-page__panel-body .v-empty {
-  border: var(--hos-hairline) dashed var(--premium-border-strong);
+  border: var(--hos-hairline) dashed var(--hos-line-3);
   background: rgba(255, 255, 255, 0.02);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   min-height: 200px;
 }
 

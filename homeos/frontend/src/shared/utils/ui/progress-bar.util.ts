@@ -42,7 +42,7 @@ export function sliderTrackStyle({
   variant = 'accent',
   color,
   colorEnd,
-  trackColor = 'var(--premium-border-strong)',
+  trackColor = 'var(--hos-line-3)',
   colorValue,
 }: SliderTrackStyleOpts) {
   let v = resolveSliderValue(value, min)
@@ -58,7 +58,7 @@ export function sliderTrackStyle({
     '--progress': pctStr,
     '--progress-pct': pctStr,
     '--range-progress': pctStr,
-    '--accent': from,
+    '--hos-color-accent': from,
     '--accent-from': from,
     '--accent-to': to,
     '--track-fill-from': from,

@@ -50,8 +50,8 @@
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:checked {
-  border-color: var(--accent, #f2a20d);
-  background: var(--accent, #f2a20d);
+  border-color: var(--hos-color-accent);
+  background: var(--hos-color-accent);
 }
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
@@ -62,7 +62,7 @@
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:focus-visible {
-  outline: 2px solid var(--accent, #f2a20d);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 3px;
 }
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)

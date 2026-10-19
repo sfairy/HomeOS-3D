@@ -11,7 +11,7 @@
     :active-tab="activeTab"
     tab="security-modes"
     icon-key="shield"
-    accent="var(--module-accent-automation)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="sm-panel"
   >

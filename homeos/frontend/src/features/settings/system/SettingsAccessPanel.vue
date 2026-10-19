@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="access"
     icon-key="user"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="access-hub"
     body-class="access-hub__body"

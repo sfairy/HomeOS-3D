@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="setup-wizard"
     icon-key="zap"
-    accent="var(--module-accent-automation)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="setup-wizard-hub"
     body-class="setup-wizard-hub__body"

@@ -120,7 +120,7 @@ export function useDiagnosticsExport(deps: {
     {
       id: 'health',
       icon: HeartPulse,
-      accent: 'var(--module-accent-admin-sub)',
+      accent: 'var(--hos-color-accent-strong)',
       title: '健康轮询',
       desc: '外部探针可轮询健康接口，响应含缓存状态与基础资源占用。',
       codes: ['GET /health', 'GET /api/v1/system/health'],
@@ -128,7 +128,7 @@ export function useDiagnosticsExport(deps: {
     {
       id: 'backup',
       icon: Archive,
-      accent: 'var(--module-accent-template)',
+      accent: 'var(--hos-color-accent)',
       title: '全量备份（含数据库）',
       desc: '一键导出整库（全部数据表、账号与授权）与数据目录（含 HA 密钥、素材、3D 场景）。',
       linkTo: SETTINGS_ROUTES.profiles('backup'),

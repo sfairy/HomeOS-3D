@@ -9,7 +9,7 @@
     :active-tab="activeTab"
     tab="agent"
     icon-key="sparkles"
-    accent="var(--module-accent-agent)"
+    accent="var(--hos-color-accent)"
     page-class="agent-hub"
     body-class="agent-hub__body"
     layout="single"

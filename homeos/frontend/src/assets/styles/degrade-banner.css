@@ -7,16 +7,16 @@
   gap: 10px;
   padding: 10px 14px;
   margin-bottom: 8px;
-  border-radius: var(--hos-radius-card);
-  border: 1px solid var(--set-warn-border, rgba(var(--hos-color-warning-rgb), 0.35));
-  background: var(--set-warn-bg, rgba(var(--hos-color-warning-rgb), 0.08));
+  border-radius: var(--hos-r-2);
+  border: 1px solid var(--hos-color-warning-line);
+  background: var(--hos-color-warning-soft);
 }
 
 .hos-degrade-banner__icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: var(--set-warn, var(--hos-color-warning));
+  color: var(--hos-color-warning-text);
   margin-top: 1px;
 }
 
@@ -35,14 +35,14 @@
 
 .hos-degrade-banner__title {
   margin: 0;
-  font-size: var(--premium-fs-caption, 12px);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 
 .hos-degrade-banner__text {
   margin: 4px 0 0;
-  font-size: var(--premium-fs-micro, 11px);
+  font-size: var(--hos-fs-2);
   line-height: 1.45;
   color: rgba(var(--hos-color-warning-rgb), 0.78);
 }
@@ -55,7 +55,7 @@
   border: 1px solid rgba(var(--hos-color-warning-rgb), 0.4);
   background: rgba(var(--hos-color-warning-rgb), 0.12);
   color: #fcd34d;
-  font-size: var(--premium-fs-caption, 12px);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease;

@@ -77,9 +77,9 @@ const showAudit = defineModel('showAudit', { type: Boolean, default: true })
 
 <style scoped>
 .dgm-icon-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 .dgm-icon-audit {
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
 }
 </style>

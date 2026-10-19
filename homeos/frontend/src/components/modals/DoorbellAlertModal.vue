@@ -236,14 +236,14 @@ async function onStreamClick() {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--premium-accent-amber, #f59e0b);
+  color: var(--hos-color-warning);
 }
 
 .dam-close {
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.7);
@@ -289,7 +289,7 @@ async function onStreamClick() {
 .dam-unlock {
   width: 100%;
   min-height: 44px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: 0.95rem;
   font-weight: 700;
 }

@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="favorites"
     icon-key="star"
-    accent="var(--module-accent-energy-sub)"
+    accent="var(--hos-color-accent-strong)"
     layout="single"
     compact
     page-class="favorites-hub"

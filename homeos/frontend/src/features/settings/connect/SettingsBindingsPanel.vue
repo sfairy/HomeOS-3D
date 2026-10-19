@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="bindings"
     icon-key="wifi"
-    accent="var(--module-accent-bindings)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="bindings-hub"
     body-class="bindings-hub__body"
@@ -346,11 +346,11 @@ const bindingsSecurityTabs = computed(() => [
     id: 'doorbell',
     label: '门铃路由',
     emoji: '🔔',
-    accent: 'var(--module-accent-bindings)',
+    accent: 'var(--hos-color-accent)',
     count: doorbellList.value.length || undefined,
   },
-  { id: 'hazard', label: '安全传感器', emoji: '⚠️', accent: 'var(--set-danger)' },
-  { id: 'events', label: '事件与抓拍', emoji: '📡', accent: 'var(--set-info)' },
+  { id: 'hazard', label: '安全传感器', emoji: '⚠️', accent: 'var(--hos-color-danger-text)' },
+  { id: 'events', label: '事件与抓拍', emoji: '📡', accent: 'var(--hos-color-info-text)' },
 ])
 
 const bindingsSubnavSections = computed(() => [

@@ -6,7 +6,7 @@
   overflow: hidden;
   margin-top: 10px;
   padding: var(--hos-panel-padding-default, 20px);
-  border-radius: var(--hos-radius-panel, 20px);
+  border-radius: var(--hos-r-3);
   border: var(--hos-hairline) solid rgba(99, 102, 241, 0.22);
   background: linear-gradient(
     135deg,
@@ -127,7 +127,7 @@
   align-items: center;
   gap: 6px;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -174,7 +174,7 @@
 .layout-edit-hero__hint {
   margin: 4px 0 0;
   font-size: var(--set-fs-caption);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   line-height: 1.45;
 }
 
@@ -184,7 +184,7 @@
   align-items: center;
   gap: 8px;
   padding: 11px 20px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(165, 180, 252, 0.45);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(79, 70, 229, 0.95) 100%);
   color: #fff;
@@ -221,9 +221,6 @@
 
 
 
-@media (max-width: 900px) {
-
-}
 
 @media (max-width: 639px) {
   .layout-edit-hero__body {
@@ -237,8 +234,8 @@
 }
 
 .layout-edit-flow-band__shell {
-  --flow-glow-a: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-strong));
-  --flow-glow-b: rgba(99, 102, 241, var(--flow-glow-alpha-b));
+  --hos-glow-flow-a: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-strong));
+  --hos-glow-flow-b: rgba(99, 102, 241, var(--flow-glow-alpha-b));
 }
 
 /* —— SettingsLayoutEventlogSection —— */

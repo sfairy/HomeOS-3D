@@ -51,11 +51,6 @@ const {
 <template>
   <div
     class="list-page events-view"
-    :style="{
-      '--page-accent': 'var(--module-accent-events)',
-      '--page-accent-rgb': 'var(--module-accent-events-rgb)',
-      '--page-accent-secondary': 'var(--module-accent-events-sub)',
-    }"
   >
     <EventsViewHero
       :page-hint="pageHint"

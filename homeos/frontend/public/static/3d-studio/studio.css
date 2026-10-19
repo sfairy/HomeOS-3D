@@ -7,7 +7,6 @@
   --line-strong: rgba(255, 255, 255, 0.16);
   --text: #f5f7f9;
   --muted: #8794a1;
-  --accent: #ff9d2e;
   --accent-soft: rgba(255, 157, 46, 0.16);
   --cyan: #43d2e6;
   --danger: #ff6b72;
@@ -155,7 +154,7 @@ button:active:not(:disabled) {
 button:focus-visible,
 input:focus-visible,
 canvas:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
 }
 button:disabled {
@@ -237,7 +236,7 @@ button:disabled {
   background: #ffffff0f;
 }
 .studio-help-link:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
 }
 .back-link:hover {
@@ -320,8 +319,8 @@ button:disabled {
 }
 .workflow-steps li.active i {
   color: #211307;
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--hos-color-accent);
+  background: var(--hos-color-accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 .header-actions > button {
@@ -350,7 +349,7 @@ button:disabled {
   background: #5fd69a;
 }
 .save-state.saving i {
-  background: var(--accent);
+  background: var(--hos-color-accent);
   animation: pulse 0.9s infinite alternate;
 }
 .save-state.error {
@@ -614,7 +613,7 @@ button:disabled {
   left: 4px;
   height: 2px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--hos-color-accent);
   content: "";
   pointer-events: none;
 }
@@ -675,7 +674,7 @@ button:disabled {
   padding: 4px 7px;
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--hos-color-accent);
   font-size: 11px;
 }
 .section-heading > small {
@@ -806,7 +805,7 @@ button:disabled {
   color: #8f9ba5;
 }
 .asset-search:focus {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--hos-color-accent);
   outline-offset: 1px;
 }
 .asset-search-empty {
@@ -865,7 +864,7 @@ button:disabled {
   text-align: center;
 }
 .light-asset-card:hover {
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .light-asset-icon {
   display: block;
@@ -961,7 +960,7 @@ button:disabled {
   left: 4px;
   height: 2px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--hos-color-accent);
   content: "";
   pointer-events: none;
 }
@@ -1059,7 +1058,7 @@ button:disabled {
   left: 4px;
   height: 2px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--hos-color-accent);
   content: "";
   pointer-events: none;
 }
@@ -1239,7 +1238,7 @@ html.list-drag-active * {
   font-size: 14px;
 }
 .asset-card:hover i {
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .asset-card span {
   min-width: 0;
@@ -1324,7 +1323,7 @@ html.list-drag-active * {
   border-color: var(--line-strong);
 }
 .drawing-tool-section--indoor .drawing-tool-toggle-label {
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .drawing-tool-section--courtyard .drawing-tool-toggle-label {
   color: var(--cyan);
@@ -1346,7 +1345,7 @@ html.list-drag-active * {
   display: none;
 }
 .drawing-tool-active i {
-  color: var(--accent);
+  color: var(--hos-color-accent);
   font-style: normal;
 }
 .drawing-tool-caret {
@@ -1363,7 +1362,7 @@ html.list-drag-active * {
   color: #fff;
 }
 .drawing-tool-section.has-active .drawing-tool-caret {
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .drawing-tool-section.open .drawing-tool-toggle {
   color: #f0f3f6;
@@ -1457,7 +1456,7 @@ html.list-drag-active * {
   background: var(--accent-soft);
 }
 .tool-button.active i {
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .toolbar-actions button {
   min-width: 34px;
@@ -1502,7 +1501,7 @@ html.list-drag-active * {
 }
 .toolbar-actions .snap-toggle.active small {
   color: #251507;
-  background: var(--accent);
+  background: var(--hos-color-accent);
 }
 .toolbar-actions .snap-settings-toggle {
   width: 28px;
@@ -1513,7 +1512,7 @@ html.list-drag-active * {
   font-size: 14px;
 }
 .toolbar-actions .snap-settings-toggle[aria-expanded="true"] {
-  color: var(--accent);
+  color: var(--hos-color-accent);
   background: var(--accent-soft);
 }
 .snap-settings-panel {
@@ -1562,7 +1561,7 @@ html.list-drag-active * {
   cursor: pointer;
 }
 .snap-option-grid input {
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 .snap-distance {
   display: grid;
@@ -1694,7 +1693,7 @@ html.list-drag-active * {
   margin: 0 auto 13px;
   border: 1px solid rgba(255, 157, 46, 0.4);
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--hos-color-accent);
   font-size: 10px;
 }
 .canvas-empty strong {
@@ -1783,10 +1782,10 @@ html.list-drag-active * {
   z-index: 8;
   display: none;
   place-items: center;
-  border: 1px dashed var(--accent);
+  border: 1px dashed var(--hos-color-accent);
   border-radius: 12px;
   background: #ff9d2e14;
-  color: var(--accent);
+  color: var(--hos-color-accent);
   font-size: 12px;
   font-weight: 700;
   pointer-events: none;
@@ -1878,8 +1877,8 @@ html.list-drag-active * {
   border-color: #9aa9b4;
 }
 .details-panel.resizing .details-resizer {
-  border-color: var(--accent);
-  background-color: var(--accent);
+  border-color: var(--hos-color-accent);
+  background-color: var(--hos-color-accent);
 }
 .details-resizer:focus-visible {
   outline: 0;
@@ -2225,7 +2224,7 @@ html.list-drag-active * {
   min-height: 14px;
   padding: 0;
   margin: 0 2px;
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 .preview-3d {
   min-height: 0;
@@ -2595,7 +2594,7 @@ html.list-drag-active * {
   background: var(--line);
 }
 .inspector-group-header:hover .inspector-group-title {
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .inspector-group-caret {
   width: 0;
@@ -3069,7 +3068,7 @@ select option:disabled {
     monospace;
 }
 .measurement-preview > i {
-  color: var(--accent);
+  color: var(--hos-color-accent);
   font-style: normal;
 }
 .measurement-preview label {
@@ -3339,7 +3338,7 @@ select option:disabled {
   width: 14px;
   height: 14px;
   margin: 1px 0 0;
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 .light-property-target-item span {
   min-width: 0;
@@ -3575,7 +3574,7 @@ select option:disabled {
   height: 25px;
   border: 1px solid rgba(255, 157, 46, 0.24);
   border-radius: 6px;
-  color: var(--accent);
+  color: var(--hos-color-accent);
   place-items: center;
   font:
     10px ui-monospace,
@@ -3642,7 +3641,7 @@ select option:disabled {
   font-size: 11px;
 }
 .export-folder-field input:focus {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .export-folder-field input.invalid {
@@ -3665,7 +3664,7 @@ select option:disabled {
 .export-ratio-lock input {
   width: 13px;
   height: 13px;
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 .export-ratio-lock output {
   margin-left: 2px;
@@ -3744,14 +3743,14 @@ select option:disabled {
   width: 13px;
   height: 13px;
   flex: 0 0 auto;
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 .export-file-list i {
   grid-area: dot;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--hos-color-accent);
   box-shadow: 0 0 8px #ff9d2e61;
 }
 .export-file-list span {
@@ -4098,13 +4097,13 @@ body.auto-diagram-embedded .export-preview-frame {
   border-color: var(--line-strong);
 }
 .material-style-chip.is-active {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .material-style-chip.is-custom .material-style-chip-label::before {
   content: "★";
   margin-right: 3px;
-  color: var(--accent);
+  color: var(--hos-color-accent);
 }
 .material-style-chip-swatches {
   display: flex;
@@ -4151,7 +4150,7 @@ body.auto-diagram-embedded .export-preview-frame {
   color: var(--text);
 }
 .material-slot-group-chip.is-active {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   color: var(--text);
   background: var(--accent-soft);
 }
@@ -4180,7 +4179,7 @@ body.auto-diagram-embedded .export-preview-frame {
 }
 .material-slot.is-overridden,
 .material-slot.has-surface-override {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
 }
 .material-slot[hidden] {
   display: none;
@@ -4255,7 +4254,7 @@ body.auto-diagram-embedded .export-preview-frame {
   text-transform: lowercase;
 }
 .material-slot-hex:focus-visible {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   outline: none;
 }
 .material-slot-hex.is-invalid {
@@ -4276,11 +4275,11 @@ body.auto-diagram-embedded .export-preview-frame {
 }
 .material-slot-surface-toggle:hover:not(:disabled),
 .material-slot-reset:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   color: var(--text);
 }
 .material-slot-surface-toggle[aria-expanded="true"] {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   color: var(--text);
 }
 .material-slot-reset {
@@ -4370,7 +4369,7 @@ body.auto-diagram-embedded .export-preview-frame {
   cursor: pointer;
 }
 .material-actions button:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
 }
 .material-actions button:disabled {
   opacity: 0.4;
@@ -4451,7 +4450,7 @@ body.auto-diagram-embedded .export-preview-frame {
   min-width: 15px;
   margin: 0;
   padding: 0;
-  accent-color: var(--accent);
+  accent-color: var(--hos-color-accent);
 }
 .courtyard-subsection {
   padding: 12px 0 0;
@@ -4479,7 +4478,7 @@ body.auto-diagram-embedded .export-preview-frame {
   font-size: 11px;
 }
 .courtyard-actions button:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   background: var(--accent-soft);
 }
 .courtyard-actions button:disabled {

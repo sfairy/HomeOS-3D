@@ -1,4 +1,4 @@
-"""Studio 3D 草稿仓储：studio_drafts 单行表的 CAS 读写 + 旧单文件只读回退。
+"""Studio 3D 草稿仓储：studio_drafts 单行表的 CAS 读写。
 
 并发模型：草稿全局只有一行（``id = 1``），每次保存都必须在**同一事务**里完成
 「读当前 revision → 比对 → 条件更新」。这里刻意不用 ORM 实体做读取后写回，
@@ -10,9 +10,8 @@
   快照可能都通过比对，第二个写会覆盖第一个 —— 这正是旧单文件实现里最隐蔽的丢写路径：
   ``_read_draft`` 与写文件之间隔着一次全表扫描与 ``plan_cleanup``，窗口可达数百毫秒。
 
-旧实现把草稿存成 ``data/studio3d/draft.json``。迁移（migration 4）已把内容导入本表，
-这里仍保留 ``read_legacy_payload`` 作为只读回退：迁移失败或未执行时工作台不能白屏。
-**绝不回写该文件** —— 双写会让「谁是权威」重新变成两个答案。
+旧单文件 ``data/studio3d/draft.json`` 仅由迁移（migration 4）一次性导入本表，
+运行期不再读取。
 """
 
 from __future__ import annotations
@@ -21,7 +20,6 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fastapi import HTTPException
 from sqlalchemy import text
@@ -59,11 +57,6 @@ def encode_scene(scene: dict) -> str:
     if len(encoded.encode("utf-8")) > MAX_STUDIO3D_DRAFT_BYTES:
         raise HTTPException(413, "户型图数据过大，无法保存。")
     return encoded
-
-
-def now_sqlite() -> str:
-    """与 SQLite/ORM 写作的 DATETIME 一致的字符串，便于同列可比可读。"""
-    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
 
 
 def _parse_datetime(value) -> datetime | None:
@@ -112,19 +105,6 @@ def read_snapshot(database: Session) -> StudioDraftSnapshot | None:
         scene=scene,
         updated_at=_isoformat(row["updated_at"]),
     )
-
-
-def read_legacy_payload(path: Path) -> dict | None:
-    """只读旧 ``studio3d/draft.json``（迁移前的唯一存储）。"""
-    if not path.is_file():
-        return None
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise HTTPException(500, "独立户型图草稿已损坏，请从 NAS 备份恢复。") from error
-    if not isinstance(payload, dict) or not isinstance(payload.get("revision"), int):
-        raise HTTPException(500, "独立户型图草稿格式无效，请从 NAS 备份恢复。")
-    return payload
 
 
 def insert_initial(
@@ -186,36 +166,8 @@ def update_with_cas(
     return result.rowcount == 1
 
 
-def force_write_snapshot(
-    database: Session,
-    *,
-    revision: int,
-    schema_version: int,
-    scene_json: str,
-    updated_at: str,
-) -> None:
-    """无条件的唯一行写入；仅供旧 pending 投递收敛使用（不在 PUT 主路径上）。"""
-    database.execute(
-        text(
-            "INSERT INTO studio_drafts "
-            "(id, revision, schema_version, scene_json, updated_at, updated_by) "
-            "VALUES (:row_id, :revision, :schema_version, :scene_json, :updated_at, NULL) "
-            "ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, "
-            "schema_version = excluded.schema_version, scene_json = excluded.scene_json, "
-            "updated_at = excluded.updated_at"
-        ),
-        {
-            "row_id": STUDIO_DRAFT_ROW_ID,
-            "revision": revision,
-            "schema_version": schema_version,
-            "scene_json": scene_json,
-            "updated_at": updated_at,
-        },
-    )
-
-
 def read_sync_document(database: Session) -> dict:
-    """读 Studio↔interaction3d 同步文档（只保留 ``archive``，``pending`` 是历史字段）。"""
+    """读 Studio↔interaction3d 同步文档（仅 ``archive``）。"""
     state = database.get(StudioInteractionSync, 1)
     if state is None:
         return {}
@@ -234,7 +186,7 @@ def read_archive(database: Session) -> list:
 
 
 def write_archive(database: Session, archive: list) -> None:
-    """写回归档；``pending`` 不再产生（旧字段只在读取时兼容清理）。"""
+    """写回归档。"""
     state = database.get(StudioInteractionSync, 1)
     if state is None:
         state = StudioInteractionSync(id=1)
@@ -242,16 +194,3 @@ def write_archive(database: Session, archive: list) -> None:
     state.document_json = json.dumps({"archive": archive}, ensure_ascii=False)
     if len(state.document_json.encode("utf-8")) > MAX_STUDIO3D_DRAFT_BYTES:
         raise HTTPException(413, "户型及撤销记录过大，未执行关联清理。")
-
-
-def read_pending_legacy(database: Session) -> dict | None:
-    """旧实现把「待写文件」放在 document_json.pending 里；崩溃后文件没写成，库里有值。"""
-    pending = read_sync_document(database).get("pending")
-    return pending if isinstance(pending, dict) else None
-
-
-def clear_pending_legacy(database: Session, archive: list) -> None:
-    state = database.get(StudioInteractionSync, 1)
-    if state is None:
-        return
-    state.document_json = json.dumps({"archive": archive}, ensure_ascii=False)

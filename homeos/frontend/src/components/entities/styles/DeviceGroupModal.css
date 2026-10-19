@@ -4,7 +4,7 @@
 .dgm-header-title {
   font-size: 22px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--hos-fg-1);
   letter-spacing: -0.01em;
 }
 
@@ -21,7 +21,7 @@
 
 .entity-card-dense.is-active {
   background: rgba(255,255,255,0.03);
-  border-color: var(--premium-border);
+  border-color: var(--hos-line-2);
 }
 
 .entity-card-large {
@@ -29,7 +29,7 @@
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   backdrop-filter: blur(40px) saturate(180%);
   border: var(--hos-hairline) solid rgba(255,255,255,0.04);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   padding: 22px;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
@@ -48,7 +48,7 @@
 
 .entity-card-large:hover {
   background: rgba(255,255,255,0.035);
-  border-color: var(--premium-border-strong);
+  border-color: var(--hos-line-3);
   transform: translateY(-2px);
   box-shadow: 0 12px 40px rgba(0,0,0,0.25);
 }
@@ -103,7 +103,7 @@
 
 .dgm-climate-name {
   width: 100%;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
   letter-spacing: -0.01em;
@@ -118,14 +118,14 @@
 .dgm-climate-state-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(255, 255, 255, 0.04);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .dgm-climate-state-tag--cool { color: var(--hos-color-info); background: rgba(var(--hos-color-info-rgb),0.1); border-color: rgba(var(--hos-color-info-rgb),0.22); }
@@ -133,11 +133,11 @@
 .dgm-climate-state-tag--dry { color: #facc15; background: rgba(250,204,21,0.1); border-color: rgba(250,204,21,0.22); }
 .dgm-climate-state-tag--fan_only { color: var(--hos-color-info); background: rgba(var(--hos-color-info-rgb),0.1); border-color: rgba(var(--hos-color-info-rgb),0.22); }
 .dgm-climate-state-tag--auto { color: #a855f7; background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.22); }
-.dgm-climate-state-tag--off { color: var(--hos-text-secondary); }
+.dgm-climate-state-tag--off { color: var(--hos-fg-2); }
 
 .dgm-climate-temp-zone {
   padding: 12px 10px 10px;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   background: rgba(255, 255, 255, 0.02);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
@@ -174,7 +174,7 @@
 }
 
 .dgm-climate-stat-val small {
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
   font-weight: 500;
   opacity: 0.55;
 }
@@ -185,7 +185,7 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
-.dgm-climate-stat-val.is-muted { color: var(--hos-text-secondary); }
+.dgm-climate-stat-val.is-muted { color: var(--hos-fg-2); }
 .dgm-climate-stat-val.is-hot { color: var(--hos-color-danger); }
 .dgm-climate-stat-val.is-warm { color: var(--hos-color-warning); }
 .dgm-climate-stat-val.is-comfy { color: #fcd34d; }
@@ -193,11 +193,11 @@
 .dgm-climate-stat-val.is-cold { color: var(--hos-color-info-text); }
 
 .dgm-climate-stat-lbl {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .dgm-climate-adjust {
@@ -213,7 +213,7 @@
 .dgm-climate-adjust-val {
   min-width: 56px;
   text-align: center;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   font-variant-numeric: tabular-nums;
@@ -236,18 +236,18 @@
 
 .dgm-climate-chip {
   min-width: 0;
-  height: var(--control-height-md);
+  height: var(--hos-control-h-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1px;
   padding: 3px 2px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.03);
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-micro);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -272,7 +272,7 @@
 
 .dgm-climate-chip--fan {
   flex-direction: row;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
 }
 
 .dgm-climate-chip--fan-active {
@@ -299,13 +299,13 @@
 .dgm-climate-chip.bg-orange-400\/15 { background: rgba(251,146,60,0.14); border-color: rgba(251,146,60,0.3); color: var(--hos-color-warning-text); }
 
 .dgm-climate-off-btn {
-  width: var(--control-height-lg);
-  height: var(--control-height-lg);
+  width: var(--hos-control-h-lg);
+  height: var(--hos-control-h-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(255,255,255,0.03);
   color: var(--text-muted);
   cursor: pointer;
@@ -322,7 +322,7 @@
 
 .dgm-climate-off-btn--sm {
   width: 38px;
-  height: var(--control-height-md);
+  height: var(--hos-control-h-md);
 }
 
 .dgm-climate-icon--sm {
@@ -334,14 +334,14 @@
 .dgm-climate-icon {
   width: 46px;
   height: 46px;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   background: rgba(255,255,255,0.05);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   color: var(--text-muted);
 }
 
@@ -395,9 +395,9 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   background: rgba(255,255,255,0.04);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -416,8 +416,8 @@
 
 .dgm-temp-btn--sm {
   width: 34px;
-  height: var(--control-height-sm);
-  border-radius: var(--hos-radius-card);
+  height: var(--hos-control-h-sm);
+  border-radius: var(--hos-r-2);
 }
 
 /* === 气候模式按钮 === */
@@ -521,15 +521,15 @@
 }
 
 .dgm-empty-title {
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.75);
   margin: 0 0 8px;
 }
 
 .dgm-empty-desc {
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-2);
   line-height: 1.55;
   max-width: 22rem;
   margin: 0;
@@ -537,7 +537,7 @@
 
 .dgm-empty-link {
   margin-top: 14px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   color: var(--hos-color-info);
   text-decoration: none;
@@ -561,8 +561,8 @@
   margin: 12px 24px 12px;
   padding: 8px 14px;
   background: rgba(255, 255, 255, 0.03);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  border-radius: var(--hos-r-2);
 }
 
 .dgm-audit-bar-left {
@@ -573,16 +573,16 @@
 }
 
 .dgm-audit-inline {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dgm-section-title {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -595,23 +595,23 @@
 
 .dgm-section-count,
 .dgm-section-sub {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   padding: 3px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .dgm-section-toggle {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   padding: 5px 12px;
-  border-radius: var(--hos-radius-pill);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-pill);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   transition: all 0.2s;
@@ -632,7 +632,7 @@
 .dgm-light-card {
   background: rgba(255, 255, 255, 0.025);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   padding: 12px 14px;
   display: flex;
   flex-direction: row;
@@ -656,7 +656,7 @@ button.dgm-light-card {
 }
 
 button.dgm-light-card:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.75);
   outline-offset: 2px;
 }
 
@@ -682,7 +682,7 @@ button.dgm-light-card:focus-visible {
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,8 +718,8 @@ button.dgm-light-card:focus-visible {
 
 .dgm-light-icon--off {
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--premium-border);
-  color: var(--hos-text-secondary);
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  color: var(--hos-fg-2);
 }
 
 .dgm-light-icon--on {
@@ -736,7 +736,7 @@ button.dgm-light-card:focus-visible {
 
 .dgm-light-name {
   width: 100%;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
   margin: 0;
@@ -746,11 +746,11 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-light-state {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .dgm-light-state--on {
@@ -765,7 +765,7 @@ button.dgm-light-card:focus-visible {
 .dgm-battery-card {
   background: rgba(255, 255, 255, 0.02);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   padding: 14px 12px;
   transition: all 0.3s;
   min-width: 0;
@@ -773,7 +773,7 @@ button.dgm-light-card:focus-visible {
 
 .dgm-battery-card:hover {
   background: rgba(255, 255, 255, 0.035);
-  border-color: var(--premium-border-strong);
+  border-color: var(--hos-line-3);
 }
 
 .dgm-battery-card.is-critical {
@@ -783,7 +783,7 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-battery-name {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.72);
   margin: 0 0 10px;
@@ -809,7 +809,7 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-battery-pct small {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   opacity: 0.5;
   margin-left: 1px;
@@ -861,7 +861,7 @@ button.dgm-light-card:focus-visible {
 .dgm-offline-card {
   background: rgba(255, 255, 255, 0.02);
   border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.18);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   padding: 14px 12px;
   display: flex;
   flex-direction: column;
@@ -886,7 +886,7 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-offline-domain {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -896,7 +896,7 @@ button.dgm-light-card:focus-visible {
 .dgm-offline-icon-wrap {
   width: 44px;
   height: 44px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -906,7 +906,7 @@ button.dgm-light-card:focus-visible {
 
 .dgm-offline-name {
   width: 100%;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
   margin: 0;
@@ -916,8 +916,8 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-offline-reason {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   line-height: 1.45;
   margin: 0;
   display: -webkit-box;
@@ -937,17 +937,17 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-offline-time {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .dgm-offline-badge {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.08em;
   color: var(--hos-color-danger);
   padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(var(--hos-color-danger-rgb), 0.1);
   border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
 }
@@ -967,7 +967,7 @@ button.dgm-light-card:focus-visible {
 }
 
 .dgm-audit-list {
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
   background: rgba(255, 255, 255, 0.015);
   overflow: hidden;
@@ -989,12 +989,12 @@ button.dgm-light-card:focus-visible {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.2);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .dgm-audit-text {
@@ -1005,7 +1005,7 @@ button.dgm-light-card:focus-visible {
 
 .dgm-audit-name {
   display: block;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.82);
   overflow: hidden;
@@ -1015,8 +1015,8 @@ button.dgm-light-card:focus-visible {
 
 .dgm-audit-id {
   display: block;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   font-family: ui-monospace, monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1026,8 +1026,8 @@ button.dgm-light-card:focus-visible {
 .dgm-audit-reason {
   flex-shrink: 0;
   max-width: 38%;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1042,8 +1042,8 @@ button.dgm-light-card:focus-visible {
   padding: 10px 14px;
   margin-bottom: 14px;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: var(--hos-radius-panel);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-3);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -1061,9 +1061,9 @@ button.dgm-light-card:focus-visible {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -1080,10 +1080,10 @@ button.dgm-light-card:focus-visible {
 
 .dgm-batch-btn--off {
   background: rgba(255, 255, 255, 0.04);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
-.dgm-batch-btn--off:hover { background: var(--premium-glass-bg-hover); color: #fff; }
+.dgm-batch-btn--off:hover { background: var(--hos-bg-tint-2); color: #fff; }
 
 .dgm-batch-stat {
   display: flex;
@@ -1091,13 +1091,13 @@ button.dgm-light-card:focus-visible {
   gap: 3px;
   flex-shrink: 0;
   padding: 6px 12px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .dgm-batch-stat-num {
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--hos-color-warning);
@@ -1105,17 +1105,17 @@ button.dgm-light-card:focus-visible {
 
 .dgm-batch-stat-sep,
 .dgm-batch-stat-total {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .dgm-batch-stat-label {
   margin-left: 4px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 @media (max-width: 480px) {
@@ -1136,13 +1136,13 @@ button.dgm-light-card:focus-visible {
 .dgm-exec-result {
   margin-bottom: 12px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.02);
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .dgm-exec-summary {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
 }
 
@@ -1151,9 +1151,9 @@ button.dgm-light-card:focus-visible {
 
 .dgm-exec-service {
   margin-left: 8px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 500;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-family: ui-monospace, monospace;
 }
 
@@ -1163,7 +1163,7 @@ button.dgm-light-card:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: rgba(255, 255, 255, 0.55);
 }
 
@@ -1179,7 +1179,7 @@ button.dgm-light-card:focus-visible {
 .dgm-exec-retry {
   margin-top: 6px;
   align-self: flex-start;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   padding: 5px 10px;
   border-radius: 8px;

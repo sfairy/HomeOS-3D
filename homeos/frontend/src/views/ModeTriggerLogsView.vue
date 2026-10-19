@@ -8,11 +8,6 @@
 <template>
   <div
     class="list-page mode-logs-view"
-    :style="{
-      '--page-accent': 'var(--module-accent-home-mode)',
-      '--page-accent-rgb': 'var(--module-accent-home-mode-rgb)',
-      '--page-accent-secondary': 'var(--module-accent-home-mode-sub)',
-    }"
   >
     <ListPageHero
       :title="'家庭模式触发日志'"

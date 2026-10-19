@@ -9,7 +9,7 @@
   gap: 2px;
   padding: 3px;
   margin-right: 8px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: var(--glass-bg-sm);
   border: var(--hos-hairline) solid var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-bg-sm);
@@ -19,11 +19,11 @@
 .tab-bar .home-mode-switcher__presence,
 .tab-bar .home-mode-switcher__btn {
   border: none;
-  border-radius: var(--hos-radius-control);
+  border-radius: var(--hos-r-1);
   /* 顶栏控件统一到 lg 档。此处原为 min-height: 40px，特异性高于
      main-layout.css 的 .tab-bar__tab{min-height:44px}，把整条顶栏压在 40px，
      而同一排的 .tab-bar__actions .icon-btn 是 44px —— 同排两档正是「40/41 与 44/45 成簇差」的来源。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   box-shadow: none;
 }
 
@@ -31,16 +31,16 @@
   max-width: 120px;
   gap: 6px;
   padding: 5px 10px;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--hos-text-label);
+  color: var(--hos-fg-2);
   background: transparent;
 }
 
 .tab-bar .home-mode-switcher__presence:hover,
 .tab-bar .home-mode-switcher__presence--tip-open {
-  color: var(--hos-text-body);
+  color: var(--hos-fg-body);
   background: var(--glass-bg-md);
 }
 
@@ -52,16 +52,16 @@
 .tab-bar .home-mode-switcher__btn {
   gap: 6px;
   padding: 5px 10px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: transparent;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 600;
   letter-spacing: -0.01em;
   position: relative;
 }
 
 .tab-bar .home-mode-switcher__btn:hover:not(:disabled) {
-  color: var(--hos-text-body);
+  color: var(--hos-fg-body);
   background: var(--glass-bg-md);
   border-color: transparent;
 }
@@ -70,12 +70,12 @@
   color: #fff;
   font-weight: 650;
   border-color: transparent;
-  background: color-mix(in srgb, var(--tab-accent, var(--accent)) 12%, transparent);
+  background: color-mix(in srgb, var(--tab-accent, var(--hos-color-accent)) 12%, transparent);
   box-shadow: none;
 }
 
 .tab-bar .home-mode-switcher__btn--active .home-mode-switcher__icon {
-  color: var(--tab-accent, var(--accent));
+  color: var(--tab-accent, var(--hos-color-accent));
   opacity: 1;
 }
 
@@ -91,16 +91,16 @@
 }
 
 .tab-bar .tab-bar__title {
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   font-weight: 650;
   letter-spacing: -0.015em;
   line-height: 1.2;
 }
 
 .tab-bar .tab-bar__tab {
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   /* 同为 lg 档：见上方 mode-switcher 处说明，此处原 min-height: 40px 是顶栏同排两档的另一半。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 11px;
 }
 
@@ -119,13 +119,13 @@
 .tab-bar .tab-bar__tab--active {
   color: #fff;
   font-weight: 650;
-  background: color-mix(in srgb, var(--tab-accent, var(--accent)) 12%, transparent);
+  background: color-mix(in srgb, var(--tab-accent, var(--hos-color-accent)) 12%, transparent);
   box-shadow: none;
 }
 
 .tab-bar .tab-bar__tab--active .tab-bar__tab-icon {
-  color: var(--tab-accent, var(--accent));
-  background: color-mix(in srgb, var(--tab-accent, var(--accent)) 18%, transparent);
+  color: var(--tab-accent, var(--hos-color-accent));
+  background: color-mix(in srgb, var(--tab-accent, var(--hos-color-accent)) 18%, transparent);
 }
 
 .tab-bar .tab-bar__tab--active .tab-bar__tab-svg {
@@ -140,7 +140,7 @@
   height: 2px;
   margin-left: 0;
   opacity: 1;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--tab-accent, var(--accent)) 55%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tab-accent, var(--hos-color-accent)) 55%, transparent);
 }
 
 @media (max-width: 639px) {
@@ -166,7 +166,7 @@
   }
 
   .tab-bar .tab-bar__title {
-    font-size: var(--premium-fs-body-sm);
+    font-size: var(--hos-fs-4);
     font-weight: 700;
   }
 }

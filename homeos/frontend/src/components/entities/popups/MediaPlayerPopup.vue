@@ -299,9 +299,9 @@ const stateLabel = computed(() => STATE_LABELS[state.value] || state.value || 'â
 const stateDotStyle = computed(() => {
   const s = state.value
   if (s === 'playing') return {}
-  if (s === 'paused') return { background: 'var(--premium-accent-amber)' }
+  if (s === 'paused') return { background: 'var(--hos-color-warning)' }
   if (s === 'off' || s === 'standby') return { background: 'rgba(255,255,255,0.25)' }
-  return { background: 'var(--premium-accent-blue)', boxShadow: '0 0 6px rgba(96,165,250,0.4)' }
+  return { background: 'var(--hos-color-accent)', boxShadow: '0 0 6px rgba(96,165,250,0.4)' }
 })
 
 const hasTts = computed(() => mediaEntity.value?.entity_id?.startsWith('media_player.'))

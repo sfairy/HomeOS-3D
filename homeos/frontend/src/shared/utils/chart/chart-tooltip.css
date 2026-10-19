@@ -13,7 +13,7 @@
 .chart-tip__caption {
   margin-bottom: 6px;
   color: rgba(255, 255, 255, 0.55);
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
 }
 
 .chart-tip__caption--tight {
@@ -22,8 +22,8 @@
 
 .chart-tip__footnote {
   margin-top: 4px;
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-micro);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-2);
 }
 
 .chart-tip__dot {

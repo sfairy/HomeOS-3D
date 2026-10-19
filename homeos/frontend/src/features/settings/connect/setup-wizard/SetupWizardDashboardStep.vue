@@ -70,7 +70,7 @@ const links = [
 <style scoped>
 .sw-dashboard-step__lead {
   margin: 0 0 14px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.62);
 }
@@ -81,7 +81,7 @@ const links = [
   gap: 8px;
   margin-bottom: 16px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
 }
@@ -113,7 +113,7 @@ const links = [
   gap: 12px;
   min-height: 56px;
   padding: 12px 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
@@ -132,14 +132,14 @@ const links = [
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(var(--hos-color-accent-rgb), 0.14);
   color: var(--hos-color-info-text);
 }
 
 .sw-dashboard-step__title {
   display: block;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
 }
@@ -148,7 +148,7 @@ const links = [
   display: block;
   margin-top: 2px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   line-height: 1.4;
 }
 </style>

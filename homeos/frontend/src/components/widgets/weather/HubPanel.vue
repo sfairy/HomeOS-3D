@@ -11,7 +11,7 @@
     <WidgetHubHeader
       v-if="hubTabs.length"
       v-model="activeTab"
-      accent="var(--premium-accent-cyan)"
+      accent="var(--hos-color-accent-strong)"
       :tabs="hubTabs"
     />
     <div

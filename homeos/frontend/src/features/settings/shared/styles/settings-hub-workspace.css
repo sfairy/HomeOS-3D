@@ -13,7 +13,7 @@
 .link-body .linkage-workspace-block + .linkage-workspace-block {
   margin-top: var(--hos-space-xl, 20px);
   padding-top: var(--hos-space-xl, 20px);
-  border-top: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.1);
+  border-top: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.1);
 }
 
 /* hub-stat 左色条语义（克制，不大面积渐变） */
@@ -27,23 +27,23 @@
 }
 
 [class*='-stat--sky'] {
-  border-left-color: var(--set-info, var(--hos-color-accent)) !important;
+  border-left-color: var(--hos-color-info-text) !important;
 }
 
 [class*='-stat--emerald'] {
-  border-left-color: var(--set-success, var(--hos-color-success)) !important;
+  border-left-color: var(--hos-color-success-text) !important;
 }
 
 [class*='-stat--amber'] {
-  border-left-color: var(--set-warn, var(--hos-color-warning)) !important;
+  border-left-color: var(--hos-color-warning-text) !important;
 }
 
 [class*='-stat--accent'] {
-  border-left-color: rgba(var(--page-accent-rgb), 0.75) !important;
+  border-left-color: rgba(var(--hos-color-accent-rgb), 0.75) !important;
 }
 
 [class*='-stat--secondary'] {
-  border-left-color: rgba(var(--page-accent-secondary-rgb), 0.75) !important;
+  border-left-color: rgba(var(--hos-color-accent-strong-rgb), 0.75) !important;
 }
 
 @media (max-width: 639px) {

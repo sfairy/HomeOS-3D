@@ -47,7 +47,7 @@
               <button
                 type="button"
                 class="hos-modal-link"
-                style="color: var(--hos-text-secondary)"
+                style="color: var(--hos-fg-2)"
                 @click="clearAll"
               >
                 {{ '清空' }}

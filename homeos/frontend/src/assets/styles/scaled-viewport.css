@@ -68,7 +68,7 @@
 .app-shell {
   width: 100%;
   height: 100%;
-  color: var(--text-primary);
+  color: var(--hos-fg-1);
   z-index: 10;
   background: transparent;
   flex-direction: column;

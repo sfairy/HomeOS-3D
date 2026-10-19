@@ -122,9 +122,9 @@ defineProps<{
 <style scoped>
 /* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
 .amb-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .amb-text-muted {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  color: var(--hos-fg-2);
 }
 </style>

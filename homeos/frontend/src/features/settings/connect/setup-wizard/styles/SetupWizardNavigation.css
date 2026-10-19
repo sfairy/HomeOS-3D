@@ -8,7 +8,7 @@
   gap: 12px;
   margin-top: 18px;
   padding: 16px 0 8px;
-  border-top: var(--hos-hairline) solid var(--premium-border);
+  border-top: var(--hos-hairline) solid var(--hos-line-2);
   background: linear-gradient(180deg, rgba(8, 10, 18, 0) 0%, rgba(8, 10, 18, 0.92) 28%);
   pointer-events: auto;
 }
@@ -19,7 +19,7 @@
   text-align: center;
   font-size: var(--set-fs-micro);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .sw-nav__hint--ok {
@@ -35,9 +35,9 @@
   align-items: center;
   gap: 4px;
   /* 高度钉到 lg 档：原先 10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 16px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.58);
@@ -64,9 +64,9 @@
   align-items: center;
   gap: 6px;
   /* 与 .sw-nav__prev 同档，避免上一步/下一步两颗按钮高度不等。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 18px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid var(--sw-emerald-border-strong);
   background: linear-gradient(135deg, var(--sw-emerald-btn-from), var(--sw-emerald-btn-to));
   color: #ecfdf5;

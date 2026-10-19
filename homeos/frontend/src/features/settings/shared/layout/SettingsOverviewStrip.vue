@@ -189,7 +189,7 @@ onMounted(() => {
   min-width: 0;
   min-height: 52px;
   padding: 8px 12px 8px 14px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-left-width: 3px;
   background: rgba(255, 255, 255, 0.04);
@@ -206,12 +206,12 @@ onMounted(() => {
 }
 
 .settings-overview-tile.is-ok {
-  border-left-color: var(--set-success, #34d399);
+  border-left-color: var(--hos-color-success-text);
   background: linear-gradient(165deg, rgba(52, 211, 153, 0.14) 0%, rgba(0, 0, 0, 0.22) 100%);
 }
 
 .settings-overview-tile.is-warn {
-  border-left-color: var(--set-warn, #fbbf24);
+  border-left-color: var(--hos-color-warning-text);
   background: linear-gradient(165deg, rgba(251, 191, 36, 0.14) 0%, rgba(0, 0, 0, 0.22) 100%);
 }
 
@@ -221,7 +221,7 @@ onMounted(() => {
 }
 
 .settings-overview-tile.is-sky {
-  border-left-color: var(--set-info, var(--hos-color-info-text));
+  border-left-color: var(--hos-color-info-text);
   background: linear-gradient(165deg, rgba(56, 189, 248, 0.12) 0%, rgba(0, 0, 0, 0.22) 100%);
 }
 
@@ -241,11 +241,11 @@ onMounted(() => {
 }
 
 .settings-overview-tile.is-ok .settings-overview-tile__val {
-  color: var(--set-success, #6ee7b7);
+  color: var(--hos-color-success-text);
 }
 
 .settings-overview-tile.is-warn .settings-overview-tile__val {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 
 .settings-overview-tile.is-bad .settings-overview-tile__val {
@@ -253,7 +253,7 @@ onMounted(() => {
 }
 
 .settings-overview-tile.is-sky .settings-overview-tile__val {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 
 .settings-overview-tile__copy {
@@ -275,7 +275,7 @@ onMounted(() => {
 }
 
 .settings-overview-tile__cta {
-  font-size: var(--premium-fs-micro, 12px);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: var(--hos-color-info-text);
   opacity: 0.9;
@@ -289,10 +289,10 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--premium-fs-micro, 12px);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   line-height: 1.25;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .settings-overview-recent {
@@ -306,10 +306,10 @@ onMounted(() => {
 
 .settings-overview-recent__label {
   flex-shrink: 0;
-  font-size: var(--premium-fs-micro, 12px);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .settings-overview-recent__chips {
@@ -321,11 +321,11 @@ onMounted(() => {
 
 .settings-overview-recent__chip {
   padding: 5px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.85);
-  font-size: var(--premium-fs-micro, 12px);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   text-decoration: none;
   transition:

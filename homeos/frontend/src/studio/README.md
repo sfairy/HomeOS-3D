@@ -132,7 +132,7 @@ ESLint 对 `app/shared/**` 与 `platform/**` 亦有同等强制。
 
 ## Runtime 多入口
 
-每个 `runtime/**/*.ts` 都是一个 Vite 入口，以 `/api/v1/modules/interaction3d/<rel>.js` 投放。未经同步更新 runtime manifest 与后端白名单，不要重命名这些公网路径 —— 改用兼容再导出（参见 `runtime/editor/` → `runtime/config-ui/`）。
+每个 `runtime/**/*.ts` 都是一个 Vite 入口，以 `/api/v1/modules/interaction3d/<rel>.js` 投放。未经同步更新 runtime manifest 与后端白名单，不要重命名这些公网路径；确需重命名时同步改掉所有调用方，不要留兼容再导出。
 
 ## 设备命名：两套不同的 `light` / `climate` / `cover` / `security` …
 

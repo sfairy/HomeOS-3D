@@ -1,26 +1,26 @@
 @import 'alert-rules.css';
 /* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
 .eew-c-warn-soft {
-  color: var(--set-warn, rgba(var(--hos-color-accent-rgb), 0.9));
+  color: var(--hos-color-warning-text);
 }
 .eew-c-warn {
-  color: var(--set-warn, var(--hos-color-accent));
+  color: var(--hos-color-warning-text);
 }
 .eew-c-warn-deep {
-  color: var(--set-warn-deep, var(--hos-color-warning));
+  color: var(--hos-color-warning-deep);
 }
 
 .eew-ic-amber {
   color: var(--hos-color-warning);
 }
 .eew-ic-warn-deep {
-  color: var(--set-warn-deep, var(--hos-color-warning));
+  color: var(--hos-color-warning-deep);
 }
 .eew-ic-rose {
   color: var(--hos-color-danger);
 }
 .eew-ic-danger {
-  color: var(--set-danger, var(--hos-color-danger));
+  color: var(--hos-color-danger-text);
 }
 
 .eew-orb-amber {
@@ -53,7 +53,7 @@
 }
 
 .alert-eew-workspace--idle {
-  border-color: var(--premium-border-strong) !important;
+  border-color: var(--hos-line-3) !important;
 }
 
 .alert-eew-ready-row {
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: 11px;
   font-weight: 650;
   color: rgba(255, 255, 255, 0.55);
@@ -82,7 +82,7 @@
 .alert-eew-ready-chip__dot {
   width: 6px;
   height: 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.28);
 }
 
@@ -154,7 +154,7 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.32);
   background: rgba(var(--hos-color-accent-rgb), 0.08);
 }
@@ -162,7 +162,7 @@
 .alert-eew-conn-hint {
   margin: 0;
   padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.28);
   background: rgba(var(--hos-color-accent-rgb), 0.08);
   color: rgba(253, 230, 138, 0.95);
@@ -185,8 +185,8 @@
 .alert-eew-conn-source {
   position: relative;
   padding: 12px 14px 12px 16px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(0, 0, 0, 0.18);
   overflow: hidden;
 }
@@ -220,7 +220,7 @@
 .alert-eew-conn-source__dot {
   width: 7px;
   height: 7px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.28);
   flex-shrink: 0;
 }
@@ -241,11 +241,11 @@
 .alert-eew-conn-source__badge {
   flex-shrink: 0;
   padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: rgba(255, 255, 255, 0.06);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
 }
@@ -272,7 +272,7 @@
 
 .alert-eew-conn-source__row dt {
   margin: 0;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   flex-shrink: 0;
 }
 
@@ -315,7 +315,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -330,7 +330,7 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .alert-eew-conn-filters__list {
@@ -362,7 +362,7 @@
 }
 
 .alert-eew-conn-filters__time {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -398,5 +398,5 @@
 .alert-eew-wizard-row__desc {
   margin: 3px 0 0;
   font-size: 12px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }

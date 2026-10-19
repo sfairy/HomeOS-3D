@@ -149,22 +149,22 @@ onUnmounted(() => {
 
 <style scoped>
 .sct-focused-border {
-  border-color: var(--set-info, var(--hos-color-info-text));
+  border-color: var(--hos-color-info-text);
 }
 .sct-focused-ring {
-  --tw-ring-color: rgba(var(--set-info-rgb), 0.6);
+  --tw-ring-color: rgba(var(--hos-color-info-rgb), 0.6);
 }
 .sct-hover-border:hover {
-  border-color: rgba(var(--set-info-rgb), 0.5);
+  border-color: rgba(var(--hos-color-info-rgb), 0.5);
 }
 .sct-text-muted {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  color: var(--hos-fg-2);
 }
 .sct-text-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .sct-live-bg {
-  background: rgba(var(--set-danger-rgb), 0.9);
+  background: rgba(var(--hos-color-danger-rgb), 0.9);
 }
 
 /* 整格选中按钮：透明覆盖层，保持「点整格即选中」的既有行为 */
@@ -179,7 +179,7 @@ onUnmounted(() => {
   -webkit-tap-highlight-color: transparent;
 }
 .sct-select-layer:focus-visible {
-  outline: 2px solid rgba(var(--set-info-rgb), 0.85);
+  outline: 2px solid rgba(var(--hos-color-info-rgb), 0.85);
   outline-offset: -3px;
   border-radius: inherit;
 }

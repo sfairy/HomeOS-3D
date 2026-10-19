@@ -9,16 +9,16 @@
 
 .voice-section__eyebrow {
   margin: 0 0 4px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(var(--module-accent-voice-sub-rgb), 0.75);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.75);
 }
 
 .voice-section__title {
   margin: 0;
-  font-size: var(--premium-fs-body, 14px);
+  font-size: var(--hos-fs-5);
   font-weight: 800;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -32,12 +32,12 @@
 
 .voice-section__badge {
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: rgba(var(--module-accent-voice-sub-rgb), 0.9);
-  background: rgba(var(--module-accent-voice-sub-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.22);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.9);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.22);
 }
 
 .voice-cmd-list {
@@ -48,20 +48,20 @@
 
 .voice-cmd-card {
   padding: 14px;
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   background: linear-gradient(
     160deg,
-    rgba(var(--module-accent-voice-sub-rgb), 0.06) 0%,
+    rgba(var(--hos-color-accent-strong-rgb), 0.06) 0%,
     rgba(0, 0, 0, 0.2) 100%
   );
-  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.16);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.16);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 .voice-cmd-card:hover {
-  border-color: rgba(var(--module-accent-voice-sub-rgb), 0.3);
-  box-shadow: 0 2px 12px rgba(var(--module-accent-voice-sub-rgb), 0.06);
+  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.3);
+  box-shadow: 0 2px 12px rgba(var(--hos-color-accent-strong-rgb), 0.06);
 }
 
 .voice-cmd-card__head {
@@ -79,12 +79,12 @@
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-2);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
-  color: var(--module-accent-voice-sub);
-  background: rgba(var(--module-accent-voice-sub-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.25);
+  color: var(--hos-color-accent-strong);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.25);
 }
 
 .voice-cmd-card__phrase {
@@ -97,11 +97,11 @@
   padding: 4px 8px;
   border-radius: 8px;
   font-family: ui-monospace, monospace;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: rgba(var(--module-accent-voice-sub-rgb), 0.85);
-  background: rgba(var(--module-accent-voice-sub-rgb), 0.08);
-  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.18);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.85);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.18);
 }
 
 .voice-cmd-card__delete {
@@ -111,24 +111,24 @@
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
-  color: rgba(var(--set-danger-rgb), 0.88);
-  background: rgba(var(--set-danger-rgb), 0.08);
-  border: var(--hos-hairline) solid rgba(var(--set-danger-rgb), 0.2);
+  border-radius: var(--hos-r-2);
+  color: rgba(var(--hos-color-danger-rgb), 0.88);
+  background: rgba(var(--hos-color-danger-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
 }
 
 .voice-cmd-card__delete:hover {
-  background: rgba(var(--set-danger-rgb), 0.14);
-  border-color: rgba(var(--set-danger-rgb), 0.32);
+  background: rgba(var(--hos-color-danger-rgb), 0.14);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
 }
 
 .voice-cmd-card__delete:focus-visible {
   outline: none;
-  border-color: rgba(var(--set-danger-rgb), 0.5);
-  box-shadow: 0 0 0 3px rgba(var(--set-danger-rgb), 0.18);
+  border-color: rgba(var(--hos-color-danger-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--hos-color-danger-rgb), 0.18);
 }
 
 .voice-cmd-card__grid {
@@ -140,7 +140,7 @@
 
 
 .voice-cmd-flow-band__shell {
-  --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
-  --flow-glow-b: rgba(var(--module-accent-voice-sub-rgb), var(--flow-glow-alpha-b));
+  --hos-glow-flow-a: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-a));
+  --hos-glow-flow-b: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-b));
 }
 

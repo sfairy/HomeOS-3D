@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="devices"
     icon-key="cpu"
-    accent="var(--module-accent-connection)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="devices-mgmt-hub"
   >
@@ -233,7 +233,7 @@ onMounted(load)
   justify-content: space-between;
   gap: 12px;
   padding: 18px 20px 14px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .devices-mgmt-card__title {
@@ -249,16 +249,16 @@ onMounted(load)
 
 .devices-mgmt-card__name {
   margin: 0;
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   font-weight: 600;
-  color: var(--hos-text-strong);
+  color: var(--hos-fg-1);
 }
 
 .devices-mgmt-card__hint {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.5;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .devices-mgmt-card__actions {
@@ -269,7 +269,7 @@ onMounted(load)
 
 .devices-mgmt-count {
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   white-space: nowrap;
 }
 
@@ -283,7 +283,7 @@ onMounted(load)
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-1);
 }
 
 .devices-mgmt-row:last-child {
@@ -296,11 +296,11 @@ onMounted(load)
 }
 
 .devices-mgmt-row--selectable:hover {
-  background: rgba(var(--module-accent-connection-rgb, 52, 211, 153), 0.06);
+  background: rgba(var(--hos-color-accent-rgb), 0.06);
 }
 
 .devices-mgmt-check {
-  accent-color: var(--module-accent-connection, #34d399);
+  accent-color: var(--hos-color-accent);
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -313,16 +313,16 @@ onMounted(load)
 
 .devices-mgmt-row__title {
   margin: 0;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   font-weight: 500;
-  color: var(--hos-text-body);
+  color: var(--hos-fg-body);
   word-break: break-all;
 }
 
 .devices-mgmt-row__meta {
   margin: 3px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   word-break: break-all;
 }
 
@@ -338,9 +338,9 @@ onMounted(load)
 }
 
 .devices-mgmt-group__label {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: var(--module-accent-connection, #34d399);
+  color: var(--hos-color-accent);
 }
 
 /* .settings-btn--sm 已收敛到 features/settings/shared/styles/settings-forms.css */

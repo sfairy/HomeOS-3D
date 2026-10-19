@@ -28,13 +28,13 @@
   --settings-inset-x: 2rem;
 
   --set-fs-display-sm: 22px;
-  --set-fs-title: var(--premium-fs-title);
+  --set-fs-title: var(--hos-fs-6);
   --set-fs-title-sm: 17px;
-  --set-fs-body: var(--premium-fs-body);
-  --set-fs-body-sm: var(--premium-fs-body-sm);
-  --set-fs-caption: var(--premium-fs-caption);
-  --set-fs-micro: var(--premium-fs-micro);
-  --set-fs-stat: var(--premium-fs-stat);
+  --set-fs-body: var(--hos-fs-5);
+  --set-fs-body-sm: var(--hos-fs-4);
+  --set-fs-caption: var(--hos-fs-3);
+  --set-fs-micro: var(--hos-fs-2);
+  --set-fs-stat: var(--hos-fs-7);
   --set-fs-nav-brand: 20px;
   --set-fs-nav-brand-sub: 12px;
   --set-fs-nav-l1: 16px;
@@ -50,12 +50,12 @@
   /* ── 设置卡片表面（主卡抬升 / 内嵌强调，层次拉开） ── */
   --set-card-accent-glow: radial-gradient(
     ellipse 88% 72% at 0% 0%,
-    rgba(var(--page-accent-rgb), 0.18) 0%,
+    rgba(var(--hos-color-accent-rgb), 0.18) 0%,
     transparent 58%
   );
   --set-card-accent-glow-soft: radial-gradient(
     ellipse 70% 55% at 100% 0%,
-    rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.08) 0%,
+    rgba(var(--hos-color-accent-strong-rgb), 0.08) 0%,
     transparent 52%
   );
   --set-card-surface-bg:
@@ -66,15 +66,15 @@
     var(--set-card-accent-glow),
     var(--set-card-accent-glow-soft),
     linear-gradient(168deg, rgba(255, 255, 255, 0.09) 0%, rgba(10, 12, 20, 0.58) 48%, rgba(5, 7, 14, 0.84) 100%);
-  --set-card-surface-border: rgba(var(--page-accent-rgb), 0.24);
-  --set-card-surface-border-hover: rgba(var(--page-accent-rgb), 0.34);
-  --set-card-surface-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
+  --set-card-surface-border: rgba(var(--hos-color-accent-rgb), 0.24);
+  --set-card-surface-border-hover: rgba(var(--hos-color-accent-rgb), 0.34);
   --set-card-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.09);
 
-  --set-mini-surface-bg: rgba(var(--page-accent-rgb), 0.1);
-  --set-mini-surface-bg-hover: rgba(var(--page-accent-rgb), 0.15);
-  --set-mini-surface-border: rgba(var(--page-accent-rgb), 0.2);
-  --set-mini-surface-border-hover: rgba(var(--page-accent-rgb), 0.3);
+  --set-mini-surface-bg: rgba(var(--hos-color-accent-rgb), 0.1);
+  --set-mini-surface-bg-hover: rgba(var(--hos-color-accent-rgb), 0.15);
+  --set-mini-surface-border: rgba(var(--hos-color-accent-rgb), 0.2);
+  --set-mini-surface-border-hover: rgba(var(--hos-color-accent-rgb), 0.3);
+  --hos-shadow-2: 0 14px 44px rgba(0, 0, 0, 0.28);
 }
 
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
@@ -83,45 +83,25 @@
   }
 }
 
-/* Hub 页 · 同步 --page-accent-rgb（卡片 accent 渐变依赖此变量） */
+/* Hub 页 · 同步 --hos-color-accent-rgb（卡片 accent 渐变依赖此变量） */
 .settings-page.general-hub,
 .settings-page.family-hub,
 .settings-page.profiles-hub,
 .settings-page.diagnostics-hub,
 .settings-page.access-hub,
-.settings-page.exec-history-page {
-  --page-accent-rgb: var(--module-accent-admin-rgb);
-}
 
 .settings-page.alert-hub,
-.settings-page.setup-wizard-hub {
-  --page-accent-rgb: var(--module-accent-automation-rgb);
-  --page-accent-secondary-rgb: var(--module-accent-automation-sub-rgb);
-}
 
-.settings-page.agent-hub {
-  --page-accent-rgb: var(--module-accent-agent-rgb);
-  --page-accent-secondary: var(--module-accent-agent-sub);
-  --page-accent-secondary-rgb: var(--module-accent-agent-sub-rgb);
-}
 
 .settings-page.env-health-hub,
 .settings-page.life-accounts-hub,
-.settings-page.smart-charge-hub {
-  --page-accent-rgb: var(--module-accent-energy-rgb);
-  --page-accent-secondary: var(--module-accent-energy-sub);
-  --page-accent-secondary-rgb: var(--module-accent-energy-sub-rgb);
-}
 
 .settings-page.favorites-hub {
-  --page-accent-rgb: var(--module-accent-energy-sub-rgb);
-  --page-accent-secondary: var(--module-accent-energy);
-  --page-accent-secondary-rgb: var(--module-accent-energy-rgb);
+  --hos-color-accent-rgb: var(--hos-color-accent-strong-rgb);
+  --hos-color-accent-strong: var(--hos-color-accent);
+  --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);
 }
 
-.settings-page.connection-hub {
-  --page-accent-rgb: var(--module-accent-connection-rgb);
-}
 
 .smart-charge-hub__body {
   display: flex;
@@ -131,23 +111,14 @@
 
 .settings-page.widgets-hub,
 .settings-page.assets-hub-page,
-.settings-page.floating-hub {
-  --page-accent-rgb: var(--module-accent-layout-rgb);
-}
 
 .settings-page.orchestrator-hub,
 .settings-page.sm-panel {
-  --page-accent-rgb: var(--module-accent-automation-rgb);
-  --page-accent-secondary: var(--module-accent-bindings);
-  --page-accent-secondary-rgb: var(--module-accent-bindings-rgb);
+  --hos-color-accent-strong: var(--hos-color-accent);
+  --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);
 }
 
 .settings-page.rooms-hub,
-.settings-page.bindings-hub {
-  --page-accent-rgb: var(--module-accent-bindings-rgb);
-  --page-accent-secondary: var(--module-accent-bindings-sub);
-  --page-accent-secondary-rgb: var(--module-accent-bindings-sub-rgb);
-}
 
 /* ══ 大屏 / 4K 适配 ══
  * 桌面端未开启整页等比缩放时，4K(3840×2160) 下 12-15px 字号会显得过小。

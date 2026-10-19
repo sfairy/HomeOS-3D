@@ -4,23 +4,13 @@
  */
 :root {
   /* 玻璃态背景：真实值定义在 hos-design-system.css（--hos-surface-*），此处仅作别名引用 */
-  --premium-glass-bg: var(--hos-surface-1);
-  --premium-glass-bg-hover: var(--hos-surface-2);
-  --premium-glass-bg-open: rgba(255, 255, 255, 0.06);
   /** Dashboard 右侧/左侧信息面板：半透明毛玻璃，兼顾可读性与通透感 */
   --dashboard-sidebar-bg: linear-gradient(
     180deg,
     rgba(18, 20, 30, 0.82) 0%,
     rgba(10, 12, 20, 0.88) 100%
   );
-  --dashboard-sidebar-border: rgba(255, 255, 255, 0.09);
   /* 边框与阴影：规范源 hos-design-system.css（--hos-border-* / --hos-shadow-panel），此处仅作别名引用 */
-  --premium-border: var(--hos-border-subtle);
-  --premium-border-strong: var(--hos-border-strong);
-  --premium-border-open: var(--hos-color-accent-line);
-  --premium-blur: var(--hos-blur-2);
-  --premium-shadow: var(--hos-shadow-3);
-  --premium-shadow-open: var(--hos-shadow-accent);
 
   /* 强调色 / 模块色只由 canonical 与 legacy 别名层提供，这里不再保留旧色值。 */
 
@@ -28,159 +18,65 @@
   --set-accent: var(--hos-color-accent);
   --set-accent-rgb: var(--hos-color-accent-rgb);
   --set-accent-text: var(--hos-color-accent-strong);
-  --set-info: var(--hos-color-info);
-  --set-info-bg: var(--hos-color-info-soft);
-  --set-info-border: var(--hos-color-info-line);
-  --set-success: var(--hos-color-success);
-  --set-success-bg: var(--hos-color-success-soft);
-  --set-success-border: var(--hos-color-success-line);
-  --set-warn: var(--hos-color-warning);
-  --set-warn-bg: var(--hos-color-warning-soft);
-  --set-warn-border: var(--hos-color-warning-line);
   --set-warning: var(--hos-color-warning);
-  --set-danger: var(--hos-color-danger);
-  --set-danger-bg: var(--hos-color-danger-soft);
-  --set-danger-border: var(--hos-color-danger-line);
-  --set-border: var(--hos-border-subtle);
-  --set-border-strong: var(--hos-border-strong);
-  --set-surface: var(--hos-surface-2);
-  --set-surface-strong: var(--hos-surface-3);
-  --set-fg: var(--hos-text-primary);
-  --set-muted: var(--hos-text-secondary);
+  --set-surface: var(--hos-bg-tint-2);
+  --set-surface-strong: var(--hos-bg-tint-3);
+  --set-fg: var(--hos-fg-1);
+  --set-muted: var(--hos-fg-2);
 
   /* 旧 premium 强调别名 → canonical，避免组件回退到蓝紫 */
-  --premium-accent-violet: var(--hos-color-accent);
-  --premium-accent-cyan: var(--hos-color-info);
 
   /* ── 模块强调别名：全部收敛到暖铜 / 语义色，模块差异由图标与文案承担 ── */
-  --module-accent-admin: var(--hos-color-accent);
-  --module-accent-admin-rgb: var(--hos-color-accent-rgb);
-  --module-accent-admin-sub: var(--hos-color-info);
-  --module-accent-admin-sub-rgb: var(--hos-color-info-rgb);
-  --module-accent-admin-sub-bg: var(--hos-color-info-soft);
-  --module-accent-admin-sub-border: var(--hos-color-info-line);
-  --module-accent-agent: var(--hos-color-info);
-  --module-accent-agent-rgb: var(--hos-color-info-rgb);
-  --module-accent-agent-sub: var(--hos-color-accent);
-  --module-accent-agent-sub-rgb: var(--hos-color-accent-rgb);
-  --module-accent-automation: var(--hos-color-accent);
-  --module-accent-automation-rgb: var(--hos-color-accent-rgb);
-  --module-accent-automation-sub: var(--hos-color-info);
-  --module-accent-automation-sub-rgb: var(--hos-color-info-rgb);
-  --module-accent-automation-sub-border: var(--hos-color-info-line);
-  --module-accent-bindings: var(--hos-color-accent);
-  --module-accent-bindings-rgb: var(--hos-color-accent-rgb);
-  --module-accent-bindings-sub: var(--hos-color-accent-strong);
-  --module-accent-bindings-sub-rgb: var(--hos-color-accent-strong-rgb);
-  --module-accent-connection: var(--hos-color-info);
-  --module-accent-connection-rgb: var(--hos-color-info-rgb);
-  --module-accent-connection-sub: var(--hos-color-accent);
-  --module-accent-connection-sub-rgb: var(--hos-color-accent-rgb);
-  --module-accent-devices: var(--hos-color-accent);
-  --module-accent-devices-rgb: var(--hos-color-accent-rgb);
-  --module-accent-devices-sub: var(--hos-color-info);
-  --module-accent-devices-sub-rgb: var(--hos-color-info-rgb);
-  --module-accent-energy: var(--hos-color-accent);
-  --module-accent-energy-rgb: var(--hos-color-accent-rgb);
-  --module-accent-energy-sub: var(--hos-color-warning);
-  --module-accent-energy-sub-rgb: var(--hos-color-warning-rgb);
-  --module-accent-events: var(--hos-color-info);
-  --module-accent-events-rgb: var(--hos-color-info-rgb);
-  --module-accent-events-sub: var(--hos-color-accent);
-  --module-accent-events-sub-rgb: var(--hos-color-accent-rgb);
-  --module-accent-home-mode: var(--hos-color-accent);
-  --module-accent-home-mode-rgb: var(--hos-color-accent-rgb);
-  --module-accent-home-mode-sub: var(--hos-color-warning);
-  --module-accent-home-mode-sub-rgb: var(--hos-color-warning-rgb);
-  --module-accent-layout: var(--hos-color-accent);
-  --module-accent-layout-rgb: var(--hos-color-accent-rgb);
-  --module-accent-layout-sub: var(--hos-color-info);
-  --module-accent-layout-sub-rgb: var(--hos-color-info-rgb);
-  --module-accent-life: var(--hos-color-accent);
-  --module-accent-life-rgb: var(--hos-color-accent-rgb);
-  --module-accent-scenes-rgb: var(--hos-color-accent-rgb);
-  --module-accent-security: var(--hos-color-danger);
-  --module-accent-security-rgb: var(--hos-color-danger-rgb);
-  --module-accent-security-sub: var(--hos-color-warning);
-  --module-accent-security-sub-rgb: var(--hos-color-warning-rgb);
-  --module-accent-template: var(--hos-color-accent);
-  --module-accent-template-rgb: var(--hos-color-accent-rgb);
-  --module-accent-voice: var(--hos-color-info);
-  --module-accent-voice-rgb: var(--hos-color-info-rgb);
-  --module-accent-voice-sub: var(--hos-color-accent);
-  --module-accent-voice-sub-rgb: var(--hos-color-accent-rgb);
 
   /* 圆角：规范源 hos-design-system.css（--hos-radius-*），此处仅作别名引用 */
-  --acc-radius: var(--hos-radius-card);
   --acc-gap: 6px;
 
-  --premium-fs-display: 26px;
-  --premium-fs-title: 18px;
-  --premium-fs-body: 15px;
-  --premium-fs-body-sm: 14px;
-  --premium-fs-caption: 13px;
-  --premium-fs-micro: 12px;
-  --premium-fs-stat: 22px;
   /** Widget / 侧栏面板：原 10–12px 硬编码统一抬升 */
-  --premium-fs-widget-title: 13px;
-  --premium-fs-widget-label: 12px;
-  --premium-fs-widget-meta: 12px;
 
   /* 表单控件统一尺寸（HosSelect / SearchableSelect / EntityInput 等）。
      高度是一**族尺度**而非单个值：实测同一屏曾出现 12+ 种控件高度、且成簇只差 1–2px
      （35/36、40/41、44/45），根因就是各控件绕开令牌硬编码。四档语义：
      xs=紧凑图标钮 / chip；sm=侧栏项 / 次级钮；md=标准表单控件；lg=主按钮 / 触控主目标。
      新控件一律引用这里，不要再写裸高度。 */
-  --control-height-xs: 28px;
-  --control-height-sm: 32px;
-  --control-height-md: 36px;
-  --control-height-lg: 44px;
-  --control-padding-y: 8px;
-  --control-padding-inline-compact: 6px;
   /** 触控目标下限（WCAG / iOS HIG）：coarse 指针下控件至少 44px */
-  --touch-target-min: 44px;
 
   /* 模块色不再逐模块定义：canonical 别名层统一映射到暖铜/语义色。 */
 
   /* ── 文字色（全局共享；规范源 hos-design-system.css 的 --hos-text-*，此处仅作别名引用） ── */
-  --set-text-primary: var(--hos-text-primary);
-  --set-text-heading: var(--hos-text-primary);
-  --set-text-secondary: var(--hos-text-secondary);
-  --set-text-tertiary: var(--hos-text-tertiary);
-  --set-text-label: var(--hos-text-label);
-  --set-text-faint: var(--hos-text-faint);
 
   /* ── 玻璃态背景（全局共享；真实值在 hos-design-system.css 的 --hos-surface-*，此处仅作别名引用） ── */
-  --set-glass-bg: var(--hos-surface-2);
-  --set-glass-bg-hover: var(--hos-surface-3);
-  --set-glass-bg-subtle: var(--hos-surface-1);
 
   /* 边框 / 语义色 / 页面主色派生均由 canonical 别名层统一提供。 */
-  --set-transition-fast: var(--hos-dur-fast) var(--hos-ease-standard);
-  --set-transition-normal: var(--hos-dur-base) var(--hos-ease-standard);
+  --hos-color-info-text: var(--hos-color-info);
+  --hos-color-success-text: var(--hos-color-success);
+  --hos-color-warning-text: var(--hos-color-warning);
+  --hos-color-danger-text: var(--hos-color-danger);
+  --hos-line-3: var(--hos-line-2);
+  --hos-color-accent-deep: var(--hos-color-accent);
+  --hos-color-accent-strong: var(--hos-color-accent);
+  --hos-color-accent-strong-rgb: var(--hos-color-accent-rgb);
+  --hos-color-accent: var(--hos-color-info);
+  --hos-color-accent-rgb: var(--hos-color-info-rgb);
 }
 
 /**
- * 页面主色派生族必须在「覆盖主色的同一作用域」重新声明。
+ * 页面主色的派生色必须在「覆盖主色的同一作用域」重新声明。
  *
- * CSS 自定义属性的 var() 在**声明元素**处就完成替换：本文件 :root 里的
- * --page-accent-bg / -bg-strong / -border / -glow / -text 会被冻结成默认色
- * （emerald / var(--hos-color-info)），再原样继承给整棵子树。页面若只覆盖
- * --page-accent / --page-accent-rgb（这是各 Hub 与 View 的通用写法），
- * 则主色已是模块色、派生面色却仍停在默认色 —— 表现为
- * 「同一张卡片描边/光晕是模块色，内嵌 orb 底色与 CTA 文字却是绿/蓝」，
- * 而点击选中后走的是主色本身，所以又显示正常。
+ * CSS 自定义属性的 var() 在**声明元素**处就完成替换：design-tokens.css 里 :root 的
+ * --hos-color-accent-soft / -soft-strong / -line / --hos-glow-accent-soft 会被冻结成默认色，
+ * 再原样继承给整棵子树。页面若只覆盖 --hos-color-accent / --hos-color-accent-rgb
+ * （各 Hub 与 View 的通用写法），则主色已是页面色、派生面色却仍停在默认暖铜 ——
+ * 表现为「描边/光晕是页面色，内嵌底色与 CTA 文字却是暖铜」。
  *
- * 这里用 :where() 保持零特异性：任何页面显式声明过的派生 token
- * （如告警中心 EEW 琥珀橙）依然优先，本规则只负责在缺少显式声明时
- * 按页面主色重新求值。
+ * 这里用 :where() 保持零特异性：页面显式声明过的派生 token（如告警中心的琥珀橙）
+ * 依然优先，本规则只负责在缺少显式声明时按页面主色重新求值。
  */
 :where(.settings-page, .list-page, .notification-drawer) {
-  --page-accent-bg: rgba(var(--page-accent-rgb), 0.12);
-  --page-accent-bg-strong: rgba(var(--page-accent-rgb), 0.18);
-  --page-accent-border: rgba(var(--page-accent-rgb), 0.22);
-  --page-accent-glow: rgba(var(--page-accent-rgb), 0.16);
-  --page-accent-text: rgb(var(--page-accent-rgb));
+  --hos-color-accent-soft: rgba(var(--hos-color-accent-rgb), 0.12);
+  --hos-color-accent-soft-strong: rgba(var(--hos-color-accent-rgb), 0.18);
+  --hos-color-accent-line: rgba(var(--hos-color-accent-rgb), 0.22);
+  --hos-glow-accent-soft: rgba(var(--hos-color-accent-rgb), 0.16);
+  --hos-color-accent: rgb(var(--hos-color-accent-rgb));
 }
 
 /**
@@ -190,29 +86,29 @@
  */
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   :where(.settings-page, .list-page, .notification-drawer) {
-    --page-accent-glow: transparent;
+    --hos-glow-accent-soft: transparent;
   }
 }
 
 /** 毛玻璃 backdrop 双行合一（避免各 CSS 重复写 -webkit- 前缀） */
 .premium-backdrop {
-  backdrop-filter: var(--premium-blur);
-  -webkit-backdrop-filter: var(--premium-blur);
+  backdrop-filter: var(--hos-blur-2);
+  -webkit-backdrop-filter: var(--hos-blur-2);
 }
 
 /** 玻璃面板基础面（border + 默认背景 + 阴影；圆角/padding 由场景 modifier 覆盖） */
 .premium-glass-surface {
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: var(--hos-surface-panel, var(--premium-glass-bg));
-  box-shadow: var(--premium-shadow), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  background: var(--hos-panel-surface);
+  box-shadow: var(--hos-shadow-3), var(--hos-shadow-inset);
 }
 
 .premium-glass-surface--elevated {
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background:
     radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.06) 0%, transparent 55%),
-    var(--hos-surface-panel, var(--premium-glass-bg));
-  box-shadow: var(--premium-shadow), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+    var(--hos-panel-surface);
+  box-shadow: var(--hos-shadow-3), var(--hos-shadow-inset);
 }
 
 /**
@@ -227,26 +123,25 @@
 .premium-glass-surface--panel,
 .list-page__panel,
 .page-shell {
-  border: var(--hos-hairline) solid var(--premium-border);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background:
     var(--page-card-tint-soft),
-    var(--hos-surface-panel);
-  box-shadow: var(--premium-shadow), var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+    var(--hos-panel-surface);
+  box-shadow: var(--hos-shadow-3), var(--hos-shadow-inset);
 }
 
 .premium-glass-surface--elevated,
 .premium-glass-surface--panel,
 .list-page__panel,
 .page-shell {
-  backdrop-filter: var(--premium-blur);
-  -webkit-backdrop-filter: var(--premium-blur);
+  backdrop-filter: var(--hos-blur-2);
+  -webkit-backdrop-filter: var(--hos-blur-2);
 }
 
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
   :root {
     /* coarse 下抬高控件高度 token，HosSelect / SearchableSelect / EntityInput 等自动受益 */
-    --control-height-md: var(--touch-target-min, 44px);
-    --control-padding-y: 10px;
+    --hos-control-h-md: var(--hos-touch-min);
   }
 
   .premium-glass-surface--elevated,

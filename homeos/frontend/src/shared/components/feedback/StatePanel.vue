@@ -131,8 +131,7 @@ onBeforeUnmount(() => clearTimeout(slowTimer))
 </template>
 
 <style scoped>
-/* 全部用 canonical 令牌（packages/shared/src/styles/design-tokens.css），
-   旧页面里的 --premium-* / --page-accent 由 legacy-token-bridge.css 重指到同一批值。 */
+/* 全部用 canonical 令牌（packages/shared/src/styles/design-tokens.css）。 */
 .state-panel {
   display: flex;
   flex-direction: column;

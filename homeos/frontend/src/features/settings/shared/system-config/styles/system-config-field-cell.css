@@ -5,8 +5,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--set-border-subtle, rgba(255, 255, 255, 0.05));
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   background:
     radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.02) 0%, transparent 65%),
     rgba(255, 255, 255, 0.01);
@@ -27,12 +27,12 @@
 .params-cell-type {
   flex-shrink: 0;
   padding: 2px 7px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: rgba(255, 255, 255, 0.05);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
 }
@@ -55,12 +55,12 @@
 }
 
 .params-cell--row .params-cell-label {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .params-cell--row .params-cell-hint {
   margin-top: 2px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -100,7 +100,7 @@
 
 .params-cell-label {
   display: block;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
   line-height: 1.35;
@@ -108,21 +108,21 @@
 
 .params-cell-key {
   margin-top: 3px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-family: ui-monospace, monospace;
-  color: var(--set-text-faint);
+  color: var(--hos-fg-3);
 }
 
 .params-cell-hint {
   margin-top: 4px;
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-2);
   line-height: 1.45;
 }
 
 .params-cell-hint--compact {
   margin-top: 2px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -163,7 +163,7 @@
 }
 
 .params-cell--compact .params-cell-label {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .params-cell--compact .params-cell-control--bool {
@@ -190,13 +190,13 @@
 
 .params-cell-input {
   /* 高度钉到 md 档：9px 内边距 + 行高 + 发丝边框凑出 40px，落在两档之间。 */
-  height: var(--control-height-md);
+  height: var(--hos-control-h-md);
   width: 100%;
   background: rgba(0, 0, 0, 0.32);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  border-radius: var(--hos-r-2);
   padding: 0 12px;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   color: #fff;
   outline: none;
   transition:
@@ -206,7 +206,7 @@
 }
 
 .params-cell-input::placeholder {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .params-cell-input:hover {
@@ -230,7 +230,7 @@
   margin-bottom: 4px;
   padding: 2px 8px;
   border-radius: 6px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.55);
@@ -245,9 +245,9 @@
 .params-cell-entity-wrap .ems-trigger {
   min-height: 40px;
   padding: 9px 6px 9px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.32);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   color: #fff;
 }
 

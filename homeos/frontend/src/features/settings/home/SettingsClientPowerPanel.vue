@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="smart-charge"
     icon-key="plug-zap"
-    accent="var(--module-accent-energy)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="smart-charge-hub"
     body-class="smart-charge-hub__body"

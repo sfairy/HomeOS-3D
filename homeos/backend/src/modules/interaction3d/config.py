@@ -2,7 +2,7 @@
 
 分区校验实现见 ``config_sections_*.py``，上下文与共享原语见 ``config_ctx.py``。
 """
-from .config_ctx import ValidationContext, validate_appliance_extras  # noqa: F401 - 兼容原公开面
+from .config_ctx import ValidationContext
 from .config_sections_appearance import validate_appearance_sections
 from .config_sections_core import validate_core_sections
 from .config_sections_devices import validate_devices_section

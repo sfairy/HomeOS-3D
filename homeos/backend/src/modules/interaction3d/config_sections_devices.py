@@ -250,13 +250,7 @@ def validate_devices_section(ctx: ValidationContext, properties: dict) -> None:
         'vacuums',
         *GENERIC_DEVICE_COLLECTIONS,
     }
-    # 旧版 / 未来版本留下的「空分类」不承载任何数据（如早期导出的 ``freezers: []``）。
-    # 直接按未知键拒绝会让这类历史草稿永久无法保存，所以只拦有内容的不认识分类。
-    unknown_collections = {
-        collection
-        for collection in set(devices) - known_collections
-        if devices[collection]
-    }
+    unknown_collections = set(devices) - known_collections
     if unknown_collections:
         ctx.fail('3D 设备配置包含未知分类：' + '、'.join(sorted(unknown_collections)) + '。')
     for profile in DEVICE_PROFILES.values():

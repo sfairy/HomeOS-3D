@@ -6,7 +6,7 @@
     :active-tab="activeTab"
     tab="layout"
     icon-key="layout"
-    accent="var(--module-accent-layout)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="layout-hub"
     body-class="layout-hub__body"
@@ -50,8 +50,5 @@ watch(
 <style>
 /* ── Layout 面板主题色 RGB 派生：violet 主色 + cyan 子色 ── */
 .layout-hub {
-  --page-accent-rgb: var(--module-accent-layout-rgb);
-  --page-accent-secondary: var(--module-accent-layout-sub);
-  --page-accent-secondary-rgb: var(--module-accent-layout-sub-rgb);
 }
 </style>

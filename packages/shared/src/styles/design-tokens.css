@@ -6,13 +6,13 @@
  *
  * 层级（加载顺序即层叠顺序）：
  *   1) design-tokens.css      ← 本文件：canonical 值（--hos-* / --hos-color-*）
- *   2) 各 app 既有样式表        ← 旧令牌（--accent / --page-accent / --module-accent-* /
- *                                --premium-accent-* / --hb-* …）仍按老值声明
- *   3) legacy-token-bridge.css ← 兼容层：把旧令牌重新指向本文件的 canonical 值，
- *                                并把旧文件里被「var() 冻结」的派生别名重新求值
- *   4) touch-a11y.css          ← 触控/无障碍兜底层
- * 因此入口必须：本文件最先、bridge 最后。新代码只用 --hos-* / --hos-color-*，
- * 不要再写裸 hex；旧令牌只会随页面迁移逐个删除。
+ *   2) 各 app 样式表           ← 只允许引用本文件的 token，不再声明旧别名
+ *   3) touch-a11y.css         ← 触控/无障碍兜底层
+ * 因此入口必须：本文件最先、touch-a11y 最后。只写 --hos-* / --hos-color-*，
+ * 不要再写裸 hex。
+ *
+ * 注意：CSS 自定义属性里的 var() 在**声明元素**处求值，派生色如需随页面主色变化，
+ * 必须在覆盖主色的同一作用域重新声明（见 app-premium-tokens.css 的 :where 块）。
  *
  * 配色口径：深墨底 + 暖铜。暖铜取商店/场景既有那枚暖金（#ffc46a），
  * 这样主应用与商店、与 design/scene 的 --hos-accent 是同一枚金色，不会同屏双金。
@@ -108,6 +108,15 @@
     var(--hos-color-accent)
   );
   --hos-color-accent-glow: 0 10px 26px -14px rgba(var(--hos-color-accent-rgb), 0.8);
+  /* 光晕底色四档：微弱/弱/中/强。触控与窄屏靠覆盖这几档关闭彩色外发光。 */
+  --hos-glow-accent-faint: rgba(var(--hos-color-accent-rgb), 0.1);
+  --hos-glow-accent-soft: rgba(var(--hos-color-accent-rgb), 0.16);
+  --hos-glow-accent: rgba(var(--hos-color-accent-rgb), 0.32);
+  --hos-glow-accent-strong: rgba(var(--hos-color-accent-rgb), 0.4);
+  --hos-glow-flow-a: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-a));
+  --hos-glow-flow-b: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-b));
+  /* 面板进出的标准过渡组合 */
+  --hos-transition-panel: var(--hos-dur-slow) var(--hos-ease-out);
 
   /* ══ 5. 语义色（状态唯一口径；不要再写 #fb7185 / #34d399 之类） ══ */
   --hos-color-info: #59d3c0;
@@ -126,6 +135,7 @@
   --hos-color-warning-rgb: 255, 176, 32;
   --hos-color-warning-soft: rgba(var(--hos-color-warning-rgb), 0.13);
   --hos-color-warning-line: rgba(var(--hos-color-warning-rgb), 0.32);
+  --hos-color-warning-deep: rgba(var(--hos-color-warning-rgb), 0.08);
   --hos-color-warning-text: #ffd07a;
 
   --hos-color-danger: #ff5a5f;
@@ -202,6 +212,9 @@
   --hos-shadow-3: 0 10px 36px rgba(0, 0, 0, 0.42);
   --hos-shadow-4: 0 24px 64px rgba(0, 0, 0, 0.52);
   --hos-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --hos-surface-well-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 2px 8px rgba(0, 0, 0, 0.32);
   --hos-shadow-accent: 0 0 0 1px var(--hos-color-accent-line),
     0 12px 32px -16px rgba(var(--hos-color-accent-rgb), 0.6);
 

@@ -4,7 +4,7 @@
   min-height: 112px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -38,13 +38,13 @@
 
 /* 焦点环内收，避免被卡片圆角裁掉 */
 .agi-item__main:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.75);
   outline-offset: -2px;
   border-radius: 8px;
 }
 
 .agi-item:hover {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   border-color: rgba(var(--hos-color-accent-rgb), 0.25);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -93,7 +93,7 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 6px;
-  border: 1px solid var(--premium-border);
+  border: 1px solid var(--hos-line-2);
   background-color: rgba(12, 12, 20, 0.55);
   background-image:
     linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
@@ -127,13 +127,13 @@
 .agi-preview__fallback {
   width: 28px;
   height: 28px;
-  color: var(--hos-text-faint);
+  color: var(--hos-fg-3);
 }
 
 /* ── Name ── */
 .agi-name {
   flex-shrink: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.25;
   color: rgba(255, 255, 255, 0.55);
   text-align: center;
@@ -200,7 +200,7 @@
 .agi-pick-hint {
   position: absolute;
   inset: 0;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid transparent;
   pointer-events: none;
   transition: border-color 0.2s;

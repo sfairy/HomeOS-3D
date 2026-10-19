@@ -3,12 +3,9 @@
  */
 
 .security-hub.list-page {
-  --security-hub-accent: var(--module-accent-security);
-  --security-hub-accent-sub: var(--module-accent-security-sub);
-  --security-hub-accent-rgb: var(--module-accent-security-rgb);
-  --page-accent: var(--security-hub-accent);
-  --page-accent-secondary: var(--security-hub-accent-sub);
-  --page-accent-rgb: var(--security-hub-accent-rgb);
+  --security-hub-accent: var(--hos-color-accent);
+  --security-hub-accent-sub: var(--hos-color-accent-strong);
+  --security-hub-accent-rgb: var(--hos-color-accent-rgb);
   --security-surface:
     linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 42%, rgba(0, 0, 0, 0.32) 100%);
   --security-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -23,10 +20,13 @@
   height: 100%;
   background:
     radial-gradient(ellipse 90% 58% at 6% -10%, rgba(var(--security-hub-accent-rgb), 0.14) 0%, transparent 58%),
-    radial-gradient(ellipse 55% 42% at 98% 8%, rgba(var(--module-accent-security-sub-rgb), 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse 55% 42% at 98% 8%, rgba(var(--hos-color-accent-strong-rgb), 0.07) 0%, transparent 50%),
     radial-gradient(ellipse 70% 48% at 88% 108%, rgba(var(--security-hub-accent-rgb), 0.06) 0%, transparent 52%),
     linear-gradient(180deg, #0c1018 0%, #080b12 48%, #07090f 100%);
-  color: var(--set-text-primary, rgba(255, 255, 255, 0.92));
+  color: var(--hos-fg-1);
+  --hos-color-accent: var(--security-hub-accent);
+  --hos-color-accent-strong: var(--security-hub-accent-sub);
+  --hos-color-accent-rgb: var(--security-hub-accent-rgb);
 }
 
 .security-hub :focus-visible {
@@ -34,26 +34,26 @@
   outline-offset: 2px;
 }
 
-/* .security-hub--overview / --monitor / --events 不再重复声明 --page-accent-*：
+/* .security-hub--overview / --monitor / --events 不再重复声明 主色派生色：
    修饰类与 .security-hub.list-page 同元素，声明已被祖先规则覆盖（accent 二次覆盖清理）。 */
 
 /* ── Hero + 面板内胶囊 Tab ── */
 .security-hub > .list-page__hero.premium-head--card,
 .security-hub > .list-page__hero {
   flex-shrink: 0;
-  border-radius: var(--hos-radius-panel);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--security-hub-accent) 26%, var(--premium-border));
+  border-radius: var(--hos-r-3);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--security-hub-accent) 26%, var(--hos-line-2));
   background:
     radial-gradient(ellipse 110% 90% at 0% 0%, rgba(var(--security-hub-accent-rgb), 0.16) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 60% at 100% 0%, rgba(var(--module-accent-security-sub-rgb), 0.08) 0%, transparent 48%),
+    radial-gradient(ellipse 70% 60% at 100% 0%, rgba(var(--hos-color-accent-strong-rgb), 0.08) 0%, transparent 48%),
     var(--security-surface);
   box-shadow:
-    var(--premium-shadow),
+    var(--hos-shadow-3),
     var(--security-surface-inset);
 }
 
 .security-hub .premium-head__title {
-  font-size: var(--premium-fs-title);
+  font-size: var(--hos-fs-6);
   letter-spacing: -0.02em;
   font-weight: 780;
 }
@@ -63,8 +63,8 @@
 }
 
 .security-hub .lp-metrics__item {
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   background: rgba(0, 0, 0, 0.26);
   padding: 8px 12px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -87,7 +87,7 @@
 }
 
 .security-hub .lp-metrics__label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -126,13 +126,13 @@
   overflow: hidden;
   padding: 0;
   gap: 0;
-  border-radius: var(--hos-radius-panel);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--security-hub-accent) 18%, var(--premium-border));
+  border-radius: var(--hos-r-3);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--security-hub-accent) 18%, var(--hos-line-2));
   background:
     radial-gradient(ellipse 110% 80% at 100% 0%, rgba(var(--security-hub-accent-rgb), 0.08) 0%, transparent 55%),
     var(--security-surface);
   box-shadow:
-    var(--premium-shadow),
+    var(--hos-shadow-3),
     var(--security-surface-inset);
 }
 
@@ -249,52 +249,52 @@
 }
 
 .sec-validate-msg--ok {
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
 }
 .sec-validate-msg--warn {
-  color: var(--set-warn);
+  color: var(--hos-color-warning-text);
 }
 
 .sec-calendar-title {
-  color: var(--page-accent-text);
+  color: var(--hos-color-accent);
 }
 
 .sec-cal-day--selected {
-  background: rgba(var(--page-accent-rgb), 0.2);
-  color: var(--page-accent-text);
-  box-shadow: inset 0 0 0 1px rgba(var(--page-accent-rgb), 0.5);
+  background: rgba(var(--hos-color-accent-rgb), 0.2);
+  color: var(--hos-color-accent);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-color-accent-rgb), 0.5);
 }
 .sec-cal-day--today {
-  color: var(--page-accent-text);
+  color: var(--hos-color-accent);
 }
 .sec-cal-today-dot {
-  background: var(--set-success);
+  background: var(--hos-color-success-text);
 }
 
 .sec-refresh-icon--loading {
-  color: var(--page-accent-text);
+  color: var(--hos-color-accent);
 }
 
 .sec-event-item--selected {
-  background: rgba(var(--page-accent-rgb), 0.1);
-  border-color: rgba(var(--page-accent-rgb), 0.2);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.2);
 }
 .sec-event-dot--selected {
-  background: var(--page-accent);
+  background: var(--hos-color-accent);
   box-shadow:
-    0 0 0 4px rgba(var(--page-accent-rgb), 0.2),
-    0 0 10px var(--page-accent-glow);
+    0 0 0 4px rgba(var(--hos-color-accent-rgb), 0.2),
+    0 0 10px var(--hos-glow-accent-soft);
 }
 .sec-event-time--selected {
-  color: var(--page-accent-text);
+  color: var(--hos-color-accent);
 }
 .sec-event-bar--selected {
-  background: var(--page-accent);
+  background: var(--hos-color-accent);
 }
 
 .sec-thumb--selected {
-  border-color: var(--page-accent);
-  box-shadow: 0 0 0 1px rgba(var(--page-accent-rgb), 0.35);
+  border-color: var(--hos-color-accent);
+  box-shadow: 0 0 0 1px rgba(var(--hos-color-accent-rgb), 0.35);
 }
 /* 扫描线叠加层不再在本文件重复定义：唯一消费者是 features/security/MonitorPanel.vue，
    规范定义保留在它自己的 features/security/styles/MonitorPanel.css 里。
@@ -320,14 +320,14 @@
   background: rgba(255, 255, 255, 0.03);
 }
 .border-border-main {
-  border-color: var(--premium-border);
+  border-color: var(--hos-line-2);
 }
 
 .sec-text-muted {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  color: var(--hos-fg-2);
 }
 .sec-text-bright {
-  color: var(--set-text-primary, rgba(255, 255, 255, 0.92));
+  color: var(--hos-fg-1);
 }
 .sec-dot-default {
   background: rgba(255, 255, 255, 0.08);
@@ -338,16 +338,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .sec-events-empty__label {
   margin: 0;
-  font-size: var(--premium-fs-caption, 12px);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   letter-spacing: 0.06em;
   text-align: center;
 }
@@ -382,12 +382,12 @@
 }
 
 .security-events-calendar {
-  border-radius: var(--hos-radius-shell, 24px);
+  border-radius: var(--hos-r-4);
 }
 
 .sec-events-empty,
 .sz-empty {
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
 }

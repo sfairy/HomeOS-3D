@@ -1,5 +1,5 @@
 .ht-text-danger {
-  color: var(--set-danger, #fda4af);
+  color: var(--hos-color-danger-text);
 }
 
 .hm-trigger-card--disabled {
@@ -30,7 +30,7 @@
 .hm-trigger-card__enable-switch {
   width: var(--hos-switch-w-xs);
   height: var(--hos-switch-h-xs);
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(255, 255, 255, 0.1);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
   position: relative;
@@ -50,13 +50,13 @@
 }
 
 .hm-trigger-card__enable-input:checked + .hm-trigger-card__enable-switch {
-  background: var(--page-accent-bg, rgba(99, 102, 241, 0.25));
-  border-color: var(--page-accent-border, rgba(99, 102, 241, 0.4));
+  background: var(--hos-color-accent-soft);
+  border-color: var(--hos-color-accent-line);
 }
 
 .hm-trigger-card__enable-input:checked + .hm-trigger-card__enable-switch::before {
   left: calc(var(--hos-switch-thumb-inset) + var(--hos-switch-travel-xs));
-  background: var(--page-accent-text, var(--hos-color-accent));
+  background: var(--hos-color-accent);
   box-shadow: none;
 }
 

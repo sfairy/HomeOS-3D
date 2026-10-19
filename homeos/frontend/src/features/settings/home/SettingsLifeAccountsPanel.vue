@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="life-accounts"
     icon-key="zap"
-    accent="var(--module-accent-energy)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="life-accounts-hub"
     body-class="life-accounts-hub__body"

@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="embeds"
     icon-key="globe"
-    accent="var(--module-accent-layout)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="embeds-hub"
     header-compact

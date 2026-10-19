@@ -1,36 +1,36 @@
 /* 设备面板图标/颜色共用样式 */
 
 /* —— device-analytics-dashboard —— */
-.dad-ic-sky { color: var(--set-info, var(--hos-color-info-text)); }
-.dad-ic-cyan { color: var(--premium-accent-cyan, var(--hos-color-info)); }
-.dad-ic-purple { color: var(--premium-accent-violet, var(--hos-color-accent-strong)); }
-.dad-ic-amber { color: var(--set-warn, #fcd34d); }
-.dad-ic-danger { color: var(--set-danger, #fda4af); }
-.dad-ic-success { color: var(--set-success, #6ee7b7); }
+.dad-ic-sky { color: var(--hos-color-info-text); }
+.dad-ic-cyan { color: var(--hos-color-accent-strong); }
+.dad-ic-purple { color: var(--hos-color-accent-deep); }
+.dad-ic-amber { color: var(--hos-color-warning-text); }
+.dad-ic-danger { color: var(--hos-color-danger-text); }
+.dad-ic-success { color: var(--hos-color-success-text); }
 
 /* —— DeviceUsageStats —— */
 .dus-icon-violet {
-  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  color: var(--hos-color-accent-deep);
 }
 .dus-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 
 /* —— DeviceOverviewPanel —— */
 .dov-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .dov-icon-violet {
-  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  color: var(--hos-color-accent-deep);
 }
 .dov-icon-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 
 /* —— DeviceStateHistoryPanel —— */
 .dsh-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .dsh-icon-violet {
-  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  color: var(--hos-color-accent-deep);
 }

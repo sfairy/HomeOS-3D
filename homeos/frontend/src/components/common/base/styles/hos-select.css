@@ -43,14 +43,14 @@
   box-sizing: border-box;
   /* 用 height 而非 min-height 钉高：min-height 只托底，拦不住内容（行高+内边距+发丝边框）
      把控件顶高约 3–5px。 */
-  height: var(--control-height-md);
+  height: var(--hos-control-h-md);
   min-width: 0;
   padding: 0 6px 0 10px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.85);
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 500;
   font-family: inherit;
   text-align: left;
@@ -70,7 +70,7 @@
 
 .hos-select__trigger:hover:not(:disabled) {
   border-color: var(--hos-dd-accent-mid);
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
 }
 
 .hos-select__trigger--open {
@@ -79,7 +79,7 @@
 }
 
 .hos-select__trigger--empty .hos-select__value {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .hos-select__trigger--unsupported {
@@ -112,7 +112,7 @@
   display: block;
   margin-left: auto;
   flex-shrink: 0;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   transition: transform 0.2s ease, color 0.2s ease;
 }
 
@@ -132,10 +132,10 @@
 }
 
 .hos-select--xs .hos-select__trigger {
-  height: var(--control-height-xs);
+  height: var(--hos-control-h-xs);
   padding: 0 6px 0 8px;
   border-radius: 6px;
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
 }
 
 .hos-select--sm.hos-select--block {
@@ -143,10 +143,10 @@
 }
 
 .hos-select--sm .hos-select__trigger {
-  height: var(--control-height-sm);
+  height: var(--hos-control-h-sm);
   padding: 0 6px 0 8px;
   border-radius: 6px;
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
 }
 
 .hos-select--md.hos-select--block {
@@ -201,28 +201,28 @@
 }
 
 .hos-select--orchestrator .hos-select__trigger {
-  height: var(--control-height-md);
-  border-radius: var(--hos-radius-control);
-  border-color: var(--premium-border-strong);
+  height: var(--hos-control-h-md);
+  border-radius: var(--hos-r-1);
+  border-color: var(--hos-line-3);
   background: rgba(255, 255, 255, 0.045);
-  font-size: var(--premium-fs-body-sm);
+  font-size: var(--hos-fs-4);
   color: rgba(255, 255, 255, 0.88);
   padding: 0 6px 0 10px;
 }
 
 .hos-select--orchestrator .hos-select__trigger--empty .hos-select__value {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .hos-select--orchestrator.hos-select--xs .hos-select__trigger {
-  height: var(--control-height-lg);
-  font-size: var(--premium-fs-caption);
+  height: var(--hos-control-h-lg);
+  font-size: var(--hos-fs-3);
   padding: 0 8px;
   border-radius: 6px;
 }
 
 .hos-select--orchestrator.hos-select--sm .hos-select__trigger {
-  height: var(--control-height-md);
+  height: var(--hos-control-h-md);
 }
 
 .hos-select--orchestrator .hos-select__trigger:hover:not(:disabled),
@@ -236,10 +236,10 @@
 .hos-select--settings .hos-select__trigger {
   /* 原先用 calc(行高 + 内边距 + 边框) 凑高 = 40.75px（渲染 41px），不在尺度上，
      正是计划里「40/41 成簇」的另一半。改为钉住 lg 档，与并排的 input.settings-field 保持同高。 */
-  height: var(--control-height-lg);
+  height: var(--hos-control-h-lg);
   padding: 0 10px 0 12px;
-  border-radius: var(--acc-radius, 10px);
-  border-color: var(--premium-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--hos-r-2);
+  border-color: var(--hos-line-2);
   background: rgba(0, 0, 0, 0.3);
   color: #fff;
   font-size: var(--set-fs-input, 15px);
@@ -247,22 +247,22 @@
 }
 
 .hos-select--settings .hos-select__trigger:hover:not(:disabled) {
-  border-color: var(--premium-border-strong, rgba(255, 255, 255, 0.18));
-  background: var(--premium-glass-bg-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--hos-line-3);
+  background: var(--hos-bg-tint-2);
 }
 
 .hos-select--settings .hos-select__trigger--open {
-  border-color: var(--premium-border-open, rgba(var(--hos-color-accent-rgb), 0.55));
-  background: var(--premium-glass-bg-open, rgba(255, 255, 255, 0.07));
+  border-color: var(--hos-color-accent-line);
+  background: rgba(255, 255, 255, 0.06);
   box-shadow: 0 0 0 3px rgba(var(--hos-color-accent-rgb), 0.12);
 }
 
 /* 变体：widget（ws-select） */
 .hos-select--widget .hos-select__trigger {
   border-radius: 8px;
-  height: var(--control-height-xs);
+  height: var(--hos-control-h-xs);
   padding: 0 6px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -270,8 +270,8 @@
 .hos-select--home-mode .hos-select__trigger {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
-  border-color: var(--premium-border-strong);
-  font-size: var(--premium-fs-caption);
+  border-color: var(--hos-line-3);
+  font-size: var(--hos-fs-3);
 }
 
 .hos-select--home-mode .hos-select__trigger:hover:not(:disabled),
@@ -282,8 +282,8 @@
 /* 变体：inline（带本地 input 类的面板） */
 .hos-select--inline .hos-select__trigger {
   border-radius: 8px;
-  height: var(--control-height-sm);
-  font-size: var(--premium-fs-caption);
+  height: var(--hos-control-h-sm);
+  font-size: var(--hos-fs-3);
 }
 
 /* 下拉面板 */
@@ -312,7 +312,7 @@
 .hos-select__search-icon {
   width: 14px;
   height: 14px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   flex-shrink: 0;
 }
 
@@ -326,13 +326,13 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   color: white;
   font-family: inherit;
 }
 
 .hos-select__search::placeholder {
-  color: var(--hos-text-faint);
+  color: var(--hos-fg-3);
 }
 
 .hos-select__list {
@@ -341,16 +341,16 @@
   overflow-y: auto;
   padding: 4px 0;
   scrollbar-width: thin;
-  scrollbar-color: var(--premium-border-strong) transparent;
+  scrollbar-color: var(--hos-line-3) transparent;
 }
 
 .hos-select__group-label {
   padding: 8px 12px 4px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   user-select: none;
   pointer-events: none;
 }
@@ -425,9 +425,9 @@
 }
 
 .hos-select__item-hint {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-family: ui-monospace, monospace;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -450,7 +450,7 @@
 .hos-select__empty {
   padding: 12px;
   text-align: center;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: var(--hos-dd-empty-color);
 }
 

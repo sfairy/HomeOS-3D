@@ -38,7 +38,7 @@
   content: '';
   z-index: 10;
   background: var(--popup-pointer-bg, rgba(20, 20, 28, 0.95));
-  border: var(--hos-hairline) solid var(--popup-pointer-border, var(--premium-border-strong));
+  border: var(--hos-hairline) solid var(--popup-pointer-border, var(--hos-line-3));
   width: 14px;
   height: 14px;
   position: absolute;

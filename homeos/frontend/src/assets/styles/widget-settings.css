@@ -16,7 +16,7 @@
 
 
 .ws-hint-action {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: var(--hos-color-success);
   background: rgba(52, 199, 89, 0.12);
@@ -34,15 +34,15 @@
   margin-bottom: 10px;
 }
 
-.ws-state-path.empty { color: var(--hos-text-secondary); font-style: italic; }
+.ws-state-path.empty { color: var(--hos-fg-2); font-style: italic; }
 
 .ws-btn-add {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: var(--hos-color-info);
   background: rgba(var(--hos-color-accent-rgb), 0.08);
   border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.18);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   padding: 6px 12px;
   cursor: pointer;
 }

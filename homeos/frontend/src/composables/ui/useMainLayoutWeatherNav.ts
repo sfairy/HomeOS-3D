@@ -67,7 +67,7 @@ export function useMainLayoutWeatherNav(options: {
       snowy: {
         brand: 'rgba(255,255,255,0.22)',
         glow: 'rgba(255,255,255,0.15)',
-        tint: 'var(--premium-border-strong)',
+        tint: 'var(--hos-line-3)',
       },
       lightning: {
         brand: 'rgba(168,85,247,0.24)',

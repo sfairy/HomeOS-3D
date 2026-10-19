@@ -1,15 +1,15 @@
 /* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
 .ldp-c-muted {
-  color: var(--set-text-faint);
+  color: var(--hos-fg-3);
 }
 .ldp-c-faint {
-  color: var(--set-text-faint, rgba(255, 255, 255, 0.3));
+  color: var(--hos-fg-3);
 }
 .ldp-c-text {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.65));
+  color: var(--hos-fg-2);
 }
 .ldp-c-indigo {
-  color: var(--premium-accent-violet, var(--hos-color-accent));
+  color: var(--hos-color-accent-deep);
 }
 
 .ldp-scale-badge {
@@ -18,13 +18,13 @@
 
 .ldp-pos-btn--active {
   background: rgba(147, 51, 234, 0.2);
-  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  color: var(--hos-color-accent-deep);
   border-color: rgba(168, 85, 247, 0.5);
 }
 .ldp-pos-btn--idle {
   background: rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.1);
-  color: var(--set-text-faint, rgba(255, 255, 255, 0.4));
+  color: var(--hos-fg-3);
 }
 
 /* SettingsCard extra-class 与 SettingsCardIntro icon/orb 透传（需 :deep 穿透） */
@@ -33,10 +33,10 @@
   background: rgba(49, 46, 129, 0.2) !important;
 }
 .ldp-ic-on {
-  color: var(--premium-accent-violet, var(--hos-color-accent));
+  color: var(--hos-color-accent-deep);
 }
 .ldp-ic-off {
-  color: var(--set-text-faint);
+  color: var(--hos-fg-3);
 }
 .ldp-orb-on {
   background: rgba(99, 102, 241, 0.2);

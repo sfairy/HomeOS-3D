@@ -1,14 +1,14 @@
 .dan-icon-violet {
-  color: var(--premium-accent-violet, var(--hos-color-accent-strong));
+  color: var(--hos-color-accent-deep);
 }
 .dan-icon-info {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 .dan-icon-warn {
-  color: var(--set-warn, #fcd34d);
+  color: var(--hos-color-warning-text);
 }
 .dan-icon-success {
-  color: var(--set-success, #6ee7b7);
+  color: var(--hos-color-success-text);
 }
 
 .device-analytics-panel {

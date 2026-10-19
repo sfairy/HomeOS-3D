@@ -5,11 +5,11 @@
       v-if="!compact"
       v-model="activeTab"
       title="多媒体"
-      accent="var(--premium-accent-purple)"
+      accent="var(--hos-color-accent-deep)"
       :tabs="mediaTabs"
     >
       <template #icon
-        ><Music class="w-3.5 h-3.5" style="color: var(--premium-accent-purple)"
+        ><Music class="w-3.5 h-3.5" style="color: var(--hos-color-accent-deep)"
       /></template>
     </WidgetHubHeader>
 

@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="license"
     icon-key="key"
-    accent="var(--module-accent-admin)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="license-hub"
   >

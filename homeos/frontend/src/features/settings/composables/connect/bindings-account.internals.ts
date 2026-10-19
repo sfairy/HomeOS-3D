@@ -85,8 +85,8 @@ export function useBindingsAccountSection(
       emoji: index === (src.primaryAccountIndex ?? 0) ? '★' : '○',
       accent:
         index === (src.primaryAccountIndex ?? 0)
-          ? 'var(--module-accent-bindings-sub)'
-          : 'var(--set-neutral)',
+          ? 'var(--hos-color-accent-strong)'
+          : 'var(--hos-fg-2)',
     }))
   })
 
@@ -139,8 +139,8 @@ export function useBindingsAccountSection(
       emoji: index === (src.primaryAccountIndex ?? 0) ? '★' : '○',
       accent:
         index === (src.primaryAccountIndex ?? 0)
-          ? 'var(--module-accent-bindings-sub)'
-          : 'var(--set-neutral)',
+          ? 'var(--hos-color-accent-strong)'
+          : 'var(--hos-fg-2)',
     }))
   })
 

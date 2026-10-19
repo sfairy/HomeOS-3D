@@ -396,7 +396,7 @@ async function send(raw?: string) {
   max-height: min(72vh, 640px);
   display: flex;
   flex-direction: column;
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(16, 19, 27, 0.96);
   box-shadow:
@@ -417,7 +417,7 @@ async function send(raw?: string) {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: color-mix(in srgb, var(--page-accent, #34d399) 80%, #fff);
+  color: color-mix(in srgb, var(--hos-color-accent) 80%, #fff);
 }
 
 .acp-head__text {
@@ -427,7 +427,7 @@ async function send(raw?: string) {
 
 .acp-head__title {
   margin: 0;
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
 }
@@ -439,7 +439,7 @@ async function send(raw?: string) {
   flex-wrap: wrap;
   gap: 6px;
   font-size: 12px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-head__desc {
@@ -453,11 +453,11 @@ async function send(raw?: string) {
   gap: 4px;
   flex-shrink: 0;
   padding: 1px 7px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   font-size: 11px;
   line-height: 16px;
   border: 1px solid currentColor;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-status__dot {
@@ -525,7 +525,7 @@ async function send(raw?: string) {
 .acp-empty__icon {
   width: 22px;
   height: 22px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-empty__title {
@@ -538,7 +538,7 @@ async function send(raw?: string) {
 .acp-empty__desc {
   margin: 0;
   font-size: 12px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-empty__warn {
@@ -556,9 +556,9 @@ async function send(raw?: string) {
 
 .acp-quick__chip {
   padding: 6px 10px;
-  border-radius: var(--hos-radius-pill);
-  border: 1px solid color-mix(in srgb, var(--page-accent, #34d399) 32%, transparent);
-  background: color-mix(in srgb, var(--page-accent, #34d399) 10%, transparent);
+  border-radius: var(--hos-r-pill);
+  border: 1px solid color-mix(in srgb, var(--hos-color-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--hos-color-accent) 10%, transparent);
   color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
   line-height: 16px;
@@ -566,7 +566,7 @@ async function send(raw?: string) {
 }
 
 .acp-quick__chip:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--page-accent, #34d399) 22%, transparent);
+  background: color-mix(in srgb, var(--hos-color-accent) 22%, transparent);
 }
 
 .acp-quick__chip:disabled {
@@ -577,9 +577,9 @@ async function send(raw?: string) {
 .acp-setup {
   margin-top: 10px;
   padding: 7px 12px;
-  border-radius: var(--hos-radius-card);
-  border: 1px solid color-mix(in srgb, var(--page-accent, #34d399) 40%, transparent);
-  background: color-mix(in srgb, var(--page-accent, #34d399) 16%, transparent);
+  border-radius: var(--hos-r-2);
+  border: 1px solid color-mix(in srgb, var(--hos-color-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--hos-color-accent) 16%, transparent);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -602,7 +602,7 @@ async function send(raw?: string) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-bubble--user .acp-bubble__name {
@@ -613,14 +613,14 @@ async function send(raw?: string) {
 .acp-bubble__typing {
   margin: 0;
   padding: 9px 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   font-size: 13px;
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .acp-bubble--user .acp-bubble__text {
-  background: color-mix(in srgb, var(--page-accent, #34d399) 22%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--hos-color-accent) 22%, rgba(255, 255, 255, 0.08));
 }
 
 .acp-bubble__tools {
@@ -628,7 +628,7 @@ async function send(raw?: string) {
   padding: 0;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 /* 安全拦截提示：管家判定操作越权 / 涉险时显式说明，避免用户误以为执行成功 */
@@ -688,7 +688,7 @@ async function send(raw?: string) {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.7);
@@ -706,8 +706,8 @@ async function send(raw?: string) {
 }
 
 .acp-mic--on {
-  border-color: color-mix(in srgb, var(--page-accent, #34d399) 45%, transparent);
-  background: color-mix(in srgb, var(--page-accent, #34d399) 18%, transparent);
+  border-color: color-mix(in srgb, var(--hos-color-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--hos-color-accent) 18%, transparent);
   color: #fff;
 }
 
@@ -732,7 +732,7 @@ async function send(raw?: string) {
   min-width: 0;
   height: 40px;
   padding: 0 12px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.25);
   color: rgba(255, 255, 255, 0.95);
@@ -742,11 +742,11 @@ async function send(raw?: string) {
 }
 
 .acp-input::placeholder {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-input:focus {
-  border-color: color-mix(in srgb, var(--page-accent, #34d399) 45%, transparent);
+  border-color: color-mix(in srgb, var(--hos-color-accent) 45%, transparent);
 }
 
 .acp-send {
@@ -755,8 +755,8 @@ async function send(raw?: string) {
   display: grid;
   place-items: center;
   border: none;
-  border-radius: var(--hos-radius-card);
-  background: var(--page-accent, #34d399);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-color-accent);
   color: #052e16;
   cursor: pointer;
 }
@@ -771,7 +771,7 @@ async function send(raw?: string) {
   gap: 14px;
   padding: 8px 16px 12px;
   font-size: 11px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .acp-foot kbd {

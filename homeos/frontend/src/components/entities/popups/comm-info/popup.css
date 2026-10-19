@@ -23,7 +23,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   color: var(--comm-accent);
   background: var(--comm-accent-soft);
   border: 1px solid color-mix(in srgb, var(--comm-accent) 28%, rgba(0, 0, 0, 0));
@@ -45,7 +45,7 @@
 }
 
 .comm-header__title {
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.02em;
@@ -56,7 +56,7 @@
 
 .comm-header__badge {
   flex-shrink: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.08em;
   padding: 2px 7px;
@@ -67,8 +67,8 @@
 }
 
 .comm-header__sub {
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-3);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -81,11 +81,11 @@
 
 .comm-account-select {
   width: 100%;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  border: 1px solid var(--premium-border-strong);
-  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--hos-line-3);
+  border-radius: var(--hos-r-2);
   padding: 6px 6px 6px 10px;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
@@ -101,9 +101,9 @@
 .comm-balance {
   margin-bottom: 8px;
   padding: 8px 10px 6px;
-  border-radius: var(--hos-radius-card);
-  background: var(--premium-glass-bg);
-  border: 1px solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
+  border: 1px solid var(--hos-line-2);
 }
 
 .comm-balance__row {
@@ -123,9 +123,9 @@
 }
 
 .comm-balance__tag {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   white-space: nowrap;
 }
 
@@ -143,7 +143,7 @@
 }
 
 .comm-balance__amount em {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-style: normal;
   font-weight: 700;
   opacity: 0.72;
@@ -167,7 +167,7 @@
   gap: 3px;
   max-width: 100%;
   padding: 2px 7px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.05);
   line-height: 1.25;
@@ -175,22 +175,22 @@
 
 .comm-balance__chip em {
   font-style: normal;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .comm-balance__chip strong {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
   font-variant-numeric: tabular-nums;
 }
 
 .comm-balance__chip small {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 500;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .comm-balance__chip--warn {
@@ -208,18 +208,18 @@
   margin-top: 6px;
   padding-top: 5px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 /* 套餐用量 */
 .comm-quota__title {
   margin: 0 0 8px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .comm-packages {
@@ -233,9 +233,9 @@
   flex-direction: column;
   align-items: center;
   padding: 8px 5px 7px;
-  border-radius: var(--hos-radius-card);
-  background: var(--premium-glass-bg);
-  border: 1px solid var(--premium-border);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
+  border: 1px solid var(--hos-line-2);
   min-width: 0;
   transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
 }
@@ -264,7 +264,7 @@
 }
 
 .comm-pack__ring-track {
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
 }
 
 .comm-pack__ring-fill {
@@ -311,13 +311,13 @@
   white-space: nowrap;
 }
 
-.comm-pack__remain-val--md { font-size: var(--premium-fs-body-sm); }
-.comm-pack__remain-val--sm { font-size: var(--premium-fs-caption); }
-.comm-pack__remain-val--xs { font-size: var(--premium-fs-micro); letter-spacing: -0.02em; }
+.comm-pack__remain-val--md { font-size: var(--hos-fs-4); }
+.comm-pack__remain-val--sm { font-size: var(--hos-fs-3); }
+.comm-pack__remain-val--xs { font-size: var(--hos-fs-2); letter-spacing: -0.02em; }
 
 .comm-pack__remain-u {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   font-weight: 600;
   line-height: 1;
   flex-shrink: 0;
@@ -341,17 +341,17 @@
 }
 
 .comm-pack__title {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.72);
 }
 
 .comm-pack__rate {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: var(--pack-accent);
   padding: 1px 6px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   background: var(--pack-accent-soft);
 }
 
@@ -368,20 +368,20 @@
 }
 
 .comm-pack__foot-label {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   margin-right: 2px;
 }
 
 .comm-pack__foot-val {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .comm-pack__foot-sep {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   margin: 0 1px;
 }
 
@@ -392,7 +392,7 @@
   border-radius: 6px;
   background: rgba(var(--hos-color-danger-rgb), 0.1);
   border: 1px solid rgba(var(--hos-color-danger-rgb), 0.18);
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   text-align: center;
   color: var(--hos-color-danger-text);
@@ -406,7 +406,7 @@
   border-radius: 6px;
   background: rgba(var(--hos-color-accent-rgb), 0.08);
   border: 1px solid rgba(var(--hos-color-accent-rgb), 0.16);
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   text-align: center;
   color: rgba(186, 230, 253, 0.9);
@@ -420,7 +420,7 @@
 
 .comm-flow-break__title {
   margin: 0 0 6px;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.04em;
@@ -445,7 +445,7 @@
 
 .comm-flow-break__label {
   flex-shrink: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.72);
 }
@@ -457,14 +457,14 @@
   justify-content: flex-end;
   gap: 2px 4px;
   min-width: 0;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .comm-flow-break__vals em {
   font-style: normal;
   margin-left: 4px;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .comm-flow-break__vals strong {
@@ -473,7 +473,7 @@
 }
 
 .comm-flow-break__vals small {
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .comm-flow-break__warn {

@@ -27,9 +27,9 @@
   border-radius: 8px;
   /* 边框/底色走语义 token：浅色主题下 token 会翻成深色描边，
      硬编码的 rgba(255,255,255,…) 在浅色主题里会「白底白边」看不见。 */
-  border: var(--hos-hairline) solid var(--hos-border-strong, rgba(255, 255, 255, 0.16));
-  background: var(--hos-surface-1, rgba(255, 255, 255, 0.04));
-  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  background: var(--hos-bg-tint-1);
+  color: var(--hos-fg-2);
   flex-shrink: 0;
   transition: all 0.2s;
 }
@@ -49,8 +49,8 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   flex-shrink: 0;
 }
 

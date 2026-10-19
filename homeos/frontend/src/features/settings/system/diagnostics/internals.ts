@@ -136,10 +136,10 @@ export function useDiagnosticsPanel() {
   const perf = useDiagnosticsPerf()
 
   const subnavSections = computed(() => [
-    { id: 'overview', label: '系统概览', emoji: '📊', accent: 'var(--module-accent-admin-sub)' },
-    { id: 'runtime', label: '运行日志', emoji: '🖥️', accent: 'var(--module-accent-devices)' },
-    { id: 'jobs', label: '调度作业', emoji: '⏱️', accent: 'var(--module-accent-events)' },
-    { id: 'log', label: '诊断导出', emoji: '📄', accent: 'var(--module-accent-automation)' },
+    { id: 'overview', label: '系统概览', emoji: '📊', accent: 'var(--hos-color-accent-strong)' },
+    { id: 'runtime', label: '运行日志', emoji: '🖥️', accent: 'var(--hos-color-accent)' },
+    { id: 'jobs', label: '调度作业', emoji: '⏱️', accent: 'var(--hos-color-accent)' },
+    { id: 'log', label: '诊断导出', emoji: '📄', accent: 'var(--hos-color-accent)' },
   ])
 
   useSettingsHubRouteSection(section, subnavSections, { tabId: 'diagnostics' })
@@ -151,22 +151,22 @@ export function useDiagnosticsPanel() {
       emoji: '💚',
       accent:
         data.overallStatus.value.tone === 'bad'
-          ? 'var(--set-danger, #f87171)'
+          ? 'var(--hos-color-danger-text, #f87171)'
           : data.overallStatus.value.tone === 'warn'
-            ? 'var(--set-warn, #fbbf24)'
-            : 'var(--module-accent-admin-sub)',
+            ? 'var(--hos-color-warning-text, #fbbf24)'
+            : 'var(--hos-color-accent-strong)',
     },
     {
       id: 'connect',
       label: '连接同步',
       emoji: '🔌',
-      accent: data.haOk.value ? 'var(--module-accent-admin-sub)' : 'var(--set-danger, #f87171)',
+      accent: data.haOk.value ? 'var(--hos-color-accent-strong)' : 'var(--hos-color-danger-text, #f87171)',
     },
     {
       id: 'runtime',
       label: '后端进程',
       emoji: '🗄️',
-      accent: 'var(--module-accent-events)',
+      accent: 'var(--hos-color-accent)',
       count: data.cpuPct.value >= 85 || data.memPct.value >= BACKEND_MEM_WARN_PCT ? '!' : undefined,
       countClass: 'settings-orch-count--alert',
     },
@@ -174,7 +174,7 @@ export function useDiagnosticsPanel() {
       id: 'perf',
       label: '前端性能',
       emoji: '⚡',
-      accent: 'var(--module-accent-devices)',
+      accent: 'var(--hos-color-accent)',
     },
   ])
 

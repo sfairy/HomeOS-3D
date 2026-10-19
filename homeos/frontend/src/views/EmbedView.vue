@@ -1,11 +1,6 @@
 <template>
   <div
     class="embed-page"
-    :style="{
-      '--page-accent': 'var(--module-accent-admin)',
-      '--page-accent-rgb': 'var(--module-accent-admin-rgb)',
-      '--page-accent-secondary': 'var(--module-accent-admin-sub)',
-    }"
   >
     <Transition name="embed-load">
       <div v-if="loading && iframeSrc && !loadError" class="embed-loading">

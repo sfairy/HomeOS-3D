@@ -15,16 +15,16 @@
 .nested-obj-editor__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
 }
 
 .nested-obj-editor__table th {
   text-align: left;
   padding: 8px 10px;
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   background: transparent;
-  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
 }
 
 .nested-obj-editor__table td {
@@ -41,8 +41,8 @@
 .nested-obj-editor__empty {
   padding: 14px 10px !important;
   text-align: center;
-  color: var(--hos-text-secondary);
-  font-size: var(--premium-fs-caption);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-3);
 }
 
 .nested-obj-editor__icon-btn {
@@ -68,8 +68,8 @@
   gap: 6px;
   align-self: flex-start;
   padding: 6px 12px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
   color: rgba(var(--hos-color-info-rgb), 0.95);
   background: rgba(var(--hos-color-info-rgb), 0.1);
@@ -93,7 +93,7 @@
 }
 
 .nested-obj-editor__fixed-label {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -104,7 +104,7 @@
 
 .nested-obj-editor__warn {
   margin: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: rgba(var(--hos-color-warning-rgb), 0.92);
 }
@@ -123,9 +123,9 @@
 
 .nested-obj-editor__toggle {
   align-self: flex-start;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

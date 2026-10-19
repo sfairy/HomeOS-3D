@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: var(--hos-hairline) solid var(--premium-border);
+  border-left: var(--hos-hairline) solid var(--hos-line-2);
   background: rgba(0, 0, 0, 0.16);
 }
 
@@ -19,7 +19,7 @@
 .hm-preset-sidebar__icon {
   width: 30px;
   height: 30px;
-  border-radius: var(--hos-radius-control);
+  border-radius: var(--hos-r-1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -44,7 +44,7 @@
   margin: 3px 0 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.4;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -66,7 +66,7 @@
     /* 限制侧栏高度，避免挤占四个分区编辑区 */
     max-height: min(28vh, 220px);
     border-left: none;
-    border-top: var(--hos-hairline) solid var(--premium-border);
+    border-top: var(--hos-hairline) solid var(--hos-line-2);
   }
 }
 

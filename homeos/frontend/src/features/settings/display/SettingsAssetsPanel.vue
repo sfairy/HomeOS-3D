@@ -7,7 +7,7 @@
     :active-tab="activeTab"
     tab="assets"
     icon-key="image"
-    accent="var(--module-accent-layout)"
+    accent="var(--hos-color-accent)"
     layout="single"
     page-class="assets-hub-page"
     body-class="assets-hub-page__body"
@@ -298,9 +298,6 @@ const assetsFlowSteps = [
 
 <style>
 .assets-hub-page {
-  --page-accent-rgb: var(--module-accent-layout-rgb);
-  --page-accent-secondary: var(--module-accent-layout-sub);
-  --page-accent-secondary-rgb: var(--module-accent-layout-sub-rgb);
 }
 </style>
 <style scoped src="./styles/layout-panels.css"></style>
@@ -323,7 +320,7 @@ const assetsFlowSteps = [
   gap: 12px;
   align-items: stretch;
   padding: 10px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.025);
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.14);
 }
@@ -332,7 +329,7 @@ const assetsFlowSteps = [
   width: 72px;
   min-height: 56px;
   flex-shrink: 0;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -387,11 +384,11 @@ const assetsFlowSteps = [
   width: 100%;
   margin: 0;
   padding: 14px 14px 14px 12px;
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   text-align: left;
   cursor: pointer;
   background: var(--set-card-surface-bg, rgba(255, 255, 255, 0.03));
-  border: var(--hos-hairline) solid var(--set-card-surface-border, var(--set-border-subtle));
+  border: var(--hos-hairline) solid var(--set-card-surface-border, var(--hos-line-2));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition:
     background 0.15s ease,
@@ -405,7 +402,7 @@ const assetsFlowSteps = [
 }
 
 .assets-lib-card:focus-visible {
-  outline: 2px solid var(--page-accent-text);
+  outline: 2px solid var(--hos-color-accent);
   outline-offset: 2px;
 }
 
@@ -419,13 +416,13 @@ const assetsFlowSteps = [
   border-color: rgba(52, 211, 153, 0.2);
 }
 .assets-lib-card--violet {
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 .assets-lib-card__orb {
   width: 42px;
   height: 42px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   display: grid;
   place-items: center;
 }
@@ -438,21 +435,21 @@ const assetsFlowSteps = [
 }
 
 .assets-lib-card__eyebrow {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--set-text-muted, rgba(255, 255, 255, 0.5));
 }
 
 .assets-lib-card__title {
-  font-size: var(--premium-fs-body);
+  font-size: var(--hos-fs-5);
   font-weight: 700;
-  color: var(--set-text-primary, #fff);
+  color: var(--hos-fg-1);
 }
 
 .assets-lib-card__desc {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -463,8 +460,8 @@ const assetsFlowSteps = [
   align-items: center;
   gap: 2px;
   padding: 6px 10px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   border: var(--hos-hairline) solid transparent;
 }

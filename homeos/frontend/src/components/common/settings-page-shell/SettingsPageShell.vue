@@ -9,7 +9,7 @@
       compact && 'settings-page--compact',
       pageClass,
     ]"
-    :style="{ '--page-accent': accent }"
+    :style="{ '--hos-color-accent': accent }"
   >
     <div v-if="ambient" class="settings-page-ambient" aria-hidden="true" />
 

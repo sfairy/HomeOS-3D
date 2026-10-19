@@ -1,25 +1,25 @@
 /** 全屋联动工作区样式（人员判定 / 安防↔家庭模式 / 跨模块联动 三分区） */
 .link-workspace {
   /* 三分区角色色：人员 / 安防 / 跨模块 */
-  --link-presence: var(--set-info);
-  --link-presence-rgb: var(--set-info-rgb);
-  --link-security: rgb(var(--page-accent-rgb));
-  --link-security-rgb: var(--page-accent-rgb);
-  --link-auto: rgb(var(--page-accent-secondary-rgb));
-  --link-auto-rgb: var(--page-accent-secondary-rgb);
+  --link-presence: var(--hos-color-info-text);
+  --link-presence-rgb: var(--hos-color-info-rgb);
+  --link-security: rgb(var(--hos-color-accent-rgb));
+  --link-security-rgb: var(--hos-color-accent-rgb);
+  --link-auto: rgb(var(--hos-color-accent-strong-rgb));
+  --link-auto-rgb: var(--hos-color-accent-strong-rgb);
 
   /* 状态色 */
-  --link-on: var(--set-success);
-  --link-on-rgb: var(--set-success-rgb);
-  --link-warn: var(--set-warn);
-  --link-warn-rgb: var(--set-warn-rgb);
-  --link-danger: var(--set-danger);
-  --link-danger-rgb: var(--set-danger-rgb);
+  --link-on: var(--hos-color-success-text);
+  --link-on-rgb: var(--hos-color-success-rgb);
+  --link-warn: var(--hos-color-warning-text);
+  --link-warn-rgb: var(--hos-color-warning-rgb);
+  --link-danger: var(--hos-color-danger-text);
+  --link-danger-rgb: var(--hos-color-danger-rgb);
 
   /* 中性层 */
-  --link-ink: var(--set-text-primary);
-  --link-ink-soft: var(--set-text-secondary);
-  --link-ink-mute: var(--set-text-tertiary);
+  --link-ink: var(--hos-fg-1);
+  --link-ink-soft: var(--hos-fg-2);
+  --link-ink-mute: var(--hos-fg-3);
   --link-ink-faint: rgba(255, 255, 255, 0.36);
   --link-line: rgba(255, 255, 255, 0.08);
   --link-line-soft: rgba(255, 255, 255, 0.05);
@@ -113,7 +113,7 @@
   gap: 14px;
   margin-bottom: 2px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0%, rgba(0, 0, 0, 0.12) 100%);
@@ -129,15 +129,15 @@
   margin: 0;
   font-size: var(--set-fs-caption, 13px);
   line-height: 1.5;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .linkage-stat--active {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(var(--page-accent-rgb), 0.22);
+    0 0 0 1px rgba(var(--hos-color-accent-rgb), 0.22);
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(var(--page-accent-rgb), 0.1), transparent 70%),
+    radial-gradient(ellipse at 50% 0%, rgba(var(--hos-color-accent-rgb), 0.1), transparent 70%),
     var(--hub-surface, linear-gradient(165deg, rgba(255, 255, 255, 0.038) 0%, rgba(0, 0, 0, 0.2) 100%));
 }
 
@@ -161,7 +161,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 11px 13px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
@@ -185,7 +185,7 @@
 }
 
 .hm-sec-flag__title {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 650;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -193,25 +193,25 @@
 .hm-sec-flag__desc {
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.4;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .linkage-workspace-head__icon--presence {
-  color: var(--set-info, var(--hos-color-info-text));
+  color: var(--hos-color-info-text);
 }
 
 .linkage-workspace-head__orb--presence {
-  background: rgba(var(--page-accent-secondary-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.22);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.22);
 }
 
 .linkage-workspace-head__icon--automation {
-  color: rgba(var(--page-accent-rgb), 0.92);
+  color: rgba(var(--hos-color-accent-rgb), 0.92);
 }
 
 .linkage-workspace-head__orb--automation {
-  background: rgba(var(--page-accent-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.22);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.22);
 }
 
 @media (max-width: 720px) {
@@ -262,21 +262,21 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-caption);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-3);
   font-weight: 600;
-  color: rgba(var(--page-accent-secondary-rgb), 0.92);
-  background: rgba(var(--page-accent-secondary-rgb), 0.08);
+  color: rgba(var(--hos-color-accent-strong-rgb), 0.92);
+  background: rgba(var(--hos-color-accent-strong-rgb), 0.08);
 }
 
 .linkage-presence-status--home {
-  color: rgba(var(--page-accent-rgb), 0.95);
-  background: rgba(var(--page-accent-rgb), 0.1);
+  color: rgba(var(--hos-color-accent-rgb), 0.95);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
 }
 
 .linkage-presence-mode {
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
 }
 
 .linkage-presence-actions {
@@ -313,7 +313,7 @@
   gap: 10px;
   padding: var(--hos-panel-padding-default, 20px);
   font-size: var(--set-fs-caption, 13px);
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
 }
 
 .linkage-preset-grid {
@@ -328,9 +328,9 @@
   flex-direction: column;
   gap: 8px;
   padding: var(--hos-panel-padding-default, 20px);
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.24) 100%);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border: var(--hos-hairline) solid var(--hos-line-3);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
   overflow: hidden;
@@ -374,7 +374,7 @@
     linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.18) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 28px var(--set-warn-bg);
+    0 0 28px var(--hos-color-warning-soft);
 }
 
 .linkage-preset-card--emerald.linkage-preset-card--on {
@@ -400,29 +400,29 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-radius-card);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  color: var(--set-text-secondary);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-2);
+  border: var(--hos-hairline) solid var(--hos-line-3);
+  color: var(--hos-fg-2);
   transition: all 0.25s ease;
 }
 
 .linkage-preset-card--amber .linkage-preset-card__orb--on {
   background: rgba(var(--hos-color-warning-rgb), 0.16);
   border-color: rgba(var(--hos-color-warning-rgb), 0.32);
-  color: var(--set-warn);
+  color: var(--hos-color-warning-text);
 }
 
 .linkage-preset-card--emerald .linkage-preset-card__orb--on {
   background: rgba(var(--hos-color-success-rgb), 0.16);
   border-color: rgba(var(--hos-color-success-rgb), 0.32);
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
 }
 
 .linkage-preset-card--amber .linkage-preset-card__orb:not(.linkage-preset-card__orb--on) {
   color: rgba(253, 224, 171, 0.65);
   background: rgba(var(--hos-color-warning-rgb), 0.06);
-  border-color: var(--set-warn-bg);
+  border-color: var(--hos-color-warning-soft);
 }
 
 .linkage-preset-card--emerald .linkage-preset-card__orb:not(.linkage-preset-card__orb--on) {
@@ -436,13 +436,13 @@
   font-size: var(--set-fs-body-sm, 14px);
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
 }
 
 .linkage-preset-card__desc {
   margin: 0;
   font-size: var(--set-fs-caption, 13px);
-  color: var(--set-text-tertiary);
+  color: var(--hos-fg-3);
   line-height: 1.5;
 }
 
@@ -450,21 +450,21 @@
   align-self: flex-start;
   margin-top: 2px;
   padding: 3px 8px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .linkage-preset-card--amber .linkage-preset-card__badge {
-  color: var(--set-warn);
+  color: var(--hos-color-warning-text);
   background: rgba(var(--hos-color-warning-rgb), 0.14);
   border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.28);
 }
 
 .linkage-preset-card--emerald .linkage-preset-card__badge {
-  color: var(--set-success);
+  color: var(--hos-color-success-text);
   background: rgba(var(--hos-color-success-rgb), 0.14);
   border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.28);
 }
@@ -472,12 +472,12 @@
 .linkage-params {
   margin-top: 20px;
   padding-top: 18px;
-  border-top: var(--hos-hairline) solid var(--premium-border-strong);
+  border-top: var(--hos-hairline) solid var(--hos-line-3);
 }
 
 .linkage-params__label {
   margin: 0 0 10px;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -496,16 +496,16 @@
   gap: 3px;
   padding: 10px 12px;
   padding-right: 28px;
-  border-radius: var(--hos-radius-card);
-  background: var(--set-glass-bg-subtle);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
+  border: var(--hos-hairline) solid var(--hos-line-2);
   text-decoration: none;
   position: relative;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .linkage-param-chip--sky {
-  background: linear-gradient(160deg, rgba(var(--hos-color-accent-rgb), 0.08) 0%, var(--set-bg-dark-hover) 100%);
+  background: linear-gradient(160deg, rgba(var(--hos-color-accent-rgb), 0.08) 0%, rgba(0, 0, 0, 0.38) 100%);
   border-color: rgba(var(--hos-color-accent-rgb), 0.16);
 }
 
@@ -516,10 +516,10 @@
 }
 
 .linkage-param-chip--sky .linkage-param-chip__title { color: #bae6fd; }
-.linkage-param-chip--sky .linkage-param-chip__chev { color: var(--set-info); }
+.linkage-param-chip--sky .linkage-param-chip__chev { color: var(--hos-color-info-text); }
 
 .linkage-param-chip--rose {
-  background: linear-gradient(160deg, rgba(var(--hos-color-danger-rgb), 0.08) 0%, var(--set-bg-dark-hover) 100%);
+  background: linear-gradient(160deg, rgba(var(--hos-color-danger-rgb), 0.08) 0%, rgba(0, 0, 0, 0.38) 100%);
   border-color: rgba(var(--hos-color-danger-rgb), 0.16);
 }
 
@@ -533,7 +533,7 @@
 .linkage-param-chip--rose .linkage-param-chip__chev { color: var(--hos-color-danger); }
 
 .linkage-param-chip--amber {
-  background: linear-gradient(160deg, rgba(var(--hos-color-warning-rgb), 0.08) 0%, var(--set-bg-dark-hover) 100%);
+  background: linear-gradient(160deg, rgba(var(--hos-color-warning-rgb), 0.08) 0%, rgba(0, 0, 0, 0.38) 100%);
   border-color: rgba(var(--hos-color-warning-rgb), 0.16);
 }
 
@@ -547,7 +547,7 @@
 .linkage-param-chip--amber .linkage-param-chip__chev { color: var(--hos-color-warning); }
 
 .linkage-param-chip--emerald {
-  background: linear-gradient(160deg, rgba(var(--hos-color-success-rgb), 0.08) 0%, var(--set-bg-dark-hover) 100%);
+  background: linear-gradient(160deg, rgba(var(--hos-color-success-rgb), 0.08) 0%, rgba(0, 0, 0, 0.38) 100%);
   border-color: rgba(var(--hos-color-success-rgb), 0.16);
 }
 
@@ -563,12 +563,12 @@
 .linkage-param-chip__title {
   font-size: var(--set-fs-caption, 13px);
   font-weight: 600;
-  color: var(--set-text-primary);
+  color: var(--hos-fg-1);
 }
 
 .linkage-param-chip__desc {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-label);
+  font-size: var(--hos-fs-2);
+  color: var(--hos-fg-2);
   line-height: 1.35;
 }
 
@@ -583,14 +583,14 @@
 .linkage-footer-note {
   margin: 18px 0 0;
   padding-top: 14px;
-  border-top: var(--hos-hairline) solid var(--set-border-subtle);
+  border-top: var(--hos-hairline) solid var(--hos-line-2);
   font-size: var(--set-fs-caption, 13px);
-  color: var(--set-text-label);
+  color: var(--hos-fg-2);
   line-height: 1.55;
 }
 
 .linkage-footer-link {
-  color: var(--link-presence, var(--set-info));
+  color: var(--link-presence, var(--hos-color-info-text));
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 0.15s ease;

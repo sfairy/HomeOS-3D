@@ -24,7 +24,7 @@
   backdrop-filter: blur(40px) saturate(200%);
   border: var(--hos-hairline) solid var(--surface-border);
   border-right: none;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,8 +38,8 @@
 
 .panel-collapse-btn:hover {
   color: rgba(255, 255, 255, 0.75);
-  background: rgba(var(--page-accent-rgb), 0.12);
-  border-color: rgba(var(--page-accent-rgb), 0.18);
+  background: rgba(var(--hos-color-accent-rgb), 0.12);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.18);
 }
 
 /** 左停靠：按钮移到面板右侧 */
@@ -68,11 +68,11 @@
 .info-panel {
   width: 100%;
   position: relative;
-  background: var(--dashboard-sidebar-bg);
+  background: var(--hos-sidebar-surface);
   -webkit-backdrop-filter: blur(40px) saturate(170%);
   backdrop-filter: blur(40px) saturate(170%);
-  border-left: var(--hos-hairline) solid var(--dashboard-sidebar-border);
-  border-radius: var(--radius-ipad-2xl) 0 0 var(--radius-ipad-2xl);
+  border-left: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-4) 0 0 var(--hos-r-4);
   margin: 10px 0 10px 0;
   z-index: 5;
   flex-direction: column;
@@ -88,8 +88,8 @@
 /** 左停靠：反转边框和圆角 */
 .info-panel-outer--left .info-panel {
   border-left: none;
-  border-right: var(--hos-hairline) solid var(--dashboard-sidebar-border);
-  border-radius: 0 var(--radius-ipad-2xl) var(--radius-ipad-2xl) 0;
+  border-right: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: 0 var(--hos-r-4) var(--hos-r-4) 0;
   box-shadow: 4px 0 28px rgba(0, 0, 0, 0.22);
 }
 
@@ -103,9 +103,9 @@
   width: var(--hos-hairline);
   background: linear-gradient(
     180deg,
-    rgba(var(--page-accent-rgb), 0.15),
+    rgba(var(--hos-color-accent-rgb), 0.15),
     transparent 35%,
-    rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.08),
+    rgba(var(--hos-color-accent-strong-rgb), 0.08),
     transparent 75%
   );
   pointer-events: none;
@@ -146,19 +146,19 @@
 .info-card {
   background:
     var(--page-card-tint-soft),
-    var(--hos-surface-1);
+    var(--hos-bg-tint-1);
   -webkit-backdrop-filter: blur(30px) saturate(200%);
   backdrop-filter: blur(30px) saturate(200%);
-  border: var(--hos-hairline) solid var(--hos-border-subtle);
-  border-radius: var(--hos-radius-panel, var(--radius-ipad-xl));
+  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-r-3);
   padding: var(--hos-panel-padding-default, 20px);
   position: relative;
   overflow: hidden;
   transition:
-    transform var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    box-shadow var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    border-color var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1));
-  box-shadow: var(--hos-shadow-card, 0 2px 12px rgba(0, 0, 0, 0.22));
+    transform var(--hos-dur-slow) var(--hos-ease-out),
+    box-shadow var(--hos-dur-slow) var(--hos-ease-out),
+    border-color var(--hos-dur-slow) var(--hos-ease-out);
+  box-shadow: var(--hos-shadow-2);
 }
 
 .info-card--widget {
@@ -173,10 +173,10 @@
 
 /** 卡片悬停：背景变亮 + 边框微亮 + 抬升 2px */
 .info-card:hover {
-  background: var(--hos-surface-2, rgba(255, 255, 255, 0.045));
-  border-color: var(--hos-border-strong, var(--premium-border-strong));
+  background: var(--hos-bg-tint-2);
+  border-color: var(--hos-line-3);
   transform: translateY(var(--hos-hover-lift, -1px));
-  box-shadow: var(--hos-shadow-card-hover, 0 6px 20px rgba(0, 0, 0, 0.28));
+  box-shadow: var(--hos-shadow-3);
 }
 
 /** 卡片顶部细线光泽：页面色渐变 */
@@ -190,8 +190,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 40%, white),
-    color-mix(in srgb, var(--page-accent, var(--hos-color-accent)) 20%, white),
+    color-mix(in srgb, var(--hos-color-accent) 40%, white),
+    color-mix(in srgb, var(--hos-color-accent) 20%, white),
     transparent
   );
   z-index: 2;

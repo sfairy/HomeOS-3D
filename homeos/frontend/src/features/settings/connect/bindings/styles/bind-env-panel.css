@@ -7,10 +7,10 @@
 
 .bind-env-workspace-card__tabs {
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 0;
-  border-bottom: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.14);
+  border-bottom: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.14);
   background:
-    radial-gradient(ellipse 85% 120% at 0% 0%, rgba(var(--page-accent-rgb), 0.12) 0%, rgba(0, 0, 0, 0) 58%),
-    radial-gradient(ellipse 55% 80% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.07) 0%, rgba(0, 0, 0, 0) 52%),
+    radial-gradient(ellipse 85% 120% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.12) 0%, rgba(0, 0, 0, 0) 58%),
+    radial-gradient(ellipse 55% 80% at 100% 0%, rgba(var(--hos-color-accent-strong-rgb), 0.07) 0%, rgba(0, 0, 0, 0) 52%),
     rgba(0, 0, 0, 0.12);
   box-shadow: none;
 }
@@ -21,17 +21,17 @@
 
 .bind-env-workspace-card__tabs .settings-orch-shell {
   padding: 8px 10px;
-  border-radius: var(--hos-radius-card, 14px);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.18);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.12);
   box-shadow: none;
 }
 
 .bind-env-workspace-card__tabs .settings-orch-tab--active {
   background:
-    radial-gradient(ellipse 90% 70% at 50% 0%, rgba(var(--page-accent-rgb), 0.18) 0%, rgba(0, 0, 0, 0) 72%),
+    radial-gradient(ellipse 90% 70% at 50% 0%, rgba(var(--hos-color-accent-rgb), 0.18) 0%, rgba(0, 0, 0, 0) 72%),
     rgba(255, 255, 255, 0.05);
-  border-color: rgba(var(--page-accent-rgb), 0.28);
+  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
   box-shadow: none;
 }
 
@@ -48,12 +48,12 @@
 }
 
 .bind-env-head-icon {
-  color: var(--page-accent);
+  color: var(--hos-color-accent);
 }
 
 .bind-env-head-orb {
-  background: rgba(var(--page-accent-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.2);
+  background: rgba(var(--hos-color-accent-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.2);
 }
 
 .bind-env-note {
@@ -66,9 +66,9 @@
 
 .bind-env-room-tabs .settings-orch-shell {
   padding: 8px 10px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(0, 0, 0, 0.16);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.08);
 }
 
 .bind-env-head-desc {
@@ -76,7 +76,7 @@
   margin-top: 4px;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.55;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-weight: 400;
 }
 

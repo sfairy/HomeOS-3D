@@ -1,5 +1,5 @@
 .global-log-open i {
-  background: var(--accent);
+  background: var(--hos-color-accent);
   box-shadow: 0 0 8px #f2a20d59;
 }
 .settings-dialog.global-log-dialog {
@@ -34,7 +34,7 @@
 }
 .global-log-toolbar input:focus,
 .global-log-toolbar select:focus {
-  border-color: var(--accent);
+  border-color: var(--hos-color-accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .global-log-toolbar button {

@@ -2,7 +2,7 @@
 .sun-card {
   background: rgba(255, 255, 255, 0.02);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--hos-radius-panel);
+  border-radius: var(--hos-r-3);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -22,7 +22,7 @@
 .sun-icon-wrap {
   width: 36px;
   height: 36px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 149, 0, 0.1);
   display: flex;
   align-items: center;
@@ -34,14 +34,14 @@
   flex-direction: column;
 }
 .sun-label {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   font-weight: 700;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 .sun-duration {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: rgba(255, 255, 255, 0.55);
 }
 
@@ -71,7 +71,7 @@
 .sun-countdown {
   font-size: 10px;
   font-weight: 600;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -125,13 +125,13 @@
   color: rgba(255, 255, 255, 0.92);
 }
 .sun-time {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   color: rgba(255, 255, 255, 0.72);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .sun-time-label {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: rgba(255, 255, 255, 0.55);
   font-weight: 600;
 }
@@ -162,15 +162,15 @@
 }
 
 .sun-presence-title {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-text-secondary);
+  color: var(--hos-fg-2);
 }
 
 .sun-presence-summary {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: rgba(148, 163, 184, 0.72);
   line-height: 1.35;
@@ -181,7 +181,7 @@
 }
 
 .sun-presence-mode {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   color: rgba(148, 163, 184, 0.55);
   flex-shrink: 0;
   padding-top: 1px;
@@ -189,7 +189,7 @@
 
 .sun-presence-empty {
   margin: 0;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   line-height: 1.45;
   color: rgba(148, 163, 184, 0.5);
   flex-shrink: 0;
@@ -215,7 +215,7 @@
   gap: 6px;
   padding: 4px 8px;
   min-height: 32px;
-  border-radius: var(--hos-radius-card);
+  border-radius: var(--hos-r-2);
   background: rgba(255, 255, 255, 0.025);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
@@ -229,14 +229,14 @@
 .sun-person-avatar {
   width: 24px;
   height: 24px;
-  border-radius: var(--hos-radius-pill);
+  border-radius: var(--hos-r-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 800;
   color: rgba(255, 255, 255, 0.88);
-  background: var(--premium-glass-bg-hover);
+  background: var(--hos-bg-tint-2);
   flex-shrink: 0;
 }
 
@@ -272,7 +272,7 @@
 }
 
 .sun-person-name {
-  font-size: var(--premium-fs-caption);
+  font-size: var(--hos-fs-3);
   color: rgba(255, 255, 255, 0.82);
   font-weight: 600;
   overflow: hidden;
@@ -283,7 +283,7 @@
 }
 
 .sun-person-status {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
   color: rgba(148, 163, 184, 0.72);
   flex-shrink: 0;
@@ -295,7 +295,7 @@
 }
 
 .sun-icon {
-  color: var(--set-warn, var(--hos-color-warning));
+  color: var(--hos-color-warning-text);
 }
 
 /* —— Hub 嵌入（天气中心卡片内，随 280px 总高弹性撑满） —— */
@@ -319,8 +319,8 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
+  border-radius: var(--hos-r-pill);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -339,9 +339,9 @@
 }
 
 .sun-duration--embedded {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 600;
-  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
+  color: var(--hos-fg-2);
 }
 
 .sun-card--embedded .sun-bar {
@@ -359,7 +359,7 @@
 }
 
 .sun-card--embedded .sun-time {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
   font-weight: 700;
 }
 
@@ -429,7 +429,7 @@
 }
 
 .sun-card--embedded .sun-person-name {
-  font-size: var(--premium-fs-micro);
+  font-size: var(--hos-fs-2);
 }
 
 .sun-card--embedded .sun-person-status {
