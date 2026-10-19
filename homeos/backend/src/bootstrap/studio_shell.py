@@ -22,6 +22,7 @@ homeos 侧沿用同一口径，本模块只负责：
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any
@@ -173,6 +174,41 @@ def _is_revalidatable_private_asset(path: str) -> bool:
     )
 
 
+#: 内容寻址产物的长缓存头。``private`` 是因为这些资源受登录门禁保护，
+#: 不允许共享代理缓存；``immutable`` 告诉浏览器连校验都不必发。
+IMMUTABLE_PRIVATE_CACHE = "private, max-age=31536000, immutable"
+
+#: Vite 产物文件名尾部的内容哈希（默认 8 位 base64url），如 ``index-B0RLp9B5.js``。
+#: 必须精确 8 位：``homeos-mark-white-orange.svg`` 这类手工命名也会带长尾巴。
+_HASHED_BUILD_ASSET = re.compile(
+    r"-[A-Za-z0-9_-]{8}\.(?:js|mjs|css|woff2?|ttf|otf|png|jpe?g|webp|avif|svg|gif)$"
+)
+
+#: 交互运行时共享 chunk 目录：``vite.runtime.config.ts`` 的 ``chunkFileNames`` 恒为
+#: ``chunks/<源路径>-<hash>.js``，因此整个目录都是内容寻址的。
+_RUNTIME_CHUNK_PREFIX = INTERACTION_MODULE_PREFIX + "chunks/"
+
+#: ``/static/vendor/<库>/<数字版本>/...``：内容由版本号固定，可安全长缓存。
+_VERSIONED_VENDOR_PATH = re.compile(r"^/static/vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
+
+
+def _is_immutable_asset(path: str) -> bool:
+    """是否内容寻址（URL 变了内容才会变），可以发一年期 immutable 缓存。
+
+    只覆盖真正带哈希 / 版本号的产物：``/static/assets/*-<hash8>.*``、
+    交互运行时 ``chunks/**``、版本化 vendor 目录。稳定 URL（``core/stage.js``、
+    ``/static/3d-studio/models/*.glb``、图标等）仍然回源校验 —— 它们下一秒就可能被
+    重建覆盖，长缓存会拿到过期内容。
+    """
+    if path.startswith(_RUNTIME_CHUNK_PREFIX):
+        return True
+    if _VERSIONED_VENDOR_PATH.match(path):
+        return True
+    if path.startswith("/static/assets/") and _HASHED_BUILD_ASSET.search(path):
+        return True
+    return False
+
+
 def _etag_matches(request: Request, response: Response) -> bool:
     """GET/HEAD 校验器是否命中此可缓存响应。
 
@@ -244,20 +280,20 @@ def _apply_security_headers(request: Request, response: Response) -> None:
 def _apply_cache_headers(request: Request, response: Response) -> None:
     path = request.url.path
     interaction_module = is_interaction_module(path)
-    # 稳定 URL 的静态资源（``/static/**``、``/modules/**``）与交互运行时
-    # （``/api/v1/modules/interaction3d/*.js|.css``）：不再发 ``?v=`` 版本戳，统一
-    # 「私有 no-cache」，靠响应上的 ETag / Last-Modified 回源校验（命中即 304）。
+    # 静态资源按「URL 是否内容寻址」分成两档：
     #
-    # ``/static/assets/**`` 里的哈希产物虽是内容寻址、理论上可长期 immutable，但这里同样
-    # 回源校验：一方面统一口径，另一方面让「缓存中的外壳引用已删除 chunk」得到明确 404，
-    # 而不是从 HTTP 缓存里取到一份陈旧副本。代价是每次多一次 304 往返。
-    #
-    # 不再单列 ``/assets/**``：根级 assets 已并入 ``/static/assets``，``/assets`` 下只剩
-    # ``/assets/builtin/**`` 内置素材路由，缓存头由它自己的 FileResponse 设置。
+    # - 内容寻址（``/static/assets/*-<hash8>.*``、运行时 ``chunks/**``、版本化
+    #   vendor）：URL 变了内容才变，发一年期 ``immutable``。3D 交互图一次启动要拉
+    #   100+ 个运行时 chunk，逐条 304 回源在局域网 / Wi-Fi 上会累积成秒级等待；
+    #   外壳页面本身是 ``no-store``，所以不存在「旧外壳引用新 chunk」的窗口。
+    # - 稳定 URL（``core/stage.js``、模型 / 贴图、图标）：保持 ``private, no-cache``
+    #   + ETag 校验，重建后不会从缓存里拿到过期内容。
     if response.status_code in {200, 304} and (
         path.startswith(("/static/", "/modules/")) or interaction_module
     ):
-        response.headers["Cache-Control"] = "private, no-cache"
+        response.headers["Cache-Control"] = (
+            IMMUTABLE_PRIVATE_CACHE if _is_immutable_asset(path) else "private, no-cache"
+        )
         return
     if (
         is_page_path(path)

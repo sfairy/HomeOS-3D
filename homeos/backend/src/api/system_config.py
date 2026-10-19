@@ -27,7 +27,6 @@ from ..domains.app_config.room_meta import (
     resolve_voice_rooms,
 )
 from ..domains.license import features as feature_codes
-from ..domains.state_store.entity_area import PUBLIC_CONFIG_AREA_WAIT_MS
 from ..platform.core.errors import api_error, bad_request
 from ..platform.core.pagination import parse_page_limit
 from ..platform.core.retention import RETENTION_TABLE_KEYS
@@ -116,22 +115,28 @@ class ImportAppConfigDto(StrictModel):
 # 公开配置（登录前）
 @router.get("/config/public")
 async def get_public_config(request: Request):
-    """获取公开系统配置（HA 区域索引最多等待 2s，避免慢注册表拖慢登录）。"""
+    """获取公开系统配置。
+
+    区域索引预热一律放后台：索引只用于给实体补全 ``area_id``，本响应体里的
+    ``haAreas`` / ``roomMeta`` 直接读本地 ``ha_areas`` 表。旧实现固定等
+    ``PUBLIC_CONFIG_AREA_WAIT_MS``（2s），HA 注册表慢时每个页面（含 3D 交互图）
+    的启动都被硬生生拖 2s，收益为零。
+    """
     enrichment = getattr(request.app.state, "entity_area", None)
     if enrichment is not None:
-        # 用 ``asyncio.wait`` 而不是 ``wait_for``：超时只结束本请求的等待，
-        # 不取消共享的 ``ensure_loaded`` 任务（客户端断开时同理）。
+        # 预热只为后续实体列表少一次注册表往返，绝不能让登录 / 首屏等它：
+        # 注册表慢时每次都会吃满等待上限（实测 2s），而响应体并不依赖这份索引。
         load = asyncio.create_task(enrichment.ensure_loaded())
-        load.add_done_callback(
-            lambda t: t.exception() if not t.cancelled() else None
-        )
-        done, _ = await asyncio.wait(
-            {load}, timeout=PUBLIC_CONFIG_AREA_WAIT_MS / 1000
-        )
-        if done and (exc := load.exception()) is not None:
-            # 区域索引预热失败只影响 HA 区域字段，公开配置**降级返回**（登录路径不能被拖死），
-            # 但必须留痕 —— 否则区域索引长期坏掉也没人知道。
-            logger.warning("HA 区域索引预热失败，公开配置降级返回: %s", exc)
+
+        def _log_warm_failure(task: asyncio.Task[Any]) -> None:
+            if task.cancelled():
+                return
+            exc = task.exception()
+            if exc is not None:
+                # 预热失败只影响后续实体补全（那里另有降级），这里留痕即可。
+                logger.warning("HA 区域索引预热失败: %s", exc)
+
+        load.add_done_callback(_log_warm_failure)
 
     app_config = _app_config(request)
     base = app_config.get_public()
