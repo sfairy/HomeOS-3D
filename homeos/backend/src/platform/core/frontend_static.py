@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
+
 #: 由 ``spa_static._mount_frontend_build_dirs`` 挂载的 vite 构建产物目录。
 #: 哈希 chunk 与 public 静态资源同处 ``/static`` 下（``static/assets/**``），与商店同构。
 STATIC_MOUNT_PREFIX = "/static"
@@ -96,6 +98,29 @@ def is_frontend_static_path(path: str) -> bool:
     return path.startswith(tuple(f"{prefix}/" for prefix in FRONTEND_STATIC_MOUNT_PREFIXES))
 
 
+#: 不属于 SPA 页面、也不在 ``/api/`` 之下的端点前缀（socket.io 由外层 ASGI 组合直接处理，
+#: 永远不该回 HTML；授权门禁对它的约束走 WebSocket 握手检查）。
+NON_SPA_ENDPOINT_PREFIXES = ("/api/", "/socket.io")
+
+
+def is_spa_document_path(path: str) -> bool:
+    """``path`` 是否由 SPA 外壳承载的页面路由（而不是 API / 前端产物 / 其他端点）。
+
+    判据必须与 ``spa_static.py`` 的 catch-all **完全同口径**：不是 ``/api/`` 前缀、
+    不是静态挂载点、后缀不是产物后缀。两边一旦分叉，门禁放行的页面 catch-all 仍会 404，
+    「放行」就变成了另一种报错。
+
+    授权门禁用它把「文档导航」与「数据请求」分开：未激活时页面导航必须下发外壳
+    （否则浏览器会把 JSON 401 的响应体当成网页渲染，用户看到屏幕上「一段代码」），
+    真正的数据访问仍由 ``/api/**`` 与 WebSocket 握手拦住。
+    """
+    if path.startswith(NON_SPA_ENDPOINT_PREFIXES):
+        return False
+    if is_frontend_static_path(path):
+        return False
+    return PurePosixPath(path).suffix.lower() not in FRONTEND_ASSET_SUFFIXES
+
+
 __all__ = [
     "APPLE_TOUCH_ICON_PATHS",
     "ASSETS_MOUNT_PREFIX",
@@ -112,4 +137,5 @@ __all__ = [
     "SOUNDS_MOUNT_PREFIX",
     "STATIC_MOUNT_PREFIX",
     "is_frontend_static_path",
+    "is_spa_document_path",
 ]

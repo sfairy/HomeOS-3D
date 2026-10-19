@@ -892,6 +892,17 @@ async def refresh_runtime_after_restore(app: Any) -> None:
         except Exception:
             logger.warning("还原后重连 Home Assistant 失败", exc_info=True)
 
+    # 授权缓存也必须丢：整库换掉后，进程内还留着还原前的 ``allows()`` 判定结果，
+    # 页面会按旧状态放行（或反过来把刚恢复的授权当成失效），直到 2 秒 TTL 自然过期。
+    # 换机恢复时租约还会被判定为 INSTANCE_CHANGED —— 前端据此把用户送去重新激活。
+    license_service = getattr(app.state, "license_service", None)
+    invalidate_license = getattr(license_service, "invalidate_allow_cache", None)
+    if callable(invalidate_license):
+        try:
+            invalidate_license()
+        except Exception:
+            logger.warning("还原后清理授权判定缓存失败", exc_info=True)
+
 
 async def durable_work(function: Any, *args: Any, **kwargs: Any) -> Any:
     return await asyncio.to_thread(function, *args, **kwargs)

@@ -80,7 +80,9 @@ class LicenseGuardMiddleware:
         service = getattr(request.app.state, "license_service", None)
         if service is not None and self.settings.license_required:
             path = request.url.path
-            if not is_license_exempt_path(path, request.method):
+            if not is_license_exempt_path(
+                path, request.method, request.headers.get("accept", "")
+            ):
                 # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
                 # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。
                 # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。

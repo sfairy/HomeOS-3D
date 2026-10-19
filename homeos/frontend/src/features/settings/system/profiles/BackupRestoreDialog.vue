@@ -28,7 +28,8 @@
       <div class="hos-backup-dialog__guide">
         <p>全量备份（含数据库）：打包整库业务数据（账号、授权、HA 连接与密钥、仪表盘、户型、系统参数）与数据目录（含素材、3D 场景）。</p>
         <p>不含操作日志与历史事件（实体状态变化、通知、安防/地震事件、环境与能耗时序），也不含登录会话与可自动重建的 HA 目录缓存。</p>
-        <p>用于换机、升级与回滚；恢复为整库原样覆盖，会覆盖当前账号与授权，跨机迁移后中控需重新配对。</p>
+        <p>用于换机、升级与回滚；恢复为整库原样覆盖，会覆盖当前账号与授权绑定，跨机迁移后中控需重新配对。</p>
+        <p>授权与本机硬件指纹绑定：恢复完成后登录会话会清空，需要重新登录；换机恢复还会要求在本机重新激活授权。</p>
         <p>备份使用密码加密，密码遗失无法恢复。恢复会自动保留本机回退副本，失败时自动回滚。</p>
       </div>
 
@@ -176,6 +177,10 @@ import {
 } from '@/services/api/backups'
 import { downloadBlob } from '@/shared/utils/core/misc.util'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import {
+  navigateAfterRestore,
+  resolvePostRestoreDestination,
+} from '@/shared/utils/core/post-restore.util'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 
 const props = defineProps({
@@ -379,8 +384,11 @@ async function runRestore() {
       confirm: true,
     })
     ticket.value = ''
-    setMessage('全量数据已恢复，正在重新加载…（如为跨机迁移，请重新配对中控设备）', 'success')
-    window.location.reload()
+    // 恢复后登录会话已被清空、授权租约也已与本机解绑：不能原地 reload（深链接会撞上
+    // 授权门禁的 JSON 401，屏幕上是「一段代码」），直接送去登录 / 激活引导页。
+    const destination = await resolvePostRestoreDestination()
+    setMessage(destination.message, 'success')
+    navigateAfterRestore(destination)
   } catch (error) {
     setMessage(getApiErrorMessage(error, '恢复失败'), 'error')
     busy.value = false

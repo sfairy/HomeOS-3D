@@ -7,6 +7,10 @@ import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { downloadBlob } from '@/shared/utils/core/misc.util'
 import {
+  navigateAfterRestore,
+  resolvePostRestoreDestination,
+} from '@/shared/utils/core/post-restore.util'
+import {
   fetchServerBackupFiles,
   downloadServerBackupFile,
   deleteServerBackupFile,
@@ -186,7 +190,7 @@ function useProfilesServerBackups() {
 
   async function restoreBackupFile(name: string, adminPassword: string) {
     const ok = await chrome.confirm(
-      `确定从「${name}」还原全量备份？将用备份中的数据库、账号、授权与素材整体覆盖当前数据，无法撤销。建议先另存一份当前备份。`,
+      `确定从「${name}」还原全量备份？将用备份中的数据库、账号、授权与素材整体覆盖当前数据，无法撤销。建议先另存一份当前备份。还原后需要重新登录；换机还原还需在本机重新激活授权。`,
       '全量还原',
       { confirmText: '确认还原', type: 'danger' },
     )
@@ -195,9 +199,11 @@ function useProfilesServerBackups() {
     backupFileActionKind.value = 'restore'
     try {
       await restoreServerBackupFile({ name, confirm: true, adminPassword })
-      chrome.notify('全量数据已还原，正在重新加载…', 'success', 5000)
-      // 整库（含账号）已被替换，当前会话可能失效：整页重载回到干净状态
-      window.setTimeout(() => window.location.reload(), 800)
+      // 整库（含会话与授权绑定）已被替换：原地刷新会撞上授权门禁的 JSON 401，
+      // 由 post-restore 统一送去登录 / 激活引导页。
+      const destination = await resolvePostRestoreDestination()
+      chrome.notify(destination.message, 'success', 5000)
+      navigateAfterRestore(destination)
     } catch (e) {
       chrome.notify(getApiErrorMessage(e, '还原失败'), 'error')
       backupFileActionName.value = ''

@@ -35,6 +35,7 @@ from ...platform.core.frontend_static import (
     FRONTEND_STATIC_MOUNT_PREFIXES,
     FRONTEND_STATIC_ROOT_FILES,
     is_frontend_static_path,
+    is_spa_document_path,
 )
 
 #: 授权严格路径豁免（精确匹配）。
@@ -112,13 +113,20 @@ LICENSE_EXEMPT_STATIC_FILES = FRONTEND_STATIC_ROOT_FILES
 LICENSE_EXEMPT_PREFIXES = ("/display/", "/homeos/")
 
 
-def is_license_exempt_path(path: str, method: str = "GET") -> bool:
+def is_license_exempt_path(path: str, method: str = "GET", accept: str = "") -> bool:
     """判断某请求路径是否豁免授权门禁。
 
     - 精确白名单与授权接口白名单（逐条枚举）一律豁免；
     - 静态产物（挂载前缀 + 根路径的 PWA / 图标）仅在 ``GET/HEAD`` 下豁免；
     - ``/display/**``、``/homeos/**`` 展示页豁免（外壳内部再判定）；
+    - **浏览器文档导航**（``GET/HEAD`` 且 ``Accept`` 含 ``text/html`` 的 SPA 页面路由）豁免：
+      未激活时任何页面地址都必须能拿到外壳，由前端就地渲染登录 / 激活页。漏掉这一条，
+      ``/settings``、``/devices`` 这类深链接会拿到 JSON 401，浏览器把它当成网页渲染 ——
+      用户在屏幕看到的是一段代码，而不是「去激活」的引导。
     - 其余路径都要过门禁。
+
+    ``accept`` 只在 HTTP 请求里传：WebSocket 握手（``_guard_websocket``）不传，因此不会被
+    文档导航规则绕过。
     """
     if path in LICENSE_EXEMPT_EXACT or path in LICENSE_EXEMPT_LICENSE_PATHS:
         return True
@@ -126,7 +134,9 @@ def is_license_exempt_path(path: str, method: str = "GET") -> bool:
         return True
     if method not in ("GET", "HEAD"):
         return False
-    return is_frontend_static_path(path)
+    if is_frontend_static_path(path):
+        return True
+    return "text/html" in accept.lower() and is_spa_document_path(path)
 
 
 #: 前端产物后缀：门禁拦下这类路径时的告警判据（见 ``bootstrap/middleware.py``）。
