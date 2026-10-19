@@ -243,12 +243,14 @@ class HomeToolsAreasMixin(HomeToolsHost):
 
         if WHOLE_HOME_QUERY.search(room_query):
             rooms: list[dict[str, Any]] = []
+            snapshot: list[dict[str, Any]] = []
             affected = 0
             total = 0
             for area in areas:
                 result = await self._control_one_area(area, domain, service, service_data, actor)
                 affected += int(result.get("affected") or 0)
                 total += int(result.get("total") or 0)
+                snapshot.extend(result.get("snapshot") or [])
                 if int(result.get("total") or 0) > 0:
                     rooms.append(
                         {
@@ -264,6 +266,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
                 "affected": affected,
                 "total": total,
                 "rooms": rooms,
+                "snapshot": snapshot,
             }
 
         lower = room_query.lower()
@@ -364,6 +367,26 @@ class HomeToolsAreasMixin(HomeToolsHost):
         except Exception as exc:
             return {"entity_id": entity_id, "ok": False, "message": _error_message(exc, "失败")}
 
+    def _snapshot_entities(self, entity_ids: list[str]) -> list[dict[str, Any]]:
+        """批量控制前记录实体状态，供「撤销刚才的操作」反向执行。"""
+        snapshot: list[dict[str, Any]] = []
+        for entity_id in entity_ids:
+            entity = self._state_store.get(entity_id)
+            if not isinstance(entity, dict):
+                continue
+            attributes = entity.get("attributes")
+            attrs = attributes if isinstance(attributes, dict) else {}
+            snapshot.append(
+                {
+                    "entity_id": entity_id,
+                    "domain": get_entity_domain(entity_id),
+                    "state": _s(entity.get("state")),
+                    "brightness": attrs.get("brightness"),
+                    "current_position": attrs.get("current_position"),
+                }
+            )
+        return snapshot
+
     async def _control_one_area(
         self,
         area: Any,
@@ -375,8 +398,9 @@ class HomeToolsAreasMixin(HomeToolsHost):
         """控制单个房间内的设备（按 domain 过滤），逐个下发并收集结果。"""
         entity_ids = await self._resolve_area_entity_ids(area, domain)
         if not entity_ids:
-            return {"room": area.name, "affected": 0, "total": 0, "results": []}
+            return {"room": area.name, "affected": 0, "total": 0, "results": [], "snapshot": []}
 
+        snapshot = self._snapshot_entities(entity_ids)
         scene_voice = (
             await self._scene_voice_gate() if domain in ("scene", "script") else None
         )
@@ -394,6 +418,7 @@ class HomeToolsAreasMixin(HomeToolsHost):
             "affected": ok_count,
             "total": len(entity_ids),
             "results": results,
+            "snapshot": snapshot,
         }
 
     # 布局

@@ -18,8 +18,9 @@ Nest 侧对公开预认证端点用 ``@Throttle({limit, ttl})`` 声明限流；�
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
-from fastapi import Request
+from fastapi import Depends, Request
 
 from homeos_shared.rate_limit import SlidingWindowLimiter, resolve_limiter_key
 
@@ -58,5 +59,36 @@ def rate_limit(limit: int, ttl_seconds: float = 60.0) -> Callable:
         )
         if not limiter.allow(key):
             raise BusinessException(ErrorCode.UNKNOWN, "Too Many Requests", 429)
+
+    return _dependency
+
+
+def rate_limit_authenticated(limit: int, ttl_seconds: float = 60.0) -> Callable:
+    """构造「登录用户 + 客户端 IP」双键限流依赖，并透传鉴权用户。
+
+    为什么不直接用 :func:`rate_limit`：
+    - 只按 IP 计数时，同一 NAT 出口下的多个账号会互相挤占配额；
+    - 只要换出口 IP 就能绕过，对「一句话触发多轮 LLM」的端点保护不足。
+
+    因此 key 取 ``userId``（无则 ``anon``）与客户端 IP 的联合值：单账号换 IP 仍受限，
+    多账号共享出口也互不影响。依赖本身依赖 ``require_user``，路由直接用它替代鉴权依赖。
+    """
+    from .auth_context import require_user
+
+    limiter = _limiter_for(limit, ttl_seconds)
+
+    async def _dependency(
+        request: Request, user: dict[str, Any] = Depends(require_user)
+    ) -> dict[str, Any]:
+        address = resolve_client_address_from_request(request)
+        owner = str(user.get("userId") or user.get("username") or "anon")
+        address_key = resolve_limiter_key(
+            address.ip,
+            per_client=address.per_client,
+            name=f"{request.url.path}:{limit}:{ttl_seconds}",
+        )
+        if not limiter.allow(f"{owner}|{address_key}"):
+            raise BusinessException(ErrorCode.UNKNOWN, "Too Many Requests", 429)
+        return user
 
     return _dependency

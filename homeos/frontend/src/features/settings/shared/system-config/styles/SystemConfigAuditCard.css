@@ -5,13 +5,13 @@
   margin-bottom: 12px;
 }
 .config-audit__title {
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm);
   font-weight: 700;
   color: #fff;
 }
 .config-audit__meta {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
 }
 .config-audit__list {
   max-height: 12rem;
@@ -21,7 +21,7 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   padding: 8px 0;
   border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
@@ -31,26 +31,26 @@
 .config-audit__time {
   flex-shrink: 0;
   font-family: ui-monospace, monospace;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 .config-audit__badge {
   flex-shrink: 0;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--hos-color-info-text);
-  background: rgba(var(--hos-color-accent-rgb), 0.2);
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.2);
 }
 .config-audit__badge--reset {
   color: #fcd34d;
-  background: rgba(var(--hos-color-warning-rgb), 0.2);
+  background: rgba(245, 158, 11, 0.2);
 }
 .config-audit__body {
   min-width: 0;
   color: rgba(255, 255, 255, 0.75);
 }
 .config-audit__section {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }

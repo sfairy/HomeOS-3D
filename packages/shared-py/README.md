@@ -18,7 +18,7 @@ packages/shared-py/
     ├── logging_noise.py   ← 重载提示等例行启动噪音的过滤
     ├── status_log_dedupe.py ← 重复状态日志折叠（按数量级放行并注明折叠条数）
     ├── uvicorn_messages.py ← uvicorn 英文启动文案 → 中文（两侧共用一份规则表）
-    ├── http_access_log.py ← HTTP 访问日志降噪（按状态码丢弃成功请求 + 折叠重复）
+    ├── http_access_log.py ← HTTP/WebSocket 访问日志降噪（丢弃成功请求 + 折叠重复握手/请求）
     ├── file_lock.py
     ├── schema_core.py     ← 按 ORM 元数据建库与库完整性校验
     ├── client_ip.py       ← 可信代理链 → 真实客户端地址（安全判据，两侧共用）

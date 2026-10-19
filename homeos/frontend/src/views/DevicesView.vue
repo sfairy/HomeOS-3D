@@ -5,11 +5,11 @@
   设备行（每行支持选中、跳转详情、打开控制）；分析模式切换到 DeviceAnalyticsDashboard
   多维图表分析面板，底部支持库分页与批量操作栏 DeviceBatchActions。
   注意事项：DeviceRow 行高固定 72px 供 VirtualList 使用；搜索/筛选/分页/批量选择均由
-  useDevicesView 统一管理，避免视图层堆积状态；页面主色跟随 canonical 暖铜。
+  useDevicesView 统一管理，避免视图层堆积状态；--page-accent 为 devices sky 主题。
 -->
 <template>
-  <div class="list-page devices-view">
-    <ListPageHero :title="'全部实体'" :hint="'搜索、筛选与批量控制 Home Assistant 实体'">
+  <div class="list-page devices-view" :style="pageAccentStyle">
+    <ListPageHero :title="'全部实体'" :hint="'搜索、筛选与批量控制 Home Assistant 实体'" tone="sky">
       <template #icon>
         <Layers class="w-5 h-5" />
       </template>
@@ -167,7 +167,7 @@
               <ApiQueryState
                 :loading="useRestList && restLoading && !filtered.length"
                 :error="useRestList && restError ? restErrorDetail : ''"
-                tone="info"
+                tone="sky"
                 error-title="设备列表加载失败"
                 @retry="restRefresh"
               >
@@ -191,7 +191,7 @@
                   <template #empty>
                     <VEmptyState
                       v-if="!(useRestList && restLoading)"
-                      tone="info"
+                      tone="sky"
                       :title="'暂无匹配设备'"
                       :description="query ? '尝试更换关键词或域筛选' : '等待 Home Assistant 同步实体'"
                     />
@@ -253,6 +253,7 @@ import { useHorizontalScrollNav } from '@/composables/ui/useHorizontalScrollNav'
 const DEVICE_ROW_HEIGHT = 72
 
 const {
+  pageAccentStyle,
   query,
   activeDomain,
   selectedIds,

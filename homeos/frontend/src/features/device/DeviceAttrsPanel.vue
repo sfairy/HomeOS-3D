@@ -123,7 +123,7 @@ const countLabel = computed(() => {
 
 <style scoped>
 .dap-icon-warn {
-  color: var(--hos-color-warning-text);
+  color: var(--set-warn, #fcd34d);
 }
 
 .device-attrs-tab__more {
@@ -132,7 +132,7 @@ const countLabel = computed(() => {
   margin-top: 0.75rem;
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--hos-line-3) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--set-border, #334155) 80%, transparent);
   background: color-mix(in srgb, var(--set-surface, #1e293b) 70%, transparent);
   color: var(--set-muted, #94a3b8);
   font-size: 0.75rem;
@@ -141,6 +141,6 @@ const countLabel = computed(() => {
 
 .device-attrs-tab__more:hover {
   color: var(--set-fg, #e2e8f0);
-  border-color: color-mix(in srgb, var(--set-accent, var(--hos-color-accent)) 40%, transparent);
+  border-color: color-mix(in srgb, var(--set-accent, #38bdf8) 40%, transparent);
 }
 </style>

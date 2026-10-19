@@ -2,24 +2,24 @@
 
 /* —— LightControlPopup —— */
 .lcp-section-label {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
 }
 .lcp-brightness {
-  color: var(--hos-color-warning-text);
+  color: var(--set-warn, #facc15);
 }
 .lcp-kelvin-range {
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }
 .lcp-power-on {
-  background-color: var(--hos-color-accent);
+  background-color: var(--accent, #fbbf24);
 }
 .lcp-power-off {
   background-color: rgb(55, 65, 81);
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
 }
 
 .um-reading-value {
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm);
   font-weight: 800;
   color: var(--um-accent);
   font-variant-numeric: tabular-nums;

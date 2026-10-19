@@ -22,6 +22,12 @@ def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
     ).fetchone() is not None
 
 
+def _index_exists(connection: sqlite3.Connection, index: str) -> bool:
+    return connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?", (index,)
+    ).fetchone() is not None
+
+
 def _normalize_datetime(value: str | None) -> str | None:
     if not value or not isinstance(value, str):
         return value
@@ -182,6 +188,37 @@ def _drop_releases_table(connection: sqlite3.Connection, context: MigrationConte
     context.logger.warning("已删除废弃的 releases 表（版本发布同步功能已移除）。")
 
 
+#: 手工遗留的表达式索引：``CREATE UNIQUE INDEX … ON accounts(lower(trim(email)))``。
+#: 仓库里没有任何代码创建它（``git log -S`` 查无此名），只出现在早期手工调试过的开发库。
+REDUNDANT_EMAIL_INDEX = "accounts_email_normalized_uidx"
+
+
+def _drop_redundant_email_index(connection: sqlite3.Connection, context: MigrationContext) -> None:
+    """删掉手工遗留的表达式索引 ``accounts_email_normalized_uidx``，让库回到 ORM 声明的形状。
+
+    为什么要删：它不在任何迁移与 ORM 元数据里，新建库永远不会有它，于是同一个版本的
+    两个库结构不同；SQLAlchemy 反射不认表达式索引，每次启动都会往 stderr 打一段英文
+    ``SAWarning: Skipped unsupported reflection of expression-based index …``（多行、带源码
+    位置），夹在中文启动日志中间像是报错。
+
+    为什么删了不会丢唯一性：唯一性由第 1 条迁移建的 ``ix_accounts_email`` 保证，而写入侧
+    所有入口都做 ``strip().lower()``（``core/schemas.py`` 的 pydantic 校验器、``setup.py``、
+    ``store_auth.py``、``security.normalize_email``），所以两行 ``email`` 在原值上不同、
+    归一化后相同时不可能出现 —— 表达式索引拦的是同一件事，属于重复约束。
+
+    顺序是刻意的：先跑一遍 ``_normalize_accounts_email``（它会把历史值归一化，并在归一化后
+    出现重复时抛错中止），确保 ``ix_accounts_email`` 真的在且能建得起来，再删表达式索引 ——
+    反过来就会出现「唯一索引已删、新的还没建」的窗口。空库与没有该索引的库上均安全 no-op。
+    """
+    if not _table_exists(connection, "accounts"):
+        return
+    if not _index_exists(connection, REDUNDANT_EMAIL_INDEX):
+        return
+    _normalize_accounts_email(connection, context)
+    connection.execute(f"DROP INDEX {REDUNDANT_EMAIL_INDEX}")
+    context.logger.warning("已删除冗余的表达式索引 %s（唯一性由 ix_accounts_email 保证）。", REDUNDANT_EMAIL_INDEX)
+
+
 MIGRATIONS = (
     Migration(1, "accounts-email-normalize-unique", "s0002-v1", _normalize_accounts_email),
     Migration(2, "account-sessions-expiry-index", "s0003-v1", _index_account_sessions),
@@ -190,4 +227,5 @@ MIGRATIONS = (
     Migration(5, "recovery-tokens-revoked-at", "s0006-v1", lambda connection, _ctx: _add_recovery_revoked_at(connection)),
     Migration(6, "normalize-all-datetimes", "s0007-v1", _normalize_all_datetimes),
     Migration(7, "drop-releases-table", "s0008-v1", _drop_releases_table),
+    Migration(8, "drop-redundant-email-expression-index", "s0009-v1", _drop_redundant_email_index),
 )

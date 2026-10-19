@@ -15,7 +15,7 @@
     inner-swipe-close
     @close="$emit('close')"
   >
-    <div class="media-popup-head" style="--accent: var(--hos-color-accent); --accent-rgb: var(--hos-color-accent-rgb)">
+    <div class="media-popup-head" style="--accent: #c084fc; --accent-rgb: 192, 132, 252">
       <PopupHead :title="deviceName || '媒体播放器'" :icon="Music">
         <template #status>
           <span
@@ -299,9 +299,9 @@ const stateLabel = computed(() => STATE_LABELS[state.value] || state.value || '�
 const stateDotStyle = computed(() => {
   const s = state.value
   if (s === 'playing') return {}
-  if (s === 'paused') return { background: 'var(--hos-color-warning)' }
+  if (s === 'paused') return { background: 'var(--premium-accent-amber)' }
   if (s === 'off' || s === 'standby') return { background: 'rgba(255,255,255,0.25)' }
-  return { background: 'var(--hos-color-accent)', boxShadow: '0 0 6px rgba(96,165,250,0.4)' }
+  return { background: 'var(--premium-accent-blue)', boxShadow: '0 0 6px rgba(96,165,250,0.4)' }
 })
 
 const hasTts = computed(() => mediaEntity.value?.entity_id?.startsWith('media_player.'))

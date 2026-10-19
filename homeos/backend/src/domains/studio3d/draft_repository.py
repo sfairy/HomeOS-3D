@@ -20,9 +20,10 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import HTTPException
-from sqlalchemy import text
+from sqlalchemy import CursorResult, text
 from sqlalchemy.orm import Session
 
 from ...platform.core.models import StudioInteractionSync
@@ -133,7 +134,8 @@ def insert_initial(
             "updated_by": updated_by,
         },
     )
-    return result.rowcount == 1
+    # DML 一定返回 CursorResult，而 Session.execute 的标注是宽泛的 Result（没有 rowcount）。
+    return cast('CursorResult[Any]', result).rowcount == 1
 
 
 def update_with_cas(
@@ -163,7 +165,8 @@ def update_with_cas(
             "expected_revision": expected_revision,
         },
     )
-    return result.rowcount == 1
+    # 同 insert_initial：DML 的结果是 CursorResult，Session.execute 的标注里没有 rowcount。
+    return cast('CursorResult[Any]', result).rowcount == 1
 
 
 def read_sync_document(database: Session) -> dict:

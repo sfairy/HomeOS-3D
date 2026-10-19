@@ -93,15 +93,9 @@ async function onSubmit(): Promise<void> {
       <div class="hos-panel__meta">
         <span>失败多次临时限流</span>
         <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-        <span>未激活先完成激活</span>
+        <span>未激活先进激活页</span>
       </div>
-      <!-- 激活页在这里必须是**真链接**：未激活时登录成功也会被送到 /activate，
-           而登录失败的用户最需要知道「还有哪条路可走」。纯文本提示等于没有出路。 -->
-      <p>
-        授权失效时不会丢账号：登录后进入
-        <a class="hos-text-button" href="/activate">激活页</a>
-        完成绑定，再回到这里。
-      </p>
+      <p>授权失效时不会丢账号：先进入激活页完成绑定，再回到这里。</p>
       <!-- 这一行借用 .hos-panel__meta 的 flex 排布：分隔条是 1px 的 <i>，
            只有在 flex 容器里才拿得到宽度，否则会缩成看不见的一个点。 -->
       <p class="hos-panel__meta">

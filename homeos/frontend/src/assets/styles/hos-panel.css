@@ -19,29 +19,29 @@
 .hos-panel:where(:not(.hos-rise)) {
   position: relative;
   overflow: visible;
-  border: var(--hos-hairline) solid var(--hos-line-2);
-  border-radius: var(--hos-r-3);
-  background: var(--hos-panel-surface);
-  box-shadow: var(--hos-shadow-2), var(--hos-shadow-inset);
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-panel);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-card), var(--hos-surface-inset);
   transition:
-    transform var(--hos-dur-slow) var(--hos-ease-out),
-    box-shadow var(--hos-dur-slow) var(--hos-ease-out),
-    border-color var(--hos-dur-slow) var(--hos-ease-out),
-    background var(--hos-dur-slow) var(--hos-ease-out);
+    transform var(--hos-transition-panel),
+    box-shadow var(--hos-transition-panel),
+    border-color var(--hos-transition-panel),
+    background var(--hos-transition-panel);
 }
 
 .hos-panel--glass {
   background:
     radial-gradient(
       ellipse 100% 80% at 0% 0%,
-      color-mix(in srgb, var(--head-accent, var(--hos-color-accent)) 10%, #0a0c12) 0%,
+      color-mix(in srgb, var(--head-accent, var(--accent, #0a84ff)) 10%, #0a0c12) 0%,
       rgba(0, 0, 0, 0) 55%
     ),
     var(--page-card-tint-soft),
-    var(--hos-panel-surface);
-  -webkit-backdrop-filter: var(--hos-blur-2);
-  backdrop-filter: var(--hos-blur-2);
-  box-shadow: var(--hos-shadow-3), var(--hos-shadow-inset);
+    var(--hos-surface-panel);
+  -webkit-backdrop-filter: var(--premium-blur, blur(24px) saturate(180%));
+  backdrop-filter: var(--premium-blur, blur(24px) saturate(180%));
+  box-shadow: var(--hos-shadow-panel), var(--hos-surface-inset);
 }
 
 @media (pointer: coarse), (hover: none), (max-width: 900px) {
@@ -59,7 +59,7 @@
   flex-wrap: wrap;
   gap: var(--hos-space-md) var(--hos-space-lg);
   padding: var(--hos-panel-padding-hero-y) var(--hos-panel-padding-hero-x);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
 }
 
 .hos-panel--default {
@@ -80,45 +80,45 @@
 .hos-panel--nested {
   padding: var(--hos-panel-padding-nested-y) var(--hos-panel-padding-nested-x);
   gap: var(--hos-panel-gap-nested);
-  border-radius: var(--hos-r-2);
-  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--hos-radius-card);
+  background: var(--hos-surface-well);
   border-color: var(--hos-surface-well-border);
   box-shadow: var(--hos-surface-well-inset);
 }
 
 /* ── 交互（仅显式 interactive，避免 static/hero/default 误抬升） ── */
 .hos-panel--interactive:hover {
-  border-color: var(--hos-line-3);
-  background: var(--hos-panel-surface-hover);
-  box-shadow: var(--hos-shadow-3), var(--hos-shadow-inset);
+  border-color: var(--hos-border-strong);
+  background: var(--hos-surface-panel-hover);
+  box-shadow: var(--hos-shadow-card-hover), var(--hos-surface-inset);
   transform: translateY(var(--hos-hover-lift));
 }
 
 /* ── 映射现有类名 ── */
 .ios-card {
-  border-radius: var(--hos-r-3);
-  box-shadow: var(--hos-shadow-2);
+  border-radius: var(--hos-radius-panel);
+  box-shadow: var(--hos-shadow-card);
   transition:
-    transform var(--hos-dur-slow) var(--hos-ease-out),
-    box-shadow var(--hos-dur-slow) var(--hos-ease-out),
-    border-color var(--hos-dur-slow) var(--hos-ease-out);
+    transform var(--hos-transition-panel),
+    box-shadow var(--hos-transition-panel),
+    border-color var(--hos-transition-panel);
 }
 
 .ios-card:hover {
   transform: translateY(var(--hos-hover-lift));
-  box-shadow: var(--hos-shadow-3);
+  box-shadow: var(--hos-shadow-card-hover);
 }
 
 .premium-head--card {
   padding: var(--hos-panel-padding-hero-y) var(--hos-panel-padding-hero-x);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   gap: var(--hos-space-md) var(--hos-space-lg);
 }
 
 .list-page__panel.premium-glass-surface--panel,
 .premium-glass-surface--panel {
   padding: var(--hos-panel-padding-default);
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel);
   gap: var(--hos-panel-gap-default);
 }
 
@@ -126,7 +126,7 @@
 
 .settings-card:not(.settings-card--flat):not(.settings-card--nested) {
   /* 圆角由 hos-panel / settings-layout 统一；勿在此重复叠 padding */
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel);
 }
 
 /* padding 仅由 SettingsCard 的 hos-panel 变体或下方显式规则提供一层 */
@@ -140,14 +140,14 @@
 
 .settings-card--nested {
   padding: var(--hos-panel-padding-nested-y) var(--hos-panel-padding-nested-x);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
 }
 
 .sec-dash-panel {
-  border-radius: var(--hos-r-3);
-  border-color: var(--hos-line-2);
-  background: var(--hos-panel-surface);
-  box-shadow: var(--hos-shadow-2), var(--hos-shadow-inset);
+  border-radius: var(--hos-radius-panel);
+  border-color: var(--hos-border-subtle);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-card), var(--hos-surface-inset);
 }
 
 .sec-dash-panel-head {

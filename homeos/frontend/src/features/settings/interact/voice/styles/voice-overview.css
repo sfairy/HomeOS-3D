@@ -44,25 +44,25 @@
   gap: 6px;
   min-width: 0;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.18);
 }
 
 .voice-status-metric--mode {
-  border-color: rgba(var(--hos-color-accent-rgb), 0.18);
+  border-color: rgba(var(--page-accent-rgb), 0.18);
   background: linear-gradient(
     155deg,
-    rgba(var(--hos-color-accent-rgb), 0.08) 0%,
+    rgba(var(--page-accent-rgb), 0.08) 0%,
     rgba(0, 0, 0, 0.16) 100%
   );
 }
 
 .voice-status-metric--greet {
-  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.16);
+  border-color: rgba(var(--page-accent-secondary-rgb), 0.16);
   background: linear-gradient(
     155deg,
-    rgba(var(--hos-color-accent-strong-rgb), 0.07) 0%,
+    rgba(var(--page-accent-secondary-rgb), 0.07) 0%,
     rgba(0, 0, 0, 0.16) 100%
   );
 }
@@ -72,36 +72,36 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .voice-status-metric__v {
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm);
   font-weight: 700;
   line-height: 1.25;
   color: rgba(255, 255, 255, 0.88);
 }
 
 .voice-status-metric__v--accent {
-  color: rgba(var(--hos-color-accent-rgb), 0.95);
+  color: rgba(var(--page-accent-rgb), 0.95);
 }
 
 .voice-status-metric__v--sky {
-  color: var(--hos-color-accent-strong);
+  color: var(--page-accent-secondary, #7dd3fc);
 }
 
 .voice-status-metric__v--success {
-  color: var(--hos-color-success-text);
+  color: var(--set-success);
 }
 
 .voice-status-metric__v--muted {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .voice-status-rooms {
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.14);
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.14);
   background: rgba(0, 0, 0, 0.14);
 }
 
@@ -118,25 +118,25 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .voice-status-rooms__meta {
   flex-shrink: 0;
   font-size: var(--set-fs-micro, 12px);
   font-weight: 700;
-  color: rgba(var(--hos-color-accent-rgb), 0.78);
+  color: rgba(var(--page-accent-rgb), 0.78);
   padding: 2px 8px;
-  border-radius: var(--hos-r-pill);
-  background: rgba(var(--hos-color-accent-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.18);
+  border-radius: var(--hos-radius-pill);
+  background: rgba(var(--page-accent-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.18);
 }
 
 .voice-status-rooms__empty {
   margin: 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.45;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .voice-room-chips {
@@ -150,17 +150,17 @@
   font-weight: 600;
   padding: 4px 9px;
   border-radius: 8px;
-  background: rgba(var(--hos-color-accent-rgb), 0.1);
-  color: rgba(var(--hos-color-accent-rgb), 0.9);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.2);
+  background: rgba(var(--page-accent-rgb), 0.1);
+  color: rgba(var(--page-accent-rgb), 0.9);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.2);
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
 }
 
 .voice-room-chip:hover {
-  background: rgba(var(--hos-color-accent-rgb), 0.16);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.32);
+  background: rgba(var(--page-accent-rgb), 0.16);
+  border-color: rgba(var(--page-accent-rgb), 0.32);
 }
 
 @media (max-width: 639px) {
@@ -176,5 +176,10 @@
 }
 
 /* —— voice-panel —— */
-.voice-panel__save-tip--ok { color: var(--hos-color-success-text); }
-.voice-panel__save-tip--err { color: var(--hos-color-danger-text); }
+.voice-hub {
+  --page-accent-rgb: var(--module-accent-voice-rgb);
+  --page-accent-secondary: var(--module-accent-voice-sub);
+  --page-accent-secondary-rgb: var(--module-accent-voice-sub-rgb);
+}
+.voice-panel__save-tip--ok { color: var(--set-success); }
+.voice-panel__save-tip--err { color: var(--set-danger); }

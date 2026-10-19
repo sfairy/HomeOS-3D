@@ -236,16 +236,16 @@ const layoutStore = useLayoutStore()
 
 // 核心 Tab 元信息（id / label / path / icon / accent），顺序为默认顺序
 const CORE_NAV_TABS = [
-  { id: 'devices', label: '设备', path: '/devices', icon: Smartphone, accent: 'var(--hos-color-accent)' },
-  { id: 'security', label: '安防', path: '/security', icon: ShieldCheck, accent: 'var(--hos-color-accent)' },
-  { id: 'events', label: '事件', path: '/events', icon: ScrollText, accent: 'var(--hos-color-accent)' },
-  { id: 'notifications', label: '通知', path: '/notifications', icon: Bell, accent: 'var(--hos-color-accent)' },
+  { id: 'devices', label: '设备', path: '/devices', icon: Smartphone, accent: '#64D2FF' },
+  { id: 'security', label: '安防', path: '/security', icon: ShieldCheck, accent: '#FF375F' },
+  { id: 'events', label: '事件', path: '/events', icon: ScrollText, accent: '#38bdf8' },
+  { id: 'notifications', label: '通知', path: '/notifications', icon: Bell, accent: '#f472b6' },
   {
     id: 'earthquake-history',
     label: '地震',
     path: '/earthquake-history',
     icon: Activity,
-    accent: 'var(--hos-color-accent)',
+    accent: '#fbbf24',
   },
 ]
 
@@ -351,7 +351,7 @@ function tabMeta(id) {
       label: id,
       path: '/',
       icon: Smartphone,
-      accent: 'var(--hos-color-accent)',
+      accent: '#60a5fa',
     }
   )
 }

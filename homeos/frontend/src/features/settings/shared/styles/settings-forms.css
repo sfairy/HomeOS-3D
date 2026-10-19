@@ -9,23 +9,23 @@
   justify-content: center;
   gap: 8px;
   /* 高度钉到 lg 档：10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--hos-control-h-lg);
+  height: var(--control-height-lg);
   padding: 0 16px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-btn);
   font-weight: 700;
-  color: var(--hos-color-success-text);
-  background: rgba(var(--hos-color-success-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.35);
-  box-shadow: 0 4px 14px rgba(var(--hos-color-success-rgb), 0.12);
+  color: var(--set-success);
+  background: rgba(52, 211, 153, 0.12);
+  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.35);
+  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.12);
   cursor: pointer;
   transition: all 0.22s ease;
 }
 
 .settings-btn-primary:hover:not(:disabled) {
-  color: var(--hos-color-success-text);
-  background: rgba(var(--hos-color-success-rgb), 0.2);
-  border-color: rgba(var(--hos-color-success-rgb), 0.5);
+  color: #a7f3d0;
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.5);
   transform: translateY(-1px);
 }
 
@@ -40,19 +40,19 @@
   align-items: center;
   gap: 8px;
   /* 高度钉到 lg 档：10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--hos-control-h-lg);
+  height: var(--control-height-lg);
   padding: 0 16px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-btn);
   font-weight: 700;
   color: #fff;
   background: linear-gradient(
     135deg,
-    rgba(var(--hos-color-accent-strong-rgb), 0.88),
-    rgba(var(--hos-color-accent-rgb), 0.82)
+    rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.88),
+    rgba(10, 132, 255, 0.82)
   );
-  border: var(--hos-hairline) solid var(--hos-line-3);
-  box-shadow: 0 4px 16px rgba(var(--hos-color-accent-strong-rgb), 0.2);
+  border: var(--hos-hairline) solid var(--set-border-strong);
+  box-shadow: 0 4px 16px rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.2);
   cursor: pointer;
   transition: all 0.22s ease;
 }
@@ -74,20 +74,20 @@
   align-items: center;
   gap: 8px;
   /* 高度钉到 lg 档：10px 内边距 + 行高 + 发丝边框凑出 42px，比 lg(44) 矮 2px。 */
-  height: var(--hos-control-h-lg);
+  height: var(--control-height-lg);
   padding: 0 14px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-btn);
   font-weight: 700;
-  color: var(--hos-fg-2);
-  background: var(--hos-bg-tint-2);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  color: var(--set-text-secondary);
+  background: var(--set-glass-bg);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .settings-btn-ghost:hover:not(:disabled) {
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary);
   background: rgba(255, 255, 255, 0.07);
 }
 
@@ -100,61 +100,61 @@
    的 scoped 样式里各重复定义了一份，而 scoped 会附 [data-v-*] 提升特异性，
    导致全局规则压不过它、两处实现还容易漂移；这里收敛为唯一实现，并钉到 sm 档。 */
 .settings-btn--sm {
-  height: var(--hos-control-h-sm);
+  height: var(--control-height-sm);
   padding: 0 12px;
   font-size: var(--set-fs-micro, 12px);
 }
 
 .settings-btn-ghost--purple {
-  color: rgba(var(--hos-color-accent-rgb), 0.95);
-  background: rgba(var(--hos-color-accent-rgb), 0.12);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.95);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
+  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.28);
 }
 
 .settings-btn-ghost--purple:hover:not(:disabled) {
-  color: rgba(var(--hos-color-accent-rgb), 1);
-  background: rgba(var(--hos-color-accent-rgb), 0.2);
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 1);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.2);
 }
 
 .settings-btn-ghost--purple-active {
-  color: rgba(var(--hos-color-accent-rgb), 1);
-  background: rgba(var(--hos-color-accent-rgb), 0.24);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.38);
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 1);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
+  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.38);
 }
 
 .settings-btn-ghost--purple-active:hover:not(:disabled) {
-  color: rgba(var(--hos-color-accent-rgb), 1);
-  background: rgba(var(--hos-color-accent-rgb), 0.3);
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 1);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.3);
 }
 
 .settings-btn-ghost--sky-active {
-  color: rgba(var(--hos-color-info-rgb), 0.98);
-  background: rgba(var(--hos-color-accent-rgb), 0.24);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.4);
+  color: rgba(125, 211, 252, 0.98);
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 .settings-btn-ghost--sky-active:hover:not(:disabled) {
   color: rgba(186, 230, 253, 1);
-  background: rgba(var(--hos-color-accent-rgb), 0.3);
+  background: rgba(56, 189, 248, 0.3);
 }
 
 /* 危险态幽灵按钮：用于管理面板（execution-history 等删除/清空操作） */
 .settings-btn-ghost--danger {
-  color: var(--hos-color-danger);
+  color: var(--premium-accent-red);
   background: rgba(255, 59, 48, 0.08);
   border-color: rgba(255, 59, 48, 0.22);
   transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-btn-ghost--danger:hover:not(:disabled) {
-  color: var(--hos-color-danger);
+  color: var(--premium-accent-red);
   background: rgba(255, 59, 48, 0.1);
   border-color: rgba(255, 59, 48, 0.4);
 }
 
 .settings-btn-ghost--danger:focus-visible {
   outline: none;
-  border-color: var(--hos-color-danger);
+  border-color: var(--premium-accent-red);
   box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.18);
 }
 
@@ -163,27 +163,27 @@
   align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-body-sm);
   line-height: 1.45;
 }
 
 .settings-connection-feedback--ok {
-  color: var(--hos-color-success-text);
-  background: rgba(var(--hos-color-success-rgb), 0.08);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.2);
+  color: var(--set-success);
+  background: rgba(52, 211, 153, 0.08);
+  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.2);
 }
 
 .settings-connection-feedback--err {
-  color: var(--hos-color-danger-text);
-  background: rgba(var(--hos-color-danger-rgb), 0.08);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+  border: var(--hos-hairline) solid rgba(239, 68, 68, 0.2);
 }
 
 .settings-connection-feedback--warn {
-  color: var(--hos-color-warning-text);
-  background: var(--hos-color-warning-deep);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.2);
+  color: var(--set-warn);
+  background: var(--set-warn-deep);
+  border: var(--hos-hairline) solid rgba(245, 158, 11, 0.2);
 }
 
 /* ── 表单网格 / 弹窗 / 空状态 / 列表操作 ── */
@@ -193,7 +193,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--hos-fg-2);
+  color: var(--set-text-label);
 }
 
 .settings-form-grid {
@@ -259,11 +259,11 @@
   width: 100%;
   max-width: 28rem;
   padding: var(--hos-space-2xl, 24px);
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel, 20px);
   background:
     radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 55%),
     #161b22;
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
 }
 
@@ -284,7 +284,7 @@
   padding: 8px 16px;
   font-size: var(--set-fs-body);
   font-weight: 600;
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
   background: none;
   border: none;
   cursor: pointer;
@@ -295,31 +295,31 @@
 
 .settings-list-btn {
   /* 高度钉到 xs 档：6px 内边距 + 行高 + 发丝边框凑出 29px，比 xs(28) 高 1px。 */
-  height: var(--hos-control-h-xs);
+  height: var(--control-height-xs);
   padding: 0 10px;
   border-radius: 8px;
   font-size: var(--set-fs-caption);
   font-weight: 700;
-  color: var(--hos-fg-3);
-  background: var(--hos-bg-tint-1);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  color: var(--set-text-tertiary);
+  background: var(--set-glass-bg-subtle);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .settings-list-btn:hover {
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary);
   background: rgba(255, 255, 255, 0.07);
 }
 
 .settings-list-btn--danger {
-  color: rgba(var(--hos-color-danger-rgb), 0.8);
-  border-color: rgba(var(--hos-color-danger-rgb), 0.12);
+  color: rgba(248, 113, 113, 0.8);
+  border-color: rgba(248, 113, 113, 0.12);
 }
 
 .settings-list-btn--danger:hover {
-  color: var(--hos-color-danger-text);
-  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.1);
 }
 
 .settings-chip-toggle--active {
@@ -334,18 +334,18 @@
 }
 
 .settings-chip-toggle--emerald.settings-chip-toggle--active {
-  background: var(--hos-color-success);
-  border-color: var(--hos-color-success);
+  background: #10b981;
+  border-color: #34d399;
 }
 
 .settings-note-box {
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.28);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
   font-size: var(--set-fs-body-sm);
   line-height: 1.5;
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }
 
 /* .settings-deploy-note--* 已抽离至 components/common/styles/status-hint.css */
@@ -357,13 +357,13 @@
   align-items: baseline;
   margin-top: 16px;
   padding: 10px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-caption);
   line-height: 1.55;
   background: rgba(0, 0, 0, 0.22);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
   box-shadow: inset 3px 0 0 var(--callout-accent, rgba(255, 255, 255, 0.2));
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }
 
 .settings-note-callout__label {
@@ -372,31 +372,31 @@
 }
 
 .settings-note-callout--sky {
-  --callout-accent: rgba(var(--hos-color-accent-rgb), 0.55);
-  --callout-label: var(--hos-color-info-text);
+  --callout-accent: rgba(56, 189, 248, 0.55);
+  --callout-label: var(--set-info);
   background: linear-gradient(90deg, rgba(14, 165, 233, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: var(--hos-color-info-soft);
+  border-color: var(--set-info-bg);
 }
 
 .settings-note-callout--pink {
-  --callout-accent: rgba(var(--hos-color-danger-rgb), 0.55);
-  --callout-label: var(--hos-color-danger-text);
+  --callout-accent: rgba(244, 114, 182, 0.55);
+  --callout-label: #f9a8d4;
   background: linear-gradient(90deg, rgba(236, 72, 153, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: rgba(var(--hos-color-danger-rgb), 0.12);
+  border-color: rgba(244, 114, 182, 0.12);
 }
 
 .settings-note-callout--emerald {
-  --callout-accent: rgba(var(--hos-color-success-rgb), 0.55);
-  --callout-label: var(--hos-color-success-text);
-  background: linear-gradient(90deg, rgba(var(--hos-color-success-rgb), 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: rgba(var(--hos-color-success-rgb), 0.12);
+  --callout-accent: rgba(52, 211, 153, 0.55);
+  --callout-label: var(--set-success);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
+  border-color: rgba(52, 211, 153, 0.12);
 }
 
 .settings-note-callout--amber {
-  --callout-accent: rgba(var(--hos-color-accent-rgb), 0.55);
-  --callout-label: var(--hos-color-warning-text);
-  background: linear-gradient(90deg, var(--hos-color-warning-deep) 0%, rgba(0, 0, 0, 0.22) 100%);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.14);
+  --callout-accent: rgba(251, 191, 36, 0.55);
+  --callout-label: var(--set-warn);
+  background: linear-gradient(90deg, var(--set-warn-deep) 0%, rgba(0, 0, 0, 0.22) 100%);
+  border-color: rgba(251, 191, 36, 0.14);
 }
 
 .settings-note-callout code {
@@ -404,8 +404,8 @@
   font-size: 0.92em;
   padding: 1px 5px;
   border-radius: 5px;
-  background: var(--hos-bg-tint-3);
-  color: var(--hos-fg-2);
+  background: var(--set-glass-bg-hover);
+  color: var(--set-text-secondary);
 }
 
 .settings-env-room-manager__list {
@@ -418,8 +418,8 @@
 }
 
 .settings-env-room-manager__item--active {
-  border-color: rgba(var(--hos-color-success-rgb), 0.28);
-  background: rgba(var(--hos-color-success-rgb), 0.08);
+  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(16, 185, 129, 0.08);
 }
 
 /* .settings-inline-hint--* 已抽离至 components/common/styles/status-hint.css */
@@ -434,11 +434,11 @@
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.settings-widget-row:hover { background: var(--hos-bg-tint-1); }
+.settings-widget-row:hover { background: var(--set-glass-bg-subtle); }
 
 .settings-widget-row--active {
-  background: rgba(var(--hos-color-accent-rgb), 0.06);
-  box-shadow: inset 3px 0 0 rgba(var(--hos-color-accent-rgb), 0.55);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.06);
+  box-shadow: inset 3px 0 0 rgba(var(--page-accent-rgb, 126, 184, 255), 0.55);
 }
 
 .settings-widget-row--hidden {
@@ -446,17 +446,17 @@
 }
 
 .settings-widget-list {
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card, 14px);
   overflow: hidden;
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
   background:
-    radial-gradient(ellipse 80% 40% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 40% at 0% 0%, rgba(var(--page-accent-rgb, 126, 184, 255), 0.06) 0%, transparent 55%),
     rgba(0, 0, 0, 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .settings-widget-list > * + * {
-  border-top: var(--hos-hairline) solid var(--hos-line-2);
+  border-top: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .settings-widget-config {
@@ -465,7 +465,7 @@
   gap: 12px;
   padding: 16px;
   background: rgba(0, 0, 0, 0.3);
-  border-top: var(--hos-hairline) solid var(--hos-line-2);
+  border-top: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .settings-widget-config__grid {
@@ -479,9 +479,9 @@
 }
 
 .settings-profile-active {
-  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.35) !important;
+  border-color: rgba(129, 140, 248, 0.35) !important;
   background: rgba(99, 102, 241, 0.08) !important;
-  box-shadow: 0 0 0 1px rgba(var(--hos-color-accent-strong-rgb), 0.15);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.15);
 }
 
 @media (max-width: 768px) {
@@ -513,41 +513,41 @@
   align-items: center;
   gap: 8px;
   padding: 14px 10px;
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid var(--hos-line-2);
-  background: var(--hos-bg-tint-1);
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+  background: var(--set-glass-bg-subtle);
   font-size: var(--set-fs-body-sm);
   font-weight: 700;
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-choice-btn:hover {
-  border-color: var(--hos-line-3);
-  color: var(--hos-fg-2);
+  border-color: var(--set-border-strong);
+  color: var(--set-text-secondary);
 }
 
 .settings-choice-btn--active {
   color: #fff;
-  border-color: color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 88%, transparent);
+  border-color: color-mix(in srgb, var(--choice-accent, #0A84FF) 88%, transparent);
   background:
     linear-gradient(
       165deg,
-      color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 42%, transparent) 0%,
-      color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 16%, rgba(255, 255, 255, 0.04)) 100%
+      color-mix(in srgb, var(--choice-accent, #0A84FF) 42%, transparent) 0%,
+      color-mix(in srgb, var(--choice-accent, #0A84FF) 16%, rgba(255, 255, 255, 0.04)) 100%
     );
   /* 选中：实边 + 内高光，不加外扩彩光晕 */
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 40%, rgba(255, 255, 255, 0.25));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--choice-accent, #0A84FF) 40%, rgba(255, 255, 255, 0.25));
 }
 
 .settings-choice-btn--active svg {
-  color: var(--choice-accent, var(--hos-color-accent));
+  color: var(--choice-accent, #0A84FF);
 }
 
 .settings-choice-btn--active .sys-hint-micro,
 .settings-choice-btn--active .text-\[9px\] {
-  color: color-mix(in srgb, var(--choice-accent, var(--hos-color-accent)) 55%, rgba(255, 255, 255, 0.92));
+  color: color-mix(in srgb, var(--choice-accent, #0A84FF) 55%, rgba(255, 255, 255, 0.92));
   opacity: 1;
 }
 
@@ -556,7 +556,7 @@
 .settings-orch-dock--toolbar {
   padding: 10px 16px;
   background: rgba(0, 0, 0, 0.28);
-  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+  border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .settings-orch-toolbar {
@@ -583,12 +583,12 @@
 
 .settings-orch-dock--toolbar .settings-orch-tab {
   /* 内边距随 chip 令牌浮动，高度会漂在 28 / 33px 之间；显式锁到 xs 档。 */
-  min-height: var(--hos-control-h-xs);
+  min-height: var(--control-height-xs);
   flex-direction: row;
   min-width: auto;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
   gap: 8px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
 }
 
 .settings-orch-dock--toolbar .settings-orch-orb {
@@ -614,20 +614,20 @@
   align-items: center;
   gap: 8px;
   padding-left: 4px;
-  border-left: var(--hos-hairline) solid var(--hos-line-2);
+  border-left: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .settings-btn-ghost--active {
-  color: var(--hos-color-success-text) !important;
-  border-color: rgba(var(--hos-color-success-rgb), 0.35) !important;
-  background: rgba(var(--hos-color-success-rgb), 0.1) !important;
+  color: var(--set-success) !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+  background: rgba(52, 211, 153, 0.1) !important;
 }
 
 
 
 .orch-toolbar-btn {
   /* 高度锁到 sm 档：7px 内边距 + 行高 + 发丝边框凑出的 31px 不在尺度上。 */
-  height: var(--hos-control-h-sm);
+  height: var(--control-height-sm);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -635,16 +635,16 @@
   font-weight: 600;
   padding: 0 10px;
   border-radius: 8px;
-  color: var(--hos-fg-3);
-  background: var(--hos-bg-tint-2);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  color: var(--set-text-tertiary);
+  background: var(--set-glass-bg);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
   transition: all 0.15s;
   white-space: nowrap;
 }
 
 .orch-toolbar-btn:hover:not(:disabled) {
-  background: var(--hos-bg-tint-2);
-  color: var(--hos-fg-2);
+  background: var(--premium-glass-bg-hover);
+  color: var(--set-text-secondary);
 }
 
 .orch-toolbar-btn:disabled {
@@ -653,9 +653,9 @@
 }
 
 .orch-toolbar-btn--accent {
-  color: var(--hos-color-info-text);
-  border-color: rgba(var(--hos-color-info-rgb), 0.2);
-  background: rgba(var(--hos-color-info-rgb), 0.08);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.2);
+  background: rgba(96, 165, 250, 0.08);
 }
 
 .orch-toolbar-btn--compact {

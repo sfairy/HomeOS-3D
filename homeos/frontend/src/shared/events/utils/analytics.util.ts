@@ -38,14 +38,14 @@ interface EventAnalyticsSummary {
 
 /** 域缺省时的回退调色板：当 ENTITY_DOMAIN_COLORS 未定义该域时按索引循环取色。 */
 const FALLBACK_COLORS = [
-  '#ffc46a',
-  '#59d3c0',
-  '#3ddc97',
-  '#ffb020',
-  '#ff5a5f',
-  '#ffd9a0',
-  '#a7b4c2',
-  '#e09523',
+  '#22d3ee',
+  '#7dd3fc',
+  '#6ee7b7',
+  '#fbbf24',
+  '#fb923c',
+  '#f472b6',
+  '#a78bfa',
+  '#94a3b8',
 ]
 
 /**

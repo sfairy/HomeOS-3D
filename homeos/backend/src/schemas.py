@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .domains.ha.integration.client import HAClientError
 from .domains.ha.integration.connection_setup import validate_address_input
@@ -66,6 +66,22 @@ class HAServiceCallRequest(BaseModel):
     service: str = Field(min_length=1, max_length=64, pattern='^[a-z0-9_]+$')
     entity_id: str = Field(alias='entityId', min_length=3, max_length=255, pattern='^[a-z0-9_]+\\.[a-z0-9_]+$')
     data: dict[str, Any] = Field(default_factory=dict)
+    #: 同一用户手势的幂等键（前端生成，自动重试时复用）。缺省时不去重 ——
+    #: 「连按两次更亮」是两次独立手势，不该被服务端窗口合并掉。
+    idempotency_key: str | None = Field(default=None, alias='idempotencyKey', max_length=128)
+
+    @model_validator(mode='before')
+    @classmethod
+    def _accept_legacy_service_data(cls, value: Any) -> Any:
+        """兼容旧前端：``service_data`` 曾被错写成 body 字段名而被静默丢弃。
+
+        这里把它映射到 ``data``，让仍在使用旧 bundle 的客户端（SPA 缓存）也能正确下发参数。
+        """
+        if isinstance(value, dict) and 'service_data' in value and 'data' not in value:
+            mapped = dict(value)
+            mapped['data'] = mapped.pop('service_data') or {}
+            return mapped
+        return value
 
 
 class HABrowseMediaRequest(BaseModel):

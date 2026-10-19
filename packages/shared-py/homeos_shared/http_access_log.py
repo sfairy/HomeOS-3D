@@ -38,6 +38,14 @@ uvicorn 默认把**每一条**请求（含静态资源的 ``200`` / ``304``、�
 两个后端的差别只有「变量名」与「模式说明挂哪个 logger」，逻辑本身逐字相同；
 两处各存一份的代价是分叉（见 ``packages/shared-py/README.md`` 的分诊台账）。
 本模块不依赖 FastAPI、不读任何一方的配置，故可安全共享。
+
+WebSocket 握手行为什么也归这里
+------------------------------
+uvicorn 把握手结果写进 ``uvicorn.error``（``<来源> - "WebSocket <路径>" [accepted]``），
+不是 ``uvicorn.access``，所以上面按状态码丢弃 2xx 的过滤器碰不到它；而它每次重连都打一行，
+端口与 ``sid`` 又每条不同，逐字去重同样无效。这里补一个只认握手行的折叠过滤器
+（键 =「来源 IP + 路径 + 结果」，临时端口与查询串不进键），挂在 ``uvicorn.error`` 上：
+正常重连被折成一行并注明条数，真正的服务端错误（非握手行）一律原样放行。
 """
 from __future__ import annotations
 
@@ -66,6 +74,9 @@ _DEDUPE_CONTEXT = "http.access"
 
 _FILTER_NAME = "homeos-http-access"
 
+#: WebSocket 握手折叠过滤器的名字（与 HTTP 访问日志过滤器区分，便于幂等判断）
+_WS_FILTER_NAME = "homeos-websocket-handshake"
+
 
 def mode_label(mode: str, env_var: str) -> str:
     """模式 → 人话（仅在用户**显式**配置过时才打一行，方便确认降噪真的生效）。"""
@@ -73,7 +84,7 @@ def mode_label(mode: str, env_var: str) -> str:
         return f"已全部静默（{env_var}=errors 恢复默认、=all 逐条可见）"
     if mode == MODE_ALL:
         return f"未过滤，逐条可见（{env_var}=errors 恢复默认）"
-    return f"仅保留 4xx/5xx，重复请求折叠为一行（{env_var}=all 逐条可见、=off 全部静默）"
+    return f"仅保留 4xx/5xx，重复请求与 WebSocket 握手折叠为一行（{env_var}=all 逐条可见、=off 全部静默）"
 
 
 def access_mode_env_set(env_var: str) -> bool:
@@ -134,6 +145,75 @@ def access_signature(record: logging.LogRecord) -> str | None:
     return (
         f'{source} "{match.group("method")} {match.group("path")}" {match.group("status")}'
     )
+
+
+#: WebSocket 握手行：``127.0.0.1:50380 - "WebSocket /api/v1/ws/runtime" [accepted]``。
+#: 路径捕获到引号为止（含查询串），结果要么是 ``[accepted]``，要么是 HTTP 状态码。
+_WS_HANDSHAKE_RE = re.compile(
+    r'^(?P<source>\S+) - "WebSocket (?P<path>[^"]+)" (?P<result>\[accepted\]|\d{3})$'
+)
+
+#: WebSocket 折叠判定挂在哪棵日志树上（只用于生成去重键，不影响展示）
+_WS_DEDUPE_CONTEXT = "websocket.access"
+
+#: uvicorn 把 WebSocket 握手写在 ``uvicorn.error``（``uvicorn.access`` 只收 HTTP 请求）
+WS_LOGGER = "uvicorn.error"
+
+
+def websocket_signature(record: logging.LogRecord) -> str | None:
+    """把 WebSocket 握手行归纳成折叠键 ``<来源 IP> "WS <路径>" <结果>``；认不出返回 ``None``。
+
+    临时端口每次重连都不同、查询串里的 ``sid`` 也每条不同，照抄整行等于没去重，故都不进键；
+    路径的查询串一并去掉，只按「来源 + 端点」判断是不是同一类重连。
+
+    路径与结果都进键（而不是只按来源折叠）：同一来源先 accepted 再 403 是两件事，
+    把失败混进「已连接」的计数里会正好藏掉要看的信号。
+    """
+    try:
+        message = record.getMessage()
+    except Exception:
+        return None
+    match = _WS_HANDSHAKE_RE.match(message)
+    if match is None:
+        return None
+    source = match.group("source").rsplit(":", 1)[0] or match.group("source")
+    path = match.group("path").split("?", 1)[0]
+    return f'{source} "WS {path}" {match.group("result")}'
+
+
+class WebSocketHandshakeLogFilter(logging.Filter):
+    """折叠重复的 WebSocket 握手行；非握手记录（真正的服务端错误）一律放行。
+
+    详略跟随访问日志的模式（``all`` 逐条可见 / ``errors`` 折叠 / ``off`` 静默），
+    与 HTTP 访问日志共用同一个窗口变量。只挂在 ``uvicorn.error`` 上，且只匹配握手行，
+    因此不会碰到这棵日志树里的异常与启动文案。
+    """
+
+    def __init__(self, mode: str, dedupe_env_var: str) -> None:
+        super().__init__(_WS_FILTER_NAME)
+        self._mode = mode
+        self._dedupe_env_var = dedupe_env_var
+
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if self._mode == MODE_ALL:
+            return True
+        signature = websocket_signature(record)
+        if signature is None:
+            # fail-open：握手格式变了就退化成原样输出，绝不吞掉真正的服务端错误
+            return True
+        if self._mode == MODE_OFF:
+            return False
+        # normalize=False：归纳键已去掉临时端口，通用归一化会把来源 IP 也抹掉
+        decision = dedupe_decision(
+            "log", _WS_DEDUPE_CONTEXT, signature, self._dedupe_env_var, normalize=False
+        )
+        if decision.emit:
+            annotate_fold_note(record, decision.folded)
+        return decision.emit
 
 
 class HttpAccessLogFilter(logging.Filter):
@@ -207,14 +287,40 @@ def install_http_access_log_filter(
     return installed
 
 
+def install_websocket_handshake_log_filter(
+    *,
+    env_var: str,
+    dedupe_env_var: str,
+    logger_name: str = WS_LOGGER,
+) -> WebSocketHandshakeLogFilter:
+    """把 WebSocket 握手折叠过滤器挂到 ``uvicorn.error``（幂等，可在每次启动时调用）。
+
+    与 :func:`install_http_access_log_filter` 分开安装：那个只认 ``uvicorn.access`` 的
+    状态码形态，碰不到握手行；但两者读同一个 ``env_var``，所以 ``all`` / ``off`` 的语义一致，
+    不需要用户记第二套开关。
+    """
+    logger = logging.getLogger(logger_name)
+    installed = next(
+        (item for item in logger.filters if isinstance(item, WebSocketHandshakeLogFilter)), None
+    )
+    if installed is None:
+        installed = WebSocketHandshakeLogFilter(resolve_http_access_mode(env_var), dedupe_env_var)
+        logger.addFilter(installed)
+    return installed
+
+
 __all__ = [
     "MODE_ALL",
     "MODE_ERRORS",
     "MODE_OFF",
+    "WS_LOGGER",
     "HttpAccessLogFilter",
+    "WebSocketHandshakeLogFilter",
     "access_mode_env_set",
     "access_signature",
     "install_http_access_log_filter",
+    "install_websocket_handshake_log_filter",
     "mode_label",
     "resolve_http_access_mode",
+    "websocket_signature",
 ]

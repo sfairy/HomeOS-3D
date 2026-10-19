@@ -24,9 +24,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _metadata() -> MetaData:
-    from . import (  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
-        models,
-        models_engagement,
+    # 纯副作用导入：把模型注册到 Base.metadata。pyright 的忽略要写在名字所在行。
+    from . import (  # noqa: F401
+        models,  # pyright: ignore[reportUnusedImport]
+        models_engagement,  # pyright: ignore[reportUnusedImport]
     )
     from .database import Base
 
@@ -49,7 +50,17 @@ def prepare_schema(settings: StoreSettings) -> None:
             mode=settings.schema_mode,
             logger=LOGGER,
         )
-        LOGGER.info("商店数据库迁移完成：%s → v%s（applied=%s）", report.from_version, report.to_version, report.applied)
+        if report.applied:
+            LOGGER.info(
+                "商店数据库迁移完成：v%s → v%s（本次执行 %s 条：%s）",
+                report.from_version,
+                report.to_version,
+                len(report.applied),
+                ", ".join(f"v{item}" for item in report.applied),
+            )
+        else:
+            # 每次启动都是这个分支：库里已经是当前版本，没有待执行的迁移。
+            LOGGER.info("商店数据库结构已是最新：v%s（无需迁移）", report.to_version)
         if settings.schema_mode == "check":
             # check 是只读探测：不仅不能执行迁移，也不能用 create_all 顺手补表。
             missing = missing_schema_objects(engine, metadata)

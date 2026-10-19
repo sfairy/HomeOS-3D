@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, NoReturn
 
 from fastapi import HTTPException
@@ -84,9 +84,19 @@ def _when(value: Any) -> date | datetime:
 def _interval(start: Any, end: Any, limit_days: int = 0) -> None:
     """结束必须晚于开始；给了 ``limit_days`` 就限制单次跨度。"""
     first, last = _when(start), _when(end)
-    if type(first) is not type(last) or last <= first:
+    # 日期与日期时间形状不同，不能互相比较。``_when`` 保证两者只在「都有时间」或
+    # 「都只有日期」时才是同一种类型，但 ``type(a) is not type(b)`` 收窄不了联合类型，
+    # 故按分支显式判断，静态检查才能在相减时看到同一个类型。
+    if isinstance(first, datetime) and isinstance(last, datetime):
+        span = last - first
+    elif isinstance(first, datetime) or isinstance(last, datetime):
         _fail('结束时间必须晚于开始时间。')
-    if limit_days and (last - first).days > limit_days:
+        return
+    else:
+        span = last - first
+    if span <= timedelta(0):
+        _fail('结束时间必须晚于开始时间。')
+    if limit_days and span.days > limit_days:
         _fail('读取范围过大，请分段读取。')
 
 

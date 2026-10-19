@@ -1,8 +1,8 @@
 .device-health {
-  --dhs-ok: var(--hos-color-success);
-  --dhs-warn: var(--hos-color-warning);
-  --dhs-bad: var(--hos-color-danger);
-  --dhs-info: var(--hos-color-info-text);
+  --dhs-ok: #34d399;
+  --dhs-warn: #fbbf24;
+  --dhs-bad: #f87171;
+  --dhs-info: #7dd3fc;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -17,8 +17,8 @@
 .device-health__header-badge {
   margin-left: 4px;
   padding: 1px 8px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   background: rgba(255, 255, 255, 0.05);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
@@ -57,7 +57,7 @@
   justify-content: center;
   gap: 10px;
   padding: 14px 10px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.22);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
@@ -126,8 +126,8 @@
 }
 
 .device-health__score-label {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
   margin-top: 3px;
 }
 
@@ -137,9 +137,9 @@
   margin: 0;
   max-width: 11em;
   text-align: center;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.45;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 /* ── 右侧明细 ── */
@@ -150,7 +150,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 11px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.18);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
@@ -162,14 +162,14 @@
   justify-content: space-between;
   gap: 8px;
   flex-shrink: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .device-health__detail-count {
   padding: 1px 7px;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.05);
@@ -222,13 +222,13 @@
 }
 
 .device-health__factor-name {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   color: rgba(255, 255, 255, 0.72);
   white-space: nowrap;
 }
 
 .device-health__factor-score {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: inherit;
@@ -275,12 +275,12 @@
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 8px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
 }
 
 .device-health__meta-row dt {
   margin: 0;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .device-health__meta-row dd {
@@ -297,19 +297,19 @@
   align-items: flex-start;
   gap: 8px;
   padding: 9px 11px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   flex-shrink: 0;
 }
 
 .device-health__tip--ok {
   align-items: center;
-  background: rgba(var(--hos-color-success-rgb), 0.07);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-success-rgb), 0.2);
+  background: rgba(52, 211, 153, 0.07);
+  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.2);
 }
 
 .device-health__tip--warn {
-  background: rgba(var(--hos-color-warning-rgb), 0.06);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-warning-rgb), 0.18);
+  background: rgba(251, 191, 36, 0.06);
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.18);
 }
 
 .device-health__tip-icon {
@@ -333,7 +333,7 @@
 
 .device-health__tip-title {
   display: block;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
   color: var(--dhs-warn);
   margin-bottom: 2px;
@@ -341,7 +341,7 @@
 
 .device-health__tip-text {
   margin: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.68);
 }
@@ -351,7 +351,7 @@
 }
 
 .device-health__tip-index {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   margin-right: 2px;
 }
 
@@ -366,11 +366,11 @@
 }
 
 .dhs-c-success {
-  color: var(--hos-color-success-text);
+  color: var(--set-success, #6ee7b7);
 }
 .dhs-c-warn {
-  color: var(--hos-color-warning-text);
+  color: var(--set-warn, #fcd34d);
 }
 .dhs-c-danger {
-  color: var(--hos-color-danger-text);
+  color: var(--set-danger, #fda4af);
 }

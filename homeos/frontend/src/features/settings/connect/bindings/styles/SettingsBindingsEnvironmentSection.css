@@ -12,7 +12,7 @@
   align-items: center;
   gap: 5px;
   padding: 7px 11px;
-  border-radius: var(--hos-r-1);
+  border-radius: var(--hos-radius-control);
   border: none;
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.62);
@@ -25,8 +25,8 @@
 }
 
 .env-room-btn:hover:not(:disabled) {
-  background: var(--hos-color-accent-soft);
-  color: var(--hos-color-accent);
+  background: var(--page-accent-bg);
+  color: var(--page-accent-text);
 }
 
 .env-room-btn:disabled {
@@ -35,7 +35,7 @@
 }
 
 .env-room-btn--muted {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .env-room-btn--muted:hover:not(:disabled) {
@@ -48,10 +48,10 @@
   flex-direction: column;
   gap: 14px;
   padding: var(--hos-panel-padding-default, 20px);
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid var(--page-accent-border);
   background:
-    radial-gradient(ellipse at 0% 0%, var(--hos-glow-accent-soft) 0%, transparent 65%),
+    radial-gradient(ellipse at 0% 0%, var(--page-accent-glow) 0%, transparent 65%),
     rgba(0, 0, 0, 0.15);
 }
 
@@ -61,17 +61,17 @@
   flex-wrap: wrap;
   gap: 10px;
   padding-bottom: 12px;
-  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
 }
 
 .env-room-editor__tag {
   padding: 3px 8px;
   border-radius: 6px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft-strong);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 .env-room-editor__remove {
@@ -80,13 +80,13 @@
   gap: 5px;
   margin-left: auto;
   /* 高度钉到 xs 档：chip 内边距 + 行高凑出 30px。 */
-  height: var(--hos-control-h-xs);
+  height: var(--control-height-xs);
   padding: 0 var(--hos-chip-pad-x, 12px);
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--hos-fg-2);
-  font-size: var(--hos-fs-2);
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -95,8 +95,8 @@
 }
 
 .env-room-editor__remove:hover {
-  color: var(--hos-color-danger);
-  background: rgba(var(--hos-color-danger-rgb), 0.1);
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .env-room-form {
@@ -119,19 +119,19 @@
 }
 
 .bind-env-quick-rules__title {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
   color: #6ee7b7;
   margin: 0 0 4px;
 }
 
 .bind-env-quick-rules__desc {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   color: #64748b;
   margin: 0 0 10px;
 }
 
 .env-room-field__label--accent {
-  color: var(--hos-color-accent);
+  color: var(--page-accent-text);
   opacity: 0.9;
 }

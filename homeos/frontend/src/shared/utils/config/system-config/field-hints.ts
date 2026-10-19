@@ -6,7 +6,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.eventLogTimelineHours':
     '系统时间线（事件日志）默认回溯的小时数。推荐 12',
   'settings.systemConfig.fieldHint.accentColor':
-    '界面强调色，用于按钮、链接、选中态等关键交互元素。推荐暖铜 #ffc46a',
+    '界面强调色，用于按钮、链接、选中态等关键交互元素。推荐系统蓝 #3b82f6',
   'settings.systemConfig.fieldHint.alertBypassDnd':
     '开启后安防告警投递不受免打扰时段限制，紧急事件天然绕过 DND。推荐开启',
   'settings.systemConfig.fieldHint.alertChannels':
@@ -142,11 +142,11 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.latencyProfile':
     'realtime=默认，禁止大实体自适应抬高 flush；balanced=均衡；bulk=偏吞吐放大窗口',
   'settings.systemConfig.fieldHint.wsPingIntervalMs':
-    'HA WebSocket 应用层 ping 间隔。推荐 45000',
+    'HA WebSocket 应用层 ping 间隔；越小越早发现断线，推荐 15000',
   'settings.systemConfig.fieldHint.wsPongTimeoutMs':
-    '等待 pong 超时；过短易在事件洪峰下误杀连接。推荐 25000',
+    '单次等待 pong 的超时；过短易在事件洪峰下误杀连接，推荐 10000',
   'settings.systemConfig.fieldHint.wsHeartbeatMaxMisses':
-    '连续未响应达到该次数才主动断开重连。推荐 3',
+    '连续未响应达到该次数才主动断开重连；判死窗口 ≈ ping 间隔 + 超时 × 次数，推荐 2',
   'settings.systemConfig.fieldHint.learningPeriodDays':
     '能源异常学习期天数，期间跳过功率突增告警以建立基线。推荐 7',
   'settings.systemConfig.fieldHint.lowBatteryCooldownMin':

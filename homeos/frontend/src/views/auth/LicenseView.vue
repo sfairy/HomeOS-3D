@@ -419,7 +419,7 @@ onBeforeUnmount(() => {
 
 .license-diagnostics__title {
   margin: 0 0 var(--hos-space-2);
-  color: var(--hos-color-fg-2);
+  color: var(--hos-fg-2);
   font-size: var(--hos-fs-3);
   letter-spacing: 0.04em;
 }
@@ -438,12 +438,12 @@ onBeforeUnmount(() => {
 }
 
 .license-diagnostics__list dt {
-  color: var(--hos-color-fg-3);
+  color: var(--hos-fg-3);
 }
 
 .license-diagnostics__list dd {
   margin: 0;
-  color: var(--hos-color-fg-2);
+  color: var(--hos-fg-2);
   text-align: right;
   word-break: break-all;
 }

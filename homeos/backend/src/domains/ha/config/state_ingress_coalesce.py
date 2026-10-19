@@ -12,6 +12,7 @@ from ...app_config.defaults import DEFAULT_APP_CONFIG
 from ....platform.core.app_config import load_raw_config
 from ....platform.core.background import spawn_awaitable
 from ....platform.core.entity_domain import get_entity_domain
+from ....platform.core.observability import record_ha_sync_latency
 
 logger = logging.getLogger("homeos.state_ingress_coalesce")
 
@@ -152,6 +153,11 @@ class StateIngressCoalesceService:
         self._timer = None
         if not self._pending:
             return
+        now_ms = time.monotonic() * 1000
+        # 合并窗口停留时长：入队 → flush。这是「为了让同一实体只发一帧」刻意加的延迟，
+        # 单独成段统计，才能区分「设定的窗口」和「事件循环排不上队造成的额外停留」。
+        for entry in self._pending.values():
+            record_ha_sync_latency('ingress_coalesce_dwell', max(0.0, now_ms - entry["enqueued_at"]))
         batch = [entry["event"] for entry in self._pending.values()]
         self._pending.clear()
         self.flush_count += 1

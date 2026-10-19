@@ -2,7 +2,7 @@
  * 事件历史页 · 域专属样式（壳层见 list-page-dual-pane.css）
  */
 .events-view {
-  --ev-accent: var(--hos-color-accent);
+  --ev-accent: var(--page-accent, #22d3ee);
 }
 
 .events-view__cards {
@@ -20,7 +20,7 @@
   display: flex;
   gap: 0;
   padding: 7px 10px 7px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.03);
   transition:
@@ -41,9 +41,9 @@
   box-shadow: 0 0 8px color-mix(in srgb, var(--ev-accent) 45%, rgba(0, 0, 0, 0));
 }
 
-.events-view__card[data-domain="light"] .events-view__card-accent { background: var(--hos-color-warning-text); }
-.events-view__card[data-domain="climate"] .events-view__card-accent { background: var(--hos-color-warning-text); }
-.events-view__card[data-domain="camera"] .events-view__card-accent { background: var(--hos-color-danger-text); }
+.events-view__card[data-domain="light"] .events-view__card-accent { background: #fde68a; }
+.events-view__card[data-domain="climate"] .events-view__card-accent { background: #fdba74; }
+.events-view__card[data-domain="camera"] .events-view__card-accent { background: #fca5a5; }
 .events-view__card[data-domain="sensor"] .events-view__card-accent,
 .events-view__card[data-domain="binary_sensor"] .events-view__card-accent { background: #6ee7b7; }
 
@@ -81,7 +81,7 @@
 .events-view__card-name {
   flex-shrink: 0;
   max-width: 42%;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
   white-space: nowrap;
@@ -91,15 +91,15 @@
 
 .events-view__card-name--fallback {
   font-family: ui-monospace, monospace;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   color: rgba(255, 255, 255, 0.72);
 }
 
 .events-view__card-time {
   flex-shrink: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -116,13 +116,13 @@
   flex-shrink: 0;
   padding: 2px 6px;
   border-radius: 6px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.3;
 }
 
 .events-view__card-entity-id {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
   font-family: ui-monospace, monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -144,7 +144,7 @@
   align-items: center;
   padding: 1px 6px;
   border-radius: 6px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.45;
   font-family: ui-monospace, monospace;
   border: var(--hos-hairline) solid transparent;
@@ -152,14 +152,14 @@
 
 .events-view__state--new {
   color: #6ee7b7;
-  background: rgba(var(--hos-color-success-rgb), 0.1);
-  border-color: rgba(var(--hos-color-success-rgb), 0.22);
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.22);
 }
 
 .events-view__state--old {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.04);
-  border-color: var(--hos-line-3);
+  border-color: var(--premium-border-strong);
 }
 
 .events-view__pager {
@@ -171,8 +171,8 @@
   justify-content: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--ev-accent) 22%, var(--hos-line-3));
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--ev-accent) 22%, var(--premium-border-strong));
   background: rgba(0, 0, 0, 0.28);
 }
 

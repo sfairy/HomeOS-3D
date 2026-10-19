@@ -23,7 +23,12 @@ import {
 } from '@/services/api/agent'
 import { useAgentPanelChat } from '@/features/settings/composables/interact/agent-panel-chat.internals'
 import { useAgentModelStats } from '@/features/settings/composables/interact/agent-panel-stats.internals'
-import type { AgentConfig, ChannelConfig, SceneVoiceControl } from '@/shared/types/layout'
+import type {
+  AgentConfig,
+  AgentProactiveConfig,
+  ChannelConfig,
+  SceneVoiceControl,
+} from '@/shared/types/layout'
 import {
   AGENT_CHAT_QUICK_PROMPTS,
   AGENT_PROVIDER_PRESETS,
@@ -51,6 +56,8 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
   const subnavSections = [
     { id: 'model', label: '模型配置' },
     { id: 'scene-voice', label: '场景语音' },
+    { id: 'device-scope', label: '设备范围' },
+    { id: 'proactive', label: '主动管家' },
     { id: 'channels', label: '消息通道' },
     { id: 'chat', label: '对话' },
   ]
@@ -72,11 +79,50 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     return { enabled: raw.enabled === true, allow }
   }
 
+  /** 主动管家草稿：嵌套字段逐个兜底，避免旧布局缺字段导致 NaN */
+  function readProactive(): AgentProactiveConfig {
+    const d = getDefaultLayout().agentConfig!.proactive!
+    const raw = layoutStore.layoutConfig?.agentConfig?.proactive
+    if (!raw || typeof raw !== 'object') return { ...d }
+    const num = (value: unknown, fallback: number) => {
+      const n = Number(value)
+      return Number.isFinite(n) ? n : fallback
+    }
+    return {
+      enabled: raw.enabled === true,
+      intervalSeconds: Math.max(60, num(raw.intervalSeconds, d.intervalSeconds)),
+      cooldownSeconds: Math.max(60, num(raw.cooldownSeconds, d.cooldownSeconds)),
+      quietStart: Math.min(23, Math.max(0, num(raw.quietStart, d.quietStart))),
+      quietEnd: Math.min(23, Math.max(0, num(raw.quietEnd, d.quietEnd))),
+      energyMultiplier: Math.max(1, num(raw.energyMultiplier, d.energyMultiplier)),
+      minEnergyKwh: Math.max(0, num(raw.minEnergyKwh, d.minEnergyKwh)),
+      forecastSlots: Math.min(12, Math.max(1, num(raw.forecastSlots, d.forecastSlots))),
+      forecastPopThreshold: Math.min(
+        1,
+        Math.max(0, num(raw.forecastPopThreshold, d.forecastPopThreshold)),
+      ),
+    }
+  }
+
+  /** Agent 专属设备白名单：非法项丢弃，空列表 = 不额外限制 */
+  function readDeviceAllowlist(): string[] {
+    const raw = layoutStore.layoutConfig?.agentConfig?.deviceAllowlist
+    if (!Array.isArray(raw)) return []
+    const seen = new Set<string>()
+    for (const item of raw) {
+      const id = String(item ?? '').trim()
+      if (id) seen.add(id)
+    }
+    return [...seen].slice(0, 200)
+  }
+
   function readAgent(): AgentConfig {
     return {
       ...emptyAgent(),
       ...(layoutStore.layoutConfig?.agentConfig || {}),
       sceneVoiceControl: readSceneVoiceControl(),
+      proactive: readProactive(),
+      deviceAllowlist: readDeviceAllowlist(),
     }
   }
 
@@ -154,6 +200,8 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     modelStatReadyLabel,
     modelStatReadyClass,
     modelStatReadyValClass,
+    modelStatDetail,
+    usageTodayLabel,
   } = useAgentModelStats({ pending, pingInfo, providerLabel })
 
   /**
@@ -183,6 +231,40 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
 
   /** 清单内可被语音触发的数量（供面板统计展示） */
   const sceneVoiceAllowCount = computed(() => sceneVoiceAllow.value.length)
+
+  /** Agent 专属设备白名单（空 = 不额外限制，v-model 绑定 EntityMultiSelect） */
+  const deviceAllowlist = computed<string[]>({
+    get: () => agentDraft.deviceAllowlist ?? [],
+    set: (val) => {
+      agentDraft.deviceAllowlist = Array.isArray(val) ? [...val] : []
+    },
+  })
+  const deviceAllowlistCount = computed(() => deviceAllowlist.value.length)
+
+  /** 主动管家草稿：readAgent 已补全默认值，这里只做非空断言供模板 v-model 使用 */
+  const proactive = computed(() => {
+    if (!agentDraft.proactive) {
+      agentDraft.proactive = { ...getDefaultLayout().agentConfig!.proactive! }
+    }
+    return agentDraft.proactive
+  })
+
+  /** 分钟输入 → 秒存储（Vue 模板只负责把 Event 交进来） */
+  function setProactiveMinutes(
+    field: 'intervalSeconds' | 'cooldownSeconds',
+    event: Event,
+  ): void {
+    const minutes = Number((event.target as HTMLInputElement).value)
+    if (!Number.isFinite(minutes)) return
+    proactive.value[field] = Math.min(1440, Math.max(1, minutes)) * 60
+  }
+
+  /** 百分比输入 → 0-1 存储 */
+  function setProactivePercent(event: Event): void {
+    const percent = Number((event.target as HTMLInputElement).value)
+    if (!Number.isFinite(percent)) return
+    proactive.value.forecastPopThreshold = Math.min(100, Math.max(0, percent)) / 100
+  }
 
 
   const modelFlowSteps = computed(() => [
@@ -272,6 +354,26 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
             .map((id) => String(id ?? '').trim())
             .filter(Boolean),
         },
+        // 主动管家：保留完整频控参数；back-end 默认关闭，只有 enabled===true 才巡检
+        proactive: {
+          enabled: agentDraft.proactive?.enabled === true,
+          intervalSeconds: Math.max(60, Number(agentDraft.proactive?.intervalSeconds) || 900),
+          cooldownSeconds: Math.max(60, Number(agentDraft.proactive?.cooldownSeconds) || 1800),
+          quietStart: Math.min(23, Math.max(0, Number(agentDraft.proactive?.quietStart) || 0)),
+          quietEnd: Math.min(23, Math.max(0, Number(agentDraft.proactive?.quietEnd) || 0)),
+          energyMultiplier: Math.max(1, Number(agentDraft.proactive?.energyMultiplier) || 1.5),
+          minEnergyKwh: Math.max(0, Number(agentDraft.proactive?.minEnergyKwh) || 0),
+          forecastSlots: Math.min(12, Math.max(1, Number(agentDraft.proactive?.forecastSlots) || 4)),
+          forecastPopThreshold: Math.min(
+            1,
+            Math.max(0, Number(agentDraft.proactive?.forecastPopThreshold) || 0.6),
+          ),
+        },
+        // Agent 专属设备白名单：空 = 不额外限制；后端与用户 ACL 取交集
+        deviceAllowlist: (agentDraft.deviceAllowlist ?? [])
+          .map((id) => String(id ?? '').trim())
+          .filter(Boolean)
+          .slice(0, 200),
       }
       layoutStore.layoutConfig.channelConfig = {
         email: { ...channelDraft.email },
@@ -381,6 +483,11 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     sceneVoiceEnabled,
     sceneVoiceAllow,
     sceneVoiceAllowCount,
+    deviceAllowlist,
+    deviceAllowlistCount,
+    proactive,
+    setProactiveMinutes,
+    setProactivePercent,
     toneFromAgentClass,
     modelFlowSteps,
     chatFlowSteps,
@@ -388,6 +495,8 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
     modelStatReadyLabel,
     modelStatReadyClass,
     modelStatReadyValClass,
+    modelStatDetail,
+    usageTodayLabel,
     applyPreset,
     resetDraft,
     saveConfig,

@@ -45,6 +45,11 @@ class ResolvingLlmProvider:
         """透出当前内部提供商名。"""
         return str(self._inner.name)
 
+    @property
+    def model(self) -> str:
+        """透出当前内部 provider 使用的模型名（mock / unavailable 为空串）。"""
+        return str(getattr(self._inner, "model", "") or "")
+
     def is_ready(self) -> bool:
         """透出当前内部提供商的就绪状态。"""
         return bool(self._inner.is_ready())
@@ -79,6 +84,7 @@ class ResolvingLlmProvider:
                 # 已是 DeepSeek 实例，原地更新配置即可
                 self._inner.update_config(
                     {
+                        "provider": cfg.provider,
                         "apiKey": cfg.api_key,
                         "baseUrl": cfg.api_base,
                         "model": cfg.model,
@@ -88,6 +94,7 @@ class ResolvingLlmProvider:
                 # 从 mock 切到 DeepSeek，新建实例
                 self._inner = DeepseekLlmProvider(
                     {
+                        "provider": cfg.provider,
                         "apiKey": cfg.api_key,
                         "baseUrl": cfg.api_base,
                         "model": cfg.model,

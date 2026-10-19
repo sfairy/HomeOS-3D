@@ -656,6 +656,12 @@ class RealtimeGateway:
         ws_cfg = self._ws_config()
         self._apply_state_config()
         payloads = [to_ws_state_change_payload(change) for change in changes]
+        # 出站时刻（epoch ms）：前端据此对齐「后端广播 → UI apply」这一段。
+        # 之前 payloads 只读 event.pipeline_ts，而没有任何地方写入它，于是前端
+        # fe_e2e_apply 永远没有样本 —— 实时性无法回归，等于没有基线。
+        emitted_at_ms = time.time() * 1000
+        for payload in payloads:
+            payload.setdefault("_pipelineTs", emitted_at_ms)
         timestamp = _iso_now()
         critical = set(ws_cfg.critical_domains)
         # 可见性判定按用户缓存：同一账号可能有多个连接（多端/多标签），

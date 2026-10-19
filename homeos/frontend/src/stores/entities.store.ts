@@ -421,6 +421,7 @@ export const useEntitiesStore = defineStore('entities', () => {
   const {
     connected,
     reconnecting,
+    haStatus,
     haQueueDroppedTotal,
     lastQueueDropAt,
     initStates,
@@ -615,6 +616,7 @@ export const useEntitiesStore = defineStore('entities', () => {
   return {
     connected,
     reconnecting,
+    haStatus,
     loading,
     entitiesStale,
     haQueueDroppedTotal,

@@ -26,6 +26,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -124,7 +125,9 @@ class HomeOSFacadeMixin:
             )
 
     async def _facade_client(self) -> Any:
-        connection = self._active_connection()
+        # 「当前活跃连接」是同步 SQLite 查询：放在事件循环上会在每条控制命令前
+        # 卡住整个 loop（同一时刻可能正在推 WS 状态）。挪到线程池，与其它读库一致。
+        connection = await asyncio.to_thread(self._active_connection)
         if connection is None:
             return None
         return await self._host.client_for(connection)

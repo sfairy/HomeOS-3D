@@ -41,25 +41,25 @@ const props = defineProps({
   title: { type: String, required: true },
   /** 描述文案（单行省略） */
   hint: { type: String, default: '' },
-  /**
-   * 语义色调：accent | info | success | warning | danger | neutral。
-   * 页面 hero 默认用暖铜；状态色只用于危险/警示语义，不再按模块分色。
-   */
-  tone: { type: String, default: 'accent' },
+  /** 色调：sky | cyan | orange | pink | amber | red | violet | slate | emerald */
+  tone: { type: String, default: 'sky' },
 })
 
-/** tone → canonical 令牌（不再出现裸 hex） */
+/** tone → 强调色映射表 */
 const TONE_ACCENTS = {
-  accent: 'var(--hos-color-accent)',
-  info: 'var(--hos-color-info)',
-  success: 'var(--hos-color-success)',
-  warning: 'var(--hos-color-warning)',
-  danger: 'var(--hos-color-danger)',
-  neutral: 'var(--hos-fg-2)',
+  sky: '#38bdf8',
+  cyan: '#5fd4ff',
+  orange: '#fb923c',
+  pink: '#f472b6',
+  amber: '#fbbf24',
+  red: '#f87171',
+  violet: '#a78bfa',
+  slate: '#94a3b8',
+  emerald: '#34d399',
 }
 
-/** 当前强调色：语义 tone 未命中时回退暖铜 */
-const accentColor = computed(() => TONE_ACCENTS[props.tone] || TONE_ACCENTS.accent)
+/** 当前强调色：按 tone 取值，未匹配回退 sky */
+const accentColor = computed(() => TONE_ACCENTS[props.tone] || TONE_ACCENTS.sky)
 </script>
 
 <style scoped>

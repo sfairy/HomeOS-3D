@@ -68,6 +68,27 @@ class SceneVoiceControlConfig:
     allow: list[str] = field(default_factory=list)
 
 
+@dataclass
+class AgentProactiveConfig:
+    """主动管家配置（默认关闭，避免升级后突然开始推送）。"""
+
+    enabled: bool = False
+    #: 巡检周期（秒）
+    interval_seconds: int = 900
+    #: 两次主动提醒的最小间隔（秒）
+    cooldown_seconds: int = 1800
+    #: 免打扰时段（家庭当地时间，含起点、不含终点；支持跨夜，如 22 → 7）
+    quiet_start: int = 22
+    quiet_end: int = 7
+    #: 今日用电超过前 N 天均值的倍数才提醒
+    energy_multiplier: float = 1.5
+    #: 用电异常提醒的最低今日用电量（kWh），避免小基数误报
+    min_energy_kwh: float = 1.0
+    #: 未来多少个预报时段内降水概率超阈值则提醒
+    forecast_slots: int = 4
+    forecast_pop_threshold: float = 0.6
+
+
 def is_mock_allowed(env: Mapping[str, str] | None = None) -> bool:
     """AGENT_ALLOW_MOCK 未显式配置时，非 production 环境允许 mock。"""
     source = env if env is not None else os.environ
@@ -235,6 +256,85 @@ class AgentConfigService:
             logger.warning("读取场景语音控制配置失败,按全禁处理: %s", exc)
             return fallback
 
+    # 设备白名单
+    async def get_device_allowlist(self) -> list[str]:
+        """Agent 专属设备白名单（``layout.agentConfig.deviceAllowlist``）。
+
+        空列表 = 不额外限制（仍受登录用户自身 ACL 约束）；非空时只有匹配的实体
+        （支持 ``light`` / ``light.`` / ``light.living_room``）才允许被管家读写。
+        非法项直接丢弃，避免一条坏配置把管家锁死。
+        """
+        try:
+            agent = self._read_agent_config()
+            raw = agent.get("deviceAllowlist") if agent else None
+            if not isinstance(raw, list):
+                return []
+            allow: list[str] = []
+            for item in raw:
+                text = str(item if item is not None else "").strip()
+                if not text or len(text) > 128:
+                    continue
+                if not all(ch.isalnum() or ch in "._-" for ch in text):
+                    continue
+                if text not in allow:
+                    allow.append(text)
+            return allow[:200]
+        except Exception as exc:
+            logger.warning("读取 Agent 设备白名单失败,按不限制处理: %s", exc)
+            return []
+
+    # 主动管家
+    async def get_proactive_config(self) -> AgentProactiveConfig:
+        """读取主动管家配置（layout.agentConfig.proactive，env 可覆盖开关与周期）。
+
+        默认关闭；非法值一律回退默认值，避免一条坏配置让后台巡检任务不停报错。
+        """
+        raw: dict[str, Any] = {}
+        try:
+            agent = self._read_agent_config()
+            proactive = agent.get("proactive") if agent else None
+            if isinstance(proactive, dict):
+                raw = proactive
+        except Exception as exc:
+            logger.warning("读取主动管家配置失败,按默认值处理: %s", exc)
+
+        enabled = raw.get("enabled") is True
+        env_enabled = self._env_get("AGENT_PROACTIVE_ENABLED").strip().lower()
+        if env_enabled in ("true", "false"):
+            enabled = env_enabled == "true"
+
+        def _int(name: str, key: str, default: int, minimum: int, maximum: int) -> int:
+            value = raw.get(key, self._env_get(name))
+            try:
+                number = int(float(value))
+            except (TypeError, ValueError):
+                return default
+            return max(minimum, min(maximum, number))
+
+        def _float(name: str, key: str, default: float, minimum: float) -> float:
+            value = raw.get(key, self._env_get(name))
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return default
+            return max(minimum, number)
+
+        return AgentProactiveConfig(
+            enabled=enabled,
+            interval_seconds=_int("AGENT_PROACTIVE_INTERVAL_SECONDS", "intervalSeconds", 900, 60, 86400),
+            cooldown_seconds=_int("AGENT_PROACTIVE_COOLDOWN_SECONDS", "cooldownSeconds", 1800, 60, 86400),
+            quiet_start=_int("AGENT_PROACTIVE_QUIET_START", "quietStart", 22, 0, 23),
+            quiet_end=_int("AGENT_PROACTIVE_QUIET_END", "quietEnd", 7, 0, 23),
+            energy_multiplier=_float(
+                "AGENT_PROACTIVE_ENERGY_MULTIPLIER", "energyMultiplier", 1.5, 1.0
+            ),
+            min_energy_kwh=_float("AGENT_PROACTIVE_MIN_ENERGY_KWH", "minEnergyKwh", 1.0, 0.0),
+            forecast_slots=_int("AGENT_PROACTIVE_FORECAST_SLOTS", "forecastSlots", 4, 1, 12),
+            forecast_pop_threshold=_float(
+                "AGENT_PROACTIVE_FORECAST_POP", "forecastPopThreshold", 0.6, 0.0
+            ),
+        )
+
     # 内部工具
     def resolve_active_project_id(self) -> str:
         """当前激活 display profile（与 HA / UI 保存目标一致）。"""
@@ -316,6 +416,7 @@ class AgentConfigService:
 __all__ = [
     "AgentConfigService",
     "AgentLlmConfig",
+    "AgentProactiveConfig",
     "AgentPublicConfig",
     "SceneVoiceControlConfig",
     "is_mock_allowed",

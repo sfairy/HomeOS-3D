@@ -1,0 +1,410 @@
+/**
+ * 旧令牌 → canonical 兼容层（legacy-token-bridge）
+ * ---------------------------------------------------------------
+ * 唯一职责：把仓库里已经存在的旧令牌名，重新指向 design-tokens.css 的 canonical 值。
+ * 顺序要求：必须在所有既有样式表之后加载（入口里排最后，仅早于 touch-a11y.css）。
+ *
+ * 为什么不能只「删旧名换新名」：
+ *   1) 旧名有 5 大族、上千处引用（--page-accent 1154 处、--module-accent 418 处、
+ *      --premium-accent 200 处、--accent 118 处），一次性替换无法逐屏回归。
+ *   2) CSS 自定义属性的 var() 在**声明元素处**求值：旧文件里
+ *      「--premium-border: var(--hos-border-subtle)」之类别名在加载时就被冻结成旧值。
+ *      只改 canonical 值而不重声明别名，会出现「一半新色一半旧色」的割裂。
+ *      故本文件必须把**所有上游值发生变化的别名族**重新声明一遍（注释标「冻结修复」处）。
+ *
+ * 迁移策略：新代码只用 --hos-* / --hos-color-*；页面迁移完成后，本文件对应段可整段删除。
+ */
+
+:root {
+  /* ══ 1. 画布 / 视口 ═══════════════════════════════════════ */
+  --bg-viewport: var(--hos-bg-canvas);
+  --hos-surface-0: var(--hos-bg-canvas);
+
+  /* ══ 2. 强调色五族合一 ═════════════════════════════════════
+     说明：popup-base.css / popup-entities.css 在 .popup-shell 等**局部作用域**里
+     按实体类型覆盖 --accent（灯=琥珀、空调=青…）。那些局部声明特异性更高、且仍在
+     本文件之前就没问题：它们会继续生效 —— 这里只统一**默认值**，不接管实体配色。 */
+  --accent: var(--hos-color-accent);
+  --accent-rgb: var(--hos-color-accent-rgb);
+  --accent-secondary: var(--hos-color-accent-strong);
+  --accent-tertiary: var(--hos-color-accent);
+  --accent-cyan: var(--hos-color-accent);
+  --accent-warm: var(--hos-color-accent-deep);
+  --accent-glow: rgba(var(--hos-color-accent-rgb), 0.4);
+  --accent-glow-warm: rgba(var(--hos-color-accent-rgb), 0.32);
+
+  /* premium 色板 → 强调色/语义色（旧蓝紫青全部收敛，避免「同屏三套冷暖」） */
+  --premium-accent-blue: var(--hos-color-accent);
+  --premium-accent-cyan: var(--hos-color-accent-strong);
+  --premium-accent-cyan-rgb: var(--hos-color-accent-strong-rgb);
+  --premium-accent-purple: var(--hos-color-accent-deep);
+  --premium-accent-violet: var(--hos-color-accent-deep);
+  --premium-accent-amber: var(--hos-color-warning);
+  --premium-accent-green: var(--hos-color-success);
+  --premium-accent-red: var(--hos-color-danger);
+
+  /* 页面主色 + 派生族（派生必须在同一作用域重算，否则会继承旧声明冻结值） */
+  --page-accent: var(--hos-color-accent);
+  --page-accent-rgb: var(--hos-color-accent-rgb);
+  --page-accent-secondary: var(--hos-color-accent-strong);
+  --page-accent-secondary-rgb: var(--hos-color-accent-strong-rgb);
+  --page-accent-bg: rgba(var(--hos-color-accent-rgb), 0.12);
+  --page-accent-bg-strong: rgba(var(--hos-color-accent-rgb), 0.18);
+  --page-accent-border: var(--hos-color-accent-line);
+  --page-accent-glow: rgba(var(--hos-color-accent-rgb), 0.16);
+  --page-accent-text: var(--hos-color-accent);
+
+  /* modal-theme.css 的 --hos-accent / --hos-accent-end 是 **RGB 分量三元组**
+     （用法 rgba(var(--hos-accent), x)），不是颜色 —— 保持三元组语义 */
+  --hos-accent: var(--hos-color-accent-rgb);
+  --hos-accent-end: var(--hos-color-accent-deep-rgb);
+
+  /* 模块色 21 组 × 4：模块辨识改为「同色不同透明度/描边」，不再一屏四色 */
+  --module-accent-devices: var(--hos-color-accent);
+  --module-accent-devices-rgb: var(--hos-color-accent-rgb);
+  --module-accent-devices-sub: var(--hos-color-accent-strong);
+  --module-accent-devices-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-scenes: var(--hos-color-accent);
+  --module-accent-scenes-rgb: var(--hos-color-accent-rgb);
+  --module-accent-scenes-sub: var(--hos-color-accent-strong);
+  --module-accent-scenes-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-security: var(--hos-color-accent);
+  --module-accent-security-rgb: var(--hos-color-accent-rgb);
+  --module-accent-security-sub: var(--hos-color-accent-strong);
+  --module-accent-security-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-automation: var(--hos-color-accent);
+  --module-accent-automation-rgb: var(--hos-color-accent-rgb);
+  --module-accent-automation-sub: var(--hos-color-accent-strong);
+  --module-accent-automation-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-script: var(--hos-color-accent);
+  --module-accent-script-rgb: var(--hos-color-accent-rgb);
+  --module-accent-script-sub: var(--hos-color-accent-strong);
+  --module-accent-script-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-template: var(--hos-color-accent);
+  --module-accent-template-rgb: var(--hos-color-accent-rgb);
+  --module-accent-template-sub: var(--hos-color-accent-strong);
+  --module-accent-template-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-events: var(--hos-color-accent);
+  --module-accent-events-rgb: var(--hos-color-accent-rgb);
+  --module-accent-events-sub: var(--hos-color-accent-strong);
+  --module-accent-events-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-energy: var(--hos-color-accent);
+  --module-accent-energy-rgb: var(--hos-color-accent-rgb);
+  --module-accent-energy-sub: var(--hos-color-accent-strong);
+  --module-accent-energy-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-life: var(--hos-color-accent);
+  --module-accent-life-rgb: var(--hos-color-accent-rgb);
+  --module-accent-life-sub: var(--hos-color-accent-strong);
+  --module-accent-life-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-connection: var(--hos-color-accent);
+  --module-accent-connection-rgb: var(--hos-color-accent-rgb);
+  --module-accent-connection-sub: var(--hos-color-accent-strong);
+  --module-accent-connection-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-bindings: var(--hos-color-accent);
+  --module-accent-bindings-rgb: var(--hos-color-accent-rgb);
+  --module-accent-bindings-sub: var(--hos-color-accent-strong);
+  --module-accent-bindings-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-agent: var(--hos-color-accent);
+  --module-accent-agent-rgb: var(--hos-color-accent-rgb);
+  --module-accent-agent-sub: var(--hos-color-accent-strong);
+  --module-accent-agent-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-layout: var(--hos-color-accent);
+  --module-accent-layout-rgb: var(--hos-color-accent-rgb);
+  --module-accent-layout-sub: var(--hos-color-accent-strong);
+  --module-accent-layout-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-home-mode: var(--hos-color-accent);
+  --module-accent-home-mode-rgb: var(--hos-color-accent-rgb);
+  --module-accent-home-mode-sub: var(--hos-color-accent-strong);
+  --module-accent-home-mode-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-admin: var(--hos-color-accent);
+  --module-accent-admin-rgb: var(--hos-color-accent-rgb);
+  --module-accent-admin-sub: var(--hos-color-accent-strong);
+  --module-accent-admin-sub-rgb: var(--hos-color-accent-strong-rgb);
+  --module-accent-voice: var(--hos-color-accent);
+  --module-accent-voice-rgb: var(--hos-color-accent-rgb);
+  --module-accent-voice-sub: var(--hos-color-accent-strong);
+  --module-accent-voice-sub-rgb: var(--hos-color-accent-strong-rgb);
+
+  /* ══ 3. 文字层级 ═══════════════════════════════════════════ */
+  --hos-text-strong: var(--hos-fg-1);
+  --hos-text-primary: var(--hos-fg-1);
+  --hos-text-body: var(--hos-fg-body);
+  --hos-text-secondary: var(--hos-fg-2);
+  --hos-text-tertiary: var(--hos-fg-3);
+  --hos-text-label: var(--hos-fg-2);
+  --hos-text-faint: var(--hos-fg-3);
+  --text-primary: var(--hos-fg-1);
+  --set-text-primary: var(--hos-fg-1);
+  --set-text-heading: var(--hos-fg-1);
+  --set-text-secondary: var(--hos-fg-2);
+  --set-text-tertiary: var(--hos-fg-3);
+  --set-text-label: var(--hos-fg-2);
+  --set-text-faint: var(--hos-fg-3);
+
+  /* ══ 4. 表面层（冻结修复：旧别名指回新色） ═════════════════ */
+  --hos-surface-1: var(--hos-bg-tint-1);
+  --hos-surface-2: var(--hos-bg-tint-2);
+  --hos-surface-3: var(--hos-bg-tint-3);
+  --hos-surface-well: rgba(0, 0, 0, 0.4);
+  --hos-surface-panel: var(--hos-panel-surface);
+  --hos-surface-panel-hover: var(--hos-panel-surface-hover);
+  --hos-surface-elevated: var(--hos-panel-elevated);
+  --hos-surface-inset: var(--hos-shadow-inset);
+  --hos-surface-well-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 2px 8px rgba(0, 0, 0, 0.32);
+
+  --premium-glass-bg: var(--hos-bg-tint-1);
+  --premium-glass-bg-hover: var(--hos-bg-tint-2);
+  --premium-glass-bg-open: rgba(255, 255, 255, 0.06);
+  --set-glass-bg: var(--hos-bg-tint-2);
+  --set-glass-bg-hover: var(--hos-bg-tint-3);
+  --set-glass-bg-subtle: var(--hos-bg-tint-1);
+  --card-bg-1: var(--hos-bg-tint-1);
+  --card-bg-2: var(--hos-bg-tint-2);
+  --card-bg-3: var(--hos-bg-tint-3);
+  --set-bg-dark: rgba(0, 0, 0, 0.3);
+  --set-bg-dark-hover: rgba(0, 0, 0, 0.38);
+
+  --dashboard-sidebar-bg: var(--hos-sidebar-surface);
+  --dashboard-sidebar-border: var(--hos-line-2);
+
+  /* ══ 5. 描边（旧蓝色描边 → 中性暖灰描边；铜色只留给强调） ══ */
+  --hos-border-subtle: var(--hos-line-2);
+  --hos-border-strong: var(--hos-line-3);
+  --hos-border-hairline-soft: var(--hos-line-1);
+  --hos-border-hairline: var(--hos-line-2);
+  --hos-border-hairline-strong: var(--hos-line-3);
+
+  --premium-border: var(--hos-line-2);
+  --premium-border-strong: var(--hos-line-3);
+  --premium-border-open: var(--hos-color-accent-line);
+  --set-border: var(--hos-line-3);
+  --set-border-subtle: var(--hos-line-2);
+  --set-border-strong: var(--hos-line-3);
+  --card-border: var(--hos-line-2);
+  --card-border-hover: var(--hos-line-3);
+
+  /* ══ 6. 阴影（旧 3 套写法收敛到 4 档；冻结修复重复声明） ══════ */
+  --hos-shadow-panel: var(--hos-shadow-3);
+  --hos-shadow-card: var(--hos-shadow-2);
+  --hos-shadow-card-hover: var(--hos-shadow-3);
+  --premium-shadow: var(--hos-shadow-3);
+  --premium-shadow-open: 0 0 0 1px var(--hos-color-accent-faint),
+    var(--hos-shadow-3), var(--hos-shadow-inset);
+  --set-card-surface-shadow: var(--hos-shadow-2);
+
+  /* ══ 7. 圆角（四档：控件 10 / 卡片 14 / 面板 20 / 容器 28） ══ */
+  --hos-radius-control: var(--hos-r-1);
+  --hos-radius-input: var(--hos-r-1);
+  --hos-radius-card: var(--hos-r-2);
+  --hos-radius-panel: var(--hos-r-3);
+  --hos-radius-shell: var(--hos-r-4);
+  --hos-radius-pill: var(--hos-r-pill);
+  --acc-radius: var(--hos-r-2);
+  /* 冻结修复：main.css 里旧圆角别名早已求值成旧值，必须重指一遍 */
+  --radius-xs: var(--hos-r-1);
+  --radius-sm: var(--hos-r-1);
+  --radius-xl: var(--hos-r-4);
+  --radius-2xl: var(--hos-r-4);
+  --radius-ipad-sm: var(--hos-r-2);
+  --radius-ipad-md: var(--hos-r-3);
+  --radius-ipad-lg: var(--hos-r-3);
+  --radius-ipad-xl: var(--hos-r-4);
+  --radius-ipad-2xl: var(--hos-r-4);
+  --radius-ipad-pill: var(--hos-r-pill);
+
+  /* ══ 8. 排版（旧 --premium-fs-* 六档 → 十档字号中的对应档） ══ */
+  --premium-fs-display: var(--hos-fs-8);
+  --premium-fs-title: var(--hos-fs-6);
+  --premium-fs-body: var(--hos-fs-5);
+  --premium-fs-body-sm: var(--hos-fs-4);
+  --premium-fs-caption: var(--hos-fs-3);
+  --premium-fs-micro: var(--hos-fs-2);
+  --premium-fs-stat: var(--hos-fs-7);
+  --premium-fs-widget-title: var(--hos-fs-3);
+  --premium-fs-widget-label: var(--hos-fs-2);
+  --premium-fs-widget-meta: var(--hos-fs-2);
+
+  /* ══ 9. 动效 / 模糊 ════════════════════════════════════════ */
+  --set-transition-fast: var(--hos-dur-fast) var(--hos-ease-standard);
+  --set-transition-normal: var(--hos-dur-base) var(--hos-ease-standard);
+  --hos-transition-panel: var(--hos-dur-slow) var(--hos-ease-out);
+  --premium-blur: var(--hos-blur-2);
+
+  /* ══ 10. 控件尺寸 / 触控目标 ═══════════════════════════════ */
+  --control-height-xs: var(--hos-control-h-xs);
+  --control-height-sm: var(--hos-control-h-sm);
+  --control-height-md: var(--hos-control-h-md);
+  --control-height-lg: var(--hos-control-h-lg);
+  --touch-target-min: var(--hos-touch-min);
+  --control-padding-y: var(--hos-space-2);
+  --control-padding-inline-compact: var(--hos-space-2);
+
+  /* ══ 11. 语义色（--set-* 旧四色 → canonical 语义色） ═══════ */
+  --set-info: var(--hos-color-info-text);
+  --set-info-rgb: var(--hos-color-info-rgb);
+  --set-info-bg: var(--hos-color-info-soft);
+  --set-info-border: var(--hos-color-info-line);
+
+  --set-warn: var(--hos-color-warning-text);
+  --set-warn-rgb: var(--hos-color-warning-rgb);
+  --set-warn-bg: var(--hos-color-warning-soft);
+  --set-warn-border: var(--hos-color-warning-line);
+  --set-warn-deep: rgba(var(--hos-color-warning-rgb), 0.08);
+
+  --set-danger: var(--hos-color-danger-text);
+  --set-danger-rgb: var(--hos-color-danger-rgb);
+  --set-danger-bg: var(--hos-color-danger-soft);
+  --set-danger-border: var(--hos-color-danger-line);
+
+  --set-success: var(--hos-color-success-text);
+  --set-success-rgb: var(--hos-color-success-rgb);
+  --set-success-bg: var(--hos-color-success-soft);
+  --set-success-border: var(--hos-color-success-line);
+
+  --set-neutral: var(--hos-fg-2);
+  --set-neutral-rgb: 167, 180, 194;
+  --set-neutral-bg: rgba(255, 255, 255, 0.06);
+  --set-neutral-border: var(--hos-line-2);
+
+  /* ══ 12. 光晕（页面流动光带；两处 rgba 副本收敛到强调色） ═══ */
+  --theme-glow-a: rgba(var(--hos-color-accent-rgb), 0.16);
+  --theme-glow-b: rgba(var(--hos-color-accent-rgb), 0.1);
+  --flow-glow-a: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-a));
+  --flow-glow-b: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-b));
+}
+
+/* ══ 13. 彩色模块色板（vivid palette） ═══════════════════════════════
+   兼容层默认把 21 组模块色收敛为暖铜；这里按既有模块辨识度恢复彩色，
+   但幅值仍走同一套语义：
+     设备/场景/绑定/连接 → 天蓝，语音/模板/布局 → 紫，
+     事件/通知 → 青，能源/脚本/智能体 → 绿，
+     自动化/家庭模式 → 琥珀，安防 → 玫红，管理 → 石板灰。
+   只覆盖值，不改任何组件选择器；页面级派生色仍由 app-premium-tokens.css
+   的 :where() 块按 --page-accent-rgb 重算。 */
+:root {
+  /* 设备 / 场景 / 绑定 / 连接：天蓝 */
+  --module-accent-devices: #38bdf8;
+  --module-accent-devices-rgb: 56, 189, 248;
+  --module-accent-devices-sub: #22d3ee;
+  --module-accent-devices-sub-rgb: 34, 211, 238;
+
+  --module-accent-scenes: #38bdf8;
+  --module-accent-scenes-rgb: 56, 189, 248;
+  --module-accent-scenes-sub: #7dd3fc;
+  --module-accent-scenes-sub-rgb: 125, 211, 252;
+
+  --module-accent-bindings: #38bdf8;
+  --module-accent-bindings-rgb: 56, 189, 248;
+  --module-accent-bindings-sub: #fbbf24;
+  --module-accent-bindings-sub-rgb: 251, 191, 36;
+
+  --module-accent-connection: #34d399;
+  --module-accent-connection-rgb: 52, 211, 153;
+  --module-accent-connection-sub: #38bdf8;
+  --module-accent-connection-sub-rgb: 56, 189, 248;
+
+  /* 语音 / 模板 / 布局：紫 */
+  --module-accent-voice: #a78bfa;
+  --module-accent-voice-rgb: 167, 139, 250;
+  --module-accent-voice-sub: #22d3ee;
+  --module-accent-voice-sub-rgb: 34, 211, 238;
+
+  --module-accent-template: #a78bfa;
+  --module-accent-template-rgb: 167, 139, 250;
+  --module-accent-template-sub: #c4b5fd;
+  --module-accent-template-sub-rgb: 196, 181, 253;
+
+  --module-accent-layout: #a78bfa;
+  --module-accent-layout-rgb: 167, 139, 250;
+  --module-accent-layout-sub: #22d3ee;
+  --module-accent-layout-sub-rgb: 34, 211, 238;
+
+  /* 事件 / 通知：青 */
+  --module-accent-events: #22d3ee;
+  --module-accent-events-rgb: 34, 211, 238;
+  --module-accent-events-sub: #94a3b8;
+  --module-accent-events-sub-rgb: 148, 163, 184;
+
+  /* 能源 / 脚本 / 智能体 / 生活：绿 */
+  --module-accent-energy: #34d399;
+  --module-accent-energy-rgb: 52, 211, 153;
+  --module-accent-energy-sub: #fbbf24;
+  --module-accent-energy-sub-rgb: 251, 191, 36;
+
+  --module-accent-script: #34d399;
+  --module-accent-script-rgb: 52, 211, 153;
+  --module-accent-script-sub: #2dd4bf;
+  --module-accent-script-sub-rgb: 45, 212, 191;
+
+  --module-accent-agent: #34d399;
+  --module-accent-agent-rgb: 52, 211, 153;
+  --module-accent-agent-sub: #fbbf24;
+  --module-accent-agent-sub-rgb: 251, 191, 36;
+
+  --module-accent-life: #2dd4bf;
+  --module-accent-life-rgb: 45, 212, 191;
+  --module-accent-life-sub: #22d3ee;
+  --module-accent-life-sub-rgb: 34, 211, 238;
+
+  /* 自动化 / 家庭模式：琥珀 */
+  --module-accent-automation: #fbbf24;
+  --module-accent-automation-rgb: 251, 191, 36;
+  --module-accent-automation-sub: #f59e0b;
+  --module-accent-automation-sub-rgb: 245, 158, 11;
+
+  --module-accent-home-mode: #fbbf24;
+  --module-accent-home-mode-rgb: 251, 191, 36;
+  --module-accent-home-mode-sub: #fb7185;
+  --module-accent-home-mode-sub-rgb: 251, 113, 133;
+
+  /* 安防：玫红 */
+  --module-accent-security: #fb7185;
+  --module-accent-security-rgb: 251, 113, 133;
+  --module-accent-security-sub: #f59e0b;
+  --module-accent-security-sub-rgb: 245, 158, 11;
+
+  /* 管理：石板灰 */
+  --module-accent-admin: #94a3b8;
+  --module-accent-admin-rgb: 148, 163, 184;
+  --module-accent-admin-sub: #34d399;
+  --module-accent-admin-sub-rgb: 52, 211, 153;
+
+  /* ── 页面主色默认 emerald + 派生族（各 Hub 在自己的作用域覆盖 --page-accent-rgb） ── */
+  --page-accent: #34d399;
+  --page-accent-rgb: 52, 211, 153;
+  --page-accent-secondary: #22d3ee;
+  --page-accent-secondary-rgb: 34, 211, 238;
+  --page-accent-bg: rgba(52, 211, 153, 0.12);
+  --page-accent-bg-strong: rgba(52, 211, 153, 0.18);
+  --page-accent-border: rgba(52, 211, 153, 0.22);
+  --page-accent-glow: rgba(52, 211, 153, 0.16);
+  --page-accent-text: #34d399;
+
+  /* ── 旧 premium / set 别名补齐（部分组件仍在引用，且没有 var() 回落值） ── */
+  --set-accent: var(--hos-color-accent);
+  --set-accent-rgb: var(--hos-color-accent-rgb);
+  --set-accent-text: var(--hos-color-accent-strong);
+  --set-fg: var(--hos-fg-1);
+  --set-muted: var(--hos-fg-2);
+  --set-surface: var(--hos-bg-tint-2);
+  --set-info-bg-strong: rgba(var(--hos-color-info-rgb), 0.18);
+  --set-info-glow: rgba(var(--hos-color-info-rgb), 0.16);
+  --set-success-bg-strong: rgba(var(--hos-color-success-rgb), 0.18);
+
+  --module-accent-admin-sub-bg: rgba(var(--module-accent-admin-sub-rgb), 0.12);
+  --module-accent-admin-sub-border: rgba(var(--module-accent-admin-sub-rgb), 0.32);
+  --module-accent-automation-sub-border: rgba(var(--module-accent-automation-sub-rgb), 0.32);
+
+  --premium-accent-violet-bg: rgba(167, 139, 250, 0.12);
+  --premium-accent-violet-border: rgba(167, 139, 250, 0.32);
+  --premium-accent-violet-text: #c4b5fd;
+  --premium-fs-sm: 14px;
+  --premium-fs-title-sm: 17px;
+
+  /* ── 蓝色语义描边：恢复旧观感里的冷调分层（列表分隔 / 卡片描边） ── */
+  --hos-border-subtle: rgba(96, 165, 250, 0.18);
+  --hos-border-strong: rgba(125, 211, 252, 0.3);
+  --premium-border: var(--hos-border-subtle);
+  --premium-border-strong: var(--hos-border-strong);
+}

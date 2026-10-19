@@ -32,6 +32,8 @@ class ShortTermSession:
 
     #: 微型滑窗内的消息（按时间正序）
     messages: list[ShortTermTurn] = field(default_factory=list)
+    #: 最近一次控制命中的实体 ID（供「把它关掉」这类指代消解使用）
+    last_targets: list[str] = field(default_factory=list)
     #: 最近一次活动时间戳（ms），用于 TTL 判定
     last_active: int = 0
 
@@ -141,6 +143,36 @@ class AgentShortTermMemoryService:
         """
         if self._sessions.pop(session_id, None) is not None:
             logger.info('已清空短时记忆: session="%s"', session_id)
+
+    def remember_targets(self, session_id: str, entity_ids: list[str]) -> None:
+        """记录本轮控制命中的实体，供 45 秒内的「它」指代消解。
+
+        只保留字符串 ID 并去重；空列表视为「明确没有目标」，用于清掉旧目标。
+        """
+        if not session_id:
+            return
+        session = self._sessions.get(session_id)
+        now = _now_ms()
+        if session is None or now - session.last_active > SESSION_TTL_MS:
+            if not entity_ids:
+                return
+            if len(self._sessions) >= MAX_SESSIONS:
+                self._evict_if_needed()
+            session = ShortTermSession(messages=[], last_active=now)
+            self._sessions[session_id] = session
+        unique = [str(eid) for eid in entity_ids if str(eid or "").strip()]
+        session.last_targets = list(dict.fromkeys(unique))
+        session.last_active = now
+
+    def get_last_targets(self, session_id: str) -> list[str]:
+        """读取最近一次控制目标；会话过期时返回空列表。"""
+        session = self._sessions.get(session_id)
+        if session is None:
+            return []
+        if _now_ms() - session.last_active > SESSION_TTL_MS:
+            self._sessions.pop(session_id, None)
+            return []
+        return list(session.last_targets)
 
 
 __all__ = [

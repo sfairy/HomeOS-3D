@@ -39,6 +39,7 @@ from ....config import Settings
 from ....platform.core.app_config import load_raw_config
 from ....platform.core.database import Database
 from ....platform.core.models import HAConnection
+from ....platform.core.observability import record_ha_counter
 
 
 class HAConnectorService(
@@ -73,6 +74,12 @@ class HAConnectorService(
         # 重连抖动专用随机源：可注入（测试断言上下界），也不与全局 random 抢种子。
         self._jitter_random = random.Random()
         self._sync_lock = asyncio.Lock()
+        # 实时链路的后台周期对账任务（见 HASyncMixin.schedule_reconcile）。
+        self._reconcile_task: asyncio.Task[Any] | None = None
+        # 最近一次全量同步的轻量基线，供 subscribe_entities 解码器抑制重连重复派发。
+        self._live_seed: dict[str, tuple[str, float | None]] = {}
+        # 最近一次全量同步成功的单调时钟（秒）；重连时用于判定能否跳过全量。
+        self._last_full_sync_at: float = 0.0
         self._database_lock = asyncio.Lock()
         self._connected = False
         self._runtime_error = None
@@ -205,9 +212,19 @@ class HAConnectorService(
     async def _stop_tasks(self) -> None:
         """取消并等待所有后台子任务与主循环。
 
-        先取消子任务（防抖中的注册表刷新、进行中的历史查询）再取消主循环，
+        先取消子任务（防抖中的注册表刷新、进行中的历史查询、周期对账）再取消主循环，
         否则主循环退出后这些任务会变成没人回收的孤儿任务。
         """
+        reconcile = self._reconcile_task
+        self._reconcile_task = None
+        if reconcile is not None:
+            reconcile.cancel()
+            await asyncio.gather(reconcile, return_exceptions = True)
+        endpoint_probe = getattr(self, '_endpoint_probe_task', None)
+        self._endpoint_probe_task = None
+        if endpoint_probe is not None:
+            endpoint_probe.cancel()
+            await asyncio.gather(endpoint_probe, return_exceptions = True)
         registry_tasks = list(self._registry_refresh_tasks.values())
         self._registry_refresh_tasks.clear()
         for task in registry_tasks:
@@ -277,8 +294,21 @@ class HAConnectorService(
 
         连续相同的状态去重：重连风暴里每个失败周期都会走同一条路径，
         不去重会把前端横幅刷成高频重连提示。
+
+        除了既有的生命周期监听器（socket.io 侧），这里还把状态推进 ``StateHub``：
+        ``/ws/runtime``（3D 墙屏）订阅的是 StateHub，拿不到 socket.io 的 ``ha_status``，
+        于是 HA 掉线时墙屏只会看到「数值再也不变」，无法区分「设备关着」与「中枢失联」。
         """
+        # StateHub 推送不受去重影响：新连上的墙屏需要立刻拿到当前状态（见
+        # ``_runtime_subscribe_and_stream`` 的快照）。它按事件类型走同一条队列。
+        await self.state_hub.publish({
+            'type': 'ha_status',
+            'status': status,
+            **{key: value for key, value in extra.items() if value is not None},
+        })
         listener = self._connection_listener
+        if status == 'reconnecting':
+            record_ha_counter('reconnect')
         if listener is None or status == self._last_connection_status:
             return
         self._last_connection_status = status

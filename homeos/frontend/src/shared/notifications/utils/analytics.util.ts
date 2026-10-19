@@ -1,6 +1,5 @@
 /** 通知中心列表数据聚合与统计 */
 import { notificationSourceLabel, normalizeNotificationSource } from '@homeos/shared'
-import { getChartPalette } from '@/shared/utils/chart/chart-palette'
 
 /** 通知来源分桶：按来源聚合计数 + 展示标签 + 语义色 */
 interface NotificationSourceBucket {
@@ -61,6 +60,28 @@ export interface NotificationAnalyticsSummary {
   windowHours: number
 }
 
+const SOURCE_COLORS: Record<string, string> = {
+  'alert-rule': '#f472b6',
+  earthquake: '#fbbf24',
+  energy: '#34d399',
+  'energy-budget': '#6ee7b7',
+  'energy-anomaly': '#34d399',
+  advisor: '#a78bfa',
+  security: '#f87171',
+  'environment-health': '#38bdf8',
+  'device-monitor': '#94a3b8',
+  'water-monitor': '#22d3ee',
+  'ha-connection': '#fb923c',
+  system: '#94a3b8',
+}
+
+const LEVEL_COLORS: Record<string, string> = {
+  danger: '#f87171',
+  warn: '#fbbf24',
+  success: '#34d399',
+  info: '#38bdf8',
+}
+
 const LEVEL_LABELS: Record<string, string> = {
   danger: '紧急',
   warn: '警告',
@@ -68,25 +89,25 @@ const LEVEL_LABELS: Record<string, string> = {
   info: '信息',
 }
 
+const FALLBACK_COLORS = [
+  '#f472b6',
+  '#fb7185',
+  '#fbbf24',
+  '#34d399',
+  '#38bdf8',
+  '#a78bfa',
+  '#94a3b8',
+]
+
 /** NOTIFICATION_HOUR_OPTIONS：常量集合，成员语义见定义处。 */
 export const NOTIFICATION_HOUR_OPTIONS = [24, 72, 168, 720] as const
 
-/**
- * 来源图表色：统一走 6 色数据序列，按桶顺序取色。
- * 来源辨识交给标签与图例，不再为每个来源维护一套彩虹色。
- */
-function sourceChartColor(_key: string, index = 0) {
-  return getChartPalette().colorAt(index)
+function sourceChartColor(key: string, index = 0) {
+  return SOURCE_COLORS[key] || FALLBACK_COLORS[index % FALLBACK_COLORS.length]
 }
 
-/** 级别图表色：danger/warn/success/info 只用语义色，未知级别走中性。 */
 function levelChartColor(level: string) {
-  const palette = getChartPalette()
-  if (level === 'danger') return palette.danger
-  if (level === 'warn') return palette.warning
-  if (level === 'success') return palette.success
-  if (level === 'info') return palette.info
-  return palette.fg2
+  return LEVEL_COLORS[level] || '#94a3b8'
 }
 
 export function formatNotificationHourOption(hours: number) {

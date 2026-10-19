@@ -14,13 +14,21 @@ from .router import NestRouter
 from ..dependencies import license_feature
 from ..domains.agent.agent_actor import AgentActor
 from ..domains.license import features as feature_codes
+from ..platform.core.errors import BusinessException, ErrorCode
 from ..platform.security.auth_context import require_user
+from ..platform.security.limiter import rate_limit_authenticated
 
 router = NestRouter(
     prefix="/agent",
     tags=["agent"],
     dependencies=[license_feature(feature_codes.FEATURE_AGENT)],
 )
+
+#: 对话限流：单用户单 IP 每 60 秒最多 N 次。
+#: 一次请求最坏会跑满 MAX_ROUNDS 轮 tool-calling，按分钟级的宽松上限即可拦住
+#: 「误触发唤醒词 / 客户端重试风暴」，正常对话（几秒一句）远不会命中。
+_CHAT_RATE_LIMIT = 20
+_CHAT_RATE_WINDOW_SECONDS = 60.0
 
 #: 对话历史单条上限
 _HISTORY_MAX = 16
@@ -117,21 +125,89 @@ def _error_message(exc: BaseException) -> str:
     return text or type(exc).__name__
 
 
+class MemoryDto(BaseModel):
+    """长期记忆写入请求（别名 / 偏好）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    alias: Any = None
+    value: Any = None
+    kind: str = "alias"
+
+
+def _memory_scope(user: dict[str, Any]) -> str:
+    return f"user:{user.get('userId') or user.get('username') or 'anon'}"
+
+
+@router.get("/memories")
+async def list_memories(
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """列出当前用户的长期记忆（设置页管理入口）。"""
+    memory = getattr(request.app.state, "agent_memory", None)
+    if memory is None:
+        return {"items": []}
+    return {"items": memory.list_memories(_memory_scope(user))}
+
+
+@router.post("/memories")
+async def remember(
+    dto: MemoryDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    """新增 / 覆盖一条别名或偏好。"""
+    memory = getattr(request.app.state, "agent_memory", None)
+    if memory is None:
+        raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "长期记忆未启用")
+    alias = str(dto.alias or "").strip()
+    value = str(dto.value or "").strip()
+    kind = "preference" if dto.kind == "preference" else "alias"
+    if len(alias) < 2 or len(alias) > 80 or not value or len(value) > 200:
+        raise BusinessException(ErrorCode.VALIDATION_FAILED, "别名或记忆内容不合法")
+    memory.remember(_memory_scope(user), alias, value, kind)
+    return {"ok": True, "items": memory.list_memories(_memory_scope(user))}
+
+
+@router.delete("/memories/{alias}")
+async def forget(
+    alias: str,
+    request: Request,
+    kind: str = "alias",
+    user: dict[str, Any] = Depends(require_user),
+):
+    """忘记一条记忆。"""
+    memory = getattr(request.app.state, "agent_memory", None)
+    if memory is None:
+        return {"ok": True}
+    removed = memory.forget(_memory_scope(user), alias, "preference" if kind == "preference" else "alias")
+    return {"ok": removed}
+
+
 @router.get("/ping")
 async def ping(
     request: Request,
     user: dict[str, Any] = Depends(require_user),
 ):
-    """健康检查：返回 LLM 提供商名与就绪状态。"""
-    _ = user
-    return {"ok": True, **(await _service(request).ping_provider())}
+    """健康检查：返回 LLM 提供商 / 模型 / 计价口径与今日用量。"""
+    info = await _service(request).ping_provider()
+    budget = getattr(request.app.state, "agent_budget", None)
+    owner = str(user.get("userId") or user.get("username") or "anon")
+    return {
+        "ok": True,
+        **info,
+        "usageToday": budget.snapshot(owner) if budget is not None else None,
+    }
 
 
 @router.post("/chat")
 async def chat(
     dto: ChatDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_user),
+    user: dict[str, Any] = Depends(
+        rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)
+    ),
 ):
     """自然语言对话 / 控制（支持 sessionId 实现连续对话）。"""
     from ..domains.agent.service import AgentChatOptions
@@ -148,7 +224,9 @@ async def chat(
 async def chat_stream(
     dto: ChatDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_user),
+    user: dict[str, Any] = Depends(
+        rate_limit_authenticated(_CHAT_RATE_LIMIT, _CHAT_RATE_WINDOW_SECONDS)
+    ),
 ):
     """流式对话（SSE：token / tool / done / error）。"""
     from ..domains.agent.service import AgentChatOptions

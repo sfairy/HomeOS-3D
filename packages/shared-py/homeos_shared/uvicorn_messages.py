@@ -10,6 +10,11 @@ uvicorn 的启动 / 关闭行是**英文**且格式与后端自己的日志不�
 本模块只放**两侧逐字需要一致**的部分：英文文案 → 中文的规则表，以及 uvicorn 日志器名 →
 中文展示名。装配方式（handler、格式、颜色、进程身份）各后端自定，故不在此处。
 
+WebSocket 的握手行也在这里翻译：uvicorn 把它写进 ``uvicorn.error``（不是 ``uvicorn.access``），
+形如 ``127.0.0.1:50380 - "WebSocket /api/v1/ws/runtime" [accepted]``。它既没有中文，
+也不属于 ``http_access_log`` 能识别的 ``"GET /x" 200`` 形态，所以只能靠文案规则处理；
+重复握手行的折叠另见 ``http_access_log.install_websocket_handshake_log_filter``。
+
 为什么要共享而不是各写一份：规则表是**跟着 uvicorn 版本走**的（``Uvicorn running on
 <addr> (Press CTRL+C to quit)`` 这类字符串在 uvicorn 升级时会被改写）。两份副本的代价是
 「一边翻成中文、另一边还在打英文原文」，而这正是启动日志最需要一眼看懂的时刻。
@@ -54,7 +59,26 @@ UVICORN_MESSAGE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"^Application shutdown complete\.$"), "应用已停止"),
     (re.compile(r"^Finished server process \[(\d+)\]$"), r"服务进程已退出 [\1]"),
     (re.compile(r"^Shutting down$"), "正在关闭"),
+    # WebSocket：握手结果由 uvicorn 写进 ``uvicorn.error``，方括号标记是协议原文不是文案
+    (
+        re.compile(r'^(?P<client>\S+) - "WebSocket (?P<path>[^"]+)" \[accepted\]$'),
+        r"WebSocket 已连接: \g<path>(来源 \g<client>)",
+    ),
+    (
+        re.compile(r'^(?P<client>\S+) - "WebSocket (?P<path>[^"]+)" (?P<status>\d{3})$'),
+        r"WebSocket 握手失败(\g<status>): \g<path>(来源 \g<client>)",
+    ),
+    # 连接生命周期由 ``websockets`` 库打在同一个日志器上，没有客户端/路径信息
+    (re.compile(r"^connection open$"), "WebSocket 连接已建立"),
+    (re.compile(r"^connection closed$"), "WebSocket 连接已关闭"),
+    (
+        re.compile(r"^connection rejected \((?P<status>\d+) (?P<reason>.+)\)$"),
+        r"WebSocket 连接被拒(\g<status> \g<reason>)",
+    ),
 )
+
+#: 状态去重补在消息尾部的折叠注记（全角 / 半角括号都认：控制台规整会把全角转半角）
+_FOLD_NOTE_RE = re.compile(r"(?:（同类已折叠\s*\d+\s*条）|\(同类已折叠\s*\d+\s*条\))$")
 
 
 def is_uvicorn_logger(name: str) -> bool:
@@ -70,11 +94,21 @@ def localize_uvicorn_context(name: str) -> str | None:
 
 
 def localize_uvicorn_message(text: str) -> str:
-    """uvicorn 英文文案 → 中文；未命中规则时原样返回（fail-open，绝不丢信息）。"""
+    """uvicorn 英文文案 → 中文；未命中规则时原样返回（fail-open，绝不丢信息）。
+
+    先摘掉去重过滤器补在尾部的折叠注记（``（同类已折叠 N 条）``，见
+    ``status_log_dedupe.FOLD_NOTE``）再匹配：本模块的规则都以 ``$`` 结尾，不摘注记的话
+    命中折叠的那一行会退回英文 —— 实测 ``connection open(同类已折叠10条)`` 就是这么来的。
+    """
+    note = ""
+    folded = _FOLD_NOTE_RE.search(text)
+    if folded is not None:
+        note = folded.group(0)
+        text = text[: folded.start()]
     for pattern, repl in UVICORN_MESSAGE_RULES:
         if pattern.match(text):
-            return pattern.sub(repl, text)
-    return text
+            return pattern.sub(repl, text) + note
+    return text + note
 
 
 __all__ = [

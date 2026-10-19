@@ -288,7 +288,7 @@ def _validate_database_file(path: Path) -> None:
 
 
 def _required_tables() -> set[str]:
-    from ...platform.core import models  # noqa: F401  # 注册模型到 Base.metadata
+    from ...platform.core import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from ...platform.core.database import Base
 
     return set(Base.metadata.tables)

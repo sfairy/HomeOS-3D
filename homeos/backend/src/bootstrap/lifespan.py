@@ -15,11 +15,14 @@ from fastapi import FastAPI
 from . import studio3d_plane
 from ..config import Settings
 from ..domains.agent.area_service import AgentAreaService
+from ..domains.agent.budget import AgentBudgetService
 from ..domains.agent.command_cache import CommandCacheService
 from ..domains.agent.config_service import AgentConfigService
 from ..domains.agent.fast_path import FastPathService
 from ..domains.agent.lang_template_service import LangTemplateService
 from ..domains.agent.mcp.mcp_service import McpGatewayService
+from ..domains.agent.memory_store import AgentMemoryService
+from ..domains.agent.proactive import AgentProactiveService
 from ..domains.agent.providers.resolving_llm_provider import ResolvingLlmProvider
 from ..domains.agent.service import AgentService
 from ..domains.agent.session_store import AgentSessionStoreService
@@ -501,12 +504,18 @@ def _register_ha_event_handlers(app: FastAPI, startup: _StartupContext) -> None:
         data = payload if isinstance(payload, dict) else {}
         await gateway.broadcast_ha_status("reconnecting", attempt=data.get("attempt"))
 
+    async def _on_ha_queue_dropped(payload: Any) -> None:
+        """实时状态积压丢弃：广播给前端，触发重同步与乐观更新回滚。"""
+        data = payload if isinstance(payload, dict) else {}
+        await gateway.broadcast_ha_queue_dropped(data)
+
     state_handlers = _make_state_bus_handlers(app, gateway, state_store)
     for event, handler in {
         **state_handlers,
         "ha.connected": _on_ha_connected,
         "ha.disconnected": _on_ha_disconnected,
         "ha.reconnecting": _on_ha_reconnecting,
+        "ha.queue_dropped": _on_ha_queue_dropped,
     }.items():
         security_bus.on(event, handler)
 
@@ -810,13 +819,18 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     fast_path.bind_events()
     app.state.agent_fast_path = fast_path
 
-    command_cache = CommandCacheService()
+    command_cache = CommandCacheService(app.state.database.session_factory)
     app.state.agent_command_cache = command_cache
 
-    # 会话记忆分两层：10 分钟长会话（内存 LRU）+ 45s 短时滑窗（纯内存）
-    agent_sessions = AgentSessionStoreService()
+    # 会话记忆分两层：10 分钟长会话（内存 LRU + DB 持久化）+ 45s 短时滑窗（纯内存）
+    agent_sessions = AgentSessionStoreService(app.state.database.session_factory)
     app.state.agent_sessions = agent_sessions
     app.state.agent_short_term = AgentShortTermMemoryService()
+    # 长期记忆：设备 / 房间别名与用户偏好
+    agent_memory = AgentMemoryService(app.state.database.session_factory)
+    app.state.agent_memory = agent_memory
+    # 每日用量预算（token / 成本，按登录用户累计；环境变量可调）
+    app.state.agent_budget = AgentBudgetService()
 
     llm_provider = ResolvingLlmProvider(agent_config, event_bus=startup.security_bus)
     llm_provider.bind_events()
@@ -832,6 +846,9 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         agent_config,
         agent_sessions,
         app.state.agent_short_term,
+        app.state.agent_budget,
+        app.state.global_log,
+        memory=agent_memory,
     )
     app.state.agent_service = agent_service
     startup.agent_service = agent_service
@@ -844,6 +861,7 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
         env=os.environ,
         server_version=startup.version,
         is_production=startup.app_settings.is_production,
+        lang_templates=lang_templates,
     )
 
 
@@ -909,6 +927,16 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
     await notification.start()
     app.state.notification = notification
     startup.notification = notification
+
+    # 主动管家：定时巡检 + 简报（只读工具 → 通知中心；默认关闭，配置见 agentConfig.proactive）
+    proactive = AgentProactiveService(
+        app.state.home_tools,
+        app.state.agent_config,
+        notification=notification,
+        jobs=app.state.jobs,
+    )
+    await proactive.start()
+    app.state.agent_proactive = proactive
 
     # 实体反向引用：布局 / 家庭模式 / 告警规则 / 系统配置 的「哪些功能引用了该实体」
     alert_rule_watch_index = AlertRuleWatchIndex()
@@ -1087,6 +1115,9 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     ):
         await _shutdown(label, service.stop)
     await _shutdown("家庭模式", startup.home_mode.stop)
+    proactive = getattr(app.state, "agent_proactive", None)
+    if proactive is not None:
+        await _shutdown("主动管家", proactive.stop)
     await _shutdown("通知", startup.notification.stop)
     for service, label in (
         (startup.catalog_notify, "目录通知"),
@@ -1102,6 +1133,9 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
         await _shutdown(label, service.stop)
     await _shutdown("HA 连接器", startup.ha_connector.stop)
     await _shutdown("状态汇聚", startup.state_ingress_coalesce.close)
+    # 媒体代理的共享连接池：延迟导入，避免 lifespan 在模块级拉进整条 API 依赖链。
+    from ..api.ha_proxy import close_shared_media_clients
+    await _shutdown("媒体代理连接池", close_shared_media_clients)
     await _shutdown("事件日志刷盘", startup.event_log_service.flush)
     # 全局日志最后刷盘：必须等所有组件停止后再关写线程，否则停机期间产生的诊断日志
     # 会滞留在内存队列里丢掉。

@@ -154,7 +154,7 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
         id,
         label: d.name || '新模式',
         emoji: '✨',
-        accent: '#59d3c0',
+        accent: '#a78bfa',
       })
     }
     return tabs

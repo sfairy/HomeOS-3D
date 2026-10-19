@@ -5,11 +5,11 @@ import { hexWithOpacity } from '@/shared/utils/ui/color.util'
 
 /** 设备页图表配色常量（accent / 状态色 / 网格 / 轴色等） */
 export const DEVICE_CHART_COLORS = {
-  accent: '#ffc46a', // 主强调色（暖铜）
-  green: '#3ddc97',  // 健康 / 在线色
-  red: '#ff5a5f',    // 告警 / 离线色
-  amber: '#ffb020',  // 警示色
-  purple: '#59d3c0', // 对比色（青绿，保持可区分但收敛）
+  accent: '#38bdf8', // 主强调色（天蓝）
+  green: '#34d399',  // 健康 / 在线色
+  red: '#f87171',    // 告警 / 离线色
+  amber: '#fbbf24',  // 警示色
+  purple: '#a78bfa', // 对比色（同域平均等）
   grid: 'rgba(255,255,255,0.06)', // 网格线色
   /** 与 --premium-border-strong 数值一致（ECharts 不支持 CSS var） */
   sliceBorder: 'rgba(255,255,255,0.08)', // 饼图扇区边框色
@@ -22,7 +22,7 @@ export function deviceChartTooltip(): NonNullable<EChartsCoreOption['tooltip']> 
   return {
     trigger: 'axis',
     ...createChartTooltip('rgba(18,18,28,0.98)', {
-      borderColor: 'var(--hos-line-3)',
+      borderColor: 'var(--premium-border-strong)',
       borderWidth: 1,
       padding: [8, 12],
       textStyle: { color: '#fff', fontSize: 11 },
@@ -120,7 +120,7 @@ export function deviceChartLegend(top = 2): NonNullable<EChartsCoreOption['legen
     itemWidth: 10,
     itemHeight: 8,
     itemGap: 14,
-    textStyle: { color: DEVICE_CHART_COLORS.axis, fontSize: 11 },
+    textStyle: { color: DEVICE_CHART_COLORS.axis, fontSize: 10 },
   }
 }
 
@@ -130,7 +130,7 @@ export function deviceChartXAxis(data: string[]): NonNullable<EChartsCoreOption[
     type: 'category',
     data,
     axisLine: { lineStyle: { color: DEVICE_CHART_COLORS.grid } },
-    axisLabel: { color: DEVICE_CHART_COLORS.axis, fontSize: 11 },
+    axisLabel: { color: DEVICE_CHART_COLORS.axis, fontSize: 10 },
     axisTick: { show: false },
   }
 }
@@ -140,10 +140,10 @@ export function deviceChartYAxis(name?: string): NonNullable<EChartsCoreOption['
   return {
     type: 'value',
     name,
-    nameTextStyle: { color: DEVICE_CHART_COLORS.axisName, fontSize: 11 },
+    nameTextStyle: { color: DEVICE_CHART_COLORS.axisName, fontSize: 10 },
     axisLine: { show: false },
     splitLine: { lineStyle: { color: DEVICE_CHART_COLORS.grid, type: 'dashed' } },
-    axisLabel: { color: DEVICE_CHART_COLORS.axis, fontSize: 11 },
+    axisLabel: { color: DEVICE_CHART_COLORS.axis, fontSize: 10 },
   }
 }
 

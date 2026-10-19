@@ -1,0 +1,2 @@
+/* 兼容转发：canonical 定义在 packages/shared/src/styles/legacy-token-bridge.css（仓库内唯一真源） */
+@import '../../../../packages/shared/src/styles/legacy-token-bridge.css';

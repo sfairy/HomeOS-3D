@@ -83,8 +83,28 @@ def _stable_json(value: Any) -> str:
 
 
 def _build_cache_key(event: dict[str, Any]) -> str:
+    """80ms diff 缓存的键：O(1)，不序列化属性内容。
+
+    旧实现把 old/new 两侧 attributes 逐键 ``json.dumps`` 拼成完整内容指纹：键本身比它
+    要省的 delta 计算还贵，而命中率接近 0（只有「同值重发」才命中）。改成用
+    ``entity_id + 两侧 state + last_updated + 属性条数`` 作为新鲜度令牌：
+
+    - HA 侧任何 state/attribute 变化都会推进 ``last_updated``（属性变更只推进
+      ``last_updated`` 不推进 ``last_changed``），所以它足以区分两次更新；
+    - 缺时间戳的事件（本地构造）回退到内容指纹，正确性优先于开销。
+    """
     old_state = event.get("old_state") or {}
     new_state = event.get("new_state") or {}
+    new_updated = new_state.get("last_updated") or new_state.get("last_changed")
+    if new_updated:
+        old_attrs = old_state.get("attributes")
+        new_attrs = new_state.get("attributes")
+        return (
+            f"{event.get('entity_id')}|{old_state.get('state', '')}|{new_state.get('state', '')}"
+            f"|{new_updated}|{old_state.get('last_updated') or old_state.get('last_changed') or ''}"
+            f"|{len(old_attrs) if isinstance(old_attrs, dict) else 0}"
+            f"|{len(new_attrs) if isinstance(new_attrs, dict) else 0}"
+        )
     key = f"{event.get('entity_id')}|{old_state.get('state', '')}|{new_state.get('state', '')}"
     key += f"|o:{_fingerprint_attributes(old_state.get('attributes'))}"
     key += f"|n:{_fingerprint_attributes(new_state.get('attributes'))}"

@@ -90,7 +90,7 @@ const preload = preloadFiles.reduce(
     acc.gzip += one.gzip;
     return acc;
   },
-  { bytes: 0, gzip: 0 }
+  { bytes: 0, gzip: 0 },
 );
 
 const moduleScripts = [...html.matchAll(/<script\b[^>]*\btype\s*=\s*["']module["'][^>]*>/gi)].map((m) => m[0]);
@@ -107,7 +107,7 @@ const styles = styleFiles.reduce(
     acc.gzip += one.gzip;
     return acc;
   },
-  { bytes: 0, gzip: 0 }
+  { bytes: 0, gzip: 0 },
 );
 
 const runtimeRoot = join(DIST, "modules/runtime");
@@ -121,7 +121,7 @@ const runtime = runtimeFiles.reduce(
     acc.gzip += one.gzip;
     return acc;
   },
-  { bytes: 0, gzip: 0 }
+  { bytes: 0, gzip: 0 },
 );
 
 const hlsScripts = [...html.matchAll(/<script\b[^>]*\bsrc\s*=\s*["']([^"']*hls[^"']*)["'][^>]*>/gi)].map((m) => m[1]);
@@ -163,7 +163,7 @@ for (const [label, actual, limit] of rows) {
   const ok = actual <= limit;
   if (!ok) failed = true;
   console.log(
-    `${ok ? "PASS" : "FAIL"}  ${label}: ${actual.toLocaleString("en-US")} / 预算 ${Number(limit).toLocaleString("en-US")}`
+    `${ok ? "PASS" : "FAIL"}  ${label}: ${actual.toLocaleString("en-US")} / 预算 ${Number(limit).toLocaleString("en-US")}`,
   );
 }
 console.log("-------------------");

@@ -35,7 +35,7 @@ from .stats import (
     resolve_notification_time_granularity,
 )
 from ..alerts.dnd import current_hour_in, is_dnd_active
-from ..alerts.sources import is_life_safety_notification  # noqa: F401 - 供外部/测试引用
+from ..alerts.sources import is_life_safety_notification  # noqa: F401  # pyright: ignore[reportUnusedImport] - 供外部/测试引用
 from ..app_config.rooms import resolve_room_label_from_ha_areas
 from ..ha.config.ha_config import ha_connection_configured
 from ..ha.config.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
@@ -448,7 +448,7 @@ class NotificationService:
                 if source:
                     conditions.append(Notification.source == source)
                 if restrictions:
-                    acl = [Notification.entity_id.is_(None)]
+                    acl: list[Any] = [Notification.entity_id.is_(None)]
                     for prefix in restrictions:
                         acl.append(Notification.entity_id.startswith(prefix))
                     conditions.append(or_(*acl))

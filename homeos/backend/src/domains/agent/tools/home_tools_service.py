@@ -12,6 +12,7 @@ from .high_risk_denylist import SceneVoiceControlGate
 from .home_tools_areas import HomeToolsAreasMixin
 from .home_tools_base import HomeToolsHost
 from .home_tools_entities import HomeToolsEntitiesMixin
+from .home_tools_insights import HomeToolsInsightsMixin
 from .home_tools_primitives import (
     MAX_ATTRIBUTE_VALUE_LENGTH,
     SENSITIVE_ATTRIBUTE_KEYS,
@@ -23,6 +24,7 @@ from .home_tools_primitives import (
 from .home_tools_scenes import HomeToolsScenesMixin
 from .home_tools_schemas import build_home_tool_schemas
 from .tool_args_validator import (
+    extract_domain,
     sanitize_service_data,
     validate_entity_id,
 )
@@ -43,6 +45,7 @@ class HomeToolsService(
     HomeToolsEntitiesMixin,
     HomeToolsAreasMixin,
     HomeToolsScenesMixin,
+    HomeToolsInsightsMixin,
     HomeToolsHost,
 ):
     """家居工具集服务：get_tool_schemas 供 LLM 选择，execute 为统一执行入口。"""
@@ -129,6 +132,10 @@ class HomeToolsService(
         except Exception as exc:
             return {"ok": False, "message": _error_message(exc) or "无权控制该设备"}
 
+    def snapshot_entities(self, entity_ids: list[str]) -> list[dict[str, Any]]:
+        """记录实体当前状态（批量控制前调用，供撤销）。"""
+        return self._snapshot_entities(entity_ids)
+
     # 读路径 ACL / 服务白名单
     @staticmethod
 
@@ -169,6 +176,19 @@ class HomeToolsService(
 
     # schema / 执行入口
 
+    @staticmethod
+    def _service_data_domain(name: str, args: dict[str, Any]) -> str:
+        """推断 service_data 所属 domain（用于按域放行 ``code`` 等专属字段）。
+
+        以实体 ID 的 domain 为准（与 ``_control_device`` 的高危判定同源），避免 LLM
+        用伪造的 ``domain`` 参数把凭证字段带进其它域。
+        """
+        if name == "control_device":
+            return extract_domain(_s(args.get("entity_id"))) or _s(args.get("domain"))
+        if name == "control_room":
+            return _s(args.get("domain"))
+        return ""
+
     def get_tool_schemas(self) -> list[Any]:
         """返回暴露给 LLM 的工具 schema 列表（定义见 home_tools_schemas.py）。"""
         return build_home_tool_schemas()
@@ -201,7 +221,10 @@ class HomeToolsService(
             if args.get("service_data"):
                 args = {
                     **args,
-                    "service_data": sanitize_service_data(args.get("service_data")),
+                    "service_data": sanitize_service_data(
+                        args.get("service_data"),
+                        self._service_data_domain(name, args),
+                    ),
                 }
 
         if name == "search_entities":
@@ -221,9 +244,17 @@ class HomeToolsService(
         if name == "activate_home_mode":
             return await self._activate_home_mode(_s(args.get("name")), actor)
         if name == "get_home_status":
-            return await self._get_home_status()
+            return await self._get_home_status(actor)
         if name == "get_weather":
             return await self._get_weather()
+        if name == "get_weather_forecast":
+            return await self._get_weather_forecast(args, actor)
+        if name == "get_energy_usage":
+            return await self._get_energy_usage(args, actor)
+        if name == "query_events":
+            return await self._query_events(args, actor)
+        if name == "get_notifications":
+            return await self._get_notifications(args, actor)
         if name == "get_calendar":
             return self._get_calendar()
         if name == "list_scenes":

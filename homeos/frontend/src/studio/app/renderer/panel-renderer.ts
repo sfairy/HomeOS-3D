@@ -328,6 +328,8 @@ export class PanelRenderer {
   declare confirmedLightVisualStates: Map<any, any>;
   declare destroyed: boolean;
   declare runtimeSnapshotReady: boolean;
+  /** HA 中枢是否在线（由 `/ws/runtime` 的 ha_status 帧驱动；连接建立不等于 HA 在线）。 */
+  declare runtimeHaConnected: boolean;
   declare resizeObserver: ResizeObserver;
   declare boundResize: () => void;
   declare boundReconnect: () => void;
@@ -431,6 +433,7 @@ export class PanelRenderer {
       (this.socketGeneration = 0),
       (this.reconnectTimer = null),
       (this.reconnectAttempt = 0),
+      (this.runtimeHaConnected = false),
       (this.runtimeHydrationRetryTimer = null),
       (this.runtimeHydrationRetryAttempt = 0),
       (this.lastRuntimeResumeAt = 0),

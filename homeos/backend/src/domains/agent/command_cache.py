@@ -9,6 +9,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from sqlalchemy import delete, select
+
+from ...platform.core.models import AgentCommandCacheRow
+
 logger = logging.getLogger("homeos.agent.command_cache")
 
 #: 缓存条目上限，超过则按 FIFO 清理一批旧条目
@@ -67,11 +71,108 @@ class CommandCacheService:
     缓存按用户 ID 隔离：同一原话在不同用户账户下独立学习 / 命中，避免共享串号。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, session_factory: Any = None) -> None:
         #: 原话规范化后的缓存表
         self._cache: dict[str, CacheEntry] = {}
         #: 最近一次操作，用于纠正逻辑
         self._last_action: LastAction | None = None
+        #: 数据库会话工厂；None 时保持纯内存（单测 / 精简装配）
+        self._session_factory = session_factory
+        #: 已从数据库加载过的用户命名空间
+        self._loaded_scopes: set[str] = set()
+
+    # 持久化
+    @staticmethod
+    def _split_key(key: str) -> tuple[str, str]:
+        """把 ``scope::原话`` 拆成 (scope, 规范化原话)。"""
+        scope, _, normalized = key.partition("::")
+        return scope or ANONYMOUS_SCOPE, normalized
+
+    def _ensure_loaded(self, scope: str) -> None:
+        """首次访问某用户时从数据库回填缓存（DB 不可用时静默降级）。"""
+        if self._session_factory is None or scope in self._loaded_scopes:
+            return
+        self._loaded_scopes.add(scope)
+        try:
+            with self._session_factory() as session:
+                rows = list(
+                    session.execute(
+                        select(AgentCommandCacheRow)
+                        .where(AgentCommandCacheRow.scope == scope)
+                        .order_by(AgentCommandCacheRow.updated_at.desc())
+                        .limit(MAX_SIZE)
+                    ).scalars()
+                )
+        except Exception as exc:  # pragma: no cover - 依赖真实数据库的防御分支
+            logger.warning("指令缓存回填失败(保持内存): %s", exc)
+            return
+        for row in rows:
+            if len(self._cache) >= MAX_SIZE:
+                break
+            try:
+                args = json.loads(row.tool_args or "{}")
+            except (TypeError, ValueError):
+                args = {}
+            key = f"{scope}::{row.cache_key}"
+            self._cache.setdefault(
+                key,
+                CacheEntry(
+                    tool_name=row.tool_name,
+                    tool_args=args if isinstance(args, dict) else {},
+                    hit_count=int(row.hit_count or 0),
+                    confirmed=bool(row.confirmed),
+                ),
+            )
+
+    def _persist(self, key: str, entry: CacheEntry) -> None:
+        """把单条缓存 upsert 到数据库（best-effort，失败不影响内存语义）。"""
+        if self._session_factory is None:
+            return
+        scope, normalized = self._split_key(key)
+        payload = _dump(entry.tool_args) or "{}"
+        try:
+            with self._session_factory() as session:
+                row = session.execute(
+                    select(AgentCommandCacheRow).where(
+                        AgentCommandCacheRow.scope == scope,
+                        AgentCommandCacheRow.cache_key == normalized,
+                    )
+                ).scalars().first()
+                if row is None:
+                    session.add(
+                        AgentCommandCacheRow(
+                            scope=scope,
+                            cache_key=normalized,
+                            tool_name=entry.tool_name,
+                            tool_args=payload,
+                            hit_count=entry.hit_count,
+                            confirmed=entry.confirmed,
+                        )
+                    )
+                else:
+                    row.tool_name = entry.tool_name
+                    row.tool_args = payload
+                    row.hit_count = entry.hit_count
+                    row.confirmed = entry.confirmed
+                session.commit()
+        except Exception as exc:  # pragma: no cover - 依赖真实数据库的防御分支
+            logger.warning("指令缓存落库失败: %s", exc)
+
+    def _delete_persisted(self, key: str) -> None:
+        if self._session_factory is None:
+            return
+        scope, normalized = self._split_key(key)
+        try:
+            with self._session_factory() as session:
+                session.execute(
+                    delete(AgentCommandCacheRow).where(
+                        AgentCommandCacheRow.scope == scope,
+                        AgentCommandCacheRow.cache_key == normalized,
+                    )
+                )
+                session.commit()
+        except Exception as exc:  # pragma: no cover
+            logger.warning("指令缓存删除落库失败: %s", exc)
 
     # key
     def key_of(self, text: str, user_id: str | None = None) -> str:
@@ -93,12 +194,14 @@ class CommandCacheService:
     def get(self, text: str, user_id: str | None = None) -> CacheEntry | None:
         """查询缓存（含未确认条目，由调用方检查 confirmed 决定是否执行）。"""
         key = self.key_of(text, user_id)
+        self._ensure_loaded(self._split_key(key)[0])
         entry = self._cache.get(key)
         if entry is not None:
             if not entry.confirmed:
                 logger.info('缓存命中(待确认): "%s" → %s', key, entry.tool_name)
                 return entry
             entry.hit_count += 1
+            self._persist(key, entry)
             logger.info(
                 '缓存命中(已确认,第%s次): "%s" → %s(%s)',
                 entry.hit_count,
@@ -111,9 +214,11 @@ class CommandCacheService:
     def confirm(self, text: str, user_id: str | None = None) -> bool:
         """将指定原话对应的缓存条目提升为已确认状态。"""
         key = self.key_of(text, user_id)
+        self._ensure_loaded(self._split_key(key)[0])
         entry = self._cache.get(key)
         if entry is not None and not entry.confirmed:
             entry.confirmed = True
+            self._persist(key, entry)
             logger.info('缓存已确认(用户再说一次确认): "%s"', key)
             return True
         return False
@@ -139,6 +244,7 @@ class CommandCacheService:
                 self._cache.pop(key, None)
             logger.info("缓存满(%s),清理了%s条", MAX_SIZE, CLEANUP_SIZE)
         key = self.key_of(text, user_id)
+        self._ensure_loaded(self._split_key(key)[0])
         existing = self._cache.get(key)
         is_same = (
             existing is not None
@@ -194,6 +300,8 @@ class CommandCacheService:
             tool_args=dict(tool_args or {}),
             user_id=(user_id or "").strip() or None,
         )
+        if key in self._cache:
+            self._persist(key, self._cache[key])
 
     def correct_last(self, user_id: str | None = None) -> str | None:
         """用户主动纠正：删除最近一条缓存并返回其原话，供上层用新指令重新执行。"""
@@ -205,6 +313,7 @@ class CommandCacheService:
         raw_text = last.raw_text
         key = self.key_of(raw_text, last.user_id)
         deleted = self._cache.pop(key, None) is not None
+        self._delete_persisted(key)
         logger.info('用户纠正: %s "%s"', "已删除" if deleted else "无缓存", key)
         self._last_action = None
         return raw_text if deleted else None
@@ -230,13 +339,16 @@ class CommandCacheService:
         if not same:
             prev_key = self.key_of(last.raw_text, last.user_id)
             self._cache.pop(prev_key, None)
+            self._delete_persisted(prev_key)
             logger.info('自动纠正: 30s内重新操作同房间/同类型,删除旧缓存 "%s"', prev_key)
             return True
         return False
 
     def delete(self, text: str, user_id: str | None = None) -> None:
         """删除指定原话对应的缓存（用于缓存执行失败后清理），按用户隔离。"""
-        self._cache.pop(self.key_of(text, user_id), None)
+        key = self.key_of(text, user_id)
+        self._cache.pop(key, None)
+        self._delete_persisted(key)
 
     @property
     def size(self) -> int:
@@ -250,6 +362,7 @@ class CommandCacheService:
             count = len(self._cache)
             self._cache.clear()
             self._last_action = None
+            self._clear_persisted(None)
             logger.info("缓存已清空(%s条)", count)
             return
         removed = 0
@@ -259,7 +372,22 @@ class CommandCacheService:
                 removed += 1
         if self._last_action is not None and self._last_action.user_id == scope:
             self._last_action = None
+        self._clear_persisted(scope)
         logger.info("用户 [%s] 缓存已清空(%s条)", scope, removed)
+
+    def _clear_persisted(self, scope: str | None) -> None:
+        """删除数据库中的缓存（scope=None 表示全部）。"""
+        if self._session_factory is None:
+            return
+        try:
+            with self._session_factory() as session:
+                stmt = delete(AgentCommandCacheRow)
+                if scope is not None:
+                    stmt = stmt.where(AgentCommandCacheRow.scope == scope)
+                session.execute(stmt)
+                session.commit()
+        except Exception as exc:  # pragma: no cover
+            logger.warning("指令缓存清空落库失败: %s", exc)
 
 
 __all__ = [

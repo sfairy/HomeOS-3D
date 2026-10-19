@@ -25,24 +25,24 @@
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--hos-color-accent))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--hos-color-accent))) var(--progress-pct, var(--progress, 0%)),
-    var(--track-bg, var(--hos-line-3)) var(--progress-pct, var(--progress, 0%)),
-    var(--track-bg, var(--hos-line-3)) 100%);
+    var(--track-fill-from, var(--accent-from, var(--accent, #fbbf24))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #fbbf24))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--premium-border-strong)) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--premium-border-strong)) 100%);
 }
 
 .slider-range::-moz-range-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--track-bg, var(--hos-bg-tint-2));
+  background: var(--track-bg, var(--premium-glass-bg-hover));
 }
 
 .slider-range::-moz-range-progress {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(to right,
-    var(--track-fill-from, var(--accent-from, var(--hos-color-accent))),
-    var(--track-fill-to, var(--accent-to, var(--hos-color-accent))));
+    var(--track-fill-from, var(--accent-from, var(--accent, #fbbf24))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #fbbf24))));
 }
 
 .slider-range::-webkit-slider-thumb {
@@ -73,7 +73,7 @@
 .color-palette {
   position: relative;
   height: 80px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   overflow: hidden;
   cursor: crosshair;
   border: var(--hos-hairline) solid rgba(255,255,255,0.1);

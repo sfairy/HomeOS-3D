@@ -1,5 +1,5 @@
 .media-playlist {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -12,11 +12,11 @@
 }
 .media-playlist__head h3 {
   margin: 0;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 600;
 }
 .media-playlist__refresh {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -27,21 +27,21 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: var(--hos-fs-3);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
 }
 .media-playlist__now {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(236, 72, 153, 0.2);
   background: rgba(236, 72, 153, 0.08);
 }
 .media-playlist__label {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
 }
 .media-playlist__list {
   list-style: none;
@@ -56,11 +56,11 @@
 .media-playlist__list li {
   padding: 4px 8px;
   border-radius: 6px;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   background: rgba(255, 255, 255, 0.03);
 }
 .media-playlist__item--active {
-  color: var(--hos-color-danger-text);
+  color: #f9a8d4;
   border: 1px solid rgba(236, 72, 153, 0.25);
 }
 .media-playlist__actions {
@@ -69,13 +69,13 @@
 }
 .media-playlist__btn {
   flex: 1;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   padding: 7px 0;
   border-radius: 8px;
   cursor: pointer;
   border: 1px solid rgba(236, 72, 153, 0.25);
   background: rgba(236, 72, 153, 0.12);
-  color: var(--hos-color-danger-text);
+  color: #f9a8d4;
 }
 .media-playlist__btn--ghost {
   background: rgba(255, 255, 255, 0.04);
@@ -87,7 +87,7 @@
   cursor: not-allowed;
 }
 .media-playlist__muted {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   margin: 0;
   font-size: inherit;
 }
@@ -102,7 +102,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .media-playlist--settings .media-playlist__refresh--settings {
@@ -110,7 +110,7 @@
   font-size: var(--set-fs-btn, 14px);
   font-weight: 700;
   padding: 8px 14px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
 }
 
 .media-playlist--settings .media-playlist__now {

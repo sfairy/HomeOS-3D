@@ -1,28 +1,28 @@
 
 .pd-section-eyebrow {
-  color: var(--hos-color-accent);
+  color: var(--page-accent-text);
 }
 .pd-section-eyebrow-neutral {
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }
 
 .pd-local-box {
-  background: var(--hos-color-accent-soft);
-  border-color: var(--hos-color-accent-line);
+  background: var(--page-accent-bg);
+  border-color: var(--page-accent-border);
 }
 
 .pd-accent-mono {
-  color: var(--hos-color-accent);
+  color: var(--page-accent-text);
 }
 
 .pd-info-text {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary);
 }
 .pd-desc {
-  color: var(--hos-fg-2);
+  color: var(--set-text-label);
 }
 .pd-mono-faint {
-  color: var(--hos-fg-3);
+  color: var(--set-text-faint);
 }
 
 .profile-card__bind-row {
@@ -37,7 +37,7 @@
 
 .profile-section__divider {
   margin: 16px 0;
-  border-top: var(--hos-hairline) solid var(--hos-line-2);
+  border-top: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .pd-bind-row {
@@ -56,7 +56,7 @@
 }
 
 .pd-flow-band__shell {
-  --hos-glow-flow-a: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-strong));
-  --hos-glow-flow-b: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-b));
+  --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
 }
 

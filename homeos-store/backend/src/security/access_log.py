@@ -14,6 +14,10 @@ uvicorn 把每条请求都按 INFO 打进 ``uvicorn.access``，商店侧尤其�
 2. ``AccessLogNoiseFilter``：丢掉**已知无信息量**的路径 —— 这类请求即便成交也永远不是
    ``2xx``，所以第 1 层按状态码的过滤拦不住它。
 
+另有一层 ``WebSocketHandshakeLogFilter``（真源同上）挂在 ``uvicorn.error`` 上：uvicorn 的
+WebSocket 握手行不经过 ``uvicorn.access``，前端每次重连都打一行且端口各不相同；按
+「来源 IP + 路径 + 结果」折叠后只留首次与量级说明，服务端错误原样放行。
+
 两层都 fail-open：取不到状态码 / 取不到文案时保留记录，宁可多打一条，也不静默吞日志。
 """
 from __future__ import annotations
@@ -24,6 +28,9 @@ import re
 from homeos_shared.http_access_log import MODE_OFF, HttpAccessLogFilter
 from homeos_shared.http_access_log import (
     install_http_access_log_filter as _install_http_access_log_filter,
+)
+from homeos_shared.http_access_log import (
+    install_websocket_handshake_log_filter as _install_websocket_handshake_log_filter,
 )
 
 # 相对导入：`src/` 下的模块在镜像里被编译进 `app` 包（绝对 `src.` 导入在产物中不存在，
@@ -100,6 +107,11 @@ def install_access_log_filters() -> HttpAccessLogFilter:
     installed = _install_http_access_log_filter(
         env_var=HTTP_ACCESS_ENV_VAR,
         announce_logger="uvicorn.error",
+        dedupe_env_var=STATUS_DEDUPE_ENV_VAR,
+    )
+    # WebSocket 握手行挂在 uvicorn.error 上：按「来源 IP + 路径 + 结果」折叠重复重连
+    _install_websocket_handshake_log_filter(
+        env_var=HTTP_ACCESS_ENV_VAR,
         dedupe_env_var=STATUS_DEDUPE_ENV_VAR,
     )
     install_access_log_noise_filter()

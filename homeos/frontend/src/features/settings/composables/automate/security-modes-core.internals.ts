@@ -133,7 +133,7 @@ export function useSecurityModes() {
       ({
         armed_away: '#f87171',
         armed_home: '#fbbf24',
-        armed_night: '#59d3c0',
+        armed_night: '#a78bfa',
         disarmed: '#34d399',
       }) as Record<string, string>
     )[key] || '#94a3b8'

@@ -16,14 +16,14 @@ import { createSecurityOverviewActions } from './security-overview-actions.inter
 
 /** 安防模式到强调色的映射 */
 const MODE_ACCENTS: Record<string, string> = {
-  disarmed: '#3ddc97',
-  armed_home: '#ffc46a',
-  armed_away: '#ff5a5f',
-  armed_night: '#59d3c0',
+  disarmed: '#34d399',
+  armed_home: '#fbbf24',
+  armed_away: '#f87171',
+  armed_night: '#a78bfa',
 }
 
 function modeAccentFor(key: string) {
-  return MODE_ACCENTS[key] || '#ffc46a'
+  return MODE_ACCENTS[key] || '#0A84FF'
 }
 
 /**

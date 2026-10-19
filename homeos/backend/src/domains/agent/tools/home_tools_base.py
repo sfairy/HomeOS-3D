@@ -29,17 +29,22 @@ class HomeToolsHost:
     _assert_actor_may_control: Any = None
     _control_device: Any = None
     _control_room: Any = None
+    _energy_today_kwh: Any = None
     _get_area_snapshot: Any = None
     _get_calendar: Any = None
+    _get_energy_usage: Any = None
     _get_entity_state: Any = None
     _get_home_status: Any = None
+    _get_notifications: Any = None
     _get_weather: Any = None
+    _get_weather_forecast: Any = None
     _list_areas: Any = None
     _list_mode_names: Any = None
     _list_scenes_detailed: Any = None
     _may_read: Any = None
     _media_control: Any = None
     _query_camera: Any = None
+    _query_events: Any = None
     _read_denied: Any = None
     _read_layout: Any = None
     _read_restrictions: Any = None
@@ -48,3 +53,4 @@ class HomeToolsHost:
     _service_whitelist_error: Any = None
     _set_cover_position: Any = None
     _set_light_brightness: Any = None
+    _snapshot_entities: Any = None

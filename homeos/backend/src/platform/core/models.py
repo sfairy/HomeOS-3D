@@ -699,3 +699,62 @@ class HASyncState(Base):
     device_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     area_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class AgentCommandCacheRow(Base):
+    """Agent 学到的「原话 → 工具调用」缓存（跨重启保留）。"""
+
+    __tablename__ = "agent_command_cache"
+    __table_args__ = (
+        UniqueConstraint("scope", "cacheKey", name="uq_agent_command_cache_scope_key"),
+        Index("agent_command_cache_updatedAt_idx", "updatedAt"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    scope: Mapped[str] = mapped_column(String(128), nullable=False)
+    cache_key: Mapped[str] = mapped_column("cacheKey", String(512), nullable=False)
+    tool_name: Mapped[str] = mapped_column("toolName", String(64), nullable=False)
+    tool_args: Mapped[str] = mapped_column("toolArgs", Text, nullable=False, default="{}")
+    hit_count: Mapped[int] = mapped_column("hitCount", Integer, nullable=False, default=0)
+    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        "updatedAt", DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
+class AgentSessionRow(Base):
+    """Agent 长会话历史（跨 worker / 重启可读）。"""
+
+    __tablename__ = "agent_sessions"
+    __table_args__ = (
+        Index("agent_sessions_sessionId_createdAt_idx", "sessionId", "createdAt"),
+        Index("agent_sessions_createdAt_idx", "createdAt"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column("sessionId", String(128), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        "createdAt", DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
+class AgentMemoryRow(Base):
+    """Agent 长期记忆：设备 / 房间别名、用户偏好。"""
+
+    __tablename__ = "agent_memories"
+    __table_args__ = (
+        UniqueConstraint("scope", "kind", "memoryKey", name="uq_agent_memories_scope_kind_key"),
+        Index("agent_memories_scope_kind_idx", "scope", "kind"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    scope: Mapped[str] = mapped_column(String(128), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="alias")
+    memory_key: Mapped[str] = mapped_column("memoryKey", String(255), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    updated_at: Mapped[datetime] = mapped_column(
+        "updatedAt", DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )

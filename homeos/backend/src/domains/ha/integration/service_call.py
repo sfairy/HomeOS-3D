@@ -49,6 +49,9 @@ class ServiceCallPayload(Protocol):
     service: str
     entity_id: str
     data: dict[str, Any]
+    #: 同一手势的幂等键（可选）。只有带键的调用才会被 ``CommandProxyService`` 去重，
+    #: 这样「连按两次」仍会执行两次，而「同一请求被重发」只执行一次。
+    idempotency_key: str | None
 
 
 #: 域内表达 HTTP 结果用的状态码（与 FastAPI ``status`` 同值，但不 import 它）。
@@ -221,6 +224,7 @@ async def execute_service_call(
                 service=payload.service,
                 entity_id=payload.entity_id,
                 service_data=payload.data,
+                idempotency_key=payload.idempotency_key,
             ),
         )
         result = envelope.get('data') if isinstance(envelope, dict) else envelope

@@ -14,8 +14,8 @@
   align-items: baseline;
   gap: 7px;
   padding: 7px 13px;
-  border-radius: var(--hos-r-2);
-  border: 1px solid var(--hos-line-3);
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border-strong);
   background:
     linear-gradient(155deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.26) 100%);
   box-shadow: none;
@@ -32,12 +32,12 @@
 
 .lp-metrics__item:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--hos-color-accent) 24%, #1a1d28);
+  border-color: color-mix(in srgb, var(--page-accent, #0a84ff) 24%, #1a1d28);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
 }
 
 .lp-metrics__value {
-  font-size: var(--hos-fs-6);
+  font-size: var(--premium-fs-title);
   font-weight: 780;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
@@ -50,39 +50,57 @@
 }
 
 .lp-metrics__label {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   white-space: nowrap;
   line-height: 1.2;
 }
 
-.lp-metrics__item--sky .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-info-text); }
-.lp-metrics__item--green .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-success-text); }
-.lp-metrics__item--red .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-danger-text); }
-.lp-metrics__item--amber .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-warning-text); }
-.lp-metrics__item--orange .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-warning-text); }
-.lp-metrics__item--pink .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-danger-text); }
-.lp-metrics__item--emerald .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-success-text); }
-.lp-metrics__item--violet .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-color-accent); }
-.lp-metrics__item--muted .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-fg-2); }
+.lp-metrics__item--sky .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #7dd3fc; }
+.lp-metrics__item--green .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #6ee7b7; }
+.lp-metrics__item--red .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fca5a5; }
+.lp-metrics__item--amber .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fde68a; }
+.lp-metrics__item--orange .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #fdba74; }
+.lp-metrics__item--pink .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #f9a8d4; }
+.lp-metrics__item--emerald .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #6ee7b7; }
+.lp-metrics__item--violet .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: #c4b5fd; }
+.lp-metrics__item--muted .lp-metrics__value { background: none; -webkit-text-fill-color: currentColor; color: var(--hos-text-secondary); }
 
 /* ── 页面主题色（仅 Tab / 主按钮 / 链接） ──
-   注：页面主色由 --hos-color-accent / -rgb 表达，各 View 需要独立色相时
-       在根元素 :style 注入 canonical 主色即可；派生色（soft / line / glow）
-       由 app-premium-tokens.css 的 :where(.list-page …) 块按主色重新求值。
-       `--dev-accent-rgb` 是本域私有的 rgb 分量，供本文件内部 rgba() 引用。 */
-.devices-view {    --dev-accent-rgb: var(--hos-color-accent-rgb); }
-.device-detail-view {    --dev-accent-rgb: var(--hos-color-accent-rgb); }
-.notifications-view,
+   注：--page-accent / --page-accent-rgb 由各 View 组件 :style 注入
+       （DevicesView / DeviceDetailView 使用 --module-accent-devices）。
+       这里仅保留二级色与 rgb 派生（`--dev-accent-rgb` 供本域样式引用）。 */
+/* 页面强调色三件套（--page-accent / --page-accent-secondary / --page-accent-rgb）
+   必须同时给出：--page-accent-rgb 是派生色（--page-accent-bg / -border / -glow / -text）
+   的唯一色源，缺了它，本页派生面色会停留在全局默认色。
+   注：--page-accent / --page-accent-rgb 也可能由各 View 组件 :style 注入。 */
+.devices-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
+.device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
+.security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
+.mode-logs-view {
+  --page-accent: var(--module-accent-home-mode, #fbbf24);
+  --page-accent-secondary: var(--module-accent-home-mode-sub, #fb7185);
+  --page-accent-rgb: var(--module-accent-home-mode-rgb, 251, 191, 36);
+}
+.notifications-view {
+  --page-accent: #f472b6;
+  --page-accent-secondary: #fb7185;
+  --page-accent-rgb: 244, 114, 182;
+}
+.earthquake-history-view {
+  --page-accent: #fbbf24;
+  --page-accent-secondary: #fb923c;
+  --page-accent-rgb: 251, 191, 36;
+}
 
 .list-page[class*='-view'] .list-page__tab--on {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--hos-color-accent) 52%, #0c0e14),
-    color-mix(in srgb, var(--hos-color-accent-strong) 42%, #0c0e14)
+    color-mix(in srgb, var(--page-accent) 52%, #0c0e14),
+    color-mix(in srgb, var(--page-accent-secondary) 42%, #0c0e14)
   );
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
 }
@@ -100,12 +118,12 @@
     /* 高不透明度渐变 */
     background: linear-gradient(
       135deg,
-      color-mix(in srgb, var(--hos-color-accent) 92%, #0c0e14),
-      color-mix(in srgb, var(--hos-color-accent-strong) 88%, #0c0e14)
+      color-mix(in srgb, var(--page-accent) 92%, #0c0e14),
+      color-mix(in srgb, var(--page-accent-secondary) 88%, #0c0e14)
     );
     /* 增强外发光 */
     box-shadow:
-      0 4px 22px color-mix(in srgb, var(--hos-color-accent) 55%, transparent),
+      0 4px 22px color-mix(in srgb, var(--page-accent) 55%, transparent),
       0 0 0 1px rgba(255, 255, 255, 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.28);
     transform: translateY(-1px);
@@ -113,11 +131,11 @@
 }
 
 .list-page[class*='-view'] .list-page__btn--primary {
-  border-color: color-mix(in srgb, var(--hos-color-accent) 42%, #1a1d28);
+  border-color: color-mix(in srgb, var(--page-accent) 42%, #1a1d28);
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--hos-color-accent) 32%, #0c0e14),
-    color-mix(in srgb, var(--hos-color-accent-strong) 26%, #0c0e14)
+    color-mix(in srgb, var(--page-accent) 32%, #0c0e14),
+    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent)) 26%, #0c0e14)
   );
   color: #fff;
   text-shadow: none;
@@ -129,30 +147,30 @@
 }
 
 .list-page[class*='-view'] .list-page__chip--accent {
-  border-color: color-mix(in srgb, var(--hos-color-accent) 38%, #1a1d28);
-  background: color-mix(in srgb, var(--hos-color-accent) 14%, #0c0e14);
-  color: color-mix(in srgb, var(--hos-color-accent) 50%, white);
+  border-color: color-mix(in srgb, var(--page-accent) 38%, #1a1d28);
+  background: color-mix(in srgb, var(--page-accent) 14%, #0c0e14);
+  color: color-mix(in srgb, var(--page-accent) 50%, white);
 }
 
-/* 设备页行 hover 跟随页面主色 */
+/* 设备页行 hover 跟随 page-accent */
 .devices-view .list-page__row:hover,
 .device-detail-view .list-page__row:hover {
-  border-color: color-mix(in srgb, var(--hos-color-accent) 28%, rgba(0, 0, 0, 0));
-  background: color-mix(in srgb, var(--hos-color-accent) 6%, rgba(255, 255, 255, 0.03));
+  border-color: color-mix(in srgb, var(--page-accent) 28%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--page-accent) 6%, rgba(255, 255, 255, 0.03));
 }
 
 .devices-view .list-page__row:hover::before,
 .device-detail-view .list-page__row:hover::before {
-  background: linear-gradient(180deg, var(--hos-color-accent), var(--hos-color-accent-strong));
+  background: linear-gradient(180deg, var(--page-accent), var(--page-accent-secondary));
 }
 
 .devices-view .list-page__row-main--clickable:hover .list-page__row-name,
 .device-detail-view .list-page__row-main--clickable:hover .list-page__row-name {
-  color: color-mix(in srgb, var(--hos-color-accent) 45%, white);
+  color: color-mix(in srgb, var(--page-accent) 45%, white);
 }
 .rooms-view__chev--open { transform: rotate(90deg); opacity: 0.85; }
-.rooms-view__dot--on { background: var(--hos-color-success); box-shadow: 0 0 8px rgba(var(--hos-color-success-rgb), 0.45); }
-.list-page__form-title { margin: 0 0 10px; font-size: var(--hos-fs-3); font-weight: 600; }
+.rooms-view__dot--on { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.45); }
+.list-page__form-title { margin: 0 0 10px; font-size: var(--premium-fs-caption); font-weight: 600; }
 
 /* ── 设备 ── */
 .devices-view__hero-toolbar {
@@ -246,7 +264,7 @@
 }
 
 .devices-view__sidebar .dev-metric__value {
-  font-size: var(--hos-fs-6);
+  font-size: var(--premium-fs-title);
 }
 
 .devices-view__sidebar .dev-metric__icon {
@@ -317,7 +335,7 @@
   gap: 10px;
   min-width: 0;
   padding: 10px 14px;
-  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
 }
 
 .devices-view__panel-toolbar-row--actions .devices-view__list-count {
@@ -346,13 +364,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  transition: background var(--hos-dur-fast) var(--hos-ease-standard), border-color var(--hos-dur-fast) var(--hos-ease-standard),
-    color var(--hos-dur-fast) var(--hos-ease-standard), opacity var(--hos-dur-fast) var(--hos-ease-standard);
+  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
+    color var(--set-transition-fast), opacity var(--set-transition-fast);
 }
 
 .devices-view .list-page__tab-arrow:hover:not(:disabled) {
@@ -369,9 +387,9 @@
 
 .devices-view__list-count {
   flex-shrink: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   padding-left: 4px;
@@ -393,25 +411,25 @@
   flex-shrink: 0;
   height: 36px;
   padding: 0 12px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-3);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-caption);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.62);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .devices-view__select-all:hover {
-  background: var(--hos-bg-tint-2);
+  background: var(--premium-glass-bg-hover);
   color: rgba(255, 255, 255, 0.88);
 }
 
 .devices-view__select-all--active {
-  border-color: color-mix(in srgb, var(--hos-color-accent) 38%, rgba(0, 0, 0, 0));
-  background: color-mix(in srgb, var(--hos-color-accent) 14%, rgba(0, 0, 0, 0));
-  color: color-mix(in srgb, var(--hos-color-accent) 50%, white);
+  border-color: color-mix(in srgb, var(--page-accent) 38%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--page-accent) 14%, rgba(0, 0, 0, 0));
+  color: color-mix(in srgb, var(--page-accent) 50%, white);
 }
 
 .devices-view__list {
@@ -438,7 +456,7 @@
   flex-shrink: 0;
   margin: 0;
   padding: 10px 14px;
-  border-top: var(--hos-hairline) solid var(--hos-line-2);
+  border-top: var(--hos-hairline) solid var(--premium-border);
   background: rgba(0, 0, 0, 0.1);
 }
 
@@ -485,10 +503,10 @@
   gap: 5px;
   height: 36px;
   padding: 0 14px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.88);
   white-space: nowrap;
@@ -569,8 +587,8 @@
 }
 
 .device-detail-view__attrs-hint {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-3);
+  font-size: var(--premium-fs-micro);
+  color: var(--set-text-tertiary);
   white-space: nowrap;
 }
 
@@ -599,18 +617,18 @@
   grid-template-columns: minmax(100px, 140px) 1fr;
   gap: 8px 14px;
   margin: 0;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
 }
 
 .device-detail-view__attrs dt {
-  color: var(--hos-fg-2);
+  color: var(--set-text-label);
   margin: 0;
   padding-top: 2px;
 }
 
 .device-detail-view__attrs dd {
   margin: 0;
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary, rgba(255, 255, 255, 0.85));
   word-break: break-all;
 }
 
@@ -619,8 +637,8 @@
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.28);
-  border: var(--hos-hairline) solid var(--hos-line-2);
-  font-size: var(--hos-fs-2);
+  border: var(--hos-hairline) solid var(--premium-border);
+  font-size: var(--premium-fs-micro);
   white-space: pre-wrap;
   overflow: auto;
 }

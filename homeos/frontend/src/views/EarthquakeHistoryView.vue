@@ -10,6 +10,7 @@
     <ListPageHero
       :title="'地震信息'"
       :hint="tab === 'local' ? '本地 EEW 预警记录 · 数据分析与事件流' : globalHint"
+      tone="amber"
     >
       <template #icon>
         <Activity class="w-5 h-5" />

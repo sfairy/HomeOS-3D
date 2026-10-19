@@ -103,10 +103,7 @@ const collapsed = ref(readCollapsedState())
 
 function readCollapsedState(): boolean {
   try {
-    // 手机竖屏默认收起：320px 面板会把 390px 视口的主内容压到 70px。
-    // 用户手动展开过（localStorage 有值）则尊重其选择。
-    const fallback = typeof window !== 'undefined' && window.innerWidth < 640
-    return readLocalStorageFlag(COLLAPSE_STORAGE_KEY, fallback)
+    return readLocalStorageFlag(COLLAPSE_STORAGE_KEY)
   } catch {
     return false
   }
@@ -126,15 +123,10 @@ const { scalingEnabled } = useScaling(computed(() => layoutStore.layoutConfig.pa
 const panelOuterStyle = computed(() => {
   if (collapsed.value) return { width: '0px' }
   let w = layoutStore.layoutConfig.rightPanelWidth || 260
-  // 未开缩放时按视口收窄：平板 30%，手机 86%（手机上面板改为覆盖式抽屉，
-  // 不再参与内容行宽分配；保留 86% 让底层户型图仍可点关闭）。
-  if (!scalingEnabled.value && typeof window !== 'undefined') {
-    const viewportW = window.innerWidth
-    if (viewportW < 640) {
-      w = Math.min(w, Math.round(viewportW * 0.86))
-    } else if (isTabletCompactViewport()) {
-      w = Math.min(w, Math.round(viewportW * 0.3))
-    }
+  // 平板未开缩放：侧栏上限为视口 30%，避免在窄视口挤压户型图。
+  if (!scalingEnabled.value && isTabletCompactViewport()) {
+    const viewportW = typeof window !== 'undefined' ? window.innerWidth : w
+    w = Math.min(w, Math.round(viewportW * 0.3))
   }
   return { width: `${w}px` }
 })

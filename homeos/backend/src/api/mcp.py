@@ -59,7 +59,12 @@ async def handle_mcp_request(
     ip = _client_ip(request)
     mcp.assert_ip_allowed(ip)
     await mcp.assert_gateway_key(request.headers.get("x-homeos-mcp-key"))
-    return await mcp.handle(body or {"method": ""}, ip)
+    return await mcp.handle(
+        body or {"method": ""},
+        ip,
+        client_id=request.headers.get("x-homeos-mcp-client"),
+        client_key=request.headers.get("x-homeos-mcp-client-key"),
+    )
 
 
 @router.get("/sse", dependencies=[Depends(rate_limit(20))])

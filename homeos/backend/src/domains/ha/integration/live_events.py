@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from typing import Any
 
 from .service_support import LOGGER
@@ -27,6 +28,27 @@ LIVE_EVENT_BATCH_WINDOW_MS = 50
 LIVE_EVENT_BATCH_MAX_SIZE = 200
 #: 待合并队列上限：HA 刷屏时宁可丢最旧的推送（下一轮全量对账会补），也不让内存无界增长。
 LIVE_EVENT_PENDING_MAX = 2_000
+
+#: 关键控制域的专用合并窗口（毫秒）。
+#:
+#: 为什么单独给：``LIVE_EVENT_BATCH_WINDOW_MS`` 是拿「传感器刷屏」换「事务次数」的取舍，
+#: 对灯光/开关这类**用户手势的直接反馈**却是纯延迟 —— 点一下灯要白等最多 50ms（实测
+#: p50 也要 ~29ms）才可能被推送。这里给关键域一个帧级的短窗口：既保留「同一次操作
+#: 涉及多个实体时合批」的能力，又不会让人感觉到延迟。
+LIVE_EVENT_CRITICAL_WINDOW_MS = 4
+#: 关键域默认清单，与 ``wsPush.criticalDomains`` 默认值一致（配置会覆盖）。
+LIVE_EVENT_CRITICAL_DOMAINS: frozenset[str] = frozenset(
+    {'light', 'switch', 'cover', 'climate', 'media_player', 'fan', 'lock'}
+)
+
+
+def entity_domain(entity_id: str | None) -> str:
+    """``light.kitchen`` → ``light``（无点号时返回空串）。"""
+    if not entity_id:
+        return ''
+    head, sep, _ = str(entity_id).partition('.')
+    return head if sep else ''
+
 
 
 def live_state_change(message: dict[str, Any]) -> dict[str, Any] | None:
@@ -62,6 +84,8 @@ def live_state_change(message: dict[str, Any]) -> dict[str, Any] | None:
         'new_state': new_state,
         'time_fired': event.get('time_fired'),
         'removed_entity_id': removed_entity_id,
+        # 入队时刻（单调时钟）：供「合并队列停留」指标计算，也用于诊断长尾。
+        'received_at': time.monotonic(),
     }
 
 
@@ -79,9 +103,22 @@ class LiveStateEventQueue:
         window_seconds: float = LIVE_EVENT_BATCH_WINDOW_MS / 1000.0,
         max_batch_size: int = LIVE_EVENT_BATCH_MAX_SIZE,
         max_pending: int = LIVE_EVENT_PENDING_MAX,
+        on_drop: Any = None,
+        critical_window_seconds: float = LIVE_EVENT_CRITICAL_WINDOW_MS / 1000.0,
+        critical_domains: frozenset[str] | set[str] | None = None,
     ) -> None:
         self._flush = flush
+        #: 积压超限丢弃时的回调 ``on_drop(delta, total)``（同步或协程），用于让前端知道
+        #: 「有一批状态没被推送」并触发重同步。此前只记内部计数、无人读取，前端那套
+        #: ``ha_queue_dropped`` 处理器等于永远收不到事件。
+        self._on_drop = on_drop
+        self._reported_dropped = 0
         self._window = max(float(window_seconds), 0.0)
+        #: 关键域窗口：不短于 0，且不超过常规窗口（配置写反时以常规窗口为准）。
+        self._critical_window = min(
+            max(float(critical_window_seconds), 0.0), self._window
+        ) if self._window > 0 else 0.0
+        self._critical_domains = frozenset(critical_domains or LIVE_EVENT_CRITICAL_DOMAINS)
         self._max_batch = max(int(max_batch_size), 1)
         self._max_pending = max(int(max_pending), 1)
         self._pending: dict[str, dict[str, Any]] = {}
@@ -90,6 +127,10 @@ class LiveStateEventQueue:
         self._dropped = 0
         self._task: asyncio.Task[None] | None = None
         self._closed = False
+        #: 关键域入队时置位：让 worker 从「常规窗口」里立刻醒来改走短窗口。
+        self._wake = asyncio.Event()
+        #: 本批是否含关键域变化（决定 flush 后的等待时长）。
+        self._critical_pending = False
 
     @property
     def dropped(self) -> int:
@@ -111,6 +152,12 @@ class LiveStateEventQueue:
         """入队一次变化：同实体覆盖合并（留首包 old_state、更新末包 new_state）。"""
         if self._closed:
             return
+        # 关键域先置位再入队：即使下面走的是「同实体覆盖」分支，本批也应改走短窗口 ——
+        # 用户又拨了一次开关，没理由继续等传感器那 50ms 的合并窗。
+        if not self._critical_pending and self._critical_window < self._window:
+            if entity_domain(entity_id) in self._critical_domains:
+                self._critical_pending = True
+                self._wake.set()
         if entity_id:
             existing = self._pending.get(entity_id)
             if existing is not None:
@@ -128,9 +175,23 @@ class LiveStateEventQueue:
 
     async def flush(self) -> None:
         """立刻把待处理变化交给回调（worker 继续跑）。"""
-        if not self._pending:
+        if self._pending:
+            await self._deliver(self._take())
+        await self._report_dropped()
+
+    async def _report_dropped(self) -> None:
+        """把「又丢了 N 条」告诉上层（每次 flush 最多一次，避免刷屏）。"""
+        if self._on_drop is None or self._dropped <= self._reported_dropped:
             return
-        await self._deliver(self._take())
+        delta = self._dropped - self._reported_dropped
+        self._reported_dropped = self._dropped
+        try:
+            result = self._on_drop(delta, self._dropped)
+            if hasattr(result, '__await__'):
+                await result
+        except Exception:
+            # 丢弃通知是旁路：失败不能杀死落地 worker。
+            LOGGER.debug('HA 实时状态丢弃通知失败', exc_info = True)
 
     async def aclose(self) -> None:
         """停掉 worker，并把已收到但还没落地的变化冲出去（断开前不丢最后一帧）。"""
@@ -146,7 +207,7 @@ class LiveStateEventQueue:
     async def _run(self) -> None:
         while True:
             try:
-                await asyncio.sleep(self._window)
+                await self._wait_for_batch()
                 await self.flush()
             except asyncio.CancelledError:
                 raise
@@ -154,9 +215,39 @@ class LiveStateEventQueue:
                 # 落地失败不能杀死收包循环，下一批照常。
                 LOGGER.debug('HA 实时状态合并批次落地失败', exc_info = True)
 
+    async def _wait_for_batch(self) -> None:
+        """等到该开批的时刻。
+
+        - 空闲时按常规窗口（默认 50ms）攒批，把传感器刷屏压成一次事务；
+        - 关键域入队会 ``set()`` 唤醒：先从常规窗口里立刻退出，再用帧级短窗口收拢
+          「同一次操作的多实体变化」，然后开批。
+        """
+        if self._window <= 0:
+            # 窗口为 0 = 不合并：让出一次事件循环即可。
+            await asyncio.sleep(0)
+            return
+        if self._critical_pending:
+            # 上批还没交出去的关键域变化（或入队时已置位）：短窗口收拢后立即开批。
+            await asyncio.sleep(self._critical_window)
+            return
+        self._wake.clear()
+        try:
+            await asyncio.wait_for(self._wake.wait(), timeout=self._window)
+        except TimeoutError:
+            return
+        # 被关键域唤醒：给它一个短窗口把同批实体收齐，再交给 flush。
+        if self._critical_window > 0:
+            await asyncio.sleep(self._critical_window)
+
     def _take(self) -> list[dict[str, Any]]:
         keys = list(self._pending)[: self._max_batch]
-        return [self._pending.pop(key) for key in keys]
+        changes = [self._pending.pop(key) for key in keys]
+        # 剩下的还没交出去的变化里是否仍有关键域：决定下一轮用长窗口还是短窗口。
+        self._critical_pending = any(
+            entity_domain(change.get('entity_id')) in self._critical_domains
+            for change in self._pending.values()
+        )
+        return changes
 
     async def _deliver(self, changes: list[dict[str, Any]]) -> None:
         if not changes:

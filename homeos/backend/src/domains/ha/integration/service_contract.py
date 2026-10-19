@@ -20,6 +20,7 @@ class HAConnectorHost:
     _endpoint: Any = None
     _endpoint_lock: Any = None
     _endpoint_probed_at: Any = None
+    _endpoint_probe_task: Any = None
     _endpoint_signature: Any = None
     _failure_kind: Any = None
     _failure_logged_at: Any = None
@@ -36,8 +37,11 @@ class HAConnectorHost:
     _initial_sync_logged: Any = None
     _known_entity_ids: Any = None
     _last_connection_status: Any = None
+    _last_full_sync_at: Any = None
     _lifecycle_lock: Any = None
+    _live_seed: Any = None
     _persistent_entity_ids: Any = None
+    _reconcile_task: Any = None
     _registry_refresh_tasks: Any = None
     _runner: Any = None
     _runtime_entity_watch_counts: Any = None
@@ -64,6 +68,7 @@ class HAConnectorHost:
     _device_registry_metadata: Any = None
     _discard_history_fetch: Any = None
     _dispatch_live_event: Any = None
+    _dispatch_message: Any = None
     _fetch_and_cache_history: Any = None
     _flush_live_state_changes: Any = None
     _ha_tuning: Any = None
@@ -79,11 +84,15 @@ class HAConnectorHost:
     _mark_sync_started: Any = None
     _next_backoff: Any = None
     _notify_connection: Any = None
+    _notify_live_drops: Any = None
     _notify_state: Any = None
     _probe_endpoint: Any = None
+    _probe_endpoint_background: Any = None
     _probe_endpoints: Any = None
     _reconnect_base_backoff: Any = None
     _reconnect_max_backoff: Any = None
+    _reconcile: Any = None
+    _cancel_reconcile: Any = None
     _record_error: Any = None
     _reset_failure_state: Any = None
     _run: Any = None
@@ -100,7 +109,9 @@ class HAConnectorHost:
     client_for: Any = None
     ensure_entity_states: Any = None
     invalidate_endpoint: Any = None
+    refresh_endpoint_in_background: Any = None
     refresh_persistent_entity_ids: Any = None
+    schedule_reconcile: Any = None
     start: Any = None
     sync_once: Any = None
     watched_entity_ids: Any = None

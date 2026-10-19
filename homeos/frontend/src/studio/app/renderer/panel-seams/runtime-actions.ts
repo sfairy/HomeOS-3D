@@ -1,4 +1,5 @@
 import type { ComponentPayload } from "../renderer-types";
+import { randomUuid } from "../../shared/util/random-id";
 import { componentSupportsAction } from "../renderer-helpers";
 import { coverToggleServiceForComponent as coverToggleServiceForComponent2 } from "../controls/cover-runtime";
 import { entityToggleCommand as entityToggleCommand2 } from "../entity-power";
@@ -324,6 +325,8 @@ export async function callEntityService(self: PanelRenderer, serviceDomain: any,
         service: serviceName,
         entityId: serviceEntityId,
         data: servicePayload,
+        // 同一手势的幂等键：断网重发（浏览器/代理层）不会真的执行两次。
+        idempotency_key: randomUuid(),
       }),
       hbLogContext: {
         entityId: serviceEntityId,

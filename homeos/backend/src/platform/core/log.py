@@ -24,7 +24,11 @@ from homeos_shared.uvicorn_messages import (
     localize_uvicorn_message,
 )
 
-from .access_log_noise import MODE_OFF, install_http_access_log_filter
+from .access_log_noise import (
+    MODE_OFF,
+    install_http_access_log_filter,
+    install_websocket_handshake_log_filter,
+)
 from .observability import get_trace_id
 from .status_log_dedupe import StatusLogDedupeFilter
 
@@ -95,6 +99,7 @@ _CONTEXT_ZH: dict[str, str] = {
     "homeos.ui_config.assets": "静态资源",
     # 基础设施
     "homeos.database": "数据库",
+    "homeos.platform.core.schema": "数据库结构",
     "homeos.retention": "数据库留存",
     "homeos.distributed-lock": "分布式锁",
     "homeos.circuit_breaker": "熔断器",
@@ -431,6 +436,8 @@ def configure_app_logging() -> logging.Logger:
         _attach_handler(logging.getLogger(name), level, color)
     # HTTP 访问日志降噪：默认丢掉 2xx/3xx（成功与重定向），保留 4xx/5xx 等异常请求。
     access_filter = install_http_access_log_filter()
+    # WebSocket 握手行：uvicorn 写在 uvicorn.error 上，按「来源 IP + 路径 + 结果」折叠重复重连。
+    install_websocket_handshake_log_filter()
     if access_filter.mode == MODE_OFF:
         # 全静默：直接抬高访问日志器级别，连格式化都省掉
         logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

@@ -1,10 +1,10 @@
 .dba-icon-info {
-  color: var(--hos-color-info-text);
+  color: var(--set-info, #7dd3fc);
 }
 
 .device-batch__empty-hint {
-  font-size: var(--hos-fs-3);
-  color: var(--hos-fg-3);
+  font-size: var(--premium-fs-caption);
+  color: var(--set-text-tertiary);
   padding: 8px 0;
 }
 
@@ -24,17 +24,17 @@
 .device-batch__modal {
   width: 100%;
   max-width: 440px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--acc-radius, 14px);
   background:
     radial-gradient(
       ellipse 80% 50% at 0% 0%,
-      color-mix(in srgb, var(--hos-color-accent) 10%, rgba(0, 0, 0, 0)) 0%,
+      color-mix(in srgb, var(--page-accent, #38bdf8) 10%, rgba(0, 0, 0, 0)) 0%,
       transparent 55%
     ),
     rgba(12, 14, 24, 0.96);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   overflow: hidden;
-  box-shadow: var(--hos-shadow-3);
+  box-shadow: var(--premium-shadow);
 }
 
 .device-batch__modal-header {
@@ -42,21 +42,21 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
 }
 
 .device-batch__modal-header span {
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm);
   font-weight: 600;
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary, rgba(255, 255, 255, 0.9));
 }
 
 .device-batch__modal-close {
   padding: 6px;
   border-radius: 8px;
-  color: var(--hos-fg-2);
-  background: var(--hos-bg-tint-2);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  color: var(--set-text-label, rgba(255, 255, 255, 0.4));
+  background: var(--premium-glass-bg-hover);
+  border: var(--hos-hairline) solid var(--premium-border);
   cursor: pointer;
 }
 
@@ -65,8 +65,8 @@
 }
 
 .device-batch__modal-label {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--set-text-label);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 10px;
@@ -85,5 +85,5 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 16px;
-  border-top: var(--hos-hairline) solid var(--hos-line-2);
+  border-top: var(--hos-hairline) solid var(--premium-border);
 }

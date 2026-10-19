@@ -96,7 +96,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
       id: room.id,
       label: sensorMap.value[room.id]?.label?.trim() || room.defaultLabel,
       emoji: envRoomTabEmoji(room.id),
-      accent: room.fixed ? '#3ddc97' : '#ffc46a',
+      accent: room.fixed ? '#34d399' : '#38bdf8',
     })),
   )
 
@@ -110,7 +110,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
       accent: '#34d399',
       badge: envRoomList.value.length || '',
     },
-    { id: 'scopes', label: '应用范围', emoji: '🔗', accent: '#59d3c0' },
+    { id: 'scopes', label: '应用范围', emoji: '🔗', accent: '#38bdf8' },
   ])
 
   watch(envRoomTabs, (tabs) => {

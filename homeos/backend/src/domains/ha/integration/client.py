@@ -207,6 +207,39 @@ GENERATED_IMAGE_TYPES = frozenset({'image/gif', 'image/png', 'image/jpeg', 'imag
 GENERATED_IMAGE_PREFIXES = ('/ai_task/', '/media/', '/api/ai_task/')
 
 
+#: 动作型服务：每次执行都会改变状态，传输层失败后重放可能把用户意图反转。
+_NON_IDEMPOTENT_SERVICES = frozenset({
+    'play_pause',
+    'media_play_pause',
+    'next',
+    'previous',
+    'next_track',
+    'previous_track',
+    'shuffle_set',
+    'cycle',
+    'increase_speed',
+    'decrease_speed',
+    'open_cover',
+    'close_cover',
+    'stop_cover',
+    'lock',
+    'unlock',
+    'open',
+    'close',
+})
+
+
+def _service_call_retry_safe(domain: str, service: str) -> bool:
+    """该服务在 HA 层面是否幂等（重复下发不会产生额外副作用）。
+
+    只有幂等调用才允许在传输层失败后重放一次。``toggle`` / ``play_pause`` 等动作型
+    服务每次执行都会改变状态，重放会把「开」变「关」，因此一律不重试。
+    """
+    if service in _NON_IDEMPOTENT_SERVICES:
+        return False
+    return not service.startswith('toggle')
+
+
 def _remote_learning_timeout(data: dict[str, Any]) -> float:
     """学习红外/射频指令的超时：一条指令码通常要按下再等待，按条数放大。
 
@@ -237,6 +270,8 @@ class HAClient:
         http_pool: HAHttpClientPool | None = None,
         ws_ping_interval: float | None = None,
         ws_ping_timeout: float | None = None,
+        use_subscribe_entities: bool = False,
+        subscribe_entities_shadow: bool = False,
     ) -> None:
         self.base_url = normalize_base_url(base_url)
         self.access_token = access_token
@@ -249,6 +284,11 @@ class HAClient:
         # None 表示沿用 websockets 库默认（20s / 20s）。
         self.ws_ping_interval = ws_ping_interval
         self.ws_ping_timeout = ws_ping_timeout
+        # ``subscribe_entities`` 压缩协议（haConnector.useSubscribeEntities）：
+        # 关闭时沿用 subscribe_events(state_changed)，这是可回滚的 feature flag。
+        self.use_subscribe_entities = bool(use_subscribe_entities)
+        #: 诊断期影子对比：额外订阅 state_changed，仅用于校验压缩解码，不参与下游派发。
+        self.subscribe_entities_shadow = bool(subscribe_entities_shadow)
         # control_pool 非空时，控制类请求（调服务）走共享连接池，由 HAControlPool 决定
         # 是否复用已有连接、何时淘汰；缺省 None 表示每次新建（测试与一次性脚本的用法）。
         self._control_pool = control_pool
@@ -540,6 +580,37 @@ class HAClient:
                 raise HAClientError(str(error.get('message') or f'订阅 HA 事件 {event_type} 失败。'))
         return buffered_events
 
+    async def subscribe_entities(self, websocket, start_id: int = 200) -> list[dict[str, Any]]:
+        """订阅压缩状态流（``subscribe_entities``）。
+
+        返回握手期间读到的其它事件（例如同时订阅的注册表事件），交给调用方按原路径分派；
+        首帧全量 ``a`` 事件会正常落在后续的 ``recv`` 循环里。
+
+        协议细节：HA 先回 ``result``，紧接着在同一回调里推送首帧全量状态，
+        因此这里只需要等到 ``result``；把期间读到的 ``event`` 消息一并带回即可。
+        """
+        message_id = start_id
+        await websocket.send(json.dumps({'id': message_id, 'type': 'subscribe_entities'}))
+        buffered_events: list[dict[str, Any]] = []
+        while True:
+            try:
+                message = json.loads(await websocket.recv())
+            except websockets.WebSocketException as error:
+                raise HAClientError(f'订阅 HA 压缩状态流中断：{error}') from error
+            except (TypeError, ValueError) as error:
+                raise HAProtocolError('订阅 HA 压缩状态流时收到非法 JSON。') from error
+            if not isinstance(message, dict):
+                continue
+            if message.get('type') == 'event':
+                buffered_events.append(message)
+                continue
+            if message.get('id') != message_id:
+                continue
+            if message.get('type') != 'result' or not message.get('success'):
+                error = message.get('error') or {}
+                raise HAClientError(str(error.get('message') or '订阅 HA 压缩状态流失败。'))
+            return buffered_events
+
     async def fetch_all_states(self) -> list[dict[str, Any]]:
         websocket = await self.connect_websocket()
         try:
@@ -720,12 +791,28 @@ class HAClient:
         if (domain, service) == ('remote', 'learn_command'):
             timeout = max(self.timeout, _remote_learning_timeout(data))
         try:
-            async with self._control_http_client() as client:
-                response = await client.post(url, json=payload, timeout=timeout)
-                response.raise_for_status()
-                result = response.json()
-                if (domain, service) == ('ai_task', 'generate_image'):
-                    result = await self._inline_generated_image(client, result)
+            # 安全重试一次：连接池复用到「对端已关闭」的 keep-alive 时，httpcore 会在
+            # 读响应阶段抛 RemoteProtocolError —— 用户看到的就是「闲置一段时间后
+            # 第一次点击失败」。这类失败**可能**已经把请求写出去了，所以只对 HA 层面
+            # 幂等的服务重试（toggle / play_pause 这类动作型服务绝不重放）。
+            for attempt in range(2):
+                try:
+                    async with self._control_http_client() as client:
+                        response = await client.post(url, json=payload, timeout=timeout)
+                        response.raise_for_status()
+                        result = response.json()
+                        if (domain, service) == ('ai_task', 'generate_image'):
+                            result = await self._inline_generated_image(client, result)
+                    break
+                except (httpx.ConnectError, httpx.RemoteProtocolError) as transport_error:
+                    if attempt == 0 and _service_call_retry_safe(domain, service):
+                        LOGGER.debug(
+                            'HA 服务调用复用了已断开的连接，重试一次：%s.%s', domain, service
+                        )
+                        continue
+                    raise HAClientError(
+                        f'Home Assistant 服务调用失败：{transport_error}'
+                    ) from transport_error
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
                 raise HAAuthError('Home Assistant Token 无效或权限不足。') from error

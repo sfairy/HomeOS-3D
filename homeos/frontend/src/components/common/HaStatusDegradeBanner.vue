@@ -40,7 +40,7 @@
 
 <script setup>
 /** - 根据 entitiesStore 的连接/重连/缓存过期状态，展示降级提示； */
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { WifiOff, Loader2, Database } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -68,18 +68,75 @@ const props = defineProps({
 const entitiesStore = useEntitiesStore()
 const chrome = useChromeStore()
 
-/** HA 是否处于降级态：未连接 / 重连中 / 实体缓存过期任一成立即为降级 */
-const haDegraded = computed(
-  () => !entitiesStore.connected || entitiesStore.reconnecting || entitiesStore.entitiesStale,
+/**
+ * 降级态「熬过多久才值得打扰用户」。
+ *
+ * 为什么需要：后端重启（开发期文件监听 / 升级）/ socket 抖动会让 HA 状态瞬间变成
+ * 「未知 → 重连」，实际 1~4 秒就恢复。立刻弹横幅会让用户以为家里设备一直掉线，
+ * 而真正的中断（>5s）仍然照常提示。
+ */
+const DEGRADE_HYSTERESIS_MS = 5000
+let degradeTimer = null
+
+/**
+ * HA 状态是否由后端明确播报为断开/重连中。
+ *
+ * 只有这两态才说明「HA 真的不可用」。socket 层断开（后端重启、网络切换）时
+ * 后端根本没机会播报，此时不能把锅甩给 HA。
+ */
+const haDown = computed(
+  () => entitiesStore.haStatus === 'disconnected' || entitiesStore.haStatus === 'reconnecting',
+)
+/** 后端通道（socket.io）本身没连上：此时我们对 HA 状态一无所知 */
+const backendDown = computed(
+  () =>
+    !entitiesStore.connected &&
+    !haDown.value &&
+    // 冷启动首次全量同步期间 connected 天然为 false：这是正常加载，不是降级
+    !(entitiesStore.loading && entitiesStore.totalCount === 0),
 )
 
-/** 横幅是否可见：forceVisible 优先，其次配置未就绪，最后回退到 HA 降级态 */
-const visible = computed(() => {
-  if (props.forceVisible) return true
-  if (props.configured === false) return true
-  if (entitiesStore.haQueueDroppedTotal > 0) return true
-  return haDegraded.value
+/** HA 是否处于降级态：未连接 / 重连中 / 实体缓存过期任一成立即为降级 */
+const haDegraded = computed(
+  () => haDown.value || backendDown.value || entitiesStore.entitiesStale,
+)
+
+/** 无需等待的强制展示：调试、配置未完成、有指令被丢弃（可操作） */
+const immediateVisible = computed(
+  () =>
+    props.forceVisible ||
+    props.configured === false ||
+    entitiesStore.haQueueDroppedTotal > 0,
+)
+
+/** 降级态已持续超过迟滞窗口 */
+const degradedSettled = ref(false)
+
+watch(
+  haDegraded,
+  (degraded) => {
+    if (!degraded) {
+      if (degradeTimer) clearTimeout(degradeTimer)
+      degradeTimer = null
+      degradedSettled.value = false
+      return
+    }
+    if (degradedSettled.value || degradeTimer) return
+    degradeTimer = setTimeout(() => {
+      degradeTimer = null
+      degradedSettled.value = true
+    }, DEGRADE_HYSTERESIS_MS)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  if (degradeTimer) clearTimeout(degradeTimer)
+  degradeTimer = null
 })
+
+/** 横幅是否可见：强制展示优先，其余降级态需熬过迟滞窗口 */
+const visible = computed(() => immediateVisible.value || degradedSettled.value)
 
 /** 解析后的标题：优先自定义，否则按配置/默认降级推导 */
 const resolvedTitle = computed(() => {
@@ -93,11 +150,16 @@ const resolvedMessage = computed(() => {
   if (props.message) return props.message
   const parts = []
   if (props.configured === false) parts.push(props.configuredHint)
-  if (!entitiesStore.connected && !entitiesStore.reconnecting) {
-    parts.push('Home Assistant 未连接')
-    if (props.showOfflineControlHint) parts.push('阀门/门锁/报警等高风险控制已拦截')
-  } else if (entitiesStore.reconnecting) {
-    parts.push('正在重连 Home Assistant…')
+  if (haDown.value) {
+    if (entitiesStore.haStatus === 'reconnecting') {
+      parts.push('正在重连 Home Assistant…')
+    } else {
+      parts.push('Home Assistant 未连接')
+      if (props.showOfflineControlHint) parts.push('阀门/门锁/报警等高风险控制已拦截')
+    }
+  } else if (backendDown.value) {
+    // 措辞必须准确：这里是 HomeOS 后端通道断了，HA 可能一直是好的
+    parts.push('正在重新连接 HomeOS 服务…')
   }
   if (entitiesStore.entitiesStale) parts.push('实体缓存可能已过期')
   if (entitiesStore.haQueueDroppedTotal > 0) {
@@ -106,14 +168,16 @@ const resolvedMessage = computed(() => {
   return parts.length ? parts.join('；') : '请检查 HA 连接与网络'
 })
 
-/** 是否展示离线图标：降级且未连接且非重连中 */
-const showOfflineIcon = computed(
-  () => haDegraded.value && !entitiesStore.connected && !entitiesStore.reconnecting,
+/** 是否展示离线图标：HA 明确断开且非重连中 */
+const showOfflineIcon = computed(() => haDown.value && entitiesStore.haStatus === 'disconnected')
+/** 是否展示旋转加载图标：重连中（HA 或后端通道） */
+const showSpinner = computed(
+  () => entitiesStore.reconnecting || entitiesStore.haStatus === 'reconnecting' || backendDown.value,
 )
-/** 是否展示旋转加载图标：重连中 */
-const showSpinner = computed(() => entitiesStore.reconnecting)
 /** 是否展示重试按钮：未连接或重连中 */
-const showRetryButton = computed(() => !entitiesStore.connected || entitiesStore.reconnecting)
+const showRetryButton = computed(
+  () => !entitiesStore.connected || entitiesStore.reconnecting || haDown.value,
+)
 const showRetryDropped = computed(() => entitiesStore.haQueueDroppedTotal > 0)
 
 async function retryDropped() {

@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, NoReturn
 
 from fastapi import HTTPException
@@ -24,7 +24,7 @@ from .config_ctx import (
     EnumSpec,
     ValidationContext,
 )
-from .purifier import EXTRA_TYPES
+from .extra_types import EXTRA_TYPES
 
 #: 绿植类允许的模型（只有这些模型会被 ``plant`` 集合收纳）。
 INDOOR_PLANT_MODEL_TYPES = (
@@ -266,7 +266,9 @@ def _status_values(value: Any) -> list[Any] | None:
     return value if isinstance(value, list) else None
 
 
-def validate_device_status_rules(status_rules: Any, fail_validation) -> None:
+def validate_device_status_rules(
+    status_rules: Any, fail_validation: Callable[[], NoReturn]
+) -> None:
     """各类家电（含热水器）共享的状态灯契约。
 
     ``health`` 允许写成列表（多个健康探针），其余键是单个规则对象。
@@ -288,19 +290,19 @@ def validate_device_status_rules(status_rules: Any, fail_validation) -> None:
             or ENTITY_ID_PATTERN.fullmatch(status_rule['entityId']) is None
         ):
             fail_validation()
-        groups = [_status_values(status_rule[key]) for key in ('active', 'inactive')]
-        if any(group is None for group in groups):
+        active_values = _status_values(status_rule['active'])
+        inactive_values = _status_values(status_rule['inactive'])
+        if active_values is None or inactive_values is None:
             fail_validation()
-        active_values, inactive_values = groups
+            continue
         if any(
-            not value
+            not isinstance(value, str)
+            or not value
             or len(value) > STATUS_STATE_TEXT_LIMIT
             or not value.strip()
             or value.strip().lower() in STATUS_RULE_REJECTED_VALUES
             for group in (active_values, inactive_values)
             for value in group
-        ) or any(
-            not isinstance(value, str) for group in groups for value in group
         ):
             fail_validation()
         if set(active_values) & set(inactive_values):

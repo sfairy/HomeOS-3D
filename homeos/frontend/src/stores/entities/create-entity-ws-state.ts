@@ -35,7 +35,9 @@ import type {
   EntitySocketTrack,
   EntityStoreLogger,
   HaEntityState,
+  HaLinkStatus,
 } from '@/shared/types/entity-store'
+import { fetchHaHealth } from '@/services/api/entities'
 import type { NotifyType } from '@/shared/types/notify'
 
 /**
@@ -128,6 +130,13 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   const connected = ref(false)
   /** 是否正在重连（HA 断连去抖期间为 true） */
   const reconnecting = ref(false)
+  /**
+   * 后端播报的 HA 连接状态（``ha_status`` 事件的最后一条）。
+   *
+   * ``unknown`` = 还没收到任何播报（刚打开页面 / 后端刚重启）。它与 ``reconnecting``
+   * 分开维护：socket 层断开也会把 ``reconnecting`` 置真，但那时 HA 可能一直是好的。
+   */
+  const haStatus = ref<HaLinkStatus>('unknown')
   /** HA 队列累计丢弃总数（服务端队列满时丢弃） */
   const haQueueDroppedTotal = ref(0)
   /** 上次队列丢弃时间戳 */
@@ -172,6 +181,53 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
       haDisconnectTimer = null
     }
     reconnecting.value = false
+  }
+
+  /**
+   * HA 状态主动核对：降级状态持续时向 ``/ha/health`` 补一次只读探活。
+   *
+   * 为什么需要：``ha_status`` 是纯事件式推送（后端只在状态**变化**时广播），只要漏掉
+   * 一条 ``connected``（socket 抖动期间后端重启、页面刚连上时广播已发完），前端就会
+   * 永远停在「正在重连 Home Assistant」，而实际上 HA 早就好了。这里用幂等探活兜底：
+   * 确认已连上就本地收起降级态，确认没连上则什么都不做（继续等推送）。
+   *
+   * 同一时刻只保留一个定时器/在途请求，避免每次状态事件都打一发请求。
+   */
+  const HA_STATUS_PROBE_DELAY_MS = 6000
+  let haStatusProbeTimer: ReturnType<typeof setTimeout> | null = null
+  let haStatusProbeInFlight = false
+
+  function clearHaStatusProbe() {
+    if (haStatusProbeTimer) {
+      clearTimeout(haStatusProbeTimer)
+      haStatusProbeTimer = null
+    }
+    haStatusProbeInFlight = false
+  }
+
+  function scheduleHaStatusProbe() {
+    if (haStatusProbeTimer || haStatusProbeInFlight) return
+    haStatusProbeTimer = setTimeout(() => {
+      haStatusProbeTimer = null
+      if (!deps.isAuthenticated()) return
+      haStatusProbeInFlight = true
+      fetchHaHealth({ timeout: 4000 })
+        .then((response) => {
+          if (response.data?.connected) {
+            haStatus.value = 'connected'
+            clearHaDisconnectDebounce()
+            setConnected(true)
+            deps.logger.info('[实体 WS] 状态核对确认 HA 已连接，收起重连提示')
+          }
+        })
+        .catch(() => {
+          // 探活失败（后端正好在重启 / 网络抖动）不做任何上升：横幅已经在了，
+          // 下一次状态事件或下一次探活会给出权威答案。
+        })
+        .finally(() => {
+          haStatusProbeInFlight = false
+        })
+    }, HA_STATUS_PROBE_DELAY_MS)
   }
 
   /**
@@ -274,9 +330,18 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     const now = Date.now()
     let best: number | null = null
     for (const c of changes) {
-      const ts = Number(c?._pipelineTs)
-      if (!Number.isFinite(ts) || ts <= 0) continue
-      const ms = now - ts
+      // 起点优先取 HA 事件时刻（changed_at）：这才是用户真正感知的端到端，
+      // 包含 HA 自身处理 + 后端入站合并 + 广播 + 本端 apply。
+      // changed_at 缺失（部分 delta / 本地乐观更新）才退回后端广播时刻 _pipelineTs。
+      let startedAt = Number.NaN
+      const changedAt = c?.changed_at
+      if (typeof changedAt === 'string' && changedAt) startedAt = Date.parse(changedAt)
+      if (!Number.isFinite(startedAt)) {
+        const ts = Number(c?._pipelineTs)
+        if (Number.isFinite(ts) && ts > 0) startedAt = ts
+      }
+      if (!Number.isFinite(startedAt)) continue
+      const ms = now - startedAt
       if (ms < 0 || ms > 60_000) continue
       if (best == null || ms < best) best = ms
     }
@@ -434,11 +499,13 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     persistEntityCacheNow: deps.persistEntityCacheNow,
     cancelPersistCacheTimer: deps.cancelPersistCacheTimer,
     clearHaDisconnectDebounce,
+    clearHaStatusProbe,
     setConnected,
     refs: {
       loading: deps.loading,
       totalCount: deps.totalCount,
       reconnecting,
+      haStatus,
       entitiesStale: deps.entitiesStale,
       haQueueDroppedTotal,
       lastQueueDropAt,
@@ -448,6 +515,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     actions: {
       clearHaDisconnectDebounce,
       startHaDisconnectDebounce,
+      scheduleHaStatusProbe,
       setConnected,
       fetchEntitiesFallback,
       /** 背压建议：先 REST 增量，成功则跳过全量 */
@@ -520,6 +588,7 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   return {
     connected,
     reconnecting,
+    haStatus,
     haQueueDroppedTotal,
     lastQueueDropAt,
     setConnected,

@@ -104,6 +104,10 @@
         <p v-if="pending > 0" class="agent-band-hint">
           表单有未保存修改。「当前生效」仍是上次已保存配置，请先保存再检测。
         </p>
+        <p v-else-if="modelStatDetail" class="agent-band-hint agent-band-hint--meta">
+          {{ modelStatDetail }}
+          <template v-if="usageTodayLabel"> · {{ usageTodayLabel }}</template>
+        </p>
 
         <div class="agent-model-body">
           <SettingsSectionHead
@@ -300,6 +304,157 @@
       </SettingsCard>
     </section>
 
+    <!-- Agent 设备范围 -->
+    <section v-show="section === 'device-scope'" class="settings-hub-section">
+      <SettingsCard static extra-class="agent-scene-voice-workspace">
+        <SettingsCardIntro
+          :icon="ShieldCheck"
+          icon-class="agent-icon--model"
+          orb-class="agent-orb--model"
+          eyebrow="设备范围"
+          :description="'限制智能管家可读取与控制的设备。留空表示不额外限制（仍受登录用户自身 ACL 约束）；非空时清单外的设备不会被写入系统提示、也无法被工具控制。'"
+        />
+
+        <div class="agent-model-body">
+          <SettingsSectionHead
+            title="Agent 专属设备白名单"
+            eyebrow="最小权限"
+            description="与登录用户 ACL 取交集：只会缩小权限，绝不会放大"
+            bordered
+          />
+
+          <div class="settings-form-grid agent-form-block">
+            <div>
+              <label class="settings-form-label mb-1.5">允许管家访问的设备</label>
+              <EntityMultiSelect
+                v-model="deviceAllowlist"
+                :allowed-domains="[]"
+                placeholder="搜索并勾选设备；留空 = 不额外限制"
+                :max-selection="200"
+              />
+              <p class="agent-band-hint mt-2">
+                已选 <strong>{{ deviceAllowlistCount }}</strong> 个。
+                {{
+                  deviceAllowlistCount
+                    ? '清单外的实体在工具读取与控制时都会被拒绝。'
+                    : '当前不额外限制，管家可访问登录用户全部可见设备。'
+                }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </SettingsCard>
+    </section>
+
+    <!-- 主动管家 -->
+    <section v-show="section === 'proactive'" class="settings-hub-section">
+      <SettingsCard static extra-class="agent-scene-voice-workspace">
+        <SettingsCardIntro
+          :icon="BellRing"
+          icon-class="agent-icon--model"
+          orb-class="agent-orb--model"
+          eyebrow="主动管家"
+          :description="'按周期巡检设备离线、能耗异常、离家未关门窗 / 未上锁与即将降雨，通过通知中心（含 WebPush / 企微）发送简报。默认关闭；只读取状态，不执行任何控制动作。'"
+        />
+
+        <div class="agent-model-body">
+          <SettingsSectionHead
+            title="巡检与频控"
+            eyebrow="通知"
+            description="免打扰时段内不发送；同一设备 / 同一异常不会反复提醒"
+            bordered
+          />
+
+          <label
+            class="agent-scene-toggle"
+            :class="{ 'agent-scene-toggle--on': proactive.enabled }"
+          >
+            <input v-model="proactive.enabled" type="checkbox" class="settings-checkbox" />
+            <div>
+              <span class="agent-scene-toggle__title">{{ '启用主动管家提醒' }}</span>
+              <span class="agent-scene-toggle__desc">{{
+                '关闭时后台仍登记任务，但不会读取数据或推送通知'
+              }}</span>
+            </div>
+          </label>
+
+          <div class="settings-form-grid settings-form-grid--2 agent-form-block">
+            <div>
+              <label class="settings-form-label mb-1.5">巡检周期（分钟）</label>
+              <input
+                :value="Math.round(proactive.intervalSeconds / 60)"
+                class="settings-field"
+                type="number"
+                min="1"
+                max="1440"
+                :disabled="!proactive.enabled"
+                @input="setProactiveMinutes('intervalSeconds', $event)"
+              />
+            </div>
+            <div>
+              <label class="settings-form-label mb-1.5">最小提醒间隔（分钟）</label>
+              <input
+                :value="Math.round(proactive.cooldownSeconds / 60)"
+                class="settings-field"
+                type="number"
+                min="1"
+                max="1440"
+                :disabled="!proactive.enabled"
+                @input="setProactiveMinutes('cooldownSeconds', $event)"
+              />
+            </div>
+            <div>
+              <label class="settings-form-label mb-1.5">免打扰开始（点）</label>
+              <input
+                v-model.number="proactive.quietStart"
+                class="settings-field"
+                type="number"
+                min="0"
+                max="23"
+                :disabled="!proactive.enabled"
+              />
+            </div>
+            <div>
+              <label class="settings-form-label mb-1.5">免打扰结束（点）</label>
+              <input
+                v-model.number="proactive.quietEnd"
+                class="settings-field"
+                type="number"
+                min="0"
+                max="23"
+                :disabled="!proactive.enabled"
+              />
+            </div>
+            <div>
+              <label class="settings-form-label mb-1.5">用电异常倍数</label>
+              <input
+                v-model.number="proactive.energyMultiplier"
+                class="settings-field"
+                type="number"
+                min="1"
+                step="0.1"
+                :disabled="!proactive.enabled"
+              />
+              <p class="agent-band-hint mt-2">今日用电超过前几日均值的该倍数时提醒</p>
+            </div>
+            <div>
+              <label class="settings-form-label mb-1.5">降雨提醒阈值（%）</label>
+              <input
+                :value="Math.round(proactive.forecastPopThreshold * 100)"
+                class="settings-field"
+                type="number"
+                min="0"
+                max="100"
+                :disabled="!proactive.enabled"
+                @input="setProactivePercent($event)"
+              />
+              <p class="agent-band-hint mt-2">预报时段降水概率超过该值时提醒带伞</p>
+            </div>
+          </div>
+        </div>
+      </SettingsCard>
+    </section>
+
     <SettingsAgentChannelsSection
       v-show="section === 'channels'"
       v-model:channel-draft="channelDraft"
@@ -390,12 +545,15 @@
                     {{ chatOutcomeLabel(m.outcome) }}
                   </span>
                 </header>
-                <div class="agent-chat-bubble__body">{{ m.text }}</div>
+                <div
+                  class="agent-chat-bubble__body"
+                  :class="{ 'agent-chat-bubble__body--streaming': m.streaming }"
+                >{{ m.text }}</div>
                 <footer v-if="m.meta" class="agent-chat-bubble__meta">{{ m.meta }}</footer>
               </div>
             </article>
 
-            <article v-if="chatting" class="agent-chat-bubble agent-chat-bubble--assistant agent-chat-bubble--typing">
+            <article v-if="showChatTyping" class="agent-chat-bubble agent-chat-bubble--assistant agent-chat-bubble--typing">
               <div class="agent-chat-bubble__avatar agent-chat-bubble__avatar--bot">
                 <Sparkles class="w-3.5 h-3.5" />
               </div>
@@ -486,12 +644,13 @@
             <button
               type="button"
               class="agent-chat-composer__send"
-              :disabled="chatting || isMockProvider || !chatInput.trim()"
-              @click="sendChat"
+              :class="{ 'agent-chat-composer__send--stop': chatting }"
+              :disabled="!chatting && (isMockProvider || !chatInput.trim())"
+              @click="chatting ? stopChat() : sendChat()"
             >
-              <Loader2 v-if="chatting" class="w-4 h-4 animate-spin" />
+              <Square v-if="chatting" class="w-4 h-4" />
               <Send v-else class="w-4 h-4" />
-              <span>{{ chatting ? '思考中' : '发送' }}</span>
+              <span>{{ chatting ? '停止' : '发送' }}</span>
             </button>
           </div>
           <p v-if="voiceError" class="agent-chat-voice-err">{{ voiceError }}</p>
@@ -505,11 +664,11 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
+  BellRing,
   Eye,
   EyeOff,
   FileText,
   KeyRound,
-  Loader2,
   MessageCircle,
   MessageSquare,
   Mic,
@@ -518,6 +677,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Square,
   AlertTriangle,
   Thermometer,
   User,
@@ -566,6 +726,11 @@ const {
   sceneVoiceEnabled,
   sceneVoiceAllow,
   sceneVoiceAllowCount,
+  deviceAllowlist,
+  deviceAllowlistCount,
+  proactive,
+  setProactiveMinutes,
+  setProactivePercent,
   toneFromAgentClass,
   modelFlowSteps,
   chatFlowSteps,
@@ -573,6 +738,8 @@ const {
   modelStatReadyLabel,
   modelStatReadyClass,
   modelStatReadyValClass,
+  modelStatDetail,
+  usageTodayLabel,
   chatStatReadyLabel,
   chatStatReadyClass,
   chatStatReadyValClass,
@@ -585,6 +752,7 @@ const {
   saveConfig,
   refreshPing,
   sendChat,
+  stopChat,
   voiceListening,
   voiceTranscribing,
   voiceError,
@@ -600,6 +768,11 @@ const modelFlowSummary = computed(
 
 const chatFlowSummary = computed(
   () => `${chatStatReadyLabel.value} · ${chatStatRoundLabel.value}`,
+)
+
+/** 等首 token 的阶段才显示「思考中」气泡；已开始逐字输出后由流式气泡本身承载 */
+const showChatTyping = computed(
+  () => chatting.value && !chatLog.value.some((m) => m.streaming && m.text.trim()),
 )
 
 function goConfigureApiKey() {

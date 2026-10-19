@@ -6,11 +6,16 @@ import asyncio
 import json
 import time
 import traceback
+from datetime import UTC, datetime
 from typing import Any
 
+from .client import HAClientError
+from .live_entities import CompressedStateDecoder, ShadowStateTracker
 from .live_events import (
     LIVE_EVENT_BATCH_WINDOW_MS,
+    LIVE_EVENT_CRITICAL_DOMAINS,
     LiveStateEventQueue,
+    entity_domain,
     live_state_change,
 )
 from .service_contract import HAConnectorHost
@@ -25,11 +30,34 @@ from .service_support import (
     classify_disconnect_reason,
 )
 from ...logs.global_log import _safe_text
+from ....platform.core.observability import record_ha_counter, record_ha_sync_latency
+
+
+def _event_lag_ms(time_fired: Any) -> float | None:
+    """HA 事件时间戳 → 本地已过去的毫秒数（超范围返回 None）。
+
+    时钟偏差（容器/墙屏时间不同步）与补发的旧事件都会把 p99 拉成假尖峰，
+    因此只统计 0～60s 的区间。
+    """
+    if not isinstance(time_fired, str) or not time_fired:
+        return None
+    text = time_fired.strip()
+    if text.endswith('Z'):
+        text = text[:-1] + '+00:00'
+    try:
+        fired = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if fired.tzinfo is None:
+        fired = fired.replace(tzinfo=UTC)
+    lag = (datetime.now(UTC) - fired).total_seconds() * 1000
+    if lag < 0 or lag > 60_000:
+        return None
+    return lag
 
 
 class HALiveMixin(HAConnectorHost):
     """常驻运行循环：取启用连接、全量同步、WebSocket 长连与指数退避重连。"""
-
     async def _run(self) -> None:
         attempt = 0
         backoff = self._reconnect_base_backoff()
@@ -49,15 +77,30 @@ class HALiveMixin(HAConnectorHost):
                     continue
                 connection_id = connection.id
                 await self.refresh_persistent_entity_ids(ensure_states = False)
-                await self.sync_once(connection_id)
+                # 上一轮遗留的周期对账可能还卡在全量快照上：先取消，避免这次重连同步
+                # 在 _sync_lock 上排队等它跑完。
+                await self._cancel_reconcile()
+                fast_reconnect = self._can_fast_reconnect()
+                if fast_reconnect:
+                    # 刚同步过、且用压缩状态流：断连窗口内的差异会由
+                    # ``subscribe_entities`` 的首帧全量 + 解码器比对补齐，
+                    # 不必再付一次「建连 + get_states + 注册表 + 大事务」。
+                    record_ha_counter('fast_reconnect')
+                    self._log_event('info', '连接', '快速重连：跳过全量同步，由实时状态流补齐差异')
+                else:
+                    await self.sync_once(connection_id)
                 await self._live_connection(connection_id)
+                if fast_reconnect:
+                    # 注册表事件在断连窗口内无法补齐：连上后立刻排一次后台对账刷新目录，
+                    # 不阻塞首帧实时数据。
+                    self.schedule_reconcile(connection_id)
                 backoff = self._reconnect_base_backoff()
             except asyncio.CancelledError:
                 raise
             except Exception as error:
                 self._connected = False
                 self._runtime_error = str(error)
-                self.invalidate_endpoint()
+                self.refresh_endpoint_in_background(connection_id)
                 # 计数从「上一次真正连上」起算：断连后看到的是第 1 次重试，不再是进程启动
                 # 以来的累计次数（那会让「第 87 次」这种数字失去意义）。
                 attempt = 1 if self._failure_kind is None else attempt + 1
@@ -180,6 +223,30 @@ class HALiveMixin(HAConnectorHost):
         except (TypeError, ValueError):
             return LIVE_EVENT_BATCH_WINDOW_MS / 1000.0
 
+    def _can_fast_reconnect(self) -> bool:
+        """重连是否可以跳过全量同步。
+
+        必须同时满足：
+
+        - 开关打开（``haConnector.fastReconnectEnabled``，默认开）；
+        - 正在使用 ``subscribe_entities``：它的首帧全量 + 解码器比对能把断连窗口内的
+          状态差异补齐。用 ``subscribe_events`` 时没有这个能力，跳过就会静默丢状态；
+        - 距上次全量成功不超过 ``fastReconnectWindowMs``（默认 120s），避免长时间离线后
+          拿一份过旧的基线去比。
+        """
+        connector = self._ha_tuning()['haConnector']
+        if not connector.get('fastReconnectEnabled', True):
+            return False
+        if not connector.get('useSubscribeEntities'):
+            return False
+        if self._last_full_sync_at <= 0:
+            return False
+        try:
+            window_ms = max(int(connector.get('fastReconnectWindowMs') or 120_000), 1_000)
+        except (TypeError, ValueError):
+            window_ms = 120_000
+        return (time.monotonic() - self._last_full_sync_at) * 1000 <= window_ms
+
     async def _live_connection(self, connection_id: str) -> None:
         connection = await self._run_database(self._load_connection, connection_id)
         client = await self.client_for(connection)
@@ -189,9 +256,44 @@ class HALiveMixin(HAConnectorHost):
         events = LiveStateEventQueue(
             lambda changes: self._flush_live_state_changes(connection_id, changes),
             window_seconds = self._live_event_batch_window(),
+            on_drop = lambda delta, total: self._notify_live_drops(connection_id, delta, total),
         )
+        # ``subscribe_entities`` 只承载状态流，注册表变更仍需单独订阅。
+        registry_event_types = tuple(
+            event_type for event_type in LIVE_EVENT_TYPES if event_type != 'state_changed'
+        )
+        decoder: CompressedStateDecoder | None = None
+        shadow: ShadowStateTracker | None = None
         try:
-            buffered_events = await client.subscribe_events(websocket, LIVE_EVENT_TYPES, required_event_types={'state_changed'})
+            if client.use_subscribe_entities:
+                buffered_events = await client.subscribe_events(
+                    websocket, registry_event_types, required_event_types = set(registry_event_types)
+                )
+                try:
+                    buffered_events += await client.subscribe_entities(websocket)
+                    decoder = CompressedStateDecoder(seed = self._live_seed)
+                except HAClientError as error:
+                    # 旧版 HA（< 2023.3）或反代拦截了该 WS 命令：降级回 state_changed
+                    # 全量事件，绝不能让连接因为「省带宽的优化」而起不来。
+                    record_ha_counter('subscribe_entities_fallback')
+                    LOGGER.warning('HA 不支持 subscribe_entities，降级为 subscribe_events：%s', error)
+                    buffered_events += await client.subscribe_events(
+                        websocket, ('state_changed',), start_id = 140, required_event_types = {'state_changed'}
+                    )
+                    decoder = None
+                # 影子订阅独立 try：它只是诊断用的第二条 state_changed 订阅。挂掉时若走到
+                # 上面的降级分支，就会变成「降级订阅 + 残留影子订阅」两条 state_changed，
+                # 每条状态被派发两次。
+                if decoder is not None and client.subscribe_entities_shadow:
+                    try:
+                        buffered_events += await client.subscribe_events(
+                            websocket, ('state_changed',), start_id = 120, required_event_types = {'state_changed'}
+                        )
+                        shadow = ShadowStateTracker()
+                    except HAClientError as error:
+                        LOGGER.warning('HA 压缩状态影子订阅失败，继续使用压缩流：%s', error)
+            else:
+                buffered_events = await client.subscribe_events(websocket, LIVE_EVENT_TYPES, required_event_types={'state_changed'})
             await self._run_database(self._mark_connected, connection_id)
             self._connected = True
             self._runtime_error = None
@@ -204,19 +306,38 @@ class HALiveMixin(HAConnectorHost):
             )
             events.start()
             for message in buffered_events:
-                await self._dispatch_live_event(events, connection_id, message)
+                await self._dispatch_message(events, connection_id, message, decoder, shadow)
             reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
             while True:
                 wait_seconds = max(0.1, reconcile_at - time.monotonic())
                 try:
                     raw_message = await asyncio.wait_for(websocket.recv(), timeout = wait_seconds)
                 except TimeoutError:
-                    await self.sync_once(connection_id, reconciled = True)
+                    # 周期对账绝不能跑在收包循环上：全量快照是一次「建连 + get_states +
+                    # 3 张注册表 + 全量大事务」，耗时可达数秒。期间不读 socket 会让
+                    # websockets 的 max_queue（4）填满、HA 侧待发队列堆积，轻则事件延迟，
+                    # 重则被判为消费不过来而被动踢连接（→ 又触发一轮全量重建）。
+                    self.schedule_reconcile(connection_id)
                     reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
                     continue
-                await self._dispatch_live_event(events, connection_id, json.loads(raw_message))
+                try:
+                    message = json.loads(raw_message)
+                except (TypeError, ValueError):
+                    # 单条畸形帧只丢这一条：抛出去会把整条实时连接拆掉，代价是一次全量重同步。
+                    LOGGER.debug('HA 实时事件不是合法 JSON，已跳过')
+                    continue
+                try:
+                    await self._dispatch_message(events, connection_id, message, decoder, shadow)
+                except Exception:
+                    # 同样地：分派失败不能终结收包循环。状态类事件进的是内存队列（不会抛），
+                    # 能抛出来的是注册表落库 —— 下一轮周期对账会把它补回来。
+                    LOGGER.warning('HA 实时事件分派失败，已跳过', exc_info = True)
+                if decoder is not None and decoder.needs_resync:
+                    # 增量基线缺失：先安排一次全量对账，由对账重建快照（并刷新 _live_seed）。
+                    decoder.needs_resync = False
+                    self.schedule_reconcile(connection_id)
                 if time.monotonic() >= reconcile_at:
-                    await self.sync_once(connection_id, reconciled = True)
+                    self.schedule_reconcile(connection_id)
                     reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
         finally:
             self._connected = False
@@ -225,6 +346,37 @@ class HALiveMixin(HAConnectorHost):
             await self._notify_connection('disconnected')
             await websocket.close()
 
+    async def _dispatch_message(
+        self,
+        events: LiveStateEventQueue,
+        connection_id: str,
+        message: dict[str, Any],
+        decoder: CompressedStateDecoder | None = None,
+        shadow: ShadowStateTracker | None = None,
+    ) -> None:
+        """按消息形状分派：压缩帧解码 / 影子帧仅对比 / 其它保持原路径。
+
+        ``subscribe_entities`` 的帧没有 ``event_type``（只有 a/c/r），
+        注册表事件与 ``state_changed`` 则一定带 ``event_type``，二者不会混淆。
+        """
+        event = message.get('event') if isinstance(message, dict) else None
+        compressed = (
+            decoder is not None
+            and isinstance(event, dict)
+            and 'event_type' not in event
+            and any(key in event for key in ('a', 'c', 'r'))
+        )
+        if compressed:
+            for decoded in decoder.feed(message):
+                await self._dispatch_live_event(events, connection_id, decoded)
+            return
+        if shadow is not None and isinstance(event, dict) and event.get('event_type') == 'state_changed':
+            # 影子订阅只用于对账，绝不重复进下游（否则每条状态会被处理两遍）。
+            if decoder is not None:
+                shadow.observe(message, decoder)
+            return
+        await self._dispatch_live_event(events, connection_id, message)
+
     async def _dispatch_live_event(self, events: LiveStateEventQueue, connection_id: str, message: dict[str, Any]) -> None:
         """分派一条 WS 消息：state_changed 进合并队列，其余事件保持即时处理。"""
         change = live_state_change(message)
@@ -232,7 +384,40 @@ class HALiveMixin(HAConnectorHost):
             await self._handle_live_event(connection_id, message)
             return
         entity_id = str(change.get('entity_id') or change.get('removed_entity_id') or '')
+        # ① 收包段：HA 触发 → 本进程收到。用事件自带的 time_fired 计算，
+        # 只统计合理区间（时钟偏差 / 补发的旧事件不污染 p99）。
+        lag_ms = _event_lag_ms(change.get('time_fired'))
+        if lag_ms is not None:
+            record_ha_sync_latency('ha_receive', lag_ms)
+        record_ha_counter('recv')
         events.enqueue(change, entity_id = entity_id or None)
+
+    async def _notify_live_drops(self, connection_id: str, delta: int, total: int) -> None:
+        """实时合并队列丢事件时通知 UI，由前端触发重同步（REST 增量优先）。
+
+        丢弃本身是设计内的降级（保内存），但**静默**丢弃会让面板停在旧值上而不自知，
+        所以这里走事件总线 → socket.io 的 ``ha_queue_dropped``（前端已有处理器：
+        回滚乐观更新 + 标陈旧 + 触发对齐）。
+        """
+        bus = getattr(self, '_event_bus', None)
+        record_ha_counter('queue_dropped', delta)
+        if bus is None:
+            return
+        payload = {
+            'reason': 'live_state_backlog',
+            'count': delta,
+            'total': total,
+            'connectionId': connection_id,
+        }
+        try:
+            emit = getattr(bus, 'emit', None) or getattr(bus, 'publish', None)
+            if not callable(emit):
+                return
+            result = emit('ha.queue_dropped', payload)
+            if hasattr(result, '__await__'):
+                await result
+        except Exception:
+            LOGGER.debug('HA 实时状态丢弃事件外发失败', exc_info = True)
 
     async def _flush_live_state_changes(self, connection_id: str, changes: list[dict[str, Any]]) -> None:
         """把一批合并后的状态变化落地。
@@ -243,17 +428,32 @@ class HALiveMixin(HAConnectorHost):
         """
         states: list[dict[str, Any]] = []
         removed_entity_ids: list[str] = []
+        flushed_at = time.monotonic()
+        notify_ms = 0.0
         for change in changes:
             removed_entity_id = str(change.get('removed_entity_id') or '')
             if removed_entity_id:
                 removed_entity_ids.append(removed_entity_id)
             new_state = change.get('new_state')
+            # ② 合并队列停留：入队 → 本批落地，窗口本身（50ms）也算在内，
+            # 因为这就是「被刻意推迟」的那一段。
+            received_at = change.get('received_at')
+            if isinstance(received_at, float):
+                dwell_ms = max(0.0, (flushed_at - received_at) * 1000)
+                record_ha_sync_latency('ha_deferred_dwell', dwell_ms)
+                # 关键域单独记一段：它的窗口是 4ms 而不是 50ms，混在一起会被传感器样本淹没，
+                # 于是「点灯反馈变快了没有」在 /metrics 里看不出来。
+                if entity_domain(change.get('entity_id')) in LIVE_EVENT_CRITICAL_DOMAINS:
+                    record_ha_sync_latency('ha_deferred_dwell_critical', dwell_ms)
+            started = time.monotonic()
             await self._notify_state('change', {
                 'entity_id': change.get('entity_id'),
                 'old_state': change.get('old_state'),
                 'new_state': new_state,
                 'time_fired': change.get('time_fired'),
             })
+            # ③ 事件总线段：读模型监听 + socket.io 广播（不含网络发送）。
+            notify_ms += (time.monotonic() - started) * 1000
             if isinstance(new_state, dict):
                 states.append(new_state)
         watched = await self.watched_entity_ids()
@@ -262,9 +462,14 @@ class HALiveMixin(HAConnectorHost):
                 await self.state_hub.update(new_state)
         for removed_entity_id in removed_entity_ids:
             await self.state_hub.remove(removed_entity_id)
+        if notify_ms > 0:
+            record_ha_sync_latency('hot_apply', notify_ms / max(len(changes), 1))
         if not states:
             return
+        started = time.monotonic()
         catalog_changed = await self._run_database(self._apply_incremental_states, connection_id, states)
+        # ④ 落地段：一批一次 SQLite 事务。
+        record_ha_sync_latency('ingress_flush', (time.monotonic() - started) * 1000)
         if catalog_changed:
             await self.state_hub.publish({
                 'type': 'entity_catalog_changed',

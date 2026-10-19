@@ -70,7 +70,7 @@ const links = [
 <style scoped>
 .sw-dashboard-step__lead {
   margin: 0 0 14px;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.62);
 }
@@ -81,7 +81,7 @@ const links = [
   gap: 8px;
   margin-bottom: 16px;
   padding: 10px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: var(--set-fs-micro, 12px);
   font-weight: 600;
 }
@@ -113,7 +113,7 @@ const links = [
   gap: 12px;
   min-height: 56px;
   padding: 12px 14px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
@@ -122,8 +122,8 @@ const links = [
 }
 
 .sw-dashboard-step__link:hover {
-  background: rgba(var(--hos-color-accent-rgb), 0.1);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
+  background: rgba(10, 132, 255, 0.1);
+  border-color: rgba(10, 132, 255, 0.28);
 }
 
 .sw-dashboard-step__orb {
@@ -132,14 +132,14 @@ const links = [
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--hos-r-2);
-  background: rgba(var(--hos-color-accent-rgb), 0.14);
-  color: var(--hos-color-info-text);
+  border-radius: var(--hos-radius-card);
+  background: rgba(10, 132, 255, 0.14);
+  color: #7dd3fc;
 }
 
 .sw-dashboard-step__title {
   display: block;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
 }
@@ -148,7 +148,7 @@ const links = [
   display: block;
   margin-top: 2px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   line-height: 1.4;
 }
 </style>

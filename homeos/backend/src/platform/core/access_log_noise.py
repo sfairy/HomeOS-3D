@@ -8,6 +8,10 @@
   默认配置下不打 —— 每个进程启动都播报一遍「降噪已启用」，恰好会把这个模块想保护的
   「只打印一次的启动横幅」顶出可见范围。
 
+WebSocket 握手行（``uvicorn.error`` 上的 ``<来源> - "WebSocket <路径>" [accepted]``）也走
+同一套详略：前端每次重连都打一行，端口与 ``sid`` 又各不相同，逐字去重无效。它由共享模块的
+``WebSocketHandshakeLogFilter`` 按「来源 IP + 路径 + 结果」折叠，真正的服务端错误不受影响。
+
 实现必须与商店共用一份（商店读 ``STORE_LOG_HTTP_ACCESS``）：两侧逐字相同的逻辑各存一份，
 改动就会漏掉另一侧。判定细节、fail-open 取舍、以及要「给只打印一次的启动横幅让出可读范围」
 这个动机都写在共享模块里。
@@ -23,10 +27,14 @@ from homeos_shared.http_access_log import (
     MODE_ERRORS,
     MODE_OFF,
     HttpAccessLogFilter,
+    WebSocketHandshakeLogFilter,
     mode_label,
 )
 from homeos_shared.http_access_log import (
     install_http_access_log_filter as _install_http_access_log_filter,
+)
+from homeos_shared.http_access_log import (
+    install_websocket_handshake_log_filter as _install_websocket_handshake_log_filter,
 )
 from homeos_shared.http_access_log import (
     resolve_http_access_mode as _resolve_http_access_mode,
@@ -59,6 +67,18 @@ def install_http_access_log_filter() -> HttpAccessLogFilter:
     )
 
 
+def install_websocket_handshake_log_filter() -> WebSocketHandshakeLogFilter:
+    """把 WebSocket 握手折叠过滤器挂到 ``uvicorn.error``（幂等，可在每次启动时调用）。
+
+    详略沿用 ``LOG_HTTP_ACCESS``：握手行与 HTTP 访问日志在用户眼里是同一类「连接噪音」，
+    让它们共用一套开关，比多记一个变量更友好。
+    """
+    return _install_websocket_handshake_log_filter(
+        env_var=ENV_VAR,
+        dedupe_env_var=DEDUPE_ENV_VAR,
+    )
+
+
 __all__ = [
     "DEDUPE_ENV_VAR",
     "ENV_VAR",
@@ -67,6 +87,8 @@ __all__ = [
     "MODE_LABEL",
     "MODE_OFF",
     "HttpAccessLogFilter",
+    "WebSocketHandshakeLogFilter",
     "install_http_access_log_filter",
+    "install_websocket_handshake_log_filter",
     "resolve_http_access_mode",
 ]

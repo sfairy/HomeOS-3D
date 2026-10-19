@@ -18,7 +18,7 @@ const emit = defineEmits(['reload'])
 </script>
 
 <template>
-  <ListPageHero :title="'事件历史'" :hint="pageHint">
+  <ListPageHero :title="'事件历史'" :hint="pageHint" tone="cyan">
     <template #icon>
       <History class="w-5 h-5" />
     </template>

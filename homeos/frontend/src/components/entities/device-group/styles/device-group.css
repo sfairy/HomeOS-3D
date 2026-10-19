@@ -2,22 +2,22 @@
 
 /* —— DeviceGroupModal —— */
 .dgm-empty-ok-icon {
-  color: var(--hos-color-success-text);
+  color: var(--set-success, rgba(52, 211, 153, 0.6));
 }
 .dgm-empty-ok-title {
-  color: var(--hos-color-success-text);
+  color: var(--set-success, rgba(52, 211, 153, 0.9));
 }
 .dgm-domain-default {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.7));
 }
 
 /* —— DeviceGroupMemberList —— */
 .dgm-chip-inactive {
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }
 .dgm-member-name {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.7));
 }
 .dgm-member-state {
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }

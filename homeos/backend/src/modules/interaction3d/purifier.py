@@ -18,67 +18,9 @@ from .capabilities import (
 )
 from .climate import _number
 
-#: 域 -> 附加实体支持的控制类型。'state' 表示只读：能显示状态，不能下命令。
-#:
-#: 0.7.8 把可控域从 12 个扩到 33 个：新增 ``text`` / ``date`` / ``time`` /
-#: ``datetime`` / ``calendar`` / ``todo`` / ``weather`` / ``update`` 等服务型域、
-#: ``camera`` / ``image`` 的画面域，以及 ``scene`` / 各类复合设备。表外的域只能
-#: 以 ``state`` 形式挂上（只读展示）。
-EXTRA_TYPES = {
-    'camera': 'picture',
-    'climate': 'panel',
-    'cover': 'panel',
-    'water_heater': 'panel',
-    'media_player': 'panel',
-    'switch': 'switch',
-    'input_boolean': 'switch',
-    'light': 'switch',
-    'fan': 'switch',
-    'select': 'select',
-    'input_select': 'select',
-    'number': 'number',
-    'input_number': 'number',
-    'button': 'button',
-    'input_button': 'button',
-    'sensor': 'state',
-    'binary_sensor': 'state',
-}
-#: 余下的可控域全部归入“整块面板”一类（参数由各自的 ``extra_*`` 校验）。
-EXTRA_TYPES.update(
-    dict.fromkeys(
-        (
-            'text',
-            'date',
-            'time',
-            'datetime',
-            'humidifier',
-            'valve',
-            'lawn_mower',
-            'siren',
-            'alarm_control_panel',
-            'vacuum',
-            'lock',
-            'calendar',
-            'todo',
-            'weather',
-            'update',
-            'ai_task',
-            'assist_satellite',
-            'conversation',
-            'notify',
-            'remote',
-            'tts',
-            'image_processing',
-            'stt',
-            'wake_word',
-            'infrared',
-            'radio_frequency',
-        ),
-        'panel',
-    )
-)
-EXTRA_TYPES['scene'] = 'button'
-EXTRA_TYPES['image'] = 'picture'
+# 域 → 控制类型表已下沉到叶子模块 ``extra_types``（``config_ctx`` / ``device`` 也用它，
+# 从本模块取会经 ``lock`` 绕回 ``config_ctx`` 形成导入环）。这里保留名字供本模块内部使用。
+from .extra_types import EXTRA_TYPES
 
 #: 服务型附加卡的域（参数由 ``extra_services`` 校验）。
 SERVICE_DOMAINS = frozenset(
@@ -260,7 +202,10 @@ def validate_extra_command(extra, domain, service, data, state):
             for v in (attrs.get('min'), attrs.get('max'), attrs.get('step', 1))
         )
         if (
-            all(_number(n) for n in (value, low, high, step))
+            _number(value)
+            and low is not None
+            and high is not None
+            and step is not None
             and step > 0
             and low <= value <= high
         ):

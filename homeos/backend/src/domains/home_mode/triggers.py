@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from .presets import resolve_action_kind  # noqa: F401  (保持模块语义对齐，供调用方复用)
+from .presets import resolve_action_kind  # noqa: F401  (保持模块语义对齐，供调用方复用)  # pyright: ignore[reportUnusedImport]
 from ...platform.core.zoned_time import home_mode_minute_key, normalize_home_mode_time_at, zoned_date_parts
 
 logger = logging.getLogger("homeos.home_mode")

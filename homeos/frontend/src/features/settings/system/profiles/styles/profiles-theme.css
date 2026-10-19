@@ -10,36 +10,36 @@
 .profiles-shell {
   padding: var(--hos-panel-padding-default, 20px);
   background: var(--set-card-surface-bg, rgba(255, 255, 255, 0.03));
-  border: var(--hos-hairline) solid var(--set-card-surface-border, var(--hos-line-2));
+  border: var(--hos-hairline) solid var(--set-card-surface-border, var(--set-border-subtle));
   box-shadow: var(--set-card-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.04));
 }
 
 .profile-section__eyebrow {
   margin: 0 0 4px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--hos-color-accent);
+  color: var(--page-accent-text);
   opacity: 0.75;
 }
 
 .profile-section__title {
   margin: 0;
-  font-size: var(--hos-fs-5);
+  font-size: var(--premium-fs-body, 14px);
   font-weight: 800;
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary);
 }
 
 .profile-section__badge {
   flex-shrink: 0;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 .profile-list {
@@ -54,11 +54,11 @@
   justify-content: space-between;
   gap: 12px;
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card, 14px);
   background:
-    radial-gradient(ellipse 80% 100% at 0% 0%, var(--hos-glow-accent-soft) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 100% at 0% 0%, var(--page-accent-glow) 0%, transparent 70%),
     linear-gradient(160deg, rgba(255, 255, 255, 0.035) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  border: var(--hos-hairline) solid var(--page-accent-border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -66,19 +66,19 @@
 .profile-card:hover {
   border-color: var(--set-card-surface-border-hover);
   background:
-    radial-gradient(ellipse 80% 100% at 0% 0%, var(--hos-glow-accent-soft) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 100% at 0% 0%, var(--page-accent-glow) 0%, transparent 70%),
     linear-gradient(160deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.16) 100%);
   transform: translateY(-1px);
 }
 
 .profile-card:focus-within {
-  outline: 2px solid var(--hos-color-accent);
+  outline: 2px solid var(--page-accent);
   outline-offset: 2px;
 }
 
 .profile-card--active {
-  background: linear-gradient(160deg, var(--hos-color-accent-soft-strong) 0%, rgba(0, 0, 0, 0.38) 100%);
-  border-color: var(--hos-color-accent-line);
+  background: linear-gradient(160deg, var(--page-accent-bg-strong) 0%, var(--set-bg-dark-hover) 100%);
+  border-color: var(--page-accent-border);
   box-shadow: none;
 }
 
@@ -95,12 +95,12 @@
   height: 10px;
   margin-top: 5px;
   flex-shrink: 0;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   background: rgba(100, 116, 139, 0.6);
 }
 
 .profile-card__orb--active {
-  background: var(--hos-color-accent);
+  background: var(--page-accent);
   box-shadow: none;
 }
 
@@ -117,41 +117,41 @@
 
 .profile-card__name {
   margin: 0;
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm, 13px);
   font-weight: 800;
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary);
 }
 
 .profile-card__tag {
   padding: 2px 7px;
   border-radius: 6px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
   color: rgba(148, 163, 184, 0.9);
-  background: var(--hos-bg-tint-2);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  background: var(--set-glass-bg);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
 }
 
 .profile-card__active-badge {
   padding: 2px 8px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft-strong);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 .profile-card__meta {
   margin: 4px 0 0;
-  font-size: var(--hos-fs-3);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-caption);
+  color: var(--set-text-label);
 }
 
 .profile-card__id {
   margin: 2px 0 0;
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-3);
+  font-size: var(--premium-fs-micro);
+  color: var(--set-text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -169,33 +169,33 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .profile-card__btn--switch {
   color: rgba(148, 163, 184, 0.85);
-  background: var(--hos-bg-tint-2);
-  border-color: var(--hos-line-2);
+  background: var(--set-glass-bg);
+  border-color: var(--set-border-subtle);
 }
 
 .profile-card__btn--switch:hover {
-  color: var(--hos-color-accent-strong);
-  background: var(--hos-color-info-soft);
-  border-color: var(--hos-color-info-line);
+  color: var(--module-accent-admin-sub);
+  background: var(--module-accent-admin-sub-bg, rgba(52, 211, 153, 0.1));
+  border-color: var(--module-accent-admin-sub-border, var(--set-success-border));
 }
 
 .profile-card__btn--delete {
   color: rgba(148, 163, 184, 0.85);
-  background: var(--hos-bg-tint-2);
-  border-color: var(--hos-line-2);
+  background: var(--set-glass-bg);
+  border-color: var(--set-border-subtle);
 }
 
 .profile-card__btn--delete:hover {
-  color: var(--hos-color-danger-text);
-  background: var(--hos-color-danger-soft);
-  border-color: var(--hos-color-danger-line);
+  color: var(--set-danger);
+  background: var(--set-danger-bg);
+  border-color: var(--set-danger-border);
 }
 
 .profiles-inline-loading {
@@ -203,34 +203,38 @@
   align-items: center;
   gap: 6px;
   margin-top: 4px;
-  font-size: var(--hos-fs-2);
-  color: var(--hos-color-accent);
+  font-size: var(--premium-fs-micro);
+  color: var(--page-accent-text);
   opacity: 0.75;
 }
 
+@media (min-width: 768px) {
+}
 
 /* —— ProfilesBackupSection —— */
 .pb-note-box {
-  background: var(--hos-color-accent-soft);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
-  border-radius: var(--hos-r-2);
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+  border-radius: var(--hos-radius-card);
   padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
 }
 .pb-c-text {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary);
 }
 .pb-flow-band__shell {
-  --hos-glow-flow-a: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-strong));
-  --hos-glow-flow-b: rgba(var(--hos-color-success-rgb), var(--flow-glow-alpha-b));
+  --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(52, 211, 153, var(--flow-glow-alpha-b));
+}
+@media (min-width: 640px) {
 }
 
 /* —— 定时自动备份 —— */
 .pb-auto-backup {
   margin-top: 14px;
   padding: 12px;
-  border-radius: var(--hos-r-2);
-  background: linear-gradient(160deg, rgba(var(--hos-color-accent-rgb), 0.06) 0%, rgba(0, 0, 0, 0.18) 100%);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-rgb), 0.22);
+  border-radius: var(--hos-radius-card);
+  background: linear-gradient(160deg, rgba(56, 189, 248, 0.06) 0%, rgba(0, 0, 0, 0.18) 100%);
+  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.22);
 }
 
 .pb-auto-backup__row {
@@ -250,16 +254,16 @@
   align-items: center;
   gap: 6px;
   margin: 0 0 4px;
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm, 13px);
   font-weight: 800;
-  color: var(--hos-fg-1);
+  color: var(--set-text-primary);
 }
 
 .pb-auto-backup__desc {
   margin: 0;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   line-height: 1.5;
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary);
   white-space: normal;
   overflow-wrap: break-word;
 }
@@ -269,7 +273,7 @@
   flex-shrink: 0;
   width: 40px;
   height: 24px;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
@@ -282,8 +286,8 @@
 }
 
 .pb-auto-switch--on {
-  background: linear-gradient(135deg, var(--hos-color-info), #0ea5e9);
-  border-color: rgba(var(--hos-color-info-rgb), 0.5);
+  background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+  border-color: rgba(34, 211, 238, 0.5);
 }
 
 .pb-auto-switch__knob {
@@ -292,7 +296,7 @@
   left: 3px;
   width: 18px;
   height: 18px;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   background: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
@@ -315,17 +319,17 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--hos-fs-3);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-caption);
+  color: var(--set-text-label);
 }
 
 .pb-auto-backup__meta-label {
   font-weight: 700;
-  color: var(--hos-fg-3);
+  color: var(--set-text-tertiary);
 }
 
 .pb-auto-backup__meta-item--error {
-  color: var(--hos-color-danger-text);
+  color: var(--set-danger);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -339,10 +343,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  /* 与上方定时自动备份卡片之间必须有间距：这张卡片自己是 margin-top，
-     没有 margin-bottom，而按钮组紧贴在它后面；都不给就会贴死成一条。
-     用 12px 与下面 .pb-server-files 的节奏保持一致。 */
-  margin-top: var(--hos-space-md, 12px);
 }
 .pb-server-files {
   margin-top: 12px;
@@ -355,13 +355,13 @@
   margin-bottom: 8px;
 }
 .ps-desc {
-  color: var(--hos-fg-2);
+  color: var(--set-text-label);
 }
 .ps-label {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary);
 }
 .ps-meta {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary);
 }
 .ps-file-list {
   list-style: none;
@@ -377,7 +377,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
 }

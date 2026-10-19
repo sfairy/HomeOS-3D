@@ -139,23 +139,30 @@ class DeepseekLlmProvider(LlmProvider):
 
     @property
     def name(self) -> str:
-        """提供商名，固定为 deepseek。"""
-        return "deepseek"
+        """提供商名：取配置里的 ``provider``（同为 OpenAI 兼容协议的不同厂商）。"""
+        return self._provider_name
+
+    @property
+    def model(self) -> str:
+        """当前使用的模型名（供 ping / 成本展示）。"""
+        return self.model_name
 
     def __init__(
         self,
         cfg: dict[str, Any] | None = None,
     ) -> None:
         cfg = cfg or {}
+        self._provider_name: str = str(cfg.get("provider") or "deepseek")
         self.api_key: str = cfg.get("apiKey") or cfg.get("api_key") or ""
-        self.model: str = cfg.get("model") or _DEFAULT_MODEL
+        self.model_name: str = cfg.get("model") or _DEFAULT_MODEL
         self.base_url: str = cfg.get("baseUrl") or cfg.get("base_url") or _DEFAULT_BASE_URL
 
     def update_config(self, cfg: dict[str, Any] | None = None) -> None:
         """配置热更新（SYSTEM_CONFIG_UPDATED 后重建时使用）。"""
         cfg = cfg or {}
+        self._provider_name = str(cfg.get("provider") or self._provider_name or "deepseek")
         self.api_key = cfg.get("apiKey") or cfg.get("api_key") or ""
-        self.model = cfg.get("model") or _DEFAULT_MODEL
+        self.model_name = cfg.get("model") or _DEFAULT_MODEL
         self.base_url = cfg.get("baseUrl") or cfg.get("base_url") or _DEFAULT_BASE_URL
 
     def is_ready(self) -> bool:
@@ -177,7 +184,7 @@ class DeepseekLlmProvider(LlmProvider):
 
         openai_tools = _to_openai_tools(tools)
         payload: dict[str, Any] = {
-            "model": self.model,
+            "model": self.model_name,
             "messages": _to_openai_messages(messages),
         }
         if openai_tools:
@@ -359,9 +366,10 @@ class DeepseekLlmProvider(LlmProvider):
         async for line in resp.aiter_lines():
             flush_line(line)
 
+        # 按 index 排序：并行工具调用可能乱序到达，执行顺序需与模型给出的序号一致
         tool_calls = [
             LlmToolCall(id=item["id"] or item["name"], name=item["name"], arguments=safe_parse(item["arguments"]))
-            for item in tool_acc.values()
+            for _index, item in sorted(tool_acc.items())
             if item["name"]
         ]
         if tool_calls:

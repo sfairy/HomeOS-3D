@@ -1,14 +1,14 @@
 .est-info {
-  color: var(--hos-color-info-text);
+  color: var(--set-info, #7dd3fc);
 }
 .est-warn {
-  color: var(--hos-color-warning-text);
+  color: var(--set-warn, #fcd34d);
 }
 .est-danger {
-  color: var(--hos-color-danger-text);
+  color: var(--set-danger, #fda4af);
 }
 .est-muted {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
 }
 
 .eew-safety {
@@ -30,7 +30,7 @@
   align-items: center;
   gap: 6px;
   padding: 16px 8px;
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel);
   background: rgb(255 255 255 / 0.02);
   border: 1px solid rgb(255 255 255 / 0.04);
   transition: all 0.3s;
@@ -47,12 +47,12 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid;
 }
 
 .eew-safety-icon--sm {
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
 }

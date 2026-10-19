@@ -14,6 +14,7 @@
  */
 import { reactive } from 'vue'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { randomUUID } from '@/shared/utils/core/random-uuid.util'
 import { predictOptimistic } from '@/stores/entities/entity-store-optimistic.util'
 import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
 import {
@@ -187,8 +188,14 @@ export function createEntityActions(deps: EntityActionsDeps) {
           domain,
           service,
           entity_id: entityId,
-          service_data: serviceData || {},
+          // 参数键统一用 ``data``：``/ha/services/call`` 与 ``/services/call`` 的 DTO 都收
+          // （后者会把 data 归一成 service_data；只发旧键 service_data 的老 bundle 仍兼容）。
+          // 曾因键名不匹配被 StrictModel 判 400「data: Extra inputs are not permitted」。
+          data: serviceData || {},
           return_response: returnResponse || false,
+          // 同一手势的幂等键：网络层重发同一请求时服务端只执行一次；
+          // 用户再按一次是新的手势（新键），不会被误吞。
+          idempotency_key: randomUUID(),
         })
         const payload = res.data as {
           skipped?: boolean

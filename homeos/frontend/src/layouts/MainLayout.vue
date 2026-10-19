@@ -493,7 +493,7 @@ watch(
                 type="button"
                 class="tab-bar__tab tab-bar__tab--more"
                 :class="{ 'tab-bar__tab--active': navMoreActive || navMoreOpen }"
-                :style="{ '--tab-accent': 'var(--hos-color-accent)', '--tab-icon-accent': 'var(--hos-color-accent)' }"
+                :style="{ '--tab-accent': '#94a3b8', '--tab-icon-accent': '#94a3b8' }"
                 :aria-label="'更多导航'"
                 :aria-expanded="navMoreOpen"
                 aria-haspopup="menu"

@@ -289,7 +289,7 @@ def _collect_addresses(family: int) -> list[str]:
     """收集本机非回环网卡地址（psutil 可用时优先，否则回退 getaddrinfo）。"""
     addresses: list[str] = []
     try:
-        import psutil
+        import psutil  # pyright: ignore[reportMissingModuleSource]  # 可选依赖：没装就回退 getaddrinfo
 
         for _, addrs in psutil.net_if_addrs().items():
             for addr in addrs:

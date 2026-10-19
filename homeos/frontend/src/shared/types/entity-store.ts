@@ -101,11 +101,21 @@ export interface EntitySocketTrack {
   stateVersion?: number // 状态版本号（用于并发控制）
 }
 
+export type HaLinkStatus = 'unknown' | 'connected' | 'disconnected' | 'reconnecting'
+
 /** 实体 store 暴露给 socket 处理器的响应式引用集合 */
 interface EntitySocketRefs {
   loading: Ref<boolean> // 是否加载中
   totalCount: Ref<number> // 实体总数
   reconnecting: Ref<boolean> // 是否重连中
+  /**
+   * HA 连接状态的「最后一条权威播报」（来自后端 ``ha_status`` 事件）。
+   *
+   * 与 ``reconnecting`` 的区别：``reconnecting`` 同时被 socket 层（HomeOS 后端断开）
+   * 复用，直接拿它写「正在重连 Home Assistant」会把「后端在重启」误报成「HA 掉线」。
+   * 这里只记录后端明确说过的 HA 状态，横幅文案与是否降级都以它为准。
+   */
+  haStatus: Ref<HaLinkStatus>
   entitiesStale: Ref<boolean> // 实体是否过期（需重新拉取）
   haQueueDroppedTotal?: Ref<number> // HA 队列丢弃总数（背压统计）
   lastQueueDropAt?: Ref<string | null> // 最近一次队列丢弃时间
@@ -116,6 +126,13 @@ interface EntitySocketRefs {
 interface EntitySocketActions {
   clearHaDisconnectDebounce: () => void // 清除 HA 断连防抖
   startHaDisconnectDebounce: () => void // 启动 HA 断连防抖
+  /**
+   * 安排一次 HA 状态主动核对（降级状态持续若干秒后调 ``/ha/health``）。
+   *
+   * 事件式推送只要漏掉一条 `connected`，前端就会永远停在「正在重连」；这里用只读探活
+   * 兜底，把横幅的收起条件从「收到推送」改成「推送或核对确认已恢复」。
+   */
+  scheduleHaStatusProbe?: () => void
   setConnected: (connected: boolean) => void // 设置连接状态
   fetchEntitiesFallback: (
     reason: string,
@@ -457,6 +474,8 @@ export interface EntityTransportDeps {
   persistEntityCacheNow: () => Promise<void> // 立即持久化缓存
   cancelPersistCacheTimer: () => void // 取消持久化定时器
   clearHaDisconnectDebounce: () => void // 清除 HA 断连防抖
+  /** 取消待执行的 HA 状态核对（登出 / 主动断开时避免误收降级态） */
+  clearHaStatusProbe?: () => void
   setConnected: (status: boolean) => void // 设置连接状态
   refs: EntitySocketRefs // 响应式引用集合
   actions: EntitySocketActions // 动作集合

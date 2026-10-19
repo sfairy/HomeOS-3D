@@ -6,6 +6,7 @@
   "scripts": {
     "set-version": "bun scripts/set-version.mjs",
     "clean:local": "bun scripts/clean-local.mjs",
+    "baseline:ha": "bun scripts/ha-pipeline-baseline.mjs",
     "prep": "bun scripts/run.mjs prep",
     "build:shared": "bun run --cwd .. build:shared",
     "dev": "bun run --cwd frontend dev",

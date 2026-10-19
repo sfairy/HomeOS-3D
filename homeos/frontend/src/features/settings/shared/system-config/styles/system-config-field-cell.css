@@ -5,8 +5,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid var(--hos-line-2);
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--set-border-subtle, rgba(255, 255, 255, 0.05));
   background:
     radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.02) 0%, transparent 65%),
     rgba(255, 255, 255, 0.01);
@@ -27,19 +27,19 @@
 .params-cell-type {
   flex-shrink: 0;
   padding: 2px 7px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.05);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
 }
 
 .params-cell--modified {
-  border-color: rgba(var(--hos-color-warning-rgb), 0.35);
-  box-shadow: inset 3px 0 0 rgba(var(--hos-color-warning-rgb), 0.75);
+  border-color: rgba(251, 191, 36, 0.35);
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.75);
 }
 
 .params-cell--row {
@@ -55,12 +55,12 @@
 }
 
 .params-cell--row .params-cell-label {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
 }
 
 .params-cell--row .params-cell-hint {
   margin-top: 2px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -75,11 +75,11 @@
 }
 
 .params-cell:hover {
-  border-color: color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 22%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 22%, rgba(0, 0, 0, 0));
   background:
     radial-gradient(
       ellipse at 0% 0%,
-      color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 6%, rgba(0, 0, 0, 0)) 0%,
+      color-mix(in srgb, var(--panel-accent, #0a84ff) 6%, rgba(0, 0, 0, 0)) 0%,
       transparent 65%
     ),
     rgba(255, 255, 255, 0.02);
@@ -100,7 +100,7 @@
 
 .params-cell-label {
   display: block;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
   line-height: 1.35;
@@ -108,21 +108,21 @@
 
 .params-cell-key {
   margin-top: 3px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-family: ui-monospace, monospace;
-  color: var(--hos-fg-3);
+  color: var(--set-text-faint);
 }
 
 .params-cell-hint {
   margin-top: 4px;
-  font-size: var(--hos-fs-3);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
   line-height: 1.45;
 }
 
 .params-cell-hint--compact {
   margin-top: 2px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -132,10 +132,10 @@
 }
 
 .params-cell--focus {
-  border-color: rgba(var(--hos-color-warning-rgb), 0.55);
+  border-color: rgba(251, 191, 36, 0.55);
   box-shadow:
-    inset 3px 0 0 rgba(var(--hos-color-warning-rgb), 0.85),
-    0 0 0 1px rgba(var(--hos-color-warning-rgb), 0.25);
+    inset 3px 0 0 rgba(251, 191, 36, 0.85),
+    0 0 0 1px rgba(251, 191, 36, 0.25);
 }
 
 .params-cell-control {
@@ -163,7 +163,7 @@
 }
 
 .params-cell--compact .params-cell-label {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
 }
 
 .params-cell--compact .params-cell-control--bool {
@@ -190,13 +190,13 @@
 
 .params-cell-input {
   /* 高度钉到 md 档：9px 内边距 + 行高 + 发丝边框凑出 40px，落在两档之间。 */
-  height: var(--hos-control-h-md);
+  height: var(--control-height-md);
   width: 100%;
   background: rgba(0, 0, 0, 0.32);
-  border: var(--hos-hairline) solid var(--hos-line-3);
-  border-radius: var(--hos-r-2);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-radius-card);
   padding: 0 12px;
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm);
   color: #fff;
   outline: none;
   transition:
@@ -206,7 +206,7 @@
 }
 
 .params-cell-input::placeholder {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .params-cell-input:hover {
@@ -215,8 +215,8 @@
 }
 
 .params-cell-input:focus {
-  border-color: color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 45%, rgba(0, 0, 0, 0));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 12%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, #0a84ff) 12%, rgba(0, 0, 0, 0));
   background: rgba(0, 0, 0, 0.42);
 }
 
@@ -230,7 +230,7 @@
   margin-bottom: 4px;
   padding: 2px 8px;
   border-radius: 6px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.55);
@@ -245,9 +245,9 @@
 .params-cell-entity-wrap .ems-trigger {
   min-height: 40px;
   padding: 9px 6px 9px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(0, 0, 0, 0.32);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   color: #fff;
 }
 
@@ -258,8 +258,8 @@
 
 .params-cell-entity-wrap .ems-trigger:focus-visible,
 .params-cell-entity-wrap .ems-trigger--open {
-  border-color: color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 45%, rgba(0, 0, 0, 0));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, var(--hos-color-accent)) 12%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, #0a84ff) 12%, rgba(0, 0, 0, 0));
   background: rgba(0, 0, 0, 0.42);
 }
 

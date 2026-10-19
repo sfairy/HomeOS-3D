@@ -16,14 +16,17 @@ const props = defineProps({
 })
 
 const homeModeAccentVars = computed(() => {
-  const rgb = 'var(--hos-color-accent-rgb)'
+  const rgb = 'var(--module-accent-home-mode-rgb, 251, 191, 36)'
   return {
-    '--hos-color-accent-rgb': rgb,
-    '--hos-color-accent-strong': 'var(--hos-color-info)',
-    '--hos-color-accent-soft': `rgba(${rgb}, 0.12)`,
-    '--hos-color-accent-soft-strong': `rgba(${rgb}, 0.18)`,
-    '--hos-color-accent-line': `rgba(${rgb}, 0.22)`,
-    '--hos-glow-accent-soft': `rgba(${rgb}, 0.16)`,
+    '--page-accent': 'var(--module-accent-home-mode, #fbbf24)',
+    '--page-accent-rgb': rgb,
+    '--page-accent-secondary': 'var(--module-accent-home-mode-sub, #fb7185)',
+    '--page-accent-secondary-rgb': 'var(--module-accent-home-mode-sub-rgb, 251, 113, 133)',
+    '--page-accent-bg': `rgba(${rgb}, 0.12)`,
+    '--page-accent-bg-strong': `rgba(${rgb}, 0.18)`,
+    '--page-accent-border': `rgba(${rgb}, 0.22)`,
+    '--page-accent-glow': `rgba(${rgb}, 0.16)`,
+    '--page-accent-text': 'var(--module-accent-home-mode, #fbbf24)',
   }
 })
 

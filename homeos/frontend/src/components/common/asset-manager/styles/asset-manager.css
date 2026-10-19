@@ -38,18 +38,18 @@
 .hos-modal-head-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .hos-modal-head-icon--accent {
-  background: linear-gradient(135deg, rgba(var(--hos-color-accent-strong-rgb), 0.18), rgba(var(--hos-color-accent-strong-rgb), 0.08));
-  color: var(--hos-color-accent-strong);
+  background: linear-gradient(135deg, rgba(192, 132, 252, 0.18), rgba(167, 139, 250, 0.08));
+  color: #c084fc;
 }
 .hos-modal-head-icon--blue {
-  background: linear-gradient(135deg, rgba(var(--hos-color-accent-rgb), 0.18), rgba(99, 102, 241, 0.08));
-  color: var(--hos-color-info);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.08));
+  color: #60a5fa;
 }
 .asset-manager-modal__body {
   min-height: 420px;

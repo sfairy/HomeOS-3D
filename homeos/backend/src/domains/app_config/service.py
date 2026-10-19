@@ -43,9 +43,33 @@ from .validate import (
 from ...platform.core.errors import BusinessException, ErrorCode, api_error, bad_request
 from ...platform.core.models import SystemConfig
 from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
-from ...platform.core.zoned_time import zoned_date_parts  # noqa: F401 - 供调用方复用
+from ...platform.core.zoned_time import zoned_date_parts  # noqa: F401 - 供调用方复用  # pyright: ignore[reportUnusedImport]
 
 logger = logging.getLogger("homeos.app_config")
+
+#: 597637a3 引入的暖铜默认强调色；恢复彩色模块主题后按历史默认值迁移回系统蓝。
+LEGACY_DEFAULT_ACCENT = "#ffc46a"
+DEFAULT_ACCENT_COLOR = "#3b82f6"
+
+#: 旧版 HA 心跳默认值（45s / 25s × 3 ≈ 120s 才判死）。既有实例的 DB 里存的就是这三个数，
+#: 只改代码默认值对它们无效，因此按「三元组完全等于历史默认值」做一次性迁移。
+LEGACY_HA_HEARTBEAT = {"wsPingIntervalMs": 45_000, "wsPongTimeoutMs": 25_000, "wsHeartbeatMaxMisses": 3}
+
+
+def _migrate_ha_heartbeat(connector: dict[str, Any]) -> bool:
+    """把仍是历史默认值的心跳参数提升为新默认值（≈25s 判死）。
+
+    只匹配三个字段**同时**等于历史默认值的组合：用户显式调过的任何一项都会让整组保持原样，
+    避免把手动调优过的现场强行改回去。
+    """
+    if not all(connector.get(key) == value for key, value in LEGACY_HA_HEARTBEAT.items()):
+        return False
+    connector.update({
+        "wsPingIntervalMs": 15_000,
+        "wsPongTimeoutMs": 10_000,
+        "wsHeartbeatMaxMisses": 2,
+    })
+    return True
 
 APP_CONFIG_UPDATED = "app.config.updated"
 
@@ -141,6 +165,10 @@ class AppConfigService:
                 migrated = list(normalized_result["changes"])
                 if self._migrate_missing_sections():
                     migrated.append("missing-sections")
+                if self._migrate_legacy_accent_color():
+                    migrated.append("legacy-accent-color")
+                if self._migrate_legacy_heartbeat():
+                    migrated.append("legacy-ha-heartbeat")
                 if migrated:
                     self._persist()
                 logger.debug("系统配置已从 DB 加载")
@@ -186,6 +214,8 @@ class AppConfigService:
             self._config = copy.deepcopy(DEFAULT_APP_CONFIG)
             _deep_merge(self._config, normalized)
             self._migrate_missing_sections()
+            self._migrate_legacy_accent_color()
+            self._migrate_legacy_heartbeat()
             self._config_updated_at = row.updated_at
         self._bump_generation()
         logger.info("系统配置已从 DB 同步(跨副本)")
@@ -236,6 +266,29 @@ class AppConfigService:
                 if self._merge_defaults_recursive(raw_target, default_value):
                     changed = True
         return changed
+
+    def _migrate_legacy_accent_color(self) -> bool:
+        """把 597637a3 写入的暖铜默认强调色迁回系统蓝，并落库持久化。
+
+        该提交把 DESIGN 默认 + 配置默认一起改成 ``#ffc46a``，凡是在那之后保存过
+        配置的实例，DB 里都存着这个值；只改代码默认值对既有实例无效。
+        仅匹配这一个历史默认值——用户显式选过的其它颜色一律不动。
+        """
+        ui = self._config.get("ui")
+        if not isinstance(ui, dict):
+            return False
+        accent = ui.get("accentColor")
+        if not isinstance(accent, str) or accent.strip().lower() != LEGACY_DEFAULT_ACCENT:
+            return False
+        ui["accentColor"] = DEFAULT_ACCENT_COLOR
+        return True
+
+    def _migrate_legacy_heartbeat(self) -> bool:
+        """把仍是历史默认值的 HA 心跳三元组迁到新默认值（见 :func:`_migrate_ha_heartbeat`）。"""
+        connector = self._config.get("haConnector")
+        if not isinstance(connector, dict):
+            return False
+        return _migrate_ha_heartbeat(connector)
 
     def _get_max_audit(self) -> int:
         n = (self._config.get("ops") or {}).get("configAuditMaxEntries")

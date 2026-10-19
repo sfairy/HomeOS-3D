@@ -73,6 +73,8 @@ export function bindEntitySocketLifecycle(
     if (refs.totalCount.value > 0) {
       refs.loading.value = false
     }
+    // 后端通道断了就无从得知 HA 状态：标记未知，避免沿用旧的「已连接/重连中」去误报
+    refs.haStatus.value = 'unknown'
     // 会话失效只由 HTTP 401 处理。WS 断线（含后端重启的 io server disconnect）
     // 绝不能清登录态，否则会在登录后立刻被踢回登录页。
     if (reason === 'io server disconnect') {

@@ -207,7 +207,7 @@ class VoiceService:
 
         # 映射未命中且开启回落：交由智能管家（Agent LLM）理解并执行
         if result.get("source") == "none" and self._voice().get("agentFallback") and self._agent_service:
-            return await self._agent_fallback(text, user)
+            return await self._agent_fallback(text, user, result.get("room"))
         return result
 
     def _get_voice_commands(self) -> list[dict[str, Any]]:
@@ -215,12 +215,15 @@ class VoiceService:
         return commands if isinstance(commands, list) else []
 
     async def _agent_fallback(
-        self, text: str, user: dict[str, Any] | None
+        self, text: str, user: dict[str, Any] | None, room: str | None = None
     ) -> dict[str, Any]:
         from ..agent.agent_actor import AgentActor
         from ..agent.service import AgentChatOptions
 
-        session_id = f"voice:{(user or {}).get('userId') or 'anon'}"
+        owner = (user or {}).get("userId") or "anon"
+        room_label = str(room or "").strip()
+        # 会话按「用户 + 房间」隔离：厨房说「开灯」不会污染客厅的上下文
+        session_id = f"voice:{owner}:{room_label}" if room_label else f"voice:{owner}"
         try:
             agent = await self._agent_service.chat(
                 text,
@@ -232,6 +235,8 @@ class VoiceService:
                         username=(user or {}).get("username"),
                     ),
                     session_id=session_id,
+                    entry="voice",
+                    room=room_label or None,
                 ),
             )
             message = (agent.reply or "").strip() or "已由智能管家理解，但未生成可执行动作"
@@ -239,7 +244,7 @@ class VoiceService:
                 "ok": agent.outcome in ("success", "answer"),
                 "message": message,
                 "source": "agent",
-                "room": None,
+                "room": room_label or None,
                 "count": len(agent.tool_calls or []),
             }
         except Exception as exc:

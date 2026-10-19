@@ -8,8 +8,8 @@
     :anchor-y="anchorY"
     :width="320"
     :height="380"
-    accent="var(--hos-color-accent)"
-    accent-rgb="var(--hos-color-accent-rgb)"
+    accent="#38bdf8"
+    accent-rgb="56, 189, 248"
     @close="$emit('close')"
   >
     <!-- 头部：标题 + HVAC 状态文案 + 模式脉冲点（cool/heat 配色） -->

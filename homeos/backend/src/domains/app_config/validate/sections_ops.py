@@ -142,11 +142,18 @@ def _validate_ha_connector(section: str, p: dict[str, Any], e: list[FieldError])
         "wsPingIntervalMs": (5_000, 300_000),
         "wsPongTimeoutMs": (1_000, 120_000),
         "wsHeartbeatMaxMisses": (1, 10),
+        "fastReconnectWindowMs": (5_000, 3_600_000),
     }
     for key, (lo, hi) in bound_checks.items():
         if key in p:
             num_in(section, key, p[key], lo, hi, e)
-    for k in ("ingressCoalesceEnabled", "syncOnlyEnabledEntities"):
+    for k in (
+        "ingressCoalesceEnabled",
+        "syncOnlyEnabledEntities",
+        "useSubscribeEntities",
+        "subscribeEntitiesShadow",
+        "fastReconnectEnabled",
+    ):
         if k in p:
             require_bool(section, k, p[k], e)
     if "ingressCoalesceDomains" in p:

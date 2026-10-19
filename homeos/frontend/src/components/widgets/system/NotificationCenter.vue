@@ -251,9 +251,7 @@ import { notificationSourceLabel } from '@homeos/shared'
 import { useFixedPagePagination } from '@/composables/ui/hub-viewport.internals'
 import './styles/notification-center.css'
 
-const PAGE_SIZE = 20
-/** 弹层/抽屉空间小，仍用 7 条；整页模式用 20 条减少页数。 */
-const POPOVER_PAGE_SIZE = 7
+const PAGE_SIZE = 7
 
 const props = defineProps({
   popover: { type: Boolean, default: false },
@@ -307,7 +305,7 @@ const notificationCount = computed(() => displayNotifications.value.length)
 const { currentPage, totalPages, canPrev, canNext, prevPage, nextPage, resetPage, sliceItems } =
   useFixedPagePagination({
     itemCount: notificationCount,
-    perPage: props.page ? PAGE_SIZE : POPOVER_PAGE_SIZE,
+    perPage: PAGE_SIZE,
   })
 
 const pagedNotifications = computed(() => {

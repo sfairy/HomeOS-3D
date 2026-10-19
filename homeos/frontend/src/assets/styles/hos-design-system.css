@@ -21,6 +21,12 @@
      input：输入框专用的 12px 档 —— 它原先只以裸字面量 `--radius-sm: 12px` 存在于
      main.css，成了契约之外的「幽灵尺度」；收进这里后全站圆角只有一个命名族（`--hos-radius-*`），
      旧族（`--radius-*` / `--radius-ipad-*`）一律只能写成指向本族的别名。 */
+  --hos-radius-control: 8px;
+  --hos-radius-input: 12px;
+  --hos-radius-card: 14px;
+  --hos-radius-panel: 20px;
+  --hos-radius-shell: var(--hos-radius-panel);
+  --hos-radius-pill: 9999px;
 
   /* ── 开关/切换件几何（唯一尺度源） ──
      收敛前全站 8 种互不相干的轨道尺寸（48×24 / 46×26 / 44×26 / 44×24 / 40×24 /
@@ -71,15 +77,29 @@
   --flow-glow-alpha-b: 0.1;
   /* 折叠态光带更弱，避免收起后仍抢占视觉重心 */
   --flow-glow-alpha-collapsed: 0.08;
+  --flow-glow-a: rgba(var(--page-accent-rgb, 129, 140, 248), var(--flow-glow-alpha-a));
+  --flow-glow-b: rgba(var(--page-accent-secondary-rgb, 56, 189, 248), var(--flow-glow-alpha-b));
 
   /* ── 文字层级（对比度基线：正文/控件 ≥0.55，次要说明 ≥0.52，占位/极弱 ≥0.45） ──
      strong：标题强调（高于 primary）；body：常规正文（介于 primary 与 secondary）。 */
+  --hos-text-strong: rgba(255, 255, 255, 0.96);
+  --hos-text-primary: rgba(255, 255, 255, 0.92);
+  --hos-text-body: rgba(255, 255, 255, 0.89);
+  --hos-text-secondary: rgba(255, 255, 255, 0.62);
+  --hos-text-tertiary: rgba(255, 255, 255, 0.58);
+  --hos-text-label: rgba(255, 255, 255, 0.55);
+  --hos-text-faint: rgba(255, 255, 255, 0.5);
 
   /*
    * 表面层级（深色由深到浅，阶差可读）
    * 0 画布 → 1 基础抬升 → 2 次级卡 → 3 控件/chip
    * panel 主面板（渐变实体感） / well 内凹嵌套 / elevated 顶部高光
    */
+  --hos-surface-0: #080d18;
+  --hos-surface-1: rgba(255, 255, 255, 0.045);
+  --hos-surface-2: rgba(255, 255, 255, 0.075);
+  --hos-surface-3: rgba(255, 255, 255, 0.11);
+  --hos-surface-well: rgba(0, 0, 0, 0.34);
   --hos-surface-well-border: rgba(255, 255, 255, 0.05);
   --hos-surface-elevated: linear-gradient(
     180deg,
@@ -92,6 +112,7 @@
   --hos-surface-panel-hover:
     linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%),
     rgba(17, 32, 57, 0.9);
+  --hos-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
   --hos-surface-well-inset:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     inset 0 2px 8px rgba(0, 0, 0, 0.28);
@@ -102,7 +123,19 @@
    * 非整数 DPR（常见于 Android）下 0.5px 会被抗锯齿成光晕。
    */
   --hos-hairline: 0.5px;
-  /* 中性发丝边框：列表分隔 / 控件描边 */
+  --hos-border-subtle: rgba(96, 165, 250, 0.18);
+  --hos-border-strong: rgba(125, 211, 252, 0.3);
+  /* 中性发丝边框：与上方蓝色语义边框区分，用于列表分隔 / 控件描边 */
+  --hos-border-hairline-soft: rgba(255, 255, 255, 0.06);
+  --hos-border-hairline: rgba(255, 255, 255, 0.08);
+  --hos-border-hairline-strong: rgba(255, 255, 255, 0.14);
+  --page-accent: #60a5fa;
+  --page-accent-rgb: 96, 165, 250;
+  --theme-glow-a: rgba(37, 99, 235, 0.16);
+  --theme-glow-b: rgba(14, 165, 233, 0.1);
+  --hos-shadow-panel: 0 10px 36px rgba(0, 0, 0, 0.38);
+  --hos-shadow-card: 0 4px 18px rgba(0, 0, 0, 0.28);
+  --hos-shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.34);
 
   /* ── 面板内边距 ── */
   --hos-panel-padding-hero-y: 16px;
@@ -125,6 +158,7 @@
   --hos-page-gap: var(--hos-space-lg);
 
   /* ── 交互 ── */
+  --hos-transition-panel: 0.25s cubic-bezier(0.32, 0.72, 0, 1);
   --hos-hover-lift: -1px;
 
   /* ══ 页面间距与卡片表面别名（映射到 hos-* 令牌） ══ */
@@ -133,17 +167,18 @@
   --space-page-y-bottom: var(--hos-page-y-bottom);
   --space-page-gap: var(--hos-page-gap);
 
+  --text-primary: var(--hos-text-primary);
 
+  --card-bg-1: var(--hos-surface-1);
+  --card-bg-2: var(--hos-surface-2);
+  --card-bg-3: var(--hos-surface-3);
+  --card-border: var(--hos-border-subtle);
+  --card-border-hover: var(--hos-border-strong);
 
   /* --acc-radius / --set-text-* / --premium-glass-* / --premium-border* /
      --premium-shadow / --set-glass-* / --set-border* / --set-bg-dark* 与
      app-premium-tokens.css 的 :root 完全同值，已收敛为该文件单源定义，
      此处不再重复声明（浅色/触控覆盖仍在本文件下方 theme 块维护） */
-  --hos-r-4: var(--hos-r-3);
-  --hos-glow-flow-a: rgba(var(--hos-color-accent-rgb), var(--flow-glow-alpha-a));
-  --hos-glow-flow-b: rgba(var(--hos-color-accent-strong-rgb), var(--flow-glow-alpha-b));
-  --hos-glow-accent-soft: rgba(var(--hos-color-accent-rgb), 0.16);
-  --hos-glow-accent-faint: rgba(var(--hos-color-accent-rgb), 0.1);
 }
 
 /**
@@ -157,16 +192,20 @@
     /* 描边加粗到 1px 后，开关滑块的水平/垂直基准偏移要同步重算（见文件顶部开关几何族），
        否则滑块会比轨道中心低 0.5px、右侧留白比左侧多 1px。 */
     --hos-switch-thumb-inset: calc(var(--hos-switch-inset) - var(--hos-hairline));
+    --hos-surface-inset: none;
     --hos-surface-well-inset: inset 0 2px 8px rgba(0, 0, 0, 0.28);
+    --hos-border-subtle: rgba(255, 255, 255, 0.1);
+    --hos-border-strong: rgba(255, 255, 255, 0.16);
     /* 设置页卡片表面 inset：去掉顶沿高光，避免与 1px 边叠成双边光晕 */
     --set-card-surface-inset: none;
     /* 削弱彩色外发光：移动端圆角抗锯齿会把 soft shadow 渲成白色/彩色晕 */
+    --page-accent-glow: transparent;
+    --premium-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+    --premium-shadow-open: 0 6px 18px rgba(0, 0, 0, 0.28);
+    --hos-shadow-card: 0 6px 18px rgba(0, 0, 0, 0.28);
+    --hos-shadow-card-hover: 0 8px 22px rgba(0, 0, 0, 0.34);
+    --hos-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.32);
+    --set-card-surface-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
     --acc-open-glow: transparent;
-    --hos-shadow-inset: none;
-    --hos-line-2: rgba(255, 255, 255, 0.1);
-    --hos-line-3: rgba(255, 255, 255, 0.16);
-    --hos-glow-accent-soft: transparent;
-    --hos-shadow-3: 0 8px 24px rgba(0, 0, 0, 0.32);
-    --hos-shadow-2: 0 8px 22px rgba(0, 0, 0, 0.28);
   }
 }

@@ -4,7 +4,7 @@
     class="security-hub page-enter-stagger list-page security-view security-shell"
     :class="[`security-hub--${secTab}`]"
   >
-    <ListPageHero :title="tabMeta.label" :hint="tabMeta.hint">
+    <ListPageHero :title="tabMeta.label" :hint="tabMeta.hint" :tone="tabMeta.tone">
       <template #icon>
         <component :is="tabMeta.icon" class="w-5 h-5" />
       </template>

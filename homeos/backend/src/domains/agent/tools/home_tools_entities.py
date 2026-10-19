@@ -278,19 +278,112 @@ class HomeToolsEntitiesMixin(HomeToolsHost):
             return {"error": "entity_id 须为 camera.*"}
         return self._get_entity_state(entity_id, actor)
 
-    async def _get_home_status(self) -> dict[str, Any]:
-        """全屋整体状态概览。"""
+    async def _get_home_status(self, actor: AgentActor | None = None) -> dict[str, Any]:
+        """全屋整体状态概览：模式 / 开关统计 / 平均温湿度 / 安防 / 今日用电。
+
+        只统计当前身份可见的实体（读路径 ACL），避免受限账号借状态概览窥探其它房间。
+        """
         try:
             try:
                 active = self._home_mode.get_active()
             except Exception as exc:
                 logger.warning("状态概览读取家庭模式失败: %s", _error_message(exc))
                 active = None
+            try:
+                raw_entities = self._state_store.get_all()
+            except Exception as exc:
+                logger.warning("状态概览读取实体快照失败: %s", _error_message(exc))
+                raw_entities = []
+            entities = [
+                entity
+                for entity in (raw_entities or [])
+                if isinstance(entity, dict)
+                and entity.get("entity_id")
+                and self._may_read(str(entity["entity_id"]), actor)
+            ]
+
+            def _num(value: Any) -> float | None:
+                if isinstance(value, bool):
+                    return None
+                if isinstance(value, (int, float)):
+                    return float(value)
+                if isinstance(value, str):
+                    try:
+                        return float(value.strip())
+                    except ValueError:
+                        return None
+                return None
+
+            stats = {
+                "lights_on": 0,
+                "switches_on": 0,
+                "covers_open": 0,
+                "locks_unlocked": 0,
+                "climate_on": 0,
+                "media_playing": 0,
+                "openings_open": 0,
+                "unavailable": 0,
+            }
+            temperatures: list[float] = []
+            humidities: list[float] = []
+            alarm_state: str | None = None
+            for entity in entities:
+                entity_id = str(entity.get("entity_id") or "")
+                domain = entity_id.split(".", 1)[0]
+                state = _s(entity.get("state")).lower()
+                attrs = object_field(entity, "attributes")
+                if state in ("unavailable", "unknown"):
+                    # unknown 也计入：HA 重启 / 集成重载后实体常先报 unknown，
+                    # 主动管家用它判断「家里是否有设备失联」。
+                    stats["unavailable"] += 1
+                if domain == "light" and state == "on":
+                    stats["lights_on"] += 1
+                elif domain == "switch" and state == "on":
+                    stats["switches_on"] += 1
+                elif domain == "cover" and state == "open":
+                    stats["covers_open"] += 1
+                elif domain == "lock" and state == "unlocked":
+                    stats["locks_unlocked"] += 1
+                elif domain == "climate" and state not in ("", "off", "unavailable", "unknown"):
+                    stats["climate_on"] += 1
+                elif domain == "media_player" and state == "playing":
+                    stats["media_playing"] += 1
+                elif domain == "alarm_control_panel" and alarm_state is None:
+                    alarm_state = state or None
+                elif domain == "binary_sensor":
+                    device_class = _s((attrs or {}).get("device_class")).lower()
+                    if device_class in ("window", "door", "garage_door", "opening") and state == "on":
+                        stats["openings_open"] += 1
+
+                value = _num(entity.get("state"))
+                device_class = _s((attrs or {}).get("device_class")).lower()
+                if value is not None and device_class == "temperature":
+                    temperatures.append(value)
+                elif value is not None and device_class == "humidity":
+                    humidities.append(value)
+                elif domain == "climate":
+                    current = _num((attrs or {}).get("current_temperature"))
+                    if current is not None:
+                        temperatures.append(current)
+
+            energy_today: float | None = None
+            if self._session_factory is not None:
+                energy_today = await self._energy_today_kwh(actor)
+
             return {
                 "active_mode": (
                     {"id": active.get("id"), "name": active.get("name")} if active else None
                 ),
-                "entity_count": len(self._state_store.get_all()),
+                "entity_count": len(entities),
+                **stats,
+                "alarm_state": alarm_state,
+                "average_temperature": (
+                    round(sum(temperatures) / len(temperatures), 1) if temperatures else None
+                ),
+                "average_humidity": (
+                    round(sum(humidities) / len(humidities), 1) if humidities else None
+                ),
+                "energy_today_kwh": energy_today,
             }
         except Exception as exc:
             return {"error": f"状态概览获取失败: {_error_message(exc)}"}

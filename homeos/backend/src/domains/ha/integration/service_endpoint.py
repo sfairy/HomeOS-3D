@@ -25,6 +25,7 @@ from .service_support import (
     ENDPOINT_PRIORITY_GRACE_SECONDS,
     HA_ENDPOINT_RECHECK_SECONDS,
     HISTORY_CACHE_SECONDS,
+    LOGGER,
     TRANSLATION_CACHE_SECONDS,
 )
 from ....platform.core.models import HAConnection
@@ -37,6 +38,35 @@ class HAEndpointMixin(HAConnectorHost):
         self._endpoint = None
         self._endpoint_signature = None
         self._endpoint_probed_at = 0.0
+
+    def refresh_endpoint_in_background(self, connection_id: str | None) -> None:
+        """连接失败后立刻作废端点缓存，并把重新探测挪到后台。
+
+        旧实现只做 ``invalidate_endpoint()``：清缓存之后，**下一条控制命令**
+        会先付一轮并发探测（内网不可达时约 2.5s）—— 用户体感就是「断网恢复后
+        第一次点灯要转圈好几秒」。这里改成失败即后台探测，控制链路只读缓存结果。
+        """
+        self.invalidate_endpoint()
+        if not connection_id:
+            return
+        running = getattr(self, '_endpoint_probe_task', None)
+        if isinstance(running, asyncio.Task) and not running.done():
+            return
+        self._endpoint_probe_task = asyncio.create_task(
+            self._probe_endpoint_background(connection_id), name = 'ha-endpoint-probe'
+        )
+
+    async def _probe_endpoint_background(self, connection_id: str) -> None:
+        try:
+            connection = await self._run_database(self._load_connection, connection_id)
+            if connection is None:
+                return
+            await self.active_endpoint(connection)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # 探测失败与重连循环共用同一套日志/事件，这里只留 DEBUG 避免重复刷屏。
+            LOGGER.debug('HA 端点后台探测失败', exc_info = True)
 
     async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
         await HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes, http_pool = self._http_pool).test_connection()
@@ -147,11 +177,11 @@ class HAEndpointMixin(HAConnectorHost):
         token = self.cipher.decrypt(connection.encrypted_access_token)
         connector = self._ha_tuning()['haConnector']
         try:
-            ping_interval = max(int(connector.get('wsPingIntervalMs') or 45_000), 1_000) / 1000.0
-            pong_timeout_ms = max(int(connector.get('wsPongTimeoutMs') or 25_000), 1_000)
-            max_misses = max(int(connector.get('wsHeartbeatMaxMisses') or 1), 1)
+            ping_interval = max(int(connector.get('wsPingIntervalMs') or 15_000), 1_000) / 1000.0
+            pong_timeout_ms = max(int(connector.get('wsPongTimeoutMs') or 10_000), 1_000)
+            max_misses = max(int(connector.get('wsHeartbeatMaxMisses') or 2), 1)
         except (TypeError, ValueError):
-            ping_interval, pong_timeout_ms, max_misses = 45.0, 25_000, 1
+            ping_interval, pong_timeout_ms, max_misses = 15.0, 10_000, 2
         # websockets 只暴露「单次 pong 等待窗口」，无法直接表达「连续 N 次未响应才断开」；
         # 用 wsPongTimeoutMs × wsHeartbeatMaxMisses 近似「容忍 N 次心跳未响应」的总窗口。
         ping_timeout = (pong_timeout_ms * max_misses) / 1000.0
@@ -165,6 +195,8 @@ class HAEndpointMixin(HAConnectorHost):
             http_pool = self._http_pool,
             ws_ping_interval = ping_interval,
             ws_ping_timeout = ping_timeout,
+            use_subscribe_entities = bool(connector.get('useSubscribeEntities')),
+            subscribe_entities_shadow = bool(connector.get('subscribeEntitiesShadow')),
         )
 
     def _control_configuration(self) -> HAControlConfiguration | None:

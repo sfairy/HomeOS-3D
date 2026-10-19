@@ -464,6 +464,11 @@ def _install_exception_handler(app: FastAPI) -> None:
 
 def create_app(settings: StoreSettings | None = None) -> FastAPI:
     """装配 ASGI 应用：先备好运行时零件，再逐层挂中间件、路由与页面外壳。"""
+    # 先把日志装好再建库：``_build_runtime`` 里的 ``prepare_schema`` 会打迁移进度与快照路径，
+    # 而 reload 的 worker 不会执行 ``run.py`` 的 ``main()``（只有 lifespan 才装日志，晚于建库），
+    # 于是那几行会落到 ``logging.lastResort``——没有时间戳、没有「授权商店」上下文，
+    # 在启动日志里像是别的东西插进来。装在这里（幂等）只影响时序，不改任何输出格式。
+    configure_console_logging()
     settings = settings or load_settings()
     runtime = _build_runtime(settings)
 

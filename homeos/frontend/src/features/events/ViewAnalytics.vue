@@ -67,13 +67,6 @@ import {
   buildTimeBuckets,
   computeEventAnalyticsSummary,
 } from '@/shared/events/utils/analytics.util'
-import { entityDomainLabel } from '@/shared/constants/entity-domain-meta'
-import {
-  chartAxisLabel,
-  chartBarGradient,
-  chartTooltip,
-  getChartPalette,
-} from '@/shared/utils/chart/chart-palette'
 
 const props = defineProps({
   stats: { type: [Object, null], default: null },
@@ -126,14 +119,14 @@ const kpiCells = computed(() => {
       label: '活跃域',
       value: String(s.domainCount),
       hint: s.topDomain ? `${s.topDomain} ${props.formatCount(s.topDomainCount)}` : '—',
-      tone: 'info',
+      tone: 'sky',
     },
     {
       key: 'peak',
       label: '峰值时段',
       value: s.peakTimeLabel || '—',
       hint: s.peakTimeCount ? `${props.formatCount(s.peakTimeCount)} 次` : '暂无',
-      tone: s.peakTimeCount ? 'warning' : 'muted',
+      tone: s.peakTimeCount ? 'warn' : 'muted',
     },
     {
       key: 'avg',
@@ -154,100 +147,53 @@ const kpiCells = computed(() => {
       label: '最热实体',
       value: s.topEntityId ? props.entityDisplayName(s.topEntityId).slice(0, 8) : '—',
       hint: s.topEntityCount ? props.formatCount(s.topEntityCount) : '',
-      tone: 'danger',
+      tone: 'pink',
     },
   ]
 })
 
-/** 三图共用 canonical tooltip（暖铜描边 + 正文色文字）。 */
-function eventTooltip() {
-  return chartTooltip()
+// 三图共用 tooltip 样式（深底 + 青色字 + 毛玻璃边框）
+const chartTooltip = {
+  backgroundColor: 'rgba(12, 12, 18, 0.94)',
+  borderColor: 'rgba(34, 211, 238, 0.32)',
+  borderWidth: 1,
+  padding: [8, 12],
+  extraCssText:
+    'border-radius: 10px; backdrop-filter: blur(12px); box-shadow: 0 8px 28px rgba(0,0,0,0.35);',
+  textStyle: { color: '#a5f3fc', fontSize: 12, fontWeight: 600 },
+}
+
+/** 实体条形图的纵向渐变填充：顶部实色 + 底部半透明，营造发光感。 */
+function barGradient(color) {
+  return {
+    type: 'linear',
+    x: 0,
+    y: 0,
+    x2: 0,
+    y2: 1,
+    colorStops: [
+      { offset: 0, color },
+      { offset: 1, color: `${color}66` },
+    ],
+  }
 }
 
 /** 域分布饼图 option：空数据时给单条「暂无」占位避免空白。 */
 function buildDomainOption() {
   const buckets = domainBuckets.value.filter((b) => b.count > 0)
-  // 域数量多时合并尾部为「其他」，避免饼图标签互相遮挡；只保留前 6 个可点击域。
-  // 卡片宽度有限，超过 6 个扇区时即使合并尾部，标签仍会挤成一团。
-  const head = buckets.slice(0, 6)
-  const tail = buckets.slice(8)
-  const merged = head.map((b) => ({
-    name: entityDomainLabel(b.domain),
-    value: b.count,
-    domain: b.domain,
-    itemStyle: { color: b.color },
-  }))
-  if (tail.length) {
-    merged.push({
-      name: '其他',
-      value: tail.reduce((sum, b) => sum + b.count, 0),
-      domain: '',
-      itemStyle: { color: getChartPalette().fg3 },
-    })
-  }
-  const data = merged.length
-    ? merged
-    : [{ name: '暂无', value: 1, domain: '', itemStyle: { color: getChartPalette().fg3 } }]
-  const palette = getChartPalette()
-  const total = data.reduce((sum, item) => sum + item.value, 0)
-  const countOf = (name) => data.find((item) => item.name === name)?.value ?? 0
+  const data = buckets.length
+    ? buckets.map((b) => ({ name: b.domain, value: b.count, itemStyle: { color: b.color } }))
+    : [{ name: '暂无', value: 1, itemStyle: { color: '#64748b' } }]
   return {
     ...getChartBase(),
-    tooltip: { ...eventTooltip(), trigger: 'item' },
-    // 环形图改为「左环 + 右图例」：域缩写带引线铺在环外时，在 430px 宽的卡片里
-    // 必然互相压成一条斜线（见 1600×900 事件页），改成图例列表后每个域名和数值都能读全。
-    legend: {
-      show: true,
-      type: 'scroll',
-      orient: 'vertical',
-      right: 4,
-      top: 'middle',
-      itemWidth: 8,
-      itemHeight: 8,
-      itemGap: 8,
-      icon: 'circle',
-      pageIconColor: palette.accent,
-      pageIconInactiveColor: palette.fg3,
-      pageTextStyle: { color: palette.fg2, fontSize: 10 },
-      textStyle: { color: palette.fg2, fontSize: 10, fontWeight: 500 },
-      formatter: (name) => `${name}  ${props.formatCount(countOf(name))}`,
-    },
-    graphic: [
-      {
-        type: 'text',
-        left: '19%',
-        top: '43%',
-        silent: true,
-        style: {
-          text: props.formatCount(total),
-          fill: palette.fg1,
-          fontSize: 16,
-          fontWeight: 700,
-          textAlign: 'center',
-        },
-      },
-      {
-        type: 'text',
-        left: '19%',
-        top: '54%',
-        silent: true,
-        style: { text: '事件', fill: palette.fg3, fontSize: 10, textAlign: 'center' },
-      },
-    ],
+    tooltip: { ...chartTooltip, trigger: 'item' },
     series: [
       {
         type: 'pie',
-        radius: ['42%', '66%'],
-        center: ['26%', '52%'],
-        // 标签全部收进图例，扇区上不再画文字/引线，彻底消除重叠。
-        label: { show: false },
-        labelLine: { show: false },
-        emphasis: { scaleSize: 4 },
-        itemStyle: {
-          borderRadius: 6,
-          borderColor: getChartPalette().bgElev1,
-          borderWidth: 2,
-        },
+        radius: ['42%', '68%'],
+        center: ['50%', '54%'],
+        label: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: 600 },
+        itemStyle: { borderRadius: 4, borderColor: 'rgba(0,0,0,0.35)', borderWidth: 1 },
         data,
       },
     ],
@@ -260,14 +206,15 @@ function buildTimeOption() {
   const counts = buckets.map((b) => b.count)
   return {
     ...getChartBase(),
-    grid: { left: 44, right: 16, top: 18, bottom: buckets.length > 8 ? 40 : 26 },
+    grid: { left: 36, right: 12, top: 16, bottom: buckets.length > 8 ? 36 : 24 },
     xAxis: {
       type: 'category',
       data: buckets.map((b) => b.label),
       axisLine: axisLineStyle,
       axisTick: { show: false },
       axisLabel: {
-        ...chartAxisLabel(),
+        color: 'rgba(255,255,255,0.58)',
+        fontSize: 9,
         interval: buckets.length > 12 ? Math.floor(buckets.length / 8) : 0,
         rotate: buckets.length > 10 ? 32 : 0,
       },
@@ -279,21 +226,17 @@ function buildTimeOption() {
       minInterval: 1,
       axisLine: { show: false },
       splitLine: splitLineStyle,
-      axisLabel: chartAxisLabel(),
+      axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
     },
     series: [
       {
         type: 'line',
         smooth: true,
         symbol: 'circle',
-        symbolSize: 5,
+        symbolSize: 6,
         data: counts,
-        lineStyle: { width: 2, color: getChartPalette().accent },
-        itemStyle: {
-          color: getChartPalette().accent,
-          borderColor: getChartPalette().bgElev1,
-          borderWidth: 1.5,
-        },
+        lineStyle: { width: 2.5, color: '#22d3ee' },
+        itemStyle: { color: '#22d3ee', borderColor: '#0ea5e9', borderWidth: 1 },
         areaStyle: {
           color: {
             type: 'linear',
@@ -302,14 +245,14 @@ function buildTimeOption() {
             x2: 0,
             y2: 1,
             colorStops: [
-              { offset: 0, color: `${getChartPalette().accent}52` },
-              { offset: 1, color: `${getChartPalette().accent}00` },
+              { offset: 0, color: 'rgba(34, 211, 238, 0.35)' },
+              { offset: 1, color: 'rgba(34, 211, 238, 0.02)' },
             ],
           },
         },
       },
     ],
-    tooltip: { ...eventTooltip(), trigger: 'axis' },
+    tooltip: { ...chartTooltip, trigger: 'axis' },
   }
 }
 
@@ -333,13 +276,13 @@ function buildEntityOption() {
       min: 0,
       max: yMax(values),
       splitLine: splitLineStyle,
-      axisLabel: chartAxisLabel(),
+      axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
     },
     yAxis: {
       type: 'category',
       data: labels,
       axisLine: { show: false },
-      axisLabel: chartAxisLabel(),
+      axisLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
     },
     series: [
       {
@@ -347,16 +290,16 @@ function buildEntityOption() {
         data: values.map((value, i) => ({
           value,
           itemStyle: {
-            color: chartBarGradient(
-              domainBuckets.value[i % domainBuckets.value.length]?.color || getChartPalette().accent,
+            color: barGradient(
+              domainBuckets.value[i % domainBuckets.value.length]?.color || '#22d3ee',
             ),
             borderRadius: [0, 6, 6, 0],
           },
         })),
-        barWidth: 12,
+        barWidth: 10,
       },
     ],
-    tooltip: { ...eventTooltip(), trigger: 'axis' },
+    tooltip: { ...chartTooltip, trigger: 'axis' },
   }
 }
 
@@ -367,8 +310,8 @@ function bindChartClicks() {
   domainChart?.off('click')
   entityChart?.off('click')
   domainChart?.on('click', (params) => {
-    const domain = params?.data?.domain
-    if (domain) emit('filter-by-domain', domain)
+    const domain = params?.name
+    if (domain && domain !== '暂无') emit('filter-by-domain', domain)
   })
   entityChart?.on('click', (params) => {
     const idx = params?.dataIndex

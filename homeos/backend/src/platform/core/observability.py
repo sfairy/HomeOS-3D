@@ -68,11 +68,15 @@ class LatencySnapshot:
 
 #: HA 同步管线全部阶段（顺序与 Nest ``ALL_STAGES`` 一致，计数为 0 也要出现在快照/指标中）。
 ALL_HA_SYNC_STAGES: tuple[str, ...] = (
-    "ha_deferred_dwell",
     "ha_receive",
+    "ha_deferred_dwell",
+    # 关键控制域单独一段：常规 50ms 合并窗对灯光/开关是纯延迟，这里只统计关键域，
+    # 用来证明「点灯反馈」这条链路的停留时间（详见 live_events 的 critical 短窗口）。
+    "ha_deferred_dwell_critical",
     "ingress_coalesce_dwell",
     "ingress_flush",
     "hot_apply",
+    "full_sync",
     "ws_emit",
     "fe_critical_apply",
     "fe_sensor_apply",
@@ -98,6 +102,36 @@ def record_ha_sync_latency(stage: str, milliseconds: float) -> None:
 def get_ha_ws_deferred_dropped_total() -> int:
     with _latency_lock:
         return _ha_ws_deferred_dropped_total
+
+
+#: 实时链路的计数指标（固定一份名单，无事件时也导出 0，便于建基线/告警）。
+HA_COUNTER_NAMES: tuple[str, ...] = (
+    "recv",
+    "reconnect",
+    "queue_dropped",
+    "resync",
+    "fast_reconnect",
+    "subscribe_entities_fallback",
+    "reconcile",
+    "full_sync",
+    "decode_resync",
+    "shadow_compare",
+    "shadow_mismatch",
+)
+
+_ha_counter_lock = threading.Lock()
+_ha_counters: dict[str, int] = {}
+
+
+def record_ha_counter(name: str, value: int = 1) -> None:
+    """累加一个实时链路计数（丢弃 / 重连 / 重同步 / 快速重连 …）。"""
+    with _ha_counter_lock:
+        _ha_counters[name] = _ha_counters.get(name, 0) + int(value)
+
+
+def get_ha_counters() -> dict[str, int]:
+    with _ha_counter_lock:
+        return dict(_ha_counters)
 
 
 # 数据库查询计数（Phase 3 观测）：按语句首关键字分 select / write / other。
@@ -196,8 +230,11 @@ def record_ha_sync_fe_latency_samples(samples: Any) -> int:
         if not isinstance(sample, dict):
             continue
         stage = sample.get("stage")
+        raw_ms = sample.get("ms")
+        if raw_ms is None:
+            continue
         try:
-            milliseconds = float(sample.get("ms"))
+            milliseconds = float(raw_ms)
         except (TypeError, ValueError):
             continue
         if stage not in FE_LATENCY_STAGES or not math.isfinite(milliseconds):
@@ -259,6 +296,7 @@ def format_homeos_prometheus_metrics(
     loop_lag: LoopLagSnapshot | None = None,
     db_query_counts: dict[str, int] | None = None,
     startup_duration_ms: float | None = None,
+    ha_counters: dict[str, int] | None = None,
 ) -> str:
     ha = 1 if ha_connected else 0
     deferred = (
@@ -304,6 +342,12 @@ def format_homeos_prometheus_metrics(
         f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
         f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
     ]
+
+    counters = ha_counters if ha_counters is not None else get_ha_counters()
+    lines.append("# HELP homeos_ha_events_total HA realtime pipeline counters")
+    lines.append("# TYPE homeos_ha_events_total counter")
+    for name in HA_COUNTER_NAMES:
+        lines.append(f'homeos_ha_events_total{{event="{name}"}} {int(counters.get(name, 0))}')
 
     snapshots = latency if latency is not None else get_ha_sync_latency_snapshots()
     lines.extend(

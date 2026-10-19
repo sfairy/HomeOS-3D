@@ -5,7 +5,7 @@
 
 .sp-glass-block {
   padding: 10px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
 }
@@ -39,53 +39,53 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   color: var(--text-tertiary, rgba(255, 255, 255, 0.45));
 }
 
 .sp-mode-badge {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   padding: 2px 7px;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   flex-shrink: 0;
 }
 
 .sp-zone-summary-meta {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   flex-shrink: 0;
 }
 
 .sp-badge--disarmed {
-  background: color-mix(in srgb, var(--hos-color-success) 10%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-success);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--hos-color-success) 20%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-green) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-green);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-green) 20%, rgba(0, 0, 0, 0));
 }
 
 .sp-badge--home {
-  background: color-mix(in srgb, var(--hos-color-warning) 12%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-warning);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--hos-color-warning) 24%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-amber) 12%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-amber);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-amber) 24%, rgba(0, 0, 0, 0));
 }
 
 .sp-badge--away {
-  background: color-mix(in srgb, var(--hos-color-danger) 10%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-danger);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--hos-color-danger) 20%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-red) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-red);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-red) 20%, rgba(0, 0, 0, 0));
 }
 
 .sp-badge--night {
-  background: color-mix(in srgb, var(--hos-color-accent-deep) 12%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-accent-deep);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--hos-color-accent-deep) 24%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-violet) 12%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-violet);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-violet) 24%, rgba(0, 0, 0, 0));
 }
 
 .sp-badge--armed {
-  background: color-mix(in srgb, var(--hos-color-danger) 10%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-danger);
-  border: var(--hos-hairline) solid color-mix(in srgb, var(--hos-color-danger) 20%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-red) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-red);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-red) 20%, rgba(0, 0, 0, 0));
 }
 
 .sp-actions {
@@ -106,7 +106,7 @@
   align-items: center;
   gap: 4px;
   padding: 10px 0;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
   background: rgba(255, 255, 255, 0.04);
@@ -131,38 +131,38 @@
 
 /* 撤防 — 绿色安全 */
 .sp-action-btn--disarmed.sp-action-btn--active {
-  background: color-mix(in srgb, var(--hos-color-success) 16%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--hos-color-success) 34%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-success-text);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hos-color-success) 28%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-green) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-green) 34%, rgba(0, 0, 0, 0));
+  color: #6ee7b7;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-green) 28%, rgba(0, 0, 0, 0));
 }
 
 /* 在家 — 琥珀色 */
 .sp-action-btn--armed-home.sp-action-btn--active {
-  background: color-mix(in srgb, var(--hos-color-warning) 16%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--hos-color-warning) 34%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-warning-text);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hos-color-warning) 28%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-amber) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-amber) 34%, rgba(0, 0, 0, 0));
+  color: #fcd34d;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-amber) 28%, rgba(0, 0, 0, 0));
 }
 
 /* 离家 — 红色警戒 */
 .sp-action-btn--armed-away.sp-action-btn--active {
-  background: color-mix(in srgb, var(--hos-color-danger) 16%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--hos-color-danger) 34%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-danger-text);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hos-color-danger) 28%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-red) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-red) 34%, rgba(0, 0, 0, 0));
+  color: #fca5a5;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-red) 28%, rgba(0, 0, 0, 0));
 }
 
 /* 夜间 — 紫色 */
 .sp-action-btn--armed-night.sp-action-btn--active {
-  background: color-mix(in srgb, var(--hos-color-accent-deep) 16%, rgba(0, 0, 0, 0));
-  border-color: color-mix(in srgb, var(--hos-color-accent-deep) 34%, rgba(0, 0, 0, 0));
-  color: var(--hos-color-accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hos-color-accent-deep) 28%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--premium-accent-violet) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-violet) 34%, rgba(0, 0, 0, 0));
+  color: #c4b5fd;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-violet) 28%, rgba(0, 0, 0, 0));
 }
 
 .sp-action-label {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -204,7 +204,7 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   transition: transform 0.18s ease;
 }
 
@@ -218,34 +218,34 @@
 
 .sp-zones-retry {
   margin: 0 0 8px;
-  font-size: var(--hos-fs-2);
-  color: var(--hos-color-danger);
+  font-size: var(--premium-fs-micro);
+  color: #f87171;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .sp-zones-retry-btn {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   padding: 2px 8px;
   border-radius: 6px;
-  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.35);
-  background: rgba(var(--hos-color-danger-rgb), 0.08);
-  color: var(--hos-color-danger-text);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
   cursor: pointer;
 }
 
 .sp-zone-title {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
 .sp-zone-count {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
 }
 
 .sp-zone-item {
@@ -263,8 +263,8 @@
 }
 
 .sp-zone-dot--armed {
-  background: var(--hos-color-danger);
-  box-shadow: 0 0 6px rgba(var(--hos-color-danger-rgb), 0.6);
+  background: #ff3b30;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
 }
 
 .sp-zone-dot--disarmed {
@@ -272,14 +272,14 @@
 }
 
 .sp-zone-name {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   color: rgba(255, 255, 255, 0.6);
   flex: 1;
 }
 
 .sp-zone-sensors {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
 }
 
 .sp-zone-select-bar {
@@ -293,9 +293,9 @@
 .sp-zone-select-hint {
   margin: 0;
   flex: 1;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.4;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .sp-zone-select-actions {
@@ -305,7 +305,7 @@
 }
 
 .sp-zone-select-btn {
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   padding: 2px 8px;
   border-radius: 6px;
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
@@ -328,7 +328,7 @@
 .sp-zone-check input {
   width: 14px;
   height: 14px;
-  accent-color: var(--hos-color-accent);
+  accent-color: var(--premium-accent-blue, #0a84ff);
 }
 
 .sp-empty-zones {
@@ -337,30 +337,30 @@
 
 .sp-empty-zones__title {
   margin: 0 0 4px;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .sp-empty-zones__hint {
   margin: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.45;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .sp-icon-disarmed {
-  color: var(--hos-color-success-text);
+  color: var(--set-success, #6ee7b7);
 }
 .sp-icon-home {
-  color: var(--hos-color-warning-text);
+  color: var(--set-warn, #fcd34d);
 }
 .sp-icon-away {
-  color: var(--hos-color-danger-text);
+  color: var(--set-danger, #fda4af);
 }
 .sp-icon-night {
-  color: var(--hos-color-accent-deep);
+  color: var(--premium-accent-violet, #a78bfa);
 }
 .sp-icon-default {
-  color: var(--hos-fg-2);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
 }

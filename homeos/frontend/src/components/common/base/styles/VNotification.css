@@ -35,13 +35,13 @@
   color: rgba(255, 255, 255, 0.92);
   background: rgba(16, 16, 22, 0.72);
   border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel);
   align-items: center;
   gap: 12px;
   min-width: 300px;
   max-width: 500px;
   padding: 14px 22px;
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm);
   transition: all 0.35s var(--ease-spring);
   display: flex;
   box-shadow:
@@ -78,8 +78,8 @@
 .notification-item__close {
   flex-shrink: 0;
   /* 归到 xs 档：原 24×24 不在尺度上，且低于触控最小命中区。 */
-  width: var(--hos-control-h-xs);
-  height: var(--hos-control-h-xs);
+  width: var(--control-height-xs);
+  height: var(--control-height-xs);
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -130,11 +130,11 @@
 
 /** 信息通知：蓝色主题 */
 .notification-item.info {
-  background: rgba(var(--hos-color-accent-rgb), 0.08);
-  border-color: rgba(var(--hos-color-accent-rgb), 0.2);
+  background: rgba(10, 132, 255, 0.08);
+  border-color: rgba(10, 132, 255, 0.2);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(var(--hos-color-accent-rgb), 0.08);
+    0 0 20px rgba(10, 132, 255, 0.08);
 }
 
 /** 通知入场/离场过渡动画 */

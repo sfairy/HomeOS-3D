@@ -28,7 +28,7 @@ import type { useEntitiesStore } from '@/stores/entities.store'
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type ChromeStore = ReturnType<typeof useChromeStore>
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 8
 
 export { PAGE_SIZE }
 

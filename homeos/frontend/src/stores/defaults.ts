@@ -148,6 +148,20 @@ function createDefaultLayout(): UILayoutConfig {
       mcpActorUserId: '',
       // 场景语音控制默认全禁（fail-closed）：需在设置中显式启用并勾选场景
       sceneVoiceControl: { enabled: false, allow: [] },
+      // 主动管家默认关闭：避免升级后突然开始推送；开关与频控在设置页配置
+      proactive: {
+        enabled: false,
+        intervalSeconds: 900,
+        cooldownSeconds: 1800,
+        quietStart: 22,
+        quietEnd: 7,
+        energyMultiplier: 1.5,
+        minEnergyKwh: 1,
+        forecastSlots: 4,
+        forecastPopThreshold: 0.6,
+      },
+      // Agent 专属设备白名单：空 = 不额外限制（仍受用户 ACL 约束）
+      deviceAllowlist: [],
     },
     // 消息通道：Email / WebPush 默认关闭
     channelConfig: {

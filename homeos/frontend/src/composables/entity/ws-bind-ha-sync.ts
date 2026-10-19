@@ -60,19 +60,26 @@ export function bindEntitySocketHaSync(
 
   socket.on(WS_CLIENT_EVENTS.HA_STATUS, (data: { status?: string }) => {
     logger.info('HA 连接状态:', data.status)
-    if (data.status === 'connected') {
+    const status = data.status
+    if (status === 'connected' || status === 'disconnected' || status === 'reconnecting') {
+      refs.haStatus.value = status
+    }
+    if (status === 'connected') {
       actions.clearHaDisconnectDebounce()
       actions.setConnected(true)
       refs.entitiesStale.value = false
       if (refs.totalCount.value > 0) {
         refs.loading.value = false
       }
-    } else if (data.status === 'disconnected') {
+    } else if (status === 'disconnected') {
       actions.setConnected(false)
       actions.startHaDisconnectDebounce()
-    } else if (data.status === 'reconnecting') {
+      // 推送可能被 socket 抖动吞掉：降级持续时补一次主动核对，避免横幅永久卡在重连
+      actions.scheduleHaStatusProbe?.()
+    } else if (status === 'reconnecting') {
       refs.reconnecting.value = true
       actions.setConnected(false)
+      actions.scheduleHaStatusProbe?.()
     }
   })
 

@@ -97,8 +97,10 @@ class CommandProxyService:
                     f"Home Assistant 未连接，已拦截高风险操作（{entity_id}）。请恢复 HA 连接后再试。",
                 )
             if not status.get("connected"):
-                # 排队是 HA 离线时的预期行为（界面也会显示排队状态），不必每条命令都 WARN。
-                logger.info("HA 未连接，命令已入队，重连后自动发送：%s.%s → %s", domain, service, entity_id)
+                # 门面没有离线队列：HA 未连接时调用会立刻失败（高风险命令已在上面拦截）。
+                # 旧文案写「已入队，重连后自动发送」与行为不符，排障时会把「没下发」
+                # 误判成「排队中」。
+                logger.info("HA 未连接，尝试直接下发，可能失败：%s.%s → %s", domain, service, entity_id)
 
             data = await self._connector.call_service(
                 domain, service, entity_id, service_data, return_response, idempotency_key and str(idempotency_key)

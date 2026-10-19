@@ -6,28 +6,28 @@ type ProgressGradient = { from: string; to: string; glow?: string }
 
 /** @type {Record<string, ProgressGradient>} */
 const PROGRESS_VARIANTS: Record<string, ProgressGradient> = {
-  accent: { from: '#ffd9a0', to: '#ffc46a', glow: 'rgba(255, 196, 106, 0.45)' }, // 主强调色（暖铜）
-  success: { from: '#3ddc97', to: '#2bbf82', glow: 'rgba(61, 220, 151, 0.42)' }, // 成功/正向
-  warn: { from: '#ffb020', to: '#ff8f3d', glow: 'rgba(255, 176, 32, 0.42)' }, // 警告
-  danger: { from: '#ff5a5f', to: '#ff8a8e', glow: 'rgba(255, 90, 95, 0.46)' }, // 危险/超额
-  info: { from: '#59d3c0', to: '#3fb8a6', glow: 'rgba(89, 211, 192, 0.4)' }, // 信息提示
-  green: { from: '#3ddc97', to: '#2bbf82', glow: 'rgba(61, 220, 151, 0.4)' }, // 绿色（通用）
-  amber: { from: '#ffb020', to: '#ff8f3d', glow: 'rgba(255, 176, 32, 0.4)' }, // 琥珀/橙黄
-  blue: { from: '#ffd9a0', to: '#ffc46a', glow: 'rgba(255, 196, 106, 0.4)' }, // 蓝色（保留 key，视觉归入主强调）
-  teal: { from: '#59d3c0', to: '#3fb8a6', glow: 'rgba(89, 211, 192, 0.4)' }, // 青色
-  purple: { from: '#e09523', to: '#ffc46a', glow: 'rgba(224, 149, 35, 0.4)' }, // 紫色（保留 key，视觉归入暖铜深色）
-  orange: { from: '#ffb020', to: '#ff8f3d', glow: 'rgba(255, 176, 32, 0.44)' }, // 橙色
-  sync: { from: '#ffb020', to: '#ffd9a0', glow: 'rgba(255, 176, 32, 0.4)' }, // 同步任务
-  media: { from: '#ffd9a0', to: '#ffc46a', glow: 'rgba(255, 196, 106, 0.4)' }, // 影视/媒体
-  emerald: { from: '#3ddc97', to: '#2bbf82', glow: 'rgba(61, 220, 151, 0.4)' }, // 翠绿
-  cpu: { from: '#3ddc97', to: '#2bbf82', glow: 'rgba(61, 220, 151, 0.35)' }, // CPU 使用率
-  mem: { from: '#ffd9a0', to: '#ffc46a', glow: 'rgba(255, 196, 106, 0.35)' }, // 内存使用率
+  accent: { from: '#0A84FF', to: '#5AC8FA', glow: 'rgba(10, 132, 255, 0.45)' }, // 主强调色（蓝）
+  success: { from: '#30D158', to: '#34C759', glow: 'rgba(48, 209, 88, 0.45)' }, // 成功/正向
+  warn: { from: '#FF9F0A', to: '#FFCC00', glow: 'rgba(255, 159, 10, 0.45)' }, // 警告
+  danger: { from: '#FF3B30', to: '#FF6961', glow: 'rgba(255, 59, 48, 0.5)' }, // 危险/超额
+  info: { from: '#64D2FF', to: '#5AC8FA', glow: 'rgba(100, 210, 255, 0.4)' }, // 信息提示
+  green: { from: '#30D158', to: '#34D399', glow: 'rgba(48, 209, 88, 0.4)' }, // 绿色（通用）
+  amber: { from: '#FF9F0A', to: '#FFCC00', glow: 'rgba(255, 159, 10, 0.4)' }, // 琥珀/橙黄
+  blue: { from: '#0A84FF', to: '#64D2FF', glow: 'rgba(10, 132, 255, 0.4)' }, // 蓝色（通用）
+  teal: { from: '#5AC8FA', to: '#2DD4BF', glow: 'rgba(90, 200, 250, 0.4)' }, // 青色
+  purple: { from: '#5856D6', to: '#AF52DE', glow: 'rgba(88, 86, 214, 0.4)' }, // 紫色
+  orange: { from: '#FF9500', to: '#FF6B00', glow: 'rgba(255, 149, 0, 0.45)' }, // 橙色
+  sync: { from: '#FF9F0A', to: '#FFB340', glow: 'rgba(255, 159, 10, 0.4)' }, // 同步任务
+  media: { from: '#0A84FF', to: '#5AC8FA', glow: 'rgba(10, 132, 255, 0.4)' }, // 影视/媒体
+  emerald: { from: '#30D158', to: '#34D399', glow: 'rgba(48, 209, 88, 0.4)' }, // 翠绿
+  cpu: { from: '#30D158', to: '#34C759', glow: 'rgba(48, 209, 88, 0.35)' }, // CPU 使用率
+  mem: { from: '#0A84FF', to: '#64D2FF', glow: 'rgba(10, 132, 255, 0.35)' }, // 内存使用率
   white: { from: '#ffffff', to: 'rgba(255,255,255,0.85)' }, // 白色（无辉光）
-  indigo: { from: '#ffd9a0', to: '#ffc46a', glow: 'rgba(255, 196, 106, 0.4)' }, // 靛蓝（保留 key，视觉归入主强调）
-  loading: { from: '#59d3c0', to: '#3fb8a6', glow: 'rgba(89, 211, 192, 0.4)' }, // 加载中
-  timeline: { from: '#59d3c0', to: '#3fb8a6', glow: 'rgba(89, 211, 192, 0.35)' }, // 时间线
-  circuit: { from: '#ffd9a0', to: '#ffc46a', glow: 'rgba(255, 196, 106, 0.35)' }, // 电路/电力
-  red: { from: '#ff5a5f', to: '#ff8a8e', glow: 'rgba(255, 90, 95, 0.4)' }, // 红色（通用）
+  indigo: { from: '#6366f1', to: '#818cf8', glow: 'rgba(99, 102, 241, 0.4)' }, // 靛蓝
+  loading: { from: '#818cf8', to: '#a78bfa', glow: 'rgba(129, 140, 248, 0.4)' }, // 加载中
+  timeline: { from: '#5AC8FA', to: '#0A84FF', glow: 'rgba(90, 200, 250, 0.35)' }, // 时间线
+  circuit: { from: '#FFCC00', to: '#FF9F0A', glow: 'rgba(255, 204, 0, 0.35)' }, // 电路/电力
+  red: { from: '#FF3B30', to: '#FF6961', glow: 'rgba(255, 59, 48, 0.4)' }, // 红色（通用）
 }
 
 /** Builder 滑块常用单色 → 渐变 */

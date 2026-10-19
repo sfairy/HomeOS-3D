@@ -11,7 +11,7 @@
 
 .eew-slide-hint {
   margin: 0 0 0.65rem;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -28,7 +28,7 @@
   position: relative;
   width: 100%;
   height: var(--track-h);
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   overflow: hidden;
   cursor: grab;
   user-select: none;
@@ -167,7 +167,7 @@
   color: #fff;
   pointer-events: none;
   z-index: 2;
-  background: linear-gradient(145deg, var(--hos-color-danger) 0%, var(--hos-color-danger) 42%, #b91c1c 100%);
+  background: linear-gradient(145deg, #f87171 0%, #ef4444 42%, #b91c1c 100%);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.35),
     0 6px 18px rgb(239 68 68 / 0.45),
@@ -218,7 +218,7 @@
   justify-content: center;
   padding-left: calc(var(--handle) + 8px);
   padding-right: 46px;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: transparent;
@@ -287,7 +287,7 @@
   }
 
   .eew-slide-label {
-    font-size: var(--hos-fs-2);
+    font-size: var(--premium-fs-micro);
     letter-spacing: 0.04em;
   }
 }

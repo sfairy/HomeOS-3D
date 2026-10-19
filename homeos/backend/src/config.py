@@ -418,7 +418,7 @@ class Settings:
     @property
     def version(self) -> str:
         # 与包级 ``load_app_version`` 对齐：镜像里没有 package.json，靠烘入的 ``_version``。
-        from . import load_app_version
+        from .version import load_app_version
 
         return load_app_version()
 

@@ -274,6 +274,9 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
             JSON.stringify({
               type: "subscribe",
               entityIds: runtimeSubscriptionOptions.entityIds,
+              // 服务端据此决定是否把同一瞬间的多条状态合并成一帧（旧缓存不认识批量帧，
+              // 所以必须显式协商，不能默认开启）。
+              supportsStateBatch: true,
             }),
           ));
       }),
@@ -292,6 +295,25 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
             },
             "实时状态消息格式异常",
           )!;
+          return;
+        }
+        if (runtimeMessage.type === "ha_status") {
+          // 墙屏与仪表盘共用同一个 HA 连接：这条帧是「中枢失联」与「设备真的关了」
+          // 的唯一区分依据。状态为 connected 时强制补一次快照以外的水合（断线期间
+          // 发生的变更不会补发，重连后的快照会覆盖，这里只需要刷新展示态）。
+          const haStatus = String(runtimeMessage.status || "");
+          this.runtimeHaConnected = haStatus === "connected";
+          this.options.onRuntimeHaStatus?.(haStatus, runtimeMessage);
+          window.dispatchEvent?.(
+            new CustomEvent("hb-ha-status", {
+              detail: { status: haStatus, payload: runtimeMessage },
+            }),
+          );
+          if (haStatus !== "connected") {
+            // 断线期间数值会冻结：暂停依赖连续状态变化的流线动画，并标记快照需要重建，
+            // 避免界面把旧值当成实时值继续演绎。
+            this.pauseRuntimeFlowLines();
+          }
           return;
         }
         if (runtimeMessage.type === "snapshot") {
@@ -407,44 +429,15 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
                 });
             else {
               if (runtimeMessage.type === "state_changed") {
-                if (!this.optimisticStateIsConfirmed(runtimeMessage.entityId, runtimeMessage))
-                  return;
-                const eventLogWallPreviousState = this.states.get(runtimeMessage.entityId);
-                if (
-                  (this.removedRuntimeEntityIds.has(runtimeMessage.entityId) &&
-                    (this.historyRequestPolicy?.success(runtimeMessage.entityId),
-                    window.dispatchEvent?.(
-                      new CustomEvent("hb-runtime-ready", {
-                        detail: {
-                          entityIds: [runtimeMessage.entityId],
-                        },
-                      }),
-                    )),
-                  this.rememberLightVisualState(runtimeMessage.entityId, runtimeMessage),
-                  this.removedRuntimeEntityIds.delete(runtimeMessage.entityId),
-                  this.states.set(runtimeMessage.entityId, runtimeMessage),
-                  this.options.onRuntimeStateChange?.([runtimeMessage]),
-                  this.tryOpenPendingEntityDetails(),
-                  this.refreshVacuumMapEntity(runtimeMessage.entityId),
-                  this.detailsStateSync?.handlers?.has(runtimeMessage.entityId))
-                ) {
-                  for (const detailsHandler of this.detailsStateSync!.handlers.get(
-                    runtimeMessage.entityId,
-                  ))
-                    detailsHandler(runtimeMessage.newState || runtimeMessage);
-                } else
-                  this.detailsStateSync?.entityId === runtimeMessage.entityId &&
-                    this.detailsStateSync!.apply(runtimeMessage.newState || runtimeMessage);
-                (this.applyRuntimeStateHandlers(
-                  runtimeMessage.entityId,
-                  runtimeMessage.newState || runtimeMessage,
-                ),
-                  this.pushEventLogWallEntries(
-                    runtimeMessage.entityId,
-                    eventLogWallPreviousState,
-                    runtimeMessage.newState || runtimeMessage,
-                  ),
-                  this.scheduleRuntimeRender(runtimeMessage.entityId));
+                applyRuntimeStateEvent(this, runtimeMessage);
+              } else if (
+                runtimeMessage.type === "state_changed_batch" &&
+                Array.isArray(runtimeMessage.events)
+              ) {
+                // 同一次场景切换 / 全屋开关的多条状态被服务端合并成一帧：
+                // 逐条套用与单条帧完全相同的落点逻辑，只是省掉了 N-1 次 JSON 解析与调度。
+                for (const batchedStateEvent of runtimeMessage.events)
+                  applyRuntimeStateEvent(this, batchedStateEvent);
               }
             }
           }
@@ -454,6 +447,7 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
         if (socketGeneration !== this.socketGeneration || this.destroyed) return;
         if (
           (this.pauseRuntimeFlowLines(),
+          (this.runtimeHaConnected = false),
           (this.socket = null),
           (this.runtimeSubscription = null),
           window.clearTimeout(this.runtimeHydrationRetryTimer!),
@@ -491,7 +485,13 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
           this.options.onError?.(new Error(socketErrorText));
           return;
         }
-        const reconnectDelayMs = Math.min(1000 * 2 ** this.reconnectAttempt, 15000);
+        // 指数退避加抖动：全屋多块墙屏 + 手机在同一个 HA 重启后往往同时重连，
+        // 固定间隔会让它们每一轮都撞在同一时刻（同刻 SYN、同刻超时），把恢复拖慢。
+        // 抖动只向下取 0.5~1.0，因此等待时间永远不会超过 15s 上限。
+        const reconnectDelayMs = Math.max(
+          200,
+          Math.round(Math.min(1000 * 2 ** this.reconnectAttempt, 15000) * (0.5 + Math.random() * 0.5)),
+        );
         ((this.reconnectAttempt += 1),
           (this.reconnectTimer = window.setTimeout(() => this.connectRuntime(), reconnectDelayMs)));
       }),
@@ -499,3 +499,45 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
         webSocket.readyState === WebSocket.OPEN && webSocket.close();
       }));
   }
+
+/**
+ * 套用一条 `state_changed`（单条帧与批量帧共用）。
+ *
+ * 抽出来的目的是让服务端可以把一次场景切换的 N 条状态合并成一帧下发，而落点逻辑
+ * （乐观态确认、光效记忆、详情面板、事件日志、组件重绘）与逐条推送时完全一致。
+ */
+function applyRuntimeStateEvent(self: PanelRenderer, runtimeMessage: any) {
+  if (!self.optimisticStateIsConfirmed(runtimeMessage.entityId, runtimeMessage)) return;
+  const previousState = self.states.get(runtimeMessage.entityId);
+  const wasRemoved = self.removedRuntimeEntityIds.has(runtimeMessage.entityId);
+  if (wasRemoved) {
+    self.historyRequestPolicy?.success(runtimeMessage.entityId);
+    window.dispatchEvent?.(
+      new CustomEvent("hb-runtime-ready", {
+        detail: { entityIds: [runtimeMessage.entityId] },
+      }),
+    );
+  }
+  (self.rememberLightVisualState(runtimeMessage.entityId, runtimeMessage),
+    self.removedRuntimeEntityIds.delete(runtimeMessage.entityId),
+    self.states.set(runtimeMessage.entityId, runtimeMessage),
+    self.options.onRuntimeStateChange?.([runtimeMessage]),
+    self.tryOpenPendingEntityDetails(),
+    self.refreshVacuumMapEntity(runtimeMessage.entityId));
+  if (self.detailsStateSync?.handlers?.has(runtimeMessage.entityId)) {
+    for (const detailsHandler of self.detailsStateSync!.handlers.get(runtimeMessage.entityId))
+      detailsHandler(runtimeMessage.newState || runtimeMessage);
+  } else if (self.detailsStateSync?.entityId === runtimeMessage.entityId) {
+    self.detailsStateSync!.apply(runtimeMessage.newState || runtimeMessage);
+  }
+  (self.applyRuntimeStateHandlers(
+    runtimeMessage.entityId,
+    runtimeMessage.newState || runtimeMessage,
+  ),
+    self.pushEventLogWallEntries(
+      runtimeMessage.entityId,
+      previousState,
+      runtimeMessage.newState || runtimeMessage,
+    ),
+    self.scheduleRuntimeRender(runtimeMessage.entityId));
+}

@@ -54,6 +54,11 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
+#: `/ws/runtime` 出站合并窗口（秒）。只吸收「同一瞬间到达」的事件（场景切换 / 全屋开关），
+#: 小于一帧（16ms），不会让单条状态更新多等一帧。
+RUNTIME_STATE_BATCH_WINDOW_SECONDS = 0.012
+#: 出站合并的「探测窗口」：先只等这么久判断是否处于突发，孤立事件只付这点延迟。
+RUNTIME_DRAIN_PROBE_SECONDS = 0.002
 
 
 def _runtime_access_cache_seconds(websocket: WebSocket) -> float:
@@ -964,6 +969,49 @@ class _RuntimeSubscriptionState:
         self.queue = queue
         self.entity_ids: set[str] = set()
         self.watching = False
+        #: 客户端是否声明能处理 ``state_changed_batch``（新前端在 subscribe 帧里带上）。
+        #: 旧的 SPA 缓存不认识批量帧，所以批量下发必须显式协商，否则会静默不更新。
+        self.supports_state_batch = False
+
+
+async def _drain_runtime_queue(queue: Any) -> list[dict]:
+    """在合并窗口内把队列里已经到达的事件一次性取空。
+
+    分两段等，避免给「稳态下的孤立事件」白加 12ms：
+
+    - 第一段只等 ``RUNTIME_DRAIN_PROBE_SECONDS``（2ms）：这一小段就能判断出当前是否
+      处于突发（场景切换 / 全屋开关会把几十上百条同步塞进队列）；
+    - 一旦确认有后续事件，再放宽到 ``RUNTIME_STATE_BATCH_WINDOW_SECONDS``（12ms），
+      把整波都收进来按实体合并；收不到就立即返回，不再等满窗口。
+    """
+    events: list[dict] = []
+    deadline = time.monotonic() + RUNTIME_STATE_BATCH_WINDOW_SECONDS
+    probing = True
+    while True:
+        wait = RUNTIME_DRAIN_PROBE_SECONDS if probing else deadline - time.monotonic()
+        if wait <= 0:
+            return events
+        try:
+            events.append(await asyncio.wait_for(queue.get(), timeout=wait))
+        except TimeoutError:
+            return events
+        probing = False
+
+
+def _merge_runtime_state_events(events: list[dict]) -> list[dict]:
+    """按实体合并：同一实体只保留窗口内的最后一条，非状态事件保持原顺序。"""
+    merged: list[dict] = []
+    positions: dict[str, int] = {}
+    for event in events:
+        if event.get('type') == 'state_changed':
+            entity_id = str(event.get('entityId') or '')
+            if entity_id and entity_id in positions:
+                merged[positions[entity_id]] = event
+                continue
+            if entity_id:
+                positions[entity_id] = len(merged)
+        merged.append(event)
+    return merged
 
 
 async def _runtime_subscribe_and_stream(
@@ -980,6 +1028,7 @@ async def _runtime_subscribe_and_stream(
         return
     entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
     subscription.entity_ids = entity_ids
+    subscription.supports_state_batch = subscribe.get('supportsStateBatch') is True
     if len(entity_ids) > MAX_RUNTIME_ENTITIES:
         await close_with_log(4400, 'too many entities')
         return
@@ -991,6 +1040,14 @@ async def _runtime_subscribe_and_stream(
         """推送初始快照，然后持续转发状态事件并保活。"""
         initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
         if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
+            return
+        # 首个状态帧必须无条件下发（不依赖订阅队列里是否残留过事件）：墙屏需要立刻知道
+        # 中枢此刻是否在线，否则「HA 掉线」与「设备关着」在界面上完全一样。
+        connector = websocket.app.state.studio_ha
+        if not await send_licensed({
+            'type': 'ha_status',
+            'status': 'connected' if connector.connected else 'disconnected',
+        }):
             return
         # 状态补全是「尽力而为」：初始快照已经发出，补全失败不该拆掉整条实时推送。
         # ensure_entity_states 内部已逐实体容错并带退避重试，这里再兜一层，防的是
@@ -1016,8 +1073,25 @@ async def _runtime_subscribe_and_stream(
                 if not await send_licensed({'type': 'ping'}):
                     return
                 continue
-            if not await send_licensed(event):
-                return
+            # 出站合并：一次场景切换/全屋开关会在同一瞬间产生几十上百条状态事件，
+            # 逐条一帧会让墙屏解析 + 逐组件重绘的成本被放大同样的倍数。
+            # 这里只等一个 12ms 的网络抖动级窗口（比一帧 16ms 还短），
+            # 然后按实体取最后一条，把「N 条同一实体的中间态」压成一条。
+            batch = [event] + await _drain_runtime_queue(subscription.queue)
+            merged = _merge_runtime_state_events(batch)
+            state_events = [item for item in merged if item.get('type') == 'state_changed']
+            for item in merged:
+                if item.get('type') == 'state_changed':
+                    continue
+                if not await send_licensed(item):
+                    return
+            if len(state_events) >= 2 and subscription.supports_state_batch:
+                if not await send_licensed({'type': 'state_changed_batch', 'events': state_events}):
+                    return
+                continue
+            for item in state_events:
+                if not await send_licensed(item):
+                    return
         return
 
     async def receive_disconnect() -> None:

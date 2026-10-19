@@ -8,38 +8,38 @@
 
 .bind-section__eyebrow {
   margin: 0 0 4px;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--hos-color-accent);
+  color: var(--page-accent-text);
   opacity: 0.85;
 }
 
 .bind-section__title {
   margin: 0;
-  font-size: var(--hos-fs-5);
+  font-size: var(--premium-fs-body, 14px);
   font-weight: 800;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .bind-section__desc {
   margin: 6px 0 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro, 11px);
   line-height: 1.45;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   max-width: 42rem;
 }
 
 .bind-section__badge {
   flex-shrink: 0;
   padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 .bind-cam-list {
@@ -50,9 +50,9 @@
 
 .bind-cam-card {
   padding: 14px;
-  border-radius: var(--hos-r-2);
-  background: linear-gradient(160deg, var(--hos-color-accent-soft) 0%, rgba(0, 0, 0, 0.2) 100%);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  border-radius: var(--hos-radius-card, 14px);
+  background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border: var(--hos-hairline) solid var(--page-accent-border);
   transition:
     border-color 0.2s ease,
     transform 0.2s ease,
@@ -60,9 +60,9 @@
 }
 
 .bind-cam-card:hover {
-  border-color: rgba(var(--hos-color-accent-rgb), 0.34);
+  border-color: rgba(var(--page-accent-rgb), 0.34);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--hos-glow-accent-soft);
+  box-shadow: 0 4px 12px var(--page-accent-glow);
 }
 
 .bind-cam-card__head {
@@ -79,12 +79,12 @@
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  border-radius: var(--hos-r-2);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-micro);
   font-weight: 800;
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft-strong);
-  border: var(--hos-hairline) solid var(--hos-color-accent-line);
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border: var(--hos-hairline) solid var(--page-accent-border);
 }
 
 .bind-cam-card__delete {
@@ -94,18 +94,18 @@
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   color: rgba(253, 164, 175, 0.88);
-  background: rgba(var(--hos-color-danger-rgb), 0.08);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.2);
+  background: rgba(251, 113, 133, 0.08);
+  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.2);
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
 }
 
 .bind-cam-card__delete:hover {
-  background: rgba(var(--hos-color-danger-rgb), 0.14);
-  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
+  background: rgba(251, 113, 133, 0.14);
+  border-color: rgba(251, 113, 133, 0.32);
 }
 
 .bind-cam-card__go2rtc {
@@ -118,11 +118,11 @@
 .bind-cam-go2rtc-input {
   width: 100%;
   padding: 8px 12px;
-  border-radius: var(--hos-r-1);
-  font-size: var(--hos-fs-3);
-  color: var(--hos-fg-1);
+  border-radius: var(--hos-radius-control, 10px);
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-primary);
   background: rgba(0, 0, 0, 0.2);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   outline: none;
   transition:
     border-color 0.15s ease,
@@ -134,15 +134,15 @@
 }
 
 .bind-cam-go2rtc-input:focus {
-  border-color: var(--hos-color-accent-line);
+  border-color: var(--page-accent-border);
   background: rgba(0, 0, 0, 0.28);
 }
 
 .bind-cam-go2rtc-hint {
   margin: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   line-height: 1.5;
-  color: var(--hos-fg-3);
+  color: var(--hos-text-tertiary, rgba(255, 255, 255, 0.45));
 }
 
 .bind-cam-card__roles {
@@ -156,12 +156,12 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--hos-line-3);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
@@ -174,15 +174,15 @@
 }
 
 .bind-cam-role--doorbell {
-  color: var(--hos-color-warning-text);
-  background: var(--hos-color-warning-soft);
-  border-color: var(--hos-color-warning-line);
+  color: var(--set-warn);
+  background: var(--set-warn-bg);
+  border-color: var(--set-warn-border);
 }
 
 .bind-cam-role--default {
-  color: var(--hos-color-accent);
-  background: var(--hos-color-accent-soft-strong);
-  border-color: var(--hos-color-accent-line);
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border-color: var(--page-accent-border);
 }
 
 .bind-cam-empty {
@@ -191,22 +191,22 @@
   align-items: center;
   gap: 8px;
   padding: var(--hos-space-3xl, 32px) var(--hos-space-xl, 20px);
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card, 14px);
   background: rgba(0, 0, 0, 0.15);
-  border: var(--hos-hairline) dashed var(--hos-color-accent-line);
+  border: var(--hos-hairline) dashed var(--page-accent-border);
   text-align: center;
 }
 
 .bind-cam-empty__icon {
   width: 32px;
   height: 32px;
-  color: var(--hos-color-accent);
+  color: var(--page-accent-text);
   opacity: 0.55;
 }
 
 .bind-cam-empty__title {
   margin: 0;
-  font-size: var(--hos-fs-4);
+  font-size: var(--premium-fs-body-sm, 13px);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -214,9 +214,9 @@
 .bind-cam-empty__desc {
   margin: 0;
   max-width: 280px;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   line-height: 1.5;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 

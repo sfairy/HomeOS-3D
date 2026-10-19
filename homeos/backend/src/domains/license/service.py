@@ -17,9 +17,16 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
-from . import features as feature_codes
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpoint, LicenseEndpointPool
+from .features import (
+    FEATURE_EDITOR,
+    FEATURE_INTERACTION_3D,
+    MODULE_FEATURES,
+    active_entitlement_codes,
+    expand,
+    granted,
+)
 from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
@@ -171,8 +178,6 @@ class LicenseClientError(RuntimeError):
         """
         return self.status_code in {403, 409} and self.code in ACCESS_EXPIRED_CODES
 
-
-BASE_FEATURES = feature_codes.BASE_FEATURES
 
 MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
 RATE_LIMIT_COOLDOWN_SECONDS = 120.0
@@ -1213,28 +1218,28 @@ class LicenseService:
         """装配 ``/status`` 响应体（含能力码、商品、重试字段）。"""
         effective_status, effective_error, allowed = status_triple
         lease_features, visible_products, entitlements = lease_bundle
-        entitlement_codes = feature_codes.active_entitlement_codes(entitlements, now=now)
-        granted_codes = feature_codes.expand(
+        entitlement_codes = active_entitlement_codes(entitlements, now=now)
+        granted_codes = expand(
             feature_code for feature_code in lease_features if isinstance(feature_code, str)
         )
 
         def _granted(code: str) -> bool:
             """单码判定：未验证通过（无授权 / 校验失败）时一律 false。
 
-            直接委托 ``feature_codes.granted``（路由门禁 ``require_license_feature`` 的同一实现）。
+            直接委托 ``features.granted``（路由门禁 ``require_license_feature`` 的同一实现）。
             """
             if not (state.license_id and allowed):
                 return False
-            return feature_codes.granted(lease_features, entitlements, code, now=now)
+            return granted(lease_features, entitlements, code, now=now)
 
         # 面板展示「这台上现在可用的码」：租约 features 与权益码的并集，再逐码过同一判定。
         # 目录里没有的未知码也如实列出（商店签了新码时便于排查），可见性由 allowed 收口。
-        available_codes = granted_codes | feature_codes.expand(entitlement_codes)
+        available_codes = granted_codes | expand(entitlement_codes)
         visible_features = [code for code in sorted(available_codes) if _granted(code)]
         return {
             'required': self.settings.license_required,
             'allowed': allowed,
-            'editorAllowed': _granted(feature_codes.FEATURE_EDITOR),
+            'editorAllowed': _granted(FEATURE_EDITOR),
             'status': effective_status,
             'statusLabel': STATUS_LABELS.get(effective_status, effective_status),
             'instanceId': state.instance_id,
@@ -1254,12 +1259,12 @@ class LicenseService:
             ) if allowed else None,
             'features': visible_features if allowed else [],
             'featureAccess': {
-                'editor': _granted(feature_codes.FEATURE_EDITOR),
-                'interaction3d': _granted(feature_codes.FEATURE_INTERACTION_3D),
+                'editor': _granted(FEATURE_EDITOR),
+                'interaction3d': _granted(FEATURE_INTERACTION_3D),
                 # 增量模块统一展开：前端导航/视图按标志显隐，不必各自硬编码码串。
                 **{
                     code: _granted(code)
-                    for code in sorted(feature_codes.MODULE_FEATURES)
+                    for code in sorted(MODULE_FEATURES)
                 },
             },
             'products': visible_products if allowed else [],
@@ -1385,7 +1390,7 @@ class LicenseService:
         if feature is None:
             return True
         # 判定只走 features.granted（``all`` 展开 + 蕴含 + 未过期 entitlements）。
-        return feature_codes.granted(features, body.get('entitlements'), feature, now=now)
+        return granted(features, body.get('entitlements'), feature, now=now)
 
     def invalidate_allow_cache(self) -> None:
         self._allow_cache.clear()

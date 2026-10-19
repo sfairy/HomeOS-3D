@@ -6,13 +6,13 @@
   属性 DeviceAttrsPanel；空态分为「未指定 id」「HA 未连接」「实体不存在」三档 VEmptyState 兜底。
   视图模型：全部领域逻辑（路由 ?id= 解析、实体 hydrate、域/状态/房间派生、关联实体聚合、
   Tab 与 query 同步、复制/控制动作）已收敛到 `@/features/device` 的 useDeviceDetailView，
-  本文件只保留模板与主题注入（主色走 canonical 令牌）。
+  本文件只保留模板与主题注入（--page-accent 为 devices sky 主题）。
   注意事项：Tab 切换不触发额外请求（按需 visible 控制子面板自更新）；
   当 HA 未连接但实体缺失时给出「等待连接」文案而非直接报错。
 -->
 <template>
-  <div class="list-page device-detail-view">
-    <ListPageHero v-if="entityId" :title="entityName" :hint="entityId">
+  <div class="list-page device-detail-view" :style="pageAccentStyle">
+    <ListPageHero v-if="entityId" :title="entityName" :hint="entityId" tone="sky">
       <template #icon>
         <Cpu class="w-5 h-5" />
       </template>
@@ -146,9 +146,17 @@ import {
 } from '@/features/device'
 
 /**
- * 页面主色跟随 canonical 暖铜：派生色（soft / line / glow）由
- * app-premium-tokens.css 的 :where(.list-page …) 块按主色重新求值。
+ * 页面主色注入（DeviceDetail 与 Devices 共用 sky 主题）
+ * 通过 :style 在根元素注入 --page-accent / --page-accent-rgb，
+ * 配合 list-page-views.css 与 devices-theme.css 中已有的 var(--page-accent) 引用，
+ * 并在 scoped CSS 中派生 --page-accent-bg/border/glow/text 与 --set-* 语义色。
  */
+const pageAccentStyle = {
+  '--page-accent': 'var(--module-accent-devices)',
+  '--page-accent-rgb': 'var(--module-accent-devices-rgb)',
+  '--page-accent-secondary': 'var(--module-accent-devices-sub)',
+  '--page-accent-secondary-rgb': 'var(--module-accent-devices-sub-rgb)',
+} as Record<string, string>
 
 const {
   entitiesStore,

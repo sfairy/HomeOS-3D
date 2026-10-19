@@ -4,6 +4,8 @@ export type PanelRendererOptions = {
   /** 本次渲染发生在编辑器工作区（而非运行态），组件可按它切换落点/交互密度。 */
   editorWorkspace?: boolean;
   onError?: (error: any) => void;
+  /** `/ws/runtime` 推送的 HA 中枢连接状态（connected / disconnected / reconnecting）。 */
+  onRuntimeHaStatus?: (status: string, payload: any) => void;
   onRuntimeButtonPress?: (element: Element) => void;
   [key: string]: any;
 };

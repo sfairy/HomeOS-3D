@@ -41,7 +41,14 @@ const {
 </script>
 
 <template>
-  <div class="list-page notifications-view">
+  <div
+    class="list-page notifications-view"
+    :style="{
+      '--page-accent': '#f472b6',
+      '--page-accent-rgb': '244, 114, 182',
+      '--page-accent-secondary': '#fb7185',
+    }"
+  >
     <NotificationsViewHero
       :page-hint="pageHint"
       :summary-metrics="summaryMetrics"

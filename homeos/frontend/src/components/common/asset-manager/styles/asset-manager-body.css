@@ -6,7 +6,7 @@
   overflow: hidden;
   padding: 10px 14px;
   scrollbar-width: thin;
-  scrollbar-color: var(--hos-line-3) transparent;
+  scrollbar-color: var(--premium-border-strong) transparent;
 }
 
 .asset-body__state {
@@ -16,12 +16,12 @@
   justify-content: center;
   flex: 1;
   min-height: 200px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .asset-body__empty-icon {
   width: 72px; height: 72px;
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel);
   background: rgba(255,255,255,0.03);
   display: flex; align-items: center; justify-content: center;
   opacity: 0.4;
@@ -69,7 +69,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   transition: all 0.15s;
 }
 .asset-list-item:hover {
@@ -100,7 +100,7 @@
 
 /* 焦点环内收，避免被条目圆角裁掉；其余焦点可见性交给全局 :where(button):focus-visible */
 .asset-list-item__main:focus-visible {
-  outline: 2px solid rgba(var(--hos-color-accent-rgb), 0.75);
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
   outline-offset: -2px;
   border-radius: 6px;
 }
@@ -116,7 +116,7 @@
     linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.05) 75%);
   background-size: 8px 8px;
   background-position: 0 0, 0 4px, 4px -4px, -4px 0;
-  border: 1px solid var(--hos-line-2);
+  border: 1px solid var(--premium-border);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
@@ -135,14 +135,14 @@
 }
 
 .asset-list-item__name {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   color: #e2e8f0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .asset-list-item__meta {
-  font-size: var(--hos-fs-2);
-  color: var(--hos-fg-2);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
 }
 
 .asset-list-item__actions {
@@ -161,13 +161,13 @@
   width: 26px; height: 26px;
   border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   background: rgba(255,255,255,0.06);
   border: none; cursor: pointer;
   transition: all 0.15s;
 }
-.asset-list-action-btn:hover { background: rgba(var(--hos-color-accent-rgb),0.15); color: var(--hos-color-info-text); }
-.asset-list-action-btn--danger:hover { background: rgba(var(--hos-color-danger-rgb),0.15); color: var(--hos-color-danger-text); }
+.asset-list-action-btn:hover { background: rgba(59,130,246,0.15); color: #93c5fd; }
+.asset-list-action-btn--danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
 
 /*
  * 触控端：条目操作按钮原先只靠 :hover 显形，触屏永远等不到 hover —— 复制/删除

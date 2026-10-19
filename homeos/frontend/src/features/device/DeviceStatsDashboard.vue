@@ -358,9 +358,9 @@ onUnmounted(() => {
 
 <style scoped>
 .dsd-icon-info {
-  color: var(--hos-color-info-text);
+  color: var(--set-info, #7dd3fc);
 }
 .dsd-icon-violet {
-  color: var(--hos-color-accent);
+  color: var(--premium-accent-violet, #a78bfa);
 }
 </style>

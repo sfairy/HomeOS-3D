@@ -45,6 +45,7 @@ logger = logging.getLogger("homeos.event_log")
 
 from .event_log_report import (
     EventLogReportMixin,
+    EventLogStatsPayload,
     _full_event_row,
     _naive_utc,
     _report_now,
@@ -471,7 +472,7 @@ class EventLogService(EventLogReportMixin):
         restrictions: list[str] | None = None,
         entity_id: str | None = None,
         domain: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> EventLogStatsPayload:
         # 「现在」取家庭时区的墙钟并贯穿到聚合：分桶键是家庭时区文本，坐标轴必须同坐标。
         now = _report_now(self._ops)
         window_hours = self._clamp_query_hours(hours, 24)

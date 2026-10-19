@@ -22,14 +22,13 @@
 
 .notifications-view__query-grid {
   display: grid;
-  grid-template-columns: 140px 140px auto;
+  grid-template-columns: 140px 140px minmax(0, 1fr) auto;
   gap: 8px 10px;
   align-items: end;
 }
 
 .notifications-view__field--action {
   align-self: end;
-  justify-self: end;
 }
 
 .notifications-view__toolbar .hos-select__trigger.list-page__input {
@@ -40,9 +39,9 @@
 .notifications-view__stats-error {
   flex-shrink: 0;
   padding: 8px 12px;
-  border-radius: var(--hos-r-2);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.28);
-  background: rgba(var(--hos-color-danger-rgb), 0.08);
-  color: var(--hos-color-danger-text);
-  font-size: var(--hos-fs-3);
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  font-size: var(--premium-fs-caption);
 }

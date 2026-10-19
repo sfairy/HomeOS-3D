@@ -10,8 +10,9 @@ from uuid import uuid4
 
 import httpx
 
-from . import http_pool
 from .channels import display_name_for
+from .http_pool import DEFAULT_TIMEOUT_SECONDS
+from .http_pool import request as http_request
 from ..commerce import money
 from ..config import StoreSettings
 from ..core.models import Order, StoreSetting
@@ -197,11 +198,11 @@ class AlipayProvider:
 
         try:
             # 走共享连接池：同一进程内的查单 / 关单 / 退款复用连接，不再每次重新握手。
-            response = http_pool.request(
+            response = http_request(
                 "POST",
                 settings.alipay_gateway_url,
                 data=params,
-                timeout=http_pool.DEFAULT_TIMEOUT_SECONDS,
+                timeout=DEFAULT_TIMEOUT_SECONDS,
                 headers={"Content-Type": "application/x-www-form-urlencoded;charset=utf-8"},
             )
         except httpx.HTTPError as error:

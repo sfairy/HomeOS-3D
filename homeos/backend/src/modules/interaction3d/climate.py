@@ -109,7 +109,8 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         # TARGET_TEMPERATURE_RANGE = 2），或集成直接上报了 temperature / target_temp_* 属性。
         if (
             not supports(2 if is_range else 1, legacy)
-            or not all(_number(v) for v in (minimum, maximum))
+            or minimum is None
+            or maximum is None
             or minimum >= maximum
             or (raw_step is not None and (step is None or step <= 0))
         ):
@@ -139,6 +140,9 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         'swing_horizontal_mode': ('swing_horizontal_modes', 512),
         'preset_mode': ('preset_modes', 16),
     }
+    # 上面的参数白名单已保证：只有非开关服务才会走到这里，而它们在 CLIMATE_SERVICES 里
+    # 都有映射。断言只为让静态检查看到这一点，运行期不会触发（ruff S101 本就允许）。
+    assert field is not None
     attribute, feature = options[field]
     value, choices = data[field], string_options(attributes.get(attribute))
     if (

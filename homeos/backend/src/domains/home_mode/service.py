@@ -11,7 +11,14 @@ from typing import Any
 from sqlalchemy import func, select, update
 
 from . import presets as presets_module
-from .actions import HomeModeActivateState, activate_home_mode, deactivate_home_mode
+from .actions import (
+    HomeModeActivateResult,
+    HomeModeActivateState,
+    HomeModeDeactivateResult,
+    HomeModeSnapshotOutcome,
+    activate_home_mode,
+    deactivate_home_mode,
+)
 from .linkage import HomeModeLinkageArbiter
 from .runtime import (
     HomeModeRuntimeLogStore,
@@ -506,11 +513,13 @@ class HomeModeService:
         return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
 
     # 激活 / 停用
-    async def activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def activate(
+        self, mode_id: str, meta: dict[str, Any] | None = None
+    ) -> HomeModeActivateResult:
         async with self._transition_lock:
             return await activate_home_mode(self._activate_state, self._deps, mode_id, meta)
 
-    async def deactivate(self, mode_id: str | None = None) -> dict[str, Any]:
+    async def deactivate(self, mode_id: str | None = None) -> HomeModeDeactivateResult:
         async with self._transition_lock:
             return await deactivate_home_mode(self._activate_state, self._deps, mode_id)
 
@@ -603,7 +612,7 @@ class HomeModeService:
     def _switch_active_group(
         self,
         conflicting_modes: list[dict[str, Any]],
-        conflict_restore: dict[str, dict[str, Any]],
+        conflict_restore: dict[str, HomeModeSnapshotOutcome],
         mode_id: str,
         snapshot: dict[str, Any],
     ) -> None:
@@ -719,7 +728,7 @@ class _HomeModeDeps:
     async def switch_active_group(
         self,
         conflicting_modes: list[dict[str, Any]],
-        conflict_restore: dict[str, dict[str, Any]],
+        conflict_restore: dict[str, HomeModeSnapshotOutcome],
         mode_id: str,
         snapshot: dict[str, Any],
     ) -> None:

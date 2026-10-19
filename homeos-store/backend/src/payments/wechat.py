@@ -20,8 +20,8 @@ from uuid import uuid4
 
 import httpx
 
-from . import http_pool
 from .channels import display_name_for
+from .http_pool import request as http_request
 from .urls import callback_url_check
 from .wechat_signing import (
     WeChatPaymentError,
@@ -87,7 +87,7 @@ def _http_request(
 ) -> httpx.Response:
     """唯一的出口。测试把它换成桩函数，就能在没有商户号的情况下验证整条链路。"""
     # 走共享连接池（见 :mod:`src.payments.http_pool`）：查单 / 关单 / 退款不再每次重新握手。
-    return http_pool.request(method, url, content=content, headers=headers, timeout=timeout)
+    return http_request(method, url, content=content, headers=headers, timeout=timeout)
 
 
 @dataclass(frozen=True)

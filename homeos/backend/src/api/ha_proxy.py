@@ -116,6 +116,49 @@ class CameraSnapshotCacheEntry:
 camera_snapshot_cache: dict[str, CameraSnapshotCacheEntry] = {}
 camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
 
+#: 快照 / 短请求共享的连接池。
+#:
+#: ``hb_live=1`` 时墙屏每秒拉一帧，原来「每请求新建 ``AsyncClient``」等于每秒一次
+#: TCP + TLS 握手，HA 侧还会积一堆 TIME_WAIT。这里按 TLS 校验参数复用 keep-alive；
+#: 长连接的流式分支（camera_proxy_stream）仍然每请求独立 client —— 一条 MJPEG 流会
+#: 长期占住连接，放进共享池只会把池子撑爆。
+_SHARED_CLIENT_LIMITS = httpx.Limits(
+    max_connections=16,
+    max_keepalive_connections=8,
+    keepalive_expiry=30.0,
+)
+_shared_clients: dict[Any, httpx.AsyncClient] = {}
+
+
+def _shared_media_client(verify_tls: Any) -> httpx.AsyncClient:
+    """取（或惰性创建）按 TLS 参数分组的共享 client。
+
+    单事件循环模型：本模块的创建点在协程里，没有跨线程竞争。
+    """
+    client = _shared_clients.get(verify_tls)
+    if client is None or client.is_closed:
+        client = httpx.AsyncClient(
+            verify=verify_tls,
+            # 不设 client 级超时：每条请求各自带 timeout（快照很短、流式要无限）。
+            timeout=None,  # noqa: S113 - 逐请求超时，client 级必须为空
+            follow_redirects=False,
+            limits=_SHARED_CLIENT_LIMITS,
+        )
+        _shared_clients[verify_tls] = client
+    return client
+
+
+async def close_shared_media_clients() -> None:
+    """停机时关闭共享 client（连接池不关会在退出时留下未关闭的传输层警告）。"""
+    clients = list(_shared_clients.values())
+    _shared_clients.clear()
+    for client in clients:
+        try:
+            await client.aclose()
+        except Exception:
+            # 停机阶段没有补救动作：继续关下一个。
+            pass
+
 
 def upstream_path(request: Request) -> str:
     """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。
@@ -211,8 +254,8 @@ def load_authorized_camera_connection(database_manager: Database, viewer: Viewer
 
 async def _refresh_camera_snapshot(key: str, target: str, headers: Mapping[str, str], verify_tls: bool, timeout: float) -> None:
     try:
-        async with httpx.AsyncClient(verify=verify_tls, timeout=timeout, follow_redirects=False) as client:
-            upstream = await client.get(target, headers=dict(headers))
+        # 后台刷新同样走共享池：这是 hb_live 墙屏最频繁的一条路径。
+        upstream = await _shared_media_client(verify_tls).get(target, headers=dict(headers), timeout=timeout)
         if 200 <= upstream.status_code < 300 and upstream.content:
             _remember_camera_snapshot(key, upstream.content, upstream.headers.get('content-type', 'image/jpeg'))
     except httpx.HTTPError:
@@ -513,13 +556,26 @@ async def proxy_http(request: Request) -> Response:
                         raise HTTPException(status_code=502, detail='实时地图暂时无法刷新。')
                     cached = refreshed
             return _camera_snapshot_response(cached)
-    client = httpx.AsyncClient(
-        verify=client_config.verify_tls,
-        timeout=None if stream_response else client_config.timeout,
-        follow_redirects=False,
-    )
+    # 流式分支必须独占 client：一条 MJPEG 流会长期占住连接，不能塞进共享池。
+    # 快照 / 图片 / HLS 片段都是短请求，复用 keep-alive 省掉每秒一次的握手。
+    if stream_response:
+        client = httpx.AsyncClient(
+            verify=client_config.verify_tls,
+            # MJPEG 流本来就不该被总时长掐断：超时由观看端断开/任务取消来收尾。
+            timeout=None,  # noqa: S113 - 流式分支，见上
+            follow_redirects=False,
+        )
+        owns_client = True
+    else:
+        client = _shared_media_client(client_config.verify_tls)
+        owns_client = False
     try:
-        upstream_request = client.build_request(request.method, target, headers=headers)
+        upstream_request = client.build_request(
+            request.method,
+            target,
+            headers=headers,
+            timeout=None if stream_response else client_config.timeout,
+        )
         upstream = (
             await open_licensed_camera_stream(request, client, upstream_request)
             if stream_response
@@ -543,21 +599,25 @@ async def proxy_http(request: Request) -> Response:
         if snapshot_request and 200 <= upstream.status_code < 300 and content:
             _remember_camera_snapshot(snapshot_key, content, upstream.headers.get('content-type', 'image/jpeg'))
         await upstream.aclose()
-        await client.aclose()
+        if owns_client:
+            await client.aclose()
         return Response(content=content, status_code=upstream.status_code, headers=response_headers)
     except ClientDisconnect:
         # 观看端已经走了：上游不能因为没人接收而一直挂着。
-        with CancelScope(shield=True):
-            await client.aclose()
+        if owns_client:
+            with CancelScope(shield=True):
+                await client.aclose()
         return Response(status_code=204)
     except httpx.HTTPError as error:
-        await client.aclose()
+        if owns_client:
+            await client.aclose()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=f'无法载入 Home Assistant 后台：{error}'
         ) from error
     except BaseException:
-        with CancelScope(shield=True):
-            await client.aclose()
+        if owns_client:
+            with CancelScope(shield=True):
+                await client.aclose()
         raise
 
 

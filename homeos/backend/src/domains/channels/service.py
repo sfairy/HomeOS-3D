@@ -247,7 +247,7 @@ class ChannelsService:
     def _build_options(actor: Any) -> Any:
         from ..agent.service import AgentChatOptions
 
-        return AgentChatOptions(actor=actor)
+        return AgentChatOptions(actor=actor, entry="wecom")
 
 
 __all__ = ["MAX_HISTORY", "MAX_SESSIONS", "ChannelsService"]

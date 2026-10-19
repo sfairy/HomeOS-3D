@@ -17,6 +17,7 @@ from .client import (
     HAClientError,
     HASnapshot,
 )
+from .live_entities import build_state_seed
 from .service_contract import HAConnectorHost
 from .service_support import (
     INCREMENTAL_FLUSH_SECONDS,
@@ -36,6 +37,7 @@ from ....platform.core.models import (
     ProjectDraft,
     utc_now,
 )
+from ....platform.core.observability import record_ha_counter, record_ha_sync_latency
 
 
 class HASyncMixin(HAConnectorHost):
@@ -159,6 +161,43 @@ class HASyncMixin(HAConnectorHost):
     # 与 ``ha.connected`` / ``ha.disconnected`` / ``ha.reconnecting`` 事件。
     # 融合后本连接器是唯一 HA 连接，所以它必须是「HA 是否在线」的唯一事实源。
 
+    def schedule_reconcile(self, connection_id: str) -> None:
+        """把一次周期对账排到后台，收包循环立即返回去读下一帧。
+
+        实时链路的 SLA 由「recv 循环多快能把帧读出来」决定，而全量对账是最长的同步阻塞点
+        （建连 + get_states + 注册表 + 大事务）。这里改成 fire-and-forget：
+
+        - 同一时刻只允许一次对账在跑（重入直接跳过），避免慢对账排队堆积；
+        - 失败只记日志，下一轮周期 / 下一条实时事件都会自然补上；
+        - 停机时由 ``_stop_tasks`` 取消，不留下孤儿任务。
+        """
+        running = getattr(self, '_reconcile_task', None)
+        if isinstance(running, asyncio.Task) and not running.done():
+            return
+        self._reconcile_task = asyncio.create_task(
+            self._reconcile(connection_id), name = 'ha-reconcile'
+        )
+
+    async def _cancel_reconcile(self) -> None:
+        """取消在途的周期对账（重连 / 停机前调用），避免它和新一轮同步互相等锁。"""
+        reconcile = getattr(self, '_reconcile_task', None)
+        self._reconcile_task = None
+        if reconcile is None or reconcile.done():
+            return
+        reconcile.cancel()
+        await asyncio.gather(reconcile, return_exceptions = True)
+
+    async def _reconcile(self, connection_id: str) -> None:
+        record_ha_counter('reconcile')
+        try:
+            await self.sync_once(connection_id, reconciled = True)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # 对账失败不是致命错误：连接仍然活着，内存状态仍在实时更新，
+            # 下一轮（或下一次重连）会重新对账。这里只留 DEBUG，避免刷屏。
+            LOGGER.debug('HA 周期对账失败，下一轮重试', exc_info = True)
+
     async def sync_once(self, connection_id: str | None = None, reconciled: bool = False) -> dict[str, int]:
         async with self._sync_lock:
             if connection_id:
@@ -168,11 +207,15 @@ class HASyncMixin(HAConnectorHost):
             if connection is None:
                 raise HAClientError('请先配置 Home Assistant 连接。')
             await self._run_database(self._mark_sync_started, connection.id)
+            started = time.monotonic()
             try:
                 # 整段对账都在「变更追踪」窗口内：期间实时事件带来的状态更新会被记下，
                 # 让 replace 知道哪些实体的内存值比这份快照新，从而不被旧值覆盖。
                 async with self.state_hub.track_fetch_changes() as invalidated:
                     snapshot = await (await self.client_for(connection)).fetch_snapshot()
+                    # 给 subscribe_entities 解码器留一份「刚同步过什么」的轻量基线：
+                    # 重连后的首帧全量里，与它一致的实体不再重复派发，避免一次全屋广播。
+                    self._live_seed = build_state_seed(snapshot.states)
                     counts = await self._run_database(self._apply_snapshot, connection.id, snapshot, reconciled = reconciled)
                     # homeos 读模型的全量来源：StateHub 只保留 3D「watched」实体
                     # （见 refresh_persistent_entity_ids 的 retain），拿不到全量；
@@ -193,6 +236,10 @@ class HASyncMixin(HAConnectorHost):
                 if not self._initial_sync_logged:
                     self._log_event('success', '实体同步', f'''实体目录同步完成：{counts.get('entities', 0)} 个实体、{counts.get('devices', 0)} 个设备、{counts.get('areas', 0)} 个区域''')
                     self._initial_sync_logged = True
+                # 记录最近一次全量成功时刻：重连时据此决定能否跳过全量（fast reconnect）。
+                self._last_full_sync_at = time.monotonic()
+                record_ha_counter('full_sync')
+                record_ha_sync_latency('full_sync', (self._last_full_sync_at - started) * 1000)
                 return counts
             except Exception as error:
                 await self._run_database(self._safe_record_error, connection.id, str(error))

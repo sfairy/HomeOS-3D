@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -118,7 +118,7 @@ async def open_stream(
     content: bytes | str | None = None,
     timeout: float = EMBED_TIMEOUT,
     verify: bool = True,
-) -> AsyncIterator[httpx.Response]:
+) -> AsyncGenerator[httpx.Response]:
     """流式请求（内嵌反代透传大文件 / 媒体，不整体读入内存）。
 
     超时仅作用于连接 + 响应头阶段；已开始传输的 body 不受影响。

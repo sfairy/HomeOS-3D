@@ -308,6 +308,7 @@ class HomeModeActivateResult(TypedDict, total=False):
     results: list[Any]
     failedItems: list[Any]
     message: str
+    error: str
 
 
 class HomeModeDeactivateResult(TypedDict, total=False):
@@ -325,8 +326,12 @@ class HomeModeDeactivateResult(TypedDict, total=False):
     message: str
 
 
-class HomeModeSnapshotOutcome(TypedDict, total=False):
-    """快照恢复计数。"""
+class HomeModeSnapshotOutcome(TypedDict):
+    """快照恢复计数。
+
+    四个键总是同时写入（见 :func:`_restore_mode_snapshot`），故声明为必选：
+    调用方 ``outcome["restored"]`` 才不会被判成「可能缺失的键」。
+    """
 
     restored: int
     unchanged: int
@@ -409,7 +414,7 @@ async def _retry_failed_home_mode_actions(
 
 async def _reject_home_mode_without_ha(
     deps: Any, mode: dict[str, Any], trigger: _ModeTriggerContext, total_actions: int
-) -> dict[str, Any]:
+) -> HomeModeActivateResult:
     """HA 未连接时释放仲裁、记录日志并返回拒绝结果。"""
     deps.linkage_arbiter.release()
     deps.warn("Home Assistant 未连接,拒绝激活家庭模式")
@@ -435,7 +440,7 @@ async def _reject_home_mode_without_ha(
 
 async def _abort_failed_activation(
     deps: Any, state: HomeModeActivateState, activation: _ActivationContext
-) -> dict[str, Any]:
+) -> HomeModeActivateResult:
     """全部动作失败：回滚快照、取消激活并记录失败历史。"""
     mode = activation.mode
     trigger = activation.trigger
@@ -487,7 +492,7 @@ async def _abort_failed_activation(
 
 async def _finalize_home_mode_activation(
     deps: Any, activation: _ActivationContext, final_success: int
-) -> dict[str, Any]:
+) -> HomeModeActivateResult:
     """记录激活成功事件 / 触发日志 / 执行历史，并返回激活结果。"""
     mode = activation.mode
     trigger = activation.trigger
@@ -543,7 +548,7 @@ async def _finalize_home_mode_activation(
 
 async def activate_home_mode(
     state: HomeModeActivateState, deps: Any, mode_id: str, meta: dict[str, Any] | None = None
-) -> dict[str, Any]:
+) -> HomeModeActivateResult:
     mode = await deps.find_mode(mode_id)
     if mode is None:
         not_found(api_error("HOME_MODE_NOT_FOUND"))
@@ -590,7 +595,7 @@ async def activate_home_mode(
         for active in active_modes
         if active["id"] != mode_id and (active.get("exclusiveGroup") or "default") == incoming_group
     ]
-    conflict_restore: dict[str, dict[str, Any]] = {}
+    conflict_restore: dict[str, HomeModeSnapshotOutcome] = {}
     for active in conflicting_modes:
         conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
 

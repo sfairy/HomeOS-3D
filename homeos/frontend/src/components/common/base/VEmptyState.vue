@@ -36,14 +36,14 @@ const props = defineProps({
   description: { type: String, default: '' },
   /** 是否使用紧凑布局（减小间距） */
   compact: { type: Boolean, default: false },
-  /** 色调：accent | info | success | warning | danger | neutral（旧 tone 名继续映射到语义色） */
-  tone: { type: String, default: 'accent' },
+  /** 色调：sky | violet | emerald | amber | rose | indigo | neutral */
+  tone: { type: String, default: 'sky' },
 })
 
-// 解析色调：空值或 'default' 统一回退为品牌暖铜
+// 解析色调：空值或 'default' 统一回退为 'sky'
 const resolvedTone = computed(() => {
   const t = props.tone?.trim()
-  if (!t || t === 'default') return 'accent'
+  if (!t || t === 'default') return 'sky'
   return t
 })
 </script>

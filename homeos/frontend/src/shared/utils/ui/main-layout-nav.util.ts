@@ -23,7 +23,7 @@ import {
   NAV_TAB_PATHS,
   type NavTabPlacement,
 } from '@/shared/utils/layout/nav-tabs.util'
-import { resolveEmbedNavAccent } from '@/shared/utils/layout/embed-nav-theme.util'
+import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/shared/utils/layout/embed-nav-theme.util'
 import { embedIconMap } from '@/shared/utils/layout/embed-icons.util'
 
 /** 主布局各导航 Tab ID → 中文展示名映射 */
@@ -41,35 +41,29 @@ const MAIN_LAYOUT_NAV_LABELS: Record<string, string> = {
 }
 
 /**
- * 各导航 Tab ID → 主题强调色（canonical 暖铜令牌，仅用于 UI 强调，不可翻译）。
- * 未命中时回退到 var(--hos-color-accent)。
- */
-const NAV_ACCENT = 'var(--hos-color-accent)'
-
-/**
- * 内置导航统一使用暖铜主控色：不再为每个 Tab 配一套 iOS 色板。
- * 自定义嵌入页仍可在图标层保留用户强调色，但激活底/下划线统一。
+ * 各导航 Tab ID → 主题强调色（十六进制 CSS 色值，仅用于 UI 强调，不可翻译）。
+ * 未命中时回退到 #0A84FF。
  */
 const TAB_ACCENTS: Record<string, string> = {
-  dashboard: NAV_ACCENT,
-  devices: NAV_ACCENT,
-  scenes: NAV_ACCENT,
-  automations: NAV_ACCENT,
-  security: NAV_ACCENT,
-  events: NAV_ACCENT,
-  scripts: NAV_ACCENT,
-  notifications: NAV_ACCENT,
-  'earthquake-history': NAV_ACCENT,
-  media: NAV_ACCENT,
+  dashboard: '#0A84FF', // 总览
+  devices: '#64D2FF', // 设备
+  scenes: '#38bdf8', // 场景（sky）
+  automations: '#fbbf24', // 自动化（琥珀）
+  security: '#FF375F', // 安防
+  events: '#38bdf8', // 事件
+  scripts: '#34d399', // 脚本（翠绿）
+  notifications: '#7eb8ff', // 通知
+  'earthquake-history': '#f0c48a', // 地震
+  media: EMBED_TAB_ACCENTS[0], // 影视（内嵌反代首项强调色）
 }
 
 /**
- * 解析指定 Tab 的强调色，未配置时回退到暖铜。
+ * 解析指定 Tab 的强调色，未配置时回退到 #0A84FF。
  * @param id 导航 Tab ID
- * @returns CSS 颜色值（可为 var()）
+ * @returns 十六进制色值
  */
 function resolveMainLayoutTabAccent(id: string) {
-  return TAB_ACCENTS[id] || NAV_ACCENT
+  return TAB_ACCENTS[id] || '#0A84FF'
 }
 
 /** 图标名 → 图标组件映射（含别名与内嵌反代图标） */
@@ -250,11 +244,8 @@ export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLay
 
 /** 紧凑视口顶栏最多展示的 Tab 数（其余进「更多」，避免隐式横向滚动） */
 const COMPACT_NAV_BAR_MAX_NARROW = 4
-// 平板档 4 个：品牌 logo + 模式切换 + 5 个操作按钮已占掉约 600px，
-// 1024 宽下 5 个 Tab + 「更多」必然把「更多」顶到滚动区外，用户看不到入口。
-const COMPACT_NAV_BAR_MAX_TABLET = 4
-// 1200 以下的视口都进入紧凑档：1280 不触发，1024/1180 平板都有溢出风险。
-const COMPACT_NAV_VIEWPORT_MAX = 1180
+const COMPACT_NAV_BAR_MAX_TABLET = 5
+const COMPACT_NAV_VIEWPORT_MAX = 1024
 
 /**
  * 窄屏/平板紧凑档把溢出的顶栏 Tab 收到「更多」，避免 overflow-x 隐式滚动。

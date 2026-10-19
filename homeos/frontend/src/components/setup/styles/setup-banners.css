@@ -10,8 +10,8 @@
   padding: 6px 14px;
   background: rgb(245 158 11 / 0.1);
   border-bottom: 1px solid rgb(245 158 11 / 0.22);
-  font-size: var(--hos-fs-2);
-  color: var(--hos-color-warning-text);
+  font-size: var(--premium-fs-micro);
+  color: #fde68a;
 }
 .cold-entity-perf-bar__text {
   flex: 1;
@@ -28,7 +28,7 @@
   background: rgb(245 158 11 / 0.2);
   border: 1px solid rgb(245 158 11 / 0.35);
   color: #fffbeb;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   text-decoration: none;
 }
 .cold-entity-perf-bar__btn--ghost {
@@ -47,8 +47,8 @@
   padding: 0 16px;
   background: rgb(16 185 129 / 0.1);
   border-bottom: 1px solid rgb(16 185 129 / 0.22);
-  font-size: var(--hos-fs-2);
-  color: var(--hos-color-success-text);
+  font-size: var(--premium-fs-micro);
+  color: #a7f3d0;
 }
 .setup-checklist-bar__text {
   flex: 1;
@@ -69,7 +69,7 @@
   background: rgb(16 185 129 / 0.2);
   border: 1px solid rgb(16 185 129 / 0.35);
   color: #ecfdf5;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
 }
 .setup-checklist-bar__btn--ghost {
   background: transparent;

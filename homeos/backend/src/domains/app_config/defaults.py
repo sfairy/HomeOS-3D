@@ -209,10 +209,12 @@ def _default_energy_and_frontend_sections() -> dict[str, Any]:
             "terminalBindings": [],
         },
         # 用户界面配置
+        # accentColor 默认系统蓝：暖铜（#ffc46a）只属于 597637a3 的收敛配色，
+        # 新装实例直接落到彩色模块主题，不再需要前端运行时兜底迁移。
         "ui": {
             "scaleBaseWidth": 1366,
             "scaleBaseHeight": 1024,
-            "accentColor": "#ffc46a",
+            "accentColor": "#3b82f6",
         },
     }
 
@@ -282,9 +284,24 @@ def _default_device_sections() -> dict[str, Any]:
             "ingressCoalesceWindowMs": 8,
             "ingressCoalesceDomains": list(DEFAULT_INGRESS_COALESCE_DOMAINS),
             "syncOnlyEnabledEntities": True,
-            "wsPingIntervalMs": 45_000,
-            "wsPongTimeoutMs": 25_000,
-            "wsHeartbeatMaxMisses": 3,
+            # 应用层心跳：15s 一次 ping、单次等待 10s、连续 2 次未响应即判死。
+            # 判死窗口 ≈ 25s（ping 间隔 + 超时），是「拔网线/Wi-Fi 漫游后墙屏多久变离线」
+            # 的实际上限。此前 45s/25s×3 ≈ 120s：家庭网络抖动常被拖成两分钟「假死」，
+            # 期间面板仍在展示冻结的旧值。WS 事件帧极少（一帧最多几百字节），
+            # 15s 一次 ping 的额外流量可忽略。
+            "wsPingIntervalMs": 15_000,
+            "wsPongTimeoutMs": 10_000,
+            "wsHeartbeatMaxMisses": 2,
+            # 压缩状态流（HA ``subscribe_entities``）：把入站事件从「全量 old/new state」
+            # 换成「增量 diff」，大户型的入站流量通常能降一个数量级。
+            # 默认关闭，用影子对比验证后再切默认；关闭时行为与旧版完全一致。
+            "useSubscribeEntities": False,
+            # 诊断期影子对比：同时订阅 state_changed 校验解码结果（流量翻倍，别长期开）。
+            "subscribeEntitiesShadow": False,
+            # 重连时若距上次全量成功不足该窗口（且在用压缩状态流），跳过全量同步，
+            # 由 subscribe_entities 首帧补齐差异 —— 一次 1 秒抖动不再等于数秒全量重建。
+            "fastReconnectEnabled": True,
+            "fastReconnectWindowMs": 120_000,
         },
         # 运维配置
         "ops": {

@@ -11,16 +11,16 @@ import {
 /** Hub 图表配色（继承设备页配色 + 各 Hub accent 色） */
 export const HUB_CHART_COLORS = {
   ...DEVICE_CHART_COLORS,
-  security: '#ff5a5f',           // 安防 Hub accent（危险珊瑚）
-  securitySub: '#ffb020',        // 安防 Hub 次色（警示琥珀）
-  securitySoft: 'rgba(255, 90, 95, 0.28)', // 安防 Hub 半透明色
-  homeMode: '#ffc46a',           // 在家模式 Hub accent（暖铜）
-  homeModeSub: '#e09523',        // 在家模式 Hub 次色（深铜）
-  homeModeSoft: 'rgba(255, 196, 106, 0.28)',  // 在家模式半透明色
-  life: '#59d3c0',               // 生活 Hub accent（信息青）
-  lifeSub: '#3ddc97',            // 生活 Hub 次色（健康绿）
-  devices: '#ffc46a',            // 设备 Hub accent（暖铜）
-  devicesSub: '#ffd9a0',         // 设备 Hub 次色（亮铜）
+  security: '#fb7185',           // 安防 Hub accent
+  securitySub: '#f59e0b',        // 安防 Hub 次色
+  securitySoft: 'rgba(251, 113, 133, 0.35)', // 安防 Hub 半透明色
+  homeMode: '#fbbf24',           // 在家模式 Hub accent
+  homeModeSub: '#fb7185',        // 在家模式 Hub 次色
+  homeModeSoft: 'rgba(251, 191, 36, 0.35)',  // 在家模式半透明色
+  life: '#2dd4bf',               // 生活 Hub accent
+  lifeSub: '#fbbf24',            // 生活 Hub 次色
+  devices: '#38bdf8',            // 设备 Hub accent
+  devicesSub: '#22d3ee',         // 设备 Hub 次色
 }
 
 /** Hub accent 类型枚举 */

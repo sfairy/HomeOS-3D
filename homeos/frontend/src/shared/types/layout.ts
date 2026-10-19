@@ -205,6 +205,34 @@ export interface AgentConfig {
    * `scene.*` / `script.*` 内部动作无法静态审计，只有显式启用并逐个勾选后才允许语音触发。
    */
   sceneVoiceControl?: SceneVoiceControl
+  /** 主动管家：定时巡检设备离线 / 能耗 / 天气 / 离家异常（默认关闭） */
+  proactive?: AgentProactiveConfig
+  /**
+   * Agent 专属设备白名单（空 = 不额外限制）。
+   * 支持 `light` / `light.` / `light.living_room`，与登录用户 ACL 取交集。
+   */
+  deviceAllowlist?: string[]
+}
+
+/** 主动管家配置 */
+export interface AgentProactiveConfig {
+  enabled: boolean
+  /** 巡检周期（秒） */
+  intervalSeconds: number
+  /** 两次提醒的最小间隔（秒） */
+  cooldownSeconds: number
+  /** 免打扰开始小时（0-23，含） */
+  quietStart: number
+  /** 免打扰结束小时（0-23，不含；支持跨夜） */
+  quietEnd: number
+  /** 今日用电超过前 N 天均值的倍数才提醒 */
+  energyMultiplier: number
+  /** 用电异常提醒的最低今日用电量（kWh） */
+  minEnergyKwh: number
+  /** 未来预报时段数 */
+  forecastSlots: number
+  /** 降水概率提醒阈值（0-1） */
+  forecastPopThreshold: number
 }
 
 /** HA 场景 / 脚本语音控制允许清单 */

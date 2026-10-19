@@ -136,7 +136,7 @@
   top: 8%;
   left: 50%;
   transform: translateX(-50%) translateZ(0);
-  background: radial-gradient(circle, rgba(var(--hos-color-accent-rgb), 0.12) 0%, transparent 75%);
+  background: radial-gradient(circle, rgba(10, 132, 255, 0.12) 0%, transparent 75%);
 }
 
 .ss-glow--2 {
@@ -154,7 +154,7 @@
 }
 
 .ss-mode--weather .ss-glow--2 {
-  background: radial-gradient(circle, rgba(var(--hos-color-accent-rgb), 0.06) 0%, transparent 72%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.06) 0%, transparent 72%);
 }
 
 @keyframes ss-glow-fade {

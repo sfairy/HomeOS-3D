@@ -5,8 +5,8 @@
 - service：GET/PUT 草稿的业务编排（乐观并发、级联清理确认）；
 - cleanup：删除 3D 物件后对项目交互配置的级联摘除（自 interaction3d 迁入）；
 - export_service：导出包的校验、落盘、引用扫描与删除。
+
+各子模块按需显式导入（``from ...domains.studio3d import draft_repository``），
+故这里不再维护 ``__all__``：列了名字会自动触发子模块导入，与拆包解耦的初衷相反。
 """
 
-from __future__ import annotations
-
-__all__ = ['cleanup', 'draft_repository', 'export_service', 'service']

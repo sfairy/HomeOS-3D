@@ -15,16 +15,16 @@
 .nested-obj-editor__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
 }
 
 .nested-obj-editor__table th {
   text-align: left;
   padding: 8px 10px;
   font-weight: 700;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   background: transparent;
-  border-bottom: var(--hos-hairline) solid var(--hos-line-2);
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
 }
 
 .nested-obj-editor__table td {
@@ -41,8 +41,8 @@
 .nested-obj-editor__empty {
   padding: 14px 10px !important;
   text-align: center;
-  color: var(--hos-fg-2);
-  font-size: var(--hos-fs-3);
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-caption);
 }
 
 .nested-obj-editor__icon-btn {
@@ -52,14 +52,14 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  color: rgba(var(--hos-color-danger-rgb), 0.85);
-  background: rgba(var(--hos-color-danger-rgb), 0.08);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-danger-rgb), 0.15);
+  color: rgba(248, 113, 113, 0.85);
+  background: rgba(248, 113, 113, 0.08);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.15);
   transition: background 0.15s ease;
 }
 
 .nested-obj-editor__icon-btn:hover {
-  background: rgba(var(--hos-color-danger-rgb), 0.16);
+  background: rgba(248, 113, 113, 0.16);
 }
 
 .nested-obj-editor__add {
@@ -68,16 +68,16 @@
   gap: 6px;
   align-self: flex-start;
   padding: 6px 12px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-3);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-caption);
   font-weight: 700;
-  color: rgba(var(--hos-color-info-rgb), 0.95);
-  background: rgba(var(--hos-color-info-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-info-rgb), 0.22);
+  color: rgba(96, 165, 250, 0.95);
+  background: rgba(96, 165, 250, 0.1);
+  border: var(--hos-hairline) solid rgba(96, 165, 250, 0.22);
 }
 
 .nested-obj-editor__add:hover {
-  background: rgba(var(--hos-color-info-rgb), 0.16);
+  background: rgba(96, 165, 250, 0.16);
 }
 
 .nested-obj-editor__fixed-grid {
@@ -93,24 +93,24 @@
 }
 
 .nested-obj-editor__fixed-label {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.55);
 }
 
 .nested-obj-editor__row--dup td:first-child {
-  box-shadow: inset 3px 0 0 rgba(var(--hos-color-warning-rgb), 0.85);
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.85);
 }
 
 .nested-obj-editor__warn {
   margin: 0;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 600;
-  color: rgba(var(--hos-color-warning-rgb), 0.92);
+  color: rgba(251, 191, 36, 0.92);
 }
 
 .nested-obj-editor__warn--err {
-  color: rgba(var(--hos-color-danger-rgb), 0.92);
+  color: rgba(248, 113, 113, 0.92);
 }
 
 .nested-obj-editor__inline-link {
@@ -118,14 +118,14 @@
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
-  color: rgba(var(--hos-color-info-rgb), 0.95);
+  color: rgba(96, 165, 250, 0.95);
 }
 
 .nested-obj-editor__toggle {
   align-self: flex-start;
-  font-size: var(--hos-fs-2);
+  font-size: var(--premium-fs-micro);
   font-weight: 700;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

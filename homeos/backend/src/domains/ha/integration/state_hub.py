@@ -9,6 +9,8 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
+from ....platform.core.observability import record_ha_counter
+
 #: 状态值本身没有语义的"服务型实体"：常态 ``unknown`` 不等于掉线。
 #:
 #: 这些集成（语音引擎、通知、AI 任务、红外/射频、对话代理）上报的 ``state``
@@ -272,10 +274,43 @@ class StateHub:
                 if subscribed_entities is not None and entity_id not in subscribed_entities:
                     continue
             if queue.full():
-                try:
-                    while True:
-                        queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    queue.put_nowait({"type": "resync_required"})
-                    continue
+                # 队列满时不再「整队清空 + 只补一条 resync_required」：那会让前端断开
+                # 重连并重新拉全量快照，高频源（功率/电量/毫米波）叠加时足以形成抖动循环。
+                # 改为按实体合并（每个实体保留最后一条）后放回，容量实在不够才软重同步。
+                self._compact_queue(queue, payload)
+                continue
             queue.put_nowait(payload)
+
+    @staticmethod
+    def _compact_queue(queue: asyncio.Queue[dict[str, Any]], incoming: dict[str, Any]) -> None:
+        """队列溢出时的合并降级：按实体保留最后一条，避免「清空 + 全量重拉」的抖动。"""
+        buffered: list[dict[str, Any]] = []
+        while True:
+            try:
+                buffered.append(queue.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+        buffered.append(incoming)
+        merged: list[dict[str, Any]] = []
+        positions: dict[str, int] = {}
+        for event in buffered:
+            if event.get("type") == "state_changed" and event.get("entityId"):
+                entity_id = str(event["entityId"])
+                if entity_id in positions:
+                    merged[positions[entity_id]] = event
+                    continue
+                positions[entity_id] = len(merged)
+            merged.append(event)
+        for event in merged:
+            try:
+                queue.put_nowait(event)
+            except asyncio.QueueFull:
+                # 合并后仍装不下（订阅实体数接近上限）：清空并让前端做一次软重同步。
+                while True:
+                    try:
+                        queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                queue.put_nowait({"type": "resync_required"})
+                record_ha_counter('resync')
+                return

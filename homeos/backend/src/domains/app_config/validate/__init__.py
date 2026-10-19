@@ -55,7 +55,7 @@ from .security import (
     _validate_security,
     _validate_water,
 )
-from ..constants import PUBLIC_CONFIG_SECTIONS  # noqa: F401 - 保持既有 re-export 便利
+from ..constants import PUBLIC_CONFIG_SECTIONS  # noqa: F401 - 保持既有 re-export 便利  # pyright: ignore[reportUnusedImport]
 from ....platform.core.errors import bad_request
 
 __all__ = [

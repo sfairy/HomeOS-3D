@@ -1,29 +1,29 @@
 .hos-modal-head-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .hos-modal-head-icon--accent {
-  background: linear-gradient(135deg, rgba(250, 204, 21, 0.18), rgba(var(--hos-color-warning-rgb), 0.08));
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.18), rgba(251, 191, 36, 0.08));
   color: #facc15;
 }
 
 .hos-modal-head-icon--blue {
-  background: linear-gradient(135deg, rgba(var(--hos-color-accent-rgb), 0.18), rgba(99, 102, 241, 0.08));
-  color: var(--hos-color-info);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.08));
+  color: #60a5fa;
 }
 
 .selected-badge {
-  font-size: var(--hos-fs-3);
+  font-size: var(--premium-fs-caption);
   padding: 4px 10px;
-  border-radius: var(--hos-r-pill);
-  background: rgba(var(--hos-color-accent-rgb), 0.15);
-  color: var(--hos-color-info-text);
-  border: 1px solid rgba(var(--hos-color-accent-rgb), 0.25);
+  border-radius: var(--hos-radius-pill);
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.25);
   backdrop-filter: blur(8px);
   transition: all 0.3s;
 }
@@ -58,6 +58,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--hos-fg-2);
-  font-size: var(--hos-fs-3);
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-caption);
 }

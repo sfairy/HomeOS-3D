@@ -3,10 +3,10 @@
  */
 
 .life-indices {
-  --li-ok: var(--hos-color-success-text);
-  --li-caution: var(--hos-color-accent);
-  --li-warn: var(--hos-color-danger-text);
-  --li-info: var(--hos-color-info-text);
+  --li-ok: #6ee7b7;
+  --li-caution: #fbbf24;
+  --li-warn: #fda4af;
+  --li-info: #7dd3fc;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -47,7 +47,7 @@
 
 .life-indices__title {
   margin: 0;
-  font-size: var(--hos-fs-5);
+  font-size: var(--premium-fs-body);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -55,19 +55,19 @@
 .life-indices__sub {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .life-indices__link {
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--hos-color-info-text);
+  color: #7dd3fc;
   text-decoration: none;
 }
 
 .life-indices__link:hover {
-  color: var(--hos-color-info-text);
+  color: #bae6fd;
 }
 
 .life-indices__tone-pills {
@@ -82,7 +82,7 @@
   align-items: baseline;
   gap: 5px;
   padding: 5px 9px;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   font-size: 11px;
@@ -90,7 +90,7 @@
 
 .life-indices__pill em {
   font-style: normal;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .life-indices__pill strong {
@@ -114,21 +114,21 @@
   gap: 10px;
   align-items: flex-start;
   padding: 12px 14px;
-  border-radius: var(--hos-r-2);
-  border: 1px solid rgba(var(--hos-color-danger-rgb), 0.35);
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(251, 113, 133, 0.35);
   background:
-    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(var(--hos-color-danger-rgb), 0.18), transparent 55%),
-    linear-gradient(155deg, rgba(var(--hos-color-danger-rgb), 0.1), rgba(0, 0, 0, 0.28));
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(251, 113, 133, 0.18), transparent 55%),
+    linear-gradient(155deg, rgba(251, 113, 133, 0.1), rgba(0, 0, 0, 0.28));
   animation: li-pulse-border 2.8s ease-in-out infinite;
 }
 
 @keyframes li-pulse-border {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(var(--hos-color-danger-rgb), 0);
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(var(--hos-color-danger-rgb), 0.08);
+    box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.08);
   }
 }
 
@@ -138,9 +138,9 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--hos-r-1);
+  border-radius: var(--hos-radius-control);
   color: var(--li-warn);
-  background: rgba(var(--hos-color-danger-rgb), 0.16);
+  background: rgba(251, 113, 133, 0.16);
 }
 
 .life-indices__alert-body {
@@ -152,7 +152,7 @@
 .life-indices__alert-body strong {
   font-size: 13px;
   font-weight: 700;
-  color: var(--hos-color-danger-text);
+  color: #fecdd3;
 }
 
 .life-indices__alert-body p {
@@ -174,7 +174,7 @@
   flex-direction: column;
   gap: 3px;
   padding: 10px 11px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.045), rgba(0, 0, 0, 0.22));
 }
@@ -183,7 +183,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .life-indices__live-chip strong {
@@ -198,20 +198,20 @@
   font-style: normal;
   font-size: 11px;
   font-weight: 600;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .life-indices__live-chip.is-tone-0 {
-  border-color: rgba(var(--hos-color-accent-rgb), 0.22);
+  border-color: rgba(56, 189, 248, 0.22);
 }
 .life-indices__live-chip.is-tone-1 {
-  border-color: rgba(var(--hos-color-success-rgb), 0.2);
+  border-color: rgba(52, 211, 153, 0.2);
 }
 .life-indices__live-chip.is-tone-2 {
-  border-color: rgba(var(--hos-color-warning-rgb), 0.2);
+  border-color: rgba(251, 191, 36, 0.2);
 }
 .life-indices__live-chip.is-tone-3 {
-  border-color: rgba(var(--hos-color-accent-strong-rgb), 0.22);
+  border-color: rgba(167, 139, 250, 0.22);
 }
 
 /* Spotlight 拼贴宫格布局 */
@@ -227,10 +227,10 @@
   gap: 6px;
   min-height: 96px;
   padding: 14px 14px 12px;
-  border-radius: var(--hos-r-3);
+  border-radius: var(--hos-radius-panel);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(ellipse 90% 70% at 0% 0%, rgba(var(--hos-color-accent-rgb), 0.12), transparent 55%),
+    radial-gradient(ellipse 90% 70% at 0% 0%, rgba(56, 189, 248, 0.12), transparent 55%),
     linear-gradient(155deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.28));
   transition:
     transform 0.2s ease,
@@ -243,9 +243,9 @@
 
 .life-indices__spot--hero {
   min-height: 118px;
-  border-color: rgba(var(--hos-color-accent-rgb), 0.28);
+  border-color: rgba(56, 189, 248, 0.28);
   background:
-    radial-gradient(ellipse 100% 90% at 10% 0%, rgba(var(--hos-color-accent-rgb), 0.2), transparent 58%),
+    radial-gradient(ellipse 100% 90% at 10% 0%, rgba(56, 189, 248, 0.2), transparent 58%),
     linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.3));
 }
 
@@ -260,9 +260,9 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--hos-r-1);
+  border-radius: var(--hos-radius-control);
   color: var(--li-info);
-  background: rgba(var(--hos-color-info-rgb), 0.12);
+  background: rgba(125, 211, 252, 0.12);
 }
 
 .life-indices__spot-label {
@@ -270,14 +270,14 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(var(--hos-color-info-rgb), 0.78);
+  color: rgba(125, 211, 252, 0.78);
 }
 
 .life-indices__spot-state {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--hos-color-info-text);
+  color: #e0f2fe;
   line-height: 1.2;
 }
 
@@ -289,7 +289,7 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -298,7 +298,7 @@
 
 .life-indices__spot.is-ok .life-indices__spot-icon {
   color: var(--li-ok);
-  background: rgba(var(--hos-color-success-rgb), 0.14);
+  background: rgba(52, 211, 153, 0.14);
 }
 .life-indices__spot.is-ok .life-indices__spot-state {
   color: var(--li-ok);
@@ -309,18 +309,18 @@
 
 .life-indices__spot.is-caution .life-indices__spot-icon {
   color: var(--li-caution);
-  background: rgba(var(--hos-color-warning-rgb), 0.14);
+  background: rgba(251, 191, 36, 0.14);
 }
 .life-indices__spot.is-caution .life-indices__spot-state {
   color: var(--li-caution);
 }
 .life-indices__spot.is-caution .life-indices__spot-label {
-  color: rgba(var(--hos-color-warning-rgb), 0.82);
+  color: rgba(251, 191, 36, 0.82);
 }
 
 .life-indices__spot.is-warn .life-indices__spot-icon {
   color: var(--li-warn);
-  background: rgba(var(--hos-color-danger-rgb), 0.14);
+  background: rgba(251, 113, 133, 0.14);
 }
 .life-indices__spot.is-warn .life-indices__spot-state {
   color: var(--li-warn);
@@ -349,7 +349,7 @@
   column-gap: 10px;
   row-gap: 4px;
   padding: 11px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.26));
 }
@@ -361,7 +361,7 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -390,7 +390,7 @@
   margin: 0;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -398,22 +398,22 @@
 }
 
 .life-indices__attention-item.is-caution {
-  border-color: rgba(var(--hos-color-warning-rgb), 0.28);
+  border-color: rgba(251, 191, 36, 0.28);
 }
 .life-indices__attention-item.is-caution .life-indices__attention-icon {
   color: var(--li-caution);
-  background: rgba(var(--hos-color-warning-rgb), 0.12);
+  background: rgba(251, 191, 36, 0.12);
 }
 .life-indices__attention-item.is-caution .life-indices__attention-copy span {
   color: var(--li-caution);
 }
 
 .life-indices__attention-item.is-warn {
-  border-color: rgba(var(--hos-color-danger-rgb), 0.3);
+  border-color: rgba(251, 113, 133, 0.3);
 }
 .life-indices__attention-item.is-warn .life-indices__attention-icon {
   color: var(--li-warn);
-  background: rgba(var(--hos-color-danger-rgb), 0.12);
+  background: rgba(251, 113, 133, 0.12);
 }
 .life-indices__attention-item.is-warn .life-indices__attention-copy span {
   color: var(--li-warn);
@@ -444,7 +444,7 @@
 .life-indices__group-head em {
   font-style: normal;
   font-size: 11px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .life-indices__grid {
@@ -463,7 +463,7 @@
   gap: 5px;
   min-height: 78px;
   padding: 12px 12px 10px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.28));
   transition:
@@ -501,11 +501,11 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .life-indices__card-state {
-  font-size: var(--hos-fs-5);
+  font-size: var(--premium-fs-body);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -514,7 +514,7 @@
   margin: 0;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -522,43 +522,43 @@
 }
 
 .life-indices__card.is-ok {
-  border-color: rgba(var(--hos-color-success-rgb), 0.28);
-  background: linear-gradient(155deg, rgba(var(--hos-color-success-rgb), 0.1), rgba(0, 0, 0, 0.26));
+  border-color: rgba(52, 211, 153, 0.28);
+  background: linear-gradient(155deg, rgba(52, 211, 153, 0.1), rgba(0, 0, 0, 0.26));
 }
 .life-indices__card.is-ok .life-indices__card-state {
   color: var(--li-ok);
 }
 .life-indices__card.is-ok .life-indices__card-icon {
   color: var(--li-ok);
-  background: rgba(var(--hos-color-success-rgb), 0.14);
+  background: rgba(52, 211, 153, 0.14);
 }
 
 .life-indices__card.is-caution {
-  border-color: rgba(var(--hos-color-warning-rgb), 0.3);
-  background: linear-gradient(155deg, rgba(var(--hos-color-warning-rgb), 0.1), rgba(0, 0, 0, 0.26));
+  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(155deg, rgba(251, 191, 36, 0.1), rgba(0, 0, 0, 0.26));
 }
 .life-indices__card.is-caution .life-indices__card-state {
   color: var(--li-caution);
 }
 .life-indices__card.is-caution .life-indices__card-icon {
   color: var(--li-caution);
-  background: rgba(var(--hos-color-warning-rgb), 0.14);
+  background: rgba(251, 191, 36, 0.14);
 }
 
 .life-indices__card.is-warn {
-  border-color: rgba(var(--hos-color-danger-rgb), 0.32);
-  background: linear-gradient(155deg, rgba(var(--hos-color-danger-rgb), 0.12), rgba(0, 0, 0, 0.26));
+  border-color: rgba(251, 113, 133, 0.32);
+  background: linear-gradient(155deg, rgba(251, 113, 133, 0.12), rgba(0, 0, 0, 0.26));
 }
 .life-indices__card.is-warn .life-indices__card-state {
   color: var(--li-warn);
 }
 .life-indices__card.is-warn .life-indices__card-icon {
   color: var(--li-warn);
-  background: rgba(var(--hos-color-danger-rgb), 0.14);
+  background: rgba(251, 113, 133, 0.14);
 }
 
 .life-indices__card.is-neutral .life-indices__card-state {
-  color: var(--hos-color-info-text);
+  color: #bae6fd;
 }
 
 @media (max-width: 720px) {

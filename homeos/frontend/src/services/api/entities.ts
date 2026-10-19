@@ -142,3 +142,17 @@ export function fetchHaHistory(
 export function retryDroppedHaCommands(config?: AxiosRequestConfig) {
   return apiPost('/ha/queue/retry', {}, config)
 }
+
+/**
+ * 直接问后端「HA 现在连上了吗」。
+ *
+ * 用途：`ha_status` 推送是事件式的，socket 抖动/后端重启时可能刚好错过那条
+ * `connected`，前端就会一直挂着「正在重连 Home Assistant」。这个接口是幂等的只读探活，
+ * 由前端在降级状态持续若干秒后补一次，把横幅从「靠推送」改成「推送 + 主动核对」。
+ */
+export function fetchHaHealth(config?: AxiosRequestConfig) {
+  return apiGet<{ configured: boolean; connected: boolean; lastError?: string | null }>(
+    '/ha/health',
+    config,
+  )
+}

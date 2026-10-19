@@ -60,7 +60,11 @@ def _search_and_control_schemas() -> list[LlmToolSchema]:
                     "entity_id": {"type": "string", "description": "设备唯一ID"},
                     "service_data": {
                         "type": "object",
-                        "description": '附加参数，如 {"temperature": 24}',
+                        "description": (
+                            '附加参数，如 {"temperature": 24}。'
+                            '安防布防（alarm_control_panel.alarm_arm_*）可传 {"code": "1234"}；'
+                            "code 只对安防 / 门锁域生效，其它域会被过滤。"
+                        ),
                     },
                 },
                 "required": ["domain", "service", "entity_id"],
@@ -173,8 +177,9 @@ def _status_and_scene_schemas() -> list[LlmToolSchema]:
         LlmToolSchema(
             name="get_home_status",
             description=(
-                '获取全屋整体状态概览：当前家庭模式与实体总数。当用户问"家里现在什么状态"'
-                '"整体情况怎么样"时使用。无需参数。'
+                '获取全屋整体状态概览：当前家庭模式、实体总数、开灯数、开启中的设备、'
+                '门窗/窗帘状态、安防状态、平均温湿度、今日用电。当用户问"家里现在什么状态"'
+                '"整体情况怎么样""家里有没有异常"时使用。无需参数。'
             ),
             parameters={"type": "object", "properties": {}},
         ),
@@ -247,6 +252,7 @@ def _device_detail_schemas() -> list[LlmToolSchema]:
                     "action": {
                         "type": "string",
                         "description": "play、pause、stop、next、previous、volume",
+                        "enum": ["play", "pause", "stop", "next", "previous", "volume"],
                     },
                     "volume": {"type": "number", "description": "音量 0-1，仅 action=volume 时需要"},
                 },
@@ -267,14 +273,115 @@ def _device_detail_schemas() -> list[LlmToolSchema]:
     ]
 
 
+def _insight_schemas() -> list[LlmToolSchema]:
+    """能耗 / 历史 / 通知 / 天气预报这几类只读洞察工具 schema。"""
+    return [
+        LlmToolSchema(
+            name="get_energy_usage",
+            description=(
+                "查询家庭用电：近 N 天总用电、今日用电、本月用电、每日曲线与用电最多的设备。"
+                '当用户问"这个月用了多少电""今天耗电多少""哪个设备最费电"时使用。'
+                "数据来自能耗日聚合表；未配置电表时返回 0。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "days": {
+                        "type": "integer",
+                        "description": "回溯天数，1-90，默认 7",
+                        "minimum": 1,
+                        "maximum": 90,
+                    },
+                },
+            },
+        ),
+        LlmToolSchema(
+            name="query_events",
+            description=(
+                "查询设备状态变更历史（谁在什么时候从什么状态变成什么状态）。"
+                '当用户问"刚才谁开了灯""客厅灯什么时候开的""今天有哪些设备变过"时使用。'
+                "最新在前；可按实体 ID 或设备类型过滤。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "hours": {
+                        "type": "integer",
+                        "description": "回溯小时数，1-168，默认 24",
+                        "minimum": 1,
+                        "maximum": 168,
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "最多返回条数，1-50，默认 20",
+                        "minimum": 1,
+                        "maximum": 50,
+                    },
+                    "entity_id": {
+                        "type": "string",
+                        "description": "可选：只看某个设备，如 light.living_room",
+                    },
+                    "domain": {
+                        "type": "string",
+                        "description": "可选：只看某类设备，如 light、switch、binary_sensor",
+                    },
+                },
+            },
+        ),
+        LlmToolSchema(
+            name="get_notifications",
+            description=(
+                "查询通知中心：未读数量 + 最近通知（含级别、来源、关联设备、时间）。"
+                '当用户问"有什么通知""有没有未读消息""刚才报警了吗"时使用。'
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "最多返回条数，1-50，默认 10",
+                        "minimum": 1,
+                        "maximum": 50,
+                    },
+                    "unread_only": {
+                        "type": "boolean",
+                        "description": "只返回未读通知，默认 false",
+                    },
+                },
+            },
+        ),
+        LlmToolSchema(
+            name="get_weather_forecast",
+            description=(
+                "查询未来天气预报（约 3 小时一个时段：温度、天气、降水概率）。"
+                '当用户问"今天会下雨吗""明天天气怎么样""需要带伞吗"时使用。'
+                "与 get_weather（当前天气）互补。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "description": "返回时段数，1-24，默认 8（约 24 小时）",
+                        "minimum": 1,
+                        "maximum": 24,
+                    },
+                },
+            },
+        ),
+    ]
+
+
 def build_home_tool_schemas() -> list[LlmToolSchema]:
     """返回暴露给 LLM 的工具 schema 列表。
 
     包含搜索、查状态、控制设备、列房间、房间快照、按房间批量控制等工具。
+    只读洞察工具（能耗 / 历史 / 通知 / 预报）单独一组，便于后续按配置裁剪。
     """
     return [
         *_search_and_control_schemas(),
         *_room_and_mode_schemas(),
         *_status_and_scene_schemas(),
         *_device_detail_schemas(),
+        *_insight_schemas(),
     ]

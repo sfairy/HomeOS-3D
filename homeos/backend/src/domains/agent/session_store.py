@@ -5,6 +5,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import UTC
+from typing import Any
+
+from sqlalchemy import delete, select
+
+from ...platform.core.models import AgentSessionRow
 
 logger = logging.getLogger("homeos.agent.session_store")
 
@@ -44,9 +50,72 @@ class AgentSessionStoreService:
     通过 get / push_turn / clear 管理「sessionId → 多轮历史」映射。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, session_factory: Any = None) -> None:
         #: 会话表：dict 迭代顺序即插入顺序，配合 last_at 实现 LRU 淘汰
         self._sessions: dict[str, AgentSessionEntry] = {}
+        #: 数据库会话工厂；None 时保持纯内存
+        self._session_factory = session_factory
+        #: 已尝试从数据库回填过的会话
+        self._loaded: set[str] = set()
+
+    # 持久化
+    def _load_from_db(self, session_id: str) -> AgentSessionEntry | None:
+        """内存未命中时从数据库恢复最近历史（过期会话不恢复）。"""
+        if self._session_factory is None or session_id in self._loaded:
+            return None
+        self._loaded.add(session_id)
+        try:
+            with self._session_factory() as session:
+                rows = list(
+                    session.execute(
+                        select(AgentSessionRow)
+                        .where(AgentSessionRow.session_id == session_id)
+                        .order_by(AgentSessionRow.created_at.desc(), AgentSessionRow.id.desc())
+                        .limit(MAX_TURNS)
+                    ).scalars()
+                )
+        except Exception as exc:  # pragma: no cover - 依赖真实数据库
+            logger.warning("会话历史回填失败(保持内存): %s", exc)
+            return None
+        if not rows:
+            return None
+        newest = rows[0].created_at
+        if newest is not None:
+            aware = newest if newest.tzinfo is not None else newest.replace(tzinfo=UTC)
+            if _now_ms() - int(aware.timestamp() * 1000) > SESSION_TTL_MS:
+                return None
+        entry = AgentSessionEntry(
+            history=[
+                AgentSessionTurn(role=row.role, content=row.content)
+                for row in reversed(rows)
+            ],
+            last_at=_now_ms(),
+        )
+        self._sessions[session_id] = entry
+        return entry
+
+    def _append_persisted(self, session_id: str, role: str, content: str) -> None:
+        """追加一条历史并裁剪旧记录（best-effort）。"""
+        if self._session_factory is None:
+            return
+        try:
+            with self._session_factory() as session:
+                session.add(AgentSessionRow(session_id=session_id, role=role, content=content))
+                session.flush()
+                keep_ids = select(AgentSessionRow.id).where(
+                    AgentSessionRow.session_id == session_id
+                ).order_by(
+                    AgentSessionRow.created_at.desc(), AgentSessionRow.id.desc()
+                ).limit(MAX_TURNS)
+                session.execute(
+                    delete(AgentSessionRow).where(
+                        AgentSessionRow.session_id == session_id,
+                        AgentSessionRow.id.not_in(keep_ids),
+                    )
+                )
+                session.commit()
+        except Exception as exc:  # pragma: no cover
+            logger.warning("会话历史落库失败: %s", exc)
 
     # 读取 / 写入
     def get(self, session_id: str) -> list[AgentSessionTurn]:
@@ -56,7 +125,9 @@ class AgentSessionStoreService:
         self.purge_expired()
         entry = self._sessions.get(session_id)
         if entry is None:
-            return []
+            entry = self._load_from_db(session_id)
+            if entry is None:
+                return []
         entry.last_at = _now_ms()
         # 刷新 LRU 顺序：删除后重新插入，使其成为最新
         self._sessions.pop(session_id, None)
@@ -85,10 +156,12 @@ class AgentSessionStoreService:
             self._sessions[session_id] = entry
         entry.last_at = _now_ms()
         entry.history.append(AgentSessionTurn(role="user", content=user_message))
+        self._append_persisted(session_id, "user", user_message)
         if assistant_content and assistant_content.strip():
             entry.history.append(
                 AgentSessionTurn(role="assistant", content=assistant_content.strip())
             )
+            self._append_persisted(session_id, "assistant", assistant_content.strip())
         # 超限截断：仅保留最近 MAX_TURNS 条
         if len(entry.history) > MAX_TURNS:
             entry.history = entry.history[-MAX_TURNS:]
@@ -98,6 +171,16 @@ class AgentSessionStoreService:
         if not session_id:
             return
         self._sessions.pop(session_id, None)
+        if self._session_factory is None:
+            return
+        try:
+            with self._session_factory() as session:
+                session.execute(
+                    delete(AgentSessionRow).where(AgentSessionRow.session_id == session_id)
+                )
+                session.commit()
+        except Exception as exc:  # pragma: no cover
+            logger.warning("会话历史删除失败: %s", exc)
 
     @property
     def size(self) -> int:

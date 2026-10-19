@@ -131,6 +131,7 @@ export function createEntityTransport(deps: EntityTransportDeps) {
       socket = null
     }
     deps.clearHaDisconnectDebounce()
+    deps.clearHaStatusProbe?.()
     deps.setConnected(false)
   }
 

@@ -18,9 +18,9 @@ export {
 export const ACCOUNT_BINDING_TABS = [
   { id: 'grid', label: '电网', emoji: '⚡', accent: '#fbbf24' },
   { id: 'gas', label: '燃气', emoji: '🔥', accent: '#fb923c' },
-  { id: 'water', label: '水务', emoji: '💧', accent: '#59d3c0' },
-  { id: 'ct', label: '电信', emoji: '📱', accent: '#ffc46a' },
-  { id: 'cu', label: '联通', emoji: '📶', accent: '#ffd9a0' },
+  { id: 'water', label: '水务', emoji: '💧', accent: '#22d3ee' },
+  { id: 'ct', label: '电信', emoji: '📱', accent: '#c084fc' },
+  { id: 'cu', label: '联通', emoji: '📶', accent: '#a78bfa' },
 ] as const
 
 export interface AccountBindingFieldMeta {

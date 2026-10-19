@@ -336,7 +336,7 @@ export function useDeviceAnalyticsCharts(options: {
           bottom: 0,
           itemWidth: 10,
           itemHeight: 80,
-          inRange: { color: ['#221a12', '#ffc46a', '#ffb020'] },
+          inRange: { color: ['#1e293b', '#38bdf8', '#fbbf24'] },
           text: ['多', '少'],
           textStyle: { color: DEVICE_CHART_COLORS.axis, fontSize: 9 },
         },

@@ -8,10 +8,16 @@
 <template>
   <div
     class="list-page mode-logs-view"
+    :style="{
+      '--page-accent': 'var(--module-accent-home-mode)',
+      '--page-accent-rgb': 'var(--module-accent-home-mode-rgb)',
+      '--page-accent-secondary': 'var(--module-accent-home-mode-sub)',
+    }"
   >
     <ListPageHero
       :title="'家庭模式触发日志'"
       :hint="'记录手动、触发器、日历、安防与能源联动等来源的模式切换事件'"
+      tone="amber"
     >
       <template #icon>
         <History class="w-5 h-5" />

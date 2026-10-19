@@ -29,6 +29,7 @@ SERVICE_DATA_ALLOWED_FIELDS = frozenset(
         "brightness",
         "brightness_pct",
         "color_temp",
+        "color_temp_kelvin",
         "rgb_color",
         "xy_color",
         "hs_color",
@@ -61,6 +62,20 @@ SERVICE_DATA_ALLOWED_FIELDS = frozenset(
     }
 )
 
+#: 按 domain 额外放行的 service_data 字段（`code` 只对需要口令的域生效）。
+#:
+#: HA 的 ``alarm_control_panel.alarm_arm_*`` / ``lock.*`` 需要 ``code`` 参数，但 ``code``
+#: 属于凭证类字段，不能进全局白名单——否则 LLM 可以把它塞进任何域的调用里。
+#: 这里按实体实际 domain 精确放行，跨域调用仍会被过滤掉。
+DOMAIN_SERVICE_DATA_FIELDS: dict[str, frozenset[str]] = {
+    "alarm_control_panel": frozenset({"code"}),
+    "lock": frozenset({"code"}),
+}
+
+#: 单次 ``code`` 参数的最大长度（防止把超长文本塞进 HA 调用）
+MAX_ACCESS_CODE_LENGTH = 64
+
+
 
 def validate_entity_id(entity_id: str) -> dict[str, Any]:
     """校验 entity_id 格式是否合法（必须为 domain.entity 格式）。
@@ -86,12 +101,31 @@ def extract_domain(entity_id: str) -> str:
     return ident[:idx] if idx > 0 else ""
 
 
-def sanitize_service_data(data: Mapping[str, Any] | None) -> dict[str, Any] | None:
+def sanitize_service_data(
+    data: Mapping[str, Any] | None,
+    domain: str | None = None,
+) -> dict[str, Any] | None:
     """对 service_data 做白名单字段过滤，仅保留已知安全字段。
+
+    ``domain`` 用于按实体实际域放行少量专属字段（目前仅 ``alarm_control_panel`` /
+    ``lock`` 的 ``code``）。跨域调用（例如把 ``code`` 塞进 ``light.turn_on``）仍会被过滤，
+    避免 LLM 借 service_data 注入凭证类参数。
 
     无安全字段时返回 None。
     """
     if not data or not isinstance(data, Mapping):
         return None
-    result = {key: value for key, value in data.items() if key in SERVICE_DATA_ALLOWED_FIELDS}
+    extra = DOMAIN_SERVICE_DATA_FIELDS.get(str(domain or "").strip().lower(), frozenset())
+    result: dict[str, Any] = {}
+    for key, value in data.items():
+        if key in SERVICE_DATA_ALLOWED_FIELDS:
+            result[key] = value
+            continue
+        if key in extra:
+            # code 只接受短字符串 / 整数：拒绝嵌套对象与超长文本
+            if isinstance(value, bool) or not isinstance(value, (str, int)):
+                continue
+            text = str(value).strip()
+            if text:
+                result[key] = text[:MAX_ACCESS_CODE_LENGTH]
     return result or None

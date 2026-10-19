@@ -5,8 +5,25 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, MessageCircle, Mic, Plus, Send, ShieldAlert, Sparkles, X } from '@lucide/vue'
-import { agentChat, agentPing, type AgentPingResult } from '@/services/api/agent'
+import {
+  History,
+  Loader2,
+  MessageCircle,
+  Mic,
+  Plus,
+  Send,
+  ShieldAlert,
+  Sparkles,
+  Square,
+  X,
+} from '@lucide/vue'
+import {
+  agentChatStream,
+  agentPing,
+  type AgentChatResult,
+  type AgentPingResult,
+  type AgentStreamHandle,
+} from '@/services/api/agent'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
@@ -24,6 +41,66 @@ type ChatMessage = {
   tools?: string
   /** 后端执行结论（success / answer / blocked / failed / error），用于安全拦截提示 */
   outcome?: string
+  /** 流式生成中：文本持续追加，不展示拦截提示 */
+  streaming?: boolean
+}
+
+/** 本地历史会话（按设备浏览器保存，最多保留最近 8 段） */
+type StoredSession = {
+  id: string
+  updatedAt: number
+  title: string
+  messages: ChatMessage[]
+}
+
+const HISTORY_KEY = 'homeos.agent.chat.history.v1'
+const HISTORY_LIMIT = 8
+const HISTORY_MESSAGE_LIMIT = 40
+
+function readHistory(): StoredSession[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((item): StoredSession | null => {
+        if (!item || typeof item !== 'object') return null
+        const id = String((item as StoredSession).id || '').trim()
+        const title = String((item as StoredSession).title || '').trim()
+        const messages = Array.isArray((item as StoredSession).messages)
+          ? ((item as StoredSession).messages as ChatMessage[])
+              .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && String(m.text || '').trim())
+              .map((m) => ({
+                role: m.role,
+                text: String(m.text),
+                tools: m.tools ? String(m.tools) : undefined,
+                outcome: m.outcome ? String(m.outcome) : undefined,
+              }))
+          : []
+        if (!id || !messages.length) return null
+        return {
+          id,
+          title: title || messages.find((m) => m.role === 'user')?.text.slice(0, 24) || '对话',
+          updatedAt: Number((item as StoredSession).updatedAt) || Date.now(),
+          messages,
+        }
+      })
+      .filter((item): item is StoredSession => item !== null)
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, HISTORY_LIMIT)
+  } catch {
+    return []
+  }
+}
+
+function writeHistory(sessions: StoredSession[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(sessions.slice(0, HISTORY_LIMIT)))
+  } catch {
+    // 隐私模式 / 配额用尽：历史只保留在内存
+  }
 }
 
 /** 快捷指令：覆盖安防 / 空调 / 灯光 / 能耗查询四类高频场景 */
@@ -46,17 +123,22 @@ const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending
 
 const router = useRouter()
-const sessionId = ref(`ui-agent-${Date.now().toString(36)}`)
+const storedSessions = readHistory()
+const sessionId = ref(storedSessions[0]?.id || `ui-agent-${Date.now().toString(36)}`)
 const input = ref('')
 const busy = ref(false)
 const voiceTurn = ref(false)
-const messages = ref<ChatMessage[]>([])
+const messages = ref<ChatMessage[]>(storedSessions[0]?.messages ?? [])
+const sessions = ref<StoredSession[]>(storedSessions)
+const historyOpen = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const rootRef = ref<HTMLElement | null>(null)
 const logRef = ref<HTMLElement | null>(null)
 const ping = ref<AgentPingResult | null>(null)
 const pinging = ref(false)
 const micHint = ref('')
+/** 当前进行中的流式请求句柄：关闭弹层 / 新对话 / 手动停止时用于取消 */
+let streamHandle: AgentStreamHandle | null = null
 const { speak } = useTtsSpeak()
 
 const agentBlocked = computed(() => {
@@ -65,6 +147,11 @@ const agentBlocked = computed(() => {
   const provider = String(ping.value.provider || '').toLowerCase()
   return provider === 'mock' || provider === 'unavailable' || ping.value.ready === false
 })
+
+/** 等首 token 的阶段才显示「处理中」气泡；已开始逐字输出后由流式气泡本身承载 */
+const showTyping = computed(
+  () => busy.value && !messages.value.some((m) => m.streaming && m.text.trim()),
+)
 
 /**
  * 管家动态状态：检测中 / 思考中 / 未配置 / 在线就绪。
@@ -149,12 +236,73 @@ async function refreshMicHint() {
   }
 }
 
-function newConversation() {
+function persistCurrent() {
+  const snapshot = messages.value
+    .filter((m) => !m.streaming && String(m.text || '').trim())
+    .slice(-HISTORY_MESSAGE_LIMIT)
+    .map((m) => ({
+      role: m.role,
+      text: m.text,
+      tools: m.tools,
+      outcome: m.outcome,
+    }))
+  if (!snapshot.length) return
+  const title = snapshot.find((m) => m.role === 'user')?.text.slice(0, 24) || '对话'
+  const current: StoredSession = {
+    id: sessionId.value,
+    updatedAt: Date.now(),
+    title,
+    messages: snapshot,
+  }
+  sessions.value = [current, ...sessions.value.filter((item) => item.id !== current.id)].slice(
+    0,
+    HISTORY_LIMIT,
+  )
+  writeHistory(sessions.value)
+}
+
+/** 历史会话时间：今天只显示时分，更早显示月日 */
+function sessionTimeLabel(updatedAt: number): string {
+  const date = new Date(updatedAt)
+  const now = new Date()
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  if (sameDay) {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+function openSession(session: StoredSession) {
+  if (busy.value) return
   stopListen()
+  sessionId.value = session.id
+  messages.value = session.messages.map((m) => ({ ...m }))
+  historyOpen.value = false
+  scrollLogToBottom()
+}
+
+function newConversation() {
+  stopGenerating()
+  stopListen()
+  persistCurrent()
   sessionId.value = `ui-agent-${Date.now().toString(36)}`
   messages.value = []
   input.value = ''
   voiceTurn.value = false
+  historyOpen.value = false
+}
+
+/** 主动停止生成：保留已收到的文本，只取消后续请求 */
+function stopGenerating() {
+  streamHandle?.abort()
+  streamHandle = null
+  busy.value = false
+  for (const message of messages.value) {
+    if (message.streaming) message.streaming = false
+  }
 }
 
 function goAgentSettings() {
@@ -163,7 +311,9 @@ function goAgentSettings() {
 }
 
 function close() {
+  stopGenerating()
   stopListen()
+  persistCurrent()
   emit('close')
 }
 
@@ -193,39 +343,89 @@ function placeholder() {
   return '问问管家，或点麦克风说话'
 }
 
+/** 流式结束后的兜底文案（无回复时） */
+function fallbackReplyOf(outcome: string | undefined): string {
+  if (outcome === 'success') return '已执行'
+  if (outcome === 'blocked') return '该指令未被执行。'
+  return '无回复'
+}
+
+/** 把工具轨迹合并进气泡（保持首次调用顺序，去重） */
+function mergeToolTrace(bubble: ChatMessage, toolNames: string[]) {
+  if (!toolNames.length) return
+  bubble.tools = toolNames.join(' → ')
+}
+
 async function send(raw?: string) {
   const message = clipAgentChatMessage(typeof raw === 'string' ? raw : input.value)
   if (!message || busy.value || agentBlocked.value) return
   const fromVoice = voiceTurn.value
   voiceTurn.value = false
   const history = messages.value
-    .filter((m) => m.text.trim())
+    .filter((m) => m.text.trim() && !m.streaming)
     .map((m) => ({ role: m.role, content: m.text }))
     .slice(-16)
   messages.value.push({ role: 'user', text: message })
   input.value = ''
   busy.value = true
+
+  // 先插入流式气泡：token 到达即逐字渲染，工具轨迹实时追加
+  const bubble: ChatMessage = { role: 'assistant', text: '', streaming: true }
+  messages.value.push(bubble)
+  const toolNames: string[] = []
+  // 用 ref 承载最终结果：普通 let 变量在闭包里赋值不会被 TS 控制流分析识别
+  const finalResult = ref<AgentChatResult | null>(null)
   scrollLogToBottom()
+
   try {
-    const res = await agentChat(message, history, sessionId.value)
-    let fallbackReply = '无回复'
-    if (res.outcome === 'success') fallbackReply = '已执行'
-    else if (res.outcome === 'blocked') fallbackReply = '该指令未被执行。'
-    const reply = res.reply || fallbackReply
-    messages.value.push({
-      role: 'assistant',
-      text: reply,
-      tools: res.toolCalls?.length ? res.toolCalls.map((c) => c.name).join(' → ') : '',
-      outcome: res.outcome,
+    const handle = agentChatStream(message, history, sessionId.value, {
+      onToken: (text) => {
+        bubble.text += text
+        scrollLogToBottom()
+      },
+      onTool: (call) => {
+        if (!toolNames.includes(call.name)) toolNames.push(call.name)
+        mergeToolTrace(bubble, toolNames)
+      },
+      onDone: (res) => {
+        finalResult.value = res
+      },
     })
+    streamHandle = handle
+    await handle.done
+
+    const result = finalResult.value
+    bubble.outcome = result?.outcome
+    if (result?.toolCalls?.length) {
+      mergeToolTrace(
+        bubble,
+        result.toolCalls.map((c) => c.name),
+      )
+    }
+    // 最终回复优先于增量文本：后端可能给出未流式下发的收尾文案
+    const reply = result?.reply || bubble.text || fallbackReplyOf(bubble.outcome)
+    bubble.text = reply
     const ttsOn = getConfigSection('voice')?.ttsEnabled !== false
     if (fromVoice && ttsOn && reply) await speak(reply)
   } catch (e: unknown) {
     const fail = getApiErrorMessage(e, '管家暂时不可用')
-    messages.value.push({ role: 'assistant', text: fail })
+    if (bubble.text.trim()) {
+      // 已收到部分内容：保留并追加错误提示，避免整段消失
+      bubble.text = `${bubble.text}\n（${fail}）`
+    } else {
+      bubble.text = fail
+    }
+    bubble.outcome = 'error'
     if (fromVoice && getConfigSection('voice')?.ttsEnabled !== false) await speak(fail)
   } finally {
+    bubble.streaming = false
+    streamHandle = null
     busy.value = false
+    // 取消后完全没有内容的气泡直接移除，避免留下空壳
+    if (!bubble.text.trim()) {
+      messages.value = messages.value.filter((m) => m !== bubble)
+    }
+    persistCurrent()
     scrollLogToBottom()
     nextTick(() => inputRef.value?.focus())
   }
@@ -257,6 +457,16 @@ async function send(raw?: string) {
             </p>
           </div>
           <button
+            v-if="sessions.length"
+            type="button"
+            class="acp-close"
+            :aria-label="'历史会话'"
+            :title="'历史会话'"
+            @click="historyOpen = !historyOpen"
+          >
+            <History class="w-4 h-4" />
+          </button>
+          <button
             v-if="messages.length"
             type="button"
             class="acp-close"
@@ -270,6 +480,21 @@ async function send(raw?: string) {
             <X class="w-4 h-4" />
           </button>
         </header>
+
+        <div v-if="historyOpen" class="acp-history" role="dialog" aria-label="历史会话">
+          <p class="acp-history__title">历史会话</p>
+          <button
+            v-for="item in sessions"
+            :key="item.id"
+            type="button"
+            class="acp-history__row"
+            :class="{ 'acp-history__row--active': item.id === sessionId }"
+            @click="openSession(item)"
+          >
+            <span class="acp-history__text">{{ item.title }}</span>
+            <span class="acp-history__time">{{ sessionTimeLabel(item.updatedAt) }}</span>
+          </button>
+        </div>
 
         <div ref="logRef" class="acp-body" aria-live="polite">
           <div v-if="!messages.length && !busy" class="acp-empty">
@@ -317,14 +542,17 @@ async function send(raw?: string) {
             :class="`acp-bubble--${m.role}`"
           >
             <p class="acp-bubble__name">{{ m.role === 'user' ? '你' : '管家' }}</p>
-            <p class="acp-bubble__text">{{ m.text }}</p>
+            <p
+              class="acp-bubble__text"
+              :class="{ 'acp-bubble__text--streaming': m.streaming }"
+            >{{ m.text }}</p>
             <p v-if="m.outcome === 'blocked'" class="acp-bubble__blocked">
               <ShieldAlert class="acp-bubble__blocked-icon" aria-hidden="true" />
               {{ BLOCKED_NOTICE }}
             </p>
             <p v-if="m.tools" class="acp-bubble__tools">{{ m.tools }}</p>
           </article>
-          <article v-if="busy" class="acp-bubble acp-bubble--assistant">
+          <article v-if="showTyping" class="acp-bubble acp-bubble--assistant">
             <p class="acp-bubble__name">{{ '管家' }}</p>
             <p class="acp-bubble__typing" aria-label="处理中">
               <Loader2 class="acp-bubble__spin" aria-hidden="true" />
@@ -356,9 +584,20 @@ async function send(raw?: string) {
             :aria-label="'智能管家指令'"
           />
           <button
+            v-if="busy"
+            type="button"
+            class="acp-send acp-send--stop"
+            :aria-label="'停止生成'"
+            :title="'停止生成'"
+            @click="stopGenerating"
+          >
+            <Square class="w-4 h-4" />
+          </button>
+          <button
+            v-else
             type="submit"
             class="acp-send"
-            :disabled="busy || agentBlocked || !input.trim()"
+            :disabled="agentBlocked || !input.trim()"
             :aria-label="'发送'"
           >
             <Send class="w-4 h-4" />
@@ -396,7 +635,8 @@ async function send(raw?: string) {
   max-height: min(72vh, 640px);
   display: flex;
   flex-direction: column;
-  border-radius: var(--hos-r-3);
+  position: relative;
+  border-radius: var(--hos-radius-panel);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(16, 19, 27, 0.96);
   box-shadow:
@@ -417,7 +657,68 @@ async function send(raw?: string) {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: color-mix(in srgb, var(--hos-color-accent) 80%, #fff);
+  color: color-mix(in srgb, var(--page-accent, #34d399) 80%, #fff);
+}
+
+/* 历史会话下拉：盖在消息区上方，不挤压弹层高度 */
+.acp-history {
+  position: absolute;
+  top: 58px;
+  left: 16px;
+  right: 16px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(22, 26, 36, 0.98);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.acp-history__title {
+  margin: 2px 6px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--hos-text-secondary);
+}
+
+.acp-history__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.acp-history__row:hover,
+.acp-history__row--active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.acp-history__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acp-history__time {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--hos-text-secondary);
 }
 
 .acp-head__text {
@@ -427,7 +728,7 @@ async function send(raw?: string) {
 
 .acp-head__title {
   margin: 0;
-  font-size: var(--hos-fs-5);
+  font-size: var(--premium-fs-body);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
 }
@@ -439,7 +740,7 @@ async function send(raw?: string) {
   flex-wrap: wrap;
   gap: 6px;
   font-size: 12px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-head__desc {
@@ -453,11 +754,11 @@ async function send(raw?: string) {
   gap: 4px;
   flex-shrink: 0;
   padding: 1px 7px;
-  border-radius: var(--hos-r-pill);
+  border-radius: var(--hos-radius-pill);
   font-size: 11px;
   line-height: 16px;
   border: 1px solid currentColor;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-status__dot {
@@ -472,7 +773,7 @@ async function send(raw?: string) {
 }
 
 .acp-status--sky {
-  color: var(--hos-color-accent);
+  color: #38bdf8;
 }
 
 .acp-status--amber {
@@ -480,7 +781,7 @@ async function send(raw?: string) {
 }
 
 .acp-status--rose {
-  color: var(--hos-color-danger);
+  color: #fb7185;
 }
 
 .acp-close {
@@ -525,7 +826,7 @@ async function send(raw?: string) {
 .acp-empty__icon {
   width: 22px;
   height: 22px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-empty__title {
@@ -538,7 +839,7 @@ async function send(raw?: string) {
 .acp-empty__desc {
   margin: 0;
   font-size: 12px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-empty__warn {
@@ -556,9 +857,9 @@ async function send(raw?: string) {
 
 .acp-quick__chip {
   padding: 6px 10px;
-  border-radius: var(--hos-r-pill);
-  border: 1px solid color-mix(in srgb, var(--hos-color-accent) 32%, transparent);
-  background: color-mix(in srgb, var(--hos-color-accent) 10%, transparent);
+  border-radius: var(--hos-radius-pill);
+  border: 1px solid color-mix(in srgb, var(--page-accent, #34d399) 32%, transparent);
+  background: color-mix(in srgb, var(--page-accent, #34d399) 10%, transparent);
   color: rgba(255, 255, 255, 0.85);
   font-size: 12px;
   line-height: 16px;
@@ -566,7 +867,7 @@ async function send(raw?: string) {
 }
 
 .acp-quick__chip:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--hos-color-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--page-accent, #34d399) 22%, transparent);
 }
 
 .acp-quick__chip:disabled {
@@ -577,9 +878,9 @@ async function send(raw?: string) {
 .acp-setup {
   margin-top: 10px;
   padding: 7px 12px;
-  border-radius: var(--hos-r-2);
-  border: 1px solid color-mix(in srgb, var(--hos-color-accent) 40%, transparent);
-  background: color-mix(in srgb, var(--hos-color-accent) 16%, transparent);
+  border-radius: var(--hos-radius-card);
+  border: 1px solid color-mix(in srgb, var(--page-accent, #34d399) 40%, transparent);
+  background: color-mix(in srgb, var(--page-accent, #34d399) 16%, transparent);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -602,7 +903,7 @@ async function send(raw?: string) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-bubble--user .acp-bubble__name {
@@ -613,14 +914,14 @@ async function send(raw?: string) {
 .acp-bubble__typing {
   margin: 0;
   padding: 9px 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   font-size: 13px;
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.92);
 }
 
 .acp-bubble--user .acp-bubble__text {
-  background: color-mix(in srgb, var(--hos-color-accent) 22%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--page-accent, #34d399) 22%, rgba(255, 255, 255, 0.08));
 }
 
 .acp-bubble__tools {
@@ -628,7 +929,7 @@ async function send(raw?: string) {
   padding: 0;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 /* 安全拦截提示：管家判定操作越权 / 涉险时显式说明，避免用户误以为执行成功 */
@@ -688,7 +989,7 @@ async function send(raw?: string) {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.7);
@@ -706,8 +1007,8 @@ async function send(raw?: string) {
 }
 
 .acp-mic--on {
-  border-color: color-mix(in srgb, var(--hos-color-accent) 45%, transparent);
-  background: color-mix(in srgb, var(--hos-color-accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--page-accent, #34d399) 45%, transparent);
+  background: color-mix(in srgb, var(--page-accent, #34d399) 18%, transparent);
   color: #fff;
 }
 
@@ -732,7 +1033,7 @@ async function send(raw?: string) {
   min-width: 0;
   height: 40px;
   padding: 0 12px;
-  border-radius: var(--hos-r-2);
+  border-radius: var(--hos-radius-card);
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.25);
   color: rgba(255, 255, 255, 0.95);
@@ -742,11 +1043,11 @@ async function send(raw?: string) {
 }
 
 .acp-input::placeholder {
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-input:focus {
-  border-color: color-mix(in srgb, var(--hos-color-accent) 45%, transparent);
+  border-color: color-mix(in srgb, var(--page-accent, #34d399) 45%, transparent);
 }
 
 .acp-send {
@@ -755,8 +1056,8 @@ async function send(raw?: string) {
   display: grid;
   place-items: center;
   border: none;
-  border-radius: var(--hos-r-2);
-  background: var(--hos-color-accent);
+  border-radius: var(--hos-radius-card);
+  background: var(--page-accent, #34d399);
   color: #052e16;
   cursor: pointer;
 }
@@ -766,12 +1067,36 @@ async function send(raw?: string) {
   cursor: default;
 }
 
+/* 停止生成：与发送按钮同尺寸，换成中性色以区分「发送」与「中断」 */
+.acp-send--stop {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 流式生成中的光标：放在文本尾部，提示仍在输出 */
+.acp-bubble__text--streaming::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: acp-caret 1s steps(2, start) infinite;
+}
+
+@keyframes acp-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
 .acp-foot {
   display: flex;
   gap: 14px;
   padding: 8px 16px 12px;
   font-size: 11px;
-  color: var(--hos-fg-2);
+  color: var(--hos-text-secondary);
 }
 
 .acp-foot kbd {

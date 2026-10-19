@@ -17,7 +17,9 @@ import asyncio
 import logging
 import ssl
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, cast
+
+from websockets.typing import Subprotocol
 
 from ...platform.security.entity_access import is_entity_allowed_by_restrictions
 from ...platform.security.ws_auth import extract_auth_token_from_cookie, resolve_ws_user
@@ -105,7 +107,9 @@ async def bridge_websockets(
         async with connect(
             upstream_uri,
             additional_headers=headers or None,
-            subprotocols=subprotocols or None,
+            # websockets 把子协议标注为 NewType(str)（Subprotocol），运行期就是字符串，
+            # 这里是一次无害的收窄：HTTP 头里读到的东西只能是 str。
+            subprotocols=cast('Sequence[Subprotocol] | None', subprotocols or None),
             ssl=ssl_context_for(upstream_uri),
             max_size=WS_MAX_MESSAGE_SIZE,
             open_timeout=10,

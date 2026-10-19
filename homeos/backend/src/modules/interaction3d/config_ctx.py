@@ -30,7 +30,7 @@ from typing import Any, NamedTuple, NoReturn
 
 from fastapi import HTTPException
 
-from .purifier import EXTRA_TYPES
+from .extra_types import EXTRA_TYPES
 
 #: 附加控制的网格档位（列 / 行）。
 _GRID_SPANS = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}

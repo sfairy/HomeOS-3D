@@ -25,11 +25,14 @@ from homeos_shared.schema_migrate import run_migrations
 from .migrations import MIGRATIONS
 from ...config import Settings
 
-LOGGER = logging.getLogger(__name__)
+# 名字必须落在 ``homeos`` 树下：控制台 handler 与运行日志缓冲只挂在这棵树与 uvicorn 上，
+# 用 ``__name__``（``src.platform.core.schema``）会一路传播到没有 handler 的 root，
+# 最终被 ``logging.lastResort`` 丢掉 —— INFO 级的迁移进度就这样整段消失。
+LOGGER = logging.getLogger("homeos.platform.core.schema")
 
 
 def _metadata() -> MetaData:
-    from . import models  # noqa: F401  # 注册模型到 Base.metadata
+    from . import models  # noqa: F401  # 注册模型到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base
 
     return Base.metadata
@@ -51,7 +54,17 @@ def prepare_schema(settings: Settings) -> None:
             mode=settings.schema_mode,
             logger=LOGGER,
         )
-        LOGGER.info("数据库迁移完成：%s → v%s（applied=%s）", report.from_version, report.to_version, report.applied)
+        if report.applied:
+            LOGGER.info(
+                "迁移完成：v%s → v%s（本次执行 %s 条：%s）",
+                report.from_version,
+                report.to_version,
+                len(report.applied),
+                ", ".join(f"v{item}" for item in report.applied),
+            )
+        else:
+            # 每次启动都是这个分支：库里已经是当前版本，没有待执行的迁移。
+            LOGGER.info("已是最新：v%s（无需迁移）", report.to_version)
         if settings.schema_mode == "check":
             # check 是只读探测：不仅不能执行迁移，也不能用 create_all 顺手补表。
             missing = missing_schema_objects(database.engine, metadata)

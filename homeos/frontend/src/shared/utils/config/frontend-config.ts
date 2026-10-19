@@ -37,7 +37,7 @@ const defaults: AppPublicConfig = {
   ui: {
     scaleBaseWidth: 1366,
     scaleBaseHeight: 1024,
-    accentColor: '#ffc46a',
+    accentColor: '#3b82f6',
   },
   screensaver: {
     screensaverEnabled: true,

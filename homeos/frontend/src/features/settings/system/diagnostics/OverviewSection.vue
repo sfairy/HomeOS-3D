@@ -545,6 +545,7 @@ const {
 
 const HA_SYNC_STAGE_LABELS = {
   ha_deferred_dwell: 'HA 延期排队',
+  ha_deferred_dwell_critical: 'HA 延期排队（关键域）',
   ha_receive: 'HA 解析路由',
   ingress_coalesce_dwell: 'Ingress 合并等待',
   ingress_flush: 'Ingress 发出',

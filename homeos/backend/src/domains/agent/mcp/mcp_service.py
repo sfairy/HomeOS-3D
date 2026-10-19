@@ -6,13 +6,15 @@ import hmac
 import json
 import logging
 import os
+import time
 from collections.abc import Mapping
 from typing import Any
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
-from ..agent_actor import AgentActor
+from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
+from ..tool_i18n import localize_tool_schemas
 from ....config import environment_is_production_from
 from ....platform.core.json_field import read_json_object
 from ....platform.core.models import User
@@ -51,6 +53,28 @@ def _unauthorized(message: str) -> StarletteHTTPException:
     return StarletteHTTPException(status_code=401, detail=message)
 
 
+def _too_many_requests(message: str) -> StarletteHTTPException:
+    """MCP 客户端级限流：429（与路由级限流同语义）。"""
+    return StarletteHTTPException(status_code=429, detail=message)
+
+
+#: MCP 客户端标识最大长度
+MAX_CLIENT_ID_LENGTH = 64
+
+
+def normalize_client_id(raw: Any) -> str:
+    """收敛 MCP 客户端标识：只保留安全字符并截断。
+
+    客户端标识会进入会话 key 与日志，不能允许换行 / 分隔符注入；空值返回空串，
+    由调用方回退到 IP 或 ``anon``。
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    safe = "".join(ch for ch in text if ch.isalnum() or ch in "._:-")
+    return safe[:MAX_CLIENT_ID_LENGTH]
+
+
 class McpGatewayService:
     """MCP 网关服务：JSON-RPC 协议路由 + 鉴权 + 执行身份解析。"""
 
@@ -63,10 +87,12 @@ class McpGatewayService:
         env: Mapping[str, str] | None = None,
         server_version: str = "",
         is_production: bool | None = None,
+        lang_templates: Any = None,
     ) -> None:
         self._agent_service = agent_service
         self._tools = tools
         self._agent_config = agent_config
+        self._lang_templates = lang_templates
         self._session_factory = session_factory
         self._env = env
         #: 生产标记：优先用应用装配注入的 ``settings.is_production``（唯一真源）；
@@ -82,6 +108,8 @@ class McpGatewayService:
         self._key_reminder_logged = False
         #: 「白名单未配置」告警同样只输出一次（非生产放行分支）。
         self._allowlist_warning_logged = False
+        #: 客户端维度限流窗口（clientId → 时间戳列表）
+        self._client_hits: dict[str, list[float]] = {}
 
     @property
     def _env_map(self) -> Mapping[str, str]:
@@ -183,39 +211,142 @@ class McpGatewayService:
             return None
 
     # JSON-RPC 入口
-    async def handle(self, body: dict[str, Any], ip: str | None = None) -> dict[str, Any]:
+    def _resolve_client_id(
+        self, body: dict[str, Any], ip: str | None, header_client_id: str | None
+    ) -> str:
+        """确定 MCP 客户端标识：请求头 → initialize.clientInfo.name → IP。
+
+        同一 NAT 后面的多个 Agent 过去都落在 ``mcp:<ip>``，会共享会话上下文；
+        加上客户端标识后按客户端隔离，取不到时保持原有 IP 语义。
+        """
+        client = normalize_client_id(header_client_id)
+        if client:
+            return client
+        params = body.get("params") if isinstance(body, dict) else None
+        if isinstance(params, dict):
+            client_info = params.get("clientInfo")
+            if isinstance(client_info, dict):
+                client = normalize_client_id(client_info.get("name"))
+        if client:
+            return client
+        return normalize_client_id(ip) or "anon"
+
+    def _check_client_rate(self, client_id: str) -> None:
+        """客户端级限流（默认 60 次 / 60 秒，MCP_CLIENT_RATE_LIMIT 可调；0 关闭）。"""
+        raw_limit = self._env_get("MCP_CLIENT_RATE_LIMIT").strip()
+        try:
+            limit = int(float(raw_limit)) if raw_limit else 60
+        except ValueError:
+            limit = 60
+        if limit <= 0:
+            return
+        try:
+            window = float(self._env_get("MCP_CLIENT_RATE_WINDOW_SECONDS") or 60.0)
+        except ValueError:
+            window = 60.0
+        now = time.monotonic()
+        hits = [stamp for stamp in self._client_hits.get(client_id, []) if now - stamp < window]
+        if len(hits) >= limit:
+            self._client_hits[client_id] = hits
+            raise _too_many_requests(f"MCP 客户端 {client_id} 请求过于频繁，请稍后再试")
+        hits.append(now)
+        self._client_hits[client_id] = hits
+
+    def _read_env_map(self, name: str) -> dict[str, Any]:
+        """读取 JSON 对象型环境变量；格式非法时按未配置处理（不让坏配置锁死网关）。"""
+        raw = self._env_get(name).strip()
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError):
+            logger.warning("%s 不是合法 JSON，已忽略", name)
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    def _authorize_client(self, client_id: str, client_key: str | None) -> None:
+        """可选的按客户端密钥校验（``MCP_CLIENT_KEYS``）。
+
+        未配置该变量时保持原有「网关密钥即可」的行为；一旦配置则**只放行**清单内
+        且密钥匹配的客户端，避免一把网关密钥被所有第三方 Agent 共享。
+        """
+        keys = self._read_env_map("MCP_CLIENT_KEYS")
+        if not keys:
+            return
+        expected = keys.get(client_id)
+        if not isinstance(expected, str) or not expected:
+            raise _unauthorized(f"MCP 客户端 {client_id} 未授权：请配置 MCP_CLIENT_KEYS")
+        provided = str(client_key or "")
+        if not provided or not _safe_equal_string(provided, expected):
+            raise _unauthorized(f"MCP 客户端 {client_id} 密钥无效")
+
+    def _client_scopes(self, client_id: str) -> set[str] | None:
+        """可选的按客户端作用域（``MCP_CLIENT_SCOPES``）。
+
+        ``None`` = 未配置，不限制；配置后未列出的客户端默认只有 ``read``，
+        需要控制设备必须显式授予 ``control``。
+        """
+        raw = self._read_env_map("MCP_CLIENT_SCOPES")
+        if not raw:
+            return None
+        scopes = raw.get(client_id)
+        if not isinstance(scopes, list):
+            return {"read"}
+        return {str(item) for item in scopes if str(item) in ("read", "control")}
+
+    async def handle(
+        self,
+        body: dict[str, Any],
+        ip: str | None = None,
+        client_id: str | None = None,
+        client_key: str | None = None,
+    ) -> dict[str, Any]:
         """处理一次 MCP JSON-RPC 请求。
 
-        - 记录来源 IP / 方法 / 工具名到日志，便于第三方 Agent 异常排查
+        - 记录客户端标识 / 来源 IP / 方法 / 工具名到日志，便于第三方 Agent 异常排查
+        - 客户端级限流与会话隔离（``mcp:<clientId>``）
         - 把 HomeToolsService / AgentService 注入为 handle_mcp_json_rpc 的依赖回调
         """
         from ...channels.reply import format_channel_reply
 
         payload = body if isinstance(body, dict) else {}
+        resolved_client = self._resolve_client_id(payload, ip, client_id)
+        self._authorize_client(resolved_client, client_key)
+        self._check_client_rate(resolved_client)
+        scopes = self._client_scopes(resolved_client)
         method = str(payload.get("method") or "")
         params = payload.get("params")
         tool_name = ""
         if isinstance(params, dict) and "name" in params:
             tool_name = str(params.get("name") or "")
-        # 操作审计：记录来源 IP、方法与被调用的工具，便于排查第三方 Agent 异常调用
+        # 操作审计：记录客户端标识 / IP / 方法与被调用的工具，便于排查第三方 Agent 异常调用
         logger.info(
-            "[MCP] 方法=%s%s IP=%s",
+            "[MCP] 客户端=%s 方法=%s%s IP=%s 作用域=%s",
+            resolved_client,
             method,
             f" 工具={tool_name}" if tool_name else "",
             ip or "-",
+            ",".join(sorted(scopes)) if scopes is not None else "all",
         )
 
         def list_fine_tools() -> list[Any]:
-            return self._tools.get_tool_schemas()
+            lang = getattr(getattr(self._lang_templates, "current", None), "lang", "zh")
+            return localize_tool_schemas(self._tools.get_tool_schemas(), lang)
 
         async def call_smart_home(message: str) -> dict[str, Any]:
             from ..service import AgentChatOptions
 
+            if scopes is not None and "control" not in scopes:
+                raise _forbidden(f"MCP 客户端 {resolved_client} 只有只读作用域，禁止执行自然语言控制")
             actor = await self.resolve_mcp_actor()
             result = await self._agent_service.chat(
                 message,
                 [],
-                AgentChatOptions(actor=actor, session_id=f"mcp:{ip or 'anon'}"),
+                AgentChatOptions(
+                    actor=actor,
+                    session_id=f"mcp:{resolved_client}",
+                    entry="mcp",
+                ),
             )
             text_reply = format_channel_reply(result.to_dict() if hasattr(result, "to_dict") else result)
             if result.outcome == "success" and not text_reply:
@@ -226,6 +357,8 @@ class McpGatewayService:
             }
 
         async def call_fine_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
+            if scopes is not None and "control" not in scopes and name in AGENT_CONTROL_TOOLS:
+                raise _forbidden(f"MCP 客户端 {resolved_client} 只有只读作用域，禁止调用控制工具 {name}")
             actor = await self.resolve_mcp_actor()
             tool_result = await self._tools.execute(name, args, actor)
             is_error = bool(
@@ -261,4 +394,4 @@ class McpGatewayService:
         return await handle_mcp_json_rpc(payload or {"method": ""}, deps)
 
 
-__all__ = ["McpGatewayService"]
+__all__ = ["MAX_CLIENT_ID_LENGTH", "McpGatewayService", "normalize_client_id"]
