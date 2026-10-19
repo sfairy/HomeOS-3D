@@ -12,7 +12,8 @@
     "build": "vite build --config frontend/vite.config.ts",
     "typecheck": "node ../ops/lib/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
     "lint": "eslint . --fix",
-    "lint:ci": "eslint . --max-warnings 0"
+    "lint:ci": "eslint . --max-warnings 0 && node ../ops/lib/check-css-syntax.mjs frontend/src",
+    "check:css": "node ../ops/lib/check-css-syntax.mjs frontend/src"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
