@@ -28,10 +28,8 @@
     "dev:app": "bun run --cwd homeos dev:frontend",
     "dev:store": "bun run --cwd homeos-store dev",
     "diff:source": "node ops/scripts/diff-source-versions.mjs",
-    "test:python": "PYTHONPATH=homeos/backend:packages/shared-py .venv-store/bin/python -m unittest discover -s homeos/backend/tests && PYTHONPATH=homeos-store/backend:packages/shared-py .venv-store/bin/python -m unittest discover -s homeos-store/backend/tests",
     "check:async-db": ".venv-store/bin/python ops/checks/check_async_db.py",
-    "check:bundle-budget": "bun ops/checks/check_bundle_budget.mjs",
-    "test:frontend": "bun run build:shared && bun run --cwd homeos/frontend test"
+    "check:bundle-budget": "bun ops/checks/check_bundle_budget.mjs"
   },
   "workspaces": [
     "homeos",

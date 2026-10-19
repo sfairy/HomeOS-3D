@@ -55,8 +55,6 @@ ops/deploy
 # 客户分发包输出目录（pack-customer.sh 产出，内含源码副本与 tar 包）。
 # 只锚定仓库根，避免误伤前端源码里可能存在的同名目录。
 # 开发/审计期的本地缓存与残留产物：不进构建上下文，也不属于产品。
-.pytest_cache
-**/.pytest_cache
 **/.smoke
 *.cdx.json
 **/*.cdx.json

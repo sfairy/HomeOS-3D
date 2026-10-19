@@ -26,7 +26,6 @@ dist/
 .venv/
 __pycache__/
 *.py[cod]
-.pytest_cache/
 
 # ---- 运行时数据与数据库 ----
 data/

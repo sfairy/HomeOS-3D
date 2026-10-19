@@ -39,7 +39,6 @@ homeos-store/backend/src/_version.py
 node_modules/
 dist/
 *.tsbuildinfo
-.pytest_cache/
 .ruff_cache/
 .pnpm-store/
 

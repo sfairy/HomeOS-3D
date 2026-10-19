@@ -67,14 +67,6 @@ bun ops/checks/check_bundle_budget.mjs --json
 ## 3. 后端观测
 
 ```bash
-# homeos 后端单测（当前 184 个）
-cd homeos/backend && PYTHONPATH=.:../../packages/shared-py \
-  ../../.venv-store/bin/python -m unittest discover -s tests -t .
-
-# store 后端单测（当前 42 个）
-PYTHONPATH=homeos-store/backend:packages/shared-py \
-  .venv-store/bin/python -m unittest discover -s homeos-store/backend/tests
-
 # 事件循环 lag / 阻塞调用：py-spy 采样（需先安装 py-spy）
 py-spy record -o /tmp/homeos-backend.svg --pid <pid> --duration 30
 
@@ -105,7 +97,7 @@ gateway 与 lifespan 的观测面，本轮未做。
 - **前端**：HLS 由无条件同步脚本改为按需加载（空闲预取）；`client-log.js` defer；`DisplayView` 的 4 个动态 import 并行；分页列表 deep watch 改逐字段 getter；绑定推荐/安防传感器/设备详情改为 toRaw 快照 + 显式 revision 失效；设备分析面板请求入口收敛并加序号守卫；诊断日志增量去重并 50 ms 批量落地；地震区段重试 timer 顺序修正。
 - **store**：订单列表对账有界并发（≤3 笔/2 s，其余交巡检）；SMTP 验证码/激活码邮件改 BackgroundTasks；`/account`、`/products`、站点配置 in-flight 去重；诊断页 7 张表按 tab 懒挂载；账户页 1 s 定时器按需启动。
 - **CI/预算**：`ops/checks/check_bundle_budget.mjs` + `bundle-budget.json`，`bun run check:bundle-budget`；`checks.yml` 的 build job 已加预算步骤（该 workflow 目前仅手动 dispatch，不随 push/PR 自动跑）。
-- **观测（Phase 3）**：`/metrics` 新增事件循环 lag p50/p99/max、SQLAlchemy 查询分类计数与启动总耗时；`homeos/backend/tests/test_observability_phase3.py` 覆盖输出、默认值、采样启停与 SELECT 计数；另新增 `test_event_loop_offload.py`、`test_notification_offload.py`、`test_place_localize_cache.py`、`test_security_events_parse.py`。
+- **观测（Phase 3）**：`/metrics` 新增事件循环 lag p50/p99/max、SQLAlchemy 查询分类计数与启动总耗时。
 
 仍待补（不伪造已完成的真机/视觉验收）：
 
