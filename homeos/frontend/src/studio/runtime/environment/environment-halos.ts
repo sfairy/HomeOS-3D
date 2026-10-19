@@ -1,3 +1,34 @@
+import { DEVICE_PROFILE_TABLE } from "../device/device-profiles";
+
+/**
+ * 参与描边的场景模型类型（0.7.8 `environment-halos.js`）。
+ *
+ * 固定集合只列非通用设备（门、帘、空调…）；冰箱 / 洗碗机 / 绿植等通用设备
+ * 的模型名一律从 `device-profiles` 派生，新增设备类型时无需再改这里。
+ */
+const OUTLINE_MODEL_TYPES: ReadonlySet<string> = new Set([
+  "door",
+  "airer",
+  "fan",
+  "ceiling-fan",
+  "storagewaterheater",
+  "gaswaterheater",
+  "airpurifier",
+  "wallac",
+  "floorac",
+  "airoutlet",
+  "curtain",
+  "nas",
+  "speaker",
+  "tv",
+  "robotvacuum",
+  "camera",
+  "presence",
+  ...Object.entries(DEVICE_PROFILE_TABLE)
+    .filter(([deviceKind]) => deviceKind !== "smallcar")
+    .flatMap(([, deviceProfile]) => deviceProfile.modelTypes || [deviceProfile.modelType]),
+]);
+
 function outlineHull(hullInput: any) {
   const sortedPoints = hullInput
       .slice()
@@ -191,33 +222,7 @@ export function createScreenOutlines({
           );
         return;
       }
-      if (
-        ![
-          "door",
-          "airer",
-          "fan",
-          "storagewaterheater",
-          "gaswaterheater",
-          "airpurifier",
-          "wallac",
-          "floorac",
-          "airoutlet",
-          "curtain",
-          "nas",
-          "fridge",
-          "freezer",
-          "dishwasher",
-          "washer",
-          "dryer",
-          "plant",
-          "speaker",
-          "tv",
-          "robotvacuum",
-          "camera",
-          "presence",
-        ].includes(traversedObject.userData?.environmentModelType)
-      )
-        return;
+      if (!OUTLINE_MODEL_TYPES.has(traversedObject.userData?.environmentModelType)) return;
       let floorId = traversedObject.userData.environmentFloorId;
       for (
         let ancestor = traversedObject.parent;

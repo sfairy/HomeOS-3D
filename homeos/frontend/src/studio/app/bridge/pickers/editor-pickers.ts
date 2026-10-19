@@ -747,6 +747,7 @@ export function createInteraction3dEditorPickers({
         isLockBatteryEntity = entityDeviceKind === "lock-battery",
         isTelevisionEntity = entityDeviceKind === "television",
         isTelevisionPowerEntity = entityDeviceKind === "television-power",
+        isComputerPowerEntity = entityDeviceKind === "computer-power",
         environmentSensorKey = ENVIRONMENT_SENSORS.some(
           (environmentSensor) => environmentSensor.key === entityDomainName,
         )
@@ -766,7 +767,9 @@ export function createInteraction3dEditorPickers({
         // 本仓暂无调用方（报警实体走 `pickers.alarm`），按 dist 补齐这条分支，避免日后接进来时
         // 静默落到链尾的 `^(light|switch)\.`（`weather` / `nas` 漏分支就是这么翻车的）。
         entityIdPattern =
-          entityDeviceKind === "weather"
+          isComputerPowerEntity
+            ? /^(switch|input_boolean)\.[a-z0-9_]+$/
+            : entityDeviceKind === "weather"
             ? /^weather\.[a-z0-9_]+$/
             : entityDeviceKind === "security-alarm"
               ? /^[a-z_]+\.[a-z0-9_]+$/
@@ -954,7 +957,9 @@ export function createInteraction3dEditorPickers({
                                     ? "选择扫地机地图"
                                     : entityDeviceKind === "vacuum-room"
                                       ? "选择房间快捷指令"
-                                      : isSpeakerEntity
+                                      : isComputerPowerEntity
+                                        ? "选择电脑电源开关"
+                                        : isSpeakerEntity
                                         ? "选择智能音响媒体实体"
                                         : isTelevisionEntity
                                           ? "选择电视媒体实体（Apple TV）"
@@ -1004,7 +1009,9 @@ export function createInteraction3dEditorPickers({
                           ? "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备"
                           : entityDeviceKind.startsWith("vacuum")
                             ? "没有匹配的实体，请先在 Home Assistant 中接入"
-                            : isSpeakerEntity
+                            : isComputerPowerEntity
+                              ? "没有匹配的 switch 或 input_boolean 电源开关"
+                              : isSpeakerEntity
                               ? "没有匹配的 media_player 实体，请先在 Home Assistant 接入音响"
                               : isTelevisionEntity
                                 ? "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV"

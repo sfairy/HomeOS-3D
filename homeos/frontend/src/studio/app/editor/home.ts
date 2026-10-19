@@ -1802,6 +1802,7 @@ function runCase(displayDeviceUnbindButtonElement = pageSelectElement.value) {
   (editorCtx.dashboardPreviewRenderer ||
     ((editorCtx.dashboardPreviewRenderer = new PanelRenderer2(dashboardPreviewElement, {
       editable: false,
+      editorWorkspace: true,
       historySeriesCache: historySeriesCacheById,
       runtimeStateCache: runtimeStateCacheById,
       virtualEntityStateCache: virtualEntityStateCacheById,
@@ -6489,6 +6490,7 @@ function ensureEditorRenderer() {
     editorCtx.editorRenderer ||
     ((editorCtx.editorRenderer = new PanelRenderer2(editorCanvasElement, {
       editable: true,
+      editorWorkspace: true,
       historySeriesCache: historySeriesCacheById,
       runtimeStateCache: runtimeStateCacheById,
       virtualEntityStateCache: virtualEntityStateCacheById,
@@ -7031,7 +7033,7 @@ async function projectSummary(
     loadNavigationIconOptions(projectSelectElement),
     vL2 && editorCtx.editorRenderer?.applyEditorComponentUpdates(editorCtx.activeProject.document, updatedDocument, vL2)
       ? (renderComponentLists(), coverMotorButtonElement())
-      : renderEditorWorkspace(updatedDocument),
+      : interaction3dEntryActive() || renderEditorWorkspace(updatedDocument),
     writeError({
       signature: editHistoryEntry,
     }),
@@ -7140,6 +7142,23 @@ async function saveDraft() {
     ((editorCtx.isSaving = false), writeError(), syncHistoryButtons());
   }
 }
+/**
+ * 3D 配置入口 / 弹窗是否正开着。
+ *
+ * 自动重载（HA 目录变化、撤销重做）时不要重置 2D 画布：否则会把正在编辑的
+ * 3D 入口、楼层弹窗或借用中的预览一起关掉。
+ */
+function interaction3dEntryActive() {
+  return (
+    !!document.querySelector('[data-interaction3d-entry-pending="true"]') ||
+    !!document.activeElement?.closest?.(
+      ".inspector-form, .i3d-editor, .i3d-floor-entry-dialog, [data-i3d-preview-scope]",
+    ) ||
+    !!document.querySelector(
+      "dialog.i3d-editor[open], dialog.i3d-floor-entry-dialog[open], dialog[data-i3d-preview-scope][open]",
+    )
+  );
+}
 async function loadHaConnection(keepHaForm: any, refreshHaSyncStatus: any) {
   const projectId3 = editorCtx.activeProject.projectId,
     Ie5 = editorCtx.componentScopeState,
@@ -7174,7 +7193,7 @@ async function loadHaConnection(keepHaForm: any, refreshHaSyncStatus: any) {
       ...previousConnectedSignature,
       document: entityLoadErrorState,
     }),
-    renderEditorWorkspace(pageSelectElement.value),
+    interaction3dEntryActive() || renderEditorWorkspace(pageSelectElement.value),
     writeError(),
     true
   );
@@ -7262,7 +7281,9 @@ async function syncAspectLockButton() {
         editorCtx.editorRenderer?.setEntityCatalog([], {}, []),
         editorCtx.dashboardPreviewRenderer?.setEntityCatalog([], {}, []),
         runExtraLower(),
-        document.activeElement?.closest?.(".inspector-form") || coverMotorButtonElement()));
+        interaction3dEntryActive() ||
+          document.activeElement?.closest?.(".inspector-form") ||
+          coverMotorButtonElement()));
     return;
   }
   const stringify = JSON.stringify([

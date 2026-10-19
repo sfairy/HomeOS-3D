@@ -1,57 +1,22 @@
-const GENERIC_DEVICE_PROFILES = Object.freeze({
-    smallcar: Object.freeze({
-      collection: "cars",
-      modelType: "smallcar",
-      modelTypes: Object.freeze(["smallcar", "suv", "scooter"]),
-      label: "汽车",
-      icon: "mdi:car-electric",
-      height: 1.5,
-      statusIndicator: false,
-    }),
-    fridge: Object.freeze({
-      collection: "fridges",
-      modelType: "fridge",
-      label: "冰箱",
-      icon: "mdi:fridge-outline",
-      height: 1.85,
-    }),
-    freezer: Object.freeze({
-      collection: "freezers",
-      modelType: "freezer",
-      label: "冰柜",
-      icon: "mdi:fridge-bottom",
-      height: 0.85,
-    }),
-    dishwasher: Object.freeze({
-      collection: "dishwashers",
-      modelType: "dishwasher",
-      label: "洗碗机",
-      icon: "mdi:dishwasher",
-      height: 0.82,
-    }),
-    washer: Object.freeze({
-      collection: "washers",
-      modelType: "washer",
-      label: "洗衣机",
-      icon: "mdi:washing-machine",
-      height: 0.85,
-    }),
-    dryer: Object.freeze({
-      collection: "dryers",
-      modelType: "dryer",
-      label: "烘干机",
-      icon: "mdi:tumble-dryer",
-      height: 0.85,
-    }),
-    plant: Object.freeze({
-      collection: "plants",
-      modelType: "plant",
-      label: "绿植",
-      icon: "mdi:flower",
-      height: 1.6,
-      statusIndicator: false,
-    }),
-  });
+import { DEVICE_PROFILE_TABLE } from "./device-profiles";
+
+/**
+ * 设备档案统一由 `device-profiles` 提供；这里只保留 3D 场景需要的
+ * 默认高度与状态灯开关，避免前后端/各面板各写一份白名单。
+ */
+const GENERIC_DEVICE_PROFILES = Object.freeze(
+  Object.fromEntries(
+    Object.entries(DEVICE_PROFILE_TABLE).map(([deviceKind, profile]) => [
+      deviceKind,
+      Object.freeze({
+        ...profile,
+        icon: profile.icon || "mdi:devices",
+        height: profile.height ?? 0.9,
+        statusIndicator: profile.statusIndicator !== false,
+      }),
+    ]),
+  ),
+);
 export const GENERIC_DEVICE_KINDS = Object.freeze(Object.keys(GENERIC_DEVICE_PROFILES)),
   isGenericDeviceKind = (candidateKind: any) => Object.hasOwn(GENERIC_DEVICE_PROFILES, candidateKind),
   genericDeviceProfile = (requestedKind: any) =>
@@ -69,7 +34,11 @@ export function genericDeviceMetadata(placements: any[] = []) {
           .map((entry, entryIndex) => ({
             id: entry.id,
             type: entry.type,
-            name: entry.name || deviceProfile.label + " " + (entryIndex + 1),
+            name:
+              entry.name ||
+              (deviceProfile.modelLabels?.[entry.type] || deviceProfile.label) +
+                " " +
+                (entryIndex + 1),
             x: entry.x,
             y: entry.y,
             height:

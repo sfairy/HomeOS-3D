@@ -9,6 +9,16 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
+#: 状态值本身没有语义的"服务型实体"：常态 ``unknown`` 不等于掉线。
+#:
+#: 这些集成（语音引擎、通知、AI 任务、红外/射频、对话代理）上报的 ``state``
+#: 只是占位，真正的能力在属性里。把它们当 ``unavailable`` 会让附加面板整块禁用。
+STATELESS_DOMAINS = frozenset(
+    {'stt', 'tts', 'cover', 'notify', 'ai_task', 'infrared', 'wake_word', 'conversation', 'radio_frequency'}
+)
+#: 发布事件的类型白名单（新增 ``resync_required``：连接器要求前端整表重拉）。
+PUBLISHED_EVENT_TYPES = frozenset({'state_changed', 'state_removed', 'resync_required'})
+
 
 @dataclass
 class StateFetchChanges:
@@ -73,35 +83,47 @@ class StateHub:
         entity_id = str(raw.get("entity_id", ""))
         state = str(raw.get("state", "unknown"))
         domain = entity_id.partition(".")[0]
-        return {
+        # unknown 要分域看：按钮/场景/输入按钮空闲时常态就是 unknown，仍算可用。
+        # 但同时要求原始 state 真的是字符串 "unknown" —— 字段整个缺失时也归一成
+        # unknown，那种情况说明状态还没到齐，仍按不可用处理。
+        available = state != "unavailable" and (
+            state != "unknown"
+            or (
+                domain in {"scene", "button", "input_button"}
+                and raw.get("state") == "unknown"
+            )
+        )
+        normalized = {
             "type": "state_changed",
             "entityId": entity_id,
             "domain": domain,
             "state": state,
             "attributes": deepcopy(raw.get("attributes") or {}),
-            # unknown 要分域看：按钮/输入按钮/事件实体空闲时常态就是 unknown，仍算可用。
-            # event.* 无最新事件时 HA 也是 unknown，不能当成设备掉线。
-            # 但同时要求原始 state 真的是字符串 "unknown" —— 字段整个缺失时也归一成
-            # unknown，那种情况说明状态还没到齐，仍按不可用处理。
-            "available": (
-                state != "unavailable"
-                and (
-                    state != "unknown"
-                    or (
-                        domain in {"button", "input_button", "event"}
-                        and raw.get("state") == "unknown"
-                    )
-                )
-            ),
-            # 供前端区分「事件实体空闲」与真不可用。
-            **(
-                {"availabilityReason": "event-idle"}
-                if domain == "event" and raw.get("state") == "unknown"
-                else {}
-            ),
+            "available": available,
             "lastChanged": raw.get("last_changed"),
             "updatedAt": raw.get("last_updated") or raw.get("last_changed"),
         }
+        # 服务型实体（tts / notify / conversation …）常态就是 unknown：available 仍为
+        # False，但用 availabilityReason 标记「这是空闲，不是掉线」，前端据此仍可操作。
+        if (
+            domain in STATELESS_DOMAINS
+            and raw.get("state") == "unknown"
+            and raw.get("available") is not False
+        ):
+            normalized["availabilityReason"] = "unknown"
+        attributes = normalized["attributes"]
+        # event.* 无最新事件时 HA 也是 unknown；只有声明了 event_types 且当前没有
+        # event_type 才算「事件空闲」，否则仍按真不可用处理。
+        if (
+            domain == "event"
+            and raw.get("state") == "unknown"
+            and raw.get("available") is not False
+            and isinstance(attributes.get("event_types"), list)
+            and attributes["event_types"]
+            and attributes.get("event_type") is None
+        ):
+            normalized["availabilityReason"] = "event-idle"
+        return normalized
 
     async def replace(self, states: Iterable[dict[str, Any]], *, invalidated: StateFetchChanges | None = None) -> None:
         """用一份完整快照整体替换内存状态，并通知被移除的实体。

@@ -52,6 +52,7 @@ import {
   applianceItemTypes, gardenItemTypes,
 } from "./external-models/_shared";
 import { ALL_ITEM_MODELS } from "./external-models/all-item-models";
+import { applyModelAnchors } from "./external-models/model-anchors";
 export { ALL_ITEM_MODELS } from "./external-models/all-item-models";
 /** 外模型加载状态； */
 type ExternalModelLoadState = {
@@ -2523,6 +2524,7 @@ function normalizeMaterialValue(materialValue: any): any {
         boundsCenter = boundsBox.getCenter(new threeNamespace.Vector3());
       modelClone.position.set(-boundsCenter.x, -boundsBox.min.y, -boundsCenter.z);
     }
+    applyModelAnchors(modelType, modelClone);
     return (parentGroup.add(modelClone), true);
   }
   /** 该物件是否挂外部 GLB 模型（`3d-studio` 检查面板据此决定要不要显示「材质属性」）。 */

@@ -3,9 +3,13 @@ import { televisionTime } from "../television/television-state";
 import { domElement } from "@app/shared/util/dom-factory";
 import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
+import { createPopupFeedback } from "@app/shared/util/popup-feedback";
+import { enhancePopupSelects } from "@app/shared/util/select-picker";
 export function createSpeakerPanel({
   onControl: sendCommand = async (_commandArgs: any) => {},
   fetchMedia: fetchMedia = (fetchUrl: any, fetchInit: any) => fetch(fetchUrl, fetchInit),
+  /** 宿主已经装好的反馈聚合区（`createPopupFeedback` 实例）；缺省时面板自建。 */
+  feedbackSlot: hostFeedbackSlot = undefined as any,
 } = {}) {
   const createElement = (tagName: any, className = "", labelText = "") =>
       domElement(document, tagName, className, labelText),
@@ -60,6 +64,9 @@ export function createSpeakerPanel({
   const bodyElement = createElement("div", "i3d-popup-body");
   (bodyElement.append(contentElement, actionsElement, settingsElement, errorElement),
     panelElement.append(headingElement, bodyElement));
+  // 来源 / 音效 / 循环等原生长下拉在缩放弹窗里点不中，统一换成主题化 picker
+  // （0.7.8 `speaker-panel.js` 的 `select-picker`）。
+  const popupSelects = enhancePopupSelects(panelElement);
   let activeEntity: any = null,
     revisionCount = 0,
     isDisposed = false,
@@ -70,6 +77,39 @@ export function createSpeakerPanel({
     draftPowerOn: boolean | null = null,
     draftPlaying: boolean | null = null,
     draftTimeoutId: any = null;
+  // 媒体错误统一走弹窗反馈聚合区（0.7.8 `speaker-panel.js`）。
+  const ownFeedbackSlot = hostFeedbackSlot ? null : createPopupFeedback({ element: panelElement }),
+    feedbackSlot = hostFeedbackSlot || ownFeedbackSlot,
+    releaseFeedback = feedbackSlot.attach(errorElement, {
+      source: () => activeEntity?.item?.entityId || "",
+      label: () => titleElement.textContent || "",
+    });
+  const SPEAKER_VOLUME_FEEDBACK_TIMEOUT_MS = 10_000;
+  let volumeFeedbackToken: Record<string, any> | null = null,
+    volumeFeedbackTimer: any = null;
+  const clearVolumeFeedback = () => {
+      (volumeFeedbackTimer !== null && clearTimeout(volumeFeedbackTimer),
+        (volumeFeedbackTimer = null),
+        (volumeFeedbackToken = null));
+    },
+    commitVolumeFeedback = (percent: number, messageElement: any) => {
+      (clearVolumeFeedback(),
+        (volumeFeedbackToken = { value: percent }),
+        (volumeFeedbackTimer = setTimeout(() => {
+          (volumeFeedbackTimer = null);
+          if (isDisposed || volumeFeedbackToken === null) return;
+          volumeFeedbackToken = null;
+          messageElement.textContent = "设备未响应，请重试。";
+        }, SPEAKER_VOLUME_FEEDBACK_TIMEOUT_MS)));
+    },
+    readVolumeFeedback = (volumeLevel: any) => {
+      if (
+        volumeFeedbackToken &&
+        Number.isFinite(volumeLevel) &&
+        Math.abs(volumeLevel * 100 - volumeFeedbackToken.value) <= 1
+      )
+        clearVolumeFeedback();
+    };
   const controlBindings: any = [],
     pendingCommandMap = new Map(),
     clearVisualDraft = () => {
@@ -127,6 +167,9 @@ export function createSpeakerPanel({
             ((draftPlaying = false), armVisualDraftTimeout()),
       pendingCommandMap.set(serviceGroup, pendingToken),
       (messageElement.textContent = ""),
+      targetService === "volume_set" &&
+        Number.isFinite(Number(serviceData.volume_level)) &&
+        commitVolumeFeedback(Number(serviceData.volume_level) * 100, messageElement),
       renderPanel());
     try {
       return (
@@ -138,6 +181,7 @@ export function createSpeakerPanel({
         revisionAtStart === revisionCount &&
           !isDisposed &&
           (clearVisualDraft(),
+          clearVolumeFeedback(),
           (messageElement.textContent = controlError?.message || "媒体控制失败，请重试。")),
         false
       );
@@ -523,6 +567,7 @@ export function createSpeakerPanel({
       ].some((supportedService) => entityState.supports(supportedService))));
     renderTimeline(entityState);
     const volumeLevel = entityState.attributes.volume_level;
+    readVolumeFeedback(volumeLevel);
     (document.activeElement !== volumeInput &&
       ((volumeInput.value = Number.isFinite(volumeLevel) ? volumeLevel * 100 : 0),
       syncHtmlRangeProgress(volumeInput),
@@ -607,6 +652,7 @@ export function createSpeakerPanel({
       label: entityState.name || "音响",
       artworkUrl: entityState.artwork || null,
     });
+    popupSelects.sync();
   }
   function resetPanel() {
     (revisionCount++,
@@ -614,6 +660,7 @@ export function createSpeakerPanel({
       (currentLibrary = null),
       pendingCommandMap.clear(),
       clearVisualDraft(),
+      clearVolumeFeedback(),
       refreshIntervalId !== null && clearInterval(refreshIntervalId),
       (refreshIntervalId = null),
       (breadcrumbPath = []),
@@ -640,7 +687,15 @@ export function createSpeakerPanel({
         ((panelElement.hidden = true), resetPanel(), (activeEntity = null));
     },
     dispose() {
-      isDisposed || (this.hide(), (isDisposed = true), deviceVisual.dispose(), panelElement.remove());
+      isDisposed ||
+        (this.hide(),
+        (isDisposed = true),
+        clearVolumeFeedback(),
+        releaseFeedback(),
+        ownFeedbackSlot?.dispose?.(),
+        popupSelects.dispose(),
+        deviceVisual.dispose(),
+        panelElement.remove());
     },
   };
 }

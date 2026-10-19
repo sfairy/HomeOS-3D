@@ -105,6 +105,7 @@ export async function switchEditorKind(
   deps: PanelSessionDeps,
   nextDeviceKind: any,
   shouldOpenAddDialog = false,
+  selection: any = null,
 ) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
   const { e, editorSession, kindSessionsByKind, closeAddDialog, closeAuxDialog, ensureItemCollections, buildEditableFieldList, renderPanel, refreshEditorPreview, openAddDialog } = deps;
@@ -131,6 +132,7 @@ export async function switchEditorKind(
         baselines: editorSession.baselineItemsById,
       }),
         e.isVacuumMode && (e.vacuumId = e.text || e.vacuumId),
+        selection?.vacuumId && (e.vacuumId = selection.vacuumId),
         closeAddDialog(),
         closeAuxDialog(),
         e.pickerGeneration++,
@@ -144,7 +146,9 @@ export async function switchEditorKind(
         e.applyKindFlags(nextDeviceKind),
         ensureItemCollections());
       const savedKindSession = kindSessionsByKind.get(nextDeviceKind);
-      ((e.text = e.isVacuumMode ? e.vacuumId : savedKindSession?.selectedId || ""),
+      ((e.text =
+        selection?.id ||
+        (e.isVacuumMode ? e.vacuumId : savedKindSession?.selectedId || "")),
         e.isVacuumMode && e.findVacuumModel() && (e.floorSelection = e.findVacuumModel().floorId),
         (editorSession.fieldDefs = buildEditableFieldList()),
         (editorSession.baselineItemsById =

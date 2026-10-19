@@ -165,11 +165,6 @@ class Settings:
     #: 主机名（同机部署的容器服务名 → 浏览器正在用的宿主 / 域名，见
     #: ``domains/store/discovery.py``）。只有地址特殊到推导不出来时才显式写死。
     store_url: str = ""
-    # 版本更新发现（``/api/v1/updates``）：可选的发布发现，与授权/编辑器隔离。
-    update_checks_enabled: bool = True
-    update_channel: str = "docker"
-    #: 更新检查端点（逗号分隔，可多个按序回退）。留空则用 ``store_url`` 拼出商店端点。
-    update_endpoints: tuple[str, ...] = ()
     # 认证
     jwt_secret: str = ""
     jwt_expires_in_seconds: int = 86400
@@ -467,11 +462,6 @@ def load_settings() -> Settings:
     return Settings(
         data_dir=data_dir,
         store_url=os.getenv("APP_STORE_URL", "").strip().rstrip("/"),
-        # 冒烟脚本会设 UPDATE_CHECKS_ENABLED=0 以免生命周期里真的去联网查更新；此前这里写死 True，
-        # 那个环境变量没人读，等于「脚本以为关掉了、实际每次都启动 UpdateChecker」。
-        update_checks_enabled=_environment_bool("UPDATE_CHECKS_ENABLED", default=True),
-        update_channel=os.getenv("APP_UPDATE_CHANNEL", "docker").strip().lower() or "docker",
-        update_endpoints=_environment_csv("APP_UPDATE_ENDPOINTS"),
         jwt_secret=os.getenv("JWT_SECRET", "").strip(),
         jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "86400")),
         session_max_age_seconds=max(

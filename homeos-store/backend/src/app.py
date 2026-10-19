@@ -39,8 +39,6 @@ from .licensing.crypto import (
 from .licensing.service import LicenseAuthority
 from .ops import incidents
 from .ops.appearance import AppearanceStore
-from .ops.release_info import CURRENT_VERSION, ensure_current_release
-from .ops.release_sync import sync_release_once
 from .ops.site_settings import get_setting
 from .payments import resolve_provider
 from .payments.sweeper import (
@@ -65,30 +63,6 @@ from .security.setup_guard import SetupGuard, announce_setup_window
 from .security.static_cache import StaticAssetCacheMiddleware
 
 logger = logging.getLogger("src")
-
-
-def _release_sync_hint(error: BaseException) -> str | None:
-    """把「预期内」的发布同步失败收成一行提示；无法归类时返回 ``None``（走完整 traceback）。
-
-    本地开发连不上 GitHub 很常见（无外网、或启动器为避免干扰 HA 而剥离了代理），
-    不必用 ``logger.exception`` 刷屏。
-    """
-    try:
-        import httpx
-    except ImportError:  # pragma: no cover
-        httpx = None  # type: ignore[assignment]
-    if httpx is not None:
-        if isinstance(error, (httpx.ConnectError, httpx.ConnectTimeout)):
-            return f"无法连接 GitHub（{error.__class__.__name__}）"
-        if isinstance(error, (httpx.ReadTimeout, httpx.TimeoutException, httpx.NetworkError)):
-            return f"访问 GitHub 超时或网络异常（{error.__class__.__name__}）"
-        if isinstance(error, httpx.HTTPStatusError):
-            code = error.response.status_code if error.response is not None else "?"
-            return f"GitHub 返回 HTTP {code}"
-    # DNS / 系统层连接拒绝也会以 OSError 透上来（有时未再包成 httpx）
-    if isinstance(error, OSError) and getattr(error, "errno", None) in {61, 111, 101, 51}:
-        return f"无法连接 GitHub（{error.__class__.__name__}: {error}）"
-    return None
 
 
 def _ensure_license_keys(settings: StoreSettings) -> None:
@@ -266,11 +240,8 @@ def _open_database(settings: StoreSettings) -> Database:
     database = Database(settings)
 
     with database.session() as session:
-        released = ensure_current_release(session)
         ensure_default_settings(session)
         ensure_default_products(session)
-    if released:
-        logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
     return database
 
 
@@ -317,53 +288,12 @@ def _make_payment_sweep_loop(runtime: _StoreRuntime):
     return _payment_sweep_loop
 
 
-def _make_release_sync_loop(runtime: _StoreRuntime):
-    """造一个后台发布版本同步循环：定时从 GitHub Releases 取最新版本落库。"""
-    settings = runtime.settings
-    database = runtime.database
-
-    async def _release_sync_loop() -> None:
-        """后台发布版本同步循环：定时从 GitHub Releases 取最新版本落库。
-
-        客户机在内网只轮询商店的 /store/v1/updates/latest，由商店这一台中心机负责
-        访问公网 GitHub —— 换版本来源不影响客户机。失败只记日志并按较短间隔重试。
-        """
-        interval = int(settings.release_sync_interval_seconds or 0)
-        if interval <= 0:
-            logger.debug("发布版本同步已关闭（STORE_RELEASE_SYNC_INTERVAL_SECONDS=0）")
-            return
-        while True:
-            ok = False
-            try:
-                ok = await asyncio.to_thread(sync_release_once, database, settings)
-            except Exception as error:
-                retry_in = min(interval, 3600)
-                # 网络类失败是本地开发常态（dev 启动器会剥离代理、内网也到不了 GitHub），
-                # 打一行可读提示即可；整段 traceback 只会吓人，对排障没帮助。
-                hint = _release_sync_hint(error)
-                if hint is not None:
-                    logger.warning(
-                        "发布版本同步本轮跳过：%s。%d 秒后重试"
-                        "（本地可设 STORE_RELEASE_SYNC_INTERVAL_SECONDS=0 关闭）。",
-                        hint,
-                        retry_in,
-                    )
-                else:
-                    logger.exception(
-                        "发布版本同步本轮失败，将在 %d 秒后重试", retry_in
-                    )
-            await asyncio.sleep(interval if ok else min(interval, 3600))
-
-    return _release_sync_loop
-
-
 def _make_lifespan(runtime: _StoreRuntime):
     """造应用生命周期钩子：启动时拉起后台任务，退出时取消任务并释放数据库。"""
     settings = runtime.settings
     database = runtime.database
     setup_guard = runtime.setup_guard
     payment_sweep_loop = _make_payment_sweep_loop(runtime)
-    release_sync_loop = _make_release_sync_loop(runtime)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -382,14 +312,10 @@ def _make_lifespan(runtime: _StoreRuntime):
             else:
                 setup_guard.discard_file()
         sweep_task = asyncio.create_task(payment_sweep_loop())
-        release_task = asyncio.create_task(release_sync_loop())
         try:
             yield
         finally:
-            release_task.cancel()
             sweep_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await release_task
             with contextlib.suppress(asyncio.CancelledError):
                 await sweep_task
             database.dispose()

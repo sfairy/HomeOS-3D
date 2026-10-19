@@ -1,5 +1,11 @@
 import { carState } from "./car-state";
-export function createCarCharging({ requestFrame: requestFrame = () => {} } = {}) {
+export function createCarCharging({
+  requestFrame: requestFrame = () => {},
+  isVisible: isModelInView = (_target: any) => true,
+}: {
+  requestFrame?: (...args: any[]) => any;
+  isVisible?: (target: any) => boolean;
+} = {}) {
   let currentRoot: any,
     currentRevision: any,
     currentRetainedRoots: any = [],
@@ -27,7 +33,7 @@ export function createCarCharging({ requestFrame: requestFrame = () => {} } = {}
         ancestorObject = ancestorObject.parent
       ) {
         if (ancestorObject.visible === false) return false;
-        if (ancestorObject === currentRoot) return true;
+        if (ancestorObject === currentRoot) return isModelInView(candidateObject);
       }
       return false;
     };

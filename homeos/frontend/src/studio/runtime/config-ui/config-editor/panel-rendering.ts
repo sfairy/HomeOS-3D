@@ -182,8 +182,12 @@ export function attachEditorPanelRendering(e: any) {
     return listChangedFieldsCore(panelSessionDeps(), changedItem);
   }
   /** 切换设备种类的会话重建（同上；本身是 `async`，薄绑定只返回 Promise，不写成 `async`）。 */
-  function switchEditorKind(nextDeviceKind: any, shouldOpenAddDialog = false) {
-    return switchEditorKindCore(panelSessionDeps(), nextDeviceKind, shouldOpenAddDialog);
+  function switchEditorKind(
+    nextDeviceKind: any,
+    shouldOpenAddDialog = false,
+    selection: any = null,
+  ) {
+    return switchEditorKindCore(panelSessionDeps(), nextDeviceKind, shouldOpenAddDialog, selection);
   }
 
   /**
@@ -355,12 +359,50 @@ export function attachEditorPanelRendering(e: any) {
       }
     });
     ((saveButtonElement.className = "primary"),
-      e.headerElement.append(
-        e.createElement("strong", "", "3D " + e.editorKindTitle + "配置"),
-        saveStatusElement,
-        saveButtonElement,
-        e.createButton("退出", disposeEditor),
+      e.headerElement.append(e.createElement("strong", "", "3D " + e.editorKindTitle + "配置")));
+    if (
+      e.isClimateMode ||
+      e.isCoverMode ||
+      e.isTemperatureHumidityMode ||
+      e.isDeviceKind ||
+      e.isGenericDeviceMode ||
+      e.isVacuumMode ||
+      e.isVacuumShortcutMode
+    ) {
+      const showAllLabelsInput = e.createElement("input");
+      ((showAllLabelsInput.type = "checkbox"),
+        (showAllLabelsInput.checked = e.editingShowAllLabels === true),
+        showAllLabelsInput.setAttribute("aria-label", "显示本类全部标签"),
+        showAllLabelsInput.addEventListener("change", () => {
+          if (e.isDisposed || !e.isAccessAllowed) return;
+          ((e.editingShowAllLabels = showAllLabelsInput.checked),
+            e.editorRuntime?.update(
+              buildRuntimeProperties(),
+              e.isVacuumShortcutMode && e.text
+                ? "vacuum-room:" + e.vacuumId + ":" + e.text
+                : e.describeGroupFieldValue(),
+              {
+                module: e.deviceKind,
+                vacuumId: e.isVacuumShortcutMode ? e.vacuumId : "",
+                showAllLabels: e.editingShowAllLabels === true,
+              },
+            ));
+        }));
+      const showAllLabelsToggleElement = e.createElement(
+        "label",
+        "i3d-setting-toggle i3d-preview-label-toggle",
+      );
+      (showAllLabelsToggleElement.append(
+        e.createElement("span", "", "显示本类全部标签"),
+        showAllLabelsInput,
       ),
+        e.headerElement.append(showAllLabelsToggleElement));
+    }
+    (e.headerElement.append(
+      saveStatusElement,
+      saveButtonElement,
+      e.createButton("退出", disposeEditor),
+    ),
       e.bodyElement.append(e.viewElement, e.panelElement),
       e.editorDialogElement.append(e.headerElement, e.bodyElement),
       document.body.append(e.editorDialogElement),
@@ -392,7 +434,9 @@ export function attachEditorPanelRendering(e: any) {
             ? "vacuum-room:" + e.vacuumId + ":" + e.text
             : e.describeGroupFieldValue(),
           {
-            module: e.deviceKind, vacuumId: e.isVacuumShortcutMode ? e.vacuumId : "",
+            module: e.deviceKind,
+            vacuumId: e.isVacuumShortcutMode ? e.vacuumId : "",
+            showAllLabels: e.editingShowAllLabels === true,
           },
         ),
         refreshBatchButtons());

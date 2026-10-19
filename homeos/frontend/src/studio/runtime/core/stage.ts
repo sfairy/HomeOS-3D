@@ -1,9 +1,11 @@
 
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
+import { createAnimationVisibility as createAnimationVisibility2 } from "./animation-work";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
 import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";
 import { createSpeakerPanel as createSpeakerPanel2 } from "../speaker/speaker-panel";
 import { createSpeakerRings as createSpeakerRings2 } from "../speaker/speaker-ring";
+import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
 const [
   { backgroundOpacity: labelBackgroundOpacity },
   { withPageAppearancePreset: applyPageAppearancePreset },
@@ -93,6 +95,9 @@ import {
 } from "../cover/cover-groups";
 import { createCurtainMotion as createCurtainMotion2 } from "../cover/curtain-motion";
 import { createEnvironmentAirflow as createEnvironmentAirflow2 } from "../environment/environment-airflow";
+import { createDeviceMist as createDeviceMist2 } from "../environment/device-mist";
+import { createRangehoodAirflow as createRangehoodAirflow2 } from "../environment/rangehood-airflow";
+import { createComputerScreens as createComputerScreens2 } from "../device/computer-screen";
 import { createScreenOutlines as createScreenOutlines2 } from "../environment/environment-halos";
 import {
   createClimateModeHistory as createClimateModeHistory2,
@@ -410,6 +415,12 @@ export function mountStage(mountOptions: any) {
       get editingVacuumId() {
         return ctx.editingVacuumId;
       },
+      get showAllLabels() {
+        return ctx.showAllLabels;
+      },
+      set showAllLabels(v: any) {
+        ctx.showAllLabels = v === true;
+      },
       get collectGenericDeviceBindings() {
         return collectGenericDeviceBindings;
       },
@@ -591,7 +602,7 @@ export function mountStage(mountOptions: any) {
           const climateRequestId = "climate-" + ++ctx.num,
             climateRequestTimeoutId = setTimeout(
               () => settleClimateRequest(climateRequestId, "请求超时，请检查设备状态。"),
-              14000,
+              interaction3dControlTimeout(climateControl) + 2000,
             );
           (pendingControlRequestsByRequestId.set(climateRequestId, {
             resolve: climateResolve,
@@ -762,7 +773,7 @@ export function mountStage(mountOptions: any) {
             const airerRequestId = "airer-" + ++ctx.num,
               airerRequestTimeoutId = setTimeout(
                 () => settleMediaRequest(airerRequestId, "请求超时，请检查设备状态。"),
-                14000,
+                interaction3dControlTimeout(coverControlRequest) + 2000,
               );
             (mediaControlRequestsByRequestId.set(airerRequestId, {
               resolve: coverResolve,
@@ -787,7 +798,7 @@ export function mountStage(mountOptions: any) {
             coverRequestId = "cover-" + ++ctx.num,
             coverRequestTimeoutId = setTimeout(
               () => failCoverRequest(coverRequestId, "请求超时，请检查设备状态。"),
-              14000,
+              interaction3dControlTimeout(coverControlRequest) + 2000,
             );
           rebuildCurtainMotion();
           const includes =
@@ -903,7 +914,7 @@ export function mountStage(mountOptions: any) {
           const airerExtraRequestId = "airer-extra-" + ++ctx.num,
             airerExtraRequestTimeoutId = setTimeout(
               () => settleMediaRequest(airerExtraRequestId, "请求超时，请检查设备状态。"),
-              14000,
+              interaction3dControlTimeout(coverExtraControl) + 2000,
             );
           (mediaControlRequestsByRequestId.set(airerExtraRequestId, {
             resolve: coverExtraResolve,
@@ -970,8 +981,8 @@ export function mountStage(mountOptions: any) {
         }
         const mediaRequestId = "television-" + ++ctx.num,
           mediaRequestTimeoutId = setTimeout(
-            () => settleMediaRequest(mediaRequestId, "请求超时，请检查设备状态。"),
-            14000,
+          () => settleMediaRequest(mediaRequestId, "请求超时，请检查设备状态。"),
+          interaction3dControlTimeout(mediaCommand) + 2000,
           );
         (mediaControlRequestsByRequestId.set(mediaRequestId, {
           resolve: mediaResolve,
@@ -1024,8 +1035,8 @@ export function mountStage(mountOptions: any) {
           }
           const deviceRequestId = "device-" + ++ctx.num,
             deviceRequestTimeoutId = setTimeout(
-              () => settleMediaRequest(deviceRequestId, "请求超时，请检查设备状态。"),
-              14000,
+            () => settleMediaRequest(deviceRequestId, "请求超时，请检查设备状态。"),
+            interaction3dControlTimeout(genericDeviceControl) + 2000,
             );
           (mediaControlRequestsByRequestId.set(deviceRequestId, {
             resolve: genericDeviceResolve,
@@ -1067,7 +1078,7 @@ export function mountStage(mountOptions: any) {
         const lockRequestId = "lock-" + ++ctx.num,
           lockRequestTimeoutId = setTimeout(
             () => settleMediaRequest(lockRequestId, "请求超时，请检查门锁状态。"),
-            14000,
+            interaction3dControlTimeout(lockControl) + 2000,
           );
         (mediaControlRequestsByRequestId.set(lockRequestId, {
           resolve: lockResolve,
@@ -1522,7 +1533,22 @@ export function mountStage(mountOptions: any) {
   function syncStageVisibility() {
     return syncStageVisibilityCore(stageLayersSyncDeps());
   }
-  const televisionScreens = createTelevisionScreens2({
+  // 动画可见性裁剪：包围球 + 视锥（0.7.8 `animation-work`）。
+  // 反射通道单独放行（镜子里的设备仍要动），与上游 `mayReflect` 语义一致。
+  const animationVisibility = createAnimationVisibility2({
+      THREE: three,
+      getCamera: (visibilityTarget: any) =>
+        mountOptions.presentationCamera?.(visibilityTarget) || mountOptions.camera,
+      getRevision: () => mountOptions.environmentRevision ?? mountOptions.sceneRevision,
+    }),
+    // 持续动画帧：优先走宿主的"动态渲染"通道（studio 有），运行时就退回普通渲染。
+    requestAnimation = () => {
+      (mountOptions.requestDynamicRender?.() ??
+        mountOptions.requestEffectRender?.() ??
+        mountOptions.requestRender?.(),
+        wakeBackgroundAnimation());
+    },
+    televisionScreens = createTelevisionScreens2({
       THREE: three,
       requestFrame: (televisionModelRoot) => {
         (mountOptions.requestRender?.(),
@@ -1539,11 +1565,16 @@ export function mountStage(mountOptions: any) {
       requestFrame: () => {
         (mountOptions.requestRender?.(), wakeBackgroundAnimation());
       },
+      requestAnimation: requestAnimation,
+      isVisible: (fanModel: any) => animationVisibility.visible(fanModel, { reflected: true }),
+      setRenderObjects: (fanRenderObjects: any[]) =>
+        mountOptions.setDynamicRenderObjects?.("fan", fanRenderObjects),
     }),
     carCharging = createCarCharging2({
       requestFrame: () => {
         (mountOptions.requestRender?.(), wakeBackgroundAnimation());
       },
+      isVisible: (carModel: any) => animationVisibility.visible(carModel, { reflected: true }),
     });
   const startupEffectsUnsubscribe = mountOptions.onStartupEffectsProgress?.(
     (startupProgressValue: any) => {
@@ -1567,6 +1598,7 @@ export function mountStage(mountOptions: any) {
     requestFrame: () => {
       (mountOptions.requestRender?.(), wakeBackgroundAnimation());
     },
+    isVisible: (speakerModel: any) => animationVisibility.visible(speakerModel, { reflected: true }),
   });
   function syncStartupDeviceLayers() {
     if (ctx.startupProgress > 0) return;
@@ -1633,6 +1665,31 @@ export function mountStage(mountOptions: any) {
   };
   const environmentAirflow = createEnvironmentAirflow2(environmentAirflowOptions);
   mountOptions.setEnvironmentAirflow?.(environmentAirflow);
+  // 设备类环境特效（喷雾 / 吸风 / 电脑屏幕）与气候气流分开：前者跟随通用设备绑定，
+  // 后者只服务空调类实体；三者都在同一渲染帧循环里 tick。
+  const deviceMistOptions = {
+    THREE: three,
+    requestFrame: () => {
+      (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+    },
+    getCamera: () => mountOptions.camera,
+  };
+  const deviceMist = createDeviceMist2(deviceMistOptions);
+  mountOptions.setDeviceMist?.(deviceMist);
+  const rangehoodAirflow = createRangehoodAirflow2({
+    THREE: three,
+    requestFrame: () => {
+      (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+    },
+  });
+  mountOptions.setRangehoodAirflow?.(rangehoodAirflow);
+  const computerScreens = createComputerScreens2({
+    THREE: three,
+    requestFrame: () => {
+      (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+    },
+  });
+  mountOptions.setComputerScreens?.(computerScreens);
   const viewHelpElement = createStageElement(
     "p",
     "i3d-view-help",
@@ -2282,6 +2339,146 @@ export function mountStage(mountOptions: any) {
             ...(ctx.activeModule === "vacuum" && !ctx.isEditing ? collectVacuumShortcuts() : []),
           ]
     ).filter(matchesSelectedFloor);
+  /**
+   * 「显示本类全部标签」的条目键（0.7.8 `showAllLabels`）。
+   *
+   * 键里先归一化大类（热水器/净化器/风扇/晾衣架是 climate、cover 的子类），
+   * 否则同一条目会在 base 与「本类」两批里各出现一次。
+   */
+  function previewReferenceKey(previewMarkerItem: any) {
+    return JSON.stringify([
+      previewMarkerItem.waterHeater
+        ? "water-heater"
+        : previewMarkerItem.airPurifier
+          ? "purifier"
+          : previewMarkerItem.pedestalFan
+            ? "fan"
+            : previewMarkerItem.airer
+              ? "airer"
+              : previewMarkerItem.deviceKind,
+      previewMarkerItem.id,
+    ]);
+  }
+  /** 标记 → 切回配置编辑器所需的模块定位信息（0.7.8 `previewSelection`）。 */
+  function previewSelectionOf(previewMarkerItem: any) {
+    const isVacuumShortcutItem = previewMarkerItem.deviceKind === "vacuum-room";
+    return {
+      // 扫地机快捷指令：编辑器要的是裸 shortcutId（vacuumId 单独带），不是 `vacuum-room:` 标记 id。
+      id:
+        isVacuumShortcutItem && previewMarkerItem.shortcutId
+          ? previewMarkerItem.shortcutId
+          : previewMarkerItem.entryId || previewMarkerItem.id,
+      floorId: previewMarkerItem.floorId,
+      module: previewMarkerItem.waterHeater
+        ? "water-heater"
+        : previewMarkerItem.airPurifier
+          ? "purifier"
+          : previewMarkerItem.pedestalFan
+            ? "fan"
+            : previewMarkerItem.airer
+              ? "airer"
+              : isVacuumShortcutItem
+                ? "vacuum-shortcut"
+                : previewMarkerItem.deviceKind,
+      ...(previewMarkerItem.vacuumId ? { vacuumId: previewMarkerItem.vacuumId } : {}),
+    };
+  }
+  /** 当前模块所属大类里的其它设备（0.7.8 的 `_0x519d14` 分支表）。 */
+  function collectPreviewReferenceBindings(): any[] {
+    if (ctx.activeModule === "security") return collectSecurityBindings(true);
+    if (ctx.activeModule === "vacuum" || ctx.activeModule === "vacuum-shortcut")
+      return [...collectVacuumShortcuts(), ...collectVacuumBindings()];
+    if (
+      ["water-heater", "airer", "nas", "television", "speaker", ...GENERIC_DEVICE_KINDS2].includes(
+        ctx.activeModule,
+      )
+    )
+      return [
+        ...collectCoverBindings().filter((airerPreviewBinding: any) => airerPreviewBinding.airer),
+        ...collectClimateBindings().filter(
+          (waterHeaterPreviewBinding: any) => waterHeaterPreviewBinding.waterHeater,
+        ),
+        ...collectNasBindings(),
+        ...collectSpeakerBindings(),
+        ...collectTelevisionBindings(),
+        ...GENERIC_DEVICE_KINDS2.flatMap((previewDeviceKind: any) =>
+          collectGenericDeviceBindings(previewDeviceKind),
+        ),
+      ];
+    if (["climate", "fan", "purifier", "cover", "temperature-humidity"].includes(ctx.activeModule))
+      return [
+        ...collectClimateBindings().filter(
+          (climatePreviewBinding: any) => !climatePreviewBinding.waterHeater,
+        ),
+        ...collectGroupedCovers().filter((coverPreviewBinding: any) => !coverPreviewBinding.airer),
+        ...(ctx.options.environment?.temperatureHumidity || []).map(
+          (temperatureHumidityPreviewEntry: any) => ({
+            ...temperatureHumidityPreviewEntry,
+            deviceKind: "temperature-humidity",
+          }),
+        ),
+      ];
+    return [];
+  }
+  /**
+   * 标记渲染用的条目表：编辑态打开「显示本类全部标签」时，把同一大类下的
+   * 其它设备也追加成 `preview-reference:*` 条目（点击即切换编辑对象）。
+   */
+  const markerBindings = () => {
+    const baseBindings = currentModuleBindings();
+    if (!ctx.isEditing || !ctx.showAllLabels || ctx.activeModule === "light") return baseBindings;
+    const previewReferenceBindings = collectPreviewReferenceBindings();
+    if (!previewReferenceBindings.length) return baseBindings;
+    const baseKeySet = new Set(baseBindings.map(previewReferenceKey));
+    return [
+      ...baseBindings.map((baseMarkerItem: any) => ({
+        ...baseMarkerItem,
+        previewSelection: previewSelectionOf(baseMarkerItem),
+        previewReference:
+          baseMarkerItem.id !== ctx.text &&
+          baseMarkerItem.entryId !== ctx.text &&
+          baseMarkerItem.shortcutId !== ctx.text,
+      })),
+      ...previewReferenceBindings
+        .filter(
+          (previewMarkerItem: any) =>
+            matchesSelectedFloor(previewMarkerItem) &&
+            !baseKeySet.has(previewReferenceKey(previewMarkerItem)),
+        )
+        .map((previewMarkerItem: any) => ({
+          ...previewMarkerItem,
+          previewSelection: previewSelectionOf(previewMarkerItem),
+          id: "preview-reference:" + previewReferenceKey(previewMarkerItem),
+          previewReference: true,
+        })),
+    ];
+  };
+  /** 点击「本类」预览标记：让配置编辑器切到对应设备（0.7.8 `_0x5ce536`）。 */
+  function selectPreviewReference(previewReferenceId: any) {
+    if (
+      !ctx.isEditing ||
+      !ctx.showAllLabels ||
+      ctx.isCameraMoving ||
+      ctx.isAwaitingFloorViewAdjust ||
+      ctx.isRangeEditorOpen ||
+      (ctx.panelDisplayMode && ctx.panelDisplayMode !== "panel") ||
+      !previewReferenceId
+    )
+      return;
+    const previewReferenceEntry = markerBindings().find(
+      (previewMarkerCandidate: any) =>
+        previewMarkerCandidate.id === previewReferenceId && previewMarkerCandidate.previewReference,
+    );
+    if (!previewReferenceEntry?.previewSelection || !matchesSelectedFloor(previewReferenceEntry))
+      return;
+    (ctx.panelDisplayMode === "panel" && exitFocusMode({ immediate: true }),
+      postHostMessage({
+        type: "edit",
+        action: "select",
+        ...previewReferenceEntry.previewSelection,
+        previewReference: true,
+      }));
+  }
   function syncFloorTabs() {
     ((navigationLayerElement.hidden =
       !ctx.isNavigationVisible && (ctx.isEditing || ctx.isAwaitingFloorViewAdjust || ctx.isRangeEditorOpen)),
@@ -2568,6 +2765,15 @@ export function mountStage(mountOptions: any) {
       get environmentAirflow() {
         return environmentAirflow;
       },
+      get deviceMist() {
+        return deviceMist;
+      },
+      get rangehoodAirflow() {
+        return rangehoodAirflow;
+      },
+      get computerScreens() {
+        return computerScreens;
+      },
       get syncFloorTabs() {
         return syncFloorTabs;
       },
@@ -2778,7 +2984,7 @@ export function mountStage(mountOptions: any) {
             : (presenceSourceEntry.size ?? 1) * 0.7,
         };
       });
-  function collectSecurityBindings() {
+  function collectSecurityBindings(includeAllKinds = false) {
     const securityBindingEntries = [
       ...lockBindings(),
       ...securityCameraBindings(),
@@ -2787,7 +2993,7 @@ export function mountStage(mountOptions: any) {
         (securityBinding: any) => (ctx.isEditing && securityBinding.modelId) || !ctx.isEditing,
       ),
     ];
-    return ctx.isEditing && ctx.selectedSecurityKind
+    return ctx.isEditing && ctx.selectedSecurityKind && !includeAllKinds
       ? securityBindingEntries.filter(
           (filteredSecurityBinding) =>
             filteredSecurityBinding.deviceKind === ctx.selectedSecurityKind ||
@@ -3639,7 +3845,7 @@ export function mountStage(mountOptions: any) {
     vector.retain(entityId2, previewToken);
     const commandTimeoutHandle = setTimeout(
       () => settleControlCommand(requestId, "请求超时，请检查设备状态。", true),
-      14000,
+      interaction3dControlTimeout(controlCommand) + 2000,
     );
     (lightGroupByKey.set(requestId, {
       entityId: entityId2,
@@ -4010,6 +4216,8 @@ export function mountStage(mountOptions: any) {
     }));
   const stageHandlersHost: StageHandlersHost = {
     activateMarker,
+    markerBindings,
+    selectPreviewReference,
     get activeCameraPose() { return ctx.activeCameraPose; },
     set activeCameraPose(v: any) { ctx.activeCameraPose = v; },
     get activeModule() { return ctx.activeModule; },
@@ -4059,11 +4267,16 @@ export function mountStage(mountOptions: any) {
     dreamTiltFeedback,
     get editingVacuumId() { return ctx.editingVacuumId; },
     set editingVacuumId(v: any) { ctx.editingVacuumId = v; },
+    get showAllLabels() { return ctx.showAllLabels; },
+    set showAllLabels(v: any) { ctx.showAllLabels = v === true; },
     editorSelectionOutlines,
     element,
     endMarkerDrag,
     entries,
     environmentAirflow,
+    deviceMist,
+    rangehoodAirflow,
+    computerScreens,
     environmentScene,
     exitFocusMode,
     failCoverRequest,
@@ -4315,6 +4528,7 @@ export function mountStage(mountOptions: any) {
     window.addEventListener("pagehide", () => {
       (stateUpdatePlanner.invalidate(),
         stageModelIndex.invalidate(),
+        animationVisibility.invalidate(),
         lockMotion.dispose(),
         mountOptions.setLockMoving?.(false),
         lockPanel.dispose(),
@@ -4369,6 +4583,9 @@ export function mountStage(mountOptions: any) {
         televisionPanel.dispose(),
         televisionScreens.dispose(),
         environmentAirflow.dispose(),
+        deviceMist.dispose(),
+        rangehoodAirflow.dispose(),
+        computerScreens.dispose(),
         environmentScene.dispose(),
         startupEffectsUnsubscribe?.(),
         carCharging.dispose(),

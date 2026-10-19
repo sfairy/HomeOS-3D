@@ -8,6 +8,11 @@ import {
 } from "../device/entity-capabilities";
 import { domElement } from "@app/shared/util/dom-factory";
 import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
+import {
+  createNativeExtraPanel,
+  nativeExtraKind,
+  nativeExtraMinimumWidth,
+} from "../panels/native-extra-panel";
 /** 实体可用性判定：离线/未知态不可用，但 button/input_button 的 unknown 态视为可执行。 */
 function entityUsable(entityId: any, state: any) {
   return !!(
@@ -16,49 +21,96 @@ function entityUsable(entityId: any, state: any) {
     typeof state.state == "string" &&
     !["", "unavailable"].includes(state.state) &&
     (!String(entityId).startsWith("fan.") || ["on", "off"].includes(state.state)) &&
-    (state.state !== "unknown" || /^(button|input_button)\./.test(entityId))
+    (state.state !== "unknown" || /^(button|input_button|scene)\./.test(entityId))
   );
 }
 function extraStateLabel(entityId: any, state: any) {
   const liveState = state?.newState || state;
-  return entityUsable(entityId, liveState)
-    ? liveState.state === "unknown"
-      ? "可执行"
-      : String(entityId).startsWith("binary_sensor.")
-        ? liveState.attributes?.device_class === "running" &&
-          ["on", "off"].includes(liveState.state)
-          ? liveState.state === "on"
-            ? "正在运行"
-            : "未在运行"
-          : deviceStatusChoices(
-              {
-                entityId: entityId,
-              },
-              liveState,
-            )?.options.find((choice) => choice.value === liveState.state)?.label || liveState.state
-        : ({
-            on: "已开启",
-            off: "已关闭",
-          } as any)[liveState.state] || liveState.state
-    : "不可用";
+  return liveState?.state === "unknown" && !/^(button|input_button|scene)\./.test(entityId)
+    ? "状态未知"
+    : entityUsable(entityId, liveState)
+      ? String(entityId).startsWith("scene.")
+        ? liveState.state === "unknown"
+          ? "尚未运行"
+          : "可运行"
+        : liveState.state === "unknown"
+          ? "可执行"
+          : String(entityId).startsWith("binary_sensor.")
+            ? liveState.attributes?.device_class === "running" &&
+              ["on", "off"].includes(liveState.state)
+              ? liveState.state === "on"
+                ? "正在运行"
+                : "未在运行"
+              : deviceStatusChoices(
+                  {
+                    entityId: entityId,
+                  },
+                  liveState,
+                )?.options.find((choice) => choice.value === liveState.state)?.label ||
+                liveState.state
+            : ({
+                on: "已开启",
+                off: "已关闭",
+              } as any)[liveState.state] || liveState.state
+      : "不可用";
 }
 export function extraTypes(rawEntityId: any) {
-  const domain = String(rawEntityId).split(".")[0],
-    mapped = {
-      switch: "switch",
-      input_boolean: "switch",
-      light: "switch",
-      fan: "switch",
-      select: "select",
-      input_select: "select",
-      number: "number",
-      input_number: "number",
-      button: "button",
-      input_button: "button",
-    }[domain];
+  const domain = String(rawEntityId).split(".")[0];
+  if (
+    [
+      "humidifier",
+      "valve",
+      "lawn_mower",
+      "siren",
+      "alarm_control_panel",
+      "vacuum",
+      "lock",
+      "calendar",
+      "todo",
+      "weather",
+      "update",
+      "ai_task",
+      "assist_satellite",
+      "conversation",
+      "notify",
+      "remote",
+      "tts",
+      "image_processing",
+      "stt",
+      "wake_word",
+      "infrared",
+      "radio_frequency",
+    ].includes(domain)
+  )
+    return ["panel", "state"];
+  const mapped = {
+    text: "panel",
+    date: "panel",
+    time: "panel",
+    datetime: "panel",
+    scene: "button",
+    camera: "picture",
+    image: "picture",
+    climate: "panel",
+    cover: "panel",
+    water_heater: "panel",
+    media_player: "panel",
+    switch: "switch",
+    input_boolean: "switch",
+    light: "switch",
+    fan: "switch",
+    select: "select",
+    input_select: "select",
+    number: "number",
+    input_number: "number",
+    button: "button",
+    input_button: "button",
+  }[domain];
   return mapped ? [mapped, "state"] : ["state"];
 }
 export const extraLabels = {
+  picture: "画面显示",
+  panel: "设备面板",
   switch: "开关",
   select: "选项",
   number: "数值",
@@ -106,10 +158,13 @@ function extraRanges(rangeEntityId: any, rangeState: any) {
     ranges.push({
       key: "brightness",
       label: "亮度",
-      min: 1,
+      min: 0,
       max: 255,
       step: 1,
-      value: haNumber(attributes.brightness) ?? 255,
+      value:
+        (rangeState?.newState || rangeState)?.state === "off"
+          ? 0
+          : (haNumber(attributes.brightness) ?? 0),
     });
   const minKelvin = haNumber(attributes.min_color_temp_kelvin),
     maxKelvin = haNumber(attributes.max_color_temp_kelvin);
@@ -144,15 +199,23 @@ function extraRangeCommand(item: any, commandState: any, key: any, rawValue: any
   )
     throw new Error("设备不支持此调节或数值超出范围");
   const entityDomain = item.entityId.split(".")[0];
-  return {
-    entityId: item.entityId,
-    domain: entityDomain,
-    service: entityDomain === "fan" ? "set_percentage" : "turn_on",
-    data: {
-      [key]: numericValue,
-    },
-    deviceKind: "purifier-extra",
-  };
+  return entityDomain === "light" && key === "brightness" && numericValue === 0
+    ? {
+        entityId: item.entityId,
+        domain: entityDomain,
+        service: "turn_off",
+        data: {},
+        deviceKind: "purifier-extra",
+      }
+    : {
+        entityId: item.entityId,
+        domain: entityDomain,
+        service: entityDomain === "fan" ? "set_percentage" : "turn_on",
+        data: {
+          [key]: numericValue,
+        },
+        deviceKind: "purifier-extra",
+      };
 }
 /** 命令 data 按控件类型择一携带 option/value，运行时动态挂载，故字段全部可选。 */
 type PurifierCommandData = { option?: any; value?: any };
@@ -178,6 +241,8 @@ type PurifierCard = {
   rangePending?: boolean;
   rangeExpected?: any;
   rangeTimer?: any;
+  native?: any;
+  nativeRoot?: any;
 };
 function numberConstraints(state: any) {
   const attributes = attributesOf(state);
@@ -190,7 +255,10 @@ function numberConstraints(state: any) {
 function extraCommand(controlItem: any, controlState: any, controlValue: any) {
   const controlLiveState = controlState?.newState || controlState;
   if (!entityUsable(controlItem.entityId, controlLiveState)) throw new Error("该实体当前不可用");
-  if (!extraTypes(controlItem.entityId).includes(controlItem.type) || controlItem.type === "state")
+  if (
+    !extraTypes(controlItem.entityId).includes(controlItem.type) ||
+    ["state", "panel", "picture"].includes(controlItem.type)
+  )
     throw new Error("不支持此操作");
   const controlDomain = controlItem.entityId.split(".")[0],
     controlAttributes = attributesOf(controlLiveState),
@@ -205,7 +273,7 @@ function extraCommand(controlItem: any, controlState: any, controlValue: any) {
         !fanCapabilities(controlAttributes)[service === "turn_on" ? "canTurnOn" : "canTurnOff"]))
   )
     throw new Error("设备不支持此开关操作");
-  if ((controlItem.type === "button" && (service = "press"), controlItem.type === "select")) {
+  if ((controlItem.type === "button" && (service = controlDomain === "scene" ? "turn_on" : "press"), controlItem.type === "select")) {
     if (!stringOptions(controlAttributes.options).includes(controlValue))
       throw new Error("选项已失效");
     ((service = "select_option"), (data.option = controlValue));
@@ -242,9 +310,11 @@ function extraLayout(controls: any) {
     type: extraTypes(rest.entityId)[0],
     columns: [1, 2, 3, 4].includes(rest.columns)
       ? rest.columns
-      : ["select", "number"].includes(extraTypes(rest.entityId)[0])
-        ? 1
-        : 3,
+      : extraTypes(rest.entityId)[0] === "picture"
+        ? 2
+        : ["select", "number"].includes(extraTypes(rest.entityId)[0])
+          ? 1
+          : 3,
     rows: rest.rows === 2 ? 2 : 1,
   }));
 }
@@ -261,6 +331,7 @@ function moveExtra(controlList: any, movedEntityId: any, targetPositionEntityId:
 export function createPurifierExtras({
   element: hostElement,
   onControl: onControl,
+  feedbackSlot = undefined,
   onLayout = (..._args: any[]) => {},
 }: any) {
   const doc = hostElement.ownerDocument || globalThis.document;
@@ -432,9 +503,15 @@ export function createPurifierExtras({
         ...entry,
         rows: Math.max(entry.rows, minRows),
       };
-    const cardMinWidth = 64,
+    const nativeKind = nativeExtraKind(entry.entityId, readState(entry.entityId)),
+      cardMinWidth =
+        entry.type === "picture"
+          ? 96
+          : nativeKind
+            ? nativeExtraMinimumWidth(entry.entityId, readState(entry.entityId))
+            : 64,
       neededSpan = (COLUMN_SPAN as any)[entry.columns],
-      rangeMinSpan = cardParams.ranges?.length ? 3 : 2,
+      rangeMinSpan = cardParams.ranges?.length || nativeKind === "light" ? 3 : 2,
       span =
         [2, 3, 4, 6].find(
           (spanCandidate) =>
@@ -455,10 +532,13 @@ export function createPurifierExtras({
       measured = (fieldNode: any) => (fieldNode && !fieldNode.hidden && fieldNode.offsetHeight) || 0,
       gap = toPx(rowStyle.rowGap),
       descriptionHeight = measured(measureRecord.description),
-      controlHeight = measured(measureRecord.control);
-    let content = ["select", "number"].includes(measureRecord.item.type)
-      ? descriptionHeight + controlHeight + (descriptionHeight && controlHeight ? gap : 0)
-      : Math.max(descriptionHeight, controlHeight);
+      controlHeight = measured(measureRecord.control),
+      nativeHeight = measured(measureRecord.nativeRoot);
+    let content = nativeHeight
+      ? descriptionHeight + nativeHeight + (descriptionHeight && nativeHeight ? gap : 0)
+      : ["select", "number"].includes(measureRecord.item.type)
+        ? descriptionHeight + controlHeight + (descriptionHeight && controlHeight ? gap : 0)
+        : Math.max(descriptionHeight, controlHeight);
     for (const extraRange of measureRecord.ranges || [])
       content += measured(extraRange.label) + gap;
     for (const field of [measureRecord.confirm, measureRecord.error]) {
@@ -476,12 +556,14 @@ export function createPurifierExtras({
   }
   function syncCardMetrics(metricsRecord: any) {
     if (dragState) return;
-    const fitted = fitLayout(metricsRecord);
-    (metricsRecord.section.style.setProperty("--extra-columns", (COLUMN_SPAN as any)[fitted.columns]),
-      metricsRecord.section.style.setProperty(
-        "--extra-rows",
-        measureRows(metricsRecord, fitted.rows),
-      ));
+    const fitted = fitLayout(metricsRecord),
+      nextColumns = String((COLUMN_SPAN as any)[fitted.columns]),
+      nextRows = String(measureRows(metricsRecord, fitted.rows));
+    // ResizeObserver 会因自身写入再次触发；值没变就别碰 DOM，避免无限抖动。
+    metricsRecord.section.style.getPropertyValue("--extra-columns") !== nextColumns &&
+      metricsRecord.section.style.setProperty("--extra-columns", nextColumns);
+    metricsRecord.section.style.getPropertyValue("--extra-rows") !== nextRows &&
+      metricsRecord.section.style.setProperty("--extra-rows", nextRows);
   }
   const resizeObserver =
     typeof ResizeObserver == "function"
@@ -734,7 +816,7 @@ export function createPurifierExtras({
           (clearTimeout(row.timer),
           (row.pending = false),
           (row.expected = null),
-          (row.error.textContent = "实体已离线，操作结果未确认")),
+          (row.error.textContent = "设备已离线")),
         (row.title.textContent =
           row.item.label || stateAttributes.friendly_name || row.item.entityId),
         (row.title.title = row.title.textContent),
@@ -747,6 +829,21 @@ export function createPurifierExtras({
           !!available &&
           (row.item.type === "select" ||
             (row.item.type === "number" && !stateAttributes.unit_of_measurement))),
+        row.native &&
+          ((row.status.hidden = true),
+          row.native.update({
+            item: {
+              id: viewModel.item?.id,
+              entityId: row.item.entityId,
+              label: row.title.textContent,
+              modelAvailable: viewModel.item?.modelAvailable,
+            },
+            state: entityState,
+            states: viewModel.states || {},
+            editing: !!viewModel.editing,
+          }),
+          syncCardMetrics(row)),
+        row.native ||
         !row.control)
       ) {
         syncCardMetrics(row);
@@ -868,7 +965,9 @@ export function createPurifierExtras({
         resizeObserver?.disconnect(),
         resizeObserver?.observe(hostElement),
         cards.forEach((staleCard: any) => {
-          (clearTimeout(staleCard.timer), clearTimeout(staleCard.rangeTimer));
+          (clearTimeout(staleCard.timer),
+            clearTimeout(staleCard.rangeTimer),
+            staleCard.native?.dispose?.());
         }),
         (layoutSignature = signature),
         generation++,
@@ -917,6 +1016,10 @@ export function createPurifierExtras({
           ((resizeHandle.type = "button"),
             (resizeHandle.className = "i3d-extra-resize"),
             resizeHandle.setAttribute("aria-label", "调整大小 " + control.entityId),
+            resizeHandle.setAttribute(
+              "aria-description",
+              "拖动实时调整大小，松手保存，Esc取消，方向键调整",
+            ),
             (resizeHandle.title =
               "拖动调整：1/3行、2/3行、半行、整行；36/80px；Esc取消，方向键调整"));
           const emitResize = (nextColumns: any, nextRows: any) => {
@@ -940,19 +1043,63 @@ export function createPurifierExtras({
               if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(resizeKeyEvent.key))
                 return;
               resizeKeyEvent.preventDefault();
-              const columnIndex = COLUMN_ORDER.indexOf(control.columns);
-              emitResize(
-                resizeKeyEvent.key === "ArrowLeft"
-                  ? COLUMN_ORDER[Math.max(0, columnIndex - 1)]
-                  : resizeKeyEvent.key === "ArrowRight"
-                    ? COLUMN_ORDER[Math.min(COLUMN_ORDER.length - 1, columnIndex + 1)]
-                    : control.columns,
-                resizeKeyEvent.key === "ArrowUp"
-                  ? 1
-                  : resizeKeyEvent.key === "ArrowDown"
-                    ? 2
-                    : control.rows,
-              );
+              const resizeRecord = cards.find((resizeCard: any) => resizeCard.section === cardSection);
+              if (!resizeRecord) return;
+              const currentItem = resizeRecord.item,
+                columnIndex = COLUMN_ORDER.indexOf(currentItem.columns),
+                requestedColumns =
+                  resizeKeyEvent.key === "ArrowLeft"
+                    ? COLUMN_ORDER[Math.max(0, columnIndex - 1)]
+                    : resizeKeyEvent.key === "ArrowRight"
+                      ? COLUMN_ORDER[Math.min(COLUMN_ORDER.length - 1, columnIndex + 1)]
+                      : currentItem.columns,
+                requestedRows =
+                  resizeKeyEvent.key === "ArrowUp"
+                    ? 1
+                    : resizeKeyEvent.key === "ArrowDown"
+                      ? 2
+                      : currentItem.rows,
+                // 方向键同样要过 `fitLayout`：内容装不下时自动放大并提示已到边界
+                // （0.7.8 `purifier-extras.js` 的键盘缩放分支）。
+                fittedNext = fitLayout(resizeRecord, {
+                  ...currentItem,
+                  columns: requestedColumns,
+                  rows: requestedRows,
+                }),
+                fittedCurrent = fitLayout(resizeRecord, currentItem),
+                fittedMinimum = fitLayout(resizeRecord, {
+                  ...currentItem,
+                  columns: COLUMN_ORDER[0],
+                  rows: 1,
+                }),
+                currentHeight = measureRows(resizeRecord, fittedCurrent.rows),
+                nextHeight = measureRows(resizeRecord, fittedNext.rows),
+                limitMessage =
+                  resizeKeyEvent.key === "ArrowLeft" &&
+                  fittedCurrent.columns === fittedNext.columns &&
+                  fittedNext.columns === fittedMinimum.columns
+                    ? "已到内容最小宽度"
+                    : resizeKeyEvent.key === "ArrowRight" && fittedCurrent.columns === 2
+                      ? "已到最大宽度"
+                      : resizeKeyEvent.key === "ArrowUp" && currentHeight === nextHeight
+                        ? "已到内容最小高度"
+                        : resizeKeyEvent.key === "ArrowDown" && currentHeight === nextHeight
+                          ? "已到最大高度"
+                          : "";
+              emitResize(fittedNext.columns, requestedRows);
+              resizeRecord.resizeHintTimer !== null &&
+                clearTimeout(resizeRecord.resizeHintTimer);
+              if (limitMessage) {
+                resizeRecord.error.textContent =
+                  (resizeRecord.title.textContent || "") + "：" + limitMessage;
+                resizeRecord.resizeHintTimer = setTimeout(() => {
+                  ((resizeRecord.resizeHintTimer = null),
+                    resizeRecord.error.textContent ===
+                      (resizeRecord.title.textContent || "") + "：" + limitMessage &&
+                      (resizeRecord.error.textContent = ""));
+                }, 2000);
+                resizeRecord.resizeHintTimer?.unref?.();
+              } else resizeRecord.error.textContent = "";
             }),
             cardSection.append(dragHandle, resizeHandle),
             cardSection.classList.add("is-layout-editing"));
@@ -962,13 +1109,19 @@ export function createPurifierExtras({
           errorElement = createEl("p");
         (errorElement.setAttribute("role", "status"),
           (errorElement.className = "i3d-climate-error"));
-        const controlType = extraTypes(control.entityId).includes(control.type)
+        const configuredType = extraTypes(control.entityId).includes(control.type)
             ? control.type
             : "state",
+          nativeKind = nativeExtraKind(control.entityId, readState(control.entityId)),
+          controlType = nativeKind ? "panel" : configuredType,
           controlElement =
-            controlType === "state"
+            nativeKind || controlType === "state"
               ? null
-              : createEl(controlType === "number" ? "input" : "button", "执行"),
+              : createEl(
+                  controlType === "number" ? "input" : "button",
+                  // 场景实体不是"执行"，用户心智里是"运行场景"（0.7.8 `purifier-extras.js`）。
+                  String(control.entityId).startsWith("scene.") ? "运行场景" : "执行",
+                ),
           cardState: PurifierCard = {
             item: {
               ...control,
@@ -983,13 +1136,29 @@ export function createPurifierExtras({
           };
         cards.push(cardState);
         const descriptionElement = createEl("div");
-        if (
-          ((cardState.description = descriptionElement),
+        ((cardState.description = descriptionElement),
           (descriptionElement.className = "i3d-extra-description"),
           descriptionElement.append(titleElement, statusElement),
-          cardSection.append(descriptionElement),
-          controlElement)
-        ) {
+          cardSection.append(descriptionElement));
+        if (nativeKind) {
+          cardSection.classList.add("i3d-extra-native");
+          const headerControlsElement = createEl("div");
+          headerControlsElement.className = "i3d-extra-header-controls";
+          descriptionElement.append(headerControlsElement);
+          const nativeRootElement = createEl("div");
+          nativeRootElement.className = "i3d-extra-native-root";
+          cardSection.append(nativeRootElement);
+          cardState.nativeRoot = nativeRootElement;
+          cardState.native = createNativeExtraPanel({
+            element: nativeRootElement,
+            headerControls: headerControlsElement,
+            feedbackSlot,
+            kind: nativeKind,
+            onControl: onControl,
+            onResize: () => syncCardMetrics(cardState),
+          });
+        }
+        if (controlElement) {
           if (
             ((controlElement.className = "i3d-climate-choice"),
             controlElement.setAttribute("aria-label", control.label || control.entityId),
@@ -1192,6 +1361,7 @@ export function createPurifierExtras({
         for (const observedNode of [
           descriptionElement,
           controlElement,
+          cardState.nativeRoot,
           errorElement,
           cardState.confirm,
         ])
@@ -1208,7 +1378,9 @@ export function createPurifierExtras({
         finishDrag(true),
         resizeObserver?.disconnect(),
         cards.forEach((cleanupCard: any) => {
-          (clearTimeout(cleanupCard.timer), clearTimeout(cleanupCard.rangeTimer));
+          (clearTimeout(cleanupCard.timer),
+            clearTimeout(cleanupCard.rangeTimer),
+            cleanupCard.native?.dispose?.());
         }),
         doc.removeEventListener?.("pointerdown", onDocumentPointerDown),
         doc.removeEventListener?.("scroll", onDocumentScroll, true),

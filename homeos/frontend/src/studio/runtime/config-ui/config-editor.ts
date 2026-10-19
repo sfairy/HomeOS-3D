@@ -254,6 +254,7 @@ export async function openInteraction3dEditor({
     subEditorHandle: any = null,
     vacuumCameraMode = "focus",
     isCameraEditing = false,
+    editingShowAllLabels = false,
     isCameraCommandPending = false,
     pendingCameraDraft: any = null,
     num = 0,
@@ -378,6 +379,7 @@ export async function openInteraction3dEditor({
     __gs('subEditorHandle', () => subEditorHandle, (v) => { subEditorHandle = v; });
     __gs('vacuumCameraMode', () => vacuumCameraMode, (v) => { vacuumCameraMode = v; });
     __gs('isCameraEditing', () => isCameraEditing, (v) => { isCameraEditing = v; });
+    __gs('editingShowAllLabels', () => editingShowAllLabels, (v) => { editingShowAllLabels = v; });
     __gs('isCameraCommandPending', () => isCameraCommandPending, (v) => { isCameraCommandPending = v; });
     __gs('pendingCameraDraft', () => pendingCameraDraft, (v) => { pendingCameraDraft = v; });
     __gs('num', () => num, (v) => { num = v; });
@@ -434,6 +436,71 @@ export async function openInteraction3dEditor({
     openLabelBatchApplyDialog,
     renderPanel,
   } = __editorHost;
+  /**
+   * 「显示本类全部标签」点击预览标记：把编辑对象切到被点的设备（0.7.8 `_0x59a404`）。
+   *
+   * - 同类：只换选中项，不重建会话；
+   * - 跨类：先 `switchEditorKind` 切会话，再用第三参把选中项带过去；
+   * - 扫地机快捷指令：传入的是 `vacuum-room:<vacuumId>:<shortcutId>`，要还原出 shortcutId。
+   */
+  function selectPreviewReferenceItem(previewEditEvent: any) {
+    if (
+      isDisposed ||
+      !isAccessAllowed ||
+      !editingShowAllLabels ||
+      isCameraEditing ||
+      isCameraCommandPending ||
+      isRangeEditorOpen ||
+      previewEditEvent.action !== "select" ||
+      previewEditEvent.previewReference !== true ||
+      (previewEditEvent.floorId && previewEditEvent.floorId !== floorSelection)
+    )
+      return;
+    const nextModule = previewEditEvent.module,
+      nextSelectedId = previewEditEvent.id;
+    if (!nextModule || !nextSelectedId) return;
+    if (nextModule !== deviceKind) {
+      void switchEditorKind(nextModule, false, {
+        id: nextSelectedId,
+        vacuumId: previewEditEvent.vacuumId || "",
+      });
+      return;
+    }
+    let resolvedSelectedId = nextSelectedId;
+    if (isVacuumShortcutMode) {
+      const vacuumDeviceId = previewEditEvent.vacuumId || vacuumId,
+        vacuumModel = structuredClone2.devices?.vacuums?.find(
+          (vacuumCandidate: any) => vacuumCandidate.id === vacuumDeviceId,
+        ),
+        matchedShortcut = (vacuumModel?.shortcuts || []).find(
+          (shortcutCandidate: any) =>
+            // 同类点击传来的是标识 id；跨类切换（vacuum → vacuum-shortcut）传来的是裸 shortcutId。
+            shortcutCandidate.id === nextSelectedId ||
+            "vacuum-room:" + vacuumModel.id + ":" + shortcutCandidate.id === nextSelectedId,
+        );
+      if (!matchedShortcut) return;
+      ((vacuumId = vacuumModel.id), (resolvedSelectedId = matchedShortcut.id));
+    } else {
+      const matchedItem = getItemList().find(
+          (previewItemCandidate: any) =>
+            previewItemCandidate.id === nextSelectedId &&
+            (!previewItemCandidate.floorId || previewItemCandidate.floorId === floorSelection),
+        ),
+        // 窗帘组合在预览里是独立的「组」条目，id 是 `curtainGroupEntryId`，不在 environment.curtains 里。
+        matchedCoverGroup =
+          !matchedItem && isCoverMode
+            ? getCurtainGroupList().find(
+                (groupCandidate: any) => curtainGroupEntryId2(groupCandidate) === nextSelectedId,
+              )
+            : null;
+      if (!matchedItem && !matchedCoverGroup) return;
+      matchedCoverGroup && (selectedCurtainGroupId = "");
+    }
+    (isVacuumMode && (vacuumId = resolvedSelectedId),
+      (text = resolvedSelectedId),
+      renderPanel(),
+      refreshEditorPreview());
+  }
   function mountEditorRuntime() {
     editorRuntime = mountInteraction3d2(stageHostElement, {
       component: {
@@ -449,6 +516,7 @@ export async function openInteraction3dEditor({
       },
       editing: true,
       editingVacuumId: isVacuumShortcutMode ? vacuumId : "",
+      editingShowAllLabels: editingShowAllLabels,
       editingModule: usesStatusPanel
         ? deviceKind
         : isCoverMode
@@ -478,6 +546,10 @@ export async function openInteraction3dEditor({
       },
       onEdit(editEvent: any) {
         if (!(isDisposed || !isAccessAllowed || addDialogState || __editorHost.auxDialogElement)) {
+          if (editEvent.action === "select" && editEvent.previewReference === true) {
+            selectPreviewReferenceItem(editEvent);
+            return;
+          }
           if (
             ["purifier-layout", "device-layout"].includes(editEvent.action) &&
             (["climate", "airer", "fan", "purifier", "water-heater"].includes(deviceKind) ||

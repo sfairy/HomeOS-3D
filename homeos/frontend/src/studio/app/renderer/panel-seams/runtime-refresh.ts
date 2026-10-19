@@ -203,6 +203,7 @@ export function refreshRuntimeComponent(self: PanelRenderer, refreshComponentId:
         entityTranslations: self.entityTranslations,
         renderNamespace: self.renderNamespace,
         editable: !!self.options.editable,
+        editorWorkspace: self.options.editorWorkspace === true,
         liveMedia: self.options.liveMedia !== false,
         previewState: self.componentPreviewStates.get(refreshComponentId) || "auto",
         isIconVisible: (iconVisibilityEntityId: any) => self.iconVisibilityState(iconVisibilityEntityId),

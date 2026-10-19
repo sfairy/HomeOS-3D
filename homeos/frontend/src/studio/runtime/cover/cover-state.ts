@@ -37,11 +37,12 @@ const stateLabelByState = {
   };
 export function coverStateLabel(stateKey: any, options: { airer?: boolean } = {}) {
   if (options.airer) {
+    // 晾衣架的 HA 坐标系：100 = 升到最高（收起），0 = 落到最低（放下）。
     const airerLabelByState = {
-      open: "已放下",
-      closed: "已收起",
-      opening: "正在放下",
-      closing: "正在收起",
+      open: "已收起",
+      closed: "已放下",
+      opening: "正在上升",
+      closing: "正在下降",
     };
     return Object.hasOwn(airerLabelByState, stateKey)
       ? (airerLabelByState as any)[stateKey]

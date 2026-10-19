@@ -43,6 +43,8 @@ export async function openSecurityEditor({
   entities: entities = [],
   pickers: pickers,
   onSave: onSaveConfig,
+  editorView: initialEditorView = null,
+  editingFloorId = "",
 }: any) {
   await requestInteraction3dAccess();
   const draftProperties = structuredClone(component.properties || {});
@@ -87,9 +89,10 @@ export async function openSecurityEditor({
       (errorMessageElement.hidden = !errorMessageElement.textContent));
   };
   setSaveResultMessage("");
-  let sceneMetadata: any = null,
+  let sceneMetadata: any = initialEditorView?.metadata || null,
     selectedFloorId =
-      draftProperties.floorSelection === "all" ? "" : draftProperties.floorSelection || "",
+      editingFloorId ||
+      (draftProperties.floorSelection === "all" ? "" : draftProperties.floorSelection || ""),
     securityKind = "camera",
     selectedItemId = "",
     editorRuntime: any = null,
@@ -97,8 +100,14 @@ export async function openSecurityEditor({
     isAccessAllowed = true,
     isSaving = false,
     isCameraEditing = false,
+    editingShowAllLabels = false,
     pendingCameraDraft: any = null,
     cameraCommandQueue = Promise.resolve();
+  // 借用入口视图时直接复用它的户型元数据；选中的楼层必须在其中，否则回落到首层。
+  initialEditorView &&
+    editingFloorId &&
+    !(sceneMetadata?.floors || []).some((floorEntry: any) => floorEntry.id === editingFloorId) &&
+    (selectedFloorId = sceneMetadata?.floors?.[0]?.id || "");
   const expandedDisclosureKeySet = new Set();
   let activePickerHandle: any = null,
     pickerGeneration = 0,
@@ -206,6 +215,7 @@ export async function openSecurityEditor({
         {
           module: "security",
           securityKind: securityKind,
+          showAllLabels: editingShowAllLabels,
         },
       );
   }
@@ -355,8 +365,23 @@ export async function openSecurityEditor({
       document.dispatchEvent(new Event("hb-i3d-preview-scope")),
       previouslyFocusedElement instanceof HTMLElement && previouslyFocusedElement.focus());
   }
+  const showAllLabelsInput = createElement("input");
+  showAllLabelsInput.type = "checkbox";
+  showAllLabelsInput.checked = editingShowAllLabels;
+  showAllLabelsInput.setAttribute("aria-label", "显示本类全部标签");
+  showAllLabelsInput.addEventListener("change", () => {
+    if (isDisposed || !isAccessAllowed) return;
+    editingShowAllLabels = showAllLabelsInput.checked;
+    syncEditorRuntime();
+  });
+  const showAllLabelsToggle = createElement(
+    "label",
+    "i3d-setting-toggle i3d-preview-label-toggle",
+  );
+  showAllLabelsToggle.append(createElement("span", "", "显示本类全部标签"), showAllLabelsInput);
   (headerElement.append(
     createElement("strong", "", "3D 安防配置"),
+    showAllLabelsToggle,
     saveButtonElement,
     createButton("退出", closeEditor),
   ),
@@ -2224,6 +2249,7 @@ export async function openSecurityEditor({
         editing: true,
         editingModule: "security",
         editingSecurityKind: securityKind,
+        editingShowAllLabels: editingShowAllLabels,
         onReady(readyMetadata?: any) {
           ((sceneMetadata = readyMetadata),
             normalizeDoorModelIds(),
@@ -2266,6 +2292,24 @@ export async function openSecurityEditor({
               const separatorIndex = editEvent.id.indexOf(":");
               const nextKind = editEvent.id.slice(0, separatorIndex);
               const nextItemId = editEvent.id.slice(separatorIndex + 1);
+              // 「显示本类全部标签」的预览引用：必须仍开着开关、同楼层、同安防子类。
+              if (
+                editEvent.previewReference === true &&
+                (!editingShowAllLabels ||
+                  (editEvent.floorId && editEvent.floorId !== selectedFloorId) ||
+                  editEvent.module !== nextKind)
+              )
+                return;
+              const previewCollectionKey =
+                  ({ camera: "cameras", presence: "presenceSensors", lock: "locks" } as any)[
+                    nextKind
+                  ] || "alarms",
+                previewTargetList = draftProperties.security?.[previewCollectionKey] || [];
+              if (
+                editEvent.previewReference === true &&
+                !previewTargetList.some((previewTarget: any) => previewTarget.id === nextItemId)
+              )
+                return;
               ((securityKind = nextKind), (selectedItemId = nextItemId), renderPanel());
             }
           }

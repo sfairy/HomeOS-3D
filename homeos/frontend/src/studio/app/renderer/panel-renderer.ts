@@ -852,6 +852,24 @@ export class PanelRenderer {
         : this.selectedComponentIds.values().next().value || null),
       this.syncSelection());
   }
+  /**
+   * 运行时切换编辑态（0.7.8 `renderer.setEditable`）。
+   *
+   * 不重建组件：已挂载的 3D 交互直接收到开关（bridge 退出视角/范围编辑并清掉
+   * 弹窗预览），其余组件只更新编辑标记，避免切回浏览态后仍残留可拖拽把手。
+   */
+  ["setEditable"](nextEditable: any) {
+    const editableEnabled = nextEditable === true;
+    if (this.options.editable === editableEnabled) return;
+    (this.options.editable = editableEnabled, this.releaseRetainedInteraction3d());
+    for (const [hostedComponentId, hostedComponentElement] of this.componentHosts) {
+      this.componentRecords.get(hostedComponentId)?.type === "interaction3d" &&
+        (hostedComponentElement.classList.toggle("editable", editableEnabled),
+        hostedComponentElement
+          .querySelector(".hb-interaction3d-host")
+          ?.setInteraction3dEditable?.(editableEnabled));
+    }
+  }
   ["setActiveGroup"](activeGroupIdValue: any = null) {
     ((this.activeGroupId =
       activeGroupIdValue && this.componentRecords.get(activeGroupIdValue)?.type === "group"
@@ -1017,6 +1035,7 @@ export class PanelRenderer {
           entityTranslations: this.entityTranslations,
           renderNamespace: this.renderNamespace,
           editable: !!this.options.editable,
+          editorWorkspace: this.options.editorWorkspace === true,
           liveMedia: this.options.liveMedia !== false,
           previewState: this.componentPreviewStates.get(propertyComponentId) || "auto",
           isIconVisible: (iconVisibilityComponent: any) =>
@@ -1530,6 +1549,7 @@ export class PanelRenderer {
       "awaiting-light-visual",
       iconButtonEffectLightVisualAwaiting2(lightEffectComponent, {
         editable: this.options.editable,
+        editorWorkspace: this.options.editorWorkspace === true,
         states: this.states,
         pendingOptimisticState: this.pendingOptimisticStates.get(lightEffectEntityId),
       }),

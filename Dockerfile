@@ -204,7 +204,6 @@ ENV APP_ENVIRONMENT=production \
     HOMEOS_FRONTEND_DIR=/app/dist \
     APP_CLIENT_KEYS_DIR=/data/client-keys \
     APP_LICENSE_SERVER_URL=\
-    APP_UPDATE_CHANNEL=docker \
     PYTHONPATH=/app
 
 #: 后端 .so 的平台目录名（linux-amd64 / linux-arm64），由构建方按目标架构指定。

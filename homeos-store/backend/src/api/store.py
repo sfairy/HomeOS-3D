@@ -63,7 +63,6 @@ from ..core.serializers import (
 )
 from ..ops import features, incidents, mail_settings, mailer
 from ..ops import site_settings as site_config
-from ..ops.release_sync import select_latest_release as _select_latest_release
 from ..security import password_gate
 from ..security.limiter import SlidingWindowLimiter
 from ..security.request_security import request_origin
@@ -175,26 +174,6 @@ def product_detail(product_id: str, session: DbSession) -> dict:
     if product is None or not product.active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品不存在或已下架。")
     return _product_item(session, product)
-
-@router.get("/updates/latest")
-def latest_release(request: Request, session: DbSession, channel: str = "docker") -> JSONResponse:
-    # 按版本号取最新（而非写入时间）：GitHub 同步行与本地补写行的写入顺序不固定。
-    release = _select_latest_release(session, channel)
-    payload = {
-        "product": "homeos",
-        "channel": channel,
-        "release": None
-        if release is None
-        else {
-            "id": release.id,
-            "version": release.version,
-            "releaseDate": release.release_date,
-            "upgradeNotes": release.upgrade_notes,
-        },
-    }
-    response = JSONResponse(payload)
-    response.headers["Cache-Control"] = "no-store"
-    return response
 
 def _record_verification_delivery(
     database: Database, *, record_id: str, email: str, result: mailer.MailResult

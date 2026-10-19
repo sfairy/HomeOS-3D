@@ -170,6 +170,18 @@ def _normalize_all_datetimes(connection: sqlite3.Connection, context: MigrationC
         context.logger.warning("已归一化 %s 个时间字段为 UTC-naive", changed)
 
 
+def _drop_releases_table(connection: sqlite3.Connection, context: MigrationContext) -> None:
+    """删掉已废弃的 ``releases`` 表。
+
+    商店不再做任何版本发布/升级检测（升级由开发者手动部署），这张表与相关模型已移除，
+    这里把老库里剩下的表一并清掉。空库上本就由 ORM 建表、不含此表，故安全 no-op。
+    """
+    if not _table_exists(connection, "releases"):
+        return
+    connection.execute("DROP TABLE releases")
+    context.logger.warning("已删除废弃的 releases 表（版本发布同步功能已移除）。")
+
+
 MIGRATIONS = (
     Migration(1, "accounts-email-normalize-unique", "s0002-v1", _normalize_accounts_email),
     Migration(2, "account-sessions-expiry-index", "s0003-v1", _index_account_sessions),
@@ -177,4 +189,5 @@ MIGRATIONS = (
     Migration(4, "ops-indexes", "s0005-v1", lambda connection, _ctx: _create_ops_indexes(connection)),
     Migration(5, "recovery-tokens-revoked-at", "s0006-v1", lambda connection, _ctx: _add_recovery_revoked_at(connection)),
     Migration(6, "normalize-all-datetimes", "s0007-v1", _normalize_all_datetimes),
+    Migration(7, "drop-releases-table", "s0008-v1", _drop_releases_table),
 )

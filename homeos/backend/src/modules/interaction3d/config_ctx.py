@@ -32,12 +32,15 @@ from fastapi import HTTPException
 
 from .purifier import EXTRA_TYPES
 
-#: 附加控制（``extraControls``）的数量上限。
-MAX_EXTRA_CONTROLS = 12
 #: 附加控制的网格档位（列 / 行）。
 _GRID_SPANS = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}
 #: 附加控制的类型枚举。
-_EXTRA_CONTROL_TYPES = frozenset({'state', 'button', 'number', 'select', 'switch'})
+#:
+#: 0.7.8 新增两个"非实体"类型：``panel``（整块设备面板，文本 / 日期 / 气候 /
+#: 窗帘 / 服务型实体都归入此类）与 ``picture``（摄像头画面）。
+_EXTRA_CONTROL_TYPES = frozenset(
+    {'panel', 'state', 'button', 'number', 'select', 'switch', 'picture'}
+)
 #: 附加控制的白名单字段。
 _EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId'})
 
@@ -76,27 +79,29 @@ CLICK_ACTIONS_PANEL_ONLY = ('focus', 'panel')
 
 #: ``bound_entity_id`` 是控件自身绑定的实体：附加控制不许与它重复。
 def validate_appliance_extras(ctx: ValidationContext, widget: dict, bound_entity_id: str) -> None:
-    """家电「附加控制」白名单与能力位校验（与净化器共用同一份类型表）。"""
+    """家电「附加控制」白名单与能力位校验（与净化器共用同一份类型表）。
+
+    0.7.8 起**不再限制条数**：面板大小由用户自己决定，后端只校验每一项。
+    """
     controls = widget.get('extraControls', [])
-    if not isinstance(controls, list) or len(controls) > MAX_EXTRA_CONTROLS:
+    if not isinstance(controls, list):
         ctx.fail()
     seen_entity_ids: set[str] = set()
     for control in controls:
-        if (
-            not isinstance(control, dict)
-            or set(control) - _EXTRA_CONTROL_FIELDS
-            or not ENTITY_ID_PATTERN.fullmatch(str(control.get('entityId', '')))
-        ):
+        if not isinstance(control, dict) or set(control) - _EXTRA_CONTROL_FIELDS:
+            ctx.fail()
+        control_type = control.get('type')
+        if control_type not in _EXTRA_CONTROL_TYPES:
+            ctx.fail()
+        # 所有附加控制（含 panel / picture）都必须绑定实体，且 id 形状合法。
+        if not ENTITY_ID_PATTERN.fullmatch(str(control.get('entityId', ''))):
             ctx.fail()
         for dimension, span in _GRID_SPANS.items():
             if dimension in control and (
                 type(control[dimension]) is not int or control[dimension] not in span
             ):
                 ctx.fail()
-        if control.get('type') not in _EXTRA_CONTROL_TYPES:
-            ctx.fail()
         control_entity_id = control['entityId']
-        control_type = control['type']
         # 'state' 类（sensor / binary_sensor）不接受命令，任何域都可以只是"看状态"。
         if control_type != 'state' and control_type != EXTRA_TYPES.get(control_entity_id.split('.')[0]):
             ctx.fail()
@@ -146,8 +151,9 @@ class ValidationContext:
     """校验原语：全部返回 ``bool`` 而不自己抛错，调用方才能表达「多条判定都通过才继续」。
     """
 
-    def fail(self) -> NoReturn:
-        raise HTTPException(422, detail='3D 交互配置无效，请检查户型、灯光、环境及图标设置。')
+    def fail(self, detail: str | None = None) -> NoReturn:
+        """立即抛 422。能指名到具体字段时传 ``detail``，别让用户只看到笼统一句。"""
+        raise HTTPException(422, detail=detail or '3D 交互配置无效，请检查户型、灯光、环境及图标设置。')
 
     # ── 标量 ────────────────────────────────────────────────────────────
 
@@ -324,7 +330,6 @@ __all__ = [
     "CLICK_ACTIONS_PANEL_ONLY",
     "CLICK_ACTIONS_WITH_PANEL",
     "ENTITY_ID_PATTERN",
-    "MAX_EXTRA_CONTROLS",
     "MDI_ICON_LOOSE_PATTERN",
     "MDI_ICON_PATTERN",
     "POSITION_BOUNDS",

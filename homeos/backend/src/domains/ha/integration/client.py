@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
+import math
 import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -167,6 +169,57 @@ class HASnapshot:
     devices: list[dict[str, Any]] | None
     areas: list[dict[str, Any]] | None
     services: list[dict[str, Any]] | None
+
+
+#: 走 HA **WebSocket 命令**（而不是 ``/api/services``）的操作。
+#:
+#: 这些动作在 HA 里只有 WS 命令、没有同名服务；0.7.8 把它们统一收进
+#: :meth:`HAClient.call_service`，于是前端不需要知道"这个服务其实走 WS"。
+WEBSOCKET_OPERATIONS: dict[tuple[str, str], str] = {
+    ('calendar', 'delete_event'): 'calendar/event/delete',
+    ('calendar', 'update_event'): 'calendar/event/update',
+    ('todo', 'move_item'): 'todo/item/move',
+    ('update', 'release_notes'): 'update/release_notes',
+    ('media_player', 'search_media'): 'media_player/search_media',
+    ('wake_word', 'info'): 'wake_word/info',
+    ('stt', 'info'): 'stt/engine/list',
+    ('radio_frequency', 'info'): 'radio_frequency/list',
+}
+#: 需要 ``?return_response`` 的服务：HA 只对列表里的服务返回响应体。
+RESPONSE_SERVICES = frozenset(
+    {
+        ('todo', 'get_items'),
+        ('ai_task', 'generate_data'),
+        ('ai_task', 'generate_image'),
+        ('weather', 'get_forecasts'),
+        ('calendar', 'get_events'),
+        ('conversation', 'process'),
+        ('assist_satellite', 'ask_question'),
+    }
+)
+#: 慢服务统一超时（秒）：AI 生成、语音提问、固件安装都可能跑几十秒。
+SLOW_SERVICE_TIMEOUT = 115
+#: 生成图片允许回传的最大字节数（再大就不是"预览"了）。
+GENERATED_IMAGE_MAX_BYTES = 4194304
+#: 生成图片允许的 MIME。
+GENERATED_IMAGE_TYPES = frozenset({'image/gif', 'image/png', 'image/jpeg', 'image/webp'})
+#: 生成图片 URL 只允许 HA 自己的相对路径（防 SSRF / 路径穿越）。
+GENERATED_IMAGE_PREFIXES = ('/ai_task/', '/media/', '/api/ai_task/')
+
+
+def _remote_learning_timeout(data: dict[str, Any]) -> float:
+    """学习红外/射频指令的超时：一条指令码通常要按下再等待，按条数放大。
+
+    与前端 ``control-timeout.ts`` 同一套算法（前端用来决定"按钮转圈多久"，
+    后端用来决定"HTTP 请求等多久"），差一个常数就出现"前端已超时、后端还在等"。
+    """
+    wait = data.get('timeout')
+    if not isinstance(wait, (int, float)) or isinstance(wait, bool) or not math.isfinite(wait) or wait <= 0:
+        wait = 60
+    commands = data.get('command')
+    count = max(1, min(64, len(commands))) if isinstance(commands, list) else 1
+    phases = 2 if data.get('command_type') == 'rf' else 1
+    return min(60, wait) * count * phases + 15
 
 
 class HAClient:
@@ -632,30 +685,149 @@ class HAClient:
         ``return_response`` 供**只返回响应型**服务使用（如 ``weather.get_forecasts``）：
         HA 要求以 ``?return_response`` 查询参数发起，缺失时直接回 HTTP 400。注意它必须是
         查询参数而非 body 字段，否则会被当成 service_data 的多余键而校验失败。
+
+        0.7.8 起还兜住三类"非标准 REST"的服务：
+
+        - **WS 命令**（``WEBSOCKET_OPERATIONS``）：日历删除/更新、待办移动、更新说明、
+          媒体搜索、语音引擎列表；
+        - **慢服务**（AI 生成 / 语音提问 / 固件安装）：超时放大到 ``SLOW_SERVICE_TIMEOUT``；
+        - **``ai_task.generate_image``**：HA 只回一个相对 URL，图片本体要再取一次并按
+          ``data:`` URL 塞回 ``service_response["image"]``（4 MiB 上限，防误把大文件塞进前端）。
         """
-        payload = {**data, 'entity_id': entity_id}
-        url = f'{self.base_url}/api/services/{domain}/{service}'
-        if return_response:
-            url = f'{url}?return_response'
+        operation = WEBSOCKET_OPERATIONS.get((domain, service))
+        if operation is not None:
+            return await self._call_websocket_operation(
+                operation, domain, service, entity_id, data
+            )
+        if (domain, service) == ('calendar', 'list_events'):
+            # 日历查询在 HA 里是 REST 端点（``/api/calendars/<entity>``），不是服务。
+            async with self._control_http_client() as client:
+                response = await client.get(
+                    f'{self.base_url}/api/calendars/{entity_id}', params=data
+                )
+                response.raise_for_status()
+                return response.json()
+        payload = {**data}
+        # ``conversation.process`` 认的是 ``agent_id`` 而不是 ``entity_id``。
+        payload['agent_id' if domain == 'conversation' else 'entity_id'] = entity_id
+        suffix = '?return_response' if (domain, service) in RESPONSE_SERVICES else ''
+        url = f'{self.base_url}/api/services/{domain}/{service}{suffix}'
+        timeout: float = self.timeout
+        if domain == 'ai_task' or (domain == 'assist_satellite' and service == 'ask_question') or (
+            domain == 'update' and service == 'install'
+        ):
+            timeout = max(self.timeout, SLOW_SERVICE_TIMEOUT)
+        if (domain, service) == ('remote', 'learn_command'):
+            timeout = max(self.timeout, _remote_learning_timeout(data))
         try:
             async with self._control_http_client() as client:
-                response = await client.post(url, json=payload)
+                response = await client.post(url, json=payload, timeout=timeout)
                 response.raise_for_status()
-                body = response.json()
+                result = response.json()
+                if (domain, service) == ('ai_task', 'generate_image'):
+                    result = await self._inline_generated_image(client, result)
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
                 raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
             raise HAClientError(
                 f'Home Assistant 服务调用返回 HTTP {error.response.status_code}。'
             ) from error
+        except TimeoutError as error:
+            raise HAClientError('Home Assistant 操作超时。') from error
         except (httpx.HTTPError, ValueError) as error:
             raise HAClientError(f'Home Assistant 服务调用失败：{error}') from error
         # HA 对不可用实体同样返回 HTTP 200（只是把该实体跳过），仅看状态码会把
         # 「设备离线、指令根本没执行」误判为成功；这里按响应中的实体状态复核，
         # 命中 unavailable 直接判失败，交由上层重试/回滚/提示。
-        if _response_reports_unavailable(body, entity_id):
+        if _response_reports_unavailable(result, entity_id):
             raise HAClientError(f'实体 {entity_id} 当前不可用（unavailable），服务 {domain}.{service} 未生效。')
-        return body
+        return result
+
+    async def _call_websocket_operation(
+        self,
+        operation: str,
+        domain: str,
+        service: str,
+        entity_id: str,
+        data: dict[str, Any],
+    ) -> Any:
+        """执行一条 HA WebSocket 命令，并保留 REST 通道的错误语义。"""
+        # ``calendar.update_event`` 的 ``start``/``end`` 在 WS 命令里叫
+        # ``dtstart``/``dtend``；两者同时出现说明前端传了两套时间，直接拒。
+        if (domain, service) == ('calendar', 'update_event') and isinstance(data.get('event'), dict):
+            event = data['event']
+            if 'start' in event or 'end' in event:
+                if 'dtstart' in event or 'dtend' in event:
+                    raise HAClientError('日程时间字段重复，请检查输入。')
+                data = {
+                    **data,
+                    'event': {
+                        {'start': 'dtstart', 'end': 'dtend'}.get(key, key): value
+                        for key, value in event.items()
+                    },
+                }
+        # ``stt`` / ``radio_frequency`` 的列表命令返回整张表，需要按实体筛出一行。
+        scoped = domain not in {'stt', 'radio_frequency'}
+        websocket = await self.connect_websocket()
+        try:
+            async with asyncio.timeout(self.timeout):
+                result = await self.command(
+                    websocket,
+                    1,
+                    operation,
+                    **({'entity_id': entity_id} if scoped else {}),
+                    **data,
+                )
+        except TimeoutError as error:
+            raise HAClientError('Home Assistant 操作超时。') from error
+        finally:
+            await websocket.close()
+        if scoped:
+            return result
+        key = 'providers' if domain == 'stt' else 'transmitters'
+        rows = result.get(key, []) if isinstance(result, dict) else []
+        return next(
+            (
+                row
+                for row in rows
+                if isinstance(row, dict)
+                and (
+                    row.get('engine_id') == entity_id.partition('.')[2]
+                    if domain == 'stt'
+                    else row.get('entity_id') == entity_id
+                )
+            ),
+            {},
+        )
+
+    async def _inline_generated_image(self, client: httpx.AsyncClient, result: Any) -> Any:
+        """把 ``ai_task.generate_image`` 返回的相对 URL 取成 ``data:`` URL。
+
+        HA 只回一个 ``/ai_task/...`` 或 ``/media/...`` 路径：直接交给前端会要求浏览器
+        带着 HA 令牌去取，等于把令牌暴露给页面。这里在服务端取回（限 4 MiB、
+        只接受图片 MIME），转成 base64 塞回响应。
+        """
+        generated = result.get('service_response', {}) if isinstance(result, dict) else {}
+        image_url = generated.pop('url', None) if isinstance(generated, dict) else None
+        if (
+            not isinstance(image_url, str)
+            or not image_url.startswith(GENERATED_IMAGE_PREFIXES)
+            or '..' in image_url
+            or '\\' in image_url
+        ):
+            raise HAClientError('Home Assistant 未返回可读取的生成图片。')
+        async with client.stream('GET', f'{self.base_url}{image_url}') as picture:
+            picture.raise_for_status()
+            mime = picture.headers.get('content-type', '').split(';')[0].strip().lower()
+            if mime not in GENERATED_IMAGE_TYPES:
+                raise HAClientError('生成结果不是可显示的图片。')
+            content = bytearray()
+            async for chunk in picture.aiter_bytes():
+                content.extend(chunk)
+                if len(content) > GENERATED_IMAGE_MAX_BYTES:
+                    raise HAClientError('生成图片超过预览大小限制。')
+        generated['image'] = f'data:{mime};base64,' + base64.b64encode(content).decode('ascii')
+        return result
 
     async def browse_media(
         self,

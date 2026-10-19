@@ -85,6 +85,9 @@ export interface StageRefreshDeps {
   presenceBindings: any;
   screenOutlines: any;
   environmentAirflow: any;
+  deviceMist: any;
+  rangehoodAirflow: any;
+  computerScreens: any;
   syncFloorTabs: any;
   navigationEditing: any;
   isNavigationVisible: any;
@@ -422,6 +425,27 @@ export function refreshStageUiCore(deps: StageRefreshDeps) {
           ["environment", "devices", "vacuum", "security"].includes(pageDimming.page),
       ),
         deps.environmentAirflow.setRoot(deps.mountOptions.modelRoot, deps.mountOptions.sceneRevision),
+        deps.deviceMist?.sync({
+          root: deps.mountOptions.modelRoot,
+          revision: deps.mountOptions.environmentRevision ?? deps.mountOptions.sceneRevision,
+          bindings: sceneBindings,
+          states: deps.deviceStates,
+          enabled: enabled && !deps.isEditing,
+          sceneStyle: deps.options.sceneStyle,
+        }),
+        deps.rangehoodAirflow?.sync({
+          root: deps.mountOptions.modelRoot,
+          revision: deps.mountOptions.environmentRevision ?? deps.mountOptions.sceneRevision,
+          bindings: sceneBindings,
+          states: deps.deviceStates,
+          enabled: enabled && !deps.isEditing,
+        }),
+        deps.computerScreens?.sync({
+          root: deps.mountOptions.modelRoot,
+          revision: deps.mountOptions.environmentRevision ?? deps.mountOptions.sceneRevision,
+          bindings: sceneBindings,
+          states: deps.deviceStates,
+        }),
         deps.environmentScene.setMode({
           enabled: enabled,
           saturation: pageDimming.saturation,

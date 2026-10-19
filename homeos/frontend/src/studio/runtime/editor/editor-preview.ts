@@ -62,16 +62,129 @@ export function createEditorPreviewPool(globalObject: any = globalThis, idleReta
     target.stopAccess?.();
     // 运行时句柄本身是可调用的销毁函数（见 mountInteraction3d）。
     target.runtime?.();
-    target.dialog.remove();
+    // 借用宿主时 DOM 属于编辑器页面，只能还原，不能 remove()。
+    if (target.borrowed) target.restoreHost?.();
+    else target.dialog.remove();
     if (current === target) current = null;
     globalObject.removeEventListener?.("pagehide", target.onPageHide);
     globalObject.document?.removeEventListener?.(COMPONENT_REMOVED_EVENT, target.onRemoved);
+  }
+
+  /**
+   * 借用编辑器页已有的 3D 宿主（0.7.8 borrowed editor）。
+   *
+   * 与独立 `<dialog>` 的区别：宿主元素已经在页面上、3D 场景也已经加载好，
+   * 这里只把 header/body/view/aspect/stage 骨架塞进去并加上 `is-borrowed-editor`，
+   * 真正的画面由 `editorView.beginEditorPreview()` 把现有运行时切到编辑态。
+   * 关闭时恢复宿主的 class / aria-label / role 与父子节点，页面回到借用前的样子。
+   */
+  function createBorrowedHost({
+    editorView,
+    documentApi,
+    component,
+    panelDocument,
+    onClosed,
+  }: any) {
+    const host = editorView.editorPreviewHost,
+      savedHost = {
+        className: host.className,
+        label: host.getAttribute("aria-label"),
+        role: host.getAttribute("role"),
+      },
+      createElement = (tagName: string, className = "") => {
+        const element = documentApi.createElement(tagName);
+        element.className = className;
+        return element;
+      },
+      header = createElement("header"),
+      body = createElement("div", "i3d-editor-body"),
+      view = createElement("div", "i3d-editor-view"),
+      aspect = createElement("div", "i3d-editor-aspect"),
+      viewport = createElement("div", "i3d-editor-stage");
+    (aspect.append(viewport),
+      view.append(aspect),
+      body.append(view),
+      host.classList.add("is-borrowed-editor"),
+      host.setAttribute("role", "dialog"),
+      host.setAttribute("data-i3d-preview-scope", ""),
+      host.append(header, body));
+    // 借用期间宿主在编辑器页面内部：不让面板里的点击/键盘冒泡去触发编辑器自己的手势。
+    const stopPropagation = (event: any) => event.stopPropagation();
+    for (const eventName of ["pointerdown", "click", "keydown"])
+      host.addEventListener(eventName, stopPropagation);
+    let runtimeHandle: any = null,
+      isClosed = false,
+      target: any = null;
+
+    const restoreHost = () => {
+      if (isClosed) return;
+      isClosed = true;
+      runtimeHandle?.();
+      runtimeHandle = null;
+      header.remove();
+      body.remove();
+      host.className = savedHost.className;
+      host.removeAttribute("data-i3d-preview-scope");
+      for (const [attributeName, attributeValue] of [
+        ["aria-label", savedHost.label],
+        ["role", savedHost.role],
+      ] as const)
+        attributeValue == null
+          ? host.removeAttribute(attributeName)
+          : host.setAttribute(attributeName, attributeValue);
+      for (const eventName of ["pointerdown", "click", "keydown"])
+        host.removeEventListener(eventName, stopPropagation);
+      documentApi.removeEventListener?.(COMPONENT_REMOVED_EVENT, onRemoved);
+      globalObject.removeEventListener?.("pagehide", onPageHide);
+      editorView.resize?.();
+      onClosed?.(target);
+    };
+    const requestCancel = () => {
+      if (isClosed) return;
+      // 宿主自己处理 ESC（oncancel）时交给它，否则直接收尾。
+      if (host.oncancel) host.dispatchEvent(new Event("cancel", { cancelable: true }));
+      else restoreHost();
+    };
+    const onPageHide = () => requestCancel();
+    const onRemoved = (event: any) => {
+      event.detail?.componentId === component.id &&
+        event.detail?.projectId === panelDocument?.projectId &&
+        requestCancel();
+    };
+    documentApi.addEventListener?.(COMPONENT_REMOVED_EVENT, onRemoved);
+    globalObject.addEventListener?.("pagehide", onPageHide);
+
+    return (target = {
+      dialog: host,
+      header,
+      body,
+      view,
+      aspect,
+      viewport,
+      borrowed: true,
+      destroyed: false,
+      restoreHost,
+      /** 借用宿主本身是编辑器里的 `<dialog>`：需要显式打开时调用。 */
+      show() {
+        if (isClosed) return;
+        (host.close?.(), host.showModal?.());
+      },
+      /** 首次挂载才真正把运行时切到编辑态；后续复用直接返回同一个会话。 */
+      mount(styles: any) {
+        if (isClosed) throw new Error("配置窗口已关闭。");
+        return (runtimeHandle ||= editorView.beginEditorPreview(styles, viewport, requestCancel));
+      },
+      discardRuntime: requestCancel,
+      release: restoreHost,
+      dispose: restoreHost,
+    });
   }
 
   async function acquire({
     component,
     panelDocument,
     document: documentApi = globalObject.document,
+    editorView = null,
   }: any) {
     const myGeneration = ++generation;
     inFlight?.abort();
@@ -93,6 +206,62 @@ export function createEditorPreviewPool(globalObject: any = globalThis, idleReta
     ) {
       destroy(target);
       target = null;
+    }
+    // 借用编辑器（0.7.8 borrowed editor）：编辑器页面正停在同一场景时，
+    // 不另开 dialog，而是接管它已经加载好的 3D 宿主；否则继续走独立 dialog。
+    if (
+      editorView?.canBorrowEditorPreview?.(component, panelDocument) &&
+      editorView.metadata?.sourceSyncKey &&
+      editorView.editorPreviewHost &&
+      typeof editorView.beginEditorPreview === "function"
+    ) {
+      const borrowController = new AbortController();
+      inFlight = borrowController;
+      const borrowTimeoutId = globalObject.setTimeout(
+        () => borrowController.abort(),
+        REUSE_PROBE_TIMEOUT_MS,
+      );
+      let sceneUnchanged = false;
+      try {
+        const query = new URLSearchParams({
+          projectId: panelDocument?.projectId || "",
+          since: editorView.metadata.sourceSyncKey,
+        });
+        const response = await globalObject.fetch(
+          "/api/v1/modules/interaction3d/scenes/" +
+            encodeURIComponent(component.properties.sceneId) +
+            "/current?" +
+            query,
+          {
+            credentials: "same-origin",
+            cache: "no-store",
+            signal: borrowController.signal,
+          },
+        );
+        sceneUnchanged = response.status === SCENE_UNCHANGED_STATUS;
+      } catch {
+        // 借用的前提是"编辑器画面就是当前场景"；确认不了就不借。
+        sceneUnchanged = false;
+      } finally {
+        globalObject.clearTimeout(borrowTimeoutId);
+        if (inFlight === borrowController) inFlight = null;
+      }
+      if (myGeneration !== generation) throw new Error("配置入口已切换。");
+      if (sceneUnchanged && editorView.canBorrowEditorPreview(component, panelDocument)) {
+        destroy(target);
+        const borrowedTarget: any = createBorrowedHost({
+          editorView,
+          documentApi,
+          component,
+          panelDocument,
+          onClosed: (closedTarget: any) => {
+            if (current === closedTarget) current = null;
+          },
+        });
+        current = borrowedTarget;
+        borrowedTarget.active = true;
+        return borrowedTarget;
+      }
     }
     if (target) {
       // 结构一致还不够 —— 场景可能已经在别处改过，先向后端确认再决定复用。
@@ -226,6 +395,7 @@ export function createEditorPreviewPool(globalObject: any = globalThis, idleReta
               module: styles.editingModule,
               securityKind: styles.editingSecurityKind,
               vacuumId: styles.editingVacuumId,
+              showAllLabels: styles.editingShowAllLabels === true,
             },
             styles.component,
           );

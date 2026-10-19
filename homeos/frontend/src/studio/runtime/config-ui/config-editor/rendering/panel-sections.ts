@@ -306,18 +306,33 @@ export function renderStatusRuleSection(
             e.createElement(
               "p",
               "i3d-note",
-              "此实体使用自定义状态。指定两个匹配值，其他值显示为未知。",
+              "分别填写亮灯/提醒与灭灯/恢复的状态；每行一个，可填写多个。其他值显示为未知。",
             ),
           ),
             entityStateText != null &&
               statusDialogBodyElement.append(
                 e.createElement("p", "i3d-note", "HA 当前值：" + entityStateText),
               ));
-          const activeValueInputElement = e.createElement("input"),
-            inactiveValueInputElement = e.createElement("input");
-          ((activeValueInputElement.value = statusEntity.active || ""),
-            (inactiveValueInputElement.value = statusEntity.inactive || ""),
-            (activeValueInputElement.maxLength = inactiveValueInputElement.maxLength = 120),
+          const statusChoiceDefinition = deviceStatusChoicesProvider(catalogEntry, entityState);
+          if (statusChoiceDefinition?.options.length) {
+            statusDialogBodyElement.append(
+              e.createElement(
+                "p",
+                "i3d-note",
+                "可用状态：" +
+                  statusChoiceDefinition.options
+                    .map((statusOption: any) => statusOption.label + "（" + statusOption.value + "）")
+                    .join("、"),
+              ),
+            );
+          }
+          const readStatusValueLines = (statusValue: any) =>
+              (Array.isArray(statusValue) ? statusValue.join("\n") : statusValue || ""),
+            activeValueInputElement = e.createElement("textarea"),
+            inactiveValueInputElement = e.createElement("textarea");
+          ((activeValueInputElement.value = readStatusValueLines(statusEntity.active)),
+            (inactiveValueInputElement.value = readStatusValueLines(statusEntity.inactive)),
+            (activeValueInputElement.maxLength = inactiveValueInputElement.maxLength = 7800),
             createSettingRow(
               statusDialogBodyElement,
               dialogRuleKind === "health" ? "提醒时的状态值" : "亮灯时的状态值",
@@ -336,28 +351,43 @@ export function renderStatusRuleSection(
               closeAddDialog();
               return;
             }
-            const statusValuePair = [
-              activeValueInputElement.value.trim(),
-              inactiveValueInputElement.value.trim(),
-            ];
+            const statusValueGroups = [
+              activeValueInputElement.value,
+              inactiveValueInputElement.value,
+            ].map((statusValueText: string) => [
+              ...new Set(
+                statusValueText
+                  .split("\n")
+                  .map((statusLine) => statusLine.trim())
+                  .filter(Boolean),
+              ),
+            ]);
             if (
-              statusValuePair.some(
-                (statusValueProbe) =>
-                  !statusValueProbe ||
-                  statusValueProbe.length > 120 ||
-                  ["unknown", "unavailable"].includes(statusValueProbe),
+              statusValueGroups.some(
+                (statusGroup) =>
+                  !statusGroup.length ||
+                  statusGroup.length > 64 ||
+                  statusGroup.some(
+                    (statusValueProbe) =>
+                      statusValueProbe.length > 120 ||
+                      ["unknown", "unavailable"].includes(statusValueProbe),
+                  ),
               ) ||
-              statusValuePair[0] === statusValuePair[1]
+              statusValueGroups[0].some((statusValueProbe) =>
+                statusValueGroups[1].includes(statusValueProbe),
+              )
             ) {
               statusDialogErrorElement.textContent =
-                "请填写两个不同的有效状态值；未知或不可用不能作为匹配条件。";
+                "请填写两组不重叠的有效状态值；未知或不可用不能作为匹配条件。";
               return;
             }
             (closeAddDialog(),
               writeStatusRule(dialogRuleKind, dialogRuleIndex, {
                 entityId: statusEntity.entityId,
-                active: statusValuePair[0],
-                inactive: statusValuePair[1],
+                active:
+                  statusValueGroups[0].length === 1 ? statusValueGroups[0][0] : statusValueGroups[0],
+                inactive:
+                  statusValueGroups[1].length === 1 ? statusValueGroups[1][0] : statusValueGroups[1],
               }));
           });
           confirmStatusValuesButton.className = "primary";
@@ -484,8 +514,9 @@ export function renderStatusRuleSection(
             resolveEntityState(ruleEntity.entityId),
           );
           if (
+            choiceDefinition?.options.length === 2 &&
             ruleEntity.active !== ruleEntity.inactive &&
-            choiceDefinition?.options.some(
+            choiceDefinition.options.some(
               (activeChoiceProbe) => activeChoiceProbe.value === ruleEntity.active,
             ) &&
             choiceDefinition.options.some(
@@ -526,7 +557,7 @@ export function renderStatusRuleSection(
               }),
               statusRuleRowElement.append(ruleDefaultButton));
           } else {
-            if (isStandardOnly)
+            if (isStandardOnly && !choiceDefinition)
               statusRuleRowElement.append(
                 e.createElement("span", "i3d-note", "状态暂不可识别，请重新选择实体。"),
               );

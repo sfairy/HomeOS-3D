@@ -81,8 +81,6 @@ services:
       # 验证码投递：log = 只写容器日志（首装够用）。公开售卖前请在 /admin 配好 SMTP，
       # 否则客户收不到验证码。
       STORE_MAIL_MODE: log
-      # 这台出不了外网就填 "0"，避免周期性 GitHub 连接失败日志。
-      # STORE_RELEASE_SYNC_INTERVAL_SECONDS: "21600"
     volumes:
       - homeos-store-data:/data
       - homeos-license-keys:/data/license-keys

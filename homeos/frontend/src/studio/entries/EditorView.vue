@@ -61,7 +61,6 @@ onMounted(async () => {
   // hls.min.js 不再在编辑器引导阶段阻塞加载：相机预览创建播放器前由
   // @/shared/camera/hls-loader 按需加载，无摄像头页面完全不下发该脚本。
   await import("@app/logging/global-log-boot");
-  await import("@app/shared/update-notice");
   const storeLinks = await import("@/shared/utils/store-links.util");
   void storeLinks.applyStoreLinks();
   const editor = await import("@app/editor/boot");

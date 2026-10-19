@@ -1,6 +1,8 @@
 /** renderer 构造选项：一直是开放结构，只有少数几个字段有固定语义。 */
 export type PanelRendererOptions = {
   editable?: boolean;
+  /** 本次渲染发生在编辑器工作区（而非运行态），组件可按它切换落点/交互密度。 */
+  editorWorkspace?: boolean;
   onError?: (error: any) => void;
   onRuntimeButtonPress?: (element: Element) => void;
   [key: string]: any;

@@ -129,7 +129,8 @@ export function createNasStatus({
         (anchorNode !== anchorModelRoot && anchorNode.userData?.environmentModelId != null)
       )
         return;
-      const anchorCoordinates = anchorNode.userData?.nasStatusAnchor;
+      const anchorCoordinates =
+        anchorNode.userData?.deviceStatusAnchor ?? anchorNode.userData?.nasStatusAnchor;
       if (
         Array.isArray(anchorCoordinates) &&
         anchorCoordinates.length === 3 &&

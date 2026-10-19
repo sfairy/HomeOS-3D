@@ -37,6 +37,7 @@ export interface StageContext {
   activeModule: string;
   selectedSecurityKind: string;
   editingVacuumId: string;
+  showAllLabels: boolean;
   pendingFloorId: string;
   pendingModule: string;
   hasAutoSelectedFloors: boolean;
@@ -132,6 +133,7 @@ export function createStageContext(): StageContext {
     activeModule: "overview",
     selectedSecurityKind: "",
     editingVacuumId: "",
+    showAllLabels: false,
     pendingFloorId: "",
     pendingModule: "",
     hasAutoSelectedFloors: false,

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
 import traceback
 from collections.abc import Callable
 from typing import Any, Protocol
@@ -56,6 +57,9 @@ _UNPROCESSABLE = 422
 _CONFLICT = 409
 _NOT_FOUND = 404
 _BAD_GATEWAY = 502
+
+#: TTS / 播放组里出现的"设备"必须是媒体实体。
+MEDIA_PLAYER_PATTERN = re.compile(r'media_player\.[a-z0-9_]+')
 
 
 class ServiceCallRejected(Exception):
@@ -108,14 +112,20 @@ def _validate_service_call(payload: ServiceCallPayload) -> None:
         unknown = ', '.join(sorted(unknown_fields))
         raise ServiceCallRejected(_UNPROCESSABLE, f'服务参数不允许：{unknown}')
     if payload.domain == 'light' and payload.service == 'turn_on':
-        color_fields = {'white', 'hs_color', 'rgb_color', 'color_temp_kelvin'} & set(payload.data)
+        color_fields = {'white', 'hs_color', 'rgb_color', 'rgbw_color', 'rgbww_color', 'xy_color', 'color_temp_kelvin'} & set(payload.data)
         if len(color_fields) > 1:
             raise ServiceCallRejected(_UNPROCESSABLE, '一次灯光指令只能指定一种颜色或色温。')
         if 'white' in payload.data:
             white = payload.data['white']
             if not (isinstance(white, bool) or (isinstance(white, int) and 0 <= white <= 255)):
                 raise ServiceCallRejected(_UNPROCESSABLE, '白光亮度参数无效。')
-        for field, bounds in (('hs_color', (360, 100)), ('rgb_color', (255, 255, 255))):
+        for field, bounds in (
+            ('hs_color', (360, 100)),
+            ('rgb_color', (255, 255, 255)),
+            ('rgbw_color', (255, 255, 255, 255)),
+            ('rgbww_color', (255, 255, 255, 255, 255)),
+            ('xy_color', (1, 1)),
+        ):
             if field not in payload.data:
                 continue
             values = payload.data[field]
@@ -131,6 +141,33 @@ def _validate_service_call(payload: ServiceCallPayload) -> None:
                 )
             ):
                 raise ServiceCallRejected(_UNPROCESSABLE, f'灯光颜色参数无效：{field}')
+    # 播放组：``group_members`` 只能是媒体实体，且不能把自身加进去（HA 会静默忽略，
+    # 前端却会显示"已加入"，所以在这里直接拒）。
+    if 'group_members' in payload.data:
+        members = payload.data['group_members']
+        if (
+            not isinstance(members, list)
+            or any(not isinstance(member, str) or not MEDIA_PLAYER_PATTERN.fullmatch(member) for member in members)
+        ):
+            raise ServiceCallRejected(_UNPROCESSABLE, '播放组成员必须是媒体实体。')
+        if payload.entity_id in members:
+            raise ServiceCallRejected(_UNPROCESSABLE, '不能把当前设备加入它自己的播放组。')
+    # TTS 的播放设备必须是媒体实体（否则 HA 端会报"找不到实体"）。
+    if 'media_player_entity_id' in payload.data:
+        speaker = payload.data['media_player_entity_id']
+        if not isinstance(speaker, str) or not MEDIA_PLAYER_PATTERN.fullmatch(speaker):
+            raise ServiceCallRejected(_UNPROCESSABLE, '请选择播放设备。')
+    # AI 任务附件：只校验形状，不下载（下载在 client 的 ``generate_image`` 链路里）。
+    if 'attachments' in payload.data:
+        attachments = payload.data['attachments']
+        if not isinstance(attachments, list) or any(
+            not isinstance(item, dict)
+            or set(item) - {'media_content_id', 'media_content_type'}
+            or not isinstance(item.get('media_content_id'), str)
+            or not item['media_content_id']
+            for item in attachments
+        ):
+            raise ServiceCallRejected(_UNPROCESSABLE, '附件参数无效。')
     entity_domain = payload.entity_id.partition('.')[0]
     if payload.domain == 'homeassistant' and payload.service == 'toggle' and entity_domain not in TOGGLE_ENTITY_DOMAINS:
         raise ServiceCallRejected(_UNPROCESSABLE, '该实体类型不支持切换动作。')

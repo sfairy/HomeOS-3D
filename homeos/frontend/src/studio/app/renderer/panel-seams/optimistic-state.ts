@@ -128,6 +128,7 @@ export function updateOptimisticToggleVisuals(self: PanelRenderer, optimisticTog
             entityTranslations: self.entityTranslations,
             renderNamespace: self.renderNamespace,
             editable: !!self.options.editable,
+            editorWorkspace: self.options.editorWorkspace === true,
             liveMedia: self.options.liveMedia !== false,
             previewState: self.componentPreviewStates.get(optimisticComponentId) || "auto",
             isIconVisible: (iconVisibilityEntityKey: any) =>
@@ -172,6 +173,7 @@ export function updateOptimisticToggleVisuals(self: PanelRenderer, optimisticTog
             entityTranslations: self.entityTranslations,
             renderNamespace: self.renderNamespace,
             editable: !!self.options.editable,
+            editorWorkspace: self.options.editorWorkspace === true,
             liveMedia: self.options.liveMedia !== false,
             previewState: self.componentPreviewStates.get(optimisticComponentId) || "auto",
             isIconVisible: (conditionerIconEntityId: any) =>
@@ -220,6 +222,7 @@ export function updateOptimisticToggleVisuals(self: PanelRenderer, optimisticTog
             entityTranslations: self.entityTranslations,
             renderNamespace: self.renderNamespace,
             editable: !!self.options.editable,
+            editorWorkspace: self.options.editorWorkspace === true,
             liveMedia: self.options.liveMedia !== false,
             previewState: self.componentPreviewStates.get(optimisticComponentId) || "auto",
             isIconVisible: (airflowIconEntityId: any) => self.iconVisibilityState(airflowIconEntityId),

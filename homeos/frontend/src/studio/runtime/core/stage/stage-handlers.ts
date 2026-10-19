@@ -472,7 +472,7 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
       renderSignature === host.lastRenderSignature
     )) {
       host.lastRenderSignature = renderSignature;
-      for (const layoutMarkerItem of host.currentModuleBindings()) {
+      for (const layoutMarkerItem of host.markerBindings()) {
         const layoutMarkerSnapshot =
             host.activePointerDrag?.id === layoutMarkerItem.id
               ? {
@@ -587,7 +587,7 @@ export function createSyncMarkers(host: StageHandlersHost) {
       (host.stateUpdatePlanner.invalidate(), host.stageModelIndex.invalidate()),
       host.wakeSceneBackground(),
       host.markerLayerElement.classList.toggle("is-editing", host.isEditing));
-    const syncMarkerItems = host.currentModuleBindings().filter(
+    const syncMarkerItems = host.markerBindings().filter(
         (filteredMarkerItem: any) => host.isEditing || filteredMarkerItem.deviceKind !== "presence",
       ),
       visibleMarkerIdSet = new Set(
@@ -625,13 +625,16 @@ export function createSyncMarkers(host: StageHandlersHost) {
           syncMarkerElement.addEventListener("pointerup", (dragUpEvent: any) => ms2.up(dragUpEvent)),
           syncMarkerElement.addEventListener("pointercancel", () => ms2.cancel()),
           syncMarkerElement.addEventListener("click", (markerClickEvent: any) => {
+            if ((markerClickEvent.stopPropagation(), syncMarkerElement.dataset.previewReference === "true")) {
+              host.selectPreviewReference(syncMarkerItem.id);
+              return;
+            }
             if (
-              (markerClickEvent.stopPropagation(),
               host.findBindingById(syncMarkerItem.id)?.passiveSensor ||
                 host.isCameraMoving ||
                 host.isAwaitingFloorViewAdjust ||
                 host.panelDisplayMode === "edit" ||
-                (!host.isEditing && host.findBindingById(syncMarkerItem.id)?.buttonHidden === true))
+                (!host.isEditing && host.findBindingById(syncMarkerItem.id)?.buttonHidden === true)
             )
               return;
             if (syncMarkerElement.dataset.dragged === "true") {
@@ -647,9 +650,19 @@ export function createSyncMarkers(host: StageHandlersHost) {
                 : ms2.target(markerClickEvent, clickedMarkerId);
             target && host.activateMarker(target, true);
           }),
-          syncMarkerElement.addEventListener("pointerdown", (markerDragEvent: any) =>
-            host.beginMarkerDrag(markerDragEvent, syncMarkerItem.id),
-          ),
+          syncMarkerElement.addEventListener("keydown", (markerKeyEvent: any) => {
+            syncMarkerElement.tagName !== "BUTTON" &&
+              host.isEditing &&
+              ["Enter", " "].includes(markerKeyEvent.key) &&
+              (markerKeyEvent.preventDefault(),
+              syncMarkerElement.dataset.previewReference === "true"
+                ? host.selectPreviewReference(syncMarkerItem.id)
+                : host.activateMarker(syncMarkerItem.id, true));
+          }),
+          syncMarkerElement.addEventListener("pointerdown", (markerDragEvent: any) => {
+            syncMarkerElement.dataset.previewReference === "true" ||
+              host.beginMarkerDrag(markerDragEvent, syncMarkerItem.id);
+          }),
           syncMarkerElement.addEventListener("pointermove", host.moveMarkerDrag),
           syncMarkerElement.addEventListener("pointerup", host.endMarkerDrag),
           syncMarkerElement.addEventListener("pointercancel", host.cancelMarkerDrag),
@@ -1252,8 +1265,32 @@ export function createSyncMarkers(host: StageHandlersHost) {
           "is-offline",
           !host.isEditing && !markerPresentationState.available,
         ),
-        syncMarkerElement.classList.toggle("is-nas", syncMarkerItem.deviceKind === "nas"),
-        syncMarkerElement.classList.toggle("is-selected", host.isEditing && host.text === syncMarkerItem.id));
+        syncMarkerElement.classList.toggle("is-nas", syncMarkerItem.deviceKind === "nas"));
+      const isMarkerSelected = host.isEditing && host.text === syncMarkerItem.id;
+      syncMarkerElement.classList.toggle("is-selected", isMarkerSelected);
+      // 「显示本类全部标签」追加的条目：只当"可点击的预览引用"，不参与拖动。
+      syncMarkerElement.dataset.previewReference = String(syncMarkerItem.previewReference === true);
+      syncMarkerElement.tagName !== "BUTTON" &&
+        !["temperature-humidity", "smallcar"].includes(syncMarkerItem.deviceKind) &&
+        (syncMarkerItem.previewSelection
+          ? (syncMarkerElement.setAttribute("role", "button"),
+            syncMarkerElement.setAttribute("tabindex", "0"))
+          : (syncMarkerElement.removeAttribute("role"),
+            syncMarkerElement.removeAttribute("tabindex")));
+      // 编辑态给"当前正在编辑"的标记挂一个角标（0.7.8 `i3d-marker-editing-badge`）。
+      let editingBadge = syncMarkerElement.querySelector(".i3d-marker-editing-badge");
+      if (
+        isMarkerSelected &&
+        syncMarkerElement.tagName !== "BUTTON" &&
+        !["temperature-humidity", "smallcar"].includes(syncMarkerItem.deviceKind)
+      ) {
+        if (!editingBadge) {
+          editingBadge = createStageElement("span", "i3d-marker-editing-badge");
+          editingBadge.setAttribute("aria-hidden", "true");
+          syncMarkerElement.append(editingBadge);
+        }
+        editingBadge.textContent = "当前";
+      } else editingBadge?.remove();
     }
     // 全屏报警由父页 runtime 挂到 document.body；iframe 内仅保留卡片，避免只盖住 3D 区域。
     host.securityAlarmOverlay.update(
@@ -1416,6 +1453,7 @@ export function createHandleHostMessage(host: StageHandlersHost) {
           host.sceneBackgroundController.configure(host.options.backgroundTheme, host.options),
           (host.isControlReady = !host.isEditing && data.interactive === true),
           (host.editingVacuumId = data.editingVacuumId || ""),
+          (host.showAllLabels = data.showAllLabels === true),
           (host.configuredModuleKinds2 = configuredModuleKinds(host.options)));
         let editingModule = host.isEditing
           ? [
@@ -1929,7 +1967,9 @@ export function createRunFrame(host: StageHandlersHost) {
           (host.curtainMotion.isMoving() || host.nextCoverFeedbackDelay() <= 1000 / 30),
       }));
     const tick = host.presenceWaves.tick(frameTimestamp),
-      tick2 = host.environmentScene.tick(frameTimestamp);
+      tick2 = host.environmentScene.tick(frameTimestamp),
+      tickDeviceMist = host.deviceMist?.tick(frameTimestamp),
+      tickRangehoodAirflow = host.rangehoodAirflow?.tick(frameTimestamp);
     (floorTransitionActive2 || host.environmentAirflow.tick(frameTimestamp),
       host.mountOptions.setEnvironmentActive?.(host.environmentScene.isActive),
       host.advanceCameraMotion(frameTimestamp));
@@ -2012,13 +2052,15 @@ export function createRunFrame(host: StageHandlersHost) {
         tick7 || host.followVacuumId ? 1000 / 30 : Infinity,
         host.isIdleIconHidden ? 60 : Infinity,
         some6 ? 7000 - (frameTimestamp % 7000) : Infinity,
-        host.cameraMotionSnapshot || tick2 || tick4 ? 0 : Infinity,
+        host.cameraMotionSnapshot || tick2 || tick4 || tickDeviceMist || tickRangehoodAirflow ? 0 : Infinity,
         host.curtainMotion.isMoving() ? 1000 / 30 : Infinity,
         Math.min(
           host.coverFeedback.nextDelay(frameTimestamp),
           host.dreamTiltFeedback.nextDelay(frameTimestamp),
         ),
         host.environmentAirflow.nextDelay(),
+        host.deviceMist?.nextDelay() ?? Infinity,
+        host.rangehoodAirflow?.nextDelay() ?? Infinity,
         host.nasStatus.nextDelay(),
         ...(Object.values(host.waterHeaterStatusByModelType) as any[]).map((stateTickerForDelay) =>
           stateTickerForDelay.nextDelay(),

@@ -75,7 +75,6 @@ from ..domains.system import DeviceHealthService, DeviceManagementService, Syste
 from ..domains.system.embed_proxy import EmbedProxyService
 from ..domains.system.jobs import JobRegistryService
 from ..domains.system.ops import ExternalApiService, MoviePilotProxyService
-from ..domains.system.updates import STORE_UPDATES_PATH, UpdateChecker
 from ..domains.ui_config import UiConfigService
 from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
 from ..platform.core import schema
@@ -1071,24 +1070,6 @@ async def _start_ha_and_license(app: FastAPI, startup: _StartupContext) -> None:
     # discovery.py）。显式 APP_STORE_URL 时它一次网络请求都不会发。
     app.state.store_base_url_resolver = StoreBaseUrlResolver(app_settings)
 
-    # 版本更新发现（可选）：失败静默降级，不影响其余服务。
-    # 端点是**容器自己出站**去问的，所以用授权服务器地址（同机部署 = 服务名，分机部署 =
-    # 厂商那台的地址），而不是给浏览器用的那个 —— 两者在很多部署里不是同一个值。
-    # APP_UPDATE_ENDPOINTS 显式给出时优先；都没有就留空 = 不检查，不回落到写死的回环。
-    app.state.update_checker = UpdateChecker(
-        app_settings.data_dir,
-        app_settings.version,
-        app_settings.update_channel,
-        enabled=app_settings.update_checks_enabled,
-        endpoints=app_settings.update_endpoints
-        or (
-            (f"{app_settings.license_server_url}{STORE_UPDATES_PATH}",)
-            if app_settings.license_server_url
-            else ()
-        ),
-    )
-    app.state.update_checker.start()
-
 
 async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     """停机全部组件：逐个隔离超时 / 异常，最后释放数据库。"""
@@ -1096,7 +1077,6 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
     if loop_lag is not None:
         await _shutdown("事件循环延迟采样", loop_lag.stop)
     await _shutdown("3D 平面", lambda: studio3d_plane.shutdown(app))
-    await _shutdown("更新检查器", app.state.update_checker.stop)
     await _shutdown("授权服务", startup.license_service.stop)
     await _shutdown("数据库保留调度", startup.database_retention.stop_schedule)
     await _shutdown("外部 API", startup.external_api.stop)

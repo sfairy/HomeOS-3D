@@ -94,23 +94,28 @@ def load_authorized_entity_context(
     database_manager: Database,
     viewer: ViewerPrincipal,
     entity_id: str,
+    enabled_only: bool = False,
 ) -> tuple[HAConnection | None, bool]:
+    """连接 + 实体是否可用。
+
+    默认**不**排除已禁用实体（0.7.8 的 `enabled_only=False`）：配置校验时，
+    绑定了稍后被禁用的实体不应该让保存失败（否则用户连"把这台设备删掉"都做不到），
+    只要实体在库里存在且未被删除即可。
+    需要严格"实体存在、已启用且未失联"的运行时控制路径，显式传 `enabled_only=True`。
+    """
     with database_manager.session_factory() as database:
         require_viewer_entity(database, viewer, entity_id)
         connection = active_connection(database)
         if connection is None:
             return None, False
-        entity_exists = (
-            database.scalar(
-                select(HAEntity.id).where(
-                    HAEntity.connection_id == connection.id,
-                    HAEntity.entity_id == entity_id,
-                    HAEntity.sync_status == 'active',
-                    HAEntity.disabled_by.is_(None),
-                )
-            )
-            is not None
-        )
+        conditions = [
+            HAEntity.connection_id == connection.id,
+            HAEntity.entity_id == entity_id,
+            HAEntity.sync_status == 'active',
+        ]
+        if enabled_only:
+            conditions.append(HAEntity.disabled_by.is_(None))
+        entity_exists = database.scalar(select(HAEntity.id).where(*conditions)) is not None
         database.expunge(connection)
         return connection, entity_exists
 

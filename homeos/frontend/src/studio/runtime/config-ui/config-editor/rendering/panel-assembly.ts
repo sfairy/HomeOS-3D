@@ -9,7 +9,8 @@
  */
 
 import { DEFAULT_BUTTON_SIZE } from "@app/bridge/presets/button-icon-size";
-import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2, genericDeviceProfile as genericDeviceProfile2 } from "../../../device/generic-device-catalog";
+import { genericDeviceProfile as genericDeviceProfile2 } from "../../../device/generic-device-catalog";
+import { createDeviceCategoryRow } from "./device-category-dialog";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { bathEffectEditor as bathEffectEditor2 } from "../../../bath-heater/bath-heater-editor";
 import { carChargingMappingError as carChargingMappingError2, carState as carState2, standardCarBindings as standardCarBindings2 } from "../../../vehicle/car-state";
@@ -21,6 +22,8 @@ import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMod
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from "../../range-dialog";
 import { openVacuumMapEditor as openVacuumMapEditor2 } from "../../../vacuum/vacuum-map-editor";
 import { purifierState as purifierState2 } from "../../../purifier/purifier-state";
+import { deviceMistState as deviceMistState2, isDeviceMistSource as isDeviceMistSource2 } from "../../../environment/device-mist";
+import { rangehoodState as rangehoodState2 } from "../../../environment/rangehood-state";
 import { vacuumMapIdentity as vacuumMapIdentity2 } from "../../../vacuum/vacuum-map";
 
 /**
@@ -135,6 +138,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
         (e.redrawBathEffects = () => {}),
         (e.refreshAirflowStatus = () => {}),
         (e.renderAirflowSection = () => {}),
+        (e.redrawDeviceMistSection = () => {}),
+        (e.redrawRangehoodSection = () => {}),
         (refreshBatchButtonsCell.current = () => {}),
         e.panelElement.replaceChildren());
       let currentContainer = e.panelElement;
@@ -162,24 +167,15 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             },
           ),
           e.isDeviceKind &&
-            createSelectRow(
+            createDeviceCategoryRow(
+              e,
               currentContainer,
               "设备类别",
-              [
-                ["nas", "NAS"],
-                ["television", "电视"],
-                ["speaker", "智能音响"],
-                ["water-heater", "热水器"],
-                ["airer", "晾衣架"],
-                ...GENERIC_DEVICE_KINDS2.map((listedGenericKind) => [
-                  listedGenericKind,
-                  genericDeviceProfile2(listedGenericKind).label,
-                ]),
-              ],
               e.deviceKind,
               (pickedDeviceCategory: any) => {
                 pickedDeviceCategory !== e.deviceKind && switchEditorKind(pickedDeviceCategory);
               },
+              createSettingRow,
             ),
           e.includes &&
             createSelectRow(
@@ -520,7 +516,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   trigger: itemPickerTrigger,
                   deviceIcon: e.defaultIcon, deviceKind:
                     targetField === "powerEntity"
-                      ? "television-power"
+                      ? e.deviceKind === "computer"
+                        ? "computer-power"
+                        : "television-power"
                       : isBathHeaterMode
                         ? "bath-heater"
                         : e.deviceKind,
@@ -865,6 +863,130 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             itemEntityMetadata = e.entities.find(
               (metadataLookupProbe: any) => metadataLookupProbe.entityId === vector.entityId,
             );
+          const renderDeviceScreenImageSection = (
+            sectionTitle: string,
+            imageAlt: string,
+            uploadAriaLabel: string,
+            emptyStatusText: string,
+            noteText: string,
+          ) => {
+            const posterAssetSection = createConfigSection(sectionTitle),
+              posterAssetStatusElement = e.createElement("p", "i3d-note", emptyStatusText),
+              posterAssetUploadInput = e.createElement("input");
+            ((posterAssetUploadInput.type = "file"),
+              (posterAssetUploadInput.accept =
+                "image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,image/gif,image/bmp,image/tiff,image/avif,image/heic,image/heif,image/x-icon,.png,.jpg,.jpeg,.webp,.svg,.gif,.bmp,.tif,.tiff,.ico,.avif,.heic,.heif"),
+              (posterAssetUploadInput.hidden = true),
+              posterAssetUploadInput.setAttribute("aria-label", uploadAriaLabel));
+            let isPosterUploading = false;
+            const currentScreenAssetId = () => {
+                const assetId = vector.screenImage?.assetId;
+                return typeof assetId == "string" && /^user:[0-9a-f]{32}$/i.test(assetId.trim())
+                  ? assetId.trim().toLowerCase()
+                  : "";
+              },
+              refreshPosterAssetUi = () => {
+                const hasPoster = !!currentScreenAssetId();
+                posterAssetStatusElement.textContent = isPosterUploading
+                  ? "上传中…"
+                  : hasPoster
+                    ? emptyStatusText + "（已设置）"
+                    : emptyStatusText;
+              },
+              uploadPosterAsset = async (selectedFile: any) => {
+                if (!selectedFile || isPosterUploading) return;
+                isPosterUploading = true;
+                refreshPosterAssetUi();
+                try {
+                  const uploadResponse = await fetch("/api/v1/assets/user", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    body: selectedFile,
+                    headers: {
+                      "Content-Type": selectedFile.type || "application/octet-stream",
+                      "X-File-Name": encodeURIComponent(selectedFile.name),
+                    },
+                  });
+                  const uploadPayload = await uploadResponse.json().catch(() => ({}));
+                  if (!uploadResponse.ok)
+                    throw new Error(
+                      uploadPayload.detail ||
+                        uploadPayload.message ||
+                        uploadPayload.error ||
+                        "图片上传失败，请重试。",
+                    );
+                  const uploadedAssetId = String(
+                    uploadPayload.assetId || uploadPayload.data?.assetId || "",
+                  )
+                    .trim()
+                    .toLowerCase();
+                  if (!/^user:[0-9a-f]{32}$/.test(uploadedAssetId))
+                    throw new Error("图片上传结果无效，请重试。");
+                  vector.screenImage = { assetId: uploadedAssetId };
+                  refreshEditorPreview();
+                } catch (uploadError: any) {
+                  posterAssetStatusElement.textContent =
+                    uploadError?.message || "图片上传失败，请重试。";
+                  isPosterUploading = false;
+                  return;
+                }
+                isPosterUploading = false;
+                refreshPosterAssetUi();
+                rebuildPosterActions();
+              };
+            const posterActionsRow = e.createElement("div", "i3d-focus-actions"),
+              posterPreviewElement = e.createElement("img");
+            posterPreviewElement.alt = imageAlt;
+            Object.assign(posterPreviewElement.style, {
+              width: "100%",
+              maxHeight: "150px",
+              objectFit: "contain",
+            });
+            const rebuildPosterActions = () => {
+              posterActionsRow.replaceChildren();
+              const screenAssetId = currentScreenAssetId();
+              const hasPoster = !!screenAssetId;
+              const posterId = screenAssetId.slice(5);
+              posterPreviewElement.src = hasPoster ? "/api/v1/assets/user/" + posterId : "";
+              const uploadButton = e.createButton(hasPoster ? "替换图片" : "上传图片", () => {
+                if (!isPosterUploading) posterAssetUploadInput.click();
+              });
+              uploadButton.className = "i3d-picker-button";
+              uploadButton.disabled = isPosterUploading;
+              posterActionsRow.append(uploadButton);
+              if (hasPoster) {
+                posterActionsRow.before(posterPreviewElement);
+                const deleteButton = e.createButton("删除图片", async () => {
+                  if (isPosterUploading) return;
+                  try {
+                    await fetch("/api/v1/assets/user/" + posterId, {
+                      method: "DELETE",
+                      credentials: "same-origin",
+                    });
+                  } catch { /* 网络副作用失败不影响本地状态：调用方会在下一轮刷新或用户重试时收敛 */ }
+                  delete vector.screenImage;
+                  refreshPosterAssetUi();
+                  rebuildPosterActions();
+                  refreshEditorPreview();
+                });
+                posterActionsRow.append(deleteButton);
+              } else posterPreviewElement.remove();
+            };
+            refreshPosterAssetUi();
+            rebuildPosterActions();
+            (posterAssetUploadInput.addEventListener("change", () => {
+              const selectedPosterFile = posterAssetUploadInput.files?.[0];
+              posterAssetUploadInput.value = "";
+              uploadPosterAsset(selectedPosterFile);
+            }),
+              posterAssetSection.append(
+                posterAssetStatusElement,
+                posterActionsRow,
+                posterAssetUploadInput,
+                e.createElement("p", "i3d-note", noteText),
+              ),
+              currentContainer.append(posterAssetSection));
+          };
           if (e.isNasMode) {
             const nasSourceButton = e.createButton(
               vector.statusSource?.name || "选择飞牛、群晖或绿联",
@@ -984,11 +1106,34 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             if (
               ((devicePickerButtonElement.className = "i3d-picker-button"),
               createSettingRow(currentContainer, "绑定设备", devicePickerButtonElement),
-              genericDeviceProfile2(e.deviceKind).statusIndicator !== false)
+              e.deviceKind === "computer")
             ) {
+              const computerPowerButton = e.createButton(
+                vector.powerEntityId || "选择电脑电源开关",
+                () => void openItemPicker("powerEntity", computerPowerButton),
+              );
+              ((computerPowerButton.className = "i3d-picker-button"),
+                createSettingRow(currentContainer, "电脑开关实体", computerPowerButton),
+                currentContainer.append(
+                  e.createElement(
+                    "p",
+                    "i3d-note",
+                    "电源实体使用 switch 或 input_boolean。开关状态直接控制电脑屏幕明暗；不设置指示灯规则。",
+                  ),
+                ));
+            }
+            if (genericDeviceProfile2(e.deviceKind).statusIndicator !== false) {
               const statusLightSectionElement = createConfigSection("状态灯（可选）");
               renderStatusRuleSection(statusLightSectionElement, vector);
             } else delete vector.statusRules;
+            e.deviceKind === "computer" &&
+              renderDeviceScreenImageSection(
+                "电脑开机屏幕图片",
+                "电脑开机屏幕图片",
+                "上传电脑屏幕图片",
+                "开机时显示的图片",
+                "开机时显示这张图片，关机时显示深色屏幕。支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO；图片保持原比例。",
+              );
           }
           if (e.deviceKind === "smallcar") {
             const carStatusSectionElement = createConfigSection("车辆状态"),
@@ -1379,7 +1524,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 ),
               );
               extraControlsDetailsElement.querySelector("summary").textContent =
-                "选择附加功能（已选 " + selectedControlEntityIdSet.size + "/12）";
+                "选择附加功能（已选 " + selectedControlEntityIdSet.size + " 项）";
               for (const [
                 optionControlEntityId,
                 { check: extraControlCheckboxElement, disabled: isExtraControlDisabled },
@@ -1388,7 +1533,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   selectedControlEntityIdSet.has(optionControlEntityId)),
                   (extraControlCheckboxElement.disabled =
                     !extraControlCheckboxElement.checked &&
-                    (isExtraControlDisabled || selectedControlEntityIdSet.size >= 12)));
+                    isExtraControlDisabled));
             };
             const boundMeterEntityId = vector.extraControls || [];
             currentContainer = createConfigSection("附加功能");
@@ -1419,7 +1564,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               e.createElement(
                 "p",
                 "i3d-note",
-                "仅选择当前设备的附加实体，最多 12 项。预览随修改实时更新，不发送设备指令；保存后正式生效。",
+                "仅选择当前设备的附加实体，数量不限。预览随修改实时更新，不发送设备指令；保存后正式生效。",
               ),
             );
             const extraControlsDetailsElement = e.createElement("details");
@@ -1427,7 +1572,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               e.createElement(
                 "summary",
                 "",
-                "选择附加功能（已选 " + boundMeterEntityId.length + "/12）",
+                "选择附加功能（已选 " + boundMeterEntityId.length + " 项）",
               ),
             );
             const extraSearchInputElement = e.createElement("input");
@@ -1494,7 +1639,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   ((extraEntityCheckboxElement.type = "checkbox"),
                     (extraEntityCheckboxElement.checked = some2),
                     (extraEntityCheckboxElement.disabled =
-                      !some2 && (isExtraEntityDisabled || (vector.extraControls || []).length >= 12)),
+                      !some2 && isExtraEntityDisabled),
                     extraControlsByEntityId.set(extraCandidateEntity.entityId, {
                       check: extraEntityCheckboxElement,
                       disabled: isExtraEntityDisabled,
@@ -1550,7 +1695,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                         syncExtraControlState(),
                         previewDevicePanel(),
                         isBathHeaterMode && e.redrawBathEffects(),
-                        isPurifierMode && e.renderAirflowSection());
+                        isPurifierMode && e.renderAirflowSection(),
+                        e.redrawDeviceMistSection(),
+                        e.redrawRangehoodSection());
                     }),
                     extraEntityRowElement.append(
                       extraEntityCheckboxElement,
@@ -1651,6 +1798,133 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 e.refreshAirflowStatus());
             }),
               e.renderAirflowSection());
+          }
+          if (["humidifier", "aroma-diffuser"].includes(e.deviceKind)) {
+            const mistSectionElement = createConfigSection("喷雾动画");
+            ((e.redrawDeviceMistSection = () => {
+              (mistSectionElement.replaceChildren(e.createElement("h4", "", "喷雾动画")));
+              const extraControlEntityIdSet = new Set(
+                  (vector.extraControls || []).map(
+                    (controlEntityProbe: any) => controlEntityProbe.entityId,
+                  ),
+                ),
+                mistSourceOptions = deviceEntityCatalog2(
+                  e.entities,
+                  vector.deviceId,
+                  e.latestStates || e.states,
+                )
+                  .filter(
+                    (mistCandidateProbe: any) =>
+                      isDeviceMistSource2(mistCandidateProbe.entityId) &&
+                      extraControlEntityIdSet.has(mistCandidateProbe.entityId),
+                  )
+                  .map((mistOptionEntry: any) => [
+                    mistOptionEntry.entityId,
+                    (mistOptionEntry.name || mistOptionEntry.entityId) +
+                      " · " +
+                      mistOptionEntry.entityId,
+                  ]);
+              (vector.animationEntityId &&
+                !mistSourceOptions.some(
+                  ([mistOptionEntityId]: any) => mistOptionEntityId === vector.animationEntityId,
+                ) &&
+                mistSourceOptions.unshift([
+                  vector.animationEntityId,
+                  vector.animationEntityId + "（当前不可用）",
+                ]),
+                createSelectRow(
+                  mistSectionElement,
+                  "喷雾开关实体",
+                  [["", "不绑定"], ...mistSourceOptions],
+                  vector.animationEntityId || "",
+                  (pickedMistEntityId: any) => {
+                    (pickedMistEntityId
+                      ? (vector.animationEntityId = pickedMistEntityId)
+                      : delete vector.animationEntityId,
+                      refreshEditorPreview(),
+                      e.redrawDeviceMistSection());
+                  },
+                ),
+                mistSectionElement.append(
+                  e.createElement(
+                    "p",
+                    "i3d-note",
+                    "从已选附加功能中选择开关。HA 回报开启时喷雾，关闭或不可用时停止；喷雾效果固定。",
+                  ),
+                ));
+              const mistStatusElement = e.createElement("p", "i3d-note");
+              (mistStatusElement.setAttribute("aria-live", "polite"),
+                mistSectionElement.append(mistStatusElement),
+                (mistStatusElement.textContent =
+                  "喷雾状态：" +
+                  deviceMistState2(vector, e.latestStates || e.states).label));
+            }),
+              e.redrawDeviceMistSection());
+          }
+          if (e.deviceKind === "rangehood") {
+            const rangehoodSectionElement = createConfigSection("吸风动画");
+            ((e.redrawRangehoodSection = () => {
+              (rangehoodSectionElement.replaceChildren(e.createElement("h4", "", "吸风动画")));
+              const animationEnabledCheckbox = e.createElement("input");
+              ((animationEnabledCheckbox.type = "checkbox"),
+                (animationEnabledCheckbox.checked = vector.animationEnabled !== false),
+                animationEnabledCheckbox.addEventListener("change", () => {
+                  (vector.animationEnabled = animationEnabledCheckbox.checked,
+                    refreshEditorPreview(),
+                    e.redrawRangehoodSection());
+                }),
+                createSettingRow(rangehoodSectionElement, "显示吸风动画", animationEnabledCheckbox));
+              const rangehoodSourceOptions = deviceEntityCatalog2(
+                e.entities,
+                vector.deviceId,
+                e.latestStates || e.states,
+              )
+                .filter((rangehoodCandidateProbe: any) =>
+                  fanSourceAllowed("run", rangehoodCandidateProbe, vector, vector.deviceId),
+                )
+                .map((rangehoodOptionEntry: any) => [
+                  rangehoodOptionEntry.entityId,
+                  (rangehoodOptionEntry.name || rangehoodOptionEntry.entityId) +
+                    " · " +
+                    rangehoodOptionEntry.entityId,
+                ]);
+              (vector.animationEntityId &&
+                !rangehoodSourceOptions.some(
+                  ([rangehoodOptionEntityId]: any) =>
+                    rangehoodOptionEntityId === vector.animationEntityId,
+                ) &&
+                rangehoodSourceOptions.unshift([
+                  vector.animationEntityId,
+                  vector.animationEntityId + "（当前不可用）",
+                ]),
+                createSelectRow(
+                  rangehoodSectionElement,
+                  "动画状态实体",
+                  [["", "不绑定"], ...rangehoodSourceOptions],
+                  vector.animationEntityId || "",
+                  (pickedAnimationEntityId: any) => {
+                    (pickedAnimationEntityId
+                      ? (vector.animationEntityId = pickedAnimationEntityId)
+                      : delete vector.animationEntityId,
+                      refreshEditorPreview(),
+                      e.redrawRangehoodSection());
+                  },
+                ),
+                rangehoodSectionElement.append(
+                  e.createElement(
+                    "p",
+                    "i3d-note",
+                    "从已选附加功能中选择风机运行实体。HA 回报开启时吸风，关闭或不可用时停止；动画速度固定，照明不联动。",
+                  ),
+                ));
+              const rangehoodStatusElement = e.createElement("p", "i3d-note");
+              (rangehoodStatusElement.setAttribute("aria-live", "polite"),
+                rangehoodSectionElement.append(rangehoodStatusElement),
+                (rangehoodStatusElement.textContent =
+                  "吸风状态：" +
+                  rangehoodState2(vector, e.latestStates || e.states).label));
+            }),
+              e.redrawRangehoodSection());
           }
           if (e.isCoverMode) {
             if (!matchedCurtainGroup) {
@@ -1975,116 +2249,13 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   "可绑定能提供开关状态的实体；不单独绑定电源时跟随媒体播放器状态。电视开启时优先显示可用节目封面，没有封面时显示自定义图片；未上传图片则显示当前播放状态，关闭时显示深色玻璃。",
                 ),
               ));
-            const posterAssetSection = createConfigSection("电视自定义图片"),
-              posterAssetStatusElement = e.createElement("p", "i3d-note", "无封面时的图片"),
-              posterAssetUploadInput = e.createElement("input");
-            ((posterAssetUploadInput.type = "file"),
-              (posterAssetUploadInput.accept =
-                "image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,image/gif,image/bmp,image/tiff,image/avif,image/heic,image/heif,image/x-icon,.png,.jpg,.jpeg,.webp,.svg,.gif,.bmp,.tif,.tiff,.ico,.avif,.heic,.heif"),
-              (posterAssetUploadInput.hidden = true));
-            let isPosterUploading = false;
-            const currentScreenAssetId = () => {
-                const assetId = vector.screenImage?.assetId;
-                return typeof assetId == "string" && /^user:[0-9a-f]{32}$/i.test(assetId.trim())
-                  ? assetId.trim().toLowerCase()
-                  : "";
-              },
-              refreshPosterAssetUi = () => {
-                const hasPoster = !!currentScreenAssetId();
-                posterAssetStatusElement.textContent = isPosterUploading
-                  ? "上传中…"
-                  : hasPoster
-                    ? "无封面时的图片（已设置）"
-                    : "无封面时的图片";
-              },
-              uploadPosterAsset = async (selectedFile: any) => {
-                if (!selectedFile || isPosterUploading) return;
-                isPosterUploading = true;
-                refreshPosterAssetUi();
-                try {
-                  const uploadResponse = await fetch("/api/v1/assets/user", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    body: selectedFile,
-                    headers: {
-                      "Content-Type": selectedFile.type || "application/octet-stream",
-                      "X-File-Name": encodeURIComponent(selectedFile.name),
-                    },
-                  });
-                  const uploadPayload = await uploadResponse.json().catch(() => ({}));
-                  if (!uploadResponse.ok)
-                    throw new Error(
-                      uploadPayload.detail ||
-                        uploadPayload.message ||
-                        uploadPayload.error ||
-                        "图片上传失败，请重试。",
-                    );
-                  const uploadedAssetId = String(
-                    uploadPayload.assetId || uploadPayload.data?.assetId || "",
-                  )
-                    .trim()
-                    .toLowerCase();
-                  if (!/^user:[0-9a-f]{32}$/.test(uploadedAssetId))
-                    throw new Error("图片上传结果无效，请重试。");
-                  vector.screenImage = { assetId: uploadedAssetId };
-                  refreshEditorPreview();
-                } catch (uploadError: any) {
-                  posterAssetStatusElement.textContent =
-                    uploadError?.message || "图片上传失败，请重试。";
-                  isPosterUploading = false;
-                  return;
-                }
-                isPosterUploading = false;
-                refreshPosterAssetUi();
-                rebuildPosterActions();
-              };
-            const posterActionsRow = e.createElement("div", "i3d-focus-actions");
-            const rebuildPosterActions = () => {
-              posterActionsRow.replaceChildren();
-              const screenAssetId = currentScreenAssetId();
-              const hasPoster = !!screenAssetId;
-              const posterId = screenAssetId.slice(5);
-              const uploadButton = e.createButton(hasPoster ? "替换图片" : "上传图片", () => {
-                if (!isPosterUploading) posterAssetUploadInput.click();
-              });
-              uploadButton.className = "i3d-picker-button";
-              uploadButton.disabled = isPosterUploading;
-              posterActionsRow.append(uploadButton);
-              if (hasPoster) {
-                const deleteButton = e.createButton("删除图片", async () => {
-                  if (isPosterUploading) return;
-                  try {
-                    await fetch("/api/v1/assets/user/" + posterId, {
-                      method: "DELETE",
-                      credentials: "same-origin",
-                    });
-                  } catch { /* 网络副作用失败不影响本地状态：调用方会在下一轮刷新或用户重试时收敛 */ }
-                  delete vector.screenImage;
-                  refreshPosterAssetUi();
-                  rebuildPosterActions();
-                  refreshEditorPreview();
-                });
-                posterActionsRow.append(deleteButton);
-              }
-            };
-            refreshPosterAssetUi();
-            rebuildPosterActions();
-            (posterAssetUploadInput.addEventListener("change", () => {
-              const selectedPosterFile = posterAssetUploadInput.files?.[0];
-              posterAssetUploadInput.value = "";
-              uploadPosterAsset(selectedPosterFile);
-            }),
-              posterAssetSection.append(
-                posterAssetStatusElement,
-                posterActionsRow,
-                posterAssetUploadInput,
-                e.createElement(
-                  "p",
-                  "i3d-note",
-                  "支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO。动图使用第一帧；图片保持原比例。删除后恢复默认显示，保存配置后生效。",
-                ),
-              ),
-              currentContainer.append(posterAssetSection));
+            renderDeviceScreenImageSection(
+              "电视自定义图片",
+              "电视自定义图片",
+              "上传电视自定义图片",
+              "无封面时的图片",
+              "支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO。动图使用第一帧；图片保持原比例。删除后恢复默认显示，保存配置后生效。",
+            );
           }
           if (
             e.isNasMode &&

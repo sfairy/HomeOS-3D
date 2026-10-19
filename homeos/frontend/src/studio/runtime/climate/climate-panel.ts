@@ -14,6 +14,9 @@ import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { resolveFanBindingState } from "../fan/fan-state";
 import { domElement } from "@app/shared/util/dom-factory";
 import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
+import { createRangeFeedback as createRangeFeedback2 } from "@app/shared/util/control-timeout";
+import { createPopupPickers } from "@app/shared/util/select-picker";
+import { createPopupFeedback } from "@app/shared/util/popup-feedback";
 import {
   createStageDeviceVisual,
   resolveClimateVisualKind,
@@ -55,314 +58,14 @@ const formatSwingModeLabel = (swingModeKey: any, swingDirection: any = undefined
     natural: "自然风",
   };
 let pickerIdCounter = 0;
-function createPicker(panelRoot: any, createPickerElement: any) {
-  const ownerDocument = panelRoot.ownerDocument,
-    defaultView = ownerDocument.defaultView;
-  let value: any = null,
-    repositionFrameId: any = null,
-    text = "",
-    num = 0;
-  function closePicker(shouldRefocus = false) {
-    if (!value) return;
-    const closingPicker = value;
-    ((value = null),
-      repositionFrameId != null && defaultView?.cancelAnimationFrame?.(repositionFrameId),
-      (repositionFrameId = null));
-    try {
-      closingPicker.menu.hidePopover?.();
-    } catch { /* Popover API 在元素已关闭或旧内核上不可用，失败不影响状态机 */ }
-    ((closingPicker.menu.hidden = true),
-      closingPicker.picker.append(closingPicker.menu),
-      closingPicker.element.setAttribute("aria-expanded", "false"),
-      ownerDocument.removeEventListener?.("pointerdown", handleDocumentPointerDown, true),
-      ownerDocument.removeEventListener?.("scroll", handleDocumentScroll, true),
-      ownerDocument.removeEventListener?.("keydown", handleDocumentKeyDown, true),
-      shouldRefocus &&
-        !closingPicker.element.disabled &&
-        closingPicker.element.focus?.({
-          preventScroll: true,
-        }));
-  }
-  function handleDocumentPointerDown(pointerEvent: any) {
-    value &&
-      !value.picker.contains?.(pointerEvent.target) &&
-      !value.menu.contains?.(pointerEvent.target) &&
-      closePicker();
-  }
-  function handleDocumentScroll(scrollEvent: any) {
-    value && !value.menu.contains?.(scrollEvent.target) && closePicker();
-  }
-  function handleDocumentKeyDown(documentKeyEvent: any) {
-    documentKeyEvent.key === "Escape" &&
-      (documentKeyEvent.preventDefault(), documentKeyEvent.stopPropagation(), closePicker(true));
-  }
-  function positionPicker() {
-    if (!value) return;
-    const { element: comboboxElement, menu: menuElement } = value,
-      boundingClientRect = comboboxElement.getBoundingClientRect();
-    if (
-      comboboxElement.disabled ||
-      ownerDocument.hidden ||
-      comboboxElement.isConnected === false ||
-      (comboboxElement.getClientRects && !comboboxElement.getClientRects().length)
-    ) {
-      closePicker();
-      return;
-    }
-    const computedStyle = defaultView?.getComputedStyle?.(comboboxElement);
-    if (
-      computedStyle?.visibility === "hidden" ||
-      panelRoot.closest?.('[hidden], [aria-hidden="true"]')
-    ) {
-      closePicker();
-      return;
-    }
-    const triggerWidth = comboboxElement.offsetWidth || boundingClientRect.width || 1,
-      triggerHeight = comboboxElement.offsetHeight || boundingClientRect.height || 1,
-      scaleX = boundingClientRect.width / triggerWidth || 1,
-      scaleY = boundingClientRect.height / triggerHeight || 1,
-      stageRect = panelRoot.closest?.(".interaction3d-stage")?.getBoundingClientRect(),
-      visualViewport = defaultView?.visualViewport,
-      clampLeft = Math.max(visualViewport?.offsetLeft || 0, stageRect?.left || 0) + 8,
-      clampTop = Math.max(visualViewport?.offsetTop || 0, stageRect?.top || 0) + 8,
-      clampRight =
-        Math.min(
-          (visualViewport?.offsetLeft || 0) +
-            (visualViewport?.width || defaultView?.innerWidth || 1024),
-          stageRect?.right ?? Infinity,
-        ) - 8,
-      clampBottom =
-        Math.min(
-          (visualViewport?.offsetTop || 0) +
-            (visualViewport?.height || defaultView?.innerHeight || 768),
-          stageRect?.bottom ?? Infinity,
-        ) - 8;
-    if (
-      clampRight <= clampLeft ||
-      clampBottom <= clampTop ||
-      boundingClientRect.bottom < clampTop ||
-      boundingClientRect.top > clampBottom
-    ) {
-      closePicker();
-      return;
-    }
-    menuElement.dataset.theme = panelRoot.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
-    const min = Math.min(Math.max(triggerWidth, 320), (clampRight - clampLeft) / scaleX);
-    Object.assign(menuElement.style, {
-      width: "max-content",
-      minWidth: Math.min(Math.max(triggerWidth, 112), min) + "px",
-      maxWidth: min + "px",
-    });
-    const menuWidth = Math.min(menuElement.offsetWidth || Math.max(triggerWidth, 112), min);
-    Object.assign(menuElement.style, {
-      width: menuWidth + "px",
-      transform: "scale(" + scaleX + "," + scaleY + ")",
-      transformOrigin: "0 0",
-    });
-    const menuContentHeight =
-        Math.min(280, (menuElement.scrollHeight || value.choices.length * 40 + 12) + 2) * scaleY,
-      max = Math.max(
-        0,
-        clampBottom -
-          (boundingClientRect.bottom ?? boundingClientRect.top + boundingClientRect.height) -
-          4 * scaleY,
-      ),
-      spaceAbove = Math.max(0, boundingClientRect.top - clampTop - 4 * scaleY),
-      shouldOpenUpward = max < menuContentHeight && spaceAbove > max,
-      availableHeight = Math.min(clampBottom - clampTop, shouldOpenUpward ? spaceAbove : max),
-      menuHeight = Math.min(menuContentHeight, availableHeight);
-    (Object.assign(menuElement.style, {
-      maxHeight: Math.min(280, availableHeight / scaleY) + "px",
-      left:
-        Math.max(clampLeft, Math.min(boundingClientRect.left, clampRight - menuWidth * scaleX)) +
-        "px",
-      top:
-        Math.max(
-          clampTop,
-          Math.min(
-            shouldOpenUpward
-              ? boundingClientRect.top - 4 * scaleY - menuHeight
-              : (boundingClientRect.bottom ?? boundingClientRect.top + boundingClientRect.height) +
-                  4 * scaleY,
-            clampBottom - menuHeight,
-          ),
-        ) + "px",
-    }),
-      menuElement.style.setProperty(
-        "--i3d-climate-accent",
-        computedStyle?.getPropertyValue("--i3d-climate-accent") || "#73c8ff",
-      ));
-  }
-  function schedulePosition() {
-    ((repositionFrameId = null),
-      positionPicker(),
-      value &&
-        (repositionFrameId = defaultView?.requestAnimationFrame?.(schedulePosition) ?? null));
-  }
-  function focusChoice(picker: any, activeIndex: any) {
-    picker.choices.forEach((choiceOption: any, optionIndex: any) => {
-      choiceOption.tabIndex = optionIndex === activeIndex ? 0 : -1;
-    });
-    const activeChoiceButton = picker.choices[activeIndex];
-    if (
-      (activeChoiceButton?.focus?.({
-        preventScroll: true,
-      }),
-      activeChoiceButton && picker.menu.clientHeight)
-    ) {
-      const offsetTop = activeChoiceButton.offsetTop,
-        choiceBottom = offsetTop + activeChoiceButton.offsetHeight;
-      offsetTop < picker.menu.scrollTop
-        ? (picker.menu.scrollTop = offsetTop)
-        : choiceBottom > picker.menu.scrollTop + picker.menu.clientHeight &&
-          (picker.menu.scrollTop = choiceBottom - picker.menu.clientHeight);
-    }
-  }
-  function openPicker(targetPicker: any, shouldFocusLast = false) {
-    if (targetPicker.element.disabled) return;
-    if (value === targetPicker) {
-      closePicker(true);
-      return;
-    }
-    (closePicker(),
-      (value = targetPicker),
-      (text = ""),
-      (num = 0),
-      (ownerDocument.body || targetPicker.picker).append(targetPicker.menu),
-      (targetPicker.menu.hidden = false),
-      targetPicker.element.setAttribute("aria-expanded", "true"));
-    try {
-      targetPicker.menu.showPopover?.();
-    } catch { /* Popover API 在元素已关闭或旧内核上不可用，失败不影响状态机 */ }
-    if ((positionPicker(), !value)) return;
-    (ownerDocument.addEventListener?.("pointerdown", handleDocumentPointerDown, true),
-      ownerDocument.addEventListener?.("scroll", handleDocumentScroll, true),
-      ownerDocument.addEventListener?.("keydown", handleDocumentKeyDown, true));
-    const indexOf = targetPicker.values.indexOf(targetPicker.element.value);
-    (focusChoice(
-      targetPicker,
-      indexOf < 0 ? (shouldFocusLast ? targetPicker.choices.length - 1 : 0) : indexOf,
-    ),
-      schedulePosition());
-  }
-  function createPickerInstance(fieldLabel: any, pickerValues: any, pickerLabels: any, onSelect: any) {
-    const pickerContainer = createPickerElement("div", "i3d-climate-picker"),
-      comboboxButton = createPickerElement("button", "i3d-climate-choice i3d-climate-picker-value");
-    ((comboboxButton.type = "button"),
-      comboboxButton.setAttribute("role", "combobox"),
-      comboboxButton.setAttribute("aria-label", fieldLabel),
-      comboboxButton.setAttribute("aria-haspopup", "listbox"),
-      comboboxButton.setAttribute("aria-expanded", "false"));
-    const menuContainer = createPickerElement(
-      "div",
-      "i3d-extra-select-menu i3d-climate-picker-menu",
-    );
-    ((menuContainer.id = "i3d-climate-options-" + ++pickerIdCounter),
-      (menuContainer.hidden = true),
-      menuContainer.setAttribute("popover", "manual"),
-      menuContainer.setAttribute("role", "listbox"),
-      menuContainer.setAttribute("aria-label", fieldLabel + " 选项"),
-      comboboxButton.setAttribute("aria-controls", menuContainer.id));
-    const options = {
-      picker: pickerContainer,
-      element: comboboxButton,
-      menu: menuContainer,
-      values: pickerValues,
-      labels: pickerLabels,
-      choices: [] as any[],
-    };
-    for (const choiceValue of pickerValues) {
-      const choiceButton = createPickerElement(
-        "button",
-        "",
-        pickerLabels[choiceValue] || choiceValue,
-      );
-      ((choiceButton.type = "button"),
-        (choiceButton.value = choiceValue),
-        (choiceButton.tabIndex = -1),
-        choiceButton.setAttribute("role", "option"),
-        choiceButton.setAttribute("aria-selected", "false"),
-        choiceButton.addEventListener("click", () => {
-          if (!(value !== options || comboboxButton.disabled))
-            return (closePicker(true), onSelect(choiceValue));
-        }),
-        options.choices.push(choiceButton),
-        menuContainer.append(choiceButton));
-    }
-    return (
-      comboboxButton.addEventListener("click", () => openPicker(options)),
-      comboboxButton.addEventListener("keydown", (comboboxKeyEvent: any) => {
-        ["ArrowDown", "ArrowUp"].includes(comboboxKeyEvent.key) &&
-          (comboboxKeyEvent.preventDefault(),
-          openPicker(options, comboboxKeyEvent.key === "ArrowUp"));
-      }),
-      menuContainer.addEventListener("keydown", (menuKeyEvent: any) => {
-        if (menuKeyEvent.key === "Tab") {
-          closePicker(true);
-          return;
-        }
-        if (menuKeyEvent.key === "Escape") {
-          (menuKeyEvent.preventDefault(), menuKeyEvent.stopPropagation(), closePicker(true));
-          return;
-        }
-        const indexOf2 = options.choices.indexOf(ownerDocument.activeElement),
-          choiceCount = options.choices.length;
-        if (["ArrowDown", "ArrowUp", "Home", "End"].includes(menuKeyEvent.key))
-          (menuKeyEvent.preventDefault(),
-            focusChoice(
-              options,
-              menuKeyEvent.key === "Home"
-                ? 0
-                : menuKeyEvent.key === "End"
-                  ? choiceCount - 1
-                  : (indexOf2 + (menuKeyEvent.key === "ArrowDown" ? 1 : -1) + choiceCount) %
-                    choiceCount,
-            ));
-        else {
-          if (
-            menuKeyEvent.key.length === 1 &&
-            menuKeyEvent.key !== " " &&
-            !menuKeyEvent.ctrlKey &&
-            !menuKeyEvent.metaKey &&
-            !menuKeyEvent.altKey &&
-            !menuKeyEvent.isComposing
-          ) {
-            menuKeyEvent.preventDefault();
-            const now = Date.now();
-            ((text = now - num > 700 ? menuKeyEvent.key : text + menuKeyEvent.key), (num = now));
-            const index = options.choices.findIndex((choice) =>
-              choice.textContent.toLocaleLowerCase().startsWith(text.toLocaleLowerCase()),
-            );
-            index >= 0 && focusChoice(options, index);
-          }
-        }
-      }),
-      pickerContainer.append(comboboxButton, menuContainer),
-      options
-    );
-  }
-  function syncPickerState(pickerToSync: any, nextValue: any, nextLabel: any, isSyncDisabled: any) {
-    ((pickerToSync.element.disabled = isSyncDisabled),
-      (pickerToSync.element.value = nextValue),
-      (pickerToSync.element.textContent = nextLabel || "请选择"),
-      (pickerToSync.element.title = nextLabel || ""),
-      pickerToSync.choices.forEach((choiceNode: any) => {
-        choiceNode.setAttribute("aria-selected", String(choiceNode.value === nextValue));
-      }),
-      value === pickerToSync && isSyncDisabled && closePicker());
-  }
-  return {
-    create: createPickerInstance,
-    sync: syncPickerState,
-    close: closePicker,
-  };
-}
 /** 面板的宿主元素与回调； */
 type ClimatePanelOptions = {
   element?: any;
   onControl?: (...args: any[]) => any;
   onLayout?: (...args: any[]) => any;
   modeHistory?: any;
+  /** 宿主已经装好的反馈聚合区（`createPopupFeedback` 实例）；缺省时面板自建。 */
+  feedbackSlot?: any;
 };
 /** 面板视图模型由 stage 的 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
 type ClimatePanelViewModel = {
@@ -388,6 +91,7 @@ type ClimateDeviceState = {
 };
 export function createClimatePanel({
   element: hostElement,
+  feedbackSlot: hostFeedbackSlot,
   onControl: onControl = async () => {},
   onLayout: onLayout = () => {},
   modeHistory: modeHistory = createClimateModeHistory2(),
@@ -405,7 +109,7 @@ export function createClimatePanel({
     },
     rootElement = hostElement || createElement("section", "");
   rootElement.classList.add("i3d-climate-panel");
-  const je2 = createPicker(rootElement, createElement),
+  const je2 = createPopupPickers(rootElement, createElement),
     headingElement = createElement("div", "i3d-climate-heading"),
     titleElement = createElement("h3", "", "空调"),
     statusElement = createElement("p", "", "尚未绑定设备"),
@@ -452,6 +156,13 @@ export function createClimatePanel({
       },
     });
   let feedbackTracker = createFeedback();
+  /** 风速滑条：拖动时本地预览，松手提交，10 秒没回显提示「设备未响应」。 */
+  const speedFeedback = createRangeFeedback2({
+    onChange: () => render(),
+    onTimeout: () => {
+      errorText = "设备未响应，请重试。";
+    },
+  });
   const temperatureIntervalElement = createElement("p", "i3d-climate-temperature-interval"),
     mainGroupsElement = createElement("div", "i3d-climate-groups i3d-climate-main-groups"),
     emptyStateElement = createElement("p", "i3d-climate-empty"),
@@ -464,12 +175,15 @@ export function createClimatePanel({
     (fanSpeedRangeElement.max = "100"),
     fanSpeedRangeElement.setAttribute("aria-label", "净化器风速"),
     fanSpeedRangeElement.addEventListener("input", () => {
-      (syncHtmlRangeProgress(fanSpeedRangeElement),
+      (speedFeedback.preview("speed", Number(fanSpeedRangeElement.value)),
+        syncHtmlRangeProgress(fanSpeedRangeElement),
         (fanSpeedLabelElement.textContent = "风速 " + fanSpeedRangeElement.value + "%"));
     }),
-    fanSpeedRangeElement.addEventListener("change", () =>
-      requestControl("set_percentage", Number(fanSpeedRangeElement.value)),
-    ));
+    fanSpeedRangeElement.addEventListener("change", () => {
+      const requestedPercentage = Number(fanSpeedRangeElement.value);
+      (speedFeedback.commit("speed", requestedPercentage),
+        requestControl("set_percentage", requestedPercentage));
+    }));
   const speedLevelsElement = createElement("div", "i3d-climate-choices i3d-climate-speed-levels");
   (speedLevelsElement.setAttribute("role", "group"),
     speedLevelsElement.setAttribute("aria-label", "净化器风速档位"),
@@ -519,8 +233,12 @@ export function createClimatePanel({
     replaceChildren(rootElement, headingElement, popupBodyElement));
   const extrasGridElement = createElement("div", "i3d-climate-groups i3d-extra-grid");
   popupBodyElement.append(extrasGridElement);
+  // 宿主没有提供反馈聚合区时自建一个（0.7.8 四个原生面板各自兜底）。
+  const ownFeedbackSlot = hostFeedbackSlot ? null : createPopupFeedback({ element: rootElement }),
+    feedbackSlot = hostFeedbackSlot || ownFeedbackSlot;
   const purifierExtrasController = createPurifierExtras2({
     element: extrasGridElement,
+    feedbackSlot,
     onControl: (extraControl: any) =>
       onControl(
         viewModel.item?.climateType === "bath-heater"
@@ -564,6 +282,17 @@ export function createClimatePanel({
     choiceButtons: any = [],
     pendingControlPromise = Promise.resolve(),
     pendingControlCount = 0;
+  // 错误与进度提示都挂到聚合区：同源重复只留一条，并把 HA 原始报错译成人话。
+  const feedbackSource = () => viewModel.item?.entityId || "",
+    feedbackLabel = () => titleElement.textContent || "",
+    releaseErrorFeedback = feedbackSlot.attach(errorElement, {
+      source: feedbackSource,
+      label: feedbackLabel,
+    }),
+    releaseStatusFeedback = feedbackSlot.attach(feedbackElement, {
+      source: feedbackSource,
+      label: feedbackLabel,
+    });
   const canControl = () =>
       !isDisposed && !viewModel.editing && !viewModel.busy && deviceState.available,
     clearTemperatureDraft = () => {
@@ -1173,7 +902,9 @@ export function createClimatePanel({
       (fanSpeedGroupElement.hidden = !deviceState.purifier || !deviceState.percentageSupported),
       (fanSpeedRangeElement.disabled = !isControllable),
       (fanSpeedRangeElement.step = String(deviceState.percentageStep || 1)),
-      (fanSpeedRangeElement.value = String(deviceState.percentage ?? 0)),
+      (fanSpeedRangeElement.value = String(
+        speedFeedback.read("speed", deviceState.percentage ?? 0),
+      )),
       syncHtmlRangeProgress(fanSpeedRangeElement),
       (fanSpeedLabelElement.textContent = "风速 " + (deviceState.percentage ?? "--") + "%"));
     const speedLevels = deviceState.speedLevels || [],
@@ -1414,7 +1145,11 @@ export function createClimatePanel({
       instanceId++,
       je2.close(),
       clearPendingState(),
+      speedFeedback.reset(),
       feedbackTracker.dispose(),
+      releaseErrorFeedback(),
+      releaseStatusFeedback(),
+      ownFeedbackSlot?.dispose?.(),
       purifierExtrasController.dispose(),
       deviceVisual.dispose(),
       replaceChildren(rootElement));

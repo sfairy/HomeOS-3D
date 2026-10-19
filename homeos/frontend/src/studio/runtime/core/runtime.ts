@@ -3,6 +3,7 @@ import {
   createFocusDevicePopup,
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
+import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/generic-device-catalog";
 import {
   createSecurityAlarmOverlay,
@@ -285,6 +286,7 @@ export function mountInteraction3d(
     editingModule: editingModuleKind = "light",
     editingSecurityKind = "",
     editingVacuumId = "",
+    editingShowAllLabels = false,
     rangeEditorOnly: isRangeEditorOnly = false,
     onEdit = (_editState?: any) => {},
     onReady = (_componentMetadata?: unknown) => {},
@@ -298,6 +300,7 @@ export function mountInteraction3d(
   let componentProperties = structuredClone(componentDescriptor.properties || {}),
     isDisposed = false,
     isAuthorized = true,
+    showAllLabels = editingShowAllLabels === true,
     selectedId = "",
     loadingTimeoutId: any,
     componentMetadata: any,
@@ -1204,6 +1207,7 @@ export function mountInteraction3d(
         editingModule: editingModuleKind,
         editingSecurityKind: editingSecurityKind,
         editingVacuumId: editingVacuumId,
+        showAllLabels: showAllLabels,
         rangeEditorOnly: isRangeEditorOnly,
         viewEditing: isViewEditing,
         navigationEditing: isNavigationEditing,
@@ -1790,7 +1794,10 @@ export function mountInteraction3d(
         },
         controlAbortController = new AbortController();
       activeRequestsSet.add(controlAbortController);
-      const controlTimeoutId = setTimeout(() => controlAbortController.abort(), 12000);
+      const controlTimeoutId = setTimeout(
+        () => controlAbortController.abort(),
+        interaction3dControlTimeout(stageMessage.command),
+      );
       try {
         const controlResponse = await fetch(INTERACTION3D_API_BASE + "/control", {
             method: "POST",
@@ -2078,6 +2085,7 @@ export function mountInteraction3d(
             (editingSecurityKind = ""),
             (editingVacuumId =
               editingModuleKind === "vacuum-shortcut" ? String(nextEditing.vacuumId || "") : "")),
+        isEditing && nextEditing && (showAllLabels = nextEditing.showAllLabels === true),
         (nextSelectedId !== selectedId ||
           nextProperties.floorSelection !== componentProperties.floorSelection) &&
           disposeFocusDevicePopup());
@@ -2189,6 +2197,85 @@ export function mountInteraction3d(
         hostElement.classList.remove("is-view-editing"),
         (lastConfigJson = ""),
         (pendingResetPreviewSession = true));
+    }),
+    /**
+     * 借用编辑器（0.7.8 `beginEditorPreview`）：把当前运行时临时切到"配置预览"会话。
+     *
+     * 编辑器页面已经把同一个户型渲染出来了，再挂一份运行时就是重复建贴图/模型。这里只换
+     * 组件属性、编辑上下文与回调，然后重发一次带 `resetPreviewSession` 的 config；返回的
+     * 函数负责把所有状态原样换回去（对应上游 `saved` / `invalidate` / `listeners` 会话）。
+     */
+    (runtimeHandle.beginEditorPreview = (previewOptions: any = {}, viewportElement: any, onCancel?: any) => {
+      if (isDisposed) throw new Error("3D 运行时已销毁。");
+      const savedSession = {
+          component: componentDescriptor,
+          properties: componentProperties,
+          isEditing,
+          editingModuleKind,
+          editingSecurityKind,
+          editingVacuumId,
+          showAllLabels,
+          isRangeEditorOnly,
+          selectedId,
+          onEdit,
+          onReady,
+          onStatesUpdate,
+          onPresented,
+          onLoadError,
+          onFocusChange,
+        },
+        previewComponent = previewOptions.component || componentDescriptor,
+        savedPointerEvents = hostElement.style.pointerEvents;
+      let isSessionClosed = false;
+      (viewportElement?.setAttribute?.("data-i3d-preview-scope", ""),
+        // 编辑器里非编辑态会禁用 iframe 指针事件；借来当配置预览时要能点。
+        (hostElement.style.pointerEvents = ""),
+        (componentDescriptor = previewComponent),
+        (componentProperties = structuredClone(previewComponent.properties || {})),
+        (selectedId = previewOptions.selectedId || ""),
+        (isEditing = true),
+        (editingModuleKind = previewOptions.editingModule || "light"),
+        (editingSecurityKind = previewOptions.editingSecurityKind || ""),
+        (editingVacuumId = previewOptions.editingVacuumId || ""),
+        (showAllLabels = previewOptions.showAllLabels === true),
+        (isRangeEditorOnly = previewOptions.rangeEditorOnly === true),
+        (onEdit = previewOptions.onEdit || (() => {})),
+        (onReady = previewOptions.onReady || (() => {})),
+        (onStatesUpdate = previewOptions.onStates || null),
+        (onPresented = previewOptions.onPresented || (() => {})),
+        (onLoadError = previewOptions.onLoadError || (() => {})),
+        (onFocusChange = previewOptions.onFocusChange || (() => {})),
+        configureStateSubscriptions(),
+        syncBackgroundHidden(),
+        (lastConfigJson = ""),
+        (pendingResetPreviewSession = true),
+        sendConfigUpdate());
+      return () => {
+        if (isSessionClosed) return;
+        isSessionClosed = true;
+        ((componentDescriptor = savedSession.component),
+          (componentProperties = savedSession.properties),
+          (isEditing = savedSession.isEditing),
+          (editingModuleKind = savedSession.editingModuleKind),
+          (editingSecurityKind = savedSession.editingSecurityKind),
+          (editingVacuumId = savedSession.editingVacuumId),
+          (showAllLabels = savedSession.showAllLabels),
+          (isRangeEditorOnly = savedSession.isRangeEditorOnly),
+          (selectedId = savedSession.selectedId),
+          (onEdit = savedSession.onEdit),
+          (onReady = savedSession.onReady),
+          (onStatesUpdate = savedSession.onStatesUpdate),
+          (onPresented = savedSession.onPresented),
+          (onLoadError = savedSession.onLoadError),
+          (onFocusChange = savedSession.onFocusChange),
+          (hostElement.style.pointerEvents = savedPointerEvents),
+          viewportElement?.removeAttribute?.("data-i3d-preview-scope"),
+          configureStateSubscriptions(),
+          syncBackgroundHidden(),
+          (lastConfigJson = ""),
+          (pendingResetPreviewSession = true),
+          sendConfigUpdate());
+      };
     }),
     (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
     (runtimeHandle.closeWeatherPreview = closeWeatherPreview),
@@ -2404,6 +2491,24 @@ export function mountInteraction3d(
       if (isNavigationEditingEnabled && (isViewEditing || isRangeEditing))
         throw new Error("请先结束视角调整或照射范围编辑，再调整导航位置。");
       setNavigationEditingState(isNavigationEditingEnabled);
+    }),
+    (runtimeHandle.setEditable = (nextEditable: any) => {
+      const editableEnabled = nextEditable === true;
+      if (isDisposed || runtimeContext.editable === editableEnabled) return;
+      /* 0.7.8：切换画布模式等同一次预览会话重置——在途编辑/范围请求全部按
+         「画布模式已切换，请重新调整。」拒绝，编辑态一次性收干净。 */
+      (rejectPendingEdits("画布模式已切换，请重新调整。"),
+        rejectPendingRangeRequests("画布模式已切换，请重新调整。"),
+        runtimeHandle.closeRangeEditor?.(),
+        isViewEditing && runtimeHandle.setViewEditing(false),
+        isNavigationEditing && setNavigationEditingState(false),
+        closePopupLayoutPreview(),
+        closeWeatherPreview(),
+        (runtimeContext.editable = editableEnabled),
+        (selectedId = ""),
+        (stageFrameElement.style.pointerEvents =
+          editableEnabled && !isEditing ? "none" : ""),
+        sendConfigUpdate());
     }),
     (runtimeHandle.viewCommand = (viewCommandName: any, viewCommandValue: any = undefined) =>
       new Promise((viewResolve, viewReject) => {

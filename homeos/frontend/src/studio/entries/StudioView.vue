@@ -22,7 +22,7 @@ const WORKFLOW_STEPS = [
   { id: "walls", label: "绘制空间" },
   { id: "items", label: "摆放物件" },
   { id: "lights", label: "放置灯光" },
-  { id: "export", label: "保存图片" },
+  { id: "export", label: "应用户型" },
 ] as const;
 
 const route = useRoute();
@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
                 <li data-step="walls"><i>3</i>绘制空间</li>
                 <li data-step="items"><i>4</i>摆放物件</li>
                 <li data-step="lights"><i>5</i>放置灯光</li>
-                <li data-step="export"><i>6</i>保存图片</li>
+                <li data-step="export" title="2D 导出图片，3D 用于交互组件"><i>6</i>应用户型</li>
             </ol>
         </div>
         <div class="header-actions"> <span id="save-state" class="save-state"><i></i>正在载入…</span> </div>

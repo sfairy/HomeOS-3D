@@ -750,6 +750,63 @@ def _validate_environment_command(
         validate_climate_command(command.service, command.data, state_row)
 
 
+async def _control_computer_power(
+    command: Interaction3dControlRequest,
+    request: Request,
+    database: DatabaseSession,
+    viewer: LicensedViewer,
+) -> dict:
+    """电脑电源实体分支（0.7.8 `api.py`）。
+
+    前端电源键下发 ``deviceKind='computer'``；``powerEntityId`` 是电脑的顶层
+    字段、不进 ``extraControls``，因此必须单独校验“当前电脑的电源实体 + 只允许
+    开关服务 + 实体仍在线”，四条错误文案与 0.7.8 一致。
+    """
+    if not command.project_id or not command.component_id:
+        raise HTTPException(422, detail='电脑控制缺少仪表盘或控件信息。')
+    require_viewer_project(viewer, command.project_id)
+    if command.domain not in {'switch', 'input_boolean'} or command.service not in {
+        'turn_on',
+        'turn_off',
+    }:
+        raise HTTPException(422, detail='电脑只支持开关电源控制。')
+    properties = await component_properties_async(request, command.project_id, command.component_id)
+    bindings = [
+        binding
+        for binding in properties.get('devices', {}).get('computers', [])
+        if binding.get('powerEntityId') == command.entity_id
+    ]
+    # 绑定范围收窄到“当前仪表盘 + 当前控件”（等价 0.7.8 `scoped_control_bindings`）。
+    bindings = _filter_environment_bindings(bindings, command)
+    if not bindings:
+        raise HTTPException(403, detail='此电源实体未配置到当前电脑。')
+    binding = bindings[0]
+    scene_id = properties.get('sceneId', '')
+    try:
+        scene = await scene_snapshot_async(request, scene_id)
+        from .device import require_device_model
+
+        require_device_model(binding, scene, 'computer')
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+    connection, entity = await active_connection_and_entity_async(
+        request, command.entity_id, command.domain
+    )
+    if connection is None:
+        raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
+    if entity is None:
+        raise HTTPException(404, detail='电脑电源实体不存在、已禁用或已失联。')
+    states = await request.app.state.studio_ha.state_hub.snapshot({command.entity_id})
+    state_row = states[0] if states else None
+    if (
+        not state_row
+        or state_row.get('available') is False
+        or state_row.get('state') in (None, '', 'unknown', 'unavailable')
+    ):
+        raise HTTPException(409, detail='电脑电源状态不可用，请稍后重试。')
+    return await call_service(command, request, database, viewer)
+
+
 async def _control_extra_environment_entity(
     command: Interaction3dControlRequest,
     request: Request,
@@ -1021,6 +1078,8 @@ async def control_light(command: Interaction3dControlRequest, request: Request, 
         return await _control_television(command, request, database, viewer)
     if command.domain == 'lock' or command.device_kind == 'lock':
         return await _control_lock(command, request, database, viewer)
+    if command.device_kind == 'computer':
+        return await _control_computer_power(command, request, database, viewer)
     if command.domain in {'fan', 'cover', 'climate', 'water_heater'} or command.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
         return await _control_environment_device(command, request, database, viewer)
     if command.domain not in {'light', 'switch'} or command.service not in {'turn_on', 'turn_off'}:

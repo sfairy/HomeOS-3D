@@ -16,7 +16,13 @@ function speakerRingFrame(playbackState: any, timeMs: any) {
     rotation: (timeMs * Math.PI * 2) / 18000,
   };
 }
-export function createSpeakerRings({ requestFrame: onRequestFrame = () => {} } = {}) {
+export function createSpeakerRings({
+  requestFrame: onRequestFrame = () => {},
+  isVisible: isModelInView = (_target: any) => true,
+}: {
+  requestFrame?: (...args: any[]) => any;
+  isVisible?: (target: any) => boolean;
+} = {}) {
   let previousRoot: any,
     previousRevision: any,
     ringEntries: any = [],
@@ -36,7 +42,7 @@ export function createSpeakerRings({ requestFrame: onRequestFrame = () => {} } =
         ancestorObject = ancestorObject.parent
       ) {
         if (ancestorObject.visible === false) return false;
-        if (ancestorObject === previousRoot) return true;
+        if (ancestorObject === previousRoot) return isModelInView(startObject);
       }
       return false;
     },

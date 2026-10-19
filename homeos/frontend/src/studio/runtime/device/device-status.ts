@@ -9,6 +9,7 @@ const deviceClassLabels = {
     smoke: ["有烟雾", "无烟雾"],
     gas: ["有气体", "无气体"],
     tamper: ["被拆动", "未拆动"],
+    carbon_monoxide: ["有一氧化碳", "无一氧化碳"],
     connectivity: ["在线", "离线"],
     plug: ["已插电", "未插电"],
     power: ["有电", "无电"],
@@ -142,9 +143,9 @@ export function deviceStatus(device: any, entityStates: Record<string, any> = {}
         entityState.available === false ||
         ["", "unknown", "unavailable"].includes(stateValue)
         ? "unknown"
-        : stateValue === statusRule.active
+        : toList(statusRule.active).includes(stateValue)
           ? "active"
-          : stateValue === statusRule.inactive
+          : toList(statusRule.inactive).includes(stateValue)
             ? "inactive"
             : "unknown";
     },
@@ -169,5 +170,111 @@ export function deviceStatus(device: any, entityStates: Record<string, any> = {}
       off: "#89929b",
     }[overallStatus],
   };
+}
+export function deviceEntityIds(device: any) {
+  const healthRules = Array.isArray(device?.statusRules?.health)
+    ? device.statusRules.health
+    : [device?.statusRules?.health];
+  return [
+    ...new Set(
+      [
+        ...(device?.extraControls || []).map((control: any) => control.entityId),
+        device?.statusRules?.power?.entityId,
+        ...healthRules.map((healthRule: any) => healthRule?.entityId),
+      ].filter(Boolean),
+    ),
+  ];
+}
+
+const toList = (value: any) => (Array.isArray(value) ? value : [value]);
+
+/** 状态指示可选项：优先按实体自身能力，其次按域内置状态表（门锁/扫地机/空调模式等）。 */
+export function deviceIndicatorChoices(entityDescriptor: EntityDescriptor = {}, stateUpdate: any) {
+  const binaryChoices = deviceStatusChoices(entityDescriptor, stateUpdate);
+  if (binaryChoices) return binaryChoices;
+  const domain = String(entityDescriptor.entityId || entityDescriptor.entity_id || "").split(".")[0],
+    newState = stateUpdate?.newState || stateUpdate,
+    attributes = {
+      ...entityDescriptor.attributes,
+      ...newState?.attributes,
+    },
+    domainStates: Record<string, string[]> = {
+      camera: ["off", "idle", "recording", "streaming"],
+      cover: ["open", "closed", "opening", "closing"],
+      valve: ["open", "closed", "opening", "closing"],
+      vacuum: ["cleaning", "docked", "idle", "paused", "returning", "error"],
+      lawn_mower: ["mowing", "docked", "paused", "returning", "error"],
+      lock: ["locked", "unlocked", "locking", "unlocking", "open", "opening", "jammed"],
+      alarm_control_panel: [
+        "disarmed",
+        "armed_home",
+        "armed_away",
+        "armed_night",
+        "armed_vacation",
+        "armed_custom_bypass",
+        "pending",
+        "arming",
+        "disarming",
+        "triggered",
+      ],
+      media_player: ["off", "on", "idle", "playing", "paused", "buffering", "standby"],
+      calendar: ["on", "off"],
+      update: ["on", "off"],
+    },
+    values =
+      domain === "climate"
+        ? attributes.hvac_modes
+        : domain === "water_heater"
+          ? attributes.operation_list
+          : Array.isArray(attributes.options)
+            ? attributes.options
+            : domainStates[domain];
+  if (!Array.isArray(values) || values.length < 2) return null;
+  const labels: Record<string, string> = {
+      ...stateLabels,
+      idle: "待机",
+      recording: "录像中",
+      streaming: "播放画面",
+      opening: "正在打开",
+      closing: "正在关闭",
+      cleaning: "清扫中",
+      docked: "已停靠",
+      paused: "已暂停",
+      returning: "返回中",
+      mowing: "割草中",
+      locked: "已上锁",
+      unlocked: "已解锁",
+      locking: "上锁中",
+      unlocking: "解锁中",
+      jammed: "锁已卡住",
+      disarmed: "已撤防",
+      armed_home: "在家布防",
+      armed_away: "离家布防",
+      armed_night: "夜间布防",
+      armed_vacation: "假期布防",
+      armed_custom_bypass: "自定义布防",
+      pending: "等待触发",
+      arming: "布防中",
+      disarming: "撤防中",
+      triggered: "已触发警报",
+      playing: "播放中",
+      buffering: "缓冲中",
+      standby: "待机",
+      heat: "制热",
+      cool: "制冷",
+      auto: "自动",
+      dry: "除湿",
+      fan_only: "送风",
+      heat_cool: "制冷/制热",
+    },
+    options = [...new Set(values)]
+      .filter(
+        (value) =>
+          typeof value === "string" &&
+          value.trim() &&
+          !["unknown", "unavailable"].includes(value),
+      )
+      .map((value) => ({ value, label: labels[value] || value }));
+  return options.length ? { options } : null;
 }
 

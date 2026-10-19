@@ -5,7 +5,7 @@
   "entryJsBytes": 60000,
   "appCssRawBytes": 340000,
   "appCssGzipBytes": 80000,
-  "runtimeChunkCount": 240,
-  "runtimeRawBytes": 1450000,
+  "runtimeChunkCount": 272,
+  "runtimeRawBytes": 1480000,
   "hlsScriptCount": 0
 }

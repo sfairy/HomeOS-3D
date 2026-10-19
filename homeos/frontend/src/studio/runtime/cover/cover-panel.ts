@@ -10,6 +10,7 @@ import { airerMapControlPosition, airerMapControlService } from "../airer/airer-
 import { domElement } from "@app/shared/util/dom-factory";
 import { applyRangeProgressCss } from "@app/shared/util/range-progress";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
+import { createPopupFeedback } from "@app/shared/util/popup-feedback";
 /** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {
   element?: any;
@@ -17,6 +18,8 @@ type CoverPanelOptions = {
   onPreview?: (...args: any[]) => any;
   onExtraControl?: (...args: any[]) => any;
   onLayout?: (...args: any[]) => any;
+  /** 宿主已经装好的反馈聚合区（`createPopupFeedback` 实例）；缺省时面板自建。 */
+  feedbackSlot?: any;
 };
 
 /** 面板视图模型由 stage 的 update() 注入：字段来自运行时设备状态（动态属性袋），这里按实际访问到的键显式列出并全部保持可选，不做窄化假设。 */
@@ -31,6 +34,7 @@ type CoverPanelViewModel = {
 
 export function createCoverPanel({
   element: hostElement,
+  feedbackSlot: hostFeedbackSlot,
   onControl: onControl = async () => {},
   onPreview: onPreview = () => {},
   onExtraControl: onExtraControl = async () => {},
@@ -148,8 +152,12 @@ export function createCoverPanel({
   const extrasPanelElement = createElement("div", "i3d-climate-panel i3d-airer-extras"),
     extrasGridElement = createElement("div", "i3d-purifier-extras i3d-extra-grid");
   extrasPanelElement.append(extrasGridElement);
+  // 宿主没有反馈聚合区时自建（0.7.8 `cover-panel.js`）。
+  const ownFeedbackSlot = hostFeedbackSlot ? null : createPopupFeedback({ element: rootElement }),
+    feedbackSlot = hostFeedbackSlot || ownFeedbackSlot;
   const purifierExtrasController = createPurifierExtras({
       element: extrasGridElement,
+      feedbackSlot,
       onControl: onExtraControl,
       onLayout: onLayout,
     }),
@@ -179,7 +187,12 @@ export function createCoverPanel({
     errorText = "",
     stateRevision = 0,
     stateSignature = "";
-  const AIRER_NO_FEEDBACK_MESSAGE = "设备未回报升降状态，请检查设备。";
+  const AIRER_NO_FEEDBACK_MESSAGE = "设备未回报升降状态，请检查设备。",
+    RANGE_NO_FEEDBACK_MESSAGE = "设备未响应，请重试。";
+  const releaseFeedback = feedbackSlot.attach(feedbackElement, {
+    source: () => viewModel.item?.entityId || "",
+    label: () => titleElement.textContent || "",
+  });
   const airerPendingFeedbackMessage = () => {
     if (!viewModel.item?.airer || !pendingIntent || pendingIntent.confirmed) return "";
     if (pendingIntent.sending) return "正在发送升降指令…";
@@ -298,7 +311,7 @@ export function createCoverPanel({
             return;
           intentTimeoutId = null;
           pendingIntent = null;
-          if (viewModel.item?.airer) errorText = AIRER_NO_FEEDBACK_MESSAGE;
+          errorText = viewModel.item?.airer ? AIRER_NO_FEEDBACK_MESSAGE : RANGE_NO_FEEDBACK_MESSAGE;
           render();
         }, 15000)),
       render());
@@ -534,18 +547,18 @@ export function createCoverPanel({
         !viewModel.editing &&
         deviceState.available &&
         (statusElement.textContent = presentation.opening
-          ? "正在放下"
+          ? "正在上升"
           : presentation.closing
-            ? "正在收起"
+            ? "正在下降"
             : presentation.position === 100
-              ? "已放下"
+              ? "已收起"
               : presentation.position === 0
-                ? "已收起"
+                ? "已放下"
                 : presentation.moving
                   ? presentation.closing
-                    ? "正在收起…"
+                    ? "正在下降…"
                     : presentation.opening
-                      ? "正在放下…"
+                      ? "正在上升…"
                       : "等待停稳…"
                   : presentation.preview && presentation.targetPosition !== null
                     ? "正在前往 " + Math.round(presentation.targetPosition) + "%"
@@ -555,12 +568,12 @@ export function createCoverPanel({
         isAirerItem ? "目标升降位置" : isDreamCover ? "目标叶片角度" : "目标开合位置",
       ),
       (positionLegendElement.children[0].textContent = isAirerItem
-        ? "收起"
+        ? "最低"
         : isDreamCover
           ? "正向闭合"
           : "关闭"),
       (positionLegendElement.children[1].textContent = isAirerItem
-        ? "放下"
+        ? "最高"
         : isDreamCover
           ? "反向闭合"
           : "打开"));
@@ -663,8 +676,8 @@ export function createCoverPanel({
           ? "暂停"
           : isAirerItem
             ? actionService === "open_cover"
-              ? "放下"
-              : "收起"
+              ? "上升"
+              : "下降"
             : isDreamCover
               ? actionService === "open_cover"
                 ? "开启"
@@ -766,7 +779,7 @@ export function createCoverPanel({
           ? nextViewModel.state
           : coverState(nextEntityId, nextViewModel.state, nextViewModel.item)),
       nextViewModel.item?.airer && (deviceState = airerState(deviceState, nextViewModel.item)),
-      errorText === AIRER_NO_FEEDBACK_MESSAGE &&
+      (errorText === AIRER_NO_FEEDBACK_MESSAGE || errorText === RANGE_NO_FEEDBACK_MESSAGE) &&
         deviceState.available &&
         (deviceState.moving || deviceState.position !== previousState.position) &&
         (errorText = ""),
@@ -839,6 +852,8 @@ export function createCoverPanel({
       isDragging && onPreview(viewModel.item?.entityId, null, viewModel.item),
       instanceId++,
       clearPendingIntent(),
+      releaseFeedback(),
+      ownFeedbackSlot?.dispose?.(),
       purifierExtrasController.dispose(),
       deviceVisual.dispose(),
       replaceChildren(rootElement));

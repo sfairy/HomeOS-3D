@@ -1,4 +1,9 @@
 import { trimRetainedFloors as trimRetainedFloors2 } from "./scene/studio-floor-cache-budget";
+import {
+  itemDimensionPolicy as itemDimensionPolicy2,
+  moveStepMeters as moveStepMeters2,
+  snapEditDelta as snapEditDelta2,
+} from "./studio-edit-metrics";
 import { compactStaticDeviceParts as compactStaticDeviceParts2 } from "./items/studio-device-batching";
 import { snapItemToSurface as snapItemToSurface2 } from "./items/studio-surface-snap";
 import {
@@ -26,9 +31,33 @@ import {
   remapCourtyardAttachments as remapCourtyardAttachments2,
 } from "../plan/courtyard-drawing";
 import { createCourtyardDrawingEditor as createCourtyardDrawingEditor2 } from "../plan/courtyard-drawing-editor";
+import { createEffectCache as createEffectCache2 } from "./studio-effect-cache";
+import { createInteractionBatches as createInteractionBatches2 } from "./studio-interaction-batches";
+import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from "./studio-preview-resources";
+import {
+  applyShadowReceiverTrial as applyShadowReceiverTrial2,
+  inspectShadowReceiverTrial as inspectShadowReceiverTrial2,
+} from "./studio-shadow-receiver-trial";
+import { trimSharedGeometryCache as trimSharedGeometryCache2 } from "./studio-shared-geometry-cache";
 let planPainter: any = null,
   gardenGateItemType = "garden-gate",
   gardenGateSnapCandidate: any = null;
+/**
+ * 3D Studio 渲染性能模块（与 0.7.8 同名同义）。
+ *
+ * - `effectCache`：静态帧缓存，背景动画时只重绘动态体；
+ * - `interactionBatches`：静态网格按楼层/几何/材质合并 InstancedMesh；
+ * - `previewResources`：预览重建期间的资源延后回收；
+ * - `shouldForceEffectFrame`：下一次渲染强制重建效果缓存；
+ * - `shouldTrimSharedGeometry`：下一次渲染后修剪一次共享几何缓存。
+ */
+let effectCache: any = null,
+  interactionBatches: any = null,
+  previewResources: any = null,
+  shouldForceEffectFrame = false,
+  shouldTrimSharedGeometry = false,
+  /** 启动阶段反射细节档位（0 = 入场中，1 = 就绪）；模块级便于渲染函数读取。 */
+  studioReflectionDetailMode = 0;
 import {
   airerDimensions as airerDimensions2,
 } from "./items/studio-airer";
@@ -641,6 +670,8 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   lightGroupListElement = selectElement("#light-group-list"),
   addLightGroupButton = selectElement("#add-light-group"),
   lightGroupsOffButton = selectElement("#light-groups-off"),
+  drawingLightNoticeDialogElement = selectElement("#drawing-light-notice-dialog"),
+  drawingLightNoticeCountElement = selectElement("#drawing-light-notice-count"),
   lightGroupActionMenuElement = selectElement("#light-group-context-menu"),
   lightGroupAreaDialogElement = selectElement("#light-group-area-dialog"),
   lightGroupAreaFormElement = selectElement("#light-group-area-form"),
@@ -2437,12 +2468,32 @@ function createAreaSection(listedArea: any, memberLightGroups: any) {
   }
   return areaSectionElement;
 }
+const DRAWING_LIGHT_NOTICE_THRESHOLD = 6;
+/** 灯光性能提示每次进入绘制页只弹一次（0.7.8 的 `Wh` 语义）。 */
+let hasShownDrawingLightNotice = false;
+/**
+ * 灯光性能提示：当前楼层（或「全部楼层」）已开启的灯具 ≥ 6 盏时提醒一次。
+ *
+ * 判定与 0.7.8 一致：灯具条目亮度和 > 0，且所属灯组未被关闭；只统计当前预览范围，
+ * 因此切到「全部楼层」时计数会包含所有楼层的灯。
+ */
+function maybeShowDrawingLightNotice() {
+  if (hasShownDrawingLightNotice) return;
+  const litLightCount = collectLampEntries().filter(
+    (lampEntry: any) =>
+      finite2(lampEntry.item.lightBrightness, 0) > 0 && lampEntry.group?.enabled !== false,
+  ).length;
+  if (litLightCount < DRAWING_LIGHT_NOTICE_THRESHOLD) return;
+  hasShownDrawingLightNotice = true;
+  drawingLightNoticeCountElement.textContent = litLightCount + " 盏";
+  drawingLightNoticeDialogElement.showModal();
+}
 function syncLightGroupList() {
   if (
     ((lightLayerPanelElement.hidden = appCtx.activeLibraryCategory !== "light"),
     !lightLayerPanelElement.hidden)
   ) {
-    (getLightGroups(), lightGroupListElement.replaceChildren());
+    (getLightGroups(), maybeShowDrawingLightNotice(), lightGroupListElement.replaceChildren());
     const sceneAreas = appCtx.lightAreaRecords,
       knownAreaIdSet = new Set(sceneAreas.map((areaRef) => areaRef.areaId)),
       areaMemberGroupMap = new Map(),
@@ -5412,44 +5463,18 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
                 selectElement("#item-y"),
                 (at4.y / (getPixelsPerMeter() || 1)).toFixed(2),
               ));
-            const dimensionDecimals =
-              at4.type === "presence" ||
-              at4.type.startsWith("decor-") ||
-              [
-                "smart-socket-86",
-                "bunk-bed",
-                "wardrobe",
-                "office-chair",
-                "router",
-                "humidifier",
-                "dehumidifier",
-                "heater",
-                "pool-table",
-              ].includes(at4.type)
-                ? 3
-                : 2;
+            const dimensionPolicy = itemDimensionPolicy2(at4.type),
+              dimensionDecimals = dimensionPolicy.digits;
             for (const footprintInput of [
               selectElement("#item-width"),
               selectElement("#item-depth"),
             ])
               ((footprintInput.min = String(itemMinimumFootprint2(at4.type))),
-                (footprintInput.step =
-                  at4.type === "smart-socket-86"
-                    ? "0.001"
-                    : dimensionDecimals === 3
-                      ? "0.005"
-                      : "0.05"));
+                (footprintInput.step = String(dimensionPolicy.widthStep)));
             (setControlValue(selectElement("#item-width"), at4.width.toFixed(dimensionDecimals)),
               (itemHeightLabelElement.textContent = pillarIsLying2(at4) ? "长（m）" : "高（m）"),
               (selectElement("#item-height").min = String(itemMinimumHeight2(at4.type))),
-              (selectElement("#item-height").step =
-                at4.type === "smart-socket-86"
-                  ? "0.001"
-                  : at4.type === "rug"
-                    ? "0.002"
-                    : dimensionDecimals === 3
-                      ? "0.005"
-                      : "0.05"),
+              (selectElement("#item-height").step = String(dimensionPolicy.heightStep)),
               setControlValue(
                 selectElement("#item-height"),
                 at4.type === "rug" ? at4.height.toFixed(3) : at4.height.toFixed(dimensionDecimals),
@@ -7359,6 +7384,8 @@ function applyCameraFocalLength(
 }
 function requestStudioRender() {
   if (!appCtx.orbitControls) return;
+  // 有新内容要画：静态帧缓存作废，下一次整帧重新捕获。
+  effectCache?.invalidate();
   const ht2 = areLightsEnabled(),
     at6 = isEmbeddedStage && appCtx.prewarmState && !appCtx.isCapturingLights;
   (appCtx.lightPrecompileController?.setEnabled(isEmbeddedStage || !ht2 || !!at6),
@@ -7708,6 +7735,14 @@ function snapshotRenderStats() {
     ({ item: lightItemEntry, group: lightGroupEntry }: any) =>
       lightGroupEntry?.enabled !== false && finite2(lightItemEntry.lightBrightness, 0) > 0,
   ).length;
+  // 阴影接收试验（`?shadow-receiver-trial=non-casters`）只做诊断上报，默认关闭。
+  const shadowReceiverTrialStats = inspectShadowReceiverTrial2(appCtx.sceneRootNode),
+    shadowReceiverTrial = shadowReceiverTrialStats.mode ? shadowReceiverTrialStats : null,
+    diagnosticsDataset = appCtx.threeRenderer?.domElement?.ownerDocument?.documentElement?.dataset;
+  (diagnosticsDataset &&
+    (shadowReceiverTrial
+      ? (diagnosticsDataset.shadowReceiverTrial = JSON.stringify(shadowReceiverTrial))
+      : delete diagnosticsDataset.shadowReceiverTrial));
   return {
     meshes: meshCount,
     materials: materialSet.size,
@@ -7715,6 +7750,7 @@ function snapshotRenderStats() {
     visibleLights: visibleLightCount,
     activeUserFixtures: activeUserLightEntries,
     activeSpotShadows: activeSpotShadowCount,
+    shadowReceiverTrial,
     runtimeFurniture: furnitureStatsByKind,
     meshTypes: meshTypeStats,
   };
@@ -7894,6 +7930,8 @@ function bindFrameDriver(frameCallback: any) {
           appCtx.activeLongTask?.cancel(),
           disposeShadowAtlas(),
           appCtx.compiledShaderCache?.clear(),
+          effectCache?.resetContext(),
+          previewResources?.release(),
           window.clearTimeout(appCtx.precompileDebounceId),
           (appCtx.precompileDebounceId = null),
           window.clearTimeout(appCtx.precompileTimeoutId),
@@ -7907,6 +7945,8 @@ function bindFrameDriver(frameCallback: any) {
         emitRuntimeDiagnostic("gpu-restored"),
         disposeShadowAtlas(),
         appCtx.compiledShaderCache?.clear(),
+        effectCache?.resetContext(),
+        previewResources?.release(),
         (appCtx.isCacheReady = false),
         (appCtx.isFrameDirty = true),
         setFadeOverlay(false),
@@ -8294,6 +8334,8 @@ function transitionLightGroups(transitionGroupIds: any) {
     scheduleLightPrecompile());
 }
 function refreshSceneRender(refreshOptions: SceneRefreshOptions = {}) {
+  // 场景/材质/阴影有变化时先作废静态帧缓存，下一次渲染会重新捕获。
+  effectCache?.invalidate();
   if (
     (isEmbeddedStage &&
       (refreshOptions.scene === true || refreshOptions.shadows === true) &&
@@ -8805,6 +8847,22 @@ function prepareShadowAtlas() {
           appCtx.shadowAtlasCanvas.prepare(computeRenderPixelRatio(true)));
     }, 250));
 }
+/** 效果缓存可用性：与 0.7.8 `ng()` 同一判定集（渲染冲突时一律退回整帧）。 */
+function isEffectCacheReady() {
+  return (
+    !!effectCache &&
+    !appCtx.isRenderSuppressed &&
+    !appCtx.isCapturingLights &&
+    !appCtx.isCurtainMoving &&
+    !appCtx.isVacuumMoving &&
+    !appCtx.isLockMoving &&
+    studioReflectionDetailMode === 1 &&
+    !appCtx.pendingRuntimeSettings &&
+    !appCtx.contactShadowController?.isPending?.() &&
+    !appCtx.contactShadowController?.hasPendingSurfaces?.() &&
+    new URLSearchParams(window.location.search).get("effect-cache") !== "baseline"
+  );
+}
 function setShadowFreeze(isFrozen = true) {
   (appCtx.isShadowFrozen &&
     (!isEmbedStageMode ||
@@ -8815,13 +8873,33 @@ function setShadowFreeze(isFrozen = true) {
     }),
     appCtx.isShadowFrozen
       ? (appCtx.compiledShaderCache?.clear(), appCtx.shadowAtlasCanvas.render(appCtx.threeScene, appCtx.threeCamera))
-      : appCtx.compiledShaderCache
-        ? appCtx.compiledShaderCache.render(appCtx.threeScene, appCtx.threeCamera, {
-            background: appCtx.backgroundController?.cacheBackground,
-            changed: isFrozen,
+      : isEffectCacheReady() && (shouldForceEffectFrame || (appCtx.isBackgroundMoving && !!effectCache.stats.bytes))
+        ? (appCtx.compiledShaderCache?.clear(),
+          effectCache.render(appCtx.threeScene, appCtx.threeCamera, {
             enabled: appCtx.isBackgroundMoving && !appCtx.isRenderSuppressed && !appCtx.pendingRuntimeSettings,
-          })
-        : appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
+            background: appCtx.backgroundController?.cacheBackground,
+          }),
+          isRenderStatsTest &&
+            (appCtx.threeRenderer.domElement.dataset.effectCacheStats = JSON.stringify(
+              effectCache.stats,
+            )))
+        : appCtx.compiledShaderCache
+          ? appCtx.compiledShaderCache.render(appCtx.threeScene, appCtx.threeCamera, {
+              background: appCtx.backgroundController?.cacheBackground,
+              changed: isFrozen,
+              enabled: appCtx.isBackgroundMoving && !appCtx.isRenderSuppressed && !appCtx.pendingRuntimeSettings,
+            })
+          : appCtx.threeRenderer.render(appCtx.threeScene, appCtx.threeCamera),
+    (shouldForceEffectFrame = false),
+    // 背景缓存接管了整帧时，效果缓存没有复用价值，及时释放显存。
+    !appCtx.isShadowFrozen &&
+      appCtx.compiledShaderCache?.active &&
+      effectCache?.stats.bytes &&
+      effectCache.clear(),
+    previewResources?.release(),
+    shouldTrimSharedGeometry &&
+      ((shouldTrimSharedGeometry = false),
+      trimSharedGeometryCache2(geometryCacheByKey, [appCtx.threeScene, appCtx.sceneRootNode])),
     prepareShadowAtlas());
 }
 function updateShadowState(
@@ -9322,9 +9400,22 @@ function createStudioRenderer() {
           THREE: ns2,
           renderer: appCtx.threeRenderer,
         })),
-        window.addEventListener("pagehide", () => appCtx.compiledShaderCache.dispose(), {
-          once: true,
+        (effectCache = createEffectCache2({
+          THREE: ns2,
+          renderer: appCtx.threeRenderer,
         })),
+        (previewResources = createPreviewResourceHandoff2((resource: any) =>
+          resource?.dispose?.(),
+        )),
+        window.addEventListener(
+          "pagehide",
+          () => {
+            (appCtx.compiledShaderCache?.dispose(), effectCache?.dispose(), previewResources?.release());
+          },
+          {
+            once: true,
+          },
+        )),
       ensureDiagnosticsHud(),
       (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
       publishModelLoadState(),
@@ -11412,7 +11503,8 @@ function disposeObjectTree(disposedRoot: any) {
     materialDisposeSet = new Set(),
     textureSet = new Set();
   disposedRoot.traverse((traversedNode: any) => {
-    (traversedNode.shadow?.dispose?.(),
+    (traversedNode.userData.architectureSharedGeometry && (shouldTrimSharedGeometry = true),
+      traversedNode.shadow?.dispose?.(),
       traversedNode.geometry &&
         !geometrySet.has(traversedNode.geometry) &&
         !traversedNode.userData.externalModelSharedGeometry &&
@@ -11448,6 +11540,7 @@ function disposeObjectTree(disposedRoot: any) {
           !traversedNode.userData.rugSharedMaterial &&
           !traversedNode.userData.architectureSharedMaterial &&
           !traversedNode.userData.externalModelSharedMaterial &&
+          !previewResources?.retire(nodeMaterial) &&
           nodeMaterial.dispose?.();
       }
   });
@@ -13627,6 +13720,7 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
     setupSceneShadows(appCtx.sceneRootNode, {
       rebuildAtlas: !preserveLightCache,
     }),
+    applyShadowReceiverTrial2(appCtx.sceneRootNode),
     isEmbeddedStage && cacheObjectTransforms2(appCtx.sceneRootNode, ns2.Object3D),
     appCtx.sceneStyle === "warm-wood" &&
       appCtx.sceneRootNode.traverse((sceneNodeVisibility: any) => {
@@ -13672,7 +13766,13 @@ function rebuildFloorLayers(floorRebuildOptions: Record<string, any> = {}) {
     assetLoaderState.revision++;
     return;
   }
-  for (const _floorLayerEntry of buildFloorsAsync(floorRebuildOptions));
+  // 预览重建期间先不销毁旧材质/几何，交给交接队列在渲染帧结束后统一回收。
+  const rebuildFloors = () => {
+    for (const _floorLayerEntry of buildFloorsAsync(floorRebuildOptions));
+  };
+  previewResources
+    ? previewResources.run(rebuildFloors, !isEmbeddedStage && !appCtx.isRenderSuppressed && !document.hidden)
+    : rebuildFloors();
 }
 async function waitForSceneRevision() {
   const sceneAtStart = appCtx.studioProject,
@@ -14078,6 +14178,7 @@ function buildLayerGroup(
     setupSceneShadows(layerShadowRoot, {
       rebuildAtlas: !preserveLayerLightCache,
     }),
+    applyShadowReceiverTrial2(appCtx.sceneRootNode),
     isEmbeddedStage && cacheObjectTransforms2(appCtx.sceneRootNode, ns2.Object3D),
     isLightsLayer && requestStudioRender(),
     refreshSceneRender({
@@ -14920,12 +15021,18 @@ function handlePointerUp(pointerUpEvent: any) {
     }
     if (appCtx.marqueeBox.type === "move-items") {
       if (!appCtx.marqueeBox.moved && distance2(pr4, appCtx.marqueeBox.start) * appCtx.planView.zoom < 3) return;
-      const moveThreshold = getPixelsPerMeter() * 0.05,
-        wr2 = isSnapEnabled() && appCtx.studioState.settings.snapGrid !== false;
+      const moveThreshold =
+          getPixelsPerMeter() *
+          moveStepMeters2({ altKey: pointerUpEvent.altKey && !appCtx.marqueeBox.copied }),
+        shouldSnapMove = isSnapEnabled() && appCtx.studioState.settings.snapGrid !== false;
       let dragOffsetX = pr4.x - appCtx.marqueeBox.start.x,
         dragOffsetY = pr4.y - appCtx.marqueeBox.start.y;
       pointerUpEvent.shiftKey &&
         (Math.abs(dragOffsetX) >= Math.abs(dragOffsetY) ? (dragOffsetY = 0) : (dragOffsetX = 0));
+      // 0.7.8：吸附对「位移」取整，而非对绝对坐标取整；Alt 时步进降到 1cm。
+      shouldSnapMove &&
+        ((dragOffsetX = snapEditDelta2(dragOffsetX, moveThreshold)),
+        (dragOffsetY = snapEditDelta2(dragOffsetY, moveThreshold)));
       const itemsByItemId = new Map(
         appCtx.studioState.items.map((handlePointerUpItemEntry) => [
           handlePointerUpItemEntry.id,
@@ -14935,12 +15042,8 @@ function handlePointerUp(pointerUpEvent: any) {
       for (const originalItemSnapshot of appCtx.marqueeBox.originals) {
         const currentItemEntry = itemsByItemId.get(originalItemSnapshot.id);
         currentItemEntry &&
-          ((currentItemEntry.x = wr2
-            ? Math.round((originalItemSnapshot.x + dragOffsetX) / moveThreshold) * moveThreshold
-            : originalItemSnapshot.x + dragOffsetX),
-          (currentItemEntry.y = wr2
-            ? Math.round((originalItemSnapshot.y + dragOffsetY) / moveThreshold) * moveThreshold
-            : originalItemSnapshot.y + dragOffsetY));
+          ((currentItemEntry.x = originalItemSnapshot.x + dragOffsetX),
+          (currentItemEntry.y = originalItemSnapshot.y + dragOffsetY));
       }
       if (appCtx.marqueeBox.originals.length === 1) {
         const firstOriginalItem = itemsByItemId.get(appCtx.marqueeBox.originals[0].id);
@@ -14968,7 +15071,23 @@ function handlePointerUp(pointerUpEvent: any) {
       const at7 = getSelectedObject();
       if (!at7) return;
       const itemHeightMeters = Math.max(finite2(appCtx.marqueeBox.originalItem.height, 0.05), 0.001),
-
+        resizeItemPolicy = itemDimensionPolicy2(appCtx.marqueeBox.originalItem.type),
+        // 风扇的宽/深步进跟随扇叶比例（0.7.8 的 0.434/0.324 × 5cm）。
+        resizeWidthStep =
+          appCtx.marqueeBox.originalItem.type === "fan" ? 0.434 * 0.05 : resizeItemPolicy.widthStep,
+        resizeDepthStep =
+          appCtx.marqueeBox.originalItem.type === "fan" ? 0.324 * 0.05 : resizeItemPolicy.depthStep,
+        resizeSnapSteps =
+          isSnapEnabled() && appCtx.studioState.settings.snapGrid !== false
+            ? {
+                widthStep: pointerUpEvent.altKey
+                  ? Math.min(0.001, resizeWidthStep)
+                  : resizeWidthStep,
+                depthStep: pointerUpEvent.altKey
+                  ? Math.min(0.001, resizeDepthStep)
+                  : resizeDepthStep,
+              }
+            : {},
         resizeSourceItem = itemWithPlanFootprint2(appCtx.marqueeBox.originalItem),
         itemMinimumFootprint = itemMinimumFootprint2(appCtx.marqueeBox.originalItem.type),
         itemResizeLimits =
@@ -15001,6 +15120,7 @@ function handlePointerUp(pointerUpEvent: any) {
           {
             ...itemResizeLimits,
             minimumDimension: itemMinimumFootprint,
+            ...resizeSnapSteps,
           },
         );
       if (
@@ -17267,8 +17387,7 @@ if (
         windowKeyDownEvent.preventDefault();
         const elementSnapshotBeforeMove = captureUndoSnapshot(),
           nudgeStep =
-            (windowKeyDownEvent.altKey ? 0.01 : windowKeyDownEvent.shiftKey ? 0.25 : 0.05) *
-            (getPixelsPerMeter() || 1),
+            moveStepMeters2(windowKeyDownEvent) * (getPixelsPerMeter() || 1),
           selectedItemIdSet = new Set(selectedItemIds);
         for (const movedSceneItem of appCtx.studioState.items)
           selectedItemIdSet.has(movedSceneItem.id) &&
@@ -18728,6 +18847,7 @@ function runStudioRenderLoop() {
   ctx.previousReflectionEnabled = isEmbeddedStage;
   ctx.isReflectionDisabled = !isEmbeddedStage;
   ctx.reflectionDetailMode = isEmbeddedStage ? 0 : 1;
+  studioReflectionDetailMode = ctx.reflectionDetailMode;
   ctx.shouldStartPresentation = !isEmbeddedStage;
   (appCtx.regionLightController?.setPresentationGain(ctx.reflectionDetailMode),
     appCtx.regionLightController?.setShadowPresentationGain(ctx.reflectionModeIndex));
@@ -18757,7 +18877,8 @@ function runStudioRenderLoop() {
           ((ctx.isStartupPresentationDone = true), stageLoadTiming("effects-reveal-start")),
 
 
-          (ctx.reflectionDetailMode = effectsProgress));
+          (ctx.reflectionDetailMode = effectsProgress),
+          (studioReflectionDetailMode = effectsProgress));
         for (const progressListener of progressListenerSet) progressListener(effectsProgress);
       },
       onComplete: () => {
@@ -19089,6 +19210,16 @@ function runStudioRenderLoop() {
         (!appCtx.threeRenderer.getRenderTarget() || appCtx.shadowAtlasCanvas?.isScreenPass) &&
         (overviewDetail.prepare(appCtx.sceneRootNode, appCtx.sceneRevisionCount),
         overviewDetail.begin(renderArgs[2]),
+        isInteractionBatchesEnabled() &&
+          (interactionBatches.prepare(
+            appCtx.sceneRootNode,
+            appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey,
+          ),
+          interactionBatches.begin(renderArgs[2]),
+          (isRenderLoopPerformanceDiagnostics || isRenderStatsTest) &&
+            (appCtx.threeRenderer.domElement.dataset.interactionBatchStats = JSON.stringify(
+              interactionBatches.stats,
+            ))),
         isRenderLoopPerformanceDiagnostics &&
           (appCtx.threeRenderer.domElement.dataset.overviewDetailStats = JSON.stringify(
             overviewDetail.stats,
@@ -19119,6 +19250,31 @@ function runStudioRenderLoop() {
     },
   });
   window.addEventListener("pagehide", () => overviewDetail.dispose(), {
+    once: true,
+  });
+  /** 交互批处理：仅嵌入式 stage、高细节、非诊断模式与 `?interaction-batches=baseline` 关闭时启用。 */
+  function isInteractionBatchesEnabled() {
+    return (
+      !isBaselineGeometryMode &&
+      ctx.reflectionDetailMode === 1 &&
+      !appCtx.pendingRuntimeSettings &&
+      new URLSearchParams(window.location.search).get("interaction-batches") !== "baseline"
+    );
+  }
+  interactionBatches = createInteractionBatches2({
+    THREE: ns2,
+    renderer: appCtx.threeRenderer,
+    scene: appCtx.threeScene,
+    isDynamicObject: (sceneNode: any) => effectCache?.isDynamicObject(sceneNode) === true,
+    getCamera: (sceneNode: any, floorCamera: any) =>
+      appCtx.overviewStackController?.cameraForFloor(
+        sceneNode.userData?.environmentFloorId,
+        floorCamera,
+      ) || floorCamera,
+    materialState: (material: any) =>
+      ctx.floorRetentionService?.persistentMaterialKey?.(material) ?? null,
+  });
+  window.addEventListener("pagehide", () => interactionBatches?.dispose(), {
     once: true,
   });
   const onAfterRender = appCtx.threeScene.onAfterRender;
@@ -19285,6 +19441,27 @@ function runStudioRenderLoop() {
       refreshSceneRender({
         preserveLightCache: true,
       });
+    },
+    /** 动态体（电视画面/喷雾/流光）发生变化：下一帧强制重建静态帧缓存。 */
+    requestEffectRender() {
+      (appCtx.compiledShaderCache?.clear(),
+        (shouldForceEffectFrame = true),
+        (appCtx.isLightCacheReady = true),
+        appCtx.lightingScheduler?.wake());
+    },
+    /** 登记某组动态对象：它们变化时只重绘叠加层，不重算静态帧。 */
+    setDynamicRenderObjects(renderObjectKey: any, renderObjects: any[] = []) {
+      effectCache?.setDynamicObjects(renderObjectKey, renderObjects) && renderStudioFrame();
+    },
+    requestDynamicRender() {
+      isEmbeddedStage
+        ? (appCtx.compiledShaderCache?.clear(),
+          (shouldForceEffectFrame = true),
+          (appCtx.isLightCacheReady = true),
+          appCtx.lightingScheduler?.wake())
+        : refreshSceneRender({
+            preserveLightCache: true,
+          });
     },
     setBackgroundTheme(backgroundTheme: any) {
       ((appCtx.backgroundController = backgroundTheme), prepareReflectionTargets());
@@ -20696,11 +20873,22 @@ startupStudio(studioBootDeps());
     try {
       planPainter?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    try {
+      (interactionBatches?.dispose?.(), (interactionBatches = null))
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    try {
+      (effectCache?.dispose?.(), (effectCache = null))
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    try {
+      (previewResources?.release?.(), (previewResources = null))
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
     // 模块级状态声明在引导函数之外（跨次引导存活），这里复位到声明时的默认值，
-    // 避免下一次进入 /3d-studio 时带着上一次的画笔/围栏选择。
+    // 避免下一次进入 /3d-studio 时带着上一次的画笔/围栏选择与渲染缓存。
     planPainter = null
     gardenGateItemType = "garden-gate"
     gardenGateSnapCandidate = null
+    shouldForceEffectFrame = false
+    shouldTrimSharedGeometry = false
     try {
       appCtx.orbitControls?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
@@ -20732,6 +20920,9 @@ startupStudio(studioBootDeps());
       'instanceTestStats',
       'instanceTestReady',
       'instanceTestError',
+      'effectCacheStats',
+      'interactionBatchStats',
+      'shadowReceiverTrial',
     ]) {
       delete documentDataset[datasetKey]
     }

@@ -241,14 +241,24 @@ def validate_devices_section(ctx: ValidationContext, properties: dict) -> None:
     """devices 分区校验：不合规处直接经 ``ctx.fail()`` 抛 422。"""
 
     devices = properties.get('devices', {})
-    if not isinstance(devices, dict) or set(devices) - {
+    if not isinstance(devices, dict):
+        ctx.fail('3D 设备配置的 devices 必须是对象。')
+    known_collections = {
         'nas',
         'televisions',
         'speakers',
         'vacuums',
         *GENERIC_DEVICE_COLLECTIONS,
-    }:
-        ctx.fail()
+    }
+    # 旧版 / 未来版本留下的「空分类」不承载任何数据（如早期导出的 ``freezers: []``）。
+    # 直接按未知键拒绝会让这类历史草稿永久无法保存，所以只拦有内容的不认识分类。
+    unknown_collections = {
+        collection
+        for collection in set(devices) - known_collections
+        if devices[collection]
+    }
+    if unknown_collections:
+        ctx.fail('3D 设备配置包含未知分类：' + '、'.join(sorted(unknown_collections)) + '。')
     for profile in DEVICE_PROFILES.values():
         validate_device_bindings(ctx, devices.get(profile['collection'], []), profile['model_type'])
     _validate_televisions(ctx, devices)

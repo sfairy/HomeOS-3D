@@ -13,7 +13,7 @@
 
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
-import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2, genericDeviceProfile as genericDeviceProfile2 } from "../../../device/generic-device-catalog";
+import { createDeviceCategoryRow } from "./device-category-dialog";
 import { createCurtainGroup as createCurtainGroup2, curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { randomUuid as randomUuid2 } from "@app/shared/util/random-id";
 import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/presets/light-effect-policy";
@@ -68,7 +68,7 @@ export interface PanelDialogsDeps {
 
 export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, closeAddDialog, createSelectRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
+  const { e, closeAddDialog, createSelectRow, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
       if (
         e.isDisposed ||
         !e.isAccessAllowed ||
@@ -105,25 +105,16 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         addDialogErrorElement = e.createElement("p", "i3d-error");
       (addDialogErrorElement.setAttribute("role", "status"),
         e.isDeviceKind &&
-          createSelectRow(
+          createDeviceCategoryRow(
+            e,
             addDialogBodyElement,
             "设备类型",
-            [
-              ["nas", "NAS"],
-              ["television", "电视"],
-              ["speaker", "智能音响"],
-              ["water-heater", "热水器"],
-              ["airer", "晾衣架"],
-              ...GENERIC_DEVICE_KINDS2.map((genericDeviceKind) => [
-                genericDeviceKind,
-                genericDeviceProfile2(genericDeviceKind).label,
-              ]),
-            ],
             e.deviceKind,
             (pickedDeviceKind: any) => {
               pickedDeviceKind !== e.deviceKind && switchEditorKind(pickedDeviceKind, true);
             },
-          ).setAttribute("aria-label", "设备类型"));
+            createSettingRow,
+          ));
       let selectedModelKind = "air-conditioner";
       e.deviceKind === "climate" &&
         createSelectRow(

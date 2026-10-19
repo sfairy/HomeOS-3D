@@ -90,6 +90,18 @@
         </form>
     </dialog>
 
+    <dialog id="drawing-light-notice-dialog" class="scale-dialog export-notice-dialog"
+        aria-labelledby="drawing-light-notice-title" @keydown.stop>
+        <form method="dialog"> <button class="dialog-close" type="submit" aria-label="关闭灯光性能提示">×</button>
+            <span class="dialog-index">LIGHTING NOTICE</span>
+            <h2 id="drawing-light-notice-title">灯光开启较多</h2>
+            <p>同时开启较多灯光可能导致卡顿，建议配置完成后关闭，需要时再开启。</p>
+            <div class="export-notice-summary"><span>当前已开启</span><strong
+                    id="drawing-light-notice-count"></strong></div>
+            <div class="dialog-actions"><button class="primary-action" type="submit" autofocus>知道了</button></div>
+        </form>
+    </dialog>
+
     <dialog id="studio-exit-dialog" class="scale-dialog export-notice-dialog studio-exit-dialog"
         aria-labelledby="studio-exit-title">
         <form method="dialog"> <span class="dialog-index">SAVE BEFORE LEAVING</span>

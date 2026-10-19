@@ -433,6 +433,44 @@ type PopupPresetConfig = {
       ? null
       : ((viewStatusElement.hidden = true), readyView);
   };
+  /**
+   * 配置入口的统一前置：拿到当前 3D 编辑器视图后先选楼层。
+   *
+   * 0.7.8 把「选楼层」提前到打开编辑器之前，选中的楼层随 `editingFloorId` 传入，
+   * 单层户型不弹窗。用户取消时返回 null，调用方直接结束本次点击。
+   */
+  let isConfigurationEntryPending = false;
+  const ensureConfigurationEntry = async (): Promise<{
+    editorView: Interaction3dEditorView;
+    editingFloorId: string;
+  } | null> => {
+    if (isConfigurationEntryPending) return null;
+    (isConfigurationEntryPending = true,
+      (interaction3dInspectorElement!.dataset.interaction3dEntryPending = "true"));
+    try {
+      await requestInteraction3dAccess();
+      const readyView = await ensureEditorView();
+      if (!readyView) return null;
+      const { chooseConfigurationFloor } = await import(
+        "/api/v1/modules/interaction3d/editor/configuration-floor.js"
+      );
+      const editingFloorId = await chooseConfigurationFloor(
+        (readyView as any)?.metadata?.floors || [],
+        { document, signal: inspectorAbortController.signal },
+      );
+      // 选楼层期间检查器可能已被关掉/切到别的组件：此时直接放弃本次入口。
+      if (
+        inspectorAbortController.signal.aborted ||
+        interaction3dInspectorElement!.hidden ||
+        interaction3dInspectorElement!.dataset.componentId !== targetComponent.id
+      )
+        return null;
+      return editingFloorId === null ? null : { editorView: readyView, editingFloorId };
+    } finally {
+      (isConfigurationEntryPending = false);
+      delete interaction3dInspectorElement!.dataset.interaction3dEntryPending;
+    }
+  };
   planRenderButton.addEventListener("click", async () => {
     if (lightingMode !== "region") {
       planRenderButton.disabled = true;
@@ -472,11 +510,14 @@ type PopupPresetConfig = {
     configureDevicesButton.addEventListener("click", async () => {
       configureDevicesButton.disabled = true;
       try {
+        const entry = await ensureConfigurationEntry();
+        if (!entry) return;
         const { openInteraction3dEditor: openDevicesEditor } =
           await import("/api/v1/modules/interaction3d/editor/config-editor.js");
         await openDevicesEditor({
           component: targetComponent,
           deviceKind: "devices",
+          ...entry,
           document: editorOptions.document,
           entities: editorOptions.entities,
           states: editorOptions.states,
@@ -504,12 +545,15 @@ type PopupPresetConfig = {
     configureSecurityButton.addEventListener("click", async () => {
       configureSecurityButton.disabled = true;
       try {
+        const entry = await ensureConfigurationEntry();
+        if (!entry) return;
         await requestInteraction3dAccess();
         const { openSecurityEditor: openSecurityEditor } =
           await import("/api/v1/modules/interaction3d/security/security-editor.js");
         await openSecurityEditor({
           component: targetComponent,
           panelDocument: editorOptions.document,
+          ...entry,
           entities: editorOptions.entities,
           pickers: editorOptions.pickers,
           onSave: async (savedSecurityConfig: any) => {
@@ -533,11 +577,14 @@ type PopupPresetConfig = {
     configureVacuumButton.addEventListener("click", async () => {
       configureVacuumButton.disabled = true;
       try {
+        const entry = await ensureConfigurationEntry();
+        if (!entry) return;
         const { openInteraction3dEditor: openVacuumEditor } =
           await import("/api/v1/modules/interaction3d/editor/config-editor.js");
         await openVacuumEditor({
           component: targetComponent,
           deviceKind: "vacuum",
+          ...entry,
           document: editorOptions.document,
           entities: editorOptions.entities,
           states: editorOptions.states,
@@ -598,11 +645,14 @@ type PopupPresetConfig = {
     lightingConfigButton.addEventListener("click", async () => {
       lightingConfigButton.disabled = true;
       try {
+        const entry = await ensureConfigurationEntry();
+        if (!entry) return;
         await requestInteraction3dAccess();
         const { openInteraction3dEditor: openLightingEditor } =
           await import("/api/v1/modules/interaction3d/editor/config-editor.js");
         await openLightingEditor({
           component: targetComponent,
+          ...entry,
           document: editorOptions.document,
           entities: editorOptions.entities,
           states: editorOptions.states,
@@ -626,12 +676,15 @@ type PopupPresetConfig = {
     environmentConfigButton.addEventListener("click", async () => {
       environmentConfigButton.disabled = true;
       try {
+        const entry = await ensureConfigurationEntry();
+        if (!entry) return;
         await requestInteraction3dAccess();
         const { openInteraction3dEditor: openEnvironmentEditor } =
           await import("/api/v1/modules/interaction3d/editor/config-editor.js");
         await openEnvironmentEditor({
           component: targetComponent,
           deviceKind: "environment",
+          ...entry,
           document: editorOptions.document,
           entities: editorOptions.entities,
           states: editorOptions.states,

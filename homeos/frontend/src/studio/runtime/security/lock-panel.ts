@@ -5,6 +5,7 @@
  */
 import { lockState } from "./lock-state";
 import { domElement } from "@app/shared/util/dom-factory";
+import { createPopupFeedback } from "@app/shared/util/popup-feedback";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 /**
  * 把门锁原始 state 归一成右上角图形能表达的档位。
@@ -57,7 +58,7 @@ const doorTone = (snapshot: any) =>
 /** 电量低于此值转告警色。 */
 const LOW_BATTERY_PERCENT = 20;
 
-export function createLockPanel({ onControl: onControl }: any) {
+export function createLockPanel({ onControl: onControl, feedbackSlot: hostFeedbackSlot = undefined }: any) {
   const createTextElement = (tagName: any, textContent = "") =>
     domElement(document, tagName, "", textContent),
     panelElement = createTextElement("section"),
@@ -138,7 +139,7 @@ export function createLockPanel({ onControl: onControl }: any) {
       actionsElement.append(actionButton),
       actionButton.addEventListener("click", async () => {
         if (isEditing || isSubmitting || !currentComponent) return;
-        if (actionName !== "lock" && pendingAction !== actionName) {
+        if (actionName !== "lock" && (pendingAction !== actionName || !messageElement.textContent)) {
           ((pendingAction = actionName),
             (messageElement.textContent = "确认要" + actionLabel + "吗？再次点击执行。"),
             refreshPanel());
@@ -165,9 +166,7 @@ export function createLockPanel({ onControl: onControl }: any) {
             entityId: submittedComponent.entityId,
             data: serviceData,
           }),
-            !isDisposed &&
-              submitEpoch === updateEpoch &&
-              (messageElement.textContent = "指令已提交，状态以门反馈为准。"));
+            !isDisposed && submitEpoch === updateEpoch && (messageElement.textContent = ""));
         } catch (error: any) {
           !isDisposed &&
             submitEpoch === updateEpoch &&
@@ -282,21 +281,31 @@ export function createLockPanel({ onControl: onControl }: any) {
   }
   const headingTextElement = createTextElement("div");
   headingTextElement.className = "i3d-popup-heading-text";
-  return (
-    headingTextElement.append(titleElement, metaElement),
-    headingElement.append(headingTextElement, deviceVisual.root),
-    panelElement.append(
-      headingElement,
-      statusElement,
-      detailsElement,
-      codeInputElement,
-      actionsElement,
-      messageElement,
-    ),
-    {
-      root: panelElement,
+  headingTextElement.append(titleElement, metaElement);
+  headingElement.append(headingTextElement, deviceVisual.root);
+  panelElement.append(
+    headingElement,
+    statusElement,
+    detailsElement,
+    codeInputElement,
+    actionsElement,
+    messageElement,
+  );
+  // 门锁提示统一走弹窗反馈聚合区（0.7.8 `lock-panel.js`）。
+  const ownFeedbackSlot = hostFeedbackSlot ? null : createPopupFeedback({ element: panelElement }),
+    feedbackSlot = hostFeedbackSlot || ownFeedbackSlot,
+    releaseMessage = feedbackSlot.attach(messageElement, {
+      source: () => currentComponent?.entityId || "",
+      label: () => titleElement.textContent || "",
+      onRetire: () => {
+        pendingAction = "";
+      },
+    });
+  return {
+    root: panelElement,
       update({ item: component, states: entityStates, editing: editing }: any) {
-        (currentComponent?.id !== component.id &&
+        ((currentComponent?.id !== component.id ||
+          currentComponent?.entityId !== component.entityId) &&
           (updateEpoch++,
           (isSubmitting = false),
           (pendingAction = ""),
@@ -322,9 +331,10 @@ export function createLockPanel({ onControl: onControl }: any) {
         ((isDisposed = true),
           clearLockDraft(),
           (codeInputElement.value = ""),
+          releaseMessage(),
+          ownFeedbackSlot?.dispose?.(),
           deviceVisual.dispose(),
           panelElement.remove());
       },
-    }
-  );
+  };
 }

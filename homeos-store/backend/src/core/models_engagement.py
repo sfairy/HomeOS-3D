@@ -292,27 +292,6 @@ class ReferralWithdrawal(Base):
     note: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
-class Release(Base):
-    __tablename__ = "releases"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    product: Mapped[str] = mapped_column(String(64), default="homeos", index=True)
-    channel: Mapped[str] = mapped_column(String(32), default="docker", index=True)
-    version: Mapped[str] = mapped_column(String(32))
-    release_date: Mapped[str] = mapped_column(String(32), default="")
-    upgrade_notes: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-
-    __table_args__ = (
-        Index("ix_releases_product_channel_created", "product", "channel", "created_at"),
-        Index(
-            "uq_releases_product_channel_version",
-            "product",
-            "channel",
-            "version",
-            unique=True,
-        ),
-    )
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 

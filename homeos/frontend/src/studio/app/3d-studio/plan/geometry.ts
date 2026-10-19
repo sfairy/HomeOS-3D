@@ -1,3 +1,5 @@
+import { snapEditDelta } from "../authoring/studio-edit-metrics";
+
 export function clamp(rawValue: any, minValue: any, maxValue: any) {
   return Math.min(maxValue, Math.max(minValue, rawValue));
 }
@@ -1210,6 +1212,10 @@ type ResizeSizeLimits = {
   minimum?: number;
   /** 最大缩放比，默认正无穷。 */
   maximum?: number;
+  /** 宽度吸附粒度（米）；0 / 缺省表示不吸附。 */
+  widthStep?: number;
+  /** 深度吸附粒度（米）；0 / 缺省表示不吸附。 */
+  depthStep?: number;
 };
 
 /** resizeRotatedItemFromCorner 的结果矩形； */
@@ -1257,15 +1263,20 @@ export function resizeRotatedItemFromCorner(
     minimumDimension = Math.max(Number(sizeLimits.minimumDimension) || 0.1, 1e-7),
     rectangleWidth = Math.max(Number(sourceRectangle.width) || minimumDimension, minimumDimension),
     rectangleDepth = Math.max(Number(sourceRectangle.depth) || minimumDimension, minimumDimension),
-    rectangleHeight = Number(sourceRectangle.height);
-  let scaledWidth = clamp(ratioX, minimumDimension, 8),
-    scaledDepth = clamp(ratioY, minimumDimension, 8),
+    rectangleHeight = Number(sourceRectangle.height),
+    // 0.7.8：拖拽缩放按家具步进吸附（Alt 时由调用方把步进降到 1mm）。
+    snappedWidth = rectangleWidth + snapEditDelta(ratioX - rectangleWidth, Number(sizeLimits.widthStep) || 0),
+    snappedDepth = rectangleDepth + snapEditDelta(ratioY - rectangleDepth, Number(sizeLimits.depthStep) || 0);
+  let scaledWidth = clamp(snappedWidth, minimumDimension, 8),
+    scaledDepth = clamp(snappedDepth, minimumDimension, 8),
     dimensionScale = 1;
   if (shouldScaleHeight) {
     const minimumScale = Math.max(Number(sizeLimits.minimum) || 0, 1e-7),
       maximumScale = Math.max(Number(sizeLimits.maximum) || Number.POSITIVE_INFINITY, minimumScale);
     ((dimensionScale = clamp(
-      Math.max(ratioX / rectangleWidth, ratioY / rectangleDepth),
+      ratioX / rectangleWidth >= ratioY / rectangleDepth
+        ? snappedWidth / rectangleWidth
+        : snappedDepth / rectangleDepth,
       minimumScale,
       maximumScale,
     )),

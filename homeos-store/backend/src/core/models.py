@@ -34,7 +34,6 @@ from .models_engagement import (
     ReferralLedger,
     ReferralWallet,
     ReferralWithdrawal,
-    Release,
     StoreSetting,
     _id,
 )
@@ -369,7 +368,6 @@ __all__ = [
     'ReferralLedger',
     'ReferralWallet',
     'ReferralWithdrawal',
-    'Release',
     'StoreSetting',
     '_id',
 ]

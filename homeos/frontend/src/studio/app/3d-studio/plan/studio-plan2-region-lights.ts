@@ -1,3 +1,5 @@
+import { fillRegionGrid, REGION_GRID_SIZE } from "./studio-region-grid";
+
 /** 单个区域的覆盖参数； */
 type RegionLightOverride = {
   /** 形状标识：circle / square / ellipse / strip，白名单在下面用 includes 校验。 */
@@ -196,7 +198,15 @@ function buildShaderChunk(volumeGroup: any) {
     volumeGroup.capacity +
     "\n#define PLAN2_TEXTURE_DATA " +
     (volumeGroup.textureMode ? 1 : 0) +
-    "\nuniform int plan2LightCount;\nuniform float plan2Gain;\nuniform float plan2ShadowPresentation;\nuniform float plan2AlbedoLift;\nuniform float plan2SunShadowStrength;\nuniform mat4 plan2MotionToLayout;\nvarying vec3 vPlan2WorldPosition;\n#if PLAN2_TEXTURE_DATA\nuniform sampler2D plan2LightData;\nvec4 plan2ReadData(int slot, float column) {\n  return texture2D(plan2LightData, vec2((column + 0.5) / 4.0, (float(slot) + 0.5) / float(PLAN2_LIGHT_CAPACITY)));\n}\n#else\nuniform vec4 plan2Centers[PLAN2_LIGHT_CAPACITY];\nuniform vec4 plan2Extents[PLAN2_LIGHT_CAPACITY];\nuniform vec4 plan2Colors[PLAN2_LIGHT_CAPACITY];\nuniform vec4 plan2Axes[PLAN2_LIGHT_CAPACITY];\n#endif\nvec3 plan2SurfaceLight(vec3 worldPoint) {\n  worldPoint = (plan2MotionToLayout * vec4(worldPoint, 1.0)).xyz;\n  vec3 weightedColor = vec3(0.0);\n  float totalWeight = 0.0;\n  float coverage = 0.0;\n  for (int slot = 0; slot < PLAN2_LIGHT_CAPACITY; slot++) {\n    if (slot >= plan2LightCount) break;\n    #if PLAN2_TEXTURE_DATA\n      vec4 center = plan2ReadData(slot, 0.0);\n    #else\n      vec4 center = plan2Centers[slot];\n    #endif\n    if (center.w < 0.00001) continue;\n    #if PLAN2_TEXTURE_DATA\n      vec4 extent = plan2ReadData(slot, 1.0);\n      vec4 axis = plan2ReadData(slot, 3.0);\n    #else\n      vec4 extent = plan2Extents[slot];\n      vec4 axis = plan2Axes[slot];\n    #endif\n    vec3 offset = worldPoint - center.xyz;\n    vec3 localPoint = vec3(dot(offset.xz, axis.xy), offset.y, dot(offset.xz, vec2(-axis.y, axis.x)));\n    float verticalDistance = max(abs(localPoint.y) - extent.y, 0.0);\n    if (verticalDistance >= extent.w) continue;\n    float fadeStart = axis.w > 0.0 ? 1.0 - clamp(axis.w, 0.05, 1.0) : 0.0;\n    float squareFalloff = 1.0;\n    float radialDistance;\n    if (axis.z > 3.5) {\n      // Retain straight zero-light edges, but fade each axis independently.\n      // Using max(x,z) for brightness changes derivatives on the diagonals,\n      // making four visible triangular wedges. max is only a bounds check.\n      vec2 fromCenter = abs(localPoint.xz) / max(extent.xz, vec2(0.001));\n      radialDistance = max(fromCenter.x, fromCenter.y);\n      vec2 edgeFade = vec2(1.0) - smoothstep(vec2(fadeStart), vec2(1.0), fromCenter);\n      squareFalloff = edgeFade.x * edgeFade.y;\n    } else if (axis.z > 2.5) {\n      // Edited strips are rounded rectangles with their zero-light boundary\n      // exactly at the requested width/depth, including both rounded ends.\n      float radius = max(min(extent.x, extent.z), 0.001);\n      vec2 fromCore = max(abs(localPoint.xz) - (extent.xz - vec2(radius)), vec2(0.0));\n      radialDistance = length(fromCore) / radius;\n    } else if (axis.z > 0.5 && axis.z < 1.5) {\n      // A strip is a line source. Brightness falls away from the line, rather\n      // than remaining constant throughout a wide rectangular room volume.\n      vec2 fromSegment = vec2(max(abs(localPoint.x) - extent.x, 0.0), localPoint.z);\n      radialDistance = length(fromSegment) / max(extent.z, 0.001);\n    } else {\n      radialDistance = length(localPoint.xz / max(extent.xz, vec2(0.001)));\n    }\n    if (radialDistance >= 1.0) continue;\n    float horizontalFalloff = axis.z > 3.5 ? squareFalloff : 1.0 - smoothstep(fadeStart, 1.0, radialDistance);\n    float influence = horizontalFalloff\n      * (1.0 - smoothstep(0.0, extent.w, verticalDistance)) * clamp(center.w, 0.0, 1.5);\n    #if PLAN2_TEXTURE_DATA\n      vec3 lightColor = plan2ReadData(slot, 2.0).rgb;\n    #else\n      vec3 lightColor = plan2Colors[slot].rgb;\n    #endif\n    weightedColor += lightColor * influence;\n    totalWeight += influence;\n    coverage += (1.0 - coverage) * influence;\n  }\n  // Smooth bounded union: max() produced a derivative crease wherever two\n  // lamps exchanged dominance. This preserves single-lamp falloff and blends\n  // overlaps continuously, with coverage capped at one rather than added HDR.\n  return weightedColor / max(totalWeight, 0.00001) * coverage;\n}\n"
+    "\n#define PLAN2_SPATIAL_GRID " +
+    (volumeGroup.gridSupported ? 1 : 0) +
+    "\nuniform int plan2LightCount;\n#if PLAN2_SPATIAL_GRID\nuniform sampler2D plan2Grid;\nuniform vec4 plan2GridBounds;\nuniform bool plan2GridEnabled;\n#endif\nuniform float plan2Gain;\nuniform float plan2ShadowPresentation;\nuniform float plan2AlbedoLift;\nuniform float plan2SunShadowStrength;\nuniform mat4 plan2MotionToLayout;\nvarying vec3 vPlan2WorldPosition;\n#if PLAN2_TEXTURE_DATA\nuniform sampler2D plan2LightData;\nvec4 plan2ReadData(int slot, float column) {\n  return texture2D(plan2LightData, vec2((column + 0.5) / 4.0, (float(slot) + 0.5) / float(PLAN2_LIGHT_CAPACITY)));\n}\n#else\nuniform vec4 plan2Centers[PLAN2_LIGHT_CAPACITY];\nuniform vec4 plan2Extents[PLAN2_LIGHT_CAPACITY];\nuniform vec4 plan2Colors[PLAN2_LIGHT_CAPACITY];\nuniform vec4 plan2Axes[PLAN2_LIGHT_CAPACITY];\n#endif\nvec3 plan2SurfaceLight(vec3 worldPoint) {\n  worldPoint = (plan2MotionToLayout * vec4(worldPoint, 1.0)).xyz;\n  vec3 weightedColor = vec3(0.0);\n  float totalWeight = 0.0;\n  float coverage = 0.0;\n  int candidates = plan2LightCount;\n  #if PLAN2_SPATIAL_GRID\n    float row = 0.0;\n    if (plan2GridEnabled) {\n      vec2 cell = floor((worldPoint.xz - plan2GridBounds.xy) * plan2GridBounds.zw);\n      if (any(lessThan(cell, vec2(0.0))) || any(greaterThanEqual(cell, vec2(" +
+    REGION_GRID_SIZE +
+    ".0)))) return vec3(0.0);\n      row = (cell.y * " +
+    REGION_GRID_SIZE +
+    ".0 + cell.x + .5) / " +
+    REGION_GRID_SIZE * REGION_GRID_SIZE +
+    ".0;\n      candidates = int(texture2D(plan2Grid, vec2(.5 / float(PLAN2_LIGHT_CAPACITY + 1), row)).r + .5);\n    }\n  #endif\n  for (int candidate = 0; candidate < PLAN2_LIGHT_CAPACITY; candidate++) {\n    if (candidate >= candidates) break;\n    int slot = candidate;\n    #if PLAN2_SPATIAL_GRID\n      if (plan2GridEnabled) slot = int(texture2D(plan2Grid, vec2((float(candidate) + 1.5) / float(PLAN2_LIGHT_CAPACITY + 1), row)).r + .5);\n    #endif\n    #if PLAN2_TEXTURE_DATA\n      vec4 center = plan2ReadData(slot, 0.0);\n    #else\n      vec4 center = plan2Centers[slot];\n    #endif\n    if (center.w < 0.00001) continue;\n    #if PLAN2_TEXTURE_DATA\n      vec4 extent = plan2ReadData(slot, 1.0);\n      vec4 axis = plan2ReadData(slot, 3.0);\n    #else\n      vec4 extent = plan2Extents[slot];\n      vec4 axis = plan2Axes[slot];\n    #endif\n    vec3 offset = worldPoint - center.xyz;\n    vec3 localPoint = vec3(dot(offset.xz, axis.xy), offset.y, dot(offset.xz, vec2(-axis.y, axis.x)));\n    float verticalDistance = max(abs(localPoint.y) - extent.y, 0.0);\n    if (verticalDistance >= extent.w) continue;\n    float fadeStart = axis.w > 0.0 ? 1.0 - clamp(axis.w, 0.05, 1.0) : 0.0;\n    float squareFalloff = 1.0;\n    float radialDistance;\n    if (axis.z > 3.5) {\n      // Retain straight zero-light edges, but fade each axis independently.\n      // Using max(x,z) for brightness changes derivatives on the diagonals,\n      // making four visible triangular wedges. max is only a bounds check.\n      vec2 fromCenter = abs(localPoint.xz) / max(extent.xz, vec2(0.001));\n      radialDistance = max(fromCenter.x, fromCenter.y);\n      vec2 edgeFade = vec2(1.0) - smoothstep(vec2(fadeStart), vec2(1.0), fromCenter);\n      squareFalloff = edgeFade.x * edgeFade.y;\n    } else if (axis.z > 2.5) {\n      // Edited strips are rounded rectangles with their zero-light boundary\n      // exactly at the requested width/depth, including both rounded ends.\n      float radius = max(min(extent.x, extent.z), 0.001);\n      vec2 fromCore = max(abs(localPoint.xz) - (extent.xz - vec2(radius)), vec2(0.0));\n      radialDistance = length(fromCore) / radius;\n    } else if (axis.z > 0.5 && axis.z < 1.5) {\n      // A strip is a line source. Brightness falls away from the line, rather\n      // than remaining constant throughout a wide rectangular room volume.\n      vec2 fromSegment = vec2(max(abs(localPoint.x) - extent.x, 0.0), localPoint.z);\n      radialDistance = length(fromSegment) / max(extent.z, 0.001);\n    } else {\n      radialDistance = length(localPoint.xz / max(extent.xz, vec2(0.001)));\n    }\n    if (radialDistance >= 1.0) continue;\n    float horizontalFalloff = axis.z > 3.5 ? squareFalloff : 1.0 - smoothstep(fadeStart, 1.0, radialDistance);\n    float influence = horizontalFalloff\n      * (1.0 - smoothstep(0.0, extent.w, verticalDistance)) * clamp(center.w, 0.0, 1.5);\n    #if PLAN2_TEXTURE_DATA\n      vec3 lightColor = plan2ReadData(slot, 2.0).rgb;\n    #else\n      vec3 lightColor = plan2Colors[slot].rgb;\n    #endif\n    weightedColor += lightColor * influence;\n    totalWeight += influence;\n    coverage += (1.0 - coverage) * influence;\n  }\n  // Smooth bounded union: max() produced a derivative crease wherever two\n  // lamps exchanged dominance. This preserves single-lamp falloff and blends\n  // overlaps continuously, with coverage capped at one rather than added HDR.\n  return weightedColor / max(totalWeight, 0.00001) * coverage;\n}\n"
   );
 }
 function sampleRegionVolumes(volumes: any, worldPoint: any, gain = 1) {
@@ -352,11 +362,23 @@ export function createRegionLightController({
         kind: requestedKind,
         capacity: 0,
         textureMode: false,
+        gridSupported: false,
+        gridDirty: true,
+        grid: null as any,
         slots: [] as any[],
         materials: new Set(),
         uniforms: {
           plan2LightCount: {
             value: lightCount,
+          },
+          plan2Grid: {
+            value: null as any,
+          },
+          plan2GridBounds: {
+            value: new THREE.Vector4(),
+          },
+          plan2GridEnabled: {
+            value: false,
           },
           plan2Gain: {
             value: 1,
@@ -402,6 +424,25 @@ export function createRegionLightController({
       ((lightGroup.textureMode = capacity * 4 + 128 > maxFragmentUniforms),
         lightGroup.texture?.dispose(),
         (lightGroup.texture = null),
+        lightGroup.grid?.dispose(),
+        (lightGroup.grid = null),
+        (lightGroup.gridSupported =
+          coercedFiniteNumberOr(renderer?.capabilities?.maxTextures, 16) >= 16 &&
+          capacity + 1 <= coercedFiniteNumberOr(renderer?.capabilities?.maxTextureSize, 4096)),
+        lightGroup.gridSupported &&
+          ((lightGroup.grid = new THREE.DataTexture(
+            new Float32Array((capacity + 1) * REGION_GRID_SIZE * REGION_GRID_SIZE),
+            capacity + 1,
+            REGION_GRID_SIZE * REGION_GRID_SIZE,
+            THREE.RedFormat,
+            THREE.FloatType,
+          )),
+          (lightGroup.grid.minFilter = lightGroup.grid.magFilter = THREE.NearestFilter),
+          (lightGroup.grid.generateMipmaps = false),
+          (lightGroup.grid.needsUpdate = true)),
+        (lightGroup.gridDirty = true),
+        (lightGroup.uniforms.plan2Grid.value = lightGroup.grid),
+        (lightGroup.uniforms.plan2GridEnabled.value = false),
         (lightGroup.slots = Array.from(
           {
             length: capacity,
@@ -584,7 +625,7 @@ export function createRegionLightController({
       const baseProgramCacheKey = sourceMaterial.customProgramCacheKey?.call(sourceMaterial) || "";
       ((cloneMaterial.customProgramCacheKey = () =>
         baseProgramCacheKey +
-        "|plan2-baked-surface-v17-sloped-duvet|" +
+        "|plan2-baked-surface-v18-spatial|" +
         +(sourceMaterial.userData?.plan2SurfaceContact !== false) +
         "|" +
         +(sourceMaterial.userData?.plan2SurfaceSlope === true) +
@@ -600,6 +641,8 @@ export function createRegionLightController({
         materialGroup.capacity +
         "|" +
         Number(materialGroup.textureMode) +
+        "|" +
+        Number(materialGroup.gridSupported) +
         "|" +
         !!contactShadows),
         (cloneMaterial.userData.plan2RegionMaterial = true),
@@ -754,7 +797,7 @@ export function createRegionLightController({
     for (const [staleGroupKey, staleGroup] of groupsByKey)
       !registrationsByFloorId.has(staleGroup.floorId) &&
         !staleGroup.materials.size &&
-        (staleGroup.texture?.dispose(), groupsByKey.delete(staleGroupKey));
+        (staleGroup.texture?.dispose(), staleGroup.grid?.dispose(), groupsByKey.delete(staleGroupKey));
     ((nativeLights = []),
       scene.traverse((sceneNode: any) => {
         sceneNode.isLight && !registrationsByLight.has(sceneNode) && nativeLights.push(sceneNode);
@@ -1108,6 +1151,19 @@ export function createRegionLightController({
         (dirtyLightGroup.changed &&
           dirtyLightGroup.texture &&
           (dirtyLightGroup.texture.needsUpdate = true),
+          dirtyLightGroup.grid &&
+            (dirtyLightGroup.changed || dirtyLightGroup.gridDirty) &&
+            ((dirtyLightGroup.uniforms.plan2GridEnabled.value =
+              loopRegistrations.length >= 8 &&
+              fillRegionGrid(
+                dirtyLightGroup.slots,
+                loopRegistrations.length,
+                dirtyLightGroup.capacity,
+                dirtyLightGroup.grid.image.data,
+                dirtyLightGroup.uniforms.plan2GridBounds.value,
+              )),
+            (dirtyLightGroup.grid.needsUpdate = true),
+            (dirtyLightGroup.gridDirty = false)),
           (shouldUpdateUniforms ||= dirtyLightGroup.changed));
     }
     (shouldUpdateUniforms && (stats.uniformUpdates += 1),
@@ -1218,7 +1274,8 @@ export function createRegionLightController({
         restoreMeshMaterial(swappedMeshEntry, meshAssignmentRecord);
       for (const cloneMapToDispose of clonesByMaterial.values())
         for (const cloneToDispose of cloneMapToDispose.values()) cloneToDispose.dispose();
-      for (const disposedLightGroup of groupsByKey.values()) disposedLightGroup.texture?.dispose();
+      for (const disposedLightGroup of groupsByKey.values())
+        (disposedLightGroup.texture?.dispose(), disposedLightGroup.grid?.dispose());
       for (const restoredLight of registrationsByLight.values())
         restoredLight.light.layers.mask = restoredLight.originalLayers;
       (listenedNodeSet.clear(),

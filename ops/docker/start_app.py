@@ -84,7 +84,6 @@ def main() -> None:
     environment.setdefault("HOMEOS_DATA_DIR", "/data")
     environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/client-keys")
     environment.setdefault("HOMEOS_IMAGE_DIR", "/app/image")
-    environment.setdefault("APP_UPDATE_CHANNEL", "docker")
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
         raise SystemExit(
             '未设置 APP_LICENSE_SERVER_URL。'

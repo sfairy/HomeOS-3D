@@ -70,6 +70,9 @@
       ],
       "/api/v1/modules/interaction3d/security/security-editor.js": [
         "./src/studio/shims/interaction3d-security-editor.ts"
+      ],
+      "/api/v1/modules/interaction3d/editor/configuration-floor.js": [
+        "./src/studio/shims/interaction3d-configuration-floor.ts"
       ]
     },
 

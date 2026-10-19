@@ -1093,6 +1093,23 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-marker.is-selected {
   cursor: move;
 }
+/* 编辑选中态的「当前」徽标（0.7.8）：同一时刻只有一个标记带这个角标。 */
+.interaction3d-stage .i3d-marker.is-selected .i3d-marker-editing-badge {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  z-index: 3;
+  padding: 2px 7px;
+  border: 1px solid #17212b;
+  border-radius: 5px;
+  background: #ffbb45;
+  color: #17212b;
+  font: 700 12px/1.35 system-ui, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px #0006;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
 .interaction3d-stage .i3d-marker.is-selected:after,
 .interaction3d-stage .i3d-marker:focus-visible:after {
   content: "";

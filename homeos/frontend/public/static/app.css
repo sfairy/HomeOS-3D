@@ -4142,6 +4142,22 @@ h2 {
 .settings-dialog.floorplan-auto-diagram-dialog {
   width: min(720px, calc(100vw - 40px));
 }
+/* 3D 配置入口的楼层选择弹窗挂在 2D 壳的 body 上，样式必须在 app.css 里。 */
+.i3d-floor-entry-dialog {
+  width: min(400px, calc(100vw - 40px));
+}
+.i3d-floor-entry-options {
+  display: grid;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin: 18px 0;
+}
+.i3d-floor-entry-options button {
+  min-height: 42px;
+  text-align: left;
+  padding: 10px 14px;
+}
 .backup-body {
   max-height: calc(100dvh - 130px);
   overflow-y: auto;
