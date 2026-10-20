@@ -93,6 +93,25 @@ from ..realtime.state_store import StateStore
 logger = logging.getLogger("homeos.app")
 
 
+def _parallel_startup_enabled() -> bool:
+    """启动期叶子服务是否并发拉起；`HOMEOS_PARALLEL_STARTUP=0` 可一键回退串行。"""
+    raw = os.environ.get("HOMEOS_PARALLEL_STARTUP", "1").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
+async def _start_services(*starts: Awaitable[Any]) -> None:
+    """按顺序或并发执行一组叶子服务的 start()。
+
+    并发只用于彼此不读对方启动产物的服务；依赖顺序仍由调用点显式分成多批。
+    回退开关走环境变量，便于线上出问题时不需要改代码/重建产物。
+    """
+    if _parallel_startup_enabled():
+        await asyncio.gather(*starts)
+        return
+    for start in starts:
+        await start
+
+
 def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
     """把单条 HA 状态变更落到 L1（同步热路径）。
 
@@ -712,11 +731,13 @@ def _publish_security_services(app: FastAPI, startup: _StartupContext) -> None:
 
 
 async def _start_security_services(app: FastAPI, startup: _StartupContext) -> None:
-    """启动安防域需要异步首启的服务。"""
-    await startup.security_panel.start()
-    await startup.frigate.start()
-    await startup.away_sim.start()
-    await startup.presence.start()
+    """启动安防域需要异步首启的服务（四个服务互不读取对方的启动产物）。"""
+    await _start_services(
+        startup.security_panel.start(),
+        startup.frigate.start(),
+        startup.away_sim.start(),
+        startup.presence.start(),
+    )
 
 
 async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
@@ -876,20 +897,24 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
 
     email_service = EmailService(channel_config, event_bus=startup.security_bus)
     email_service.bind_events()
-    await email_service.reload()
     app.state.email_service = email_service
 
     web_push_service = WebPushService(
         channel_config, app.state.database.session_factory, event_bus=startup.security_bus
     )
     web_push_service.bind_events()
-    await web_push_service.start()
     app.state.web_push_service = web_push_service
 
     wecom_service = WecomService(channel_config, event_bus=startup.security_bus)
     wecom_service.bind_events()
-    await wecom_service.start()
     app.state.wecom_service = wecom_service
+
+    # 三个通道各自只读配置/自检；先全部构造完再并发启动，避免启动顺序改变装配结果。
+    await _start_services(
+        email_service.reload(),
+        web_push_service.start(),
+        wecom_service.start(),
+    )
 
     channels_service = ChannelsService(
         email_service,
@@ -1014,7 +1039,6 @@ async def _build_weather_and_earthquake(app: FastAPI, startup: _StartupContext) 
         app_config=app_config,
         event_bus=startup.security_bus,
     )
-    await weather_watch.start()
     app.state.weather_watch = weather_watch
     startup.weather_watch = weather_watch
 
@@ -1031,9 +1055,12 @@ async def _build_weather_and_earthquake(app: FastAPI, startup: _StartupContext) 
 
     # 地震预警（Phase 6）：Wolfx WS + SC/CENC 轮询 + 目录 + 全球目录
     eew_leader = EewLeaderService()
-    await eew_leader.start()
     app.state.eew_leader = eew_leader
     startup.eew_leader = eew_leader
+
+    # 两个叶子服务不互相依赖；earthquake/eew_poll/catalog_notify 依赖 eew_leader 已就绪，
+    # 因此仍放在下一批串行启动。
+    await _start_services(weather_watch.start(), eew_leader.start())
 
     earthquake = EarthquakeService(
         event_bus=startup.security_bus,
@@ -1159,32 +1186,64 @@ async def _shutdown_all(app: FastAPI, startup: _StartupContext) -> None:
         database.dispose()
 
 
+@asynccontextmanager
+async def _startup_phase(app: FastAPI, name: str):
+    """记录一个顶层启动阶段的耗时；不改变阶段内的调用顺序与异常语义。"""
+    started = time.perf_counter()
+    try:
+        yield
+    finally:
+        phases = getattr(app.state, "startup_phases", None)
+        if phases is None:
+            phases = []
+            app.state.startup_phases = phases
+        phases.append((name, round((time.perf_counter() - started) * 1000.0, 2)))
+
+
 def create_lifespan(app_settings: Settings, version: str):
     """构造 FastAPI lifespan 上下文管理器。"""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         startup_started = time.perf_counter()
+        app.state.startup_phases = []
         startup = _StartupContext(app_settings=app_settings, version=version)
-        await _init_core_services(app, startup)
+        async with _startup_phase(app, "core_services"):
+            await _init_core_services(app, startup)
         loop_lag = EventLoopLagMonitor()
         app.state.loop_lag = loop_lag
-        await loop_lag.start()
-        _install_realtime_state_pipeline(app, startup)
-        _register_ha_event_handlers(app, startup)
-        _build_security_services(app, startup)
-        await _build_ui_and_system_services(app, startup)
-        _install_ha_reconnect_handlers(app, startup)
-        _publish_security_services(app, startup)
-        await _start_security_services(app, startup)
-        await _build_home_mode(app, startup)
-        await _build_agent_domain(app, startup)
-        await _build_channels_and_notification(app, startup)
-        await _build_awareness_and_events(app, startup)
-        await _build_weather_and_earthquake(app, startup)
-        await _start_ha_and_license(app, startup)
+        async with _startup_phase(app, "loop_lag_start"):
+            await loop_lag.start()
+        async with _startup_phase(app, "realtime_pipeline"):
+            _install_realtime_state_pipeline(app, startup)
+            _register_ha_event_handlers(app, startup)
+        async with _startup_phase(app, "security_services_build"):
+            _build_security_services(app, startup)
+        async with _startup_phase(app, "ui_system_services"):
+            await _build_ui_and_system_services(app, startup)
+        async with _startup_phase(app, "security_services_publish"):
+            _install_ha_reconnect_handlers(app, startup)
+            _publish_security_services(app, startup)
+        async with _startup_phase(app, "security_services_start"):
+            await _start_security_services(app, startup)
+        async with _startup_phase(app, "home_mode"):
+            await _build_home_mode(app, startup)
+        async with _startup_phase(app, "agent_domain"):
+            await _build_agent_domain(app, startup)
+        async with _startup_phase(app, "channels_notification"):
+            await _build_channels_and_notification(app, startup)
+        async with _startup_phase(app, "awareness_events"):
+            await _build_awareness_and_events(app, startup)
+        async with _startup_phase(app, "weather_earthquake"):
+            await _build_weather_and_earthquake(app, startup)
+        async with _startup_phase(app, "ha_license"):
+            await _start_ha_and_license(app, startup)
         app.state.startup_duration_ms = round((time.perf_counter() - startup_started) * 1000.0, 2)
-        logger.info("应用启动完成: %.1f ms", app.state.startup_duration_ms)
+        logger.info(
+            "应用启动完成: %.1f ms phases=%s",
+            app.state.startup_duration_ms,
+            app.state.startup_phases,
+        )
 
         try:
             yield

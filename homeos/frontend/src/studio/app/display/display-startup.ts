@@ -34,15 +34,25 @@ export function bootDisplayStartup(): void {
     const abortController = new AbortController(),
       abortTimer = setTimeout(() => abortController.abort(), 20000);
     activeControllerSet.add(abortController);
+    // 草稿与素材清单是稳定文档：保留浏览器缓存并让 ETag/304 决定是否重下；
+    // 其它启动请求仍带时间戳绕缓存，避免读到上个项目的状态。
+    const conditionalRequest =
+      /^\/projects\/[^/?#]+\/draft$/.test(endpoint) ||
+      ["/assets/version", "/assets/builtin", "/assets/user"].includes(endpoint);
     const pendingResult = (async () => {
       try {
-        const fetchResponse = await fetch(`/api/v1${endpoint}?_=${Date.now()}`, {
-            cache: "no-store",
-            headers: {
-              "Cache-Control": "no-cache",
+        const fetchResponse = await fetch(
+            conditionalRequest
+              ? `/api/v1${endpoint}`
+              : `/api/v1${endpoint}?_=${Date.now()}`,
+            {
+              cache: conditionalRequest ? "default" : "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+              },
+              signal: abortController.signal,
             },
-            signal: abortController.signal,
-          }),
+          ),
           payload =
             fetchResponse.status === 204
               ? null

@@ -132,6 +132,8 @@ def _register_probe_routes(app: FastAPI, app_settings: Settings, version: str) -
             ),
             loop_lag=loop_lag.snapshot() if loop_lag is not None else None,
             startup_duration_ms=float(getattr(request.app.state, "startup_duration_ms", 0.0)),
+            startup_phases=list(getattr(request.app.state, "startup_phases", []) or []),
+            boot_import_ms=float(getattr(request.app.state, "boot_import_ms", 0.0) or 0.0),
         )
         return Response(
             content=body,
@@ -184,14 +186,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-def create_asgi_app(settings: Settings | None = None):
-    """组合 ASGI：Socket.IO（``/socket.io``）→ 其余请求转发给 FastAPI。
+def create_asgi_app(settings: Settings | None = None, *, boot_import_ms: float | None = None):
+    """组合 ASGI：Socket.IO（/socket.io）→ 其余请求转发给 FastAPI。
 
-    与 Nest ``main.ts`` 一致：Socket.IO 与 HTTP 同端口、同进程，前端零改动。
+    与 Nest main.ts 一致：Socket.IO 与 HTTP 同端口、同进程，前端零改动。
+    boot_import_ms 由入口进程测得，仅为 /metrics 提供「import vs lifespan」拆分，不参与运行。
     """
     import socketio
 
     fastapi_app = create_app(settings)
+    if boot_import_ms is not None:
+        fastapi_app.state.boot_import_ms = float(boot_import_ms)
     return socketio.ASGIApp(
         fastapi_app.state.realtime.sio,
         other_asgi_app=fastapi_app,

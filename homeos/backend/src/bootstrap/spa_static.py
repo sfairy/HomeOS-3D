@@ -27,7 +27,9 @@ from ..platform.core.frontend_static import (
     SERVICE_WORKER_PATH,
     SOUNDS_MOUNT_PREFIX,
     STATIC_MOUNT_PREFIX,
+    is_auth_page_path,
     is_frontend_static_path,
+    strip_auth_scene_stylesheets,
 )
 from ..platform.security.session_store import resolve_login_session
 
@@ -393,6 +395,12 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
         elif _has_login_cookie(request):
             # 路由样式表属于「登录后可见」的静态资源：未带登录凭证时不预载，
             # 否则匿名访问会打出一串 401 的预载请求（控制台噪音，且毫无收益）。
+            #
+            # 已登录的总览 / 展示 / 编辑器 / 3D 舞台不会用到认证场景四片：它们在入口里是
+            # render-blocking，先下载再被 page-assets 卸掉纯属浪费。这里按页面路径剥离，
+            # 认证入户页（/login 等）与授权拦截页保持原样；运行时跳转回登录页会重新挂载。
+            if not is_auth_page_path(request.url.path):
+                html = strip_auth_scene_stylesheets(html)
             html = _inject_preload_stylesheets(
                 html, page_preload_stylesheets(request.url.path)
             )

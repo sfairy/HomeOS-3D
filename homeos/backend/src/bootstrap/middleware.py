@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -20,7 +21,12 @@ from ..config import Settings
 from ..domains.license import features as feature_codes
 from ..domains.license.guard import ASSET_SUFFIXES, is_license_exempt_path
 from ..platform.core.errors import BusinessException, ErrorCode, api_error
-from ..platform.core.observability import new_request_id, reset_trace_id, set_trace_id
+from ..platform.core.observability import (
+    new_request_id,
+    record_http_request,
+    reset_trace_id,
+    set_trace_id,
+)
 from ..platform.core.upload_limits import PATH_BODY_LIMIT_OVERRIDES
 from ..platform.security.body_limit import BodyLimitMiddleware
 from ..platform.security.cookies import is_https_deploy_mode
@@ -56,6 +62,55 @@ class RequestDiagnosticsMiddleware:
             await self.app(scope, receive, send_wrapper)
         finally:
             reset_trace_id(token)
+
+
+#: 不进入 HTTP 直方图的路径：静态产物与长连接媒体不是「接口」，逐请求记录只会制造噪声。
+_HTTP_TIMING_SKIP_PREFIXES = (
+    "/metrics",
+    "/static/",
+    "/fonts/",
+    "/favicon",
+    "/api/v1/modules/interaction3d/core/",
+    "/api/camera_proxy_stream/",
+    "/api/hls/",
+)
+
+
+class HttpTimingMiddleware:
+    """按路由模板记录 HTTP 耗时（Prometheus 直方图）。
+
+    纯 ASGI：只在 http.response.start 时读 scope['route'].path，不缓存/缓冲 body，
+    因此不会改变任何响应语义。路由模板来自 Starlette 的路由匹配结果，天然把
+    /projects/{project_id} 这类路径参数收敛成一个标签；匹配失败的请求归 __unmatched__。
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path") or ""
+        if any(path.startswith(prefix) for prefix in _HTTP_TIMING_SKIP_PREFIXES):
+            await self.app(scope, receive, send)
+            return
+        started = time.perf_counter()
+        method = scope.get("method") or "GET"
+
+        async def send_wrapper(message: Any) -> None:
+            if message["type"] == "http.response.start":
+                route = scope.get("route")
+                route_path = getattr(route, "path", None) or "__unmatched__"
+                record_http_request(
+                    str(route_path),
+                    str(method),
+                    int(message.get("status", 500)),
+                    time.perf_counter() - started,
+                )
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 
 class LicenseGuardMiddleware:
@@ -268,3 +323,5 @@ def register_outer_middleware(app: FastAPI, settings: Settings) -> None:
         build_payload=nest_error_payload,
         path_overrides=PATH_BODY_LIMIT_OVERRIDES,
     )
+    # 最外层：耗时包含 CORS / GZip / 请求体门禁，才是客户端真正等到的延迟。
+    app.add_middleware(HttpTimingMiddleware)

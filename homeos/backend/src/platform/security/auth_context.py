@@ -85,11 +85,17 @@ def authenticate_session(
     token = request.cookies.get(settings.cookie_name, "")
     if not token:
         return None
-    record = session.scalar(
-        select(LoginSession).where(LoginSession.id_hash == session_token_hash(token))
-    )
-    if record is None:
+    # 一次 outer join 同时取会话与用户：原先 select(LoginSession) + session.get(User) 是
+    # 每个受保护请求 2 次 SQLite；合并后 1 次。用 outer join 而不是 inner join，是为了在
+    # 「用户已被删除」时仍能拿到会话行并清理它（inner join 会让该行永远留在库里）。
+    row = session.execute(
+        select(LoginSession, User)
+        .outerjoin(User, User.id == LoginSession.user_id)
+        .where(LoginSession.id_hash == session_token_hash(token))
+    ).first()
+    if row is None:
         return None
+    record, user = row
     now = datetime.now(UTC)
     if _aware(record.expires_at) <= now:
         session.delete(record)
@@ -103,7 +109,6 @@ def authenticate_session(
         set_session_cookie(
             response, settings, token, max_age_seconds=max_age, request=request
         )
-    user = session.get(User, record.user_id)
     if user is None or not getattr(user, "is_active", True):
         session.delete(record)
         session.commit()

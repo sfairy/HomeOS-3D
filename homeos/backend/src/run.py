@@ -14,11 +14,16 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 import uvicorn
 
+# 应用模块导入耗时（含 load_app_version 与其依赖链），用于区分「import 慢」与「lifespan 慢」。
+_BOOT_IMPORT_STARTED = time.perf_counter()
 from . import load_app_version
 from .app import create_asgi_app
+
+_BOOT_IMPORT_MS = round((time.perf_counter() - _BOOT_IMPORT_STARTED) * 1000.0, 2)
 
 
 def _resolve_port() -> int:
@@ -72,7 +77,7 @@ def main() -> None:
         )
         return
     uvicorn.run(
-        create_asgi_app(),
+        create_asgi_app(boot_import_ms=_BOOT_IMPORT_MS),
         host=host,
         port=port,
         log_level=os.getenv("LOG_LEVEL", "info"),

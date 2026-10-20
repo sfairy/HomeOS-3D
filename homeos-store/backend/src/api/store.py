@@ -13,15 +13,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from . import store_auth, store_orders, store_referrals, telemetry
 from .admin_shared import _drop_account_sessions
 from .store_catalog import (
-    _bundled_map,
     _center_payload,
     _evaluate_coupon_limited,
-    _image_map,
     _product_item,
     _product_or_404,
-    _product_stats,
     _release_snapshot_conflict,
 )
+from .store_products_cache import etag_matches, get_products_payload
 from .store_shared import (
     MAX_VERIFICATION_SENDS_PER_HOUR,
     _assert_purpose_allowed,
@@ -57,10 +55,7 @@ from ..core.schemas import (
     VerifyCodeRequest,
     VerifyEmailRequest,
 )
-from ..core.serializers import (
-    device_release_policy,
-    product_payload,
-)
+from ..core.serializers import device_release_policy
 from ..ops import features, incidents, mail_settings, mailer
 from ..ops import site_settings as site_config
 from ..security import password_gate
@@ -148,25 +143,22 @@ def list_features() -> JSONResponse:
 
 
 @router.get("/products")
-def list_products(session: DbSession) -> dict:
-    images = _image_map(session)
-    bundled = _bundled_map(session)
-    products = session.scalars(
-        select(Product).where(Product.active.is_(True)).order_by(Product.sort_order, Product.created_at)
-    ).all()
-    stats = _product_stats(session, [product.id for product in products])
-    return {
-        "items": [
-            product_payload(
-                product,
-                images.get(product.id),
-                bundled=bundled,
-                customer_count=int(stats["customer"].get(product.id, 0)),
-                purchase_count=int(stats["purchase"].get(product.id, 0)),
-            )
-            for product in products
-        ]
-    }
+def list_products(
+    request: Request, session: DbSession, settings: SettingsDep
+) -> Response:
+    """在售商品目录（公开）。
+
+    响应体进入 5s 进程内缓存（STORE_PRODUCTS_CACHE_TTL_SECONDS，0 关闭），并带强 ETag：
+    首页重复打开、多标签页与反向代理都能用 If-None-Match 换 304，避免重复跑 4 条聚合查询。
+    Cache-Control 用 no-cache（而不是 no-store）：允许浏览器存副本，但每次必须回源校验。
+    """
+    entry = get_products_payload(session, settings.products_cache_ttl_seconds)
+    headers = {"ETag": entry.etag, "Cache-Control": "public, no-cache"}
+    if etag_matches(request.headers.get("if-none-match"), entry.etag):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+    return Response(
+        content=entry.body, media_type="application/json", headers=headers
+    )
 
 @router.get("/item/{product_id}")
 def product_detail(product_id: str, session: DbSession) -> dict:

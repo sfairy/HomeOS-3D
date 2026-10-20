@@ -41,6 +41,7 @@ from .admin_shared import (
     _product_or_404,
     _safe_image_target,
 )
+from .store_products_cache import mark_products_changed
 
 router = APIRouter()
 
@@ -187,6 +188,7 @@ def admin_create_product(
     )
     session.add(product)
     session.flush()
+    mark_products_changed(session)
     _audit(session, _admin_actor(admin), "product.create", product.id, product.name)
     return _product_admin_payload(session, product)
 
@@ -234,6 +236,7 @@ def admin_update_product(
         active=bool(product.active),
     )
     session.flush()
+    mark_products_changed(session)
     _audit(session, _admin_actor(admin), "product.update", product.id)
     return _product_admin_payload(session, product)
 
@@ -257,6 +260,7 @@ def admin_delete_product(
             parts.append(f"{order_count} 笔订单")
         reason = "、".join(parts) + "引用该商品，改为下架"
         session.flush()
+        mark_products_changed(session)
         _audit(session, _admin_actor(admin), "product.deactivate", product.id, reason)
         return {
             "id": product.id,
@@ -277,6 +281,7 @@ def admin_delete_product(
 
     session.delete(product)
     session.flush()
+    mark_products_changed(session)
     image_root = settings.product_images_dir.resolve()
     for raw_path in image_paths:
         target = _safe_image_target(image_root, raw_path)
@@ -366,6 +371,7 @@ def admin_upload_product_image(
         image.version = version
     image.updated_at = utcnow()
     session.flush()
+    mark_products_changed(session)
     _audit(session, _admin_actor(admin), "product.image", product.id, relative)
     return {"id": product.id, "imageUrl": f"/store/v1/product-images/{product.id}"}
 
@@ -405,5 +411,6 @@ def admin_delete_product_image(
         session.delete(image)
 
     session.flush()
+    mark_products_changed(session)
     _audit(session, _admin_actor(admin), "product.image_delete", product.id, ",".join(image_path for image_path in removed))
     return {"id": product.id, "removed": removed, "missing": missing, "imageUrl": None}

@@ -7,7 +7,7 @@ import re
 from contextlib import nullcontext
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
@@ -32,6 +32,7 @@ from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..platform.core.db_exec import run_db
 from ..platform.core.models import GlobalCustomPopupState, Project, ProjectDraft
+from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
 router = APIRouter(prefix='/projects', tags=['projects'])
@@ -271,19 +272,29 @@ def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request
 
 
 @router.get('/{project_id}/draft')
-async def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
+async def get_project_draft(project_id: str, request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     await request.app.state.license_service.confirm_binding()
     require_viewer_project(viewer, project_id)
-    def _load_draft_payload() -> tuple[ProjectDraft | None, dict | None, int]:
+    def _load_draft_payload() -> tuple[ProjectDraft | None, dict | None, int, str]:
         draft = database.get(ProjectDraft, project_id)
         if draft is None:
-            return None, None, 0
+            return None, None, 0, ''
+        popup_revision = global_popup_state(database).revision
+        # 校验器只依赖修订号等稳定字段，命中时完全不解析 30~40KB 的 document_json。
+        etag = make_etag(
+            'project-draft', project_id, draft.schema_version, draft.revision,
+            popup_revision, draft.updated_at)
+        if request_etag_matches(request, etag):
+            return draft, None, popup_revision, etag
         document = hydrate_document_popups(database, json.loads(draft.document_json))
-        return draft, document, global_popup_state(database).revision
+        return draft, document, popup_revision, etag
 
-    draft, document, popup_revision = await run_db(_load_draft_payload)
+    draft, document, popup_revision, draft_etag = await run_db(_load_draft_payload)
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+    if document is None:
+        return not_modified(draft_etag)
+    set_private_revalidate(response, draft_etag)
     return {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,

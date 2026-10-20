@@ -163,12 +163,21 @@ def is_interaction_module(path: str) -> bool:
     )
 
 
+#: 由路由自己下发 ``private, no-cache`` + ETag 的 JSON 端点。
+#: 必须精确匹配：其它 /api/v1/ 响应仍统一 no-store，避免误放宽缓存语义。
+_REVALIDATABLE_PRIVATE_API = re.compile(
+    r"^/api/v1/(?:projects/[^/]+/draft|assets/(?:version|builtin|user))$"
+)
+
+
 def _is_revalidatable_private_asset(path: str) -> bool:
     """自带缓存头的私有素材：不要被下面的 ``no-store`` 覆盖。
 
     这些路由自己会给出 ``private, no-cache`` / ``private, max-age=...``
     （例如渲染缓存瓦片的 URL 是内容寻址的，允许浏览器留一天）。
     """
+    if _REVALIDATABLE_PRIVATE_API.match(path):
+        return True
     return path.startswith(
         (
             "/api/v1/assets/effect-variant",

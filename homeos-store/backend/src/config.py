@@ -260,6 +260,9 @@ class StoreSettings:
     device_release_cooldown_seconds: int = DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS
     payment_sweep_interval_seconds: int = 30
     payment_sweep_batch: int = 25
+    # 商品目录读缓存 TTL（秒）：/store/v1/products 是公开高频端点，但每次要跑 4 条
+    # 聚合查询（图片 / 套餐 / 商品 / 销量）。0 表示关闭缓存（仍保留 ETag 条件请求）。
+    products_cache_ttl_seconds: int = 5
 
     @property
     def database_path(self) -> Path:
@@ -415,6 +418,9 @@ def _env_core_values() -> dict[str, Any]:
         ),
         "schema_mode": (_env_str("STORE_SCHEMA_MODE", "auto") or "auto").strip().lower(),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
+        "products_cache_ttl_seconds": _env_int(
+            "STORE_PRODUCTS_CACHE_TTL_SECONDS", 5, minimum=0, maximum=300
+        ),
     }
 
 

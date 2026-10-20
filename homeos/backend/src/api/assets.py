@@ -46,6 +46,7 @@ from ..platform.core.asset_paths import (
     user_asset_file,
 )
 from ..platform.core.models import Project, ProjectDraft
+from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])
@@ -693,23 +694,34 @@ def document_uses_asset(value, asset_id: str) -> bool:
     return value in (asset_id, bare)
 
 @router.get('/builtin')
-def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
+def list_builtin_assets(request: Request, response: Response, _viewer: LicensedViewer) -> dict:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
-    items = request.app.state.asset_catalog.builtin_items()
     versions = request.app.state.asset_catalog.versions()
+    etag = make_etag('assets-builtin', versions['builtin'])
+    if request_etag_matches(request, etag):
+        return not_modified(etag)
+    items = request.app.state.asset_catalog.builtin_items()
+    set_private_revalidate(response, etag)
     return {
         'items': items,
         'total': len(items),
         'catalogVersion': versions['builtin'] }
 
 @router.get('/user')
-def list_user_assets(request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
+def list_user_assets(request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
-    items = request.app.state.asset_catalog.user_items()
+    versions = request.app.state.asset_catalog.versions()
     allowed_asset_ids = viewer_user_asset_ids(database, viewer)
+    etag_parts = ['assets-user', versions['user']]
+    if allowed_asset_ids is not None:
+        etag_parts.extend(sorted(allowed_asset_ids))
+    etag = make_etag(*etag_parts)
+    if request_etag_matches(request, etag):
+        return not_modified(etag)
+    items = request.app.state.asset_catalog.user_items()
     if allowed_asset_ids is not None:
         items = [item for item in items if item['assetId'].removeprefix('user:') in allowed_asset_ids]
-    versions = request.app.state.asset_catalog.versions()
+    set_private_revalidate(response, etag)
     return {
         'items': items,
         'total': len(items),
@@ -717,9 +729,14 @@ def list_user_assets(request: Request, database: DatabaseSession, viewer: Licens
         'catalogVersion': versions['user'] }
 
 @router.get('/version')
-def asset_catalog_version(request: Request, _viewer: LicensedViewer) -> dict:
+def asset_catalog_version(request: Request, response: Response, _viewer: LicensedViewer) -> dict:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
-    return request.app.state.asset_catalog.versions()
+    versions = request.app.state.asset_catalog.versions()
+    etag = make_etag('assets-version', versions['builtin'], versions['user'])
+    if request_etag_matches(request, etag):
+        return not_modified(etag)
+    set_private_revalidate(response, etag)
+    return versions
 
 @router.post('/user', status_code = status.HTTP_201_CREATED)
 async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:

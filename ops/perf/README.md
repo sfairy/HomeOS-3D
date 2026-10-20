@@ -4,6 +4,27 @@
 Phase 2/3 的验收口径。目标设备是小米平板 8（Android 浏览器 / 壁挂中控），
 但当前仓库内没有真机自动化，**真机数据必须标注为待补**，不能拿本机数字冒充。
 
+## 0. 2026-10-20 双项目性能优化结果
+
+本轮新增隔离测量 harness（`ops/perf/harness/`），用配对 A/B 取前后指标，避免把系统负载
+漂移当成优化效果；报告与原始结果：
+
+- 基线：`ops/perf/reports/2026-10-20-baseline.md`
+- 变更计划（收益/风险排序、回滚方案）：`ops/perf/reports/2026-10-20-change-plan.md`
+- 优化结果（前后对比、测量方式、未达成项）：`ops/perf/reports/2026-10-20-after.md`
+- 3D 专项：`ops/perf/reports/2026-10-20-3d.md`
+- 原始结果：`/tmp/homeos-perf/results/`（临时目录，不入库）
+
+关键结果：store `/store/v1/products` 并发 p95 151.8→23.6 ms、RPS 311→1,589；homeos
+受保护端点每请求少 1 次 SQLite；非认证首屏 stylesheet encoded −44,546 B（−8.0%）。
+启动 −30% 与 3D 首帧时序未达成：boot import 约 497 ms，3D 每 iframe 仍加载完整 SPA +
+96 个 runtime chunk。真机数据继续标注待补。
+
+> 文档校准：Phase 0 表里的「184 tests / 42 tests」在当前检出中找不到被 git 跟踪的
+> `test_*.py`（数量为 0）。本轮回归以 `check_contracts.py`（42 项契约）、
+> `bun run typecheck`、`lint:ci`、`check:async-db`、`check:bundle-budget`、ruff 与视觉截图为门禁；
+> 不再引用无法复现的单测数字。
+
 ## 1. 前端体积预算（已进 CI）
 
 ```bash

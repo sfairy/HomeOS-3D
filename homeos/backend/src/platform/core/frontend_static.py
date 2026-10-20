@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import PurePosixPath
 
 #: 由 ``spa_static._mount_frontend_build_dirs`` 挂载的 vite 构建产物目录。
@@ -88,6 +89,51 @@ FRONTEND_ASSET_SUFFIXES = frozenset(
 )
 
 
+#: 认证场景样式四片：只在登录 / 注册 / 激活 / 找回密码等入户页面需要。
+#: 已登录的总览与 3D 舞台不挂这四片（合计约 125KB / 37KB gzip，且全部 render-blocking），
+#: 运行时由 `page-assets.ts` 按路由幂等挂载/卸载，因此服务端剥离不会破坏后续跳转。
+AUTH_SCENE_STYLESHEET_PATHS = (
+    "/static/auth/scene/fonts.css",
+    "/static/auth/scene/page.css",
+    "/static/auth/scene/scene.css",
+    "/static/auth/scene/panel.css",
+)
+
+#: 必须保留认证场景样式的页面。`/setup` 是初始化向导，可能在任何阶段被直接打开。
+_AUTH_PAGE_PATHS = frozenset(
+    {
+        "/login",
+        "/register",
+        "/reset-password",
+        "/activate",
+        "/license-recovery",
+        "/setup",
+    }
+)
+
+_AUTH_STYLESHEET_LINK_RE = re.compile(
+    r"\s*<link\b(?=[^>]*\brel=\"stylesheet\")(?=[^>]*\bhref=\"(?:"
+    + "|".join(re.escape(path) for path in AUTH_SCENE_STYLESHEET_PATHS)
+    + r")\")[^>]*>"
+)
+
+
+def is_auth_page_path(path: str) -> bool:
+    """页面是否属于需要认证场景样式的入户路由（精确匹配，避免 `/` 误伤）。"""
+    normalized = path.rstrip("/") or "/"
+    return normalized in _AUTH_PAGE_PATHS or normalized.startswith("/setup/")
+
+
+def strip_auth_scene_stylesheets(html: str) -> str:
+    """从 SPA 外壳里移除认证场景四片（保留 spa-shell/appearance/其它样式）。
+
+    只匹配 `<link rel="stylesheet" href="...">` 这一种节点；调用方负责判断当前页面
+    是否真的不需要它们（已登录的非入户页面）。运行时若导航到登录页，`applyStylesheets`
+    会按 `AUTH_STYLESHEETS` 重新创建这些节点。
+    """
+    return _AUTH_STYLESHEET_LINK_RE.sub("", html)
+
+
 def is_frontend_static_path(path: str) -> bool:
     """``path`` 是否落在前端产物的挂载点上（挂载目录或根路径产物文件）。
 
@@ -124,6 +170,7 @@ def is_spa_document_path(path: str) -> bool:
 __all__ = [
     "APPLE_TOUCH_ICON_PATHS",
     "ASSETS_MOUNT_PREFIX",
+    "AUTH_SCENE_STYLESHEET_PATHS",
     "BACKGROUNDS_MOUNT_PREFIX",
     "FAVICON_PATH",
     "FRONTEND_ASSET_SUFFIXES",
@@ -136,6 +183,8 @@ __all__ = [
     "SERVICE_WORKER_PATH",
     "SOUNDS_MOUNT_PREFIX",
     "STATIC_MOUNT_PREFIX",
+    "is_auth_page_path",
     "is_frontend_static_path",
     "is_spa_document_path",
+    "strip_auth_scene_stylesheets",
 ]

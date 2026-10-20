@@ -33,6 +33,7 @@ from ...dependencies import (
 from ...domains.ha.integration.connection_query import active_connection
 from ...domains.ha.integration.service_call import ServiceCallRejected, execute_service_call
 from ...platform.core.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
+from ...platform.core.frontend_static import strip_auth_scene_stylesheets
 from ...platform.core.models import HAEntity, ProjectDraft
 from ...platform.security.request_origin import require_same_origin_write
 from ...schemas import HAServiceCallRequest
@@ -44,6 +45,29 @@ LOGGER = logging.getLogger("homeos.interaction3d")
 SCENE_SOURCE_KEY = 'interaction3dSource'
 
 _runtime_media_type_cache: dict[tuple[str, int], dict[str, str]] = {}
+
+#: 舞台外壳模板缓存：(mtime_ns, size) → 已注入前的原始 index.html。
+#: 每个 3D iframe 都请求一次 stage.html；原来每次都同步重读整个 SPA 外壳。
+_STAGE_TEMPLATE_CACHE: dict[str, tuple[tuple[int, int], str]] = {}
+
+
+def _read_stage_template(index_path: Path) -> str | None:
+    """读取 SPA 外壳原文；产物重建（mtime/size 变化）后自动失效。"""
+    try:
+        stat = index_path.stat()
+    except OSError:
+        return None
+    fingerprint = (stat.st_mtime_ns, stat.st_size)
+    cache_key = str(index_path)
+    cached = _STAGE_TEMPLATE_CACHE.get(cache_key)
+    if cached is not None and cached[0] == fingerprint:
+        return cached[1]
+    try:
+        html = index_path.read_text(encoding='utf-8')
+    except OSError:
+        return None
+    _STAGE_TEMPLATE_CACHE[cache_key] = (fingerprint, html)
+    return html
 
 
 def find_module_component(document: dict, component_id: str) -> dict | None:
@@ -1097,10 +1121,15 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     if not index_path.is_file():
         # watch-build / 首次构建窗口里 dist 可能尚未就绪；回 503 而不是 ASGI 裸异常。
         raise HTTPException(503, detail='前端产物尚未就绪，请稍后重试。')
-    html = index_path.read_text(encoding='utf-8')
+    html = _read_stage_template(index_path)
+    if html is None:
+        raise HTTPException(503, detail='前端产物尚未就绪，请稍后重试。')
+    # 舞台必然已登录：认证场景四片在这里没有消费者，先剥掉再注入舞台样式。
+    html = strip_auth_scene_stylesheets(html)
     html = html.replace(
         '</head>',
-        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css"></head>',
+        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css">'
+        '<link rel="modulepreload" href="/api/v1/modules/interaction3d/core/stage.js"></head>',
     )
     html = html.replace(
         '<body>',

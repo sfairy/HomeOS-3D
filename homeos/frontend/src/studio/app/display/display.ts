@@ -177,16 +177,31 @@ function observeEmbeddedParent() {
   embeddedResizeObserver.observe(embeddedParentElement);
 }
 
+/** 可安全交给浏览器缓存/ETag 重校验的展示页数据（其余请求仍绕缓存取实时状态）。 */
+function isConditionalDisplayEndpoint(path: string) {
+  return (
+    /^\/projects\/[^/?#]+\/draft$/.test(path) ||
+    path === "/assets/version" ||
+    path === "/assets/builtin" ||
+    path === "/assets/user"
+  );
+}
+
 async function apiRequest(path: any) {
   const separator = path.includes("?") ? "&" : "?",
+    conditionalRequest = isConditionalDisplayEndpoint(path),
     startupEntry = window.HomeOSDisplayStartup?.take!(path)!,
     abortController = startupEntry?.controller || new AbortController(),
     abortTimeoutId = startupEntry ? null : window.setTimeout(() => abortController.abort(), 20000);
   try {
     const response = startupEntry
         ? (await startupEntry.result).response
-        : await fetch("/api/v1" + path + separator + "_=" + Date.now(), {
-            cache: "no-store",
+        : await fetch(
+            conditionalRequest
+              ? "/api/v1" + path
+              : "/api/v1" + path + separator + "_=" + Date.now(),
+            {
+              cache: conditionalRequest ? "default" : "no-store",
             headers: {
               "Cache-Control": "no-cache",
             },

@@ -160,6 +160,63 @@ def get_db_query_counts() -> dict[str, int]:
         return dict(_db_query_counts)
 
 
+# HTTP 路由延迟直方图（Phase 4 观测）：按路由模板 / 方法 / 状态聚合，避免把路径参数
+# 变成指标标签（基数会随项目、商品、实体 id 线性膨胀）。路由种类超过上限后统一归入
+# __other__，代价是少量精度，换来 /metrics 文本大小可控。
+HTTP_DURATION_BUCKETS: tuple[float, ...] = (
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
+)
+_HTTP_MAX_SERIES = 100
+_http_lock = threading.Lock()
+_http_series: dict[tuple[str, str, str], list[float]] = {}
+
+
+def record_http_request(
+    route: str, method: str, status_code: int, seconds: float
+) -> None:
+    """记录一次 HTTP 请求耗时；route 已是路由模板而不是原始 path。"""
+    if seconds < 0:
+        return
+    method_value = (method or "GET").upper()
+    status_value = str(int(status_code))
+    key = (route or "__unmatched__", method_value, status_value)
+    with _http_lock:
+        series = _http_series.get(key)
+        if series is None:
+            if len(_http_series) >= _HTTP_MAX_SERIES:
+                key = ("__other__", method_value, status_value)
+                series = _http_series.get(key)
+            if series is None:
+                series = [0.0, 0.0] + [0.0] * len(HTTP_DURATION_BUCKETS)
+                _http_series[key] = series
+        series[0] += 1.0
+        series[1] += seconds
+        for index, boundary in enumerate(HTTP_DURATION_BUCKETS):
+            if seconds <= boundary:
+                series[index + 2] += 1.0
+
+
+def get_http_metrics() -> dict[tuple[str, str, str], list[float]]:
+    with _http_lock:
+        return {key: list(value) for key, value in _http_series.items()}
+
+
+def reset_http_metrics() -> None:
+    """清空 HTTP 直方图（测试与压测隔离用）。"""
+    with _http_lock:
+        _http_series.clear()
+
+
 # 事件循环延迟采样（Phase 3 观测）：每 interval 秒测一次实际唤醒相对计划时间的偏差。
 @dataclass(frozen=True)
 class LoopLagSnapshot:
@@ -296,6 +353,9 @@ def format_homeos_prometheus_metrics(
     loop_lag: LoopLagSnapshot | None = None,
     db_query_counts: dict[str, int] | None = None,
     startup_duration_ms: float | None = None,
+    startup_phases: list[tuple[str, float]] | None = None,
+    boot_import_ms: float | None = None,
+    http_metrics: dict[tuple[str, str, str], list[float]] | None = None,
     ha_counters: dict[str, int] | None = None,
 ) -> str:
     ha = 1 if ha_connected else 0
@@ -306,6 +366,8 @@ def format_homeos_prometheus_metrics(
     )
     lag = loop_lag or LoopLagSnapshot(p50=0.0, p99=0.0, max=0.0, count=0)
     queries = db_query_counts if db_query_counts is not None else get_db_query_counts()
+    phases = startup_phases if startup_phases is not None else []
+    http = http_metrics if http_metrics is not None else get_http_metrics()
     lines = [
         "# HELP homeos_up HomeOS process is up",
         "# TYPE homeos_up gauge",
@@ -325,6 +387,15 @@ def format_homeos_prometheus_metrics(
         "# HELP homeos_startup_duration_ms Time spent in application startup",
         "# TYPE homeos_startup_duration_ms gauge",
         f"homeos_startup_duration_ms {_metric_number(startup_duration_ms or 0.0)}",
+        "# HELP homeos_boot_import_ms Time spent importing the ASGI application module",
+        "# TYPE homeos_boot_import_ms gauge",
+        f"homeos_boot_import_ms {_metric_number(boot_import_ms or 0.0)}",
+        "# HELP homeos_startup_phase_duration_ms Time spent in each top-level startup phase",
+        "# TYPE homeos_startup_phase_duration_ms gauge",
+        *[
+            f'homeos_startup_phase_duration_ms{{phase="{name}"}} {_metric_number(value)}'
+            for name, value in phases
+        ],
         "# HELP homeos_ha_ws_deferred_dropped_total HA WS deferred ingress events dropped under overload",
         "# TYPE homeos_ha_ws_deferred_dropped_total counter",
         f"homeos_ha_ws_deferred_dropped_total {deferred}",
@@ -364,6 +435,25 @@ def format_homeos_prometheus_metrics(
         lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="p99"}} {p99}')
         lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="max"}} {peak}')
         lines.append(f'homeos_ha_sync_latency_samples{{stage="{snap.stage}"}} {snap.count}')
+
+    if http:
+        lines.append("# HELP homeos_http_request_duration_seconds HTTP request duration seconds")
+        lines.append("# TYPE homeos_http_request_duration_seconds histogram")
+        for (route, method, status), series in sorted(http.items()):
+            count, total = series[0], series[1]
+            for index, boundary in enumerate(HTTP_DURATION_BUCKETS):
+                lines.append(
+                    f'homeos_http_request_duration_seconds_bucket{{route="{route}",method="{method}",status="{status}",le="{boundary:g}"}} {int(series[index + 2])}'
+                )
+            lines.append(
+                f'homeos_http_request_duration_seconds_bucket{{route="{route}",method="{method}",status="{status}",le="+Inf"}} {int(count)}'
+            )
+            lines.append(
+                f'homeos_http_request_duration_seconds_sum{{route="{route}",method="{method}",status="{status}"}} {_metric_number(total)}'
+            )
+            lines.append(
+                f'homeos_http_request_duration_seconds_count{{route="{route}",method="{method}",status="{status}"}} {int(count)}'
+            )
 
     lines.append("")
     return "\n".join(lines)
