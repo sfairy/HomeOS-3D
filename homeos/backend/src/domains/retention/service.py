@@ -61,32 +61,28 @@ _CLEANUP_LABELS: dict[str, str] = {
 }
 
 
-def _describe_deleted(deleted: dict[str, Any]) -> str:
-    """把清理计数表写成「事件日志 6 条、安防事件 2 条」。"""
+def _describe_counts(values: dict[str, Any], unit: str, fallback: str) -> str:
+    """把计数表写成「事件日志 6 条、安防事件 2 条」，非正整数项忽略。"""
     parts = []
-    for key, value in deleted.items():
+    for key, value in values.items():
         try:
             count = int(value)
         except (TypeError, ValueError):
             continue
         if count <= 0:
             continue
-        parts.append(f"{_CLEANUP_LABELS.get(key, key)} {count} 条")
-    return "、".join(parts) or "无明细"
+        parts.append(f"{_CLEANUP_LABELS.get(key, key)} {count} {unit}")
+    return "、".join(parts) or fallback
+
+
+def _describe_deleted(deleted: dict[str, Any]) -> str:
+    """把清理计数表写成「事件日志 6 条、安防事件 2 条」。"""
+    return _describe_counts(deleted, "条", "无明细")
 
 
 def _describe_retention(days: dict[str, Any]) -> str:
     """把保留策略写成「事件日志 7 天、安防事件 30 天」，避免直接打 dict repr。"""
-    parts = []
-    for key, value in days.items():
-        try:
-            count = int(value)
-        except (TypeError, ValueError):
-            continue
-        if count <= 0:
-            continue
-        parts.append(f"{_CLEANUP_LABELS.get(key, key)} {count} 天")
-    return "、".join(parts) or "未更改"
+    return _describe_counts(days, "天", "未更改")
 
 
 def parse_positive_int(raw: Any) -> int | None:

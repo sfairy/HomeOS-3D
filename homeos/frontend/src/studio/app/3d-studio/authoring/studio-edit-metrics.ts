@@ -5,7 +5,7 @@
  * 避免数值控件出现「0.30000000000000004」这类浮点尾巴。
  */
 
-export const MOVE_STEP_METERS = 0.05;
+const MOVE_STEP_METERS = 0.05;
 
 /** Alt 精细 1cm，Shift 粗调 25cm，默认 5cm。 */
 export function moveStepMeters({ altKey = false, shiftKey = false } = {}) {
@@ -30,7 +30,7 @@ const SMALL_ITEM_TYPES = new Set([
   "pool-table",
 ]);
 
-export type ItemDimensionPolicy = {
+type ItemDimensionPolicy = {
   digits: number;
   widthStep: number;
   depthStep: number;
@@ -55,7 +55,7 @@ export function itemDimensionPolicy(itemType: string, isPlanLabel = false): Item
 }
 
 /** 步进数字：`direction` 为 ±1；非法输入返回 null。 */
-export function steppedNumber(
+function steppedNumber(
   currentValue: number,
   step: number,
   direction: number,
@@ -69,7 +69,7 @@ export function steppedNumber(
 const rememberedNumberValues = new WeakMap<HTMLInputElement, { value: number; display: string }>();
 
 /** 在重绘前记住「数值」与「显示文本」，避免覆盖用户正在输入的中间态。 */
-export function rememberNumberValue(inputElement: any, numericValue: number) {
+function rememberNumberValue(inputElement: any, numericValue: number) {
   if (inputElement && Number.isFinite(numericValue))
     rememberedNumberValues.set(inputElement, {
       value: numericValue,
@@ -77,7 +77,7 @@ export function rememberNumberValue(inputElement: any, numericValue: number) {
     });
 }
 
-export function numberEditValue(inputElement: any) {
+function numberEditValue(inputElement: any) {
   const remembered = rememberedNumberValues.get(inputElement);
   return remembered && remembered.display === inputElement.value
     ? remembered.value
@@ -85,6 +85,6 @@ export function numberEditValue(inputElement: any) {
 }
 
 /** 数值 → 最多 6 位小数的展示串。 */
-export function editNumberText(value: any) {
+function editNumberText(value: any) {
   return String(Number(Number(value).toFixed(6)));
 }

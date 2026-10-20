@@ -75,11 +75,6 @@ def _iso_now() -> str:
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
 
 
-def _iso_from_ms(milliseconds: float) -> str:
-    moment = datetime.fromtimestamp(milliseconds / 1000, tz=UTC)
-    return moment.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
 def _now_ms() -> float:
     return datetime.now(UTC).timestamp() * 1000
 

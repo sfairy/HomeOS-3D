@@ -145,7 +145,7 @@ export function createSmokeSensorView(smokeProperties: any, smokeState: any) {
     smokeSensorElement
   );
 }
-export function naturalGasPresentationLabel(naturalGasState: any) {
+function naturalGasPresentationLabel(naturalGasState: any) {
   const rawState = String(
     naturalGasState?.raw?.state ?? naturalGasState?.state ?? naturalGasState?.label ?? "",
   ).trim();

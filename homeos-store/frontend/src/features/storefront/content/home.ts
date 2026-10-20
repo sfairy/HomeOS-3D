@@ -305,14 +305,14 @@ export const MODULE_META: Record<string, ModuleMeta> = {
 };
 
 /** 与主项目 3D 舞台模块页签一致：overview / light / environment / devices / vacuum / security。 */
-export type StageModuleId = "overview" | "light" | "environment" | "devices" | "vacuum" | "security";
+type StageModuleId = "overview" | "light" | "environment" | "devices" | "vacuum" | "security";
 
-export interface StageControl {
+interface StageControl {
   label: string;
   value: string;
 }
 
-export interface StageModuleFrame {
+interface StageModuleFrame {
   id: StageModuleId;
   label: string;
   tone: Tone;
@@ -321,7 +321,7 @@ export interface StageModuleFrame {
   controls: [StageControl, StageControl, StageControl];
 }
 
-export interface StageAnchor {
+interface StageAnchor {
   id: string;
   module: Exclude<StageModuleId, "overview">;
   label: string;
@@ -419,7 +419,7 @@ export const STAGE = {
   ] satisfies StageAnchor[],
 };
 
-export interface SetupStep {
+interface SetupStep {
   index: string;
   title: string;
   description: string;
@@ -452,7 +452,7 @@ export const SETUP: SetupStep[] = [
   },
 ];
 
-export interface AssuranceItem {
+interface AssuranceItem {
   title: string;
   description: string;
   icon: string;

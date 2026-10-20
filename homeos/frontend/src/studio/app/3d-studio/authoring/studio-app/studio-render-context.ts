@@ -12,7 +12,7 @@
  * **不要**把退化成 `any` 的 receiver 当小事 —— 宿主里 `ctx.x.items.map(cb)` 一旦 receiver 是 `any`，
  * `cb` 就退化成隐式 `any`（`TS7006`），精确类型的价值正是在这里。
  */
-export interface StudioRenderContext {
+interface StudioRenderContext {
   unusedRenderHandle: any;
   lastRenderSignature: string;
   cacheEpoch: number;

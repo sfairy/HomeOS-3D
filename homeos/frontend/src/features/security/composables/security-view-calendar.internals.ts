@@ -4,7 +4,7 @@
  */
 /** 安防页日历：纯日期网格 / 同一天判定（不依赖 Vue） */
 
-export type SecurityCalendarDay = {
+type SecurityCalendarDay = {
   day: number
   isCurrentMonth: boolean
   date: Date

@@ -8,7 +8,7 @@
 
 import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from "../../renderer/panel-renderer";
 
-export interface EffectPreviewInputElementRefs {
+interface EffectPreviewInputElementRefs {
   airConditionerAirflowAngleElement: any;
   airConditionerAirflowBlurElement: any;
   airConditionerAirflowCoolColorElement: any;

@@ -6,7 +6,7 @@
  * 多声明语句已整条随切片搬出（`--whole-statement`），调用点零改写。
  */
 
-export interface NavigationInputElementRefs {
+interface NavigationInputElementRefs {
   navigationFrameActiveOpacityElement: any;
   navigationFrameAngleElement: any;
   navigationFrameColorElement: any;

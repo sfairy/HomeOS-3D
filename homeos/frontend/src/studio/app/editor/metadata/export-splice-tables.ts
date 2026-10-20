@@ -5,7 +5,7 @@
  * 元素引用按 ctx 注入，调用点零改写。
  */
 
-export interface ExportSpliceElementRefs {
+interface ExportSpliceElementRefs {
   ibeBrightnessRealtimeElement: any;
   ibeButtonOffColorElement: any;
   ibeButtonOnColorElement: any;

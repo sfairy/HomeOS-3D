@@ -19,7 +19,7 @@ const LOGIN_WITH_ACTIVATION = '/login?next=/activate'
 /** 已激活（或不需要授权）：只需重新登录。 */
 const LOGIN_ONLY = '/login'
 
-export type PostRestoreDestination = {
+type PostRestoreDestination = {
   /** 登录页地址。 */
   path: string
   /** 登录后是否还需要重新激活本机授权。 */
@@ -34,7 +34,7 @@ export type PostRestoreDestination = {
  * @param licenseUsable `true` 授权可用 / 不需要授权；`false` 需要（重新）激活；
  *   `null` 状态读取失败 —— 仍回登录页，登录后由路由守卫重新判定。
  */
-export function postRestoreDestination(licenseUsable: boolean | null): PostRestoreDestination {
+function postRestoreDestination(licenseUsable: boolean | null): PostRestoreDestination {
   if (licenseUsable === false) {
     return {
       path: LOGIN_WITH_ACTIVATION,

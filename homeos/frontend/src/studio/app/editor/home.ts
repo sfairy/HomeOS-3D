@@ -12872,381 +12872,106 @@ function imageAssetMeasureError() {
     }),
     navigationStyleApplyDialogElement.showModal());
 }
+function applyInspectorDimensionChange(
+  nextValue: any,
+  target: any,
+  dimension: string,
+) {
+  const next = clone2(nextValue);
+  if (dimension === "width") {
+    const centerX =
+      Number(target.position?.x || 0) + Number(target.position?.width || 100) / 2;
+    target.position = {
+      ...(target.position || {}),
+      x: centerX - Number(next) / 2,
+      width: Number(next),
+    };
+    return;
+  }
+  if (dimension === "height") {
+    const centerY =
+      Number(target.position?.y || 0) + Number(target.position?.height || 100) / 2;
+    target.position = {
+      ...(target.position || {}),
+      y: centerY - Number(next) / 2,
+      height: Number(next),
+    };
+    return;
+  }
+  if (dimension === "scale") {
+    target.style = {
+      ...(target.style || {}),
+      scale: Number(next),
+    };
+    return;
+  }
+  if (dimension === "rotation") {
+    target.position = {
+      ...(target.position || {}),
+      rotation: Number(next),
+    };
+    return;
+  }
+  target.properties = {
+    ...(target.properties || {}),
+    [dimension]: next,
+  };
+}
 function onIconButtonEffectAssetFolderSelectChange(
   onIconButtonEffectAssetSearchInputInput: any,
   onIconButtonEffectAssetOptionsPointerover: any,
   effectAssetPointerOverEvent: any,
 ) {
-  const effectAssetHoverElement = clone2(
+  applyInspectorDimensionChange(
     entryStateRecord(onIconButtonEffectAssetSearchInputInput, effectAssetPointerOverEvent),
-  );
-  if (effectAssetPointerOverEvent === "width") {
-    const measuredBoundsStep =
-      Number(onIconButtonEffectAssetOptionsPointerover.position?.x || 0) +
-      Number(onIconButtonEffectAssetOptionsPointerover.position?.width || 100) / 2;
-    onIconButtonEffectAssetOptionsPointerover.position = {
-      ...(onIconButtonEffectAssetOptionsPointerover.position || {}),
-      x: measuredBoundsStep - Number(effectAssetHoverElement) / 2,
-      width: Number(effectAssetHoverElement),
-    };
-    return;
-  }
-  if (effectAssetPointerOverEvent === "height") {
-    const measuredBoundsPhase =
-      Number(onIconButtonEffectAssetOptionsPointerover.position?.y || 0) +
-      Number(onIconButtonEffectAssetOptionsPointerover.position?.height || 100) / 2;
-    onIconButtonEffectAssetOptionsPointerover.position = {
-      ...(onIconButtonEffectAssetOptionsPointerover.position || {}),
-      y: measuredBoundsPhase - Number(effectAssetHoverElement) / 2,
-      height: Number(effectAssetHoverElement),
-    };
-    return;
-  }
-  if (effectAssetPointerOverEvent === "scale") {
-    onIconButtonEffectAssetOptionsPointerover.style = {
-      ...(onIconButtonEffectAssetOptionsPointerover.style || {}),
-      scale: Number(effectAssetHoverElement),
-    };
-    return;
-  }
-  if (effectAssetPointerOverEvent === "rotation") {
-    onIconButtonEffectAssetOptionsPointerover.position = {
-      ...(onIconButtonEffectAssetOptionsPointerover.position || {}),
-      rotation: Number(effectAssetHoverElement),
-    };
-    return;
-  }
-  onIconButtonEffectAssetOptionsPointerover.properties = {
-    ...(onIconButtonEffectAssetOptionsPointerover.properties || {}),
-    [effectAssetPointerOverEvent]: effectAssetHoverElement,
-  };
+    onIconButtonEffectAssetOptionsPointerover, effectAssetPointerOverEvent);
 }
 function runCopyAlt(runCopyAux: any, onIconButtonEffectAssetOptionsClick: any, effectAssetClickEvent: any) {
-  const effectAssetElement = clone2(runAuxOld(runCopyAux, effectAssetClickEvent));
-  if (effectAssetClickEvent === "width") {
-    const effectAssetId =
-      Number(onIconButtonEffectAssetOptionsClick.position?.x || 0) +
-      Number(onIconButtonEffectAssetOptionsClick.position?.width || 100) / 2;
-    onIconButtonEffectAssetOptionsClick.position = {
-      ...(onIconButtonEffectAssetOptionsClick.position || {}),
-      x: effectAssetId - Number(effectAssetElement) / 2,
-      width: Number(effectAssetElement),
-    };
-    return;
-  }
-  if (effectAssetClickEvent === "height") {
-    const effectAssetRecord =
-      Number(onIconButtonEffectAssetOptionsClick.position?.y || 0) +
-      Number(onIconButtonEffectAssetOptionsClick.position?.height || 100) / 2;
-    onIconButtonEffectAssetOptionsClick.position = {
-      ...(onIconButtonEffectAssetOptionsClick.position || {}),
-      y: effectAssetRecord - Number(effectAssetElement) / 2,
-      height: Number(effectAssetElement),
-    };
-    return;
-  }
-  if (effectAssetClickEvent === "scale") {
-    onIconButtonEffectAssetOptionsClick.style = {
-      ...(onIconButtonEffectAssetOptionsClick.style || {}),
-      scale: Number(effectAssetElement),
-    };
-    return;
-  }
-  if (effectAssetClickEvent === "rotation") {
-    onIconButtonEffectAssetOptionsClick.position = {
-      ...(onIconButtonEffectAssetOptionsClick.position || {}),
-      rotation: Number(effectAssetElement),
-    };
-    return;
-  }
-  onIconButtonEffectAssetOptionsClick.properties = {
-    ...(onIconButtonEffectAssetOptionsClick.properties || {}),
-    [effectAssetClickEvent]: effectAssetElement,
-  };
+  applyInspectorDimensionChange(runAuxOld(runCopyAux, effectAssetClickEvent), onIconButtonEffectAssetOptionsClick, effectAssetClickEvent);
 }
 function runCopyVariant(runCopyCopy: any, effectAssetMeasureError: any, effectAssetDraftDocument: any) {
-  const deleteUserAssetElementValue = clone2(runAuxInner(runCopyCopy, effectAssetDraftDocument));
-  if (effectAssetDraftDocument === "width") {
-    const measuredBoundsView =
-      Number(effectAssetMeasureError.position?.x || 0) +
-      Number(effectAssetMeasureError.position?.width || 100) / 2;
-    effectAssetMeasureError.position = {
-      ...(effectAssetMeasureError.position || {}),
-      x: measuredBoundsView - Number(deleteUserAssetElementValue) / 2,
-      width: Number(deleteUserAssetElementValue),
-    };
-    return;
-  }
-  if (effectAssetDraftDocument === "height") {
-    const effectAssetComponent =
-      Number(effectAssetMeasureError.position?.y || 0) +
-      Number(effectAssetMeasureError.position?.height || 100) / 2;
-    effectAssetMeasureError.position = {
-      ...(effectAssetMeasureError.position || {}),
-      y: effectAssetComponent - Number(deleteUserAssetElementValue) / 2,
-      height: Number(deleteUserAssetElementValue),
-    };
-    return;
-  }
-  if (effectAssetDraftDocument === "scale") {
-    effectAssetMeasureError.style = {
-      ...(effectAssetMeasureError.style || {}),
-      scale: Number(deleteUserAssetElementValue),
-    };
-    return;
-  }
-  if (effectAssetDraftDocument === "rotation") {
-    effectAssetMeasureError.position = {
-      ...(effectAssetMeasureError.position || {}),
-      rotation: Number(deleteUserAssetElementValue),
-    };
-    return;
-  }
-  effectAssetMeasureError.properties = {
-    ...(effectAssetMeasureError.properties || {}),
-    [effectAssetDraftDocument]: deleteUserAssetElementValue,
-  };
+  applyInspectorDimensionChange(runAuxInner(runCopyCopy, effectAssetDraftDocument), effectAssetMeasureError, effectAssetDraftDocument);
 }
 function runCopyAlias(onUndoButtonClick: any, onRedoButtonClick: any, onRecoveryRestoreButtonClick: any) {
-  const recoveredSnapshotState = clone2(
+  applyInspectorDimensionChange(
     runAltCopy(onUndoButtonClick, onRecoveryRestoreButtonClick),
-  );
-  if (onRecoveryRestoreButtonClick === "width") {
-    const recoveredSnapshot =
-      Number(onRedoButtonClick.position?.x || 0) +
-      Number(onRedoButtonClick.position?.width || 100) / 2;
-    onRedoButtonClick.position = {
-      ...(onRedoButtonClick.position || {}),
-      x: recoveredSnapshot - Number(recoveredSnapshotState) / 2,
-      width: Number(recoveredSnapshotState),
-    };
-    return;
-  }
-  if (onRecoveryRestoreButtonClick === "height") {
-    const recoveredComponentIds =
-      Number(onRedoButtonClick.position?.y || 0) +
-      Number(onRedoButtonClick.position?.height || 100) / 2;
-    onRedoButtonClick.position = {
-      ...(onRedoButtonClick.position || {}),
-      y: recoveredComponentIds - Number(recoveredSnapshotState) / 2,
-      height: Number(recoveredSnapshotState),
-    };
-    return;
-  }
-  if (onRecoveryRestoreButtonClick === "scale") {
-    onRedoButtonClick.style = {
-      ...(onRedoButtonClick.style || {}),
-      scale: Number(recoveredSnapshotState),
-    };
-    return;
-  }
-  if (onRecoveryRestoreButtonClick === "rotation") {
-    onRedoButtonClick.position = {
-      ...(onRedoButtonClick.position || {}),
-      rotation: Number(recoveredSnapshotState),
-    };
-    return;
-  }
-  onRedoButtonClick.properties = {
-    ...(onRedoButtonClick.properties || {}),
-    [onRecoveryRestoreButtonClick]: recoveredSnapshotState,
-  };
+    onRedoButtonClick, onRecoveryRestoreButtonClick);
 }
 function recoveredComponentId(
   onRecoveryDiscardButtonClick: any,
   onRecoveryDialogCancel: any,
   recoveryCancelEvent: any,
 ) {
-  const deleteAssetRequestIdState = clone2(
+  applyInspectorDimensionChange(
     runAltNew(onRecoveryDiscardButtonClick, recoveryCancelEvent),
-  );
-  if (recoveryCancelEvent === "width") {
-    const measuredBoundsStore =
-      Number(onRecoveryDialogCancel.position?.x || 0) +
-      Number(onRecoveryDialogCancel.position?.width || 100) / 2;
-    onRecoveryDialogCancel.position = {
-      ...(onRecoveryDialogCancel.position || {}),
-      x: measuredBoundsStore - Number(deleteAssetRequestIdState) / 2,
-      width: Number(deleteAssetRequestIdState),
-    };
-    return;
-  }
-  if (recoveryCancelEvent === "height") {
-    const measuredBoundsCache =
-      Number(onRecoveryDialogCancel.position?.y || 0) +
-      Number(onRecoveryDialogCancel.position?.height || 100) / 2;
-    onRecoveryDialogCancel.position = {
-      ...(onRecoveryDialogCancel.position || {}),
-      y: measuredBoundsCache - Number(deleteAssetRequestIdState) / 2,
-      height: Number(deleteAssetRequestIdState),
-    };
-    return;
-  }
-  if (recoveryCancelEvent === "scale") {
-    onRecoveryDialogCancel.style = {
-      ...(onRecoveryDialogCancel.style || {}),
-      scale: Number(deleteAssetRequestIdState),
-    };
-    return;
-  }
-  if (recoveryCancelEvent === "rotation") {
-    onRecoveryDialogCancel.position = {
-      ...(onRecoveryDialogCancel.position || {}),
-      rotation: Number(deleteAssetRequestIdState),
-    };
-    return;
-  }
-  onRecoveryDialogCancel.properties = {
-    ...(onRecoveryDialogCancel.properties || {}),
-    [recoveryCancelEvent]: deleteAssetRequestIdState,
-  };
+    onRecoveryDialogCancel, recoveryCancelEvent);
 }
 function onErrorDialogCloseButtonClick(
   onErrorDialogConfirmButtonClick: any,
   onErrorDialogClick: any,
   errorDialogClickEvent: any,
 ) {
-  const errorDialogClickEventState = clone2(
+  applyInspectorDimensionChange(
     runAltPeer(onErrorDialogConfirmButtonClick, errorDialogClickEvent),
-  );
-  if (errorDialogClickEvent === "width") {
-    const measuredBoundsQueue =
-      Number(onErrorDialogClick.position?.x || 0) +
-      Number(onErrorDialogClick.position?.width || 100) / 2;
-    onErrorDialogClick.position = {
-      ...(onErrorDialogClick.position || {}),
-      x: measuredBoundsQueue - Number(errorDialogClickEventState) / 2,
-      width: Number(errorDialogClickEventState),
-    };
-    return;
-  }
-  if (errorDialogClickEvent === "height") {
-    const measuredBoundsBuffer =
-      Number(onErrorDialogClick.position?.y || 0) +
-      Number(onErrorDialogClick.position?.height || 100) / 2;
-    onErrorDialogClick.position = {
-      ...(onErrorDialogClick.position || {}),
-      y: measuredBoundsBuffer - Number(errorDialogClickEventState) / 2,
-      height: Number(errorDialogClickEventState),
-    };
-    return;
-  }
-  if (errorDialogClickEvent === "scale") {
-    onErrorDialogClick.style = {
-      ...(onErrorDialogClick.style || {}),
-      scale: Number(errorDialogClickEventState),
-    };
-    return;
-  }
-  if (errorDialogClickEvent === "rotation") {
-    onErrorDialogClick.position = {
-      ...(onErrorDialogClick.position || {}),
-      rotation: Number(errorDialogClickEventState),
-    };
-    return;
-  }
-  onErrorDialogClick.properties = {
-    ...(onErrorDialogClick.properties || {}),
-    [errorDialogClickEvent]: errorDialogClickEventState,
-  };
+    onErrorDialogClick, errorDialogClickEvent);
 }
 function onShowSharedComponentsButtonClick(
   onShowPageComponentsButtonClick: any,
   onAddComponentButtonClick: any,
   onComponentTemplateCloseButtonClick: any,
 ) {
-  const onComponentTemplateCloseButtonClickState = clone2(
+  applyInspectorDimensionChange(
     styleTargetCheckbox(onShowPageComponentsButtonClick, onComponentTemplateCloseButtonClick),
-  );
-  if (onComponentTemplateCloseButtonClick === "width") {
-    const measuredBoundsCursor =
-      Number(onAddComponentButtonClick.position?.x || 0) +
-      Number(onAddComponentButtonClick.position?.width || 100) / 2;
-    onAddComponentButtonClick.position = {
-      ...(onAddComponentButtonClick.position || {}),
-      x: measuredBoundsCursor - Number(onComponentTemplateCloseButtonClickState) / 2,
-      width: Number(onComponentTemplateCloseButtonClickState),
-    };
-    return;
-  }
-  if (onComponentTemplateCloseButtonClick === "height") {
-    const measuredBoundsPointer =
-      Number(onAddComponentButtonClick.position?.y || 0) +
-      Number(onAddComponentButtonClick.position?.height || 100) / 2;
-    onAddComponentButtonClick.position = {
-      ...(onAddComponentButtonClick.position || {}),
-      y: measuredBoundsPointer - Number(onComponentTemplateCloseButtonClickState) / 2,
-      height: Number(onComponentTemplateCloseButtonClickState),
-    };
-    return;
-  }
-  if (onComponentTemplateCloseButtonClick === "scale") {
-    onAddComponentButtonClick.style = {
-      ...(onAddComponentButtonClick.style || {}),
-      scale: Number(onComponentTemplateCloseButtonClickState),
-    };
-    return;
-  }
-  if (onComponentTemplateCloseButtonClick === "rotation") {
-    onAddComponentButtonClick.position = {
-      ...(onAddComponentButtonClick.position || {}),
-      rotation: Number(onComponentTemplateCloseButtonClickState),
-    };
-    return;
-  }
-  onAddComponentButtonClick.properties = {
-    ...(onAddComponentButtonClick.properties || {}),
-    [onComponentTemplateCloseButtonClick]: onComponentTemplateCloseButtonClickState,
-  };
+    onAddComponentButtonClick, onComponentTemplateCloseButtonClick);
 }
 function onComponentTemplateDialogClick(
   templateDialogClickEvent: any,
   onComponentTemplateListClick: any,
   templateListClickEvent: any,
 ) {
-  const templateItemElement = clone2(
+  applyInspectorDimensionChange(
     onNavigationStyleApplyConfirmButtonClick(templateDialogClickEvent, templateListClickEvent),
-  );
-  if (templateListClickEvent === "width") {
-    const measuredBoundsTarget =
-      Number(onComponentTemplateListClick.position?.x || 0) +
-      Number(onComponentTemplateListClick.position?.width || 100) / 2;
-    onComponentTemplateListClick.position = {
-      ...(onComponentTemplateListClick.position || {}),
-      x: measuredBoundsTarget - Number(templateItemElement) / 2,
-      width: Number(templateItemElement),
-    };
-    return;
-  }
-  if (templateListClickEvent === "height") {
-    const measuredBoundsSource =
-      Number(onComponentTemplateListClick.position?.y || 0) +
-      Number(onComponentTemplateListClick.position?.height || 100) / 2;
-    onComponentTemplateListClick.position = {
-      ...(onComponentTemplateListClick.position || {}),
-      y: measuredBoundsSource - Number(templateItemElement) / 2,
-      height: Number(templateItemElement),
-    };
-    return;
-  }
-  if (templateListClickEvent === "scale") {
-    onComponentTemplateListClick.style = {
-      ...(onComponentTemplateListClick.style || {}),
-      scale: Number(templateItemElement),
-    };
-    return;
-  }
-  if (templateListClickEvent === "rotation") {
-    onComponentTemplateListClick.position = {
-      ...(onComponentTemplateListClick.position || {}),
-      rotation: Number(templateItemElement),
-    };
-    return;
-  }
-  onComponentTemplateListClick.properties = {
-    ...(onComponentTemplateListClick.properties || {}),
-    [templateListClickEvent]: templateItemElement,
-  };
+    onComponentTemplateListClick, templateListClickEvent);
 }
 (navigationApplyStyleElement.addEventListener("click", runVariantFirst),
   panelFrameApplyStyleButtonElement.addEventListener("click", imageAssetClickEvent),

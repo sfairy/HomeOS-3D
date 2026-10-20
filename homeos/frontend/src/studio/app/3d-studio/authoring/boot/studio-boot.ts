@@ -11,7 +11,7 @@ import { prepareSceneDocument as prepareSceneDocument2 } from "../../scene-persi
 import { stageStartup as stageStartup2 } from "../../stage-startup";
 
 /** 引导序列需要的外部状态：入口判定 / 取数 / 渲染器与舞台挂载 / 状态提示 / 嵌入契约。 */
-export interface StudioBootDeps {
+interface StudioBootDeps {
   isStudioEntry: boolean;
   isEmbeddedStage: boolean;
   isAutoDiagramEmbed: boolean;

@@ -134,7 +134,7 @@ export interface PaymentChannel {
 }
 
 /** 一键部署命令（站点配置的 `deployScripts[]`）。 */
-export interface StoreDeployScript {
+interface StoreDeployScript {
   label: string;
   command: string;
 }

@@ -14,7 +14,7 @@ export type FlowStatTone =
   | 'rose'
   | 'violet'
 
-export function mapFlowStatTone(cls: string): FlowStatTone {
+function mapFlowStatTone(cls: string): FlowStatTone {
   if (cls.includes('emerald') || cls.includes('green')) return 'emerald'
   if (cls.includes('amber') || cls.includes('yellow') || cls.includes('warn')) return 'amber'
   if (cls.includes('rose') || cls.includes('red') || cls.includes('danger')) return 'rose'

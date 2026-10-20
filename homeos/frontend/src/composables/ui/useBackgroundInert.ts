@@ -62,7 +62,7 @@ export function getBackgroundInertLabels(): string[] {
  * @param root - 浮层最外层节点（必须已经在 DOM 里）
  * @returns 需要隔离的元素（不含浮层自己，也不含路径上的各级节点）
  */
-export function backgroundInertTargets(root: HTMLElement): HTMLElement[] {
+function backgroundInertTargets(root: HTMLElement): HTMLElement[] {
   const targets: HTMLElement[] = []
   const body = root.ownerDocument?.body ?? null
   let node: HTMLElement | null = root
@@ -84,7 +84,7 @@ export function backgroundInertTargets(root: HTMLElement): HTMLElement[] {
  * @param targets - {@link backgroundInertTargets} 的返回值
  * @param label - 来源标签，仅用于 {@link getBackgroundInertLabels} 诊断
  */
-export function markBackgroundInert(targets: HTMLElement[], label: string = '匿名浮层'): void {
+function markBackgroundInert(targets: HTMLElement[], label: string = '匿名浮层'): void {
   if (targets.length === 0) return
   for (const target of targets) {
     const existing = records.get(target)
@@ -109,7 +109,7 @@ export function markBackgroundInert(targets: HTMLElement[], label: string = '匿
  * @param targets - 与 {@link markBackgroundInert} 传入的同一组元素
  * @param label - 与压入时相同的来源标签（用于摘掉诊断登记）
  */
-export function unmarkBackgroundInert(targets: HTMLElement[], label: string = '匿名浮层'): void {
+function unmarkBackgroundInert(targets: HTMLElement[], label: string = '匿名浮层'): void {
   if (targets.length > 0) {
     for (const target of targets) {
       const record = records.get(target)

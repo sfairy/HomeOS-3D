@@ -12,7 +12,7 @@ import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 盒子网格构件需要的外部状态：两个缓存 + 主题视图设置读取器。 */
-export interface StudioBoxMeshDeps {
+interface StudioBoxMeshDeps {
   geometryCacheByKey: Map<string, any>;
   textureCacheByKey: Map<string, any>;
   backgroundSettings: () => { warmWood?: boolean } & Record<string, any>;

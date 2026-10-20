@@ -3,7 +3,7 @@
  * 实际快照恢复仍由 studio-app 内闭包实现；此处仅固化命名约定，避免再误用 delete/duplicate 当 undo/redo。
  */
 
-export type StudioHistoryFacadePatch = {
+type StudioHistoryFacadePatch = {
   canUndo: boolean
   canRedo: boolean
   undoDepth: number

@@ -35,7 +35,7 @@ const MATERIAL_INDEX_PATTERN = /^material-(\d+)$/;
  * - `plant-candidate-light` → `"light"`（取中缀后的尾词）；
  * - `M03_Pewter_Shine` → `"shine"`（无连字符时取末段）。
  */
-export function semanticSlotToken(materialName: string | undefined): string {
+function semanticSlotToken(materialName: string | undefined): string {
   const lowerName = (materialName || "").toLowerCase();
   const materialIndex = lowerName.match(MATERIAL_INDEX_PATTERN);
   if (materialIndex?.[1]) return materialIndex[1];
@@ -50,7 +50,7 @@ export function semanticSlotToken(materialName: string | undefined): string {
  * 通用 token 兜底（任何家族都适用；写实中性件，不会塌成家具灰）
  * ------------------------------------------------------------------ */
 
-export const GENERIC_TOKEN_ROLES: Readonly<Record<string, string>> = Object.freeze({
+const GENERIC_TOKEN_ROLES: Readonly<Record<string, string>> = Object.freeze({
   body: "bodyNeutral",
   dark: "darkNeutral",
   soft: "softNeutral",
@@ -63,7 +63,7 @@ export const GENERIC_TOKEN_ROLES: Readonly<Record<string, string>> = Object.free
  * 家族级 token → 语义角色
  * ------------------------------------------------------------------ */
 
-export const FAMILY_TOKEN_ROLES: Readonly<Record<string, Readonly<Record<string, string>>>> =
+const FAMILY_TOKEN_ROLES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   Object.freeze({
     /* 柜体 / 木作柜类 */
     joinery: {
@@ -617,7 +617,7 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
  * ------------------------------------------------------------------ */
 
 /** 逐模型的**完整材质名（小写）→ 语义角色**覆盖；优先于 token 表。 */
-export const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
+const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
   Record<string, Readonly<Record<string, string>>>
 > = Object.freeze({
   "decor-vase": {

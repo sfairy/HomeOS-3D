@@ -30,7 +30,7 @@ function readAppliedVar(name: string): string {
 }
 
 /** 当前生效的基线令牌（全部来自 theme.css，不含管理员覆盖）。 */
-export function baselineTokens(): Record<string, string> {
+function baselineTokens(): Record<string, string> {
   const tokens: Record<string, string> = {};
   for (const name of CONFIGURABLE) {
     for (const suffix of FAMILY_SUFFIXES) {

@@ -64,7 +64,7 @@ const UPLOAD_BATCH_SIZE = 20
 /**
  * 单次批量上传的进度。
  */
-export interface UploadProgress {
+interface UploadProgress {
   /** 已完成（成功或失败）的文件数 */
   done: number
   /** 本次上传的文件总数 */

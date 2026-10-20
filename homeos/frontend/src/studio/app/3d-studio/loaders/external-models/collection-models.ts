@@ -11,11 +11,11 @@
  */
 import type { LibraryGroupId } from "../../authoring/items/studio-model-library";
 
-export type CollectionModelMount = "floor" | "tabletop" | "wall";
-export type CollectionModelCategory = "home" | "appliance";
-export type CollectionModelRolePair = readonly [string | number, string | number];
+type CollectionModelMount = "floor" | "tabletop" | "wall";
+type CollectionModelCategory = "home" | "appliance";
+type CollectionModelRolePair = readonly [string | number, string | number];
 
-export type CollectionModelDefinition = {
+type CollectionModelDefinition = {
   name: string;
   /** `[宽, 高, 深]` 米。 */
   size: readonly [number, number, number];

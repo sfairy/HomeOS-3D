@@ -18,13 +18,13 @@
 
 import type { StudioDocumentState, StudioDraftPayload, StudioDocumentStore } from "./document-store";
 
-export const AUTOSAVE_DEBOUNCE_MS = 3000;
-export const AUTOSAVE_MAX_DELAY_MS = 15000;
-export const SAVE_RETRY_BASE_MS = 2000;
-export const SAVE_RETRY_MAX_MS = 30000;
+const AUTOSAVE_DEBOUNCE_MS = 3000;
+const AUTOSAVE_MAX_DELAY_MS = 15000;
+const SAVE_RETRY_BASE_MS = 2000;
+const SAVE_RETRY_MAX_MS = 30000;
 const SAVE_RETRY_EXPONENT_CAP = 4;
 
-export type SaveStatus =
+type SaveStatus =
   | "idle"
   | "loading"
   | "blocked-readonly"
@@ -45,7 +45,7 @@ export interface SaveRequestError {
   message?: string;
 }
 
-export type SaveErrorCategory =
+type SaveErrorCategory =
   | "conflict"
   | "confirmation"
   | "payload-too-large"
@@ -53,7 +53,7 @@ export type SaveErrorCategory =
   | "invalid"
   | "retryable";
 
-export function classifySaveError(error: SaveRequestError): SaveErrorCategory {
+function classifySaveError(error: SaveRequestError): SaveErrorCategory {
   const status = error.status;
   if (status === 409) return "conflict";
   if (status === 428) return "confirmation";
@@ -66,12 +66,12 @@ export function classifySaveError(error: SaveRequestError): SaveErrorCategory {
   return "invalid";
 }
 
-export function isRetryableSaveError(error: SaveRequestError): boolean {
+function isRetryableSaveError(error: SaveRequestError): boolean {
   return classifySaveError(error) === "retryable";
 }
 
 /** 退避：2s → 4s → 8s → 16s → 30s（cap），与旧实现的 min(30000, 2000*2**(n-1)) 一致。 */
-export function backoffDelay(attempt: number): number {
+function backoffDelay(attempt: number): number {
   const normalized = Math.max(1, Math.trunc(attempt));
   return Math.min(
     SAVE_RETRY_MAX_MS,
@@ -83,7 +83,7 @@ export function backoffDelay(attempt: number): number {
  * 自动保存延迟：防抖 3s，但首个改动后最多等 15s 必须发一次。
  * firstDirtyAt === null 表示当前没有待保存改动。
  */
-export function computeAutosaveDelay(now: number, firstDirtyAt: number | null): number {
+function computeAutosaveDelay(now: number, firstDirtyAt: number | null): number {
   if (firstDirtyAt === null) return AUTOSAVE_DEBOUNCE_MS;
   const deadline = firstDirtyAt + AUTOSAVE_MAX_DELAY_MS;
   return Math.max(0, Math.min(AUTOSAVE_DEBOUNCE_MS, deadline - now));
@@ -108,18 +108,18 @@ export interface SaveTransport {
   beacon?: (request: SaveTransportPutRequest) => boolean;
 }
 
-export interface SaveStoreTimers {
+interface SaveStoreTimers {
   setTimeout: (handler: () => void, delayMs: number) => number;
   clearTimeout: (handle: number) => void;
 }
 
-export interface SaveConflictState {
+interface SaveConflictState {
   /** 冲突时服务器的 revision（来自 409 detail.currentRevision）。 */
   currentRevision: number | null;
   detectedAt: number;
 }
 
-export interface SaveConfirmationState {
+interface SaveConfirmationState {
   token: string;
   message: string;
   impacts: any;
@@ -148,7 +148,7 @@ export interface SaveStoreState {
   online: boolean;
 }
 
-export interface SaveStoreDeps {
+interface SaveStoreDeps {
   documentStore: StudioDocumentStore;
   transport: SaveTransport;
   /**
@@ -179,7 +179,7 @@ export type FlushResult =
   | { ok: false; reason: "deferred" }
   | { ok: false; reason: "blocked" };
 
-export type LoadResult =
+type LoadResult =
   | { ok: true; revision: number }
   | { ok: false; reason: "fatal"; error: SaveRequestError }
   | { ok: false; reason: "retryable"; error: SaveRequestError };
@@ -635,7 +635,7 @@ export class StudioSaveStore {
 }
 
 /** 供宿主构建保存状态展示用（避免两处各写一套）。 */
-export function describeSaveState(state: SaveStoreState, documentState: StudioDocumentState): string {
+function describeSaveState(state: SaveStoreState, documentState: StudioDocumentState): string {
   if (state.pendingConflict) return "conflict";
   if (state.pendingConfirmation) return "blocked";
   if (documentState.dirty) return state.status === "saving" ? "saving" : state.status;

@@ -30,7 +30,6 @@ type ChromeStore = ReturnType<typeof useChromeStore>
 
 const PAGE_SIZE = 8
 
-export { PAGE_SIZE }
 
 /** 事件日志 meta / 小时窗口 */
 export function createEventsViewMetaState(hours: Ref<number>) {

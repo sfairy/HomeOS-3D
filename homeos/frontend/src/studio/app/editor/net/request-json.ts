@@ -6,9 +6,9 @@
 import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { withCsrf } from "@/services/api/csrf";
 
-export const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
 
-export interface RequestJsonDeps {
+interface RequestJsonDeps {
   /**
    * 「认证跳转只做一次」闩。由宿主 `bootEditor` 每实例创建一份（teardown → boot 会重置），
    * 所以**不能**提到模块作用域 —— 那会变成跨实例共享，与原地闭包语义不等价。
@@ -16,7 +16,7 @@ export interface RequestJsonDeps {
   authRedirectState: { started: boolean };
 }
 
-export function startAuthRedirect(deps: RequestJsonDeps, targetPath: any, _replaceCurrent = false) {
+function startAuthRedirect(deps: RequestJsonDeps, targetPath: any, _replaceCurrent = false) {
   if (deps.authRedirectState.started) return;
   // 同文档内路由：编辑器已具备 boot/teardown，不必整页跳转清文档。
   ((deps.authRedirectState.started = true), navigateInShell(String(targetPath || "/login")));

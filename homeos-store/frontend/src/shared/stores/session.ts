@@ -336,7 +336,7 @@ export function setAuthHint(
  *
  * 取不到属性时回 `"unknown"`：调用方按「可能需要探针」处理，退回旧行为。
  */
-export type ServerAuthState = "guest" | "user" | "admin" | "unknown";
+type ServerAuthState = "guest" | "user" | "admin" | "unknown";
 
 export function serverAuthState(): ServerAuthState {
   const value = document.documentElement.dataset.auth;

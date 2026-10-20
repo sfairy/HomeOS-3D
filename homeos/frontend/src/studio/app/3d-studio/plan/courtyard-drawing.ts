@@ -132,7 +132,7 @@ export function packDrawingPoints(planPoints: any, pixelsPerMeter: any, holePoin
     holes: holePointLists.map(packPointList),
   };
 }
-export function inside(testPoint: any, polygonLoop: any) {
+function inside(testPoint: any, polygonLoop: any) {
   let isInsidePolygon = false;
   for (
     let currentIndex = 0, previousIndex = polygonLoop.length - 1;

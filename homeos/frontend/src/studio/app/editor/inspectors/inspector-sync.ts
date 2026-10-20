@@ -12,7 +12,7 @@ import { previewPercentageBarInspector as previewPercentageBarInspector2 } from 
  * 本族切片只读不写（外层写入 0），所以不需要 getter / state 袋；宿主侧每个函数一个同名
  * 薄转发器，调用点零改写（函数声明保持提升语义）。族内互调留在模块内，不进依赖袋。
  */
-export interface InspectorSyncDeps {
+interface InspectorSyncDeps {
   initActionPopupConfig: any;
   lightStatisticsActionNoteElement: any;
   activeProject: any;

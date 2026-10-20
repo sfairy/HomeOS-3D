@@ -1,7 +1,7 @@
 /** IndexedDB 持久缓存的公共件：诊断日志 + 带超时的一次性任务。 */
 
 /** URL 上是否带了 `?performance-diagnostics=1`。 */
-export function cacheDiagnosticsEnabled(env: any) {
+function cacheDiagnosticsEnabled(env: any) {
   return new URLSearchParams(env.location?.search || "").get("performance-diagnostics") === "1";
 }
 

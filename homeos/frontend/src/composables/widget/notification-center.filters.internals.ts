@@ -24,7 +24,7 @@ export interface NotificationCenterItem {
 }
 
 /** 与设置页「通知偏好」对齐的过滤开关 */
-export interface NotificationCenterPrefs {
+interface NotificationCenterPrefs {
   globalNotifyEnabled: boolean
   importantNotifyEnabled: boolean
   offlineNotifyEnabled: boolean
@@ -32,7 +32,7 @@ export interface NotificationCenterPrefs {
 }
 
 /** 判断通知是否为「设备离线/恢复在线」类型。 */
-export function isOfflineNotification(notification: NotificationCenterItem): boolean {
+function isOfflineNotification(notification: NotificationCenterItem): boolean {
   if (notification.monitorKind === 'offline' || notification.monitorKind === 'online') return true
   // HA（中枢）失联 / 恢复不是「设备离线」：它恰恰是解释「为什么一批设备离线告警没来」的
   // 系统性通知，绝不能被「设备离线提醒」开关连带吞掉（后端也已把它归为不可静音类）。
@@ -48,7 +48,7 @@ export function isOfflineNotification(notification: NotificationCenterItem): boo
 }
 
 /** 判断通知是否为「低电量」类型。 */
-export function isLowBatteryNotification(notification: NotificationCenterItem): boolean {
+function isLowBatteryNotification(notification: NotificationCenterItem): boolean {
   if (notification.monitorKind === 'low_battery') return true
   const message = notification.message || ''
   return message.includes('电量') || message.includes('低电量') || message.includes('battery')

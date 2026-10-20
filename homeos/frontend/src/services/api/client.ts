@@ -119,7 +119,7 @@ let csrfRefreshPromise: Promise<void> | null = null
  * 暴露为全局可复用入口：router 里的系统初始化 / refreshSession 也必须走这同一个 Promise，
  * 避免跟首次突变请求的 bootstrap 并发触发两次 set-cookie，造成 header 与 cookie 不一致的 403。
  */
-export function refreshCsrfToken(forceReset = false): Promise<void> {
+function refreshCsrfToken(forceReset = false): Promise<void> {
   if (forceReset) clearCsrfCookie()
   if (!csrfRefreshPromise) {
     csrfRefreshPromise = apiClient

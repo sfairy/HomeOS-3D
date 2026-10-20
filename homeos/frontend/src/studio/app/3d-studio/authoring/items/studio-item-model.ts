@@ -38,7 +38,7 @@ import { setWallGradientHeight as setWallGradientHeight2 } from "../../materials
  * 无一处重新赋值）。函数成员是宿主里的兄弟构件（网格 / 灯具 / 铭牌 / 材质 / 释放 / 合批），
  * 值成员是宿主持有的可变状态（项目文档、当前楼层、诊断统计表、主题视图设置）。
  */
-export interface StudioItemModelDeps {
+interface StudioItemModelDeps {
   /** 圆柱网格构件（宿主兄弟函数，切片内 69 处调用）。 */
   addCylinderMesh: (
     cylinderParent: any,

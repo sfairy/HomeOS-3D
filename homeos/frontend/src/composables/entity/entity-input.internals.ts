@@ -20,9 +20,9 @@ export interface EntityInputGroup {
   items: EntityInputItem[]
 }
 
-export type EntityInputEntry = { key: string; e: HaEntityState | undefined }
+type EntityInputEntry = { key: string; e: HaEntityState | undefined }
 
-export type BuildEntityInputGroupsOptions = {
+type BuildEntityInputGroupsOptions = {
   entries: EntityInputEntry[]
   query: string
   activeSuggest: string

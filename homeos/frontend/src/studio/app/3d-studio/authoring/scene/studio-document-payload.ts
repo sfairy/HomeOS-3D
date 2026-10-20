@@ -13,7 +13,7 @@ import { floorDisplayName, generateId } from "../ui/studio-app-helpers";
 import { normalizeActiveExportPresetSlot as normalizeActiveExportPresetSlot2, normalizeExportPresetSlots as normalizeExportPresetSlots2 } from "../../export/export-presets";
 
 /** 文档净化需要的外部状态：外部模型注册表 + 当前项目（只读默认层高）。 */
-export interface StudioDocumentDeps {
+interface StudioDocumentDeps {
   externalModelRegistry: any;
   studioProject: any;
 }

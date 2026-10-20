@@ -16,7 +16,7 @@
  */
 
 /** 从浏览器 Cookie 中读取 csrf_token；SSR / 无 document 时返回空串。 */
-export function csrfToken(): string {
+function csrfToken(): string {
   if (typeof document === 'undefined') return ''
   const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/)
   return match ? decodeURIComponent(match[1]) : ''

@@ -135,7 +135,7 @@ export type StudioControlElement = HTMLElement & {
 };
 
 /** 列表拖拽放置目标。 */
-export type ListDragDropTarget = {
+type ListDragDropTarget = {
   kind: string;
   id: string;
   areaId: string;
@@ -145,7 +145,7 @@ export type ListDragDropTarget = {
 };
 
 /** 列表拖拽放置结果。 */
-export type ListDragDropResult = {
+type ListDragDropResult = {
   kind: string;
   targetId?: string;
   anchorGroupId?: string;

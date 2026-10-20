@@ -20,7 +20,7 @@ import { validGeometryLoops as validGeometryLoops2 } from "../../geometry-persis
 import { windowGeometryParts as windowGeometryParts2 } from "../../plan/studio-window-geometry";
 
 /** 墙体构件族的外部状态（只读：本族不写入任何外部可变绑定）。 */
-export interface StudioWallsDeps {
+interface StudioWallsDeps {
   activeFloorId: any;
   addArchitectureMesh: any;
   addWindowFrames: any;
@@ -138,7 +138,7 @@ export function createSceneWallSideMaterial(deps: StudioWallsDeps,
   return ((wallSideMaterial.userData.alphaWallBand = We2), wallSideMaterial);
 }
 
-export function createHiddenBasicMaterial(deps: StudioWallsDeps) {
+function createHiddenBasicMaterial(deps: StudioWallsDeps) {
   const hiddenBasicMaterial = new ns2.MeshBasicMaterial();
   return ((hiddenBasicMaterial.visible = false), hiddenBasicMaterial);
 }
@@ -185,7 +185,7 @@ export function createWallTopMaterial(deps: StudioWallsDeps,
   );
 }
 
-export /** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
+/** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
 function cachedWallUnionLoops(deps: StudioWallsDeps, wallLoopList: any) {
   const computeUnionLoops = () => validatedUnionPolygonLoops2(wallLoopList, 1e-7);
   return deps.geometryCacheHandle
@@ -193,7 +193,7 @@ function cachedWallUnionLoops(deps: StudioWallsDeps, wallLoopList: any) {
     : computeUnionLoops();
 }
 
-export function buildWallBandMesh(deps: StudioWallsDeps, 
+function buildWallBandMesh(deps: StudioWallsDeps, 
   wallBandLoopList: any,
   wallBandBaseHeight: any,
   wallBandTopHeight: any,
@@ -266,7 +266,7 @@ export function buildWallBandMesh(deps: StudioWallsDeps,
   }
 }
 
-export function buildWallTopSurface(deps: StudioWallsDeps, 
+function buildWallTopSurface(deps: StudioWallsDeps, 
   wallTopLoopList: any,
   wallTopSurfaceHeight: any,
   wallTopSurfaceColor: any,
@@ -328,7 +328,7 @@ export function expandPolygonOutward(deps: StudioWallsDeps, polygonPointList: an
   });
 }
 
-export function createWallContactShadowMesh(deps: StudioWallsDeps, wallPolygonList: any, contactShadowHeight: any) {
+function createWallContactShadowMesh(deps: StudioWallsDeps, wallPolygonList: any, contactShadowHeight: any) {
   if (!wallPolygonList.length || isWallTrialShaderEnabled(deps)) return;
   const wallShapes = wallPolygonList.map((wallPolygon: any) => {
       const xu3 = expandPolygonOutward(deps, wallPolygon, 0.028),
@@ -370,7 +370,7 @@ export function createWallContactShadowMesh(deps: StudioWallsDeps, wallPolygonLi
     deps.sceneRootNode.add(wallContactShadowMesh));
 }
 
-export function isWallTrialShaderEnabled(deps: StudioWallsDeps) {
+function isWallTrialShaderEnabled(deps: StudioWallsDeps) {
   return (
     deps.isEmbedStageMode &&
     (new URLSearchParams(window.location.search).get("wall-trial") ?? deps.defaultWallRuntimeProfile)

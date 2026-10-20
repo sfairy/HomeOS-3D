@@ -117,7 +117,7 @@ export function getInteraction3dEditorView(editorId: string) {
  * 2D 编辑开关直接作用到已挂载实例：打开时进入视图编辑，关闭时同时收掉
  * 位置/范围编辑与弹窗预览，避免切回浏览态后仍残留可拖拽的把手。
  */
-export function setInteraction3dEditable(editorView: Interaction3dEditorView | null | undefined, editable: boolean) {
+function setInteraction3dEditable(editorView: Interaction3dEditorView | null | undefined, editable: boolean) {
   if (!editorView) return;
   const editableEnabled = !!editable;
   typeof editorView.setEditable === "function"

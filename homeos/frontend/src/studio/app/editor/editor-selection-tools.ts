@@ -14,7 +14,7 @@ export type AlignMode =
   | 'distribute-x'
   | 'distribute-y'
 
-export interface ComponentBounds {
+interface ComponentBounds {
   id: string
   x: number
   y: number

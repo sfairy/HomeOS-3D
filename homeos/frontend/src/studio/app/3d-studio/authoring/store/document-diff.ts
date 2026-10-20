@@ -73,7 +73,7 @@ const onlyTransformChanged = (beforeValue: any, afterValue: any): boolean => {
  * - 全量 replace（顺序变化 / 存在无 id 元素 / id 重复）—— 一个 patch 覆盖该字段全部差异；
  * - 否则拆 remove / add / update / move，应用时顺序无关（remove 按 id、add 按 index、update/move 按 id）。
  */
-export function diffSceneArrayField(
+function diffSceneArrayField(
   floorId: string,
   field: FloorSceneField,
   beforeList: any,
@@ -138,7 +138,7 @@ export function diffSceneArrayField(
 }
 
 /** 一个楼层 scene 的完整补丁集合（含数组字段与 background/name 等非视图字段）。 */
-export function diffFloorScenePatches(
+function diffFloorScenePatches(
   floorId: string,
   beforeScene: any,
   afterScene: any,

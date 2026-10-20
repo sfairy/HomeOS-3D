@@ -6,7 +6,7 @@
 
 import { coverToggleService } from '@/shared/entity/utils/control/cover-control-core'
 
-export type DeviceToggleCommand =
+type DeviceToggleCommand =
   | { ok: true; domain: string; service: string }
   | { ok: false; reason: 'unknown-state' }
 

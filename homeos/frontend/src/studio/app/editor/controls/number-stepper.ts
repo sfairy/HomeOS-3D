@@ -8,7 +8,7 @@
 
 import { clampNumber as clampNumber2 } from "../editor-utils";
 
-export function runRecord(changedPagePathElement: any, runName: any) {
+function runRecord(changedPagePathElement: any, runName: any) {
   if (!changedPagePathElement || changedPagePathElement.disabled || changedPagePathElement.readOnly)
     return false;
   const dashboardName = changedPagePathElement.value;
@@ -42,7 +42,7 @@ export function runRecord(changedPagePathElement: any, runName: any) {
       true);
 }
 
-export interface NumberStepperDeps {
+interface NumberStepperDeps {
   /** 「已装过步进器」的输入元素去重集合（宿主每实例一份，按引用注入）。 */
   enhancedNumberInputsSet: WeakSet<any>;
 }

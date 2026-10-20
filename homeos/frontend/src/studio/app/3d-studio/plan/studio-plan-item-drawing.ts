@@ -29,7 +29,7 @@ import { normalizePlanLabelColor } from "../authoring/scene/studio-scene-payload
  * 配色（`isLampEnabled` / `planLabelAccentColor`）与门口材质通道
  * （`resolveDoorPartMaterials` / `doorPartDisplayColor`）——后两个同时被宿主 15581 / 15585 行用着。
  */
-export interface StudioPlanItemDrawingDeps {
+interface StudioPlanItemDrawingDeps {
   /** 平面画布 2D 上下文（`planCanvasElement.getContext("2d")`）。 */
   planCanvasRenderer: any;
   /** 平面视图状态（缩放 / 偏移 / 楼层）。 */

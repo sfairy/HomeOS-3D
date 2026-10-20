@@ -14,7 +14,7 @@ import {
 } from '@/features/settings/composables/interact/agent-panel-helpers.internals'
 import type { AgentPingResult } from '@/services/api/agent'
 
-export type ChatLogEntry = {
+type ChatLogEntry = {
   role: 'user' | 'assistant'
   text: string
   meta?: string

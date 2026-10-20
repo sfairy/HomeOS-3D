@@ -6,13 +6,13 @@
  * 因此拾取与动画逻辑仍能看到真实的对象树。
  */
 
-export type InteractionBatchStats = {
+type InteractionBatchStats = {
   candidates: number;
   batches: number;
   savedDraws: number;
 };
 
-export type InteractionBatchesOptions = {
+type InteractionBatchesOptions = {
   THREE: any;
   renderer: any;
   scene: any;

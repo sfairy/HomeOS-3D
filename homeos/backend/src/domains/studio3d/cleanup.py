@@ -112,10 +112,13 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
             removed_members = set()
             for parts in COLLECTIONS:
                 parent, items = collection(properties, parts)
-                deleted = [item for item in items if binding_key(item, parts) in removed]
+                deleted = []
+                kept = []
+                for item in items:
+                    (deleted if binding_key(item, parts) in removed else kept).append(item)
                 if not deleted:
                     continue
-                parent[parts[-1]] = [item for item in items if item not in deleted]
+                parent[parts[-1]] = kept
                 for item in deleted:
                     saved.append(
                         {

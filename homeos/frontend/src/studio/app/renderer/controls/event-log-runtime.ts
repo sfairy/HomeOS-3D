@@ -25,10 +25,10 @@ export const EVENT_LOG_WALL_DOMAINS = [
 const EVENT_LOG_WALL_DOMAIN_SET = new Set<string>(EVENT_LOG_WALL_DOMAINS);
 
 /** 相同事件指纹 / 相同「实体 + 标签」的去重时间窗（毫秒）。 */
-export const EVENT_LOG_WALL_DEDUP_MS = 2000;
+const EVENT_LOG_WALL_DEDUP_MS = 2000;
 
 /** 去重表容量上限，超过后清理过期键，避免内存无限增长。 */
-export const EVENT_LOG_WALL_DEDUP_MAX_KEYS = 200;
+const EVENT_LOG_WALL_DEDUP_MAX_KEYS = 200;
 
 /** 自动监听模式下最多订阅的实体数量（避免逼近渲染器 1000 订阅上限）。 */
 export const EVENT_LOG_WALL_AUTO_ENTITY_LIMIT = 400;
@@ -37,7 +37,7 @@ export const EVENT_LOG_WALL_AUTO_ENTITY_LIMIT = 400;
  * 即时消息墙的实体引用：宿主既传字符串 id，也传对象，且两种字段名（`entityId` / `entity_id`）并存。
  * 这里写成显式形状，替代原先三处 `as any` 直穿 —— 非法形状会在下面两个收窄点被挡掉。
  */
-export interface EventLogEntityRef {
+interface EventLogEntityRef {
   entityId?: unknown;
   entity_id?: unknown;
   domain?: unknown;
@@ -58,7 +58,7 @@ function firstEntityRefText(source: EventLogEntityRef, keys: readonly (keyof Eve
 }
 
 /** 从实体对象或实体 id 解析域名（对象优先取显式 `domain`，否则取 id 前缀）。 */
-export function eventLogWallDomainOf(entityRef: unknown): string {
+function eventLogWallDomainOf(entityRef: unknown): string {
   if (typeof entityRef === "string") {
     return entityRef.split(".", 1)[0].toLowerCase();
   }
@@ -84,7 +84,7 @@ import {
 } from "@/shared/entity/utils/control-attr-change.util";
 
 /** 该域是否有属性白名单（无 → 共享实现必返回 null，可提前跳过 JSON 深比较）。 */
-export function hasEventLogAttrTriggers(domain: string): boolean {
+function hasEventLogAttrTriggers(domain: string): boolean {
   return Boolean(ATTR_CHANGE_TRIGGERS[domain]);
 }
 
@@ -162,7 +162,7 @@ const STATE_LABELS: Record<string, string> = {
 };
 
 /** state 值 → 中文短标签。 */
-export function resolveEventLogStateLabel(state: unknown): string {
+function resolveEventLogStateLabel(state: unknown): string {
   const normalizedState = String(state ?? "")
     .trim()
     .toLowerCase();
@@ -171,7 +171,7 @@ export function resolveEventLogStateLabel(state: unknown): string {
 }
 
 /** 把属性原始值格式化为可读文案。 */
-export function formatAttrValueText(key: string, value: unknown): string {
+function formatAttrValueText(key: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "开" : "关";
   if (Array.isArray(value)) {
@@ -243,7 +243,7 @@ export function resolveStateSnapshot(stateEntry: unknown): StateSnapshot {
 }
 
 /** 状态变更解析结果。 */
-export interface EventLogStateChangeResolved {
+interface EventLogStateChangeResolved {
   state: string;
   attrText: string | null;
   label: string;
@@ -294,7 +294,7 @@ export function eventLogWallDeviceId(metadata: Record<string, unknown> | null | 
 }
 
 /** 去重键入参：一条事件墙条目参与去重所需的字段。 */
-export interface EventLogWallDedupOptions {
+interface EventLogWallDedupOptions {
   entityId: string;
   label: string;
   fingerprint: string | null;
@@ -321,7 +321,7 @@ export function eventLogWallDedupKeys(options: EventLogWallDedupOptions): string
 }
 
 /** 状态颜色分类 token（渲染器映射为 CSS 类）。 */
-export function resolveStateColorToken(state: string, attrText: string | null): string {
+function resolveStateColorToken(state: string, attrText: string | null): string {
   if (attrText) return "attr";
   const normalizedState = String(state || "")
     .trim()
@@ -335,7 +335,7 @@ export function resolveStateColorToken(state: string, attrText: string | null): 
 }
 
 /** 即时消息墙展示的单条事件。 */
-export interface EventLogWallEntry {
+interface EventLogWallEntry {
   id: string;
   entityId: string;
   name: string;
@@ -345,7 +345,7 @@ export interface EventLogWallEntry {
 }
 
 /** 格式化事件时间（HH:MM:SS）。 */
-export function formatEventLogTime(date: Date): string {
+function formatEventLogTime(date: Date): string {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const seconds = String(date.getSeconds()).padStart(2, "0");
@@ -353,7 +353,7 @@ export function formatEventLogTime(date: Date): string {
 }
 
 /** 实体元数据：宿主传 `name` / `originalName` / `deviceId` 等，值类型不定。 */
-export interface EventLogEntityMetadata {
+interface EventLogEntityMetadata {
   name?: unknown;
   originalName?: unknown;
   deviceId?: unknown;
@@ -361,7 +361,7 @@ export interface EventLogEntityMetadata {
 }
 
 /** 把未知入参收窄成元数据对象；非对象 → 空对象（调用方不必再判空）。 */
-export function toEventLogEntityMetadata(value: unknown): EventLogEntityMetadata {
+function toEventLogEntityMetadata(value: unknown): EventLogEntityMetadata {
   return value !== null && typeof value === "object" ? (value as EventLogEntityMetadata) : {};
 }
 

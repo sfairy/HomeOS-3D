@@ -70,7 +70,7 @@ export function syncCustomPopupStage(ctx: CustomPopupEditorContext) {
     (stageElement.style.transform = "scale(" + stageScale + ")"),
     (editorToolbarElement.style.width = stageWrapElement.clientWidth + "px"));
 }
-export function applyPopupModuleReorder(ctx: CustomPopupEditorContext, 
+function applyPopupModuleReorder(ctx: CustomPopupEditorContext, 
   popupIdValue: any,
   moduleId: any,
   beforeModuleId: any = null,

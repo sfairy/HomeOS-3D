@@ -167,7 +167,7 @@ export function packModelTemplate(threeApi: any, { source: source, size: size, b
     textureMatrices: packedTextures.matrices,
   };
 }
-export function unpackModelTemplate(threeModule: any, template: any, decodedTextures: Record<string, any> = {}) {
+function unpackModelTemplate(threeModule: any, template: any, decodedTextures: Record<string, any> = {}) {
   if (
     template?.revision !== MODEL_TEMPLATE_REVISION ||
     template.three !== threeModule.REVISION ||

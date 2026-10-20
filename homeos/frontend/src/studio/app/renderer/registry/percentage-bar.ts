@@ -2,7 +2,7 @@ import {
   percentageBarSeries as percentageBarSeries2,
   percentageBarDimensions as percentageBarDimensions2,
 } from "../../shared/percentage-bar-model";
-export function percentageValue(entityState: any, attributeName = "") {
+function percentageValue(entityState: any, attributeName = "") {
   if (
     ((entityState = entityState?.newState || entityState),
     entityState?.available === false ||

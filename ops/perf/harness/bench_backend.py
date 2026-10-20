@@ -20,8 +20,18 @@ from pathlib import Path
 from typing import Any
 
 from perf_common import (
-    ROOT, db_count, db_total, http_get, load_env, process_snapshot, result_dir,
-    scrape_metrics, summarize, tail, wait_url, write_json,
+    ROOT,
+    db_count,
+    db_total,
+    http_get,
+    load_env,
+    process_snapshot,
+    result_dir,
+    scrape_metrics,
+    summarize,
+    tail,
+    wait_url,
+    write_json,
 )
 
 CONCURRENCY = 32
@@ -115,14 +125,14 @@ def _start_process(label: str, name: str, command: list[str], cwd: Path,
                 break
         if not ok:
             raise RuntimeError(f"{name} 在 {timeout:.0f}s 内未就绪")
-    except Exception:
+    except Exception as exc:
         process.terminate()
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
             process.kill()
         log_file.close()
-        raise RuntimeError(f"{name} 启动失败，日志：{log_path}\n{tail(log_path)}")
+        raise RuntimeError(f"{name} 启动失败，日志：{log_path}\n{tail(log_path)}") from exc
     ready_at = time.time()
     wall_ms = (ready_at - started_at) * 1000.0
     print(f"[{label}/{name}] pid={process.pid} 启动 {wall_ms:.1f} ms，日志 {log_path}")

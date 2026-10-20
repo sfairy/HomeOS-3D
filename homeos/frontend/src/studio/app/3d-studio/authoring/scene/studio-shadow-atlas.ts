@@ -33,7 +33,7 @@ function packTilesIntoAtlas(tiles: any, atlasSize: any, gutter: any) {
   }
   return placed;
 }
-export function packSpotShadowAtlasTiles(
+function packSpotShadowAtlasTiles(
   tileSizes: any[] = [],
   maxAtlasSize = 4096,
   tileGutter = DEFAULT_TILE_GUTTER,
@@ -135,7 +135,7 @@ function spotLightBlockRange(lightsShader: any) {
     end: nextLightBlock >= 0 ? nextLightBlock : spotEndif + "#endif".length,
   };
 }
-export function guardZeroContributionSpotLights(lightsShader: any) {
+function guardZeroContributionSpotLights(lightsShader: any) {
   const blockRange = spotLightBlockRange(lightsShader),
     directLightCall =
       "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );",

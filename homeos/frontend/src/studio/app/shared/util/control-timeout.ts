@@ -8,7 +8,7 @@
  */
 
 /** 一次控制请求所需的毫秒预算（前端用它决定"按钮转圈多久后报超时"）。 */
-export type ControlTarget = {
+type ControlTarget = {
   domain?: string;
   service?: string;
   data?: Record<string, any>;

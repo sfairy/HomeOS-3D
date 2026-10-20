@@ -19,33 +19,33 @@ export interface StudioDraftPayload {
 
 export type FloorSceneField = string;
 
-export interface FloorScenePatch {
+interface FloorScenePatch {
   floorId: string;
   field?: FloorSceneField;
 }
 
-export interface AddItemsPatch extends FloorScenePatch {
+interface AddItemsPatch extends FloorScenePatch {
   kind: "add";
   entries: Array<{ item: any; index: number }>;
 }
 
-export interface RemoveItemsPatch extends FloorScenePatch {
+interface RemoveItemsPatch extends FloorScenePatch {
   kind: "remove";
   entries: Array<{ item: any; index: number }>;
 }
 
-export interface UpdateItemsPatch extends FloorScenePatch {
+interface UpdateItemsPatch extends FloorScenePatch {
   kind: "update";
   changes: Array<{ itemId: string; before: any; after: any }>;
 }
 
-export interface MoveItemsPatch extends FloorScenePatch {
+interface MoveItemsPatch extends FloorScenePatch {
   kind: "move";
   moves: Array<{ itemId: string; before: any; after: any }>;
 }
 
 /** 整字段替换（顺序变化、无 id 元素、settings 等对象字段的兜底）：数组就地 splice 保留元素对象引用。 */
-export interface ReplaceFieldPatch extends FloorScenePatch {
+interface ReplaceFieldPatch extends FloorScenePatch {
   kind: "replace";
   field: FloorSceneField;
   before: any;
@@ -53,7 +53,7 @@ export interface ReplaceFieldPatch extends FloorScenePatch {
 }
 
 /** 一次用户操作（多选删除、拖拽+属性变化、跨楼层改动）聚合成一个历史事务。 */
-export interface BatchPatch {
+interface BatchPatch {
   kind: "batch";
   patches: DocumentPatch[];
 }
@@ -67,7 +67,7 @@ export type DocumentPatch =
   | BatchPatch;
 
 /** 文档里属于“版本/时间戳”的易变键：签名必须忽略它们，否则每次保存都像内容变了。 */
-export const VOLATILE_DOCUMENT_KEYS: ReadonlySet<string> = new Set([
+const VOLATILE_DOCUMENT_KEYS: ReadonlySet<string> = new Set([
   "revision",
   "updatedAt",
   "savedAt",
@@ -77,7 +77,7 @@ export const VOLATILE_DOCUMENT_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 /** 32 位 FNV-1a；用两路不同种子散列降低碰撞概率。 */
-export function fnv1a32Hex(input: string, seed = 0x811c9dc5): string {
+function fnv1a32Hex(input: string, seed = 0x811c9dc5): string {
   let hash = seed >>> 0;
   for (let index = 0; index < input.length; index += 1) {
     hash ^= input.charCodeAt(index);
@@ -136,15 +136,10 @@ export function documentSignature(document: any): string {
   );
 }
 
-export function findFloorRecord(document: any, floorId: string): any | null {
+function findFloorRecord(document: any, floorId: string): any | null {
   const floorList = document?.floors;
   if (!Array.isArray(floorList)) return null;
   return floorList.find((floor: any) => floor?.id === floorId) ?? null;
-}
-
-function floorItemList(document: any, floorId: string): any[] | null {
-  const itemList = findFloorRecord(document, floorId)?.scene?.items;
-  return Array.isArray(itemList) ? itemList : null;
 }
 
 export function patchSceneField(patch: FloorScenePatch): FloorSceneField {
@@ -152,7 +147,7 @@ export function patchSceneField(patch: FloorScenePatch): FloorSceneField {
 }
 
 /** 楼层 scene 的某个数组字段；字段不存在或不是数组返回 null。 */
-export function floorSceneFieldList(
+function floorSceneFieldList(
   document: any,
   floorId: string,
   field: FloorSceneField = "items",
@@ -193,7 +188,7 @@ export function canApplyDocumentPatch(document: any, patch: DocumentPatch): bool
 }
 
 /** 就地覆盖字段、保留对象引用（three 场景/选中集持的是同一个物件对象）。 */
-export function replaceItemInPlace(target: any, replacement: any): void {
+function replaceItemInPlace(target: any, replacement: any): void {
   for (const key of Object.keys(target)) {
     if (!Object.prototype.hasOwnProperty.call(replacement, key)) delete target[key];
   }
@@ -318,7 +313,7 @@ export function invertDocumentPatch(patch: DocumentPatch): DocumentPatch {
   }
 }
 
-export interface StudioDocumentStoreOptions {
+interface StudioDocumentStoreOptions {
   signature?: (document: any) => string;
 }
 
@@ -331,7 +326,7 @@ export interface StudioDocumentState {
   dirtyPatchCount: number;
 }
 
-export type ApplyRemoteDocumentResult =
+type ApplyRemoteDocumentResult =
   | { applied: true; revision: number }
   | { applied: false; reason: "local-dirty" };
 

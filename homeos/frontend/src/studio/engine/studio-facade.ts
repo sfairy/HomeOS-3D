@@ -5,7 +5,7 @@ import { createFacadeRuntime } from './facade-runtime'
 import type { EventBus } from './event-bus'
 import type { HistoryStateSnapshot, StudioCommand, StudioFacadeState } from './types'
 
-export type StudioCommandHandler = (command: StudioCommand) => void | Promise<void>
+type StudioCommandHandler = (command: StudioCommand) => void | Promise<void>
 
 const DEFAULT_HISTORY: HistoryStateSnapshot = {
   canUndo: false,

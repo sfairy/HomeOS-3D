@@ -7,26 +7,26 @@
 import type { EChartsCoreOption } from 'echarts'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 
-export type AnalyticsSourceBucket = {
+type AnalyticsSourceBucket = {
   key: string
   label: string
   count: number
   color: string
 }
 
-export type AnalyticsLevelBucket = {
+type AnalyticsLevelBucket = {
   level: string
   label: string
   count: number
   color: string
 }
 
-export type AnalyticsTimeBucket = {
+type AnalyticsTimeBucket = {
   label: string
   count: number
 }
 
-export type AnalyticsReadSummary = {
+type AnalyticsReadSummary = {
   total: number
   read: number
   unread: number

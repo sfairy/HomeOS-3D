@@ -19,7 +19,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 const DEFAULT_LIGHT_ON_URL = '/backgrounds/light_on.webp'
 const DEFAULT_LIGHT_OFF_URL = '/backgrounds/light_off.webp'
 
-export interface DisplayLightBackdropState {
+interface DisplayLightBackdropState {
   /** 是否任意（或收藏的）灯处于开启状态。 */
   on: boolean
   /** 当前应铺的整页背景图 URL。 */

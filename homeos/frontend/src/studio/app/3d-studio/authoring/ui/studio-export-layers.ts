@@ -9,7 +9,7 @@
 import { EXPORT_IMAGE_EXTENSION as EXPORT_IMAGE_EXTENSION2 } from "../../export/export-utils";
 
 /** 导出图层渲染需要的外部状态：图层清单容器 + 取数助手（都读宿主里的 `studioProject`）。 */
-export interface StudioExportLayerDeps {
+interface StudioExportLayerDeps {
   exportGroupFilesElement: HTMLElement | null;
   getOrderedFloorList: () => any[];
   listScreenRows: (floors?: any) => any[];

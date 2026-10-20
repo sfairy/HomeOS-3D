@@ -14,7 +14,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 
 /** useHaDegrade 配置项 */
-export interface UseHaDegradeOptions {
+interface UseHaDegradeOptions {
   /** 自定义降级判定；缺省时按「断连 / 重连中 / 实体数据过期」判定 */
   degraded?: MaybeRefOrGetter<boolean>
   /** 重连发起后的通知文案 */

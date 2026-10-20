@@ -5,7 +5,7 @@ import { clampNumber as clampNumber2 } from "./editor-utils";
 import { findComponent as findComponent2 } from "./component-tree";
 import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
 
-export interface EventLogWallContext {
+interface EventLogWallContext {
   eventLogWallInspectorElement: any;
   eventLogWallTypeElement: any;
   eventLogWallLabelElement: any;

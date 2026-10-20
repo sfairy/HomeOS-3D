@@ -12,7 +12,7 @@
 type Vec3 = readonly [number, number, number];
 
 /** 状态灯锚点（模型局部坐标）。 */
-export const MODEL_STATUS_ANCHORS: Readonly<Record<string, Vec3>> = Object.freeze({
+const MODEL_STATUS_ANCHORS: Readonly<Record<string, Vec3>> = Object.freeze({
   "water-purifier": [-0.032, 0.357, 0.1838],
   "pressure-cooker": [0, 0.175, 0.153],
   "pet-dryer": [-0.042, 0.56, 0.1075],
@@ -40,7 +40,7 @@ export const MODEL_STATUS_ANCHORS: Readonly<Record<string, Vec3>> = Object.freez
 });
 
 /** 喷雾出口（模型局部坐标）。 */
-export const MODEL_MIST_OUTLETS: Readonly<Record<string, Vec3>> = Object.freeze({
+const MODEL_MIST_OUTLETS: Readonly<Record<string, Vec3>> = Object.freeze({
   "aroma-diffuser": [0, 0.175, 0],
   humidifier: [0, 0.322, 0],
 });

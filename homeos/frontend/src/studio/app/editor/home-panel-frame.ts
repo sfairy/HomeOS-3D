@@ -5,7 +5,7 @@ import { clampNumber as clampNumber2, roundField as roundField2 } from "./editor
 import { findComponent as findComponent2 } from "./component-tree";
 import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
 
-export interface PanelFrameContext {
+interface PanelFrameContext {
   panelFrameInspectorFormElement: any;
   panelFrameTypeTextInputElement: any;
   panelFrameLabelTextInputElement: any;

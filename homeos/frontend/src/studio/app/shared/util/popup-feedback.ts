@@ -12,7 +12,7 @@
  */
 
 /** 把 HA / 网络层的原始错误文本压成一句用户能理解的话；无需提示时返回空串。 */
-export function popupFeedbackText(value: any): string {
+function popupFeedbackText(value: any): string {
   const text = String(value || "").trim();
   // "指令已发送，状态以设备回报为准"这类文案没有信息量，直接吞掉。
   if (
@@ -72,7 +72,7 @@ type FeedbackEntry = {
   lastValue: string;
 };
 
-export type PopupFeedback = ReturnType<typeof createPopupFeedback>;
+type PopupFeedback = ReturnType<typeof createPopupFeedback>;
 
 /** 成功提示自动收起的等待（毫秒）。 */
 const AUTO_HIDE_DELAY = 2000;

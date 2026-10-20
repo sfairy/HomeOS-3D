@@ -37,9 +37,9 @@ const VIEW_SETTING_KEYS = [
   "detailsPanelWidthRatio",
 ];
 
-export type FloorNameChange = { floorId: string; from: string; to: string };
+type FloorNameChange = { floorId: string; from: string; to: string };
 
-export type SceneSyncDecision =
+type SceneSyncDecision =
   | { kind: "ignored"; reason: "embedded" | "no-visual-change" }
   | { kind: "deferred"; reason: "page-suspended" }
   | { kind: "metadata-only"; floorNameChanges: FloorNameChange[] }
@@ -59,7 +59,7 @@ export type SceneSyncOutcome =
   | { kind: "conflict"; reason: "local-dirty" }
   | { kind: "stalled"; reason: "flush-failed" };
 
-export interface SceneSyncInput {
+interface SceneSyncInput {
   /** 运行时场景快照（含视图设置），不是保存文档。 */
   runtimeScene: any;
   remoteScene: any;
@@ -73,7 +73,7 @@ function floorIdsOf(scene: any): string[] {
   return Array.isArray(scene?.floors) ? scene.floors.map((floor: any) => String(floor?.id ?? "")) : [];
 }
 
-export function diffFloorNames(runtimeScene: any, remoteScene: any): FloorNameChange[] {
+function diffFloorNames(runtimeScene: any, remoteScene: any): FloorNameChange[] {
   const localById = new Map<string, any>();
   for (const floor of runtimeScene?.floors ?? []) localById.set(String(floor?.id ?? ""), floor);
   const changes: FloorNameChange[] = [];
@@ -92,7 +92,7 @@ export function diffFloorNames(runtimeScene: any, remoteScene: any): FloorNameCh
  * 纯决策：给定输入返回本轮同步动作。
  * 顺序敏感：embedded → 挂起 → 无视觉变化 → 全量 → 楼层合并 → 仅灯光 → 仅楼层名。
  */
-export function decideSceneSync(input: SceneSyncInput): SceneSyncDecision {
+function decideSceneSync(input: SceneSyncInput): SceneSyncDecision {
   if (input.isEmbedded) return { kind: "ignored", reason: "embedded" };
   if (input.isPageSuspended) return { kind: "deferred", reason: "page-suspended" };
   const plan = sceneUpdatePlan(input.runtimeScene, input.remoteScene);
@@ -109,14 +109,14 @@ export function decideSceneSync(input: SceneSyncInput): SceneSyncDecision {
 
 
 /** 仅同步灯光：就地替换 baseLighting（保留引用，避免重渲染拿旧对象）。 */
-export function applyBaseLighting(runtimeScene: any, remoteScene: any): boolean {
+function applyBaseLighting(runtimeScene: any, remoteScene: any): boolean {
   if (!runtimeScene || !remoteScene) return false;
   if (runtimeScene.baseLighting === remoteScene.baseLighting) return false;
   runtimeScene.baseLighting = remoteScene.baseLighting;
   return true;
 }
 
-export function applyFloorNames(runtimeScene: any, changes: FloorNameChange[]): number {
+function applyFloorNames(runtimeScene: any, changes: FloorNameChange[]): number {
   if (!runtimeScene || !Array.isArray(runtimeScene.floors) || changes.length === 0) return 0;
   const byId = new Map(changes.map((change) => [change.floorId, change.to]));
   let applied = 0;
@@ -160,7 +160,7 @@ export function mergeFloors(runtimeScene: any, remoteScene: any, floorIds: reado
   return replaced;
 }
 
-export interface SceneSyncDeps {
+interface SceneSyncDeps {
   /** 运行时场景快照读取器。 */
   getRuntimeScene: () => any;
   /** 来自 document-store 的脏标记（不得读取保存 revision）。 */

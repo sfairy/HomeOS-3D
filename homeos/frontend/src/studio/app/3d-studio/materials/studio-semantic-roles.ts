@@ -22,7 +22,7 @@
 import type { MaterialSurface } from "./studio-model-material-roles";
 
 /** 语义大类（面板分组 / 审计归类用）。 */
-export type SemanticCategory =
+type SemanticCategory =
   | "plant"
   | "sanitary"
   | "appliance"
@@ -41,7 +41,7 @@ export type SemanticCategory =
   | "generic";
 
 /** 一个语义角色的写实外观。 */
-export interface SemanticRoleAppearance {
+interface SemanticRoleAppearance {
   /** 中文名（「材质属性」面板显示）。 */
   label: string;
   /** 语义大类。 */
@@ -74,7 +74,7 @@ export interface SemanticRoleAppearance {
  * 取色规则（`resolveSemanticRoleColor`）：主题覆盖键 → 次选键 → `defaultColor`。
  * 表面参数（`resolveSemanticRoleFinish`）：显式 roughness/metalness → `surface` 默认。
  */
-export const SEMANTIC_ROLE_APPEARANCE: Readonly<Record<string, SemanticRoleAppearance>> =
+const SEMANTIC_ROLE_APPEARANCE: Readonly<Record<string, SemanticRoleAppearance>> =
   Object.freeze({
     /* ── 绿植 / 花艺 ─────────────────────────────────────────────── */
     foliage: {

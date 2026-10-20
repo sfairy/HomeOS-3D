@@ -7,12 +7,10 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
-from PIL import Image, ImageChops
-
 from perf_common import PERF_ROOT, result_dir, write_json
+from PIL import Image, ImageChops
 
 
 def _load(path: Path) -> Image.Image:

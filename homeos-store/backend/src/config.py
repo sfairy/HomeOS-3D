@@ -126,6 +126,31 @@ def _env_cookie_secure_mode() -> str:
     )
 
 
+def _env_number[T: (int, float)](
+    name: str,
+    default: T,
+    *,
+    cast: type[T],
+    label: str,
+    minimum: T | None = None,
+    maximum: T | None = None,
+) -> T:
+    """读一个数值环境变量；缺省 / 非法 / 越界时按调用方语义处置。"""
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    text = raw.strip()
+    try:
+        value = cast(text)
+    except ValueError as exc:
+        raise ValueError(f"环境变量 {name} 需要{label}，实际是 {raw!r}") from exc
+    if minimum is not None and value < minimum:
+        raise ValueError(f"环境变量 {name} 不能小于 {minimum}，实际是 {value}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"环境变量 {name} 不能大于 {maximum}，实际是 {value}")
+    return value
+
+
 def _env_int(
     name: str,
     default: int,
@@ -135,19 +160,7 @@ def _env_int(
 ) -> int:
     """读一个整数环境变量。
     """
-    raw = os.getenv(name)
-    if raw is None or not raw.strip():
-        return default
-    text = raw.strip()
-    try:
-        value = int(text)
-    except ValueError as exc:
-        raise ValueError(f"环境变量 {name} 需要整数，实际是 {raw!r}") from exc
-    if minimum is not None and value < minimum:
-        raise ValueError(f"环境变量 {name} 不能小于 {minimum}，实际是 {value}")
-    if maximum is not None and value > maximum:
-        raise ValueError(f"环境变量 {name} 不能大于 {maximum}，实际是 {value}")
-    return value
+    return _env_number(name, default, cast=int, label="整数", minimum=minimum, maximum=maximum)
 
 
 def _env_float(
@@ -158,19 +171,7 @@ def _env_float(
     maximum: float | None = None,
 ) -> float:
     """读一个浮点环境变量；错误处置与 :func:`_env_int` 一致。"""
-    raw = os.getenv(name)
-    if raw is None or not raw.strip():
-        return default
-    text = raw.strip()
-    try:
-        value = float(text)
-    except ValueError as exc:
-        raise ValueError(f"环境变量 {name} 需要数字，实际是 {raw!r}") from exc
-    if minimum is not None and value < minimum:
-        raise ValueError(f"环境变量 {name} 不能小于 {minimum}，实际是 {value}")
-    if maximum is not None and value > maximum:
-        raise ValueError(f"环境变量 {name} 不能大于 {maximum}，实际是 {value}")
-    return value
+    return _env_number(name, default, cast=float, label="数字", minimum=minimum, maximum=maximum)
 
 
 def _env_path(name: str, default: Path | None = None) -> Path | None:

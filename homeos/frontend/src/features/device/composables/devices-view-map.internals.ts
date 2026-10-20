@@ -11,7 +11,7 @@ import { resolveListRowEntity } from '@/composables/entity/projection-row.util'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 
-export const DEVICES_TOGGLE_DOMAINS = new Set([
+const DEVICES_TOGGLE_DOMAINS = new Set([
   'light',
   'switch',
   'fan',
@@ -20,7 +20,7 @@ export const DEVICES_TOGGLE_DOMAINS = new Set([
   'input_boolean',
 ])
 
-export const DEVICES_PREFERRED_DOMAINS = [
+const DEVICES_PREFERRED_DOMAINS = [
   'light',
   'climate',
   'cover',
@@ -31,7 +31,7 @@ export const DEVICES_PREFERRED_DOMAINS = [
   'camera',
 ]
 
-export type DevicesDomainTab = {
+type DevicesDomainTab = {
   id: string
   label: string
   count: number | null
@@ -69,7 +69,7 @@ export function buildDevicesDomainTabs(
   return tabs
 }
 
-export type MapDeviceEntityRowOptions = {
+type MapDeviceEntityRowOptions = {
   preferProjection?: boolean
   rawEntities: Record<string, HaEntityState>
   isEntityAllowed: (entityId: string) => boolean

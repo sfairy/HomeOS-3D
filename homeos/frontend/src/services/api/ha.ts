@@ -42,7 +42,7 @@ export type HaConnectionInput = {
 }
 
 /** 单侧地址的探测结果。 */
-export type HaProbeResult = {
+type HaProbeResult = {
   kind: string
   label: string
   baseUrl: string
@@ -54,7 +54,7 @@ export type HaProbeResult = {
 }
 
 /** 保存连接 / 探测连接的响应。 */
-export type HaConnectionTestResult = HaConnectionStatus & {
+type HaConnectionTestResult = HaConnectionStatus & {
   test?: { version?: string | null; locationName?: string | null }
   endpoints?: HaProbeResult[]
   /** POST /ha/test 额外返回：可达端点与版本 */

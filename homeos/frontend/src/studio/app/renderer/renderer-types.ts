@@ -17,7 +17,7 @@ export type RendererDetailsStateSync = {
 };
 
 /** 组件详情 / 可视化控制器元素。 */
-export type ComponentControllerHooks = {
+type ComponentControllerHooks = {
   syncCapabilityState?: (...args: any[]) => any;
   cleanupCapabilityDetails?: () => void;
   resizeInteraction3d?: (...args: any[]) => any;

@@ -5,7 +5,7 @@
  * 统一挂到交接队列，等下一次安全的空闲点再销毁。
  */
 
-export type PreviewResourceHandoff = {
+type PreviewResourceHandoff = {
   /** 把资源排进回收队列；交接阶段已结束则返回 false。 */
   retire: (resource: any) => boolean;
   /** 在交接区内执行任务；任务抛错时仍会清理队列。 */

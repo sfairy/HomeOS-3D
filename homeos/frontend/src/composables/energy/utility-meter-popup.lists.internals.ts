@@ -20,7 +20,7 @@ import type { useLayoutStore } from '@/stores/layout.store'
 type EntitiesStore = ReturnType<typeof useEntitiesStore>
 type LayoutStore = ReturnType<typeof useLayoutStore>
 
-export function markMinMax(arr: UtilityMeterParsedItem[]) {
+function markMinMax(arr: UtilityMeterParsedItem[]) {
   if (!arr.length) return arr
   let maxI = 0
   let minI = 0

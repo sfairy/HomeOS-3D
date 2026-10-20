@@ -34,7 +34,7 @@ export function runVariantPeer({
   );
 }
 
-export interface NavigationStyleApplyTargetDeps {
+interface NavigationStyleApplyTargetDeps {
   /** 「应用到同类型控件」目标列表容器（宿主 `findElement("#navigation-style-apply-targets")`）。 */
   navigationStyleApplyTargetsElement: any;
 }

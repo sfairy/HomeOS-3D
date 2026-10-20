@@ -33,28 +33,28 @@ DEFAULT_MAX_OVERFLOW = 4
 DEFAULT_POOL_TIMEOUT_SECONDS = 5.0
 
 
-def _environment_int(name: str, default: int, *, minimum: int = 0) -> int:
-    """读整型环境变量；缺省 / 非法 / 过小一律回落到 default。"""
+def _environment_number[T: (int, float)](
+    name: str, default: T, *, cast: type[T], minimum: T = 0
+) -> T:
+    """读数值环境变量；缺省 / 非法 / 过小一律回落到 default。"""
     value = os.getenv(name)
     if value is None or not value.strip():
         return default
     try:
-        parsed = int(value)
+        parsed = cast(value)
     except ValueError:
         return default
     return parsed if parsed >= minimum else default
+
+
+def _environment_int(name: str, default: int, *, minimum: int = 0) -> int:
+    """读整型环境变量；缺省 / 非法 / 过小一律回落到 default。"""
+    return _environment_number(name, default, cast=int, minimum=minimum)
 
 
 def _environment_float(name: str, default: float, *, minimum: float = 0.0) -> float:
     """读浮点环境变量；缺省 / 非法 / 过小一律回落到 default。"""
-    value = os.getenv(name)
-    if value is None or not value.strip():
-        return default
-    try:
-        parsed = float(value)
-    except ValueError:
-        return default
-    return parsed if parsed >= minimum else default
+    return _environment_number(name, default, cast=float, minimum=minimum)
 
 
 class Base(DeclarativeBase):

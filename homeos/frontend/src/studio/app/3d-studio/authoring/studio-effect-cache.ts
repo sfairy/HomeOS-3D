@@ -9,7 +9,7 @@
  * 并把 `failed` 记住，避免在坏驱动上反复尝试。
  */
 
-export type EffectCacheStats = {
+type EffectCacheStats = {
   captures: number;
   replays: number;
   fullFrames: number;
@@ -17,7 +17,7 @@ export type EffectCacheStats = {
   bytes: number;
 };
 
-export type EffectCacheOptions = {
+type EffectCacheOptions = {
   THREE: any;
   renderer: any;
   /** 读取当前时间（毫秒）；测试可注入。 */

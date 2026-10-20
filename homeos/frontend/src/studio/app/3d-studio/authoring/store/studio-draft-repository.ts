@@ -26,12 +26,12 @@ import type {
 } from "./save-store";
 import type { StudioDraftPayload } from "./document-store";
 
-export const STUDIO3D_DRAFT_URL = "/api/v1/studio3d";
-export const STUDIO3D_REQUEST_TIMEOUT_MS = 15000;
-export const STUDIO3D_REVISION_CONFLICT = "STUDIO3D_REVISION_CONFLICT";
-export const STUDIO3D_INTERACTION_CONFIRMATION = "STUDIO3D_INTERACTION_CONFIRMATION";
+const STUDIO3D_DRAFT_URL = "/api/v1/studio3d";
+const STUDIO3D_REQUEST_TIMEOUT_MS = 15000;
+const STUDIO3D_REVISION_CONFLICT = "STUDIO3D_REVISION_CONFLICT";
+const STUDIO3D_INTERACTION_CONFIRMATION = "STUDIO3D_INTERACTION_CONFIRMATION";
 
-export interface StudioDraftRepositoryOptions {
+interface StudioDraftRepositoryOptions {
   /** 默认 \`/api/v1/studio3d\`；测试可覆盖成全路径。 */
   url?: string;
   /** 注入 fetch（测试用）；默认 \`globalThis.fetch.bind(globalThis)\`。 */
@@ -50,12 +50,12 @@ function nonNegativeInteger(value: any): number {
 }
 
 /** 从后端响应体里取 detail；字符串 detail 也保留，便于上报原始文案。 */
-export function draftErrorDetail(body: any): any {
+function draftErrorDetail(body: any): any {
   return body && typeof body === "object" ? body.detail : undefined;
 }
 
 /** HTTP 错误 → \`SaveRequestError\`；保留 detail.code / currentRevision / token。 */
-export function draftHttpError(status: number, body: any): SaveRequestError {
+function draftHttpError(status: number, body: any): SaveRequestError {
   const detail = draftErrorDetail(body);
   const message =
     (detail && typeof detail === "object" && typeof detail.message === "string" && detail.message) ||
@@ -65,7 +65,7 @@ export function draftHttpError(status: number, body: any): SaveRequestError {
 }
 
 /** 传输层失败（断网 / 超时 / 非 JSON）：不带 status，状态机会按可重试处理。 */
-export function draftTransportError(message: string): SaveRequestError {
+function draftTransportError(message: string): SaveRequestError {
   return { message };
 }
 
@@ -74,7 +74,7 @@ function isRecord(value: any): boolean {
 }
 
 /** 校验并归一化 GET / PUT 成功响应；缺字段时抛出可重试的传输错误。 */
-export function normalizeDraftPayload(body: any, fallbackScene: any = null): StudioDraftPayload {
+function normalizeDraftPayload(body: any, fallbackScene: any = null): StudioDraftPayload {
   if (!isRecord(body)) throw draftTransportError("草稿响应不是 JSON 对象。");
   if (!("revision" in body)) throw draftTransportError("草稿响应缺少 revision。");
   const scene = "scene" in body ? body.scene : fallbackScene;

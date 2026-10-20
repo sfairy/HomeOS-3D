@@ -3,7 +3,7 @@
  * Zoom 通过 CSS 变量 --sc-canvas-zoom 作用在 #editor-canvas。
  */
 
-export function clampEditorZoom(zoom: number): number {
+function clampEditorZoom(zoom: number): number {
   return Math.min(3, Math.max(0.25, Number(zoom) || 1))
 }
 

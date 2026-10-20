@@ -10,7 +10,7 @@ import {
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { logger } from '@/shared/utils/core/logger'
 
-export type SttMode = 'browser' | 'ha' | 'auto'
+type SttMode = 'browser' | 'ha' | 'auto'
 
 function resolveSttMode(raw: unknown): SttMode {
   if (raw === 'ha' || raw === 'auto') return raw

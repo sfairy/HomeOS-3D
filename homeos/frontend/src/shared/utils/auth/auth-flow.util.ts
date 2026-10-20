@@ -8,7 +8,7 @@
  */
 
 /** 单个流程步骤：key 供页面引用，label 是显示文案（编号由数组顺序推导）。 */
-export interface AuthFlowStep {
+interface AuthFlowStep {
   /** 稳定标识，页面用它声明自己当前处于哪一步。 */
   key: string
   /** 显示文案，不含编号。 */
@@ -16,7 +16,7 @@ export interface AuthFlowStep {
 }
 
 /** 步骤在轨道上的视觉/语义状态。 */
-export type AuthStepState = 'done' | 'current' | 'todo' | 'blocked'
+type AuthStepState = 'done' | 'current' | 'todo' | 'blocked'
 
 /** 渲染用的一步：编号、文案、状态。 */
 export interface RenderableAuthStep extends AuthFlowStep {
@@ -40,11 +40,6 @@ export const AUTH_FLOW_ACCESS: AuthFlowStep[] = [
 ]
 
 /** 授权恢复：激活受阻 → 恢复授权。 */
-export const AUTH_FLOW_RECOVERY: AuthFlowStep[] = [
-  { key: 'activate', label: '激活' },
-  { key: 'recover', label: '恢复授权' },
-]
-
 /**
  * 把流程步骤渲染成带编号与状态的数组。
  *

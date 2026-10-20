@@ -15,7 +15,7 @@ import { formatNumericValue } from "../controls/line-chart-runtime";
 type RenderPropertyBag = any;
 
 const COVER_POSITION_THRESHOLD = 1;
-export function isCoverMotorReversed(component: any) {
+function isCoverMotorReversed(component: any) {
   return component?.properties?.coverMotorDirection === "reversed";
 }
 export function coverComponentIsDream(
@@ -408,7 +408,7 @@ export function isCoverComponentActive(toggleComponent: any, toggleRenderEnviron
     )
   );
 }
-export function resolveClimateEffectMode(climateComponent: any, climateRenderEnvironment: any) {
+function resolveClimateEffectMode(climateComponent: any, climateRenderEnvironment: any) {
   const climateEntityId = climateComponent.bindings?.entity?.entityId || "",
     climateEntityState = resolveStatePayload(climateRenderEnvironment.states?.get(climateEntityId)),
     climateDeviceType = resolveClimateDeviceType(

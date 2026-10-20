@@ -37,7 +37,7 @@ export const lightIntensityFactor = Object.freeze({
 });
 
 /** 灯光角度上限（按类型）。 */
-export const lightAngleLimit = {
+const lightAngleLimit = {
   downlight: 120,
   ceilinglight: 150,
   striplight: 120,

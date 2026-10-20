@@ -27,7 +27,7 @@ type LicenseProduct = {
 }
 
 /** 授权状态响应（与后端 LicenseStatus 对齐）。 */
-export type LicenseStatus = {
+type LicenseStatus = {
   required: boolean
   allowed: boolean
   editorAllowed: boolean
@@ -73,7 +73,7 @@ export type LicenseStatus = {
 }
 
 /** 授权可用性响应（GET /license/availability，字段是 LicenseStatus 的子集 + displayAllowed）。 */
-export type LicenseAvailability = {
+type LicenseAvailability = {
   /** 本机是否要求激活（LICENSE_REQUIRED）。 */
   required: boolean
   status: LicenseState | string
@@ -124,7 +124,7 @@ const LICENSE_STATUS_MESSAGES: Record<string, string> = {
  * 与后端 `services/license/service.py::STATUS_LABELS` 同源；后端已下发 `statusLabel` 时优先后端值，
  * 这张表用于前端本地判定，避免直接暴露 `ACTIVE` 这类英文码。
  */
-export const LICENSE_STATUS_LABELS: Record<string, string> = {
+const LICENSE_STATUS_LABELS: Record<string, string> = {
   UNACTIVATED: '未激活',
   ACTIVE: '正常',
   CONNECTION_WARNING: '连接异常',
@@ -143,7 +143,7 @@ export const LICENSE_STATUS_LABELS: Record<string, string> = {
 }
 
 /** 授权状态对应的语义色调：ok（可用）/ warn（可恢复）/ alert（需人工处理）。 */
-export type LicenseTone = 'ok' | 'warn' | 'alert'
+type LicenseTone = 'ok' | 'warn' | 'alert'
 
 /** 需要人工介入、重试网络也无效的终态：给红色警示。 */
 const LICENSE_ALERT_STATUSES: ReadonlySet<string> = new Set([

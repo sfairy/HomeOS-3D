@@ -5,7 +5,7 @@
  * 元素引用按 ctx 注入，调用点零改写。与 `*-input-tables` 同族。
  */
 
-export interface InspectorSubmitElementRefs {
+interface InspectorSubmitElementRefs {
   airConditionerLabelElement: any;
   airConditionerMainTextElement: any;
   airConditionerSecondaryTextElement: any;

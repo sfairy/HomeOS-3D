@@ -6,7 +6,7 @@ import { ref, watch, onMounted, onUnmounted, nextTick, type Ref, type ComputedRe
 import type { ECharts } from 'echarts'
 import type { UtilityMeterParsedItem } from '@/shared/energy'
 
-export type ChartEl = HTMLElement & { _chart?: ECharts | null }
+type ChartEl = HTMLElement & { _chart?: ECharts | null }
 
 export function createUtilityMeterCharts(opts: {
   color1: string

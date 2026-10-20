@@ -3,7 +3,7 @@
  */
 import type { ECharts } from 'echarts/core'
 
-export function chartDomReady(el: HTMLElement | null): el is HTMLElement {
+function chartDomReady(el: HTMLElement | null): el is HTMLElement {
   if (!el) return false
   const { clientWidth, clientHeight } = el
   return clientWidth > 0 && clientHeight > 0

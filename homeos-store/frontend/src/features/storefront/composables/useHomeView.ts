@@ -54,7 +54,7 @@ function stripRepeatedLabel(label: string, description: string): string {
   return rest || description;
 }
 
-export interface TierView {
+interface TierView {
   id: string;
   name: string;
   hint: string;
@@ -78,13 +78,13 @@ export interface TierView {
   stockNote: string;
 }
 
-export interface TrialView {
+interface TrialView {
   product: StoreProduct;
   href: string;
   price: string;
 }
 
-export interface ModuleCardView extends ModuleMeta {
+interface ModuleCardView extends ModuleMeta {
   label: string;
   description: string;
   price: string | null;
@@ -95,7 +95,7 @@ export interface ModuleCardView extends ModuleMeta {
   includedInFull: boolean;
 }
 
-export interface CapabilityCardView extends CapabilityCard {
+interface CapabilityCardView extends CapabilityCard {
   requirement: string;
   requirementTone: "base" | "module" | "owned";
   href: string | null;
@@ -103,7 +103,7 @@ export interface CapabilityCardView extends CapabilityCard {
   linkLabel: string | null;
 }
 
-export interface CapabilityDomainView extends Omit<CapabilityDomain, "cards"> {
+interface CapabilityDomainView extends Omit<CapabilityDomain, "cards"> {
   cards: CapabilityCardView[];
 }
 

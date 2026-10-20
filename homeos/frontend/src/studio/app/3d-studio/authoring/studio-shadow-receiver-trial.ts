@@ -7,7 +7,7 @@
 
 const SHADOW_TRIAL_MODES = new Set(["non-casters"]);
 
-export type ShadowReceiverTrialStats = {
+type ShadowReceiverTrialStats = {
   mode: string;
   scope?: string;
   triangleMetric?: string;
@@ -17,7 +17,7 @@ export type ShadowReceiverTrialStats = {
 };
 
 /** 解析当前试验模式；非法/缺省返回空串（即关闭）。 */
-export function shadowReceiverTrialMode(
+function shadowReceiverTrialMode(
   search: string = globalThis.location?.search || "",
 ): string {
   const requestedMode = new URLSearchParams(search).get("shadow-receiver-trial") || "";

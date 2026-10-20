@@ -5,7 +5,7 @@ import { createFacadeRuntime } from './facade-runtime'
 import type { EventBus } from './event-bus'
 import type { DisplayCommand, DisplayFacadeState } from './types'
 
-export type DisplayCommandHandler = (command: DisplayCommand) => void | Promise<void>
+type DisplayCommandHandler = (command: DisplayCommand) => void | Promise<void>
 
 function defaultState(): DisplayFacadeState {
   return {

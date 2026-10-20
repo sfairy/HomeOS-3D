@@ -6,7 +6,7 @@ const loaded = new Map<string, Promise<void>>();
  * 由视图在挂载时按原始顺序补上（异步脚本也会保证执行顺序与插入顺序一致）。
  * 注意：hls.js 已改由 @/shared/camera/hls-loader 按需加载，不要再用这个函数在引导阶段阻塞加载它。
  */
-export function loadClassicScript(src: string): Promise<void> {
+function loadClassicScript(src: string): Promise<void> {
   const existing = loaded.get(src);
   if (existing) return existing;
   const promise = new Promise<void>((resolve, reject) => {

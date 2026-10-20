@@ -7,7 +7,7 @@
 import { entityMatchesAreaFilter } from '@homeos/shared'
 import type { DeviceListItem, DeviceFilterState } from '@/shared/types/device'
 
-export type DevicesMemoryFilterInput = {
+type DevicesMemoryFilterInput = {
   items: DeviceListItem[]
   activeDomain: string
   query: string

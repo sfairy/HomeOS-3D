@@ -14,7 +14,7 @@ let nextHolderId = 0
 const ANONYMOUS = '匿名浮层'
 
 /** 滚动锁的当前状态快照（诊断用）。 */
-export interface BodyScrollLockState {
+interface BodyScrollLockState {
   /** 当前持锁数量；>0 但界面上没有任何浮层时即为泄漏。 */
   count: number
   /** 当前持锁来源标签，按持锁顺序排列。 */
@@ -63,7 +63,7 @@ export function releaseAllBodyScrollLocks(): void {
  * @param label - 来源标签，只用于诊断（重复检测 + 状态快照）
  * @returns 解锁函数，重复调用只有第一次生效
  */
-export function acquireBodyScrollLock(label: string = ANONYMOUS): () => void {
+function acquireBodyScrollLock(label: string = ANONYMOUS): () => void {
   if (lockCount === 0) {
     previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'

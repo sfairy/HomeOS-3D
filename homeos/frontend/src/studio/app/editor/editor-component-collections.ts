@@ -84,12 +84,12 @@ export function groupNameForCollection(groupComponents: any, baseGroupName = "�
   for (; groupLabelSet.has(baseGroupName + " " + groupIndex);) groupIndex += 1;
   return baseGroupName + " " + groupIndex;
 }
-export function refreshComponentIds(rootComponent: any, assignedId: any = null) {
+function refreshComponentIds(rootComponent: any, assignedId: any = null) {
   rootComponent.id = assignedId || newId("component");
   for (const childComponent of rootComponent.children || []) refreshComponentIds(childComponent);
   return rootComponent;
 }
-export function copiedComponentLabel(sourceComponent: any, siblingComponents: any) {
+function copiedComponentLabel(sourceComponent: any, siblingComponents: any) {
   const cleanedLabel =
       String(componentLabel(sourceComponent) || "控件")
         .trim()

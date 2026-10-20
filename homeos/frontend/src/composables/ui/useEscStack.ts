@@ -54,7 +54,7 @@ function syncListener() {
  * @param handler - Esc 处理器
  * @returns 出栈函数，重复调用只有第一次生效
  */
-export function pushEscLayer(label: string, handler: (event: KeyboardEvent) => void): () => void {
+function pushEscLayer(label: string, handler: (event: KeyboardEvent) => void): () => void {
   const layer: EscLayer = { id: ++nextId, label, handler }
   layers.push(layer)
   syncListener()

@@ -30,10 +30,6 @@ def _int(value: Any, default: int = 0) -> int:
         return default
 
 
-def _bool(value: Any, default: bool = False) -> bool:
-    return value if isinstance(value, bool) else default
-
-
 def _str(value: Any, default: str = "") -> str:
     return str(value) if value is not None else default
 

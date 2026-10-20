@@ -76,7 +76,7 @@ def http_get(url: str, *, cookie: str = "", timeout: float = 30.0,
             "elapsed_ms": elapsed_ms,
             "error": f"HTTP {error.code}",
         }
-    except Exception as error:  # noqa: BLE001 - 探针需要把网络错误记录进结果
+    except Exception as error:
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         return {
             "ok": False,
@@ -103,7 +103,7 @@ def percentile(values: list[float], pct: float) -> float:
     if not values:
         return 0.0
     ordered = sorted(values)
-    rank = max(0, min(len(ordered) - 1, int(round((pct / 100.0) * (len(ordered) - 1)))))
+    rank = max(0, min(len(ordered) - 1, round((pct / 100.0) * (len(ordered) - 1))))
     return float(ordered[rank])
 
 
@@ -194,7 +194,7 @@ def _macos_process_snapshot(pid: int) -> dict[str, Any] | None:
             "threads": int(info.threadnum),
             "error": "",
         }
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -215,7 +215,7 @@ def process_snapshot(pid: int) -> dict[str, Any]:
                 "error": "",
             }
         error = text or completed.stderr.strip()
-    except Exception as caught:  # noqa: BLE001
+    except Exception as caught:
         error = str(caught)
     if sys.platform == "darwin":
         fallback = _macos_process_snapshot(pid)

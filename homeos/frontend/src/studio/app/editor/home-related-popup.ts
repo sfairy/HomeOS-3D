@@ -12,7 +12,7 @@ import {
   selectedRelatedEntityIds as selectedRelatedEntityIds2,
 } from "../shared/related-entities";
 
-export interface RelatedPopupContext {
+interface RelatedPopupContext {
   get entities(): any[];
   get devices(): any[];
   getSelectedComponentId: () => any;

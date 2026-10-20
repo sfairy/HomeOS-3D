@@ -14,14 +14,14 @@
 import type { DocumentPatch } from "./document-store";
 import { invertDocumentPatch } from "./document-store";
 
-export interface HistoryEntry {
+interface HistoryEntry {
   patch: DocumentPatch;
   inverse: DocumentPatch;
   label: string;
   at: number;
 }
 
-export interface HistoryStoreOptions {
+interface HistoryStoreOptions {
   /** 应用补丁（就地改文档），返回是否成功。 */
   apply: (patch: DocumentPatch) => boolean;
   /** 应用前预检；返回 false 时撤销/重做不落栈也不改文档。 */
@@ -33,12 +33,12 @@ export interface HistoryStoreOptions {
   onApplyFailure?: (entry: HistoryEntry) => void;
 }
 
-export const DEFAULT_HISTORY_MAX_ENTRIES = 40;
-export const DEFAULT_HISTORY_MAX_BYTES = 32 * 1024 * 1024;
+const DEFAULT_HISTORY_MAX_ENTRIES = 40;
+const DEFAULT_HISTORY_MAX_BYTES = 32 * 1024 * 1024;
 
-export type HistoryDirection = "undo" | "redo";
+type HistoryDirection = "undo" | "redo";
 
-export type HistoryApplyResult =
+type HistoryApplyResult =
   | { ok: true; direction: HistoryDirection; entry: HistoryEntry }
   | {
       ok: false;
@@ -48,7 +48,7 @@ export type HistoryApplyResult =
     };
 
 /** UTF-8 字节数（浏览器没有 Buffer，手算避免依赖 TextEncoder 的实例化开销）。 */
-export function utf8ByteLength(text: string): number {
+function utf8ByteLength(text: string): number {
   let bytes = 0;
   for (const character of text) {
     const codePoint = character.codePointAt(0) ?? 0;
@@ -57,7 +57,7 @@ export function utf8ByteLength(text: string): number {
   return bytes;
 }
 
-export function estimateHistoryEntryBytes(entry: HistoryEntry): number {
+function estimateHistoryEntryBytes(entry: HistoryEntry): number {
   return utf8ByteLength(JSON.stringify(entry.patch)) + utf8ByteLength(JSON.stringify(entry.inverse));
 }
 

@@ -4,7 +4,7 @@ import type { HaEntityEntry } from "@app/shared/util/ha-entity";
  * HA 状态记录：一层 `{ state, attributes, lastChanged, … }`，或宿主包一层 `newState`（两处写法并存）。
  * 显式列字段，替代原先的 `any` 直穿 —— 不认识的字段读出来就是 `undefined`，不再是「随便点」。
  */
-export interface PresenceStateEntry {
+interface PresenceStateEntry {
   state?: unknown;
   attributes?: Record<string, unknown>;
   lastChanged?: unknown;
@@ -15,18 +15,18 @@ export interface PresenceStateEntry {
 }
 
 /** 状态来源的包裹形态（宿主 `states` 表里可能存 `{ newState }`）。 */
-export interface PresenceStateWrapper {
+interface PresenceStateWrapper {
   newState?: unknown;
 }
 
 /** 人在传感器运动事件解析所需的选项。 */
-export interface PresenceEventOptions {
+interface PresenceEventOptions {
   /** 运动超时时间（秒）。 */
   motionTimeoutSeconds?: number | null;
 }
 
 /** 人在传感器展示状态计算所需的选项。 */
-export interface PresencePresentationOptions {
+interface PresencePresentationOptions {
   /** 触发动画的运动事件实体 id（只做真值判断，形状不定）。 */
   motionEvent?: unknown;
   entityId?: unknown;
@@ -38,7 +38,7 @@ export interface PresencePresentationOptions {
 }
 
 /** 人形动画各段时长（秒）。 */
-export interface PresenceAnimationDurations {
+interface PresenceAnimationDurations {
   orbit?: number;
   wave?: number;
   floor?: number;
@@ -46,7 +46,7 @@ export interface PresenceAnimationDurations {
 }
 
 /** 人在传感器展示结果（渲染器据此上色）。 */
-export interface PresencePresentationResult {
+interface PresencePresentationResult {
   key: string;
   label: string;
   active: boolean;
@@ -54,7 +54,7 @@ export interface PresencePresentationResult {
 }
 
 /** 运动事件判定结果：`motionEvent` 是判别字段 —— 命中时超时参数已解析成数值。 */
-export interface PresenceMotionEventConfigInactive {
+interface PresenceMotionEventConfigInactive {
   entityId: unknown;
   motionEvent: false;
   motionTimeoutSeconds: null;
@@ -64,7 +64,7 @@ export interface PresenceMotionEventConfigInactive {
 }
 
 /** 运动事件命中：`motionTimeoutSeconds` 必有值（渲染器据此排重绘定时器）。 */
-export interface PresenceMotionEventConfigActive {
+interface PresenceMotionEventConfigActive {
   entityId: unknown;
   motionEvent: true;
   motionTimeoutSeconds: number;
@@ -73,12 +73,12 @@ export interface PresenceMotionEventConfigActive {
   companionEntityIds: string[];
 }
 
-export type PresenceMotionEventConfig =
+type PresenceMotionEventConfig =
   | PresenceMotionEventConfigInactive
   | PresenceMotionEventConfigActive;
 
 /** 人形动画各段延迟（CSS 负延迟字符串）。 */
-export interface PresenceAnimationDelays {
+interface PresenceAnimationDelays {
   orbitDelay: string;
   waveDelay: string;
   floorDelay: string;
@@ -86,13 +86,13 @@ export interface PresenceAnimationDelays {
 }
 
 /** 历史条目（`presenceHistoryBuckets` 入参形状）。 */
-export interface PresenceHistoryEntry {
+interface PresenceHistoryEntry {
   timestamp?: unknown;
   value?: unknown;
 }
 
 /** 实体注册表条目（即时消息墙 / 人在传感器只用到这几个字段）。 */
-export interface PresenceRegistryEntry {
+interface PresenceRegistryEntry {
   entityId?: string;
   name?: string;
   originalName?: string;
@@ -104,13 +104,13 @@ export interface PresenceRegistryEntry {
 }
 
 /** 注册表 / 状态表的最小接口：宿主可能传 Map，也可能传 undefined。 */
-export interface PresenceEntityLookup {
+interface PresenceEntityLookup {
   get?: (key: string) => unknown;
   values?: () => Iterable<unknown>;
 }
 
 /** 运动伴随传感器：超时传感器与「无移动时长」传感器。 */
-export interface PresenceCompanionSensors {
+interface PresenceCompanionSensors {
   timeout: PresenceRegistryEntry | null;
   noMotion: PresenceRegistryEntry | null;
 }

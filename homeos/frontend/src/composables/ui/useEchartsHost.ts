@@ -55,7 +55,7 @@ interface EchartsHostChartDef {
   onInit?: (chart: ChartInst) => void
 }
 
-export interface EchartsHostOptions {
+interface EchartsHostOptions {
   /** 图表注册表：key → 图表定义 */
   charts: Record<string, EchartsHostChartDef>
   /** 容器尺寸为 0 时的最大重试次数，默认 12 */

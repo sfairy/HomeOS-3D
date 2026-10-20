@@ -29,7 +29,7 @@ type GroundReflectionQualityPreset = {
 };
 
 /** 清晰度档 → 反射通道开销策略。 */
-export const GROUND_REFLECTION_QUALITY: Record<
+const GROUND_REFLECTION_QUALITY: Record<
   GroundReflectionResolution,
   GroundReflectionQualityPreset
 > = {

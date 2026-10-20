@@ -4,7 +4,7 @@ import {
   withModelAssetCacheKey,
 } from "./_shared";
 
-export type ApprovedItemMeta = {
+type ApprovedItemMeta = {
   label: string;
   glyph: string;
   subcategory: string;
@@ -16,7 +16,7 @@ export type ApprovedItemMeta = {
 };
 
 /** Palette + placement defaults for newly approved item types. */
-export const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
+const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
   "ceiling-fan": {
     label: "吊扇",
     glyph: "◉",

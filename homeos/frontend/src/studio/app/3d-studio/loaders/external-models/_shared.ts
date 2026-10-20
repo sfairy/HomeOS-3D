@@ -70,7 +70,7 @@ export function insetBedBaseGeometry(bedGeometry: any) {
   );
 }
 /** 给石材板部件补一套**平面投影 UV**（平铺坐标 = XZ 平面归一化）。 */
-export function ensureStoneSlabPlanarUv(threeLib: any, slabGeometry: any) {
+function ensureStoneSlabPlanarUv(threeLib: any, slabGeometry: any) {
   if (!slabGeometry?.attributes?.position) return;
   slabGeometry.computeBoundingBox();
   const geometryBounds = slabGeometry.boundingBox;

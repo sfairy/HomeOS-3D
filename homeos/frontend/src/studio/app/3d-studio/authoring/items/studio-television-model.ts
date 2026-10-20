@@ -13,7 +13,7 @@ import { drawTelevisionPoster as drawTelevisionPoster2 } from "../../materials/s
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 
 /** 电视模型构件需要的外部状态（均为只读）。 */
-export interface StudioTelevisionDeps {
+interface StudioTelevisionDeps {
   isEmbeddedStage: boolean;
   threeRenderer: any;
   backgroundSettings: () => { warmWood?: boolean } & Record<string, any>;

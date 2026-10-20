@@ -5,7 +5,7 @@
  */
 
 /** 细粒度类目 id → 中文标题。 */
-export const LIBRARY_GROUPS = Object.freeze({
+const LIBRARY_GROUPS = Object.freeze({
   living: "客厅家具",
   storage: "柜架收纳",
   entry: "玄关用品",
@@ -38,7 +38,7 @@ export const LIBRARY_GROUPS = Object.freeze({
 export type LibraryGroupId = keyof typeof LIBRARY_GROUPS;
 
 /** 类目分组：家居 / 电器 / 庭院 / 灯光，与 `data-library-category` 一致。 */
-export type LibraryCategoryId = "home" | "appliance" | "courtyard" | "light";
+type LibraryCategoryId = "home" | "appliance" | "courtyard" | "light";
 
 /** 判定用的大类：把外部传进来的字符串收窄成 `LibraryCategoryId`，非法值回落到 `home`。 */
 export function normalizeLibraryCategory(category: unknown): LibraryCategoryId {

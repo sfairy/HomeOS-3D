@@ -3195,7 +3195,7 @@ export function isMaterialStyleCapable(modelType: string): boolean {
  *
  * 公开导出：供材质风格档位判定（历史审计脚本曾动态 import 本符号）。
  */
-export function isMaterialStyleOptOut(modelType: string): boolean {
+function isMaterialStyleOptOut(modelType: string): boolean {
   return modelType in PRESET_GROUP_BY_MODEL_TYPE && !PRESET_GROUP_BY_MODEL_TYPE[modelType];
 }
 

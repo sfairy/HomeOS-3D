@@ -104,8 +104,7 @@ def main() -> None:
             before_items = {item["name"]: item for item in before_backend.get("endpoints", {}).get(service, [])}
             after_items = {item["name"]: item for item in after_backend.get("endpoints", {}).get(service, [])}
             rows = []
-            for name in before_items:
-                first = before_items[name]
+            for name, first in before_items.items():
                 second = after_items.get(name)
                 if not second:
                     continue
@@ -127,8 +126,8 @@ def main() -> None:
         before_routes = {route["name"]: route for route in before_frontend.get("routes", [])}
         after_routes = {route["name"]: route for route in after_frontend.get("routes", [])}
         rows = []
-        for name in before_routes:
-            first = before_routes[name].get("cold") or {}
+        for name, route in before_routes.items():
+            first = route.get("cold") or {}
             second = (after_routes.get(name) or {}).get("cold") or {}
             rows.append(f"| {name} LCP | {_format(first.get('lcp'))} ms | {_format(second.get('lcp'))} ms | "
                         f"{_format(_pct(first.get('lcp'), second.get('lcp')), 2)}% |")
@@ -143,7 +142,7 @@ def main() -> None:
             rows.append(f"| {name} 冷开网络字节 | {_format((first.get('network') or {}).get('cdpEncodedBytes'))} B | "
                         f"{_format((second.get('network') or {}).get('cdpEncodedBytes'))} B | "
                         f"{_format(_pct((first.get('network') or {}).get('cdpEncodedBytes'), (second.get('network') or {}).get('cdpEncodedBytes')), 2)}% |")
-            first_warm = before_routes[name].get("warm") or {}
+            first_warm = route.get("warm") or {}
             second_warm = (after_routes.get(name) or {}).get("warm") or {}
             rows.append(f"| {name} 暖导航网络字节 | {_format((first_warm.get('network') or {}).get('cdpEncodedBytes'))} B | "
                         f"{_format((second_warm.get('network') or {}).get('cdpEncodedBytes'))} B | "
@@ -187,9 +186,11 @@ def main() -> None:
         "",
         f"生成时间：{__import__('datetime').datetime.now().isoformat(timespec='seconds')}",
         "",
-        "测量方式：隔离实例（18801/18802）、独立数据副本、固定 token；后端使用同一台机器上的串行/并发探针，"
-        "前端使用 Microsoft Edge + Playwright 固定视口，3D 直接打开 stage.html 并读取页面自带 performance-diagnostics。"
-        "真机数据不在此表中，不得用实验室数字冒充。",
+        (
+            "测量方式：隔离实例（18801/18802）、独立数据副本、固定 token；后端使用同一台机器上的串行/并发探针，"
+            "前端使用 Microsoft Edge + Playwright 固定视口，3D 直接打开 stage.html 并读取页面自带 performance-diagnostics。"
+            "真机数据不在此表中，不得用实验室数字冒充。"
+        ),
         "",
     ]
     markdown = "\n".join(header + sections) + "\n"

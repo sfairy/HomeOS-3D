@@ -17,10 +17,10 @@ import { onMounted, onUnmounted, ref } from 'vue'
  */
 
 /** 视口档位 */
-export type ViewportTier = 'compact' | 'standard' | 'wide' | 'ultra'
+type ViewportTier = 'compact' | 'standard' | 'wide' | 'ultra'
 
 /** 断点上限（含）：compact ≤1024 < standard ≤1440 < wide ≤1920 < ultra */
-export const VIEWPORT_TIER_MAX: Record<Exclude<ViewportTier, 'ultra'>, number> = {
+const VIEWPORT_TIER_MAX: Record<Exclude<ViewportTier, 'ultra'>, number> = {
   compact: 1024,
   standard: 1440,
   wide: 1920,
@@ -32,7 +32,7 @@ export const VIEWPORT_TIER_MAX: Record<Exclude<ViewportTier, 'ultra'>, number> =
  * @param width CSS 像素宽度（一般取 window.innerWidth）
  * @returns 档位名
  */
-export function tierFromWidth(width: number): ViewportTier {
+function tierFromWidth(width: number): ViewportTier {
   if (!Number.isFinite(width) || width <= 0) return 'standard'
   if (width <= VIEWPORT_TIER_MAX.compact) return 'compact'
   if (width <= VIEWPORT_TIER_MAX.standard) return 'standard'

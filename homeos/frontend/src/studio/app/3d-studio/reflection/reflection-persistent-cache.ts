@@ -1,14 +1,14 @@
 import { createCacheLogger, runCacheTask } from "../cache-shared";
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
-export const REFLECTION_CACHE_VERSION = "20260930-v1";
+const REFLECTION_CACHE_VERSION = "20260930-v1";
 const MAX_ENTRY_BYTES = 25165824,
   MAX_PERSISTED_BYTES = 67108864,
   MAX_ENTRY_COUNT = 8,
   MAX_PERSISTED_ENTRIES = 4,
   MAX_PENDING_ENTRIES = 8;
 /** 反射快照：分辨率 128..1024 的方形，像素为 size*size*4 的半精度 RGBA，矩阵 16 个有限数。 */
-export function validReflectionSnapshot(snapshot: any) {
+function validReflectionSnapshot(snapshot: any) {
   return (
     !!snapshot &&
     Number.isInteger(snapshot.size) &&

@@ -5,7 +5,7 @@
  * 这里按「未引用条目数 + 未引用字节数」双阈值回收，避免显存无限增长。
  */
 
-export type SharedGeometryCacheStats = {
+type SharedGeometryCacheStats = {
   unusedEntries: number;
   unusedBytes: number;
   evicted: number;

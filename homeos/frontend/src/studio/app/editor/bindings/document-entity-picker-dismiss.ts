@@ -11,7 +11,7 @@ import { findComponent as findComponent2 } from "../component-tree";
  * 像 `editorRenderer`（boot 后才赋值）/ `activeProject` 这类可变状态会被冻结在注册那一刻，
  * 而声明在注册语句下方的名字甚至会在 boot 当场触发 TDZ。故宿主一律传 getter。
  */
-export interface DocumentEntityPickerDismissDeps {
+interface DocumentEntityPickerDismissDeps {
   closePopupEntityMenus: any;
   renderPopupEntityOptions: any;
   positionPopupEntityMenu: any;

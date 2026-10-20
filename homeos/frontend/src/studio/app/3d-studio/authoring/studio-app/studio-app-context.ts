@@ -16,7 +16,7 @@ import type { normalizeBaseLighting as normalizeBaseLighting2 } from "../../load
 import type { createStudioDocument } from "../scene/studio-scene-payload";
 import type { ListDragRowSession } from "../types/studio-app-types";
 
-export interface StudioAppContext {
+interface StudioAppContext {
   regionLightController: any;
   contactShadowController: any;
   overviewStackController: any;

@@ -528,7 +528,7 @@ const FAMILY_ROLE_RECIPES: Record<string, RoleRecipeTable> = {
   },
 };
 
-export const ROLE_RECIPES_BY_FAMILY: Readonly<Record<string, RoleRecipeTable>> =
+const ROLE_RECIPES_BY_FAMILY: Readonly<Record<string, RoleRecipeTable>> =
   Object.freeze(FAMILY_ROLE_RECIPES);
 
 
@@ -851,7 +851,7 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
 
 
 /** 门的部件顺序：`door-material-<n>` 的 n 就是这里的下标，也是 `MODEL_SLOT_ROLES.door` 的槽位号。 */
-export const DOOR_MATERIAL_PARTS: readonly string[] = Object.freeze([
+const DOOR_MATERIAL_PARTS: readonly string[] = Object.freeze([
   "frame",
   "door",
   "glass",

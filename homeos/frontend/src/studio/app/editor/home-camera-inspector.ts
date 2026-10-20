@@ -3,7 +3,7 @@ import { clampNumber as clampNumber2, roundField as roundField2 } from "./editor
 import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
 import { normalizeGo2rtcTarget as normalizeGo2rtcTarget2 } from "../renderer/registry";
 
-export interface CameraInspectorContext {
+interface CameraInspectorContext {
   /** 字段清单 = 本文件里出现过的袋子取值（`ctx.<key>` / 别名访问 / 解构），由
    *  `ops/studio/studio_context_bag_typing.mjs` 从**真实使用**生成，一个不多一个不少。
    *
@@ -51,7 +51,7 @@ export interface CameraInspectorContext {
 /**
  * go2rtc 地址的默认提示文案：校验失败时会被换成具体错误，切换摄像头或改回合法地址时复原。
  */
-export const CAMERA_GO2RTC_NOTE_TEXT =
+const CAMERA_GO2RTC_NOTE_TEXT =
   "请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HA Bridge 中转，保存仪表盘后播放。";
 
 export function syncCameraInspector(ctx: CameraInspectorContext, cameraComponent: any) {
@@ -198,7 +198,7 @@ function bindCameraInspectorControl(
  * （`home-cover-motor-inspector.ts` 里 `cameraInspectorElement.hidden = !isCamera`）紧跟着
  * 就调用同步，所以挂载一定发生在第一次点击之前。
  */
-export function installCameraInspectorControls(ctx: CameraInspectorContext) {
+function installCameraInspectorControls(ctx: CameraInspectorContext) {
   bindCameraInspectorControl(
     ctx.cameraSourceOptionsElement,
     "click",

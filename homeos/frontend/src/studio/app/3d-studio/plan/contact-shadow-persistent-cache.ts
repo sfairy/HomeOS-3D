@@ -1,7 +1,7 @@
 import { createCacheLogger, runCacheTask } from "../cache-shared";
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
-export const CONTACT_SHADOW_CACHE_VERSION = "20260930-v1";
+const CONTACT_SHADOW_CACHE_VERSION = "20260930-v1";
 const MAX_ENTRY_BYTES = 25165824,
   MAX_PERSISTED_BYTES = 100663296,
   MAX_ENTRY_COUNT = 8,
@@ -22,7 +22,7 @@ const isValidBakedTexture = (bakedTexture: any) =>
   bakedTexture.pixels instanceof Uint8Array &&
   bakedTexture.pixels.length === bakedTexture.width * bakedTexture.height;
 /** 完整的接触阴影快照：target 必填，surface/lookup 要么都没有要么都合法。 */
-export function validContactShadowSnapshot(snapshot: any) {
+function validContactShadowSnapshot(snapshot: any) {
   return (
     !!snapshot &&
     isValidBakedTexture(snapshot.target) &&
