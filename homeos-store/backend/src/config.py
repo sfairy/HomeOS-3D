@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from .core.env import load_dotenv
 from .licensing import keys as license_keys
@@ -126,15 +127,20 @@ def _env_cookie_secure_mode() -> str:
     )
 
 
-def _env_number[T: (int, float)](
+#: 数值环境变量的类型参数。刻意不用 PEP 695 的 ``def f[T](...)``：Cython 3.2 无法解析
+#: 方括号形式，构建加密后端时会以 CompileError 中断（改用传统 TypeVar，同 ``pagination.py``）。
+_NumberT = TypeVar("_NumberT", int, float)
+
+
+def _env_number(
     name: str,
-    default: T,
+    default: _NumberT,
     *,
-    cast: type[T],
+    cast: Callable[[str], _NumberT],
     label: str,
-    minimum: T | None = None,
-    maximum: T | None = None,
-) -> T:
+    minimum: _NumberT | None = None,
+    maximum: _NumberT | None = None,
+) -> _NumberT:
     """读一个数值环境变量；缺省 / 非法 / 越界时按调用方语义处置。"""
     raw = os.getenv(name)
     if raw is None or not raw.strip():

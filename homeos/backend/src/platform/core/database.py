@@ -14,7 +14,8 @@ Socket.IO 多连接读）补齐连接级 PRAGMA：
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from typing import TypeVar
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine, make_url
@@ -32,10 +33,14 @@ DEFAULT_POOL_SIZE = 8
 DEFAULT_MAX_OVERFLOW = 4
 DEFAULT_POOL_TIMEOUT_SECONDS = 5.0
 
+#: 数值环境变量的类型参数。刻意不用 PEP 695 的 ``def f[T](...)``：Cython 3.2 无法解析
+#: 方括号形式，构建加密后端时会以 CompileError 中断（改用传统 TypeVar，同 ``pagination.py``）。
+_NumberT = TypeVar("_NumberT", int, float)
 
-def _environment_number[T: (int, float)](
-    name: str, default: T, *, cast: type[T], minimum: T = 0
-) -> T:
+
+def _environment_number(
+    name: str, default: _NumberT, *, cast: Callable[[str], _NumberT], minimum: float = 0
+) -> _NumberT:
     """读数值环境变量；缺省 / 非法 / 过小一律回落到 default。"""
     value = os.getenv(name)
     if value is None or not value.strip():
