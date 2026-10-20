@@ -144,7 +144,7 @@ import { scheduleInteraction3dPrewarm, releaseRetainedInteraction3d, cleanupRend
 import { popupComponentForEntity, showActionPopup, showCapabilityDetails, showMediaPlayerDetails, createBathHeaterLightControl, showElectricBedLoadingDetails, showElectricBedDetails, openInteraction3dVacuumDetails } from "./panel-seams/details-popups";
 import { browseMedia, createMediaBrowserControl, openInteraction3dCameraPreview, showCameraPreview } from "./panel-seams/media-camera";
 import { registerRuntimeDialogScale, updateRuntimeDialogScale, clearRuntimeDialogScale, closeRuntimeDialog, bindRuntimeDialogOutsideDismiss } from "./panel-seams/runtime-dialogs";
-import { bindRuntimeActions, runAction, previewAction, dispatchAction, callEntityService } from "./panel-seams/runtime-actions";
+import { bindRuntimeActions, triggerRuntimeAction, previewAction, dispatchAction, callEntityService } from "./panel-seams/runtime-actions";
 import { optimisticStateIsConfirmed, updateOptimisticToggleVisuals, applyOptimisticToggle } from "./panel-seams/optimistic-state";
 export { setBuiltinAssetVersions2 as setBuiltinAssetVersions };
 export {
@@ -1778,7 +1778,7 @@ export class PanelRenderer {
     rotatingHostElement: any,
     rotatingBoundsElement: any,) { return startComponentRotate(this, rotateComponentPointerEvent, rotatingComponentRecord, rotatingHostElement, rotatingBoundsElement); }
   ["bindRuntimeActions"](actionHostElement: any, actionOptions: any) { return bindRuntimeActions(this, actionHostElement, actionOptions); }
-  ["runAction"](runtimeActionComponent: any, actionPayload: any, actionRuntimeOptions: Record<string, any> = {}) { return runAction(this, runtimeActionComponent, actionPayload, actionRuntimeOptions); }
+  ["runAction"](runtimeActionComponent: any, actionPayload: any, actionRuntimeOptions: Record<string, any> = {}) { return triggerRuntimeAction(this, runtimeActionComponent, actionPayload, actionRuntimeOptions); }
   ["previewAction"](actionPreviewComponent: any, previewActionPayload: any) { return previewAction(this, actionPreviewComponent, previewActionPayload); }
   ["popupComponentForEntity"](popupEntityId: any, popupLabel = "") { return popupComponentForEntity(this, popupEntityId, popupLabel); }
   ["showActionPopup"](popupComponent: any, popupActionRecord: any, arg?: { preview?: boolean | undefined; }) { return showActionPopup(this, popupComponent, popupActionRecord, arg); }

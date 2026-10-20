@@ -16,17 +16,17 @@ interface RunCopyBackupDeps {
   handleOperationError: any;
 }
 
-export function runCopyBackupCore(deps: RunCopyBackupDeps, {
+export function renderPagedPickerDialog(deps: RunCopyBackupDeps, {
   kind: popupBeingRenamedConfig,
   title: popupBeingRenamedRef,
   subtitle: popupBeingRenamedEntry = "",
   searchPlaceholder: popupBeingRenamedRecord,
   triggerButton: popupBeingRenamedName,
   pageSize: recoveredComponentIdState,
-  initialPage: onRecoveryDiscardButtonClickState = 1,
-  selectedText: onRecoveryDialogCancelState = "",
+  initialPage: initialPageNumber = 1,
+  selectedText: selectedTextValue = "",
   emptyText: recoveryCancelEventState,
-  itemClass: onErrorDialogCloseButtonClickState = "",
+  itemClass: itemClassName = "",
   getPage: onErrorDialogConfirmButtonClickState,
   renderItem: onErrorDialogClickState,
   renderLeadingItems: errorDialogClickEventValue = null,
@@ -81,7 +81,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
   const templateItemElementElement = document.createElement("div");
   templateItemElementElement.className = "editor-paged-picker-selected";
   const templatePagePathValue =
-    onRecoveryDialogCancelState || (popupBeingRenamedConfig === "entity" ? "不使用实体" : "");
+    selectedTextValue || (popupBeingRenamedConfig === "entity" ? "不使用实体" : "");
   if (((templateItemElementElement.hidden = !templatePagePathValue), templatePagePathValue)) {
     const popupNameInputCard = document.createElement("span");
     if (
@@ -92,7 +92,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
     )
       templateItemElementElement.append(
         ...(popupNameSubmitEvent({
-          selectedText: onRecoveryDialogCancelState,
+          selectedText: selectedTextValue,
           selectedValueText: templatePagePathValue,
         }) || []),
       );
@@ -114,7 +114,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
   }
   const popupNameInputList = document.createElement("div");
   ((popupNameInputList.className = (
-    "editor-paged-picker-items " + onErrorDialogCloseButtonClickState
+    "editor-paged-picker-items " + itemClassName
   ).trim()),
     popupNameInputList.setAttribute("role", "listbox"));
   const popupNameInputRow = document.createElement("div");
@@ -151,10 +151,10 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
     popupNameSubmitEventElement.append(popupNameSubmitEventElementElement),
     document.body.append(popupNameSubmitEventElement));
   let popupNameInputState: any = null,
-    popupIdState = 0,
+    pickerGeneration = 0,
     isPopupId = false;
   const popupIdConfig = {
-      page: Math.max(1, Number(onRecoveryDiscardButtonClickState) || 1),
+      page: Math.max(1, Number(initialPageNumber) || 1),
       total: 0,
       pageCount: 1,
       query: "",
@@ -181,14 +181,14 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
         isPopupId ||
           (popupNameSubmitEventElement.open
             ? popupNameSubmitEventElement.close()
-            : runCopyShadow());
+            : closeCopyBackupDialog());
       },
     };
-  function runCopyShadow() {
+  function closeCopyBackupDialog() {
     isPopupId ||
       ((isPopupId = true),
       window.clearTimeout(popupNameInputState),
-      (popupIdState += 1),
+      (pickerGeneration += 1),
       popupBeingRenamedName?.setAttribute("aria-expanded", "false"),
       popupNameInputList.replaceChildren(),
       popupNameInputElement.replaceChildren(),
@@ -199,7 +199,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
       deps.hideAssetLargePreview());
   }
   async function popupIdRecord() {
-    const currentComponentScopeState = ++popupIdState;
+    const currentComponentScopeState = ++pickerGeneration;
     (popupNameInputList.setAttribute("aria-busy", "true"),
       (popupNameInputBox.textContent = "正在加载…"),
       (popupNameInputColumn.disabled = true),
@@ -210,7 +210,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
         page: popupIdConfig.page,
         pageSize: recoveredComponentIdState,
       });
-      if (isPopupId || currentComponentScopeState !== popupIdState) return;
+      if (isPopupId || currentComponentScopeState !== pickerGeneration) return;
       if (
         ((popupIdConfig.total = Math.max(0, Number(activeGroupEntryState.total) || 0)),
         (popupIdConfig.pageCount = Math.max(
@@ -255,7 +255,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
         (popupNameInputColumn.disabled = popupIdConfig.page <= 1),
         (popupNameInputAnchor.disabled = popupIdConfig.page >= popupIdConfig.pageCount));
     } catch (caughtErrorText: any) {
-      if (isPopupId || currentComponentScopeState !== popupIdState) return;
+      if (isPopupId || currentComponentScopeState !== pickerGeneration) return;
       const popupToRenameElementElement = document.createElement("div");
       ((popupToRenameElementElement.className = "editor-paged-picker-empty error"),
         (popupToRenameElementElement.textContent = "加载失败，请稍后重试"),
@@ -264,7 +264,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
         deps.handleOperationError(caughtErrorText));
     } finally {
       !isPopupId &&
-        currentComponentScopeState === popupIdState &&
+        currentComponentScopeState === pickerGeneration &&
         popupNameInputList.removeAttribute("aria-busy");
     }
   }
@@ -276,7 +276,7 @@ export function runCopyBackupCore(deps: RunCopyBackupDeps, {
     popupNameSubmitEventElement.addEventListener("click", (popupMatch) => {
       popupMatch.target === popupNameSubmitEventElement && popupIdRef.close();
     }),
-    popupNameSubmitEventElement.addEventListener("close", runCopyShadow, {
+    popupNameSubmitEventElement.addEventListener("close", closeCopyBackupDialog, {
       once: true,
     }),
     popupNameInputSection.addEventListener("input", () => {

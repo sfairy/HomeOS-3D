@@ -55,10 +55,10 @@ export function createMistPlume(THREE: any) {
   for (let layerIndex = 0; layerIndex < 7; layerIndex++) {
     const layerStartVertex = positionValues.length / 3;
     for (let sampleIndex = 0; sampleIndex <= 40; sampleIndex++) {
-      const t = sampleIndex / 40;
+      const sampleRatio = sampleIndex / 40;
       for (const sideSign of [-1, 1]) {
-        (positionValues.push(layerOffsets[layerIndex] * 0.003 * t, t, 0),
-          uvValues.push((sideSign + 1) / 2, t),
+        (positionValues.push(layerOffsets[layerIndex] * 0.003 * sampleRatio, sampleRatio, 0),
+          uvValues.push((sideSign + 1) / 2, sampleRatio),
           sideValues.push(sideSign),
           phaseValues.push(layerIndex * 0.47));
       }

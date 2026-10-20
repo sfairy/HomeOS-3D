@@ -18,7 +18,7 @@ interface LegacyScope {
    * 在受管窗口内执行引导体，返回引导体的返回值（通常是一段显式回收逻辑），
    * 期间注册的全局监听 / 定时器 / 观察器会被登记以便回收。
    */
-  run<T>(body: () => T): T
+  executeInLegacyScope<T>(body: () => T): T
   /** 释放引导期间登记的全部监听、定时器与观察器（可重复调用）。 */
   dispose(): void
 }
@@ -30,7 +30,7 @@ export function createLegacyScope(scopeName: string): LegacyScope {
   const observers: Array<{ disconnect(): void }> = []
   let hasRun = false
 
-  function run<T>(body: () => T): T {
+  function executeInLegacyScope<T>(body: () => T): T {
     if (hasRun) {
       // 同一模块重复引导会让上一次的监听/定时器失去登记入口，等于泄漏。
       console.warn(`[legacy-scope] ${scopeName} 已引导过，请先 dispose 再 run。`)
@@ -138,5 +138,5 @@ export function createLegacyScope(scopeName: string): LegacyScope {
     timerIds.clear()
   }
 
-  return { run, dispose }
+  return { executeInLegacyScope, dispose }
 }

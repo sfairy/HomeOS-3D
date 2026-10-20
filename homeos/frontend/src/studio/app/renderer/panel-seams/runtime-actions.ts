@@ -62,7 +62,7 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
     // 只有 role=button + 可聚焦（tabIndex>=0）的宿主才绑定，普通组件容器仍走 pointer。
     const isKeyboardActionHost = () =>
         actionHostElement.getAttribute("role") === "button" && actionHostElement.tabIndex >= 0,
-      runKeyboardActivation = () => {
+      activateActionByKeyboard = () => {
         ((hasTapAction || hasDoubleTapAction) && cancelHoldTimer(),
           hasDoubleTapAction
             ? (resetTapState(),
@@ -84,7 +84,7 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
           (keyboardEvent.preventDefault(),
           keyboardEvent.stopPropagation(),
           (hasLongPressed = false),
-          runKeyboardActivation()));
+          activateActionByKeyboard()));
       };
     ((actionHostElement.style.touchAction = "manipulation"),
       actionHostElement.addEventListener("contextmenu", (menuPointerEvent: any) =>
@@ -196,7 +196,7 @@ export function bindRuntimeActions(self: PanelRenderer, actionHostElement: any, 
           clearTapTimers());
       }));
   }
-export function runAction(self: PanelRenderer, runtimeActionComponent: any, actionPayload: any, actionRuntimeOptions: Record<string, any> = {}) {
+export function triggerRuntimeAction(self: PanelRenderer, runtimeActionComponent: any, actionPayload: any, actionRuntimeOptions: Record<string, any> = {}) {
     !actionPayload?.type ||
       actionPayload.type === "none" ||
       self.dispatchAction(runtimeActionComponent, actionPayload, actionRuntimeOptions).catch(

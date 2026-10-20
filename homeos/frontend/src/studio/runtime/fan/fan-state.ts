@@ -113,7 +113,7 @@ export function fanMotionState(entityState: any, binding: any = {}) {
 /** Resolve fan binding extras (speed / direction / run / reverseState) against a state map. */
 export function resolveFanBindingState(binding: any = {}, stateSource: any = {}) {
   const primary = readEntityState(stateSource, binding.entityId);
-  const runState =
+  const currentEntityState =
     readEntityState(stateSource, binding.runEntityId || binding.entityId) || primary;
   const primaryAttributes = primary?.attributes || {};
   let percentage: number | null = Number.isFinite(primaryAttributes.percentage)
@@ -124,8 +124,8 @@ export function resolveFanBindingState(binding: any = {}, stateSource: any = {})
   let direction = primaryAttributes.direction === "reverse" ? -1 : 1;
   let speedOk = true;
 
-  const powerAvailable = isBinaryOnOff(runState);
-  const powerOn = powerAvailable && runState.state === "on";
+  const powerAvailable = isBinaryOnOff(currentEntityState);
+  const powerOn = powerAvailable && currentEntityState.state === "on";
 
   if (binding.speedEntityId) {
     const speedState = readEntityState(stateSource, binding.speedEntityId);

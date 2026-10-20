@@ -53,7 +53,7 @@ interface PanelFrameContext {
   removedComponent: () => any;
   mutateDocument: (mutateDraft: (draftDocument: any) => void) => void;
   findReplaceableComponents: (sourceComponent: any) => any[];
-  runVariantExtra: (runVariantAlt: any) => any[];
+  collectChangedPanelFrameStyleKeys: (component: any) => any[];
   coverMotorButtonElement: () => void;
   setComponentsRotation: (
     draftDocument: any,
@@ -591,7 +591,7 @@ function syncPanelFrameInspector(panelFrameComponent: any) {
     (ctx.panelFrameScaleInputElement.disabled = false),
     (ctx.panelFrameRotationInputElement.disabled = false));
   const frameReplaceableCount = ctx.findReplaceableComponents(panelFrameComponent).length,
-    frameApplyTargetCount = ctx.runVariantExtra(panelFrameComponent).length;
+    frameApplyTargetCount = ctx.collectChangedPanelFrameStyleKeys(panelFrameComponent).length;
   ((ctx.panelFrameApplyStyleButtonElement.disabled = !frameReplaceableCount || !frameApplyTargetCount),
     (ctx.panelFrameApplyCountElement.textContent = frameApplyTargetCount + " 项修改"),
     (ctx.panelFrameApplyStyleButtonElement.textContent = "一键应用到同类型控件"));

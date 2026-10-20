@@ -1,4 +1,4 @@
-import { createCacheLogger, runCacheTask } from "../cache-shared";
+import { createCacheLogger, executeTaskWithTimeout } from "../cache-shared";
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
 const CONTACT_SHADOW_CACHE_VERSION = "20260930-v1";
@@ -81,7 +81,7 @@ export function createContactShadowPersistentCache({ env: env = globalThis, key:
     }
   }
   function runWithTimeout(task: any): Promise<any> {
-    return runCacheTask(env, task, {
+    return executeTaskWithTimeout(env, task, {
       duration: 1500,
       onTimeout: () => stats.fallbacks++,
     });

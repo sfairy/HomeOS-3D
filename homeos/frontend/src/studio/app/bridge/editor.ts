@@ -948,7 +948,7 @@ type PopupPresetConfig = {
   const viewOptionsElement = createElement("div", "i3d-view-options");
   ((viewOptionsElement.hidden = !isViewEditing), viewSection.append(viewOptionsElement));
   const viewCamera = editorView?.viewCamera || properties.camera || {},
-    runViewCommand = async (commandName: any, commandValue: any) => {
+    executeViewCommand = async (commandName: any, commandValue: any) => {
       try {
         const currentEditorView = getInteraction3dEditorView(targetComponent.id);
         if (!currentEditorView?.viewEditing) return;
@@ -970,7 +970,7 @@ type PopupPresetConfig = {
         (optionButton.disabled = !isViewEditing),
         optionButton.classList.toggle("active", optionValue === activeOptionValue),
         optionButton.setAttribute("aria-pressed", String(optionValue === activeOptionValue)),
-        optionButton.addEventListener("click", () => void runViewCommand(commandKey, optionValue)),
+        optionButton.addEventListener("click", () => void executeViewCommand(commandKey, optionValue)),
         projectionOptionsElement.append(optionButton));
     }
     (projectionControlElement.append(
@@ -999,7 +999,7 @@ type PopupPresetConfig = {
   }),
     focalLengthInput.addEventListener("change", () => {
       Number.isFinite(focalLengthInput.valueAsNumber) &&
-        runViewCommand("focal-length", Math.max(18, Math.min(120, focalLengthInput.valueAsNumber)));
+        executeViewCommand("focal-length", Math.max(18, Math.min(120, focalLengthInput.valueAsNumber)));
     }),
     createLabeledField(viewOptionsElement, "焦段（mm）", focalLengthInput));
   const navigationSection = createSection("导航位置");

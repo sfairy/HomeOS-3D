@@ -427,7 +427,7 @@ export async function openSecurityEditor({
       isDisposed ||
         (renderPanel(), isAccessAllowed && editorDialogElement.open && mountEditorRuntime()));
   };
-  async function runCameraCommand(commandName: any, commandPayload: any = undefined) {
+  async function queueCameraCommand(commandName: any, commandPayload: any = undefined) {
     const commandTargetItem = findSelectedItem();
     if (!commandTargetItem || isSaving || !isAccessAllowed || isDisposed) return;
     const isFocalLengthCommand = commandName === "focus-focal-length",
@@ -2057,14 +2057,14 @@ export async function openSecurityEditor({
         if (
           (isCameraEditing
             ? focusActionsElement.append(
-                createButton("保存视角", () => runCameraCommand("save-light-camera")),
-                createButton("取消调整", () => runCameraCommand("cancel-light-camera")),
+                createButton("保存视角", () => queueCameraCommand("save-light-camera")),
+                createButton("取消调整", () => queueCameraCommand("cancel-light-camera")),
               )
             : focusActionsElement.append(
                 createButton(selectedItem.focusCamera ? "调整视角" : "设置视角", () =>
-                  runCameraCommand("edit-light-camera"),
+                  queueCameraCommand("edit-light-camera"),
                 ),
-                createButton("预览聚焦", () => runCameraCommand("preview-light-camera")),
+                createButton("预览聚焦", () => queueCameraCommand("preview-light-camera")),
               ),
           currentContainerElement.append(focusActionsElement),
           isCameraEditing)
@@ -2077,7 +2077,7 @@ export async function openSecurityEditor({
             ["perspective", "透视"],
           ]) {
             const projectionButtonElement = createButton(projectionLabel, () =>
-              runCameraCommand("focus-projection", projectionMode),
+              queueCameraCommand("focus-projection", projectionMode),
             );
             (projectionButtonElement.setAttribute(
               "aria-pressed",
@@ -2104,7 +2104,7 @@ export async function openSecurityEditor({
               ((focalLengthInputElement.value = String(
                 Math.max(18, Math.min(120, nextFocalLength)),
               )),
-                runCameraCommand("focus-focal-length", Number(focalLengthInputElement.value)));
+                queueCameraCommand("focus-focal-length", Number(focalLengthInputElement.value)));
             }));
           const focalLengthFieldElement = createElement("label");
           (focalLengthFieldElement.append(

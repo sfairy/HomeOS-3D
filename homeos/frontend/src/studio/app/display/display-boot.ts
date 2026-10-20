@@ -238,9 +238,9 @@ export function bootDisplayBoot(): void {
   function isWebglAvailable() {
     try {
       const probeCanvas = document.createElement("canvas");
-      const gl = probeCanvas.getContext("webgl2") || probeCanvas.getContext("webgl");
-      if (!gl) return false;
-      const loseContext = (gl as WebGLRenderingContext).getExtension?.("WEBGL_lose_context");
+      const webglContext = probeCanvas.getContext("webgl2") || probeCanvas.getContext("webgl");
+      if (!webglContext) return false;
+      const loseContext = (webglContext as WebGLRenderingContext).getExtension?.("WEBGL_lose_context");
       loseContext?.loseContext?.();
       return true;
     } catch {

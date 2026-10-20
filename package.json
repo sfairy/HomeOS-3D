@@ -38,7 +38,11 @@
     "perf:3d": "node ops/perf/harness/bench_3d.mjs --label after",
     "perf:contracts": ".venv-store/bin/python ops/perf/harness/check_contracts.py --label after",
     "perf:compare": ".venv-store/bin/python ops/perf/harness/compare_metrics.py --before before --after after",
-    "check:code-quality": "node ops/checks/code_quality/run.mjs"
+    "check:code-quality": "node ops/checks/code_quality/run.mjs",
+    "check:studio-split": "node ops/checks/studio/check_split_budget.mjs --phase 3 && node ops/checks/studio/verify_item_model.mjs",
+    "test:studio-split": ".venv-store/bin/python -m unittest discover -s ops/checks/studio/tests -v",
+    "check:studio-naming": "node ops/checks/studio/check_naming.mjs --report",
+    "verify:item-model": "node ops/checks/studio/verify_item_model.mjs"
   },
   "workspaces": [
     "homeos",

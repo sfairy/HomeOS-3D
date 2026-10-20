@@ -33,8 +33,8 @@ export function rangehoodState(device: any = {}, states: any = {}): RangehoodSta
       rawState?.available !== false &&
       entityState?.available !== false &&
       ["on", "off"].includes(entityState?.state),
-    on = available && entityState.state === "on",
-    running = device?.animationEnabled !== false && on,
+    isOn = available && entityState.state === "on",
+    running = device?.animationEnabled !== false && isOn,
     label =
       device?.animationEnabled === false
         ? "动画已隐藏"
@@ -45,5 +45,5 @@ export function rangehoodState(device: any = {}, states: any = {}): RangehoodSta
               : "已停止"
             : "状态不可用，已停止"
           : "未绑定运行实体";
-  return { entityId, available, on, running, label };
+  return { entityId, available, on: isOn, running, label };
 }

@@ -151,8 +151,8 @@ import {
   type StageHandlersHost,
 } from "./stage/stage-handlers";
 import { buildFloorCameraConfig as buildFloorCameraConfigExternal } from "./stage/floor-camera-config";
-import { updateLampButtonCore, runLightCommandCore } from "./stage/lighting";
-import { buildSliderControlCore, updateEditorSelectionCore, collectClimateBindingsCore, collectModuleBindingsCore, toggleModuleTabsCore, runModuleSwitchAnimationCore } from "./stage/controls";
+import { updateLampButtonCore, sendLightCommandCore } from "./stage/lighting";
+import { buildSliderControlCore, updateEditorSelectionCore, collectClimateBindingsCore, collectModuleBindingsCore, toggleModuleTabsCore, animateModuleSwitchCore } from "./stage/controls";
 import { syncCameraInteractionCore, advanceCameraMotionCore, exitFocusModeCore, focusMarkerByIdCore, activateMarkerCore, beginMarkerDragCore, endMarkerDragCore } from "./stage/camera-motion";
 import { syncNasOverlayCore, syncEnvironmentLayersCore, syncLayoutMetricsCore, syncStageVisibilityCore } from "./stage/layers-sync";
 import { selectFloorCore, openRangeEditorCore, refreshStageUiCore, adoptSceneUpdateCore } from "./stage/refresh";
@@ -311,7 +311,7 @@ export function mountStage(mountOptions: any) {
     if (!menuLightEntry) return;
     const menuLightRenderState = resolveLightState(menuLightEntry);
     (lightColorPicker.cancel(),
-      runLightCommand(
+      sendLightCommand(
         menuMode,
         menuMode === "color"
           ? menuLightRenderState.colorHs || [0, 0]
@@ -337,7 +337,7 @@ export function mountStage(mountOptions: any) {
           colorValue
         );
       },
-      onCommit: (committedColor: any) => void runLightCommand("color", committedColor),
+      onCommit: (committedColor: any) => void sendLightCommand("color", committedColor),
       onCancel(cancelEntityId: any, cancelReason: any) {
         (vector.reject(cancelEntityId, cancelReason),
           applyLightStates({
@@ -371,7 +371,7 @@ export function mountStage(mountOptions: any) {
         return applyLightStates;
       },
       get runLightCommand() {
-        return runLightCommand;
+        return sendLightCommand;
       },
       get lightControlsElement() {
         return lightControlsElement;
@@ -418,8 +418,8 @@ export function mountStage(mountOptions: any) {
       get showAllLabels() {
         return ctx.showAllLabels;
       },
-      set showAllLabels(v: any) {
-        ctx.showAllLabels = v === true;
+      set showAllLabels(value: any) {
+        ctx.showAllLabels = value === true;
       },
       get collectGenericDeviceBindings() {
         return collectGenericDeviceBindings;
@@ -445,8 +445,8 @@ export function mountStage(mountOptions: any) {
       get isModuleTabsHidden() {
         return ctx.isModuleTabsHidden;
       },
-      set isModuleTabsHidden(v) {
-        ctx.isModuleTabsHidden = v;
+      set isModuleTabsHidden(value) {
+        ctx.isModuleTabsHidden = value;
       },
       get moduleTabsElement() {
         return moduleTabsElement;
@@ -457,8 +457,8 @@ export function mountStage(mountOptions: any) {
       get moduleTabsAnimation() {
         return ctx.moduleTabsAnimation;
       },
-      set moduleTabsAnimation(v) {
-        ctx.moduleTabsAnimation = v;
+      set moduleTabsAnimation(value) {
+        ctx.moduleTabsAnimation = value;
       },
       get restoreFocusWithin() {
         return restoreFocusWithin;
@@ -481,8 +481,8 @@ export function mountStage(mountOptions: any) {
       get outgoingGhostAnimation() {
         return ctx.outgoingGhostAnimation;
       },
-      set outgoingGhostAnimation(v) {
-        ctx.outgoingGhostAnimation = v;
+      set outgoingGhostAnimation(value) {
+        ctx.outgoingGhostAnimation = value;
       },
       get syncStageVisibility() {
         return syncStageVisibility;
@@ -505,8 +505,8 @@ export function mountStage(mountOptions: any) {
   function toggleModuleTabs(shouldHideTabs: any) {
     return toggleModuleTabsCore(stageControlsDeps(), shouldHideTabs);
   }
-  function runModuleSwitchAnimation(switchContent: any) {
-    return runModuleSwitchAnimationCore(stageControlsDeps(), switchContent);
+  function animateModuleSwitch(switchContent: any) {
+    return animateModuleSwitchCore(stageControlsDeps(), switchContent);
   }
   const temperatureSlider = buildSliderControl("色温", "temperature", "2000", "6500"),
     brightnessSlider = buildSliderControl("亮度", "brightness", "1", "100"),
@@ -524,7 +524,7 @@ export function mountStage(mountOptions: any) {
       ),
       lightPresetButton.addEventListener(
         "click",
-        () => void runLightCommand("preset", presetEntry),
+        () => void sendLightCommand("preset", presetEntry),
       ),
       lightPresetsElement.append(lightPresetButton),
       {
@@ -1158,8 +1158,8 @@ export function mountStage(mountOptions: any) {
       get curtainSyncSnapshot() {
         return ctx.curtainSyncSnapshot;
       },
-      set curtainSyncSnapshot(v) {
-        ctx.curtainSyncSnapshot = v;
+      set curtainSyncSnapshot(value) {
+        ctx.curtainSyncSnapshot = value;
       },
       get options() {
         return ctx.options;
@@ -1179,14 +1179,14 @@ export function mountStage(mountOptions: any) {
       get trackedCoverBindings() {
         return ctx.trackedCoverBindings;
       },
-      set trackedCoverBindings(v) {
-        ctx.trackedCoverBindings = v;
+      set trackedCoverBindings(value) {
+        ctx.trackedCoverBindings = value;
       },
       get list() {
         return ctx.list;
       },
-      set list(v) {
-        ctx.list = v;
+      set list(value) {
+        ctx.list = value;
       },
       get curtainMotion() {
         return curtainMotion;
@@ -1323,8 +1323,8 @@ export function mountStage(mountOptions: any) {
       get nasSyncSnapshot() {
         return ctx.nasSyncSnapshot;
       },
-      set nasSyncSnapshot(v) {
-        ctx.nasSyncSnapshot = v;
+      set nasSyncSnapshot(value) {
+        ctx.nasSyncSnapshot = value;
       },
       get options() {
         return ctx.options;
@@ -1350,8 +1350,8 @@ export function mountStage(mountOptions: any) {
       get environmentSyncSnapshot() {
         return ctx.environmentSyncSnapshot;
       },
-      set environmentSyncSnapshot(v) {
-        ctx.environmentSyncSnapshot = v;
+      set environmentSyncSnapshot(value) {
+        ctx.environmentSyncSnapshot = value;
       },
       get speakerRings() {
         return speakerRings;
@@ -1383,8 +1383,8 @@ export function mountStage(mountOptions: any) {
       get televisionSyncSnapshot() {
         return ctx.televisionSyncSnapshot;
       },
-      set televisionSyncSnapshot(v) {
-        ctx.televisionSyncSnapshot = v;
+      set televisionSyncSnapshot(value) {
+        ctx.televisionSyncSnapshot = value;
       },
       get televisionScreens() {
         return televisionScreens;
@@ -1401,20 +1401,20 @@ export function mountStage(mountOptions: any) {
       get containerViewportSize() {
         return ctx.containerViewportSize;
       },
-      set containerViewportSize(v) {
-        ctx.containerViewportSize = v;
+      set containerViewportSize(value) {
+        ctx.containerViewportSize = value;
       },
       get mediaScale() {
         return ctx.mediaScale;
       },
-      set mediaScale(v) {
-        ctx.mediaScale = v;
+      set mediaScale(value) {
+        ctx.mediaScale = value;
       },
       get value() {
         return ctx.value;
       },
-      set value(v) {
-        ctx.value = v;
+      set value(value) {
+        ctx.value = value;
       },
       get configuredModuleKinds2() {
         return ctx.configuredModuleKinds2;
@@ -1446,8 +1446,8 @@ export function mountStage(mountOptions: any) {
       get presentationUiSignatureCache() {
         return ctx.presentationUiSignatureCache;
       },
-      set presentationUiSignatureCache(v) {
-        ctx.presentationUiSignatureCache = v;
+      set presentationUiSignatureCache(value) {
+        ctx.presentationUiSignatureCache = value;
       },
       get cameraMotionSnapshot() {
         return ctx.cameraMotionSnapshot;
@@ -1461,8 +1461,8 @@ export function mountStage(mountOptions: any) {
       get focusInset() {
         return ctx.focusInset;
       },
-      set focusInset(v) {
-        ctx.focusInset = v;
+      set focusInset(value) {
+        ctx.focusInset = value;
       },
       get renderMarkerPositions() {
         return renderMarkerPositions;
@@ -1515,8 +1515,8 @@ export function mountStage(mountOptions: any) {
       get lastInteractionMs() {
         return ctx.lastInteractionMs;
       },
-      set lastInteractionMs(v) {
-        ctx.lastInteractionMs = v;
+      set lastInteractionMs(value) {
+        ctx.lastInteractionMs = value;
       },
     });
   }
@@ -2534,20 +2534,20 @@ export function mountStage(mountOptions: any) {
       get isRangeEditorOpen() {
         return ctx.isRangeEditorOpen;
       },
-      set isRangeEditorOpen(v) {
-        ctx.isRangeEditorOpen = v;
+      set isRangeEditorOpen(value) {
+        ctx.isRangeEditorOpen = value;
       },
       get isCameraMoving() {
         return ctx.isCameraMoving;
       },
-      set isCameraMoving(v) {
-        ctx.isCameraMoving = v;
+      set isCameraMoving(value) {
+        ctx.isCameraMoving = value;
       },
       get selectedFloorId() {
         return ctx.selectedFloorId;
       },
-      set selectedFloorId(v) {
-        ctx.selectedFloorId = v;
+      set selectedFloorId(value) {
+        ctx.selectedFloorId = value;
       },
       get mountOptions() {
         return mountOptions;
@@ -2564,11 +2564,11 @@ export function mountStage(mountOptions: any) {
       get pendingFloorId() {
         return ctx.pendingFloorId;
       },
-      set pendingFloorId(v) {
-        ctx.pendingFloorId = v;
+      set pendingFloorId(value) {
+        ctx.pendingFloorId = value;
       },
       get runModuleSwitchAnimation() {
-        return runModuleSwitchAnimation;
+        return animateModuleSwitch;
       },
       get syncLockMotion() {
         return syncLockMotion;
@@ -2582,14 +2582,14 @@ export function mountStage(mountOptions: any) {
       get activeCameraPose() {
         return ctx.activeCameraPose;
       },
-      set activeCameraPose(v) {
-        ctx.activeCameraPose = v;
+      set activeCameraPose(value) {
+        ctx.activeCameraPose = value;
       },
       get options() {
         return ctx.options;
       },
-      set options(v) {
-        ctx.options = v;
+      set options(value) {
+        ctx.options = value;
       },
       get buildFloorCameraConfig() {
         return buildFloorCameraConfig;
@@ -2597,14 +2597,14 @@ export function mountStage(mountOptions: any) {
       get activeModule() {
         return ctx.activeModule;
       },
-      set activeModule(v) {
-        ctx.activeModule = v;
+      set activeModule(value) {
+        ctx.activeModule = value;
       },
       get pendingModule() {
         return ctx.pendingModule;
       },
-      set pendingModule(v) {
-        ctx.pendingModule = v;
+      set pendingModule(value) {
+        ctx.pendingModule = value;
       },
       get syncNasOverlay() {
         return syncNasOverlay;
@@ -2642,8 +2642,8 @@ export function mountStage(mountOptions: any) {
       get isRangeEditorSuppressingClose() {
         return ctx.isRangeEditorSuppressingClose;
       },
-      set isRangeEditorSuppressingClose(v) {
-        ctx.isRangeEditorSuppressingClose = v;
+      set isRangeEditorSuppressingClose(value) {
+        ctx.isRangeEditorSuppressingClose = value;
       },
       get syncCameraInteraction() {
         return syncCameraInteraction;
@@ -2657,8 +2657,8 @@ export function mountStage(mountOptions: any) {
       get rangeEditorHandle() {
         return ctx.rangeEditorHandle;
       },
-      set rangeEditorHandle(v) {
-        ctx.rangeEditorHandle = v;
+      set rangeEditorHandle(value) {
+        ctx.rangeEditorHandle = value;
       },
       get isRangeEditorOnly() {
         return ctx.isRangeEditorOnly;
@@ -2810,8 +2810,8 @@ export function mountStage(mountOptions: any) {
       get hasIdleIconActivity() {
         return ctx.hasIdleIconActivity;
       },
-      set hasIdleIconActivity(v) {
-        ctx.hasIdleIconActivity = v;
+      set hasIdleIconActivity(value) {
+        ctx.hasIdleIconActivity = value;
       },
       get isCameraRotating() {
         return ctx.isCameraRotating;
@@ -2834,14 +2834,14 @@ export function mountStage(mountOptions: any) {
       get lastRenderSignature() {
         return ctx.lastRenderSignature;
       },
-      set lastRenderSignature(v) {
-        ctx.lastRenderSignature = v;
+      set lastRenderSignature(value) {
+        ctx.lastRenderSignature = value;
       },
       get pendingEditorAction() {
         return ctx.pendingEditorAction;
       },
-      set pendingEditorAction(v) {
-        ctx.pendingEditorAction = v;
+      set pendingEditorAction(value) {
+        ctx.pendingEditorAction = value;
       },
       get handleHostMessage() {
         return handleHostMessage;
@@ -3104,7 +3104,7 @@ export function mountStage(mountOptions: any) {
     (reportModuleSwitch("category-switch-start", previousModule, targetModule),
       ctx.followVacuumId && stopVacuumFollow(),
       exitFocusMode(),
-      runModuleSwitchAnimation(() => {
+      animateModuleSwitch(() => {
         ((ctx.activeModule = targetModule),
           idleRotationControl.activity(),
           idleIconVisibilityControl.activity(),
@@ -3233,8 +3233,8 @@ export function mountStage(mountOptions: any) {
       get panelDisplayMode() {
         return ctx.panelDisplayMode;
       },
-      set panelDisplayMode(v) {
-        ctx.panelDisplayMode = v;
+      set panelDisplayMode(value) {
+        ctx.panelDisplayMode = value;
       },
       get isEditing() {
         return ctx.isEditing;
@@ -3242,8 +3242,8 @@ export function mountStage(mountOptions: any) {
       get cameraMotionSnapshot() {
         return ctx.cameraMotionSnapshot;
       },
-      set cameraMotionSnapshot(v) {
-        ctx.cameraMotionSnapshot = v;
+      set cameraMotionSnapshot(value) {
+        ctx.cameraMotionSnapshot = value;
       },
       get getFocusedEntry() {
         return getFocusedEntry;
@@ -3257,8 +3257,8 @@ export function mountStage(mountOptions: any) {
       get activePointerDrag() {
         return ctx.activePointerDrag;
       },
-      set activePointerDrag(v) {
-        ctx.activePointerDrag = v;
+      set activePointerDrag(value) {
+        ctx.activePointerDrag = value;
       },
       get isControlReady() {
         return ctx.isControlReady;
@@ -3269,8 +3269,8 @@ export function mountStage(mountOptions: any) {
       get focusInset() {
         return ctx.focusInset;
       },
-      set focusInset(v) {
-        ctx.focusInset = v;
+      set focusInset(value) {
+        ctx.focusInset = value;
       },
       get refreshStageUi() {
         return refreshStageUi;
@@ -3311,26 +3311,26 @@ export function mountStage(mountOptions: any) {
       get focusedItemId() {
         return ctx.focusedItemId;
       },
-      set focusedItemId(v) {
-        ctx.focusedItemId = v;
+      set focusedItemId(value) {
+        ctx.focusedItemId = value;
       },
       get idleReturnCamera() {
         return ctx.idleReturnCamera;
       },
-      set idleReturnCamera(v) {
-        ctx.idleReturnCamera = v;
+      set idleReturnCamera(value) {
+        ctx.idleReturnCamera = value;
       },
       get lightEditPreview() {
         return ctx.lightEditPreview;
       },
-      set lightEditPreview(v) {
-        ctx.lightEditPreview = v;
+      set lightEditPreview(value) {
+        ctx.lightEditPreview = value;
       },
       get hasPendingStageRefresh() {
         return ctx.hasPendingStageRefresh;
       },
-      set hasPendingStageRefresh(v) {
-        ctx.hasPendingStageRefresh = v;
+      set hasPendingStageRefresh(value) {
+        ctx.hasPendingStageRefresh = value;
       },
       get restoreFocusWithin() {
         return restoreFocusWithin;
@@ -3380,8 +3380,8 @@ export function mountStage(mountOptions: any) {
       get text() {
         return ctx.text;
       },
-      set text(v) {
-        ctx.text = v;
+      set text(value) {
+        ctx.text = value;
       },
       get syncMarkers() {
         return syncMarkers;
@@ -3414,7 +3414,7 @@ export function mountStage(mountOptions: any) {
         return readLightState;
       },
       get runLightCommand() {
-        return runLightCommand;
+        return sendLightCommand;
       },
       get screenPointToFloor() {
         return screenPointToFloor;
@@ -3469,8 +3469,8 @@ export function mountStage(mountOptions: any) {
       get options() {
         return ctx.options;
       },
-      set options(v) {
-        ctx.options = v;
+      set options(value) {
+        ctx.options = value;
       },
       get navigationEditing() {
         return ctx.navigationEditing;
@@ -3805,7 +3805,7 @@ export function mountStage(mountOptions: any) {
   }),
     powerButton.addEventListener("click", () => {
       const clickedLightItem = getFocusedEntry();
-      clickedLightItem && runLightCommand("power", !readLightState(clickedLightItem.entityId).on);
+      clickedLightItem && sendLightCommand("power", !readLightState(clickedLightItem.entityId).on);
     }));
   function stageLightingDeps() {
     return ({
@@ -3848,8 +3848,8 @@ export function mountStage(mountOptions: any) {
   function updateLampButton(mountOptionsLightState: any) {
     return updateLampButtonCore(stageLightingDeps(), mountOptionsLightState);
   }
-  function runLightCommand(serviceName: any, serviceValue: any, commandTargetItem = getFocusedEntry()) {
-    return runLightCommandCore(stageLightingDeps(), serviceName, serviceValue, commandTargetItem);
+  function sendLightCommand(serviceName: any, serviceValue: any, commandTargetItem = getFocusedEntry()) {
+    return sendLightCommandCore(stageLightingDeps(), serviceName, serviceValue, commandTargetItem);
   }
   function dispatchControlCommand(controlCommand: any, previewToken: any) {
     const requestId = String(++ctx.num),
@@ -4231,9 +4231,9 @@ export function mountStage(mountOptions: any) {
     markerBindings,
     selectPreviewReference,
     get activeCameraPose() { return ctx.activeCameraPose; },
-    set activeCameraPose(v: any) { ctx.activeCameraPose = v; },
+    set activeCameraPose(value: any) { ctx.activeCameraPose = value; },
     get activeModule() { return ctx.activeModule; },
-    set activeModule(v: any) { ctx.activeModule = v; },
+    set activeModule(value: any) { ctx.activeModule = value; },
     activePointerDrag: ctx.activePointerDrag,
     advanceCameraMotion,
     airerMotion,
@@ -4241,21 +4241,21 @@ export function mountStage(mountOptions: any) {
     applyDefaultCamera,
     applyLightStates,
     get baseStageConfig() { return ctx.baseStageConfig; },
-    set baseStageConfig(v: any) { ctx.baseStageConfig = v; },
+    set baseStageConfig(value: any) { ctx.baseStageConfig = value; },
     beginMarkerDrag,
     brightnessSlider,
     buildFloorCameraConfig,
     buildLockMotionInput,
     get cachedDocumentFloorId() { return ctx.cachedDocumentFloorId; },
-    set cachedDocumentFloorId(v: any) { ctx.cachedDocumentFloorId = v; },
+    set cachedDocumentFloorId(value: any) { ctx.cachedDocumentFloorId = value; },
     get cachedDocumentSource() { return ctx.cachedDocumentSource; },
-    set cachedDocumentSource(v: any) { ctx.cachedDocumentSource = v; },
+    set cachedDocumentSource(value: any) { ctx.cachedDocumentSource = value; },
     get cameraMotionSnapshot() { return ctx.cameraMotionSnapshot; },
-    set cameraMotionSnapshot(v: any) { ctx.cameraMotionSnapshot = v; },
+    set cameraMotionSnapshot(value: any) { ctx.cameraMotionSnapshot = value; },
     get cameraQuaternionKey() { return ctx.cameraQuaternionKey; },
-    set cameraQuaternionKey(v: any) { ctx.cameraQuaternionKey = v; },
+    set cameraQuaternionKey(value: any) { ctx.cameraQuaternionKey = value; },
     get canEditLightRange() { return ctx.canEditLightRange; },
-    set canEditLightRange(v: any) { ctx.canEditLightRange = v; },
+    set canEditLightRange(value: any) { ctx.canEditLightRange = value; },
     cancelGhostAnimation,
     cancelMarkerDrag,
     canvasElement,
@@ -4263,7 +4263,7 @@ export function mountStage(mountOptions: any) {
     climatePanel,
     configureIdleBehaviors,
     get configuredModuleKinds2() { return ctx.configuredModuleKinds2; },
-    set configuredModuleKinds2(v: any) { ctx.configuredModuleKinds2 = v; },
+    set configuredModuleKinds2(value: any) { ctx.configuredModuleKinds2 = value; },
     containerViewportSize: ctx.containerViewportSize,
     controlErrorElement,
     coverControlRequestsByRequestId,
@@ -4274,13 +4274,13 @@ export function mountStage(mountOptions: any) {
     curtainMotion,
     devicePanel,
     get deviceStates() { return ctx.deviceStates; },
-    set deviceStates(v: any) { ctx.deviceStates = v; },
+    set deviceStates(value: any) { ctx.deviceStates = value; },
     deviceStatusElement,
     dreamTiltFeedback,
     get editingVacuumId() { return ctx.editingVacuumId; },
-    set editingVacuumId(v: any) { ctx.editingVacuumId = v; },
+    set editingVacuumId(value: any) { ctx.editingVacuumId = value; },
     get showAllLabels() { return ctx.showAllLabels; },
-    set showAllLabels(v: any) { ctx.showAllLabels = v === true; },
+    set showAllLabels(value: any) { ctx.showAllLabels = value === true; },
     editorSelectionOutlines,
     element,
     endMarkerDrag,
@@ -4300,66 +4300,66 @@ export function mountStage(mountOptions: any) {
     followToggleButton,
     followVacuumId: ctx.followVacuumId,
     get furthestFloorOrder() { return ctx.furthestFloorOrder; },
-    set furthestFloorOrder(v: any) { ctx.furthestFloorOrder = v; },
+    set furthestFloorOrder(value: any) { ctx.furthestFloorOrder = value; },
     getFocusedEntry,
     get hasAutoSelectedFloors() { return ctx.hasAutoSelectedFloors; },
-    set hasAutoSelectedFloors(v: any) { ctx.hasAutoSelectedFloors = v; },
+    set hasAutoSelectedFloors(value: any) { ctx.hasAutoSelectedFloors = value; },
     get hasIdleIconActivity() { return ctx.hasIdleIconActivity; },
-    set hasIdleIconActivity(v: any) { ctx.hasIdleIconActivity = v; },
+    set hasIdleIconActivity(value: any) { ctx.hasIdleIconActivity = value; },
     get hasPresentedOnce() { return ctx.hasPresentedOnce; },
-    set hasPresentedOnce(v: any) { ctx.hasPresentedOnce = v; },
+    set hasPresentedOnce(value: any) { ctx.hasPresentedOnce = value; },
     hasStageRect,
     idleFocusExitControl,
     get idleIconDelayUntilMs() { return ctx.idleIconDelayUntilMs; },
-    set idleIconDelayUntilMs(v: any) { ctx.idleIconDelayUntilMs = v; },
+    set idleIconDelayUntilMs(value: any) { ctx.idleIconDelayUntilMs = value; },
     idleIconVisibilityControl,
     idleReturnCamera: ctx.idleReturnCamera,
     idleRotationControl,
     get isAwaitingFloorViewAdjust() { return ctx.isAwaitingFloorViewAdjust; },
-    set isAwaitingFloorViewAdjust(v: any) { ctx.isAwaitingFloorViewAdjust = v; },
+    set isAwaitingFloorViewAdjust(value: any) { ctx.isAwaitingFloorViewAdjust = value; },
     isCameraMoving: ctx.isCameraMoving,
     isControlBusy: ctx.isControlBusy,
     get isControlReady() { return ctx.isControlReady; },
-    set isControlReady(v: any) { ctx.isControlReady = v; },
+    set isControlReady(value: any) { ctx.isControlReady = value; },
     get isEditing() { return ctx.isEditing; },
-    set isEditing(v: any) { ctx.isEditing = v; },
+    set isEditing(value: any) { ctx.isEditing = value; },
     get isIdleIconHidden() { return ctx.isIdleIconHidden; },
-    set isIdleIconHidden(v: any) { ctx.isIdleIconHidden = v; },
+    set isIdleIconHidden(value: any) { ctx.isIdleIconHidden = value; },
     isIdleRotationRunning: ctx.isIdleRotationRunning,
     isLockLabelShown,
     get isNavigationVisible() { return ctx.isNavigationVisible; },
-    set isNavigationVisible(v: any) { ctx.isNavigationVisible = v; },
+    set isNavigationVisible(value: any) { ctx.isNavigationVisible = value; },
     get isPointerHeld() { return ctx.isPointerHeld; },
-    set isPointerHeld(v: any) { ctx.isPointerHeld = v; },
+    set isPointerHeld(value: any) { ctx.isPointerHeld = value; },
     get isPresenceEditing() { return ctx.isPresenceEditing; },
-    set isPresenceEditing(v: any) { ctx.isPresenceEditing = v; },
+    set isPresenceEditing(value: any) { ctx.isPresenceEditing = value; },
     get isPresencePressed() { return ctx.isPresencePressed; },
-    set isPresencePressed(v: any) { ctx.isPresencePressed = v; },
+    set isPresencePressed(value: any) { ctx.isPresencePressed = value; },
     get isPresentedVisible() { return ctx.isPresentedVisible; },
-    set isPresentedVisible(v: any) { ctx.isPresentedVisible = v; },
+    set isPresentedVisible(value: any) { ctx.isPresentedVisible = value; },
     get isRangeEditorOnly() { return ctx.isRangeEditorOnly; },
-    set isRangeEditorOnly(v: any) { ctx.isRangeEditorOnly = v; },
+    set isRangeEditorOnly(value: any) { ctx.isRangeEditorOnly = value; },
     isRangeEditorOpen: ctx.isRangeEditorOpen,
     get isRangeEditorSuppressingClose() { return ctx.isRangeEditorSuppressingClose; },
-    set isRangeEditorSuppressingClose(v: any) { ctx.isRangeEditorSuppressingClose = v; },
+    set isRangeEditorSuppressingClose(value: any) { ctx.isRangeEditorSuppressingClose = value; },
     get isStagePresented() { return ctx.isStagePresented; },
-    set isStagePresented(v: any) { ctx.isStagePresented = v; },
+    set isStagePresented(value: any) { ctx.isStagePresented = value; },
     get isStageVisible() { return ctx.isStageVisible; },
-    set isStageVisible(v: any) { ctx.isStageVisible = v; },
+    set isStageVisible(value: any) { ctx.isStageVisible = value; },
     get lastIdleFloorId() { return ctx.lastIdleFloorId; },
-    set lastIdleFloorId(v: any) { ctx.lastIdleFloorId = v; },
+    set lastIdleFloorId(value: any) { ctx.lastIdleFloorId = value; },
     get lastIdleFrameMs() { return ctx.lastIdleFrameMs; },
-    set lastIdleFrameMs(v: any) { ctx.lastIdleFrameMs = v; },
+    set lastIdleFrameMs(value: any) { ctx.lastIdleFrameMs = value; },
     lastInteractionMs: ctx.lastInteractionMs,
     get lastQuaternionMs() { return ctx.lastQuaternionMs; },
-    set lastQuaternionMs(v: any) { ctx.lastQuaternionMs = v; },
+    set lastQuaternionMs(value: any) { ctx.lastQuaternionMs = value; },
     get lastRenderSignature() { return ctx.lastRenderSignature; },
-    set lastRenderSignature(v: any) { ctx.lastRenderSignature = v; },
+    set lastRenderSignature(value: any) { ctx.lastRenderSignature = value; },
     layoutPresenceHitBoxes,
     lightColorPicker,
     lightControlsElement,
     get lightEditPreview() { return ctx.lightEditPreview; },
-    set lightEditPreview(v: any) { ctx.lightEditPreview = v; },
+    set lightEditPreview(value: any) { ctx.lightEditPreview = value; },
     lightGroupByKey,
     lightModeMenu,
     lightPanelHeader,
@@ -4375,31 +4375,31 @@ export function mountStage(mountOptions: any) {
     matchesSelectedFloor,
     mediaControlRequestsByRequestId,
     get mediaViewportSize() { return ctx.mediaViewportSize; },
-    set mediaViewportSize(v: any) { ctx.mediaViewportSize = v; },
+    set mediaViewportSize(value: any) { ctx.mediaViewportSize = value; },
     moduleEmptyElement,
     mountOptions,
     moveMarkerDrag,
     nasPanel,
     nasStatus,
     get navigationEditing() { return ctx.navigationEditing; },
-    set navigationEditing(v: any) { ctx.navigationEditing = v; },
+    set navigationEditing(value: any) { ctx.navigationEditing = value; },
     nextCoverFeedbackDelay,
     noopStageCallback,
     normalizeCameraPose,
     openRangeEditor,
     get options() { return ctx.options; },
-    set options(v: any) { ctx.options = v; },
+    set options(value: any) { ctx.options = value; },
     outgoingGhostAnimation: ctx.outgoingGhostAnimation,
     pageBehavior: ctx.pageBehavior,
     get panelDisplayMode() { return ctx.panelDisplayMode; },
-    set panelDisplayMode(v: any) { ctx.panelDisplayMode = v; },
+    set panelDisplayMode(value: any) { ctx.panelDisplayMode = value; },
     pendingControlRequestsByRequestId,
     get pendingEditorAction() { return ctx.pendingEditorAction; },
-    set pendingEditorAction(v: any) { ctx.pendingEditorAction = v; },
+    set pendingEditorAction(value: any) { ctx.pendingEditorAction = value; },
     get pendingFloorId() { return ctx.pendingFloorId; },
-    set pendingFloorId(v: any) { ctx.pendingFloorId = v; },
+    set pendingFloorId(value: any) { ctx.pendingFloorId = value; },
     get pendingModule() { return ctx.pendingModule; },
-    set pendingModule(v: any) { ctx.pendingModule = v; },
+    set pendingModule(value: any) { ctx.pendingModule = value; },
     powerButton,
     presenceScene,
     presenceWaves,
@@ -4417,8 +4417,8 @@ export function mountStage(mountOptions: any) {
     get sceneBackground() {
       return ctx.sceneBackground;
     },
-    set sceneBackground(v: any) {
-      ctx.sceneBackground = v;
+    set sceneBackground(value: any) {
+      ctx.sceneBackground = value;
     },
     sceneBackgroundController,
     sceneCacheByKey,
@@ -4427,11 +4427,11 @@ export function mountStage(mountOptions: any) {
     screenOutlines,
     securityAlarmOverlay,
     get selectedFloorId() { return ctx.selectedFloorId; },
-    set selectedFloorId(v: any) { ctx.selectedFloorId = v; },
+    set selectedFloorId(value: any) { ctx.selectedFloorId = value; },
     get selectedLockEntry() { return ctx.selectedLockEntry; },
-    set selectedLockEntry(v: any) { ctx.selectedLockEntry = v; },
+    set selectedLockEntry(value: any) { ctx.selectedLockEntry = value; },
     get selectedSecurityKind() { return ctx.selectedSecurityKind; },
-    set selectedSecurityKind(v: any) { ctx.selectedSecurityKind = v; },
+    set selectedSecurityKind(value: any) { ctx.selectedSecurityKind = value; },
     set,
     settleClimateRequest,
     settleControlCommand,
@@ -4441,7 +4441,7 @@ export function mountStage(mountOptions: any) {
     stageModelIndex,
     startCameraMotion,
     get startupProgress() { return ctx.startupProgress; },
-    set startupProgress(v: any) { ctx.startupProgress = v; },
+    set startupProgress(value: any) { ctx.startupProgress = value; },
     stateUpdatePlanner,
     stopVacuumFollow,
     syncAirConditionerHistory,
@@ -4461,7 +4461,7 @@ export function mountStage(mountOptions: any) {
     televisionPanel,
     temperatureSlider,
     get text() { return ctx.text; },
-    set text(v: any) { ctx.text = v; },
+    set text(value: any) { ctx.text = value; },
     toolbarElement,
     transformFloorCamera,
     updateLampButton,
@@ -4483,8 +4483,8 @@ export function mountStage(mountOptions: any) {
   stageHandlersHost.syncMarkers = syncMarkers;
   const handleHostMessage = createHandleHostMessage(stageHandlersHost);
   stageHandlersHost.handleHostMessage = handleHostMessage;
-  const runFrame = createRunFrame(stageHandlersHost);
-  stageHandlersHost.runFrame = runFrame;
+  const renderStageFrame = createRunFrame(stageHandlersHost);
+  stageHandlersHost.runFrame = renderStageFrame;
 
   window.addEventListener("message", handleHostMessage);
   const controls = mountOptions.controls,
@@ -4533,8 +4533,8 @@ export function mountStage(mountOptions: any) {
   ((ctx.sceneBackground = mountOptions.createFrameLoop({
     step: (frameStepTimestamp: any) =>
       mountOptions.profileFrameWork
-        ? mountOptions.profileFrameWork("stage-updates", () => runFrame(frameStepTimestamp))
-        : runFrame(frameStepTimestamp),
+        ? mountOptions.profileFrameWork("stage-updates", () => renderStageFrame(frameStepTimestamp))
+        : renderStageFrame(frameStepTimestamp),
   })),
     syncAvailability(),
     window.addEventListener("pagehide", () => {

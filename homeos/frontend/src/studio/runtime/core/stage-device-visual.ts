@@ -325,12 +325,12 @@ export function createStageDeviceVisual({
     if (state.hidden != null) root.hidden = !!state.hidden;
 
     const available = state.available !== false;
-    const on = !!state.on && available;
+    const isOn = !!state.on && available;
     const running = !!state.running && available;
     const interactive = state.interactive !== false && available && !state.disabled;
     const accent = state.accent || "#c9a26d";
 
-    const nextVisualMode = String(state.visualMode || (on ? "on" : "off"));
+    const nextVisualMode = String(state.visualMode || (isOn ? "on" : "off"));
     // 门锁图形只认这几档语义；缺失或无法识别时一律当「未知」，绝不默认成「已解锁」。
     // 否则「没绑定锁实体 / 状态 unknown / 设备不可用」的卡片会摆出开锁图，和实际不符。
     const lockVisualState =
@@ -341,7 +341,7 @@ export function createStageDeviceVisual({
             ? "locked"
             : "unknown"
         : "";
-    root.classList.toggle("is-on", on);
+    root.classList.toggle("is-on", isOn);
     root.classList.toggle("is-running", running);
     root.classList.toggle("is-unavailable", !available);
     root.classList.toggle("is-busy", !!state.busy);
@@ -370,7 +370,7 @@ export function createStageDeviceVisual({
         state.targetTemperature != null &&
         state.targetTemperature !== "" &&
         Number.isFinite(Number(state.targetTemperature));
-      displayEl.textContent = on
+      displayEl.textContent = isOn
         ? finite
           ? Number(state.targetTemperature) + "°"
           : state.displayText || state.mode || "ON"
@@ -379,8 +379,8 @@ export function createStageDeviceVisual({
 
     if (kind === "cover" || kind === "airer") {
       const isDream = !!state.dream && kind === "cover";
-      const position = Math.max(0, Math.min(100, Number(state.position ?? (on ? 100 : 0))));
-      const openRatio = isDream ? (on ? Math.max(position / 100, 0.08) : 0) : position / 100;
+      const position = Math.max(0, Math.min(100, Number(state.position ?? (isOn ? 100 : 0))));
+      const openRatio = isDream ? (isOn ? Math.max(position / 100, 0.08) : 0) : position / 100;
       const tilt = Math.max(
         0,
         Math.min(100, Number(state.tiltPosition ?? (isDream ? 50 : position))),
@@ -423,8 +423,8 @@ export function createStageDeviceVisual({
         "direction-split",
         direction === "split" || !["left", "right"].includes(direction),
       );
-      root.classList.toggle("is-cover-open", isDream ? on : openRatio > 0.08);
-      root.classList.toggle("is-cover-closed", isDream ? !on : openRatio < 0.08);
+      root.classList.toggle("is-cover-open", isDream ? isOn : openRatio > 0.08);
+      root.classList.toggle("is-cover-closed", isDream ? !isOn : openRatio < 0.08);
       root.classList.toggle("is-tilt-center", isDream && Math.abs(tilt - 50) <= 2);
       root.classList.toggle("is-tilt-reversed", isDream && tilt > 50);
       const drawing = root.querySelector(".i3d-device-drawing--cover");
@@ -475,7 +475,7 @@ export function createStageDeviceVisual({
     }
 
     const label = state.label || kind;
-    root.setAttribute("aria-pressed", String(on));
+    root.setAttribute("aria-pressed", String(isOn));
     root.setAttribute(
       "aria-label",
       !available
@@ -485,8 +485,8 @@ export function createStageDeviceVisual({
           : kind === "fridge"
             ? label + fridgeOpeningsAria(state.fridgeOpenings, available)
             : interactive
-              ? label + (on ? "，点击关闭" : "，点击开启")
-              : label + (on ? "，已开启" : "，已关闭"),
+              ? label + (isOn ? "，点击关闭" : "，点击开启")
+              : label + (isOn ? "，已开启" : "，已关闭"),
     );
   }
 

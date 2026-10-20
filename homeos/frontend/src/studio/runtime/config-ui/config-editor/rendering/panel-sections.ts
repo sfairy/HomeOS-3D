@@ -28,8 +28,8 @@ import { randomUuid as randomUuid2 } from "@app/shared/util/random-id";
  * 所以按 deps 注入与闭包捕获等价。
  */
 export interface PanelSectionsDeps {
-  /** 配置编辑器上下文对象（`e.panelElement` / `e.structuredClone2` / `e.createElement` 等）。 */
-  e: any;
+  /** 配置编辑器上下文对象（`editorHost.panelElement` / `editorHost.structuredClone2` / `editorHost.createElement` 等）。 */
+  editorHost: any;
   /** 关闭「新增」确认弹窗。 */
   closeAddDialog: () => any;
   /** 局部重绘编辑器预览。 */
@@ -75,35 +75,35 @@ export interface PanelSectionsDeps {
 }
 
 export function ensureItemCollections(deps: PanelSectionsDeps) {
-  const { e } = deps;
+  const { editorHost } = deps;
       if (
-        (e.usesStatusPanel &&
-          (e.structuredClone2.devices = {
-            ...e.structuredClone2.devices,
-            [e.collectionKey]: e.structuredClone2.devices?.[e.collectionKey] || [],
+        (editorHost.usesStatusPanel &&
+          (editorHost.structuredClone2.devices = {
+            ...editorHost.structuredClone2.devices,
+            [editorHost.collectionKey]: editorHost.structuredClone2.devices?.[editorHost.collectionKey] || [],
           }),
-        e.isTemperatureHumidityMode)
+        editorHost.isTemperatureHumidityMode)
       ) {
-        e.structuredClone2.environment = {
-          ...e.structuredClone2.environment,
-          temperatureHumidity: (e.structuredClone2.environment?.temperatureHumidity || []).map(
+        editorHost.structuredClone2.environment = {
+          ...editorHost.structuredClone2.environment,
+          temperatureHumidity: (editorHost.structuredClone2.environment?.temperatureHumidity || []).map(
             normalizeTemperatureHumidity2,
           ),
         };
         return;
       }
       if (
-        (e.usesModelBinding &&
-          !e.usesStatusPanel &&
-          (e.structuredClone2.environment = {
-            ...e.structuredClone2.environment,
-            dimStrength: Number.isFinite(e.structuredClone2.environment?.dimStrength)
-              ? Math.max(0, Math.min(100, e.structuredClone2.environment.dimStrength))
+        (editorHost.usesModelBinding &&
+          !editorHost.usesStatusPanel &&
+          (editorHost.structuredClone2.environment = {
+            ...editorHost.structuredClone2.environment,
+            dimStrength: Number.isFinite(editorHost.structuredClone2.environment?.dimStrength)
+              ? Math.max(0, Math.min(100, editorHost.structuredClone2.environment.dimStrength))
               : 70,
-            [e.collectionKey]: e.structuredClone2.environment?.[e.collectionKey] || [],
-            ...(e.isCoverMode
+            [editorHost.collectionKey]: editorHost.structuredClone2.environment?.[editorHost.collectionKey] || [],
+            ...(editorHost.isCoverMode
               ? {
-                  curtainGroups: (e.structuredClone2.environment?.curtainGroups || []).map(
+                  curtainGroups: (editorHost.structuredClone2.environment?.curtainGroups || []).map(
                     (curtainGroupItem: any) => ({
                       ...curtainGroupItem,
   
@@ -113,9 +113,9 @@ export function ensureItemCollections(deps: PanelSectionsDeps) {
                 }
               : {}),
           }),
-        e.isVacuumShortcutMode)
+        editorHost.isVacuumShortcutMode)
       ) {
-        for (const vacuumModelItem of e.structuredClone2.devices.vacuums)
+        for (const vacuumModelItem of editorHost.structuredClone2.devices.vacuums)
           vacuumModelItem.shortcuts = (vacuumModelItem.shortcuts || []).map((vacuumShortcutItem: any) =>
             vacuumShortcutItem.visible === false
               ? {
@@ -127,13 +127,13 @@ export function ensureItemCollections(deps: PanelSectionsDeps) {
               : vacuumShortcutItem,
           );
       }
-      ((e.vacuumId ||= e.structuredClone2.devices?.vacuums?.[0]?.id || ""),
-        e.isVacuumMode && (e.text = e.vacuumId),
-        e.setItemList(
-          (e.getItemList() || [])
+      ((editorHost.vacuumId ||= editorHost.structuredClone2.devices?.vacuums?.[0]?.id || ""),
+        editorHost.isVacuumMode && (editorHost.text = editorHost.vacuumId),
+        editorHost.setItemList(
+          (editorHost.getItemList() || [])
             .filter(
               (visibleItemProbe: any) =>
-                e.isVacuumShortcutMode || e.isCoverMode || visibleItemProbe.visible !== false,
+                editorHost.isVacuumShortcutMode || editorHost.isCoverMode || visibleItemProbe.visible !== false,
             )
             .map((normalizedItem: any) => {
               const size =
@@ -141,19 +141,19 @@ export function ensureItemCollections(deps: PanelSectionsDeps) {
                   ? normalizedItem.size
                   : DEFAULT_BUTTON_SIZE;
               return {
-                ...(e.usesModelBinding || e.isTemperatureHumidityMode
+                ...(editorHost.usesModelBinding || editorHost.isTemperatureHumidityMode
                   ? normalizedItem
                   : withFixedLightEffects2(normalizedItem)),
                 size: size,
                 visible:
-                  e.isVacuumShortcutMode || e.isCoverMode ? normalizedItem.visible !== false : true,
-                icon: normalizedItem.icon || e.defaultIcon,
-                ...(e.usesModelBinding || e.isTemperatureHumidityMode
+                  editorHost.isVacuumShortcutMode || editorHost.isCoverMode ? normalizedItem.visible !== false : true,
+                icon: normalizedItem.icon || editorHost.defaultIcon,
+                ...(editorHost.usesModelBinding || editorHost.isTemperatureHumidityMode
                   ? {}
                   : {
                       fadeDuration: normalizedItem.fadeDuration ?? 0.3,
                     }),
-                ...(e.isCoverMode
+                ...(editorHost.isCoverMode
                   ? {
                       coverKind: ["standard", "dream", "roller"].includes(normalizedItem.coverKind)
                         ? normalizedItem.coverKind
@@ -169,14 +169,14 @@ export function ensureItemCollections(deps: PanelSectionsDeps) {
                         : 0,
                     }
                   : {}),
-                ...(e.isVacuumShortcutMode
+                ...(editorHost.isVacuumShortcutMode
                   ? {}
                   : {
-                      clickAction: e.normalizeClickAction(normalizedItem.clickAction),
+                      clickAction: editorHost.normalizeClickAction(normalizedItem.clickAction),
                     }),
   
   
-                iconSize: e.isVacuumMode
+                iconSize: editorHost.isVacuumMode
                   ? Number.isFinite(normalizedItem.iconSize) && normalizedItem.iconSize > 0
                     ? normalizedItem.iconSize
                     : buttonIconSize(size)
@@ -192,10 +192,10 @@ export function renderStatusRuleSection(
   statusItem: any,
   { deviceId: statusDeviceId = statusItem.deviceId, standardOnly: isStandardOnly = false } = {},
 ) {
-  const { e, closeAddDialog, refreshEditorPreview, createSettingRow, renderPanel } = deps;
+  const { editorHost, closeAddDialog, refreshEditorPreview, createSettingRow, renderPanel } = deps;
       ((statusSettingsSectionElement.className += " i3d-status-settings"),
         statusSettingsSectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "正常绿灯、提醒橙灯，均为呼吸效果；未知状态显示稳定灰灯。未设置任何规则时不显示指示灯。",
@@ -254,23 +254,23 @@ export function renderStatusRuleSection(
               ? [statusItem.statusRules.health]
               : [],
         resolveCatalogEntry = (probedEntityId: any) =>
-          e.entities.find((entityProbe: any) => entityProbe.entityId === probedEntityId) || {
+          editorHost.entities.find((entityProbe: any) => entityProbe.entityId === probedEntityId) || {
             entityId: probedEntityId,
           },
         resolveEntityState = (stateEntityId: any) =>
-          e.latestStates?.get?.(stateEntityId) ??
-          e.latestStates?.[stateEntityId] ??
-          e.states?.get?.(stateEntityId) ??
-          e.states?.[stateEntityId],
+          editorHost.latestStates?.get?.(stateEntityId) ??
+          editorHost.latestStates?.[stateEntityId] ??
+          editorHost.states?.get?.(stateEntityId) ??
+          editorHost.states?.[stateEntityId],
         refreshStatusRules = () => {
-          const scrollTop = e.panelElement.scrollTop;
-          (refreshEditorPreview(), renderPanel(), (e.panelElement.scrollTop = scrollTop));
+          const scrollTop = editorHost.panelElement.scrollTop;
+          (refreshEditorPreview(), renderPanel(), (editorHost.panelElement.scrollTop = scrollTop));
         },
         canRefreshItem = (itemGeneration: any) =>
-          !e.isDisposed &&
-          e.isAccessAllowed &&
-          itemGeneration === e.pickerGeneration &&
-          e.getItemList().includes(statusItem),
+          !editorHost.isDisposed &&
+          editorHost.isAccessAllowed &&
+          itemGeneration === editorHost.pickerGeneration &&
+          editorHost.getItemList().includes(statusItem),
         writeStatusRule = (ruleKind: any, ruleIndex: any, ruleValue: any) => {
           const statusRulesDraft = {
             ...statusItem.statusRules,
@@ -293,19 +293,19 @@ export function renderStatusRuleSection(
           statusEntity: any,
           dialogGeneration: any,
         ) => {
-          if (!canRefreshItem(dialogGeneration) || e.addDialogState) return;
-          const statusDialogElement = e.createElement("dialog", "settings-dialog i3d-add-dialog");
-          ((e.addDialogState = statusDialogElement),
+          if (!canRefreshItem(dialogGeneration) || editorHost.addDialogState) return;
+          const statusDialogElement = editorHost.createElement("dialog", "settings-dialog i3d-add-dialog");
+          ((editorHost.addDialogState = statusDialogElement),
             statusDialogElement.setAttribute("aria-label", "设置指示灯条件"));
-          const statusDialogHeadingElement = e.createElement("div", "dialog-heading");
-          statusDialogHeadingElement.append(e.createElement("h2", "", "设置指示灯条件"));
-          const statusDialogBodyElement = e.createElement("div", "i3d-add-dialog-body"),
+          const statusDialogHeadingElement = editorHost.createElement("div", "dialog-heading");
+          statusDialogHeadingElement.append(editorHost.createElement("h2", "", "设置指示灯条件"));
+          const statusDialogBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
             catalogEntry = resolveCatalogEntry(statusEntity.entityId),
             entityState = resolveEntityState(statusEntity.entityId),
             entityStateText = (entityState?.newState || entityState)?.state;
           (statusDialogBodyElement.append(
-            e.createElement("strong", "", catalogEntry.name || statusEntity.entityId),
-            e.createElement(
+            editorHost.createElement("strong", "", catalogEntry.name || statusEntity.entityId),
+            editorHost.createElement(
               "p",
               "i3d-note",
               "分别填写亮灯/提醒与灭灯/恢复的状态；每行一个，可填写多个。其他值显示为未知。",
@@ -313,12 +313,12 @@ export function renderStatusRuleSection(
           ),
             entityStateText != null &&
               statusDialogBodyElement.append(
-                e.createElement("p", "i3d-note", "HA 当前值：" + entityStateText),
+                editorHost.createElement("p", "i3d-note", "HA 当前值：" + entityStateText),
               ));
           const statusChoiceDefinition = deviceStatusChoicesProvider(catalogEntry, entityState);
           if (statusChoiceDefinition?.options.length) {
             statusDialogBodyElement.append(
-              e.createElement(
+              editorHost.createElement(
                 "p",
                 "i3d-note",
                 "可用状态：" +
@@ -330,8 +330,8 @@ export function renderStatusRuleSection(
           }
           const readStatusValueLines = (statusValue: any) =>
               (Array.isArray(statusValue) ? statusValue.join("\n") : statusValue || ""),
-            activeValueInputElement = e.createElement("textarea"),
-            inactiveValueInputElement = e.createElement("textarea");
+            activeValueInputElement = editorHost.createElement("textarea"),
+            inactiveValueInputElement = editorHost.createElement("textarea");
           ((activeValueInputElement.value = readStatusValueLines(statusEntity.active)),
             (inactiveValueInputElement.value = readStatusValueLines(statusEntity.inactive)),
             (activeValueInputElement.maxLength = inactiveValueInputElement.maxLength = 7800),
@@ -345,10 +345,10 @@ export function renderStatusRuleSection(
               dialogRuleKind === "health" ? "恢复时的状态值" : "灭灯时的状态值",
               inactiveValueInputElement,
             ));
-          const statusDialogErrorElement = e.createElement("p", "i3d-error");
+          const statusDialogErrorElement = editorHost.createElement("p", "i3d-error");
           (statusDialogErrorElement.setAttribute("role", "status"),
             statusDialogBodyElement.append(statusDialogErrorElement));
-          const confirmStatusValuesButton = e.createButton("确定", () => {
+          const confirmStatusValuesButton = editorHost.createButton("确定", () => {
             if (!canRefreshItem(dialogGeneration)) {
               closeAddDialog();
               return;
@@ -391,9 +391,9 @@ export function renderStatusRuleSection(
               }));
           });
           confirmStatusValuesButton.className = "primary";
-          const statusDialogActionsElement = e.createElement("div", "dialog-actions");
+          const statusDialogActionsElement = editorHost.createElement("div", "dialog-actions");
           (statusDialogActionsElement.append(
-            e.createButton("取消", closeAddDialog),
+            editorHost.createButton("取消", closeAddDialog),
             confirmStatusValuesButton,
           ),
             statusDialogElement.append(
@@ -401,16 +401,16 @@ export function renderStatusRuleSection(
               statusDialogBodyElement,
               statusDialogActionsElement,
             ),
-            e.editorDialogElement.append(statusDialogElement),
+            editorHost.editorDialogElement.append(statusDialogElement),
             statusDialogElement.addEventListener("cancel", (statusDialogCancelEvent: any) => {
               (statusDialogCancelEvent.preventDefault(), closeAddDialog());
             }),
             statusDialogElement.showModal());
         },
         openStatusEntityPicker = async (pickerRuleKind: any, pickerRuleIndex: any, statusPickerGeneration: any) => {
-          if (!e.isAccessAllowed || e.isDisposed || !statusDeviceId) return;
-          const ruleRefreshGeneration = ++e.pickerGeneration;
-          (e.pickerHandle?.close(), (e.errorMessageElement.textContent = ""));
+          if (!editorHost.isAccessAllowed || editorHost.isDisposed || !statusDeviceId) return;
+          const ruleRefreshGeneration = ++editorHost.pickerGeneration;
+          (editorHost.pickerHandle?.close(), (editorHost.errorMessageElement.textContent = ""));
           const existingRule =
               pickerRuleKind === "power"
                 ? statusItem.statusRules?.power
@@ -430,8 +430,8 @@ export function renderStatusRuleSection(
                 ));
           let isRefreshingRules = false;
           try {
-            if (!e.pickers?.entity) throw new Error("实体选择器尚未准备好，请刷新页面。");
-            const entity2 = await e.pickers.entity({
+            if (!editorHost.pickers?.entity) throw new Error("实体选择器尚未准备好，请刷新页面。");
+            const entity2 = await editorHost.pickers.entity({
               trigger: statusPickerGeneration,
               current: existingRule?.entityId || "", deviceKind: "device-status",
               title: pickerRuleKind === "health" ? "选择提醒实体" : "选择亮灭依据",
@@ -450,8 +450,8 @@ export function renderStatusRuleSection(
                 if (
                   !usedEntityIds(resolvedCatalogEntry) ||
                   ((isRefreshingRules = true),
-                  (e.entities = [
-                    ...e.entities.filter(
+                  (editorHost.entities = [
+                    ...editorHost.entities.filter(
                       (catalogEntityProbe: any) => catalogEntityProbe.entityId !== selectedEntity,
                     ),
                     resolvedCatalogEntry,
@@ -477,24 +477,24 @@ export function renderStatusRuleSection(
                     );
               },
             });
-            canRefreshItem(ruleRefreshGeneration) ? (e.pickerHandle = entity2) : entity2?.close();
+            canRefreshItem(ruleRefreshGeneration) ? (editorHost.pickerHandle = entity2) : entity2?.close();
           } catch (statusPickerError: any) {
             canRefreshItem(ruleRefreshGeneration) &&
-              (e.errorMessageElement.textContent = statusPickerError.message);
+              (editorHost.errorMessageElement.textContent = statusPickerError.message);
           }
         },
         writeRuleRow = (rowRuleKind: any, rowRuleIndex: any, ruleEntity: any) => {
           const ruleCatalogEntry = resolveCatalogEntry(ruleEntity?.entityId),
             statusEntityIdText = ruleCatalogEntry.name || ruleEntity?.entityId || "未选择实体",
-            statusRuleRowElement = e.createElement("div", "i3d-status-rule"),
-            ruleValueInputElement = e.createButton(
+            statusRuleRowElement = editorHost.createElement("div", "i3d-status-rule"),
+            ruleValueInputElement = editorHost.createButton(
               "",
               () => void openStatusEntityPicker(rowRuleKind, rowRuleIndex, ruleValueInputElement),
             );
           if (
             ((ruleValueInputElement.className = "i3d-picker-button"),
             ruleValueInputElement.append(
-              e.createElement("span", "", ruleEntity ? statusEntityIdText : "不设置 · 选择实体"),
+              editorHost.createElement("span", "", ruleEntity ? statusEntityIdText : "不设置 · 选择实体"),
             ),
             ruleValueInputElement.setAttribute(
               "aria-label",
@@ -533,7 +533,7 @@ export function renderStatusRuleSection(
               (inactiveChoiceProbe) => inactiveChoiceProbe.value === singleInactive,
             )
           ) {
-            const ruleDefaultButton = e.createElement("select");
+            const ruleDefaultButton = editorHost.createElement("select");
             ruleDefaultButton.setAttribute(
               "aria-label",
               rowRuleKind === "power"
@@ -541,7 +541,7 @@ export function renderStatusRuleSection(
                 : statusEntityIdText + "提醒条件",
             );
             for (const { value: optionValue, label: optionLabel } of choiceDefinition.options) {
-              const reminderOptionElement = e.createElement(
+              const reminderOptionElement = editorHost.createElement(
                 "option",
                 "",
                 optionLabel + "时" + (rowRuleKind === "power" ? "亮灯" : "提醒"),
@@ -569,11 +569,11 @@ export function renderStatusRuleSection(
           } else {
             if (isStandardOnly && !choiceDefinition)
               statusRuleRowElement.append(
-                e.createElement("span", "i3d-note", "状态暂不可识别，请重新选择实体。"),
+                editorHost.createElement("span", "i3d-note", "状态暂不可识别，请重新选择实体。"),
               );
             else {
-              const ruleActionsElement = e.createButton("设置匹配条件", () =>
-                openCustomStatusDialog(rowRuleKind, rowRuleIndex, ruleEntity, ++e.pickerGeneration),
+              const ruleActionsElement = editorHost.createButton("设置匹配条件", () =>
+                openCustomStatusDialog(rowRuleKind, rowRuleIndex, ruleEntity, ++editorHost.pickerGeneration),
               );
               (ruleActionsElement.setAttribute(
                 "aria-label",
@@ -582,9 +582,9 @@ export function renderStatusRuleSection(
                 statusRuleRowElement.append(ruleActionsElement));
             }
           }
-          const pickerCloseButton = e.createButton("×", () => {
-            (e.pickerGeneration++,
-              e.pickerHandle?.close(),
+          const pickerCloseButton = editorHost.createButton("×", () => {
+            (editorHost.pickerGeneration++,
+              editorHost.pickerHandle?.close(),
               writeStatusRule(rowRuleKind, rowRuleIndex, null));
           });
           ((pickerCloseButton.className = "i3d-status-remove"),
@@ -595,14 +595,14 @@ export function renderStatusRuleSection(
             statusSettingsSectionElement.append(statusRuleRowElement));
         };
       (statusSettingsSectionElement.append(
-        e.createElement("p", "i3d-status-label", "电源状态（可选）"),
+        editorHost.createElement("p", "i3d-status-label", "电源状态（可选）"),
       ),
         writeRuleRow("power", 0, statusItem.statusRules?.power),
-        statusSettingsSectionElement.append(e.createElement("p", "i3d-status-label", "提醒条件")),
+        statusSettingsSectionElement.append(editorHost.createElement("p", "i3d-status-label", "提醒条件")),
         readHealthRules().forEach((healthRuleEntity: any, healthRuleIndex: any) =>
           writeRuleRow("health", healthRuleIndex, healthRuleEntity),
         ));
-      const addRuleButtonElement = e.createButton(
+      const addRuleButtonElement = editorHost.createButton(
         "＋ 添加提醒",
         () => void openStatusEntityPicker("health", readHealthRules().length, addRuleButtonElement),
       );
@@ -610,7 +610,7 @@ export function renderStatusRuleSection(
         (addRuleButtonElement.className = "i3d-status-add"),
         statusSettingsSectionElement.append(addRuleButtonElement),
         statusSettingsSectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "任一提醒条件触发时优先亮橙灯；没有提醒时，按电源状态亮灯或熄灭。不设置电源状态则只看提醒条件。",
@@ -620,10 +620,10 @@ export function renderStatusRuleSection(
 
 export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, createSizeRow, syncLinkedIconSize, openCurtainGroupBatchApplyDialog } = deps;
+  const { editorHost, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, createSizeRow, syncLinkedIconSize, openCurtainGroupBatchApplyDialog } = deps;
       const groupEntrySectionElement = createConfigSection("组合入口"),
         groupNameRowElement = createConfigRow(groupEntrySectionElement),
-        groupNameInputElement = e.createElement("input");
+        groupNameInputElement = editorHost.createElement("input");
       ((groupNameInputElement.value = curtainGroup.label || "双层窗帘"),
         (groupNameInputElement.maxLength = 128),
         groupNameInputElement.addEventListener("change", () => {
@@ -632,28 +632,28 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
         }),
         createSettingRow(groupNameRowElement, "组合名称", groupNameInputElement),
         groupEntrySectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "双图标各自显示状态，共用点击范围。名称只用于配置和弹窗，不在户型上显示。",
           ),
         ));
       const memberItemList = curtainGroup.memberIds.map((memberId: any) =>
-          e.getItemList().find((memberItemProbe: any) => memberItemProbe.id === memberId),
+          editorHost.getItemList().find((memberItemProbe: any) => memberItemProbe.id === memberId),
         ),
         memberSectionElement = createConfigSection("组合成员"),
-        memberActionsElement = e.createElement("div", "i3d-group-member-actions");
+        memberActionsElement = editorHost.createElement("div", "i3d-group-member-actions");
       (memberSectionElement.append(memberActionsElement),
         memberItemList.forEach((memberItem: any, memberIndex: any) =>
           memberActionsElement.append(
-            e.createButton(
+            editorHost.createButton(
               (memberIndex === 0 ? "左图标 / 上控制区" : "右图标 / 下控制区") +
                 "：" +
                 (memberItem.label || "窗帘") +
                 " · 编辑",
               () => {
-                ((e.text = memberItem.id),
-                  (e.selectedCurtainGroupId = memberItem.id),
+                ((editorHost.text = memberItem.id),
+                  (editorHost.selectedCurtainGroupId = memberItem.id),
                   refreshEditorPreview(),
                   renderPanel());
               },
@@ -661,7 +661,7 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
           ),
         ),
         memberActionsElement.append(
-          e.createButton("交换两层顺序", () => {
+          editorHost.createButton("交换两层顺序", () => {
             (curtainGroup.memberIds.reverse(), refreshEditorPreview(), renderPanel());
           }),
         ));
@@ -679,7 +679,7 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
         },
       ),
         behaviorSectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "左右布局保持普通弹窗大小；上下布局增加高度。均跟随自定义弹窗缩放与位置。",
@@ -701,19 +701,19 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
           },
         ),
         behaviorSectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "开关类行为：任一窗帘打开或半开时关闭两层，全部关闭时打开两层；运动中点击先停止。仅打开时执行所选聚焦或弹窗。",
           ),
         ));
-      const visibilityRowElement = e.createElement("div", "i3d-button-visibility-row");
+      const visibilityRowElement = editorHost.createElement("div", "i3d-button-visibility-row");
       behaviorSectionElement.append(visibilityRowElement);
       for (const [visibilityFieldKey, visibilityFieldLabel, oppositeVisibilityKey] of [
         ["hiddenClickable", "隐藏（可点击）", "buttonHidden"],
         ["buttonHidden", "隐藏（不可点击）", "hiddenClickable"],
       ]) {
-        const visibilityCheckboxElement = e.createElement("input");
+        const visibilityCheckboxElement = editorHost.createElement("input");
         ((visibilityCheckboxElement.type = "checkbox"),
           (visibilityCheckboxElement.checked =
             curtainGroup[visibilityFieldKey] === true &&
@@ -733,9 +733,9 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
       }
       const appearanceSectionElement = createConfigSection("按钮外观"),
         buttonSizeRowElement = createConfigRow(appearanceSectionElement),
-        sizeGridElement = e.createElement("div", "i3d-coordinate-grid i3d-size-grid"),
-        sizeDetailsElement = e.createElement("details");
-      (sizeDetailsElement.append(e.createElement("summary", "", "更多尺寸设置"), sizeGridElement),
+        sizeGridElement = editorHost.createElement("div", "i3d-coordinate-grid i3d-size-grid"),
+        sizeDetailsElement = editorHost.createElement("details");
+      (sizeDetailsElement.append(editorHost.createElement("summary", "", "更多尺寸设置"), sizeGridElement),
         appearanceSectionElement.append(sizeDetailsElement));
       for (const [buttonSizeFieldKey, buttonSizeFieldLabel, buttonSizeDefaultValue] of [
         ["size", "按钮大小（px）", DEFAULT_BUTTON_SIZE],
@@ -754,10 +754,10 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
         );
       }
       const buttonPositionSectionElement = createConfigSection("按钮位置"),
-        buttonPositionGridElement = e.createElement("div", "i3d-coordinate-grid");
+        buttonPositionGridElement = editorHost.createElement("div", "i3d-coordinate-grid");
       buttonPositionSectionElement.append(buttonPositionGridElement);
       const anchorMemberItem = memberItemList[0],
-        anchorCurtainModel = e.sceneMetadata.floors
+        anchorCurtainModel = editorHost.sceneMetadata.floors
           .find((matchedFloor: any) => matchedFloor.id === curtainGroup.floorId)
           ?.curtains?.find(
             (matchedCurtainModel: any) => matchedCurtainModel.id === anchorMemberItem.modelId,
@@ -782,12 +782,12 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
           },
         );
       (buttonPositionSectionElement.append(
-        e.createButton("一键应用到其他组合窗帘", () =>
+        editorHost.createButton("一键应用到其他组合窗帘", () =>
           openCurtainGroupBatchApplyDialog(curtainGroup, true),
         ),
       ),
         buttonPositionSectionElement.append(
-          e.createButton("恢复跟随第一层入口", () => {
+          editorHost.createButton("恢复跟随第一层入口", () => {
             for (const positionFieldName of ["x", "y", "height"])
               delete curtainGroup[positionFieldName];
             (refreshEditorPreview(), renderPanel());
@@ -795,62 +795,62 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
         ));
       const focusSectionElement = createConfigSection("聚焦视角");
       focusSectionElement.className += " i3d-focus-settings";
-      const focusActionsElement = e.createElement("div", "i3d-focus-actions");
+      const focusActionsElement = editorHost.createElement("div", "i3d-focus-actions");
       focusSectionElement.append(focusActionsElement);
-      const runGroupCameraCommand = async (cameraCommandName: any, cameraCommandPayload: any = undefined) => {
-        const cameraCommandGeneration = ++e.num,
+      const queueGroupCameraCommand = async (cameraCommandName: any, cameraCommandPayload: any = undefined) => {
+        const cameraCommandGeneration = ++editorHost.num,
           isFocalLengthCommand = cameraCommandName === "focus-focal-length",
-          previousCameraQueue = e.cameraCommandQueue;
+          previousCameraQueue = editorHost.cameraCommandQueue;
         let resolveCameraCommand;
-        ((e.cameraCommandQueue = new Promise((finishCameraCommand) => {
+        ((editorHost.cameraCommandQueue = new Promise((finishCameraCommand) => {
           resolveCameraCommand = finishCameraCommand;
         })),
-          isFocalLengthCommand || ((e.isCameraCommandPending = true), renderPanel()));
+          isFocalLengthCommand || ((editorHost.isCameraCommandPending = true), renderPanel()));
         // 同设备面板：预览刷新后不能静默 return，否则按钮会卡在「保存视角 / 取消调整」。
         const isCommandStale = () =>
-          !e.isDisposed && cameraCommandGeneration !== e.num;
+          !editorHost.isDisposed && cameraCommandGeneration !== editorHost.num;
         const reportStaleCommand = () => {
-          e.isDisposed || (e.errorMessageElement.textContent = "预览已刷新，请重新调整视角。");
+          editorHost.isDisposed || (editorHost.errorMessageElement.textContent = "预览已刷新，请重新调整视角。");
         };
         try {
-          if ((await previousCameraQueue, e.isDisposed)) return;
+          if ((await previousCameraQueue, editorHost.isDisposed)) return;
           if (isCommandStale()) return reportStaleCommand();
-          const focusCommand = await e.editorRuntime.focusCommand(
+          const focusCommand = await editorHost.editorRuntime.focusCommand(
             cameraCommandName,
             curtainGroupEntryId2(curtainGroup),
             cameraCommandPayload,
           );
-          if (e.isDisposed) return;
+          if (editorHost.isDisposed) return;
           if (isCommandStale()) return reportStaleCommand();
           cameraCommandName === "save-light-camera"
             ? ((curtainGroup.focusCamera = focusCommand.camera),
-              (e.isCameraEditing = false),
-              (e.pendingCameraDraft = null),
+              (editorHost.isCameraEditing = false),
+              (editorHost.pendingCameraDraft = null),
               refreshEditorPreview())
             : cameraCommandName === "cancel-light-camera"
-              ? ((e.isCameraEditing = false), (e.pendingCameraDraft = null))
-              : ((e.isCameraEditing = true), (e.pendingCameraDraft = focusCommand.camera));
+              ? ((editorHost.isCameraEditing = false), (editorHost.pendingCameraDraft = null))
+              : ((editorHost.isCameraEditing = true), (editorHost.pendingCameraDraft = focusCommand.camera));
         } catch (cameraError: any) {
-          e.isDisposed || (e.errorMessageElement.textContent = cameraError.message);
+          editorHost.isDisposed || (editorHost.errorMessageElement.textContent = cameraError.message);
         } finally {
           // pending 标志必须清掉，否则相机按钮会永久禁用。
           (resolveCameraCommand!(),
-            !e.isDisposed &&
+            !editorHost.isDisposed &&
               !isFocalLengthCommand &&
-              ((e.isCameraCommandPending = false), renderPanel()));
+              ((editorHost.isCameraCommandPending = false), renderPanel()));
         }
       };
-      if (e.isCameraEditing) {
-        const entrySectionElement = e.createButton(
+      if (editorHost.isCameraEditing) {
+        const entrySectionElement = editorHost.createButton(
           "保存视角",
-          () => void runGroupCameraCommand("save-light-camera"),
+          () => void queueGroupCameraCommand("save-light-camera"),
         );
         ((entrySectionElement.className = "primary"),
           focusActionsElement.append(
             entrySectionElement,
-            e.createButton("取消调整", () => void runGroupCameraCommand("cancel-light-camera")),
+            editorHost.createButton("取消调整", () => void queueGroupCameraCommand("cancel-light-camera")),
           ));
-        const projectionGroupElement = e.createElement("div", "i3d-focus-actions");
+        const projectionGroupElement = editorHost.createElement("div", "i3d-focus-actions");
         (projectionGroupElement.setAttribute("role", "group"),
           projectionGroupElement.setAttribute("aria-label", "聚焦投影"),
           focusSectionElement.append(projectionGroupElement));
@@ -858,36 +858,36 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
           ["orthographic", "正交"],
           ["perspective", "透视"],
         ]) {
-          const projectionButtonElement = e.createButton(
+          const projectionButtonElement = editorHost.createButton(
             projectionModeLabel,
-            () => void runGroupCameraCommand("focus-projection", projectionMode),
+            () => void queueGroupCameraCommand("focus-projection", projectionMode),
           );
           (projectionButtonElement.setAttribute(
             "aria-pressed",
-            String((e.pendingCameraDraft?.mode || "orthographic") === projectionMode),
+            String((editorHost.pendingCameraDraft?.mode || "orthographic") === projectionMode),
           ),
             projectionGroupElement.append(projectionButtonElement));
         }
         const focalLengthInputElement = createNumberRow(
           focusSectionElement,
           "焦段（mm）",
-          Math.round(e.pendingCameraDraft?.focalLength || 50),
+          Math.round(editorHost.pendingCameraDraft?.focalLength || 50),
           18,
           120,
           1,
-          (nextFocalLength: any) => void runGroupCameraCommand("focus-focal-length", nextFocalLength),
+          (nextFocalLength: any) => void queueGroupCameraCommand("focus-focal-length", nextFocalLength),
         );
-        focalLengthInputElement.disabled = e.pendingCameraDraft?.mode !== "perspective";
+        focalLengthInputElement.disabled = editorHost.pendingCameraDraft?.mode !== "perspective";
       } else {
         focusActionsElement.append(
-          e.createButton(
+          editorHost.createButton(
             curtainGroup.focusCamera ? "调整视角" : "设置视角",
-            () => void runGroupCameraCommand("edit-light-camera"),
+            () => void queueGroupCameraCommand("edit-light-camera"),
           ),
-          e.createButton("预览聚焦", () => void runGroupCameraCommand("preview-light-camera")),
+          editorHost.createButton("预览聚焦", () => void queueGroupCameraCommand("preview-light-camera")),
         );
-        const resetFocusButtonElement = e.createButton("恢复自动聚焦", async () => {
-          (await runGroupCameraCommand("cancel-light-camera"),
+        const resetFocusButtonElement = editorHost.createButton("恢复自动聚焦", async () => {
+          (await queueGroupCameraCommand("cancel-light-camera"),
             delete curtainGroup.focusCamera,
             refreshEditorPreview(),
             renderPanel());
@@ -897,40 +897,40 @@ export function renderCurtainGroupSection(deps: PanelSectionsDeps, curtainGroup:
           focusSectionElement.append(resetFocusButtonElement));
       }
       createConfigSection("组合管理").append(
-        e.createElement(
+        editorHost.createElement(
           "p",
           "i3d-note",
           "解除组合仅移除组合关系，恢复两层各自的入口、位置、聚焦视角与图标；不会删除模型或设备。",
         ),
-        e.createButton("解除组合", () => {
-          ((e.structuredClone2.environment.curtainGroups = e.getCurtainGroupList().filter(
+        editorHost.createButton("解除组合", () => {
+          ((editorHost.structuredClone2.environment.curtainGroups = editorHost.getCurtainGroupList().filter(
             (remainingGroupProbe: any) => remainingGroupProbe.id !== curtainGroup.id,
           )),
-            (e.text = curtainGroup.memberIds[0]),
-            (e.selectedCurtainGroupId = ""),
+            (editorHost.text = curtainGroup.memberIds[0]),
+            (editorHost.selectedCurtainGroupId = ""),
             refreshEditorPreview(),
             renderPanel());
         }),
       );
-      for (const lockedControlElement of e.panelElement.querySelectorAll("input, select, button"))
-        (e.isCameraCommandPending ||
-          (e.isCameraEditing && !lockedControlElement.closest(".i3d-focus-settings"))) &&
+      for (const lockedControlElement of editorHost.panelElement.querySelectorAll("input, select, button"))
+        (editorHost.isCameraCommandPending ||
+          (editorHost.isCameraEditing && !lockedControlElement.closest(".i3d-focus-settings"))) &&
           (lockedControlElement.disabled = true);
     }
 
 export function renderExtraControlsSection(deps: PanelSectionsDeps) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, openLabelBatchApplyDialog } = deps;
+  const { editorHost, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, openLabelBatchApplyDialog } = deps;
       const labelListSectionElement = createConfigSection("环境标签列表"),
         labelListRowElement = createConfigRow(labelListSectionElement),
-        floorLabelList = e.getItemList().filter(
-          (floorLabelProbe: any) => floorLabelProbe.floorId === e.floorSelection,
+        floorLabelList = editorHost.getItemList().filter(
+          (floorLabelProbe: any) => floorLabelProbe.floorId === editorHost.floorSelection,
         ),
-        currentFloor = e.sceneMetadata.floors.find((labelFloor: any) => labelFloor.id === e.floorSelection);
-      floorLabelList.some((existingLabelProbe: any) => existingLabelProbe.id === e.text) ||
-        (e.text = floorLabelList[0]?.id || "");
-      const addLabelButtonElement = e.createButton("添加环境标签", () => {
-        if (!currentFloor || !e.isAccessAllowed) return;
+        currentFloor = editorHost.sceneMetadata.floors.find((labelFloor: any) => labelFloor.id === editorHost.floorSelection);
+      floorLabelList.some((existingLabelProbe: any) => existingLabelProbe.id === editorHost.text) ||
+        (editorHost.text = floorLabelList[0]?.id || "");
+      const addLabelButtonElement = editorHost.createButton("添加环境标签", () => {
+        if (!currentFloor || !editorHost.isAccessAllowed) return;
         const newLabelDraft = {
           id: randomUuid2(),
           floorId: currentFloor.id,
@@ -943,16 +943,16 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
           iconSize: DEFAULT_LABEL_ICON_SIZE2,
           hitSize: 44,
         };
-        (e.getItemList().push(newLabelDraft),
-          (e.text = newLabelDraft.id),
+        (editorHost.getItemList().push(newLabelDraft),
+          (editorHost.text = newLabelDraft.id),
           renderPanel(),
           refreshEditorPreview());
       });
       ((addLabelButtonElement.className = "primary"),
-        (addLabelButtonElement.disabled = !e.isAccessAllowed),
+        (addLabelButtonElement.disabled = !editorHost.isAccessAllowed),
         labelListRowElement.append(addLabelButtonElement),
         labelListSectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "环境标签是独立信息框，不绑定户型模型，不聚焦，不发送控制指令。",
@@ -963,21 +963,21 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
             labelListSectionElement,
             "当前环境标签",
             floorLabelList.map((labelOption: any) => [labelOption.id, labelOption.label || "环境标签"]),
-            e.text,
+            editorHost.text,
             (pickedLabelId: any) => {
-              ((e.text = pickedLabelId), refreshEditorPreview(), renderPanel());
+              ((editorHost.text = pickedLabelId), refreshEditorPreview(), renderPanel());
             },
           ));
-      const selectedFloorLabel = floorLabelList.find((matchedLabel: any) => matchedLabel.id === e.text);
+      const selectedFloorLabel = floorLabelList.find((matchedLabel: any) => matchedLabel.id === editorHost.text);
       if (!selectedFloorLabel) {
-        e.panelElement.append(
+        editorHost.panelElement.append(
           labelListSectionElement,
-          e.createElement("p", "i3d-note", "当前楼层还没有环境标签，请点击“添加环境标签”。"),
+          editorHost.createElement("p", "i3d-note", "当前楼层还没有环境标签，请点击“添加环境标签”。"),
         );
         return;
       }
       const groupHiddenClickableCheckbox = createConfigSection("显示内容（含文字）"),
-        groupButtonHiddenCheckbox = e.createElement("input");
+        groupButtonHiddenCheckbox = editorHost.createElement("input");
       ((groupButtonHiddenCheckbox.value = selectedFloorLabel.label ?? "环境标签"),
         (groupButtonHiddenCheckbox.maxLength = 120),
         groupButtonHiddenCheckbox.addEventListener("change", () => {
@@ -989,7 +989,7 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
           "名称（留空隐藏）",
           groupButtonHiddenCheckbox,
         ));
-      const showMetricNamesCheckboxElement = e.createElement("input");
+      const showMetricNamesCheckboxElement = editorHost.createElement("input");
       ((showMetricNamesCheckboxElement.type = "checkbox"),
         (showMetricNamesCheckboxElement.checked = selectedFloorLabel.showMetricNames !== false),
         showMetricNamesCheckboxElement.addEventListener("change", () => {
@@ -1002,43 +1002,43 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
           showMetricNamesCheckboxElement,
         ),
         groupHiddenClickableCheckbox.append(
-          e.createElement("p", "i3d-note", "关闭后只显示图标、数值和单位。"),
+          editorHost.createElement("p", "i3d-note", "关闭后只显示图标、数值和单位。"),
         ));
       const renderEntityBindingRow = ({ key: entityFieldKey, label: entityFieldLabel }: any) => {
         const entityIdFieldName = entityFieldKey + "EntityId",
-          groupSizeDetailsElement = e.createButton(
-            e.entities.find(
+          groupSizeDetailsElement = editorHost.createButton(
+            editorHost.entities.find(
               (catalogEntryProbe: any) =>
                 catalogEntryProbe.entityId === selectedFloorLabel[entityIdFieldName],
             )?.name ||
               selectedFloorLabel[entityIdFieldName] ||
               "选择" + entityFieldLabel + "实体",
             async () => {
-              const groupSizeGridElement = ++e.pickerGeneration;
-              e.errorMessageElement.textContent = "";
+              const groupSizeGridElement = ++editorHost.pickerGeneration;
+              editorHost.errorMessageElement.textContent = "";
               try {
-                if (!e.pickers?.entity) throw new Error("实体选择器尚未准备好，请刷新页面。");
-                e.pickerHandle?.close?.();
-                const entity3 = await e.pickers.entity({
+                if (!editorHost.pickers?.entity) throw new Error("实体选择器尚未准备好，请刷新页面。");
+                editorHost.pickerHandle?.close?.();
+                const entity3 = await editorHost.pickers.entity({
                   trigger: groupSizeDetailsElement,
                   current: selectedFloorLabel[entityIdFieldName] || "", deviceKind: "temperature-humidity",
                   domain: entityFieldKey,
                   title: "选择" + entityFieldLabel + "实体",
                   onSelect(pickedEntityId: any) {
-                    e.isDisposed ||
-                      !e.isAccessAllowed ||
-                      groupSizeGridElement !== e.pickerGeneration ||
-                      !e.getItemList().includes(selectedFloorLabel) ||
+                    editorHost.isDisposed ||
+                      !editorHost.isAccessAllowed ||
+                      groupSizeGridElement !== editorHost.pickerGeneration ||
+                      !editorHost.getItemList().includes(selectedFloorLabel) ||
                       ((selectedFloorLabel[entityIdFieldName] = pickedEntityId || ""),
                       refreshEditorPreview(),
                       renderPanel());
                   },
                 });
-                e.isDisposed || !e.isAccessAllowed || groupSizeGridElement !== e.pickerGeneration
+                editorHost.isDisposed || !editorHost.isAccessAllowed || groupSizeGridElement !== editorHost.pickerGeneration
                   ? entity3?.close()
-                  : (e.pickerHandle = entity3);
+                  : (editorHost.pickerHandle = entity3);
               } catch (pickedGroupIconSizeValue: any) {
-                e.isDisposed || (e.errorMessageElement.textContent = pickedGroupIconSizeValue.message);
+                editorHost.isDisposed || (editorHost.errorMessageElement.textContent = pickedGroupIconSizeValue.message);
               }
             },
           );
@@ -1051,12 +1051,12 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
       };
       (renderEntityBindingRow(ENVIRONMENT_BATTERY2),
         groupHiddenClickableCheckbox.append(
-          e.createElement("p", "i3d-note", "电量显示在名称右侧；传感器均可选，未绑定的项目不显示。"),
+          editorHost.createElement("p", "i3d-note", "电量显示在名称右侧；传感器均可选，未绑定的项目不显示。"),
         ));
       for (const pickedGroupHitSizeValue of ENVIRONMENT_METRICS2)
         renderEntityBindingRow(pickedGroupHitSizeValue);
       const labelPositionSectionElement = createConfigSection("位置与大小"),
-        groupPositionGridElement = e.createElement("div", "i3d-coordinate-grid");
+        groupPositionGridElement = editorHost.createElement("div", "i3d-coordinate-grid");
       labelPositionSectionElement.append(groupPositionGridElement);
       for (const [coordinateKey, coordinateLabel, coordinateMin, coordinateMax, coordinateStep] of [
         ["x", "位置 X", -1000000, 1000000, 1],
@@ -1080,39 +1080,39 @@ export function renderExtraControlsSection(deps: PanelSectionsDeps) {
         font: "iconSize",
         opacity: "opacity",
       });
-      const labelBatchSectionElement = e.createElement(
+      const labelBatchSectionElement = editorHost.createElement(
           "section",
           "navigation-batch-section i3d-light-batch",
         ),
-        labelBatchHeadingElement = e.createElement("h4"),
-        targetCountElement = e.createElement("span"),
+        labelBatchHeadingElement = editorHost.createElement("h4"),
+        targetCountElement = editorHost.createElement("span"),
         renderEntityList = () =>
-          e.getItemList().filter(
+          editorHost.getItemList().filter(
             (sameFloorLabelProbe: any) =>
               sameFloorLabelProbe !== selectedFloorLabel &&
               sameFloorLabelProbe.floorId === selectedFloorLabel.floorId,
           );
       labelBatchHeadingElement.append(
-        e.createElement("span", "", "环境标签设置一键应用"),
+        editorHost.createElement("span", "", "环境标签设置一键应用"),
         targetCountElement,
       );
-      const applyToLabelGroupButton = e.createButton("一键应用到其他环境标签", () =>
+      const applyToLabelGroupButton = editorHost.createButton("一键应用到其他环境标签", () =>
         openLabelBatchApplyDialog(selectedFloorLabel),
       );
       ((targetCountElement.textContent = renderEntityList().length + " 个同层目标"),
         labelBatchSectionElement.append(labelBatchHeadingElement, applyToLabelGroupButton));
       const manageSectionElement = createConfigSection("绑定管理");
       (manageSectionElement.append(
-        e.createButton("删除此环境标签", () => {
-          (e.setItemList(
-            e.getItemList().filter((otherLabelProbe: any) => otherLabelProbe.id !== selectedFloorLabel.id),
+        editorHost.createButton("删除此环境标签", () => {
+          (editorHost.setItemList(
+            editorHost.getItemList().filter((otherLabelProbe: any) => otherLabelProbe.id !== selectedFloorLabel.id),
           ),
-            (e.text = ""),
+            (editorHost.text = ""),
             refreshEditorPreview(),
             renderPanel());
         }),
       ),
-        e.panelElement.append(
+        editorHost.panelElement.append(
           labelListSectionElement,
           groupHiddenClickableCheckbox,
           labelPositionSectionElement,
@@ -1128,7 +1128,7 @@ export function renderAirPurifierBindingSection(
   sizeFieldOptions: any,
 ) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, refreshEditorPreview, createConfigRow, createSelectRow, createNumberRow } = deps;
+  const { editorHost, refreshEditorPreview, createConfigRow, createSelectRow, createNumberRow } = deps;
       const sizeFieldRowElement = createConfigRow(sizeFieldContainer);
       for (const [
         labelSizeFieldKey,
@@ -1151,9 +1151,9 @@ export function renderAirPurifierBindingSection(
             ((sizeFieldTarget[labelSizeFieldKey] = nextSizeFieldValue), refreshEditorPreview());
           },
           "number",
-          e.isTemperatureHumidityMode,
+          editorHost.isTemperatureHumidityMode,
         );
-      const layoutRowElement = e.isTemperatureHumidityMode ? createConfigRow(sizeFieldContainer) : null;
+      const layoutRowElement = editorHost.isTemperatureHumidityMode ? createConfigRow(sizeFieldContainer) : null;
       layoutRowElement &&
         createSelectRow(
           layoutRowElement,
@@ -1179,13 +1179,13 @@ export function renderAirPurifierBindingSection(
       layoutRowElement &&
         (layoutRowElement.append(opacityControlElement.parentElement),
         sizeFieldContainer.append(
-          e.createElement("p", "i3d-note", "自动随宽度排列；固定每行项数时，窄框内容会自动换行适配。"),
+          editorHost.createElement("p", "i3d-note", "自动随宽度排列；固定每行项数时，窄框内容会自动换行适配。"),
         ));
     }
 
 export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, editorSession, refreshBatchButtonsCell, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, createSizeRow, syncLinkedIconSize, switchEditorKind, openAddDialog, openCurtainGroupBatchApplyDialog } = deps;
+  const { editorHost, editorSession, refreshBatchButtonsCell, refreshEditorPreview, renderPanel, createConfigSection, createConfigRow, createSettingRow, createSelectRow, createNumberRow, createSizeRow, syncLinkedIconSize, switchEditorKind, openAddDialog, openCurtainGroupBatchApplyDialog } = deps;
       const scopeSectionElement = createConfigRow(createConfigSection("配置范围"));
       if (
         (createSelectRow(
@@ -1195,17 +1195,17 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
             ["vacuum", "设备与地图"],
             ["vacuum-shortcut", "快捷指令"],
           ],
-          e.deviceKind,
+          editorHost.deviceKind,
           (pickedScopeKey: any) => {
-            pickedScopeKey !== e.deviceKind && switchEditorKind(pickedScopeKey);
+            pickedScopeKey !== editorHost.deviceKind && switchEditorKind(pickedScopeKey);
           },
         ),
-        !e.sceneMetadata)
+        !editorHost.sceneMetadata)
       )
         return;
-      const vacuumModels = e.structuredClone2.devices?.vacuums || [];
+      const vacuumModels = editorHost.structuredClone2.devices?.vacuums || [];
       if (!vacuumModels.length) {
-        e.panelElement.append(e.createElement("p", "i3d-note", "请先在扫地机配置中添加并绑定扫地机。"));
+        editorHost.panelElement.append(editorHost.createElement("p", "i3d-note", "请先在扫地机配置中添加并绑定扫地机。"));
         return;
       }
       createSelectRow(
@@ -1215,10 +1215,10 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
           vacuumModelOption.id,
           vacuumModelOption.label || vacuumModelOption.deviceName || "扫地机",
         ]),
-        e.vacuumId,
+        editorHost.vacuumId,
         (pickedVacuumId: any) => {
-          ((e.vacuumId = pickedVacuumId),
-            (e.text = ""),
+          ((editorHost.vacuumId = pickedVacuumId),
+            (editorHost.text = ""),
             editorSession.baselineItemsById.clear(),
             renderPanel(),
             refreshEditorPreview());
@@ -1226,17 +1226,17 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
       );
       const shortcutSectionElement = createConfigSection("快捷按钮");
       shortcutSectionElement.className += " i3d-compact-list";
-      const shortcutHeaderRowElement = e.createElement("div", "i3d-config-list-row"),
-        addShortcutButton = e.createButton("添加快捷指令", openAddDialog);
+      const shortcutHeaderRowElement = editorHost.createElement("div", "i3d-config-list-row"),
+        addShortcutButton = editorHost.createButton("添加快捷指令", openAddDialog);
       if (
         (shortcutHeaderRowElement.append(addShortcutButton),
         shortcutSectionElement.append(shortcutHeaderRowElement),
-        e.getItemList().some((existingShortcutProbe: any) => existingShortcutProbe.id === e.text) ||
-          (e.text = e.getItemList()[0]?.id || ""),
-        !e.text)
+        editorHost.getItemList().some((existingShortcutProbe: any) => existingShortcutProbe.id === editorHost.text) ||
+          (editorHost.text = editorHost.getItemList()[0]?.id || ""),
+        !editorHost.text)
       ) {
-        e.panelElement.append(
-          e.createElement(
+        editorHost.panelElement.append(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "添加按钮后，选择全部实体中的清扫指令，在户型中拖动按钮放置。",
@@ -1247,32 +1247,32 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
       createSelectRow(
         shortcutHeaderRowElement,
         "当前按钮",
-        e.getItemList().map((shortcutOptionItem: any) => [shortcutOptionItem.id, shortcutOptionItem.label]),
-        e.text,
+        editorHost.getItemList().map((shortcutOptionItem: any) => [shortcutOptionItem.id, shortcutOptionItem.label]),
+        editorHost.text,
         (pickedShortcutId: any) => {
-          ((e.text = pickedShortcutId),
-            e.pickerGeneration++,
-            e.pickerHandle?.close(),
+          ((editorHost.text = pickedShortcutId),
+            editorHost.pickerGeneration++,
+            editorHost.pickerHandle?.close(),
             renderPanel(),
             refreshEditorPreview());
         },
       );
-      const selectedShortcut = e.getItemList().find((matchedShortcut: any) => matchedShortcut.id === e.text),
-        removeShortcutButton = e.createButton("删除此快捷按钮", () => {
-          (e.pickerGeneration++,
-            e.pickerHandle?.close(),
-            e.setItemList(
-              e.getItemList().filter(
+      const selectedShortcut = editorHost.getItemList().find((matchedShortcut: any) => matchedShortcut.id === editorHost.text),
+        removeShortcutButton = editorHost.createButton("删除此快捷按钮", () => {
+          (editorHost.pickerGeneration++,
+            editorHost.pickerHandle?.close(),
+            editorHost.setItemList(
+              editorHost.getItemList().filter(
                 (removedShortcutProbe: any) => removedShortcutProbe !== selectedShortcut,
               ),
             ),
-            (e.text = ""),
+            (editorHost.text = ""),
             renderPanel(),
             refreshEditorPreview());
         });
       removeShortcutButton.className = "i3d-remove-light";
       const bindingSectionElement = createConfigRow(createConfigSection("基础绑定")),
-        shortcutNameInput = e.createElement("input");
+        shortcutNameInput = editorHost.createElement("input");
       ((shortcutNameInput.value = selectedShortcut.label),
         (shortcutNameInput.maxLength = 128),
         (shortcutNameInput.onchange = () => {
@@ -1282,16 +1282,16 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
         }),
         createSettingRow(bindingSectionElement, "名称", shortcutNameInput));
       const openShortcutPicker = (pickerName: any, shortcutPickerTrigger: any) => {
-          const shortcutPickerGeneration = ++e.pickerGeneration;
+          const shortcutPickerGeneration = ++editorHost.pickerGeneration;
           Promise.resolve(
-            e.pickers[pickerName]({
+            editorHost.pickers[pickerName]({
               trigger: shortcutPickerTrigger, deviceKind: "vacuum-room",
               current: pickerName === "icon" ? selectedShortcut.icon : selectedShortcut.entityId,
               onSelect(pickedShortcutValue: any) {
-                e.isDisposed ||
-                  !e.isAccessAllowed ||
-                  shortcutPickerGeneration !== e.pickerGeneration ||
-                  !e.getItemList().includes(selectedShortcut) ||
+                editorHost.isDisposed ||
+                  !editorHost.isAccessAllowed ||
+                  shortcutPickerGeneration !== editorHost.pickerGeneration ||
+                  !editorHost.getItemList().includes(selectedShortcut) ||
                   (pickerName === "icon"
                     ? (selectedShortcut.icon = pickedShortcutValue)
                     : (selectedShortcut.entityId = pickedShortcutValue),
@@ -1301,15 +1301,15 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
             }),
           )
             .then((shortcutPickerHandle) => {
-              e.isDisposed || shortcutPickerGeneration !== e.pickerGeneration
+              editorHost.isDisposed || shortcutPickerGeneration !== editorHost.pickerGeneration
                 ? shortcutPickerHandle?.close()
-                : (e.pickerHandle = shortcutPickerHandle);
+                : (editorHost.pickerHandle = shortcutPickerHandle);
             })
             .catch((shortcutPickerError) => {
-              e.errorMessageElement.textContent = shortcutPickerError.message;
+              editorHost.errorMessageElement.textContent = shortcutPickerError.message;
             });
         },
-        entityPickerButton = e.createButton(selectedShortcut.entityId || "选择实体（全部）", () =>
+        entityPickerButton = editorHost.createButton(selectedShortcut.entityId || "选择实体（全部）", () =>
           openShortcutPicker("entity", entityPickerButton),
         );
       ((entityPickerButton.className = "i3d-picker-button"),
@@ -1317,20 +1317,20 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
         createSettingRow(bindingSectionElement, "指令实体", entityPickerButton));
       const shortcutAppearanceSectionElement = createConfigSection("按钮外观"),
         shortcutAppearanceRowElement = createConfigRow(shortcutAppearanceSectionElement),
-        iconPickerButton = e.createButton("", () => openShortcutPicker("icon", iconPickerButton));
+        iconPickerButton = editorHost.createButton("", () => openShortcutPicker("icon", iconPickerButton));
       iconPickerButton.className = "i3d-picker-button i3d-icon-picker-button";
-      const iconPreviewElement = e.createElement("i");
+      const iconPreviewElement = editorHost.createElement("i");
       ((iconPreviewElement.style.maskImage =
         "url('/static/vendor/mdi/7.4.47/svg/" +
-        (selectedShortcut.icon || e.defaultIcon).slice(4) +
+        (selectedShortcut.icon || editorHost.defaultIcon).slice(4) +
         ".svg')"),
         (iconPreviewElement.style.webkitMaskImage = iconPreviewElement.style.maskImage),
         iconPickerButton.append(
           iconPreviewElement,
-          e.createElement("span", "", selectedShortcut.icon || e.defaultIcon),
+          editorHost.createElement("span", "", selectedShortcut.icon || editorHost.defaultIcon),
         ),
         createSettingRow(shortcutAppearanceRowElement, "图标", iconPickerButton));
-      const shortcutVisibilityRowElement = e.createElement(
+      const shortcutVisibilityRowElement = editorHost.createElement(
         "div",
         "i3d-button-visibility-row i3d-shortcut-visibility",
       );
@@ -1339,7 +1339,7 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
         ["hiddenClickable", "隐藏（可点击）"],
         ["buttonHidden", "隐藏（不可点击）"],
       ]) {
-        const shortcutVisibilityCheckboxElement = e.createElement("input");
+        const shortcutVisibilityCheckboxElement = editorHost.createElement("input");
         ((shortcutVisibilityCheckboxElement.type = "checkbox"),
           (shortcutVisibilityCheckboxElement.checked =
             selectedShortcut[visibilityPropertyKey] === true),
@@ -1362,7 +1362,7 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
         ["iconHidden", "隐藏图标"],
         ["labelHidden", "隐藏名称"],
       ]) {
-        const hiddenCheckboxElement = e.createElement("input");
+        const hiddenCheckboxElement = editorHost.createElement("input");
         ((hiddenCheckboxElement.type = "checkbox"),
           (hiddenCheckboxElement.checked = selectedShortcut[hiddenPropertyKey] === true),
           (hiddenCheckboxElement.onchange = () => {
@@ -1371,13 +1371,13 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
           }),
           createSettingRow(shortcutVisibilityRowElement, hiddenToggleLabel, hiddenCheckboxElement));
       }
-      const shortcutSizeGridElement = e.createElement(
+      const shortcutSizeGridElement = editorHost.createElement(
           "div",
           "i3d-coordinate-grid i3d-size-grid i3d-shortcut-size-grid",
         ),
-        shortcutAdvancedDetailsElement = e.createElement("details");
+        shortcutAdvancedDetailsElement = editorHost.createElement("details");
       (shortcutAdvancedDetailsElement.append(
-        e.createElement("summary", "", "更多尺寸设置"),
+        editorHost.createElement("summary", "", "更多尺寸设置"),
         shortcutSizeGridElement,
       ),
         shortcutAppearanceSectionElement.append(shortcutAdvancedDetailsElement));
@@ -1399,7 +1399,7 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
         );
       }
       const shortcutPositionSectionElement = createConfigSection("按钮位置"),
-        shortcutPositionGridElement = e.createElement("div", "i3d-coordinate-grid");
+        shortcutPositionGridElement = editorHost.createElement("div", "i3d-coordinate-grid");
       shortcutPositionSectionElement.append(shortcutPositionGridElement);
       for (const positionAxis of ["x", "y"])
         createNumberRow(
@@ -1425,26 +1425,26 @@ export function renderVacuumShortcutPanel(deps: PanelSectionsDeps) {
         },
       ),
         shortcutPositionSectionElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "拖动按钮调整位置，拖动空白处旋转户型。点击只执行绑定指令，不弹窗、不聚焦。",
           ),
         ));
-      const shortcutBatchSectionElement = e.createElement(
+      const shortcutBatchSectionElement = editorHost.createElement(
           "section",
           "navigation-batch-section i3d-light-batch",
         ),
-        shortcutBatchApplyButton = e.createButton("一键应用到其他快捷按钮", () =>
+        shortcutBatchApplyButton = editorHost.createButton("一键应用到其他快捷按钮", () =>
           openCurtainGroupBatchApplyDialog(selectedShortcut),
         );
       (shortcutBatchSectionElement.append(
-        e.createElement("h4", "", e.deviceKind === "smallcar" ? "卡片设置一键应用" : "图标设置一键应用"),
+        editorHost.createElement("h4", "", editorHost.deviceKind === "smallcar" ? "卡片设置一键应用" : "图标设置一键应用"),
         shortcutBatchApplyButton,
       ),
-        e.panelElement.append(shortcutBatchSectionElement),
+        editorHost.panelElement.append(shortcutBatchSectionElement),
         (refreshBatchButtonsCell.current = () => {
-          shortcutBatchApplyButton.disabled = !e.isAccessAllowed;
+          shortcutBatchApplyButton.disabled = !editorHost.isAccessAllowed;
         }),
         refreshBatchButtonsCell.current(),
         createConfigSection("绑定管理").append(removeShortcutButton));

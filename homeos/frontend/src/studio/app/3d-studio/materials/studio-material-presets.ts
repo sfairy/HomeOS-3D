@@ -3347,7 +3347,7 @@ export function materialStylePresetSwatchColors(
 
     const seenRoles = new Set<string>();
     const orderedRoles = [...modelRoles]
-      .sort((a, b) => swatchRoleRank(a) - swatchRoleRank(b))
+      .sort((roleA, roleB) => swatchRoleRank(roleA) - swatchRoleRank(roleB))
       .filter((roleName) => {
         if (seenRoles.has(roleName)) return false;
         seenRoles.add(roleName);

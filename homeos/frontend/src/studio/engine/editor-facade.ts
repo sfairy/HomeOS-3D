@@ -52,9 +52,9 @@ export function dispatchEditorCommand(command: EditorCommand): void {
 }
 
 export function patchEditorFacadeState(partial: Partial<EditorFacadeState>): void {
-  runtime.patch(partial, (next, p) => {
-    if (p.history) next.history = { ...p.history }
-    if (p.selection) next.selection = { ...p.selection }
+  runtime.patch(partial, (next, patch) => {
+    if (patch.history) next.history = { ...patch.history }
+    if (patch.selection) next.selection = { ...patch.selection }
     return next
   })
 }

@@ -38,7 +38,7 @@ import {
   switchEditorKind as switchEditorKindCore,
 } from "./rendering/panel-session";
 
-export function attachEditorPanelRendering(e: any) {
+export function attachEditorPanelRendering(editorHost: any) {
   /**
    * 「一键应用」按钮重建器的**可变单元**（代理宿主的 `let refreshBatchButtons`）。
    *
@@ -62,7 +62,7 @@ export function attachEditorPanelRendering(e: any) {
    * 访问器，裸值简写 = 提前构造即 TDZ），放在函数体首行是为了让体内第一处调用也不撞 TDZ。
    */
   const panelSectionsDeps = () => ({
-    e,
+    editorHost,
     closeAddDialog,
     refreshEditorPreview,
     createSettingRow,
@@ -114,7 +114,7 @@ export function attachEditorPanelRendering(e: any) {
    * 7 条弹窗都无可变捕获（宿主 `let` 一个都不碰）；`editorSession` 是按引用注入的会话对象。
    */
   const panelDialogsDeps = () => ({
-    e,
+    editorHost,
     closeAddDialog,
     createSelectRow,
     refreshEditorPreview,
@@ -162,7 +162,7 @@ export function attachEditorPanelRendering(e: any) {
    * 增删改 Map 条目，不重新绑定，所以按对象引用传下去与闭包捕获等价。
    */
   const panelSessionDeps = () => ({
-    e,
+    editorHost,
     get editorSession() { return editorSession },
     get kindSessionsByKind() { return kindSessionsByKind },
     closeAddDialog,
@@ -197,7 +197,7 @@ export function attachEditorPanelRendering(e: any) {
    * （宿主另有 3 处读写），按快照解构注入会把赋值留在切片局部、宿主看不到，故走可变单元。
    */
   const panelAssemblyDeps = () => ({
-    e,
+    editorHost,
     refreshBatchButtonsCell,
     refreshEditorPreview,
     createConfigSection,
@@ -227,18 +227,18 @@ export function attachEditorPanelRendering(e: any) {
     return renderPanelCore(panelAssemblyDeps());
   }
     function buildCurtainGroupOptions() {
-      e.structuredClone2.environment?.curtainGroups &&
-        (e.structuredClone2.environment.curtainGroups = validCurtainGroups2(
-          e.structuredClone2.environment,
+      editorHost.structuredClone2.environment?.curtainGroups &&
+        (editorHost.structuredClone2.environment.curtainGroups = validCurtainGroups2(
+          editorHost.structuredClone2.environment,
         ));
     }
         ensureItemCollections();
     for (const normalizedBatchItem of [
-      ...(e.structuredClone2.environment?.airConditioners || []),
-      ...(e.structuredClone2.environment?.airers || []),
-      ...(e.structuredClone2.environment?.fans || []),
-      ...(e.structuredClone2.environment?.airPurifiers || []),
-      ...(e.structuredClone2.environment?.waterHeaters || []),
+      ...(editorHost.structuredClone2.environment?.airConditioners || []),
+      ...(editorHost.structuredClone2.environment?.airers || []),
+      ...(editorHost.structuredClone2.environment?.fans || []),
+      ...(editorHost.structuredClone2.environment?.airPurifiers || []),
+      ...(editorHost.structuredClone2.environment?.waterHeaters || []),
     ])
       normalizedBatchItem.extraControls = (normalizedBatchItem.extraControls || []).map(
         ({ label: batchControlLabel, ...batchControlRest }: any) => ({
@@ -247,23 +247,23 @@ export function attachEditorPanelRendering(e: any) {
         }),
       );
     const buildEditableFieldList = () =>
-      e.deviceKind === "smallcar"
+      editorHost.deviceKind === "smallcar"
         ? [
             ["cardWidth", "信息框宽度", "px"],
             ["cardFontSize", "文字大小", "px"],
             ["cardOpacity", "背景不透明度", "%"],
             ["buttonVisibility", "卡片显示", ""],
           ]
-        : e.usesModelBinding
+        : editorHost.usesModelBinding
           ? [
-              ...(e.isVacuumMode ? [] : [["icon", "图标", ""]]),
-              ["size", e.isVacuumMode ? "状态框缩放" : "按钮大小", e.isVacuumMode ? "%" : "px"],
+              ...(editorHost.isVacuumMode ? [] : [["icon", "图标", ""]]),
+              ["size", editorHost.isVacuumMode ? "状态框缩放" : "按钮大小", editorHost.isVacuumMode ? "%" : "px"],
   
-              ...(e.isVacuumMode ? [["iconSize", "文字大小", "px"]] : []),
+              ...(editorHost.isVacuumMode ? [["iconSize", "文字大小", "px"]] : []),
               ["hitSize", "点击范围", "px"],
               ["buttonVisibility", "按钮显示", ""],
-              ...(e.isVacuumMode ? [["backgroundOpacity", "背景不透明度", "%"]] : []),
-              ...(e.isVacuumShortcutMode
+              ...(editorHost.isVacuumMode ? [["backgroundOpacity", "背景不透明度", "%"]] : []),
+              ...(editorHost.isVacuumShortcutMode
                 ? [
                     ["fontSize", "文字大小", "px"],
                     ["iconHidden", "隐藏图标", ""],
@@ -287,7 +287,7 @@ export function attachEditorPanelRendering(e: any) {
     const editorSession = {
       fieldDefs: buildEditableFieldList(),
       baselineItemsById: new Map(
-        e.getItemList().map((baselinedItem: any) => [baselinedItem.id, structuredClone(baselinedItem)]),
+        editorHost.getItemList().map((baselinedItem: any) => [baselinedItem.id, structuredClone(baselinedItem)]),
       ),
     };
     const kindSessionsByKind = new Map();
@@ -295,128 +295,128 @@ export function attachEditorPanelRendering(e: any) {
       refreshBatchButtons = () => {};
                         const syncPreviewSize = () => {
         const previewSize = interaction3dPreviewSize2(
-          e.component,
-          e.documentApi,
-          e.viewElement.clientWidth,
-          e.viewElement.clientHeight,
+          editorHost.component,
+          editorHost.documentApi,
+          editorHost.viewElement.clientWidth,
+          editorHost.viewElement.clientHeight,
         );
-        Object.assign(e.aspectBoxElement.style, {
+        Object.assign(editorHost.aspectBoxElement.style, {
           width: previewSize.width + "px",
           height: previewSize.height + "px",
         });
       },
-      resizeObserver = observeInteraction3dPreview(e.viewElement, syncPreviewSize);
+      resizeObserver = observeInteraction3dPreview(editorHost.viewElement, syncPreviewSize);
     const disposeEditor = () => {
-        e.isDisposed ||
-          ((e.isDisposed = true),
+        editorHost.isDisposed ||
+          ((editorHost.isDisposed = true),
           closeAddDialog(),
           closeAuxDialog(),
-          e.subEditorHandle?.close(),
+          editorHost.subEditorHandle?.close(),
           resizeObserver.disconnect(),
-          e.pickerGeneration++,
-          e.pickerHandle?.close(),
-          e.editorRuntime?.(),
-          e.accessUnsubscribe?.(),
-          e.editorDialogElement.remove(),
-          e.element.remove(),
+          editorHost.pickerGeneration++,
+          editorHost.pickerHandle?.close(),
+          editorHost.editorRuntime?.(),
+          editorHost.accessUnsubscribe?.(),
+          editorHost.editorDialogElement.remove(),
+          editorHost.element.remove(),
           document.dispatchEvent(new Event("hb-i3d-preview-scope")));
       },
-      saveStatusElement = e.createElement("span", "i3d-save-status");
+      saveStatusElement = editorHost.createElement("span", "i3d-save-status");
     saveStatusElement.setAttribute("role", "status");
-    const saveButtonElement = e.createButton("保存配置", async () => {
-      if (e.isSaving || e.isDisposed || !e.isAccessAllowed || e.isCameraEditing || e.isCameraCommandPending)
+    const saveButtonElement = editorHost.createButton("保存配置", async () => {
+      if (editorHost.isSaving || editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending)
         return;
-      for (const carRecord of e.structuredClone2.devices?.cars || []) {
+      for (const carRecord of editorHost.structuredClone2.devices?.cars || []) {
         if (!carRecord.chargingStates) continue;
         const chargingMappingError = carChargingMappingError2(carRecord.chargingStates);
         if (chargingMappingError) {
-          e.errorMessageElement.textContent =
+          editorHost.errorMessageElement.textContent =
             (carRecord.label || carRecord.deviceName || "汽车") + "：" + chargingMappingError;
           return;
         }
       }
-      const structuredClone3 = structuredClone(e.structuredClone2);
-      const runtimeCamera = e.isDirty;
-      ((e.isSaving = true),
+      const structuredClone3 = structuredClone(editorHost.structuredClone2);
+      const runtimeCamera = editorHost.isDirty;
+      ((editorHost.isSaving = true),
         (saveStatusElement.textContent = "保存中…"),
         (saveButtonElement.disabled = true),
-        (e.errorMessageElement.textContent = ""));
+        (editorHost.errorMessageElement.textContent = ""));
       try {
-        if ((await requestInteraction3dAccess2(), e.isDisposed)) return;
-        (await e.onSaveConfig(structuredClone3),
-          e.isDisposed ||
+        if ((await requestInteraction3dAccess2(), editorHost.isDisposed)) return;
+        (await editorHost.onSaveConfig(structuredClone3),
+          editorHost.isDisposed ||
             (saveStatusElement.textContent =
-              runtimeCamera === e.isDirty ? "已保存" : "已保存，另有新修改"));
+              runtimeCamera === editorHost.isDirty ? "已保存" : "已保存，另有新修改"));
       } catch (saveError: any) {
-        e.isDisposed ||
-          ((e.errorMessageElement.textContent = saveError.message),
+        editorHost.isDisposed ||
+          ((editorHost.errorMessageElement.textContent = saveError.message),
           (saveStatusElement.textContent = ""));
       } finally {
-        ((e.isSaving = false),
-          e.isDisposed ||
+        ((editorHost.isSaving = false),
+          editorHost.isDisposed ||
             (saveButtonElement.disabled =
-              !e.isAccessAllowed || e.isCameraEditing || e.isCameraCommandPending));
+              !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending));
       }
     });
     ((saveButtonElement.className = "primary"),
-      e.headerElement.append(e.createElement("strong", "", "3D " + e.editorKindTitle + "配置")));
+      editorHost.headerElement.append(editorHost.createElement("strong", "", "3D " + editorHost.editorKindTitle + "配置")));
     if (
-      e.isClimateMode ||
-      e.isCoverMode ||
-      e.isTemperatureHumidityMode ||
-      e.isDeviceKind ||
-      e.isGenericDeviceMode ||
-      e.isVacuumMode ||
-      e.isVacuumShortcutMode
+      editorHost.isClimateMode ||
+      editorHost.isCoverMode ||
+      editorHost.isTemperatureHumidityMode ||
+      editorHost.isDeviceKind ||
+      editorHost.isGenericDeviceMode ||
+      editorHost.isVacuumMode ||
+      editorHost.isVacuumShortcutMode
     ) {
-      const showAllLabelsInput = e.createElement("input");
+      const showAllLabelsInput = editorHost.createElement("input");
       ((showAllLabelsInput.type = "checkbox"),
-        (showAllLabelsInput.checked = e.editingShowAllLabels === true),
+        (showAllLabelsInput.checked = editorHost.editingShowAllLabels === true),
         showAllLabelsInput.setAttribute("aria-label", "显示本类全部标签"),
         showAllLabelsInput.addEventListener("change", () => {
-          if (e.isDisposed || !e.isAccessAllowed) return;
-          ((e.editingShowAllLabels = showAllLabelsInput.checked),
-            e.editorRuntime?.update(
+          if (editorHost.isDisposed || !editorHost.isAccessAllowed) return;
+          ((editorHost.editingShowAllLabels = showAllLabelsInput.checked),
+            editorHost.editorRuntime?.update(
               buildRuntimeProperties(),
-              e.isVacuumShortcutMode && e.text
-                ? "vacuum-room:" + e.vacuumId + ":" + e.text
-                : e.describeGroupFieldValue(),
+              editorHost.isVacuumShortcutMode && editorHost.text
+                ? "vacuum-room:" + editorHost.vacuumId + ":" + editorHost.text
+                : editorHost.describeGroupFieldValue(),
               {
-                module: e.deviceKind,
-                vacuumId: e.isVacuumShortcutMode ? e.vacuumId : "",
-                showAllLabels: e.editingShowAllLabels === true,
+                module: editorHost.deviceKind,
+                vacuumId: editorHost.isVacuumShortcutMode ? editorHost.vacuumId : "",
+                showAllLabels: editorHost.editingShowAllLabels === true,
               },
             ));
         }));
-      const showAllLabelsToggleElement = e.createElement(
+      const showAllLabelsToggleElement = editorHost.createElement(
         "label",
         "i3d-setting-toggle i3d-preview-label-toggle",
       );
       (showAllLabelsToggleElement.append(
-        e.createElement("span", "", "显示本类全部标签"),
+        editorHost.createElement("span", "", "显示本类全部标签"),
         showAllLabelsInput,
       ),
-        e.headerElement.append(showAllLabelsToggleElement));
+        editorHost.headerElement.append(showAllLabelsToggleElement));
     }
-    (e.headerElement.append(
+    (editorHost.headerElement.append(
       saveStatusElement,
       saveButtonElement,
-      e.createButton("退出", disposeEditor),
+      editorHost.createButton("退出", disposeEditor),
     ),
-      e.bodyElement.append(e.viewElement, e.panelElement),
-      e.editorDialogElement.append(e.headerElement, e.bodyElement),
-      document.body.append(e.editorDialogElement),
-      e.editorDialogElement.addEventListener("cancel", (editorCancelEvent: any) => {
+      editorHost.bodyElement.append(editorHost.viewElement, editorHost.panelElement),
+      editorHost.editorDialogElement.append(editorHost.headerElement, editorHost.bodyElement),
+      document.body.append(editorHost.editorDialogElement),
+      editorHost.editorDialogElement.addEventListener("cancel", (editorCancelEvent: any) => {
         (editorCancelEvent.preventDefault(), disposeEditor());
       }));
     const buildRuntimeProperties = () => {
       const floorId =
-          e.isVacuumShortcutMode && e.findVacuumModel() ? e.findVacuumModel().floorId : e.floorSelection,
+          editorHost.isVacuumShortcutMode && editorHost.findVacuumModel() ? editorHost.findVacuumModel().floorId : editorHost.floorSelection,
         camera =
-          e.structuredClone2.floorCameras?.[floorId] ||
-          (floorId === e.structuredClone2.floorSelection ? e.structuredClone2.camera : null);
+          editorHost.structuredClone2.floorCameras?.[floorId] ||
+          (floorId === editorHost.structuredClone2.floorSelection ? editorHost.structuredClone2.camera : null);
       return {
-        ...e.structuredClone2, floorSelection: floorId,
+        ...editorHost.structuredClone2, floorSelection: floorId,
         ...(camera === undefined
           ? {}
           : {
@@ -426,29 +426,29 @@ export function attachEditorPanelRendering(e: any) {
     };
     function refreshEditorPreview() {
       (buildCurtainGroupOptions(),
-        e.isDirty++,
-        e.isSaving || (saveStatusElement.textContent = ""),
-        e.editorRuntime?.update(
+        editorHost.isDirty++,
+        editorHost.isSaving || (saveStatusElement.textContent = ""),
+        editorHost.editorRuntime?.update(
           buildRuntimeProperties(),
-          e.isVacuumShortcutMode && e.text
-            ? "vacuum-room:" + e.vacuumId + ":" + e.text
-            : e.describeGroupFieldValue(),
+          editorHost.isVacuumShortcutMode && editorHost.text
+            ? "vacuum-room:" + editorHost.vacuumId + ":" + editorHost.text
+            : editorHost.describeGroupFieldValue(),
           {
-            module: e.deviceKind,
-            vacuumId: e.isVacuumShortcutMode ? e.vacuumId : "",
-            showAllLabels: e.editingShowAllLabels === true,
+            module: editorHost.deviceKind,
+            vacuumId: editorHost.isVacuumShortcutMode ? editorHost.vacuumId : "",
+            showAllLabels: editorHost.editingShowAllLabels === true,
           },
         ),
         refreshBatchButtons());
     }
     function createSettingRow(rowContainer: any, rowLabel: any, rowControl: any) {
-      rowControl.name = "i3d-" + e.deviceKind + "-" + (e.text || "scene") + "-" + rowLabel;
-      const settingRowElement = e.createElement(
+      rowControl.name = "i3d-" + editorHost.deviceKind + "-" + (editorHost.text || "scene") + "-" + rowLabel;
+      const settingRowElement = editorHost.createElement(
         "label",
         rowControl.type === "checkbox" ? "i3d-setting-toggle" : "",
       );
       return (
-        settingRowElement.append(e.createElement("span", "", rowLabel), rowControl),
+        settingRowElement.append(editorHost.createElement("span", "", rowLabel), rowControl),
         rowContainer.append(settingRowElement),
         rowControl
       );
@@ -460,9 +460,9 @@ export function attachEditorPanelRendering(e: any) {
       selectValue: any,
       onSelectChange: any,
     ) {
-      const selectElement = e.createElement("select");
+      const selectElement = editorHost.createElement("select");
       for (const [optionValueKey, optionLabelText] of selectOptions) {
-        const optionElement = e.createElement("option", "", optionLabelText);
+        const optionElement = editorHost.createElement("option", "", optionLabelText);
         ((optionElement.value = optionValueKey), selectElement.append(optionElement));
       }
       return (
@@ -484,7 +484,7 @@ export function attachEditorPanelRendering(e: any) {
     ) {
       const endsWith = numberFieldLabel.endsWith("高度（米）"),
         formatNumberValue = (value: any) => (endsWith ? Number(value).toFixed(1) : String(value)),
-        numberInputElement = e.createElement("input");
+        numberInputElement = editorHost.createElement("input");
       return (
         Object.assign(numberInputElement, {
           type: numberInputMode,
@@ -522,7 +522,7 @@ export function attachEditorPanelRendering(e: any) {
       );
     }
     function createSizeRow(sizeRowContainer: any, sizeRowLabel: any, readSizeValue: any, onSizeValueChange: any) {
-      const sizeInputElement = e.createElement("input");
+      const sizeInputElement = editorHost.createElement("input");
       return (
         Object.assign(sizeInputElement, {
           type: "number",
@@ -546,16 +546,16 @@ export function attachEditorPanelRendering(e: any) {
       return resolvedIconSize;
     }
     function listAddableModels() {
-      return (e.sceneMetadata?.floors || [])
-        .filter((candidateFloorEntry: any) => candidateFloorEntry.id === e.floorSelection)
+      return (editorHost.sceneMetadata?.floors || [])
+        .filter((candidateFloorEntry: any) => candidateFloorEntry.id === editorHost.floorSelection)
         .flatMap((floorWithModels: any) =>
-          (e.usesModelBinding ? floorWithModels[e.collectionKey] || [] : floorWithModels.groups || [])
+          (editorHost.usesModelBinding ? floorWithModels[editorHost.collectionKey] || [] : floorWithModels.groups || [])
             .filter(
               (modelInFloor: any) =>
-                !e.getItemList().some(
+                !editorHost.getItemList().some(
                   (existingModelItem: any) =>
                     existingModelItem.floorId === floorWithModels.id &&
-                    existingModelItem[e.modelIdKey] === modelInFloor.id,
+                    existingModelItem[editorHost.modelIdKey] === modelInFloor.id,
                 ),
             )
             .map((addableModel: any) => ({
@@ -569,26 +569,26 @@ export function attachEditorPanelRendering(e: any) {
       (auxDialogElement?.close(), auxDialogElement?.remove(), (auxDialogElement = null));
     }
     function closeAddDialog() {
-      (e.addDialogState && (e.pickerGeneration++, e.pickerHandle?.close(), (e.pickerHandle = null)),
-        e.addDialogState?.close(),
-        e.addDialogState?.remove(),
-        (e.addDialogState = null));
+      (editorHost.addDialogState && (editorHost.pickerGeneration++, editorHost.pickerHandle?.close(), (editorHost.pickerHandle = null)),
+        editorHost.addDialogState?.close(),
+        editorHost.addDialogState?.remove(),
+        (editorHost.addDialogState = null));
     }
                 function createConfigSection(sectionTitle: any) {
-      const configSectionElement = e.createElement("section", "i3d-config-section");
+      const configSectionElement = editorHost.createElement("section", "i3d-config-section");
       return (
-        configSectionElement.append(e.createElement("h4", "", sectionTitle)),
-        e.panelElement.append(configSectionElement),
+        configSectionElement.append(editorHost.createElement("h4", "", sectionTitle)),
+        editorHost.panelElement.append(configSectionElement),
         configSectionElement
       );
     }
     function createConfigRow(parentSectionElement: any) {
-      const configRowElement = e.createElement("div", "i3d-config-row");
+      const configRowElement = editorHost.createElement("div", "i3d-config-row");
       return (parentSectionElement.append(configRowElement), configRowElement);
     }
-                              e.saveButtonElement = saveButtonElement;
-  e.saveStatusElement = saveStatusElement;
-  Object.assign(e, {
+                              editorHost.saveButtonElement = saveButtonElement;
+  editorHost.saveStatusElement = saveStatusElement;
+  Object.assign(editorHost, {
     buildCurtainGroupOptions,
     ensureItemCollections,
     buildEditableFieldList,
@@ -622,7 +622,7 @@ export function attachEditorPanelRendering(e: any) {
     openLabelBatchApplyDialog,
     renderPanel,
   });
-  Object.defineProperty(e, "auxDialogElement", {
+  Object.defineProperty(editorHost, "auxDialogElement", {
     get: () => auxDialogElement,
     set: (value: any) => {
       auxDialogElement = value;

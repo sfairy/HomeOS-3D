@@ -29,8 +29,8 @@ import { requestInteraction3dAccess as requestInteraction3dAccess2 } from "@app/
  * `Object.assign(e, {...})` 的公开面上 —— 按 deps 注入与闭包捕获等价。
  */
 export interface PanelDialogsDeps {
-  /** 配置编辑器上下文对象（`e.panelElement` / `e.createElement` 等）。 */
-  e: any;
+  /** 配置编辑器上下文对象（`editorHost.panelElement` / `editorHost.createElement` 等）。 */
+  editorHost: any;
   /** 关闭「新增」确认弹窗。 */
   closeAddDialog: () => any;
   /** 下拉行（参数较多，按不透明回调注入）。 */
@@ -68,55 +68,55 @@ export interface PanelDialogsDeps {
 
 export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, closeAddDialog, createSelectRow, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
+  const { editorHost, closeAddDialog, createSelectRow, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
       if (
-        e.isDisposed ||
-        !e.isAccessAllowed ||
-        e.isCameraEditing ||
-        e.isCameraCommandPending ||
-        e.isRangeEditorOpen ||
-        e.addDialogState
+        editorHost.isDisposed ||
+        !editorHost.isAccessAllowed ||
+        editorHost.isCameraEditing ||
+        editorHost.isCameraCommandPending ||
+        editorHost.isRangeEditorOpen ||
+        editorHost.addDialogState
       )
         return;
-      if (e.isVacuumShortcutMode) {
+      if (editorHost.isVacuumShortcutMode) {
         openVacuumRoomPicker(deps, addDialogTriggerEvent?.currentTarget || addDialogTriggerEvent?.target);
         return;
       }
       const addableModels = listAddableModels();
       if (!addableModels.length) return;
-      (e.pickerGeneration++, e.pickerHandle?.close());
-      const addDialogElement = e.createElement("dialog", "settings-dialog i3d-add-dialog");
-      ((e.addDialogState = addDialogElement),
+      (editorHost.pickerGeneration++, editorHost.pickerHandle?.close());
+      const addDialogElement = editorHost.createElement("dialog", "settings-dialog i3d-add-dialog");
+      ((editorHost.addDialogState = addDialogElement),
         addDialogElement.setAttribute(
           "aria-label",
-          e.isDeviceKind ? "添加设备" : "添加" + e.kindLabel + "按钮",
+          editorHost.isDeviceKind ? "添加设备" : "添加" + editorHost.kindLabel + "按钮",
         ));
-      const addDialogHeadingElement = e.createElement("div", "dialog-heading"),
-        addDialogTitleWrapperElement = e.createElement("div");
+      const addDialogHeadingElement = editorHost.createElement("div", "dialog-heading"),
+        addDialogTitleWrapperElement = editorHost.createElement("div");
       addDialogTitleWrapperElement.append(
-        e.createElement("span", "", "ADD BUTTON"),
-        e.createElement("h2", "", e.isDeviceKind ? "添加设备" : "添加" + e.kindLabel + "按钮"),
+        editorHost.createElement("span", "", "ADD BUTTON"),
+        editorHost.createElement("h2", "", editorHost.isDeviceKind ? "添加设备" : "添加" + editorHost.kindLabel + "按钮"),
       );
-      const addDialogCloseButton = e.createButton("×", closeAddDialog);
+      const addDialogCloseButton = editorHost.createButton("×", closeAddDialog);
       ((addDialogCloseButton.className = "icon-button"),
         addDialogCloseButton.setAttribute("aria-label", "关闭添加按钮窗口"),
         addDialogHeadingElement.append(addDialogTitleWrapperElement, addDialogCloseButton));
-      const addDialogBodyElement = e.createElement("div", "i3d-add-dialog-body"),
-        addDialogErrorElement = e.createElement("p", "i3d-error");
+      const addDialogBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
+        addDialogErrorElement = editorHost.createElement("p", "i3d-error");
       (addDialogErrorElement.setAttribute("role", "status"),
-        e.isDeviceKind &&
+        editorHost.isDeviceKind &&
           createDeviceCategoryRow(
-            e,
+            editorHost,
             addDialogBodyElement,
             "设备类型",
-            e.deviceKind,
+            editorHost.deviceKind,
             (pickedDeviceKind: any) => {
-              pickedDeviceKind !== e.deviceKind && switchEditorKind(pickedDeviceKind, true);
+              pickedDeviceKind !== editorHost.deviceKind && switchEditorKind(pickedDeviceKind, true);
             },
             createSettingRow,
           ));
       let selectedModelKind = "air-conditioner";
-      e.deviceKind === "climate" &&
+      editorHost.deviceKind === "climate" &&
         createSelectRow(
           addDialogBodyElement,
           "设备类型",
@@ -131,10 +131,10 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         );
       const modelSelectElement = createSelectRow(
         addDialogBodyElement,
-        e.usesModelBinding ? "关联" + e.kindLabel + "模型" : "关联灯组",
+        editorHost.usesModelBinding ? "关联" + editorHost.kindLabel + "模型" : "关联灯组",
         addableModels.map((addableModelEntry: any) => [
           addableModelEntry.key,
-          e.describeItem(addableModelEntry.group),
+          editorHost.describeItem(addableModelEntry.group),
         ]),
         addableModels[0].key,
         () => {
@@ -143,12 +143,12 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
       );
       modelSelectElement.setAttribute(
         "aria-label",
-        e.usesModelBinding ? "关联" + e.kindLabel + "模型" : "关联灯组",
+        editorHost.usesModelBinding ? "关联" + editorHost.kindLabel + "模型" : "关联灯组",
       );
-      const addDialogActionsElement = e.createElement("div", "dialog-actions");
+      const addDialogActionsElement = editorHost.createElement("div", "dialog-actions");
       let isAdding = false;
-      const confirmAddButton = e.createButton("确定添加", async () => {
-        if (isAdding || e.isDisposed || !e.isAccessAllowed || e.addDialogState !== addDialogElement) return;
+      const confirmAddButton = editorHost.createButton("确定添加", async () => {
+        if (isAdding || editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.addDialogState !== addDialogElement) return;
         ((isAdding = true),
           (confirmAddButton.disabled = true),
           (modelSelectElement.disabled = true),
@@ -157,7 +157,7 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         try {
           if (
             (await requestInteraction3dAccess2(),
-            e.isDisposed || !e.isAccessAllowed || e.addDialogState !== addDialogElement)
+            editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.addDialogState !== addDialogElement)
           )
             return;
           const chosenModel = listAddableModels().find(
@@ -167,10 +167,10 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
           const newItem = {
             id: randomUuid2(),
             floorId: chosenModel.floor.id,
-            [e.modelIdKey]: chosenModel.group.id,
+            [editorHost.modelIdKey]: chosenModel.group.id,
             entityId: "",
-            label: e.describeItem(chosenModel.group),
-            ...(e.usesModelBinding
+            label: editorHost.describeItem(chosenModel.group),
+            ...(editorHost.usesModelBinding
               ? {}
               : {
                   x: chosenModel.group.x,
@@ -178,7 +178,7 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
                   height: chosenModel.group.height ?? chosenModel.floor.wallHeight ?? 2.8,
                   fadeDuration: 0.3,
                 }),
-            ...(e.isCoverMode
+            ...(editorHost.isCoverMode
               ? {
                   coverDirection: "auto",
                   curtainFabric: "cloth",
@@ -189,25 +189,25 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
             iconSize: buttonIconSize(DEFAULT_BUTTON_SIZE),
             visible: true,
             icon:
-              e.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
+              editorHost.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
                 ? "mdi:ceiling-fan"
-                : e.defaultIcon,
-            clickAction: e.usesStatusPanel ? "focus-panel" : "focus",
-            ...(e.deviceKind === "climate" ? { climateType: selectedModelKind } : {}),
-            ...(e.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
+                : editorHost.defaultIcon,
+            clickAction: editorHost.usesStatusPanel ? "focus-panel" : "focus",
+            ...(editorHost.deviceKind === "climate" ? { climateType: selectedModelKind } : {}),
+            ...(editorHost.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
               ? { visualMode: "ceiling" }
-              : e.deviceKind === "fan"
+              : editorHost.deviceKind === "fan"
                 ? { visualMode: "tower" }
                 : {}),
           };
-          (e.usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
-            e.getItemList().push(newItem),
-            (e.text = newItem.id),
+          (editorHost.usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
+            editorHost.getItemList().push(newItem),
+            (editorHost.text = newItem.id),
             closeAddDialog(),
             refreshEditorPreview(),
             renderPanel());
         } catch (addItemError: any) {
-          e.addDialogState === addDialogElement &&
+          editorHost.addDialogState === addDialogElement &&
             (addDialogErrorElement.textContent = addItemError.message);
         } finally {
           ((isAdding = false),
@@ -216,12 +216,12 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
         }
       });
       ((confirmAddButton.className = "primary"),
-        addDialogActionsElement.append(e.createButton("取消", closeAddDialog), confirmAddButton),
+        addDialogActionsElement.append(editorHost.createButton("取消", closeAddDialog), confirmAddButton),
         addDialogBodyElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
-            "添加后可继续设置" + e.kindLabel + "按钮，最后点击“保存配置”完成保存。",
+            "添加后可继续设置" + editorHost.kindLabel + "按钮，最后点击“保存配置”完成保存。",
           ),
           addDialogErrorElement,
           addDialogActionsElement,
@@ -236,36 +236,36 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
 
 export async function openVacuumRoomPicker(deps: PanelDialogsDeps, roomPickerTriggerEvent: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, refreshEditorPreview, renderPanel } = deps;
-      const vacuumModelRecord = e.findVacuumModel();
+  const { editorHost, refreshEditorPreview, renderPanel } = deps;
+      const vacuumModelRecord = editorHost.findVacuumModel();
       if (!vacuumModelRecord) {
         // 别再静默 return：宿主 `vacuumId` 与模型对不上时（例如切到「快捷指令」后没同步），
         // 之前的表现就是「点了添加快捷指令完全没反应」。
-        e.errorMessageElement.textContent =
+        editorHost.errorMessageElement.textContent =
           "未找到所属扫地机，请先回到「配置内容 - 设备与地图」添加并绑定扫地机。";
         return;
       }
-      const vacuumPickerGeneration = ++e.pickerGeneration;
-      e.pickerHandle?.close();
+      const vacuumPickerGeneration = ++editorHost.pickerGeneration;
+      editorHost.pickerHandle?.close();
       try {
-        const entity = await e.pickers.entity({
+        const entity = await editorHost.pickers.entity({
           trigger: roomPickerTriggerEvent, deviceKind: "vacuum-room",
           current: "",
           onSelect(pickedRoomEntityId: any) {
             if (
-              e.isDisposed ||
-              !e.isAccessAllowed ||
-              vacuumPickerGeneration !== e.pickerGeneration ||
-              e.findVacuumModel() !== vacuumModelRecord ||
+              editorHost.isDisposed ||
+              !editorHost.isAccessAllowed ||
+              vacuumPickerGeneration !== editorHost.pickerGeneration ||
+              editorHost.findVacuumModel() !== vacuumModelRecord ||
               !pickedRoomEntityId
             )
               return;
-            const entityMetadataEntry = e.entities.find(
+            const entityMetadataEntry = editorHost.entities.find(
                 (entityMetadataProbe: any) => entityMetadataProbe.entityId === pickedRoomEntityId,
               ),
-              entityStateRecord = e.states?.get?.(pickedRoomEntityId),
+              entityStateRecord = editorHost.states?.get?.(pickedRoomEntityId),
               entityStateSnapshot = entityStateRecord?.newState || entityStateRecord,
-              roomModelFloor = e.sceneMetadata.floors.find(
+              roomModelFloor = editorHost.sceneMetadata.floors.find(
                 (roomFloorRecord: any) => roomFloorRecord.id === vacuumModelRecord.floorId,
               ),
               roomVacuumModel = roomModelFloor?.vacuums?.find(
@@ -299,48 +299,48 @@ export async function openVacuumRoomPicker(deps: PanelDialogsDeps, roomPickerTri
                 icon: "mdi:broom",
                 visible: true,
               };
-            (e.setItemList([...e.getItemList(), roomShortcutItem]),
-              (e.text = roomShortcutItem.id),
-              e.pickerGeneration++,
-              e.pickerHandle?.close(),
-              (e.pickerHandle = null),
+            (editorHost.setItemList([...editorHost.getItemList(), roomShortcutItem]),
+              (editorHost.text = roomShortcutItem.id),
+              editorHost.pickerGeneration++,
+              editorHost.pickerHandle?.close(),
+              (editorHost.pickerHandle = null),
               renderPanel(),
               refreshEditorPreview());
           },
         });
-        e.isDisposed || vacuumPickerGeneration !== e.pickerGeneration
+        editorHost.isDisposed || vacuumPickerGeneration !== editorHost.pickerGeneration
           ? entity?.close()
-          : (e.pickerHandle = entity);
+          : (editorHost.pickerHandle = entity);
       } catch (roomPickerError: any) {
-        e.isDisposed || (e.errorMessageElement.textContent = roomPickerError.message);
+        editorHost.isDisposed || (editorHost.errorMessageElement.textContent = roomPickerError.message);
       }
     }
 
 export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, closeAddDialog, createSelectRow, refreshEditorPreview, renderPanel, createSettingRow } = deps;
+  const { editorHost, closeAddDialog, createSelectRow, refreshEditorPreview, renderPanel, createSettingRow } = deps;
       if (
-        e.isDisposed ||
-        !e.isAccessAllowed ||
-        e.isCameraEditing ||
-        e.isCameraCommandPending ||
-        e.addDialogState
+        editorHost.isDisposed ||
+        !editorHost.isAccessAllowed ||
+        editorHost.isCameraEditing ||
+        editorHost.isCameraCommandPending ||
+        editorHost.addDialogState
       )
         return;
       const curtainGroupCandidates: { id?: string; entityId?: string; label?: string }[] =
         curtainGroupCandidates2(
-        e.structuredClone2.environment,
+        editorHost.structuredClone2.environment,
         onCancel.id,
       );
       if (!curtainGroupCandidates.length) return;
-      const curtainGroupDialogElement = e.createElement("dialog", "settings-dialog i3d-add-dialog");
-      ((e.addDialogState = curtainGroupDialogElement),
+      const curtainGroupDialogElement = editorHost.createElement("dialog", "settings-dialog i3d-add-dialog");
+      ((editorHost.addDialogState = curtainGroupDialogElement),
         curtainGroupDialogElement.setAttribute("aria-label", "组合窗帘"));
-      const curtainGroupDialogBodyElement = e.createElement("div", "i3d-add-dialog-body"),
-        statusHeadingElement = e.createElement("p", "i3d-error");
+      const curtainGroupDialogBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
+        statusHeadingElement = editorHost.createElement("p", "i3d-error");
       curtainGroupDialogBodyElement.append(
-        e.createElement("h2", "", "组合窗帘"),
-        e.createElement(
+        editorHost.createElement("h2", "", "组合窗帘"),
+        editorHost.createElement(
           "p",
           "i3d-note",
           "以“" +
@@ -360,32 +360,32 @@ export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
           curtainGroupCandidates[0].id,
           () => {},
         ),
-        statusEntityInputElement = e.createElement("input");
+        statusEntityInputElement = editorHost.createElement("input");
       ((statusEntityInputElement.value = "双层窗帘"),
         (statusEntityInputElement.maxLength = 128),
         createSettingRow(curtainGroupDialogBodyElement, "组合名称", statusEntityInputElement),
         curtainGroupDialogBodyElement.append(
-          e.createElement(
+          editorHost.createElement(
             "p",
             "i3d-note",
             "3D 画面只显示双图标，无文字；两个模型仍各自动画。不会移动模型或发送设备命令。",
           ),
         ));
-      const confirmStatusButton = e.createButton("确定组合", () => {
-        if (!(!e.isAccessAllowed || e.isDisposed || e.addDialogState !== curtainGroupDialogElement))
+      const confirmStatusButton = editorHost.createButton("确定组合", () => {
+        if (!(!editorHost.isAccessAllowed || editorHost.isDisposed || editorHost.addDialogState !== curtainGroupDialogElement))
           try {
             const trimmedStatusValues = createCurtainGroup2(
-              e.structuredClone2.environment,
+              editorHost.structuredClone2.environment,
               onCancel.id,
               statusBodyElement.value,
               randomUuid2(),
             );
             ((trimmedStatusValues.label = statusEntityInputElement.value.trim() || "双层窗帘"),
-              (e.structuredClone2.environment.curtainGroups = [
-                ...e.getCurtainGroupList(),
+              (editorHost.structuredClone2.environment.curtainGroups = [
+                ...editorHost.getCurtainGroupList(),
                 trimmedStatusValues,
               ]),
-              (e.text = curtainGroupEntryId2(trimmedStatusValues)),
+              (editorHost.text = curtainGroupEntryId2(trimmedStatusValues)),
               closeAddDialog(),
               refreshEditorPreview(),
               renderPanel());
@@ -394,8 +394,8 @@ export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
           }
       });
       confirmStatusButton.className = "primary";
-      const statusActionsElement = e.createElement("div", "dialog-actions");
-      (statusActionsElement.append(e.createButton("取消", closeAddDialog), confirmStatusButton),
+      const statusActionsElement = editorHost.createElement("div", "dialog-actions");
+      (statusActionsElement.append(editorHost.createButton("取消", closeAddDialog), confirmStatusButton),
         curtainGroupDialogBodyElement.append(statusHeadingElement, statusActionsElement),
         curtainGroupDialogElement.append(curtainGroupDialogBodyElement),
         document.body.append(curtainGroupDialogElement),
@@ -407,15 +407,15 @@ export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
 
 export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, closeAuxDialog, refreshEditorPreview, renderPanel, saveStatusElement } = deps;
+  const { editorHost, closeAuxDialog, refreshEditorPreview, renderPanel, saveStatusElement } = deps;
       const statusSource = metricsTargetEntry.statusSource;
       if (
         !statusSource ||
-        e.isDisposed ||
-        !e.isAccessAllowed ||
-        e.isCameraEditing ||
-        e.isCameraCommandPending ||
-        e.auxDialogElement
+        editorHost.isDisposed ||
+        !editorHost.isAccessAllowed ||
+        editorHost.isCameraEditing ||
+        editorHost.isCameraCommandPending ||
+        editorHost.auxDialogElement
       )
         return;
       const set = new Set(
@@ -423,37 +423,37 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
             statusSource.metrics.map((metricEntry: any) => metricEntry.entityId),
         ),
         list: any = [],
-        metricsDialogElement = e.createElement(
+        metricsDialogElement = editorHost.createElement(
           "dialog",
           "settings-dialog i3d-add-dialog i3d-nas-fields-dialog",
         );
-      ((e.auxDialogElement = metricsDialogElement),
+      ((editorHost.auxDialogElement = metricsDialogElement),
         metricsDialogElement.setAttribute("aria-label", "选择 NAS 显示内容"));
-      const metricsHeadingElement = e.createElement("div", "dialog-heading"),
-        metricsTitleElement = e.createElement("h2", "", "选择显示内容"),
-        metricsCloseButton = e.createButton("×", closeAuxDialog);
+      const metricsHeadingElement = editorHost.createElement("div", "dialog-heading"),
+        metricsTitleElement = editorHost.createElement("h2", "", "选择显示内容"),
+        metricsCloseButton = editorHost.createButton("×", closeAuxDialog);
       ((metricsCloseButton.className = "icon-button"),
         metricsCloseButton.setAttribute("aria-label", "关闭显示内容选择"),
         metricsHeadingElement.append(metricsTitleElement, metricsCloseButton));
-      const metricsBodyElement = e.createElement("div", "i3d-add-dialog-body"),
-        metricsActionsElement = e.createElement("div", "dialog-actions"),
-        selectionSummaryElement = e.createElement("span", "i3d-note"),
+      const metricsBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
+        metricsActionsElement = editorHost.createElement("div", "dialog-actions"),
+        selectionSummaryElement = editorHost.createElement("span", "i3d-note"),
         syncMetricsSelection = () => {
           selectionSummaryElement.textContent = "已选 " + set.size + " 项";
           for (const metricVisibilityCheckboxElement of list)
             metricVisibilityCheckboxElement.checked = set.has(metricVisibilityCheckboxElement.value);
         };
       metricsActionsElement.append(
-        e.createButton("全选", () => {
+        editorHost.createButton("全选", () => {
           (statusSource.metrics.forEach((selectableMetric: any) => set.add(selectableMetric.entityId)),
             syncMetricsSelection());
         }),
-        e.createButton("全不选", () => {
+        editorHost.createButton("全不选", () => {
           (set.clear(), syncMetricsSelection());
         }),
         selectionSummaryElement,
       );
-      const nasFieldsContainerElement = e.createElement("div", "i3d-nas-fields"),
+      const nasFieldsContainerElement = editorHost.createElement("div", "i3d-nas-fields"),
         filter = nasGroups2(statusSource).filter(([nasGroupKey]) =>
           statusSource.metrics.some((nasGroupProbe: any) => nasGroupProbe.group === nasGroupKey),
         ),
@@ -474,8 +474,8 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
         const groupMetrics = statusSource.metrics.filter(
             (fieldGroupProbe: any) => fieldGroupProbe.group === fieldGroupKey,
           ),
-          fieldGroupSectionElement = e.createElement("section"),
-          fieldGroupHeadingElement = e.createElement("div", "i3d-nas-fields-heading"),
+          fieldGroupSectionElement = editorHost.createElement("section"),
+          fieldGroupHeadingElement = editorHost.createElement("div", "i3d-nas-fields-heading"),
           moveFieldGroup = (groupOffset: any) => {
             const index = filter.findIndex(
                 ([candidateGroupKey]) => candidateGroupKey === fieldGroupKey,
@@ -489,14 +489,14 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
               ]),
               syncNasGroupOrder());
           },
-          groupUpButtonElement = e.createButton("↑", () => moveFieldGroup(-1)),
-          groupDownButtonElement = e.createButton("↓", () => moveFieldGroup(1));
+          groupUpButtonElement = editorHost.createButton("↑", () => moveFieldGroup(-1)),
+          groupDownButtonElement = editorHost.createButton("↓", () => moveFieldGroup(1));
         (groupUpButtonElement.setAttribute("aria-label", "上移" + fieldGroupLabel + "分组"),
           groupDownButtonElement.setAttribute("aria-label", "下移" + fieldGroupLabel + "分组"),
           (groupUpButtonElement.title = "上移分组"),
           (groupDownButtonElement.title = "下移分组"),
           fieldGroupHeadingElement.append(
-            e.createElement("h4", "", fieldGroupLabel),
+            editorHost.createElement("h4", "", fieldGroupLabel),
             groupUpButtonElement,
             groupDownButtonElement,
           ),
@@ -516,9 +516,9 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
                 fieldGroupSectionElement.append(metricControl.row));
             });
         for (const nasMetric of groupMetrics) {
-          const metricRowElement = e.createElement("div", "i3d-nas-fields-row"),
-            metricLabelElement = e.createElement("label"),
-            metricCheckboxElement = e.createElement("input");
+          const metricRowElement = editorHost.createElement("div", "i3d-nas-fields-row"),
+            metricLabelElement = editorHost.createElement("label"),
+            metricCheckboxElement = editorHost.createElement("input");
           ((metricCheckboxElement.type = "checkbox"),
             (metricCheckboxElement.value = nasMetric.entityId),
             metricCheckboxElement.setAttribute("aria-label", nasMetric.label),
@@ -540,8 +540,8 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
                 ]),
                 syncNasMetricOrder());
             },
-            metricUpButtonElement = e.createButton("↑", () => moveNasMetric(-1)),
-            metricDownButtonElement = e.createButton("↓", () => moveNasMetric(1));
+            metricUpButtonElement = editorHost.createButton("↑", () => moveNasMetric(-1)),
+            metricDownButtonElement = editorHost.createButton("↓", () => moveNasMetric(1));
           (metricUpButtonElement.setAttribute("aria-label", "上移" + nasMetric.label),
             metricDownButtonElement.setAttribute("aria-label", "下移" + nasMetric.label),
             (metricUpButtonElement.title = "上移内容"),
@@ -554,7 +554,7 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
             list.push(metricCheckboxElement),
             metricLabelElement.append(
               metricCheckboxElement,
-              e.createElement("span", "", nasMetric.label),
+              editorHost.createElement("span", "", nasMetric.label),
             ),
             metricRowElement.append(
               metricLabelElement,
@@ -566,13 +566,13 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
         (syncNasMetricOrder(), nasFieldsContainerElement.append(fieldGroupSectionElement));
       }
       syncNasGroupOrder();
-      const metricsDialogActionsElement = e.createElement("div", "dialog-actions"),
-        confirmMetricsButton = e.createButton("确定", () => {
+      const metricsDialogActionsElement = editorHost.createElement("div", "dialog-actions"),
+        confirmMetricsButton = editorHost.createButton("确定", () => {
           if (
-            e.isDisposed ||
-            !e.isAccessAllowed ||
+            editorHost.isDisposed ||
+            !editorHost.isAccessAllowed ||
             metricsTargetEntry.statusSource !== statusSource ||
-            !e.getItemList().includes(metricsTargetEntry)
+            !editorHost.getItemList().includes(metricsTargetEntry)
           )
             return closeAuxDialog();
           ((statusSource.metrics = filter.flatMap(
@@ -589,13 +589,13 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
         });
       ((confirmMetricsButton.className = "primary"),
         metricsDialogActionsElement.append(
-          e.createButton("取消", closeAuxDialog),
+          editorHost.createButton("取消", closeAuxDialog),
           confirmMetricsButton,
         ),
         metricsBodyElement.append(
           metricsActionsElement,
           nasFieldsContainerElement,
-          e.createElement("p", "i3d-note", "用 ↑ ↓ 调整分组和组内内容顺序；确定后点击“保存配置”保存。"),
+          editorHost.createElement("p", "i3d-note", "用 ↑ ↓ 调整分组和组内内容顺序；确定后点击“保存配置”保存。"),
           metricsDialogActionsElement,
         ),
         metricsDialogElement.append(metricsHeadingElement, metricsBodyElement),
@@ -613,14 +613,14 @@ export function openCurtainGroupBatchApplyDialog(
   linkedFieldProbe = false,
 ) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, editorSession, refreshEditorPreview, renderPanel, saveStatusElement, buildEditableFieldList, buildItemPayload, listChangedFields } = deps;
+  const { editorHost, editorSession, refreshEditorPreview, renderPanel, saveStatusElement, buildEditableFieldList, buildItemPayload, listChangedFields } = deps;
       if (
-        e.isDisposed ||
-        !e.isAccessAllowed ||
-        e.isCameraEditing ||
-        e.isCameraCommandPending ||
-        e.isRangeEditorOpen ||
-        e.auxDialogElement
+        editorHost.isDisposed ||
+        !editorHost.isAccessAllowed ||
+        editorHost.isCameraEditing ||
+        editorHost.isCameraCommandPending ||
+        editorHost.isRangeEditorOpen ||
+        editorHost.auxDialogElement
       )
         return;
       const displayFieldValue = linkedFieldProbe
@@ -634,31 +634,31 @@ export function openCurtainGroupBatchApplyDialog(
           ...sourceGroup,
           ...buildItemPayload(sourceGroup),
         };
-      !e.usesModelBinding &&
+      !editorHost.usesModelBinding &&
         !linkedFieldProbe &&
         (displayFieldValue.push(["icon", "图标", ""], ["buttonVisibility", "按钮显示", ""]),
-        (options.icon = sourceGroup.icon || e.defaultIcon),
+        (options.icon = sourceGroup.icon || editorHost.defaultIcon),
         (options.buttonVisibility = sourceGroup.buttonHidden
           ? "隐藏（不可点击）"
           : sourceGroup.hiddenClickable
             ? "隐藏（可点击）"
             : "显示"));
-      const itemFloorId = e.sceneMetadata?.floors
+      const itemFloorId = editorHost.sceneMetadata?.floors
         .find((floorOtherItems: any) => floorOtherItems.id === sourceGroup.floorId)
-        ?.[e.collectionKey]?.find((targetFloorRecord: any) => targetFloorRecord.id === sourceGroup.modelId);
+        ?.[editorHost.collectionKey]?.find((targetFloorRecord: any) => targetFloorRecord.id === sourceGroup.modelId);
       if (
         ((options.height =
           sourceGroup.height ??
-          (e.isVacuumShortcutMode
+          (editorHost.isVacuumShortcutMode
             ? 0.08
-            : e.isVacuumMode
+            : editorHost.isVacuumMode
               ? (Number(itemFloorId?.elevation) || 0) + (Number(itemFloorId?.height) || 0.85) + 0.25
               : itemFloorId?.height)),
         displayFieldValue.push(["height", "高度", " 米"]),
-        !e.isVacuumShortcutMode &&
-          e.deviceKind !== "smallcar" &&
+        !editorHost.isVacuumShortcutMode &&
+          editorHost.deviceKind !== "smallcar" &&
           displayFieldValue.push(["clickAction", "点击行为", ""]),
-        e.isCoverMode &&
+        editorHost.isCoverMode &&
           !linkedFieldProbe &&
           displayFieldValue.push(
             ["iconStateReversed", "图标状态反向", ""],
@@ -667,7 +667,7 @@ export function openCurtainGroupBatchApplyDialog(
             ["coverDirection", "开合方向", ""],
             ["unboundPosition", "未绑定时展示状态", "%"],
           ),
-        e.isVacuumMode &&
+        editorHost.isVacuumMode &&
           ((options.motionEnabled = sourceGroup.motionEnabled !== false),
           (options.funMessages = sourceGroup.funMessages !== false),
           displayFieldValue.push(
@@ -676,10 +676,10 @@ export function openCurtainGroupBatchApplyDialog(
           )),
         linkedFieldProbe)
       ) {
-        const floorOptionsElement = e.getItemList().find(
+        const floorOptionsElement = editorHost.getItemList().find(
             (floorTargetItem: any) => floorTargetItem.id === sourceGroup.memberIds?.[0],
           ),
-          checkedTargetCount = e.sceneMetadata?.floors
+          checkedTargetCount = editorHost.sceneMetadata?.floors
             .find((checkedFieldProbe: any) => checkedFieldProbe.id === sourceGroup.floorId)
             ?.curtains?.find(
               (checkedFieldCheckbox: any) => checkedFieldCheckbox.id === floorOptionsElement?.modelId,
@@ -690,7 +690,7 @@ export function openCurtainGroupBatchApplyDialog(
           (options.panelLayout = sourceGroup.panelLayout || "horizontal"),
           displayFieldValue.push(["panelLayout", "弹窗布局", ""]));
       }
-      e.isCoverMode &&
+      editorHost.isCoverMode &&
         !linkedFieldProbe &&
         ((options.curtainFabric = sourceGroup.curtainFabricOverride
           ? sourceGroup.curtainFabric
@@ -761,14 +761,14 @@ export function openCurtainGroupBatchApplyDialog(
           }),
         ),
         selectedFieldKeys = (
-          linkedFieldProbe ? e.structuredClone2.environment.curtainGroups : e.getItemList()
+          linkedFieldProbe ? editorHost.structuredClone2.environment.curtainGroups : editorHost.getItemList()
         ).filter(
           (batchCancelEvent: any) =>
             batchCancelEvent.id !== sourceGroup.id &&
-            (e.isVacuumShortcutMode || batchCancelEvent.floorId === sourceGroup.floorId),
+            (editorHost.isVacuumShortcutMode || batchCancelEvent.floorId === sourceGroup.floorId),
         );
-      e.auxDialogElement = openBatchApply2({
-        title: linkedFieldProbe ? "应用组合窗帘设置" : "应用" + e.kindLabel + "设置",
+      editorHost.auxDialogElement = openBatchApply2({
+        title: linkedFieldProbe ? "应用组合窗帘设置" : "应用" + editorHost.kindLabel + "设置",
         source: options,
         targets: selectedFieldKeys,
         fields: updatedTargetItems,
@@ -787,12 +787,12 @@ export function openCurtainGroupBatchApplyDialog(
               ]),
             ],
         onClose: () => {
-          e.auxDialogElement = null;
+          editorHost.auxDialogElement = null;
         },
         onApply: async (nextMemberId: any, createGroupError: any) => {
           if (
             (await requestInteraction3dAccess2(),
-            e.isDisposed || !e.isAccessAllowed || !e.auxDialogElement?.open)
+            editorHost.isDisposed || !editorHost.isAccessAllowed || !editorHost.auxDialogElement?.open)
           )
             throw new Error("配置已关闭或授权不可用");
           for (const batchTargetItem of nextMemberId)
@@ -807,14 +807,14 @@ export function openCurtainGroupBatchApplyDialog(
 
 export function openLabelBatchApplyDialog(deps: PanelDialogsDeps, sourceLabelItem: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, refreshEditorPreview, renderPanel, saveStatusElement } = deps;
-      e.isDisposed ||
-        !e.isAccessAllowed ||
-        e.auxDialogElement ||
-        (e.auxDialogElement = openBatchApply2({
+  const { editorHost, refreshEditorPreview, renderPanel, saveStatusElement } = deps;
+      editorHost.isDisposed ||
+        !editorHost.isAccessAllowed ||
+        editorHost.auxDialogElement ||
+        (editorHost.auxDialogElement = openBatchApply2({
           title: "应用环境标签设置",
           source: sourceLabelItem,
-          targets: e.getItemList().filter(
+          targets: editorHost.getItemList().filter(
             (labelTargetProbe: any) =>
               labelTargetProbe.id !== sourceLabelItem.id &&
               labelTargetProbe.floorId === sourceLabelItem.floorId,
@@ -862,10 +862,10 @@ export function openLabelBatchApplyDialog(deps: PanelDialogsDeps, sourceLabelIte
             },
           ],
           onClose: () => {
-            e.auxDialogElement = null;
+            editorHost.auxDialogElement = null;
           },
           onApply: (appliedTargets: any, appliedValues: any) => {
-            if (e.isDisposed || !e.isAccessAllowed) throw new Error("配置不可用");
+            if (editorHost.isDisposed || !editorHost.isAccessAllowed) throw new Error("配置不可用");
             for (const _args of appliedTargets)
               copyBatchFields2(_args, sourceLabelItem, appliedValues);
             (refreshEditorPreview(),

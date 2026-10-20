@@ -60,9 +60,9 @@ export interface NavigationInspectorContext {
   navigationTopElement: any;
   navigationTypeElement: any;
   navigationWidthElement: any;
-  runClone: any;
-  runExtraFallback: any;
-  runVariantTwin: any;
+  renderNavigationIconButton: any;
+  syncPopupEntityPickerButton: any;
+  collectPendingNavigationStyleKeys: any;
   sceneModeControlElement: any;
   sceneModeHintElement: any;
   selectedComponentIdsSet: any;
@@ -127,9 +127,9 @@ export function syncNavigationInspector(ctx: NavigationInspectorContext, compone
     navigationTopElement,
     navigationTypeElement,
     navigationWidthElement,
-    runClone,
-    runExtraFallback,
-    runVariantTwin,
+    renderNavigationIconButton,
+    syncPopupEntityPickerButton,
+    collectPendingNavigationStyleKeys,
     sceneModeControlElement,
     sceneModeHintElement,
     selectedComponentIdsSet,
@@ -175,7 +175,7 @@ export function syncNavigationInspector(ctx: NavigationInspectorContext, compone
   ])
     previewStateElement.hidden = isNavigationWidthPx;
   ((navigationLabelElement.value = availablePropertiesRecord.label || ""),
-    runExtraFallback(componentArg));
+    syncPopupEntityPickerButton(componentArg));
   const previewState = navigationPreviewStateByComponentId.get(componentArg.id) || "auto";
   for (const previewStateButtonElement of navigationPreviewStateElement.querySelectorAll(
     "[data-navigation-preview]",
@@ -217,7 +217,7 @@ export function syncNavigationInspector(ctx: NavigationInspectorContext, compone
       navigationGlowVisibleElement,
       availablePropertiesRecord.glowVisible !== false,
     ),
-    runClone(availablePropertiesRecord.icon || ""),
+    renderNavigationIconButton(availablePropertiesRecord.icon || ""),
     (navigationMainColorElement.value = availablePropertiesRecord.mainColor || "#e9edf0"),
     (navigationSecondaryColorElement.value = availablePropertiesRecord.secondaryColor || "#e9edf0"),
     (navigationMainSizeElement.value = roundField2(
@@ -365,7 +365,7 @@ export function syncNavigationInspector(ctx: NavigationInspectorContext, compone
     (navigationScaleElement.disabled = false),
     (navigationRotationElement.disabled = false));
   const navigationReplaceableCount = findReplaceableComponents(componentArg).length,
-    navigationApplyTargetCount = runVariantTwin(componentArg).length;
+    navigationApplyTargetCount = collectPendingNavigationStyleKeys(componentArg).length;
   ((navigationApplyStyleElement.disabled =
     !navigationReplaceableCount || !navigationApplyTargetCount),
     (navigationApplyCountElement.textContent = navigationApplyTargetCount + " 项修改"),

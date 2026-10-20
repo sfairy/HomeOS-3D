@@ -50,16 +50,16 @@ export class HistoryRefreshCoordinator {
       (this.pendingKey = null),
       (this.pendingRun = null));
   }
-  ["request"](requestKey: any, run: any) {
+  ["request"](requestKey: any, task: any) {
     if (this.running)
       return (
         requestKey === this.currentKey
           ? ((this.pendingKey = null), (this.pendingRun = null))
           : requestKey !== this.pendingKey &&
-            ((this.pendingKey = requestKey), (this.pendingRun = run)),
+            ((this.pendingKey = requestKey), (this.pendingRun = task)),
         this.running
       );
-    ((this.pendingKey = requestKey), (this.pendingRun = run));
+    ((this.pendingKey = requestKey), (this.pendingRun = task));
     const drainPendingRuns = async () => {
       for (; this.pendingRun;) {
         const pendingRun = this.pendingRun;

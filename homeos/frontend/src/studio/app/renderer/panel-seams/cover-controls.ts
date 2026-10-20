@@ -272,14 +272,14 @@ export function createCoverDetailsControls(this: PanelRenderer,
       };
     ((coverControlsPanel.setDreamCurtainRetracted = (
       retractedState,
-      isCurtainMovingState = false,
+      isCurtainMoving = false,
     ) => {
       isTilt &&
         ((isCurtainRetractedState = !!retractedState),
         (coverPositionSlider.disabled = !isCoverInteractive),
         onCurtainPositionChange?.({
           retracted: isCurtainRetractedState,
-          moving: !!isCurtainMovingState,
+          moving: !!isCurtainMoving,
         }));
     }),
       (coverControlsPanel.isDreamCurtainRetracted = () => isCurtainRetractedState),

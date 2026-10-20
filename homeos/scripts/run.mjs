@@ -110,6 +110,8 @@ const tasks = {
     ruff()
     bunRun('lint:ci', 'frontend')
     bunRun('lint:shared', MONOREPO_ROOT_CWD)
+    bunRun('check:studio-split', MONOREPO_ROOT_CWD)
+    bunRun('check:studio-naming', MONOREPO_ROOT_CWD)
   },
   typecheck() {
     prep()

@@ -26,8 +26,8 @@ export interface LineChartInspectorContext {
   lineChartValueVisibleElement: any;
   lineChartThresholdInputs: any;
   lineChartWidthInputElement: any;
-  runAltBackup: any;
-  runExtraFallback: any;
+  collectChangedLineChartStyleKeys: any;
+  syncPopupEntityPickerButton: any;
   selectedComponentIdsSet: any;
   syncComponentActionControls: any;
 }
@@ -58,8 +58,8 @@ export function syncLineChartInspector(ctx: LineChartInspectorContext, component
     lineChartValueVisibleElement,
     lineChartThresholdInputs,
     lineChartWidthInputElement,
-    runAltBackup,
-    runExtraFallback,
+    collectChangedLineChartStyleKeys,
+    syncPopupEntityPickerButton,
     selectedComponentIdsSet,
     syncComponentActionControls
   } = ctx;
@@ -70,7 +70,7 @@ export function syncLineChartInspector(ctx: LineChartInspectorContext, component
     chartCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
     chartWidthPx = Number(chartPosition.width || 100),
     chartHeightPx = Number(chartPosition.height || 100);
-  (runExtraFallback(componentArg),
+  (syncPopupEntityPickerButton(componentArg),
     (lineChartTypeElement.value = "折线图"),
     (lineChartLabelElement.value = chartProperties.label || ""));
   for (const valueVisibleToggleElement of lineChartValueVisibleElement.querySelectorAll(
@@ -177,7 +177,7 @@ export function syncLineChartInspector(ctx: LineChartInspectorContext, component
     (lineChartScaleInputElement.disabled = false),
     (lineChartRotationInputElement.disabled = false));
   const replaceableCount = findReplaceableComponents(componentArg).length,
-    applyTargetCount = runAltBackup(componentArg).length;
+    applyTargetCount = collectChangedLineChartStyleKeys(componentArg).length;
   ((lineChartApplyStyleButtonElement.disabled = !replaceableCount || !applyTargetCount),
     (lineChartApplyCountElement.textContent = applyTargetCount + " 项修改"),
     (lineChartApplyStyleButtonElement.textContent = "一键应用到同类型控件"),

@@ -1,0 +1,428 @@
+
+
+
+
+
+
+
+
+import { createEffectCache as createEffectCache2 } from "../../studio-effect-cache";
+import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from "../../studio-preview-resources";
+
+
+
+
+
+
+
+
+
+
+
+
+import { createMotionBuffer as createMotionBuffer2 } from "../../scene/studio-motion-buffer";
+import { createBackgroundCache as createBackgroundCache2 } from "../../scene/studio-background-cache";
+import { stageStartup as stageStartup2 } from "../../../stage-startup";
+import { interactionResourcePolicy } from "../../../studio-resource-policy";
+
+
+
+
+
+
+import { createOverviewStack as createOverviewStack2 } from "../../scene/studio-overview-stack";
+
+
+
+
+
+
+import { createDemandFrameLoop as createDemandFrameLoop2 } from "../../../../bridge/scene/frame-loop";
+import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { createSpotShadowAtlasController as createSpotShadowAtlasController2 } from "../../scene/studio-shadow-atlas";
+import { createRegionLightController as createRegionLightController2 } from "../../../plan/studio-plan2-region-lights";
+import { createContactShadowController as createContactShadowController2 } from "../../../plan/studio-plan2-contact-shadows";
+import {
+  finite as finite2,
+} from "../../../loaders/studio-normalization";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import type { StudioAppContext } from "../studio-app-context";
+export interface CreateStudioRendererDeps { appCtx: StudioAppContext; beginMotionMeasurement: any; bindFrameDriver: any; canBuildScene: any; computeRenderPixelRatio: any; createOrbitControls: any; disposeShadowAtlas: any; effectCache: any; endMotionMeasurement: any; ensureDiagnosticsHud: any; getPreviewFloorMode: any; hasPendingSceneWork: any; isEmbedStageMode: any; isEmbeddedStage: any; isPerformanceDiagnostics: any; isRenderStatsTest: any; lampsLayerIndex: any; needsMotionPresentation: any; planToWorldPoint: any; previewResources: any; publishModelLoadState: any; publishRenderStats: any; recordFrameTime: any; recordRenderTiming: any; refreshBaseLighting: any; renderStudioFrame: any; resizeStudioRenderer: any; scheduleLightPrecompile: any; scheduleStudioRender: any; selectElement: any; setShadowFreeze: any; syncCameraModeControls: any; syncCameraViewControls: any; updateCameraView: any; updateMotionStats: any; updateRenderStatsHud: any; }
+
+export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
+  const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
+
+  const previewViewportElement = selectElement("#preview-3d");
+  try {
+    ((appCtx.threeScene = new ns2.Scene()),
+      (appCtx.threeCamera = new ns2.OrthographicCamera(-5, 5, 5, -5, 0.05, 200)),
+      appCtx.threeCamera.layers.enable(lampsLayerIndex),
+      (appCtx.threeRenderer = new ns2.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+      })),
+      isEmbeddedStage && appCtx.threeRenderer.debug && (appCtx.threeRenderer.debug.checkShaderErrors = false),
+      appCtx.threeRenderer.setPixelRatio(computeRenderPixelRatio()),
+      (appCtx.threeRenderer.outputColorSpace = ns2.SRGBColorSpace),
+      (appCtx.threeRenderer.toneMapping = ns2.NeutralToneMapping),
+      (appCtx.threeRenderer.toneMappingExposure = 1.04),
+      isEmbeddedStage &&
+        isEmbedStageMode &&
+        ((appCtx.shadowAtlasCanvas = createMotionBuffer2({
+          THREE: ns2,
+          renderer: appCtx.threeRenderer,
+          maxSamples: interactionResourcePolicy.motion.maxSamples,
+        })),
+        window.addEventListener(
+          "pagehide",
+          () => {
+            (disposeShadowAtlas(), appCtx.shadowAtlasCanvas.dispose());
+          },
+          {
+            once: true,
+          },
+        )),
+      (appCtx.threeRenderer.shadowMap.enabled = !isEmbedStageMode),
+      (appCtx.threeRenderer.shadowMap.type = ns2.VSMShadowMap),
+      previewViewportElement.append(appCtx.threeRenderer.domElement),
+      isEmbeddedStage &&
+        ((appCtx.compiledShaderCache = createBackgroundCache2({
+          THREE: ns2,
+          renderer: appCtx.threeRenderer,
+        })),
+        (deps.effectCache = createEffectCache2({
+          THREE: ns2,
+          renderer: appCtx.threeRenderer,
+        })),
+        (deps.previewResources = createPreviewResourceHandoff2((resource: any) =>
+          resource?.dispose?.(),
+        )),
+        window.addEventListener(
+          "pagehide",
+          () => {
+            (appCtx.compiledShaderCache?.dispose(), deps.effectCache?.dispose(), deps.previewResources?.release());
+          },
+          {
+            once: true,
+          },
+        )),
+      ensureDiagnosticsHud(),
+      (appCtx.orbitControls = createOrbitControls(appCtx.threeCamera)),
+      publishModelLoadState(),
+      syncCameraModeControls("orthographic"),
+      syncCameraViewControls(),
+      (appCtx.hemisphereLight = new ns2.HemisphereLight(12504556, 1515053, 1.12)),
+      appCtx.hemisphereLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.hemisphereLight),
+      (appCtx.ambientLight = new ns2.AmbientLight(7175581, 0.42)),
+      appCtx.ambientLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.ambientLight),
+      (appCtx.mainDirectionalLight = new ns2.DirectionalLight(14543103, 2.05)),
+      appCtx.mainDirectionalLight.position.set(-7, 22, 6),
+      (appCtx.mainDirectionalLight.castShadow = true),
+      appCtx.mainDirectionalLight.shadow.mapSize.set(2048, 2048),
+      (appCtx.mainDirectionalLight.shadow.camera.left = -20),
+      (appCtx.mainDirectionalLight.shadow.camera.right = 20),
+      (appCtx.mainDirectionalLight.shadow.camera.top = 20),
+      (appCtx.mainDirectionalLight.shadow.camera.bottom = -20),
+      (appCtx.mainDirectionalLight.shadow.autoUpdate = false),
+      (appCtx.mainDirectionalLight.shadow.needsUpdate = true),
+      appCtx.mainDirectionalLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.mainDirectionalLight),
+      (appCtx.fillDirectionalLight = new ns2.DirectionalLight(8886724, 0.72)),
+      appCtx.fillDirectionalLight.position.set(9, 7, -10),
+      appCtx.fillDirectionalLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.fillDirectionalLight),
+      (appCtx.topDirectionalLight = new ns2.DirectionalLight(15791103, 0.68)),
+      appCtx.topDirectionalLight.position.set(0, 16, 1),
+      appCtx.topDirectionalLight.layers.enable(lampsLayerIndex),
+      appCtx.threeScene.add(appCtx.topDirectionalLight),
+      (appCtx.sceneRootNode = new ns2.Group()),
+      appCtx.threeScene.add(appCtx.sceneRootNode));
+    let previousOverviewSource: any,
+      previousOverviewGap: any,
+      overviewStackCenter = [0, 0, 0],
+      floorBoundsById = new Map();
+    ((appCtx.overviewStackController = createOverviewStack2({
+      THREE: ns2,
+      renderer: appCtx.threeRenderer,
+      scene: appCtx.threeScene,
+      getCamera: () => appCtx.threeCamera,
+      getLayout: () => {
+        const overviewFloors = appCtx.studioProject?.floors || [],
+          overviewFloorGap = appCtx.pendingRuntimeSettings
+            ? finite2(appCtx.studioProject?.exportFloorGap, 3)
+            : finite2(appCtx.studioProject?.previewFloorGap, 3);
+        if (
+          appCtx.studioProject?.uniformOverviewStack &&
+          (previousOverviewSource !== appCtx.studioProject || previousOverviewGap !== appCtx.sceneRevisionCount)
+        ) {
+          const overviewBoundsBox = new ns2.Box3();
+          floorBoundsById = new Map();
+          for (const overviewFloor of overviewFloors) {
+            const floorBoundsPoints: any[] = [];
+            for (const floorWall of overviewFloor.scene.walls)
+              for (const wallEndpoint of [floorWall.start, floorWall.end]) {
+                const $a3 = planToWorldPoint(overviewFloor, wallEndpoint);
+                (overviewBoundsBox.expandByPoint(new ns2.Vector3($a3.x, 0, $a3.z)),
+                  floorBoundsPoints.push(
+                    [$a3.x, 0, $a3.z],
+                    [$a3.x, finite2(floorWall.height, 2.8), $a3.z],
+                  ));
+              }
+            floorBoundsById.set(overviewFloor.id, floorBoundsPoints);
+          }
+          ((overviewStackCenter = (
+            overviewBoundsBox.isEmpty()
+              ? new ns2.Vector3()
+              : overviewBoundsBox.getCenter(new ns2.Vector3())
+          ).toArray()),
+            (previousOverviewSource = appCtx.studioProject),
+            (previousOverviewGap = appCtx.sceneRevisionCount));
+        }
+        return {
+          enabled: appCtx.studioProject?.uniformOverviewStack === true,
+          floors: overviewFloors,
+          gap: overviewFloorGap,
+          bounds: floorBoundsById,
+          center: [
+            overviewStackCenter[0],
+            ((overviewFloors.length - 1) * overviewFloorGap) / 2,
+            overviewStackCenter[2],
+          ],
+          amount: appCtx.animatedTransitionValue ?? (getPreviewFloorMode() === "all" ? 1 : 0),
+        };
+      },
+    })),
+      window.addEventListener("pagehide", () => appCtx.overviewStackController?.dispose(), {
+        once: true,
+      }),
+      isEmbedStageMode
+        ? ((appCtx.contactShadowController = createContactShadowController2({
+            THREE: ns2,
+            renderer: appCtx.threeRenderer,
+            ...(isEmbeddedStage ? interactionResourcePolicy.contactShadows : {}),
+            persistentCache: isEmbeddedStage ? stageStartup2?.shadowCache : null,
+            getRoot: () => appCtx.sceneRootNode,
+            requestFrame: renderStudioFrame,
+            followMotion: true,
+            maxCapturesPerSync: isEmbeddedStage ? 1 : Infinity,
+            deferSurfaceBake: isEmbeddedStage,
+            deferInitialBake: isEmbeddedStage,
+            surfaceBatchSize: isEmbeddedStage ? 4 : 2,
+            canBuild: canBuildScene,
+          })),
+          (appCtx.regionLightController = createRegionLightController2({
+            THREE: ns2,
+            renderer: appCtx.threeRenderer,
+            reuseRendererMatrices: isEmbeddedStage && interactionResourcePolicy.reuseLightMatrices,
+            scene: appCtx.threeScene,
+            getRoot: () => appCtx.sceneRootNode,
+            contactShadows: appCtx.contactShadowController,
+            requestFrame: renderStudioFrame,
+          })))
+        : (appCtx.lightPrecompileController = createSpotShadowAtlasController2({
+            THREE: ns2,
+            renderer: appCtx.threeRenderer,
+            scene: appCtx.threeScene,
+            camera: appCtx.threeCamera,
+            syncBeforeRender: isEmbeddedStage,
+            requestFrame: renderStudioFrame,
+            canBuild: () =>
+              !document.hidden &&
+              !appCtx.pendingRuntimeSettings &&
+              !appCtx.isRenderSuppressed &&
+              !appCtx.isPrewarming &&
+              !appCtx.isCurtainMoving &&
+              !appCtx.isVacuumMoving &&
+              !appCtx.isBackgroundMoving &&
+              !appCtx.isWindowHidden &&
+              !appCtx.isCapturingLights &&
+              !hasPendingSceneWork(),
+          })),
+      refreshBaseLighting(),
+      (appCtx.resizeObserverInstance = new ResizeObserver(() => resizeStudioRenderer())),
+      appCtx.resizeObserverInstance.observe(previewViewportElement),
+      updateCameraView());
+    let lastStatsPublishMs = performance.now(),
+      lastMotionMs = -Infinity;
+    const stepStudioFrame = (frameStepTimestamp = performance.now()) => {
+      if (!appCtx.threeRenderer) return;
+      const frameStepDelta = Math.min(
+        Math.max((frameStepTimestamp - lastStatsPublishMs) / 1000, 0),
+        0.05,
+      );
+      if (
+        ((lastStatsPublishMs = frameStepTimestamp),
+        document.hidden || (isEmbeddedStage && appCtx.isExternalModelPending))
+      )
+        return Infinity;
+      const didControlsUpdate = appCtx.orbitControls.update(frameStepDelta);
+      didControlsUpdate && (lastMotionMs = frameStepTimestamp);
+      const renderWakeValue = frameStepTimestamp - lastMotionMs < 600 ? 0 : Infinity;
+      didControlsUpdate && (appCtx.isLightCacheReady = true);
+      const Kt3 = appCtx.isRenderSuppressed || didControlsUpdate || appCtx.isPrewarming;
+      if (
+        (updateMotionStats(frameStepTimestamp, Kt3),
+        !appCtx.isLightCacheReady && !appCtx.isLightCacheDeferred && appCtx.isLightCachePending)
+      )
+        return renderWakeValue;
+      const qr2 = appCtx.isLightCacheReady || !appCtx.isLightCachePending;
+      appCtx.isLightCacheReady = appCtx.isLightCacheDeferred = false;
+      const yy2 = beginMotionMeasurement(Kt3),
+        motionMeasureStartMs = isPerformanceDiagnostics ? performance.now() : 0;
+      setShadowFreeze(qr2);
+      const motionMeasureMs = isPerformanceDiagnostics
+        ? performance.now() - motionMeasureStartMs
+        : 0;
+      (endMotionMeasurement(yy2),
+        recordRenderTiming(frameStepTimestamp, motionMeasureMs, Kt3),
+        isPerformanceDiagnostics &&
+          renderWakeValue === Infinity &&
+          publishRenderStats(frameStepTimestamp, true));
+      const render = appCtx.threeRenderer.info.render;
+      if (
+        ((appCtx.threeRenderer.domElement.dataset.renderCalls = String(render.calls)),
+        (appCtx.threeRenderer.domElement.dataset.renderTriangles = String(render.triangles)),
+        (appCtx.threeRenderer.domElement.dataset.renderLines = String(render.lines)),
+        isEmbeddedStage && (isPerformanceDiagnostics || isRenderStatsTest))
+      ) {
+        const stringify = JSON.stringify({
+          ...appCtx.threeRenderer.info.memory,
+          programs: appCtx.threeRenderer.info.programs?.length,
+          contact: appCtx.contactShadowController?.stats,
+        });
+        appCtx.threeRenderer.domElement.dataset.renderResources !== stringify &&
+          (appCtx.threeRenderer.domElement.dataset.renderResources = stringify);
+      }
+      return (
+        updateRenderStatsHud(),
+        recordFrameTime(),
+        (appCtx.isLightCachePending = true),
+        isEmbeddedStage && appCtx.threeRenderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame")),
+        renderWakeValue
+      );
+    };
+    {
+      appCtx.lightingScheduler = createDemandFrameLoop2({
+        onWake() {
+          const publishNowMs = performance.now();
+          publishNowMs - lastStatsPublishMs > 50 && (lastStatsPublishMs = publishNowMs);
+        },
+        step(frameStepSeconds: any) {
+          const frameStepResult = stepStudioFrame(frameStepSeconds);
+          return (
+            (appCtx.threeRenderer.domElement.dataset.renderFrameChecks = String(
+              appCtx.lightingScheduler.stats.frames,
+            )),
+            frameStepResult
+          );
+        },
+      });
+      const wakeStudio = () => appCtx.lightingScheduler.wake(),
+        handlePageVisibility = () => {
+          lastStatsPublishMs = performance.now();
+          const tf4 = needsMotionPresentation();
+          (appCtx.lightingScheduler.setAvailable(tf4),
+            tf4
+              ? (appCtx.lightPrecompileController?.setContextLost(false),
+                renderStudioFrame(),
+                appCtx.isFrameDirty && scheduleStudioRender())
+              : (disposeShadowAtlas(),
+                appCtx.compiledShaderCache?.clear(),
+                window.clearTimeout(appCtx.renderCommitTimeoutId),
+                (appCtx.renderCommitTimeoutId = null)));
+        },
+        handleParentVisibility = (visibilityEvent: any) => {
+          ((appCtx.isHighDetailQuality = visibilityEvent.detail === true),
+            handlePageVisibility(),
+            appCtx.isHighDetailQuality && appCtx.isEnvironmentLoading && scheduleLightPrecompile());
+        },
+        ev2 = bindFrameDriver(handlePageVisibility);
+      appCtx.threeRenderer.domElement.addEventListener("hb-i3d-parent-visibility", handleParentVisibility);
+      for (const visibilityEventName of [
+        "pointerdown",
+        "pointermove",
+        "pointerup",
+        "pointercancel",
+        "wheel",
+        "keydown",
+        "keyup",
+      ])
+        appCtx.threeRenderer.domElement.addEventListener(visibilityEventName, wakeStudio, {
+          passive: true,
+        });
+      (document.addEventListener("visibilitychange", handlePageVisibility),
+        window.addEventListener(
+          "pagehide",
+          () => {
+            (ev2(),
+              appCtx.lightingScheduler.dispose(),
+              document.removeEventListener("visibilitychange", handlePageVisibility),
+              appCtx.lightPrecompileController?.dispose?.(),
+              appCtx.regionLightController?.dispose(),
+              appCtx.contactShadowController?.dispose(),
+              appCtx.threeRenderer.domElement.removeEventListener(
+                "hb-i3d-parent-visibility",
+                handleParentVisibility,
+              ));
+            for (const removeEventName of [
+              "pointerdown",
+              "pointermove",
+              "pointerup",
+              "pointercancel",
+              "wheel",
+              "keydown",
+              "keyup",
+            ])
+              appCtx.threeRenderer.domElement.removeEventListener(removeEventName, wakeStudio);
+          },
+          {
+            once: true,
+          },
+        ),
+        handlePageVisibility(),
+        wakeStudio());
+    }
+  } catch (frameDriverError: any) {
+    ((selectElement("#webgl-message").hidden = false),
+      window.HomeOSLog?.error!(frameDriverError, {
+        phase: "studio-webgl-init",
+      })!,
+      console.error(frameDriverError));
+  }
+
+}

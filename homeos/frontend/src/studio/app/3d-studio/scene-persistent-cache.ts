@@ -1,4 +1,4 @@
-import { createCacheLogger, runCacheTask } from "./cache-shared";
+import { createCacheLogger, executeTaskWithTimeout } from "./cache-shared";
 const SCENE_PREPARATION_VERSION = "20260923-v1";
 const SCENE_STORE = "scenes";
 export function scenePreparationKey(lightHistoryScope: any, projectId: any, sceneId: any, source = "") {
@@ -51,7 +51,7 @@ export function createScenePersistentCache({
     },
     log = createCacheLogger(env, "[3D-scene-cache]", stats);
   function runWithTimeout(task: any, operationTimeoutMs = timeoutMs) {
-    return runCacheTask(env, task, {
+    return executeTaskWithTimeout(env, task, {
       duration: operationTimeoutMs,
       onTimeout: () => stats.fallbacks++,
     });

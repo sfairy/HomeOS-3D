@@ -82,8 +82,8 @@ function diffFloorNames(runtimeScene: any, remoteScene: any): FloorNameChange[] 
     const localFloor = localById.get(floorId);
     if (!localFloor) continue;
     const from = typeof localFloor.name === "string" ? localFloor.name : "";
-    const to = typeof remoteFloor.name === "string" ? remoteFloor.name : "";
-    if (from !== to) changes.push({ floorId, from, to });
+    const floorName = typeof remoteFloor.name === "string" ? remoteFloor.name : "";
+    if (from !== floorName) changes.push({ floorId, from, to: floorName });
   }
   return changes;
 }

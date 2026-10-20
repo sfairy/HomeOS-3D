@@ -13,8 +13,8 @@ interface QrCodeInstance {
 
 interface QrCodeFactory {
   (typeNumber: number, errorCorrectionLevel: string): QrCodeInstance;
-  stringToBytes: (s: string) => number[];
-  stringToBytesFuncs: Record<string, (s: string) => number[]>;
+  stringToBytes: (text: string) => number[];
+  stringToBytesFuncs: Record<string, (text: string) => number[]>;
 }
 
 declare const qrcode: QrCodeFactory;

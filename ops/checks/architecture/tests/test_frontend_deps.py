@@ -16,11 +16,12 @@ GATE = (
     / "check-frontend-deps.mjs"
 )
 NODE = shutil.which("node")
+NODE_BIN: str = NODE or "node"
 
 
 def run_gate(root: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [NODE, str(GATE), "--root", str(root)],
+        [NODE_BIN, str(GATE), "--root", str(root)],
         capture_output=True,
         text=True,
         check=False,

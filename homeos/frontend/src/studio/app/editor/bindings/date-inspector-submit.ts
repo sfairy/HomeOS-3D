@@ -205,13 +205,13 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
       });
   }),
     onDateInspectorFormSubmit.addEventListener("change", (onPanelFrameInspectorFormSubmit) => {
-      const onPanelFrameInspectorFormSubmitState = (onPanelFrameInspectorFormSubmit.target as Element).closest<HTMLElement>(
+      const popupSourceElement = (onPanelFrameInspectorFormSubmit.target as Element).closest<HTMLElement>(
           "[data-popup-source], [data-popup-entity], [data-popup-custom]",
         ),
         panelFrameInspectorSubmitEventElement =
-          onPanelFrameInspectorFormSubmitState?.closest<HTMLElement>("[data-action-trigger]");
+          popupSourceElement?.closest<HTMLElement>("[data-action-trigger]");
       if (
-        onPanelFrameInspectorFormSubmitState &&
+        popupSourceElement &&
         panelFrameInspectorSubmitEventElement &&
         deps.selectedComponentId
       ) {
@@ -251,13 +251,13 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
         });
         return;
       }
-      const onNavigationInspectorFormSubmitState =
+      const actionTargetElement =
           (onPanelFrameInspectorFormSubmit.target as Element).closest<HTMLSelectElement>("[data-action-target]"),
         onNavigationInspectorFormSubmitElement =
-          onNavigationInspectorFormSubmitState?.closest<HTMLElement>("[data-action-trigger]"),
+          actionTargetElement?.closest<HTMLElement>("[data-action-trigger]"),
         onNavigationInspectorFormSubmitValue = deps.selectedComponentId;
       if (
-        !onNavigationInspectorFormSubmitState ||
+        !actionTargetElement ||
         !onNavigationInspectorFormSubmitElement ||
         !onNavigationInspectorFormSubmitValue
       )
@@ -272,19 +272,19 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
           !navigationInspectorSubmitEventState ||
             !onNavigationInspectorFormSubmit.pages.some(
               (navigationInspectorSubmitEvent: any) =>
-                navigationInspectorSubmitEvent.path === onNavigationInspectorFormSubmitState.value,
+                navigationInspectorSubmitEvent.path === actionTargetElement.value,
             ) ||
             ((navigationInspectorSubmitEventState.actions = {
               ...(navigationInspectorSubmitEventState.actions || {}),
               [actionTrigger4!]: {
                 type: "navigate",
-                target: onNavigationInspectorFormSubmitState.value,
+                target: actionTargetElement.value,
               },
             }),
             navigationInspectorSubmitEventState.type === "navigation-button" &&
               (navigationInspectorSubmitEventState.properties = {
                 ...(navigationInspectorSubmitEventState.properties || {}),
-                targetPage: onNavigationInspectorFormSubmitState.value,
+                targetPage: actionTargetElement.value,
               }));
         });
     }),
@@ -305,18 +305,18 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
         deps.handleOperationError(new Error("请切换到编辑模式后再预览弹窗。"));
         return;
       }
-      const entryStateState = bindDocumentSectionElement.querySelector<HTMLSelectElement>("[data-popup-source]")!.value,
+      const entrySectionSelect = bindDocumentSectionElement.querySelector<HTMLSelectElement>("[data-popup-source]")!.value,
         onDocumentClickState: {
           popupSource: string;
           entityId?: string;
           popupId?: string;
         } = {
-          popupSource: entryStateState,
+          popupSource: entrySectionSelect,
         };
-      (entryStateState === "entity" &&
+      (entrySectionSelect === "entity" &&
         (onDocumentClickState.entityId =
           bindDocumentSectionElement.querySelector<HTMLInputElement>("[data-popup-entity]")!.value),
-        entryStateState === "custom" &&
+        entrySectionSelect === "custom" &&
           (onDocumentClickState.popupId =
             bindDocumentSectionElement.querySelector<HTMLSelectElement>("[data-popup-custom]")!.value));
       try {

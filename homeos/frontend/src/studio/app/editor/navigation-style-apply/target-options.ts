@@ -8,24 +8,24 @@
 
 import { componentLabel as componentLabel2 } from "../editor-component-collections";
 
-export function runVariantPeer({
-  value: runVariantLocal,
-  label: runVariantInner,
-  detail: runVariantOuter,
-  target: runVariantUpper = false,
+export function createNavigationStyleApplyOption({
+  value: optionValue,
+  label: optionLabel,
+  detail: optionDetail,
+  target: isTarget = false,
 }: any) {
   const deleteAssetRequestIdElement = document.createElement("label");
   deleteAssetRequestIdElement.className = "navigation-style-apply-option";
   const deleteAssetRequestIdElementElement = document.createElement("input");
   ((deleteAssetRequestIdElementElement.type = "checkbox"),
     (deleteAssetRequestIdElementElement.checked = true),
-    runVariantUpper
-      ? (deleteAssetRequestIdElementElement.dataset.navigationTargetId = runVariantLocal)
-      : (deleteAssetRequestIdElementElement.dataset.navigationStyleProperty = runVariantLocal));
+    isTarget
+      ? (deleteAssetRequestIdElementElement.dataset.navigationTargetId = optionValue)
+      : (deleteAssetRequestIdElementElement.dataset.navigationStyleProperty = optionValue));
   const deleteAssetErrorElement = document.createElement("span");
-  if (((deleteAssetErrorElement.textContent = runVariantInner), runVariantOuter)) {
+  if (((deleteAssetErrorElement.textContent = optionLabel), optionDetail)) {
     const deleteAssetRequestIdElementPanel = document.createElement("small");
-    ((deleteAssetRequestIdElementPanel.textContent = runVariantOuter),
+    ((deleteAssetRequestIdElementPanel.textContent = optionDetail),
       deleteAssetErrorElement.append(deleteAssetRequestIdElementPanel));
   }
   return (
@@ -39,10 +39,10 @@ interface NavigationStyleApplyTargetDeps {
   navigationStyleApplyTargetsElement: any;
 }
 
-export function runVariantLower(deps: NavigationStyleApplyTargetDeps, runVariantLeft: any, runVariantRight: any) {
+export function renderNavigationStyleApplyTargets(deps: NavigationStyleApplyTargetDeps, targets: any, formatDetail: any) {
   const { navigationStyleApplyTargetsElement } = deps;
   const deleteAssetErrorById = new Map();
-  runVariantLeft.forEach(
+  targets.forEach(
     ({
       component: deleteAssetErrorState,
       page: deleteAssetErrorValue,
@@ -62,7 +62,7 @@ export function runVariantLower(deps: NavigationStyleApplyTargetDeps, runVariant
   const onDeleteAssetFolderCloseButtonClickById = new Map();
   for (const onDeleteAssetFolderCloseButtonClick of ["shared", "page"]) {
     if (
-      !runVariantLeft.some(
+      !targets.some(
         (onDeleteAssetFolderCancelButtonClick: any) =>
           onDeleteAssetFolderCancelButtonClick.scope === onDeleteAssetFolderCloseButtonClick,
       )
@@ -111,32 +111,32 @@ export function runVariantLower(deps: NavigationStyleApplyTargetDeps, runVariant
       "navigation-style-apply-page-options"),
       onDeleteAssetFolderConfirmButtonClickElementSection.replaceChildren(
         ...onDeleteAssetFolderDialogClose.map((onDeleteAssetFolderConfirmButtonClick: any) =>
-          runVariantPeer({
+          createNavigationStyleApplyOption({
             value: onDeleteAssetFolderConfirmButtonClick.id,
             label: componentLabel2(onDeleteAssetFolderConfirmButtonClick),
             detail:
-              typeof runVariantRight == "function"
-                ? runVariantRight(onDeleteAssetFolderConfirmButtonClick)
-                : runVariantRight,
+              typeof formatDetail == "function"
+                ? formatDetail(onDeleteAssetFolderConfirmButtonClick)
+                : formatDetail,
             target: true,
           }),
         ),
       ));
-    const onDeleteAssetFolderConfirmButtonClickState = [
+    const navigationTargetCheckboxes = [
         ...onDeleteAssetFolderConfirmButtonClickElementSection.querySelectorAll<HTMLInputElement>(
           "[data-navigation-target-id]",
         ),
       ],
       deleteAssetFolderRequestHandler = () => {
-        const deleteAssetFolderRequest = onDeleteAssetFolderConfirmButtonClickState.filter(
+        const deleteAssetFolderRequest = navigationTargetCheckboxes.filter(
             (deleteAssetFolderRequestElement) => deleteAssetFolderRequestElement.checked,
           ).length,
           isDeleteAssetFolderRequest =
-            deleteAssetFolderRequest === onDeleteAssetFolderConfirmButtonClickState.length;
+            deleteAssetFolderRequest === navigationTargetCheckboxes.length;
         ((onDeleteAssetFolderConfirmButtonClickElementElement.textContent =
           deleteAssetFolderRequest +
           "/" +
-          onDeleteAssetFolderConfirmButtonClickState.length +
+          navigationTargetCheckboxes.length +
           " 个控件"),
           (onDeleteAssetFolderConfirmButtonClickElementPanel.textContent =
             isDeleteAssetFolderRequest ? "取消全选" : "全选"),
@@ -149,10 +149,10 @@ export function runVariantLower(deps: NavigationStyleApplyTargetDeps, runVariant
           ));
       };
     (onDeleteAssetFolderConfirmButtonClickElementPanel.addEventListener("click", () => {
-      const isDeleteAssetFolderRequestActive = !onDeleteAssetFolderConfirmButtonClickState.every(
+      const isDeleteAssetFolderRequestActive = !navigationTargetCheckboxes.every(
         (deleteAssetFolderRequestElementElement) => deleteAssetFolderRequestElementElement.checked,
       );
-      (onDeleteAssetFolderConfirmButtonClickState.forEach((deleteAssetFolderErrorElement) => {
+      (navigationTargetCheckboxes.forEach((deleteAssetFolderErrorElement) => {
         deleteAssetFolderErrorElement.checked = isDeleteAssetFolderRequestActive;
       }),
         deleteAssetFolderRequestHandler());

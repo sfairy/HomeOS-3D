@@ -1,4 +1,4 @@
-import { createCacheLogger, runCacheTask } from "./cache-shared";
+import { createCacheLogger, executeTaskWithTimeout } from "./cache-shared";
 
 /** 几何/中间结果持久缓存：把可复用的几何（墙 union、楼板开洞、家具批量网格等）落盘，热启动时直接取回。 */
 const GEOMETRY_CACHE_VERSION = "20260930-v1";
@@ -141,7 +141,7 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
       }
     };
   function runWithTimeout(task: any, durationMs = 1500): Promise<any> {
-    return runCacheTask(env, task, {
+    return executeTaskWithTimeout(env, task, {
       duration: durationMs,
       onTimeout: () => stats.fallbacks++,
     });

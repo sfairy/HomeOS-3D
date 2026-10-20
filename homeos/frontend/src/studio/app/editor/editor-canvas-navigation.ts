@@ -41,13 +41,13 @@ export function normalizeMarquee(
 }
 
 export function rectIntersects(
-  a: { x: number; y: number; width: number; height: number },
-  b: { x: number; y: number; width: number; height: number },
+  leftRect: { x: number; y: number; width: number; height: number },
+  rightRect: { x: number; y: number; width: number; height: number },
 ): boolean {
   return (
-    a.x < b.x + b.width &&
-    a.x + a.width > b.x &&
-    a.y < b.y + b.height &&
-    a.y + a.height > b.y
+    leftRect.x < rightRect.x + rightRect.width &&
+    leftRect.x + leftRect.width > rightRect.x &&
+    leftRect.y < rightRect.y + rightRect.height &&
+    leftRect.y + leftRect.height > rightRect.y
   )
 }

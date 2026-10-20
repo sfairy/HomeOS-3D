@@ -430,7 +430,7 @@ export function toggleModuleTabsCore(deps: StageControlsDeps, shouldHideTabs: an
       }));
   }
 
-export function runModuleSwitchAnimationCore(deps: StageControlsDeps, switchContent: any) {
+export function animateModuleSwitchCore(deps: StageControlsDeps, switchContent: any) {
     const previousOpacityList = deps.markerLayerElement.animate
       ? [...deps.markerLayerElement.children].map((opacityChild) =>
           Number(deps.getComputedStyle(opacityChild).opacity),

@@ -1072,7 +1072,7 @@ export function mountInteraction3d(
   // 其余情况整层不存在、不出帧（按需帧循环见 `weather-effects`）。
   const WEATHER_PREVIEW_TIMEOUT_MS = 12000;
   let weatherEffects: any = null,
-    weatherPreviewState = "",
+    weatherPreviewCondition = "",
     weatherPreviewTimeoutId: any = null;
   const boundWeatherEntityId = () => String(componentProperties.weather?.entityId || "");
   function weatherEffectsActive() {
@@ -1094,14 +1094,14 @@ export function mountInteraction3d(
     if (isDisposed) return;
     const weatherEntityId = boundWeatherEntityId();
     // 没绑定、也没在预览：连 canvas 都不建，避免给不关心天气的户型带来任何开销。
-    if (!weatherEffects && !weatherEntityId && !weatherPreviewState) return;
+    if (!weatherEffects && !weatherEntityId && !weatherPreviewCondition) return;
     const isActive = weatherEffectsActive();
-    if (!isActive && weatherPreviewState) closeWeatherPreview();
-    if (!weatherEffects && isActive && (weatherEntityId || weatherPreviewState))
+    if (!isActive && weatherPreviewCondition) closeWeatherPreview();
+    if (!weatherEffects && isActive && (weatherEntityId || weatherPreviewCondition))
       weatherEffects = createWeatherEffects(hostElement);
     weatherEffects?.update(
-      weatherPreviewState
-        ? { state: weatherPreviewState }
+      weatherPreviewCondition
+        ? { state: weatherPreviewCondition }
         : (states ?? getCurrentStates())[weatherEntityId],
       isActive,
     );
@@ -1110,8 +1110,8 @@ export function mountInteraction3d(
   function closeWeatherPreview() {
     if (weatherPreviewTimeoutId !== null) clearTimeout(weatherPreviewTimeoutId);
     weatherPreviewTimeoutId = null;
-    if (!weatherPreviewState) return;
-    weatherPreviewState = "";
+    if (!weatherPreviewCondition) return;
+    weatherPreviewCondition = "";
     syncWeatherEffects();
   }
   const publishStates = (incomingPatch: any = null) => {
@@ -2002,7 +2002,7 @@ export function mountInteraction3d(
           (securityAlarmOverlay = null),
           (weatherPreviewTimeoutId !== null && clearTimeout(weatherPreviewTimeoutId)),
           (weatherPreviewTimeoutId = null),
-          (weatherPreviewState = ""),
+          (weatherPreviewCondition = ""),
           weatherEffects?.dispose(),
           (weatherEffects = null),
           editSubscribersSet.clear(),
@@ -2292,7 +2292,7 @@ export function mountInteraction3d(
       !["rainy", "snowy", "lightning-rainy", "snowy-rainy"].includes(weatherState)
         ? false
         : (clearTimeout(weatherPreviewTimeoutId),
-          (weatherPreviewState = weatherState),
+          (weatherPreviewCondition = weatherState),
           (weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS)),
           syncWeatherEffects(),
           true)),

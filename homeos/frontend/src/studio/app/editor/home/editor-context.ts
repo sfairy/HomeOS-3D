@@ -14,7 +14,7 @@
  */
 import type { normalizeBaseLighting as normalizeBaseLighting2 } from "../../3d-studio/loaders/studio-normalization";
 
-interface EditorContext {
+export interface EditorContext {
   baseLightingComponentId: string;
   baseLightingSettings: ReturnType<typeof normalizeBaseLighting2>;
   lightingPanelDragStateState: any;

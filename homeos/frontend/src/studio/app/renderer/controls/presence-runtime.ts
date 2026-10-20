@@ -256,17 +256,17 @@ export function presenceMotionEventConfig(
 }
 export function presenceSensorPresentation(
   stateSource: unknown,
-  overrideState = "auto",
+  overrideMode = "auto",
   presentationOptions: PresencePresentationOptions = {},
 ): PresencePresentationResult {
-  if (overrideState === "on")
+  if (overrideMode === "on")
     return {
       key: "occupied",
       label: "有人",
       active: true,
       available: true,
     };
-  if (overrideState === "off")
+  if (overrideMode === "off")
     return {
       key: "clear",
       label: "无人",

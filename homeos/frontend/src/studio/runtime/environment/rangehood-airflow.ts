@@ -24,14 +24,14 @@ export function createRangehoodSuction(THREE: any) {
       bottomDepth = 0.03 + (stripeInSide % 2) * 0.15,
       topDepth = 0.005 + (stripeInSide % 2) * 0.055;
     for (let sampleIndex = 0; sampleIndex <= 56; sampleIndex++) {
-      const t = sampleIndex / 56,
-        smoothT = t * t * (3 - 2 * t),
+      const sampleRatio = sampleIndex / 56,
+        smoothT = sampleRatio * sampleRatio * (3 - 2 * sampleRatio),
         lateralOffset = THREE.MathUtils.lerp(bottomOffset, topOffset, smoothT),
         depthOffset = THREE.MathUtils.lerp(bottomDepth, topDepth, smoothT),
-        yPosition = -0.54 + t * 0.56;
+        yPosition = -0.54 + sampleRatio * 0.56;
       for (const side of [-1, 1])
         (positionValues.push(lateralOffset, yPosition, depthOffset),
-          uvValues.push((side + 1) / 2, t),
+          uvValues.push((side + 1) / 2, sampleRatio),
           sideValues.push(side),
           phaseValues.push(stripeIndex * 0.371));
       if (sampleIndex < 56) {

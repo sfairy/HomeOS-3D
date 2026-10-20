@@ -494,18 +494,18 @@ export function climateIsPoweredOn(powerState: any, powerDeviceType = "air-condi
   }
   return !["off", "unknown", "unavailable"].includes(lowercasedState);
 }
-export function climateIsRunning(runState: any, runDeviceType = "air-conditioner") {
-  if (!climateIsPoweredOn(runState, runDeviceType)) return false;
-  if (runDeviceType === "water-heater") {
-    const measuredTemperature = toNumberOrDefault(runState?.attributes?.current_temperature),
-      targetTemperatureValue = toNumberOrDefault(runState?.attributes?.temperature);
+export function climateIsRunning(climateState: any, deviceType = "air-conditioner") {
+  if (!climateIsPoweredOn(climateState, deviceType)) return false;
+  if (deviceType === "water-heater") {
+    const measuredTemperature = toNumberOrDefault(climateState?.attributes?.current_temperature),
+      targetTemperatureValue = toNumberOrDefault(climateState?.attributes?.temperature);
     return measuredTemperature !== null && targetTemperatureValue !== null
       ? measuredTemperature < targetTemperatureValue - 0.4
       : true;
   }
-  if (runDeviceType === "bath-heater")
-    return bathHeaterModeUsesAirflow(climatePresentationMode(runState, runDeviceType));
-  const hvacAction = String(runState?.attributes?.hvac_action || "")
+  if (deviceType === "bath-heater")
+    return bathHeaterModeUsesAirflow(climatePresentationMode(climateState, deviceType));
+  const hvacAction = String(climateState?.attributes?.hvac_action || "")
     .trim()
     .toLowerCase();
   return !["idle", "off"].includes(hvacAction);

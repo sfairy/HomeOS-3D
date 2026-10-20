@@ -597,11 +597,11 @@ export function showEntityDetails(this: PanelRenderer, entityDetailsComponent: a
             ));
         }),
         airerLightSync(),
-        (coverVisualSync = ({ position: coverPosition = 0, state: coverState = "" } = {}) => {
+        (coverVisualSync = ({ position: coverPosition = 0, state: coverEntityState = "" } = {}) => {
           const clampedCoverPosition = Math.max(0, Math.min(100, Number(coverPosition) || 0)),
             coverPresentationState = coverPresentationState2(
               {
-                state: coverState,
+                state: coverEntityState,
                 attributes: {
                   current_position: clampedCoverPosition,
                 },
@@ -609,7 +609,7 @@ export function showEntityDetails(this: PanelRenderer, entityDetailsComponent: a
               isOpenDirection,
             ),
             physicalCoverStateValue = physicalCoverState2(
-              coverState || isEntityDetailsPreviewEntityStateText,
+              coverEntityState || isEntityDetailsPreviewEntityStateText,
               isOpenDirection,
             ),
             isEntityDetailsPreviewIsCoverOpen =
@@ -648,7 +648,7 @@ export function showEntityDetails(this: PanelRenderer, entityDetailsComponent: a
             ),
             coverVisualButton.classList.toggle(
               "is-moving",
-              coverState === "opening" || coverState === "closing",
+              coverEntityState === "opening" || coverEntityState === "closing",
             ),
             coverVisualButton.setAttribute(
               "aria-pressed",
@@ -665,7 +665,7 @@ export function showEntityDetails(this: PanelRenderer, entityDetailsComponent: a
                   ? "" +
                       componentDialogTitle(entityDetailsComponent, "梦幻帘") +
                       dreamCurtainStatusText2(
-                        coverState || isEntityDetailsPreviewEntityStateText,
+                        coverEntityState || isEntityDetailsPreviewEntityStateText,
                         clampedCoverPosition,
                         isOpenDirection,
                       )

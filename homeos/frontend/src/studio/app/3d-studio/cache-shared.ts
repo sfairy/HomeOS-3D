@@ -21,7 +21,7 @@ export function createCacheLogger(env: any, prefix: any, stats: any) {
 }
 
 /** 跑一次性任务并加超时：任务用 `settle(result)` 交付结果； */
-export function runCacheTask(env: any, task: any, { duration, onTimeout }: any) {
+export function executeTaskWithTimeout(env: any, task: any, { duration, onTimeout }: any) {
   return new Promise((resolve) => {
     let isSettled = false;
     const settle = (result: any) => {

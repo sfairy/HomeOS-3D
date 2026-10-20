@@ -115,7 +115,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
     let climateDetailsSnapshot = climateState;
     const climateEffectMode = (climateStateArg: any) =>
         climateEffectMode2(climateStateArg, climateStructureType),
-      syncClimateState = (nextClimateState = climateDetailsSnapshot) => {
+      syncClimateDetails = (nextClimateState = climateDetailsSnapshot) => {
         climateDetailsSnapshot = nextClimateState || climateDetailsSnapshot;
         const climateVisualModeName = climateEffectMode(climateDetailsSnapshot),
           accentBlendAmount = Math.max(
@@ -252,7 +252,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
             targetTemperatureValue >= maximumTemperature - temperatureStepEpsilon),
           (temperatureDecreaseButton.title = "最低 " + minimumTemperature + "°C"),
           (temperatureIncreaseButton.title = "最高 " + maximumTemperature + "°C"),
-          syncClimateState(),
+          syncClimateDetails(),
           isForcedCommit &&
             (temperatureValueLabel.classList.remove("is-changing"),
             window.requestAnimationFrame(() =>
@@ -680,7 +680,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
                           attributes: detailsGroupOptions,
                         });
                 }
-                syncClimateState();
+                syncClimateDetails();
               } catch (climateUpdateError: any) {
                 (applySelectValue(currentValue), this.options.onError?.(climateUpdateError));
               } finally {
@@ -825,7 +825,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
                       hvac_action: hvacActionText,
                     },
                   }),
-                    syncClimateState(),
+                    syncClimateDetails(),
                     onClimatePowerChange?.(detailsOptionValue !== "off"));
                 } else {
                   if (createClimateDetailsGroupServiceName === "set_preset_mode") {
@@ -860,7 +860,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
                           ? "heating"
                           : "fan"),
                       (climateDetailsSnapshot = waterHeaterStateOptions),
-                      syncClimateState(),
+                      syncClimateDetails(),
                       onClimatePowerChange?.(!isOptionActive));
                   } else
                     createClimateDetailsGroupServiceName === "set_operation_mode" &&
@@ -872,7 +872,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
                           operation_mode: detailsOptionValue,
                         },
                       }),
-                      syncClimateState(),
+                      syncClimateDetails(),
                       onClimatePowerChange?.(detailsOptionValue !== "off"));
                 }
               } catch (waterHeaterUpdateError: any) {
@@ -1091,7 +1091,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
                   percentage: normalizedFanPercentage,
                 },
               }),
-              syncClimateState(),
+              syncClimateDetails(),
               onClimatePowerChange?.(normalizedFanPercentage > 0));
           } catch (fanPercentageError: any) {
             ((fanPercentageSlider.value = String(fanSpeedPercent)),
@@ -1275,7 +1275,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
           (activePendingTemperature = null),
           applyCommittedTemperature());
       }),
-      syncClimateState(),
+      syncClimateDetails(),
       climateDetailsPanel
     );
   }

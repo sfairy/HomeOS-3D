@@ -36,13 +36,13 @@ export function createDemandFrameLoop({
       }
       (timeoutId !== null && cancel(timeoutId),
         (timeoutId = null),
-        animationFrameId === null && (onWake(), (animationFrameId = requestFrame(runFrameTick))));
+        animationFrameId === null && (onWake(), (animationFrameId = requestFrame(tickFrameLoop))));
     }
   }
-  function runFrameTick(frameTimestamp = now()) {
+  function tickFrameLoop(frameTimestamp = now()) {
     if (((animationFrameId = null), isDisposed || !isAvailable)) return;
     if (frameTimestamp + 1.5 < nextFrameTimeMs) {
-      animationFrameId = requestFrame(runFrameTick);
+      animationFrameId = requestFrame(tickFrameLoop);
       return;
     }
     ((nextFrameTimeMs =
@@ -61,7 +61,7 @@ export function createDemandFrameLoop({
     isDisposed ||
       !isAvailable ||
       (hasPendingWake || nextDelayMs <= 0
-        ? (animationFrameId = requestFrame(runFrameTick))
+        ? (animationFrameId = requestFrame(tickFrameLoop))
         : Number.isFinite(nextDelayMs) &&
           (timeoutId = schedule(() => {
             ((timeoutId = null), frameStats.deadlines++, wakeLoop());

@@ -1008,7 +1008,7 @@ export const navigationIconOptionState = {
     frameAngle: 45,
     frameOpacity: 0.9,
   },
-  navigationIconOptionStateState = {
+  navigationIconOptionLabels = {
     mediaVisible: {
       group: "画面",
       label: "画面显示",

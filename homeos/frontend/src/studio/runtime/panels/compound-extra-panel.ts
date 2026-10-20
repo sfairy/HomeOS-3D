@@ -384,7 +384,7 @@ export function createCompoundExtraPanel({
     return data;
   }
 
-  async function runAction(
+  async function triggerRuntimeAction(
     action: CompoundAction,
     dataOverride?: any,
     rangeKey?: string,
@@ -473,7 +473,7 @@ export function createCompoundExtraPanel({
           if (isDisabled()) return;
           const value = field.type === "select" ? input.value : Number(input.value);
           const rangeEntry = field.type === "range" ? feedback.commit(field.key, value) : null;
-          void runAction(
+          void triggerRuntimeAction(
             { service: field.service!, label: field.label },
             { [field.key]: value },
             field.key,
@@ -503,7 +503,7 @@ export function createCompoundExtraPanel({
       const button = createElement("button", action.label) as HTMLButtonElement;
       button.className = "i3d-climate-choice";
       button.type = "button";
-      button.addEventListener("click", () => void runAction(action));
+      button.addEventListener("click", () => void triggerRuntimeAction(action));
       actionsElement.append(button);
       actionButtons.push(button);
     }
@@ -568,7 +568,7 @@ export function createCompoundExtraPanel({
   powerButton.addEventListener(
     "click",
     () =>
-      void runAction({
+      void triggerRuntimeAction({
         service: stateOf()?.state === "on" ? "turn_off" : "turn_on",
         label: stateOf()?.state === "on" ? "关闭" : "开启",
       }),

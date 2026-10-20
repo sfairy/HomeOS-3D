@@ -984,12 +984,12 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                     climateVisualElement.append(climateVisualUnitBox, climateVisualAirflowBox);
                     const syncClimateVisual = ({
                         mode: climateMode = "off",
-                        visualMode: climateVisualModeState = "off",
+                        visualMode: visualMode = "off",
                         running: isClimateRunning = false,
                         accentColor: climateVisualAccentColor = "#65717a",
                         targetTemperature: targetTemperature,
                       }: ClimateVisualSyncPayload = {}) => {
-                        const isClimateOn = climateVisualModeState !== "off";
+                        const isClimateOn = visualMode !== "off";
                         (climateVisualElement.classList.toggle("is-on", isClimateOn),
                           climateVisualElement.classList.toggle("is-running", isClimateRunning),
                           climateVisualElement.classList.toggle(
@@ -998,7 +998,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                               isClimateOn &&
                               bathHeaterModeUsesAirflow2(climateMode),
                           ),
-                          (climateVisualElement.dataset.visualMode = climateVisualModeState),
+                          (climateVisualElement.dataset.visualMode = visualMode),
                           climateVisualElement.style.setProperty(
                             "--hb-climate-visual-accent",
                             climateVisualAccentColor,
@@ -1408,7 +1408,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                         ),
                         syncAirerVisual = ({
                           position: airerVisualPosition = 0,
-                          state: airerVisualState = "",
+                          state: airerEntityState = "",
                         } = {}) => {
                           const clampedAirerPosition = Math.max(
                               0,
@@ -1416,7 +1416,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                             ),
                             coverDisplayState = coverPresentationState2(
                               {
-                                state: airerVisualState,
+                                state: airerEntityState,
                                 attributes: {
                                   current_position: clampedAirerPosition,
                                 },
@@ -1424,7 +1424,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                               isCoverMotorReversed,
                             ),
                             coverPhysicalState = physicalCoverState2(
-                              airerVisualState || currentCoverState?.state,
+                              airerEntityState || currentCoverState?.state,
                               isCoverMotorReversed,
                             ),
                             isCoverFullyOpen =
@@ -1466,7 +1466,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                             ),
                             coverVisualElement.classList.toggle(
                               "is-moving",
-                              airerVisualState === "opening" || airerVisualState === "closing",
+                              airerEntityState === "opening" || airerEntityState === "closing",
                             ),
                             coverVisualElement.setAttribute(
                               "aria-pressed",
@@ -1482,7 +1482,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                                   Math.round(clampedAirerPosition) + "%")
                               : isDreamCurtain
                                 ? (popupModuleStatus.textContent = dreamCurtainStatusText2(
-                                    airerVisualState || currentCoverState?.state,
+                                    airerEntityState || currentCoverState?.state,
                                     clampedAirerPosition,
                                     isCoverMotorReversed,
                                   ))
@@ -1506,7 +1506,7 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                                   ? "" +
                                       popupModuleTitle.textContent +
                                       dreamCurtainStatusText2(
-                                        airerVisualState || currentCoverState?.state,
+                                        airerEntityState || currentCoverState?.state,
                                         clampedAirerPosition,
                                         isCoverMotorReversed,
                                       )

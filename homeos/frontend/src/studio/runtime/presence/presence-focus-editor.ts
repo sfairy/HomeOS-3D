@@ -88,7 +88,7 @@ export function openPresenceFocusEditor({
           String((cameraState?.mode || "orthographic") === projectionMode),
         );
     },
-    runFocusCommand = async (commandName: any, commandPayload: any = null) => {
+    queueFocusCommand = async (commandName: any, commandPayload: any = null) => {
       if (!isReady || isBusy || isClosed) return;
       const isFocalLengthCommand = commandName === "focus-focal-length",
         previousQueuePromise = commandQueue;
@@ -118,9 +118,9 @@ export function openPresenceFocusEditor({
         (releaseQueueGate!(), isFocalLengthCommand || (isBusy = false), isClosed || syncControls());
       }
     },
-    saveButtonElement = createButton("保存视角", () => runFocusCommand("save-light-camera"));
+    saveButtonElement = createButton("保存视角", () => queueFocusCommand("save-light-camera"));
   saveButtonElement.className = "primary";
-  const adjustButtonElement = createButton("调整视角", () => runFocusCommand("edit-light-camera")),
+  const adjustButtonElement = createButton("调整视角", () => queueFocusCommand("edit-light-camera")),
     closeButtonElement = createButton("取消调整", closeEditor);
   headerElement.append(
     createElement("strong", (item.label || "人在传感器") + " · 聚焦视角"),
@@ -138,7 +138,7 @@ export function openPresenceFocusEditor({
     ["perspective", "透视"],
   ]) {
     const modeButtonElement = createButton(modeLabel, () =>
-      runFocusCommand("focus-projection", modeId),
+      queueFocusCommand("focus-projection", modeId),
     );
     (projectionButtonsByMode.set(modeId, modeButtonElement),
       projectionGroupElement.append(modeButtonElement));
@@ -159,7 +159,7 @@ export function openPresenceFocusEditor({
         return;
       }
       ((focalLengthInputElement.value = String(Math.max(18, Math.min(120, typedFocalLength)))),
-        runFocusCommand("focus-focal-length", Number(focalLengthInputElement.value)));
+        queueFocusCommand("focus-focal-length", Number(focalLengthInputElement.value)));
     }));
   const focalLengthFieldElement = createElement("label");
   (focalLengthFieldElement.append(createElement("span", "焦段（mm）"), focalLengthInputElement),
@@ -201,7 +201,7 @@ export function openPresenceFocusEditor({
         isReady ||
           isClosed ||
           ((isReady = true),
-          runFocusCommand(previewOnly ? "preview-light-camera" : "edit-light-camera"));
+          queueFocusCommand(previewOnly ? "preview-light-camera" : "edit-light-camera"));
       },
       onLoadError: (loadError: any) => {
         statusElement.textContent = loadError.message || String(loadError);

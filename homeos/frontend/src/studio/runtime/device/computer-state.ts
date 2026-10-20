@@ -50,13 +50,13 @@ export function computerPower(
       entityState.available !== false &&
       typeof entityState.state == "string" &&
       !["unknown", "unavailable", ""].includes(entityState.state),
-    on = available && !OFF_STATES.has(String(entityState.state).toLowerCase()),
-    targetOn = typeof requestedOn == "boolean" ? requestedOn : !on,
+    isOn = available && !OFF_STATES.has(String(entityState.state).toLowerCase()),
+    targetOn = typeof requestedOn == "boolean" ? requestedOn : !isOn,
     supported = domain === "switch" || domain === "input_boolean";
   return {
     entityId,
     domain,
-    on,
+    on: isOn,
     available,
     supported,
     service: targetOn ? "turn_on" : "turn_off",

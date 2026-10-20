@@ -15,11 +15,11 @@ const WEATHER_VISUALS_BY_CONDITION = {
   hail: ["hail", "冰雹"],
   exceptional: ["code-red", "异常天气"],
 };
-export function weatherVisual(condition: any, sunState = "") {
+export function weatherVisual(condition: any, sunPosition = "") {
   let normalizedCondition = String(condition || "")
     .trim()
     .toLowerCase();
-  const isBelowHorizon = sunState === "below_horizon";
+  const isBelowHorizon = sunPosition === "below_horizon";
   return (
     isBelowHorizon && normalizedCondition === "sunny" && (normalizedCondition = "clear-night"),
     isBelowHorizon && normalizedCondition === "partlycloudy"

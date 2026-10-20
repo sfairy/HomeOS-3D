@@ -700,7 +700,7 @@ export function createCurtainMotion({
   function setState(
     coverBindingId: any,
     receivedCoverState: any,
-    { immediate: immediateState = false } = {},
+    { immediate: isImmediate = false } = {},
   ) {
     if (isDisposed || coverBindingId == null) return;
     const coverBindingIdKey = String(coverBindingId),
@@ -713,7 +713,7 @@ export function createCurtainMotion({
       };
     coverStatesByEntityId.set(coverBindingIdKey, nextMotionState);
     const boundRig = rigsByBindingId.get(coverBindingIdKey);
-    boundRig && updateRigTarget(boundRig, nextMotionState, immediateState) && markPoseDirty();
+    boundRig && updateRigTarget(boundRig, nextMotionState, isImmediate) && markPoseDirty();
   }
   function isMoving() {
     return (

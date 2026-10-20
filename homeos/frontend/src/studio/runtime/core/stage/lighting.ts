@@ -79,7 +79,7 @@ export function updateLampButtonCore(deps: StageLightingDeps, mountOptionsLightS
       ));
   }
 
-export async function runLightCommandCore(deps: StageLightingDeps, serviceName: any, serviceValue: any, commandTargetItem = deps.getFocusedEntry()) {
+export async function sendLightCommandCore(deps: StageLightingDeps, serviceName: any, serviceValue: any, commandTargetItem = deps.getFocusedEntry()) {
     if (!(!commandTargetItem || deps.isEditing || deps.isControlBusy))
       try {
         const commandLightState = deps.resolveLightState(commandTargetItem);

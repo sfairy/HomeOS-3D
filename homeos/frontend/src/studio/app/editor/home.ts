@@ -1,42 +1,26 @@
-import { confirmAction } from "../shared/ui-confirm";
 import { DEFAULT_PERSPECTIVE_CORNERS } from "./metadata/editor-perspective-constants";
 import {
-  normalizeFlowLine as normalizeFlowLine2,
-  FLOW_LINE_FIELDS as FLOW_LINE_FIELDS2,
   applyFlowLineStyle as applyFlowLineStyle2,
 } from "../shared/flow-line-model";
 import {
   applyPercentageBarChange as applyPercentageBarChange2,
   percentageBarDefaults as percentageBarDefaults2,
 } from "../shared/percentage-bar-model";
-import {
-  PanelRenderer as PanelRenderer2,
-  setBuiltinAssetVersions as setBuiltinAssetVersions2,
-} from "../renderer/panel-renderer";
-import {
-  lightStatisticsEntityStateStatus as lightStatisticsEntityStateStatus2,
-  lightStatisticsEntitySupport as lightStatisticsEntitySupport2,
-} from "../renderer/registry";
+
+
+
+
 import {
   createComponentFromTemplate as createComponentFromTemplate2,
-  dateComponentDimensions as dateComponentDimensions2,
-  listComponentTemplates as listComponentTemplates2,
-  timeComponentDimensions as timeComponentDimensions2,
-  weatherComponentDimensions as weatherComponentDimensions2,
 } from "./component-templates";
 import {
   clone as clone2,
   newId as newId2,
   normalizedHexColor as normalizedHexColor2,
   rgbToHex as rgbToHex2,
-  rgbToHsv as rgbToHsv2,
-  hsvToRgb255 as hsvToRgb2,
-  roundField as roundField2,
   clampNumber as clampNumber2,
-  normalizedFontWeight as normalizedFontWeight2,
-  visibilityIconSvg as visibilityIconSvg2,
 } from "./editor-utils";
-import { hexToRgbOrBlack as hexToRgb2 } from "@/shared/utils/ui/color.util"; // 3/6 位校验 + 非法回落黑（原 studio 副本不校验输入，非法值产 NaN 通道，已删）
+// 3/6 位校验 + 非法回落黑（原 studio 副本不校验输入，非法值产 NaN 通道，已删）
 import {
   packPopupModules as packPopupModules2,
 } from "../shared/popup-layout";
@@ -46,40 +30,31 @@ import {
 } from "./dashboard-resize";
 import {
   copyComponentsAcrossDocuments as copyComponentsAcrossDocuments2,
-  copyComponentTargets as copyComponentTargets2,
   copyComponentsToTarget as copyComponentsToTarget2,
 } from "./component-page-copy";
 import {
   manualRelatedEntityConfig as manualRelatedEntityConfig2,
   relatedPopupContext as relatedPopupContext2,
 } from "../shared/related-entities";
-import { createIconVisibilityVirtualEntity as createIconVisibilityVirtualEntity2 } from "../shared/virtual-entities";
 import { createButtonSound as createButtonSound2 } from "../shared/sound-effects";
 import {
   deferHiddenEditorDialogs as deferHiddenEditorDialogs2,
   installSettingsDialogBackdropGuard as installSettingsDialogBackdropGuard2,
 } from "./editor-dialogs";
 import { createEditorPickerElements as createEditorPickerElements2 } from "./picker/editor-picker-elements";
-import {
-  EDITOR_PICKER_PAGE_SIZES as EDITOR_PICKER_PAGE_SIZES2,
-  editorEntityPickerInitialPage as editorEntityPickerInitialPage2,
-  editorEntityPickerPage as editorEntityPickerPage2,
-} from "./picker/editor-picker-pagination";
+
+
 import { createEditorPickerQueries as createEditorPickerQueries2 } from "./picker/editor-picker-queries";
 import { createEditorAssetMatcher as createEditorAssetMatcher2 } from "./picker/editor-asset-queries";
 import { createEditorPickerLifecycle as createEditorPickerLifecycle2 } from "./picker/editor-picker-lifecycle";
 import { createInteraction3dEditorPickers as createInteraction3dEditorPickers2 } from "../bridge/pickers/editor-pickers";
-import {
-  nasProfiles as nasProfiles2,
-  reconcileNasDocument as reconcileNasDocument2,
-} from "../bridge/catalog/nas-catalog";
+
+
 import { createEditorAssetToolbar as createEditorAssetToolbar2 } from "./picker/editor-asset-toolbar";
 import {
-  TOGGLE_ENTITY_DOMAINS as TOGGLE_ENTITY_DOMAINS2,
   actionNeedsCurrentEntity as actionNeedsCurrentEntity2,
 } from "../shared/action-rules";
 import {
-  componentDirectLocation as componentDirectLocation2,
   findComponent as findComponent2,
   findComponentInItems as findComponentInItems2,
   findComponentLocation as findComponentLocation2,
@@ -87,45 +62,27 @@ import {
 import {
   applyCollectionLayerOrder as applyCollectionLayerOrder2,
   componentLabel as componentLabel2,
-  ensureSharedComponentReference as ensureSharedComponentReference2,
-  groupNameForCollection as groupNameForCollection2,
   nextTemplateInstanceName as nextTemplateInstanceName2,
   syncSharedComponentReferenceOrder as syncSharedComponentReferenceOrder2,
-  canGroupComponents as canGroupComponents2,
 } from "./editor-component-collections";
+
+
 import {
-  fitInspectorComponentToDimensions as fitInspectorComponentToDimensions2,
-  inspectorComponentMetrics as inspectorComponentMetrics2,
-} from "./editor-basic-inspectors";
-import {
-  rememberEditorProject as rememberEditorProject2,
-  restoredEditorProject as restoredEditorProject2,
   clonePageWithFreshIds as clonePageWithFreshIds2,
   findCustomPopup as findCustomPopup2,
-  greatestCommonDivisor as greatestCommonDivisor2,
   normalizedPopupClimateDeviceType as normalizedPopupClimateDeviceType2,
-  popupModuleEntityRecommended as popupModuleEntityRecommended2,
   uniquePagePath as uniquePagePath2,
 } from "./editor-document-management";
 import {
   createRecoveryWriter as createRecoveryWriter2,
-  documentSignature as documentSignature2,
-  editorComponentEntries as editorComponentEntries2,
-  editorComponentStructure as editorComponentStructure2,
-  editorDocumentFrameSignature as editorDocumentFrameSignature2,
-  recoveryStorageKey as recoveryStorageKey2,
 } from "./editor-history";
-import { validateGo2rtcDocument } from "@/studio/platform/go2rtc-url";
 import {
   DEFAULT_BASE_LIGHTING as DEFAULT_BASE_LIGHTING2,
   normalizeBaseLighting as normalizeBaseLighting2,
 } from "../3d-studio/loaders/studio-normalization";
 import { floorplanAutoDiagramExportResolution as floorplanAutoDiagramExportResolution2 } from "./floorplan-auto-diagram-layout";
-import {
-  guardInteraction3dChanges as guardInteraction3dChanges2,
-  renderInteraction3dThumbnail as renderInteraction3dThumbnail2,
-  updateInteraction3dCard as updateInteraction3dCard2,
-} from "../bridge/editor";
+
+
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
 import { navigateInShell } from '@/studio/platform/shell-navigation';
 import {
@@ -133,61 +90,35 @@ import {
   registerEditorCommandHandler,
   resetEditorFacade,
 } from '../../engine';
-import { applyEditorZoomCss } from './editor-canvas-navigation';
 import { setupEventLogWallInspector } from "./home-event-log-wall";
 import { setupPanelFrameInspector } from "./home-panel-frame";
 import {
-  syncIconButtonInspector as syncIconButtonInspectorExternal,
   type IconButtonInspectorContext,
 } from "./home-icon-button-inspector";
 import {
-  syncNavigationInspector as syncNavigationInspectorExternal,
   type NavigationInspectorContext,
 } from "./home-navigation-inspector";
 import {
-  syncLineChartInspector as syncLineChartInspectorExternal,
   type LineChartInspectorContext,
 } from "./home-line-chart-inspector";
 import {
-  syncAirConditionerInspector as syncAirConditionerInspectorExternal,
   type AirConditionerInspectorContext,
 } from "./home-air-conditioner-inspector";
-import {
-  coverMotorButtonElement as coverMotorButtonElementSync,
-  runExtraLocal as runExtraLocalCover,
-  clearCoverMotorDirectionValueById,
-  type CoverMotorInspectorContext,
-} from "./home-cover-motor-inspector";
-import { setupRelatedPopup, updateRelatedPopup } from "./home-related-popup";
-import {
-  renderCustomPopupEditor as renderCustomPopupEditorExternal,
-  syncCustomPopupStage as syncCustomPopupStageExternal,
-  type CustomPopupEditorContext,
-} from "./home-custom-popup-editor";
-import { syncTimeInspector as syncTimeInspectorExternal } from "./home-time-inspector";
-import { syncWeatherInspector as syncWeatherInspectorExternal } from "./home-weather-inspector";
-import { syncTitleButtonInspector as syncTitleButtonInspectorExternal } from "./home-title-button-inspector";
-import { syncLightStatisticsInspector as syncLightStatisticsInspectorExternal } from "./home-light-statistics-inspector";
-import { syncCameraInspector as syncCameraInspectorExternal } from "./home-camera-inspector";
-import { syncVacuumMapInspector as syncVacuumMapInspectorExternal } from "./home-vacuum-map-inspector";
+
+
+import { setupRelatedPopup } from "./home-related-popup";
+
+
 import {
   clientPointToCanvas,
-  computeAlignedPositions,
   normalizeMarquee,
   pickComponentsInMarquee,
-  type AlignMode,
-  componentBounds as componentBounds2,
 } from './editor-selection-tools';
-import { duplicateComponent, removeComponent } from "./editor-component-collections";
-import { navigationVisibilityComponentState, navigationVisibilityComponentValue, navigationPreviewClickComponentId, navigationPreviewClickComponentIdState, onNavigationStyleApplyDialogCloseValue, onNavigationStyleApplyConfirmButtonClickState, onNavigationStyleApplyConfirmButtonClickValue, styleSourceComponentIdState, styleComponentTypeState, styleComponentTypeValue, styleComponentTypeConfig, navigationIconOptionState, navigationIconOptionStateState, navigationIconDraftDocumentValue, navigationIconDraftDocumentConfig, entryStateRef, entryStateEntry } from "./metadata/editor-navigation-style-metadata";
-import { requestJson as requestJsonCore } from "./net/request-json";
+import { removeComponent } from "./editor-component-collections";
 import { createDateTimeWeatherLineChartInputTables } from "./metadata/date-weather-linechart-input-tables";
 import { createNavigationInputTables } from "./metadata/navigation-input-tables";
-import {
-  runVariantLower as runVariantLowerCore,
-  runVariantPeer,
-} from "./navigation-style-apply/target-options";
-import { formatLastSeen as formatLastSeenCore } from "./controls/number-stepper";
+
+
 import { createEffectPreviewInputTables } from "./metadata/effect-preview-input-tables";
 import { createInspectorSubmitTables } from "./metadata/inspector-submit-tables";
 import { createExportSpliceTables } from "./metadata/export-splice-tables";
@@ -197,13 +128,24 @@ import { attachLineChartInspectorInput } from "./bindings/line-chart-inspector-i
 import { attachNavigationInspectorInput } from "./bindings/navigation-inspector-input";
 import { attachFloorplanDiagramInspectorInput } from "./bindings/floorplan-diagram-inspector-input";
 import { attachPageshowDiagramPreviewRestore } from "./bindings/pageshow-diagram-preview-restore";
-import { syncProjectTemplateOptions } from "./bindings/project-template-options-render";
-import { runCopyBackupCore } from "./copy-backup/run-copy-backup";
-import { loadNavigationIconOptionsCore, positionTitleButtonIconMenuCore, stopHoverScrollCore, iconTooltipElementValueCore } from "./menus/title-button-menu";
-import { syncComponentActionControlsCore, applyTransformToInspectorCore, previewModeForIconCore, sharedReferenceIdCore } from "./inspectors/inspector-sync";
-import { nudgeDeltaXCore } from "./selection/nudge";
 import { createEditorContext } from "./home/editor-context";
 
+import { queryEditorElements } from "./home/elements/editor-elements";
+import { refreshEditorViewportFit as refreshEditorViewportFitImpl, refreshComponentDialogScale as refreshComponentDialogScaleImpl, refreshSoundToggle as refreshSoundToggleImpl, syncIconButtonInspector as syncIconButtonInspectorImpl, syncNavigationInspector as syncNavigationInspectorImpl, syncLineChartInspector as syncLineChartInspectorImpl, syncAirConditionerInspector as syncAirConditionerInspectorImpl, requestJson as requestJsonImpl, formatLastSeen as formatLastSeenImpl, setSettingsMessage as setSettingsMessageImpl, handleOperationError as handleOperationErrorImpl, errorPhase as errorPhaseImpl, value as valueImpl, hidePopupActionsMenu as hidePopupActionsMenuImpl, closeCustomSelect as closeCustomSelectImpl, positionCustomSelectMenu as positionCustomSelectMenuImpl, selectableEntities as selectableEntitiesImpl, openEntityPicker as openEntityPickerImpl, closeAllDropdownMenus as closeAllDropdownMenusImpl, closeDropdownMenu as closeDropdownMenuImpl, openColorPickerForInput as openColorPickerForInputImpl, setWorkspaceHasProject as setWorkspaceHasProjectImpl, hasActiveProject as hasActiveProjectImpl, destroyDashboardPreview as destroyDashboardPreviewImpl, syncWorkspaceEmptyState as syncWorkspaceEmptyStateImpl, type ShellControlsDeps } from "./home/functions/shell-controls";
+import { destroyDashboardPreviewRenderer as destroyDashboardPreviewRendererImpl, renderDashboardPreview as renderDashboardPreviewImpl, unbindDisplayDeviceError as unbindDisplayDeviceErrorImpl, renderWorkspaceResolution as renderWorkspaceResolutionImpl, setEditorMode as setEditorModeImpl, syncDefaultPageAction as syncDefaultPageActionImpl, setPageControlsEnabled as setPageControlsEnabledImpl, resizeWorkspaceCanvas as resizeWorkspaceCanvasImpl, ensureMarqueeOverlay as ensureMarqueeOverlayImpl, currentPage as currentPageImpl, groupSelectedComponents as groupSelectedComponentsImpl, ungroupComponent as ungroupComponentImpl, openGroupRenameDialog as openGroupRenameDialogImpl, normalizeHexColor as normalizeHexColorImpl, removedComponent as removedComponentImpl, removalPageEntry as removalPageEntryImpl, componentListForScope as componentListForScopeImpl, collectComponentsByType as collectComponentsByTypeImpl, findPageComponentsByType as findPageComponentsByTypeImpl, findReplaceableComponents as findReplaceableComponentsImpl, syncRendererSelection as syncRendererSelectionImpl, clearComponentSelection as clearComponentSelectionImpl, resetPreviewStates as resetPreviewStatesImpl, selectComponent as selectComponentImpl, mutateDocument as mutateDocumentImpl, type WorkspaceDocumentDeps } from "./home/functions/workspace-document";
+import { scaledSelectionPlacements as scaledSelectionPlacementsImpl, selectedComponentIdsFromDom as selectedComponentIdsFromDomImpl, setComponentsRotation as setComponentsRotationImpl, setComponentsVisibility as setComponentsVisibilityImpl, closeComponentMenu as closeComponentMenuImpl, openComponentMenu as openComponentMenuImpl, findCommonCopyTargets as findCommonCopyTargetsImpl, showCopySuccessDialog as showCopySuccessDialogImpl, handleCopySuccessConfirm as handleCopySuccessConfirmImpl, duplicateComponents as duplicateComponentsImpl, copyTargetsForDocument as copyTargetsForDocumentImpl, renderCopyTargetOptions as renderCopyTargetOptionsImpl, getDocumentCanvasSize as getDocumentCanvasSizeImpl, renderCopyScaleOptions as renderCopyScaleOptionsImpl, renderCopyComponentDialog as renderCopyComponentDialogImpl, openCopyComponentDialog as openCopyComponentDialogImpl, deleteComponentIds as deleteComponentIdsImpl, setComponentsLabelColor as setComponentsLabelColorImpl, renderComponentList as renderComponentListImpl, prependGroupBackButton as prependGroupBackButtonImpl, renderComponentLists as renderComponentListsImpl, setComponentScope as setComponentScopeImpl, syncAddComponentButton as syncAddComponentButtonImpl, renderComponentTemplates as renderComponentTemplatesImpl, renderNavigationIconPreview as renderNavigationIconPreviewImpl, type ComponentEditingDeps } from "./home/functions/component-editing";
+import { describeEntityDomain as describeEntityDomainImpl, normalizeWhitespace as normalizeWhitespaceImpl, navigationIconValue as navigationIconValueImpl, resolveEntityDisplayName as resolveEntityDisplayNameImpl, formatEntityLabel as formatEntityLabelImpl, formatEntitySummary as formatEntitySummaryImpl, collectEntityIds as collectEntityIdsImpl, describeEntityState as describeEntityStateImpl, showLightStatisticsMessage as showLightStatisticsMessageImpl, clearLightStatisticsSelection as clearLightStatisticsSelectionImpl, renderLightStatisticsEntityOptions as renderLightStatisticsEntityOptionsImpl, addLightStatisticsEntity as addLightStatisticsEntityImpl, effectIconName as effectIconNameImpl, removeLightStatisticsEntityAt as removeLightStatisticsEntityAtImpl, renderLightStatisticsEntityList as renderLightStatisticsEntityListImpl, flattenComponentTree as flattenComponentTreeImpl, collectPageComponents as collectPageComponentsImpl, findIconVisibilityVirtualEntity as findIconVisibilityVirtualEntityImpl, resolveEntityCatalog as resolveEntityCatalogImpl, registerOverflowScrollPreviewRow as registerOverflowScrollPreviewRowImpl, resolveOverflowScrollPreviewContainer as resolveOverflowScrollPreviewContainerImpl, findEnclosingScrollPreviewRow as findEnclosingScrollPreviewRowImpl, stopOverflowScrollAnimation as stopOverflowScrollAnimationImpl, ensureInspectorPickerValueSpan as ensureInspectorPickerValueSpanImpl, setPickerButtonLabel as setPickerButtonLabelImpl, type EntityLabelsDeps } from "./home/functions/entity-labels";
+import { closePickerMenu as closePickerMenuImpl, closeOtherPickerMenus as closeOtherPickerMenusImpl, resolveMdiIconUrl as resolveMdiIconUrlImpl, renderNavigationIconButton as renderNavigationIconButtonImpl, renderTitleButtonIconPreview as renderTitleButtonIconPreviewImpl, renderEntityIconButtonPreview as renderEntityIconButtonPreviewImpl, renderLightStatisticsIconPreview as renderLightStatisticsIconPreviewImpl, renderLightStatisticsButtonIcon as renderLightStatisticsButtonIconImpl, copyTextToClipboard as copyTextToClipboardImpl, enhanceEntityCopyButton as enhanceEntityCopyButtonImpl, enhanceEntityCopyButtons as enhanceEntityCopyButtonsImpl, ensureIconListPaginationState as ensureIconListPaginationStateImpl, hideIconNameTooltip as hideIconNameTooltipImpl, showIconNameTooltip as showIconNameTooltipImpl, bindIconNameTooltipEvents as bindIconNameTooltipEventsImpl, bindIconListInfiniteScroll as bindIconListInfiniteScrollImpl, iconTooltipElementCount as iconTooltipElementCountImpl, iconTooltipElementFlag as iconTooltipElementFlagImpl, iconTooltipElementStep as iconTooltipElementStepImpl, iconTooltipElementStore as iconTooltipElementStoreImpl, iconTooltipElementBuffer as iconTooltipElementBufferImpl, positionNavigationIconMenu as positionNavigationIconMenuImpl, positionIbeIconMenu as positionIbeIconMenuImpl, positionIconButtonIconMenu as positionIconButtonIconMenuImpl, layoutTitleButtonIconMenu as layoutTitleButtonIconMenuImpl, type IconPickersDeps } from "./home/functions/icon-pickers";
+import { positionLightStatisticsIconMenu as positionLightStatisticsIconMenuImpl, positionLightStatisticsEntityMenu as positionLightStatisticsEntityMenuImpl, resolveEntityPickerConfig as resolveEntityPickerConfigImpl, renderRelatedPopupEntityOptions as renderRelatedPopupEntityOptionsImpl, syncPopupEntityPickerButton as syncPopupEntityPickerButtonImpl, resolveAssetPreviewUrl as resolveAssetPreviewUrlImpl, refreshImageAssetPickerPreview as refreshImageAssetPickerPreviewImpl, resolveAssetFileUrl as resolveAssetFileUrlImpl, resolveEffectAssetUrl as resolveEffectAssetUrlImpl, assetMatchesId as assetMatchesIdImpl, allAssets as allAssetsImpl, findAssetById as findAssetByIdImpl, assetDisplayName as assetDisplayNameImpl, exportedAssetsInFolder as exportedAssetsInFolderImpl, canDeleteAssetFolder as canDeleteAssetFolderImpl, syncAssetFolderOptions as syncAssetFolderOptionsImpl, leftFolderName as leftFolderNameImpl, measureAssetImageSize as measureAssetImageSizeImpl, applyAssetNaturalSize as applyAssetNaturalSizeImpl, readEffectNaturalSize as readEffectNaturalSizeImpl, probeAssetNaturalSize as probeAssetNaturalSizeImpl, positionImageAssetMenu as positionImageAssetMenuImpl, positionAssetLargePreview as positionAssetLargePreviewImpl, scheduleAssetPreview as scheduleAssetPreviewImpl, hideAssetLargePreview as hideAssetLargePreviewImpl, type AssetPickerDeps } from "./home/functions/asset-picker";
+import { createAssetOptionButton as createAssetOptionButtonImpl, renderImageAssetOptions as renderImageAssetOptionsImpl, syncImageAssetSelection as syncImageAssetSelectionImpl, positionEffectAssetMenu as positionEffectAssetMenuImpl, renderEffectAssetOptions as renderEffectAssetOptionsImpl, syncEffectAssetSelection as syncEffectAssetSelectionImpl, assignActionControlIds as assignActionControlIdsImpl, initActionPopupConfig as initActionPopupConfigImpl, closePopupEntityMenus as closePopupEntityMenusImpl, syncPopupEntityButton as syncPopupEntityButtonImpl, renderPopupEntityOptions as renderPopupEntityOptionsImpl, positionPopupEntityMenu as positionPopupEntityMenuImpl, timeFitComponent as timeFitComponentImpl, renderTimeInspector as renderTimeInspectorImpl, weatherProperties as weatherPropertiesImpl, fitWeatherComponentToDimensions as fitWeatherComponentToDimensionsImpl, entitiesByEntityId as entitiesByEntityIdImpl, devicesByDeviceId as devicesByDeviceIdImpl, buildCustomPopupEditorContext as buildCustomPopupEditorContextImpl, renderCustomPopupEditor as renderCustomPopupEditorImpl, syncCustomPopupStage as syncCustomPopupStageImpl, buildTimeInspectorContext as buildTimeInspectorContextImpl, syncTimeInspector as syncTimeInspectorImpl, buildWeatherInspectorContext as buildWeatherInspectorContextImpl, syncWeatherInspector as syncWeatherInspectorImpl, type PopupInspectorsDeps } from "./home/functions/popup-inspectors";
+import { buildTitleButtonInspectorContext as buildTitleButtonInspectorContextImpl, syncTitleButtonInspector as syncTitleButtonInspectorImpl, buildLightStatisticsInspectorContext as buildLightStatisticsInspectorContextImpl, syncLightStatisticsInspector as syncLightStatisticsInspectorImpl, buildCameraInspectorContext as buildCameraInspectorContextImpl, syncCameraInspector as syncCameraInspectorImpl, buildVacuumMapInspectorContext as buildVacuumMapInspectorContextImpl, syncVacuumMapInspector as syncVacuumMapInspectorImpl, buildCoverMotorInspectorContext as buildCoverMotorInspectorContextImpl, coverMotorButtonElement as coverMotorButtonElementImpl, computeCoverMotorStyleChanges as computeCoverMotorStyleChangesImpl, reloadAssetCatalog as reloadAssetCatalogImpl, pollAssetCatalogVersion as pollAssetCatalogVersionImpl, ensureEntitiesLoaded as ensureEntitiesLoadedImpl, renderCustomPopupSelector as renderCustomPopupSelectorImpl, syncPopupEntityInputs as syncPopupEntityInputsImpl, syncPopupModuleClimateDeviceType as syncPopupModuleClimateDeviceTypeImpl, deviceNameValue as deviceNameValueImpl, initialPopupId as initialPopupIdImpl, renderPopupModuleEntityOptions as renderPopupModuleEntityOptionsImpl, closePopupModuleEntityMenu as closePopupModuleEntityMenuImpl, openPopupModuleDialog as openPopupModuleDialogImpl, renderPageSelect as renderPageSelectImpl, retainExistingSelection as retainExistingSelectionImpl, collectChangedComponents as collectChangedComponentsImpl, type InspectorContextsDeps } from "./home/functions/inspector-contexts";
+import { collectPageComponentBounds as collectPageComponentBoundsImpl, alignSelectedComponents as alignSelectedComponentsImpl, ensureEditorRenderer as ensureEditorRendererImpl, renderEditorWorkspace as renderEditorWorkspaceImpl, syncHistoryButtons as syncHistoryButtonsImpl, applyEditorCanvasZoom as applyEditorCanvasZoomImpl, selectAllPageComponents as selectAllPageComponentsImpl, discardRecoverySnapshot as discardRecoverySnapshotImpl, readRecoverySnapshot as readRecoverySnapshotImpl, scheduleRecoverySnapshot as scheduleRecoverySnapshotImpl, persistRecoverySnapshot as persistRecoverySnapshotImpl, writeError as writeErrorImpl, resetHistoryState as resetHistoryStateImpl, refreshDirtyState as refreshDirtyStateImpl, historyEntries as historyEntriesImpl, historyEntry as historyEntryImpl, initialPagePath as initialPagePathImpl, projectSummary as projectSummaryImpl, recoverDraftConflict as recoverDraftConflictImpl, saveDraft as saveDraftImpl, interaction3dEntryActive as interaction3dEntryActiveImpl, loadHaConnection as loadHaConnectionImpl, entityLoadError as entityLoadErrorImpl, reuseTokenForNewUrl as reuseTokenForNewUrlImpl, syncAspectLockButton as syncAspectLockButtonImpl, type WorkspaceHistoryDeps } from "./home/functions/workspace-history";
+import { actionDraftDocument as actionDraftDocumentImpl, targetPageCandidate as targetPageCandidateImpl, buttonVisibilityDraftDocument as buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent as titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument as titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError as lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent as lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument as imageEntityDraftDocumentImpl, openAssetPicker as openAssetPickerImpl, assetIdToDelete as assetIdToDeleteImpl, folderDocumentNode as folderDocumentNodeImpl, closeDeletePopupDialog as closeDeletePopupDialogImpl, documentSource as documentSourceImpl, popupId as popupIdImpl, triggerKey as triggerKeyImpl, findDiagramPreviewFrame as findDiagramPreviewFrameImpl, lightInputElement as lightInputElementImpl, cancelRemovesComponent as cancelRemovesComponentImpl, lightingPayload as lightingPayloadImpl, lightFieldElement as lightFieldElementImpl, openLightingPanel as openLightingPanelImpl, lightInputNode as lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick as onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick as onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove as applyLightingPanelDragMoveImpl, type LightingPanelDeps } from "./home/functions/lighting-panel";
+import { closeAutoDiagramDialog as closeAutoDiagramDialogImpl, settleAutoDiagramDialog as settleAutoDiagramDialogImpl, cancelRemoveDraftDocument as cancelRemoveDraftDocumentImpl, bindMessageSection as bindMessageSectionImpl, onWindowMessage as onWindowMessageImpl, exportSpliceError as exportSpliceErrorImpl, collectPageImages as collectPageImagesImpl, createImageAlignOption as createImageAlignOptionImpl, openImageAlignDialog as openImageAlignDialogImpl, applyAirConditionerPreviewState as applyAirConditionerPreviewStateImpl, airflowSectionEvent as airflowSectionEventImpl, previewSyncEventName as previewSyncEventNameImpl, onCoverSettingsKindClick as onCoverSettingsKindClickImpl, coverKindDraftDocument as coverKindDraftDocumentImpl, navigationSavedPropertyKey as navigationSavedPropertyKeyImpl, previewDateResize as previewDateResizeImpl, previewWeatherComponentResize as previewWeatherComponentResizeImpl, setNavigationPreviewState as setNavigationPreviewStateImpl, applyNavigationPreviewState as applyNavigationPreviewStateImpl, syncNavigationPreviewFromElement as syncNavigationPreviewFromElementImpl, navigationPropertyNameFromElement as navigationPropertyNameFromElementImpl, resolveComponentStyleValue as resolveComponentStyleValueImpl, collectChangedLineChartStyleKeys as collectChangedLineChartStyleKeysImpl, formatLineChartStyleValue as formatLineChartStyleValueImpl, resolveNavigationStyleValue as resolveNavigationStyleValueImpl, type NavigationPreviewDeps } from "./home/functions/navigation-preview";
+import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKeysImpl, onNavigationStyleApplyCancelButtonClick as onNavigationStyleApplyCancelButtonClickImpl, onNavigationStyleApplyConfirmButtonClick as onNavigationStyleApplyConfirmButtonClickImpl, collectChangedAirConditionerStyleKeys as collectChangedAirConditionerStyleKeysImpl, formatAirConditionerStyleValue as formatAirConditionerStyleValueImpl, resolveAirConditionerStyleValue as resolveAirConditionerStyleValueImpl, collectChangedIconButtonEffectStyleKeys as collectChangedIconButtonEffectStyleKeysImpl, formatIconButtonEffectStyleValue as formatIconButtonEffectStyleValueImpl, normalizeSensorKind as normalizeSensorKindImpl, formatSensorKindLabel as formatSensorKindLabelImpl, resolvePresenceSensorStyleKeys as resolvePresenceSensorStyleKeysImpl, styleTargetCheckbox as styleTargetCheckboxImpl, appliedStylePropertyKey as appliedStylePropertyKeyImpl, onNavigationIconCopyButtonClick as onNavigationIconCopyButtonClickImpl, navigationIconCopyError as navigationIconCopyErrorImpl, resolveCameraStyleValue as resolveCameraStyleValueImpl, collectChangedCameraStyleKeys as collectChangedCameraStyleKeysImpl, formatCameraStyleValue as formatCameraStyleValueImpl, resolvePanelFrameStyleValue as resolvePanelFrameStyleValueImpl, collectChangedPanelFrameStyleKeys as collectChangedPanelFrameStyleKeysImpl, formatPanelFrameStyleValue as formatPanelFrameStyleValueImpl, entryStateRecord as entryStateRecordImpl, areStyleValuesEqual as areStyleValuesEqualImpl, onImageAssetUploadButtonClick as onImageAssetUploadButtonClickImpl, onAssetOptionsClick as onAssetOptionsClickImpl, type StyleApplyDeps } from "./home/functions/style-apply";
+import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "./home/functions/style-dialogs";
+import { titleButtonMenuDeps as titleButtonMenuDepsImpl, loadNavigationIconOptions as loadNavigationIconOptionsImpl, positionTitleButtonIconMenu as positionTitleButtonIconMenuImpl, stopHoverScroll as stopHoverScrollImpl, iconTooltipElementValue as iconTooltipElementValueImpl, inspectorSyncDeps as inspectorSyncDepsImpl, syncComponentActionControls as syncComponentActionControlsImpl, applyTransformToInspector as applyTransformToInspectorImpl, previewModeForIcon as previewModeForIconImpl, sharedReferenceId as sharedReferenceIdImpl, nudgeDeps as nudgeDepsImpl, nudgeDeltaX as nudgeDeltaXImpl, clickPopupListOption as clickPopupListOptionImpl, onPopupListContextmenu as onPopupListContextmenuImpl, openEntityCopyBackupPicker as openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker as openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker as openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick as onPopupModuleCancelButtonClickImpl, type CopyBackupPickersDeps } from "./home/functions/copy-backup-pickers";
+import { onPopupModuleClimateDeviceTypeClick as onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder as selectAssetFolderImpl, popupModuleTypeValue as popupModuleTypeValueImpl, requestDeleteUserAsset as requestDeleteUserAssetImpl, requestDeleteAssetFolder as requestDeleteAssetFolderImpl, refreshAssetPickers as refreshAssetPickersImpl, scaleDraftDocument as scaleDraftDocumentImpl, cancelDeletePopupDialog as cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick as onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput as onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState as saturationPointerMoveEventStateImpl, mutationRecord as mutationRecordImpl, type AssetManagementDeps } from "./home/functions/asset-management";
 let disposeActiveEditor: (() => void) | null = null;
 
 /**
@@ -216,7 +158,7 @@ let disposeActiveEditor: (() => void) | null = null;
  */
 export function bootEditor(): void {
   const scope = createLegacyScope('editor-home');
-  const innerCleanup = scope.run(() => {
+  const innerCleanup = scope.executeInLegacyScope(() => {
   const editorCtx = createEditorContext();
 
 // 路由 fade 过渡期间户型页与编辑器会短暂共存；限定在本页根节点内查询，避免撞 id。
@@ -224,6 +166,8 @@ export function bootEditor(): void {
     document.querySelector(".editor-chrome-root") || document;
   const findElement = (selectorState: any) =>
     editorRootElement.querySelector(selectorState);
+// 拆分后 deps 工厂会用 ...homeElements 展开；先放稳定空对象，查询完成后原地填充。
+const homeElements: any = {};
 installSettingsDialogBackdropGuard2();
 const EDITOR_DESIGN_WIDTH = 1020,
   AUTO_DIAGRAM_LAYOUT_VERSION = 2,
@@ -233,117 +177,150 @@ const EDITOR_DESIGN_WIDTH = 1020,
   editorHeaderElement = findElement(".editor-header"),
   editorShellElement = findElement(".editor-shell");
 /** 整页 scale 已废弃：改由 Vue 壳层自适应 + 画布独立 zoom。 */
-function refreshEditorViewportFit() {
-  document.documentElement.classList.remove("editor-viewport-fit");
-  document.documentElement.style.removeProperty("--editor-layout-height");
-  document.documentElement.style.setProperty("--editor-viewport-scale", "1");
-  void EDITOR_DESIGN_WIDTH;
-  void editorHeaderElement;
-  void editorShellElement;
+function shellControlsDeps(): ShellControlsDeps {
+  return {
+    ...homeElements,
+    get airConditionerInspectorContext() { return airConditionerInspectorContext; },
+    get buttonSoundController() { return buttonSoundController; },
+    get closeDropdownMenu() { return closeDropdownMenu; },
+    get colorPickerBoundInputById() { return colorPickerBoundInputById; },
+    get COMPONENT_DIALOG_DESIGN_HEIGHT() { return COMPONENT_DIALOG_DESIGN_HEIGHT; },
+    get COMPONENT_DIALOG_DESIGN_WIDTH() { return COMPONENT_DIALOG_DESIGN_WIDTH; },
+    get COMPONENT_DIALOG_SCALE_MULTIPLIER() { return COMPONENT_DIALOG_SCALE_MULTIPLIER; },
+    get coverKindDraftDocument() { return coverKindDraftDocument; },
+    get EDITOR_DESIGN_WIDTH() { return EDITOR_DESIGN_WIDTH; },
+    get editorCtx() { return editorCtx; },
+    get editorHeaderElement() { return editorHeaderElement; },
+    get editorShellElement() { return editorShellElement; },
+    get errorPhase() { return errorPhase; },
+    get iconButtonInspectorContext() { return iconButtonInspectorContext; },
+    get lineChartInspectorContext() { return lineChartInspectorContext; },
+    get navigationInspectorContext() { return navigationInspectorContext; },
+    get numberStepperDeps() { return numberStepperDeps; },
+    get openEntityPicker() { return openEntityPicker; },
+    get positionTitleButtonIconMenu() { return positionTitleButtonIconMenu; },
+    get refreshSoundToggle() { return refreshSoundToggle; },
+    get renderWorkspaceResolution() { return renderWorkspaceResolution; },
+    get requestJsonDeps() { return requestJsonDeps; },
+    get runEntry() { return openColorPickerForInput; },
+    get setWorkspaceHasProject() { return setWorkspaceHasProject; },
+    get unbindDisplayDeviceError() { return unbindDisplayDeviceError; },
+    get value() { return value; },
+  };
 }
-function refreshComponentDialogScale() {
-  const componentDialogElement = document.getElementById(
-    "component-template-dialog",
-  ) as HTMLDialogElement | null;
-  if (!componentDialogElement?.open || window.innerWidth <= 1180) return;
-  const designedScale =
-      COMPONENT_DIALOG_SCALE_MULTIPLIER *
-      Math.min(
-        window.innerWidth / COMPONENT_DIALOG_DESIGN_WIDTH,
-        window.innerHeight / COMPONENT_DIALOG_DESIGN_HEIGHT,
-      ),
-    componentDialogScale = Math.min(
-      designedScale,
-      (window.innerWidth * 0.9) / componentDialogElement.offsetWidth,
-      (window.innerHeight * 0.9) / componentDialogElement.offsetHeight,
-    );
-  document.documentElement.style.setProperty(
-    "--component-template-dialog-scale",
-    String(componentDialogScale),
-  );
-}
+function refreshEditorViewportFit(...args: any[]): ReturnType<typeof refreshEditorViewportFitImpl> { return (refreshEditorViewportFitImpl as any)(shellControlsDeps(), ...args); }
+function refreshComponentDialogScale(...args: any[]): ReturnType<typeof refreshComponentDialogScaleImpl> { return (refreshComponentDialogScaleImpl as any)(shellControlsDeps(), ...args); }
 (refreshEditorViewportFit(), refreshComponentDialogScale());
-const saveButtonElement = findElement("#save"),
-  projectNewElement = findElement("#project-new"),
-  projectSelectElement = findElement("#project-select"),
-  projectActionsButtonElement = findElement("#project-actions-button"),
-  projectActionsMenuElement = findElement("#project-actions-menu"),
-  projectFloorplanOpenElement = findElement("#project-floorplan-open"),
-  navigatorContentElement = findElement("#navigator-content"),
-  showPopupEditorButtonElement = findElement(".page-control"),
-  pageNewButtonElement = findElement(".popup-control"),
-  showPageEditorElement = findElement("#show-page-editor"),
-  showPopupEditorElement = findElement("#show-popup-editor"),
-  pageNewElement = findElement("#page-new"),
-  pageSelectElement = findElement("#page-select"),
-  pageActionsButtonElement = findElement("#page-actions-button"),
-  pageActionsMenuElement = findElement("#page-actions-menu"),
-  defaultPageActionElement = findElement("#default-page-action"),
-  popupNewElement = findElement("#popup-new"),
-  popupSelectElement = findElement("#popup-select"),
-  popupListElement = findElement("#popup-list"),
-  popupActionsButtonElement = findElement("#popup-actions-button"),
-  popupActionsMenuElement = findElement("#popup-actions-menu"),
-  showSharedComponentsElement = findElement("#show-shared-components"),
-  showPageComponentsElement = findElement("#show-page-components"),
-  addComponentButtonElement = findElement("#add-component-button"),
-  componentTemplateDialogElement = findElement("#component-template-dialog"),
-  componentTemplateCloseElement = findElement("#component-template-close"),
-  componentTemplateScopeElement = findElement("#component-template-scope"),
-  componentTemplateListElement = findElement("#component-template-list"),
-  sharedComponentListElement = findElement("#shared-component-list"),
-  pageComponentListElement = findElement("#page-component-list"),
-  componentMenuElement = findElement("#component-context-menu"),
-  projectDialogElement = findElement("#project-dialog"),
-  projectDialogKickerElement = findElement("#project-dialog-kicker"),
-  projectDialogTitleElement = findElement("#project-dialog-title"),
-  projectCloseElement = findElement("#project-close"),
-  projectCancelElement = findElement("#project-cancel"),
-  projectFormElement = findElement("#project-form"),
-  projectSubmitElement = findElement("#project-submit"),
-  projectMessageElement = findElement("#project-message"),
-  projectTemplateFieldsElement = findElement("#project-template-fields"),
-  projectTemplateOptionsElement = findElement("#project-template-options"),
-  projectPreviewDialogElement = findElement("#project-preview-dialog"),
-  projectPreviewTitleElement = findElement("#project-preview-title"),
-  projectPreviewCountElement = findElement("#project-preview-count"),
-  projectPreviewImageElement = findElement("#project-preview-image"),
-  projectPreviewPreviousElement = findElement("#project-preview-previous"),
-  projectPreviewNextElement = findElement("#project-preview-next"),
-  projectPreviewCloseElement = findElement("#project-preview-close"),
-  projectCanvasFieldsElement = findElement("#project-canvas-fields"),
-  projectCanvasWidthElement = findElement("#project-canvas-width"),
-  projectCanvasHeightElement = findElement("#project-canvas-height"),
-  projectAspectRatioElement = findElement("#project-aspect-ratio"),
-  projectAspectLockElement = findElement("#project-aspect-lock"),
-  projectAspectLockLabelElement = findElement("#project-aspect-lock-label"),
-  projectCanvasHintElement = findElement("#project-canvas-hint"),
-  projectContentLockFieldsElement = findElement("#project-content-lock-fields"),
-  projectContentLockElement = findElement("#project-content-lock"),
-  projectResizeWarningDialogElement = findElement("#project-resize-warning-dialog"),
-  projectResizeWarningTextElement = findElement("#project-resize-warning-text"),
-  projectResizeWarningCloseElement = findElement("#project-resize-warning-close"),
-  projectResizeWarningCancelElement = findElement("#project-resize-warning-cancel"),
-  projectResizeWarningConfirmElement = findElement("#project-resize-warning-confirm"),
-  pageDialogElement = findElement("#page-dialog"),
-  pageDialogKickerElement = findElement("#page-dialog-kicker"),
-  pageDialogTitleElement = findElement("#page-dialog-title"),
-  pageCloseElement = findElement("#page-close"),
-  pageCancelElement = findElement("#page-cancel"),
-  pageFormElement = findElement("#page-form"),
-  pageSubmitElement = findElement("#page-submit"),
-  pageMessageElement = findElement("#page-message"),
-  componentGroupRenameDialogElement = findElement("#component-group-rename-dialog"),
-  componentGroupRenameCloseElement = findElement("#component-group-rename-close"),
-  componentGroupRenameCancelElement = findElement("#component-group-rename-cancel"),
-  componentGroupRenameFormElement = findElement("#component-group-rename-form"),
-  componentGroupRenameInputElement = findElement("#component-group-rename-input"),
-  componentGroupRenameMessageElement = findElement("#component-group-rename-message"),
-  editorCanvasElement = findElement("#editor-canvas"),
-  displayDeviceCountElement = findElement(".workspace"),
-  workspaceTitleElement = findElement("#workspace-title"),
-  workspaceResolutionElement = findElement("#workspace-resolution"),
-  soundToggleButtonElement = document.createElement("button");
+Object.assign(homeElements, queryEditorElements(findElement));
+const {
+  saveButtonElement, projectNewElement, projectSelectElement, projectActionsButtonElement, projectActionsMenuElement, projectFloorplanOpenElement, navigatorContentElement, showPopupEditorButtonElement,
+  pageNewButtonElement, showPageEditorElement, showPopupEditorElement, pageNewElement, pageSelectElement, pageActionsButtonElement, pageActionsMenuElement, defaultPageActionElement,
+  popupNewElement, popupSelectElement, popupListElement, popupActionsButtonElement, popupActionsMenuElement, showSharedComponentsElement, showPageComponentsElement, addComponentButtonElement,
+  componentTemplateDialogElement, componentTemplateCloseElement, componentTemplateScopeElement, componentTemplateListElement, sharedComponentListElement, pageComponentListElement, componentMenuElement, projectDialogElement,
+  projectDialogKickerElement, projectDialogTitleElement, projectCloseElement, projectCancelElement, projectFormElement, projectSubmitElement, projectMessageElement, projectTemplateFieldsElement,
+  projectTemplateOptionsElement, projectPreviewDialogElement, projectPreviewTitleElement, projectPreviewCountElement, projectPreviewImageElement, projectPreviewPreviousElement, projectPreviewNextElement, projectPreviewCloseElement,
+  projectCanvasFieldsElement, projectCanvasWidthElement, projectCanvasHeightElement, projectAspectRatioElement, projectAspectLockElement, projectAspectLockLabelElement, projectCanvasHintElement, projectContentLockFieldsElement,
+  projectContentLockElement, projectResizeWarningDialogElement, projectResizeWarningTextElement, projectResizeWarningCloseElement, projectResizeWarningCancelElement, projectResizeWarningConfirmElement, pageDialogElement, pageDialogKickerElement,
+  pageDialogTitleElement, pageCloseElement, pageCancelElement, pageFormElement, pageSubmitElement, pageMessageElement, componentGroupRenameDialogElement, componentGroupRenameCloseElement,
+  componentGroupRenameCancelElement, componentGroupRenameFormElement, componentGroupRenameInputElement, componentGroupRenameMessageElement, editorCanvasElement, displayDeviceCountElement, workspaceTitleElement, workspaceResolutionElement,
+  soundToggleButtonElement, deleteProjectDialogElement, deleteProjectCloseButtonElement, deleteProjectCancelButtonElement, deleteProjectFormElement, deleteProjectNameElement, deleteProjectMessageElement, deletePageDialogElement,
+  deletePageCloseButtonElement, deletePageCancelButtonElement, deletePageConfirmButtonElement, deletePageNameElement, deletePageMessageElement, deleteComponentDialogElement, deleteComponentCloseButtonElement, deleteComponentCancelButtonElement,
+  deleteComponentConfirmButtonElement, deleteComponentNameElement, copyComponentPageDialogElement, copyComponentPageCloseButtonElement, copyComponentPageCancelButtonElement, copyComponentPageFormElement, copyComponentPageNameElement, copyComponentPageScopeSelectElement,
+  copyComponentPageProjectFieldElement, copyComponentPageProjectSelectElement, copyComponentPageTargetLabelElement, copyComponentPageTargetElement, copyComponentScaleOptionsElement, copyComponentResolutionSummaryElement, copyComponentPageMessageElement, copyComponentPageSubmitElement,
+  copyComponentSuccessDialogElement, copyComponentSuccessMessageElement, copyComponentSuccessStayElement, copyComponentSuccessGoElement, errorDialogCloseButtonElement, errorDialogCloseElement, errorDialogConfirmElement, errorDialogMessageElement,
+  recoveryDialogElement, recoveryDiscardElement, recoveryRestoreElement, undoElement, redoElement, inspectorEmptyElement, navigatorElement, imageInspectorElement,
+  imageTypeElement, imageLabelElement, imageEntityButtonElement, imageEntityMenuElement, imageEntitySearchElement, imageEntityOptionsElement, imageAssetButtonElement, imageAssetMenuElement,
+  imageAssetFolderSelectElement, imageAssetSearchInputElement, imageAssetOptionsElement, imageAssetUploadButtonElement, imageAssetUploadInputElement, imageAssetUploadHintElement, imageAssetLargePreviewImageElement, imageAssetLargePreviewImageElementElement,
+  imageAssetLargePreviewNameElement, globalColorPickerElement, globalColorPickerSvElement, globalColorPickerMarkerElement, globalColorPickerHueRangeInputElement, globalColorPickerSwatchElement, globalColorPickerHexTextInputElement, globalColorPickerCopyButtonElement,
+  globalColorPickerPasteButtonElement, globalColorPickerRedInputElement, globalColorPickerGreenInputElement, globalColorPickerBlueInputElement, imageOpacityInputElement, imageLayoutOptionsElement, imageLeftInputElement, imageTopInputElement,
+  imageScaleInputElement, imageRotationInputElement, floorplanAutoDiagramInspectorFormElement, floorplanAutoDiagramStatusElement, floorplanAutoDiagramOpenStudioButtonElement, floorplanAutoDiagramViewToggleButtonElement, floorplanAutoDiagramLabelTextInputElement, floorplanAutoDiagramFolderTextInputElement,
+  floorplanAutoDiagramLayoutElement, floorplanAutoDiagramLeftInputElement, floorplanAutoDiagramTopInputElement, floorplanAutoDiagramWidthInputElement, floorplanAutoDiagramHeightInputElement, floorplanAutoDiagramScaleInputElement, floorplanAutoDiagramRotationInputElement, floorplanAutoDiagramFloorSelectElement,
+  floorplanAutoDiagramCameraViewElement, floorplanAutoDiagramCameraModeElement, floorplanAutoDiagramFocalLengthInputElement, floorplanAutoDiagramRotateTopButtonElement, floorplanAutoDiagramOpenBaseLightingButtonElement, floorplanAutoDiagramBindingsElement, floorplanAutoDiagramBindingListElement, floorplanAutoLightingPanelElement,
+  floorplanAutoLightingHandleElement, floorplanAutoLightingCloseButtonElement, floorplanAutoLightingResetButtonElement, floorplanAutoLightingSaveButtonElement, floorplanAutoLightingStatusElement, floorplanBaseLightElements, componentActionControlsElement, floorplanAutoDiagramDialogElement,
+  floorplanAutoDiagramCloseButtonElement, floorplanAutoDiagramGuideElement, floorplanAutoDiagramLaterButtonElement, floorplanAutoDiagramContinueElement, iconButtonEffectInspectorElement, ibeLabelElement, ibeEntityButtonElement, ibeEntityMenuElement,
+  ibeEntitySearchElement, ibeEntityOptionsElement, ibeColorTemperatureRealtimeElement, ibeBrightnessRealtimeElement, ibePreviewStateElement, ibeLayerOptionsElement, ibeButtonSectionElement, ibeEffectSectionElement,
+  ibeButtonVisibleElement, ibeEffectVisibleElement, ibeButtonTransformSectionElement, ibeActionSectionElement, ibeIconButtonElement, ibeIconCopyElement, ibeIconMenuElement, ibeIconSearchElement,
+  ibeIconOptionsElement, ibeIconOffColorElement, ibeIconOnColorElement, ibeIconSizeElement, ibeButtonOffColorElement, ibeButtonOnColorElement, ibeButtonOpacityElement, ibeFrameColorElement,
+  ibeFrameWidthElement, ibeFrameOpacityElement, ibeRadiusElement, ibeGlowColorElement, ibeGlowOffStrengthElement, ibeGlowOnStrengthElement, ibeAssetButtonElement, ibeAssetMenuElement,
+  ibeAssetFolderElement, ibeAssetSearchElement, ibeAssetOptionsElement, ibeAssetUploadElement, ibeAssetUploadInputElement, ibeAssetUploadHintElement, ibeEffectOpacityElement, ibeEffectFadeDurationElement,
+  ibeEffectLayoutOptionsElement, ibeEffectAlignImageElement, ibeEffectLeftElement, ibeEffectTopElement, ibeEffectScaleElement, ibeEffectRotationElement, ibeEffectSizeHintElement, effectImageAlignDialogElement,
+  effectImageAlignCloseElement, effectImageAlignCancelElement, effectImageAlignConfirmElement, effectImageAlignOptionsElement, effectImageAlignMessageElement, ibeLeftElement, ibeTopElement, ibeWidthElement,
+  ibeHeightElement, ibeScaleElement, ibeRotationElement, ibeActionControlsElement, ibeApplyStyleElement, ibeApplyCountElement, titleButtonInspectorElement, titleButtonLabelElement,
+  titleButtonEntityButtonElement, titleButtonEntityMenuElement, titleButtonEntitySearchElement, titleButtonEntityOptionsElement, titleButtonMainVisibleElement, titleButtonSecondaryVisibleElement, titleButtonMainTextElement, titleButtonSecondaryLine1Element,
+  titleButtonSecondaryLine2Element, titleButtonMainColorElement, titleButtonSecondaryColorElement, titleButtonMainSizeElement, titleButtonSecondarySizeElement, titleButtonMainWeightElement, titleButtonSecondaryWeightElement, titleButtonMainSpacingElement,
+  titleButtonSecondarySpacingElement, titleButtonSecondaryLineGapElement, titleButtonMainLeftElement, titleButtonMainTopElement, titleButtonSecondaryLeftElement, titleButtonSecondaryTopElement, titleButtonIconVisibleElement, titleButtonIconButtonElement,
+  titleButtonIconCopyElement, titleButtonIconMenuElement, titleButtonIconSearchElement, titleButtonIconOptionsElement, titleButtonIconColorElement, titleButtonIconSizeElement, titleButtonIconLeftElement, titleButtonIconTopElement,
+  titleButtonFrameColorElement, titleButtonFrameVisibleElement, titleButtonFrameWidthElement, titleButtonFrameSizeElement, titleButtonFrameSpacingElement, titleButtonFrameOffsetXElement, titleButtonFrameOffsetYElement, titleButtonMarkerVisibleElement,
+  titleButtonMarkerColorElement, titleButtonMarkerSizeElement, titleButtonMarkerLeftElement, titleButtonMarkerTopElement, titleButtonLeftElement, titleButtonTopElement, titleButtonWidthElement, titleButtonHeightElement,
+  titleButtonScaleElement, titleButtonRotationElement, titleButtonActionControlsElement, titleButtonApplyStyleElement, titleButtonApplyCountElement, lightStatisticsInspectorElement, lightStatisticsLabelElement, lightStatisticsTitleElement,
+  lightStatisticsEntityButtonElement, lightStatisticsEntityMenuElement, lightStatisticsEntitySearchElement, lightStatisticsEntityOptionsElement, lightStatisticsEntityPendingElement, lightStatisticsEntityConfirmElement, lightStatisticsEntityMessageElement, lightStatisticsEntityListElement,
+  lightStatisticsEntityCountElement, lightStatisticsActionEntityButtonElement, lightStatisticsActionEntityMenuElement, lightStatisticsActionEntitySearchElement, lightStatisticsActionEntityOptionsElement, lightStatisticsActionNoteElement, lightStatisticsActionControlsElement, lightStatisticsIconButtonElement,
+  lightStatisticsIconCopyElement, lightStatisticsIconMenuElement, lightStatisticsIconSearchElement, lightStatisticsIconOptionsElement, lightStatisticsIconVisibleElement, lightStatisticsIconColorElement, lightStatisticsIconActiveColorElement, lightStatisticsIconSizeElement,
+  lightStatisticsTitleVisibleElement, lightStatisticsTitleColorElement, lightStatisticsTitleSizeElement, lightStatisticsTitleWeightElement, lightStatisticsTitleSpacingElement, lightStatisticsCountVisibleElement, lightStatisticsCountColorElement, lightStatisticsCountActiveColorElement,
+  lightStatisticsCountSizeElement, lightStatisticsCountWeightElement, lightStatisticsCountSpacingElement, lightStatisticsIconGapElement, lightStatisticsCountGapElement, lightStatisticsLeftElement, lightStatisticsTopElement, lightStatisticsWidthElement,
+  lightStatisticsHeightElement, lightStatisticsScaleElement, lightStatisticsRotationElement, iconButtonInspectorElement, iconButtonTypeLabelElement, iconButtonTypeElement, iconButtonLabelElement, presenceSensorKindLabelElement,
+  presenceSensorKindElement, iconButtonEntityButtonElement, iconButtonEntityMenuElement, iconButtonEntitySearchElement, iconButtonEntityOptionsElement, coverSettingsInspectorElement, coverSettingsKindElement, coverSettingsDirectionElement,
+  coverSettingsMotorDirectionElement, iconButtonPreviewStateElement, iconButtonPreviewControlElement, iconButtonIconButtonElement, iconButtonIconCopyElement, iconButtonIconMenuElement, iconButtonIconSearchElement, iconButtonIconOptionsElement,
+  iconButtonIconColorElement, iconButtonIconColorLabelElement, deviceButtonIconVisibleElement, deviceButtonIconOnColorElement, deviceButtonIconOnColorLabelElement, deviceButtonBadgeColorElement, deviceButtonBadgeColorLabelElement, deviceButtonBadgeOpacityElement,
+  deviceButtonBadgeOpacityLabelElement, iconButtonIconSizeElement, iconButtonIconSizeLabelElement, deviceButtonSymbolSizeElement, deviceButtonSymbolSizeLabelElement, deviceButtonBadgeSizeElement, deviceButtonBadgeSizeLabelElement, deviceButtonStatePrecisionElement,
+  deviceButtonStatePrecisionLabelElement, iconButtonIconOffOpacityElement, iconButtonIconOnOpacityElement, iconButtonIconOffOpacityLabelElement, iconButtonIconOnOpacityLabelElement, iconButtonIconLeftElement, iconButtonIconTopElement, iconButtonMainTextElement,
+  iconButtonSecondaryTextElement, iconButtonMainHeadingElement, deviceButtonMainVisibleElement, iconButtonSecondaryHeadingElement, deviceButtonSecondaryVisibleElement, iconButtonMainContentLabelElement, iconButtonSecondaryContentLabelElement, iconButtonMainColorElement,
+  iconButtonSecondaryColorElement, iconButtonMainOffOpacityElement, iconButtonMainOnOpacityElement, iconButtonSecondaryOffOpacityElement, iconButtonSecondaryOnOpacityElement, iconButtonMainOffOpacityLabelElement, iconButtonMainOnOpacityLabelElement, iconButtonSecondaryOffOpacityLabelElement,
+  iconButtonSecondaryOnOpacityLabelElement, iconButtonMainSizeElement, iconButtonSecondarySizeElement, iconButtonMainWeightElement, iconButtonSecondaryWeightElement, iconButtonMainSpacingElement, iconButtonSecondarySpacingElement, iconButtonMainLeftElement,
+  iconButtonMainTopElement, iconButtonSecondaryLeftElement, iconButtonSecondaryTopElement, iconButtonOnFillVisibleElement, iconButtonFillSectionElement, iconButtonOnFillColorElement, iconButtonOnFillStrengthElement, iconButtonOnFillFadeDurationElement,
+  iconButtonFrameVisibleElement, iconButtonFrameSectionElement, iconButtonFrameWidthElement, iconButtonFrameAngleElement, iconButtonFrameOffOpacityElement, iconButtonFrameOnOpacityElement, iconButtonCutCornerElement, iconButtonSoftLightVisibleElement,
+  iconButtonSoftLightSectionElement, iconButtonSoftLightColorElement, iconButtonSoftLightStrengthElement, iconButtonSoftLightSizeElement, iconButtonSoftLightAngleElement, iconButtonGlowVisibleElement, iconButtonGlowSectionElement, iconButtonGlowColorElement,
+  iconButtonGlowStrengthElement, iconButtonGlowSizeElement, iconButtonGlowAngleElement, iconButtonLeftElement, iconButtonTopElement, iconButtonWidthElement, iconButtonHeightElement, iconButtonScaleElement,
+  iconButtonRotationElement, iconButtonActionControlsElement, iconButtonActionSectionElement, iconButtonPreviewDetailsElement, iconButtonApplyStyleElement, iconButtonApplyCountElement, presenceMotionSectionElement, doorWindowPerspectiveSectionElement,
+  doorWindowPerspectiveEditElement, doorWindowPerspectiveResetElement, doorWindowPerspectiveSaveElement, presenceHaloVisibleElement, presenceHaloScaleXElement, presenceHaloScaleYElement, presenceHaloRotationElement, presenceHaloOpacityElement,
+  presencePersonVisibleElement, presencePersonScaleElement, presencePersonRotationElement, presencePersonOpacityElement, presenceOrbitDurationElement, airConditionerInspectorElement, airConditionerLabelElement, airConditionerDeviceTypeElement,
+  airConditionerEntityButtonElement, airConditionerEntityMenuElement, airConditionerEntitySearchElement, airConditionerEntityOptionsElement, airConditionerPreviewStateElement, airConditionerLayerOptionsElement, airConditionerButtonSectionElement, airConditionerAirflowSectionElement,
+  airConditionerTransformSectionElement, airConditionerActionSectionElement, airConditionerIconVisibleElement, airConditionerIconOffColorElement, airConditionerIconOnColorElement, airConditionerBadgeColorElement, airConditionerBadgeOpacityElement, airConditionerSymbolSizeElement,
+  airConditionerBadgeSizeElement, airConditionerIconLeftElement, airConditionerIconTopElement, airConditionerMainVisibleElement, airConditionerMainTextElement, airConditionerMainColorElement, airConditionerMainSizeElement, airConditionerMainWeightElement,
+  airConditionerMainSpacingElement, airConditionerMainLeftElement, airConditionerMainTopElement, airConditionerSecondaryVisibleElement, airConditionerSecondaryTextElement, airConditionerSecondaryColorElement, airConditionerSecondarySizeElement, airConditionerSecondaryWeightElement,
+  airConditionerSecondarySpacingElement, airConditionerSecondaryLeftElement, airConditionerSecondaryTopElement, airConditionerAirflowVisibleElement, airConditionerAirflowMotionElement, airConditionerAirflowCoolColorElement, airConditionerAirflowHeatColorElement, airConditionerAirflowOtherColorElement,
+  airConditionerAirflowAngleElement, airConditionerAirflowCurveElement, airConditionerAirflowLengthElement, airConditionerAirflowFadeElement, airConditionerAirflowSpreadElement, airConditionerAirflowDensityElement, airConditionerAirflowIrregularityElement, airConditionerAirflowThicknessElement,
+  airConditionerAirflowStrengthElement, airConditionerAirflowBlurElement, airConditionerAirflowSpeedElement, airConditionerAirflowOffsetXElement, airConditionerAirflowOffsetYElement, airConditionerAirflowWidthElement, airConditionerAirflowHeightElement, airConditionerAirflowScaleElement,
+  airConditionerAirflowRotationElement, airConditionerLeftElement, airConditionerTopElement, airConditionerWidthElement, airConditionerHeightElement, airConditionerScaleElement, airConditionerRotationElement, airConditionerActionControlsElement,
+  airConditionerPreviewDetailsElement, airConditionerApplyStyleElement, airConditionerApplyCountElement, vacuumMapInspectorElement, vacuumMapLabelElement, vacuumMapEntityButtonElement, vacuumMapEntityMenuElement, vacuumMapEntitySearchElement,
+  vacuumMapEntityOptionsElement, vacuumMapOpacityElement, vacuumMapLeftElement, vacuumMapTopElement, vacuumMapScaleElement, vacuumMapRotationElement, cameraInspectorElement, cameraLabelElement,
+  cameraSourceOptionsElement, cameraEntityPickerElement, cameraGo2rtcUrlFieldElement, cameraGo2rtcUrlElement, cameraGo2rtcNoteElement, cameraEntityButtonElement, cameraEntityMenuElement, cameraEntitySearchElement,
+  cameraEntityOptionsElement, cameraFitOptionsElement, cameraDisplayModeOptionsElement, cameraRefreshIntervalFieldElement, cameraRefreshIntervalElement, cameraMediaVisibleElement, cameraFrameVisibleElement, cameraFrameColorElement,
+  cameraFrameWidthElement, cameraRadiusElement, cameraFrameAngleElement, cameraFrameOpacityElement, cameraLeftElement, cameraTopElement, cameraWidthElement, cameraHeightElement,
+  cameraScaleElement, cameraRotationElement, cameraActionControlsElement, cameraApplyStyleElement, cameraApplyCountElement, timeInspectorElement, timeTypeElement, timeLabelElement,
+  timeHourFormatElement, timeSecondsElement, timeColorElement, timeFontSizeElement, timeFontWeightElement, timeLetterSpacingElement, timeOpacityElement, timeLeftElement,
+  timeTopElement, timeScaleElement, timeRotationElement, dateInspectorElement, dateTypeElement, dateLabelElement, dateWeekdayElement, dateLunarElement,
+  datePrimaryColorElement, datePrimarySizeElement, datePrimaryWeightElement, datePrimarySpacingElement, dateLunarColorElement, dateLunarSizeElement, dateLunarWeightElement, dateLunarSpacingElement,
+  dateLineGapElement, dateOpacityElement, dateLeftElement, dateTopElement, dateScaleElement, dateRotationElement, weatherInspectorElement, weatherTypeElement,
+  weatherLabelElement, weatherEntityButtonElement, weatherEntityMenuElement, weatherEntitySearchElement, weatherEntityOptionsElement, weatherIconVisibleElement, weatherTemperatureVisibleElement, weatherConditionVisibleElement,
+  weatherHumidityVisibleElement, weatherIconSizeElement, weatherIconGapElement, weatherTemperatureColorElement, weatherTemperatureSizeElement, weatherTemperatureWeightElement, weatherTemperatureSpacingElement, weatherSecondaryColorElement,
+  weatherSecondarySizeElement, weatherSecondaryWeightElement, weatherSecondarySpacingElement, weatherLineGapElement, weatherOpacityElement, weatherLeftElement, weatherTopElement, weatherScaleElement,
+  weatherRotationElement, lineChartInspectorElement, eventLogWallInspectorElement, eventLogWallTypeElement, eventLogWallLabelElement, eventLogWallEnabledElement, eventLogWallTitleElement, eventLogWallTitleVisibleElement,
+  eventLogWallTitleSizeElement, eventLogWallTitleColorElement, eventLogWallTitleAlignElement, eventLogWallMaxEntriesElement, eventLogWallDisplayDurationElement, eventLogWallWatchScopeElement, eventLogWallEntityIdsElement, eventLogWallFontSizeElement,
+  eventLogWallRadiusElement, eventLogWallBgOpacityElement, eventLogWallBlurElement, eventLogWallClickModeElement, eventLogWallShowFooterElement, eventLogWallFooterTextElement, eventLogWallOnColorElement, eventLogWallOffColorElement,
+  eventLogWallAttrColorElement, eventLogWallClimateColorElement, eventLogWallAlertColorElement, eventLogWallMutedColorElement, lineChartTypeElement, lineChartLabelElement, lineChartEntityButtonElement, lineChartEntityMenuElement,
+  lineChartEntitySearchInputElement, lineChartEntityOptionsElement, lineChartValueVisibleElement, lineChartValueScaleInputElement, lineChartValueColorInputElement, lineChartStatePrecisionSelectElement, lineChartValueOffsetXInputElement, lineChartValueOffsetYInputElement,
+  lineChartUpdateIntervalInputElement, lineChartHoursInputElement, lineChartCurveRadiusInputElement, lineChartThresholdModeSelectElement, lineChartThresholdInputs, lineChartLeftInputElement, lineChartTopInputElement, lineChartWidthInputElement,
+  lineChartHeightInputElement, lineChartScaleInputElement, lineChartRotationInputElement, lineChartActionControlsElement, lineChartApplyStyleButtonElement, lineChartApplyCountElement, panelFrameInspectorFormElement, panelFrameTypeTextInputElement,
+  panelFrameLabelTextInputElement, panelFrameMainVisibleButtonElement, panelFrameMainTextInputElement, panelFrameMainColorInputElement, panelFrameMainSizeInputElement, panelFrameMainWeightInputElement, panelFrameMainOpacityInputElement, panelFrameMainSpacingInputElement,
+  panelFrameMainLeftInputElement, panelFrameMainTopInputElement, panelFrameSecondaryVisibleButtonElement, panelFrameSecondaryTextInputElement, panelFrameSecondaryColorInputElement, panelFrameSecondarySizeInputElement, panelFrameSecondaryWeightInputElement, panelFrameSecondaryOpacityInputElement,
+  panelFrameSecondarySpacingInputElement, panelFrameSecondaryLeftInputElement, panelFrameSecondaryTopInputElement, panelFrameEdgeVisibleButtonElement, panelFrameEdgeColorInputElement, panelFrameEdgeWidthInputElement, panelFrameEdgeOpacityInputElement, panelFrameRadiusInputElement,
+  panelFrameEdgeAngleInputElement, panelFrameGlowVisibleButtonElement, panelFrameGlowColorInputElement, panelFrameGlowStrengthInputElement, panelFrameGlowSizeInputElement, panelFrameGlowAngleInputElement, panelFrameLeftInputElement, panelFrameTopInputElement,
+  panelFrameWidthInputElement, panelFrameHeightInputElement, panelFrameScaleInputElement, panelFrameRotationInputElement, panelFrameApplyStyleButtonElement, panelFrameApplyCountElement, navigationInspectorFormElement, sceneModeControlElement,
+  sceneModeHintElement, navigationLabelTextInputElement, navigationTypeElement, navigationLabelElement, navigationPreviewStateElement, navigationEntityButtonElement, navigationEntityMenuElement, navigationEntitySearchElement,
+  navigationEntityOptionsElement, navigationMainTextElement, navigationSecondaryTextElement, navigationMainVisibleElement, navigationSecondaryVisibleElement, navigationIconVisibleElement, navigationFrameVisibleElement, navigationGlowVisibleElement,
+  navigationIconButtonElement, navigationIconCopyElement, navigationIconMenuElement, navigationIconSearchElement, navigationIconOptionsElement, navigationMainColorElement, navigationSecondaryColorElement, navigationMainSizeElement,
+  navigationSecondarySizeElement, navigationMainWeightElement, navigationSecondaryWeightElement, navigationMainSpacingElement, navigationSecondarySpacingElement, navigationMainTextLeftElement, navigationMainTextTopElement, navigationSecondaryTextLeftElement,
+  navigationSecondaryTextTopElement, navigationTextIdleOpacityElement, navigationTextActiveOpacityElement, navigationIconColorElement, navigationIconSizeElement, navigationIconLeftElement, navigationIconTopElement, navigationIconIdleOpacityElement,
+  navigationIconActiveOpacityElement, navigationFrameColorElement, navigationFrameWidthElement, navigationFrameIdleOpacityElement, navigationFrameActiveOpacityElement, navigationFrameAngleElement, navigationGlowColorElement, navigationGlowAngleElement,
+  navigationGlowIdleStrengthElement, navigationGlowIdleSizeElement, navigationGlowActiveStrengthElement, navigationGlowActiveSizeElement, navigationRadiusElement, navigationLeftElement, navigationTopElement, navigationWidthElement,
+  navigationHeightElement, navigationScaleElement, navigationRotationElement, navigationActionControlsElement, navigationApplyStyleElement, navigationApplyCountElement, navigationStyleApplyDialogElement, navigationStyleApplyCloseElement,
+  navigationStyleApplyTitleElement, navigationStyleApplySummaryElement, navigationStyleApplyPropertiesElement, navigationStyleApplyTargetHeadingElement, navigationStyleApplyTargetScopeElement, navigationStyleApplyTargetsElement, navigationStyleApplyMessageElement, navigationStyleApplyCancelElement,
+  navigationStyleApplyConfirmElement, popupNameDialogElement, popupNameDialogTitleElement, popupNameFormElement, popupNameCloseElement, popupNameCancelElement, popupModuleDialogElement, popupModuleDialogTitleElement,
+  popupModuleFormElement, popupModuleCloseElement, popupModuleCancelElement, popupModuleEntityButtonElement, popupModuleEntityMenuElement, popupModuleEntitySearchElement, popupModuleEntityOptionsElement, popupModuleClimateDeviceTypeElement,
+  deletePopupDialogElement, deletePopupCloseElement, deletePopupCancelElement, deletePopupConfirmElement, deletePopupNameElement, deleteAssetDialogElement, deleteAssetCloseButtonElement, deleteAssetCancelButtonElement,
+  deleteAssetConfirmButtonElement, deleteAssetNameElement, deleteAssetFolderDialogElement, deleteAssetFolderCloseButtonElement, deleteAssetFolderCancelButtonElement, deleteAssetFolderConfirmButtonElement, deleteAssetFolderNameElement, deleteAssetFolderCountElement,
+} = homeElements;
 ((soundToggleButtonElement.id = "dashboard-sound-toggle"),
   (soundToggleButtonElement.className = "workspace-sound-toggle"),
   (soundToggleButtonElement.type = "button"),
@@ -360,811 +337,10 @@ const showEditorPreviewButtonElement = findElement("#show-editor-preview"),
   dashboardPreviewElement = findElement("#dashboard-preview"),
   customPopupEditorElement = findElement("#custom-popup-editor"),
   buttonSoundController = createButtonSound2();
-function refreshSoundToggle() {
-  if (!soundToggleButtonElement) return;
-  const isEditMode = editorCtx.editorMode === "edit";
-  ((soundToggleButtonElement.hidden = !isEditMode),
-    (soundToggleButtonElement.disabled = !editorCtx.activeProject),
-    editorCtx.activeProject &&
-      typeof editorCtx.activeProject.document?.soundEnabled == "boolean" &&
-      buttonSoundController.isEnabled() !== editorCtx.activeProject.document.soundEnabled &&
-      buttonSoundController.setEnabled(editorCtx.activeProject.document.soundEnabled),
-    soundToggleButtonElement.setAttribute(
-      "aria-pressed",
-      String(buttonSoundController.isEnabled()),
-    ),
-    (soundToggleButtonElement.title = buttonSoundController.isEnabled()
-      ? "关闭仪表盘音效"
-      : "开启仪表盘音效"),
-    soundToggleButtonElement.setAttribute("aria-label", soundToggleButtonElement.title),
-    soundToggleButtonElement.classList.toggle("is-muted", !buttonSoundController.isEnabled()));
-}
-const deleteProjectDialogElement = findElement("#delete-project-dialog"),
-  deleteProjectCloseButtonElement = findElement("#delete-project-close"),
-  deleteProjectCancelButtonElement = findElement("#delete-project-cancel"),
-  deleteProjectFormElement = findElement("#delete-project-form"),
-  deleteProjectNameElement = findElement("#delete-project-name"),
-  deleteProjectMessageElement = findElement("#delete-project-message"),
-  deletePageDialogElement = findElement("#delete-page-dialog"),
-  deletePageCloseButtonElement = findElement("#delete-page-close"),
-  deletePageCancelButtonElement = findElement("#delete-page-cancel"),
-  deletePageConfirmButtonElement = findElement("#delete-page-confirm"),
-  deletePageNameElement = findElement("#delete-page-name"),
-  deletePageMessageElement = findElement("#delete-page-message"),
-  deleteComponentDialogElement = findElement("#delete-component-dialog"),
-  deleteComponentCloseButtonElement = findElement("#delete-component-close"),
-  deleteComponentCancelButtonElement = findElement("#delete-component-cancel"),
-  deleteComponentConfirmButtonElement = findElement("#delete-component-confirm"),
-  deleteComponentNameElement = findElement("#delete-component-name"),
-  copyComponentPageDialogElement = findElement("#copy-component-page-dialog"),
-  copyComponentPageCloseButtonElement = findElement("#copy-component-page-close"),
-  copyComponentPageCancelButtonElement = findElement("#copy-component-page-cancel"),
-  copyComponentPageFormElement = findElement("#copy-component-page-form"),
-  copyComponentPageNameElement = findElement("#copy-component-page-name"),
-  copyComponentPageScopeSelectElement = findElement("#copy-component-page-scope"),
-  copyComponentPageProjectFieldElement = findElement("#copy-component-page-project-field"),
-  copyComponentPageProjectSelectElement = findElement("#copy-component-page-project"),
-  copyComponentPageTargetLabelElement = findElement("#copy-component-page-target-label"),
-  copyComponentPageTargetElement = findElement("#copy-component-page-target"),
-  copyComponentScaleOptionsElement = findElement("#copy-component-scale-options"),
-  copyComponentResolutionSummaryElement = findElement("#copy-component-resolution-summary"),
-  copyComponentPageMessageElement = findElement("#copy-component-page-message"),
-  copyComponentPageSubmitElement = findElement("#copy-component-page-submit"),
-  copyComponentSuccessDialogElement = findElement("#copy-component-success-dialog"),
-  copyComponentSuccessMessageElement = findElement("#copy-component-success-message"),
-  copyComponentSuccessStayElement = findElement("#copy-component-success-stay"),
-  copyComponentSuccessGoElement = findElement("#copy-component-success-go"),
-  errorDialogCloseButtonElement = findElement("#error-dialog"),
-  errorDialogCloseElement = findElement("#error-dialog-close"),
-  errorDialogConfirmElement = findElement("#error-dialog-confirm"),
-  errorDialogMessageElement = findElement("#error-dialog-message"),
-  recoveryDialogElement = findElement("#recovery-dialog"),
-  recoveryDiscardElement = findElement("#recovery-discard"),
-  recoveryRestoreElement = findElement("#recovery-restore"),
-  undoElement = findElement("#undo"),
-  redoElement = findElement("#redo"),
-  inspectorEmptyElement = findElement("#inspector-empty"),
-  navigatorElement = findElement(".inspector"),
-  imageInspectorElement = findElement("#image-inspector"),
-  imageTypeElement = findElement("#image-type"),
-  imageLabelElement = findElement("#image-label"),
-  imageEntityButtonElement = findElement("#image-entity-button"),
-  imageEntityMenuElement = findElement("#image-entity-menu"),
-  imageEntitySearchElement = findElement("#image-entity-search"),
-  imageEntityOptionsElement = findElement("#image-entity-options"),
-  imageAssetButtonElement = findElement("#image-asset-button"),
-  imageAssetMenuElement = findElement("#image-asset-menu"),
-  imageAssetFolderSelectElement = findElement("#image-asset-folder"),
-  imageAssetSearchInputElement = findElement("#image-asset-search"),
-  imageAssetOptionsElement = findElement("#image-asset-options"),
-  imageAssetUploadButtonElement = findElement("#image-asset-upload"),
-  imageAssetUploadInputElement = findElement("#image-asset-upload-input"),
-  imageAssetUploadHintElement = findElement("#image-asset-upload-hint"),
-  imageAssetLargePreviewImageElement = findElement("#image-asset-large-preview"),
-  imageAssetLargePreviewImageElementElement = findElement("#image-asset-large-preview-image"),
-  imageAssetLargePreviewNameElement = findElement("#image-asset-large-preview-name"),
-  globalColorPickerElement = findElement("#global-color-picker"),
-  globalColorPickerSvElement = findElement("#global-color-picker-sv"),
-  globalColorPickerMarkerElement = findElement("#global-color-picker-marker"),
-  globalColorPickerHueRangeInputElement = findElement("#global-color-picker-hue"),
-  globalColorPickerSwatchElement = findElement("#global-color-picker-swatch"),
-  globalColorPickerHexTextInputElement = findElement("#global-color-picker-hex"),
-  globalColorPickerCopyButtonElement = findElement("#global-color-picker-copy"),
-  globalColorPickerPasteButtonElement = findElement("#global-color-picker-paste"),
-  globalColorPickerRedInputElement = findElement("#global-color-picker-r"),
-  globalColorPickerGreenInputElement = findElement("#global-color-picker-g"),
-  globalColorPickerBlueInputElement = findElement("#global-color-picker-b"),
-  imageOpacityInputElement = findElement("#image-opacity"),
-  imageLayoutOptionsElement = findElement("#image-layout-options"),
-  imageLeftInputElement = findElement("#image-left"),
-  imageTopInputElement = findElement("#image-top"),
-  imageScaleInputElement = findElement("#image-scale"),
-  imageRotationInputElement = findElement("#image-rotation"),
-  floorplanAutoDiagramInspectorFormElement = findElement("#floorplan-auto-diagram-inspector"),
-  floorplanAutoDiagramStatusElement = findElement("#floorplan-auto-diagram-status"),
-  floorplanAutoDiagramOpenStudioButtonElement = findElement("#floorplan-auto-diagram-open-studio"),
-  floorplanAutoDiagramViewToggleButtonElement = findElement("#floorplan-auto-diagram-view-toggle"),
-  floorplanAutoDiagramLabelTextInputElement = findElement("#floorplan-auto-diagram-label"),
-  floorplanAutoDiagramFolderTextInputElement = findElement("#floorplan-auto-diagram-folder"),
-  floorplanAutoDiagramLayoutElement = findElement("#floorplan-auto-diagram-layout"),
-  floorplanAutoDiagramLeftInputElement = findElement("#floorplan-auto-diagram-left"),
-  floorplanAutoDiagramTopInputElement = findElement("#floorplan-auto-diagram-top"),
-  floorplanAutoDiagramWidthInputElement = findElement("#floorplan-auto-diagram-width"),
-  floorplanAutoDiagramHeightInputElement = findElement("#floorplan-auto-diagram-height"),
-  floorplanAutoDiagramScaleInputElement = findElement("#floorplan-auto-diagram-scale"),
-  floorplanAutoDiagramRotationInputElement = findElement("#floorplan-auto-diagram-rotation"),
-  floorplanAutoDiagramFloorSelectElement = findElement("#floorplan-auto-diagram-floor"),
-  floorplanAutoDiagramCameraViewElement = findElement("#floorplan-auto-diagram-camera-view"),
-  floorplanAutoDiagramCameraModeElement = findElement("#floorplan-auto-diagram-camera-mode"),
-  floorplanAutoDiagramFocalLengthInputElement = findElement("#floorplan-auto-diagram-focal-length"),
-  floorplanAutoDiagramRotateTopButtonElement = findElement("#floorplan-auto-diagram-rotate-top"),
-  floorplanAutoDiagramOpenBaseLightingButtonElement = findElement(
-    "#floorplan-auto-diagram-open-base-lighting",
-  ),
-  floorplanAutoDiagramBindingsElement = findElement("#floorplan-auto-diagram-bindings"),
-  floorplanAutoDiagramBindingListElement = findElement("#floorplan-auto-diagram-binding-list"),
-  floorplanAutoLightingPanelElement = findElement("#floorplan-auto-lighting-panel"),
-  floorplanAutoLightingHandleElement = findElement("#floorplan-auto-lighting-handle"),
-  floorplanAutoLightingCloseButtonElement = findElement("#floorplan-auto-lighting-close"),
-  floorplanAutoLightingResetButtonElement = findElement("#floorplan-auto-lighting-reset"),
-  floorplanAutoLightingSaveButtonElement = findElement("#floorplan-auto-lighting-save"),
-  floorplanAutoLightingStatusElement = findElement("#floorplan-auto-lighting-status"),
-  floorplanBaseLightElements = [...document.querySelectorAll<HTMLInputElement>("[data-floorplan-base-light]")];
+function refreshSoundToggle(...args: any[]): ReturnType<typeof refreshSoundToggleImpl> { return (refreshSoundToggleImpl as any)(shellControlsDeps(), ...args); }
+
 editorCtx.baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2);
-const componentActionControlsElement = findElement("#component-action-controls"),
-  floorplanAutoDiagramDialogElement = findElement("#floorplan-auto-diagram-dialog"),
-  floorplanAutoDiagramCloseButtonElement = findElement("#floorplan-auto-diagram-close"),
-  floorplanAutoDiagramGuideElement = findElement("#floorplan-auto-diagram-guide"),
-  floorplanAutoDiagramLaterButtonElement = findElement("#floorplan-auto-diagram-later"),
-  floorplanAutoDiagramContinueElement = findElement("#floorplan-auto-diagram-continue"),
-  iconButtonEffectInspectorElement = findElement("#icon-button-effect-inspector"),
-  ibeLabelElement = findElement("#ibe-label"),
-  ibeEntityButtonElement = findElement("#ibe-entity-button"),
-  ibeEntityMenuElement = findElement("#ibe-entity-menu"),
-  ibeEntitySearchElement = findElement("#ibe-entity-search"),
-  ibeEntityOptionsElement = findElement("#ibe-entity-options"),
-  ibeColorTemperatureRealtimeElement = findElement("#ibe-color-temperature-realtime"),
-  ibeBrightnessRealtimeElement = findElement("#ibe-brightness-realtime"),
-  ibePreviewStateElement = findElement("#ibe-preview-state"),
-  ibeLayerOptionsElement = findElement("#ibe-layer-options"),
-  ibeButtonSectionElement = findElement("#ibe-button-section"),
-  ibeEffectSectionElement = findElement("#ibe-effect-section"),
-  ibeButtonVisibleElement = findElement("#ibe-button-visible"),
-  ibeEffectVisibleElement = findElement("#ibe-effect-visible"),
-  ibeButtonTransformSectionElement = findElement("#ibe-button-transform-section"),
-  ibeActionSectionElement = findElement("#ibe-action-section"),
-  ibeIconButtonElement = findElement("#ibe-icon-button"),
-  ibeIconCopyElement = findElement("#ibe-icon-copy"),
-  ibeIconMenuElement = findElement("#ibe-icon-menu"),
-  ibeIconSearchElement = findElement("#ibe-icon-search"),
-  ibeIconOptionsElement = findElement("#ibe-icon-options"),
-  ibeIconOffColorElement = findElement("#ibe-icon-off-color"),
-  ibeIconOnColorElement = findElement("#ibe-icon-on-color"),
-  ibeIconSizeElement = findElement("#ibe-icon-size"),
-  ibeButtonOffColorElement = findElement("#ibe-button-off-color"),
-  ibeButtonOnColorElement = findElement("#ibe-button-on-color"),
-  ibeButtonOpacityElement = findElement("#ibe-button-opacity"),
-  ibeFrameColorElement = findElement("#ibe-frame-color"),
-  ibeFrameWidthElement = findElement("#ibe-frame-width"),
-  ibeFrameOpacityElement = findElement("#ibe-frame-opacity"),
-  ibeRadiusElement = findElement("#ibe-radius"),
-  ibeGlowColorElement = findElement("#ibe-glow-color"),
-  ibeGlowOffStrengthElement = findElement("#ibe-glow-off-strength"),
-  ibeGlowOnStrengthElement = findElement("#ibe-glow-on-strength"),
-  ibeAssetButtonElement = findElement("#ibe-asset-button"),
-  ibeAssetMenuElement = findElement("#ibe-asset-menu"),
-  ibeAssetFolderElement = findElement("#ibe-asset-folder"),
-  ibeAssetSearchElement = findElement("#ibe-asset-search"),
-  ibeAssetOptionsElement = findElement("#ibe-asset-options"),
-  ibeAssetUploadElement = findElement("#ibe-asset-upload"),
-  ibeAssetUploadInputElement = findElement("#ibe-asset-upload-input"),
-  ibeAssetUploadHintElement = findElement("#ibe-asset-upload-hint"),
-  ibeEffectOpacityElement = findElement("#ibe-effect-opacity"),
-  ibeEffectFadeDurationElement = findElement("#ibe-effect-fade-duration"),
-  ibeEffectLayoutOptionsElement = findElement("#ibe-effect-layout-options"),
-  ibeEffectAlignImageElement = findElement("#ibe-effect-align-image"),
-  ibeEffectLeftElement = findElement("#ibe-effect-left"),
-  ibeEffectTopElement = findElement("#ibe-effect-top"),
-  ibeEffectScaleElement = findElement("#ibe-effect-scale"),
-  ibeEffectRotationElement = findElement("#ibe-effect-rotation"),
-  ibeEffectSizeHintElement = findElement("#ibe-effect-size-hint"),
-  effectImageAlignDialogElement = findElement("#effect-image-align-dialog"),
-  effectImageAlignCloseElement = findElement("#effect-image-align-close"),
-  effectImageAlignCancelElement = findElement("#effect-image-align-cancel"),
-  effectImageAlignConfirmElement = findElement("#effect-image-align-confirm"),
-  effectImageAlignOptionsElement = findElement("#effect-image-align-options"),
-  effectImageAlignMessageElement = findElement("#effect-image-align-message"),
-  ibeLeftElement = findElement("#ibe-left"),
-  ibeTopElement = findElement("#ibe-top"),
-  ibeWidthElement = findElement("#ibe-width"),
-  ibeHeightElement = findElement("#ibe-height"),
-  ibeScaleElement = findElement("#ibe-scale"),
-  ibeRotationElement = findElement("#ibe-rotation"),
-  ibeActionControlsElement = findElement("#ibe-action-controls"),
-  ibeApplyStyleElement = findElement("#ibe-apply-style"),
-  ibeApplyCountElement = findElement("#ibe-apply-count"),
-  titleButtonInspectorElement = findElement("#title-button-inspector"),
-  titleButtonLabelElement = findElement("#title-button-label"),
-  titleButtonEntityButtonElement = findElement("#title-button-entity-button"),
-  titleButtonEntityMenuElement = findElement("#title-button-entity-menu"),
-  titleButtonEntitySearchElement = findElement("#title-button-entity-search"),
-  titleButtonEntityOptionsElement = findElement("#title-button-entity-options"),
-  titleButtonMainVisibleElement = findElement("#title-button-main-visible"),
-  titleButtonSecondaryVisibleElement = findElement("#title-button-secondary-visible"),
-  titleButtonMainTextElement = findElement("#title-button-main-text"),
-  titleButtonSecondaryLine1Element = findElement("#title-button-secondary-line-1"),
-  titleButtonSecondaryLine2Element = findElement("#title-button-secondary-line-2"),
-  titleButtonMainColorElement = findElement("#title-button-main-color"),
-  titleButtonSecondaryColorElement = findElement("#title-button-secondary-color"),
-  titleButtonMainSizeElement = findElement("#title-button-main-size"),
-  titleButtonSecondarySizeElement = findElement("#title-button-secondary-size"),
-  titleButtonMainWeightElement = findElement("#title-button-main-weight"),
-  titleButtonSecondaryWeightElement = findElement("#title-button-secondary-weight"),
-  titleButtonMainSpacingElement = findElement("#title-button-main-spacing"),
-  titleButtonSecondarySpacingElement = findElement("#title-button-secondary-spacing"),
-  titleButtonSecondaryLineGapElement = findElement("#title-button-secondary-line-gap"),
-  titleButtonMainLeftElement = findElement("#title-button-main-left"),
-  titleButtonMainTopElement = findElement("#title-button-main-top"),
-  titleButtonSecondaryLeftElement = findElement("#title-button-secondary-left"),
-  titleButtonSecondaryTopElement = findElement("#title-button-secondary-top"),
-  titleButtonIconVisibleElement = findElement("#title-button-icon-visible"),
-  titleButtonIconButtonElement = findElement("#title-button-icon-button"),
-  titleButtonIconCopyElement = findElement("#title-button-icon-copy"),
-  titleButtonIconMenuElement = findElement("#title-button-icon-menu"),
-  titleButtonIconSearchElement = findElement("#title-button-icon-search"),
-  titleButtonIconOptionsElement = findElement("#title-button-icon-options"),
-  titleButtonIconColorElement = findElement("#title-button-icon-color"),
-  titleButtonIconSizeElement = findElement("#title-button-icon-size"),
-  titleButtonIconLeftElement = findElement("#title-button-icon-left"),
-  titleButtonIconTopElement = findElement("#title-button-icon-top"),
-  titleButtonFrameColorElement = findElement("#title-button-frame-color"),
-  titleButtonFrameVisibleElement = findElement("#title-button-frame-visible"),
-  titleButtonFrameWidthElement = findElement("#title-button-frame-width"),
-  titleButtonFrameSizeElement = findElement("#title-button-frame-size"),
-  titleButtonFrameSpacingElement = findElement("#title-button-frame-spacing"),
-  titleButtonFrameOffsetXElement = findElement("#title-button-frame-offset-x"),
-  titleButtonFrameOffsetYElement = findElement("#title-button-frame-offset-y"),
-  titleButtonMarkerVisibleElement = findElement("#title-button-marker-visible"),
-  titleButtonMarkerColorElement = findElement("#title-button-marker-color"),
-  titleButtonMarkerSizeElement = findElement("#title-button-marker-size"),
-  titleButtonMarkerLeftElement = findElement("#title-button-marker-left"),
-  titleButtonMarkerTopElement = findElement("#title-button-marker-top"),
-  titleButtonLeftElement = findElement("#title-button-left"),
-  titleButtonTopElement = findElement("#title-button-top"),
-  titleButtonWidthElement = findElement("#title-button-width"),
-  titleButtonHeightElement = findElement("#title-button-height"),
-  titleButtonScaleElement = findElement("#title-button-scale"),
-  titleButtonRotationElement = findElement("#title-button-rotation"),
-  titleButtonActionControlsElement = findElement("#title-button-action-controls"),
-  titleButtonApplyStyleElement = findElement("#title-button-apply-style"),
-  titleButtonApplyCountElement = findElement("#title-button-apply-count"),
-  lightStatisticsInspectorElement = findElement("#light-statistics-inspector"),
-  lightStatisticsLabelElement = findElement("#light-statistics-label"),
-  lightStatisticsTitleElement = findElement("#light-statistics-title"),
-  lightStatisticsEntityButtonElement = findElement("#light-statistics-entity-button"),
-  lightStatisticsEntityMenuElement = findElement("#light-statistics-entity-menu"),
-  lightStatisticsEntitySearchElement = findElement("#light-statistics-entity-search"),
-  lightStatisticsEntityOptionsElement = findElement("#light-statistics-entity-options"),
-  lightStatisticsEntityPendingElement = findElement("#light-statistics-entity-pending"),
-  lightStatisticsEntityConfirmElement = findElement("#light-statistics-entity-confirm"),
-  lightStatisticsEntityMessageElement = findElement("#light-statistics-entity-message"),
-  lightStatisticsEntityListElement = findElement("#light-statistics-entity-list"),
-  lightStatisticsEntityCountElement = findElement("#light-statistics-entity-count"),
-  lightStatisticsActionEntityButtonElement = findElement("#light-statistics-action-entity-button"),
-  lightStatisticsActionEntityMenuElement = findElement("#light-statistics-action-entity-menu"),
-  lightStatisticsActionEntitySearchElement = findElement("#light-statistics-action-entity-search"),
-  lightStatisticsActionEntityOptionsElement = findElement(
-    "#light-statistics-action-entity-options",
-  ),
-  lightStatisticsActionNoteElement = findElement("#light-statistics-action-note"),
-  lightStatisticsActionControlsElement = findElement("#light-statistics-action-controls"),
-  lightStatisticsIconButtonElement = findElement("#light-statistics-icon-button"),
-  lightStatisticsIconCopyElement = findElement("#light-statistics-icon-copy"),
-  lightStatisticsIconMenuElement = findElement("#light-statistics-icon-menu"),
-  lightStatisticsIconSearchElement = findElement("#light-statistics-icon-search"),
-  lightStatisticsIconOptionsElement = findElement("#light-statistics-icon-options"),
-  lightStatisticsIconVisibleElement = findElement("#light-statistics-icon-visible"),
-  lightStatisticsIconColorElement = findElement("#light-statistics-icon-color"),
-  lightStatisticsIconActiveColorElement = findElement("#light-statistics-icon-active-color"),
-  lightStatisticsIconSizeElement = findElement("#light-statistics-icon-size"),
-  lightStatisticsTitleVisibleElement = findElement("#light-statistics-title-visible"),
-  lightStatisticsTitleColorElement = findElement("#light-statistics-title-color"),
-  lightStatisticsTitleSizeElement = findElement("#light-statistics-title-size"),
-  lightStatisticsTitleWeightElement = findElement("#light-statistics-title-weight"),
-  lightStatisticsTitleSpacingElement = findElement("#light-statistics-title-spacing"),
-  lightStatisticsCountVisibleElement = findElement("#light-statistics-count-visible"),
-  lightStatisticsCountColorElement = findElement("#light-statistics-count-color"),
-  lightStatisticsCountActiveColorElement = findElement("#light-statistics-count-active-color"),
-  lightStatisticsCountSizeElement = findElement("#light-statistics-count-size"),
-  lightStatisticsCountWeightElement = findElement("#light-statistics-count-weight"),
-  lightStatisticsCountSpacingElement = findElement("#light-statistics-count-spacing"),
-  lightStatisticsIconGapElement = findElement("#light-statistics-icon-gap"),
-  lightStatisticsCountGapElement = findElement("#light-statistics-count-gap"),
-  lightStatisticsLeftElement = findElement("#light-statistics-left"),
-  lightStatisticsTopElement = findElement("#light-statistics-top"),
-  lightStatisticsWidthElement = findElement("#light-statistics-width"),
-  lightStatisticsHeightElement = findElement("#light-statistics-height"),
-  lightStatisticsScaleElement = findElement("#light-statistics-scale"),
-  lightStatisticsRotationElement = findElement("#light-statistics-rotation"),
-  iconButtonInspectorElement = findElement("#icon-button-inspector"),
-  iconButtonTypeLabelElement = findElement("#icon-button-type-label"),
-  iconButtonTypeElement = findElement("#icon-button-type"),
-  iconButtonLabelElement = findElement("#icon-button-label"),
-  presenceSensorKindLabelElement = findElement("#presence-sensor-kind-label"),
-  presenceSensorKindElement = findElement("#presence-sensor-kind"),
-  iconButtonEntityButtonElement = findElement("#icon-button-entity-button"),
-  iconButtonEntityMenuElement = findElement("#icon-button-entity-menu"),
-  iconButtonEntitySearchElement = findElement("#icon-button-entity-search"),
-  iconButtonEntityOptionsElement = findElement("#icon-button-entity-options"),
-  coverSettingsInspectorElement = findElement("#cover-settings-inspector"),
-  coverSettingsKindElement = findElement("#cover-settings-kind"),
-  coverSettingsDirectionElement = findElement("#cover-settings-direction"),
-  coverSettingsMotorDirectionElement = findElement("#cover-settings-motor-direction"),
-  iconButtonPreviewStateElement = findElement("#icon-button-preview-state"),
-  iconButtonPreviewControlElement = findElement("#icon-button-preview-control"),
-  iconButtonIconButtonElement = findElement("#icon-button-icon-button"),
-  iconButtonIconCopyElement = findElement("#icon-button-icon-copy"),
-  iconButtonIconMenuElement = findElement("#icon-button-icon-menu"),
-  iconButtonIconSearchElement = findElement("#icon-button-icon-search"),
-  iconButtonIconOptionsElement = findElement("#icon-button-icon-options"),
-  iconButtonIconColorElement = findElement("#icon-button-icon-color"),
-  iconButtonIconColorLabelElement = findElement("#icon-button-icon-color-label"),
-  deviceButtonIconVisibleElement = findElement("#device-button-icon-visible"),
-  deviceButtonIconOnColorElement = findElement("#device-button-icon-on-color"),
-  deviceButtonIconOnColorLabelElement = findElement("#device-button-icon-on-color-label"),
-  deviceButtonBadgeColorElement = findElement("#device-button-badge-color"),
-  deviceButtonBadgeColorLabelElement = findElement("#device-button-badge-color-label"),
-  deviceButtonBadgeOpacityElement = findElement("#device-button-badge-opacity"),
-  deviceButtonBadgeOpacityLabelElement = findElement("#device-button-badge-opacity-label"),
-  iconButtonIconSizeElement = findElement("#icon-button-icon-size"),
-  iconButtonIconSizeLabelElement = findElement("#icon-button-icon-size-label"),
-  deviceButtonSymbolSizeElement = findElement("#device-button-symbol-size"),
-  deviceButtonSymbolSizeLabelElement = findElement("#device-button-symbol-size-label"),
-  deviceButtonBadgeSizeElement = findElement("#device-button-badge-size"),
-  deviceButtonBadgeSizeLabelElement = findElement("#device-button-badge-size-label"),
-  deviceButtonStatePrecisionElement = findElement("#device-button-state-precision"),
-  deviceButtonStatePrecisionLabelElement = findElement("#device-button-state-precision-label"),
-  iconButtonIconOffOpacityElement = findElement("#icon-button-icon-off-opacity"),
-  iconButtonIconOnOpacityElement = findElement("#icon-button-icon-on-opacity"),
-  iconButtonIconOffOpacityLabelElement = findElement("#icon-button-icon-off-opacity-label"),
-  iconButtonIconOnOpacityLabelElement = findElement("#icon-button-icon-on-opacity-label"),
-  iconButtonIconLeftElement = findElement("#icon-button-icon-left"),
-  iconButtonIconTopElement = findElement("#icon-button-icon-top"),
-  iconButtonMainTextElement = findElement("#icon-button-main-text"),
-  iconButtonSecondaryTextElement = findElement("#icon-button-secondary-text"),
-  iconButtonMainHeadingElement = findElement("#icon-button-main-heading"),
-  deviceButtonMainVisibleElement = findElement("#device-button-main-visible"),
-  iconButtonSecondaryHeadingElement = findElement("#icon-button-secondary-heading"),
-  deviceButtonSecondaryVisibleElement = findElement("#device-button-secondary-visible"),
-  iconButtonMainContentLabelElement = findElement("#icon-button-main-content-label"),
-  iconButtonSecondaryContentLabelElement = findElement("#icon-button-secondary-content-label"),
-  iconButtonMainColorElement = findElement("#icon-button-main-color"),
-  iconButtonSecondaryColorElement = findElement("#icon-button-secondary-color"),
-  iconButtonMainOffOpacityElement = findElement("#icon-button-main-off-opacity"),
-  iconButtonMainOnOpacityElement = findElement("#icon-button-main-on-opacity"),
-  iconButtonSecondaryOffOpacityElement = findElement("#icon-button-secondary-off-opacity"),
-  iconButtonSecondaryOnOpacityElement = findElement("#icon-button-secondary-on-opacity"),
-  iconButtonMainOffOpacityLabelElement = findElement("#icon-button-main-off-opacity-label"),
-  iconButtonMainOnOpacityLabelElement = findElement("#icon-button-main-on-opacity-label"),
-  iconButtonSecondaryOffOpacityLabelElement = findElement(
-    "#icon-button-secondary-off-opacity-label",
-  ),
-  iconButtonSecondaryOnOpacityLabelElement = findElement("#icon-button-secondary-on-opacity-label"),
-  iconButtonMainSizeElement = findElement("#icon-button-main-size"),
-  iconButtonSecondarySizeElement = findElement("#icon-button-secondary-size"),
-  iconButtonMainWeightElement = findElement("#icon-button-main-weight"),
-  iconButtonSecondaryWeightElement = findElement("#icon-button-secondary-weight"),
-  iconButtonMainSpacingElement = findElement("#icon-button-main-spacing"),
-  iconButtonSecondarySpacingElement = findElement("#icon-button-secondary-spacing"),
-  iconButtonMainLeftElement = findElement("#icon-button-main-left"),
-  iconButtonMainTopElement = findElement("#icon-button-main-top"),
-  iconButtonSecondaryLeftElement = findElement("#icon-button-secondary-left"),
-  iconButtonSecondaryTopElement = findElement("#icon-button-secondary-top"),
-  iconButtonOnFillVisibleElement = findElement("#icon-button-on-fill-visible"),
-  iconButtonFillSectionElement = findElement("#icon-button-fill-section"),
-  iconButtonOnFillColorElement = findElement("#icon-button-on-fill-color"),
-  iconButtonOnFillStrengthElement = findElement("#icon-button-on-fill-strength"),
-  iconButtonOnFillFadeDurationElement = findElement("#icon-button-on-fill-fade-duration"),
-  iconButtonFrameVisibleElement = findElement("#icon-button-frame-visible"),
-  iconButtonFrameSectionElement = findElement("#icon-button-frame-section"),
-  iconButtonFrameWidthElement = findElement("#icon-button-frame-width"),
-  iconButtonFrameAngleElement = findElement("#icon-button-frame-angle"),
-  iconButtonFrameOffOpacityElement = findElement("#icon-button-frame-off-opacity"),
-  iconButtonFrameOnOpacityElement = findElement("#icon-button-frame-on-opacity"),
-  iconButtonCutCornerElement = findElement("#icon-button-cut-corner"),
-  iconButtonSoftLightVisibleElement = findElement("#icon-button-soft-light-visible"),
-  iconButtonSoftLightSectionElement = findElement("#icon-button-soft-light-section"),
-  iconButtonSoftLightColorElement = findElement("#icon-button-soft-light-color"),
-  iconButtonSoftLightStrengthElement = findElement("#icon-button-soft-light-strength"),
-  iconButtonSoftLightSizeElement = findElement("#icon-button-soft-light-size"),
-  iconButtonSoftLightAngleElement = findElement("#icon-button-soft-light-angle"),
-  iconButtonGlowVisibleElement = findElement("#icon-button-glow-visible"),
-  iconButtonGlowSectionElement = findElement("#icon-button-glow-section"),
-  iconButtonGlowColorElement = findElement("#icon-button-glow-color"),
-  iconButtonGlowStrengthElement = findElement("#icon-button-glow-strength"),
-  iconButtonGlowSizeElement = findElement("#icon-button-glow-size"),
-  iconButtonGlowAngleElement = findElement("#icon-button-glow-angle"),
-  iconButtonLeftElement = findElement("#icon-button-left"),
-  iconButtonTopElement = findElement("#icon-button-top"),
-  iconButtonWidthElement = findElement("#icon-button-width"),
-  iconButtonHeightElement = findElement("#icon-button-height"),
-  iconButtonScaleElement = findElement("#icon-button-scale"),
-  iconButtonRotationElement = findElement("#icon-button-rotation"),
-  iconButtonActionControlsElement = findElement("#icon-button-action-controls"),
-  iconButtonActionSectionElement = findElement("#icon-button-action-section"),
-  iconButtonPreviewDetailsElement = findElement("#icon-button-preview-details"),
-  iconButtonApplyStyleElement = findElement("#icon-button-apply-style"),
-  iconButtonApplyCountElement = findElement("#icon-button-apply-count"),
-  presenceMotionSectionElement = findElement("#presence-motion-section"),
-  doorWindowPerspectiveSectionElement = findElement("#door-window-perspective-section"),
-  doorWindowPerspectiveEditElement = findElement("#door-window-perspective-edit"),
-  doorWindowPerspectiveResetElement = findElement("#door-window-perspective-reset"),
-  doorWindowPerspectiveSaveElement = findElement("#door-window-perspective-save"),
-  presenceHaloVisibleElement = findElement("#presence-halo-visible"),
-  presenceHaloScaleXElement = findElement("#presence-halo-scale-x"),
-  presenceHaloScaleYElement = findElement("#presence-halo-scale-y"),
-  presenceHaloRotationElement = findElement("#presence-halo-rotation"),
-  presenceHaloOpacityElement = findElement("#presence-halo-opacity"),
-  presencePersonVisibleElement = findElement("#presence-person-visible"),
-  presencePersonScaleElement = findElement("#presence-person-scale"),
-  presencePersonRotationElement = findElement("#presence-person-rotation"),
-  presencePersonOpacityElement = findElement("#presence-person-opacity"),
-  presenceOrbitDurationElement = findElement("#presence-orbit-duration"),
-  airConditionerInspectorElement = findElement("#air-conditioner-inspector"),
-  airConditionerLabelElement = findElement("#air-conditioner-label"),
-  airConditionerDeviceTypeElement = findElement("#air-conditioner-device-type"),
-  airConditionerEntityButtonElement = findElement("#air-conditioner-entity-button"),
-  airConditionerEntityMenuElement = findElement("#air-conditioner-entity-menu"),
-  airConditionerEntitySearchElement = findElement("#air-conditioner-entity-search"),
-  airConditionerEntityOptionsElement = findElement("#air-conditioner-entity-options"),
-  airConditionerPreviewStateElement = findElement("#air-conditioner-preview-state"),
-  airConditionerLayerOptionsElement = findElement("#air-conditioner-layer-options"),
-  airConditionerButtonSectionElement = findElement("#air-conditioner-button-section"),
-  airConditionerAirflowSectionElement = findElement("#air-conditioner-airflow-section"),
-  airConditionerTransformSectionElement = findElement("#air-conditioner-transform-section"),
-  airConditionerActionSectionElement = findElement("#air-conditioner-action-section"),
-  airConditionerIconVisibleElement = findElement("#air-conditioner-icon-visible"),
-  airConditionerIconOffColorElement = findElement("#air-conditioner-icon-off-color"),
-  airConditionerIconOnColorElement = findElement("#air-conditioner-icon-on-color"),
-  airConditionerBadgeColorElement = findElement("#air-conditioner-badge-color"),
-  airConditionerBadgeOpacityElement = findElement("#air-conditioner-badge-opacity"),
-  airConditionerSymbolSizeElement = findElement("#air-conditioner-symbol-size"),
-  airConditionerBadgeSizeElement = findElement("#air-conditioner-badge-size"),
-  airConditionerIconLeftElement = findElement("#air-conditioner-icon-left"),
-  airConditionerIconTopElement = findElement("#air-conditioner-icon-top"),
-  airConditionerMainVisibleElement = findElement("#air-conditioner-main-visible"),
-  airConditionerMainTextElement = findElement("#air-conditioner-main-text"),
-  airConditionerMainColorElement = findElement("#air-conditioner-main-color"),
-  airConditionerMainSizeElement = findElement("#air-conditioner-main-size"),
-  airConditionerMainWeightElement = findElement("#air-conditioner-main-weight"),
-  airConditionerMainSpacingElement = findElement("#air-conditioner-main-spacing"),
-  airConditionerMainLeftElement = findElement("#air-conditioner-main-left"),
-  airConditionerMainTopElement = findElement("#air-conditioner-main-top"),
-  airConditionerSecondaryVisibleElement = findElement("#air-conditioner-secondary-visible"),
-  airConditionerSecondaryTextElement = findElement("#air-conditioner-secondary-text"),
-  airConditionerSecondaryColorElement = findElement("#air-conditioner-secondary-color"),
-  airConditionerSecondarySizeElement = findElement("#air-conditioner-secondary-size"),
-  airConditionerSecondaryWeightElement = findElement("#air-conditioner-secondary-weight"),
-  airConditionerSecondarySpacingElement = findElement("#air-conditioner-secondary-spacing"),
-  airConditionerSecondaryLeftElement = findElement("#air-conditioner-secondary-left"),
-  airConditionerSecondaryTopElement = findElement("#air-conditioner-secondary-top"),
-  airConditionerAirflowVisibleElement = findElement("#air-conditioner-airflow-visible"),
-  airConditionerAirflowMotionElement = findElement("#air-conditioner-airflow-motion"),
-  airConditionerAirflowCoolColorElement = findElement("#air-conditioner-airflow-cool-color"),
-  airConditionerAirflowHeatColorElement = findElement("#air-conditioner-airflow-heat-color"),
-  airConditionerAirflowOtherColorElement = findElement("#air-conditioner-airflow-other-color"),
-  airConditionerAirflowAngleElement = findElement("#air-conditioner-airflow-angle"),
-  airConditionerAirflowCurveElement = findElement("#air-conditioner-airflow-curve"),
-  airConditionerAirflowLengthElement = findElement("#air-conditioner-airflow-length"),
-  airConditionerAirflowFadeElement = findElement("#air-conditioner-airflow-fade"),
-  airConditionerAirflowSpreadElement = findElement("#air-conditioner-airflow-spread"),
-  airConditionerAirflowDensityElement = findElement("#air-conditioner-airflow-density"),
-  airConditionerAirflowIrregularityElement = findElement("#air-conditioner-airflow-irregularity"),
-  airConditionerAirflowThicknessElement = findElement("#air-conditioner-airflow-thickness"),
-  airConditionerAirflowStrengthElement = findElement("#air-conditioner-airflow-strength"),
-  airConditionerAirflowBlurElement = findElement("#air-conditioner-airflow-blur"),
-  airConditionerAirflowSpeedElement = findElement("#air-conditioner-airflow-speed"),
-  airConditionerAirflowOffsetXElement = findElement("#air-conditioner-airflow-offset-x"),
-  airConditionerAirflowOffsetYElement = findElement("#air-conditioner-airflow-offset-y"),
-  airConditionerAirflowWidthElement = findElement("#air-conditioner-airflow-width"),
-  airConditionerAirflowHeightElement = findElement("#air-conditioner-airflow-height"),
-  airConditionerAirflowScaleElement = findElement("#air-conditioner-airflow-scale"),
-  airConditionerAirflowRotationElement = findElement("#air-conditioner-airflow-rotation"),
-  airConditionerLeftElement = findElement("#air-conditioner-left"),
-  airConditionerTopElement = findElement("#air-conditioner-top"),
-  airConditionerWidthElement = findElement("#air-conditioner-width"),
-  airConditionerHeightElement = findElement("#air-conditioner-height"),
-  airConditionerScaleElement = findElement("#air-conditioner-scale"),
-  airConditionerRotationElement = findElement("#air-conditioner-rotation"),
-  airConditionerActionControlsElement = findElement("#air-conditioner-action-controls"),
-  airConditionerPreviewDetailsElement = findElement("#air-conditioner-preview-details"),
-  airConditionerApplyStyleElement = findElement("#air-conditioner-apply-style"),
-  airConditionerApplyCountElement = findElement("#air-conditioner-apply-count"),
-  vacuumMapInspectorElement = findElement("#vacuum-map-inspector"),
-  vacuumMapLabelElement = findElement("#vacuum-map-label"),
-  vacuumMapEntityButtonElement = findElement("#vacuum-map-entity-button"),
-  vacuumMapEntityMenuElement = findElement("#vacuum-map-entity-menu"),
-  vacuumMapEntitySearchElement = findElement("#vacuum-map-entity-search"),
-  vacuumMapEntityOptionsElement = findElement("#vacuum-map-entity-options"),
-  vacuumMapOpacityElement = findElement("#vacuum-map-opacity"),
-  vacuumMapLeftElement = findElement("#vacuum-map-left"),
-  vacuumMapTopElement = findElement("#vacuum-map-top"),
-  vacuumMapScaleElement = findElement("#vacuum-map-scale"),
-  vacuumMapRotationElement = findElement("#vacuum-map-rotation"),
-  cameraInspectorElement = findElement("#camera-inspector"),
-  cameraLabelElement = findElement("#camera-label"),
-  cameraSourceOptionsElement = findElement("#camera-source-options"),
-  cameraEntityPickerElement = findElement("#camera-entity-picker"),
-  cameraGo2rtcUrlFieldElement = findElement("#camera-go2rtc-url-field"),
-  cameraGo2rtcUrlElement = findElement("#camera-go2rtc-url"),
-  cameraGo2rtcNoteElement = findElement("#camera-go2rtc-note"),
-  cameraEntityButtonElement = findElement("#camera-entity-button"),
-  cameraEntityMenuElement = findElement("#camera-entity-menu"),
-  cameraEntitySearchElement = findElement("#camera-entity-search"),
-  cameraEntityOptionsElement = findElement("#camera-entity-options"),
-  cameraFitOptionsElement = findElement("#camera-fit-options"),
-  cameraDisplayModeOptionsElement = findElement("#camera-display-mode-options"),
-  cameraRefreshIntervalFieldElement = findElement("#camera-refresh-interval-field"),
-  cameraRefreshIntervalElement = findElement("#camera-refresh-interval"),
-  cameraMediaVisibleElement = findElement("#camera-media-visible"),
-  cameraFrameVisibleElement = findElement("#camera-frame-visible"),
-  cameraFrameColorElement = findElement("#camera-frame-color"),
-  cameraFrameWidthElement = findElement("#camera-frame-width"),
-  cameraRadiusElement = findElement("#camera-radius"),
-  cameraFrameAngleElement = findElement("#camera-frame-angle"),
-  cameraFrameOpacityElement = findElement("#camera-frame-opacity"),
-  cameraLeftElement = findElement("#camera-left"),
-  cameraTopElement = findElement("#camera-top"),
-  cameraWidthElement = findElement("#camera-width"),
-  cameraHeightElement = findElement("#camera-height"),
-  cameraScaleElement = findElement("#camera-scale"),
-  cameraRotationElement = findElement("#camera-rotation"),
-  cameraActionControlsElement = findElement("#camera-action-controls"),
-  cameraApplyStyleElement = findElement("#camera-apply-style"),
-  cameraApplyCountElement = findElement("#camera-apply-count"),
-  timeInspectorElement = findElement("#time-inspector"),
-  timeTypeElement = findElement("#time-type"),
-  timeLabelElement = findElement("#time-label"),
-  timeHourFormatElement = findElement("#time-hour-format"),
-  timeSecondsElement = findElement("#time-seconds"),
-  timeColorElement = findElement("#time-color"),
-  timeFontSizeElement = findElement("#time-font-size"),
-  timeFontWeightElement = findElement("#time-font-weight"),
-  timeLetterSpacingElement = findElement("#time-letter-spacing"),
-  timeOpacityElement = findElement("#time-opacity"),
-  timeLeftElement = findElement("#time-left"),
-  timeTopElement = findElement("#time-top"),
-  timeScaleElement = findElement("#time-scale"),
-  timeRotationElement = findElement("#time-rotation"),
-  dateInspectorElement = findElement("#date-inspector"),
-  dateTypeElement = findElement("#date-type"),
-  dateLabelElement = findElement("#date-label"),
-  dateWeekdayElement = findElement("#date-weekday"),
-  dateLunarElement = findElement("#date-lunar"),
-  datePrimaryColorElement = findElement("#date-primary-color"),
-  datePrimarySizeElement = findElement("#date-primary-size"),
-  datePrimaryWeightElement = findElement("#date-primary-weight"),
-  datePrimarySpacingElement = findElement("#date-primary-spacing"),
-  dateLunarColorElement = findElement("#date-lunar-color"),
-  dateLunarSizeElement = findElement("#date-lunar-size"),
-  dateLunarWeightElement = findElement("#date-lunar-weight"),
-  dateLunarSpacingElement = findElement("#date-lunar-spacing"),
-  dateLineGapElement = findElement("#date-line-gap"),
-  dateOpacityElement = findElement("#date-opacity"),
-  dateLeftElement = findElement("#date-left"),
-  dateTopElement = findElement("#date-top"),
-  dateScaleElement = findElement("#date-scale"),
-  dateRotationElement = findElement("#date-rotation"),
-  weatherInspectorElement = findElement("#weather-inspector"),
-  weatherTypeElement = findElement("#weather-type"),
-  weatherLabelElement = findElement("#weather-label"),
-  weatherEntityButtonElement = findElement("#weather-entity-button"),
-  weatherEntityMenuElement = findElement("#weather-entity-menu"),
-  weatherEntitySearchElement = findElement("#weather-entity-search"),
-  weatherEntityOptionsElement = findElement("#weather-entity-options"),
-  weatherIconVisibleElement = findElement("#weather-icon-visible"),
-  weatherTemperatureVisibleElement = findElement("#weather-temperature-visible"),
-  weatherConditionVisibleElement = findElement("#weather-condition-visible"),
-  weatherHumidityVisibleElement = findElement("#weather-humidity-visible"),
-  weatherIconSizeElement = findElement("#weather-icon-size"),
-  weatherIconGapElement = findElement("#weather-icon-gap"),
-  weatherTemperatureColorElement = findElement("#weather-temperature-color"),
-  weatherTemperatureSizeElement = findElement("#weather-temperature-size"),
-  weatherTemperatureWeightElement = findElement("#weather-temperature-weight"),
-  weatherTemperatureSpacingElement = findElement("#weather-temperature-spacing"),
-  weatherSecondaryColorElement = findElement("#weather-secondary-color"),
-  weatherSecondarySizeElement = findElement("#weather-secondary-size"),
-  weatherSecondaryWeightElement = findElement("#weather-secondary-weight"),
-  weatherSecondarySpacingElement = findElement("#weather-secondary-spacing"),
-  weatherLineGapElement = findElement("#weather-line-gap"),
-  weatherOpacityElement = findElement("#weather-opacity"),
-  weatherLeftElement = findElement("#weather-left"),
-  weatherTopElement = findElement("#weather-top"),
-  weatherScaleElement = findElement("#weather-scale"),
-  weatherRotationElement = findElement("#weather-rotation"),
-  lineChartInspectorElement = findElement("#line-chart-inspector"),
-  eventLogWallInspectorElement = findElement("#event-log-wall-inspector"),
-  eventLogWallTypeElement = findElement("#event-log-wall-type"),
-  eventLogWallLabelElement = findElement("#event-log-wall-label"),
-  eventLogWallEnabledElement = findElement("#event-log-wall-enabled"),
-  eventLogWallTitleElement = findElement("#event-log-wall-title"),
-  eventLogWallTitleVisibleElement = findElement("#event-log-wall-title-visible"),
-  eventLogWallTitleSizeElement = findElement("#event-log-wall-title-size"),
-  eventLogWallTitleColorElement = findElement("#event-log-wall-title-color"),
-  eventLogWallTitleAlignElement = findElement("#event-log-wall-title-align"),
-  eventLogWallMaxEntriesElement = findElement("#event-log-wall-max-entries"),
-  eventLogWallDisplayDurationElement = findElement("#event-log-wall-display-duration"),
-  eventLogWallWatchScopeElement = findElement("#event-log-wall-watch-scope"),
-  eventLogWallEntityIdsElement = findElement("#event-log-wall-entity-ids"),
-  eventLogWallFontSizeElement = findElement("#event-log-wall-font-size"),
-  eventLogWallRadiusElement = findElement("#event-log-wall-radius"),
-  eventLogWallBgOpacityElement = findElement("#event-log-wall-bg-opacity"),
-  eventLogWallBlurElement = findElement("#event-log-wall-blur"),
-  eventLogWallClickModeElement = findElement("#event-log-wall-click-mode"),
-  eventLogWallShowFooterElement = findElement("#event-log-wall-show-footer"),
-  eventLogWallFooterTextElement = findElement("#event-log-wall-footer-text"),
-  eventLogWallOnColorElement = findElement("#event-log-wall-on-color"),
-  eventLogWallOffColorElement = findElement("#event-log-wall-off-color"),
-  eventLogWallAttrColorElement = findElement("#event-log-wall-attr-color"),
-  eventLogWallClimateColorElement = findElement("#event-log-wall-climate-color"),
-  eventLogWallAlertColorElement = findElement("#event-log-wall-alert-color"),
-  eventLogWallMutedColorElement = findElement("#event-log-wall-muted-color"),
-  lineChartTypeElement = findElement("#line-chart-type"),
-  lineChartLabelElement = findElement("#line-chart-label"),
-  lineChartEntityButtonElement = findElement("#line-chart-entity-button"),
-  lineChartEntityMenuElement = findElement("#line-chart-entity-menu"),
-  lineChartEntitySearchInputElement = findElement("#line-chart-entity-search"),
-  lineChartEntityOptionsElement = findElement("#line-chart-entity-options"),
-  lineChartValueVisibleElement = findElement("#line-chart-value-visible"),
-  lineChartValueScaleInputElement = findElement("#line-chart-value-scale"),
-  lineChartValueColorInputElement = findElement("#line-chart-value-color"),
-  lineChartStatePrecisionSelectElement = findElement("#line-chart-state-precision"),
-  lineChartValueOffsetXInputElement = findElement("#line-chart-value-offset-x"),
-  lineChartValueOffsetYInputElement = findElement("#line-chart-value-offset-y"),
-  lineChartUpdateIntervalInputElement = findElement("#line-chart-update-interval"),
-  lineChartHoursInputElement = findElement("#line-chart-hours"),
-  lineChartCurveRadiusInputElement = findElement("#line-chart-curve-radius"),
-  lineChartThresholdModeSelectElement = findElement("#line-chart-threshold-mode"),
-  lineChartThresholdInputs = [1, 2, 3, 4].map((thresholdIndex) => ({
-    value: findElement("#line-chart-threshold-" + thresholdIndex + "-value"),
-    color: findElement("#line-chart-threshold-" + thresholdIndex + "-color"),
-  })),
-  lineChartLeftInputElement = findElement("#line-chart-left"),
-  lineChartTopInputElement = findElement("#line-chart-top"),
-  lineChartWidthInputElement = findElement("#line-chart-width"),
-  lineChartHeightInputElement = findElement("#line-chart-height"),
-  lineChartScaleInputElement = findElement("#line-chart-scale"),
-  lineChartRotationInputElement = findElement("#line-chart-rotation"),
-  lineChartActionControlsElement = findElement("#line-chart-action-controls"),
-  lineChartApplyStyleButtonElement = findElement("#line-chart-apply-style"),
-  lineChartApplyCountElement = findElement("#line-chart-apply-count"),
-  panelFrameInspectorFormElement = findElement("#panel-frame-inspector"),
-  panelFrameTypeTextInputElement = findElement("#panel-frame-type"),
-  panelFrameLabelTextInputElement = findElement("#panel-frame-label"),
-  panelFrameMainVisibleButtonElement = findElement("#panel-frame-main-visible"),
-  panelFrameMainTextInputElement = findElement("#panel-frame-main-text"),
-  panelFrameMainColorInputElement = findElement("#panel-frame-main-color"),
-  panelFrameMainSizeInputElement = findElement("#panel-frame-main-size"),
-  panelFrameMainWeightInputElement = findElement("#panel-frame-main-weight"),
-  panelFrameMainOpacityInputElement = findElement("#panel-frame-main-opacity"),
-  panelFrameMainSpacingInputElement = findElement("#panel-frame-main-spacing"),
-  panelFrameMainLeftInputElement = findElement("#panel-frame-main-left"),
-  panelFrameMainTopInputElement = findElement("#panel-frame-main-top"),
-  panelFrameSecondaryVisibleButtonElement = findElement("#panel-frame-secondary-visible"),
-  panelFrameSecondaryTextInputElement = findElement("#panel-frame-secondary-text"),
-  panelFrameSecondaryColorInputElement = findElement("#panel-frame-secondary-color"),
-  panelFrameSecondarySizeInputElement = findElement("#panel-frame-secondary-size"),
-  panelFrameSecondaryWeightInputElement = findElement("#panel-frame-secondary-weight"),
-  panelFrameSecondaryOpacityInputElement = findElement("#panel-frame-secondary-opacity"),
-  panelFrameSecondarySpacingInputElement = findElement("#panel-frame-secondary-spacing"),
-  panelFrameSecondaryLeftInputElement = findElement("#panel-frame-secondary-left"),
-  panelFrameSecondaryTopInputElement = findElement("#panel-frame-secondary-top"),
-  panelFrameEdgeVisibleButtonElement = findElement("#panel-frame-edge-visible"),
-  panelFrameEdgeColorInputElement = findElement("#panel-frame-edge-color"),
-  panelFrameEdgeWidthInputElement = findElement("#panel-frame-edge-width"),
-  panelFrameEdgeOpacityInputElement = findElement("#panel-frame-edge-opacity"),
-  panelFrameRadiusInputElement = findElement("#panel-frame-radius"),
-  panelFrameEdgeAngleInputElement = findElement("#panel-frame-edge-angle"),
-  panelFrameGlowVisibleButtonElement = findElement("#panel-frame-glow-visible"),
-  panelFrameGlowColorInputElement = findElement("#panel-frame-glow-color"),
-  panelFrameGlowStrengthInputElement = findElement("#panel-frame-glow-strength"),
-  panelFrameGlowSizeInputElement = findElement("#panel-frame-glow-size"),
-  panelFrameGlowAngleInputElement = findElement("#panel-frame-glow-angle"),
-  panelFrameLeftInputElement = findElement("#panel-frame-left"),
-  panelFrameTopInputElement = findElement("#panel-frame-top"),
-  panelFrameWidthInputElement = findElement("#panel-frame-width"),
-  panelFrameHeightInputElement = findElement("#panel-frame-height"),
-  panelFrameScaleInputElement = findElement("#panel-frame-scale"),
-  panelFrameRotationInputElement = findElement("#panel-frame-rotation"),
-  panelFrameApplyStyleButtonElement = findElement("#panel-frame-apply-style"),
-  panelFrameApplyCountElement = findElement("#panel-frame-apply-count"),
-  navigationInspectorFormElement = findElement("#navigation-inspector"),
-  sceneModeControlElement = findElement("#scene-mode-control"),
-  sceneModeHintElement = findElement("#scene-mode-hint"),
-  navigationLabelTextInputElement = (navigationPreviewStateElementState: any) =>
-    ["navigation-button", "scene-mode"].includes(navigationPreviewStateElementState?.type),
-  navigationTypeElement = findElement("#navigation-type"),
-  navigationLabelElement = findElement("#navigation-label"),
-  navigationPreviewStateElement = findElement("#navigation-preview-state"),
-  navigationEntityButtonElement = findElement("#navigation-entity-button"),
-  navigationEntityMenuElement = findElement("#navigation-entity-menu"),
-  navigationEntitySearchElement = findElement("#navigation-entity-search"),
-  navigationEntityOptionsElement = findElement("#navigation-entity-options"),
-  navigationMainTextElement = findElement("#navigation-main-text"),
-  navigationSecondaryTextElement = findElement("#navigation-secondary-text"),
-  navigationMainVisibleElement = findElement("#navigation-main-visible"),
-  navigationSecondaryVisibleElement = findElement("#navigation-secondary-visible"),
-  navigationIconVisibleElement = findElement("#navigation-icon-visible"),
-  navigationFrameVisibleElement = findElement("#navigation-frame-visible"),
-  navigationGlowVisibleElement = findElement("#navigation-glow-visible"),
-  navigationIconButtonElement = findElement("#navigation-icon-button"),
-  navigationIconCopyElement = findElement("#navigation-icon-copy"),
-  navigationIconMenuElement = findElement("#navigation-icon-menu"),
-  navigationIconSearchElement = findElement("#navigation-icon-search"),
-  navigationIconOptionsElement = findElement("#navigation-icon-options"),
-  navigationMainColorElement = findElement("#navigation-main-color"),
-  navigationSecondaryColorElement = findElement("#navigation-secondary-color"),
-  navigationMainSizeElement = findElement("#navigation-main-size"),
-  navigationSecondarySizeElement = findElement("#navigation-secondary-size"),
-  navigationMainWeightElement = findElement("#navigation-main-weight"),
-  navigationSecondaryWeightElement = findElement("#navigation-secondary-weight"),
-  navigationMainSpacingElement = findElement("#navigation-main-spacing"),
-  navigationSecondarySpacingElement = findElement("#navigation-secondary-spacing"),
-  navigationMainTextLeftElement = findElement("#navigation-main-text-left"),
-  navigationMainTextTopElement = findElement("#navigation-main-text-top"),
-  navigationSecondaryTextLeftElement = findElement("#navigation-secondary-text-left"),
-  navigationSecondaryTextTopElement = findElement("#navigation-secondary-text-top"),
-  navigationTextIdleOpacityElement = findElement("#navigation-text-idle-opacity"),
-  navigationTextActiveOpacityElement = findElement("#navigation-text-active-opacity"),
-  navigationIconColorElement = findElement("#navigation-icon-color"),
-  navigationIconSizeElement = findElement("#navigation-icon-size"),
-  navigationIconLeftElement = findElement("#navigation-icon-left"),
-  navigationIconTopElement = findElement("#navigation-icon-top"),
-  navigationIconIdleOpacityElement = findElement("#navigation-icon-idle-opacity"),
-  navigationIconActiveOpacityElement = findElement("#navigation-icon-active-opacity"),
-  navigationFrameColorElement = findElement("#navigation-frame-color"),
-  navigationFrameWidthElement = findElement("#navigation-frame-width"),
-  navigationFrameIdleOpacityElement = findElement("#navigation-frame-idle-opacity"),
-  navigationFrameActiveOpacityElement = findElement("#navigation-frame-active-opacity"),
-  navigationFrameAngleElement = findElement("#navigation-frame-angle"),
-  navigationGlowColorElement = findElement("#navigation-glow-color"),
-  navigationGlowAngleElement = findElement("#navigation-glow-angle"),
-  navigationGlowIdleStrengthElement = findElement("#navigation-glow-idle-strength"),
-  navigationGlowIdleSizeElement = findElement("#navigation-glow-idle-size"),
-  navigationGlowActiveStrengthElement = findElement("#navigation-glow-active-strength"),
-  navigationGlowActiveSizeElement = findElement("#navigation-glow-active-size"),
-  navigationRadiusElement = findElement("#navigation-radius"),
-  navigationLeftElement = findElement("#navigation-left"),
-  navigationTopElement = findElement("#navigation-top"),
-  navigationWidthElement = findElement("#navigation-width"),
-  navigationHeightElement = findElement("#navigation-height"),
-  navigationScaleElement = findElement("#navigation-scale"),
-  navigationRotationElement = findElement("#navigation-rotation"),
-  navigationActionControlsElement = findElement("#navigation-action-controls"),
-  navigationApplyStyleElement = findElement("#navigation-apply-style"),
-  navigationApplyCountElement = findElement("#navigation-apply-count"),
-  navigationStyleApplyDialogElement = findElement("#navigation-style-apply-dialog"),
-  navigationStyleApplyCloseElement = findElement("#navigation-style-apply-close"),
-  navigationStyleApplyTitleElement = findElement("#navigation-style-apply-title"),
-  navigationStyleApplySummaryElement = findElement("#navigation-style-apply-summary"),
-  navigationStyleApplyPropertiesElement = findElement("#navigation-style-apply-properties"),
-  navigationStyleApplyTargetHeadingElement = findElement("#navigation-style-apply-target-heading"),
-  navigationStyleApplyTargetScopeElement = findElement("#navigation-style-apply-target-scope"),
-  navigationStyleApplyTargetsElement = findElement("#navigation-style-apply-targets"),
-  navigationStyleApplyMessageElement = findElement("#navigation-style-apply-message"),
-  navigationStyleApplyCancelElement = findElement("#navigation-style-apply-cancel"),
-  navigationStyleApplyConfirmElement = findElement("#navigation-style-apply-confirm"),
-  popupNameDialogElement = findElement("#popup-name-dialog"),
-  popupNameDialogTitleElement = findElement("#popup-name-dialog-title"),
-  popupNameFormElement = findElement("#popup-name-form"),
-  popupNameCloseElement = findElement("#popup-name-close"),
-  popupNameCancelElement = findElement("#popup-name-cancel"),
-  popupModuleDialogElement = findElement("#popup-module-dialog"),
-  popupModuleDialogTitleElement = findElement("#popup-module-dialog-title"),
-  popupModuleFormElement = findElement("#popup-module-form"),
-  popupModuleCloseElement = findElement("#popup-module-close"),
-  popupModuleCancelElement = findElement("#popup-module-cancel"),
-  popupModuleEntityButtonElement = findElement("#popup-module-entity-button"),
-  popupModuleEntityMenuElement = findElement("#popup-module-entity-menu"),
-  popupModuleEntitySearchElement = findElement("#popup-module-entity-search"),
-  popupModuleEntityOptionsElement = findElement("#popup-module-entity-options"),
-  popupModuleClimateDeviceTypeElement = findElement("#popup-module-climate-device-type"),
-  deletePopupDialogElement = findElement("#delete-popup-dialog"),
-  deletePopupCloseElement = findElement("#delete-popup-close"),
-  deletePopupCancelElement = findElement("#delete-popup-cancel"),
-  deletePopupConfirmElement = findElement("#delete-popup-confirm"),
-  deletePopupNameElement = findElement("#delete-popup-name"),
-  deleteAssetDialogElement = findElement("#delete-asset-dialog"),
-  deleteAssetCloseButtonElement = findElement("#delete-asset-close"),
-  deleteAssetCancelButtonElement = findElement("#delete-asset-cancel"),
-  deleteAssetConfirmButtonElement = findElement("#delete-asset-confirm"),
-  deleteAssetNameElement = findElement("#delete-asset-name"),
-  deleteAssetFolderDialogElement = findElement("#delete-asset-folder-dialog"),
-  deleteAssetFolderCloseButtonElement = findElement("#delete-asset-folder-close"),
-  deleteAssetFolderCancelButtonElement = findElement("#delete-asset-folder-cancel"),
-  deleteAssetFolderConfirmButtonElement = findElement("#delete-asset-folder-confirm"),
-  deleteAssetFolderNameElement = findElement("#delete-asset-folder-name"),
-  deleteAssetFolderCountElement = findElement("#delete-asset-folder-count");
+
 const historySeriesCacheById = new Map(),
   runtimeStateCacheById = new Map(),
   virtualEntityStateCacheById = new Map();
@@ -1210,7 +386,7 @@ const { syncPanelFrameInspector } = setupPanelFrameInspector({
   removedComponent,
   mutateDocument,
   findReplaceableComponents,
-  runVariantExtra,
+  collectChangedPanelFrameStyleKeys,
   coverMotorButtonElement,
   setComponentsRotation,
 });
@@ -1254,8 +430,8 @@ const iconButtonInspectorContext: IconButtonInspectorContext = {
   appliedStylePropertyKey,
   syncComponentActionControls,
   loadNavigationIconOptions,
-  runExtraFallback,
-  runSplit,
+  syncPopupEntityPickerButton,
+  renderEntityIconButtonPreview,
   iconButtonTypeElement,
   iconButtonTypeLabelElement,
   presenceSensorKindLabelElement,
@@ -1365,9 +541,7 @@ const iconButtonInspectorContext: IconButtonInspectorContext = {
   iconButtonApplyCountElement,
   iconButtonActionControlsElement,
 };
-function syncIconButtonInspector(iconButtonComponent: any) {
-  syncIconButtonInspectorExternal(iconButtonInspectorContext, iconButtonComponent);
-}
+function syncIconButtonInspector(...args: any[]): ReturnType<typeof syncIconButtonInspectorImpl> { return (syncIconButtonInspectorImpl as any)(shellControlsDeps(), ...args); }
 const navigationInspectorContext: NavigationInspectorContext = {
   get activeProject() {
     return editorCtx.activeProject;
@@ -1427,9 +601,9 @@ const navigationInspectorContext: NavigationInspectorContext = {
   navigationTopElement,
   navigationTypeElement,
   navigationWidthElement,
-  runClone,
-  runExtraFallback,
-  runVariantTwin,
+  renderNavigationIconButton,
+  syncPopupEntityPickerButton,
+  collectPendingNavigationStyleKeys,
   sceneModeControlElement,
   sceneModeHintElement,
   get selectedComponentIdsSet() {
@@ -1437,9 +611,7 @@ const navigationInspectorContext: NavigationInspectorContext = {
   },
   syncComponentActionControls,
 };
-function syncNavigationInspector(navigationComponent: any) {
-  syncNavigationInspectorExternal(navigationInspectorContext, navigationComponent);
-}
+function syncNavigationInspector(...args: any[]): ReturnType<typeof syncNavigationInspectorImpl> { return (syncNavigationInspectorImpl as any)(shellControlsDeps(), ...args); }
 const lineChartInspectorContext: LineChartInspectorContext = {
   get activeProject() {
     return editorCtx.activeProject;
@@ -1467,16 +639,14 @@ const lineChartInspectorContext: LineChartInspectorContext = {
   lineChartValueVisibleElement,
   lineChartThresholdInputs,
   lineChartWidthInputElement,
-  runAltBackup,
-  runExtraFallback,
+  collectChangedLineChartStyleKeys,
+  syncPopupEntityPickerButton,
   get selectedComponentIdsSet() {
     return editorCtx.selectedComponentIdsSet;
   },
   syncComponentActionControls,
 };
-function syncLineChartInspector(lineChartComponent: any) {
-  syncLineChartInspectorExternal(lineChartInspectorContext, lineChartComponent);
-}
+function syncLineChartInspector(...args: any[]): ReturnType<typeof syncLineChartInspectorImpl> { return (syncLineChartInspectorImpl as any)(shellControlsDeps(), ...args); }
 const airConditionerInspectorContext: AirConditionerInspectorContext = {
   get activeProject() {
     return editorCtx.activeProject;
@@ -1552,16 +722,14 @@ const airConditionerInspectorContext: AirConditionerInspectorContext = {
     return editorCtx.editorRenderer;
   },
   findReplaceableComponents,
-  runAltLeft,
-  runExtraFallback,
+  collectChangedAirConditionerStyleKeys,
+  syncPopupEntityPickerButton,
   get selectedComponentIdsSet() {
     return editorCtx.selectedComponentIdsSet;
   },
   syncComponentActionControls,
 };
-function syncAirConditionerInspector(airConditionerComponent: any) {
-  syncAirConditionerInspectorExternal(airConditionerInspectorContext, airConditionerComponent);
-}
+function syncAirConditionerInspector(...args: any[]): ReturnType<typeof syncAirConditionerInspectorImpl> { return (syncAirConditionerInspectorImpl as any)(shellControlsDeps(), ...args); }
 
 
 /** 认证跳转闩（原 `let authRedirectStarted`）：每实例一份，交给 `net/request-json` 读写。 */
@@ -1571,9 +739,7 @@ const requestJsonDeps = () => ({ authRedirectState });
  * 请求封装（P4 搬进 `net/request-json`）：超时 / 中止 / CSRF / 401-403 跳转。
  * 本身是 `async`，薄绑定只返回 Promise（不写 `async`，免得撞 `require-await`）。
  */
-function requestJson(requestPath: any, requestOptions: Record<string, any> = {}) {
-  return requestJsonCore(requestJsonDeps(), requestPath, requestOptions);
-}
+function requestJson(...args: any[]): ReturnType<typeof requestJsonImpl> { return (requestJsonImpl as any)(shellControlsDeps(), ...args); }
 
 /** 数字步进器去重集合（P4 搬进 `controls/number-stepper`，按引用注入）。 */
 const numberStepperDeps = () => ({ enhancedNumberInputsSet });
@@ -1581,386 +747,85 @@ const numberStepperDeps = () => ({ enhancedNumberInputsSet });
  * 检查器数字输入增强（P4 搬进 `controls/number-stepper`）：**保留原签名** —— 本函数在 6xxx 行
  * 被当作裸函数值交给外部 ctx（`formatLastSeen,`），多一个 `deps` 首参会把调用方的实参顶掉。
  */
-function formatLastSeen(lastSeenTimestamp: Document | HTMLElement = document) {
-  return formatLastSeenCore(numberStepperDeps(), lastSeenTimestamp);
+function formatLastSeen(...args: any[]): ReturnType<typeof formatLastSeenImpl> { return (formatLastSeenImpl as any)(shellControlsDeps(), ...args); }
+function setSettingsMessage(...args: any[]): ReturnType<typeof setSettingsMessageImpl> { return (setSettingsMessageImpl as any)(shellControlsDeps(), ...args); }
+function handleOperationError(...args: any[]): ReturnType<typeof handleOperationErrorImpl> { return (handleOperationErrorImpl as any)(shellControlsDeps(), ...args); }
+function errorPhase(...args: any[]): ReturnType<typeof errorPhaseImpl> { return (errorPhaseImpl as any)(shellControlsDeps(), ...args); }
+function value(...args: any[]): ReturnType<typeof valueImpl> { return (valueImpl as any)(shellControlsDeps(), ...args); }
+function hidePopupActionsMenu(...args: any[]): ReturnType<typeof hidePopupActionsMenuImpl> { return (hidePopupActionsMenuImpl as any)(shellControlsDeps(), ...args); }
+function closeCustomSelect(...args: any[]): ReturnType<typeof closeCustomSelectImpl> { return (closeCustomSelectImpl as any)(shellControlsDeps(), ...args); }
+function positionCustomSelectMenu(...args: any[]): ReturnType<typeof positionCustomSelectMenuImpl> { return (positionCustomSelectMenuImpl as any)(shellControlsDeps(), ...args); }
+function selectableEntities(...args: any[]): ReturnType<typeof selectableEntitiesImpl> { return (selectableEntitiesImpl as any)(shellControlsDeps(), ...args); }
+function openEntityPicker(...args: any[]): ReturnType<typeof openEntityPickerImpl> { return (openEntityPickerImpl as any)(shellControlsDeps(), ...args); }
+function closeAllDropdownMenus(...args: any[]): ReturnType<typeof closeAllDropdownMenusImpl> { return (closeAllDropdownMenusImpl as any)(shellControlsDeps(), ...args); }
+function closeDropdownMenu(...args: any[]): ReturnType<typeof closeDropdownMenuImpl> { return (closeDropdownMenuImpl as any)(shellControlsDeps(), ...args); }
+function openColorPickerForInput(...args: any[]): ReturnType<typeof openColorPickerForInputImpl> { return (openColorPickerForInputImpl as any)(shellControlsDeps(), ...args); }
+function setWorkspaceHasProject(...args: any[]): ReturnType<typeof setWorkspaceHasProjectImpl> { return (setWorkspaceHasProjectImpl as any)(shellControlsDeps(), ...args); }
+function hasActiveProject(...args: any[]): ReturnType<typeof hasActiveProjectImpl> { return (hasActiveProjectImpl as any)(shellControlsDeps(), ...args); }
+function destroyDashboardPreview(...args: any[]): ReturnType<typeof destroyDashboardPreviewImpl> { return (destroyDashboardPreviewImpl as any)(shellControlsDeps(), ...args); }
+function syncWorkspaceEmptyState(...args: any[]): ReturnType<typeof syncWorkspaceEmptyStateImpl> { return (syncWorkspaceEmptyStateImpl as any)(shellControlsDeps(), ...args); }
+function workspaceDocumentDeps(): WorkspaceDocumentDeps {
+  return {
+    ...homeElements,
+    get airConditionerPreviewStateByComponentId() { return airConditionerPreviewStateByComponentId; },
+    get buttonSoundController() { return buttonSoundController; },
+    get clearComponentSelection() { return clearComponentSelection; },
+    get collectComponentsByType() { return collectComponentsByType; },
+    get componentListForScope() { return componentListForScope; },
+    get coverMotorButtonElement() { return coverMotorButtonElement; },
+    get currentPage() { return currentPage; },
+    get customPopupEditorElement() { return customPopupEditorElement; },
+    get dashboardDisplayHintElement() { return dashboardDisplayHintElement; },
+    get dashboardDisplayLinkElement() { return dashboardDisplayLinkElement; },
+    get dashboardPreviewElement() { return dashboardPreviewElement; },
+    get editorCtx() { return editorCtx; },
+    get ensureEditorRenderer() { return ensureEditorRenderer; },
+    get findPageComponentsByType() { return findPageComponentsByType; },
+    get handleOperationError() { return handleOperationError; },
+    get historySeriesCacheById() { return historySeriesCacheById; },
+    get iconButtonEffectPreviewStateByComponentId() { return iconButtonEffectPreviewStateByComponentId; },
+    get iconButtonPreviewStateByComponentId() { return iconButtonPreviewStateByComponentId; },
+    get loadNavigationIconOptions() { return loadNavigationIconOptions; },
+    get mutateDocument() { return mutateDocument; },
+    get navigationPreviewStateByComponentId() { return navigationPreviewStateByComponentId; },
+    get projectSummary() { return projectSummary; },
+    get refreshSoundToggle() { return refreshSoundToggle; },
+    get renderComponentLists() { return renderComponentLists; },
+    get renderCustomPopupEditor() { return renderCustomPopupEditor; },
+    get renderWorkspaceResolution() { return renderWorkspaceResolution; },
+    get resetPreviewStates() { return resetPreviewStates; },
+    get resizeWorkspaceCanvas() { return resizeWorkspaceCanvas; },
+    get runAuxBackup() { return normalizeSensorKind; },
+    get runCase() { return renderDashboardPreview; },
+    get runSlot() { return destroyDashboardPreviewRenderer; },
+    get runtimeStateCacheById() { return runtimeStateCacheById; },
+    get setComponentScope() { return setComponentScope; },
+    get setSettingsMessage() { return setSettingsMessage; },
+    get showDashboardPreviewButtonElement() { return showDashboardPreviewButtonElement; },
+    get showEditorPreviewButtonElement() { return showEditorPreviewButtonElement; },
+    get syncAddComponentButton() { return syncAddComponentButton; },
+    get syncDefaultPageAction() { return syncDefaultPageAction; },
+    get syncRendererSelection() { return syncRendererSelection; },
+    get unbindDisplayDeviceError() { return unbindDisplayDeviceError; },
+    get value() { return value; },
+    get virtualEntityStateCacheById() { return virtualEntityStateCacheById; },
+  };
 }
-function setSettingsMessage(messageElement: any, messageText: any, toneClass = "") {
-  ((messageElement.hidden = !messageText),
-    (messageElement.textContent = messageText),
-    (messageElement.className = ("settings-message " + toneClass).trim()));
-}
-function handleOperationError(operationError: any) {
-  (window.HomeOSLog?.error!(operationError, {
-    projectId: editorCtx.activeProject?.projectId || "",
-    componentId: editorCtx.selectedComponentId || "",
-    phase: "editor-operation",
-  }),
-    (errorDialogMessageElement.textContent = operationError?.message || "操作失败。"),
-    errorDialogCloseButtonElement.open || errorDialogCloseButtonElement.showModal());
-}
-function errorPhase() {
-  ((projectActionsMenuElement.hidden = true),
-    projectActionsButtonElement.setAttribute("aria-expanded", "false"));
-}
-function value() {
-  ((pageActionsMenuElement.hidden = true),
-    pageActionsButtonElement.setAttribute("aria-expanded", "false"));
-}
-function run() {
-  ((popupActionsMenuElement.hidden = true),
-    popupActionsButtonElement.setAttribute("aria-expanded", "false"),
-    (editorCtx.moduleDialogPopupId = null));
-}
-function runState(runValue = editorCtx.openCustomSelect) {
-  runValue &&
-    ((runValue.menu.hidden = true),
-    runValue.button.setAttribute("aria-expanded", "false"),
-    editorCtx.openCustomSelect === runValue && (editorCtx.openCustomSelect = null));
-}
-function runConfig(runRef: any) {
-  if (runRef.menu.hidden) return;
-  const boundingClientRect = runRef.button.getBoundingClientRect(),
-    hoverScrollStateByRow = Math.max(80, Math.min(320, window.innerHeight - 16));
-  ((runRef.menu.style.width = boundingClientRect.width + "px"),
-    (runRef.menu.style.maxHeight = hoverScrollStateByRow + "px"));
-  const iconVisibilityVirtualEntities = Math.min(runRef.menu.scrollHeight, hoverScrollStateByRow),
-    loadIconButtonEffectIconOptions = Math.max(
-      8,
-      Math.min(window.innerWidth - boundingClientRect.width - 8, boundingClientRect.left),
-    ),
-    loadIconButtonIconOptions = boundingClientRect.bottom + 4,
-    loadLightStatisticsIconOptions =
-      loadIconButtonIconOptions + iconVisibilityVirtualEntities <= window.innerHeight - 8
-        ? loadIconButtonIconOptions
-        : Math.max(8, boundingClientRect.top - iconVisibilityVirtualEntities - 4);
-  ((runRef.menu.style.left = loadIconButtonEffectIconOptions + "px"),
-    (runRef.menu.style.top = loadLightStatisticsIconOptions + "px"));
-}
-function selectableEntities(setLightStatisticsMessage: Document | HTMLElement = document) {
-  (setLightStatisticsMessage instanceof HTMLSelectElement &&
-    positionTitleButtonIconMenu(setLightStatisticsMessage),
-    setLightStatisticsMessage
-      .querySelectorAll?.("select")
-      .forEach((setPickerButtonLabel) => positionTitleButtonIconMenu(setPickerButtonLabel)));
-}
-function openEntityPicker(openIconPicker: any, openLightStatisticsEntityPicker = false) {
-  const closeColorPicker = normalizedHexColor2(openIconPicker);
-  if (!closeColorPicker || !editorCtx.activeColorInputElement) return;
-  const commitColorPickerFromRgb = hexToRgb2(closeColorPicker),
-    commitColorPickerHsv = rgbToHsv2(commitColorPickerFromRgb);
-  ((editorCtx.colorPickerHue = commitColorPickerHsv.s > 0 ? commitColorPickerHsv.h : editorCtx.colorPickerHue),
-    (editorCtx.colorPickerSaturation = commitColorPickerHsv.s),
-    (editorCtx.colorPickerBrightness = commitColorPickerHsv.v),
-    globalColorPickerElement.style.setProperty(
-      "--picker-hue",
-      "hsl(" + editorCtx.colorPickerHue + " 100% 50%)",
-    ),
-    globalColorPickerElement.style.setProperty("--picker-color", closeColorPicker),
-    (globalColorPickerMarkerElement.style.left = editorCtx.colorPickerSaturation * 100 + "%"),
-    (globalColorPickerMarkerElement.style.top = (1 - editorCtx.colorPickerBrightness) * 100 + "%"),
-    (globalColorPickerHueRangeInputElement.value = String(Math.round(editorCtx.colorPickerHue))),
-    document.activeElement !== globalColorPickerHexTextInputElement &&
-      (globalColorPickerHexTextInputElement.value = closeColorPicker.toUpperCase()),
-    (globalColorPickerRedInputElement.value = String(Math.round(commitColorPickerFromRgb.r))),
-    (globalColorPickerGreenInputElement.value = String(Math.round(commitColorPickerFromRgb.g))),
-    (globalColorPickerBlueInputElement.value = String(Math.round(commitColorPickerFromRgb.b))),
-    (globalColorPickerSwatchElement.style.background = closeColorPicker),
-    editorCtx.activeColorInputElement.value !== closeColorPicker &&
-      ((editorCtx.activeColorInputElement.value = closeColorPicker),
-      openLightStatisticsEntityPicker &&
-        editorCtx.activeColorInputElement.dispatchEvent(
-          new Event("input", {
-            bubbles: true,
-          }),
-        )));
-}
-function closeAllDropdownMenus() {
-  const enhanceColorInputsIn = hsvToRgb2(
-    editorCtx.colorPickerHue,
-    editorCtx.colorPickerSaturation,
-    editorCtx.colorPickerBrightness,
-  );
-  openEntityPicker(
-    rgbToHex2(enhanceColorInputsIn.r, enhanceColorInputsIn.g, enhanceColorInputsIn.b),
-    true,
-  );
-}
-function closeDropdownMenu() {
-  if (globalColorPickerElement.hidden || !editorCtx.activeColorInputElement) return;
-  const positionColorPicker = editorCtx.activeColorInputElement.getBoundingClientRect(),
-    syncColorPickerFromHex = globalColorPickerElement.getBoundingClientRect(),
-    num = 9,
-    closeProjectActionsState = 8,
-    enhanceNativeSelectsIn = positionColorPicker.left - syncColorPickerFromHex.width - num,
-    enhanceNumberInputsIn =
-      enhanceNativeSelectsIn >= closeProjectActionsState
-        ? enhanceNativeSelectsIn
-        : Math.min(
-            window.innerWidth - syncColorPickerFromHex.width - closeProjectActionsState,
-            positionColorPicker.right + num,
-          ),
-    syncOpenColorPicker = clampNumber2(
-      positionColorPicker.top,
-      closeProjectActionsState,
-      Math.max(
-        closeProjectActionsState,
-        window.innerHeight - syncColorPickerFromHex.height - closeProjectActionsState,
-      ),
-    );
-  ((globalColorPickerElement.style.left =
-    Math.max(closeProjectActionsState, enhanceNumberInputsIn) + "px"),
-    (globalColorPickerElement.style.top = syncOpenColorPicker + "px"));
-}
-function runEntry(commitColorPickerFromRgbElement: any) {
-  if (!commitColorPickerFromRgbElement || commitColorPickerFromRgbElement.disabled) return;
-  (editorCtx.activeColorInputElement &&
-    editorCtx.activeColorInputElement !== commitColorPickerFromRgbElement &&
-    setWorkspaceHasProject(),
-    (editorCtx.activeColorInputElement = commitColorPickerFromRgbElement),
-    (editorCtx.activeColorHex = normalizedHexColor2(commitColorPickerFromRgbElement.value) || "#000000"));
-  const updateColorPickerFromPointer = rgbToHsv2(hexToRgb2(editorCtx.activeColorHex));
-  ((editorCtx.colorPickerHue = updateColorPickerFromPointer.h),
-    (editorCtx.colorPickerSaturation = updateColorPickerFromPointer.s),
-    (editorCtx.colorPickerBrightness = updateColorPickerFromPointer.v),
-    (globalColorPickerElement.hidden = false),
-    openEntityPicker(editorCtx.activeColorHex),
-    window.requestAnimationFrame(closeDropdownMenu));
-}
-function setWorkspaceHasProject() {
-  if (!editorCtx.activeColorInputElement) return;
-  const he2 = editorCtx.activeColorInputElement,
-    isPositionColorPicker = normalizedHexColor2(he2.value) !== editorCtx.activeColorHex;
-  ((globalColorPickerElement.hidden = true),
-    (editorCtx.activeColorInputElement = null),
-    (editorCtx.colorPickerDragPointerId = null),
-    isPositionColorPicker &&
-      he2.dispatchEvent(
-        new Event("change", {
-          bubbles: true,
-        }),
-      ),
-    coverKindDraftDocument(he2));
-}
-function hasActiveProject() {
-  !globalColorPickerElement.hidden &&
-    editorCtx.activeColorInputElement?.isConnected &&
-    openEntityPicker(editorCtx.activeColorInputElement.value);
-}
-function destroyDashboardPreview(renderDashboardPreview: Document | HTMLElement = document) {
-  (renderDashboardPreview instanceof HTMLInputElement && renderDashboardPreview.type === "color"
-    ? [renderDashboardPreview]
-    : [...(renderDashboardPreview.querySelectorAll?.<HTMLElement>('input[type="color"]') || [])]
-  ).forEach((previewPagePath) => {
-    colorPickerBoundInputById.has(previewPagePath) ||
-      (colorPickerBoundInputById.set(previewPagePath, true),
-      (previewPagePath.title = "打开颜色选择器"),
-      previewPagePath.addEventListener("pointerdown", (changedPagePath) => {
-        (changedPagePath.preventDefault(), runEntry(previewPagePath));
-      }),
-      previewPagePath.addEventListener("click", (renderDashboardDisplayLink) =>
-        renderDashboardDisplayLink.preventDefault(),
-      ),
-      previewPagePath.addEventListener("keydown", (renderDashboardPreviewState) => {
-        ["Enter", " "].includes(renderDashboardPreviewState.key) &&
-          (renderDashboardPreviewState.preventDefault(), runEntry(previewPagePath));
-      }));
-  });
-}
-function runKey(runPath: any) {
-  (displayDeviceCountElement.classList.toggle("empty", !runPath),
-    editorCanvasElement.classList.toggle("workspace-empty-state", !runPath),
-    editorCanvasElement.classList.toggle("canvas-placeholder", runPath),
-    (projectActionsButtonElement.disabled = !runPath),
-    (pageNewElement.disabled = !runPath),
-    (popupNewElement.disabled = !runPath),
-    runPath ||
-      (editorCanvasElement.removeAttribute("style"),
-      (editorCanvasElement.innerHTML =
-        '<div class="canvas-message"><strong>请从左侧新建仪表盘。</strong></div>'),
-      errorPhase(),
-      value()),
-    renderWorkspaceResolution(),
-    unbindDisplayDeviceError(),
-    refreshSoundToggle());
-}
-function runSlot() {
-  (editorCtx.dashboardPreviewRenderer?.destroy(), (editorCtx.dashboardPreviewRenderer = null));
-}
-function runCase(displayDeviceUnbindButtonElement = pageSelectElement.value) {
-  if (editorCtx.editorMode !== "dashboard") {
-    runSlot();
-    return;
-  }
-  if (!editorCtx.activeProject?.document?.pages?.length) {
-    (runSlot(),
-      (dashboardPreviewElement.innerHTML =
-        '<div class="canvas-message"><strong>' +
-        (editorCtx.activeProject ? "请从左侧新建页面。" : "请从左侧新建仪表盘。") +
-        "</strong></div>"));
-    return;
-  }
-  (editorCtx.dashboardPreviewRenderer ||
-    ((editorCtx.dashboardPreviewRenderer = new PanelRenderer2(dashboardPreviewElement, {
-      editable: false,
-      editorWorkspace: true,
-      historySeriesCache: historySeriesCacheById,
-      runtimeStateCache: runtimeStateCacheById,
-      virtualEntityStateCache: virtualEntityStateCacheById,
-      onError: handleOperationError,
-      onRuntimeButtonPress() {
-        buttonSoundController.play();
-      },
-      onPageChange(confirmedUnbind: any) {
-        ((pageSelectElement.value = confirmedUnbind.path),
-          loadNavigationIconOptions(pageSelectElement));
-      },
-    })),
-    editorCtx.dashboardPreviewRenderer.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices)),
-    editorCtx.dashboardPreviewRenderer.setDocument(editorCtx.activeProject.document, displayDeviceUnbindButtonElement));
-}
-function unbindDisplayDeviceError() {
-  const trim = String(editorCtx.activeProject?.document?.name || "").trim(),
-    openDisplayDevicesDialogState = editorCtx.editorMode === "dashboard" && !!trim;
-  if (
-    ((dashboardDisplayHintElement.hidden = !openDisplayDevicesDialogState),
-    !openDisplayDevicesDialogState)
-  ) {
-    (dashboardDisplayLinkElement.removeAttribute("href"),
-      (dashboardDisplayLinkElement.textContent = ""));
-    return;
-  }
-  // 用仪表盘名称寻址（/homeos/{name}）：地址简洁、可手抄/做书签；后端 named_display_page 与
-  // /display/{project_id} 同一套鉴权。projectId 形态留给展示页内部按主键定位。
-  const uRL = new URL("/homeos/" + encodeURIComponent(trim), window.location.origin);
-  ((dashboardDisplayLinkElement.href = uRL.href),
-    (dashboardDisplayLinkElement.textContent = decodeURI(uRL.href)),
-    (dashboardDisplayLinkElement.title = uRL.href));
-}
-function renderWorkspaceResolution() {
-  const documentCanvas = editorCtx.activeProject?.document?.canvas,
-    canvasWidthValue = Number(documentCanvas?.width),
-    canvasHeightValue = Number(documentCanvas?.height),
-    finite =
-      editorCtx.editorMode !== "popup" &&
-      Number.isFinite(canvasWidthValue) &&
-      canvasWidthValue > 0 &&
-      Number.isFinite(canvasHeightValue) &&
-      canvasHeightValue > 0;
-  ((workspaceResolutionElement.hidden = !finite),
-    (workspaceResolutionElement.textContent = finite
-      ? Math.round(canvasWidthValue) + " × " + Math.round(canvasHeightValue)
-      : ""));
-}
-function setEditorMode(editorModeValue: any) {
-  editorCtx.editorMode = ["edit", "dashboard", "popup"].includes(editorModeValue) ? editorModeValue : "edit";
-  const isEditingPage = editorCtx.editorMode === "edit",
-    isDashboardMode = editorCtx.editorMode === "dashboard",
-    isPopupMode = editorCtx.editorMode === "popup";
-  ((showPopupEditorButtonElement.hidden = isPopupMode),
-    (pageNewButtonElement.hidden = !isPopupMode),
-    navigatorContentElement.classList.toggle("popup-mode", isPopupMode),
-    showPageEditorElement.classList.toggle("active", !isPopupMode),
-    showPageEditorElement.setAttribute("aria-selected", String(!isPopupMode)),
-    showPopupEditorElement.classList.toggle("active", isPopupMode),
-    showPopupEditorElement.setAttribute("aria-selected", String(isPopupMode)),
-    isEditingPage || resetPreviewStates(),
-    (editorCanvasElement.hidden = !isEditingPage),
-    (dashboardPreviewElement.hidden = !isDashboardMode),
-    (customPopupEditorElement.hidden = !isPopupMode),
-    displayDeviceCountElement.classList.toggle("empty", !editorCtx.activeProject),
-    (workspaceTitleElement.textContent = isDashboardMode
-      ? "仪表盘"
-      : isPopupMode
-        ? "组合弹窗"
-        : "页面画布"),
-    renderWorkspaceResolution(),
-    unbindDisplayDeviceError(),
-    refreshSoundToggle());
-  for (const [modeToggleButton, modeToggleActive] of [
-    [showEditorPreviewButtonElement, isEditingPage],
-    [showDashboardPreviewButtonElement, isDashboardMode],
-  ])
-    (modeToggleButton.classList.toggle("active", modeToggleActive),
-      modeToggleButton.setAttribute("aria-selected", String(modeToggleActive)));
-  isEditingPage
-    ? (runSlot(),
-      editorCtx.activeProject?.document?.pages?.length &&
-        (ensureEditorRenderer().setDocument(editorCtx.activeProject.document, pageSelectElement.value),
-        editorCtx.editorRenderer.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId)),
-      window.requestAnimationFrame(resizeWorkspaceCanvas))
-    : isDashboardMode
-      ? (editorCtx.editorRenderer?.destroy(),
-        (editorCtx.editorRenderer = null),
-        runCase(),
-        window.requestAnimationFrame(() => editorCtx.dashboardPreviewRenderer?.resize()))
-      : isPopupMode &&
-        (clearComponentSelection(),
-        renderComponentLists(),
-        coverMotorButtonElement(),
-        editorCtx.editorRenderer?.destroy(),
-        (editorCtx.editorRenderer = null),
-        runSlot(),
-        renderCustomPopupEditor());
-}
-function syncDefaultPageAction(hasPages = !!editorCtx.activeProject?.document?.pages?.length) {
-  if (defaultPageActionElement) {
-    const ct2 = currentPage(),
-      isCurrentDefaultPage = !!(ct2 && editorCtx.activeProject?.document?.defaultPagePath === ct2.path);
-    ((defaultPageActionElement.textContent = isCurrentDefaultPage
-      ? "已是默认首屏"
-      : "设为默认首屏"),
-      (defaultPageActionElement.disabled = !hasPages || isCurrentDefaultPage));
-  }
-}
-function setPageControlsEnabled(controlsEnabled: any) {
-  ((pageSelectElement.disabled = !controlsEnabled),
-    (pageActionsButtonElement.disabled = !controlsEnabled),
-    syncDefaultPageAction(controlsEnabled),
-    syncAddComponentButton(),
-    loadNavigationIconOptions(pageSelectElement),
-    controlsEnabled || value());
-}
-function resizeWorkspaceCanvas() {
-  if (!editorCtx.activeProject) return;
-  const computedStyle = window.getComputedStyle(displayDeviceCountElement),
-    availableWidthPx =
-      displayDeviceCountElement.clientWidth -
-      Number.parseFloat(computedStyle.paddingLeft) -
-      Number.parseFloat(computedStyle.paddingRight),
-    availableHeightPx =
-      displayDeviceCountElement.clientHeight -
-      Number.parseFloat(computedStyle.paddingTop) -
-      Number.parseFloat(computedStyle.paddingBottom),
-    canvasWidthPx = editorCtx.activeProject.document.canvas.width || 2778,
-    canvasHeightPx = editorCtx.activeProject.document.canvas.height || 1940,
-    canvasAspectRatio = canvasWidthPx / canvasHeightPx,
-    isHeightLimited = availableWidthPx / availableHeightPx > canvasAspectRatio,
-    renderWidthPx = isHeightLimited ? availableHeightPx * canvasAspectRatio : availableWidthPx,
-    renderHeightPx = isHeightLimited ? availableHeightPx : availableWidthPx / canvasAspectRatio;
-  ((editorCanvasElement.style.width = Math.max(1, renderWidthPx) + "px"),
-    (editorCanvasElement.style.height = Math.max(1, renderHeightPx) + "px"),
-    (dashboardPreviewElement.style.width = Math.max(1, renderWidthPx) + "px"),
-    (dashboardPreviewElement.style.height = Math.max(1, renderHeightPx) + "px"),
-    window.requestAnimationFrame(() => {
-      (editorCtx.editorRenderer?.resize(), editorCtx.dashboardPreviewRenderer?.resize());
-    }));
-}
+function destroyDashboardPreviewRenderer(...args: any[]): ReturnType<typeof destroyDashboardPreviewRendererImpl> { return (destroyDashboardPreviewRendererImpl as any)(workspaceDocumentDeps(), ...args); }
+function renderDashboardPreview(...args: any[]): ReturnType<typeof renderDashboardPreviewImpl> { return (renderDashboardPreviewImpl as any)(workspaceDocumentDeps(), ...args); }
+function unbindDisplayDeviceError(...args: any[]): ReturnType<typeof unbindDisplayDeviceErrorImpl> { return (unbindDisplayDeviceErrorImpl as any)(workspaceDocumentDeps(), ...args); }
+function renderWorkspaceResolution(...args: any[]): ReturnType<typeof renderWorkspaceResolutionImpl> { return (renderWorkspaceResolutionImpl as any)(workspaceDocumentDeps(), ...args); }
+function setEditorMode(...args: any[]): ReturnType<typeof setEditorModeImpl> { return (setEditorModeImpl as any)(workspaceDocumentDeps(), ...args); }
+function syncDefaultPageAction(...args: any[]): ReturnType<typeof syncDefaultPageActionImpl> { return (syncDefaultPageActionImpl as any)(workspaceDocumentDeps(), ...args); }
+function setPageControlsEnabled(...args: any[]): ReturnType<typeof setPageControlsEnabledImpl> { return (setPageControlsEnabledImpl as any)(workspaceDocumentDeps(), ...args); }
+function resizeWorkspaceCanvas(...args: any[]): ReturnType<typeof resizeWorkspaceCanvasImpl> { return (resizeWorkspaceCanvasImpl as any)(workspaceDocumentDeps(), ...args); }
 const workspaceResizeObserver = new ResizeObserver(() => {
   (resizeWorkspaceCanvas(), syncCustomPopupStage(), editorCtx.dashboardPreviewRenderer?.resize());
 });
 workspaceResizeObserver.observe(displayDeviceCountElement);
 
 /** 空白画布框选 */
-function ensureMarqueeOverlay() {
-  let overlay = editorCanvasElement.querySelector(".sc-marquee") as HTMLDivElement | null;
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.className = "sc-marquee";
-    overlay.hidden = true;
-    editorCanvasElement.appendChild(overlay);
-  }
-  return overlay;
-}
+function ensureMarqueeOverlay(...args: any[]): ReturnType<typeof ensureMarqueeOverlayImpl> { return (ensureMarqueeOverlayImpl as any)(workspaceDocumentDeps(), ...args); }
 editorCanvasElement.addEventListener("pointerdown", (marqueeDownEvent: PointerEvent) => {
   if (
     editorCtx.editorMode !== "edit" ||
@@ -2050,382 +915,22 @@ editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent)
   coverMotorButtonElement();
   syncHistoryButtons();
 });
-function currentPage() {
-  return (
-    editorCtx.activeProject?.document?.pages?.find(
-      (pageEntryCandidate: any) => pageEntryCandidate.path === pageSelectElement.value,
-    ) ||
-    editorCtx.activeProject?.document?.pages?.[0] ||
-    null
-  );
-}
-function groupSelectedComponents(requestedComponentIds: any) {
-  const groupedComponentIds = [...new Set(requestedComponentIds || [])];
-  if (!canGroupComponents2(groupedComponentIds, editorCtx.activeProject?.document)) {
-    handleOperationError(new Error("请选择同一页面或同一侧边栏中的两个或更多控件后再成组。"));
-    return;
-  }
-  const newGroupId = newId2("group");
-  return (
-    (editorCtx.selectedComponentId = newGroupId),
-    (editorCtx.selectedComponentIdsSet = new Set([newGroupId])),
-    (editorCtx.selectionAnchorComponentId = newGroupId),
-    (editorCtx.activeGroupId = null),
-    mutateDocument((groupDocument: any) => {
-      const groupComponentLocations = groupedComponentIds.map((groupIdItem) =>
-        componentDirectLocation2(groupDocument, groupIdItem),
-      );
-      if (groupComponentLocations.some((resolvedLocation) => !resolvedLocation)) return;
-      const collection = groupComponentLocations[0].collection,
-        sort = groupComponentLocations
-          .map((componentLocationItem) => componentLocationItem.component)
-          .sort(
-            (componentA, componentB) =>
-              collection.indexOf(componentA) - collection.indexOf(componentB),
-          ),
-        memberBounds = sort.map((boundsMemberComponent) => componentBounds2(boundsMemberComponent)),
-        groupMinLeft = Math.min(...memberBounds.map((minLeftBounds) => minLeftBounds.left)),
-        groupMinTop = Math.min(...memberBounds.map((minTopBounds) => minTopBounds.top)),
-        groupMaxRight = Math.max(...memberBounds.map((maxRightBounds) => maxRightBounds.right)),
-        groupMaxBottom = Math.max(...memberBounds.map((maxBottomBounds) => maxBottomBounds.bottom)),
-        groupInsertIndex = Math.min(
-          ...sort.map((insertMemberComponent) => collection.indexOf(insertMemberComponent)),
-        ),
-        groupChildComponents = sort.map((childSourceComponent) => ({
-          ...childSourceComponent,
-          position: {
-            ...(childSourceComponent.position || {}),
-            x: Number(childSourceComponent.position?.x || 0) - groupMinLeft,
-            y: Number(childSourceComponent.position?.y || 0) - groupMinTop,
-          },
-        })),
-        groupComponent = {
-          id: newGroupId,
-          type: "group",
-          componentVersion: 1,
-          position: {
-            x: groupMinLeft,
-            y: groupMinTop,
-            width: Math.max(1, groupMaxRight - groupMinLeft),
-            height: Math.max(1, groupMaxBottom - groupMinTop),
-            rotation: 0,
-            zIndex: 1,
-          },
-          properties: {
-            label: groupNameForCollection2(collection),
-          },
-          bindings: {} as Record<string, any>,
-          actions: {} as Record<string, any>,
-          style: {} as Record<string, any>,
-          children: groupChildComponents,
-        },
-        set = new Set(groupedComponentIds),
-        filter = collection.filter((collectionComponent: any) => !set.has(collectionComponent.id));
-      if (
-        (filter.splice(Math.min(groupInsertIndex, filter.length), 0, groupComponent),
-        collection.splice(0, collection.length, ...filter),
-        applyCollectionLayerOrder2(collection),
-        groupComponentLocations[0].scope === "shared")
-      ) {
-        for (const sharedSyncPageEntry of groupDocument.pages || []) {
-          const pageSharedIds = sharedSyncPageEntry.sharedComponentIds || [],
-            matchedSharedIndexes = pageSharedIds
-              .map((sharedIdEntry: any, sharedIdIndex: any) => (set.has(sharedIdEntry) ? sharedIdIndex : -1))
-              .filter((sharedIndex: any) => sharedIndex >= 0);
-          if (!matchedSharedIndexes.length) continue;
-          const firstSharedIndex = Math.min(...matchedSharedIndexes),
-            remainingSharedIds = pageSharedIds.filter(
-              (remainingSharedIdEntry: any) => !set.has(remainingSharedIdEntry),
-            );
-          (remainingSharedIds.splice(
-            Math.min(firstSharedIndex, remainingSharedIds.length),
-            0,
-            newGroupId,
-          ),
-            (sharedSyncPageEntry.sharedComponentIds = [...new Set(remainingSharedIds)]));
-        }
-        syncSharedComponentReferenceOrder2(groupDocument);
-      }
-    })
-  );
-}
-function ungroupComponent(groupIdToUngroup: any) {
-  const groupLocationEntry = findComponentLocation2(editorCtx.activeProject?.document, groupIdToUngroup);
-  if (!groupLocationEntry || groupLocationEntry.component.type !== "group") return;
-  const groupChildIds = (groupLocationEntry.component.children || []).map(
-    (groupChildComponent: any) => groupChildComponent.id,
-  );
-  ((editorCtx.selectedComponentId = groupChildIds[0] || null),
-    (editorCtx.selectedComponentIdsSet = new Set(groupChildIds)),
-    (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
-    (editorCtx.activeGroupId = null),
-    mutateDocument((ungroupDocument: any) => {
-      const ungroupLocation = findComponentLocation2(ungroupDocument, groupIdToUngroup);
-      if (!ungroupLocation || ungroupLocation.component.type !== "group") return;
-      const groupPosition = ungroupLocation.component.position || {},
-        groupStyle = ungroupLocation.component.style || {},
-        groupRotationDeg = Number(groupPosition.rotation || 0),
-        groupScale = Math.max(0.01, Math.min(5, Number(groupStyle.scale || 1))),
-        groupRotationRad = (groupRotationDeg * Math.PI) / 180,
-        cos = Math.cos(groupRotationRad),
-        sin = Math.sin(groupRotationRad),
-        groupWidthPx = Number(groupPosition.width || 100),
-        groupHeightPx = Number(groupPosition.height || 100),
-        groupCenterX = Number(groupPosition.x || 0) + groupWidthPx / 2,
-        groupCenterY = Number(groupPosition.y || 0) + groupHeightPx / 2,
-        ungroupedChildren = (ungroupLocation.component.children || []).map(
-          (ungroupChildComponent: any) => {
-            const childPosition = ungroupChildComponent.position || {},
-              childWidthPx = Number(childPosition.width || 100),
-              childHeightPx = Number(childPosition.height || 100),
-              childOffsetX = Number(childPosition.x || 0) + childWidthPx / 2 - groupWidthPx / 2,
-              childOffsetY = Number(childPosition.y || 0) + childHeightPx / 2 - groupHeightPx / 2,
-              childScaledOffsetX = childOffsetX * groupScale,
-              childScaledOffsetY = childOffsetY * groupScale,
-              childRotatedX = groupCenterX + childScaledOffsetX * cos - childScaledOffsetY * sin,
-              childRotatedY = groupCenterY + childScaledOffsetX * sin + childScaledOffsetY * cos,
-              childStyle = {
-                ...(ungroupChildComponent.style || {}),
-              },
-              childNextScale = Math.max(
-                0.01,
-                Math.min(5, Number(childStyle.scale || 1) * groupScale),
-              );
-            return (
-              groupStyle.visible === false && (childStyle.visible = false),
-              (childStyle.scale = childNextScale),
-              {
-                ...ungroupChildComponent,
-                position: {
-                  ...childPosition,
-                  x: childRotatedX - childWidthPx / 2,
-                  y: childRotatedY - childHeightPx / 2,
-                  rotation: Number(childPosition.rotation || 0) + groupRotationDeg,
-                },
-                style: childStyle,
-              }
-            );
-          },
-        );
-      if (
-        (ungroupLocation.collection.splice(ungroupLocation.index, 1, ...ungroupedChildren),
-        applyCollectionLayerOrder2(ungroupLocation.collection),
-        ungroupLocation.scope === "shared" && ungroupLocation.root)
-      ) {
-        for (const ungroupPageEntry of ungroupDocument.pages || []) {
-          const ungroupPageSharedIds = ungroupPageEntry.sharedComponentIds || [],
-            indexOf2 = ungroupPageSharedIds.indexOf(groupIdToUngroup);
-          indexOf2 < 0 ||
-            (ungroupPageSharedIds.splice(
-              indexOf2,
-              1,
-              ...ungroupedChildren.map((ungroupedChild: any) => ungroupedChild.id),
-            ),
-            (ungroupPageEntry.sharedComponentIds = [...new Set(ungroupPageSharedIds)]));
-        }
-        syncSharedComponentReferenceOrder2(ungroupDocument);
-      }
-    }));
-}
-function openGroupRenameDialog(renameGroupId: any) {
-  const groupComponentForRename = findComponent2(editorCtx.activeProject?.document, renameGroupId)?.component;
-  !groupComponentForRename ||
-    groupComponentForRename.type !== "group" ||
-    ((componentGroupRenameDialogElement.dataset.groupId = renameGroupId),
-    (componentGroupRenameInputElement.value = componentLabel2(groupComponentForRename)),
-    setSettingsMessage(componentGroupRenameMessageElement, ""),
-    componentGroupRenameDialogElement.showModal(),
-    window.setTimeout(() => componentGroupRenameInputElement.focus(), 0));
-}
-function runStore(runCache: any) {
-  const lowerCase = String(runCache || "")
-    .trim()
-    .toLowerCase();
-  return /^#[\da-f]{6}$/.test(lowerCase) ? lowerCase : "";
-}
-function removedComponent() {
-  return findComponent2(editorCtx.activeProject?.document, editorCtx.selectedComponentId)?.component || null;
-}
-function removalPageEntry(remainingSharedId: any) {
-  return [...new Set(remainingSharedId || [])].filter(
-    (selectedComponent) => !!findComponent2(editorCtx.activeProject?.document, selectedComponent)?.component,
-  );
-}
-function componentListForScope(groupListScope: any) {
-  if (editorCtx.activeGroupId) {
-    const groupScopeComponent = findComponent2(editorCtx.activeProject?.document, editorCtx.activeGroupId)?.component;
-    if (groupScopeComponent?.type === "group") return groupScopeComponent.children || [];
-  }
-  return groupListScope === "shared"
-    ? editorCtx.activeProject?.document?.sharedComponents || []
-    : currentPage()?.components || [];
-}
-function collectComponentsByType(componentTreeNode: any, componentTypeFilter: any, collectedComponents: any[] = []) {
-  for (const treeComponent of componentTreeNode || [])
-    (treeComponent?.type === componentTypeFilter && collectedComponents.push(treeComponent),
-      collectComponentsByType(treeComponent?.children, componentTypeFilter, collectedComponents));
-  return collectedComponents;
-}
-function findPageComponentsByType(typeFilter: any) {
-  return (editorCtx.activeProject?.document?.pages || []).flatMap((typeMatchPage: any) =>
-    collectComponentsByType(typeMatchPage.components, typeFilter).map((matchedComponent) => ({
-      component: matchedComponent,
-      page: typeMatchPage,
-    })),
-  );
-}
-function findReplaceableComponents(sourceComponent: any) {
-  if (!sourceComponent) return [];
-  const rr2 = runAuxBackup(sourceComponent);
-  return [
-    ...collectComponentsByType(editorCtx.activeProject?.document?.sharedComponents, sourceComponent.type).map(
-      (sharedComponent) => ({
-        component: sharedComponent,
-        scope: "shared",
-      }),
-    ),
-    ...findPageComponentsByType(sourceComponent.type).map((pageMatch: any) => ({
-      ...pageMatch,
-      scope: "page",
-    })),
-  ].filter(
-    ({ component: filterMatch }) =>
-      filterMatch.id !== sourceComponent.id &&
-      (sourceComponent.type !== "presence-sensor" || runAuxBackup(filterMatch) === rr2),
-  );
-}
-function syncRendererSelection() {
-  (editorCtx.editorRenderer?.setActiveGroup(editorCtx.activeGroupId),
-    editorCtx.editorRenderer?.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId));
-}
-function clearComponentSelection() {
-  (resetPreviewStates(),
-    (editorCtx.selectedComponentId = null),
-    (editorCtx.selectedComponentIdsSet = new Set()),
-    (editorCtx.selectionAnchorComponentId = null));
-}
-function resetPreviewStates() {
-  for (const previewStateMap of [
-    navigationPreviewStateByComponentId,
-    iconButtonEffectPreviewStateByComponentId,
-    iconButtonPreviewStateByComponentId,
-    airConditionerPreviewStateByComponentId,
-  ]) {
-    for (const previewStateComponentId of previewStateMap.keys())
-      editorCtx.editorRenderer?.setComponentPreviewState(previewStateComponentId, "auto");
-    previewStateMap.clear();
-  }
-}
-function selectComponent(
-  clickedComponentId: any,
-  {
-    toggle: toggleSelection = false,
-    range: rangeSelection = false,
-    preserveGroup: preserveGroupSelection = false,
-  } = {},
-) {
-  const clickedLocation = findComponent2(editorCtx.activeProject?.document, clickedComponentId);
-  if (!clickedLocation) {
-    (clearComponentSelection(),
-      syncRendererSelection(),
-      renderComponentLists(),
-      coverMotorButtonElement());
-    return;
-  }
-  const anchorComponentLocation = findComponent2(editorCtx.activeProject?.document, editorCtx.selectedComponentId),
-    isSameComponentScope =
-      anchorComponentLocation?.scope === clickedLocation.scope &&
-      (clickedLocation.scope !== "page" ||
-        anchorComponentLocation.page?.path === clickedLocation.page?.path);
-  if (preserveGroupSelection && editorCtx.selectedComponentIdsSet.has(clickedComponentId))
-    editorCtx.selectedComponentId = clickedComponentId;
-  else {
-    if (rangeSelection && isSameComponentScope && editorCtx.selectionAnchorComponentId) {
-      const bE2 = componentListForScope(clickedLocation.scope),
-        index = bE2.findIndex(
-          (anchorListComponent: any) => anchorListComponent.id === editorCtx.selectionAnchorComponentId,
-        ),
-        clickedIndexInList = bE2.findIndex(
-          (clickedListComponent: any) => clickedListComponent.id === clickedComponentId,
-        );
-      if (index >= 0 && clickedIndexInList >= 0) {
-        const [rangeStartIndex, rangeEndIndex] =
-          index <= clickedIndexInList ? [index, clickedIndexInList] : [clickedIndexInList, index];
-        ((editorCtx.selectedComponentIdsSet = new Set(
-          bE2
-            .slice(rangeStartIndex, rangeEndIndex + 1)
-            .map((rangedComponent: any) => rangedComponent.id),
-        )),
-          (editorCtx.selectedComponentId = clickedComponentId));
-      } else
-        ((editorCtx.selectedComponentIdsSet = new Set([clickedComponentId])),
-          (editorCtx.selectedComponentId = clickedComponentId),
-          (editorCtx.selectionAnchorComponentId = clickedComponentId));
-    } else {
-      if (toggleSelection && isSameComponentScope) {
-        const toggledSelectionSet = new Set(editorCtx.selectedComponentIdsSet);
-        (toggledSelectionSet.has(clickedComponentId)
-          ? toggledSelectionSet.delete(clickedComponentId)
-          : toggledSelectionSet.add(clickedComponentId),
-          (editorCtx.selectedComponentIdsSet = toggledSelectionSet),
-          (editorCtx.selectedComponentId = toggledSelectionSet.has(clickedComponentId)
-            ? clickedComponentId
-            : toggledSelectionSet.values().next().value || null),
-          (editorCtx.selectionAnchorComponentId = clickedComponentId));
-      } else
-        !toggleSelection &&
-        !rangeSelection &&
-        editorCtx.selectedComponentIdsSet.size === 1 &&
-        editorCtx.selectedComponentIdsSet.has(clickedComponentId)
-          ? clearComponentSelection()
-          : ((editorCtx.selectedComponentIdsSet = new Set([clickedComponentId])),
-            (editorCtx.selectedComponentId = clickedComponentId),
-            (editorCtx.selectionAnchorComponentId = clickedComponentId));
-    }
-  }
-  if (clickedLocation.scope === "shared" && currentPage()?.path) {
-    const pendingDocument = clone2(editorCtx.activeProject.document);
-    ensureSharedComponentReference2(pendingDocument, clickedComponentId, currentPage().path) &&
-      projectSummary(pendingDocument, currentPage().path).catch(handleOperationError);
-  }
-  (editorCtx.selectedComponentId && setComponentScope(clickedLocation.scope),
-    syncRendererSelection(),
-    renderComponentLists(),
-    coverMotorButtonElement());
-}
-function mutateDocument(
-  documentMutator: any,
-  writePagePath = pageSelectElement.value,
-  { throwOnError: throwOnWriteError = false } = {},
-) {
-  const throwOnWriteErrorState = editorCtx.activeProject?.projectId,
-    Ie2 = editorCtx.componentScopeState,
-    queuedWriteHandler = () =>
-      editorCtx.componentScopeState === Ie2 && editorCtx.activeProject?.projectId === throwOnWriteErrorState,
-    caughtError = editorCtx.writeQueuePromise
-      .catch(() => {})
-      .then(async () => {
-        if (!queuedWriteHandler()) return;
-        if (!editorCtx.activeProject) throw new Error("请先选择仪表盘。");
-        const queuedWrite = documentSignature2(editorCtx.activeProject.document),
-          workingDocument = clone2(editorCtx.activeProject.document),
-          mutatorResult = await documentMutator(workingDocument);
-        if (!(
-          !queuedWriteHandler() ||
-          !(await projectSummary(workingDocument, writePagePath, {
-            expectedSignature: queuedWrite,
-          }))
-        ))
-          return mutatorResult;
-      })
-      .catch((nudgeSelectedComponents: any) => {
-        if (queuedWriteHandler()) throw nudgeSelectedComponents;
-      });
-  return (
-    (editorCtx.writeQueuePromise = caughtError.catch(handleOperationError)),
-    throwOnWriteError ? caughtError : editorCtx.writeQueuePromise
-  );
-}
+function currentPage(...args: any[]): ReturnType<typeof currentPageImpl> { return (currentPageImpl as any)(workspaceDocumentDeps(), ...args); }
+function groupSelectedComponents(...args: any[]): ReturnType<typeof groupSelectedComponentsImpl> { return (groupSelectedComponentsImpl as any)(workspaceDocumentDeps(), ...args); }
+function ungroupComponent(...args: any[]): ReturnType<typeof ungroupComponentImpl> { return (ungroupComponentImpl as any)(workspaceDocumentDeps(), ...args); }
+function openGroupRenameDialog(...args: any[]): ReturnType<typeof openGroupRenameDialogImpl> { return (openGroupRenameDialogImpl as any)(workspaceDocumentDeps(), ...args); }
+function normalizeHexColor(...args: any[]): ReturnType<typeof normalizeHexColorImpl> { return (normalizeHexColorImpl as any)(workspaceDocumentDeps(), ...args); }
+function removedComponent(...args: any[]): ReturnType<typeof removedComponentImpl> { return (removedComponentImpl as any)(workspaceDocumentDeps(), ...args); }
+function removalPageEntry(...args: any[]): ReturnType<typeof removalPageEntryImpl> { return (removalPageEntryImpl as any)(workspaceDocumentDeps(), ...args); }
+function componentListForScope(...args: any[]): ReturnType<typeof componentListForScopeImpl> { return (componentListForScopeImpl as any)(workspaceDocumentDeps(), ...args); }
+function collectComponentsByType(...args: any[]): ReturnType<typeof collectComponentsByTypeImpl> { return (collectComponentsByTypeImpl as any)(workspaceDocumentDeps(), ...args); }
+function findPageComponentsByType(...args: any[]): ReturnType<typeof findPageComponentsByTypeImpl> { return (findPageComponentsByTypeImpl as any)(workspaceDocumentDeps(), ...args); }
+function findReplaceableComponents(...args: any[]): ReturnType<typeof findReplaceableComponentsImpl> { return (findReplaceableComponentsImpl as any)(workspaceDocumentDeps(), ...args); }
+function syncRendererSelection(...args: any[]): ReturnType<typeof syncRendererSelectionImpl> { return (syncRendererSelectionImpl as any)(workspaceDocumentDeps(), ...args); }
+function clearComponentSelection(...args: any[]): ReturnType<typeof clearComponentSelectionImpl> { return (clearComponentSelectionImpl as any)(workspaceDocumentDeps(), ...args); }
+function resetPreviewStates(...args: any[]): ReturnType<typeof resetPreviewStatesImpl> { return (resetPreviewStatesImpl as any)(workspaceDocumentDeps(), ...args); }
+function selectComponent(...args: any[]): ReturnType<typeof selectComponentImpl> { return (selectComponentImpl as any)(workspaceDocumentDeps(), ...args); }
+function mutateDocument(...args: any[]): ReturnType<typeof mutateDocumentImpl> { return (mutateDocumentImpl as any)(workspaceDocumentDeps(), ...args); }
 setupRelatedPopup({
   get entities() {
     return editorCtx.entities;
@@ -2436,882 +941,65 @@ setupRelatedPopup({
   getSelectedComponentId: () => editorCtx.selectedComponentId,
   removedComponent,
   mutateDocument,
-  runAlt,
-  runSnapshot,
+  registerOverflowScrollPreviewRow,
+  formatEntityLabel,
 });
-function scaledSelectionPlacements(targetSelectionScale: any) {
-  if (editorCtx.selectedComponentIdsSet.size < 2 || !editorCtx.activeProject || !editorCtx.selectedComponentId) return [];
-  const selectedComponentsList = [...editorCtx.selectedComponentIdsSet]
-      .map(
-        (selectedComponentIdItem) =>
-          findComponent2(editorCtx.activeProject.document, selectedComponentIdItem)?.component,
-      )
-      .filter(Boolean),
-    primarySelectedComponent = selectedComponentsList.find(
-      (primaryCandidateComponent) => primaryCandidateComponent.id === editorCtx.selectedComponentId,
-    );
-  if (
-    !primarySelectedComponent ||
-    selectedComponentsList.length !== editorCtx.selectedComponentIdsSet.size ||
-    selectedComponentsList.some(
-      (fillModeComponent) => fillModeComponent.properties?.layoutMode === "fill",
-    )
-  )
-    return [];
-  const primaryComponentScale = Math.max(
-      0.01,
-      Math.min(5, Number(primarySelectedComponent.style?.scale || 1)),
-    ),
-    requestedScaleRatio =
-      Math.max(0.01, Math.min(5, Number(targetSelectionScale))) / primaryComponentScale,
-    minAllowedRatio = Math.max(
-      ...selectedComponentsList.map(
-        (minRatioComponent) => 0.01 / Math.max(0.01, Number(minRatioComponent.style?.scale || 1)),
-      ),
-    ),
-    maxAllowedRatio = Math.min(
-      ...selectedComponentsList.map(
-        (maxRatioComponent) => 5 / Math.max(0.01, Number(maxRatioComponent.style?.scale || 1)),
-      ),
-    ),
-    appliedScaleRatio = clampNumber2(requestedScaleRatio, minAllowedRatio, maxAllowedRatio),
-    selectionBoundsList = selectedComponentsList.map(componentBounds2),
-    selectionAnchorX =
-      (Math.min(...selectionBoundsList.map((leftBoundsItem) => leftBoundsItem.left)) +
-        Math.max(...selectionBoundsList.map((rightBoundsItem) => rightBoundsItem.right))) /
-      2,
-    selectionAnchorY =
-      (Math.min(...selectionBoundsList.map((topBoundsItem) => topBoundsItem.top)) +
-        Math.max(...selectionBoundsList.map((bottomBoundsItem) => bottomBoundsItem.bottom))) /
-      2;
-  return selectedComponentsList.map((scaledComponent) => {
-    const scaledComponentPosition = scaledComponent.position || {},
-      scaledComponentWidth = Number(scaledComponentPosition.width || 100),
-      scaledComponentHeight = Number(scaledComponentPosition.height || 100),
-      scaledComponentCenterX = Number(scaledComponentPosition.x || 0) + scaledComponentWidth / 2,
-      scaledComponentCenterY = Number(scaledComponentPosition.y || 0) + scaledComponentHeight / 2;
-    return {
-      componentId: scaledComponent.id,
-      x:
-        selectionAnchorX +
-        (scaledComponentCenterX - selectionAnchorX) * appliedScaleRatio -
-        scaledComponentWidth / 2,
-      y:
-        selectionAnchorY +
-        (scaledComponentCenterY - selectionAnchorY) * appliedScaleRatio -
-        scaledComponentHeight / 2,
-      scale: Math.max(
-        0.01,
-        Math.min(5, Number(scaledComponent.style?.scale || 1) * appliedScaleRatio),
-      ),
-    };
-  });
-}
-function selectedComponentIdsFromDom() {
-  const domSelectedIds = [...document.querySelectorAll<HTMLElement>(".element-item.selected[data-component-id]")]
-    .map((elementItemElement) => elementItemElement.dataset.componentId)
-    .filter(Boolean);
-  return editorCtx.selectedComponentIdsSet.size > 1 ? [...editorCtx.selectedComponentIdsSet] : domSelectedIds;
-}
-function setComponentsRotation(
-  rotationDocument: any,
-  rotationComponentId: any,
-  rotationDegrees: any,
-  rotationComponentIds: any[] = [],
-) {
-  const rotationTargetIds =
-    rotationComponentIds.length > 1 ? rotationComponentIds : [rotationComponentId];
-  for (const rotationTargetId of rotationTargetIds) {
-    const rotationComponent = findComponent2(rotationDocument, rotationTargetId)?.component;
-    rotationComponent &&
-      (rotationComponent.position = {
-        ...(rotationComponent.position || {}),
-        rotation: rotationDegrees,
-      });
-  }
-}
-function setComponentsVisibility(visibilityComponentIds: any, visibilityTarget: any) {
-  const nl3 = removalPageEntry(visibilityComponentIds);
-  nl3.length &&
-    mutateDocument((visibilityDocument: any) => {
-      for (const visibilityComponentId of nl3) {
-        const visibilityComponent = findComponent2(
-          visibilityDocument,
-          visibilityComponentId,
-        )?.component;
-        visibilityComponent &&
-          (visibilityComponent.style = {
-            ...(visibilityComponent.style || {}),
-            visible: visibilityTarget,
-          });
-      }
-    });
-}
-function closeComponentMenu() {
-  ((componentMenuElement.hidden = true), (editorCtx.menuComponentId = null));
-}
-function openComponentMenu(menuEvent: any, openedMenuComponentId: any) {
-  (menuEvent.preventDefault(), menuEvent.stopPropagation());
-  (selectComponent(openedMenuComponentId, {
-    preserveGroup: true,
-  }),
-    (editorCtx.menuComponentId = openedMenuComponentId));
-  const menuCount = editorCtx.selectedComponentIdsSet.has(openedMenuComponentId)
-      ? [...editorCtx.selectedComponentIdsSet]
-      : [openedMenuComponentId],
-    copyMenuButtonElement = menuCount.length,
-    selector = componentMenuElement.querySelector('[data-component-action="copy"]'),
-    copyToPageMenuButtonElement = componentMenuElement.querySelector(
-      '[data-component-action="copy-to-page"]',
-    ),
-    visibilityMenuButtonElement = componentMenuElement.querySelector(
-      '[data-component-action="visibility"]',
-    ),
-    deleteMenuButtonElement = componentMenuElement.querySelector(
-      '[data-component-action="delete"]',
-    ),
-    groupMenuButtonElement = componentMenuElement.querySelector('[data-component-action="group"]'),
-    ungroupMenuButtonElement = componentMenuElement.querySelector(
-      '[data-component-action="ungroup"]',
-    ),
-    renameGroupMenuButtonElement = componentMenuElement.querySelector(
-      '[data-component-action="rename-group"]',
-    ),
-    menuTitleTextElement = componentMenuElement.querySelector(":scope > strong");
-  selector.textContent =
-    copyMenuButtonElement > 1 ? "复制 " + copyMenuButtonElement + " 个控件" : "复制控件";
-  const menuComponent = findComponent2(editorCtx.activeProject?.document, openedMenuComponentId)?.component,
-    menuVisibilityList = menuCount
-      .map(
-        (menuComponentIdItem) =>
-          findComponent2(editorCtx.activeProject?.document, menuComponentIdItem)?.component,
-      )
-      .filter(Boolean)
-      .map((menuComponentItem) => menuComponentItem.style?.visible !== false),
-    every =
-      menuVisibilityList.length === menuCount.length &&
-      menuVisibilityList.every((visibility) => visibility === menuVisibilityList[0]);
-  ((visibilityMenuButtonElement.disabled = !every),
-    (visibilityMenuButtonElement.textContent = every
-      ? menuVisibilityList[0]
-        ? copyMenuButtonElement > 1
-          ? "批量隐藏 " + copyMenuButtonElement + " 个"
-          : "隐藏控件"
-        : copyMenuButtonElement > 1
-          ? "批量显示 " + copyMenuButtonElement + " 个"
-          : "显示控件"
-      : "批量隐藏/显示"),
-    (visibilityMenuButtonElement.title = every
-      ? ""
-      : "选中的控件包含隐藏和显示状态，无法批量处理"));
-  const hasOtherProject = canGroupComponents2(menuCount, editorCtx.activeProject?.document);
-  ((groupMenuButtonElement.hidden = !hasOtherProject),
-    (ungroupMenuButtonElement.hidden =
-      menuComponent?.type !== "group" || copyMenuButtonElement !== 1),
-    (renameGroupMenuButtonElement.hidden =
-      menuComponent?.type !== "group" || copyMenuButtonElement !== 1),
-    (copyToPageMenuButtonElement.textContent = "复制到其他区域"));
-  const some = editorCtx.projects.some(
-      (menuProjectEntry: any) => menuProjectEntry.id !== editorCtx.activeProject?.projectId,
-    ),
-    copyTargets = findCommonCopyTargets(editorCtx.activeProject?.document, menuCount);
-  ((copyToPageMenuButtonElement.disabled = copyTargets.length === 0 && !some),
-    (copyToPageMenuButtonElement.title = copyToPageMenuButtonElement.disabled
-      ? "当前没有可复制的目标区域"
-      : copyMenuButtonElement > 1
-        ? "完整复制选中的 " + copyMenuButtonElement + " 个控件到其他页面、侧边栏或其他仪表盘"
-        : "完整复制当前控件到其他页面、侧边栏或其他仪表盘"),
-    (deleteMenuButtonElement.textContent =
-      copyMenuButtonElement > 1 ? "删除 " + copyMenuButtonElement + " 个控件" : "删除控件"),
-    (menuTitleTextElement.textContent =
-      copyMenuButtonElement > 1 ? "颜色标签（" + copyMenuButtonElement + " 个控件）" : "颜色标签"));
-  const labelColorValues = menuCount.map((labelColorComponentId) => {
-      const labelColorComponent = findComponent2(
-        editorCtx.activeProject?.document,
-        labelColorComponentId,
-      )?.component;
-      return runStore(labelColorComponent?.style?.editorLabelColor);
-    }),
-    sharedLabelColor = labelColorValues.every(
-      (labelColorValue) => labelColorValue === labelColorValues[0],
-    )
-      ? labelColorValues[0]
-      : null;
-  for (const labelColorButton of componentMenuElement.querySelectorAll("[data-label-color]"))
-    labelColorButton.classList.toggle(
-      "active",
-      sharedLabelColor !== null && labelColorButton.dataset.labelColor === sharedLabelColor,
-    );
-  ((componentMenuElement.hidden = false),
-    (componentMenuElement.style.left = "0px"),
-    (componentMenuElement.style.top = "0px"),
-    window.requestAnimationFrame(() => {
-      const menuRect = componentMenuElement.getBoundingClientRect(),
-        menuLeftPx = clampNumber2(
-          menuEvent.clientX,
-          8,
-          Math.max(8, window.innerWidth - menuRect.width - 8),
-        ),
-        menuTopPx = clampNumber2(
-          menuEvent.clientY,
-          8,
-          Math.max(8, window.innerHeight - menuRect.height - 8),
-        );
-      ((componentMenuElement.style.left = menuLeftPx + "px"),
-        (componentMenuElement.style.top = menuTopPx + "px"));
-    }));
-}
-function findCommonCopyTargets(copyTargetDocument: any, copySourceComponentIds: any) {
-  const copySourceIds = [...new Set(copySourceComponentIds || [])].filter(Boolean);
-  if (!copyTargetDocument || !copySourceIds.length) return [];
-  const copyTargetKeysBySource = copySourceIds.map(
-      (copySourceId) =>
-        new Set(
-          copyComponentTargets2(copyTargetDocument, copySourceId).map(
-            (copyTargetEntry: any) => copyTargetEntry.key,
-          ),
-        ),
-    ),
-    commonCopyTargetKeys = [...(copyTargetKeysBySource[0] || [])].filter((copyTargetKey) =>
-      copyTargetKeysBySource.every((copyTargetKeySet) => copyTargetKeySet.has(copyTargetKey)),
-    ),
-    copyTargetsOfFirst = copyComponentTargets2(copyTargetDocument, copySourceIds[0]);
-  return commonCopyTargetKeys
-    .map((matchedCopyTargetKey) =>
-      copyTargetsOfFirst.find(
-        (matchedCopyTargetEntry: any) => matchedCopyTargetEntry.key === matchedCopyTargetKey,
-      ),
-    )
-    .filter(Boolean);
-}
-function showCopySuccessDialog(copySuccessMessage: any, copySuccessTarget: any) {
-  ((editorCtx.copySuccessNavigationTarget = copySuccessTarget || null),
-    (copyComponentSuccessMessageElement.textContent = copySuccessMessage),
-    copyComponentSuccessDialogElement.showModal());
-}
-async function handleCopySuccessConfirm() {
-  const Ha2 = editorCtx.copySuccessNavigationTarget;
-  ((editorCtx.copySuccessNavigationTarget = null),
-    copyComponentSuccessDialogElement.close(),
-    Ha2 &&
-      (Ha2.projectId && Ha2.projectId !== editorCtx.activeProject?.projectId
-        ? await historyEntry(Ha2.projectId, Ha2.pagePath)
-        : Ha2.pagePath &&
-          Ha2.pagePath !== pageSelectElement.value &&
-          ((pageSelectElement.value = Ha2.pagePath),
-          loadNavigationIconOptions(pageSelectElement),
-          editorCtx.editorRenderer?.navigate(Ha2.pagePath),
-          editorCtx.dashboardPreviewRenderer?.navigate(Ha2.pagePath),
-          renderComponentLists(),
-          coverMotorButtonElement()),
-      setComponentScope(Ha2.scope)));
-}
-function duplicateComponents(
-  duplicatedComponentIds: any,
-  duplicateFocusComponentId = editorCtx.selectedComponentId,
-) {
-  const nl4 = removalPageEntry(duplicatedComponentIds);
-  nl4.length &&
-    mutateDocument((duplicateDocument: any) => {
-      const copyLocationByComponentId = new Map(
-          nl4.map((duplicateComponentId) => [
-            duplicateComponentId,
-            findComponentLocation2(duplicateDocument, duplicateComponentId),
-          ]),
-        ),
-        sort2 = nl4
-          .filter((sortedDuplicateComponentId) =>
-            copyLocationByComponentId.get(sortedDuplicateComponentId),
-          )
-          .sort((duplicateIdA, duplicateIdB) => {
-            const locationOfA = copyLocationByComponentId.get(duplicateIdA),
-              locationOfB = copyLocationByComponentId.get(duplicateIdB);
-            return locationOfA.collection === locationOfB.collection
-              ? locationOfA.index - locationOfB.index
-              : 0;
-          }),
-        createdDuplicateIds: any[] = [],
-        newIdBySourceId = new Map();
-      for (const duplicateSourceId of sort2) {
-        const tp2 = duplicateComponent(duplicateDocument, duplicateSourceId);
-        tp2 && (createdDuplicateIds.push(tp2.id), newIdBySourceId.set(duplicateSourceId, tp2.id));
-      }
-      createdDuplicateIds.length &&
-        ((editorCtx.selectedComponentId =
-          newIdBySourceId.get(duplicateFocusComponentId) || createdDuplicateIds[0]),
-        (editorCtx.selectedComponentIdsSet = new Set(createdDuplicateIds)),
-        (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId));
-    });
-}
-function copyTargetsForDocument(
-  copyTargetSourceDocument: any,
-  {
-    includeShared: includeSharedTargets = true,
-    sourceComponentId: explicitSourceComponentId = null,
-  }: any = {},
-) {
-  if (!copyTargetSourceDocument) return [];
-  if (explicitSourceComponentId)
-    return copyComponentTargets2(copyTargetSourceDocument, explicitSourceComponentId);
-  const pageCopyTargets = (copyTargetSourceDocument.pages || []).map((copyTargetPage: any) => ({
-    key: "page:" + copyTargetPage.path,
-    name: copyTargetPage.name,
-    scope: "page",
-    page: copyTargetPage,
-  }));
-  return includeSharedTargets
-    ? [
-        {
-          key: "shared",
-          name: "侧边栏",
-          scope: "shared",
-        },
-        ...pageCopyTargets,
-      ]
-    : pageCopyTargets;
-}
-function renderCopyTargetOptions(copyTargetOptionList: any) {
-  (copyComponentPageTargetElement.replaceChildren(
-    ...copyTargetOptionList.map(
-      (copyTargetOption: any) => new Option(copyTargetOption.name, copyTargetOption.key),
-    ),
-  ),
-    (copyComponentPageTargetElement.disabled = !copyTargetOptionList.length),
-    (copyComponentPageTargetElement.value = copyTargetOptionList[0]?.key || ""),
-    loadNavigationIconOptions(copyComponentPageTargetElement));
-}
-function getDocumentCanvasSize(canvasSizeDocument: any) {
+function componentEditingDeps(): ComponentEditingDeps {
   return {
-    width: Number(canvasSizeDocument?.canvas?.width || 2778),
-    height: Number(canvasSizeDocument?.canvas?.height || 1940),
+    ...homeElements,
+    get clearComponentSelection() { return clearComponentSelection; },
+    get copyTargetsForDocument() { return copyTargetsForDocument; },
+    get coverMotorButtonElement() { return coverMotorButtonElement; },
+    get currentPage() { return currentPage; },
+    get editorCtx() { return editorCtx; },
+    get findCommonCopyTargets() { return findCommonCopyTargets; },
+    get getDocumentCanvasSize() { return getDocumentCanvasSize; },
+    get handleOperationError() { return handleOperationError; },
+    get historyEntry() { return historyEntry; },
+    get loadNavigationIconOptions() { return loadNavigationIconOptions; },
+    get mutateDocument() { return mutateDocument; },
+    get openComponentMenu() { return openComponentMenu; },
+    get prependGroupBackButton() { return prependGroupBackButton; },
+    get removalPageEntry() { return removalPageEntry; },
+    get renderComponentList() { return renderComponentList; },
+    get renderComponentLists() { return renderComponentLists; },
+    get renderCopyComponentDialog() { return renderCopyComponentDialog; },
+    get renderCopyScaleOptions() { return renderCopyScaleOptions; },
+    get renderCopyTargetOptions() { return renderCopyTargetOptions; },
+    get requestJson() { return requestJson; },
+    get runStore() { return normalizeHexColor; },
+    get selectComponent() { return selectComponent; },
+    get setComponentScope() { return setComponentScope; },
+    get setComponentsVisibility() { return setComponentsVisibility; },
+    get setSettingsMessage() { return setSettingsMessage; },
+    get syncAddComponentButton() { return syncAddComponentButton; },
+    get syncRendererSelection() { return syncRendererSelection; },
   };
 }
-function renderCopyScaleOptions() {
-  if (!(copyComponentPageScopeSelectElement.value === "other" && editorCtx.copyTargetDraft)) {
-    ((copyComponentScaleOptionsElement.hidden = true),
-      (copyComponentResolutionSummaryElement.textContent = ""));
-    return;
-  }
-  const sourceCanvasSize = getDocumentCanvasSize(editorCtx.activeProject?.document),
-    targetCanvasSize = getDocumentCanvasSize(editorCtx.copyTargetDraft.document),
-    canvasSizeMismatch =
-      sourceCanvasSize.width !== targetCanvasSize.width ||
-      sourceCanvasSize.height !== targetCanvasSize.height;
-  ((copyComponentScaleOptionsElement.hidden = !canvasSizeMismatch),
-    (copyComponentResolutionSummaryElement.textContent = canvasSizeMismatch
-      ? sourceCanvasSize.width +
-        " × " +
-        sourceCanvasSize.height +
-        " → " +
-        targetCanvasSize.width +
-        " × " +
-        targetCanvasSize.height
-      : ""));
-}
-async function renderCopyComponentDialog() {
-  const isOtherProjectTarget = copyComponentPageScopeSelectElement.value === "other";
-  let copyDialogComponentIds: any[] = [];
-  try {
-    copyDialogComponentIds = JSON.parse(
-      copyComponentPageDialogElement.dataset.componentIds || "[]",
-    );
-  } catch {
-    copyDialogComponentIds = [];
-  }
-  const copyDialogFirstLocation = findComponent2(
-      editorCtx.activeProject?.document,
-      copyDialogComponentIds[0],
-    ),
-    copyDialogComponentCount = copyDialogComponentIds.length,
-    copyDialogDescriptionElement = copyComponentPageDialogElement.querySelector(
-      "[data-copy-component-description]",
-    );
-  if (
-    ((copyComponentPageProjectFieldElement.hidden = !isOtherProjectTarget),
-    (copyComponentPageTargetLabelElement.textContent = isOtherProjectTarget
-      ? "其他仪表盘目标页面"
-      : "本仪表盘目标页面"),
-    (copyComponentPageSubmitElement.textContent = isOtherProjectTarget
-      ? "复制到目标仪表盘"
-      : "复制并前往"),
-    (copyDialogDescriptionElement.textContent = isOtherProjectTarget
-      ? "将选中的 " +
-        copyDialogComponentCount +
-        " 个控件完整复制到其他仪表盘的目标页面或侧边栏，源控件不受影响。"
-      : copyDialogFirstLocation?.scope === "shared"
-        ? "将选中的 " +
-          copyDialogComponentCount +
-          " 个侧边栏控件完整复制到指定主页面，复制后为该页面的独立控件。"
-        : "将选中的 " +
-          copyDialogComponentCount +
-          " 个控件完整复制到侧边栏或其他主页面，保留位置、尺寸、样式、实体绑定和动作配置。"),
-    (editorCtx.copyTargetDraft = null),
-    (copyComponentScaleOptionsElement.hidden = true),
-    setSettingsMessage(copyComponentPageMessageElement, ""),
-    !isOtherProjectTarget)
-  ) {
-    const localCopyTargets = findCommonCopyTargets(editorCtx.activeProject?.document, copyDialogComponentIds);
-    (renderCopyTargetOptions(localCopyTargets),
-      (copyComponentPageSubmitElement.disabled = !localCopyTargets.length));
-    return;
-  }
-  const targetProjectId = copyComponentPageProjectSelectElement.value;
-  if (!targetProjectId) {
-    (renderCopyTargetOptions([]),
-      (copyComponentPageSubmitElement.disabled = true),
-      setSettingsMessage(copyComponentPageMessageElement, "当前没有其他仪表盘可以复制。"));
-    return;
-  }
-  const copyTargetLoadTokenSnapshot = ++editorCtx.copyTargetLoadToken;
-  (renderCopyTargetOptions([]),
-    (copyComponentPageSubmitElement.disabled = true),
-    setSettingsMessage(copyComponentPageMessageElement, "正在读取目标仪表盘…"));
-  try {
-    const targetDraftResponse = await requestJson(
-      "/projects/" + encodeURIComponent(targetProjectId) + "/draft",
-    );
-    if (
-      copyTargetLoadTokenSnapshot !== editorCtx.copyTargetLoadToken ||
-      copyComponentPageScopeSelectElement.value !== "other"
-    )
-      return;
-    editorCtx.copyTargetDraft = targetDraftResponse;
-    const wE2 = copyTargetsForDocument(targetDraftResponse.document);
-    (renderCopyTargetOptions(wE2),
-      renderCopyScaleOptions(),
-      setSettingsMessage(
-        copyComponentPageMessageElement,
-        wE2.length ? "" : "目标仪表盘还没有可复制到的区域。",
-      ),
-      (copyComponentPageSubmitElement.disabled = !wE2.length));
-  } catch (copyTargetLoadError: any) {
-    if (copyTargetLoadTokenSnapshot !== editorCtx.copyTargetLoadToken) return;
-    setSettingsMessage(copyComponentPageMessageElement, copyTargetLoadError.message, "error");
-  }
-}
-function openCopyComponentDialog(copyComponentSelectionIds: any) {
-  const copySourceDocument = editorCtx.activeProject?.document,
-    validCopyComponentIds = [...new Set(copyComponentSelectionIds || [])].filter(
-      (copyComponentId) => findComponent2(copySourceDocument, copyComponentId),
-    ),
-    copyAnchorLocation = findComponent2(copySourceDocument, validCopyComponentIds[0]);
-  if (!copyAnchorLocation || !validCopyComponentIds.length) {
-    handleOperationError(new Error("没有找到要复制的控件。"));
-    return;
-  }
-  ((copyComponentPageDialogElement.dataset.componentIds = JSON.stringify(validCopyComponentIds)),
-    (copyComponentPageNameElement.textContent =
-      validCopyComponentIds.length > 1
-        ? "已选择 " + validCopyComponentIds.length + " 个控件"
-        : "“" + componentLabel2(copyAnchorLocation.component) + "”"),
-    (copyComponentPageDialogElement.querySelector("[data-copy-component-description]").textContent =
-      validCopyComponentIds.length > 1
-        ? "将选中的 " + validCopyComponentIds.length + " 个控件完整复制到目标区域。"
-        : copyAnchorLocation.scope === "shared"
-          ? "将侧边栏控件完整复制到指定主页面，复制后为该页面的独立控件。"
-          : "将当前控件完整复制到侧边栏或其他主页面，保留位置、尺寸、样式、实体绑定和动作配置。"),
-    (copyComponentPageScopeSelectElement.value = "current"),
-    loadNavigationIconOptions(copyComponentPageScopeSelectElement));
-  const otherProjectList = editorCtx.projects.filter(
-    (otherProjectOption: any) => otherProjectOption.id !== editorCtx.activeProject.projectId,
-  );
-  (copyComponentPageProjectSelectElement.replaceChildren(
-    ...otherProjectList.map(
-      (openDeleteComponentDialog: any) =>
-        new Option(openDeleteComponentDialog.name, openDeleteComponentDialog.id),
-    ),
-  ),
-    (copyComponentPageProjectSelectElement.disabled = !otherProjectList.length),
-    loadNavigationIconOptions(copyComponentPageProjectSelectElement),
-    (copyComponentPageFormElement.elements.copyScaleMode.value = "proportional"),
-    copyComponentPageDialogElement.showModal(),
-    renderCopyComponentDialog());
-}
-function deleteComponentIds(deleteComponentId: any) {
-  const nl5 = removalPageEntry(deleteComponentId);
-  if (!nl5.length) {
-    handleOperationError(new Error("没有找到要删除的控件。"));
-    return;
-  }
-  if (((deleteComponentDialogElement.dataset.componentIds = JSON.stringify(nl5)), nl5.length > 1))
-    deleteComponentNameElement.textContent = "“已选择的 " + nl5.length + " 个控件”";
-  else {
-    const deleteAnchorComponent = findComponent2(editorCtx.activeProject?.document, nl5[0])?.component;
-    deleteComponentNameElement.textContent =
-      "“" +
-      componentLabel2(
-        deleteAnchorComponent || {
-          type: "控件",
-        },
-      ) +
-      "”";
-  }
-  deleteComponentDialogElement.showModal();
-}
-function setComponentsLabelColor(labelColorComponentIds: any, newLabelColorValue: any) {
-  const labelColorTargetIds = [...new Set(labelColorComponentIds || [])];
-  if (!labelColorTargetIds.length) return;
-  const pp2 = runStore(newLabelColorValue);
-  mutateDocument((labelColorDocument: any) => {
-    for (const sortedLabelColorComponentId of labelColorTargetIds) {
-      const targetLabelColorComponent = findComponent2(
-        labelColorDocument,
-        sortedLabelColorComponentId,
-      )?.component;
-      targetLabelColorComponent &&
-        ((targetLabelColorComponent.style = {
-          ...(targetLabelColorComponent.style || {}),
-        }),
-        pp2
-          ? (targetLabelColorComponent.style.editorLabelColor = pp2)
-          : delete targetLabelColorComponent.style.editorLabelColor);
-    }
-  });
-}
-function renderComponentList(componentListElement: any, listComponents: any, listEmptyText: any, listScope: any) {
-  if ((componentListElement.replaceChildren(), !listComponents.length)) {
-    const listEmptyElement = document.createElement("div");
-    ((listEmptyElement.className = "element-list-empty"),
-      (listEmptyElement.textContent = listEmptyText),
-      componentListElement.append(listEmptyElement));
-    return;
-  }
-  for (const listComponent of listComponents) {
-    const componentItemElement = document.createElement("div");
-    ((componentItemElement.className = "element-item"),
-      (componentItemElement.dataset.componentId = listComponent.id),
-      (componentItemElement.dataset.scope = listScope),
-      (componentItemElement.draggable = !editorCtx.activeGroupId),
-      componentItemElement.classList.toggle(
-        "selected",
-        editorCtx.selectedComponentIdsSet.has(listComponent.id),
-      ),
-      componentItemElement.classList.toggle(
-        "selection-primary",
-        listComponent.id === editorCtx.selectedComponentId,
-      ),
-      componentItemElement.classList.toggle("group-item", listComponent.type === "group"));
-    const pp3 = runStore(listComponent.style?.editorLabelColor);
-    (componentItemElement.classList.toggle("has-color-label", !!pp3),
-      pp3 && componentItemElement.style.setProperty("--element-label-color", pp3));
-    const itemIconElement = document.createElement("i");
-    ((itemIconElement.className =
-      listComponent.type === "group" ? "element-group-icon" : "element-label-color"),
-      itemIconElement.setAttribute("aria-hidden", "true"),
-      listComponent.type === "group" &&
-        (itemIconElement.innerHTML =
-          '<svg viewBox="0 0 24 24" focusable="false"><path d="M3.5 7.5h6l1.8 2h9.2v9.5h-17z"/><path d="M3.5 7.5v-1h6l1.8 2"/></svg>'));
-    const itemLabelElement = document.createElement("span");
-    itemLabelElement.textContent = componentLabel2(listComponent);
-    const isItemIsVisible = listComponent.style?.visible !== false,
-      itemVisibilityButtonElement = document.createElement("button");
-    ((itemVisibilityButtonElement.type = "button"),
-      (itemVisibilityButtonElement.className =
-        "element-visibility" + (isItemIsVisible ? "" : " hidden-element")),
-      itemVisibilityButtonElement.setAttribute(
-        "aria-label",
-        isItemIsVisible
-          ? "隐藏" + componentLabel2(listComponent)
-          : "显示" + componentLabel2(listComponent),
-      ),
-      (itemVisibilityButtonElement.innerHTML = visibilityIconSvg2(isItemIsVisible)));
-    const stopItemEventPropagation = (itemEvent: any) => {
-      ((editorCtx.lastComponentClick = {
-        componentId: listComponent.id,
-        at: Date.now(),
-      }),
-        itemEvent.stopPropagation());
-    };
-    (itemVisibilityButtonElement.addEventListener("pointerdown", stopItemEventPropagation),
-      itemVisibilityButtonElement.addEventListener("click", (visibilityClickEvent) => {
-        ((editorCtx.lastComponentClick = {
-          componentId: listComponent.id,
-          at: Date.now(),
-        }),
-          visibilityClickEvent.stopPropagation(),
-          selectComponent(listComponent.id, {
-            preserveGroup: true,
-          }),
-          setComponentsVisibility([listComponent.id], !isItemIsVisible));
-      }),
-      itemVisibilityButtonElement.addEventListener("dblclick", stopItemEventPropagation),
-      componentItemElement.append(itemIconElement, itemLabelElement, itemVisibilityButtonElement),
-      componentItemElement.addEventListener("click", (itemClickEvent) => {
-        selectComponent(listComponent.id, {
-          toggle: itemClickEvent.metaKey || itemClickEvent.ctrlKey,
-          range: itemClickEvent.shiftKey,
-        });
-      }),
-      componentItemElement.addEventListener("dblclick", (itemDoubleClickEvent) => {
-        if (
-          listComponent.type !== "group" ||
-          (itemDoubleClickEvent.target as Element).closest(".element-visibility")
-        )
-          return;
-        if (
-          editorCtx.lastComponentClick.componentId === listComponent.id &&
-          Date.now() - editorCtx.lastComponentClick.at < 600
-        ) {
-          (itemDoubleClickEvent.preventDefault(), itemDoubleClickEvent.stopPropagation());
-          return;
-        }
-        (itemDoubleClickEvent.preventDefault(),
-          itemDoubleClickEvent.stopPropagation(),
-          (editorCtx.activeGroupId = listComponent.id),
-          clearComponentSelection(),
-          renderComponentLists(),
-          syncRendererSelection(),
-          coverMotorButtonElement());
-      }),
-      componentItemElement.addEventListener("contextmenu", (itemMenuEvent) =>
-        openComponentMenu(itemMenuEvent, listComponent.id),
-      ),
-      componentItemElement.addEventListener("dragstart", (itemDragStartEvent) => {
-        editorCtx.selectedComponentIdsSet.has(listComponent.id)
-          ? (editorCtx.selectedComponentId = listComponent.id)
-          : ((editorCtx.selectedComponentIdsSet = new Set([listComponent.id])),
-            (editorCtx.selectedComponentId = listComponent.id),
-            (editorCtx.selectionAnchorComponentId = listComponent.id));
-        const draggingComponentIds = [...editorCtx.selectedComponentIdsSet];
-        ((itemDragStartEvent.dataTransfer!.effectAllowed = "move"),
-          itemDragStartEvent.dataTransfer!.setData(
-            "text/plain",
-            JSON.stringify({
-              scope: listScope,
-              sourceId: listComponent.id,
-              movingIds: draggingComponentIds,
-            }),
-          ),
-          componentListElement.querySelectorAll(".element-item").forEach((listItemElement: any) => {
-            listItemElement.classList.toggle(
-              "dragging",
-              draggingComponentIds.includes(listItemElement.dataset.componentId),
-            );
-          }));
-      }),
-      componentItemElement.addEventListener("dragend", () => {
-        (componentListElement
-          .querySelectorAll(".dragging")
-          .forEach((draggingElement: any) => draggingElement.classList.remove("dragging")),
-          componentListElement
-            .querySelectorAll(".drop-before, .drop-after")
-            .forEach((dropMarkerElement: any) =>
-              dropMarkerElement.classList.remove("drop-before", "drop-after"),
-            ));
-      }),
-      componentItemElement.addEventListener("dragover", (itemDragOverEvent) => {
-        if (!itemDragOverEvent.dataTransfer!.types.includes("text/plain")) return;
-        (itemDragOverEvent.preventDefault(), (itemDragOverEvent.dataTransfer!.dropEffect = "move"));
-        const isDropAfter =
-          itemDragOverEvent.clientY >=
-          componentItemElement.getBoundingClientRect().top +
-            componentItemElement.getBoundingClientRect().height / 2;
-        (componentItemElement.classList.toggle("drop-before", !isDropAfter),
-          componentItemElement.classList.toggle("drop-after", isDropAfter));
-      }),
-      componentItemElement.addEventListener("dragleave", () =>
-        componentItemElement.classList.remove("drop-before", "drop-after"),
-      ),
-      componentItemElement.addEventListener("drop", (itemDropEvent) => {
-        itemDropEvent.preventDefault();
-        let dragPayload;
-        try {
-          dragPayload = JSON.parse(itemDropEvent.dataTransfer!.getData("text/plain"));
-        } catch {
-          return;
-        }
-        const { scope: payloadSourceId, sourceId: payloadMovingIds } = dragPayload,
-          movingIds = Array.isArray(dragPayload.movingIds)
-            ? dragPayload.movingIds
-            : [payloadMovingIds],
-          contains3 = componentItemElement.classList.contains("drop-after");
-        (componentItemElement.classList.remove("drop-before", "drop-after"),
-          !(
-            payloadSourceId !== listScope ||
-            !payloadMovingIds ||
-            movingIds.includes(listComponent.id)
-          ) &&
-            ((editorCtx.selectedComponentId = payloadMovingIds),
-            (editorCtx.selectedComponentIdsSet = new Set(movingIds)),
-            mutateDocument((dropDocument: any) => {
-              const sharedComponents =
-                listScope === "shared"
-                  ? dropDocument.sharedComponents
-                  : dropDocument.pages.find(
-                      (dropPageEntry: any) => dropPageEntry.path === pageSelectElement.value,
-                    )?.components;
-              if (!sharedComponents) return;
-              const payloadMovingIdSet = new Set(movingIds),
-                movedDropComponents = sharedComponents.filter((movedDropCollectionComponent: any) =>
-                  payloadMovingIdSet.has(movedDropCollectionComponent.id),
-                );
-              if (!movedDropComponents.length) return;
-              const remainingDropComponents = sharedComponents.filter(
-                  (remainingDropCollectionComponent: any) =>
-                    !payloadMovingIdSet.has(remainingDropCollectionComponent.id),
-                ),
-                dropTargetIndex = remainingDropComponents.findIndex(
-                  (dropIndexCollectionComponent: any) =>
-                    dropIndexCollectionComponent.id === listComponent.id,
-                );
-              dropTargetIndex < 0 ||
-                (remainingDropComponents.splice(
-                  dropTargetIndex + (contains3 ? 1 : 0),
-                  0,
-                  ...movedDropComponents,
-                ),
-                sharedComponents.splice(0, sharedComponents.length, ...remainingDropComponents),
-                applyCollectionLayerOrder2(sharedComponents),
-                listScope === "shared" && syncSharedComponentReferenceOrder2(dropDocument));
-            })));
-      }),
-      componentListElement.append(componentItemElement));
-  }
-}
-function prependGroupBackButton(groupBackListElement: any, groupBackComponent: any) {
-  if (!groupBackComponent) return;
-  const groupBackButtonElement = document.createElement("button");
-  ((groupBackButtonElement.type = "button"),
-    (groupBackButtonElement.className = "element-group-back"),
-    (groupBackButtonElement.textContent = "← 返回" + componentLabel2(groupBackComponent)),
-    groupBackButtonElement.addEventListener("click", () => {
-      ((editorCtx.activeGroupId = null),
-        clearComponentSelection(),
-        renderComponentLists(),
-        syncRendererSelection(),
-        coverMotorButtonElement());
-    }),
-    groupBackListElement.prepend(groupBackButtonElement));
-}
-function renderComponentLists() {
-  const ct3 = currentPage(),
-    activeGroupComponent = editorCtx.activeGroupId
-      ? findComponent2(editorCtx.activeProject?.document, editorCtx.activeGroupId)
-      : null,
-    component2 =
-      activeGroupComponent?.component?.type === "group" ? activeGroupComponent.component : null;
-  editorCtx.activeGroupId && !component2 && (editorCtx.activeGroupId = null);
-  const sharedListComponents =
-      component2 && activeGroupComponent!.scope === "shared"
-        ? component2.children || []
-        : editorCtx.activeProject?.document?.sharedComponents || [],
-    pageListComponents =
-      component2 && activeGroupComponent!.scope === "page"
-        ? component2.children || []
-        : ct3?.components || [];
-  (renderComponentList(
-    sharedComponentListElement,
-    sharedListComponents,
-    "暂无侧边栏控件",
-    "shared",
-  ),
-    renderComponentList(pageComponentListElement, pageListComponents, "暂无主页面控件", "page"),
-    component2 &&
-      prependGroupBackButton(
-        activeGroupComponent!.scope === "shared"
-          ? sharedComponentListElement
-          : pageComponentListElement,
-        component2,
-      ));
-}
-function setComponentScope(componentScopeName: any) {
-  editorCtx.componentScope = componentScopeName === "page" ? "page" : "shared";
-  const isSharedScope = editorCtx.componentScope === "shared";
-  (showSharedComponentsElement.classList.toggle("active", isSharedScope),
-    showPageComponentsElement.classList.toggle("active", !isSharedScope),
-    (sharedComponentListElement.hidden = !isSharedScope),
-    (pageComponentListElement.hidden = isSharedScope),
-    syncAddComponentButton());
-}
-function syncAddComponentButton() {
-  const hasCurrentPage = !!currentPage(),
-    some2 = ["shared", "page"].some(
-      (templateScope) => listComponentTemplates2(templateScope).length > 0,
-    );
-  ((addComponentButtonElement.disabled = !hasCurrentPage || !some2),
-    (addComponentButtonElement.title = hasCurrentPage
-      ? some2
-        ? "从模板库添加控件"
-        : "该区域暂无可用控件模板"
-      : "请先新建页面"));
-}
-function renderComponentTemplates() {
-  const componentTemplates = [
-      ...listComponentTemplates2("shared"),
-      ...listComponentTemplates2("page"),
-    ].filter(
-      (templateEntry, templateIndex, templateList) =>
-        templateList.findIndex((templateEntryItem) => templateEntryItem.id === templateEntry.id) ===
-        templateIndex,
-    );
-  if (
-    ((componentTemplateScopeElement.textContent =
-      editorCtx.componentScope === "shared"
-        ? "当前添加到侧边栏，添加后会在所有页面显示。"
-        : "当前添加到主页面，仅在“" + (currentPage()?.name || "当前页面") + "”显示。"),
-    !componentTemplates.length)
-  ) {
-    const templateEmptyElement = document.createElement("div");
-    ((templateEmptyElement.className = "component-template-empty"),
-      (templateEmptyElement.textContent = "暂无可用控件模板。"),
-      componentTemplateListElement.replaceChildren(templateEmptyElement));
-    return;
-  }
-  componentTemplateListElement.replaceChildren(
-    ...componentTemplates.map((componentTemplate) => {
-      const templateCardElement = document.createElement("button");
-      ((templateCardElement.type = "button"),
-        (templateCardElement.className = "component-template-card"),
-        (templateCardElement.dataset.templateId = componentTemplate.id));
-      const templatePreviewElement = document.createElement("span");
-      if (
-        ((templatePreviewElement.className = "component-template-preview"),
-        templatePreviewElement.setAttribute("aria-hidden", "true"),
-        componentTemplate.id === "interaction3d")
-      )
-        renderInteraction3dThumbnail2(templatePreviewElement);
-      else {
-        if (componentTemplate.id === "flow-line")
-          (templatePreviewElement.classList.add("flow-line-template-preview"),
-            (templatePreviewElement.innerHTML =
-              '<svg viewBox="0 0 180 100"><path d="M 15 78 H 65 Q 75 78 75 68 V 32 Q 75 22 85 22 H 165" fill="none" stroke="#42d9ef" stroke-opacity=".2" stroke-width="4"/><path d="M 15 78 H 65 Q 75 78 75 68 V 32 Q 75 22 85 22 H 165" fill="none" stroke="#42d9ef" stroke-width="3" stroke-linecap="round" stroke-dasharray="18 18"/></svg>'));
-        else {
-          if (componentTemplate.id === "scene-mode")
-            (templatePreviewElement.classList.add("scene-mode-template-preview"),
-              (templatePreviewElement.innerHTML =
-                '<span class="scene-mode-template-content"><span class="scene-mode-template-icon"></span><span class="scene-mode-template-text"><strong>情景模式</strong><small>SCENE</small></span></span>'));
-          else {
-            if (componentTemplate.id === "percentage-bar")
-              templatePreviewElement.innerHTML =
-                '<svg class="percentage-template-chart" viewBox="0 0 520 260" aria-hidden="true">\n        <defs>\n          <linearGradient id="percentage-thumb-amber" x2="0" y2="1"><stop stop-color="#f2a20d" stop-opacity=".75"/><stop offset="1" stop-color="#f2a20d" stop-opacity=".08"/></linearGradient>\n          <linearGradient id="percentage-thumb-green" x2="0" y2="1"><stop stop-color="#68cc3e" stop-opacity=".75"/><stop offset="1" stop-color="#68cc3e" stop-opacity=".08"/></linearGradient>\n          <linearGradient id="percentage-thumb-gray" x2="0" y2="1"><stop stop-color="#94a5b3" stop-opacity=".75"/><stop offset="1" stop-color="#94a5b3" stop-opacity=".08"/></linearGradient>\n        </defs>\n        <g fill="#dce1e5" font-family="Helvetica Neue, sans-serif" font-size="42" text-anchor="middle" font-weight="300">\n          <text x="130" y="85">68<tspan font-size="22">%</tspan></text><text x="260" y="43">92<tspan font-size="22">%</tspan></text><text x="390" y="126">46<tspan font-size="22">%</tspan></text>\n        </g>\n        <rect x="94" y="99" width="72" height="123" rx="4" fill="url(#percentage-thumb-amber)" stroke="#f2a20d" stroke-opacity=".7" stroke-width="2"/>\n        <rect x="224" y="56" width="72" height="166" rx="4" fill="url(#percentage-thumb-green)" stroke="#68cc3e" stroke-opacity=".7" stroke-width="2"/>\n        <rect x="354" y="139" width="72" height="83" rx="4" fill="url(#percentage-thumb-gray)" stroke="#94a5b3" stroke-opacity=".7" stroke-width="2"/>\n        <g fill="#94a5b3" font-family="sans-serif" font-size="24" text-anchor="middle"><text x="130" y="251">液位</text><text x="260" y="251">电量</text><text x="390" y="251">湿度</text></g>\n      </svg>';
-            else {
-              const templateThumbnailElement = document.createElement("img"),
-                thumbnailId = componentTemplate.thumbnailId || componentTemplate.id;
-              ((templateThumbnailElement.src =
-                "/static/component-thumbnails/" +
-                encodeURIComponent(thumbnailId) +
-                ".jpg"),
-                (templateThumbnailElement.alt = ""),
-                templatePreviewElement.append(templateThumbnailElement));
-            }
-          }
-        }
-      }
-      const templateCopyElement = document.createElement("span");
-      templateCopyElement.className = "component-template-copy";
-      const templateNameElement = document.createElement("strong");
-      templateNameElement.textContent = componentTemplate.name;
-      const templateDescriptionElement = document.createElement("span");
-      return (
-        (templateDescriptionElement.textContent = componentTemplate.description),
-        templateCopyElement.append(templateNameElement, templateDescriptionElement),
-        templateCardElement.append(templatePreviewElement, templateCopyElement),
-        componentTemplate.id === "interaction3d" && updateInteraction3dCard2(templateCardElement),
-        templateCardElement
-      );
-    }),
-  );
-}
+function scaledSelectionPlacements(...args: any[]): ReturnType<typeof scaledSelectionPlacementsImpl> { return (scaledSelectionPlacementsImpl as any)(componentEditingDeps(), ...args); }
+function selectedComponentIdsFromDom(...args: any[]): ReturnType<typeof selectedComponentIdsFromDomImpl> { return (selectedComponentIdsFromDomImpl as any)(componentEditingDeps(), ...args); }
+function setComponentsRotation(...args: any[]): ReturnType<typeof setComponentsRotationImpl> { return (setComponentsRotationImpl as any)(componentEditingDeps(), ...args); }
+function setComponentsVisibility(...args: any[]): ReturnType<typeof setComponentsVisibilityImpl> { return (setComponentsVisibilityImpl as any)(componentEditingDeps(), ...args); }
+function closeComponentMenu(...args: any[]): ReturnType<typeof closeComponentMenuImpl> { return (closeComponentMenuImpl as any)(componentEditingDeps(), ...args); }
+function openComponentMenu(...args: any[]): ReturnType<typeof openComponentMenuImpl> { return (openComponentMenuImpl as any)(componentEditingDeps(), ...args); }
+function findCommonCopyTargets(...args: any[]): ReturnType<typeof findCommonCopyTargetsImpl> { return (findCommonCopyTargetsImpl as any)(componentEditingDeps(), ...args); }
+function showCopySuccessDialog(...args: any[]): ReturnType<typeof showCopySuccessDialogImpl> { return (showCopySuccessDialogImpl as any)(componentEditingDeps(), ...args); }
+function handleCopySuccessConfirm(...args: any[]): ReturnType<typeof handleCopySuccessConfirmImpl> { return (handleCopySuccessConfirmImpl as any)(componentEditingDeps(), ...args); }
+function duplicateComponents(...args: any[]): ReturnType<typeof duplicateComponentsImpl> { return (duplicateComponentsImpl as any)(componentEditingDeps(), ...args); }
+function copyTargetsForDocument(...args: any[]): ReturnType<typeof copyTargetsForDocumentImpl> { return (copyTargetsForDocumentImpl as any)(componentEditingDeps(), ...args); }
+function renderCopyTargetOptions(...args: any[]): ReturnType<typeof renderCopyTargetOptionsImpl> { return (renderCopyTargetOptionsImpl as any)(componentEditingDeps(), ...args); }
+function getDocumentCanvasSize(...args: any[]): ReturnType<typeof getDocumentCanvasSizeImpl> { return (getDocumentCanvasSizeImpl as any)(componentEditingDeps(), ...args); }
+function renderCopyScaleOptions(...args: any[]): ReturnType<typeof renderCopyScaleOptionsImpl> { return (renderCopyScaleOptionsImpl as any)(componentEditingDeps(), ...args); }
+function renderCopyComponentDialog(...args: any[]): ReturnType<typeof renderCopyComponentDialogImpl> { return (renderCopyComponentDialogImpl as any)(componentEditingDeps(), ...args); }
+function openCopyComponentDialog(...args: any[]): ReturnType<typeof openCopyComponentDialogImpl> { return (openCopyComponentDialogImpl as any)(componentEditingDeps(), ...args); }
+function deleteComponentIds(...args: any[]): ReturnType<typeof deleteComponentIdsImpl> { return (deleteComponentIdsImpl as any)(componentEditingDeps(), ...args); }
+function setComponentsLabelColor(...args: any[]): ReturnType<typeof setComponentsLabelColorImpl> { return (setComponentsLabelColorImpl as any)(componentEditingDeps(), ...args); }
+function renderComponentList(...args: any[]): ReturnType<typeof renderComponentListImpl> { return (renderComponentListImpl as any)(componentEditingDeps(), ...args); }
+function prependGroupBackButton(...args: any[]): ReturnType<typeof prependGroupBackButtonImpl> { return (prependGroupBackButtonImpl as any)(componentEditingDeps(), ...args); }
+function renderComponentLists(...args: any[]): ReturnType<typeof renderComponentListsImpl> { return (renderComponentListsImpl as any)(componentEditingDeps(), ...args); }
+function setComponentScope(...args: any[]): ReturnType<typeof setComponentScopeImpl> { return (setComponentScopeImpl as any)(componentEditingDeps(), ...args); }
+function syncAddComponentButton(...args: any[]): ReturnType<typeof syncAddComponentButtonImpl> { return (syncAddComponentButtonImpl as any)(componentEditingDeps(), ...args); }
+function renderComponentTemplates(...args: any[]): ReturnType<typeof renderComponentTemplatesImpl> { return (renderComponentTemplatesImpl as any)(componentEditingDeps(), ...args); }
 const hELPER_ENTITY_DOMAINSSet = new Set([
     "input_boolean",
     "input_button",
@@ -3354,455 +1042,74 @@ const hELPER_ENTITY_DOMAINSSet = new Set([
     weather: "天气",
     zone: "区域",
   };
-function renderNavigationIconPreview(navigationIconName: any) {
-  return navigationIconName?.domain || String(navigationIconName?.entityId || "").split(".")[0];
+function renderNavigationIconPreview(...args: any[]): ReturnType<typeof renderNavigationIconPreviewImpl> { return (renderNavigationIconPreviewImpl as any)(componentEditingDeps(), ...args); }
+function entityLabelsDeps(): EntityLabelsDeps {
+  return {
+    ...homeElements,
+    get currentPage() { return currentPage; },
+    get editorCtx() { return editorCtx; },
+    get effectIconLabelElementById() { return effectIconLabelElementById; },
+    get effectIconLabelElementByIdById() { return effectIconLabelElementByIdById; },
+    get effectIconLabelSelector() { return effectIconLabelSelector; },
+    get effectIconName() { return effectIconName; },
+    get ENTITY_DOMAIN_LABELS() { return ENTITY_DOMAIN_LABELS; },
+    get hELPER_ENTITY_DOMAINSSet() { return hELPER_ENTITY_DOMAINSSet; },
+    get MAX_LIGHT_STATISTICS_ENTITIES() { return MAX_LIGHT_STATISTICS_ENTITIES; },
+    get mutateDocument() { return mutateDocument; },
+    get navigationIconValue() { return navigationIconValue; },
+    get removedComponent() { return removedComponent; },
+    get renderNavigationIconPreview() { return renderNavigationIconPreview; },
+    get runAlt() { return registerOverflowScrollPreviewRow; },
+    get runBackup() { return setPickerButtonLabel; },
+    get runChunk() { return collectPageComponents; },
+    get runCursor() { return normalizeWhitespace; },
+    get runDelta() { return showLightStatisticsMessage; },
+    get runFallback() { return ensureInspectorPickerValueSpan; },
+    get runGroup() { return flattenComponentTree; },
+    get runLimit() { return clearLightStatisticsSelection; },
+    get runMode() { return formatEntitySummary; },
+    get runOrder() { return collectEntityIds; },
+    get runPortion() { return resolveEntityCatalog; },
+    get runQueue() { return describeEntityDomain; },
+    get runRange() { return describeEntityState; },
+    get runSegment() { return findIconVisibilityVirtualEntity; },
+    get runSnapshot() { return formatEntityLabel; },
+    get runSource() { return resolveEntityDisplayName; },
+  };
 }
-function runQueue(runBuffer: any) {
-  const be2 = renderNavigationIconPreview(runBuffer);
-  return runBuffer?.virtual
-    ? "虚拟实体"
-    : hELPER_ENTITY_DOMAINSSet.has(be2)
-      ? "辅助元素"
-      : (ENTITY_DOMAIN_LABELS as any)[be2] || be2 || "实体";
-}
-function runCursor(runPointer: any) {
-  return String(runPointer || "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-function navigationIconValue(runTarget: any) {
-  return runCursor(editorCtx.deviceNamesByDeviceId.get(String(runTarget?.deviceId || "")));
-}
-function runSource(runOrigin: any, runDraft = navigationIconValue(runOrigin)) {
-  const ja2 = runCursor(runOrigin?.name),
-    ja3 = runCursor(runOrigin?.originalName);
-  if (!runDraft) return ja2 || ja3 || runOrigin?.entityId || "";
-  const navigationIconValueState =
-    ja2 === runDraft
-      ? ""
-      : ja2.startsWith(runDraft + " ")
-        ? ja2.slice(runDraft.length).trim()
-        : ja2.startsWith(runDraft + "·")
-          ? ja2.slice(runDraft.length + 1).trim()
-          : ja2;
-  return navigationIconValueState && navigationIconValueState !== runDraft
-    ? navigationIconValueState
-    : ja3 && ja3 !== runDraft
-      ? ja3
-      : "";
-}
-function runSnapshot(runSample: any, navigationIconPreviewElement = "") {
-  if (runSample?.virtual) return runSample.name || runSample.entityId || "";
-  const nw2 = navigationIconValue(runSample),
-    yE2 = runCursor(navigationIconPreviewElement) || runSource(runSample, nw2);
-  return nw2 ? (yE2 && yE2 !== nw2 ? nw2 + " · " + yE2 : nw2) : yE2 || runSample?.entityId || "";
-}
-function runMode(runLevel: any) {
-  const vt2 = runSnapshot(runLevel),
-    navigationIconPreviewElementState = runLevel?.entityId || "";
-  return (
-    "[" +
-    runQueue(runLevel) +
-    "] " +
-    vt2 +
-    (vt2 && vt2 !== navigationIconPreviewElementState
-      ? " · " + navigationIconPreviewElementState
-      : "")
-  );
-}
-function runOrder(runScope = removedComponent()) {
-  return [
-    ...new Set(
-      (Array.isArray(runScope?.properties?.entityIds) ? runScope.properties.entityIds : [])
-        .map((mappedItemsState: any) => String(mappedItemsState || "").trim())
-        .filter(Boolean),
-    ),
-  ];
-}
-function runRange(runSpan: any, runOffset: any = null) {
-  if (!runOffset)
-    return {
-      label: "实体已删除",
-      tone: "missing",
-    };
-  const navigationIconLabelElementState = editorCtx.editorRenderer?.states?.get?.(runSpan),
-    navigationIconLabelElementValue =
-      navigationIconLabelElementState?.newState || navigationIconLabelElementState,
-    lowerCase2 = String(navigationIconLabelElementValue?.state ?? "")
-      .trim()
-      .toLowerCase(),
-    navigationIconLabelElement = lightStatisticsEntityStateStatus2(
-      runOffset,
-      navigationIconLabelElementValue,
-    );
-  return navigationIconLabelElement === "on"
-    ? {
-        label: "已开启/运行",
-        tone: "on",
-      }
-    : navigationIconLabelElement === "off"
-      ? {
-          label: "已关闭",
-          tone: "off",
-        }
-      : lowerCase2 === "unavailable"
-        ? {
-            label: "暂时不可用",
-            tone: "abnormal",
-          }
-        : lowerCase2 === "unknown"
-          ? {
-              label: "状态未知",
-              tone: "abnormal",
-            }
-          : lowerCase2
-            ? {
-                label: "无法判断：" + lowerCase2,
-                tone: "abnormal",
-              }
-            : {
-                label: "等待状态",
-                tone: "abnormal",
-              };
-}
-function runDelta(runFactor = "", runScale = false) {
-  ((lightStatisticsEntityMessageElement.textContent = runFactor),
-    (lightStatisticsEntityMessageElement.hidden = !runFactor),
-    lightStatisticsEntityMessageElement.classList.toggle("error", !!runScale));
-}
+function describeEntityDomain(...args: any[]): ReturnType<typeof describeEntityDomainImpl> { return (describeEntityDomainImpl as any)(entityLabelsDeps(), ...args); }
+function normalizeWhitespace(...args: any[]): ReturnType<typeof normalizeWhitespaceImpl> { return (normalizeWhitespaceImpl as any)(entityLabelsDeps(), ...args); }
+function navigationIconValue(...args: any[]): ReturnType<typeof navigationIconValueImpl> { return (navigationIconValueImpl as any)(entityLabelsDeps(), ...args); }
+function resolveEntityDisplayName(...args: any[]): ReturnType<typeof resolveEntityDisplayNameImpl> { return (resolveEntityDisplayNameImpl as any)(entityLabelsDeps(), ...args); }
+function formatEntityLabel(...args: any[]): ReturnType<typeof formatEntityLabelImpl> { return (formatEntityLabelImpl as any)(entityLabelsDeps(), ...args); }
+function formatEntitySummary(...args: any[]): ReturnType<typeof formatEntitySummaryImpl> { return (formatEntitySummaryImpl as any)(entityLabelsDeps(), ...args); }
+function collectEntityIds(...args: any[]): ReturnType<typeof collectEntityIdsImpl> { return (collectEntityIdsImpl as any)(entityLabelsDeps(), ...args); }
+function describeEntityState(...args: any[]): ReturnType<typeof describeEntityStateImpl> { return (describeEntityStateImpl as any)(entityLabelsDeps(), ...args); }
+function showLightStatisticsMessage(...args: any[]): ReturnType<typeof showLightStatisticsMessageImpl> { return (showLightStatisticsMessageImpl as any)(entityLabelsDeps(), ...args); }
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
-function runLimit({ clearMessage: runBound = true } = {}) {
-  ((editorCtx.statisticsEntityId = ""),
-    (editorCtx.statisticsReplaceIndex = -1),
-    (editorCtx.statisticsComponentId = ""),
-    (lightStatisticsEntityPendingElement.hidden = true),
-    runBackup(lightStatisticsEntityButtonElement, "选择一个实体"),
-    runBound && runDelta(""));
-}
-function runAmount(runSize = "") {
-  if (removedComponent()?.type !== "light-statistics") return;
-  const localeLowerCase = runSize.trim().toLocaleLowerCase("zh-CN"),
-    navigationIconLabelElementConfig: HTMLElement[] = runPortion("light-statistics")
-      .map((mappedItemsValue: any, mappedItemsConfig: any) => ({
-        entity: mappedItemsValue,
-        index: mappedItemsConfig,
-        support: lightStatisticsEntitySupport2(mappedItemsValue),
-      }))
-      .filter(
-        ({ entity: navigationIconLabelElementRef }: any) =>
-          !localeLowerCase ||
-          (
-            runMode(navigationIconLabelElementRef) +
-            " " +
-            renderNavigationIconPreview(navigationIconLabelElementRef)
-          )
-            .toLocaleLowerCase("zh-CN")
-            .includes(localeLowerCase),
-      )
-      .sort(
-        (navigationIconLabelElementEntry: any, navigationIconUrlState: any) =>
-          Number(navigationIconUrlState.support.supported) -
-            Number(navigationIconLabelElementEntry.support.supported) ||
-          +(renderNavigationIconPreview(navigationIconUrlState.entity) === "light") -
-            +(renderNavigationIconPreview(navigationIconLabelElementEntry.entity) === "light") ||
-          navigationIconLabelElementEntry.index - navigationIconUrlState.index,
-      )
-      .map(({ entity: mappedItemsRef }: any) => {
-        const navigationIconUrlElement = document.createElement("button");
-        ((navigationIconUrlElement.type = "button"),
-          (navigationIconUrlElement.className =
-            "inspector-entity-option" +
-            (mappedItemsRef.entityId === editorCtx.statisticsEntityId ? " selected" : "")),
-          (navigationIconUrlElement.dataset.lightStatisticsEntityId = mappedItemsRef.entityId),
-          navigationIconUrlElement.setAttribute("role", "option"),
-          navigationIconUrlElement.setAttribute(
-            "aria-selected",
-            String(mappedItemsRef.entityId === editorCtx.statisticsEntityId),
-          ));
-        const navigationIconUrlElementElement = document.createElement("span");
-        ((navigationIconUrlElementElement.className = "inspector-entity-option-content"),
-          (navigationIconUrlElementElement.title = runMode(mappedItemsRef)));
-        const navigationIconUrlElementPanel = document.createElement("span");
-        navigationIconUrlElementPanel.className =
-          "inspector-entity-option-line inspector-entity-name-line";
-        const navigationIconUrlElementSection = document.createElement("span");
-        ((navigationIconUrlElementSection.className = "inspector-entity-kind"),
-          (navigationIconUrlElementSection.textContent = "[" + runQueue(mappedItemsRef) + "] "));
-        const navigationIconUrlElementCard = document.createElement("span");
-        ((navigationIconUrlElementCard.className = "inspector-entity-name"),
-          (navigationIconUrlElementCard.textContent = runSnapshot(mappedItemsRef)),
-          navigationIconUrlElementPanel.append(
-            navigationIconUrlElementSection,
-            navigationIconUrlElementCard,
-          ));
-        const navigationIconUrlElementBar = document.createElement("span");
-        return (
-          (navigationIconUrlElementBar.className =
-            "inspector-entity-option-line inspector-entity-id"),
-          (navigationIconUrlElementBar.textContent = mappedItemsRef.entityId),
-          (navigationIconUrlElementBar.title = mappedItemsRef.entityId),
-          navigationIconUrlElementElement.append(
-            navigationIconUrlElementPanel,
-            navigationIconUrlElementBar,
-          ),
-          runAlt(navigationIconUrlElement, navigationIconUrlElementPanel),
-          navigationIconUrlElement.append(navigationIconUrlElementElement),
-          navigationIconUrlElement
-        );
-      });
-  if (!navigationIconLabelElementConfig.length) {
-    const navigationIconUrlElementList = document.createElement("div");
-    ((navigationIconUrlElementList.className = "inspector-picker-empty"),
-      (navigationIconUrlElementList.textContent = "没有匹配的实体"),
-      navigationIconLabelElementConfig.push(navigationIconUrlElementList));
-  }
-  (lightStatisticsEntityOptionsElement.replaceChildren(...navigationIconLabelElementConfig),
-    (lightStatisticsEntityOptionsElement.scrollTop = 0));
-}
-function runLength(runDepth: any, runPosition = editorCtx.statisticsReplaceIndex) {
-  const navigationIconUrl = removedComponent();
-  if (
-    navigationIconUrl?.type !== "light-statistics" ||
-    !runPortion("light-statistics").find(
-      (renderIconButtonEffectIconPreview: any) =>
-        renderIconButtonEffectIconPreview.entityId === runDepth,
-    )
-  )
-    return;
-  const indexOf4 = runOrder(navigationIconUrl).indexOf(runDepth);
-  if (indexOf4 >= 0 && indexOf4 !== runPosition) {
-    runDelta("该实体已添加，请选择其它实体。", true);
-    return;
-  }
-  return (
-    (editorCtx.statisticsEntityId = runDepth),
-    (editorCtx.statisticsReplaceIndex = Number.isInteger(runPosition) ? runPosition : -1),
-    (editorCtx.statisticsComponentId = navigationIconUrl.id),
-    effectIconName()
-  );
-}
-function effectIconName() {
-  const effectIconValueState = editorCtx.selectedComponentId,
-    tn2 = editorCtx.statisticsEntityId,
-    Ko2 = editorCtx.statisticsReplaceIndex,
-    effectIconValue = editorCtx.entities.find(
-      (effectIconPreviewElementState: any) => effectIconPreviewElementState.entityId === tn2,
-    );
-  if (!effectIconValueState || !tn2 || !effectIconValue) return;
-  const effectIconPreviewElement = removedComponent();
-  if (Ko2 < 0 && runOrder(effectIconPreviewElement).length >= MAX_LIGHT_STATISTICS_ENTITIES) {
-    runDelta("每个统计控件最多添加 " + MAX_LIGHT_STATISTICS_ENTITIES + " 个实体。", true);
-    return;
-  }
-  return mutateDocument((effectIconPreviewElementValue: any) => {
-    const effectIconPreviewElementConfig = findComponent2(
-      effectIconPreviewElementValue,
-      effectIconValueState,
-    )?.component;
-    if (
-      !effectIconPreviewElementConfig ||
-      effectIconPreviewElementConfig.type !== "light-statistics"
-    )
-      return "component-invalid";
-    const qa2 = runOrder(effectIconPreviewElementConfig),
-      indexOf5 = qa2.indexOf(tn2);
-    if (indexOf5 >= 0 && indexOf5 !== Ko2) return "duplicate";
-    const effectIconPreviewElementRef = Ko2 >= 0 && Ko2 < qa2.length ? qa2[Ko2] : "";
-    if (!effectIconPreviewElementRef && qa2.length >= MAX_LIGHT_STATISTICS_ENTITIES)
-      return "limit-reached";
-    if (Ko2 >= 0 && !effectIconPreviewElementRef) return "component-invalid";
-    effectIconPreviewElementRef ? qa2.splice(Ko2, 1, tn2) : qa2.push(tn2);
-    const effectIconPreviewState = {
-      ...(effectIconPreviewElementConfig.properties?.entityLabels || {}),
-    };
-    return (
-      effectIconPreviewElementRef &&
-        effectIconPreviewElementRef !== tn2 &&
-        delete effectIconPreviewState[String(effectIconPreviewElementRef)],
-      (effectIconPreviewState[tn2] = runSnapshot(effectIconValue)),
-      (effectIconPreviewElementConfig.properties = {
-        ...(effectIconPreviewElementConfig.properties || {}),
-        entityIds: qa2,
-        entityLabels: effectIconPreviewState,
-      }),
-      effectIconPreviewElementRef ? "replaced" : "added"
-    );
-  }).then((effectIconPreviewElementEntry: any) =>
-    effectIconPreviewElementEntry === "limit-reached"
-      ? (runDelta("每个统计控件最多添加 " + MAX_LIGHT_STATISTICS_ENTITIES + " 个实体。", true),
-        effectIconPreviewElementEntry)
-      : effectIconPreviewElementEntry === "duplicate"
-        ? (runDelta("该实体已添加，请选择其它实体。", true), effectIconPreviewElementEntry)
-        : effectIconPreviewElementEntry === "component-invalid"
-          ? (runDelta("当前统计控件已发生变化，请重新选择。", true), effectIconPreviewElementEntry)
-          : ((effectIconPreviewElementEntry !== "added" &&
-              effectIconPreviewElementEntry !== "replaced") ||
-              (runLimit({
-                clearMessage: false,
-              }),
-              runDelta(
-                effectIconPreviewElementEntry === "replaced"
-                  ? "已更换统计实体。"
-                  : "已加入统计列表。",
-              )),
-            effectIconPreviewElementEntry),
-  );
-}
-function runLocation(runRegion: any) {
-  const effectIconPreviewElementRecord = editorCtx.selectedComponentId;
-  !effectIconPreviewElementRecord ||
-    !Number.isInteger(runRegion) ||
-    runRegion < 0 ||
-    (mutateDocument((effectIconPreviewElementName: any) => {
-      const effectIconPreviewElementKey = findComponent2(
-        effectIconPreviewElementName,
-        effectIconPreviewElementRecord,
-      )?.component;
-      if (!effectIconPreviewElementKey || effectIconPreviewElementKey.type !== "light-statistics")
-        return;
-      const qa3 = runOrder(effectIconPreviewElementKey),
-        [splice2] = qa3.splice(runRegion, 1),
-        effectIconPreviewStateState = {
-          ...(effectIconPreviewElementKey.properties?.entityLabels || {}),
-        };
-      (splice2 && delete effectIconPreviewStateState[String(splice2)],
-        (effectIconPreviewElementKey.properties = {
-          ...(effectIconPreviewElementKey.properties || {}),
-          entityIds: qa3,
-          entityLabels: effectIconPreviewStateState,
-        }));
-    }),
-    runLimit());
-}
-function runZone(runBundle = removedComponent()) {
-  if (runBundle?.type !== "light-statistics") return;
-  const qa4 = runOrder(runBundle),
-    effectIconPreviewElementPath = runBundle.properties?.entityLabels || {};
-  lightStatisticsEntityCountElement.textContent = qa4.length + " 个";
-  const mappedItemsRecord = qa4.map((mappedItemsName, mappedItemsKey) => {
-    const effectIconPreviewElementText =
-        runPortion("light-statistics").find(
-          (effectIconNameState: any) => effectIconNameState.entityId === mappedItemsName,
-        ) || null,
-      xE2 = runRange(mappedItemsName, effectIconPreviewElementText),
-      effectIconPreviewElementElement = document.createElement("div");
-    effectIconPreviewElementElement.className =
-      "light-statistics-entity-row " + xE2.tone + (effectIconPreviewElementText ? "" : " missing");
-    const effectIconPreviewElementPanel = document.createElement("div"),
-      effectIconPreviewElementSection = document.createElement("strong");
-    effectIconPreviewElementSection.textContent = effectIconPreviewElementText
-      ? runSnapshot(effectIconPreviewElementText)
-      : effectIconPreviewElementPath[String(mappedItemsName)] || mappedItemsName;
-    const effectIconValueElement = document.createElement("small");
-    ((effectIconValueElement.textContent = mappedItemsName + " · " + xE2.label),
-      effectIconPreviewElementPanel.append(
-        effectIconPreviewElementSection,
-        effectIconValueElement,
-      ));
-    const effectIconPreviewElementCard = document.createElement("span");
-    effectIconPreviewElementCard.className = "light-statistics-entity-actions";
-    const effectIconLabelElementElement = document.createElement("button");
-    ((effectIconLabelElementElement.type = "button"),
-      (effectIconLabelElementElement.dataset.lightStatisticsReplaceIndex = String(mappedItemsKey)),
-      (effectIconLabelElementElement.textContent = "更换"));
-    const effectIconUrlElement = document.createElement("button");
-    return (
-      (effectIconUrlElement.type = "button"),
-      (effectIconUrlElement.dataset.lightStatisticsRemoveIndex = String(mappedItemsKey)),
-      (effectIconUrlElement.textContent = "删除"),
-      effectIconPreviewElementCard.append(effectIconLabelElementElement, effectIconUrlElement),
-      effectIconPreviewElementElement.append(
-        effectIconPreviewElementPanel,
-        effectIconPreviewElementCard,
-      ),
-      effectIconPreviewElementElement
-    );
-  });
-  lightStatisticsEntityListElement.replaceChildren(...mappedItemsRecord);
-}
-function runGroup(runPair: any, runBatch: any[] = []) {
-  for (const effectIconLabelElementState of runPair || [])
-    (runBatch.push(effectIconLabelElementState),
-      runGroup(effectIconLabelElementState.children, runBatch));
-  return runBatch;
-}
-function runChunk(runBlock = currentPage()) {
-  if (!runBlock || !editorCtx.activeProject?.document) return [];
-  const mappedItemById = new Map(
-      (editorCtx.activeProject.document.sharedComponents || []).map((mappedItemsPath: any) => [
-        mappedItemsPath.id,
-        mappedItemsPath,
-      ]),
-    ),
-    mappedItemsText = (runBlock.sharedComponentIds || [])
-      .map((mappedItemsCount: any) => mappedItemById.get(mappedItemsCount))
-      .filter(Boolean);
-  return runGroup([...(runBlock.components || []), ...mappedItemsText]);
-}
-function runSegment(runSlice = currentPage()) {
-  return runChunk(runSlice).some(
-    (effectIconLabelElementValue) => effectIconLabelElementValue.type === "icon-button-effect",
-  )
-    ? [createIconVisibilityVirtualEntity2(runSlice?.path)]
-    : [];
-}
-function runPortion(runExtra = "image") {
-  return runExtra === "scene-mode" ? editorCtx.entities : [...editorCtx.entities, ...runSegment()];
-}
+function clearLightStatisticsSelection(...args: any[]): ReturnType<typeof clearLightStatisticsSelectionImpl> { return (clearLightStatisticsSelectionImpl as any)(entityLabelsDeps(), ...args); }
+function renderLightStatisticsEntityOptions(...args: any[]): ReturnType<typeof renderLightStatisticsEntityOptionsImpl> { return (renderLightStatisticsEntityOptionsImpl as any)(entityLabelsDeps(), ...args); }
+function addLightStatisticsEntity(...args: any[]): ReturnType<typeof addLightStatisticsEntityImpl> { return (addLightStatisticsEntityImpl as any)(entityLabelsDeps(), ...args); }
+function effectIconName(...args: any[]): ReturnType<typeof effectIconNameImpl> { return (effectIconNameImpl as any)(entityLabelsDeps(), ...args); }
+function removeLightStatisticsEntityAt(...args: any[]): ReturnType<typeof removeLightStatisticsEntityAtImpl> { return (removeLightStatisticsEntityAtImpl as any)(entityLabelsDeps(), ...args); }
+function renderLightStatisticsEntityList(...args: any[]): ReturnType<typeof renderLightStatisticsEntityListImpl> { return (renderLightStatisticsEntityListImpl as any)(entityLabelsDeps(), ...args); }
+function flattenComponentTree(...args: any[]): ReturnType<typeof flattenComponentTreeImpl> { return (flattenComponentTreeImpl as any)(entityLabelsDeps(), ...args); }
+function collectPageComponents(...args: any[]): ReturnType<typeof collectPageComponentsImpl> { return (collectPageComponentsImpl as any)(entityLabelsDeps(), ...args); }
+function findIconVisibilityVirtualEntity(...args: any[]): ReturnType<typeof findIconVisibilityVirtualEntityImpl> { return (findIconVisibilityVirtualEntityImpl as any)(entityLabelsDeps(), ...args); }
+function resolveEntityCatalog(...args: any[]): ReturnType<typeof resolveEntityCatalogImpl> { return (resolveEntityCatalogImpl as any)(entityLabelsDeps(), ...args); }
 const effectIconLabelElementById = new WeakMap(),
   effectIconLabelElementByIdById = new WeakMap(),
-  effectIconLabelState =
+  effectIconLabelSelector =
     "[data-overflow-scroll-preview], .inspector-picker-value, .inspector-entity-name-line";
-function runAlt(effectIconLabelElementPanel: any, runAux: any) {
-  const iconButtonFollowsEntity = (Array.isArray(runAux) ? runAux : [runAux]).filter(Boolean);
-  for (const effectIconLabelElementSection of iconButtonFollowsEntity)
-    effectIconLabelElementSection.dataset.overflowScrollPreview = "true";
-  effectIconLabelElementPanel &&
-    iconButtonFollowsEntity.length &&
-    ((effectIconLabelElementPanel.dataset.overflowScrollPreviewRow = "true"),
-    effectIconLabelElementByIdById.set(effectIconLabelElementPanel, iconButtonFollowsEntity));
-}
-function runVariant(runVersion: any) {
-  const effectIconLabelElementConfig = runVersion.closest?.(effectIconLabelState);
-  if (effectIconLabelElementConfig) return effectIconLabelElementConfig;
-  const effectIconLabelElementRef = runVersion.closest?.("[data-overflow-scroll-preview-row]");
-  return effectIconLabelElementByIdById.get(effectIconLabelElementRef)?.[0] || null;
-}
-function runCopy(runAlias: any) {
-  return runAlias?.closest?.("[data-overflow-scroll-preview-row]") || runAlias;
-}
-function runStandin(effectIconLabelElementCard: any) {
-  const effectIconLabelElement = effectIconLabelElementById.get(effectIconLabelElementCard);
-  (effectIconLabelElement &&
-    (window.clearTimeout(effectIconLabelElement.timer),
-    window.cancelAnimationFrame(effectIconLabelElement.frame),
-    effectIconLabelElementById.delete(effectIconLabelElementCard)),
-    (effectIconLabelElementCard.scrollLeft = 0),
-    effectIconLabelElementCard.classList.remove("hover-scrolling"));
-}
-function runFallback(effectIconUrlElementElement: any) {
-  if (!effectIconUrlElementElement) return null;
-  let effectIconUrl = effectIconUrlElementElement.querySelector(".inspector-picker-value");
-  return (
-    effectIconUrl ||
-      ((effectIconUrl = document.createElement("span")),
-      (effectIconUrl.className = "inspector-picker-value"),
-      (effectIconUrl.textContent = effectIconUrlElementElement.textContent.trim()),
-      effectIconUrlElementElement.replaceChildren(effectIconUrl)),
-    runAlt(effectIconUrlElementElement, effectIconUrl),
-    effectIconUrl
-  );
-}
-function runBackup(runSpare: any, runSecondary: any, renderIconButtonIconPreview = "") {
-  const dw2 = runFallback(runSpare);
-  dw2 &&
-    ((dw2.textContent = runSecondary),
-    (dw2.title = renderIconButtonIconPreview || runSecondary),
-    (runSpare.title = renderIconButtonIconPreview || runSecondary));
-}
+function registerOverflowScrollPreviewRow(...args: any[]): ReturnType<typeof registerOverflowScrollPreviewRowImpl> { return (registerOverflowScrollPreviewRowImpl as any)(entityLabelsDeps(), ...args); }
+function resolveOverflowScrollPreviewContainer(...args: any[]): ReturnType<typeof resolveOverflowScrollPreviewContainerImpl> { return (resolveOverflowScrollPreviewContainerImpl as any)(entityLabelsDeps(), ...args); }
+function findEnclosingScrollPreviewRow(...args: any[]): ReturnType<typeof findEnclosingScrollPreviewRowImpl> { return (findEnclosingScrollPreviewRowImpl as any)(entityLabelsDeps(), ...args); }
+function stopOverflowScrollAnimation(...args: any[]): ReturnType<typeof stopOverflowScrollAnimationImpl> { return (stopOverflowScrollAnimationImpl as any)(entityLabelsDeps(), ...args); }
+function ensureInspectorPickerValueSpan(...args: any[]): ReturnType<typeof ensureInspectorPickerValueSpanImpl> { return (ensureInspectorPickerValueSpanImpl as any)(entityLabelsDeps(), ...args); }
+function setPickerButtonLabel(...args: any[]): ReturnType<typeof setPickerButtonLabelImpl> { return (setPickerButtonLabelImpl as any)(entityLabelsDeps(), ...args); }
 (document.addEventListener("pointerover", (iconButtonIconName) => {
-  const sw2 = runVariant(iconButtonIconName.target),
-    cw2 = runCopy(sw2),
+  const sw2 = resolveOverflowScrollPreviewContainer(iconButtonIconName.target),
+    cw2 = findEnclosingScrollPreviewRow(sw2),
     iconButtonIconValueState =
       iconButtonIconName.relatedTarget instanceof Node &&
       cw2?.contains(iconButtonIconName.relatedTarget);
@@ -3816,7 +1123,7 @@ function runBackup(runSpare: any, runSecondary: any, renderIconButtonIconPreview
   (effectIconLabelElementById.set(sw2, iconButtonIconValueValue),
     (iconButtonIconValueValue.timer = window.setTimeout(() => {
       if (!sw2.isConnected) {
-        runStandin(sw2);
+        stopOverflowScrollAnimation(sw2);
         return;
       }
       sw2.classList.add("hover-scrolling");
@@ -3833,962 +1140,126 @@ function runBackup(runSpare: any, runSecondary: any, renderIconButtonIconPreview
     }, 350)));
 }),
   document.addEventListener("pointerout", (iconButtonIconValueEntry) => {
-    const sw3 = runVariant(iconButtonIconValueEntry.target),
-      cw3 = runCopy(sw3),
+    const sw3 = resolveOverflowScrollPreviewContainer(iconButtonIconValueEntry.target),
+      cw3 = findEnclosingScrollPreviewRow(sw3),
       iconButtonFollowsEntityState =
         iconButtonIconValueEntry.relatedTarget instanceof Node &&
         cw3?.contains(iconButtonIconValueEntry.relatedTarget);
-    !sw3 || iconButtonFollowsEntityState || runStandin(sw3);
+    !sw3 || iconButtonFollowsEntityState || stopOverflowScrollAnimation(sw3);
   }));
-function runPrimary(iconButtonFollowsEntityElement: any, runTertiary: any) {
-  ((iconButtonFollowsEntityElement.hidden = true),
-    runTertiary.setAttribute("aria-expanded", "false"),
-    iconButtonFollowsEntityElement === imageAssetMenuElement &&
-      (hideAssetLargePreview(),
-      runState(customSelectsBySelectElement.get(imageAssetFolderSelectElement))),
-    iconButtonFollowsEntityElement === ibeAssetMenuElement &&
-      (hideAssetLargePreview(), runState(customSelectsBySelectElement.get(ibeAssetFolderElement))));
-}
-function runShadow(runMirror: any = null) {
-  if (
-    (runMirror !== "entity" && runPrimary(imageEntityMenuElement, imageEntityButtonElement),
-    runMirror !== "weather-entity" &&
-      runPrimary(weatherEntityMenuElement, weatherEntityButtonElement),
-    runMirror !== "line-chart-entity" &&
-      runPrimary(lineChartEntityMenuElement, lineChartEntityButtonElement),
-    runMirror !== "ibe-entity" && runPrimary(ibeEntityMenuElement, ibeEntityButtonElement),
-    runMirror !== "icon-button-entity" &&
-      runPrimary(iconButtonEntityMenuElement, iconButtonEntityButtonElement),
-    runMirror !== "vacuum-map-entity" &&
-      runPrimary(vacuumMapEntityMenuElement, vacuumMapEntityButtonElement),
-    runMirror !== "camera-entity" && runPrimary(cameraEntityMenuElement, cameraEntityButtonElement),
-    runMirror !== "air-conditioner-entity" &&
-      runPrimary(airConditionerEntityMenuElement, airConditionerEntityButtonElement),
-    runMirror !== "title-button-entity" &&
-      runPrimary(titleButtonEntityMenuElement, titleButtonEntityButtonElement),
-    runMirror !== "light-statistics-entity")
-  ) {
-    const isIconButtonFollowsEntity = !lightStatisticsEntityMenuElement.hidden;
-    (runPrimary(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement),
-      isIconButtonFollowsEntity && runLimit());
-  }
-  (runMirror !== "light-statistics-action-entity" &&
-    runPrimary(lightStatisticsActionEntityMenuElement, lightStatisticsActionEntityButtonElement),
-    runMirror !== "navigation-entity" &&
-      runPrimary(navigationEntityMenuElement, navigationEntityButtonElement),
-    runMirror !== "asset" && runPrimary(imageAssetMenuElement, imageAssetButtonElement),
-    runMirror !== "ibe-asset" && runPrimary(ibeAssetMenuElement, ibeAssetButtonElement),
-    runMirror !== "ibe-icon" && runPrimary(ibeIconMenuElement, ibeIconButtonElement),
-    runMirror !== "icon-button-icon" &&
-      runPrimary(iconButtonIconMenuElement, iconButtonIconButtonElement),
-    runMirror !== "title-button-icon" &&
-      runPrimary(titleButtonIconMenuElement, titleButtonIconButtonElement),
-    runMirror !== "light-statistics-icon" &&
-      runPrimary(lightStatisticsIconMenuElement, lightStatisticsIconButtonElement),
-    runMirror !== "navigation-icon" &&
-      runPrimary(navigationIconMenuElement, navigationIconButtonElement));
-}
-function runDual(runTwin: any) {
-  const replace = String(runTwin || "")
-    .trim()
-    .replace(/^mdi:/, "");
-  return /^[a-z0-9-]+$/.test(replace)
-    ? "/static/vendor/mdi/7.4.47/svg/" + replace + ".svg"
-    : "";
-}
-function runClone(runBranch: any) {
-  const iconButtonIconPreviewElement = String(runBranch || ""),
-    iconButtonIconLabelElement = navigationIconButtonElement.querySelector("i"),
-    iconButtonIconUrl = navigationIconButtonElement.querySelector("span"),
-    zi2 = runDual(iconButtonIconPreviewElement);
-  ((iconButtonIconLabelElement.hidden = !zi2),
-    (iconButtonIconLabelElement.style.maskImage = zi2 ? 'url("' + zi2 + '")' : ""),
-    (iconButtonIconLabelElement.style.webkitMaskImage = zi2 ? 'url("' + zi2 + '")' : ""),
-    (iconButtonIconUrl.textContent = iconButtonIconPreviewElement || "不使用图标"),
-    (navigationIconCopyElement.disabled = !iconButtonIconPreviewElement),
-    (navigationIconCopyElement.title = iconButtonIconPreviewElement
-      ? "复制 " + iconButtonIconPreviewElement
-      : "当前未使用图标"));
-}
-function renderTitleButtonIconPreview(titleButtonIconName: any) {
-  const effectIconValueValue = String(titleButtonIconName || ""),
-    effectIconPreviewElementBar = ibeIconButtonElement.querySelector("i"),
-    titleButtonIconValue = ibeIconButtonElement.querySelector("span"),
-    zi3 = runDual(effectIconValueValue);
-  ((effectIconPreviewElementBar.hidden = !zi3),
-    (effectIconPreviewElementBar.style.maskImage = zi3 ? 'url("' + zi3 + '")' : ""),
-    (effectIconPreviewElementBar.style.webkitMaskImage = zi3 ? 'url("' + zi3 + '")' : ""),
-    (titleButtonIconValue.textContent = effectIconValueValue || "不使用图标"),
-    (ibeIconCopyElement.disabled = !effectIconValueValue),
-    (ibeIconCopyElement.title = effectIconValueValue
-      ? "复制 " + effectIconValueValue
-      : "当前未使用图标"));
-}
-function runSplit(runSibling: any) {
-  const titleIconPreviewElement = String(runSibling || ""),
-    includes = ["device-button", "presence-sensor"].includes(removedComponent()?.type),
-    titleIconLabelElement = iconButtonIconButtonElement.querySelector("i"),
-    titleIconUrl = iconButtonIconButtonElement.querySelector("span"),
-    zi4 = runDual(titleIconPreviewElement);
-  ((titleIconLabelElement.hidden = !zi4),
-    (titleIconLabelElement.style.maskImage = zi4 ? 'url("' + zi4 + '")' : ""),
-    (titleIconLabelElement.style.webkitMaskImage = zi4 ? 'url("' + zi4 + '")' : ""),
-    (titleIconUrl.textContent =
-      titleIconPreviewElement || (includes ? "跟随实体图标" : "不使用图标")),
-    (iconButtonIconCopyElement.disabled = !titleIconPreviewElement),
-    (iconButtonIconCopyElement.title = titleIconPreviewElement
-      ? "复制 " + titleIconPreviewElement
-      : "当前未使用图标"));
-}
-function renderLightStatisticsIconPreview(runPeer: any) {
-  const titleButtonIconValueState = String(runPeer || ""),
-    titleIconPreviewElementElement = titleButtonIconButtonElement.querySelector("i"),
-    statisticsIconValue = titleButtonIconButtonElement.querySelector("span"),
-    zi5 = runDual(titleButtonIconValueState);
-  ((titleIconPreviewElementElement.hidden = !zi5),
-    (titleIconPreviewElementElement.style.maskImage = zi5 ? 'url("' + zi5 + '")' : ""),
-    (titleIconPreviewElementElement.style.webkitMaskImage = zi5 ? 'url("' + zi5 + '")' : ""),
-    (statisticsIconValue.textContent = titleButtonIconValueState || "不使用图标"),
-    (titleButtonIconCopyElement.disabled = !titleButtonIconValueState),
-    (titleButtonIconCopyElement.title = titleButtonIconValueState
-      ? "复制 " + titleButtonIconValueState
-      : "当前未使用图标"));
-}
-function runLocal(runInner: any) {
-  const statisticsIconPreviewElement = String(runInner ?? "mdi:lightbulb-group-outline"),
-    statisticsIconLabelElement = lightStatisticsIconButtonElement.querySelector("i"),
-    statisticsIconUrl = lightStatisticsIconButtonElement.querySelector("span"),
-    zi6 = runDual(statisticsIconPreviewElement);
-  ((statisticsIconLabelElement.hidden = !zi6),
-    (statisticsIconLabelElement.style.maskImage = zi6 ? 'url("' + zi6 + '")' : ""),
-    (statisticsIconLabelElement.style.webkitMaskImage = zi6 ? 'url("' + zi6 + '")' : ""),
-    (statisticsIconUrl.textContent = statisticsIconPreviewElement || "不使用图标"),
-    (lightStatisticsIconCopyElement.disabled = !statisticsIconPreviewElement),
-    (lightStatisticsIconCopyElement.title = statisticsIconPreviewElement
-      ? "复制 " + statisticsIconPreviewElement
-      : "当前未使用图标"));
-}
-async function copyTextToClipboard(clipboardText: any) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(clipboardText);
-    return;
-  }
-  const clipboardTextAreaElement = document.createElement("textarea");
-  ((clipboardTextAreaElement.value = clipboardText),
-    clipboardTextAreaElement.setAttribute("readonly", ""),
-    (clipboardTextAreaElement.style.position = "fixed"),
-    (clipboardTextAreaElement.style.opacity = "0"),
-    document.body.append(clipboardTextAreaElement),
-    clipboardTextAreaElement.select());
-  const execCommand = document.execCommand("copy");
-  if ((clipboardTextAreaElement.remove(), !execCommand)) throw new Error("复制失败。");
-}
-function enhanceEntityCopyButton(
-  copyButtonHostElement: any,
-  entityIdGetter = () => copyButtonHostElement.dataset.entityId || "",
-) {
-  if (!copyButtonHostElement || copyButtonHostElement.dataset.entityCopyReady === "true")
-    return copyButtonHostElement._entityCopySync;
-  runFallback(copyButtonHostElement);
-  const entityCopyRowElement = document.createElement("div");
-  entityCopyRowElement.className = "entity-picker-field-row";
-  const entityCopyButtonElement = document.createElement("button");
-  ((entityCopyButtonElement.type = "button"),
-    (entityCopyButtonElement.className = "navigation-icon-copy entity-picker-copy"),
-    (entityCopyButtonElement.title = "复制实体 ID"),
-    entityCopyButtonElement.setAttribute("aria-label", "复制实体 ID"),
-    (entityCopyButtonElement.disabled = true),
-    (entityCopyButtonElement.innerHTML =
-      '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.3"></rect><path d="M10.5 5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9A1.5 1.5 0 0 0 3.5 10.5H5"></path></svg><span aria-hidden="true">✓</span>'));
-  const syncEntityCopyButton = () => {
-    const currentEntityId = String(entityIdGetter() || "");
-    ((entityCopyButtonElement.dataset.entityId = currentEntityId),
-      (entityCopyButtonElement.disabled = !currentEntityId),
-      (entityCopyButtonElement.title = currentEntityId
-        ? "复制 " + currentEntityId
-        : "当前未选择实体"));
+function iconPickersDeps(): IconPickersDeps {
+  return {
+    ...homeElements,
+    get copyTextToClipboard() { return copyTextToClipboard; },
+    get customSelectsBySelectElement() { return customSelectsBySelectElement; },
+    get editorCtx() { return editorCtx; },
+    get enhanceEntityCopyButton() { return enhanceEntityCopyButton; },
+    get handleOperationError() { return handleOperationError; },
+    get hideAssetLargePreview() { return hideAssetLargePreview; },
+    get iconListStateByElement() { return iconListStateByElement; },
+    get iconTooltipElementValue() { return iconTooltipElementValue; },
+    get removedComponent() { return removedComponent; },
+    get runDual() { return resolveMdiIconUrl; },
+    get runFallback() { return ensureInspectorPickerValueSpan; },
+    get runLeft() { return showIconNameTooltip; },
+    get runLimit() { return clearLightStatisticsSelection; },
+    get runLower() { return hideIconNameTooltip; },
+    get runPrimary() { return closePickerMenu; },
+    get runState() { return closeCustomSelect; },
   };
-  return (
-    entityCopyButtonElement.addEventListener("click", async (entityCopyClickEvent) => {
-      (entityCopyClickEvent.preventDefault(), entityCopyClickEvent.stopPropagation());
-      const clickedEntityId = entityCopyButtonElement.dataset.entityId || "";
-      if (clickedEntityId)
-        try {
-          (await copyTextToClipboard(clickedEntityId),
-            entityCopyButtonElement.classList.add("copied"),
-            window.setTimeout(() => entityCopyButtonElement.classList.remove("copied"), 1000));
-        } catch (entityCopyError: any) {
-          handleOperationError(entityCopyError);
-        }
-    }),
-    copyButtonHostElement.replaceWith(entityCopyRowElement),
-    entityCopyRowElement.append(copyButtonHostElement, entityCopyButtonElement),
-    (copyButtonHostElement.dataset.entityCopyReady = "true"),
-    (copyButtonHostElement._entityCopySync = syncEntityCopyButton),
-    syncEntityCopyButton(),
-    syncEntityCopyButton
-  );
 }
-function enhanceEntityCopyButtons() {
-  for (const entityButtonId of [
-    "image-entity-button",
-    "ibe-entity-button",
-    "icon-button-entity-button",
-    "air-conditioner-entity-button",
-    "vacuum-map-entity-button",
-    "camera-entity-button",
-    "weather-entity-button",
-    "line-chart-entity-button",
-    "navigation-entity-button",
-    "popup-module-entity-button",
-  ]) {
-    const elementById = document.getElementById(entityButtonId);
-    elementById && enhanceEntityCopyButton(elementById);
-  }
-}
+function closePickerMenu(...args: any[]): ReturnType<typeof closePickerMenuImpl> { return (closePickerMenuImpl as any)(iconPickersDeps(), ...args); }
+function closeOtherPickerMenus(...args: any[]): ReturnType<typeof closeOtherPickerMenusImpl> { return (closeOtherPickerMenusImpl as any)(iconPickersDeps(), ...args); }
+function resolveMdiIconUrl(...args: any[]): ReturnType<typeof resolveMdiIconUrlImpl> { return (resolveMdiIconUrlImpl as any)(iconPickersDeps(), ...args); }
+function renderNavigationIconButton(...args: any[]): ReturnType<typeof renderNavigationIconButtonImpl> { return (renderNavigationIconButtonImpl as any)(iconPickersDeps(), ...args); }
+function renderTitleButtonIconPreview(...args: any[]): ReturnType<typeof renderTitleButtonIconPreviewImpl> { return (renderTitleButtonIconPreviewImpl as any)(iconPickersDeps(), ...args); }
+function renderEntityIconButtonPreview(...args: any[]): ReturnType<typeof renderEntityIconButtonPreviewImpl> { return (renderEntityIconButtonPreviewImpl as any)(iconPickersDeps(), ...args); }
+function renderLightStatisticsIconPreview(...args: any[]): ReturnType<typeof renderLightStatisticsIconPreviewImpl> { return (renderLightStatisticsIconPreviewImpl as any)(iconPickersDeps(), ...args); }
+function renderLightStatisticsButtonIcon(...args: any[]): ReturnType<typeof renderLightStatisticsButtonIconImpl> { return (renderLightStatisticsButtonIconImpl as any)(iconPickersDeps(), ...args); }
+function copyTextToClipboard(...args: any[]): ReturnType<typeof copyTextToClipboardImpl> { return (copyTextToClipboardImpl as any)(iconPickersDeps(), ...args); }
+function enhanceEntityCopyButton(...args: any[]): ReturnType<typeof enhanceEntityCopyButtonImpl> { return (enhanceEntityCopyButtonImpl as any)(iconPickersDeps(), ...args); }
+function enhanceEntityCopyButtons(...args: any[]): ReturnType<typeof enhanceEntityCopyButtonsImpl> { return (enhanceEntityCopyButtonsImpl as any)(iconPickersDeps(), ...args); }
 enhanceEntityCopyButtons();
 const ICON_PAGE_SIZE = 160,
   iconListStateByElement = new WeakMap();
-function runOuter(runUpper: any) {
-  let iconTooltipElementState = iconListStateByElement.get(runUpper);
-  return (
-    iconTooltipElementState ||
-      ((iconTooltipElementState = {
-        query: "",
-        offset: 0,
-        total: 0,
-        loading: false,
-        complete: false,
-        generation: 0,
-      }),
-      iconListStateByElement.set(runUpper, iconTooltipElementState)),
-    iconTooltipElementState
-  );
-}
-function runLower() {
-  (editorCtx.iconTooltipElement?.remove(), (editorCtx.iconTooltipElement = null));
-}
-function runLeft(iconTooltipElementElement: any, runRight: any) {
-  runLower();
-  const iconTooltipElementPanel = iconTooltipElementElement.closest("dialog");
-  if (!iconTooltipElementPanel?.open || !runRight) return;
-  const iconTooltipElementSection = document.createElement("div");
-  ((iconTooltipElementSection.className = "editor-icon-name-tooltip"),
-    (iconTooltipElementSection.textContent = runRight),
-    iconTooltipElementPanel.append(iconTooltipElementSection));
-  const targetBounds = iconTooltipElementElement.getBoundingClientRect(),
-    targetBoundsState = iconTooltipElementSection.getBoundingClientRect(),
-    clampedUpper = Math.min(
-      window.innerWidth - targetBoundsState.width - 8,
-      Math.max(8, targetBounds.left + (targetBounds.width - targetBoundsState.width) / 2),
-    );
-  let measuredBounds = targetBounds.top - targetBoundsState.height - 8;
-  (measuredBounds < 8 && (measuredBounds = targetBounds.bottom + 8),
-    (iconTooltipElementSection.style.left = clampedUpper + "px"),
-    (iconTooltipElementSection.style.top = measuredBounds + "px"),
-    (editorCtx.iconTooltipElement = iconTooltipElementSection));
-}
-function runFirst(runSecond: any, runThird: any) {
-  (runSecond.addEventListener("pointerenter", () => runLeft(runSecond, runThird)),
-    runSecond.addEventListener("pointerleave", runLower),
-    runSecond.addEventListener("focus", () => runLeft(runSecond, runThird)),
-    runSecond.addEventListener("blur", runLower));
-}
-function runLast(iconTooltipElementList: any, runPrev: any) {
-  iconTooltipElementList.addEventListener("scroll", () => {
-    iconTooltipElementList.scrollHeight -
-      iconTooltipElementList.scrollTop -
-      iconTooltipElementList.clientHeight >
-      120 || runPrev().catch(handleOperationError);
-  });
-}
-async function iconTooltipElementCount(
-  iconTooltipElementIndex = "",
-  { append: iconTooltipElementTotal = false } = {},
-) {
-  return iconTooltipElementValue({
-    optionsElement: navigationIconOptionsElement,
-    query: iconTooltipElementIndex,
-    currentIcon: removedComponent()?.properties?.icon || "",
-    append: iconTooltipElementTotal,
-  });
-}
-async function iconTooltipElementFlag(
-  iconTooltipElementSlot = "",
-  { append: iconTooltipElementCase = false } = {},
-) {
-  return iconTooltipElementValue({
-    optionsElement: ibeIconOptionsElement,
-    query: iconTooltipElementSlot,
-    currentIcon: removedComponent()?.properties?.icon || "",
-    append: iconTooltipElementCase,
-  });
-}
-async function iconTooltipElementStep(
-  iconTooltipElementPhase = "",
-  { append: iconTooltipElementView = false } = {},
-) {
-  const createdInstanceValue = removedComponent();
-  return iconTooltipElementValue({
-    optionsElement: iconButtonIconOptionsElement,
-    query: iconTooltipElementPhase,
-    currentIcon: createdInstanceValue?.properties?.icon || "",
-    clearLabel: createdInstanceValue?.type === "device-button" ? "跟随实体图标" : "不使用图标",
-    append: iconTooltipElementView,
-  });
-}
-async function iconTooltipElementStore(
-  iconTooltipElementCache = "",
-  { append: iconTooltipElementQueue = false } = {},
-) {
-  return iconTooltipElementValue({
-    optionsElement: titleButtonIconOptionsElement,
-    query: iconTooltipElementCache,
-    currentIcon: removedComponent()?.properties?.icon || "",
-    append: iconTooltipElementQueue,
-  });
-}
-async function iconTooltipElementBuffer(
-  iconTooltipElementCursor = "",
-  { append: iconTooltipElementPointer = false } = {},
-) {
-  const availableProperties = removedComponent()?.properties || {},
-    iconTooltipElementTarget = String(
-      Object.hasOwn(availableProperties, "icon")
-        ? availableProperties.icon || ""
-        : "mdi:lightbulb-group-outline",
-    );
-  return iconTooltipElementValue({
-    optionsElement: lightStatisticsIconOptionsElement,
-    query: iconTooltipElementCursor,
-    currentIcon: iconTooltipElementTarget,
-    datasetKey: "lightStatisticsIconName",
-    append: iconTooltipElementPointer,
-  });
-}
-(runLast(navigationIconOptionsElement, () =>
+function ensureIconListPaginationState(...args: any[]): ReturnType<typeof ensureIconListPaginationStateImpl> { return (ensureIconListPaginationStateImpl as any)(iconPickersDeps(), ...args); }
+function hideIconNameTooltip(...args: any[]): ReturnType<typeof hideIconNameTooltipImpl> { return (hideIconNameTooltipImpl as any)(iconPickersDeps(), ...args); }
+function showIconNameTooltip(...args: any[]): ReturnType<typeof showIconNameTooltipImpl> { return (showIconNameTooltipImpl as any)(iconPickersDeps(), ...args); }
+function bindIconNameTooltipEvents(...args: any[]): ReturnType<typeof bindIconNameTooltipEventsImpl> { return (bindIconNameTooltipEventsImpl as any)(iconPickersDeps(), ...args); }
+function bindIconListInfiniteScroll(...args: any[]): ReturnType<typeof bindIconListInfiniteScrollImpl> { return (bindIconListInfiniteScrollImpl as any)(iconPickersDeps(), ...args); }
+function iconTooltipElementCount(...args: any[]): ReturnType<typeof iconTooltipElementCountImpl> { return (iconTooltipElementCountImpl as any)(iconPickersDeps(), ...args); }
+function iconTooltipElementFlag(...args: any[]): ReturnType<typeof iconTooltipElementFlagImpl> { return (iconTooltipElementFlagImpl as any)(iconPickersDeps(), ...args); }
+function iconTooltipElementStep(...args: any[]): ReturnType<typeof iconTooltipElementStepImpl> { return (iconTooltipElementStepImpl as any)(iconPickersDeps(), ...args); }
+function iconTooltipElementStore(...args: any[]): ReturnType<typeof iconTooltipElementStoreImpl> { return (iconTooltipElementStoreImpl as any)(iconPickersDeps(), ...args); }
+function iconTooltipElementBuffer(...args: any[]): ReturnType<typeof iconTooltipElementBufferImpl> { return (iconTooltipElementBufferImpl as any)(iconPickersDeps(), ...args); }
+(bindIconListInfiniteScroll(navigationIconOptionsElement, () =>
   iconTooltipElementCount(navigationIconSearchElement.value, {
     append: true,
   }),
 ),
-  runLast(ibeIconOptionsElement, () =>
+  bindIconListInfiniteScroll(ibeIconOptionsElement, () =>
     iconTooltipElementFlag(ibeIconSearchElement.value, {
       append: true,
     }),
   ),
-  runLast(iconButtonIconOptionsElement, () =>
+  bindIconListInfiniteScroll(iconButtonIconOptionsElement, () =>
     iconTooltipElementStep(iconButtonIconSearchElement.value, {
       append: true,
     }),
   ),
-  runLast(titleButtonIconOptionsElement, () =>
+  bindIconListInfiniteScroll(titleButtonIconOptionsElement, () =>
     iconTooltipElementStore(titleButtonIconSearchElement.value, {
       append: true,
     }),
   ),
-  runLast(lightStatisticsIconOptionsElement, () =>
+  bindIconListInfiniteScroll(lightStatisticsIconOptionsElement, () =>
     iconTooltipElementBuffer(lightStatisticsIconSearchElement.value, {
       append: true,
     }),
   ));
-function runNext() {
-  if (navigationIconMenuElement.hidden) return;
-  const parentBounds = navigationIconButtonElement.parentElement.getBoundingClientRect(),
-    iconTooltipState = 5,
-    iconTooltipStateState = 8,
-    availableSize =
-      window.innerHeight - parentBounds.bottom - iconTooltipState - iconTooltipStateState,
-    measuredBoundsState = parentBounds.top - iconTooltipState - iconTooltipStateState,
-    iconTooltipElementSource = availableSize >= 250 || availableSize >= measuredBoundsState,
-    clampedLower = Math.max(
-      150,
-      Math.min(390, iconTooltipElementSource ? availableSize : measuredBoundsState),
-    );
-  ((navigationIconMenuElement.style.left =
-    clampNumber2(
-      parentBounds.left,
-      iconTooltipStateState,
-      Math.max(
-        iconTooltipStateState,
-        window.innerWidth - parentBounds.width - iconTooltipStateState,
-      ),
-    ) + "px"),
-    (navigationIconMenuElement.style.top = iconTooltipElementSource
-      ? parentBounds.bottom + iconTooltipState + "px"
-      : Math.max(iconTooltipStateState, parentBounds.top - clampedLower - iconTooltipState) + "px"),
-    (navigationIconMenuElement.style.width = parentBounds.width + "px"),
-    (navigationIconMenuElement.style.maxHeight = clampedLower + "px"),
-    (navigationIconOptionsElement.style.maxHeight = Math.max(90, clampedLower - 57) + "px"));
+function positionNavigationIconMenu(...args: any[]): ReturnType<typeof positionNavigationIconMenuImpl> { return (positionNavigationIconMenuImpl as any)(iconPickersDeps(), ...args); }
+function positionIbeIconMenu(...args: any[]): ReturnType<typeof positionIbeIconMenuImpl> { return (positionIbeIconMenuImpl as any)(iconPickersDeps(), ...args); }
+function positionIconButtonIconMenu(...args: any[]): ReturnType<typeof positionIconButtonIconMenuImpl> { return (positionIconButtonIconMenuImpl as any)(iconPickersDeps(), ...args); }
+function layoutTitleButtonIconMenu(...args: any[]): ReturnType<typeof layoutTitleButtonIconMenuImpl> { return (layoutTitleButtonIconMenuImpl as any)(iconPickersDeps(), ...args); }
+function assetPickerDeps(): AssetPickerDeps {
+  return {
+    ...homeElements,
+    get allAssets() { return allAssets; },
+    get applyAssetNaturalSize() { return applyAssetNaturalSize; },
+    get assetMatchesId() { return assetMatchesId; },
+    get customSelectsBySelectElement() { return customSelectsBySelectElement; },
+    get editorCtx() { return editorCtx; },
+    get handleOperationError() { return handleOperationError; },
+    get loadNavigationIconOptions() { return loadNavigationIconOptions; },
+    get measureAssetImageSize() { return measureAssetImageSize; },
+    get mutateDocument() { return mutateDocument; },
+    get pendingAssetProbeKeysSet() { return pendingAssetProbeKeysSet; },
+    get positionAssetLargePreview() { return positionAssetLargePreview; },
+    get removedComponent() { return removedComponent; },
+    get renderNavigationIconPreview() { return renderNavigationIconPreview; },
+    get resolveAssetPreviewUrl() { return resolveAssetPreviewUrl; },
+    get resolveEffectAssetUrl() { return resolveEffectAssetUrl; },
+    get runAlt() { return registerOverflowScrollPreviewRow; },
+    get runExtraAlt() { return resolveEntityPickerConfig; },
+    get runExtraTwin() { return resolveAssetFileUrl; },
+    get runExtraVariant() { return renderRelatedPopupEntityOptions; },
+    get runMode() { return formatEntitySummary; },
+    get runPortion() { return resolveEntityCatalog; },
+    get runQueue() { return describeEntityDomain; },
+    get runSnapshot() { return formatEntityLabel; },
+    get runState() { return closeCustomSelect; },
+    get syncAssetFolderOptions() { return syncAssetFolderOptions; },
+  };
 }
-function runOld() {
-  if (ibeIconMenuElement.hidden) return;
-  const parentBoundsState = ibeIconButtonElement.parentElement.getBoundingClientRect(),
-    iconTooltipStateValue = 5,
-    iconTooltipStateConfig = 8,
-    availableSizeState =
-      window.innerHeight -
-      parentBoundsState.bottom -
-      iconTooltipStateValue -
-      iconTooltipStateConfig,
-    measuredBoundsValue = parentBoundsState.top - iconTooltipStateValue - iconTooltipStateConfig,
-    iconTooltipElementOrigin =
-      availableSizeState >= 250 || availableSizeState >= measuredBoundsValue,
-    clampedLowerState = Math.max(
-      150,
-      Math.min(390, iconTooltipElementOrigin ? availableSizeState : measuredBoundsValue),
-    );
-  ((ibeIconMenuElement.style.left =
-    clampNumber2(
-      parentBoundsState.left,
-      iconTooltipStateConfig,
-      Math.max(
-        iconTooltipStateConfig,
-        window.innerWidth - parentBoundsState.width - iconTooltipStateConfig,
-      ),
-    ) + "px"),
-    (ibeIconMenuElement.style.top = iconTooltipElementOrigin
-      ? parentBoundsState.bottom + iconTooltipStateValue + "px"
-      : Math.max(
-          iconTooltipStateConfig,
-          parentBoundsState.top - clampedLowerState - iconTooltipStateValue,
-        ) + "px"),
-    (ibeIconMenuElement.style.width = parentBoundsState.width + "px"),
-    (ibeIconMenuElement.style.maxHeight = clampedLowerState + "px"),
-    (ibeIconOptionsElement.style.maxHeight = Math.max(90, clampedLowerState - 57) + "px"));
-}
-function runNew() {
-  if (iconButtonIconMenuElement.hidden) return;
-  const parentBoundsValue = iconButtonIconButtonElement.parentElement.getBoundingClientRect(),
-    iconTooltipStateRef = 5,
-    iconTooltipStateEntry = 8,
-    availableSizeValue =
-      window.innerHeight - parentBoundsValue.bottom - iconTooltipStateRef - iconTooltipStateEntry,
-    measuredBoundsConfig = parentBoundsValue.top - iconTooltipStateRef - iconTooltipStateEntry,
-    iconTooltipElementDraft =
-      availableSizeValue >= 250 || availableSizeValue >= measuredBoundsConfig,
-    clampedLowerValue = Math.max(
-      150,
-      Math.min(390, iconTooltipElementDraft ? availableSizeValue : measuredBoundsConfig),
-    );
-  ((iconButtonIconMenuElement.style.left =
-    clampNumber2(
-      parentBoundsValue.left,
-      iconTooltipStateEntry,
-      Math.max(
-        iconTooltipStateEntry,
-        window.innerWidth - parentBoundsValue.width - iconTooltipStateEntry,
-      ),
-    ) + "px"),
-    (iconButtonIconMenuElement.style.top = iconTooltipElementDraft
-      ? parentBoundsValue.bottom + iconTooltipStateRef + "px"
-      : Math.max(
-          iconTooltipStateEntry,
-          parentBoundsValue.top - clampedLowerValue - iconTooltipStateRef,
-        ) + "px"),
-    (iconButtonIconMenuElement.style.width = parentBoundsValue.width + "px"),
-    (iconButtonIconMenuElement.style.maxHeight = clampedLowerValue + "px"),
-    (iconButtonIconOptionsElement.style.maxHeight = Math.max(90, clampedLowerValue - 57) + "px"));
-}
-function runShort() {
-  if (titleButtonIconMenuElement.hidden) return;
-  const parentBoundsConfig = titleButtonIconButtonElement.parentElement.getBoundingClientRect(),
-    relatedPopupState = 5,
-    relatedPopupStateState = 8,
-    availableSizeConfig =
-      window.innerHeight - parentBoundsConfig.bottom - relatedPopupState - relatedPopupStateState,
-    measuredBoundsRef = parentBoundsConfig.top - relatedPopupState - relatedPopupStateState,
-    relatedPopupElementState =
-      availableSizeConfig >= 250 || availableSizeConfig >= measuredBoundsRef,
-    clampedLowerConfig = Math.max(
-      150,
-      Math.min(390, relatedPopupElementState ? availableSizeConfig : measuredBoundsRef),
-    );
-  ((titleButtonIconMenuElement.style.left =
-    clampNumber2(
-      parentBoundsConfig.left,
-      relatedPopupStateState,
-      Math.max(
-        relatedPopupStateState,
-        window.innerWidth - parentBoundsConfig.width - relatedPopupStateState,
-      ),
-    ) + "px"),
-    (titleButtonIconMenuElement.style.top = relatedPopupElementState
-      ? parentBoundsConfig.bottom + relatedPopupState + "px"
-      : Math.max(
-          relatedPopupStateState,
-          parentBoundsConfig.top - clampedLowerConfig - relatedPopupState,
-        ) + "px"),
-    (titleButtonIconMenuElement.style.width = parentBoundsConfig.width + "px"),
-    (titleButtonIconMenuElement.style.maxHeight = clampedLowerConfig + "px"),
-    (titleButtonIconOptionsElement.style.maxHeight = Math.max(90, clampedLowerConfig - 57) + "px"));
-}
-function runLong() {
-  if (lightStatisticsIconMenuElement.hidden) return;
-  const parentBoundsRef = lightStatisticsIconButtonElement.parentElement.getBoundingClientRect(),
-    relatedPopupStateValue = 5,
-    relatedPopupStateConfig = 8,
-    availableSizeRef =
-      window.innerHeight -
-      parentBoundsRef.bottom -
-      relatedPopupStateValue -
-      relatedPopupStateConfig,
-    measuredBoundsEntry = parentBoundsRef.top - relatedPopupStateValue - relatedPopupStateConfig,
-    relatedPopupElementValue = availableSizeRef >= 250 || availableSizeRef >= measuredBoundsEntry,
-    clampedLowerRef = Math.max(
-      150,
-      Math.min(390, relatedPopupElementValue ? availableSizeRef : measuredBoundsEntry),
-    );
-  ((lightStatisticsIconMenuElement.style.left =
-    clampNumber2(
-      parentBoundsRef.left,
-      relatedPopupStateConfig,
-      Math.max(
-        relatedPopupStateConfig,
-        window.innerWidth - parentBoundsRef.width - relatedPopupStateConfig,
-      ),
-    ) + "px"),
-    (lightStatisticsIconMenuElement.style.top = relatedPopupElementValue
-      ? parentBoundsRef.bottom + relatedPopupStateValue + "px"
-      : Math.max(
-          relatedPopupStateConfig,
-          parentBoundsRef.top - clampedLowerRef - relatedPopupStateValue,
-        ) + "px"),
-    (lightStatisticsIconMenuElement.style.width = parentBoundsRef.width + "px"),
-    (lightStatisticsIconMenuElement.style.maxHeight = clampedLowerRef + "px"),
-    (lightStatisticsIconOptionsElement.style.maxHeight =
-      Math.max(90, clampedLowerRef - 57) + "px"));
-}
-function runExtraExtra() {
-  if (lightStatisticsEntityMenuElement.hidden) return;
-  const targetBoundsValue = lightStatisticsEntityButtonElement.getBoundingClientRect(),
-    relatedPopupStateRef = 5,
-    relatedPopupStateEntry = 8,
-    availableSizeEntry = Math.min(
-      targetBoundsValue.width,
-      window.innerWidth - relatedPopupStateEntry * 2,
-    ),
-    availableSizeRecord =
-      window.innerHeight - targetBoundsValue.bottom - relatedPopupStateRef - relatedPopupStateEntry,
-    measuredBoundsRecord = targetBoundsValue.top - relatedPopupStateRef - relatedPopupStateEntry,
-    relatedPopupElementConfig =
-      availableSizeRecord >= 250 || availableSizeRecord >= measuredBoundsRecord,
-    clampedLowerEntry = Math.max(
-      150,
-      Math.min(430, relatedPopupElementConfig ? availableSizeRecord : measuredBoundsRecord),
-    );
-  ((lightStatisticsEntityMenuElement.style.left =
-    clampNumber2(
-      targetBoundsValue.left,
-      relatedPopupStateEntry,
-      Math.max(
-        relatedPopupStateEntry,
-        window.innerWidth - availableSizeEntry - relatedPopupStateEntry,
-      ),
-    ) + "px"),
-    (lightStatisticsEntityMenuElement.style.top = relatedPopupElementConfig
-      ? targetBoundsValue.bottom + relatedPopupStateRef + "px"
-      : Math.max(
-          relatedPopupStateEntry,
-          targetBoundsValue.top - clampedLowerEntry - relatedPopupStateRef,
-        ) + "px"),
-    (lightStatisticsEntityMenuElement.style.width = availableSizeEntry + "px"),
-    (lightStatisticsEntityMenuElement.style.maxHeight = clampedLowerEntry + "px"),
-    (lightStatisticsEntityOptionsElement.style.maxHeight =
-      Math.max(90, clampedLowerEntry - 58) + "px"));
-}
-function runExtraAlt(runExtraAux = "image") {
-  return runExtraAux === "light-statistics"
-    ? {
-        componentType: runExtraAux,
-        button: lightStatisticsActionEntityButtonElement,
-        menu: lightStatisticsActionEntityMenuElement,
-        search: lightStatisticsActionEntitySearchElement,
-        options: lightStatisticsActionEntityOptionsElement,
-        except: "light-statistics-action-entity",
-        relatedSettings: false,
-        recommended: (relatedPopupElementRef: any) =>
-          TOGGLE_ENTITY_DOMAINS2.has(renderNavigationIconPreview(relatedPopupElementRef)) ? 2 : 0,
-      }
-    : ["navigation-button", "scene-mode"].includes(runExtraAux)
-      ? {
-          componentType: runExtraAux,
-          button: navigationEntityButtonElement,
-          menu: navigationEntityMenuElement,
-          search: navigationEntitySearchElement,
-          options: navigationEntityOptionsElement,
-          except: "navigation-entity",
-          relatedSettings: runExtraAux !== "scene-mode",
-          recommended: (relatedPopupElementEntry: any) =>
-            relatedPopupElementEntry?.virtual
-              ? 3
-              : TOGGLE_ENTITY_DOMAINS2.has(renderNavigationIconPreview(relatedPopupElementEntry))
-                ? 2
-                : 0,
-        }
-      : runExtraAux === "title-button"
-        ? {
-            componentType: runExtraAux,
-            button: titleButtonEntityButtonElement,
-            menu: titleButtonEntityMenuElement,
-            search: titleButtonEntitySearchElement,
-            options: titleButtonEntityOptionsElement,
-            except: "title-button-entity",
-            recommended: (relatedPopupElementRecord: any) =>
-              relatedPopupElementRecord?.virtual
-                ? 3
-                : TOGGLE_ENTITY_DOMAINS2.has(renderNavigationIconPreview(relatedPopupElementRecord))
-                  ? 2
-                  : 0,
-          }
-        : runExtraAux === "vacuum-map"
-          ? {
-              componentType: runExtraAux,
-              button: vacuumMapEntityButtonElement,
-              menu: vacuumMapEntityMenuElement,
-              search: vacuumMapEntitySearchElement,
-              options: vacuumMapEntityOptionsElement,
-              except: "vacuum-map-entity",
-              recommended: (relatedPopupElementName: any) =>
-                ["camera", "image"].includes(renderNavigationIconPreview(relatedPopupElementName))
-                  ? /(?:^|[_.\s-])map(?:$|[_.\s-])|地图/i.test(
-                      (relatedPopupElementName.entityId || "") +
-                        " " +
-                        (relatedPopupElementName.name || ""),
-                    )
-                    ? 2
-                    : 1
-                  : 0,
-            }
-          : runExtraAux === "camera"
-            ? {
-                componentType: runExtraAux,
-                button: cameraEntityButtonElement,
-                menu: cameraEntityMenuElement,
-                search: cameraEntitySearchElement,
-                options: cameraEntityOptionsElement,
-                except: "camera-entity",
-                recommended: (relatedPopupElementKey: any) =>
-                  renderNavigationIconPreview(relatedPopupElementKey) === "camera",
-              }
-            : runExtraAux === "air-conditioner"
-              ? {
-                  componentType: runExtraAux,
-                  button: airConditionerEntityButtonElement,
-                  menu: airConditionerEntityMenuElement,
-                  search: airConditionerEntitySearchElement,
-                  options: airConditionerEntityOptionsElement,
-                  except: "air-conditioner-entity",
-                  recommended: (relatedPopupElementPath: any) =>
-                    renderNavigationIconPreview(relatedPopupElementPath) === "climate"
-                      ? 2
-                      : renderNavigationIconPreview(relatedPopupElementPath) === "fan"
-                        ? 1
-                        : 0,
-                }
-              : runExtraAux === "device-button"
-                ? {
-                    componentType: runExtraAux,
-                    button: iconButtonEntityButtonElement,
-                    menu: iconButtonEntityMenuElement,
-                    search: iconButtonEntitySearchElement,
-                    options: iconButtonEntityOptionsElement,
-                    except: "icon-button-entity",
-                    recommended: (relatedPopupElementText: any) =>
-                      TOGGLE_ENTITY_DOMAINS2.has(
-                        renderNavigationIconPreview(relatedPopupElementText),
-                      ),
-                  }
-                : runExtraAux === "presence-sensor"
-                  ? {
-                      componentType: runExtraAux,
-                      button: iconButtonEntityButtonElement,
-                      menu: iconButtonEntityMenuElement,
-                      search: iconButtonEntitySearchElement,
-                      options: iconButtonEntityOptionsElement,
-                      except: "icon-button-entity",
-                      recommended: (relatedPopupElementCount: any) => {
-                        const relatedPopupElementIndex =
-                            (relatedPopupElementCount.entityId || "") +
-                            " " +
-                            (relatedPopupElementCount.name || "") +
-                            " " +
-                            (relatedPopupElementCount.originalName || "") +
-                            " " +
-                            (relatedPopupElementCount.translationKey || ""),
-                          relatedPopupElementTotal =
-                            removedComponent()?.properties?.sensorKind || "presence",
-                          be3 = renderNavigationIconPreview(relatedPopupElementCount);
-                        return be3 === "event"
-                          ? relatedPopupElementTotal === "presence" &&
-                            /motion|occupancy|presence|pir|moving|移动|运动|人体|有人/i.test(
-                              relatedPopupElementIndex,
-                            )
-                            ? 4
-                            : 0
-                          : be3 !== "binary_sensor"
-                            ? 0
-                            : relatedPopupElementTotal === "water-leak"
-                              ? /moisture|water|leak|flood|wet|水浸|漏水|积水|湿/i.test(
-                                  relatedPopupElementIndex,
-                                )
-                                ? 3
-                                : 1
-                              : relatedPopupElementTotal === "smoke"
-                                ? /smoke|fire|烟雾|烟感|火警/i.test(relatedPopupElementIndex)
-                                  ? 3
-                                  : 1
-                                : relatedPopupElementTotal === "natural-gas"
-                                  ? /natural[_ -]?gas|combustible|gas|燃气|天然气|可燃气/i.test(
-                                      relatedPopupElementIndex,
-                                    )
-                                    ? 3
-                                    : 1
-                                  : relatedPopupElementTotal === "door-window"
-                                    ? /door|window|contact|opening|门|窗|接触/i.test(
-                                        relatedPopupElementIndex,
-                                      )
-                                      ? 3
-                                      : 1
-                                    : /presence|occupancy|人在|有人|存在|人体/i.test(
-                                          relatedPopupElementIndex,
-                                        )
-                                      ? 3
-                                      : /motion|移动|运动/i.test(relatedPopupElementIndex)
-                                        ? 1
-                                        : 2;
-                      },
-                    }
-                  : runExtraAux === "icon-button"
-                    ? {
-                        componentType: runExtraAux,
-                        button: iconButtonEntityButtonElement,
-                        menu: iconButtonEntityMenuElement,
-                        search: iconButtonEntitySearchElement,
-                        options: iconButtonEntityOptionsElement,
-                        except: "icon-button-entity",
-                        recommended: (relatedPopupElementFlag: any) =>
-                          renderNavigationIconPreview(relatedPopupElementFlag) === "light",
-                      }
-                    : runExtraAux === "icon-button-effect"
-                      ? {
-                          componentType: runExtraAux,
-                          button: ibeEntityButtonElement,
-                          menu: ibeEntityMenuElement,
-                          search: ibeEntitySearchElement,
-                          options: ibeEntityOptionsElement,
-                          except: "ibe-entity",
-                          recommended: (relatedPopupElementSlot: any) =>
-                            renderNavigationIconPreview(relatedPopupElementSlot) === "light",
-                        }
-                      : runExtraAux === "weather"
-                        ? {
-                            componentType: runExtraAux,
-                            button: weatherEntityButtonElement,
-                            menu: weatherEntityMenuElement,
-                            search: weatherEntitySearchElement,
-                            options: weatherEntityOptionsElement,
-                            except: "weather-entity",
-                            recommended: (relatedPopupElementCase: any) =>
-                              renderNavigationIconPreview(relatedPopupElementCase) === "weather",
-                          }
-                        : runExtraAux === "line-chart"
-                          ? {
-                              componentType: runExtraAux,
-                              button: lineChartEntityButtonElement,
-                              menu: lineChartEntityMenuElement,
-                              search: lineChartEntitySearchInputElement,
-                              options: lineChartEntityOptionsElement,
-                              except: "line-chart-entity",
-                              recommended: (relatedPopupElementStep: any) =>
-                                renderNavigationIconPreview(relatedPopupElementStep) === "sensor",
-                            }
-                          : {
-                              componentType: "image",
-                              button: imageEntityButtonElement,
-                              menu: imageEntityMenuElement,
-                              search: imageEntitySearchElement,
-                              options: imageEntityOptionsElement,
-                              except: "entity",
-                              recommended: (relatedPopupElementPhase: any) =>
-                                ["image", "camera"].includes(
-                                  renderNavigationIconPreview(relatedPopupElementPhase),
-                                ),
-                            };
-}
-function runExtraVariant(runExtraCopy = "", runExtraAlias = "image") {
-  const ao2 = runExtraAlt(runExtraAlias),
-    relatedPopupElementView = removedComponent()?.bindings?.entity?.entityId || "",
-    relatedPopupElementStore = runExtraCopy.trim().toLocaleLowerCase("zh-CN"),
-    relatedPopupElementCache = runPortion(runExtraAlias)
-      .map((mappedItemsFlag: any, mappedItemsSlot: any) => ({
-        entity: mappedItemsFlag,
-        index: mappedItemsSlot,
-      }))
-      .filter(
-        ({ entity: relatedPopupElementQueue }: any) =>
-          !relatedPopupElementStore ||
-          (
-            runMode(relatedPopupElementQueue) +
-            " " +
-            renderNavigationIconPreview(relatedPopupElementQueue)
-          )
-            .toLocaleLowerCase("zh-CN")
-            .includes(relatedPopupElementStore),
-      )
-      .sort((relatedPopupElementBuffer: any, relatedPopupElementCursor: any) => {
-        const relatedPopupElementHandler = (relatedPopupElementPointer: any) =>
-          relatedPopupElementPointer?.virtual
-            ? 100
-            : Number(ao2.recommended(relatedPopupElementPointer));
-        return (
-          relatedPopupElementHandler(relatedPopupElementCursor.entity) -
-            relatedPopupElementHandler(relatedPopupElementBuffer.entity) ||
-          relatedPopupElementBuffer.index - relatedPopupElementCursor.index
-        );
-      })
-      .map(({ entity: mappedItemsCase }: any) => mappedItemsCase),
-    relatedPopupElementElement = document.createElement("button");
-  ((relatedPopupElementElement.type = "button"),
-    (relatedPopupElementElement.className =
-      "inspector-entity-option inspector-entity-clear" +
-      (relatedPopupElementView ? "" : " selected")),
-    (relatedPopupElementElement.dataset.entityId = ""),
-    relatedPopupElementElement.setAttribute("role", "option"),
-    relatedPopupElementElement.setAttribute("aria-selected", String(!relatedPopupElementView)),
-    (relatedPopupElementElement.textContent = "不使用实体"));
-  const mappedItemsStep = relatedPopupElementCache.map((mappedItemsPhase: any) => {
-      const relatedPopupElementPanel = document.createElement("button");
-      ((relatedPopupElementPanel.type = "button"),
-        (relatedPopupElementPanel.className =
-          "inspector-entity-option" +
-          (mappedItemsPhase.entityId === relatedPopupElementView ? " selected" : "")),
-        (relatedPopupElementPanel.dataset.entityId = mappedItemsPhase.entityId),
-        relatedPopupElementPanel.setAttribute("role", "option"),
-        relatedPopupElementPanel.setAttribute(
-          "aria-selected",
-          String(mappedItemsPhase.entityId === relatedPopupElementView),
-        ));
-      const relatedPopupElementSection = document.createElement("span");
-      ((relatedPopupElementSection.className = "inspector-entity-option-content"),
-        (relatedPopupElementSection.title = runMode(mappedItemsPhase)));
-      const relatedPopupElementCard = document.createElement("span");
-      relatedPopupElementCard.className = "inspector-entity-option-line inspector-entity-name-line";
-      const relatedPopupElementBar = document.createElement("span");
-      ((relatedPopupElementBar.className = "inspector-entity-kind"),
-        (relatedPopupElementBar.textContent = "[" + runQueue(mappedItemsPhase) + "] "));
-      const relatedPopupElementList = document.createElement("span");
-      ((relatedPopupElementList.className = "inspector-entity-name"),
-        (relatedPopupElementList.textContent = runSnapshot(mappedItemsPhase)),
-        relatedPopupElementCard.append(relatedPopupElementBar, relatedPopupElementList));
-      const relatedPopupElementRow = document.createElement("span");
-      return (
-        (relatedPopupElementRow.className = "inspector-entity-option-line inspector-entity-id"),
-        (relatedPopupElementRow.textContent = mappedItemsPhase.entityId),
-        (relatedPopupElementRow.title = mappedItemsPhase.entityId),
-        relatedPopupElementSection.append(relatedPopupElementCard, relatedPopupElementRow),
-        runAlt(relatedPopupElementPanel, relatedPopupElementCard),
-        relatedPopupElementPanel.append(relatedPopupElementSection),
-        relatedPopupElementPanel
-      );
-    }),
-    relatedPopupElementBox = document.createElement("div");
-  ((relatedPopupElementBox.className = "inspector-picker-empty"),
-    relatedPopupElementCache.length || (relatedPopupElementBox.textContent = "没有匹配的实体"),
-    ao2.options.replaceChildren(
-      relatedPopupElementElement,
-      ...mappedItemsStep,
-      ...(relatedPopupElementBox.textContent ? [relatedPopupElementBox] : []),
-    ),
-    (ao2.options.scrollTop = 0));
-}
-function runExtraFallback(runExtraBackup: any) {
-  const ao3 = runExtraAlt(runExtraBackup.type),
-    relatedPopupElementTarget = runExtraBackup.bindings?.entity?.entityId || "",
-    relatedPopupElementSource = runPortion(runExtraBackup.type).find(
-      (relatedPopupElementOrigin: any) =>
-        relatedPopupElementOrigin.entityId === relatedPopupElementTarget,
-    ),
-    rt2 = relatedPopupElementSource
-      ? runMode(relatedPopupElementSource)
-      : relatedPopupElementTarget || "不使用实体";
-  let relatedPopupElementDraft = ao3.button.querySelector(".inspector-picker-value");
-  (relatedPopupElementDraft ||
-    ((relatedPopupElementDraft = document.createElement("span")),
-    (relatedPopupElementDraft.className = "inspector-picker-value"),
-    ao3.button.replaceChildren(relatedPopupElementDraft),
-    runAlt(ao3.button, relatedPopupElementDraft)),
-    (relatedPopupElementDraft.textContent = rt2),
-    (relatedPopupElementDraft.title = rt2),
-    (ao3.button.dataset.entityId = relatedPopupElementTarget),
-    ao3.button._entityCopySync?.(),
-    (ao3.search.value = ""),
-    ao3.menu.hidden || runExtraVariant("", runExtraBackup.type),
-    updateRelatedPopup(
-      runExtraBackup,
-      ao3.relatedSettings === false ? null : ao3.button.closest(".inspector-picker"),
-    ));
-}
-function resolveAssetPreviewUrl(asset = "image") {
-  const ao4 = runExtraAlt(asset);
-  if (ao4.menu.hidden) return;
-  const assetIdText = ao4.button.getBoundingClientRect(),
-    userAssetId = 5,
-    userAssetIdState = 8,
-    availableSizeName = Math.min(assetIdText.width, window.innerWidth - userAssetIdState * 2),
-    availableSizeKey = window.innerHeight - assetIdText.bottom - userAssetId - userAssetIdState,
-    measuredBoundsName = assetIdText.top - userAssetId - userAssetIdState,
-    assetRelativePathState = availableSizeKey >= 250 || availableSizeKey >= measuredBoundsName,
-    assetRelativePath = Math.max(
-      150,
-      Math.min(430, assetRelativePathState ? availableSizeKey : measuredBoundsName),
-    ),
-    left2 = assetIdText.left;
-  ((ao4.menu.style.left =
-    clampNumber2(
-      left2,
-      userAssetIdState,
-      Math.max(userAssetIdState, window.innerWidth - availableSizeName - userAssetIdState),
-    ) + "px"),
-    (ao4.menu.style.width = availableSizeName + "px"),
-    (ao4.menu.style.maxHeight = assetRelativePath + "px"),
-    (ao4.options.style.maxHeight = Math.max(90, assetRelativePath - 58) + "px"),
-    (ao4.menu.style.top = assetRelativePathState
-      ? assetIdText.bottom + userAssetId + "px"
-      : Math.max(userAssetIdState, assetIdText.top - assetRelativePath - userAssetId) + "px"));
-}
-function runExtraShadow() {
-  resolveAssetPreviewUrl("image");
-}
-function runExtraTwin(runExtraBranch: any) {
-  if (runExtraBranch?.url) return String(runExtraBranch.url);
-  const encodedAssetPath = String(runExtraBranch?.assetId || "");
-  if (encodedAssetPath.startsWith("user:")) {
-    const slice2 = encodedAssetPath.slice(5);
-    return /^[0-9a-f]{32}$/.test(slice2) ? "/api/v1/assets/user/" + slice2 : "";
-  }
-  const replace2 = String(runExtraBranch?.relativePath || encodedAssetPath).replace(
-      /^builtin:/,
-      "",
-    ),
-    join = (
-      replace2.startsWith("v1/2D/") || replace2.startsWith("v1/3D/")
-        ? replace2.replace(/^v1\//, "v1/户型图示例/")
-        : replace2
-    )
-      .split("/")
-      .filter(Boolean)
-      .map((pathSegment) => encodeURIComponent(pathSegment))
-      .join("/");
-  if (!join) return "";
-  return "/assets/builtin/" + join;
-}
-function resolveEffectAssetUrl(effectAsset: any) {
-  const effectVariantUrl = effectAsset?.effectVariant?.url;
-  return typeof effectVariantUrl == "string" &&
-    effectVariantUrl.startsWith("/api/v1/assets/effect-variant?")
-    ? effectVariantUrl
-    : runExtraTwin(effectAsset);
-}
+function positionLightStatisticsIconMenu(...args: any[]): ReturnType<typeof positionLightStatisticsIconMenuImpl> { return (positionLightStatisticsIconMenuImpl as any)(assetPickerDeps(), ...args); }
+function positionLightStatisticsEntityMenu(...args: any[]): ReturnType<typeof positionLightStatisticsEntityMenuImpl> { return (positionLightStatisticsEntityMenuImpl as any)(assetPickerDeps(), ...args); }
+function resolveEntityPickerConfig(...args: any[]): ReturnType<typeof resolveEntityPickerConfigImpl> { return (resolveEntityPickerConfigImpl as any)(assetPickerDeps(), ...args); }
+function renderRelatedPopupEntityOptions(...args: any[]): ReturnType<typeof renderRelatedPopupEntityOptionsImpl> { return (renderRelatedPopupEntityOptionsImpl as any)(assetPickerDeps(), ...args); }
+function syncPopupEntityPickerButton(...args: any[]): ReturnType<typeof syncPopupEntityPickerButtonImpl> { return (syncPopupEntityPickerButtonImpl as any)(assetPickerDeps(), ...args); }
+function resolveAssetPreviewUrl(...args: any[]): ReturnType<typeof resolveAssetPreviewUrlImpl> { return (resolveAssetPreviewUrlImpl as any)(assetPickerDeps(), ...args); }
+function refreshImageAssetPickerPreview(...args: any[]): ReturnType<typeof refreshImageAssetPickerPreviewImpl> { return (refreshImageAssetPickerPreviewImpl as any)(assetPickerDeps(), ...args); }
+function resolveAssetFileUrl(...args: any[]): ReturnType<typeof resolveAssetFileUrlImpl> { return (resolveAssetFileUrlImpl as any)(assetPickerDeps(), ...args); }
+function resolveEffectAssetUrl(...args: any[]): ReturnType<typeof resolveEffectAssetUrlImpl> { return (resolveEffectAssetUrlImpl as any)(assetPickerDeps(), ...args); }
 const {
     createIconPickerClearOption: effectVariantUrlState,
     createIconPickerOption: createIconPickerClearOptionState,
@@ -4798,27 +1269,27 @@ const {
     createEditorPickerCurrentEntity: createEditorPickerCurrentEntity,
     createEditorPickerCurrentAsset: createEditorPickerCurrentAsset,
   } = createEditorPickerElements2({
-    entityKindLabel: runQueue,
-    entityPickerPrimaryName: runSnapshot,
-    entityPickerText: runMode,
-    enableEntityTextHoverScroll: runAlt,
+    entityKindLabel: describeEntityDomain,
+    entityPickerPrimaryName: formatEntityLabel,
+    entityPickerText: formatEntitySummary,
+    enableEntityTextHoverScroll: registerOverflowScrollPreviewRow,
     assetDisplayName: assetDisplayName,
     assetPreviewUrl: resolveEffectAssetUrl,
-    bindEditorIconNameTooltip: runFirst,
-    mdiIconUrl: runDual,
+    bindEditorIconNameTooltip: bindIconNameTooltipEvents,
+    mdiIconUrl: resolveMdiIconUrl,
   }),
   {
     editorEntityMatches: editorEntityMatches,
     editorPickerComponentTypeLabel: editorPickerComponentTypeLabel,
   } = createEditorPickerQueries2({
-    entityPickerConfig: runExtraAlt,
-    pickerEntitiesForComponentType: runPortion,
-    entityPickerText: runMode,
+    entityPickerConfig: resolveEntityPickerConfig,
+    pickerEntitiesForComponentType: resolveEntityCatalog,
+    entityPickerText: formatEntitySummary,
     entityDomain: renderNavigationIconPreview,
   }),
   editorPickers = createInteraction3dEditorPickers2({
     getState: (stateEntityId) => editorCtx.editorRenderer?.states?.get(stateEntityId),
-    openPicker: (pickerPayload) => runCopyBackup(pickerPayload),
+    openPicker: (pickerPayload) => renderCopyBackupDialog(pickerPayload),
     fetchIcons: (iconQuery, iconLimit, iconOffset) =>
       requestJson(
         "/icons?query=" +
@@ -4831,7 +1302,7 @@ const {
     getEntities: () => editorCtx.entities,
     ensureEntities: () =>
       editorCtx.isAreEntitiesLoaded ? Promise.resolve() : editorCtx.entitiesLoadPromise || ensureEntitiesLoaded(),
-    entityPickerText: runMode,
+    entityPickerText: formatEntitySummary,
     elements: {
       createEditorPickerCurrentIcon: createIconPickerClearOption,
       createIconPickerOption: createIconPickerClearOptionState,
@@ -4870,2711 +1341,336 @@ const {
     canDeleteFolder: (deleteSourceKey: any, folderToDelete: any) =>
       canDeleteAssetFolder(deleteSourceKey, folderToDelete),
     onDeleteFolder: (removedSourceKey: any, removedFolderName: any) =>
-      runCopyLast(removedSourceKey, removedFolderName),
+      requestDeleteAssetFolder(removedSourceKey, removedFolderName),
   });
-function assetMatchesId(assetRecord: any, targetAssetId: any) {
-
-  return assetRecord?.assetId === targetAssetId;
-}
-function allAssets() {
-  return [...editorCtx.userAssetsState, ...editorCtx.userAssets];
-}
-function findAssetById(wantedAssetId: any) {
-  return allAssets().find((assetCandidate) => assetMatchesId(assetCandidate, wantedAssetId));
-}
-function assetDisplayName(namedAsset: any) {
-  return String(namedAsset?.name || namedAsset?.relativePath || namedAsset?.assetId || "").replace(
-    /\.(?:png|jpe?g|webp|gif|svg)$/i,
-    "",
-  );
-}
-function exportedAssetsInFolder(targetFolderName: any) {
-  return editorCtx.userAssets.filter(
-    (folderAsset: any) =>
-      folderAsset.folder === targetFolderName && folderAsset.source === "studio3d-export",
-  );
-}
-function canDeleteAssetFolder(folderSource: any, assetFolderName: any) {
-  if (folderSource !== "user" || !assetFolderName) return false;
-  const folderAssets = editorCtx.userAssets.filter(
-    (folderAssetRecord: any) => folderAssetRecord.folder === assetFolderName,
-  );
-  return (
-    folderAssets.length > 0 &&
-    folderAssets.every((checkedAsset: any) => checkedAsset.source === "studio3d-export")
-  );
-}
-function syncAssetFolderOptions(assetSourceKind: any) {
-  const isImageKind = assetSourceKind === "image",
-    Zt3 = isImageKind ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder,
-    et2 = isImageKind ? imageAssetMenuElement : ibeAssetMenuElement,
-    Ao2 = isImageKind ? imageAssetFolderSelectElement : ibeAssetFolderElement,
-    folderSelectInputElement = isImageKind
-      ? imageAssetUploadHintElement
-      : ibeAssetUploadHintElement,
-    folderSelectInput = isImageKind ? "[data-image-asset-source]" : "[data-ibe-asset-source]";
-  for (const folderNamesElement of et2.querySelectorAll(folderSelectInput))
-    folderNamesElement.classList.toggle(
-      "active",
-      folderNamesElement.dataset[isImageKind ? "imageAssetSource" : "ibeAssetSource"] === Zt3,
-    );
-  const folderNames = customSelectsBySelectElement.get(Ao2);
-  if (folderNames) {
-    const Nt2 = Zt3 === "user" ? editorCtx.userAssets : editorCtx.userAssetsState;
-    ((folderNames.wrapper.hidden = !Nt2.some((sourceAssetItem: any) => sourceAssetItem.folder)),
-      folderNames.wrapper.hidden && runState(folderNames));
-  }
-  folderSelectInputElement.hidden = Zt3 !== "user";
-}
-function leftFolderName(rightFolderName: any) {
-  const isCurrentFolder = rightFolderName === "image",
-    Zt4 = isCurrentFolder ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder,
-    Ao3 = isCurrentFolder ? imageAssetFolderSelectElement : ibeAssetFolderElement,
-    Nt3 = Zt4 === "user" ? editorCtx.userAssets : editorCtx.userAssetsState,
-    sort3 = [
-      ...new Set<string>(
-        Nt3.map((mappedItemsView: any) => String(mappedItemsView.folder ?? "")).filter(Boolean),
-      ),
-    ].sort((leftFolderLabel: string, rightFolderLabel: string) =>
-      leftFolderLabel.localeCompare(rightFolderLabel, "zh-CN"),
-    ),
-    xn2 = isCurrentFolder ? editorCtx.imageAssetFolderState : editorCtx.effectAssetFolderState,
-    nextFolder = sort3.includes(xn2) ? xn2 : sort3[0] || "";
-  (isCurrentFolder ? (editorCtx.imageAssetFolderState = nextFolder) : (editorCtx.effectAssetFolderState = nextFolder),
-    Ao3.replaceChildren(
-      ...sort3.map(
-        (folderNameToOption) =>
-          new Option(
-            folderNameToOption === "." ? "根目录" : String(folderNameToOption),
-            String(folderNameToOption),
-          ),
-      ),
-    ),
-    (Ao3.value = nextFolder),
-    loadNavigationIconOptions(Ao3),
-    syncAssetFolderOptions(rightFolderName));
-}
-function measureAssetImageSize(measuredAsset: any) {
-  return Number(measuredAsset?.width) > 0 && Number(measuredAsset?.height) > 0
-    ? Promise.resolve({
-        width: Number(measuredAsset.width),
-        height: Number(measuredAsset.height),
-      })
-    : new Promise<{ width: number; height: number }>((resolveImageSize, rejectImageSize) => {
-        const image = new Image();
-        ((image.decoding = "async"),
-          image.addEventListener(
-            "load",
-            () => {
-              ((measuredAsset.width = image.naturalWidth),
-                (measuredAsset.height = image.naturalHeight),
-                resolveImageSize({
-                  width: measuredAsset.width,
-                  height: measuredAsset.height,
-                }));
-            },
-            {
-              once: true,
-            },
-          ),
-          image.addEventListener(
-            "error",
-            () => rejectImageSize(new Error("无法读取图片尺寸：" + (measuredAsset?.name || ""))),
-            {
-              once: true,
-            },
-          ),
-          (image.src = runExtraTwin(measuredAsset)));
-      });
-}
-function applyAssetNaturalSize(assetComponent: any, appliedAssetId: any, naturalSize: any) {
-  const buildAssetLayout = (layoutPosition: any, layoutScale: any) => {
-    const naturalWidth = Number(layoutPosition?.width || naturalSize.width),
-      naturalHeight = Number(layoutPosition?.height || naturalSize.height),
-      scaleFactor = clampNumber2(Number(layoutScale || 1), 0.01, 5),
-      centerY = Number(layoutPosition?.x || 0) + naturalWidth / 2,
-      centerYState = Number(layoutPosition?.y || 0) + naturalHeight / 2;
-    return {
-      position: {
-        ...(layoutPosition || {}),
-        x: centerY - naturalSize.width / 2,
-        y: centerYState - naturalSize.height / 2,
-        width: naturalSize.width,
-        height: naturalSize.height,
-      },
-      scale: clampNumber2((naturalWidth * scaleFactor) / naturalSize.width, 0.01, 5),
-    };
-  };
-  if (
-    ((assetComponent.properties = {
-      ...(assetComponent.properties || {}),
-    }),
-    assetComponent.properties.layoutMode === "fill")
-  ) {
-    const freeLayout = assetComponent.properties.freeLayout;
-    if (freeLayout?.position) {
-      const filledLayout = buildAssetLayout(freeLayout.position, freeLayout.scale);
-      assetComponent.properties.freeLayout = filledLayout;
-    }
-  } else {
-    const computedLayout = buildAssetLayout(assetComponent.position, assetComponent.style?.scale);
-    ((assetComponent.position = computedLayout.position),
-      (assetComponent.style = {
-        ...(assetComponent.style || {}),
-        scale: computedLayout.scale,
-      }));
-  }
-  assetComponent.properties = {
-    ...(assetComponent.properties || {}),
-    assetId: appliedAssetId,
-    fit: "contain",
-    naturalWidth: naturalSize.width,
-    naturalHeight: naturalSize.height,
-  };
-}
-function readEffectNaturalSize(effectSourceComponent: any, fallbackSize: any = null) {
-  const effectNaturalWidth = Number(
-      effectSourceComponent?.effectNaturalWidth || fallbackSize?.width || 0,
-    ),
-    effectNaturalHeight = Number(
-      effectSourceComponent?.effectNaturalHeight || fallbackSize?.height || 0,
-    );
-  return effectNaturalWidth > 0 && effectNaturalHeight > 0
-    ? {
-        width: effectNaturalWidth,
-        height: effectNaturalHeight,
-      }
-    : null;
-}
-function probeAssetNaturalSize(probedComponent: any, probedAsset: any) {
-  if (!probedComponent || !probedAsset) return;
-  const probeKey = probedComponent.id + ":" + probedAsset.assetId;
-  pendingAssetProbeKeysSet.has(probeKey) ||
-    (pendingAssetProbeKeysSet.add(probeKey),
-    measureAssetImageSize(probedAsset)
-      .then((measuredSize) => {
-        const liveComponent = findComponent2(
-          editorCtx.activeProject?.document,
-          probedComponent.id,
-        )?.component;
-        !liveComponent ||
-          liveComponent.properties?.assetId !== probedAsset.assetId ||
-          ((liveComponent.properties?.layoutMode === "fill" ||
-            (Number(liveComponent.position?.width) === measuredSize.width &&
-              Number(liveComponent.position?.height) === measuredSize.height)) &&
-            Number(liveComponent.properties?.naturalWidth) === measuredSize.width &&
-            Number(liveComponent.properties?.naturalHeight) === measuredSize.height) ||
-          mutateDocument((mutatedDocument: any) => {
-            const matchedDocumentComponent = findComponent2(
-              mutatedDocument,
-              probedComponent.id,
-            )?.component;
-            !matchedDocumentComponent ||
-              matchedDocumentComponent.properties?.assetId !== probedAsset.assetId ||
-              applyAssetNaturalSize(matchedDocumentComponent, probedAsset.assetId, measuredSize);
-          });
-      })
-      .catch(handleOperationError)
-      .finally(() => pendingAssetProbeKeysSet.delete(probeKey)));
-}
-function positionImageAssetMenu() {
-  if (imageAssetMenuElement.hidden) return;
-  const targetBoundsConfig = imageAssetButtonElement.getBoundingClientRect(),
-    positionImageAssetState = 5,
-    positionImageAssetStateState = 8,
-    availableSizePath =
-      window.innerHeight -
-      targetBoundsConfig.bottom -
-      positionImageAssetState -
-      positionImageAssetStateState,
-    measuredBoundsKey =
-      targetBoundsConfig.top - positionImageAssetState - positionImageAssetStateState,
-    positionAssetLargePreviewState =
-      availableSizePath >= 260 || availableSizePath >= measuredBoundsKey,
-    clampedLowerRecord = Math.max(
-      150,
-      Math.min(470, positionAssetLargePreviewState ? availableSizePath : measuredBoundsKey),
-    );
-  ((imageAssetMenuElement.style.left =
-    clampNumber2(
-      targetBoundsConfig.left,
-      positionImageAssetStateState,
-      Math.max(
-        positionImageAssetStateState,
-        window.innerWidth - targetBoundsConfig.width - positionImageAssetStateState,
-      ),
-    ) + "px"),
-    (imageAssetMenuElement.style.width = targetBoundsConfig.width + "px"),
-    (imageAssetMenuElement.style.maxHeight = clampedLowerRecord + "px"),
-    (imageAssetOptionsElement.style.maxHeight = Math.max(80, clampedLowerRecord - 150) + "px"),
-    (imageAssetMenuElement.style.top = positionAssetLargePreviewState
-      ? targetBoundsConfig.bottom + positionImageAssetState + "px"
-      : Math.max(
-          positionImageAssetStateState,
-          targetBoundsConfig.top - clampedLowerRecord - positionImageAssetState,
-        ) + "px"));
-}
-function positionAssetLargePreview(hoveredOptionElement: any, assetMenuElement = imageAssetMenuElement) {
-  if (imageAssetLargePreviewImageElement.hidden || !hoveredOptionElement?.isConnected) return;
-  const optionRect = hoveredOptionElement.getBoundingClientRect(),
-    menuRectState = assetMenuElement.getBoundingClientRect(),
-    previewRect = imageAssetLargePreviewImageElement.getBoundingClientRect(),
-    previewGapPx = 18,
-    previewLeftPx =
-      menuRectState.left < window.innerWidth / 2
-        ? menuRectState.right + previewGapPx
-        : menuRectState.left - previewRect.width - previewGapPx;
-  ((imageAssetLargePreviewImageElement.style.left =
-    clampNumber2(previewLeftPx, 12, Math.max(12, window.innerWidth - previewRect.width - 12)) +
-    "px"),
-    (imageAssetLargePreviewImageElement.style.top =
-      clampNumber2(optionRect.top, 12, Math.max(12, window.innerHeight - previewRect.height - 12)) +
-      "px"));
-}
-function scheduleAssetPreview(
-  previewAsset: any,
-  previewAnchorElement: any,
-  previewMenuElement = imageAssetMenuElement,
-) {
-  !previewAsset ||
-    !previewAnchorElement ||
-    (clearTimeout(editorCtx.assetPreviewTimeoutId),
-    (editorCtx.assetPreviewTimeoutId = window.setTimeout(() => {
-      const jp2 = resolveEffectAssetUrl(previewAsset);
-      !jp2 ||
-        previewMenuElement.hidden ||
-        !previewAnchorElement.isConnected ||
-        ((imageAssetLargePreviewImageElementElement.onload = () =>
-          positionAssetLargePreview(previewAnchorElement, previewMenuElement)),
-        (imageAssetLargePreviewImageElementElement.src = jp2),
-        (imageAssetLargePreviewNameElement.textContent =
-          previewAsset.name || previewAsset.relativePath),
-        (imageAssetLargePreviewImageElement.hidden = false),
-        window.requestAnimationFrame(() =>
-          positionAssetLargePreview(previewAnchorElement, previewMenuElement),
-        ));
-    }, 300)));
-}
-function hideAssetLargePreview() {
-  (clearTimeout(editorCtx.assetPreviewTimeoutId),
-    (editorCtx.assetPreviewTimeoutId = null),
-    (imageAssetLargePreviewImageElement.hidden = true),
-    (imageAssetLargePreviewImageElementElement.onload = null));
-}
-function createAssetOptionButton(optionAsset: any, selectedAssetId: any) {
-  const assetOptionButton = document.createElement("button");
-  ((assetOptionButton.type = "button"),
-    (assetOptionButton.className =
-      "inspector-asset-option" + (assetMatchesId(optionAsset, selectedAssetId) ? " selected" : "")),
-    (assetOptionButton.dataset.assetId = optionAsset.assetId),
-    (assetOptionButton.title = optionAsset.name),
-    assetOptionButton.setAttribute("role", "option"),
-    assetOptionButton.setAttribute(
-      "aria-selected",
-      String(assetMatchesId(optionAsset, selectedAssetId)),
-    ));
-  const previewImageElement = document.createElement("img");
-  ((previewImageElement.src = resolveEffectAssetUrl(optionAsset)),
-    (previewImageElement.alt = optionAsset.name),
-    (previewImageElement.loading = "lazy"),
-    previewImageElement.addEventListener("error", () =>
-      assetOptionButton.classList.add("image-load-error"),
-    ));
-  const assetNameElement = document.createElement("span");
-  if (
-    ((assetNameElement.textContent = assetDisplayName(optionAsset)),
-    assetOptionButton.append(previewImageElement, assetNameElement),
-    optionAsset.source === "studio3d-export" || optionAsset.source !== "user")
-  )
-    return assetOptionButton;
-  const deleteWrapElement = document.createElement("div");
-  deleteWrapElement.className = "user-asset-option-wrap";
-  const deleteButtonElement = document.createElement("button");
-  return (
-    (deleteButtonElement.type = "button"),
-    (deleteButtonElement.className = "user-asset-delete"),
-    (deleteButtonElement.dataset.deleteUserAsset = optionAsset.assetId),
-    (deleteButtonElement.title = "删除 " + optionAsset.name),
-    deleteButtonElement.setAttribute("aria-label", "删除 " + optionAsset.name),
-    (deleteButtonElement.textContent = "×"),
-    deleteWrapElement.append(assetOptionButton, deleteButtonElement),
-    deleteWrapElement
-  );
-}
-function renderImageAssetOptions(assetSearchQuery = "") {
-  hideAssetLargePreview();
-  const boundAssetId = removedComponent()?.properties?.assetId || "",
-    normalizedAssetQuery = assetSearchQuery.trim().toLocaleLowerCase("zh-CN"),
-    filteredAssets = (editorCtx.imageAssetFolder === "user" ? editorCtx.userAssets : editorCtx.userAssetsState).filter(
-      (matchingAsset: any) => {
-        const matchesQuery =
-            !normalizedAssetQuery ||
-            (matchingAsset.name + " " + matchingAsset.relativePath)
-              .toLocaleLowerCase("zh-CN")
-              .includes(normalizedAssetQuery),
-          matchesFolder = !!normalizedAssetQuery || matchingAsset.folder === editorCtx.imageAssetFolderState;
-        return matchesQuery && matchesFolder;
-      },
-    ),
-    clearAssetButton = document.createElement("button");
-  if (
-    ((clearAssetButton.type = "button"),
-    (clearAssetButton.className = "inspector-asset-clear" + (boundAssetId ? "" : " selected")),
-    (clearAssetButton.dataset.assetId = ""),
-    clearAssetButton.setAttribute("role", "option"),
-    clearAssetButton.setAttribute("aria-selected", String(!boundAssetId)),
-    (clearAssetButton.textContent = "不使用图片"),
-    !filteredAssets.length)
-  ) {
-    const assetNoMatchElement = document.createElement("div");
-    ((assetNoMatchElement.className = "inspector-picker-empty"),
-      (assetNoMatchElement.textContent = "没有匹配的图片"),
-      imageAssetOptionsElement.replaceChildren(clearAssetButton, assetNoMatchElement));
-    return;
-  }
-  imageAssetOptionsElement.replaceChildren(
-    clearAssetButton,
-    ...filteredAssets.map((assetForOption: any) =>
-      createAssetOptionButton(assetForOption, boundAssetId),
-    ),
-  );
-}
-function syncImageAssetSelection(imageComponent: any) {
-  const currentAssetId = imageComponent.properties?.assetId || "",
-    sn2 = findAssetById(currentAssetId);
-  ((editorCtx.imageAssetFolder =
-    ["user", "studio3d-export"].includes(sn2?.source) || (editorCtx.userAssets.length && !sn2)
-      ? "user"
-      : "builtin"),
-    (editorCtx.imageAssetFolderState = sn2?.folder || "" || editorCtx.imageAssetFolderState),
-    leftFolderName("image"),
-    syncAssetFolderOptions("image"),
-    (imageAssetButtonElement.textContent = sn2?.name || currentAssetId || "不使用图片"),
-    (imageAssetSearchInputElement.value = ""),
-    imageAssetOptionsElement.replaceChildren(),
-    probeAssetNaturalSize(imageComponent, sn2));
-}
-function positionEffectAssetMenu() {
-  if (ibeAssetMenuElement.hidden) return;
-  const matchedAsset = ibeAssetButtonElement.getBoundingClientRect(),
-    positionEffectAssetState = 5,
-    positionEffectAssetStateState = 8,
-    availableSizeText =
-      window.innerHeight -
-      matchedAsset.bottom -
-      positionEffectAssetState -
-      positionEffectAssetStateState,
-    measuredBoundsPath =
-      matchedAsset.top - positionEffectAssetState - positionEffectAssetStateState,
-    renderEffectAssetOptionsState =
-      availableSizeText >= 260 || availableSizeText >= measuredBoundsPath,
-    clampedLowerName = Math.max(
-      150,
-      Math.min(470, renderEffectAssetOptionsState ? availableSizeText : measuredBoundsPath),
-    );
-  ((ibeAssetMenuElement.style.left =
-    clampNumber2(
-      matchedAsset.left,
-      positionEffectAssetStateState,
-      Math.max(
-        positionEffectAssetStateState,
-        window.innerWidth - matchedAsset.width - positionEffectAssetStateState,
-      ),
-    ) + "px"),
-    (ibeAssetMenuElement.style.width = matchedAsset.width + "px"),
-    (ibeAssetMenuElement.style.maxHeight = clampedLowerName + "px"),
-    (ibeAssetOptionsElement.style.maxHeight = Math.max(80, clampedLowerName - 150) + "px"),
-    (ibeAssetMenuElement.style.top = renderEffectAssetOptionsState
-      ? matchedAsset.bottom + positionEffectAssetState + "px"
-      : Math.max(
-          positionEffectAssetStateState,
-          matchedAsset.top - clampedLowerName - positionEffectAssetState,
-        ) + "px"));
-}
-function renderEffectAssetOptions(effectAssetSearchQuery = "") {
-  hideAssetLargePreview();
-  const boundEffectAssetId = removedComponent()?.properties?.effectAssetId || "",
-    normalizedEffectQuery = effectAssetSearchQuery.trim().toLocaleLowerCase("zh-CN"),
-    filteredEffectAssets = (editorCtx.effectAssetFolder === "user" ? editorCtx.userAssets : editorCtx.userAssetsState).filter(
-      (effectMatchingAsset: any) =>
-        (!normalizedEffectQuery ||
-          (effectMatchingAsset.name + " " + effectMatchingAsset.relativePath)
-            .toLocaleLowerCase("zh-CN")
-            .includes(normalizedEffectQuery)) &&
-        (!!normalizedEffectQuery || effectMatchingAsset.folder === editorCtx.effectAssetFolderState),
-    ),
-    effectClearAssetButton = document.createElement("button");
-  ((effectClearAssetButton.type = "button"),
-    (effectClearAssetButton.className =
-      "inspector-asset-clear" + (boundEffectAssetId ? "" : " selected")),
-    (effectClearAssetButton.dataset.assetId = ""),
-    effectClearAssetButton.setAttribute("role", "option"),
-    effectClearAssetButton.setAttribute("aria-selected", String(!boundEffectAssetId)),
-    (effectClearAssetButton.textContent = "不使用图片"));
-  const effectAssetOptionButtons = filteredEffectAssets.map((effectOptionAsset: any) =>
-      createAssetOptionButton(effectOptionAsset, boundEffectAssetId),
-    ),
-    effectNoMatchElement = document.createElement("div");
-  ((effectNoMatchElement.className = "inspector-picker-empty"),
-    effectAssetOptionButtons.length || (effectNoMatchElement.textContent = "没有匹配的图片"),
-    ibeAssetOptionsElement.replaceChildren(
-      effectClearAssetButton,
-      ...effectAssetOptionButtons,
-      ...(effectNoMatchElement.textContent ? [effectNoMatchElement] : []),
-    ));
-}
-function syncEffectAssetSelection(effectOwnerComponent: any) {
-  const currentEffectAssetId = effectOwnerComponent.properties?.effectAssetId || "",
-    sn3 = findAssetById(currentEffectAssetId);
-  ((editorCtx.effectAssetFolder =
-    ["user", "studio3d-export"].includes(sn3?.source) || (editorCtx.userAssets.length && !sn3)
-      ? "user"
-      : "builtin"),
-    (editorCtx.effectAssetFolderState = sn3?.folder || editorCtx.effectAssetFolderState),
-    leftFolderName("ibe"),
-    syncAssetFolderOptions("ibe"),
-    (ibeAssetButtonElement.textContent = sn3?.name || currentEffectAssetId || "不使用图片"),
-    (ibeAssetSearchElement.value = ""),
-    ibeAssetOptionsElement.replaceChildren());
-}
-function assignActionControlIds(controlElement: any) {
-  const formId = controlElement.closest(".inspector-form[id]")?.id || "component-action",
-    replace3 = String(controlElement.dataset.actionTrigger || "action").replace(
-      /[^a-zA-Z0-9_-]/g,
-      "-",
-    ),
-    idSelectorPairs = [
-      ["[data-action-target]", "target"],
-      ["[data-popup-source]", "popup-source"],
-      ["[data-popup-entity-search]", "popup-entity-search"],
-      ["[data-popup-entity]", "popup-entity"],
-      ["[data-popup-custom]", "popup-custom"],
-    ];
-  for (const [selectorKey, idSuffix] of idSelectorPairs) {
-    const targetControlElement = controlElement.querySelector(selectorKey);
-    targetControlElement &&
-      !targetControlElement.id &&
-      !targetControlElement.name &&
-      (targetControlElement.id = formId + "-" + replace3 + "-" + idSuffix);
-  }
-}
-function initActionPopupConfig() {
-  for (const moreElement of document.querySelectorAll('[data-action-type="more-info"]'))
-    moreElement.textContent = "打开弹窗";
-  for (const actionControlElement of document.querySelectorAll(
-    ".component-action-control[data-action-trigger]",
-  )) {
-    if (
-      (assignActionControlIds(actionControlElement),
-      actionControlElement.querySelector(".component-popup-config"))
-    )
-      continue;
-    const popupSettingsElement = document.createElement("div");
-    ((popupSettingsElement.className = "component-popup-config"),
-      (popupSettingsElement.hidden = true),
-      (popupSettingsElement.innerHTML =
-        '\n      <label class="component-popup-config-row"><span>弹窗来源</span><select data-popup-source><option value="current">当前实体</option><option value="entity">其它实体</option><option value="custom">组合弹窗</option></select></label>\n      <div class="component-popup-config-row" data-popup-entity-row><span>选择实体</span><div class="component-popup-entity-picker"><button class="inspector-picker-button" type="button" data-popup-entity-button aria-haspopup="listbox" aria-expanded="false">选择实体</button><div class="inspector-picker-menu component-popup-entity-menu" data-popup-entity-menu hidden><input type="search" data-popup-entity-search placeholder="搜索实体名称或 ID" autocomplete="off"><div class="inspector-entity-options" data-popup-entity-options role="listbox"></div></div><input type="hidden" data-popup-entity></div></div>\n      <label class="component-popup-config-row" data-popup-custom-row><span>选择弹窗</span><select data-popup-custom></select></label>\n      <button class="component-popup-preview" type="button" data-popup-preview>预览弹窗</button>'),
-      actionControlElement.append(popupSettingsElement),
-      assignActionControlIds(actionControlElement));
-    const popupEntityButtonElement = popupSettingsElement.querySelector(
-        "[data-popup-entity-button]",
-      ),
-      popupEntityInputElement = popupSettingsElement.querySelector<HTMLInputElement>("[data-popup-entity]");
-    enhanceEntityCopyButton(popupEntityButtonElement, () => popupEntityInputElement?.value || "");
-  }
-}
-function closePopupEntityMenus(activeTriggerElement: any = null) {
-  for (const popupMenuElement of document.querySelectorAll<HTMLElement>("[data-popup-entity-menu]")) {
-    const triggerElement = popupMenuElement.closest("[data-action-trigger]");
-    triggerElement !== activeTriggerElement &&
-      ((popupMenuElement.hidden = true),
-      triggerElement
-        ?.querySelector("[data-popup-entity-button]")
-        ?.setAttribute("aria-expanded", "false"));
-  }
-}
-function syncPopupEntityButton(configElement: any) {
-  const popupEntityId = configElement?.querySelector("[data-popup-entity]")?.value || "",
-    popupEntity = editorCtx.entities.find(
-      (popupCandidateEntity: any) => popupCandidateEntity.entityId === popupEntityId,
-    ),
-    popupPickerButtonElement = configElement?.querySelector("[data-popup-entity-button]");
-  if (!popupPickerButtonElement) return;
-  const buttonLabel = popupEntity
-    ? "[" + runQueue(popupEntity) + "] " + runSnapshot(popupEntity)
-    : popupEntityId || "选择实体";
-  (runBackup(popupPickerButtonElement, buttonLabel, popupEntityId || buttonLabel),
-    (popupPickerButtonElement.dataset.entityId = popupEntityId),
-    popupPickerButtonElement._entityCopySync?.());
-}
-function renderPopupEntityOptions(popupConfigElement: any, popupSearchQuery = "") {
-  const optionsElement = popupConfigElement?.querySelector("[data-popup-entity-options]"),
-    popupSelectedEntityId = popupConfigElement?.querySelector("[data-popup-entity]")?.value || "";
-  if (!optionsElement) return;
-  const normalizedPopupQuery = String(popupSearchQuery || "")
-      .trim()
-      .toLocaleLowerCase("zh-CN"),
-    filteredEntities = editorCtx.entities.filter(
-      (listedPopupEntity: any) =>
-        !normalizedPopupQuery ||
-        (runMode(listedPopupEntity) + " " + listedPopupEntity.entityId)
-          .toLocaleLowerCase("zh-CN")
-          .includes(normalizedPopupQuery),
-    );
-  if (
-    (optionsElement.replaceChildren(
-      ...filteredEntities.map((optionEntity: any) => {
-        const popupOptionButton = document.createElement("button");
-        ((popupOptionButton.type = "button"),
-          (popupOptionButton.className =
-            "inspector-entity-option" +
-            (optionEntity.entityId === popupSelectedEntityId ? " selected" : "")),
-          (popupOptionButton.dataset.popupActionEntityId = optionEntity.entityId),
-          popupOptionButton.setAttribute("role", "option"),
-          popupOptionButton.setAttribute(
-            "aria-selected",
-            String(optionEntity.entityId === popupSelectedEntityId),
-          ));
-        const popupOptionContentElement = document.createElement("span");
-        popupOptionContentElement.className = "inspector-entity-option-content";
-        const popupNameLineElement = document.createElement("span");
-        ((popupNameLineElement.className =
-          "inspector-entity-option-line inspector-entity-name-line"),
-          (popupNameLineElement.textContent =
-            "[" + runQueue(optionEntity) + "] " + runSnapshot(optionEntity)));
-        const popupIdElement = document.createElement("span");
-        return (
-          (popupIdElement.className = "inspector-entity-option-line inspector-entity-id"),
-          (popupIdElement.textContent = optionEntity.entityId),
-          popupOptionContentElement.append(popupNameLineElement, popupIdElement),
-          runAlt(popupOptionButton, popupNameLineElement),
-          popupOptionButton.append(popupOptionContentElement),
-          popupOptionButton
-        );
-      }),
-    ),
-    !filteredEntities.length)
-  ) {
-    const popupNoMatchElement = document.createElement("div");
-    ((popupNoMatchElement.className = "inspector-picker-empty"),
-      (popupNoMatchElement.textContent = "没有匹配的实体"),
-      optionsElement.append(popupNoMatchElement));
-  }
-}
-function positionPopupEntityMenu(triggerConfigElement: any) {
-  const popupEntityButtonPanel = triggerConfigElement?.querySelector("[data-popup-entity-button]"),
-    entityMenuElementElement = triggerConfigElement?.querySelector("[data-popup-entity-menu]");
-  if (!popupEntityButtonPanel || !entityMenuElementElement || entityMenuElementElement.hidden)
-    return;
-  const targetBoundsRef = popupEntityButtonPanel.getBoundingClientRect(),
-    availableSizeCount = Math.min(targetBoundsRef.width, window.innerWidth - 16),
-    availableSizeIndex = Math.min(340, window.innerHeight - 16);
-  ((entityMenuElementElement.style.width = availableSizeCount + "px"),
-    (entityMenuElementElement.style.maxHeight = availableSizeIndex + "px"));
-  const popupEntityButtonState = entityMenuElementElement.querySelector(
-    "[data-popup-entity-options]",
-  );
-  popupEntityButtonState &&
-    (popupEntityButtonState.style.maxHeight = Math.max(120, availableSizeIndex - 58) + "px");
-  const availableSizeTotal = clampNumber2(
-      targetBoundsRef.left,
-      8,
-      window.innerWidth - availableSizeCount - 8,
-    ),
-    clampedUpperState = Math.min(entityMenuElementElement.scrollHeight, availableSizeIndex),
-    popupEntityButton = targetBoundsRef.bottom + 5,
-    entityMenuElement =
-      popupEntityButton + clampedUpperState <= window.innerHeight - 8
-        ? popupEntityButton
-        : Math.max(8, targetBoundsRef.top - clampedUpperState - 5);
-  ((entityMenuElementElement.style.left = availableSizeTotal + "px"),
-    (entityMenuElementElement.style.top = entityMenuElement + "px"));
-}
-function timeFitComponent(timeFitProperties: any, timeProperties = timeFitProperties?.properties || {}) {
-  fitInspectorComponentToDimensions2(timeFitProperties, timeProperties, timeComponentDimensions2);
-}
-function runExtraPeer(dateProperties: any) {
-  const availablePropertiesState = dateProperties.properties || {},
-    {
-      left: datePropertiesState,
-      top: DATE_INSPECTOR_FIELDS,
-      scale: DATE_INSPECTOR_TOGGLES,
-      rotation: datePropertiesValue,
-    }: any = inspectorComponentMetrics2(dateProperties, editorCtx.activeProject.document);
-  ((timeTypeElement.value = "时间"),
-    (timeLabelElement.value = availablePropertiesState.label || ""));
-  for (const datePropertiesElement of timeHourFormatElement.querySelectorAll(
-    "[data-time-hour-format]",
-  ))
-    datePropertiesElement.classList.toggle(
-      "active",
-      datePropertiesElement.dataset.timeHourFormat ===
-        (availablePropertiesState.hour12 === true ? "12" : "24"),
-    );
-  for (const weatherPropertiesElement of timeSecondsElement.querySelectorAll("[data-time-seconds]"))
-    weatherPropertiesElement.classList.toggle(
-      "active",
-      weatherPropertiesElement.dataset.timeSeconds ===
-        (availablePropertiesState.showSeconds === true ? "on" : "off"),
-    );
-  ((timeColorElement.value = availablePropertiesState.color || "#248eb2"),
-    (timeFontSizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesState.fontSize ?? 96), 12, 500),
-    )),
-    (timeFontWeightElement.value = roundField2(
-      normalizedFontWeight2(availablePropertiesState.fontWeight),
-    )),
-    (timeLetterSpacingElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesState.letterSpacing ?? 2.2), -20, 100),
-    )),
-    (timeOpacityElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesState.opacity ?? 1) * 100, 0, 100),
-    )),
-    (timeLeftElement.value = datePropertiesState),
-    (timeTopElement.value = DATE_INSPECTOR_FIELDS),
-    (timeScaleElement.value = DATE_INSPECTOR_TOGGLES),
-    (timeRotationElement.value = datePropertiesValue),
-    (timeScaleElement.disabled = false),
-    (timeRotationElement.disabled = false));
-}
-function weatherProperties(
-  availablePropertiesValue: any,
-  availablePropertiesConfig = availablePropertiesValue?.properties || {},
-) {
-  fitInspectorComponentToDimensions2(
-    availablePropertiesValue,
-    availablePropertiesConfig,
-    dateComponentDimensions2,
-  );
-}
-function fitWeatherComponentToDimensions(
-  weatherFitComponent: any,
-  weatherFitProperties = weatherFitComponent?.properties || {},
-) {
-  fitInspectorComponentToDimensions2(
-    weatherFitComponent,
-    weatherFitProperties,
-    weatherComponentDimensions2,
-  );
-}
-function entitiesByEntityId() {
-  return new Map(
-    editorCtx.entities
-      .map((entityRecord: any) => [String(entityRecord.entityId || ""), entityRecord] as const)
-      .filter(([entityValue]: any) => entityValue),
-  );
-}
-function devicesByDeviceId() {
-  return new Map(
-    editorCtx.devices
-      .map((deviceRecord: any) => [String(deviceRecord.deviceId || ""), deviceRecord] as const)
-      .filter(([deviceValue]: any) => deviceValue),
-  );
-}
-function buildCustomPopupEditorContext(): CustomPopupEditorContext {
+function assetMatchesId(...args: any[]): ReturnType<typeof assetMatchesIdImpl> { return (assetMatchesIdImpl as any)(assetPickerDeps(), ...args); }
+function allAssets(...args: any[]): ReturnType<typeof allAssetsImpl> { return (allAssetsImpl as any)(assetPickerDeps(), ...args); }
+function findAssetById(...args: any[]): ReturnType<typeof findAssetByIdImpl> { return (findAssetByIdImpl as any)(assetPickerDeps(), ...args); }
+function assetDisplayName(...args: any[]): ReturnType<typeof assetDisplayNameImpl> { return (assetDisplayNameImpl as any)(assetPickerDeps(), ...args); }
+function exportedAssetsInFolder(...args: any[]): ReturnType<typeof exportedAssetsInFolderImpl> { return (exportedAssetsInFolderImpl as any)(assetPickerDeps(), ...args); }
+function canDeleteAssetFolder(...args: any[]): ReturnType<typeof canDeleteAssetFolderImpl> { return (canDeleteAssetFolderImpl as any)(assetPickerDeps(), ...args); }
+function syncAssetFolderOptions(...args: any[]): ReturnType<typeof syncAssetFolderOptionsImpl> { return (syncAssetFolderOptionsImpl as any)(assetPickerDeps(), ...args); }
+function leftFolderName(...args: any[]): ReturnType<typeof leftFolderNameImpl> { return (leftFolderNameImpl as any)(assetPickerDeps(), ...args); }
+function measureAssetImageSize(...args: any[]): ReturnType<typeof measureAssetImageSizeImpl> { return (measureAssetImageSizeImpl as any)(assetPickerDeps(), ...args); }
+function applyAssetNaturalSize(...args: any[]): ReturnType<typeof applyAssetNaturalSizeImpl> { return (applyAssetNaturalSizeImpl as any)(assetPickerDeps(), ...args); }
+function readEffectNaturalSize(...args: any[]): ReturnType<typeof readEffectNaturalSizeImpl> { return (readEffectNaturalSizeImpl as any)(assetPickerDeps(), ...args); }
+function probeAssetNaturalSize(...args: any[]): ReturnType<typeof probeAssetNaturalSizeImpl> { return (probeAssetNaturalSizeImpl as any)(assetPickerDeps(), ...args); }
+function positionImageAssetMenu(...args: any[]): ReturnType<typeof positionImageAssetMenuImpl> { return (positionImageAssetMenuImpl as any)(assetPickerDeps(), ...args); }
+function positionAssetLargePreview(...args: any[]): ReturnType<typeof positionAssetLargePreviewImpl> { return (positionAssetLargePreviewImpl as any)(assetPickerDeps(), ...args); }
+function scheduleAssetPreview(...args: any[]): ReturnType<typeof scheduleAssetPreviewImpl> { return (scheduleAssetPreviewImpl as any)(assetPickerDeps(), ...args); }
+function hideAssetLargePreview(...args: any[]): ReturnType<typeof hideAssetLargePreviewImpl> { return (hideAssetLargePreviewImpl as any)(assetPickerDeps(), ...args); }
+function popupInspectorsDeps(): PopupInspectorsDeps {
   return {
-    get editorMode() {
-      return editorCtx.editorMode;
-    },
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    get selectedPopupId() {
-      return editorCtx.selectedPopupId;
-    },
-    customPopupEditorElement,
-    mutateDocument,
-    handleOperationError,
-    currentPage,
-    deviceNameValue,
-    openPopupModuleDialog,
+    ...homeElements,
+    get assetDisplayName() { return assetDisplayName; },
+    get assetMatchesId() { return assetMatchesId; },
+    get assignActionControlIds() { return assignActionControlIds; },
+    get buildCustomPopupEditorContext() { return buildCustomPopupEditorContext; },
+    get buildTimeInspectorContext() { return buildTimeInspectorContext; },
+    get buildWeatherInspectorContext() { return buildWeatherInspectorContext; },
+    get createAssetOptionButton() { return createAssetOptionButton; },
+    get currentPage() { return currentPage; },
+    get customPopupEditorElement() { return customPopupEditorElement; },
+    get deviceNameValue() { return deviceNameValue; },
+    get editorCtx() { return editorCtx; },
+    get enhanceEntityCopyButton() { return enhanceEntityCopyButton; },
+    get findAssetById() { return findAssetById; },
+    get handleOperationError() { return handleOperationError; },
+    get hideAssetLargePreview() { return hideAssetLargePreview; },
+    get leftFolderName() { return leftFolderName; },
+    get mutateDocument() { return mutateDocument; },
+    get openPopupModuleDialog() { return openPopupModuleDialog; },
+    get probeAssetNaturalSize() { return probeAssetNaturalSize; },
+    get removedComponent() { return removedComponent; },
+    get resolveEffectAssetUrl() { return resolveEffectAssetUrl; },
+    get runAlt() { return registerOverflowScrollPreviewRow; },
+    get runBackup() { return setPickerButtonLabel; },
+    get runExtraFallback() { return syncPopupEntityPickerButton; },
+    get runMode() { return formatEntitySummary; },
+    get runQueue() { return describeEntityDomain; },
+    get runSnapshot() { return formatEntityLabel; },
+    get syncAssetFolderOptions() { return syncAssetFolderOptions; },
   };
 }
-function renderCustomPopupEditor() {
-  renderCustomPopupEditorExternal(buildCustomPopupEditorContext());
-}
-function syncCustomPopupStage() {
-  syncCustomPopupStageExternal(buildCustomPopupEditorContext());
-}
-function buildTimeInspectorContext() {
+function createAssetOptionButton(...args: any[]): ReturnType<typeof createAssetOptionButtonImpl> { return (createAssetOptionButtonImpl as any)(popupInspectorsDeps(), ...args); }
+function renderImageAssetOptions(...args: any[]): ReturnType<typeof renderImageAssetOptionsImpl> { return (renderImageAssetOptionsImpl as any)(popupInspectorsDeps(), ...args); }
+function syncImageAssetSelection(...args: any[]): ReturnType<typeof syncImageAssetSelectionImpl> { return (syncImageAssetSelectionImpl as any)(popupInspectorsDeps(), ...args); }
+function positionEffectAssetMenu(...args: any[]): ReturnType<typeof positionEffectAssetMenuImpl> { return (positionEffectAssetMenuImpl as any)(popupInspectorsDeps(), ...args); }
+function renderEffectAssetOptions(...args: any[]): ReturnType<typeof renderEffectAssetOptionsImpl> { return (renderEffectAssetOptionsImpl as any)(popupInspectorsDeps(), ...args); }
+function syncEffectAssetSelection(...args: any[]): ReturnType<typeof syncEffectAssetSelectionImpl> { return (syncEffectAssetSelectionImpl as any)(popupInspectorsDeps(), ...args); }
+function assignActionControlIds(...args: any[]): ReturnType<typeof assignActionControlIdsImpl> { return (assignActionControlIdsImpl as any)(popupInspectorsDeps(), ...args); }
+function initActionPopupConfig(...args: any[]): ReturnType<typeof initActionPopupConfigImpl> { return (initActionPopupConfigImpl as any)(popupInspectorsDeps(), ...args); }
+function closePopupEntityMenus(...args: any[]): ReturnType<typeof closePopupEntityMenusImpl> { return (closePopupEntityMenusImpl as any)(popupInspectorsDeps(), ...args); }
+function syncPopupEntityButton(...args: any[]): ReturnType<typeof syncPopupEntityButtonImpl> { return (syncPopupEntityButtonImpl as any)(popupInspectorsDeps(), ...args); }
+function renderPopupEntityOptions(...args: any[]): ReturnType<typeof renderPopupEntityOptionsImpl> { return (renderPopupEntityOptionsImpl as any)(popupInspectorsDeps(), ...args); }
+function positionPopupEntityMenu(...args: any[]): ReturnType<typeof positionPopupEntityMenuImpl> { return (positionPopupEntityMenuImpl as any)(popupInspectorsDeps(), ...args); }
+function timeFitComponent(...args: any[]): ReturnType<typeof timeFitComponentImpl> { return (timeFitComponentImpl as any)(popupInspectorsDeps(), ...args); }
+function renderTimeInspector(...args: any[]): ReturnType<typeof renderTimeInspectorImpl> { return (renderTimeInspectorImpl as any)(popupInspectorsDeps(), ...args); }
+function weatherProperties(...args: any[]): ReturnType<typeof weatherPropertiesImpl> { return (weatherPropertiesImpl as any)(popupInspectorsDeps(), ...args); }
+function fitWeatherComponentToDimensions(...args: any[]): ReturnType<typeof fitWeatherComponentToDimensionsImpl> { return (fitWeatherComponentToDimensionsImpl as any)(popupInspectorsDeps(), ...args); }
+function entitiesByEntityId(...args: any[]): ReturnType<typeof entitiesByEntityIdImpl> { return (entitiesByEntityIdImpl as any)(popupInspectorsDeps(), ...args); }
+function devicesByDeviceId(...args: any[]): ReturnType<typeof devicesByDeviceIdImpl> { return (devicesByDeviceIdImpl as any)(popupInspectorsDeps(), ...args); }
+function buildCustomPopupEditorContext(...args: any[]): ReturnType<typeof buildCustomPopupEditorContextImpl> { return (buildCustomPopupEditorContextImpl as any)(popupInspectorsDeps(), ...args); }
+function renderCustomPopupEditor(...args: any[]): ReturnType<typeof renderCustomPopupEditorImpl> { return (renderCustomPopupEditorImpl as any)(popupInspectorsDeps(), ...args); }
+function syncCustomPopupStage(...args: any[]): ReturnType<typeof syncCustomPopupStageImpl> { return (syncCustomPopupStageImpl as any)(popupInspectorsDeps(), ...args); }
+function buildTimeInspectorContext(...args: any[]): ReturnType<typeof buildTimeInspectorContextImpl> { return (buildTimeInspectorContextImpl as any)(popupInspectorsDeps(), ...args); }
+function syncTimeInspector(...args: any[]): ReturnType<typeof syncTimeInspectorImpl> { return (syncTimeInspectorImpl as any)(popupInspectorsDeps(), ...args); }
+function buildWeatherInspectorContext(...args: any[]): ReturnType<typeof buildWeatherInspectorContextImpl> { return (buildWeatherInspectorContextImpl as any)(popupInspectorsDeps(), ...args); }
+function syncWeatherInspector(...args: any[]): ReturnType<typeof syncWeatherInspectorImpl> { return (syncWeatherInspectorImpl as any)(popupInspectorsDeps(), ...args); }
+function inspectorContextsDeps(): InspectorContextsDeps {
   return {
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    dateTypeElement,
-    dateLabelElement,
-    dateWeekdayElement,
-    dateLunarElement,
-    datePrimaryColorElement,
-    datePrimarySizeElement,
-    datePrimaryWeightElement,
-    datePrimarySpacingElement,
-    dateLunarColorElement,
-    dateLunarSizeElement,
-    dateLunarWeightElement,
-    dateLunarSpacingElement,
-    dateLineGapElement,
-    dateOpacityElement,
-    dateLeftElement,
-    dateTopElement,
-    dateScaleElement,
-    dateRotationElement,
+    ...homeElements,
+    get airConditionerPreviewStateByComponentId() { return airConditionerPreviewStateByComponentId; },
+    get allAssets() { return allAssets; },
+    get buildCameraInspectorContext() { return buildCameraInspectorContext; },
+    get buildCoverMotorInspectorContext() { return buildCoverMotorInspectorContext; },
+    get buildLightStatisticsInspectorContext() { return buildLightStatisticsInspectorContext; },
+    get buildTitleButtonInspectorContext() { return buildTitleButtonInspectorContext; },
+    get buildVacuumMapInspectorContext() { return buildVacuumMapInspectorContext; },
+    get closePopupModuleEntityMenu() { return closePopupModuleEntityMenu; },
+    get coverMotorButtonElement() { return coverMotorButtonElement; },
+    get destroyDashboardPreview() { return destroyDashboardPreview; },
+    get discardRecoverySnapshot() { return discardRecoverySnapshot; },
+    get editorCtx() { return editorCtx; },
+    get editorPickers() { return editorPickers; },
+    get findReplaceableComponents() { return findReplaceableComponents; },
+    get floorplanAutoDiagramStateByComponentId() { return floorplanAutoDiagramStateByComponentId; },
+    get formatLastSeen() { return formatLastSeen; },
+    get handleOperationError() { return handleOperationError; },
+    get hasActiveProject() { return hasActiveProject; },
+    get historyState() { return historyState; },
+    get iconButtonEffectLayerByComponentId() { return iconButtonEffectLayerByComponentId; },
+    get iconButtonEffectPreviewStateByComponentId() { return iconButtonEffectPreviewStateByComponentId; },
+    get iconButtonPreviewStateByComponentId() { return iconButtonPreviewStateByComponentId; },
+    get imageAssetPointerOverEvent() { return imageAssetPointerOverEvent; },
+    get initialPopupId() { return initialPopupId; },
+    get loadNavigationIconOptions() { return loadNavigationIconOptions; },
+    get mutateDocument() { return mutateDocument; },
+    get navigationPreviewStateByComponentId() { return navigationPreviewStateByComponentId; },
+    get onGlobalColorPickerHexTextInputInput() { return onGlobalColorPickerHexTextInputInput; },
+    get onSessionsRevokeOthersConfirmButtonClick() { return onSessionsRevokeOthersConfirmButtonClick; },
+    get readEffectNaturalSize() { return readEffectNaturalSize; },
+    get reloadAssetCatalog() { return reloadAssetCatalog; },
+    get removedComponent() { return removedComponent; },
+    get renderComponentLists() { return renderComponentLists; },
+    get renderLightStatisticsIconPreview() { return renderLightStatisticsIconPreview; },
+    get renderNavigationIconPreview() { return renderNavigationIconPreview; },
+    get renderPopupEntityOptions() { return renderPopupEntityOptions; },
+    get renderTitleButtonIconPreview() { return renderTitleButtonIconPreview; },
+    get requestJson() { return requestJson; },
+    get resizeWorkspaceCanvas() { return resizeWorkspaceCanvas; },
+    get runAlt() { return registerOverflowScrollPreviewRow; },
+    get runAltOuter() { return collectChangedTitleButtonStyleKeys; },
+    get runAmount() { return renderLightStatisticsEntityOptions; },
+    get runAuxAlt() { return collectChangedIconButtonEffectStyleKeys; },
+    get runAuxLower() { return collectChangedCameraStyleKeys; },
+    get runBackup() { return setPickerButtonLabel; },
+    get runCursor() { return normalizeWhitespace; },
+    get runExtraFallback() { return syncPopupEntityPickerButton; },
+    get runExtraLeft() { return syncPopupModuleClimateDeviceType; },
+    get runExtraLower() { return syncPopupEntityInputs; },
+    get runExtraPeer() { return renderTimeInspector; },
+    get runLimit() { return clearLightStatisticsSelection; },
+    get runLocal() { return renderLightStatisticsButtonIcon; },
+    get runMode() { return formatEntitySummary; },
+    get runQueue() { return describeEntityDomain; },
+    get runShadow() { return closeOtherPickerMenus; },
+    get runSnapshot() { return formatEntityLabel; },
+    get runZone() { return renderLightStatisticsEntityList; },
+    get selectableEntities() { return selectableEntities; },
+    get setComponentsRotation() { return setComponentsRotation; },
+    get setEditorMode() { return setEditorMode; },
+    get stopHoverScroll() { return stopHoverScroll; },
+    get structureVolatileTypesSet() { return structureVolatileTypesSet; },
+    get syncAirConditionerInspector() { return syncAirConditionerInspector; },
+    get syncCameraInspector() { return syncCameraInspector; },
+    get syncComponentActionControls() { return syncComponentActionControls; },
+    get syncEffectAssetSelection() { return syncEffectAssetSelection; },
+    get syncEventLogWallInspector() { return syncEventLogWallInspector; },
+    get syncIconButtonInspector() { return syncIconButtonInspector; },
+    get syncImageAssetSelection() { return syncImageAssetSelection; },
+    get syncLightStatisticsInspector() { return syncLightStatisticsInspector; },
+    get syncLineChartInspector() { return syncLineChartInspector; },
+    get syncNavigationInspector() { return syncNavigationInspector; },
+    get syncPanelFrameInspector() { return syncPanelFrameInspector; },
+    get syncPopupEntityButton() { return syncPopupEntityButton; },
+    get syncRendererSelection() { return syncRendererSelection; },
+    get syncTimeInspector() { return syncTimeInspector; },
+    get syncTitleButtonInspector() { return syncTitleButtonInspector; },
+    get syncVacuumMapInspector() { return syncVacuumMapInspector; },
+    get syncWeatherInspector() { return syncWeatherInspector; },
+    get writeError() { return writeError; },
   };
 }
-function syncTimeInspector(timeComponent: any) {
-  syncTimeInspectorExternal(buildTimeInspectorContext(), timeComponent);
-}
-function buildWeatherInspectorContext() {
-  return {
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    runExtraFallback,
-    weatherTypeElement,
-    weatherLabelElement,
-    weatherIconVisibleElement,
-    weatherTemperatureVisibleElement,
-    weatherConditionVisibleElement,
-    weatherHumidityVisibleElement,
-    weatherIconSizeElement,
-    weatherIconGapElement,
-    weatherTemperatureColorElement,
-    weatherTemperatureSizeElement,
-    weatherTemperatureWeightElement,
-    weatherTemperatureSpacingElement,
-    weatherSecondaryColorElement,
-    weatherSecondarySizeElement,
-    weatherSecondaryWeightElement,
-    weatherSecondarySpacingElement,
-    weatherLineGapElement,
-    weatherOpacityElement,
-    weatherLeftElement,
-    weatherTopElement,
-    weatherScaleElement,
-    weatherRotationElement,
-  };
-}
-function syncWeatherInspector(weatherComponent: any) {
-  syncWeatherInspectorExternal(buildWeatherInspectorContext(), weatherComponent);
-}
-function buildTitleButtonInspectorContext() {
-  return {
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    get selectedComponentIdsSet() {
-      return editorCtx.selectedComponentIdsSet;
-    },
-    titleButtonLabelElement,
-    runExtraFallback,
-    titleButtonMainVisibleElement,
-    titleButtonSecondaryVisibleElement,
-    titleButtonFrameVisibleElement,
-    titleButtonIconVisibleElement,
-    titleButtonMainTextElement,
-    titleButtonSecondaryLine1Element,
-    titleButtonSecondaryLine2Element,
-    titleButtonMainColorElement,
-    titleButtonSecondaryColorElement,
-    titleButtonMainSizeElement,
-    titleButtonSecondarySizeElement,
-    titleButtonMainWeightElement,
-    titleButtonSecondaryWeightElement,
-    titleButtonMainSpacingElement,
-    titleButtonSecondarySpacingElement,
-    titleButtonSecondaryLineGapElement,
-    titleButtonMainLeftElement,
-    titleButtonMainTopElement,
-    titleButtonSecondaryLeftElement,
-    titleButtonSecondaryTopElement,
-    renderLightStatisticsIconPreview,
-    titleButtonIconColorElement,
-    titleButtonIconSizeElement,
-    titleButtonIconLeftElement,
-    titleButtonIconTopElement,
-    titleButtonFrameColorElement,
-    titleButtonFrameWidthElement,
-    titleButtonFrameSizeElement,
-    titleButtonFrameSpacingElement,
-    titleButtonFrameOffsetXElement,
-    titleButtonFrameOffsetYElement,
-    titleButtonMarkerColorElement,
-    titleButtonMarkerSizeElement,
-    titleButtonMarkerLeftElement,
-    titleButtonMarkerTopElement,
-    titleButtonMarkerVisibleElement,
-    titleButtonLeftElement,
-    titleButtonTopElement,
-    titleButtonWidthElement,
-    titleButtonHeightElement,
-    titleButtonScaleElement,
-    titleButtonRotationElement,
-    findReplaceableComponents,
-    runAltOuter,
-    titleButtonApplyStyleElement,
-    titleButtonApplyCountElement,
-    syncComponentActionControls,
-    titleButtonActionControlsElement,
-  };
-}
-function syncTitleButtonInspector(titleButtonComponent: any) {
-  syncTitleButtonInspectorExternal(buildTitleButtonInspectorContext(), titleButtonComponent);
-}
-function buildLightStatisticsInspectorContext() {
-  return {
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    get statisticsComponentId() {
-      return editorCtx.statisticsComponentId;
-    },
-    set statisticsComponentId(value: any) {
-      editorCtx.statisticsComponentId = value;
-    },
-    runLimit,
-    lightStatisticsLabelElement,
-    lightStatisticsTitleElement,
-    runExtraFallback,
-    lightStatisticsIconVisibleElement,
-    lightStatisticsTitleVisibleElement,
-    lightStatisticsCountVisibleElement,
-    runLocal,
-    lightStatisticsIconColorElement,
-    lightStatisticsIconActiveColorElement,
-    lightStatisticsIconSizeElement,
-    lightStatisticsTitleColorElement,
-    lightStatisticsTitleSizeElement,
-    lightStatisticsTitleWeightElement,
-    lightStatisticsTitleSpacingElement,
-    lightStatisticsCountColorElement,
-    lightStatisticsCountActiveColorElement,
-    lightStatisticsCountSizeElement,
-    lightStatisticsCountWeightElement,
-    lightStatisticsCountSpacingElement,
-    lightStatisticsIconGapElement,
-    lightStatisticsCountGapElement,
-    lightStatisticsLeftElement,
-    lightStatisticsTopElement,
-    lightStatisticsWidthElement,
-    lightStatisticsHeightElement,
-    lightStatisticsScaleElement,
-    lightStatisticsRotationElement,
-    get selectedComponentIdsSet() {
-      return editorCtx.selectedComponentIdsSet;
-    },
-    runBackup,
-    lightStatisticsEntityButtonElement,
-    statisticsReplaceIndex: editorCtx.statisticsReplaceIndex,
-    runZone,
-    lightStatisticsEntityMenuElement,
-    runAmount,
-    lightStatisticsEntitySearchElement,
-    syncComponentActionControls,
-    lightStatisticsActionControlsElement,
-  };
-}
-function syncLightStatisticsInspector(lightStatisticsComponent: any) {
-  syncLightStatisticsInspectorExternal(
-    buildLightStatisticsInspectorContext(),
-    lightStatisticsComponent,
-  );
-}
-function buildCameraInspectorContext() {
-  return {
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    cameraLabelElement,
-    runExtraFallback,
-    cameraMediaVisibleElement,
-    cameraSourceOptionsElement,
-    cameraEntityPickerElement,
-    cameraGo2rtcUrlFieldElement,
-    cameraGo2rtcUrlElement,
-    cameraGo2rtcNoteElement,
-    cameraDisplayModeOptionsElement,
-    cameraRefreshIntervalElement,
-    cameraRefreshIntervalFieldElement,
-    cameraFitOptionsElement,
-    cameraFrameVisibleElement,
-    cameraFrameColorElement,
-    cameraFrameWidthElement,
-    cameraRadiusElement,
-    cameraFrameAngleElement,
-    cameraFrameOpacityElement,
-    cameraLeftElement,
-    cameraTopElement,
-    cameraWidthElement,
-    cameraHeightElement,
-    cameraScaleElement,
-    cameraRotationElement,
-    get selectedComponentIdsSet() {
-      return editorCtx.selectedComponentIdsSet;
-    },
-    findReplaceableComponents,
-    runAuxLower,
-    cameraApplyStyleElement,
-    cameraApplyCountElement,
-    syncComponentActionControls,
-    cameraActionControlsElement,
-    // 摄像头检查器的写属性控件交互在 `home-camera-inspector.ts` 里挂（宿主只减不增）。
-    mutateDocument,
-    findComponent: findComponent2,
-    getSelectedComponentId: () => editorCtx.selectedComponentId,
-  };
-}
-function syncCameraInspector(cameraComponent: any) {
-  syncCameraInspectorExternal(buildCameraInspectorContext(), cameraComponent);
-}
-function buildVacuumMapInspectorContext() {
-  return {
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    vacuumMapLabelElement,
-    runExtraFallback,
-    vacuumMapOpacityElement,
-    vacuumMapLeftElement,
-    vacuumMapTopElement,
-    vacuumMapScaleElement,
-    vacuumMapRotationElement,
-  };
-}
-function syncVacuumMapInspector(vacuumMapComponent: any) {
-  syncVacuumMapInspectorExternal(buildVacuumMapInspectorContext(), vacuumMapComponent);
-}
-function buildCoverMotorInspectorContext(): CoverMotorInspectorContext {
-  return {
-    activeProject: editorCtx.activeProject,
-    airConditionerEntityMenuElement,
-    airConditionerInspectorElement,
-    airConditionerPreviewStateByComponentId,
-    cameraEntityMenuElement,
-    cameraInspectorElement,
-    componentActionControlsElement,
-    coverSettingsDirectionElement,
-    coverSettingsInspectorElement,
-    coverSettingsKindElement,
-    coverSettingsMotorDirectionElement,
-    dateInspectorElement,
-    destroyDashboardPreview,
-    displayDeviceCountElement,
-    editorCanvasElement,
-    editorMode: editorCtx.editorMode,
-    editorPickers,
-    editorRenderer: editorCtx.editorRenderer,
-    entities: editorCtx.entities,
-    eventLogWallInspectorElement,
-    findReplaceableComponents,
-    floorplanAutoDiagramBindingListElement,
-    floorplanAutoDiagramBindingsElement,
-    floorplanAutoDiagramCameraModeElement,
-    floorplanAutoDiagramCameraViewElement,
-    floorplanAutoDiagramFloorSelectElement,
-    floorplanAutoDiagramFocalLengthInputElement,
-    floorplanAutoDiagramFolderTextInputElement,
-    floorplanAutoDiagramHeightInputElement,
-    floorplanAutoDiagramInspectorFormElement,
-    floorplanAutoDiagramLabelTextInputElement,
-    floorplanAutoDiagramLayoutElement,
-    floorplanAutoDiagramLeftInputElement,
-    floorplanAutoDiagramOpenBaseLightingButtonElement,
-    floorplanAutoDiagramOpenStudioButtonElement,
-    floorplanAutoDiagramRotateTopButtonElement,
-    floorplanAutoDiagramRotationInputElement,
-    floorplanAutoDiagramScaleInputElement,
-    floorplanAutoDiagramStateByComponentId,
-    floorplanAutoDiagramStatusElement,
-    floorplanAutoDiagramTopInputElement,
-    floorplanAutoDiagramViewToggleButtonElement,
-    floorplanAutoDiagramWidthInputElement,
-    formatLastSeen,
-    handleOperationError,
-    hasActiveProject,
-    ibeActionControlsElement,
-    ibeActionSectionElement,
-    ibeApplyCountElement,
-    ibeApplyStyleElement,
-    ibeAssetMenuElement,
-    ibeBrightnessRealtimeElement,
-    ibeButtonOffColorElement,
-    ibeButtonOnColorElement,
-    ibeButtonOpacityElement,
-    ibeButtonSectionElement,
-    ibeButtonTransformSectionElement,
-    ibeButtonVisibleElement,
-    ibeColorTemperatureRealtimeElement,
-    ibeEffectFadeDurationElement,
-    ibeEffectLayoutOptionsElement,
-    ibeEffectLeftElement,
-    ibeEffectOpacityElement,
-    ibeEffectRotationElement,
-    ibeEffectScaleElement,
-    ibeEffectSectionElement,
-    ibeEffectSizeHintElement,
-    ibeEffectTopElement,
-    ibeEffectVisibleElement,
-    ibeEntityMenuElement,
-    ibeFrameColorElement,
-    ibeFrameOpacityElement,
-    ibeFrameWidthElement,
-    ibeGlowColorElement,
-    ibeGlowOffStrengthElement,
-    ibeGlowOnStrengthElement,
-    ibeHeightElement,
-    ibeIconMenuElement,
-    ibeIconOffColorElement,
-    ibeIconOnColorElement,
-    ibeIconSizeElement,
-    ibeLabelElement,
-    ibeLayerOptionsElement,
-    ibeLeftElement,
-    ibePreviewStateElement,
-    ibeRadiusElement,
-    ibeRotationElement,
-    ibeScaleElement,
-    ibeTopElement,
-    ibeWidthElement,
-    iconButtonEffectInspectorElement,
-    iconButtonEffectLayerByComponentId,
-    iconButtonEffectPreviewStateByComponentId,
-    iconButtonEntityMenuElement,
-    iconButtonIconMenuElement,
-    iconButtonInspectorElement,
-    iconButtonPreviewStateByComponentId,
-    imageAssetPointerOverEvent,
-    imageInspectorElement,
-    imageLabelElement,
-    imageLayoutOptionsElement,
-    imageLeftInputElement,
-    imageOpacityInputElement,
-    imageRotationInputElement,
-    imageScaleInputElement,
-    imageTopInputElement,
-    imageTypeElement,
-    inspectorEmptyElement,
-    lightStatisticsActionEntityMenuElement,
-    lightStatisticsEntityMenuElement,
-    lightStatisticsIconMenuElement,
-    lightStatisticsInspectorElement,
-    lineChartInspectorElement,
-    loadNavigationIconOptions,
-    mutateDocument,
-    navigationIconMenuElement,
-    navigationInspectorFormElement,
-    navigationLabelTextInputElement,
-    navigationPreviewStateByComponentId,
-    navigatorContentElement,
-    navigatorElement,
-    onGlobalColorPickerHexTextInputInput,
-    onSessionsRevokeOthersConfirmButtonClick,
-    pageSelectElement,
-    panelFrameInspectorFormElement,
-    readEffectNaturalSize,
-    removedComponent,
-    renderComponentLists,
-    renderNavigationIconPreview,
-    renderTitleButtonIconPreview,
-    resizeWorkspaceCanvas,
-    runAuxAlt,
-    runExtraFallback,
-    runExtraPeer,
-    runMode,
-    runShadow,
-    selectableEntities,
-    selectedComponentIdsSet: editorCtx.selectedComponentIdsSet,
-    setComponentsRotation,
-    setEditorMode,
-    stopHoverScroll,
-    syncAirConditionerInspector,
-    syncCameraInspector,
-    syncComponentActionControls,
-    syncEffectAssetSelection,
-    syncEventLogWallInspector,
-    syncIconButtonInspector,
-    syncImageAssetSelection,
-    syncLightStatisticsInspector,
-    syncLineChartInspector,
-    syncNavigationInspector,
-    syncPanelFrameInspector,
-    syncRendererSelection,
-    syncTimeInspector,
-    syncTitleButtonInspector,
-    syncVacuumMapInspector,
-    syncWeatherInspector,
-    timeInspectorElement,
-    titleButtonEntityMenuElement,
-    titleButtonIconMenuElement,
-    titleButtonInspectorElement,
-    vacuumMapEntityMenuElement,
-    vacuumMapInspectorElement,
-    weatherInspectorElement,
-  };
-}
-function coverMotorButtonElement() {
-  coverMotorButtonElementSync(buildCoverMotorInspectorContext());
-}
-function runExtraLocal(runExtraInner: any) {
-  return runExtraLocalCover(buildCoverMotorInspectorContext(), runExtraInner);
-}
-async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } = {}) {
-  const [all, all2] = await Promise.all([
-    requestJson("/assets/builtin?_=" + Date.now()),
-    requestJson("/assets/user?_=" + Date.now()),
-  ]);
-  ((editorCtx.userAssetsState = all.items || []),
-    (editorCtx.userAssets = all2.items || []),
-    (editorCtx.catalogVersionSignature = (all.catalogVersion || "") + ":" + (all2.catalogVersion || "")));
-  const didVersionsChange = setBuiltinAssetVersions2(allAssets());
-  return (
-    didVersionsChange &&
-      (editorCtx.editorRenderer?.renderComponents(true), editorCtx.dashboardPreviewRenderer?.renderComponents(true)),
-    refreshInspector && coverMotorButtonElement(),
-    didVersionsChange
-  );
-}
-async function pollAssetCatalogVersion() {
-  const versionResponse = await requestJson("/assets/version"),
-    versionSignature = (versionResponse.builtin || "") + ":" + (versionResponse.user || "");
-  editorCtx.catalogVersionSignature !== versionSignature &&
-    (await reloadAssetCatalog({
-      refreshInspector: true,
-    }));
-}
-async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {}): Promise<any> {
-  return editorCtx.entitiesLoadPromise
-    ? waitForCurrent
-      ? (await editorCtx.entitiesLoadPromise, ensureEntitiesLoaded())
-      : editorCtx.entitiesLoadPromise
-    : ((editorCtx.entitiesLoadPromise = (async () => {
-        const collectedEntities: any[] = [];
-        let entityOffset = 0,
-          entityTotal = 0;
-        do {
-          const entitiesResponse = await requestJson(
-            "/ha/entities?limit=500&offset=" + entityOffset,
-          );
-          (collectedEntities.push(...(entitiesResponse.items || [])),
-            (entityTotal = Number(entitiesResponse.total || 0)),
-            (entityOffset += Number(entitiesResponse.limit || 500)));
-        } while (collectedEntities.length < entityTotal);
-        editorCtx.entities = collectedEntities.filter(
-          (filteredItemsConfig) => filteredItemsConfig.status !== "missing",
-        );
-        const [all3, all4] = await Promise.all([
-          requestJson("/ha/devices").catch(() => ({
-            items: [] as any[],
-          })),
-          requestJson("/ha/translations").catch(() => ({
-            resources: {} as Record<string, any>,
-          })),
-        ]);
-        ((editorCtx.devices = all3?.items || []),
-          (editorCtx.deviceNamesByDeviceId = new Map(
-            editorCtx.devices
-              .map((mappedItemsCache: any) => [
-                String(mappedItemsCache.deviceId || ""),
-                runCursor(mappedItemsCache.name),
-              ] as const)
-              .filter(
-                ([entitiesResponseState, entitiesResponseValue]: any) =>
-                  entitiesResponseState && entitiesResponseValue,
-              ),
-          )),
-          (editorCtx.entityResourcesByDeviceId = all4?.resources || {}),
-          (editorCtx.isAreEntitiesLoaded = true));
-        const mappedItemByIdById = new Map(
-            nasProfiles2(editorCtx.entities, editorCtx.devices).map((mappedItemsQueue) => [
-              mappedItemsQueue.deviceId,
-              mappedItemsQueue,
-            ]),
-          ),
-          entitiesResponseConfig = reconcileNasDocument2(
-            editorCtx.activeProject?.document,
-            mappedItemByIdById,
-          ),
-          devicesResponseState = reconcileNasDocument2(editorCtx.baselineDocument, mappedItemByIdById);
-        editorCtx.savedDocumentSignature = documentSignature2(editorCtx.baselineDocument);
-        for (const translationsResponse of [...historyState.undo, ...historyState.redo])
-          for (const deviceState of ["document", "beforeSavedDocument", "afterSavedDocument"])
-            reconcileNasDocument2(translationsResponse[deviceState], mappedItemByIdById);
-        if (editorCtx.recoverySnapshot) {
-          reconcileNasDocument2(editorCtx.recoverySnapshot.document, mappedItemByIdById);
-          for (const deviceIdKey of [
-            ...(editorCtx.recoverySnapshot.undo || []),
-            ...(editorCtx.recoverySnapshot.redo || []),
-          ])
-            for (const deviceNameValueState of [
-              "document",
-              "beforeSavedDocument",
-              "afterSavedDocument",
-            ])
-              reconcileNasDocument2(deviceIdKey[deviceNameValueState], mappedItemByIdById);
-          documentSignature2(editorCtx.recoverySnapshot.document) === editorCtx.savedDocumentSignature &&
-            (discardRecoverySnapshot(editorCtx.activeProject.projectId),
-            (editorCtx.recoverySnapshot = null),
-            recoveryDialogElement.open && recoveryDialogElement.close());
-        }
-        (editorCtx.editorRenderer?.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices),
-          editorCtx.dashboardPreviewRenderer?.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices),
-          runExtraLower(),
-          (entitiesResponseConfig || devicesResponseState) &&
-            writeError({
-              preserveRecovery: !!editorCtx.recoverySnapshot,
-            }),
-          document.activeElement?.closest?.(".inspector-form") || coverMotorButtonElement());
-      })().finally(() => {
-        editorCtx.entitiesLoadPromise = null;
-      })),
-      editorCtx.entitiesLoadPromise);
-}
-function runExtraOuter(runExtraUpper: any, catalogEntityRecord = editorCtx.selectedPopupId) {
-  const devicesResponse = runExtraUpper?.customPopups || [];
-  if (
-    (popupSelectElement.replaceChildren(),
-    popupListElement.replaceChildren(),
-    !devicesResponse.length)
-  ) {
-    ((editorCtx.selectedPopupId = null),
-      popupSelectElement.append(new Option("暂无组合弹窗", "")),
-      (popupSelectElement.disabled = true),
-      (popupActionsButtonElement.disabled = true),
-      loadNavigationIconOptions(popupSelectElement));
-    const popupEmptyElement = document.createElement("div");
-    ((popupEmptyElement.className = "popup-list-empty"),
-      (popupEmptyElement.textContent = "还没有组合弹窗"),
-      popupListElement.append(popupEmptyElement));
-    return;
-  }
-  for (const popupEntryState of devicesResponse)
-    popupSelectElement.append(new Option(popupEntryState.name, popupEntryState.id));
-  ((editorCtx.selectedPopupId = devicesResponse.some(
-    (candidatePopupState: any) => candidatePopupState.id === catalogEntityRecord,
-  )
-    ? catalogEntityRecord
-    : devicesResponse[0].id),
-    (popupSelectElement.value = editorCtx.selectedPopupId),
-    (popupSelectElement.disabled = false),
-    (popupActionsButtonElement.disabled = false),
-    loadNavigationIconOptions(popupSelectElement));
-  for (const popupItemState of devicesResponse) {
-    const popupItemButtonElement = document.createElement("button");
-    ((popupItemButtonElement.type = "button"),
-      (popupItemButtonElement.className =
-        "popup-list-item" + (popupItemState.id === editorCtx.selectedPopupId ? " selected" : "")),
-      (popupItemButtonElement.dataset.popupId = popupItemState.id),
-      popupItemButtonElement.setAttribute("role", "option"),
-      popupItemButtonElement.setAttribute(
-        "aria-selected",
-        String(popupItemState.id === editorCtx.selectedPopupId),
-      ));
-    const popupItemNameElementElement = document.createElement("span");
-    popupItemNameElementElement.textContent = popupItemState.name;
-    const popupItemMetaElementElement = document.createElement("small");
-    ((popupItemMetaElementElement.textContent = (popupItemState.modules || []).length + " 个模块"),
-      popupItemButtonElement.append(popupItemNameElementElement, popupItemMetaElementElement),
-      popupListElement.append(popupItemButtonElement));
-  }
-}
-function runExtraLower() {
-  for (const translationsResponseElementElement of document.querySelectorAll<HTMLInputElement>(
-    "[data-popup-entity]",
-  )) {
-    const translationsResponseElementPanel =
-      translationsResponseElementElement.closest("[data-action-trigger]");
-    (!translationsResponseElementElement.value &&
-      editorCtx.entities[0]?.entityId &&
-      (translationsResponseElementElement.value = editorCtx.entities[0].entityId),
-      syncPopupEntityButton(translationsResponseElementPanel));
-    const translationsResponseElement = translationsResponseElementPanel?.querySelector<HTMLElement>(
-      "[data-popup-entity-menu]",
-    );
-    translationsResponseElement &&
-      !translationsResponseElement.hidden &&
-      renderPopupEntityOptions(
-        translationsResponseElementPanel,
-        translationsResponseElementPanel!.querySelector<HTMLInputElement>("[data-popup-entity-search]")?.value || "",
-      );
-  }
-}
-function runExtraLeft(device = popupModuleFormElement.elements.deviceType.value) {
-  const isDevice = popupModuleFormElement.elements.type.value === "climate",
-    deviceIdKeyState = normalizedPopupClimateDeviceType2(device);
-  ((popupModuleClimateDeviceTypeElement.hidden = !isDevice),
-    (popupModuleFormElement.elements.deviceType.value = deviceIdKeyState));
-  for (const deviceIdKeyElement of popupModuleClimateDeviceTypeElement.querySelectorAll(
-    "[data-popup-module-device-type]",
-  )) {
-    const isDeviceNameValue = deviceIdKeyElement.dataset.popupModuleDeviceType === deviceIdKeyState;
-    (deviceIdKeyElement.classList.toggle("active", isDeviceNameValue),
-      deviceIdKeyElement.setAttribute("aria-pressed", String(isDeviceNameValue)));
-  }
-}
-function deviceNameValue(renderPopupList: any) {
-  return (
-    editorCtx.entities.find((sourceDocument: any) => sourceDocument.entityId === renderPopupList)?.name ||
-    renderPopupList ||
-    "未选择实体"
-  );
-}
-function initialPopupId() {
-  const customPopupList = popupModuleFormElement.elements.entityId.value,
-    customPopupListState = editorCtx.entities.find(
-      (renderPopupListState: any) => renderPopupListState.entityId === customPopupList,
-    ),
-    customPopupListValue = customPopupListState
-      ? "[" + runQueue(customPopupListState) + "] " + runSnapshot(customPopupListState)
-      : customPopupList || "选择实体";
-  (runBackup(
-    popupModuleEntityButtonElement,
-    customPopupListValue,
-    customPopupList || customPopupListValue,
-  ),
-    (popupModuleEntityButtonElement.dataset.entityId = customPopupList),
-    popupModuleEntityButtonElement._entityCopySync?.());
-}
-function runExtraRight(runExtraFirst = popupModuleEntitySearchElement.value) {
-  const customPopupListConfig = popupModuleFormElement.elements.entityId.value,
-    popupEmptyElementState = String(runExtraFirst || "")
-      .trim()
-      .toLocaleLowerCase("zh-CN"),
-    mappedItemsBuffer = editorCtx.entities
-      .map((mappedItemsCursor: any, mappedItemsPointer: any) => ({
-        entity: mappedItemsCursor,
-        index: mappedItemsPointer,
-      }))
-      .filter(
-        ({ entity: popupEntryValue }: any) =>
-          !popupEmptyElementState ||
-          (runMode(popupEntryValue) + " " + popupEntryValue.entityId)
-            .toLocaleLowerCase("zh-CN")
-            .includes(popupEmptyElementState),
-      )
-      .sort(
-        (popupEntryConfig: any, popupEntry: any) =>
-          Number(
-            popupModuleEntityRecommended2(
-              popupEntry.entity,
-              popupModuleFormElement.elements.type.value,
-            ),
-          ) -
-            Number(
-              popupModuleEntityRecommended2(
-                popupEntryConfig.entity,
-                popupModuleFormElement.elements.type.value,
-              ),
-            ) || popupEntryConfig.index - popupEntry.index,
-      )
-      .map(({ entity: candidatePopup }: any) => candidatePopup);
-  if (
-    (popupModuleEntityOptionsElement.replaceChildren(
-      ...mappedItemsBuffer.map((popupItem: any) => {
-        const popupItemElementElement = document.createElement("button");
-        ((popupItemElementElement.type = "button"),
-          (popupItemElementElement.className =
-            "inspector-entity-option" +
-            (popupItem.entityId === customPopupListConfig ? " selected" : "")),
-          (popupItemElementElement.dataset.popupModuleEntityId = popupItem.entityId),
-          popupItemElementElement.setAttribute("role", "option"),
-          popupItemElementElement.setAttribute(
-            "aria-selected",
-            String(popupItem.entityId === customPopupListConfig),
-          ));
-        const popupItemButtonPanel = document.createElement("span");
-        popupItemButtonPanel.className = "inspector-entity-option-content";
-        const popupItemButton = document.createElement("span");
-        ((popupItemButton.className = "inspector-entity-option-line inspector-entity-name-line"),
-          (popupItemButton.textContent =
-            "[" + runQueue(popupItem) + "] " + runSnapshot(popupItem)));
-        const popupItemNameElement = document.createElement("span");
-        return (
-          (popupItemNameElement.className = "inspector-entity-option-line inspector-entity-id"),
-          (popupItemNameElement.textContent = popupItem.entityId),
-          popupItemButtonPanel.append(popupItemButton, popupItemNameElement),
-          runAlt(popupItemElementElement, popupItemButton),
-          popupItemElementElement.append(popupItemButtonPanel),
-          popupItemElementElement
-        );
-      }),
-    ),
-    !mappedItemsBuffer.length)
-  ) {
-    const popupItemMetaElement = document.createElement("div");
-    ((popupItemMetaElement.className = "inspector-picker-empty"),
-      (popupItemMetaElement.textContent = "没有匹配的实体"),
-      popupModuleEntityOptionsElement.append(popupItemMetaElement));
-  }
-}
-function closePopupModuleEntityMenu() {
-  ((popupModuleEntityMenuElement.hidden = true),
-    popupModuleEntityButtonElement.setAttribute("aria-expanded", "false"));
-}
-function openPopupModuleDialog(popupModule: any = null) {
-  if (!findCustomPopup2(editorCtx.activeProject?.document, editorCtx.selectedPopupId)) return;
-  ((editorCtx.selectedPopupModuleId = popupModule?.id || null),
-    (popupModuleDialogTitleElement.textContent = popupModule ? "编辑弹窗模块" : "添加弹窗模块"));
-  const moduleTypeName = popupModule?.type === "capability-device" ? "generic" : popupModule?.type;
-  ((popupModuleFormElement.elements.type.value = [
-    "light",
-    "climate",
-    "air-purifier",
-    "water-heater",
-    "media-player",
-    "electric-bed",
-    "switch",
-    "cover",
-    "camera",
-    "line-chart",
-    "generic",
-  ].includes(moduleTypeName)
-    ? moduleTypeName
-    : "light"),
-    loadNavigationIconOptions(popupModuleFormElement.elements.type));
-  const defaultEntity =
-    editorCtx.entities.find((entityCandidate: any) =>
-      popupModuleEntityRecommended2(entityCandidate, popupModuleFormElement.elements.type.value),
-    ) || editorCtx.entities[0];
-  ((popupModuleFormElement.elements.entityId.value =
-    popupModule?.entityId || defaultEntity?.entityId || ""),
-    (popupModuleFormElement.elements.title.value = popupModule?.title || ""),
-    runExtraLeft(popupModule?.properties?.deviceType || popupModule?.deviceType || "auto"),
-    (popupModuleEntitySearchElement.value = ""),
-    initialPopupId(),
-    popupModuleEntityOptionsElement.replaceChildren(),
-    closePopupModuleEntityMenu(),
-    popupModuleDialogElement.showModal());
-}
-function renderPageSelect(projectDocument: any, preferredPagePath: any = null) {
-  if ((pageSelectElement.replaceChildren(), !projectDocument.pages.length))
-    return (
-      pageSelectElement.append(new Option("暂无页面", "")),
-      (pageSelectElement.disabled = true),
-      loadNavigationIconOptions(pageSelectElement),
-      false
-    );
-  const defaultPagePath = projectDocument.pages.some(
-    (pageRecord: any) => pageRecord.path === projectDocument.defaultPagePath,
-  )
-    ? projectDocument.defaultPagePath
-    : null;
-  for (const pageEntry of projectDocument.pages) {
-    const option = new Option(pageEntry.name, pageEntry.path);
-    ((option.dataset.defaultPage = String(pageEntry.path === defaultPagePath)),
-      pageSelectElement.append(option));
-  }
-  return (
-    (pageSelectElement.disabled = false),
-    (pageSelectElement.value =
-      preferredPagePath &&
-      projectDocument.pages.some((pageCheck: any) => pageCheck.path === preferredPagePath)
-        ? preferredPagePath
-        : defaultPagePath || projectDocument.pages[0].path),
-    loadNavigationIconOptions(pageSelectElement),
-    true
-  );
-}
-function retainExistingSelection(documentToCheck: any, pagePathFilter: any) {
-  const candidateSelectionIds = editorCtx.selectedComponentIdsSet.size
-    ? [...editorCtx.selectedComponentIdsSet]
-    : editorCtx.selectedComponentId
-      ? [editorCtx.selectedComponentId]
-      : [];
-  ((editorCtx.selectedComponentIdsSet = new Set(
-    candidateSelectionIds.filter((componentIdCandidate) => {
-      const candidateComponent = findComponent2(documentToCheck, componentIdCandidate);
-      return (
-        candidateComponent &&
-        (candidateComponent.scope !== "page" || candidateComponent.page?.path === pagePathFilter)
-      );
-    }),
-  )),
-    editorCtx.selectedComponentIdsSet.has(editorCtx.selectedComponentId) ||
-      (editorCtx.selectedComponentId = editorCtx.selectedComponentIdsSet.values().next().value || null),
-    editorCtx.selectedComponentId || (editorCtx.selectionAnchorComponentId = null));
-}
+function buildTitleButtonInspectorContext(...args: any[]): ReturnType<typeof buildTitleButtonInspectorContextImpl> { return (buildTitleButtonInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
+function syncTitleButtonInspector(...args: any[]): ReturnType<typeof syncTitleButtonInspectorImpl> { return (syncTitleButtonInspectorImpl as any)(inspectorContextsDeps(), ...args); }
+function buildLightStatisticsInspectorContext(...args: any[]): ReturnType<typeof buildLightStatisticsInspectorContextImpl> { return (buildLightStatisticsInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
+function syncLightStatisticsInspector(...args: any[]): ReturnType<typeof syncLightStatisticsInspectorImpl> { return (syncLightStatisticsInspectorImpl as any)(inspectorContextsDeps(), ...args); }
+function buildCameraInspectorContext(...args: any[]): ReturnType<typeof buildCameraInspectorContextImpl> { return (buildCameraInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
+function syncCameraInspector(...args: any[]): ReturnType<typeof syncCameraInspectorImpl> { return (syncCameraInspectorImpl as any)(inspectorContextsDeps(), ...args); }
+function buildVacuumMapInspectorContext(...args: any[]): ReturnType<typeof buildVacuumMapInspectorContextImpl> { return (buildVacuumMapInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
+function syncVacuumMapInspector(...args: any[]): ReturnType<typeof syncVacuumMapInspectorImpl> { return (syncVacuumMapInspectorImpl as any)(inspectorContextsDeps(), ...args); }
+function buildCoverMotorInspectorContext(...args: any[]): ReturnType<typeof buildCoverMotorInspectorContextImpl> { return (buildCoverMotorInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
+function coverMotorButtonElement(...args: any[]): ReturnType<typeof coverMotorButtonElementImpl> { return (coverMotorButtonElementImpl as any)(inspectorContextsDeps(), ...args); }
+function computeCoverMotorStyleChanges(...args: any[]): ReturnType<typeof computeCoverMotorStyleChangesImpl> { return (computeCoverMotorStyleChangesImpl as any)(inspectorContextsDeps(), ...args); }
+function reloadAssetCatalog(...args: any[]): ReturnType<typeof reloadAssetCatalogImpl> { return (reloadAssetCatalogImpl as any)(inspectorContextsDeps(), ...args); }
+function pollAssetCatalogVersion(...args: any[]): ReturnType<typeof pollAssetCatalogVersionImpl> { return (pollAssetCatalogVersionImpl as any)(inspectorContextsDeps(), ...args); }
+function ensureEntitiesLoaded(...args: any[]): ReturnType<typeof ensureEntitiesLoadedImpl> { return (ensureEntitiesLoadedImpl as any)(inspectorContextsDeps(), ...args); }
+function renderCustomPopupSelector(...args: any[]): ReturnType<typeof renderCustomPopupSelectorImpl> { return (renderCustomPopupSelectorImpl as any)(inspectorContextsDeps(), ...args); }
+function syncPopupEntityInputs(...args: any[]): ReturnType<typeof syncPopupEntityInputsImpl> { return (syncPopupEntityInputsImpl as any)(inspectorContextsDeps(), ...args); }
+function syncPopupModuleClimateDeviceType(...args: any[]): ReturnType<typeof syncPopupModuleClimateDeviceTypeImpl> { return (syncPopupModuleClimateDeviceTypeImpl as any)(inspectorContextsDeps(), ...args); }
+function deviceNameValue(...args: any[]): ReturnType<typeof deviceNameValueImpl> { return (deviceNameValueImpl as any)(inspectorContextsDeps(), ...args); }
+function initialPopupId(...args: any[]): ReturnType<typeof initialPopupIdImpl> { return (initialPopupIdImpl as any)(inspectorContextsDeps(), ...args); }
+function renderPopupModuleEntityOptions(...args: any[]): ReturnType<typeof renderPopupModuleEntityOptionsImpl> { return (renderPopupModuleEntityOptionsImpl as any)(inspectorContextsDeps(), ...args); }
+function closePopupModuleEntityMenu(...args: any[]): ReturnType<typeof closePopupModuleEntityMenuImpl> { return (closePopupModuleEntityMenuImpl as any)(inspectorContextsDeps(), ...args); }
+function openPopupModuleDialog(...args: any[]): ReturnType<typeof openPopupModuleDialogImpl> { return (openPopupModuleDialogImpl as any)(inspectorContextsDeps(), ...args); }
+function renderPageSelect(...args: any[]): ReturnType<typeof renderPageSelectImpl> { return (renderPageSelectImpl as any)(inspectorContextsDeps(), ...args); }
+function retainExistingSelection(...args: any[]): ReturnType<typeof retainExistingSelectionImpl> { return (retainExistingSelectionImpl as any)(inspectorContextsDeps(), ...args); }
 const structureVolatileTypesSet = new Set();
-function collectChangedComponents(previousDocument: any, nextDocument: any, runExtraSecond: any) {
-  if (
-    editorCtx.editorMode !== "edit" ||
-    !editorCtx.editorRenderer ||
-    editorCtx.editorRenderer.page?.path !== runExtraSecond ||
-    editorDocumentFrameSignature2(previousDocument) !== editorDocumentFrameSignature2(nextDocument)
-  )
-    return null;
-  const previousEntries = editorComponentEntries2(previousDocument),
-    nextEntries = editorComponentEntries2(nextDocument);
-  if (
-    previousEntries.order.length !== nextEntries.order.length ||
-    previousEntries.order.some(
-      (orderComponentId: any, orderIndex: any) => orderComponentId !== nextEntries.order[orderIndex],
-    ) ||
-    previousEntries.entries.size !== nextEntries.entries.size
-  )
-    return null;
-  const changedComponents: any[] = [];
-  for (const [componentIdKey, previousEntry] of previousEntries.entries) {
-    const nextEntry = nextEntries.entries.get(componentIdKey);
-    if (
-      !nextEntry ||
-      previousEntry.scope !== nextEntry.scope ||
-      previousEntry.pagePath !== nextEntry.pagePath ||
-      previousEntry.parentId !== nextEntry.parentId ||
-      structureVolatileTypesSet.has(previousEntry.component.type) ||
-      editorComponentStructure2(previousEntry.component) !==
-        editorComponentStructure2(nextEntry.component)
-    )
-      return null;
-    const { children: component3, ...component4 } = previousEntry.component,
-      { children: component5, ...component6 } = nextEntry.component;
-    if (JSON.stringify(component4) !== JSON.stringify(component6)) {
-      if (!editorCtx.editorRenderer.componentHosts.has(componentIdKey)) {
-        let ancestorEntry = nextEntry;
-        for (; ancestorEntry.parentId;)
-          ancestorEntry = nextEntries.entries.get(ancestorEntry.parentId);
-        if (
-          nextEntry.scope === "shared"
-            ? (editorCtx.editorRenderer.page.sharedComponentIds || []).includes(ancestorEntry.component.id)
-            : nextEntry.pagePath === runExtraSecond
-        )
-          return null;
-        continue;
-      }
-      changedComponents.push({
-        componentId: componentIdKey,
-        component: nextEntry.component,
-      });
-    }
-  }
-  return changedComponents;
+function collectChangedComponents(...args: any[]): ReturnType<typeof collectChangedComponentsImpl> { return (collectChangedComponentsImpl as any)(inspectorContextsDeps(), ...args); }
+function workspaceHistoryDeps(): WorkspaceHistoryDeps {
+  return {
+    ...homeElements,
+    get airConditionerBaselineByComponentId() { return airConditionerBaselineByComponentId; },
+    get applyTransformToInspector() { return applyTransformToInspector; },
+    get clearComponentSelection() { return clearComponentSelection; },
+    get collectChangedComponents() { return collectChangedComponents; },
+    get collectPageComponentBounds() { return collectPageComponentBounds; },
+    get coverMotorButtonElement() { return coverMotorButtonElement; },
+    get currentPage() { return currentPage; },
+    get dashboardPreviewElement() { return dashboardPreviewElement; },
+    get discardRecoverySnapshot() { return discardRecoverySnapshot; },
+    get editorCtx() { return editorCtx; },
+    get ensureEditorRenderer() { return ensureEditorRenderer; },
+    get ensureEntitiesLoaded() { return ensureEntitiesLoaded; },
+    get entryStateRecord() { return entryStateRecord; },
+    get handleOperationError() { return handleOperationError; },
+    get historyEntries() { return historyEntries; },
+    get historyEntry() { return historyEntry; },
+    get historySeriesCacheById() { return historySeriesCacheById; },
+    get historyState() { return historyState; },
+    get iconButtonBaselineByComponentId() { return iconButtonBaselineByComponentId; },
+    get iconButtonEffectBaselineByComponentId() { return iconButtonEffectBaselineByComponentId; },
+    get interaction3dEntryActive() { return interaction3dEntryActive; },
+    get lineChartBaselineByComponentId() { return lineChartBaselineByComponentId; },
+    get loadHaConnection() { return loadHaConnection; },
+    get loadNavigationIconOptions() { return loadNavigationIconOptions; },
+    get MAX_HISTORY_ENTRIES() { return MAX_HISTORY_ENTRIES; },
+    get mutateDocument() { return mutateDocument; },
+    get navigationButtonSavedSettingsByComponentId() { return navigationButtonSavedSettingsByComponentId; },
+    get onImageAssetUploadButtonClick() { return onImageAssetUploadButtonClick; },
+    get panelFrameBaselineByComponentId() { return panelFrameBaselineByComponentId; },
+    get projectSummary() { return projectSummary; },
+    get readRecoverySnapshot() { return readRecoverySnapshot; },
+    get recoverDraftConflict() { return recoverDraftConflict; },
+    get RECOVERY_STORAGE_PREFIX() { return RECOVERY_STORAGE_PREFIX; },
+    get recoveryWriter() { return recoveryWriter; },
+    get refreshDirtyState() { return refreshDirtyState; },
+    get refreshSoundToggle() { return refreshSoundToggle; },
+    get removedComponent() { return removedComponent; },
+    get renderComponentLists() { return renderComponentLists; },
+    get renderCustomPopupEditor() { return renderCustomPopupEditor; },
+    get renderEditorWorkspace() { return renderEditorWorkspace; },
+    get renderPageSelect() { return renderPageSelect; },
+    get renderWorkspaceResolution() { return renderWorkspaceResolution; },
+    get requestJson() { return requestJson; },
+    get resizeWorkspaceCanvas() { return resizeWorkspaceCanvas; },
+    get retainExistingSelection() { return retainExistingSelection; },
+    get runCase() { return renderDashboardPreview; },
+    get runExtraLower() { return syncPopupEntityInputs; },
+    get runExtraOld() { return resetHistoryState; },
+    get runExtraOuter() { return renderCustomPopupSelector; },
+    get runKey() { return syncWorkspaceEmptyState; },
+    get runSlot() { return destroyDashboardPreviewRenderer; },
+    get runtimeStateCacheById() { return runtimeStateCacheById; },
+    get runZone() { return renderLightStatisticsEntityList; },
+    get saveDraft() { return saveDraft; },
+    get scheduleRecoverySnapshot() { return scheduleRecoverySnapshot; },
+    get setPageControlsEnabled() { return setPageControlsEnabled; },
+    get syncHistoryButtons() { return syncHistoryButtons; },
+    get virtualEntityStateCacheById() { return virtualEntityStateCacheById; },
+    get writeError() { return writeError; },
+  };
 }
-function collectPageComponentBounds(): Array<{
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}> {
-  const page = currentPage();
-  return (page?.components || [])
-    .map((componentEntry: any) => ({
-      id: componentEntry.id,
-      x: Number(componentEntry.position?.x || 0),
-      y: Number(componentEntry.position?.y || 0),
-      width: Number(componentEntry.position?.width || 100),
-      height: Number(componentEntry.position?.height || 100),
-    }))
-    .filter((bounds: any) => bounds.id);
-}
+function collectPageComponentBounds(...args: any[]): ReturnType<typeof collectPageComponentBoundsImpl> { return (collectPageComponentBoundsImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function alignSelectedComponents(mode: AlignMode) {
-  const selectedBounds = collectPageComponentBounds().filter((bounds) =>
-    editorCtx.selectedComponentIdsSet.has(bounds.id),
-  );
-  const nextPositions = computeAlignedPositions(selectedBounds, mode);
-  if (!nextPositions.length) return;
-  mutateDocument((alignDocument: any) => {
-    for (const position of nextPositions) {
-      const component = findComponent2(alignDocument, position.id)?.component;
-      if (!component) continue;
-      component.position = {
-        ...(component.position || {}),
-        x: position.x,
-        y: position.y,
-      };
-    }
-  });
-}
+function alignSelectedComponents(...args: any[]): ReturnType<typeof alignSelectedComponentsImpl> { return (alignSelectedComponentsImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function ensureEditorRenderer() {
-  return (
-    editorCtx.editorRenderer ||
-    ((editorCtx.editorRenderer = new PanelRenderer2(editorCanvasElement, {
-      editable: true,
-      editorWorkspace: true,
-      historySeriesCache: historySeriesCacheById,
-      runtimeStateCache: runtimeStateCacheById,
-      virtualEntityStateCache: virtualEntityStateCacheById,
-      onSelectionChange(nextIds: string[], primaryId: string | null) {
-        editorCtx.selectedComponentIdsSet = new Set(nextIds || []);
-        editorCtx.selectedComponentId = primaryId || null;
-        editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId;
-        renderComponentLists();
-        coverMotorButtonElement();
-        syncHistoryButtons();
-      },
-      onComponentTransform(transformedComponentId: any, componentTransform: any) {
-        ((editorCtx.selectedComponentId = transformedComponentId),
-          (editorCtx.selectedComponentIdsSet = new Set([transformedComponentId])),
-          mutateDocument((transformDocument: any) => {
-            const draftComponent = findComponent2(
-              transformDocument,
-              transformedComponentId,
-            )?.component;
-            if (!draftComponent) return;
-            const $e2 = entryStateRecord(draftComponent, "width"),
-              $e3 = entryStateRecord(draftComponent, "height"),
-              $e4 = entryStateRecord(draftComponent, "scale"),
-              $e5 = entryStateRecord(draftComponent, "rotation"),
-              {
-                scale: nextScale,
-                airflowOffsetX: nextAirflowOffsetX,
-                airflowOffsetY: nextAirflowOffsetY,
-                ...positionPatch
-              } = componentTransform;
-            ((draftComponent.position = {
-              ...(draftComponent.position || {}),
-              ...positionPatch,
-            }),
-              Number.isFinite(nextScale) &&
-                (draftComponent.style = {
-                  ...(draftComponent.style || {}),
-                  scale: nextScale,
-                }),
-              draftComponent.type === "air-conditioner" &&
-                (Number.isFinite(nextAirflowOffsetX) || Number.isFinite(nextAirflowOffsetY)) &&
-                (draftComponent.properties = {
-                  ...(draftComponent.properties || {}),
-                  ...(Number.isFinite(nextAirflowOffsetX)
-                    ? {
-                        airflowOffsetX: nextAirflowOffsetX,
-                      }
-                    : {}),
-                  ...(Number.isFinite(nextAirflowOffsetY)
-                    ? {
-                        airflowOffsetY: nextAirflowOffsetY,
-                      }
-                    : {}),
-                }),
-              navigationLabelTextInputElement(draftComponent) &&
-                Number.isFinite(componentTransform.width) &&
-                onImageAssetUploadButtonClick(
-                  transformedComponentId,
-                  "width",
-                  $e2,
-                  entryStateRecord(draftComponent, "width"),
-                ),
-              navigationLabelTextInputElement(draftComponent) &&
-                Number.isFinite(componentTransform.height) &&
-                onImageAssetUploadButtonClick(
-                  transformedComponentId,
-                  "height",
-                  $e3,
-                  entryStateRecord(draftComponent, "height"),
-                ),
-              navigationLabelTextInputElement(draftComponent) &&
-                Number.isFinite(componentTransform.scale) &&
-                onImageAssetUploadButtonClick(
-                  transformedComponentId,
-                  "scale",
-                  $e4,
-                  entryStateRecord(draftComponent, "scale"),
-                ),
-              navigationLabelTextInputElement(draftComponent) &&
-                Number.isFinite(componentTransform.rotation) &&
-                onImageAssetUploadButtonClick(
-                  transformedComponentId,
-                  "rotation",
-                  $e5,
-                  entryStateRecord(draftComponent, "rotation"),
-                ));
-          }));
-      },
-      onComponentsTransform(leadComponentId: any, transformDraftDocument: any) {
-        ((editorCtx.selectedComponentId = transformDraftDocument),
-          mutateDocument((transformEntry: any) => {
-            for (const vector of leadComponentId) {
-              const entryComponent = findComponent2(transformEntry, vector.componentId)?.component;
-              entryComponent &&
-                ((entryComponent.position = {
-                  ...(entryComponent.position || {}),
-                  ...(Number.isFinite(vector.x)
-                    ? {
-                        x: vector.x,
-                      }
-                    : {}),
-                  ...(Number.isFinite(vector.y)
-                    ? {
-                        y: vector.y,
-                      }
-                    : {}),
-                  ...(Number.isFinite(vector.rotation)
-                    ? {
-                        rotation: vector.rotation,
-                      }
-                    : {}),
-                }),
-                Number.isFinite(vector.scale) &&
-                  (entryComponent.style = {
-                    ...(entryComponent.style || {}),
-                    scale: vector.scale,
-                  }));
-            }
-          }));
-      },
-      onComponentDuplicate(sourceComponentIdState: any, sourceComponentId: any) {
-        ((editorCtx.selectedComponentId = sourceComponentId.id),
-          (editorCtx.selectedComponentIdsSet = new Set([sourceComponentId.id])),
-          (editorCtx.selectionAnchorComponentId = sourceComponentId.id),
-          mutateDocument((copiedComponent: any) => {
-            duplicateComponent(copiedComponent, sourceComponentIdState, sourceComponentId, false);
-          }));
-      },
-      onComponentsDuplicate(duplicateDraftDocument: any, _copiedComponentEntries: any, draggedCopyId: any) {
-        const copiedComponentIds = duplicateDraftDocument.map(
-          (copiedComponentEntry: any) => copiedComponentEntry.copiedComponent.id,
-        );
-        ((editorCtx.selectedComponentId = draggedCopyId || copiedComponentIds[0] || null),
-          (editorCtx.selectedComponentIdsSet = new Set(copiedComponentIds)),
-          (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
-          mutateDocument((duplicateApplyDocument: any) => {
-            for (const duplicateEntry of duplicateDraftDocument)
-              duplicateComponent(
-                duplicateApplyDocument,
-                duplicateEntry.sourceComponentId,
-                duplicateEntry.copiedComponent,
-                false,
-              );
-          }));
-      },
-      onComponentTransformPreview(previewedComponentId: any, previewedTransformPatch: any) {
-        applyTransformToInspector(previewedComponentId, previewedTransformPatch);
-      },
-      onComponentProperties(propertyComponentId: any, propertyPatch: any) {
-        mutateDocument((propertyDraftDocument: any) => {
-          const propertyComponent = findComponent2(
-            propertyDraftDocument,
-            propertyComponentId,
-          )?.component;
-          !propertyComponent ||
-            !["air-conditioner", "presence-sensor"].includes(propertyComponent.type) ||
-            (propertyComponent.type === "presence-sensor" &&
-              propertyComponent.properties?.sensorKind !== "door-window") ||
-            (propertyComponent.properties = {
-              ...(propertyComponent.properties || {}),
-              ...propertyPatch,
-            });
-        });
-      },
-      onComponentPropertiesPreview(previewPropertyComponentId: any, previewPropertyPatch: any) {
-        previewPropertyComponentId === editorCtx.selectedComponentId &&
-          (Number.isFinite(previewPropertyPatch.airflowScale) &&
-            (airConditionerAirflowScaleElement.value = roundField2(
-              previewPropertyPatch.airflowScale * 100,
-            )),
-          Number.isFinite(previewPropertyPatch.airflowRotation) &&
-            (airConditionerAirflowRotationElement.value = roundField2(
-              previewPropertyPatch.airflowRotation,
-            )),
-          Number.isFinite(previewPropertyPatch.airflowOffsetX) &&
-            (airConditionerAirflowOffsetXElement.value = roundField2(
-              previewPropertyPatch.airflowOffsetX,
-            )),
-          Number.isFinite(previewPropertyPatch.airflowOffsetY) &&
-            (airConditionerAirflowOffsetYElement.value = roundField2(
-              previewPropertyPatch.airflowOffsetY,
-            )));
-      },
-      onComponentsTransformPreview(previewTransformList: any, previewLeadComponentId: any) {
-        editorCtx.selectedComponentId = previewLeadComponentId;
-        const matchedTransformPreview = previewTransformList.find(
-          (candidateTransformEntry: any) =>
-            candidateTransformEntry.componentId === previewLeadComponentId,
-        );
-        matchedTransformPreview &&
-          applyTransformToInspector(previewLeadComponentId, matchedTransformPreview);
-      },
-      onError: handleOperationError,
-      onRuntimeStateChange() {
-        const runtimeSelectedComponent = removedComponent();
-        runtimeSelectedComponent?.type === "light-statistics" && runZone(runtimeSelectedComponent);
-      },
-      onPageChange(pageSelection: any) {
-        ((pageSelectElement.value = pageSelection.path),
-          loadNavigationIconOptions(pageSelectElement),
-          retainExistingSelection(editorCtx.activeProject?.document, pageSelection.path),
-          editorCtx.editorRenderer?.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId),
-          renderComponentLists(),
-          coverMotorButtonElement());
-      },
-    })),
-    editorCtx.editorRenderer.setEntityCatalog(editorCtx.entities, editorCtx.entityResourcesByDeviceId, editorCtx.devices),
-    editorCtx.editorRenderer)
-  );
-}
-function renderEditorWorkspace(activePagePath: any = null) {
-  (refreshSoundToggle(),
-    renderWorkspaceResolution(),
-    runExtraOuter(editorCtx.activeProject.document, editorCtx.selectedPopupId));
-  const dL2 = renderPageSelect(editorCtx.activeProject.document, activePagePath);
-  if ((setPageControlsEnabled(dL2), resizeWorkspaceCanvas(), !dL2)) {
-    (clearComponentSelection(),
-      editorCtx.editorRenderer?.destroy(),
-      (editorCtx.editorRenderer = null),
-      (editorCanvasElement.innerHTML =
-        '<div class="canvas-message"><strong>请从左侧新建页面。</strong></div>'),
-      renderComponentLists(),
-      coverMotorButtonElement(),
-      runCase(activePagePath),
-      editorCtx.editorMode === "popup" && renderCustomPopupEditor());
-    return;
-  }
-  (retainExistingSelection(editorCtx.activeProject.document, pageSelectElement.value),
-    editorCtx.editorMode === "edit"
-      ? (ensureEditorRenderer().setDocument(editorCtx.activeProject.document, pageSelectElement.value),
-        editorCtx.editorRenderer.setActiveGroup(editorCtx.activeGroupId),
-        editorCtx.editorRenderer.setSelectedComponents([...editorCtx.selectedComponentIdsSet], editorCtx.selectedComponentId))
-      : (editorCtx.editorRenderer?.destroy(), (editorCtx.editorRenderer = null)),
-    renderComponentLists(),
-    coverMotorButtonElement(),
-    editorCtx.editorMode === "dashboard"
-      ? runCase(pageSelectElement.value)
-      : editorCtx.editorMode === "popup"
-        ? renderCustomPopupEditor()
-        : runSlot());
-}
-function syncHistoryButtons() {
-  ((undoElement.disabled =
-    editorCtx.isSaving || historyState.busy || !historyState.undo.length || !editorCtx.activeProject),
-    (redoElement.disabled =
-      editorCtx.isSaving || historyState.busy || !historyState.redo.length || !editorCtx.activeProject));
-  patchEditorFacadeState({
-    dirty: editorCtx.hasUnsavedChanges,
-    saveState: editorCtx.isSaving ? "saving" : editorCtx.hasUnsavedChanges ? "dirty" : "idle",
-    projectId: editorCtx.activeProject?.projectId || null,
-    projectName: editorCtx.activeProject?.name || editorCtx.activeProject?.title || "",
-    pagePath: pageSelectElement?.value || null,
-    canvasZoom: editorCtx.editorCanvasZoom,
-    history: {
-      canUndo: !undoElement.disabled,
-      canRedo: !redoElement.disabled,
-      undoDepth: historyState.undo.length,
-      redoDepth: historyState.redo.length,
-    },
-    selection: {
-      ids: [...editorCtx.selectedComponentIdsSet],
-      primaryId: editorCtx.selectedComponentId || null,
-    },
-  });
-}
+function ensureEditorRenderer(...args: any[]): ReturnType<typeof ensureEditorRendererImpl> { return (ensureEditorRendererImpl as any)(workspaceHistoryDeps(), ...args); }
+function renderEditorWorkspace(...args: any[]): ReturnType<typeof renderEditorWorkspaceImpl> { return (renderEditorWorkspaceImpl as any)(workspaceHistoryDeps(), ...args); }
+function syncHistoryButtons(...args: any[]): ReturnType<typeof syncHistoryButtonsImpl> { return (syncHistoryButtonsImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function applyEditorCanvasZoom(nextZoom: number) {
-  editorCtx.editorCanvasZoom = applyEditorZoomCss(nextZoom, [editorCanvasElement, dashboardPreviewElement]);
-  patchEditorFacadeState({ canvasZoom: editorCtx.editorCanvasZoom });
-  resizeWorkspaceCanvas();
-}
+function applyEditorCanvasZoom(...args: any[]): ReturnType<typeof applyEditorCanvasZoomImpl> { return (applyEditorCanvasZoomImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function selectAllPageComponents() {
-  const page = currentPage();
-  const ids = (page?.components || []).map((componentEntry: any) => componentEntry.id).filter(Boolean);
-  if (!ids.length) return;
-  editorCtx.selectedComponentIdsSet = new Set(ids);
-  editorCtx.selectedComponentId = ids[0];
-  editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId;
-  coverMotorButtonElement();
-  syncHistoryButtons();
-}
-function discardRecoverySnapshot(recoveryProjectId = editorCtx.activeProject?.projectId) {
-  if (recoveryProjectId) {
-    recoveryWriter.cancel(recoveryProjectId);
-    try {
-      sessionStorage.removeItem(recoveryStorageKey2(RECOVERY_STORAGE_PREFIX, recoveryProjectId));
-    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
-  }
-}
-function readRecoverySnapshot(snapshotProjectId: any) {
-  try {
-    const item = sessionStorage.getItem(
-      recoveryStorageKey2(RECOVERY_STORAGE_PREFIX, snapshotProjectId),
-    );
-    if (!item) return null;
-    const parsedRecoverySnapshot = JSON.parse(item);
-    return !parsedRecoverySnapshot?.document ||
-      parsedRecoverySnapshot.projectId !== snapshotProjectId
-      ? null
-      : parsedRecoverySnapshot;
-  } catch {
-    return null;
-  }
-}
+function selectAllPageComponents(...args: any[]): ReturnType<typeof selectAllPageComponentsImpl> { return (selectAllPageComponentsImpl as any)(workspaceHistoryDeps(), ...args); }
+function discardRecoverySnapshot(...args: any[]): ReturnType<typeof discardRecoverySnapshotImpl> { return (discardRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
+function readRecoverySnapshot(...args: any[]): ReturnType<typeof readRecoverySnapshotImpl> { return (readRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
 const recoveryWriter = createRecoveryWriter2(persistRecoverySnapshot);
 (window.addEventListener("pagehide", recoveryWriter.flush),
   window.addEventListener("beforeunload", recoveryWriter.flush),
   document.addEventListener("visibilitychange", () => {
     document.hidden && recoveryWriter.flush();
   }));
-function scheduleRecoverySnapshot() {
-  if (!editorCtx.activeProject || !editorCtx.hasUnsavedChanges) return;
-  const recoveryFailureNotifiedProjectId = {
-    projectId: editorCtx.activeProject.projectId,
-    revision: editorCtx.activeProject.revision,
-    document: editorCtx.activeProject.document,
-    selectedPath: pageSelectElement.value,
-    selectedComponentId: editorCtx.selectedComponentId,
-    selectedComponentIds: [...editorCtx.selectedComponentIdsSet],
-    undo: [...historyState.undo],
-    redo: [...historyState.redo],
-    savedAt: new Date().toISOString(),
-  };
-  recoveryWriter.schedule(recoveryFailureNotifiedProjectId);
-}
-function persistRecoverySnapshot(recoveryState: any) {
-  try {
-    sessionStorage.setItem(
-      recoveryStorageKey2(RECOVERY_STORAGE_PREFIX, recoveryState.projectId),
-      JSON.stringify(recoveryState),
-    );
-  } catch {
-    try {
-      sessionStorage.setItem(
-        recoveryStorageKey2(RECOVERY_STORAGE_PREFIX, recoveryState.projectId),
-        JSON.stringify({
-          projectId: recoveryState.projectId,
-          revision: recoveryState.revision,
-          document: recoveryState.document,
-          selectedPath: recoveryState.selectedPath,
-          selectedComponentId: recoveryState.selectedComponentId,
-          selectedComponentIds: recoveryState.selectedComponentIds,
-          undo: [] as any[],
-          redo: [] as any[],
-          savedAt: recoveryState.savedAt,
-        }),
-      );
-    } catch { /* 存储写入是 best-effort：隐私模式 / 配额 / 序列化失败都不应影响本次渲染 */ }
-  }
-}
-function writeError({
-  preserveRecovery: notifyRecoveryWriteFailure = false,
-  signature: runExtraLast = null,
-}: any = {}) {
-  ((editorCtx.hasUnsavedChanges =
-    !!editorCtx.activeProject &&
-    (runExtraLast ?? documentSignature2(editorCtx.activeProject.document)) !== editorCtx.savedDocumentSignature),
-    (saveButtonElement.disabled = !editorCtx.activeProject || !editorCtx.hasUnsavedChanges || editorCtx.isSaving),
-    editorCtx.hasUnsavedChanges
-      ? scheduleRecoverySnapshot()
-      : notifyRecoveryWriteFailure || discardRecoverySnapshot());
-}
-function runExtraOld() {
-  ((historyState.undo = []),
-    (historyState.redo = []),
-    (historyState.busy = false),
-    syncHistoryButtons());
-}
-function refreshDirtyState(keepRecovery: any, signatureOverride: any) {
-  for (
-    keepRecovery.push(signatureOverride);
-    keepRecovery.filter((resetHistoryState: any) => resetHistoryState.kind !== "save").length >
-    MAX_HISTORY_ENTRIES;
-  ) {
-    const pushHistoryEntryState = keepRecovery.findIndex(
-      (pushHistoryEntry: any) => pushHistoryEntry.kind !== "save",
-    );
-    if (pushHistoryEntryState < 0) break;
-    keepRecovery.splice(pushHistoryEntryState, 1);
-  }
-  keepRecovery.length > MAX_HISTORY_ENTRIES * 2 &&
-    keepRecovery.splice(0, keepRecovery.length - MAX_HISTORY_ENTRIES * 2);
-}
-function historyEntries() {
-  return {
-    kind: "edit",
-    document: clone2(editorCtx.activeProject.document),
-    selectedPath: pageSelectElement.value,
-    selectedComponentId: editorCtx.selectedComponentId,
-    selectedComponentIds: [...editorCtx.selectedComponentIdsSet],
-  };
-}
-async function historyEntry(prunedEntry: any, pruneCandidate: any = null) {
-  const createEditHistoryEntryState = ++editorCtx.activeProjectState;
-  recoveryWriter.flush();
-  let createEditHistoryEntry;
-  try {
-    if (
-      ((createEditHistoryEntry = await requestJson("/projects/" + prunedEntry + "/draft")),
-      createEditHistoryEntryState !== editorCtx.activeProjectState)
-    )
-      return;
-  } catch (openProjectDraft: any) {
-    if (createEditHistoryEntryState !== editorCtx.activeProjectState) return;
-    throw openProjectDraft;
-  }
-  (recoveryWriter.flush(),
-    (editorCtx.activeProject = createEditHistoryEntry),
-    (editorCtx.componentScopeState += 1),
-    window.HomeOSLog?.setContext!({
-      projectId: prunedEntry,
-    })!,
-    navigationButtonSavedSettingsByComponentId.clear(),
-    clearCoverMotorDirectionValueById(),
-    panelFrameBaselineByComponentId.clear(),
-    lineChartBaselineByComponentId.clear(),
-    iconButtonEffectBaselineByComponentId.clear(),
-    iconButtonBaselineByComponentId.clear(),
-    airConditionerBaselineByComponentId.clear());
-  const mappedItemByIdByKey = new Map(
-    nasProfiles2(editorCtx.entities, editorCtx.devices).map((requestedProjectId) => [
-      requestedProjectId.deviceId,
-      requestedProjectId,
-    ]),
-  );
-  (reconcileNasDocument2(editorCtx.activeProject.document, mappedItemByIdByKey),
-    (editorCtx.baselineDocument = clone2(editorCtx.activeProject.document)),
-    (editorCtx.savedDocumentSignature = documentSignature2(editorCtx.activeProject.document)),
-    (editorCtx.recoverySnapshot = readRecoverySnapshot(prunedEntry)),
-    editorCtx.recoverySnapshot && reconcileNasDocument2(editorCtx.recoverySnapshot.document, mappedItemByIdByKey),
-    editorCtx.recoverySnapshot &&
-      (editorCtx.recoverySnapshot.revision !== editorCtx.activeProject.revision ||
-        documentSignature2(editorCtx.recoverySnapshot.document) === editorCtx.savedDocumentSignature) &&
-      (discardRecoverySnapshot(prunedEntry), (editorCtx.recoverySnapshot = null)),
-    clearComponentSelection(),
-    runExtraOld(),
-    writeError({
-      preserveRecovery: !!editorCtx.recoverySnapshot,
-    }),
-    runKey(true),
-    (projectSelectElement.value = prunedEntry),
-    loadNavigationIconOptions(projectSelectElement),
-    renderEditorWorkspace(pruneCandidate),
-    rememberEditorProject2(prunedEntry),
-    editorCtx.recoverySnapshot && !editorCtx.isAreEntitiesLoaded && (await ensureEntitiesLoaded().catch(() => {})),
-    createEditHistoryEntryState === editorCtx.activeProjectState &&
-      editorCtx.recoverySnapshot &&
-      editorCtx.activeProject?.projectId === prunedEntry &&
-      !recoveryDialogElement.open &&
-      recoveryDialogElement.showModal());
-}
-async function initialPagePath(loadProjects: any = null) {
-  if (
-    ((editorCtx.projects = (await requestJson("/projects")).items || []),
-    projectSelectElement.replaceChildren(),
-    !editorCtx.projects.length)
-  ) {
-    ((editorCtx.activeProjectState += 1),
-      (editorCtx.componentScopeState += 1),
-      editorCtx.editorRenderer?.destroy(),
-      (editorCtx.editorRenderer = null),
-      runSlot(),
-      (editorCtx.activeProject = null),
-      navigationButtonSavedSettingsByComponentId.clear(),
-      clearCoverMotorDirectionValueById(),
-      panelFrameBaselineByComponentId.clear(),
-      lineChartBaselineByComponentId.clear(),
-      iconButtonEffectBaselineByComponentId.clear(),
-      iconButtonBaselineByComponentId.clear(),
-      airConditionerBaselineByComponentId.clear(),
-      clearComponentSelection(),
-      (editorCtx.baselineDocument = null),
-      (editorCtx.savedDocumentSignature = ""),
-      (editorCtx.recoverySnapshot = null),
-      runExtraOld(),
-      writeError(),
-      runKey(false),
-      setPageControlsEnabled(false),
-      projectSelectElement.append(new Option("暂无仪表盘", "")),
-      pageSelectElement.replaceChildren(new Option("暂无页面", "")),
-      popupSelectElement.replaceChildren(new Option("暂无组合弹窗", "")),
-      (popupListElement.innerHTML = '<div class="popup-list-empty">还没有组合弹窗</div>'),
-      (projectSelectElement.disabled = true),
-      (pageSelectElement.disabled = true),
-      (popupSelectElement.disabled = true),
-      (popupActionsButtonElement.disabled = true),
-      loadNavigationIconOptions(projectSelectElement),
-      loadNavigationIconOptions(pageSelectElement),
-      loadNavigationIconOptions(popupSelectElement),
-      renderComponentLists(),
-      runCase());
-    return;
-  }
-  for (const preferredProjectId of editorCtx.projects)
-    projectSelectElement.append(new Option(preferredProjectId.name, preferredProjectId.id));
-  ((projectSelectElement.disabled = false), loadNavigationIconOptions(projectSelectElement));
-  const projectSummaryState = restoredEditorProject2(editorCtx.projects, loadProjects);
-  await historyEntry(projectSummaryState);
-}
-async function projectSummary(
-  applyDocumentChange: any,
-  updatedDocument = pageSelectElement.value,
-  { recordHistory: targetPagePath = true, expectedSignature: shouldRecordHistory = null }: any = {},
-) {
-  if (!editorCtx.activeProject) throw new Error("请先选择仪表盘。");
-  const projectId = editorCtx.activeProject.projectId,
-    Ie3 = editorCtx.componentScopeState,
-    document2 = editorCtx.activeProject.document,
-    currentDocument = shouldRecordHistory ?? documentSignature2(document2),
-    updatedSignature = () => {
-      if (documentSignature2(editorCtx.activeProject.document) !== currentDocument)
-        throw new Error("等待期间产生了新编辑，已保留最新内容，请重试刚才的操作。");
-    };
-  updatedSignature();
-  const editHistoryEntry = documentSignature2(applyDocumentChange);
-  if (currentDocument === editHistoryEntry) return editorCtx.activeProject;
-  try {
-    await guardInteraction3dChanges2(document2, applyDocumentChange);
-  } catch (caughtErrorValue: any) {
-    if (editorCtx.componentScopeState !== Ie3 || editorCtx.activeProject?.projectId !== projectId) return null;
-    throw caughtErrorValue;
-  }
-  if (editorCtx.componentScopeState !== Ie3 || editorCtx.activeProject?.projectId !== projectId) return null;
-  updatedSignature();
-  const vL2 = collectChangedComponents(document2, applyDocumentChange, updatedDocument),
-    hl2 = historyEntries();
-  ((editorCtx.activeProject = {
-    ...editorCtx.activeProject,
-    document: clone2(applyDocumentChange),
-  }),
-    targetPagePath && (refreshDirtyState(historyState.undo, hl2), (historyState.redo = [])));
-  const matchingProject = editorCtx.projects.find(
-    (candidateProject: any) => candidateProject.id === editorCtx.activeProject.projectId,
-  );
-  matchingProject && (matchingProject.name = editorCtx.activeProject.document.name);
-  const selectedProjectOption = projectSelectElement.selectedOptions[0];
-  return (
-    selectedProjectOption && (selectedProjectOption.textContent = editorCtx.activeProject.document.name),
-    loadNavigationIconOptions(projectSelectElement),
-    vL2 && editorCtx.editorRenderer?.applyEditorComponentUpdates(editorCtx.activeProject.document, updatedDocument, vL2)
-      ? (renderComponentLists(), coverMotorButtonElement())
-      : interaction3dEntryActive() || renderEditorWorkspace(updatedDocument),
-    writeError({
-      signature: editHistoryEntry,
-    }),
-    syncHistoryButtons(),
-    editorCtx.activeProject
-  );
-}
-async function recoverDraftConflict(projectId2: any) {
-  let latestDraft;
-  try {
-    latestDraft = await requestJson("/projects/" + projectId2 + "/draft");
-  } catch (refreshLatestError: any) {
-    handleOperationError(refreshLatestError);
-    return;
-  }
-  if (!editorCtx.activeProject || editorCtx.activeProject.projectId !== projectId2) return;
-  const useRemote = await confirmAction({
-    kicker: "REVISION CONFLICT",
-    title: "草稿已在其它页面被更新",
-    message: "服务器上的这份草稿比你打开的更新，当前版本号已无法直接保存。",
-    detail: "「加载远端」丢弃本页未保存的修改；「保留本地并重试」保留当前编辑，改用最新版本号重新保存。",
-    confirmLabel: "加载远端",
-    cancelLabel: "保留本地并重试",
-    tone: "warning",
-  });
-  if (!editorCtx.activeProject || editorCtx.activeProject.projectId !== projectId2) return;
-  if (useRemote) {
-    await historyEntry(projectId2);
-    return;
-  }
-
-  editorCtx.activeProject = {
-    ...editorCtx.activeProject,
-    revision: latestDraft.revision,
-    globalPopupRevision: latestDraft.globalPopupRevision,
-  };
-  ((editorCtx.isSaving = false), writeError(), syncHistoryButtons());
-  await saveDraft();
-}
-async function saveDraft() {
-  if (!editorCtx.activeProject || !editorCtx.hasUnsavedChanges || editorCtx.isSaving || historyState.busy) return;
-  const projectId2 = editorCtx.activeProject.projectId,
-    Ie4 = editorCtx.componentScopeState,
-    baselineBeforeSave = clone2(editorCtx.baselineDocument),
-    draftBeforeSave = clone2(editorCtx.activeProject.document),
-    draftSignatureBeforeSave = documentSignature2(draftBeforeSave),
-    isPopupsDirty =
-      documentSignature2(draftBeforeSave.customPopups || []) !==
-      documentSignature2(editorCtx.baselineDocument.customPopups || []);
-  ((editorCtx.isSaving = true), writeError(), syncHistoryButtons());
-  try {
-    // 地址框不必先失焦：保存前先本地校验，非法地址不把整份草稿发上去。
-    validateGo2rtcDocument(draftBeforeSave);
-    const saveResponse = await requestJson("/projects/" + projectId2 + "/draft", {
-      method: "PUT",
-      hbLogContext: { projectId: projectId2, phase: "save-draft" },
-      body: JSON.stringify({
-        revision: editorCtx.activeProject.revision,
-        globalPopupRevision: editorCtx.activeProject.globalPopupRevision,
-        globalPopupsDirty: isPopupsDirty,
-        document: draftBeforeSave,
-      }),
-    });
-    if (editorCtx.componentScopeState !== Ie4 || editorCtx.activeProject?.projectId !== projectId2) return;
-    const savedProjectSummary = documentSignature2(editorCtx.activeProject.document),
-      isPopupsChanged = savedProjectSummary !== draftSignatureBeforeSave,
-      document3 = isPopupsChanged ? clone2(editorCtx.activeProject.document) : saveResponse.document;
-    (isPopupsChanged &&
-      documentSignature2(document3.customPopups || []) ===
-        documentSignature2(draftBeforeSave.customPopups || []) &&
-      (document3.customPopups = clone2(saveResponse.document.customPopups || [])),
-      (editorCtx.activeProject = {
-        ...saveResponse,
-        document: document3,
-      }),
-      (editorCtx.baselineDocument = clone2(saveResponse.document)),
-      (editorCtx.savedDocumentSignature = documentSignature2(saveResponse.document)),
-      isPopupsChanged ||
-        (panelFrameBaselineByComponentId.clear(),
-        lineChartBaselineByComponentId.clear(),
-        iconButtonEffectBaselineByComponentId.clear(),
-        iconButtonBaselineByComponentId.clear(),
-        airConditionerBaselineByComponentId.clear()),
-      refreshDirtyState(historyState.undo, {
-        kind: "save",
-        beforeSavedDocument: baselineBeforeSave,
-        afterSavedDocument: clone2(saveResponse.document),
-      }),
-      (historyState.redo = []));
-    const currentDraftDocument = editorCtx.projects.find(
-      (historyStepDirection: any) => historyStepDirection.id === editorCtx.activeProject.projectId,
-    );
-    currentDraftDocument && (currentDraftDocument.name = editorCtx.activeProject.document.name);
-    const validComponentIds = projectSelectElement.selectedOptions[0];
-    (validComponentIds && (validComponentIds.textContent = editorCtx.activeProject.document.name),
-      loadNavigationIconOptions(projectSelectElement),
-      documentSignature2(editorCtx.activeProject.document) !== savedProjectSummary &&
-        renderEditorWorkspace(pageSelectElement.value));
-  } catch (refreshAuthSession: any) {
-    if (refreshAuthSession?.code === "PROJECT_REVISION_CONFLICT") {
-      await recoverDraftConflict(projectId2);
-      return;
-    }
-    handleOperationError(refreshAuthSession);
-  } finally {
-    ((editorCtx.isSaving = false), writeError(), syncHistoryButtons());
-  }
-}
+function scheduleRecoverySnapshot(...args: any[]): ReturnType<typeof scheduleRecoverySnapshotImpl> { return (scheduleRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
+function persistRecoverySnapshot(...args: any[]): ReturnType<typeof persistRecoverySnapshotImpl> { return (persistRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
+function writeError(...args: any[]): ReturnType<typeof writeErrorImpl> { return (writeErrorImpl as any)(workspaceHistoryDeps(), ...args); }
+function resetHistoryState(...args: any[]): ReturnType<typeof resetHistoryStateImpl> { return (resetHistoryStateImpl as any)(workspaceHistoryDeps(), ...args); }
+function refreshDirtyState(...args: any[]): ReturnType<typeof refreshDirtyStateImpl> { return (refreshDirtyStateImpl as any)(workspaceHistoryDeps(), ...args); }
+function historyEntries(...args: any[]): ReturnType<typeof historyEntriesImpl> { return (historyEntriesImpl as any)(workspaceHistoryDeps(), ...args); }
+function historyEntry(...args: any[]): ReturnType<typeof historyEntryImpl> { return (historyEntryImpl as any)(workspaceHistoryDeps(), ...args); }
+function initialPagePath(...args: any[]): ReturnType<typeof initialPagePathImpl> { return (initialPagePathImpl as any)(workspaceHistoryDeps(), ...args); }
+function projectSummary(...args: any[]): ReturnType<typeof projectSummaryImpl> { return (projectSummaryImpl as any)(workspaceHistoryDeps(), ...args); }
+function recoverDraftConflict(...args: any[]): ReturnType<typeof recoverDraftConflictImpl> { return (recoverDraftConflictImpl as any)(workspaceHistoryDeps(), ...args); }
+function saveDraft(...args: any[]): ReturnType<typeof saveDraftImpl> { return (saveDraftImpl as any)(workspaceHistoryDeps(), ...args); }
 /**
  * 3D 配置入口 / 弹窗是否正开着。
  *
  * 自动重载（HA 目录变化、撤销重做）时不要重置 2D 画布：否则会把正在编辑的
  * 3D 入口、楼层弹窗或借用中的预览一起关掉。
  */
-function interaction3dEntryActive() {
-  return (
-    !!document.querySelector('[data-interaction3d-entry-pending="true"]') ||
-    !!document.activeElement?.closest?.(
-      ".inspector-form, .i3d-editor, .i3d-floor-entry-dialog, [data-i3d-preview-scope]",
-    ) ||
-    !!document.querySelector(
-      "dialog.i3d-editor[open], dialog.i3d-floor-entry-dialog[open], dialog[data-i3d-preview-scope][open]",
-    )
-  );
-}
-async function loadHaConnection(keepHaForm: any, refreshHaSyncStatus: any) {
-  const projectId3 = editorCtx.activeProject.projectId,
-    Ie5 = editorCtx.componentScopeState,
-    beforeSavedDocument =
-      refreshHaSyncStatus === "undo"
-        ? keepHaForm.beforeSavedDocument
-        : keepHaForm.afterSavedDocument,
-    isPopupsChangedActive =
-      documentSignature2(beforeSavedDocument.customPopups || []) !==
-      documentSignature2(editorCtx.baselineDocument.customPopups || []),
-    connectedSignature = documentSignature2(editorCtx.activeProject.document.customPopups || []),
-    previousConnectedSignature = await requestJson("/projects/" + projectId3 + "/draft", {
-      method: "PUT",
-      body: JSON.stringify({
-        revision: editorCtx.activeProject.revision,
-        globalPopupRevision: editorCtx.activeProject.globalPopupRevision,
-        globalPopupsDirty: isPopupsChangedActive,
-        document: beforeSavedDocument,
-      }),
-    });
-  if (editorCtx.componentScopeState !== Ie5 || editorCtx.activeProject?.projectId !== projectId3) return false;
-  const entityLoadErrorState = clone2(editorCtx.activeProject.document);
-  return (
-    (editorCtx.baselineDocument = clone2(previousConnectedSignature.document)),
-    (editorCtx.savedDocumentSignature = documentSignature2(previousConnectedSignature.document)),
-    !isPopupsChangedActive &&
-      documentSignature2(entityLoadErrorState.customPopups || []) === connectedSignature &&
-      (entityLoadErrorState.customPopups = clone2(
-        previousConnectedSignature.document.customPopups || [],
-      )),
-    (editorCtx.activeProject = {
-      ...previousConnectedSignature,
-      document: entityLoadErrorState,
-    }),
-    interaction3dEntryActive() || renderEditorWorkspace(pageSelectElement.value),
-    writeError(),
-    true
-  );
-}
-async function entityLoadError(syncHaConnectionUi: any) {
-  const haActiveUrl = editorCtx.activeProject?.projectId,
-    Ie6 = editorCtx.componentScopeState,
-    haDetailWarningHandler = () =>
-      editorCtx.componentScopeState === Ie6 && editorCtx.activeProject?.projectId === haActiveUrl;
-  if (
-    (await editorCtx.writeQueuePromise.catch(() => {}),
-    !haDetailWarningHandler() || editorCtx.isSaving || historyState.busy || !editorCtx.activeProject)
-  )
-    return;
-  const undo = syncHaConnectionUi === "undo" ? historyState.undo : historyState.redo,
-    haDetailWarning = syncHaConnectionUi === "undo" ? "redo" : "undo",
-    pop = undo.pop();
-  if (pop) {
-    ((historyState.busy = true),
-      syncHistoryButtons(),
-      panelFrameBaselineByComponentId.clear(),
-      lineChartBaselineByComponentId.clear(),
-      iconButtonEffectBaselineByComponentId.clear(),
-      iconButtonBaselineByComponentId.clear(),
-      airConditionerBaselineByComponentId.clear());
-    try {
-      if (pop.kind === "save") {
-        if (!(await loadHaConnection(pop, syncHaConnectionUi))) return;
-        refreshDirtyState(historyState[haDetailWarning], pop);
-      } else {
-        const hl3 = historyEntries(),
-          deadlineTime = Array.isArray(pop.selectedComponentIds)
-            ? pop.selectedComponentIds.filter((collectHaConnectionInput: any) =>
-                findComponent2(pop.document, collectHaConnectionInput),
-              )
-            : [];
-        if (
-          ((editorCtx.selectedComponentId = findComponent2(pop.document, pop.selectedComponentId)
-            ? pop.selectedComponentId
-            : deadlineTime[0] || null),
-          (editorCtx.selectedComponentIdsSet = new Set(
-            deadlineTime.length ? deadlineTime : editorCtx.selectedComponentId ? [editorCtx.selectedComponentId] : [],
-          )),
-          (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
-          !(await projectSummary(pop.document, pop.selectedPath, {
-            recordHistory: false,
-          })))
-        )
-          return;
-        refreshDirtyState(historyState[haDetailWarning], hl3);
-      }
-    } catch (requireToken: any) {
-      haDetailWarningHandler() &&
-        (refreshDirtyState(
-          syncHaConnectionUi === "undo" ? historyState.undo : historyState.redo,
-          pop,
-        ),
-        handleOperationError(requireToken));
-    } finally {
-      haDetailWarningHandler() &&
-        ((historyState.busy = false),
-        syncHistoryButtons(),
-        editorCtx.hasUnsavedChanges && scheduleRecoverySnapshot());
-    }
-  }
-}
-async function reuseTokenForNewUrl() {
-  await requestJson("/auth/me");
-}
-async function syncAspectLockButton() {
-  const isAspectLockActive = await requestJson("/ha/sync/status");
-  const pendingResizeResolve = isAspectLockActive.counts || {
-    entities: 0,
-    devices: 0,
-    areas: 0,
+function interaction3dEntryActive(...args: any[]): ReturnType<typeof interaction3dEntryActiveImpl> { return (interaction3dEntryActiveImpl as any)(workspaceHistoryDeps(), ...args); }
+function loadHaConnection(...args: any[]): ReturnType<typeof loadHaConnectionImpl> { return (loadHaConnectionImpl as any)(workspaceHistoryDeps(), ...args); }
+function entityLoadError(...args: any[]): ReturnType<typeof entityLoadErrorImpl> { return (entityLoadErrorImpl as any)(workspaceHistoryDeps(), ...args); }
+function reuseTokenForNewUrl(...args: any[]): ReturnType<typeof reuseTokenForNewUrlImpl> { return (reuseTokenForNewUrlImpl as any)(workspaceHistoryDeps(), ...args); }
+function syncAspectLockButton(...args: any[]): ReturnType<typeof syncAspectLockButtonImpl> { return (syncAspectLockButtonImpl as any)(workspaceHistoryDeps(), ...args); }
+function lightingPanelDeps(): LightingPanelDeps {
+  return {
+    ...homeElements,
+    get buttonVisibilityDraftDocument() { return buttonVisibilityDraftDocument; },
+    get currentPage() { return currentPage; },
+    get editorCtx() { return editorCtx; },
+    get handleOperationError() { return handleOperationError; },
+    get imageEntityDraftDocument() { return imageEntityDraftDocument; },
+    get lightFieldElement() { return lightFieldElement; },
+    get lightingPayload() { return lightingPayload; },
+    get lightStatisticsEntityListClickEvent() { return lightStatisticsEntityListClickEvent; },
+    get mutateDocument() { return mutateDocument; },
+    get openLightingPanel() { return openLightingPanel; },
+    get popupId() { return popupId; },
+    get reloadAssetCatalog() { return reloadAssetCatalog; },
+    get requestJson() { return requestJson; },
+    get setSettingsMessage() { return setSettingsMessage; },
+    get syncAspectLockButton() { return syncAspectLockButton; },
+    get targetPageCandidate() { return targetPageCandidate; },
+    get titleButtonIconOptionClickEvent() { return titleButtonIconOptionClickEvent; },
   };
-  if (!isAspectLockActive.configured) {
-    ((editorCtx.lastConnectedSignature = null),
-      (editorCtx.isAreEntitiesLoaded = false),
-      (editorCtx.entities.length || editorCtx.devices.length || Object.keys(editorCtx.entityResourcesByDeviceId).length) &&
-        ((editorCtx.entities = []),
-        (editorCtx.devices = []),
-        (editorCtx.deviceNamesByDeviceId = new Map()),
-        (editorCtx.entityResourcesByDeviceId = {}),
-        editorCtx.editorRenderer?.setEntityCatalog([], {}, []),
-        editorCtx.dashboardPreviewRenderer?.setEntityCatalog([], {}, []),
-        runExtraLower(),
-        interaction3dEntryActive() ||
-          document.activeElement?.closest?.(".inspector-form") ||
-          coverMotorButtonElement()));
-    return;
-  }
-  const stringify = JSON.stringify([
-    Number.isFinite(Number(isAspectLockActive.catalogRevision))
-      ? Number(isAspectLockActive.catalogRevision)
-      : isAspectLockActive.lastFullSyncAt || "",
-    Number(pendingResizeResolve.entities || 0),
-    Number(pendingResizeResolve.devices || 0),
-    Number(pendingResizeResolve.areas || 0),
-  ]);
-  if (
-    (isAspectLockActive.connected || isAspectLockActive.status === "connected") &&
-    stringify !== editorCtx.lastConnectedSignature
-  ) {
-    const Gi2 = editorCtx.lastConnectedSignature;
-    editorCtx.lastConnectedSignature = stringify;
-    try {
-      await ensureEntitiesLoaded({
-        afterCurrent: true,
-      });
-    } catch (openPageDialog: any) {
-      throw (
-        editorCtx.lastConnectedSignature === stringify && (editorCtx.lastConnectedSignature = Gi2),
-        openPageDialog
-      );
-    }
-  }
 }
-async function actionDraftDocument() {
-  return syncAspectLockButton();
-}
-function targetPageCandidate() {
-  editorCtx.resizeWarningResolveState = "";
-  const cameraCommandState = [
-    {
-      id: "",
-      name: "空白仪表盘",
-      description: "创建空白画布，不预置页面、控件或弹窗。",
-      previewUrls: [] as any[],
-      previewLabels: [] as any[],
-      canvasWidth: null as any,
-      canvasHeight: null as any,
-    },
-  ];
-  syncProjectTemplateOptions({
-  get projectTemplateOptionsElement() { return projectTemplateOptionsElement; },
-  get cameraCommandState() { return cameraCommandState; },
-  get resizeWarningResolveState() { return editorCtx.resizeWarningResolveState; },
-  get projectCanvasFieldsElement() { return projectCanvasFieldsElement; },
-  get projectDialogMode() { return editorCtx.projectDialogMode; },
-  get projectFormElement() { return projectFormElement; },
-  get projectCanvasWidthElement() { return projectCanvasWidthElement; },
-  get projectCanvasHeightElement() { return projectCanvasHeightElement; },
-  get isAspectLockedState() { return editorCtx.isAspectLockedState; },
-  get isAspectLockedValue() { return editorCtx.isAspectLockedValue; },
-  get projectCanvasHintElement() { return projectCanvasHintElement; },
-  get lightStatisticsEntityListClickEvent() { return lightStatisticsEntityListClickEvent; },
-  get imageEntityDraftDocument() { return imageEntityDraftDocument; },
-  });
-
-}
-function buttonVisibilityDraftDocument(iconPreviewStateClickEventElement: any) {
-  try {
-    return {
-      urls: JSON.parse(iconPreviewStateClickEventElement.dataset.previewUrls || "[]"),
-      labels: JSON.parse(iconPreviewStateClickEventElement.dataset.previewLabels || "[]"),
-    };
-  } catch {
-    return {
-      urls: [] as any[],
-      labels: [] as any[],
-    };
-  }
-}
-function titleButtonIconOptionClickEvent() {
-  editorCtx.lockedCanvasWidthValue.length &&
-    ((editorCtx.lockedCanvasHeight =
-      ((editorCtx.lockedCanvasHeight % editorCtx.lockedCanvasWidthValue.length) + editorCtx.lockedCanvasWidthValue.length) %
-      editorCtx.lockedCanvasWidthValue.length),
-    (projectPreviewImageElement.src = editorCtx.lockedCanvasWidthValue[editorCtx.lockedCanvasHeight]),
-    (projectPreviewImageElement.alt =
-      editorCtx.lockedCanvasHeightState[editorCtx.lockedCanvasHeight] || "HomeOS预览 " + (editorCtx.lockedCanvasHeight + 1)),
-    (projectPreviewTitleElement.textContent =
-      editorCtx.lockedCanvasHeightState[editorCtx.lockedCanvasHeight] || "HomeOS预览"),
-    (projectPreviewCountElement.textContent =
-      editorCtx.lockedCanvasHeight + 1 + " / " + editorCtx.lockedCanvasWidthValue.length));
-}
-function titleButtonIconDraftDocument(lightStatisticsIconClickEventElement: any) {
-  const { urls: qw4, labels: qw5 } = buttonVisibilityDraftDocument(
-    lightStatisticsIconClickEventElement,
-  );
-  qw4.length &&
-    ((editorCtx.lockedCanvasWidthValue = qw4),
-    (editorCtx.lockedCanvasHeightState = qw5),
-    (editorCtx.lockedCanvasHeight = Number(lightStatisticsIconClickEventElement.dataset.previewIndex || 0)),
-    titleButtonIconOptionClickEvent(),
-    projectPreviewDialogElement.showModal());
-}
-function lightStatisticsIconCopyError(lightStatisticsIconOptionClickEvent = "create") {
-  editorCtx.projectDialogMode = lightStatisticsIconOptionClickEvent;
-  const isClosed = lightStatisticsIconOptionClickEvent === "edit",
-    isPreviewActiveActive = lightStatisticsIconOptionClickEvent === "resize";
-  if (
-    (projectFormElement.reset(),
-    (projectDialogKickerElement.textContent = isPreviewActiveActive
-      ? "RESIZE DASHBOARD"
-      : isClosed
-        ? "EDIT PROJECT"
-        : "NEW PROJECT"),
-    (projectDialogTitleElement.textContent = isPreviewActiveActive
-      ? "修改仪表盘分辨率"
-      : isClosed
-        ? "修改仪表盘"
-        : "创建仪表盘项目"),
-    (projectSubmitElement.textContent = isPreviewActiveActive
-      ? "应用修改"
-      : isClosed
-        ? "保存修改"
-        : "创建项目"),
-    (projectFormElement.elements.name.value =
-      isClosed || isPreviewActiveActive ? editorCtx.activeProject?.document?.name || "" : "我的仪表盘"),
-    (projectTemplateFieldsElement.hidden = isClosed || isPreviewActiveActive),
-    (projectCanvasWidthElement.readOnly = false),
-    (projectCanvasHeightElement.readOnly = false),
-    (projectContentLockElement.checked = false),
-    (projectContentLockFieldsElement.hidden = !isPreviewActiveActive),
-    projectCanvasFieldsElement.classList.remove("fixed", "name-only"),
-    !isClosed && !isPreviewActiveActive)
-  )
-    ((editorCtx.isAspectLockedState = 2778),
-      (editorCtx.isAspectLockedValue = 1940),
-      (editorCtx.isAspectLocked = false),
-      (editorCtx.lockedCanvasWidthState = 2778),
-      (editorCtx.lockedCanvasWidth = 1940),
-      (projectCanvasWidthElement.value = "2778"),
-      (projectCanvasHeightElement.value = "1940"),
-      lightStatisticsEntityListClickEvent(),
-      targetPageCandidate());
-  else {
-    if (isClosed)
-      ((projectCanvasFieldsElement.hidden = false),
-        projectCanvasFieldsElement.classList.add("name-only"));
-    else {
-      editorCtx.resizeWarningResolveState = "";
-      const lightStatisticsIconOptionElement = Number(
-          editorCtx.activeProject?.document?.canvas?.width || 2778,
-        ),
-        lightStatisticsEntityOptionElement = Number(
-          editorCtx.activeProject?.document?.canvas?.height || 1940,
-        );
-      ((editorCtx.isAspectLockedState = lightStatisticsIconOptionElement),
-        (editorCtx.isAspectLockedValue = lightStatisticsEntityOptionElement),
-        (editorCtx.isAspectLocked = true),
-        (editorCtx.lockedCanvasWidthState = lightStatisticsIconOptionElement),
-        (editorCtx.lockedCanvasWidth = lightStatisticsEntityOptionElement),
-        (projectCanvasFieldsElement.hidden = false),
-        (projectCanvasWidthElement.value = String(lightStatisticsIconOptionElement)),
-        (projectCanvasHeightElement.value = String(lightStatisticsEntityOptionElement)),
-        (projectCanvasHintElement.textContent =
-          "默认会同步调整所有页面、控件和弹窗；勾选“锁定控件大小及位置”后保留普通控件的位置和尺寸，3D 交互外框始终跟随画布宽高。"),
-        lightStatisticsEntityListClickEvent(),
-        imageEntityDraftDocument(false));
-    }
-  }
-  (setSettingsMessage(projectMessageElement, ""), projectDialogElement.showModal());
-}
-function lightStatisticsEntityListClickEvent() {
-  const statisticsReplaceElement = Number(projectCanvasWidthElement.value),
-    statisticsRemoveElement = Number(projectCanvasHeightElement.value);
-  if (
-    !Number.isInteger(statisticsReplaceElement) ||
-    !Number.isInteger(statisticsRemoveElement) ||
-    statisticsReplaceElement <= 0 ||
-    statisticsRemoveElement <= 0
-  ) {
-    projectAspectRatioElement.textContent = "等待输入有效分辨率";
-    return;
-  }
-  const $a2 =
-      !editorCtx.resizeWarningResolveState && editorCtx.isAspectLocked
-        ? editorCtx.lockedCanvasWidthState
-        : statisticsReplaceElement,
-    Fa2 =
-      !editorCtx.resizeWarningResolveState && editorCtx.isAspectLocked ? editorCtx.lockedCanvasWidth : statisticsRemoveElement,
-    imageEntityOptionElement = greatestCommonDivisor2($a2, Fa2);
-  projectAspectRatioElement.textContent =
-    $a2 / imageEntityOptionElement + " : " + Fa2 / imageEntityOptionElement;
-}
-function imageEntityDraftDocument(imageActionKey = !!editorCtx.resizeWarningResolveState) {
-  const Sn2 = imageActionKey || editorCtx.isAspectLocked;
-  ((projectAspectLockElement.disabled = imageActionKey),
-    projectAspectLockElement.setAttribute("aria-pressed", String(Sn2)),
-    projectAspectLockElement.classList.toggle("locked", Sn2),
-    (projectAspectLockLabelElement.textContent = imageActionKey ? "固定" : Sn2 ? "已锁定" : "锁定"),
-    (projectAspectLockElement.title = imageActionKey
-      ? "HomeOS画布使用固定比例"
-      : Sn2
-        ? "点击解锁画布比例"
-        : "锁定当前画布比例"));
-}
-function openAssetPicker(assetTriggerButton: any) {
-  if (editorCtx.resizeWarningResolveState || !editorCtx.isAspectLocked) return;
-  const assetCurrentRecord = Number(editorCtx.lockedCanvasWidthState),
-    assetInitialIndex = Number(editorCtx.lockedCanvasWidth);
-  if (!(!assetCurrentRecord || !assetInitialIndex)) {
-    if (assetTriggerButton === "width") {
-      let assetMatches = Number(projectCanvasWidthElement.value);
-      if (!Number.isInteger(assetMatches) || assetMatches < 320 || assetMatches > 7680) return;
-      let round = Math.round((assetMatches * assetInitialIndex) / assetCurrentRecord);
-      ((round < 240 || round > 4320) &&
-        ((round = Math.max(240, Math.min(4320, round))),
-        (assetMatches = Math.max(
-          320,
-          Math.min(7680, Math.round((round * assetCurrentRecord) / assetInitialIndex)),
-        )),
-        (projectCanvasWidthElement.value = String(assetMatches))),
-        (projectCanvasHeightElement.value = String(round)));
-    } else {
-      let assetOptionButtonElement = Number(projectCanvasHeightElement.value);
-      if (
-        !Number.isInteger(assetOptionButtonElement) ||
-        assetOptionButtonElement < 240 ||
-        assetOptionButtonElement > 4320
-      )
-        return;
-      let round2 = Math.round((assetOptionButtonElement * assetCurrentRecord) / assetInitialIndex);
-      ((round2 < 320 || round2 > 7680) &&
-        ((round2 = Math.max(320, Math.min(7680, round2))),
-        (assetOptionButtonElement = Math.max(
-          240,
-          Math.min(4320, Math.round((round2 * assetInitialIndex) / assetCurrentRecord)),
-        )),
-        (projectCanvasHeightElement.value = String(assetOptionButtonElement))),
-        (projectCanvasWidthElement.value = String(round2)));
-    }
-  }
-}
-function assetIdToDelete(assetDocumentNode: any, requestDeleteAssetFolder: any, folderKind: any) {
-  return (
-    (projectResizeWarningTextElement.textContent =
-      "当前分辨率为 " +
-      requestDeleteAssetFolder +
-      " × " +
-      folderKind +
-      "，预计有 " +
-      assetDocumentNode +
-      " 个控件会部分或全部位于画布范围之外。"),
-    new Promise((folderName) => {
-      ((editorCtx.resizeWarningResolve = folderName), projectResizeWarningDialogElement.showModal());
-    })
-  );
-}
-function folderDocumentNode(refreshAssetPickerViews: any) {
-  const rp2 = editorCtx.resizeWarningResolve;
-  ((editorCtx.resizeWarningResolve = null),
-    projectResizeWarningDialogElement.open && projectResizeWarningDialogElement.close(),
-    rp2?.(refreshAssetPickerViews));
-}
-function closeDeletePopupDialog(popupDeleteUsageEntries = "create") {
-  if (!editorCtx.activeProject) return;
-  editorCtx.pageDialogMode = popupDeleteUsageEntries;
-  const isImageAssetPicker = popupDeleteUsageEntries === "rename";
-  (pageFormElement.reset(),
-    (pageDialogKickerElement.textContent = isImageAssetPicker ? "EDIT PAGE" : "NEW PAGE"),
-    (pageDialogTitleElement.textContent = isImageAssetPicker ? "重命名页面" : "新建页面"),
-    (pageSubmitElement.textContent = isImageAssetPicker ? "保存修改" : "创建页面"),
-    (pageFormElement.elements.name.value = (isImageAssetPicker && currentPage()?.name) || ""),
-    setSettingsMessage(pageMessageElement, ""),
-    pageDialogElement.showModal());
-}
-function documentSource() {
-  return editorCtx.hasUnsavedChanges
-    ? (handleOperationError(new Error("当前有未保存修改，请先点击顶部的“保存”。")), true)
-    : false;
-}
+function actionDraftDocument(...args: any[]): ReturnType<typeof actionDraftDocumentImpl> { return (actionDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
+function targetPageCandidate(...args: any[]): ReturnType<typeof targetPageCandidateImpl> { return (targetPageCandidateImpl as any)(lightingPanelDeps(), ...args); }
+function buttonVisibilityDraftDocument(...args: any[]): ReturnType<typeof buttonVisibilityDraftDocumentImpl> { return (buttonVisibilityDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
+function titleButtonIconOptionClickEvent(...args: any[]): ReturnType<typeof titleButtonIconOptionClickEventImpl> { return (titleButtonIconOptionClickEventImpl as any)(lightingPanelDeps(), ...args); }
+function titleButtonIconDraftDocument(...args: any[]): ReturnType<typeof titleButtonIconDraftDocumentImpl> { return (titleButtonIconDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
+function lightStatisticsIconCopyError(...args: any[]): ReturnType<typeof lightStatisticsIconCopyErrorImpl> { return (lightStatisticsIconCopyErrorImpl as any)(lightingPanelDeps(), ...args); }
+function lightStatisticsEntityListClickEvent(...args: any[]): ReturnType<typeof lightStatisticsEntityListClickEventImpl> { return (lightStatisticsEntityListClickEventImpl as any)(lightingPanelDeps(), ...args); }
+function imageEntityDraftDocument(...args: any[]): ReturnType<typeof imageEntityDraftDocumentImpl> { return (imageEntityDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
+function openAssetPicker(...args: any[]): ReturnType<typeof openAssetPickerImpl> { return (openAssetPickerImpl as any)(lightingPanelDeps(), ...args); }
+function assetIdToDelete(...args: any[]): ReturnType<typeof assetIdToDeleteImpl> { return (assetIdToDeleteImpl as any)(lightingPanelDeps(), ...args); }
+function folderDocumentNode(...args: any[]): ReturnType<typeof folderDocumentNodeImpl> { return (folderDocumentNodeImpl as any)(lightingPanelDeps(), ...args); }
+function closeDeletePopupDialog(...args: any[]): ReturnType<typeof closeDeletePopupDialogImpl> { return (closeDeletePopupDialogImpl as any)(lightingPanelDeps(), ...args); }
+function documentSource(...args: any[]): ReturnType<typeof documentSourceImpl> { return (documentSourceImpl as any)(lightingPanelDeps(), ...args); }
 // 保留空实现以维持上方授权门禁函数的调用契约（门禁逻辑本身不在此处）。
-function popupId(_entityLabelFor: any) {}
-async function triggerKey() {
-  const documentPages = await requestJson("/license/status");
-  if (documentPages?.required && !documentPages.allowed)
-    return (navigateInShell("/activate"), documentPages);
-  const sharedUsages = JSON.stringify([...(documentPages?.features || [])].sort()),
-    sharedScopeText =
-      editorCtx.lastLicenseFeatureSignature !== null && editorCtx.lastLicenseFeatureSignature !== sharedUsages;
-  editorCtx.lastLicenseFeatureSignature = sharedUsages;
-  return (
-    sharedScopeText && (await reloadAssetCatalog({ refreshInspector: false })),
-    popupId(documentPages),
-    documentPages
-  );
-}
+function popupId(...args: any[]): ReturnType<typeof popupIdImpl> { return (popupIdImpl as any)(lightingPanelDeps(), ...args); }
+function triggerKey(...args: any[]): ReturnType<typeof triggerKeyImpl> { return (triggerKeyImpl as any)(lightingPanelDeps(), ...args); }
   projectNewElement.addEventListener("click", async () => {
     if (!documentSource())
       try {
@@ -7593,10 +1689,10 @@ async function triggerKey() {
       "[data-project-template-id]",
     );
     if (!deleteHaSubmitButtonElement || editorCtx.projectDialogMode !== "create") return;
-    const onProjectDialogClickState = projectBackdropEvent.target.closest(
+    const projectPreviewAction = projectBackdropEvent.target.closest(
       "[data-project-preview-action]",
     )?.dataset.projectPreviewAction;
-    if (onProjectDialogClickState) {
+    if (projectPreviewAction) {
       (projectBackdropEvent.stopPropagation(),
         titleButtonIconDraftDocument(deleteHaSubmitButtonElement));
       return;
@@ -7743,7 +1839,7 @@ async function triggerKey() {
   }),
   projectActionsButtonElement.addEventListener("click", () => {
     const hidden2 = projectActionsMenuElement.hidden;
-    (runState(),
+    (closeCustomSelect(),
       errorPhase(),
       value(),
       (projectActionsMenuElement.hidden = !hidden2),
@@ -7956,7 +2052,7 @@ async function triggerKey() {
   }),
   pageActionsButtonElement.addEventListener("click", () => {
     const hidden3 = pageActionsMenuElement.hidden;
-    (runState(),
+    (closeCustomSelect(),
       errorPhase(),
       value(),
       (pageActionsMenuElement.hidden = !hidden3),
@@ -8589,64 +2685,9 @@ attachFloorplanDiagramInspectorInput({
   get floorplanAutoDiagramLayoutElement() { return floorplanAutoDiagramLayoutElement; },
 });
 
-function findDiagramPreviewFrame(
-  lightingComponentId: any,
-  applyBaseLightingToPanel: any,
-  baseLighting: any = null,
-) {
-  const normalizedLightingElement = document.querySelector<HTMLIFrameElement>(
-    '.hb-component[data-component-id="' +
-      CSS.escape(lightingComponentId) +
-      '"] .hb-floorplan-auto-diagram-preview',
-  );
-  return normalizedLightingElement?.contentWindow
-    ? (normalizedLightingElement.contentWindow.postMessage(
-        {
-          type: "homeos-floorplan-auto-diagram-camera",
-          componentId: lightingComponentId,
-          command: applyBaseLightingToPanel,
-          value: baseLighting,
-        },
-        window.location.origin,
-      ),
-      true)
-    : false;
-}
-function lightInputElement(openAutoDiagramDialog: any, dialogComponentId: any) {
-  const cancelRemovesComponentElement = document.querySelector<HTMLIFrameElement>(
-    '.hb-component[data-component-id="' +
-      CSS.escape(openAutoDiagramDialog) +
-      '"] .hb-floorplan-auto-diagram-preview',
-  );
-  return cancelRemovesComponentElement?.contentWindow
-    ? (cancelRemovesComponentElement.contentWindow.postMessage(
-        {
-          type: "homeos-floorplan-auto-diagram-floor",
-          componentId: openAutoDiagramDialog,
-          command: "set-floor",
-          value: dialogComponentId,
-        },
-        window.location.origin,
-      ),
-      true)
-    : false;
-}
-function cancelRemovesComponent(bindFloorplanSection: any) {
-  if (!bindFloorplanSection?.isConnected) return;
-  const onElement = bindFloorplanSection.closest(".hb-floorplan-auto-diagram");
-  if (!onElement) return;
-  bindFloorplanSection.classList.remove("is-ready");
-  let onWindowPageshowElement = onElement.querySelector(".hb-floorplan-auto-diagram-loading");
-  onWindowPageshowElement ||
-    ((onWindowPageshowElement = document.createElement("div")),
-    (onWindowPageshowElement.className = "hb-floorplan-auto-diagram-loading"),
-    (onWindowPageshowElement.innerHTML =
-      '<i aria-hidden="true"></i><strong>正在重新载入3D户型…</strong>'),
-    onElement.append(onWindowPageshowElement));
-  const pageshowEvent = new URL(bindFloorplanSection.src, window.location.origin);
-  (pageshowEvent.searchParams.set("auto-diagram-refresh", String(Date.now())),
-    (bindFloorplanSection.src = pageshowEvent.toString()));
-}
+function findDiagramPreviewFrame(...args: any[]): ReturnType<typeof findDiagramPreviewFrameImpl> { return (findDiagramPreviewFrameImpl as any)(lightingPanelDeps(), ...args); }
+function lightInputElement(...args: any[]): ReturnType<typeof lightInputElementImpl> { return (lightInputElementImpl as any)(lightingPanelDeps(), ...args); }
+function cancelRemovesComponent(...args: any[]): ReturnType<typeof cancelRemovesComponentImpl> { return (cancelRemovesComponentImpl as any)(lightingPanelDeps(), ...args); }
 attachPageshowDiagramPreviewRestore({
   get cancelRemovesComponent() { return cancelRemovesComponent; },
   get floorplanAutoDiagramCameraViewElement() { return floorplanAutoDiagramCameraViewElement; },
@@ -8662,105 +2703,12 @@ attachPageshowDiagramPreviewRestore({
   get floorplanAutoDiagramRotateTopButtonElement() { return floorplanAutoDiagramRotateTopButtonElement; },
 });
 
-function lightingPayload(readBaseLightingFromPanel = editorCtx.baseLightingComponentId) {
-  return readBaseLightingFromPanel
-    ? document.querySelector<HTMLIFrameElement>(
-        '.hb-component[data-component-id="' +
-          CSS.escape(readBaseLightingFromPanel) +
-          '"] .hb-floorplan-auto-diagram-preview',
-      )
-    : null;
-}
-function lightFieldElement(closeLightingPanel: any, cancelLightingPreview: any = null) {
-  const gm2 = lightingPayload();
-  return gm2?.contentWindow
-    ? (gm2.contentWindow.postMessage(
-        {
-          type: "homeos-floorplan-auto-diagram-base-lighting",
-          componentId: editorCtx.baseLightingComponentId,
-          command: closeLightingPanel,
-          ...(cancelLightingPreview
-            ? {
-                lighting: cancelLightingPreview,
-              }
-            : {}),
-        },
-        window.location.origin,
-      ),
-      true)
-    : false;
-}
-function openLightingPanel(lightingHostComponentId: any) {
-  const lightingPreviewFrame = normalizeBaseLighting2(lightingHostComponentId);
-  for (const interactionModeDraftDocumentElement of floorplanBaseLightElements) {
-    const interactionModeComponent =
-      (lightingPreviewFrame as any)[interactionModeDraftDocumentElement.dataset.floorplanBaseLight!];
-    interactionModeDraftDocumentElement.value =
-      interactionModeDraftDocumentElement.step === "5"
-        ? String(Math.round(interactionModeComponent))
-        : String(Number(interactionModeComponent.toFixed(2)));
-  }
-  return lightingPreviewFrame;
-}
-function lightInputNode() {
-  const onLightInputNodeState: Record<string, any> = {};
-  for (const onLightInputNodeInput of floorplanBaseLightElements)
-    onLightInputNodeState[onLightInputNodeInput.dataset.floorplanBaseLight!] = Number(
-      onLightInputNodeInput.value,
-    );
-  return normalizeBaseLighting2(onLightInputNodeState);
-}
-function onFloorplanAutoLightingResetButtonClick({
-  cancelPreview: onFloorplanAutoLightingSaveButtonClick = true,
-} = {}) {
-  floorplanAutoLightingPanelElement.hidden ||
-    (onFloorplanAutoLightingSaveButtonClick && lightFieldElement("cancel"),
-    (floorplanAutoLightingPanelElement.hidden = true),
-    floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false"),
-    (editorCtx.baseLightingComponentId = ""),
-    (editorCtx.lightingPanelDragStateState = null));
-}
-function onFloorplanAutoLightingCloseButtonClick(onFloorplanAutoLightingHandlePointerdown: any) {
-  const gm3 = lightingPayload(onFloorplanAutoLightingHandlePointerdown);
-  if (!onFloorplanAutoLightingHandlePointerdown || !gm3?.contentWindow) return;
-  ((editorCtx.baseLightingComponentId = onFloorplanAutoLightingHandlePointerdown),
-    gm3.classList.remove("is-position-mode"),
-    gm3.classList.add("is-view-mode"),
-    mutateDocument((lightingDragEvent: any) => {
-      const lightingDragEventState = findComponent2(
-        lightingDragEvent,
-        onFloorplanAutoLightingHandlePointerdown,
-      )?.component;
-      lightingDragEventState?.type === "floorplan-auto-diagram" &&
-        (lightingDragEventState.properties = {
-          ...(lightingDragEventState.properties || {}),
-          interactionMode: "view",
-        });
-    }),
-    openLightingPanel(editorCtx.baseLightingSettings),
-    (floorplanAutoLightingStatusElement.textContent = "正在读取当前光照设置…"),
-    (floorplanAutoLightingPanelElement.hidden = false),
-    floorplanAutoLightingPanelElement.setAttribute("aria-busy", "true"));
-  const lightingPanelBounds = floorplanAutoLightingPanelElement.getBoundingClientRect();
-  ((lightingPanelBounds.right > window.innerWidth - 8 ||
-    lightingPanelBounds.bottom > window.innerHeight - 8 ||
-    lightingPanelBounds.left < 8 ||
-    lightingPanelBounds.top < 8) &&
-    ((floorplanAutoLightingPanelElement.style.right = "auto"),
-    (floorplanAutoLightingPanelElement.style.left =
-      clampNumber2(
-        lightingPanelBounds.left,
-        8,
-        Math.max(8, window.innerWidth - lightingPanelBounds.width - 8),
-      ) + "px"),
-    (floorplanAutoLightingPanelElement.style.top =
-      clampNumber2(
-        lightingPanelBounds.top,
-        8,
-        Math.max(8, window.innerHeight - lightingPanelBounds.height - 8),
-      ) + "px")),
-    lightFieldElement("request-state"));
-}
+function lightingPayload(...args: any[]): ReturnType<typeof lightingPayloadImpl> { return (lightingPayloadImpl as any)(lightingPanelDeps(), ...args); }
+function lightFieldElement(...args: any[]): ReturnType<typeof lightFieldElementImpl> { return (lightFieldElementImpl as any)(lightingPanelDeps(), ...args); }
+function openLightingPanel(...args: any[]): ReturnType<typeof openLightingPanelImpl> { return (openLightingPanelImpl as any)(lightingPanelDeps(), ...args); }
+function lightInputNode(...args: any[]): ReturnType<typeof lightInputNodeImpl> { return (lightInputNodeImpl as any)(lightingPanelDeps(), ...args); }
+function onFloorplanAutoLightingResetButtonClick(...args: any[]): ReturnType<typeof onFloorplanAutoLightingResetButtonClickImpl> { return (onFloorplanAutoLightingResetButtonClickImpl as any)(lightingPanelDeps(), ...args); }
+function onFloorplanAutoLightingCloseButtonClick(...args: any[]): ReturnType<typeof onFloorplanAutoLightingCloseButtonClickImpl> { return (onFloorplanAutoLightingCloseButtonClickImpl as any)(lightingPanelDeps(), ...args); }
 floorplanAutoDiagramOpenBaseLightingButtonElement.addEventListener("click", () => {
   onFloorplanAutoLightingCloseButtonClick(editorCtx.selectedComponentId);
 });
@@ -8842,12 +2790,7 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
       applyLightingPanelDragMove();
     });
   }));
-function applyLightingPanelDragMove() {
-  if (!editorCtx.lightingPanelDragPending) return;
-  (floorplanAutoLightingPanelElement.style.right = "auto"),
-    (floorplanAutoLightingPanelElement.style.left = editorCtx.lightingPanelDragPending.x + "px"),
-    (floorplanAutoLightingPanelElement.style.top = editorCtx.lightingPanelDragPending.y + "px");
-}
+function applyLightingPanelDragMove(...args: any[]): ReturnType<typeof applyLightingPanelDragMoveImpl> { return (applyLightingPanelDragMoveImpl as any)(lightingPanelDeps(), ...args); }
 const endLightingPanelDrag = (dragEndEvent: any) => {
   if (
     !editorCtx.lightingPanelDragStateState ||
@@ -8865,37 +2808,39 @@ const endLightingPanelDrag = (dragEndEvent: any) => {
 };
 (floorplanAutoLightingHandleElement.addEventListener("pointerup", endLightingPanelDrag),
   floorplanAutoLightingHandleElement.addEventListener("pointercancel", endLightingPanelDrag));
-function closeAutoDiagramDialog() {
-  (floorplanAutoDiagramDialogElement.open && floorplanAutoDiagramDialogElement.close(),
-    (floorplanAutoDiagramDialogElement.dataset.componentId = ""),
-    (floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent = "false"),
-    (floorplanAutoDiagramGuideElement.hidden = false));
+function navigationPreviewDeps(): NavigationPreviewDeps {
+  return {
+    ...homeElements,
+    get airConditionerPreviewStateByComponentId() { return airConditionerPreviewStateByComponentId; },
+    get airflowSectionEvent() { return airflowSectionEvent; },
+    get airflowSectionEventById() { return airflowSectionEventById; },
+    get applyNavigationPreviewState() { return applyNavigationPreviewState; },
+    get bindMessageSection() { return bindMessageSection; },
+    get closeAutoDiagramDialog() { return closeAutoDiagramDialog; },
+    get collectPageImages() { return collectPageImages; },
+    get createImageAlignOption() { return createImageAlignOption; },
+    get currentPage() { return currentPage; },
+    get editorCtx() { return editorCtx; },
+    get exportSpliceErrorByIdById() { return exportSpliceErrorByIdById; },
+    get findAssetById() { return findAssetById; },
+    get iconButtonEffectPreviewStateByComponentId() { return iconButtonEffectPreviewStateByComponentId; },
+    get iconButtonPreviewStateByComponentId() { return iconButtonPreviewStateByComponentId; },
+    get lineChartBaselineByComponentId() { return lineChartBaselineByComponentId; },
+    get mutateDocument() { return mutateDocument; },
+    get navigationColorPropertiesByElement() { return navigationColorPropertiesByElement; },
+    get navigationPreviewStateByComponentId() { return navigationPreviewStateByComponentId; },
+    get navigationPropertyConfigsByElement() { return navigationPropertyConfigsByElement; },
+    get navigationToggleStateByElement() { return navigationToggleStateByElement; },
+    get previewSyncEventName() { return previewSyncEventName; },
+    get removedComponent() { return removedComponent; },
+    get runAltCopy() { return resolveComponentStyleValue; },
+    get runExtraTwin() { return resolveAssetFileUrl; },
+    get setNavigationPreviewState() { return setNavigationPreviewState; },
+  };
 }
-function settleAutoDiagramDialog(
-  runExtraNew: any,
-  { cancelRemovesComponent: runAltExtra = false } = {},
-) {
-  runExtraNew &&
-    ((floorplanAutoDiagramDialogElement.dataset.componentId = runExtraNew),
-    (floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent = String(runAltExtra)),
-    (floorplanAutoDiagramGuideElement.hidden = false),
-    floorplanAutoDiagramDialogElement.open || floorplanAutoDiagramDialogElement.showModal());
-}
-function cancelRemoveDraftDocument() {
-  const componentId = floorplanAutoDiagramDialogElement.dataset.componentId,
-    shouldRemoveOnCancel =
-      floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent === "true";
-  (closeAutoDiagramDialog(),
-    !(!shouldRemoveOnCancel || !componentId) &&
-      (editorCtx.selectedComponentIdsSet.delete(componentId),
-      editorCtx.selectedComponentId === componentId &&
-        (editorCtx.selectedComponentId = editorCtx.selectedComponentIdsSet.values().next().value || null),
-      editorCtx.selectionAnchorComponentId === componentId &&
-        (editorCtx.selectionAnchorComponentId = editorCtx.selectedComponentId),
-      mutateDocument((onFloorplanAutoDiagramOpenStudioButtonClick: any) => {
-        removeComponent(onFloorplanAutoDiagramOpenStudioButtonClick, componentId);
-      })));
-}
+function closeAutoDiagramDialog(...args: any[]): ReturnType<typeof closeAutoDiagramDialogImpl> { return (closeAutoDiagramDialogImpl as any)(navigationPreviewDeps(), ...args); }
+function settleAutoDiagramDialog(...args: any[]): ReturnType<typeof settleAutoDiagramDialogImpl> { return (settleAutoDiagramDialogImpl as any)(navigationPreviewDeps(), ...args); }
+function cancelRemoveDraftDocument(...args: any[]): ReturnType<typeof cancelRemoveDraftDocumentImpl> { return (cancelRemoveDraftDocumentImpl as any)(navigationPreviewDeps(), ...args); }
 (floorplanAutoDiagramOpenStudioButtonElement.addEventListener("click", () => {
   const diagramStudioComponent = removedComponent();
   if (diagramStudioComponent?.type !== "floorplan-auto-diagram") return;
@@ -9019,61 +2964,8 @@ function cancelRemoveDraftDocument() {
         : delete lightGroupComponent.bindings[lightGroupBindingKey];
     });
   }));
-function bindMessageSection() {
-  const zr2 = editorCtx.lightingPanelDragState;
-  zr2 && ((editorCtx.lightingPanelDragState = null), zr2.remove());
-}
-function onWindowMessage(
-  messageEvent: any,
-  { buttonCount: runAltAlt = 0, imageCount: runAltAux = 0 } = {},
-) {
-  bindMessageSection();
-  const isMessage = messageEvent?.overwritten === true,
-    lightingStateComponentIdElement = document.createElement("div");
-  ((lightingStateComponentIdElement.className = "floorplan-auto-diagram-complete-overlay"),
-    lightingStateComponentIdElement.setAttribute("role", "dialog"),
-    lightingStateComponentIdElement.setAttribute("aria-modal", "true"),
-    lightingStateComponentIdElement.setAttribute(
-      "aria-label",
-      isMessage ? "导图覆盖完成" : "导图保存完成",
-    ),
-    (lightingStateComponentIdElement.innerHTML =
-      '<section class="settings-dialog floorplan-auto-diagram-dialog floorplan-auto-diagram-complete-dialog" tabindex="-1"><div class="dialog-heading"><div><span>EXPORT COMPLETE</span><h2 data-export-complete-title></h2></div><button type="button" class="icon-button" data-export-complete-close aria-label="关闭导图完成提示">×</button></div>\n    <div class="floorplan-auto-diagram-guide">\n      <p data-export-complete-message></p>\n      <div class="export-notice-summary"><span>保存位置</span><strong data-export-complete-path></strong></div>\n      <div class="dialog-actions"><button type="button" class="primary" data-export-complete-confirm>完成</button></div>\n    </div></section>'),
-    (lightingStateComponentIdElement.querySelector("[data-export-complete-title]")!.textContent =
-      isMessage ? "导图覆盖完成" : "导图保存完成"),
-    (lightingStateComponentIdElement.querySelector("[data-export-complete-message]")!.textContent =
-      isMessage
-        ? "新导图已安全替换，并更新 " + runAltAux + " 张图片和 " + runAltAlt + " 个效果按钮。"
-        : "导图已置入仪表盘，共生成 " + runAltAux + " 张图片和 " + runAltAlt + " 个效果按钮。"),
-    (lightingStateComponentIdElement.querySelector("[data-export-complete-path]")!.textContent =
-      "data/" + (messageEvent?.relativePath || "exports")));
-  let isMessageActive = false;
-  const lightingStateComponentId = () => {
-      isMessageActive ||
-        ((isMessageActive = true),
-        window.removeEventListener("pagehide", lightingStateComponentId),
-        document.removeEventListener("keydown", lightingStateComponentIdHandler, true),
-        lightingStateComponentIdElement.remove(),
-        editorCtx.lightingPanelDragState === lightingStateComponentIdElement &&
-          (editorCtx.lightingPanelDragState = null));
-    },
-    lightingStateComponentIdHandler = (lightingStateComponentIdState: any) => {
-      lightingStateComponentIdState.key === "Escape" &&
-        (lightingStateComponentIdState.preventDefault(), lightingStateComponentId());
-    };
-  lightingStateComponentIdElement.addEventListener("click", (onWindowMessageState) => {
-    onWindowMessageState.target === lightingStateComponentIdElement && lightingStateComponentId();
-  });
-  for (const messageEventState of lightingStateComponentIdElement.querySelectorAll(
-    "[data-export-complete-close], [data-export-complete-confirm]",
-  ))
-    messageEventState.addEventListener("click", lightingStateComponentId);
-  (window.addEventListener("pagehide", lightingStateComponentId),
-    document.addEventListener("keydown", lightingStateComponentIdHandler, true),
-    (editorCtx.lightingPanelDragState = lightingStateComponentIdElement),
-    document.body.append(lightingStateComponentIdElement),
-    lightingStateComponentIdElement.querySelector<HTMLElement>("[data-export-complete-confirm]")?.focus());
-}
+function bindMessageSection(...args: any[]): ReturnType<typeof bindMessageSectionImpl> { return (bindMessageSectionImpl as any)(navigationPreviewDeps(), ...args); }
+function onWindowMessage(...args: any[]): ReturnType<typeof onWindowMessageImpl> { return (onWindowMessageImpl as any)(navigationPreviewDeps(), ...args); }
 window.addEventListener("message", (lightingStateFrameState) => {
   if (lightingStateFrameState.origin !== window.location.origin) return;
   const data = lightingStateFrameState.data;
@@ -9768,23 +3660,7 @@ const {
     ibeTopElement,
     ibeWidthElement,
   });
-function exportSpliceError(bindIconButtonEffectSection: any) {
-  const entryStateValue = exportSpliceErrorByIdById.get(bindIconButtonEffectSection),
-    entryStateConfig = removedComponent();
-  if (!(!entryStateValue || entryStateConfig?.type !== "icon-button-effect")) {
-    (iconButtonEffectPreviewStateByComponentId.set(entryStateConfig.id, entryStateValue),
-      editorCtx.editorRenderer?.setComponentPreviewState(entryStateConfig.id, entryStateValue));
-    for (const onElementElement of ibePreviewStateElement.querySelectorAll("[data-ibe-preview]")) {
-      const isOnIconButtonEffectInspectorFormInput =
-        onElementElement.dataset.ibePreview === entryStateValue;
-      (onElementElement.classList.toggle("active", isOnIconButtonEffectInspectorFormInput),
-        onElementElement.setAttribute(
-          "aria-pressed",
-          String(isOnIconButtonEffectInspectorFormInput),
-        ));
-    }
-  }
-}
+function exportSpliceError(...args: any[]): ReturnType<typeof exportSpliceErrorImpl> { return (exportSpliceErrorImpl as any)(navigationPreviewDeps(), ...args); }
 for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown"])
   iconButtonEffectInspectorElement.addEventListener(
     onIconButtonEffectInspectorFormInputState,
@@ -9943,89 +3819,9 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
           });
       });
   }));
-function collectPageImages(pageSource: any) {
-  const pageImages: any = [],
-    collectImageComponents = (componentItems: any) => {
-      for (const imageItem of componentItems || [])
-        (imageItem.type === "image" && pageImages.push(imageItem),
-          collectImageComponents(imageItem.children));
-    };
-  return (collectImageComponents(pageSource?.components), pageImages);
-}
-function createImageAlignOption(imageComponentOption: any, isChosenImage: any) {
-  const optionLabelElement = document.createElement("label");
-  optionLabelElement.className = "effect-image-align-option";
-  const optionRadioElement = document.createElement("input");
-  ((optionRadioElement.type = "radio"),
-    (optionRadioElement.name = "effect-image-align-target"),
-    (optionRadioElement.value = imageComponentOption.id),
-    (optionRadioElement.checked = isChosenImage));
-  const optionPreviewElement = document.createElement("span");
-  optionPreviewElement.className = "effect-image-align-option-preview";
-  const sn4 = findAssetById(imageComponentOption.properties?.assetId || ""),
-    kp2 = runExtraTwin(sn4);
-  if (kp2) {
-    const optionPreviewImage = document.createElement("img");
-    ((optionPreviewImage.src = kp2),
-      (optionPreviewImage.alt = ""),
-      optionPreviewElement.append(optionPreviewImage));
-  } else optionPreviewElement.textContent = "无预览";
-  const optionCopyElement = document.createElement("span");
-  optionCopyElement.className = "effect-image-align-option-copy";
-  const optionTitleElement = document.createElement("strong");
-  optionTitleElement.textContent = componentLabel2(imageComponentOption);
-  const optionLayoutElement = document.createElement("small"),
-    isFillLayout = imageComponentOption.properties?.layoutMode === "fill",
-    visibilityLabel = imageComponentOption.style?.visible === false ? "隐藏" : "显示",
-    optionCanvasWidth = Number(editorCtx.activeProject?.document?.canvas?.width || 2778),
-    optionCanvasHeight = Number(editorCtx.activeProject?.document?.canvas?.height || 1940),
-    optionPosition = imageComponentOption.position || {},
-    optionWidth = Number(optionPosition.width || 100),
-    optionHeight = Number(optionPosition.height || 100),
-    centerLeftPercent = roundField2(
-      ((Number(optionPosition.x || 0) + optionWidth / 2) / optionCanvasWidth) * 100,
-    ),
-    centerTopPercent = roundField2(
-      ((Number(optionPosition.y || 0) + optionHeight / 2) / optionCanvasHeight) * 100,
-    ),
-    optionScalePercent = roundField2(Number(imageComponentOption.style?.scale || 1) * 100),
-    optionRotationDeg = roundField2(Number(optionPosition.rotation || 0));
-  optionLayoutElement.textContent = isFillLayout
-    ? "铺满 · 覆盖整个画布"
-    : "自由 · 左 " + centerLeftPercent + "% · 上 " + centerTopPercent + "%";
-  const optionDetailElement = document.createElement("small");
-  return (
-    (optionDetailElement.textContent = isFillLayout
-      ? visibilityLabel
-      : "缩放 " + optionScalePercent + "% · 旋转 " + optionRotationDeg + "° · " + visibilityLabel),
-    optionCopyElement.append(optionTitleElement, optionLayoutElement, optionDetailElement),
-    optionLabelElement.append(optionRadioElement, optionPreviewElement, optionCopyElement),
-    optionLabelElement
-  );
-}
-function openImageAlignDialog() {
-  const alignableImages = removedComponent(),
-    ct5 = currentPage();
-  if (!alignableImages || alignableImages.type !== "icon-button-effect" || !ct5) return;
-  const aI2 = collectPageImages(ct5),
-    referenceImageId = String(alignableImages.properties?.effectReferenceImageId || "");
-  (effectImageAlignOptionsElement.replaceChildren(
-    ...aI2.map((alignDialogBackdropEvent: any, onEffectImageAlignDialogClose: any) =>
-      createImageAlignOption(
-        alignDialogBackdropEvent,
-        alignDialogBackdropEvent.id === referenceImageId ||
-          (!referenceImageId && onEffectImageAlignDialogClose === 0),
-      ),
-    ),
-  ),
-    (editorCtx.imageAlignSourceComponentId = alignableImages.id),
-    (effectImageAlignMessageElement.hidden = aI2.length > 0),
-    (effectImageAlignMessageElement.textContent = aI2.length
-      ? ""
-      : "本页面没有可以对齐的普通图片。"),
-    (effectImageAlignConfirmElement.disabled = aI2.length === 0),
-    effectImageAlignDialogElement.showModal());
-}
+function collectPageImages(...args: any[]): ReturnType<typeof collectPageImagesImpl> { return (collectPageImagesImpl as any)(navigationPreviewDeps(), ...args); }
+function createImageAlignOption(...args: any[]): ReturnType<typeof createImageAlignOptionImpl> { return (createImageAlignOptionImpl as any)(navigationPreviewDeps(), ...args); }
+function openImageAlignDialog(...args: any[]): ReturnType<typeof openImageAlignDialogImpl> { return (openImageAlignDialogImpl as any)(navigationPreviewDeps(), ...args); }
 (ibeEffectAlignImageElement.addEventListener("click", openImageAlignDialog),
   effectImageAlignCloseElement.addEventListener("click", () =>
     effectImageAlignDialogElement.close(),
@@ -10123,7 +3919,7 @@ function openImageAlignDialog() {
       iconButtonEffectPreviewStateByComponentId.set(layerComponentId, layerPreviewStatus),
       editorCtx.editorRenderer?.setComponentPreviewState(layerComponentId, layerPreviewStatus),
       editorCtx.editorRenderer?.setComponentSelectionLayer(layerComponentId, requestedLayer),
-      runShadow(),
+      closeOtherPickerMenus(),
       coverMotorButtonElement());
   }),
   ibeButtonVisibleElement.addEventListener("click", () => {
@@ -10469,14 +4265,7 @@ const {
           });
       });
   }));
-function applyAirConditionerPreviewState(previewTargetComponentId: any, previewModeRequest = "auto") {
-  if (!previewTargetComponentId) return;
-  const resolvedPreviewMode = ["on", "off"].includes(previewModeRequest)
-    ? previewModeRequest
-    : "auto";
-  (airConditionerPreviewStateByComponentId.set(previewTargetComponentId, resolvedPreviewMode),
-    editorCtx.editorRenderer?.setComponentPreviewState(previewTargetComponentId, resolvedPreviewMode));
-}
+function applyAirConditionerPreviewState(...args: any[]): ReturnType<typeof applyAirConditionerPreviewStateImpl> { return (applyAirConditionerPreviewStateImpl as any)(navigationPreviewDeps(), ...args); }
 (airConditionerPreviewStateElement.addEventListener("click", (acPreviewStateClickEvent: any) => {
   const acPreviewStateOptionElement = acPreviewStateClickEvent.target.closest(
     "[data-air-conditioner-preview]",
@@ -10524,7 +4313,7 @@ function applyAirConditionerPreviewState(previewTargetComponentId: any, previewM
         requestedAcLayer === "airflow" ? "on" : "off",
       ),
       editorCtx.editorRenderer?.setComponentSelectionLayer(editorCtx.selectedComponentId, requestedAcLayer),
-      runShadow(),
+      closeOtherPickerMenus(),
       coverMotorButtonElement());
   }),
   airConditionerAirflowVisibleElement.addEventListener("click", () => {
@@ -10610,55 +4399,10 @@ const airflowSectionEventById = new Map([
   [iconButtonFrameOnOpacityElement, "on"],
   [deviceButtonIconOnColorElement, "on"],
 ]);
-function airflowSectionEvent(activatePreviewForInput: any) {
-  for (const previewInputElement of iconButtonPreviewStateElement.querySelectorAll(
-    "[data-icon-button-preview]",
-  )) {
-    const isPreviewOwnerComponent =
-      previewInputElement.dataset.iconButtonPreview === activatePreviewForInput;
-    (previewInputElement.classList.toggle("active", isPreviewOwnerComponent),
-      previewInputElement.setAttribute("aria-pressed", String(isPreviewOwnerComponent)));
-  }
-}
-function previewSyncEventName(onIconButtonInspectorForm: any, previewSyncEvent = "auto") {
-  if (!onIconButtonInspectorForm) return;
-  const onCoverSettingsKindClickState = ["on", "off"].includes(previewSyncEvent)
-    ? previewSyncEvent
-    : "auto";
-  (onCoverSettingsKindClickState === "auto"
-    ? iconButtonPreviewStateByComponentId.delete(onIconButtonInspectorForm)
-    : iconButtonPreviewStateByComponentId.set(
-        onIconButtonInspectorForm,
-        onCoverSettingsKindClickState,
-      ),
-    editorCtx.editorRenderer?.setComponentPreviewState(
-      onIconButtonInspectorForm,
-      onCoverSettingsKindClickState,
-    ),
-    onIconButtonInspectorForm === editorCtx.selectedComponentId &&
-      airflowSectionEvent(onCoverSettingsKindClickState));
-}
-function onCoverSettingsKindClick(coverKindClickEvent: any) {
-  const coverKindOption = removedComponent(),
-    requestedCoverKind =
-      airflowSectionEventById.get(coverKindClickEvent) ||
-      (coverKindOption?.type === "device-button" &&
-      coverKindClickEvent === iconButtonIconColorElement
-        ? "off"
-        : null);
-  !requestedCoverKind ||
-    !["icon-button", "device-button", "presence-sensor"].includes(coverKindOption?.type) ||
-    previewSyncEventName(coverKindOption.id, requestedCoverKind);
-}
-function coverKindDraftDocument(runAltVariant: any) {
-  const coverKindComponent = removedComponent();
-  (!airflowSectionEventById.has(runAltVariant) &&
-    !(
-      coverKindComponent?.type === "device-button" && runAltVariant === iconButtonIconColorElement
-    )) ||
-    (["icon-button", "device-button", "presence-sensor"].includes(coverKindComponent?.type) &&
-      previewSyncEventName(coverKindComponent.id, "auto"));
-}
+function airflowSectionEvent(...args: any[]): ReturnType<typeof airflowSectionEventImpl> { return (airflowSectionEventImpl as any)(navigationPreviewDeps(), ...args); }
+function previewSyncEventName(...args: any[]): ReturnType<typeof previewSyncEventNameImpl> { return (previewSyncEventNameImpl as any)(navigationPreviewDeps(), ...args); }
+function onCoverSettingsKindClick(...args: any[]): ReturnType<typeof onCoverSettingsKindClickImpl> { return (onCoverSettingsKindClickImpl as any)(navigationPreviewDeps(), ...args); }
+function coverKindDraftDocument(...args: any[]): ReturnType<typeof coverKindDraftDocumentImpl> { return (coverKindDraftDocumentImpl as any)(navigationPreviewDeps(), ...args); }
 for (const previewSyncEventState of ["focusin", "pointerdown", "input"])
   iconButtonInspectorElement.addEventListener(
     previewSyncEventState,
@@ -10903,21 +4647,7 @@ const navigationSavedSettingById = new Map([[timeColorElement, "color"]]),
     timeScaleElement,
     timeRotationElement,
   ]);
-function navigationSavedPropertyKey(bindInspectorSection: any, onTimeInspectorFormInput: any) {
-  const measuredBoundsSlot = Number(bindInspectorSection.position?.width || 100),
-    measuredBoundsCase = Number(bindInspectorSection.position?.height || 100),
-    onTimeInspectorFormInputState =
-      Number(bindInspectorSection.position?.x || 0) + measuredBoundsSlot / 2,
-    timeInputEventState = Number(bindInspectorSection.position?.y || 0) + measuredBoundsCase / 2,
-    { width: timeInputEventValue, height: onTimeInspectorFormInputValue } =
-      timeComponentDimensions2(onTimeInspectorFormInput);
-  editorCtx.editorRenderer?.previewComponentTransform(bindInspectorSection.id, {
-    x: onTimeInspectorFormInputState - timeInputEventValue / 2,
-    y: timeInputEventState - onTimeInspectorFormInputValue / 2,
-    width: timeInputEventValue,
-    height: onTimeInspectorFormInputValue,
-  });
-}
+function navigationSavedPropertyKey(...args: any[]): ReturnType<typeof navigationSavedPropertyKeyImpl> { return (navigationSavedPropertyKeyImpl as any)(navigationPreviewDeps(), ...args); }
 (timeInspectorElement.addEventListener("input", (timeInputEvent: any) => {
   const timeInspectorComponent = removedComponent();
   if (!timeInspectorComponent || timeInspectorComponent.type !== "time") return;
@@ -11135,20 +4865,7 @@ const {
     weatherTemperatureWeightElement,
     weatherTopElement,
   });
-function previewDateResize(resizedDateComponent: any, dateDimensionProperties: any) {
-  const dateWidth = Number(resizedDateComponent.position?.width || 100),
-    dateHeight = Number(resizedDateComponent.position?.height || 100),
-    dateCenterX = Number(resizedDateComponent.position?.x || 0) + dateWidth / 2,
-    dateCenterY = Number(resizedDateComponent.position?.y || 0) + dateHeight / 2,
-    { width: nextDateWidth, height: nextDateHeight } =
-      dateComponentDimensions2(dateDimensionProperties);
-  editorCtx.editorRenderer?.previewComponentTransform(resizedDateComponent.id, {
-    x: dateCenterX - nextDateWidth / 2,
-    y: dateCenterY - nextDateHeight / 2,
-    width: nextDateWidth,
-    height: nextDateHeight,
-  });
-}
+function previewDateResize(...args: any[]): ReturnType<typeof previewDateResizeImpl> { return (previewDateResizeImpl as any)(navigationPreviewDeps(), ...args); }
 (dateInspectorElement.addEventListener("input", (dateInputEvent: any) => {
   const dateInspectorComponent = removedComponent();
   if (!dateInspectorComponent || dateInspectorComponent.type !== "date") return;
@@ -11313,21 +5030,7 @@ for (const onDateVisibilityClick of [dateWeekdayElement, dateLunarElement])
           weatherProperties(dateVisibilityComponent, dateVisibilityComponent.properties));
       });
   });
-function previewWeatherComponentResize(weatherResizeComponent: any, weatherResizeProperties: any) {
-  const weatherResizeWidth = Number(weatherResizeComponent.position?.width || 100),
-    weatherResizeHeight = Number(weatherResizeComponent.position?.height || 100),
-    weatherResizeCenterX = Number(weatherResizeComponent.position?.x || 0) + weatherResizeWidth / 2,
-    weatherResizeCenterY =
-      Number(weatherResizeComponent.position?.y || 0) + weatherResizeHeight / 2,
-    { width: weatherResizeTargetWidth, height: weatherResizeTargetHeight } =
-      weatherComponentDimensions2(weatherResizeProperties);
-  editorCtx.editorRenderer?.previewComponentTransform(weatherResizeComponent.id, {
-    x: weatherResizeCenterX - weatherResizeTargetWidth / 2,
-    y: weatherResizeCenterY - weatherResizeTargetHeight / 2,
-    width: weatherResizeTargetWidth,
-    height: weatherResizeTargetHeight,
-  });
-}
+function previewWeatherComponentResize(...args: any[]): ReturnType<typeof previewWeatherComponentResizeImpl> { return (previewWeatherComponentResizeImpl as any)(navigationPreviewDeps(), ...args); }
 (weatherInspectorElement.addEventListener("input", (weatherInputEvent: any) => {
   const weatherInputComponent = removedComponent();
   if (!weatherInputComponent || weatherInputComponent.type !== "weather") return;
@@ -11589,43 +5292,9 @@ const {
     navigationTextActiveOpacityElement,
     navigationTextIdleOpacityElement,
   });
-function setNavigationPreviewState(navigationPreviewState: any) {
-  if (navigationPreviewState) {
-    for (const navigationPreviewButton of navigationPreviewStateElement.querySelectorAll(
-      "[data-navigation-preview]",
-    ))
-      navigationPreviewButton.classList.toggle(
-        "active",
-        navigationPreviewButton.dataset.navigationPreview === navigationPreviewState,
-      );
-  }
-}
-function applyNavigationPreviewState(navigationPreviewComponentId: any, navigationPreviewStateValue: any) {
-  if (!navigationPreviewComponentId) return;
-  const navigationNormalizedPreviewState = ["on", "off"].includes(navigationPreviewStateValue)
-    ? navigationPreviewStateValue
-    : "auto";
-  (navigationNormalizedPreviewState === "auto"
-    ? navigationPreviewStateByComponentId.delete(navigationPreviewComponentId)
-    : navigationPreviewStateByComponentId.set(
-        navigationPreviewComponentId,
-        navigationNormalizedPreviewState,
-      ),
-    editorCtx.editorRenderer?.setComponentPreviewState(
-      navigationPreviewComponentId,
-      navigationNormalizedPreviewState,
-    ),
-    navigationPreviewComponentId === editorCtx.selectedComponentId &&
-      setNavigationPreviewState(navigationNormalizedPreviewState));
-}
-function syncNavigationPreviewFromElement(navigationPreviewInputElement: any) {
-  const navigationToggleState = navigationToggleStateByElement.get(navigationPreviewInputElement),
-    navigationPreviewComponent = removedComponent();
-  return !navigationToggleState || !navigationLabelTextInputElement(navigationPreviewComponent)
-    ? null
-    : (applyNavigationPreviewState(navigationPreviewComponent.id, navigationToggleState),
-      navigationToggleState);
-}
+function setNavigationPreviewState(...args: any[]): ReturnType<typeof setNavigationPreviewStateImpl> { return (setNavigationPreviewStateImpl as any)(navigationPreviewDeps(), ...args); }
+function applyNavigationPreviewState(...args: any[]): ReturnType<typeof applyNavigationPreviewStateImpl> { return (applyNavigationPreviewStateImpl as any)(navigationPreviewDeps(), ...args); }
+function syncNavigationPreviewFromElement(...args: any[]): ReturnType<typeof syncNavigationPreviewFromElementImpl> { return (syncNavigationPreviewFromElementImpl as any)(navigationPreviewDeps(), ...args); }
 const navigationTransformInputSet = new Set([
   navigationLeftElement,
   navigationTopElement,
@@ -11634,27 +5303,7 @@ const navigationTransformInputSet = new Set([
   navigationScaleElement,
   navigationRotationElement,
 ]);
-function navigationPropertyNameFromElement(navigationPropertyInputElement: any) {
-  const navigationColorPropertyName = navigationColorPropertiesByElement.get(
-    navigationPropertyInputElement,
-  );
-  if (navigationColorPropertyName && (entryStateEntry as any)[navigationColorPropertyName])
-    return navigationColorPropertyName;
-  const navigationConfigPropertyName = navigationPropertyConfigsByElement.get(
-    navigationPropertyInputElement,
-  )?.property;
-  return navigationConfigPropertyName && (entryStateEntry as any)[navigationConfigPropertyName]
-    ? navigationConfigPropertyName
-    : navigationPropertyInputElement === navigationWidthElement
-      ? "width"
-      : navigationPropertyInputElement === navigationHeightElement
-        ? "height"
-        : navigationPropertyInputElement === navigationScaleElement
-          ? "scale"
-          : navigationPropertyInputElement === navigationRotationElement
-            ? "rotation"
-            : "";
-}
+function navigationPropertyNameFromElement(...args: any[]): ReturnType<typeof navigationPropertyNameFromElementImpl> { return (navigationPropertyNameFromElementImpl as any)(navigationPreviewDeps(), ...args); }
 attachNavigationInspectorInput({
   get navigationInspectorFormElement() { return navigationInspectorFormElement; },
   get removedComponent() { return removedComponent; },
@@ -11727,1260 +5376,133 @@ navigationPreviewStateElement.addEventListener("click", (navigationVisibilityDra
     : "auto";
   applyNavigationPreviewState(navigationVisibilityComponent, navigationPreview);
 });
-function runAltCopy(runAltAlias: any, runAltFallback: any) {
-  if (runAltAlias)
-    return runAltFallback === "width" || runAltFallback === "height"
-      ? Number(runAltAlias.position?.[runAltFallback] || 100)
-      : runAltFallback === "scale"
-        ? Number(runAltAlias.style?.scale || 1)
-        : runAltFallback === "rotation"
-          ? Number(runAltAlias.position?.rotation || 0)
-          : (runAltAlias.properties?.[runAltFallback] ??
-            clone2((navigationVisibilityComponentState as any)[runAltFallback]));
-}
-function runAltBackup(runAltShadow: any) {
-  if (!runAltShadow || runAltShadow.type !== "line-chart") return [];
-  let navigationPreviousVisibility = lineChartBaselineByComponentId.get(runAltShadow.id);
-  return (
-    navigationPreviousVisibility ||
-      ((navigationPreviousVisibility = clone2(
-        findComponent2(editorCtx.baselineDocument, runAltShadow.id)?.component || runAltShadow,
-      )),
-      lineChartBaselineByComponentId.set(runAltShadow.id, navigationPreviousVisibility)),
-    Object.keys(navigationVisibilityComponentValue).filter(
-      (navigationPreviousVisibilityState) =>
-        JSON.stringify(runAltCopy(runAltShadow, navigationPreviousVisibilityState)) !==
-        JSON.stringify(runAltCopy(navigationPreviousVisibility, navigationPreviousVisibilityState)),
-    )
-  );
-}
-function runAltTwin(
-  runAltBranch: any,
-  onNavigationPreviewStateClick: any,
-  navigationPreviewClickEvent = editorCtx.activeProject?.document,
-) {
-  if (typeof onNavigationPreviewStateClick == "boolean")
-    return onNavigationPreviewStateClick ? "显示" : "隐藏";
-  if (runAltBranch === "width" || runAltBranch === "height") {
-    const navigationPreviewButtonElement = Number(
-      navigationPreviewClickEvent?.canvas?.[runAltBranch] ||
-        (runAltBranch === "width" ? 2778 : 1940),
-    );
-    return (
-      roundField2(
-        (Number(onNavigationPreviewStateClick || 0) / navigationPreviewButtonElement) * 100,
-      ) + "%"
-    );
-  }
-  return runAltBranch === "scale"
-    ? roundField2(Number(onNavigationPreviewStateClick || 0) * 100) + "%"
-    : runAltBranch === "rotation"
-      ? roundField2(Number(onNavigationPreviewStateClick || 0)) + "°"
-      : ["valueScale", "valueOffsetX", "valueOffsetY", "cornerRadius"].includes(runAltBranch)
-        ? roundField2(Number(onNavigationPreviewStateClick || 0)) + "%"
-        : runAltBranch === "updateInterval"
-          ? roundField2(Number(onNavigationPreviewStateClick || 0)) + " 秒"
-          : runAltBranch === "hours"
-            ? roundField2(Number(onNavigationPreviewStateClick || 0)) + " 小时"
-            : runAltBranch === "thresholds"
-              ? (Array.isArray(onNavigationPreviewStateClick)
-                  ? onNavigationPreviewStateClick.length
-                  : 0) + " 段配色"
-              : String(onNavigationPreviewStateClick ?? "");
-}
-function runAltPeer(runAltLocal: any, runAltInner: any) {
-  if (runAltLocal)
-    return runAltInner === "width" || runAltInner === "height"
-      ? Number(runAltLocal.position?.[runAltInner] || 100)
-      : runAltInner === "scale"
-        ? Number(runAltLocal.style?.scale || 1)
-        : runAltInner === "rotation"
-          ? Number(runAltLocal.position?.rotation || 0)
-          : (runAltLocal.properties?.[runAltInner] ??
-            (navigationPreviewClickComponentId as any)[runAltInner]);
-}
-function runAltOuter(runAltUpper: any) {
-  if (!runAltUpper || runAltUpper.type !== "title-button") return [];
-  const navigationPreviewDatasetState =
-    findComponent2(editorCtx.baselineDocument, runAltUpper.id)?.component || runAltUpper;
-  return Object.keys(navigationPreviewClickComponentIdState).filter(
-    (onNavigationStyleApplyCloseButtonClick) =>
-      JSON.stringify(runAltPeer(runAltUpper, onNavigationStyleApplyCloseButtonClick)) !==
-      JSON.stringify(
-        runAltPeer(navigationPreviewDatasetState, onNavigationStyleApplyCloseButtonClick),
-      ),
-  );
-}
-function onNavigationStyleApplyCancelButtonClick(
-  onNavigationStyleApplyDialogClick: any,
-  styleDialogClickEvent: any,
-  onNavigationStyleApplyDialogClose = editorCtx.activeProject?.document,
-) {
-  if (typeof styleDialogClickEvent == "boolean") return styleDialogClickEvent ? "显示" : "隐藏";
-  if (
-    onNavigationStyleApplyDialogClick === "width" ||
-    onNavigationStyleApplyDialogClick === "height"
-  ) {
-    const onNavigationStyleApplyDialogCloseState = Number(
-      onNavigationStyleApplyDialogClose?.canvas?.[onNavigationStyleApplyDialogClick] ||
-        (onNavigationStyleApplyDialogClick === "width" ? 2778 : 1940),
-    );
-    return (
-      roundField2(
-        (Number(styleDialogClickEvent || 0) / onNavigationStyleApplyDialogCloseState) * 100,
-      ) + "%"
-    );
-  }
-  return onNavigationStyleApplyDialogClick === "scale"
-    ? roundField2(Number(styleDialogClickEvent || 0) * 100) + "%"
-    : onNavigationStyleApplyDialogClick === "rotation"
-      ? roundField2(Number(styleDialogClickEvent || 0)) + "°"
-      : [
-            "mainSize",
-            "secondarySize",
-            "mainSpacing",
-            "secondarySpacing",
-            "secondaryLineGap",
-            "mainTextLeft",
-            "mainTextTop",
-            "secondaryTextLeft",
-            "secondaryTextTop",
-            "iconSize",
-            "iconLeft",
-            "iconTop",
-            "frameSize",
-            "frameSpacing",
-            "frameOffsetX",
-            "frameOffsetY",
-            "markerSize",
-            "markerLeft",
-            "markerTop",
-          ].includes(onNavigationStyleApplyDialogClick)
-        ? roundField2(Number(styleDialogClickEvent || 0)) + "%"
-        : String(styleDialogClickEvent ?? "");
-}
-function onNavigationStyleApplyConfirmButtonClick(styleSourceComponentId: any, runAltLower: any) {
-  if (styleSourceComponentId)
-    return runAltLower === "width" || runAltLower === "height"
-      ? Number(styleSourceComponentId.position?.[runAltLower] || 100)
-      : runAltLower === "scale"
-        ? Number(styleSourceComponentId.style?.scale || 1)
-        : runAltLower === "rotation"
-          ? Number(styleSourceComponentId.position?.rotation || 0)
-          : (styleSourceComponentId.properties?.[runAltLower] ??
-            (onNavigationStyleApplyConfirmButtonClickState as any)[runAltLower]);
-}
-function runAltLeft(runAltRight: any) {
-  if (!runAltRight || runAltRight.type !== "air-conditioner") return [];
-  let selectedStylePropertyKeys = airConditionerBaselineByComponentId.get(runAltRight.id);
-  return (
-    selectedStylePropertyKeys ||
-      ((selectedStylePropertyKeys = clone2(
-        findComponent2(editorCtx.baselineDocument, runAltRight.id)?.component || runAltRight,
-      )),
-      airConditionerBaselineByComponentId.set(runAltRight.id, selectedStylePropertyKeys)),
-    Object.keys(onNavigationStyleApplyConfirmButtonClickValue).filter(
-      (onNavigationStyleApplyConfirmButtonClickConfig) =>
-        JSON.stringify(
-          onNavigationStyleApplyConfirmButtonClick(
-            runAltRight,
-            onNavigationStyleApplyConfirmButtonClickConfig,
-          ),
-        ) !==
-        JSON.stringify(
-          onNavigationStyleApplyConfirmButtonClick(
-            selectedStylePropertyKeys,
-            onNavigationStyleApplyConfirmButtonClickConfig,
-          ),
-        ),
-    )
-  );
-}
-function runAltFirst(runAltSecond: any, runAltLast: any, runAltOld = editorCtx.activeProject?.document) {
-  if (typeof runAltLast == "boolean") return runAltLast ? "显示" : "隐藏";
-  if (runAltSecond === "width" || runAltSecond === "height") {
-    const selectedTargetComponentIdsState = Number(
-      runAltOld?.canvas?.[runAltSecond] || (runAltSecond === "width" ? 2778 : 1940),
-    );
-    return roundField2((Number(runAltLast || 0) / selectedTargetComponentIdsState) * 100) + "%";
-  }
-  return ["scale", "airflowScale", "badgeOpacity"].includes(runAltSecond)
-    ? roundField2(Number(runAltLast || 0) * 100) + "%"
-    : ["rotation", "airflowRotation", "airflowAngle"].includes(runAltSecond)
-      ? roundField2(Number(runAltLast || 0)) + "°"
-      : runAltSecond === "airflowMotion"
-        ? runAltLast === "static"
-          ? "静态"
-          : "动态"
-        : typeof runAltLast == "number"
-          ? roundField2(runAltLast)
-          : String(runAltLast ?? "");
-}
-function runAltNew(styleTypeLabel: any, runAuxExtra: any) {
-  if (styleTypeLabel)
-    return runAuxExtra === "width" || runAuxExtra === "height"
-      ? Number(styleTypeLabel.position?.[runAuxExtra] || 100)
-      : runAuxExtra === "scale"
-        ? Number(styleTypeLabel.style?.scale || 1)
-        : runAuxExtra === "rotation"
-          ? Number(styleTypeLabel.position?.rotation || 0)
-          : (styleTypeLabel.properties?.[runAuxExtra] ??
-            (onNavigationStyleApplyDialogCloseValue as any)[runAuxExtra]);
-}
-function runAuxAlt(runAuxAux: any) {
-  if (!runAuxAux || runAuxAux.type !== "icon-button-effect") return [];
-  let navigationPreviousVisibilityValue = iconButtonEffectBaselineByComponentId.get(runAuxAux.id);
-  return (
-    navigationPreviousVisibilityValue ||
-      ((navigationPreviousVisibilityValue = clone2(
-        findComponent2(editorCtx.baselineDocument, runAuxAux.id)?.component || runAuxAux,
-      )),
-      iconButtonEffectBaselineByComponentId.set(runAuxAux.id, navigationPreviousVisibilityValue)),
-    Object.keys(styleSourceComponentIdState).filter(
-      (styleSourceComponentIdValue) =>
-        JSON.stringify(runAltNew(runAuxAux, styleSourceComponentIdValue)) !==
-        JSON.stringify(runAltNew(navigationPreviousVisibilityValue, styleSourceComponentIdValue)),
-    )
-  );
-}
-function runAuxVariant(runAuxCopy: any, runAuxAlias: any, runAuxFallback = editorCtx.activeProject?.document) {
-  if (typeof runAuxAlias == "boolean") return runAuxAlias ? "显示" : "隐藏";
-  if (runAuxCopy === "width" || runAuxCopy === "height") {
-    const navigationPreviewButtonElementState = Number(
-      runAuxFallback?.canvas?.[runAuxCopy] || (runAuxCopy === "width" ? 2778 : 1940),
-    );
-    return (
-      roundField2((Number(runAuxAlias || 0) / navigationPreviewButtonElementState) * 100) + "%"
-    );
-  }
-  return [
-    "buttonOpacity",
-    "frameOpacity",
-    "glowOffStrength",
-    "glowOnStrength",
-    "effectOpacity",
-    "effectScale",
-    "scale",
-  ].includes(runAuxCopy)
-    ? roundField2(Number(runAuxAlias || 0) * 100) + "%"
-    : ["iconSize", "radius", "effectLeft", "effectTop"].includes(runAuxCopy)
-      ? roundField2(Number(runAuxAlias || 0)) + "%"
-      : ["effectRotation", "rotation"].includes(runAuxCopy)
-        ? roundField2(Number(runAuxAlias || 0)) + "°"
-        : ["effectFadeDuration", "onFillFadeDuration"].includes(runAuxCopy)
-          ? roundField2(Number(runAuxAlias || 0)) + " 秒"
-          : runAuxCopy === "effectLayoutMode"
-            ? runAuxAlias === "fill"
-              ? "铺满"
-              : "自由"
-            : String(runAuxAlias || "不使用");
-}
-function runAuxBackup(runAuxShadow: any) {
-  const styleComponentType = runAuxShadow?.properties?.sensorKind;
-  return ["presence", "door-window", "water-leak", "smoke", "natural-gas"].includes(
-    styleComponentType,
-  )
-    ? styleComponentType
-    : "presence";
-}
-function runAuxTwin(runAuxBranch: any) {
-  return ({
-    presence: "人体/人在传感器",
-    "door-window": "门窗传感器",
-    "water-leak": "水浸传感器",
-    smoke: "烟雾传感器",
-    "natural-gas": "天然气传感器",
-  } as any)[runAuxBackup(runAuxBranch)];
-}
-function runAuxPeer(stylePropertyCheckbox: any) {
-  const selectedTargetComponentIds = ["width", "height", "scale", "rotation"],
-    rr3 = runAuxBackup(stylePropertyCheckbox);
-  return rr3 === "presence"
-    ? [
-        "iconColor",
-        "iconOnColor",
-        "haloVisible",
-        "haloScaleX",
-        "haloScaleY",
-        "haloRotation",
-        "haloOpacity",
-        "personVisible",
-        "personScale",
-        "personRotation",
-        "personOpacity",
-        "orbitDuration",
-        ...selectedTargetComponentIds,
-      ]
-    : rr3 === "door-window"
-      ? ["iconOnColor", "perspectiveCorners", ...selectedTargetComponentIds]
-      : rr3 === "water-leak"
-        ? ["waterLeakColor", ...selectedTargetComponentIds]
-        : rr3 === "smoke"
-          ? ["smokeColor", ...selectedTargetComponentIds]
-          : ["naturalGasColor", ...selectedTargetComponentIds];
-}
-function styleTargetCheckbox(styleApplyDraftDocument: any, styleTargetComponentId: any) {
-  if (!styleApplyDraftDocument) return;
-  if (styleTargetComponentId === "width" || styleTargetComponentId === "height")
-    return Number(styleApplyDraftDocument.position?.[styleTargetComponentId] || 100);
-  if (styleTargetComponentId === "scale") return Number(styleApplyDraftDocument.style?.scale || 1);
-  if (styleTargetComponentId === "rotation")
-    return Number(styleApplyDraftDocument.position?.rotation || 0);
-  const styleTargetComponentDraft = styleApplyDraftDocument.properties || {};
-  return styleTargetComponentId === "iconColor"
-    ? (styleTargetComponentDraft.iconColor ??
-        styleTargetComponentDraft.clearColor ??
-        styleTargetComponentDraft.iconOffColor ??
-        styleTargetComponentDraft.iconOnColor ??
-        styleComponentTypeState.iconColor)
-    : styleTargetComponentId === "iconOnColor"
-      ? (styleTargetComponentDraft.iconOnColor ??
-        styleTargetComponentDraft.occupiedColor ??
-        styleComponentTypeState.iconOnColor)
-      : styleTargetComponentId === "mainColor"
-        ? (styleTargetComponentDraft.mainColor ??
-          styleTargetComponentDraft.mainOffColor ??
-          styleTargetComponentDraft.mainOnColor ??
-          styleComponentTypeState.mainColor)
-        : styleTargetComponentId === "secondaryColor"
-          ? (styleTargetComponentDraft.secondaryColor ??
-            styleTargetComponentDraft.secondaryOffColor ??
-            styleTargetComponentDraft.secondaryOnColor ??
-            styleComponentTypeState.secondaryColor)
-          : (styleTargetComponentDraft[styleTargetComponentId] ??
-            (styleComponentTypeState as any)[styleTargetComponentId]);
-}
-function appliedStylePropertyKey(styleApplyButton: any) {
-  if (
-    !styleApplyButton ||
-    !["icon-button", "device-button", "presence-sensor"].includes(styleApplyButton.type)
-  )
-    return [];
-  let styleFeedbackTimeoutId = iconButtonBaselineByComponentId.get(styleApplyButton.id);
-  return (
-    styleFeedbackTimeoutId ||
-      ((styleFeedbackTimeoutId = clone2(
-        findComponent2(editorCtx.baselineDocument, styleApplyButton.id)?.component || styleApplyButton,
-      )),
-      iconButtonBaselineByComponentId.set(styleApplyButton.id, styleFeedbackTimeoutId)),
-    (styleApplyButton.type === "presence-sensor"
-      ? runAuxPeer(styleApplyButton)
-      : styleApplyButton.type === "device-button"
-        ? [
-            "iconColor",
-            "iconOnColor",
-            "badgeColor",
-            "badgeOpacity",
-            "symbolSize",
-            "badgeSize",
-            "iconLeft",
-            "iconTop",
-            "mainColor",
-            "mainSize",
-            "mainWeight",
-            "mainSpacing",
-            "mainTextLeft",
-            "mainTextTop",
-            "secondaryColor",
-            "secondarySize",
-            "secondaryWeight",
-            "secondarySpacing",
-            "secondaryTextLeft",
-            "secondaryTextTop",
-            "width",
-            "height",
-            "scale",
-            "rotation",
-          ]
-        : Object.keys(styleComponentTypeValue)
-    ).filter(
-      (onNavigationIconButtonClick) =>
-        JSON.stringify(styleTargetCheckbox(styleApplyButton, onNavigationIconButtonClick)) !==
-        JSON.stringify(styleTargetCheckbox(styleFeedbackTimeoutId, onNavigationIconButtonClick)),
-    )
-  );
-}
-function onNavigationIconCopyButtonClick(navigationSelectedIconName: any, runAuxLocal: any) {
-  return navigationSelectedIconName?.type === "presence-sensor"
-    ? (styleComponentTypeConfig as any)[runAuxLocal]
-    : navigationSelectedIconName?.type !== "device-button"
-      ? (styleComponentTypeValue as any)[runAuxLocal]
-      : runAuxLocal.startsWith("main")
-        ? {
-            group: "标题",
-            label:
-              runAuxLocal === "mainOnOpacity"
-                ? "透明度"
-                : (styleComponentTypeValue as any)[runAuxLocal]?.label?.replace("中文", ""),
-          }
-        : runAuxLocal.startsWith("secondary")
-          ? {
-              group: "状态",
-              label:
-                runAuxLocal === "secondaryOnOpacity"
-                  ? "透明度"
-                  : (styleComponentTypeValue as any)[runAuxLocal]?.label?.replace("英文", ""),
-            }
-          : (styleComponentTypeValue as any)[runAuxLocal];
-}
-function navigationIconCopyError(
-  onNavigationIconSearchInputInput: any,
-  onNavigationIconOptionsClick: any,
-  navigationIconOptionClickEvent = editorCtx.activeProject?.document,
-) {
-  if (typeof onNavigationIconOptionsClick == "boolean")
-    return onNavigationIconOptionsClick ? "显示" : "隐藏";
-  if (
-    onNavigationIconSearchInputInput === "width" ||
-    onNavigationIconSearchInputInput === "height"
-  ) {
-    const navigationIconOptionElement = Number(
-      navigationIconOptionClickEvent?.canvas?.[onNavigationIconSearchInputInput] ||
-        (onNavigationIconSearchInputInput === "width" ? 2778 : 1940),
-    );
-    return (
-      roundField2((Number(onNavigationIconOptionsClick || 0) / navigationIconOptionElement) * 100) +
-      "%"
-    );
-  }
-  return onNavigationIconSearchInputInput === "scale"
-    ? roundField2(Number(onNavigationIconOptionsClick || 0) * 100) + "%"
-    : onNavigationIconSearchInputInput === "perspectiveCorners"
-      ? JSON.stringify(onNavigationIconOptionsClick) === JSON.stringify(DEFAULT_PERSPECTIVE_CORNERS)
-        ? "默认透视"
-        : "自定义透视"
-      : onNavigationIconSearchInputInput === "orbitDuration"
-        ? roundField2(Number(onNavigationIconOptionsClick || 0)) + " 秒"
-        : onNavigationIconSearchInputInput === "onFillFadeDuration"
-          ? roundField2(Number(onNavigationIconOptionsClick || 0)) + " 秒"
-          : [
-                "rotation",
-                "frameAngle",
-                "softLightAngle",
-                "glowAngle",
-                "haloRotation",
-                "personRotation",
-              ].includes(onNavigationIconSearchInputInput)
-            ? roundField2(Number(onNavigationIconOptionsClick || 0)) + "°"
-            : [
-                  "iconOffOpacity",
-                  "iconOnOpacity",
-                  "mainOffOpacity",
-                  "mainOnOpacity",
-                  "secondaryOffOpacity",
-                  "secondaryOnOpacity",
-                  "badgeOpacity",
-                  "onFillStrength",
-                  "frameOffOpacity",
-                  "frameOnOpacity",
-                  "softLightStrength",
-                  "softLightSize",
-                  "glowStrength",
-                  "glowSize",
-                  "haloScaleX",
-                  "haloScaleY",
-                  "haloOpacity",
-                  "personScale",
-                  "personOpacity",
-                ].includes(onNavigationIconSearchInputInput)
-              ? roundField2(Number(onNavigationIconOptionsClick || 0) * 100) + "%"
-              : [
-                    "iconSize",
-                    "symbolSize",
-                    "badgeSize",
-                    "iconLeft",
-                    "iconTop",
-                    "mainTextLeft",
-                    "mainTextTop",
-                    "secondaryTextLeft",
-                    "secondaryTextTop",
-                    "cutCorner",
-                  ].includes(onNavigationIconSearchInputInput)
-                ? roundField2(Number(onNavigationIconOptionsClick || 0)) + "%"
-                : String(onNavigationIconOptionsClick ?? "");
-}
-function runAuxInner(runAuxOuter: any, runAuxUpper: any) {
-  if (!runAuxOuter) return;
-  if (runAuxUpper === "width" || runAuxUpper === "height")
-    return Number(runAuxOuter.position?.[runAuxUpper] || 100);
-  if (runAuxUpper === "scale") return Number(runAuxOuter.style?.scale || 1);
-  if (runAuxUpper === "rotation") return Number(runAuxOuter.position?.rotation || 0);
-  const navigationIconComponentId = runAuxOuter.properties || {};
-  if (runAuxUpper === "displayMode")
-    return navigationIconComponentId.displayMode === "snapshot" ? "snapshot" : "live";
-  if (runAuxUpper === "refreshInterval") {
-    const navigationIconComponentIdState = Number(navigationIconComponentId.refreshInterval);
-    return Number.isFinite(navigationIconComponentIdState)
-      ? Math.max(6, Math.round(navigationIconComponentIdState))
-      : 10;
-  }
-  if (runAuxUpper === "fit")
-    return navigationIconComponentId.fit === "contain" ? "contain" : "fill";
-  if (runAuxUpper === "radius") {
-    const styleFeedbackTimeoutIdState = Number(
-      navigationIconComponentId.radius ?? navigationIconOptionState.radius,
-    );
-    return Math.max(
-      0,
-      Math.min(
-        0.5,
-        styleFeedbackTimeoutIdState > 0.5
-          ? styleFeedbackTimeoutIdState / 100
-          : styleFeedbackTimeoutIdState,
-      ),
-    );
-  }
-  return navigationIconComponentId[runAuxUpper] ?? (navigationIconOptionState as any)[runAuxUpper];
-}
-function runAuxLower(runAuxLeft: any) {
-  if (!runAuxLeft || runAuxLeft.type !== "camera") return [];
-  const navigationIconDatasetName =
-    findComponent2(editorCtx.baselineDocument, runAuxLeft.id)?.component || runAuxLeft;
-  return Object.keys(navigationIconOptionStateState).filter(
-    (navigationIconDatasetNameState) =>
-      JSON.stringify(runAuxInner(runAuxLeft, navigationIconDatasetNameState)) !==
-      JSON.stringify(runAuxInner(navigationIconDatasetName, navigationIconDatasetNameState)),
-  );
-}
-function runAuxRight(runAuxFirst: any, runAuxSecond: any, runAuxLast = editorCtx.activeProject?.document) {
-  if (typeof runAuxSecond == "boolean") return runAuxSecond ? "显示" : "隐藏";
-  if (runAuxFirst === "displayMode") return runAuxSecond === "snapshot" ? "快照" : "实时";
-  if (runAuxFirst === "refreshInterval") return roundField2(Number(runAuxSecond || 10)) + " 秒";
-  if (runAuxFirst === "fit") return runAuxSecond === "contain" ? "原始比例" : "压缩 16:9";
-  if (runAuxFirst === "width" || runAuxFirst === "height") {
-    const navigationIconDraftDocumentState = Number(
-      runAuxLast?.canvas?.[runAuxFirst] || (runAuxFirst === "width" ? 2778 : 1940),
-    );
-    return roundField2((Number(runAuxSecond || 0) / navigationIconDraftDocumentState) * 100) + "%";
-  }
-  return runAuxFirst === "scale" || runAuxFirst === "radius" || runAuxFirst === "frameOpacity"
-    ? roundField2(Number(runAuxSecond || 0) * 100) + "%"
-    : runAuxFirst === "rotation" || runAuxFirst === "frameAngle"
-      ? roundField2(Number(runAuxSecond || 0)) + "°"
-      : String(runAuxSecond ?? "");
-}
-function runAuxOld(runAuxNew: any, navigationIconDraftDocument: any) {
-  if (!runAuxNew) return;
-  if (navigationIconDraftDocument === "width" || navigationIconDraftDocument === "height")
-    return Number(runAuxNew.position?.[navigationIconDraftDocument] || 100);
-  if (navigationIconDraftDocument === "scale") return Number(runAuxNew.style?.scale || 1);
-  if (navigationIconDraftDocument === "rotation") return Number(runAuxNew.position?.rotation || 0);
-  const navigationIconComponent = runAuxNew.properties || {};
-  if (
-    navigationIconDraftDocument === "mainTextLeft" ||
-    navigationIconDraftDocument === "secondaryTextLeft"
-  )
-    return (
-      navigationIconComponent[navigationIconDraftDocument] ??
-      navigationIconComponent.textLeft ??
-      (navigationIconDraftDocumentValue as any)[navigationIconDraftDocument]
-    );
-  if (navigationIconDraftDocument === "mainTextTop") {
-    const navigationIconPreviousValue = Math.max(1, Number(runAuxNew.position?.height || 100));
-    return (
-      navigationIconComponent.mainTextTop ??
-      Number(navigationIconComponent.textTop ?? 28) -
-        (Number(navigationIconComponent.lineGap ?? 24) / navigationIconPreviousValue) * 100
-    );
-  }
-  return navigationIconDraftDocument === "secondaryTextTop"
-    ? (navigationIconComponent.secondaryTextTop ??
-        navigationIconComponent.textTop ??
-        navigationIconDraftDocumentValue.secondaryTextTop)
-    : (navigationIconComponent[navigationIconDraftDocument] ??
-        (navigationIconDraftDocumentValue as any)[navigationIconDraftDocument]);
-}
-function runVariantExtra(runVariantAlt: any) {
-  if (!runVariantAlt || runVariantAlt.type !== "panel-frame") return [];
-  let navigationIconVisiblePreviousValue = panelFrameBaselineByComponentId.get(runVariantAlt.id);
-  return (
-    navigationIconVisiblePreviousValue ||
-      ((navigationIconVisiblePreviousValue = clone2(
-        findComponent2(editorCtx.baselineDocument, runVariantAlt.id)?.component || runVariantAlt,
-      )),
-      panelFrameBaselineByComponentId.set(runVariantAlt.id, navigationIconVisiblePreviousValue)),
-    Object.keys(navigationIconDraftDocumentConfig).filter((filteredItemsEntry) =>
-      !navigationIconVisiblePreviousValue ||
-      navigationIconVisiblePreviousValue.type !== "panel-frame"
-        ? true
-        : JSON.stringify(runAuxOld(runVariantAlt, filteredItemsEntry)) !==
-          JSON.stringify(runAuxOld(navigationIconVisiblePreviousValue, filteredItemsEntry)),
-    )
-  );
-}
-function runVariantAux(
-  runVariantVariant: any,
-  runVariantCopy: any,
-  bindAssetSection = editorCtx.activeProject?.document,
-) {
-  if (typeof runVariantCopy == "boolean") return runVariantCopy ? "显示" : "隐藏";
-  if (runVariantVariant === "width" || runVariantVariant === "height") {
-    const selectedTargetComponentIdsValue = Number(
-      bindAssetSection?.canvas?.[runVariantVariant] ||
-        (runVariantVariant === "width" ? 2778 : 1940),
-    );
-    return roundField2((Number(runVariantCopy || 0) / selectedTargetComponentIdsValue) * 100) + "%";
-  }
-  return runVariantVariant === "scale"
-    ? roundField2(Number(runVariantCopy || 0) * 100) + "%"
-    : runVariantVariant === "rotation" ||
-        runVariantVariant === "edgeAngle" ||
-        runVariantVariant === "glowAngle"
-      ? roundField2(Number(runVariantCopy || 0)) + "°"
-      : [
-            "mainOpacity",
-            "secondaryOpacity",
-            "edgeOpacity",
-            "radius",
-            "glowStrength",
-            "glowSize",
-          ].includes(runVariantVariant)
-        ? roundField2(Number(runVariantCopy || 0) * 100) + "%"
-        : ["mainTextLeft", "mainTextTop", "secondaryTextLeft", "secondaryTextTop"].includes(
-              runVariantVariant,
-            )
-          ? roundField2(Number(runVariantCopy || 0)) + "%"
-          : String(runVariantCopy ?? "");
-}
-function entryStateRecord(entryStateName: any, runVariantAlias: any) {
-  if (!entryStateName) return;
-  if (runVariantAlias === "width" || runVariantAlias === "height")
-    return Number(entryStateName.position?.[runVariantAlias] || 100);
-  if (runVariantAlias === "scale") return Number(entryStateName.style?.scale || 1);
-  if (runVariantAlias === "rotation") return Number(entryStateName.position?.rotation || 0);
-  const availablePropertiesKey = entryStateName.properties || {},
-    styleTypeLabelState = (entryStateRef as any)[runVariantAlias];
-  return runVariantAlias === "textIdleOpacity"
-    ? (availablePropertiesKey[runVariantAlias] ??
-        availablePropertiesKey.idleOpacity ??
-        styleTypeLabelState)
-    : runVariantAlias === "textActiveOpacity"
-      ? (availablePropertiesKey[runVariantAlias] ??
-        availablePropertiesKey.activeOpacity ??
-        styleTypeLabelState)
-      : runVariantAlias === "iconIdleOpacity"
-        ? (availablePropertiesKey[runVariantAlias] ??
-          availablePropertiesKey.idleOpacity ??
-          styleTypeLabelState)
-        : runVariantAlias === "iconActiveOpacity"
-          ? (availablePropertiesKey[runVariantAlias] ??
-            availablePropertiesKey.activeOpacity ??
-            styleTypeLabelState)
-          : runVariantAlias === "mainTextLeft" || runVariantAlias === "secondaryTextLeft"
-            ? (availablePropertiesKey[runVariantAlias] ??
-              availablePropertiesKey.textLeft ??
-              styleTypeLabelState)
-            : runVariantAlias === "mainTextTop"
-              ? (availablePropertiesKey[runVariantAlias] ??
-                Number(availablePropertiesKey.textTop ?? 81.5) - 1800 / 64.36)
-              : runVariantAlias === "secondaryTextTop"
-                ? (availablePropertiesKey[runVariantAlias] ??
-                  availablePropertiesKey.textTop ??
-                  styleTypeLabelState)
-                : (availablePropertiesKey[runVariantAlias] ?? styleTypeLabelState);
-}
-function runVariantFallback(runVariantBackup: any, runVariantShadow: any) {
-  return JSON.stringify(runVariantBackup) === JSON.stringify(runVariantShadow);
-}
-function onImageAssetUploadButtonClick(
-  onIconButtonEffectAssetUploadButtonClick: any,
-  onImageAssetUploadInputChange: any,
-  onIconButtonEffectAssetUploadInputChange: any,
-  assetOptionsElement: any,
-) {
-  if (!onIconButtonEffectAssetUploadButtonClick || !(entryStateEntry as any)[onImageAssetUploadInputChange])
-    return;
-  let navigationIconVisiblePreviousValueState = navigationButtonSavedSettingsByComponentId.get(
-    onIconButtonEffectAssetUploadButtonClick,
-  );
-  (!navigationIconVisiblePreviousValueState &&
-    runVariantFallback(onIconButtonEffectAssetUploadInputChange, assetOptionsElement)) ||
-    (navigationIconVisiblePreviousValueState ||
-      ((navigationIconVisiblePreviousValueState = new Map()),
-      navigationButtonSavedSettingsByComponentId.set(
-        onIconButtonEffectAssetUploadButtonClick,
-        navigationIconVisiblePreviousValueState,
-      )),
-    navigationIconVisiblePreviousValueState.has(onImageAssetUploadInputChange) ||
-      navigationIconVisiblePreviousValueState.set(
-        onImageAssetUploadInputChange,
-        clone2(onIconButtonEffectAssetUploadInputChange),
-      ));
-}
-function onAssetOptionsClick(assetOptionsClickEvent: any) {
-  const deleteUserAssetElement = navigationButtonSavedSettingsByComponentId.get(
-    assetOptionsClickEvent?.id,
-  );
-  if (deleteUserAssetElement) {
-    for (const deleteUserAssetElementState of deleteUserAssetElement.keys())
-      (entryStateEntry as any)[deleteUserAssetElementState] ||
-        deleteUserAssetElement.delete(deleteUserAssetElementState);
-    deleteUserAssetElement.size ||
-      navigationButtonSavedSettingsByComponentId.delete(assetOptionsClickEvent.id);
-  }
-}
-function runVariantTwin(runVariantBranch: any) {
-  return (
-    onAssetOptionsClick(runVariantBranch),
-    [...(navigationButtonSavedSettingsByComponentId.get(runVariantBranch?.id)?.entries() || [])]
-      .filter(
-        ([filteredItemsRecord, filteredItemsName]) =>
-          !runVariantFallback(
-            entryStateRecord(runVariantBranch, filteredItemsRecord),
-            filteredItemsName,
-          ),
-      )
-      .map(([onDeleteAssetCloseButtonClick]) => onDeleteAssetCloseButtonClick)
-  );
-}
-function onDeleteAssetCancelButtonClick(
-  onDeleteAssetDialogClick: any,
-  deleteAssetDialogClickEvent: any,
-  onDeleteAssetConfirmButtonClick = editorCtx.activeProject?.document,
-) {
-  if (typeof deleteAssetDialogClickEvent == "boolean")
-    return deleteAssetDialogClickEvent ? "显示" : "隐藏";
-  if (onDeleteAssetDialogClick === "width" || onDeleteAssetDialogClick === "height") {
-    const deleteAssetRequestId = Number(
-      onDeleteAssetConfirmButtonClick?.canvas?.[onDeleteAssetDialogClick] ||
-        (onDeleteAssetDialogClick === "width" ? 2778 : 1940),
-    );
-    return (
-      roundField2((Number(deleteAssetDialogClickEvent || 0) / deleteAssetRequestId) * 100) + "%"
-    );
-  }
-  return onDeleteAssetDialogClick === "scale"
-    ? roundField2(Number(deleteAssetDialogClickEvent || 0) * 100) + "%"
-    : onDeleteAssetDialogClick === "rotation"
-      ? roundField2(Number(deleteAssetDialogClickEvent || 0)) + "°"
-      : [
-            "textIdleOpacity",
-            "textActiveOpacity",
-            "iconIdleOpacity",
-            "iconActiveOpacity",
-            "frameIdleOpacity",
-            "frameActiveOpacity",
-            "radius",
-            "glowIdleStrength",
-            "glowIdleSize",
-            "glowActiveStrength",
-            "glowActiveSize",
-          ].includes(onDeleteAssetDialogClick)
-        ? roundField2(Number(deleteAssetDialogClickEvent || 0) * 100) + "%"
-        : [
-              "mainTextLeft",
-              "mainTextTop",
-              "secondaryTextLeft",
-              "secondaryTextTop",
-              "iconLeft",
-              "iconTop",
-            ].includes(onDeleteAssetDialogClick)
-          ? roundField2(Number(deleteAssetDialogClickEvent || 0)) + "%"
-          : onDeleteAssetDialogClick === "frameAngle" || onDeleteAssetDialogClick === "glowAngle"
-            ? roundField2(Number(deleteAssetDialogClickEvent || 0)) + "°"
-            : String(deleteAssetDialogClickEvent ?? "");
-}
-/** 导航「套用到其它控件」目标列表（P4 搬进 `navigation-style-apply/target-options`，此处只转发句柄）。 */
-const navigationStyleApplyTargetDeps = () => ({ navigationStyleApplyTargetsElement });
-function runVariantLower(runVariantLeft: any, runVariantRight: any) {
-  return runVariantLowerCore(navigationStyleApplyTargetDeps(), runVariantLeft, runVariantRight);
-}
-function runVariantFirst() {
-  const createdInstanceName = removedComponent();
-  if (!navigationLabelTextInputElement(createdInstanceName)) return;
-  const mC2 = runVariantTwin(createdInstanceName),
-    styleFeedbackTimeoutIdValue = findReplaceableComponents(createdInstanceName);
-  !mC2.length ||
-    !styleFeedbackTimeoutIdValue.length ||
-    ((navigationStyleApplyTitleElement.textContent =
-      createdInstanceName.type === "scene-mode" ? "应用情景模式设置" : "应用导航按钮设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent =
-      createdInstanceName.type === "scene-mode" ? "应用到情景模式" : "应用到导航按钮"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(createdInstanceName) +
-      "”中选定的修改应用到选中的" +
-      (createdInstanceName.type === "scene-mode" ? "情景模式" : "导航按钮") +
-      "。图标名称、文字内容、目标页面、备注和位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...mC2.map((deleteAssetFolderError) => {
-        const isNavigationIconMenuHidden = (entryStateEntry as any)[deleteAssetFolderError],
-          $e8 = entryStateRecord(createdInstanceName, deleteAssetFolderError);
-        return runVariantPeer({
-          value: deleteAssetFolderError,
-          label: isNavigationIconMenuHidden.label,
-          detail:
-            isNavigationIconMenuHidden.group +
-            " · " +
-            onDeleteAssetCancelButtonClick(deleteAssetFolderError, $e8),
-        });
-      }),
-    ),
-    runVariantLower(styleFeedbackTimeoutIdValue, (onImageAssetButtonClick: any) => {
-      const isImageAssetMenuHidden =
-          onImageAssetButtonClick.properties?.targetPage ||
-          onImageAssetButtonClick.actions?.tap?.target ||
-          "",
-        imageAssetCatalogErrorState = editorCtx.activeProject.document.pages.find(
-          (imageAssetCatalogError: any) => imageAssetCatalogError.path === isImageAssetMenuHidden,
-        );
-      return createdInstanceName.type === "scene-mode"
-        ? onImageAssetButtonClick.bindings?.entity?.entityId || "未绑定实体"
-        : imageAssetCatalogErrorState
-          ? "跳转到：" + imageAssetCatalogErrorState.name
-          : "未设置目标页面";
-    }),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstanceName.id,
-      type: createdInstanceName.type,
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function onImageAssetFolderSelectChange(
-  onImageAssetSearchInputInput: any,
-  onImageAssetOptionsPointerover: any,
-) {
-  return typeof onImageAssetOptionsPointerover == "boolean"
-    ? onImageAssetSearchInputInput === "animated"
-      ? onImageAssetOptionsPointerover
-        ? "开启"
-        : "关闭"
-      : onImageAssetOptionsPointerover
-        ? "显示"
-        : "隐藏"
-    : onImageAssetSearchInputInput === "effect"
-      ? onImageAssetOptionsPointerover === "energy"
-        ? "能量"
-        : "水流"
-      : onImageAssetSearchInputInput === "shape"
-        ? ({
-            straight: "折线",
-            rounded: "圆角",
-            curve: "曲线",
-          } as any)[onImageAssetOptionsPointerover]
-        : onImageAssetSearchInputInput === "direction"
-          ? onImageAssetOptionsPointerover === -1
-            ? "反向"
-            : "正向"
-          : onImageAssetSearchInputInput === "opacity" ||
-              onImageAssetSearchInputInput === "baseOpacity"
-            ? roundField2(onImageAssetOptionsPointerover * 100) + "%"
-            : onImageAssetSearchInputInput === "glow"
-              ? onImageAssetOptionsPointerover + "%"
-              : String(onImageAssetOptionsPointerover);
-}
-function imageAssetPointerOverEvent() {
-  const imageAssetHoverElement = removedComponent();
-  if (imageAssetHoverElement?.type !== "flow-line") return;
-  const im2 = runExtraLocal(imageAssetHoverElement),
-    pe2 = findReplaceableComponents(imageAssetHoverElement);
-  if (!im2.length || !pe2.length) return;
-  const hoveredAsset = normalizeFlowLine2(imageAssetHoverElement.properties);
-  ((navigationStyleApplyTitleElement.textContent = "应用流水线条设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到流水线条"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(imageAssetHoverElement) +
-      "”的选定外观修改应用到同类控件。每条线的路径、名称和位置保持各自设置。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...im2.map((onImageAssetOptionsClick) =>
-        runVariantPeer({
-          value: onImageAssetOptionsClick,
-          label: (FLOW_LINE_FIELDS2 as any)[onImageAssetOptionsClick],
-          detail: onImageAssetFolderSelectChange(
-            onImageAssetOptionsClick,
-            (hoveredAsset as any)[onImageAssetOptionsClick],
-          ),
-        }),
-      ),
-    ),
-    runVariantLower(pe2, "流水线条"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: imageAssetHoverElement.id,
-      type: "flow-line",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function imageAssetClickEvent() {
-  const imageAssetElement = removedComponent();
-  if (!imageAssetElement || imageAssetElement.type !== "panel-frame") return;
-  const pC2 = runVariantExtra(imageAssetElement),
-    pe3 = findReplaceableComponents(imageAssetElement);
-  !pC2.length ||
-    !pe3.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用底图框设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到底图框"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(imageAssetElement) +
-      "”中选定的修改应用到选中的底图框。文字内容、备注和位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...pC2.map((mappedItemsOrigin) => {
-        const imageAssetComponentId = (navigationIconDraftDocumentConfig as any)[mappedItemsOrigin],
-          kl2 = runAuxOld(imageAssetElement, mappedItemsOrigin);
-        return runVariantPeer({
-          value: mappedItemsOrigin,
-          label: imageAssetComponentId.label,
-          detail: imageAssetComponentId.group + " · " + runVariantAux(mappedItemsOrigin, kl2),
-        });
-      }),
-    ),
-    runVariantLower(pe3, "底图框"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: imageAssetElement.id,
-      type: "panel-frame",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function runVariantSecond() {
-  const createdInstanceKey = removedComponent();
-  if (!createdInstanceKey || createdInstanceKey.type !== "camera") return;
-  const tC2 = runAuxLower(createdInstanceKey),
-    pe4 = findReplaceableComponents(createdInstanceKey);
-  !tC2.length ||
-    !pe4.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用摄像头实时预览设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到摄像头实时预览"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(createdInstanceKey) +
-      "”中选定的修改应用到选中的摄像头实时预览。实体、备注、动作和控件位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...tC2.map((mappedItemsDraft) => {
-        const imageAssetId = (navigationIconOptionStateState as any)[mappedItemsDraft],
-          pl2 = runAuxInner(createdInstanceKey, mappedItemsDraft);
-        return runVariantPeer({
-          value: mappedItemsDraft,
-          label: imageAssetId.label,
-          detail: imageAssetId.group + " · " + runAuxRight(mappedItemsDraft, pl2),
-        });
-      }),
-    ),
-    runVariantLower(pe4, "摄像头实时预览"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstanceKey.id,
-      type: "camera",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function runVariantLast() {
-  const createdInstancePath = removedComponent();
-  if (!createdInstancePath || createdInstancePath.type !== "title-button") return;
-  const wC2 = runAltOuter(createdInstancePath),
-    pe5 = findReplaceableComponents(createdInstancePath);
-  !wC2.length ||
-    !pe5.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用标题按钮设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到标题按钮"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(createdInstancePath) +
-      "”中选定的修改应用到选中的标题按钮。文字内容、图标名称、备注、动作和控件中心位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...wC2.map((imageAssetDraftDocument) => {
-        const imageAssetComponent = (navigationPreviewClickComponentIdState as any)[imageAssetDraftDocument],
-          ll2 = runAltPeer(createdInstancePath, imageAssetDraftDocument);
-        return runVariantPeer({
-          value: imageAssetDraftDocument,
-          label: imageAssetComponent.label,
-          detail:
-            imageAssetComponent.group +
-            " · " +
-            onNavigationStyleApplyCancelButtonClick(imageAssetDraftDocument, ll2),
-        });
-      }),
-    ),
-    runVariantLower(pe5, "标题按钮"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstancePath.id,
-      type: "title-button",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function runVariantOld() {
-  const imageAssetRecord = removedComponent();
-  if (!imageAssetRecord || imageAssetRecord.type !== "icon-button-effect") return;
-  const nC2 = runAuxAlt(imageAssetRecord),
-    pe6 = findReplaceableComponents(imageAssetRecord);
-  !nC2.length ||
-    !pe6.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用图标按钮（效果）设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到同类型控件"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(imageAssetRecord) +
-      "”中选定的修改应用到选中的图标按钮（效果）。实体、备注、动作和按钮位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...nC2.map((mappedItemsSnapshot) => {
-        const imageAssetSize = (styleSourceComponentIdState as any)[mappedItemsSnapshot],
-          tl2 = runAltNew(imageAssetRecord, mappedItemsSnapshot);
-        return runVariantPeer({
-          value: mappedItemsSnapshot,
-          label: imageAssetSize.label,
-          detail: imageAssetSize.group + " · " + runAuxVariant(mappedItemsSnapshot, tl2),
-        });
-      }),
-    ),
-    runVariantLower(pe6, "图标按钮（效果）"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: imageAssetRecord.id,
-      type: "icon-button-effect",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function runVariantNew() {
-  const createdInstanceText = removedComponent();
-  if (!createdInstanceText || createdInstanceText.type !== "air-conditioner") return;
-  const sC2 = runAltLeft(createdInstanceText),
-    pe7 = findReplaceableComponents(createdInstanceText);
-  !sC2.length ||
-    !pe7.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用空调设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到同类型控件"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(createdInstanceText) +
-      "”中选定的修改应用到选中的空调控件。实体、备注、文字内容、动作和按钮位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...sC2.map((imageAssetSizeDraftDocument) => {
-        const imageAssetSizeComponent =
-            (onNavigationStyleApplyConfirmButtonClickValue as any)[imageAssetSizeDraftDocument],
-          il3 = onNavigationStyleApplyConfirmButtonClick(
-            createdInstanceText,
-            imageAssetSizeDraftDocument,
-          );
-        return runVariantPeer({
-          value: imageAssetSizeDraftDocument,
-          label: imageAssetSizeComponent.label,
-          detail:
-            imageAssetSizeComponent.group + " · " + runAltFirst(imageAssetSizeDraftDocument, il3),
-        });
-      }),
-    ),
-    runVariantLower(pe7, "空调"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstanceText.id,
-      type: "air-conditioner",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function runCopyExtra() {
-  const createdInstanceCount = removedComponent();
-  if (
-    !createdInstanceCount ||
-    !["icon-button", "device-button", "presence-sensor"].includes(createdInstanceCount.type)
-  )
-    return;
-  const fI2 =
-      createdInstanceCount.type === "presence-sensor"
-        ? runAuxTwin(createdInstanceCount)
-        : createdInstanceCount.type === "device-button"
-          ? "设备按钮"
-          : "图标按钮",
-    eC2 = appliedStylePropertyKey(createdInstanceCount),
-    pe8 = findReplaceableComponents(createdInstanceCount);
-  !eC2.length ||
-    !pe8.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用" + fI2 + "设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到同类型控件"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(createdInstanceCount) +
-      "”中选定的修改应用到选中的" +
-      fI2 +
-      "。实体、备注、图标名称、文字内容和位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...eC2.map((mappedItemsSample) => {
-        const zI2 = onNavigationIconCopyButtonClick(createdInstanceCount, mappedItemsSample),
-          al2 = styleTargetCheckbox(createdInstanceCount, mappedItemsSample);
-        return runVariantPeer({
-          value: mappedItemsSample,
-          label: zI2.label,
-          detail: zI2.group + " · " + navigationIconCopyError(mappedItemsSample, al2),
-        });
-      }),
-    ),
-    runVariantLower(pe8, fI2),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstanceCount.id,
-      type: createdInstanceCount.type,
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function imageAssetMeasureError() {
-  const createdInstanceIndex = removedComponent();
-  if (!createdInstanceIndex || createdInstanceIndex.type !== "line-chart") return;
-  const yC2 = runAltBackup(createdInstanceIndex),
-    pe9 = findReplaceableComponents(createdInstanceIndex);
-  !yC2.length ||
-    !pe9.length ||
-    ((navigationStyleApplyTitleElement.textContent = "应用折线图设置"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到折线图"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "将“" +
-      componentLabel2(createdInstanceIndex) +
-      "”中选定的修改应用到选中的折线图。数值实体、备注、动作和位置不会改变。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...yC2.map((onIconButtonEffectAssetButtonClick) => {
-        const isEffectAssetMenuHidden =
-            (navigationVisibilityComponentValue as any)[onIconButtonEffectAssetButtonClick],
-          el2 = runAltCopy(createdInstanceIndex, onIconButtonEffectAssetButtonClick);
-        return runVariantPeer({
-          value: onIconButtonEffectAssetButtonClick,
-          label: isEffectAssetMenuHidden.label,
-          detail:
-            isEffectAssetMenuHidden.group +
-            " · " +
-            runAltTwin(onIconButtonEffectAssetButtonClick, el2),
-        });
-      }),
-    ),
-    runVariantLower(
-      pe9,
-      (effectAssetCatalogError: any) =>
-        effectAssetCatalogError.bindings?.entity?.entityId || "未设置数值实体",
-    ),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (navigationStyleApplyMessageElement.textContent = ""),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstanceIndex.id,
-      type: "line-chart",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
-function applyInspectorDimensionChange(
-  nextValue: any,
-  target: any,
-  dimension: string,
-) {
-  const next = clone2(nextValue);
-  if (dimension === "width") {
-    const centerX =
-      Number(target.position?.x || 0) + Number(target.position?.width || 100) / 2;
-    target.position = {
-      ...(target.position || {}),
-      x: centerX - Number(next) / 2,
-      width: Number(next),
-    };
-    return;
-  }
-  if (dimension === "height") {
-    const centerY =
-      Number(target.position?.y || 0) + Number(target.position?.height || 100) / 2;
-    target.position = {
-      ...(target.position || {}),
-      y: centerY - Number(next) / 2,
-      height: Number(next),
-    };
-    return;
-  }
-  if (dimension === "scale") {
-    target.style = {
-      ...(target.style || {}),
-      scale: Number(next),
-    };
-    return;
-  }
-  if (dimension === "rotation") {
-    target.position = {
-      ...(target.position || {}),
-      rotation: Number(next),
-    };
-    return;
-  }
-  target.properties = {
-    ...(target.properties || {}),
-    [dimension]: next,
+function resolveComponentStyleValue(...args: any[]): ReturnType<typeof resolveComponentStyleValueImpl> { return (resolveComponentStyleValueImpl as any)(navigationPreviewDeps(), ...args); }
+function collectChangedLineChartStyleKeys(...args: any[]): ReturnType<typeof collectChangedLineChartStyleKeysImpl> { return (collectChangedLineChartStyleKeysImpl as any)(navigationPreviewDeps(), ...args); }
+function formatLineChartStyleValue(...args: any[]): ReturnType<typeof formatLineChartStyleValueImpl> { return (formatLineChartStyleValueImpl as any)(navigationPreviewDeps(), ...args); }
+function resolveNavigationStyleValue(...args: any[]): ReturnType<typeof resolveNavigationStyleValueImpl> { return (resolveNavigationStyleValueImpl as any)(navigationPreviewDeps(), ...args); }
+function styleApplyDeps(): StyleApplyDeps {
+  return {
+    get airConditionerBaselineByComponentId() { return airConditionerBaselineByComponentId; },
+    get editorCtx() { return editorCtx; },
+    get iconButtonBaselineByComponentId() { return iconButtonBaselineByComponentId; },
+    get iconButtonEffectBaselineByComponentId() { return iconButtonEffectBaselineByComponentId; },
+    get navigationButtonSavedSettingsByComponentId() { return navigationButtonSavedSettingsByComponentId; },
+    get onNavigationStyleApplyConfirmButtonClick() { return onNavigationStyleApplyConfirmButtonClick; },
+    get panelFrameBaselineByComponentId() { return panelFrameBaselineByComponentId; },
+    get runAltNew() { return resolveAirConditionerStyleValue; },
+    get runAltPeer() { return resolveNavigationStyleValue; },
+    get runAuxBackup() { return normalizeSensorKind; },
+    get runAuxInner() { return resolveCameraStyleValue; },
+    get runAuxOld() { return resolvePanelFrameStyleValue; },
+    get runAuxPeer() { return resolvePresenceSensorStyleKeys; },
+    get runVariantFallback() { return areStyleValuesEqual; },
+    get styleTargetCheckbox() { return styleTargetCheckbox; },
   };
 }
-function onIconButtonEffectAssetFolderSelectChange(
-  onIconButtonEffectAssetSearchInputInput: any,
-  onIconButtonEffectAssetOptionsPointerover: any,
-  effectAssetPointerOverEvent: any,
-) {
-  applyInspectorDimensionChange(
-    entryStateRecord(onIconButtonEffectAssetSearchInputInput, effectAssetPointerOverEvent),
-    onIconButtonEffectAssetOptionsPointerover, effectAssetPointerOverEvent);
+function collectChangedTitleButtonStyleKeys(...args: any[]): ReturnType<typeof collectChangedTitleButtonStyleKeysImpl> { return (collectChangedTitleButtonStyleKeysImpl as any)(styleApplyDeps(), ...args); }
+function onNavigationStyleApplyCancelButtonClick(...args: any[]): ReturnType<typeof onNavigationStyleApplyCancelButtonClickImpl> { return (onNavigationStyleApplyCancelButtonClickImpl as any)(styleApplyDeps(), ...args); }
+function onNavigationStyleApplyConfirmButtonClick(...args: any[]): ReturnType<typeof onNavigationStyleApplyConfirmButtonClickImpl> { return (onNavigationStyleApplyConfirmButtonClickImpl as any)(styleApplyDeps(), ...args); }
+function collectChangedAirConditionerStyleKeys(...args: any[]): ReturnType<typeof collectChangedAirConditionerStyleKeysImpl> { return (collectChangedAirConditionerStyleKeysImpl as any)(styleApplyDeps(), ...args); }
+function formatAirConditionerStyleValue(...args: any[]): ReturnType<typeof formatAirConditionerStyleValueImpl> { return (formatAirConditionerStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function resolveAirConditionerStyleValue(...args: any[]): ReturnType<typeof resolveAirConditionerStyleValueImpl> { return (resolveAirConditionerStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function collectChangedIconButtonEffectStyleKeys(...args: any[]): ReturnType<typeof collectChangedIconButtonEffectStyleKeysImpl> { return (collectChangedIconButtonEffectStyleKeysImpl as any)(styleApplyDeps(), ...args); }
+function formatIconButtonEffectStyleValue(...args: any[]): ReturnType<typeof formatIconButtonEffectStyleValueImpl> { return (formatIconButtonEffectStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function normalizeSensorKind(...args: any[]): ReturnType<typeof normalizeSensorKindImpl> { return (normalizeSensorKindImpl as any)(styleApplyDeps(), ...args); }
+function formatSensorKindLabel(...args: any[]): ReturnType<typeof formatSensorKindLabelImpl> { return (formatSensorKindLabelImpl as any)(styleApplyDeps(), ...args); }
+function resolvePresenceSensorStyleKeys(...args: any[]): ReturnType<typeof resolvePresenceSensorStyleKeysImpl> { return (resolvePresenceSensorStyleKeysImpl as any)(styleApplyDeps(), ...args); }
+function styleTargetCheckbox(...args: any[]): ReturnType<typeof styleTargetCheckboxImpl> { return (styleTargetCheckboxImpl as any)(styleApplyDeps(), ...args); }
+function appliedStylePropertyKey(...args: any[]): ReturnType<typeof appliedStylePropertyKeyImpl> { return (appliedStylePropertyKeyImpl as any)(styleApplyDeps(), ...args); }
+function onNavigationIconCopyButtonClick(...args: any[]): ReturnType<typeof onNavigationIconCopyButtonClickImpl> { return (onNavigationIconCopyButtonClickImpl as any)(styleApplyDeps(), ...args); }
+function navigationIconCopyError(...args: any[]): ReturnType<typeof navigationIconCopyErrorImpl> { return (navigationIconCopyErrorImpl as any)(styleApplyDeps(), ...args); }
+function resolveCameraStyleValue(...args: any[]): ReturnType<typeof resolveCameraStyleValueImpl> { return (resolveCameraStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function collectChangedCameraStyleKeys(...args: any[]): ReturnType<typeof collectChangedCameraStyleKeysImpl> { return (collectChangedCameraStyleKeysImpl as any)(styleApplyDeps(), ...args); }
+function formatCameraStyleValue(...args: any[]): ReturnType<typeof formatCameraStyleValueImpl> { return (formatCameraStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function resolvePanelFrameStyleValue(...args: any[]): ReturnType<typeof resolvePanelFrameStyleValueImpl> { return (resolvePanelFrameStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function collectChangedPanelFrameStyleKeys(...args: any[]): ReturnType<typeof collectChangedPanelFrameStyleKeysImpl> { return (collectChangedPanelFrameStyleKeysImpl as any)(styleApplyDeps(), ...args); }
+function formatPanelFrameStyleValue(...args: any[]): ReturnType<typeof formatPanelFrameStyleValueImpl> { return (formatPanelFrameStyleValueImpl as any)(styleApplyDeps(), ...args); }
+function entryStateRecord(...args: any[]): ReturnType<typeof entryStateRecordImpl> { return (entryStateRecordImpl as any)(styleApplyDeps(), ...args); }
+function areStyleValuesEqual(...args: any[]): ReturnType<typeof areStyleValuesEqualImpl> { return (areStyleValuesEqualImpl as any)(styleApplyDeps(), ...args); }
+function onImageAssetUploadButtonClick(...args: any[]): ReturnType<typeof onImageAssetUploadButtonClickImpl> { return (onImageAssetUploadButtonClickImpl as any)(styleApplyDeps(), ...args); }
+function onAssetOptionsClick(...args: any[]): ReturnType<typeof onAssetOptionsClickImpl> { return (onAssetOptionsClickImpl as any)(styleApplyDeps(), ...args); }
+function styleDialogsDeps(): StyleDialogsDeps {
+  return {
+    ...homeElements,
+    get appliedStylePropertyKey() { return appliedStylePropertyKey; },
+    get applyInspectorDimensionChange() { return applyInspectorDimensionChange; },
+    get editorCtx() { return editorCtx; },
+    get entryStateRecord() { return entryStateRecord; },
+    get findReplaceableComponents() { return findReplaceableComponents; },
+    get handleOperationError() { return handleOperationError; },
+    get hideAssetLargePreview() { return hideAssetLargePreview; },
+    get navigationButtonSavedSettingsByComponentId() { return navigationButtonSavedSettingsByComponentId; },
+    get navigationIconCopyError() { return navigationIconCopyError; },
+    get navigationStyleApplyTargetDeps() { return navigationStyleApplyTargetDeps; },
+    get onAssetOptionsClick() { return onAssetOptionsClick; },
+    get onDeleteAssetCancelButtonClick() { return onDeleteAssetCancelButtonClick; },
+    get onImageAssetFolderSelectChange() { return onImageAssetFolderSelectChange; },
+    get onNavigationIconCopyButtonClick() { return onNavigationIconCopyButtonClick; },
+    get onNavigationStyleApplyCancelButtonClick() { return onNavigationStyleApplyCancelButtonClick; },
+    get onNavigationStyleApplyConfirmButtonClick() { return onNavigationStyleApplyConfirmButtonClick; },
+    get removedComponent() { return removedComponent; },
+    get runAltBackup() { return collectChangedLineChartStyleKeys; },
+    get runAltCopy() { return resolveComponentStyleValue; },
+    get runAltFirst() { return formatAirConditionerStyleValue; },
+    get runAltLeft() { return collectChangedAirConditionerStyleKeys; },
+    get runAltNew() { return resolveAirConditionerStyleValue; },
+    get runAltOuter() { return collectChangedTitleButtonStyleKeys; },
+    get runAltPeer() { return resolveNavigationStyleValue; },
+    get runAltTwin() { return formatLineChartStyleValue; },
+    get runAuxAlt() { return collectChangedIconButtonEffectStyleKeys; },
+    get runAuxInner() { return resolveCameraStyleValue; },
+    get runAuxLower() { return collectChangedCameraStyleKeys; },
+    get runAuxOld() { return resolvePanelFrameStyleValue; },
+    get runAuxRight() { return formatCameraStyleValue; },
+    get runAuxTwin() { return formatSensorKindLabel; },
+    get runAuxVariant() { return formatIconButtonEffectStyleValue; },
+    get runCopyBackupDeps() { return createCopyBackupDeps; },
+    get runCopyFallback() { return closePopupRenameDialog; },
+    get runExtraLocal() { return computeCoverMotorStyleChanges; },
+    get runShadow() { return closeOtherPickerMenus; },
+    get runVariantAux() { return formatPanelFrameStyleValue; },
+    get runVariantExtra() { return collectChangedPanelFrameStyleKeys; },
+    get runVariantFallback() { return areStyleValuesEqual; },
+    get runVariantLower() { return applyNavigationStyleToTargets; },
+    get runVariantTwin() { return collectPendingNavigationStyleKeys; },
+    get styleTargetCheckbox() { return styleTargetCheckbox; },
+  };
 }
-function runCopyAlt(runCopyAux: any, onIconButtonEffectAssetOptionsClick: any, effectAssetClickEvent: any) {
-  applyInspectorDimensionChange(runAuxOld(runCopyAux, effectAssetClickEvent), onIconButtonEffectAssetOptionsClick, effectAssetClickEvent);
-}
-function runCopyVariant(runCopyCopy: any, effectAssetMeasureError: any, effectAssetDraftDocument: any) {
-  applyInspectorDimensionChange(runAuxInner(runCopyCopy, effectAssetDraftDocument), effectAssetMeasureError, effectAssetDraftDocument);
-}
-function runCopyAlias(onUndoButtonClick: any, onRedoButtonClick: any, onRecoveryRestoreButtonClick: any) {
-  applyInspectorDimensionChange(
-    runAltCopy(onUndoButtonClick, onRecoveryRestoreButtonClick),
-    onRedoButtonClick, onRecoveryRestoreButtonClick);
-}
-function recoveredComponentId(
-  onRecoveryDiscardButtonClick: any,
-  onRecoveryDialogCancel: any,
-  recoveryCancelEvent: any,
-) {
-  applyInspectorDimensionChange(
-    runAltNew(onRecoveryDiscardButtonClick, recoveryCancelEvent),
-    onRecoveryDialogCancel, recoveryCancelEvent);
-}
-function onErrorDialogCloseButtonClick(
-  onErrorDialogConfirmButtonClick: any,
-  onErrorDialogClick: any,
-  errorDialogClickEvent: any,
-) {
-  applyInspectorDimensionChange(
-    runAltPeer(onErrorDialogConfirmButtonClick, errorDialogClickEvent),
-    onErrorDialogClick, errorDialogClickEvent);
-}
-function onShowSharedComponentsButtonClick(
-  onShowPageComponentsButtonClick: any,
-  onAddComponentButtonClick: any,
-  onComponentTemplateCloseButtonClick: any,
-) {
-  applyInspectorDimensionChange(
-    styleTargetCheckbox(onShowPageComponentsButtonClick, onComponentTemplateCloseButtonClick),
-    onAddComponentButtonClick, onComponentTemplateCloseButtonClick);
-}
-function onComponentTemplateDialogClick(
-  templateDialogClickEvent: any,
-  onComponentTemplateListClick: any,
-  templateListClickEvent: any,
-) {
-  applyInspectorDimensionChange(
-    onNavigationStyleApplyConfirmButtonClick(templateDialogClickEvent, templateListClickEvent),
-    onComponentTemplateListClick, templateListClickEvent);
-}
-(navigationApplyStyleElement.addEventListener("click", runVariantFirst),
+function collectPendingNavigationStyleKeys(...args: any[]): ReturnType<typeof collectPendingNavigationStyleKeysImpl> { return (collectPendingNavigationStyleKeysImpl as any)(styleDialogsDeps(), ...args); }
+function onDeleteAssetCancelButtonClick(...args: any[]): ReturnType<typeof onDeleteAssetCancelButtonClickImpl> { return (onDeleteAssetCancelButtonClickImpl as any)(styleDialogsDeps(), ...args); }
+/** 导航「套用到其它控件」目标列表（P4 搬进 `navigation-style-apply/target-options`，此处只转发句柄）。 */
+const navigationStyleApplyTargetDeps = () => ({ navigationStyleApplyTargetsElement });
+function applyNavigationStyleToTargets(...args: any[]): ReturnType<typeof applyNavigationStyleToTargetsImpl> { return (applyNavigationStyleToTargetsImpl as any)(styleDialogsDeps(), ...args); }
+function openNavigationStyleApplyDialog(...args: any[]): ReturnType<typeof openNavigationStyleApplyDialogImpl> { return (openNavigationStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
+function onImageAssetFolderSelectChange(...args: any[]): ReturnType<typeof onImageAssetFolderSelectChangeImpl> { return (onImageAssetFolderSelectChangeImpl as any)(styleDialogsDeps(), ...args); }
+function imageAssetPointerOverEvent(...args: any[]): ReturnType<typeof imageAssetPointerOverEventImpl> { return (imageAssetPointerOverEventImpl as any)(styleDialogsDeps(), ...args); }
+function imageAssetClickEvent(...args: any[]): ReturnType<typeof imageAssetClickEventImpl> { return (imageAssetClickEventImpl as any)(styleDialogsDeps(), ...args); }
+function openCameraStyleApplyDialog(...args: any[]): ReturnType<typeof openCameraStyleApplyDialogImpl> { return (openCameraStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
+function openTitleButtonStyleApplyDialog(...args: any[]): ReturnType<typeof openTitleButtonStyleApplyDialogImpl> { return (openTitleButtonStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
+function openIconButtonEffectStyleApplyDialog(...args: any[]): ReturnType<typeof openIconButtonEffectStyleApplyDialogImpl> { return (openIconButtonEffectStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
+function openAirConditionerStyleApplyDialog(...args: any[]): ReturnType<typeof openAirConditionerStyleApplyDialogImpl> { return (openAirConditionerStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
+function openIconButtonStyleApplyDialog(...args: any[]): ReturnType<typeof openIconButtonStyleApplyDialogImpl> { return (openIconButtonStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
+function imageAssetMeasureError(...args: any[]): ReturnType<typeof imageAssetMeasureErrorImpl> { return (imageAssetMeasureErrorImpl as any)(styleDialogsDeps(), ...args); }
+function applyInspectorDimensionChange(...args: any[]): ReturnType<typeof applyInspectorDimensionChangeImpl> { return (applyInspectorDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
+function onIconButtonEffectAssetFolderSelectChange(...args: any[]): ReturnType<typeof onIconButtonEffectAssetFolderSelectChangeImpl> { return (onIconButtonEffectAssetFolderSelectChangeImpl as any)(styleDialogsDeps(), ...args); }
+function applyEffectAssetDimensionChange(...args: any[]): ReturnType<typeof applyEffectAssetDimensionChangeImpl> { return (applyEffectAssetDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
+function applyCameraDimensionChange(...args: any[]): ReturnType<typeof applyCameraDimensionChangeImpl> { return (applyCameraDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
+function applyLineChartDimensionChange(...args: any[]): ReturnType<typeof applyLineChartDimensionChangeImpl> { return (applyLineChartDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
+function recoveredComponentId(...args: any[]): ReturnType<typeof recoveredComponentIdImpl> { return (recoveredComponentIdImpl as any)(styleDialogsDeps(), ...args); }
+function onErrorDialogCloseButtonClick(...args: any[]): ReturnType<typeof onErrorDialogCloseButtonClickImpl> { return (onErrorDialogCloseButtonClickImpl as any)(styleDialogsDeps(), ...args); }
+function onShowSharedComponentsButtonClick(...args: any[]): ReturnType<typeof onShowSharedComponentsButtonClickImpl> { return (onShowSharedComponentsButtonClickImpl as any)(styleDialogsDeps(), ...args); }
+function onComponentTemplateDialogClick(...args: any[]): ReturnType<typeof onComponentTemplateDialogClickImpl> { return (onComponentTemplateDialogClickImpl as any)(styleDialogsDeps(), ...args); }
+(navigationApplyStyleElement.addEventListener("click", openNavigationStyleApplyDialog),
   panelFrameApplyStyleButtonElement.addEventListener("click", imageAssetClickEvent),
-  cameraApplyStyleElement.addEventListener("click", runVariantSecond),
-  titleButtonApplyStyleElement.addEventListener("click", runVariantLast),
+  cameraApplyStyleElement.addEventListener("click", openCameraStyleApplyDialog),
+  titleButtonApplyStyleElement.addEventListener("click", openTitleButtonStyleApplyDialog),
   lineChartApplyStyleButtonElement.addEventListener("click", imageAssetMeasureError),
-  ibeApplyStyleElement.addEventListener("click", runVariantOld),
-  iconButtonApplyStyleElement.addEventListener("click", runCopyExtra),
-  airConditionerApplyStyleElement.addEventListener("click", runVariantNew),
+  ibeApplyStyleElement.addEventListener("click", openIconButtonEffectStyleApplyDialog),
+  iconButtonApplyStyleElement.addEventListener("click", openIconButtonStyleApplyDialog),
+  airConditionerApplyStyleElement.addEventListener("click", openAirConditionerStyleApplyDialog),
   navigationStyleApplyCloseElement.addEventListener("click", () =>
     navigationStyleApplyDialogElement.close(),
   ),
@@ -13063,7 +5585,7 @@ function onComponentTemplateDialogClick(
               ) &&
               !(
                 isImageAssetMenuHiddenState === "presence-sensor" &&
-                runAuxBackup(currentComponentScope) !== runAuxBackup(templatePagePath)
+                normalizeSensorKind(currentComponentScope) !== normalizeSensorKind(templatePagePath)
               )
             ) {
               for (const imageAssetPointerOverEventState of mappedItemsMode)
@@ -13072,13 +5594,13 @@ function onComponentTemplateDialogClick(
                       imageAssetPointerOverEventState,
                     ])
                   : isImageAssetMenuHiddenState === "panel-frame"
-                    ? runCopyAlt(
+                    ? applyEffectAssetDimensionChange(
                         templatePagePath,
                         currentComponentScope,
                         imageAssetPointerOverEventState,
                       )
                     : isImageAssetMenuHiddenState === "camera"
-                      ? runCopyVariant(
+                      ? applyCameraDimensionChange(
                           templatePagePath,
                           currentComponentScope,
                           imageAssetPointerOverEventState,
@@ -13090,7 +5612,7 @@ function onComponentTemplateDialogClick(
                             imageAssetPointerOverEventState,
                           )
                         : isImageAssetMenuHiddenState === "line-chart"
-                          ? runCopyAlias(
+                          ? applyLineChartDimensionChange(
                               templatePagePath,
                               currentComponentScope,
                               imageAssetPointerOverEventState,
@@ -13210,13 +5732,13 @@ function onComponentTemplateDialogClick(
   }),
   navigationIconButtonElement.addEventListener("click", () => {
     const hidden5 = navigationIconMenuElement.hidden;
-    (runShadow(hidden5 ? "navigation-icon" : null),
+    (closeOtherPickerMenus(hidden5 ? "navigation-icon" : null),
       (navigationIconMenuElement.hidden = !hidden5),
       navigationIconButtonElement.setAttribute("aria-expanded", String(hidden5)),
       hidden5 &&
         iconTooltipElementCount(navigationIconSearchElement.value)
           .then(() => {
-            (runNext(),
+            (positionNavigationIconMenu(),
               navigationIconSearchElement.focus({
                 preventScroll: true,
               }));
@@ -13250,7 +5772,7 @@ function onComponentTemplateDialogClick(
       activeGroupChildComponent = editorCtx.selectedComponentId;
     if (!activeGroupChildComponentElement || !activeGroupChildComponent) return;
     const iconName = activeGroupChildComponentElement.dataset.iconName;
-    (runShadow(),
+    (closeOtherPickerMenus(),
       mutateDocument((imageAssetClickEventState: any) => {
         const templateTargetScope = findComponent2(
           imageAssetClickEventState,
@@ -13280,13 +5802,13 @@ function onComponentTemplateDialogClick(
   }),
   ibeIconButtonElement.addEventListener("click", () => {
     const hidden6 = ibeIconMenuElement.hidden;
-    (runShadow(hidden6 ? "ibe-icon" : null),
+    (closeOtherPickerMenus(hidden6 ? "ibe-icon" : null),
       (ibeIconMenuElement.hidden = !hidden6),
       ibeIconButtonElement.setAttribute("aria-expanded", String(hidden6)),
       hidden6 &&
         iconTooltipElementFlag(ibeIconSearchElement.value)
           .then(() => {
-            (runOld(),
+            (positionIbeIconMenu(),
               ibeIconSearchElement.focus({
                 preventScroll: true,
               }));
@@ -13321,7 +5843,7 @@ function onComponentTemplateDialogClick(
       imageAssetIdState = editorCtx.selectedComponentId;
     if (!createComponentPromiseElement || !imageAssetIdState) return;
     const iconName2 = createComponentPromiseElement.dataset.iconName;
-    (runShadow(),
+    (closeOtherPickerMenus(),
       mutateDocument((imageAssetDraftDocumentState: any) => {
         const templateDraftDocumentState = findComponent2(
           imageAssetDraftDocumentState,
@@ -13337,13 +5859,13 @@ function onComponentTemplateDialogClick(
   }),
   iconButtonIconButtonElement.addEventListener("click", () => {
     const hidden7 = iconButtonIconMenuElement.hidden;
-    (runShadow(hidden7 ? "icon-button-icon" : null),
+    (closeOtherPickerMenus(hidden7 ? "icon-button-icon" : null),
       (iconButtonIconMenuElement.hidden = !hidden7),
       iconButtonIconButtonElement.setAttribute("aria-expanded", String(hidden7)),
       hidden7 &&
         iconTooltipElementStep(iconButtonIconSearchElement.value)
           .then(() => {
-            (runNew(),
+            (positionIconButtonIconMenu(),
               iconButtonIconSearchElement.focus({
                 preventScroll: true,
               }));
@@ -13377,7 +5899,7 @@ function onComponentTemplateDialogClick(
       templatePageMatchState = editorCtx.selectedComponentId;
     if (!templateTargetPageElement || !templatePageMatchState) return;
     const iconName3 = templateTargetPageElement.dataset.iconName;
-    (runShadow(),
+    (closeOtherPickerMenus(),
       mutateDocument((templatePageMatch: any) => {
         const draftGroupEntry = findComponent2(
           templatePageMatch,
@@ -13394,7 +5916,7 @@ function onComponentTemplateDialogClick(
   titleButtonIconButtonElement.addEventListener("click", (draftGroupComponentState: any) => {
     (draftGroupComponentState.preventDefault(), draftGroupComponentState.stopPropagation());
     const hidden8 = titleButtonIconMenuElement.hidden;
-    (runShadow(hidden8 ? "title-button-icon" : null),
+    (closeOtherPickerMenus(hidden8 ? "title-button-icon" : null),
       hidden8 &&
         titleButtonIconMenuElement.parentElement !== document.body &&
         document.body.append(titleButtonIconMenuElement),
@@ -13403,10 +5925,10 @@ function onComponentTemplateDialogClick(
       (titleButtonIconMenuElement.style.zIndex = "760"),
       titleButtonIconButtonElement.setAttribute("aria-expanded", String(hidden8)),
       hidden8 &&
-        (runShort(),
+        (layoutTitleButtonIconMenu(),
         iconTooltipElementStore(titleButtonIconSearchElement.value)
           .then(() => {
-            (runShort(),
+            (layoutTitleButtonIconMenu(),
               titleButtonIconSearchElement.focus({
                 preventScroll: true,
               }));
@@ -13442,7 +5964,7 @@ function onComponentTemplateDialogClick(
       targetComponentCollection = editorCtx.selectedComponentId;
     if (!targetComponentCollectionElement || !targetComponentCollection) return;
     const iconName4 = targetComponentCollectionElement.dataset.iconName;
-    (runShadow(),
+    (closeOtherPickerMenus(),
       mutateDocument((imageAssetMeasureErrorState: any) => {
         const insertionCollection = findComponent2(
           imageAssetMeasureErrorState,
@@ -13463,7 +5985,7 @@ function onComponentTemplateDialogClick(
       (onIconButtonEffectAssetButtonClickState.preventDefault(),
         onIconButtonEffectAssetButtonClickState.stopPropagation());
       const hidden9 = lightStatisticsIconMenuElement.hidden;
-      (runShadow(hidden9 ? "light-statistics-icon" : null),
+      (closeOtherPickerMenus(hidden9 ? "light-statistics-icon" : null),
         hidden9 &&
           lightStatisticsIconMenuElement.parentElement !== document.body &&
           document.body.append(lightStatisticsIconMenuElement),
@@ -13472,10 +5994,10 @@ function onComponentTemplateDialogClick(
         (lightStatisticsIconMenuElement.style.zIndex = "760"),
         lightStatisticsIconButtonElement.setAttribute("aria-expanded", String(hidden9)),
         hidden9 &&
-          (runLong(),
+          (positionLightStatisticsIconMenu(),
           iconTooltipElementBuffer(lightStatisticsIconSearchElement.value)
             .then(() => {
-              (runLong(),
+              (positionLightStatisticsIconMenu(),
                 lightStatisticsIconSearchElement.focus({
                   preventScroll: true,
                 }));
@@ -13518,7 +6040,7 @@ function onComponentTemplateDialogClick(
         templateInstanceName = editorCtx.selectedComponentId;
       if (!templateInstanceNameElement || !templateInstanceName) return;
       const lightStatisticsIconName = templateInstanceNameElement.dataset.lightStatisticsIconName;
-      (runShadow(),
+      (closeOtherPickerMenus(),
         mutateDocument((onIconButtonEffectAssetSearchInputInputState: any) => {
           const createdComponent = findComponent2(
             onIconButtonEffectAssetSearchInputInputState,
@@ -13539,7 +6061,7 @@ function onComponentTemplateDialogClick(
       (onIconButtonEffectAssetOptionsPointeroverState.preventDefault(),
         onIconButtonEffectAssetOptionsPointeroverState.stopPropagation());
       const hidden10 = lightStatisticsEntityMenuElement.hidden;
-      (runShadow(hidden10 ? "light-statistics-entity" : null),
+      (closeOtherPickerMenus(hidden10 ? "light-statistics-entity" : null),
         hidden10 &&
           lightStatisticsEntityMenuElement.parentElement !== document.body &&
           document.body.append(lightStatisticsEntityMenuElement),
@@ -13548,10 +6070,10 @@ function onComponentTemplateDialogClick(
         (lightStatisticsEntityMenuElement.style.zIndex = "760"),
         lightStatisticsEntityButtonElement.setAttribute("aria-expanded", String(hidden10)),
         hidden10 &&
-          (runAmount(lightStatisticsEntitySearchElement.value),
-          runExtraExtra(),
+          (renderLightStatisticsEntityOptions(lightStatisticsEntitySearchElement.value),
+          positionLightStatisticsEntityMenu(),
           window.requestAnimationFrame(() => {
-            (runExtraExtra(),
+            (positionLightStatisticsEntityMenu(),
               lightStatisticsEntitySearchElement.focus({
                 preventScroll: true,
               }));
@@ -13559,7 +6081,7 @@ function onComponentTemplateDialogClick(
     },
   ),
   lightStatisticsEntitySearchElement.addEventListener("input", () =>
-    runAmount(lightStatisticsEntitySearchElement.value),
+    renderLightStatisticsEntityOptions(lightStatisticsEntitySearchElement.value),
   ),
   lightStatisticsEntityOptionsElement.addEventListener(
     "click",
@@ -13568,8 +6090,8 @@ function onComponentTemplateDialogClick(
         "[data-light-statistics-entity-id]",
       );
       createdComponentElement &&
-        (runPrimary(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement),
-        runLength(createdComponentElement.dataset.lightStatisticsEntityId));
+        (closePickerMenu(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement),
+        addLightStatisticsEntity(createdComponentElement.dataset.lightStatisticsEntityId));
     },
   ),
   lightStatisticsEntityConfirmElement.addEventListener("click", () => effectIconName()),
@@ -13583,7 +6105,7 @@ function onComponentTemplateDialogClick(
           "[data-light-statistics-remove-index]",
         );
       if (groupHeightElement) {
-        runLocation(Number(groupHeightElement.dataset.lightStatisticsRemoveIndex));
+        removeLightStatisticsEntityAt(Number(groupHeightElement.dataset.lightStatisticsRemoveIndex));
         return;
       }
       groupWidthElement &&
@@ -13591,35 +6113,35 @@ function onComponentTemplateDialogClick(
         (editorCtx.statisticsReplaceIndex = Number(groupWidthElement.dataset.lightStatisticsReplaceIndex)),
         (editorCtx.statisticsComponentId = editorCtx.selectedComponentId || ""),
         (lightStatisticsEntityPendingElement.hidden = true),
-        runDelta("请选择新的实体。"),
-        runBackup(lightStatisticsEntityButtonElement, "选择替换实体"),
+        showLightStatisticsMessage("请选择新的实体。"),
+        setPickerButtonLabel(lightStatisticsEntityButtonElement, "选择替换实体"),
         lightStatisticsEntityButtonElement.click());
     },
   ),
   imageEntityButtonElement.addEventListener("click", () => {
     const hidden11 = imageEntityMenuElement.hidden;
-    (runShadow(hidden11 ? "entity" : null),
+    (closeOtherPickerMenus(hidden11 ? "entity" : null),
       (imageEntityMenuElement.hidden = !hidden11),
       imageEntityButtonElement.setAttribute("aria-expanded", String(hidden11)),
       hidden11 &&
-        (runExtraVariant(imageEntitySearchElement.value),
-        runExtraShadow(),
+        (renderRelatedPopupEntityOptions(imageEntitySearchElement.value),
+        refreshImageAssetPickerPreview(),
         window.requestAnimationFrame(() => {
-          (runExtraShadow(),
+          (refreshImageAssetPickerPreview(),
             imageEntitySearchElement.focus({
               preventScroll: true,
             }));
         })));
   }),
   imageEntitySearchElement.addEventListener("input", () =>
-    runExtraVariant(imageEntitySearchElement.value),
+    renderRelatedPopupEntityOptions(imageEntitySearchElement.value),
   ),
   imageEntityOptionsElement.addEventListener("click", (effectAssetClickEventState: any) => {
     const createdWidthElement = effectAssetClickEventState.target.closest("[data-entity-id]");
     if (!createdWidthElement || !editorCtx.selectedComponentId) return;
     const createdWidth = editorCtx.selectedComponentId,
       entityId = createdWidthElement.dataset.entityId;
-    (runShadow(),
+    (closeOtherPickerMenus(),
       mutateDocument((createdHeightState: any) => {
         const effectAssetComponentId = findComponent2(createdHeightState, createdWidth)?.component;
         if (!effectAssetComponentId || effectAssetComponentId.type !== "image") return;
@@ -13684,1139 +6206,156 @@ function onComponentTemplateDialogClick(
           (recoveredComponentIdsState.properties.controlMode = sceneControlMode);
       });
   }));
-const popupBeingRenamedState = "推荐去 HA 复制实体 ID，粘贴搜索。可精准选择。";
+const entityPickerHintText = "推荐去 HA 复制实体 ID，粘贴搜索。可精准选择。";
 const { deferUntilEntitiesLoaded: popupBeingRenamed }: any = createEditorPickerLifecycle2({
   getEntitiesLoaded: () => editorCtx.isAreEntitiesLoaded,
   getEntityLoadPromise: () => editorCtx.entitiesLoadPromise,
   loadEntities: ensureEntitiesLoaded,
   reportError: handleOperationError,
 });
-function runCopyFallback() {
-  editorCtx.popupBeingRenamedValue?.close();
-}
+function closePopupRenameDialog(...args: any[]): ReturnType<typeof closePopupRenameDialogImpl> { return (closePopupRenameDialogImpl as any)(styleDialogsDeps(), ...args); }
 // ── P4 切片转发器（声明级切片：宿主侧薄转发器 + 依赖袋，都是函数声明 → 提升，位置无关）──
-function runCopyBackupDeps() {
-  return ({
-    get runCopyFallback() {
-      return runCopyFallback;
-    },
-    get runShadow() {
-      return runShadow;
-    },
-    get imageAssetLargePreviewImageElement() {
-      return imageAssetLargePreviewImageElement;
-    },
-    get popupBeingRenamedValue() {
-      return editorCtx.popupBeingRenamedValue;
-    },
-    set popupBeingRenamedValue(v) {
-      editorCtx.popupBeingRenamedValue = v;
-    },
-    get hideAssetLargePreview() {
-      return hideAssetLargePreview;
-    },
-    get handleOperationError() {
-      return handleOperationError;
-    },
-  });
-}
+function createCopyBackupDeps(...args: any[]): ReturnType<typeof createCopyBackupDepsImpl> { return (createCopyBackupDepsImpl as any)(styleDialogsDeps(), ...args); }
 
-function runCopyBackup({ kind: popupBeingRenamedConfig, title: popupBeingRenamedRef, subtitle: popupBeingRenamedEntry = "", searchPlaceholder: popupBeingRenamedRecord, triggerButton: popupBeingRenamedName, pageSize: recoveredComponentIdState, initialPage: onRecoveryDiscardButtonClickState = 1, selectedText: onRecoveryDialogCancelState = "", emptyText: recoveryCancelEventState, itemClass: onErrorDialogCloseButtonClickState = "", getPage: onErrorDialogConfirmButtonClickState, renderItem: onErrorDialogClickState, renderLeadingItems: errorDialogClickEventValue = null, renderTrailingItems: onShowSharedComponentsButtonClickState = null, buildToolbar: onShowPageComponentsButtonClickState = null, onSelect: onAddComponentButtonClickState, onDelete: onPopupNewButtonClick = null, onItemHover: onPopupNameCloseButtonClick = null, closeLegacyPickers: onPopupNameCancelButtonClick = true, renderSelectedActions: onPopupNameFormSubmit = null, renderSelectedContent: popupNameSubmitEvent = null, }: any) {
-  return runCopyBackupCore(runCopyBackupDeps(), { kind: popupBeingRenamedConfig, title: popupBeingRenamedRef, subtitle: popupBeingRenamedEntry, searchPlaceholder: popupBeingRenamedRecord, triggerButton: popupBeingRenamedName, pageSize: recoveredComponentIdState, initialPage: onRecoveryDiscardButtonClickState, selectedText: onRecoveryDialogCancelState, emptyText: recoveryCancelEventState, itemClass: onErrorDialogCloseButtonClickState, getPage: onErrorDialogConfirmButtonClickState, renderItem: onErrorDialogClickState, renderLeadingItems: errorDialogClickEventValue, renderTrailingItems: onShowSharedComponentsButtonClickState, buildToolbar: onShowPageComponentsButtonClickState, onSelect: onAddComponentButtonClickState, onDelete: onPopupNewButtonClick, onItemHover: onPopupNameCloseButtonClick, closeLegacyPickers: onPopupNameCancelButtonClick, renderSelectedActions: onPopupNameFormSubmit, renderSelectedContent: popupNameSubmitEvent });
-}
+function renderCopyBackupDialog(...args: any[]): ReturnType<typeof renderCopyBackupDialogImpl> { return (renderCopyBackupDialogImpl as any)(styleDialogsDeps(), ...args); }
 
-function titleButtonMenuDeps() {
-  return ({
-    get customSelectsBySelectElement() {
-      return customSelectsBySelectElement;
-    },
-    get imageAssetFolderSelectElement() {
-      return imageAssetFolderSelectElement;
-    },
-    get ibeAssetFolderElement() {
-      return ibeAssetFolderElement;
-    },
-    get imageAssetFolder() {
-      return editorCtx.imageAssetFolder;
-    },
-    get effectAssetFolder() {
-      return editorCtx.effectAssetFolder;
-    },
-    get canDeleteAssetFolder() {
-      return canDeleteAssetFolder;
-    },
-    get runState() {
-      return runState;
-    },
-    get runConfig() {
-      return runConfig;
-    },
-    get errorPhase() {
-      return errorPhase;
-    },
-    get value() {
-      return value;
-    },
-    get openCustomSelect() {
-      return editorCtx.openCustomSelect;
-    },
-    set openCustomSelect(v) {
-      editorCtx.openCustomSelect = v;
-    },
-    get runCopyLast() {
-      return runCopyLast;
-    },
-    get runOuter() {
-      return runOuter;
-    },
-    get effectVariantUrlState() {
-      return effectVariantUrlState;
-    },
-    get requestJson() {
-      return requestJson;
-    },
-    get ICON_PAGE_SIZE() {
-      return ICON_PAGE_SIZE;
-    },
-    get createIconPickerClearOptionState() {
-      return createIconPickerClearOptionState;
-    },
-  });
+function copyBackupPickersDeps(): CopyBackupPickersDeps {
+  return {
+    ...homeElements,
+    get airConditionerLayerByComponentId() { return airConditionerLayerByComponentId; },
+    get canDeleteAssetFolder() { return canDeleteAssetFolder; },
+    get coverMotorButtonElement() { return coverMotorButtonElement; },
+    get createEditorEntityPickerOption() { return createEditorEntityPickerOption; },
+    get createEditorPickerCurrentEntity() { return createEditorPickerCurrentEntity; },
+    get createIconPickerClearOption() { return createIconPickerClearOption; },
+    get createIconPickerClearOptionState() { return createIconPickerClearOptionState; },
+    get createIconPickerOption() { return createIconPickerOption; },
+    get customSelectsBySelectElement() { return customSelectsBySelectElement; },
+    get devicesByDeviceId() { return devicesByDeviceId; },
+    get editorCtx() { return editorCtx; },
+    get editorEntityMatches() { return editorEntityMatches; },
+    get editorPickerComponentTypeLabel() { return editorPickerComponentTypeLabel; },
+    get effectVariantUrlState() { return effectVariantUrlState; },
+    get entitiesByEntityId() { return entitiesByEntityId; },
+    get errorPhase() { return errorPhase; },
+    get ICON_PAGE_SIZE() { return ICON_PAGE_SIZE; },
+    get initActionPopupConfig() { return initActionPopupConfig; },
+    get inspectorSyncDeps() { return inspectorSyncDeps; },
+    get loadNavigationIconOptions() { return loadNavigationIconOptions; },
+    get mutateDocument() { return mutateDocument; },
+    get nudgeDeps() { return nudgeDeps; },
+    get popupBeingRenamed() { return popupBeingRenamed; },
+    get entityPickerHintText() { return entityPickerHintText; },
+    get positionPopupEntityMenu() { return positionPopupEntityMenu; },
+    get removalPageEntry() { return removalPageEntry; },
+    get removedComponent() { return removedComponent; },
+    get renderNavigationIconPreview() { return renderNavigationIconPreview; },
+    get renderPopupEntityOptions() { return renderPopupEntityOptions; },
+    get requestJson() { return requestJson; },
+    get resolveAssetPreviewUrl() { return resolveAssetPreviewUrl; },
+    get runConfig() { return positionCustomSelectMenu; },
+    get runCopyBackup() { return renderCopyBackupDialog; },
+    get runCopyLast() { return requestDeleteAssetFolder; },
+    get runCopyTwin() { return clickPopupListOption; },
+    get runExtraAlt() { return resolveEntityPickerConfig; },
+    get runExtraVariant() { return renderRelatedPopupEntityOptions; },
+    get runMode() { return formatEntitySummary; },
+    get runOuter() { return ensureIconListPaginationState; },
+    get runPortion() { return resolveEntityCatalog; },
+    get runSegment() { return findIconVisibilityVirtualEntity; },
+    get runShadow() { return closeOtherPickerMenus; },
+    get runState() { return closeCustomSelect; },
+    get selectedComponentIdsFromDom() { return selectedComponentIdsFromDom; },
+    get setComponentsRotation() { return setComponentsRotation; },
+    get syncPopupEntityButton() { return syncPopupEntityButton; },
+    get titleButtonMenuDeps() { return titleButtonMenuDeps; },
+    get value() { return value; },
+  };
 }
+function titleButtonMenuDeps(...args: any[]): ReturnType<typeof titleButtonMenuDepsImpl> { return (titleButtonMenuDepsImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function loadNavigationIconOptions(loadTitleButtonIconOptionsElement: any) {
-  return loadNavigationIconOptionsCore(titleButtonMenuDeps(), loadTitleButtonIconOptionsElement);
-}
-function positionTitleButtonIconMenu(registerOverflowPreviewRow: any) {
-  return positionTitleButtonIconMenuCore(titleButtonMenuDeps(), registerOverflowPreviewRow);
-}
-function stopHoverScroll(syncEntityPickerValue: any) {
-  return stopHoverScrollCore(titleButtonMenuDeps(), syncEntityPickerValue);
-}
-function iconTooltipElementValue({ optionsElement: iconTooltipElementCard, query: iconTooltipElementConfig = "", currentIcon: iconTooltipElementRef = "", clearLabel: iconTooltipElementEntry = "不使用图标", datasetKey: iconTooltipElementRecord = "iconName", append: iconTooltipElementName = false, }: any) {
-  return iconTooltipElementValueCore(titleButtonMenuDeps(), { optionsElement: iconTooltipElementCard, query: iconTooltipElementConfig, currentIcon: iconTooltipElementRef, clearLabel: iconTooltipElementEntry, datasetKey: iconTooltipElementRecord, append: iconTooltipElementName });
-}
+function loadNavigationIconOptions(...args: any[]): ReturnType<typeof loadNavigationIconOptionsImpl> { return (loadNavigationIconOptionsImpl as any)(copyBackupPickersDeps(), ...args); }
+function positionTitleButtonIconMenu(...args: any[]): ReturnType<typeof positionTitleButtonIconMenuImpl> { return (positionTitleButtonIconMenuImpl as any)(copyBackupPickersDeps(), ...args); }
+function stopHoverScroll(...args: any[]): ReturnType<typeof stopHoverScrollImpl> { return (stopHoverScrollImpl as any)(copyBackupPickersDeps(), ...args); }
+function iconTooltipElementValue(...args: any[]): ReturnType<typeof iconTooltipElementValueImpl> { return (iconTooltipElementValueImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function inspectorSyncDeps() {
-  return ({
-    get initActionPopupConfig() {
-      return initActionPopupConfig;
-    },
-    get lightStatisticsActionNoteElement() {
-      return lightStatisticsActionNoteElement;
-    },
-    get activeProject() {
-      return editorCtx.activeProject;
-    },
-    get Option() {
-      return Option;
-    },
-    get pageSelectElement() {
-      return pageSelectElement;
-    },
-    get loadNavigationIconOptions() {
-      return loadNavigationIconOptions;
-    },
-    get entities() {
-      return editorCtx.entities;
-    },
-    get syncPopupEntityButton() {
-      return syncPopupEntityButton;
-    },
-    get renderPopupEntityOptions() {
-      return renderPopupEntityOptions;
-    },
-    get positionPopupEntityMenu() {
-      return positionPopupEntityMenu;
-    },
-    get selectedComponentId() {
-      return editorCtx.selectedComponentId;
-    },
-    get navigatorElement() {
-      return navigatorElement;
-    },
-    get titleButtonLeftElement() {
-      return titleButtonLeftElement;
-    },
-    get lightStatisticsLeftElement() {
-      return lightStatisticsLeftElement;
-    },
-    get iconButtonLeftElement() {
-      return iconButtonLeftElement;
-    },
-    get airConditionerLeftElement() {
-      return airConditionerLeftElement;
-    },
-    get vacuumMapLeftElement() {
-      return vacuumMapLeftElement;
-    },
-    get cameraLeftElement() {
-      return cameraLeftElement;
-    },
-    get ibeLeftElement() {
-      return ibeLeftElement;
-    },
-    get navigationLabelTextInputElement() {
-      return navigationLabelTextInputElement;
-    },
-    get navigationLeftElement() {
-      return navigationLeftElement;
-    },
-    get timeLeftElement() {
-      return timeLeftElement;
-    },
-    get dateLeftElement() {
-      return dateLeftElement;
-    },
-    get weatherLeftElement() {
-      return weatherLeftElement;
-    },
-    get lineChartLeftInputElement() {
-      return lineChartLeftInputElement;
-    },
-    get panelFrameLeftInputElement() {
-      return panelFrameLeftInputElement;
-    },
-    get imageLeftInputElement() {
-      return imageLeftInputElement;
-    },
-    get titleButtonTopElement() {
-      return titleButtonTopElement;
-    },
-    get lightStatisticsTopElement() {
-      return lightStatisticsTopElement;
-    },
-    get iconButtonTopElement() {
-      return iconButtonTopElement;
-    },
-    get airConditionerTopElement() {
-      return airConditionerTopElement;
-    },
-    get vacuumMapTopElement() {
-      return vacuumMapTopElement;
-    },
-    get cameraTopElement() {
-      return cameraTopElement;
-    },
-    get ibeTopElement() {
-      return ibeTopElement;
-    },
-    get navigationTopElement() {
-      return navigationTopElement;
-    },
-    get timeTopElement() {
-      return timeTopElement;
-    },
-    get dateTopElement() {
-      return dateTopElement;
-    },
-    get weatherTopElement() {
-      return weatherTopElement;
-    },
-    get lineChartTopInputElement() {
-      return lineChartTopInputElement;
-    },
-    get panelFrameTopInputElement() {
-      return panelFrameTopInputElement;
-    },
-    get imageTopInputElement() {
-      return imageTopInputElement;
-    },
-    get titleButtonScaleElement() {
-      return titleButtonScaleElement;
-    },
-    get lightStatisticsScaleElement() {
-      return lightStatisticsScaleElement;
-    },
-    get iconButtonScaleElement() {
-      return iconButtonScaleElement;
-    },
-    get airConditionerScaleElement() {
-      return airConditionerScaleElement;
-    },
-    get vacuumMapScaleElement() {
-      return vacuumMapScaleElement;
-    },
-    get cameraScaleElement() {
-      return cameraScaleElement;
-    },
-    get ibeScaleElement() {
-      return ibeScaleElement;
-    },
-    get navigationScaleElement() {
-      return navigationScaleElement;
-    },
-    get timeScaleElement() {
-      return timeScaleElement;
-    },
-    get dateScaleElement() {
-      return dateScaleElement;
-    },
-    get weatherScaleElement() {
-      return weatherScaleElement;
-    },
-    get lineChartScaleInputElement() {
-      return lineChartScaleInputElement;
-    },
-    get panelFrameScaleInputElement() {
-      return panelFrameScaleInputElement;
-    },
-    get imageScaleInputElement() {
-      return imageScaleInputElement;
-    },
-    get titleButtonRotationElement() {
-      return titleButtonRotationElement;
-    },
-    get lightStatisticsRotationElement() {
-      return lightStatisticsRotationElement;
-    },
-    get iconButtonRotationElement() {
-      return iconButtonRotationElement;
-    },
-    get airConditionerRotationElement() {
-      return airConditionerRotationElement;
-    },
-    get vacuumMapRotationElement() {
-      return vacuumMapRotationElement;
-    },
-    get cameraRotationElement() {
-      return cameraRotationElement;
-    },
-    get ibeRotationElement() {
-      return ibeRotationElement;
-    },
-    get navigationRotationElement() {
-      return navigationRotationElement;
-    },
-    get timeRotationElement() {
-      return timeRotationElement;
-    },
-    get dateRotationElement() {
-      return dateRotationElement;
-    },
-    get weatherRotationElement() {
-      return weatherRotationElement;
-    },
-    get lineChartRotationInputElement() {
-      return lineChartRotationInputElement;
-    },
-    get panelFrameRotationInputElement() {
-      return panelFrameRotationInputElement;
-    },
-    get imageRotationInputElement() {
-      return imageRotationInputElement;
-    },
-    get navigationWidthElement() {
-      return navigationWidthElement;
-    },
-    get navigationHeightElement() {
-      return navigationHeightElement;
-    },
-    get ibeWidthElement() {
-      return ibeWidthElement;
-    },
-    get ibeHeightElement() {
-      return ibeHeightElement;
-    },
-    get titleButtonWidthElement() {
-      return titleButtonWidthElement;
-    },
-    get titleButtonHeightElement() {
-      return titleButtonHeightElement;
-    },
-    get lightStatisticsWidthElement() {
-      return lightStatisticsWidthElement;
-    },
-    get lightStatisticsHeightElement() {
-      return lightStatisticsHeightElement;
-    },
-    get iconButtonWidthElement() {
-      return iconButtonWidthElement;
-    },
-    get iconButtonHeightElement() {
-      return iconButtonHeightElement;
-    },
-    get cameraWidthElement() {
-      return cameraWidthElement;
-    },
-    get cameraHeightElement() {
-      return cameraHeightElement;
-    },
-    get airConditionerWidthElement() {
-      return airConditionerWidthElement;
-    },
-    get airConditionerHeightElement() {
-      return airConditionerHeightElement;
-    },
-    get lineChartWidthInputElement() {
-      return lineChartWidthInputElement;
-    },
-    get lineChartHeightInputElement() {
-      return lineChartHeightInputElement;
-    },
-    get panelFrameWidthInputElement() {
-      return panelFrameWidthInputElement;
-    },
-    get panelFrameHeightInputElement() {
-      return panelFrameHeightInputElement;
-    },
-    get removedComponent() {
-      return removedComponent;
-    },
-    get editorRenderer() {
-      return editorCtx.editorRenderer;
-    },
-    get selectedComponentIdsFromDom() {
-      return selectedComponentIdsFromDom;
-    },
-    get coverMotorButtonElement() {
-      return coverMotorButtonElement;
-    },
-    get mutateDocument() {
-      return mutateDocument;
-    },
-    get setComponentsRotation() {
-      return setComponentsRotation;
-    },
-    get runExtraAlt() {
-      return runExtraAlt;
-    },
-    get runShadow() {
-      return runShadow;
-    },
-    get runExtraVariant() {
-      return runExtraVariant;
-    },
-    get resolveAssetPreviewUrl() {
-      return resolveAssetPreviewUrl;
-    },
-    get entitiesByEntityId() {
-      return entitiesByEntityId;
-    },
-    get devicesByDeviceId() {
-      return devicesByDeviceId;
-    },
-  });
-}
+function inspectorSyncDeps(...args: any[]): ReturnType<typeof inspectorSyncDepsImpl> { return (inspectorSyncDepsImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function syncComponentActionControls(editedActionComponent: any, actionControlsRoot: any) {
-  return syncComponentActionControlsCore(inspectorSyncDeps(), editedActionComponent, actionControlsRoot);
-}
-function applyTransformToInspector(syncedComponentId: any, transform: any) {
-  return applyTransformToInspectorCore(inspectorSyncDeps(), syncedComponentId, transform);
-}
-function previewModeForIcon(resetPreviewForInput: any, resetInputElement: any, bindDeviceSection: any, onDeviceButtonStatePrecisionSelectChange: any,
-) {
-  return previewModeForIconCore(inspectorSyncDeps(), resetPreviewForInput, resetInputElement, bindDeviceSection, onDeviceButtonStatePrecisionSelectChange);
-}
-function sharedReferenceId(onShowEditorPreviewButtonClick: any, onShowDashboardPreviewButtonClick = [onShowEditorPreviewButtonClick],
-) {
-  return sharedReferenceIdCore(inspectorSyncDeps(), onShowEditorPreviewButtonClick, onShowDashboardPreviewButtonClick);
-}
+function syncComponentActionControls(...args: any[]): ReturnType<typeof syncComponentActionControlsImpl> { return (syncComponentActionControlsImpl as any)(copyBackupPickersDeps(), ...args); }
+function applyTransformToInspector(...args: any[]): ReturnType<typeof applyTransformToInspectorImpl> { return (applyTransformToInspectorImpl as any)(copyBackupPickersDeps(), ...args); }
+function previewModeForIcon(...args: any[]): ReturnType<typeof previewModeForIconImpl> { return (previewModeForIconImpl as any)(copyBackupPickersDeps(), ...args); }
+function sharedReferenceId(...args: any[]): ReturnType<typeof sharedReferenceIdImpl> { return (sharedReferenceIdImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function nudgeDeps() {
-  return ({
-    get removalPageEntry() {
-      return removalPageEntry;
-    },
-    get selectedComponentIdsSet() {
-      return editorCtx.selectedComponentIdsSet;
-    },
-    get mutateDocument() {
-      return mutateDocument;
-    },
-    get airConditionerLayerByComponentId() {
-      return airConditionerLayerByComponentId;
-    },
-  });
-}
+function nudgeDeps(...args: any[]): ReturnType<typeof nudgeDepsImpl> { return (nudgeDepsImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function nudgeDeltaX(nudgeDeltaY: any, nudgedComponentIds: any) {
-  return nudgeDeltaXCore(nudgeDeps(), nudgeDeltaY, nudgedComponentIds);
-}
+function nudgeDeltaX(...args: any[]): ReturnType<typeof nudgeDeltaXImpl> { return (nudgeDeltaXImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function runCopyTwin(popupListItemElementPanel: any, runCopyBranch: any, runCopyPeer: any) {
-  const popupMenuRectElement = document.createElement("button");
-  ((popupMenuRectElement.type = "button"),
-    (popupMenuRectElement.dataset[runCopyBranch] = runCopyPeer),
-    popupListItemElementPanel.replaceChildren(popupMenuRectElement),
-    popupMenuRectElement.click(),
-    popupListItemElementPanel.replaceChildren());
+function clickPopupListOption(...args: any[]): ReturnType<typeof clickPopupListOptionImpl> { return (clickPopupListOptionImpl as any)(copyBackupPickersDeps(), ...args); }
+function onPopupListContextmenu(...args: any[]): ReturnType<typeof onPopupListContextmenuImpl> { return (onPopupListContextmenuImpl as any)(copyBackupPickersDeps(), ...args); }
+function openEntityCopyBackupPicker(...args: any[]): ReturnType<typeof openEntityCopyBackupPickerImpl> { return (openEntityCopyBackupPickerImpl as any)(copyBackupPickersDeps(), ...args); }
+function openLightStatisticsCopyBackupPicker(...args: any[]): ReturnType<typeof openLightStatisticsCopyBackupPickerImpl> { return (openLightStatisticsCopyBackupPickerImpl as any)(copyBackupPickersDeps(), ...args); }
+function openPopupEntityCopyBackupPicker(...args: any[]): ReturnType<typeof openPopupEntityCopyBackupPickerImpl> { return (openPopupEntityCopyBackupPickerImpl as any)(copyBackupPickersDeps(), ...args); }
+function onPopupModuleCancelButtonClick(...args: any[]): ReturnType<typeof onPopupModuleCancelButtonClickImpl> { return (onPopupModuleCancelButtonClickImpl as any)(copyBackupPickersDeps(), ...args); }
+function assetManagementDeps(): AssetManagementDeps {
+  return {
+    ...homeElements,
+    get assetMatchesId() { return assetMatchesId; },
+    get canDeleteAssetFolder() { return canDeleteAssetFolder; },
+    get createAssetOptionButton() { return createAssetOptionButton; },
+    get createEditorEntityPickerOption() { return createEditorEntityPickerOption; },
+    get createEditorPickerCurrentAsset() { return createEditorPickerCurrentAsset; },
+    get createIconPickerOption() { return createIconPickerOption; },
+    get destroyDashboardPreview() { return destroyDashboardPreview; },
+    get editorAssetMatcher() { return editorAssetMatcher; },
+    get editorAssetToolbar() { return editorAssetToolbar; },
+    get editorCtx() { return editorCtx; },
+    get ensureEntitiesLoaded() { return ensureEntitiesLoaded; },
+    get exportedAssetsInFolder() { return exportedAssetsInFolder; },
+    get findAssetById() { return findAssetById; },
+    get findReplaceableComponents() { return findReplaceableComponents; },
+    get formatLastSeen() { return formatLastSeen; },
+    get handleOperationError() { return handleOperationError; },
+    get leftFolderName() { return leftFolderName; },
+    get mutateDocument() { return mutateDocument; },
+    get mutationRecord() { return mutationRecord; },
+    get positionEffectAssetMenu() { return positionEffectAssetMenu; },
+    get positionImageAssetMenu() { return positionImageAssetMenu; },
+    get reloadAssetCatalog() { return reloadAssetCatalog; },
+    get removedComponent() { return removedComponent; },
+    get renderEffectAssetOptions() { return renderEffectAssetOptions; },
+    get renderImageAssetOptions() { return renderImageAssetOptions; },
+    get requestJson() { return requestJson; },
+    get runCopyBackup() { return renderCopyBackupDialog; },
+    get runCopyFirst() { return requestDeleteUserAsset; },
+    get runCopyLower() { return selectAssetFolder; },
+    get runCopyTwin() { return clickPopupListOption; },
+    get runMode() { return formatEntitySummary; },
+    get runShadow() { return closeOtherPickerMenus; },
+    get runSnapshot() { return formatEntityLabel; },
+    get runVariantLower() { return applyNavigationStyleToTargets; },
+    get saturationPointerMoveEventState() { return saturationPointerMoveEventState; },
+    get scheduleAssetPreview() { return scheduleAssetPreview; },
+    get selectableEntities() { return selectableEntities; },
+    get selectedComponentIdsFromDom() { return selectedComponentIdsFromDom; },
+    get setComponentsRotation() { return setComponentsRotation; },
+    get syncAssetFolderOptions() { return syncAssetFolderOptions; },
+  };
 }
-function onPopupListContextmenu(popupListMenuEvent: any) {
-  const popupItemElement = removedComponent(),
-    popupMenuRect = [
-      {
-        button: navigationIconButtonElement,
-        title: popupItemElement?.type === "scene-mode" ? "选择情景图标" : "选择导航图标",
-        options: navigationIconOptionsElement,
-        datasetKey: "iconName",
-        current: popupItemElement?.properties?.icon || "",
-        clear: "不使用图标",
-      },
-      {
-        button: ibeIconButtonElement,
-        title: "选择效果按钮图标",
-        options: ibeIconOptionsElement,
-        datasetKey: "iconName",
-        current: popupItemElement?.properties?.icon || "",
-        clear: "不使用图标",
-      },
-      {
-        button: iconButtonIconButtonElement,
-        title: "选择按钮图标",
-        options: iconButtonIconOptionsElement,
-        datasetKey: "iconName",
-        current: popupItemElement?.properties?.icon || "",
-        clear: popupItemElement?.type === "device-button" ? "跟随实体图标" : "不使用图标",
-      },
-      {
-        button: titleButtonIconButtonElement,
-        title: "选择标题图标",
-        options: titleButtonIconOptionsElement,
-        datasetKey: "iconName",
-        current: popupItemElement?.properties?.icon || "",
-        clear: "不使用图标",
-      },
-      {
-        button: lightStatisticsIconButtonElement,
-        title: "选择统计图标",
-        options: lightStatisticsIconOptionsElement,
-        datasetKey: "lightStatisticsIconName",
-        current: String(
-          Object.hasOwn(popupItemElement?.properties || {}, "icon")
-            ? popupItemElement?.properties?.icon || ""
-            : "mdi:lightbulb-group-outline",
-        ),
-        clear: "不使用图标",
-      },
-    ].find((onPopupActionsButtonClick) => onPopupActionsButtonClick.button === popupListMenuEvent);
-  if (!popupMenuRect) return false;
-  runCopyBackup({
-    kind: "icon",
-    title: popupMenuRect.title,
-    searchPlaceholder: "搜索图标名称",
-    triggerButton: popupListMenuEvent,
-    pageSize: EDITOR_PICKER_PAGE_SIZES2.icon,
-    selectedText: "",
-    emptyText: "没有匹配的图标",
-    itemClass: "icon-grid",
-    async getPage({
-      query: isPopupActionsMenuHidden,
-      page: onPopupActionsMenuClick,
-      pageSize: popupActionsClickEvent,
-    }: any) {
-      const popupActionName = (onPopupActionsMenuClick - 1) * popupActionsClickEvent,
-        popupActionTargetId = await requestJson(
-          "/icons?query=" +
-            encodeURIComponent(isPopupActionsMenuHidden) +
-            "&limit=" +
-            popupActionsClickEvent +
-            "&offset=" +
-            popupActionName,
-        );
-      return {
-        items: popupActionTargetId.items || [],
-        total: Number(popupActionTargetId.total) || 0,
-      };
-    },
-    renderLeadingItems: () => [],
-    renderSelectedActions: () => [
-      Object.assign(document.createElement("span"), {
-        className: "editor-paged-picker-current-label",
-        textContent: "当前选择",
-      }),
-      createIconPickerClearOption(popupMenuRect.current, popupMenuRect.clear),
-      createEditorEntityPickerOption(popupMenuRect.clear, !popupMenuRect.current),
-    ],
-    renderItem(popupActionTargetIdState: any) {
-      const qp2 = createIconPickerClearOptionState(
-        popupActionTargetIdState,
-        popupMenuRect.current,
-        "editorPickerValue",
-      );
-      return ((qp2.dataset.editorPickerValue = popupActionTargetIdState.name), qp2);
-    },
-    onSelect: (popupActionTargetIdValue: any) =>
-      runCopyTwin(popupMenuRect.options, popupMenuRect.datasetKey, popupActionTargetIdValue),
-  });
-  return true;
-}
-function runCopyLocal(runCopyInner: any) {
-  const duplicatedPopupId = removedComponent(),
-    duplicatedPopupIdState = ["icon-button", "device-button", "presence-sensor"],
-    duplicatedPopupIdValue =
-      runCopyInner === imageEntityButtonElement
-        ? "image"
-        : runCopyInner === navigationEntityButtonElement && duplicatedPopupId?.type === "scene-mode"
-          ? "scene-mode"
-          : runCopyInner === iconButtonEntityButtonElement &&
-              duplicatedPopupIdState.includes(duplicatedPopupId?.type)
-            ? duplicatedPopupId.type
-            : [
-                "weather",
-                "line-chart",
-                "title-button",
-                "light-statistics",
-                "icon-button-effect",
-                "vacuum-map",
-                "camera",
-                "air-conditioner",
-                "navigation-button",
-              ].find(
-                (templatePageMatchValue) =>
-                  runExtraAlt(templatePageMatchValue).button === runCopyInner,
-              );
-  if (!duplicatedPopupIdValue) return false;
-  const draftGroupEntryState = editorCtx.selectedComponentId;
-  if (
-    popupBeingRenamed(
-      runCopyInner,
-      () => runCopyLocal(runCopyInner),
-      () => editorCtx.selectedComponentId === draftGroupEntryState,
-    )
-  )
-    return true;
-  const ao7 = runExtraAlt(duplicatedPopupIdValue),
-    draftGroupComponentValue = duplicatedPopupId?.bindings?.entity?.entityId || "",
-    targetComponentCollectionState =
-      runPortion(duplicatedPopupIdValue).find(
-        (popupDuplicateDraftDocument: any) =>
-          popupDuplicateDraftDocument.entityId === draftGroupComponentValue,
-      ) || null,
-    insertionCollectionState =
-      duplicatedPopupIdValue === "scene-mode" ? null : runSegment()[0] || null,
-    popupToDuplicate = editorEntityMatches(duplicatedPopupIdValue, "").findIndex(
-      (popupToDuplicateState: any) => popupToDuplicateState.entityId === draftGroupComponentValue,
-    );
-  return (
-    runCopyBackup({
-      kind: "entity",
-      title: "选择实体",
-      subtitle:
-        editorPickerComponentTypeLabel(duplicatedPopupIdValue) + " · " + popupBeingRenamedState,
-      searchPlaceholder: "搜索实体名称或 ID",
-      triggerButton: runCopyInner,
-      pageSize: EDITOR_PICKER_PAGE_SIZES2.entity,
-      initialPage: editorEntityPickerInitialPage2(popupToDuplicate, insertionCollectionState),
-      selectedText: draftGroupComponentValue || "不使用实体",
-      emptyText: "没有匹配的实体",
-      itemClass: "entity-list",
-      getPage({ query: popupToDuplicateValue, page: popupToDuplicateConfig }: any) {
-        const yw2 = editorEntityMatches(duplicatedPopupIdValue, popupToDuplicateValue);
-        return editorEntityPickerPage2(yw2, popupToDuplicateConfig, insertionCollectionState);
-      },
-      renderLeadingItems: (popupToDuplicateRef: any) =>
-        popupToDuplicateRef.page === 1 && insertionCollectionState
-          ? [createIconPickerOption(insertionCollectionState, draftGroupComponentValue)]
-          : [],
-      renderSelectedContent: () => [
-        createEditorPickerCurrentEntity(targetComponentCollectionState),
-      ],
-      renderSelectedActions: () => [
-        createEditorEntityPickerOption("不使用实体", !draftGroupComponentValue),
-      ],
-      renderItem: (popupDuplicateMatchState: any) =>
-        createIconPickerOption(popupDuplicateMatchState, draftGroupComponentValue),
-      onSelect: (popupDuplicateMatchValue: any) =>
-        runCopyTwin(ao7.options, "entityId", popupDuplicateMatchValue),
-    }),
-    true
-  );
-}
-function runCopyOuter() {
-  if (removedComponent()?.type !== "light-statistics") return false;
-  const templateLabelState = editorCtx.selectedComponentId;
-  if (
-    popupBeingRenamed(
-      lightStatisticsEntityButtonElement,
-      runCopyOuter,
-      () =>
-        editorCtx.selectedComponentId === templateLabelState &&
-        removedComponent()?.type === "light-statistics",
-    )
-  )
-    return true;
-  const popupDuplicateMatchHandler = (popupDuplicateMatch: any) => {
-      const duplicatedPopup = String(popupDuplicateMatch || "")
-        .trim()
-        .toLocaleLowerCase("zh-CN");
-      return runPortion("light-statistics")
-        .map((mappedItemsOrder: any, mappedItemsScope: any) => ({
-          entity: mappedItemsOrder,
-          index: mappedItemsScope,
-          support: lightStatisticsEntitySupport2(mappedItemsOrder),
-        }))
-        .filter(
-          ({ entity: popupModuleCopyState }: any) =>
-            !duplicatedPopup ||
-            (
-              runMode(popupModuleCopyState) +
-              " " +
-              renderNavigationIconPreview(popupModuleCopyState)
-            )
-              .toLocaleLowerCase("zh-CN")
-              .includes(duplicatedPopup),
-        )
-        .sort(
-          (popupModuleCopyValue: any, popupModuleCopyConfig: any) =>
-            Number(popupModuleCopyConfig.support.supported) -
-              Number(popupModuleCopyValue.support.supported) ||
-            +(renderNavigationIconPreview(popupModuleCopyConfig.entity) === "light") -
-              +(renderNavigationIconPreview(popupModuleCopyValue.entity) === "light") ||
-            popupModuleCopyValue.index - popupModuleCopyConfig.index,
-        )
-        .map(({ entity: popupModuleCopy }: any) => popupModuleCopy);
-    },
-    popupToDelete = popupDuplicateMatchHandler("").findIndex(
-      (popupToDeleteState: any) => popupToDeleteState.entityId === editorCtx.statisticsEntityId,
-    ),
-    popupDeleteCandidateState = runSegment()[0] || null;
-    runCopyBackup({
-      kind: "entity",
-      title: editorCtx.statisticsReplaceIndex >= 0 ? "选择替换实体" : "添加统计实体",
-      subtitle: popupBeingRenamedState,
-      searchPlaceholder: "搜索实体名称或 ID",
-      triggerButton: lightStatisticsEntityButtonElement,
-      pageSize: EDITOR_PICKER_PAGE_SIZES2.entity,
-      initialPage: editorEntityPickerInitialPage2(popupToDelete, popupDeleteCandidateState),
-      selectedText: editorCtx.statisticsEntityId || "不使用实体",
-      emptyText: "没有匹配的实体",
-      itemClass: "entity-list",
-      closeLegacyPickers: false,
-      getPage({ query: popupDeleteCandidate, page: bindPopupModuleSection }: any) {
-        const createdComponentState = popupDuplicateMatchHandler(popupDeleteCandidate);
-        return editorEntityPickerPage2(
-          createdComponentState,
-          bindPopupModuleSection,
-          popupDeleteCandidateState,
-        );
-      },
-      renderLeadingItems: (onDeletePopupDialogClose: any) =>
-        onDeletePopupDialogClose.page === 1 && popupDeleteCandidateState
-          ? [createIconPickerOption(popupDeleteCandidateState, editorCtx.statisticsEntityId)]
-          : [],
-      renderItem: (onDeletePopupConfirmButtonClick: any) =>
-        createIconPickerOption(onDeletePopupConfirmButtonClick, editorCtx.statisticsEntityId),
-      onSelect: (popupIdToDelete: any) =>
-        runCopyTwin(
-          lightStatisticsEntityOptionsElement,
-          "lightStatisticsEntityId",
-          popupIdToDelete,
-        ),
-    });
-  return true;
-}
-function runCopyUpper(popupDeleteDraftDocumentElement: any) {
-  const groupWidth = popupDeleteDraftDocumentElement.closest("[data-action-trigger]"),
-    popupDeleteDraftDocument = groupWidth?.querySelector("[data-popup-entity]"),
-    popupIdMatchState = groupWidth?.querySelector("[data-popup-entity-options]");
-  if (!groupWidth || !popupDeleteDraftDocument || !popupIdMatchState) return false;
-  if (
-    popupBeingRenamed(
-      popupDeleteDraftDocumentElement,
-      () => runCopyUpper(popupDeleteDraftDocumentElement),
-      () => groupWidth.isConnected,
-    )
-  )
-    return true;
-  const popupIdMatchValue = popupDeleteDraftDocument.value || "",
-    popupIdMatchConfig =
-      editorCtx.entities.find((popupIdMatch: any) => popupIdMatch.entityId === popupIdMatchValue) || null,
-    clearPopupModuleReferencesState = runSegment()[0] || null,
-    clearPopupModuleReferences = (clearPopupModuleReferencesValue: any) => {
-      const groupHeight = String(clearPopupModuleReferencesValue || "")
-        .trim()
-        .toLocaleLowerCase("zh-CN");
-      return editorCtx.entities.filter(
-        (componentNodesState: any) =>
-          !componentNodesState.virtual &&
-          (!groupHeight ||
-            (runMode(componentNodesState) + " " + componentNodesState.entityId)
-              .toLocaleLowerCase("zh-CN")
-              .includes(groupHeight)),
-      );
-    },
-    createdWidthState = clearPopupModuleReferences("").findIndex(
-      (componentNodes: any) => componentNodes.entityId === popupIdMatchValue,
-    );
-  return (
-    runCopyBackup({
-      kind: "entity",
-      title: "选择弹窗实体",
-      subtitle: popupBeingRenamedState,
-      searchPlaceholder: "搜索实体名称或 ID",
-      triggerButton: popupDeleteDraftDocumentElement,
-      pageSize: EDITOR_PICKER_PAGE_SIZES2.entity,
-      initialPage: editorEntityPickerInitialPage2(
-        createdWidthState,
-        clearPopupModuleReferencesState,
-      ),
-      selectedText: popupIdMatchValue || "不使用实体",
-      emptyText: "没有匹配的实体",
-      itemClass: "entity-list",
-      getPage({ query: componentNode, page: componentActionKey }: any) {
-        const createdHeightValue = clearPopupModuleReferences(componentNode);
-        return editorEntityPickerPage2(
-          createdHeightValue,
-          componentActionKey,
-          clearPopupModuleReferencesState,
-        );
-      },
-      renderItem: (componentActionValue: any) =>
-        createIconPickerOption(componentActionValue, popupIdMatchValue),
-      renderLeadingItems: (popupPage: any) =>
-        popupPage.page === 1 && clearPopupModuleReferencesState
-          ? [createIconPickerOption(clearPopupModuleReferencesState, popupIdMatchValue)]
-          : [],
-      renderSelectedContent: () => [createEditorPickerCurrentEntity(popupIdMatchConfig)],
-      renderSelectedActions: () => [
-        createEditorEntityPickerOption("不使用实体", !popupIdMatchValue),
-      ],
-      onSelect: (onPopupModuleCloseButtonClick: any) =>
-        runCopyTwin(popupIdMatchState, "popupActionEntityId", onPopupModuleCloseButtonClick),
-    }),
-    true
-  );
-}
-function onPopupModuleCancelButtonClick() {
-  if (!popupModuleDialogElement.open) return false;
-  if (
-    popupBeingRenamed(
-      popupModuleEntityButtonElement,
-      onPopupModuleCancelButtonClick,
-      () => popupModuleDialogElement.open,
-    )
-  )
-    return true;
-  const onPopupModuleCancelButtonClickState = popupModuleFormElement.elements.entityId.value || "",
-    onPopupModuleEntityButtonClickState =
-      editorCtx.entities.find(
-        (onPopupModuleEntityButtonClick: any) =>
-          onPopupModuleEntityButtonClick.entityId === onPopupModuleCancelButtonClickState,
-      ) || null,
-    isPopupModuleEntityMenuHidden = runSegment()[0] || null,
-    isPopupModuleEntityMenuHiddenHandler = (onSoundToggleButtonClickState: any) => {
-      const soundToggleDocument = String(onSoundToggleButtonClickState || "")
-        .trim()
-        .toLocaleLowerCase("zh-CN");
-      return editorCtx.entities
-        .map((mappedItemsRange: any, mappedItemsSpan: any) => ({
-          entity: mappedItemsRange,
-          index: mappedItemsSpan,
-        }))
-        .filter(
-          ({ entity: onShowPageEditorButtonClickValue }: any) =>
-            !onShowPageEditorButtonClickValue.virtual &&
-            (!soundToggleDocument ||
-              (
-                runMode(onShowPageEditorButtonClickValue) +
-                " " +
-                onShowPageEditorButtonClickValue.entityId
-              )
-                .toLocaleLowerCase("zh-CN")
-                .includes(soundToggleDocument)),
-        )
-        .sort(
-          (onShowPopupEditorButtonClickState: any, onProjectSelectChangeState: any) =>
-            Number(
-              popupModuleEntityRecommended2(
-                onProjectSelectChangeState.entity,
-                popupModuleFormElement.elements.type.value,
-              ),
-            ) -
-              Number(
-                popupModuleEntityRecommended2(
-                  onShowPopupEditorButtonClickState.entity,
-                  popupModuleFormElement.elements.type.value,
-                ),
-              ) || onShowPopupEditorButtonClickState.index - onProjectSelectChangeState.index,
-        )
-        .map(({ entity: mappedItemsOffset }: any) => mappedItemsOffset);
-    },
-    selectedPageComponentState = isPopupModuleEntityMenuHiddenHandler("").findIndex(
-      (onPopupModuleEntitySearchInputInput: any) =>
-        onPopupModuleEntitySearchInputInput.entityId === onPopupModuleCancelButtonClickState,
-    );
-  return (
-    runCopyBackup({
-      kind: "entity",
-      title: "选择模块实体",
-      subtitle: popupBeingRenamedState,
-      searchPlaceholder: "搜索实体名称或 ID",
-      triggerButton: popupModuleEntityButtonElement,
-      pageSize: EDITOR_PICKER_PAGE_SIZES2.entity,
-      initialPage: editorEntityPickerInitialPage2(
-        selectedPageComponentState,
-        isPopupModuleEntityMenuHidden,
-      ),
-      selectedText: onPopupModuleCancelButtonClickState || "不使用实体",
-      emptyText: "没有匹配的实体",
-      itemClass: "entity-list",
-      getPage({ query: onPopupModuleEntityOptionsClick, page: popupModuleEntityClickEvent }: any) {
-        const popupModuleEntityElement = isPopupModuleEntityMenuHiddenHandler(
-          onPopupModuleEntityOptionsClick,
-        );
-        return editorEntityPickerPage2(
-          popupModuleEntityElement,
-          popupModuleEntityClickEvent,
-          isPopupModuleEntityMenuHidden,
-        );
-      },
-      renderItem: (onPopupNewButtonClickState: any) =>
-        createIconPickerOption(onPopupNewButtonClickState, onPopupModuleCancelButtonClickState),
-      renderLeadingItems: (onPopupNameCloseButtonClickState: any) =>
-        onPopupNameCloseButtonClickState.page === 1 && isPopupModuleEntityMenuHidden
-          ? [
-              createIconPickerOption(
-                isPopupModuleEntityMenuHidden,
-                onPopupModuleCancelButtonClickState,
-              ),
-            ]
-          : [],
-      renderSelectedContent: () => [
-        createEditorPickerCurrentEntity(onPopupModuleEntityButtonClickState),
-      ],
-      renderSelectedActions: () => [
-        createEditorEntityPickerOption("不使用实体", !onPopupModuleCancelButtonClickState),
-      ],
-      onSelect: (onPopupNameCancelButtonClickState: any) =>
-        runCopyTwin(
-          popupModuleEntityOptionsElement,
-          "popupModuleEntityId",
-          onPopupNameCancelButtonClickState,
-        ),
-    }),
-    true
-  );
-}
-function onPopupModuleClimateDeviceTypeClick(climateDeviceTypeClickEvent: any) {
-  const climateDeviceTypeClickEventState =
-    climateDeviceTypeClickEvent === imageAssetButtonElement
-      ? "image"
-      : climateDeviceTypeClickEvent === ibeAssetButtonElement
-        ? "ibe"
-        : "";
-  if (!climateDeviceTypeClickEventState) return false;
-  const isClimateDeviceTypeClickEvent = climateDeviceTypeClickEventState === "image",
-    climateDeviceTypeElementState = removedComponent(),
-    climateDeviceTypeElementValue = isClimateDeviceTypeClickEvent
-      ? climateDeviceTypeElementState?.properties?.assetId || ""
-      : climateDeviceTypeElementState?.properties?.effectAssetId || "",
-    sn5 = findAssetById(climateDeviceTypeElementValue);
-  reloadAssetCatalog({
-    refreshInspector: false,
-  })
-    .then(() => {
-      editorCtx.popupBeingRenamedValue?.triggerButton === climateDeviceTypeClickEvent &&
-        (editorCtx.popupBeingRenamedValue.syncAssetToolbar?.(), editorCtx.popupBeingRenamedValue.refresh());
-    })
-    .catch(handleOperationError);
-  const climateDeviceTypeElement = editorAssetMatcher(climateDeviceTypeClickEventState).findIndex(
-    (climateDeviceTypeElementConfig: any) =>
-      assetMatchesId(climateDeviceTypeElementConfig, climateDeviceTypeElementValue),
-  );
-  return (
-    runCopyBackup({
-      kind: climateDeviceTypeClickEventState + "-asset",
-      title: isClimateDeviceTypeClickEvent ? "选择控件图片" : "选择效果图片",
-      subtitle: "我的图片与HomeOS素材 · 固定分页加载",
-      searchPlaceholder: "搜索图片名称",
-      triggerButton: climateDeviceTypeClickEvent,
-      pageSize: EDITOR_PICKER_PAGE_SIZES2.asset,
-      initialPage:
-        climateDeviceTypeElement < 0
-          ? 1
-          : Math.floor(climateDeviceTypeElement / EDITOR_PICKER_PAGE_SIZES2.asset) + 1,
-      selectedText: sn5?.name || climateDeviceTypeElementValue || "不使用图片",
-      emptyText: "没有匹配的图片",
-      itemClass: "asset-grid",
-      getPage({
-        query: onTargetChangeState,
-        page: onTargetChange,
-        pageSize: onPopupModuleFormSubmit,
-      }: any) {
-        const vw2 = editorAssetMatcher(climateDeviceTypeClickEventState, onTargetChangeState),
-          popupModuleSubmitEventState = (onTargetChange - 1) * onPopupModuleFormSubmit;
-        return {
-          items: vw2.slice(
-            popupModuleSubmitEventState,
-            popupModuleSubmitEventState + onPopupModuleFormSubmit,
-          ),
-          total: vw2.length,
-        };
-      },
-      renderSelectedContent: () => [createEditorPickerCurrentAsset(sn5)],
-      renderSelectedActions: () => [
-        createEditorEntityPickerOption("不使用图片", !climateDeviceTypeElementValue),
-      ],
-      renderItem(popupModuleSubmitEvent: any) {
-        const nm2 = createAssetOptionButton(popupModuleSubmitEvent, climateDeviceTypeElementValue),
-          popupModuleTargetPopupIdElement = nm2.matches?.("[data-asset-id]")
-            ? nm2
-            : nm2.querySelector<HTMLElement>("[data-asset-id]");
-        return (
-          popupModuleTargetPopupIdElement &&
-            (popupModuleTargetPopupIdElement.dataset.editorPickerValue =
-              popupModuleSubmitEvent.assetId),
-          nm2
-        );
-      },
-      buildToolbar: (popupModuleTargetPopupId: any) =>
-        editorAssetToolbar(climateDeviceTypeClickEventState, popupModuleTargetPopupId),
-      onItemHover: (popupModuleTargetPopupIdState: any, popupModuleTargetPopupIdValue: any) =>
-        scheduleAssetPreview(
-          findAssetById(popupModuleTargetPopupIdState),
-          popupModuleTargetPopupIdValue,
-          editorCtx.popupBeingRenamedValue?.dialog,
-        ),
-      onDelete: runCopyFirst,
-      onSelect: (popupModuleTypeState: any) =>
-        runCopyTwin(
-          isClimateDeviceTypeClickEvent ? imageAssetOptionsElement : ibeAssetOptionsElement,
-          "assetId",
-          popupModuleTypeState,
-        ),
-    })?.dialog.append(imageAssetLargePreviewImageElement),
-    true
-  );
-}
-function runCopyLower(runCopyLeft: any, runCopyRight: any) {
-  const popupModuleType = runCopyRight === "user" ? "user" : "builtin";
-  runCopyLeft === "image"
-    ? ((editorCtx.imageAssetFolder = popupModuleType),
-      (imageAssetSearchInputElement.value = ""),
-      leftFolderName("image"),
-      syncAssetFolderOptions("image"),
-      editorCtx.popupBeingRenamedValue?.kind === "image-asset"
-        ? (editorCtx.popupBeingRenamedValue.rebuildToolbar(),
-          editorCtx.popupBeingRenamedValue.refresh({
-            resetPage: true,
-          }))
-        : (renderImageAssetOptions(), positionImageAssetMenu()))
-    : ((editorCtx.effectAssetFolder = popupModuleType),
-      (ibeAssetSearchElement.value = ""),
-      leftFolderName("ibe"),
-      syncAssetFolderOptions("ibe"),
-      editorCtx.popupBeingRenamedValue?.kind === "ibe-asset"
-        ? (editorCtx.popupBeingRenamedValue.rebuildToolbar(),
-          editorCtx.popupBeingRenamedValue.refresh({
-            resetPage: true,
-          }))
-        : (renderEffectAssetOptions(), positionEffectAssetMenu()));
-}
-async function popupModuleTypeValue(popupModuleTypeConfig: any, popupModuleTypeRef: any) {
-  const popupModuleTypeEntry = [...(popupModuleTypeConfig || [])];
-  if (!popupModuleTypeEntry.length) return;
-  const Rf2 =
-    popupModuleTypeRef === "image" ? imageAssetUploadButtonElement : ibeAssetUploadElement;
-  Rf2.disabled = true;
-  const popupModuleTypeRecord: any[] = [];
-  try {
-    for (const popupModuleTypeName of popupModuleTypeEntry) {
-      if (!/\.(png|jpe?g|webp|svg)$/i.test(popupModuleTypeName.name)) {
-        popupModuleTypeRecord.push(
-          popupModuleTypeName.name + "：仅支持 PNG、JPG、JPEG、WebP 和 SVG",
-        );
-        continue;
-      }
-      try {
-        await requestJson("/assets/user", {
-          method: "POST",
-
-          timeoutMs: 120000,
-          body: popupModuleTypeName,
-          headers: {
-            "Content-Type": popupModuleTypeName.type || "application/octet-stream",
-            "X-File-Name": encodeURIComponent(popupModuleTypeName.name),
-          },
-        });
-      } catch (caughtErrorCount: any) {
-        popupModuleTypeRecord.push(popupModuleTypeName.name + "：" + caughtErrorCount.message);
-      }
-    }
-    (await reloadAssetCatalog({
-      refreshInspector: false,
-    }),
-      runCopyLower(popupModuleTypeRef, "user"),
-      popupModuleTypeRecord.length &&
-        handleOperationError(new Error(popupModuleTypeRecord.join("\n"))));
-  } finally {
-    Rf2.disabled = false;
-  }
-}
-function runCopyFirst(runCopySecond: any) {
-  const sn6 = findAssetById(runCopySecond);
-  if (!sn6 || sn6.source !== "user") return;
-  const popupModuleSubmitEntityIdHandler = (popupModuleSubmitEntityIdState: any) =>
-    Array.isArray(popupModuleSubmitEntityIdState)
-      ? popupModuleSubmitEntityIdState.some(popupModuleSubmitEntityIdHandler)
-      : popupModuleSubmitEntityIdState && typeof popupModuleSubmitEntityIdState == "object"
-        ? Object.values(popupModuleSubmitEntityIdState).some(popupModuleSubmitEntityIdHandler)
-        : popupModuleSubmitEntityIdState === sn6.assetId;
-  if (popupModuleSubmitEntityIdHandler(editorCtx.activeProject?.document)) {
-    (runShadow(),
-      handleOperationError(
-        new Error("这张图片正在被当前仪表盘或弹窗使用，请先替换或移除后再删除。"),
-      ));
-    return;
-  }
-  ((editorCtx.pendingDeleteAssetId = sn6.assetId),
-    (deleteAssetNameElement.textContent = "“" + sn6.name + "”"),
-    runShadow(),
-    deleteAssetDialogElement.showModal());
-}
-function runCopyLast(runCopyOld: any, runCopyNew: any) {
-  if (
-    !canDeleteAssetFolder(runCopyOld === "image" ? editorCtx.imageAssetFolder : editorCtx.effectAssetFolder, runCopyNew)
-  )
-    return;
-  const hL2 = exportedAssetsInFolder(runCopyNew),
-    popupModuleSubmitEntityId = "studio3d:" + runCopyNew + "/",
-    popupModuleSubmitEntityIdCallback = (popupModuleSubmitEntityIdValue: any) =>
-      Array.isArray(popupModuleSubmitEntityIdValue)
-        ? popupModuleSubmitEntityIdValue.some(popupModuleSubmitEntityIdCallback)
-        : popupModuleSubmitEntityIdValue && typeof popupModuleSubmitEntityIdValue == "object"
-          ? Object.values(popupModuleSubmitEntityIdValue).some(popupModuleSubmitEntityIdCallback)
-          : typeof popupModuleSubmitEntityIdValue == "string" &&
-            popupModuleSubmitEntityIdValue.startsWith(popupModuleSubmitEntityId);
-  if (popupModuleSubmitEntityIdCallback(editorCtx.activeProject?.document)) {
-    handleOperationError(
-      new Error("这个文件夹中的图片正在被当前仪表盘或弹窗使用，请先替换或移除后再删除。"),
-    );
-    return;
-  }
-  ((editorCtx.pendingDeleteAssetFolder = {
-    kind: runCopyOld,
-    folderName: runCopyNew,
-  }),
-    (deleteAssetFolderNameElement.textContent = "“" + runCopyNew + "”"),
-    (deleteAssetFolderCountElement.textContent = String(hL2.length)),
-    deleteAssetFolderDialogElement.showModal());
-}
-function runAliasExtra() {
-  (leftFolderName("image"),
-    leftFolderName("ibe"),
-    renderImageAssetOptions(imageAssetSearchInputElement.value),
-    renderEffectAssetOptions(ibeAssetSearchElement.value),
-    (editorCtx.popupBeingRenamedValue?.kind === "image-asset" ||
-      editorCtx.popupBeingRenamedValue?.kind === "ibe-asset") &&
-      (editorCtx.popupBeingRenamedValue.syncAssetToolbar?.(),
-      editorCtx.popupBeingRenamedValue.refresh({
-        resetPage: true,
-      })),
-    imageAssetMenuElement.hidden || positionImageAssetMenu(),
-    ibeAssetMenuElement.hidden || positionEffectAssetMenu());
-}
+function onPopupModuleClimateDeviceTypeClick(...args: any[]): ReturnType<typeof onPopupModuleClimateDeviceTypeClickImpl> { return (onPopupModuleClimateDeviceTypeClickImpl as any)(assetManagementDeps(), ...args); }
+function selectAssetFolder(...args: any[]): ReturnType<typeof selectAssetFolderImpl> { return (selectAssetFolderImpl as any)(assetManagementDeps(), ...args); }
+function popupModuleTypeValue(...args: any[]): ReturnType<typeof popupModuleTypeValueImpl> { return (popupModuleTypeValueImpl as any)(assetManagementDeps(), ...args); }
+function requestDeleteUserAsset(...args: any[]): ReturnType<typeof requestDeleteUserAssetImpl> { return (requestDeleteUserAssetImpl as any)(assetManagementDeps(), ...args); }
+function requestDeleteAssetFolder(...args: any[]): ReturnType<typeof requestDeleteAssetFolderImpl> { return (requestDeleteAssetFolderImpl as any)(assetManagementDeps(), ...args); }
+function refreshAssetPickers(...args: any[]): ReturnType<typeof refreshAssetPickersImpl> { return (refreshAssetPickersImpl as any)(assetManagementDeps(), ...args); }
 (imageAssetMenuElement.addEventListener("click", (popupModuleTitleState: any) => {
   const popupModuleTitle = popupModuleTitleState.target.closest("[data-image-asset-source]");
-  popupModuleTitle && runCopyLower("image", popupModuleTitle.dataset.imageAssetSource);
+  popupModuleTitle && selectAssetFolder("image", popupModuleTitle.dataset.imageAssetSource);
 }),
   ibeAssetMenuElement.addEventListener("click", (popupModuleDeviceType: any) => {
     const popupModuleDeviceTypeElement =
       popupModuleDeviceType.target.closest("[data-ibe-asset-source]");
     popupModuleDeviceTypeElement &&
-      runCopyLower("ibe", popupModuleDeviceTypeElement.dataset.ibeAssetSource);
+      selectAssetFolder("ibe", popupModuleDeviceTypeElement.dataset.ibeAssetSource);
   }),
   imageAssetUploadButtonElement.addEventListener("click", () =>
     imageAssetUploadInputElement.click(),
@@ -14838,7 +6377,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
     popupModulePopupElement &&
       (popupNameDraftDocumentState.preventDefault(),
       popupNameDraftDocumentState.stopPropagation(),
-      runCopyFirst(popupModulePopupElement.dataset.deleteUserAsset));
+      requestDeleteUserAsset(popupModulePopupElement.dataset.deleteUserAsset));
   });
 (deleteAssetCloseButtonElement.addEventListener("click", () => deleteAssetDialogElement.close()),
   deleteAssetCancelButtonElement.addEventListener("click", () => deleteAssetDialogElement.close()),
@@ -14896,7 +6435,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
           await reloadAssetCatalog({
             refreshInspector: false,
           }),
-          runAliasExtra());
+          refreshAssetPickers());
       } catch (caughtErrorTotal: any) {
         caughtErrorTotal?.code === "STUDIO3D_EXPORT_IN_USE"
           ? handleOperationError(
@@ -14913,7 +6452,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   imageAssetButtonElement.addEventListener("click", async () => {
     const hidden13 = imageAssetMenuElement.hidden;
     if (
-      (runShadow(hidden13 ? "asset" : null),
+      (closeOtherPickerMenus(hidden13 ? "asset" : null),
       (imageAssetMenuElement.hidden = !hidden13),
       imageAssetButtonElement.setAttribute("aria-expanded", String(hidden13)),
       hidden13)
@@ -14962,7 +6501,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
     if (!popupModuleExistingElement || !editorCtx.selectedComponentId) return;
     const popupModuleMatchState = editorCtx.selectedComponentId,
       assetId = popupModuleExistingElement.dataset.assetId;
-    if ((hideAssetLargePreview(), runShadow(), !assetId)) {
+    if ((hideAssetLargePreview(), closeOtherPickerMenus(), !assetId)) {
       mutateDocument((popupModuleMatch: any) => {
         const removedDeviceType = findComponent2(
           popupModuleMatch,
@@ -15000,7 +6539,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   ibeAssetButtonElement.addEventListener("click", async () => {
     const hidden14 = ibeAssetMenuElement.hidden;
     if (
-      (runShadow(hidden14 ? "ibe-asset" : null),
+      (closeOtherPickerMenus(hidden14 ? "ibe-asset" : null),
       (ibeAssetMenuElement.hidden = !hidden14),
       ibeAssetButtonElement.setAttribute("aria-expanded", String(hidden14)),
       !!hidden14)
@@ -15051,7 +6590,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       entryStateKey = editorCtx.selectedComponentId;
     if (!popupMenuRectElementElement || !entryStateKey) return;
     const assetId2 = popupMenuRectElementElement.dataset.assetId;
-    (hideAssetLargePreview(), runShadow());
+    (hideAssetLargePreview(), closeOtherPickerMenus());
     const sn9 = assetId2 ? findAssetById(assetId2) : null;
     let entryStatePath: any = null;
     if (sn9)
@@ -15332,16 +6871,7 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       renderComponentLists(),
       coverMotorButtonElement());
   }));
-function scaleDraftDocument(scaledPlacement: any) {
-  editorCtx.popupDialogMode = scaledPlacement;
-  const popupToDuplicateEntry = findCustomPopup2(editorCtx.activeProject?.document, editorCtx.selectedPopupId);
-  ((popupNameDialogTitleElement.textContent =
-    scaledPlacement === "rename" ? "重命名组合弹窗" : "新建组合弹窗"),
-    (popupNameFormElement.elements.name.value =
-      scaledPlacement === "rename" ? popupToDuplicateEntry?.name || "" : "新建组合弹窗"),
-    popupNameDialogElement.showModal(),
-    popupNameFormElement.elements.name.select());
-}
+function scaleDraftDocument(...args: any[]): ReturnType<typeof scaleDraftDocumentImpl> { return (scaleDraftDocumentImpl as any)(assetManagementDeps(), ...args); }
 (popupNewElement.addEventListener("click", () => scaleDraftDocument("create")),
   popupNameCloseElement.addEventListener("click", () => popupNameDialogElement.close()),
   popupNameCancelElement.addEventListener("click", () => popupNameDialogElement.close()),
@@ -15379,15 +6909,15 @@ function scaleDraftDocument(scaledPlacement: any) {
       }));
   }),
   popupSelectElement.addEventListener("change", () => {
-    (run(), (editorCtx.selectedPopupId = popupSelectElement.value || null), setEditorMode("popup"));
+    (hidePopupActionsMenu(), (editorCtx.selectedPopupId = popupSelectElement.value || null), setEditorMode("popup"));
   }),
   popupListElement.addEventListener("click", (bindPopupModuleSectionState: any) => {
     const enterTargetElement = bindPopupModuleSectionState.target.closest("[data-popup-id]");
     enterTargetElement &&
-      (run(),
+      (hidePopupActionsMenu(),
       (editorCtx.selectedPopupId = enterTargetElement.dataset.popupId),
       (popupSelectElement.value = editorCtx.selectedPopupId),
-      runExtraOuter(editorCtx.activeProject.document, editorCtx.selectedPopupId),
+      renderCustomPopupSelector(editorCtx.activeProject.document, editorCtx.selectedPopupId),
       setEditorMode("popup"));
   }),
   popupListElement.addEventListener("contextmenu", (invalidateEditorLayoutMetrics: any) => {
@@ -15397,7 +6927,7 @@ function scaleDraftDocument(scaledPlacement: any) {
     (invalidateEditorLayoutMetrics.preventDefault(),
       (editorCtx.selectedPopupId = invalidateEditorLayoutMetricsElement.dataset.popupId),
       (popupSelectElement.value = editorCtx.selectedPopupId),
-      runExtraOuter(editorCtx.activeProject.document, editorCtx.selectedPopupId),
+      renderCustomPopupSelector(editorCtx.activeProject.document, editorCtx.selectedPopupId),
       setEditorMode("popup"),
       (editorCtx.moduleDialogPopupId = editorCtx.selectedPopupId),
       (popupActionsMenuElement.hidden = false),
@@ -15426,15 +6956,15 @@ function scaleDraftDocument(scaledPlacement: any) {
       popupActionsButtonElement.setAttribute("aria-expanded", String(hidden15)));
   }),
   popupActionsMenuElement.addEventListener("click", (readEditorLayoutPx: any) => {
-    const popupIdToDeleteState =
+    const requestedPopupAction =
         readEditorLayoutPx.target.closest("[data-popup-action]")?.dataset.popupAction,
       ce3 = editorCtx.moduleDialogPopupId || editorCtx.selectedPopupId;
-    if ((run(), !(!popupIdToDeleteState || !ce3))) {
-      if (popupIdToDeleteState === "rename") {
+    if ((hidePopupActionsMenu(), !(!requestedPopupAction || !ce3))) {
+      if (requestedPopupAction === "rename") {
         scaleDraftDocument("rename");
         return;
       }
-      if (popupIdToDeleteState === "duplicate") {
+      if (requestedPopupAction === "duplicate") {
         const cssVarNameState = newId2("custom-popup");
         ((editorCtx.selectedPopupId = cssVarNameState),
           mutateDocument((cssVarName: any) => {
@@ -15453,7 +6983,7 @@ function scaleDraftDocument(scaledPlacement: any) {
           }));
         return;
       }
-      if (popupIdToDeleteState === "delete") {
+      if (requestedPopupAction === "delete") {
         const numericValue = (editorCtx.activeProject?.document?.customPopups || []).find(
           (componentNodeState: any) => componentNodeState.id === ce3,
         );
@@ -15464,11 +6994,9 @@ function scaleDraftDocument(scaledPlacement: any) {
       }
     }
   }));
-function runAliasAlt() {
-  ((editorCtx.popupModuleDraft = null), deletePopupDialogElement.close());
-}
-(deletePopupCloseElement.addEventListener("click", runAliasAlt),
-  deletePopupCancelElement.addEventListener("click", runAliasAlt),
+function cancelDeletePopupDialog(...args: any[]): ReturnType<typeof cancelDeletePopupDialogImpl> { return (cancelDeletePopupDialogImpl as any)(assetManagementDeps(), ...args); }
+(deletePopupCloseElement.addEventListener("click", cancelDeletePopupDialog),
+  deletePopupCancelElement.addEventListener("click", cancelDeletePopupDialog),
   deletePopupDialogElement.addEventListener("close", () => {
     editorCtx.popupModuleDraft = null;
   }),
@@ -15523,14 +7051,14 @@ function runAliasAlt() {
     ((popupModuleEntityMenuElement.hidden = !hidden16),
       popupModuleEntityButtonElement.setAttribute("aria-expanded", String(hidden16)),
       hidden16 &&
-        (runExtraRight(),
+        (renderPopupModuleEntityOptions(),
         window.requestAnimationFrame(() =>
           popupModuleEntitySearchElement.focus({
             preventScroll: true,
           }),
         )));
   }),
-  popupModuleEntitySearchElement.addEventListener("input", () => runExtraRight()),
+  popupModuleEntitySearchElement.addEventListener("input", () => renderPopupModuleEntityOptions()),
   popupModuleEntityOptionsElement.addEventListener("click", (readEditorViewportScale: any) => {
     const popupModuleEntityElementElement = readEditorViewportScale.target.closest(
       "[data-popup-module-entity-id]",
@@ -15549,11 +7077,11 @@ function runAliasAlt() {
       );
       !climateDeviceTypeElementElement ||
         popupModuleFormElement.elements.type.value !== "climate" ||
-        runExtraLeft(climateDeviceTypeElementElement.dataset.popupModuleDeviceType);
+        syncPopupModuleClimateDeviceType(climateDeviceTypeElementElement.dataset.popupModuleDeviceType);
     },
   ),
   popupModuleFormElement.elements.type.addEventListener("change", () => {
-    (runExtraLeft(), popupModuleEntityOptionsElement.replaceChildren());
+    (syncPopupModuleClimateDeviceType(), popupModuleEntityOptionsElement.replaceChildren());
   }),
   popupModuleFormElement.addEventListener("submit", (readEditorLayoutMetrics: any) => {
     readEditorLayoutMetrics.preventDefault();
@@ -15652,77 +7180,77 @@ function runAliasAlt() {
       }));
   }),
   document.addEventListener("pointerdown", (panelId) => {
-    const deleteAssetFolderClosestElementState = (panelId.target as Element).closest(
+    const deleteAssetFolderDialogElement = (panelId.target as Element).closest(
       "#delete-asset-folder-dialog",
     );
     (componentMenuElement.contains(panelId.target) || closeComponentMenu(),
-      !deleteAssetFolderClosestElementState &&
+      !deleteAssetFolderDialogElement &&
         editorCtx.openCustomSelect &&
         !editorCtx.openCustomSelect.button.contains(panelId.target) &&
         !editorCtx.openCustomSelect.menu.contains(panelId.target) &&
-        runState(),
+        closeCustomSelect(),
       (panelId.target as Element).closest(".dashboard-select-row") || errorPhase(),
       (panelId.target as Element).closest(".page-control .page-select-row") || value(),
       !(panelId.target as Element).closest("#popup-list") &&
         !(panelId.target as Element).closest("#popup-actions-menu") &&
-        run(),
+        hidePopupActionsMenu(),
       (panelId.target as Element).closest("#popup-module-entity-picker") || closePopupModuleEntityMenu(),
       (panelId.target as Element).closest(".component-popup-entity-picker") || closePopupEntityMenus(),
       (panelId.target as Element).closest("#image-entity-picker") ||
-        runPrimary(imageEntityMenuElement, imageEntityButtonElement),
+        closePickerMenu(imageEntityMenuElement, imageEntityButtonElement),
       (panelId.target as Element).closest("#weather-entity-picker") ||
-        runPrimary(weatherEntityMenuElement, weatherEntityButtonElement),
+        closePickerMenu(weatherEntityMenuElement, weatherEntityButtonElement),
       (panelId.target as Element).closest("#line-chart-entity-picker") ||
-        runPrimary(lineChartEntityMenuElement, lineChartEntityButtonElement),
+        closePickerMenu(lineChartEntityMenuElement, lineChartEntityButtonElement),
       (panelId.target as Element).closest("#ibe-entity-picker") ||
-        runPrimary(ibeEntityMenuElement, ibeEntityButtonElement),
+        closePickerMenu(ibeEntityMenuElement, ibeEntityButtonElement),
       (panelId.target as Element).closest("#icon-button-entity-picker") ||
-        runPrimary(iconButtonEntityMenuElement, iconButtonEntityButtonElement),
+        closePickerMenu(iconButtonEntityMenuElement, iconButtonEntityButtonElement),
       (panelId.target as Element).closest("#vacuum-map-entity-picker") ||
-        runPrimary(vacuumMapEntityMenuElement, vacuumMapEntityButtonElement),
+        closePickerMenu(vacuumMapEntityMenuElement, vacuumMapEntityButtonElement),
       (panelId.target as Element).closest("#camera-entity-picker") ||
-        runPrimary(cameraEntityMenuElement, cameraEntityButtonElement),
+        closePickerMenu(cameraEntityMenuElement, cameraEntityButtonElement),
       (panelId.target as Element).closest("#air-conditioner-entity-picker") ||
-        runPrimary(airConditionerEntityMenuElement, airConditionerEntityButtonElement),
+        closePickerMenu(airConditionerEntityMenuElement, airConditionerEntityButtonElement),
       (panelId.target as Element).closest("#title-button-entity-picker") ||
-        runPrimary(titleButtonEntityMenuElement, titleButtonEntityButtonElement),
+        closePickerMenu(titleButtonEntityMenuElement, titleButtonEntityButtonElement),
       !lightStatisticsEntityMenuElement.hidden &&
         !(panelId.target as Element).closest("#light-statistics-entity-picker") &&
         !lightStatisticsEntityMenuElement.contains(panelId.target) &&
-        (runPrimary(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement),
-        runLimit()),
+        (closePickerMenu(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement),
+        clearLightStatisticsSelection()),
       (panelId.target as Element).closest("#light-statistics-action-entity-picker") ||
-        runPrimary(
+        closePickerMenu(
           lightStatisticsActionEntityMenuElement,
           lightStatisticsActionEntityButtonElement,
         ),
       (panelId.target as Element).closest("#navigation-entity-picker") ||
-        runPrimary(navigationEntityMenuElement, navigationEntityButtonElement));
+        closePickerMenu(navigationEntityMenuElement, navigationEntityButtonElement));
     const panelElement = customSelectsBySelectElement.get(imageAssetFolderSelectElement)?.menu;
-    !deleteAssetFolderClosestElementState &&
+    !deleteAssetFolderDialogElement &&
       !(panelId.target as Element).closest("#image-asset-picker") &&
       !panelElement?.contains(panelId.target) &&
-      runPrimary(imageAssetMenuElement, imageAssetButtonElement);
+      closePickerMenu(imageAssetMenuElement, imageAssetButtonElement);
     const panelWidth = customSelectsBySelectElement.get(ibeAssetFolderElement)?.menu;
-    (!deleteAssetFolderClosestElementState &&
+    (!deleteAssetFolderDialogElement &&
       !(panelId.target as Element).closest("#ibe-asset-picker") &&
       !panelWidth?.contains(panelId.target) &&
-      runPrimary(ibeAssetMenuElement, ibeAssetButtonElement),
+      closePickerMenu(ibeAssetMenuElement, ibeAssetButtonElement),
       !(panelId.target as Element).closest("#ibe-icon-picker") &&
         !ibeIconMenuElement.contains(panelId.target) &&
-        runPrimary(ibeIconMenuElement, ibeIconButtonElement),
+        closePickerMenu(ibeIconMenuElement, ibeIconButtonElement),
       !(panelId.target as Element).closest("#icon-button-icon-picker") &&
         !iconButtonIconMenuElement.contains(panelId.target) &&
-        runPrimary(iconButtonIconMenuElement, iconButtonIconButtonElement),
+        closePickerMenu(iconButtonIconMenuElement, iconButtonIconButtonElement),
       !(panelId.target as Element).closest("#title-button-icon-picker") &&
         !titleButtonIconMenuElement.contains(panelId.target) &&
-        runPrimary(titleButtonIconMenuElement, titleButtonIconButtonElement),
+        closePickerMenu(titleButtonIconMenuElement, titleButtonIconButtonElement),
       !(panelId.target as Element).closest("#light-statistics-icon-picker") &&
         !lightStatisticsIconMenuElement.contains(panelId.target) &&
-        runPrimary(lightStatisticsIconMenuElement, lightStatisticsIconButtonElement),
+        closePickerMenu(lightStatisticsIconMenuElement, lightStatisticsIconButtonElement),
       !(panelId.target as Element).closest("#navigation-icon-picker") &&
         !navigationIconMenuElement.contains(panelId.target) &&
-        runPrimary(navigationIconMenuElement, navigationIconButtonElement));
+        closePickerMenu(navigationIconMenuElement, navigationIconButtonElement));
   }));
 const scaleInputElementsSet = new Set([
   imageScaleInputElement,
@@ -15807,14 +7335,14 @@ const scaleInputElementsSet = new Set([
     true,
   ),
   document.addEventListener("keydown", (documentKeydownEventState) => {
-    const keyboardTargetElementState = (documentKeydownEventState.target as Element).closest(
+    const keyboardInteractionTargetElement = (documentKeydownEventState.target as Element).closest(
       'input, textarea, select, button, [contenteditable="true"], dialog',
     );
     const modKey =
       documentKeydownEventState.metaKey || documentKeydownEventState.ctrlKey;
     const keyLower = documentKeydownEventState.key.toLowerCase();
 
-    if (!keyboardTargetElementState && modKey && !documentKeydownEventState.altKey) {
+    if (!keyboardInteractionTargetElement && modKey && !documentKeydownEventState.altKey) {
       if (keyLower === "z") {
         documentKeydownEventState.preventDefault();
         void entityLoadError(documentKeydownEventState.shiftKey ? "redo" : "undo");
@@ -15847,13 +7375,13 @@ const scaleInputElementsSet = new Set([
       }
     }
 
-    if (documentKeydownEventState.code === "Space" && !keyboardTargetElementState && !modKey) {
+    if (documentKeydownEventState.code === "Space" && !keyboardInteractionTargetElement && !modKey) {
       editorCtx.editorSpacePanning = true;
       documentKeydownEventState.preventDefault();
       return;
     }
 
-    if (editorCtx.editorMode === "edit" && editorCtx.selectedComponentIdsSet.size && !keyboardTargetElementState) {
+    if (editorCtx.editorMode === "edit" && editorCtx.selectedComponentIdsSet.size && !keyboardInteractionTargetElement) {
       if (
         modKey &&
         !documentKeydownEventState.altKey &&
@@ -15888,7 +7416,7 @@ const scaleInputElementsSet = new Set([
       !documentKeydownEventState.metaKey &&
       !documentKeydownEventState.ctrlKey &&
       !documentKeydownEventState.altKey &&
-      !keyboardTargetElementState
+      !keyboardInteractionTargetElement
     ) {
       documentKeydownEventState.preventDefault();
       const cssMinWidth = documentKeydownEventState.shiftKey ? 10 : 1,
@@ -15908,7 +7436,7 @@ const scaleInputElementsSet = new Set([
   }),
   navigatorElement.addEventListener("scroll", () => {
     (hideAssetLargePreview(),
-      runExtraShadow(),
+      refreshImageAssetPickerPreview(),
       resolveAssetPreviewUrl("weather"),
       resolveAssetPreviewUrl("line-chart"),
       resolveAssetPreviewUrl("icon-button-effect"),
@@ -15918,14 +7446,14 @@ const scaleInputElementsSet = new Set([
       resolveAssetPreviewUrl("air-conditioner"),
       resolveAssetPreviewUrl("title-button"),
       resolveAssetPreviewUrl("light-statistics"),
-      runExtraExtra(),
+      positionLightStatisticsEntityMenu(),
       positionImageAssetMenu(),
       positionEffectAssetMenu(),
-      runOld(),
-      runNew(),
-      runShort(),
-      runLong(),
-      runNext(),
+      positionIbeIconMenu(),
+      positionIconButtonIconMenu(),
+      layoutTitleButtonIconMenu(),
+      positionLightStatisticsIconMenu(),
+      positionNavigationIconMenu(),
       closeDropdownMenu());
     for (const invalidateEditorLayoutMetricsElementElement of document.querySelectorAll(
       "[data-popup-entity-menu]:not([hidden])",
@@ -15938,8 +7466,8 @@ const scaleInputElementsSet = new Set([
     (refreshEditorViewportFit(),
       refreshComponentDialogScale(),
       closeComponentMenu(),
-      runState(),
-      runShadow(),
+      closeCustomSelect(),
+      closeOtherPickerMenus(),
       closePopupEntityMenus(),
       closeDropdownMenu());
   }),
@@ -15953,17 +7481,17 @@ const scaleInputElementsSet = new Set([
   selectableEntities(),
   destroyDashboardPreview(document),
   formatLastSeen(document));
-const entryStateHandler = (runEditorLayoutAction: any) => {
+const entryStateHandler = (pointerEvent: any) => {
   const targetBoundsName = globalColorPickerSvElement.getBoundingClientRect();
   ((editorCtx.colorPickerSaturation = clampNumber2(
-    (runEditorLayoutAction.clientX - targetBoundsName.left) / Math.max(1, targetBoundsName.width),
+    (pointerEvent.clientX - targetBoundsName.left) / Math.max(1, targetBoundsName.width),
     0,
     1,
   )),
     (editorCtx.colorPickerBrightness =
       1 -
       clampNumber2(
-        (runEditorLayoutAction.clientY - targetBoundsName.top) /
+        (pointerEvent.clientY - targetBoundsName.top) /
           Math.max(1, targetBoundsName.height),
         0,
         1,
@@ -16065,14 +7593,14 @@ for (const onInspectorScroll of [
       ].includes(metricsElement)
         ? (isNavigator = onPopupListContextmenu(metricsElement))
         : metricsElement === lightStatisticsEntityButtonElement
-          ? (isNavigator = runCopyOuter())
+          ? (isNavigator = openLightStatisticsCopyBackupPicker())
           : metricsElement.matches("[data-popup-entity-button]")
-            ? (isNavigator = runCopyUpper(metricsElement))
+            ? (isNavigator = openPopupEntityCopyBackupPicker(metricsElement))
             : metricsElement === popupModuleEntityButtonElement
               ? (isNavigator = onPopupModuleCancelButtonClick())
               : [imageAssetButtonElement, ibeAssetButtonElement].includes(metricsElement)
                 ? (isNavigator = onPopupModuleClimateDeviceTypeClick(metricsElement))
-                : (isNavigator = runCopyLocal(metricsElement)),
+                : (isNavigator = openEntityCopyBackupPicker(metricsElement)),
         isNavigator &&
           (onSaveButtonClick.preventDefault(), onSaveButtonClick.stopImmediatePropagation()));
     },
@@ -16120,386 +7648,10 @@ for (const onInspectorScroll of [
   ])
     .then(() => renderComponentLists())
     .catch(handleOperationError));
-async function onSessionsRevokeOthersConfirmButtonClick(
-  revokeOtherSessionsError: any,
-  onSessionsRevokeCloseButtonClick: any,
-  onSessionsRevokeCancelButtonClick: any,
-  onSessionsRevokeConfirmButtonClick: any,
-) {
-  const Ie9 = editorCtx.componentScopeState,
-    onSessionsRevokeConfirmButtonClickState = editorCtx.activeProject?.projectId,
-    revokedSessionIdHandler = () =>
-      editorCtx.componentScopeState === Ie9 &&
-      editorCtx.activeProject?.projectId === onSessionsRevokeConfirmButtonClickState &&
-      editorCtx.selectedComponentId === onSessionsRevokeCloseButtonClick &&
-      removedComponent()?.properties?.controlMode === "entity-sign";
-  revokeOtherSessionsError.disabled = true;
-  try {
-    if (
-      (editorCtx.isAreEntitiesLoaded || (await ensureEntitiesLoaded()),
-      !revokedSessionIdHandler() || !revokeOtherSessionsError.isConnected)
-    )
-      return;
-    const revokedSessionId = await requestJson("/ha/numeric-sources");
-    if (!revokedSessionIdHandler() || !revokeOtherSessionsError.isConnected) return;
-    const mappedItemByIdByName = new Map(
-        editorCtx.entities.map((revokeSessionError: any) => [revokeSessionError.entityId, revokeSessionError]),
-      ),
-      availableItemsValue = (revokedSessionId.items || []).map(
-        (onDisplayPairingCustomCodeTextInputInput: any) => ({
-          ...(mappedItemByIdByName.get(onDisplayPairingCustomCodeTextInputInput.entityId) || {}),
-          ...onDisplayPairingCustomCodeTextInputInput,
-          name:
-            (mappedItemByIdByName.get(onDisplayPairingCustomCodeTextInputInput.entityId) as any)
-              ?.name ||
-            onDisplayPairingCustomCodeTextInputInput.name ||
-            onDisplayPairingCustomCodeTextInputInput.entityId,
-        }),
-      );
-    runCopyBackup({
-      kind: "entity",
-      title: "选择流水线条数值实体",
-      subtitle: "正数正向，负数反向，0 或不可用时只显示底线",
-      searchPlaceholder: "搜索实体名称或 ID",
-      triggerButton: revokeOtherSessionsError,
-      pageSize: 20,
-      selectedText: onSessionsRevokeCancelButtonClick || "未绑定",
-      emptyText: "没有匹配的实体",
-      itemClass: "entity-list",
-      getPage({
-        query: onLogoutButtonClick,
-        page: onGlobalColorPickerSaturationValuePointerdown,
-        pageSize: saturationPointerDownEvent,
-      }: any) {
-        const split = String(onLogoutButtonClick || "")
-            .toLowerCase()
-            .trim()
-            .split(/\s+/),
-          filteredItemsText = availableItemsValue.filter(
-            (onGlobalColorPickerSaturationValuePointermove: any) =>
-              split.every((saturationPointerMoveEvent) =>
-                (
-                  runMode(onGlobalColorPickerSaturationValuePointermove) +
-                  " " +
-                  onGlobalColorPickerSaturationValuePointermove.entityId
-                )
-                  .toLowerCase()
-                  .includes(saturationPointerMoveEvent),
-              ),
-          );
-        return {
-          items: filteredItemsText.slice(
-            (onGlobalColorPickerSaturationValuePointerdown - 1) * saturationPointerDownEvent,
-            onGlobalColorPickerSaturationValuePointerdown * saturationPointerDownEvent,
-          ),
-          total: filteredItemsText.length,
-        };
-      },
-      renderSelectedActions: () => [
-        createEditorEntityPickerOption("清除绑定", !onSessionsRevokeCancelButtonClick),
-      ],
-      renderItem: (onGlobalColorPickerSaturationValuePointerup: any) => {
-        const qt2 = createIconPickerOption(
-          onGlobalColorPickerSaturationValuePointerup,
-          onSessionsRevokeCancelButtonClick,
-        );
-        return (
-          onGlobalColorPickerSaturationValuePointerup.unavailable &&
-            qt2.querySelector(".inspector-entity-name")!.prepend("暂不可用 · "),
-          qt2
-        );
-      },
-      onSelect: (saturationPointerUpEvent: any) => {
-        if (revokedSessionIdHandler())
-          return onSessionsRevokeConfirmButtonClick(saturationPointerUpEvent);
-      },
-    });
-  } catch (onGlobalColorPickerHueRangeInputInput: any) {
-    revokedSessionIdHandler() &&
-      revokeOtherSessionsError.isConnected &&
-      handleOperationError(onGlobalColorPickerHueRangeInputInput);
-  } finally {
-    revokeOtherSessionsError.disabled = false;
-  }
-}
-function onGlobalColorPickerHexTextInputInput(runAliasAux: any) {
-  const hexColorInputValue = runAliasAux?.id;
-  return {
-    document: editorCtx.activeProject?.document,
-    entities: editorCtx.entities,
-    entityName: runSnapshot,
-    enhance: (onSessionsRevokeCloseButtonClickState: any) => {
-      (selectableEntities(onSessionsRevokeCloseButtonClickState),
-        destroyDashboardPreview(onSessionsRevokeCloseButtonClickState),
-        formatLastSeen(onSessionsRevokeCloseButtonClickState));
-    },
-    change: (onSessionsRevokeCancelButtonClickState: any) => {
-      const il4 =
-        onSessionsRevokeCancelButtonClickState.geometry === "rotation"
-          ? selectedComponentIdsFromDom()
-          : [];
-      return mutateDocument((onSessionsRevokeConfirmButtonClickValue: any) => {
-        const revokedSessionIdState = findComponent2(
-          onSessionsRevokeConfirmButtonClickValue,
-          hexColorInputValue,
-        )?.component;
-        revokedSessionIdState?.type === "percentage-bar" &&
-          (onSessionsRevokeCancelButtonClickState.geometry === "rotation" && il4.length > 1
-            ? setComponentsRotation(
-                onSessionsRevokeConfirmButtonClickValue,
-                hexColorInputValue,
-                onSessionsRevokeCancelButtonClickState.value,
-                il4,
-              )
-            : applyPercentageBarChange2(
-                revokedSessionIdState,
-                onSessionsRevokeCancelButtonClickState,
-                onSessionsRevokeConfirmButtonClickValue.canvas,
-              ));
-      });
-    },
-    canApplyStyle:
-      runAliasAux?.type === "percentage-bar" && findReplaceableComponents(runAliasAux).length > 0,
-    applyStyle: mutationRecord,
-    previewProperty: (
-      onGlobalColorPickerHexTextInputChangeState: any,
-      onGlobalColorPickerHexTextInputChange: any,
-    ) => {
-      const hexColorChangeInput = clone2(runAliasAux);
-      (applyPercentageBarChange2(
-        hexColorChangeInput,
-        {
-          property: onGlobalColorPickerHexTextInputChangeState,
-          value: onGlobalColorPickerHexTextInputChange,
-        },
-        editorCtx.activeProject.document.canvas,
-      ),
-        editorCtx.editorRenderer?.previewComponentTransform(hexColorInputValue, hexColorChangeInput.position),
-        editorCtx.editorRenderer?.previewComponentProperties(
-          hexColorInputValue,
-          hexColorChangeInput.properties,
-        ));
-    },
-    previewGeometry: (onDisplayPairingCustomCodeTextInputInputState: any, onLogoutButtonClickState: any) => {
-      const canvas = editorCtx.activeProject.document.canvas,
-        position = runAliasAux.position;
-      if (
-        onDisplayPairingCustomCodeTextInputInputState === "rotation" &&
-        selectedComponentIdsFromDom().length > 1
-      )
-        return;
-      const hexColorChangeInputState =
-        onDisplayPairingCustomCodeTextInputInputState === "left"
-          ? {
-              x: (canvas.width * onLogoutButtonClickState) / 100 - position.width / 2,
-            }
-          : onDisplayPairingCustomCodeTextInputInputState === "top"
-            ? {
-                y: (canvas.height * onLogoutButtonClickState) / 100 - position.height / 2,
-              }
-            : onDisplayPairingCustomCodeTextInputInputState === "scale"
-              ? {
-                  scale: onLogoutButtonClickState / 100,
-                }
-              : {
-                  rotation: onLogoutButtonClickState,
-                };
-      editorCtx.editorRenderer?.previewComponentTransform(hexColorInputValue, hexColorChangeInputState);
-    },
-    pickEntity: (
-      onGlobalColorPickerSaturationValuePointerdownState: any,
-      saturationPointerDownEventState: any,
-      onGlobalColorPickerSaturationValuePointermoveState: any,
-    ) =>
-      saturationPointerMoveEventState(
-        onGlobalColorPickerSaturationValuePointerdownState,
-        hexColorInputValue,
-        saturationPointerDownEventState,
-        onGlobalColorPickerSaturationValuePointermoveState,
-      ),
-  };
-}
-async function saturationPointerMoveEventState(
-  colorChannelInput: any,
-  onGlobalColorPickerCopyButtonClick: any,
-  copyColorError: any,
-  onGlobalColorPickerPasteButtonClick: any,
-) {
-  const clipboardRawText = editorCtx.componentScopeState,
-    clipboardRawTextState = editorCtx.activeProject?.projectId,
-    clipboardHexColor = () =>
-      editorCtx.componentScopeState === clipboardRawText &&
-      editorCtx.activeProject?.projectId === clipboardRawTextState &&
-      editorCtx.selectedComponentId === onGlobalColorPickerCopyButtonClick;
-  colorChannelInput.disabled = true;
-  const textContent = colorChannelInput.textContent;
-  colorChannelInput.textContent = "正在筛选百分比实体…";
-  try {
-    if (!editorCtx.isAreEntitiesLoaded) {
-      if ((await ensureEntitiesLoaded(), !clipboardHexColor())) return;
-      colorChannelInput =
-        document.querySelector('#percentage-bar-inspector button[aria-label="选择百分比实体"]') ||
-        colorChannelInput;
-    }
-    const clipboardRawTextValue = await requestJson("/ha/percentage-sources");
-    if (!clipboardHexColor() || !colorChannelInput.isConnected) return;
-    const mappedItemByIdByCode = new Map(
-        editorCtx.entities.map((pasteColorError: any) => [pasteColorError.entityId, pasteColorError]),
-      ),
-      availableItemsConfig = (clipboardRawTextValue.items || []).map((pickerGuardClickEvent: any) => ({
-        ...pickerGuardClickEvent,
-        name:
-          runSnapshot(mappedItemByIdByCode.get(pickerGuardClickEvent.entityId)) ||
-          pickerGuardClickEvent.entityId,
-      }));
-    runCopyBackup({
-      kind: "entity",
-      title: "选择百分比实体",
-      subtitle: "百分比状态、窗帘开合度、风扇百分比与湿度属性",
-      searchPlaceholder: "搜索实体名称或 ID",
-      triggerButton: colorChannelInput,
-      pageSize: 20,
-      selectedText: copyColorError.entityId
-        ? "" +
-          copyColorError.entityId +
-          (copyColorError.attribute ? " · " + copyColorError.attribute : "")
-        : "未绑定",
-      emptyText: "没有匹配的百分比实体",
-      itemClass: "entity-list",
-      getPage({
-        query: onGlobalColorPickerCopyButtonClickState,
-        page: copyColorErrorState,
-        pageSize: onGlobalColorPickerPasteButtonClickState,
-      }: any) {
-        const split2 = String(onGlobalColorPickerCopyButtonClickState || "")
-            .toLowerCase()
-            .trim()
-            .split(/\s+/),
-          filteredItemsCount = availableItemsConfig.filter((filteredItemsIndex: any) =>
-            split2.every((pickerGuardClickEventState) =>
-              (
-                filteredItemsIndex.name +
-                " " +
-                filteredItemsIndex.entityId +
-                " " +
-                filteredItemsIndex.sourceLabel
-              )
-                .toLowerCase()
-                .includes(pickerGuardClickEventState),
-            ),
-          );
-        return {
-          items: filteredItemsCount.slice(
-            (copyColorErrorState - 1) * onGlobalColorPickerPasteButtonClickState,
-            copyColorErrorState * onGlobalColorPickerPasteButtonClickState,
-          ),
-          total: filteredItemsCount.length,
-        };
-      },
-      renderSelectedActions: () => [
-        createEditorEntityPickerOption("清除绑定", !copyColorError.entityId),
-      ],
-      renderItem(documentPointerDownCaptureEvent: any) {
-        const closeEventState = mappedItemByIdByCode.get(
-            documentPointerDownCaptureEvent.entityId,
-          ) || {
-            entityId: documentPointerDownCaptureEvent.entityId,
-            name: documentPointerDownCaptureEvent.name,
-          },
-          qt3 = createIconPickerOption(
-            closeEventState,
-            copyColorError.entityId === documentPointerDownCaptureEvent.entityId &&
-              copyColorError.attribute === documentPointerDownCaptureEvent.attribute
-              ? documentPointerDownCaptureEvent.entityId
-              : "",
-          );
-        return (
-          (qt3.dataset.editorPickerValue = JSON.stringify([
-            documentPointerDownCaptureEvent.entityId,
-            documentPointerDownCaptureEvent.attribute,
-          ])),
-          (qt3.querySelector(".inspector-entity-name")!.textContent +=
-            " · " + documentPointerDownCaptureEvent.sourceLabel),
-          qt3
-        );
-      },
-      onSelect(closeEvent: any) {
-        if (!clipboardHexColor()) return;
-        const [closeEventValue, mutationRecordsState] = closeEvent
-          ? JSON.parse(closeEvent)
-          : ["", ""];
-        onGlobalColorPickerPasteButtonClick({
-          entityId: closeEventValue,
-          attribute: mutationRecordsState,
-        });
-      },
-    });
-  } catch (mutationRecords: any) {
-    handleOperationError(mutationRecords);
-  } finally {
-    ((colorChannelInput.disabled = false), (colorChannelInput.textContent = textContent));
-  }
-}
-function mutationRecord() {
-  const createdInstanceSlot = removedComponent();
-  if (createdInstanceSlot?.type !== "percentage-bar") return;
-  const mutationRecordState = findReplaceableComponents(createdInstanceSlot);
-  if (!mutationRecordState.length) return;
-  const addedState = {
-      variant: "柱体样式",
-      orientation: "显示方向",
-      thickness: "统一柱宽",
-      length: "柱体长度",
-      gap: "柱间距",
-      valueOffsetX: "数值水平偏移",
-      valueOffsetY: "数值垂直偏移",
-      labelOffsetX: "备注水平偏移",
-      labelOffsetY: "备注垂直偏移",
-      valueSize: "数值字号",
-      labelSize: "备注字号",
-      radius: "柱顶圆角",
-      fillOpacity: "填充浓度",
-      precision: "小数位数",
-      valueVisible: "显示数值",
-      labelVisible: "显示备注",
-      valueColor: "数值颜色",
-      labelColor: "备注颜色",
-    },
-    addedStateState = {
-      gradient: "渐变柱",
-      cursor: "内嵌游标柱",
-      glass: "玻璃液柱",
-      vertical: "纵向",
-      horizontal: "横向",
-      true: "显示",
-      false: "隐藏",
-    };
-  ((navigationStyleApplyTitleElement.textContent = "应用百分比柱状图样式"),
-    (navigationStyleApplyTargetHeadingElement.textContent = "应用到百分比柱状图"),
-    (navigationStyleApplyTargetScopeElement.textContent = "按区域与页面区分"),
-    (navigationStyleApplySummaryElement.textContent =
-      "选择要应用的样式与目标控件，每根柱子的实体、备注和颜色分别保留。"),
-    navigationStyleApplyPropertiesElement.replaceChildren(
-      ...Object.entries(addedState).map(([addedNode, onDocumentVisibilitychange]) => {
-        const onDocumentVisibilitychangeState =
-          createdInstanceSlot.properties?.[addedNode] ?? (percentageBarDefaults2 as any)[addedNode];
-        return runVariantPeer({
-          value: addedNode,
-          label: onDocumentVisibilitychange,
-          detail:
-            (addedStateState as any)[onDocumentVisibilitychangeState] ||
-            String(onDocumentVisibilitychangeState),
-        });
-      }),
-    ),
-    runVariantLower(mutationRecordState, "百分比柱状图"),
-    (navigationStyleApplyMessageElement.hidden = true),
-    (editorCtx.appliedStyleRecord = {
-      sourceId: createdInstanceSlot.id,
-      type: "percentage-bar",
-    }),
-    navigationStyleApplyDialogElement.showModal());
-}
+function onSessionsRevokeOthersConfirmButtonClick(...args: any[]): ReturnType<typeof onSessionsRevokeOthersConfirmButtonClickImpl> { return (onSessionsRevokeOthersConfirmButtonClickImpl as any)(assetManagementDeps(), ...args); }
+function onGlobalColorPickerHexTextInputInput(...args: any[]): ReturnType<typeof onGlobalColorPickerHexTextInputInputImpl> { return (onGlobalColorPickerHexTextInputInputImpl as any)(assetManagementDeps(), ...args); }
+function saturationPointerMoveEventState(...args: any[]): ReturnType<typeof saturationPointerMoveEventStateImpl> { return (saturationPointerMoveEventStateImpl as any)(assetManagementDeps(), ...args); }
+function mutationRecord(...args: any[]): ReturnType<typeof mutationRecordImpl> { return (mutationRecordImpl as any)(assetManagementDeps(), ...args); }
 
 
   registerEditorCommandHandler((command) => {

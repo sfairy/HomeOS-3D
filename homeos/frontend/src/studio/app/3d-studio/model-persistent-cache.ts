@@ -2,7 +2,7 @@ import {
   packModelTemplate,
   restoreModelTemplate,
 } from "./model-template-codec";
-import { createCacheLogger, runCacheTask } from "./cache-shared";
+import { createCacheLogger, executeTaskWithTimeout } from "./cache-shared";
 const MODEL_CACHE_DB_NAME = "homeos-templates",
   TEMPLATE_STORE = "templates",
   METADATA_STORE = "metadata",
@@ -44,7 +44,7 @@ export function createModelPersistentCache({
     task: any,
     { duration: durationMs = timeoutMs, disable: disableOnTimeout = true } = {},
   ): Promise<any> {
-    return runCacheTask(env, task, {
+    return executeTaskWithTimeout(env, task, {
       duration: durationMs,
       onTimeout: () => {
         (disableOnTimeout && (isDisabled = true), noteFallback());
@@ -194,14 +194,14 @@ export function createModelPersistentCache({
       (idleQueue = idleQueue.then(
         () =>
           new Promise((resolveIdle) => {
-            const runSave = () => {
+            const saveScheduledTemplate = () => {
               saveTemplate(scheduleKey, scheduledModel).catch(noteFallback).finally(resolveIdle);
             };
             env.requestIdleCallback
-              ? env.requestIdleCallback(runSave, {
+              ? env.requestIdleCallback(saveScheduledTemplate, {
                   timeout: 3000,
                 })
-              : env.setTimeout(runSave, 250);
+              : env.setTimeout(saveScheduledTemplate, 250);
           }),
       ));
   }

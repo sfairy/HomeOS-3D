@@ -12,8 +12,8 @@ export interface IconButtonInspectorContext {
   appliedStylePropertyKey: (component: any) => any[];
   syncComponentActionControls: (component: any, controlsEl: any) => void;
   loadNavigationIconOptions: (selectEl: any) => void;
-  runExtraFallback: (component: any) => void;
-  runSplit: (icon: any) => void;
+  syncPopupEntityPickerButton: (component: any) => void;
+  renderEntityIconButtonPreview: (icon: any) => void;
   iconButtonTypeElement: any;
   iconButtonTypeLabelElement: any;
   presenceSensorKindLabelElement: any;
@@ -212,8 +212,8 @@ export function syncIconButtonInspector(ctx: IconButtonInspectorContext, iconBut
     (ctx.iconButtonSecondaryOffOpacityLabelElement.hidden = isDeviceButton),
     (ctx.iconButtonSecondaryOnOpacityLabelElement.hidden = isDeviceButton),
     (ctx.iconButtonLabelElement.value = iconButtonProperties.label || ""),
-    ctx.runExtraFallback(iconButtonComponent),
-    ctx.runSplit(iconButtonProperties.icon || ""),
+    ctx.syncPopupEntityPickerButton(iconButtonComponent),
+    ctx.renderEntityIconButtonPreview(iconButtonProperties.icon || ""),
     (ctx.iconButtonIconColorElement.value =
       iconButtonProperties.iconColor ||
       (isPresenceSensor ? iconButtonProperties.clearColor : "") ||

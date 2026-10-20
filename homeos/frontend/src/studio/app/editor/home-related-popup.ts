@@ -18,8 +18,8 @@ interface RelatedPopupContext {
   getSelectedComponentId: () => any;
   removedComponent: () => any;
   mutateDocument: (mutateDraft: (draftDocument: any) => void) => void;
-  runAlt: (panel: any, aux: any) => void;
-  runSnapshot: (sample: any, preview?: string) => string;
+  registerOverflowScrollPreviewRow: (panel: any, aux: any) => void;
+  formatEntityLabel: (sample: any, preview?: string) => string;
 }
 
 let relatedPopupCtx: RelatedPopupContext | null = null;
@@ -252,7 +252,7 @@ export function updateRelatedPopup(editedComponent: any, anchorElement: any) {
     const labelElement = document.createElement("span"),
       entityNameElement = document.createElement("strong"),
       entityLabel = relatedEntityLabel2(related, candidate);
-    entityNameElement.textContent = ctx.runSnapshot(candidate, entityLabel);
+    entityNameElement.textContent = ctx.formatEntityLabel(candidate, entityLabel);
     const metaElement = document.createElement("small"),
       metaParts = [
         (RELATED_ENTITY_DOMAIN_LABELS2 as any)[
@@ -276,7 +276,7 @@ export function updateRelatedPopup(editedComponent: any, anchorElement: any) {
         " " +
         metaElement.textContent
       ).toLocaleLowerCase("zh-CN")),
-      ctx.runAlt(candidateButton, entityNameElement),
+      ctx.registerOverflowScrollPreviewRow(candidateButton, entityNameElement),
       labelElement.append(entityNameElement, metaElement),
       candidateButton.append(iconElement, labelElement),
       candidateButton

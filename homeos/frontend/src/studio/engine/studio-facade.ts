@@ -45,8 +45,8 @@ export function dispatchStudioCommand(command: StudioCommand): void {
 }
 
 export function patchStudioFacadeState(partial: Partial<StudioFacadeState>): void {
-  runtime.patch(partial, (next, p) => {
-    if (p.history) next.history = { ...p.history }
+  runtime.patch(partial, (next, patch) => {
+    if (patch.history) next.history = { ...patch.history }
     return next
   })
 }

@@ -74,8 +74,8 @@ export interface AirConditionerInspectorContext {
   airConditionerWidthElement: any;
   editorRenderer: any;
   findReplaceableComponents: any;
-  runAltLeft: any;
-  runExtraFallback: any;
+  collectChangedAirConditionerStyleKeys: any;
+  syncPopupEntityPickerButton: any;
   selectedComponentIdsSet: any;
   syncComponentActionControls: any;
 }
@@ -152,8 +152,8 @@ export function syncAirConditionerInspector(ctx: AirConditionerInspectorContext,
     airConditionerWidthElement,
     editorRenderer,
     findReplaceableComponents,
-    runAltLeft,
-    runExtraFallback,
+    collectChangedAirConditionerStyleKeys,
+    syncPopupEntityPickerButton,
     selectedComponentIdsSet,
     syncComponentActionControls
   } = ctx;
@@ -179,7 +179,7 @@ export function syncAirConditionerInspector(ctx: AirConditionerInspectorContext,
   }
   ((airConditionerPreviewDetailsElement.textContent =
     deviceType2 === "bath-heater" ? "预览浴霸详情" : "预览空调 / 浴霸详情"),
-    runExtraFallback(componentArg),
+    syncPopupEntityPickerButton(componentArg),
     (airConditionerPreviewDetailsElement.disabled =
       !componentArg.bindings?.entity?.entityId),
     (airConditionerIconOffColorElement.value = airConditionerProperties.iconOffColor || "#9aa5ad"),
@@ -394,7 +394,7 @@ export function syncAirConditionerInspector(ctx: AirConditionerInspectorContext,
     acSizeInputElement.disabled = isAirConditionerMultiSelection;
   ((airConditionerRotationElement.disabled = false), (airConditionerScaleElement.disabled = false));
   const airConditionerReplaceableCount = findReplaceableComponents(componentArg).length,
-    airConditionerApplyTargetCount = runAltLeft(componentArg).length;
+    airConditionerApplyTargetCount = collectChangedAirConditionerStyleKeys(componentArg).length;
   ((airConditionerApplyStyleElement.disabled =
     !airConditionerReplaceableCount || !airConditionerApplyTargetCount),
     (airConditionerApplyCountElement.textContent = airConditionerApplyTargetCount + " 项修改"),

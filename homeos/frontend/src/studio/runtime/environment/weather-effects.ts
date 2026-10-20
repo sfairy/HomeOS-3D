@@ -56,7 +56,7 @@ const THUNDER_MAX_GAP_SECONDS = 2.15;
 /** 闪电亮度归一化窗口：闪后 0.34s 内线性衰减。 */
 const THUNDER_DECAY_SECONDS = 0.34;
 
-const RANDOM = (from: number, to: number) => from + Math.random() * (to - from);
+const RANDOM = (from: number, toValue: number) => from + Math.random() * (toValue - from);
 
 /**
  * 挂在舞台容器上，画一层天气特效。
@@ -139,15 +139,15 @@ export function createWeatherEffects(host: any) {
 
   /** 中点位移法生成一条闪电主干，再从主干上取 4 个点各分出一条支叉。 */
   function buildThunderBolts() {
-    function subdivide(from: number[], to: number[], spread: number, depth: number): number[][] {
-      if (!depth) return [from, to];
+    function subdivide(from: number[], toValue: number[], spread: number, depth: number): number[][] {
+      if (!depth) return [from, toValue];
       const mid = [
-        (from[0] + to[0]) / 2 + RANDOM(-spread, spread),
-        (from[1] + to[1]) / 2 + RANDOM(-spread * 0.2, spread * 0.2),
+        (from[0] + toValue[0]) / 2 + RANDOM(-spread, spread),
+        (from[1] + toValue[1]) / 2 + RANDOM(-spread * 0.2, spread * 0.2),
       ];
       return [
         ...subdivide(from, mid, spread * 0.48, depth - 1).slice(0, -1),
-        ...subdivide(mid, to, spread * 0.48, depth - 1),
+        ...subdivide(mid, toValue, spread * 0.48, depth - 1),
       ];
     }
 

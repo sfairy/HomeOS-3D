@@ -83,9 +83,9 @@ function syncCoverSettingsInspector(ctx: CoverMotorInspectorContext, coverCompon
       ));
   }
 }
-export function runExtraLocal(ctx: CoverMotorInspectorContext, runExtraInner: any) {
-  const coverMotorDirectionValueState = normalizeFlowLine2(runExtraInner?.properties);
-  return [...(coverMotorDirectionValueById.get(runExtraInner?.id) || [])]
+export function collectChangedCoverMotorStyleKeys(ctx: CoverMotorInspectorContext, component: any) {
+  const coverMotorDirectionValueState = normalizeFlowLine2(component?.properties);
+  return [...(coverMotorDirectionValueById.get(component?.id) || [])]
     .filter(
       ([filteredItemsState, filteredItemsValue]) =>
         JSON.stringify((coverMotorDirectionValueState as any)[filteredItemsState]) !==
@@ -108,10 +108,10 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
         isCoverMotorActiveConfig,
       ),
     multipleSelected: ctx.selectedComponentIdsSet.size > 1,
-    styleChangeCount: isCoverMotorActive ? runExtraLocal(ctx, createdInstanceConfig).length : 0,
+    styleChangeCount: isCoverMotorActive ? collectChangedCoverMotorStyleKeys(ctx, createdInstanceConfig).length : 0,
     hasStyleChanges:
       isCoverMotorActive &&
-      runExtraLocal(ctx, createdInstanceConfig).length > 0 &&
+      collectChangedCoverMotorStyleKeys(ctx, createdInstanceConfig).length > 0 &&
       ctx.findReplaceableComponents(createdInstanceConfig).length > 0,
     enhanceControls: (isCoverMotorActiveElement: any) => {
       (ctx.selectableEntities(isCoverMotorActiveElement),

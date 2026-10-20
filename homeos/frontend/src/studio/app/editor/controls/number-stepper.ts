@@ -8,12 +8,12 @@
 
 import { clampNumber as clampNumber2 } from "../editor-utils";
 
-function runRecord(changedPagePathElement: any, runName: any) {
+function stepNumberInput(changedPagePathElement: any, stepDelta: any) {
   if (!changedPagePathElement || changedPagePathElement.disabled || changedPagePathElement.readOnly)
     return false;
   const dashboardName = changedPagePathElement.value;
   try {
-    runName > 0 ? changedPagePathElement.stepUp() : changedPagePathElement.stepDown();
+    stepDelta > 0 ? changedPagePathElement.stepUp() : changedPagePathElement.stepDown();
   } catch {
     const shouldShowDisplayLinkState =
         Number(changedPagePathElement.dataset?.numberStep) ||
@@ -26,7 +26,7 @@ function runRecord(changedPagePathElement: any, runName: any) {
         changedPagePathElement.max === "" ? Infinity : Number(changedPagePathElement.max);
     changedPagePathElement.value = String(
       clampNumber2(
-        shouldShowDisplayLinkValue + shouldShowDisplayLinkState * runName,
+        shouldShowDisplayLinkValue + shouldShowDisplayLinkState * stepDelta,
         shouldShowDisplayLink,
         dashboardDisplayUrl,
       ),
@@ -92,11 +92,11 @@ export function formatLastSeen(
             formatDisplayTokenExpiryElement.focus({
               preventScroll: true,
             }));
-          let np2 = runRecord(formatDisplayTokenExpiryElement, displayDevice),
+          let np2 = stepNumberInput(formatDisplayTokenExpiryElement, displayDevice),
             isPairingsEmptyElement = false,
             setTimeout = window.setTimeout(() => {
               setTimeout = window.setInterval(() => {
-                np2 = runRecord(formatDisplayTokenExpiryElement, displayDevice) || np2;
+                np2 = stepNumberInput(formatDisplayTokenExpiryElement, displayDevice) || np2;
               }, 55);
             }, 320);
           const pairingsEmptyElementHandler = () => {
@@ -147,7 +147,7 @@ export function formatLastSeen(
       ["ArrowUp", "ArrowDown"].includes(pairingsEmptyElementConfig.key) &&
         (pairingsEmptyElementConfig.preventDefault(),
         (isPairingsEmptyElementActive =
-          runRecord(
+          stepNumberInput(
             formatDisplayTokenExpiryElement,
             pairingsEmptyElementConfig.key === "ArrowUp" ? 1 : -1,
           ) || isPairingsEmptyElementActive));

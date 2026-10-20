@@ -60,71 +60,71 @@ export function computeAlignedPositions(
   mode: AlignMode,
 ): Array<{ id: string; x: number; y: number }> {
   if (components.length < 2) return []
-  const minX = Math.min(...components.map((c) => c.x))
-  const maxX = Math.max(...components.map((c) => c.x + c.width))
-  const minY = Math.min(...components.map((c) => c.y))
-  const maxY = Math.max(...components.map((c) => c.y + c.height))
+  const minX = Math.min(...components.map((component) => component.x))
+  const maxX = Math.max(...components.map((component) => component.x + component.width))
+  const minY = Math.min(...components.map((component) => component.y))
+  const maxY = Math.max(...components.map((component) => component.y + component.height))
   const centerX = (minX + maxX) / 2
   const centerY = (minY + maxY) / 2
 
   if (mode === 'distribute-x') {
-    const sorted = [...components].sort((a, b) => a.x - b.x)
+    const sorted = [...components].sort((left, right) => left.x - right.x)
     if (sorted.length < 3) return []
     const first = sorted[0]
     const last = sorted[sorted.length - 1]
     const span = last.x + last.width - first.x
-    const totalWidth = sorted.reduce((sum, c) => sum + c.width, 0)
+    const totalWidth = sorted.reduce((sum, component) => sum + component.width, 0)
     const gap = (span - totalWidth) / (sorted.length - 1)
     let cursor = first.x
-    return sorted.map((c, index) => {
+    return sorted.map((component, index) => {
       if (index === 0) {
-        cursor = c.x + c.width + gap
-        return { id: c.id, x: c.x, y: c.y }
+        cursor = component.x + component.width + gap
+        return { id: component.id, x: component.x, y: component.y }
       }
-      if (index === sorted.length - 1) return { id: c.id, x: c.x, y: c.y }
+      if (index === sorted.length - 1) return { id: component.id, x: component.x, y: component.y }
       const x = cursor
-      cursor = x + c.width + gap
-      return { id: c.id, x, y: c.y }
+      cursor = x + component.width + gap
+      return { id: component.id, x, y: component.y }
     })
   }
 
   if (mode === 'distribute-y') {
-    const sorted = [...components].sort((a, b) => a.y - b.y)
+    const sorted = [...components].sort((left, right) => left.y - right.y)
     if (sorted.length < 3) return []
     const first = sorted[0]
     const last = sorted[sorted.length - 1]
     const span = last.y + last.height - first.y
-    const totalHeight = sorted.reduce((sum, c) => sum + c.height, 0)
+    const totalHeight = sorted.reduce((sum, component) => sum + component.height, 0)
     const gap = (span - totalHeight) / (sorted.length - 1)
     let cursor = first.y
-    return sorted.map((c, index) => {
+    return sorted.map((component, index) => {
       if (index === 0) {
-        cursor = c.y + c.height + gap
-        return { id: c.id, x: c.x, y: c.y }
+        cursor = component.y + component.height + gap
+        return { id: component.id, x: component.x, y: component.y }
       }
-      if (index === sorted.length - 1) return { id: c.id, x: c.x, y: c.y }
+      if (index === sorted.length - 1) return { id: component.id, x: component.x, y: component.y }
       const y = cursor
-      cursor = y + c.height + gap
-      return { id: c.id, x: c.x, y }
+      cursor = y + component.height + gap
+      return { id: component.id, x: component.x, y }
     })
   }
 
-  return components.map((c) => {
+  return components.map((component) => {
     switch (mode) {
       case 'left':
-        return { id: c.id, x: minX, y: c.y }
+        return { id: component.id, x: minX, y: component.y }
       case 'right':
-        return { id: c.id, x: maxX - c.width, y: c.y }
+        return { id: component.id, x: maxX - component.width, y: component.y }
       case 'center':
-        return { id: c.id, x: centerX - c.width / 2, y: c.y }
+        return { id: component.id, x: centerX - component.width / 2, y: component.y }
       case 'top':
-        return { id: c.id, x: c.x, y: minY }
+        return { id: component.id, x: component.x, y: minY }
       case 'bottom':
-        return { id: c.id, x: c.x, y: maxY - c.height }
+        return { id: component.id, x: component.x, y: maxY - component.height }
       case 'middle':
-        return { id: c.id, x: c.x, y: centerY - c.height / 2 }
+        return { id: component.id, x: component.x, y: centerY - component.height / 2 }
       default:
-        return { id: c.id, x: c.x, y: c.y }
+        return { id: component.id, x: component.x, y: component.y }
     }
   })
 }

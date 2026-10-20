@@ -62,7 +62,7 @@ studio 是**子系统**，不是应用根，因此不复用应用根的通用桶
 | `lifecycle.ts` | 生命周期再导出（原 `boot.ts`，改名以避开与 `boot/` 的同名冲突） |
 | `boot/` | 引导序列（`studio-boot.ts` = `startupStudio`（入口判定 → 渲染器 → 拉草稿 → 净化 → 应用 → 挂载舞台 / 开导出面板），15 项依赖按 `StudioBootDeps` 注入） |
 | `scene/` | 相机、阴影、总览、运动呈现（`studio-view-settings.ts` = 场景默认视图/曝光；`studio-scene-payload.ts` = 场景负载净化；`studio-document-payload.ts` = 楼层文档净化；`studio-box-mesh.ts` = 盒子网格构件） |
-| `items/` | 家具 / 设备物件助手（`item-catalog.ts` = 类型目录 + 8 个类型集合 + `nextBatchItemTypeSet`；`studio-television-model.ts` = 电视模型构件） |
+| `items/` | 家具 / 设备物件助手（`item-catalog.ts` = 类型目录 + 8 个类型集合 + `nextBatchItemTypeSet`；`studio-television-model.ts` = 电视模型构件；`studio-item-model.ts` = 252 行入口；`item-model/` = 14 个物品族，59 个类型分支按原链顺序分派） |
 | `lights/` | 灯光预设数据 |
 | `ui/` | 微件、历史、纯函数助手（`studio-export-layers.ts` = 导出图层清单渲染 + 导出名净化） |
 | `types/` | 共享的 studio-app 类型 |
@@ -84,9 +84,15 @@ studio 是**子系统**，不是应用根，因此不复用应用根的通用桶
 
 ## 拆分单体（`studio-app.ts` / `home.ts` / `panel-renderer.ts` / `stage.ts`）
 
-后续拆分手工进行；靠 `typecheck` / `lint` / 评审防回潮。
+后续拆分手动进行；靠 `typecheck` / `lint` / 评审防回潮。
 
 - `studio-app.ts` / `home.ts` 的真实形状是「一个 `bootX()` 里套一个巨型箭头函数」，声明不在顶层、缩进不统一 —— 所以**不要**按行首缩进切。
+- **已完成（Phase 1）**：`items/studio-item-model.ts` 7,686 → 252 行；59 个分支进 `items/item-model/` 的 14 个族，规则见 `item-model/README.md`。
+- **已完成（Phase 2）**：`studio-app.ts` 20,965 → 4,715 行（`bootStudio` 20,599 → 4,379）；484 个闭包函数进 `authoring/studio-app/functions/groups/`，渲染循环进 `render/studio-render-loop.ts`（3,170 行）。
+- **已完成（Phase 3）**：`editor/home.ts` 16,601 → 7,752 行（`bootEditor` 16,377 → 7,587）；355 个函数进 `home/functions/` 的 15 个语义模块（壳层、工作区/文档、组件编辑、实体标签、图标、资源、弹窗检查器、检查器上下文、历史、灯光、导航预览、样式应用/对话框、复制备份、资源管理），元素访问器进 `home/elements/`。
+- **已完成（Phase 4）**：`run*` 0、硬命名规则 0；34 个初值明显错名的 `*State` 已改；`*Visibility` 29 个报告项待人工复核。
+- 结构门禁：`bun run check:studio-split`（入口/族行数、族顺序、模块级可变状态、入口循环依赖、等价哈希）。改动 item-model 后必须跑它。
+- `studio-app.ts` / `home.ts` 的后续批次见 `docs/studio-split/2026-10-20/03-studio-app.md`、`04-editor.md`；每批独立回滚，门禁不全绿不得继续。
 
 ## 面板编辑器 / 渲染器域（`app/editor/`、`app/renderer/`）
 
@@ -152,7 +158,7 @@ ESLint 对 `app/shared/**` 与 `platform/**` 亦有同等强制。
 
 ## 单体拆分目标
 
-目标：`studio-app.ts` / `home.ts` 等编排宿主收到更小体积，代码进域文件夹 —— 不是进新的平铺 `*-foo.ts`。
+目标：`studio-app.ts` / `home.ts` 等编排宿主收到更小体积，代码进域文件夹 —— 不是进新的平铺 `*-foo.ts`。item-model、studio-app、editor/home 均已按此模式落地；后续只做域内细分与命名复核，不再回到单体平铺。
 
 ## 该改哪里
 

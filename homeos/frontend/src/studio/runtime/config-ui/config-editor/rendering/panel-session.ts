@@ -18,8 +18,8 @@ import { readNestedPath } from "../_shared";
  * 其余都是宿主里的兄弟函数（函数声明，提升到函数体顶部）。
  */
 export interface PanelSessionDeps {
-  /** 配置编辑器上下文对象（`e.deviceKind` / `e.usesModelBinding` / `e.getItemList` 等）。 */
-  e: any;
+  /** 配置编辑器上下文对象（`editorHost.deviceKind` / `editorHost.usesModelBinding` / `editorHost.getItemList` 等）。 */
+  editorHost: any;
   /** 编辑会话基线（**可变单元**，宿主每实例一份）。 */
   editorSession: { fieldDefs: any[][]; baselineItemsById: Map<any, any> };
   /** 按设备种类缓存的会话快照（`const Map`，模块内只增删改、不重新绑定）。 */
@@ -42,8 +42,8 @@ export interface PanelSessionDeps {
 
 export function buildItemPayload(deps: PanelSessionDeps, item: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e } = deps;
-      return e.deviceKind === "smallcar"
+  const { editorHost } = deps;
+      return editorHost.deviceKind === "smallcar"
         ? {
             cardWidth: item.cardWidth ?? 180,
             cardFontSize: item.cardFontSize ?? CARD_TEXT_SIZE_PX,
@@ -54,18 +54,18 @@ export function buildItemPayload(deps: PanelSessionDeps, item: any) {
                 ? "隐藏（可点击）"
                 : "显示",
           }
-        : e.usesModelBinding
+        : editorHost.usesModelBinding
           ? {
-              icon: item.icon || e.defaultIcon,
+              icon: item.icon || editorHost.defaultIcon,
               size: item.size ?? DEFAULT_BUTTON_SIZE,
               iconSize: item.iconSize ?? buttonIconSize(item.size ?? DEFAULT_BUTTON_SIZE),
               hitSize: item.hitSize ?? Math.max(DEFAULT_BUTTON_SIZE, item.size ?? DEFAULT_BUTTON_SIZE),
-              ...(e.isVacuumMode
+              ...(editorHost.isVacuumMode
                 ? {
                     backgroundOpacity: item.backgroundOpacity ?? 1,
                   }
                 : {}),
-              ...(e.isVacuumShortcutMode
+              ...(editorHost.isVacuumShortcutMode
                 ? {
                     fontSize: item.fontSize ?? CARD_TEXT_SIZE_PX,
                     iconHidden: item.iconHidden === true,
@@ -108,60 +108,60 @@ export async function switchEditorKind(
   selection: any = null,
 ) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { e, editorSession, kindSessionsByKind, closeAddDialog, closeAuxDialog, ensureItemCollections, buildEditableFieldList, renderPanel, refreshEditorPreview, openAddDialog } = deps;
+  const { editorHost, editorSession, kindSessionsByKind, closeAddDialog, closeAuxDialog, ensureItemCollections, buildEditableFieldList, renderPanel, refreshEditorPreview, openAddDialog } = deps;
       if (
-        e.isDisposed ||
-        e.isSaving ||
-        !e.isAccessAllowed ||
-        e.isCameraEditing ||
-        e.isCameraCommandPending ||
-        e.isRangeEditorOpen ||
-        nextDeviceKind === e.deviceKind ||
+        editorHost.isDisposed ||
+        editorHost.isSaving ||
+        !editorHost.isAccessAllowed ||
+        editorHost.isCameraEditing ||
+        editorHost.isCameraCommandPending ||
+        editorHost.isRangeEditorOpen ||
+        nextDeviceKind === editorHost.deviceKind ||
         !(
-          e.includes
+          editorHost.includes
             ? ["climate", "fan", "purifier", "cover", "temperature-humidity"]
-            : e.isDeviceKind
+            : editorHost.isDeviceKind
               ? ["nas", "television", "speaker", "water-heater", "airer", ...GENERIC_DEVICE_KINDS2]
               : ["vacuum", "vacuum-shortcut"]
         ).includes(nextDeviceKind)
       )
         return;
-      (kindSessionsByKind.set(e.deviceKind, {
-        selectedId: e.text,
-        scrollTop: e.panelElement.scrollTop,
+      (kindSessionsByKind.set(editorHost.deviceKind, {
+        selectedId: editorHost.text,
+        scrollTop: editorHost.panelElement.scrollTop,
         baselines: editorSession.baselineItemsById,
       }),
-        e.isVacuumMode && (e.vacuumId = e.text || e.vacuumId),
-        selection?.vacuumId && (e.vacuumId = selection.vacuumId),
+        editorHost.isVacuumMode && (editorHost.vacuumId = editorHost.text || editorHost.vacuumId),
+        selection?.vacuumId && (editorHost.vacuumId = selection.vacuumId),
         closeAddDialog(),
         closeAuxDialog(),
-        e.pickerGeneration++,
-        e.pickerHandle?.close(),
-        (e.pickerHandle = null),
-        e.num++,
-        (e.isCameraEditing = false),
-        (e.isCameraCommandPending = false),
-        (e.pendingCameraDraft = null),
-        (e.vacuumCameraMode = "focus"),
-        e.applyKindFlags(nextDeviceKind),
+        editorHost.pickerGeneration++,
+        editorHost.pickerHandle?.close(),
+        (editorHost.pickerHandle = null),
+        editorHost.num++,
+        (editorHost.isCameraEditing = false),
+        (editorHost.isCameraCommandPending = false),
+        (editorHost.pendingCameraDraft = null),
+        (editorHost.vacuumCameraMode = "focus"),
+        editorHost.applyKindFlags(nextDeviceKind),
         ensureItemCollections());
       const savedKindSession = kindSessionsByKind.get(nextDeviceKind);
-      ((e.text =
+      ((editorHost.text =
         selection?.id ||
-        (e.isVacuumMode ? e.vacuumId : savedKindSession?.selectedId || "")),
-        e.isVacuumMode && e.findVacuumModel() && (e.floorSelection = e.findVacuumModel().floorId),
+        (editorHost.isVacuumMode ? editorHost.vacuumId : savedKindSession?.selectedId || "")),
+        editorHost.isVacuumMode && editorHost.findVacuumModel() && (editorHost.floorSelection = editorHost.findVacuumModel().floorId),
         (editorSession.fieldDefs = buildEditableFieldList()),
         (editorSession.baselineItemsById =
           savedKindSession?.baselines ||
           new Map(
-            e.getItemList().map((baselineListItem: any) => [
+            editorHost.getItemList().map((baselineListItem: any) => [
               baselineListItem.id,
               structuredClone(baselineListItem),
             ]),
           )),
-        (e.errorMessageElement.textContent = ""),
+        (editorHost.errorMessageElement.textContent = ""),
         renderPanel(),
         refreshEditorPreview(),
-        (e.panelElement.scrollTop = savedKindSession?.scrollTop || 0),
+        (editorHost.panelElement.scrollTop = savedKindSession?.scrollTop || 0),
         shouldOpenAddDialog && openAddDialog());
     }
