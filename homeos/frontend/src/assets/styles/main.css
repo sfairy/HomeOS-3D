@@ -727,7 +727,8 @@ input[type="range"].hos-range-ui:disabled {
 
 /**
  * .perf-medium —— 均衡性能模式
- * 仅提高卡片背景透明度（减少模糊层数）
+ * 本文件只负责卡片背景透明度；毛玻璃降级与图表关动画分别在
+ * glass-effect.util.ts / kiosk-animation.ts 的档位逻辑里。
  */
 .perf-medium { --card-bg-1: rgba(255,255,255,0.05); }
 

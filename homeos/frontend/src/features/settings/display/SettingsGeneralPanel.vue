@@ -1,7 +1,7 @@
 <!--
   通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
   底部信息栏、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
-  性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
+  性能调试（高/中/低三档：界面动效、毛玻璃与图表动画）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
 -->
 <template>
   <SettingsPageShell
@@ -106,8 +106,8 @@
           :icon="Zap"
           icon-class="general-intro-icon--cyan"
           orb-class="orb-cyan"
-          eyebrow="动画性能与渲染模式"
-          :description="'调整全局动效与毛玻璃的渲染开销以平衡视觉效果与功耗。'"
+          eyebrow="界面动效与渲染"
+          :description="'调整界面动效、毛玻璃与图表动画的渲染开销以平衡视觉效果与功耗；3D 户型的画质在组件属性面板「渲染分辨率 / 地面反射」中单独设置。'"
         />
         <div class="settings-choice-grid mt-5">
           <button
@@ -120,7 +120,7 @@
               <div class="text-xs font-bold flex items-center gap-1.5 justify-center">
                 <Sparkles class="w-3.5 h-3.5" />{{ '华丽模式' }}
               </div>
-              <div class="sys-hint-micro">{{ '60fps 完整动效' }}</div>
+              <div class="sys-hint-micro">{{ '完整动效 · 开毛玻璃' }}</div>
             </div>
           </button>
           <button
@@ -131,7 +131,7 @@
             <MonitorPlay class="w-5 h-5" />
             <div class="text-center">
               <div class="text-xs font-bold">{{ '均衡性能' }}</div>
-              <div class="sys-hint-micro">{{ '30fps 动效' }}</div>
+              <div class="sys-hint-micro">{{ '关毛玻璃与图表动画' }}</div>
             </div>
           </button>
           <button
@@ -142,7 +142,7 @@
             <SettingsIcon class="w-5 h-5" />
             <div class="text-center">
               <div class="text-xs font-bold">{{ '低功耗模式' }}</div>
-              <div class="sys-hint-micro">{{ '精简动效' }}</div>
+              <div class="sys-hint-micro">{{ '静态界面 · 关阴影与模糊' }}</div>
             </div>
           </button>
         </div>
