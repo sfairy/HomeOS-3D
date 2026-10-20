@@ -196,8 +196,15 @@ const analyzeBundle = process.env.ANALYZE === '1'
 /** 开发代理目标：127.0.0.1 避免 Windows 下 localhost → IPv6 导致 ECONNREFUSED */
 const backendDevTarget = 'http://127.0.0.1:8801'
 
-/** 开发代理/WebSocket 断连时的可忽略错误码（重连、刷新、后端重启均属正常） */
-const BENIGN_PROXY_ERROR_CODES = new Set(['ECONNABORTED', 'ECONNRESET', 'ECONNREFUSED'])
+/**
+ * 开发代理/WebSocket 断连时的可忽略错误码（重连、刷新、后端重启均属正常）。
+ *
+ * ``EPIPE`` 与上面几个同源，只是触发点更靠后：对端先关（浏览器刷新页面、或 uvicorn
+ * ``--reload`` 重启后端），而代理手里还有一帧没写完，写就抛 ``write EPIPE``（栈顶是
+ * ``Socket.ondata`` → ``Writable.write``）。它不代表代码有问题——紧随其后就是
+ * ``ECONNRESET`` 与重连成功，所以和 ECONNRESET 归一类，不打完整栈。
+ */
+const BENIGN_PROXY_ERROR_CODES = new Set(['ECONNABORTED', 'ECONNRESET', 'ECONNREFUSED', 'EPIPE'])
 
 function isBenignProxyError(err: unknown): boolean {
   const code = (err as NodeJS.ErrnoException | undefined)?.code
@@ -231,10 +238,13 @@ function respondBackendUnavailable(res: unknown): void {
 /** 良性代理失败节流日志，避免启动竞态时刷屏 */
 let lastBenignProxyLogAt = 0
 function logBenignProxyOnce(err: unknown): void {
+  const code = (err as NodeJS.ErrnoException | undefined)?.code
+  // EPIPE 说明对端是「先关掉」的一方（页面刷新 / 后端重启），后端本身可能活得好好的，
+  // 打「请先运行 bun run dev:backend」只会把人往错方向带，干脆静默。
+  if (code === 'EPIPE') return
   const now = Date.now()
   if (now - lastBenignProxyLogAt < 15_000) return
   lastBenignProxyLogAt = now
-  const code = (err as NodeJS.ErrnoException | undefined)?.code
   console.warn(`[vite] ${BACKEND_UNAVAILABLE_HINT}${code ? `（${code}）` : ''}`)
 }
 
