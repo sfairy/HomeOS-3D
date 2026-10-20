@@ -72,12 +72,12 @@ export function useSystemConfigParamsSidebar(
       .map((cat) => {
         const order = cat.sections
         const sections = props.sectionList
-          .filter((s) => order.includes(s.key))
+          .filter((sectionRow) => order.includes(sectionRow.key))
           .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key))
         return {
           ...cat,
           sections,
-          fieldCount: sections.reduce((n, s) => n + s.fields.length, 0),
+          fieldCount: sections.reduce((total, sectionRow) => total + sectionRow.fields.length, 0),
         }
       })
       .filter((cat) => cat.sections.length > 0),
@@ -86,10 +86,10 @@ export function useSystemConfigParamsSidebar(
   function isCategoryExpanded(catId: string) {
     // 搜索态：有匹配的分类全部展开，避免匹配项被手风琴藏掉
     if (String(props.globalSearch || '').trim()) {
-      const cat = categoryNav.value.find((c) => c.id === catId)
+      const cat = categoryNav.value.find((category) => category.id === catId)
       if (!cat) return false
       const matchMap = props.searchMatchMap || {}
-      return cat.sections.some((s) => (matchMap[s.key] || 0) > 0)
+      return cat.sections.some((sectionRow) => (matchMap[sectionRow.key] || 0) > 0)
     }
     return expandedCategoryId.value === catId
   }
@@ -103,7 +103,7 @@ export function useSystemConfigParamsSidebar(
   }
 
   function categoryPendingCount(cat: { sections: SystemConfigSectionRow[] }) {
-    return cat.sections.some((s) => (props.sectionPendingMap[s.key] ?? 0) > 0)
+    return cat.sections.some((sectionRow) => (props.sectionPendingMap[sectionRow.key] ?? 0) > 0)
   }
 
   function toggleCategory(catId: string) {
@@ -116,10 +116,10 @@ export function useSystemConfigParamsSidebar(
     }
     expandedCategoryId.value = catId
     // 展开其它分类时：若当前分区不在该分类，同步打开该分类第一项
-    const cat = categoryNav.value.find((c) => c.id === catId)
+    const cat = categoryNav.value.find((category) => category.id === catId)
     const first = cat?.sections?.[0]
     if (!first) return
-    if (cat.sections.some((s) => s.key === props.activeSection)) return
+    if (cat.sections.some((sectionRow) => sectionRow.key === props.activeSection)) return
     selectSection(first.key)
   }
 
@@ -163,13 +163,13 @@ export function useSystemConfigParamsSidebar(
     if (id === 'mediaPlaylists') mediaPlaylistOpen.value = true
   }
 
-  function onGlobalKeydown(e: KeyboardEvent) {
-    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return
-    const target = e.target as HTMLElement | null
+  function onGlobalKeydown(event: KeyboardEvent) {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+    const target = event.target as HTMLElement | null
     const tag = target?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable)
       return
-    e.preventDefault()
+    event.preventDefault()
     searchRef.value?.focus()
   }
 
@@ -177,7 +177,7 @@ export function useSystemConfigParamsSidebar(
     categoryNav,
     (cats) => {
       if (!cats.length) return
-      if (cats.some((c) => c.id === expandedCategoryId.value)) return
+      if (cats.some((category) => category.id === expandedCategoryId.value)) return
       expandedCategoryId.value = cats[0].id
     },
     { immediate: true },

@@ -321,10 +321,10 @@ export function useMediaPlayerControls(
   }
   /**
    * 切换音源。
-   * @param src 音源名称
+   * @param sourceId 音源名称
    */
-  function setSource(src: string) {
-    callMedia('select_source', { source: src })
+  function setSource(sourceId: string) {
+    callMedia('select_source', { source: sourceId })
   }
   /**
    * seek 输入（拖拽中）：更新预览百分比与本地 livePosition。

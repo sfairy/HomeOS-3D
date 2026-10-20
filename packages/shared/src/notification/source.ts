@@ -62,53 +62,53 @@ function advisorSourceLabel(source: string): string | null {
 
 /** 统计图表用：合并相近来源 */
 export function normalizeNotificationSource(source?: string | null): string {
-  const src = String(source || '').trim()
-  if (!src || src === 'system') return 'system'
-  if (src === 'alert-rule' || src.startsWith('alert-rule')) return 'alert-rule'
-  if (src.startsWith('earthquake')) return 'earthquake'
-  if (src.startsWith('advisor-')) return 'advisor'
-  if (src === 'energy-budget') return 'energy-budget'
-  if (src.startsWith('energy')) return 'energy'
+  const normalizedSource = String(source || '').trim()
+  if (!normalizedSource || normalizedSource === 'system') return 'system'
+  if (normalizedSource === 'alert-rule' || normalizedSource.startsWith('alert-rule')) return 'alert-rule'
+  if (normalizedSource.startsWith('earthquake')) return 'earthquake'
+  if (normalizedSource.startsWith('advisor-')) return 'advisor'
+  if (normalizedSource === 'energy-budget') return 'energy-budget'
+  if (normalizedSource.startsWith('energy')) return 'energy'
   if (
-    src === 'emergency' ||
-    src.startsWith('security') ||
-    src.startsWith('hazard') ||
-    src.startsWith('drill')
+    normalizedSource === 'emergency' ||
+    normalizedSource.startsWith('security') ||
+    normalizedSource.startsWith('hazard') ||
+    normalizedSource.startsWith('drill')
   ) {
     return 'security'
   }
-  if (src.startsWith('environment')) return 'environment-health'
-  if (src.startsWith('device')) return 'device-monitor'
-  if (src.startsWith('water')) return 'water-monitor'
-  if (src.startsWith('home-mode')) return 'home-mode'
-  if (src.startsWith('voice')) return 'voice'
-  return src
+  if (normalizedSource.startsWith('environment')) return 'environment-health'
+  if (normalizedSource.startsWith('device')) return 'device-monitor'
+  if (normalizedSource.startsWith('water')) return 'water-monitor'
+  if (normalizedSource.startsWith('home-mode')) return 'home-mode'
+  if (normalizedSource.startsWith('voice')) return 'voice'
+  return normalizedSource
 }
 
 /** 筛选 Tab 用：保留更细粒度（如 energy-anomaly） */
 export function normalizeNotificationFilterKey(source?: string | null): string {
-  const src = String(source || '').trim()
-  if (!src || src === 'system') return 'system'
-  if (src === 'alert-rule' || src.startsWith('alert-rule')) return 'alert-rule'
-  if (src.startsWith('earthquake')) return 'earthquake'
-  if (src.startsWith('advisor-')) return 'advisor'
-  if (src === 'energy-budget') return 'energy-budget'
-  if (src === 'energy-anomaly') return 'energy-anomaly'
-  if (src.startsWith('energy')) return 'energy'
+  const filterSource = String(source || '').trim()
+  if (!filterSource || filterSource === 'system') return 'system'
+  if (filterSource === 'alert-rule' || filterSource.startsWith('alert-rule')) return 'alert-rule'
+  if (filterSource.startsWith('earthquake')) return 'earthquake'
+  if (filterSource.startsWith('advisor-')) return 'advisor'
+  if (filterSource === 'energy-budget') return 'energy-budget'
+  if (filterSource === 'energy-anomaly') return 'energy-anomaly'
+  if (filterSource.startsWith('energy')) return 'energy'
   if (
-    src === 'emergency' ||
-    src.startsWith('security') ||
-    src.startsWith('hazard') ||
-    src.startsWith('drill')
+    filterSource === 'emergency' ||
+    filterSource.startsWith('security') ||
+    filterSource.startsWith('hazard') ||
+    filterSource.startsWith('drill')
   ) {
     return 'security'
   }
-  if (src.startsWith('environment')) return 'environment-health'
-  if (src.startsWith('device')) return 'device-monitor'
-  if (src.startsWith('water')) return 'water-monitor'
-  if (src.startsWith('home-mode')) return 'home-mode'
-  if (src === 'automation') return 'automation'
-  if (src.startsWith('voice')) return 'voice'
+  if (filterSource.startsWith('environment')) return 'environment-health'
+  if (filterSource.startsWith('device')) return 'device-monitor'
+  if (filterSource.startsWith('water')) return 'water-monitor'
+  if (filterSource.startsWith('home-mode')) return 'home-mode'
+  if (filterSource === 'automation') return 'automation'
+  if (filterSource.startsWith('voice')) return 'voice'
   return 'system'
 }
 
@@ -122,17 +122,17 @@ export function isLifeSafetyNotification(
   source?: string | null,
 ): boolean {
   if (String(level || '').toLowerCase() === 'danger') return true
-  const src = String(source || '').trim().toLowerCase()
-  if (!src) return false
-  if (src === 'emergency' || src === 'security' || src === 'water-monitor') return true
-  if (src.startsWith('security') || src.startsWith('hazard') || src.startsWith('drill')) return true
-  if (src.startsWith('earthquake')) return true
-  if (src.startsWith('water')) return true
+  const safetySource = String(source || '').trim().toLowerCase()
+  if (!safetySource) return false
+  if (safetySource === 'emergency' || safetySource === 'security' || safetySource === 'water-monitor') return true
+  if (safetySource.startsWith('security') || safetySource.startsWith('hazard') || safetySource.startsWith('drill')) return true
+  if (safetySource.startsWith('earthquake')) return true
+  if (safetySource.startsWith('water')) return true
   // HA（中枢）失联：它一断，安防 / 告警 / 自动化 / 场景全部失效，且设备离线告警本身会被
   // 后端抑制（状态不可信）—— 这条通知正是那批告警缺席的原因，因此不能被「重要通知」开关
   // 或免打扰静音，否则用户会在毫不知情的情况下失去全部告警能力。
   // 它仍用 warn 级别：中枢失联是系统性故障，不是家里的紧急事件，不占 danger 语义。
-  if (src === 'ha-connection' || src.startsWith('ha-connection')) return true
+  if (safetySource === 'ha-connection' || safetySource.startsWith('ha-connection')) return true
   return false
 }
 
@@ -144,25 +144,25 @@ export function isLifeSafetyNotification(
  * @returns 中文标签（空或未知源返回「系统」，最长不超过 5 汉字）
  */
 export function notificationSourceLabel(source?: string | null): string {
-  const src = String(source || '').trim()
-  if (!src) return '系统'
-  if (NOTIFICATION_SOURCE_SHORT_LABELS[src]) return NOTIFICATION_SOURCE_SHORT_LABELS[src]
+  const labelSource = String(source || '').trim()
+  if (!labelSource) return '系统'
+  if (NOTIFICATION_SOURCE_SHORT_LABELS[labelSource]) return NOTIFICATION_SOURCE_SHORT_LABELS[labelSource]
 
-  const advisor = advisorSourceLabel(src)
+  const advisor = advisorSourceLabel(labelSource)
   if (advisor) return advisor
 
-  if (src.startsWith('alert-rule')) return '告警'
-  if (src.startsWith('earthquake')) return '地震'
-  if (src.startsWith('energy')) return '能耗'
-  if (src.startsWith('security') || src.includes('linkage')) return '安防'
-  if (src.startsWith('environment')) return '环境'
-  if (src.startsWith('device')) return '设备'
-  if (src.startsWith('water')) return '用水'
-  if (src.startsWith('home-mode')) return '模式'
-  if (src.startsWith('voice')) return '语音'
-  if (src.startsWith('hazard')) return '隐患'
-  if (src.startsWith('drill')) return '演习'
-  if (src.startsWith('advisor')) return '智能顾问'
+  if (labelSource.startsWith('alert-rule')) return '告警'
+  if (labelSource.startsWith('earthquake')) return '地震'
+  if (labelSource.startsWith('energy')) return '能耗'
+  if (labelSource.startsWith('security') || labelSource.includes('linkage')) return '安防'
+  if (labelSource.startsWith('environment')) return '环境'
+  if (labelSource.startsWith('device')) return '设备'
+  if (labelSource.startsWith('water')) return '用水'
+  if (labelSource.startsWith('home-mode')) return '模式'
+  if (labelSource.startsWith('voice')) return '语音'
+  if (labelSource.startsWith('hazard')) return '隐患'
+  if (labelSource.startsWith('drill')) return '演习'
+  if (labelSource.startsWith('advisor')) return '智能顾问'
   return '系统'
 }
 
@@ -179,46 +179,46 @@ export function matchesNotificationSourceFilter(
   filterKey: string,
 ): boolean {
   if (!filterKey || filterKey === 'all') return true
-  const src = String(source || '').trim()
-  const normalized = normalizeNotificationFilterKey(src)
+  const matchSource = String(source || '').trim()
+  const normalized = normalizeNotificationFilterKey(matchSource)
 
   if (filterKey === 'system') {
-    return !src || normalized === 'system'
+    return !matchSource || normalized === 'system'
   }
   if (filterKey === 'earthquake') {
-    return src.startsWith('earthquake')
+    return matchSource.startsWith('earthquake')
   }
   if (filterKey === 'advisor') {
-    return src.startsWith('advisor-')
+    return matchSource.startsWith('advisor-')
   }
   if (filterKey === 'energy') {
-    return src.startsWith('energy') && !src.startsWith('advisor-')
+    return matchSource.startsWith('energy') && !matchSource.startsWith('advisor-')
   }
   if (filterKey === 'security') {
     return (
-      src === 'emergency' ||
-      src.startsWith('security') ||
-      src.startsWith('hazard') ||
-      src.startsWith('drill')
+      matchSource === 'emergency' ||
+      matchSource.startsWith('security') ||
+      matchSource.startsWith('hazard') ||
+      matchSource.startsWith('drill')
     )
   }
   if (filterKey === 'device-monitor') {
-    return src.startsWith('device')
+    return matchSource.startsWith('device')
   }
   if (filterKey === 'environment-health') {
-    return src.startsWith('environment')
+    return matchSource.startsWith('environment')
   }
   if (filterKey === 'water-monitor') {
-    return src.startsWith('water')
+    return matchSource.startsWith('water')
   }
   if (filterKey === 'home-mode') {
-    return src.startsWith('home-mode')
+    return matchSource.startsWith('home-mode')
   }
   if (filterKey === 'voice') {
-    return src.startsWith('voice')
+    return matchSource.startsWith('voice')
   }
 
-  return normalized === filterKey || src === filterKey
+  return normalized === filterKey || matchSource === filterKey
 }
 
 /** 前端筛选 Tab 项（key 用于匹配，label 用于展示中文标题） */

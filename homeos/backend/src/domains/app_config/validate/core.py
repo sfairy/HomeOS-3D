@@ -52,8 +52,8 @@ def num_in(
         return None
     return value
 
-def _fmt(n: float) -> str:
-    return str(int(n)) if float(n).is_integer() else str(n)
+def _fmt(number: float) -> str:
+    return str(int(number)) if float(number).is_integer() else str(number)
 
 def require_bool(section: str, key: str, val: Any, errors: list[FieldError]) -> bool | None:
     if not isinstance(val, bool):

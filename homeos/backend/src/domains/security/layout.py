@@ -88,8 +88,8 @@ def parse_comma_ids(raw: Any) -> list[str]:
     return [part for part in re.split(r"[,;\s]+", str(raw or "")) if part.strip()]
 
 
-def _parse_hazard_entity_id_list(ha: dict[str, Any], key: str) -> list[str]:
-    value = ha.get(key)
+def _parse_hazard_entity_id_list(hazard_area: dict[str, Any], key: str) -> list[str]:
+    value = hazard_area.get(key)
     if not isinstance(value, list):
         return []
     return [str(item).strip() for item in value if str(item or "").strip()]

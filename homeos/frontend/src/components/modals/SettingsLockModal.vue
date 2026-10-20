@@ -175,16 +175,16 @@ function clearPin() {
 
 watch(
   () => props.isOpen,
-  (val) => {
-    if (val) clearPin()
+  (isOpenValue) => {
+    if (isOpenValue) clearPin()
   },
 )
 
-watch(pin, (val) => {
+watch(pin, (pinValue) => {
   // PIN 达到目标长度时自动校验：成功延迟 600ms 关闭，失败抖动后清空
-  const pinLen = layoutStore.layoutConfig.settingsLock?.pin?.length || 4
-  if (val.length === pinLen) {
-    if (layoutStore.unlockSettings(val)) {
+  const expectedPinLength = layoutStore.layoutConfig.settingsLock?.pin?.length || 4
+  if (pinValue.length === expectedPinLength) {
+    if (layoutStore.unlockSettings(pinValue)) {
       isSuccess.value = true
       if (pinTimer) clearTimeout(pinTimer)
       pinTimer = setTimeout(() => {

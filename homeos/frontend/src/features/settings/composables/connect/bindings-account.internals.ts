@@ -54,13 +54,13 @@ export function useBindingsAccountSection(
   })
 
   watch(editingMultiAccountKey, (key) => {
-    const idx = Number.parseInt(String(key), 10)
-    if (!Number.isNaN(idx)) editingMultiAccountIndex.value = idx
+    const keyIndex = Number.parseInt(String(key), 10)
+    if (!Number.isNaN(keyIndex)) editingMultiAccountIndex.value = keyIndex
   })
 
   watch(editingEntityAccountKey, (key) => {
-    const idx = Number.parseInt(String(key), 10)
-    if (!Number.isNaN(idx)) editingEntityAccountIndex.value = idx
+    const parsedIndex = Number.parseInt(String(key), 10)
+    if (!Number.isNaN(parsedIndex)) editingEntityAccountIndex.value = parsedIndex
   })
 
   watch(
@@ -96,8 +96,8 @@ export function useBindingsAccountSection(
     if (!Array.isArray(rows) || !rows.length) {
       return { entityId: '', label: '' }
     }
-    const idx = Math.min(editingEntityAccountIndex.value, rows.length - 1)
-    return rows[idx] || rows[0]
+    const editingIndex = Math.min(editingEntityAccountIndex.value, rows.length - 1)
+    return rows[editingIndex] || rows[0]
   })
 
   const compositeEntityAttrsForEdit = computed(() => {
@@ -123,8 +123,8 @@ export function useBindingsAccountSection(
 
   watch(
     editingMultiAccountIndex,
-    (idx) => {
-      const row = activeSource.value?.multiAccounts?.[idx]
+    (accountIndex) => {
+      const row = activeSource.value?.multiAccounts?.[accountIndex]
       if (row && !row.entityMap) row.entityMap = {}
     },
     { immediate: true },
@@ -150,8 +150,8 @@ export function useBindingsAccountSection(
     if (!Array.isArray(rows) || !rows.length) {
       return { entityId: '', label: '', entityMap: {} }
     }
-    const idx = Math.min(editingMultiAccountIndex.value, rows.length - 1)
-    return rows[idx] || rows[0]
+    const multiEditingIndex = Math.min(editingMultiAccountIndex.value, rows.length - 1)
+    return rows[multiEditingIndex] || rows[0]
   })
 
   watch(

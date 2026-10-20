@@ -83,9 +83,9 @@ export function useDevicesView() {
 
   watch(
     currentFilter,
-    (val) => {
+    (parsedFilters) => {
       try {
-        sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(val))
+        sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(parsedFilters))
       } catch {
         // 忽略：sessionStorage 不可用或解析失败
       }

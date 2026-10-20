@@ -124,7 +124,7 @@ export function useLightControlPopup(props: {
     onChange: onColorTempChange,
     commit: commitColorTemp,
   } = useSliderCommit(colorTempVal, {
-    onCommit: (val: number) => setColorTemp(val),
+    onCommit: (nextColorTemp: number) => setColorTemp(nextColorTemp),
     track: () => ({ min: minKelvin.value, max: maxKelvin.value, step: colorTempStep.value }),
     buildTrackStyle: (
       value: number,
@@ -141,7 +141,7 @@ export function useLightControlPopup(props: {
     onChange: onBrightnessChange,
     commit: commitBrightness,
   } = useSliderCommit(brightnessPct, {
-    onCommit: (val: number) => setBrightness(val),
+    onCommit: (nextBrightness: number) => setBrightness(nextBrightness),
     track: () => ({
       min: 1,
       max: 100,
@@ -174,15 +174,15 @@ export function useLightControlPopup(props: {
    * 优先使用 hs_color，其次将 rgb_color 转为 HS 后映射到色盘。
    */
   function syncColorPickerFromEntity() {
-    const e = liveEntity.value
-    const hs = e?.attributes?.hs_color as number[] | undefined
-    if (hs && hs.length >= 2) {
+    const entity = liveEntity.value
+    const hsColor = entity?.attributes?.hs_color as number[] | undefined
+    if (hsColor && hsColor.length >= 2) {
       // hue 0-360 → 0-100，sat 0-100 → 0-100（自上而下取反）
-      hueX.value = Math.round(hs[0] / 3.6)
-      satY.value = 100 - hs[1]
+      hueX.value = Math.round(hsColor[0] / 3.6)
+      satY.value = 100 - hsColor[1]
       return
     }
-    const rgb = e?.attributes?.rgb_color as number[] | undefined
+    const rgb = entity?.attributes?.rgb_color as number[] | undefined
     if (rgb && rgb.length >= 3) {
       const converted = rgbToHs(rgb[0], rgb[1], rgb[2])
       hueX.value = Math.round(converted.h / 3.6)
@@ -195,8 +195,8 @@ export function useLightControlPopup(props: {
   // 实体上报 transition 时同步本地过渡时间
   watch(
     () => liveEntity.value?.attributes?.transition,
-    (val) => {
-      if (val != null && !Number.isNaN(Number(val))) transitionTime.value = Number(val)
+    (nextTransition) => {
+      if (nextTransition != null && !Number.isNaN(Number(nextTransition))) transitionTime.value = Number(nextTransition)
     },
     { immediate: true },
   )
@@ -205,16 +205,16 @@ export function useLightControlPopup(props: {
   const rgbColor = computed(() => {
     const rgb = liveEntity.value?.attributes?.rgb_color as number[] | undefined
     if (rgb && rgb.length >= 3) return { r: rgb[0], g: rgb[1], b: rgb[2] }
-    const hs = liveEntity.value?.attributes?.hs_color as number[] | undefined
-    if (hs && hs.length >= 2) return hsvToRgb(hs[0], hs[1])
+    const hsColor = liveEntity.value?.attributes?.hs_color as number[] | undefined
+    if (hsColor && hsColor.length >= 2) return hsvToRgb(hsColor[0], hsColor[1])
     return { r: 255, g: 200, b: 100 }
   })
 
   // HEX 颜色字符串（大写，无 # 前缀）
   const hexColor = computed(() => {
-    const { r, g, b } = rgbColor.value
-    return [r, g, b]
-      .map((c) => c.toString(16).padStart(2, '0'))
+    const { r: red, g: green, b: blue } = rgbColor.value
+    return [red, green, blue]
+      .map((channel) => channel.toString(16).padStart(2, '0'))
       .join('')
       .toUpperCase()
   })
@@ -234,13 +234,13 @@ export function useLightControlPopup(props: {
    */
   let stopPicking: (() => void) | null = null
 
-  function startPickColor(e: MouseEvent | TouchEvent) {
+  function startPickColor(event: MouseEvent | TouchEvent) {
     const rect = paletteRef.value?.getBoundingClientRect()
     if (!rect) return
     if (stopPicking) stopPicking()
-    updateFromEvent(e, rect)
+    updateFromEvent(event, rect)
     const move = (ev: MouseEvent | TouchEvent) => updateFromEvent(ev, rect)
-    const up = (ev: MouseEvent | TouchEvent) => {
+    const handlePointerUp = (ev: MouseEvent | TouchEvent) => {
       stopPicking?.()
       stopPicking = null
       if (ev) updateFromEvent(ev, rect)
@@ -249,9 +249,9 @@ export function useLightControlPopup(props: {
     // 卸载兜底 / 触摸被打断：只解绑监听，不提交颜色（用户没有完成这次取色）
     stopPicking = () => {
       window.removeEventListener('mousemove', move)
-      window.removeEventListener('mouseup', up)
+      window.removeEventListener('mouseup', handlePointerUp)
       window.removeEventListener('touchmove', move)
-      window.removeEventListener('touchend', up)
+      window.removeEventListener('touchend', handlePointerUp)
       window.removeEventListener('touchcancel', cancel)
     }
     const cancel = () => {
@@ -259,9 +259,9 @@ export function useLightControlPopup(props: {
       stopPicking = null
     }
     window.addEventListener('mousemove', move)
-    window.addEventListener('mouseup', up)
+    window.addEventListener('mouseup', handlePointerUp)
     window.addEventListener('touchmove', move)
-    window.addEventListener('touchend', up)
+    window.addEventListener('touchend', handlePointerUp)
     // 触摸被系统打断（来电、手势返回等）时结束拖拽，避免监听残留与误提交
     window.addEventListener('touchcancel', cancel)
   }
@@ -273,11 +273,11 @@ export function useLightControlPopup(props: {
 
   /**
    * 根据事件坐标更新色盘 hueX/satY（clamp 到 0-100）。
-   * @param e 鼠标或触摸事件
+   * @param event 鼠标或触摸事件
    * @param rect 色盘 boundingClientRect
    */
-  function updateFromEvent(e: MouseEvent | TouchEvent, rect: DOMRect) {
-    const point = 'touches' in e ? e.touches[0] : e
+  function updateFromEvent(event: MouseEvent | TouchEvent, rect: DOMRect) {
+    const point = 'touches' in event ? event.touches[0] : event
     const x = Math.max(0, Math.min(100, ((point.clientX - rect.left) / rect.width) * 100))
     const y = Math.max(0, Math.min(100, ((point.clientY - rect.top) / rect.height) * 100))
     hueX.value = Math.round(x)
@@ -287,28 +287,28 @@ export function useLightControlPopup(props: {
   /**
    * 色盘键盘操作：左/右调整色相，上/下调整饱和度，Shift 加速，操作即提交。
    * 使色盘满足键盘可用性（role=slider + 方向键）。
-   * @param e 键盘事件
+   * @param event 键盘事件
    */
-  function handlePaletteKeydown(e: KeyboardEvent) {
-    const step = e.shiftKey ? 10 : 2
-    switch (e.key) {
+  function handlePaletteKeydown(event: KeyboardEvent) {
+    const step = event.shiftKey ? 10 : 2
+    switch (event.key) {
       case 'ArrowLeft':
-        e.preventDefault()
+        event.preventDefault()
         hueX.value = Math.max(0, hueX.value - step)
         commitPickerColor()
         break
       case 'ArrowRight':
-        e.preventDefault()
+        event.preventDefault()
         hueX.value = Math.min(100, hueX.value + step)
         commitPickerColor()
         break
       case 'ArrowUp':
-        e.preventDefault()
+        event.preventDefault()
         satY.value = Math.max(0, satY.value - step)
         commitPickerColor()
         break
       case 'ArrowDown':
-        e.preventDefault()
+        event.preventDefault()
         satY.value = Math.min(100, satY.value + step)
         commitPickerColor()
         break
@@ -318,22 +318,22 @@ export function useLightControlPopup(props: {
   /** 提交色盘当前颜色（hueX/satY → RGB → HA service） */
   function commitPickerColor() {
     const h = Math.round(hueX.value * 3.6)
-    const s = 100 - satY.value
-    applyRgbColor(hsvToRgb(h, s))
+    const saturation = 100 - satY.value
+    applyRgbColor(hsvToRgb(h, saturation))
   }
 
   /**
    * 下发 RGB 颜色到 HA light.turn_on。
    * @param param0 RGB 对象
    */
-  async function applyRgbColor({ r, g, b }: { r: number; g: number; b: number }) {
+  async function applyRgbColor({ r: red, g: green, b: blue }: { r: number; g: number; b: number }) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
     await callService(
       'light',
       'turn_on',
       entityId,
-      buildLightTurnOnData({ rgbColor: [r, g, b] }),
+      buildLightTurnOnData({ rgbColor: [red, green, blue] }),
       '设置颜色失败',
     )
   }
@@ -343,11 +343,11 @@ export function useLightControlPopup(props: {
    * @param hex HEX 字符串
    */
   function applyPresetColor(hex: string) {
-    const { r, g, b } = hexToRgb(hex)
-    const hs = rgbToHs(r, g, b)
-    hueX.value = Math.round(hs.h / 3.6)
-    satY.value = 100 - hs.s
-    applyRgbColor({ r, g, b })
+    const { r: red, g: green, b: blue } = hexToRgb(hex)
+    const hsColor = rgbToHs(red, green, blue)
+    hueX.value = Math.round(hsColor.h / 3.6)
+    satY.value = 100 - hsColor.s
+    applyRgbColor({ r: red, g: green, b: blue })
   }
 
   /** 切换灯光开关 */
@@ -360,9 +360,9 @@ export function useLightControlPopup(props: {
 
   /**
    * 设置亮度百分比。
-   * @param val 0-100
+   * @param brightnessValue 0-100
    */
-  async function setBrightness(val: number) {
+  async function setBrightness(brightnessValue: number) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
     // HA 同时接受 brightness_pct 与 brightness；核心统一转 brightness 位
@@ -370,7 +370,7 @@ export function useLightControlPopup(props: {
       'light',
       'turn_on',
       entityId,
-      { brightness_pct: val, brightness: lightBrightnessFromPct(val) },
+      { brightness_pct: brightnessValue, brightness: lightBrightnessFromPct(brightnessValue) },
       '亮度设置失败',
     )
   }
@@ -399,20 +399,20 @@ export function useLightControlPopup(props: {
   function readAttrNumber(attrs: Record<string, unknown>, ...keys: string[]) {
     for (const key of keys) {
       if (attrs[key] == null) continue
-      const n = Number(attrs[key])
-      if (Number.isFinite(n)) return n
+      const numericValue = Number(attrs[key])
+      if (Number.isFinite(numericValue)) return numericValue
     }
     return null
   }
 
   /**
    * 设置色温（Kelvin）。
-   * @param val Kelvin 色温值
+   * @param colorTempValue Kelvin 色温值
    */
-  async function setColorTemp(val: number) {
+  async function setColorTemp(colorTempValue: number) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
-    await callService('light', 'turn_on', entityId, buildColorTempServiceData(val), '色温设置失败')
+    await callService('light', 'turn_on', entityId, buildColorTempServiceData(colorTempValue), '色温设置失败')
   }
 
   /** 应用过渡时间到灯光 */

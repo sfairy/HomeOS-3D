@@ -28,9 +28,9 @@ def _range_to_segments(start_min: int, end_min: int) -> list[tuple[int, int]]:
         return [(start_min, end_min)]
     return [(start_min, 1440), (0, end_min)]
 
-def _segments_overlap(a: list[tuple[int, int]], b: list[tuple[int, int]]) -> bool:
-    for a0, a1 in a:
-        for b0, b1 in b:
+def _segments_overlap(left: list[tuple[int, int]], right: list[tuple[int, int]]) -> bool:
+    for a0, a1 in left:
+        for b0, b1 in right:
             if a0 < b1 and b0 < a1:
                 return True
     return False
@@ -75,36 +75,36 @@ def validate_tou_windows(input_: dict[str, Any]) -> list[str]:
 
 # 分区校验函数
 
-def _validate_energy(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "learningPeriodDays" in p:
-        num_in(section, "learningPeriodDays", p["learningPeriodDays"], 0, 90, e)
-    if "budgetAlertCooldownMin" in p:
-        num_in(section, "budgetAlertCooldownMin", p["budgetAlertCooldownMin"], 30, 10080, e)
-    if "anomalyCooldownMin" in p:
-        num_in(section, "anomalyCooldownMin", p["anomalyCooldownMin"], 1, 1440, e)
-    if "meterEntityId" in p:
-        validate_optional_entity_id(section, "meterEntityId", p["meterEntityId"], e)
-    if "circuitEntityIds" in p:
-        validate_entity_id_list(section, "circuitEntityIds", p["circuitEntityIds"], e)
+def _validate_energy(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "learningPeriodDays" in payload:
+        num_in(section, "learningPeriodDays", payload["learningPeriodDays"], 0, 90, errors)
+    if "budgetAlertCooldownMin" in payload:
+        num_in(section, "budgetAlertCooldownMin", payload["budgetAlertCooldownMin"], 30, 10080, errors)
+    if "anomalyCooldownMin" in payload:
+        num_in(section, "anomalyCooldownMin", payload["anomalyCooldownMin"], 1, 1440, errors)
+    if "meterEntityId" in payload:
+        validate_optional_entity_id(section, "meterEntityId", payload["meterEntityId"], errors)
+    if "circuitEntityIds" in payload:
+        validate_entity_id_list(section, "circuitEntityIds", payload["circuitEntityIds"], errors)
 
 
 _CLOCK_RE = re.compile(r"^(\d{1,2}):(\d{2})$")
 
-def _validate_clock_time(section: str, key: str, val: Any, e: list[FieldError]) -> None:
+def _validate_clock_time(section: str, key: str, val: Any, errors: list[FieldError]) -> None:
     if not isinstance(val, str):
-        e.append({"section": section, "key": key, "message": "须为 HH:MM 时刻字符串"})
+        errors.append({"section": section, "key": key, "message": "须为 HH:MM 时刻字符串"})
         return
     m = _CLOCK_RE.match(val.strip())
     if not m:
-        e.append({"section": section, "key": key, "message": "格式须为 HH:MM（如 08:00）"})
+        errors.append({"section": section, "key": key, "message": "格式须为 HH:MM（如 08:00）"})
         return
     hour = int(m.group(1))
     minute = int(m.group(2))
     if hour > 23 or minute > 59:
-        e.append({"section": section, "key": key, "message": "小时须 0–23，分钟须 0–59"})
+        errors.append({"section": section, "key": key, "message": "小时须 0–23，分钟须 0–59"})
 
-def _is_fixed_pricing_mode(p: dict[str, Any], context: dict[str, Any] | None) -> bool:
-    mode = p.get("pricingMode")
+def _is_fixed_pricing_mode(payload: dict[str, Any], context: dict[str, Any] | None) -> bool:
+    mode = payload.get("pricingMode")
     if mode is None and isinstance(context, dict):
         ctx_pricing = context.get("pricing")
         if isinstance(ctx_pricing, dict):
@@ -112,49 +112,49 @@ def _is_fixed_pricing_mode(p: dict[str, Any], context: dict[str, Any] | None) ->
     return mode == "fixed"
 
 def _validate_pricing(
-    section: str, p: dict[str, Any], e: list[FieldError], context: dict[str, Any] | None
+    section: str, payload: dict[str, Any], errors: list[FieldError], context: dict[str, Any] | None
 ) -> None:
     for key in ("peakStart1", "peakEnd1", "peakStart2", "peakEnd2", "valleyStart", "valleyEnd"):
-        if key in p:
-            _validate_clock_time(section, key, p[key], e)
-    if "timeOfUseEnabled" in p and not isinstance(p["timeOfUseEnabled"], bool):
-        e.append({"section": section, "key": "timeOfUseEnabled", "message": "须为布尔值"})
-    if "pricingMode" in p:
-        mode = p["pricingMode"]
+        if key in payload:
+            _validate_clock_time(section, key, payload[key], errors)
+    if "timeOfUseEnabled" in payload and not isinstance(payload["timeOfUseEnabled"], bool):
+        errors.append({"section": section, "key": "timeOfUseEnabled", "message": "须为布尔值"})
+    if "pricingMode" in payload:
+        mode = payload["pricingMode"]
         if mode not in ("tiered", "fixed"):
-            e.append({"section": section, "key": "pricingMode", "message": "须为 tiered 或 fixed"})
-    if "fixedPrice" in p:
-        num_in(section, "fixedPrice", p["fixedPrice"], 0, 10, e)
-    if "regionLabel" in p and p["regionLabel"] is not None and not isinstance(p["regionLabel"], str):
-        e.append({"section": section, "key": "regionLabel", "message": "须为字符串"})
-    fixed_mode = _is_fixed_pricing_mode(p, context)
+            errors.append({"section": section, "key": "pricingMode", "message": "须为 tiered 或 fixed"})
+    if "fixedPrice" in payload:
+        num_in(section, "fixedPrice", payload["fixedPrice"], 0, 10, errors)
+    if "regionLabel" in payload and payload["regionLabel"] is not None and not isinstance(payload["regionLabel"], str):
+        errors.append({"section": section, "key": "regionLabel", "message": "须为字符串"})
+    fixed_mode = _is_fixed_pricing_mode(payload, context)
 
     def merged_value(key: str) -> Any:
-        if key in p:
-            return p[key]
+        if key in payload:
+            return payload[key]
         if isinstance(context, dict):
             ctx_pricing = context.get("pricing")
             if isinstance(ctx_pricing, dict):
                 return ctx_pricing.get(key)
         return None
 
-    if fixed_mode and "fixedPrice" in p:
+    if fixed_mode and "fixedPrice" in payload:
         try:
-            if float(p["fixedPrice"]) <= 0:
-                e.append({"section": section, "key": "fixedPrice", "message": "固定单价须大于 0"})
+            if float(payload["fixedPrice"]) <= 0:
+                errors.append({"section": section, "key": "fixedPrice", "message": "固定单价须大于 0"})
         except (TypeError, ValueError):
             pass
-    if "tier1Kwh" in p:
-        num_in(section, "tier1Kwh", p["tier1Kwh"], 0, 100_000, e)
-    if "tier1Price" in p:
-        num_in(section, "tier1Price", p["tier1Price"], 0, 10, e)
-    if "tier2Price" in p:
-        num_in(section, "tier2Price", p["tier2Price"], 0, 10, e)
-    if "tier3Price" in p:
-        num_in(section, "tier3Price", p["tier3Price"], 0, 10, e)
+    if "tier1Kwh" in payload:
+        num_in(section, "tier1Kwh", payload["tier1Kwh"], 0, 100_000, errors)
+    if "tier1Price" in payload:
+        num_in(section, "tier1Price", payload["tier1Price"], 0, 10, errors)
+    if "tier2Price" in payload:
+        num_in(section, "tier2Price", payload["tier2Price"], 0, 10, errors)
+    if "tier3Price" in payload:
+        num_in(section, "tier3Price", payload["tier3Price"], 0, 10, errors)
     for key in ("peakPrice", "valleyPrice", "flatPrice"):
-        if key in p:
-            num_in(section, key, p[key], 0, 10, e)
+        if key in payload:
+            num_in(section, key, payload[key], 0, 10, errors)
     tou_enabled = merged_value("timeOfUseEnabled") is not False
     tou_keys = (
         "peakStart1",
@@ -165,7 +165,7 @@ def _validate_pricing(
         "valleyEnd",
         "timeOfUseEnabled",
     )
-    if tou_enabled and any(k in p for k in tou_keys):
+    if tou_enabled and any(k in payload for k in tou_keys):
         for message in validate_tou_windows(
             {
                 "peakStart1": str(merged_value("peakStart1") or ""),
@@ -176,7 +176,7 @@ def _validate_pricing(
                 "valleyEnd": str(merged_value("valleyEnd") or ""),
             }
         ):
-            e.append({"section": section, "key": "peakStart1", "message": message})
+            errors.append({"section": section, "key": "peakStart1", "message": message})
 
 def normalize_pricing_patch(partial: dict[str, Any]) -> dict[str, Any]:
     """切换为 fixed 且本次未指定分时时，默认关闭峰谷平。"""

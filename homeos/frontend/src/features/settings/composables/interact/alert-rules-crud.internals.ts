@@ -21,7 +21,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import type { NotifyType } from '@/shared/types/notify'
 import { ref, type Ref } from 'vue'
 
-export function useAlertRulesCrud(opts: {
+export function useAlertRulesCrud(initOptions: {
   chrome: {
     notify: (msg: string, type?: NotifyType, duration?: number) => void
     confirm: (
@@ -37,7 +37,7 @@ export function useAlertRulesCrud(opts: {
     closeEditing: () => void
   }
 }) {
-  const { chrome, dndPanel, ruleEditor } = opts
+  const { chrome, dndPanel, ruleEditor } = initOptions
   const entitiesStore = useEntitiesStore()
   const rules = ref<InboxAlertRule[]>([])
   const loading = ref(false)

@@ -19,7 +19,7 @@ type SliderTrackOpts = {
 }
 
 type SliderCommitOptions = {
-  onCommit?: (val: number) => void
+  onCommit?: (nextValue: number) => void
   parse?: (v: unknown) => number
   track?: SliderTrackOpts | (() => SliderTrackOpts) | null
   /** 回调入参使用双变（bivariant），便于调用方解构必填的 min/max/step */
@@ -74,9 +74,9 @@ export function useSliderCommit(
     track || buildTrackStyle
       ? computed(() => {
           const opts = resolveTrackOpts()
-          const val = rangeValue.value
-          if (buildTrackStyle) return buildTrackStyle(val, opts)
-          return sliderTrackStyle({ ...opts, value: val, step: opts.step })
+          const currentValue = rangeValue.value
+          if (buildTrackStyle) return buildTrackStyle(currentValue, opts)
+          return sliderTrackStyle({ ...opts, value: currentValue, step: opts.step })
         })
       : undefined
   function onInput(e: Event | { target?: { value?: string } } | number | string) {

@@ -253,7 +253,7 @@ export function useSettingsPendingChanges(options: SettingsHubPendingOptions) {
       pendingCount.value = 0
       return
     }
-    const cur = current()
+    const currentState = current()
     if (fieldKeys?.length) {
       let baseline
       try {
@@ -264,12 +264,12 @@ export function useSettingsPendingChanges(options: SettingsHubPendingOptions) {
       }
       pendingCount.value = countObjectFieldDiff(
         baseline as Record<string, unknown>,
-        cur as Record<string, unknown> | null | undefined,
+        currentState as Record<string, unknown> | null | undefined,
         fieldKeys,
       )
       return
     }
-    pendingCount.value = countJsonLeafDiff(snapshot.value, cur)
+    pendingCount.value = countJsonLeafDiff(snapshot.value, currentState)
   }
 
   function takeSnapshot(source: unknown) {

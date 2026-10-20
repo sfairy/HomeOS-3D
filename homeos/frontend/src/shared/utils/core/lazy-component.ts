@@ -135,7 +135,7 @@ export function lazyComponent(loader: () => Promise<Component>) {
         setTimeout(retry, RETRY_BASE_MS * attempts)
         return
       }
-      ;(fail as (err?: unknown) => void)(error)
+      ;(fail as (retryError?: unknown) => void)(error)
     },
   })
 }

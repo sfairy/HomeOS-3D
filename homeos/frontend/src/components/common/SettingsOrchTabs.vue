@@ -135,7 +135,7 @@ const canScrollRight = ref(false)
 
 const safeTabs = computed(() => (Array.isArray(props.tabs) ? props.tabs : []))
 
-const activeSortIndex = computed(() => safeTabs.value.findIndex((t) => t.id === props.modelValue))
+const activeSortIndex = computed(() => safeTabs.value.findIndex((tabEntry) => tabEntry.id === props.modelValue))
 
 const canSortShiftLeft = computed(() => props.sortable && activeSortIndex.value > 0)
 
@@ -256,9 +256,9 @@ function resolveValidTabId(preferred) {
   const tabs = safeTabs.value
   if (!tabs.length) return preferred
   const preferredId = String(preferred ?? '')
-  const match = tabs.find((t) => String(t.id) === preferredId && !t.disabled)
+  const match = tabs.find((tabEntry) => String(tabEntry.id) === preferredId && !tabEntry.disabled)
   if (match) return match.id
-  const fallback = tabs.find((t) => !t.disabled)
+  const fallback = tabs.find((tabEntry) => !tabEntry.disabled)
   return fallback?.id ?? tabs[0]?.id ?? preferred
 }
 
@@ -281,17 +281,17 @@ function moveSort(delta) {
 /**
  * 方向键 / Home / End 在 Tab 间移动（APG WAI-ARIA tabs 的自动激活模式）：
  * 只跳过 disabled 项、首尾循环，选中即切换并聚焦，避免平板外接键盘时 Tab 键要按十几次。
- * @param {KeyboardEvent} e - 键盘事件
+ * @param {KeyboardEvent} event - 键盘事件
  * @param {{id: string, disabled?: boolean}} tab - 当前聚焦的 Tab
  */
-function onTabKeydown(e, tab) {
-  const key = e.key
+function onTabKeydown(event, tab) {
+  const key = event.key
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return
   const tabs = safeTabs.value
   if (tabs.length < 2) return
-  const enabled = tabs.filter((t) => !t.disabled)
+  const enabled = tabs.filter((candidateTab) => !candidateTab.disabled)
   if (enabled.length === 0) return
-  const currentIndex = enabled.findIndex((t) => t.id === tab.id)
+  const currentIndex = enabled.findIndex((candidateTab) => candidateTab.id === tab.id)
   let nextIndex
   if (key === 'Home') nextIndex = 0
   else if (key === 'End') nextIndex = enabled.length - 1
@@ -302,7 +302,7 @@ function onTabKeydown(e, tab) {
   }
   const next = enabled[nextIndex]
   if (!next) return
-  e.preventDefault()
+  event.preventDefault()
   select(next.id)
   nextTick(() => resolveTabEl(tabRefs.value[next.id])?.focus())
 }
@@ -338,14 +338,14 @@ function bindResizeObserver() {
   if (!track || !(track instanceof Element) || typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(() => refreshLayout())
   resizeObserver.observe(track)
-  for (const id of safeTabs.value.map((t) => t.id)) {
+  for (const id of safeTabs.value.map((tabEntry) => tabEntry.id)) {
     const node = resolveTabEl(tabRefs.value[id])
     if (node) resizeObserver.observe(node)
   }
 }
 
 watch(
-  () => safeTabs.value.map((t) => t.id).join(','),
+  () => safeTabs.value.map((tabEntry) => tabEntry.id).join(','),
   () => {
     syncModelToValidTab()
     nextTick(() => {
@@ -356,7 +356,7 @@ watch(
 )
 
 watch(
-  () => safeTabs.value.map((t) => `${t.id}:${t.count ?? ''}:${t.disabled ? 1 : 0}`).join('|'),
+  () => safeTabs.value.map((tabEntry) => `${tabEntry.id}:${tabEntry.count ?? ''}:${tabEntry.disabled ? 1 : 0}`).join('|'),
   () => {
     nextTick(() => {
       updateIndicator()

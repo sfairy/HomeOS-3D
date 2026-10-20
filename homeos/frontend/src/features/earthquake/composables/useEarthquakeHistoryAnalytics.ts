@@ -75,13 +75,13 @@ export function useEarthquakeHistoryAnalytics(
         getDistanceKm: (row: unknown) => (row as { distance?: number | null }).distance,
         getPlace: (row: unknown) => (row as { epicenter?: string | null }).epicenter,
         getTimeMs: (row: unknown) => {
-          const r = row as { savedAt?: number | null; originTime?: number | null }
-          return r.savedAt || r.originTime
+          const rowData = row as { savedAt?: number | null; originTime?: number | null }
+          return rowData.savedAt || rowData.originTime
         },
         getDepth: () => null,
         getIntensity: (row: unknown) => {
-          const r = row as { localIntensity?: number | null; maxIntensity?: number | null }
-          return r.localIntensity ?? r.maxIntensity
+          const intensityRow = row as { localIntensity?: number | null; maxIntensity?: number | null }
+          return intensityRow.localIntensity ?? intensityRow.maxIntensity
         },
       }
     }
@@ -120,47 +120,47 @@ export function useEarthquakeHistoryAnalytics(
    *  - intensity：最大烈度（>=6 标记 warn）。
    */
   const kpiCells = computed(() => {
-    const s = summary.value
+    const summaryValue = summary.value
     return [
       {
         key: 'total',
         label: '事件总数',
-        value: String(s.total),
+        value: String(summaryValue.total),
         hint: tab.value === 'local' ? 'EEW 记录' : '筛选范围',
       },
       {
         key: 'max',
         label: '最大震级',
-        value: s.maxMagnitude != null ? `M${formatEarthquakeMagnitude(s.maxMagnitude)}` : '—',
-        hint: s.strongestPlace ? shortenPlace(s.strongestPlace, 8) : '',
-        tone: s.maxMagnitude != null && s.maxMagnitude >= 5 ? 'warn' : 'accent',
+        value: summaryValue.maxMagnitude != null ? `M${formatEarthquakeMagnitude(summaryValue.maxMagnitude)}` : '—',
+        hint: summaryValue.strongestPlace ? shortenPlace(summaryValue.strongestPlace, 8) : '',
+        tone: summaryValue.maxMagnitude != null && summaryValue.maxMagnitude >= 5 ? 'warn' : 'accent',
       },
       {
         key: 'm4',
         label: '强震 M4+',
-        value: String(s.m4Plus),
-        hint: s.m5Plus ? `M5+ ${s.m5Plus} 次` : '无 M5+',
-        tone: s.m5Plus ? 'danger' : 'muted',
+        value: String(summaryValue.m4Plus),
+        hint: summaryValue.m5Plus ? `M5+ ${summaryValue.m5Plus} 次` : '无 M5+',
+        tone: summaryValue.m5Plus ? 'danger' : 'muted',
       },
       {
         key: 'near',
         label: '200km 内',
-        value: String(s.within200Km),
-        hint: s.nearestKm != null ? `最近 ${s.nearestKm} km` : '无坐标',
-        tone: s.within200Km > 0 ? 'danger' : 'muted',
+        value: String(summaryValue.within200Km),
+        hint: summaryValue.nearestKm != null ? `最近 ${summaryValue.nearestKm} km` : '无坐标',
+        tone: summaryValue.within200Km > 0 ? 'danger' : 'muted',
       },
       {
         key: 'avg',
         label: '平均震级',
-        value: s.avgMagnitude != null ? `M${s.avgMagnitude.toFixed(1)}` : '—',
-        hint: s.avgDepth != null ? `均深 ${s.avgDepth} km` : '',
+        value: summaryValue.avgMagnitude != null ? `M${summaryValue.avgMagnitude.toFixed(1)}` : '—',
+        hint: summaryValue.avgDepth != null ? `均深 ${summaryValue.avgDepth} km` : '',
       },
       {
         key: 'intensity',
         label: tab.value === 'local' ? '最高烈度' : '最大烈度',
-        value: s.maxIntensity != null ? `${s.maxIntensity} 度` : '—',
-        hint: s.farthestKm != null ? `最远 ${s.farthestKm} km` : '',
-        tone: s.maxIntensity != null && s.maxIntensity >= 6 ? 'warn' : 'muted',
+        value: summaryValue.maxIntensity != null ? `${summaryValue.maxIntensity} 度` : '—',
+        hint: summaryValue.farthestKm != null ? `最远 ${summaryValue.farthestKm} km` : '',
+        tone: summaryValue.maxIntensity != null && summaryValue.maxIntensity >= 6 ? 'warn' : 'muted',
       },
     ]
   })
@@ -210,7 +210,7 @@ export function useEarthquakeHistoryAnalytics(
       grid: { left: 36, right: 12, top: 16, bottom: 24 },
       xAxis: {
         type: 'category',
-        data: buckets.map((b) => b.label),
+        data: buckets.map((bucket) => bucket.label),
         axisLine: axisLineStyle,
         axisTick: { show: false },
         axisLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10 },
@@ -218,7 +218,7 @@ export function useEarthquakeHistoryAnalytics(
       yAxis: {
         type: 'value',
         min: 0,
-        max: yMax(buckets.map((b) => b.count)),
+        max: yMax(buckets.map((bucket) => bucket.count)),
         minInterval: 1,
         axisLine: { show: false },
         splitLine: splitLineStyle,
@@ -227,8 +227,8 @@ export function useEarthquakeHistoryAnalytics(
       series: [
         {
           type: 'bar',
-          data: buckets.map((b, i) => ({
-            value: b.count,
+          data: buckets.map((bucket, i) => ({
+            value: bucket.count,
             itemStyle: {
               color: barGradient(MAG_COLORS[i] || '#fbbf24'),
               borderRadius: [6, 6, 0, 0],
@@ -256,9 +256,9 @@ export function useEarthquakeHistoryAnalytics(
    * @returns ECharts option
    */
   function buildDistOption() {
-    const buckets = distBuckets.value.filter((b) => b.count > 0)
+    const buckets = distBuckets.value.filter((bucket) => bucket.count > 0)
     const data = buckets.length
-      ? buckets.map((b) => ({ name: b.label, value: b.count, itemStyle: { color: b.color } }))
+      ? buckets.map((bucket) => ({ name: bucket.label, value: bucket.count, itemStyle: { color: bucket.color } }))
       : [{ name: '无距离数据', value: 1, itemStyle: { color: '#64748b' } }]
     return {
       ...getChartBase(),
@@ -287,13 +287,13 @@ export function useEarthquakeHistoryAnalytics(
    */
   function buildTimeOption() {
     const buckets = timeBuckets.value
-    const counts = buckets.map((b) => b.count)
+    const counts = buckets.map((bucket) => bucket.count)
     return {
       ...getChartBase(),
       grid: { left: 36, right: 12, top: 16, bottom: buckets.length > 6 ? 36 : 24 },
       xAxis: {
         type: 'category',
-        data: buckets.map((b) => b.label),
+        data: buckets.map((bucket) => bucket.label),
         axisLine: axisLineStyle,
         axisTick: { show: false },
         axisLabel: {
@@ -337,8 +337,8 @@ export function useEarthquakeHistoryAnalytics(
   function buildExtraOption() {
     if (tab.value === 'local') {
       const places = topPlaces.value
-      const labels = places.length ? places.map((p) => p.label) : ['暂无']
-      const values = places.length ? places.map((p) => p.count) : [0]
+      const labels = places.length ? places.map((place) => place.label) : ['暂无']
+      const values = places.length ? places.map((place) => place.count) : [0]
       return {
         ...getChartBase(),
         grid: {
@@ -380,13 +380,13 @@ export function useEarthquakeHistoryAnalytics(
     }
 
     const buckets = depthBuckets.value
-    const counts = buckets.map((b) => b.count)
+    const counts = buckets.map((bucket) => bucket.count)
     return {
       ...getChartBase(),
       grid: { left: 36, right: 12, top: 16, bottom: 24 },
       xAxis: {
         type: 'category',
-        data: buckets.map((b) => b.label),
+        data: buckets.map((bucket) => bucket.label),
         axisLine: { show: false },
         axisLabel: { color: 'rgba(255,255,255,0.58)', fontSize: 10 },
       },

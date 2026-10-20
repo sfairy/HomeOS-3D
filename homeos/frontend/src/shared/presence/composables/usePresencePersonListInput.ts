@@ -96,12 +96,12 @@ export function usePresencePersonListInput(
   /**
    * 生成 Tab 标签文案
    * @param person 人员对象
-   * @param idx 人员索引
+   * @param personIndex 人员索引
    * @returns 姓名或"人员 {idx+1}"回退文案
    */
-  function tabLabel(person: PresencePersonRow | null, idx: number) {
+  function tabLabel(person: PresencePersonRow | null, personIndex: number) {
     const name = String(person?.name || '').trim()
-    return name || `人员 ${idx + 1}`
+    return name || `人员 ${personIndex + 1}`
   }
 
   /**
@@ -160,10 +160,10 @@ export function usePresencePersonListInput(
    * 更新指定人员的单个字段
    * @param idx 人员索引
    * @param field 字段名
-   * @param value 新值
+   * @param rowIndex 新值
    */
-  function updatePersonField(idx: number, field: keyof PresencePersonRow, value: unknown) {
-    const next = rows.value.map((p, i) => (i === idx ? { ...p, [field]: value } : p))
+  function updatePersonField(idx: number, field: keyof PresencePersonRow, rowIndex: unknown) {
+    const next = rows.value.map((p, i) => (i === idx ? { ...p, [field]: rowIndex } : p))
     emitRows(next)
   }
 
@@ -176,10 +176,10 @@ export function usePresencePersonListInput(
 
   /**
    * 移除指定索引的人员，并校正激活索引
-   * @param idx 待移除人员的索引
+   * @param removeIndex 待移除人员的索引
    */
-  function removePerson(idx: number) {
-    const next = rows.value.filter((_, i) => i !== idx)
+  function removePerson(removeIndex: number) {
+    const next = rows.value.filter((_, i) => i !== removeIndex)
     emitRows(next)
     // 移除后激活索引可能越界，回退到最后一项
     if (activeIdx.value >= next.length) activeIdx.value = Math.max(0, next.length - 1)

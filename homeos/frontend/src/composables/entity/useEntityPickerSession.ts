@@ -38,26 +38,26 @@ type UseEntityPickerSessionOptions = {
 /**
  * 实体选择器共用会话：下拉定位、域菜单、大数据集 REST debounce 搜索、索引候选 ID。
  *
- * @param opts 会话配置（见 UseEntityPickerSessionOptions）
+ * @param pickerOptions 会话配置（见 UseEntityPickerSessionOptions）
  * @returns entitiesStore 实体 store；restItems REST 结果；useRestSearch 是否启用 REST 搜索；
  *          dropdownStyle/teleportTarget/teleportDisabled/placement/updatePosition 下拉定位；
  *          domainMenuPlacement/domainMenuStyle/domainMenuTeleportTarget/domainMenuTeleportDisabled 域菜单定位；
  *          fetchRestEntities 主动 REST 拉取；getIndexedCandidateIds 取候选 ID
  */
-export function useEntityPickerSession(opts: UseEntityPickerSessionOptions) {
+export function useEntityPickerSession(pickerOptions: UseEntityPickerSessionOptions) {
   const entitiesStore = useEntitiesStore()
   const restItems = ref<EntityPickerRestItem[]>([])
   let restSearchTimer: ReturnType<typeof setTimeout> | null = null
 
   // 主下拉定位（基于 positionAnchor 与 showDropdown）
   const { dropdownStyle, teleportTarget, teleportDisabled, placement, updatePosition } =
-    useDropdownPosition(opts.positionAnchor, opts.showDropdown, {
-      minWidth: opts.dropdownMinWidth,
-      maxHeight: opts.dropdownMaxHeight,
-      chromeHeight: opts.chromeHeight,
-      minListHeight: opts.minListHeight,
-      minRowHeight: opts.minRowHeight,
-      dropdownRef: opts.dropdownRef,
+    useDropdownPosition(pickerOptions.positionAnchor, pickerOptions.showDropdown, {
+      minWidth: pickerOptions.dropdownMinWidth,
+      maxHeight: pickerOptions.dropdownMaxHeight,
+      chromeHeight: pickerOptions.chromeHeight,
+      minListHeight: pickerOptions.minListHeight,
+      minRowHeight: pickerOptions.minRowHeight,
+      dropdownRef: pickerOptions.dropdownRef,
     })
 
   // 域菜单定位（不互斥，固定尺寸）
@@ -66,19 +66,19 @@ export function useEntityPickerSession(opts: UseEntityPickerSessionOptions) {
     teleportTarget: domainMenuTeleportTarget,
     teleportDisabled: domainMenuTeleportDisabled,
     placement: domainMenuPlacement,
-  } = useDropdownPosition(opts.domainMenuAnchor, opts.domainMenuOpen, {
+  } = useDropdownPosition(pickerOptions.domainMenuAnchor, pickerOptions.domainMenuOpen, {
     minWidth: 140,
     maxHeight: 200,
     chromeHeight: 0,
     minListHeight: 72,
     minRowHeight: 32,
     exclusive: false,
-    dropdownRef: opts.domainMenuPanelRef,
+    dropdownRef: pickerOptions.domainMenuPanelRef,
   })
 
   // 是否启用 REST 搜索：调用方显式指定，否则按 totalCount 与大库阈值比较
   const useRestSearch = computed(() => {
-    if (opts.useRestSearch) return opts.useRestSearch()
+    if (pickerOptions.useRestSearch) return pickerOptions.useRestSearch()
     return entitiesStore.totalCount >= getLargeEntityThreshold()
   })
 
@@ -87,25 +87,25 @@ export function useEntityPickerSession(opts: UseEntityPickerSessionOptions) {
    * 仅在 REST 模式且下拉打开时执行；失败时清空 restItems。
    */
   async function fetchRestEntities() {
-    if (!useRestSearch.value || !opts.showDropdown.value) return
-    const allowed = opts.allowedDomains()
+    if (!useRestSearch.value || !pickerOptions.showDropdown.value) return
+    const allowed = pickerOptions.allowedDomains()
     const params: Record<string, string | number> = { limit: 200, page: 1 }
     // 单一允许域时直接传 domain 参数
-    const dom = opts.selectedDomain.value || (allowed.length === 1 ? allowed[0] : '')
+    const dom = pickerOptions.selectedDomain.value || (allowed.length === 1 ? allowed[0] : '')
     if (dom) params.domain = dom
-    const q = String(opts.searchQuery.value || '').trim()
+    const q = String(pickerOptions.searchQuery.value || '').trim()
     if (q) params.search = q
     try {
       const { data } = await fetchEntities(params, { timeout: 60_000 })
       let list = (data?.entities || []) as EntityPickerRestItem[]
       // 未指定 domain 时，按 domainFilterSet 在客户端二次过滤
-      const filterSet = opts.domainFilterSet?.()
+      const filterSet = pickerOptions.domainFilterSet?.()
       if (!dom && filterSet?.size) {
         list = list.filter((e) => filterSet.has(getEntityDomain(e.entity_id)))
       }
       // 调用方自定义额外过滤
-      if (opts.filterRestItem) {
-        list = list.filter((e) => opts.filterRestItem!(e.entity_id))
+      if (pickerOptions.filterRestItem) {
+        list = list.filter((e) => pickerOptions.filterRestItem!(e.entity_id))
       }
       restItems.value = list
     } catch {
@@ -115,8 +115,8 @@ export function useEntityPickerSession(opts: UseEntityPickerSessionOptions) {
   }
 
   // 搜索/域/下拉打开变化时防抖 250ms 触发 REST 拉取
-  watch([opts.searchQuery, opts.selectedDomain, opts.showDropdown], () => {
-    if (!useRestSearch.value || !opts.showDropdown.value) return
+  watch([pickerOptions.searchQuery, pickerOptions.selectedDomain, pickerOptions.showDropdown], () => {
+    if (!useRestSearch.value || !pickerOptions.showDropdown.value) return
     if (restSearchTimer) clearTimeout(restSearchTimer)
     restSearchTimer = setTimeout(() => {
       void fetchRestEntities()
@@ -144,8 +144,8 @@ export function useEntityPickerSession(opts: UseEntityPickerSessionOptions) {
     isAllowed?: (entityId: string) => boolean
   }) {
     const index = entitiesStore.domainEntityIndex
-    const selected = options?.selectedDomain ?? opts.selectedDomain.value
-    const domains = options?.domains ?? opts.allowedDomains()
+    const selected = options?.selectedDomain ?? pickerOptions.selectedDomain.value
+    const domains = options?.domains ?? pickerOptions.allowedDomains()
     const domainSet = options?.domainSet
     const isAllowed = options?.isAllowed
 

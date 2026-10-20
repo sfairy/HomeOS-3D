@@ -121,7 +121,7 @@ export interface AgentStreamHandle {
 /** 与后端 ChatDto 一致的 500 字上限之外的兜底（服务端已校验，这里只防止离谱输入） */
 const STREAM_ENDPOINT = '/api/v1/agent/chat/stream'
 
-function _emptyResult(partial: Partial<AgentChatResult> = {}): AgentChatResult {
+function emptyResult(partial: Partial<AgentChatResult> = {}): AgentChatResult {
   return {
     reply: '',
     speak: false,
@@ -136,10 +136,10 @@ function _emptyResult(partial: Partial<AgentChatResult> = {}): AgentChatResult {
   }
 }
 
-function _normalizeResult(raw: unknown): AgentChatResult {
-  if (!raw || typeof raw !== 'object') return _emptyResult()
+function normalizeResult(raw: unknown): AgentChatResult {
+  if (!raw || typeof raw !== 'object') return emptyResult()
   const data = raw as Record<string, unknown>
-  return _emptyResult({
+  return emptyResult({
     reply: typeof data.reply === 'string' ? data.reply : '',
     speak: data.speak === true,
     outcome: (['answer', 'success', 'failed', 'blocked'] as const).includes(
@@ -178,7 +178,7 @@ function _normalizeResult(raw: unknown): AgentChatResult {
 }
 
 /** 构造一个可被 `getApiErrorMessage` 识别的 HTTP 风格错误（裸 fetch 无 axios 信封） */
-function _httpError(status: number, message: string): Error {
+function httpError(status: number, message: string): Error {
   const error = new Error(message) as Error & {
     response?: { status: number; data: { message: string } }
   }
@@ -187,7 +187,7 @@ function _httpError(status: number, message: string): Error {
 }
 
 /** 解析单帧 SSE，返回 `[event, data]` */
-function _parseFrame(frame: string): [string, string] {
+function parseFrame(frame: string): [string, string] {
   let event = 'message'
   const dataLines: string[] = []
   for (const line of frame.split('\n')) {
@@ -202,8 +202,8 @@ function _parseFrame(frame: string): [string, string] {
 
 /** 探测代理服务心跳。 */
 export async function agentPing() {
-  const res = await apiGet<AgentPingResult>('/agent/ping')
-  return res.data
+  const pingResponse = await apiGet<AgentPingResult>('/agent/ping')
+  return pingResponse.data
 }
 
 /** 发送对话消息给 AI 代理。 */
@@ -212,12 +212,12 @@ export async function agentChat(
   history?: Array<{ role: 'user' | 'assistant'; content: string }>,
   sessionId?: string,
 ) {
-  const res = await apiPost<AgentChatResult>('/agent/chat', {
+  const chatResponse = await apiPost<AgentChatResult>('/agent/chat', {
     message,
     ...(history?.length ? { history } : {}),
     ...(sessionId ? { sessionId } : {}),
   })
-  return _normalizeResult(res.data)
+  return normalizeResult(chatResponse.data)
 }
 
 /**
@@ -280,7 +280,7 @@ export function agentChatStream(
         } catch {
           // 读取错误正文失败时保留状态码兜底文案
         }
-        throw _httpError(response.status, detail)
+        throw httpError(response.status, detail)
       }
       if (!response.body) throw new Error('当前浏览器不支持流式响应')
 
@@ -290,7 +290,7 @@ export function agentChatStream(
       const flushFrame = (frame: string) => {
         const trimmed = frame.trim()
         if (!trimmed) return
-        const [event, data] = _parseFrame(trimmed)
+        const [event, data] = parseFrame(trimmed)
         if (!data) return
         let payload: unknown
         try {
@@ -319,7 +319,7 @@ export function agentChatStream(
           return
         }
         if (event === 'done') {
-          finalResult = _normalizeResult(payload)
+          finalResult = normalizeResult(payload)
           callbacks.onDone?.(finalResult)
           return
         }
@@ -365,6 +365,6 @@ export function agentChatStream(
 
 /** 查询消息通道状态。 */
 export async function channelsStatus() {
-  const res = await apiGet<ChannelsStatusResult>('/channels/status')
-  return res.data
+  const channelsResponse = await apiGet<ChannelsStatusResult>('/channels/status')
+  return channelsResponse.data
 }

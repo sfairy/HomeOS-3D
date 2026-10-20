@@ -115,41 +115,41 @@ export function useNotificationCenter() {
 
   /**
    * 通知列表键盘导航：上下方向键 / Home / End 移动聚焦。
-   * @param {KeyboardEvent} e  键盘事件
+   * @param {KeyboardEvent} event  键盘事件
    */
-  function onListKeydown(e: KeyboardEvent) {
+  function onListKeydown(event: KeyboardEvent) {
     const len = displayNotifications.value.length
     if (!len) return
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
       focusListItem(focusedIndex.value < 0 ? 0 : focusedIndex.value + 1)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
       focusListItem(focusedIndex.value < 0 ? len - 1 : focusedIndex.value - 1)
-    } else if (e.key === 'Home') {
-      e.preventDefault()
+    } else if (event.key === 'Home') {
+      event.preventDefault()
       focusListItem(0)
-    } else if (e.key === 'End') {
-      e.preventDefault()
+    } else if (event.key === 'End') {
+      event.preventDefault()
       focusListItem(len - 1)
     }
   }
 
   /**
    * 来源筛选按钮的键盘导航：左右方向键 / Home / End 切换。
-   * @param {KeyboardEvent} e  键盘事件
+   * @param {KeyboardEvent} event  键盘事件
    */
-  function onFilterKeydown(e: KeyboardEvent) {
+  function onFilterKeydown(event: KeyboardEvent) {
     const tabs = sourceFilters.value
-    const cur = tabs.findIndex((f) => f.key === activeSource.value)
+    const cur = tabs.findIndex((tab) => tab.key === activeSource.value)
     if (cur < 0) return
     let next = cur
-    if (e.key === 'ArrowRight') next = (cur + 1) % tabs.length
-    else if (e.key === 'ArrowLeft') next = (cur - 1 + tabs.length) % tabs.length
-    else if (e.key === 'Home') next = 0
-    else if (e.key === 'End') next = tabs.length - 1
+    if (event.key === 'ArrowRight') next = (cur + 1) % tabs.length
+    else if (event.key === 'ArrowLeft') next = (cur - 1 + tabs.length) % tabs.length
+    else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = tabs.length - 1
     else return
-    e.preventDefault()
+    event.preventDefault()
     activeSource.value = tabs[next].key
     filterRefs.value[next]?.focus?.()
   }
@@ -207,18 +207,18 @@ export function useNotificationCenter() {
   })
 
   // 未读通知数量
-  const unreadCount = computed(() => displayNotifications.value.filter((n) => !n.read).length)
+  const unreadCount = computed(() => displayNotifications.value.filter((notification) => !notification.read).length)
 
   // 局域网推送是否就绪：需要实体连接 + 已登录
   const lanPushReady = computed(() => Boolean(entitiesStore.connected && authStore.isAuthenticated))
 
   /**
    * 根据通知来源与实体 ID 解析点击后应跳转的路由。
-   * @param {NotificationItem} n  通知项
+   * @param {NotificationItem} notification  通知项
    * @returns 跳转路径字符串；无对应路由时返回 null
    */
-  function resolveNotificationLink(n: NotificationItem) {
-    const src = String(n.source || '')
+  function resolveNotificationLink(notification: NotificationItem) {
+    const src = String(notification.source || '')
     if (src === 'emergency' || src.startsWith('security')) return '/security'
     if (src === 'alert-rule' || src.startsWith('alert-rule'))
       return SETTINGS_ROUTES.fromNotificationSource(src)
@@ -229,7 +229,7 @@ export function useNotificationCenter() {
       return SETTINGS_ROUTES.params('water')
     }
     if (src.startsWith('device-health') || src === 'device-monitor') {
-      if (n.entityId) return `/device?id=${encodeURIComponent(n.entityId)}`
+      if (notification.entityId) return `/device?id=${encodeURIComponent(notification.entityId)}`
     }
     if (src === 'environment-health') return SETTINGS_ROUTES.envHealth()
     if (src.startsWith('earthquake')) return '/earthquake-history'
@@ -240,30 +240,30 @@ export function useNotificationCenter() {
     if (src.includes('linkage') || src.includes('linkage_'))
       return SETTINGS_ROUTES.securityModes('linkage')
     if (src.startsWith('voice')) return SETTINGS_ROUTES.voice()
-    if (n.entityId) return `/device?id=${encodeURIComponent(n.entityId)}`
+    if (notification.entityId) return `/device?id=${encodeURIComponent(notification.entityId)}`
     return null
   }
   /**
    * 点击通知：标记为已读（远程 + 本地）并跳转到对应路由。
-   * @param {NotificationItem} n  被点击的通知项
+   * @param {NotificationItem} notification  被点击的通知项
    */
-  async function onNotificationClick(n: NotificationItem) {
-    if (!n.read) {
-      const remote = entitiesStore.remoteNotifications?.find((r) => r.id === n.id)
+  async function onNotificationClick(notification: NotificationItem) {
+    if (!notification.read) {
+      const remote = entitiesStore.remoteNotifications?.find((remoteNotification) => remoteNotification.id === notification.id)
       if (remote) {
         try {
-          await markNotificationRead(n.id)
+          await markNotificationRead(notification.id)
           remote.read = true
-        } catch (e) {
-          logger.debug('标记通知为已读失败', e)
+        } catch (error) {
+          logger.debug('标记通知为已读失败', error)
         }
       }
-      n.read = true
-      const local = localNotifications.value.find((l) => l.id === n.id)
+      notification.read = true
+      const local = localNotifications.value.find((localNotification) => localNotification.id === notification.id)
       if (local) local.read = true
     }
-    const to = resolveNotificationLink(n)
-    if (to) router.push(to)
+    const route = resolveNotificationLink(notification)
+    if (route) router.push(route)
   }
 
   /**
@@ -271,20 +271,20 @@ export function useNotificationCenter() {
    * @param {string | number} id  通知 ID
    */
   async function dismiss(id: string | number) {
-    const remote = entitiesStore.remoteNotifications?.find((n) => n.id === id)
+    const remote = entitiesStore.remoteNotifications?.find((notification) => notification.id === id)
     if (remote) {
       const prevRead = remote.read
       try {
         await markNotificationRead(id)
         remote.read = true
-      } catch (e) {
+      } catch (error) {
         // 失败回滚已读状态并提示
         remote.read = prevRead
-        notifyError(e, '关闭通知')
+        notifyError(error, '关闭通知')
         return
       }
     }
-    localNotifications.value = localNotifications.value.filter((n) => n.id !== id)
+    localNotifications.value = localNotifications.value.filter((notification) => notification.id !== id)
   }
 
   /**
@@ -292,25 +292,25 @@ export function useNotificationCenter() {
    * 失败时回滚到调用前的状态。
    */
   async function markAllRead() {
-    const prevLocal = localNotifications.value.map((n) => ({ ...n }))
+    const prevLocal = localNotifications.value.map((notification) => ({ ...notification }))
     const prevRemoteRead = new Map(
-      (entitiesStore.remoteNotifications || []).map((n) => [n.id, n.read]),
+      (entitiesStore.remoteNotifications || []).map((notification) => [notification.id, notification.read]),
     )
     try {
       await markAllNotificationsRead()
-      localNotifications.value.forEach((n) => {
-        n.read = true
+      localNotifications.value.forEach((notification) => {
+        notification.read = true
       })
-      for (const n of entitiesStore.remoteNotifications || []) {
-        n.read = true
+      for (const notification of entitiesStore.remoteNotifications || []) {
+        notification.read = true
       }
-    } catch (e) {
+    } catch (error) {
       // 失败回滚：恢复本地通知与远程已读状态
       localNotifications.value = prevLocal
-      for (const n of entitiesStore.remoteNotifications || []) {
-        if (prevRemoteRead.has(n.id)) n.read = prevRemoteRead.get(n.id)!
+      for (const notification of entitiesStore.remoteNotifications || []) {
+        if (prevRemoteRead.has(notification.id)) notification.read = prevRemoteRead.get(notification.id)!
       }
-      notifyError(e, '标记已读')
+      notifyError(error, '标记已读')
     }
   }
 
@@ -332,13 +332,13 @@ export function useNotificationCenter() {
     entitiesStore.clearRemoteNotifications()
     try {
       await clearNotifications()
-    } catch (e) {
+    } catch (error) {
       // 失败回滚：恢复本地与远程通知
       localNotifications.value = prevLocal
-      for (const n of prevRemote) {
-        notifyApi.addRemoteNotification?.(n)
+      for (const notification of prevRemote) {
+        notifyApi.addRemoteNotification?.(notification)
       }
-      notifyError(e, '清空通知')
+      notifyError(error, '清空通知')
     }
   }
 
@@ -353,13 +353,13 @@ export function useNotificationCenter() {
     try {
       const res = await fetchNotifications({ limit: getMaxRemoteNotifications() })
       if (res.data && Array.isArray(res.data)) {
-        for (const n of res.data) {
-          notifyApi.addRemoteNotification?.(n)
+        for (const notification of res.data) {
+          notifyApi.addRemoteNotification?.(notification)
         }
       }
-    } catch (e) {
-      remoteError.value = getApiErrorMessage(e, '通知加载失败')
-      logger.warn('远程通知加载失败', e)
+    } catch (error) {
+      remoteError.value = getApiErrorMessage(error, '通知加载失败')
+      logger.warn('远程通知加载失败', error)
     } finally {
       remoteLoading.value = false
     }
@@ -375,33 +375,33 @@ export function useNotificationCenter() {
       const res = await fetchNotificationSettings()
       dndSettings.value = res.data
       notifyPrefs.value = parseNotificationSettings(res.data)
-    } catch (e) {
-      logger.debug('通知免打扰设置加载失败', e)
+    } catch (error) {
+      logger.debug('通知免打扰设置加载失败', error)
       dndSettings.value = null
     }
   }
 
   /**
    * 根据级别返回对应的图标组件。
-   * @param {string} l  级别 key
+   * @param {string} level  级别 key
    * @returns lucide 图标组件
    */
-  function levelIcon(l: string) {
-    if (l === 'danger') return AlertTriangle
-    if (l === 'warn') return Bell
-    if (l === 'success') return CheckCircle2
+  function levelIcon(level: string) {
+    if (level === 'danger') return AlertTriangle
+    if (level === 'warn') return Bell
+    if (level === 'success') return CheckCircle2
     return Info
   }
 
   /**
    * 根据级别返回对应的 Tailwind 文字颜色 class。
-   * @param {string} l  级别 key
+   * @param {string} level  级别 key
    * @returns 颜色 class 字符串
    */
-  function levelColor(l: string) {
-    if (l === 'danger') return 'text-red-400'
-    if (l === 'warn') return 'text-yellow-400'
-    if (l === 'success') return 'text-green-400'
+  function levelColor(level: string) {
+    if (level === 'danger') return 'text-red-400'
+    if (level === 'warn') return 'text-yellow-400'
+    if (level === 'success') return 'text-green-400'
     return 'text-blue-400'
   }
 

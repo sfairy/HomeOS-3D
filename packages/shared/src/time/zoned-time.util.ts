@@ -51,7 +51,7 @@ export function zonedDateParts(now: Date, timeZone?: string): ZonedDateParts {
     weekday: 'short',
   });
   const bag = Object.fromEntries(
-    fmt.formatToParts(now).filter((p) => p.type !== 'literal').map((p) => [p.type, p.value]),
+    fmt.formatToParts(now).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]),
   ) as Record<string, string>;
   const weekdayMap: Record<string, number> = {
     Sun: 0,
@@ -102,8 +102,8 @@ export function dateFromZonedWallClock(
   }
   let utc = Date.UTC(year, month - 1, day, hour, minute, second);
   for (let i = 0; i < 4; i++) {
-    const p = zonedDateParts(new Date(utc), timeZone);
-    const got = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    const zonedParts = zonedDateParts(new Date(utc), timeZone);
+    const got = Date.UTC(zonedParts.year, zonedParts.month - 1, zonedParts.day, zonedParts.hour, zonedParts.minute, zonedParts.second);
     const want = Date.UTC(year, month - 1, day, hour, minute, second);
     const diff = want - got;
     if (diff === 0) break;
@@ -155,30 +155,30 @@ export function matchCronExpression(cron: string, now: Date, timeZone?: string):
     if (field === '*' || field === '?' || field === '') return true;
     const ranged = /^(\d+)-(\d+)\/(\d+)$/.exec(field);
     if (ranged) {
-      const [, lo, hi, step] = ranged;
-      const l = parseInt(lo, 10);
-      const h = parseInt(hi, 10);
-      const st = parseInt(step, 10);
-      if (st <= 0) return false;
-      if (value < l || value > h) return false;
-      return (value - l) % st === 0;
+      const [, low, high, step] = ranged;
+      const lowValue = parseInt(low, 10);
+      const h = parseInt(high, 10);
+      const stepValue = parseInt(step, 10);
+      if (stepValue <= 0) return false;
+      if (value < lowValue || value > h) return false;
+      return (value - lowValue) % stepValue === 0;
     }
     for (const part of field.split(',')) {
-      const p = part.trim();
-      if (p === '*') return true;
-      if (p.startsWith('*/')) {
-        const n = parseInt(p.slice(2), 10);
+      const partValue = part.trim();
+      if (partValue === '*') return true;
+      if (partValue.startsWith('*/')) {
+        const stepSize = parseInt(partValue.slice(2), 10);
         // Logic fix: 步进以字段合法起点为基准（分/时/周从 0，日/月从 1），
         // 否则 "*/2" 在 day/month 上会错位（2,4,6... 而非 1,3,5...）。
-        if (n > 0 && (value - start) % n === 0) return true;
+        if (stepSize > 0 && (value - start) % stepSize === 0) return true;
         continue;
       }
-      if (/^\d+-\d+$/.test(p)) {
-        const [lo, hi] = p.split('-').map((x) => parseInt(x, 10));
-        if (value >= lo && value <= hi) return true;
+      if (/^\d+-\d+$/.test(partValue)) {
+        const [rangeStart, rangeEnd] = partValue.split('-').map((x) => parseInt(x, 10));
+        if (value >= rangeStart && value <= rangeEnd) return true;
         continue;
       }
-      if (/^\d+$/.test(p) && parseInt(p, 10) === value) return true;
+      if (/^\d+$/.test(partValue) && parseInt(partValue, 10) === value) return true;
     }
     return false;
   };

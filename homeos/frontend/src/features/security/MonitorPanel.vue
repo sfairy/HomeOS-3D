@@ -305,8 +305,8 @@ const monitorGridCols = computed(() => {
 // 取前 4 个可见摄像头分配拉流槽位，超出部分仅展示快照以保护性能
 const gridActiveSlots = computed(() => {
   const slots = {}
-  gridVisibleOrder.value.slice(0, 4).forEach((camKey, idx) => {
-    slots[camKey] = idx
+  gridVisibleOrder.value.slice(0, 4).forEach((camKey, slotIndex) => {
+    slots[camKey] = slotIndex
   })
   return slots
 })
@@ -397,9 +397,9 @@ function getCameraName(cameraKey) {
 // 接收子组件可见性变化，维护可见顺序列表以分配拉流槽位
 function onGridTileVisibility({ camId, visible }) {
   const list = [...gridVisibleOrder.value]
-  const idx = list.indexOf(camId)
-  if (visible && idx < 0) list.push(camId)
-  else if (!visible && idx >= 0) list.splice(idx, 1)
+  const cameraIndex = list.indexOf(camId)
+  if (visible && cameraIndex < 0) list.push(camId)
+  else if (!visible && cameraIndex >= 0) list.splice(cameraIndex, 1)
   gridVisibleOrder.value = list
 }
 

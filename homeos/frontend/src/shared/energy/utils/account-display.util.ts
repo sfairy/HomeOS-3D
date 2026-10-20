@@ -108,13 +108,13 @@ export function resolveAccountIndexForEntityId(
     return resolvePrimaryAccountIndex(cfg, count || undefined)
   }
   if (cfg.mode === 'entity') {
-    const idx = resolveAccountEntityEntries(cfg).findIndex((entry) => entry.entityId === eid)
+    const idx = resolveAccountEntityEntries(cfg).findIndex((entityIndex) => entityIndex.entityId === eid)
     if (idx >= 0) return idx
   }
   if (cfg.mode === 'multi') {
-    const idx = resolveMultiAccountEntries(cfg).findIndex((row) => {
-      if (row.entityId === eid) return true
-      return Object.values(row.entityMap || {}).some((v) => String(v || '').trim() === eid)
+    const idx = resolveMultiAccountEntries(cfg).findIndex((multiAccountIndex) => {
+      if (multiAccountIndex.entityId === eid) return true
+      return Object.values(multiAccountIndex.entityMap || {}).some((v) => String(v || '').trim() === eid)
     })
     if (idx >= 0) return idx
   }

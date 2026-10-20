@@ -60,10 +60,10 @@ export function createEventsViewFilters(opts: {
     const domain = domainFilter.value
     const seen = new Set(
       entitySelectOptions.value
-        .filter((o) => optionMatchesDomain(o.value, domain))
-        .map((o) => o.value),
+        .filter((option) => optionMatchesDomain(option.value, domain))
+        .map((option) => option.value),
     )
-    const merged = entitySelectOptions.value.filter((o) => optionMatchesDomain(o.value, domain))
+    const merged = entitySelectOptions.value.filter((option) => optionMatchesDomain(option.value, domain))
     for (const opt of incoming) {
       if (!opt?.value || seen.has(opt.value)) continue
       if (!optionMatchesDomain(opt.value, domain)) continue
@@ -105,30 +105,30 @@ export function createEventsViewFilters(opts: {
     const seq = ++entityOptionsRequestSeq
     entityOptionsLoading.value = true
     try {
-      const q = search.trim()
+      const searchTerm = search.trim()
       const domain = domainFilter.value
       if (domain) {
-        entitySelectOptions.value = entitySelectOptions.value.filter((o) =>
-          optionMatchesDomain(o.value, domain),
+        entitySelectOptions.value = entitySelectOptions.value.filter((option) =>
+          optionMatchesDomain(option.value, domain),
         )
       }
-      if (!q) syncOptionsFromStats()
+      if (!searchTerm) syncOptionsFromStats()
       const params: Record<string, unknown> = { limit: 80, page: 1 }
-      if (q) params.search = q
+      if (searchTerm) params.search = searchTerm
       if (domain) params.domain = domain
       const { data } = await fetchEntities(params, { timeout: 30_000 })
       if (seq !== entityOptionsRequestSeq) return
-      const rows = (data?.entities || []).map((e: { entity_id: string }) =>
-        mapEntityOption(e.entity_id, e),
+      const rows = (data?.entities || []).map((entity: { entity_id: string }) =>
+        mapEntityOption(entity.entity_id, entity),
       )
-      if (q || domain) {
+      if (searchTerm || domain) {
         replaceEntityOptions(rows)
       } else {
         mergeEntityOptions(rows)
       }
-    } catch (e) {
+    } catch (error) {
       if (seq !== entityOptionsRequestSeq) return
-      logger.debug('事件实体选项加载失败', e)
+      logger.debug('事件实体选项加载失败', error)
       if (search.trim()) entitySelectOptions.value = []
     } finally {
       if (seq === entityOptionsRequestSeq) entityOptionsLoading.value = false
@@ -172,7 +172,7 @@ export function createEventsViewFilters(opts: {
       entityFilter.value = ''
     }
     entitySelectOptions.value = domain
-      ? entitySelectOptions.value.filter((o) => optionMatchesDomain(o.value, domain))
+      ? entitySelectOptions.value.filter((option) => optionMatchesDomain(option.value, domain))
       : entitySelectOptions.value
     reload()
   }
@@ -206,18 +206,18 @@ export function createEventsViewFilters(opts: {
   }
 
   function applyHoursFromRoute(route: RouteLocationNormalizedLoaded) {
-    const q = route.query.hours
-    const raw = typeof q === 'string' ? q.trim() : Array.isArray(q) ? String(q[0] || '').trim() : ''
+    const hoursQuery = route.query.hours
+    const raw = typeof hoursQuery === 'string' ? hoursQuery.trim() : Array.isArray(hoursQuery) ? String(hoursQuery[0] || '').trim() : ''
     if (!raw) return
-    const n = Number.parseInt(raw, 10)
-    if (!Number.isFinite(n) || n <= 0) return
-    hours.value = n
+    const hoursValue = Number.parseInt(raw, 10)
+    if (!Number.isFinite(hoursValue) || hoursValue <= 0) return
+    hours.value = hoursValue
     syncHoursToRetention()
   }
 
   function applyEntityFilterFromRoute(route: RouteLocationNormalizedLoaded) {
-    const q = route.query.entity_id
-    const id = typeof q === 'string' ? q.trim() : ''
+    const entityQuery = route.query.entity_id
+    const id = typeof entityQuery === 'string' ? entityQuery.trim() : ''
     entityFilter.value = id
     if (id) {
       mergeEntityOptions([mapEntityOption(id, entitiesStore.entities[id])])

@@ -21,15 +21,15 @@ import { computed, reactive, ref } from 'vue'
 import { confirmRemoveWidget, useWidgetEditorState } from './layout-dashboard.internals'
 
 // ── usePanelWidgets ──
-function cfgStr(cfg: Record<string, unknown> | undefined, key: string): string {
-  const v = cfg?.[key]
+function cfgStr(cfg: Record<string, unknown> | undefined, rawConfig: string): string {
+  const v = cfg?.[rawConfig]
   return typeof v === 'string' ? v : ''
 }
 
-function cfgStatsField(cfg: Record<string, unknown> | undefined, field: string): string {
+function cfgStatsField(cfg: Record<string, unknown> | undefined, configRecord: string): string {
   const stats = cfg?.statsSensors
   if (!stats || typeof stats !== 'object') return ''
-  const v = (stats as Record<string, unknown>)[field]
+  const v = (stats as Record<string, unknown>)[configRecord]
   return typeof v === 'string' ? v : ''
 }
 
@@ -103,24 +103,24 @@ export function usePanelWidgets(rightPanelWidgets: Ref<PanelWidget[]>) {
     const opening = widgetEditId.value !== w.id
     toggleEdit(w.id)
     if (opening) {
-      const cfg = w.config
-      widgetConfig.playerEntities = cfgStr(cfg, 'playerEntities')
-      widgetConfig.sensorIds = cfgStr(cfg, 'sensorIds')
-      widgetConfig.lights = cfgStatsField(cfg, 'lights')
-      widgetConfig.climates = cfgStatsField(cfg, 'climates')
-      widgetConfig.battery = cfgStatsField(cfg, 'battery')
-      widgetConfig.offline = cfgStatsField(cfg, 'offline')
-      widgetConfig.quickButtons = normalizeQuickButtons(cfg?.quickButtons)
+      const widgetConfigRecord = w.config
+      widgetConfig.playerEntities = cfgStr(widgetConfigRecord, 'playerEntities')
+      widgetConfig.sensorIds = cfgStr(widgetConfigRecord, 'sensorIds')
+      widgetConfig.lights = cfgStatsField(widgetConfigRecord, 'lights')
+      widgetConfig.climates = cfgStatsField(widgetConfigRecord, 'climates')
+      widgetConfig.battery = cfgStatsField(widgetConfigRecord, 'battery')
+      widgetConfig.offline = cfgStatsField(widgetConfigRecord, 'offline')
+      widgetConfig.quickButtons = normalizeQuickButtons(widgetConfigRecord?.quickButtons)
       widgetConfig.defaultTab =
-        cfgStr(cfg, 'defaultTab') || FLOATING_HUB_DEFAULT_TAB[w.type] || 'overview'
+        cfgStr(widgetConfigRecord, 'defaultTab') || FLOATING_HUB_DEFAULT_TAB[w.type] || 'overview'
       if (isWeatherHubWidgetType(w.type)) {
-        Object.assign(widgetConfig.weatherHub, cloneWeatherHubConfig(cfg, w.type))
+        Object.assign(widgetConfig.weatherHub, cloneWeatherHubConfig(widgetConfigRecord, w.type))
       }
       if (w.type === 'homeClimateChart') {
-        Object.assign(widgetConfig.homeClimateChart, cloneHomeClimateChartConfig(cfg))
+        Object.assign(widgetConfig.homeClimateChart, cloneHomeClimateChartConfig(widgetConfigRecord))
       }
       if (hasConfigurableTabs(w.type) && !isWeatherHubWidgetType(w.type)) {
-        Object.assign(widgetConfig.hubTabs, cloneHubTabsDraft(cfg, w.type))
+        Object.assign(widgetConfig.hubTabs, cloneHubTabsDraft(widgetConfigRecord, w.type))
       }
     }
   }

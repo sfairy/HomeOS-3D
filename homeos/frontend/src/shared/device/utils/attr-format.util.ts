@@ -445,12 +445,12 @@ function defaultUnitForKey(key: string): string | null {
 }
 
 function formatDurationSeconds(sec: number): string {
-  const s = Math.max(0, Math.round(sec))
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const r = s % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
-  return `${m}:${String(r).padStart(2, '0')}`
+  const totalSeconds = Math.max(0, Math.round(sec))
+  const h = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (h > 0) return `${h}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 function formatPlainNumber(value: number): string {
@@ -504,20 +504,20 @@ function formatArrayAttr(key: string, value: unknown[]): FormattedEntityAttr {
 
   if (
     (key === 'rgb_color' || key === 'hs_color' || key === 'xy_color') &&
-    value.every((v) => typeof v === 'number')
+    value.every((item) => typeof item === 'number')
   ) {
     if (key === 'rgb_color' && value.length >= 3) {
-      const [r, g, b] = value as number[]
-      return { value: `RGB(${r}, ${g}, ${b})`, isObject: false }
+      const [red, green, blue] = value as number[]
+      return { value: `RGB(${red}, ${green}, ${blue})`, isObject: false }
     }
     return { value: value.join(', '), isObject: false }
   }
 
   const allPrimitive = value.every(
-    (v) => v == null || ['string', 'number', 'boolean'].includes(typeof v),
+    (item) => item == null || ['string', 'number', 'boolean'].includes(typeof item),
   )
   if (allPrimitive) {
-    const chips = value.map((v) => formatPrimitiveChip(key, v))
+    const chips = value.map((item) => formatPrimitiveChip(key, item))
     return {
       value: chips.join('、'),
       isObject: false,
@@ -528,16 +528,16 @@ function formatArrayAttr(key: string, value: unknown[]): FormattedEntityAttr {
   return { value: JSON.stringify(value, null, 2), isObject: true }
 }
 
-function formatPrimitiveChip(key: string, v: unknown): string {
-  if (v == null) return '—'
-  if (typeof v === 'boolean') return v ? '是' : '否'
-  if (typeof v === 'number' && isFlagKey(key) && (v === 0 || v === 1)) {
-    return v === 1 ? '是' : '否'
+function formatPrimitiveChip(key: string, value: unknown): string {
+  if (value == null) return '—'
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'number' && isFlagKey(key) && (value === 0 || value === 1)) {
+    return value === 1 ? '是' : '否'
   }
-  if (typeof v === 'string') {
-    return formatEnumString(key, v) ?? formatStatusLikeString(key, v) ?? v
+  if (typeof value === 'string') {
+    return formatEnumString(key, value) ?? formatStatusLikeString(key, value) ?? value
   }
-  return String(v)
+  return String(value)
 }
 
 function isFlagKey(key: string): boolean {
@@ -552,15 +552,15 @@ function isTimeKey(key: string): boolean {
   return TIME_KEY_RE.test(key)
 }
 
-function formatBoolishString(s: string): string | null {
-  const lower = s.toLowerCase()
+function formatBoolishString(raw: string): string | null {
+  const lower = raw.toLowerCase()
   if (lower === 'true' || lower === 'on' || lower === 'yes' || lower === '1') return '是'
   if (lower === 'false' || lower === 'off' || lower === 'no' || lower === '0') return '否'
   return null
 }
 
-function tryFormatUnixLike(key: string, n: number): string | null {
-  if (!Number.isFinite(n) || n <= 0) return null
+function tryFormatUnixLike(key: string, numericValue: number): string | null {
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return null
   if (
     key === 'brightness' ||
     key === 'volume_level' ||
@@ -573,8 +573,8 @@ function tryFormatUnixLike(key: string, n: number): string | null {
   }
 
   let ms: number | null = null
-  if (n >= 1_000_000_000 && n < 4_102_444_800) ms = n * 1000
-  else if (n >= 1_000_000_000_000 && n < 4_102_444_800_000) ms = n
+  if (numericValue >= 1_000_000_000 && numericValue < 4_102_444_800) ms = numericValue * 1000
+  else if (numericValue >= 1_000_000_000_000 && numericValue < 4_102_444_800_000) ms = numericValue
   else return null
 
   if (!isTimeKey(key)) {
@@ -591,14 +591,14 @@ function tryFormatUnixLike(key: string, n: number): string | null {
   }
 }
 
-function tryFormatIsoDateString(key: string, s: string): string | null {
-  const looksIso = /^\d{4}-\d{2}-\d{2}/.test(s)
+function tryFormatIsoDateString(key: string, raw: string): string | null {
+  const looksIso = /^\d{4}-\d{2}-\d{2}/.test(raw)
   if (!looksIso) return null
-  if (!isTimeKey(key) && !/^\d{4}-\d{2}-\d{2}T/.test(s)) return null
-  const t = Date.parse(s)
-  if (Number.isNaN(t)) return null
+  if (!isTimeKey(key) && !/^\d{4}-\d{2}-\d{2}T/.test(raw)) return null
+  const timestamp = Date.parse(raw)
+  if (Number.isNaN(timestamp)) return null
   try {
-    return formatLocaleString(t, FULL_DATETIME_OPTS)
+    return formatLocaleString(timestamp, FULL_DATETIME_OPTS)
   } catch {
     return null
   }
@@ -622,7 +622,7 @@ export function buildEntityAttrEntries(
   limit?: number,
 ) {
   const rows = Object.entries(attrs)
-    .filter(([k, v]) => !skipKeys.has(k) && v != null)
+    .filter(([k, item]) => !skipKeys.has(k) && item != null)
     .map(([key, value]) => {
       const formatted = formatEntityAttrValue(key, value, attrs)
       return { key, ...formatted }
@@ -637,8 +637,8 @@ export function formatEntityAttrValueText(
   value: unknown,
   attrs: Record<string, unknown> = {},
 ): string {
-  const r = formatEntityAttrValue(key, value, attrs)
-  return r.value
+  const formatted = formatEntityAttrValue(key, value, attrs)
+  return formatted.value
 }
 
 /** 导出常用枚举，便于 UI 复用 */

@@ -201,7 +201,7 @@ export function useDeviceAnalyticsCharts(options: {
     trendChart = await ensureDeviceChartOnElement(trendChartRef.value, trendChart)
     if (!trendChart) return
     const daily = summary.value.dailyTotals || []
-    const labels = daily.map((d) => d.day.slice(5))
+    const labels = daily.map((day) => day.day.slice(5))
     trendChart.setOption(
       {
         ...deviceChartBase(),
@@ -227,7 +227,7 @@ export function useDeviceAnalyticsCharts(options: {
             name: '切换次数',
             type: 'line',
             smooth: true,
-            data: daily.map((d) => d.onCount),
+            data: daily.map((day) => day.onCount),
             itemStyle: { color: DEVICE_CHART_COLORS.accent },
             areaStyle: { color: 'rgba(56,189,248,0.12)' },
           },
@@ -236,7 +236,7 @@ export function useDeviceAnalyticsCharts(options: {
             type: 'line',
             smooth: true,
             yAxisIndex: 1,
-            data: daily.map((d) => Math.round(d.totalRuntimeMs / 60000)),
+            data: daily.map((day) => Math.round(day.totalRuntimeMs / 60000)),
             itemStyle: { color: DEVICE_CHART_COLORS.purple },
           },
         ],
@@ -261,10 +261,10 @@ export function useDeviceAnalyticsCharts(options: {
           {
             type: 'pie',
             radius: ['45%', '68%'],
-            data: domains.map((d) => ({
-              name: getDomainLabel(d.domain),
-              value: d.onCount,
-              domainId: d.domain,
+            data: domains.map((domain) => ({
+              name: getDomainLabel(domain.domain),
+              value: domain.onCount,
+              domainId: domain.domain,
             })),
             label: { show: false },
             emphasis: { scale: false, label: { show: false } },
@@ -285,12 +285,12 @@ export function useDeviceAnalyticsCharts(options: {
     heatmapChart = await ensureDeviceChartOnElement(heatmapChartRef.value, heatmapChart)
     if (!heatmapChart) return
     const devices = heatmapDevices.value
-    const dayLabels = (summary.value.dailyTotals || []).map((d) => d.day.slice(5))
+    const dayLabels = (summary.value.dailyTotals || []).map((day) => day.day.slice(5))
     const data: Array<[number, number, number]> = []
     devices.forEach((device, yIdx) => {
       dayLabels.forEach((_, xIdx) => {
         const fullDay = summary.value.dailyTotals[xIdx]?.day
-        const row = device.daily.find((d) => d.day === fullDay)
+        const row = device.daily.find((day) => day.day === fullDay)
         data.push([xIdx, yIdx, row?.onCount ?? 0])
       })
     })
@@ -324,12 +324,12 @@ export function useDeviceAnalyticsCharts(options: {
         yAxis: {
           type: 'category',
           name: '设备',
-          data: devices.map((d) => entityName(d.entityId).slice(0, 12)),
+          data: devices.map((device) => entityName(device.entityId).slice(0, 12)),
           axisLabel: { color: DEVICE_CHART_COLORS.axis, fontSize: 9 },
         },
         visualMap: {
           min: 0,
-          max: Math.max(10, ...data.map((d) => d[2])),
+          max: Math.max(10, ...data.map((point) => point[2])),
           calculable: false,
           orient: 'horizontal',
           left: 'center',
@@ -356,7 +356,7 @@ export function useDeviceAnalyticsCharts(options: {
     healthTrendChart = await ensureDeviceChartOnElement(healthTrendRef.value, healthTrendChart)
     if (!healthTrendChart) return
     const rows = healthTrend.value
-    const labels = rows.map((r) => r.day.slice(5))
+    const labels = rows.map((row) => row.day.slice(5))
     healthTrendChart.setOption(
       {
         ...deviceChartBase(),
@@ -371,7 +371,7 @@ export function useDeviceAnalyticsCharts(options: {
             type: 'line',
             smooth: true,
             areaStyle: { color: 'rgba(248,113,113,0.12)' },
-            data: rows.map((r) => r.offline),
+            data: rows.map((row) => row.offline),
             itemStyle: { color: DEVICE_CHART_COLORS.red },
           },
           {
@@ -379,7 +379,7 @@ export function useDeviceAnalyticsCharts(options: {
             type: 'line',
             smooth: true,
             areaStyle: { color: 'rgba(251,191,36,0.12)' },
-            data: rows.map((r) => r.lowBattery),
+            data: rows.map((row) => row.lowBattery),
             itemStyle: { color: DEVICE_CHART_COLORS.amber },
           },
         ],
@@ -402,7 +402,7 @@ export function useDeviceAnalyticsCharts(options: {
         ...deviceChartBase(),
         tooltip: { ...deviceChartTooltip(), confine: true },
         grid: deviceChartGrid(),
-        xAxis: deviceChartXAxis(entries.map(([d]) => getDomainLabel(d))),
+        xAxis: deviceChartXAxis(entries.map(([domain]) => getDomainLabel(domain))),
         yAxis: deviceChartYAxis('事件(次)'),
         series: [
           {
@@ -468,26 +468,26 @@ export function useDeviceAnalyticsCharts(options: {
     // CSV 表头
     const rows = [['排名', 'entity_id', '名称', '切换次数', '运行时长(分钟)']]
     // 数据行
-    summary.value.topDevices.forEach((d, i) => {
+    summary.value.topDevices.forEach((device, i) => {
       rows.push([
         String(i + 1),
-        d.entityId,
-        entityName(d.entityId),
-        String(d.onCount),
-        String(Math.round(d.totalRuntimeMs / 60000)),
+        device.entityId,
+        entityName(device.entityId),
+        String(device.onCount),
+        String(Math.round(device.totalRuntimeMs / 60000)),
       ])
     })
     // 生成 CSV 内容
     const csv = rows
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n')
     // 创建 Blob 并下载
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `device-usage-${days.value}d.csv`
-    a.click()
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `device-usage-${days.value}d.csv`
+    anchor.click()
     URL.revokeObjectURL(url)
   }
 

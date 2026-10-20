@@ -169,25 +169,25 @@ def _parse_bucket_key(bucket_key: str, granularity: str) -> int | None:
     return int(dt.replace(tzinfo=UTC).timestamp() * 1000)
 
 
-def _format_time_label(ts: int, granularity: str) -> str:
-    dt = datetime.fromtimestamp(ts / 1000, tz=UTC)
+def _format_time_label(timestamp: int, granularity: str) -> str:
+    dt = datetime.fromtimestamp(timestamp / 1000, tz=UTC)
     if granularity == "hour":
         return f"{dt.hour:02d}:00"
     return f"{dt.month}/{dt.day}"
 
 
 # 周期对比报表辅助（对齐 report.service.ts）
-def _start_of_day(d: datetime) -> datetime:
-    return d.replace(hour=0, minute=0, second=0, microsecond=0)
+def _start_of_day(day: datetime) -> datetime:
+    return day.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def _monday_of(d: datetime) -> datetime:
-    diff = d.weekday()  # 0=周一
-    return _start_of_day(d - timedelta(days=diff))
+def _monday_of(day: datetime) -> datetime:
+    diff = day.weekday()  # 0=周一
+    return _start_of_day(day - timedelta(days=diff))
 
 
-def _format_day_label(d: datetime) -> str:
-    return d.strftime("%Y-%m-%d")
+def _format_day_label(day: datetime) -> str:
+    return day.strftime("%Y-%m-%d")
 
 
 def _format_short_label(date: str) -> str:
@@ -207,12 +207,12 @@ def _build_day_labels(start: datetime, end: datetime) -> list[str]:
     return labels
 
 
-def _round2(n: float) -> float:
-    return round(n * 100) / 100
+def _round2(number: float) -> float:
+    return round(number * 100) / 100
 
 
-def _round1(n: float) -> float:
-    return round(n * 10) / 10
+def _round1(number: float) -> float:
+    return round(number * 10) / 10
 
 
 def _build_compare_row(

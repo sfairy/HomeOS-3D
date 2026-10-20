@@ -94,8 +94,8 @@ function resolveFooterPrimaryAccountIndex(
   statsSensors?: Record<string, unknown> | null,
 ): number {
   if (item.kind !== 'binding') return 0
-  const src = normalizeEnergySource(statsSensors, item.source)
-  return resolvePrimaryAccountIndex(src, resolveRawAccountRowCount(src) || 1)
+  const accountSource = normalizeEnergySource(statsSensors, item.source)
+  return resolvePrimaryAccountIndex(accountSource, resolveRawAccountRowCount(accountSource) || 1)
 }
 
 /**
@@ -133,9 +133,9 @@ export function resolveFooterAccountSelectOptions(
   source: string,
   statsSensors?: Record<string, unknown> | null,
 ): FooterAccountSelectOption[] {
-  const src = normalizeEnergySource(statsSensors, source)
-  const rows = resolveAccountDisplayRows(src)
-  const primaryIdx = resolvePrimaryAccountIndex(src, resolveRawAccountRowCount(src) || 1)
+  const normalizedSource = normalizeEnergySource(statsSensors, source)
+  const rows = resolveAccountDisplayRows(normalizedSource)
+  const primaryIdx = resolvePrimaryAccountIndex(normalizedSource, resolveRawAccountRowCount(normalizedSource) || 1)
   const options: FooterAccountSelectOption[] = [
     { value: FOOTER_ACCOUNT_SELECT_PRIMARY, label: '跟随主账户 ★' },
   ]
@@ -401,7 +401,7 @@ export function resolveFooterPrimaryLabel(
   if (item.kind === 'binding' && item.primaryField) {
     const fields = fieldOptionsFn(item.source)
     const primary = fields.find((f) => f.value === item.primaryField)
-    const src = sourceOptions.find((s) => s.value === item.source)
+    const src = sourceOptions.find((sourceOption) => sourceOption.value === item.source)
     if (src && primary) {
       return item.source === 'grid' ? primary.label : `${src.label}·${primary.label}`
     }

@@ -304,8 +304,8 @@ const chartHint = computed(() => {
 
 const historyStats = computed(() => {
   const list = events.value
-  const stateChanges = list.filter((e) => !e.attrText).length
-  const attrChanges = list.filter((e) => e.attrText).length
+  const stateChanges = list.filter((entry) => !entry.attrText).length
+  const attrChanges = list.filter((entry) => entry.attrText).length
   const latest = list[0]?.createdAt
   return {
     stateChanges,
@@ -322,13 +322,13 @@ const chartEventsAsc = computed(() =>
 
 const stateCategories = computed(() => {
   const set = new Set<string>()
-  for (const evt of chartEventsAsc.value) {
-    if (evt.attrText) {
+  for (const stateEvent of chartEventsAsc.value) {
+    if (stateEvent.attrText) {
       set.add('属性变更')
       continue
     }
-    if (evt.state) set.add(evt.state)
-    if (evt.oldState) set.add(evt.oldState)
+    if (stateEvent.state) set.add(stateEvent.state)
+    if (stateEvent.oldState) set.add(stateEvent.oldState)
   }
   return [...set]
 })
@@ -338,17 +338,17 @@ function formatEventState(state: string) {
 }
 
 function formatListTime(iso: string) {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  const dateValue = new Date(iso)
+  if (Number.isNaN(dateValue.getTime())) return '—'
   const now = new Date()
-  const sameDay = d.toDateString() === now.toDateString()
-  const h = String(d.getHours()).padStart(2, '0')
-  const m = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  if (sameDay) return `${h}:${m}:${s}`
-  const mo = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${mo}-${day} ${h}:${m}`
+  const sameDay = dateValue.toDateString() === now.toDateString()
+  const h = String(dateValue.getHours()).padStart(2, '0')
+  const minuteText = String(dateValue.getMinutes()).padStart(2, '0')
+  const secondText = String(dateValue.getSeconds()).padStart(2, '0')
+  if (sameDay) return `${h}:${minuteText}:${secondText}`
+  const monthText = String(dateValue.getMonth() + 1).padStart(2, '0')
+  const day = String(dateValue.getDate()).padStart(2, '0')
+  return `${monthText}-${day} ${h}:${minuteText}`
 }
 
 function stateColor(state: string): string {
@@ -383,9 +383,9 @@ function scheduleRender() {
   })
 }
 
-function eventChartLabel(evt: DeviceStateHistoryEvent): string {
-  if (evt.attrText) return '属性变更'
-  return evt.state || evt.oldState || '—'
+function eventChartLabel(chartEvent: DeviceStateHistoryEvent): string {
+  if (chartEvent.attrText) return '属性变更'
+  return chartEvent.state || chartEvent.oldState || '—'
 }
 
 /**
@@ -405,9 +405,9 @@ async function renderChart() {
   const categories = stateCategories.value.length ? stateCategories.value : ['—']
   const indexOf = (state: string) => Math.max(0, categories.indexOf(state))
 
-  const lineData = chartEventsAsc.value.map((evt) => {
-    const ts = new Date(evt.createdAt).getTime()
-    return [ts, indexOf(eventChartLabel(evt))] as [number, number]
+  const lineData = chartEventsAsc.value.map((pointEvent) => {
+    const ts = new Date(pointEvent.createdAt).getTime()
+    return [ts, indexOf(eventChartLabel(pointEvent))] as [number, number]
   })
 
   const option: EChartsCoreOption = {
@@ -421,25 +421,25 @@ async function renderChart() {
         if (!items.length) return ''
         const axisVal = (items[0] as { axisValue?: number }).axisValue
         const ts = typeof axisVal === 'number' ? axisVal : Number(axisVal)
-        const evt =
-          chartEventsAsc.value.find((e) => Math.abs(new Date(e.createdAt).getTime() - ts) < 1000) ??
-          chartEventsAsc.value.reduce((best, e) => {
-            const diff = Math.abs(new Date(e.createdAt).getTime() - ts)
+        const matchedEvent =
+          chartEventsAsc.value.find((event) => Math.abs(new Date(event.createdAt).getTime() - ts) < 1000) ??
+          chartEventsAsc.value.reduce((best, event) => {
+            const diff = Math.abs(new Date(event.createdAt).getTime() - ts)
             const bestDiff = Math.abs(new Date(best.createdAt).getTime() - ts)
-            return diff < bestDiff ? e : best
+            return diff < bestDiff ? event : best
           })
-        if (!evt) return ''
-        const time = formatDetailedDateTimeOrDash(evt.createdAt)
-        if (evt.attrText) {
-          return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${displayEventState(evt)}</div>`
+        if (!matchedEvent) return ''
+        const time = formatDetailedDateTimeOrDash(matchedEvent.createdAt)
+        if (matchedEvent.attrText) {
+          return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${displayEventState(matchedEvent)}</div>`
         }
-        const from = evt.oldState
-          ? `<span style="color:#fca5a5">${formatEventState(evt.oldState)}</span>`
+        const from = matchedEvent.oldState
+          ? `<span style="color:#fca5a5">${formatEventState(matchedEvent.oldState)}</span>`
           : '—'
-        const to = evt.state
-          ? `<span style="color:#6ee7b7">${formatEventState(evt.state)}</span>`
+        const stateHtml = matchedEvent.state
+          ? `<span style="color:#6ee7b7">${formatEventState(matchedEvent.state)}</span>`
           : '—'
-        return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${from} → ${to}</div>`
+        return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${time}</div><div>${from} → ${stateHtml}</div>`
       },
     },
     grid: { left: 48, right: 16, top: 20, bottom: 28 },
@@ -451,11 +451,11 @@ async function renderChart() {
         color: DEVICE_CHART_COLORS.axis,
         fontSize: 9,
         formatter: (value: number) => {
-          const d = new Date(value)
+          const dateValue = new Date(value)
           if (selectedRange.value === '7d' || selectedRange.value === '30d') {
-            return `${d.getMonth() + 1}/${d.getDate()}`
+            return `${dateValue.getMonth() + 1}/${dateValue.getDate()}`
           }
-          return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+          return `${String(dateValue.getHours()).padStart(2, '0')}:${String(dateValue.getMinutes()).padStart(2, '0')}`
         },
       },
       splitLine: { show: false },
@@ -470,8 +470,8 @@ async function renderChart() {
       axisLabel: {
         color: DEVICE_CHART_COLORS.axis,
         fontSize: 10,
-        formatter: (val: string) => {
-          const label = val === '属性变更' ? val : formatEventState(val)
+        formatter: (axisValue: string) => {
+          const label = axisValue === '属性变更' ? axisValue : formatEventState(axisValue)
           return label.length > 10 ? `${label.slice(0, 9)}…` : label
         },
       },

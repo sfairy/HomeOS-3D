@@ -44,10 +44,10 @@ function resolveEntityModePrimaryId(cfg: EnergySourceCfg, accountIndex = 0): str
     const rows = cfg.accountEntities
     const direct = String(rows[accountIndex]?.entityId ?? '').trim()
     if (direct) return direct
-    const pi = resolvePrimaryAccountRowIndex(cfg, rows.length)
+    const primaryIndex = resolvePrimaryAccountRowIndex(cfg, rows.length)
     return (
-      String(rows[pi]?.entityId ?? '').trim() ||
-      rows.map((r: { entityId?: string }) => String(r?.entityId ?? '').trim()).find(Boolean) ||
+      String(rows[primaryIndex]?.entityId ?? '').trim() ||
+      rows.map((row: { entityId?: string }) => String(row?.entityId ?? '').trim()).find(Boolean) ||
       ''
     )
   }
@@ -55,8 +55,8 @@ function resolveEntityModePrimaryId(cfg: EnergySourceCfg, accountIndex = 0): str
   if (entityEntries.length) {
     const direct = String(entityEntries[accountIndex]?.entityId ?? '').trim()
     if (direct) return direct
-    const pi = resolvePrimaryAccountRowIndex(cfg, entityEntries.length)
-    return entityEntries[pi]?.entityId?.trim() || entityEntries[0]?.entityId?.trim() || ''
+    const primaryIndex = resolvePrimaryAccountRowIndex(cfg, entityEntries.length)
+    return entityEntries[primaryIndex]?.entityId?.trim() || entityEntries[0]?.entityId?.trim() || ''
   }
   return cfg.entityId?.trim() || ''
 }
@@ -343,8 +343,8 @@ export function resolveFieldRaw(
     }
     if (def.conventionSuffix) {
       const entityId = conventionEntityId(cat, account, def.conventionSuffix)
-      const st = readEntityState(entities, entityId)
-      if (st !== undefined) return st
+      const entityState = readEntityState(entities, entityId)
+      if (entityState !== undefined) return entityState
     }
     return readBalanceField(cat, fieldKey, def, entities, account)
   }
@@ -379,8 +379,8 @@ export function resolveFieldRaw(
     }
     const mappedEntity = cfg.entityMap?.[fieldKey]?.trim()
     if (mappedEntity) {
-      const st = readEntityState(entities, mappedEntity)
-      if (st !== undefined) return st
+      const entityState = readEntityState(entities, mappedEntity)
+      if (entityState !== undefined) return entityState
     }
     for (const key of balanceAttrCandidatesForField(cat, fieldKey, def)) {
       const attrVal = readEntityAttr(entities, entityId, key)
@@ -405,9 +405,9 @@ export function resolveFieldRaw(
       ].filter(Boolean) as string[]
       for (const entityId of candidates) {
         if (mapped && entityId === mapped) {
-          const st = readEntityState(entities, entityId)
-          if (st !== undefined) {
-            const parsed = parseJsonValue(st)
+          const entityState = readEntityState(entities, entityId)
+          if (entityState !== undefined) {
+            const parsed = parseJsonValue(entityState)
             if (parsed != null && parsed !== '') return parsed
           }
         }
@@ -453,18 +453,18 @@ function resolvePrimaryEntityId(
         ? cfg.multiAccounts
         : resolveMultiAccountEntries(cfg)
     if (rows.length) {
-      const pi = resolvePrimaryAccountRowIndex(cfg, rows.length)
-      const row = rows[accountIndex] || rows[pi] || rows[0]
+      const primaryIndex = resolvePrimaryAccountRowIndex(cfg, rows.length)
+      const row = rows[accountIndex] || rows[primaryIndex] || rows[0]
       return (
         row?.entityId?.trim() ||
         row?.entityMap?.balance?.trim() ||
-        Object.values(row?.entityMap || {}).find((v) => String(v || '').trim()) ||
+        Object.values(row?.entityMap || {}).find((candidateValue) => String(candidateValue || '').trim()) ||
         ''
       )
     }
     return (
       cfg.entityMap?.balance?.trim() ||
-      Object.values(cfg.entityMap || {}).find((v) => String(v || '').trim()) ||
+      Object.values(cfg.entityMap || {}).find((candidateValue) => String(candidateValue || '').trim()) ||
       ''
     )
   }
@@ -494,7 +494,7 @@ export function resolveAccountEntityIds(
   if (cfg.mode === 'entity') {
     const entityEntries = resolveAccountEntityEntries(cfg)
     if (entityEntries.length) {
-      return entityEntries.map((e) => e.entityId).filter(Boolean)
+      return entityEntries.map((entry) => entry.entityId).filter(Boolean)
     }
     const id = cfg.entityId?.trim()
     return id ? [id] : []

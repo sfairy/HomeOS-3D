@@ -87,8 +87,8 @@ const entitiesStore = useEntitiesStore()
 const weatherEntityOverride = computed(() => String(props.config?.weatherEntityId || '').trim())
 const { resolvedEid: weatherEid } = useWeatherEntity(weatherEntityOverride)
 const forecastDays = computed(() => {
-  const n = Number(props.config?.forecastDays)
-  return Number.isFinite(n) ? Math.min(7, Math.max(3, Math.round(n))) : 7
+  const configuredDays = Number(props.config?.forecastDays)
+  return Number.isFinite(configuredDays) ? Math.min(7, Math.max(3, Math.round(configuredDays))) : 7
 })
 /** 预报数据 */
 const forecastData = computed(() =>
@@ -143,47 +143,47 @@ const conditionColors = {
   sandstorm: 'wf-c-warn',
 }
 /** 根据 HA 天气状态码返回对应图标组件 */
-function conditionIcon(c) {
-  return conditionIcons[weatherVisualKey(c)] || Cloud
+function conditionIcon(condition) {
+  return conditionIcons[weatherVisualKey(condition)] || Cloud
 }
 /** 根据 HA 天气状态码返回对应颜色类名 */
-function conditionColor(c) {
-  return conditionColors[weatherVisualKey(c)] || 'wf-c-lbl-faint'
+function conditionColor(condition) {
+  return conditionColors[weatherVisualKey(condition)] || 'wf-c-lbl-faint'
 }
 /** 根据 HA 天气状态码返回本地化标签（未知状态码回退原始码） */
-function conditionLabel(c) {
-  return weatherStateLabel(c)
+function conditionLabel(condition) {
+  return weatherStateLabel(condition)
 }
 
-function tempHighColor(t) {
-  const v = parseFloat(t)
-  if (isNaN(v)) return 'wf-c-white'
-  if (v >= 35) return 'wf-c-danger'
-  if (v >= 28) return 'wf-c-warn-deep'
-  if (v >= 22) return 'wf-c-warn'
-  if (v >= 16) return 'wf-c-success'
-  if (v >= 8) return 'wf-c-info'
+function tempHighColor(highTempValue) {
+  const parsedValue = parseFloat(highTempValue)
+  if (isNaN(parsedValue)) return 'wf-c-white'
+  if (parsedValue >= 35) return 'wf-c-danger'
+  if (parsedValue >= 28) return 'wf-c-warn-deep'
+  if (parsedValue >= 22) return 'wf-c-warn'
+  if (parsedValue >= 16) return 'wf-c-success'
+  if (parsedValue >= 8) return 'wf-c-info'
   return 'wf-c-blue'
 }
 
-function tempLowColor(t) {
-  const v = parseFloat(t)
-  if (isNaN(v)) return 'wf-c-muted'
-  if (v >= 22) return 'wf-c-warn'
-  if (v >= 10) return 'wf-c-info'
-  if (v >= 0) return 'wf-c-blue'
+function tempLowColor(lowTempValue) {
+  const parsedValue = parseFloat(lowTempValue)
+  if (isNaN(parsedValue)) return 'wf-c-muted'
+  if (parsedValue >= 22) return 'wf-c-warn'
+  if (parsedValue >= 10) return 'wf-c-info'
+  if (parsedValue >= 0) return 'wf-c-blue'
   return 'wf-c-info'
 }
 
 /** 格式化日期标签（今日/周X） */
-function dayLabel(d) {
-  const dt = new Date(d)
+function dayLabel(dateValue) {
+  const dt = new Date(dateValue)
   if (dt.toDateString() === new Date().toDateString()) return '今日'
   return '周日,周一,周二,周三,周四,周五,周六'.split(',')[dt.getDay()]
 }
 /** 格式化月/日（跟随界面语言） */
-function dayNum(d) {
-  return formatLocaleDate(d, { month: 'numeric', day: 'numeric' })
+function dayNum(dateValue) {
+  return formatLocaleDate(dateValue, { month: 'numeric', day: 'numeric' })
 }
 </script>
 

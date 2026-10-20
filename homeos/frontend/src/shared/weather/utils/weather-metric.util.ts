@@ -13,25 +13,25 @@ export function computeFeelsLike(
 
   // 热指数（Rothfusz 回归，适用高温高湿）
   if (tempC >= 27 && hum >= 40) {
-    const t = tempC
-    const rh = hum
-    const hi =
+    const temperature = tempC
+    const humidity = hum
+    const heatIndex =
       -8.784694 +
-      1.61139411 * t +
-      2.338548838 * rh +
-      -0.14611605 * t * rh +
-      -0.012308094 * t * t +
-      -0.016424828 * rh * rh +
-      0.002211732 * t * t * rh +
-      0.00072546 * t * rh * rh +
-      -0.000003582 * t * t * rh * rh
-    return hi
+      1.61139411 * temperature +
+      2.338548838 * humidity +
+      -0.14611605 * temperature * humidity +
+      -0.012308094 * temperature * temperature +
+      -0.016424828 * humidity * humidity +
+      0.002211732 * temperature * temperature * humidity +
+      0.00072546 * temperature * humidity * humidity +
+      -0.000003582 * temperature * temperature * humidity * humidity
+    return heatIndex
   }
 
   // 风寒效应（低温大风）
   if (tempC <= 10 && wind > 1.34) {
-    const v = wind * 3.6 // m/s -> km/h
-    return 13.12 + 0.6215 * tempC - 11.37 * Math.pow(v, 0.16) + 0.3965 * tempC * Math.pow(v, 0.16)
+    const windKmh = wind * 3.6 // m/s -> km/h
+    return 13.12 + 0.6215 * tempC - 11.37 * Math.pow(windKmh, 0.16) + 0.3965 * tempC * Math.pow(windKmh, 0.16)
   }
 
   return tempC
@@ -54,8 +54,8 @@ function isPm25ConcentrationSensor(
   if (id.includes('pm25') || id.includes('pm2_5') || id.includes('pm2.5') || id.includes('aqi_pm25')) {
     return true
   }
-  const dc = String(entity?.attributes?.device_class || '').toLowerCase()
-  if (dc === 'pm25') return true
+  const deviceClass = String(entity?.attributes?.device_class || '').toLowerCase()
+  if (deviceClass === 'pm25') return true
   const unit = String(entity?.attributes?.unit_of_measurement || '').toLowerCase()
   // AQI 无浓度单位；µg/m³ 属于颗粒物浓度
   if (unit.includes('µg/m') || unit.includes('ug/m') || unit.includes('μg/m')) return true
@@ -71,8 +71,8 @@ function isAqiIndexSensor(
   if (isPm25ConcentrationSensor(eid, entity)) return false
   const id = eid.toLowerCase()
   if (id.endsWith('_aqi') || id.endsWith('_aqi_2')) return true
-  const dc = String(entity?.attributes?.device_class || '').toLowerCase()
-  if (dc === 'aqi') return true
+  const deviceClass = String(entity?.attributes?.device_class || '').toLowerCase()
+  if (deviceClass === 'aqi') return true
   const name = getEntityDisplayName(eid, entity)
   if (name.includes('空气质量指数')) return true
   return false
@@ -95,9 +95,9 @@ export function resolveAqiSensorId(
   }
 
   const tryId = (id: string): string => {
-    const e = getEntity(id)
-    if (!e || !isUsableEntityState(e.state)) return ''
-    if (!isAqiIndexSensor(id, e)) return ''
+    const entity = getEntity(id)
+    if (!entity || !isUsableEntityState(entity.state)) return ''
+    if (!isAqiIndexSensor(id, entity)) return ''
     return id
   }
 
@@ -129,8 +129,8 @@ export function readAqiNumber(
   const eid = resolveAqiSensorId(getEntity, weatherEid, sensorIds)
   if (!eid) return null
   const raw = getEntity(eid)?.state
-  const n = typeof raw === 'number' ? raw : parseInt(String(raw ?? ''), 10)
-  return Number.isFinite(n) ? n : null
+  const numericValue = typeof raw === 'number' ? raw : parseInt(String(raw ?? ''), 10)
+  return Number.isFinite(numericValue) ? numericValue : null
 }
 
 /** 汇总可用于 AQI 发现的 sensor 实体 ID 列表 */
@@ -155,17 +155,17 @@ export function collectSensorEntityIds(opts: {
 }
 
 /** 数值容错转换：非法值返回 fallback */
-export function numOr(v: unknown, fallback: number): number {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
+export function numOr(rawValue: unknown, fallback: number): number {
+  const numericValue = Number(rawValue)
+  return Number.isFinite(numericValue) ? numericValue : fallback
 }
 
 /** 风速归一化为 m/s（支持 km/h / mph / 节） */
 export function normalizeWindSpeedMs(speed?: number, unit?: string): number {
   if (speed == null || Number.isNaN(speed)) return 0
-  const u = String(unit || 'm/s').toLowerCase()
-  if (u.includes('km')) return speed / 3.6
-  if (u.includes('mph')) return speed * 0.447
-  if (u.includes('kn')) return speed * 0.514
+  const normalizedUnit = String(unit || 'm/s').toLowerCase()
+  if (normalizedUnit.includes('km')) return speed / 3.6
+  if (normalizedUnit.includes('mph')) return speed * 0.447
+  if (normalizedUnit.includes('kn')) return speed * 0.514
   return speed
 }

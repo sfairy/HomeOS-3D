@@ -214,18 +214,18 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
    */
   const sceneVoiceEnabled = computed<boolean>({
     get: () => agentDraft.sceneVoiceControl?.enabled === true,
-    set: (val) => {
+    set: (enabledValue) => {
       if (!agentDraft.sceneVoiceControl) agentDraft.sceneVoiceControl = { enabled: false, allow: [] }
-      agentDraft.sceneVoiceControl.enabled = val === true
+      agentDraft.sceneVoiceControl.enabled = enabledValue === true
     },
   })
 
   /** 允许语音触发的场景 / 脚本实体清单（v-model 绑定 EntityMultiSelect） */
   const sceneVoiceAllow = computed<string[]>({
     get: () => agentDraft.sceneVoiceControl?.allow ?? [],
-    set: (val) => {
+    set: (allowListValue) => {
       if (!agentDraft.sceneVoiceControl) agentDraft.sceneVoiceControl = { enabled: false, allow: [] }
-      agentDraft.sceneVoiceControl.allow = Array.isArray(val) ? [...val] : []
+      agentDraft.sceneVoiceControl.allow = Array.isArray(allowListValue) ? [...allowListValue] : []
     },
   })
 
@@ -235,8 +235,8 @@ export function useSettingsAgentPanel(props: { activeTab: string }) {
   /** Agent 专属设备白名单（空 = 不额外限制，v-model 绑定 EntityMultiSelect） */
   const deviceAllowlist = computed<string[]>({
     get: () => agentDraft.deviceAllowlist ?? [],
-    set: (val) => {
-      agentDraft.deviceAllowlist = Array.isArray(val) ? [...val] : []
+    set: (deviceAllowlistValue) => {
+      agentDraft.deviceAllowlist = Array.isArray(deviceAllowlistValue) ? [...deviceAllowlistValue] : []
     },
   })
   const deviceAllowlistCount = computed(() => deviceAllowlist.value.length)

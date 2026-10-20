@@ -188,10 +188,10 @@ export function createUIChromeState() {
 
   /**
    * 控制"缺失脚本"提示弹窗的显隐。
-   * @param val 是否显示，默认 true
+   * @param nextValue 是否显示，默认 true
    */
-  function showScriptMissingModal(val = true): void {
-    isScriptMissing.value = val
+  function showScriptMissingModal(nextValue = true): void {
+    isScriptMissing.value = nextValue
   }
   /** 触发升级提示弹窗 */
   function triggerUpgrade(): void {

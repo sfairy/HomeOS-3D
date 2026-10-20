@@ -22,9 +22,9 @@ interface HomeosSceneSelectOption {
  * @returns scenes 场景记录；loading 加载中标志；options 下拉选项；reload 重新加载；
  *          labelForSceneId 按 ID 取标签；labelsForSceneIds 批量取标签
  */
-export function useHomeosSceneOptions(opts?: { includeEmpty?: boolean; emptyLabel?: string }) {
-  const includeEmpty = opts?.includeEmpty !== false
-  const emptyLabel = opts?.emptyLabel ?? '不联动场景'
+export function useHomeosSceneOptions(sceneOptionsInput?: { includeEmpty?: boolean; emptyLabel?: string }) {
+  const includeEmpty = sceneOptionsInput?.includeEmpty !== false
+  const emptyLabel = sceneOptionsInput?.emptyLabel ?? '不联动场景'
   const entitiesStore = useEntitiesStore()
 
   const scenes = ref<HaSceneScriptRecord[]>([])

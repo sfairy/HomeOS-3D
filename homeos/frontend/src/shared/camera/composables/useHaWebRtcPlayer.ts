@@ -35,8 +35,8 @@ async function resolveIceServers(): Promise<IceServerConfig[]> {
         cachedIceServers = servers?.length ? servers : DEFAULT_ICE
         return cachedIceServers
       })
-      .catch((e) => {
-        logger.debug('[WebRTC] 拉取 ICE 服务器失败,使用默认 STUN', e)
+      .catch((error) => {
+        logger.debug('[WebRTC] 拉取 ICE 服务器失败,使用默认 STUN', error)
         return DEFAULT_ICE
       })
   }
@@ -50,42 +50,42 @@ async function resolveIceServers(): Promise<IceServerConfig[]> {
  */
 function attachStream(videoEl: HTMLVideoElement, stream: MediaStream) {
   videoEl.srcObject = stream
-  void videoEl.play().catch((e) => logger.debug('[WebRTC] 自动播放被拦截', e))
+  void videoEl.play().catch((error) => logger.debug('[WebRTC] 自动播放被拦截', error))
 }
 
 /**
  * 配置收发器：仅接收音视频（recvonly）
- * @param pc RTCPeerConnection 实例
+ * @param peerConnection RTCPeerConnection 实例
  */
-function setupRecvTransceivers(pc: RTCPeerConnection) {
-  pc.addTransceiver('video', { direction: 'recvonly' })
-  pc.addTransceiver('audio', { direction: 'recvonly' })
+function setupRecvTransceivers(peerConnection: RTCPeerConnection) {
+  peerConnection.addTransceiver('video', { direction: 'recvonly' })
+  peerConnection.addTransceiver('audio', { direction: 'recvonly' })
 }
 
 /**
  * 批量添加远端 ICE 候选
- * @param pc RTCPeerConnection 实例
+ * @param peerConnection RTCPeerConnection 实例
  * @param candidates 远端候选列表
  * @sideEffect 单条失败仅 debug 日志，不中断整体流程
  */
-async function addRemoteCandidates(pc: RTCPeerConnection, candidates: Record<string, unknown>[]) {
+async function addRemoteCandidates(peerConnection: RTCPeerConnection, candidates: Record<string, unknown>[]) {
   for (const raw of candidates) {
     try {
-      await pc.addIceCandidate(raw as RemoteIceCandidate)
-    } catch (e) {
-      logger.debug('[WebRTC] 添加 ICE 候选已跳过', e)
+      await peerConnection.addIceCandidate(raw as RemoteIceCandidate)
+    } catch (error) {
+      logger.debug('[WebRTC] 添加 ICE 候选已跳过', error)
     }
   }
 }
 
 /**
  * 等待 WebRTC 连接建立（track 到达或 connectionState 变为 connected）
- * @param pc RTCPeerConnection 实例
+ * @param peerConnection RTCPeerConnection 实例
  * @param onTrack track 事件回调
  * @returns 连接成功时 resolve；超时或失败时 reject
  */
 function waitForConnection(
-  pc: RTCPeerConnection,
+  peerConnection: RTCPeerConnection,
   onTrack?: (ev: RTCTrackEvent) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -110,7 +110,7 @@ function waitForConnection(
     }
 
     // 收到 track 即视为连接成功
-    pc.addEventListener(
+    peerConnection.addEventListener(
       'track',
       (ev) => {
         onTrack?.(ev)
@@ -122,9 +122,9 @@ function waitForConnection(
     // 同时监听连接状态变化
     // pc 上的监听属于本次 RTCPeerConnection：清理时 pc.close() 会把连接与监听一起丢弃，
     // 每次重连都是新 pc 对象，不跨连接累积。
-    pc.addEventListener('connectionstatechange', () => {
-      if (pc.connectionState === 'connected') finish()
-      if (pc.connectionState === 'failed') fail('WebRTC 连接失败')
+    peerConnection.addEventListener('connectionstatechange', () => {
+      if (peerConnection.connectionState === 'connected') finish()
+      if (peerConnection.connectionState === 'failed') fail('WebRTC 连接失败')
     })
   })
 }
@@ -141,7 +141,7 @@ function postLocalCandidate(entityId: string, sessionId: string, candidate: RTCI
     entity_id: entityId,
     session_id: sessionId,
     candidate: candidate.toJSON(),
-  }).catch((e) => logger.debug('[WebRTC] 上报候选失败', e))
+  }).catch((error) => logger.debug('[WebRTC] 上报候选失败', error))
 }
 /**
  * HA camera/webrtc/* 信令（经 HomeOS REST 转发）
@@ -161,13 +161,13 @@ async function startHaNativeWebRtc(
     )
     const fromHa = configRes.data?.configuration?.iceServers
     if (fromHa?.length) iceServers = fromHa
-  } catch (e) {
-    logger.debug('[WebRTC] client-config 不可用，中止 WebRTC 以降级到 HLS/MJPEG', e)
-    throw e instanceof Error ? e : new Error('WebRTC client-config 不可用')
+  } catch (error) {
+    logger.debug('[WebRTC] client-config 不可用，中止 WebRTC 以降级到 HLS/MJPEG', error)
+    throw error instanceof Error ? error : new Error('WebRTC client-config 不可用')
   }
 
-  const pc = new RTCPeerConnection({ iceServers })
-  setupRecvTransceivers(pc)
+  const peerConnection = new RTCPeerConnection({ iceServers })
+  setupRecvTransceivers(peerConnection)
 
   const remoteStream = new MediaStream()
   attachStream(videoEl, remoteStream)
@@ -177,7 +177,7 @@ async function startHaNativeWebRtc(
   // 在 sessionId 就绪前缓存的本地候选
   const pendingLocalCandidates: RTCIceCandidate[] = []
 
-  pc.onicecandidate = (ev) => {
+  peerConnection.onicecandidate = (ev) => {
     if (!ev.candidate || stopped) return
     // sessionId 未就绪时先缓存，就绪后统一上报
     if (!sessionId) {
@@ -187,8 +187,8 @@ async function startHaNativeWebRtc(
     postLocalCandidate(entityId, sessionId, ev.candidate)
   }
 
-  const offer = await pc.createOffer()
-  await pc.setLocalDescription(offer)
+  const offer = await peerConnection.createOffer()
+  await peerConnection.setLocalDescription(offer)
 
   // 提交 offer 进行协商，获取 answer 与远端候选
   const negotiatedRes = await apiPost<{
@@ -207,26 +207,26 @@ async function startHaNativeWebRtc(
   const subscriptionId = negotiated.subscription_id
 
   // 补报协商前缓存的本地候选
-  for (const c of pendingLocalCandidates) postLocalCandidate(entityId, sessionId, c)
+  for (const candidate of pendingLocalCandidates) postLocalCandidate(entityId, sessionId, candidate)
   pendingLocalCandidates.length = 0
 
-  await pc.setRemoteDescription({ type: 'answer', sdp: negotiated.answer })
-  await addRemoteCandidates(pc, negotiated.candidates ?? [])
+  await peerConnection.setRemoteDescription({ type: 'answer', sdp: negotiated.answer })
+  await addRemoteCandidates(peerConnection, negotiated.candidates ?? [])
 
-  await waitForConnection(pc, (ev) => {
+  await waitForConnection(peerConnection, (ev) => {
     if (ev.track) remoteStream.addTrack(ev.track)
   })
 
   // 返回停止函数：关闭连接、清理资源、通知后端释放会话
   return () => {
     stopped = true
-    pc.close()
+    peerConnection.close()
     videoEl.srcObject = null
     if (subscriptionId != null) {
       void closeWebRtcSession({
         entity_id: entityId,
         subscription_id: subscriptionId,
-      }).catch((e) => logger.debug('[WebRTC] 关闭会话失败', e))
+      }).catch((error) => logger.debug('[WebRTC] 关闭会话失败', error))
     }
   }
 }
@@ -243,8 +243,8 @@ async function startGo2RtcWebRtc(
   videoEl: HTMLVideoElement,
 ): Promise<WebRtcStopFn> {
   const iceServers = await resolveIceServers()
-  const pc = new RTCPeerConnection({ iceServers })
-  setupRecvTransceivers(pc)
+  const peerConnection = new RTCPeerConnection({ iceServers })
+  setupRecvTransceivers(peerConnection)
 
   const remoteStream = new MediaStream()
   attachStream(videoEl, remoteStream)
@@ -255,19 +255,19 @@ async function startGo2RtcWebRtc(
   // 建立 WebSocket 连接（带超时）
   await new Promise<void>((resolve, reject) => {
     ws = new WebSocket(wsUrl)
-    const t = setTimeout(() => reject(new Error('WebRTC WebSocket 连接超时')), CONNECT_TIMEOUT_MS)
+    const timeoutId = setTimeout(() => reject(new Error('WebRTC WebSocket 连接超时')), CONNECT_TIMEOUT_MS)
     ws.onopen = () => {
-      clearTimeout(t)
+      clearTimeout(timeoutId)
       resolve()
     }
     ws.onerror = () => {
-      clearTimeout(t)
+      clearTimeout(timeoutId)
       reject(new Error('WebRTC WebSocket 连接失败'))
     }
   })
 
   // 本地候选通过 WS 上报
-  pc.onicecandidate = (ev) => {
+  peerConnection.onicecandidate = (ev) => {
     if (!ev.candidate || stopped || !ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'webrtc/candidate', value: ev.candidate.candidate }))
   }
@@ -277,24 +277,24 @@ async function startGo2RtcWebRtc(
     try {
       const msg = JSON.parse(String(ev.data))
       if (msg.type === 'webrtc/answer' && msg.value) {
-        await pc.setRemoteDescription({ type: 'answer', sdp: msg.value })
+        await peerConnection.setRemoteDescription({ type: 'answer', sdp: msg.value })
       }
       if (msg.type === 'webrtc/candidate' && msg.value) {
-        await pc.addIceCandidate({ candidate: msg.value, sdpMid: '0', sdpMLineIndex: 0 })
+        await peerConnection.addIceCandidate({ candidate: msg.value, sdpMid: '0', sdpMLineIndex: 0 })
       }
       if (msg.type === 'error') {
         logger.warn('[WebRTC] go2rtc 错误', msg.value)
       }
-    } catch (e) {
-      logger.debug('[WebRTC] WS 消息解析失败', e)
+    } catch (error) {
+      logger.debug('[WebRTC] WS 消息解析失败', error)
     }
   }
 
-  const offer = await pc.createOffer()
-  await pc.setLocalDescription(offer)
+  const offer = await peerConnection.createOffer()
+  await peerConnection.setLocalDescription(offer)
   ws!.send(JSON.stringify({ type: 'webrtc/offer', value: offer.sdp }))
 
-  await waitForConnection(pc, (ev) => {
+  await waitForConnection(peerConnection, (ev) => {
     if (ev.track) remoteStream.addTrack(ev.track)
   })
 
@@ -303,7 +303,7 @@ async function startGo2RtcWebRtc(
     stopped = true
     ws?.close()
     ws = null
-    pc.close()
+    peerConnection.close()
     videoEl.srcObject = null
   }
 }

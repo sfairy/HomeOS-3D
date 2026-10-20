@@ -53,11 +53,11 @@ export function useYamlValidation({
       if (request) {
         row = (await request(yamlText)) || {}
       } else {
-        const req =
+        const requestPromise =
           method === 'get'
             ? apiGet(endpoint!, { params: buildParams?.(yamlText) ?? {} })
             : apiPost(endpoint!, buildBody(yamlText))
-        const { data } = await req
+        const { data } = await requestPromise
         row = (data || {}) as Record<string, unknown>
       }
       const ok = Boolean(row.valid ?? row.ok)

@@ -26,11 +26,11 @@ interface FavoriteCategoryView extends FavoriteCategoryMeta {
   previewNames: string[]
 }
 
-function favoriteIdsForDomain(fe: Record<string, string[] | undefined>, domain: string): string[] {
+function favoriteIdsForDomain(favoriteEntities: Record<string, string[] | undefined>, domain: string): string[] {
   if (domain === 'offline') {
-    return [...new Set([...(fe.offline || []), ...(fe.other || [])])]
+    return [...new Set([...(favoriteEntities.offline || []), ...(favoriteEntities.other || [])])]
   }
-  return fe[domain] || []
+  return favoriteEntities[domain] || []
 }
 
 export function useFavoritesHub() {
@@ -40,13 +40,13 @@ export function useFavoritesHub() {
 
   const statsSensors = computed(() => layoutStore.layoutConfig.statsSensors || {})
   const quickActionStats = computed(() => {
-    const s = statsSensors.value
-    return { lights: s.lights, climates: s.climates, battery: s.battery, offline: s.offline }
+    const stats = statsSensors.value
+    return { lights: stats.lights, climates: stats.climates, battery: stats.battery, offline: stats.offline }
   })
 
   function favoriteCount(domain: string) {
-    const fe = layoutStore.layoutConfig.favoriteEntities || {}
-    return favoriteIdsForDomain(fe, domain).length
+    const favoriteEntities = layoutStore.layoutConfig.favoriteEntities || {}
+    return favoriteIdsForDomain(favoriteEntities, domain).length
   }
 
   function resolveLiveStat(domain: string, count: number): { label: string; count: number } {
@@ -55,40 +55,40 @@ export function useFavoritesHub() {
     if (count === 0) return { label: '', count: 0 }
 
     if (domain === 'light') {
-      const n = countQuickActionLightsOn(
+      const activeCount = countQuickActionLightsOn(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
         quickActionStats.value,
       )
-      return n > 0 ? { label: '开', count: n } : { label: '', count: 0 }
+      return activeCount > 0 ? { label: '开', count: activeCount } : { label: '', count: 0 }
     }
     if (domain === 'climate') {
-      const n = countQuickActionClimateActive(
+      const activeCount = countQuickActionClimateActive(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
         quickActionStats.value,
       )
-      return n > 0 ? { label: '运行', count: n } : { label: '', count: 0 }
+      return activeCount > 0 ? { label: '运行', count: activeCount } : { label: '', count: 0 }
     }
     if (domain === 'battery') {
-      const n = countQuickActionBatteryLow(
+      const activeCount = countQuickActionBatteryLow(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
       )
-      return n > 0 ? { label: '低电量', count: n } : { label: '', count: 0 }
+      return activeCount > 0 ? { label: '低电量', count: activeCount } : { label: '', count: 0 }
     }
     if (domain === 'offline') {
-      const n = countQuickActionOffline(
+      const activeCount = countQuickActionOffline(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
         quickActionStats.value,
       )
-      return n > 0 ? { label: '离线', count: n } : { label: '', count: 0 }
+      return activeCount > 0 ? { label: '离线', count: activeCount } : { label: '', count: 0 }
     }
 
     const meta = FAVORITE_CATEGORY_MAP[domain]
     if (meta?.activeStates?.length) {
-      const n = countQuickActionDomainActive(
+      const activeCount = countQuickActionDomainActive(
         domain,
         meta.activeStates,
         entitiesStore as unknown as QuickActionEntities,
@@ -102,15 +102,15 @@ export function useFavoritesHub() {
         fan: '运行',
         lock: '未锁',
       }
-      return n > 0 ? { label: labelMap[domain] || '活跃', count: n } : { label: '', count: 0 }
+      return activeCount > 0 ? { label: labelMap[domain] || '活跃', count: activeCount } : { label: '', count: 0 }
     }
     return { label: '', count: 0 }
   }
 
   function previewNames(domain: string, limit = 3): string[] {
     void entitiesStore.getDomainEpoch(domain)
-    const fe = layoutStore.layoutConfig.favoriteEntities || {}
-    const ids = favoriteIdsForDomain(fe, domain).slice(0, limit)
+    const favoriteEntities = layoutStore.layoutConfig.favoriteEntities || {}
+    const ids = favoriteIdsForDomain(favoriteEntities, domain).slice(0, limit)
     return ids.map((id) => {
       const ent = entitiesStore.entities[id]
       const name = getEntityDisplayName(id, ent)
@@ -134,8 +134,8 @@ export function useFavoritesHub() {
   )
 
   const filteredCategories = computed(() => {
-    if (filter.value === 'configured') return categoryViews.value.filter((c) => c.configured)
-    if (filter.value === 'empty') return categoryViews.value.filter((c) => !c.configured)
+    if (filter.value === 'configured') return categoryViews.value.filter((categoryView) => categoryView.configured)
+    if (filter.value === 'empty') return categoryViews.value.filter((categoryView) => !categoryView.configured)
     return categoryViews.value
   })
 
@@ -144,7 +144,7 @@ export function useFavoritesHub() {
   )
 
   const configuredCategoryCount = computed(
-    () => categoryViews.value.filter((c) => c.configured).length,
+    () => categoryViews.value.filter((categoryView) => categoryView.configured).length,
   )
 
   const completionPct = computed(() =>
@@ -159,9 +159,9 @@ export function useFavoritesHub() {
   )
 
   function addRecommendedEntity(entityId: string, domain: string) {
-    const fe = layoutStore.layoutConfig.favoriteEntities || {}
-    if (!Array.isArray(fe[domain])) fe[domain] = []
-    if (!fe[domain]!.includes(entityId)) fe[domain]!.push(entityId)
+    const favoriteEntities = layoutStore.layoutConfig.favoriteEntities || {}
+    if (!Array.isArray(favoriteEntities[domain])) favoriteEntities[domain] = []
+    if (!favoriteEntities[domain]!.includes(entityId)) favoriteEntities[domain]!.push(entityId)
   }
 
   function applyRecommendationChip(chip: { payload?: Record<string, unknown> }) {

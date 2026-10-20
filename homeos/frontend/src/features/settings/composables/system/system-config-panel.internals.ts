@@ -73,9 +73,9 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   const showDevKeys = ref(readDevKeysPref())
   const expertMode = ref(readExpertModePref())
 
-  watch(showDevKeys, (on) => {
+  watch(showDevKeys, (enabled) => {
     try {
-      writeLocalStorage(DEV_KEYS_STORAGE_KEY, on ? '1' : '0')
+      writeLocalStorage(DEV_KEYS_STORAGE_KEY, enabled ? '1' : '0')
     } catch {
       /* 忽略 */
     }
@@ -87,7 +87,7 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   )
 
   const paramsSectionNav = computed(() =>
-    visibleSectionList.value.map((s) => ({ id: s.key, label: s.label })),
+    visibleSectionList.value.map((section) => ({ id: section.key, label: section.label })),
   )
 
   const {
@@ -98,12 +98,12 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   } = useAppConfigBackup({ notify: false })
 
   const totalFields = computed(() =>
-    visibleSectionList.value.reduce((n, s) => n + s.fields.length, 0),
+    visibleSectionList.value.reduce((total, section) => total + section.fields.length, 0),
   )
 
   const currentSection = computed(
     () =>
-      visibleSectionList.value.find((s) => s.key === activeSection.value) ||
+      visibleSectionList.value.find((section) => section.key === activeSection.value) ||
       visibleSectionList.value[0] ||
       null,
   )
@@ -119,10 +119,10 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   })
 
   const booleanFields = computed(() =>
-    filteredSectionFields.value.filter((f) => f.type === 'boolean'),
+    filteredSectionFields.value.filter((field) => field.type === 'boolean'),
   )
   const inputFields = computed(() =>
-    filteredSectionFields.value.filter((f) => f.type !== 'boolean'),
+    filteredSectionFields.value.filter((field) => field.type !== 'boolean'),
   )
 
   const groupedDisplayFields = computed(() => {
@@ -157,7 +157,7 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   )
 
   const visibleSectionPendingMap = computed(() => {
-    const visibleKeys = new Set(visibleSectionList.value.map((s) => s.key))
+    const visibleKeys = new Set(visibleSectionList.value.map((section) => section.key))
     const map: Record<string, number> = {}
     for (const [sk, count] of Object.entries(sectionPendingMap.value)) {
       if (visibleKeys.has(sk)) map[sk] = count
@@ -168,13 +168,13 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   const hiddenPendingCount = computed(() => {
     const standardSections = filterSectionsForExpert(sectionList.value, false)
     const visibleFieldKeys = new Set(
-      standardSections.flatMap((s) => s.fields.map((f) => `${s.key}:${f.key}`)),
+      standardSections.flatMap((section) => section.fields.map((field) => `${section.key}:${field.key}`)),
     )
-    let n = 0
+    let count = 0
     for (const key of pendingFieldKeys.value) {
-      if (!visibleFieldKeys.has(key)) n++
+      if (!visibleFieldKeys.has(key)) count++
     }
-    return n
+    return count
   })
 
   const pendingChangesHint = computed(() => {
@@ -185,7 +185,7 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
   })
 
   const sectionNavIndex = computed(() =>
-    visibleSectionList.value.findIndex((s) => s.key === activeSection.value),
+    visibleSectionList.value.findIndex((section) => section.key === activeSection.value),
   )
 
   const hasPrevSection = computed(() => sectionNavIndex.value > 0)
@@ -199,7 +199,7 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
 
   function navigateSection(delta: number) {
     const list = visibleSectionList.value
-    const idx = list.findIndex((s) => s.key === activeSection.value)
+    const idx = list.findIndex((section) => section.key === activeSection.value)
     const next = list[idx + delta]
     if (!next) return
     sectionFilter.value = ''
@@ -218,8 +218,8 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     sectionFilter.value = ''
   })
 
-  async function setExpertMode(on: boolean) {
-    if (!on && expertMode.value && hiddenPendingCount.value > 0) {
+  async function setExpertMode(enabled: boolean) {
+    if (!enabled && expertMode.value && hiddenPendingCount.value > 0) {
       const ok = await chrome.confirm(
         `还有 ${hiddenPendingCount.value} 项专家参数未保存，切换后将无法在侧栏直接看到这些修改。是否继续？`,
         '切换为标准模式',
@@ -227,9 +227,9 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
       )
       if (!ok) return
     }
-    expertMode.value = on
-    writeExpertModePref(on)
-    if (!visibleSectionList.value.some((s) => s.key === activeSection.value)) {
+    expertMode.value = enabled
+    writeExpertModePref(enabled)
+    if (!visibleSectionList.value.some((section) => section.key === activeSection.value)) {
       activeSection.value = visibleSectionList.value[0]?.key || ''
       activeCategory.value = categoryForSection(activeSection.value)
     }
@@ -261,10 +261,10 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     try {
       const { data } = await fetchConfigAudit()
       configAudit.value = Array.isArray(data) ? data : []
-    } catch (e) {
-      logger.warn('加载配置审计日志失败', e)
+    } catch (error) {
+      logger.warn('加载配置审计日志失败', error)
       configAudit.value = []
-      chrome.notify(getApiErrorMessage(e, '加载配置审计日志失败'), 'warning')
+      chrome.notify(getApiErrorMessage(error, '加载配置审计日志失败'), 'warning')
     }
   }
 
@@ -283,20 +283,20 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
       loaded = true
       if (
         !route.query.section &&
-        !visibleSectionList.value.some((s) => s.key === activeSection.value)
+        !visibleSectionList.value.some((section) => section.key === activeSection.value)
       ) {
         activeSection.value =
-          visibleSectionList.value.find((s) => s.key === 'screensaver')?.key ||
-          visibleSectionList.value.find((s) => s.key === 'ui')?.key ||
+          visibleSectionList.value.find((section) => section.key === 'screensaver')?.key ||
+          visibleSectionList.value.find((section) => section.key === 'ui')?.key ||
           visibleSectionList.value[0]?.key ||
           ''
       }
       activeCategory.value = categoryForSection(activeSection.value)
-    } catch (e) {
-      logger.error('加载系统参数失败', e)
+    } catch (error) {
+      logger.error('加载系统参数失败', error)
       sectionList.value = []
       loaded = false
-      loadError.value = getApiErrorMessage(e, '加载系统参数失败')
+      loadError.value = getApiErrorMessage(error, '加载系统参数失败')
     } finally {
       loading.value = false
     }
@@ -320,8 +320,8 @@ export function useSystemConfigPanel({ route, paramsDockRef }: SystemConfigPanel
     runSave,
     load,
     getLoaded: () => loaded,
-    setLoaded: (v) => {
-      loaded = v
+    setLoaded: (value) => {
+      loaded = value
     },
     invalidateSystemConfig,
     saveSystemConfig,

@@ -46,16 +46,16 @@ export interface EntityDerivedAccumulator {
  */
 export function accFromDerivedSnapshot(snap: DerivedSnapshot): EntityDerivedAccumulator {
   const sensorIndex = new Map<string, string[]>()
-  for (const [k, v] of Object.entries(snap.sensorIndex || {})) {
-    sensorIndex.set(k, Array.isArray(v) ? [...v] : [])
+  for (const [k, entityIds] of Object.entries(snap.sensorIndex || {})) {
+    sensorIndex.set(k, Array.isArray(entityIds) ? [...entityIds] : [])
   }
   const domainCounts = new Map<string, number>()
-  for (const [k, v] of Object.entries(snap.domainCounts || {})) {
-    domainCounts.set(k, typeof v === 'number' ? v : 0)
+  for (const [k, count] of Object.entries(snap.domainCounts || {})) {
+    domainCounts.set(k, typeof count === 'number' ? count : 0)
   }
   const domainEntityIndex = new Map<string, Set<string>>()
-  for (const [k, v] of Object.entries(snap.domainEntityIndex || {})) {
-    domainEntityIndex.set(k, new Set(Array.isArray(v) ? v : []))
+  for (const [k, entityIds] of Object.entries(snap.domainEntityIndex || {})) {
+    domainEntityIndex.set(k, new Set(Array.isArray(entityIds) ? entityIds : []))
   }
   return {
     online: snap.online ?? 0,
@@ -87,9 +87,9 @@ export function snapshotFromDerivedAcc(acc: EntityDerivedAccumulator): DerivedSn
     offlineList: acc.offlineList,
     domainCounts: Object.fromEntries(acc.domainCounts || []),
     domainEntityIndex: Object.fromEntries(
-      [...(acc.domainEntityIndex || new Map()).entries()].map(([k, v]) => [k, [...v]]),
+      [...(acc.domainEntityIndex || new Map()).entries()].map(([k, entityIds]) => [k, [...entityIds]]),
     ),
-    sensorIndex: Object.fromEntries([...acc.sensorIndex.entries()].map(([k, v]) => [k, [...v]])),
+    sensorIndex: Object.fromEntries([...acc.sensorIndex.entries()].map(([k, entityIds]) => [k, [...entityIds]])),
   }
 }
 
@@ -110,14 +110,14 @@ export function hasEntityFriendlyName(entity: HaEntityView | null | undefined): 
  * 仅处理对半完全相同的情况，避免误伤正常长短语。
  */
 function collapseRepeatedDisplayName(name: string): string {
-  const t = String(name || '').trim().replace(/\s+/g, ' ')
-  if (!t) return ''
-  const parts = t.split(' ')
-  if (parts.length < 2 || parts.length % 2 !== 0) return t
+  const trimmedName = String(name || '').trim().replace(/\s+/g, ' ')
+  if (!trimmedName) return ''
+  const parts = trimmedName.split(' ')
+  if (parts.length < 2 || parts.length % 2 !== 0) return trimmedName
   const half = parts.length / 2
-  const a = parts.slice(0, half).join(' ')
-  const b = parts.slice(half).join(' ')
-  return a && a === b ? a : t
+  const firstHalf = parts.slice(0, half).join(' ')
+  const secondHalf = parts.slice(half).join(' ')
+  return firstHalf && firstHalf === secondHalf ? firstHalf : trimmedName
 }
 
 /**
@@ -147,15 +147,15 @@ export function getEntityDisplayName(
  *   sensor / binary_sensor 加入传感器索引。
  *
  * @param key 实体 ID。
- * @param e 实体状态。
+ * @param entity 实体状态。
  * @param acc 派生累加器（会被原地修改）。
  */
 export function applyEntityDerivedKey(
   key: string,
-  e: HaEntityState | undefined,
+  entity: HaEntityState | undefined,
   acc: EntityDerivedAccumulator,
 ): void {
-  if (!e) return
+  if (!entity) return
 
   const domain = getEntityDomain(key)
   if (acc.domainCounts) {
@@ -171,23 +171,23 @@ export function applyEntityDerivedKey(
   }
 
   if (acc.skipSecondary) {
-    if (e.state !== 'unavailable') {
+    if (entity.state !== 'unavailable') {
       acc.online++
-      if (key.startsWith('light.') && e.state === 'on') acc.lightCount++
-      if (key.startsWith('climate.') && e.state !== 'off') acc.climateCount++
+      if (key.startsWith('light.') && entity.state === 'on') acc.lightCount++
+      if (key.startsWith('climate.') && entity.state !== 'off') acc.climateCount++
     }
     return
   }
 
-  if (e.state !== 'unavailable') {
+  if (entity.state !== 'unavailable') {
     acc.online++
-    const bat = e.attributes?.battery_level ?? e.attributes?.battery
+    const bat = entity.attributes?.battery_level ?? entity.attributes?.battery
     if (bat !== undefined && bat !== null) {
       const lvl = typeof bat === 'number' ? bat : parseInt(String(bat), 10)
       if (!isNaN(lvl) && lvl <= 30) {
         const item: DerivedBatteryEntry = {
           entity_id: key,
-          name: getEntityDisplayName(key, e),
+          name: getEntityDisplayName(key, entity),
           level: lvl,
           domain,
         }
@@ -195,14 +195,14 @@ export function applyEntityDerivedKey(
         else acc.batteryList.push(item)
       }
     }
-    if (key.startsWith('light.') && e.state === 'on') acc.lightCount++
-    if (key.startsWith('climate.') && e.state !== 'off') acc.climateCount++
+    if (key.startsWith('light.') && entity.state === 'on') acc.lightCount++
+    if (key.startsWith('climate.') && entity.state !== 'off') acc.climateCount++
   } else {
     const item: DerivedOfflineEntry = {
       entity_id: key,
-      name: getEntityDisplayName(key, e),
+      name: getEntityDisplayName(key, entity),
       domain,
-      last_changed: e.last_changed || '',
+      last_changed: entity.last_changed || '',
     }
     if (acc.offlineById) acc.offlineById.set(key, item)
     else acc.offlineList.push(item)
@@ -222,15 +222,15 @@ export function applyEntityDerivedKey(
  * 计数使用 Math.max(0, ...) 保护，避免负数。
  *
  * @param key 实体 ID。
- * @param e 实体状态（旧状态）。
+ * @param entity 实体状态（旧状态）。
  * @param acc 派生累加器（会被原地修改）。
  */
 export function removeEntityDerivedKey(
   key: string,
-  e: HaEntityState | undefined,
+  entity: HaEntityState | undefined,
   acc: EntityDerivedAccumulator,
 ): void {
-  if (!e) return
+  if (!entity) return
 
   const domain = getEntityDomain(key)
   if (acc.domainCounts) {
@@ -247,19 +247,19 @@ export function removeEntityDerivedKey(
   }
 
   if (acc.skipSecondary) {
-    if (e.state !== 'unavailable') {
+    if (entity.state !== 'unavailable') {
       acc.online = Math.max(0, acc.online - 1)
-      if (key.startsWith('light.') && e.state === 'on')
+      if (key.startsWith('light.') && entity.state === 'on')
         acc.lightCount = Math.max(0, acc.lightCount - 1)
-      if (key.startsWith('climate.') && e.state !== 'off')
+      if (key.startsWith('climate.') && entity.state !== 'off')
         acc.climateCount = Math.max(0, acc.climateCount - 1)
     }
     return
   }
 
-  if (e.state !== 'unavailable') {
+  if (entity.state !== 'unavailable') {
     acc.online = Math.max(0, acc.online - 1)
-    const bat = e.attributes?.battery_level ?? e.attributes?.battery
+    const bat = entity.attributes?.battery_level ?? entity.attributes?.battery
     if (bat !== undefined && bat !== null) {
       const lvl = typeof bat === 'number' ? bat : parseInt(String(bat), 10)
       if (!isNaN(lvl) && lvl <= 30) {
@@ -271,9 +271,9 @@ export function removeEntityDerivedKey(
         }
       }
     }
-    if (key.startsWith('light.') && e.state === 'on')
+    if (key.startsWith('light.') && entity.state === 'on')
       acc.lightCount = Math.max(0, acc.lightCount - 1)
-    if (key.startsWith('climate.') && e.state !== 'off')
+    if (key.startsWith('climate.') && entity.state !== 'off')
       acc.climateCount = Math.max(0, acc.climateCount - 1)
   } else {
     if (acc.offlineById) {
@@ -435,17 +435,17 @@ export function createEntityDerivedRebuilder(deps: EntityDerivedRebuilderDeps) {
     while (secondaryChunkIndex < endIdx && deadline.timeRemaining() > 1) {
       const key = secondaryKeys[secondaryChunkIndex]
       secondaryChunkIndex++
-      const e = rawEntities[key]
-      if (!e) continue
+      const entityState = rawEntities[key]
+      if (!entityState) continue
       const domain = getEntityDomain(key)
-      if (e.state !== 'unavailable') {
-        const bat = e.attributes?.battery_level ?? e.attributes?.battery
+      if (entityState.state !== 'unavailable') {
+        const bat = entityState.attributes?.battery_level ?? entityState.attributes?.battery
         if (bat !== undefined && bat !== null) {
           const lvl = typeof bat === 'number' ? bat : parseInt(String(bat), 10)
           if (!isNaN(lvl) && lvl <= 30) {
             rebuildBatteryList.push({
               entity_id: key,
-              name: getEntityDisplayName(key, e),
+              name: getEntityDisplayName(key, entityState),
               level: lvl,
               domain,
             })
@@ -454,9 +454,9 @@ export function createEntityDerivedRebuilder(deps: EntityDerivedRebuilderDeps) {
       } else {
         rebuildOfflineList.push({
           entity_id: key,
-          name: getEntityDisplayName(key, e),
+          name: getEntityDisplayName(key, entityState),
           domain,
-          last_changed: e.last_changed || '',
+          last_changed: entityState.last_changed || '',
         })
       }
       if (domain === 'sensor' || domain === 'binary_sensor') {
@@ -570,8 +570,8 @@ export function createEntityDerivedRebuilder(deps: EntityDerivedRebuilderDeps) {
       climateCount: deps.climateCount.value,
       batteryList: deps.batteryDevices,
       offlineList: deps.offlineDevices,
-      batteryById: new Map(deps.batteryDevices.map((d) => [d.entity_id, d])),
-      offlineById: new Map(deps.offlineDevices.map((d) => [d.entity_id, d])),
+      batteryById: new Map(deps.batteryDevices.map((batteryDevice) => [batteryDevice.entity_id, batteryDevice])),
+      offlineById: new Map(deps.offlineDevices.map((offlineDevice) => [offlineDevice.entity_id, offlineDevice])),
       sensorIndex: deps.sensorIndex,
       domainCounts: deps.domainCounts,
       domainEntityIndex: deps.domainEntityIndex,
@@ -612,10 +612,10 @@ export function createEntityDerivedRebuilder(deps: EntityDerivedRebuilderDeps) {
   ) {
     if (!changes?.length) return
     for (let i = 0; i < changes.length; i++) {
-      const { entity_id, oldEntity, newEntity } = changes[i]
-      if (!entity_id) continue
-      const prev = pendingPatches.get(entity_id)
-      pendingPatches.set(entity_id, {
+      const { entity_id: entityId, oldEntity, newEntity } = changes[i]
+      if (!entityId) continue
+      const prev = pendingPatches.get(entityId)
+      pendingPatches.set(entityId, {
         oldEntity: prev?.oldEntity ?? oldEntity,
         newEntity,
       })

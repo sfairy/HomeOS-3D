@@ -316,8 +316,8 @@ export const useOrderStore = defineStore("order", () => {
       await showPayment(order);
       return order;
     } catch (error) {
-      const err = error as { status?: number };
-      if (err.status === 409) {
+      const apiError = error as { status?: number };
+      if (apiError.status === 409) {
         const retry = await api<{ orders?: StoreOrder[] }>("/account").catch(logAndIgnore("下单冲突后复查待支付订单"));
         const conflict = retry?.orders?.find((item) => item.status === "pending");
         if (conflict) {

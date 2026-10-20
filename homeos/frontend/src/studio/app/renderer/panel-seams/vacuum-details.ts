@@ -379,21 +379,21 @@ export function showVacuumDetails(this: PanelRenderer,
       }),
       syncCleaningModeOptions = () => {
         const vacuumAttributes = vacuumStateOptions.attributes || {},
-          cleaning_mode_list =
+          cleaningModeList =
             cleaningModeStateValue?.attributes?.options ?? vacuumAttributes.cleaning_mode_list;
         modeOptionSync.sync(
           cleaningModeStateValue?.state || vacuumAttributes.cleaning_mode,
-          Array.isArray(cleaning_mode_list) ? cleaning_mode_list : [],
+          Array.isArray(cleaningModeList) ? cleaningModeList : [],
           hasCleaningModeEntity &&
             !!cleaningModeStateValue &&
             !["unknown", "unavailable"].includes(cleaningModeStateValue.state),
         );
-        const fan_speed_list = vacuumAttributes.fan_speed_list?.length
+        const fanSpeedList = vacuumAttributes.fan_speed_list?.length
           ? vacuumAttributes.fan_speed_list
           : vacuumAttributes.suction_level_list;
         fanSpeedOptionElement.sync(
           vacuumAttributes.fan_speed || vacuumAttributes.suction_level,
-          Array.isArray(fan_speed_list) ? fan_speed_list : [],
+          Array.isArray(fanSpeedList) ? fanSpeedList : [],
         );
       },
       waterHeaterExtensionControls2 =

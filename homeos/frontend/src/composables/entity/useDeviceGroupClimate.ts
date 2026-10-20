@@ -101,18 +101,18 @@ export function useDeviceGroupClimate(
   entitiesStore: EntitiesStore,
 ) {
   function getClimateCurrentTemp(eid: string) {
-    const v = getEntity(eid)?.attributes?.current_temperature
-    return v != null && !Number.isNaN(Number(v)) ? Number(v) : null
+    const currentTemperature = getEntity(eid)?.attributes?.current_temperature
+    return currentTemperature != null && !Number.isNaN(Number(currentTemperature)) ? Number(currentTemperature) : null
   }
 
   function getClimateTargetTemp(eid: string) {
-    const v = getEntity(eid)?.attributes?.temperature
-    return v != null && !Number.isNaN(Number(v)) ? Number(v) : null
+    const targetTemperature = getEntity(eid)?.attributes?.temperature
+    return targetTemperature != null && !Number.isNaN(Number(targetTemperature)) ? Number(targetTemperature) : null
   }
 
   /** 数值文本；单位 ° 由模板另行渲染 */
-  function formatClimateTemp(v: number | null | undefined) {
-    return v != null ? String(v) : '--'
+  function formatClimateTemp(temperature: number | null | undefined) {
+    return temperature != null ? String(temperature) : '--'
   }
 
   function climateTempTone(cur: number | null | undefined) {
@@ -124,28 +124,28 @@ export function useDeviceGroupClimate(
 
   /** 空调目标温度可调范围与步进（读实体的 min_temp / max_temp / target_temp_step，缺省 16–30/1） */
   function climateTempRange(eid: string) {
-    const a = (getEntity(eid)?.attributes || {}) as Record<string, unknown>
-    const min = Number(a.min_temp)
-    const max = Number(a.max_temp)
-    const step = Number(a.target_temp_step)
-    const lo = Number.isFinite(min) ? min : 16
-    const hi = Number.isFinite(max) && max > lo ? max : Math.max(lo + 1, 30)
+    const attributes = (getEntity(eid)?.attributes || {}) as Record<string, unknown>
+    const min = Number(attributes.min_temp)
+    const max = Number(attributes.max_temp)
+    const step = Number(attributes.target_temp_step)
+    const minValue = Number.isFinite(min) ? min : 16
+    const maxValue = Number.isFinite(max) && max > minValue ? max : Math.max(minValue + 1, 30)
     return {
-      min: lo,
-      max: hi,
+      min: minValue,
+      max: maxValue,
       step: Number.isFinite(step) && step > 0 ? step : 1,
-      dual: climateHasDualSetpoint(a),
+      dual: climateHasDualSetpoint(attributes),
     }
   }
 
   async function adjustClimateTemp(eid: string, delta: number) {
-    const a = (getEntity(eid)?.attributes || {}) as Record<string, unknown>
+    const attributes = (getEntity(eid)?.attributes || {}) as Record<string, unknown>
     const { min, max, dual } = climateTempRange(eid)
     if (dual) {
       // 双温区设备只接受 target_temp_low/high：混发 temperature 会被 HA 拒绝
-      const low = Number(a.target_temp_low)
+      const low = Number(attributes.target_temp_low)
       if (!Number.isFinite(low)) return
-      const highRaw = Number(a.target_temp_high)
+      const highRaw = Number(attributes.target_temp_high)
       const high = Number.isFinite(highRaw) ? highRaw : max
       const upper = Math.max(min, high - 2)
       const next = Math.min(Math.max(low + delta, min), upper)
@@ -158,7 +158,7 @@ export function useDeviceGroupClimate(
       )
       return
     }
-    const raw = a.temperature
+    const raw = attributes.temperature
     if (raw == null) return
     const cur = Number(raw)
     if (!Number.isFinite(cur)) return
@@ -187,14 +187,14 @@ export function useDeviceGroupClimate(
     const entity = getEntity(eid)
     const modes = entity?.attributes?.hvac_modes
     if (!Array.isArray(modes)) return []
-    return modes.filter((m): m is string => typeof m === 'string' && m !== 'off')
+    return modes.filter((mode): mode is string => typeof mode === 'string' && mode !== 'off')
   }
 
-  function climateModeInfo(m: string) {
+  function climateModeInfo(mode: string) {
     return (
-      getClimateModeMap()[m] || {
+      getClimateModeMap()[mode] || {
         icon: Settings,
-        label: m,
+        label: mode,
         iconColor: 'text-slate-300',
         activeClass: 'bg-slate-600/20 text-slate-300 border-slate-600/30',
       }

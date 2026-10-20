@@ -70,8 +70,8 @@ export function buildHomeModeRecommendations(
   // 统计触发来源频次，source 缺失时回退为 'manual'
   const sourceCounts = new Map<string, number>()
   for (const log of triggerLogs) {
-    const src = String(log.source || log.reason || 'manual')
-    sourceCounts.set(src, (sourceCounts.get(src) || 0) + 1)
+    const logSource = String(log.source || log.reason || 'manual')
+    sourceCounts.set(logSource, (sourceCounts.get(logSource) || 0) + 1)
   }
   const topSources = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
 
@@ -88,10 +88,10 @@ export function buildHomeModeRecommendations(
     groups.push({
       id: 'trigger-sources',
       label: '近期触发来源',
-      chips: topSources.map(([src, count]) => ({
+      chips: topSources.map(([src, sourceKey]) => ({
         id: src,
         label: recommendSourceLabel(src),
-        meta: String(count),
+        meta: String(sourceKey),
         variant: 'default' as const,
       })),
     })

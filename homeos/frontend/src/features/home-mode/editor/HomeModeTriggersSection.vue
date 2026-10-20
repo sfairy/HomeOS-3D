@@ -292,8 +292,8 @@ function triggerTabSubtitle(tr) {
 }
 
 // 切换某条触发器的启用/禁用态
-function toggleTriggerEnabled(idx, e) {
-  const target = e.target
+function toggleTriggerEnabled(idx, triggerIndex) {
+  const target = triggerIndex.target
   if (activeDraft.value.triggers[idx]) {
     activeDraft.value.triggers[idx].enabled = target.checked
   }

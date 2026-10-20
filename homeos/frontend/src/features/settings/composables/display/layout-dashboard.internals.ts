@@ -41,9 +41,9 @@ function buildFooterItemTabs(
   fieldOptionsFn: (source: string) => FooterFieldOption[],
   sourceOptions: { value: string; label: string }[],
 ) {
-  return items.map((item, idx) => ({
+  return items.map((item, itemIndex) => ({
     id: item.id,
-    label: resolveFooterItemLabel(item, idx, fieldOptionsFn, sourceOptions).slice(0, 14),
+    label: resolveFooterItemLabel(item, itemIndex, fieldOptionsFn, sourceOptions).slice(0, 14),
     emoji: item.icon || '⚡',
     accent: DASHBOARD_FOOTER_COLOR_ACCENT[item.color] || '#fbbf24',
     disabled: !item.enabled,

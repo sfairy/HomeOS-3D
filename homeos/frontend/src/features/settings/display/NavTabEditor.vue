@@ -271,7 +271,7 @@ const dynamicNavTabs = computed(() => {
   const tabs = []
   const embeds = layoutStore.layoutConfig.customEmbeds || []
   if (embeds.length > 0) {
-    embeds.forEach((embed, idx) => {
+    embeds.forEach((embed, embedIndex) => {
       const id = embedNavTabId(embed.id)
       const iconKey = embed.icon || 'MonitorPlay'
       tabs.push({
@@ -279,7 +279,7 @@ const dynamicNavTabs = computed(() => {
         label: embed.name || embed.id || id,
         path: `/embed/${embed.id}`,
         icon: resolveEmbedIconComponent(iconKey),
-        accent: resolveEmbedNavAccent(embed, idx),
+        accent: resolveEmbedNavAccent(embed, embedIndex),
       })
     })
   } else if (layoutStore.layoutConfig.moviePilotUrl) {

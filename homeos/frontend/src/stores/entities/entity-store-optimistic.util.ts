@@ -43,9 +43,9 @@ export function predictOptimistic(
 
   if (service === 'toggle') {
     // 仅在当前状态明确为 on/off 时取反；unknown/unavailable/null 等未知状态不预测，避免产生假状态
-    const cur = current?.state
-    if (cur !== 'on' && cur !== 'off') return null
-    state = cur === 'on' ? 'off' : 'on'
+    const currentState = current?.state
+    if (currentState !== 'on' && currentState !== 'off') return null
+    state = currentState === 'on' ? 'off' : 'on'
     return { state }
   }
 
@@ -232,11 +232,11 @@ export function createEntityOptimisticState({
   }
 
   function applyOptimistic(entityId: string, predicted: OptimisticPrediction): void {
-    const cur = entities[entityId] || null
+    const existingEntity = entities[entityId] || null
     const existing = optimisticState.get(entityId)
     // 备份必须深拷贝：attributes 里含嵌套数组/对象（rgb_color、hvac_modes、preset_modes 等），
     // 浅拷贝会把引用共享给主缓存，后续合并或原地修改都会污染「快照」，回滚就复原不回去。
-    const backup = existing ? existing.backup : cur ? clonePlain(cur) : null
+    const backup = existing ? existing.backup : existingEntity ? clonePlain(existingEntity) : null
     if (existing?.timer) clearTimeout(existing.timer)
 
     // 累计期望目标（state/attributes 并集）：连续多次乐观调用（如先开灯再调亮度）时
@@ -249,11 +249,11 @@ export function createEntityOptimisticState({
       },
     }
 
-    const merged: HaEntityState = cur
+    const merged: HaEntityState = existingEntity
       ? {
-          ...cur,
+          ...existingEntity,
           ...(predicted.state !== undefined ? { state: predicted.state } : {}),
-          attributes: { ...(cur.attributes || {}), ...(predicted.attributes || {}) },
+          attributes: { ...(existingEntity.attributes || {}), ...(predicted.attributes || {}) },
           _optimistic: true,
         }
       : {
@@ -264,9 +264,9 @@ export function createEntityOptimisticState({
         }
 
     entities[entityId] = merged
-    patchDerivedChanges([{ entity_id: entityId, oldEntity: cur, newEntity: merged }])
+    patchDerivedChanges([{ entity_id: entityId, oldEntity: existingEntity, newEntity: merged }])
     patchProjectionsFromChanges([{ entity_id: entityId }], entities)
-    emitStateListeners(entityId, merged, cur)
+    emitStateListeners(entityId, merged, existingEntity)
     bumpEntityStateRevision(entityId)
 
     // TTL 到期仍未收到服务端（WS）确认：回滚到最后一次确认的服务端状态，
@@ -309,9 +309,9 @@ export function createEntityOptimisticState({
     if (!e) return
     if (e.timer) clearTimeout(e.timer)
     optimisticState.delete(entityId)
-    const cur = entities[entityId]
-    if (cur && cur._optimistic) {
-      const optimisticSnapshot: HaEntityState = { ...toRaw(cur) }
+    const previousEntity = entities[entityId]
+    if (previousEntity && previousEntity._optimistic) {
+      const optimisticSnapshot: HaEntityState = { ...toRaw(previousEntity) }
       if (e.backup) {
         entities[entityId] = e.backup
         patchDerivedChanges([

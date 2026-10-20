@@ -70,18 +70,18 @@ function readHistory(): StoredSession[] {
         const title = String((item as StoredSession).title || '').trim()
         const messages = Array.isArray((item as StoredSession).messages)
           ? ((item as StoredSession).messages as ChatMessage[])
-              .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && String(m.text || '').trim())
-              .map((m) => ({
-                role: m.role,
-                text: String(m.text),
-                tools: m.tools ? String(m.tools) : undefined,
-                outcome: m.outcome ? String(m.outcome) : undefined,
+              .filter((message) => message && (message.role === 'user' || message.role === 'assistant') && String(message.text || '').trim())
+              .map((message) => ({
+                role: message.role,
+                text: String(message.text),
+                tools: message.tools ? String(message.tools) : undefined,
+                outcome: message.outcome ? String(message.outcome) : undefined,
               }))
           : []
         if (!id || !messages.length) return null
         return {
           id,
-          title: title || messages.find((m) => m.role === 'user')?.text.slice(0, 24) || '对话',
+          title: title || messages.find((message) => message.role === 'user')?.text.slice(0, 24) || '对话',
           updatedAt: Number((item as StoredSession).updatedAt) || Date.now(),
           messages,
         }
@@ -150,7 +150,7 @@ const agentBlocked = computed(() => {
 
 /** 等首 token 的阶段才显示「处理中」气泡；已开始逐字输出后由流式气泡本身承载 */
 const showTyping = computed(
-  () => busy.value && !messages.value.some((m) => m.streaming && m.text.trim()),
+  () => busy.value && !messages.value.some((message) => message.streaming && message.text.trim()),
 )
 
 /**
@@ -238,16 +238,16 @@ async function refreshMicHint() {
 
 function persistCurrent() {
   const snapshot = messages.value
-    .filter((m) => !m.streaming && String(m.text || '').trim())
+    .filter((message) => !message.streaming && String(message.text || '').trim())
     .slice(-HISTORY_MESSAGE_LIMIT)
-    .map((m) => ({
-      role: m.role,
-      text: m.text,
-      tools: m.tools,
-      outcome: m.outcome,
+    .map((message) => ({
+      role: message.role,
+      text: message.text,
+      tools: message.tools,
+      outcome: message.outcome,
     }))
   if (!snapshot.length) return
-  const title = snapshot.find((m) => m.role === 'user')?.text.slice(0, 24) || '对话'
+  const title = snapshot.find((message) => message.role === 'user')?.text.slice(0, 24) || '对话'
   const current: StoredSession = {
     id: sessionId.value,
     updatedAt: Date.now(),
@@ -279,7 +279,7 @@ function openSession(session: StoredSession) {
   if (busy.value) return
   stopListen()
   sessionId.value = session.id
-  messages.value = session.messages.map((m) => ({ ...m }))
+  messages.value = session.messages.map((message) => ({ ...message }))
   historyOpen.value = false
   scrollLogToBottom()
 }
@@ -325,9 +325,9 @@ function scrollLogToBottom() {
   })
 }
 
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') {
-    e.stopPropagation()
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.stopPropagation()
     if (listening.value || transcribing.value) {
       stopListen()
       return
@@ -362,8 +362,8 @@ async function send(raw?: string) {
   const fromVoice = voiceTurn.value
   voiceTurn.value = false
   const history = messages.value
-    .filter((m) => m.text.trim() && !m.streaming)
-    .map((m) => ({ role: m.role, content: m.text }))
+    .filter((historyMessage) => historyMessage.text.trim() && !historyMessage.streaming)
+    .map((historyMessage) => ({ role: historyMessage.role, content: historyMessage.text }))
     .slice(-16)
   messages.value.push({ role: 'user', text: message })
   input.value = ''
@@ -399,7 +399,7 @@ async function send(raw?: string) {
     if (result?.toolCalls?.length) {
       mergeToolTrace(
         bubble,
-        result.toolCalls.map((c) => c.name),
+        result.toolCalls.map((toolCall) => toolCall.name),
       )
     }
     // 最终回复优先于增量文本：后端可能给出未流式下发的收尾文案
@@ -407,8 +407,8 @@ async function send(raw?: string) {
     bubble.text = reply
     const ttsOn = getConfigSection('voice')?.ttsEnabled !== false
     if (fromVoice && ttsOn && reply) await speak(reply)
-  } catch (e: unknown) {
-    const fail = getApiErrorMessage(e, '管家暂时不可用')
+  } catch (error: unknown) {
+    const fail = getApiErrorMessage(error, '管家暂时不可用')
     if (bubble.text.trim()) {
       // 已收到部分内容：保留并追加错误提示，避免整段消失
       bubble.text = `${bubble.text}\n（${fail}）`
@@ -423,7 +423,7 @@ async function send(raw?: string) {
     busy.value = false
     // 取消后完全没有内容的气泡直接移除，避免留下空壳
     if (!bubble.text.trim()) {
-      messages.value = messages.value.filter((m) => m !== bubble)
+      messages.value = messages.value.filter((entry) => entry !== bubble)
     }
     persistCurrent()
     scrollLogToBottom()

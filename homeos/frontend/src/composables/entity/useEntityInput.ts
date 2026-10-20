@@ -52,7 +52,7 @@ export function useEntityInput(
     if (!raw) return [] as string[]
     return raw
       .split(',')
-      .map((d) => d.trim())
+      .map((domain) => domain.trim())
       .filter(Boolean)
   })
   const filterDomainSet = computed(() => new Set(filterDomains.value))
@@ -113,17 +113,17 @@ export function useEntityInput(
   const totalEntityCount = computed(() => {
     if (!hasDomainFilter.value) return entitiesStore.totalCount
     let sum = 0
-    for (const d of filterDomains.value) {
-      sum += entitiesStore.domainCounts.get(d) || 0
+    for (const domain of filterDomains.value) {
+      sum += entitiesStore.domainCounts.get(domain) || 0
     }
     return sum
   })
 
   const domainCounts = computed(() => {
     const counts: Record<string, number> = {}
-    for (const [d, c] of entitiesStore.domainCounts) {
-      if (hasDomainFilter.value && !filterDomainSet.value.has(d)) continue
-      counts[d] = c
+    for (const [domain, count] of entitiesStore.domainCounts) {
+      if (hasDomainFilter.value && !filterDomainSet.value.has(domain)) continue
+      counts[domain] = count
     }
     return counts
   })
@@ -142,12 +142,12 @@ export function useEntityInput(
 
   function buildGroupedFromEntries(
     entries: Array<{ key: string; e: HaEntityState | undefined }>,
-    q: string,
+    query: string,
     activeSuggest: string,
   ): EntityInputGroup[] {
     return buildEntityInputGroups({
       entries,
-      query: q,
+      query: query,
       activeSuggest,
       selectedDomain: selectedDomain.value,
       filterDomainSet: hasDomainFilter.value ? filterDomainSet.value : null,
@@ -184,23 +184,23 @@ export function useEntityInput(
   })
 
   const groupedItems = computed(() => {
-    const q = (showDropdown.value || clearedLocally.value ? editingText.value : props.modelValue)
+    const query = (showDropdown.value || clearedLocally.value ? editingText.value : props.modelValue)
       .toLowerCase()
       .trim()
     const activeSuggest = autoSuggestDeviceClass.value || props.suggestDeviceClass
 
     if (useRestSearch.value && showDropdown.value) {
-      const entries = restItems.value.map((e) => ({
-        key: e.entity_id,
-        e: entitiesStore.entities[e.entity_id] || e,
+      const entries = restItems.value.map((entity) => ({
+        key: entity.entity_id,
+        e: entitiesStore.entities[entity.entity_id] || entity,
       }))
-      return buildGroupedFromEntries(entries, q, activeSuggest)
+      return buildGroupedFromEntries(entries, query, activeSuggest)
     }
 
     const entities = entitiesStore.entities
     const ids = getIndexedCandidateIds()
     const entries = ids.map((key) => ({ key, e: entities[key] }))
-    return buildGroupedFromEntries(entries, q, activeSuggest)
+    return buildGroupedFromEntries(entries, query, activeSuggest)
   })
 
   const showDomainFilter = computed(() => !hasDomainFilter.value)
@@ -234,18 +234,18 @@ export function useEntityInput(
   }
 
   function isActive(_item: EntityInputItem, idx: number, group: EntityInputGroup) {
-    const gi = groupedItems.value.indexOf(group)
-    return gi === activeGroupIdx.value && idx === activeItemIdx.value
+    const groupIndex = groupedItems.value.indexOf(group)
+    return groupIndex === activeGroupIdx.value && idx === activeItemIdx.value
   }
 
   function setActive(_item: EntityInputItem, idx: number, group: EntityInputGroup) {
-    const gi = groupedItems.value.indexOf(group)
-    activeGroupIdx.value = gi
+    const groupIndex = groupedItems.value.indexOf(group)
+    activeGroupIdx.value = groupIndex
     activeItemIdx.value = idx
   }
 
-  function onInput(e: Event) {
-    editingText.value = (e.target as HTMLInputElement).value
+  function onInput(event: Event) {
+    editingText.value = (event.target as HTMLInputElement).value
     activeGroupIdx.value = 0
     activeItemIdx.value = 0
     activeFlatIdx.value = 0

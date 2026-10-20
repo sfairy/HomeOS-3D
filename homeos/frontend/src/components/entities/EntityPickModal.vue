@@ -207,8 +207,8 @@ const PICK_ANY_ENTITY_DOMAINS = new Set(['offline', 'other'])
 
 function entityMatchesDomains(entityId) {
   if (PICK_ANY_ENTITY_DOMAINS.has(props.domain) && !props.domains?.length) return true
-  const d = getEntityDomain(entityId)
-  return effectiveDomains.value.includes(d)
+  const domain = getEntityDomain(entityId)
+  return effectiveDomains.value.includes(domain)
 }
 
 const useRestSearch = computed(() => entitiesStore.totalCount >= getLargeEntityThreshold())
@@ -217,7 +217,7 @@ async function fetchRestEntities() {
   if (!useRestSearch.value || !props.isOpen) return
   restLoading.value = true
   try {
-    const q = query.value.trim()
+    const searchTerm = query.value.trim()
     const domains = effectiveDomains.value
     const fetchOne = async (dom) => {
       const params = { limit: 200, page: 1 }
@@ -225,7 +225,7 @@ async function fetchRestEntities() {
         if (dom === 'sensor' || dom === 'battery') params.domain = 'sensor'
         else params.domain = dom
       }
-      if (q) params.search = q
+      if (searchTerm) params.search = searchTerm
       const { data } = await fetchEntities(params, { timeout: 60_000 })
       return data?.entities || []
     }
@@ -235,14 +235,14 @@ async function fetchRestEntities() {
     } else if (domains.length === 1) {
       items = await fetchOne(domains[0])
     } else {
-      const batches = await Promise.all(domains.map((d) => fetchOne(d)))
+      const batches = await Promise.all(domains.map((domain) => fetchOne(domain)))
       const seen = new Set()
       items = []
       for (const batch of batches) {
-        for (const e of batch) {
-          if (!seen.has(e.entity_id)) {
-            seen.add(e.entity_id)
-            items.push(e)
+        for (const entity of batch) {
+          if (!seen.has(entity.entity_id)) {
+            seen.add(entity.entity_id)
+            items.push(entity)
           }
         }
       }
@@ -282,7 +282,7 @@ function entitiesFromIndex() {
     const sensorIds = collectIndexedEntityIds(index, { domain: 'sensor' }) || []
     return sensorIds
       .map((id) => entitiesStore.entities[id])
-      .filter((e) => e && isBatterySensorEntity(e))
+      .filter((entity) => entity && isBatterySensorEntity(entity))
   }
   if (domains.length === 1 && domains[0] === 'sensor') {
     const sensorIds = collectIndexedEntityIds(index, { domain: 'sensor' }) || []
@@ -308,8 +308,8 @@ function loadSelectedIds() {
   if (Array.isArray(props.initialIds)) {
     selectedIds.value = [...props.initialIds]
   } else if (props.domain === 'offline') {
-    const fe = layoutStore.layoutConfig.favoriteEntities || {}
-    selectedIds.value = [...new Set([...(fe.offline || []), ...(fe.other || [])])]
+    const favoriteEntities = layoutStore.layoutConfig.favoriteEntities || {}
+    selectedIds.value = [...new Set([...(favoriteEntities.offline || []), ...(favoriteEntities.other || [])])]
   } else {
     selectedIds.value = [...(layoutStore.layoutConfig.favoriteEntities?.[props.domain] || [])]
   }
@@ -332,28 +332,28 @@ watch(
 const filteredEntities = computed(() => {
   let entities =
     useRestSearch.value && props.isOpen
-      ? restItems.value.map((e) => entitiesStore.entities[e.entity_id] || e)
+      ? restItems.value.map((entity) => entitiesStore.entities[entity.entity_id] || entity)
       : entitiesFromIndex()
   if (!PICK_ANY_ENTITY_DOMAINS.has(props.domain) && !useRestSearch.value) {
     if (!props.domains?.length && props.domain === 'battery') {
-      entities = entities.filter((e) => isBatterySensorEntity(e))
+      entities = entities.filter((entity) => isBatterySensorEntity(entity))
     } else if (!props.domains?.length && props.domain === 'sensor') {
-      entities = entities.filter((e) => {
-        const d = getEntityDomain(e.entity_id)
-        return d === 'sensor' || d === 'binary_sensor'
+      entities = entities.filter((entity) => {
+        const domain = getEntityDomain(entity.entity_id)
+        return domain === 'sensor' || domain === 'binary_sensor'
       })
     } else if (!props.domains?.length) {
-      entities = entities.filter((e) => e.entity_id.startsWith(props.domain + '.'))
+      entities = entities.filter((entity) => entity.entity_id.startsWith(props.domain + '.'))
     } else {
-      entities = entities.filter((e) => entityMatchesDomains(e.entity_id))
+      entities = entities.filter((entity) => entityMatchesDomains(entity.entity_id))
     }
   }
   if (query.value && !useRestSearch.value) {
-    const q = query.value.toLowerCase()
+    const searchTerm = query.value.toLowerCase()
     entities = entities.filter(
-      (e) =>
-        e.entity_id.toLowerCase().includes(q) ||
-        getEntityDisplayName(e.entity_id, e).toLowerCase().includes(q),
+      (entity) =>
+        entity.entity_id.toLowerCase().includes(searchTerm) ||
+        getEntityDisplayName(entity.entity_id, entity).toLowerCase().includes(searchTerm),
     )
   }
   return entities.sort((a, b) => {
@@ -399,8 +399,8 @@ const virtualPaddingBottom = computed(() => {
   return Math.max(0, remaining * ROW_STRIDE)
 })
 
-function onListScroll(e) {
-  const el = e.target
+function onListScroll(event) {
+  const el = event.target
   if (scrollRaf) cancelAnimationFrame(scrollRaf)
   scrollRaf = requestAnimationFrame(() => {
     scrollRaf = 0
@@ -410,13 +410,13 @@ function onListScroll(e) {
 }
 
 function toggleEntity(eid) {
-  const idx = selectedIds.value.indexOf(eid)
-  if (idx > -1) selectedIds.value.splice(idx, 1)
+  const itemIndex = selectedIds.value.indexOf(eid)
+  if (itemIndex > -1) selectedIds.value.splice(itemIndex, 1)
   else selectedIds.value.push(eid)
 }
 
 function selectAll() {
-  selectedIds.value = filteredEntities.value.map((e) => e.entity_id)
+  selectedIds.value = filteredEntities.value.map((entity) => entity.entity_id)
 }
 function clearAll() {
   selectedIds.value = []

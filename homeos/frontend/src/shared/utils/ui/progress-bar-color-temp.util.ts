@@ -85,8 +85,8 @@ type ColorTempAttrs = Record<string, unknown>
 function readAttrNumber(attrs: ColorTempAttrs, ...keys: string[]) {
   for (const key of keys) {
     if (attrs[key] == null) continue
-    const n = Number(attrs[key])
-    if (Number.isFinite(n)) return n
+    const attrNumber = Number(attrs[key])
+    if (Number.isFinite(attrNumber)) return attrNumber
   }
   return null
 }
@@ -216,8 +216,8 @@ function resolveEntityColorTempKelvin(
   if (colorTempKelvin != null && Number(colorTempKelvin) > 0) {
     kelvin = Number(colorTempKelvin)
   } else if (colorTemp != null && Number(colorTemp) > 0) {
-    const n = Number(colorTemp)
-    kelvin = n >= 1000 ? n : miredsToKelvin(n)
+    const kelvinValue = Number(colorTemp)
+    kelvin = kelvinValue >= 1000 ? kelvinValue : miredsToKelvin(kelvinValue)
   }
   if (kelvin == null || kelvin <= 0) kelvin = Math.round((min + max) / 2)
   return Math.max(min, Math.min(max, Math.round(kelvin)))
@@ -235,28 +235,28 @@ const COLOR_TEMP_COOL = '#93c5fd'
  * @param {number} maxK
  */
 function kelvinToTrackColor(kelvin: number, minK: number, maxK: number) {
-  const t = normalizeProgressPct(kelvin, minK, maxK) / 100
-  if (t <= 0.5) {
-    return mixHexColors(COLOR_TEMP_WARM, '#ffffff', t * 2)
+  const ratio = normalizeProgressPct(kelvin, minK, maxK) / 100
+  if (ratio <= 0.5) {
+    return mixHexColors(COLOR_TEMP_WARM, '#ffffff', ratio * 2)
   }
-  return mixHexColors('#ffffff', COLOR_TEMP_COOL, (t - 0.5) * 2)
+  return mixHexColors('#ffffff', COLOR_TEMP_COOL, (ratio - 0.5) * 2)
 }
 
 /**
  * 在两个 hex 颜色间按比例线性插值，返回 rgb() 字符串。
  * @param from 起始 hex
- * @param to 目标 hex
+ * @param targetColor 目标 hex
  * @param ratio 插值比例 [0,1]
  * @returns rgb(r, g, b)
  */
-function mixHexColors(from: string, to: string, ratio: number) {
-  const a = parseHexColor(from)
-  const b = parseHexColor(to)
-  const t = Math.min(1, Math.max(0, ratio))
-  const r = Math.round(a.r + (b.r - a.r) * t)
-  const g = Math.round(a.g + (b.g - a.g) * t)
-  const bl = Math.round(a.b + (b.b - a.b) * t)
-  return `rgb(${r}, ${g}, ${bl})`
+function mixHexColors(from: string, targetColor: string, ratio: number) {
+  const fromRgb = parseHexColor(from)
+  const targetRgb = parseHexColor(targetColor)
+  const mixRatio = Math.min(1, Math.max(0, ratio))
+  const red = Math.round(fromRgb.r + (targetRgb.r - fromRgb.r) * mixRatio)
+  const green = Math.round(fromRgb.g + (targetRgb.g - fromRgb.g) * mixRatio)
+  const blue = Math.round(fromRgb.b + (targetRgb.b - fromRgb.b) * mixRatio)
+  return `rgb(${red}, ${green}, ${blue})`
 }
 
 /**
@@ -283,20 +283,20 @@ export function colorTempSliderTrackStyle(
   trackColor = 'rgba(255,255,255,0.1)',
   step?: number,
 ) {
-  let v = resolveSliderValue(value, min)
+  let sliderValue = resolveSliderValue(value, min)
   if (step != null && step > 0) {
-    v = snapToSliderStep(v, min, max, step)
+    sliderValue = snapToSliderStep(sliderValue, min, max, step)
   }
-  const pct = normalizeProgressPct(v, min, max)
+  const pct = normalizeProgressPct(sliderValue, min, max)
   const from = COLOR_TEMP_WARM
-  const to = kelvinToTrackColor(v, min, max)
+  const fillColor = kelvinToTrackColor(sliderValue, min, max)
   const pctStr = formatProgressPct(pct)
   return {
     '--progress': pctStr,
     '--progress-pct': pctStr,
     '--range-progress': pctStr,
     '--track-fill-from': from,
-    '--track-fill-to': to,
+    '--track-fill-to': fillColor,
     '--track-bg': trackColor,
   }
 }

@@ -59,8 +59,8 @@ export const ATTR_CHANGE_LABELS: Record<string, string> = {
 /**
  * 将属性原始值格式化为用户可读文案（与属性面板共用 formatEntityAttrValue）。
  */
-function formatAttrValue(key: string, val: unknown): string {
-  return formatEntityAttrValueText(key, val)
+function formatAttrValue(key: string, rawValue: unknown): string {
+  return formatEntityAttrValueText(key, rawValue)
 }
 
 /**

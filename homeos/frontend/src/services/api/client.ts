@@ -128,8 +128,8 @@ function refreshCsrfToken(forceReset = false): Promise<void> {
         _csrfBootstrap: true,
       } as RetryableAxiosRequestConfig)
       .then(() => undefined)
-      .catch((err) => {
-        logger.warn('[API 客户端] CSRF 令牌刷新失败', err)
+      .catch((refreshError) => {
+        logger.warn('[API 客户端] CSRF 令牌刷新失败', refreshError)
         return undefined
       })
       .finally(() => {
@@ -147,14 +147,14 @@ function refreshCsrfToken(forceReset = false): Promise<void> {
  * - 注入 X-Trace-Id 用于后端链路追踪。
  */
 apiClient.interceptors.request.use(async (config) => {
-  const cfg = getFrontendConfig()
+  const frontendConfig = getFrontendConfig()
   // axios 在进入拦截器前已把实例 defaults 合并进 config，因此 config.timeout 不会是 undefined。
   // 未显式传入 timeout 时其值等于实例默认超时，此时对齐到运行配置；显式传入的值则保留。
   if (config.timeout === apiClient.defaults.timeout) {
-    config.timeout = cfg.apiTimeoutMs
+    config.timeout = frontendConfig.apiTimeoutMs
   }
   // 同步实例默认超时，后续请求的默认值跟随运行配置，显式 timeout 会自然覆盖 defaults。
-  apiClient.defaults.timeout = cfg.apiTimeoutMs
+  apiClient.defaults.timeout = frontendConfig.apiTimeoutMs
   const method = (config.method || 'get').toLowerCase()
   const headers = AxiosHeaders.from(config.headers)
   const retryCfg = config as RetryableAxiosRequestConfig

@@ -111,12 +111,12 @@ export function useAssetManager(
    * 面包屑导航：根据当前路径拆分为多级，首项固定为根目录。
    */
   const breadcrumbs = computed(() => {
-    const parts = currentPath.value.split('/').filter((p) => !!p)
+    const parts = currentPath.value.split('/').filter((part) => !!part)
     const crumbs = [{ name: '🏠 根目录', path: '' }]
     let path = ''
-    parts.forEach((p) => {
-      path = path ? `${path}/${p}` : p
-      crumbs.push({ name: p, path })
+    parts.forEach((part) => {
+      path = path ? `${path}/${part}` : part
+      crumbs.push({ name: part, path })
     })
     return crumbs
   })
@@ -126,9 +126,9 @@ export function useAssetManager(
    * 按搜索关键词过滤，并按"目录优先 + 名称升序（中文 locale）"排序。
    */
   const filteredItems = computed(() => {
-    const q = searchQuery.value.trim().toLowerCase()
-    const list = q
-      ? items.value.filter((item) => item?.name?.toLowerCase().includes(q))
+    const searchTerm = searchQuery.value.trim().toLowerCase()
+    const list = searchTerm
+      ? items.value.filter((item) => item?.name?.toLowerCase().includes(searchTerm))
       : items.value
     return [...list].sort((a, b) => {
       // 目录排在文件之前，便于用户优先进入子目录
@@ -241,8 +241,8 @@ export function useAssetManager(
         items.value = next
         previewErrors.value = new Set()
       }
-    } catch (e) {
-      notifyError(e, '加载资源')
+    } catch (error) {
+      notifyError(error, '加载资源')
     } finally {
       loading.value = false
     }
@@ -325,8 +325,8 @@ export function useAssetManager(
           data.message || '创建失败',
         )
       }
-    } catch (e) {
-      folderModalError.value = getApiErrorMessage(e, '网络错误，创建失败')
+    } catch (error) {
+      folderModalError.value = getApiErrorMessage(error, '网络错误，创建失败')
     } finally {
       folderModalBusy.value = false
     }
@@ -341,10 +341,10 @@ export function useAssetManager(
 
   /**
    * 文件上传处理：校验数量上限后交给 handleFiles 分批上传。
-   * @param e 文件选择事件
+   * @param event 文件选择事件
    */
-  async function onUpload(e: Event) {
-    const target = e.target as HTMLInputElement
+  async function onUpload(event: Event) {
+    const target = event.target as HTMLInputElement
     const files = target.files
     if (!files?.length) return
     try {
@@ -426,7 +426,7 @@ export function useAssetManager(
       for (let i = 0; i < fileList.length; i += UPLOAD_BATCH_SIZE) {
         const batch = fileList.slice(i, i + UPLOAD_BATCH_SIZE)
         const formData = new FormData()
-        batch.forEach((f) => formData.append('files', f))
+        batch.forEach((file) => formData.append('files', file))
         try {
           const res = await uploadConfigAsset(base, url, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -442,8 +442,8 @@ export function useAssetManager(
               ),
             )
           }
-        } catch (e) {
-          errors.push(getApiErrorMessage(e, '网络错误'))
+        } catch (error) {
+          errors.push(getApiErrorMessage(error, '网络错误'))
         }
         uploadProgress.value = {
           done: Math.min(i + batch.length, fileList.length),
@@ -482,8 +482,8 @@ ${targetPath}`,
       await deleteConfigAsset(base, targetPath)
       invalidateCache()
       await loadItems()
-    } catch (e) {
-      notifyError(e, '删除资源')
+    } catch (error) {
+      notifyError(error, '删除资源')
     }
   }
 

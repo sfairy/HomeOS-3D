@@ -235,7 +235,7 @@ export function matchesTemperatureHumidityEntity(entityConfig: any, targetMetric
   )
     return false;
   const stateAttributes = (matchState?.newState || matchState)?.attributes || {},
-    device_class =
+    deviceClass =
       stateAttributes.device_class ||
       entityConfig.deviceClass ||
       entityConfig.device_class ||
@@ -244,7 +244,7 @@ export function matchesTemperatureHumidityEntity(entityConfig: any, targetMetric
       (candidateMetric) => candidateMetric.key === targetMetricKey,
     );
   if (!matchedMetric) return false;
-  if (device_class) return matchedMetric.classes.includes(device_class);
+  if (deviceClass) return matchedMetric.classes.includes(deviceClass);
   const text =
     stateAttributes.unit_of_measurement ||
     entityConfig.unitOfMeasurement ||

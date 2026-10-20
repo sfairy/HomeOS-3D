@@ -59,10 +59,10 @@ function setRowRef(index, el) {
 // 激活索引变化时，等待 DOM 更新后将对应行平滑滚入可视区
 watch(
   () => props.activeIndex,
-  async (idx) => {
-    if (idx == null) return
+  async (itemIndex) => {
+    if (itemIndex == null) return
     await nextTick()
-    rowRefs.value[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    rowRefs.value[itemIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
   },
 )
 </script>

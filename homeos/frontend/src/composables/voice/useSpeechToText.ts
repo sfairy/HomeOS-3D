@@ -35,16 +35,16 @@ function insecureMicMessage() {
   )
 }
 
-async function explainOpenMicFailure(err: unknown) {
+async function explainOpenMicFailure(openError: unknown) {
   if (!isSecureMicContext()) return insecureMicMessage()
-  const name = err instanceof DOMException ? err.name : String((err as { name?: string })?.name || '')
+  const name = openError instanceof DOMException ? openError.name : String((openError as { name?: string })?.name || '')
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
     return '麦克风权限被拒绝。请点击地址栏左侧锁图标，将「麦克风」改为允许，然后刷新再试'
   }
   if (name === 'NotReadableError' || name === 'TrackStartError') {
     return '麦克风被其他应用占用，请关闭后重试'
   }
-  const probe = await probeMicrophone(err)
+  const probe = await probeMicrophone(openError)
   if (
     probe.inputCount === 0 ||
     name === 'NotFoundError' ||
@@ -177,12 +177,12 @@ export function useSpeechToText(options: {
       }
     }
     recognition.lang = String(getConfigSection('voice')?.language || 'zh-CN')
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
-      const text = Array.from(e.results)
-        .map((r) => r[0].transcript)
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const text = Array.from(event.results)
+        .map((result) => result[0].transcript)
         .join('')
       emitInterim(text)
-      const last = e.results[e.results.length - 1]
+      const last = event.results[event.results.length - 1]
       if (last?.isFinal) {
         listening.value = false
         emitFinal(text)
@@ -222,8 +222,8 @@ export function useSpeechToText(options: {
     listening.value = true
     try {
       rec.start()
-    } catch (e) {
-      logger.debug('语音识别 start 失败', e)
+    } catch (caughtError) {
+      logger.debug('语音识别 start 失败', caughtError)
       listening.value = false
       await fallbackBrowserToHa('audio-capture')
     }
@@ -248,21 +248,21 @@ export function useSpeechToText(options: {
       micGranted = true
       audioChunks = []
       mediaRecorder = new MediaRecorder(stream)
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.push(e.data)
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunks.push(event.data)
       }
       mediaRecorder.onstop = () => void uploadHaAudio()
       mediaRecorder.start()
       error.value = browserToHaTried ? '浏览器识别不可用，请再说一次，说完再点麦克风' : ''
       transcript.value = ''
       listening.value = true
-    } catch (e) {
+    } catch (caughtError) {
       if (sttMode.value === 'auto' && !forceHa.value) {
         sttFallbackActive.value = true
         await startBrowserListen()
         return
       }
-      setError(await explainOpenMicFailure(e))
+      setError(await explainOpenMicFailure(caughtError))
       listening.value = false
     }
   }
@@ -270,7 +270,7 @@ export function useSpeechToText(options: {
   function stopHaRecording() {
     if (mediaRecorder?.state === 'recording') {
       mediaRecorder.stop()
-      mediaRecorder.stream?.getTracks?.().forEach((t) => t.stop())
+      mediaRecorder.stream?.getTracks?.().forEach((track) => track.stop())
     }
     listening.value = false
   }
@@ -294,12 +294,12 @@ export function useSpeechToText(options: {
         error.value = ''
         emitFinal(text)
       } else setError('未识别到语音')
-    } catch (e) {
+    } catch (caughtError) {
       if (sttMode.value === 'auto' && !forceHa.value) {
         tryBrowserFallback()
         return
       }
-      setError(getApiErrorMessage(e, 'HA 识别失败。请在设置 → 语音中配置 STT 实体'))
+      setError(getApiErrorMessage(caughtError, 'HA 识别失败。请在设置 → 语音中配置 STT 实体'))
     } finally {
       transcribing.value = false
       audioChunks = []
@@ -339,8 +339,8 @@ export function useSpeechToText(options: {
     if (recognition) {
       try {
         recognition.stop()
-      } catch (e) {
-        logger.debug('语音识别 stop 失败', e)
+      } catch (caughtError) {
+        logger.debug('语音识别 stop 失败', caughtError)
       }
     }
     listening.value = false
@@ -357,7 +357,7 @@ export function useSpeechToText(options: {
     offConfig = null
     stopListen()
     if (mediaRecorder?.stream) {
-      mediaRecorder.stream.getTracks?.().forEach((t) => t.stop())
+      mediaRecorder.stream.getTracks?.().forEach((track) => track.stop())
     }
   })
 

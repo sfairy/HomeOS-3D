@@ -36,63 +36,63 @@ from .security import (
 )
 
 
-def _validate_home_mode(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "applyMaxRetries" in p:
-        num_in(section, "applyMaxRetries", p["applyMaxRetries"], 0, 10, e)
-    if "triggerCooldownMs" in p:
-        num_in(section, "triggerCooldownMs", p["triggerCooldownMs"], 0, 600_000, e)
-    if "maxTriggerLogs" in p:
-        num_in(section, "maxTriggerLogs", p["maxTriggerLogs"], 1, 500, e)
-    if "maxExecHistory" in p:
-        num_in(section, "maxExecHistory", p["maxExecHistory"], 1, 500, e)
+def _validate_home_mode(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "applyMaxRetries" in payload:
+        num_in(section, "applyMaxRetries", payload["applyMaxRetries"], 0, 10, errors)
+    if "triggerCooldownMs" in payload:
+        num_in(section, "triggerCooldownMs", payload["triggerCooldownMs"], 0, 600_000, errors)
+    if "maxTriggerLogs" in payload:
+        num_in(section, "maxTriggerLogs", payload["maxTriggerLogs"], 1, 500, errors)
+    if "maxExecHistory" in payload:
+        num_in(section, "maxExecHistory", payload["maxExecHistory"], 1, 500, errors)
     for k in ("showAwayButton", "showHomeMode"):
-        if k in p:
-            require_bool(section, k, p[k], e)
-    if "manualLockTtlMin" in p:
-        num_in(section, "manualLockTtlMin", p["manualLockTtlMin"], 0, 1440, e)
-    if "linkageClaimTtlMin" in p:
-        num_in(section, "linkageClaimTtlMin", p["linkageClaimTtlMin"], 1, 1440, e)
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
+    if "manualLockTtlMin" in payload:
+        num_in(section, "manualLockTtlMin", payload["manualLockTtlMin"], 0, 1440, errors)
+    if "linkageClaimTtlMin" in payload:
+        num_in(section, "linkageClaimTtlMin", payload["linkageClaimTtlMin"], 1, 1440, errors)
 
-def _validate_ops(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "retentionCleanupIntervalHours" in p:
-        num_in(section, "retentionCleanupIntervalHours", p["retentionCleanupIntervalHours"], 1, 168, e)
-    if "eventLogTierCSampleRate" in p:
-        num_in(section, "eventLogTierCSampleRate", p["eventLogTierCSampleRate"], 0, 1, e)
-    if "configAuditMaxEntries" in p:
-        num_in(section, "configAuditMaxEntries", p["configAuditMaxEntries"], 10, 1000, e)
-    if "configAuditPersistEnabled" in p:
-        require_bool(section, "configAuditPersistEnabled", p["configAuditPersistEnabled"], e)
-    if "sceneExecHistoryMax" in p:
-        num_in(section, "sceneExecHistoryMax", p["sceneExecHistoryMax"], 1, 1000, e)
-    if "scriptExecHistoryMax" in p:
-        num_in(section, "scriptExecHistoryMax", p["scriptExecHistoryMax"], 1, 1000, e)
-    if "eventLogTimelineMax" in p:
-        num_in(section, "eventLogTimelineMax", p["eventLogTimelineMax"], 1, 5000, e)
-    if "eventLogTimelineHours" in p:
-        num_in(section, "eventLogTimelineHours", p["eventLogTimelineHours"], 1, 168, e)
-    if "eventLogOverlayHours" in p:
-        num_in(section, "eventLogOverlayHours", p["eventLogOverlayHours"], 1, 72, e)
-    if "eventLogMaxBuffer" in p:
-        num_in(section, "eventLogMaxBuffer", p["eventLogMaxBuffer"], 1, 5000, e)
-    if "eventLogFlushIntervalMs" in p:
-        num_in(section, "eventLogFlushIntervalMs", p["eventLogFlushIntervalMs"], 500, 120_000, e)
-    if "retentionDeleteBatchSize" in p:
-        num_in(section, "retentionDeleteBatchSize", p["retentionDeleteBatchSize"], 100, 50_000, e)
-    if "retentionFirstDelaySec" in p:
-        num_in(section, "retentionFirstDelaySec", p["retentionFirstDelaySec"], 0, 3600, e)
-    if "eventLogMaxRequeueBuffer" in p:
-        num_in(section, "eventLogMaxRequeueBuffer", p["eventLogMaxRequeueBuffer"], 1, 10_000, e)
-    if "autoBackupEnabled" in p:
-        require_bool(section, "autoBackupEnabled", p["autoBackupEnabled"], e)
-    if "autoBackupRetainDays" in p:
-        num_in(section, "autoBackupRetainDays", p["autoBackupRetainDays"], 1, 365, e)
+def _validate_ops(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "retentionCleanupIntervalHours" in payload:
+        num_in(section, "retentionCleanupIntervalHours", payload["retentionCleanupIntervalHours"], 1, 168, errors)
+    if "eventLogTierCSampleRate" in payload:
+        num_in(section, "eventLogTierCSampleRate", payload["eventLogTierCSampleRate"], 0, 1, errors)
+    if "configAuditMaxEntries" in payload:
+        num_in(section, "configAuditMaxEntries", payload["configAuditMaxEntries"], 10, 1000, errors)
+    if "configAuditPersistEnabled" in payload:
+        require_bool(section, "configAuditPersistEnabled", payload["configAuditPersistEnabled"], errors)
+    if "sceneExecHistoryMax" in payload:
+        num_in(section, "sceneExecHistoryMax", payload["sceneExecHistoryMax"], 1, 1000, errors)
+    if "scriptExecHistoryMax" in payload:
+        num_in(section, "scriptExecHistoryMax", payload["scriptExecHistoryMax"], 1, 1000, errors)
+    if "eventLogTimelineMax" in payload:
+        num_in(section, "eventLogTimelineMax", payload["eventLogTimelineMax"], 1, 5000, errors)
+    if "eventLogTimelineHours" in payload:
+        num_in(section, "eventLogTimelineHours", payload["eventLogTimelineHours"], 1, 168, errors)
+    if "eventLogOverlayHours" in payload:
+        num_in(section, "eventLogOverlayHours", payload["eventLogOverlayHours"], 1, 72, errors)
+    if "eventLogMaxBuffer" in payload:
+        num_in(section, "eventLogMaxBuffer", payload["eventLogMaxBuffer"], 1, 5000, errors)
+    if "eventLogFlushIntervalMs" in payload:
+        num_in(section, "eventLogFlushIntervalMs", payload["eventLogFlushIntervalMs"], 500, 120_000, errors)
+    if "retentionDeleteBatchSize" in payload:
+        num_in(section, "retentionDeleteBatchSize", payload["retentionDeleteBatchSize"], 100, 50_000, errors)
+    if "retentionFirstDelaySec" in payload:
+        num_in(section, "retentionFirstDelaySec", payload["retentionFirstDelaySec"], 0, 3600, errors)
+    if "eventLogMaxRequeueBuffer" in payload:
+        num_in(section, "eventLogMaxRequeueBuffer", payload["eventLogMaxRequeueBuffer"], 1, 10_000, errors)
+    if "autoBackupEnabled" in payload:
+        require_bool(section, "autoBackupEnabled", payload["autoBackupEnabled"], errors)
+    if "autoBackupRetainDays" in payload:
+        num_in(section, "autoBackupRetainDays", payload["autoBackupRetainDays"], 1, 365, errors)
     for k in ("eventLogTierEnabled", "eventLogSkipSensorTimeline", "eventLogRecordFilterEnabled"):
-        if k in p:
-            require_bool(section, k, p[k], e)
-    if "eventLogRecordFilterMode" in p:
-        mode = p["eventLogRecordFilterMode"]
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
+    if "eventLogRecordFilterMode" in payload:
+        mode = payload["eventLogRecordFilterMode"]
         if mode not in ("block", "allow_domains"):
-            e.append(
+            errors.append(
                 {
                     "section": section,
                     "key": "eventLogRecordFilterMode",
@@ -100,40 +100,40 @@ def _validate_ops(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
                 }
             )
     for key in ("eventLogRecordBlockDomains", "eventLogRecordAllowDomains"):
-        if key not in p:
+        if key not in payload:
             continue
-        domains = p[key]
+        domains = payload[key]
         if not isinstance(domains, list):
-            e.append({"section": section, "key": key, "message": "须为字符串数组"})
+            errors.append({"section": section, "key": key, "message": "须为字符串数组"})
         elif any(
             not isinstance(d, str) or not re.match(r"^[a-z0-9_]+$", str(d).strip()) for d in domains
         ):
-            e.append({"section": section, "key": key, "message": "每项须为合法 HA domain 名称"})
-    if "eventLogRecordBlockEntityIds" in p:
-        ids = p["eventLogRecordBlockEntityIds"]
+            errors.append({"section": section, "key": key, "message": "每项须为合法 HA domain 名称"})
+    if "eventLogRecordBlockEntityIds" in payload:
+        ids = payload["eventLogRecordBlockEntityIds"]
         if not isinstance(ids, list):
-            e.append({"section": section, "key": "eventLogRecordBlockEntityIds", "message": "须为字符串数组"})
+            errors.append({"section": section, "key": "eventLogRecordBlockEntityIds", "message": "须为字符串数组"})
         elif any(not isinstance(i, str) or "." not in str(i).strip() for i in ids):
-            e.append(
+            errors.append(
                 {
                     "section": section,
                     "key": "eventLogRecordBlockEntityIds",
                     "message": "每项须为合法 entity_id（含 domain.）",
                 }
             )
-    if "homeTimezone" in p:
-        tz = p["homeTimezone"]
+    if "homeTimezone" in payload:
+        tz = payload["homeTimezone"]
         if not isinstance(tz, str) or not tz.strip():
-            e.append({"section": section, "key": "homeTimezone", "message": "必须为非空 IANA 时区字符串"})
+            errors.append({"section": section, "key": "homeTimezone", "message": "必须为非空 IANA 时区字符串"})
         else:
             try:
                 from zoneinfo import ZoneInfo
 
                 ZoneInfo(tz.strip())
             except Exception:
-                e.append({"section": section, "key": "homeTimezone", "message": f"无效时区: {tz}"})
+                errors.append({"section": section, "key": "homeTimezone", "message": f"无效时区: {tz}"})
 
-def _validate_ha_connector(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
+def _validate_ha_connector(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     bound_checks = {
         "reconnectBaseMs": (100, 60000),
         "maxReconnectDelayMs": (1000, 300000),
@@ -145,8 +145,8 @@ def _validate_ha_connector(section: str, p: dict[str, Any], e: list[FieldError])
         "fastReconnectWindowMs": (5_000, 3_600_000),
     }
     for key, (lo, hi) in bound_checks.items():
-        if key in p:
-            num_in(section, key, p[key], lo, hi, e)
+        if key in payload:
+            num_in(section, key, payload[key], lo, hi, errors)
     for k in (
         "ingressCoalesceEnabled",
         "syncOnlyEnabledEntities",
@@ -154,90 +154,90 @@ def _validate_ha_connector(section: str, p: dict[str, Any], e: list[FieldError])
         "subscribeEntitiesShadow",
         "fastReconnectEnabled",
     ):
-        if k in p:
-            require_bool(section, k, p[k], e)
-    if "ingressCoalesceDomains" in p:
-        domains = p["ingressCoalesceDomains"]
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
+    if "ingressCoalesceDomains" in payload:
+        domains = payload["ingressCoalesceDomains"]
         if not isinstance(domains, list):
-            e.append({"section": section, "key": "ingressCoalesceDomains", "message": "须为字符串数组"})
+            errors.append({"section": section, "key": "ingressCoalesceDomains", "message": "须为字符串数组"})
         elif any(
             not isinstance(d, str) or not re.match(r"^[a-z_][a-z0-9_]*$", str(d).strip(), re.IGNORECASE)
             for d in domains
         ):
-            e.append({"section": section, "key": "ingressCoalesceDomains", "message": "每项须为合法 HA domain 名称"})
+            errors.append({"section": section, "key": "ingressCoalesceDomains", "message": "每项须为合法 HA domain 名称"})
 
-def _validate_state_store(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "maxRecentChanges" in p:
-        num_in(section, "maxRecentChanges", p["maxRecentChanges"], 100, 50_000, e)
-    if "staleThresholdMs" in p:
-        num_in(section, "staleThresholdMs", p["staleThresholdMs"], 10_000, 3_600_000, e)
-    if "initialStatesPriorityEnabled" in p:
-        require_bool(section, "initialStatesPriorityEnabled", p["initialStatesPriorityEnabled"], e)
+def _validate_state_store(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "maxRecentChanges" in payload:
+        num_in(section, "maxRecentChanges", payload["maxRecentChanges"], 100, 50_000, errors)
+    if "staleThresholdMs" in payload:
+        num_in(section, "staleThresholdMs", payload["staleThresholdMs"], 10_000, 3_600_000, errors)
+    if "initialStatesPriorityEnabled" in payload:
+        require_bool(section, "initialStatesPriorityEnabled", payload["initialStatesPriorityEnabled"], errors)
 
-def _validate_command_proxy(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "idempotencyTtlMs" in p:
-        num_in(section, "idempotencyTtlMs", p["idempotencyTtlMs"], 100, 60_000, e)
-    if "idempotencyCleanupIntervalMs" in p:
+def _validate_command_proxy(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "idempotencyTtlMs" in payload:
+        num_in(section, "idempotencyTtlMs", payload["idempotencyTtlMs"], 100, 60_000, errors)
+    if "idempotencyCleanupIntervalMs" in payload:
         num_in(
             section,
             "idempotencyCleanupIntervalMs",
-            p["idempotencyCleanupIntervalMs"],
+            payload["idempotencyCleanupIntervalMs"],
             1_000,
             600_000,
-            e,
+            errors,
         )
 
-def _validate_ws_push(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "sensorFlushIntervalMs" in p:
-        num_in(section, "sensorFlushIntervalMs", p["sensorFlushIntervalMs"], 10, 60_000, e)
-    if "stateBatchMax" in p:
-        num_in(section, "stateBatchMax", p["stateBatchMax"], 10, 2_000, e)
-    if "haSyncWaitMs" in p:
-        num_in(section, "haSyncWaitMs", p["haSyncWaitMs"], 1_000, 600_000, e)
-    if "replayChunkSize" in p:
-        num_in(section, "replayChunkSize", p["replayChunkSize"], 10, 5_000, e)
+def _validate_ws_push(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "sensorFlushIntervalMs" in payload:
+        num_in(section, "sensorFlushIntervalMs", payload["sensorFlushIntervalMs"], 10, 60_000, errors)
+    if "stateBatchMax" in payload:
+        num_in(section, "stateBatchMax", payload["stateBatchMax"], 10, 2_000, errors)
+    if "haSyncWaitMs" in payload:
+        num_in(section, "haSyncWaitMs", payload["haSyncWaitMs"], 1_000, 600_000, errors)
+    if "replayChunkSize" in payload:
+        num_in(section, "replayChunkSize", payload["replayChunkSize"], 10, 5_000, errors)
     for k in ("coldEntityOnDemand", "roomBatchEmit"):
-        if k in p:
-            require_bool(section, k, p[k], e)
-    if "latencyProfile" in p:
-        v = p["latencyProfile"]
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
+    if "latencyProfile" in payload:
+        v = payload["latencyProfile"]
         if v not in ("realtime", "balanced", "bulk"):
-            e.append({"section": section, "key": "latencyProfile", "message": "须为 realtime | balanced | bulk"})
-    if "criticalDomains" in p:
-        domains = p["criticalDomains"]
+            errors.append({"section": section, "key": "latencyProfile", "message": "须为 realtime | balanced | bulk"})
+    if "criticalDomains" in payload:
+        domains = payload["criticalDomains"]
         if not isinstance(domains, list):
-            e.append({"section": section, "key": "criticalDomains", "message": "须为字符串数组"})
+            errors.append({"section": section, "key": "criticalDomains", "message": "须为字符串数组"})
         elif any(
             not isinstance(d, str) or not re.match(r"^[a-z_][a-z0-9_]*$", str(d).strip(), re.IGNORECASE)
             for d in domains
         ):
-            e.append({"section": section, "key": "criticalDomains", "message": "每项须为合法 HA domain 名称"})
+            errors.append({"section": section, "key": "criticalDomains", "message": "每项须为合法 HA domain 名称"})
 
-def _validate_webrtc(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
+def _validate_webrtc(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     for key in ("iceUrls", "iceUsername", "iceCredential"):
-        if key in p and p[key] is not None and not isinstance(p[key], str):
-            e.append({"section": section, "key": key, "message": "须为字符串"})
+        if key in payload and payload[key] is not None and not isinstance(payload[key], str):
+            errors.append({"section": section, "key": key, "message": "须为字符串"})
 
-def _validate_other(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "eventlogRetentionDays" in p:
-        num_in(section, "eventlogRetentionDays", p["eventlogRetentionDays"], 1, 365, e)
-    if "haHistoryCacheMin" in p:
-        num_in(section, "haHistoryCacheMin", p["haHistoryCacheMin"], 1, 1440, e)
-    if "speakCooldownMin" in p:
-        num_in(section, "speakCooldownMin", p["speakCooldownMin"], 0, 1440, e)
-    if "tipCooldownHours" in p:
-        num_in(section, "tipCooldownHours", p["tipCooldownHours"], 0, 72, e)
-    if p.get("advisorTipActions") is not None and "advisorTipActions" in p:
-        aa = p["advisorTipActions"]
+def _validate_other(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "eventlogRetentionDays" in payload:
+        num_in(section, "eventlogRetentionDays", payload["eventlogRetentionDays"], 1, 365, errors)
+    if "haHistoryCacheMin" in payload:
+        num_in(section, "haHistoryCacheMin", payload["haHistoryCacheMin"], 1, 1440, errors)
+    if "speakCooldownMin" in payload:
+        num_in(section, "speakCooldownMin", payload["speakCooldownMin"], 0, 1440, errors)
+    if "tipCooldownHours" in payload:
+        num_in(section, "tipCooldownHours", payload["tipCooldownHours"], 0, 72, errors)
+    if payload.get("advisorTipActions") is not None and "advisorTipActions" in payload:
+        aa = payload["advisorTipActions"]
         if not isinstance(aa, dict):
-            e.append({"section": section, "key": "advisorTipActions", "message": "须为对象"})
+            errors.append({"section": section, "key": "advisorTipActions", "message": "须为对象"})
         else:
             for cat, val in aa.items():
                 if not str(cat).strip():
-                    e.append({"section": section, "key": "advisorTipActions", "message": "分类键须为非空字符串"})
+                    errors.append({"section": section, "key": "advisorTipActions", "message": "分类键须为非空字符串"})
                     break
                 if not isinstance(val, dict):
-                    e.append(
+                    errors.append(
                         {
                             "section": section,
                             "key": "advisorTipActions",
@@ -246,7 +246,7 @@ def _validate_other(section: str, p: dict[str, Any], e: list[FieldError]) -> Non
                     )
                     break
                 if val.get("type") not in ("home_mode", "scene"):
-                    e.append(
+                    errors.append(
                         {
                             "section": section,
                             "key": "advisorTipActions",
@@ -255,7 +255,7 @@ def _validate_other(section: str, p: dict[str, Any], e: list[FieldError]) -> Non
                     )
                     break
                 if not isinstance(val.get("id"), str) or not str(val["id"]).strip():
-                    e.append(
+                    errors.append(
                         {
                             "section": section,
                             "key": "advisorTipActions",
@@ -264,107 +264,107 @@ def _validate_other(section: str, p: dict[str, Any], e: list[FieldError]) -> Non
                     )
                     break
 
-def _validate_retention(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
+def _validate_retention(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     from ....platform.core.retention import RETENTION_DAYS_MAX, RETENTION_DAYS_MIN, RETENTION_TABLE_KEYS
 
     for key in RETENTION_TABLE_KEYS:
-        if key in p:
-            num_in(section, key, p[key], RETENTION_DAYS_MIN, RETENTION_DAYS_MAX, e)
+        if key in payload:
+            num_in(section, key, payload[key], RETENTION_DAYS_MIN, RETENTION_DAYS_MAX, errors)
 
-def _validate_external(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "calendarSyncMin" in p:
-        num_in(section, "calendarSyncMin", p["calendarSyncMin"], 1, 1440, e)
-    if "calendarSyncShortMin" in p:
-        num_in(section, "calendarSyncShortMin", p["calendarSyncShortMin"], 1, 60, e)
-    if "calendarIncrementalEnabled" in p and not isinstance(p["calendarIncrementalEnabled"], bool):
-        e.append({"section": section, "key": "calendarIncrementalEnabled", "message": "须为布尔值"})
-    if p.get("weatherFallbackEntityId") not in (None, "") and "weatherFallbackEntityId" in p:
-        if not re.match(r"^[a-z0-9_]+\.", str(p["weatherFallbackEntityId"]).strip(), re.IGNORECASE):
-            e.append({"section": section, "key": "weatherFallbackEntityId", "message": "须为合法实体 ID 或留空"})
-    if "dynamicPricingEnabled" in p and not isinstance(p["dynamicPricingEnabled"], bool):
-        e.append({"section": section, "key": "dynamicPricingEnabled", "message": "须为布尔值"})
-    if "dynamicPricingRefreshHours" in p:
-        num_in(section, "dynamicPricingRefreshHours", p["dynamicPricingRefreshHours"], 1, 168, e)
-    if p.get("dynamicPricingUrl") not in (None, "") and "dynamicPricingUrl" in p:
-        if not re.match(r"^https?://.+", str(p["dynamicPricingUrl"]).strip(), re.IGNORECASE):
-            e.append({"section": section, "key": "dynamicPricingUrl", "message": "须为 http(s) URL 或留空"})
-    if "weatherAlertRefreshMs" in p:
-        num_in(section, "weatherAlertRefreshMs", p["weatherAlertRefreshMs"], 60_000, 3_600_000, e)
-    if "weatherAlertEnabled" in p and not isinstance(p["weatherAlertEnabled"], bool):
-        e.append({"section": section, "key": "weatherAlertEnabled", "message": "须为布尔值"})
-    if "weatherAlertNotifyLevel" in p and str(p["weatherAlertNotifyLevel"]) not in ("red", "orange", "yellow"):
-        e.append({"section": section, "key": "weatherAlertNotifyLevel", "message": "须为 red / orange / yellow"})
-    if "weatherAlertCooldownMin" in p:
-        num_in(section, "weatherAlertCooldownMin", p["weatherAlertCooldownMin"], 1, 1440, e)
-    if p.get("weatherAlertSceneId") not in (None, "") and "weatherAlertSceneId" in p:
-        if not isinstance(p["weatherAlertSceneId"], str):
-            e.append({"section": section, "key": "weatherAlertSceneId", "message": "须为字符串或留空"})
-    if p.get("weatherAlertModeId") not in (None, "") and "weatherAlertModeId" in p:
-        if not isinstance(p["weatherAlertModeId"], str):
-            e.append({"section": section, "key": "weatherAlertModeId", "message": "须为字符串或留空"})
-    if "weatherLat" in p:
-        num_in(section, "weatherLat", p["weatherLat"], -90, 90, e)
-    if "weatherLon" in p:
-        num_in(section, "weatherLon", p["weatherLon"], -180, 180, e)
-    if p.get("openWeatherApiKey") not in (None, "") and "openWeatherApiKey" in p:
-        if not isinstance(p["openWeatherApiKey"], str) or not p["openWeatherApiKey"].strip():
-            e.append({"section": section, "key": "openWeatherApiKey", "message": "须为非空字符串或留空"})
-    if "ttsMediaPlayerIds" in p:
-        validate_entity_id_list(section, "ttsMediaPlayerIds", p["ttsMediaPlayerIds"], e)
-    if p.get("calendarUrl") not in (None, "") and "calendarUrl" in p:
-        if not re.match(r"^https?://.+", str(p["calendarUrl"]).strip(), re.IGNORECASE):
-            e.append({"section": section, "key": "calendarUrl", "message": "须为 http(s) URL 或留空"})
+def _validate_external(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "calendarSyncMin" in payload:
+        num_in(section, "calendarSyncMin", payload["calendarSyncMin"], 1, 1440, errors)
+    if "calendarSyncShortMin" in payload:
+        num_in(section, "calendarSyncShortMin", payload["calendarSyncShortMin"], 1, 60, errors)
+    if "calendarIncrementalEnabled" in payload and not isinstance(payload["calendarIncrementalEnabled"], bool):
+        errors.append({"section": section, "key": "calendarIncrementalEnabled", "message": "须为布尔值"})
+    if payload.get("weatherFallbackEntityId") not in (None, "") and "weatherFallbackEntityId" in payload:
+        if not re.match(r"^[a-z0-9_]+\.", str(payload["weatherFallbackEntityId"]).strip(), re.IGNORECASE):
+            errors.append({"section": section, "key": "weatherFallbackEntityId", "message": "须为合法实体 ID 或留空"})
+    if "dynamicPricingEnabled" in payload and not isinstance(payload["dynamicPricingEnabled"], bool):
+        errors.append({"section": section, "key": "dynamicPricingEnabled", "message": "须为布尔值"})
+    if "dynamicPricingRefreshHours" in payload:
+        num_in(section, "dynamicPricingRefreshHours", payload["dynamicPricingRefreshHours"], 1, 168, errors)
+    if payload.get("dynamicPricingUrl") not in (None, "") and "dynamicPricingUrl" in payload:
+        if not re.match(r"^https?://.+", str(payload["dynamicPricingUrl"]).strip(), re.IGNORECASE):
+            errors.append({"section": section, "key": "dynamicPricingUrl", "message": "须为 http(s) URL 或留空"})
+    if "weatherAlertRefreshMs" in payload:
+        num_in(section, "weatherAlertRefreshMs", payload["weatherAlertRefreshMs"], 60_000, 3_600_000, errors)
+    if "weatherAlertEnabled" in payload and not isinstance(payload["weatherAlertEnabled"], bool):
+        errors.append({"section": section, "key": "weatherAlertEnabled", "message": "须为布尔值"})
+    if "weatherAlertNotifyLevel" in payload and str(payload["weatherAlertNotifyLevel"]) not in ("red", "orange", "yellow"):
+        errors.append({"section": section, "key": "weatherAlertNotifyLevel", "message": "须为 red / orange / yellow"})
+    if "weatherAlertCooldownMin" in payload:
+        num_in(section, "weatherAlertCooldownMin", payload["weatherAlertCooldownMin"], 1, 1440, errors)
+    if payload.get("weatherAlertSceneId") not in (None, "") and "weatherAlertSceneId" in payload:
+        if not isinstance(payload["weatherAlertSceneId"], str):
+            errors.append({"section": section, "key": "weatherAlertSceneId", "message": "须为字符串或留空"})
+    if payload.get("weatherAlertModeId") not in (None, "") and "weatherAlertModeId" in payload:
+        if not isinstance(payload["weatherAlertModeId"], str):
+            errors.append({"section": section, "key": "weatherAlertModeId", "message": "须为字符串或留空"})
+    if "weatherLat" in payload:
+        num_in(section, "weatherLat", payload["weatherLat"], -90, 90, errors)
+    if "weatherLon" in payload:
+        num_in(section, "weatherLon", payload["weatherLon"], -180, 180, errors)
+    if payload.get("openWeatherApiKey") not in (None, "") and "openWeatherApiKey" in payload:
+        if not isinstance(payload["openWeatherApiKey"], str) or not payload["openWeatherApiKey"].strip():
+            errors.append({"section": section, "key": "openWeatherApiKey", "message": "须为非空字符串或留空"})
+    if "ttsMediaPlayerIds" in payload:
+        validate_entity_id_list(section, "ttsMediaPlayerIds", payload["ttsMediaPlayerIds"], errors)
+    if payload.get("calendarUrl") not in (None, "") and "calendarUrl" in payload:
+        if not re.match(r"^https?://.+", str(payload["calendarUrl"]).strip(), re.IGNORECASE):
+            errors.append({"section": section, "key": "calendarUrl", "message": "须为 http(s) URL 或留空"})
 
-def _validate_client_power(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "enabled" in p:
-        require_bool(section, "enabled", p["enabled"], e)
-    if "reportIntervalSec" in p:
-        num_in(section, "reportIntervalSec", p["reportIntervalSec"], 5, 600, e)
-    if "staleTimeoutSec" in p:
-        num_in(section, "staleTimeoutSec", p["staleTimeoutSec"], 60, 3600, e)
-    if "cooldownMin" in p:
-        num_in(section, "cooldownMin", p["cooldownMin"], 1, 120, e)
-    if "clients" in p:
-        clients = p["clients"]
+def _validate_client_power(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "enabled" in payload:
+        require_bool(section, "enabled", payload["enabled"], errors)
+    if "reportIntervalSec" in payload:
+        num_in(section, "reportIntervalSec", payload["reportIntervalSec"], 5, 600, errors)
+    if "staleTimeoutSec" in payload:
+        num_in(section, "staleTimeoutSec", payload["staleTimeoutSec"], 60, 3600, errors)
+    if "cooldownMin" in payload:
+        num_in(section, "cooldownMin", payload["cooldownMin"], 1, 120, errors)
+    if "clients" in payload:
+        clients = payload["clients"]
         if not isinstance(clients, list):
-            e.append({"section": section, "key": "clients", "message": "须为数组"})
+            errors.append({"section": section, "key": "clients", "message": "须为数组"})
         else:
             for i, item in enumerate(clients):
                 if not isinstance(item, dict):
-                    e.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项须为对象"})
+                    errors.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项须为对象"})
                     break
                 if not isinstance(item.get("id"), str) or not str(item["id"]).strip():
-                    e.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项 id 须为非空字符串"})
+                    errors.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项 id 须为非空字符串"})
                     break
                 if not isinstance(item.get("label"), str) or not str(item["label"]).strip():
-                    e.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项 label 须为非空字符串"})
+                    errors.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项 label 须为非空字符串"})
                     break
                 if "enabled" in item:
-                    require_bool(section, "clients", item["enabled"], e)
+                    require_bool(section, "clients", item["enabled"], errors)
                 if "presenceWakeEnabled" in item:
-                    require_bool(section, "clients", item["presenceWakeEnabled"], e)
-                validate_optional_entity_id(section, "clients", item.get("chargerSwitchEntityId"), e)
+                    require_bool(section, "clients", item["presenceWakeEnabled"], errors)
+                validate_optional_entity_id(section, "clients", item.get("chargerSwitchEntityId"), errors)
                 sc = item.get("selfCharge")
                 if sc is not None:
                     if not isinstance(sc, dict):
-                        e.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项 selfCharge 须为对象"})
+                        errors.append({"section": section, "key": "clients", "message": f"第 {i + 1} 项 selfCharge 须为对象"})
                         break
                     if "enabled" in sc:
-                        require_bool(section, "clients", sc["enabled"], e)
+                        require_bool(section, "clients", sc["enabled"], errors)
                     if "touEnabled" in sc:
-                        require_bool(section, "clients", sc["touEnabled"], e)
+                        require_bool(section, "clients", sc["touEnabled"], errors)
                     low = (
-                        num_in(section, "clients", sc["lowPercent"], 0, 100, e)
+                        num_in(section, "clients", sc["lowPercent"], 0, 100, errors)
                         if "lowPercent" in sc
                         else None
                     )
                     high = (
-                        num_in(section, "clients", sc["highPercent"], 0, 100, e)
+                        num_in(section, "clients", sc["highPercent"], 0, 100, errors)
                         if "highPercent" in sc
                         else None
                     )
                     if low is not None and high is not None and low >= high:
-                        e.append(
+                        errors.append(
                             {
                                 "section": section,
                                 "key": "clients",
@@ -373,12 +373,12 @@ def _validate_client_power(section: str, p: dict[str, Any], e: list[FieldError])
                         )
                         break
                     critical = (
-                        num_in(section, "clients", sc["criticalPercent"], 0, 100, e)
+                        num_in(section, "clients", sc["criticalPercent"], 0, 100, errors)
                         if "criticalPercent" in sc
                         else None
                     )
                     if critical is not None and low is not None and critical >= low:
-                        e.append(
+                        errors.append(
                             {
                                 "section": section,
                                 "key": "clients",
@@ -387,49 +387,49 @@ def _validate_client_power(section: str, p: dict[str, Any], e: list[FieldError])
                         )
                         break
 
-def _validate_env_sensor_map(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    for room_id, entry_raw in p.items():
+def _validate_env_sensor_map(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    for room_id, entry_raw in payload.items():
         if not str(room_id).strip():
-            e.append({"section": section, "key": room_id, "message": "房间 ID 不能为空"})
+            errors.append({"section": section, "key": room_id, "message": "房间 ID 不能为空"})
             continue
         if not isinstance(entry_raw, dict):
-            e.append({"section": section, "key": room_id, "message": "须为对象"})
+            errors.append({"section": section, "key": room_id, "message": "须为对象"})
             continue
         hidden = entry_raw.get("_hidden")
         if hidden is not None and not isinstance(hidden, bool):
-            e.append({"section": section, "key": f"{room_id}._hidden", "message": "须为布尔值"})
+            errors.append({"section": section, "key": f"{room_id}._hidden", "message": "须为布尔值"})
         for field in ("label", "temperature", "humidity", "pm25", "co2", "tvoc"):
             val = entry_raw.get(field)
             if val is None or val == "":
                 continue
             if not isinstance(val, str):
-                e.append({"section": section, "key": f"{room_id}.{field}", "message": "须为字符串"})
+                errors.append({"section": section, "key": f"{room_id}.{field}", "message": "须为字符串"})
                 continue
             if field != "label" and not _ENV_SENSOR_ENTITY_PATTERN.match(val.strip()):
-                e.append({"section": section, "key": f"{room_id}.{field}", "message": "须为合法 entity_id"})
+                errors.append({"section": section, "key": f"{room_id}.{field}", "message": "须为合法 entity_id"})
 
 
 _NEW_TERMINAL_DEFAULTS = {"activeProfile", "default"}
 
-def _validate_profiles(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "activeProfileId" in p:
-        if not isinstance(p["activeProfileId"], str) or not p["activeProfileId"].strip():
-            e.append({"section": section, "key": "activeProfileId", "message": "须为非空字符串"})
-    if "newTerminalDefault" in p:
-        val = str(p["newTerminalDefault"] or "")
+def _validate_profiles(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "activeProfileId" in payload:
+        if not isinstance(payload["activeProfileId"], str) or not payload["activeProfileId"].strip():
+            errors.append({"section": section, "key": "activeProfileId", "message": "须为非空字符串"})
+    if "newTerminalDefault" in payload:
+        val = str(payload["newTerminalDefault"] or "")
         if val not in _NEW_TERMINAL_DEFAULTS:
-            e.append({"section": section, "key": "newTerminalDefault", "message": "须为 activeProfile 或 default"})
-    if "terminalBindings" in p:
-        bindings = p["terminalBindings"]
+            errors.append({"section": section, "key": "newTerminalDefault", "message": "须为 activeProfile 或 default"})
+    if "terminalBindings" in payload:
+        bindings = payload["terminalBindings"]
         if not isinstance(bindings, list):
-            e.append({"section": section, "key": "terminalBindings", "message": "须为数组"})
+            errors.append({"section": section, "key": "terminalBindings", "message": "须为数组"})
             return
         for i, item in enumerate(bindings):
             if not isinstance(item, dict):
-                e.append({"section": section, "key": "terminalBindings", "message": f"第 {i + 1} 项须为对象"})
+                errors.append({"section": section, "key": "terminalBindings", "message": f"第 {i + 1} 项须为对象"})
                 break
             if not isinstance(item.get("clientId"), str) or not str(item["clientId"]).strip():
-                e.append(
+                errors.append(
                     {
                         "section": section,
                         "key": "terminalBindings",
@@ -438,7 +438,7 @@ def _validate_profiles(section: str, p: dict[str, Any], e: list[FieldError]) -> 
                 )
                 break
             if not isinstance(item.get("profileId"), str) or not str(item["profileId"]).strip():
-                e.append(
+                errors.append(
                     {
                         "section": section,
                         "key": "terminalBindings",
@@ -447,12 +447,12 @@ def _validate_profiles(section: str, p: dict[str, Any], e: list[FieldError]) -> 
                 )
                 break
             if item.get("label") is not None and "label" in item and not isinstance(item["label"], str):
-                e.append(
+                errors.append(
                     {"section": section, "key": "terminalBindings", "message": f"第 {i + 1} 项 label 须为字符串"}
                 )
                 break
             if item.get("updatedAt") is not None and "updatedAt" in item and not isinstance(item["updatedAt"], str):
-                e.append(
+                errors.append(
                     {
                         "section": section,
                         "key": "terminalBindings",

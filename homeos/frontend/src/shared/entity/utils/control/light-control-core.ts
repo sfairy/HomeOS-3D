@@ -51,14 +51,14 @@ export function pickLightCapabilityAttrs(
 export function lightSupportsRgb(modes: unknown): boolean {
   if (!Array.isArray(modes)) return false
   return modes.some(
-    (m) => m === 'rgb' || m === 'hs' || m === 'xy' || m === 'rgbw' || m === 'rgbww',
+    (mode) => mode === 'rgb' || mode === 'hs' || mode === 'xy' || mode === 'rgbw' || mode === 'rgbww',
   )
 }
 
 /** 是否支持色温模式 */
 export function lightSupportsColorTemp(modes: unknown): boolean {
   if (!Array.isArray(modes)) return false
-  return modes.some((m) => String(m).includes('color_temp'))
+  return modes.some((mode) => String(mode).includes('color_temp'))
 }
 
 /** brightness 0–255 → 百分比；关灯且无 brightness 时返回 1（避免滑块归零） */
@@ -81,36 +81,36 @@ export function lightBrightnessFromPct(pct: number): number {
  * 注意：HA 的 `hs_color` / 取色盘用的都是 **HSV**（饱和度 = d/max），不是 HSL。
  * 公式是 HSV（c = s·v、m = v − c），调用方不要按 HSL 解释。
  */
-export function hsvToRgb(h: number, s: number): { r: number; g: number; b: number } {
-  const c = s / 100
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = 1 - c
-  let r = 0,
-    g = 0,
-    b = 0
+export function hsvToRgb(h: number, saturation: number): { r: number; g: number; b: number } {
+  const chroma = saturation / 100
+  const x = chroma * (1 - Math.abs(((h / 60) % 2) - 1))
+  const minValue = 1 - chroma
+  let red = 0,
+    green = 0,
+    blue = 0
   if (h < 60) {
-    r = c
-    g = x
+    red = chroma
+    green = x
   } else if (h < 120) {
-    r = x
-    g = c
+    red = x
+    green = chroma
   } else if (h < 180) {
-    g = c
-    b = x
+    green = chroma
+    blue = x
   } else if (h < 240) {
-    g = x
-    b = c
+    green = x
+    blue = chroma
   } else if (h < 300) {
-    r = x
-    b = c
+    red = x
+    blue = chroma
   } else {
-    r = c
-    b = x
+    red = chroma
+    blue = x
   }
   return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255),
+    r: Math.round((red + minValue) * 255),
+    g: Math.round((green + minValue) * 255),
+    b: Math.round((blue + minValue) * 255),
   }
 }
 
@@ -121,23 +121,23 @@ export function hsvToRgb(h: number, s: number): { r: number; g: number; b: numbe
  * 后者与 hsvToRgb 不互逆，非纯色（如 rgb(200,100,100)）回显饱和度偏小，
  * 取色盘位置与实体实际颜色对不上。
  */
-export function rgbToHs(r: number, g: number, b: number): { h: number; s: number } {
-  r /= 255
-  g /= 255
-  b /= 255
-  const max = Math.max(r, g, b),
-    min = Math.min(r, g, b)
+export function rgbToHs(red: number, green: number, blue: number): { h: number; s: number } {
+  red /= 255
+  green /= 255
+  blue /= 255
+  const max = Math.max(red, green, blue),
+    min = Math.min(red, green, blue)
   let h = 0,
-    s = 0
-  const d = max - min
-  if (d !== 0) {
+    saturation = 0
+  const delta = max - min
+  if (delta !== 0) {
     // HSV 饱和度：d / max（HSL 是 d / (1 - |2l - 1|)，两者仅在纯色下相等）
-    s = max === 0 ? 0 : d / max
-    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
-    else if (max === g) h = ((b - r) / d + 2) * 60
-    else h = ((r - g) / d + 4) * 60
+    saturation = max === 0 ? 0 : delta / max
+    if (max === red) h = ((green - blue) / delta + (green < blue ? 6 : 0)) * 60
+    else if (max === green) h = ((blue - red) / delta + 2) * 60
+    else h = ((red - green) / delta + 4) * 60
   }
-  return { h: Math.round(h), s: Math.round(s * 100) }
+  return { h: Math.round(h), s: Math.round(saturation * 100) }
 }
 
 /** 构建 light.turn_on 的 data（亮度百分比可选） */

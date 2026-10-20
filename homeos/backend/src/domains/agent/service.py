@@ -731,9 +731,9 @@ class AgentService:
             return f"user:{actor.user_id or actor.username}"
         return "anon"
 
-    def _t(self, zh: str, en: str) -> str:
+    def _t(self, zh_text: str, en_text: str) -> str:
         """按当前语言模板选择文案。"""
-        return zh if self._L.lang == "zh" else en
+        return zh_text if self._L.lang == "zh" else en_text
 
     async def _serve_batch_flow(self, ctx: _ChatRunContext) -> AgentChatResponse | None:
         """批量操作：撤销口令 / 上一轮待确认计划的确认与取消。"""
@@ -1685,36 +1685,36 @@ class AgentService:
         return cleaned.strip()
 
     @staticmethod
-    def _is_control_success(name: str, r: dict[str, Any]) -> bool:
+    def _is_control_success(name: str, response: dict[str, Any]) -> bool:
         """判定一次控制调用是否成功。"""
-        if not r or r.get("error"):
+        if not response or response.get("error"):
             return False
         if name == "control_device":
-            return r.get("success") is True
+            return response.get("success") is True
         # 细粒度控制工具：内部同样复用 _control_device，结果带 success
         if name in ("set_light_brightness", "set_cover_position", "media_control"):
-            return r.get("success") is True
+            return response.get("success") is True
         # HA 场景 / 脚本：activate_scene 返回 { success, entity_id, ... }
         if name == "activate_scene":
-            return r.get("success") is True and r.get("blocked") is not True
+            return response.get("success") is True and response.get("blocked") is not True
         if name == "control_room":
-            total = r.get("total")
+            total = response.get("total")
             return (
                 _is_number(total)
                 and total > 0
-                and r.get("affected") == total
+                and response.get("affected") == total
             )
         return False
 
     @staticmethod
-    def _is_blocked(r: dict[str, Any]) -> bool:
+    def _is_blocked(response: dict[str, Any]) -> bool:
         """判定工具结果是否包含被安全策略拦截的设备。"""
-        if not r:
+        if not response:
             return False
-        if r.get("blocked") is True:
+        if response.get("blocked") is True:
             return True
-        if isinstance(r.get("results"), list):
-            return any(isinstance(x, dict) and x.get("blocked") for x in r["results"])
+        if isinstance(response.get("results"), list):
+            return any(isinstance(x, dict) and x.get("blocked") for x in response["results"])
         return False
 
 

@@ -28,7 +28,7 @@ export function useSecurityModes() {
   const activeSmTab = ref('armed_away')
   const securityModesList = computed(() => layoutStore.layoutConfig.securityModes || [])
   const activeSmMode = computed(() =>
-    securityModesList.value.filter((m) => m.key === activeSmTab.value),
+    securityModesList.value.filter((modeEntry) => modeEntry.key === activeSmTab.value),
   )
   const isEmergencyTab = computed(() => activeSmTab.value === EMERGENCY_TAB)
 
@@ -77,12 +77,12 @@ export function useSecurityModes() {
   function applySecurityModePreset(modeKey: string) {
     const preset = getSecurityModePresets()[modeKey]
     if (!preset) return
-    const midx = securityModesList.value.findIndex((m) => m.key === modeKey)
+    const midx = securityModesList.value.findIndex((modeEntry) => modeEntry.key === modeKey)
     if (midx < 0) return
     const mode = layoutStore.layoutConfig.securityModes[midx]
-    mode.actions = preset.actions.map((a: { entity_id?: string; domain?: string; service?: string; service_data?: Record<string, unknown> }) => ({
-      ...a,
-      service_data: a.service_data ? { ...a.service_data } : undefined,
+    mode.actions = preset.actions.map((action: { entity_id?: string; domain?: string; service?: string; service_data?: Record<string, unknown> }) => ({
+      ...action,
+      service_data: action.service_data ? { ...action.service_data } : undefined,
     }))
     chrome.notify(
       `已应用「${preset.name}」预设（${mode.actions.length} 条动作，请映射实体后保存布局）`,
@@ -91,11 +91,11 @@ export function useSecurityModes() {
   }
 
   const securityModeLinks = computed(() => {
-    const lc = layoutStore.layoutConfig
-    if (!lc.securityModeLinks || typeof lc.securityModeLinks !== 'object') {
-      lc.securityModeLinks = { armed_away: '', armed_home: '', armed_night: '', disarmed: '' }
+    const layoutConfig = layoutStore.layoutConfig
+    if (!layoutConfig.securityModeLinks || typeof layoutConfig.securityModeLinks !== 'object') {
+      layoutConfig.securityModeLinks = { armed_away: '', armed_home: '', armed_night: '', disarmed: '' }
     }
-    return lc.securityModeLinks
+    return layoutConfig.securityModeLinks
   })
 
   function modeIcon(key: string) {
@@ -163,14 +163,14 @@ export function useSecurityModes() {
     const payload: Record<string, unknown> = {
       version: 3,
       exportedAt: new Date().toISOString(),
-      modes: securityModesList.value.map((m) => ({
-        key: m.key,
-        name: m.name,
-        icon: m.icon,
-        actions: (m.actions || []).map((a) => ({
-          entity_id: a.entity_id || '',
-          domain: a.domain || '',
-          service: a.service || '',
+      modes: securityModesList.value.map((modeEntry) => ({
+        key: modeEntry.key,
+        name: modeEntry.name,
+        icon: modeEntry.icon,
+        actions: (modeEntry.actions || []).map((action) => ({
+          entity_id: action.entity_id || '',
+          domain: action.domain || '',
+          service: action.service || '',
         })),
       })),
       emergency: {
@@ -181,11 +181,11 @@ export function useSecurityModes() {
         lightPool: [...(cfg.lightPool || [])],
         autoArmAway: !!cfg.autoArmAway,
         useBuiltinFallback: cfg.useBuiltinFallback !== false,
-        actions: (cfg.actions || []).map((a) => ({
-          entity_id: a.entity_id || '',
-          domain: a.domain || '',
-          service: a.service || '',
-          service_data: a.service_data || undefined,
+        actions: (cfg.actions || []).map((action) => ({
+          entity_id: action.entity_id || '',
+          domain: action.domain || '',
+          service: action.service || '',
+          service_data: action.service_data || undefined,
         })),
       },
       securityModeLinks: { ...securityModeLinks.value },
@@ -211,22 +211,22 @@ export function useSecurityModes() {
           let merged = 0
           for (const item of incoming) {
             if (!item?.key) continue
-            const idx = modes.findIndex((m) => m.key === item.key)
+            const idx = modes.findIndex((modeEntry) => modeEntry.key === item.key)
             if (idx < 0) continue
             if (item.name) modes[idx].name = item.name
             if (item.icon) modes[idx].icon = item.icon
             if (Array.isArray(item.actions)) {
               modes[idx].actions = item.actions.map(
-                (a: {
+                (action: {
                   entity_id?: string
                   domain?: string
                   service?: string
                   service_data?: Record<string, unknown>
                 }) => ({
-                entity_id: a.entity_id || '',
-                domain: a.domain || '',
-                service: a.service || '',
-                service_data: a.service_data || undefined,
+                entity_id: action.entity_id || '',
+                domain: action.domain || '',
+                service: action.service || '',
+                service_data: action.service_data || undefined,
               }),
               )
               merged++
@@ -256,9 +256,9 @@ export function useSecurityModes() {
             merged ? 'success' : 'info',
           )
           resolve(merged)
-        } catch (e) {
+        } catch (error) {
           chrome.notify('导入失败：JSON 格式无效', 'error')
-          reject(e)
+          reject(error)
         }
       }
       reader.onerror = reject

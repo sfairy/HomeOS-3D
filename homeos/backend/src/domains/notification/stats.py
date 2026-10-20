@@ -126,8 +126,8 @@ def _parse_bucket_key(bucket_key: Any, granularity: str) -> int | None:
     return int(parsed.replace(tzinfo=UTC).timestamp() * 1000)
 
 
-def _format_time_label(ts: int, granularity: str) -> str:
-    moment = datetime.fromtimestamp(ts / 1000, tz=UTC)
+def _format_time_label(timestamp: int, granularity: str) -> str:
+    moment = datetime.fromtimestamp(timestamp / 1000, tz=UTC)
     if granularity == "hour":
         return f"{moment.hour:02d}:00"
     return f"{moment.month}/{moment.day}"

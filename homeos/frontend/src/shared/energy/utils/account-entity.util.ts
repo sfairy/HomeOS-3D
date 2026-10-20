@@ -121,8 +121,8 @@ export function resolveMultiAccountEntityMap(
 ): Record<string, string> {
   if (Array.isArray(cfg?.multiAccounts) && cfg.multiAccounts.length) {
     const count = cfg.multiAccounts.length
-    const idx = resolvePrimaryAccountRowIndex(cfg, count)
-    const row = cfg.multiAccounts[accountIndex] || cfg.multiAccounts[idx] || cfg.multiAccounts[0]
+    const primaryRowIndex = resolvePrimaryAccountRowIndex(cfg, count)
+    const row = cfg.multiAccounts[accountIndex] || cfg.multiAccounts[primaryRowIndex] || cfg.multiAccounts[0]
     return row?.entityMap || {}
   }
   const rows = resolveMultiAccountEntries(cfg)
@@ -183,8 +183,8 @@ export function syncEntityAccounts(src: Record<string, unknown>): void {
   if (count > 0) {
     src.primaryAccountIndex = resolvePrimaryAccountRowIndex(src as EnergyAccountSourceLike, count)
   }
-  const idx = typeof src.primaryAccountIndex === 'number' ? src.primaryAccountIndex : 0
-  const primary = rows[idx] || rows[0]
+  const primaryAccountIdxValue = typeof src.primaryAccountIndex === 'number' ? src.primaryAccountIndex : 0
+  const primary = rows[primaryAccountIdxValue] || rows[0]
   const nextEntityId = primary?.entityId?.trim() || ''
   if (src.entityId !== nextEntityId) src.entityId = nextEntityId
 }
@@ -232,9 +232,9 @@ export function syncMultiAccounts(src: Record<string, unknown>): void {
   if (count > 0) {
     src.primaryAccountIndex = resolvePrimaryAccountRowIndex(src as EnergyAccountSourceLike, count)
   }
-  const idx = typeof src.primaryAccountIndex === 'number' ? src.primaryAccountIndex : 0
+  const multiPrimaryIdxValue = typeof src.primaryAccountIndex === 'number' ? src.primaryAccountIndex : 0
   const primary =
-    (src.multiAccounts as EnergyMultiAccountEntry[])[idx] ||
+    (src.multiAccounts as EnergyMultiAccountEntry[])[multiPrimaryIdxValue] ||
     (src.multiAccounts as EnergyMultiAccountEntry[])[0]
   const nextEntityId = primary?.entityId?.trim() || ''
   const nextEntityMap = { ...(primary?.entityMap || {}) }

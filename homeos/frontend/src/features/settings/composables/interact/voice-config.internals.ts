@@ -92,10 +92,10 @@ function domainEntityPrefix(domain: unknown) {
 
 function normalizeEntityMatch(domain: unknown, entityMatch: unknown) {
   const prefix = domainEntityPrefix(domain)
-  const m = String(entityMatch || '').trim()
-  if (!m || m === prefix) return prefix
-  if (!m.startsWith(prefix)) return prefix
-  return m
+  const normalized = String(entityMatch || '').trim()
+  if (!normalized || normalized === prefix) return prefix
+  if (!normalized.startsWith(prefix)) return prefix
+  return normalized
 }
 
 function normalizeCommand(cmd: Partial<VoiceCommand> & Record<string, unknown>) {
@@ -143,26 +143,26 @@ export function useVoiceConfig() {
     }
     try {
       const data = await loadSystemConfig()
-      const v = data?.voice || {}
-      const rawCustom = normalizeCustomTtsAlerts(v.customTtsAlerts).map(enrichCustomAlert)
-      const rawEntity = normalizeEntityTtsAlerts(v.entityTtsAlerts).map(enrichEntityTtsAlert)
+      const voiceConfig = data?.voice || {}
+      const rawCustom = normalizeCustomTtsAlerts(voiceConfig.customTtsAlerts).map(enrichCustomAlert)
+      const rawEntity = normalizeEntityTtsAlerts(voiceConfig.entityTtsAlerts).map(enrichEntityTtsAlert)
       voice.value = {
-        ttsEnabled: v.ttsEnabled !== false,
-        ttsOutputMode: normalizeTtsOutputMode(v.ttsOutputMode),
-        sttMode: v.sttMode === 'ha' ? 'ha' : v.sttMode === 'auto' ? 'auto' : 'browser',
-        language: v.language || 'zh-CN',
-        sttEntityId: v.sttEntityId || '',
-        useHaConversation: !!v.useHaConversation,
-        dailyAdvisorSpeak: !!v.dailyAdvisorSpeak,
-        dailyAdvisorSpeakHour: Number(v.dailyAdvisorSpeakHour ?? 20),
-        dailyAdvisorTtsDaytime: String(v.dailyAdvisorTtsDaytime || '').trim(),
-        dailyAdvisorTtsEvening: String(v.dailyAdvisorTtsEvening || '').trim(),
-        interactionMode: v.interactionMode === 'wake' ? 'wake' : 'push',
-        wakeWordEnabled: !!v.wakeWordEnabled,
-        continuousConversation: !!v.continuousConversation,
-        wakeWords: normalizeWakeWords(v),
-        ttsAlerts: mergeVoiceAlertRules(v.ttsAlerts),
-        ttsAlertTemplates: { ...(v.ttsAlertTemplates || {}) } as Record<string, string>,
+        ttsEnabled: voiceConfig.ttsEnabled !== false,
+        ttsOutputMode: normalizeTtsOutputMode(voiceConfig.ttsOutputMode),
+        sttMode: voiceConfig.sttMode === 'ha' ? 'ha' : voiceConfig.sttMode === 'auto' ? 'auto' : 'browser',
+        language: voiceConfig.language || 'zh-CN',
+        sttEntityId: voiceConfig.sttEntityId || '',
+        useHaConversation: !!voiceConfig.useHaConversation,
+        dailyAdvisorSpeak: !!voiceConfig.dailyAdvisorSpeak,
+        dailyAdvisorSpeakHour: Number(voiceConfig.dailyAdvisorSpeakHour ?? 20),
+        dailyAdvisorTtsDaytime: String(voiceConfig.dailyAdvisorTtsDaytime || '').trim(),
+        dailyAdvisorTtsEvening: String(voiceConfig.dailyAdvisorTtsEvening || '').trim(),
+        interactionMode: voiceConfig.interactionMode === 'wake' ? 'wake' : 'push',
+        wakeWordEnabled: !!voiceConfig.wakeWordEnabled,
+        continuousConversation: !!voiceConfig.continuousConversation,
+        wakeWords: normalizeWakeWords(voiceConfig),
+        ttsAlerts: mergeVoiceAlertRules(voiceConfig.ttsAlerts),
+        ttsAlertTemplates: { ...(voiceConfig.ttsAlertTemplates || {}) } as Record<string, string>,
         customTtsAlerts: rawCustom as VoiceConfigState['customTtsAlerts'],
         entityTtsAlerts: rawEntity as VoiceConfigState['entityTtsAlerts'],
       }
@@ -178,10 +178,10 @@ export function useVoiceConfig() {
       voiceCommands.value = (data?.voiceCommands || []).map(normalizeCommand)
       voiceLoaded = true
       return true
-    } catch (e) {
-      logger.error('加载语音配置失败', e)
+    } catch (error) {
+      logger.error('加载语音配置失败', error)
       if (!options.silent) {
-        loadError.value = getApiErrorMessage(e, '加载语音配置失败')
+        loadError.value = getApiErrorMessage(error, '加载语音配置失败')
         chrome.notify(loadError.value, 'error')
       }
       return false
@@ -195,7 +195,7 @@ export function useVoiceConfig() {
       async () => {
         const cleanedCommands = voiceCommands.value
           .map((cmd) => {
-            const phrases = (cmd.phrases || []).map((p) => String(p).trim()).filter(Boolean)
+            const phrases = (cmd.phrases || []).map((phrase) => String(phrase).trim()).filter(Boolean)
             if (!phrases.length) return null
             const out: Record<string, unknown> = {
               phrases,
@@ -215,15 +215,15 @@ export function useVoiceConfig() {
             .filter(([, val]) => val),
         )
         const customAlerts = normalizeCustomTtsAlerts(
-          voice.value.customTtsAlerts.map((r) => ({
-            ...r,
-            messageTemplate: composeCustomAlertTemplate(r.speechMode || 'trigger', r.speechText),
+          voice.value.customTtsAlerts.map((customAlert) => ({
+            ...customAlert,
+            messageTemplate: composeCustomAlertTemplate(customAlert.speechMode || 'trigger', customAlert.speechText),
           })),
         )
         const entityAlerts = normalizeEntityTtsAlerts(
-          voice.value.entityTtsAlerts.map((r) => ({
-            ...r,
-            messageTemplate: composeCustomAlertTemplate(r.speechMode || 'trigger', r.speechText),
+          voice.value.entityTtsAlerts.map((entityAlert) => ({
+            ...entityAlert,
+            messageTemplate: composeCustomAlertTemplate(entityAlert.speechMode || 'trigger', entityAlert.speechText),
           })),
         )
         const wakeWords = normalizeWakeWords(voice.value)
@@ -255,13 +255,13 @@ export function useVoiceConfig() {
         return true
       },
       {
-        onError: async (e: unknown) => {
-          if (isSystemConfigConflictError(e)) {
+        onError: async (error: unknown) => {
+          if (isSystemConfigConflictError(error)) {
             await load({ silent: true })
             return
           }
-          logger.error('保存语音配置失败', e)
-          chrome.notify(getApiErrorMessage(e, '保存语音配置失败'), 'error')
+          logger.error('保存语音配置失败', error)
+          chrome.notify(getApiErrorMessage(error, '保存语音配置失败'), 'error')
         },
       },
     )
@@ -288,13 +288,13 @@ export function useVoiceConfig() {
   function setPhrasesText(cmd: VoiceCommand, text: string) {
     cmd.phrases = String(text || '')
       .split(/[,，]/)
-      .map((s) => s.trim())
+      .map((part) => part.trim())
       .filter(Boolean)
   }
 
   async function fetchCommandPresets() {
     const { data } = await fetchVoicePresets()
-    return (data?.presets || []).map((c: unknown) => normalizeCommand(c as Partial<VoiceCommand> & Record<string, unknown>))
+    return (data?.presets || []).map((preset: unknown) => normalizeCommand(preset as Partial<VoiceCommand> & Record<string, unknown>))
   }
 
   async function importWholeHomePresets(replace = false) {
@@ -304,13 +304,13 @@ export function useVoiceConfig() {
       return presets.length
     }
     const existing = new Set(
-      voiceCommands.value.map((c) => `${c.domain}.${c.service}:${(c.phrases || []).join('|')}`),
+      voiceCommands.value.map((command) => `${command.domain}.${command.service}:${(command.phrases || []).join('|')}`),
     )
     let added = 0
-    for (const p of presets) {
-      const key = `${p.domain}.${p.service}:${(p.phrases || []).join('|')}`
+    for (const preset of presets) {
+      const key = `${preset.domain}.${preset.service}:${(preset.phrases || []).join('|')}`
       if (existing.has(key)) continue
-      voiceCommands.value.push(p)
+      voiceCommands.value.push(preset)
       existing.add(key)
       added++
     }
@@ -320,7 +320,7 @@ export function useVoiceConfig() {
   function addEntityTtsAlert(entityId = '') {
     const id = String(entityId || '').trim()
     if (id) {
-      const dup = voice.value.entityTtsAlerts.some((r) => r.entityId === id)
+      const dup = voice.value.entityTtsAlerts.some((alertRule) => alertRule.entityId === id)
       if (dup) {
         chrome.notify(`实体 ${id} 已在播报列表中`, 'info')
         return false

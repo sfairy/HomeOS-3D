@@ -64,8 +64,8 @@ export function useAppConfigBackup(options: { notify?: boolean } = {}) {
       tip(replace ? '系统参数已全量导入' : '系统参数已合并导入', 'success', 5000)
       return replace ? 'replace' : 'merge'
     } catch (e) {
-      const msg = getApiErrorMessage(e, '')
-      tip(typeof msg === 'string' ? msg.slice(0, 120) : '系统参数导入失败', 'error')
+      const errorMessage = getApiErrorMessage(e, '')
+      tip(typeof errorMessage === 'string' ? errorMessage.slice(0, 120) : '系统参数导入失败', 'error')
       return false
     } finally {
       appConfigImporting.value = false

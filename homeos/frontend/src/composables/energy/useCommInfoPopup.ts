@@ -22,25 +22,25 @@ import {
   type CommCarrier,
 } from '@/shared/energy/utils/comm-carrier.util'
 
-function n(s: unknown) {
-  const v = parseFloat(String(s ?? ''))
-  return Number.isNaN(v) ? null : v
+function parseNumber(inputValue: unknown) {
+  const parsedValue = parseFloat(String(inputValue ?? ''))
+  return Number.isNaN(parsedValue) ? null : parsedValue
 }
 
 function fmtPct(raw: unknown) {
   if (raw == null || raw === '') return '--'
-  const v = n(String(raw).replace('%', ''))
-  return v != null ? v.toFixed(0) : '--'
+  const parsedValue = parseNumber(String(raw).replace('%', ''))
+  return parsedValue != null ? parsedValue.toFixed(0) : '--'
 }
 
 function pctVal(raw: unknown) {
-  const v = n(String(raw ?? '').replace('%', ''))
-  if (v == null) return 0
-  return Math.min(100, Math.max(0, v))
+  const parsedValue = parseNumber(String(raw ?? '').replace('%', ''))
+  if (parsedValue == null) return 0
+  return Math.min(100, Math.max(0, parsedValue))
 }
 
-function ringSizeTier(val: string | number | null | undefined) {
-  const len = String(val ?? '--').length
+function ringSizeTier(textValue: string | number | null | undefined) {
+  const len = String(textValue ?? '--').length
   if (len <= 4) return 'md'
   if (len <= 6) return 'sm'
   return 'xs'
@@ -81,8 +81,8 @@ const FIELD_KEYS = [
 
 type FieldKey = (typeof FIELD_KEYS)[number]
 
-function hasVal(v: string) {
-  return v !== '--' && v !== ''
+function hasVal(value: string) {
+  return value !== '--' && value !== ''
 }
 
 /**
@@ -90,13 +90,13 @@ function hasVal(v: string) {
  * 字段对齐 china_comm CT/CU 综合余额 attributes + 单项实体后缀。
  */
 export function useCommInfoPopup(props: { entityId?: string }) {
-  const es = useEntitiesStore()
+  const entitiesStore = useEntitiesStore()
   const layout = useLayoutStore()
   const activeEntityId = ref(props.entityId || '')
   watch(
     () => props.entityId,
-    (v) => {
-      activeEntityId.value = v || activeEntityId.value
+    (entityId) => {
+      activeEntityId.value = entityId || activeEntityId.value
     },
   )
 
@@ -127,13 +127,13 @@ export function useCommInfoPopup(props: { entityId?: string }) {
   function accountLabel(eid: string) {
     const fromConfig = resolveAccountLabelForEntityId(commCat.value, eid, sourceCfg.value)
     if (fromConfig) return fromConfig
-    return getEntityDisplayName(eid, es.entities[eid])
+    return getEntityDisplayName(eid, entitiesStore.entities[eid])
   }
 
   const fields = computed(() => {
     const cat = commCat.value
     const stats = layout.layoutConfig.statsSensors
-    const entities = es.entities
+    const entities = entitiesStore.entities
     const eid = activeEntityId.value
     const cfg = sourceCfg.value
     const out = {} as Record<FieldKey, unknown>
@@ -143,11 +143,11 @@ export function useCommInfoPopup(props: { entityId?: string }) {
     return out
   })
 
-  const ent = computed(() => es.entities[activeEntityId.value] || null)
+  const ent = computed(() => entitiesStore.entities[activeEntityId.value] || null)
 
   const balance = computed(() => {
-    const v = n(fields.value.balance) ?? n(ent.value?.state)
-    return v != null ? v.toFixed(2) : '--'
+    const parsedValue = parseNumber(fields.value.balance) ?? parseNumber(ent.value?.state)
+    return parsedValue != null ? parsedValue.toFixed(2) : '--'
   })
   const monthlyFee = computed(() => formatNum(fields.value.monthlyFee, 1))
   const arrear = computed(() => formatNum(fields.value.arrear, 2))

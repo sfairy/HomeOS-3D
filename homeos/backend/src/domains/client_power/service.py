@@ -130,17 +130,17 @@ class ClientPowerService:
                 self._refresh_online_flags,
             )
 
-    async def _run_job(self, name: str, options: dict[str, Any], fn: Any) -> None:
+    async def _run_job(self, name: str, options: dict[str, Any], job_fn: Any) -> None:
         if self._jobs is None:
             try:
-                result = fn()
+                result = job_fn()
                 if inspect.isawaitable(result):
                     await result
             except Exception as exc:
                 logger.warning("客户端电量作业失败 [%s]: %s", name, exc)
             return
         try:
-            await self._jobs.run(name, options, fn)
+            await self._jobs.run(name, options, job_fn)
         except Exception as exc:
             logger.warning("客户端电量作业失败 [%s]: %s", name, exc)
 

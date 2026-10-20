@@ -112,8 +112,8 @@ export function useDraftObjectField<T extends Record<string, unknown>>(
     field(key) {
       return computed({
         get: () => getDraft()[key],
-        set: (val) => {
-          getDraft()[key] = val
+        set: (nextValue) => {
+          getDraft()[key] = nextValue
         },
       })
     },

@@ -41,9 +41,9 @@ function profileLabel(projectId: string) {
 function formatLastSaved(updatedAt: string | null | undefined) {
   if (!updatedAt) return '尚未保存'
   try {
-    const t = new Date(updatedAt)
-    if (Number.isNaN(t.getTime())) return '时间未知'
-    return '上次保存: {time}'.replace('{time}', formatFullDateTime(t))
+    const updatedDate = new Date(updatedAt)
+    if (Number.isNaN(updatedDate.getTime())) return '时间未知'
+    return '上次保存: {time}'.replace('{time}', formatFullDateTime(updatedDate))
   } catch {
     return '时间未知'
   }
@@ -81,18 +81,18 @@ function useProfilesServerBackups() {
     autoBackupLoading.value = true
     try {
       const { data } = await fetchAutoBackupStatus()
-      const s = data?.data ?? data
-      if (s && typeof s === 'object') {
+      const statusData = data?.data ?? data
+      if (statusData && typeof statusData === 'object') {
         autoBackup.value = {
-          enabled: s.enabled !== false,
-          retainDays: Number.isFinite(s.retainDays) ? s.retainDays : 7,
-          lastRunAt: s.lastRunAt ?? null,
-          lastError: s.lastError ?? null,
-          nextRunAt: s.nextRunAt ?? '',
+          enabled: statusData.enabled !== false,
+          retainDays: Number.isFinite(statusData.retainDays) ? statusData.retainDays : 7,
+          lastRunAt: statusData.lastRunAt ?? null,
+          lastError: statusData.lastError ?? null,
+          nextRunAt: statusData.nextRunAt ?? '',
         }
       }
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '加载自动备份状态失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '加载自动备份状态失败'), 'error')
     } finally {
       autoBackupLoading.value = false
     }
@@ -107,12 +107,12 @@ function useProfilesServerBackups() {
       await patchSystemConfig({ ops })
       await loadAutoBackupStatus()
       chrome.notify('自动备份设置已保存', 'success')
-    } catch (e) {
-      if (await handleSystemConfigPatchError(e, chrome)) {
+    } catch (error) {
+      if (await handleSystemConfigPatchError(error, chrome)) {
         await loadAutoBackupStatus()
         return
       }
-      chrome.notify(getApiErrorMessage(e, '保存自动备份设置失败'), 'error')
+      chrome.notify(getApiErrorMessage(error, '保存自动备份设置失败'), 'error')
     } finally {
       autoBackupSaving.value = false
     }
@@ -146,8 +146,8 @@ function useProfilesServerBackups() {
       const { data } = await fetchServerBackupFiles()
       const list = data?.data ?? data
       backupFiles.value = Array.isArray(list) ? list : []
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '加载备份文件列表失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '加载备份文件列表失败'), 'error')
       backupFiles.value = []
     } finally {
       backupFilesLoading.value = false
@@ -161,8 +161,8 @@ function useProfilesServerBackups() {
       const name = data?.name ?? data?.data?.name
       chrome.notify(name ? `备份包已写入 ${name}` : '备份包已写入服务器', 'success', 5000)
       await loadBackupFiles()
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '立即备份失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '立即备份失败'), 'error')
     } finally {
       backupRunNowLoading.value = false
     }
@@ -180,8 +180,8 @@ function useProfilesServerBackups() {
       await deleteServerBackupFile(name)
       chrome.notify('备份包已删除', 'success')
       await loadBackupFiles()
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '删除失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '删除失败'), 'error')
     } finally {
       backupFileActionName.value = ''
       backupFileActionKind.value = ''
@@ -204,8 +204,8 @@ function useProfilesServerBackups() {
       const destination = await resolvePostRestoreDestination()
       chrome.notify(destination.message, 'success', 5000)
       navigateAfterRestore(destination)
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '还原失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '还原失败'), 'error')
       backupFileActionName.value = ''
       backupFileActionKind.value = ''
     }
@@ -219,8 +219,8 @@ function useProfilesServerBackups() {
       const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
       downloadBlob(blob, name)
       chrome.notify('备份包已下载到本地', 'success')
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '下载失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '下载失败'), 'error')
     } finally {
       backupFileActionName.value = ''
       backupFileActionKind.value = ''
@@ -266,7 +266,7 @@ function useProfilesTerminalBindings() {
   const defaultsSaving = ref(false)
 
   const localBinding = computed(() => {
-    const fromServer = terminalBindings.value.find((b) => b.clientId === localClientId)
+    const fromServer = terminalBindings.value.find((binding) => binding.clientId === localClientId)
     if (fromServer) return fromServer
     return {
       clientId: localClientId,
@@ -277,9 +277,9 @@ function useProfilesTerminalBindings() {
   })
 
   function shortClientId(id: string) {
-    const s = String(id || '')
-    if (s.length <= 12) return s
-    return `${s.slice(0, 8)}…${s.slice(-4)}`
+    const clientIdText = String(id || '')
+    if (clientIdText.length <= 12) return clientIdText
+    return `${clientIdText.slice(0, 8)}…${clientIdText.slice(-4)}`
   }
 
   async function fetchTerminalBindings() {
@@ -288,8 +288,8 @@ function useProfilesTerminalBindings() {
     try {
       const { data } = await fetchTerminalBindingsApi()
       terminalBindings.value = data?.data ?? data ?? []
-    } catch (e) {
-      bindingsError.value = getApiErrorMessage(e, '加载终端绑定失败')
+    } catch (error) {
+      bindingsError.value = getApiErrorMessage(error, '加载终端绑定失败')
       chrome.notify(bindingsError.value, 'error')
       terminalBindings.value = []
     } finally {
@@ -308,8 +308,8 @@ function useProfilesTerminalBindings() {
       ) {
         newTerminalDefault.value = payload.newTerminalDefault
       }
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '加载新终端默认策略失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '加载新终端默认策略失败'), 'error')
     } finally {
       defaultsLoading.value = false
     }
@@ -320,8 +320,8 @@ function useProfilesTerminalBindings() {
     try {
       await updateProjectDefaults({ newTerminalDefault: newTerminalDefault.value })
       chrome.notify('新终端默认策略已保存', 'success')
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '保存失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '保存失败'), 'error')
     } finally {
       defaultsSaving.value = false
     }
@@ -333,8 +333,8 @@ function useProfilesTerminalBindings() {
       await bindSelfTerminalProfile(layoutStore.activeProfileId, localTerminalLabel)
       chrome.notify('本终端已绑定到当前方案', 'success')
       await fetchTerminalBindings()
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '绑定失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '绑定失败'), 'error')
     } finally {
       bindingActionLoading.value = false
     }
@@ -346,8 +346,8 @@ function useProfilesTerminalBindings() {
       await deleteTerminalBinding(clientId)
       chrome.notify('终端绑定已解除', 'success')
       await fetchTerminalBindings()
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '解除绑定失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '解除绑定失败'), 'error')
     } finally {
       bindingActionLoading.value = false
     }
@@ -365,8 +365,8 @@ function useProfilesTerminalBindings() {
       })
       chrome.notify('终端方案已更新', 'success')
       await fetchTerminalBindings()
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '更新终端绑定失败'), 'error')
+    } catch (error) {
+      chrome.notify(getApiErrorMessage(error, '更新终端绑定失败'), 'error')
     } finally {
       bindingActionLoading.value = false
     }

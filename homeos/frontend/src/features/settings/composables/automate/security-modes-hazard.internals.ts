@@ -58,10 +58,10 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
   })
 
   const sceneStaticOptions = computed(() =>
-    scenes.value.map((s) => ({
-      id: s.id,
-      label: s.name || s.id,
-      hint: s.runOnHa ? 'HA 执行' : undefined,
+    scenes.value.map((scene) => ({
+      id: scene.id,
+      label: scene.name || scene.id,
+      hint: scene.runOnHa ? 'HA 执行' : undefined,
     })),
   )
 
@@ -107,7 +107,7 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
 
   const bindingConflictText = computed(() =>
     bindingConflicts.value
-      .map((c) => `${c.entityId}（${c.kinds.map((k) => KIND_LABELS[k] || k).join('、')}）`)
+      .map((conflict) => `${conflict.entityId}（${conflict.kinds.map((k) => KIND_LABELS[k] || k).join('、')}）`)
       .join('；'),
   )
 
@@ -129,8 +129,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
   })
 
   function entityCountLabel(ids: string[]) {
-    const n = (Array.isArray(ids) ? ids : []).filter(Boolean).length
-    return n ? `${n} 个` : '未选择'
+    const count = (Array.isArray(ids) ? ids : []).filter(Boolean).length
+    return count ? `${count} 个` : '未选择'
   }
 
   type SensorKind = 'smoke' | 'gas' | 'leak'
@@ -139,10 +139,10 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
     if (!(Array.isArray(ids) ? ids : []).filter(Boolean).length) {
       return { statusLabel: '未选择', statusTone: 'muted' as const }
     }
-    const kindRows = statusRows.value.filter((r) => r.kind === kind)
-    if (kindRows.some((r) => r.status === 'alert'))
+    const kindRows = statusRows.value.filter((row) => row.kind === kind)
+    if (kindRows.some((row) => row.status === 'alert'))
       return { statusLabel: '告警', statusTone: 'alert' as const }
-    if (kindRows.some((r) => r.status === 'offline'))
+    if (kindRows.some((row) => row.status === 'offline'))
       return { statusLabel: '离线', statusTone: 'offline' as const }
     return { statusLabel: '正常', statusTone: 'ok' as const }
   }
@@ -157,8 +157,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       placeholder: '点击选择烟感实体',
       ids: hazardSmokeEntityIds.value,
       ...sensorFieldStatus('smoke', hazardSmokeEntityIds.value),
-      onUpdate: (v: string[]) => {
-        hazardSmokeEntityIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        hazardSmokeEntityIds.value = nextIds
       },
     },
     {
@@ -170,8 +170,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       placeholder: '点击选择燃气传感器',
       ids: hazardGasEntityIds.value,
       ...sensorFieldStatus('gas', hazardGasEntityIds.value),
-      onUpdate: (v: string[]) => {
-        hazardGasEntityIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        hazardGasEntityIds.value = nextIds
       },
     },
     {
@@ -183,8 +183,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       placeholder: '点击选择水浸传感器',
       ids: hazardLeakEntityIds.value,
       ...sensorFieldStatus('leak', hazardLeakEntityIds.value),
-      onUpdate: (v: string[]) => {
-        hazardLeakEntityIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        hazardLeakEntityIds.value = nextIds
       },
     },
   ])
@@ -200,8 +200,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       placeholder: '点击选择燃气关阀实体',
       ids: gasValveIds.value,
       countLabel: entityCountLabel(gasValveIds.value),
-      onUpdate: (v: string[]) => {
-        gasValveIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        gasValveIds.value = nextIds
       },
     },
     {
@@ -214,8 +214,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       placeholder: '点击选择漏水关阀实体',
       ids: waterValveIds.value,
       countLabel: entityCountLabel(waterValveIds.value),
-      onUpdate: (v: string[]) => {
-        waterValveIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        waterValveIds.value = nextIds
       },
     },
     {
@@ -228,8 +228,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       placeholder: '点击选择排风实体',
       ids: exhaustFanIds.value,
       countLabel: entityCountLabel(exhaustFanIds.value),
-      onUpdate: (v: string[]) => {
-        exhaustFanIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        exhaustFanIds.value = nextIds
       },
     },
     {
@@ -243,8 +243,8 @@ export function useHazardBindingsSection(models: HazardBindingsSectionModels) {
       hint: scenesLoading.value ? '' : '触发时将依次执行所选 HomeOS 场景',
       ids: emergencySceneIds.value,
       countLabel: entityCountLabel(emergencySceneIds.value),
-      onUpdate: (v: string[]) => {
-        emergencySceneIds.value = v
+      onUpdate: (nextIds: string[]) => {
+        emergencySceneIds.value = nextIds
       },
     },
   ])

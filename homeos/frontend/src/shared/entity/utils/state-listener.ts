@@ -259,9 +259,9 @@ export function enqueueStateListenerNotifications(
 export function notifyStateListener(
   deps: EntityStateListenerFlushDeps,
   payload: EntityStateListenerPayload,
-  opts: { immediate?: boolean } = {},
+  flushOptions: { immediate?: boolean } = {},
 ): void {
-  if (opts.immediate) {
+  if (flushOptions.immediate) {
     dispatchStateListener(payload, deps.logger)
     return
   }

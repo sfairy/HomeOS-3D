@@ -348,9 +348,9 @@ router.beforeEach(async (to, from) => {
         // 轮询跳过首跑，避免紧随其后的双发与 CSRF 竞态。
         auth.startSessionRefresh({ runImmediately: false })
       }
-    } catch (err) {
-      logger.error('系统初始化状态检查失败:', err)
-      if (isBackendUnreachableError(err)) {
+    } catch (setupError) {
+      logger.error('系统初始化状态检查失败:', setupError)
+      if (isBackendUnreachableError(setupError)) {
         // 后端不可达：进入 offline 模式，允许重试但不阻塞入户页
         systemInitialized = 'offline'
         if (!offlineNotified) {
@@ -404,10 +404,10 @@ router.beforeEach(async (to, from) => {
           ? await withBackendBootRetry(() => getLicenseAvailability())
           : await getLicenseAvailability()
       setLicenseActivated(!status.data.required || status.data.allowed)
-    } catch (err) {
-      logger.error('商业授权状态检查失败:', err)
+    } catch (licenseError) {
+      logger.error('商业授权状态检查失败:', licenseError)
       if (getLicenseActivated() === null) {
-        if (isBackendUnreachableError(err)) {
+        if (isBackendUnreachableError(licenseError)) {
           // 不可达时不假装已授权（否则随后重试成功会误拉业务 API）
           // 保持 null，下面兜底分支会进入 offline
         } else {
@@ -424,8 +424,8 @@ router.beforeEach(async (to, from) => {
   if (auth.isAuthenticated && !hasLicenseFeatureAccess() && getLicenseActivated()) {
     try {
       setLicenseFeatureAccess((await getLicenseStatus()).data.featureAccess)
-    } catch (err) {
-      logger.warn('功能码门禁明细读取失败，界面按未登记码放行渲染', err)
+    } catch (featureAccessError) {
+      logger.warn('功能码门禁明细读取失败，界面按未登记码放行渲染', featureAccessError)
       setLicenseFeatureAccess({})
     }
   }
@@ -510,8 +510,8 @@ router.beforeEach(async (to, from) => {
     if (!samePathQueryOnly) {
       try {
         await layout.ensureActiveProfileResolved(queryProfile)
-      } catch (err) {
-        logger.warn('解析 display profile 失败', err)
+      } catch (profileError) {
+        logger.warn('解析 display profile 失败', profileError)
       }
     }
     // profile 参数消费后从 URL 中移除，保持地址栏整洁

@@ -92,9 +92,9 @@ async function reload(reset = false) {
     items.value = data.items || [];
     total.value = Number(data.total || 0);
     emit("loaded", data);
-  } catch (err) {
+  } catch (caughtError) {
     if (current !== seq) return;
-    error.value = errorMessage(err, "请稍后重试");
+    error.value = errorMessage(caughtError, "请稍后重试");
     items.value = [];
     total.value = 0;
     emit("failed", error.value);

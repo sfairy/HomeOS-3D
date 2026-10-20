@@ -42,6 +42,10 @@
     "check:studio-split": "node ops/checks/studio/check_split_budget.mjs --phase 3 && node ops/checks/studio/verify_item_model.mjs",
     "test:studio-split": ".venv-store/bin/python -m unittest discover -s ops/checks/studio/tests -v",
     "check:studio-naming": "node ops/checks/studio/check_naming.mjs --report",
+    "naming:report": "node ops/checks/naming/check_naming.mjs --report",
+    "naming:apply": "node ops/checks/naming/rename.mjs",
+    "check:naming": "node ops/checks/naming/check_naming.mjs --check",
+    "test:naming": "node --test ops/checks/naming/tests/",
     "verify:item-model": "node ops/checks/studio/verify_item_model.mjs"
   },
   "workspaces": [

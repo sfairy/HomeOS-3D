@@ -120,8 +120,8 @@ export function buildSourceBuckets(
   notifications: Array<{ source?: string | null }>,
 ): NotificationSourceBucket[] {
   const counts = new Map<string, number>()
-  for (const n of notifications) {
-    const key = normalizeNotificationSource(n.source)
+  for (const notification of notifications) {
+    const key = normalizeNotificationSource(notification.source)
     counts.set(key, (counts.get(key) || 0) + 1)
   }
   return [...counts.entries()]
@@ -152,8 +152,8 @@ export function buildLevelBuckets(
 ): NotificationLevelBucket[] {
   const order = ['danger', 'warn', 'success', 'info']
   const counts = new Map<string, number>()
-  for (const n of notifications) {
-    const level = String(n.level || 'info')
+  for (const notification of notifications) {
+    const level = String(notification.level || 'info')
     counts.set(level, (counts.get(level) || 0) + 1)
   }
   return order
@@ -180,9 +180,9 @@ export function buildLevelBucketsFromStats(
     }))
 }
 
-function resolveNotificationTimestamp(n: { createdAt?: string | null; time?: string | null }) {
-  if (n.createdAt) {
-    const ts = Date.parse(n.createdAt)
+function resolveNotificationTimestamp(notification: { createdAt?: string | null; time?: string | null }) {
+  if (notification.createdAt) {
+    const ts = Date.parse(notification.createdAt)
     if (Number.isFinite(ts)) return ts
   }
   return Date.now()
@@ -201,8 +201,8 @@ export function buildTimeBucketsFromNotifications(
   const map = new Map<number, number>()
   for (let ts = start; ts <= end; ts += bucketMs) map.set(ts, 0)
 
-  for (const n of notifications) {
-    const raw = resolveNotificationTimestamp(n)
+  for (const notification of notifications) {
+    const raw = resolveNotificationTimestamp(notification)
     const key = Math.floor(raw / bucketMs) * bucketMs
     if (!map.has(key)) map.set(key, 0)
     map.set(key, (map.get(key) || 0) + 1)
@@ -218,9 +218,9 @@ export function buildTimeBucketsFromNotifications(
 }
 
 function formatTimeBucketLabel(ts: number, granularity: 'hour' | 'day') {
-  const d = new Date(ts)
-  if (granularity === 'hour') return `${String(d.getHours()).padStart(2, '0')}:00`
-  return `${d.getMonth() + 1}/${d.getDate()}`
+  const date = new Date(ts)
+  if (granularity === 'hour') return `${String(date.getHours()).padStart(2, '0')}:00`
+  return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
 export function computeNotificationAnalyticsSummary(
@@ -251,11 +251,11 @@ export function computeNotificationAnalyticsSummary(
   const peak = [...timeBuckets].sort((a, b) => b.count - a.count)[0] || null
 
   const total = useStats ? stats.total : notifications.length
-  const unread = useStats ? stats.unread : notifications.filter((n) => !n.read).length
-  const read = useStats ? stats.read : notifications.filter((n) => n.read).length
+  const unread = useStats ? stats.unread : notifications.filter((notification) => !notification.read).length
+  const read = useStats ? stats.read : notifications.filter((notification) => notification.read).length
   const delivered = useStats
     ? stats.delivered
-    : notifications.filter((n) => Boolean(n.deliveredAt)).length
+    : notifications.filter((notification) => Boolean(notification.deliveredAt)).length
 
   return {
     total,
@@ -270,10 +270,10 @@ export function computeNotificationAnalyticsSummary(
         : 0,
     dangerCount: useStats
       ? stats.byLevel.danger || 0
-      : notifications.filter((n) => n.level === 'danger').length,
+      : notifications.filter((notification) => notification.level === 'danger').length,
     warnCount: useStats
       ? stats.byLevel.warn || 0
-      : notifications.filter((n) => n.level === 'warn').length,
+      : notifications.filter((notification) => notification.level === 'warn').length,
     sourceCount: sources.length,
     topSourceKey: topSource?.key || null,
     topSourceLabel: topSource?.label || null,
@@ -287,17 +287,17 @@ export function computeNotificationAnalyticsSummary(
   }
 }
 
-export function formatNotificationCount(n: number) {
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return String(n)
+export function formatNotificationCount(count: number) {
+  if (count >= 10000) return `${(count / 1000).toFixed(1)}k`
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`
+  return String(count)
 }
 
 /** 百分比格式化：统一保留 2 位小数，规避浮点尾差（如 81.82000000000001%）。 */
 export function formatPercent(value: number) {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return '0.00%'
-  return `${n.toFixed(2)}%`
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) return '0.00%'
+  return `${numericValue.toFixed(2)}%`
 }
 
 export function levelFilterLabel(level: string) {

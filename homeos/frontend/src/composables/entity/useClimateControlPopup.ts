@@ -101,10 +101,10 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
 
   /** 状态色 class：制冷蓝、制热橙、关闭灰、其它默认。 */
   const stateColor = computed(() => {
-    const s = liveEntity.value?.state
-    if (s === 'cool') return 'ccp-state-cool'
-    if (s === 'heat') return 'ccp-state-heat'
-    if (s === 'off') return 'ccp-state-off'
+    const state = liveEntity.value?.state
+    if (state === 'cool') return 'ccp-state-cool'
+    if (state === 'heat') return 'ccp-state-heat'
+    if (state === 'off') return 'ccp-state-off'
     return 'ccp-state-default'
   })
 
@@ -120,12 +120,12 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
    * 最终经 clampInRange 钳制到 [minTemp, maxTemp]，越界回退 24。
    */
   const targetTemp = computed(() => {
-    const a = liveEntity.value?.attributes || {}
-    let v
-    if (a.temperature !== undefined) v = Number(a.temperature)
-    else if (a.target_temp_low !== undefined) v = Number(a.target_temp_low)
-    else v = 24
-    return clampInRange(v, minTemp.value, maxTemp.value, 24)
+    const attributes = liveEntity.value?.attributes || {}
+    let targetValue
+    if (attributes.temperature !== undefined) targetValue = Number(attributes.temperature)
+    else if (attributes.target_temp_low !== undefined) targetValue = Number(attributes.target_temp_low)
+    else targetValue = 24
+    return clampInRange(targetValue, minTemp.value, maxTemp.value, 24)
   })
 
   /** 是否为双温区设定（同时存在 target_temp_low 与 target_temp_high）。 */
@@ -175,8 +175,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
         data,
         false,
       )
-    } catch (e) {
-      notifyError(e, '设置空调温度')
+    } catch (error) {
+      notifyError(error, '设置空调温度')
     }
   }
   /**
@@ -201,8 +201,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
 
   /** 当前实际温度，无值或非法时返回 null。 */
   const currentTemp = computed(() => {
-    const v = liveEntity.value?.attributes?.current_temperature
-    return v != null && !Number.isNaN(Number(v)) ? Number(v) : null
+    const rawTemperature = liveEntity.value?.attributes?.current_temperature
+    return rawTemperature != null && !Number.isNaN(Number(rawTemperature)) ? Number(rawTemperature) : null
   })
 
   /** 当前温度展示文本，无值时显示 '--'。 */
@@ -210,12 +210,12 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
 
   /** 当前温度色调 class：按温度区间映射 hot/warm/comfy/cool/cold/muted。 */
   const currentTempTone = computed(() => {
-    const t = currentTemp.value
-    if (t == null) return 'tone-muted'
-    if (t >= 35) return 'tone-hot'
-    if (t >= 28) return 'tone-warm'
-    if (t >= 22) return 'tone-comfy'
-    if (t >= 16) return 'tone-cool'
+    const temperature = currentTemp.value
+    if (temperature == null) return 'tone-muted'
+    if (temperature >= 35) return 'tone-hot'
+    if (temperature >= 28) return 'tone-warm'
+    if (temperature >= 22) return 'tone-comfy'
+    if (temperature >= 16) return 'tone-cool'
     return 'tone-cold'
   })
 
@@ -247,8 +247,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
         { swing_mode: mode },
         false,
       )
-    } catch (e) {
-      notifyError(e, '设置摆风模式')
+    } catch (error) {
+      notifyError(error, '设置摆风模式')
     }
   }
 
@@ -280,8 +280,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
         data,
         false,
       )
-    } catch (e) {
-      notifyError(e, '设置双温区')
+    } catch (error) {
+      notifyError(error, '设置双温区')
     }
   }
 
@@ -299,8 +299,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
         { hvac_mode: mode },
         false,
       )
-    } catch (e) {
-      notifyError(e, '设置空调模式')
+    } catch (error) {
+      notifyError(error, '设置空调模式')
     }
   }
 
@@ -318,8 +318,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
         { fan_mode: mode },
         false,
       )
-    } catch (e) {
-      notifyError(e, '设置风扇模式')
+    } catch (error) {
+      notifyError(error, '设置风扇模式')
     }
   }
 
@@ -328,8 +328,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
     try {
       const svc = liveEntity.value?.state === 'on' ? 'turn_off' : 'turn_on'
       await entitiesStore.callService('fan', svc, entityId(), null, false)
-    } catch (e) {
-      notifyError(e, '切换风量')
+    } catch (error) {
+      notifyError(error, '切换风量')
     }
   }
 
@@ -356,8 +356,8 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
         { preset_mode: mode },
         false,
       )
-    } catch (e) {
-      notifyError(e, '设置预设')
+    } catch (error) {
+      notifyError(error, '设置预设')
     }
   }
 

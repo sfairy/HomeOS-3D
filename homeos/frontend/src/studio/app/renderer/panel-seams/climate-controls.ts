@@ -952,7 +952,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
         fanModeIndex = Math.max(0, manualFanModes.indexOf(attributes2.fan_mode));
       let committedFanModeIndex = fanModeIndex,
         isAutoFanMode = !!(autoFanMode && attributes2.fan_mode === autoFanMode),
-        fan_mode = attributes2.fan_mode;
+        fanMode = attributes2.fan_mode;
       const fanSpeedSlider = document.createElement("input");
       ((fanSpeedSlider.type = "range"),
         (fanSpeedSlider.min = "0"),
@@ -991,10 +991,10 @@ export function createClimateDetailsControls(this: PanelRenderer,
               fan_mode: selectedFanMode,
             }),
               (committedFanModeIndex = fanSliderValue),
-              (fan_mode = selectedFanMode),
+              (fanMode = selectedFanMode),
               (isAutoFanMode = false));
           } catch (fanSpeedUpdateError: any) {
-            ((isAutoFanMode = !!(autoFanMode && fan_mode === autoFanMode)),
+            ((isAutoFanMode = !!(autoFanMode && fanMode === autoFanMode)),
               isAutoFanMode || (fanSpeedSlider.value = String(committedFanModeIndex)),
               fanAutoButton.classList.toggle("active", isAutoFanMode),
               resetFanSlider(),
@@ -1011,7 +1011,7 @@ export function createClimateDetailsControls(this: PanelRenderer,
                 fan_mode: autoFanMode,
               }),
                 (isAutoFanMode = true),
-                (fan_mode = autoFanMode),
+                (fanMode = autoFanMode),
                 fanAutoButton.classList.add("active"),
                 resetFanSlider());
             } catch (fanSpeedCommitError: any) {

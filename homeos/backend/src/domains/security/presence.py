@@ -90,14 +90,14 @@ class PresenceService:
             )
 
     async def _run_monitored(
-        self, name: str, description: str, interval_ms: int, fn: Callable[[], Any]
+        self, name: str, description: str, interval_ms: int, monitored_fn: Callable[[], Any]
     ) -> Any:
         """执行一次带监控的周期作业（未注入 JobRegistry 时直接执行）。"""
         try:
             if self._jobs is None:
-                return await fn()
+                return await monitored_fn()
             return await self._jobs.run(
-                name, {"description": description, "intervalMs": interval_ms}, fn
+                name, {"description": description, "intervalMs": interval_ms}, monitored_fn
             )
         except Exception as exc:
             logger.warning("%s 执行失败: %s", description, exc)

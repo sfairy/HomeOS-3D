@@ -229,9 +229,9 @@ const resolvedValue = computed(() => {
 
 /** 当前选中项的显示文本（找不到选项时显示原始值） */
 const selectedLabel = computed(() => {
-  const val = resolvedValue.value
-  const opt = allOptions.value.find((o) => String(o.value) === String(val))
-  return opt?.label ?? (val !== '' && val != null ? String(val) : '')
+  const currentValue = resolvedValue.value
+  const opt = allOptions.value.find((o) => String(o.value) === String(currentValue))
+  return opt?.label ?? (currentValue !== '' && currentValue != null ? String(currentValue) : '')
 })
 
 /** 根元素 class 组合（根据 props 动态生成） */

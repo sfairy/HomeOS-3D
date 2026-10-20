@@ -13,8 +13,8 @@ from ...platform.core.zoned_time import zoned_date_parts
 TimePeriod = Literal["peak", "valley", "flat"]
 
 
-def _to_minutes(t: str) -> int:
-    parts = str(t or "").split(":")
+def _to_minutes(time_text: str) -> int:
+    parts = str(time_text or "").split(":")
     hour = int(parts[0]) if len(parts) > 0 and str(parts[0]).strip().isdigit() else 0
     minute = int(parts[1]) if len(parts) > 1 and str(parts[1]).strip().isdigit() else 0
     return hour * 60 + minute

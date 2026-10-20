@@ -297,9 +297,9 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
   /** 切换实体选中状态（添加/移除） */
   function toggleItem(entityId: string) {
     const next = [...selectedIds.value]
-    const idx = next.indexOf(entityId)
-    if (idx >= 0) {
-      next.splice(idx, 1)
+    const itemIndex = next.indexOf(entityId)
+    if (itemIndex >= 0) {
+      next.splice(itemIndex, 1)
     } else if (props.maxSelection === 1) {
       emitIds([entityId])
       closeDropdown()

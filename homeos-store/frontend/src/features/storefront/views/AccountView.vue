@@ -290,13 +290,13 @@ async function submitRelease() {
     toast.show("设备已解绑。请回到 HomeOS 激活页，用商店购买邮箱与激活码重新激活。");
     await refresh();
   } catch (error) {
-    const err = error as { status?: number };
+    const apiError = error as { status?: number };
     releaseError.value = errorMessage(error);
-    if (err.status === 409) {
+    if (apiError.status === 409) {
       releaseDialog.value?.close();
       toast.show(errorMessage(error), "err");
       await refresh();
-    } else if (err.status === 429) {
+    } else if (apiError.status === 429) {
       await refresh();
     }
   } finally {

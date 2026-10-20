@@ -88,8 +88,8 @@ export function aggregateHomeModeTriggerLogs(
   let ok = 0
   let fail = 0
   for (const row of logs) {
-    const src = String(row.source || 'manual')
-    bySource.set(src, (bySource.get(src) || 0) + 1)
+    const sourceKey = String(row.source || 'manual')
+    bySource.set(sourceKey, (bySource.get(sourceKey) || 0) + 1)
     if (row.success === false) fail += 1
     else ok += 1
     const day = String(row.executedAt || '').slice(0, 10)

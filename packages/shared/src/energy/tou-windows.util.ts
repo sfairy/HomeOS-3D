@@ -19,10 +19,10 @@ export type TouWindowFields = {
 
 /** 时钟字符串 → 当日分钟数（0-1439）；非法格式返回 null */
 function clockToMinutes(raw: string): number | null {
-  const n = normalizeHomeModeTimeAt(raw);
-  if (!n) return null;
-  const [h, m] = n.split(':').map(Number);
-  return h * 60 + m;
+  const normalized = normalizeHomeModeTimeAt(raw);
+  if (!normalized) return null;
+  const [h, minute] = normalized.split(':').map(Number);
+  return h * 60 + minute;
 }
 
 /** 半开区间 [start, end) 拆为分钟段列表；跨日拆两段（start → 1440 与 0 → end）；起止相同返回空数组 */
@@ -36,10 +36,10 @@ function rangeToSegments(startMin: number, endMin: number): Array<[number, numbe
 }
 
 /** 两个段列表是否存在重叠（半开区间判定：a0 < b1 && b0 < a1） */
-function segmentsOverlap(a: Array<[number, number]>, b: Array<[number, number]>): boolean {
-  for (const [a0, a1] of a) {
-    for (const [b0, b1] of b) {
-      if (a0 < b1 && b0 < a1) return true;
+function segmentsOverlap(segmentsA: Array<[number, number]>, segmentsB: Array<[number, number]>): boolean {
+  for (const [startA, endA] of segmentsA) {
+    for (const [startB, endB] of segmentsB) {
+      if (startA < endB && startB < endA) return true;
     }
   }
   return false;
@@ -61,12 +61,12 @@ export function clockRangesOverlap(
   bStart: string,
   bEnd: string,
 ): boolean {
-  const a0 = clockToMinutes(aStart);
-  const a1 = clockToMinutes(aEnd);
-  const b0 = clockToMinutes(bStart);
-  const b1 = clockToMinutes(bEnd);
-  if (a0 == null || a1 == null || b0 == null || b1 == null) return false;
-  return segmentsOverlap(rangeToSegments(a0, a1), rangeToSegments(b0, b1));
+  const aStartMin = clockToMinutes(aStart);
+  const aEndMin = clockToMinutes(aEnd);
+  const bStartMin = clockToMinutes(bStart);
+  const bEndMin = clockToMinutes(bEnd);
+  if (aStartMin == null || aEndMin == null || bStartMin == null || bEndMin == null) return false;
+  return segmentsOverlap(rangeToSegments(aStartMin, aEndMin), rangeToSegments(bStartMin, bEndMin));
 }
 
 /**
@@ -85,16 +85,16 @@ export function validateTouWindows(input: TouWindowFields): string[] {
     const endRaw = String(w.end || '').trim();
     if (!startRaw && !endRaw) continue;
     const ns = normalizeHomeModeTimeAt(startRaw);
-    const ne = normalizeHomeModeTimeAt(endRaw);
-    if (!ns || !ne) {
+    const normalizedEnd = normalizeHomeModeTimeAt(endRaw);
+    if (!ns || !normalizedEnd) {
       errors.push(`${w.label}须为 HH:MM（如 08:00）`);
       continue;
     }
-    if (ns === ne) {
+    if (ns === normalizedEnd) {
       errors.push(`${w.label}起止不能相同`);
       continue;
     }
-    parsed.push({ label: w.label, start: ns, end: ne });
+    parsed.push({ label: w.label, start: ns, end: normalizedEnd });
   }
   for (let i = 0; i < parsed.length; i++) {
     for (let j = i + 1; j < parsed.length; j++) {

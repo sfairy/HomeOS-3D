@@ -34,16 +34,16 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
   const envRoomTab = ref('')
 
   const envSensorFieldList = computed(() =>
-    Object.values(getEnvSensorFields()).map((f) => ({
-      ...f,
+    Object.values(getEnvSensorFields()).map((field) => ({
+      ...field,
       shortLabel:
-        f.key === 'temperature'
+        field.key === 'temperature'
           ? '温度'
-          : f.key === 'humidity'
+          : field.key === 'humidity'
             ? '湿度'
-            : f.key === 'pm25'
+            : field.key === 'pm25'
               ? 'PM2.5'
-              : f.key === 'co2'
+              : field.key === 'co2'
                 ? 'CO₂'
                 : 'TVOC',
     })),
@@ -100,7 +100,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
     })),
   )
 
-  const activeEnvRoom = computed(() => envRoomList.value.find((r) => r.id === envRoomTab.value))
+  const activeEnvRoom = computed(() => envRoomList.value.find((room) => room.id === envRoomTab.value))
 
   const roomsSubnavSections = computed(() => [
     {
@@ -118,7 +118,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
       if (envRoomTab.value) envRoomTab.value = ''
       return
     }
-    if (!tabs.some((t) => t.id === envRoomTab.value)) {
+    if (!tabs.some((tabEntry) => tabEntry.id === envRoomTab.value)) {
       envRoomTab.value = tabs[0].id
     }
   })
@@ -129,7 +129,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
       envRoomTab.value = ''
       return
     }
-    if (roomId && tabs.some((t) => t.id === roomId)) {
+    if (roomId && tabs.some((tabEntry) => tabEntry.id === roomId)) {
       envRoomTab.value = roomId
       return
     }
@@ -149,7 +149,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
   }
 
   async function handleRemoveEnvRoom(roomId: string | undefined) {
-    const room = envRoomList.value.find((r) => r.id === (roomId || activeEnvRoom.value?.id))
+    const room = envRoomList.value.find((candidateRoom) => candidateRoom.id === (roomId || activeEnvRoom.value?.id))
     if (!room) return
     const label = sensorMap.value[room.id]?.label?.trim() || room.defaultLabel
     const ok = await chrome.confirm(
@@ -159,7 +159,7 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
     )
     if (!ok) return
     const removedId = room.id
-    const removedIdx = envRoomList.value.findIndex((r) => r.id === removedId)
+    const removedIdx = envRoomList.value.findIndex((roomEntry) => roomEntry.id === removedId)
     if (!removeEnvRoom(removedId)) return
     await nextTick()
     const tabs = envRoomList.value
@@ -173,13 +173,13 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
   }
 
   function handleRestoreHiddenRooms() {
-    const n = restoreHiddenRooms()
-    if (!n) {
+    const restoredCount = restoreHiddenRooms()
+    if (!restoredCount) {
       chrome.notify('没有可恢复的隐藏房间', 'info')
       return
     }
     focusEnvRoomTab(envRoomList.value[0]?.id)
-    chrome.notify(`已恢复 ${n} 个隐藏房间`, 'success')
+    chrome.notify(`已恢复 ${restoredCount} 个隐藏房间`, 'success')
   }
 
   function inferEnvMap() {
@@ -203,10 +203,10 @@ export function useSettingsEnvHub(options: UseSettingsEnvHubOptions) {
     input.value = ''
     if (!file) return
     try {
-      const n = importEnvCsvFn(await file.text())
-      chrome.notify(`已导入 ${n} 个房间映射，请核对后保存`, 'success')
-    } catch (e) {
-      chrome.notify((e as { message?: string })?.message || 'CSV 解析失败', 'error')
+      const importedCount = importEnvCsvFn(await file.text())
+      chrome.notify(`已导入 ${importedCount} 个房间映射，请核对后保存`, 'success')
+    } catch (error) {
+      chrome.notify((error as { message?: string })?.message || 'CSV 解析失败', 'error')
     }
   }
 

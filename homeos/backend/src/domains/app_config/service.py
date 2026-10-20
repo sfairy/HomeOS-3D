@@ -97,12 +97,12 @@ def _ensure_client_power_report_tokens(client_power: dict[str, Any]) -> bool:
     return changed
 
 
-def _iso(dt: datetime | None) -> str | None:
-    if dt is None:
+def _iso(datetime_value: datetime | None) -> str | None:
+    if datetime_value is None:
         return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
-    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    if datetime_value.tzinfo is None:
+        return datetime_value.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z")
+    return datetime_value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _parse_iso(value: str) -> datetime:

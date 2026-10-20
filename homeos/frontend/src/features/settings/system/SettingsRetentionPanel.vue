@@ -210,39 +210,39 @@ const dirty = ref(false)
 const batchDays = ref(7)
 /** 批量输入是否合法（1–365 的整数） */
 const batchValid = computed(() => {
-  const v = Number(batchDays.value)
-  return Number.isInteger(v) && v >= 1 && v <= 365
+  const batchDaysValue = Number(batchDays.value)
+  return Number.isInteger(batchDaysValue) && batchDaysValue >= 1 && batchDaysValue <= 365
 })
 
 useRegisterSettingsTabPending('retention', () => dirty.value)
 
 /** 表格行：策略 + 估算数据量合并 */
 const rows = computed(() =>
-  policies.value.map((p) => ({
-    ...p,
-    estimatedRows: estimatedRows.value?.[p.key] ?? 0,
+  policies.value.map((policy) => ({
+    ...policy,
+    estimatedRows: estimatedRows.value?.[policy.key] ?? 0,
   })),
 )
 
 /** 已修改的表数量 */
 const modifiedCount = computed(
-  () => policies.value.filter((p) => Number(draft.value[p.key]) !== Number(p.retentionDays)).length,
+  () => policies.value.filter((policy) => Number(draft.value[policy.key]) !== Number(policy.retentionDays)).length,
 )
 
 /** 估算数据量合计 */
 const totalEstimated = computed(() =>
-  Object.values(estimatedRows.value).reduce((sum, n) => sum + (Number(n) || 0), 0),
+  Object.values(estimatedRows.value).reduce((sum, dayCount) => sum + (Number(dayCount) || 0), 0),
 )
 
 /** 该表草稿是否与当前策略不一致 */
 function rowModified(key) {
-  const policy = policies.value.find((p) => p.key === key)
+  const policy = policies.value.find((candidate) => candidate.key === key)
   return !!policy && Number(draft.value[key]) !== Number(policy.retentionDays)
 }
 
 /** 用后端策略初始化草稿（仅登记可编辑天数） */
 function buildDraft() {
-  draft.value = Object.fromEntries(policies.value.map((p) => [p.key, p.retentionDays]))
+  draft.value = Object.fromEntries(policies.value.map((policy) => [policy.key, policy.retentionDays]))
   dirty.value = false
 }
 
@@ -252,17 +252,17 @@ function markDirty() {
 
 /** 批量应用：将输入天数写入全部表草稿 */
 function applyBatch() {
-  const v = Number(batchDays.value)
-  if (!Number.isInteger(v) || v < 1 || v > 365) {
+  const batchDaysValue = Number(batchDays.value)
+  if (!Number.isInteger(batchDaysValue) || batchDaysValue < 1 || batchDaysValue > 365) {
     chrome.notify('请输入 1–365 之间的整数天数', 'error')
     return
   }
-  for (const p of policies.value) {
-    draft.value[p.key] = v
+  for (const policy of policies.value) {
+    draft.value[policy.key] = batchDaysValue
   }
-  batchDays.value = v
+  batchDays.value = batchDaysValue
   dirty.value = true
-  chrome.notify(`已批量设置全部表保留 ${v} 天，请点击保存策略生效`, 'success')
+  chrome.notify(`已批量设置全部表保留 ${batchDaysValue} 天，请点击保存策略生效`, 'success')
 }
 
 async function load() {
@@ -275,11 +275,11 @@ async function load() {
     estimatedRows.value = data?.estimatedRows || {}
     buildDraft()
     // 批量输入预填：全部表保留天数一致时取该值，否则取事件日志当前值
-    const common = new Set(policies.value.map((p) => p.retentionDays))
+    const common = new Set(policies.value.map((policy) => policy.retentionDays))
     batchDays.value =
       common.size === 1
         ? policies.value[0]?.retentionDays ?? 7
-        : policies.value.find((p) => p.key === 'eventLog')?.retentionDays ?? 7
+        : policies.value.find((policy) => policy.key === 'eventLog')?.retentionDays ?? 7
   } catch (err) {
     loadError.value = getApiErrorMessage(err, '加载数据保留信息失败')
   } finally {
@@ -318,11 +318,11 @@ function formatElapsed(ms) {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`
 }
 
-function formatRows(n) {
-  if (!n) return '0'
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`
-  return String(n)
+function formatRows(rowCount) {
+  if (!rowCount) return '0'
+  if (rowCount >= 1e6) return `${(rowCount / 1e6).toFixed(1)}M`
+  if (rowCount >= 1e3) return `${(rowCount / 1e3).toFixed(1)}k`
+  return String(rowCount)
 }
 
 onMounted(load)

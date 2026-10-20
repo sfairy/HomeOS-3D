@@ -64,9 +64,9 @@ function sensorLabel(type: string) {
  * @returns 是否匹配
  */
 function matchAny(id: string, name: string, keys: string[]) {
-  const l = id.toLowerCase()
-  const n = (name || '').toLowerCase()
-  return keys.some((k) => l.includes(k) || n.includes(k))
+  const lowerId = id.toLowerCase()
+  const lowerName = (name || '').toLowerCase()
+  return keys.some((k) => lowerId.includes(k) || lowerName.includes(k))
 }
 
 /**
@@ -289,17 +289,17 @@ export function useSecuritySensors() {
   // 告警数：排除已确认的告警
   const alertCount = computed(
     () =>
-      allSensors.value.filter((s) => s.alert && !acknowledgedSensorIds.value.has(s.entity_id))
+      allSensors.value.filter((sensor) => sensor.alert && !acknowledgedSensorIds.value.has(sensor.entity_id))
         .length,
   )
   // 告警 Chip：按类型聚合计数
   const activeAlertChips = computed(() => {
     const alerts = allSensors.value.filter(
-      (s) => s.alert && !acknowledgedSensorIds.value.has(s.entity_id),
+      (sensor) => sensor.alert && !acknowledgedSensorIds.value.has(sensor.entity_id),
     )
     const byType: Record<string, number> = {}
-    for (const a of alerts) {
-      byType[a.label] = (byType[a.label] || 0) + 1
+    for (const alert of alerts) {
+      byType[alert.label] = (byType[alert.label] || 0) + 1
     }
     return Object.entries(byType).map(([label, count]) => ({ label, count }))
   })
@@ -316,19 +316,19 @@ export function useSecuritySensors() {
         color: string
       }
     > = {}
-    for (const s of allSensors.value) {
-      if (!cats[s.type]) {
-        cats[s.type] = {
-          key: s.type,
-          label: s.label,
+    for (const sensor of allSensors.value) {
+      if (!cats[sensor.type]) {
+        cats[sensor.type] = {
+          key: sensor.type,
+          label: sensor.label,
           total: 0,
           alerts: 0,
-          icon: s.iconComp,
-          color: s.iconColor,
+          icon: sensor.iconComp,
+          color: sensor.iconColor,
         }
       }
-      cats[s.type].total++
-      if (s.alert) cats[s.type].alerts++
+      cats[sensor.type].total++
+      if (sensor.alert) cats[sensor.type].alerts++
     }
     // 按预设类型顺序排序
     return Object.values(cats).sort((a, b) => {
@@ -349,12 +349,12 @@ export function useSecuritySensors() {
       string,
       { key: string; label: string; count: number; alertCount: number }
     > = {}
-    for (const s of allSensors.value) {
-      if (!counts[s.type]) {
-        counts[s.type] = { key: s.type, label: s.label, count: 0, alertCount: 0 }
+    for (const sensor of allSensors.value) {
+      if (!counts[sensor.type]) {
+        counts[sensor.type] = { key: sensor.type, label: sensor.label, count: 0, alertCount: 0 }
       }
-      counts[s.type].count++
-      if (s.alert) counts[s.type].alertCount++
+      counts[sensor.type].count++
+      if (sensor.alert) counts[sensor.type].alertCount++
     }
     return Object.values(counts)
   })
@@ -384,7 +384,7 @@ export function useSecuritySensors() {
    * @sideEffects 更新 acknowledgedSensorIds
    */
   function acknowledgeAllAlerts() {
-    const ids = allSensors.value.filter((s) => s.alert).map((s) => s.entity_id)
+    const ids = allSensors.value.filter((sensor) => sensor.alert).map((sensor) => sensor.entity_id)
     acknowledgedSensorIds.value = new Set([...acknowledgedSensorIds.value, ...ids])
   }
 

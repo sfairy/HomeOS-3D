@@ -22,11 +22,11 @@ const EXCLUDED_SECTIONS = new Set([
 ])
 
 /** 把字段值适配为表单展示值：object→JSON 文本，array→逗号串，其余原样 */
-function fieldDisplayValue(type: string, v: unknown): string | number | boolean {
-  if (type === 'object') return JSON.stringify(v ?? {}, null, 2)
-  if (Array.isArray(v)) return v.map((item) => String(item)).join(', ')
-  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v
-  return v == null ? '' : String(v)
+function fieldDisplayValue(type: string, value: unknown): string | number | boolean {
+  if (type === 'object') return JSON.stringify(value ?? {}, null, 2)
+  if (Array.isArray(value)) return value.map((item) => String(item)).join(', ')
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  return value == null ? '' : String(value)
 }
 
 /**
@@ -45,21 +45,21 @@ export function toEditableSections(
   const record = data as Record<string, unknown>
   for (const key of Object.keys(record)) {
     if (key.startsWith('_')) continue
-    const val = record[key]
-    if (!val || typeof val !== 'object' || Array.isArray(val)) continue
+    const rawValue = record[key]
+    if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) continue
       if (EXCLUDED_SECTIONS.has(key)) continue
-      const section = val as Record<string, unknown>
+      const section = rawValue as Record<string, unknown>
       const fields: EditableConfigSection['fields'] = []
-      for (const fk of Object.keys(section)) {
-        if (!SYSTEM_CONFIG_FIELD_KEYS.has(fk)) continue
-      const v = section[fk]
-      if (v && typeof v === 'object' && !Array.isArray(v) && !NESTED_JSON_FIELDS.has(fk)) continue
-      const type = inferSystemConfigFieldType(v, fk)
-      const isMasked = type === 'password' && (v === CONFIG_MASK || v === '********')
+      for (const fieldKey of Object.keys(section)) {
+        if (!SYSTEM_CONFIG_FIELD_KEYS.has(fieldKey)) continue
+      const value = section[fieldKey]
+      if (value && typeof value === 'object' && !Array.isArray(value) && !NESTED_JSON_FIELDS.has(fieldKey)) continue
+      const type = inferSystemConfigFieldType(value, fieldKey)
+      const isMasked = type === 'password' && (value === CONFIG_MASK || value === '********')
       fields.push({
-        key: fk,
+        key: fieldKey,
         type,
-        value: fieldDisplayValue(type, v),
+        value: fieldDisplayValue(type, value),
         isMasked,
       })
     }
@@ -84,24 +84,24 @@ export function fromEditableSections(sectionList: EditableConfigSection[]): Edit
       ) {
         continue
       }
-      let v: unknown = field.value
+      let value: unknown = field.value
       if (field.type === 'object') {
         try {
-          v = JSON.parse(String(v || '{}'))
+          value = JSON.parse(String(value || '{}'))
         } catch {
           throw new Error(`${section.key}.${field.key} JSON 格式无效`)
         }
       } else if (field.type === 'array' || field.type === 'entity-list') {
-        v = Array.isArray(v)
-          ? v.map((item) => String(item ?? '').trim()).filter(Boolean)
-          : String(v ?? '')
+        value = Array.isArray(value)
+          ? value.map((item) => String(item ?? '').trim()).filter(Boolean)
+          : String(value ?? '')
               .split(/[,，\s]+/)
-              .map((s) => s.trim())
+              .map((token) => token.trim())
               .filter(Boolean)
       } else if (field.type === 'number') {
-        v = Number(v)
+        value = Number(value)
       }
-      out[section.key][field.key] = v
+      out[section.key][field.key] = value
     }
   }
   return out
@@ -144,10 +144,10 @@ export function getSystemConfigPendingFieldKeys(
   const cur = fromEditableSections(sectionList)
   const keys = new Set<SystemConfigPendingFieldKey>()
   for (const sk of Object.keys(cur)) {
-    for (const fk of Object.keys(cur[sk] || {})) {
-      const a = cur[sk][fk]
-      const b = prev[sk]?.[fk]
-      if (JSON.stringify(a) !== JSON.stringify(b)) keys.add(`${sk}:${fk}`)
+    for (const fieldKey of Object.keys(cur[sk] || {})) {
+      const currentValue = cur[sk][fieldKey]
+      const previousValue = prev[sk]?.[fieldKey]
+      if (JSON.stringify(currentValue) !== JSON.stringify(previousValue)) keys.add(`${sk}:${fieldKey}`)
     }
   }
   return keys
@@ -163,13 +163,13 @@ export function getSystemConfigSectionPendingMap(
   const cur = fromEditableSections(sectionList)
   const map: Record<string, number> = {}
   for (const sk of Object.keys(cur)) {
-    let n = 0
-    for (const fk of Object.keys(cur[sk] || {})) {
-      const a = cur[sk][fk]
-      const b = prev[sk]?.[fk]
-      if (JSON.stringify(a) !== JSON.stringify(b)) n++
+    let count = 0
+    for (const fieldKey of Object.keys(cur[sk] || {})) {
+      const currentValue = cur[sk][fieldKey]
+      const previousValue = prev[sk]?.[fieldKey]
+      if (JSON.stringify(currentValue) !== JSON.stringify(previousValue)) count++
     }
-    if (n) map[sk] = n
+    if (count) map[sk] = count
   }
   return map
 }
@@ -199,14 +199,14 @@ export function filterPricingSectionFields<T extends { key: string; value?: unkn
   sectionKey?: string,
 ): T[] {
   if (sectionKey !== 'pricing') return fields
-  const modeField = fields.find((f) => f.key === 'pricingMode')
+  const modeField = fields.find((field) => field.key === 'pricingMode')
   const mode = String(modeField?.value ?? 'tiered')
-  const touField = fields.find((f) => f.key === 'timeOfUseEnabled')
+  const touField = fields.find((field) => field.key === 'timeOfUseEnabled')
   const touOn = touField?.value !== false && touField?.value !== 'false'
-  return fields.filter((f) => {
-    if (PRICING_FIXED_ONLY_KEYS.has(f.key)) return mode === 'fixed'
-    if (PRICING_TIER_ONLY_KEYS.has(f.key)) return mode === 'tiered'
-    if (PRICING_TOU_ONLY_KEYS.has(f.key)) return touOn
+  return fields.filter((field) => {
+    if (PRICING_FIXED_ONLY_KEYS.has(field.key)) return mode === 'fixed'
+    if (PRICING_TIER_ONLY_KEYS.has(field.key)) return mode === 'tiered'
+    if (PRICING_TOU_ONLY_KEYS.has(field.key)) return touOn
     return true
   })
 }
@@ -231,10 +231,10 @@ export function applyEditableSnapshotToSections(
     if (!snapSection) continue
     for (const field of section.fields) {
       if (!(field.key in snapSection)) continue
-      const v = snapSection[field.key]
-      field.value = fieldDisplayValue(field.type, v)
+      const value = snapSection[field.key]
+      field.value = fieldDisplayValue(field.type, value)
       if (field.type === 'password') {
-        field.isMasked = v === CONFIG_MASK || v === '********'
+        field.isMasked = value === CONFIG_MASK || value === '********'
       }
     }
   }

@@ -29,44 +29,44 @@ export function useUtilityBalanceFields({
   relClassPrefix = 'w',
   tierFieldMap = {} as Record<string, string>,
 }: UtilityBalanceFieldsOpts) {
-  function a(e: HaEntityState | null | undefined, n: string) {
-    return readPopupAttrUtil(e, n)
+  function readPopupAttr(entity: HaEntityState | null | undefined, attributeKey: string) {
+    return readPopupAttrUtil(entity, attributeKey)
   }
-  function j(v: unknown) {
-    return parseJsonAttr(v)
+  function parseJson(input: unknown) {
+    return parseJsonAttr(input)
   }
-  function n(s: unknown) {
-    return parseNumAttr(s)
+  function parseNumber(input: unknown) {
+    return parseNumAttr(input)
   }
   const balance = computed(() => {
-    const v = popNum('balance') ?? n(ent.value?.state)
-    return v != null ? v.toFixed(2) : '--'
+    const balanceValue = popNum('balance') ?? parseNumber(ent.value?.state)
+    return balanceValue != null ? balanceValue.toFixed(2) : '--'
   })
   const lastDate = computed(
     () =>
       popField('refreshTime') ||
-      a(ent.value, 'payment_date') ||
-      a(ent.value, 'last_payment_date') ||
+      readPopupAttr(ent.value, 'payment_date') ||
+      readPopupAttr(ent.value, 'last_payment_date') ||
       '',
   )
   const dataDate = computed(
     () =>
       String(
         popField('dailyDate') ||
-          a(ent.value, 'daily_lasted_date') ||
-          a(ent.value, 'update_time') ||
-          a(ent.value, 'latest_data') ||
+          readPopupAttr(ent.value, 'daily_lasted_date') ||
+          readPopupAttr(ent.value, 'update_time') ||
+          readPopupAttr(ent.value, 'latest_data') ||
           '',
       ),
   )
   const { relLabel, relClass } = useRelativeDateLabel(dataDate, relClassPrefix)
-  const bs = computed(() => {
-    const parsed = j(popField('billingStandard'))
+  const billingStandard = computed(() => {
+    const parsed = parseJson(popField('billingStandard'))
     const fromAttr =
-      a(ent.value, '计费标准') ||
-      a(ent.value, 'billing_standard') ||
+      readPopupAttr(ent.value, '计费标准') ||
+      readPopupAttr(ent.value, 'billing_standard') ||
       (() => {
-        const data = a(ent.value, 'data')
+        const data = readPopupAttr(ent.value, 'data')
         if (data && typeof data === 'object' && !Array.isArray(data)) {
           return (data as Record<string, unknown>)['计费标准']
         }
@@ -76,104 +76,104 @@ export function useUtilityBalanceFields({
     return (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   })
   const pmode = computed(() => {
-    const b = bs.value
-    if (!b || !Object.keys(b).length) return 'tiered'
-    return b.计费标准 === '平均单价' || b.pricing_mode === 'fixed' ? 'fixed' : 'tiered'
+    const billing = billingStandard.value
+    if (!billing || !Object.keys(billing).length) return 'tiered'
+    return billing.计费标准 === '平均单价' || billing.pricing_mode === 'fixed' ? 'fixed' : 'tiered'
   })
-  const at = computed(() => {
+  const annualTier = computed(() => {
     const tier = popNum('currentTier')
     if (tier != null && tier >= 1 && tier <= 3) return Math.floor(tier)
-    const b = bs.value
-    if (b?.当前年阶梯档) return parseInt(String(b.当前年阶梯档).replace(/[^0-9]/g, ''), 10) || 1
+    const billing = billingStandard.value
+    if (billing?.当前年阶梯档) return parseInt(String(billing.当前年阶梯档).replace(/[^0-9]/g, ''), 10) || 1
     return 1
   })
-  const tLabel = computed(() => (pmode.value === 'fixed' ? '固定单价' : `第${at.value}档`))
+  const tLabel = computed(() => (pmode.value === 'fixed' ? '固定单价' : `第${annualTier.value}档`))
   const t1l = computed(() =>
     parseFloat(
       String(
-        bs.value?.[tierFieldMap.t1Limit || '年阶梯第2档起始水量'] || bs.value?.tier_1_limit || 0,
+        billingStandard.value?.[tierFieldMap.t1Limit || '年阶梯第2档起始水量'] || billingStandard.value?.tier_1_limit || 0,
       ),
     ).toFixed(0),
   )
   const t2l = computed(() =>
     parseFloat(
       String(
-        bs.value?.[tierFieldMap.t2Limit || '年阶梯第3档起始水量'] || bs.value?.tier_2_limit || 0,
+        billingStandard.value?.[tierFieldMap.t2Limit || '年阶梯第3档起始水量'] || billingStandard.value?.tier_2_limit || 0,
       ),
     ).toFixed(0),
   )
   const t1p = computed(() =>
     parseFloat(
-      String(bs.value?.[tierFieldMap.t1Price || '年阶梯第1档水价'] || bs.value?.tier_1_price || 0),
+      String(billingStandard.value?.[tierFieldMap.t1Price || '年阶梯第1档水价'] || billingStandard.value?.tier_1_price || 0),
     ).toFixed(2),
   )
   const t2p = computed(() =>
     parseFloat(
-      String(bs.value?.[tierFieldMap.t2Price || '年阶梯第2档水价'] || bs.value?.tier_2_price || 0),
+      String(billingStandard.value?.[tierFieldMap.t2Price || '年阶梯第2档水价'] || billingStandard.value?.tier_2_price || 0),
     ).toFixed(2),
   )
   const t3p = computed(() =>
     parseFloat(
-      String(bs.value?.[tierFieldMap.t3Price || '年阶梯第3档水价'] || bs.value?.tier_3_price || 0),
+      String(billingStandard.value?.[tierFieldMap.t3Price || '年阶梯第3档水价'] || billingStandard.value?.tier_3_price || 0),
     ).toFixed(2),
   )
   const price = computed(() => {
     const unit = popNum('unitPrice')
     if (unit != null && unit > 0) return unit.toFixed(2)
     if (pmode.value === 'tiered') {
-      if (at.value === 1) return t1p.value
-      if (at.value === 2) return t2p.value
-      if (at.value === 3) return t3p.value
+      if (annualTier.value === 1) return t1p.value
+      if (annualTier.value === 2) return t2p.value
+      if (annualTier.value === 3) return t3p.value
     }
-    const b = bs.value
-    if (b.平均单价) return parseFloat(String(b.平均单价)).toFixed(2)
-    if (b.avg_price || b.fixed_price)
-      return parseFloat(String(b.avg_price || b.fixed_price)).toFixed(2)
-    const d = j(popField('daylist')) ?? j(a(ent.value, 'daylist'))
-    if (Array.isArray(d) && d.length) {
-      const l = d[d.length - 1] as Record<string, unknown>
-      const u = parseFloat(String(l[usageKey] || l.usage || 0))
-      const amt = parseFloat(String(l[amountKey] || l.amount || 0))
-      if (u > 0 && amt > 0) {
-        const p = amt / u
-        if (!isNaN(p) && p > 0) return p.toFixed(2)
+    const billing = billingStandard.value
+    if (billing.平均单价) return parseFloat(String(billing.平均单价)).toFixed(2)
+    if (billing.avg_price || billing.fixed_price)
+      return parseFloat(String(billing.avg_price || billing.fixed_price)).toFixed(2)
+    const dayList = parseJson(popField('daylist')) ?? parseJson(readPopupAttr(ent.value, 'daylist'))
+    if (Array.isArray(dayList) && dayList.length) {
+      const lastDay = dayList[dayList.length - 1] as Record<string, unknown>
+      const usage = parseFloat(String(lastDay[usageKey] || lastDay.usage || 0))
+      const amt = parseFloat(String(lastDay[amountKey] || lastDay.amount || 0))
+      if (usage > 0 && amt > 0) {
+        const unitPrice = amt / usage
+        if (!isNaN(unitPrice) && unitPrice > 0) return unitPrice.toFixed(2)
       }
     }
     return '--'
   })
-  const { remDays, remDate } = useRemainingDays(ent, a, j, n, amountKey)
+  const { remDays, remDate } = useRemainingDays(ent, readPopupAttr, parseJson, parseNumber, amountKey)
   const curYear = computed(() => String(new Date().getFullYear()))
   const mUsage = computed(() => {
-    const v = popNum('monthNum')
-    return v != null ? v.toFixed(1) : '--'
+    const monthUsage = popNum('monthNum')
+    return monthUsage != null ? monthUsage.toFixed(1) : '--'
   })
   const mCost = computed(() => {
-    const v = popNum('monthCost')
-    return v != null ? v.toFixed(1) : '--'
+    const monthCost = popNum('monthCost')
+    return monthCost != null ? monthCost.toFixed(1) : '--'
   })
   const yUsage = computed(() => {
-    const v = popNum('yearNum')
-    return v != null ? v.toFixed(1) : '--'
+    const yearUsage = popNum('yearNum')
+    return yearUsage != null ? yearUsage.toFixed(1) : '--'
   })
   const yCost = computed(() => {
-    const v = popNum('yearCost')
-    return v != null ? v.toFixed(1) : '--'
+    const yearCost = popNum('yearCost')
+    return yearCost != null ? yearCost.toFixed(1) : '--'
   })
   const lmUsage = computed(() => {
-    const v = popNum('lastMonthNum')
-    return v != null ? v.toFixed(1) : '--'
+    const lastMonthUsage = popNum('lastMonthNum')
+    return lastMonthUsage != null ? lastMonthUsage.toFixed(1) : '--'
   })
   const lmCost = computed(() => {
-    const v = popNum('lastMonthCost')
-    return v != null ? v.toFixed(1) : '--'
+    const lastMonthCost = popNum('lastMonthCost')
+    return lastMonthCost != null ? lastMonthCost.toFixed(1) : '--'
   })
   const dUsage = computed(() => {
-    const v = popNum('dailyNum')
-    return v != null ? v.toFixed(1) : '--'
+    const dailyUsage = popNum('dailyNum')
+    return dailyUsage != null ? dailyUsage.toFixed(1) : '--'
   })
   const dCost = computed(() => {
-    const v = popNum('dailyCost')
-    return v != null ? v.toFixed(2) : '--'
+    const dailyCost = popNum('dailyCost')
+    return dailyCost != null ? dailyCost.toFixed(2) : '--'
   })
   return {
     balance,
@@ -181,9 +181,9 @@ export function useUtilityBalanceFields({
     dataDate,
     relLabel,
     relClass,
-    bs,
+    bs: billingStandard,
     pmode,
-    at,
+    at: annualTier,
     tLabel,
     t1l,
     t2l,

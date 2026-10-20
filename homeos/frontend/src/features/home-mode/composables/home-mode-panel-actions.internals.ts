@@ -18,7 +18,7 @@ import type {
 } from './home-mode-panel-derived.internals'
 import type { createHomeModePanelDerived } from './home-mode-panel-derived.internals'
 
-export function createHomeModePanelHandlers(d: {
+export function createHomeModePanelHandlers(deps: {
   chrome: ChromeStore
   activeDraft: HomeModeEditor['activeDraft']
   anyModeDraftDirty: ReturnType<typeof createHomeModePanelDerived>['anyModeDraftDirty']
@@ -73,7 +73,7 @@ export function createHomeModePanelHandlers(d: {
     createMode,
     updateMode,
     deleteMode,
-  } = d
+  } = deps
 
 function handleCancelDraft() {
   const draft = activeDraft.value
@@ -156,19 +156,19 @@ async function onModeReorder({ fromIndex, toIndex }: { fromIndex: number; toInde
   if (fromTab.id.startsWith('draft_') || toTab.id.startsWith('draft_')) return
 
   const list = [...modes.value]
-  const fromModeIdx = list.findIndex((m) => m.id === fromTab.id)
-  const toModeIdx = list.findIndex((m) => m.id === toTab.id)
+  const fromModeIdx = list.findIndex((fromMode) => fromMode.id === fromTab.id)
+  const toModeIdx = list.findIndex((toMode) => toMode.id === toTab.id)
   if (fromModeIdx < 0 || toModeIdx < 0) return
 
   const [item] = list.splice(fromModeIdx, 1)
   list.splice(toModeIdx, 0, item)
   try {
-    await reorderHomeModes(list.map((m, i) => ({ id: m.id, sortOrder: i })))
+    await reorderHomeModes(list.map((modeEntry, i) => ({ id: modeEntry.id, sortOrder: i })))
     await fetchModes({ silent: true })
     touchOrchCounts()
     chrome.notify('排序已更新', 'success')
-  } catch (e) {
-    logger.warn('模式排序失败', e)
+  } catch (error) {
+    logger.warn('模式排序失败', error)
     chrome.notify('排序失败', 'error')
     await fetchModes({ silent: true })
   }
@@ -184,8 +184,8 @@ async function handleDuplicate() {
     refreshDraftFromMode(data.id)
     await loadContext({ scope: 'runtime' })
     chrome.notify('已复制模式', 'success')
-  } catch (e) {
-    logger.warn('模式复制失败', e)
+  } catch (error) {
+    logger.warn('模式复制失败', error)
     chrome.notify('复制失败', 'error')
   }
 }
@@ -196,8 +196,8 @@ async function handleSeed() {
     await loadContext({ scope: 'full' })
     touchOrchCounts()
     chrome.notify('已初始化默认家庭模式', 'success')
-  } catch (e) {
-    logger.warn('模式初始化失败', e)
+  } catch (error) {
+    logger.warn('模式初始化失败', error)
     chrome.notify('初始化失败或已有模式', 'warning')
   }
 }
@@ -225,7 +225,7 @@ async function handleSave() {
     chrome.notify(validationError, 'warning')
     return
   }
-  const emptyActions = (draft.actions || []).filter((a: ModeActionDraft) => !a.entity_id?.trim()).length
+  const emptyActions = (draft.actions || []).filter((action: ModeActionDraft) => !action.entity_id?.trim()).length
   if (emptyActions > 0) {
     const ok = await chrome.confirm(
       `有 ${emptyActions} 条动作未填写目标，保存时将自动忽略。是否继续？`,
@@ -237,8 +237,8 @@ async function handleSave() {
   let body
   try {
     body = buildSaveBody(draft)
-  } catch (e) {
-    chrome.notify((e as { message?: string }).message || '配置格式无效', 'error')
+  } catch (error) {
+    chrome.notify((error as { message?: string }).message || '配置格式无效', 'error')
     return
   }
   await runSave(
@@ -258,8 +258,8 @@ async function handleSave() {
       touchOrchCounts()
     },
     {
-      onError: (e: unknown) => {
-        chrome.notify(getApiErrorMessage(e, '保存失败'), 'error')
+      onError: (error: unknown) => {
+        chrome.notify(getApiErrorMessage(error, '保存失败'), 'error')
       },
     },
   )
@@ -291,8 +291,8 @@ async function handleDelete() {
     await loadContext({ scope: 'runtime' })
     touchOrchCounts()
     chrome.notify('已删除', 'success')
-  } catch (e) {
-    logger.warn('模式删除失败', e)
+  } catch (error) {
+    logger.warn('模式删除失败', error)
     chrome.notify('删除失败', 'error')
   }
 }

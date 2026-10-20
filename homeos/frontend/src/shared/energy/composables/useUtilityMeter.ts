@@ -12,20 +12,20 @@ export function useRelativeDateLabel(
   prefix: string,
 ) {
   const relMeta = computed(() => {
-    const d = dataDate.value
-    if (d == null || d === '') return { label: '', classSuffix: '' }
-    const parts = String(d).split('-')
+    const dateValue = dataDate.value
+    if (dateValue == null || dateValue === '') return { label: '', classSuffix: '' }
+    const parts = String(dateValue).split('-')
     const dataLocal = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
     const todayLocal = new Date()
     todayLocal.setHours(0, 0, 0, 0)
-    const df = Math.floor((todayLocal.getTime() - dataLocal.getTime()) / 86400000)
-    if (df === 0) return { label: '今天', classSuffix: 'today' }
-    if (df === 1) return { label: '昨天', classSuffix: 'yesterday' }
-    if (df === 2) return { label: '前天', classSuffix: 'daybefore' }
-    if (df <= 7) return { label: '近一周', classSuffix: 'week' }
-    if (df <= 14) return { label: '近两周', classSuffix: '2week' }
-    if (df <= 30) return { label: '近一月', classSuffix: 'month' }
-    return { label: `${df}天前`, classSuffix: 'old' }
+    const daysAgo = Math.floor((todayLocal.getTime() - dataLocal.getTime()) / 86400000)
+    if (daysAgo === 0) return { label: '今天', classSuffix: 'today' }
+    if (daysAgo === 1) return { label: '昨天', classSuffix: 'yesterday' }
+    if (daysAgo === 2) return { label: '前天', classSuffix: 'daybefore' }
+    if (daysAgo <= 7) return { label: '近一周', classSuffix: 'week' }
+    if (daysAgo <= 14) return { label: '近两周', classSuffix: '2week' }
+    if (daysAgo <= 30) return { label: '近一月', classSuffix: 'month' }
+    return { label: `${daysAgo}天前`, classSuffix: 'old' }
   })
   const relLabel = computed(() => relMeta.value.label)
   const relClass = computed(() =>
@@ -59,41 +59,41 @@ export function parseDateParts(label: string | null | undefined) {
  */
 export function useRemainingDays(
   entity: Ref<HaEntityState | null | undefined> | ComputedRef<HaEntityState | null | undefined>,
-  getAttr: (e: HaEntityState | null | undefined, key: string) => unknown,
+  getAttr: (entityState: HaEntityState | null | undefined, key: string) => unknown,
   parseJson: (json: unknown) => unknown,
   parseNum: (state: string | undefined) => number | null,
   costField: string,
 ) {
   const remDays = computed(() => {
-    const rd = getAttr(entity.value, 'remaining_days')
-    if (rd != null) {
-      const v = parseInt(String(rd), 10)
-      if (!isNaN(v) && v >= 0) return v
+    const remainingDaysAttr = getAttr(entity.value, 'remaining_days')
+    if (remainingDaysAttr != null) {
+      const remainingDaysNumber = parseInt(String(remainingDaysAttr), 10)
+      if (!isNaN(remainingDaysNumber) && remainingDaysNumber >= 0) return remainingDaysNumber
     }
-    const b = parseNum(entity.value?.state)
-    if (b == null) return '--'
-    const d = parseJson(getAttr(entity.value, 'daylist'))
-    if (!Array.isArray(d) || !d.length) return '--'
-    const recent = d.slice(0, 30)
-    let t = 0,
-      v = 0
+    const stateValue = parseNum(entity.value?.state)
+    if (stateValue == null) return '--'
+    const dayList = parseJson(getAttr(entity.value, 'daylist'))
+    if (!Array.isArray(dayList) || !dayList.length) return '--'
+    const recent = dayList.slice(0, 30)
+    let totalCost = 0,
+      countedDays = 0
     recent.forEach((x) => {
       const row = x as Record<string, unknown>
-      const c = parseFloat(String(row[costField] || row.cost || 0))
-      if (c > 0) {
-        t += c
-        v++
+      const cost = parseFloat(String(row[costField] || row.cost || 0))
+      if (cost > 0) {
+        totalCost += cost
+        countedDays++
       }
     })
-    if (v === 0) return '--'
-    const avg = t / v
+    if (countedDays === 0) return '--'
+    const avg = totalCost / countedDays
     if (avg <= 0) return '--'
-    return Math.floor(b / avg)
+    return Math.floor(stateValue / avg)
   })
   const remDate = computed(() => {
     if (remDays.value === '--' || remDays.value <= 0) return ''
-    const d = new Date(Date.now() + remDays.value * 86400000)
-    return `${d.getMonth() + 1}.${d.getDate()}`
+    const remainingDate = new Date(Date.now() + remDays.value * 86400000)
+    return `${remainingDate.getMonth() + 1}.${remainingDate.getDate()}`
   })
   return { remDays, remDate }
 }

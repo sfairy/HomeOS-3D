@@ -112,17 +112,17 @@ export function createSecurityOverviewActions(opts: {
     try {
       const res = await fetchNotifications({ limit: getMaxRemoteNotifications() })
       const list = Array.isArray(res.data) ? res.data : []
-      for (const n of list) {
-        const src = n.source || ''
+      for (const notification of list) {
+        const src = notification.source || ''
         if (
-          !n.read &&
+          !notification.read &&
           (src.includes('security') || src.includes('anomaly') || src === 'sensor-alert')
         ) {
-          await markNotificationRead(n.id)
+          await markNotificationRead(notification.id)
         }
       }
-    } catch (e) {
-      logger.debug('确认安全通知失败', e)
+    } catch (error) {
+      logger.debug('确认安全通知失败', error)
     }
     addSecEvent(ShieldCheck, '用户确认了所有告警', 'sec-event-item--mode')
   }
@@ -130,7 +130,7 @@ export function createSecurityOverviewActions(opts: {
   async function handleSecurityArm(mode: string) {
     if (secArming.value) return
     const isDisarm = mode === 'disarmed'
-    const armModeName = securityModes.value.find((m: SecurityMode) => m.key === mode)?.name
+    const armModeName = securityModes.value.find((modeEntry: SecurityMode) => modeEntry.key === mode)?.name
     const ok = await chrome.confirm(
       isDisarm ? '确定撤防？撤防后监控将关闭' : `确定布防${armModeName || mode}？布防期间将联动安防设备`,
       isDisarm ? '撤防确认' : '布防确认',
@@ -141,8 +141,8 @@ export function createSecurityOverviewActions(opts: {
     try {
       const zoneIds = armZoneSelection.value.length ? armZoneSelection.value : []
       const data = await executeSecurityPanelArm(mode, zoneIds, zones.value, patchModeFromSocket)
-      const sm = securityModes.value.find((m: SecurityMode) => m.key === mode)
-      const label = sm?.name || mode
+      const selectedMode = securityModes.value.find((modeEntry: SecurityMode) => modeEntry.key === mode)
+      const label = selectedMode?.name || mode
       const outcome = interpretSecurityArmResult(mode, label, data)
       if (outcome.kind === 'failed') {
         chrome.notify(outcome.message, 'error')
@@ -162,10 +162,10 @@ export function createSecurityOverviewActions(opts: {
         hapticAlert()
       }
       await fetchSecAuditEvents()
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status
+    } catch (requestError: unknown) {
+      const status = (requestError as { response?: { status?: number } })?.response?.status
       chrome.notify(status === 403 ? '权限不足，需管理员账号' : '安防操作失败', 'error')
-      logger.error('安防操作失败:', err)
+      logger.error('安防操作失败:', requestError)
     } finally {
       secArming.value = null
     }
@@ -199,10 +199,10 @@ export function createSecurityOverviewActions(opts: {
       chrome.notify(emergencySummaryText(), 'warning')
       await fetchSecAuditEvents()
       refreshSecPanel()
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status
+    } catch (emergencyError: unknown) {
+      const status = (emergencyError as { response?: { status?: number } })?.response?.status
       chrome.notify(status === 403 ? '权限不足，需管理员账号' : '紧急求助失败，请重试', 'error')
-      logger.error('紧急求助失败:', err)
+      logger.error('紧急求助失败:', emergencyError)
     } finally {
       emergencyBusy.value = false
     }
@@ -211,8 +211,8 @@ export function createSecurityOverviewActions(opts: {
   let prevSecMode = 'disarmed'
   watch(secCurrentMode, (mode) => {
     if (prevSecMode !== mode) {
-      const sm = securityModes.value.find((m: SecurityMode) => m.key === mode)
-      addSecEvent(ShieldCheck, `安防模式: ${sm?.name || mode}`, 'sec-event-item--mode')
+      const selectedMode = securityModes.value.find((modeEntry: SecurityMode) => modeEntry.key === mode)
+      addSecEvent(ShieldCheck, `安防模式: ${selectedMode?.name || mode}`, 'sec-event-item--mode')
       prevSecMode = mode
     }
   })
@@ -228,23 +228,23 @@ export function createSecurityOverviewActions(opts: {
 
   function syncSensorStateEvents(sensors: SecurityOverviewSensor[]) {
     if (!sensorStatesSeeded) {
-      for (const s of sensors) prevSensorStates[s.entity_id] = s.alert
+      for (const sensor of sensors) prevSensorStates[sensor.entity_id] = sensor.alert
       sensorStatesSeeded = true
       return
     }
-    for (const s of sensors) {
-      const prev = prevSensorStates[s.entity_id]
-      if (prev !== undefined && prev !== s.alert) {
+    for (const sensor of sensors) {
+      const prev = prevSensorStates[sensor.entity_id]
+      if (prev !== undefined && prev !== sensor.alert) {
         addSecEvent(
-          s.iconComp,
-          s.alert ? `${s.name} 告警` : `${s.name} 恢复`,
-          s.alert ? 'sec-event-item--danger' : 'sec-event-item--ok',
-          { zoneIds: zoneIdsForSensor(s.entity_id) },
+          sensor.iconComp,
+          sensor.alert ? `${sensor.name} 告警` : `${sensor.name} 恢复`,
+          sensor.alert ? 'sec-event-item--danger' : 'sec-event-item--ok',
+          { zoneIds: zoneIdsForSensor(sensor.entity_id) },
         )
       }
     }
     prevSensorStates = {}
-    for (const s of sensors) prevSensorStates[s.entity_id] = s.alert
+    for (const sensor of sensors) prevSensorStates[sensor.entity_id] = sensor.alert
   }
 
   watch(
@@ -252,8 +252,8 @@ export function createSecurityOverviewActions(opts: {
       const list = allSensors.value
       let sig = String(list.length)
       for (let i = 0; i < list.length; i++) {
-        const s = list[i]
-        sig += `\0${s.entity_id}:${s.alert ? 1 : 0}`
+        const sensor = list[i]
+        sig += `\0${sensor.entity_id}:${sensor.alert ? 1 : 0}`
       }
       return sig
     },
@@ -272,9 +272,9 @@ export function createSecurityOverviewActions(opts: {
         const atHome = data?.atHomeCount ?? 0
         const total = data?.totalPersons ?? 0
         if (total > 0) parts.push(`在家 ${atHome}/${total} 人`)
-        const mm = mmRes.data
-        if (mm?.totalRooms > 0) {
-          parts.push(`毫米波 ${mm.occupiedRooms}/${mm.totalRooms} 间有人`)
+        const presenceData = mmRes.data
+        if (presenceData?.totalRooms > 0) {
+          parts.push(`毫米波 ${presenceData.occupiedRooms}/${presenceData.totalRooms} 间有人`)
         }
         presenceSummary.value = parts.join(' · ')
       })

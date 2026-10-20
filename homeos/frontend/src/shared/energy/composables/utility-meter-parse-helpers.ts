@@ -7,8 +7,8 @@ interface UtilityMeterParserOpts {
   usageKeys: string[]
   costKeys: string[]
   labelKeys: string[]
-  formatUsage?: (raw: unknown, u: number) => string
-  formatCost?: (raw: unknown, c: number) => string
+  formatUsage?: (raw: unknown, usageValue: number) => string
+  formatCost?: (raw: unknown, costValue: number) => string
 }
 
 export interface UtilityMeterParsedItem {
@@ -29,39 +29,39 @@ function makeUtilityMeterParser(opts: UtilityMeterParserOpts) {
     amountKey?: string | null,
     usageKey?: string | null,
   ): UtilityMeterParsedItem {
-    const u = parseFloat(
+    const usage = parseFloat(
       String(
         (usageKey && x[usageKey]) ??
-          usageKeys.reduce<unknown>((v, k) => v ?? x[k], undefined) ??
+          usageKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined) ??
           0,
       ),
     )
-    const c = parseFloat(
+    const cost = parseFloat(
       String(
         (amountKey && x[amountKey]) ??
-          costKeys.reduce<unknown>((v, k) => v ?? x[k], undefined) ??
+          costKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined) ??
           0,
       ),
     )
     const label =
-      String(labelKeys.reduce<unknown>((v, k) => v || x[k], '') || '') || ''
+      String(labelKeys.reduce<unknown>((accumulated, k) => accumulated || x[k], '') || '') || ''
     const usageRaw =
-      (usageKey && x[usageKey]) ?? usageKeys.reduce<unknown>((v, k) => v ?? x[k], undefined)
+      (usageKey && x[usageKey]) ?? usageKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined)
     const costRaw =
-      (amountKey && x[amountKey]) ?? costKeys.reduce<unknown>((v, k) => v ?? x[k], undefined)
+      (amountKey && x[amountKey]) ?? costKeys.reduce<unknown>((accumulated, k) => accumulated ?? x[k], undefined)
     return {
       _label: label,
-      _usage: u,
-      _cost: c,
-      _usageStr: formatUsage ? formatUsage(usageRaw, u) : String(u > 0 ? u.toFixed(1) : '--'),
-      _costStr: formatCost ? formatCost(costRaw, c) : String(c > 0 ? c.toFixed(2) : '--'),
+      _usage: usage,
+      _cost: cost,
+      _usageStr: formatUsage ? formatUsage(usageRaw, usage) : String(usage > 0 ? usage.toFixed(1) : '--'),
+      _costStr: formatCost ? formatCost(costRaw, cost) : String(cost > 0 ? cost.toFixed(2) : '--'),
       _time: label,
     }
   }
 }
 const numericUsageCost = {
-  formatUsage: (_raw: unknown, u: number) => String(u > 0 ? u.toFixed(1) : '--'),
-  formatCost: (_raw: unknown, c: number) => String(c > 0 ? c.toFixed(2) : '--'),
+  formatUsage: (_raw: unknown, usage: number) => String(usage > 0 ? usage.toFixed(1) : '--'),
+  formatCost: (_raw: unknown, cost: number) => String(cost > 0 ? cost.toFixed(2) : '--'),
 }
 const rawFieldUsageCost = {
   formatUsage: (raw: unknown) => (raw ?? '--') as string,

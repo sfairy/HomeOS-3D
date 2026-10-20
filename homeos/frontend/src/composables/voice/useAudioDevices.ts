@@ -29,9 +29,9 @@ function readStoredId(key: string): string {
 
 function writeStoredId(key: string, id: string) {
   if (typeof localStorage === 'undefined') return
-  const v = String(id || '').trim()
-  if (!v) removeLocalStorage(key)
-  else writeLocalStorage(key, v)
+  const trimmedId = String(id || '').trim()
+  if (!trimmedId) removeLocalStorage(key)
+  else writeLocalStorage(key, trimmedId)
 }
 
 /**
@@ -46,8 +46,8 @@ function clearPreferredAudioInputDeviceId() {
   writeStoredId(INPUT_KEY, '')
 }
 
-function isNoDeviceError(err: unknown) {
-  const name = err instanceof DOMException ? err.name : ''
+function isNoDeviceError(deviceError: unknown) {
+  const name = deviceError instanceof DOMException ? deviceError.name : ''
   return name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError'
 }
 
@@ -77,9 +77,9 @@ export async function openAudioInputStream(): Promise<MediaStream> {
   for (const constraints of attempts) {
     try {
       return await navigator.mediaDevices.getUserMedia(constraints)
-    } catch (e) {
-      lastErr = e
-      logger.debug('打开麦克风失败,尝试下一方案', e)
+    } catch (error) {
+      lastErr = error
+      logger.debug('打开麦克风失败,尝试下一方案', error)
     }
   }
 
@@ -89,20 +89,20 @@ export async function openAudioInputStream(): Promise<MediaStream> {
 
   try {
     const list = await navigator.mediaDevices.enumerateDevices()
-    const inputs = list.filter((d) => d.kind === 'audioinput' && d.deviceId)
+    const inputs = list.filter((device) => device.kind === 'audioinput' && device.deviceId)
     for (const device of inputs) {
       if (device.deviceId === preferredId) continue
       try {
         return await navigator.mediaDevices.getUserMedia({
           audio: { deviceId: { exact: device.deviceId } },
         })
-      } catch (e) {
-        lastErr = e
-        logger.debug(`打开麦克风失败 [${device.deviceId.slice(0, 8)}]`, e)
+      } catch (error) {
+        lastErr = error
+        logger.debug(`打开麦克风失败 [${device.deviceId.slice(0, 8)}]`, error)
       }
     }
-  } catch (e) {
-    logger.debug('枚举麦克风失败', e)
+  } catch (error) {
+    logger.debug('枚举麦克风失败', error)
   }
 
   throw lastErr || Object.assign(new Error('未检测到麦克风'), { name: 'NotFoundError' })
@@ -116,14 +116,14 @@ type MicProbe = {
   errorName: string
 }
 
-function mediaErrorName(err: unknown) {
-  if (err instanceof DOMException && err.name) return err.name
-  if (err && typeof err === 'object' && 'name' in err) return String((err as { name?: string }).name || '')
+function mediaErrorName(mediaError: unknown) {
+  if (mediaError instanceof DOMException && mediaError.name) return mediaError.name
+  if (mediaError && typeof mediaError === 'object' && 'name' in mediaError) return String((mediaError as { name?: string }).name || '')
   return ''
 }
 
 /** 当前页面能否看到麦克风（失败时用于给出准确提示，不打开录音）。 */
-export async function probeMicrophone(err?: unknown): Promise<MicProbe> {
+export async function probeMicrophone(probeError?: unknown): Promise<MicProbe> {
   const secure = typeof window !== 'undefined' && window.isSecureContext
   const host = typeof window !== 'undefined' ? window.location.host || 'unknown' : ''
   let inputCount = 0
@@ -139,7 +139,7 @@ export async function probeMicrophone(err?: unknown): Promise<MicProbe> {
   try {
     if (navigator.mediaDevices?.enumerateDevices) {
       const list = await navigator.mediaDevices.enumerateDevices()
-      inputCount = list.filter((d) => d.kind === 'audioinput').length
+      inputCount = list.filter((device) => device.kind === 'audioinput').length
     }
   } catch {
     /* 枚举失败视为 0 */
@@ -149,7 +149,7 @@ export async function probeMicrophone(err?: unknown): Promise<MicProbe> {
     host,
     inputCount,
     permission,
-    errorName: mediaErrorName(err),
+    errorName: mediaErrorName(probeError),
   }
 }
 
@@ -185,8 +185,8 @@ async function applyOutputSink(el: HTMLMediaElement | null | undefined): Promise
   try {
     await anyEl.setSinkId(sinkId)
     return true
-  } catch (e) {
-    logger.debug('setSinkId 失败', e)
+  } catch (error) {
+    logger.debug('setSinkId 失败', error)
     return false
   }
 }
@@ -207,26 +207,26 @@ export function useAudioDevices() {
     typeof navigator !== 'undefined' && !!navigator.mediaDevices?.enumerateDevices
 
   const inputOptions = computed(() =>
-    inputs.value.map((d) => ({
-      value: d.deviceId,
-      label: d.label || `麦克风 ${d.deviceId.slice(0, 8)}`,
+    inputs.value.map((device) => ({
+      value: device.deviceId,
+      label: device.label || `麦克风 ${device.deviceId.slice(0, 8)}`,
     })),
   )
   const outputOptions = computed(() =>
-    outputs.value.map((d) => ({
-      value: d.deviceId,
-      label: d.label || `扬声器 ${d.deviceId.slice(0, 8)}`,
+    outputs.value.map((device) => ({
+      value: device.deviceId,
+      label: device.label || `扬声器 ${device.deviceId.slice(0, 8)}`,
     })),
   )
   const selectedInputLabel = computed(() => {
     const id = inputDeviceId.value
     if (!id) return '系统默认'
-    return inputOptions.value.find((o) => o.value === id)?.label || id.slice(0, 12)
+    return inputOptions.value.find((option) => option.value === id)?.label || id.slice(0, 12)
   })
   const selectedOutputLabel = computed(() => {
     const id = outputDeviceId.value
     if (!id) return '系统默认'
-    return outputOptions.value.find((o) => o.value === id)?.label || id.slice(0, 12)
+    return outputOptions.value.find((option) => option.value === id)?.label || id.slice(0, 12)
   })
   const supportsSetSinkId = computed(() => {
     if (typeof HTMLMediaElement === 'undefined') return false
@@ -270,14 +270,14 @@ export function useAudioDevices() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach((t) => t.stop())
+      stream.getTracks().forEach((track) => track.stop())
       permission.value = 'granted'
       await refreshDevices()
       return true
-    } catch (e) {
+    } catch (error) {
       permission.value = 'denied'
       errorTip.value = '麦克风权限被拒绝，请在浏览器设置中允许'
-      logger.debug('麦克风权限失败', e)
+      logger.debug('麦克风权限失败', error)
       return false
     }
   }
@@ -295,31 +295,31 @@ export function useAudioDevices() {
     try {
       const list = await navigator.mediaDevices.enumerateDevices()
       inputs.value = list
-        .filter((d) => d.kind === 'audioinput')
-        .map((d) => ({
-          deviceId: d.deviceId,
-          label: d.label || '',
-          groupId: d.groupId || '',
+        .filter((device) => device.kind === 'audioinput')
+        .map((device) => ({
+          deviceId: device.deviceId,
+          label: device.label || '',
+          groupId: device.groupId || '',
           kind: 'audioinput' as const,
         }))
       outputs.value = list
-        .filter((d) => d.kind === 'audiooutput')
-        .map((d) => ({
-          deviceId: d.deviceId,
-          label: d.label || '',
-          groupId: d.groupId || '',
+        .filter((device) => device.kind === 'audiooutput')
+        .map((device) => ({
+          deviceId: device.deviceId,
+          label: device.label || '',
+          groupId: device.groupId || '',
           kind: 'audiooutput' as const,
         }))
 
       // 已选设备被拔掉时回退默认
-      if (inputDeviceId.value && !inputs.value.some((d) => d.deviceId === inputDeviceId.value)) {
+      if (inputDeviceId.value && !inputs.value.some((device) => device.deviceId === inputDeviceId.value)) {
         setInputDeviceId('')
       }
-      if (outputDeviceId.value && !outputs.value.some((d) => d.deviceId === outputDeviceId.value)) {
+      if (outputDeviceId.value && !outputs.value.some((device) => device.deviceId === outputDeviceId.value)) {
         setOutputDeviceId('')
       }
-    } catch (e) {
-      logger.debug('enumerateDevices 失败', e)
+    } catch (error) {
+      logger.debug('enumerateDevices 失败', error)
       errorTip.value = '无法枚举音频设备'
     } finally {
       loading.value = false

@@ -138,21 +138,21 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
 
   const modeTabs = computed(() => {
     const tabs = []
-    for (const m of modesRef.value || []) {
-      const d = drafts.value[m.id]
+    for (const mode of modesRef.value || []) {
+      const draft = drafts.value[mode.id]
       tabs.push({
-        id: m.id,
-        label: d?.name || m.name,
-        ...tabIconFields(d?.icon || m.icon),
+        id: mode.id,
+        label: draft?.name || mode.name,
+        ...tabIconFields(draft?.icon || mode.icon),
         accent: '#818cf8',
       })
     }
     for (const [id, dRaw] of Object.entries(drafts.value)) {
-      const d = dRaw
-      if (!id.startsWith('draft_') || !d.isNew) continue
+      const draft = dRaw
+      if (!id.startsWith('draft_') || !draft.isNew) continue
       tabs.push({
         id,
-        label: d.name || '新模式',
+        label: draft.name || '新模式',
         emoji: '✨',
         accent: '#a78bfa',
       })
@@ -162,18 +162,18 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
 
   function resolveTabAfterRemove(removedId: string) {
     const tabs = modeTabs.value
-    const idx = tabs.findIndex((t) => t.id === removedId)
+    const idx = tabs.findIndex((removedIndex) => removedIndex.id === removedId)
     if (idx >= 0) {
       const neighbor = tabs[idx + 1] || (idx > 0 ? tabs[idx - 1] : null)
       if (neighbor) return neighbor.id
     }
-    const remaining = tabs.filter((t) => t.id !== removedId)
+    const remaining = tabs.filter((tab) => tab.id !== removedId)
     return remaining[0]?.id || ''
   }
 
   function ensureValidActiveTab() {
     const validIds = new Set([
-      ...(modesRef.value || []).map((m) => m.id),
+      ...(modesRef.value || []).map((mode) => mode.id),
       ...Object.keys(drafts.value).filter((k) => k.startsWith('draft_') && drafts.value[k]?.isNew),
     ])
     if (!validIds.size) {
@@ -188,13 +188,13 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
   function syncDrafts() {
     const next: Record<string, ModeDraft> = { ...drafts.value }
     const ids = new Set<string>()
-    for (const m of modesRef.value || []) {
-      ids.add(m.id)
-      const existing = next[m.id]
+    for (const mode of modesRef.value || []) {
+      ids.add(mode.id)
+      const existing = next[mode.id]
       if (!existing) {
-        next[m.id] = modeRecordToDraft(m)
+        next[mode.id] = modeRecordToDraft(mode)
       } else if (!existing.isNew) {
-        next[m.id] = existing
+        next[mode.id] = existing
       }
     }
     for (const id of Object.keys(next)) {
@@ -208,7 +208,7 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
   watch(
     () => {
       const list = modesRef.value || []
-      return `${list.length}:${list.map((m) => m.id).join(',')}`
+      return `${list.length}:${list.map((mode) => mode.id).join(',')}`
     },
     syncDrafts,
     { immediate: true },
@@ -224,14 +224,14 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
     const draft = activeDraft.value
     if (!draft) return false
     if (draft.isNew) return true
-    const mode = (modesRef.value || []).find((m) => m.id === activeTab.value)
+    const mode = (modesRef.value || []).find((matchedMode) => matchedMode.id === activeTab.value)
     return isDraftDirty(draft, mode)
   })
 
   const batchEditor = useHomeModeEditorBatch({ activeDraft, focusActionAt })
 
   function refreshDraftFromMode(id: string) {
-    const mode = (modesRef.value || []).find((m) => m.id === id)
+    const mode = (modesRef.value || []).find((matchedMode) => matchedMode.id === id)
     if (!mode) return
     drafts.value = { ...drafts.value, [id]: modeRecordToDraft(mode) }
   }
@@ -257,9 +257,9 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
   }
 
   function addAction() {
-    const d = activeDraft.value
-    if (!d) return -1
-    d.actions.push({
+    const draft = activeDraft.value
+    if (!draft) return -1
+    draft.actions.push({
       kind: 'entity',
       entity_id: '',
       domain: '',
@@ -267,7 +267,7 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
       delay: 0,
       service_data: '',
     })
-    const index = d.actions.length - 1
+    const index = draft.actions.length - 1
     focusActionAt(index)
     return index
   }
@@ -299,27 +299,27 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
   }
 
   function applyTemplate(tpl: ActionTemplate) {
-    const d = activeDraft.value
-    if (!d || !tpl) return
-    const sd = tpl.service_data ? JSON.stringify(tpl.service_data, null, 2) : ''
+    const draft = activeDraft.value
+    if (!draft || !tpl) return
+    const serviceData = tpl.service_data ? JSON.stringify(tpl.service_data, null, 2) : ''
     const kind = tpl.kind || 'entity'
-    d.actions.push({
+    draft.actions.push({
       kind,
       entity_id: resolveTemplateEntityId(tpl),
       domain: tpl.domain || (kind === 'notify' ? 'notify' : kind === 'security' ? 'security' : ''),
       service: tpl.service || 'turn_on',
       delay: 0,
-      service_data: sd,
+      service_data: serviceData,
     })
-    focusActionAt(d.actions.length - 1)
+    focusActionAt(draft.actions.length - 1)
   }
 
   function addTrigger() {
-    const d = activeDraft.value
-    if (!d) return -1
-    if (!d.triggers) d.triggers = []
-    d.triggers.push({ type: 'manual', entityId: '', at: '', to: '', from: '' })
-    const index = d.triggers.length - 1
+    const draft = activeDraft.value
+    if (!draft) return -1
+    if (!draft.triggers) draft.triggers = []
+    draft.triggers.push({ type: 'manual', entityId: '', at: '', to: '', from: '' })
+    const index = draft.triggers.length - 1
     focusTriggerAt(index)
     return index
   }
@@ -328,7 +328,7 @@ export function useHomeModeEditor(modesRef: Ref<HomeModeRecord[] | null | undefi
     const draft = drafts.value[tabId]
     if (!draft) return false
     if (draft.isNew) return true
-    const mode = (modesRef.value || []).find((m) => m.id === tabId)
+    const mode = (modesRef.value || []).find((matchedMode) => matchedMode.id === tabId)
     return isDraftDirty(draft, mode)
   }
 

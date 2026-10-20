@@ -226,20 +226,20 @@ const groupMode = ref('type')
 // 当存在区域时，默认按区域分组，便于查看分区下的传感器
 watch(
   () => props.liveZones.length,
-  (n) => {
-    if (n > 0) groupMode.value = 'zone'
+  (count) => {
+    if (count > 0) groupMode.value = 'zone'
   },
   { immediate: true },
 )
 
-watch(secEventFilter, (f) => {
+watch(secEventFilter, (feature) => {
   // 指挥栏「查看详情」、危险/误报筛选、区域筛选：切到审计日志，否则用户看不到效果
-  if (typeof f !== 'string' || f === 'all') return
+  if (typeof feature !== 'string' || feature === 'all') return
   if (
-    f === 'linkage' ||
-    f === 'hazard' ||
-    f === 'false_alarm_feedback' ||
-    f.startsWith('zone:')
+    feature === 'linkage' ||
+    feature === 'hazard' ||
+    feature === 'false_alarm_feedback' ||
+    feature.startsWith('zone:')
   ) {
     activeTab.value = 'audit'
   }
@@ -259,13 +259,13 @@ const zoneGroupedSensors = computed(() => {
   const assigned = new Set()
   const groups = []
   for (const zone of props.liveZones) {
-    const items = props.listSensors.filter((s) => zone.sensors?.includes(s.entity_id))
-    items.forEach((s) => assigned.add(s.entity_id))
+    const items = props.listSensors.filter((sensor) => zone.sensors?.includes(sensor.entity_id))
+    items.forEach((sensor) => assigned.add(sensor.entity_id))
     if (items.length) {
       groups.push({ type: `zone:${zone.id}`, label: zone.name, items })
     }
   }
-  const unassigned = props.listSensors.filter((s) => !assigned.has(s.entity_id))
+  const unassigned = props.listSensors.filter((sensor) => !assigned.has(sensor.entity_id))
   if (unassigned.length) {
     groups.push({ type: '__unassigned__', label: '未分区', items: unassigned })
   }
@@ -279,25 +279,25 @@ const baseGroups = computed(() =>
 
 // 在基础分组上叠加搜索过滤，剔除无匹配项的空分组
 const displayGroups = computed(() => {
-  const q = sensorQuery.value.trim().toLowerCase()
-  if (!q) return baseGroups.value
+  const searchTerm = sensorQuery.value.trim().toLowerCase()
+  if (!searchTerm) return baseGroups.value
   return baseGroups.value
-    .map((g) => ({
-      ...g,
-      items: g.items.filter(
-        (s) => s.name?.toLowerCase().includes(q) || s.entity_id?.toLowerCase().includes(q),
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (sensor) => sensor.name?.toLowerCase().includes(searchTerm) || sensor.entity_id?.toLowerCase().includes(searchTerm),
       ),
     }))
-    .filter((g) => g.items.length > 0)
+    .filter((group) => group.items.length > 0)
 })
 
 // 将分组摊平为带 _groupLabel 的传感器列表，便于分页切片与卡片渲染
 const flatSensors = computed(() =>
-  displayGroups.value.flatMap((g) =>
-    g.items.map((s) => ({
-      ...s,
-      _groupType: g.type,
-      _groupLabel: g.label,
+  displayGroups.value.flatMap((group) =>
+    group.items.map((sensor) => ({
+      ...sensor,
+      _groupType: group.type,
+      _groupLabel: group.label,
     })),
   ),
 )
@@ -337,9 +337,9 @@ watch([sensorQuery, groupMode, () => props.sensorFilter, alertsOnly, boundOnly],
 })
 
 // 传感器状态文案：离线 / 告警 / 正常
-function sensorStateLabel(s) {
-  if (s.offline) return '离线'
-  if (s.alert) return '告警'
+function sensorStateLabel(sensor) {
+  if (sensor.offline) return '离线'
+  if (sensor.alert) return '告警'
   return '正常'
 }
 </script>

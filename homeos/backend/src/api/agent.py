@@ -242,8 +242,8 @@ async def chat_stream(
         # 事件序列：token 增量（实时）→ tool 轨迹 → done（最终结果）/ error
         queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-        def on_progress(ev: dict[str, Any]) -> None:
-            queue.put_nowait(_frame(str(ev.get("type") or "token"), ev))
+        def on_progress(progress_event: dict[str, Any]) -> None:
+            queue.put_nowait(_frame(str(progress_event.get("type") or "token"), progress_event))
 
         async def run() -> None:
             try:

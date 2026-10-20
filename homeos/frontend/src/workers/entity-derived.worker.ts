@@ -81,11 +81,11 @@ function patchDerivedSnapshot(
     : null
 
   for (let i = 0; i < patches.length; i++) {
-    const { entity_id, oldEntity, newEntity } = patches[i]
-    if (!entity_id) continue
-    affectedDomains.add(getEntityDomain(entity_id))
-    if (oldEntity) removeEntityDerivedKey(entity_id, oldEntity, acc)
-    if (newEntity) applyEntityDerivedKey(entity_id, newEntity, acc)
+    const { entity_id: entityId, oldEntity, newEntity } = patches[i]
+    if (!entityId) continue
+    affectedDomains.add(getEntityDomain(entityId))
+    if (oldEntity) removeEntityDerivedKey(entityId, oldEntity, acc)
+    if (newEntity) applyEntityDerivedKey(entityId, newEntity, acc)
   }
 
   // 仅携带受影响域的索引片段，其余域保持不变

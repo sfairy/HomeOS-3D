@@ -42,8 +42,8 @@ export function useVoiceCommandEditor() {
     }
   }
 
-  function onEntityInput(cmd: { domain?: string; entityMatch?: string }, val: unknown) {
-    const value = String(val || '').trim()
+  function onEntityInput(cmd: { domain?: string; entityMatch?: string }, rawValue: unknown) {
+    const value = String(rawValue || '').trim()
     cmd.entityMatch = value || domainPrefix(cmd.domain)
     if (value) specificScopeCmds.delete(cmd)
   }

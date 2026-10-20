@@ -16,15 +16,15 @@ _DELTA_DIFF_CACHE_MAX = 4096
 _delta_cache: dict[str, dict[str, Any]] = {}
 
 
-def _values_shallow_equal(a: Any, b: Any) -> bool:
-    if a is b:
+def _values_shallow_equal(left: Any, right: Any) -> bool:
+    if left is right:
         return True
-    if isinstance(a, (dict, list)) or isinstance(b, (dict, list)):
+    if isinstance(left, (dict, list)) or isinstance(right, (dict, list)):
         try:
-            return a == b
+            return left == right
         except Exception:
             return False
-    return a == b
+    return left == right
 
 
 def pick_changed_attributes(

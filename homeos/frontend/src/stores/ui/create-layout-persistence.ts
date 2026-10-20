@@ -447,8 +447,8 @@ export function createLayoutPersistence({
             isConfigLoaded.value = true
             applyTabletDefaultPerformanceMode(layoutConfig)
             void setActiveProject(profileAtStart).catch((e: unknown) => {
-              const msg = e instanceof Error ? e.message : String(e)
-              logger.warn(`同步激活方案失败: ${msg}`)
+              const caughtMessage = e instanceof Error ? e.message : String(e)
+              logger.warn(`同步激活方案失败: ${caughtMessage}`)
             })
             if (onAfterLoad) void onAfterLoad()
             // 布局加载完成后同步一次远程访问地址给原生端（外网漫游取回入口）

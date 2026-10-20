@@ -167,25 +167,25 @@ export function useHomeModeActionsSection(
     return act.entity_id || '未填写实体'
   }
 
-  function toggleAdvanced(idx: number) {
-    advancedMap[idx] = !advancedMap[idx]
+  function toggleAdvanced(advancedIndex: number) {
+    advancedMap[advancedIndex] = !advancedMap[advancedIndex]
   }
 
-  function moveAction(idx: number, direction: number) {
+  function moveAction(idx: number, actionIndex: number) {
     const actions = activeDraft.value.actions
     if (!actions) return
-    const newIdx = idx + direction
+    const newIdx = idx + actionIndex
     if (newIdx < 0 || newIdx >= actions.length) return
     const [item] = actions.splice(idx, 1)
     actions.splice(newIdx, 0, item)
     syncIndexAfterMove(idx, newIdx)
   }
 
-  function onDragStart(idx: number, e: DragEvent) {
+  function onDragStart(idx: number, dragFromIndex: DragEvent) {
     dragIndex.value = idx
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setData('text/plain', String(idx))
+    if (dragFromIndex.dataTransfer) {
+      dragFromIndex.dataTransfer.effectAllowed = 'move'
+      dragFromIndex.dataTransfer.setData('text/plain', String(idx))
     }
   }
 
@@ -207,11 +207,11 @@ export function useHomeModeActionsSection(
     dragOverIndex.value = null
   }
 
-  function onDragOver(idx: number, e: DragEvent) {
+  function onDragOver(idx: number, hoverIndex: DragEvent) {
     if (dragIndex.value === null) return
     dragOverIndex.value = idx
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = 'move'
+    if (hoverIndex.dataTransfer) {
+      hoverIndex.dataTransfer.dropEffect = 'move'
     }
   }
 

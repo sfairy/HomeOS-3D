@@ -41,8 +41,8 @@ export interface ClimateLegendItem {
 }
 
 function formatAxisTime(value: number) {
-  const d = new Date(value)
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  const date = new Date(value)
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
 }
 
 /** 生成图表系列名称（用于 ECharts legend 切换） */
@@ -62,8 +62,8 @@ export function formatLegendValue(value: number | null, kind: 'temp' | 'hum') {
 
 function parseHistory(points: ClimateHistoryPoint[]) {
   return points
-    .map((p) => ({ x: new Date(p.timestamp).getTime(), y: parseFloat(String(p.value)) }))
-    .filter((p) => !Number.isNaN(p.y))
+    .map((point) => ({ x: new Date(point.timestamp).getTime(), y: parseFloat(String(point.value)) }))
+    .filter((point) => !Number.isNaN(point.y))
 }
 
 function friendlyBaseName(
@@ -94,36 +94,36 @@ export function mapHistorySeries(
       baseName: friendlyBaseName(id, entities),
       data: parseHistory(pointsByEntity.get(id)!),
     }))
-    .filter((s) => s.data.length > 0)
+    .filter((seriesItem) => seriesItem.data.length > 0)
 
   const nameCounts: Record<string, number> = {}
-  rows.forEach((r) => {
-    nameCounts[r.baseName] = (nameCounts[r.baseName] || 0) + 1
+  rows.forEach((row) => {
+    nameCounts[row.baseName] = (nameCounts[row.baseName] || 0) + 1
   })
 
-  return rows.map((r) => {
-    let name = r.baseName
-    if (nameCounts[r.baseName] > 1) {
-      const tail = getEntityLeaf(r.entityId)
+  return rows.map((row) => {
+    let name = row.baseName
+    if (nameCounts[row.baseName] > 1) {
+      const tail = getEntityLeaf(row.entityId)
       name = `${name} · ${String(tail).slice(-8)}`
     }
-    return { entityId: r.entityId, name, data: r.data }
+    return { entityId: row.entityId, name, data: row.data }
   })
 }
 
 function buildLineSeries(
-  serie: ClimateSeries,
+  seriesItem: ClimateSeries,
   color: string,
   yAxisIndex: number,
   kind: string,
   withFill = true,
 ) {
   const item: Record<string, unknown> = {
-    id: serie.entityId,
-    name: chartSeriesName(serie.entityId, kind),
+    id: seriesItem.entityId,
+    name: chartSeriesName(seriesItem.entityId, kind),
     type: 'line',
     yAxisIndex,
-    data: serie.data.map((d) => [d.x, d.y]),
+    data: seriesItem.data.map((point) => [point.x, point.y]),
     smooth: 0.28,
     symbol: 'none',
     lineStyle: { width: withFill ? 2 : 1.75, color },
@@ -152,7 +152,7 @@ function buildTempYAxis() {
       color: 'rgba(255,107,107,0.5)',
       fontSize: 8,
       margin: 3,
-      formatter: (v: number) => `${Math.round(v)}°`,
+      formatter: (value: number) => `${Math.round(value)}°`,
     },
     splitLine: { lineStyle: { color: 'rgba(255,255,255,0.035)', type: 'dashed' } },
     axisLine: { show: false },
@@ -172,7 +172,7 @@ function buildHumYAxis() {
       color: 'rgba(10,132,255,0.5)',
       fontSize: 8,
       margin: 3,
-      formatter: (v: number) => `${Math.round(v)}%`,
+      formatter: (value: number) => `${Math.round(value)}%`,
     },
     splitLine: { show: false },
     axisLine: { show: false },
@@ -193,7 +193,7 @@ function buildSingleYAxis(view: string) {
         color: 'rgba(255,255,255,0.58)',
         fontSize: 9,
         margin: 4,
-        formatter: (v: number) => (isHum ? `${Math.round(v)}%` : `${Math.round(v)}°`),
+        formatter: (value: number) => (isHum ? `${Math.round(value)}%` : `${Math.round(value)}°`),
       },
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
       axisLine: { show: false },
@@ -224,15 +224,15 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
   const series: Record<string, unknown>[] = []
   const lineFill = !isCombinedView
   if (showTemp) {
-    temperatureSeries.forEach((s, i) => {
-      series.push(buildLineSeries(s, TEMP_COLORS[i % TEMP_COLORS.length], 0, 'temp', lineFill))
+    temperatureSeries.forEach((seriesItem, i) => {
+      series.push(buildLineSeries(seriesItem, TEMP_COLORS[i % TEMP_COLORS.length], 0, 'temp', lineFill))
     })
   }
   if (showHum) {
-    humiditySeries.forEach((s, i) => {
+    humiditySeries.forEach((seriesItem, i) => {
       series.push(
         buildLineSeries(
-          s,
+          seriesItem,
           HUM_COLORS[i % HUM_COLORS.length],
           isCombinedView ? 1 : 0,
           'hum',
@@ -243,7 +243,7 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
   }
 
   const legendSelected: Record<string, boolean> = Object.fromEntries(
-    series.map((s) => [s.name as string, true]),
+    series.map((seriesItem) => [seriesItem.name as string, true]),
   )
   legendItems.forEach((item, idx) => {
     if (item.seriesName in legendSelected) {
@@ -294,26 +294,26 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
         }>,
       ) => {
         if (!params?.length) return ''
-        const t = params[0].data?.[0] ? new Date(params[0].data[0]) : null
-        const ts = t ? formatAuditTimestamp(t) : ''
+        const timestamp = params[0].data?.[0] ? new Date(params[0].data[0]) : null
+        const formattedTimestamp = timestamp ? formatAuditTimestamp(timestamp) : ''
         // 外壳页 CSP 是 ``style-src 'self'``，tooltip 里的行内 style **会被浏览器拦下**
         // （曾经表现为控制台一串「Applying inline style violates …」且 tooltip 样式静默失效）。
         // 因此这里只输出类名，样式集中在 styles/home-climate-chart.css；
         // 唯一带动态值的圆点改用 SVG 的 ``fill`` 呈现属性 —— 它不受 style-src 约束。
-        let html = `<div class="hcc-tip__time">${ts}</div>`
-        for (const p of params) {
-          const isHum = humiditySeries.some((s) => s.entityId === p.seriesId)
+        let html = `<div class="hcc-tip__time">${formattedTimestamp}</div>`
+        for (const point of params) {
+          const isHum = humiditySeries.some((seriesItem) => seriesItem.entityId === point.seriesId)
           const unit = isHum ? '%' : '°C'
           const label =
-            temperatureSeries.find((s) => s.entityId === p.seriesId)?.name ??
-            humiditySeries.find((s) => s.entityId === p.seriesId)?.name ??
-            p.seriesName
-          const dotColor = typeof p.color === 'string' && p.color ? p.color : 'currentColor'
+            temperatureSeries.find((seriesItem) => seriesItem.entityId === point.seriesId)?.name ??
+            humiditySeries.find((seriesItem) => seriesItem.entityId === point.seriesId)?.name ??
+            point.seriesName
+          const dotColor = typeof point.color === 'string' && point.color ? point.color : 'currentColor'
           html +=
             '<div class="hcc-tip__row">' +
             `<svg class="hcc-tip__dot" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" rx="2" fill="${dotColor}"/></svg>` +
             `<span class="hcc-tip__label">${label}</span>` +
-            `<b class="hcc-tip__value">${Number(p.data?.[1] ?? 0).toFixed(1)}${unit}</b>` +
+            `<b class="hcc-tip__value">${Number(point.data?.[1] ?? 0).toFixed(1)}${unit}</b>` +
             '</div>'
         }
         return html

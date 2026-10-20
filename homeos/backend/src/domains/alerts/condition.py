@@ -115,18 +115,18 @@ def _parse_float(value: str) -> float | None:
         return None
 
 
-def _compare_numeric(lhs: float, op: str, rhs: float) -> bool:
-    if op == ">":
+def _compare_numeric(lhs: float, operator: str, rhs: float) -> bool:
+    if operator == ">":
         return lhs > rhs
-    if op == ">=":
+    if operator == ">=":
         return lhs >= rhs
-    if op == "<":
+    if operator == "<":
         return lhs < rhs
-    if op == "<=":
+    if operator == "<=":
         return lhs <= rhs
-    if op in ("==", "="):
+    if operator in ("==", "="):
         return lhs == rhs
-    if op == "!=":
+    if operator == "!=":
         return lhs != rhs
     return False
 

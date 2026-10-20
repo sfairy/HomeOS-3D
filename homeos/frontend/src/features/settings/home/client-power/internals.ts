@@ -51,8 +51,8 @@ function expandTruncatedClientLabel(client: ClientPowerClient): ClientPowerClien
 }
 
 function parsePercent(val: unknown, fallback: number): number {
-  const n = Number(val)
-  return Number.isFinite(n) ? n : fallback
+  const numeric = Number(val)
+  return Number.isFinite(numeric) ? numeric : fallback
 }
 
 // 归一化单个终端配置：缺失字段回退默认，非法数值兜底
@@ -86,22 +86,22 @@ function normalizeClient(item: unknown): ClientPowerClient {
 function normalizeConfig(
   raw: SystemConfig | Record<string, unknown> | null | undefined,
 ): ClientPowerSettings {
-  const cp = (
+  const clientPower = (
     raw && typeof raw === 'object' && raw.clientPower && typeof raw.clientPower === 'object'
       ? raw.clientPower
       : {}
   ) as Record<string, unknown>
   return {
-    enabled: cp.enabled === true,
+    enabled: clientPower.enabled === true,
     reportIntervalSec:
-      Number(cp.reportIntervalSec) || DEFAULT_CLIENT_POWER_SETTINGS.reportIntervalSec,
-    staleTimeoutSec: Number(cp.staleTimeoutSec) || DEFAULT_CLIENT_POWER_SETTINGS.staleTimeoutSec,
-    cooldownMin: Number(cp.cooldownMin) || DEFAULT_CLIENT_POWER_SETTINGS.cooldownMin,
+      Number(clientPower.reportIntervalSec) || DEFAULT_CLIENT_POWER_SETTINGS.reportIntervalSec,
+    staleTimeoutSec: Number(clientPower.staleTimeoutSec) || DEFAULT_CLIENT_POWER_SETTINGS.staleTimeoutSec,
+    cooldownMin: Number(clientPower.cooldownMin) || DEFAULT_CLIENT_POWER_SETTINGS.cooldownMin,
     linkageRetryCount:
-      Number(cp.linkageRetryCount) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryCount,
+      Number(clientPower.linkageRetryCount) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryCount,
     linkageRetryDelayMs:
-      Number(cp.linkageRetryDelayMs) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryDelayMs,
-    clients: Array.isArray(cp.clients) ? cp.clients.map(normalizeClient).filter((c) => c.id) : [],
+      Number(clientPower.linkageRetryDelayMs) || DEFAULT_CLIENT_POWER_SETTINGS.linkageRetryDelayMs,
+    clients: Array.isArray(clientPower.clients) ? clientPower.clients.map(normalizeClient).filter((client) => client.id) : [],
   }
 }
 
@@ -138,10 +138,10 @@ function useClientPowerConfig() {
       const { data } = await fetchClientPowerStatus<ClientPowerStatusSnapshot>()
       status.value = data
       pending.value = data?.pending || []
-    } catch (e) {
-      logger.warn('刷新客户端电源状态失败', e)
+    } catch (error) {
+      logger.warn('刷新客户端电源状态失败', error)
       if (!options.silent) {
-        chrome.notify(getApiErrorMessage(e, '刷新客户端电源状态失败'), 'error')
+        chrome.notify(getApiErrorMessage(error, '刷新客户端电源状态失败'), 'error')
       }
     } finally {
       statusLoading.value = false
@@ -155,15 +155,15 @@ function useClientPowerConfig() {
     const showLoading = !options.silent && !clientPowerLoaded
     if (showLoading) loading.value = true
     try {
-      const cfg = await loadSystemConfig({ force: true })
-      config.value = normalizeConfig(cfg as SystemConfig | null)
+      const loadedConfig = await loadSystemConfig({ force: true })
+      config.value = normalizeConfig(loadedConfig as SystemConfig | null)
       snapshotClientPowerConfig()
       await refreshStatus()
       clientPowerLoaded = true
-    } catch (e) {
-      logger.warn('刷新客户端电源配置失败', e)
+    } catch (error) {
+      logger.warn('刷新客户端电源配置失败', error)
       if (showLoading || !clientPowerLoaded) {
-        chrome.notify(getApiErrorMessage(e, '加载失败'), 'error')
+        chrome.notify(getApiErrorMessage(error, '加载失败'), 'error')
       }
     } finally {
       if (showLoading) loading.value = false
@@ -181,24 +181,24 @@ function useClientPowerConfig() {
   async function save() {
     saving.value = true
     try {
-      const allClients = config.value.clients.map(normalizeClient).filter((c) => c.id)
-      const unlabeled = allClients.filter((c) => !c.label)
+      const allClients = config.value.clients.map(normalizeClient).filter((client) => client.id)
+      const unlabeled = allClients.filter((client) => !client.label)
       if (unlabeled.length) {
         chrome.notify(`有 ${unlabeled.length} 个终端未填写名称，请补全后再保存`, 'warning')
         return false
       }
-      const clients = allClients.filter((c) => c.id && c.label)
+      const clients = allClients.filter((client) => client.id && client.label)
       const badThreshold = clients.find(
-        (c) => (c.selfCharge?.lowPercent ?? 20) >= (c.selfCharge?.highPercent ?? 80),
+        (client) => (client.selfCharge?.lowPercent ?? 20) >= (client.selfCharge?.highPercent ?? 80),
       )
       if (badThreshold) {
         chrome.notify(`「${badThreshold.label}」的低电量阈值须小于高电量阈值`, 'error')
         return false
       }
       const badCritical = clients.find(
-        (c) =>
-          c.selfCharge?.touEnabled &&
-          (c.selfCharge?.criticalPercent ?? 15) >= (c.selfCharge?.lowPercent ?? 20),
+        (client) =>
+          client.selfCharge?.touEnabled &&
+          (client.selfCharge?.criticalPercent ?? 15) >= (client.selfCharge?.lowPercent ?? 20),
       )
       if (badCritical) {
         chrome.notify(`「${badCritical.label}」的应急充电阈值须小于低电量阈值`, 'error')
@@ -219,12 +219,12 @@ function useClientPowerConfig() {
       chrome.notify('智能充放电配置已保存', 'success')
       snapshotClientPowerConfig()
       await refreshStatus()
-      void reloadFrontendConfig().catch((err) => logger.debug('充放电配置保存后刷新配置失败', err))
+      void reloadFrontendConfig().catch((refreshError) => logger.debug('充放电配置保存后刷新配置失败', refreshError))
       return true
-    } catch (e) {
-      if (await handleSystemConfigPatchError(e, chrome)) return false
-      logger.warn('保存客户端电源配置失败', e)
-      chrome.notify(getApiErrorMessage(e, '保存失败'), 'error')
+    } catch (error) {
+      if (await handleSystemConfigPatchError(error, chrome)) return false
+      logger.warn('保存客户端电源配置失败', error)
+      chrome.notify(getApiErrorMessage(error, '保存失败'), 'error')
       return false
     } finally {
       saving.value = false
@@ -232,17 +232,17 @@ function useClientPowerConfig() {
   }
 
   // 从待配对列表添加终端到策略列表：去重，并基于系统信息生成建议名称
-  function addClientFromPending(p: ClientPowerPendingClient) {
-    if (!p?.clientId) return
-    const exists = config.value.clients.some((c) => c.id === p.clientId)
+  function addClientFromPending(pendingClient: ClientPowerPendingClient) {
+    if (!pendingClient?.clientId) return
+    const exists = config.value.clients.some((client) => client.id === pendingClient.clientId)
     if (exists) {
       chrome.notify('该终端已在策略列表中', 'info')
       return
     }
-    const sysInfo = getSystemInfoFromClientRow(p)
-    const label = getClientSuggestedLabel(sysInfo, p.clientId)
+    const sysInfo = getSystemInfoFromClientRow(pendingClient)
+    const label = getClientSuggestedLabel(sysInfo, pendingClient.clientId)
     config.value.clients.push({
-      ...createEmptyClientConfig(p.clientId),
+      ...createEmptyClientConfig(pendingClient.clientId),
       label,
     })
     chrome.notify('已添加至策略列表，保存配置后生效', 'success')
@@ -277,9 +277,9 @@ function useClientPowerConfig() {
     return data ?? { dismissed: false }
   }
 
-  async function dismissPending(p: ClientPowerPendingClient, displayName?: string) {
-    if (!p?.clientId) return
-    const name = displayName || p.clientId
+  async function dismissPending(pendingClient: ClientPowerPendingClient, displayName?: string) {
+    if (!pendingClient?.clientId) return
+    const name = displayName || pendingClient.clientId
     const ok = await chrome.confirm(
       `确定清除离线终端「${name}」的发现记录？该终端再次上报时会重新出现。`,
       '清除待配对',
@@ -287,7 +287,7 @@ function useClientPowerConfig() {
     )
     if (!ok) return
     try {
-      const data = await dismissPendingRecord(p.clientId)
+      const data = await dismissPendingRecord(pendingClient.clientId)
       if (data.dismissed === false) {
         const reasonMap = {
           online: '终端仍在线，无法清除',
@@ -302,12 +302,12 @@ function useClientPowerConfig() {
         await refreshStatus()
         return
       }
-      pending.value = pending.value.filter((x) => x.clientId !== p.clientId)
+      pending.value = pending.value.filter((x) => x.clientId !== pendingClient.clientId)
       chrome.notify('已清除该终端的发现记录', 'success')
       await refreshStatus()
-    } catch (e) {
-      logger.warn('忽略待处理客户端失败', e)
-      chrome.notify(getApiErrorMessage(e, '清除失败'), 'error')
+    } catch (error) {
+      logger.warn('忽略待处理客户端失败', error)
+      chrome.notify(getApiErrorMessage(error, '清除失败'), 'error')
     }
   }
 
@@ -325,26 +325,26 @@ function useClientPowerConfig() {
       try {
         const { data } = await dismissClientPowerOffline({})
         dismissedIds = data?.clientIds || []
-      } catch (e) {
-        const status = (e as { response?: { status?: number } })?.response?.status
-        if (status !== 404) throw e
-        for (const p of offlineClients) {
-          const result = await dismissPendingRecord(p.clientId)
-          if (result.dismissed) dismissedIds.push(p.clientId)
+      } catch (dismissError) {
+        const status = (dismissError as { response?: { status?: number } })?.response?.status
+        if (status !== 404) throw dismissError
+        for (const offlinePendingClient of offlineClients) {
+          const result = await dismissPendingRecord(offlinePendingClient.clientId)
+          if (result.dismissed) dismissedIds.push(offlinePendingClient.clientId)
         }
       }
       const dismissedSet = new Set(dismissedIds)
-      const n = dismissedSet.size
-      if (n > 0) {
-        pending.value = pending.value.filter((p) => !dismissedSet.has(p.clientId))
-        chrome.notify(`已清除 ${n} 台离线终端的发现记录`, 'success')
+      const count = dismissedSet.size
+      if (count > 0) {
+        pending.value = pending.value.filter((pendingClient) => !dismissedSet.has(pendingClient.clientId))
+        chrome.notify(`已清除 ${count} 台离线终端的发现记录`, 'success')
       } else {
         chrome.notify('没有可清除的离线终端', 'info')
       }
       await refreshStatus()
-    } catch (e) {
-      logger.warn('批量清除离线待配对终端失败', e)
-      chrome.notify(getApiErrorMessage(e, '清除失败'), 'error')
+    } catch (error) {
+      logger.warn('批量清除离线待配对终端失败', error)
+      chrome.notify(getApiErrorMessage(error, '清除失败'), 'error')
     }
   }
 
@@ -478,9 +478,9 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
   // 统计指标：已注册 / 已启用 / 在线 / 待配对数量
   const registeredCount = computed(() => config.value.clients.length)
   const enabledCount = computed(
-    () => config.value.clients.filter((c) => c.enabled && c.selfCharge?.enabled !== false).length,
+    () => config.value.clients.filter((client) => client.enabled && client.selfCharge?.enabled !== false).length,
   )
-  const onlineCount = computed(() => liveClients.value.filter((c) => c.online && !c.pending).length)
+  const onlineCount = computed(() => liveClients.value.filter((client) => client.online && !client.pending).length)
   const pendingCount = computed(() => pending.value.length)
   const policyCount = computed(() => config.value.clients.length)
 
@@ -490,28 +490,28 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
   }
 
   // 取待配对终端的实时行（按 clientId 查 Map）
-  function pendingLiveRow(p: { clientId: string }) {
-    return clientStatusMap.value[p.clientId] || null
+  function pendingLiveRow(pendingClient: { clientId: string }) {
+    return clientStatusMap.value[pendingClient.clientId] || null
   }
 
   // 待配对终端电量读取行：优先实时行，否则回退原始待配对对象
-  function pendingBatteryRow(p: { clientId: string }) {
-    return pendingLiveRow(p) || p
+  function pendingBatteryRow(pendingClient: { clientId: string }) {
+    return pendingLiveRow(pendingClient) || pendingClient
   }
 
   // 生成待配对终端卡片标题
-  function pendingCardTitle(p: { clientId?: string; systemInfo?: unknown }) {
-    return buildPendingCardTitle(p)
+  function pendingCardTitle(pendingClient: { clientId?: string; systemInfo?: unknown }) {
+    return buildPendingCardTitle(pendingClient)
   }
 
   /** 待配对终端当前是否离线（无实时行或行标记离线）——离线才允许清除发现记录 */
-  function pendingOffline(p: { clientId: string }) {
-    const row = pendingLiveRow(p) as { online?: boolean } | null
+  function pendingOffline(pendingClient: { clientId: string }) {
+    const row = pendingLiveRow(pendingClient) as { online?: boolean } | null
     return !row || !row.online
   }
 
   // 离线待配对终端总数（仅离线可清除）
-  const pendingOfflineCount = computed(() => pending.value.filter((p) => pendingOffline(p)).length)
+  const pendingOfflineCount = computed(() => pending.value.filter((pendingClient) => pendingOffline(pendingClient)).length)
 
   // 已启用但未绑定充电器 Switch 实体
   function clientNeedsSwitch(client: { enabled?: boolean; chargerSwitchEntityId?: string }) {

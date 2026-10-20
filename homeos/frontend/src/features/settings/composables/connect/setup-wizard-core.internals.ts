@@ -98,8 +98,8 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
           circuitEntityIds.value = circuits.join(', ')
         }
       }
-    } catch (e) {
-      logger.error('加载首装向导状态失败', e)
+    } catch (error) {
+      logger.error('加载首装向导状态失败', error)
       notify('无法加载向导状态', false)
     } finally {
       loading.value = false
@@ -117,8 +117,8 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
       const result = { ...data, valid, missing, allOk: missing.length === 0 }
       validateResult.value = result
       return result
-    } catch (e) {
-      logger.error('实体校验失败', e)
+    } catch (error) {
+      logger.error('实体校验失败', error)
       const missing = entityIds.filter((id) => !knownLocally(id))
       if (!missing.length) {
         const result = { allOk: true, valid: entityIds, missing: [] }
@@ -150,17 +150,17 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     saving.value = true
     try {
       const hasTrigger =
-        doorbellList.value.some((d) => d.triggerEntityId?.trim()) || motionEntityId.value.trim()
+        doorbellList.value.some((doorbell) => doorbell.triggerEntityId?.trim()) || motionEntityId.value.trim()
       if (!hasTrigger) {
         notify('请至少配置一路门铃触发实体或移动传感器', false)
         return false
       }
       const ids = doorbellList.value
-        .flatMap((d) => [d.triggerEntityId, d.cameraEntityId, motionEntityId.value])
+        .flatMap((doorbell) => [doorbell.triggerEntityId, doorbell.cameraEntityId, motionEntityId.value])
         .filter(Boolean)
-      const v = await validateEntityIds(ids)
-      if (!v.allOk) {
-        notify(`以下实体未在 HA 同步：${v.missing.join(', ')}`, false)
+      const validation = await validateEntityIds(ids)
+      if (!validation.allOk) {
+        notify(`以下实体未在 HA 同步：${validation.missing.join(', ')}`, false)
         return false
       }
       const hc = layoutStore.layoutConfig.haConfig
@@ -182,11 +182,11 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
       const ids = [meterEntityId.value, ...circuitEntityIds.value.split(/[\s,;]+/)].filter(Boolean)
       const circuits = circuitEntityIds.value
         .split(/[\s,;]+/)
-        .map((s) => s.trim())
+        .map((part) => part.trim())
         .filter(Boolean)
-      const v = await validateEntityIds(ids)
-      if (!v.allOk) {
-        notify(`以下实体未找到：${v.missing.join(', ')}`, false)
+      const validation = await validateEntityIds(ids)
+      if (!validation.allOk) {
+        notify(`以下实体未找到：${validation.missing.join(', ')}`, false)
         return false
       }
       await saveSystemConfig({
@@ -198,8 +198,8 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
       notify('主电表与分路已保存')
       await refreshStatus()
       return true
-    } catch (e) {
-      logger.error('保存电表失败', e)
+    } catch (error) {
+      logger.error('保存电表失败', error)
       notify('保存电表失败', false)
       return false
     } finally {
@@ -229,8 +229,8 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     try {
       await reduceSensitivityApi({ recordFeedback: false, source: 'setup_wizard' })
       notify('已延长安防冷却时间，误报应有所减少')
-    } catch (e) {
-      logger.error('降低灵敏度失败', e)
+    } catch (error) {
+      logger.error('降低灵敏度失败', error)
       notify('降低灵敏度失败', false)
     }
   }
@@ -240,7 +240,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
     const pending = required.filter((id) => !isStepDone(id))
     if (pending.length) {
       notify(
-        `请先完成：${pending.map((id) => STEPS.value.find((s) => s.id === id)?.label || id).join('、')}`,
+        `请先完成：${pending.map((id) => STEPS.value.find((scene) => scene.id === id)?.label || id).join('、')}`,
         false,
       )
       return false
@@ -267,8 +267,8 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
       notify('首装向导已完成，能源学习期已启用')
       await refreshStatus()
       return true
-    } catch (e) {
-      logger.error('完成向导失败', e)
+    } catch (error) {
+      logger.error('完成向导失败', error)
       notify('完成向导失败', false)
       return false
     } finally {
@@ -285,7 +285,7 @@ export function useSetupWizard(envMap = useEnvSensorMap(), envStep = useSetupWiz
       }
     } else if (id === 'security') {
       const hasTrigger =
-        doorbellList.value.some((d) => d.triggerEntityId?.trim()) || motionEntityId.value.trim()
+        doorbellList.value.some((doorbell) => doorbell.triggerEntityId?.trim()) || motionEntityId.value.trim()
       if (hasTrigger) {
         const ok = await saveSecurityStep()
         if (!ok) return

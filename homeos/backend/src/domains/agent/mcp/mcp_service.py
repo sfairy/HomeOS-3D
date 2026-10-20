@@ -31,11 +31,11 @@ def _js_stringify(value: Any) -> str:
         return ""
 
 
-def _safe_equal_string(a: str, b: str) -> bool:
+def _safe_equal_string(left: str, right: str) -> bool:
     """恒定时间字符串比较（MCP Key / 同类密钥）；长度不等直接拒绝。"""
     try:
-        buf_a = a.encode()
-        buf_b = b.encode()
+        buf_a = left.encode()
+        buf_b = right.encode()
     except (UnicodeEncodeError, AttributeError):
         return False
     if len(buf_a) != len(buf_b):
@@ -212,7 +212,7 @@ class McpGatewayService:
 
     # JSON-RPC 入口
     def _resolve_client_id(
-        self, body: dict[str, Any], ip: str | None, header_client_id: str | None
+        self, body: dict[str, Any], ip_address: str | None, header_client_id: str | None
     ) -> str:
         """确定 MCP 客户端标识：请求头 → initialize.clientInfo.name → IP。
 
@@ -229,7 +229,7 @@ class McpGatewayService:
                 client = normalize_client_id(client_info.get("name"))
         if client:
             return client
-        return normalize_client_id(ip) or "anon"
+        return normalize_client_id(ip_address) or "anon"
 
     def _check_client_rate(self, client_id: str) -> None:
         """客户端级限流（默认 60 次 / 60 秒，MCP_CLIENT_RATE_LIMIT 可调；0 关闭）。"""

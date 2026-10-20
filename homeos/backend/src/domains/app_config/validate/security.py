@@ -12,37 +12,37 @@ from .core import (
 )
 
 
-def _validate_auth(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "lockoutMaxAttempts" in p:
-        num_in(section, "lockoutMaxAttempts", p["lockoutMaxAttempts"], 3, 20, e)
-    if "lockoutMinutes" in p:
-        num_in(section, "lockoutMinutes", p["lockoutMinutes"], 1, 1440, e)
-    if "sessionExpireDays" in p:
-        num_in(section, "sessionExpireDays", p["sessionExpireDays"], 1, 365, e)
-    if "newDeviceAlertCooldownMin" in p:
-        num_in(section, "newDeviceAlertCooldownMin", p["newDeviceAlertCooldownMin"], 10, 10080, e)
+def _validate_auth(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "lockoutMaxAttempts" in payload:
+        num_in(section, "lockoutMaxAttempts", payload["lockoutMaxAttempts"], 3, 20, errors)
+    if "lockoutMinutes" in payload:
+        num_in(section, "lockoutMinutes", payload["lockoutMinutes"], 1, 1440, errors)
+    if "sessionExpireDays" in payload:
+        num_in(section, "sessionExpireDays", payload["sessionExpireDays"], 1, 365, errors)
+    if "newDeviceAlertCooldownMin" in payload:
+        num_in(section, "newDeviceAlertCooldownMin", payload["newDeviceAlertCooldownMin"], 10, 10080, errors)
     for k in ("loginAlertEnabled", "newDeviceAlertEnabled", "bruteForceAlertEnabled"):
-        if k in p:
-            require_bool(section, k, p[k], e)
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
 
-def _validate_notification(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
+def _validate_notification(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
     for k in ("dndStart", "dndEnd"):
-        if k in p:
-            num_in(section, k, p[k], 0, 23, e)
-    if "maxNotifications" in p:
-        num_in(section, "maxNotifications", p["maxNotifications"], 1, 10000, e)
-    if "offlineCooldownMin" in p:
-        num_in(section, "offlineCooldownMin", p["offlineCooldownMin"], 1, 1440, e)
-    if "lowBatteryCooldownMin" in p:
-        num_in(section, "lowBatteryCooldownMin", p["lowBatteryCooldownMin"], 1, 1440, e)
+        if k in payload:
+            num_in(section, k, payload[k], 0, 23, errors)
+    if "maxNotifications" in payload:
+        num_in(section, "maxNotifications", payload["maxNotifications"], 1, 10000, errors)
+    if "offlineCooldownMin" in payload:
+        num_in(section, "offlineCooldownMin", payload["offlineCooldownMin"], 1, 1440, errors)
+    if "lowBatteryCooldownMin" in payload:
+        num_in(section, "lowBatteryCooldownMin", payload["lowBatteryCooldownMin"], 1, 1440, errors)
     for k in (
         "globalNotifyEnabled",
         "importantNotifyEnabled",
         "offlineNotifyEnabled",
         "lowBatteryNotifyEnabled",
     ):
-        if k in p:
-            require_bool(section, k, p[k], e)
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
 
 def _validate_frigate_person_alarm_modes(
     section: str, patch: dict[str, Any], errors: list[FieldError]
@@ -171,32 +171,32 @@ def _validate_alert_channels(
 
 
 def _validate_security(
-    section: str, p: dict[str, Any], e: list[FieldError], context: dict[str, Any] | None
+    section: str, payload: dict[str, Any], errors: list[FieldError], context: dict[str, Any] | None
 ) -> None:
-    if "sensorAlertCooldownSec" in p:
-        num_in(section, "sensorAlertCooldownSec", p["sensorAlertCooldownSec"], 0, 86400, e)
-    if "awayConfirmMin" in p:
-        num_in(section, "awayConfirmMin", p["awayConfirmMin"], 1, 120, e)
-    if "homeConfirmMin" in p:
-        num_in(section, "homeConfirmMin", p["homeConfirmMin"], 0, 120, e)
-    if "emergencyCooldownSec" in p:
-        num_in(section, "emergencyCooldownSec", p["emergencyCooldownSec"], 0, 86400, e)
-    if "armExitGraceSeconds" in p:
-        num_in(section, "armExitGraceSeconds", p["armExitGraceSeconds"], 0, 600, e)
-    if "configCacheTtlMs" in p:
-        num_in(section, "configCacheTtlMs", p["configCacheTtlMs"], 1000, 3_600_000, e)
-    if "frigateMaxEvents" in p:
-        num_in(section, "frigateMaxEvents", p["frigateMaxEvents"], 1, 500, e)
-    if "frigateDedupMs" in p:
-        num_in(section, "frigateDedupMs", p["frigateDedupMs"], 1000, 600_000, e)
-    if "frigatePersonAlarmModes" in p:
-        _validate_frigate_person_alarm_modes(section, p, e)
-    if "awaySimBrightnessMin" in p:
-        num_in(section, "awaySimBrightnessMin", p["awaySimBrightnessMin"], 1, 100, e)
-    if "awaySimBrightnessRange" in p:
-        num_in(section, "awaySimBrightnessRange", p["awaySimBrightnessRange"], 0, 100, e)
-    if "presencePersons" in p:
-        _validate_presence_persons(section, p, e)
+    if "sensorAlertCooldownSec" in payload:
+        num_in(section, "sensorAlertCooldownSec", payload["sensorAlertCooldownSec"], 0, 86400, errors)
+    if "awayConfirmMin" in payload:
+        num_in(section, "awayConfirmMin", payload["awayConfirmMin"], 1, 120, errors)
+    if "homeConfirmMin" in payload:
+        num_in(section, "homeConfirmMin", payload["homeConfirmMin"], 0, 120, errors)
+    if "emergencyCooldownSec" in payload:
+        num_in(section, "emergencyCooldownSec", payload["emergencyCooldownSec"], 0, 86400, errors)
+    if "armExitGraceSeconds" in payload:
+        num_in(section, "armExitGraceSeconds", payload["armExitGraceSeconds"], 0, 600, errors)
+    if "configCacheTtlMs" in payload:
+        num_in(section, "configCacheTtlMs", payload["configCacheTtlMs"], 1000, 3_600_000, errors)
+    if "frigateMaxEvents" in payload:
+        num_in(section, "frigateMaxEvents", payload["frigateMaxEvents"], 1, 500, errors)
+    if "frigateDedupMs" in payload:
+        num_in(section, "frigateDedupMs", payload["frigateDedupMs"], 1000, 600_000, errors)
+    if "frigatePersonAlarmModes" in payload:
+        _validate_frigate_person_alarm_modes(section, payload, errors)
+    if "awaySimBrightnessMin" in payload:
+        num_in(section, "awaySimBrightnessMin", payload["awaySimBrightnessMin"], 1, 100, errors)
+    if "awaySimBrightnessRange" in payload:
+        num_in(section, "awaySimBrightnessRange", payload["awaySimBrightnessRange"], 0, 100, errors)
+    if "presencePersons" in payload:
+        _validate_presence_persons(section, payload, errors)
     for k in (
         "requireConfiguredPersons",
         "mmWaveFusePresence",
@@ -207,25 +207,25 @@ def _validate_security(
         "linkAwaySimOnArmAway",
         "linkHomeModeOnSecurityChange",
     ):
-        if k in p:
-            require_bool(section, k, p[k], e)
-    if p.get("awaySimIntervalMinMax") is not None and "awaySimIntervalMinMax" in p:
-        _validate_away_sim_interval_minmax(section, p, e, context)
-    if "alertChannels" in p:
-        _validate_alert_channels(section, p, e)
-    if "alertBypassDnd" in p:
-        require_bool(section, "alertBypassDnd", p["alertBypassDnd"], e)
+        if k in payload:
+            require_bool(section, k, payload[k], errors)
+    if payload.get("awaySimIntervalMinMax") is not None and "awaySimIntervalMinMax" in payload:
+        _validate_away_sim_interval_minmax(section, payload, errors, context)
+    if "alertChannels" in payload:
+        _validate_alert_channels(section, payload, errors)
+    if "alertBypassDnd" in payload:
+        require_bool(section, "alertBypassDnd", payload["alertBypassDnd"], errors)
 
-def _validate_water(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "anomalyCooldownMin" in p:
-        num_in(section, "anomalyCooldownMin", p["anomalyCooldownMin"], 1, 1440, e)
-    if "mainValveEntityId" in p:
-        validate_optional_entity_id(section, "mainValveEntityId", p["mainValveEntityId"], e)
+def _validate_water(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "anomalyCooldownMin" in payload:
+        num_in(section, "anomalyCooldownMin", payload["anomalyCooldownMin"], 1, 1440, errors)
+    if "mainValveEntityId" in payload:
+        validate_optional_entity_id(section, "mainValveEntityId", payload["mainValveEntityId"], errors)
 
-def _validate_iaq(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "moldAlertCooldownMin" in p:
-        num_in(section, "moldAlertCooldownMin", p["moldAlertCooldownMin"], 1, 1440, e)
+def _validate_iaq(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "moldAlertCooldownMin" in payload:
+        num_in(section, "moldAlertCooldownMin", payload["moldAlertCooldownMin"], 1, 1440, errors)
 
-def _validate_circadian(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "weatherEntityId" in p:
-        validate_optional_entity_id(section, "weatherEntityId", p["weatherEntityId"], e)
+def _validate_circadian(section: str, payload: dict[str, Any], errors: list[FieldError]) -> None:
+    if "weatherEntityId" in payload:
+        validate_optional_entity_id(section, "weatherEntityId", payload["weatherEntityId"], errors)

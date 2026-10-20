@@ -29,23 +29,23 @@ CROSS_SOURCE_DIST_KM = 50
 RECENT_FINGERPRINT_MAX = 12
 
 
-def _matches_cross_source_fingerprint(eew: EewRawMessage, fp: EewEventFingerprint) -> bool:
-    if fp.eventId == eew.event_id:
+def _matches_cross_source_fingerprint(eew: EewRawMessage, fingerprint: EewEventFingerprint) -> bool:
+    if fingerprint.eventId == eew.event_id:
         return False
-    dt_sec = abs(eew.origin_time - fp.originTime) / 1000
+    dt_sec = abs(eew.origin_time - fingerprint.originTime) / 1000
     if dt_sec > CROSS_SOURCE_TIME_WINDOW_SEC:
         return False
-    if abs(eew.magnitude - fp.magnitude) > MAGNITUDE_MERGE_THRESHOLD:
+    if abs(eew.magnitude - fingerprint.magnitude) > MAGNITUDE_MERGE_THRESHOLD:
         return False
-    dist = haversine_distance_km(eew.latitude, eew.longitude, fp.latitude, fp.longitude)
+    dist = haversine_distance_km(eew.latitude, eew.longitude, fingerprint.latitude, fingerprint.longitude)
     return dist <= CROSS_SOURCE_DIST_KM
 
 
 def _push_fingerprint(
-    recent: list[EewEventFingerprint] | None, fp: EewEventFingerprint
+    recent: list[EewEventFingerprint] | None, fingerprint: EewEventFingerprint
 ) -> list[EewEventFingerprint]:
-    next_list = [row for row in (recent or []) if row.eventId != fp.eventId]
-    next_list.append(fp)
+    next_list = [row for row in (recent or []) if row.eventId != fingerprint.eventId]
+    next_list.append(fingerprint)
     return next_list[-RECENT_FINGERPRINT_MAX:]
 
 

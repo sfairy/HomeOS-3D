@@ -82,12 +82,12 @@ export function extractEntityIdsFromTemplateYaml(yamlStr: string): string[] {
     if (!clean.includes('.') || seen.has(clean)) return;
     seen.add(clean);
   };
-  for (const m of yamlStr.matchAll(ENTITY_ID_LINE_RE)) add(m[1]);
+  for (const match of yamlStr.matchAll(ENTITY_ID_LINE_RE)) add(match[1]);
   for (const block of yamlStr.matchAll(ENTITY_ID_LIST_BLOCK_RE)) {
     const chunk = block[0] || '';
     for (const item of chunk.matchAll(ENTITY_ID_LIST_ITEM_RE)) add(item[1]);
   }
-  for (const m of yamlStr.matchAll(ENTITY_REF_RE)) add(m[1]);
+  for (const match of yamlStr.matchAll(ENTITY_REF_RE)) add(match[1]);
   return [...seen];
 }
 
@@ -104,7 +104,7 @@ function tryAssign(
   entityId: string,
 ) {
   if (!entityId || used.has(entityId)) return;
-  const def = slotDefs.find((d) => d.key === key);
+  const def = slotDefs.find((slotDef) => slotDef.key === key);
   if (!def) return;
   if (getEntityDomain(entityId) !== def.domain) return;
   slots[key] = entityId;
@@ -123,9 +123,9 @@ function parseAttributesBlock(
   if (!attrSection) return;
 
   const attrLineRe = /^\s+([a-z_]+):\s*"\{\{\s*(?:states|is_state|state_attr)\('([^']+)'/gim;
-  for (const m of attrSection.matchAll(attrLineRe)) {
-    const slotKey = resolveAttrSlotKey(m[1], typeId);
-    tryAssign(slots, used, slotDefs, slotKey, m[2]);
+  for (const match of attrSection.matchAll(attrLineRe)) {
+    const slotKey = resolveAttrSlotKey(match[1], typeId);
+    tryAssign(slots, used, slotDefs, slotKey, match[2]);
   }
 }
 
@@ -137,17 +137,17 @@ function parseTopLevelFields(
 ) {
   for (const [field, slotKey] of Object.entries(TOP_LEVEL_FIELD_TO_SLOT)) {
     if (slots[slotKey]) continue;
-    const def = slotDefs.find((d) => d.key === slotKey);
+    const def = slotDefs.find((slotDef) => slotDef.key === slotKey);
     if (!def) continue;
 
     if (field === 'swing_mode') {
-      const m = yamlStr.match(/^\s+swing_mode:\s*"\{\{\s*is_state\('([^']+)'/im);
-      if (m?.[1]) tryAssign(slots, used, slotDefs, slotKey, m[1]);
+      const swingMatch = yamlStr.match(/^\s+swing_mode:\s*"\{\{\s*is_state\('([^']+)'/im);
+      if (swingMatch?.[1]) tryAssign(slots, used, slotDefs, slotKey, swingMatch[1]);
       continue;
     }
 
-    const m = yamlStr.match(new RegExp(`^\\s+${field}:\\s*"\\{\\{\\s*states\\('([^']+)'`, 'im'));
-    if (m?.[1]) tryAssign(slots, used, slotDefs, slotKey, m[1]);
+    const fieldMatch = yamlStr.match(new RegExp(`^\\s+${field}:\\s*"\\{\\{\\s*states\\('([^']+)'`, 'im'));
+    if (fieldMatch?.[1]) tryAssign(slots, used, slotDefs, slotKey, fieldMatch[1]);
   }
 }
 
@@ -158,7 +158,7 @@ function parseMainStateBlock(
   used: Set<string>,
 ) {
   if (slots.state) return;
-  const def = slotDefs.find((d) => d.key === 'state');
+  const def = slotDefs.find((slotDef) => slotDef.key === 'state');
   if (!def) return;
 
   const patterns = [
@@ -166,10 +166,10 @@ function parseMainStateBlock(
     /^\s+state:\s*"\{\{\s*states\('([^']+)'/im,
     /^\s+state:\s*>\s*\n\s*\{%\s*if[^%]*states\('([^']+)'/im,
   ];
-  for (const re of patterns) {
-    const m = yamlStr.match(re);
-    if (m?.[1]) {
-      tryAssign(slots, used, slotDefs, 'state', m[1]);
+  for (const pattern of patterns) {
+    const match = yamlStr.match(pattern);
+    if (match?.[1]) {
+      tryAssign(slots, used, slotDefs, 'state', match[1]);
       return;
     }
   }
@@ -182,16 +182,16 @@ function parseFridgeMainState(
   used: Set<string>,
 ) {
   if (slots.fridgeTemp || slots.freezerTemp) return;
-  const def = slotDefs.find((d) => d.key === 'fridgeTemp' || d.key === 'freezerTemp');
+  const def = slotDefs.find((slotDef) => slotDef.key === 'fridgeTemp' || slotDef.key === 'freezerTemp');
   if (!def) return;
 
-  const m =
+  const match =
     yamlStr.match(/^\s+state:\s*>\s*\n\s*\{\{\s*states\('([^']+)'/im) ||
     yamlStr.match(/^\s+state:\s*"\{\{\s*states\('([^']+)'/im);
-  if (!m?.[1]) return;
+  if (!match?.[1]) return;
 
-  if (def.key === 'fridgeTemp') tryAssign(slots, used, slotDefs, 'fridgeTemp', m[1]);
-  else tryAssign(slots, used, slotDefs, 'freezerTemp', m[1]);
+  if (def.key === 'fridgeTemp') tryAssign(slots, used, slotDefs, 'fridgeTemp', match[1]);
+  else tryAssign(slots, used, slotDefs, 'freezerTemp', match[1]);
 }
 
 /**
@@ -308,10 +308,10 @@ export function mapYamlToSlotsByKey(
     patterns.push(new RegExp(`\\s${attrKey}:\\s*"\\{\\{\\s*states\\('([^']+)'`, 'i'));
     patterns.push(new RegExp(`states\\('([a-z][a-z0-9_]*\\.${def.domain}[a-z0-9_.]*)'\\)`, 'gi'));
 
-    for (const re of patterns) {
-      const m = yamlStr.match(re);
-      if (m?.[1]) {
-        tryAssignKey(key, m[1]);
+    for (const pattern of patterns) {
+      const match = yamlStr.match(pattern);
+      if (match?.[1]) {
+        tryAssignKey(key, match[1]);
         break;
       }
     }

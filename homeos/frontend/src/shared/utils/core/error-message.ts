@@ -53,11 +53,11 @@ export function isBackendUnreachableError(error: unknown): boolean {
   if (status === 502 || status === 503 || status === 504) return true
   // Vite 开发代理在后端挂掉时历史上会回落成空 500；有明确业务 message 的 500 不当作不可达
   if (status === 500) {
-    const msg = flattenApiMessage(e.response?.data?.message)
+    const flattenedMessage = flattenApiMessage(e.response?.data?.message)
     if (
-      !msg ||
+      !flattenedMessage ||
       /internal server error|无法连接后端|无法连接服务器|无法连接 HomeOS|后端暂未就绪|服务暂时不可用/i.test(
-        msg,
+        flattenedMessage,
       )
     ) {
       return true
@@ -240,6 +240,6 @@ function localizeAxiosishMessage(message: string, status?: number): string {
  */
 export function getApiErrorMessage(error: unknown, fallback?: string): string {
   const fb = fallback ?? '操作失败'
-  const msg = extractErrorMessage(error)
-  return msg && msg !== '未知错误' ? msg : fb
+  const extractedMessage = extractErrorMessage(error)
+  return extractedMessage && extractedMessage !== '未知错误' ? extractedMessage : fb
 }

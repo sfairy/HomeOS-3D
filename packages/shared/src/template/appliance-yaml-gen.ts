@@ -29,44 +29,44 @@ function escName(name: string) {
 
 /** 现代 HA template action 语法 */
 function pushAction(
-  L: string[],
+  lines: string[],
   indent: string,
   action: string,
   entityId: string,
   data?: Record<string, string>,
 ) {
-  L.push(`${indent}- action: ${action}`);
-  L.push(`${indent}  target:`);
-  L.push(`${indent}    entity_id: ${entityId}`);
+  lines.push(`${indent}- action: ${action}`);
+  lines.push(`${indent}  target:`);
+  lines.push(`${indent}    entity_id: ${entityId}`);
   if (data) {
-    L.push(`${indent}  data:`);
-    for (const [k, v] of Object.entries(data)) {
-      L.push(`${indent}    ${k}: ${v}`);
+    lines.push(`${indent}  data:`);
+    for (const [key, value] of Object.entries(data)) {
+      lines.push(`${indent}    ${key}: ${value}`);
     }
   }
 }
 
-function pushTurnOnOff(L: string[], indent: string, domain: string, entityId: string) {
-  L.push(`${indent}turn_on:`);
-  pushAction(L, indent + '  ', `${domain}.turn_on`, entityId);
-  L.push(`${indent}turn_off:`);
-  pushAction(L, indent + '  ', `${domain}.turn_off`, entityId);
+function pushTurnOnOff(lines: string[], indent: string, domain: string, entityId: string) {
+  lines.push(`${indent}turn_on:`);
+  pushAction(lines, indent + '  ', `${domain}.turn_on`, entityId);
+  lines.push(`${indent}turn_off:`);
+  pushAction(lines, indent + '  ', `${domain}.turn_off`, entityId);
 }
 
 function pushStateBool(
-  L: string[],
+  lines: string[],
   indent: string,
   entityId: string,
   onVal = 'on',
   offVal = 'off',
 ) {
-  L.push(`${indent}state: >`);
-  L.push(`${indent}  {% if is_state('${entityId}', 'on') %}${onVal}{% else %}${offVal}{% endif %}`);
+  lines.push(`${indent}state: >`);
+  lines.push(`${indent}  {% if is_state('${entityId}', 'on') %}${onVal}{% else %}${offVal}{% endif %}`);
 }
 
-function pushStateRaw(L: string[], indent: string, expr: string) {
-  L.push(`${indent}state: >`);
-  L.push(`${indent}  ${expr}`);
+function pushStateRaw(lines: string[], indent: string, expr: string) {
+  lines.push(`${indent}state: >`);
+  lines.push(`${indent}  ${expr}`);
 }
 
 class AttrCollector {
@@ -80,20 +80,20 @@ class AttrCollector {
     this.lines.push(`        ${key}: "{{ is_state('${entityId}', 'on') }}"`);
   }
 
-  flush(L: string[]) {
+  flush(lines: string[]) {
     if (!this.lines.length) return;
-    L.push('      attributes:');
-    L.push(...this.lines);
+    lines.push('      attributes:');
+    lines.push(...this.lines);
   }
 }
 
 function pushExtras(
-  L: string[],
+  lines: string[],
   extra: Pick<BuildApplianceYamlInput, 'extraUnit' | 'extraDeviceClass' | 'extraIcon'>,
 ) {
-  if (extra.extraUnit) L.push(`      unit_of_measurement: "${extra.extraUnit}"`);
-  if (extra.extraDeviceClass) L.push(`      device_class: ${extra.extraDeviceClass}`);
-  if (extra.extraIcon) L.push(`      icon: ${extra.extraIcon}`);
+  if (extra.extraUnit) lines.push(`      unit_of_measurement: "${extra.extraUnit}"`);
+  if (extra.extraDeviceClass) lines.push(`      device_class: ${extra.extraDeviceClass}`);
+  if (extra.extraIcon) lines.push(`      icon: ${extra.extraIcon}`);
 }
 
 function slugAttrKey(label: string, key: string) {
@@ -108,15 +108,15 @@ function slugAttrKey(label: string, key: string) {
 
 /** 自定义槽位 → attributes */
 function appendCustomSlots(
-  L: string[],
+  lines: string[],
   slots: Record<string, string>,
   knownKeys: Set<string>,
   slotsList: BuildApplianceYamlInput['slotsList'] = [],
 ) {
   const metaByKey = new Map<string, ApplianceSlotDef & { _key?: string }>();
-  for (const s of slotsList || []) {
-    const k = s._key || s.key;
-    if (k) metaByKey.set(k, s);
+  for (const slot of slotsList || []) {
+    const key = slot._key || slot.key;
+    if (key) metaByKey.set(key, slot);
   }
   const attrLines: string[] = [];
   for (const [key, entityId] of Object.entries(slots || {})) {
@@ -138,12 +138,12 @@ function appendCustomSlots(
     }
   }
   if (!attrLines.length) return;
-  const attrIdx = L.findIndex((l) => l.trim() === 'attributes:');
+  const attrIdx = lines.findIndex((line) => line.trim() === 'attributes:');
   if (attrIdx < 0) {
-    L.push('      attributes:');
-    L.push(...attrLines.map((l) => l.replace(/^ {6}/, '        ')));
+    lines.push('      attributes:');
+    lines.push(...attrLines.map((line) => line.replace(/^ {6}/, '        ')));
   } else {
-    L.splice(attrIdx + 1, 0, ...attrLines.map((l) => l.replace(/^ {6}/, '        ')));
+    lines.splice(attrIdx + 1, 0, ...attrLines.map((line) => line.replace(/^ {6}/, '        ')));
   }
 }
 
@@ -152,15 +152,15 @@ function hasAnySlot(slots: Record<string, string>, keys: string[]) {
 }
 
 function buildPlatformHeader(
-  L: string[],
+  lines: string[],
   platform: string,
   id: string,
   name: string,
   defaultName: string,
 ) {
-  L.push(`  - ${platform}:`);
-  L.push(`    - unique_id: ${id}`);
-  L.push(`      name: "${escName(name) || defaultName}"`);
+  lines.push(`  - ${platform}:`);
+  lines.push(`    - unique_id: ${id}`);
+  lines.push(`      name: "${escName(name) || defaultName}"`);
 }
 
 /** 生成家电 template YAML */
@@ -170,75 +170,75 @@ export function buildApplianceTemplateYaml(input: BuildApplianceYamlInput): stri
   if (!typeDef) return '# 未知家电类型';
 
   const id = slugId(entName, `${entType}_composite`);
-  const knownKeys = new Set(getBuiltinSlots(entType).map((s) => s.key));
-  const L: string[] = ['template:'];
-  const I = '    ';
+  const knownKeys = new Set(getBuiltinSlots(entType).map((slot) => slot.key));
+  const lines: string[] = ['template:'];
+  const baseIndent = '    ';
   const attrs = new AttrCollector();
 
   switch (entType) {
     case 'range_hood': {
-      buildPlatformHeader(L, 'fan', id, entName, '吸油烟机');
+      buildPlatformHeader(lines, 'fan', id, entName, '吸油烟机');
       if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr);
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushStateBool(lines, baseIndent, slots.pwr);
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       }
       if (slots.fan) {
-        L.push(`${I}percentage: "{{ state_attr('${slots.fan}', 'percentage') }}"`);
-        L.push(`${I}set_percentage:`);
-        pushAction(L, I + '  ', 'fan.set_percentage', slots.fan, {
+        lines.push(`${baseIndent}percentage: "{{ state_attr('${slots.fan}', 'percentage') }}"`);
+        lines.push(`${baseIndent}set_percentage:`);
+        pushAction(lines, baseIndent + '  ', 'fan.set_percentage', slots.fan, {
           percentage: '{{ percentage }}',
         });
       }
       if (slots.light) {
-        L.push(`${I}turn_on:`);
-        pushAction(L, I + '  ', 'light.turn_on', slots.light);
-        L.push(`${I}turn_off:`);
-        pushAction(L, I + '  ', 'light.turn_off', slots.light);
+        lines.push(`${baseIndent}turn_on:`);
+        pushAction(lines, baseIndent + '  ', 'light.turn_on', slots.light);
+        lines.push(`${baseIndent}turn_off:`);
+        pushAction(lines, baseIndent + '  ', 'light.turn_off', slots.light);
       }
       if (slots.temp) attrs.pushState('temperature', slots.temp);
       if (slots.pm25) attrs.pushState('pm25', slots.pm25);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'washing_machine':
     case 'dryer': {
       const label = entType === 'washing_machine' ? '洗衣机' : '烘干机';
-      buildPlatformHeader(L, 'sensor', id, entName, label);
+      buildPlatformHeader(lines, 'sensor', id, entName, label);
       if (slots.state) {
-        pushStateRaw(L, I, `{{ states('${slots.state}') }}`);
+        pushStateRaw(lines, baseIndent, `{{ states('${slots.state}') }}`);
       } else if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr, 'on', 'off');
+        pushStateBool(lines, baseIndent, slots.pwr, 'on', 'off');
       }
       if (slots.mode) attrs.pushState('mode', slots.mode);
       if (slots.remain) attrs.pushState('remaining_time', slots.remain);
       if (slots.temp) attrs.pushState('temperature', slots.temp);
       if (entType === 'washing_machine' && slots.speed) attrs.pushState('speed', slots.speed);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'refrigerator': {
-      buildPlatformHeader(L, 'sensor', id, entName, '冰箱');
-      if (slots.fridgeTemp) pushStateRaw(L, I, `{{ states('${slots.fridgeTemp}') }}`);
-      else if (slots.freezerTemp) pushStateRaw(L, I, `{{ states('${slots.freezerTemp}') }}`);
-      else if (slots.pwr) pushStateBool(L, I, slots.pwr, 'on', 'off');
+      buildPlatformHeader(lines, 'sensor', id, entName, '冰箱');
+      if (slots.fridgeTemp) pushStateRaw(lines, baseIndent, `{{ states('${slots.fridgeTemp}') }}`);
+      else if (slots.freezerTemp) pushStateRaw(lines, baseIndent, `{{ states('${slots.freezerTemp}') }}`);
+      else if (slots.pwr) pushStateBool(lines, baseIndent, slots.pwr, 'on', 'off');
       if (slots.fridgeTemp) attrs.pushState('temperature', slots.fridgeTemp);
       if (slots.freezerTemp) attrs.pushState('freezer_temp', slots.freezerTemp);
       if (slots.door) attrs.pushBool('door_open', slots.door);
       if (slots.mode) attrs.pushState('mode', slots.mode);
       if (slots.pwr) attrs.pushBool('power', slots.pwr);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'oven': {
-      buildPlatformHeader(L, 'sensor', id, entName, '烤箱');
-      if (slots.temp) pushStateRaw(L, I, `{{ states('${slots.temp}') }}`);
-      else if (slots.pwr) pushStateBool(L, I, slots.pwr, 'on', 'off');
+      buildPlatformHeader(lines, 'sensor', id, entName, '烤箱');
+      if (slots.temp) pushStateRaw(lines, baseIndent, `{{ states('${slots.temp}') }}`);
+      else if (slots.pwr) pushStateBool(lines, baseIndent, slots.pwr, 'on', 'off');
       if (slots.temp) attrs.pushState('temperature', slots.temp);
       if (slots.setTemp) attrs.pushState('target_temperature', slots.setTemp);
       if (slots.remain) attrs.pushState('remaining_time', slots.remain);
       if (slots.mode) attrs.pushState('mode', slots.mode);
       if (slots.pwr) attrs.pushBool('power', slots.pwr);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'dishwasher':
@@ -257,10 +257,10 @@ export function buildApplianceTemplateYaml(input: BuildApplianceYamlInput): stri
         smart_plug: '智能插座',
         dehumidifier: '除湿机',
       };
-      buildPlatformHeader(L, 'switch', id, entName, names[entType] || entType);
+      buildPlatformHeader(lines, 'switch', id, entName, names[entType] || entType);
       if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr);
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushStateBool(lines, baseIndent, slots.pwr);
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       }
       if (entType === 'dishwasher') {
         if (slots.mode) attrs.pushState('mode', slots.mode);
@@ -303,25 +303,25 @@ export function buildApplianceTemplateYaml(input: BuildApplianceYamlInput): stri
         if (slots.mode) attrs.pushState('mode', slots.mode);
         if (slots.tank) attrs.pushBool('tank_full', slots.tank);
       }
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'air_purifier':
     case 'ceiling_fan':
     case 'fresh_air': {
       const names = { air_purifier: '空气净化器', ceiling_fan: '电风扇', fresh_air: '新风机' };
-      buildPlatformHeader(L, 'fan', id, entName, names[entType as keyof typeof names]);
+      buildPlatformHeader(lines, 'fan', id, entName, names[entType as keyof typeof names]);
       if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr);
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushStateBool(lines, baseIndent, slots.pwr);
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       } else if (hasAnySlot(slots, ['fan', 'speedNum'])) {
-        pushStateRaw(L, I, 'on');
+        pushStateRaw(lines, baseIndent, 'on');
       }
       const fanEid = slots.fan || slots.speedNum;
       if (fanEid) {
-        L.push(`${I}percentage: "{{ state_attr('${fanEid}', 'percentage') }}"`);
-        L.push(`${I}set_percentage:`);
-        pushAction(L, I + '  ', 'fan.set_percentage', fanEid, { percentage: '{{ percentage }}' });
+        lines.push(`${baseIndent}percentage: "{{ state_attr('${fanEid}', 'percentage') }}"`);
+        lines.push(`${baseIndent}set_percentage:`);
+        pushAction(lines, baseIndent + '  ', 'fan.set_percentage', fanEid, { percentage: '{{ percentage }}' });
       }
       if (entType === 'air_purifier') {
         if (slots.pm25) attrs.pushState('pm25', slots.pm25);
@@ -339,175 +339,175 @@ export function buildApplianceTemplateYaml(input: BuildApplianceYamlInput): stri
         if (slots.filter) attrs.pushState('filter_life', slots.filter);
         if (slots.temp) attrs.pushState('temperature', slots.temp);
       }
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'air_conditioner':
     case 'floor_heating': {
       const label = entType === 'air_conditioner' ? '空调' : '地暖';
-      buildPlatformHeader(L, 'climate', id, entName, label);
-      L.push(`${I}hvac_modes: ["off", "heat", "cool"]`);
+      buildPlatformHeader(lines, 'climate', id, entName, label);
+      lines.push(`${baseIndent}hvac_modes: ["off", "heat", "cool"]`);
       if (slots.pwr) {
         pushStateRaw(
-          L,
-          I,
+          lines,
+          baseIndent,
           `{% if is_state('${slots.pwr}', 'on') %}${entType === 'floor_heating' ? 'heat' : 'cool'}{% else %}off{% endif %}`,
         );
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       }
-      if (slots.temp) L.push(`${I}current_temperature: "{{ states('${slots.temp}') }}"`);
-      if (slots.setTemp) L.push(`${I}temperature: "{{ states('${slots.setTemp}') }}"`);
+      if (slots.temp) lines.push(`${baseIndent}current_temperature: "{{ states('${slots.temp}') }}"`);
+      if (slots.setTemp) lines.push(`${baseIndent}temperature: "{{ states('${slots.setTemp}') }}"`);
       if (slots.roomTemp) attrs.pushState('room_temperature', slots.roomTemp);
-      if (slots.mode) L.push(`${I}preset_mode: "{{ states('${slots.mode}') }}"`);
-      if (slots.fan) L.push(`${I}fan_mode: "{{ states('${slots.fan}') }}"`);
-      if (slots.swing) L.push(`${I}swing_mode: "{{ is_state('${slots.swing}', 'on') }}"`);
-      attrs.flush(L);
+      if (slots.mode) lines.push(`${baseIndent}preset_mode: "{{ states('${slots.mode}') }}"`);
+      if (slots.fan) lines.push(`${baseIndent}fan_mode: "{{ states('${slots.fan}') }}"`);
+      if (slots.swing) lines.push(`${baseIndent}swing_mode: "{{ is_state('${slots.swing}', 'on') }}"`);
+      attrs.flush(lines);
       break;
     }
     case 'robot_vacuum': {
-      buildPlatformHeader(L, 'vacuum', id, entName, '扫地机器人');
+      buildPlatformHeader(lines, 'vacuum', id, entName, '扫地机器人');
       if (slots.state) {
-        pushStateRaw(L, I, `{{ states('${slots.state}') }}`);
+        pushStateRaw(lines, baseIndent, `{{ states('${slots.state}') }}`);
       } else if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr, 'cleaning', 'docked');
+        pushStateBool(lines, baseIndent, slots.pwr, 'cleaning', 'docked');
       }
       const startEid = slots.pwr || slots.state;
       if (startEid) {
-        L.push(`${I}start:`);
-        pushAction(L, I + '  ', 'vacuum.start', startEid);
-        L.push(`${I}stop:`);
-        pushAction(L, I + '  ', 'vacuum.stop', startEid);
+        lines.push(`${baseIndent}start:`);
+        pushAction(lines, baseIndent + '  ', 'vacuum.start', startEid);
+        lines.push(`${baseIndent}stop:`);
+        pushAction(lines, baseIndent + '  ', 'vacuum.stop', startEid);
       }
       const dockEid = slots.dock || slots.pwr;
       if (dockEid) {
-        L.push(`${I}return_to_base:`);
-        pushAction(L, I + '  ', 'vacuum.return_to_base', dockEid);
+        lines.push(`${baseIndent}return_to_base:`);
+        pushAction(lines, baseIndent + '  ', 'vacuum.return_to_base', dockEid);
       }
       if (slots.battery) attrs.pushState('battery_level', slots.battery);
       if (slots.fan) attrs.pushState('fan_speed', slots.fan);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'smart_curtain': {
-      buildPlatformHeader(L, 'cover', id, entName, '电动窗帘');
+      buildPlatformHeader(lines, 'cover', id, entName, '电动窗帘');
       const motor = slots.motor || slots.position;
       if (motor) {
         if (slots.position) {
-          L.push(`${I}position: "{{ state_attr('${slots.position}', 'current_position') }}"`);
+          lines.push(`${baseIndent}position: "{{ state_attr('${slots.position}', 'current_position') }}"`);
         }
         if (slots.motor) {
-          pushStateRaw(L, I, `{{ states('${slots.motor}') }}`);
+          pushStateRaw(lines, baseIndent, `{{ states('${slots.motor}') }}`);
         } else if (slots.position) {
-          pushStateRaw(L, I, `{{ state_attr('${slots.position}', 'current_position') }}`);
+          pushStateRaw(lines, baseIndent, `{{ state_attr('${slots.position}', 'current_position') }}`);
         }
-        L.push(`${I}open_cover:`);
-        pushAction(L, I + '  ', 'cover.open_cover', motor);
-        L.push(`${I}close_cover:`);
-        pushAction(L, I + '  ', 'cover.close_cover', motor);
-        L.push(`${I}stop_cover:`);
-        pushAction(L, I + '  ', 'cover.stop_cover', motor);
+        lines.push(`${baseIndent}open_cover:`);
+        pushAction(lines, baseIndent + '  ', 'cover.open_cover', motor);
+        lines.push(`${baseIndent}close_cover:`);
+        pushAction(lines, baseIndent + '  ', 'cover.close_cover', motor);
+        lines.push(`${baseIndent}stop_cover:`);
+        pushAction(lines, baseIndent + '  ', 'cover.stop_cover', motor);
         if (slots.position) {
-          L.push(`${I}set_cover_position:`);
-          pushAction(L, I + '  ', 'cover.set_cover_position', motor, {
+          lines.push(`${baseIndent}set_cover_position:`);
+          pushAction(lines, baseIndent + '  ', 'cover.set_cover_position', motor, {
             position: '{{ position }}',
           });
         }
       }
       if (slots.pwr) attrs.pushBool('power', slots.pwr);
       if (slots.battery) attrs.pushState('battery', slots.battery);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'smart_lock': {
-      buildPlatformHeader(L, 'lock', id, entName, '智能门锁');
+      buildPlatformHeader(lines, 'lock', id, entName, '智能门锁');
       if (slots.pwr) {
-        pushStateRaw(L, I, `{{ states('${slots.pwr}') }}`);
-        L.push(`${I}lock:`);
-        pushAction(L, I + '  ', 'lock.lock', slots.pwr);
-        L.push(`${I}unlock:`);
-        pushAction(L, I + '  ', 'lock.unlock', slots.pwr);
+        pushStateRaw(lines, baseIndent, `{{ states('${slots.pwr}') }}`);
+        lines.push(`${baseIndent}lock:`);
+        pushAction(lines, baseIndent + '  ', 'lock.lock', slots.pwr);
+        lines.push(`${baseIndent}unlock:`);
+        pushAction(lines, baseIndent + '  ', 'lock.unlock', slots.pwr);
       }
       if (slots.battery) attrs.pushState('battery', slots.battery);
       if (slots.door) attrs.pushBool('door', slots.door);
       if (slots.unlockMethod) attrs.pushState('unlock_method', slots.unlockMethod);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'tv': {
-      buildPlatformHeader(L, 'media_player', id, entName, '电视');
+      buildPlatformHeader(lines, 'media_player', id, entName, '电视');
       if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr, 'playing', 'off');
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushStateBool(lines, baseIndent, slots.pwr, 'playing', 'off');
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       }
       if (slots.volume) {
-        L.push(`${I}volume_level: "{{ state_attr('${slots.volume}', 'volume_level') }}"`);
-        L.push(`${I}volume_set:`);
-        pushAction(L, I + '  ', 'media_player.volume_set', slots.volume, {
+        lines.push(`${baseIndent}volume_level: "{{ state_attr('${slots.volume}', 'volume_level') }}"`);
+        lines.push(`${baseIndent}volume_set:`);
+        pushAction(lines, baseIndent + '  ', 'media_player.volume_set', slots.volume, {
           volume_level: '{{ volume_level }}',
         });
       }
       if (slots.source) attrs.pushState('source', slots.source);
       if (slots.app) attrs.pushState('app', slots.app);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'water_heater': {
-      buildPlatformHeader(L, 'water_heater', id, entName, '热水器');
+      buildPlatformHeader(lines, 'water_heater', id, entName, '热水器');
       if (slots.pwr) {
-        pushStateRaw(L, I, `{% if is_state('${slots.pwr}', 'on') %}heat{% else %}off{% endif %}`);
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushStateRaw(lines, baseIndent, `{% if is_state('${slots.pwr}', 'on') %}heat{% else %}off{% endif %}`);
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       } else if (slots.state) {
-        pushStateRaw(L, I, `{{ states('${slots.state}') }}`);
+        pushStateRaw(lines, baseIndent, `{{ states('${slots.state}') }}`);
       }
-      if (slots.temp) L.push(`${I}current_temperature: "{{ states('${slots.temp}') }}"`);
+      if (slots.temp) lines.push(`${baseIndent}current_temperature: "{{ states('${slots.temp}') }}"`);
       if (slots.setTemp) {
-        L.push(`${I}temperature: "{{ states('${slots.setTemp}') }}"`);
-        L.push(`${I}set_temperature:`);
-        pushAction(L, I + '  ', 'number.set_value', slots.setTemp, { value: '{{ temperature }}' });
+        lines.push(`${baseIndent}temperature: "{{ states('${slots.setTemp}') }}"`);
+        lines.push(`${baseIndent}set_temperature:`);
+        pushAction(lines, baseIndent + '  ', 'number.set_value', slots.setTemp, { value: '{{ temperature }}' });
       }
       if (slots.mode) {
-        L.push(`${I}operation_mode: "{{ states('${slots.mode}') }}"`);
-        L.push(`${I}set_operation_mode:`);
-        pushAction(L, I + '  ', 'select.select_option', slots.mode, {
+        lines.push(`${baseIndent}operation_mode: "{{ states('${slots.mode}') }}"`);
+        lines.push(`${baseIndent}set_operation_mode:`);
+        pushAction(lines, baseIndent + '  ', 'select.select_option', slots.mode, {
           option: '{{ operation_mode }}',
         });
       }
       if (slots.state && !slots.pwr) attrs.pushState('status', slots.state);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     case 'humidifier_ha': {
-      buildPlatformHeader(L, 'humidifier', id, entName, '加湿器');
+      buildPlatformHeader(lines, 'humidifier', id, entName, '加湿器');
       if (slots.pwr) {
-        pushStateBool(L, I, slots.pwr);
-        pushTurnOnOff(L, I, 'switch', slots.pwr);
+        pushStateBool(lines, baseIndent, slots.pwr);
+        pushTurnOnOff(lines, baseIndent, 'switch', slots.pwr);
       }
-      if (slots.humidity) L.push(`${I}current_humidity: "{{ states('${slots.humidity}') }}"`);
+      if (slots.humidity) lines.push(`${baseIndent}current_humidity: "{{ states('${slots.humidity}') }}"`);
       if (slots.setHumidity) {
-        L.push(`${I}humidity: "{{ states('${slots.setHumidity}') }}"`);
-        L.push(`${I}set_humidity:`);
-        pushAction(L, I + '  ', 'number.set_value', slots.setHumidity, { value: '{{ humidity }}' });
+        lines.push(`${baseIndent}humidity: "{{ states('${slots.setHumidity}') }}"`);
+        lines.push(`${baseIndent}set_humidity:`);
+        pushAction(lines, baseIndent + '  ', 'number.set_value', slots.setHumidity, { value: '{{ humidity }}' });
       }
       if (slots.mode) {
-        L.push(`${I}mode: "{{ states('${slots.mode}') }}"`);
-        L.push(`${I}set_mode:`);
-        pushAction(L, I + '  ', 'select.select_option', slots.mode, { option: '{{ mode }}' });
+        lines.push(`${baseIndent}mode: "{{ states('${slots.mode}') }}"`);
+        lines.push(`${baseIndent}set_mode:`);
+        pushAction(lines, baseIndent + '  ', 'select.select_option', slots.mode, { option: '{{ mode }}' });
       }
       if (slots.fan) attrs.pushState('fan_mode', slots.fan);
-      attrs.flush(L);
+      attrs.flush(lines);
       break;
     }
     default:
       return '# 不支持的家电类型';
   }
 
-  appendCustomSlots(L, slots, knownKeys, slotsList);
-  pushExtras(L, input);
+  appendCustomSlots(lines, slots, knownKeys, slotsList);
+  pushExtras(lines, input);
 
-  const joined = L.join('\n');
+  const joined = lines.join('\n');
   if (
     !hasAnySlot(slots, [...knownKeys]) &&
-    !slotsList.some((s) => slots[s._key || s.key]?.trim())
+    !slotsList.some((slot) => slots[slot._key || slot.key]?.trim())
   ) {
     return joined;
   }

@@ -248,7 +248,7 @@ export function useScaling(
     }
   })
   // 缩放开关变化时持久化到 localStorage
-  watch(scalingEnabled, (val) => writeStoredScaling(val))
+  watch(scalingEnabled, (enabled) => writeStoredScaling(enabled))
   onMounted(() => {
     scalingEnabled.value = readStoredScaling()
     syncViewportSize()

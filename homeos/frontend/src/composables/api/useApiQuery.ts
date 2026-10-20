@@ -73,9 +73,9 @@ export function useApiQuery<T>(
       meta.value = result.meta ?? null
       // 降级判定：meta 显式标记 / 存在 reason
       degraded.value = Boolean(result.meta?.degraded || result.meta?.reason)
-    } catch (err) {
+    } catch (requestError) {
       if (seq !== execSeq) return
-      error.value = extractErrorMessage(err)
+      error.value = extractErrorMessage(requestError)
       degraded.value = true
     } finally {
       if (seq === execSeq) loading.value = false

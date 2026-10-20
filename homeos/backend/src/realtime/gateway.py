@@ -1043,8 +1043,8 @@ def _as_set(raw: Any, require_dot: bool = False) -> set[str] | None:
     return result or None
 
 
-def _ms_to_iso(ms: float) -> str:
-    return datetime.fromtimestamp(ms / 1000, tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(ms) % 1000:03d}Z"
+def _ms_to_iso(milliseconds: float) -> str:
+    return datetime.fromtimestamp(milliseconds / 1000, tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(milliseconds) % 1000:03d}Z"
 
 
 def create_realtime_gateway(app: Any) -> RealtimeGateway:

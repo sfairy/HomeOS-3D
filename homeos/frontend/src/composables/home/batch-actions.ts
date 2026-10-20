@@ -78,8 +78,8 @@ function resolveWholeHomeOffOptions(overrides: WholeHomeOffOptions = {}) {
  * @param options 配置覆盖项
  */
 function getAllLightsOn(options: WholeHomeOffOptions = {}) {
-  const opts = resolveWholeHomeOffOptions(options)
-  return collectOnEntities((key, e) => key.startsWith('light.') && e.state === 'on', opts)
+  const resolvedLightsOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities((key, e) => key.startsWith('light.') && e.state === 'on', resolvedLightsOptions)
 }
 
 /**
@@ -87,8 +87,8 @@ function getAllLightsOn(options: WholeHomeOffOptions = {}) {
  * @param options 配置覆盖项
  */
 function getAllCoversOpen(options: WholeHomeOffOptions = {}) {
-  const opts = resolveWholeHomeOffOptions(options)
-  return collectOnEntities((key, e) => key.startsWith('cover.') && e.state === 'open', opts)
+  const resolvedCoversOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities((key, e) => key.startsWith('cover.') && e.state === 'open', resolvedCoversOptions)
 }
 
 /**
@@ -96,10 +96,10 @@ function getAllCoversOpen(options: WholeHomeOffOptions = {}) {
  * @param options 配置覆盖项
  */
 function getAllClimateOn(options: WholeHomeOffOptions = {}) {
-  const opts = resolveWholeHomeOffOptions(options)
+  const resolvedClimateOptions = resolveWholeHomeOffOptions(options)
   return collectOnEntities(
     (key, e) => (key.startsWith('climate.') || key.startsWith('fan.')) && e.state !== 'off',
-    opts,
+    resolvedClimateOptions,
   )
 }
 
@@ -108,8 +108,8 @@ function getAllClimateOn(options: WholeHomeOffOptions = {}) {
  * @param options 配置覆盖项
  */
 function getAllSwitchesOn(options: WholeHomeOffOptions = {}) {
-  const opts = resolveWholeHomeOffOptions(options)
-  return collectOnEntities((key, e) => key.startsWith('switch.') && e.state === 'on', opts)
+  const resolvedSwitchesOptions = resolveWholeHomeOffOptions(options)
+  return collectOnEntities((key, e) => key.startsWith('switch.') && e.state === 'on', resolvedSwitchesOptions)
 }
 
 /**
@@ -120,21 +120,21 @@ function getAllSwitchesOn(options: WholeHomeOffOptions = {}) {
  */
 export async function turnOffWholeHome(overrides: WholeHomeOffOptions = {}) {
   const store = useEntitiesStore()
-  const opts = resolveWholeHomeOffOptions(overrides)
+  const resolvedOverrides = resolveWholeHomeOffOptions(overrides)
   const tasks: Promise<unknown>[] = []
 
-  if (opts.lights) {
-    for (const id of getAllLightsOn(opts)) {
+  if (resolvedOverrides.lights) {
+    for (const id of getAllLightsOn(resolvedOverrides)) {
       tasks.push(store.callService('light', 'turn_off', id, undefined, false, { quiet: true }))
     }
   }
-  if (opts.covers) {
-    for (const id of getAllCoversOpen(opts)) {
+  if (resolvedOverrides.covers) {
+    for (const id of getAllCoversOpen(resolvedOverrides)) {
       tasks.push(store.callService('cover', 'close_cover', id, undefined, false, { quiet: true }))
     }
   }
-  if (opts.climate) {
-    for (const id of getAllClimateOn(opts)) {
+  if (resolvedOverrides.climate) {
+    for (const id of getAllClimateOn(resolvedOverrides)) {
       const domain = getEntityDomain(id)
       // climate 设为 off 模式；fan 直接关闭
       const service = domain === 'climate' ? 'set_hvac_mode' : 'turn_off'
@@ -142,8 +142,8 @@ export async function turnOffWholeHome(overrides: WholeHomeOffOptions = {}) {
       tasks.push(store.callService(domain, service, id, data, false, { quiet: true }))
     }
   }
-  if (opts.switches) {
-    for (const id of getAllSwitchesOn(opts)) {
+  if (resolvedOverrides.switches) {
+    for (const id of getAllSwitchesOn(resolvedOverrides)) {
       tasks.push(store.callService('switch', 'turn_off', id, undefined, false, { quiet: true }))
     }
   }
