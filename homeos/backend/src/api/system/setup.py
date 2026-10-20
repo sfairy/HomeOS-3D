@@ -14,9 +14,9 @@ from typing import Any
 
 from fastapi import Body, Depends, Request
 
-from .router import NestRouter
-from ..platform.core.errors import BusinessException, ErrorCode, api_error
-from ..platform.security.auth_context import require_user
+from ..router import NestRouter
+from ...platform.core.errors import BusinessException, ErrorCode, api_error
+from ...platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
 

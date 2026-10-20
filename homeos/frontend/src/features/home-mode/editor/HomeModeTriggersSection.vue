@@ -194,7 +194,7 @@ import { Clock, Plus, Trash2 } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
-import { useHomeModeItemExpansion, useHomeModeItemFocus } from '@/features/home-mode'
+import { useHomeModeItemExpansion, useHomeModeItemFocus } from '../composables/editor.internals'
 import { useHomeModeRecommend } from '../composables/home-mode-panel.internals'
 import { normalizeHomeModeTimeAt } from '@homeos/shared'
 

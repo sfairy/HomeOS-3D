@@ -18,19 +18,19 @@ from typing import Any, Literal
 
 from fastapi import Body, Depends, Query, Request
 
-from .router import NestRouter
-from .schemas.base import StrictModel
-from ..dependencies import require_license_feature
-from ..domains.app_config.room_meta import (
+from ..router import NestRouter
+from ..schemas.base import StrictModel
+from ...dependencies import require_license_feature
+from ...domains.app_config.room_meta import (
     build_public_room_meta_from_ha_areas,
     filter_env_sensor_map_to_known_areas,
     resolve_voice_rooms,
 )
-from ..domains.license import features as feature_codes
-from ..platform.core.errors import api_error, bad_request
-from ..platform.core.pagination import parse_page_limit
-from ..platform.core.retention import RETENTION_TABLE_KEYS
-from ..platform.security.auth_context import require_user
+from ...domains.license import features as feature_codes
+from ...platform.core.errors import api_error, bad_request
+from ...platform.core.pagination import parse_page_limit
+from ...platform.core.retention import RETENTION_TABLE_KEYS
+from ...platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
 

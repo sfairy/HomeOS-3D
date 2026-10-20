@@ -211,11 +211,6 @@ def get_http_metrics() -> dict[tuple[str, str, str], list[float]]:
         return {key: list(value) for key, value in _http_series.items()}
 
 
-def reset_http_metrics() -> None:
-    """清空 HTTP 直方图（测试与压测隔离用）。"""
-    with _http_lock:
-        _http_series.clear()
-
 
 # 事件循环延迟采样（Phase 3 观测）：每 interval 秒测一次实际唤醒相对计划时间的偏差。
 @dataclass(frozen=True)

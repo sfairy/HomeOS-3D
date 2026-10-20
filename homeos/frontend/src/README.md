@@ -68,9 +68,30 @@ import { useNav } from './composables/nav'
 import Overview from '@/features/security/Overview.vue'
 ```
 
-跨域规则由 ESLint `no-restricted-imports` 在编辑器里即时反馈（按域自动生成，新增域无需改配置）。
+跨域规则由 ESLint `no-restricted-imports` 在编辑器里即时反馈（按域自动生成，新增域无需改配置）；
+`bun run check:frontend-deps`（`homeos/frontend/scripts/check-frontend-deps.mjs`）在 CI/`lint:ci` 里兜底。
 
-迁移顺序见根仓库重构计划：`security` 试点 → 其余域分批 → `views/` 收敛为薄壳（只挂 `<features/<域>>`）。
+### 页面入口（`entry.ts`）
+
+整页装配走独立的 `features/<域>/entry.ts`，不要塞进域根 barrel：
+
+```ts
+// features/security/entry.ts —— 只导出路由页面
+export { default as SecurityPage } from './SecurityPage.vue'
+```
+
+```ts
+// views/SecurityView.vue —— 7 行路由适配器
+import { SecurityPage } from '@/features/security/entry'
+```
+
+理由：域 barrel 会被其它域消费（如 `features/settings` 引 `features/security`），页面与页面 CSS 若进
+barrel，会连带进入无关 chunk。`views/` 只允许 `@/features/<域>`（跨域公开面）或
+`@/features/<域>/entry`（整页入口），其它 feature 子路径禁止。
+
+迁移顺序见根仓库重构计划：`security` 试点 → 其余域分批 → `views/` 收敛为薄壳。2026-10-20 已完成
+`settings` / `earthquake` / `security` / `events` / `notifications` 五页；剩余 `DevicesView`、
+`DeviceDetailView`、`ModeTriggerLogsView`、`ModeLogsAnalyticsRail`、`EmbedView` 按同一模式迁移。
 新增域时**先建 `features/<域>/index.ts`**，否则跨域引用无从落地。
 
 ## 共享域（`shared/`）—— 域该进 `features/` 还是 `shared/`
@@ -171,11 +192,11 @@ import Overview from '@/features/security/Overview.vue'
 | 任务 | 位置 |
 |------|----------|
 | 设置面板 / 导航 | `features/settings/` |
-| 设置路由外壳 | `views/SettingsView.vue` |
+| 设置路由外壳 | `views/SettingsView.vue`（7 行适配器）→ `features/settings/entry.ts` → `SettingsPage.vue` |
 | 设备 UI（域） | `features/device/`（`DeviceRow` 等 13 组件 + `analytics/` + 两个视图模型）；视图经域 barrel 取件 |
 | 设备 hooks | `composables/device/` |
 | 设备纯函数助手 | `shared/device/utils/`（`attr-format`、`domain-labels`、`devices-route`、`entity-attr-labels`、`group-battery`、`group-offline`） |
-| 安防页面外壳 | `views/SecurityView.vue` |
+| 安防页面外壳 | `views/SecurityView.vue`（7 行适配器）→ `features/security/entry.ts` → `SecurityPage.vue` |
 | 安防功能域 UI | `features/security/` |
 | 事件 / 通知功能域 UI（域） | `features/events/`、`features/notifications/`（各 4 个 View* 组件 + 样式 + 具名 barrel，导出名带 `Events*`/`Notifications*` 前缀以避开两域同名文件）；视图模型在 `features/*/composables/` |
 | Events / Notifications 纯逻辑 | `shared/events/utils/`（`events-display`）、`shared/notifications/utils/`（`analytics`、`dnd`、`ws-sync`）。**不能进 features**：`dnd.util` 被 `composables/widget/useNotificationCenter`、`ws-sync.util` 被 `composables/entity/ws-bind` 反向依赖 |
@@ -292,7 +313,8 @@ WS 事件名、可控实体域、通知来源与过滤优先级、实体引用�
 ## 设置功能模块
 
 设置 UI 位于 `features/settings/{connect,display,system,interact,automate,home,shared}/`。
-`views/SettingsView.vue` 是极薄的路由外壳；真正的面板 / 导航都在 `features/settings/` 下。
+`views/SettingsView.vue` 是 7 行路由适配器；真正的页面（`SettingsPage.vue`）、面板 / 导航都在
+`features/settings/` 下，经 `features/settings/entry.ts` 暴露。
 
 ## Studio
 

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onScopeDispose } from 'vue'
 import { RouterLink } from 'vue-router'
-import { setHomeModePanelBridge } from '@/features/home-mode'
+import { setHomeModePanelBridge } from '../composables/editor.internals'
 import { useHomeModePanel } from '../composables/home-mode-panel.internals'
 import HomeModeEmptyState from './HomeModeEmptyState.vue'
 import HomeModeTabsToolbar from './HomeModeTabsToolbar.vue'

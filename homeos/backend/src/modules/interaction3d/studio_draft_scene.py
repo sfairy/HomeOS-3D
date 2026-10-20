@@ -28,10 +28,3 @@ def read_current_studio_draft(database) -> dict | None:
         "scene": snapshot.scene,
         "updatedAt": snapshot.updated_at,
     }
-
-
-def read_current_studio_scene(database) -> dict | None:
-    """只要 ``scene`` 的便捷版本；形状不合法时返回 ``None``。"""
-    payload = read_current_studio_draft(database)
-    scene = (payload or {}).get("scene")
-    return scene if isinstance(scene, dict) else None

@@ -81,15 +81,3 @@ def prepare_schema(settings: Settings) -> None:
     finally:
         database.dispose()
     validate_database(settings.database_path, metadata.tables)
-
-
-def inspect_schema(settings: Settings) -> list[str]:
-    """只读检查库相对 ORM 元数据缺少的表、列与索引。"""
-    from .database import Database
-
-    metadata = _metadata()
-    database = Database(settings.database_url)
-    try:
-        return missing_schema_objects(database.engine, metadata)
-    finally:
-        database.dispose()

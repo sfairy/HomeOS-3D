@@ -35,24 +35,3 @@ class CallServiceDto(StrictModel):
                 mapped["service_data"] = data if isinstance(data, dict) else {}
             return mapped
         return value
-
-
-class HaTestConnectionDto(StrictModel):
-    url: str
-    token: str
-
-
-class WebRtcNegotiateDto(StrictModel):
-    entity_id: str
-    offer: str
-
-
-class WebRtcCandidateDto(StrictModel):
-    entity_id: str
-    session_id: str
-    candidate: dict[str, Any]
-
-
-class WebRtcCloseDto(StrictModel):
-    entity_id: str
-    subscription_id: int

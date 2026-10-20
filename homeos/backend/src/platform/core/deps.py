@@ -19,10 +19,6 @@ def get_settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
-def get_database(request: Request) -> Database:
-    return request.app.state.database
-
-
 def get_session(request: Request) -> Iterator[Session]:
     """按请求提供 SQLAlchemy 会话（由 FastAPI 线程池承载同步查询）。"""
     database: Database = request.app.state.database

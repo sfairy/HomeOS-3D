@@ -9,9 +9,7 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
-from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -39,9 +37,6 @@ def utc_now() -> datetime:
 def new_uuid() -> str:
     return str(uuid4())
 
-
-def json_dumps(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
 # 用户与鉴权

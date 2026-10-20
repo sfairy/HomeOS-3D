@@ -365,7 +365,7 @@ import {
 } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
-import { useHomeModeActionsSection } from '@/features/home-mode'
+import { useHomeModeActionsSection } from '../composables/editor.internals'
 import {
   sceneEntityIdFromRecord,
   scriptEntityIdFromRecord,
