@@ -17,7 +17,11 @@ logger = logging.getLogger("homeos.state_store.entity_area")
 #: 区域索引缓存有效期（毫秒）。
 ENTITY_AREA_CACHE_MS = 30_000
 
-#: 公开配置等待区域索引的上限（毫秒），避免 HA 慢时卡登录。
+#: 公开配置等待区域索引的旧上限（毫秒）。
+#:
+#: 自 ``GET /system/config/public`` 改为「预热只放后台」后已不再使用：
+#: 该响应体的 ``haAreas`` 直接读本地 ``ha_areas`` 表，不依赖这份索引，
+#: 每次固定等 2s 只会拖慢登录与 3D 首屏。保留常量仅为兼容既有导出。
 PUBLIC_CONFIG_AREA_WAIT_MS = 2_000
 
 

@@ -1122,7 +1122,17 @@ def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: Li
     from fastapi.responses import Response
     if content is None:
         return Response(status_code=204, headers={'Cache-Control': 'no-store'})
-    return Response(content, media_type='image/png', headers={'Cache-Control': 'private, no-cache'})
+    # 缓存键是前端按「渲染描述符（版本 + 场景 + 相机 + 光照…）」算出的 sha256，
+    # 同一 URL 的内容不会变；单张瓦片可达 1 MB，每次都回源会让 3D 首屏白付一次
+    # 大图传输。按私有缓存留一天，渲染逻辑变更由前端的 RENDER_CACHE_VERSION 换 URL。
+    return Response(
+        content,
+        media_type='image/png',
+        headers={
+            'Cache-Control': 'private, max-age=86400',
+            'ETag': f'"{cache_key}"',
+        },
+    )
 
 
 @router.put('/scenes/{scene_id}/render-cache/{cache_key}', status_code=204)

@@ -173,6 +173,10 @@ def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
 #: meteocons/fill、根级 LICENSE）不加，避免升级产物后命中旧内容。
 _IMMUTABLE_VENDOR_PATH = re.compile(r"^vendor/[^/]+/\d+(?:\.\d+)*(?:/|$)")
 
+#: 随包默认素材（图标 / 背景图）的客户端缓存时间：只在发版时变，且文件名稳定，
+#: 1 小时足够覆盖一次会话内的重复打开，又不会让「隐藏 / 替换」长时间不生效。
+_BUILTIN_ASSET_MAX_AGE = 3600
+
 
 class _VersionedStaticFiles(StaticFiles):
     """静态产物挂载：仅版本化 vendor 路径追加 immutable 长缓存头。"""
@@ -266,7 +270,11 @@ def _mount_replaceable_asset_dirs(app: FastAPI, settings: Settings) -> None:
             if resolved is None:
                 raise HTTPException(status_code=404, detail="资源不存在。")
             response = FileResponse(resolved, media_type=UPLOAD_CONTENT_TYPES.get(resolved.suffix.lower()))
-            response.headers["Cache-Control"] = "private, no-cache"
+            # 随包默认素材（背景图 84 KB、图标几 KB）只在发版时变，重复打开仪表盘不必每次
+            # 回源校验；用户上传层仍走 no-cache，覆盖 / 隐藏能立即生效。
+            response.headers["Cache-Control"] = (
+                f"private, max-age={_BUILTIN_ASSET_MAX_AGE}" if resolved.is_relative_to(_builtin) else "private, no-cache"
+            )
             return response
 
         app.api_route(

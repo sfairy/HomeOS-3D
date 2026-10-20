@@ -164,12 +164,18 @@ def is_interaction_module(path: str) -> bool:
 
 
 def _is_revalidatable_private_asset(path: str) -> bool:
-    """私有素材：走 ``private, no-cache`` + ETag 校验，不能被下面的 ``no-store`` 覆盖。"""
+    """自带缓存头的私有素材：不要被下面的 ``no-store`` 覆盖。
+
+    这些路由自己会给出 ``private, no-cache`` / ``private, max-age=...``
+    （例如渲染缓存瓦片的 URL 是内容寻址的，允许浏览器留一天）。
+    """
     return path.startswith(
         (
             "/api/v1/assets/effect-variant",
             "/api/v1/assets/user/",
             "/api/v1/assets/studio3d-export/",
+            # 3D 场景快照 / 渲染缓存瓦片：路由自行设置 ``no-store`` 或内容寻址长缓存。
+            "/api/v1/modules/interaction3d/scenes/",
         )
     )
 
@@ -204,9 +210,7 @@ def _is_immutable_asset(path: str) -> bool:
         return True
     if _VERSIONED_VENDOR_PATH.match(path):
         return True
-    if path.startswith("/static/assets/") and _HASHED_BUILD_ASSET.search(path):
-        return True
-    return False
+    return bool(path.startswith("/static/assets/") and _HASHED_BUILD_ASSET.search(path))
 
 
 def _etag_matches(request: Request, response: Response) -> bool:
