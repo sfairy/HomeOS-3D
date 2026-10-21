@@ -12,6 +12,7 @@ import argparse
 import concurrent.futures
 import json
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -41,6 +42,72 @@ WARMUP_REQUESTS = 20
 DB_PROBE_REQUESTS = 10
 # A/B 时用 PERF_SOURCE_ROOT 指向基线源码树；默认就是当前工作区。
 SOURCE_ROOT = Path(os.environ.get("PERF_SOURCE_ROOT", str(ROOT))).resolve()
+
+#: 启动期 import 归因：只 import 应用模块（不跑 lifespan、不建库），用于把
+#: ``homeos_boot_import_ms`` 拆到具体模块。生产镜像是 Cython .so，此项只代表源码态口径。
+IMPORTTIME_TARGET = "import src.app"
+IMPORTTIME_TOP_N = 40
+
+
+def collect_import_attribution(label: str) -> dict[str, Any]:
+    """跑一次 ``python -X importtime``，产出可归因的模块导入耗时表。"""
+    env_data = load_env(label)
+    python = env_data["python"]
+    backend_dir = SOURCE_ROOT / "homeos" / "backend"
+    out_dir = result_dir(label)
+    log_path = out_dir / "importtime.txt"
+    env = os.environ.copy()
+    for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+                "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+                "PYTHONDONTWRITEBYTECODE"):
+        env.pop(key, None)
+    env["PYTHONPATH"] = str(backend_dir)
+    started = time.perf_counter()
+    with log_path.open("wb") as handle:
+        subprocess.run(
+            [python, "-X", "importtime", "-c", IMPORTTIME_TARGET],
+            cwd=str(backend_dir), env=env, stdout=subprocess.DEVNULL, stderr=handle,
+            check=False,
+        )
+    wall_ms = round((time.perf_counter() - started) * 1000.0, 2)
+    rows: list[dict[str, Any]] = []
+    for line in log_path.read_text("utf-8", errors="replace").splitlines():
+        match = re.match(r"import time:\s+(\d+)\s+\|\s+(\d+)\s+\|\s+(.*)", line)
+        if not match:
+            continue
+        rows.append({
+            "self_us": int(match.group(1)),
+            "cumulative_us": int(match.group(2)),
+            "module": match.group(3).strip(),
+        })
+    total_self_us = sum(row["self_us"] for row in rows)
+    payload = {
+        "target": IMPORTTIME_TARGET,
+        "sourceRoot": str(SOURCE_ROOT),
+        "wallMs": wall_ms,
+        "moduleCount": len(rows),
+        "totalSelfMs": round(total_self_us / 1000.0, 2),
+        "note": "源码态口径；生产镜像为 Cython .so，不含 Python 源码导入。",
+        "topSelf": [
+            {
+                "module": row["module"],
+                "selfMs": round(row["self_us"] / 1000.0, 2),
+                "cumulativeMs": round(row["cumulative_us"] / 1000.0, 2),
+            }
+            for row in sorted(rows, key=lambda item: -item["self_us"])[:IMPORTTIME_TOP_N]
+        ],
+        "topCumulative": [
+            {
+                "module": row["module"],
+                "selfMs": round(row["self_us"] / 1000.0, 2),
+                "cumulativeMs": round(row["cumulative_us"] / 1000.0, 2),
+            }
+            for row in sorted(rows, key=lambda item: -item["cumulative_us"])[:IMPORTTIME_TOP_N]
+        ],
+    }
+    write_json(out_dir / "importtime.json", payload)
+    print(f"[{label}] import 归因：{out_dir / 'importtime.json'}（self 合计 {payload['totalSelfMs']} ms）")
+    return payload
 
 
 def _servers_path(label: str) -> Path:
@@ -288,7 +355,7 @@ def _measure_endpoint(url: str, cookie: str, *, warmup: int, sequential: int,
     }
 
 
-def measure(label: str, servers: dict[str, Any]) -> dict[str, Any]:
+def measure(label: str, servers: dict[str, Any], *, tag: str = "") -> dict[str, Any]:
     env_data = load_env(label)
     homeos = env_data["homeos"]
     store = env_data["store"]
@@ -384,7 +451,12 @@ def measure(label: str, servers: dict[str, Any]) -> dict[str, Any]:
             "homeos_wall_ms": servers["homeos"]["wallMs"],
             "store_wall_ms": servers["store"]["wallMs"],
             "homeos_reported_ms": metrics_before.get("values", {}).get("homeos_startup_duration_ms"),
-            "boot_import_ms": metrics_before.get("values", {}).get("homeos_boot_import_duration_ms"),
+            "boot_import_ms": metrics_before.get("values", {}).get("homeos_boot_import_ms"),
+            "phases_ms": {
+                key.split('phase="')[-1].rstrip('"}').rstrip('"'): value
+                for key, value in metrics_before.get("values", {}).items()
+                if key.startswith("homeos_startup_phase_duration_ms")
+            },
         },
         "endpoints": endpoints,
         "resources": {
@@ -409,7 +481,13 @@ def measure(label: str, servers: dict[str, Any]) -> dict[str, Any]:
                      if k.startswith("homeos_http_request_duration_seconds")},
         },
     }
-    output = result_dir(label) / "backend.json"
+    output = result_dir(label) / ("backend.json" if not tag else f"backend-{tag}.json")
+    # import 归因放在所有延迟测量之后：它要额外 spawn 一个 Python 进程，不应污染 p50/p95。
+    try:
+        result["import_attribution"] = collect_import_attribution(label)
+    except Exception as error:  # noqa: BLE001 - 归因失败不应让整轮测量作废
+        result["import_attribution"] = {"error": str(error)[:500]}
+        print(f"[{label}] import 归因失败：{error}")
     write_json(output, result)
     print(f"[{label}] 后端结果：{output}")
     return result
@@ -421,6 +499,7 @@ def main() -> None:
     parser.add_argument("--serve-only", action="store_true")
     parser.add_argument("--stop", action="store_true")
     parser.add_argument("--no-start", action="store_true")
+    parser.add_argument("--tag", default="", help="结果文件名后缀：backend-<tag>.json")
     args = parser.parse_args()
     if args.stop:
         stop_servers(args.label)
@@ -432,7 +511,7 @@ def main() -> None:
         for name in ("homeos", "store"):
             if not _port_open("127.0.0.1", int(load_env(args.label)[name]["port"])):
                 raise SystemExit(f"{name} 未运行")
-    measure(args.label, servers)
+    measure(args.label, servers, tag=args.tag)
 
 
 if __name__ == "__main__":

@@ -86,6 +86,7 @@ def main() -> None:
         rows = [
             _row("HomeOS 启动 wall（含 import）", before_start.get("homeos_wall_ms"), after_start.get("homeos_wall_ms"), unit=" ms"),
             _row("HomeOS 应用内启动", before_start.get("homeos_reported_ms"), after_start.get("homeos_reported_ms"), unit=" ms"),
+            _row("HomeOS boot import", before_start.get("boot_import_ms"), after_start.get("boot_import_ms"), unit=" ms"),
             _row("Store 启动 wall", before_start.get("store_wall_ms"), after_start.get("store_wall_ms"), unit=" ms"),
         ]
         before_resources = before_backend.get("resources", {})
@@ -99,6 +100,16 @@ def main() -> None:
         after_lag = after_backend.get("app_metrics", {}).get("loop_lag", {})
         rows.append(_row("事件循环 lag p99", before_lag.get("p99"), after_lag.get("p99"), unit=" ms"))
         sections.append(_table("启动与资源", rows))
+
+        before_phases = before_start.get("phases_ms") or {}
+        after_phases = after_start.get("phases_ms") or {}
+        phase_rows = [
+            _row(f"阶段 {name}", before_phases.get(name), after_phases.get(name), unit=" ms")
+            for name in sorted(set(before_phases) | set(after_phases))
+        ]
+        if phase_rows:
+            sections.append(_table("启动分阶段（lifespan）", phase_rows,
+                                   "只在阶段集合一致时逐项可比；某一侧缺失的相位不参与判定。"))
 
         for service, title in (("homeos", "HomeOS 接口"), ("store", "Store 接口")):
             before_items = {item["name"]: item for item in before_backend.get("endpoints", {}).get(service, [])}
@@ -139,6 +150,24 @@ def main() -> None:
             rows.append(f"| {name} Event Timing p95 | {_format((first.get('events') or {}).get('p95'))} ms | "
                         f"{_format((second.get('events') or {}).get('p95'))} ms | "
                         f"{_format(_pct((first.get('events') or {}).get('p95'), (second.get('events') or {}).get('p95')), 2)}% |")
+            rows.append(f"| {name} INP p75（实验室） | {_format((first.get('inp') or {}).get('p75'))} ms | "
+                        f"{_format((second.get('inp') or {}).get('p75'))} ms | "
+                        f"{_format(_pct((first.get('inp') or {}).get('p75'), (second.get('inp') or {}).get('p75')), 2)}% |")
+            rows.append(f"| {name} 合成交互延迟 | {_format((first.get('syntheticInteraction') or {}).get('total'))} ms | "
+                        f"{_format((second.get('syntheticInteraction') or {}).get('total'))} ms | "
+                        f"{_format(_pct((first.get('syntheticInteraction') or {}).get('total'), (second.get('syntheticInteraction') or {}).get('total')), 2)}% |")
+            rows.append(f"| {name} 渲染阻塞请求数 | {_format((first.get('blockingResources') or {}).get('count'))} | "
+                        f"{_format((second.get('blockingResources') or {}).get('count'))} | "
+                        f"{_format(_pct((first.get('blockingResources') or {}).get('count'), (second.get('blockingResources') or {}).get('count')), 2)}% |")
+            rows.append(f"| {name} 渲染阻塞字节 | {_format((first.get('blockingResources') or {}).get('totalTransferBytes'))} B | "
+                        f"{_format((second.get('blockingResources') or {}).get('totalTransferBytes'))} B | "
+                        f"{_format(_pct((first.get('blockingResources') or {}).get('totalTransferBytes'), (second.get('blockingResources') or {}).get('totalTransferBytes')), 2)}% |")
+            rows.append(f"| {name} 请求数 | {_format((first.get('network') or {}).get('cdpRequests'))} | "
+                        f"{_format((second.get('network') or {}).get('cdpRequests'))} | "
+                        f"{_format(_pct((first.get('network') or {}).get('cdpRequests'), (second.get('network') or {}).get('cdpRequests')), 2)}% |")
+            rows.append(f"| {name} stylesheet 字节 | {_format(((first.get('network') or {}).get('cdpByType') or {}).get('Stylesheet'))} B | "
+                        f"{_format(((second.get('network') or {}).get('cdpByType') or {}).get('Stylesheet'))} B | "
+                        f"{_format(_pct(((first.get('network') or {}).get('cdpByType') or {}).get('Stylesheet'), ((second.get('network') or {}).get('cdpByType') or {}).get('Stylesheet')), 2)}% |")
             rows.append(f"| {name} 冷开网络字节 | {_format((first.get('network') or {}).get('cdpEncodedBytes'))} B | "
                         f"{_format((second.get('network') or {}).get('cdpEncodedBytes'))} B | "
                         f"{_format(_pct((first.get('network') or {}).get('cdpEncodedBytes'), (second.get('network') or {}).get('cdpEncodedBytes')), 2)}% |")
@@ -154,18 +183,32 @@ def main() -> None:
         second = after_3d.get("summary") or {}
         rows = [
             _row("stage ready", before_3d.get("readyMs"), after_3d.get("readyMs"), unit=" ms"),
+            _row("module-ready", first.get("moduleReadyMs"), second.get("moduleReadyMs"), unit=" ms"),
+            _row("stage-mounted", first.get("stageMountedMs"), second.get("stageMountedMs"), unit=" ms"),
+            _row("settled-frame", first.get("settledFrameMs"), second.get("settledFrameMs"), unit=" ms"),
+            _row("light-cache-ready", first.get("lightCacheReadyMs"), second.get("lightCacheReadyMs"), unit=" ms"),
+            _row("presented", first.get("presentedMs"), second.get("presentedMs"), unit=" ms"),
+            _row("entry-finished", first.get("entryFinishedMs"), second.get("entryFinishedMs"), unit=" ms"),
+            _row("reflections-ready", first.get("reflectionsReadyMs"), second.get("reflectionsReadyMs"), unit=" ms"),
+            _row("display 首屏就绪", first.get("displayFirstScreenMs"), second.get("displayFirstScreenMs"), unit=" ms"),
+            _row("presented draw calls", first.get("presentedCalls"), second.get("presentedCalls")),
+            _row("presented triangles", first.get("presentedTriangles"), second.get("presentedTriangles")),
             _row("交互平均 FPS", first.get("averageFps"), second.get("averageFps"), lower_is_better=False),
             _row("交互帧 p95", first.get("frameP95Ms"), second.get("frameP95Ms"), unit=" ms"),
             _row("CPU 提交均值", first.get("cpuRenderAvgMs"), second.get("cpuRenderAvgMs"), unit=" ms"),
-            _row("draw calls", first.get("renderCalls"), second.get("renderCalls")),
-            _row("triangles", first.get("triangles"), second.get("triangles")),
+            _row("稳态 draw calls", first.get("renderCalls"), second.get("renderCalls")),
+            _row("稳态 triangles", first.get("triangles"), second.get("triangles")),
             _row("geometries", first.get("geometries"), second.get("geometries")),
             _row("textures", first.get("textures"), second.get("textures")),
+            _row("stage runtime chunk 数", first.get("stageModuleJsCount"), second.get("stageModuleJsCount")),
+            _row("stage runtime 字节", first.get("stageModuleJsEncodedBytes"), second.get("stageModuleJsEncodedBytes"), unit=" B"),
+            _row("iframe INP p75", first.get("iframeInpP75"), second.get("iframeInpP75"), unit=" ms"),
+            _row("contextlost", first.get("contextlost"), second.get("contextlost")),
             _row("3D 网络字节", (before_3d.get("network") or {}).get("encodedBytes"),
                  (after_3d.get("network") or {}).get("encodedBytes"), unit=" B"),
         ]
-        sections.append(_table("3D 交互渲染（直接打开 stage.html，单实例）", rows,
-                               "FPS/帧 p95 只在拖拽交互后采样；contextlost 必须为 0。"))
+        sections.append(_table("3D 交互渲染（display 宿主 + iframe 舞台）", rows,
+                               "presented 为首个固定相位采样点；稳态 FPS 在拖拽交互后采样；contextlost 必须为 0。"))
     if before_bundle and after_bundle:
         first_metrics = before_bundle.get("metrics") or {}
         second_metrics = after_bundle.get("metrics") or {}
