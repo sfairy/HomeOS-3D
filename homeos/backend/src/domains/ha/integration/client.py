@@ -16,11 +16,24 @@ from typing import Any
 from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
-import websockets
 
 from .control_pool import HAControlConfiguration, HAControlPool
 from .errors import endpoint_failure_reason
 from .http_pool import HAHttpClientPool, HAHttpConfiguration
+
+
+def _websockets():
+    """延迟导入 ``websockets``。
+
+    只有真正建立 / 复用 HA WebSocket 连接时才需要它，但模块级 import 会把它约 20 ms
+    的导入链（asyncio client + exceptions + typing）算进每次冷启动；REST-only 的部署
+    根本用不到。异常元组里的调用只在异常真正抛出时才求值，因此不会在热路径上反复导入
+    （首次之后就是 ``sys.modules`` 字典命中）。
+    """
+    import websockets
+
+    return websockets
+
 
 #: 必须挂在 ``homeos`` 树下：主应用的控制台 handler 只装在 ``homeos.*`` 与 uvicorn 上，
 #: 用 ``__name__`` 会得到 ``src.*``，冒到没有 handler 的 root 后走 ``logging.lastResort``
@@ -481,14 +494,14 @@ class HAClient:
                 'access_token': self.access_token,
             }))
             result = json.loads(await websocket.recv())
-        except (json.JSONDecodeError, websockets.WebSocketException) as error:
+        except (json.JSONDecodeError, _websockets().WebSocketException) as error:
             raise HAClientError(f'Home Assistant WebSocket 鉴权失败：{error}') from error
         if not isinstance(result, dict) or result.get('type') != 'auth_ok':
             raise HAAuthError('Home Assistant WebSocket Token 无效或鉴权失败。')
 
     async def connect_websocket(self):
         try:
-            websocket = await websockets.connect(
+            websocket = await _websockets().connect(
                 websocket_url(self.base_url),
                 ssl=self._ssl_context(),
                 proxy=None if self._bypass_environment_proxy else True,
@@ -504,7 +517,7 @@ class HAClient:
                 '当前环境通过 SOCKS 代理连接 Home Assistant，但缺少 python-socks 依赖；'
                 '内网地址应直连，请检查代理设置。'
             ) from error
-        except (OSError, TimeoutError, websockets.WebSocketException) as error:
+        except (OSError, TimeoutError, _websockets().WebSocketException) as error:
             if 'message too big' in str(error).lower() or '1009' in str(error):
                 maximum_mb = self.websocket_max_size_bytes // 1048576
                 raise HAProtocolError(
@@ -526,7 +539,7 @@ class HAClient:
         while True:
             try:
                 message = json.loads(await websocket.recv())
-            except websockets.WebSocketException as error:
+            except _websockets().WebSocketException as error:
                 if (
                     getattr(error, 'code', None) == 1009
                     or 'message too big' in str(error).lower()
@@ -595,7 +608,7 @@ class HAClient:
         while True:
             try:
                 message = json.loads(await websocket.recv())
-            except websockets.WebSocketException as error:
+            except _websockets().WebSocketException as error:
                 raise HAClientError(f'订阅 HA 压缩状态流中断：{error}') from error
             except (TypeError, ValueError) as error:
                 raise HAProtocolError('订阅 HA 压缩状态流时收到非法 JSON。') from error

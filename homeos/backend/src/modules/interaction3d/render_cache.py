@@ -13,7 +13,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException
-from PIL import Image, UnidentifiedImageError
 
 MAX_ENTRY_BYTES = 10485760
 MAX_PIXELS = 2097152
@@ -61,6 +60,10 @@ def read_cache(path: Path) -> bytes | None:
 def write_cache(path: Path, content: bytes) -> None:
     if not content or len(content) > MAX_ENTRY_BYTES:
         raise HTTPException(413, detail='缓存图层过大。')
+    # Pillow 只在真正写缓存图层时导入：3D 数据面的模块级 import 不应把 PIL 链路
+    # （源码态约 23 ms）算进每次冷启动。
+    from PIL import Image, UnidentifiedImageError
+
     try:
         with Image.open(io.BytesIO(content)) as image:
             if image.format != 'PNG' or image.width * image.height > MAX_PIXELS or getattr(image, 'is_animated', False):

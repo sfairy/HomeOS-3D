@@ -26,6 +26,13 @@ from .observability import record_db_query
 #: 写锁等待毫秒数（HA 状态批量写入与业务写入并发时的削峰阈值）。
 SQLITE_BUSY_TIMEOUT_MS = 5000
 
+#: 每条连接的页缓存上限（KiB）。负值表示「按 KiB 计」而不是页数。
+#: 默认 -2000 太小，热读端点（HA 实体、项目草稿、事件日志）会反复回盘。
+SQLITE_CACHE_SIZE_KIB = 16384
+
+#: 只读映射窗口。小于库文件时按窗口滑读；映射失败会静默退回普通 I/O。
+SQLITE_MMAP_SIZE_BYTES = 134217728
+
 #: 连接池默认值（可用 HOMEOS_DB_POOL_SIZE / HOMEOS_DB_MAX_OVERFLOW /
 #: HOMEOS_DB_POOL_TIMEOUT_SECONDS 覆盖）。SQLite 是单文件写，池开得过大只会放大
 #: 写锁竞争；8 + 4 覆盖状态管道写入与 HTTP 读线程，并给突发留出余量。
@@ -79,6 +86,15 @@ def _configure_sqlite(dbapi_connection, _connection_record) -> None:
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
+        # 读侧调优：默认 page cache 只有 -2000（约 2 MB），而 /ha/entities、项目草稿这类
+        # 热读会把同样的页反复从磁盘捞回内存。WAL + mmap 下提升页缓存几乎只有收益，
+        # 内存代价是每连接 16 MB 上限（池 8+4，实际按需增长，不是预分配）。
+        cursor.execute(f"PRAGMA cache_size=-{SQLITE_CACHE_SIZE_KIB}")
+        # 只读映射：让 SQLite 直接读页而不是逐次 read()，WAL 模式下对读多写少最有效。
+        # 映射失败（部分网络文件系统）时 SQLite 会自动退回普通 I/O，不会报错。
+        cursor.execute(f"PRAGMA mmap_size={SQLITE_MMAP_SIZE_BYTES}")
+        # 临时表（排序 / 分组）放内存，避免 /tmp 往返。
+        cursor.execute("PRAGMA temp_store=MEMORY")
     finally:
         cursor.close()
 

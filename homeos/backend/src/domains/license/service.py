@@ -241,6 +241,9 @@ class LicenseService:
         # allows() 热路径缓存：key=(lease_id, sequence, feature) → (monotonic_deadline, allowed)
         self._allow_cache: dict[tuple[str, int, str], tuple[float, bool]] = {}
         self._allow_cache_ttl_seconds = 2.0
+        #: ``allows()`` 快路径用的租约身份快照 ``(expires_at, lease_id, lease_sequence)``。
+        #: 只在 TTL 内可信，语义等同 ``_allow_cache`` 的陈旧窗口。
+        self._identity_snapshot: tuple[float, str, int] | None = None
         #: 授权状态变化监听器（同步回调，在状态真正变化时才触发）。WebSocket 网关靠它把
         #: 「授权已被吊销」这类终态第一时间推给在线连接，而不必等下一次心跳轮询。
         self._status_listeners: list[Any] = []
@@ -1394,15 +1397,30 @@ class LicenseService:
 
     def invalidate_allow_cache(self) -> None:
         self._allow_cache.clear()
+        self._identity_snapshot = None
 
     def allows(self, feature: str | None = None, *, database=None) -> bool:
         feature_key = feature or "*"
+        # 快路径：授权判定本身已有 2s 缓存，但缓存键里带着 (lease_id, lease_sequence)，
+        # 而这两个值原先只能靠每条受保护请求读一次 LicenseState 才拿得到 —— 于是
+        # 每个请求都固定多出 1 次 SQLite 读（基线里 /assets/*、/ha/entities 的
+        # DB/req = 3 就是这么来的）。这里把最近一次读到的租约身份连同一个短 TTL 记下来，
+        # 命中的请求直接返回缓存判定，不再开 session。
+        # 陈旧窗口与 _allow_cache 的 TTL 相同（2s），不额外放宽任何语义。
+        now = time.monotonic()
+        if database is None:
+            snapshot = self._identity_snapshot
+            if snapshot is not None and snapshot[0] > now:
+                cached = self._allow_cache.get((snapshot[1], snapshot[2], feature_key))
+                if cached is not None and cached[0] > now:
+                    return cached[1]
 
         def _evaluate(state: LicenseState) -> bool:
             cache_key = (str(state.lease_id or ""), int(state.lease_sequence or 0), feature_key)
             now = time.monotonic()
             cached = self._allow_cache.get(cache_key)
             if cached is not None and cached[0] > now:
+                self._remember_identity(cache_key, now)
                 return cached[1]
             allowed = self._verified_access(state, feature)
             self._allow_cache[cache_key] = (now + self._allow_cache_ttl_seconds, allowed)
@@ -1410,6 +1428,7 @@ class LicenseService:
             if len(self._allow_cache) > 64:
                 self._allow_cache.clear()
                 self._allow_cache[cache_key] = (now + self._allow_cache_ttl_seconds, allowed)
+            self._remember_identity(cache_key, now)
             return allowed
 
         if database is not None:
@@ -1419,3 +1438,7 @@ class LicenseService:
             return _evaluate(state)
         with self.database.session_factory() as session:
             return _evaluate(self._state(session))
+
+    def _remember_identity(self, cache_key: tuple[str, int, str], now: float) -> None:
+        """记下本次判定所用的租约身份，供 :meth:`allows` 的快路径在 TTL 内复用。"""
+        self._identity_snapshot = (now + self._allow_cache_ttl_seconds, cache_key[0], cache_key[1])

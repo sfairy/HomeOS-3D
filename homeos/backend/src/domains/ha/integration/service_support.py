@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 import httpx
-import websockets.exceptions
 
 from .client import (
     HAAuthError,
@@ -64,6 +63,9 @@ def classify_connector_failure(error: BaseException) -> str:
       （``HAClientError`` 已经把原因翻成了中文短句），只需要一行摘要；
     - ``FAILURE_UNEXPECTED``：其他异常，才值得保留完整堆栈。
     """
+    # 失败分类只在 HA 连接出问题时才跑；websockets 的导入链（约 20 ms）不应算进冷启动。
+    import websockets.exceptions
+
     if isinstance(error, websockets.exceptions.ConnectionClosedOK):
         return FAILURE_DISCONNECTED
     if isinstance(error, (
@@ -106,6 +108,9 @@ def classify_disconnect_reason(error: BaseException) -> str:
         return FAILURE_AUTH
     if isinstance(error, HAProtocolError):
         return FAILURE_PROTOCOL
+    # 失败分类只在 HA 连接出问题时才跑；websockets 的导入链（约 20 ms）不应算进冷启动。
+    import websockets.exceptions
+
     if isinstance(error, websockets.exceptions.ConnectionClosedOK):
         # 对端正常关连接（HA 重启 / 反代换后端）：不是故障，也没有可操作项。
         return FAILURE_DISCONNECTED

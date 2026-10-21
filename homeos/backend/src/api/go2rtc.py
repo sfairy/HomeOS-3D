@@ -28,9 +28,6 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import WebSocket, WebSocketDisconnect
-from websockets.asyncio.client import connect
-from websockets.exceptions import InvalidStatus
-from websockets.typing import Origin
 
 from .ha import websocket_origin_allowed, websocket_viewer
 from .router import NestRouter
@@ -39,6 +36,9 @@ from ..domains.license import features as feature_codes
 from ..domains.proxy.go2rtc_target import normalize_go2rtc_target
 from ..domains.proxy.ws_proxy import ssl_context_for
 from ..platform.core.models import ProjectDraft
+
+# websockets 只在真正中转摄像流 / 翻译上游错误码时需要（源码态导入链约 20 ms）。
+# 模块级 import 会把它算进每次冷启动，所以本模块只在使用点局部导入，不要加回顶部。
 
 logger = logging.getLogger("homeos.api.go2rtc")
 
@@ -107,6 +107,8 @@ def go2rtc_connection_error(error: BaseException) -> tuple[str, str]:
     分支顺序即判定优先级：``TimeoutError`` / ``ConnectionRefusedError`` 都是
     ``OSError`` 的子类，必须排在兜底 ``OSError`` 之前。
     """
+    from websockets.exceptions import InvalidStatus
+
     if isinstance(error, TimeoutError):
         return (
             GO2RTC_CONNECT_TIMEOUT,
@@ -428,6 +430,10 @@ async def _guard_go2rtc_access(websocket: WebSocket, target: str) -> None:
 
 async def _relay_go2rtc_stream(websocket: WebSocket, target: str) -> None:
     """建立上游连接并三路并发中继，把连接期 / 中继期错误翻译成稳定错误码。"""
+    # 只有真正中转摄像流时才需要 websockets 客户端（源码态导入链约 20 ms）。
+    from websockets.asyncio.client import connect
+    from websockets.typing import Origin
+
     # go2rtc 会校验 Origin；上游是内网直连，带上与上游同源的 origin 即可。
     origin = Origin(f"{'https' if target.startswith('wss:') else 'http'}://{urlsplit(target).netloc}")
     # 连接期与中继期的失败原因完全不同，用这个标记区分后再翻译错误码。

@@ -17,9 +17,12 @@ import asyncio
 import logging
 import ssl
 from collections.abc import Callable, Sequence
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from websockets.typing import Subprotocol
+if TYPE_CHECKING:
+    # 仅出现在 ``cast`` 的字符串标注里，运行期不需要求值；
+    # 放进 TYPE_CHECKING 可以省掉 websockets 整条导入链（源码态约 20 ms）。
+    from websockets.typing import Subprotocol
 
 from ...platform.security.entity_access import is_entity_allowed_by_restrictions
 from ...platform.security.ws_auth import extract_auth_token_from_cookie, resolve_ws_user

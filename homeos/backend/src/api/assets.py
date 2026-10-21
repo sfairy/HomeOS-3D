@@ -17,15 +17,25 @@ from xml.etree import ElementTree
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
-from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 
-try:
-    from pillow_heif import register_heif_opener
 
-    register_heif_opener()
-except Exception:  # HEIF 解码器是可选依赖：装不上只失去 HEIC 支持，其余图片照常
-    pass
+# Pillow 只在「真正处理图片」的请求里需要，但它是模块级 import 里最贵的一条
+# （源码态 importtime：assets 累计 28.2 ms，其中约 23 ms 是 PIL 链路）。
+# 首屏、健康检查、项目/草稿等热路径完全不碰图片，因此在函数内导入：
+# CPython 会缓存 sys.modules，重复调用只是字典查找，成本可忽略。
+# 注意：`Image` / `UnidentifiedImageError` 不再是模块级名字，使用处必须局部绑定。
+def _load_pillow():
+    """导入 Pillow 并注册 HEIF 解码器；返回 ``(Image, UnidentifiedImageError)``。"""
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        from pillow_heif import register_heif_opener
+
+        register_heif_opener()
+    except Exception:  # HEIF 解码器是可选依赖：装不上只失去 HEIC 支持，其余图片照常
+        pass
+    return Image, UnidentifiedImageError
 
 from ..dependencies import (
     DatabaseSession,
@@ -154,6 +164,7 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
             return (metadata, variant_path)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
             pass
+    Image, UnidentifiedImageError = _load_pillow()
     try:
         with Image.open(path) as source:
             if getattr(source, 'is_animated', False):
@@ -395,6 +406,7 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
 def validate_uploaded_image(suffix: str, path: Path) -> tuple[int, int]:
     if suffix == '.svg':
         return validate_and_sanitize_uploaded_svg(path)
+    Image, UnidentifiedImageError = _load_pillow()
     strict_format = {
         '.png': 'PNG',
         '.jpg': 'JPEG',

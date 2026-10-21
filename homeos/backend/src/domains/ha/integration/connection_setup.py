@@ -9,7 +9,6 @@ from collections.abc import Sequence
 from urllib.parse import urlparse, urlunparse
 
 import httpx
-import websockets
 
 from .client import HAClient, HAClientError, bypass_environment_proxy, normalize_base_url, websocket_url
 from .endpoints import HAEndpoint
@@ -97,6 +96,9 @@ async def resolve_address(value: str, *, verify_tls: bool, timeout: float) -> st
     raise HAClientError(connection_error_message(last)) from last
 
 async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> bool:
+    # 只在配置阶段的连通性探测里建 WS；websockets 的导入链（约 20 ms）不应算进冷启动。
+    import websockets
+
     client = HAClient(address, '', verify_tls=verify_tls, timeout=timeout)
     try:
         async with asyncio.timeout(timeout):
