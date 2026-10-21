@@ -25,6 +25,7 @@ from .service_support import (
     STATE_FETCH_RETRY_DELAYS,
     state_requires_fetch_retry,
 )
+from ..display_precision import apply_sensor_display_precision
 from ...logs.global_log import _safe_text
 from ...ui_config.global_popups import global_popups
 from ....platform.core.entity_refs import document_entity_ids
@@ -349,6 +350,7 @@ class HASyncMixin(HAConnectorHost):
                 record.original_name = registry.get('original_name')
                 record.icon = registry.get('icon') or attributes.get('icon')
                 record.disabled_by = registry.get('disabled_by')
+                apply_sensor_display_precision(record, registry)
             else:
                 record.name = record.name or attributes.get('friendly_name')
                 record.icon = attributes.get('icon') or record.icon

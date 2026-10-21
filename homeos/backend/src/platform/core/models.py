@@ -601,6 +601,11 @@ class HAEntity(Base):
     original_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     icon: Mapped[str | None] = mapped_column(String(255), nullable=True)
     disabled_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    #: HA 侧为该传感器显式设定的显示精度（``options.sensor.display_precision``）。
+    #: 只有 ``sensor.`` 域才会写入；未设置或非法值一律为 ``None``，前端据此回落。
+    display_precision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: HA 侧建议的显示精度（``options.sensor.suggested_display_precision``），仅作呈现参考。
+    suggested_display_precision: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sync_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", index=True)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now

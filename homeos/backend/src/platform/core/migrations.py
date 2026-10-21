@@ -220,7 +220,36 @@ def _index_projects_updated_at(connection: sqlite3.Connection, _context: Migrati
     connection.execute("CREATE INDEX IF NOT EXISTS ix_projects_updated_at ON projects(updated_at)")
 
 
-#: 本迁移落地时的 3D 设备分类快照（迁移必须冻结口径，不随后续版本变化）。
+#: ``ha_entities`` 的精度列：``(列名, 列定义)``。两列都可空，存量行不受影响。
+_HA_ENTITY_PRECISION_COLUMNS: tuple[tuple[str, str], ...] = (
+    ('display_precision', 'INTEGER'),
+    ('suggested_display_precision', 'INTEGER'),
+)
+
+
+def _add_ha_entity_display_precision(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """给 ``ha_entities`` 补两列 HA 显示精度；空库 / 重复执行都是 no-op。
+
+    空库由 ORM 先建出最新结构，因此这里必须按 ``PRAGMA table_info`` 守卫；
+    显式不带 ``DEFAULT``：历史行的精度语义是「未知」而非 0，只有 ``NULL`` 能表达。
+    """
+    if not _table_exists(connection, 'ha_entities'):
+        return
+    existing = _columns(connection, 'ha_entities')
+    for column_name, column_type in _HA_ENTITY_PRECISION_COLUMNS:
+        if column_name in existing:
+            continue
+        connection.execute(
+            f'ALTER TABLE ha_entities ADD COLUMN "{column_name}" {column_type}'
+        )
+
+
+
+#: 3D 设备分区白名单快照：迁移必须冻结口径，不随功能版本增删。
+#: ``sofas`` 是 0.7.9 引入沙发设备档案时补入的：分类本身在迁移 9 落地时就已合法，
+#: 这里补上只是为了让「迁移表被重建后重跑迁移 9」的场景不会误删空的 sofas 分区。
 _DEVICE_COLLECTIONS = frozenset({
     'nas',
     'televisions',
@@ -254,6 +283,7 @@ _DEVICE_COLLECTIONS = frozenset({
     'riceCookers',
     'routers',
     'smartSockets86',
+    'sofas',
     'steamOvens',
     'teaBarMachines',
     'toilets',
@@ -391,4 +421,5 @@ MIGRATIONS = (
     Migration(8, "normalize-all-datetimes", "h0001-v1", _normalize_all_datetimes),
     Migration(9, "project-draft-3d-strict-config", "h0009-v1", _normalize_project_draft_3d_config),
     Migration(10, "drop-studio-sync-pending", "h0010-v1", _drop_legacy_sync_pending),
+    Migration(11, "ha-entities-display-precision", "h0011-v1", _add_ha_entity_display_precision),
 )

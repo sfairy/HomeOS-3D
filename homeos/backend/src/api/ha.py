@@ -513,6 +513,8 @@ def list_entities(
                 'hasEntityName': item.has_entity_name,
                 'uniqueId': item.unique_id,
                 'originalName': item.original_name,
+                'displayPrecision': item.display_precision,
+                'suggestedDisplayPrecision': item.suggested_display_precision,
                 'disabledBy': item.disabled_by,
                 'status': item.sync_status,
                 'lastSeenAt': item.last_seen_at,

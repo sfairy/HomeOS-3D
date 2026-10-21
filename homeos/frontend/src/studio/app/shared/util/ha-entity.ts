@@ -44,6 +44,10 @@ export type HaEntityEntry = {
   device_class?: string;
   deviceId?: string;
   device_id?: string;
+  /** HA 侧为该传感器显式设定的显示精度（0–100）。未设置时为 null。 */
+  displayPrecision?: number | null;
+  /** HA 侧建议的显示精度（0–100）。仅作 ``displayPrecision`` 缺失时的回落。 */
+  suggestedDisplayPrecision?: number | null;
   attributes?: HaEntityAttributes;
   newState?: HaEntityState | null;
   status?: string;

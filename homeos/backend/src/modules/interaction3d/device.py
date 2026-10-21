@@ -147,6 +147,12 @@ DEVICE_PROFILES: dict[str, dict[str, Any]] = {
         'model_types': ('desktop', 'laptop'),
         'label': '电脑',
     },
+    'sofa': {
+        'collection': 'sofas',
+        'model_type': 'sofa',
+        'model_types': ('sofa', 'sofa-single', 'sofa-l'),
+        'label': '沙发',
+    },
 }
 
 #: ``devices`` 分区里归本模块管的集合名。

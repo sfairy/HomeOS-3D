@@ -14,6 +14,7 @@ from .service_support import (
     LOGGER,
     REGISTRY_REFRESH_DEBOUNCE_SECONDS,
 )
+from ..display_precision import apply_sensor_display_precision
 from ...logs.global_log import _safe_text
 from ....platform.core.models import (
     HAArea,
@@ -68,6 +69,16 @@ class HARegistryMixin(HAConnectorHost):
                             setattr(record, field, event_data.get(field))
                     if 'has_entity_name' in event_data:
                         record.has_entity_name = event_data.get('has_entity_name')
+                    # 精度只写在 ``options.sensor`` 里：事件可能把它放在顶层，也可能只在
+                    # ``changes`` 里给；两处都没有就保持库内现有值 —— 1.5s 后的防抖全量刷新
+                    # 会带着完整 options 补齐，这里不必（也不能）置空。
+                    precision_options = (
+                        event_data['options'] if 'options' in event_data else changes.get('options')
+                    )
+                    if isinstance(precision_options, dict):
+                        apply_sensor_display_precision(
+                            record, {'entity_id': entity_id, 'options': precision_options}
+                        )
                     record.domain = entity_id.partition('.')[0]
                     record.sync_status = self._status(record.disabled_by)
                     record.last_seen_at = now
@@ -153,6 +164,7 @@ class HARegistryMixin(HAConnectorHost):
                 record.original_name = item.get('original_name')
                 record.icon = item.get('icon') or record.icon
                 record.disabled_by = item.get('disabled_by')
+                apply_sensor_display_precision(record, item)
                 record.sync_status = self._status(record.disabled_by)
                 record.last_seen_at = now
                 record.missing_since = None
