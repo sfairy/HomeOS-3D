@@ -37,9 +37,14 @@ fi
 #   ② 每个文件都进了匿名白名单 —— studio chunk 用根绝对 URL 静态 import 它们，
 #      白名单之外一律走登录门禁，未登录 / 会话失效时整条 import 图失败，浏览器只报
 #      「Failed to fetch dynamically imported module: shared-xxxx.js」，指不到真正的原因。
-three_vendor_dir=$(ls -d dist/homeos/frontend/static/vendor/three/*/ 2>/dev/null | head -n 1)
-test -n "$three_vendor_dir"
-three_vendor_rel="/static/vendor/three/${three_vendor_dir##*/three/}"
+three_vendor_root=dist/homeos/frontend/static/vendor/three
+# 目录名取第一层子目录（形如 0.186.1）。用 find 而不是 ls：ls 的输出要再经 head 才能
+# 取一个，且对非字母数字文件名不安全（SC2012）；find -print -quit 天然只给一个、无管道。
+three_vendor_version=$(find "$three_vendor_root" -mindepth 1 -maxdepth 1 -type d -print -quit)
+test -n "$three_vendor_version"
+three_vendor_version=${three_vendor_version##*/}
+three_vendor_dir="${three_vendor_root}/${three_vendor_version}/"
+three_vendor_rel="/static/vendor/three/${three_vendor_version}/"
 for addon in \
     three.module.min.js \
     three.core.min.js \
