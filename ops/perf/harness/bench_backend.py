@@ -485,7 +485,7 @@ def measure(label: str, servers: dict[str, Any], *, tag: str = "") -> dict[str, 
     # import 归因放在所有延迟测量之后：它要额外 spawn 一个 Python 进程，不应污染 p50/p95。
     try:
         result["import_attribution"] = collect_import_attribution(label)
-    except Exception as error:  # noqa: BLE001 - 归因失败不应让整轮测量作废
+    except Exception as error:  # 归因失败不应让整轮测量作废
         result["import_attribution"] = {"error": str(error)[:500]}
         print(f"[{label}] import 归因失败：{error}")
     write_json(output, result)

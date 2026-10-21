@@ -84,9 +84,13 @@ def _pick_project(database: Path) -> dict[str, str]:
     with sqlite3.connect(database) as connection:
         rows = connection.execute("SELECT project_id, document_json FROM project_drafts").fetchall()
     for project_id, raw in rows:
+        if not raw:
+            continue
         try:
-            document = json.loads(raw or "{}")
-        except Exception:
+            document = json.loads(raw)
+        except json.JSONDecodeError as error:
+            # 坏草稿直接跳过，但要留痕：否则「扫到 0 个 interaction3d 组件」无从定位。
+            print(f"[setup] 跳过无法解析的项目草稿 {project_id}：{error}")
             continue
         for page in document.get("pages", []) or []:
             for component in page.get("components", []) or []:

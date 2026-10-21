@@ -8,9 +8,11 @@ import ctypes
 import json
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -18,8 +20,11 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
-PERF_ROOT = Path(os.environ.get("HOMEOS_PERF_ROOT", "/tmp/homeos-perf"))
+# 默认落在系统临时目录下（S108 要求不得写死 `/tmp`）；CI 可用 HOMEOS_PERF_ROOT 覆盖。
+PERF_ROOT = Path(os.environ.get("HOMEOS_PERF_ROOT") or Path(tempfile.gettempdir()) / "homeos-perf")
 PYTHON = ROOT / ".venv-store" / "bin" / "python"
+# `ps` 按 PATH 解析成绝对路径后再调用（S607）；macOS 上还有 libproc 兜底。
+PS_EXECUTABLE = shutil.which("ps")
 
 
 def env_path(label: str) -> Path:
@@ -46,13 +51,17 @@ def write_json(path: Path, payload: Any) -> None:
 
 def http_get(url: str, *, cookie: str = "", timeout: float = 30.0,
              headers: dict[str, str] | None = None) -> dict[str, Any]:
+    # 探针只打本地/内网 dev server：显式挡掉 `file:` 等非 HTTP 方案（S310 的实质风险）。
+    scheme = url.split(":", 1)[0].lower() if ":" in url else ""
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"只支持 http/https 探针：{url}")
     request_headers = dict(headers or {})
     if cookie:
         request_headers["Cookie"] = f"auth_token={cookie}"
-    request = urllib.request.Request(url, headers=request_headers, method="GET")
+    request = urllib.request.Request(url, headers=request_headers, method="GET")  # noqa: S310 - scheme 已按白名单校验
     started = time.perf_counter()
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - 上面的 scheme 白名单已排除 file:/自定义协议
             body = response.read()
             elapsed_ms = (time.perf_counter() - started) * 1000.0
             return {
@@ -201,8 +210,10 @@ def _macos_process_snapshot(pid: int) -> dict[str, Any] | None:
 def process_snapshot(pid: int) -> dict[str, Any]:
     error = ""
     try:
+        if PS_EXECUTABLE is None:
+            raise FileNotFoundError("未在 PATH 中找到 ps")
         completed = subprocess.run(
-            ["ps", "-o", "rss=", "-o", "time=", "-p", str(pid)],
+            [PS_EXECUTABLE, "-o", "rss=", "-o", "time=", "-p", str(pid)],
             check=False, capture_output=True, text=True, timeout=10,
         )
         text = completed.stdout.strip()
