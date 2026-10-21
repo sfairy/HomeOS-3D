@@ -13,6 +13,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from homeos_shared.http_cache import etag_matches
+
 #: 走「no-cache + ETag 回源校验」的稳定 URL 前缀。
 STATIC_ASSET_PREFIXES = ('/store-static/', '/fonts/', '/store/v1/product-images/')
 
@@ -26,19 +28,8 @@ def is_static_asset_path(path: str) -> bool:
 
 
 def _etag_matches(request: Request, response: Response) -> bool:
-    """GET/HEAD 条件请求的校验器是否命中此可缓存响应。"""
-    if request.method not in {'GET', 'HEAD'} or response.status_code != 200:
-        return False
-    etag = response.headers.get('etag')
-    requested = request.headers.get('if-none-match')
-    if not etag or not requested:
-        return False
-    normalized = etag.removeprefix('W/')
-    return any(
-        value == '*' or value.removeprefix('W/') == normalized
-        for value in (part.strip() for part in requested.split(','))
-    )
-
+    """GET/HEAD 条件请求的校验器是否命中此可缓存响应（实现见 ``homeos_shared.http_cache``）。"""
+    return etag_matches(request, response)
 
 class StaticAssetCacheMiddleware:
     """给稳定 URL 的静态 / 素材响应补 ``no-cache``，并把命中的条件请求转成 304。"""

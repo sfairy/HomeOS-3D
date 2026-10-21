@@ -16,7 +16,7 @@
  * 7. pagehide：sendBeacon 尽力而为，不做乐观推进 revision（下次 GET 为准）。
  */
 
-import type { StudioDocumentState, StudioDraftPayload, StudioDocumentStore } from "./document-store";
+import type { StudioDraftPayload, StudioDocumentStore } from "./document-store";
 
 const AUTOSAVE_DEBOUNCE_MS = 3000;
 const AUTOSAVE_MAX_DELAY_MS = 15000;
@@ -64,10 +64,6 @@ function classifySaveError(error: SaveRequestError): SaveErrorCategory {
     return "retryable";
   }
   return "invalid";
-}
-
-function isRetryableSaveError(error: SaveRequestError): boolean {
-  return classifySaveError(error) === "retryable";
 }
 
 /** 退避：2s → 4s → 8s → 16s → 30s（cap），与旧实现的 min(30000, 2000*2**(n-1)) 一致。 */
@@ -632,12 +628,4 @@ export class StudioSaveStore {
       }
     }
   }
-}
-
-/** 供宿主构建保存状态展示用（避免两处各写一套）。 */
-function describeSaveState(state: SaveStoreState, documentState: StudioDocumentState): string {
-  if (state.pendingConflict) return "conflict";
-  if (state.pendingConfirmation) return "blocked";
-  if (documentState.dirty) return state.status === "saving" ? "saving" : state.status;
-  return state.status;
 }

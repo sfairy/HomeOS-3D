@@ -19,8 +19,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** 前端根目录（homeos/frontend）。 */
 export const frontendRoot = __dirname;
-/** 构建产物根目录（工作区根 `dist/homeos/frontend`）。 */
-export const outDir = path.resolve(__dirname, "../../dist/homeos/frontend");
 /** studio 源码根目录（homeos/frontend/src/studio）。 */
 export const studioRoot = path.join(__dirname, "src/studio");
 
@@ -45,7 +43,7 @@ export function isRuntimeExternal(id: string): boolean {
  * 这些脚本在 HTML 里以不带 type="module" 的 <script> 加载，或作为 Worker 以字面量
  * URL 加载，因此必须输出到固定路径、且文件名可预测。
  */
-export const classicEntries: Record<string, string> = {
+const classicEntries: Record<string, string> = {
   "logging/client-log": path.join(studioRoot, "app/logging/client-log.ts"),
   "display/display-boot": path.join(studioRoot, "app/display/display-boot.ts"),
   "display/display-startup": path.join(studioRoot, "app/display/display-startup.ts"),
@@ -113,7 +111,7 @@ export function runtimeVendorAssetPlugin(): Plugin {
 
 /**
  * 用 esbuild 把零依赖经典入口打成 IIFE，落到 ``<outDir>/static/<name>.js``。
- * 供主应用 finalize 插件与本文件的 ``classicIifePlugin`` 共用，便于在同一
+ * 供主应用 finalize 插件复用，便于在同一
  * ``closeBundle`` 里与白名单 / 发布步骤严格串行（Rolldown 可能并行跑多个插件的
  * closeBundle，拆成三个插件时会出现「IIFE 已写、public CSS 已被并发构建清掉」）。
  */
@@ -122,24 +120,4 @@ export async function writeClassicIifeBundles(targetOutDir: string): Promise<voi
     // esbuild 的参数集（format/target/minify…）在共用助手里，与商店同一份；入口缺失时跳过。
     await bundleClassicIife({ entry, outfile: path.join(targetOutDir, "static", `${name}.js`) });
   }
-}
-
-/**
- * 用 esbuild 把零依赖经典入口打成 IIFE，落到固定路径 `/static/<name>.js`。
- *
- * 写出目录取自 ``config.build.outDir``（主应用原子构建时是 ``frontend.building.<pid>``），
- * 不要写死导出的 ``outDir``，否则会绕过旁路目录、污染线上 dist。
- */
-export function classicIifePlugin(): Plugin {
-  let resolvedOutDir = outDir;
-  return {
-    name: "homeos-classic-iife",
-    apply: "build",
-    configResolved(config) {
-      resolvedOutDir = path.resolve(config.root, config.build.outDir);
-    },
-    async closeBundle() {
-      await writeClassicIifeBundles(resolvedOutDir);
-    },
-  };
 }

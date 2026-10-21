@@ -54,37 +54,3 @@ export function itemDimensionPolicy(itemType: string, isPlanLabel = false): Item
   };
 }
 
-/** 步进数字：`direction` 为 ±1；非法输入返回 null。 */
-function steppedNumber(
-  currentValue: number,
-  step: number,
-  direction: number,
-  min = -Infinity,
-  max = Infinity,
-) {
-  if (!Number.isFinite(currentValue) || !(step > 0)) return null;
-  return Math.min(max, Math.max(min, Number((currentValue + direction * step).toFixed(12))));
-}
-
-const rememberedNumberValues = new WeakMap<HTMLInputElement, { value: number; display: string }>();
-
-/** 在重绘前记住「数值」与「显示文本」，避免覆盖用户正在输入的中间态。 */
-function rememberNumberValue(inputElement: any, numericValue: number) {
-  if (inputElement && Number.isFinite(numericValue))
-    rememberedNumberValues.set(inputElement, {
-      value: numericValue,
-      display: inputElement.value,
-    });
-}
-
-function numberEditValue(inputElement: any) {
-  const remembered = rememberedNumberValues.get(inputElement);
-  return remembered && remembered.display === inputElement.value
-    ? remembered.value
-    : Number(inputElement.value);
-}
-
-/** 数值 → 最多 6 位小数的展示串。 */
-function editNumberText(value: any) {
-  return String(Number(Number(value).toFixed(6)));
-}

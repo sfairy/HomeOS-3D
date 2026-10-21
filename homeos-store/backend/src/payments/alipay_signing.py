@@ -70,35 +70,36 @@ class ResponseSignatureInvalid(PaymentError):
     """
 
 
-def private_key_error(text: str) -> str:
-    """应用私钥的校验结论；合法时返回空串。
+def _rsa_key_error(text: str, *, label: str, loader, hint: str = "") -> str:
+    """RSA 密钥的校验结论；合法时返回空串。
+
+    ``label`` 是错误文案里的主语（应用私钥 / 支付宝公钥），``hint`` 追加在位数不足提示之后。
+    两份原实现只在这两个常量上不同，拼出的字符串逐字保留。
     """
     if not (text or "").strip():
-        return "未配置应用私钥。"
+        return f"未配置{label}。"
     try:
-        key = _load_private_key(text)
+        key = loader(text)
     except PaymentError as error:
         return str(error)
     if key.key_size < MIN_RSA_BITS:
-        return (
-            f"应用私钥只有 {key.key_size} 位，支付宝要求 RSA{MIN_RSA_BITS}。"
-            "请用支付宝密钥工具重新生成 2048 位密钥。"
-        )
+        return f"{label}只有 {key.key_size} 位，支付宝要求 RSA{MIN_RSA_BITS}。" + hint
     return ""
+
+
+def private_key_error(text: str) -> str:
+    """应用私钥的校验结论；合法时返回空串。"""
+    return _rsa_key_error(
+        text,
+        label="应用私钥",
+        loader=_load_private_key,
+        hint="请用支付宝密钥工具重新生成 2048 位密钥。",
+    )
 
 
 def public_key_error(text: str) -> str:
     """支付宝公钥的校验结论；合法时返回空串。"""
-    if not (text or "").strip():
-        return "未配置支付宝公钥。"
-    try:
-        key = _load_public_key(text)
-    except PaymentError as error:
-        return str(error)
-    if key.key_size < MIN_RSA_BITS:
-        return f"支付宝公钥只有 {key.key_size} 位，支付宝要求 RSA{MIN_RSA_BITS}。"
-    return ""
-
+    return _rsa_key_error(text, label="支付宝公钥", loader=_load_public_key)
 
 def key_pair_same_modulus(private_key_text: str, public_key_text: str) -> bool:
     """配置的「支付宝公钥」是否就是**应用私钥自己导出的公钥**（模数相同即等价）。

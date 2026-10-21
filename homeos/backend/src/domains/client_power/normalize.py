@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import math
 from datetime import UTC, datetime
 from typing import Any
+
+from .percent import normalize_percent
 
 #: 上报未携带 systemInfo 时使用的最小默认结构。
 DEFAULT_SYSTEM_INFO: dict[str, Any] = {
@@ -40,15 +41,7 @@ def normalize_level(level: Any) -> float | None:
 
     ``<= 1`` 的启发式会把整数 1% 误判为 100%，导致低电告警与充电联动失效。
     """
-    if level is None or isinstance(level, bool):
-        return None
-    try:
-        value = float(level)
-    except (TypeError, ValueError):
-        return None
-    if math.isnan(value) or math.isinf(value):
-        return None
-    return max(0.0, min(100.0, round(value * 100) / 100))
+    return normalize_percent(level)
 
 
 def battery_from_dto(system_info: dict[str, Any] | None) -> dict[str, Any]:

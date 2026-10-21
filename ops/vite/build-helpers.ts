@@ -99,3 +99,31 @@ export function assertSpaShellPresent(outDir: string, hint: string): void {
   const listing = fs.existsSync(outDir) ? fs.readdirSync(outDir).join(", ") : "(outDir 不存在)";
   throw new Error(`SPA 入口缺失：${entry}（outDir 内容: ${listing}）。${hint}`);
 }
+
+/**
+ * chunk 基名唯一化：同一轮构建内「同基名不同源」的 chunk 依次加 `-2`、`-3`…
+ *
+ * 只收口**唯一化**这一件事；基名怎么算（Rolldown `entriesAware` 合并名 vs 源文件相对
+ * `src` 的路径）仍留在各自配置里 —— 两套规则服务的失败模式不同，合并会变成满是分支的函数。
+ *
+ * `reset()` 必须在每次构建开始时调用（watch 重建要丢掉上一轮的占用）。
+ */
+export function createChunkNameAllocator() {
+  const usedNames = new Set<string>();
+  return {
+    reset() {
+      usedNames.clear();
+    },
+    unique(baseName: string): string {
+      if (!usedNames.has(baseName)) {
+        usedNames.add(baseName);
+        return baseName;
+      }
+      let index = 2;
+      while (usedNames.has(`${baseName}-${index}`)) index += 1;
+      const name = `${baseName}-${index}`;
+      usedNames.add(name);
+      return name;
+    },
+  };
+}

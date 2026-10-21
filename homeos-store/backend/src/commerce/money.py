@@ -68,16 +68,25 @@ def percent_to_bps(percent: object) -> int:
     return to_centi(percent)
 
 
+def _scaled_floor(base: int, percent: object, divisor: int) -> int:
+    """``floor(base * 基点 / divisor)``；非正基数、非正比例都返回 0。
+
+    两份积分类实现（奖励与折扣）只有除数常量不同，算术与短路顺序完全一致：
+    先取整基数、再转基点、再整除，不足一个最小单位的部分一律舍去。
+    """
+    amount = int(base)
+    if amount <= 0:
+        return 0
+    bps = percent_to_bps(percent)
+    if bps <= 0:
+        return 0
+    return amount * bps // divisor
+
+
 def apply_rate_floor_cents(amount_cents: int, rate_percent: object) -> int:
     """按比例算奖励，返回**厘**；不足一厘舍去。
     """
-    base = int(amount_cents)
-    if base <= 0:
-        return 0
-    bps = percent_to_bps(rate_percent)
-    if bps <= 0:
-        return 0
-    return base * bps // (CENTI_PER_POINT * CENTI_PER_POINT)
+    return _scaled_floor(amount_cents, rate_percent, CENTI_PER_POINT * CENTI_PER_POINT)
 
 
 def withdraw_fee_centi(gross_centi: int, fee_percent: object) -> tuple[int, int]:
@@ -97,10 +106,4 @@ def withdraw_fee_centi(gross_centi: int, fee_percent: object) -> tuple[int, int]
 def discount_centi(price_cents: int, percent: object) -> int:
     """按百分比算折扣金额（**元分**），不足一分舍去。
     """
-    base = int(price_cents)
-    if base <= 0:
-        return 0
-    bps = percent_to_bps(percent)
-    if bps <= 0:
-        return 0
-    return base * bps // (BPS_PER_PERCENT * BPS_PER_PERCENT)
+    return _scaled_floor(price_cents, percent, BPS_PER_PERCENT * BPS_PER_PERCENT)

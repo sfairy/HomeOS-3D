@@ -73,7 +73,7 @@ export interface StudioItemModelDeps {
   applianceOptimizationTypeSet: Set<string>;
 }
 
-export interface ItemModelLocals {
+interface ItemModelLocals {
   itemModelNode: any;
   modelItem: any;
   modelShadowIds: any;

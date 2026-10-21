@@ -3,8 +3,9 @@ import { componentActionIsSupported } from "../shared/action-rules";
 
 export const maxRuntimeEntitySubscriptions = 1000,
   defaultTargetOccupancy = 0.76,
-  compactTargetOccupancy = 0.7,
-  maxPreferredScale = 1.6,
+  compactTargetOccupancy = 0.7;
+
+const maxPreferredScale = 1.6,
   fillMaxScale = 2,
   tightFillMaxScale = 2.12;
 

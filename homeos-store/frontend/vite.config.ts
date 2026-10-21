@@ -10,6 +10,7 @@ import {
   assertSpaShellPresent,
   bundleClassicIife,
   quietLogger,
+  createChunkNameAllocator,
 } from "../../ops/vite/build-helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,7 +38,8 @@ function htmlInputs(): Record<string, string> {
 const storeSrc = path.join(storeRoot, "src");
 
 //: 单个构建内已占用的 chunk 名，buildStart 清空。
-const usedChunkNames = new Set<string>();
+//: 唯一化逻辑与主应用共用（`ops/vite/build-helpers.ts`）；基名规则仍是商店自己的。
+const chunkNames = createChunkNameAllocator();
 
 /** 共享 chunk 输出名：优先取源文件相对 ``src`` 的路径。
  *
@@ -74,16 +76,7 @@ function uniqueChunkBaseName(chunk: {
   facadeModuleId?: string | null;
   moduleIds?: string[];
 }): string {
-  const base = chunkBaseName(chunk);
-  if (!usedChunkNames.has(base)) {
-    usedChunkNames.add(base);
-    return base;
-  }
-  let index = 2;
-  while (usedChunkNames.has(`${base}-${index}`)) index += 1;
-  const name = `${base}-${index}`;
-  usedChunkNames.add(name);
-  return name;
+  return chunkNames.unique(chunkBaseName(chunk));
 }
 
 function classicIifePlugin(): Plugin {
@@ -91,7 +84,7 @@ function classicIifePlugin(): Plugin {
     name: "homeos-store-classic-iife",
     buildStart() {
       // 每轮构建重置 chunk 名占用，避免 watch 重建沿上一轮。
-      usedChunkNames.clear();
+      chunkNames.reset();
     },
     async closeBundle() {
       //: 构建产物根就是挂载根，auth-bootstrap.js 直接落在这里（/store-static/auth-bootstrap.js）。

@@ -10,6 +10,7 @@ import sqlite3
 from datetime import UTC, datetime
 
 from homeos_shared.schema_migrate import Migration, MigrationContext, SchemaMigrationError
+from homeos_shared.sqlite_email import normalize_email_column
 
 
 def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
@@ -45,35 +46,14 @@ def _normalize_datetime(value: str | None) -> str | None:
 
 
 def _normalize_accounts_email(connection: sqlite3.Connection, _context: MigrationContext) -> None:
-    if not _table_exists(connection, "accounts"):
-        return
-    columns = _columns(connection, "accounts")
-    if "email" not in columns:
-        connection.execute("ALTER TABLE accounts ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''")
-        columns.add("email")
-    rows = connection.execute(
-        "SELECT id, email FROM accounts WHERE email IS NOT NULL AND trim(email) != ''"
-    ).fetchall()
-    normalized: dict[str, str] = {}
-    for account_id, email in rows:
-        value = str(email).strip().lower()
-        previous = normalized.get(value)
-        if previous is not None and previous != str(account_id):
-            raise SchemaMigrationError(
-                "accounts.email 归一化后出现重复，请先人工处理："
-                f"{previous} 与 {account_id} 都映射到 {value}"
-            )
-        normalized[value] = str(account_id)
-    connection.execute(
-        "UPDATE accounts SET email = lower(trim(email)) "
-        "WHERE email IS NOT NULL AND email <> lower(trim(email))"
-    )
     # 已有 ix_accounts_email 就是唯一索引；老库可能缺它，这里补齐。写入侧统一 lower/trim，
     # 因此不需要表达式索引（SQLAlchemy 反射表达式索引会告警）。
-    connection.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS ix_accounts_email ON accounts(email)"
+    normalize_email_column(
+        connection,
+        table="accounts",
+        add_column_sql="ALTER TABLE accounts ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''",
+        index_name="ix_accounts_email",
     )
-
 
 def _index_account_sessions(connection: sqlite3.Connection, _context: MigrationContext) -> None:
     if not _table_exists(connection, "account_sessions"):

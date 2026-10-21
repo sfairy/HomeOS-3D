@@ -1,3 +1,4 @@
+import { createCachedCanvasTexture } from "./texture-cache";
 
 
 const MURAL_ART_STYLES = Object.freeze([
@@ -353,25 +354,13 @@ const muralArtTextures = new Map();
 
 export function createMuralArtTexture(threeApi: any, styleValue: any, maxAnisotropy = 1) {
   const muralStyle = normalizeMuralArtStyle(styleValue);
-  if (muralArtTextures.has(muralStyle)) {
-    return muralArtTextures.get(muralStyle);
-  }
-
-  const canvasElement = document.createElement("canvas");
-  canvasElement.width = 768;
-  canvasElement.height = 512;
-  const canvasCtx = canvasElement.getContext("2d");
-  if (!canvasCtx) {
-    return null;
-  }
-  (muralPainters as any)[muralStyle](canvasCtx, canvasElement.width, canvasElement.height);
-  const texture = new threeApi.CanvasTexture(canvasElement);
-  texture.colorSpace = threeApi.SRGBColorSpace;
-
-  texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
-  texture.needsUpdate = true;
-  muralArtTextures.set(muralStyle, texture);
-  return texture;
+  return createCachedCanvasTexture(muralArtTextures, threeApi, muralStyle, {
+    width: 768,
+    height: 512,
+    maxAnisotropy,
+    paint: (canvasCtx: any, width: number, height: number) =>
+      (muralPainters as any)[muralStyle](canvasCtx, width, height),
+  });
 }
 
 
@@ -772,24 +761,13 @@ const featureWallTextures = new Map();
 
 export function createFeatureWallTexture(threeApi: any, styleValue: any, maxAnisotropy = 1) {
   const wallStyle = normalizeFeatureWallStyle(styleValue);
-  if (featureWallTextures.has(wallStyle)) {
-    return featureWallTextures.get(wallStyle);
-  }
-
-  const canvasElement = document.createElement("canvas");
-  canvasElement.width = 1024;
-  canvasElement.height = 768;
-  const canvasCtx = canvasElement.getContext("2d");
-  if (!canvasCtx) {
-    return null;
-  }
-  (featureWallPainters as any)[wallStyle](canvasCtx, canvasElement.width, canvasElement.height);
-  const texture = new threeApi.CanvasTexture(canvasElement);
-  texture.colorSpace = threeApi.SRGBColorSpace;
-  texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
-  texture.needsUpdate = true;
-  featureWallTextures.set(wallStyle, texture);
-  return texture;
+  return createCachedCanvasTexture(featureWallTextures, threeApi, wallStyle, {
+    width: 1024,
+    height: 768,
+    maxAnisotropy,
+    paint: (canvasCtx: any, width: number, height: number) =>
+      (featureWallPainters as any)[wallStyle](canvasCtx, width, height),
+  });
 }
 
 

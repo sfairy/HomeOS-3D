@@ -1,4 +1,9 @@
-import { createCacheLogger, executeTaskWithTimeout } from "./cache-shared";
+import {
+  createCacheLogger,
+  executeTaskWithTimeout,
+  readCacheEntries,
+  writeCacheRecord,
+} from "./cache-shared";
 
 /** 几何/中间结果持久缓存：把可复用的几何（墙 union、楼板开洞、家具批量网格等）落盘，热启动时直接取回。 */
 const GEOMETRY_CACHE_VERSION = "20260930-v1";
@@ -198,22 +203,13 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
       ? ((preloadPromise ||= (async () => {
           const openedDatabase = await openDatabase();
           if (!openedDatabase || !isAvailable()) return;
-          const storedRecord = await runWithTimeout((settleRead: any) => {
-            const readTransaction = openedDatabase.transaction("scenes", "readonly"),
-              readRequest = readTransaction.objectStore("scenes").get(storageKey);
-            ((readRequest.onsuccess = () => settleRead(readRequest.result)),
-              (readRequest.onerror = readTransaction.onabort = () => settleRead(null)));
-          });
-          if (
-            !isAvailable() ||
-            !storedRecord ||
-            storedRecord.version !== GEOMETRY_CACHE_VERSION ||
-            storedRecord.key !== storageKey ||
-            Date.now() - storedRecord.created > 7 * 86400000 ||
-            !Array.isArray(storedRecord.entries)
-          )
-            return;
-          for (const [entryKey, entryData] of storedRecord.entries.slice(0, MAX_ENTRY_COUNT))
+          const storedEntries = await readCacheEntries(
+            openedDatabase,
+            { storageKey, version: GEOMETRY_CACHE_VERSION },
+            runWithTimeout,
+          );
+          if (!isAvailable() || !storedEntries) return;
+          for (const [entryKey, entryData] of storedEntries.slice(0, MAX_ENTRY_COUNT))
             if (!(typeof entryKey != "string" || entryByKey.has(entryKey)))
               try {
                 const entryBytes =
@@ -244,44 +240,18 @@ export function createGeometryPersistentCache({ env: env = globalThis, key: key 
             const openedDatabase = await openDatabase();
             if (!openedDatabase || !isAvailable() || !hasDirtyEntries) return;
             hasDirtyEntries = false;
-            const storedRecord = {
-              key: storageKey,
-              version: GEOMETRY_CACHE_VERSION,
-              created: Date.now(),
-              bytes: totalBytes,
-              entries: [...entryByKey],
-            };
-            ((await runWithTimeout((settleWrite: any) => {
-              const writeTransaction = openedDatabase.transaction(["scenes", "metadata"], "readwrite");
-              ((writeTransaction.oncomplete = () => settleWrite(true)),
-                (writeTransaction.onabort = writeTransaction.onerror = () => settleWrite(false)),
-                writeTransaction.objectStore("scenes").put(storedRecord));
-              const metadataStore = writeTransaction.objectStore("metadata");
-              metadataStore.put({
-                key: storageKey,
+            ((await writeCacheRecord(
+              openedDatabase,
+              {
+                storageKey,
+                version: GEOMETRY_CACHE_VERSION,
                 bytes: totalBytes,
-                created: storedRecord.created,
-              });
-              const getAllRequest = metadataStore.getAll();
-              getAllRequest.onsuccess = () => {
-                const metadataRecords = getAllRequest.result.sort(
-                  (left: any, right: any) => left.created - right.created,
-                );
-                let persistedBytes = metadataRecords.reduce(
-                    (byteSum: any, metadataRecord: any) => byteSum + metadataRecord.bytes,
-                    0,
-                  ),
-                  persistedCount = metadataRecords.length;
-                for (const metadataRecord of metadataRecords) {
-                  if (persistedCount <= MAX_PERSISTED_ENTRIES && persistedBytes <= MAX_PERSISTED_BYTES)
-                    break;
-                  (writeTransaction.objectStore("scenes").delete(metadataRecord.key),
-                    metadataStore.delete(metadataRecord.key),
-                    (persistedBytes -= metadataRecord.bytes),
-                    persistedCount--);
-                }
-              };
-            }))
+                entries: [...entryByKey],
+                maxEntries: MAX_PERSISTED_ENTRIES,
+                maxBytes: MAX_PERSISTED_BYTES,
+              },
+              runWithTimeout,
+            ))
               ? stats.writes++
               : ((hasOpenFailed = true), stats.fallbacks++),
               log("stored"));

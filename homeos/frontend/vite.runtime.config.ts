@@ -13,7 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
-import { quietLogger } from "../../ops/vite/build-helpers.js";
+import { createChunkNameAllocator, quietLogger } from "../../ops/vite/build-helpers.js";
 import { THREE_VENDOR, frontendRoot, isRuntimeExternal, studioRoot } from "./vite-studio.ts";
 
 const runtimeSrc = path.join(studioRoot, "runtime");
@@ -91,25 +91,17 @@ function chunkBaseName(chunk: {
   return (chunk.name || "chunk").replace(/[\\/]/g, "-");
 }
 
-//: 单个构建内已占用的 chunk 名；buildStart 清空。用于给「同名不同源」的 chunk 兜底加序号，
-//: 保证产物里不再出现两个同名 `xxx-<hash>.js`（兼容 shim 与实现各成一个 chunk 时会发生）。
-const usedChunkNames = new Set<string>();
+//: 单个构建内已占用的 chunk 名；buildStart 清空。保证产物里不再出现两个同名
+//: `xxx-<hash>.js`（兼容 shim 与实现各成一个 chunk 时会发生）。唯一化逻辑见
+//: `ops/vite/build-helpers.ts` 的 `createChunkNameAllocator`。
+const chunkNames = createChunkNameAllocator();
 
 function uniqueChunkBaseName(chunk: {
   name?: string;
   facadeModuleId?: string | null;
   moduleIds?: string[];
 }): string {
-  const base = chunkBaseName(chunk);
-  if (!usedChunkNames.has(base)) {
-    usedChunkNames.add(base);
-    return base;
-  }
-  let index = 2;
-  while (usedChunkNames.has(`${base}-${index}`)) index += 1;
-  const name = `${base}-${index}`;
-  usedChunkNames.add(name);
-  return name;
+  return chunkNames.unique(chunkBaseName(chunk));
 }
 
 /**
@@ -243,7 +235,7 @@ export default defineConfig({
       name: "homeos-runtime-external",
       buildStart() {
         // 每个构建重新计数，watch 重建时不会沿用上一轮的名字占用。
-        usedChunkNames.clear();
+        chunkNames.reset();
       },
       resolveId(id) {
         if (id === "three") return { id: THREE_VENDOR, external: true };

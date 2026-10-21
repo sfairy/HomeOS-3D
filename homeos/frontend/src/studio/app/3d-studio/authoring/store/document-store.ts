@@ -317,7 +317,7 @@ interface StudioDocumentStoreOptions {
   signature?: (document: any) => string;
 }
 
-export interface StudioDocumentState {
+interface StudioDocumentState {
   document: any | null;
   loadedRevision: number;
   runtimeSceneRevision: number;

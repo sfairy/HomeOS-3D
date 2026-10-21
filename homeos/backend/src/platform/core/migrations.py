@@ -11,6 +11,7 @@ import sqlite3
 from datetime import UTC, datetime
 
 from homeos_shared.schema_migrate import Migration, MigrationContext, SchemaMigrationError
+from homeos_shared.sqlite_email import normalize_email_column
 
 
 def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
@@ -41,31 +42,12 @@ def _normalize_datetime(value: str | None) -> str | None:
 
 
 def _normalize_users_email(connection: sqlite3.Connection, _context: MigrationContext) -> None:
-    if not _table_exists(connection, "users"):
-        return
-    columns = _columns(connection, "users")
-    if "email" not in columns:
-        connection.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255)")
-        columns.add("email")
-    rows = connection.execute(
-        "SELECT id, email FROM users WHERE email IS NOT NULL AND trim(email) != ''"
-    ).fetchall()
-    normalized: dict[str, str] = {}
-    for user_id, email in rows:
-        value = str(email).strip().lower()
-        previous = normalized.get(value)
-        if previous is not None and previous != str(user_id):
-            raise SchemaMigrationError(
-                "users.email 归一化后出现重复，请先人工处理："
-                f"{previous} 与 {user_id} 都映射到 {value}"
-            )
-        normalized[value] = str(user_id)
-    connection.execute(
-        "UPDATE users SET email = lower(trim(email)) "
-        "WHERE email IS NOT NULL AND email <> lower(trim(email))"
+    normalize_email_column(
+        connection,
+        table="users",
+        add_column_sql="ALTER TABLE users ADD COLUMN email VARCHAR(255)",
+        index_name="users_email_idx",
     )
-    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email)")
-
 
 def _dedupe_active_ha_connections(connection: sqlite3.Connection, context: MigrationContext) -> None:
     if not _table_exists(connection, "ha_connections"):

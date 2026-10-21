@@ -30,6 +30,8 @@ from typing import Any
 from fastapi import FastAPI, Request, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from homeos_shared.http_cache import etag_matches
+
 #: 构建产物里「匿名可读静态资源」清单（vite 插件产出）。
 PUBLIC_STATIC_MANIFEST_NAME = "public-static.json"
 
@@ -223,23 +225,12 @@ def _is_immutable_asset(path: str) -> bool:
 
 
 def _etag_matches(request: Request, response: Response) -> bool:
-    """GET/HEAD 校验器是否命中此可缓存响应。
+    """GET/HEAD 校验器是否命中此可缓存响应（实现见 ``homeos_shared.http_cache``）。
 
     交互模块资源经普通 API 路由返回 ``FileResponse``（不是 ``StaticFiles``），
     协商由本函数补上；放在授权中间件之后，过期的私有缓存条目就不会把未授权请求变成 304。
     """
-    if request.method not in {"GET", "HEAD"} or response.status_code != 200:
-        return False
-    etag = response.headers.get("etag")
-    requested = request.headers.get("if-none-match")
-    if not etag or not requested:
-        return False
-    normalized = etag.removeprefix("W/")
-    return any(
-        value == "*" or value.removeprefix("W/") == normalized
-        for value in (part.strip() for part in requested.split(","))
-    )
-
+    return etag_matches(request, response)
 
 def _csp_header(path: str, request: Request, response: Response) -> str:
     """按响应类型给出 CSP。

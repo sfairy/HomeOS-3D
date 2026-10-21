@@ -6,23 +6,15 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
+from .percent import normalize_percent
 from .types import DEFAULT_CLIENT_POWER_SELF_CHARGE, ClientSystemState, SwitchLinkageAction
 
 
 def clamp_percent(value: Any) -> float | None:
     """归一化电量到 0–100 的两位小数百分比。"""
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        num = float(value)
-    except (TypeError, ValueError):
-        return None
-    if math.isnan(num) or math.isinf(num):
-        return None
-    return max(0.0, min(100.0, round(num * 100) / 100))
+    return normalize_percent(value)
 
 
 def _resolve_peak_critical_percent(low_percent: float, raw: Any) -> float:

@@ -1,4 +1,10 @@
-import { createCacheLogger, executeTaskWithTimeout } from "../cache-shared";
+import {
+  createCacheLogger,
+  executeTaskWithTimeout,
+  preloadCacheEntries,
+  restoreCacheEntries,
+  writeCacheRecord,
+} from "../cache-shared";
 
 /** 地面反射的持久缓存：把第一帧反射的浮点贴图（半精度）落盘，热启动时先还原再逐帧校正。 */
 const REFLECTION_CACHE_VERSION = "20260930-v1";
@@ -113,86 +119,45 @@ export function createReflectionPersistentCache({ env: env = globalThis, key: ke
   }
   function preload() {
     return isAvailable()
-      ? ((preloadPromise ||= (async () => {
-          const openedDatabase = await openDatabase();
-          if (!openedDatabase || !isAvailable()) return;
-          const storedRecord = await runWithTimeout((settleRead: any) => {
-            const readTransaction = openedDatabase.transaction("scenes", "readonly"),
-              readRequest = readTransaction.objectStore("scenes").get(storageKey);
-            ((readRequest.onsuccess = () => settleRead(readRequest.result)),
-              (readRequest.onerror = readTransaction.onabort = () => settleRead(null)));
-          });
-          if (
-            !isAvailable() ||
-            storedRecord?.key !== storageKey ||
-            storedRecord.version !== REFLECTION_CACHE_VERSION ||
-            !Number.isFinite(storedRecord.created) ||
-            Date.now() - storedRecord.created > 7 * 86400000 ||
-            !Array.isArray(storedRecord.entries)
-          )
-            return;
-          for (const storedEntry of storedRecord.entries.slice(0, MAX_ENTRY_COUNT))
-            if (
-              !Array.isArray(storedEntry) ||
-              storedEntry.length !== 2 ||
-              snapshotByKey.has(storedEntry[0]) ||
-              persistedKeySet.has(storedEntry[0])
-            )
-              continue;
-            else
-              try {
-                storeSnapshot(storedEntry[0], storedEntry[1]) || stats.fallbacks++;
-              } catch {
-                stats.fallbacks++;
-              }
-          (stats.restores++, log("restored"));
-        })().catch(() => {
+      ? ((preloadPromise ||= preloadCacheEntries({
+          openDatabase,
+          isAvailable,
+          storageKey,
+          version: REFLECTION_CACHE_VERSION,
+          maxAgeMs: 7 * 86400000,
+          runWithTimeout,
+          restore: (storedEntries: any[]) => {
+            restoreCacheEntries(storedEntries, {
+              maxEntries: MAX_ENTRY_COUNT,
+              hasEntry: (entryKey: any) =>
+                snapshotByKey.has(entryKey) || persistedKeySet.has(entryKey),
+              store: storeSnapshot,
+              onFallback: () => stats.fallbacks++,
+            });
+            (stats.restores++, log("restored"));
+          },
+        }).catch(() => {
           stats.fallbacks++;
         })),
         preloadPromise)
       : Promise.resolve();
   }
+
   async function persist() {
     const openedDatabase = await openDatabase();
     if (!openedDatabase || !isAvailable()) return;
-    const storedRecord = {
-      key: storageKey,
-      version: REFLECTION_CACHE_VERSION,
-      created: Date.now(),
-      bytes: totalBytes,
-      entries: [...snapshotByKey],
-    };
-    ((await runWithTimeout((settleWrite: any) => {
-      const writeTransaction = openedDatabase.transaction(["scenes", "metadata"], "readwrite");
-      ((writeTransaction.oncomplete = () => settleWrite(true)),
-        (writeTransaction.onabort = writeTransaction.onerror = () => settleWrite(false)),
-        writeTransaction.objectStore("scenes").put(storedRecord));
-      const metadataStore = writeTransaction.objectStore("metadata");
-      metadataStore.put({
-        key: storageKey,
+    ((await writeCacheRecord(
+      openedDatabase,
+      {
+        storageKey,
+        version: REFLECTION_CACHE_VERSION,
         bytes: totalBytes,
-        created: storedRecord.created,
-      });
-      const getAllRequest = metadataStore.getAll();
-      getAllRequest.onsuccess = () => {
-        const metadataRecords = getAllRequest.result.sort(
-          (left: any, right: any) => left.created - right.created,
-        );
-        let persistedBytes = metadataRecords.reduce(
-            (byteSum: any, metadataRecord: any) => byteSum + metadataRecord.bytes,
-            0,
-          ),
-          persistedCount = metadataRecords.length;
-        for (const metadataRecord of metadataRecords) {
-          if (persistedBytes <= MAX_PERSISTED_BYTES && persistedCount <= MAX_PERSISTED_ENTRIES)
-            break;
-          (writeTransaction.objectStore("scenes").delete(metadataRecord.key),
-            metadataStore.delete(metadataRecord.key),
-            (persistedBytes -= metadataRecord.bytes),
-            persistedCount--);
-        }
-      };
-    }))
+        entries: [...snapshotByKey],
+        maxEntries: MAX_PERSISTED_ENTRIES,
+        maxBytes: MAX_PERSISTED_BYTES,
+      },
+      runWithTimeout,
+    ))
       ? stats.writes++
       : (stats.fallbacks++, (hasOpenFailed = true)),
       log("stored"));

@@ -566,9 +566,9 @@ def is_embed_fallback_navigation_dest(method: str, path: str, headers: dict[str,
     return False
 
 
-def parse_embed_id_from_referer(referer: str) -> str | None:
-    """从 Referer 头解析内嵌反代 embedId。"""
-    match = re.search(r"/api/v1/embed-proxy/([^/?#]+)", str(referer or ""))
+def _parse_embed_id(pattern: str, text: object) -> str | None:
+    """按正则抓取 embedId 并做 URL 解码；未命中返回 None。"""
+    match = re.search(pattern, str(text or ""))
     if not match:
         return None
     raw = match.group(1)
@@ -576,19 +576,16 @@ def parse_embed_id_from_referer(referer: str) -> str | None:
         return unquote(raw)
     except Exception:
         return raw
+
+
+def parse_embed_id_from_referer(referer: str) -> str | None:
+    """从 Referer 头解析内嵌反代 embedId。"""
+    return _parse_embed_id(r"/api/v1/embed-proxy/([^/?#]+)", referer)
 
 
 def parse_embed_id_from_context_cookie(cookie_header: str | None) -> str | None:
     """从 ``embed_ctx__{id}`` Cookie 解析内嵌上下文 embedId。"""
-    match = re.search(r"(?:^|;\s*)embed_ctx__([^=;]+)=", str(cookie_header or ""))
-    if not match:
-        return None
-    raw = match.group(1)
-    try:
-        return unquote(raw)
-    except Exception:
-        return raw
-
+    return _parse_embed_id(r"(?:^|;\s*)embed_ctx__([^=;]+)=", cookie_header)
 
 def resolve_embed_proxy_fallback_redirect(
     method: str, path: str, original_url: str, headers: dict[str, Any]

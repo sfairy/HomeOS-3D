@@ -28,8 +28,6 @@ import type { StudioDraftPayload } from "./document-store";
 
 const STUDIO3D_DRAFT_URL = "/api/v1/studio3d";
 const STUDIO3D_REQUEST_TIMEOUT_MS = 15000;
-const STUDIO3D_REVISION_CONFLICT = "STUDIO3D_REVISION_CONFLICT";
-const STUDIO3D_INTERACTION_CONFIRMATION = "STUDIO3D_INTERACTION_CONFIRMATION";
 
 interface StudioDraftRepositoryOptions {
   /** 默认 \`/api/v1/studio3d\`；测试可覆盖成全路径。 */
