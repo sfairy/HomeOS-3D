@@ -454,6 +454,14 @@ function finalizeBuildPlugin(): Plugin {
   }
 }
 
+/** 外置运行时库目录：内容随构建产物一起发布，且被构建产物以根绝对 URL 引用。
+ *
+ * 用**目录**而不是单文件登记：three 的 addon 之间还有内部 import
+ * （``three.module.min.js`` → ``three.core.min.js``），只补一半等于没补。
+ * 新增外置库（并在 ``vite-studio.ts`` 里产出绝对 URL）时把目录加进这里。
+ */
+const ANONYMOUS_VENDOR_DIRS = ['static/vendor/three'] as const
+
 /**
  * 生成 `/static` 匿名白名单（`dist/homeos/frontend/public-static.json`）。
  *
@@ -556,6 +564,26 @@ function updatePublicStaticManifest(): void {
     if (seen.has(urlPath)) continue
     seen.add(urlPath)
     kept.push({ path: urlPath, why: '构建产物哈希 chunk，未登录的公开页也要加载。' })
+  }
+  // 外置运行时库（``/static/vendor/**``）与上面的哈希 chunk 是同一类东西：构建产物的
+  // 一部分，只是没有内容哈希。studio chunk 用**根绝对 URL** 静态 import 它们
+  // （见 vite-studio.ts：three 的 addon 全部走 ``/static/vendor/three/<版本>/``），
+  // 因此漏登记的症状和漏登记的哈希 chunk 一模一样 —— 只是更难认：
+  //
+  //   GET /static/vendor/three/0.186.1/OrbitControls.js  401（或门禁变体回 404）
+  //   ☠ Failed to fetch dynamically imported module: shared-xxxx.js
+  //
+  // 浏览器只会指到那个 lazy chunk，而真正缺的是它的静态依赖；StudioView 直接进
+  // ErrorBoundary，整页白屏。``three.core.min.js`` 是 ``three.module.min.js`` 的内部
+  // import，也必须一起登记，否则补了一半仍然失败。
+  for (const vendorDir of ANONYMOUS_VENDOR_DIRS) {
+    const root = resolve(outDir, vendorDir)
+    for (const file of walkFiles(root)) {
+      const urlPath = `/${file.slice(outDir.length + 1).replace(/\\/g, '/')}`
+      if (seen.has(urlPath)) continue
+      seen.add(urlPath)
+      kept.push({ path: urlPath, why: '外置运行时库，构建产物的一部分，匿名页也要加载。' })
+    }
   }
   payload.files = kept
   // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。

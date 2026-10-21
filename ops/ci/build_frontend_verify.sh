@@ -32,7 +32,28 @@ if grep -q '_0x' dist/homeos/frontend/static/assets/index-*.js; then
     echo "主应用产物出现了 _0x 标识符：前端构建不应再走混淆（见 ops/BUILD.md）。" >&2
     exit 1
 fi
-test -f dist/homeos/frontend/static/vendor/three/0.186.1/three.module.min.js
+# 3D 外置运行时（three）必须同时满足两件事，缺一件都会让 studio 白屏：
+#   ① 文件真的在产物里；
+#   ② 每个文件都进了匿名白名单 —— studio chunk 用根绝对 URL 静态 import 它们，
+#      白名单之外一律走登录门禁，未登录 / 会话失效时整条 import 图失败，浏览器只报
+#      「Failed to fetch dynamically imported module: shared-xxxx.js」，指不到真正的原因。
+three_vendor_dir=$(ls -d dist/homeos/frontend/static/vendor/three/*/ 2>/dev/null | head -n 1)
+test -n "$three_vendor_dir"
+three_vendor_rel="/static/vendor/three/${three_vendor_dir##*/three/}"
+for addon in \
+    three.module.min.js \
+    three.core.min.js \
+    OrbitControls.js \
+    RoundedBoxGeometry.js \
+    BufferGeometryUtils.js \
+    GLTFLoader.js \
+    DRACOLoader.js; do
+    test -f "${three_vendor_dir}${addon}"
+    if ! grep -q "\"${three_vendor_rel}${addon}\"" dist/homeos/frontend/public-static.json; then
+        echo "匿名白名单漏了 ${three_vendor_rel}${addon}：3D 外置运行时未登录时会被门禁挡下。" >&2
+        exit 1
+    fi
+done
 # 哈希 chunk 与商店同构地落在 /static/assets/ 这一层（扁平，不建 js/ css/ 子目录）：
 # 根级 dist/homeos/frontend/assets 必须不存在 —— 后端已不再挂载 /assets，留在这里
 # 只会得到一堆「文件在、线上 404」的产物。
