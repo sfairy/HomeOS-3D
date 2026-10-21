@@ -75,6 +75,8 @@ type ClimatePanelViewModel = {
   busy?: any;
   state?: any;
   error?: any;
+  /** 实体 → HA 显示精度（`number-formats` 通道）。 */
+  numberFormats?: Record<string, number>;
 };
 type ClimateStateBranch = ReturnType<typeof climateState2>;
 /** 三分支键的并集。 */
@@ -1074,6 +1076,7 @@ export function createClimatePanel({
         item: nextViewModel.item,
         states: nextViewModel.states || {},
         editing: nextViewModel.editing || nextViewModel.busy,
+        numberFormats: nextViewModel.numberFormats || {},
       }),
       (deviceState =
         nextViewModel.state?.entityId === nextEntityId && Array.isArray(nextViewModel.state?.modes)

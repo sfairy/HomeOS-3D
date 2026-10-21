@@ -134,6 +134,15 @@ if (sha(JSON.stringify(main.post)) !== manifest.main.postHash) problems.push('po
 const entrySrc = fs.readFileSync(entryFile, 'utf8');
 if (/lampItemTypeSet/.test(entrySrc)) problems.push('lamp branch still present in entry');
 
+// 清单里可以登记「有意偏离」的条目（如 0.7.9 新增模型变体改变了分派条件）：
+// 偏离项的哈希已按新代码更新，这里只把原因打出来，避免后来者误以为是漏改。
+if (Array.isArray(manifest.deviations) && manifest.deviations.length)
+  console.log(
+    `accepted deviations: ${manifest.deviations
+      .map(deviationEntry => `#${deviationEntry.branch} ${deviationEntry.group} ${deviationEntry.field} — ${deviationEntry.reason}`)
+      .join('; ')}`,
+  );
+
 const result = { manifest: path.relative(root, manifestFile), groupOrder: GROUP_ORDER.length, branches: after.length, pre: main.pre.length, post: main.post.length, problems: problems.length };
 if (asJson) console.log(JSON.stringify({ ...result, details: problems }, null, 2));
 else {

@@ -1,3 +1,8 @@
+import {
+  climateIsPoweredOn as climateIsPoweredOn2,
+  resolveClimateDeviceType as resolveClimateDeviceType2,
+} from "../../renderer/controls/climate";
+
 const onOffDomainSet = new Set(["light", "switch", "input_boolean", "fan", "humidifier", "siren"]),
   runningStateDomainSet = new Set(["climate", "water_heater"]);
 function resolveEntityDomain(entityRef: any) {
@@ -62,6 +67,28 @@ export function lightStatisticsEntityStateStatus(statusEntity: any, stateSource:
       .trim()
       .toLowerCase();
   if (!normalizedState || ["unknown", "unavailable"].includes(normalizedState)) return "abnormal";
+  // 浴霸/空调按 climate 能力判定（0.7.9 F5）：吹风、换气等非 on 状态也算开启，
+  // 否则会被统计成「异常」而不是「已开启」。
+  if (statusEntityDomain === "climate" || statusEntityDomain === "fan") {
+    const climateEntityId =
+        typeof statusEntity == "string"
+          ? statusEntity
+          : String(statusEntity?.entityId || statusEntity?.entity_id || ""),
+      climateStateSnapshot = {
+        state: normalizedState,
+        attributes: stateSource?.attributes || {},
+      },
+      climateDeviceComponent = {
+        properties: {
+          label: statusEntity?.name || statusEntity?.originalName || "",
+        },
+      };
+    if (
+      resolveClimateDeviceType2(climateDeviceComponent, climateStateSnapshot, climateEntityId) ===
+      "bath-heater"
+    )
+      return climateIsPoweredOn2(climateStateSnapshot, "bath-heater") ? "on" : "off";
+  }
   if (isBluetoothOnlineStatusSensor(statusEntity)) {
     const sensorState = normalizedState.replace(/^设备\s*\d+\s*-\s*/, "");
     return ["在线", "online", "on"].includes(sensorState)

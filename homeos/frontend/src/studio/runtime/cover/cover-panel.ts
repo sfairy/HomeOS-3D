@@ -30,6 +30,8 @@ type CoverPanelViewModel = {
   state?: any;
   presentation?: any;
   error?: any;
+  /** 实体 → HA 显示精度（`number-formats` 通道）。 */
+  numberFormats?: Record<string, number>;
 };
 
 export function createCoverPanel({
@@ -560,9 +562,15 @@ export function createCoverPanel({
                     : presentation.opening
                       ? "正在上升…"
                       : "等待停稳…"
-                  : presentation.preview && presentation.targetPosition !== null
-                    ? "正在前往 " + Math.round(presentation.targetPosition) + "%"
-                    : "已暂停"),
+                    : presentation.preview && presentation.targetPosition !== null
+                      ? "正在前往 " + Math.round(presentation.targetPosition) + "%"
+                      : "已暂停"),
+      // 0.7.9：晾衣架回报 unknown 时不能靠 position 猜状态，直接写「升降状态未知」。
+      isAirerItem &&
+        !viewModel.editing &&
+        deviceState.available &&
+        deviceState.state === "unknown" &&
+        (statusElement.textContent = "升降状态未知"),
       positionSliderElement.setAttribute(
         "aria-label",
         isAirerItem ? "目标升降位置" : isDreamCover ? "目标叶片角度" : "目标开合位置",
@@ -570,7 +578,7 @@ export function createCoverPanel({
       (positionLegendElement.children[0].textContent = isAirerItem
         ? "最低"
         : isDreamCover
-          ? "正向闭合"
+          ? "一侧闭合"
           : "关闭"),
       (positionLegendElement.children[1].textContent = isAirerItem
         ? "最高"
@@ -663,8 +671,10 @@ export function createCoverPanel({
         (statusElement.textContent = "在线"),
       (bladeHintElement.textContent = "叶片角度"),
       (positionSliderElement.title =
-        isDreamCover && !canAdjustSlider() && deviceState.available
-          ? "整体全开或全关后可调节叶片"
+        isDreamCover && !viewModel.editing && deviceState.available
+          ? deviceState.overallFeedbackAvailable
+            ? "关闭到位后可调节叶片"
+            : "暂不可调节叶片"
           : ""));
     for (const {
       button: actionButton,
@@ -772,6 +782,7 @@ export function createCoverPanel({
         },
         states: nextViewModel.states || {},
         editing: nextViewModel.editing,
+        numberFormats: nextViewModel.numberFormats || {},
       }),
       (deviceState =
         nextViewModel.state?.entityId === nextEntityId &&

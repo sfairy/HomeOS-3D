@@ -353,6 +353,12 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="suitcase"
                         data-library-category="home" data-library-group="entry" data-library-name="行李箱"
                         data-asset-subcategory="entry"><i>▤</i><span>行李箱</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="entryway-niche-cabinet"
+                        data-library-category="home" data-library-group="entry" data-library-name="玄关到顶柜"
+                        data-asset-subcategory="entry"><i>▤</i><span>玄关到顶柜</span><small>1.30 × 0.68m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="arched-glass-console"
+                        data-library-category="home" data-library-group="entry" data-library-name="拱形玻璃玄关台"
+                        data-asset-subcategory="entry"><i>▤</i><span>拱形玻璃玄关台</span><small>0.78 × 0.60m</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home" data-library-group="bedroom">卧室家具</div>
                     <button class="asset-card" type="button" draggable="true" data-item-type="bed"
                         data-library-category="home" data-library-group="bedroom" data-library-name="双人床"
@@ -360,6 +366,12 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="bunk-bed"
                         data-library-category="home" data-library-group="bedroom" data-library-name="上下铺"
                         data-asset-subcategory="bedroom"><i>▤</i><span>上下铺</span><small>1.18 × 2.06m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="loft-bed-circle"
+                        data-library-category="home" data-library-group="bedroom" data-library-name="圆孔高架床"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>圆孔高架床</span><small>2.40 × 1.83m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="double-open-wardrobe"
+                        data-library-category="home" data-library-group="bedroom" data-library-name="双列开放衣柜"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>双列开放衣柜</span><small>1.18 × 0.59m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="nightstand"
                         data-library-category="home" data-library-group="bedroom" data-library-name="床头柜"
                         data-asset-subcategory="bedroom"><i>▣</i><span>床头柜</span><small>0.50 × 0.42m</small></button>
@@ -1469,6 +1481,10 @@ onBeforeUnmount(() => {
                             hidden><span>楼梯方向</span><select id="stair-direction">
                                 <option value="right">向右上行</option>
                                 <option value="left">向左上行</option>
+                            </select></label> <label id="pipeline-dispenser-style-field" class="door-type-field"
+                            hidden><span>外观款式</span><select id="pipeline-dispenser-style">
+                                <option value="original">原款</option>
+                                <option value="rectangular">矩形双出水</option>
                             </select></label> <label id="tv-mount-style-field" class="door-type-field"
                             hidden><span>安装方式</span><select id="tv-mount-style">
                                 <option value="standard">壁挂电视</option>

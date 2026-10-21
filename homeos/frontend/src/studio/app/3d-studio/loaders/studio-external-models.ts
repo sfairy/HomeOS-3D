@@ -4,6 +4,7 @@ import {
   applyVehicleFinish,
 } from "../authoring/items/studio-vehicle-models";
 import { decorateWarmFloor } from "../authoring/scene/studio-scene-style";
+import { pipelineDispenserModelType } from "../authoring/items/pipeline-dispenser";
 import { enlargeWarmLeaves } from "../materials/studio-warm-foliage";
 import {
   applyCarFinish,
@@ -307,7 +308,9 @@ export function createExternalModelManager({
                 (["standard", "tabletop", "mobile"].includes(item.tvMountStyle)
                   ? item.tvMountStyle
                   : "standard")
-              : item.type;
+              : item.type === "pipelinewaterpurifier"
+                ? pipelineDispenserModelType(item)
+                : item.type;
   }
   function preloadPersistentModels(itemTypeList: any[] = []) {
     if (isDisposed) return Promise.resolve([]);

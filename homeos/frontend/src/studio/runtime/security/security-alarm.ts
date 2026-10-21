@@ -52,9 +52,10 @@ function binaryAlarmStatus(entityState: any) {
   return "unknown";
 }
 
-function moistureSourceDetail(status: string) {
-  if (status === "alarm") return "检测到水浸";
-  if (status === "normal") return "干燥";
+function moistureSourceDetail(status: string, isSpray = false) {
+  // 0.7.9 口径：报警统一叫「水浸报警」；正常时浸没侧是「干燥」、淋水侧是「关闭」。
+  if (status === "alarm") return "水浸报警";
+  if (status === "normal") return isSpray ? "关闭" : "干燥";
   if (status === "unavailable") return "设备不可用";
   if (status === "unbound") return "未绑定实体";
   return "状态未知";
@@ -137,14 +138,14 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
     if (alarmConfig?.entityId || immersionStatus) {
       sources.push({
         name: "浸没状态",
-        detail: moistureSourceDetail(immersionStatus || "unbound"),
+        detail: moistureSourceDetail(immersionStatus || "unbound", false),
         status: immersionStatus || "unbound",
       });
     }
     if (alarmConfig?.secondaryEntityId) {
       sources.push({
         name: "淋水状态",
-        detail: moistureSourceDetail(sprayStatus || "unbound"),
+        detail: moistureSourceDetail(sprayStatus || "unbound", true),
         status: sprayStatus || "unbound",
       });
     }
@@ -194,7 +195,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
       ? String(rawState)
       : null;
 
-  // 烟雾 event：有 event_type+时间戳时展示「最近事件」（含过期，卡片不标红）；否则「无最新事件」
+  // 烟雾 event：有 event_type+时间戳时展示「最近事件」（含过期，卡片不标红）；否则「尚未收到烟雾事件」
   let detail: string | null = null;
   let detailLines: string[] | null = null;
   if (kind === "moisture" && sources?.length) {
@@ -203,7 +204,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
     detailLines = ["最近事件：" + SMOKE_EVENT_TYPE, smokeEventParsed.label];
     detail = detailLines.join("\n");
   } else if (mode === "smoke-event" && status === "event-idle") {
-    detail = "无最新事件";
+    detail = "尚未收到烟雾事件";
   } else if (gasEnumLabel) {
     detail = gasEnumLabel;
   }
@@ -220,7 +221,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
     expired: "传感器寿命到期",
     fault: "设备故障",
     dirty: "烟室积灰",
-    "event-idle": "无最新事件",
+    "event-idle": "尚未收到烟雾事件",
   };
   const isEventSource =
     kind === "smoke" && /^event\.[a-z0-9_]+$/.test(alarmConfig?.entityId || "");

@@ -163,6 +163,7 @@ export function createNativeExtraPanel({
       state: viewModel.state,
       states: viewModel.states,
       editing: viewModel.editing,
+      numberFormats: viewModel.numberFormats || {},
     });
     onResize();
   }

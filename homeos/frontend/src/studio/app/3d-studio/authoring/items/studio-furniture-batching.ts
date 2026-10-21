@@ -3,6 +3,11 @@ import { buildStaticMaterialKey } from "../../materials/studio-static-material-k
 import { nextBatchItemTypeSet } from "./item-catalog";
 import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 const indexCompactionTypeSet = new Set([
+    "rectangular-pipeline-dispenser",
+    "loft-bed-circle",
+    "entryway-niche-cabinet",
+    "arched-glass-console",
+    "double-open-wardrobe",
     "drawer-chest",
     "bunk-bed",
     "wardrobe",
@@ -24,6 +29,11 @@ const indexCompactionTypeSet = new Set([
     "tvstand",
   ]),
   batchableFurnitureTypeSet = new Set([
+    "rectangular-pipeline-dispenser",
+    "loft-bed-circle",
+    "entryway-niche-cabinet",
+    "arched-glass-console",
+    "double-open-wardrobe",
     "drawer-chest",
     "steelstairs",
     "tea_bar_machine",

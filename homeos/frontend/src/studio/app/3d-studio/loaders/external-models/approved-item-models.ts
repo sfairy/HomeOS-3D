@@ -13,7 +13,12 @@ type ApprovedItemMeta = {
   small: string;
   mount?: "floor" | "ceiling" | "wall" | "tabletop";
   elevation?: number;
+  /** GLB 批次版本键；缺省沿用 `MODEL_ASSET_CACHE_KEYS.approved`。 */
+  assetVersion?: string;
 };
+
+/** 0.7.9 参考模型批的版本键（与 `MODEL_ASSET_CACHE_KEYS.reference` 同值）。 */
+const REFERENCE_ASSET_VERSION = "20261020-reference-v1";
 
 /** Palette + placement defaults for newly approved item types. */
 const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
@@ -422,19 +427,79 @@ const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
     mount: "wall",
     elevation: 1.6,
   },
+
+  /* ── 0.7.9 参考模型批（`20261020-reference-v1`） ─────────────────── */
+  "loft-bed-circle": {
+    label: "圆孔高架床",
+    glyph: "▤",
+    subcategory: "bedroom",
+    size: [2.402, 2.022, 1.8341],
+    small: "2.40 × 1.83m",
+    mount: "floor",
+    assetVersion: REFERENCE_ASSET_VERSION,
+  },
+  "entryway-niche-cabinet": {
+    label: "玄关到顶柜",
+    glyph: "▤",
+    subcategory: "dining",
+    size: [1.3, 2.6, 0.68],
+    small: "1.30 × 0.68m",
+    mount: "floor",
+    assetVersion: REFERENCE_ASSET_VERSION,
+  },
+  "arched-glass-console": {
+    label: "拱形玻璃玄关台",
+    glyph: "▤",
+    subcategory: "dining",
+    size: [0.78, 2.402, 0.5957],
+    small: "0.78 × 0.60m",
+    mount: "floor",
+    assetVersion: REFERENCE_ASSET_VERSION,
+  },
+  "double-open-wardrobe": {
+    label: "双列开放衣柜",
+    glyph: "▤",
+    subcategory: "bedroom",
+    size: [1.18, 2.4, 0.59],
+    small: "1.18 × 0.59m",
+    mount: "floor",
+    assetVersion: REFERENCE_ASSET_VERSION,
+  },
 };
 
-function createApprovedAssetDescriptor(assetId: string, scaleBasis: [number, number, number]) {
-  // approved 批的 URL 带版本键：这 50 款的 GLB 定稿后未再变，键用于控制缓存失效
-  // （注册表逐条带 `assetVersion: '20261009-approved-v1'`）。
+/**
+ * **模型变体**：同一个物件类型按样式字段切换 GLB（不进 `APPROVED_ITEM_META`）。
+ *
+ * 目前只有管线机的「矩形双出水」一款：它由 `pipelineDispenserStyle === "rectangular"`
+ * 选中，尺寸取自己的包围盒；原款继续用 `pipelinewaterpurifier`。
+ */
+const APPROVED_ITEM_VARIANTS_META: Record<string, ApprovedItemMeta> = {
+  "rectangular-pipeline-dispenser": {
+    label: "矩形双出水管线机",
+    glyph: "▤",
+    subcategory: "dining",
+    size: [0.6, 0.44, 0.233],
+    small: "0.60 × 0.44m",
+    mount: "wall",
+    assetVersion: REFERENCE_ASSET_VERSION,
+  },
+};
+
+function createApprovedAssetDescriptor(
+  assetId: string,
+  scaleBasis: [number, number, number],
+  assetVersion: string = MODEL_ASSET_CACHE_KEYS.approved,
+) {
+  // approved 批的 URL 带版本键：GLB 定稿后按批次固定键，用于控制缓存失效。
+  // 0.7.9 参考批（`20261020-reference-v1`）单独带键，旧键的缓存不会串到新字节上。
   return Object.freeze({
     url: withModelAssetCacheKey(
       `/static/3d-studio/models/${assetId}-lite.glb`,
-      MODEL_ASSET_CACHE_KEYS.approved,
+      assetVersion,
     ),
     fallbackUrl: withModelAssetCacheKey(
       `/static/3d-studio/models/${assetId}.glb`,
-      MODEL_ASSET_CACHE_KEYS.approved,
+      assetVersion,
     ),
     scaleBasis,
     preserveOrigin: true,
@@ -446,7 +511,17 @@ export const APPROVED_ITEM_MODELS = Object.freeze(
   Object.fromEntries(
     Object.entries(APPROVED_ITEM_META).map(([assetId, meta]) => [
       assetId,
-      createApprovedAssetDescriptor(assetId, meta.size),
+      createApprovedAssetDescriptor(assetId, meta.size, meta.assetVersion),
+    ]),
+  ),
+);
+
+/** 变体模型（样式切换用）；同样并入 `EXTERNAL_ITEM_MODELS`。 */
+export const APPROVED_MODEL_VARIANTS = Object.freeze(
+  Object.fromEntries(
+    Object.entries(APPROVED_ITEM_VARIANTS_META).map(([assetId, meta]) => [
+      assetId,
+      createApprovedAssetDescriptor(assetId, meta.size, meta.assetVersion),
     ]),
   ),
 );

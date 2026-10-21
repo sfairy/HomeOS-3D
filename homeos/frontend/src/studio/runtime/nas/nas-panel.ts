@@ -1,4 +1,5 @@
 import { domElement } from "@app/shared/util/dom-factory";
+import { formatHANumber } from "@app/shared/util/ha-number";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function nasGroups(nasConfig: any) {
   const groupLabels = {
@@ -11,7 +12,7 @@ export function nasGroups(nasConfig: any) {
     .filter((defaultGroupKey) => Object.hasOwn(groupLabels, defaultGroupKey))
     .map((groupKey) => [groupKey, (groupLabels as any)[groupKey]]);
 }
-function nasMetricValue(metric: any, stateUpdate: any) {
+function nasMetricValue(metric: any, stateUpdate: any, displayPrecision: number | null = null) {
   const entityState = stateUpdate?.newState || stateUpdate || {},
     stateValue = String(entityState.state ?? "").trim();
   if (
@@ -64,10 +65,8 @@ function nasMetricValue(metric: any, stateUpdate: any) {
     unitOfMeasurement = String(entityState.attributes?.unit_of_measurement || "");
   return {
     text: Number.isFinite(numericValue)
-      ? "" +
-        new Intl.NumberFormat("zh-CN", {
-          maximumFractionDigits: 1,
-        }).format(numericValue) +
+      ? // HA 显示精度优先；未设置时原样显示（0.7.9 不再套 `Intl.NumberFormat`）。
+        "" + formatHANumber(stateValue, displayPrecision) +
         (unitOfMeasurement ? " " + unitOfMeasurement : "")
       : stateValue,
     available: true,
@@ -97,7 +96,11 @@ export function createNasPanel() {
     (panelElement.hidden = true));
   let renderedSignature = "",
     metricRows: any = [];
-  function updateNasPanel({ item: nasComponent, states: statesByEntityId = {} }: any) {
+  function updateNasPanel({
+    item: nasComponent,
+    states: statesByEntityId = {},
+    numberFormats: numberFormatsByEntityId = {},
+  }: any) {
     const statusSource = nasComponent.statusSource,
       visibleMetricIdSet = statusSource?.visibleMetrics && new Set(statusSource.visibleMetrics),
       visibleMetrics = (statusSource?.metrics || []).filter(
@@ -147,7 +150,11 @@ export function createNasPanel() {
           statesByEntityId instanceof Map
             ? statesByEntityId.get(metricRow.metric.entityId)
             : statesByEntityId[metricRow.metric.entityId],
-        metricResult = nasMetricValue(metricRow.metric, stateEntry);
+        metricResult = nasMetricValue(
+          metricRow.metric,
+          stateEntry,
+          numberFormatsByEntityId?.[metricRow.metric.entityId],
+        );
       ((metricRow.card.title = metricRow.metric.label + "：" + metricResult.text),
         (metricRow.value.textContent = metricResult.text),
         metricRow.card.classList.toggle("is-warning", !!metricResult.warning),

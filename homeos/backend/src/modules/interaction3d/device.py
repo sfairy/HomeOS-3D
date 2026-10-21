@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Callable, Mapping
 from typing import Any, NoReturn
@@ -200,8 +201,14 @@ SMALLCAR_EXTRA_FIELDS = frozenset(
 )
 #: 电脑：电源实体 + 自定义屏幕图（用户上传素材）。
 COMPUTER_EXTRA_FIELDS = frozenset({'powerEntityId', 'screenImage'})
+#: 管线机：外观款式（原款 / 矩形双出水），对应前端 `pipelineDispenserStyle`。
+PIPELINE_DISPENSER_EXTRA_FIELDS = frozenset({'pipelineDispenserStyle'})
+#: 管线机允许的外观款式取值（与前端 `pipeline-dispenser.ts` 同口径）。
+PIPELINE_DISPENSER_STYLES = frozenset({'original', 'rectangular'})
 #: 吸风动画（油烟机）与喷雾动画（加湿器 / 香氛机）。
 ANIMATION_EXTRA_FIELDS = frozenset({'animationEntityId', 'animationEnabled'})
+#: 不显示状态指示灯的型号：床与沙发（0.7.9 沙发档案 ``statusIndicator: false``）。
+STATUS_INDICATOR_DISABLED_MODELS = frozenset({'bed', 'sofa'})
 #: 只有这些型号允许挂 ``animationEntityId``。
 ANIMATION_MODEL_TYPES = frozenset({'rangehood', 'humidifier', 'aroma-diffuser'})
 #: 吸风动画可绑定的实体域（binary_sensor 用来读门窗开合）。
@@ -219,6 +226,8 @@ for _model_type in DEVICE_PROFILES:
         _fields |= SMALLCAR_EXTRA_FIELDS
     if _model_type == 'computer':
         _fields |= COMPUTER_EXTRA_FIELDS
+    if _model_type == 'pipelinewaterpurifier':
+        _fields |= PIPELINE_DISPENSER_EXTRA_FIELDS
     if _model_type in ANIMATION_MODEL_TYPES:
         _fields |= ANIMATION_EXTRA_FIELDS
     DEVICE_FIELDS_BY_MODEL[_model_type] = frozenset(_fields)
@@ -258,6 +267,21 @@ CHARGING_STATE_BLANK_VALUES = frozenset({'unknown', 'unavailable', 'none', 'null
 STATUS_RULE_REJECTED_VALUES = frozenset({'unknown', 'unavailable'})
 #: 状态灯规则字段与附加控制字段。
 STATUS_RULE_FIELDS = frozenset({'active', 'entityId', 'inactive'})
+#: 数值规则多一个 ``kind`` 字段；键集合必须**恰好**是这四项，多写少写都按 422 处理。
+NUMERIC_STATUS_RULE_FIELDS = frozenset({'kind', 'active', 'entityId', 'inactive'})
+#: 数值规则的比较方式。与前端 ``NUMERIC_OPERATORS`` 同口径。
+NUMERIC_OPERATORS = frozenset({'gt', 'gte', 'lt', 'lte', 'eq', 'ne'})
+#: 反向比较：``gt 30`` 的反向是 ``lte 30``，两者合起来才无缝覆盖实数轴。
+INVERSE_OPERATOR = {
+    'gt': 'lte',
+    'gte': 'lt',
+    'lt': 'gte',
+    'lte': 'gt',
+    'eq': 'ne',
+    'ne': 'eq',
+}
+#: 一组状态值最多 64 条（前端 textarea 同口径）。
+STATUS_STATE_GROUP_LIMIT = 64
 EXTRA_CONTROL_FIELDS = frozenset({'rows', 'type', 'label', 'columns', 'entityId'})
 #: 附加控制网格档位（列 / 行）。
 GRID_SPANS: dict[str, tuple[int, ...]] = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}
@@ -268,8 +292,55 @@ EXTRA_ENTITY_PREFIXES = ('fan.', 'scene.')
 
 
 def _status_values(value: Any) -> list[Any] | None:
-    """``active`` / ``inactive`` 必须是状态值列表；单值不合法。"""
+    """``active`` / ``inactive`` 允许写成单个字符串或字符串列表。
+
+    0.7.9 起编辑器的单值分支写字符串（``active: 'on'``），多值才写数组；
+    两种形态都合法，校验时统一成列表。
+    """
+    if isinstance(value, str):
+        return [value]
     return value if isinstance(value, list) else None
+
+
+def _numeric_condition(condition: Any) -> tuple[str, int | float] | None:
+    """解析 ``{operator, value}``；不合法返回 ``None``（调用方统一 422）。
+
+    ``value`` 只接受 ``int`` / ``float`` —— ``bool`` 是 ``int`` 子类，必须显式排除；
+    ``NaN`` / ``±Infinity`` 用 ``math.isfinite`` 拦截，溢出（如 ``1e400`` 解析成的 ``inf``）
+    同样按非法处理。
+    """
+    if not isinstance(condition, dict) or set(condition) != {'operator', 'value'}:
+        return None
+    operator = condition['operator']
+    value = condition['value']
+    if operator not in NUMERIC_OPERATORS or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        if not math.isfinite(value):
+            return None
+    except OverflowError:
+        return None
+    return operator, value
+
+
+def _numeric_rule_valid(active: tuple[str, int | float], inactive: tuple[str, int | float]) -> bool:
+    """数值规则的迟滞区间校验。
+
+    - ``inactive`` 恰为 ``active`` 的反向操作且阈值相同 → 单阈值对称规则，合法；
+    - 否则必须一高一低（``gt/gte`` 与 ``lt/lte`` 各一），高阈值不小于低阈值；
+    - 两个阈值相等时只有「两个严格比较」（``gt + lt``）合法：``gte + lte`` 会在临界值
+      同时命中两侧，导致每次读数都在亮/灭之间来回跳。
+    """
+    if inactive == (INVERSE_OPERATOR[active[0]], active[1]):
+        return True
+    high = active if active[0] in ('gt', 'gte') else inactive
+    low = active if active[0] in ('lt', 'lte') else inactive
+    if high[0] not in ('gt', 'gte') or low[0] not in ('lt', 'lte'):
+        return False
+    if low[1] > high[1]:
+        return False
+    # 相等时只有「两个严格比较」留出了一个空点（如 gt 30 + lt 30），不构成重叠。
+    return not (low[1] == high[1] and (high[0] != 'gt' or low[0] != 'lt'))
 
 
 def validate_device_status_rules(
@@ -278,7 +349,8 @@ def validate_device_status_rules(
     """各类家电（含热水器）共享的状态灯契约。
 
     ``health`` 允许写成列表（多个健康探针），其余键是单个规则对象。
-    ``active`` / ``inactive`` 必须是字符串列表（两组互不重叠）。
+    规则有两形态：状态匹配（``active`` / ``inactive`` 是字符串或字符串列表）与
+    数值比较（``kind == 'numeric'``，两侧各是一个 ``{operator, value}`` 条件）。
     """
     if not isinstance(status_rules, dict) or set(status_rules) - {'power', 'health'}:
         fail_validation()
@@ -289,18 +361,39 @@ def validate_device_status_rules(
             continue
         rules_to_check.append(status_rule)
     for status_rule in rules_to_check:
+        if not isinstance(status_rule, dict):
+            fail_validation()
+        is_numeric = status_rule.get('kind') == 'numeric'
+        required_fields = NUMERIC_STATUS_RULE_FIELDS if is_numeric else STATUS_RULE_FIELDS
         if (
-            not isinstance(status_rule, dict)
-            or set(status_rule) != STATUS_RULE_FIELDS
-            or not isinstance(status_rule['entityId'], str)
+            set(status_rule) != required_fields
+            or not isinstance(status_rule.get('entityId'), str)
             or ENTITY_ID_PATTERN.fullmatch(status_rule['entityId']) is None
         ):
             fail_validation()
+        if is_numeric:
+            active_condition = _numeric_condition(status_rule['active'])
+            inactive_condition = _numeric_condition(status_rule['inactive'])
+            if (
+                active_condition is None
+                or inactive_condition is None
+                or not _numeric_rule_valid(active_condition, inactive_condition)
+            ):
+                fail_validation()
+            continue
         active_values = _status_values(status_rule['active'])
         inactive_values = _status_values(status_rule['inactive'])
         if active_values is None or inactive_values is None:
             fail_validation()
             continue
+        # 去重后再比较：重复值不会扩大匹配面，但会让「互不重叠」判断失真。
+        active_values = list(dict.fromkeys(active_values))
+        inactive_values = list(dict.fromkeys(inactive_values))
+        if any(
+            not (1 <= len(values) <= STATUS_STATE_GROUP_LIMIT)
+            for values in (active_values, inactive_values)
+        ):
+            fail_validation()
         if any(
             not isinstance(value, str)
             or not value
@@ -316,12 +409,17 @@ def validate_device_status_rules(
 
 
 def _fail_device(profile: Mapping[str, Any], model_type: str = '') -> NoReturn:
-    """设备类校验失败：文案带上设备类型与具体检查面，前端好定位。"""
-    reason = (
-        '实体、布局和吸风动画来源'
-        if model_type == 'rangehood'
-        else '实体、布局和状态灯规则'
-    )
+    """设备类校验失败：文案带上设备类型与具体检查面，前端好定位。
+
+    床与沙发没有状态灯也没有吸风动画，检查面只剩「实体和布局」；
+    油烟机多一个吸风动画来源；其余家电是实体、布局与状态灯规则。
+    """
+    if model_type in STATUS_INDICATOR_DISABLED_MODELS:
+        reason = '实体和布局'
+    elif model_type == 'rangehood':
+        reason = '实体、布局和吸风动画来源'
+    else:
+        reason = '实体、布局和状态灯规则'
     raise HTTPException(422, detail=f"设备配置无效，请检查{reason}。")
 
 
@@ -343,9 +441,11 @@ def validate_device_bindings(
             _validate_smallcar_bindings(ctx, item, fail)
         if model_type == 'computer':
             _validate_computer_bindings(ctx, item, fail)
+        if model_type == 'pipelinewaterpurifier':
+            _validate_pipeline_dispenser_fields(item, fail)
         if model_type in ANIMATION_MODEL_TYPES:
             _validate_animation_bindings(item, model_type, fail)
-        _validate_device_item(ctx, item, fail)
+        _validate_device_item(ctx, item, fail, model_type)
         if not _register_device_item(seen_ids, seen_models, item):
             fail()
 
@@ -421,6 +521,13 @@ def _validate_computer_bindings(ctx: ValidationContext, item: dict, fail) -> Non
         fail()
 
 
+def _validate_pipeline_dispenser_fields(item: dict, fail) -> None:
+    """管线机：外观款式只能是 ``original`` / ``rectangular``，缺省按原款。"""
+    style = item.get('pipelineDispenserStyle')
+    if style is not None and style not in PIPELINE_DISPENSER_STYLES:
+        fail()
+
+
 def _validate_animation_bindings(item: dict, model_type: str, fail) -> None:
     """吸风 / 喷雾动画：动画实体必须与设备绑定，域按型号收窄。"""
     entity_id = item.get('animationEntityId', '')
@@ -436,7 +543,9 @@ def _validate_animation_bindings(item: dict, model_type: str, fail) -> None:
 
 
 
-def _validate_device_item(ctx: ValidationContext, item: Any, fail) -> None:
+def _validate_device_item(
+    ctx: ValidationContext, item: Any, fail, model_type: str = ''
+) -> None:
     """家电公共判定：文本/身份/布局/图标/相机/附加控制。"""
     if any(
         not ctx.text(item.get(key, ''), 128)
@@ -455,10 +564,12 @@ def _validate_device_item(ctx: ValidationContext, item: Any, fail) -> None:
     if not ctx.icon(item, MDI_ICON_LOOSE_PATTERN):
         fail()
     ctx.validate_camera(item.get('focusCamera'))
-    _validate_device_extras(ctx, item, fail)
+    _validate_device_extras(ctx, item, fail, model_type)
 
 
-def _validate_device_extras(ctx: ValidationContext, item: dict, fail) -> None:
+def _validate_device_extras(
+    ctx: ValidationContext, item: dict, fail, model_type: str = ''
+) -> None:
     """附加控制 + 状态灯：两者都要求先绑设备（``deviceId``）。
 
     0.7.8 起附加控制**不再有条数上限**：面板大小由用户自己控制，后端只校验每一项。
@@ -505,6 +616,10 @@ def _validate_device_extras(ctx: ValidationContext, item: dict, fail) -> None:
             if type(extra[dimension]) is not int or extra[dimension] not in allowed:
                 fail()
     validate_device_status_rules(status_rules, fail)
+    # 床与沙发不参与状态灯：模型上不画指示灯，配置里带了规则就直接拒绝，
+    # 避免前端删掉 statusIndicator 后仍残留一份「看起来生效、实际不渲染」的规则。
+    if model_type in STATUS_INDICATOR_DISABLED_MODELS and status_rules:
+        fail()
 
 
 def require_device_model(binding: dict, scene: dict, model_type: str = 'fridge') -> None:

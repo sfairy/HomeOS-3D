@@ -3828,6 +3828,9 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   selectElement("#tv-mount-style").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#pillar-shape").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#pillar-axis").addEventListener("change", () => applyToolSetting("item")),
+  selectElement("#pipeline-dispenser-style").addEventListener("change", () =>
+    applyToolSetting("item"),
+  ),
   selectElement("#strip-axis").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#mural-style").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#featurewall-style").addEventListener("change", () => applyToolSetting("item")),

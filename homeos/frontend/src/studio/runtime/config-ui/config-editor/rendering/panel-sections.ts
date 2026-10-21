@@ -13,7 +13,16 @@
  */
 
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
-import { defaultDeviceStatusRule as defaultDeviceStatusRule2, deviceStatusChoices as deviceStatusChoices2 } from "../../../device/device-status";
+import {
+  defaultDeviceStatusRule as defaultDeviceStatusRule2,
+  deviceIndicatorChoices as deviceIndicatorChoices2,
+  deviceStatusChoices as deviceStatusChoices2,
+  NUMERIC_OPERATORS as NUMERIC_OPERATORS2,
+} from "../../../device/device-status";
+import {
+  indicatorConditionFields as indicatorConditionFields2,
+  indicatorEntitySupport as indicatorEntitySupport2,
+} from "./indicator-condition-editor";
 import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/presets/light-effect-policy";
 import { normalizeTemperatureHumidity as normalizeTemperatureHumidity2, DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2, DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2, ENVIRONMENT_BATTERY as ENVIRONMENT_BATTERY2, ENVIRONMENT_METRICS as ENVIRONMENT_METRICS2, MAX_LABEL_ICON_SIZE as MAX_LABEL_ICON_SIZE2, MAX_LABEL_SIZE as MAX_LABEL_SIZE2, MIN_LABEL_ICON_SIZE as MIN_LABEL_ICON_SIZE2, MIN_LABEL_SIZE as MIN_LABEL_SIZE2, temperatureHumidityFloorCenter as temperatureHumidityFloorCenter2 } from "@app/bridge/temperature-humidity";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
@@ -201,10 +210,20 @@ export function renderStatusRuleSection(
             "正常绿灯、提醒橙灯，均为呼吸效果；未知状态显示稳定灰灯。未设置任何规则时不显示指示灯。",
           ),
         ));
+  // 选择实体时若该实体只有瞬时事件（button/scene/event），在这里给出原因而不是打开条件弹窗。
+  const statusSectionErrorElement = editorHost.createElement("p", "i3d-error");
+  (statusSectionErrorElement.setAttribute("role", "alert"),
+    (statusSectionErrorElement.hidden = true),
+    statusSettingsSectionElement.append(statusSectionErrorElement));
       const deviceStatusChoicesProvider =
-          typeof deviceStatusChoices2 == "function"
-            ? deviceStatusChoices2
-            : (statusEntityRecord: { entityId?: string } = {}) => {
+          // 0.7.9 行内分支用的是 `deviceIndicatorChoices`（比 `deviceStatusChoices` 多一层域状态表：
+          // 门锁 / 扫地机 / 幕布 / 空调模式 / 热水器模式），只在它不可用时才退化到二进制状态表。
+          // 这里必须同口径，否则同一实体可能在「行内下拉」与「设置匹配条件」之间跳变。
+          typeof deviceIndicatorChoices2 == "function"
+            ? deviceIndicatorChoices2
+            : typeof deviceStatusChoices2 == "function"
+              ? deviceStatusChoices2
+              : (statusEntityRecord: { entityId?: string } = {}) => {
                 const entityDomain = String(statusEntityRecord.entityId || "").split(".")[0];
                 return ["binary_sensor", "switch", "input_boolean", "light", "fan"].includes(
                   entityDomain,
@@ -234,17 +253,16 @@ export function renderStatusRuleSection(
                 );
                 if (!statusChoiceDefinition) return null;
                 const reminderValue =
-                  statusRuleMode === "health"
-                    ? statusChoiceDefinition.reminderValue
-                    : statusChoiceDefinition.options[0].value;
+                    statusRuleMode === "health"
+                      ? ((statusChoiceDefinition as any).reminderValue ??
+                        statusChoiceDefinition.options[0].value)
+                      : statusChoiceDefinition.options[0].value;
                 return {
                   entityId: statusFallbackEntity.entityId,
-                  active: [reminderValue],
-                  inactive: [
-                    statusChoiceDefinition.options.find(
-                      (nonReminderChoice) => nonReminderChoice.value !== reminderValue,
-                    )!.value,
-                  ],
+                  active: reminderValue,
+                  inactive: statusChoiceDefinition.options.find(
+                    (nonReminderChoice) => nonReminderChoice.value !== reminderValue,
+                  )!.value,
                 };
               },
         readHealthRules = () =>
@@ -294,7 +312,10 @@ export function renderStatusRuleSection(
           dialogGeneration: any,
         ) => {
           if (!canRefreshItem(dialogGeneration) || editorHost.addDialogState) return;
-          const statusDialogElement = editorHost.createElement("dialog", "settings-dialog i3d-add-dialog");
+          const statusDialogElement = editorHost.createElement(
+            "dialog",
+            "settings-dialog i3d-add-dialog i3d-indicator-dialog",
+          );
           ((editorHost.addDialogState = statusDialogElement),
             statusDialogElement.setAttribute("aria-label", "设置指示灯条件"));
           const statusDialogHeadingElement = editorHost.createElement("div", "dialog-heading");
@@ -302,49 +323,29 @@ export function renderStatusRuleSection(
           const statusDialogBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
             catalogEntry = resolveCatalogEntry(statusEntity.entityId),
             entityState = resolveEntityState(statusEntity.entityId),
-            entityStateText = (entityState?.newState || entityState)?.state;
+            entityStateText = (entityState?.newState || entityState)?.state,
+            entityStateAttributes = (entityState?.newState || entityState)?.attributes;
           (statusDialogBodyElement.append(
             editorHost.createElement("strong", "", catalogEntry.name || statusEntity.entityId),
             editorHost.createElement(
               "p",
-              "i3d-note",
-              "分别填写亮灯/提醒与灭灯/恢复的状态；每行一个，可填写多个。其他值显示为未知。",
+              "i3d-indicator-current",
+              "HA 当前值：" +
+                (entityStateText ?? "尚未取得") +
+                (entityStateAttributes?.unit_of_measurement
+                  ? " " + entityStateAttributes.unit_of_measurement
+                  : ""),
             ),
-          ),
-            entityStateText != null &&
-              statusDialogBodyElement.append(
-                editorHost.createElement("p", "i3d-note", "HA 当前值：" + entityStateText),
-              ));
-          const statusChoiceDefinition = deviceStatusChoicesProvider(catalogEntry, entityState);
-          if (statusChoiceDefinition?.options.length) {
-            statusDialogBodyElement.append(
-              editorHost.createElement(
-                "p",
-                "i3d-note",
-                "可用状态：" +
-                  statusChoiceDefinition.options
-                    .map((statusOption: any) => statusOption.label + "（" + statusOption.value + "）")
-                    .join("、"),
-              ),
-            );
-          }
-          const readStatusValueLines = (statusValue: any) =>
-              (Array.isArray(statusValue) ? statusValue.join("\n") : statusValue || ""),
-            activeValueInputElement = editorHost.createElement("textarea"),
-            inactiveValueInputElement = editorHost.createElement("textarea");
-          ((activeValueInputElement.value = readStatusValueLines(statusEntity.active)),
-            (inactiveValueInputElement.value = readStatusValueLines(statusEntity.inactive)),
-            (activeValueInputElement.maxLength = inactiveValueInputElement.maxLength = 7800),
-            createSettingRow(
-              statusDialogBodyElement,
-              dialogRuleKind === "health" ? "提醒时的状态值" : "亮灯时的状态值",
-              activeValueInputElement,
-            ),
-            createSettingRow(
-              statusDialogBodyElement,
-              dialogRuleKind === "health" ? "恢复时的状态值" : "灭灯时的状态值",
-              inactiveValueInputElement,
-            ));
+          ));
+          const statusConditionEditor = indicatorConditionFields2({
+            body: statusDialogBodyElement,
+            node: editorHost.createElement,
+            field: createSettingRow,
+            entity: catalogEntry,
+            raw: entityState,
+            rule: statusEntity,
+            role: dialogRuleKind,
+          });
           const statusDialogErrorElement = editorHost.createElement("p", "i3d-error");
           (statusDialogErrorElement.setAttribute("role", "status"),
             statusDialogBodyElement.append(statusDialogErrorElement));
@@ -353,42 +354,14 @@ export function renderStatusRuleSection(
               closeAddDialog();
               return;
             }
-            const statusValueGroups = [
-              activeValueInputElement.value,
-              inactiveValueInputElement.value,
-            ].map((statusValueText: string) => [
-              ...new Set(
-                statusValueText
-                  .split("\n")
-                  .map((statusLine) => statusLine.trim())
-                  .filter(Boolean),
-              ),
-            ]);
-            if (
-              statusValueGroups.some(
-                (statusGroup) =>
-                  !statusGroup.length ||
-                  statusGroup.length > 64 ||
-                  statusGroup.some(
-                    (statusValueProbe) =>
-                      statusValueProbe.length > 120 ||
-                      ["unknown", "unavailable"].includes(statusValueProbe),
-                  ),
-              ) ||
-              statusValueGroups[0].some((statusValueProbe) =>
-                statusValueGroups[1].includes(statusValueProbe),
-              )
-            ) {
-              statusDialogErrorElement.textContent =
-                "请填写两组不重叠的有效状态值；未知或不可用不能作为匹配条件。";
+            let statusRule;
+            try {
+              statusRule = statusConditionEditor.readRule();
+            } catch (statusRuleError: any) {
+              statusDialogErrorElement.textContent = statusRuleError.message;
               return;
             }
-            (closeAddDialog(),
-              writeStatusRule(dialogRuleKind, dialogRuleIndex, {
-                entityId: statusEntity.entityId,
-                active: statusValueGroups[0],
-                inactive: statusValueGroups[1],
-              }));
+            (closeAddDialog(), writeStatusRule(dialogRuleKind, dialogRuleIndex, statusRule));
           });
           confirmStatusValuesButton.className = "primary";
           const statusDialogActionsElement = editorHost.createElement("div", "dialog-actions");
@@ -410,7 +383,10 @@ export function renderStatusRuleSection(
         openStatusEntityPicker = async (pickerRuleKind: any, pickerRuleIndex: any, statusPickerGeneration: any) => {
           if (!editorHost.isAccessAllowed || editorHost.isDisposed || !statusDeviceId) return;
           const ruleRefreshGeneration = ++editorHost.pickerGeneration;
-          (editorHost.pickerHandle?.close(), (editorHost.errorMessageElement.textContent = ""));
+          (editorHost.pickerHandle?.close(),
+            (editorHost.errorMessageElement.textContent = ""),
+            (statusSectionErrorElement.textContent = ""),
+            (statusSectionErrorElement.hidden = true));
           const existingRule =
               pickerRuleKind === "power"
                 ? statusItem.statusRules?.power
@@ -447,8 +423,17 @@ export function renderStatusRuleSection(
                   selectedEntry?.entityId === selectedEntity
                     ? selectedEntry
                     : resolveCatalogEntry(selectedEntity);
+                if (!usedEntityIds(resolvedCatalogEntry)) return;
+                const selectedEntitySupport = indicatorEntitySupport2(
+                  resolvedCatalogEntry,
+                  resolveEntityState(selectedEntity),
+                );
+                if (!selectedEntitySupport.supported) {
+                  ((statusSectionErrorElement.textContent = selectedEntitySupport.reason),
+                    (statusSectionErrorElement.hidden = false));
+                  return;
+                }
                 if (
-                  !usedEntityIds(resolvedCatalogEntry) ||
                   ((isRefreshingRules = true),
                   (editorHost.entities = [
                     ...editorHost.entities.filter(
@@ -513,24 +498,21 @@ export function renderStatusRuleSection(
               ruleCatalogEntry,
               resolveEntityState(ruleEntity.entityId),
             ),
-            singleActive =
-              Array.isArray(ruleEntity.active) && ruleEntity.active.length === 1
-                ? ruleEntity.active[0]
-                : null,
-            singleInactive =
-              Array.isArray(ruleEntity.inactive) && ruleEntity.inactive.length === 1
-                ? ruleEntity.inactive[0]
-                : null;
+            // 0.7.9 的编辑器把单值写成字符串（`active: 'on'`），更早版本统一写成数组
+            // （`active: ['on']`）。两种形态后端都合法，行内判断必须等价处理，
+            // 否则同一实体只因历史数据形态不同就会在「下拉」和「设置匹配条件」之间跳变。
+            readSingleRuleValue = (ruleValue: any) =>
+              Array.isArray(ruleValue) && ruleValue.length === 1 ? ruleValue[0] : ruleValue,
+            activeRuleValue = readSingleRuleValue(ruleEntity.active),
+            inactiveRuleValue = readSingleRuleValue(ruleEntity.inactive);
           if (
             choiceDefinition?.options.length === 2 &&
-            singleActive !== null &&
-            singleInactive !== null &&
-            singleActive !== singleInactive &&
+            activeRuleValue !== inactiveRuleValue &&
             choiceDefinition.options.some(
-              (activeChoiceProbe) => activeChoiceProbe.value === singleActive,
+              (activeChoiceProbe) => activeChoiceProbe.value === activeRuleValue,
             ) &&
             choiceDefinition.options.some(
-              (inactiveChoiceProbe) => inactiveChoiceProbe.value === singleInactive,
+              (inactiveChoiceProbe) => inactiveChoiceProbe.value === inactiveRuleValue,
             )
           ) {
             const ruleDefaultButton = editorHost.createElement("select");
@@ -549,7 +531,7 @@ export function renderStatusRuleSection(
               ((reminderOptionElement.value = optionValue),
                 ruleDefaultButton.append(reminderOptionElement));
             }
-            ((ruleDefaultButton.value = singleActive),
+            ((ruleDefaultButton.value = activeRuleValue),
               ruleDefaultButton.addEventListener("change", () => {
                 const inactiveOptionValue = ruleDefaultButton.value,
                   inactiveOption = choiceDefinition.options.find(
@@ -560,8 +542,8 @@ export function renderStatusRuleSection(
                     (matchingOptionProbe) => matchingOptionProbe.value === inactiveOptionValue,
                   ) ||
                   (Object.assign(ruleEntity, {
-                    active: [inactiveOptionValue],
-                    inactive: [inactiveOption],
+                    active: inactiveOptionValue,
+                    inactive: inactiveOption,
                   }),
                   refreshEditorPreview());
               }),
@@ -591,11 +573,34 @@ export function renderStatusRuleSection(
             (pickerCloseButton.title =
               rowRuleKind === "power" ? "移除亮灭依据" : "删除" + statusEntityIdText + "提醒"),
             pickerCloseButton.setAttribute("aria-label", pickerCloseButton.title),
-            statusRuleRowElement.append(pickerCloseButton),
-            statusSettingsSectionElement.append(statusRuleRowElement));
+            statusRuleRowElement.append(pickerCloseButton));
+          // 数值规则在行内给出一句可读摘要，避免每次都要打开弹窗确认阈值。
+          if (ruleEntity.kind === "numeric") {
+            const ruleUnit = ruleCatalogEntry.attributes?.unit_of_measurement || "",
+              operatorLabels = NUMERIC_OPERATORS2 as Record<string, string>,
+              formatRuleCondition = (ruleCondition: any) =>
+                (operatorLabels[ruleCondition.operator] || "?") +
+                " " +
+                ruleCondition.value +
+                ruleUnit,
+              ruleSummaryElement = editorHost.createElement(
+                "p",
+                "i3d-status-rule-summary",
+                (rowRuleKind === "health" ? "提醒" : "亮灯") +
+                  "：" +
+                  formatRuleCondition(ruleEntity.active) +
+                  "；" +
+                  (rowRuleKind === "health" ? "恢复" : "灭灯") +
+                  "：" +
+                  formatRuleCondition(ruleEntity.inactive),
+              );
+            ((ruleSummaryElement.title = ruleSummaryElement.textContent),
+              statusRuleRowElement.append(ruleSummaryElement));
+          }
+          statusSettingsSectionElement.append(statusRuleRowElement);
         };
       (statusSettingsSectionElement.append(
-        editorHost.createElement("p", "i3d-status-label", "电源状态（可选）"),
+        editorHost.createElement("p", "i3d-status-label", "亮灭依据（可选）"),
       ),
         writeRuleRow("power", 0, statusItem.statusRules?.power),
         statusSettingsSectionElement.append(editorHost.createElement("p", "i3d-status-label", "提醒条件")),
@@ -613,7 +618,7 @@ export function renderStatusRuleSection(
           editorHost.createElement(
             "p",
             "i3d-note",
-            "任一提醒条件触发时优先亮橙灯；没有提醒时，按电源状态亮灯或熄灭。不设置电源状态则只看提醒条件。",
+            "任一提醒条件触发时优先亮橙灯；没有提醒时，按亮灭依据亮灯或熄灭。不设置亮灭依据则只看提醒条件。",
           ),
         ));
     }

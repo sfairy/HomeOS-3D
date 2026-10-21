@@ -22,6 +22,7 @@ import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMod
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from "../../range-dialog";
 import { openVacuumMapEditor as openVacuumMapEditor2 } from "../../../vacuum/vacuum-map-editor";
 import { purifierState as purifierState2 } from "../../../purifier/purifier-state";
+import { lightState as lightState2 } from "../../../light/light-state";
 import { deviceMistState as deviceMistState2, isDeviceMistSource as isDeviceMistSource2 } from "../../../environment/device-mist";
 import { rangehoodState as rangehoodState2 } from "../../../environment/rangehood-state";
 import { vacuumMapIdentity as vacuumMapIdentity2 } from "../../../vacuum/vacuum-map";
@@ -1024,7 +1025,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 editorHost.createElement(
                   "p",
                   "i3d-note",
-                  "当前绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换当前绑定。",
+                  "当前绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换旧绑定。",
                 ),
               );
             }
@@ -1048,10 +1049,16 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             ),
             !editorHost.isGenericDeviceMode &&
               !editorHost.isVacuumMode &&
-              !editorHost.isNasMode &&
+              // NAS 只在「旧版绑定」场景保留这一行：有 entityId 但还没选数据来源时，
+              // 用户要能在这里改绑或清除那个旧指示灯实体（0.7.9 同口径）。
+              (!editorHost.isNasMode || (!!vector.entityId && !vector.statusSource)) &&
               createSettingRow(
                 currentContainer,
-                bindingContainer ? "主实体（选填）" : "绑定实体",
+                editorHost.isNasMode
+                  ? "指示灯状态实体（旧版兼容）"
+                  : bindingContainer
+                    ? "主实体（选填）"
+                    : "绑定实体",
                 boundEntityPickerButton,
               ),
             bindingContainer)
@@ -1087,6 +1094,93 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                         : "有标准主实体时可直接选择；没有主实体时，绑定设备并在附加功能中 DIY 暖风、换气和照明等控制。两者同时选择时须属于同一设备。主实体开关只控制主实体。",
                 ),
               ));
+          }
+          // 光效色温兜底（0.7.9 F4）：只有灯具/开关需要。设备能调色温时跟随设备；
+          // 不能调色温（或 switch 实体）时给「默认暖白 / 跟随户型」二选一，仅影响 3D 光效。
+          if (
+            !editorHost.usesModelBinding &&
+            !editorHost.isNasMode &&
+            !editorHost.isVacuumMode &&
+            !isFanMode &&
+            !isWaterHeaterMode &&
+            !isPurifierMode
+          ) {
+            const temperatureFallbackContainer = editorHost.createElement("div");
+            currentContainer.append(temperatureFallbackContainer);
+            const resolveLightCapabilityState = () => {
+                const boundLightEntityId = vector.entityId || "",
+                  lightStateStore = editorHost.latestStates || editorHost.states,
+                  boundLightState =
+                    lightStateStore?.get?.(boundLightEntityId) ??
+                    lightStateStore?.[boundLightEntityId],
+                  boundCatalogEntry =
+                    editorHost.entities.find(
+                      (catalogEntity: any) => catalogEntity.entityId === boundLightEntityId,
+                    ) || { entityId: boundLightEntityId };
+                return lightState2(boundLightEntityId, boundLightState, boundCatalogEntry);
+              };
+            let renderedTemperatureState: string | undefined;
+            const syncTemperatureFallback = () => {
+              const boundLightEntityId = vector.entityId || "",
+                capabilityState = resolveLightCapabilityState(),
+                temperatureState = boundLightEntityId
+                  ? boundLightEntityId.startsWith("switch.")
+                    ? "fallback"
+                    : !boundLightEntityId.startsWith("light.") || !capabilityState.capabilitiesKnown
+                      ? "unknown"
+                      : capabilityState.temperatureSupported
+                        ? "device"
+                        : "fallback"
+                  : "unbound";
+              if (temperatureState === renderedTemperatureState) return;
+              (renderedTemperatureState = temperatureState),
+                temperatureFallbackContainer.replaceChildren();
+              if (temperatureState === "unbound") return;
+              if (temperatureState === "device") {
+                temperatureFallbackContainer.append(
+                  editorHost.createElement(
+                    "p",
+                    "i3d-note",
+                    "该灯支持调色温，光效跟随设备当前模式与回报。",
+                  ),
+                );
+                return;
+              }
+              if (temperatureState === "unknown") {
+                temperatureFallbackContainer.append(
+                  editorHost.createElement(
+                    "p",
+                    "i3d-note",
+                    "暂未确认该实体的色温能力，读取到能力后显示对应设置。",
+                  ),
+                );
+                return;
+              }
+              const temperatureFallbackRow = createSelectRow(
+                temperatureFallbackContainer,
+                "光效色温",
+                [
+                  ["default", "默认暖白（3500K）"],
+                  ["floorplan", "跟随户型灯具色温"],
+                ],
+                vector.temperatureFallback === "floorplan" ? "floorplan" : "default",
+                (nextTemperatureFallback: string) => {
+                  ((vector.temperatureFallback = nextTemperatureFallback), refreshEditorPreview());
+                },
+              );
+              const temperatureFallbackSelect = temperatureFallbackRow?.querySelector?.("select");
+              temperatureFallbackSelect &&
+                (temperatureFallbackSelect.disabled =
+                  editorHost.isDisposed || !editorHost.isAccessAllowed);
+              temperatureFallbackContainer.append(
+                editorHost.createElement(
+                  "p",
+                  "i3d-note",
+                  "该实体不支持调色温，此设置仅影响 3D 光效。跟随时使用各灯具在户型图中设置的色温；彩光和白光模式仍优先跟随设备颜色。",
+                ),
+              );
+            };
+            syncTemperatureFallback();
           }
           if (
             (editorHost.isSpeakerMode &&

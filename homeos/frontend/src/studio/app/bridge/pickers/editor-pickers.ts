@@ -105,6 +105,172 @@ function presenceDeviceProfiles(
     ),
   }));
 }
+/**
+ * 实体选择器的「标题 + 空态」文案表（0.7.9 口径）。
+ *
+ * 原先这一对文案是两条等长的嵌套三元链，增一个域就要在两处分别找插入点，
+ * 而且一处漏改就会出现「标题说浴霸、空态说灯光」的错配。这里按
+ * 「设备种类 → 文案」查表，最外层只保留固定顺序：显式标题 → 环境传感器 →
+ * 门/电量角色 → 设备种类 → 电源/影音/窗帘/空调角色 → 通用兜底。
+ */
+const ENTITY_PICKER_DEVICE_WORDING: Readonly<
+  Record<string, { title: string; emptyText: string }>
+> = Object.freeze({
+  weather: {
+    title: "绑定天气实体",
+    emptyText:
+      "没有匹配的天气实体，请检查搜索条件，并确认 Home Assistant 已接入并启用 weather 实体",
+  },
+  "security-alarm": {
+    title: "选择报警传感器",
+    emptyText: "没有匹配的实体，请检查搜索条件或 Home Assistant 的实体列表",
+  },
+  "bath-heater": {
+    title: "选择浴霸主实体（可不选）",
+    emptyText: "没有匹配的浴霸主实体（climate 或 fan），可返回直接绑定设备并选择附加功能",
+  },
+  "device-status": {
+    title: "选择状态实体",
+    emptyText: "没有符合条件的状态实体，请检查搜索条件及当前设备的实体列表",
+  },
+  airer: {
+    title: "选择晾衣架升降实体",
+    emptyText: "没有匹配的晾衣架升降实体，请检查 cover 实体及搜索条件",
+  },
+  "water-heater": {
+    title: "选择热水器实体",
+    emptyText: "没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备",
+  },
+  fan: {
+    title: "选择风扇主实体（可不选）",
+    // 风扇 / 净化器都允许「不选主实体，直接绑设备 + 选附加功能」。
+    emptyText: "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。",
+  },
+  purifier: {
+    title: "选择空气净化器实体",
+    emptyText: "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。",
+  },
+  camera: {
+    title: "选择摄像头实体",
+    emptyText: "没有匹配的摄像头实体，请先在 Home Assistant 接入设备",
+  },
+  presence: {
+    title: "选择人在传感器",
+    emptyText: "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备",
+  },
+  vacuum: {
+    title: "选择扫地机实体",
+    emptyText: "没有匹配的扫地机实体，请检查 vacuum 实体及搜索条件",
+  },
+  "vacuum-map": {
+    title: "选择扫地机地图",
+    emptyText: "没有匹配的扫地机地图实体，请检查 camera 或 image 实体及搜索条件",
+  },
+  "vacuum-room": {
+    title: "选择房间快捷指令",
+    emptyText: "没有匹配的快捷指令实体，请检查搜索条件或 Home Assistant 的实体列表",
+  },
+  nas: {
+    title: "选择 NAS 指示灯状态实体（旧版兼容）",
+    emptyText: "没有匹配的开关或二元传感器",
+  },
+});
+
+/**
+ * 同一分区内按用途挑实体的「角色」文案；顺序即优先级（与 0.7.9 一致）。
+ *
+ * `beforeDeviceKind` 的两个门锁角色必须排在设备种类**之前**：门锁分区的
+ * `deviceKind` 也是 `device-status`，排后面会让它拿到通用状态文案。
+ */
+const ENTITY_PICKER_ROLE_WORDING: ReadonlyArray<{
+  flag: string;
+  title: string;
+  emptyText: string;
+  beforeDeviceKind?: boolean;
+}> = Object.freeze([
+  {
+    flag: "isLockDoorEntity",
+    title: "选择门状态传感器",
+    emptyText: "没有匹配的门状态传感器，请检查设备的门/开合实体",
+    beforeDeviceKind: true,
+  },
+  {
+    flag: "isLockBatteryEntity",
+    title: "选择电量传感器",
+    emptyText: "没有匹配的电量传感器，请检查设备的 battery 实体",
+    beforeDeviceKind: true,
+  },
+  {
+    flag: "isComputerPowerEntity",
+    title: "选择电脑电源开关",
+    emptyText: "没有匹配的 switch 或 input_boolean 电源开关",
+  },
+  {
+    flag: "isSpeakerEntity",
+    title: "选择智能音响媒体实体",
+    emptyText: "没有匹配的 media_player 实体，请先在 Home Assistant 接入音响",
+  },
+  {
+    flag: "isTelevisionEntity",
+    title: "选择电视媒体实体（Apple TV）",
+    emptyText: "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV",
+  },
+  {
+    flag: "isTelevisionPowerEntity",
+    title: "选择电视电源状态",
+    emptyText: "没有匹配的电源状态实体",
+  },
+  {
+    flag: "isCoverEntity",
+    title: "选择窗帘实体",
+    emptyText: "没有匹配的窗帘",
+  },
+  {
+    flag: "isClimateEntity",
+    title: "选择空调实体",
+    emptyText: "没有匹配的空调",
+  },
+]);
+
+/**
+ * 解析实体选择器文案。`flags` 里的键就是调用点上那几个 `isXxxEntity` 判定，
+ * 值为 `true` 时命中对应角色分支。
+ */
+function entityPickerWording(options: {
+  deviceKind?: string;
+  environmentSensorKey?: string | null;
+  flags?: Record<string, boolean>;
+}): { title: string; emptyText: string } {
+  const environmentSensorKey = options.environmentSensorKey;
+  if (environmentSensorKey) {
+    const environmentSensorLabel = ENVIRONMENT_SENSORS.find(
+      (environmentSensor) => environmentSensor.key === environmentSensorKey,
+    )?.label;
+    if (environmentSensorLabel)
+      return {
+        title: "选择" + environmentSensorLabel + "实体",
+        emptyText:
+          "没有匹配的" +
+          environmentSensorLabel +
+          "传感器，请检查 Home Assistant 的实体类型或名称",
+      };
+  }
+  const flags = options.flags || {};
+  for (const roleWording of ENTITY_PICKER_ROLE_WORDING)
+    if (roleWording.beforeDeviceKind && flags[roleWording.flag])
+      return { title: roleWording.title, emptyText: roleWording.emptyText };
+  const deviceWording = ENTITY_PICKER_DEVICE_WORDING[options.deviceKind || ""];
+  if (deviceWording) return deviceWording;
+  for (const roleWording of ENTITY_PICKER_ROLE_WORDING)
+    if (!roleWording.beforeDeviceKind && flags[roleWording.flag])
+      return { title: roleWording.title, emptyText: roleWording.emptyText };
+  // 兜底：不再给「灯光或开关」这种只对单一分区成立的文案。
+  return {
+    title: "选择灯光实体",
+    emptyText: "没有符合条件的状态实体，请检查搜索条件及当前设备的实体列表",
+  };
+}
+
 export function createInteraction3dEditorPickers({
   openPicker: openPicker,
   fetchIcons: fetchIcons,
@@ -687,7 +853,7 @@ export function createInteraction3dEditorPickers({
               : resolvedDeviceKind === "water-heater"
                 ? "选择热水器按钮图标"
                 : resolvedDeviceKind === "fan"
-                  ? "选择电风扇按钮图标"
+                  ? "选择风扇按钮图标"
                   : resolvedDeviceKind === "purifier"
                     ? "选择空气净化器按钮图标"
                     : resolvedDeviceKind === "camera"
@@ -918,60 +1084,24 @@ export function createInteraction3dEditorPickers({
                 name: currentEntityId + "（当前不可选，可清除后重新绑定）",
               }
             : null);
+      // 标题与空态从同一份文案表取，避免两处各自维护导致错配。
+      const pickerWording = entityPickerWording({
+        deviceKind: entityDeviceKind,
+        environmentSensorKey,
+        flags: {
+          isLockDoorEntity,
+          isLockBatteryEntity,
+          isComputerPowerEntity,
+          isSpeakerEntity,
+          isTelevisionEntity,
+          isTelevisionPowerEntity,
+          isCoverEntity,
+          isClimateEntity,
+        },
+      });
       return openPicker!({
         kind: "entity",
-        title:
-          entityPickerTitle ||
-          (entityDeviceKind === "security-alarm"
-            ? "选择报警传感器"
-            : entityDeviceKind === "bath-heater"
-            ? "选择浴霸主实体（可不选）"
-            : environmentSensorKey
-              ? "选择" +
-                ENVIRONMENT_SENSORS.find(
-                  (environmentSensorTitleEntry) =>
-                    environmentSensorTitleEntry.key === environmentSensorKey,
-                )!.label +
-                "实体"
-              : isLockDoorEntity
-                ? "选择门状态传感器"
-                : isLockBatteryEntity
-                  ? "选择电量传感器"
-                  : entityDeviceKind === "device-status"
-                    ? "选择状态实体"
-                    : entityDeviceKind === "airer"
-                      ? "选择晾衣架升降实体"
-                      : entityDeviceKind === "water-heater"
-                        ? "选择热水器实体"
-                        : entityDeviceKind === "fan"
-                          ? "选择风扇主实体（可不选）"
-                          : entityDeviceKind === "purifier"
-                            ? "选择空气净化器实体"
-                            : entityDeviceKind === "camera"
-                              ? "选择摄像头实体"
-                              : entityDeviceKind === "presence"
-                                ? "选择人在传感器"
-                                : entityDeviceKind === "vacuum"
-                                  ? "选择扫地机实体"
-                                  : entityDeviceKind === "vacuum-map"
-                                    ? "选择扫地机地图"
-                                    : entityDeviceKind === "vacuum-room"
-                                      ? "选择房间快捷指令"
-                                      : isComputerPowerEntity
-                                        ? "选择电脑电源开关"
-                                        : isSpeakerEntity
-                                        ? "选择智能音响媒体实体"
-                                        : isTelevisionEntity
-                                          ? "选择电视媒体实体（Apple TV）"
-                                          : isTelevisionPowerEntity
-                                            ? "选择电视电源状态"
-                                            : entityDeviceKind === "nas"
-                                              ? "选择 NAS 指示灯状态实体（仅指示灯）"
-                                              : isCoverEntity
-                                              ? "选择窗帘实体"
-                                              : isClimateEntity
-                                                ? "选择空调实体"
-                                                : "选择灯光实体"),
+        title: entityPickerTitle || pickerWording.title,
         searchPlaceholder: "搜索实体名称或 ID",
         triggerButton: entityTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
@@ -982,48 +1112,7 @@ export function createInteraction3dEditorPickers({
           null,
         ),
         selectedText: currentEntityId || "不使用实体",
-        emptyText: entityDeviceKind === "security-alarm"
-          ? "没有匹配的实体，请检查搜索条件或 Home Assistant 的实体列表"
-          : entityDeviceKind === "weather"
-            ? // 天气选择器需要专属空态：沿用灯光/开关的文案会答非所问。
-              "没有匹配的天气（weather）实体，请先在 Home Assistant 接入天气服务"
-            : environmentSensorKey
-              ? "没有匹配的" +
-                ENVIRONMENT_SENSORS.find(
-                  (environmentSensorHintEntry) =>
-                    environmentSensorHintEntry.key === environmentSensorKey,
-                )!.label +
-                "传感器，请检查 Home Assistant 的实体类型或名称"
-              : isLockDoorEntity
-                ? "没有匹配的门状态传感器，请检查设备的门/开合实体"
-                : isLockBatteryEntity
-                  ? "没有匹配的电量传感器，请检查设备的 battery 实体"
-                  : entityDeviceKind === "water-heater"
-                    ? "没有匹配的热水器（water_heater）实体，请先在 Home Assistant 接入设备"
-                    : ["fan", "purifier"].includes(entityDeviceKind)
-                      ? // dist 的原话：风扇 / 净化器允许「不选主实体，直接绑设备 + 选附加功能」。
-                        "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。"
-                      : entityDeviceKind === "camera"
-                        ? "没有匹配的摄像头实体，请先在 Home Assistant 接入设备"
-                        : entityDeviceKind === "presence"
-                          ? "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备"
-                          : entityDeviceKind.startsWith("vacuum")
-                            ? "没有匹配的实体，请先在 Home Assistant 中接入"
-                            : isComputerPowerEntity
-                              ? "没有匹配的 switch 或 input_boolean 电源开关"
-                              : isSpeakerEntity
-                              ? "没有匹配的 media_player 实体，请先在 Home Assistant 接入音响"
-                              : isTelevisionEntity
-                                ? "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV"
-                                : isTelevisionPowerEntity
-                                  ? "没有匹配的电源状态实体"
-                                  : entityDeviceKind === "nas"
-                                    ? "没有匹配的开关或二元传感器"
-                                    : isCoverEntity
-                                      ? "没有匹配的窗帘"
-                                      : isClimateEntity
-                                        ? "没有匹配的空调"
-                                        : "没有匹配的灯光或开关",
+        emptyText: pickerWording.emptyText,
         itemClass: "entity-list",
         getPage: ({ query: entityQuery, page: entityPage }: any) =>
           editorEntityPickerPage(filterEntities(entityQuery), entityPage, null),

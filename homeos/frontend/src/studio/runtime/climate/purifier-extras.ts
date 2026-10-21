@@ -7,6 +7,7 @@ import {
   stringOptions,
 } from "../device/entity-capabilities";
 import { domElement } from "@app/shared/util/dom-factory";
+import { formatEntityNumber } from "@app/shared/util/ha-number";
 import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 import {
   createNativeExtraPanel,
@@ -24,7 +25,7 @@ function entityUsable(entityId: any, state: any) {
     (state.state !== "unknown" || /^(button|input_button|scene)\./.test(entityId))
   );
 }
-function extraStateLabel(entityId: any, state: any) {
+function extraStateLabel(entityId: any, state: any, displayPrecision: number | null = null) {
   const liveState = state?.newState || state;
   return liveState?.state === "unknown" && !/^(button|input_button|scene)\./.test(entityId)
     ? "状态未知"
@@ -51,7 +52,9 @@ function extraStateLabel(entityId: any, state: any) {
             : ({
                 on: "已开启",
                 off: "已关闭",
-              } as any)[liveState.state] || liveState.state
+              } as any)[liveState.state] ||
+              // 兜底交给精度格式化：传感器数值按 HA 精度显示，非数值原样返回。
+              formatEntityNumber(entityId, liveState, displayPrecision)
       : "不可用";
 }
 export function extraTypes(rawEntityId: any) {
@@ -220,7 +223,13 @@ function extraRangeCommand(item: any, commandState: any, key: any, rawValue: any
 /** 命令 data 按控件类型择一携带 option/value，运行时动态挂载，故字段全部可选。 */
 type PurifierCommandData = { option?: any; value?: any };
 /** 面板视图模型由调用方 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
-type PurifierExtrasViewModel = { item?: any; editing?: any; states?: any };
+type PurifierExtrasViewModel = {
+  item?: any;
+  editing?: any;
+  states?: any;
+  /** 实体 → HA 显示精度（`number-formats` 通道）。 */
+  numberFormats?: Record<string, number>;
+};
 /** 卡片运行时状态袋：除建卡时的固定字段外，卡片在渲染/交互过程中还会挂上description/submit/menu/choices/confirm/ranges 等成员，故按实际访问到的键显式列出并全部可选。 */
 type PurifierCard = {
   item?: any;
@@ -328,6 +337,22 @@ function moveExtra(controlList: any, movedEntityId: any, targetPositionEntityId:
   const [moved] = currentLayout.splice(fromIndex, 1);
   return (currentLayout.splice(toIndex, 0, moved), currentLayout);
 }
+const purifierResizeLiveRegions = new WeakMap<Document, HTMLElement>();
+/**
+ * 每个 document 一个隐藏 live region，用于播报「已到最大宽度 / 已到内容最小高度」等拖拽缩放边界。
+ * 复用一个节点可避免每次重建面板都往 `body` 里塞新的 `<p>`。
+ */
+function purifierResizeLiveRegion(doc: Document): HTMLElement {
+  const existing = purifierResizeLiveRegions.get(doc);
+  if (existing?.isConnected) return existing;
+  const liveElement = doc.createElement("p");
+  ((liveElement.className = "i3d-extra-resize-live"),
+    liveElement.setAttribute("aria-live", "polite"),
+    liveElement.setAttribute("aria-atomic", "true"));
+  (doc.body || doc.documentElement).append(liveElement);
+  purifierResizeLiveRegions.set(doc, liveElement);
+  return liveElement;
+}
 export function createPurifierExtras({
   element: hostElement,
   onControl: onControl,
@@ -335,11 +360,15 @@ export function createPurifierExtras({
   onLayout = (..._args: any[]) => {},
 }: any) {
   const doc = hostElement.ownerDocument || globalThis.document;
+  // 拖拽缩放的边界播报（0.7.9 `purifier-extras.js` 的隐藏 live region）：
+  // 视觉提示由 ghost 承担，屏幕阅读器需要独立节点，且不能污染 `i3d-climate-error` 的报错。
+  const resizeLiveElement = purifierResizeLiveRegion(doc);
   let viewModel: PurifierExtrasViewModel = {},
     layoutSignature = "",
     cards: any = [],
     generation = 0,
     dragState: any = null,
+    resizeLiveTimer: any = null,
     selectedEntityId: any = null;
   const createEl = (tag: any, text = "") => domElement(doc, tag, "", text);
   let openSelect: any = null,
@@ -590,10 +619,24 @@ export function createPurifierExtras({
         ));
     });
   }
+  /** 屏幕阅读器播报：拖拽缩放走到边界（与键盘缩放同一套文案）。 */
+  function clearResizeLive() {
+    (clearTimeout(resizeLiveTimer),
+      (resizeLiveTimer = null),
+      (resizeLiveElement.textContent = ""));
+  }
+  function announceResizeLimit(message: string) {
+    (clearTimeout(resizeLiveTimer),
+      (resizeLiveTimer = null),
+      resizeLiveElement.textContent !== message && (resizeLiveElement.textContent = message),
+      (resizeLiveTimer = setTimeout(clearResizeLive, 2000)),
+      resizeLiveTimer?.unref?.());
+  }
   function finishDrag(cancelled = false) {
     if (!dragState) return;
     const drag = dragState;
-    ((dragState = null),
+    (drag.resize && clearResizeLive(),
+      (dragState = null),
       clearTimeout(drag.timer),
       drag.ghost?.remove?.(),
       drag.section.classList.toggle("is-dragging", false),
@@ -760,6 +803,32 @@ export function createPurifierExtras({
             (gesture.ghost.style.width =
               ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[snappedItem.columns]) / 6 - 8 + "px"),
             (gesture.ghost.style.height = 44 * snappedItem.rows - 8 + "px"));
+          // 0.7.9 的拖拽缩放边界播报：宽度/高度贴边时把命中项合并成一条播报。
+          const columnWidth = (columns: any) =>
+              ((gesture.grid.width + 8) * (COLUMN_SPAN as any)[columns]) / 6 - 8,
+            minimumItem = fitLayout(dragRecord, {
+              ...dragItem,
+              columns: COLUMN_ORDER[0],
+              rows: 1,
+            }),
+            currentWidth = columnWidth(snappedItem.columns),
+            currentHeight = gesture.metrics.height + deltaY / dragScaleY,
+            maximumHeight = 44 * measureRows(dragRecord, 2) - 8,
+            minimumHeight = 44 * measureRows(dragRecord, 1) - 8,
+            hitLimits: string[] = [];
+          (currentWidth > gesture.grid.width + 6 && hitLimits.push("已到最大宽度"),
+            currentWidth < columnWidth(minimumItem.columns) - 6 &&
+              hitLimits.push(
+                snappedItem.columns !== dragItem.columns ? "已到内容最小宽度" : "已到最小宽度",
+              ),
+            currentHeight > maximumHeight + 6 && hitLimits.push("已到最大高度"),
+            currentHeight < minimumHeight - 6 &&
+              hitLimits.push(minimumHeight > 36 ? "已到内容最小高度" : "已到最小高度"),
+            hitLimits.length
+              ? announceResizeLimit(
+                  (dragRecord?.title?.textContent || "") + "：" + hitLimits.join("，"),
+                )
+              : clearResizeLive());
         } else {
           const scrollDeltaY =
               ((gesture.scroller?.scrollTop || 0) - gesture.scrollTop) * dragScaleY,
@@ -822,7 +891,11 @@ export function createPurifierExtras({
         (row.title.title = row.title.textContent),
         (row.status.textContent = available
           ? "" +
-            extraStateLabel(row.item.entityId, entityState) +
+            extraStateLabel(
+              row.item.entityId,
+              entityState,
+              (viewModel.numberFormats || {})[row.item.entityId],
+            ) +
             (stateAttributes.unit_of_measurement ? " " + stateAttributes.unit_of_measurement : "")
           : "不可用"),
         (row.status.hidden =
@@ -841,6 +914,7 @@ export function createPurifierExtras({
             state: entityState,
             states: viewModel.states || {},
             editing: !!viewModel.editing,
+            numberFormats: viewModel.numberFormats || {},
           }),
           syncCardMetrics(row)),
         row.native ||
@@ -1087,19 +1161,11 @@ export function createPurifierExtras({
                           ? "已到最大高度"
                           : "";
               emitResize(fittedNext.columns, requestedRows);
-              resizeRecord.resizeHintTimer !== null &&
-                clearTimeout(resizeRecord.resizeHintTimer);
-              if (limitMessage) {
-                resizeRecord.error.textContent =
-                  (resizeRecord.title.textContent || "") + "：" + limitMessage;
-                resizeRecord.resizeHintTimer = setTimeout(() => {
-                  ((resizeRecord.resizeHintTimer = null),
-                    resizeRecord.error.textContent ===
-                      (resizeRecord.title.textContent || "") + "：" + limitMessage &&
-                      (resizeRecord.error.textContent = ""));
-                }, 2000);
-                resizeRecord.resizeHintTimer?.unref?.();
-              } else resizeRecord.error.textContent = "";
+              limitMessage
+                ? announceResizeLimit(
+                    (resizeRecord.title.textContent || "") + "：" + limitMessage,
+                  )
+                : clearResizeLive();
             }),
             cardSection.append(dragHandle, resizeHandle),
             cardSection.classList.add("is-layout-editing"));

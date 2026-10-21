@@ -20,6 +20,17 @@ import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet }
 import { normalizePlanLabelColor } from "../authoring/scene/studio-scene-payload";
 
 /**
+ * 管线机的两种模型类型共用同一套平面符号（机身轮廓 + 出水口）。
+ *
+ * 物品类型仍是 `pipelinewaterpurifier`，款式只换模型；这里把变体一并收进来，
+ * 是为了让「按模型类型分派」的调用路径也不会退化成通用矩形。
+ */
+const PIPELINE_DISPENSER_PLAN_TYPES: ReadonlySet<string> = new Set([
+  "pipelinewaterpurifier",
+  "rectangular-pipeline-dispenser",
+]);
+
+/**
  * 平面图物品绘制需要的外部句柄（**全部只读**：实测在切片区间内无一处重新赋值，
  * 且区间内没有 `await`，所以整段绘制是同步的 —— 快照解构与闭包捕获等价）。
  *
@@ -1372,7 +1383,9 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
                                                 ),
                                                 planCanvasRenderer.stroke());
                                             else {
-                                              if (planItem.type === "pipelinewaterpurifier") {
+                                              if (
+                                                PIPELINE_DISPENSER_PLAN_TYPES.has(planItem.type)
+                                              ) {
                                                 (planCanvasRenderer.beginPath(),
                                                   planCanvasRenderer.roundRect(
                                                     -itemPixelWidth * 0.46,
@@ -1706,7 +1719,7 @@ export function drawCourtyardArea(deps: StudioPlanItemDrawingDeps, planItem: any
                       planCanvasRenderer.lineTo(itemPixelWidth * 0.3, itemPixelDepth * 0.36),
                       planCanvasRenderer.stroke());
                   else {
-                    if (planItem.type === "pipelinewaterpurifier")
+                    if (PIPELINE_DISPENSER_PLAN_TYPES.has(planItem.type))
                       (planCanvasRenderer.beginPath(),
                         planCanvasRenderer.moveTo(-itemPixelWidth * 0.3, itemPixelDepth * 0.34),
                         planCanvasRenderer.lineTo(itemPixelWidth * 0.3, itemPixelDepth * 0.34),

@@ -65,10 +65,13 @@ LIGHT_FIELDS = frozenset(
         'fadeDuration',
         'effectDefaults',
         'hiddenClickable',
+        'temperatureFallback',
     }
 )
 #: 灯光卡片必须以文本出现的字段。
 LIGHT_TEXT_FIELDS = ('id', 'floorId', 'groupId', 'entityId', 'label')
+#: 光效色温兜底：``default`` 默认暖白 3500K，``floorplan`` 跟随户型灯具色温。
+LIGHT_TEMPERATURE_FALLBACKS = frozenset({'default', 'floorplan'})
 #: 灯光卡片数值字段：出现即必须在区间内。
 LIGHT_NUMBER_BOUNDS: tuple[tuple[str, float, float], ...] = (('fadeDuration', 0, 10),)
 #: 灯光卡片「出现即必须为正数」的字段（尺寸另判：必须存在）。
@@ -144,6 +147,8 @@ class LightsSectionValidator:
         effect_range = light.get('effectRange')
         if effect_range is not None:
             self._validate_effect_range(effect_range)
+        if 'temperatureFallback' in light and light['temperatureFallback'] not in LIGHT_TEMPERATURE_FALLBACKS:
+            ctx.fail()
         ctx.validate_camera(light.get('focusCamera'))
 
     def _validate_effect_range(self, effect_range: Any) -> None:

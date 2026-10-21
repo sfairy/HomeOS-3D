@@ -2386,3 +2386,89 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   text-align: left;
   padding: 10px 14px;
 }
+
+/* 指示灯条件编辑（0.7.9 F3.3）：状态匹配 / 数值比较两套字段与数值摘要。
+   数值摘要放在规则行末尾，`grid-column: 1/-1` 让它横跨实体选择、条件、删除三列。 */
+.i3d-status-rule-summary {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted, #89949d);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.i3d-indicator-dialog {
+  width: min(500px, calc(100vw - 24px));
+}
+.i3d-indicator-dialog .i3d-add-dialog-body {
+  gap: 12px;
+  padding: 18px 20px;
+}
+.i3d-indicator-dialog .i3d-indicator-current {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--i3d-surface-raised, #ffffff08);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.i3d-indicator-fields {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.i3d-indicator-fields > label {
+  gap: 6px;
+  margin: 0;
+}
+.i3d-indicator-fields[hidden] {
+  display: none;
+}
+.i3d-indicator-fields .i3d-note {
+  margin: 0;
+  line-height: 1.6;
+}
+.i3d-indicator-fields textarea {
+  width: 100%;
+  height: 54px;
+  min-height: 54px;
+  max-height: 180px;
+  padding: 8px 10px;
+  resize: vertical;
+  overflow: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--line, #37414a);
+  border-radius: 6px;
+  background: var(--field, #171d22);
+  color: var(--text, #e8ecef);
+  font: inherit;
+  line-height: 18px;
+  transition: border-color 0.15s;
+}
+.i3d-indicator-fields textarea:hover {
+  border-color: var(--muted, #89949d);
+}
+.i3d-indicator-fields textarea:focus-visible {
+  outline: 2px solid var(--hos-color-accent);
+  outline-offset: 2px;
+  border-color: var(--hos-color-accent);
+}
+.i3d-indicator-comparison {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.i3d-indicator-comparison select {
+  flex: 1 1 145px;
+  min-width: 0;
+}
+.i3d-indicator-comparison input {
+  flex: 1 1 110px;
+  width: 110px;
+  min-width: 0;
+}
+.i3d-indicator-unit {
+  color: var(--muted, #9da8b1);
+}

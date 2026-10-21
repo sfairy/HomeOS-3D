@@ -112,27 +112,184 @@ export function defaultDeviceStatusRule(entityRule: any, currentState: any, rule
     ruleKind === "health" ? statusChoices.reminderValue : statusChoices.options[0].value;
   return {
     entityId: entityRule.entityId,
-    active: [activeValue],
-    inactive: [
-      statusChoices.options.find((choiceOption) => choiceOption.value !== activeValue)!.value,
-    ],
+    active: activeValue,
+    inactive: statusChoices.options.find((choiceOption) => choiceOption.value !== activeValue)!
+      .value,
   };
 }
-export function deviceStatus(device: any, entityStates: Record<string, any> = {}) {
+
+/** 数值比较运算符 → 中文标签。顺序与 0.7.9 的下拉一致，便于逐项比对。 */
+export const NUMERIC_OPERATORS = Object.freeze({
+  gt: "大于 >",
+  gte: "大于等于 ≥",
+  lt: "小于 <",
+  lte: "小于等于 ≤",
+  eq: "等于 =",
+  ne: "不等于 ≠",
+});
+
+/**
+ * 反向比较：`gt↔lte`、`gte↔lt`、`eq↔ne`。
+ *
+ * 注意 `gt 30` 的反向是 `lte 30` 而不是 `lt 30`：两者合起来才对实数轴做无缝划分，
+ * 所以「单阈值对称规则」放行的正是 `gt/lte`、`gte/lt`、`eq/ne` 这三种搭档。
+ */
+export const INVERSE_OPERATOR: Record<string, string> = Object.freeze({
+  gt: "lte",
+  gte: "lt",
+  lt: "gte",
+  lte: "gt",
+  eq: "ne",
+  ne: "eq",
+});
+
+/** 数值直取：数字须有限；字符串须是纯十进制（可带指数），不允许单位或比较符。 */
+export function indicatorNumber(value: unknown): number | null {
+  if (typeof value == "number") return Number.isFinite(value) ? value : null;
+  if (
+    typeof value != "string" ||
+    !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())
+  )
+    return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** 与后端 `validate_device_status_rules` 同口径的前端预检，返回错误文案（合法时为空串）。 */
+export function numericIndicatorRuleError(rule: any) {
+  for (const condition of [rule?.active, rule?.inactive])
+    if (
+      !condition ||
+      !Object.hasOwn(NUMERIC_OPERATORS, condition.operator) ||
+      typeof condition.value != "number" ||
+      !Number.isFinite(condition.value)
+    )
+      return "请填写有效的比较条件和数值。";
+  const activeCondition = rule.active,
+    inactiveCondition = rule.inactive;
+  if (
+    inactiveCondition.operator === INVERSE_OPERATOR[activeCondition.operator] &&
+    activeCondition.value === inactiveCondition.value
+  )
+    return "";
+  const highCondition = ["gt", "gte"].includes(activeCondition.operator)
+      ? activeCondition
+      : ["gt", "gte"].includes(inactiveCondition.operator)
+        ? inactiveCondition
+        : null,
+    lowCondition = ["lt", "lte"].includes(activeCondition.operator)
+      ? activeCondition
+      : ["lt", "lte"].includes(inactiveCondition.operator)
+        ? inactiveCondition
+        : null;
+  return !highCondition ||
+    !lowCondition ||
+    lowCondition.value > highCondition.value ||
+    (lowCondition.value === highCondition.value &&
+      highCondition.operator === "gte" &&
+      lowCondition.operator === "lte")
+    ? "两组条件不能重叠；独立恢复条件需使用方向相反的大小比较，并留出恢复区间。"
+    : "";
+}
+
+const toList = (value: any) => (Array.isArray(value) ? value : [value]);
+
+const healthRulesOf = (statusRules: any): any[] =>
+  Array.isArray(statusRules?.health)
+    ? statusRules.health
+    : statusRules?.health
+      ? [statusRules.health]
+      : [];
+
+const compareIndicatorNumber = (value: number, condition: any) => {
+  switch (condition.operator) {
+    case "gt":
+      return value > condition.value;
+    case "gte":
+      return value >= condition.value;
+    case "lt":
+      return value < condition.value;
+    case "lte":
+      return value <= condition.value;
+    case "eq":
+      return value === condition.value;
+    case "ne":
+      return value !== condition.value;
+    default:
+      return false;
+  }
+};
+
+/**
+ * 指示灯读取器：为每台设备维护一份规则快照 + 迟滞记忆。
+ *
+ * 记忆按设备隔离（不是按实体），键为 `power` / `health:<i>`；规则或机型签名变化时整份重建，
+ * 避免「改完阈值仍沿用旧记忆」。设备数组刷新时用 {@link DeviceStatusReader.retain} 剪枝，
+ * 实体被删除时用 {@link DeviceStatusReader.forgetEntities} 只清相关记忆。
+ */
+export type DeviceStatusReader = {
+  (device: any, entityStates?: Record<string, any> | Map<string, any>): any;
+  retain(devices: any[]): void;
+  clear(): void;
+  forgetEntities(entityIds: string[]): void;
+};
+
+export function createDeviceStatusReader(): DeviceStatusReader {
+  const registry = new Map<string, { signature: string; rules: any; memory: Map<string, any> }>(),
+    deviceKey = (device: any) =>
+      JSON.stringify([
+        device?.floorId,
+        device?.modelId,
+        device?.statusBindingId ?? device?.id,
+      ]),
+    ruleSignature = (device: any) =>
+      JSON.stringify([device?.deviceId, device?.entityId, device?.statusRules]),
+    ensureEntry = (device: any) => {
+      const key = deviceKey(device),
+        signature = ruleSignature(device);
+      let entry = registry.get(key);
+      if (!entry || entry.signature !== signature) {
+        entry = { signature, rules: device?.statusRules, memory: new Map() };
+        registry.set(key, entry);
+      }
+      return entry;
+    },
+    read = ((device: any, entityStates: any = {}) =>
+      deviceStatus(device, entityStates, ensureEntry(device).memory)) as DeviceStatusReader;
+  read.retain = (devices) => {
+    const signatures = new Map(devices.map((device) => [deviceKey(device), ruleSignature(device)]));
+    for (const [key, entry] of registry)
+      if (signatures.get(key) !== entry.signature) registry.delete(key);
+  };
+  read.clear = () => registry.clear();
+  read.forgetEntities = (entityIds) => {
+    const targets = new Set(entityIds);
+    for (const entry of registry.values()) {
+      if (targets.has(entry.rules?.power?.entityId)) entry.memory.delete("power");
+      healthRulesOf(entry.rules).forEach((rule: any, ruleIndex: number) => {
+        if (targets.has(rule?.entityId)) entry.memory.delete("health:" + ruleIndex);
+      });
+    }
+  };
+  return read;
+}
+
+export function deviceStatus(
+  device: any,
+  entityStates: Record<string, any> | Map<string, any> = {},
+  memory?: Map<string, any>,
+) {
   const statusRules = device?.statusRules,
-    healthRules = Array.isArray(statusRules?.health)
-      ? statusRules.health
-      : statusRules?.health
-        ? [statusRules.health]
-        : [];
+    healthRules = healthRulesOf(statusRules);
   if (!statusRules?.power?.entityId && !healthRules.some((healthRule: any) => healthRule?.entityId))
     return {
       visible: false,
-      available: true,
+      // 0.7.9 在「没有配置任何指示灯规则」时同样标记为不可用（而不是可用但不可见）。
+      available: false,
       on: false,
       status: "none",
     };
-  const resolveRuleStatus = (statusRule: any) => {
+  const resolveRuleStatus = (statusRule: any, memoryKey: string) => {
       if (!statusRule?.entityId) return null;
       const stateEntry =
           entityStates instanceof Map
@@ -140,18 +297,34 @@ export function deviceStatus(device: any, entityStates: Record<string, any> = {}
             : (entityStates as any)[statusRule.entityId],
         entityState = stateEntry?.newState || stateEntry,
         stateValue = String(entityState?.state ?? "");
-      return !entityState ||
+      const forgetMemory = () => (memory?.delete(memoryKey), "unknown");
+      if (
+        !entityState ||
         entityState.available === false ||
         ["", "unknown", "unavailable"].includes(stateValue)
-        ? "unknown"
-        : toList(statusRule.active).includes(stateValue)
+      )
+        return forgetMemory();
+      if (statusRule.kind === "numeric") {
+        const numericValue = indicatorNumber(entityState.state);
+        if (numericValue === null || numericIndicatorRuleError(statusRule)) return forgetMemory();
+        const ruleStatus = compareIndicatorNumber(numericValue, statusRule.active)
           ? "active"
-          : toList(statusRule.inactive).includes(stateValue)
+          : compareIndicatorNumber(numericValue, statusRule.inactive)
             ? "inactive"
-            : "unknown";
+            : (memory?.get(memoryKey) ?? "unknown");
+        if (ruleStatus !== "unknown") memory?.set(memoryKey, ruleStatus);
+        return ruleStatus;
+      }
+      return toList(statusRule.active).includes(stateValue)
+        ? "active"
+        : toList(statusRule.inactive).includes(stateValue)
+          ? "inactive"
+          : "unknown";
     },
-    healthRuleStatuses = healthRules.map(resolveRuleStatus),
-    powerRuleStatus = resolveRuleStatus(statusRules.power),
+    healthRuleStatuses = healthRules.map((healthRule: any, healthIndex: number) =>
+      resolveRuleStatus(healthRule, "health:" + healthIndex),
+    ),
+    powerRuleStatus = resolveRuleStatus(statusRules.power, "power"),
     overallStatus = healthRuleStatuses.includes("active")
       ? "warning"
       : healthRuleStatuses.includes("unknown") || powerRuleStatus === "unknown"
@@ -173,9 +346,7 @@ export function deviceStatus(device: any, entityStates: Record<string, any> = {}
   };
 }
 export function deviceEntityIds(device: any) {
-  const healthRules = Array.isArray(device?.statusRules?.health)
-    ? device.statusRules.health
-    : [device?.statusRules?.health];
+  const healthRules = healthRulesOf(device?.statusRules);
   return [
     ...new Set(
       [
@@ -186,8 +357,6 @@ export function deviceEntityIds(device: any) {
     ),
   ];
 }
-
-const toList = (value: any) => (Array.isArray(value) ? value : [value]);
 
 /** 状态指示可选项：优先按实体自身能力，其次按域内置状态表（门锁/扫地机/空调模式等）。 */
 export function deviceIndicatorChoices(entityDescriptor: EntityDescriptor = {}, stateUpdate: any) {
@@ -276,6 +445,7 @@ export function deviceIndicatorChoices(entityDescriptor: EntityDescriptor = {}, 
           !["unknown", "unavailable"].includes(value),
       )
       .map((value) => ({ value, label: labels[value] || value }));
-  return options.length ? { options } : null;
+  // 0.7.9 在这里不额外判空：即便过滤后为空也返回 `{options: []}`。
+  return { options };
 }
 

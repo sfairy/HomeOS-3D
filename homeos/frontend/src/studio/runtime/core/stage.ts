@@ -67,7 +67,7 @@ import {
 import { createTelevisionPanel as createTelevisionPanel2 } from "../television/television-panel";
 import { createTelevisionScreens as createTelevisionScreens2 } from "../television/television-screen";
 import { createDevicePanel as createDevicePanel2 } from "../device/device-panel";
-import { deviceStatus as deviceStatus2 } from "../device/device-status";
+import { createDeviceStatusReader } from "../device/device-status";
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
@@ -1219,7 +1219,37 @@ export function mountStage(mountOptions: any) {
     return rebuildCurtainMotionCore(stageCurtainMotionDeps());
   }
   mountOptions.setCurtainSync?.(rebuildCurtainMotion);
-  const nasStatus = createNasStatus2({
+  // 舞台内的状态指示灯自己算迟滞：reader 持有 memory，数值落在恢复区间时保持上一次状态。
+  // 渲染路径始终读 `states`；`status-history-states` 只用历史快照**预热迟滞记忆**
+  // （0.7.9 的 `_0x71f4b0` 分支：仅调用 reader，不参与渲染），也不触发重算。
+  const deviceStatusHistoryStates: Record<string, any> = {},
+    deviceStatusReader = createDeviceStatusReader(),
+    readDeviceStatus = (device: any, entityStates: any = {}) =>
+      deviceStatusReader(device, entityStates || {}),
+    /** 历史快照覆盖的设备集合：通用设备各类集合 + 热水器（0.7.9 的 `_0x8733de`）。 */
+    indicatorHistoryDevices = () => [
+      ...GENERIC_DEVICE_KINDS2.flatMap(
+        (indicatorDeviceKind: any) =>
+          ctx.options.devices?.[genericDeviceProfile2(indicatorDeviceKind).collection] || [],
+      ),
+      ...(ctx.options.environment?.waterHeaters || []),
+    ],
+    /** 用历史快照推进 reader 的迟滞记忆；返回值无意义，纯副作用。 */
+    seedStatusHistory = () => {
+      for (const indicatorDevice of indicatorHistoryDevices())
+        deviceStatusReader(indicatorDevice, deviceStatusHistoryStates);
+    },
+    /**
+     * 让若干实体的**迟滞记忆**失效（0.7.9 同款：直接转给 reader，不重算、不动渲染结果）。
+     *
+     * 什么时候会调：订阅态被重置（重连 / 场景订阅变更 / 停用 / 连接失败）时，主线程会发
+     * `status-history-invalidated`。旧记忆已经和服务器对不上，留着会让数值指示灯
+     * 拿过期判断卡在「激活/恢复」某一侧；清掉后等下一帧真实状态重新判定。
+     */
+    invalidateStatusHistory = (invalidatedEntityIds: any) => {
+      deviceStatusReader.forgetEntities(invalidatedEntityIds);
+    },
+    nasStatus = createNasStatus2({
       THREE: three,
       requestFrame: () => {
         (mountOptions.requestRender?.(), wakeBackgroundAnimation());
@@ -1231,7 +1261,7 @@ export function mountStage(mountOptions: any) {
         createNasStatus2({
           THREE: three,
           modelType: genericDeviceProfile2(waterHeaterKindName).modelType,
-          readState: deviceStatus2,
+          readState: readDeviceStatus,
           requestFrame: () => {
             (mountOptions.requestRender?.(), wakeBackgroundAnimation());
           },
@@ -1244,7 +1274,7 @@ export function mountStage(mountOptions: any) {
         createNasStatus2({
           THREE: three,
           modelType: waterHeaterModelType,
-          readState: deviceStatus2,
+          readState: readDeviceStatus,
           requestFrame: () => {
             (mountOptions.requestRender?.(), wakeBackgroundAnimation());
           },
@@ -3564,7 +3594,7 @@ export function mountStage(mountOptions: any) {
         !(ctx.isEditing && !ctx.panelDisplayMode)),
       (viewHelpElement.textContent =
         ctx.panelDisplayMode === "edit"
-          ? "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后保存视角。"
+          ? "围绕当前设备旋转 · 右键拖动平移 · 滚轮缩放。调整完成后保存视角。"
           : ctx.isEditing && !ctx.isAwaitingFloorViewAdjust
             ? "拖动空白处旋转 · 右键平移 · 滚轮缩放。临时查看不改变已保存视角。"
             : "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后固定视角。"),
@@ -4275,6 +4305,21 @@ export function mountStage(mountOptions: any) {
     devicePanel,
     get deviceStates() { return ctx.deviceStates; },
     set deviceStates(value: any) { ctx.deviceStates = value; },
+    // HA 显示精度（`number-formats` 通道）；面板/温湿度标签按此格式化数值。
+    numberFormats: {} as Record<string, number>,
+    get statusHistoryStates() {
+      return deviceStatusHistoryStates;
+    },
+    set statusHistoryStates(value: any) {
+      for (const historyEntityId of Object.keys(deviceStatusHistoryStates))
+        delete deviceStatusHistoryStates[historyEntityId];
+      Object.assign(deviceStatusHistoryStates, value || {});
+    },
+    /** 用当前历史快照预热迟滞记忆（0.7.9 在收到历史消息后对每个指示灯设备调一次 reader）。 */
+    seedStatusHistory,
+    invalidateStatusHistory,
+    /** 带迟滞记忆的指示灯判定（舞台侧的 reader 实例）；面板直接复用，避免与 3D 标记口径不一致。 */
+    readDeviceStatus,
     deviceStatusElement,
     dreamTiltFeedback,
     get editingVacuumId() { return ctx.editingVacuumId; },

@@ -53,6 +53,14 @@ export const itemTypeCatalog = {
     height: 2.2,
     color: "#7d8799",
   },
+  "double-open-wardrobe": {
+    name: "双列开放衣柜",
+    glyph: "▤",
+    width: 1.18,
+    depth: 0.59,
+    height: 2.4,
+    color: "#7d8799",
+  },
   "office-chair": {
     name: "办公椅",
     glyph: "▤",
@@ -83,6 +91,14 @@ export const itemTypeCatalog = {
     width: 1.18,
     depth: 2.06,
     height: 1.845,
+    color: "#7d8799",
+  },
+  "loft-bed-circle": {
+    name: "圆孔高架床",
+    glyph: "▤",
+    width: 2.402,
+    depth: 1.8341,
+    height: 2.022,
     color: "#7d8799",
   },
   "pool-table": {
@@ -949,8 +965,8 @@ export const itemTypeCatalog = {
   coffeetable: {
     name: "组合茶几",
     glyph: "▭",
-    width: 1.9,
-    depth: 1.05,
+    width: 1.7,
+    depth: 1.25,
     height: 0.5,
     color: "#8d96aa",
   },
@@ -977,6 +993,22 @@ export const itemTypeCatalog = {
     depth: 0.42,
     height: 2.25,
     color: "#8e7764",
+  },
+  "entryway-niche-cabinet": {
+    name: "玄关到顶柜",
+    glyph: "▤",
+    width: 1.3,
+    depth: 0.68,
+    height: 2.6,
+    color: "#7d8799",
+  },
+  "arched-glass-console": {
+    name: "拱形玻璃玄关台",
+    glyph: "▤",
+    width: 0.78,
+    depth: 0.5957,
+    height: 2.402,
+    color: "#7d8799",
   },
   stairs: {
     name: "楼梯",
@@ -1925,6 +1957,11 @@ export const itemTypeCatalog = {
 squareEdgeItemTypeSet = new Set([
   "mural",
   "featurewall",
+  "rectangular-pipeline-dispenser",
+  "loft-bed-circle",
+  "entryway-niche-cabinet",
+  "arched-glass-console",
+  "double-open-wardrobe",
   "drawer-chest",
   "smart-socket-86",
   "wardrobe",
@@ -2041,6 +2078,11 @@ sofaMinDimensions = Object.freeze({
 });
 
 export const nextBatchItemTypeSet = new Set([
+  "rectangular-pipeline-dispenser",
+  "loft-bed-circle",
+  "entryway-niche-cabinet",
+  "arched-glass-console",
+  "double-open-wardrobe",
   "drawer-chest",
   "smart-socket-86",
   "router",

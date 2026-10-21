@@ -38,6 +38,14 @@ export const INDOOR_PLANT_MODEL_TYPES = Object.freeze([
 /** 床集合收纳的两种模型（0.7.8 `INDOOR_BED_MODEL_TYPES`）。 */
 export const INDOOR_BED_MODEL_TYPES = Object.freeze(["bed", "round-double-bed"]);
 
+/**
+ * 沙发集合收纳的三种模型（0.7.9 `INDOOR_SOFA_MODEL_TYPES`）。
+ *
+ * `sofa-l` 的贵妃位朝向由 `sofaChaiseSide`（`left` / `right`）决定，
+ * 该字段与朝向逻辑在 0.7.8 已存在，0.7.9 只是把沙发并入设备档案表。
+ */
+export const INDOOR_SOFA_MODEL_TYPES = Object.freeze(["sofa", "sofa-single", "sofa-l"]);
+
 /** 场景模型（车、绿植、床、电脑）：高度取自模型自身，不参与状态灯扫描。 */
 const SCENE_DEVICE_PROFILES: Record<string, DeviceProfile> = {
   smallcar: {
@@ -80,6 +88,20 @@ const SCENE_DEVICE_PROFILES: Record<string, DeviceProfile> = {
     height: 0.5,
     statusIndicator: false,
     screen: true,
+  },
+  sofa: {
+    collection: "sofas",
+    modelType: "sofa",
+    modelTypes: INDOOR_SOFA_MODEL_TYPES,
+    modelLabels: Object.freeze({
+      sofa: "沙发",
+      "sofa-single": "单人沙发",
+      "sofa-l": "L 型沙发",
+    }),
+    label: "沙发",
+    icon: "mdi:sofa-outline",
+    height: 0.82,
+    statusIndicator: false,
   },
 };
 
@@ -299,7 +321,7 @@ const OTHER_DEVICE_PROFILES: Record<string, DeviceProfile> = {
   },
 };
 
-/** 合并后的设备型号档案表（33 类，与 0.7.8 及后端 `DEVICE_PROFILES` 同口径）。 */
+/** 合并后的设备型号档案表（33 类，与后端 `DEVICE_PROFILES` 同口径；沙发为 0.7.9 新增）。 */
 export const DEVICE_PROFILE_TABLE: Readonly<Record<string, DeviceProfile>> = Object.freeze({
   ...SCENE_DEVICE_PROFILES,
   ...HOUSEHOLD_DEVICE_PROFILES,

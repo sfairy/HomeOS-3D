@@ -14,6 +14,8 @@ export type ExtraPanelViewModel = {
   states?: any;
   editing?: any;
   active?: boolean;
+  /** 实体 → HA 显示精度（`number-formats` 通道下发）；缺省时数值原样显示。 */
+  numberFormats?: Record<string, number>;
 };
 
 /** 面板反馈槽（`createPopupFeedback` 的实例）；面板只用到 attach。 */

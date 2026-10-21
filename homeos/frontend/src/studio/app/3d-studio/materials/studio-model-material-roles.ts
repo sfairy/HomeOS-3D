@@ -683,6 +683,13 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   "easel-board": "woodwork",
   "bicycle-rack": "fitness",
   dartboard: "fitness",
+
+  // 0.7.9 参考模型批：四件 home 家具 + 管线机变体（GLB 材质名直写构件名）。
+  "loft-bed-circle": "upholstery",
+  "entryway-niche-cabinet": "joinery",
+  "arched-glass-console": "joinery",
+  "double-open-wardrobe": "joinery",
+  "rectangular-pipeline-dispenser": "appliance",
 });
 
 /**

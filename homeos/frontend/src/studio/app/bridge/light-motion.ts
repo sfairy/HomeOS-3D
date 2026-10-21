@@ -91,7 +91,11 @@ export function mapLightEffectState(lightEntry: any) {
       (mappedState.brightness = clampNumber(lightEntry.effectDefaults.brightness, 0, 150)),
     lightEntry?.temperatureSupported === false &&
       Number.isFinite(lightEntry.effectDefaults?.kelvin) &&
-      (mappedState.kelvin = clampNumber(lightEntry.effectDefaults.kelvin, 1000, 20000)),
+      // 跟随户型灯具色温时给 null：调用方保留灯具自身在户型图里设置的色温。
+      (mappedState.kelvin =
+        lightEntry.temperatureFallback === "floorplan"
+          ? null
+          : clampNumber(lightEntry.effectDefaults.kelvin, 1000, 20000)),
     Number.isFinite(mappedState.brightness) && (mappedState.brightness *= brightnessScale),
     mappedState
   );

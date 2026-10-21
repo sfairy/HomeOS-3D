@@ -35,8 +35,23 @@ type RuntimeContextBag = {
   runVacuumRoom?: (...args: any[]) => Promise<any>;
 };
 const { vacuumStatusBinding: vacuumStatusBinding } = await (import("@app/renderer/controls/vacuum-runtime")),
-  { temperatureHumidityEntities: temperatureHumidityEntities } = await (import("@app/bridge/temperature-humidity")),
+  {
+    temperatureHumidityEntities: temperatureHumidityEntities,
+    entityNumberFormats: entityNumberFormatsOf,
+  } = await (import("@app/bridge/temperature-humidity")),
   INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d",
+  // 配置里出现的实体 id（`entityId` / `*EntityId` / 数组元素）；用于生成 `number-formats` 映射。
+  ENTITY_ID_VALUE_PATTERN = /^[a-z_]+\.[a-z0-9_]+$/,
+  referencedEntityIds = (value: any, collected = new Set<string>()): Set<string> => {
+    if (typeof value == "string") {
+      ENTITY_ID_VALUE_PATTERN.test(value) && collected.add(value);
+    } else if (Array.isArray(value)) {
+      for (const entry of value) referencedEntityIds(entry, collected);
+    } else if (value && typeof value == "object") {
+      for (const entry of Object.values(value)) referencedEntityIds(entry, collected);
+    }
+    return collected;
+  },
   mountDiagnosticsByInstance = new Map(),
   reportThrottleState = {
     started: 0,
@@ -364,6 +379,7 @@ export function mountInteraction3d(
       componentProperties.floorCameras?.[componentProperties.floorSelection] ||
       componentProperties.camera,
     lastConfigJson = "",
+    lastNumberFormatsJson = "",
     // 下一次 `config` 下发要带 `resetPreviewSession`，让舞台侧当成「换了入口」整屏重置一次。
     pendingResetPreviewSession = false,
     isPreviewSuspended = false,
@@ -647,24 +663,41 @@ export function mountInteraction3d(
     typeof window.WebSocket == "function"
       ? createLightStream({
           onStates(incomingStates) {
-            ((latestStatesByEntityId = incomingStates),
-              fetchClimateCapabilities(),
-              !isPreviewSuspended &&
-                (focusDevicePopup?.updateStates?.(),
-                vacuumPopup?.updateStates?.(incomingStates),
-                onStatesUpdate?.(incomingStates),
-                isStageReady && publishStates()));
+            ((latestStatesByEntityId = incomingStates), fetchClimateCapabilities());
+            if (isPreviewSuspended) {
+              // 预览挂起时 `states` 停发：历史通道原样转发整份状态（0.7.9 同款分支）。
+              publishStatusHistory(incomingStates);
+              return;
+            }
+            (focusDevicePopup?.updateStates?.(),
+              vacuumPopup?.updateStates?.(incomingStates),
+              onStatesUpdate?.(incomingStates),
+              isStageReady && publishStates());
           },
           onPatch(statePatch) {
-            ((latestStatesByEntityId = {
+            latestStatesByEntityId = {
               ...latestStatesByEntityId,
               ...statePatch,
-            }),
-              !isPreviewSuspended &&
-                (focusDevicePopup?.updateStates?.(),
-                vacuumPopup?.updateStates?.(latestStatesByEntityId),
-                onStatesUpdate?.(latestStatesByEntityId),
-                isStageReady && publishStates(statePatch)));
+            };
+            if (isPreviewSuspended) {
+              publishStatusHistory(statePatch, true);
+              return;
+            }
+            (focusDevicePopup?.updateStates?.(),
+              vacuumPopup?.updateStates?.(latestStatesByEntityId),
+              onStatesUpdate?.(latestStatesByEntityId),
+              isStageReady && publishStates(statePatch));
+          },
+          onInvalidate(invalidatedEntityIds) {
+            // 订阅态被重置：让舞台清掉这些实体的迟滞记忆，
+            // 避免重连后拿旧判断和新的状态快照拼出错误的指示灯结果。
+            !isStageReady ||
+              isDisposed ||
+              !invalidatedEntityIds.length ||
+              postToStageFrame({
+                type: "status-history-invalidated",
+                entityIds: invalidatedEntityIds,
+              });
           },
         })
       : null;
@@ -1114,11 +1147,48 @@ export function mountInteraction3d(
     weatherPreviewCondition = "";
     syncWeatherEffects();
   }
+  /**
+   * 按 HA 显示精度生成 `entityId -> precision` 映射；只在变化时下发。
+   *
+   * 舞台侧据此格式化温湿度、NAS、附加面板的数值，避免与主界面显示不一致。
+   */
+  const publishNumberFormats = () => {
+    if (!isStageReady || isDisposed || isPreviewSuspended) return;
+    const numberFormats = entityNumberFormatsOf(
+        [...referencedEntityIds(componentProperties)],
+        runtimeContext.entityMetadata,
+      ),
+      numberFormatsJson = JSON.stringify(numberFormats);
+    numberFormatsJson === lastNumberFormatsJson ||
+      ((lastNumberFormatsJson = numberFormatsJson),
+      postToStageFrame({
+        type: "number-formats",
+        formats: numberFormats,
+      }));
+  };
+  /**
+   * 预览态专用的指示灯历史通道（0.7.9 同款）：预览被其他弹窗挂起时 `states` 停发，
+   * 这条通道把**整份** HA 状态照原样转给舞台，舞台只拿它预热迟滞记忆。
+   */
+  const publishStatusHistory = (incomingStates: any = null, isPatch = false) => {
+    if (!lightStream || !isStageReady || isDisposed || !incomingStates) return;
+    postToStageFrame({
+      type: "status-history-states",
+      states: incomingStates,
+      ...(isPatch
+        ? {
+            patch: true,
+          }
+        : {}),
+    });
+  };
   const publishStates = (incomingPatch: any = null) => {
     const currentStates = getCurrentStates();
     syncSecurityAlarmOverlay(currentStates);
     syncWeatherEffects(currentStates);
-    if (isPreviewSuspended || isPageHidden) return;
+    // 与 0.7.9 一致：预览挂起时 `states` 直接停发（历史通道由 onStates/onPatch 自己兜底）。
+    if (isPreviewSuspended) return;
+    if (isPageHidden) return;
     if (lightStream && currentStates === lastPublishedStates) return;
     const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
     (postToStageFrame({
@@ -1218,7 +1288,7 @@ export function mountInteraction3d(
       },
       configJson = JSON.stringify(configPayload);
     if (configJson === lastConfigJson) {
-      (updatePresentationLayout(), refreshActivityState(), publishStates());
+      (updatePresentationLayout(), refreshActivityState(), publishStates(), publishNumberFormats());
       return;
     }
     ((lastConfigJson = configJson),
@@ -1236,6 +1306,7 @@ export function mountInteraction3d(
       }),
       (pendingResetPreviewSession = false),
       (lastPublishedStates = getCurrentStates()),
+      publishNumberFormats(),
       isScenePresented || refreshActivityState(true));
   }
   function syncBackgroundHidden() {

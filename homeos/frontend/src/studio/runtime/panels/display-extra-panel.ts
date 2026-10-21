@@ -5,6 +5,7 @@
  * 属性白名单按域给出，避免把 token / 密码之类字段渲染到界面上。
  */
 import { attributesOf } from "../device/entity-capabilities";
+import { formatEntityNumber } from "@app/shared/util/ha-number";
 import type { ExtraPanelViewModel } from "./panel-utils";
 
 const ATTRIBUTE_LABELS: Record<string, string> = {
@@ -96,17 +97,21 @@ export function createDisplayExtraPanel({ element: hostElement }: { element: any
 
   return {
     root: hostElement,
-    update({ item, state }: ExtraPanelViewModel) {
+    update({ item, state, numberFormats }: ExtraPanelViewModel) {
       const liveState = state?.newState || state;
       const attributes = attributesOf(liveState);
       const unknown = liveState?.state === "unknown";
+      // 数值走 HA 显示精度（`number-formats`）；非数值实体原样返回。
       statusElement.textContent =
         !liveState || liveState.state === "unavailable" || (liveState.available === false && !unknown)
           ? "设备不可用"
           : unknown
             ? "状态未知"
-            : String(liveState.state) +
-              (attributes.unit_of_measurement ? ` ${attributes.unit_of_measurement}` : "");
+            : formatEntityNumber(
+                String(item?.entityId || ""),
+                liveState,
+                numberFormats?.[String(item?.entityId || "")],
+              ) + (attributes.unit_of_measurement ? ` ${attributes.unit_of_measurement}` : "");
 
       if (
         String(item?.entityId).startsWith("event.") &&

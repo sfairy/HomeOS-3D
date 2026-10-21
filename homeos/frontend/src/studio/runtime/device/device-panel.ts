@@ -153,16 +153,19 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
         incomingState.item.deviceLabel ||
         genericDeviceProfile(incomingState.item.deviceKind)?.label ||
         "设备";
-      const status = deviceStatus(incomingState.item, incomingState.states);
+      // 舞台会在载荷里带上带迟滞记忆的判定结果；直接单独调用时退回无记忆求值（与旧行为一致）。
+      const status = incomingState.statusResult || deviceStatus(incomingState.item, incomingState.states);
       if (
         ((statusElement.hidden = !status.visible),
         (statusElement.textContent =
-          {
-            normal: "正常",
-            warning: "异常",
-            off: "已关闭",
-            unknown: "状态未知",
-          }[status.status] || ""),
+          (
+            {
+              normal: "正常",
+              warning: "异常",
+              off: "已关闭",
+              unknown: "状态未知",
+            } as Record<string, string>
+          )[String(status.status)] || ""),
         (statusElement.style.color = status.color
           ? "var(--i3d-device-status-" + status.status + "," + status.color + ")"
           : ""),

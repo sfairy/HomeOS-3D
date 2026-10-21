@@ -8,6 +8,17 @@
 import { addBoxMesh } from "../studio-mesh-primitives";
 import type { ItemModelScope } from "./types";
 
+/**
+ * 管线机（含「矩形双出水」外观变体）共用的机身形体族。
+ *
+ * 物品类型在切换款式后仍是 `pipelinewaterpurifier`，变体只通过模型类型体现；
+ * 这里把变体类型一并纳入，保证按模型类型分派的路径也落在同一族里。
+ */
+const PIPELINE_DISPENSER_MODEL_TYPES: ReadonlySet<string> = new Set([
+  "pipelinewaterpurifier",
+  "rectangular-pipeline-dispenser",
+]);
+
 export function buildWaterTea(scope: ItemModelScope): boolean {
   const {
     addCylinderMesh,
@@ -49,8 +60,7 @@ export function buildWaterTea(scope: ItemModelScope): boolean {
     furnitureDark,
   } = scope;
 
-  if (modelItem.type ===
-      "pipelinewaterpurifier") {
+  if (PIPELINE_DISPENSER_MODEL_TYPES.has(modelItem.type)) {
     const purifierBodyHeight =
       height6 * 0.9;
     (addBoxMesh(

@@ -162,7 +162,7 @@
     },
     {
       "index": 28,
-      "conditionSha256": "8aed2a2987587a83fd2680a5eef1123296c8e75746c78d5543b1c3e59db49052",
+      "conditionSha256": "38b3ec8b11f939f4a1ac683baab0a700603f46271be81865b69939d2b1665bc0",
       "bodySha256": "a1b3446d1f7a8c5f1c152081034e448bee70d76e8a47e0a7055902e6fb25a877"
     },
     {
@@ -321,5 +321,15 @@
     "preHash": "7745fd394cb6b4eb8d36a190aca929e10dc7bf017badac84dc08b41183e6b547",
     "postCount": 3,
     "postHash": "8264ddb7fcd962abb90fe986573b8122565d77142ba3ad389a2235cb31dbcf2f"
-  }
+  },
+  "deviations": [
+    {
+      "branch": 28,
+      "group": "water-tea",
+      "field": "conditionSha256",
+      "was": "modelItem.type === 'pipelinewaterpurifier'",
+      "now": "PIPELINE_DISPENSER_MODEL_TYPES.has(modelItem.type)",
+      "reason": "0.7.9 F6：矩形双出水变体（rectangular-pipeline-dispenser）共用管线机机身形体族，分派条件需同时命中两个模型类型。分支体未改。"
+    }
+  ]
 }

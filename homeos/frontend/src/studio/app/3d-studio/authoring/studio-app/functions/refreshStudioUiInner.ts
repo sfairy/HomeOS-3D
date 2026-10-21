@@ -13,6 +13,7 @@ import {
 import {
   airerDimensions as airerDimensions2,
 } from "../../items/studio-airer";
+import { normalizePipelineDispenserStyle } from "../../items/pipeline-dispenser";
 import {
   fanDimensions as fanDimensions2,
 } from "../../items/studio-fan";
@@ -235,6 +236,13 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               (lightFieldsElement.hidden = !isLightItem),
               (curtainPositionFieldElement.hidden = at4.type !== "curtain"),
               (selectElement("#fridge-style-fields").hidden = at4.type !== "fridge"),
+              (selectElement("#pipeline-dispenser-style-field").hidden =
+                at4.type !== "pipelinewaterpurifier"),
+              at4.type === "pipelinewaterpurifier" &&
+                setControlValue(
+                  selectElement("#pipeline-dispenser-style"),
+                  normalizePipelineDispenserStyle(at4.pipelineDispenserStyle),
+                ),
               at4.type === "fridge")
             ) {
               for (const fridgeStyleInput of document.querySelectorAll<StudioControlElement>(

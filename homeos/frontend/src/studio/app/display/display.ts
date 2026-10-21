@@ -319,6 +319,9 @@ function buildCatalogFingerprint() {
       entity.originalName || "",
       entity.status || "",
       entity.disabledBy || "",
+      // 显示精度会影响实体名后缀与面板数值（0.7.9 F2），改了要重推目录。
+      entity.displayPrecision ?? "",
+      entity.suggestedDisplayPrecision ?? "",
     ]),
     deviceRows = deviceRecords.map((device: any) => [
       device.deviceId || "",

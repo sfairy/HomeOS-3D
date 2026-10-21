@@ -13,6 +13,7 @@ import {
 import {
   airerDimensions as airerDimensions2,
 } from "../../items/studio-airer";
+import { setPipelineDispenserStyle } from "../../items/pipeline-dispenser";
 import {
   fanDimensions as fanDimensions2,
 } from "../../items/studio-fan";
@@ -345,6 +346,11 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
               (toolPlacedElement.pillarAxis = normalizePillarAxis2(
                 selectElement("#pillar-axis").value,
               ))),
+            toolPlacedElement.type === "pipelinewaterpurifier" &&
+              setPipelineDispenserStyle(
+                toolPlacedElement,
+                selectElement("#pipeline-dispenser-style").value,
+              ),
             toolPlacedElement.type === "striplight" &&
               ((toolPlacedElement.stripAxis = normalizeStripAxis2(
                 selectElement("#strip-axis").value,

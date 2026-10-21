@@ -92,6 +92,7 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
           item: panelItem,
           states: host.deviceStates,
           editing: host.isEditing || !host.isControlReady || !panelItem.modelAvailable,
+          numberFormats: host.numberFormats,
         }));
       return;
     }
@@ -165,6 +166,7 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
               item: panelItem,
               states: host.deviceStates,
               editing: host.isEditing || !host.isControlReady || !panelItem.modelAvailable,
+              numberFormats: host.numberFormats,
             })
           : isTelevisionDevice
             ? (host.isEditing || panelItem.clickAction !== "focus") &&
@@ -173,16 +175,21 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
                 item: panelItem,
                 states: host.deviceStates,
                 editing: host.isEditing || !host.isControlReady,
+                numberFormats: host.numberFormats,
               })
             : isGenericDevice && typeof host.devicePanel < "u"
               ? host.devicePanel.update({
                   item: panelItem,
                   states: host.deviceStates,
+                  // 详情面板与 3D 指示灯共用同一份迟滞记忆，数值规则落在恢复区间时不会一边亮一边未知。
+                  statusResult: host.readDeviceStatus?.(panelItem, host.deviceStates),
                   editing: host.isEditing || !host.isControlReady || !panelItem.modelAvailable,
+                  numberFormats: host.numberFormats,
                 })
               : host.nasPanel.update({
                   item: panelItem,
                   states: host.deviceStates,
+                  numberFormats: host.numberFormats,
                 }));
       return;
     }
@@ -274,6 +281,7 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
           error: panelItem.modelAvailable
             ? coverPresentation.error || ""
             : "窗帘模型已移除，请重新配置。",
+          numberFormats: host.numberFormats,
         });
       }
       return;
@@ -288,6 +296,7 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
           states: host.deviceStates,
           editing: host.isEditing || !host.isControlReady || !panelItem.modelAvailable,
           error: panelItem.modelAvailable ? "" : "设备模型已移除，请重新配置。",
+          numberFormats: host.numberFormats,
         }));
       return;
     }
@@ -914,7 +923,10 @@ export function createSyncMarkers(host: StageHandlersHost) {
         const isMetricNamesVisible = syncMarkerItem.showMetricNames !== false;
         selector.classList.toggle("is-metric-names-hidden", !isMetricNamesVisible);
         const batteryPanelElement = selector.querySelector(".i3d-environment-battery"),
-          ar2 = readTemperatureHumidity((host.deviceStates as any)[syncMarkerItem.batteryEntityId]);
+          ar2 = readTemperatureHumidity(
+            (host.deviceStates as any)[syncMarkerItem.batteryEntityId],
+            (host.numberFormats || {})[syncMarkerItem.batteryEntityId],
+          );
         ((batteryPanelElement.hidden = !syncMarkerItem.batteryEntityId),
           (batteryPanelElement.querySelector(".i3d-meter-label").hidden = !isMetricNamesVisible),
           batteryPanelElement.classList.toggle("is-unavailable", !ar2.available));
@@ -929,7 +941,11 @@ export function createSyncMarkers(host: StageHandlersHost) {
         selector.querySelector(".i3d-temperature-humidity-values").hidden = !some5;
         for (const { key: metricLoopKey } of environmentMetricNames) {
           const metricEntityId = syncMarkerItem[metricLoopKey + "EntityId"],
-            ar3 = readTemperatureHumidity((host.deviceStates as any)[metricEntityId]),
+            ar3 = readTemperatureHumidity(
+              (host.deviceStates as any)[metricEntityId],
+              (host.numberFormats || {})[metricEntityId],
+            ),
+
             metricRowElement = selector.querySelector(".is-" + metricLoopKey);
           ((metricRowElement.hidden = !metricEntityId),
             (metricRowElement.querySelector(".i3d-meter-label").hidden = !isMetricNamesVisible),
@@ -1690,7 +1706,23 @@ export function createHandleHostMessage(host: StageHandlersHost) {
                       (!stateUpdatePlan || stateUpdatePlan.changed.size) &&
                         host.syncMarkers(stateUpdatePlan);
                     } else {
-                      if (data.type === "control-result")
+                      if (data.type === "number-formats") {
+                        // HA 显示精度变化：只重算温湿度标签与当前聚焦项，避免整场重绘。
+                        host.numberFormats =
+                          data.formats && typeof data.formats == "object" ? data.formats : {};
+                        host.syncMarkers();
+                      } else if (data.type === "status-history-states") {
+                        // 0.7.9 同款：只把整份历史快照存下来并预热迟滞记忆，
+                        // 不改渲染结果、不主动重算（渲染仍读 `states`）。
+                        host.statusHistoryStates =
+                          data.patch === true
+                            ? { ...(host.statusHistoryStates || host.deviceStates), ...(data.states || {}) }
+                            : data.states || {};
+                        host.seedStatusHistory();
+                      } else if (data.type === "status-history-invalidated") {
+                        // 同款：直接转给 reader 清记忆，不立刻重算。
+                        host.invalidateStatusHistory(data.entityIds);
+                      } else if (data.type === "control-result")
                         host.mediaControlRequestsByRequestId.has(data.requestId)
                           ? host.settleMediaRequest(data.requestId, data.error)
                           : host.coverControlRequestsByRequestId.has(data.requestId)

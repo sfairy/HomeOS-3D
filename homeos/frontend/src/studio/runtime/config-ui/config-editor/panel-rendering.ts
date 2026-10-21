@@ -275,6 +275,11 @@ export function attachEditorPanelRendering(editorHost: any) {
               ["size", "按钮大小", "px"],
               ["hitSize", "点击范围", "px"],
               ["fadeDuration", "缓开缓灭", "秒"],
+              // 灯光专属：这份清单同时决定「N 项修改」计数与「一键应用到其他灯光」的范围，
+              // 漏掉它就会出现「下拉改了、计数不动、也同步不出去」。
+              ...(editorHost.deviceKind === "light"
+                ? ([["temperatureFallback", "不支持调色温时", ""]] as [string, string, string][])
+                : []),
             ];
     /**
      * 编辑会话基线（**可变单元**）：可编辑字段清单 + 条目基线快照。

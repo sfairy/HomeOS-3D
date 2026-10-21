@@ -540,6 +540,8 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
 
   /* ── 卧室 ────────────────────────────────────────────────────── */
   "round-double-bed": { body: "frame", dark: "base", light: "mattress", soft: "upholstery", accent: "leg" },
+  /* 0.7.9 圆孔高架床：`frame` 是床架、`edge` 是床沿包边、`mattress`/`linen` 是床垫与床品。 */
+  "loft-bed-circle": { frame: "frame", edge: "trim", mattress: "mattress", linen: "linen" },
   "bed-end-bench": { soft: "upholstery", body: "frame" },
   "bed-storage-chest": { body: "carcass", soft: "lid", dark: "base", accent: "handle" },
   "bed-tray": { body: "board", light: "board" },
@@ -551,6 +553,11 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "wall-coat-hooks": { body: "rackWood", dark: "handle" },
   "folding-screen": { body: "panelSlat", soft: "frame", accent: "panelSlat" },
   suitcase: { body: "shell", dark: "base", soft: "handle", light: "trim" },
+  /* 0.7.9 玄关两款：到顶柜的 `light` 是柜内灯带，拱形台的 `leaf` 是盆栽叶。 */
+  "entryway-niche-cabinet": { body: "carcass", niche: "interior", light: "glow", door: "cabinetDoor" },
+  "arched-glass-console": { body: "carcass", glass: "glass", trim: "trim", leaf: "foliage" },
+  /* 0.7.9 双列开放衣柜：`back` 是背板、`drawer` 是底部抽屉。 */
+  "double-open-wardrobe": { back: "carcass", body: "carcass", trim: "trim", drawer: "drawer" },
 
   /* ── 摆件 ────────────────────────────────────────────────────── */
   "pillow-set": { light: "pillow", soft: "pillow", accent: "fabric" },
@@ -610,6 +617,8 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "yoga-set": { soft: "pad", accent: "grip", light: "pad", dark: "grip" },
   "round-rug": { border: "rugBorder", inset: "rugPile", body: "rugPile" },
   "storage-box": { body: "carcass", detail: "shelf", lid: "cabinetDoor" },
+  /* 0.7.9 管线机变体：`panel` 是出水面板、`display` 是触控屏。 */
+  "rectangular-pipeline-dispenser": { body: "shell", panel: "panel", trim: "trim", display: "display" },
 });
 
 /* ------------------------------------------------------------------ *

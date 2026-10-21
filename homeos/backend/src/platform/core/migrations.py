@@ -292,32 +292,6 @@ _DEVICE_COLLECTIONS = frozenset({
 })
 
 
-def _wrap_status_values(rule) -> bool:
-    """把旧的单值状态条件收紧成列表；返回是否发生改动。"""
-    if not isinstance(rule, dict):
-        return False
-    changed = False
-    for key in ('active', 'inactive'):
-        if isinstance(rule.get(key), str):
-            rule[key] = [rule[key]]
-            changed = True
-    return changed
-
-
-def _normalize_status_rules(status_rules) -> bool:
-    """状态灯规则：``active`` / ``inactive`` 由单值改为列表。"""
-    if not isinstance(status_rules, dict):
-        return False
-    changed = False
-    for rule in status_rules.values():
-        if isinstance(rule, list):
-            for item in rule:
-                changed |= _wrap_status_values(item)
-        else:
-            changed |= _wrap_status_values(rule)
-    return changed
-
-
 def _normalize_3d_properties(properties: dict) -> bool:
     """清理 3D 组件 properties 中已不再支持的历史结构；幂等。"""
     changed = False
@@ -347,9 +321,7 @@ def _walk_3d_components(value) -> bool:
             properties = value.get('properties')
             if isinstance(properties, dict):
                 changed |= _normalize_3d_properties(properties)
-        for key, item in value.items():
-            if key == 'statusRules':
-                changed |= _normalize_status_rules(item)
+        for item in value.values():
             changed |= _walk_3d_components(item)
         return changed
     if isinstance(value, list):

@@ -34,6 +34,7 @@ const MODEL_STATUS_ANCHORS: Readonly<Record<string, Vec3>> = Object.freeze({
   "home-network-cabinet": [-0.187, 0.578, 0.2265],
   "aroma-diffuser": [0, 0.119, 0.0542],
   pipelinewaterpurifier: [0.13, 0.31, -0.026614],
+  "rectangular-pipeline-dispenser": [0.176, 0.384, 0.1125],
   tea_bar_machine: [0.2, 1.0975, -0.2717],
   toilet: [0.1177796, 0.5140572, -0.2808737],
   printer: [0.15, 0.233, 0.1358],

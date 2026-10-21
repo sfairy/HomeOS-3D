@@ -1,3 +1,8 @@
+import { formatHANumber } from "@app/shared/util/ha-number";
+
+/** 精度映射推导（舞台所需）。由 runtime 统一发布 `number-formats`，这里只做再导出。 */
+export { entityNumberFormats } from "@app/shared/util/ha-number";
+
 /** 环境标签的默认信息框宽度与文字大小。 */
 export const DEFAULT_LABEL_SIZE = 360;
 export const DEFAULT_LABEL_ICON_SIZE = 21;
@@ -200,7 +205,7 @@ export function temperatureHumidityFloorCenter(floor: any) {
     y: resolveAxisCenter("y"),
   };
 }
-export function temperatureHumidityReading(readingState: any) {
+export function temperatureHumidityReading(readingState: any, displayPrecision: number | null = null) {
   const entityState = readingState?.newState || readingState,
     stateValue = entityState?.state,
     finite =
@@ -210,7 +215,8 @@ export function temperatureHumidityReading(readingState: any) {
       Number.isFinite(Number(stateValue));
   return {
     available: finite,
-    value: finite ? String(stateValue) : "—",
+    // 精度来自 HA 的 `options.sensor`：舞台经 `number-formats` 通道拿到，缺省时原样显示。
+    value: finite ? formatHANumber(stateValue, displayPrecision) : "—",
     unit: finite ? String(entityState.attributes?.unit_of_measurement || "") : "",
   };
 }

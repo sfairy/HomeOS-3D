@@ -3094,6 +3094,8 @@ const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.free
   airoutlet: "device",
   tea_bar_machine: "device",
   pipelinewaterpurifier: "steelAppliance",
+  /** 「矩形双出水」款式与原款同为不锈钢家电，沿用同一预设，不新造材质族。 */
+  "rectangular-pipeline-dispenser": "steelAppliance",
   piano: "piano",
   aquarium: "aquarium",
 

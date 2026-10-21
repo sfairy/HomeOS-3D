@@ -84,6 +84,15 @@ export function buildItemPayload(deps: PanelSessionDeps, item: any) {
               iconSize: item.iconSize ?? buttonIconSize(item.size ?? DEFAULT_BUTTON_SIZE),
               hitSize: item.hitSize ?? Math.max(DEFAULT_BUTTON_SIZE, item.size ?? DEFAULT_BUTTON_SIZE),
               fadeDuration: item.fadeDuration ?? 0.3,
+              // 灯光专属：不入载荷时 `listChangedFields` 永远判为未改，
+              // 「一键应用到其他灯光」也不会带上这一项。其它种类的条目没有这个字段，
+              // 不写进去以免后端按分区白名单 422。
+              ...(editorHost.deviceKind === "light"
+                ? {
+                    temperatureFallback:
+                      item.temperatureFallback === "floorplan" ? "floorplan" : "default",
+                  }
+                : {}),
             };
     }
 

@@ -497,6 +497,18 @@
   justify-content: center;
   padding: 2px;
 }
+/* 拖拽缩放的边界播报节点：只给屏幕阅读器读，不占布局（0.7.9 同款隐藏 live region）。 */
+.i3d-extra-resize-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 .i3d-climate-panel .i3d-extra-select-trigger {
   position: relative;
   width: 100%;

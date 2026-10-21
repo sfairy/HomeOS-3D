@@ -1,4 +1,4 @@
-import { APPROVED_ITEM_MODELS } from "./approved-item-models";
+import { APPROVED_ITEM_MODELS, APPROVED_MODEL_VARIANTS } from "./approved-item-models";
 import { COLLECTION_MODELS } from "./collection-models";
 import {
   EXTERNAL_ITEM_MODELS,
@@ -61,6 +61,7 @@ export function needsExternalModelAsset(modelType: string) {
 export const ALL_ITEM_MODELS = Object.freeze({
   ...EXTERNAL_ITEM_MODELS,
   ...APPROVED_ITEM_MODELS,
+  ...APPROVED_MODEL_VARIANTS,
   ...COLLECTION_ITEM_MODELS,
     bed: createIndoorAssetDescriptor("bed", {
       url: withModelAssetCacheKey(
@@ -180,7 +181,7 @@ export const ALL_ITEM_MODELS = Object.freeze({
       scaleBasis: [1, 1.65, 2.8],
       preserveOrigin: true,
     }),
-    pillar: createPillarAssetDescriptor("pillar"),
+    pillar: createPillarAssetDescriptor("pillar", MODEL_ASSET_CACHE_KEYS.reference),
     pillar_round: createPillarAssetDescriptor("pillar-round"),
     pillar_semicircle: createPillarAssetDescriptor("pillar-semicircle"),
     pillar_quarter: createPillarAssetDescriptor("pillar-quarter"),

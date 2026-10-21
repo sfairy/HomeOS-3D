@@ -24,7 +24,7 @@ export {
  * 模型重写后文件路径不变，浏览器会继续命中旧字节。做法是给**字节真的变过的批次**
  * 换 URL（`?v=<批次>`），没动过的模型保持原 URL，继续吃已有缓存、不制造无谓回源。
  *
- * 本仓库把同一批次的模型合并成 3 个键：减面重写批、卫浴重写批、家用收藏批。
+ * 本仓库把同一批次的模型合并成 4 个键：减面重写批、卫浴重写批、家用收藏批、参考模型批。
  */
 export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
   /** 减面/合批重写批：床、钢琴、钢楼梯、茶吧机、前置净水器、滑板车、庭院躺椅。 */
@@ -39,6 +39,8 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
   teaTable: "20260927-tea-table-v1",
   /** approved 外购模型批：字节未变，沿用既有键。 */
   approved: "20261009-approved-v1",
+  /** 0.7.9 参考模型批：5 个新模型 + 重烤的茶几/方柱，落地时间同一批。 */
+  reference: "20261020-reference-v1",
 });
 
 /** 给模型资源 URL 挂上缓存键；`cacheKey` 为空时原样返回。 */
@@ -138,10 +140,20 @@ export function createApplianceAssetDescriptor(
     ...applianceAssetOverrides,
   });
 }
-export function createFurnitureAssetDescriptor(furnitureAssetId: any, furnitureAssetScaleBasis: any) {
+export function createFurnitureAssetDescriptor(
+  furnitureAssetId: any,
+  furnitureAssetScaleBasis: any,
+  modelAssetCacheKey: string = "",
+) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + furnitureAssetId + "-lite.glb",
-    fallbackUrl: "/static/3d-studio/models/" + furnitureAssetId + ".glb",
+    url: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + furnitureAssetId + "-lite.glb",
+      modelAssetCacheKey,
+    ),
+    fallbackUrl: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + furnitureAssetId + ".glb",
+      modelAssetCacheKey,
+    ),
     scaleBasis: furnitureAssetScaleBasis,
     preserveOrigin: true,
   });
@@ -171,10 +183,16 @@ export function createIndoorAssetDescriptor(indoorAssetId: any, indoorAssetScale
     preserveOrigin: true,
   });
 }
-export function createPillarAssetDescriptor(pillarAssetId: any) {
+export function createPillarAssetDescriptor(pillarAssetId: any, modelAssetCacheKey: string = "") {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + pillarAssetId + "-lite.glb",
-    fallbackUrl: "/static/3d-studio/models/" + pillarAssetId + ".glb",
+    url: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + pillarAssetId + "-lite.glb",
+      modelAssetCacheKey,
+    ),
+    fallbackUrl: withModelAssetCacheKey(
+      "/static/3d-studio/models/" + pillarAssetId + ".glb",
+      modelAssetCacheKey,
+    ),
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true,
   });
@@ -255,7 +273,11 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       ]),
     ),
     sofa: createFurnitureAssetDescriptor("sofa", [2.2, 0.82, 0.9]),
-    coffeetable: createFurnitureAssetDescriptor("coffeetable", [1.9, 0.5, 1.05]),
+    coffeetable: createFurnitureAssetDescriptor(
+      "coffeetable",
+      [1.7, 0.5, 1.25],
+      MODEL_ASSET_CACHE_KEYS.reference,
+    ),
     kitchenisland: createFurnitureAssetDescriptor("kitchenisland", [2.4, 0.9, 0.8]),
     squarecoffeetable: createFurnitureAssetDescriptor("squarecoffeetable", [1.4, 0.46, 0.7]),
     tvstand: createFurnitureAssetDescriptor("tvstand", [1.8, 0.48, 0.42]),

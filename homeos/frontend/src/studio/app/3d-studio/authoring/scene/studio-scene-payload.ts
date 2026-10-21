@@ -16,6 +16,7 @@ import { fanDimensions as fanDimensions2 } from "../items/studio-fan";
 import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2, itemMinimumFootprint as itemMinimumFootprint2, itemMinimumHeight as itemMinimumHeight2, normalizeCourtyardDrawing as normalizeCourtyardDrawing2, normalizeFixedCameraView as normalizeFixedCameraView2, normalizeFullRotation as normalizeFullRotation2, normalizeLabelText as normalizeLabelText2, normalizePoint as normalizePoint2 } from "../../loaders/studio-normalization";
 import { generateId } from "../ui/studio-app-helpers";
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, tvMountStyleSet } from "../items/item-catalog";
+import { normalizePipelineDispenserStyle } from "../items/pipeline-dispenser";
 import { lightAngleLimitForType, lightPresetCatalog } from "../lights/studio-app-light-data";
 import { normalizeFeatureWallStyle, normalizeMuralArtStyle } from "../../materials/studio-surface-textures";
 import { normalizePillarAxis as normalizePillarAxis2, normalizePillarShape as normalizePillarShape2, normalizeStripAxis as normalizeStripAxis2 } from "../items/studio-item-posture";
@@ -494,6 +495,13 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
               ...(rawItemRecord?.type === "fridge"
                 ? {
                     fridgeStyle: rawItemRecord.fridgeStyle === "double" ? "double" : "standard",
+                  }
+                : {}),
+              ...(rawItemRecord?.type === "pipelinewaterpurifier"
+                ? {
+                    pipelineDispenserStyle: normalizePipelineDispenserStyle(
+                      rawItemRecord?.pipelineDispenserStyle,
+                    ),
                   }
                 : {}),
               ...(rawItemRecord?.type === "curtain"

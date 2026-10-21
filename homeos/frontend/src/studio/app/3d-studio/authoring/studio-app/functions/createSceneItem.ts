@@ -154,6 +154,16 @@ export function createSceneItem(deps: CreateSceneItemDeps,
             pillarAxis: typeDefinition.pillarAxis,
           }
         : {}),
+      ...(sceneItemType === "fridge"
+        ? {
+            fridgeStyle: "standard",
+          }
+        : {}),
+      ...(sceneItemType === "pipelinewaterpurifier"
+        ? {
+            pipelineDispenserStyle: "original",
+          }
+        : {}),
       ...(sceneItemType === "mural"
         ? {
             muralStyle: typeDefinition.muralStyle || "bauhaus",

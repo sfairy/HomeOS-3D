@@ -1,6 +1,7 @@
 export function createLightStream({
   onStates: onStates = () => {},
   onPatch: onPatch = null,
+  onInvalidate: onInvalidate = () => {},
   createSocket: createSocket = (socketUrl) => new window.WebSocket(socketUrl),
   socketURL: resolveSocketUrl = () => {
     const endpointUrl = new URL("/api/v1/ws/runtime", location.origin);
@@ -14,6 +15,8 @@ export function createLightStream({
 }: {
   onStates?: (states: Record<string, any>) => void;
   onPatch?: ((patch: Record<string, any>) => void) | null;
+  /** 订阅态被重置（重连 / 订阅变更 / 停用 / 失败）时回调当前实体列表：舞台据此让历史失效。 */
+  onInvalidate?: (entityIds: string[]) => void;
   createSocket?: (socketUrl: string) => WebSocket;
   socketURL?: string | (() => string);
   setTimer?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
@@ -59,7 +62,11 @@ export function createLightStream({
           })
         : emitStates();
   function resetStates() {
+    // 订阅态清零 = 之前累积的历史不再可信（重连 / 订阅变更 / 停用 / 失败）。
+    // 先把手上的实体列表交出去，再由舞台侧联动删除历史缓存与 reader 记忆。
+    const invalidatedEntityIds = [...subscribedEntityIds];
     ((statesByEntityId = new Map()), (hasSnapshot = false), emitStates());
+    invalidatedEntityIds.length && onInvalidate(invalidatedEntityIds);
   }
   function clearTimers() {
     (reconnectTimerId !== null && clearTimer(reconnectTimerId),
