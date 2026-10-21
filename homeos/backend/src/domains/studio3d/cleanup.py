@@ -78,6 +78,32 @@ def binding_key(item, path):
     )
 
 
+def _hashable(values):
+    """把值收成集合；遇到不可哈希元素返回 None（调用方回退逐项比较）。"""
+    result = set()
+    for value in values:
+        try:
+            result.add(value)
+        except TypeError:
+            return None
+    return result
+
+
+def _binding_present(items, item, path, key):
+    """``items`` 中是否已有同一 id 或同一绑定键的条目。
+
+    与原 ``any(other.id == item.id or binding_key(other) == key for other in items)`` 等价：
+    常规路径用集合做 O(1) 判断；元素不可哈希时回退到逐项比较。
+    """
+    ids = _hashable(other.get('id') for other in items)
+    keys = _hashable(binding_key(other, path) for other in items)
+    if ids is None or keys is None:
+        return any(
+            other.get('id') == item.get('id') or binding_key(other, path) == key for other in items
+        )
+    return item.get('id') in ids or key in keys
+
+
 def plan_cleanup(documents, old_scene, new_scene, archives, settings):
     """返回新文档和细粒度撤销记录，且不修改入参。"""
     before = identities(old_scene)
@@ -90,6 +116,18 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
     saved = deepcopy(archives)
     impacts = []
     reported_missing = set()
+    # 按 scope 分桶：原实现每个组件都重扫整份归档（O(组件数 × 归档数)），归档越多越慢。
+    # 分桶后每个组件只遍历自己 scope 的条目；桶内顺序与 saved 中的原始顺序一致，
+    # 因此「按身份标记已消费 + 末尾按原顺序过滤」与原来的 `saved.remove(entry)` 等价。
+    saved_by_scope: dict[tuple, list[dict]] = {}
+    for archived in saved:
+        saved_by_scope.setdefault(tuple(archived['scope']), []).append(archived)
+    consumed: set[int] = set()
+
+    def append_saved(entry: dict) -> None:
+        saved.append(entry)
+        saved_by_scope.setdefault(tuple(entry['scope']), []).append(entry)
+
     for project_id, document in documents.items():
         updated = deepcopy(document)
         for _, component in module_components(updated):
@@ -120,7 +158,7 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
                     continue
                 parent[parts[-1]] = kept
                 for item in deleted:
-                    saved.append(
+                    append_saved(
                         {
                             'scope': scope,
                             'path': list(parts),
@@ -143,7 +181,7 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
             if broken:
                 environment['curtainGroups'] = [group for group in groups if group not in broken]
                 for group in broken:
-                    saved.append(
+                    append_saved(
                         {
                             'scope': scope,
                             'path': ['environment', 'curtainGroups'],
@@ -151,20 +189,17 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
                             'key': None,
                         }
                     )
-            for entry in list(saved):
-                if entry['scope'] != scope or entry['key'] is None or tuple(entry['key']) not in added:
+            for entry in list(saved_by_scope.get(tuple(scope), ())):
+                if id(entry) in consumed or entry['key'] is None or tuple(entry['key']) not in added:
                     continue
                 parts = tuple(entry['path'])
                 parent, items = collection(properties, parts)
                 item = entry['item']
-                if not any(
-                    other.get('id') == item.get('id') or binding_key(other, parts) == tuple(entry['key'])
-                    for other in items
-                ):
+                if not _binding_present(items, item, parts, tuple(entry['key'])):
                     parent[parts[-1]] = [*items, deepcopy(item)]
-                saved.remove(entry)
-            for entry in list(saved):
-                if entry['scope'] != scope or entry['key'] is not None:
+                consumed.add(id(entry))
+            for entry in list(saved_by_scope.get(tuple(scope), ())):
+                if id(entry) in consumed or entry['key'] is not None:
                     continue
                 group = entry['item']
                 members = environment.get('curtains', [])
@@ -182,9 +217,11 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
                 )
                 if valid and not conflict:
                     environment['curtainGroups'] = [*groups, deepcopy(group)]
-                saved.remove(entry)
+                consumed.add(id(entry))
         if updated != document:
             output[project_id] = updated
+    if consumed:
+        saved = [entry for entry in saved if id(entry) not in consumed]
     return (output, saved, impacts)
 
 
