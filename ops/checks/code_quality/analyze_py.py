@@ -63,6 +63,18 @@ def iter_py_files(repo: Path) -> list[Path]:
     return files
 
 
+def is_test_entry(rel_path: str, node: ast.AST) -> bool:
+    """测试入口：由 unittest/pytest 发现机制调用，静态引用数为 0 属正常。"""
+    name = Path(rel_path).name
+    if name.startswith("test_") or "/tests/" in f"/{rel_path}" or name.endswith("_test.py"):
+        return True
+    if isinstance(node, ast.ClassDef):
+        for base in node.bases:
+            if _unparse(base).split(".")[-1] in {"TestCase", "IsolatedAsyncioTestCase", "AsyncTestCase"}:
+                return True
+    return False
+
+
 def first_doc_line(node: ast.AST) -> str:
     if not isinstance(node, DEF_TYPES):
         return ""
@@ -211,7 +223,7 @@ def scan_unreachable(rel_path: str, tree: ast.AST) -> list[dict]:
         if isinstance(node, ast.If) and isinstance(node.test, ast.Constant) and node.test.value is False:
             findings.append(
                 finding(
-                    type_="invalid",
+                    type_="invalid-unreachable",
                     path=rel_path,
                     line_start=node.lineno,
                     line_end=getattr(node, "end_lineno", node.lineno),
@@ -228,7 +240,7 @@ def scan_unreachable(rel_path: str, tree: ast.AST) -> list[dict]:
                 if terminated_at is not None:
                     findings.append(
                         finding(
-                            type_="invalid",
+                            type_="invalid-unreachable",
                             path=rel_path,
                             line_start=stmt.lineno,
                             line_end=getattr(stmt, "end_lineno", stmt.lineno),
@@ -246,62 +258,193 @@ def scan_unreachable(rel_path: str, tree: ast.AST) -> list[dict]:
     return findings
 
 
-def scan_loops(rel_path: str, tree: ast.AST, threshold_depth: int = 3) -> list[dict]:
-    """低效候选：深层嵌套循环、循环体内 DB/IO 调用。"""
-    findings: list[dict] = []
-    db_hits = 0
-    loop_depth = 0
+def module_const_sizes(tree: ast.Module) -> dict[str, int]:
+    """模块级字面量常量：名字 -> 元素个数，用于判定循环上界是否为编译期常量。"""
+    sizes: dict[str, int] = {}
+    for node in tree.body:
+        targets: list[str] = []
+        value: ast.expr | None = None
+        if isinstance(node, ast.Assign):
+            targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+            value = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            targets = [node.target.id]
+            value = node.value
+        if value is None:
+            continue
+        if isinstance(value, ast.Tuple | ast.List | ast.Set):
+            for name in targets:
+                sizes[name] = len(value.elts)
+        elif isinstance(value, ast.Dict):
+            for name in targets:
+                sizes[name] = len(value.keys)
+    return sizes
 
-    def visit(node: ast.AST, depth: int) -> None:
-        nonlocal db_hits, loop_depth
+
+def _unparse(node: ast.AST) -> str:
+    try:
+        return ast.unparse(node)
+    except Exception:
+        return type(node).__name__
+
+
+def _iter_evidence(node: ast.AST) -> str:
+    text = " ".join(_unparse(node).split())
+    return text[:72]
+
+
+def _is_bounded_iter(node: ast.AST, consts: dict[str, int]) -> bool:
+    """迭代源是否为编译期/结构上的小集合（而非数据或请求规模）。"""
+    if isinstance(node, ast.Tuple | ast.List | ast.Set | ast.Dict):
+        return True
+    if isinstance(node, ast.Constant) and isinstance(node.value, str | bytes):
+        return True
+    if isinstance(node, ast.Name) and node.id in consts:
+        return True
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "range":
+        return all(isinstance(arg, ast.Constant) and isinstance(arg.value, int) for arg in node.args)
+    # 结构枚举：AST 子节点、已取回的对象的字段/下标，单层遍历即是 O(子节点数)。
+    return isinstance(node, ast.Attribute | ast.Subscript)
+
+
+def _calls_in_expr(expr: ast.AST) -> list[tuple[int, str]]:
+    hits: list[tuple[int, str]] = []
+    for node in ast.walk(expr):
+        if isinstance(node, ast.Call):
+            segment = _unparse(node.func)
+            if segment and any(marker in f"{segment}(" for marker in DB_MARKERS):
+                hits.append((node.lineno, segment))
+    return sorted(hits)
+
+
+def _loop_source(loop: ast.AST) -> ast.AST:
+    """For/AsyncFor 用 iter，While 用 test 作为迭代源描述。"""
+    source = getattr(loop, "iter", None)
+    if source is not None:
+        return source
+    return getattr(loop, "test", ast.Constant(value=None))
+
+
+def _calls_in_loop(loop: ast.AST) -> list[tuple[int, str]]:
+    """只统计本层循环体（不含内层循环，内层会单独报告），避免重复计数。"""
+    hits: list[tuple[int, str]] = []
+    stack: list[ast.AST] = [*getattr(loop, "body", []), *getattr(loop, "orelse", [])]
+    while stack:
+        node = stack.pop()
+        if node is not loop and isinstance(node, ast.For | ast.AsyncFor | ast.While):
+            continue
+        if isinstance(node, ast.Call):
+            segment = _unparse(node.func)
+            if segment and any(marker in f"{segment}(" for marker in DB_MARKERS):
+                hits.append((node.lineno, segment))
+        stack.extend(ast.iter_child_nodes(node))
+    return sorted(hits)
+
+
+def scan_loops(rel_path: str, tree: ast.AST, threshold_depth: int = 3) -> list[dict]:
+    """低效候选：循环体内 DB/IO 调用、深层嵌套循环。
+
+    判定尽量给出可复核的规模证据：记录每层迭代源、常量上界、
+    并以「非恒定迭代因子的乘积」表达复杂度，而不是简单写 O(n^depth)。
+    """
+    findings: list[dict] = []
+    consts = module_const_sizes(tree) if isinstance(tree, ast.Module) else {}
+    one_shot = rel_path.startswith(("ops/", "homeos/frontend/scripts/", "scripts/"))
+
+    def visit(node: ast.AST, chain: list[ast.AST]) -> None:
         is_loop = isinstance(node, ast.For | ast.AsyncFor | ast.While)
-        next_depth = depth + 1 if is_loop else depth
+        next_chain = [*chain, node] if is_loop else chain
         if is_loop:
-            loop_depth = max(loop_depth, next_depth)
-            hits = []
-            for child in ast.walk(node):
-                if isinstance(child, ast.Call):
-                    try:
-                        segment = ast.unparse(child.func)
-                    except Exception:
-                        segment = ""
-                    if segment and any(marker in f"{segment}(" for marker in DB_MARKERS):
-                        hits.append((child.lineno, segment))
-            if hits:
-                db_hits += 1
+            depth = len(next_chain)
+            iterators = [f"{type(inner).__name__}({_iter_evidence(_loop_source(inner))})" for inner in next_chain]
+            unbounded = [inner for inner in next_chain if not _is_bounded_iter(_loop_source(inner), consts)]
+            if len(unbounded) >= 2:
+                complexity = "O(" + " × ".join(f"n{index + 1}" for index in range(len(unbounded))) + ")"
+            else:
+                complexity = "O(n)"
+            hits = _calls_in_loop(node)
+            source_hits = _calls_in_expr(_loop_source(node))
+            if not hits and source_hits:
                 findings.append(
                     finding(
                         type_="inefficient",
                         path=rel_path,
                         line_start=node.lineno,
                         line_end=getattr(node, "end_lineno", node.lineno),
-                        symbol=f"{type(node).__name__}@depth{next_depth}",
-                        evidence=f"循环体内 {len(hits)} 处 DB/ORM 调用；首个：`{hits[0][1]}`（第 {hits[0][0]} 行）",
-                        impact="若循环规模随请求数据增长将形成 N+1 查询；需真实 DB 才能量化",
-                        action="manual-confirm",
-                        manual=True,
-                        extra={"db_calls": len(hits), "loop_depth": next_depth},
+                        symbol=f"single-query@depth{depth}",
+                        evidence=(
+                            f"DB 调用仅出现在循环迭代源：`{source_hits[0][1]}`（第 {source_hits[0][0]} 行）；"
+                            "循环体无额外 DB/ORM 调用"
+                        ),
+                        impact="单条查询的游标式遍历，不是 N+1；仅当迭代源被多次物化时才需复核",
+                        action="keep-single-query",
+                        manual=False,
+                        extra={"loop_depth": depth, "scope": "one-shot" if one_shot else "app"},
                     )
                 )
-            if next_depth >= threshold_depth:
+            if hits:
                 findings.append(
                     finding(
                         type_="inefficient",
                         path=rel_path,
                         line_start=node.lineno,
                         line_end=getattr(node, "end_lineno", node.lineno),
-                        symbol=f"nested-loop@depth{next_depth}",
-                        evidence=f"嵌套循环深度 {next_depth}，最坏复杂度至少 O(n^{next_depth})",
-                        impact=f"文件内最深循环深度 {loop_depth}；数据量放大时 CPU 成本按幂次增长",
+                        symbol=f"{type(node).__name__}@depth{depth}",
+                        evidence=(
+                            f"循环体内 {len(hits)} 处 DB/ORM 调用；首个：`{hits[0][1]}`（第 {hits[0][0]} 行）；"
+                            f"迭代链：{' → '.join(iterators)}"
+                        ),
+                        impact=(
+                            f"最坏 {complexity} 次往返；"
+                            + ("一次性运维/性能脚本，单次执行" if one_shot else "若循环规模随请求/数据增长将形成 N+1 查询")
+                        ),
                         action="manual-confirm",
                         manual=True,
-                        extra={"loop_depth": next_depth},
+                        extra={
+                            "db_calls": len(hits),
+                            "loop_depth": depth,
+                            "iterators": iterators,
+                            "complexity": complexity,
+                            "scope": "one-shot" if one_shot else "app",
+                        },
+                    )
+                )
+            if depth >= threshold_depth:
+                bounded_chain = all(_is_bounded_iter(_loop_source(inner), consts) for inner in next_chain)
+                structural = all(
+                    isinstance(_loop_source(inner), ast.Attribute | ast.Subscript) for inner in next_chain[1:]
+                ) if len(next_chain) > 1 else False
+                if bounded_chain:
+                    action, manual, note = "keep-bounded", False, "迭代源均为常量/结构枚举，规模有编译期上界"
+                elif structural or one_shot:
+                    action, manual, note = "keep-one-shot", False, "外层为单次遍历，内层仅结构枚举，无嵌套 IO"
+                else:
+                    action, manual, note = "manual-confirm", True, "嵌套深度大且迭代源来自数据，需人工确认是否热点路径"
+                findings.append(
+                    finding(
+                        type_="inefficient",
+                        path=rel_path,
+                        line_start=node.lineno,
+                        line_end=getattr(node, "end_lineno", node.lineno),
+                        symbol=f"nested-loop@depth{depth}",
+                        evidence=f"嵌套循环深度 {depth}，{complexity}；{note}；迭代链：{' → '.join(iterators)}",
+                        impact=f"数据量放大时 CPU 成本按 {complexity} 增长；"
+                        + ("一次性脚本，不在请求路径" if one_shot else "需确认是否位于请求热点路径"),
+                        action=action,
+                        manual=manual,
+                        extra={
+                            "loop_depth": depth,
+                            "iterators": iterators,
+                            "complexity": complexity,
+                            "bounded": bounded_chain,
+                            "scope": "one-shot" if one_shot else "app",
+                        },
                     )
                 )
         for child in ast.iter_child_nodes(node):
-            visit(child, next_depth)
+            visit(child, next_chain)
 
-    visit(tree, 0)
+    visit(tree, [])
     return findings
 
 
@@ -354,6 +497,7 @@ def main() -> int:
 
     all_strings = "\n".join(strings_global)
     findings: list[dict] = []
+    skipped_test_entries: list[str] = []
 
     for rel_path, tree in trees.items():
         for node in tree.body:
@@ -361,6 +505,9 @@ def main() -> int:
                 continue
             name = node.name
             if name.startswith("__"):
+                continue
+            if is_test_entry(rel_path, node):
+                skipped_test_entries.append(f"{rel_path}:{node.lineno} {name}")
                 continue
             if node.decorator_list or name in all_exports or name in dynamic_global:
                 continue
@@ -438,6 +585,7 @@ def main() -> int:
         "stats": {
             "definitions": sum(1 for tree in trees.values() for n in tree.body if isinstance(n, DEF_TYPES)),
             "byType": dict(Counter(item["type"] for item in findings)),
+            "testEntriesSkipped": len(skipped_test_entries),
         },
     }
     text = json.dumps(payload, ensure_ascii=False, indent=2)

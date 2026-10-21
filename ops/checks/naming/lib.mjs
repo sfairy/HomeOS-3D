@@ -338,7 +338,7 @@ function computeHints(node, kind) {
 function addItem(ctx, nameNode, kind, node, sf) {
   const name = nameNode.text;
   if (!name) return;
-  const { file, rel, blockOffset, fullSf, template, scriptSetup } = ctx;
+  const { rel, blockOffset, fullSf, template, scriptSetup } = ctx;
   const scriptStart = nameNode.getStart(sf);
   const fileOffset = blockOffset != null ? blockOffset + scriptStart : scriptStart;
   const lc = fullSf.getLineAndCharacterOfPosition(fileOffset);

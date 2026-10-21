@@ -18,8 +18,6 @@ import {
   NUMERIC_NAME_RE,
   SNAKE_CASE_RE,
   UNDERSCORE_FN_RE,
-  REPO_ROOT,
-  toRel,
 } from "./lib.mjs";
 
 const args = process.argv.slice(2);

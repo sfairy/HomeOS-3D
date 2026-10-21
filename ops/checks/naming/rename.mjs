@@ -207,29 +207,6 @@ function findNodeAt(sf, pos) {
   return found;
 }
 
-function declarationsNamed(scriptFile, name) {
-  const sf = parseScript(scriptFile);
-  const out = [];
-  const visit = (node) => {
-    if (
-      (ts.isVariableDeclaration(node) ||
-        ts.isParameter(node) ||
-        ts.isBindingElement(node) ||
-        ts.isFunctionDeclaration(node) ||
-        ts.isClassDeclaration(node)) &&
-      node.name &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === name
-    ) {
-      out.push(node.name);
-    }
-    if (ts.isImportSpecifier(node) && node.name.text === name) out.push(node.name);
-    ts.forEachChild(node, visit);
-  };
-  visit(sf);
-  return out;
-}
-
 function declarationNameNode(node) {
   if (
     (ts.isVariableDeclaration(node) ||

@@ -37,7 +37,24 @@ const SOURCE_ROOTS = [
   'ops',
 ];
 const TRACKED_EXT = new Set(['.ts', '.tsx', '.vue', '.mjs', '.js']);
-const ANALYZE_EXT = new Set(['.ts', '.tsx', '.vue']);
+// .mjs/.js 只用于解析 import 边（构建脚本引用 .ts 入口），不产出问题条目。
+const ANALYZE_EXT = new Set(['.ts', '.tsx', '.vue', '.mjs', '.js']);
+const REPORT_EXT = new Set(['.ts', '.tsx', '.vue']);
+// 构建入口清单：vite 配置里的字符串字面量即入口文件（worker/独立 bundle）。
+const ENTRY_CONFIGS = [
+  'homeos/frontend/vite.config.ts',
+  'homeos/frontend/vite-studio.ts',
+  'homeos/frontend/vite.runtime.config.ts',
+  'homeos-store/frontend/vite.config.ts',
+];
+// 根级构建配置也是源码：它们是 ops/vite/** 的唯一引用方，不解析会误判整文件未使用。
+const ROOT_FILES = new Set([
+  'homeos/frontend/vite.config.ts',
+  'homeos/frontend/vite-studio.ts',
+  'homeos/frontend/vite.runtime.config.ts',
+  'homeos-store/frontend/vite.config.ts',
+  'eslint.config.mjs',
+]);
 const ENTRY_DIRS = ['homeos/frontend/src/studio/runtime', 'homeos/frontend/src/studio/shims'];
 const PUBLIC_DIRS = ['packages/'];
 const SKIP_FINDINGS = ['homeos/frontend/src/studio/runtime/', 'homeos/frontend/src/studio/shims/', 'packages/'];
@@ -128,7 +145,7 @@ function parseFile(absPath) {
   if (process.env.QC_DEBUG_FILE && file.endsWith(process.env.QC_DEBUG_FILE)) {
     process.stderr.write(`DBG ${file} templates=${templates.size} hasTableLabel=${templates.has('tableLabel')}\n`);
   }
-  const records = { file, exports: [], imports: [], statements: [], refs: new Map(), dyn: [], templateNames: templates, blocks: [] };
+  const records = { file, exports: [], imports: [], statements: [], refs: new Map(), dyn: [], unreachable: [], templateNames: templates, blocks: [] };
   for (const block of blocks) {
     const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
     const sf = ts.createSourceFile(file, block.text, ts.ScriptTarget.Latest, true, kind);
@@ -144,6 +161,7 @@ function parseFile(absPath) {
     collectRefs(sf, records);
     for (const name of templates) addRef(records, name);
     collectDynamic(sf, sf, records);
+    collectUnreachable(sf, records, line, endLine);
     stats.parsed += 1;
   }
   return records;
@@ -277,12 +295,47 @@ function collectDynamic(node, scope, records) {
         records.dyn.push({ line: lineOf(scope, n.getStart(scope)), text: text.slice(0, 120) });
       }
     }
+    if (ts.isNewExpression(n) && n.expression.getText(scope) === 'URL' && n.arguments?.length >= 2) {
+      const [target, base] = n.arguments;
+      if (ts.isStringLiteral(target) && base.getText(scope) === 'import.meta.url') {
+        records.dyn.push({ line: lineOf(scope, n.getStart(scope)), text: target.text });
+      }
+    }
     if (ts.isElementAccessExpression(n) && n.argumentExpression && ts.isStringLiteral(n.argumentExpression)) {
       records.dyn.push({ line: lineOf(scope, n.getStart(scope)), text: n.argumentExpression.text });
     }
     ts.forEachChild(n, visit);
   };
   visit(node);
+}
+
+function collectUnreachable(sf, records, line, endLine) {
+  const scan = (node) => {
+    const lists = [];
+    if (ts.isSourceFile(node) || ts.isBlock(node) || ts.isModuleBlock(node)) lists.push(node.statements);
+    else if (ts.isCaseClause(node) || ts.isDefaultClause(node)) lists.push(node.statements);
+    for (const statements of lists) {
+      let terminator = 0;
+      for (const stmt of statements) {
+        if (terminator) {
+          // 函数/类声明会提升，仍可被调用，保守跳过。
+          if (ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) continue;
+          records.unreachable.push({
+            line: line(stmt.getStart(sf)),
+            endLine: endLine(stmt),
+            after: terminator,
+            text: stmt.getText(sf).replace(/\s+/g, ' ').slice(0, 100),
+          });
+          break;
+        }
+        if (ts.isReturnStatement(stmt) || ts.isThrowStatement(stmt) || ts.isBreakStatement(stmt) || ts.isContinueStatement(stmt)) {
+          terminator = line(stmt.getStart(sf));
+        }
+      }
+    }
+    ts.forEachChild(node, scan);
+  };
+  scan(sf);
 }
 
 function resolveSpec(fromFile, spec) {
@@ -315,7 +368,7 @@ function main() {
   const allFiles = walk(repo);
   stats.files = allFiles.length;
   const analyzed = allFiles.filter(isAnalyzed);
-  const files = analyzed.filter((abs) => isInsideRoots(rel(abs)));
+  const files = analyzed.filter((abs) => isInsideRoots(rel(abs)) || ROOT_FILES.has(rel(abs)));
   if (process.env.QC_DEBUG) {
     process.stderr.write(`all=${allFiles.length} analyzed=${analyzed.length} inside=${files.length} sample=${analyzed[0]}\n`);
     process.stderr.write(`rel=${analyzed[0] ? rel(analyzed[0]) : '-'} inside0=${analyzed[0] ? isInsideRoots(rel(analyzed[0])) : '-'}\n`);
@@ -394,14 +447,44 @@ function main() {
     }
   }
 
+  // vite 配置里的入口字面量（worker / 独立 bundle / html 入口）补成 import 边。
+  const viteEntryFiles = new Set();
+  const viteLiterals = new Set();
+  for (const config of ENTRY_CONFIGS) {
+    let text = '';
+    try {
+      text = readFileSync(join(repo, config), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const match of text.matchAll(/['"`]([^'"`\n]{4,200})['"`]/g)) viteLiterals.add(match[1]);
+  }
+  if (viteLiterals.size) {
+    const normalized = [...viteLiterals].map((literal) => literal.replace(/\\/g, '/').replace(/\.(ts|tsx|vue|js|mjs)$/, ''));
+    for (const rec of records) {
+      const srcIndex = rec.file.indexOf('/src/');
+      if (srcIndex < 0) continue;
+      const tail = rec.file.slice(srcIndex + 5).replace(/\.(ts|tsx|vue)$/, '');
+      const base = tail.split('/').pop();
+      if (normalized.some((literal) => literal === tail || literal.endsWith('/' + tail) || tail.endsWith('/' + literal) || (base.length >= 8 && literal.endsWith('/' + base)))) {
+        viteEntryFiles.add(rec.file);
+        importedFiles.add(rec.file);
+      }
+    }
+  }
+
   const findings = [];
   const add = (item) => findings.push(item);
+  const reported = records.filter((rec) => isReported(rec.file));
 
-  for (const rec of records) {
+  for (const rec of reported) {
     if (isSkippedForFindings(rec.file)) continue;
     for (const exp of rec.exports) {
       if (!exp.name || exp.name === 'default') continue;
       if (importedNames.has(exp.name)) continue;
+      // 声明标识符本身会计 1 次；>1 说明模块内部仍在用，只是没人 import。
+      // 这种情况只能去掉 export 关键字，不能删声明——删了会打断本文件的引用。
+      const internalRefs = Math.max(0, (rec.refs.get(exp.name) || 0) - 1);
       const risk = rec.dyn.filter((d) => d.text.includes(exp.name)).map((d) => `${rec.file}:${d.line} ${d.text}`);
       add({
         type: 'dead',
@@ -410,12 +493,18 @@ function main() {
         line_start: exp.line,
         line_end: exp.endLine,
         symbol: `export ${exp.kind} ${exp.name}`,
-        evidence: `${stats.files} 个文件范围内无 import/re-export/模板引用`,
-        impact: isEntrySurface(rec.file) ? '入口/公共面导出，删除会破坏 URL 或外部契约' : '未被引用的导出面；删除或去掉 export 不改变运行时',
+        evidence: internalRefs > 0
+          ? `${stats.files} 个文件范围内无 import/re-export；文件内仍有 ${internalRefs} 处引用`
+          : `${stats.files} 个文件范围内无 import/re-export/模板引用，文件内也无引用`,
+        impact: isEntrySurface(rec.file)
+          ? '入口/公共面导出，删除会破坏 URL 或外部契约'
+          : internalRefs > 0
+            ? '模块内部仍在使用；去掉 export 不改变运行时'
+            : '未被引用的导出面；声明本身也无人使用',
         action: isEntrySurface(rec.file) || rec.file.endsWith('.d.ts') ? 'manual-confirm' : 'remove-export',
         manual: isEntrySurface(rec.file) || rec.file.endsWith('.d.ts') || risk.length > 0,
         dynamic_risk: risk,
-        meta: { entrySurface: isEntrySurface(rec.file) },
+        meta: { entrySurface: isEntrySurface(rec.file), internalRefs },
       });
     }
     for (const stmt of rec.statements) {
@@ -467,7 +556,8 @@ function main() {
     };
     for (const block of rec.blocks) visit(block.sf, block.sf, block.offsetLines);
   }
-  for (const members of dupGroups.values()) {
+  for (const allMembers of dupGroups.values()) {
+    const members = allMembers.filter((m) => isReported(m.file));
     if (members.length < 2) continue;
     const locations = members.map((m) => `${m.file}:${m.line}-${m.endLine}`).join('、');
     for (const member of members) {
@@ -488,10 +578,31 @@ function main() {
     }
   }
 
-  for (const rec of records) {
+  for (const rec of reported) {
+    if (isSkippedForFindings(rec.file)) continue;
+    for (const item of rec.unreachable) {
+      add({
+        type: 'invalid-unreachable',
+        labels: ['invalid-unreachable'],
+        path: rec.file,
+        line_start: item.line,
+        line_end: item.endLine,
+        symbol: 'unreachable-statement',
+        evidence: `第 ${item.after} 行终止语句（return/throw/break/continue）之后仍有语句：\`${item.text}\``,
+        impact: '同一语句块内永不执行，属于无效代码',
+        action: 'remove',
+        manual: false,
+        dynamic_risk: [],
+        meta: {},
+      });
+    }
+  }
+
+  for (const rec of reported) {
     if (isSkippedForFindings(rec.file)) continue;
     // 未引用文件（保守：仅报告，不自动删）
-    if (!importedFiles.has(rec.file) && !isEntrySurface(rec.file) && !isEntryLike(rec.file)) {
+    if (!importedFiles.has(rec.file) && !isEntrySurface(rec.file) && !isEntryLike(rec.file)
+      && !rec.file.endsWith('.d.ts') && !viteEntryFiles.has(rec.file)) {
       add({
         type: 'dead',
         labels: ['dead', 'unused-file'],
@@ -523,8 +634,20 @@ function main() {
   else process.stdout.write(`${text}\n`);
 }
 
+function isReported(file) {
+  return REPORT_EXT.has(extname(file));
+}
+
 function isEntryLike(file) {
-  return /\/(main|index)\.(ts|tsx|vue)$/.test(file) || file.includes('vite.config') || file.includes('vite-');
+  return /\/(main|index)\.(ts|tsx|vue)$/.test(file)
+    || /(^|\/)vite[^/]*\.config\.ts$/.test(file)
+    || /(^|\/)vite-studio\.ts$/.test(file)
+    // worker 通过 new Worker(new URL('./x.worker', import.meta.url)) 引用，静态 import 图看不到。
+    || /(^|\/)[\w.-]*worker\.(ts|tsx)$/.test(file)
+    || /(^|\/)[\w.-]+-worker\.(ts|tsx)$/.test(file)
+    // 测试文件由 node --test / vitest 的 glob 发现，不在静态 import 图里。
+    || /(^|\/)(tests?|__tests__)\//.test(file)
+    || /\.(test|spec)\.(ts|tsx)$/.test(file);
 }
 
 function countByType(findings) {
