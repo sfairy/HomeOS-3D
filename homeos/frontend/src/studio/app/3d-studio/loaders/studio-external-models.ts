@@ -34,7 +34,7 @@ import {
   usesNamedMaterialRole,
 } from "../materials/studio-model-material-roles";
 import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
-import { COLLECTION_MODELS } from "./external-models/collection-models";
+import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from "../materials/material-pipeline";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
 import {
   materialStyleRecipeFor,
@@ -50,7 +50,7 @@ import {
   insetBedBaseGeometry, applyStoneSlabPlanarUv,
   warmWoodFurnitureItemTypes, roleTableItemTypes, diningMaterialRolesByItemType,
   warmCabinetItemTypes, countertopMaterialIndexByItemType, luminancePaletteItemTypes,
-  applianceItemTypes, gardenItemTypes,
+  applianceItemTypes,
 } from "./external-models/_shared";
 import { ALL_ITEM_MODELS } from "./external-models/all-item-models";
 import { applyModelAnchors } from "./external-models/model-anchors";
@@ -1874,21 +1874,10 @@ function normalizeMaterialValue(materialValue: any): any {
   }
   /** 该（模型，材质名）是否走 `applyItemDetailMaterial` 的调色板 / 角色表出图。 */
   function usesDetailMaterialPipeline(itemType: any, materialName: any, palette: any) {
-    return (
-      paletteOverrideItemTypes.has(itemType) ||
-      (itemType === "aquarium" && materialName?.startsWith("aquarium-aquatic-")) ||
-      COURTYARD_MODELS[itemType] ||
-      (DECOR_MODELS as any)[itemType] ||
-      materialName?.includes("-furniture-") ||
-      gardenItemTypes.has(itemType) ||
-      applianceItemTypes.has(itemType) ||
-
-
-      hasSemanticSlotRoles(itemType) ||
-      (!isStructuralModelFamily(resolveModelFamily(itemType)) &&
-        (roleTableItemTypes.has(itemType) || Boolean(COLLECTION_MODELS[itemType]))) ||
-      (palette.warmWood && warmWoodFurnitureItemTypes.has(itemType))
-    );
+    // 判定本身放在 `materials/material-pipeline.ts`：审计 / 修复脚本要判「GLB 里的 PBR
+    // 数值会不会被读」，必须与运行时同源，不能各写一份（`coffeetable` 就是被两份逻辑
+    // 判岔了：脚本以为要回填，运行时其实整块重建）。
+    return sharedUsesDetailMaterialPipeline(itemType, materialName, Boolean(palette?.warmWood));
   }
   /** 净化器 / 立柜空调的**导引面**：整块网格只挂一张 `*-material-2|3`，挂载时会被隐藏。 */
   function isHiddenApplianceGuideMesh(modelType: any, meshMaterials: any) {

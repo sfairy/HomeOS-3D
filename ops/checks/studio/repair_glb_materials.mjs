@@ -114,6 +114,14 @@ const { resolveModelMaterialRole, materialRoleRecipeForRole } = rolesModule;
 const { hasSemanticSlotRoles } = await loadModule(
   'src/studio/app/3d-studio/materials/model-slot-roles.ts',
 );
+/**
+ * 与运行时**同一份**判定：材质会被 `applyItemDetailMaterial` 整块重建时，
+ * GLB 里的 `metallicFactor` / `roughnessFactor` 根本不会被读，
+ * 往里回填配方值只会产生无意义 diff，并抹掉手工调过的分件差异（`coffeetable` 就是这样被改的）。
+ */
+const { materialPbrIsReplaced } = await loadModule(
+  'src/studio/app/3d-studio/materials/material-pipeline.ts',
+);
 
 const urlStem = (url) =>
   String(url || '')
@@ -454,7 +462,7 @@ function planMaterialFix({ material, itemType, index }) {
       pbr.roughnessFactor = round(recipe.roughness);
       patches.push(['M2', `补 roughnessFactor=${pbr.roughnessFactor}`]);
     }
-    if (pbrBackfill && want('C7')) {
+    if (pbrBackfill && want('C7') && !materialPbrIsReplaced(itemType, material.name)) {
       const drift = [];
       if (typeof recipe?.roughness === 'number' && pbr.roughnessFactor !== undefined) {
         const next = round(recipe.roughness);

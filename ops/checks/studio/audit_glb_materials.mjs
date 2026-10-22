@@ -216,6 +216,14 @@ const [allItemModelsModule, sharedModule, rolesModule, slotRolesModule, collecti
     loadModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts'),
   ]);
 
+/**
+ * 与运行时同一份判定：`true` 表示该槽位会被 `applyItemDetailMaterial` 整块重建，
+ * GLB 内嵌的 `metallicFactor` / `roughnessFactor` 不会被读取，C7 不应报、也不应回填。
+ */
+const { materialPbrIsReplaced } = await loadModule(
+  'src/studio/app/3d-studio/materials/material-pipeline.ts',
+);
+
 const {
   resolveModelMaterialRole,
   materialRoleRecipeForRole,
@@ -884,7 +892,9 @@ function auditMaterial({ material, itemType, variant, family, modelId, isOrphan 
   }
 
   // C7 内嵌值与配方冲突（只看角色能确定的情况，默认兜底由 C1 负责）
-  if (recipe && roleResult.source !== 'default') {
+  // 会被运行时整块重建的槽位（`paletteOverrideItemTypes` / `-furniture-` 中缀等）
+  // 里 GLB 数值根本不会被读，报出来只会诱导脚本去覆盖作者手调的分件粗糙度。
+  if (recipe && roleResult.source !== 'default' && !materialPbrIsReplaced(itemType, material.name)) {
     const drift = [];
     if (isFiniteNumber(material.metallicFactor) && isFiniteNumber(recipe.metalness)) {
       const delta = Math.abs(material.metallicFactor - recipe.metalness);
