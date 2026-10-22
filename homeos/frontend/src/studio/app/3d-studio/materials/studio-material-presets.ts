@@ -244,6 +244,31 @@ const MODEL_STYLE_ROLE_OVERRIDES: Readonly<
       depthWrite: false,
     },
   },
+  /**
+   * 厨房岛台：`foliage` 是台面上的那盆绿植，**必须**压掉档位派生出来的「深色木」。
+   *
+   * 厨房档位走的是 `joineryCombo`，它自带 `interior`（内腔），而 `STYLE_ROLE_DERIVATIONS`
+   * 里 `foliage` 是从 `interior` 派生的 —— 于是绿植会跟着柜体一起变深木色。档位组的补全
+   * （`STYLE_ROLE_RECIPES_BY_GROUP.kitchen`）**压不住**它：派生发生在 `definePreset` 里，
+   * 档位的 `roles` 已经有 `foliage`，组配方只在「档位没写」时才查。所以只能逐型号覆写。
+   */
+  "kitchen-island": {
+    foliage: { surface: "foliage", color: "leafColor" },
+  },
+  /** 边几：`top` 槽位按 `woodwork` 家族 token 表映射成 `countertop`，而 `woodwork` 组的 `countertop` 是**石材**配方；边几是木质小几，台面跟着木色走。 */
+  "side-table": {
+    countertop: { surface: "wood", color: "wood" },
+  },
+  /**
+   * 壁挂电视（`tv_standard.glb`，**整机只有一个材质槽位**）：槽位名只有 `-material-0`，
+   * token 只能判成 `screen`，而 `SCREEN_STYLES` 两档都把 `screen` 写成「屏面曜黑」`0x15171a`
+   * —— 于是「曜黑 / 银灰」两档选出来是同一台黑电视。整机一体的机型里这个槽位其实是**机身**，
+   * 让它跟档位的机身色（`applianceSoft`：曜黑 `0x3f4247` / 银灰 `0xc6cbd1`）走，两档才分得开。
+   * 有独立屏体的 `tv` / `tv_tabletop` / `screenpanel` 不受影响。
+   */
+  tv_standard: {
+    screen: { surface: "lacquer", color: "applianceSoft" },
+  },
 });
 
 /** 取某角色在某档位下的配方：逐模型覆写优先，其次档位自己的配方，最后按**档位组**补全。 */
@@ -330,6 +355,11 @@ const STYLE_ROLE_RECIPES_BY_GROUP: Readonly<Record<string, Readonly<Record<strin
       },
       containerLid: { surface: "metal", color: "furnitureDark" },
       soapTray: { surface: "metal", color: "metal" },
+      /**
+       * 管线机 / 净水机的显示屏：`steelAppliance` 组以前没有 `display` 配方，
+       * 矩形双出水款（`rectangular-pipeline-dispenser`）那 0.2m 高的屏面三档都不变色。
+       */
+      display: { surface: "lacquer", color: "applianceDark" },
     },
     /** 洁具 / 卫浴：池沿、盆体、牙杯、毛巾杆、置物盘、收纳罐。 */
     ceramic: {
@@ -358,11 +388,25 @@ const STYLE_ROLE_RECIPES_BY_GROUP: Readonly<Record<string, Readonly<Record<strin
       petFood: { surface: "paint", color: 0xb08148 },
       water: { surface: "glass", color: 0xa9c5d3, transparent: true, opacity: 0.62, depthWrite: false },
     },
-    /** 数码 / 影音：机身边框 / 支架 / 纸张。 */
+    /** 数码 / 影音：机身边框 / 支架 / 纸张 / 可换的透明容器（香薰机的玻璃瓶）。 */
     device: {
       bezel: { surface: "lacquer", color: "furnitureDark" },
       stand: { surface: "metal", color: "furnitureDark" },
       paperSheet: { surface: "paint", color: 0xf3f1ea },
+      /**
+       * 香薰机（`aroma-diffuser`）的可见主体是 `-bottle`（GLB 里 alpha 0.36 的玻璃瓶），
+       * `device` 组以前没有 `container` 配方，于是三档下瓶身一动不动 —— 机身上下都变了、
+       * 只有最大的那块面没变，看起来像「档位只生效了一半」。
+       * 瓶身染色取 `furnitureLight`（皓白 → 透明 / 石墨 → 烟灰 / 金属灰 → 浅灰玻璃），
+       * 不写死成中性玻璃色，否则三档依然是同一只瓶子。
+       */
+      container: {
+        surface: "glass",
+        color: "furnitureLight",
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false,
+      },
     },
   });
 
@@ -407,6 +451,7 @@ function joineryCombo({
   body,
   door,
   top,
+  countertop,
   metal,
   drawer,
   trim,
@@ -425,6 +470,12 @@ function joineryCombo({
   body: Recipe;
   door: Recipe;
   top?: Recipe;
+  /**
+   * 独立「台面」角色：`woodwork` / `joinery` 家族的 `top` 槽位按 token 表映射成 `countertop`
+   * （见 `model-slot-roles.ts` 的 `FAMILY_TOKEN_ROLES`），所以柜类里那个「台面」角色名是
+   * `countertop` 而不是 `top`。缺省与 `top` 同配方 —— 厨房岛台的石台面不该和柜体用两种石色。
+   */
+  countertop?: Recipe;
   metal?: Recipe;
   drawer?: Recipe;
   trim?: Recipe;
@@ -472,6 +523,7 @@ function joineryCombo({
 
     leg: leg ?? base ?? body,
     top: top!,
+    countertop: countertop ?? top ?? body,
     interior: interior ?? interiorRecipe,
     glass: glass ?? glassRecipe,
     mirror: mirror ?? mirrorRecipe,
@@ -677,10 +729,11 @@ function sanitaryCombo({
   /**
    * 洁具的五金（拉手 / 挡水 / 毛巾杆 / 台盆龙头）以前是**写死的 0xbfc6cc**，任何陶瓷档位都刷不动它，
    * 于是像 `heated-towel-rail`（全机只有杆 / 龙头 / 毛巾 / 装饰条）这种模型选遍档位**毫无变化**。
-   * 改成主题语义键 `showerMetal`：档位没写该键时回落主题值（= 原来的 0xbfc6cc，行为不变），
-   * 陶瓷档位自己写了该键（见 `CERAMIC_STYLES`）时就随档位走「亮白 / 哑光 / 岩灰」。
+   * 改成主题语义键 `showerMetal`：档位 / 主题没写该键时回落到 `SEMANTIC_DEFAULT_BY_PALETTE_KEY`
+   * 的写实五金色（`0xcfd4d8`，与原来 `0xbfc6cc` 同属银灰，肉眼几乎无差），陶瓷档位自己写了
+   * 该键（见 `CERAMIC_STYLES`）时就随档位走「亮白 / 哑光 / 岩灰」。
    */
-  const metalRecipe: Recipe = metal ?? { surface: "metal", color: 0xbfc6cc };
+  const metalRecipe: Recipe = metal ?? { surface: "metal", color: "showerMetal" };
   const glassRecipe: Recipe = glass ?? { surface: "glass", color: 0xdfeaec };
 
   const mirrorRecipe: Recipe = mirror ?? {
@@ -1741,6 +1794,9 @@ const CERAMIC_STYLES: readonly MaterialStylePreset[] = Object.freeze([
       applianceSoft: 0xfbfbf9,
       furnitureLight: 0xfbfbf9,
       furniture: 0xf0f0ec,
+      /* 洁具五金 / 毛巾：`sanitaryCombo` 与 `ceramic` 组配方都读这两个键（见上面的组注释）。 */
+      showerMetal: 0xbfc6cc,
+      diningLinen: 0xe3ded4,
     },
     sanitaryCombo({
       body: { surface: "ceramic", color: 0xf7f7f4 },
@@ -1757,6 +1813,8 @@ const CERAMIC_STYLES: readonly MaterialStylePreset[] = Object.freeze([
       applianceSoft: 0xedebe4,
       furnitureLight: 0xedebe4,
       furniture: 0xdedbd2,
+      showerMetal: 0xa9b0b7,
+      diningLinen: 0xdcd6ca,
     },
     sanitaryCombo({
       body: { surface: "ceramic", color: 0xeceae2 },
@@ -1773,6 +1831,8 @@ const CERAMIC_STYLES: readonly MaterialStylePreset[] = Object.freeze([
       applianceSoft: 0xc8c6c0,
       furnitureLight: 0xc8c6c0,
       furniture: 0xb6b4ae,
+      showerMetal: 0x8b9299,
+      diningLinen: 0xc9c3b8,
     },
     sanitaryCombo({
 
@@ -2723,7 +2783,7 @@ const KIDS_STYLES: readonly MaterialStylePreset[] = Object.freeze([
       body: 0xf2efe8,
       accent: 0xe0a36b,
       /** 奶油白：球池的球单独给「奶粉 → 藕粉」一色，别和「马卡龙」的同一颗红球撞车（否则两档整机同色）。 */
-      ball: 0xd06e6e,
+      ball: 0xe8c6bd,
       tent: 0xe9e2d3,
       wood: 0xdcc9ab,
       shelf: 0xcbb894,
@@ -3088,6 +3148,13 @@ const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.free
 
 
   kitchenisland: "kitchen",
+  /**
+   * 带连字符的岛台（`kitchen-island.glb`，2026 新资产）与老 `kitchenisland` 是**两件不同素材**，
+   * 型号字符串也不同：只登记 `kitchenisland` 时它落到 family 兜底 `woodwork`，拿到「原木 / 胡桃 /
+   * 白烤漆 / 黑砂金属腿」四档 —— 石台面被冻结在 `countertop` 语义默认色 `#d9d5cd`、绿植槽位无配方，
+   * 看起来像「档位对它不生效」。这里显式并到厨房组，五档石台面才跟着走。
+   */
+  "kitchen-island": "kitchen",
   kitchenbase: "kitchen",
   kitchensink: "kitchen",
   kitchencooktop: "kitchen",
@@ -3209,13 +3276,29 @@ function isMaterialStyleOptOut(modelType: string): boolean {
   return modelType in PRESET_GROUP_BY_MODEL_TYPE && !PRESET_GROUP_BY_MODEL_TYPE[modelType];
 }
 
+/**
+ * 逐模型的**档位剔除**：组里有一档对这件素材毫无意义的构件（没有腿 / 没有金属 / 没有可换的面），
+ * 选出来和另一档出图**完全一样** —— 留在下拉里只是让人以为「设置没生效」。
+ *
+ * 只影响下拉里能选什么：`normalizeMaterialStyle()` 会把旧存档里的失效 id 归回 `auto`，
+ * 已有的场景存档不会因为这一行而报错。
+ */
+const PRESET_IDS_OMITTED_BY_MODEL_TYPE: Readonly<Record<string, readonly string[]>> =
+  Object.freeze({
+    /** 床上托盘只有 `board` 一个可换面，没有腿 / 金属件：该档与「胡桃木」出图完全相同。 */
+    "bed-tray": ["wood-black-metal"],
+  });
+
 /** 某模型可选的档位（不含「跟随全局风格」，那一项由界面统一补在最前）。 */
 export function materialStyleOptionsFor(modelType: string): readonly MaterialStylePreset[] {
   const presetGroup = presetGroupFor(modelType);
   if (!presetGroup) return [];
   const builtinPresets = PRESET_GROUPS[presetGroup] || [],
-    customPresets = customPresetsByGroup.get(presetGroup) || [];
-  return customPresets.length ? [...builtinPresets, ...customPresets] : builtinPresets;
+    customPresets = customPresetsByGroup.get(presetGroup) || [],
+    options = customPresets.length ? [...builtinPresets, ...customPresets] : builtinPresets,
+    omitted = PRESET_IDS_OMITTED_BY_MODEL_TYPE[modelType];
+  if (!omitted?.length) return options;
+  return options.filter((preset) => !omitted.includes(preset.id));
 }
 
 /** 该模型类型所属的档位组名； */
