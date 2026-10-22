@@ -276,7 +276,7 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
     sofa: createFurnitureAssetDescriptor("sofa", [2.2, 0.82, 0.9]),
     coffeetable: createFurnitureAssetDescriptor(
       "coffeetable",
-      [1.7, 0.5, 1.25],
+      [1.9, 0.5, 1.05],
       MODEL_ASSET_CACHE_KEYS.reference,
     ),
     kitchenisland: createFurnitureAssetDescriptor("kitchenisland", [2.4, 0.9, 0.8]),

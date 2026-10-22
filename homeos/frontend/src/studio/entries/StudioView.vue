@@ -278,7 +278,7 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="living"><i>▰</i><span>L 型沙发</span><small>2.80 × 1.60m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="coffeetable"
                         data-library-category="home" data-library-group="living" data-library-name="组合茶几"
-                        data-asset-subcategory="living"><i>◉</i><span>组合茶几</span><small>1.70 × 1.25m</small></button>
+                        data-asset-subcategory="living"><i>◉</i><span>组合茶几</span><small>1.90 × 1.05m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="squarecoffeetable"
                         data-library-category="home" data-library-group="living" data-library-name="方茶几"
                         data-asset-subcategory="living"><i>▦</i><span>方茶几</span><small>1.40 × 0.70m</small></button>

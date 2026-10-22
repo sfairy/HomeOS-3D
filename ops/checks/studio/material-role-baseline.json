@@ -1,10 +1,10 @@
 {
   "format": 1,
   "note": "GLB 材质「槽位下标 → 语义角色」快照：故意不含槽位名，改名不影响指纹；角色本身变化（重导出位移 / token 表误改）会让 check:materials 失败。",
-  "generatedAt": "2026-10-22T03:23:48.152Z",
+  "generatedAt": "2026-10-22T05:08:36.620Z",
   "modelCount": 332,
   "fileCount": 660,
-  "materialCount": 3067,
+  "materialCount": 3063,
   "files": {
     "3d-printer-lite.glb": [
       "bezel",
@@ -502,16 +502,12 @@
       "handle"
     ],
     "coffeetable-lite.glb": [
-      "frame",
-      "shadow",
-      "surface"
+      "surface",
+      "frame"
     ],
     "coffeetable.glb": [
-      "frame",
-      "fabric",
-      "shadow",
       "surface",
-      "accent"
+      "frame"
     ],
     "cookware-set-lite.glb": [
       "potBody",

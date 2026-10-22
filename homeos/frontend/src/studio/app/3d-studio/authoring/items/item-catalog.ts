@@ -965,8 +965,11 @@ export const itemTypeCatalog = {
   coffeetable: {
     name: "组合茶几",
     glyph: "▭",
-    width: 1.7,
-    depth: 1.25,
+    // 与 `coffeetable{,-lite}.glb` 的实际包围盒一致（1.90 × 0.50 × 1.05）：
+    // 早先注册表被改成 1.70×1.25 去迁就一版换了造型的模型，模型恢复后要同步回来，
+    // 否则 2D 平面图的占位框会比 3D 里的桌子窄 0.2m。
+    width: 1.9,
+    depth: 1.05,
     height: 0.5,
     color: "#8d96aa",
   },
