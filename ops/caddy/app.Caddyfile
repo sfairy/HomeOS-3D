@@ -49,6 +49,42 @@
 		on_demand
 	}
 
+	# ── 静态资源压缩（只匹配 /static/*，不给 /api/* 开）───────────────────────────
+	#
+	# 为什么压：3D 模型的 GLB 是 f32 几何，HTTP 传输可压得很狠。以下数字均为**实测**
+	# （真实本文件只换端口、去掉 tls，上游直吐文件，逐文件过反代统计）：
+	#   · 全库 660 个 GLB：27.24 MB → zstd 11.37 MB（省 58.3%）/ gzip 11.93 MB（省 56.2%）；
+	#   · 单件（均按 zstd 计，括号内 gzip）：`piano.glb` 62.5%（61.8%）、
+	#     `round-double-bed.glb` 67.6%、`coffeetable.glb` 72.4%（68.1%）、
+	#     `draco_decoder.wasm` 68.0%（65.6%）、SVG 样例 64.6%；
+	#   · 非 GLB 静态资源 7665 个：18.32 MB → 7.41 MB（省 59.6%）。
+	# 压缩在**传输层**做，文件本身一格不动。
+	#
+	# 两个容易踩的边界（同样是实测）：
+	#   · encode 默认 `min_length` 是 512 B —— 小文件直接不压（200 B 文本原样透传，900 B 才压）；
+	#   · 已压格式（webp / woff2）压完反而略大：全库仅 35 个、合计 +513 B，可忽略。
+	# 这里只挂 zstd + gzip，**没配 br**：只发 `Accept-Encoding: br` 的客户端会拿到原文件。
+	# 主流浏览器都同时接受 gzip，实际不会退化。
+	#
+	# 为什么必须写 `match { header Content-Type * }`：Caddy 的 encode 默认只压「可压缩
+	# 文本类型」，实测**会跳过** `model/gltf-binary`（287196 B 原样透传、无 Content-Encoding）；
+	# 显式给 content-type 匹配后同一文件才降到 107673 B（zstd）。对照实验：删掉这个 match
+	# 子块后 GLB 两件全部原样透传，而 SVG 仍被压到 2169 B —— 说明失效点只在 MIME 判定。
+	# `header Content-Type *` 是通配，保持「/static 下都交给编码器」的语义 —— 目录里那批位图
+	# 与 woff2 属于已压格式（压完略大，见上），SVG 反而收益大，整体代价可忽略。
+	#
+	# 为什么不给整站开：/api/* 里有 SSE 与 go2rtc 的实时流（multipart / 长连接），
+	# 让 encode 去缓冲它们会破坏流式语义；这里用 path 匹配把风险面收干净（实测 /api/* 不带
+	# Content-Encoding）。
+	@static_assets path /static/*
+	encode @static_assets {
+		zstd
+		gzip
+		match {
+			header Content-Type *
+		}
+	}
+
 	reverse_proxy 127.0.0.1:8801 {
 		# 必须用 hostport，不能写 {host}：{host} 等价于 {http.request.host}，Caddy 会做
 		# net.SplitHostPort 把端口摘掉。于是上游收到的 Host 是「192.168.1.20」，而浏览器
