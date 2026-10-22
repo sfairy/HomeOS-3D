@@ -49,6 +49,7 @@ ENVIRONMENT_FIELDS = frozenset(
         'curtainGroups',
         'temperatureHumidity',
         'fans',
+        'exhaustFans',
         'airers',
         'waterHeaters',
     }
@@ -196,6 +197,14 @@ APPLIANCE_RULES: dict[str, ApplianceRules] = {
                 'deviceName',
             }
         ),
+        CLICK_ACTIONS,
+        True,
+    ),
+    # 排气扇（0.8.0）：只认 deviceId/deviceName，没有风速/方向/反转字段；
+    # 主实体是 switch.* 或 fan.*，扇叶与气流只随启停。
+    'exhaustFans': ApplianceRules(
+        re.compile(r'(?:fan|switch)\.[a-z0-9_]+'),
+        APPLIANCE_FIELDS | frozenset({'deviceId', 'deviceName'}),
         CLICK_ACTIONS,
         True,
     ),
@@ -366,6 +375,7 @@ class EnvironmentSectionValidator:
         self.appliance_bindings: dict[str, Callable[[Any], None]] = {
             'airers': self.validate_airer_bindings,
             'fans': self.validate_fan_bindings,
+            'exhaustFans': self.validate_exhaust_fan_bindings,
             'airPurifiers': self.validate_air_purifier_bindings,
             'waterHeaters': self.validate_water_heater_bindings,
         }
@@ -509,6 +519,13 @@ class EnvironmentSectionValidator:
         if not self.ctx.require_text(fan, ('deviceId', 'deviceName')) and bool(
             fan.get('deviceId')
         ) != bool(fan.get('deviceName')):
+            self.ctx.fail()
+
+    def validate_exhaust_fan_bindings(self, exhaust_fan: Any) -> None:
+        """排气扇：deviceId / deviceName 成对；主实体域由判定表校验（switch / fan）。"""
+        if not self.ctx.require_text(exhaust_fan, ('deviceId', 'deviceName')) and bool(
+            exhaust_fan.get('deviceId')
+        ) != bool(exhaust_fan.get('deviceName')):
             self.ctx.fail()
 
     def validate_air_purifier_bindings(self, air_purifier: Any) -> None:

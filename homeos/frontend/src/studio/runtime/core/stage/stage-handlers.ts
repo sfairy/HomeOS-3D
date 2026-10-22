@@ -496,8 +496,15 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
           (isConcealGraceElapsed && layoutMarkerElement.parentElement === host.markerLayerElement)
         )
           continue;
-        const isMarkerVisible =
-          (host.isEditing || layoutMarkerSnapshot.deviceKind !== "presence") &&
+        // 0.8.0 告警标签：`hidden` 永不显示，`alarm` 只在报警态出现；编辑态照常显示。
+        const alarmLabelVisible =
+            !layoutMarkerSnapshot.securityAlarm ||
+            layoutMarkerSnapshot.labelMode !== "hidden" &&
+              (layoutMarkerSnapshot.labelMode !== "alarm" ||
+                securityAlarmReading(layoutMarkerSnapshot, host.deviceStates).on),
+          isMarkerVisible =
+            (host.isEditing || alarmLabelVisible) &&
+            (host.isEditing || layoutMarkerSnapshot.deviceKind !== "presence") &&
           (host.isEditing || layoutMarkerSnapshot.visible !== false) &&
           (host.isEditing || layoutMarkerSnapshot.buttonHidden !== true) &&
           layoutMarkerSnapshot.modelAvailable !== false &&
@@ -547,6 +554,8 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
           (layoutMarkerElement.style.top = ((1 - project2.y) * height3) / 2 + "px"));
       }
     }
+    // 胎压标签自己算投影（锚点来自车模包围盒），每帧都要走，不受上方签名缓存影响。
+    host.carTires.project({ width: width4, height: height3, camera: host.mountOptions.camera });
   }
 }
 
@@ -1308,6 +1317,14 @@ export function createSyncMarkers(host: StageHandlersHost) {
         editingBadge.textContent = "当前";
       } else editingBadge?.remove();
     }
+    // 四轮胎压：标签跟车模包围盒走，独立于 `i3d-marker` 的坐标点表。
+    host.carTires.sync({
+      root: host.mountOptions.modelRoot,
+      revision: host.mountOptions.environmentRevision ?? host.mountOptions.sceneRevision,
+      bindings: host.options.devices?.cars || [],
+      states: host.deviceStates,
+      formats: host.numberFormats,
+    }) && (hasMarkerChange = true);
     // 全屏报警由父页 runtime 挂到 document.body；iframe 内仅保留卡片，避免只盖住 3D 区域。
     host.securityAlarmOverlay.update(
       securityAlarmReadings(

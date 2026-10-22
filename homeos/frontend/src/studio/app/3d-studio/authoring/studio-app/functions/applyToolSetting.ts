@@ -68,6 +68,7 @@ import {
   normalizeStripAxis as normalizeStripAxis2,
 } from "../../items/studio-item-posture";
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, sofaMinDimensions, tvMountStyleSet } from "../../items/item-catalog";
+import { STORAGE_SECTION_TYPES, storageSectionStyle } from "../../items/studio-storage-sections";
 
 
 import type {
@@ -389,6 +390,11 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
                 (toolPlacedElement.depth = itemTypeCatalog.tv.depth)),
               (toolPlacedElement.tvMountStyle = tvMountStyleValue));
           }
+          STORAGE_SECTION_TYPES.has(toolPlacedElement.type) &&
+            (toolPlacedElement.cabinetSections = storageSectionStyle({
+              type: toolPlacedElement.type,
+              cabinetSections: selectElement("#storage-section").value,
+            }));
           if (lampItemTypeSet.has(toolPlacedElement.type)) {
             const downlight5 =
               (lightPresetCatalog as any)[toolPlacedElement.type] || lightPresetCatalog.downlight;

@@ -46,6 +46,7 @@ import {
   DEFAULT_STRIP_AXIS as DEFAULT_STRIP_AXIS2,
 } from "../../items/studio-item-posture";
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet } from "../../items/item-catalog";
+import { snapExhaustFan } from "../../items/studio-exhaust-fan";
 
 
 import type {
@@ -202,7 +203,9 @@ export function createSceneItem(deps: CreateSceneItemDeps,
           }
         : {}),
     };
-  (pushUndoEntry([createdItem]),
+  (sceneItemType === "exhaust-fan" &&
+    snapExhaustFan(createdItem, appCtx.studioState.walls, getPixelsPerMeter(), { orient: true }),
+  pushUndoEntry([createdItem]),
     finalizeAddedItem(createdItem),
     anchorGate2(createdItem, appCtx.studioState.items, getPixelsPerMeter(), 24 / appCtx.planView.zoom),
     appCtx.studioState.items.push(createdItem),

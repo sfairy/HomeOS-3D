@@ -138,6 +138,11 @@ const indexCompactionTypeSet = new Set([
     "easel-board",
     "bicycle-rack",
     "dartboard",
+    // 0.8.0 柜体变体 + 排气扇（排气扇只有外壳进批，转子由 `interactionDynamicPart` 豁免）
+    "wardrobe-two-section",
+    "cabinet-two-section",
+    "slim-recessed-cabinet",
+    "exhaust-fan",
   ]);
 export function compactFurnitureIndices(three: any, templateRoot: any, furnitureType: any) {
   indexCompactionTypeSet.has(furnitureType) &&
@@ -251,8 +256,15 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
           tintedMaterialKey = shouldTintVertices
             ? staticMaterialKey(childMesh, false, true, materialKeyCache)
             : exactMaterialKey;
-        for (let ancestorNode = childMesh; ancestorNode; ancestorNode = ancestorNode.parent)
+        for (let ancestorNode = childMesh; ancestorNode; ancestorNode = ancestorNode.parent) {
           if (!ancestorNode.visible) return;
+          /**
+           * 动态部件守卫：吊扇 / 排气扇的转子子树打了 `interactionDynamicPart`，
+           * 它们必须留在模型树里逐帧旋转。合批会把源网格 `removeFromParent()` 后挂到
+           * 模型根上（下面的 `batchDescriptors` 落位），叶片一旦被摘走就再也不转了。
+           */
+          if (ancestorNode.userData?.interactionDynamicPart) return;
+        }
         !exactMaterialKey ||
           !tintedMaterialKey ||
           !childMesh.userData.externalModelSharedGeometry ||

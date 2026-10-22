@@ -1069,6 +1069,14 @@ export const itemTypeCatalog = {
     height: 1.9,
     color: "#9a7658",
   },
+  "slim-recessed-cabinet": {
+    name: "窄高置物柜",
+    glyph: "▥",
+    width: 0.66,
+    depth: 0.4,
+    height: 2.6,
+    color: "#9a7658",
+  },
   glasscabinet: {
     name: "玻璃柜",
     glyph: "▧",
@@ -1348,6 +1356,16 @@ export const itemTypeCatalog = {
     depth: 1.32,
     height: 0.306,
     elevation: 2.8,
+    color: "#9aa5b7",
+  },
+  /** 排气扇挂墙：`depth` 是机身厚（吸墙后沿墙面法线方向），高度即离地中心高。 */
+  "exhaust-fan": {
+    name: "排气扇",
+    glyph: "◉",
+    width: 0.34,
+    depth: 0.16,
+    height: 0.34,
+    elevation: 1.83,
     color: "#9aa5b7",
   },
   "table-lamp": {
@@ -2054,6 +2072,7 @@ applianceItemTypeSet = new Set([
   "airer",
   "fan",
   "ceiling-fan",
+  "exhaust-fan",
   "table-lamp",
   "up-down-wall-lamp",
   "aroma-diffuser",

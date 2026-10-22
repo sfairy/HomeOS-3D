@@ -5,6 +5,7 @@ import {
 } from "../authoring/items/studio-vehicle-models";
 import { decorateWarmFloor } from "../authoring/scene/studio-scene-style";
 import { pipelineDispenserModelType } from "../authoring/items/pipeline-dispenser";
+import { storageSectionModelType } from "../authoring/items/studio-storage-sections";
 import { enlargeWarmLeaves } from "../materials/studio-warm-foliage";
 import {
   applyCarFinish,
@@ -310,7 +311,7 @@ export function createExternalModelManager({
                   : "standard")
               : item.type === "pipelinewaterpurifier"
                 ? pipelineDispenserModelType(item)
-                : item.type;
+                : storageSectionModelType(item);
   }
   function preloadPersistentModels(itemTypeList: any[] = []) {
     if (isDisposed) return Promise.resolve([]);
@@ -2301,6 +2302,27 @@ function normalizeMaterialValue(materialValue: any): any {
       modelClone = loadedModel.source.clone(true),
       curtainPart = /^curtain_(left|right|split)$/.exec(modelType)?.[1];
     curtainPart && (modelClone.userData.curtainRigRoot = true);
+    /**
+     * 吊扇 / 排气扇的动态转子：GLB 的转子节点在 `extras` 里带 `fanPart: "rotor"` 与
+     * `contactShadowRestMatrix`（本地静止矩阵）。克隆后把矩阵重新记一次并给整棵子树打上
+     * `interactionDynamicPart`，供 `fan-motion` 取件、合批跳过、接触阴影按静止姿态烘焙。
+     * 没有这一步，`ceiling-fan-rotor` 这类只带节点名（旧批次无 extras）的模型会找不到转子。
+     */
+    (modelType === "ceiling-fan" || modelType === "exhaust-fan") &&
+      modelClone.traverse((fanNode: any) => {
+        if (
+          fanNode.userData?.fanPart !== "rotor" &&
+          fanNode.name !== "ceiling-fan-rotor"
+        )
+          return;
+        (fanNode.userData.fanPart = "rotor"),
+          fanNode.updateMatrix(),
+          (fanNode.userData.contactShadowRestMatrix = fanNode.matrix.toArray()),
+          fanNode.traverse((fanPartNode: any) => {
+            fanPartNode.userData ||= {};
+            fanPartNode.userData.interactionDynamicPart = true;
+          });
+      });
     let screenReference: any = null;
     (modelType === "laptop" &&
       modelClone.traverse((laptopMesh: any) => {

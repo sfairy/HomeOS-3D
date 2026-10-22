@@ -244,6 +244,8 @@ export function openInteraction3dCameraPreview(self: PanelRenderer, cameraContro
           // go2rtc 来源要连地址一起带进来，否则 3D 预览只会退到 HA 的 HLS。
           cameraSource: cameraControlComponent.cameraSource,
           go2rtcUrl: cameraControlComponent.go2rtcUrl,
+          // 画面比例（原始 / 压缩 16:9）随属性带进弹窗，预览阶段据此切换舞台比例。
+          fit: cameraControlComponent.fit,
         },
         bindings: {
           entity: {
@@ -407,9 +409,12 @@ export function showCameraPreview(self: PanelRenderer, cameraComponent: any,
     ((cameraScanLineIcon.className = "hb-camera-preview-scan-line"),
       cameraScanLineIcon.setAttribute("aria-hidden", "true"),
       cameraPreviewStage.append(cameraRevealVeilIcon, cameraScanLineIcon));
+    // 画面比例：与原版一致，只有 3D 摄像头显式选了「压缩 16:9」才按 16:9 拉伸；
+    // 其余（默认「原始比例」）保持视频本身比例，普通 camera 组件仍按 16:9。
     const hasLiveVideo = !!cameraInteractionConfig,
+      isContainRatio = hasLiveVideo && cameraComponent.properties?.fit !== "fill",
       isMediaVisible = cameraComponent.properties?.mediaVisible !== false;
-    (cameraPreviewStage.classList.toggle("is-16-9", !hasLiveVideo),
+    (cameraPreviewStage.classList.toggle("is-16-9", !isContainRatio),
       cameraPreviewStage.classList.toggle("media-hidden", !isMediaVisible));
     const cameraCleanupCallbacks: any = [];
     let isCameraReady = false;
@@ -433,7 +438,7 @@ export function showCameraPreview(self: PanelRenderer, cameraComponent: any,
           cameraPreviewStage.classList.remove("is-connecting", "is-revealing"),
           cameraPreviewStage.classList.add("is-unavailable"));
       };
-    let cameraMediaRatio = cameraInteractionConfig ? cameraPreviewRatio2(cameraEntityId) : 16 / 9;
+    let cameraMediaRatio = isContainRatio ? cameraPreviewRatio2(cameraEntityId) : 16 / 9;
     const layoutCameraPreview = () => {
       if (cameraInteractionConfig) {
         ((cameraPreviewStage.style.aspectRatio = String(cameraMediaRatio)),
@@ -459,7 +464,7 @@ export function showCameraPreview(self: PanelRenderer, cameraComponent: any,
           container: cameraPreviewStage,
           entityId: cameraEntityId,
           label: cameraPreviewTitle.textContent,
-          objectFit: cameraInteractionConfig ? "contain" : "fill",
+          objectFit: isContainRatio ? "contain" : "fill",
           placeholder: cameraLoadingHint,
           onStateChange: (cameraVisualState: string) => {
             // 重连/挂起要能在状态标签上看出来，否则断线期间标签会一直挂「正在连接」。
@@ -479,7 +484,8 @@ export function showCameraPreview(self: PanelRenderer, cameraComponent: any,
           },
         }),
         syncCameraMediaSize = (mediaWidth: any, mediaHeight: any) => {
-          !hasLiveVideo ||
+          // 「压缩 16:9」不跟随视频原始比例，固定 16:9。
+          !isContainRatio ||
             !Number.isFinite(mediaWidth) ||
             !Number.isFinite(mediaHeight) ||
             mediaWidth <= 0 ||

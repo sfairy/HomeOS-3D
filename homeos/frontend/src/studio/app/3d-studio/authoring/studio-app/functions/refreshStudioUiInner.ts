@@ -70,6 +70,7 @@ import {
   pillarIsLying as pillarIsLying2,
 } from "../../items/studio-item-posture";
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, tvMountStyleSet } from "../../items/item-catalog";
+import { STORAGE_SECTION_TYPES, storageSectionStyle } from "../../items/studio-storage-sections";
 
 
 import type {
@@ -324,6 +325,10 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
                 syncStudioSelect2(selectElement("#sofa-chaise-side"))),
               (stairDirectionFieldElement.hidden = !openStairTypeSet.has(at4.type)),
               (tvMountStyleFieldElement.hidden = at4.type !== "tv"),
+              (selectElement("#storage-section-field").hidden = !STORAGE_SECTION_TYPES.has(at4.type)),
+              STORAGE_SECTION_TYPES.has(at4.type) &&
+                ((selectElement("#storage-section").value = storageSectionStyle(at4)),
+                syncStudioSelect2(selectElement("#storage-section"))),
               (shoeCabinetActionsElement.hidden = at4.type !== "shoecabinet"),
               shoeCabinetMirrorButton.setAttribute(
                 "aria-pressed",

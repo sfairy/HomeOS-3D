@@ -514,6 +514,7 @@ class _EnvironmentDeviceFlags:
     is_bath_heater: bool
     is_airer: bool
     is_fan: bool
+    is_exhaust: bool
     is_cover: bool
     is_water_heater: bool
     generic_device: bool
@@ -552,11 +553,14 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
     is_bath_heater = command.device_kind == 'bath-heater'
     is_airer = command.device_kind in {'airer', 'airer-extra'}
     is_fan = command.device_kind in {'fan', 'fan-extra'}
+    # 排气扇（0.8.0）：主实体是 `switch.*` 或 `fan.*`，但语义与电风扇/净化器都不同。
+    is_exhaust = command.device_kind in {'exhaust-fan', 'exhaust-fan-extra'}
     is_cover = command.domain == 'cover'
     is_water_heater = command.domain == 'water_heater' or command.device_kind == 'water-heater-extra'
     generic_device = command.device_kind == 'device-extra'
     extra_domain = command.device_kind in {
         'fan-extra',
+        'exhaust-fan-extra',
         'airer-extra',
         'device-extra',
         'climate-extra',
@@ -568,6 +572,7 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         or is_bath_heater
         or is_airer
         or is_fan
+        or is_exhaust
         or is_water_heater
         or generic_device
         or is_cover
@@ -577,6 +582,7 @@ def _environment_device_flags(command: Interaction3dControlRequest) -> _Environm
         is_bath_heater=is_bath_heater,
         is_airer=is_airer,
         is_fan=is_fan,
+        is_exhaust=is_exhaust,
         is_cover=is_cover,
         is_water_heater=is_water_heater,
         generic_device=generic_device,
@@ -597,6 +603,8 @@ def _environment_device_name(
         return '晾衣架'
     if flags.is_fan:
         return '电风扇'
+    if flags.is_exhaust:
+        return '排气扇'
     if flags.is_water_heater:
         return '热水器'
     if flags.generic_device:
@@ -618,6 +626,8 @@ def _environment_bindings_collection(
         return 'airers'
     if flags.is_fan:
         return 'fans'
+    if flags.is_exhaust:
+        return 'exhaustFans'
     if flags.is_water_heater:
         return 'waterHeaters'
     if flags.is_cover:
@@ -714,6 +724,13 @@ def _require_environment_binding_model(
                 scene,
                 model_type=('fan', 'ceiling-fan'),
             )
+        elif flags.is_exhaust:
+            require_air_conditioner_model(
+                [owner] if owner else bindings,
+                owner.get('entityId', '') if owner else command.entity_id,
+                scene,
+                model_type='exhaust-fan',
+            )
         elif flags.is_purifier:
             require_air_conditioner_model(
                 [owner] if owner else bindings,
@@ -763,6 +780,16 @@ def _validate_environment_command(
             dream=dream,
             airer=flags.is_airer,
         )
+    elif flags.is_exhaust:
+        # 排气扇主实体：switch 只允许开关，fan 额外允许 set_percentage；其余 422。
+        if command.domain == 'switch':
+            allowed_services = {'turn_on', 'turn_off'}
+        elif command.domain == 'fan':
+            allowed_services = {'turn_on', 'turn_off', 'set_percentage'}
+        else:
+            raise HTTPException(422, detail=f'{name}主实体只支持 switch 或 fan。')
+        if command.service not in allowed_services:
+            raise HTTPException(422, detail=f'{name}只支持开关' + ('控制。' if command.domain == 'switch' else '与风速控制。'))
     elif command.domain == 'fan':
         from .purifier import validate_purifier_command
 
@@ -1101,7 +1128,7 @@ async def control_light(command: Interaction3dControlRequest, request: Request, 
         return await _control_lock(command, request, database, viewer)
     if command.device_kind == 'computer':
         return await _control_computer_power(command, request, database, viewer)
-    if command.domain in {'fan', 'cover', 'climate', 'water_heater'} or command.device_kind in {'fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
+    if command.domain in {'fan', 'cover', 'climate', 'water_heater'} or command.device_kind in {'fan-extra', 'exhaust-fan', 'exhaust-fan-extra', 'airer-extra', 'device-extra', 'climate-extra', 'purifier-extra', 'water-heater-extra'}:
         return await _control_environment_device(command, request, database, viewer)
     if command.domain not in {'light', 'switch'} or command.service not in {'turn_on', 'turn_off'}:
         raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')

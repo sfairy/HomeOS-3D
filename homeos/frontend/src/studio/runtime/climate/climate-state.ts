@@ -208,8 +208,77 @@ export function climateState(entityId: any, receivedState: any) {
     presetMode: attributes.preset_mode || "",
   };
 }
+/**
+ * 排气扇**运行状态**：主实体可以是 `switch.*` 或 `fan.*`，只看开关，不带风速 / 方向。
+ *
+ * `visualMode` 仍返回 `'fan'`（`'off'` 是关态）：面板的风扇插画按 `fan/off` 取图，
+ * 不要新造一个 `'exhaust'` 视觉模式。
+ */
+export function exhaustFanState(binding: any = {}, stateSource: any = {}) {
+  const entityRecord =
+      stateSource?.get?.(binding.entityId) || stateSource?.[binding.entityId],
+    entityState = entityRecord?.newState || entityRecord || {},
+    available = !!(
+      binding.entityId &&
+      entityState.available !== false &&
+      entityRecord?.available !== false &&
+      ["on", "off"].includes(entityState.state)
+    );
+  return {
+    available,
+    on: available && entityState.state === "on",
+    running: available && entityState.state === "on",
+    visualMode: available && entityState.state === "on" ? "fan" : "off",
+    label: binding.entityId
+      ? available
+        ? entityState.state === "on"
+          ? "运行中"
+          : "已关闭"
+        : "设备不可用"
+      : "未绑定运行实体",
+  };
+}
+
+/**
+ * 排气扇的 `switch.*` 主实体：底子是**没有风速能力**的净化器面板 —— 因此
+ * `percentageSupported` / `speedLevels` 都不存在，风速滑杆与档位按钮自然隐藏；
+ * 开关命令由 `climatePowerControl` 特判成 `switch.turn_on/off`。
+ */
+export function exhaustSwitchState(entityId: any, receivedState: any) {
+  const stateObject = receivedState?.newState || receivedState || {},
+    available = stateObject.available !== false && ["on", "off"].includes(stateObject.state);
+  return {
+    ...climateState("", null),
+    entityId,
+    raw: stateObject,
+    available,
+    purifier: true,
+    exhaustSwitch: true,
+    name: attributesOf(stateObject).friendly_name || "排气扇",
+    mode: stateObject.state,
+    modes: ["off", "on"] as string[],
+    on: available && stateObject.state === "on",
+    running: available && stateObject.state === "on",
+    canTurnOn: true,
+    canTurnOff: true,
+    turnOnSupported: true,
+    turnOffSupported: true,
+  };
+}
+
 export function climatePowerControl(state: any, desiredOn = !state.on, lastMode = "") {
   if (!state.available) throw new Error("设备当前不可用。");
+  /**
+   * 排气扇的 `switch.*` 主实体：走 `switch.turn_on/off`（不是 `fan.*`，也不是 `climate.*`）。
+   * 必须放在 `purifier` 分支之前 —— 那个分支会把命令写成 `fan.turn_on`。
+   */
+  if (state.exhaustSwitch)
+    return {
+      entityId: state.entityId,
+      domain: "switch",
+      service: desiredOn ? "turn_on" : "turn_off",
+      data: {} as Record<string, any>,
+    };
   if (state.waterHeater)
     return {
       entityId: state.entityId,

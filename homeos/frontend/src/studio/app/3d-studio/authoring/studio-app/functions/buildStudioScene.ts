@@ -324,6 +324,7 @@ export function buildStudioScene(deps: BuildStudioSceneDeps, { preserveLightCach
           "airer",
           "fan",
           "ceiling-fan",
+          "exhaust-fan",
           "storagewaterheater",
           "gaswaterheater",
           "airpurifier",

@@ -11,6 +11,7 @@ import {
   securityAlarmReadings,
 } from "../security/security-alarm";
 import { cameraSourceConfigured } from "../camera/camera-status";
+import { carTireEntities } from "../vehicle/car-tires";
 import { createWeatherEffects } from "../environment/weather-effects";
 
 type HostLogger = HomeOSLog & {
@@ -899,6 +900,8 @@ export function mountInteraction3d(
             .map((relatedEntityId) => ({
               entityId: relatedEntityId,
             })),
+          // 四轮胎压：绑定不带宽，订阅侧只按 `enabled` + `sensor.*` 收（与电量/充电同组）。
+          ...carTireEntities(deviceEntry).map((tireEntityId) => ({ entityId: tireEntityId })),
           genericStatusRules.power,
           ...genericHealthRules,
         ].filter(Boolean);
@@ -987,6 +990,9 @@ export function mountInteraction3d(
         ].filter(Boolean),
       ),
       ...(componentProperties.environment?.airPurifiers || []),
+      ...(componentProperties.environment?.exhaustFans || [])
+        .filter((exhaustFanEntry: any) => exhaustFanEntry.entityId)
+        .map((exhaustFanEntry: any) => ({ entityId: exhaustFanEntry.entityId })),
       ...(componentProperties.environment?.waterHeaters || []),
       ...(componentProperties.environment?.curtains || []),
       ...temperatureHumidityEntities(componentProperties.environment?.temperatureHumidity),
@@ -1041,6 +1047,7 @@ export function mountInteraction3d(
                 ...(componentProperties.environment?.airConditioners || []),
                 ...(componentProperties.environment?.fans || []),
                 ...(componentProperties.environment?.airPurifiers || []),
+                ...(componentProperties.environment?.exhaustFans || []),
                 ...(componentProperties.environment?.waterHeaters || []),
               ],
             ],
@@ -1245,6 +1252,9 @@ export function mountInteraction3d(
             ]),
             ...(componentProperties.environment?.airPurifiers || []).map(
               (airPurifierEntity: any) => airPurifierEntity.entityId,
+            ),
+            ...(componentProperties.environment?.exhaustFans || []).map(
+              (exhaustFanEntity: any) => exhaustFanEntity.entityId,
             ),
             ...(componentProperties.environment?.waterHeaters || []).map(
               (waterHeaterExtraEntity: any) => waterHeaterExtraEntity.entityId,
@@ -1840,6 +1850,7 @@ export function mountInteraction3d(
           ...(componentProperties.environment?.airers || []),
           ...(componentProperties.environment?.fans || []),
           ...(componentProperties.environment?.airPurifiers || []),
+          ...(componentProperties.environment?.exhaustFans || []),
           ...(componentProperties.environment?.waterHeaters || []),
           ...(componentProperties.environment?.curtains || []),
           ...(componentProperties.devices?.speakers || []),

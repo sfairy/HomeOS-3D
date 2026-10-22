@@ -73,11 +73,50 @@ function createGrilleCanvas(grilleDocument: any, backgroundColorHex: any, holeCo
     grilleCanvas
   );
 }
+/**
+ * 纹理是**跨模型共享**的：同一户型里所有音箱共用一张网罩纹理和一张编织纹理，
+ * 靠引用计数决定什么时候真正 `dispose`。canvas 已经按 document 缓存，但旧实现每次
+ * 都 `new CanvasTexture`，模型删掉后纹理留在显存里；这里把 GPU 纹理也收进同一层缓存。
+ */
+const textureCacheByDocument = new WeakMap<any, Map<string, { texture: any; users: number }>>();
+
+function sharedTextureEntry(contentDocument: any, cacheKey: string, createTexture: () => any) {
+  let documentTextureCache = textureCacheByDocument.get(contentDocument);
+  if (!documentTextureCache) {
+    documentTextureCache = new Map();
+    textureCacheByDocument.set(contentDocument, documentTextureCache);
+  }
+  let textureCacheEntry = documentTextureCache.get(cacheKey);
+  if (!textureCacheEntry) {
+    textureCacheEntry = { texture: createTexture(), users: 0 };
+    documentTextureCache.set(cacheKey, textureCacheEntry);
+  }
+  textureCacheEntry.users += 1;
+  return textureCacheEntry;
+}
+
+function releaseSharedTexture(contentDocument: any, cacheKey: string) {
+  const documentTextureCache = textureCacheByDocument.get(contentDocument);
+  if (!documentTextureCache) return;
+  const textureCacheEntry = documentTextureCache.get(cacheKey);
+  if (!textureCacheEntry) return;
+  textureCacheEntry.users -= 1;
+  if (textureCacheEntry.users > 0) return;
+  (documentTextureCache.delete(cacheKey), textureCacheEntry.texture.dispose());
+}
+
 export function createSpeakerModel(three: any, dimensions: any, options: any) {
   const isWarmWood = !!options.warmWood,
     speakerWeaveCanvas = createWeaveCanvas(document),
-    weaveTexture = new three.CanvasTexture(speakerWeaveCanvas);
-  ((weaveTexture.wrapS = weaveTexture.wrapT = three.RepeatWrapping), weaveTexture.repeat.set(1, 1));
+    speakerWeaveEntry = sharedTextureEntry(document, "weave", () => {
+      const weaveTexture = new three.CanvasTexture(speakerWeaveCanvas);
+      return (
+        (weaveTexture.wrapS = weaveTexture.wrapT = three.RepeatWrapping),
+        weaveTexture.repeat.set(1, 1),
+        weaveTexture
+      );
+    }),
+    weaveTexture = speakerWeaveEntry.texture;
   const createMaterial = (baseColor: any, roughness = 0.65, metalness = 0) =>
       new three.MeshStandardMaterial({
         color: baseColor,
@@ -159,13 +198,23 @@ export function createSpeakerModel(three: any, dimensions: any, options: any) {
       ],
       bodyMaterial,
     ));
-  const speakerGrilleCanvas = createGrilleCanvas(
+  const speakerGrilleBackgroundColor = isWarmWood ? options.furnitureLight : options.appliance,
+    speakerGrilleHoleColor = isWarmWood ? options.solidDoorFrame : options.applianceDark,
+    speakerGrilleCacheKey = "grille:" + speakerGrilleBackgroundColor + "|" + speakerGrilleHoleColor,
+    speakerGrilleCanvas = createGrilleCanvas(
       document,
-      isWarmWood ? options.furnitureLight : options.appliance,
-      isWarmWood ? options.solidDoorFrame : options.applianceDark,
+      speakerGrilleBackgroundColor,
+      speakerGrilleHoleColor,
     ),
-    grilleTexture = new three.CanvasTexture(speakerGrilleCanvas);
-  ((grilleTexture.colorSpace = three.SRGBColorSpace), (grilleTexture.anisotropy = 4));
+    speakerGrilleEntry = sharedTextureEntry(document, speakerGrilleCacheKey, () => {
+      const grilleTexture = new three.CanvasTexture(speakerGrilleCanvas);
+      return (
+        (grilleTexture.colorSpace = three.SRGBColorSpace),
+        (grilleTexture.anisotropy = 4),
+        grilleTexture
+      );
+    }),
+    grilleTexture = speakerGrilleEntry.texture;
   const topPlateMesh = speakerGroup.children[speakerGroup.children.length - 1],
     platePositionAttribute = topPlateMesh.geometry.attributes.position,
     plateUvAttribute = topPlateMesh.geometry.attributes.uv;
@@ -268,6 +317,22 @@ export function createSpeakerModel(three: any, dimensions: any, options: any) {
     (ringMesh.visible = false));
   for (const haloRing of haloRings)
     ((haloRing.mesh.userData.speakerHalo = haloRing.peak), (haloRing.mesh.visible = false));
+  /**
+   * 共享纹理的生命周期挂在 geometry 上：`disposeObjectTree` 释放几何体时计数减一，
+   * 归零才真正 `texture.dispose()`。多音箱共用一个模型时不会被第一个销毁带走。
+   */
+  speakerGroup.traverse((speakerMeshNode: any) => {
+    const speakerGeometry = speakerMeshNode.geometry;
+    if (!speakerMeshNode.isMesh || !speakerGeometry || speakerGeometry.__speakerSharedTexture) return;
+    speakerGeometry.__speakerSharedTexture = true;
+    speakerMeshNode.userData.externalModelSharedTextures = true;
+    const releaseSpeakerTextures = () => {
+      (speakerGeometry.removeEventListener("dispose", releaseSpeakerTextures),
+        releaseSharedTexture(document, "weave"),
+        releaseSharedTexture(document, speakerGrilleCacheKey));
+    };
+    speakerGeometry.addEventListener("dispose", releaseSpeakerTextures);
+  });
   return (
     speakerGroup.scale.set(
       dimensions.width / 0.17,

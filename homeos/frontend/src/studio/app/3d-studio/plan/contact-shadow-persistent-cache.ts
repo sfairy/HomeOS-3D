@@ -7,7 +7,7 @@ import {
 } from "../cache-shared";
 
 /** 接触阴影的持久缓存：把烘焙好的 target/surface 贴图 + 查询纹理 + 参数快照落盘，热启动时直接还原。 */
-const CONTACT_SHADOW_CACHE_VERSION = "20260930-v1";
+const CONTACT_SHADOW_CACHE_VERSION = "20261022-v1";
 const MAX_ENTRY_BYTES = 25165824,
   MAX_PERSISTED_BYTES = 100663296,
   MAX_ENTRY_COUNT = 8,

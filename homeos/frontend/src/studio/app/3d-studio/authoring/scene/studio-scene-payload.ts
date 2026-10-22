@@ -17,6 +17,7 @@ import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2, itemMinim
 import { generateId } from "../ui/studio-app-helpers";
 import { itemTypeCatalog, lampItemTypeSet, openStairTypeSet, roundTableTypeSet, tvMountStyleSet } from "../items/item-catalog";
 import { normalizePipelineDispenserStyle } from "../items/pipeline-dispenser";
+import { STORAGE_SECTION_TYPES } from "../items/studio-storage-sections";
 import { lightAngleLimitForType, lightPresetCatalog } from "../lights/studio-app-light-data";
 import { normalizeFeatureWallStyle, normalizeMuralArtStyle } from "../../materials/studio-surface-textures";
 import { normalizePillarAxis as normalizePillarAxis2, normalizePillarShape as normalizePillarShape2, normalizeStripAxis as normalizeStripAxis2 } from "../items/studio-item-posture";
@@ -124,6 +125,28 @@ export function normalizeMaterialOverrides(rawOverrides: any) {
       materialNameA < materialNameB ? -1 : materialNameA > materialNameB ? 1 : 0,
     );
   return normalizedEntries.length ? Object.fromEntries(normalizedEntries) : null;
+}
+
+/** 0.8.0 四轮胎压：关闭时整段丢弃，开启时按白名单保留样式与四轮 `sensor.*`。 */
+function normalizeTirePressure(rawTirePressure: any) {
+  if (rawTirePressure?.enabled !== true) return null;
+  const wheels = ["fl", "fr", "rl", "rr"].reduce(
+    (collectedWheels: Record<string, string>, wheelKey) => {
+      const wheelEntityId = rawTirePressure.wheels?.[wheelKey];
+      typeof wheelEntityId == "string" &&
+        /^sensor\.[a-z0-9_]+$/.test(wheelEntityId) &&
+        (collectedWheels[wheelKey] = wheelEntityId);
+      return collectedWheels;
+    },
+    {},
+  );
+  return {
+    enabled: true,
+    mode: rawTirePressure.mode === "named" ? "named" : "compact",
+    fontSize: clamp2(finite2(rawTirePressure.fontSize, 14), 8, 40),
+    opacity: clamp2(finite2(rawTirePressure.opacity, 0.8), 0.1, 1),
+    wheels,
+  };
 }
 
 function normalizeItemMaterialStyle(rawItemRecord: any, externalModelRegistry: any) {
@@ -490,11 +513,32 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                       "汽车充电 " + vehicleChargingIndex,
                       24,
                     ),
+                    ...(() => {
+                      const tirePressure = normalizeTirePressure(rawItemRecord?.tirePressure);
+                      return tirePressure ? { tirePressure } : {};
+                    })(),
                   }
                 : {}),
               ...(rawItemRecord?.type === "fridge"
                 ? {
                     fridgeStyle: rawItemRecord.fridgeStyle === "double" ? "double" : "standard",
+                  }
+                : {}),
+              /** 0.8.0 柜门结构：只有衣柜 / 储物柜认这个字段，缺省整门。 */
+              ...(STORAGE_SECTION_TYPES.has(rawItemRecord?.type)
+                ? {
+                    cabinetSections:
+                      rawItemRecord.cabinetSections === "two-section" ? "two-section" : "full",
+                  }
+                : {}),
+              /**
+               * 排气扇：`depth` 是吸墙后沿墙面法线方向的机身厚（缺省 0.16，挂墙时会被墙厚覆写），
+               * `elevation` 是离地中心高（缺省 1.83，与卡片一致）。
+               */
+              ...(rawItemRecord?.type === "exhaust-fan"
+                ? {
+                    depth: clamp2(finite2(rawItemRecord?.depth, 0.16), 0.04, 0.6),
+                    elevation: clamp2(finite2(rawItemRecord?.elevation, 1.83), 0, 6),
                   }
                 : {}),
               ...(rawItemRecord?.type === "pipelinewaterpurifier"

@@ -9,6 +9,7 @@ import { ALL_ITEM_MODELS as ALL_ITEM_MODELS2 } from "../../../../loaders/studio-
 import { isCourtyardDrawing as isCourtyardDrawing2, finite as finite2 } from "../../../../loaders/studio-normalization";
 import { normalizePillarShape as normalizePillarShape2 } from "../../../items/studio-item-posture";
 import { lampItemTypeSet, tvMountStyleSet } from "../../../items/item-catalog";
+import { STORAGE_SECTION_TYPES, storageSectionModelType } from "../../../items/studio-storage-sections";
 import { composeKey, composeItemKey } from "../../../ui/studio-app-helpers";
 import { normalizeMaterialSurfaceOverrides } from "../../../scene/studio-scene-payload";
 import { createFloorRecord, normalizeStudioDocument } from "../../../scene/studio-document-payload";
@@ -84,6 +85,12 @@ export function sceneCacheDescriptor(runtime: StudioAppRuntime, descriptorWidth:
 export function checkModelInUse(runtime: StudioAppRuntime, modelKey: any) {
   return !!runtime.appCtx.studioProject?.floors?.some((floorSelection: any) =>
     floorSelection.scene?.items?.some((floorItem: any) => {
+      /** 两节柜是同一 `type` 的变体模型：按实际解析出的模型类型反查“已放置”。 */
+      if (
+        STORAGE_SECTION_TYPES.has(floorItem.type) &&
+        storageSectionModelType(floorItem) === modelKey
+      )
+        return true;
       if (modelKey.startsWith("tv_")) {
         const tvMountStyle = tvMountStyleSet.has(floorItem.tvMountStyle)
           ? floorItem.tvMountStyle

@@ -150,6 +150,10 @@ const ENTITY_PICKER_DEVICE_WORDING: Readonly<
     title: "选择空气净化器实体",
     emptyText: "没有标准 fan 主实体，可返回直接绑定设备并选择附加功能。",
   },
+  "exhaust-fan": {
+    title: "选择排气扇主实体（switch 或 fan）",
+    emptyText: "没有匹配的 switch 或 fan 主实体，请确认该设备下已启用相关实体",
+  },
   camera: {
     title: "选择摄像头实体",
     emptyText: "没有匹配的摄像头实体，请先在 Home Assistant 接入设备",
@@ -826,6 +830,8 @@ export function createInteraction3dEditorPickers({
             ? "mdi:speaker"
             : resolvedDeviceKind === "water-heater"
               ? "mdi:water-boiler"
+              : resolvedDeviceKind === "exhaust-fan"
+                ? "mdi:fan"
               : resolvedDeviceKind === "fan"
                 ? "mdi:fan"
                 : resolvedDeviceKind === "purifier"
@@ -852,6 +858,8 @@ export function createInteraction3dEditorPickers({
               ? "选择智能音响按钮图标"
               : resolvedDeviceKind === "water-heater"
                 ? "选择热水器按钮图标"
+                : resolvedDeviceKind === "exhaust-fan"
+                  ? "选择排气扇按钮图标"
                 : resolvedDeviceKind === "fan"
                   ? "选择风扇按钮图标"
                   : resolvedDeviceKind === "purifier"
@@ -951,8 +959,10 @@ export function createInteraction3dEditorPickers({
                     ? /^[a-z_]+\.[a-z0-9_]+$/
                     : entityDeviceKind === "water-heater"
                       ? /^water_heater\.[a-z0-9_]+$/
-                      : ["fan", "purifier"].includes(entityDeviceKind)
-                        ? /^fan\.[a-z0-9_]+$/
+                      : entityDeviceKind === "exhaust-fan"
+                        ? /^(switch|fan)\.[a-z0-9_]+$/
+                        : ["fan", "purifier"].includes(entityDeviceKind)
+                          ? /^fan\.[a-z0-9_]+$/
                         : isLightEntity ||
                             isTelevisionPowerEntity ||
                             entityDeviceKind === "presence"
@@ -1019,6 +1029,10 @@ export function createInteraction3dEditorPickers({
                             candidateEntity.attributes?.device_class ||
                             getState(candidateEntity.entityId)?.attributes?.device_class,
                         )
+                      : entityDeviceKind === "exhaust-fan"
+                      ? candidateEntity.entityId.startsWith("switch.")
+                        ? 2
+                        : 1
                       : candidateEntity.entityId.startsWith(
                           entityDeviceKind === "water-heater"
                             ? "water_heater."

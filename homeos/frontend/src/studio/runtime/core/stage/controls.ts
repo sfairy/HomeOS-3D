@@ -202,20 +202,26 @@ export function collectClimateBindingsCore(deps: StageControlsDeps) {
     return [
       ...(deps.options.environment?.airConditioners || []),
       ...(deps.options.environment?.fans || []),
+      ...(deps.options.environment?.exhaustFans || []),
       ...(deps.options.environment?.airPurifiers || []),
       ...(deps.options.environment?.waterHeaters || []),
     ].map((climateSourceEntry) => {
       const isFanBinding = (deps.options.environment?.fans || []).includes(climateSourceEntry),
+        isExhaustBinding = (deps.options.environment?.exhaustFans || []).includes(
+          climateSourceEntry,
+        ),
         climateModel = deps.stageModelIndex.item(
           climateSourceEntry.floorId,
           climateSourceEntry.modelId,
           deps.options.environment?.waterHeaters?.includes(climateSourceEntry)
             ? ["storagewaterheater", "gaswaterheater"]
-            : isFanBinding
-              ? ["fan", "ceiling-fan"]
-              : deps.options.environment?.airPurifiers?.includes(climateSourceEntry)
-                ? ["airpurifier"]
-                : ["wallac", "floorac", "airoutlet"],
+            : isExhaustBinding
+              ? ["exhaust-fan"]
+              : isFanBinding
+                ? ["fan", "ceiling-fan"]
+                : deps.options.environment?.airPurifiers?.includes(climateSourceEntry)
+                  ? ["airpurifier"]
+                  : ["wallac", "floorac", "airoutlet"],
         ),
         isCeilingFan =
           isFanBinding &&
@@ -223,7 +229,10 @@ export function collectClimateBindingsCore(deps: StageControlsDeps) {
             climateSourceEntry.visualMode === "ceiling");
       return {
         ...climateSourceEntry,
-        pedestalFan: isFanBinding,
+        /** 0.8.0 里排气扇与落地扇共用 `pedestalFan`（面板的风扇外形分支），`exhaustFan` 再细分。 */
+        pedestalFan:
+          isFanBinding || isExhaustBinding,
+        exhaustFan: isExhaustBinding,
         ceilingFan: isCeilingFan,
         waterHeater: (deps.options.environment?.waterHeaters || []).includes(climateSourceEntry),
         airPurifier: (deps.options.environment?.airPurifiers || []).includes(climateSourceEntry),
@@ -243,13 +252,15 @@ export function collectClimateBindingsCore(deps: StageControlsDeps) {
           climateSourceEntry.icon ||
           (deps.options.environment?.waterHeaters?.includes(climateSourceEntry)
             ? "mdi:water-boiler"
-            : isCeilingFan
-              ? "mdi:ceiling-fan"
-              : isFanBinding
-                ? "mdi:fan"
-                : deps.options.environment?.airPurifiers?.includes(climateSourceEntry)
-                  ? "mdi:air-purifier"
-                  : "mdi:air-conditioner"),
+            : isExhaustBinding
+              ? "mdi:fan"
+              : isCeilingFan
+                ? "mdi:ceiling-fan"
+                : isFanBinding
+                  ? "mdi:fan"
+                  : deps.options.environment?.airPurifiers?.includes(climateSourceEntry)
+                    ? "mdi:air-purifier"
+                    : "mdi:air-conditioner"),
       };
     });
   }
@@ -326,8 +337,15 @@ export function collectModuleBindingsCore(deps: StageControlsDeps) {
                                 )
                               : deps.activeModule === "fan"
                                 ? collectClimateBindingsCore(deps).filter(
-                                    (fanFilteredBinding) => fanFilteredBinding.pedestalFan,
+                                    (fanFilteredBinding) =>
+                                      fanFilteredBinding.pedestalFan &&
+                                      !fanFilteredBinding.exhaustFan,
                                   )
+                                : deps.activeModule === "exhaust-fan"
+                                  ? collectClimateBindingsCore(deps).filter(
+                                      (exhaustFilteredBinding) =>
+                                        exhaustFilteredBinding.exhaustFan,
+                                    )
                                 : deps.activeModule === "purifier"
                                   ? collectClimateBindingsCore(deps).filter((purifierFilteredBinding) =>
                                       (deps.options.environment?.airPurifiers || []).some(

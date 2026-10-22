@@ -86,6 +86,7 @@ export function openBatchApply({
     hidden: "隐藏",
     always: "常驻显示",
     open: "打开时显示",
+    alarm: "报警时显示",
     cyan: "青色",
     orange: "橙色",
     traveler: "旅行者",

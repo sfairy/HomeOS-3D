@@ -629,6 +629,18 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "aroma-diffuser": { bottle: "container", liquid: "water", tube: "trim", detail: "base" },
   "bar-stool": { detail: "metal" },
   "ceiling-fan": { blade: "wood" },
+  /**
+   * 0.8.0 排气扇：五槽材质名直写构件（`exhaust-fan-shell` / `-edge` / `-bore` / `-blade` /
+   * `-fastener`），GLB 根节点 `extras.paletteRoles` 也是这五个键。这五个词都不在尾词词表里，
+   * 不登记就会整件塌成 `body`（外壳色）。角色配方见 `MODEL_ROLE_RECIPE_OVERRIDES["exhaust-fan"]`。
+   */
+  "exhaust-fan": {
+    shell: "shell",
+    edge: "edge",
+    bore: "bore",
+    blade: "blade",
+    fastener: "fastener",
+  },
   "drying-rack": { rail: "metal", plastic: "panel" },
   "electric-valve": { coupling: "base", casing: "shell", detail: "trim" },
   /** 岛台：`front`/`case` 是柜体，`stone`/`vein` 是台面石材与纹路。 */

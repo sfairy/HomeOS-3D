@@ -217,6 +217,19 @@ export function buildMetadata(
                   " " +
                   (fanMetadataIndex + 1),
             })),
+          /**
+           * 排气扇：挂墙设备，锚点与 wallac / floorac 同式 —— `elevation + height / 2`，
+           * 不能沿用 fans 的吊扇负偏移。
+           */
+          exhaustFans: metadataFloorItem.scene.items
+            .filter((exhaustSceneItem: any) => exhaustSceneItem.type === "exhaust-fan")
+            .map((exhaustMetadataItem: any, exhaustMetadataIndex: any) => ({
+              ...exhaustMetadataItem,
+              height:
+                (Number(exhaustMetadataItem.elevation) || 0) +
+                (Number(exhaustMetadataItem.height) || 0.34) / 2,
+              name: exhaustMetadataItem.name || "排气扇 " + (exhaustMetadataIndex + 1),
+            })),
           airPurifiers: metadataFloorItem.scene.items
             .filter((purifierSceneItem: any) => purifierSceneItem.type === "airpurifier")
             .map((purifierMetadataItem: any, purifierMetadataIndex: any) => ({

@@ -46,6 +46,7 @@ export async function openInteraction3dEditor({
     "environment",
     "climate",
     "fan",
+    "exhaust-fan",
     "purifier",
     "cover",
     "temperature-humidity",
@@ -89,7 +90,7 @@ export async function openInteraction3dEditor({
       (isSpeakerMode = deviceKind === "speaker"),
       (isGenericDeviceMode = isGenericDeviceKind2(deviceKind)),
       (isAirerMode = deviceKind === "airer"),
-      (isClimateMode = ["climate", "fan", "purifier", "water-heater"].includes(deviceKind)),
+      (isClimateMode = ["climate", "fan", "exhaust-fan", "purifier", "water-heater"].includes(deviceKind)),
       (isCoverMode = deviceKind === "cover"),
       (isNasMode = deviceKind === "nas"),
       (isTemperatureHumidityMode = deviceKind === "temperature-humidity"),
@@ -124,9 +125,11 @@ export async function openInteraction3dEditor({
                           ? "热水器"
                           : deviceKind === "fan"
                             ? "风扇 / 吊扇"
-                            : deviceKind === "purifier"
-                              ? "空气净化器"
-                              : "空调/浴霸"
+                            : deviceKind === "exhaust-fan"
+                              ? "排气扇"
+                              : deviceKind === "purifier"
+                                ? "空气净化器"
+                                : "空调/浴霸"
                         : "灯光"),
       (editorKindTitle = includes
         ? "环境"
@@ -155,9 +158,11 @@ export async function openInteraction3dEditor({
                         ? "waterHeaters"
                         : deviceKind === "fan"
                           ? "fans"
-                          : deviceKind === "purifier"
-                            ? "airPurifiers"
-                            : "airConditioners"),
+                          : deviceKind === "exhaust-fan"
+                            ? "exhaustFans"
+                            : deviceKind === "purifier"
+                              ? "airPurifiers"
+                              : "airConditioners"),
       (defaultIcon = isAirerMode
         ? "mdi:hanger"
         : isSpeakerMode
@@ -177,8 +182,10 @@ export async function openInteraction3dEditor({
                       : isClimateMode
                         ? deviceKind === "water-heater"
                           ? "mdi:water-boiler"
-                          : deviceKind === "fan"
+                          : deviceKind === "exhaust-fan"
                             ? "mdi:fan"
+                            : deviceKind === "fan"
+                              ? "mdi:fan"
                             : deviceKind === "purifier"
                               ? "mdi:air-purifier"
                               : "mdi:air-conditioner"

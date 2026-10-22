@@ -522,7 +522,7 @@ export function createEnvironmentHalos({ THREE: haloThree, modeAmount: modeAmoun
       );
       if (
         !haloModel ||
-        ["smallcar", "fan", "airpurifier", "floorac", "airer"].includes(
+        ["smallcar", "fan", "ceiling-fan", "exhaust-fan", "airpurifier", "floorac", "airer"].includes(
           haloModel.userData?.environmentModelType,
         )
       )

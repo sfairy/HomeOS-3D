@@ -739,6 +739,7 @@ export function disposeObjectTree(runtime: StudioAppRuntime, disposedRoot: any) 
       traversedNode.shadow?.dispose?.(),
       traversedNode.geometry &&
         !geometrySet.has(traversedNode.geometry) &&
+        !traversedNode.userData.effectControllerOwned &&
         !traversedNode.userData.externalModelSharedGeometry &&
         !traversedNode.userData.sofaSharedGeometry &&
         !traversedNode.userData.rugSharedGeometry &&
@@ -753,7 +754,8 @@ export function disposeObjectTree(runtime: StudioAppRuntime, disposedRoot: any) 
       if (!materialDisposeSet.has(nodeMaterial)) {
         if (
           (materialDisposeSet.add(nodeMaterial),
-          !traversedNode.userData.externalModelSharedTextures &&
+          !traversedNode.userData.effectControllerOwned &&
+            !traversedNode.userData.externalModelSharedTextures &&
             !traversedNode.userData.externalModelSharedMaterial &&
             !traversedNode.userData.sofaSharedMaterial &&
             !traversedNode.userData.rugSharedMaterial &&
@@ -768,7 +770,8 @@ export function disposeObjectTree(runtime: StudioAppRuntime, disposedRoot: any) 
               textureSet.has(materialPropertyValue) ||
               (textureSet.add(materialPropertyValue), materialPropertyValue.dispose());
         }
-        !traversedNode.userData.sofaSharedMaterial &&
+        !traversedNode.userData.effectControllerOwned &&
+          !traversedNode.userData.sofaSharedMaterial &&
           !traversedNode.userData.rugSharedMaterial &&
           !traversedNode.userData.architectureSharedMaterial &&
           !traversedNode.userData.externalModelSharedMaterial &&

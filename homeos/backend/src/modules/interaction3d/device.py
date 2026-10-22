@@ -197,6 +197,7 @@ SMALLCAR_EXTRA_FIELDS = frozenset(
         'chargingStates',
         'batteryEntityId',
         'chargingEntityId',
+        'tirePressure',
     }
 )
 #: 电脑：电源实体 + 自定义屏幕图（用户上传素材）。
@@ -255,6 +256,19 @@ SMALLCAR_CARD_BOUNDS: tuple[tuple[str, float, float], ...] = (
 SMALLCAR_ENTITY_DOMAINS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ('batteryEntityId', ('sensor',)),
     ('chargingEntityId', ('binary_sensor', 'sensor')),
+)
+#: 四轮胎压（0.8.0）：开关 + 显示方式 + 两个样式值 + 四个轮位 ``sensor.*``。
+TIRE_PRESSURE_FIELDS = frozenset({'enabled', 'mode', 'fontSize', 'opacity', 'wheels'})
+#: 胎压显示方式：简洁数值 / 数值和轮位。
+TIRE_PRESSURE_MODES = ('compact', 'named')
+TIRE_PRESSURE_MODE_ENUM = EnumSpec('mode', TIRE_PRESSURE_MODES, 'compact')
+#: 四个轮位的键（左前 / 右前 / 左后 / 右后）。
+TIRE_PRESSURE_WHEEL_KEYS = frozenset({'fl', 'fr', 'rl', 'rr'})
+TIRE_PRESSURE_SENSOR = re.compile(r'sensor\.[a-z0-9_]+')
+#: 字号与背景不透明度边界（与前端输入框一致）。
+TIRE_PRESSURE_BOUNDS: tuple[tuple[str, float, float], ...] = (
+    ('fontSize', 8, 40),
+    ('opacity', 0.1, 1),
 )
 #: 状态灯文案与附加控制标签上限。
 STATUS_STATE_TEXT_LIMIT = 120
@@ -501,6 +515,31 @@ def _validate_smallcar_bindings(
             or charging_states['active'].strip() == charging_states['inactive'].strip()
         ):
             fail()
+    _validate_tire_pressure(ctx, item, fail)
+
+
+def _validate_tire_pressure(ctx: ValidationContext, item: dict, fail) -> None:
+    """四轮胎压：``enabled`` 必填布尔，其余可选；轮位只认 ``sensor.*``，键表即白名单。"""
+    tire_pressure = item.get('tirePressure')
+    if tire_pressure is None:
+        return
+    if not isinstance(tire_pressure, dict) or not set(tire_pressure) <= TIRE_PRESSURE_FIELDS:
+        fail()
+    if not isinstance(tire_pressure.get('enabled'), bool):
+        fail()
+    if not ctx.enum(tire_pressure, TIRE_PRESSURE_MODE_ENUM):
+        fail()
+    if not ctx.numbers_within(tire_pressure, TIRE_PRESSURE_BOUNDS):
+        fail()
+    wheels = tire_pressure.get('wheels', {})
+    if not isinstance(wheels, dict) or set(wheels) - TIRE_PRESSURE_WHEEL_KEYS:
+        fail()
+    if any(
+        not isinstance(wheel_entity_id, str)
+        or TIRE_PRESSURE_SENSOR.fullmatch(wheel_entity_id) is None
+        for wheel_entity_id in wheels.values()
+    ):
+        fail()
 
 
 def _validate_computer_bindings(ctx: ValidationContext, item: dict, fail) -> None:

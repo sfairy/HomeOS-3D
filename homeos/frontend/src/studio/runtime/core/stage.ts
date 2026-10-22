@@ -3,6 +3,7 @@ import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
 import { createAnimationVisibility as createAnimationVisibility2 } from "./animation-work";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
 import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";
+import { createCarTires } from "../vehicle/car-tires";
 import { createSpeakerPanel as createSpeakerPanel2 } from "../speaker/speaker-panel";
 import { createSpeakerRings as createSpeakerRings2 } from "../speaker/speaker-ring";
 import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
@@ -245,6 +246,8 @@ export function mountStage(mountOptions: any) {
   ctx.startupProgress = mountOptions.onStartupEffectsProgress ? 0 : 1;
   const markerLayerElement = createStageElement("div", "i3d-markers"),
     vacuumWorkingLayerElement = createStageElement("div", "i3d-vacuum-working-layer");
+  /** 四轮胎压叠加层：标签挂在标记层里，位置跟车模包围盒走。 */
+  const carTires = createCarTires({ THREE: three, container: markerLayerElement });
   const scratchQuaternion = new three.Quaternion();
   const presentationLayerElement = createStageElement("div", "i3d-presentation");
   const securityAlarmOverlay = createSecurityAlarmOverlay(presentationLayerElement);
@@ -569,22 +572,26 @@ export function mountStage(mountOptions: any) {
                 climateCandidate.floorId === climateDeviceState.floorId &&
                 climateCandidate.modelId === climateDeviceState.modelId,
             ),
-            extraControlKind = climateBinding?.pedestalFan
-              ? "fan-extra"
-              : climateBinding?.waterHeater
-                ? "water-heater-extra"
-                : climateBinding?.climateType === "bath-heater"
-                  ? "climate-extra"
-                  : climateBinding?.airPurifier || climateBinding?.entityId?.startsWith("fan.")
-                    ? "purifier-extra"
-                    : "climate-extra",
+            extraControlKind = climateBinding?.exhaustFan
+              ? "exhaust-fan-extra"
+              : climateBinding?.pedestalFan
+                ? "fan-extra"
+                : climateBinding?.waterHeater
+                  ? "water-heater-extra"
+                  : climateBinding?.climateType === "bath-heater"
+                    ? "climate-extra"
+                    : climateBinding?.airPurifier || climateBinding?.entityId?.startsWith("fan.")
+                      ? "purifier-extra"
+                      : "climate-extra",
             isExtraControlMatch = climateControl.deviceKind?.endsWith("-extra")
               ? climateControl.deviceKind === extraControlKind &&
                 climateBinding?.extraControls?.some(
                   (matchedExtraControl: any) => matchedExtraControl.entityId === climateControl.entityId,
                 )
               : climateBinding?.entityId === climateControl.entityId &&
-                !!climateBinding?.pedestalFan == (climateControl.deviceKind === "fan");
+                (climateBinding?.exhaustFan
+                  ? climateControl.deviceKind === "exhaust-fan"
+                  : !!climateBinding?.pedestalFan == (climateControl.deviceKind === "fan"));
           if (
             !ctx.isControlReady ||
             ctx.isEditing ||
@@ -1592,6 +1599,7 @@ export function mountStage(mountOptions: any) {
       },
     }),
     fanMotion = createFanMotion2({
+      THREE: three,
       requestFrame: () => {
         (mountOptions.requestRender?.(), wakeBackgroundAnimation());
       },
@@ -1910,6 +1918,8 @@ export function mountStage(mountOptions: any) {
                   (collectDeviceKind === "smallcar" ? 1 : 0.5) +
                 (collectDeviceKind === "smallcar" ? 0.25 : 0),
             modelAvailable: !!deviceModel,
+            // 胎压叠加层要按车型判断是否支持（`smallcar`/`suv`），绑定必须带车型。
+            modelType: deviceModel?.type,
             icon: profileDeviceEntry.icon || deviceProfile.icon,
           };
         })
@@ -4290,6 +4300,7 @@ export function mountStage(mountOptions: any) {
     cancelMarkerDrag,
     canvasElement,
     carCharging,
+    carTires,
     climatePanel,
     configureIdleBehaviors,
     get configuredModuleKinds2() { return ctx.configuredModuleKinds2; },
@@ -4646,6 +4657,7 @@ export function mountStage(mountOptions: any) {
         environmentScene.dispose(),
         startupEffectsUnsubscribe?.(),
         carCharging.dispose(),
+        carTires.dispose(),
         climatePanel.dispose());
       for (const pendingSyncRequestId of pendingControlRequestsByRequestId.keys())
         settleClimateRequest(pendingSyncRequestId, "页面已关闭。");

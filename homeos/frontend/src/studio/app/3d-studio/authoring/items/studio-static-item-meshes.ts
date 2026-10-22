@@ -65,6 +65,8 @@ export function mergeStaticItemMeshesCore(
         [
           "airer",
           "fan",
+          "ceiling-fan",
+          "exhaust-fan",
           "storagewaterheater",
           "gaswaterheater",
           "airpurifier",

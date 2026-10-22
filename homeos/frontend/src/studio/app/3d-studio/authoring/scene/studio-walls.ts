@@ -18,6 +18,7 @@ import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
 import { validGeometryLoops as validGeometryLoops2 } from "../../geometry-persistent-cache";
 import { windowGeometryParts as windowGeometryParts2 } from "../../plan/studio-window-geometry";
+import { collectExhaustFanOpenings } from "../items/studio-exhaust-fan";
 
 /** 墙体构件族的外部状态（只读：本族不写入任何外部可变绑定）。 */
 interface StudioWallsDeps {
@@ -421,6 +422,13 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
           height: railingWall?.height || deps.studioState.settings.wallHeight,
         };
       }),
+      /** 排气扇是场景条目而非洞口集合，洞口由自身位置 + 墙体反推（84% 真洞）。 */
+      ...collectExhaustFanOpenings(
+        deps.studioState.items,
+        deps.studioState.walls,
+        interiorPixelsPerMeter,
+        deps.studioState.settings.wallHeight,
+      ).map((exhaustOpeningEntry) => exhaustOpeningEntry.installation.opening),
     ],
     wallVolumes: any[] = [],
     wallVolumeKeySet = new Set(),

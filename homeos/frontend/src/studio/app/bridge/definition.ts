@@ -85,6 +85,7 @@ export const INTERACTION3D_LIGHTING_MODES = [
             airConditioners: [] as any[],
             airers: [] as any[],
             fans: [] as any[],
+            exhaustFans: [] as any[],
             airPurifiers: [] as any[],
             waterHeaters: [] as any[],
             curtains: [] as any[],

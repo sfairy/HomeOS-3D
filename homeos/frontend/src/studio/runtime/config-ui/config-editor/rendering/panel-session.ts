@@ -48,6 +48,11 @@ export function buildItemPayload(deps: PanelSessionDeps, item: any) {
             cardWidth: item.cardWidth ?? 180,
             cardFontSize: item.cardFontSize ?? CARD_TEXT_SIZE_PX,
             cardOpacity: item.cardOpacity ?? 1,
+            tirePressure: item.tirePressure?.enabled
+              ? item.tirePressure.mode === "named"
+                ? "数值和轮位"
+                : "简洁数值"
+              : "关闭",
             buttonVisibility: item.buttonHidden
               ? "隐藏（不可点击）"
               : item.hiddenClickable
@@ -128,7 +133,7 @@ export async function switchEditorKind(
         nextDeviceKind === editorHost.deviceKind ||
         !(
           editorHost.includes
-            ? ["climate", "fan", "purifier", "cover", "temperature-humidity"]
+            ? ["climate", "fan", "exhaust-fan", "purifier", "cover", "temperature-humidity"]
             : editorHost.isDeviceKind
               ? ["nas", "television", "speaker", "water-heater", "airer", ...GENERIC_DEVICE_KINDS2]
               : ["vacuum", "vacuum-shortcut"]

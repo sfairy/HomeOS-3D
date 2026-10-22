@@ -237,6 +237,7 @@ export function attachEditorPanelRendering(editorHost: any) {
       ...(editorHost.structuredClone2.environment?.airConditioners || []),
       ...(editorHost.structuredClone2.environment?.airers || []),
       ...(editorHost.structuredClone2.environment?.fans || []),
+      ...(editorHost.structuredClone2.environment?.exhaustFans || []),
       ...(editorHost.structuredClone2.environment?.airPurifiers || []),
       ...(editorHost.structuredClone2.environment?.waterHeaters || []),
     ])

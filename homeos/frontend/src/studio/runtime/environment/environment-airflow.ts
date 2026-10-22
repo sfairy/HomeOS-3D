@@ -441,7 +441,7 @@ export function createEnvironmentAirflow({
       if (
         !boundModel ||
         // 这些设备自带叶片/加热腔体动画，叠气流条纹会穿模（吊扇同样在列）。
-        ["fan", "ceiling-fan", "storagewaterheater", "gaswaterheater"].includes(
+        ["fan", "ceiling-fan", "exhaust-fan", "storagewaterheater", "gaswaterheater"].includes(
           boundModel.userData.environmentModelType,
         )
       )

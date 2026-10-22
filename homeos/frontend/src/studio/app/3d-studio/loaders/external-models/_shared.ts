@@ -42,6 +42,12 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
   approved: "20261009-approved-v1",
   /** 0.7.9 参考模型批：5 个新模型 + 重烤的茶几/方柱，落地时间同一批。 */
   reference: "20261020-reference-v1",
+  /** 0.8.0 柜体上下两节变体批（衣柜 / 储物柜两节）。 */
+  storageSections: "20261022-storage-sections-v4",
+  /** 0.8.0 窄高置物柜（独立模型）。 */
+  slimCabinet: "20261022-slim-cabinet-v1",
+  /** 0.8.0 排气扇批（建模 + 吸墙开洞 + 气幕同批）。 */
+  exhaust: "20261022-exhaust-v4",
 });
 
 /** 给模型资源 URL 挂上缓存键；`cacheKey` 为空时原样返回。 */

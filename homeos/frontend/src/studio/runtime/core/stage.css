@@ -2869,6 +2869,97 @@ body.interaction3d-stage.is-background-hidden,
   border-bottom: 1px solid #697581;
   transform: rotate(45deg);
 }
+/* 0.8.0 四轮胎压叠加层。
+   标签位置由 JS 用 translate3d 算好，引线是同一层的 SVG；复用温湿度卡片的
+   底色（`i3d-temperature-humidity-card`），但去掉朝向点的小三角与固定宽度。 */
+.interaction3d-stage .i3d-car-tires {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: #f4f7f8;
+  pointer-events: none;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-car-tires {
+  color: #4e4438;
+}
+.interaction3d-stage .i3d-car-tire-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.interaction3d-stage .i3d-car-tire-lines line {
+  stroke: currentColor;
+  stroke-width: 1.25;
+  opacity: 0.7;
+}
+.interaction3d-stage .i3d-car-tires .i3d-car-tire {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  min-width: 40px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  gap: 2px;
+  will-change: transform;
+  pointer-events: none;
+  transition:
+    opacity 0.24s linear,
+    visibility 0s;
+}
+.interaction3d-stage .i3d-car-tires .i3d-car-tire:after {
+  display: none;
+}
+.interaction3d-stage .i3d-car-tire[hidden] {
+  display: none;
+}
+.interaction3d-stage .i3d-car-tire-name {
+  font-size: 0.7em;
+  font-weight: 500;
+  line-height: 1.2;
+  opacity: 0.8;
+}
+.interaction3d-stage .i3d-car-tire-reading {
+  display: block;
+  font-weight: 650;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.interaction3d-stage .i3d-car-tire-reading small {
+  margin-left: 3px;
+  font-size: 0.66em;
+  font-weight: 400;
+  opacity: 0.75;
+}
+.interaction3d-stage .i3d-car-tire.is-unavailable {
+  opacity: 0.6;
+}
+.interaction3d-stage .i3d-car-tire.is-unavailable .i3d-car-tire-reading {
+  opacity: 0.65;
+}
+/* 现有 `is-concealed` 规则只作用于 `.i3d-markers > .i3d-marker`，叠加层必须单独写。 */
+.interaction3d-stage .i3d-markers.is-concealed > .i3d-car-tires,
+.interaction3d-stage .i3d-markers.is-floor-concealed > .i3d-car-tires {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.24s linear,
+    visibility 0s 0.24s;
+}
+.interaction3d-stage .i3d-markers.is-floor-concealed > .i3d-car-tires {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .interaction3d-stage .i3d-car-tires .i3d-car-tire,
+  .interaction3d-stage .i3d-markers.is-concealed > .i3d-car-tires {
+    transition: none;
+  }
+}
 .interaction3d-stage .i3d-environment-header {
   display: flex;
   flex-wrap: wrap;

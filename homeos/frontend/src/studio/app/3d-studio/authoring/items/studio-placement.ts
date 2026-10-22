@@ -3,6 +3,7 @@ import {
   isCourtyardGate,
   syncCourtyardGates,
 } from "../../plan/courtyard-drawing";
+import { exhaustFanInstallation } from "./studio-exhaust-fan";
 const overlapEpsilon = 0.001,
   overlapLength = (startA: any, endA: any, startB: any, endB: any) => Math.min(endA, endB) - Math.max(startA, startB);
 function createOrientedBox(
@@ -87,7 +88,10 @@ function buildPlacementGroups(scene: any, ppm: any) {
         openingRatio = Math.max(
           halfOpeningWidth / wallLength,
           Math.min(1 - halfOpeningWidth / wallLength, opening.t || 0),
-        );
+        ),
+        /** 栏杆可能没有显式高度，回退到场景墙高（否则盒顶变成 NaN）。 */
+        openingHeight =
+          opening.height ?? (openingKind === "railings" ? scene.settings?.wallHeight : opening.height);
       placementGroups.push({
         key: openingKind + ":" + opening.id,
         group: "opening",
@@ -99,12 +103,39 @@ function buildPlacementGroups(scene: any, ppm: any) {
             openingWall.thickness || 0.2,
             Math.atan2(wallDeltaY, wallDeltaX),
             opening.sill || 0,
-            opening.height,
+            openingHeight,
           ),
         ],
       });
     }
   for (const item of scene.items || []) {
+    /** 排气扇条目自带洞口：与门窗共用 `opening` 组（厚度 0.16，门窗仍 0.2）。 */
+    const exhaustInstallation = exhaustFanInstallation(
+      item,
+      scene.walls || [],
+      ppm,
+      scene.settings?.wallHeight,
+    );
+    if (exhaustInstallation) {
+      const { wall: exhaustWall, opening: exhaustOpening } = exhaustInstallation,
+        exhaustWallDeltaX = exhaustWall.end.x - exhaustWall.start.x,
+        exhaustWallDeltaY = exhaustWall.end.y - exhaustWall.start.y;
+      placementGroups.push({
+        key: "items:" + item.id,
+        group: "opening",
+        parts: [
+          createOrientedBox(
+            item.x / ppm,
+            item.y / ppm,
+            exhaustOpening.width,
+            exhaustWall.thickness || 0.16,
+            Math.atan2(exhaustWallDeltaY, exhaustWallDeltaX),
+            exhaustOpening.sill,
+            exhaustOpening.height,
+          ),
+        ],
+      });
+    }
     if (
       (isCourtyardGate(item) &&
         placementGroups.push({
@@ -192,7 +223,7 @@ function placementConflict(baselineScene: any, candidateScene: any, conflictPpm 
   for (const [pairKey, overlapEntry] of collectSceneOverlaps(candidateScene, conflictPpm))
     if (!(overlapEntry.amount <= (baselineOverlaps.get(pairKey)?.amount || 0) + 1e-8))
       return overlapEntry.group === "opening"
-        ? "该位置与已有门、窗户或栏杆重叠，请调整位置或尺寸。"
+        ? "该位置与已有门、窗户、栏杆或排气扇洞口重叠，请调整位置或尺寸。"
         : overlapEntry.group === "gate"
           ? "该位置与已有庭院门重叠，请调整位置或尺寸。"
           : "围挡与已有围挡或自身线段重叠，请调整路线、位置或尺寸。";

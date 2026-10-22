@@ -11,6 +11,7 @@
 import { addTelevisionModel } from "./studio-television-model";
 import { addTrackCurtain as addTrackCurtain2 } from "../../loaders/studio-curtain-track";
 import { squareEdgeItemTypeSet } from "./item-catalog";
+import { exhaustFanInstallation } from "./studio-exhaust-fan";
 import { applyItemPosture as applyItemPosture2 } from "./studio-item-posture";
 import { batchFurnitureMeshes } from "./studio-furniture-batching";
 import { buildingFootprints as buildingFootprints2, fenceOpenings as fenceOpenings2, surfaceExclusions as surfaceExclusions2 } from "../../plan/courtyard-drawing";
@@ -66,6 +67,17 @@ export function buildItemModel(
     optimizationItemTypeSet,
     applianceOptimizationTypeSet,
   } = deps;
+  /** 排气扇贴着墙身：洞口命中时模型厚度取墙厚，否则保留 0.16 的机身厚。 */
+  if (modelItem.type === "exhaust-fan") {
+    const exhaustInstallation = exhaustFanInstallation(
+      modelItem,
+      studioState.walls,
+      getPixelsPerMeter(),
+      studioState.settings?.wallHeight,
+    );
+    exhaustInstallation &&
+      (modelItem = { ...modelItem, depth: exhaustInstallation.wall.thickness || 0.16 });
+  }
   if (isCourtyardDrawing2(modelItem)) {
     const surfaceExclusions =
         modelItem.type === "courtyard-area"

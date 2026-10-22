@@ -3826,6 +3826,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   lightingOptionInputFridgeStyleInput.addEventListener("change", () => applyToolSetting("item"));
 (selectElement("#stair-direction").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#tv-mount-style").addEventListener("change", () => applyToolSetting("item")),
+  selectElement("#storage-section").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#pillar-shape").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#pillar-axis").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#pipeline-dispenser-style").addEventListener("change", () =>

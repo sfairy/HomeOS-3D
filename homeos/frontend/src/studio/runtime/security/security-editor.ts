@@ -19,6 +19,7 @@ import { validateGo2rtcUrl } from "../camera/go2rtc-url";
 import {
   SECURITY_ALARM_TYPES,
   createSecurityAlarmOverlay,
+  isSecurityAlarmKind,
   securityAlarmKindLabel,
 } from "./security-alarm";
 const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId", "battery2EntityId"],
@@ -640,6 +641,19 @@ export async function openSecurityEditor({
         fallback: 1,
         format: (opacityRatio: any) => Math.round(opacityRatio * 100),
       }),
+      // 告警卡片：`labelMode` 三态，文案与属性面板一致。
+      isSecurityAlarmKind(securityKind) &&
+        batchFields.push({
+          key: "labelMode",
+          label: "标签显示",
+          fallback: "always",
+          format: (alarmLabelMode: any) =>
+            alarmLabelMode === "hidden"
+              ? "隐藏标签"
+              : alarmLabelMode === "alarm"
+                ? "报警时显示"
+                : "常驻显示",
+        }),
       securityKind !== "presence" &&
         batchFields.push({
           key: "height",
@@ -847,6 +861,8 @@ export async function openSecurityEditor({
                   size: DEFAULT_BUTTON_SIZE,
                   visible: true,
                   icon: "mdi:cctv",
+                  // 与原版一致：新摄像头默认按原始比例出画，可在面板里切「压缩 16:9」。
+                  fit: "contain",
                 }
               : {
                   route: [] as any[],
@@ -1141,6 +1157,43 @@ export async function openSecurityEditor({
           "opacity",
           markPropertiesDirty,
         ));
+      // 0.8.0：告警卡片标签三态（隐藏 / 常驻 / 报警时显示），默认常驻。
+      const alarmLabelModeSelectElement = createElement("select");
+      alarmLabelModeSelectElement.setAttribute("aria-label", "标签显示");
+      for (const [alarmLabelModeValue, alarmLabelModeLabel] of [
+        ["hidden", "隐藏标签"],
+        ["always", "常驻显示"],
+        ["alarm", "报警时显示"],
+      ]) {
+        const alarmLabelModeOptionElement = createElement("option", "", alarmLabelModeLabel);
+        ((alarmLabelModeOptionElement.value = alarmLabelModeValue),
+          alarmLabelModeSelectElement.append(alarmLabelModeOptionElement));
+      }
+      ((alarmLabelModeSelectElement.value = ["hidden", "always", "alarm"].includes(
+        selectedItem.labelMode,
+      )
+        ? selectedItem.labelMode
+        : "always"),
+        alarmLabelModeSelectElement.addEventListener("change", () => {
+          ((selectedItem.labelMode = alarmLabelModeSelectElement.value),
+            markPropertiesDirty(),
+            renderPanel());
+        }));
+      const alarmLabelModeFieldElement = createElement("label");
+      (alarmLabelModeFieldElement.append(
+        createElement("span", "", "标签显示"),
+        alarmLabelModeSelectElement,
+      ),
+        appearanceSection.append(alarmLabelModeFieldElement),
+        // 事件型烟感没有持续报警状态，`alarm` 会让标签永远不出现。
+        securityKind === "smoke" &&
+          appearanceSection.append(
+            createElement(
+              "p",
+              "i3d-note",
+              "事件型烟感不提供持续报警状态，选择常驻显示可查看最近事件。",
+            ),
+          ));
       // 位置与外观仅坐标/尺寸/背景不透明度，无「显示卡片」「参与全屏」开关
       const previewSection = createSectionHeading("报警效果预览");
       const alarmProfile =
@@ -1852,20 +1905,12 @@ export async function openSecurityEditor({
               "配置时点击标签选择传感器；正式页面仅展示模型和感应效果。",
             ),
           ));
-      } else securityKind !== "lock" && currentContainerElement.append(entityPickerButtonElement);
-      if (securityKind === "camera") {
-        currentContainerElement.append(
-          createElement(
-            "p",
-            "i3d-note",
-            "标签显示设备状态；仅点击聚焦后连接视频，退出时断开。可拖动标签调整位置。",
-          ),
-        );
+      } else if (securityKind === "camera") {
+        // 与原版一致：名称、关联模型之后，来源 / 实体（或地址）/ 画面比例依次排在
+        // 「基础绑定」里，不额外拆「视频来源」分区。
+        currentContainerElement = bindingSectionElement;
         // 视频来源：默认沿用 HA 实体；切成 go2rtc 后填局域网地址，走同源 MSE 中继出画。
-        const cameraSourceSectionElement = createSectionHeading("视频来源"),
-          cameraGo2rtcUrlLabelElement = createElement("label"),
-          cameraGo2rtcUrlInputElement = createElement("input");
-        (createSegmentedField(
+        createSegmentedField(
           "摄像头来源",
           [
             ["entity", "HA 实体"],
@@ -1873,36 +1918,61 @@ export async function openSecurityEditor({
           ],
           selectedItem.cameraSource === "go2rtc" ? "go2rtc" : "entity",
           (nextCameraSource: any) => {
-            (selectedItem.cameraSource = nextCameraSource, markPropertiesDirty(), renderPanel());
+            (selectedItem.cameraSource = nextCameraSource,
+              // 切来源会重建面板，先关掉指向旧节点的选择器。
+              closeActivePicker(),
+              markPropertiesDirty(),
+              renderPanel());
           },
-        ),
-          Object.assign(cameraGo2rtcUrlInputElement, {
+        );
+        if (selectedItem.cameraSource === "go2rtc") {
+          // go2rtc 不需要 HA 实体，地址即配置；ha 实体选择器整块不渲染。
+          const cameraGo2rtcUrlLabelElement = createElement("label"),
+            cameraGo2rtcUrlInputElement = createElement("input");
+          (Object.assign(cameraGo2rtcUrlInputElement, {
             type: "url",
             value: String(selectedItem.go2rtcUrl || ""),
             maxLength: 2048,
             placeholder: "http://192.168.1.100:1984/stream.html?src=camera1",
           }),
-          cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 网页播放地址"),
-          // 用 input：边输边写进草稿，保存时不必先让输入框失焦。
-          cameraGo2rtcUrlInputElement.addEventListener("input", () => {
-            (selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim(),
-              markPropertiesDirty());
-          }),
-          cameraGo2rtcUrlLabelElement.append(
-            createElement("span", "", "go2rtc 网页播放地址"),
-            cameraGo2rtcUrlInputElement,
-          ),
-          (cameraGo2rtcUrlLabelElement.hidden = selectedItem.cameraSource !== "go2rtc"),
-          cameraSourceSectionElement.append(
-            cameraGo2rtcUrlLabelElement,
-            createElement(
-              "p",
-              "i3d-note",
-              "请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HomeOS 中转，保存仪表盘后播放。",
+            cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 网页播放地址"),
+            // 用 input：边输边写进草稿，保存时不必先让输入框失焦。
+            cameraGo2rtcUrlInputElement.addEventListener("input", () => {
+              (selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim(),
+                markPropertiesDirty());
+            }),
+            cameraGo2rtcUrlLabelElement.append(
+              createElement("span", "", "go2rtc 网页播放地址"),
+              cameraGo2rtcUrlInputElement,
             ),
+            currentContainerElement.append(
+              cameraGo2rtcUrlLabelElement,
+              createElement(
+                "p",
+                "i3d-note",
+                "请填写 go2rtc 的 stream.html 网页播放地址。将示例 IP 换成 go2rtc 所在设备的局域网 IP，camera1 换成 go2rtc 中配置的流名称。视频经 HomeOS 中转，保存仪表盘后播放。",
+              ),
+            ));
+        } else currentContainerElement.append(entityPickerButtonElement);
+        // 画面比例决定摄像头弹窗是原始比例还是压成 16:9。
+        createSegmentedField(
+          "画面比例",
+          [
+            ["contain", "原始比例"],
+            ["fill", "压缩 16:9"],
+          ],
+          selectedItem.fit === "fill" ? "fill" : "contain",
+          (nextCameraFit: any) => {
+            (selectedItem.fit = nextCameraFit, markPropertiesDirty(), renderPanel());
+          },
+        );
+        currentContainerElement.append(
+          createElement(
+            "p",
+            "i3d-note",
+            "标签显示设备状态；仅点击聚焦后连接视频，退出时断开。可拖动标签调整位置。",
           ),
-          // go2rtc 来源不需要 HA 实体，实体选择器一并收起。
-          (entityPickerButtonElement.hidden = selectedItem.cameraSource === "go2rtc"));
+        );
         const labelSettingsSectionElement = createSectionHeading("标签设置"),
           labelSettingsGridElement = createElement("div", "i3d-security-scope-grid");
         (labelSettingsSectionElement.append(labelSettingsGridElement),
@@ -2135,7 +2205,7 @@ export async function openSecurityEditor({
             (resetFocusButtonElement.className = "i3d-focus-reset"),
             currentContainerElement.append(resetFocusButtonElement));
         }
-      }
+      } else securityKind !== "lock" && currentContainerElement.append(entityPickerButtonElement);
       if (securityKind === "presence") {
         if (selectedItem.modelId) {
           const waveSectionElement = createSectionHeading("感应光圈");

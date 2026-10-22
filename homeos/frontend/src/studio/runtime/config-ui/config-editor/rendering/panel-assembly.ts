@@ -14,6 +14,7 @@ import { createDeviceCategoryRow } from "./device-category-dialog";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { bathEffectEditor as bathEffectEditor2 } from "../../../bath-heater/bath-heater-editor";
 import { carChargingMappingError as carChargingMappingError2, carState as carState2, standardCarBindings as standardCarBindings2 } from "../../../vehicle/car-state";
+import { CAR_TIRE_WHEELS as carTireWheels, defaultCarTires } from "../../../vehicle/car-tires";
 import { curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { deviceEntityCatalog as deviceEntityCatalog2 } from "../../device-entity-config";
 import { extraLabels as extraLabels2, extraTypes as extraTypes2, purifierDeviceChanged as purifierDeviceChanged2, purifierRelatedEntities as purifierRelatedEntities2 } from "../../../climate/purifier-extras";
@@ -186,6 +187,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 ["climate", "空调/浴霸"],
                 ["cover", "窗帘"],
                 ["fan", "风扇 / 吊扇"],
+                ["exhaust-fan", "排气扇"],
                 ["purifier", "空气净化器"],
                 ["temperature-humidity", "环境标签"],
               ],
@@ -377,8 +379,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             isPurifierMode = editorHost.deviceKind === "purifier",
             isWaterHeaterMode = editorHost.deviceKind === "water-heater",
             isFanMode = editorHost.deviceKind === "fan",
+            isExhaustFanMode = editorHost.deviceKind === "exhaust-fan",
             bindingContainer =
-              isBathHeaterMode || isPurifierMode || isWaterHeaterMode || isFanMode;
+              isBathHeaterMode || isPurifierMode || isWaterHeaterMode || isFanMode || isExhaustFanMode;
           (bindingContainer && !vector.entityId && (vector.clickAction = "focus"),
             editorHost.deviceKind === "climate" &&
               createSelectRow(
@@ -509,6 +512,11 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
             openItemPicker = async (targetField: any, itemPickerTrigger: any) => {
               const isEntityField = ++editorHost.pickerGeneration;
               editorHost.errorMessageElement.textContent = "";
+              if (targetField === "entity" && isExhaustFanMode && !vector.deviceId) {
+                editorHost.errorMessageElement.textContent =
+                  "请先选择排气扇设备，再选择该设备下的主实体。";
+                return;
+              }
               try {
                 const pickerMethod =
                   editorHost.pickers?.[targetField === "powerEntity" ? "entity" : targetField];
@@ -588,7 +596,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                               delete vector.statusRules,
                               delete vector.batteryEntityId,
                               delete vector.chargingEntityId,
-                              delete vector.chargingStates);
+                              delete vector.chargingStates,
+                              // 胎压：解绑/换设备只关掉并清空轮位，样式字段保留。
+                              vector.tirePressure &&
+                                (vector.tirePressure = {
+                                  ...vector.tirePressure,
+                                  enabled: false,
+                                  wheels: {},
+                                }));
                             const isSameDeviceId =
                               bindingContainer && !!pickedDeviceId && deviceId2 === pickedDeviceId;
                             if (
@@ -1069,13 +1084,15 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 (temperatureHumidityPickerKinds()
                   ? "跟随主实体所属设备"
                   : "选择" +
-                    (isFanMode
-                      ? "风扇"
-                      : isWaterHeaterMode
-                        ? "热水器"
-                        : isPurifierMode
-                          ? "净化器"
-                          : "浴霸") +
+                    (isExhaustFanMode
+                      ? "排气扇"
+                      : isFanMode
+                        ? "风扇"
+                        : isWaterHeaterMode
+                          ? "热水器"
+                          : isPurifierMode
+                            ? "净化器"
+                            : "浴霸") +
                     "设备"),
               () => void openItemPicker("device", deviceBindingButton),
             );
@@ -1085,7 +1102,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 editorHost.createElement(
                   "p",
                   "i3d-note",
-                  isFanMode
+                  isExhaustFanMode
+                    ? "先选设备，再选择同设备下的 switch 或 fan 主实体。扇叶和吸入气流只随主实体启停，速度固定；附加功能独立控制。"
+                    : isFanMode
                     ? "主实体选填。有 fan 主实体时读取标准能力；没有就绑定设备，在附加功能中选择开关、风速、正反转等。主实体与附加功能须属于同一设备，各功能独立控制。"
                     : isWaterHeaterMode
                       ? "有热水器主实体可直接选择；没有就绑定设备，在附加功能中选择开关、温度、模式和状态。各功能独立控制。"
@@ -1350,6 +1369,126 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   (chargingSummaryElement.textContent = carChargingStatusText);
               }),
               editorHost.refreshEffectSettings());
+            // 四轮胎压（0.8.0）：车型取景元数据里现成的 `type`，只有 smallcar/suv 显示。
+            const carModelEntry = editorHost.sceneMetadata?.floors
+                ?.find((carFloorProbe: any) => carFloorProbe.id === vector.floorId)
+                ?.cars?.find((carModelProbe: any) => carModelProbe.id === vector.modelId),
+              carSupportsTires = ["smallcar", "suv"].includes(carModelEntry?.type);
+            if (!carSupportsTires) delete vector.tirePressure;
+            else {
+              const tireSectionElement = createConfigSection("胎压"),
+                tireConfig = vector.tirePressure || (vector.tirePressure = defaultCarTires()),
+                tireWheelCatalog = deviceEntityCatalog2(
+                  editorHost.entities,
+                  vector.deviceId,
+                  editorHost.latestStates || editorHost.states,
+                ).filter(
+                  (tireEntityProbe) =>
+                    tireEntityProbe.entityId.startsWith("sensor.") &&
+                    tireEntityProbe.enabled !== false &&
+                    !["missing", "disabled"].includes(tireEntityProbe.status),
+                ),
+                tireWheelOptions = tireWheelCatalog.map((tireEntityOptionEntry) => [
+                  tireEntityOptionEntry.entityId,
+                  (tireEntityOptionEntry.name || tireEntityOptionEntry.entityId) +
+                    " · " +
+                    tireEntityOptionEntry.entityId,
+                ]),
+                tireShowInput = editorHost.createElement("input");
+              ((tireShowInput.type = "checkbox"),
+                (tireShowInput.checked = tireConfig.enabled === true),
+                tireShowInput.addEventListener("change", () => {
+                  (vector.tirePressure
+                    ? (vector.tirePressure.enabled = tireShowInput.checked)
+                    : (vector.tirePressure = {
+                        ...defaultCarTires(),
+                        enabled: tireShowInput.checked,
+                      }),
+                    refreshEditorPreview(),
+                    renderPanel());
+                }),
+                createSettingRow(tireSectionElement, "显示胎压", tireShowInput));
+              createSelectRow(
+                tireSectionElement,
+                "显示方式",
+                [
+                  ["compact", "简洁数值"],
+                  ["named", "数值和轮位"],
+                ],
+                tireConfig.mode === "named" ? "named" : "compact",
+                (nextTireMode: string) => {
+                  (tireConfig.mode = nextTireMode === "named" ? "named" : "compact");
+                  refreshEditorPreview();
+                },
+              );
+              for (const [tireStyleKey, tireStyleLabel, tireStyleMin, tireStyleMax, tireStyleStep] of [
+                ["fontSize", "字号", 8, 40, 1],
+                ["opacity", "背景不透明度", 0.1, 1, 0.05],
+              ] as [string, string, number, number, number][]) {
+                const tireStyleInput = editorHost.createElement("input"),
+                  // 只在这两个数字键里取值，用一张窄表避开「字符串索引对象」的类型报错。
+                  tireStyleTable: Record<string, number> = {
+                    fontSize: tireConfig.fontSize,
+                    opacity: tireConfig.opacity,
+                  },
+                  tireStyleDefaults: Record<string, number> = defaultCarTires() as any;
+                ((tireStyleInput.type = "number"),
+                  (tireStyleInput.min = String(tireStyleMin)),
+                  (tireStyleInput.max = String(tireStyleMax)),
+                  (tireStyleInput.step = String(tireStyleStep)),
+                  (tireStyleInput.value = String(
+                    Number.isFinite(tireStyleTable[tireStyleKey])
+                      ? tireStyleTable[tireStyleKey]
+                      : tireStyleDefaults[tireStyleKey],
+                  )),
+                  tireStyleInput.addEventListener("change", () => {
+                    const tireStyleValue = Number(tireStyleInput.value);
+                    (Number.isFinite(tireStyleValue) &&
+                      (tireStyleTable[tireStyleKey] = Math.max(
+                        tireStyleMin,
+                        Math.min(tireStyleMax, tireStyleValue),
+                      ),
+                      (tireConfig.fontSize = tireStyleTable.fontSize),
+                      (tireConfig.opacity = tireStyleTable.opacity)),
+                      (tireStyleInput.value = String(tireStyleTable[tireStyleKey])),
+                      refreshEditorPreview());
+                  }),
+                  createSettingRow(tireSectionElement, tireStyleLabel, tireStyleInput));
+              }
+              tireConfig.wheels ||= {};
+              for (const tireWheel of carTireWheels) {
+                const tireWheelValue = tireConfig.wheels[tireWheel.key] || "",
+                  tireWheelRowOptions = [...tireWheelOptions];
+                tireWheelValue &&
+                  !tireWheelRowOptions.some(
+                    ([tireOptionEntityId]) => tireOptionEntityId === tireWheelValue,
+                  ) &&
+                  tireWheelRowOptions.unshift([
+                    tireWheelValue,
+                    tireWheelValue + "（失效或不属于当前设备）",
+                  ]);
+                createSelectRow(
+                  tireSectionElement,
+                  tireWheel.label + "轮",
+                  [["", "未绑定"], ...tireWheelRowOptions],
+                  tireWheelValue,
+                  (pickedTireEntityId: string) => {
+                    (pickedTireEntityId
+                      ? (tireConfig.wheels[tireWheel.key] = pickedTireEntityId)
+                      : delete tireConfig.wheels[tireWheel.key],
+                      (vector.tirePressure = tireConfig),
+                      refreshEditorPreview());
+                  },
+                );
+              }
+              tireSectionElement.append(
+                editorHost.createElement(
+                  "p",
+                  "i3d-note",
+                  "轮位以车辆朝前时为准。单位沿用实体；未绑定轮位不显示，读数不可用时显示 —。字号和背景不透明度只影响胎压，电量卡片独立设置。",
+                ),
+              );
+            }
             const carStatusCardSectionElement = createConfigSection("汽车状态卡片");
             renderAirPurifierBindingSection(carStatusCardSectionElement, vector, {
               width: "cardWidth",

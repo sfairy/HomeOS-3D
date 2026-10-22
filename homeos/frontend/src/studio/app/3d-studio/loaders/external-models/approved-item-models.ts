@@ -32,6 +32,17 @@ const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
     mount: "ceiling",
     elevation: 2.8,
   },
+  "exhaust-fan": {
+    label: "排气扇",
+    glyph: "◉",
+    subcategory: "environment",
+    // [宽, 高, 厚]：卡片小字只展示「宽 × 厚」，厚 0.16 与吸墙时的 depth 兜底一致。
+    size: [0.34, 0.34, 0.16],
+    small: "0.34 × 0.16m",
+    mount: "wall",
+    elevation: 1.83,
+    assetVersion: MODEL_ASSET_CACHE_KEYS.exhaust,
+  },
   "table-lamp": {
     label: "台灯",
     glyph: "⌁",
@@ -466,6 +477,19 @@ const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
     mount: "floor",
     assetVersion: REFERENCE_ASSET_VERSION,
   },
+
+  /* ── 0.8.0 批（窄高置物柜） ─────────────────────────────────────── */
+  "slim-recessed-cabinet": {
+    label: "窄高置物柜",
+    glyph: "▤",
+    // 资源库里它挂在「玄关」组（`data-library-group="entry"`），筛选标签却是 dining；
+    // 这个错位是 0.8.0 发布产物的真实状态，照搬，别「修正」。
+    subcategory: "dining",
+    size: [0.66, 2.6, 0.4],
+    small: "独立模型",
+    mount: "floor",
+    assetVersion: MODEL_ASSET_CACHE_KEYS.slimCabinet,
+  },
 };
 
 /**
@@ -483,6 +507,28 @@ const APPROVED_ITEM_VARIANTS_META: Record<string, ApprovedItemMeta> = {
     small: "0.60 × 0.44m",
     mount: "wall",
     assetVersion: REFERENCE_ASSET_VERSION,
+  },
+  /**
+   * 0.8.0 柜体上下两节变体：由 `cabinetSections === "two-section"` 选中，
+   * 尺寸与整门版一致（换的是门板分缝，不是外包围盒）。
+   */
+  "wardrobe-two-section": {
+    label: "衣柜上下两节",
+    glyph: "▤",
+    subcategory: "bedroom",
+    size: [1.8, 2.2, 0.637],
+    small: "独立模型",
+    mount: "floor",
+    assetVersion: MODEL_ASSET_CACHE_KEYS.storageSections,
+  },
+  "cabinet-two-section": {
+    label: "储物柜上下两节",
+    glyph: "▤",
+    subcategory: "dining",
+    size: [1.6, 1.9, 0.45],
+    small: "独立模型",
+    mount: "floor",
+    assetVersion: MODEL_ASSET_CACHE_KEYS.storageSections,
   },
 };
 

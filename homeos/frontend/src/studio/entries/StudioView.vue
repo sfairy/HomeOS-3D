@@ -359,6 +359,9 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="arched-glass-console"
                         data-library-category="home" data-library-group="entry" data-library-name="拱形玻璃玄关台"
                         data-asset-subcategory="entry"><i>▤</i><span>拱形玻璃玄关台</span><small>0.78 × 0.60m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="slim-recessed-cabinet"
+                        data-library-category="home" data-library-group="entry" data-library-name="窄高置物柜"
+                        data-asset-subcategory="dining"><i>▤</i><span>窄高置物柜</span><small>独立模型</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home" data-library-group="bedroom">卧室家具</div>
                     <button class="asset-card" type="button" draggable="true" data-item-type="bed"
                         data-library-category="home" data-library-group="bedroom" data-library-name="双人床"
@@ -1002,6 +1005,9 @@ onBeforeUnmount(() => {
                     <button class="asset-card" type="button" draggable="true" data-item-type="ceiling-fan"
                         data-library-category="appliance" data-library-group="environment" data-library-name="吊扇"
                         data-asset-subcategory="environment"><i>◉</i><span>吊扇</span><small>1.32 × 1.32m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="exhaust-fan"
+                        data-library-category="appliance" data-library-group="environment" data-library-name="排气扇"
+                        data-asset-subcategory="environment"><i>◉</i><span>排气扇</span><small>0.34 × 0.16m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="aroma-diffuser"
                         data-library-category="appliance" data-library-group="environment" data-library-name="香氛机"
                         data-asset-subcategory="environment"><i>▤</i><span>香氛机</span><small>独立模型</small></button>
@@ -1490,6 +1496,10 @@ onBeforeUnmount(() => {
                                 <option value="standard">壁挂电视</option>
                                 <option value="tabletop">桌面底座</option>
                                 <option value="mobile">移动支架</option>
+                            </select></label> <label id="storage-section-field" class="door-type-field"
+                            hidden><span>柜门结构</span><select id="storage-section">
+                                <option value="full">整门</option>
+                                <option value="two-section">上下两节（下小上大）</option>
                             </select></label> <label id="mural-style-field" class="door-type-field" hidden><span>画作风格</span><select
                                 id="mural-style">
                                 <option value="bauhaus">包豪斯</option>

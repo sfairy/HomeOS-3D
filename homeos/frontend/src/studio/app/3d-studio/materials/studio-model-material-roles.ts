@@ -691,6 +691,12 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   "arched-glass-console": "joinery",
   "double-open-wardrobe": "joinery",
   "rectangular-pipeline-dispenser": "appliance",
+
+  // 0.8.0 批：两个柜体变体与窄高置物柜都是木作柜类；排气扇是家电整机。
+  "wardrobe-two-section": "joinery",
+  "cabinet-two-section": "joinery",
+  "slim-recessed-cabinet": "joinery",
+  "exhaust-fan": "appliance",
 });
 
 /**
@@ -1088,6 +1094,18 @@ const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
     body: { color: "floorLampBody", surface: "wood" },
   },
   smallcar: { body: { color: "furniture", surface: "lacquer" } },
+  /**
+   * 排气扇五槽（对应 GLB 根节点 `extras.paletteRoles`）：
+   * `shell` 外壳、`edge` 与外圈压条、`bore` 进风筒内壁、`blade` 叶片、`fastener` 四角螺钉。
+   * 这五个角色名不在语义角色表里，必须显式登记，否则整件塌到 appliance 家族兜底 `body`。
+   */
+  "exhaust-fan": {
+    shell: { color: "applianceSoft", surface: "metal" },
+    edge: { color: "appliance", surface: "metal" },
+    bore: { color: "applianceDark", surface: "lacquer" },
+    blade: { color: "appliance", surface: "lacquer" },
+    fastener: { color: "applianceDark", surface: "metal" },
+  },
 
 
   desk: {

@@ -28,6 +28,7 @@ COLLECTIONS = (
     ('environment', 'airConditioners'),
     ('environment', 'airers'),
     ('environment', 'fans'),
+    ('environment', 'exhaustFans'),
     ('environment', 'airPurifiers'),
     ('environment', 'waterHeaters'),
     ('environment', 'curtains'),

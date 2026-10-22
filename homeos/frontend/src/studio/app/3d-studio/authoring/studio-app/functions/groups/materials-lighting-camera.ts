@@ -1,5 +1,6 @@
 import type { BackgroundViewSettings, StudioAppRuntime } from "../../runtime/studio-app-runtime";
 import { snapItemToSurface as snapItemToSurface2 } from "../../../items/studio-surface-snap";
+import { snapExhaustFan } from "../../../items/studio-exhaust-fan";
 import { isCourtyardPlanItem as isCourtyardPlanItem2, courtyardToolAllowed as courtyardToolAllowed2 } from "../../../../plan/courtyard-plan";
 import { remapCourtyardAttachments as remapCourtyardAttachments2 } from "../../../../plan/courtyard-drawing";
 import { describeDoorMaterials } from "../../materials/door-materials";
@@ -322,6 +323,14 @@ export function clearSelection(runtime: StudioAppRuntime, ) {
 }
 
 export function finalizeAddedItem(runtime: StudioAppRuntime, addedItem: any, movingIds = [addedItem.id]) {
+  /**
+   * 排气扇只吸墙、不参与台面吸附（0.8.0 在这里明确 `return`）。
+   * 朝向保持拖动后的状态，只有新建路径才会先按墙走向对齐。
+   */
+  if (addedItem?.type === "exhaust-fan") {
+    snapExhaustFan(addedItem, runtime.appCtx.studioState.walls, runtime.getPixelsPerMeter());
+    return;
+  }
   return snapItemToSurface2({
     THREE: ns2,
     item: addedItem,

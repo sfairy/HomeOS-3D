@@ -6,7 +6,7 @@ import {
 } from "./cache-shared";
 
 /** 几何/中间结果持久缓存：把可复用的几何（墙 union、楼板开洞、家具批量网格等）落盘，热启动时直接取回。 */
-const GEOMETRY_CACHE_VERSION = "20260930-v1";
+const GEOMETRY_CACHE_VERSION = "20261022-v1";
 const MAX_ENTRY_BYTES = 8388608,
   MAX_ENTRY_COUNT = 256,
   MAX_PERSISTED_BYTES = 33554432,

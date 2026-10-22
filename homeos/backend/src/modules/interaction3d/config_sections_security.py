@@ -50,10 +50,13 @@ ALARM_FIELDS = frozenset(
         'hiddenClickable',
         'focusCamera',
         'cardWidth',
+        'labelMode',
     }
 )
 #: 告警类型枚举（缺字段即不合规，因此默认值取空串）。
 ALARM_KIND = EnumSpec('kind', ('moisture', 'smoke', 'gas'), '')
+#: 告警标签显示：隐藏 / 常驻 / 报警时显示（0.8.0 默认常驻）。
+ALARM_LABEL_MODE = EnumSpec('labelMode', ('hidden', 'always', 'alarm'), 'always')
 #: 告警主题枚举。
 ALARM_THEME = EnumSpec('theme', ('default', 'warm-wood'), 'default')
 #: 主实体：按类型区分可接受的域（烟雾额外接受 ``event.*``）。
@@ -242,6 +245,8 @@ class SecuritySectionValidator:
             ctx.fail()
         model_id = alarm.get('modelId', '')
         if not ctx.enum(alarm, ALARM_THEME) or (model_id and not ctx.text(model_id)):
+            ctx.fail()
+        if not ctx.enum(alarm, ALARM_LABEL_MODE):
             ctx.fail()
         if not ctx.numbers_within(alarm, ALARM_NUMBER_BOUNDS):
             ctx.fail()

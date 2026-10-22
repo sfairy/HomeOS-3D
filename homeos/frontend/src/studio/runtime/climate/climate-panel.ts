@@ -7,6 +7,8 @@ import {
   climateSwingModeLabel as climateSwingModeLabel2,
   createClimateModeHistory as createClimateModeHistory2,
   createWaterHeaterFeedback as createWaterHeaterFeedback2,
+  exhaustFanState as exhaustFanState2,
+  exhaustSwitchState as exhaustSwitchState2,
   waterHeaterCapabilityStatusLabel as waterHeaterStatusLabel2,
 } from "./climate-state";
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
@@ -717,13 +719,15 @@ export function createClimatePanel({
           ? "热水器控制"
           : activeItem.airPurifier
             ? "空气净化器控制"
-            : activeItem.pedestalFan
-              ? activeItem.ceilingFan
-                ? "吊扇控制"
-                : "风扇控制"
-              : deviceState.purifier
-                ? "风扇控制"
-                : "空调控制",
+            : activeItem.exhaustFan
+              ? "排气扇控制"
+              : activeItem.pedestalFan
+                ? activeItem.ceilingFan
+                  ? "吊扇控制"
+                  : "风扇控制"
+                : deviceState.purifier
+                  ? "风扇控制"
+                  : "空调控制",
     ),
       (titleElement.textContent = activeItem.label || deviceState.name || "空调"),
       (titleElement.title = titleElement.textContent),
@@ -798,19 +802,23 @@ export function createClimatePanel({
       (fanSpeedRangeElement.className = "i3d-control-range"),
       fanSpeedRangeElement.setAttribute(
         "aria-label",
-        activeItem.pedestalFan
-          ? activeItem.ceilingFan
-            ? "吊扇风速"
-            : "电风扇风速"
-          : "净化器风速",
+        activeItem.exhaustFan
+          ? "排气扇风速"
+          : activeItem.pedestalFan
+            ? activeItem.ceilingFan
+              ? "吊扇风速"
+              : "电风扇风速"
+            : "净化器风速",
       ),
       speedLevelsElement.setAttribute(
         "aria-label",
-        activeItem.pedestalFan
-          ? activeItem.ceilingFan
-            ? "吊扇风速档位"
-            : "电风扇风速档位"
-          : "净化器风速档位",
+        activeItem.exhaustFan
+          ? "排气扇风速档位"
+          : activeItem.pedestalFan
+            ? activeItem.ceilingFan
+              ? "吊扇风速档位"
+              : "电风扇风速档位"
+            : "净化器风速档位",
       ));
     const displayState = fanStatus || purifierStatus || deviceState,
       effectiveOn = !!(displayState.available && resolveDisplayPowerOn()),
@@ -1081,13 +1089,21 @@ export function createClimatePanel({
       (deviceState =
         nextViewModel.state?.entityId === nextEntityId && Array.isArray(nextViewModel.state?.modes)
           ? nextViewModel.state
-          : climateState2(nextEntityId, nextViewModel.state)),
+          : nextViewModel.item?.exhaustFan
+            ? nextEntityId.startsWith("switch.")
+              ? exhaustSwitchState2(nextEntityId, nextViewModel.state)
+              : exhaustFanState2(nextViewModel.item, nextViewModel.states || {})
+            : climateState2(nextEntityId, nextViewModel.state)),
       nextViewModel.item?.pedestalFan &&
         !nextEntityId &&
         (deviceState = {
           ...deviceState,
           purifier: true,
-          name: nextViewModel.item?.ceilingFan ? "吊扇" : "风扇",
+          name: nextViewModel.item?.exhaustFan
+            ? "排气扇"
+            : nextViewModel.item?.ceilingFan
+              ? "吊扇"
+              : "风扇",
         }),
       nextViewModel.item?.airPurifier &&
         !nextEntityId &&
