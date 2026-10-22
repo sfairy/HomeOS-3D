@@ -3,6 +3,7 @@ import {
   MODEL_ASSET_CACHE_KEYS,
   withModelAssetCacheKey,
 } from "./_shared";
+import { modelAssetUrl } from "./model-asset-folders";
 
 type ApprovedItemMeta = {
   label: string;
@@ -494,11 +495,11 @@ function createApprovedAssetDescriptor(
   // 0.7.9 参考批（`20261020-reference-v1`）单独带键，旧键的缓存不会串到新字节上。
   return Object.freeze({
     url: withModelAssetCacheKey(
-      `/static/3d-studio/models/${assetId}-lite.glb`,
+      modelAssetUrl(assetId, "lite"),
       assetVersion,
     ),
     fallbackUrl: withModelAssetCacheKey(
-      `/static/3d-studio/models/${assetId}.glb`,
+      modelAssetUrl(assetId, "full"),
       assetVersion,
     ),
     scaleBasis,

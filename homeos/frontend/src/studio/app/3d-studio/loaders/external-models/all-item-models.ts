@@ -1,5 +1,6 @@
 import { APPROVED_ITEM_MODELS, APPROVED_MODEL_VARIANTS } from "./approved-item-models";
 import { COLLECTION_MODELS } from "./collection-models";
+import { modelAssetUrl } from "./model-asset-folders";
 import {
   EXTERNAL_ITEM_MODELS,
   MODEL_ASSET_CACHE_KEYS,
@@ -25,11 +26,11 @@ const COLLECTION_ITEM_MODELS = Object.freeze(
       modelId,
       Object.freeze({
         url: withModelAssetCacheKey(
-          `/static/3d-studio/models/${modelId}-lite.glb`,
+          modelAssetUrl(modelId, "lite"),
           modelDefinition.assetVersion,
         ),
         fallbackUrl: withModelAssetCacheKey(
-          `/static/3d-studio/models/${modelId}.glb`,
+          modelAssetUrl(modelId, "full"),
           modelDefinition.assetVersion,
         ),
         scaleBasis: modelDefinition.size,
@@ -65,11 +66,11 @@ export const ALL_ITEM_MODELS = Object.freeze({
   ...COLLECTION_ITEM_MODELS,
     bed: createIndoorAssetDescriptor("bed", {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/bed-lite.glb",
+        modelAssetUrl("bed", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/bed.glb",
+        modelAssetUrl("bed", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       scaleBasis: [1.92, 1.02, 2.18],
@@ -86,12 +87,12 @@ export const ALL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     bookcase: createHomeAssetDescriptor("bookcase", {
-      url: "/static/3d-studio/models/bookcase-lite.glb",
+      url: modelAssetUrl("bookcase", "lite"),
       scaleBasis: [1.2, 1.9, 0.32],
       preserveOrigin: true,
     }),
     aquarium: createHomeAssetDescriptor("aquarium", {
-      url: "/static/3d-studio/models/aquarium-lite.glb",
+      url: modelAssetUrl("aquarium", "lite"),
       scaleBasis: [1.5, 1.4, 0.55],
       preserveOrigin: true,
     }),
@@ -116,7 +117,7 @@ export const ALL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     glasscabinet: createHomeAssetDescriptor("glasscabinet", {
-      url: "/static/3d-studio/models/glasscabinet-lite.glb",
+      url: modelAssetUrl("glasscabinet", "lite"),
       scaleBasis: [1.2, 1.9, 0.4],
       preserveOrigin: true,
     }),
@@ -125,7 +126,7 @@ export const ALL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     wallcabinet: createHomeAssetDescriptor("wallcabinet", {
-      url: "/static/3d-studio/models/wallcabinet-lite.glb",
+      url: modelAssetUrl("wallcabinet", "lite"),
       scaleBasis: [1.5, 0.82, 0.35],
       preserveOrigin: true,
     }),
@@ -219,20 +220,20 @@ export const ALL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     floorac: createApplianceAssetDescriptor("floorac", {
-      url: "/static/3d-studio/models/floorac-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/floorac.glb",
+      url: modelAssetUrl("floorac", "lite"),
+      fallbackUrl: modelAssetUrl("floorac", "full"),
       scaleBasis: [0.42, 1.75, 0.42],
       preserveOrigin: true,
     }),
     airpurifier: createApplianceAssetDescriptor("airpurifier", {
-      url: "/static/3d-studio/models/airpurifier-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/airpurifier.glb",
+      url: modelAssetUrl("airpurifier", "lite"),
+      fallbackUrl: modelAssetUrl("airpurifier", "full"),
       scaleBasis: [0.34, 0.7, 0.34],
       preserveOrigin: true,
     }),
     robotvacuum: createApplianceAssetDescriptor("robotvacuum", {
-      url: "/static/3d-studio/models/robotvacuum-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/robotvacuum.glb",
+      url: modelAssetUrl("robotvacuum", "lite"),
+      fallbackUrl: modelAssetUrl("robotvacuum", "full"),
       scaleBasis: [0.55, 0.85, 0.5],
       preserveOrigin: true,
     }),
@@ -282,39 +283,38 @@ export const ALL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     storagewaterheater: createApplianceAssetDescriptor("storagewaterheater", {
-      url: "/static/3d-studio/models/storagewaterheater-lite.glb",
-      fallbackUrl:
-        "/static/3d-studio/models/storagewaterheater.glb",
+      url: modelAssetUrl("storagewaterheater", "lite"),
+      fallbackUrl: modelAssetUrl("storagewaterheater", "full"),
       scaleBasis: [0.86, 0.48, 0.46],
       preserveOrigin: true,
     }),
     gaswaterheater: createApplianceAssetDescriptor("gaswaterheater", {
-      url: "/static/3d-studio/models/gaswaterheater-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/gaswaterheater.glb",
+      url: modelAssetUrl("gaswaterheater", "lite"),
+      fallbackUrl: modelAssetUrl("gaswaterheater", "full"),
       scaleBasis: [0.42, 0.72, 0.22],
       preserveOrigin: true,
     }),
     desktop: createApplianceAssetDescriptor("desktop", {
-      url: "/static/3d-studio/models/desktop-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/desktop.glb",
+      url: modelAssetUrl("desktop", "lite"),
+      fallbackUrl: modelAssetUrl("desktop", "full"),
       scaleBasis: [0.72, 0.5, 0.32],
       preserveOrigin: true,
     }),
     laptop: createApplianceAssetDescriptor("laptop", {
-      url: "/static/3d-studio/models/laptop-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/laptop.glb",
+      url: modelAssetUrl("laptop", "lite"),
+      fallbackUrl: modelAssetUrl("laptop", "full"),
       scaleBasis: [0.36, 0.22, 0.28],
       preserveOrigin: true,
     }),
     printer: createApplianceAssetDescriptor("printer", {
-      url: "/static/3d-studio/models/printer-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/printer.glb",
+      url: modelAssetUrl("printer", "lite"),
+      fallbackUrl: modelAssetUrl("printer", "full"),
       scaleBasis: [0.44, 0.3, 0.36],
       preserveOrigin: true,
     }),
     nas: createApplianceAssetDescriptor("nas", {
-      url: "/static/3d-studio/models/nas-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/nas.glb",
+      url: modelAssetUrl("nas", "lite"),
+      fallbackUrl: modelAssetUrl("nas", "full"),
       scaleBasis: [0.28, 0.205, 0.24],
       preserveOrigin: true,
     }),

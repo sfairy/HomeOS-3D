@@ -32,6 +32,9 @@
  * bun run scripts/models/build-glb-slab.mjs --out countertop --width 0.9 --depth 0.5 --thickness 0.05
  * bun run scripts/models/build-glb-slab.mjs --out countertop --width 0.9 --depth 0.5 --thickness 0.05 --dry-run
  * ```
+ *
+ * 输出目录取 `model-asset-folders.ts` 的分类（如 `home/bathroom/`）；新素材还没登记时可用
+ * `--group <大类/分区>` 指定，登记后由 `organize-models.mjs --write` 统一归位。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -41,6 +44,16 @@ const hereDir = path.dirname(fileURLToPath(import.meta.url))
 /** `homeos/frontend`：脚本位于 `<frontend>/scripts/models/`。 */
 const frontendDir = path.resolve(hereDir, '..', '..')
 const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models')
+
+/** 模型分类映射（唯一真值），决定新板的落盘目录。 */
+const { modelAssetFolder } = await import(
+  pathToFileURL(
+    path.join(
+      frontendDir,
+      'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
+    ),
+  ).href
+)
 
 const GLB_MAGIC = 0x46546c67 // "glTF"
 const GLB_VERSION = 2
@@ -425,8 +438,19 @@ const thickness = Number(args.thickness)
 const dryRun = args['dry-run'] === true
 if (!outId || !(width > 0) || !(depth > 0) || !(thickness > 0))
   throw new Error(
-    '用法：--out <itemType> --width <m> --depth <m> --thickness <m> [--slot <槽位 token>] [--dry-run]',
+    '用法：--out <itemType> --width <m> --depth <m> --thickness <m> [--slot <槽位 token>] [--group <大类/分区>] [--dry-run]',
   )
+
+/**
+ * 落盘目录：`--group <大类/分区>` 优先，其次按 `model-asset-folders.ts` 的分类。
+ * 还没登记的新素材先留在 `models/` 根目录（与迁移前的行为一致），并提示先登记再归位。
+ */
+const outFolder = typeof args.group === 'string' ? args.group : modelAssetFolder(outId)
+if (!outFolder)
+  console.warn(
+    `⚑ ${outId} 还没登记到 model-asset-folders.ts，暂时写到 models 根目录；登记后运行 organize-models.mjs --write 归位。`,
+  )
+const outDir = outFolder ? path.join(modelsDir, outFolder) : modelsDir
 
 const dimensions = { width, depth, thickness }
 const geometry = buildSlabGeometry(dimensions)
@@ -478,7 +502,8 @@ if (!dryRun) {
   // `-lite` 与完整件写同一份字节：这块板只有 36 个三角面（BIN 不到 1KB），Draco 省不出东西，
   // 而运行时取的是 `-lite.glb`、`fallbackUrl` 才是完整件（见 `all-item-models.ts`），两份都得有。
   for (const fileName of [`${outId}.glb`, `${outId}-lite.glb`]) {
-    const outPath = path.join(modelsDir, fileName)
+    const outPath = path.join(outDir, fileName)
+    fs.mkdirSync(outDir, { recursive: true })
     writeGlb(outPath, json, bin)
     console.log(`→ ${path.relative(frontendDir, outPath)}（${fs.statSync(outPath).size} 字节）`)
   }

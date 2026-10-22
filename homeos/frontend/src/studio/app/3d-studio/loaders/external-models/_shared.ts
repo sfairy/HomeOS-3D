@@ -7,6 +7,7 @@ import {
 } from "../../materials/studio-model-material-roles";
 import { MODEL_SLOT_ROLES_SEMANTIC, FAMILY_TOKEN_MODEL_IDS } from "../../materials/model-slot-roles";
 import { COLLECTION_MODELS } from "./collection-models";
+import { modelAssetUrl } from "./model-asset-folders";
 import {
   materialStyleStoneSlabRoles,
 } from "../../materials/studio-material-presets";
@@ -112,14 +113,8 @@ export function createHomeAssetDescriptor(
   modelAssetCacheKey: string = "",
 ) {
   return Object.freeze({
-    url: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + homeAssetId + "-lite.glb",
-      modelAssetCacheKey,
-    ),
-    fallbackUrl: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + homeAssetId + ".glb",
-      modelAssetCacheKey,
-    ),
+    url: withModelAssetCacheKey(modelAssetUrl(homeAssetId, "lite"), modelAssetCacheKey),
+    fallbackUrl: withModelAssetCacheKey(modelAssetUrl(homeAssetId, "full"), modelAssetCacheKey),
     ...homeAssetOverrides,
   });
 }
@@ -129,12 +124,9 @@ export function createApplianceAssetDescriptor(
   modelAssetCacheKey: string = "",
 ) {
   return Object.freeze({
-    url: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + applianceAssetId + "-lite.glb",
-      modelAssetCacheKey,
-    ),
+    url: withModelAssetCacheKey(modelAssetUrl(applianceAssetId, "lite"), modelAssetCacheKey),
     fallbackUrl: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + applianceAssetId + ".glb",
+      modelAssetUrl(applianceAssetId, "full"),
       modelAssetCacheKey,
     ),
     ...applianceAssetOverrides,
@@ -146,12 +138,9 @@ export function createFurnitureAssetDescriptor(
   modelAssetCacheKey: string = "",
 ) {
   return Object.freeze({
-    url: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + furnitureAssetId + "-lite.glb",
-      modelAssetCacheKey,
-    ),
+    url: withModelAssetCacheKey(modelAssetUrl(furnitureAssetId, "lite"), modelAssetCacheKey),
     fallbackUrl: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + furnitureAssetId + ".glb",
+      modelAssetUrl(furnitureAssetId, "full"),
       modelAssetCacheKey,
     ),
     scaleBasis: furnitureAssetScaleBasis,
@@ -178,22 +167,16 @@ export const paletteOverrideItemTypes = new Set([
 ]);
 export function createIndoorAssetDescriptor(indoorAssetId: any, indoorAssetScaleBasis: any) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + indoorAssetId + "-lite.glb",
-    fallbackUrl: "/static/3d-studio/models/" + indoorAssetId + ".glb",
+    url: modelAssetUrl(indoorAssetId, "lite"),
+    fallbackUrl: modelAssetUrl(indoorAssetId, "full"),
     scaleBasis: indoorAssetScaleBasis,
     preserveOrigin: true,
   });
 }
 export function createPillarAssetDescriptor(pillarAssetId: any, modelAssetCacheKey: string = "") {
   return Object.freeze({
-    url: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + pillarAssetId + "-lite.glb",
-      modelAssetCacheKey,
-    ),
-    fallbackUrl: withModelAssetCacheKey(
-      "/static/3d-studio/models/" + pillarAssetId + ".glb",
-      modelAssetCacheKey,
-    ),
+    url: withModelAssetCacheKey(modelAssetUrl(pillarAssetId, "lite"), modelAssetCacheKey),
+    fallbackUrl: withModelAssetCacheKey(modelAssetUrl(pillarAssetId, "full"), modelAssetCacheKey),
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true,
   });
@@ -218,11 +201,11 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
     "pool-table": createIndoorAssetDescriptor("pool-table", [2.54, 0.823, 1.42]),
     "tea-table-set": Object.freeze({
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/tea-table-set-lite.glb",
+        modelAssetUrl("tea-table-set", "lite"),
         MODEL_ASSET_CACHE_KEYS.teaTable,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/tea-table-set.glb",
+        modelAssetUrl("tea-table-set", "full"),
         MODEL_ASSET_CACHE_KEYS.teaTable,
       ),
       scaleBasis: [1.61, 0.94, 1.4],
@@ -233,13 +216,13 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
         courtyardModelId,
         Object.freeze({
           url: withModelAssetCacheKey(
-            "/static/3d-studio/models/" + courtyardModelId + "-lite.glb",
+            modelAssetUrl(courtyardModelId, "lite"),
             courtyardModelId === "garden-lounger"
               ? MODEL_ASSET_CACHE_KEYS.modelOptimization
               : MODEL_ASSET_CACHE_KEYS.garden,
           ),
           fallbackUrl: withModelAssetCacheKey(
-            "/static/3d-studio/models/" + courtyardModelId + ".glb",
+            modelAssetUrl(courtyardModelId, "full"),
             courtyardModelId === "garden-lounger"
               ? MODEL_ASSET_CACHE_KEYS.modelOptimization
               : MODEL_ASSET_CACHE_KEYS.garden,
@@ -255,8 +238,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       ["sofa-single", "sofa-l", "sofa-l-left"].map((sofaVariantModelId) => [
         sofaVariantModelId,
         Object.freeze({
-          url: "/static/3d-studio/models/" + sofaVariantModelId + "-lite.glb",
-          fallbackUrl: "/static/3d-studio/models/" + sofaVariantModelId + ".glb",
+          url: modelAssetUrl(sofaVariantModelId, "lite"),
+          fallbackUrl: modelAssetUrl(sofaVariantModelId, "full"),
           scaleBasis: sofaVariantModelId === "sofa-single" ? [1.05, 0.82, 0.9] : [2.8, 0.82, 1.6],
           preserveOrigin: true,
         }),
@@ -266,8 +249,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       Object.entries(DECOR_MODELS).map(([decorModelId, decorModelDefinition]) => [
         decorModelId,
         Object.freeze({
-          url: "/static/3d-studio/models/" + decorModelId + "-lite.glb",
-          fallbackUrl: "/static/3d-studio/models/" + decorModelId + ".glb",
+          url: modelAssetUrl(decorModelId, "lite"),
+          fallbackUrl: modelAssetUrl(decorModelId, "full"),
           scaleBasis: decorModelDefinition.size,
           preserveOrigin: true,
         }),
@@ -298,11 +281,11 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
     }),
     bed: createIndoorAssetDescriptor("bed", {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/bed-lite.glb",
+        modelAssetUrl("bed", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/bed.glb",
+        modelAssetUrl("bed", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       scaleBasis: [1.92, 1.02, 2.18],
@@ -323,76 +306,76 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     suv: {
-      url: "/static/3d-studio/models/suv-lite.glb",
+      url: modelAssetUrl("suv", "lite"),
     },
     scooter: {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/scooter-lite.glb",
+        modelAssetUrl("scooter", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       optimized: true,
     },
     smallcar: {
-      url: "/static/3d-studio/models/car-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/car.glb",
+      url: modelAssetUrl("car", "lite"),
+      fallbackUrl: modelAssetUrl("car", "full"),
     },
     airoutlet: {
-      url: "/static/3d-studio/models/air-outlet-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/air-outlet.glb",
+      url: modelAssetUrl("air-outlet", "lite"),
+      fallbackUrl: modelAssetUrl("air-outlet", "full"),
     },
     pipelinewaterpurifier: {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/pipeline-water-purifier-lite.glb",
+        modelAssetUrl("pipeline-water-purifier", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/pipeline-water-purifier.glb",
+        modelAssetUrl("pipeline-water-purifier", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       optimized: true,
     },
     tea_bar_machine: {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/tea-bar-machine-lite.glb",
+        modelAssetUrl("tea-bar-machine", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/tea-bar-machine.glb",
+        modelAssetUrl("tea-bar-machine", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       optimized: true,
     },
     elevator: {
-      url: "/static/3d-studio/models/elevator-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/elevator.glb",
+      url: modelAssetUrl("elevator", "lite"),
+      fallbackUrl: modelAssetUrl("elevator", "full"),
     },
     steelstairs: {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/steel-stairs-lite.glb",
+        modelAssetUrl("steel-stairs", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/steel-stairs.glb",
+        modelAssetUrl("steel-stairs", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       optimized: true,
     },
     glassstairs: {
-      url: "/static/3d-studio/models/glass-stairs-lite.glb",
-      fallbackUrl: "/static/3d-studio/models/glass-stairs.glb",
+      url: modelAssetUrl("glass-stairs", "lite"),
+      fallbackUrl: modelAssetUrl("glass-stairs", "full"),
     },
     floatingstairs: {
-      url: "/static/3d-studio/models/floating-stairs.glb",
+      url: modelAssetUrl("floating-stairs", "full"),
       scaleBasis: [0.97254264, 2.59010673, 2.2483418],
       preserveOrigin: true,
     },
     piano: {
       url: withModelAssetCacheKey(
-        "/static/3d-studio/models/piano-lite.glb",
+        modelAssetUrl("piano", "lite"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       fallbackUrl: withModelAssetCacheKey(
-        "/static/3d-studio/models/piano.glb",
+        modelAssetUrl("piano", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       materialRevision: MODEL_ASSET_CACHE_KEYS.modelOptimization,

@@ -23,6 +23,8 @@
     "check:materials:roles": "bun ops/checks/studio/audit_glb_materials.mjs --check-roles",
     "audit:materials:roles": "bun ops/checks/studio/audit_glb_materials.mjs --write-role-baseline",
     "repair:materials": "bun ops/checks/studio/repair_glb_materials.mjs",
+    "check:models-layout": "bun homeos/frontend/scripts/models/organize-models.mjs --check",
+    "organize:models": "bun homeos/frontend/scripts/models/organize-models.mjs --write",
     "repair:materials:write": "bun ops/checks/studio/repair_glb_materials.mjs --write",
     "repair:materials:rename": "bun ops/checks/studio/repair_glb_materials.mjs --write --rename-slots --force-rename",
     "lint:shared": "bun run --cwd packages/shared lint",

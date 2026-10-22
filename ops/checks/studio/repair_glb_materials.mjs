@@ -52,6 +52,22 @@ const frontendDir = path.join(repoRoot, 'homeos/frontend');
 const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models');
 const reportDir = path.join(repoRoot, 'docs/architecture/2026-10-22');
 
+/**
+ * 递归列出 `models/` 下的 GLB 相对路径。
+ *
+ * 模型按模型库类目分两级子目录（`model-asset-folders.ts`），不再平铺在 `models/` 根下，
+ * 因此扫描必须递归；回写位置沿用文件当前所在目录，搬动由 `organize-models.mjs` 负责。
+ */
+function listModelFiles(dir = modelsDir, relativePrefix = '') {
+  const files = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const relativePath = relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) files.push(...listModelFiles(path.join(dir, entry.name), relativePath));
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith('.glb')) files.push(relativePath);
+  }
+  return files.sort();
+}
+
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 const option = (name, fallback) => {
@@ -506,10 +522,7 @@ function planMaterialFix({ material, itemType, index }) {
  * 主流程
  * ------------------------------------------------------------------ */
 
-const files = fs
-  .readdirSync(modelsDir)
-  .filter((name) => name.toLowerCase().endsWith('.glb'))
-  .sort();
+const files = listModelFiles();
 
 const manifest = { generatedAt: new Date().toISOString(), writeMode, files: [] };
 const ruleCounts = {};
@@ -518,8 +531,9 @@ let changedMaterials = 0;
 let skipped = 0;
 const failures = [];
 
-for (const fileName of files) {
-  const fullPath = path.join(modelsDir, fileName);
+for (const relativePath of files) {
+  const fileName = path.basename(relativePath);
+  const fullPath = path.join(modelsDir, relativePath);
   const modelStem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '');
   const resolved = resolveItemType(modelStem);
   const itemType = resolved.itemType;
