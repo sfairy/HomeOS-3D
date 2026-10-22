@@ -709,6 +709,15 @@ h2 {
   border-color: #343d44;
   background: transparent;
 }
+/*
+ * 模板库卡片较多时，滚动的是 dialog 自身（UA `dialog:modal { overflow: auto }`），
+ * 标题栏吸顶，滚动列表时标题与右上角关闭按钮保持固定不动。
+ */
+.component-template-dialog .dialog-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 .component-template-body {
   display: grid;
   max-height: min(720px, calc(100vh - 116px));

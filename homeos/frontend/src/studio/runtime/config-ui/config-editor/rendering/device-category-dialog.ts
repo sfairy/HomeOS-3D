@@ -23,6 +23,9 @@ const FIXED_DEVICE_CATEGORIES: Readonly<Record<string, CategoryProfile>> = Objec
   airer: Object.freeze({ label: "晾衣架", icon: "mdi:hanger" }),
 });
 
+/** 兜底分组名；静态分组与未分组型号都必须落回同一个分组，避免弹窗里出现两个同名分区。 */
+const OTHER_DEVICE_GROUP_LABEL = "其他设备";
+
 const DEVICE_CATEGORY_GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = Object.freeze([
   ["常用设备", ["nas", "television", "speaker", "router", "home-network-cabinet", "smart-socket-86"]],
   [
@@ -54,11 +57,12 @@ const DEVICE_CATEGORY_GROUPS: ReadonlyArray<readonly [string, readonly string[]]
     ],
   ],
   [
-    "其他设备",
+    OTHER_DEVICE_GROUP_LABEL,
     [
       "smallcar",
       "plant",
       "bed",
+      "sofa",
       "computer",
       "printer",
       "3d-printer",
@@ -98,7 +102,13 @@ export function deviceCategoryGroups(): Array<[string, string[]]> {
     leftoverKinds = ["nas", "television", "speaker", "water-heater", "airer", ...GENERIC_DEVICE_KINDS].filter(
       (deviceKind) => !groupedKinds.has(deviceKind),
     );
-  if (leftoverKinds.length) groups.push(["其他设备", [...new Set(leftoverKinds)]]);
+  if (leftoverKinds.length) {
+    // 合并进静态的「其他设备」分组，而不是再 push 一个同名分组——
+    // 否则弹窗里会出现两个「其他设备」标题（未分组型号如 sofa 会被单独成组）。
+    const otherDeviceGroup = groups.find(([groupLabel]) => groupLabel === OTHER_DEVICE_GROUP_LABEL);
+    if (otherDeviceGroup) otherDeviceGroup[1].push(...new Set(leftoverKinds));
+    else groups.push([OTHER_DEVICE_GROUP_LABEL, [...new Set(leftoverKinds)]]);
+  }
   return groups;
 }
 

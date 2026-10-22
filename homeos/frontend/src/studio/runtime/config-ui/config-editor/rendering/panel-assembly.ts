@@ -582,6 +582,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                               vector.extraControls?.length ||
                               vector.bathEffects?.length ||
                               vector.airflowEntityId ||
+                              vector.runEntityId ||
+                              vector.speedEntityId ||
+                              vector.directionEntityId ||
                               vector.workingState ||
                               vector.statusRules
                             ),
@@ -592,11 +595,17 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                               ((vector.extraControls = []),
                               delete vector.bathEffects,
                               delete vector.airflowEntityId,
+                              // 风扇/吊扇的动画来源：跟随实体与反转状态只属于原设备。
+                              delete vector.runEntityId,
+                              delete vector.speedEntityId,
+                              delete vector.directionEntityId,
+                              delete vector.reverseState,
                               delete vector.workingState,
                               delete vector.statusRules,
                               delete vector.batteryEntityId,
                               delete vector.chargingEntityId,
                               delete vector.chargingStates,
+                              delete vector.animationEntityId,
                               // 胎压：解绑/换设备只关掉并清空轮位，样式字段保留。
                               vector.tirePressure &&
                                 (vector.tirePressure = {
@@ -646,7 +655,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                                 ? "更换或解绑设备将清空原主实体、附加功能和" +
                                     (isWaterHeaterMode ? "指示灯" : "效果") +
                                     "规则。取消保留原配置，保存后生效。"
-                                : "更换或解绑设备将清空弹窗内容及状态灯规则，保存后生效。",
+                                : editorHost.deviceKind === "smallcar"
+                                  ? "更换或解绑设备将清空车辆状态、四轮胎压和附加功能绑定，胎压样式保留。取消保留原配置，保存后生效。"
+                                  : "更换或解绑设备将清空弹窗内容及状态灯规则，保存后生效。",
                             )
                           : clearDeviceExtras();
                         return;
@@ -1369,6 +1380,13 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   (chargingSummaryElement.textContent = carChargingStatusText);
               }),
               editorHost.refreshEffectSettings());
+            // 汽车状态卡片（0.8.0 顺序：车辆状态 → 汽车状态卡片 → 四轮胎压）。
+            const carStatusCardSectionElement = createConfigSection("汽车状态卡片");
+            renderAirPurifierBindingSection(carStatusCardSectionElement, vector, {
+              width: "cardWidth",
+              font: "cardFontSize",
+              opacity: "cardOpacity",
+            });
             // 四轮胎压（0.8.0）：车型取景元数据里现成的 `type`，只有 smallcar/suv 显示。
             const carModelEntry = editorHost.sceneMetadata?.floors
                 ?.find((carFloorProbe: any) => carFloorProbe.id === vector.floorId)
@@ -1376,7 +1394,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               carSupportsTires = ["smallcar", "suv"].includes(carModelEntry?.type);
             if (!carSupportsTires) delete vector.tirePressure;
             else {
-              const tireSectionElement = createConfigSection("胎压"),
+              const tireSectionElement = createConfigSection("四轮胎压"),
                 tireConfig = vector.tirePressure || (vector.tirePressure = defaultCarTires()),
                 tireWheelCatalog = deviceEntityCatalog2(
                   editorHost.entities,
@@ -1408,68 +1426,23 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     renderPanel());
                 }),
                 createSettingRow(tireSectionElement, "显示胎压", tireShowInput));
-              createSelectRow(
-                tireSectionElement,
-                "显示方式",
-                [
-                  ["compact", "简洁数值"],
-                  ["named", "数值和轮位"],
-                ],
-                tireConfig.mode === "named" ? "named" : "compact",
-                (nextTireMode: string) => {
-                  (tireConfig.mode = nextTireMode === "named" ? "named" : "compact");
-                  refreshEditorPreview();
-                },
-              );
-              for (const [tireStyleKey, tireStyleLabel, tireStyleMin, tireStyleMax, tireStyleStep] of [
-                ["fontSize", "字号", 8, 40, 1],
-                ["opacity", "背景不透明度", 0.1, 1, 0.05],
-              ] as [string, string, number, number, number][]) {
-                const tireStyleInput = editorHost.createElement("input"),
-                  // 只在这两个数字键里取值，用一张窄表避开「字符串索引对象」的类型报错。
-                  tireStyleTable: Record<string, number> = {
-                    fontSize: tireConfig.fontSize,
-                    opacity: tireConfig.opacity,
-                  },
-                  tireStyleDefaults: Record<string, number> = defaultCarTires() as any;
-                ((tireStyleInput.type = "number"),
-                  (tireStyleInput.min = String(tireStyleMin)),
-                  (tireStyleInput.max = String(tireStyleMax)),
-                  (tireStyleInput.step = String(tireStyleStep)),
-                  (tireStyleInput.value = String(
-                    Number.isFinite(tireStyleTable[tireStyleKey])
-                      ? tireStyleTable[tireStyleKey]
-                      : tireStyleDefaults[tireStyleKey],
-                  )),
-                  tireStyleInput.addEventListener("change", () => {
-                    const tireStyleValue = Number(tireStyleInput.value);
-                    (Number.isFinite(tireStyleValue) &&
-                      (tireStyleTable[tireStyleKey] = Math.max(
-                        tireStyleMin,
-                        Math.min(tireStyleMax, tireStyleValue),
-                      ),
-                      (tireConfig.fontSize = tireStyleTable.fontSize),
-                      (tireConfig.opacity = tireStyleTable.opacity)),
-                      (tireStyleInput.value = String(tireStyleTable[tireStyleKey])),
-                      refreshEditorPreview());
-                  }),
-                  createSettingRow(tireSectionElement, tireStyleLabel, tireStyleInput));
-              }
+              // 0.8.0 行顺序：显示胎压 → 四轮胎压实体 → 胎压显示方式 → 胎压字号（px） → 背景不透明度。
               tireConfig.wheels ||= {};
               for (const tireWheel of carTireWheels) {
                 const tireWheelValue = tireConfig.wheels[tireWheel.key] || "",
                   tireWheelRowOptions = [...tireWheelOptions];
+                // 失效实体插在「未绑定」之后（0.8.0 用 splice(1, 0, …)），不顶到列表首位。
                 tireWheelValue &&
                   !tireWheelRowOptions.some(
                     ([tireOptionEntityId]) => tireOptionEntityId === tireWheelValue,
                   ) &&
-                  tireWheelRowOptions.unshift([
+                  tireWheelRowOptions.splice(1, 0, [
                     tireWheelValue,
                     tireWheelValue + "（失效或不属于当前设备）",
                   ]);
                 createSelectRow(
                   tireSectionElement,
-                  tireWheel.label + "轮",
+                  tireWheel.label + "胎压实体",
                   [["", "未绑定"], ...tireWheelRowOptions],
                   tireWheelValue,
                   (pickedTireEntityId: string) => {
@@ -1481,6 +1454,52 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   },
                 );
               }
+              createSelectRow(
+                tireSectionElement,
+                "胎压显示方式",
+                [
+                  ["compact", "简洁数值"],
+                  ["named", "数值和轮位"],
+                ],
+                tireConfig.mode === "named" ? "named" : "compact",
+                (nextTireMode: string) => {
+                  (tireConfig.mode = nextTireMode === "named" ? "named" : "compact");
+                  refreshEditorPreview();
+                },
+              );
+              // 字号对齐 0.8.0 `_0x4e6a59(..., !0x0)`：step=any、只校验 > 0、无上下限、输入即预览。
+              const tireFontInput = editorHost.createElement("input"),
+                applyTireFontSize = (nextTireFontSize: number) => {
+                  ((tireConfig.fontSize = nextTireFontSize), refreshEditorPreview());
+                };
+              ((tireFontInput.type = "number"),
+                (tireFontInput.step = "any"),
+                (tireFontInput.value = String(
+                  Number.isFinite(tireConfig.fontSize) ? tireConfig.fontSize : 14,
+                )),
+                tireFontInput.addEventListener("input", () => {
+                  const tireFontDraft =
+                    tireFontInput.value.trim() === "" ? NaN : Number(tireFontInput.value);
+                  (Number.isFinite(tireFontDraft) &&
+                    tireFontDraft > 0 &&
+                    tireFontDraft !== tireConfig.fontSize &&
+                    applyTireFontSize(tireFontDraft));
+                }),
+                tireFontInput.addEventListener("change", () => {
+                  const tireFontDraft =
+                    tireFontInput.value.trim() === "" ? NaN : Number(tireFontInput.value);
+                  Number.isFinite(tireFontDraft) && tireFontDraft > 0
+                    ? ((tireFontInput.value = String(tireFontDraft)),
+                      tireFontDraft !== tireConfig.fontSize && applyTireFontSize(tireFontDraft))
+                    : (tireFontInput.value = String(tireConfig.fontSize));
+                }),
+                createSettingRow(tireSectionElement, "胎压字号（px）", tireFontInput));
+              appendBackgroundOpacityControl2(
+                tireSectionElement,
+                tireConfig,
+                "opacity",
+                refreshEditorPreview,
+              );
               tireSectionElement.append(
                 editorHost.createElement(
                   "p",
@@ -1489,12 +1508,6 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 ),
               );
             }
-            const carStatusCardSectionElement = createConfigSection("汽车状态卡片");
-            renderAirPurifierBindingSection(carStatusCardSectionElement, vector, {
-              width: "cardWidth",
-              font: "cardFontSize",
-              opacity: "cardOpacity",
-            });
           }
           if (editorHost.isAirerMode) {
             const airerDirectionSectionElement = createConfigSection("实体升降方向");
@@ -1566,167 +1579,6 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                 "无位置回传时全程耗时（秒）",
                 airerTravelSecondsInputElement,
               ));
-          }
-          if (editorHost.deviceKind === "fan") {
-            const fanControlSection = createConfigSection("风扇控制");
-            createSelectRow(
-              fanControlSection,
-              "外观模式",
-              [
-                ["tower", "电风扇 / 塔扇"],
-                ["ceiling", "吊扇"],
-              ],
-              vector.visualMode === "ceiling" ? "ceiling" : "tower",
-              (nextValue: string) => {
-                vector.visualMode = nextValue === "ceiling" ? "ceiling" : "tower";
-                refreshEditorPreview();
-              },
-            );
-            const fanDeviceId =
-              vector.deviceId ||
-              itemEntityMetadata?.deviceId ||
-              itemEntityMetadata?.device_id ||
-              "";
-            const entityRecord = (entityId: string) =>
-              (editorHost.entities || []).find(
-                (entityProbe: any) =>
-                  (entityProbe.entityId || entityProbe.entity_id) === entityId,
-              ) || {};
-            const entityLiveState = (entityId: string) => {
-              const states = editorHost.latestStates || editorHost.states;
-              if (!entityId || !states) return null;
-              const entry =
-                states instanceof Map ? states.get(entityId) : states?.[entityId];
-              return entry?.newState || entry || null;
-            };
-            const makeFanFollowButton = (
-              fieldKey: "runEntityId" | "speedEntityId" | "directionEntityId",
-              followKind: "run" | "speed" | "direction",
-              emptyLabel: string,
-            ) => {
-              const button = editorHost.createButton("", async () => {
-                const generation = ++editorHost.pickerGeneration;
-                try {
-                  const handle = await editorHost.pickers?.entity?.({
-                    trigger: button,
-                    deviceKind: "fan",
-                    current: vector[fieldKey] || "",
-                    onSelect(_device: any, entity: any) {
-                      if (
-                        editorHost.isDisposed ||
-                        !editorHost.isAccessAllowed ||
-                        generation !== editorHost.pickerGeneration ||
-                        !editorHost.getItemList().includes(vector)
-                      )
-                        return;
-                      const nextEntityId = entity?.entityId || "";
-                      if (
-                        nextEntityId &&
-                        !fanSourceAllowed(
-                          followKind,
-                          entity || entityRecord(nextEntityId),
-                          vector,
-                          fanDeviceId,
-                        )
-                      ) {
-                        editorHost.errorMessageElement.textContent =
-                          "请选择当前设备已选附加功能中的有效实体。";
-                        return;
-                      }
-                      if (nextEntityId) vector[fieldKey] = nextEntityId;
-                      else delete vector[fieldKey];
-                      if (followKind === "direction") delete vector.reverseState;
-                      refreshEditorPreview();
-                      renderPanel();
-                    },
-                  });
-                  generation !== editorHost.pickerGeneration
-                    ? handle?.close()
-                    : (editorHost.activePickerHandle = handle);
-                } catch (error: any) {
-                  editorHost.errorMessageElement.textContent = error?.message || String(error);
-                }
-              });
-              button.className = "i3d-picker-button";
-              button.append(editorHost.createElement("span", "", vector[fieldKey] || emptyLabel));
-              button.title = vector[fieldKey] || emptyLabel;
-              return button;
-            };
-            const bladeSection = editorHost.createElement("div", "i3d-config-row");
-            bladeSection.append(editorHost.createElement("h4", "", "扇叶动画"));
-            bladeSection.append(
-              editorHost.createElement(
-                "p",
-                "i3d-note",
-                "默认跟随主实体；纯自定义时选择运行开关和风速。这里只指定动画来源，控制仍在附加功能中。风速 0 不代替关机。",
-              ),
-            );
-            createSettingRow(
-              bladeSection,
-              "运行跟随",
-              makeFanFollowButton("runEntityId", "run", "未选择（跟随主实体）"),
-            );
-            createSettingRow(
-              bladeSection,
-              "风速跟随",
-              makeFanFollowButton("speedEntityId", "speed", "未选择（跟随主实体）"),
-            );
-            createSettingRow(
-              bladeSection,
-              "方向跟随",
-              makeFanFollowButton(
-                "directionEntityId",
-                "direction",
-                "未选择（跟随主实体）",
-              ),
-            );
-            if (vector.directionEntityId) {
-              const reverseOptions = fanReverseStateOptions(
-                vector.directionEntityId,
-                entityLiveState(vector.directionEntityId),
-              );
-              const reverseChoices: [string, string][] = [
-                ["", "请选择设备的反转状态"],
-                ...reverseOptions,
-              ];
-              if (
-                vector.reverseState &&
-                !reverseOptions.some(([value]) => value === vector.reverseState)
-              ) {
-                reverseChoices.unshift([
-                  vector.reverseState,
-                  vector.reverseState + "（当前未找到）",
-                ]);
-              }
-              createSelectRow(
-                bladeSection,
-                "反转对应状态",
-                reverseChoices,
-                vector.reverseState || "",
-                (nextValue: string) => {
-                  if (nextValue) vector.reverseState = nextValue;
-                  else delete vector.reverseState;
-                  refreshEditorPreview();
-                  renderPanel();
-                },
-              );
-            }
-            const fanPreview = resolveFanBindingState(vector, editorHost.latestStates || editorHost.states || {});
-            bladeSection.append(
-              editorHost.createElement(
-                "p",
-                "i3d-note",
-                "扇叶状态：" +
-                  (fanPreview.label || "状态未知") +
-                  " · " +
-                  (fanPreview.directionKnown
-                    ? fanPreview.direction < 0
-                      ? "反转"
-                      : "正转"
-                    : "方向未知"),
-              ),
-            );
-            fanControlSection.append(bladeSection);
           }
           if (editorHost.deviceKind === "water-heater") {
             const statusRuleSectionElement = createConfigSection("指示灯规则（可选）"),
@@ -2158,6 +2010,167 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                   rangehoodState2(vector, editorHost.latestStates || editorHost.states).label));
             }),
               editorHost.redrawRangehoodSection());
+          }
+          if (editorHost.deviceKind === "fan") {
+            const fanControlSection = createConfigSection("风扇控制");
+            createSelectRow(
+              fanControlSection,
+              "外观模式",
+              [
+                ["tower", "电风扇 / 塔扇"],
+                ["ceiling", "吊扇"],
+              ],
+              vector.visualMode === "ceiling" ? "ceiling" : "tower",
+              (nextValue: string) => {
+                vector.visualMode = nextValue === "ceiling" ? "ceiling" : "tower";
+                refreshEditorPreview();
+              },
+            );
+            const fanDeviceId =
+              vector.deviceId ||
+              itemEntityMetadata?.deviceId ||
+              itemEntityMetadata?.device_id ||
+              "";
+            const entityRecord = (entityId: string) =>
+              (editorHost.entities || []).find(
+                (entityProbe: any) =>
+                  (entityProbe.entityId || entityProbe.entity_id) === entityId,
+              ) || {};
+            const entityLiveState = (entityId: string) => {
+              const states = editorHost.latestStates || editorHost.states;
+              if (!entityId || !states) return null;
+              const entry =
+                states instanceof Map ? states.get(entityId) : states?.[entityId];
+              return entry?.newState || entry || null;
+            };
+            const makeFanFollowButton = (
+              fieldKey: "runEntityId" | "speedEntityId" | "directionEntityId",
+              followKind: "run" | "speed" | "direction",
+              emptyLabel: string,
+            ) => {
+              const button = editorHost.createButton("", async () => {
+                const generation = ++editorHost.pickerGeneration;
+                try {
+                  const handle = await editorHost.pickers?.entity?.({
+                    trigger: button,
+                    deviceKind: "fan",
+                    current: vector[fieldKey] || "",
+                    onSelect(_device: any, entity: any) {
+                      if (
+                        editorHost.isDisposed ||
+                        !editorHost.isAccessAllowed ||
+                        generation !== editorHost.pickerGeneration ||
+                        !editorHost.getItemList().includes(vector)
+                      )
+                        return;
+                      const nextEntityId = entity?.entityId || "";
+                      if (
+                        nextEntityId &&
+                        !fanSourceAllowed(
+                          followKind,
+                          entity || entityRecord(nextEntityId),
+                          vector,
+                          fanDeviceId,
+                        )
+                      ) {
+                        editorHost.errorMessageElement.textContent =
+                          "请选择当前设备已选附加功能中的有效实体。";
+                        return;
+                      }
+                      if (nextEntityId) vector[fieldKey] = nextEntityId;
+                      else delete vector[fieldKey];
+                      if (followKind === "direction") delete vector.reverseState;
+                      refreshEditorPreview();
+                      renderPanel();
+                    },
+                  });
+                  generation !== editorHost.pickerGeneration
+                    ? handle?.close()
+                    : (editorHost.activePickerHandle = handle);
+                } catch (error: any) {
+                  editorHost.errorMessageElement.textContent = error?.message || String(error);
+                }
+              });
+              button.className = "i3d-picker-button";
+              button.append(editorHost.createElement("span", "", vector[fieldKey] || emptyLabel));
+              button.title = vector[fieldKey] || emptyLabel;
+              return button;
+            };
+            const bladeSection = editorHost.createElement("div", "i3d-config-row");
+            bladeSection.append(editorHost.createElement("h4", "", "扇叶动画"));
+            bladeSection.append(
+              editorHost.createElement(
+                "p",
+                "i3d-note",
+                "默认跟随主实体；纯自定义时选择运行开关和风速。这里只指定动画来源，控制仍在附加功能中。风速 0 不代替关机。",
+              ),
+            );
+            createSettingRow(
+              bladeSection,
+              "运行跟随",
+              makeFanFollowButton("runEntityId", "run", "未选择（跟随主实体）"),
+            );
+            createSettingRow(
+              bladeSection,
+              "风速跟随",
+              makeFanFollowButton("speedEntityId", "speed", "未选择（跟随主实体）"),
+            );
+            createSettingRow(
+              bladeSection,
+              "方向跟随",
+              makeFanFollowButton(
+                "directionEntityId",
+                "direction",
+                "未选择（跟随主实体）",
+              ),
+            );
+            if (vector.directionEntityId) {
+              const reverseOptions = fanReverseStateOptions(
+                vector.directionEntityId,
+                entityLiveState(vector.directionEntityId),
+              );
+              const reverseChoices: [string, string][] = [
+                ["", "请选择设备的反转状态"],
+                ...reverseOptions,
+              ];
+              if (
+                vector.reverseState &&
+                !reverseOptions.some(([value]) => value === vector.reverseState)
+              ) {
+                reverseChoices.unshift([
+                  vector.reverseState,
+                  vector.reverseState + "（当前未找到）",
+                ]);
+              }
+              createSelectRow(
+                bladeSection,
+                "反转对应状态",
+                reverseChoices,
+                vector.reverseState || "",
+                (nextValue: string) => {
+                  if (nextValue) vector.reverseState = nextValue;
+                  else delete vector.reverseState;
+                  refreshEditorPreview();
+                  renderPanel();
+                },
+              );
+            }
+            const fanPreview = resolveFanBindingState(vector, editorHost.latestStates || editorHost.states || {});
+            bladeSection.append(
+              editorHost.createElement(
+                "p",
+                "i3d-note",
+                "扇叶状态：" +
+                  (fanPreview.label || "状态未知") +
+                  " · " +
+                  (fanPreview.directionKnown
+                    ? fanPreview.direction < 0
+                      ? "反转"
+                      : "正转"
+                    : "方向未知"),
+              ),
+            );
+            fanControlSection.append(bladeSection);
           }
           if (editorHost.isCoverMode) {
             if (!matchedCurtainGroup) {
