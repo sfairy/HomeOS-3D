@@ -9,6 +9,7 @@ import {
   resolveModelMaterialRole,
   scaleMaterialColorChannels,
 } from "./studio-model-material-roles";
+import { stoneSlabSwatchHex } from "./studio-surface-textures";
 
 /** 默认档：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
@@ -103,7 +104,14 @@ const STYLE_ROLE_DERIVATIONS: ReadonlyArray<{
   { role: "sage", from: ["fabric", "upholstery", "cushion"] },
   { role: "runner", from: ["fabric", "upholstery"] },
 
-  { role: "frame", from: ["trim", "body", "leg"] },
+  /**
+   * `frame` 是从 `trim` / `body` / `leg` 派生的「框体 / 座体」。必须 `inheritSlab`：
+   * 石作组合（`stoneCombo`）里 `trim` 缺省就是 `base`，而 `base` 在「白石黑座 / 全黑大理石」
+   * 等档位里正是那块**深色大理石座体**（`STONE_SLAB_ON_DARK`）。不继承石板的话，
+   * 派生只留下 `color: 0xffffff`、把 `slab: marble-dark` 丢掉 ——
+   * 「白石黑座」的座体就退化成一整块纯白，档位看起来完全没生效。
+   */
+  { role: "frame", from: ["trim", "body", "leg"], inheritSlab: true },
   { role: "shadow", from: ["base", "frame", "body"], multiply: 0.6 },
   { role: "back", from: ["body", "shadow", "panel"], multiply: 0.82 },
   { role: "side", from: ["body", "panel"] },
@@ -3331,6 +3339,15 @@ export function materialStylePresetSwatchColors(
 
 
   const push = (roleRecipe: RoleRecipe | undefined, fallbackRecipeColor?: number) => {
+    // 石材板角色的 `color` 往往是白底（深浅全在贴图上）：色卡改用石板纹理的代表色，
+    // 否则「白石黑座」的黑座会被画成一块白，看着就像档位没生效。
+    const slabHex = isStoneSlabFlavor(roleRecipe?.slab)
+      ? stoneSlabSwatchHex(roleRecipe.slab)
+      : null;
+    if (slabHex) {
+      if (!swatchColors.includes(slabHex)) swatchColors.push(slabHex);
+      return;
+    }
     const colorValue = roleRecipe
       ? scaleMaterialColorChannels(
           resolveMaterialPaletteColor(palette, roleRecipe.color),

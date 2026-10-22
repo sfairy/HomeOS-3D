@@ -776,6 +776,20 @@ const STONE_SLAB_TONES = Object.freeze({
   "marble-dark": MARBLE_TONES.dark,
 });
 
+/**
+ * 石材板色号的**代表色**，给「材质风格」色卡预览用。
+ *
+ * 为什么需要：石材板的角色配方里 `color` 常常是 `0xffffff`（白底），真正的深浅全在
+ * 贴图上 —— 色卡若只看 `color`，「白石黑座」的黑座与白石会画成同一块白，
+ * 看上去就像档位没生效。这里取纹理基色的中间那一档，色卡才和实际出图一致。
+ */
+export function stoneSlabSwatchHex(flavor: unknown): string | null {
+  const tone = (STONE_SLAB_TONES as any)[flavor as string];
+  const stops = tone?.baseStops as ReadonlyArray<readonly [number, string]> | undefined;
+  if (!stops?.length) return null;
+  return stops[Math.floor(stops.length / 2)][1];
+}
+
 const stoneSlabTextures = new Map();
 
 
