@@ -364,7 +364,7 @@ export declare const ShortType: any;
 export declare const Skeleton: any;
 export declare const SkeletonHelper: any;
 export declare const SkinnedMesh: any;
-export declare const Source: any;
+export declare const Source: any; // @deprecated 改用 TextureSource（构造时会输出重命名警告）
 export declare const SourceJSON: any;
 export declare const Sphere: any;
 export declare const SphereGeometry: any;
@@ -393,6 +393,7 @@ export declare const TangentSpaceNormalMap: any;
 export declare const TetrahedronGeometry: any;
 export declare const Texture: any;
 export declare const TextureLoader: any;
+export declare const TextureSource: any;
 export declare const TextureUtils: any;
 export declare const Timer: any;
 export declare const TimestampQuery: any;

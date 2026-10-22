@@ -250,7 +250,11 @@ def _csp_header(path: str, request: Request, response: Response) -> str:
     frame_ancestors = "*" if ha_frame else ("'self'" if same_origin_frame else "'none'")
     return (
         "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; "
-        "img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:; "
+        # connect-src 必须放行 blob:：GLTFLoader 在 Chromium / Safari 下走
+        # ImageBitmapLoader，GLB 内嵌贴图会先转成 blob URL 再 fetch()，
+        # 拦住的话模型能出来但贴图全丢（表现为纯白外壳）。
+        "img-src 'self' data: blob:; media-src 'self' blob:; "
+        "connect-src 'self' blob: ws: wss:; "
         "worker-src 'self' blob:; frame-src 'self'; "
         f"frame-ancestors {frame_ancestors}; base-uri 'none'; form-action 'self'"
     )

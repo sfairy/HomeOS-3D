@@ -1,6 +1,19 @@
 import { packModelTextures, restoreModelTextures } from "./model-texture-cache";
 
-const MODEL_TEMPLATE_REVISION = "20260930-textures-v3";
+/**
+ * 模板缓存版本号：**必须**随运行时材质逻辑的不兼容变更一起跳。
+ *
+ * `v4`：修掉 `smallcar` 被调色板整块重建（`car_tms` 丢了图集，只剩纯色壳）之后，
+ * 旧 `v3` 模板里存的就是那张「没有 `map` 的材质」。这类脏模板能通过 revision 之外
+ * 的所有校验，光改代码不会重建它 —— 必须换版本号让它整批失效、重新从 GLB 打包。
+ *
+ * `v5`：`v4` 是**在 CSP 还没放行 `connect-src blob:` 时**落盘的，那段时间解析 GLB 内嵌
+ * 贴图必然失败（GLTFLoader 对贴图错误是静默 `catch → null`），于是 `v4` 里躺着一批
+ * `textureImages` 为空、材质缺 `map` 的记录 —— 其中就包括 `smallcar`。它们能通过 v4 的
+ * 全部校验，每次都是「缓存命中」，所以光修 CSP 不会让车恢复贴图。跳到 `v5` 让这批
+ * 坏模板整体作废，重新从 GLB 打包。
+ */
+const MODEL_TEMPLATE_REVISION = "20261023-car-atlas-v6";
 
 /** 模板里一个打包属性的最小结构。 */
 type PackedAttribute = {

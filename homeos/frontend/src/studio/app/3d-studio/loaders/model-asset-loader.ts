@@ -47,6 +47,12 @@ export function createModelAssetLoader({
   function createLoaderBundle() {
     const loadTracker = new three.LoadingManager();
     loadTracker.setURLModifier(resolveAssetUrl);
+    // 贴图失败必须留痕：GLTFLoader 对贴图是静默 `catch → null`，材质会安静地丢掉
+    // `map`，模型照常显示成纯色壳（`car_tms` 就因此整台车变白）。没有这条日志，
+    // 这类问题只能靠肉眼比对贴图才能发现。
+    loadTracker.onError = (assetUrl: any) => {
+      console.error("[3D-model] 资源加载失败，材质可能缺少贴图：", assetUrl);
+    };
     const dracoLoader = dracoLoaderFactory(loadTracker),
       gltfLoader = new gltfLoaderClass(loadTracker);
     return (

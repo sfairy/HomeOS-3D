@@ -193,7 +193,7 @@ export function applyCarFinish(material: any, { pearlWhite: isPearlWhite = false
             (isPearlWhite
               ? "\n      #ifdef USE_MAP\n        // Retain most of the real lighting/shadow contrast on pearl paint.\n        // Strong fixed fill previously flattened the body into a uniform white.\n        vec3 pearlNormal = inverseTransformDirection(normal, viewMatrix);\n        float pearlFill = 0.64 + 0.20 * max(pearlNormal.y, 0.0)\n          + 0.12 * max(dot(pearlNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        outgoingLight = mix(outgoingLight, diffuseColor.rgb * pearlFill, pearlPaint * 0.45);\n      #endif"
               : "") +
-            "\n      // A continuous reflection across the roof avoids a black center with\n      // pale edge strips. The scene switch dims this environment approximation.\n      float roofReflection = mix(1.0, 0.85,\n        step(0.655, fract(vMapUv.y)) * hbCarGlass);\n      outgoingLight += carDark * carUpper * vec3(0.68, 0.79, 0.94)\n        * (0.012 + 0.025 * carSky + 0.07 * carSoftbox + 0.035 * carFresnel)\n        * roofReflection * hbCarSceneLight;\n      // Keep the sheen restrained so it cannot wash out the glazing seams.\n      outgoingLight += hbCarGlass * vec3(0.76, 0.84, 0.94)\n        * (0.008 + 0.014 * carSky + 0.02 * carSoftbox)\n        * roofReflection * hbCarSceneLight;\n      #ifdef USE_MAP\n        vec2 carUv = fract(vMapUv);\n        float carFrontLamp = clamp(" +
+            "\n      // vMapUv only exists when USE_MAP is defined (the atlas may be absent on\n      // palette-driven materials), so the roof band must stay inside the guard.\n      float roofReflection = 1.0;\n      #ifdef USE_MAP\n        // A continuous reflection across the roof avoids a black center with\n        // pale edge strips. The scene switch dims this environment approximation.\n        roofReflection = mix(1.0, 0.85,\n          step(0.655, fract(vMapUv.y)) * hbCarGlass);\n      #endif\n      outgoingLight += carDark * carUpper * vec3(0.68, 0.79, 0.94)\n        * (0.012 + 0.025 * carSky + 0.07 * carSoftbox + 0.035 * carFresnel)\n        * roofReflection * hbCarSceneLight;\n      // Keep the sheen restrained so it cannot wash out the glazing seams.\n      outgoingLight += hbCarGlass * vec3(0.76, 0.84, 0.94)\n        * (0.008 + 0.014 * carSky + 0.02 * carSoftbox)\n        * roofReflection * hbCarSceneLight;\n      #ifdef USE_MAP\n        vec2 carUv = fract(vMapUv);\n        float carFrontLamp = clamp(" +
             buildLampLensExpression("front") +
             ", 0.0, 1.0)\n          * (1.0 - smoothstep(-1.95, -1.85, vHbCarLength));\n        float carRearLamp = clamp(" +
             buildLampLensExpression("rear") +
@@ -202,7 +202,7 @@ export function applyCarFinish(material: any, { pearlWhite: isPearlWhite = false
     }),
     (material.customProgramCacheKey = () =>
       previousProgramCacheKey +
-      "|hb-car-finish-v10-matched-roof-joint|pearl-" +
+      "|hb-car-finish-v11-guarded-roof-band|pearl-" +
       Number(isPearlWhite)),
     (material.userData.hbCarFinish = true),
     (material.userData.plan2SurfaceContact = false),

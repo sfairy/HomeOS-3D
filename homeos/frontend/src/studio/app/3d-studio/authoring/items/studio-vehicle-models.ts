@@ -35,7 +35,13 @@ export function applyVehicleFinish(
 ) {
   const isBodyColor = ["body", "gogoro_color"].includes(sourceMaterial.name),
     isDarkColor = sourceMaterial.color.r + sourceMaterial.color.g + sourceMaterial.color.b < 0.08,
-    isGlass = sourceMaterial.name === "glass",
+    /**
+     * 车辆玻璃槽位：GLB 里是一族 `glass` / `glass_01` / `glass_02` / `glass_back`
+     * （SUV 四个全在，`glass_back` 是尾灯灯罩），原先只认恰好等于 `"glass"` 的名字，
+     * 于是其余三个玻璃件走了不透明分支；而被认出的那个又被下面强制 `transparent = false`，
+     * 结果整台车的玻璃全变实心。
+     */
+    isGlass = /^glass(?:_|$)/.test(sourceMaterial.name || ""),
     isEmissive = sourceMaterial.emissive?.getHex() !== 0;
   if (
     (material.emissive.copy(sourceMaterial.emissive),
@@ -57,11 +63,14 @@ export function applyVehicleFinish(
       !isEmissive &&
       (material.color.setHex(options.warmWood ? (options.applianceDark ?? 4936789) : 2369836),
       (material.roughness = isGlass ? 0.32 : 0.65),
+      // 暖木主题会给暗色件补一层自发光来抬暗部；玻璃吃这层光会变成磨砂奶白，跳过。
       options.warmWood &&
+        !isGlass &&
         (material.emissive.copy(material.color), (material.emissiveIntensity = 0.11)));
   (options.warmWood &&
     !isEmissive &&
     !isDarkColor &&
+    !isGlass &&
     (material.emissive.copy(material.color),
     (material.emissiveIntensity = isBodyColor ? 0.08 : 0.065)),
     sourceMaterial.name === "scooter-seat" &&
@@ -69,11 +78,24 @@ export function applyVehicleFinish(
       (material.color.setHex(options.furnitureDark ?? 6640449),
       material.emissive.copy(material.color),
       (material.emissiveIntensity = 0.065)),
+    /**
+     * 玻璃：保留 GLB 的 `alphaMode: BLEND` 与 `baseColorFactor.a`（SUV 前挡 0.16、
+     * 侧后窗 0.42），只把表面参数调成玻璃的观感。
+     *
+     * 之前这里把 `transparent` 强制关掉、`opacity` 拉满，是拿「不透明深色玻璃」当性能
+     * 兜底；代价是玻璃彻底没了通透感，也和角色表里 `transparent: true` 的声明自相矛盾。
+     * 透明件必须 `depthWrite = false`，否则会按绘制顺序挡住后面的物体（车身/座椅）。
+     */
     isGlass &&
-      ((material.transparent = false),
-      (material.opacity = 1),
-      (material.depthWrite = true),
-      (material.metalness = 0.25)),
+      ((material.transparent = sourceMaterial.transparent !== false),
+      (material.opacity = material.transparent
+        ? Math.max(0.06, Math.min(1, sourceMaterial.opacity ?? 0.42))
+        : 1),
+      (material.depthWrite = !material.transparent),
+      (material.roughness = 0.08),
+      (material.metalness = 0.02),
+      (material.side = sourceMaterial.side ?? material.side),
+      (material.needsUpdate = true)),
     (material.userData.plan2SurfaceContact = false));
   const originalOnBeforeCompile = material.onBeforeCompile,
     originalCacheKey = material.customProgramCacheKey();
@@ -101,12 +123,14 @@ export function applyVehicleFinish(
     }),
     (material.customProgramCacheKey = () =>
       originalCacheKey +
-      "|vehicle-finish-v2:" +
+      "|vehicle-finish-v3:" +
       Number(isBodyColor) +
       ":" +
       Number(isDarkColor) +
       ":" +
       Number(isEmissive) +
+      ":" +
+      Number(isGlass) +
       ":" +
       +(sourceMaterial.name === "scooter-seat") +
       ":" +

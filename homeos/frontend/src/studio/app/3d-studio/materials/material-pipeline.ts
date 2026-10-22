@@ -25,6 +25,13 @@ import {
 } from "../loaders/external-models/_shared";
 
 /**
+ * 车辆家族：材质收尾由 `applyCarFinish` / `applyVehicleFinish` 接管，不吃调色板重建。
+ */
+function isVehicleMaterialFamily(itemType: any): boolean {
+  return resolveModelFamily(itemType) === "vehicle";
+}
+
+/**
  * @param itemType 注册表里的物件类型（不是文件名）
  * @param materialName GLB 里的原始材质名（大小写不敏感）
  * @param warmWood 当前配色档位是否为暖木色；这是唯一与调色板有关的条件，
@@ -44,7 +51,11 @@ export function usesDetailMaterialPipeline(
     lowerName.includes("-furniture-") ||
     gardenItemTypes.has(itemType) ||
     applianceItemTypes.has(itemType) ||
-    hasSemanticSlotRoles(itemType) ||
+    // 车辆（`smallcar`/`suv`/`scooter`）虽然登记了语义角色，但车漆、车窗、车灯、轮毂
+    // 全部来自 GLB 的 `car_tms` 图集，收尾一律在**原始材质**上做（`applyCarFinish` /
+    // `applyVehicleFinish`）。一旦按调色板整块重建，`map` 就丢了，车只剩一坨纯色壳。
+    // 这里的登记只服务角色标签 / 检查面板，不代表要重建材质。
+    (hasSemanticSlotRoles(itemType) && !isVehicleMaterialFamily(itemType)) ||
     (!isStructuralModelFamily(resolveModelFamily(itemType)) &&
       (roleTableItemTypes.has(itemType) || Boolean((COLLECTION_MODELS as any)[itemType]))) ||
     (warmWood && warmWoodFurnitureItemTypes.has(itemType))

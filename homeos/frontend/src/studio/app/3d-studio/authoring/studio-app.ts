@@ -3878,9 +3878,13 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
           : hexColorValue;
       if (!/^#[0-9a-f]{6}$/.test(normalizedHexValue)) {
 
-        const materialRowColorInput = materialHexInput
-          .closest(".material-slot")
-          ?.querySelector("[data-material-slot-color]");
+        const materialRowColorInput =
+          materialHexInput
+            .closest(".material-slot-variant")
+            ?.querySelector("[data-material-slot-color]") ||
+          materialHexInput
+            .closest(".material-slot")
+            ?.querySelector("[data-material-slot-color]");
         (materialHexInput.classList.add("is-invalid"),
           materialRowColorInput &&
             (materialHexInput.value = String(materialRowColorInput.value).toLowerCase()));

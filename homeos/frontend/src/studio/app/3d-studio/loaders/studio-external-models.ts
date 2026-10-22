@@ -34,6 +34,7 @@ import {
   stoneSlabSurfaceFinish,
   usesNamedMaterialRole,
 } from "../materials/studio-model-material-roles";
+import { groupVehicleMaterialSlots } from "../materials/studio-material-slot-groups";
 import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from "../materials/material-pipeline";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
@@ -557,8 +558,34 @@ export function createExternalModelManager({
       inFlightLoadPromise
     );
   }
+  /** 该材质是否自带图集贴图（`car_tms` 这类整块烘焙的 UV 图集）。 */
+  function materialHasAtlas(material: any) {
+    return Boolean(material?.map?.isTexture);
+  }
+  /**
+   * 图集材质**只能**克隆，绝不能按调色板重建。
+   *
+   * 这类材质把车漆、玻璃、尾灯、轮毂全烘焙进一张贴图，`color` 只当乘性底色用
+   * （`car.glb` 就是纯白 `[1,1,1,1]`）。一旦换成「一个角色一个颜色」的新材质，
+   * `map` 会被顺手丢掉，模型只剩那层纯色 —— 看起来就是整台车变成白壳。
+   * 所以遇到图集材质时保留贴图与 alpha 裁剪参数，只清掉发光/调色板残留。
+   */
+  function keepAtlasMaterial(sourceMaterial: any, labelSuffix: string) {
+    const clonedMaterial = sourceMaterial.clone?.() || sourceMaterial;
+    return (
+      (clonedMaterial.emissive?.set?.(0), (clonedMaterial.emissiveIntensity = 0)),
+      (clonedMaterial.name = (sourceMaterial.name || "external-model") + labelSuffix),
+      (clonedMaterial.userData = {
+        ...(clonedMaterial.userData || {}),
+        homeosAtlasKept: true,
+      }),
+      clonedMaterial
+    );
+  }
   function applyDefaultPaletteMaterial(originalMaterial: any, paletteColors: any) {
     if (!originalMaterial) return originalMaterial;
+    if (materialHasAtlas(originalMaterial))
+      return keepAtlasMaterial(originalMaterial, " · HomeOS atlas");
     const baseColor = originalMaterial.color?.clone?.() || new threeNamespace.Color(16777215),
       baseLuminance = baseColor.r * 0.2126 + baseColor.g * 0.7152 + baseColor.b * 0.0722,
       paletteColor =
@@ -595,6 +622,9 @@ export function createExternalModelManager({
     materialOptions: PaletteMaterialOptions = {},
   ) {
     if (!templateMaterial) return templateMaterial;
+    // 图集材质不能被「一个角色一个颜色」覆盖，否则贴图连同 UV 细节一起消失。
+    if (materialHasAtlas(templateMaterial))
+      return keepAtlasMaterial(templateMaterial, " · HomeOS atlas");
     const derivedMaterial = new threeNamespace.MeshStandardMaterial({
       color: materialColor,
       roughness: materialOptions.roughness ?? 0.58,
@@ -1903,6 +1933,9 @@ function normalizeMaterialValue(materialValue: any): any {
   function applyMaterialOverride(resolvedMaterial: any, materialName: any, palette: any) {
     const overrideColor = materialOverrideColorFor(palette, materialName);
     if (!overrideColor || !resolvedMaterial?.color) return resolvedMaterial;
+    // 图集槽位不吃逐物件覆盖色：颜色由整张 UV 图集提供，覆盖上去只会把车漆、
+    // 玻璃、尾灯一起涂成一块纯色（历史数据里残留的覆盖色也一并失效）。
+    if (materialHasAtlas(resolvedMaterial)) return resolvedMaterial;
     const previousColorHex = resolvedMaterial.color.getHex();
 
 
@@ -2551,7 +2584,7 @@ function normalizeMaterialValue(materialValue: any): any {
       preparedModel = preparedTemplatesByItemType.get(modelType);
     if (!preparedModel) return null;
     const optionsKey = optionsSignature(addOptions),
-      slotEntries: any = [];
+      rawSlotEntries: any = [];
     preparedModel.source.traverse((templateMesh: any) => {
       if (!templateMesh.isMesh) return;
       const meshMaterials = Array.isArray(templateMesh.material)
@@ -2560,7 +2593,7 @@ function normalizeMaterialValue(materialValue: any): any {
       if (isHiddenApplianceGuideMesh(modelType, meshMaterials)) return;
       meshMaterials.forEach((templateMaterial: any, materialIndexInMesh: any) => {
         const slotName = templateMaterial?.name;
-        if (!slotName || slotEntries.some((slotEntry: any) => slotEntry.name === slotName)) return;
+        if (!slotName || rawSlotEntries.some((slotEntry: any) => slotEntry.name === slotName)) return;
         const resolvedMaterial = resolveSharedMaterial(
             templateMaterial,
             addOptions,
@@ -2568,13 +2601,15 @@ function normalizeMaterialValue(materialValue: any): any {
             optionsKey,
           ),
           roleResolution = resolveModelMaterialRole(modelType, slotName, materialIndexInMesh);
-        slotEntries.push({
+        rawSlotEntries.push({
           name: slotName,
           role: roleResolution.role,
           roleSource: roleResolution.source,
           slot: roleResolution.slot ?? materialIndexInMesh,
           /** 该槽位是否由角色表 / 调色板出图； */
           fromPalette: usesDetailMaterialPipeline(modelType, slotName, addOptions),
+          /** 该槽位自带图集贴图：颜色来自贴图，面板只允许调表面参数。 */
+          hasAtlas: materialHasAtlas(resolvedMaterial),
           color: resolvedMaterial?.color ? "#" + resolvedMaterial.color.getHexString() : "",
           roughness: finite(resolvedMaterial?.roughness, 0),
           metalness: finite(resolvedMaterial?.metalness, 0),
@@ -2585,7 +2620,9 @@ function normalizeMaterialValue(materialValue: any): any {
             : "",
           emissiveIntensity: finite(resolvedMaterial?.emissiveIntensity, 0),
           depthWrite: resolvedMaterial?.depthWrite !== false,
-          overrideColor: materialOverrideColorFor(addOptions, slotName) || "",
+          overrideColor: materialHasAtlas(resolvedMaterial)
+            ? ""
+            : materialOverrideColorFor(addOptions, slotName) || "",
           surfaceOverride: materialSurfaceOverrideFor(addOptions, slotName),
           /** 该槽位实际用的石材板色号（"" = 不是石材板）。 */
           slab: isStoneSlabFlavor(resolvedMaterial?.userData?.homeosStoneSlab)
@@ -2594,7 +2631,7 @@ function normalizeMaterialValue(materialValue: any): any {
         });
       });
     });
-    return slotEntries.sort((slotEntryA: any, slotEntryB: any) => {
+    const sortedSlotEntries = rawSlotEntries.sort((slotEntryA: any, slotEntryB: any) => {
       const slotIndexA = Number.isFinite(slotEntryA.slot) ? slotEntryA.slot : Number.MAX_SAFE_INTEGER,
         slotIndexB = Number.isFinite(slotEntryB.slot) ? slotEntryB.slot : Number.MAX_SAFE_INTEGER;
       return (
@@ -2602,6 +2639,7 @@ function normalizeMaterialValue(materialValue: any): any {
         slotEntryA.name.localeCompare(slotEntryB.name, "en", { numeric: true })
       );
     });
+    return groupVehicleMaterialSlots(modelType, sortedSlotEntries);
   }
   return {
     addExternalItemModel: addExternalItemModel,

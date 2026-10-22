@@ -731,12 +731,23 @@ export function renderMaterialSlotPanel(runtime: StudioAppRuntime, modelItem: an
   for (const expandedSlotName of [...runtime.appCtx.expandedMaterialSurfaceSlots])
     materialSlotEntries.some((slotEntry: any) => slotEntry.name === expandedSlotName) ||
       runtime.appCtx.expandedMaterialSurfaceSlots.delete(expandedSlotName);
-  const overrideCount = materialSlotEntries.filter(
-      (slotEntry: any) => Boolean(slotEntry.overrideColor),
-    ).length,
-    surfaceOverrideCount = materialSlotEntries.filter(
-      (slotEntry: any) => Boolean(slotEntry.surfaceOverride),
-    ).length,
+  const overrideCount = materialSlotEntries.reduce(
+      (count: number, slotEntry: any) =>
+        count +
+        (Array.isArray(slotEntry.variants) && slotEntry.variants.length
+          ? slotEntry.variants.filter((slotVariant: any) => Boolean(slotVariant.overrideColor)).length
+          : Number(Boolean(slotEntry.overrideColor))),
+      0,
+    ),
+    surfaceOverrideCount = materialSlotEntries.reduce(
+      (count: number, slotEntry: any) =>
+        count +
+        (Array.isArray(slotEntry.variants) && slotEntry.variants.length
+          ? slotEntry.variants.filter((slotVariant: any) => Boolean(slotVariant.surfaceOverride))
+              .length
+          : Number(Boolean(slotEntry.surfaceOverride))),
+      0,
+    ),
     itemMaterialStyle = normalizeMaterialStyle(itemModelType, modelItem?.materialStyle),
     hasMaterialStyle = itemMaterialStyle !== MATERIAL_STYLE_AUTO,
     peerCount = runtime.materialSameModelPeerCount({ kind: "item", record: modelItem }),
@@ -789,7 +800,17 @@ export function materialCoverageSummary(runtime: StudioAppRuntime, overrideCount
 
 /** 一条槽位行：左边角色 / 槽位号 / GLB 名，右边色块 + 十六进制 + 参数 + 复位。 */
 export function createMaterialSlotRow(runtime: StudioAppRuntime, slotEntry: any) {
-  const displayedColor = (slotEntry.overrideColor || slotEntry.color || "#000000").toLowerCase(),
+  /**
+   * 归并行（车辆语义槽位）里一个色块可能代表多个 GLB 材质：
+   * 主控件绑第一格，其余分格各出一组小色块，写回按分格展开（见 `materialSlotWriteTargets`）。
+   */
+  const slotVariants = Array.isArray(slotEntry.variants) && slotEntry.variants.length
+      ? slotEntry.variants
+      : null,
+    primaryVariant = slotVariants?.[0] || slotEntry,
+    /** 控件上的写入键：分格里第一个真实材质名（`setItemMaterialOverride` 会展开整格）。 */
+    slotWriteName = primaryVariant.name || slotEntry.name,
+    displayedColor = (slotEntry.overrideColor || slotEntry.color || "#000000").toLowerCase(),
     surfaceOverride = slotEntry.surfaceOverride || null,
     hasOverride = Boolean(slotEntry.overrideColor),
     hasSurfaceOverride = Boolean(surfaceOverride),
@@ -800,6 +821,7 @@ export function createMaterialSlotRow(runtime: StudioAppRuntime, slotEntry: any)
     roleElement = document.createElement("span"),
     nameElement = document.createElement("span"),
     slabBadgeElement = document.createElement("span"),
+    atlasBadgeElement = document.createElement("span"),
     controlsElement = document.createElement("span"),
     colorInputElement = document.createElement("input"),
     hexInputElement = document.createElement("input"),
@@ -816,31 +838,53 @@ export function createMaterialSlotRow(runtime: StudioAppRuntime, slotEntry: any)
     (slotTextElement.className = "material-slot-text"),
     (roleElement.className = "material-slot-role"),
     (roleElement.textContent =
-      materialRoleLabel(slotEntry.role) +
+      (slotEntry.label || materialRoleLabel(slotEntry.role)) +
       (Number.isFinite(slotEntry.slot) ? " · #" + slotEntry.slot : "")),
     (nameElement.className = "material-slot-name"),
-    (nameElement.textContent = slotEntry.name),
+    (nameElement.textContent =
+      Array.isArray(slotEntry.members) && slotEntry.members.length > 1
+        ? slotEntry.members.join(" / ")
+        : slotEntry.name),
     (nameElement.title =
-      slotEntry.name + (slotEntry.fromPalette ? "（跟随主题调色板）" : "（沿用模型自带颜色）")),
+      (Array.isArray(slotEntry.members) && slotEntry.members.length
+        ? slotEntry.members.join(" / ")
+        : slotEntry.name) +
+      (slotEntry.fromPalette ? "（跟随主题调色板）" : "（沿用模型自带颜色）")),
     (slabBadgeElement.className = "material-slot-slab"),
     (slabBadgeElement.textContent = materialSlabLabel(slotEntry.slab)),
     (slabBadgeElement.title =
       materialSlabLabel(slotEntry.slab) +
       "整图：这一槽会贴一张自带的石材纹路（颜色仍可调，纹路不受影响）"),
     slotEntry.slab || (slabBadgeElement.hidden = true),
+    /**
+     * 图集槽位：颜色是贴图烘焙出来的（车漆 / 玻璃 / 尾灯 / 轮毂都在同一张 UV 图集里），
+     * 换一个纯色只会把整张图集盖掉 —— 所以这里**不给改色**，只留表面参数。
+     */
+    (atlasBadgeElement.className = "material-slot-slab"),
+    (atlasBadgeElement.textContent = "图集"),
+    (atlasBadgeElement.title =
+      "该槽位的颜色由模型自带的 UV 图集贴图提供（车漆 / 玻璃 / 灯组等都在同一张图上），" +
+      "改色会覆盖整张图集，因此只开放粗糙度与金属度"),
+    slotEntry.hasAtlas || (atlasBadgeElement.hidden = true),
     (controlsElement.className = "material-slot-controls"),
     (colorInputElement.type = "color"),
     (colorInputElement.className = "material-slot-color"),
-    (colorInputElement.dataset.materialSlotColor = slotEntry.name),
+    (colorInputElement.dataset.materialSlotColor = slotWriteName),
     (colorInputElement.value = displayedColor),
-    (colorInputElement.title = "点开取色器给这个槽位指定颜色；改完写进当前物件"),
+    (colorInputElement.disabled = Boolean(slotEntry.hasAtlas)),
+    (colorInputElement.title = slotEntry.hasAtlas
+      ? "该槽位颜色来自模型自带图集，不能改色；可展开「参数」调粗糙度 / 金属度"
+      : "点开取色器给这个槽位指定颜色；改完写进当前物件"),
     (hexInputElement.type = "text"),
     (hexInputElement.className = "material-slot-hex"),
-    (hexInputElement.dataset.materialSlotHex = slotEntry.name),
+    (hexInputElement.dataset.materialSlotHex = slotWriteName),
     (hexInputElement.value = displayedColor),
     (hexInputElement.spellcheck = false),
     (hexInputElement.maxLength = 7),
-    (hexInputElement.title = "可以直接粘贴十六进制色值，回车或离开输入框生效"),
+    (hexInputElement.disabled = Boolean(slotEntry.hasAtlas)),
+    (hexInputElement.title = slotEntry.hasAtlas
+      ? "该槽位颜色来自模型自带图集，不能改色"
+      : "可以直接粘贴十六进制色值，回车或离开输入框生效"),
     (surfaceToggleButton.type = "button"),
     (surfaceToggleButton.className = "material-slot-surface-toggle"),
     (surfaceToggleButton.dataset.materialSlotSurfaceToggle = slotEntry.name),
@@ -850,22 +894,74 @@ export function createMaterialSlotRow(runtime: StudioAppRuntime, slotEntry: any)
       "调整该槽位的粗糙度与金属度（当前 " + runtime.materialSlotMetaText(slotEntry) + "）"),
     (resetButtonElement.type = "button"),
     (resetButtonElement.className = "material-slot-reset"),
-    (resetButtonElement.dataset.materialSlotReset = slotEntry.name),
+    (resetButtonElement.dataset.materialSlotReset = slotWriteName),
     (resetButtonElement.textContent = "↺"),
-    (resetButtonElement.disabled = !hasOverride),
-    (resetButtonElement.title = hasOverride ? "清除该槽位的手动颜色" : "该槽位当前就跟随主题"),
+    (resetButtonElement.disabled = !hasOverride || Boolean(slotEntry.hasAtlas)),
+    (resetButtonElement.title = slotEntry.hasAtlas
+      ? "该槽位颜色来自模型自带图集，没有可清除的手动颜色"
+      : hasOverride
+        ? "清除该槽位的手动颜色"
+        : "该槽位当前就跟随主题"),
     controlsElement.append(
       colorInputElement,
       hexInputElement,
       surfaceToggleButton,
       resetButtonElement,
     ),
-    slotTextElement.append(roleElement, nameElement, slabBadgeElement),
+    slotTextElement.append(roleElement, nameElement, slabBadgeElement, atlasBadgeElement),
     slotLineElement.append(slotTextElement, controlsElement),
     slotRow.append(slotLineElement),
+    slotVariants &&
+      slotVariants.length > 1 &&
+      slotRow.append(createMaterialSlotVariantList(runtime, slotVariants.slice(1))),
     slotRow.append(createMaterialSlotSurfacePanel(slotEntry, isSurfaceExpanded)),
     slotRow
   );
+}
+
+/**
+ * 归并行里的其余色块：一行「灯罩与灯组」里前灯罩是白的、尾灯罩是红的、灯组外壳是暗的，
+ * 三格各自一格色块，改哪格只写哪格里的材质（不会把尾灯刷成前灯色）。
+ */
+export function createMaterialSlotVariantList(runtime: StudioAppRuntime, slotVariants: any[]) {
+  const variantListElement = document.createElement("div");
+  variantListElement.className = "material-slot-variants";
+  for (const slotVariant of slotVariants) {
+    const variantElement = document.createElement("span"),
+      variantNameElement = document.createElement("span"),
+      variantColorInput = document.createElement("input"),
+      variantHexInput = document.createElement("input"),
+      variantColor = (slotVariant.overrideColor || slotVariant.color || "#000000").toLowerCase(),
+      variantAtlas = Boolean(slotVariant.hasAtlas),
+      variantWriteName = slotVariant.name;
+    ((variantElement.className =
+      "material-slot-variant" + (slotVariant.overrideColor ? " is-overridden" : "")),
+      (variantNameElement.className = "material-slot-variant-name"),
+      (variantNameElement.textContent = slotVariant.names?.join(" / ") || variantWriteName),
+      (variantNameElement.title =
+        (slotVariant.names?.join(" / ") || variantWriteName) +
+        " · " +
+        runtime.materialSlotMetaText(slotVariant)),
+      (variantColorInput.type = "color"),
+      (variantColorInput.className = "material-slot-color"),
+      (variantColorInput.dataset.materialSlotColor = variantWriteName),
+      (variantColorInput.value = variantColor),
+      (variantColorInput.disabled = variantAtlas),
+      (variantColorInput.title = variantAtlas
+        ? "该格颜色来自模型自带图集，不能改色"
+        : "点开取色器改这一格的颜色（只会写到这一格里的材质）"),
+      (variantHexInput.type = "text"),
+      (variantHexInput.className = "material-slot-hex"),
+      (variantHexInput.dataset.materialSlotHex = variantWriteName),
+      (variantHexInput.value = variantColor),
+      (variantHexInput.spellcheck = false),
+      (variantHexInput.maxLength = 7),
+      (variantHexInput.disabled = variantAtlas),
+      (variantHexInput.title = variantAtlas ? "该格颜色来自模型自带图集，不能改色" : "直接填十六进制色值"),
+      variantElement.append(variantNameElement, variantColorInput, variantHexInput),
+      variantListElement.append(variantElement));
+  }
+  return variantListElement;
 }
 
 /** 场景里同款物件的其它数量（「应用到同类」的按钮状态与提示用）：家具按模型比，门按门型比。 */
@@ -926,8 +1022,40 @@ export function commitItemMaterialEdit(runtime: StudioAppRuntime, mutationFuncti
 }
 
 /** 写入 / 清除逐物件材质覆盖色。 */
+/**
+ * 一条面板行可能代表**多个 GLB 材质**：车辆按语义槽位归并后，同一行里颜色/参数一致的
+ * 材质并成了一个色块（见 `VEHICLE_MATERIAL_SLOTS`）。写回时按色块展开成真实材质名列表，
+ * 否则改色只会命中分格里的第一个材质。
+ */
+export function materialSlotWriteTargets(slotEntries: any, materialName: any) {
+  const slotEntry = Array.isArray(slotEntries)
+    ? slotEntries.find(
+        (candidate: any) =>
+          candidate.name === materialName || candidate.members?.includes(materialName),
+      )
+    : null;
+  const variant = slotEntry?.variants?.find(
+    (candidate: any) => candidate.name === materialName || candidate.names?.includes(materialName),
+  );
+  return {
+    names: variant?.names?.length ? variant.names : [materialName],
+    hasAtlas: Boolean(variant ? variant.hasAtlas : slotEntry?.hasAtlas),
+  };
+}
+
 export function setItemMaterialOverride(runtime: StudioAppRuntime, materialName: any, overrideColor: any) {
   runtime.commitItemMaterialEdit((modelItem: any) => {
+    // 图集槽位不接受手动改色：颜色由整张 UV 图集提供，写进去只会把图集盖成一块纯色。
+    const slotEntries = materialName
+        ? runtime.externalModelRegistry.describeItemMaterials(
+            modelItem,
+            runtime.materialLoadOptionsForItem(modelItem),
+          )
+        : null,
+      writeTargets = materialName
+        ? materialSlotWriteTargets(slotEntries, materialName)
+        : { names: [], hasAtlas: false };
+    if (materialName && writeTargets.hasAtlas) return false;
     const previousOverrides =
         modelItem.materialOverrides &&
         typeof modelItem.materialOverrides == "object" &&
@@ -939,8 +1067,10 @@ export function setItemMaterialOverride(runtime: StudioAppRuntime, materialName:
         typeof overrideColor == "string" && /^#[0-9a-f]{6}$/i.test(overrideColor);
     if (!materialName)
       for (const overrideKey of Object.keys(nextOverrides)) delete nextOverrides[overrideKey];
-    else if (isOverrideColor) nextOverrides[materialName] = overrideColor.toLowerCase();
-    else delete nextOverrides[materialName];
+    else if (isOverrideColor)
+      for (const targetName of writeTargets.names)
+        nextOverrides[targetName] = overrideColor.toLowerCase();
+    else for (const targetName of writeTargets.names) delete nextOverrides[targetName];
     const touchedKeys = new Set([
       ...Object.keys(previousOverrides),
       ...Object.keys(nextOverrides),
@@ -1001,20 +1131,31 @@ export function resetItemMaterialAll(runtime: StudioAppRuntime, ) {
 export function setItemMaterialSurfaceOverride(runtime: StudioAppRuntime, materialName: any, surfaceKey: any, surfaceValue: any) {
   if (!materialName || !["roughness", "metalness"].includes(surfaceKey)) return;
   runtime.commitItemMaterialEdit((modelItem: any) => {
-    const previousSurfaceOverrides = normalizeMaterialSurfaceOverrides(
+    // 归并后的色块代表多个真实材质，参数要写到该格的全部材质上。
+    const surfaceTargetNames = materialSlotWriteTargets(
+        runtime.externalModelRegistry.describeItemMaterials(
+          modelItem,
+          runtime.materialLoadOptionsForItem(modelItem),
+        ),
+        materialName,
+      ).names,
+      previousSurfaceOverrides = normalizeMaterialSurfaceOverrides(
         modelItem.materialSurfaceOverrides,
       ),
-      previousSlotOverride = previousSurfaceOverrides[materialName] || {},
       isSurfaceNumber =
         typeof surfaceValue == "number" && Number.isFinite(surfaceValue),
-      nextSlotOverride = { ...previousSlotOverride };
-    isSurfaceNumber
-      ? (nextSlotOverride[surfaceKey] = Math.round(Math.min(1, Math.max(0, surfaceValue)) * 100) / 100)
-      : delete nextSlotOverride[surfaceKey];
-    const nextSurfaceOverrides = { ...previousSurfaceOverrides };
-    Object.keys(nextSlotOverride).length
-      ? (nextSurfaceOverrides[materialName] = nextSlotOverride)
-      : delete nextSurfaceOverrides[materialName];
+      nextSurfaceOverrides = { ...previousSurfaceOverrides };
+    for (const targetName of surfaceTargetNames) {
+      const previousSlotOverride = previousSurfaceOverrides[targetName] || {},
+        nextSlotOverride = { ...previousSlotOverride };
+      isSurfaceNumber
+        ? (nextSlotOverride[surfaceKey] =
+            Math.round(Math.min(1, Math.max(0, surfaceValue)) * 100) / 100)
+        : delete nextSlotOverride[surfaceKey];
+      Object.keys(nextSlotOverride).length
+        ? (nextSurfaceOverrides[targetName] = nextSlotOverride)
+        : delete nextSurfaceOverrides[targetName];
+    }
     const normalizedSurfaceOverrides = normalizeMaterialSurfaceOverrides(nextSurfaceOverrides);
     if (
       JSON.stringify(normalizedSurfaceOverrides) === JSON.stringify(previousSurfaceOverrides)

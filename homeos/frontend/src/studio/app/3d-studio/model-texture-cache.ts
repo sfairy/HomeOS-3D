@@ -22,6 +22,27 @@ function textureImageKey(textureImage: any) {
     hashB >>> 0,
   ]);
 }
+/**
+ * 取「已解码图片」的像素尺寸。
+ *
+ * 为什么不能只认 `<img>`：Chromium / Safari 17+ 下 GLTFLoader 会走 `ImageBitmapLoader`，
+ * `texture.image` 是一个 `ImageBitmap`（没有 `tagName` / `complete` / `naturalWidth`）。
+ * 旧判定只放行 `IMG`，于是**所有带贴图的模型都记不上账**，`packModelTextures` 随即
+ * 抛 `Texture needs the original loader`，整个模板缓存写入被放弃 —— 车、电视这类靠贴图
+ * 出图的模型就永远进不了缓存。
+ */
+function decodedImageSize(image: any) {
+  if (!image) return null;
+  if (image.tagName === "IMG")
+    return image.complete && image.naturalWidth && image.naturalHeight
+      ? { width: image.naturalWidth, height: image.naturalHeight }
+      : null;
+  const width = image.width,
+    height = image.height;
+  return Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0
+    ? { width, height }
+    : null;
+}
 /** 只接受体积/像素在预算内的 PNG/JPEG 内嵌图。 */
 function isValidTextureImage(textureImage: any) {
   return (
@@ -39,36 +60,48 @@ function isValidTextureImage(textureImage: any) {
 }
 /** 记下「纹理 <-> 抠出的图片字节」的对应关系，供后续 pack 使用。 */
 function rememberTexture(texture: any, textureImage: any) {
+  const pixels = texture.image;
   originalTextureRecord.set(texture, {
     image: textureImage,
     version: texture.version,
     source: texture.source,
     sourceVersion: texture.source.version,
-    pixels: texture.image,
-    src: texture.image.src,
+    pixels: pixels,
+    src: pixels?.src,
+    width: textureImage.width,
+    height: textureImage.height,
+    /** `ImageBitmap` 没有 `complete` / `src`，校验只能比尺寸。 */
+    isBitmap: typeof ImageBitmap != "undefined" && pixels instanceof ImageBitmap,
   });
 }
 /** 只有纹理仍指向当初记下的那些对象、且没被换成 DataTexture/压缩纹理时，记录才有效。 */
 function originalTextureRecordFor(texture: any) {
   const record = originalTextureRecord.get(texture);
-  return record &&
-    texture.version === record.version &&
-    texture.source === record.source &&
-    texture.source.version === record.sourceVersion &&
-    texture.image === record.pixels &&
-    texture.image.src === record.src &&
-    texture.image.complete &&
-    texture.image.naturalWidth === record.image.width &&
-    texture.image.naturalHeight === record.image.height &&
-    !texture.isRenderTargetTexture &&
-    !texture.isVideoTexture &&
-    !texture.isDataTexture &&
-    !texture.isCompressedTexture &&
-    !texture.mipmaps.length
+  if (
+    !record ||
+    texture.version !== record.version ||
+    texture.source !== record.source ||
+    texture.source.version !== record.sourceVersion ||
+    texture.image !== record.pixels ||
+    texture.isRenderTargetTexture ||
+    texture.isVideoTexture ||
+    texture.isDataTexture ||
+    texture.isCompressedTexture ||
+    texture.mipmaps.length
+  )
+    return null;
+  if (record.isBitmap)
+    return record.pixels?.width === record.width && record.pixels?.height === record.height
+      ? record
+      : null;
+  return record.pixels?.src === record.src &&
+    record.pixels?.complete &&
+    record.pixels?.naturalWidth === record.width &&
+    record.pixels?.naturalHeight === record.height
     ? record
     : null;
 }
-/** 遍历 GLTF，把可从 bufferView 直接取出的内嵌图片记下来（跳过扩展纹理/非 IMG）。 */
+/** 遍历 GLTF，把可从 bufferView 直接取出的内嵌图片记下来（跳过扩展纹理 / 非内嵌图）。 */
 export async function prepareModelTextures(gltf: any) {
   const parser = gltf?.parser,
     scene = gltf?.scene;
@@ -86,14 +119,12 @@ export async function prepareModelTextures(gltf: any) {
           const textureIndex = parser.associations.get(texture)?.textures,
             textureDefinition = parser.json.textures?.[textureIndex],
             imageDefinition = parser.json.images?.[textureDefinition?.source],
-            image = texture.image;
+            decodedSize = decodedImageSize(texture.image);
           if (
             !imageDefinition ||
             !Number.isInteger(imageDefinition.bufferView) ||
             textureDefinition.extensions ||
-            image?.tagName !== "IMG" ||
-            !image.complete ||
-            !image.naturalWidth
+            !decodedSize
           )
             return;
           imagePromiseBySourceId.has(textureDefinition.source) ||
@@ -106,8 +137,8 @@ export async function prepareModelTextures(gltf: any) {
                   ),
                   textureImage: any = {
                     mimeType: imageDefinition.mimeType,
-                    width: image.naturalWidth,
-                    height: image.naturalHeight,
+                    width: decodedSize.width,
+                    height: decodedSize.height,
                     data: new Uint8Array(bufferViewData).slice(),
                   };
                 return isValidTextureImage(textureImage)
@@ -254,7 +285,7 @@ export async function restoreModelTextures(
   try {
     for (const [imageUuid, textureImage] of Object.entries(textureImages)) {
       if (!valid()) return null;
-      sourceByImageUuid[imageUuid] = new three.Source(
+      sourceByImageUuid[imageUuid] = new three.TextureSource(
         await decodeTextureImage(textureImage, env, valid, timeoutMs),
       );
     }

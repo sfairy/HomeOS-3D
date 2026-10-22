@@ -4291,6 +4291,33 @@ body.auto-diagram-embedded .export-preview-frame {
   opacity: 0.35;
   cursor: default;
 }
+/*
+ * 归并槽位里的「同色分格」：一行 = 一个语义部件（车身 / 车窗玻璃 / 灯罩与灯组…），
+ * 行内颜色不同的材质各占一格，改哪格只写哪格里的材质。
+ */
+.material-slot-variants {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0 0 6px;
+  border-left: 2px solid var(--line);
+}
+.material-slot-variant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px;
+}
+.material-slot-variant-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.material-slot-variant.is-overridden .material-slot-variant-name {
+  color: var(--hos-color-accent);
+}
 .material-slot-surface {
   display: grid;
   gap: 5px;

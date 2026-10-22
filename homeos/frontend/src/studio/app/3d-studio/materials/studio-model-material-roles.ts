@@ -755,6 +755,64 @@ export function isStructuralModelFamily(family: string): boolean {
   return ["stair", "vehicle", "pillar", "lamp"].includes(family);
 }
 
+/**
+ * 车辆面板槽位：把 GLB 里的一族材质名收成一行「语义槽位」。
+ *
+ * 同样是车，`smallcar` 把整台车烘焙进一张 UV 图集、只有一个材质（`car_tms`），
+ * `suv-lite` 却是 11 个独立材质（4 个 `glass*` 里其实是车窗 / 清漆层 / 前灯罩 / 尾灯罩）。
+ * 面板如果直接照着 GLB 材质列表出图，同类物件就是一个 1 行、一个 11 行，「玻璃」还重复四遍。
+ *
+ * 这份表与模型文件无关：一行 = 一个能理解的部件。同一行里**颜色与表面参数一致**的材质
+ * 再并成一个色块（变体）；颜色不同的（车窗 / 清漆层 / 前灯罩 / 尾灯罩）各自保留一格，
+ * 改色只写到同一格内的材质，不会把尾灯罩刷成车窗色。
+ */
+export type VehicleMaterialSlot = {
+  id: string;
+  label: string;
+  role: string;
+  members: readonly string[];
+};
+export const VEHICLE_MATERIAL_SLOTS: readonly VehicleMaterialSlot[] = Object.freeze([
+  { id: "body", label: "车身", role: "body", members: ["body", "gogoro_color", "car_tms"] },
+  { id: "base", label: "底盘与包围", role: "base", members: ["base"] },
+  { id: "cabin", label: "座舱内饰", role: "seat", members: ["salon", "seat", "scooter-seat"] },
+  { id: "glass", label: "车窗玻璃", role: "glass", members: ["glass"] },
+  { id: "clearcoat", label: "清漆层", role: "glass", members: ["glass_01"] },
+  {
+    id: "lamp",
+    label: "灯罩与灯组",
+    role: "emissive",
+    members: [
+      "headlight",
+      "headlight_01",
+      "headlight_02",
+      "glass_02",
+      "glass_back",
+      "yellow_light",
+      "green_light",
+      "white_light",
+      "red_light",
+    ],
+  },
+  {
+    id: "trim",
+    label: "灰件与五金",
+    role: "trim",
+    members: ["gray", "metal", "black", "black_metal", "dark", "trim"],
+  },
+]);
+const VEHICLE_MATERIAL_SLOT_BY_MEMBER: ReadonlyMap<string, VehicleMaterialSlot> = new Map(
+  VEHICLE_MATERIAL_SLOTS.flatMap((vehicleSlot) =>
+    vehicleSlot.members.map((memberName) => [memberName.toLowerCase(), vehicleSlot] as const),
+  ),
+);
+/** 材质名 → 车辆语义槽位；不是车辆材质就返回 null（调用方退回「一个材质一行」）。 */
+export function vehicleMaterialSlotFor(materialName: string | undefined): VehicleMaterialSlot | null {
+  return (
+    (materialName && VEHICLE_MATERIAL_SLOT_BY_MEMBER.get(materialName.toLowerCase())) || null
+  );
+}
+
 
 export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[]>> = Object.freeze({
 
