@@ -468,8 +468,9 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   },
 
   /* ── 卫浴 / 洁具 ─────────────────────────────────────────────── */
-  toilet: { ceramic: "ceramic", seat: "seat", body: "interior" },
-  squattoilet: { ceramic: "ceramic", seat: "seat", body: "interior" },
+  /** `detail` 是冲水按钮 / 合页五金，家族 token 表没有该词，必须逐模型登记。 */
+  toilet: { ceramic: "ceramic", seat: "seat", body: "interior", detail: "metal" },
+  squattoilet: { ceramic: "ceramic", seat: "seat", body: "interior", detail: "metal" },
   urinal: { soft: "ceramic", body: "ceramic", dark: "faucet", light: "rim" },
   bathtub: { soft: "ceramic", dark: "faucet", light: "rim" },
   basin: { body: "bowl", accent: "soapTray", dark: "faucet", light: "rim", soft: "interior", glass: "mirror" },
@@ -619,6 +620,54 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "storage-box": { body: "carcass", detail: "shelf", lid: "cabinetDoor" },
   /* 0.7.9 管线机变体：`panel` 是出水面板、`display` 是触控屏。 */
   "rectangular-pipeline-dispenser": { body: "shell", panel: "panel", trim: "trim", display: "display" },
+
+  /* ── 2026-10 材质审计补登记（原本塌成家族兜底 `body`） ─────────────
+   * 这些模型的材质名里**有明确构件词**（`stone` / `blade` / `speaker` …），
+   * 只是家族 token 表没收录，导致整件塌成同一个灰角色。补在这里即可，
+   * 不必重出 GLB，也不用依赖槽位顺序。
+   */
+  "aroma-diffuser": { bottle: "container", liquid: "water", tube: "trim", detail: "base" },
+  "bar-stool": { detail: "metal" },
+  "ceiling-fan": { blade: "wood" },
+  "drying-rack": { rail: "metal", plastic: "panel" },
+  "electric-valve": { coupling: "base", casing: "shell", detail: "trim" },
+  /** 岛台：`front`/`case` 是柜体，`stone`/`vein` 是台面石材与纹路。 */
+  "kitchen-island": {
+    front: "carcass",
+    case: "carcass",
+    stone: "countertop",
+    vein: "countertop",
+    detail: "trim",
+    foliage: "foliage",
+  },
+  ps5: { detail: "base" },
+  "side-table": { foot: "leg" },
+  "single-rail-rack": { plastic: "panel", rail: "metal" },
+  /** 屏：`icon` 是指示灯、`speaker` 是网罩、`ui` 是亮屏内容（唯一该自发光的槽位）。 */
+  "smart-display": { icon: "indicator", speaker: "grille", ui: "lit" },
+  "smart-display-wall": { icon: "indicator", speaker: "grille", ui: "lit" },
+  "storage-cart": { tray: "shelf", wheel: "metal" },
+  /** `right` 用中性强调色角色：`accent` 本身没有外观配方。 */
+  "switch-console": { detail: "trim", left: "panel", right: "accentNeutral" },
+  "xbox-series-x": { detail: "grille" },
+  /**
+   * 落地灯（`floor-lamp.glb`，C6 孤儿文件）：旧工作流命名，只有 `white` / `shiny` 能被
+   * token 直读；其余（`white_ppc1`、`*5`、`[Color_008]1`）靠下面的完整名覆盖。
+   */
+  "floor-lamp": { white: "lit", shiny: "metal" },
+  /** 单材质柱体（`pillar-material-0`）：结构本体。 */
+  pillar: { 0: "body" },
+
+  /* 说明：`bar` / `bookcase` / `cabinet` / `curtain_*` / `kitchen*` / `nas` / `stairs`
+   * 等 26 个「导出器自动编号」模型的角色，继续由 `MODEL_SLOT_ROLES` /
+   * `MODEL_MATERIAL_ORDER_ROLES` 按下标给出。
+   *
+   * 这里**不能**用 `<itemType>-<role>` 重命名来解耦：运行时还有 21 处按
+   * `material-<n>` 下标 / 原始材质名取色的分支（柜门双色 shader、窗帘自发光、
+   * 楼梯踏步地板色、鞋柜台面、钢琴漆面、NAS 透光板、电梯门板…），
+   * 见 `ops/checks/studio/audit_glb_materials.mjs` 的 N1 规则说明。
+   * 要改名必须先迁移那批分支，否则会静默丢效果。
+   */
 });
 
 /* ------------------------------------------------------------------ *
@@ -643,6 +692,20 @@ const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
     "material-0": "screen",
     0: "screen",
   },
+  /**
+   * 落地灯（`floor-lamp.glb`）：旧工作流命名，尾词是颜色 / 缩略词（`*5`、`white_ppc1`、
+   * `[Color_008]1`），token 化后取不到构件，只能按完整材质名覆盖。
+   * 按几何位置定：灯罩透光、杆件金属、灯体漆面、罩口环饰、底盘 + 配重。
+   */
+  "floor-lamp": {
+    "frosted-white": "lit",
+    metal_corrogated_shiny: "metal",
+    white_ppc1: "body",
+    "[<0011_seashell>]": "trim",
+    "*5": "lit",
+    "[color_008]1": "base",
+  },
+
 });
 
 /* ------------------------------------------------------------------ *
@@ -739,5 +802,24 @@ export function resolveSemanticSlotRole(
   if (modelTokenRoles && modelTokenRoles[token]) return modelTokenRoles[token];
   const familyTokenRoles = FAMILY_TOKEN_ROLES[family];
   if (familyTokenRoles && familyTokenRoles[token]) return familyTokenRoles[token];
-  return GENERIC_TOKEN_ROLES[token] ?? null;
+  const genericRole = GENERIC_TOKEN_ROLES[token];
+  if (genericRole) return genericRole;
+  /**
+   * 同角色的重复槽位（`bookcase-accent` / `bookcase-accent-2` / `bookcase-accent-3`）：
+   * 尾段是纯序号，去掉序号再解析一次，落回同一个语义角色。
+   * 没有这一步，一个模型里 4 个 `accent` 槽位就只有第 1 个能被名字解析，
+   * 其余只能靠槽位顺序表 —— 一旦重出模型、顺序变化就会错色。
+   */
+  const trimmedName = lowerName.replace(/[-\s]\d+$/, "");
+  if (trimmedName !== lowerName) {
+    const trimmedToken = semanticSlotToken(trimmedName);
+    if (!trimmedToken || /^\d+$/.test(trimmedToken)) return null;
+    return (
+      modelTokenRoles?.[trimmedToken] ??
+      familyTokenRoles?.[trimmedToken] ??
+      GENERIC_TOKEN_ROLES[trimmedToken] ??
+      null
+    );
+  }
+  return null;
 }

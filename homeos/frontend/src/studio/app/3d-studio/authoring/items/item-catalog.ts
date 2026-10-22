@@ -971,11 +971,19 @@ export const itemTypeCatalog = {
     color: "#8d96aa",
   },
   kitchenisland: {
-    name: "岛台",
+    name: "岛台（简版）",
     glyph: "▭",
     width: 2.4,
     depth: 0.8,
     height: 0.9,
+    color: "#cdd2d6",
+  },
+  "kitchen-island": {
+    name: "岛台",
+    glyph: "▤",
+    width: 2.14,
+    depth: 0.78,
+    height: 1.2,
     color: "#cdd2d6",
   },
   sideboard: {
@@ -1992,6 +2000,7 @@ squareEdgeItemTypeSet = new Set([
   "kitchensink",
   "kitchencooktop",
   "kitchenisland",
+  "kitchen-island",
   "vanity",
   "basin",
   "bathtub",

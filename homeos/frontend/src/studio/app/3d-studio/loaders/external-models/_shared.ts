@@ -174,6 +174,7 @@ export const paletteOverrideItemTypes = new Set([
 
   "coffeetable",
   "kitchenisland",
+  "kitchen-island",
 ]);
 export function createIndoorAssetDescriptor(indoorAssetId: any, indoorAssetScaleBasis: any) {
   return Object.freeze({
@@ -279,6 +280,12 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       MODEL_ASSET_CACHE_KEYS.reference,
     ),
     kitchenisland: createFurnitureAssetDescriptor("kitchenisland", [2.4, 0.9, 0.8]),
+    /**
+     * 真实岛台模型（4794 三角面，7 条语义槽位）。
+     * `kitchenisland` 那份是 108 面的占位方盒，两者并存：目录里「岛台」卡片
+     * （`data-item-type="kitchen-island"`）此前因为没登记而拖不进场景。
+     */
+    "kitchen-island": createFurnitureAssetDescriptor("kitchen-island", [2.143, 1.195, 0.78]),
     squarecoffeetable: createFurnitureAssetDescriptor("squarecoffeetable", [1.4, 0.46, 0.7]),
     tvstand: createFurnitureAssetDescriptor("tvstand", [1.8, 0.48, 0.42]),
     rug: createHomeAssetDescriptor("rug", {

@@ -1,0 +1,4397 @@
+{
+  "format": 1,
+  "note": "GLB 材质「槽位下标 → 语义角色」快照：故意不含槽位名，改名不影响指纹；角色本身变化（重导出位移 / token 表误改）会让 check:materials 失败。",
+  "generatedAt": "2026-10-22T03:23:48.152Z",
+  "modelCount": 332,
+  "fileCount": 660,
+  "materialCount": 3067,
+  "files": {
+    "3d-printer-lite.glb": [
+      "bezel",
+      "frame",
+      "trim",
+      "indicator",
+      "panel"
+    ],
+    "3d-printer.glb": [
+      "bezel",
+      "frame",
+      "trim",
+      "indicator",
+      "panel"
+    ],
+    "air-fryer-lite.glb": [
+      "shell",
+      "door",
+      "panel",
+      "handle"
+    ],
+    "air-fryer.glb": [
+      "shell",
+      "door",
+      "panel",
+      "handle"
+    ],
+    "air-hockey-table-lite.glb": [
+      "sportFrame",
+      "surface",
+      "trim",
+      "base"
+    ],
+    "air-hockey-table.glb": [
+      "sportFrame",
+      "surface",
+      "trim",
+      "base"
+    ],
+    "air-outlet-lite.glb": [
+      "grille"
+    ],
+    "air-outlet.glb": [
+      "grille"
+    ],
+    "airpurifier-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "airpurifier.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "aquarium-lite.glb": [
+      "frame",
+      "shadow",
+      "sand",
+      "rock",
+      "foliage",
+      "fish",
+      "glass",
+      "water"
+    ],
+    "aquarium.glb": [
+      "frame",
+      "shadow",
+      "sand",
+      "rock",
+      "foliage",
+      "fish",
+      "glass",
+      "water"
+    ],
+    "arcade-machine-lite.glb": [
+      "frame",
+      "bezel",
+      "stand",
+      "trim",
+      "grille"
+    ],
+    "arcade-machine.glb": [
+      "frame",
+      "bezel",
+      "stand",
+      "trim",
+      "grille"
+    ],
+    "arched-glass-console-lite.glb": [
+      "carcass",
+      "glass",
+      "trim",
+      "foliage"
+    ],
+    "arched-glass-console.glb": [
+      "carcass",
+      "glass",
+      "trim",
+      "foliage"
+    ],
+    "aroma-diffuser-lite.glb": [
+      "container",
+      "water",
+      "trim",
+      "shell",
+      "base",
+      "metal"
+    ],
+    "aroma-diffuser.glb": [
+      "container",
+      "water",
+      "trim",
+      "shell",
+      "base",
+      "metal"
+    ],
+    "baby-crib-lite.glb": [
+      "frame",
+      "leg",
+      "surface"
+    ],
+    "baby-crib.glb": [
+      "frame",
+      "leg",
+      "surface"
+    ],
+    "ball-pit-lite.glb": [
+      "playBall",
+      "playBall",
+      "playBall",
+      "playBall"
+    ],
+    "ball-pit.glb": [
+      "playBall",
+      "playBall",
+      "playBall",
+      "playBall"
+    ],
+    "bar-lite.glb": [
+      "top",
+      "body",
+      "base",
+      "trim",
+      "leg",
+      "metal"
+    ],
+    "bar.glb": [
+      "top",
+      "body",
+      "base",
+      "trim",
+      "leg",
+      "metal"
+    ],
+    "bar-stool-lite.glb": [
+      "frame",
+      "metal",
+      "cushion"
+    ],
+    "bar-stool.glb": [
+      "frame",
+      "metal",
+      "cushion"
+    ],
+    "barbell-rack-lite.glb": [
+      "sportFrame",
+      "weight",
+      "grip"
+    ],
+    "barbell-rack.glb": [
+      "sportFrame",
+      "weight",
+      "grip"
+    ],
+    "basin-lite.glb": [
+      "bowl",
+      "soapTray",
+      "faucet",
+      "rim",
+      "interior",
+      "mirror"
+    ],
+    "basin.glb": [
+      "bowl",
+      "soapTray",
+      "faucet",
+      "rim",
+      "interior",
+      "mirror"
+    ],
+    "bathtub-lite.glb": [
+      "ceramic",
+      "faucet",
+      "rim"
+    ],
+    "bathtub.glb": [
+      "ceramic",
+      "faucet",
+      "rim"
+    ],
+    "bed-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "bed.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "bed-end-bench-lite.glb": [
+      "upholstery",
+      "frame"
+    ],
+    "bed-end-bench.glb": [
+      "upholstery",
+      "frame"
+    ],
+    "bed-storage-chest-lite.glb": [
+      "carcass",
+      "lid",
+      "base",
+      "handle"
+    ],
+    "bed-storage-chest.glb": [
+      "carcass",
+      "lid",
+      "base",
+      "handle"
+    ],
+    "bed-tray-lite.glb": [
+      "board",
+      "board"
+    ],
+    "bed-tray.glb": [
+      "board",
+      "board"
+    ],
+    "bicycle-rack-lite.glb": [
+      "weight",
+      "grip",
+      "trim",
+      "sportFrame"
+    ],
+    "bicycle-rack.glb": [
+      "weight",
+      "grip",
+      "trim",
+      "sportFrame"
+    ],
+    "bookcase-lite.glb": [
+      "interior",
+      "base",
+      "shelf",
+      "accent",
+      "accent",
+      "accent",
+      "accent",
+      "body",
+      "accent",
+      "shelf",
+      "shelf",
+      "book",
+      "book",
+      "book",
+      "book",
+      "book",
+      "book"
+    ],
+    "bookcase.glb": [
+      "interior",
+      "base",
+      "shelf",
+      "accent",
+      "accent",
+      "accent",
+      "accent",
+      "body",
+      "accent",
+      "shelf",
+      "shelf",
+      "book",
+      "book",
+      "book",
+      "book",
+      "book",
+      "book"
+    ],
+    "bread-maker-lite.glb": [
+      "shell",
+      "panel",
+      "window",
+      "lid",
+      "handle"
+    ],
+    "bread-maker.glb": [
+      "shell",
+      "panel",
+      "window",
+      "lid",
+      "handle"
+    ],
+    "building-block-table-lite.glb": [
+      "playBody",
+      "playAccent",
+      "playAccent",
+      "playBall"
+    ],
+    "building-block-table.glb": [
+      "playBody",
+      "playAccent",
+      "playAccent",
+      "playBall"
+    ],
+    "bunk-bed-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "bunk-bed.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "cabinet-lite.glb": [
+      "door",
+      "door",
+      "metal"
+    ],
+    "cabinet.glb": [
+      "door",
+      "door",
+      "metal"
+    ],
+    "candlestick-lite.glb": [
+      "base",
+      "candle",
+      "candle",
+      "soapTray"
+    ],
+    "candlestick.glb": [
+      "base",
+      "candle",
+      "candle",
+      "soapTray"
+    ],
+    "capsule-rack-lite.glb": [
+      "rack",
+      "base",
+      "container",
+      "container",
+      "mug"
+    ],
+    "capsule-rack.glb": [
+      "rack",
+      "base",
+      "container",
+      "container",
+      "mug"
+    ],
+    "car-lite.glb": [
+      "bodywork"
+    ],
+    "car.glb": [
+      "bodywork"
+    ],
+    "cat-scratcher-lite.glb": [
+      "scratchingPost",
+      "base"
+    ],
+    "cat-scratcher.glb": [
+      "scratchingPost",
+      "base"
+    ],
+    "cat-tree-lite.glb": [
+      "frame",
+      "petPad",
+      "rope",
+      "base"
+    ],
+    "cat-tree.glb": [
+      "frame",
+      "petPad",
+      "rope",
+      "base"
+    ],
+    "ceiling-fan-lite.glb": [
+      "shell",
+      "wood",
+      "trim"
+    ],
+    "ceiling-fan.glb": [
+      "shell",
+      "wood",
+      "trim"
+    ],
+    "cello-stand-lite.glb": [
+      "frame",
+      "bezel",
+      "stand",
+      "trim"
+    ],
+    "cello-stand.glb": [
+      "frame",
+      "bezel",
+      "stand",
+      "trim"
+    ],
+    "ceramic-hob-lite.glb": [
+      "hobFrame",
+      "cooktop",
+      "burner",
+      "burner"
+    ],
+    "ceramic-hob.glb": [
+      "hobFrame",
+      "cooktop",
+      "burner",
+      "burner"
+    ],
+    "chair-lite.glb": [
+      "frame",
+      "fabric"
+    ],
+    "chair.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "child-highchair-lite.glb": [
+      "frame",
+      "frame",
+      "wood",
+      "surface",
+      "leg"
+    ],
+    "child-highchair.glb": [
+      "frame",
+      "frame",
+      "wood",
+      "surface",
+      "leg"
+    ],
+    "coat-rack-lite.glb": [
+      "frame",
+      "handle",
+      "base"
+    ],
+    "coat-rack.glb": [
+      "frame",
+      "handle",
+      "base"
+    ],
+    "coffee-grinder-lite.glb": [
+      "shell",
+      "container",
+      "base",
+      "containerLid",
+      "handle"
+    ],
+    "coffee-grinder.glb": [
+      "shell",
+      "container",
+      "base",
+      "containerLid",
+      "handle"
+    ],
+    "coffee-machine-lite.glb": [
+      "shell",
+      "base",
+      "panel",
+      "trim",
+      "handle"
+    ],
+    "coffee-machine.glb": [
+      "shell",
+      "base",
+      "panel",
+      "trim",
+      "handle"
+    ],
+    "coffeetable-lite.glb": [
+      "frame",
+      "shadow",
+      "surface"
+    ],
+    "coffeetable.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "cookware-set-lite.glb": [
+      "potBody",
+      "potBody",
+      "handle",
+      "trim"
+    ],
+    "cookware-set.glb": [
+      "potBody",
+      "potBody",
+      "handle",
+      "trim"
+    ],
+    "countertop-lite.glb": [
+      "rim"
+    ],
+    "countertop.glb": [
+      "rim"
+    ],
+    "curtain_left-lite.glb": [
+      "metal",
+      "fabric",
+      "fabric",
+      "metal",
+      "fabric",
+      "fabric"
+    ],
+    "curtain_left.glb": [
+      "metal",
+      "fabric",
+      "fabric",
+      "metal",
+      "fabric",
+      "fabric"
+    ],
+    "curtain_right-lite.glb": [
+      "metal",
+      "fabric",
+      "fabric",
+      "metal",
+      "fabric",
+      "fabric"
+    ],
+    "curtain_right.glb": [
+      "metal",
+      "fabric",
+      "fabric",
+      "metal",
+      "fabric",
+      "fabric"
+    ],
+    "curtain_split-lite.glb": [
+      "metal",
+      "fabric",
+      "fabric",
+      "metal",
+      "fabric",
+      "fabric"
+    ],
+    "curtain_split.glb": [
+      "metal",
+      "fabric",
+      "fabric",
+      "metal",
+      "fabric",
+      "fabric"
+    ],
+    "cutting-board-rack-lite.glb": [
+      "board",
+      "rackWood"
+    ],
+    "cutting-board-rack.glb": [
+      "board",
+      "rackWood"
+    ],
+    "dartboard-lite.glb": [
+      "weight",
+      "sportFrame",
+      "grip",
+      "trim",
+      "pad"
+    ],
+    "dartboard.glb": [
+      "weight",
+      "sportFrame",
+      "grip",
+      "trim",
+      "pad"
+    ],
+    "decor-books-lite.glb": [
+      "base",
+      "light",
+      "accent"
+    ],
+    "decor-books.glb": [
+      "base",
+      "light",
+      "accent"
+    ],
+    "decor-small-plant-lite.glb": [
+      "light",
+      "leaf",
+      "dark"
+    ],
+    "decor-small-plant.glb": [
+      "light",
+      "leaf",
+      "dark"
+    ],
+    "decor-tea-tray-lite.glb": [
+      "base",
+      "light",
+      "dark"
+    ],
+    "decor-tea-tray.glb": [
+      "base",
+      "light",
+      "dark"
+    ],
+    "decor-tissue-box-lite.glb": [
+      "base",
+      "light",
+      "dark"
+    ],
+    "decor-tissue-box.glb": [
+      "base",
+      "light",
+      "dark"
+    ],
+    "decor-vase-lite.glb": [
+      "vase",
+      "flower",
+      "stem"
+    ],
+    "decor-vase.glb": [
+      "vase",
+      "flower",
+      "stem"
+    ],
+    "decorative-lantern-lite.glb": [
+      "shell",
+      "shell",
+      "glow",
+      "glow"
+    ],
+    "decorative-lantern.glb": [
+      "shell",
+      "shell",
+      "glow",
+      "glow"
+    ],
+    "decorative-plate-lite.glb": [
+      "plate",
+      "plate",
+      "plate",
+      "plate"
+    ],
+    "decorative-plate.glb": [
+      "plate",
+      "plate",
+      "plate",
+      "plate"
+    ],
+    "dehumidifier-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "water"
+    ],
+    "dehumidifier.glb": [
+      "body",
+      "panel",
+      "recess",
+      "water"
+    ],
+    "desk-lite.glb": [
+      "metal",
+      "top",
+      "frame"
+    ],
+    "desk.glb": [
+      "metal",
+      "top",
+      "frame"
+    ],
+    "desktop-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "desktop.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "desktop-frame-lite.glb": [
+      "frame",
+      "base",
+      "surface",
+      "drape",
+      "accentNeutral"
+    ],
+    "desktop-frame.glb": [
+      "frame",
+      "base",
+      "surface",
+      "drape",
+      "accentNeutral"
+    ],
+    "dish-rack-lite.glb": [
+      "base",
+      "rack",
+      "mug",
+      "basket"
+    ],
+    "dish-rack.glb": [
+      "base",
+      "rack",
+      "mug",
+      "basket"
+    ],
+    "dishwasher-lite.glb": [
+      "door",
+      "shell",
+      "panel",
+      "handle"
+    ],
+    "dishwasher.glb": [
+      "door",
+      "shell",
+      "panel",
+      "handle"
+    ],
+    "disinfection-cabinet-lite.glb": [
+      "shell",
+      "base",
+      "panel",
+      "panel",
+      "window"
+    ],
+    "disinfection-cabinet.glb": [
+      "shell",
+      "base",
+      "panel",
+      "panel",
+      "window"
+    ],
+    "dog-crate-lite.glb": [
+      "rackWood",
+      "base",
+      "petPad"
+    ],
+    "dog-crate.glb": [
+      "rackWood",
+      "base",
+      "petPad"
+    ],
+    "doll-shelf-lite.glb": [
+      "rackWood",
+      "shelf",
+      "playAccent",
+      "shelf",
+      "base"
+    ],
+    "doll-shelf.glb": [
+      "rackWood",
+      "shelf",
+      "playAccent",
+      "shelf",
+      "base"
+    ],
+    "double-open-wardrobe-lite.glb": [
+      "carcass",
+      "carcass",
+      "trim",
+      "drawer"
+    ],
+    "double-open-wardrobe.glb": [
+      "carcass",
+      "carcass",
+      "trim",
+      "drawer"
+    ],
+    "drawer-chest-lite.glb": [
+      "frame",
+      "panel",
+      "shadow",
+      "handle"
+    ],
+    "drawer-chest.glb": [
+      "frame",
+      "panel",
+      "shadow",
+      "handle"
+    ],
+    "drawing-tablet-lite.glb": [
+      "shell",
+      "screen",
+      "screen"
+    ],
+    "drawing-tablet.glb": [
+      "shell",
+      "screen",
+      "screen"
+    ],
+    "dried-flowers-lite.glb": [
+      "pot",
+      "stem",
+      "driedBouquet"
+    ],
+    "dried-flowers.glb": [
+      "pot",
+      "stem",
+      "driedBouquet"
+    ],
+    "drum-kit-lite.glb": [
+      "frame",
+      "trim",
+      "bezel",
+      "stand",
+      "grille"
+    ],
+    "drum-kit.glb": [
+      "frame",
+      "trim",
+      "bezel",
+      "stand",
+      "grille"
+    ],
+    "dryer-lite.glb": [
+      "shell",
+      "door",
+      "panel",
+      "trim",
+      "window"
+    ],
+    "dryer.glb": [
+      "shell",
+      "door",
+      "panel",
+      "trim",
+      "window"
+    ],
+    "drying-rack-lite.glb": [
+      "frame",
+      "metal",
+      "panel"
+    ],
+    "drying-rack.glb": [
+      "frame",
+      "metal",
+      "panel"
+    ],
+    "dual-monitors-lite.glb": [
+      "bezel",
+      "screen",
+      "stand"
+    ],
+    "dual-monitors.glb": [
+      "bezel",
+      "screen",
+      "stand"
+    ],
+    "dumbbell-rack-lite.glb": [
+      "weight",
+      "sportFrame",
+      "grip",
+      "trim"
+    ],
+    "dumbbell-rack.glb": [
+      "weight",
+      "sportFrame",
+      "grip",
+      "trim"
+    ],
+    "easel-board-lite.glb": [
+      "frame",
+      "frame",
+      "leg",
+      "surface",
+      "wood"
+    ],
+    "easel-board.glb": [
+      "frame",
+      "frame",
+      "leg",
+      "surface",
+      "wood"
+    ],
+    "electric-fireplace-lite.glb": [
+      "shell",
+      "glow",
+      "shell",
+      "glow",
+      "glow"
+    ],
+    "electric-fireplace.glb": [
+      "shell",
+      "glow",
+      "shell",
+      "glow",
+      "glow"
+    ],
+    "electric-kettle-lite.glb": [
+      "shell",
+      "base",
+      "handle"
+    ],
+    "electric-kettle.glb": [
+      "shell",
+      "base",
+      "handle"
+    ],
+    "electric-valve-lite.glb": [
+      "metal",
+      "base",
+      "shell",
+      "trim"
+    ],
+    "electric-valve.glb": [
+      "metal",
+      "base",
+      "shell",
+      "trim"
+    ],
+    "elevator-lite.glb": [
+      "panel",
+      "body",
+      "trim",
+      "panel",
+      "panel",
+      "body"
+    ],
+    "elevator.glb": [
+      "panel",
+      "body",
+      "trim",
+      "panel",
+      "panel",
+      "body"
+    ],
+    "elliptical-lite.glb": [
+      "sportFrame",
+      "weight",
+      "grip",
+      "pad",
+      "trim"
+    ],
+    "elliptical.glb": [
+      "sportFrame",
+      "weight",
+      "grip",
+      "pad",
+      "trim"
+    ],
+    "entryway-niche-cabinet-lite.glb": [
+      "carcass",
+      "interior",
+      "glow",
+      "cabinetDoor"
+    ],
+    "entryway-niche-cabinet.glb": [
+      "carcass",
+      "interior",
+      "glow",
+      "cabinetDoor"
+    ],
+    "figurine-set-lite.glb": [
+      "base",
+      "figurine",
+      "figurine",
+      "figurine",
+      "figurine"
+    ],
+    "figurine-set.glb": [
+      "base",
+      "figurine",
+      "figurine",
+      "figurine",
+      "figurine"
+    ],
+    "floating-stairs.glb": [
+      "body",
+      "tread",
+      "trim",
+      "glass",
+      "glass"
+    ],
+    "floor-lamp.glb": [
+      "lit",
+      "metal",
+      "body",
+      "trim",
+      "lit",
+      "base"
+    ],
+    "floor-sculpture-lite.glb": [
+      "base",
+      "sculpture",
+      "sculpture"
+    ],
+    "floor-sculpture.glb": [
+      "base",
+      "sculpture",
+      "sculpture"
+    ],
+    "floor-washer-lite.glb": [
+      "shell",
+      "base",
+      "panel",
+      "handle",
+      "trim"
+    ],
+    "floor-washer.glb": [
+      "shell",
+      "base",
+      "panel",
+      "handle",
+      "trim"
+    ],
+    "floorac-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "floorac.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "floorlamp-lite.glb": [
+      "base",
+      "body",
+      "lit",
+      "metal",
+      "trim"
+    ],
+    "floorlamp.glb": [
+      "base",
+      "body",
+      "lit",
+      "metal",
+      "trim"
+    ],
+    "flower-anthurium-lite.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flower",
+      "flowerCenter"
+    ],
+    "flower-anthurium.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flower",
+      "flowerCenter"
+    ],
+    "flower-hydrangea-lite.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flowerCenter",
+      "flower"
+    ],
+    "flower-hydrangea.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flowerCenter",
+      "flower"
+    ],
+    "flower-orchid-lite.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flower",
+      "flowerCenter"
+    ],
+    "flower-orchid.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flower",
+      "flowerCenter"
+    ],
+    "flower-peace-lily-lite.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flower",
+      "flowerCenter"
+    ],
+    "flower-peace-lily.glb": [
+      "pot",
+      "saucer",
+      "foliageLight",
+      "foliage",
+      "stem",
+      "flower",
+      "flowerCenter"
+    ],
+    "folding-screen-lite.glb": [
+      "panelSlat",
+      "frame",
+      "panelSlat"
+    ],
+    "folding-screen.glb": [
+      "panelSlat",
+      "frame",
+      "panelSlat"
+    ],
+    "food-steamer-lite.glb": [
+      "base",
+      "lid",
+      "window",
+      "panel",
+      "soapTray"
+    ],
+    "food-steamer.glb": [
+      "base",
+      "lid",
+      "window",
+      "panel",
+      "soapTray"
+    ],
+    "foosball-table-lite.glb": [
+      "wood",
+      "courtFelt",
+      "courtFelt",
+      "sportFrame",
+      "trim"
+    ],
+    "foosball-table.glb": [
+      "wood",
+      "courtFelt",
+      "courtFelt",
+      "sportFrame",
+      "trim"
+    ],
+    "foot-spa-lite.glb": [
+      "ceramic",
+      "base",
+      "rim",
+      "panel"
+    ],
+    "foot-spa.glb": [
+      "ceramic",
+      "base",
+      "rim",
+      "panel"
+    ],
+    "freezer-lite.glb": [
+      "body",
+      "door",
+      "base",
+      "handle",
+      "panel",
+      "metal"
+    ],
+    "freezer.glb": [
+      "body",
+      "door",
+      "base",
+      "handle",
+      "panel",
+      "screen",
+      "metal",
+      "grating",
+      "lit"
+    ],
+    "fridge-lite.glb": [
+      "body",
+      "panel",
+      "handle"
+    ],
+    "fridge.glb": [
+      "body",
+      "panel",
+      "handle"
+    ],
+    "fruit-basket-lite.glb": [
+      "basket",
+      "basket",
+      "base",
+      "basket"
+    ],
+    "fruit-basket.glb": [
+      "basket",
+      "basket",
+      "base",
+      "basket"
+    ],
+    "full-length-mirror-lite.glb": [
+      "frame",
+      "glass",
+      "base",
+      "surface"
+    ],
+    "full-length-mirror.glb": [
+      "frame",
+      "glass",
+      "base",
+      "surface"
+    ],
+    "garden-arch-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-arch.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bamboo-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bamboo.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bamboo-dense-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bamboo-dense.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-barbecue-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-barbecue.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-barbecue-kettle-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-barbecue-kettle.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bench-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bench.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bench-backless-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bench-backless.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bench-curved-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bench-curved.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bollard-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-bollard.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-carport-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-carport.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-chair-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-chair.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-chair-bistro-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-chair-bistro.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-conifer-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-conifer.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-conifer-layered-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-conifer-layered.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-deck-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-deck.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-horizontal-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-horizontal.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-lattice-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-lattice.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-metal-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fence-metal.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-firepit-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-firepit.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowerbed-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowerbed.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowers-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowers.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowers-wild-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowers-wild.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fountain-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fountain.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fountain-wall-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-fountain-wall.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-arch-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-arch.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-post-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-post.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-solid-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gate-solid.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gazebo-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gazebo.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gazebo-hex-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-gazebo-hex.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-grass-clump-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-grass-clump.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-grass-low-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-grass-low.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hammock-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hammock.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hanging-chair-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hanging-chair.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hedge-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hedge.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hedge-round-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-hedge-round.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-lantern-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-lantern.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-large-planter-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-large-planter.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-lawn-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-lawn.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-lounger-lite.glb": [
+      "base",
+      "light",
+      "dark"
+    ],
+    "garden-lounger.glb": [
+      "base",
+      "light",
+      "dark"
+    ],
+    "garden-low-wall-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-low-wall.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-low-wall-brick-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-low-wall-brick.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-low-wall-slat-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-low-wall-slat.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-outdoor-coffee-table-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-outdoor-coffee-table.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-outdoor-sink-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-outdoor-sink.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-outdoor-sofa-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-outdoor-sofa.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-paving-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-paving.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pergola-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pergola.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pergola-shade-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pergola-shade.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-planter-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-planter.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-planter-square-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-planter-square.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-planter-trough-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-planter-trough.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pond-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pond.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pond-round-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pond-round.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pool-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-pool.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-raised-bed-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-raised-bed.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-retaining-wall-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-retaining-wall.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-rock-water-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-rock-water.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-rocks-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-rocks.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-round-planter-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-round-planter.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-shrub-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-shrub.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-shrub-flowering-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-shrub-flowering.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-shrub-low-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-shrub-low.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-slide-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-slide.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-stepping-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-stepping.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-steps-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-steps.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-storage-shed-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-storage-shed.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-swing-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-swing.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-table-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-table.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-table-picnic-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-table-picnic.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-table-round-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-table-round.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-columnar-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-columnar.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-multistem-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-multistem.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-rounded-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-tree-rounded.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-trellis-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-trellis.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-umbrella-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-umbrella.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-umbrella-square-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-umbrella-square.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-vegetable-bed-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-vegetable-bed.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
+    ],
+    "gaswaterheater-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "gaswaterheater.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "glass-stairs-lite.glb": [
+      "glass",
+      "glass",
+      "trim",
+      "body",
+      "tread"
+    ],
+    "glass-stairs.glb": [
+      "glass",
+      "glass",
+      "trim",
+      "body",
+      "tread"
+    ],
+    "glasscabinet-lite.glb": [
+      "interior",
+      "door",
+      "door",
+      "glass",
+      "glass",
+      "glass",
+      "accent",
+      "accent",
+      "accent",
+      "accent",
+      "body",
+      "interior",
+      "trim",
+      "stash",
+      "stash",
+      "stash",
+      "stash",
+      "stash"
+    ],
+    "glasscabinet.glb": [
+      "interior",
+      "door",
+      "door",
+      "glass",
+      "glass",
+      "glass",
+      "accent",
+      "accent",
+      "accent",
+      "accent",
+      "body",
+      "interior",
+      "trim",
+      "stash",
+      "stash",
+      "stash",
+      "stash",
+      "stash"
+    ],
+    "glasspartition-lite.glb": [
+      "glass",
+      "metal",
+      "handle"
+    ],
+    "glasspartition.glb": [
+      "glass",
+      "metal",
+      "handle"
+    ],
+    "guitar-stand-lite.glb": [
+      "frame",
+      "stand",
+      "bezel",
+      "trim"
+    ],
+    "guitar-stand.glb": [
+      "frame",
+      "stand",
+      "bezel",
+      "trim"
+    ],
+    "hairdryer-holder-lite.glb": [
+      "shell",
+      "base",
+      "trim"
+    ],
+    "hairdryer-holder.glb": [
+      "shell",
+      "base",
+      "trim"
+    ],
+    "health-kettle-lite.glb": [
+      "shell",
+      "window",
+      "handle",
+      "panel",
+      "base"
+    ],
+    "health-kettle.glb": [
+      "shell",
+      "window",
+      "handle",
+      "panel",
+      "base"
+    ],
+    "heated-towel-rail-lite.glb": [
+      "rack",
+      "faucet",
+      "towel",
+      "trim"
+    ],
+    "heated-towel-rail.glb": [
+      "rack",
+      "faucet",
+      "towel",
+      "trim"
+    ],
+    "heater-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "control"
+    ],
+    "heater.glb": [
+      "body",
+      "panel",
+      "recess",
+      "control"
+    ],
+    "home-network-cabinet-lite.glb": [
+      "carcass",
+      "cabinetDoor",
+      "recess",
+      "indicator",
+      "glass"
+    ],
+    "home-network-cabinet.glb": [
+      "carcass",
+      "cabinetDoor",
+      "recess",
+      "indicator",
+      "glass"
+    ],
+    "humidifier-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "water"
+    ],
+    "humidifier.glb": [
+      "body",
+      "panel",
+      "recess",
+      "water"
+    ],
+    "induction-hob-lite.glb": [
+      "hobFrame",
+      "cooktop",
+      "burner"
+    ],
+    "induction-hob.glb": [
+      "hobFrame",
+      "cooktop",
+      "burner"
+    ],
+    "jewelry-box-lite.glb": [
+      "carcass",
+      "handle",
+      "interior",
+      "interior",
+      "base"
+    ],
+    "jewelry-box.glb": [
+      "carcass",
+      "handle",
+      "interior",
+      "interior",
+      "base"
+    ],
+    "juicer-lite.glb": [
+      "shell",
+      "base",
+      "panel",
+      "containerLid",
+      "container",
+      "handle"
+    ],
+    "juicer.glb": [
+      "shell",
+      "base",
+      "panel",
+      "containerLid",
+      "container",
+      "handle"
+    ],
+    "keyboard-stand-lite.glb": [
+      "frame",
+      "trim",
+      "bezel",
+      "grille",
+      "stand"
+    ],
+    "keyboard-stand.glb": [
+      "frame",
+      "trim",
+      "bezel",
+      "grille",
+      "stand"
+    ],
+    "kids-slide-lite.glb": [
+      "playBody",
+      "playAccent",
+      "playAccent"
+    ],
+    "kids-slide.glb": [
+      "playBody",
+      "playAccent",
+      "playAccent"
+    ],
+    "kids-swing-lite.glb": [
+      "playBody",
+      "grip",
+      "playAccent"
+    ],
+    "kids-swing.glb": [
+      "playBody",
+      "grip",
+      "playAccent"
+    ],
+    "kids-tent-lite.glb": [
+      "tentFabric",
+      "tentFabric",
+      "tentFabric",
+      "playAccent",
+      "playBody"
+    ],
+    "kids-tent.glb": [
+      "tentFabric",
+      "tentFabric",
+      "tentFabric",
+      "playAccent",
+      "playBody"
+    ],
+    "kitchen-island-lite.glb": [
+      "carcass",
+      "carcass",
+      "countertop",
+      "countertop",
+      "countertop",
+      "trim",
+      "foliage"
+    ],
+    "kitchen-island.glb": [
+      "carcass",
+      "carcass",
+      "countertop",
+      "countertop",
+      "countertop",
+      "trim",
+      "foliage"
+    ],
+    "kitchenbase-lite.glb": [
+      "base",
+      "body",
+      "top",
+      "door",
+      "metal"
+    ],
+    "kitchenbase.glb": [
+      "base",
+      "body",
+      "top",
+      "door",
+      "metal"
+    ],
+    "kitchencooktop-lite.glb": [
+      "base",
+      "body",
+      "top",
+      "cooktop",
+      "door",
+      "metal",
+      "metal",
+      "metal"
+    ],
+    "kitchencooktop.glb": [
+      "base",
+      "body",
+      "top",
+      "cooktop",
+      "door",
+      "metal",
+      "metal",
+      "metal"
+    ],
+    "kitchenisland-lite.glb": [
+      "body",
+      "top",
+      "door",
+      "metal",
+      "base",
+      "leg"
+    ],
+    "kitchenisland.glb": [
+      "body",
+      "top",
+      "door",
+      "metal",
+      "base",
+      "leg"
+    ],
+    "kitchensink-lite.glb": [
+      "base",
+      "body",
+      "top",
+      "sink",
+      "sink",
+      "metal",
+      "door",
+      "metal"
+    ],
+    "kitchensink.glb": [
+      "base",
+      "body",
+      "top",
+      "sink",
+      "sink",
+      "metal",
+      "door",
+      "metal"
+    ],
+    "knife-block-lite.glb": [
+      "rackWood",
+      "metal",
+      "handle"
+    ],
+    "knife-block.glb": [
+      "rackWood",
+      "metal",
+      "handle"
+    ],
+    "laptop-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "laptop.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "laundry-basket-lite.glb": [
+      "carcass",
+      "trim"
+    ],
+    "laundry-basket.glb": [
+      "carcass",
+      "trim"
+    ],
+    "litter-tray-lite.glb": [
+      "petBody",
+      "litter",
+      "litter"
+    ],
+    "litter-tray.glb": [
+      "petBody",
+      "litter",
+      "litter"
+    ],
+    "loft-bed-circle-lite.glb": [
+      "frame",
+      "trim",
+      "mattress",
+      "linen"
+    ],
+    "loft-bed-circle.glb": [
+      "frame",
+      "trim",
+      "mattress",
+      "linen"
+    ],
+    "magazine-rack-lite.glb": [
+      "rackWood",
+      "basket",
+      "rackWood",
+      "base",
+      "basket"
+    ],
+    "magazine-rack.glb": [
+      "rackWood",
+      "basket",
+      "rackWood",
+      "base",
+      "basket"
+    ],
+    "mahjong-table-lite.glb": [
+      "leg",
+      "wood",
+      "frame",
+      "frame",
+      "surface"
+    ],
+    "mahjong-table.glb": [
+      "leg",
+      "wood",
+      "frame",
+      "frame",
+      "surface"
+    ],
+    "microwave-lite.glb": [
+      "shell",
+      "door",
+      "panel",
+      "handle"
+    ],
+    "microwave.glb": [
+      "shell",
+      "door",
+      "panel",
+      "handle"
+    ],
+    "mop-sink-lite.glb": [
+      "ceramic",
+      "faucet",
+      "bowl"
+    ],
+    "mop-sink.glb": [
+      "ceramic",
+      "faucet",
+      "bowl"
+    ],
+    "mug-tree-lite.glb": [
+      "rackWood",
+      "mug"
+    ],
+    "mug-tree.glb": [
+      "rackWood",
+      "mug"
+    ],
+    "multi-cooker-lite.glb": [
+      "shell",
+      "lid",
+      "base",
+      "handle"
+    ],
+    "multi-cooker.glb": [
+      "shell",
+      "lid",
+      "base",
+      "handle"
+    ],
+    "nas-lite.glb": [
+      "panel",
+      "base",
+      "recess",
+      "body",
+      "lit"
+    ],
+    "nas.glb": [
+      "panel",
+      "base",
+      "recess",
+      "body",
+      "lit"
+    ],
+    "nightstand-lite.glb": [
+      "body",
+      "top",
+      "metal",
+      "drawer",
+      "base"
+    ],
+    "nightstand.glb": [
+      "body",
+      "top",
+      "metal",
+      "drawer",
+      "base"
+    ],
+    "office-chair-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "accent"
+    ],
+    "office-chair.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "paper-shredder-lite.glb": [
+      "shell",
+      "base",
+      "handle",
+      "grille"
+    ],
+    "paper-shredder.glb": [
+      "shell",
+      "base",
+      "handle",
+      "grille"
+    ],
+    "pet-bed-bowls-lite.glb": [
+      "frame",
+      "petPad",
+      "petBowl",
+      "petBowl",
+      "water",
+      "petFood"
+    ],
+    "pet-bed-bowls.glb": [
+      "frame",
+      "petPad",
+      "petBowl",
+      "petBowl",
+      "water",
+      "petFood"
+    ],
+    "pet-dryer-lite.glb": [
+      "petBody",
+      "interior",
+      "base",
+      "panel",
+      "glass"
+    ],
+    "pet-dryer.glb": [
+      "petBody",
+      "interior",
+      "base",
+      "panel",
+      "glass"
+    ],
+    "pet-feeder-lite.glb": [
+      "petBody",
+      "base",
+      "petBowl",
+      "trim"
+    ],
+    "pet-feeder.glb": [
+      "petBody",
+      "base",
+      "petBowl",
+      "trim"
+    ],
+    "pet-fountain-lite.glb": [
+      "petBody",
+      "petBowl",
+      "container",
+      "petBowl",
+      "trim"
+    ],
+    "pet-fountain.glb": [
+      "petBody",
+      "petBowl",
+      "container",
+      "petBowl",
+      "trim"
+    ],
+    "pet-pen-lite.glb": [
+      "rack",
+      "base"
+    ],
+    "pet-pen.glb": [
+      "rack",
+      "base"
+    ],
+    "pet-steps-lite.glb": [
+      "rackWood",
+      "petPad"
+    ],
+    "pet-steps.glb": [
+      "rackWood",
+      "petPad"
+    ],
+    "pet-stroller-lite.glb": [
+      "base",
+      "petBody",
+      "petPad",
+      "trim"
+    ],
+    "pet-stroller.glb": [
+      "base",
+      "petBody",
+      "petPad",
+      "trim"
+    ],
+    "piano-lite.glb": [
+      "body",
+      "dark",
+      "trim"
+    ],
+    "piano.glb": [
+      "body",
+      "dark",
+      "trim"
+    ],
+    "pilates-reformer-lite.glb": [
+      "sportFrame",
+      "base",
+      "pad",
+      "trim",
+      "grip"
+    ],
+    "pilates-reformer.glb": [
+      "sportFrame",
+      "base",
+      "pad",
+      "trim",
+      "grip"
+    ],
+    "pillar-lite.glb": [
+      "body"
+    ],
+    "pillar.glb": [
+      "body"
+    ],
+    "pillar-quarter-lite.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-quarter.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-quarterinner-lite.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-quarterinner.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-round-lite.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-round.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-semicircle-lite.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillar-semicircle.glb": [
+      "body",
+      "base",
+      "trim"
+    ],
+    "pillow-set-lite.glb": [
+      "pillow",
+      "pillow",
+      "fabric"
+    ],
+    "pillow-set.glb": [
+      "pillow",
+      "pillow",
+      "fabric"
+    ],
+    "ping-pong-table-lite.glb": [
+      "pad",
+      "sportFrame",
+      "trim",
+      "weight",
+      "grip"
+    ],
+    "ping-pong-table.glb": [
+      "pad",
+      "sportFrame",
+      "trim",
+      "weight",
+      "grip"
+    ],
+    "pipeline-water-purifier-lite.glb": [
+      "body",
+      "trim"
+    ],
+    "pipeline-water-purifier.glb": [
+      "body",
+      "trim"
+    ],
+    "plant-lite.glb": [
+      "pot",
+      "saucer",
+      "foliage",
+      "foliageSoft",
+      "foliageLight"
+    ],
+    "plant.glb": [
+      "pot",
+      "saucer",
+      "foliage",
+      "foliageSoft",
+      "foliageLight"
+    ],
+    "plant-monstera-lite.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageLight"
+    ],
+    "plant-monstera.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageLight"
+    ],
+    "plant-palm-lite.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageSoft"
+    ],
+    "plant-palm.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageSoft"
+    ],
+    "plant-pothos-lite.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageLight"
+    ],
+    "plant-pothos.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageLight"
+    ],
+    "plant-rubber-lite.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageSoft"
+    ],
+    "plant-rubber.glb": [
+      "pot",
+      "saucer",
+      "stem",
+      "foliage",
+      "foliageSoft"
+    ],
+    "plant-snake-lite.glb": [
+      "pot",
+      "saucer",
+      "foliage",
+      "foliageSoft"
+    ],
+    "plant-snake.glb": [
+      "pot",
+      "saucer",
+      "foliage",
+      "foliageSoft"
+    ],
+    "play-kitchen-lite.glb": [
+      "playBody",
+      "playAccent",
+      "playBody",
+      "glass",
+      "playAccent",
+      "playAccent"
+    ],
+    "play-kitchen.glb": [
+      "playBody",
+      "playAccent",
+      "playBody",
+      "glass",
+      "playAccent",
+      "playAccent"
+    ],
+    "pool-table-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "pool-table.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "power-blender-lite.glb": [
+      "shell",
+      "base",
+      "panel",
+      "container",
+      "containerLid"
+    ],
+    "power-blender.glb": [
+      "shell",
+      "base",
+      "panel",
+      "container",
+      "containerLid"
+    ],
+    "pressure-cooker-lite.glb": [
+      "shell",
+      "lid",
+      "panel",
+      "handle",
+      "handle"
+    ],
+    "pressure-cooker.glb": [
+      "shell",
+      "lid",
+      "panel",
+      "handle",
+      "handle"
+    ],
+    "printer-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "paper"
+    ],
+    "printer.glb": [
+      "body",
+      "panel",
+      "recess",
+      "paper"
+    ],
+    "projection-screen-lite.glb": [
+      "shell",
+      "screen",
+      "trim"
+    ],
+    "projection-screen.glb": [
+      "shell",
+      "screen",
+      "trim"
+    ],
+    "projector-lite.glb": [
+      "shell",
+      "bezel",
+      "lens",
+      "trim"
+    ],
+    "projector.glb": [
+      "shell",
+      "bezel",
+      "lens",
+      "trim"
+    ],
+    "ps5-lite.glb": [
+      "shell",
+      "panel",
+      "trim",
+      "base",
+      "indicator"
+    ],
+    "ps5.glb": [
+      "shell",
+      "panel",
+      "trim",
+      "base",
+      "indicator"
+    ],
+    "punching-bag-lite.glb": [
+      "base",
+      "bagBody",
+      "bagBody",
+      "trim"
+    ],
+    "punching-bag.glb": [
+      "base",
+      "bagBody",
+      "bagBody",
+      "trim"
+    ],
+    "racing-cockpit-lite.glb": [
+      "sportFrame",
+      "pad",
+      "frame",
+      "grip"
+    ],
+    "racing-cockpit.glb": [
+      "sportFrame",
+      "pad",
+      "frame",
+      "grip"
+    ],
+    "rangehood-lite.glb": [
+      "shell",
+      "trim",
+      "grille",
+      "grille"
+    ],
+    "rangehood.glb": [
+      "shell",
+      "trim",
+      "grille",
+      "grille"
+    ],
+    "rectangular-pipeline-dispenser-lite.glb": [
+      "shell",
+      "panel",
+      "trim",
+      "display"
+    ],
+    "rectangular-pipeline-dispenser.glb": [
+      "shell",
+      "panel",
+      "trim",
+      "display"
+    ],
+    "rice-bin-lite.glb": [
+      "container",
+      "containerLid",
+      "base",
+      "window"
+    ],
+    "rice-bin.glb": [
+      "container",
+      "containerLid",
+      "base",
+      "window"
+    ],
+    "ricecooker-lite.glb": [
+      "shell",
+      "lid",
+      "panel",
+      "handle"
+    ],
+    "ricecooker.glb": [
+      "shell",
+      "lid",
+      "panel",
+      "handle"
+    ],
+    "robotvacuum-lite.glb": [
+      "body",
+      "panel",
+      "dark",
+      "trim",
+      "indicator"
+    ],
+    "robotvacuum.glb": [
+      "body",
+      "panel",
+      "dark",
+      "trim",
+      "indicator"
+    ],
+    "rocking-chair-lite.glb": [
+      "frame",
+      "cushion",
+      "leg"
+    ],
+    "rocking-chair.glb": [
+      "frame",
+      "cushion",
+      "leg"
+    ],
+    "rocking-horse-lite.glb": [
+      "frame",
+      "wood",
+      "leg",
+      "frame"
+    ],
+    "rocking-horse.glb": [
+      "frame",
+      "wood",
+      "leg",
+      "frame"
+    ],
+    "round-double-bed-lite.glb": [
+      "frame",
+      "base",
+      "mattress",
+      "upholstery",
+      "leg"
+    ],
+    "round-double-bed.glb": [
+      "frame",
+      "base",
+      "mattress",
+      "upholstery",
+      "leg"
+    ],
+    "round-rug-lite.glb": [
+      "rugBorder",
+      "rugPile"
+    ],
+    "round-rug.glb": [
+      "rugBorder",
+      "rugPile"
+    ],
+    "rounddiningtable-lite.glb": [
+      "frame",
+      "fabric",
+      "accent"
+    ],
+    "rounddiningtable.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "rounddiningtable_turntable-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "rounddiningtable_turntable.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "router-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "indicator"
+    ],
+    "router.glb": [
+      "body",
+      "panel",
+      "recess",
+      "indicator"
+    ],
+    "rowing-machine-lite.glb": [
+      "sportFrame",
+      "sportFrame",
+      "grip"
+    ],
+    "rowing-machine.glb": [
+      "sportFrame",
+      "sportFrame",
+      "grip"
+    ],
+    "rug-lite.glb": [
+      "frame",
+      "fabric"
+    ],
+    "rug.glb": [
+      "frame",
+      "fabric"
+    ],
+    "scanner-lite.glb": [
+      "shell",
+      "panel",
+      "screen",
+      "base",
+      "handle"
+    ],
+    "scanner.glb": [
+      "shell",
+      "panel",
+      "screen",
+      "base",
+      "handle"
+    ],
+    "scooter-lite.glb": [
+      "metal",
+      "emissive",
+      "emissive",
+      "dark",
+      "trim",
+      "body",
+      "emissive",
+      "emissive",
+      "seat"
+    ],
+    "shelf-lite.glb": [
+      "top",
+      "metal",
+      "shelf"
+    ],
+    "shelf.glb": [
+      "top",
+      "metal",
+      "shelf"
+    ],
+    "shoe-bench-lite.glb": [
+      "upholstery",
+      "frame",
+      "base",
+      "leg"
+    ],
+    "shoe-bench.glb": [
+      "upholstery",
+      "frame",
+      "base",
+      "leg"
+    ],
+    "shoecabinet-lite.glb": [
+      "interior",
+      "base",
+      "top",
+      "body",
+      "door"
+    ],
+    "shoecabinet.glb": [
+      "interior",
+      "base",
+      "top",
+      "body",
+      "door"
+    ],
+    "shower-lite.glb": [
+      "body",
+      "interior",
+      "metal"
+    ],
+    "shower.glb": [
+      "body",
+      "interior",
+      "metal"
+    ],
+    "shower-stool-lite.glb": [
+      "seat",
+      "leg",
+      "faucet"
+    ],
+    "shower-stool.glb": [
+      "seat",
+      "leg",
+      "faucet"
+    ],
+    "side-table-lite.glb": [
+      "countertop",
+      "frame",
+      "leg"
+    ],
+    "side-table.glb": [
+      "countertop",
+      "frame",
+      "leg"
+    ],
+    "sideboard-lite.glb": [
+      "top",
+      "interior",
+      "body",
+      "door"
+    ],
+    "sideboard.glb": [
+      "top",
+      "interior",
+      "body",
+      "door"
+    ],
+    "single-glass-cabinet-lite.glb": [
+      "carcass",
+      "shelf",
+      "base",
+      "glass"
+    ],
+    "single-glass-cabinet.glb": [
+      "carcass",
+      "shelf",
+      "base",
+      "glass"
+    ],
+    "single-rail-rack-lite.glb": [
+      "frame",
+      "panel",
+      "metal"
+    ],
+    "single-rail-rack.glb": [
+      "frame",
+      "panel",
+      "metal"
+    ],
+    "smart-display-lite.glb": [
+      "shell",
+      "screen",
+      "indicator",
+      "lit",
+      "grille"
+    ],
+    "smart-display.glb": [
+      "shell",
+      "screen",
+      "indicator",
+      "lit",
+      "grille"
+    ],
+    "smart-display-wall-lite.glb": [
+      "shell",
+      "screen",
+      "indicator",
+      "lit",
+      "grille"
+    ],
+    "smart-display-wall.glb": [
+      "shell",
+      "screen",
+      "indicator",
+      "lit",
+      "grille"
+    ],
+    "smart-litter-box-lite.glb": [
+      "base",
+      "petBody",
+      "panel",
+      "trim"
+    ],
+    "smart-litter-box.glb": [
+      "base",
+      "petBody",
+      "panel",
+      "trim"
+    ],
+    "smart-socket-86-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "indicator"
+    ],
+    "smart-socket-86.glb": [
+      "body",
+      "panel",
+      "recess",
+      "indicator"
+    ],
+    "sofa-lite.glb": [
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-l-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-l.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-l-left-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-l-left.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-single-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-single.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "sofa-throw-lite.glb": [
+      "throwBlanket",
+      "throwBlanket"
+    ],
+    "sofa-throw.glb": [
+      "throwBlanket",
+      "throwBlanket"
+    ],
+    "soundbar-lite.glb": [
+      "shell",
+      "grille",
+      "stand",
+      "trim"
+    ],
+    "soundbar.glb": [
+      "shell",
+      "grille",
+      "stand",
+      "trim"
+    ],
+    "spice-set-lite.glb": [
+      "container",
+      "container",
+      "base",
+      "containerLid"
+    ],
+    "spice-set.glb": [
+      "container",
+      "container",
+      "base",
+      "containerLid"
+    ],
+    "spin-bike-lite.glb": [
+      "sportFrame",
+      "frame",
+      "grip"
+    ],
+    "spin-bike.glb": [
+      "sportFrame",
+      "frame",
+      "grip"
+    ],
+    "squarecoffeetable-lite.glb": [
+      "frame",
+      "shadow",
+      "surface"
+    ],
+    "squarecoffeetable.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "squattoilet-lite.glb": [
+      "ceramic",
+      "seat",
+      "metal"
+    ],
+    "squattoilet.glb": [
+      "ceramic",
+      "seat",
+      "metal"
+    ],
+    "stairs-lite.glb": [
+      "body",
+      "top",
+      "trim"
+    ],
+    "stairs.glb": [
+      "body",
+      "top",
+      "trim"
+    ],
+    "stand-mixer-lite.glb": [
+      "shell",
+      "base",
+      "handle"
+    ],
+    "stand-mixer.glb": [
+      "shell",
+      "base",
+      "handle"
+    ],
+    "steamoven-lite.glb": [
+      "shell",
+      "door",
+      "panel",
+      "window"
+    ],
+    "steamoven.glb": [
+      "shell",
+      "door",
+      "panel",
+      "window"
+    ],
+    "steel-stairs-lite.glb": [
+      "tread",
+      "frame"
+    ],
+    "steel-stairs.glb": [
+      "tread",
+      "frame"
+    ],
+    "storage-box-lite.glb": [
+      "carcass",
+      "shelf",
+      "cabinetDoor"
+    ],
+    "storage-box.glb": [
+      "carcass",
+      "shelf",
+      "cabinetDoor"
+    ],
+    "storage-cart-lite.glb": [
+      "shelf",
+      "frame",
+      "metal"
+    ],
+    "storage-cart.glb": [
+      "shelf",
+      "frame",
+      "metal"
+    ],
+    "storagewaterheater-lite.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "storagewaterheater.glb": [
+      "body",
+      "panel",
+      "recess",
+      "trim",
+      "control"
+    ],
+    "suitcase-lite.glb": [
+      "shell",
+      "base",
+      "handle",
+      "trim"
+    ],
+    "suitcase.glb": [
+      "shell",
+      "base",
+      "handle",
+      "trim"
+    ],
+    "suv-lite.glb": [
+      "trim",
+      "emissive",
+      "emissive",
+      "emissive",
+      "base",
+      "body",
+      "glass",
+      "glass",
+      "glass",
+      "glass",
+      "seat"
+    ],
+    "switch-console-lite.glb": [
+      "shell",
+      "trim",
+      "screen",
+      "panel",
+      "accentNeutral"
+    ],
+    "switch-console.glb": [
+      "shell",
+      "trim",
+      "screen",
+      "panel",
+      "accentNeutral"
+    ],
+    "table-lite.glb": [
+      "frame",
+      "fabric",
+      "accent"
+    ],
+    "table.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "table-lamp-lite.glb": [
+      "lampBody",
+      "lampShade",
+      "lampBody"
+    ],
+    "table-lamp.glb": [
+      "lampBody",
+      "lampShade",
+      "lampBody"
+    ],
+    "tea-bar-machine-lite.glb": [
+      "body",
+      "panel"
+    ],
+    "tea-bar-machine.glb": [
+      "body",
+      "panel"
+    ],
+    "tea-table-set-lite.glb": [
+      "frame",
+      "panel",
+      "recess",
+      "ceramic",
+      "accent"
+    ],
+    "tea-table-set.glb": [
+      "frame",
+      "panel",
+      "recess",
+      "ceramic",
+      "accent"
+    ],
+    "toaster-lite.glb": [
+      "shell",
+      "panel",
+      "base",
+      "handle"
+    ],
+    "toaster.glb": [
+      "shell",
+      "panel",
+      "base",
+      "handle"
+    ],
+    "toilet-lite.glb": [
+      "ceramic",
+      "seat",
+      "metal"
+    ],
+    "toilet.glb": [
+      "ceramic",
+      "seat",
+      "metal"
+    ],
+    "toiletry-set-lite.glb": [
+      "container",
+      "containerLid",
+      "base",
+      "mug"
+    ],
+    "toiletry-set.glb": [
+      "container",
+      "containerLid",
+      "base",
+      "mug"
+    ],
+    "toothbrush-holder-lite.glb": [
+      "container",
+      "mug",
+      "base",
+      "container"
+    ],
+    "toothbrush-holder.glb": [
+      "container",
+      "mug",
+      "base",
+      "container"
+    ],
+    "tower-speaker-lite.glb": [
+      "shell",
+      "grille",
+      "stand",
+      "shell",
+      "grille"
+    ],
+    "tower-speaker.glb": [
+      "shell",
+      "grille",
+      "stand",
+      "shell",
+      "grille"
+    ],
+    "trash-bin-lite.glb": [
+      "frame",
+      "base",
+      "handle",
+      "panel"
+    ],
+    "trash-bin.glb": [
+      "frame",
+      "base",
+      "handle",
+      "panel"
+    ],
+    "treadmill-lite.glb": [
+      "sportFrame",
+      "weight",
+      "grip",
+      "pad",
+      "trim"
+    ],
+    "treadmill.glb": [
+      "sportFrame",
+      "weight",
+      "grip",
+      "pad",
+      "trim"
+    ],
+    "trophy-lite.glb": [
+      "base",
+      "trophyMetal",
+      "trophyMetal"
+    ],
+    "trophy.glb": [
+      "base",
+      "trophyMetal",
+      "trophyMetal"
+    ],
+    "turntable-lite.glb": [
+      "shell",
+      "platter",
+      "stand",
+      "trim"
+    ],
+    "turntable.glb": [
+      "shell",
+      "platter",
+      "stand",
+      "trim"
+    ],
+    "tv_mobile-lite.glb": [
+      "leg",
+      "base",
+      "metal",
+      "body",
+      "trim",
+      "screen"
+    ],
+    "tv_mobile.glb": [
+      "leg",
+      "base",
+      "metal",
+      "body",
+      "trim",
+      "screen"
+    ],
+    "tv_standard-lite.glb": [
+      "screen"
+    ],
+    "tv_standard.glb": [
+      "screen"
+    ],
+    "tv_tabletop-lite.glb": [
+      "base",
+      "metal",
+      "body",
+      "trim"
+    ],
+    "tv_tabletop.glb": [
+      "base",
+      "metal",
+      "body",
+      "trim"
+    ],
+    "tvstand-lite.glb": [
+      "frame",
+      "shadow",
+      "surface"
+    ],
+    "tvstand.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "umbrella-stand-lite.glb": [
+      "base",
+      "container",
+      "trim",
+      "interior"
+    ],
+    "umbrella-stand.glb": [
+      "base",
+      "container",
+      "trim",
+      "interior"
+    ],
+    "up-down-wall-lamp-lite.glb": [
+      "lampBody",
+      "diffuser"
+    ],
+    "up-down-wall-lamp.glb": [
+      "lampBody",
+      "diffuser"
+    ],
+    "urinal-lite.glb": [
+      "ceramic",
+      "faucet",
+      "rim",
+      "ceramic"
+    ],
+    "urinal.glb": [
+      "ceramic",
+      "faucet",
+      "rim",
+      "ceramic"
+    ],
+    "vanity-lite.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "vanity.glb": [
+      "frame",
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
+    ],
+    "wall-art-lite.glb": [
+      "frame",
+      "base",
+      "surface",
+      "drape",
+      "accentNeutral"
+    ],
+    "wall-art.glb": [
+      "frame",
+      "base",
+      "surface",
+      "drape",
+      "accentNeutral"
+    ],
+    "wall-cat-shelves-lite.glb": [
+      "rackWood",
+      "petPad",
+      "base"
+    ],
+    "wall-cat-shelves.glb": [
+      "rackWood",
+      "petPad",
+      "base"
+    ],
+    "wall-clock-lite.glb": [
+      "frame",
+      "surface",
+      "accentNeutral",
+      "base"
+    ],
+    "wall-clock.glb": [
+      "frame",
+      "surface",
+      "accentNeutral",
+      "base"
+    ],
+    "wall-coat-hooks-lite.glb": [
+      "rackWood",
+      "handle"
+    ],
+    "wall-coat-hooks.glb": [
+      "rackWood",
+      "handle"
+    ],
+    "wallac-lite.glb": [
+      "body",
+      "grating",
+      "lit"
+    ],
+    "wallac.glb": [
+      "body",
+      "grating",
+      "lit"
+    ],
+    "wallcabinet-lite.glb": [
+      "base",
+      "body",
+      "shelf",
+      "door"
+    ],
+    "wallcabinet.glb": [
+      "base",
+      "body",
+      "shelf",
+      "door"
+    ],
+    "walllamp-lite.glb": [
+      "lampBody",
+      "lampAccent",
+      "lampShade",
+      "diffuser"
+    ],
+    "walllamp.glb": [
+      "lampBody",
+      "lampAccent",
+      "lampShade",
+      "diffuser"
+    ],
+    "wardrobe-lite.glb": [
+      "frame",
+      "panel",
+      "shadow",
+      "handle"
+    ],
+    "wardrobe.glb": [
+      "frame",
+      "panel",
+      "shadow",
+      "handle"
+    ],
+    "washer-lite.glb": [
+      "shell",
+      "door",
+      "panel",
+      "trim",
+      "window"
+    ],
+    "washer.glb": [
+      "shell",
+      "door",
+      "panel",
+      "trim",
+      "window"
+    ],
+    "water-purifier-lite.glb": [
+      "shell",
+      "base",
+      "panel",
+      "indicator"
+    ],
+    "water-purifier.glb": [
+      "shell",
+      "base",
+      "panel",
+      "indicator"
+    ],
+    "weight-bench-lite.glb": [
+      "sportFrame",
+      "pad"
+    ],
+    "weight-bench.glb": [
+      "sportFrame",
+      "pad"
+    ],
+    "xbox-series-x-lite.glb": [
+      "shell",
+      "indicator",
+      "panel",
+      "grille",
+      "trim"
+    ],
+    "xbox-series-x.glb": [
+      "shell",
+      "indicator",
+      "panel",
+      "grille",
+      "trim"
+    ],
+    "yoga-set-lite.glb": [
+      "pad",
+      "grip",
+      "pad",
+      "grip"
+    ],
+    "yoga-set.glb": [
+      "pad",
+      "grip",
+      "pad",
+      "grip"
+    ]
+  }
+}

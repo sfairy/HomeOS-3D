@@ -559,6 +559,7 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   coffeetable: "woodwork",
   squarecoffeetable: "woodwork",
   kitchenisland: "woodwork",
+  "kitchen-island": "woodwork",
   "pool-table": "woodwork",
   sofa: "upholstery",
   "sofa-single": "upholstery",
