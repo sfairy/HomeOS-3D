@@ -21,6 +21,11 @@ import { finite } from "./studio-normalization";
 import { createModelPersistentCache } from "../model-persistent-cache";
 import { modelTemplateKey, captureModelTemplateBounds } from "../model-template-codec";
 import { modelPlacementBounds } from "./model-placement-bounds";
+import {
+  messageOfPreviewError,
+  reportPreviewIssue,
+  statusOfPreviewError,
+} from "./preview-diagnostics";
 import { prepareModelTextures } from "../model-texture-cache";
 import { releaseModelAsset } from "./model-asset-loader";
 import { DECOR_MODELS, DECOR_THEMES } from "../authoring/items/decor-models";
@@ -36,6 +41,7 @@ import {
 } from "../materials/studio-model-material-roles";
 import { groupVehicleMaterialSlots } from "../materials/studio-material-slot-groups";
 import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
+import { canonicalExternalMaterialName } from "../materials/legacy-material-aliases";
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from "../materials/material-pipeline";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
 import {
@@ -188,8 +194,39 @@ export function createExternalModelManager({
         preparedTemplate: restoredPreparedTemplate,
       };
     if (!itemDefinition?.url) throw new Error("模型 " + itemTypeName + " 没有可用资源");
+    /**
+     * GLTFLoader 在 `scenes` 为空时不会报错，只让 `gltf.scene` 变成 undefined，
+     * 于是整件模型静默不显示（30 款精修件踩过）。解析成功但场景为空必须当失败处理。
+     */
+    const assertScene = (asset: any, url: string) => {
+      if (asset?.scene) {
+        let meshCount = 0;
+        asset.scene.traverse?.((node: any) => {
+          if (node.isMesh) meshCount += 1;
+        });
+        if (meshCount > 0) return asset;
+        reportPreviewIssue({
+          stage: 'parse',
+          itemType: itemTypeName,
+          url,
+          message: 'GLB 场景内没有任何网格（预览必然空白）',
+        });
+        const emptyError = new Error(`模型 ${itemTypeName} 场景为空`) as Error & { response?: unknown };
+        emptyError.response = { status: 200 };
+        throw emptyError;
+      }
+      reportPreviewIssue({
+        stage: 'parse',
+        itemType: itemTypeName,
+        url,
+        message: 'GLB 没有默认场景（gltf.scene 为空，模型不会显示）',
+      });
+      const sceneError = new Error(`模型 ${itemTypeName} 缺少默认场景`) as Error & { response?: unknown };
+      sceneError.response = { status: 200 };
+      throw sceneError;
+    };
     try {
-      const loadedAsset = await assetLoader.loadAsync(itemDefinition.url);
+      const loadedAsset = assertScene(await assetLoader.loadAsync(itemDefinition.url), itemDefinition.url);
       return (
         await prepareModelTextures(loadedAsset),
         {
@@ -198,10 +235,37 @@ export function createExternalModelManager({
         }
       );
     } catch (primaryLoadError: any) {
-      if (isDisposed || !itemDefinition.fallbackUrl) throw primaryLoadError;
+      if (isDisposed || !itemDefinition.fallbackUrl) {
+        reportPreviewIssue({
+          stage: 'load',
+          itemType: itemTypeName,
+          url: itemDefinition.url,
+          status: statusOfPreviewError(primaryLoadError),
+          message: messageOfPreviewError(primaryLoadError),
+        });
+        throw primaryLoadError;
+      }
       try {
-        return await assetLoader.loadAsync(itemDefinition.fallbackUrl);
+        const fallbackAsset = await assetLoader.loadAsync(itemDefinition.fallbackUrl);
+        assertScene(fallbackAsset, itemDefinition.fallbackUrl);
+        // 回退成功也要留痕：lite 是运行期首选变体，它坏了说明压缩产物有问题，
+        // 悄悄用完整件顶上会让「lite 解析失败」永远没人修。
+        reportPreviewIssue({
+          stage: 'fallback',
+          itemType: itemTypeName,
+          url: itemDefinition.url,
+          status: statusOfPreviewError(primaryLoadError),
+          message: `lite 加载失败，已回退完整件：${messageOfPreviewError(primaryLoadError)}`,
+        });
+        return fallbackAsset;
       } catch (fallbackLoadError: any) {
+        reportPreviewIssue({
+          stage: 'load',
+          itemType: itemTypeName,
+          url: itemDefinition.fallbackUrl,
+          status: statusOfPreviewError(fallbackLoadError),
+          message: `主资源与备用资源都失败：${messageOfPreviewError(primaryLoadError)}；${messageOfPreviewError(fallbackLoadError)}`,
+        });
         throw new AggregateError(
           [primaryLoadError, fallbackLoadError],
           "模型 " + itemTypeName + " 的主资源和备用资源均不可用",
@@ -683,7 +747,12 @@ export function createExternalModelManager({
             furnitureSoft: warmPalette.wood,
             furnitureDark: warmPalette.wood,
           })));
-    const materialName = (meshMaterial?.name || "").toLowerCase();
+    // 槽位改名后仍要让下面 30 处「按下标 / 原始名取色」的历史分支看到旧名：
+    // 别名表与改名同源生成，见 materials/legacy-material-aliases.ts。
+    const materialName = canonicalExternalMaterialName(
+      meshMaterial?.name,
+      furnitureItemType,
+    );
     if (furnitureItemType === "shower" && warmPalette.showerMetal !== undefined)
       return createPaletteMaterial(meshMaterial, warmPalette.showerMetal, {
         roughness: 0.48,
@@ -746,7 +815,7 @@ export function createExternalModelManager({
     }
     let resolvedMaterialColor = warmPalette.furniture;
     if (/^curtain_(left|right|split)$/.test(furnitureItemType)) {
-      const curtainMaterialIndex = materialName.match(/material-(\d+)/)?.[1];
+      const curtainMaterialIndex = materialName.match(/material-(\d+)/)?.[1] ?? "";
       ["0", "4"].includes(curtainMaterialIndex)
         ? (resolvedMaterialColor = warmPalette.furnitureDark)
         : ["1", "5", "2", "3"].includes(curtainMaterialIndex)
@@ -795,7 +864,7 @@ export function createExternalModelManager({
           if (
             ["table", "rounddiningtable", "rounddiningtable_turntable"].includes(furnitureItemType)
           ) {
-            const tableMaterialIndex = materialName.match(/material-(\d+)/)?.[1],
+            const tableMaterialIndex = materialName.match(/material-(\d+)/)?.[1] ?? "",
               tableSoftMaterialIndices =
                 furnitureItemType === "rounddiningtable_turntable" ? ["0", "3"] : ["0"],
               tableBaseColor = meshMaterial?.color?.clone?.() || new threeNamespace.Color(16777215),
@@ -812,7 +881,7 @@ export function createExternalModelManager({
             if (
               ["kitchenbase", "kitchensink", "kitchencooktop", "basin"].includes(furnitureItemType)
             ) {
-              const kitchenMaterialIndex = materialName.match(/material-(\d+)/)?.[1],
+              const kitchenMaterialIndex = materialName.match(/material-(\d+)/)?.[1] ?? "",
                 kitchenCounterMaterialIndex = furnitureItemType === "basin" ? "1" : "2",
                 kitchenBaseColor =
                   meshMaterial?.color?.clone?.() || new threeNamespace.Color(16777215),
@@ -873,7 +942,7 @@ export function createExternalModelManager({
       }
     }
     if (warmPalette.warmWood) {
-      const warmWoodMaterialIndex = materialName.match(/material-(\d+)/)?.[1];
+      const warmWoodMaterialIndex = materialName.match(/material-(\d+)/)?.[1] ?? "";
       (furnitureItemType === "bed" &&
         (resolvedMaterialColor = ["1", "3"].includes(warmWoodMaterialIndex)
           ? warmPalette.furnitureLight
@@ -927,7 +996,7 @@ export function createExternalModelManager({
     let isCountertopMaterial = false,
       isMetalFinish = false;
     if (isWarmCabinetItem) {
-      const warmCabinetMaterialIndex = materialName.match(/material-(\d+)$/)?.[1];
+      const warmCabinetMaterialIndex = materialName.match(/material-(\d+)$/)?.[1] ?? "";
       if (
         ((isCountertopMaterial =
           (countertopMaterialIndexByItemType as any)[furnitureItemType] !== undefined &&
@@ -1910,7 +1979,14 @@ function normalizeMaterialValue(materialValue: any): any {
     // 判岔了：脚本以为要回填，运行时其实整块重建）。
     return sharedUsesDetailMaterialPipeline(itemType, materialName, Boolean(palette?.warmWood));
   }
-  /** 净化器 / 立柜空调的**导引面**：整块网格只挂一张 `*-material-2|3`，挂载时会被隐藏。 */
+  /**
+   * 净化器 / 立柜空调的**导引面**：整块网格只挂一张 `*-material-2|3`，挂载时会被隐藏。
+   *
+   * 2026-10-23 回滚备注：实测原始件（`airpurifier-detail-*` / `floorac-detail-*`）没有任何
+   * 独立导引面 —— 5 个 primitive 分别是机身 / 面板 / 凹陷 / 收边 / 控制屏，都有实体几何。
+   * 这段分支只对「导出器把材质改成 `material-<n>` 且拆出单独导引件」的模型有意义，
+   * 不能改成按 `recess` 角色判定（那会把真实的凹陷面整块隐藏）。保留原逻辑。
+   */
   function isHiddenApplianceGuideMesh(modelType: any, meshMaterials: any) {
     return (
       (modelType === "airpurifier" || modelType === "floorac") &&
@@ -2210,7 +2286,17 @@ function normalizeMaterialValue(materialValue: any): any {
         (resolvedMaterial.customProgramCacheKey = () =>
           "warm-shoe-countertop-v1-" + shoeTopColor.getHexString()));
     }
-    if (palette.warmWood && itemType === "bed" && /material-1$/.test(sourceMaterial.name || "")) {
+    /**
+     * 床品「搭毯」支料：按角色判定，不认死 `material-1`。
+     * 原始件是 `bed-furniture-fabric`（角色 fabric / 槽位 1），上一轮重建件是
+     * `bed-material-1`，两种命名都要命中，否则暖木主题的床尾毯会静默失效。
+     */
+    const bedRunnerSlot = itemType === "bed" ? resolveModelMaterialRole("bed", sourceMaterial.name) : null;
+    if (
+      palette.warmWood &&
+      bedRunnerSlot &&
+      (bedRunnerSlot.role === "fabric" || bedRunnerSlot.role === "upholstery" || bedRunnerSlot.slot === 1)
+    ) {
       const bedRunnerColor = new threeNamespace.Color(palette.runnerColor ?? palette.furnitureSoft);
       ((resolvedMaterial.roughness = 0.94),
         (resolvedMaterial.onBeforeCompile = (bedShaderProgram: any) => {

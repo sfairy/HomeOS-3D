@@ -79,3 +79,6 @@ docs/
 .graphflow-cache/
 graphflow-out/
 .slider-check.html
+
+# 槽位修复 dry-run 产物（每次 --check 重写，不作为基线入库）
+ops/checks/studio/material-slot-repair-plan.json

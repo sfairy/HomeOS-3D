@@ -317,8 +317,8 @@
     }
   ],
   "main": {
-    "preCount": 11,
-    "preHash": "7745fd394cb6b4eb8d36a190aca929e10dc7bf017badac84dc08b41183e6b547",
+    "preCount": 12,
+    "preHash": "00ac3987cead4d565b54994344c425687d9ebadc3df6e5d2551b18a28a195799",
     "postCount": 3,
     "postHash": "8264ddb7fcd962abb90fe986573b8122565d77142ba3ad389a2235cb31dbcf2f"
   },
@@ -330,6 +330,14 @@
       "was": "modelItem.type === 'pipelinewaterpurifier'",
       "now": "PIPELINE_DISPENSER_MODEL_TYPES.has(modelItem.type)",
       "reason": "0.7.9 F6：矩形双出水变体（rectangular-pipeline-dispenser）共用管线机机身形体族，分派条件需同时命中两个模型类型。分支体未改。"
+    },
+    {
+      "branch": -1,
+      "group": "main",
+      "field": "preHash",
+      "was": "11 pre-dispatch statements",
+      "now": "12（多出 exhaust-fan 贴墙安装的预分派 if）",
+      "reason": "0.8.0 排气扇：洞口命中时先按墙厚改写 modelItem.depth，必须在族分派前完成；59 个分派分支的条件与分支体均未改。"
     }
   ]
 }

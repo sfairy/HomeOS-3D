@@ -57,6 +57,55 @@ jobs:
           bun run lint:ops
           bun run typecheck:node
 
+  # GLB 几何 / 材质槽位门禁：纯只读审计，不依赖前端构建。
+  #
+  # 守的是「模型本体」这条容易悄悄退化的链路：
+  # - `check:geometry`：336 条 specs 齐全、尺寸 ≤5%、面数与拓扑例外必须逐件登记、lite 一致；
+  # - `check:slots`：336 条槽位契约、无死材质、无整件同角色、内嵌 PBR 与配方偏差 ≤0.05；
+  # - `check:slot-roles`：改名前后角色解析逐槽位一致，未声明的 baseline 漂移即红；
+  # - `check:variants`：完整件 / lite 成对存在，缺一档就报（当前 0 款）。
+  geometry:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Geometry gate
+        run: bun run check:geometry
+
+      - name: Slot contract gate
+        run: bun run check:slots
+
+      - name: Slot role baseline
+        run: bun run check:slot-roles
+
+      - name: Variant parity
+        run: bun run check:variants
+
+      # 资产门禁：体积预算 / 扩展与贴图保留 / 节点与材质名稳定 / 面数下限 / lite 压缩形态。
+      # 2026-10-22 的批量重写把全库 27.8MB 写成 95.1MB 并丢掉 5 个文件的扩展与贴图，
+      # 上面几条几何/槽位门禁全绿 —— 它们只看新文件自身一致性，不看「文件里还剩什么」。
+      - name: Asset budget and fidelity gate
+        run: bun run check:assets
+
+      # 与 `git show HEAD:` 的原始件逐文件比对：还有 `restore` 就说明回滚没做完。
+      # `rework` 是已登记的局部修复（附 before/after 证据），不算回归。
+      - name: Model quality triage gate
+        run: bun run check:quality
+
   # 前端产物构建 + 结构断言。
   #
   # 这是整条流水线里**唯一**构建前端的 job：docker.yml 通过 workflow_call 复用它，构建出的

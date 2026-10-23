@@ -3174,28 +3174,188 @@ select option:disabled {
   margin-top: 20px;
   flex-wrap: wrap;
 }
+/*
+ * 交互收尾确认：先给结论（会动什么），再给量（几个仪表盘 / 几项绑定），
+ * 最后单独说明边界（不碰 HA）与撤销能做到什么。三段之间用卡片分隔，
+ * 不再把一整段散文压成 10px 小字。
+ */
 .interaction-cleanup-dialog {
-  width: min(540px, calc(100vw - 40px));
+  width: min(560px, calc(100vw - 40px));
 }
-.interaction-cleanup-dialog p {
-  margin: 0 0 12px;
+.interaction-cleanup-dialog .dialog-index {
+  padding-right: 42px;
 }
-.interaction-cleanup-dialog .interaction-cleanup-projects {
-  padding: 11px 13px;
+/* 关闭按钮显式钉在右上角：即使宿主注入的通用样式改动，也不会压到 SYNC INTERACTION。 */
+.interaction-cleanup-dialog .dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.interaction-cleanup-dialog h2 {
+  margin: 8px 0 10px;
+  font-size: 20px;
+  line-height: 1.35;
+}
+.interaction-cleanup-dialog .interaction-cleanup-lead {
+  margin: 0 0 18px;
+  max-width: 46ch;
+  color: #9aa8b4;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.interaction-cleanup-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.interaction-cleanup-stat {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 13px;
   border: 1px solid var(--line);
-  border-radius: 9px;
-  color: var(--text);
-  background: #00000029;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #ffffff0c, #ffffff03);
 }
-.interaction-cleanup-dialog .interaction-cleanup-note {
-  color: var(--muted);
+.interaction-cleanup-stat > span {
+  overflow: hidden;
+  color: #7e8c98;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.interaction-cleanup-stat > strong {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #f2f6f9;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1;
+}
+.interaction-cleanup-stat > strong small {
+  color: #8d9aa6;
+  font-size: 10px;
+  font-weight: 600;
+}
+.interaction-cleanup-projects {
+  margin-top: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #0000002e;
+}
+.interaction-cleanup-projects-label {
+  flex: none;
+  color: #7e8c98;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  line-height: 19px;
+  white-space: nowrap;
+}
+.interaction-cleanup-projects-list {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.interaction-cleanup-chip {
+  min-width: 0;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 9px;
+  border: 1px solid #ff9d2e47;
+  border-radius: 999px;
+  color: #ffd08a;
+  background: #ff9d2e14;
+  font-size: 11px;
+  line-height: 17px;
+}
+.interaction-cleanup-chip::before {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+.interaction-cleanup-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.interaction-cleanup-chip.is-empty {
+  border-color: var(--line);
+  color: #8d9aa6;
+  background: #ffffff08;
+}
+.interaction-cleanup-chip.is-empty::before {
+  display: none;
+}
+.interaction-cleanup-note {
+  margin-top: 12px;
+  display: grid;
+  gap: 5px;
+  padding: 11px 14px;
+  border-left: 2px solid #ff9d2e5c;
+  border-radius: 0 9px 9px 0;
+  background: #ffffff08;
+}
+.interaction-cleanup-note p {
+  margin: 0;
+  color: #94a1ad;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.interaction-cleanup-note p:first-child {
+  color: #c8d2da;
 }
 .interaction-cleanup-dialog .dialog-actions {
   margin-top: 20px;
+  gap: 10px;
 }
-.interaction-cleanup-dialog .dialog-actions button:first-child {
-  border-color: #ff9d2e80;
-  color: #ffd28a;
+.interaction-cleanup-dialog .dialog-actions button {
+  min-width: 124px;
+  height: 40px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+.interaction-cleanup-dialog .interaction-cleanup-undo {
+  border-color: #ff9d2e52;
+  color: #ffcf8f;
+  background: #ff9d2e0f;
+}
+.interaction-cleanup-dialog .interaction-cleanup-undo:hover:not(:disabled) {
+  border-color: #ff9d2e9e;
+  color: #ffe3bb;
+  background: #ff9d2e21;
+}
+.interaction-cleanup-dialog .dialog-actions .primary {
+  border-color: #f4a719;
+  color: #1e1607;
+  background: linear-gradient(180deg, #ffb82e, #ef9900);
+  font-weight: 700;
+}
+.interaction-cleanup-dialog .dialog-actions .primary:hover:not(:disabled) {
+  border-color: #ffc857;
+  background: linear-gradient(180deg, #ffc451, #f7a413);
+}
+/* 窄屏（分屏 / 平板竖屏）：清单标签改为独占一行，避免胶囊被挤成两三个字宽。 */
+@media (max-width: 520px) {
+  .interaction-cleanup-projects {
+    display: grid;
+    gap: 8px;
+  }
+  .interaction-cleanup-projects-label {
+    line-height: 1.4;
+  }
 }
 .light-group-rename-dialog {
   width: min(390px, calc(100vw - 40px));

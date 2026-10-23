@@ -142,10 +142,17 @@ export const ALL_ITEM_MODELS = Object.freeze({
       scaleBasis: [1.2, 0.85, 0.6],
       preserveOrigin: true,
     }),
-    basin: createHomeAssetDescriptor("basin", {
-      scaleBasis: [0.9, 0.88, 0.5],
-      preserveOrigin: true,
-    }),
+    // 台面高 0.85、整件含顶部挂件 1.14（见 model-specs.json 的 assumptions）；
+    // 原来的 0.88 是「台面高」被当成总高，会把整件压扁 23%。
+    // 2026-10-23：盆胆按椭圆盆重做（同 HEAD 形状），字节变了，必须换 URL 才能拿到新模型。
+    basin: createHomeAssetDescriptor(
+      "basin",
+      {
+        scaleBasis: [0.9, 1.14, 0.5],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.modelRestore,
+    ),
     toilet: createHomeAssetDescriptor(
       "toilet",
       {
@@ -237,10 +244,14 @@ export const ALL_ITEM_MODELS = Object.freeze({
       scaleBasis: [0.55, 0.85, 0.5],
       preserveOrigin: true,
     }),
-    floorlamp: createApplianceAssetDescriptor("floorlamp", {
-      scaleBasis: [1.35, 1.8, 0.5],
-      preserveOrigin: true,
-    }),
+    floorlamp: createApplianceAssetDescriptor(
+      "floorlamp",
+      {
+        scaleBasis: [1.35, 1.8, 0.5],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.modelRestore,
+    ),
     walllamp: createApplianceAssetDescriptor("walllamp", {
       scaleBasis: [0.3, 0.34, 0.22],
       preserveOrigin: true,
@@ -250,10 +261,14 @@ export const ALL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
 
-    freezer: createApplianceAssetDescriptor("freezer", {
-      scaleBasis: [1.05, 0.85, 0.6],
-      preserveOrigin: true,
-    }),
+    freezer: createApplianceAssetDescriptor(
+      "freezer",
+      {
+        scaleBasis: [1.05, 0.85, 0.6],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.modelRestore,
+    ),
     rangehood: createApplianceAssetDescriptor("rangehood", {
       scaleBasis: [0.9, 0.55, 0.45],
       preserveOrigin: true,

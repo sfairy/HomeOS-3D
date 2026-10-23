@@ -1,3 +1,7 @@
+import {
+  GENERATED_MATERIAL_ROLE_OVERRIDES,
+  GENERATED_MODEL_SLOT_ROLES,
+} from "./model-slot-roles.generated";
 /**
  * **模型 × 槽位 → 语义角色** 对照表。
  *
@@ -669,6 +673,14 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
   "floor-lamp": { white: "lit", shiny: "metal" },
   /** 单材质柱体（`pillar-material-0`）：结构本体。 */
   pillar: { 0: "body" },
+  /**
+   * 滑板车：灯带是 `scooter-lamp` / `-lamp-2` / `-lamp-3` / `-lamp-4`（旧名 `Yellow_Light` /
+   * `Green_Light` / `White_Light` / `Red_Light`）。车辆家族 token 表没有 `lamp`，不登记就会落到
+   * 家族兜底 `body` —— 灯带被刷成车漆。
+   * 漆面 / 深色件同样要显式登记：家族表把 `body` 读成 `bodywork`、`dark` 读成 `tyre`（那是
+   * 轿车口径），滑板车的车壳与深色覆盖件不是轮胎。
+   */
+  scooter: { body: "body", dark: "dark", trim: "trim", metal: "metal", seat: "seat", lamp: "emissive" },
 
   /* 说明：`bar` / `bookcase` / `cabinet` / `curtain_*` / `kitchen*` / `nas` / `stairs`
    * 等 26 个「导出器自动编号」模型的角色，继续由 `MODEL_SLOT_ROLES` /
@@ -791,6 +803,8 @@ export const FAMILY_TOKEN_MODEL_IDS: ReadonlySet<string> = new Set([
 export function hasSemanticSlotRoles(itemType: string): boolean {
   return Boolean(
     MODEL_SLOT_ROLES_SEMANTIC[itemType] ||
+      GENERATED_MODEL_SLOT_ROLES[itemType] ||
+      GENERATED_MATERIAL_ROLE_OVERRIDES[itemType] ||
       MODEL_MATERIAL_ROLE_SEMANTIC[itemType] ||
       FAMILY_TOKEN_MODEL_IDS.has(itemType),
   );
@@ -809,9 +823,16 @@ export function resolveSemanticSlotRole(
   const lowerName = (materialName || "").toLowerCase();
   const materialRole = MODEL_MATERIAL_ROLE_SEMANTIC[itemType]?.[lowerName];
   if (materialRole) return materialRole;
+  const generatedNameRole = GENERATED_MATERIAL_ROLE_OVERRIDES[itemType]?.[lowerName];
+  if (generatedNameRole) return generatedNameRole;
   const token = semanticSlotToken(materialName);
   const modelTokenRoles = MODEL_SLOT_ROLES_SEMANTIC[itemType];
   if (modelTokenRoles && modelTokenRoles[token]) return modelTokenRoles[token];
+  // 生成表：槽位改名（`bookcase-material-0` → `bookcase-interior`）后，原本只靠
+  // 槽位顺序表解析的模型在这里拿到同一角色；表由契约生成，人工改名前必须补齐，
+  // 否则审计会报「改名后角色不再命中」。
+  const generatedTokenRoles = GENERATED_MODEL_SLOT_ROLES[itemType];
+  if (generatedTokenRoles && generatedTokenRoles[token]) return generatedTokenRoles[token];
   const familyTokenRoles = FAMILY_TOKEN_ROLES[family];
   if (familyTokenRoles && familyTokenRoles[token]) return familyTokenRoles[token];
   const genericRole = GENERIC_TOKEN_ROLES[token];
@@ -828,6 +849,7 @@ export function resolveSemanticSlotRole(
     if (!trimmedToken || /^\d+$/.test(trimmedToken)) return null;
     return (
       modelTokenRoles?.[trimmedToken] ??
+      generatedTokenRoles?.[trimmedToken] ??
       familyTokenRoles?.[trimmedToken] ??
       GENERIC_TOKEN_ROLES[trimmedToken] ??
       null

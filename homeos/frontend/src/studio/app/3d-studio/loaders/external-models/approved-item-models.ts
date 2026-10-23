@@ -36,9 +36,10 @@ const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
     label: "排气扇",
     glyph: "◉",
     subcategory: "environment",
-    // [宽, 高, 厚]：卡片小字只展示「宽 × 厚」，厚 0.16 与吸墙时的 depth 兜底一致。
-    size: [0.34, 0.34, 0.16],
-    small: "0.34 × 0.16m",
+    // [宽, 高, 厚]：卡片小字只展示「宽 × 厚」，厚 0.21 是含风管的整机型深
+    // （0.16 只是面板到墙面的距离，强压会把叶轮压扁 25%，见 model-specs.json）。
+    size: [0.34, 0.34, 0.21],
+    small: "0.34 × 0.21m",
     mount: "wall",
     elevation: 1.83,
     assetVersion: MODEL_ASSET_CACHE_KEYS.exhaust,

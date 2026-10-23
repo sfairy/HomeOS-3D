@@ -1,0 +1,5270 @@
+{
+  "generatedAt": "2026-10-22T17:48:19.652Z",
+  "note": "几何基线：只含可复算的指纹（世界包围盒 / 三角面 / 材质名），供 check:geometry 比对",
+  "models": {
+    "floor-washer": {
+      "size": [
+        0.29,
+        1.20928,
+        0.32782
+      ],
+      "triangles": 2396,
+      "materials": [
+        "floor-washer-candidate-dark",
+        "floor-washer-candidate-body",
+        "floor-washer-candidate-soft",
+        "floor-washer-candidate-accent",
+        "floor-washer-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "robotvacuum": {
+      "size": [
+        0.414,
+        0.66,
+        0.5155
+      ],
+      "triangles": 3206,
+      "materials": [
+        "robotvacuum-detail-body",
+        "robotvacuum-detail-panel",
+        "robotvacuum-detail-dark",
+        "robotvacuum-detail-trim",
+        "robotvacuum-detail-indicator"
+      ],
+      "topologyClass": "solid"
+    },
+    "air-outlet": {
+      "size": [
+        0.188,
+        0.3,
+        2
+      ],
+      "triangles": 26,
+      "materials": [
+        "M03_Pewter_Shine"
+      ],
+      "topologyClass": "solid"
+    },
+    "airpurifier": {
+      "size": [
+        0.34,
+        0.7,
+        0.34
+      ],
+      "triangles": 3858,
+      "materials": [
+        "airpurifier-detail-body",
+        "airpurifier-detail-panel",
+        "airpurifier-detail-recess",
+        "airpurifier-detail-trim",
+        "airpurifier-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "aroma-diffuser": {
+      "size": [
+        0.106,
+        0.1745,
+        0.1064
+      ],
+      "triangles": 3242,
+      "materials": [
+        "aroma-diffuser-bottle",
+        "aroma-diffuser-liquid",
+        "aroma-diffuser-tube",
+        "aroma-diffuser-body",
+        "aroma-diffuser-detail",
+        "aroma-diffuser-metal"
+      ],
+      "topologyClass": "solid"
+    },
+    "ceiling-fan": {
+      "size": [
+        1.00947,
+        0.306,
+        1.14914
+      ],
+      "triangles": 3156,
+      "materials": [
+        "ceiling-fan-body",
+        "ceiling-fan-blade",
+        "ceiling-fan-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "dehumidifier": {
+      "size": [
+        0.34,
+        0.53,
+        0.26
+      ],
+      "triangles": 2964,
+      "materials": [
+        "dehumidifier-detail-body",
+        "dehumidifier-detail-panel",
+        "dehumidifier-detail-recess",
+        "dehumidifier-detail-water"
+      ],
+      "topologyClass": "solid"
+    },
+    "electric-valve": {
+      "size": [
+        0.22,
+        0.15,
+        0.12055
+      ],
+      "triangles": 3812,
+      "materials": [
+        "valve-metal",
+        "valve-coupling",
+        "valve-casing",
+        "valve-detail"
+      ],
+      "topologyClass": "solid"
+    },
+    "exhaust-fan": {
+      "size": [
+        0.3424,
+        0.3424,
+        0.2136
+      ],
+      "triangles": 7980,
+      "materials": [
+        "exhaust-fan-blade",
+        "exhaust-fan-edge",
+        "exhaust-fan-shell",
+        "exhaust-fan-bore",
+        "exhaust-fan-fastener"
+      ],
+      "topologyClass": "solid"
+    },
+    "floorac": {
+      "size": [
+        0.42,
+        1.75,
+        0.42
+      ],
+      "triangles": 1902,
+      "materials": [
+        "floorac-detail-body",
+        "floorac-detail-panel",
+        "floorac-detail-recess",
+        "floorac-detail-trim",
+        "floorac-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "gaswaterheater": {
+      "size": [
+        0.42,
+        0.72,
+        0.22
+      ],
+      "triangles": 1488,
+      "materials": [
+        "gaswaterheater-detail-body",
+        "gaswaterheater-detail-panel",
+        "gaswaterheater-detail-recess",
+        "gaswaterheater-detail-trim",
+        "gaswaterheater-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "heater": {
+      "size": [
+        0.515,
+        0.59,
+        0.29
+      ],
+      "triangles": 4292,
+      "materials": [
+        "heater-detail-body",
+        "heater-detail-panel",
+        "heater-detail-recess",
+        "heater-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "humidifier": {
+      "size": [
+        0.206,
+        0.323,
+        0.218
+      ],
+      "triangles": 2464,
+      "materials": [
+        "humidifier-detail-body",
+        "humidifier-detail-panel",
+        "humidifier-detail-recess",
+        "humidifier-detail-water"
+      ],
+      "topologyClass": "solid"
+    },
+    "pipeline-water-purifier": {
+      "size": [
+        0.25953,
+        0.3776,
+        0.10364
+      ],
+      "triangles": 6261,
+      "materials": [
+        "Material #1",
+        "Material #2"
+      ],
+      "topologyClass": "solid"
+    },
+    "rectangular-pipeline-dispenser": {
+      "size": [
+        0.6,
+        0.44,
+        0.233
+      ],
+      "triangles": 2220,
+      "materials": [
+        "rectangular-pipeline-dispenser-furniture-body",
+        "rectangular-pipeline-dispenser-furniture-panel",
+        "rectangular-pipeline-dispenser-furniture-trim",
+        "rectangular-pipeline-dispenser-furniture-display"
+      ],
+      "topologyClass": "solid"
+    },
+    "storagewaterheater": {
+      "size": [
+        0.86,
+        0.48,
+        0.46
+      ],
+      "triangles": 2238,
+      "materials": [
+        "storagewaterheater-detail-body",
+        "storagewaterheater-detail-panel",
+        "storagewaterheater-detail-recess",
+        "storagewaterheater-detail-trim",
+        "storagewaterheater-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "tea-bar-machine": {
+      "size": [
+        0.4021,
+        1.16151,
+        0.40207
+      ],
+      "triangles": 6086,
+      "materials": [
+        "om.cn_1336",
+        "om.cn_1342"
+      ],
+      "topologyClass": "solid"
+    },
+    "wallac": {
+      "size": [
+        0.9,
+        0.28,
+        0.22
+      ],
+      "triangles": 324,
+      "materials": [
+        "wallac-material-0",
+        "wallac-material-1",
+        "wallac-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "arcade-machine": {
+      "size": [
+        0.75,
+        1.82,
+        0.8
+      ],
+      "triangles": 3316,
+      "materials": [
+        "arcade-machine-frame",
+        "arcade-machine-dark",
+        "arcade-machine-accent",
+        "arcade-machine-light",
+        "arcade-machine-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "elliptical": {
+      "size": [
+        0.82,
+        1.55,
+        1.32
+      ],
+      "triangles": 4204,
+      "materials": [
+        "elliptical-frame",
+        "elliptical-dark",
+        "elliptical-accent",
+        "elliptical-soft",
+        "elliptical-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "treadmill": {
+      "size": [
+        0.82,
+        1.35,
+        1.78
+      ],
+      "triangles": 1988,
+      "materials": [
+        "treadmill-frame",
+        "treadmill-dark",
+        "treadmill-accent",
+        "treadmill-soft",
+        "treadmill-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "air-fryer": {
+      "size": [
+        0.28,
+        0.34,
+        0.369
+      ],
+      "triangles": 884,
+      "materials": [
+        "air-fryer-candidate-body",
+        "air-fryer-candidate-dark",
+        "air-fryer-candidate-soft",
+        "air-fryer-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "bread-maker": {
+      "size": [
+        0.294,
+        0.34687,
+        0.337
+      ],
+      "triangles": 820,
+      "materials": [
+        "bread-maker-candidate-body",
+        "bread-maker-candidate-soft",
+        "bread-maker-candidate-glass",
+        "bread-maker-candidate-dark",
+        "bread-maker-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "ceramic-hob": {
+      "size": [
+        0.29,
+        0.0375,
+        0.36
+      ],
+      "triangles": 1200,
+      "materials": [
+        "ceramic-hob-candidate-body",
+        "ceramic-hob-candidate-dark",
+        "ceramic-hob-candidate-accent",
+        "ceramic-hob-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "coffee-grinder": {
+      "size": [
+        0.186,
+        0.4395,
+        0.241
+      ],
+      "triangles": 1124,
+      "materials": [
+        "coffee-grinder-candidate-body",
+        "coffee-grinder-candidate-glass",
+        "coffee-grinder-candidate-dark",
+        "coffee-grinder-candidate-soft",
+        "coffee-grinder-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "coffee-machine": {
+      "size": [
+        0.31396,
+        0.418,
+        0.38459
+      ],
+      "triangles": 3332,
+      "materials": [
+        "coffee-machine-candidate-dark",
+        "coffee-machine-candidate-body",
+        "coffee-machine-candidate-soft",
+        "coffee-machine-candidate-light",
+        "coffee-machine-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "dishwasher": {
+      "size": [
+        0.6,
+        0.82,
+        0.6
+      ],
+      "triangles": 1408,
+      "materials": [
+        "dishwasher-candidate-dark",
+        "dishwasher-candidate-body",
+        "dishwasher-candidate-soft",
+        "dishwasher-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "disinfection-cabinet": {
+      "size": [
+        0.44,
+        0.41,
+        0.385
+      ],
+      "triangles": 5536,
+      "materials": [
+        "disinfection-cabinet-body",
+        "disinfection-cabinet-dark",
+        "disinfection-cabinet-panel",
+        "disinfection-cabinet-light",
+        "disinfection-cabinet-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "electric-kettle": {
+      "size": [
+        0.31268,
+        0.264,
+        0.206
+      ],
+      "triangles": 880,
+      "materials": [
+        "electric-kettle-candidate-dark",
+        "electric-kettle-candidate-body",
+        "electric-kettle-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "food-steamer": {
+      "size": [
+        0.3,
+        0.3165,
+        0.227
+      ],
+      "triangles": 1132,
+      "materials": [
+        "food-steamer-candidate-body",
+        "food-steamer-candidate-dark",
+        "food-steamer-candidate-glass",
+        "food-steamer-candidate-light",
+        "food-steamer-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "freezer": {
+      "size": [
+        1.05,
+        0.85,
+        0.6
+      ],
+      "triangles": 1296,
+      "materials": [
+        "material-0-body",
+        "material-1-door",
+        "material-2-base",
+        "material-3-handle",
+        "material-4-panel",
+        "material-5-screen",
+        "material-6-metal",
+        "material-7-grating",
+        "material-8-lit"
+      ],
+      "topologyClass": "solid"
+    },
+    "fridge": {
+      "size": [
+        0.75,
+        1.85,
+        0.72
+      ],
+      "triangles": 900,
+      "materials": [
+        "fridge-material-0",
+        "fridge-material-1",
+        "fridge-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "health-kettle": {
+      "size": [
+        0.31268,
+        0.264,
+        0.206
+      ],
+      "triangles": 1424,
+      "materials": [
+        "health-kettle-candidate-dark",
+        "health-kettle-candidate-glass",
+        "health-kettle-candidate-soft",
+        "health-kettle-candidate-body",
+        "health-kettle-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "induction-hob": {
+      "size": [
+        0.29,
+        0.0375,
+        0.36
+      ],
+      "triangles": 1200,
+      "materials": [
+        "induction-hob-candidate-body",
+        "induction-hob-candidate-dark",
+        "induction-hob-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "juicer": {
+      "size": [
+        0.2685,
+        0.529,
+        0.249
+      ],
+      "triangles": 1212,
+      "materials": [
+        "juicer-candidate-body",
+        "juicer-candidate-dark",
+        "juicer-candidate-light",
+        "juicer-candidate-soft",
+        "juicer-candidate-glass",
+        "juicer-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "microwave": {
+      "size": [
+        0.52,
+        0.32,
+        0.42
+      ],
+      "triangles": 4748,
+      "materials": [
+        "microwave-candidate-body",
+        "microwave-candidate-dark",
+        "microwave-candidate-soft",
+        "microwave-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "multi-cooker": {
+      "size": [
+        0.408,
+        0.2175,
+        0.2365
+      ],
+      "triangles": 1120,
+      "materials": [
+        "multi-cooker-candidate-body",
+        "multi-cooker-candidate-soft",
+        "multi-cooker-candidate-dark",
+        "multi-cooker-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "power-blender": {
+      "size": [
+        0.23539,
+        0.495,
+        0.1965
+      ],
+      "triangles": 1324,
+      "materials": [
+        "power-blender-candidate-body",
+        "power-blender-candidate-dark",
+        "power-blender-candidate-light",
+        "power-blender-candidate-glass",
+        "power-blender-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "pressure-cooker": {
+      "size": [
+        0.38,
+        0.3555,
+        0.311
+      ],
+      "triangles": 4004,
+      "materials": [
+        "pressure-cooker-candidate-body",
+        "pressure-cooker-candidate-dark",
+        "pressure-cooker-candidate-soft",
+        "pressure-cooker-candidate-accent",
+        "pressure-cooker-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "rangehood": {
+      "size": [
+        0.9,
+        0.55,
+        0.45
+      ],
+      "triangles": 1616,
+      "materials": [
+        "rangehood-candidate-body",
+        "rangehood-candidate-soft",
+        "rangehood-candidate-dark",
+        "rangehood-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "ricecooker": {
+      "size": [
+        0.28,
+        0.25,
+        0.32
+      ],
+      "triangles": 1824,
+      "materials": [
+        "ricecooker-candidate-body",
+        "ricecooker-candidate-dark",
+        "ricecooker-candidate-soft",
+        "ricecooker-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "stand-mixer": {
+      "size": [
+        0.24,
+        0.4025,
+        0.34
+      ],
+      "triangles": 1596,
+      "materials": [
+        "stand-mixer-candidate-body",
+        "stand-mixer-candidate-dark",
+        "stand-mixer-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "steamoven": {
+      "size": [
+        0.6,
+        0.6,
+        0.55
+      ],
+      "triangles": 1568,
+      "materials": [
+        "steamoven-candidate-body",
+        "steamoven-candidate-dark",
+        "steamoven-candidate-light",
+        "steamoven-candidate-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "toaster": {
+      "size": [
+        0.27831,
+        0.20488,
+        0.16
+      ],
+      "triangles": 712,
+      "materials": [
+        "toaster-candidate-body",
+        "toaster-candidate-soft",
+        "toaster-candidate-dark",
+        "toaster-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "water-purifier": {
+      "size": [
+        0.18,
+        0.415,
+        0.3655
+      ],
+      "triangles": 3104,
+      "materials": [
+        "water-purifier-body",
+        "water-purifier-dark",
+        "water-purifier-panel",
+        "water-purifier-indicator"
+      ],
+      "topologyClass": "solid"
+    },
+    "dryer": {
+      "size": [
+        0.6,
+        0.85,
+        0.65
+      ],
+      "triangles": 4004,
+      "materials": [
+        "dryer-candidate-dark",
+        "dryer-candidate-body",
+        "dryer-candidate-soft",
+        "dryer-candidate-light",
+        "dryer-candidate-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "washer": {
+      "size": [
+        0.6,
+        0.85,
+        0.65
+      ],
+      "triangles": 3920,
+      "materials": [
+        "washer-candidate-dark",
+        "washer-candidate-body",
+        "washer-candidate-soft",
+        "washer-candidate-light",
+        "washer-candidate-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "floor-lamp": {
+      "size": [
+        1.6,
+        2,
+        0.45
+      ],
+      "triangles": 7447,
+      "materials": [
+        "frosted-white",
+        "Metal_Corrogated_Shiny",
+        "white_ppc1",
+        "[<0011_Seashell>]",
+        "*5",
+        "[Color_008]1"
+      ],
+      "topologyClass": "solid"
+    },
+    "floorlamp": {
+      "size": [
+        1.35,
+        1.8,
+        0.5
+      ],
+      "triangles": 2128,
+      "materials": [
+        "floorlamp-material-0",
+        "floorlamp-material-1",
+        "floorlamp-material-2",
+        "floorlamp-material-3",
+        "floorlamp-material-4"
+      ],
+      "topologyClass": "solid"
+    },
+    "table-lamp": {
+      "size": [
+        0.28,
+        0.45,
+        0.28
+      ],
+      "triangles": 2744,
+      "materials": [
+        "table-lamp-body",
+        "table-lamp-shade",
+        "table-lamp-stem"
+      ],
+      "topologyClass": "solid"
+    },
+    "up-down-wall-lamp": {
+      "size": [
+        0.06,
+        0.3,
+        0.06
+      ],
+      "triangles": 76,
+      "materials": [
+        "up-down-wall-lamp-body",
+        "up-down-wall-lamp-diffuser"
+      ],
+      "topologyClass": "solid"
+    },
+    "walllamp": {
+      "size": [
+        0.3,
+        0.34,
+        0.22
+      ],
+      "triangles": 1296,
+      "materials": [
+        "walllamp-candidate-dark",
+        "walllamp-candidate-accent",
+        "walllamp-candidate-soft",
+        "walllamp-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "electric-fireplace": {
+      "size": [
+        1.09,
+        0.9405,
+        0.402
+      ],
+      "triangles": 2024,
+      "materials": [
+        "electric-fireplace-candidate-body",
+        "electric-fireplace-candidate-dark",
+        "electric-fireplace-candidate-soft",
+        "electric-fireplace-candidate-light",
+        "electric-fireplace-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "magazine-rack": {
+      "size": [
+        0.40283,
+        0.37909,
+        0.324
+      ],
+      "triangles": 1032,
+      "materials": [
+        "magazine-rack-candidate-body",
+        "magazine-rack-candidate-soft",
+        "magazine-rack-candidate-accent",
+        "magazine-rack-candidate-dark",
+        "magazine-rack-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "projection-screen": {
+      "size": [
+        2.08,
+        1.265,
+        0.118
+      ],
+      "triangles": 788,
+      "materials": [
+        "projection-screen-candidate-body",
+        "projection-screen-candidate-dark",
+        "projection-screen-candidate-light"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "projector": {
+      "size": [
+        0.333,
+        0.129,
+        0.2596
+      ],
+      "triangles": 1496,
+      "materials": [
+        "projector-candidate-body",
+        "projector-candidate-dark",
+        "projector-candidate-glass",
+        "projector-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "ps5": {
+      "size": [
+        0.178,
+        0.421,
+        0.2675
+      ],
+      "triangles": 2152,
+      "materials": [
+        "ps5-body",
+        "ps5-panel",
+        "ps5-trim",
+        "ps5-detail",
+        "ps5-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "smart-display-wall": {
+      "size": [
+        0.2569,
+        0.162,
+        0.0315
+      ],
+      "triangles": 1332,
+      "materials": [
+        "smart-display-body",
+        "smart-display-screen",
+        "smart-display-icon",
+        "smart-display-ui",
+        "smart-display-speaker"
+      ],
+      "topologyClass": "solid"
+    },
+    "soundbar": {
+      "size": [
+        0.98,
+        0.08,
+        0.1247
+      ],
+      "triangles": 1600,
+      "materials": [
+        "soundbar-candidate-body",
+        "soundbar-candidate-dark",
+        "soundbar-candidate-accent",
+        "soundbar-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "switch-console": {
+      "size": [
+        0.241,
+        0.1283,
+        0.096
+      ],
+      "triangles": 3336,
+      "materials": [
+        "switch-console-body",
+        "switch-console-detail",
+        "switch-console-screen",
+        "switch-console-left",
+        "switch-console-right"
+      ],
+      "topologyClass": "solid"
+    },
+    "tower-speaker": {
+      "size": [
+        0.33,
+        0.97,
+        0.3467
+      ],
+      "triangles": 5144,
+      "materials": [
+        "tower-speaker-candidate-body",
+        "tower-speaker-candidate-dark",
+        "tower-speaker-candidate-accent",
+        "tower-speaker-candidate-soft",
+        "tower-speaker-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "turntable": {
+      "size": [
+        0.43,
+        0.13956,
+        0.348
+      ],
+      "triangles": 3808,
+      "materials": [
+        "turntable-candidate-body",
+        "turntable-candidate-dark",
+        "turntable-candidate-accent",
+        "turntable-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "tv_mobile": {
+      "size": [
+        1.5,
+        0.89702,
+        0.30001
+      ],
+      "triangles": 1244,
+      "materials": [
+        "tv_mobile-material-0",
+        "tv_mobile-material-1",
+        "tv_mobile-material-2",
+        "tv_mobile-material-3",
+        "tv_mobile-material-4",
+        "tv_mobile-material-5"
+      ],
+      "topologyClass": "solid"
+    },
+    "tv_standard": {
+      "size": [
+        1.451,
+        0.9066,
+        0.2821
+      ],
+      "triangles": 48,
+      "materials": [
+        "tv_standard-material-0"
+      ],
+      "topologyClass": "solid"
+    },
+    "tv_tabletop": {
+      "size": [
+        1.5,
+        0.874,
+        0.16001
+      ],
+      "triangles": 912,
+      "materials": [
+        "tv_tabletop-material-0",
+        "tv_tabletop-material-1",
+        "tv_tabletop-material-2",
+        "tv_tabletop-material-3"
+      ],
+      "topologyClass": "solid"
+    },
+    "xbox-series-x": {
+      "size": [
+        0.15,
+        0.3,
+        0.15
+      ],
+      "triangles": 2624,
+      "materials": [
+        "xbox-series-x-body",
+        "xbox-series-x-accent",
+        "xbox-series-x-panel",
+        "xbox-series-x-detail",
+        "xbox-series-x-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "3d-printer": {
+      "size": [
+        0.46,
+        0.694,
+        0.46096
+      ],
+      "triangles": 6232,
+      "materials": [
+        "3d-printer-dark",
+        "3d-printer-frame",
+        "3d-printer-light",
+        "3d-printer-accent",
+        "3d-printer-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "desktop": {
+      "size": [
+        0.72,
+        0.5,
+        0.32
+      ],
+      "triangles": 1334,
+      "materials": [
+        "desktop-detail-body",
+        "desktop-detail-panel",
+        "desktop-detail-recess",
+        "desktop-detail-trim",
+        "desktop-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "drawing-tablet": {
+      "size": [
+        0.34476,
+        0.023,
+        0.22
+      ],
+      "triangles": 524,
+      "materials": [
+        "drawing-tablet-candidate-body",
+        "drawing-tablet-candidate-dark",
+        "drawing-tablet-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "dual-monitors": {
+      "size": [
+        1.13,
+        0.496,
+        0.385
+      ],
+      "triangles": 1844,
+      "materials": [
+        "dual-monitors-candidate-dark",
+        "dual-monitors-candidate-glass",
+        "dual-monitors-candidate-body"
+      ],
+      "topologyClass": "solid"
+    },
+    "home-network-cabinet": {
+      "size": [
+        0.55,
+        0.64,
+        0.46
+      ],
+      "triangles": 1734,
+      "materials": [
+        "home-network-cabinet-detail-body",
+        "home-network-cabinet-detail-panel",
+        "home-network-cabinet-detail-recess",
+        "home-network-cabinet-detail-indicator",
+        "home-network-cabinet-detail-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "laptop": {
+      "size": [
+        0.36,
+        0.22,
+        0.28
+      ],
+      "triangles": 874,
+      "materials": [
+        "laptop-detail-body",
+        "laptop-detail-panel",
+        "laptop-detail-recess",
+        "laptop-detail-trim",
+        "laptop-detail-control"
+      ],
+      "topologyClass": "solid"
+    },
+    "nas": {
+      "size": [
+        0.28,
+        0.205,
+        0.24
+      ],
+      "triangles": 1648,
+      "materials": [
+        "nas-material-0",
+        "nas-material-1",
+        "nas-material-2",
+        "nas-material-3",
+        "nas-material-4"
+      ],
+      "topologyClass": "solid"
+    },
+    "paper-shredder": {
+      "size": [
+        0.315,
+        0.4985,
+        0.2305
+      ],
+      "triangles": 1696,
+      "materials": [
+        "paper-shredder-candidate-body",
+        "paper-shredder-candidate-dark",
+        "paper-shredder-candidate-light",
+        "paper-shredder-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "printer": {
+      "size": [
+        0.44,
+        0.3,
+        0.36
+      ],
+      "triangles": 1248,
+      "materials": [
+        "printer-detail-body",
+        "printer-detail-panel",
+        "printer-detail-recess",
+        "printer-detail-paper"
+      ],
+      "topologyClass": "solid"
+    },
+    "router": {
+      "size": [
+        0.287,
+        0.205,
+        0.177
+      ],
+      "triangles": 1644,
+      "materials": [
+        "router-detail-body",
+        "router-detail-panel",
+        "router-detail-recess",
+        "router-detail-indicator"
+      ],
+      "topologyClass": "solid"
+    },
+    "scanner": {
+      "size": [
+        0.3,
+        0.074,
+        0.42
+      ],
+      "triangles": 696,
+      "materials": [
+        "scanner-candidate-body",
+        "scanner-candidate-soft",
+        "scanner-candidate-glass",
+        "scanner-candidate-dark",
+        "scanner-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "smart-display": {
+      "size": [
+        0.256,
+        0.22171,
+        0.1136
+      ],
+      "triangles": 2472,
+      "materials": [
+        "smart-display-body",
+        "smart-display-screen",
+        "smart-display-icon",
+        "smart-display-ui",
+        "smart-display-speaker"
+      ],
+      "topologyClass": "solid"
+    },
+    "smart-socket-86": {
+      "size": [
+        0.086,
+        0.086,
+        0.012
+      ],
+      "triangles": 698,
+      "materials": [
+        "smart-socket-86-detail-body",
+        "smart-socket-86-detail-panel",
+        "smart-socket-86-detail-recess",
+        "smart-socket-86-detail-indicator"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-dryer": {
+      "size": [
+        0.5225,
+        0.562,
+        0.495
+      ],
+      "triangles": 4680,
+      "materials": [
+        "pet-dryer-body",
+        "pet-dryer-inside",
+        "pet-dryer-dark",
+        "pet-dryer-panel",
+        "pet-dryer-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-barbecue-kettle": {
+      "size": [
+        0.7,
+        1.05,
+        0.7
+      ],
+      "triangles": 516,
+      "materials": [
+        "garden-barbecue-kettle-garden-base",
+        "garden-barbecue-kettle-garden-light",
+        "garden-barbecue-kettle-garden-dark",
+        "garden-barbecue-kettle-garden-leaf",
+        "garden-barbecue-kettle-garden-water",
+        "garden-barbecue-kettle-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-barbecue": {
+      "size": [
+        1.25,
+        1.1,
+        0.6
+      ],
+      "triangles": 1024,
+      "materials": [
+        "garden-barbecue-garden-base",
+        "garden-barbecue-garden-light",
+        "garden-barbecue-garden-dark",
+        "garden-barbecue-garden-leaf",
+        "garden-barbecue-garden-water",
+        "garden-barbecue-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-bollard": {
+      "size": [
+        0.2,
+        0.65,
+        0.2
+      ],
+      "triangles": 176,
+      "materials": [
+        "garden-bollard-garden-base",
+        "garden-bollard-garden-light",
+        "garden-bollard-garden-dark",
+        "garden-bollard-garden-leaf",
+        "garden-bollard-garden-water",
+        "garden-bollard-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-fence-horizontal": {
+      "size": [
+        2,
+        1.15,
+        0.17
+      ],
+      "triangles": 484,
+      "materials": [
+        "garden-fence-horizontal-garden-base",
+        "garden-fence-horizontal-garden-light",
+        "garden-fence-horizontal-garden-dark",
+        "garden-fence-horizontal-garden-leaf",
+        "garden-fence-horizontal-garden-water",
+        "garden-fence-horizontal-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-fence-lattice": {
+      "size": [
+        2,
+        1.2,
+        0.16
+      ],
+      "triangles": 752,
+      "materials": [
+        "garden-fence-lattice-garden-base",
+        "garden-fence-lattice-garden-light",
+        "garden-fence-lattice-garden-dark",
+        "garden-fence-lattice-garden-leaf",
+        "garden-fence-lattice-garden-water",
+        "garden-fence-lattice-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-fence": {
+      "size": [
+        2,
+        1.15,
+        0.16
+      ],
+      "triangles": 880,
+      "materials": [
+        "garden-fence-garden-base",
+        "garden-fence-garden-light",
+        "garden-fence-garden-dark",
+        "garden-fence-garden-leaf",
+        "garden-fence-garden-water",
+        "garden-fence-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-fence-metal": {
+      "size": [
+        2,
+        1.2,
+        0.15
+      ],
+      "triangles": 836,
+      "materials": [
+        "garden-fence-metal-garden-base",
+        "garden-fence-metal-garden-light",
+        "garden-fence-metal-garden-dark",
+        "garden-fence-metal-garden-leaf",
+        "garden-fence-metal-garden-water",
+        "garden-fence-metal-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-firepit": {
+      "size": [
+        0.95,
+        0.42,
+        0.95
+      ],
+      "triangles": 432,
+      "materials": [
+        "garden-firepit-garden-base",
+        "garden-firepit-garden-light",
+        "garden-firepit-garden-dark",
+        "garden-firepit-garden-leaf",
+        "garden-firepit-garden-water",
+        "garden-firepit-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-gate-arch": {
+      "size": [
+        1.6,
+        1.9,
+        0.23
+      ],
+      "triangles": 764,
+      "materials": [
+        "garden-gate-arch-garden-base",
+        "garden-gate-arch-garden-light",
+        "garden-gate-arch-garden-dark",
+        "garden-gate-arch-garden-leaf",
+        "garden-gate-arch-garden-water",
+        "garden-gate-arch-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-gate": {
+      "size": [
+        1.4,
+        1.55,
+        0.22
+      ],
+      "triangles": 792,
+      "materials": [
+        "garden-gate-garden-base",
+        "garden-gate-garden-light",
+        "garden-gate-garden-dark",
+        "garden-gate-garden-leaf",
+        "garden-gate-garden-water",
+        "garden-gate-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-gate-post": {
+      "size": [
+        0.46,
+        1.6,
+        0.46
+      ],
+      "triangles": 220,
+      "materials": [
+        "garden-gate-post-garden-base",
+        "garden-gate-post-garden-light",
+        "garden-gate-post-garden-dark",
+        "garden-gate-post-garden-leaf",
+        "garden-gate-post-garden-water",
+        "garden-gate-post-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-gate-solid": {
+      "size": [
+        1.8,
+        1.65,
+        0.25
+      ],
+      "triangles": 880,
+      "materials": [
+        "garden-gate-solid-garden-base",
+        "garden-gate-solid-garden-light",
+        "garden-gate-solid-garden-dark",
+        "garden-gate-solid-garden-leaf",
+        "garden-gate-solid-garden-water",
+        "garden-gate-solid-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-lantern": {
+      "size": [
+        0.42,
+        2.3,
+        0.42
+      ],
+      "triangles": 368,
+      "materials": [
+        "garden-lantern-garden-base",
+        "garden-lantern-garden-light",
+        "garden-lantern-garden-dark",
+        "garden-lantern-garden-leaf",
+        "garden-lantern-garden-water",
+        "garden-lantern-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-low-wall-brick": {
+      "size": [
+        2,
+        0.9,
+        0.3
+      ],
+      "triangles": 1232,
+      "materials": [
+        "garden-low-wall-brick-garden-base",
+        "garden-low-wall-brick-garden-light",
+        "garden-low-wall-brick-garden-dark",
+        "garden-low-wall-brick-garden-leaf",
+        "garden-low-wall-brick-garden-water",
+        "garden-low-wall-brick-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-low-wall": {
+      "size": [
+        2,
+        0.85,
+        0.28
+      ],
+      "triangles": 132,
+      "materials": [
+        "garden-low-wall-garden-base",
+        "garden-low-wall-garden-light",
+        "garden-low-wall-garden-dark",
+        "garden-low-wall-garden-leaf",
+        "garden-low-wall-garden-water",
+        "garden-low-wall-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-low-wall-slat": {
+      "size": [
+        2,
+        1.3,
+        0.3
+      ],
+      "triangles": 660,
+      "materials": [
+        "garden-low-wall-slat-garden-base",
+        "garden-low-wall-slat-garden-light",
+        "garden-low-wall-slat-garden-dark",
+        "garden-low-wall-slat-garden-leaf",
+        "garden-low-wall-slat-garden-water",
+        "garden-low-wall-slat-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-outdoor-sink": {
+      "size": [
+        1.3,
+        0.98,
+        0.6
+      ],
+      "triangles": 856,
+      "materials": [
+        "garden-outdoor-sink-garden-base",
+        "garden-outdoor-sink-garden-light",
+        "garden-outdoor-sink-garden-dark",
+        "garden-outdoor-sink-garden-leaf",
+        "garden-outdoor-sink-garden-water",
+        "garden-outdoor-sink-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-retaining-wall": {
+      "size": [
+        2,
+        0.5,
+        0.3
+      ],
+      "triangles": 616,
+      "materials": [
+        "garden-retaining-wall-garden-base",
+        "garden-retaining-wall-garden-light",
+        "garden-retaining-wall-garden-dark",
+        "garden-retaining-wall-garden-leaf",
+        "garden-retaining-wall-garden-water",
+        "garden-retaining-wall-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-storage-shed": {
+      "size": [
+        1.6,
+        2,
+        1.3
+      ],
+      "triangles": 792,
+      "materials": [
+        "garden-storage-shed-garden-base",
+        "garden-storage-shed-garden-light",
+        "garden-storage-shed-garden-dark",
+        "garden-storage-shed-garden-leaf",
+        "garden-storage-shed-garden-water",
+        "garden-storage-shed-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-bench-backless": {
+      "size": [
+        1.5,
+        0.45,
+        0.44
+      ],
+      "triangles": 352,
+      "materials": [
+        "garden-bench-backless-garden-base",
+        "garden-bench-backless-garden-light",
+        "garden-bench-backless-garden-dark",
+        "garden-bench-backless-garden-leaf",
+        "garden-bench-backless-garden-water",
+        "garden-bench-backless-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-bench-curved": {
+      "size": [
+        1.8,
+        0.48,
+        0.68
+      ],
+      "triangles": 1056,
+      "materials": [
+        "garden-bench-curved-garden-base",
+        "garden-bench-curved-garden-light",
+        "garden-bench-curved-garden-dark",
+        "garden-bench-curved-garden-leaf",
+        "garden-bench-curved-garden-water",
+        "garden-bench-curved-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-bench": {
+      "size": [
+        1.6,
+        0.88,
+        0.6
+      ],
+      "triangles": 792,
+      "materials": [
+        "garden-bench-garden-base",
+        "garden-bench-garden-light",
+        "garden-bench-garden-dark",
+        "garden-bench-garden-leaf",
+        "garden-bench-garden-water",
+        "garden-bench-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-chair-bistro": {
+      "size": [
+        0.55,
+        0.85,
+        0.58
+      ],
+      "triangles": 540,
+      "materials": [
+        "garden-chair-bistro-garden-base",
+        "garden-chair-bistro-garden-light",
+        "garden-chair-bistro-garden-dark",
+        "garden-chair-bistro-garden-leaf",
+        "garden-chair-bistro-garden-water",
+        "garden-chair-bistro-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-chair": {
+      "size": [
+        0.72,
+        0.84,
+        0.76
+      ],
+      "triangles": 792,
+      "materials": [
+        "garden-chair-garden-base",
+        "garden-chair-garden-light",
+        "garden-chair-garden-dark",
+        "garden-chair-garden-leaf",
+        "garden-chair-garden-water",
+        "garden-chair-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-deck": {
+      "size": [
+        3,
+        0.16,
+        3
+      ],
+      "triangles": 792,
+      "materials": [
+        "garden-deck-garden-base",
+        "garden-deck-garden-light",
+        "garden-deck-garden-dark",
+        "garden-deck-garden-leaf",
+        "garden-deck-garden-water",
+        "garden-deck-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-hammock": {
+      "size": [
+        1.05,
+        1.35,
+        3.3
+      ],
+      "triangles": 1120,
+      "materials": [
+        "garden-hammock-garden-base",
+        "garden-hammock-garden-light",
+        "garden-hammock-garden-dark",
+        "garden-hammock-garden-leaf",
+        "garden-hammock-garden-water",
+        "garden-hammock-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-hanging-chair": {
+      "size": [
+        1.1,
+        2.2,
+        1.15
+      ],
+      "triangles": 1672,
+      "materials": [
+        "garden-hanging-chair-garden-base",
+        "garden-hanging-chair-garden-light",
+        "garden-hanging-chair-garden-dark",
+        "garden-hanging-chair-garden-leaf",
+        "garden-hanging-chair-garden-water",
+        "garden-hanging-chair-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-lawn": {
+      "size": [
+        2,
+        0.05,
+        2
+      ],
+      "triangles": 44,
+      "materials": [
+        "garden-lawn-garden-base",
+        "garden-lawn-garden-light",
+        "garden-lawn-garden-dark",
+        "garden-lawn-garden-leaf",
+        "garden-lawn-garden-water",
+        "garden-lawn-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-lounger": {
+      "size": [
+        0.72,
+        0.8,
+        1.95
+      ],
+      "triangles": 762,
+      "materials": [
+        "garden-lounger-garden-base",
+        "garden-lounger-garden-light",
+        "garden-lounger-garden-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-outdoor-coffee-table": {
+      "size": [
+        0.95,
+        0.4,
+        0.55
+      ],
+      "triangles": 484,
+      "materials": [
+        "garden-outdoor-coffee-table-garden-base",
+        "garden-outdoor-coffee-table-garden-light",
+        "garden-outdoor-coffee-table-garden-dark",
+        "garden-outdoor-coffee-table-garden-leaf",
+        "garden-outdoor-coffee-table-garden-water",
+        "garden-outdoor-coffee-table-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-outdoor-sofa": {
+      "size": [
+        1.7,
+        0.82,
+        0.82
+      ],
+      "triangles": 1056,
+      "materials": [
+        "garden-outdoor-sofa-garden-base",
+        "garden-outdoor-sofa-garden-light",
+        "garden-outdoor-sofa-garden-dark",
+        "garden-outdoor-sofa-garden-leaf",
+        "garden-outdoor-sofa-garden-water",
+        "garden-outdoor-sofa-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-paving": {
+      "size": [
+        2,
+        0.06,
+        2
+      ],
+      "triangles": 704,
+      "materials": [
+        "garden-paving-garden-base",
+        "garden-paving-garden-light",
+        "garden-paving-garden-dark",
+        "garden-paving-garden-leaf",
+        "garden-paving-garden-water",
+        "garden-paving-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-slide": {
+      "size": [
+        0.95,
+        1.5,
+        2.2
+      ],
+      "triangles": 720,
+      "materials": [
+        "garden-slide-garden-base",
+        "garden-slide-garden-light",
+        "garden-slide-garden-dark",
+        "garden-slide-garden-leaf",
+        "garden-slide-garden-water",
+        "garden-slide-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-stepping": {
+      "size": [
+        0.65,
+        0.09,
+        0.48
+      ],
+      "triangles": 28,
+      "materials": [
+        "garden-stepping-garden-base",
+        "garden-stepping-garden-light",
+        "garden-stepping-garden-dark",
+        "garden-stepping-garden-leaf",
+        "garden-stepping-garden-water",
+        "garden-stepping-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-steps": {
+      "size": [
+        1.8,
+        0.45,
+        1.05
+      ],
+      "triangles": 264,
+      "materials": [
+        "garden-steps-garden-base",
+        "garden-steps-garden-light",
+        "garden-steps-garden-dark",
+        "garden-steps-garden-leaf",
+        "garden-steps-garden-water",
+        "garden-steps-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-swing": {
+      "size": [
+        2.2,
+        2.2,
+        1.5
+      ],
+      "triangles": 836,
+      "materials": [
+        "garden-swing-garden-base",
+        "garden-swing-garden-light",
+        "garden-swing-garden-dark",
+        "garden-swing-garden-leaf",
+        "garden-swing-garden-water",
+        "garden-swing-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-table": {
+      "size": [
+        1.6,
+        0.76,
+        0.85
+      ],
+      "triangles": 572,
+      "materials": [
+        "garden-table-garden-base",
+        "garden-table-garden-light",
+        "garden-table-garden-dark",
+        "garden-table-garden-leaf",
+        "garden-table-garden-water",
+        "garden-table-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-table-picnic": {
+      "size": [
+        1.8,
+        0.77,
+        1.6
+      ],
+      "triangles": 544,
+      "materials": [
+        "garden-table-picnic-garden-base",
+        "garden-table-picnic-garden-light",
+        "garden-table-picnic-garden-dark",
+        "garden-table-picnic-garden-leaf",
+        "garden-table-picnic-garden-water",
+        "garden-table-picnic-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-table-round": {
+      "size": [
+        1.05,
+        0.75,
+        1.05
+      ],
+      "triangles": 272,
+      "materials": [
+        "garden-table-round-garden-base",
+        "garden-table-round-garden-light",
+        "garden-table-round-garden-dark",
+        "garden-table-round-garden-leaf",
+        "garden-table-round-garden-water",
+        "garden-table-round-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-flowerbed": {
+      "size": [
+        1.4,
+        0.48,
+        0.8
+      ],
+      "triangles": 2176,
+      "materials": [
+        "garden-flowerbed-garden-base",
+        "garden-flowerbed-garden-light",
+        "garden-flowerbed-garden-dark",
+        "garden-flowerbed-garden-leaf",
+        "garden-flowerbed-garden-water",
+        "garden-flowerbed-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-flowers": {
+      "size": [
+        0.9,
+        0.6,
+        0.75
+      ],
+      "triangles": 2088,
+      "materials": [
+        "garden-flowers-garden-base",
+        "garden-flowers-garden-light",
+        "garden-flowers-garden-dark",
+        "garden-flowers-garden-leaf",
+        "garden-flowers-garden-water",
+        "garden-flowers-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-flowers-wild": {
+      "size": [
+        1.1,
+        0.7,
+        0.9
+      ],
+      "triangles": 1716,
+      "materials": [
+        "garden-flowers-wild-garden-base",
+        "garden-flowers-wild-garden-light",
+        "garden-flowers-wild-garden-dark",
+        "garden-flowers-wild-garden-leaf",
+        "garden-flowers-wild-garden-water",
+        "garden-flowers-wild-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-large-planter": {
+      "size": [
+        0.7,
+        1.35,
+        0.7
+      ],
+      "triangles": 720,
+      "materials": [
+        "garden-large-planter-garden-base",
+        "garden-large-planter-garden-light",
+        "garden-large-planter-garden-dark",
+        "garden-large-planter-garden-leaf",
+        "garden-large-planter-garden-water",
+        "garden-large-planter-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-planter": {
+      "size": [
+        1.5,
+        0.65,
+        0.5
+      ],
+      "triangles": 764,
+      "materials": [
+        "garden-planter-garden-base",
+        "garden-planter-garden-light",
+        "garden-planter-garden-dark",
+        "garden-planter-garden-leaf",
+        "garden-planter-garden-water",
+        "garden-planter-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-planter-square": {
+      "size": [
+        0.7,
+        0.8,
+        0.7
+      ],
+      "triangles": 344,
+      "materials": [
+        "garden-planter-square-garden-base",
+        "garden-planter-square-garden-light",
+        "garden-planter-square-garden-dark",
+        "garden-planter-square-garden-leaf",
+        "garden-planter-square-garden-water",
+        "garden-planter-square-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-planter-trough": {
+      "size": [
+        1.6,
+        0.5,
+        0.55
+      ],
+      "triangles": 744,
+      "materials": [
+        "garden-planter-trough-garden-base",
+        "garden-planter-trough-garden-light",
+        "garden-planter-trough-garden-dark",
+        "garden-planter-trough-garden-leaf",
+        "garden-planter-trough-garden-water",
+        "garden-planter-trough-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-raised-bed": {
+      "size": [
+        1.5,
+        0.78,
+        0.75
+      ],
+      "triangles": 852,
+      "materials": [
+        "garden-raised-bed-garden-base",
+        "garden-raised-bed-garden-light",
+        "garden-raised-bed-garden-dark",
+        "garden-raised-bed-garden-leaf",
+        "garden-raised-bed-garden-water",
+        "garden-raised-bed-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-round-planter": {
+      "size": [
+        0.75,
+        0.9,
+        0.75
+      ],
+      "triangles": 432,
+      "materials": [
+        "garden-round-planter-garden-base",
+        "garden-round-planter-garden-light",
+        "garden-round-planter-garden-dark",
+        "garden-round-planter-garden-leaf",
+        "garden-round-planter-garden-water",
+        "garden-round-planter-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-vegetable-bed": {
+      "size": [
+        1.5,
+        0.28,
+        1
+      ],
+      "triangles": 1180,
+      "materials": [
+        "garden-vegetable-bed-garden-base",
+        "garden-vegetable-bed-garden-light",
+        "garden-vegetable-bed-garden-dark",
+        "garden-vegetable-bed-garden-leaf",
+        "garden-vegetable-bed-garden-water",
+        "garden-vegetable-bed-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-bamboo-dense": {
+      "size": [
+        1.2,
+        2.4,
+        1
+      ],
+      "triangles": 2952,
+      "materials": [
+        "garden-bamboo-dense-garden-base",
+        "garden-bamboo-dense-garden-light",
+        "garden-bamboo-dense-garden-dark",
+        "garden-bamboo-dense-garden-leaf",
+        "garden-bamboo-dense-garden-water",
+        "garden-bamboo-dense-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-bamboo": {
+      "size": [
+        1.05,
+        2.7,
+        0.85
+      ],
+      "triangles": 2736,
+      "materials": [
+        "garden-bamboo-garden-base",
+        "garden-bamboo-garden-light",
+        "garden-bamboo-garden-dark",
+        "garden-bamboo-garden-leaf",
+        "garden-bamboo-garden-water",
+        "garden-bamboo-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-conifer-layered": {
+      "size": [
+        2,
+        2.9,
+        1.65
+      ],
+      "triangles": 480,
+      "materials": [
+        "garden-conifer-layered-garden-base",
+        "garden-conifer-layered-garden-light",
+        "garden-conifer-layered-garden-dark",
+        "garden-conifer-layered-garden-leaf",
+        "garden-conifer-layered-garden-water",
+        "garden-conifer-layered-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-conifer": {
+      "size": [
+        1.5,
+        3,
+        1.5
+      ],
+      "triangles": 108,
+      "materials": [
+        "garden-conifer-garden-base",
+        "garden-conifer-garden-light",
+        "garden-conifer-garden-dark",
+        "garden-conifer-garden-leaf",
+        "garden-conifer-garden-water",
+        "garden-conifer-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-grass-clump": {
+      "size": [
+        0.75,
+        0.8,
+        0.65
+      ],
+      "triangles": 1060,
+      "materials": [
+        "garden-grass-clump-garden-base",
+        "garden-grass-clump-garden-light",
+        "garden-grass-clump-garden-dark",
+        "garden-grass-clump-garden-leaf",
+        "garden-grass-clump-garden-water",
+        "garden-grass-clump-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-grass-low": {
+      "size": [
+        0.8,
+        0.42,
+        0.8
+      ],
+      "triangles": 768,
+      "materials": [
+        "garden-grass-low-garden-base",
+        "garden-grass-low-garden-light",
+        "garden-grass-low-garden-dark",
+        "garden-grass-low-garden-leaf",
+        "garden-grass-low-garden-water",
+        "garden-grass-low-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-hedge": {
+      "size": [
+        1.6,
+        1,
+        0.55
+      ],
+      "triangles": 444,
+      "materials": [
+        "garden-hedge-garden-base",
+        "garden-hedge-garden-light",
+        "garden-hedge-garden-dark",
+        "garden-hedge-garden-leaf",
+        "garden-hedge-garden-water",
+        "garden-hedge-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-hedge-round": {
+      "size": [
+        1.8,
+        0.85,
+        0.65
+      ],
+      "triangles": 768,
+      "materials": [
+        "garden-hedge-round-garden-base",
+        "garden-hedge-round-garden-light",
+        "garden-hedge-round-garden-dark",
+        "garden-hedge-round-garden-leaf",
+        "garden-hedge-round-garden-water",
+        "garden-hedge-round-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-shrub-flowering": {
+      "size": [
+        1.05,
+        0.8,
+        0.9
+      ],
+      "triangles": 1400,
+      "materials": [
+        "garden-shrub-flowering-garden-base",
+        "garden-shrub-flowering-garden-light",
+        "garden-shrub-flowering-garden-dark",
+        "garden-shrub-flowering-garden-leaf",
+        "garden-shrub-flowering-garden-water",
+        "garden-shrub-flowering-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-shrub": {
+      "size": [
+        0.95,
+        0.72,
+        0.85
+      ],
+      "triangles": 560,
+      "materials": [
+        "garden-shrub-garden-base",
+        "garden-shrub-garden-light",
+        "garden-shrub-garden-dark",
+        "garden-shrub-garden-leaf",
+        "garden-shrub-garden-water",
+        "garden-shrub-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-shrub-low": {
+      "size": [
+        1.1,
+        0.48,
+        0.9
+      ],
+      "triangles": 240,
+      "materials": [
+        "garden-shrub-low-garden-base",
+        "garden-shrub-low-garden-light",
+        "garden-shrub-low-garden-dark",
+        "garden-shrub-low-garden-leaf",
+        "garden-shrub-low-garden-water",
+        "garden-shrub-low-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-tree-columnar": {
+      "size": [
+        1,
+        3.2,
+        1
+      ],
+      "triangles": 368,
+      "materials": [
+        "garden-tree-columnar-garden-base",
+        "garden-tree-columnar-garden-light",
+        "garden-tree-columnar-garden-dark",
+        "garden-tree-columnar-garden-leaf",
+        "garden-tree-columnar-garden-water",
+        "garden-tree-columnar-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-tree": {
+      "size": [
+        2.2,
+        3.4,
+        2.1
+      ],
+      "triangles": 448,
+      "materials": [
+        "garden-tree-garden-base",
+        "garden-tree-garden-light",
+        "garden-tree-garden-dark",
+        "garden-tree-garden-leaf",
+        "garden-tree-garden-water",
+        "garden-tree-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-tree-multistem": {
+      "size": [
+        2.1,
+        2.6,
+        1.8
+      ],
+      "triangles": 336,
+      "materials": [
+        "garden-tree-multistem-garden-base",
+        "garden-tree-multistem-garden-light",
+        "garden-tree-multistem-garden-dark",
+        "garden-tree-multistem-garden-leaf",
+        "garden-tree-multistem-garden-water",
+        "garden-tree-multistem-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-tree-rounded": {
+      "size": [
+        2.1,
+        3,
+        2.1
+      ],
+      "triangles": 292,
+      "materials": [
+        "garden-tree-rounded-garden-base",
+        "garden-tree-rounded-garden-light",
+        "garden-tree-rounded-garden-dark",
+        "garden-tree-rounded-garden-leaf",
+        "garden-tree-rounded-garden-water",
+        "garden-tree-rounded-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-arch": {
+      "size": [
+        1.65,
+        2.5,
+        0.55
+      ],
+      "triangles": 1264,
+      "materials": [
+        "garden-arch-garden-base",
+        "garden-arch-garden-light",
+        "garden-arch-garden-dark",
+        "garden-arch-garden-leaf",
+        "garden-arch-garden-water",
+        "garden-arch-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-carport": {
+      "size": [
+        3.2,
+        2.65,
+        5.2
+      ],
+      "triangles": 924,
+      "materials": [
+        "garden-carport-garden-base",
+        "garden-carport-garden-light",
+        "garden-carport-garden-dark",
+        "garden-carport-garden-leaf",
+        "garden-carport-garden-water",
+        "garden-carport-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-gazebo-hex": {
+      "size": [
+        3.3,
+        3.05,
+        3
+      ],
+      "triangles": 460,
+      "materials": [
+        "garden-gazebo-hex-garden-base",
+        "garden-gazebo-hex-garden-light",
+        "garden-gazebo-hex-garden-dark",
+        "garden-gazebo-hex-garden-leaf",
+        "garden-gazebo-hex-garden-water",
+        "garden-gazebo-hex-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-gazebo": {
+      "size": [
+        3.2,
+        3.15,
+        3.2
+      ],
+      "triangles": 1328,
+      "materials": [
+        "garden-gazebo-garden-base",
+        "garden-gazebo-garden-light",
+        "garden-gazebo-garden-dark",
+        "garden-gazebo-garden-leaf",
+        "garden-gazebo-garden-water",
+        "garden-gazebo-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-pergola": {
+      "size": [
+        3.2,
+        2.7,
+        3.2
+      ],
+      "triangles": 924,
+      "materials": [
+        "garden-pergola-garden-base",
+        "garden-pergola-garden-light",
+        "garden-pergola-garden-dark",
+        "garden-pergola-garden-leaf",
+        "garden-pergola-garden-water",
+        "garden-pergola-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-pergola-shade": {
+      "size": [
+        3.2,
+        2.65,
+        3.2
+      ],
+      "triangles": 836,
+      "materials": [
+        "garden-pergola-shade-garden-base",
+        "garden-pergola-shade-garden-light",
+        "garden-pergola-shade-garden-dark",
+        "garden-pergola-shade-garden-leaf",
+        "garden-pergola-shade-garden-water",
+        "garden-pergola-shade-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-trellis": {
+      "size": [
+        1.4,
+        1.9,
+        0.15
+      ],
+      "triangles": 1076,
+      "materials": [
+        "garden-trellis-garden-base",
+        "garden-trellis-garden-light",
+        "garden-trellis-garden-dark",
+        "garden-trellis-garden-leaf",
+        "garden-trellis-garden-water",
+        "garden-trellis-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-umbrella": {
+      "size": [
+        2.6,
+        2.65,
+        2.6
+      ],
+      "triangles": 552,
+      "materials": [
+        "garden-umbrella-garden-base",
+        "garden-umbrella-garden-light",
+        "garden-umbrella-garden-dark",
+        "garden-umbrella-garden-leaf",
+        "garden-umbrella-garden-water",
+        "garden-umbrella-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-umbrella-square": {
+      "size": [
+        2.6,
+        2.7,
+        2.6
+      ],
+      "triangles": 228,
+      "materials": [
+        "garden-umbrella-square-garden-base",
+        "garden-umbrella-square-garden-light",
+        "garden-umbrella-square-garden-dark",
+        "garden-umbrella-square-garden-leaf",
+        "garden-umbrella-square-garden-water",
+        "garden-umbrella-square-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-fountain": {
+      "size": [
+        1.25,
+        1.25,
+        1.25
+      ],
+      "triangles": 644,
+      "materials": [
+        "garden-fountain-garden-base",
+        "garden-fountain-garden-light",
+        "garden-fountain-garden-dark",
+        "garden-fountain-garden-leaf",
+        "garden-fountain-garden-water",
+        "garden-fountain-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-fountain-wall": {
+      "size": [
+        1.1,
+        1.5,
+        0.6
+      ],
+      "triangles": 396,
+      "materials": [
+        "garden-fountain-wall-garden-base",
+        "garden-fountain-wall-garden-light",
+        "garden-fountain-wall-garden-dark",
+        "garden-fountain-wall-garden-leaf",
+        "garden-fountain-wall-garden-water",
+        "garden-fountain-wall-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-pond": {
+      "size": [
+        2.6,
+        0.3,
+        1.7
+      ],
+      "triangles": 344,
+      "materials": [
+        "garden-pond-garden-base",
+        "garden-pond-garden-light",
+        "garden-pond-garden-dark",
+        "garden-pond-garden-leaf",
+        "garden-pond-garden-water",
+        "garden-pond-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-pond-round": {
+      "size": [
+        1.8,
+        0.25,
+        1.8
+      ],
+      "triangles": 384,
+      "materials": [
+        "garden-pond-round-garden-base",
+        "garden-pond-round-garden-light",
+        "garden-pond-round-garden-dark",
+        "garden-pond-round-garden-leaf",
+        "garden-pond-round-garden-water",
+        "garden-pond-round-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-pool": {
+      "size": [
+        5,
+        0.55,
+        3
+      ],
+      "triangles": 524,
+      "materials": [
+        "garden-pool-garden-base",
+        "garden-pool-garden-light",
+        "garden-pool-garden-dark",
+        "garden-pool-garden-leaf",
+        "garden-pool-garden-water",
+        "garden-pool-garden-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "garden-rock-water": {
+      "size": [
+        2.1,
+        1.6,
+        1.6
+      ],
+      "triangles": 388,
+      "materials": [
+        "garden-rock-water-garden-base",
+        "garden-rock-water-garden-light",
+        "garden-rock-water-garden-dark",
+        "garden-rock-water-garden-leaf",
+        "garden-rock-water-garden-water",
+        "garden-rock-water-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "garden-rocks": {
+      "size": [
+        1.3,
+        0.72,
+        0.9
+      ],
+      "triangles": 108,
+      "materials": [
+        "garden-rocks-garden-base",
+        "garden-rocks-garden-light",
+        "garden-rocks-garden-dark",
+        "garden-rocks-garden-leaf",
+        "garden-rocks-garden-water",
+        "garden-rocks-garden-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "car": {
+      "size": [
+        2.19158,
+        1.43395,
+        5.01247
+      ],
+      "triangles": 2700,
+      "materials": [
+        "car_tms"
+      ],
+      "topologyClass": "solid"
+    },
+    "elevator": {
+      "size": [
+        1.4,
+        2.2,
+        1.515
+      ],
+      "triangles": 338,
+      "materials": [
+        "[Color_003]",
+        "[Color_002]",
+        "[Color_A01]",
+        "[Color_001]",
+        "[Color_004]",
+        "[Color_007]"
+      ],
+      "topologyClass": "solid"
+    },
+    "floating-stairs": {
+      "size": [
+        0.97254,
+        2.59011,
+        2.24834
+      ],
+      "triangles": 290,
+      "materials": [
+        "sacfdsa004",
+        "B-1",
+        "sacfdsa010",
+        "sacfdsa001_1",
+        "sacfdsa001_2"
+      ],
+      "topologyClass": "solid"
+    },
+    "glass-stairs": {
+      "size": [
+        2.51382,
+        3.41429,
+        2.83725
+      ],
+      "triangles": 740,
+      "materials": [
+        "sacfdsa001_1",
+        "sacfdsa001_2",
+        "sacfdsa010",
+        "sacfdsa004",
+        "B-1"
+      ],
+      "topologyClass": "solid"
+    },
+    "pillar": {
+      "size": [
+        0.45,
+        2.8,
+        0.45
+      ],
+      "triangles": 12,
+      "materials": [
+        "pillar-material-0"
+      ],
+      "topologyClass": "solid"
+    },
+    "pillar-quarter": {
+      "size": [
+        0.45,
+        2.8,
+        0.45
+      ],
+      "triangles": 204,
+      "materials": [
+        "material-0-body",
+        "material-1-base",
+        "material-2-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "pillar-quarterinner": {
+      "size": [
+        0.45,
+        2.8,
+        0.45
+      ],
+      "triangles": 204,
+      "materials": [
+        "material-0-body",
+        "material-1-base",
+        "material-2-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "pillar-round": {
+      "size": [
+        0.45,
+        2.8,
+        0.45
+      ],
+      "triangles": 480,
+      "materials": [
+        "material-0-body",
+        "material-1-base",
+        "material-2-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "pillar-semicircle": {
+      "size": [
+        0.45,
+        2.8,
+        0.45
+      ],
+      "triangles": 384,
+      "materials": [
+        "material-0-body",
+        "material-1-base",
+        "material-2-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "scooter": {
+      "size": [
+        0.76936,
+        1.43566,
+        1.89284
+      ],
+      "triangles": 11926,
+      "materials": [
+        "Metal",
+        "Yellow_Light",
+        "Green_Light",
+        "Black",
+        "Gray",
+        "gogoro_color",
+        "White_Light",
+        "Red_Light",
+        "scooter-seat"
+      ],
+      "topologyClass": "solid"
+    },
+    "stairs": {
+      "size": [
+        1.00996,
+        1.66796,
+        2.8042
+      ],
+      "triangles": 240,
+      "materials": [
+        "stairs-material-0",
+        "stairs-material-1",
+        "stairs-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "steel-stairs": {
+      "size": [
+        1.85533,
+        3.45443,
+        2.92666
+      ],
+      "triangles": 5789,
+      "materials": [
+        "004",
+        "0005"
+      ],
+      "topologyClass": "solid"
+    },
+    "suv": {
+      "size": [
+        2.08508,
+        1.73313,
+        4.75402
+      ],
+      "triangles": 41122,
+      "materials": [
+        "gray",
+        "headlight",
+        "headlight_01",
+        "headlight_02",
+        "base",
+        "body",
+        "glass_01",
+        "glass_02",
+        "glass_back",
+        "glass",
+        "salon"
+      ],
+      "topologyClass": "solid"
+    },
+    "basin": {
+      "size": [
+        0.9,
+        1.14,
+        0.5
+      ],
+      "triangles": 2764,
+      "materials": [
+        "basin-candidate-body",
+        "basin-candidate-accent",
+        "basin-candidate-dark",
+        "basin-candidate-light",
+        "basin-candidate-soft",
+        "basin-candidate-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "bathtub": {
+      "size": [
+        1.7,
+        0.58,
+        0.78
+      ],
+      "triangles": 1792,
+      "materials": [
+        "bathtub-candidate-soft",
+        "bathtub-candidate-dark",
+        "bathtub-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "countertop": {
+      "size": [
+        0.9,
+        0.05,
+        0.5
+      ],
+      "triangles": 12,
+      "materials": [
+        "countertop-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "foot-spa": {
+      "size": [
+        0.36,
+        0.186,
+        0.36
+      ],
+      "triangles": 1148,
+      "materials": [
+        "foot-spa-candidate-body",
+        "foot-spa-candidate-dark",
+        "foot-spa-candidate-soft",
+        "foot-spa-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "glasspartition": {
+      "size": [
+        1.2,
+        2,
+        0.08
+      ],
+      "triangles": 84,
+      "materials": [
+        "glasspartition-material-0",
+        "glasspartition-material-1",
+        "glasspartition-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "hairdryer-holder": {
+      "size": [
+        0.14,
+        0.2535,
+        0.159
+      ],
+      "triangles": 1128,
+      "materials": [
+        "hairdryer-holder-candidate-body",
+        "hairdryer-holder-candidate-dark",
+        "hairdryer-holder-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "heated-towel-rail": {
+      "size": [
+        0.49691,
+        0.7925,
+        0.078
+      ],
+      "triangles": 1008,
+      "materials": [
+        "heated-towel-rail-candidate-body",
+        "heated-towel-rail-candidate-dark",
+        "heated-towel-rail-candidate-soft",
+        "heated-towel-rail-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "mop-sink": {
+      "size": [
+        0.48,
+        0.47726,
+        0.4305
+      ],
+      "triangles": 580,
+      "materials": [
+        "mop-sink-candidate-light",
+        "mop-sink-candidate-dark",
+        "mop-sink-candidate-body"
+      ],
+      "topologyClass": "solid"
+    },
+    "shower": {
+      "size": [
+        0.45898,
+        1.908,
+        0.67701
+      ],
+      "triangles": 592,
+      "materials": [
+        "shower-material-0",
+        "shower-material-1",
+        "shower-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "shower-stool": {
+      "size": [
+        0.37,
+        0.451,
+        0.29
+      ],
+      "triangles": 588,
+      "materials": [
+        "shower-stool-candidate-body",
+        "shower-stool-candidate-light",
+        "shower-stool-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "squattoilet": {
+      "size": [
+        0.45,
+        0.18,
+        0.65
+      ],
+      "triangles": 1536,
+      "materials": [
+        "squattoilet-sanitary-ceramic",
+        "squattoilet-sanitary-seat",
+        "squattoilet-sanitary-detail"
+      ],
+      "topologyClass": "solid"
+    },
+    "toilet": {
+      "size": [
+        0.42,
+        0.52,
+        0.7
+      ],
+      "triangles": 1724,
+      "materials": [
+        "toilet-sanitary-ceramic",
+        "toilet-sanitary-seat",
+        "toilet-sanitary-detail"
+      ],
+      "topologyClass": "solid"
+    },
+    "toiletry-set": {
+      "size": [
+        0.3,
+        0.2288,
+        0.19
+      ],
+      "triangles": 1596,
+      "materials": [
+        "toiletry-set-candidate-body",
+        "toiletry-set-candidate-soft",
+        "toiletry-set-candidate-dark",
+        "toiletry-set-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "toothbrush-holder": {
+      "size": [
+        0.27,
+        0.2345,
+        0.108
+      ],
+      "triangles": 916,
+      "materials": [
+        "toothbrush-holder-candidate-body",
+        "toothbrush-holder-candidate-soft",
+        "toothbrush-holder-candidate-dark",
+        "toothbrush-holder-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "urinal": {
+      "size": [
+        0.38,
+        0.72,
+        0.34
+      ],
+      "triangles": 1536,
+      "materials": [
+        "urinal-candidate-soft",
+        "urinal-candidate-dark",
+        "urinal-candidate-light",
+        "urinal-candidate-body"
+      ],
+      "topologyClass": "solid"
+    },
+    "bed-end-bench": {
+      "size": [
+        1.3,
+        0.494,
+        0.43
+      ],
+      "triangles": 668,
+      "materials": [
+        "bed-end-bench-candidate-soft",
+        "bed-end-bench-candidate-body"
+      ],
+      "topologyClass": "solid"
+    },
+    "bed": {
+      "size": [
+        1.92,
+        1.02,
+        2.18
+      ],
+      "triangles": 2298,
+      "materials": [
+        "bed-furniture-frame",
+        "bed-furniture-fabric",
+        "bed-furniture-shadow",
+        "bed-furniture-surface",
+        "bed-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "bed-storage-chest": {
+      "size": [
+        1.12,
+        0.492,
+        0.465
+      ],
+      "triangles": 612,
+      "materials": [
+        "bed-storage-chest-candidate-body",
+        "bed-storage-chest-candidate-soft",
+        "bed-storage-chest-candidate-dark",
+        "bed-storage-chest-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "bed-tray": {
+      "size": [
+        0.58,
+        0.314,
+        0.36
+      ],
+      "triangles": 968,
+      "materials": [
+        "bed-tray-candidate-body",
+        "bed-tray-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "bunk-bed": {
+      "size": [
+        1.18,
+        1.845,
+        2.06
+      ],
+      "triangles": 5380,
+      "materials": [
+        "bunk-bed-furniture-frame",
+        "bunk-bed-furniture-fabric",
+        "bunk-bed-furniture-shadow",
+        "bunk-bed-furniture-surface",
+        "bunk-bed-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "double-open-wardrobe": {
+      "size": [
+        1.18,
+        2.4,
+        0.59
+      ],
+      "triangles": 596,
+      "materials": [
+        "double-open-wardrobe-furniture-back",
+        "double-open-wardrobe-furniture-body",
+        "double-open-wardrobe-furniture-trim",
+        "double-open-wardrobe-furniture-drawer"
+      ],
+      "topologyClass": "solid"
+    },
+    "jewelry-box": {
+      "size": [
+        0.257,
+        0.1105,
+        0.1945
+      ],
+      "triangles": 1212,
+      "materials": [
+        "jewelry-box-candidate-body",
+        "jewelry-box-candidate-accent",
+        "jewelry-box-candidate-soft",
+        "jewelry-box-candidate-light",
+        "jewelry-box-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "loft-bed-circle": {
+      "size": [
+        2.402,
+        2.022,
+        1.83408
+      ],
+      "triangles": 3688,
+      "materials": [
+        "loft-bed-circle-furniture-frame",
+        "loft-bed-circle-furniture-edge",
+        "loft-bed-circle-furniture-mattress",
+        "loft-bed-circle-furniture-linen"
+      ],
+      "topologyClass": "solid"
+    },
+    "nightstand": {
+      "size": [
+        0.5,
+        0.55,
+        0.42
+      ],
+      "triangles": 312,
+      "materials": [
+        "nightstand-material-0",
+        "nightstand-material-1",
+        "nightstand-material-2",
+        "nightstand-material-3",
+        "nightstand-material-4"
+      ],
+      "topologyClass": "solid"
+    },
+    "round-double-bed": {
+      "size": [
+        2.07,
+        0.871,
+        2.161
+      ],
+      "triangles": 11452,
+      "materials": [
+        "round-double-bed-candidate-body",
+        "round-double-bed-candidate-dark",
+        "round-double-bed-candidate-light",
+        "round-double-bed-candidate-soft",
+        "round-double-bed-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "rounddiningtable_turntable": {
+      "size": [
+        2.2,
+        0.78,
+        2.2
+      ],
+      "triangles": 4384,
+      "materials": [
+        "rounddiningtable_turntable-furniture-frame",
+        "rounddiningtable_turntable-furniture-fabric",
+        "rounddiningtable_turntable-furniture-shadow",
+        "rounddiningtable_turntable-furniture-surface",
+        "rounddiningtable_turntable-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "vanity": {
+      "size": [
+        1.2,
+        1.55,
+        0.5
+      ],
+      "triangles": 1808,
+      "materials": [
+        "vanity-furniture-frame",
+        "vanity-furniture-fabric",
+        "vanity-furniture-shadow",
+        "vanity-furniture-surface",
+        "vanity-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "trash-bin": {
+      "size": [
+        0.32,
+        0.45,
+        0.34
+      ],
+      "triangles": 996,
+      "materials": [
+        "trash-bin-frame",
+        "trash-bin-dark",
+        "trash-bin-accent",
+        "trash-bin-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "aquarium": {
+      "size": [
+        1.5,
+        1.4,
+        0.55
+      ],
+      "triangles": 3406,
+      "materials": [
+        "aquarium-aquatic-frame",
+        "aquarium-aquatic-shadow",
+        "aquarium-aquatic-sand",
+        "aquarium-aquatic-rock",
+        "aquarium-aquatic-foliage",
+        "aquarium-aquatic-fish",
+        "aquarium-aquatic-glass",
+        "aquarium-aquatic-water"
+      ],
+      "topologyClass": "solid"
+    },
+    "candlestick": {
+      "size": [
+        0.15,
+        0.409,
+        0.15
+      ],
+      "triangles": 600,
+      "materials": [
+        "candlestick-candidate-body",
+        "candlestick-candidate-accent",
+        "candlestick-candidate-light",
+        "candlestick-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "curtain_left": {
+      "size": [
+        1.908,
+        2.334,
+        0.14761
+      ],
+      "triangles": 2916,
+      "materials": [
+        "curtain_left-material-0",
+        "curtain_left-material-1",
+        "curtain_left-material-2",
+        "curtain_left-material-3",
+        "curtain_left-material-4",
+        "curtain_left-material-5"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "curtain_right": {
+      "size": [
+        1.908,
+        2.334,
+        0.14761
+      ],
+      "triangles": 2916,
+      "materials": [
+        "curtain_right-material-0",
+        "curtain_right-material-1",
+        "curtain_right-material-2",
+        "curtain_right-material-3",
+        "curtain_right-material-4",
+        "curtain_right-material-5"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "curtain_split": {
+      "size": [
+        1.908,
+        2.334,
+        0.14764
+      ],
+      "triangles": 5616,
+      "materials": [
+        "curtain_split-material-0",
+        "curtain_split-material-1",
+        "curtain_split-material-2",
+        "curtain_split-material-3",
+        "curtain_split-material-4",
+        "curtain_split-material-5"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "decor-books": {
+      "size": [
+        0.28,
+        0.09,
+        0.21
+      ],
+      "triangles": 552,
+      "materials": [
+        "decor-books-decor-0",
+        "decor-books-decor-1",
+        "decor-books-decor-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "decor-tea-tray": {
+      "size": [
+        0.34,
+        0.094,
+        0.23
+      ],
+      "triangles": 812,
+      "materials": [
+        "decor-tea-tray-decor-0",
+        "decor-tea-tray-decor-1",
+        "decor-tea-tray-decor-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "decor-tissue-box": {
+      "size": [
+        0.23,
+        0.145,
+        0.13
+      ],
+      "triangles": 230,
+      "materials": [
+        "decor-tissue-box-decor-0",
+        "decor-tissue-box-decor-1",
+        "decor-tissue-box-decor-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "decor-vase": {
+      "size": [
+        0.23,
+        0.43,
+        0.15
+      ],
+      "triangles": 1408,
+      "materials": [
+        "decor-vase-decor-0",
+        "decor-vase-decor-1",
+        "decor-vase-decor-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "decorative-lantern": {
+      "size": [
+        0.18668,
+        0.389,
+        0.18668
+      ],
+      "triangles": 820,
+      "materials": [
+        "decorative-lantern-candidate-dark",
+        "decorative-lantern-candidate-body",
+        "decorative-lantern-candidate-glass",
+        "decorative-lantern-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "decorative-plate": {
+      "size": [
+        0.32,
+        0.04591,
+        0.32
+      ],
+      "triangles": 3128,
+      "materials": [
+        "decorative-plate-candidate-light",
+        "decorative-plate-candidate-accent",
+        "decorative-plate-candidate-body",
+        "decorative-plate-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "desktop-frame": {
+      "size": [
+        0.224,
+        0.30928,
+        0.12645
+      ],
+      "triangles": 189,
+      "materials": [
+        "desktop-frame-frame",
+        "desktop-frame-dark",
+        "desktop-frame-light",
+        "desktop-frame-soft",
+        "desktop-frame-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "dried-flowers": {
+      "size": [
+        0.26885,
+        0.5732,
+        0.1386
+      ],
+      "triangles": 11160,
+      "materials": [
+        "dried-flowers-candidate-body",
+        "dried-flowers-candidate-dark",
+        "dried-flowers-candidate-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "figurine-set": {
+      "size": [
+        0.418,
+        0.19326,
+        0.118
+      ],
+      "triangles": 4596,
+      "materials": [
+        "figurine-set-candidate-dark",
+        "figurine-set-candidate-body",
+        "figurine-set-candidate-light",
+        "figurine-set-candidate-accent",
+        "figurine-set-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "floor-sculpture": {
+      "size": [
+        0.33055,
+        1.01,
+        0.27
+      ],
+      "triangles": 1096,
+      "materials": [
+        "floor-sculpture-candidate-dark",
+        "floor-sculpture-candidate-body",
+        "floor-sculpture-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "pillow-set": {
+      "size": [
+        0.85064,
+        0.25,
+        0.52064
+      ],
+      "triangles": 1584,
+      "materials": [
+        "pillow-set-candidate-light",
+        "pillow-set-candidate-soft",
+        "pillow-set-candidate-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "round-rug": {
+      "size": [
+        1.6,
+        0.02,
+        1.6
+      ],
+      "triangles": 864,
+      "materials": [
+        "round-rug-border",
+        "round-rug-inset"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "rug": {
+      "size": [
+        2,
+        0.012,
+        1.4
+      ],
+      "triangles": 302,
+      "materials": [
+        "ha-rug-furniture",
+        "ha-rug-soft"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "sofa-throw": {
+      "size": [
+        1.12,
+        0.05436,
+        0.98
+      ],
+      "triangles": 2448,
+      "materials": [
+        "sofa-throw-candidate-soft",
+        "sofa-throw-candidate-light"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "trophy": {
+      "size": [
+        0.236,
+        0.27,
+        0.152
+      ],
+      "triangles": 1128,
+      "materials": [
+        "trophy-candidate-dark",
+        "trophy-candidate-accent",
+        "trophy-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "wall-art": {
+      "size": [
+        0.64,
+        0.9,
+        0.04
+      ],
+      "triangles": 105,
+      "materials": [
+        "wall-art-frame",
+        "wall-art-dark",
+        "wall-art-light",
+        "wall-art-soft",
+        "wall-art-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "wall-clock": {
+      "size": [
+        0.36,
+        0.36,
+        0.06
+      ],
+      "triangles": 2344,
+      "materials": [
+        "wall-clock-frame",
+        "wall-clock-light",
+        "wall-clock-accent",
+        "wall-clock-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "arched-glass-console": {
+      "size": [
+        0.78,
+        2.402,
+        0.58755
+      ],
+      "triangles": 2548,
+      "materials": [
+        "arched-glass-console-furniture-body",
+        "arched-glass-console-furniture-glass",
+        "arched-glass-console-furniture-trim",
+        "arched-glass-console-furniture-leaf"
+      ],
+      "topologyClass": "solid"
+    },
+    "coat-rack": {
+      "size": [
+        0.45,
+        1.75,
+        0.43
+      ],
+      "triangles": 2976,
+      "materials": [
+        "coat-rack-frame",
+        "coat-rack-accent",
+        "coat-rack-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "entryway-niche-cabinet": {
+      "size": [
+        1.3,
+        2.6,
+        0.68
+      ],
+      "triangles": 252,
+      "materials": [
+        "entryway-niche-cabinet-furniture-body",
+        "entryway-niche-cabinet-furniture-niche",
+        "entryway-niche-cabinet-furniture-light",
+        "entryway-niche-cabinet-furniture-door"
+      ],
+      "topologyClass": "solid"
+    },
+    "folding-screen": {
+      "size": [
+        1.51432,
+        1.7,
+        0.14858
+      ],
+      "triangles": 396,
+      "materials": [
+        "folding-screen-candidate-body",
+        "folding-screen-candidate-soft",
+        "folding-screen-candidate-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "full-length-mirror": {
+      "size": [
+        0.524,
+        1.642,
+        0.3465
+      ],
+      "triangles": 1548,
+      "materials": [
+        "full-length-mirror-frame",
+        "full-length-mirror-glass",
+        "full-length-mirror-dark",
+        "full-length-mirror-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "shoe-bench": {
+      "size": [
+        0.85,
+        0.4925,
+        0.34
+      ],
+      "triangles": 1188,
+      "materials": [
+        "shoe-bench-candidate-soft",
+        "shoe-bench-candidate-body",
+        "shoe-bench-candidate-dark",
+        "shoe-bench-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "shoecabinet": {
+      "size": [
+        1.8,
+        2.25,
+        0.42
+      ],
+      "triangles": 144,
+      "materials": [
+        "shoecabinet-material-0",
+        "shoecabinet-material-1",
+        "shoecabinet-material-2",
+        "shoecabinet-material-3",
+        "shoecabinet-material-4"
+      ],
+      "topologyClass": "solid"
+    },
+    "suitcase": {
+      "size": [
+        0.424,
+        0.9915,
+        0.2405
+      ],
+      "triangles": 2372,
+      "materials": [
+        "suitcase-candidate-body",
+        "suitcase-candidate-dark",
+        "suitcase-candidate-soft",
+        "suitcase-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "umbrella-stand": {
+      "size": [
+        0.268,
+        0.78322,
+        0.268
+      ],
+      "triangles": 1728,
+      "materials": [
+        "umbrella-stand-candidate-dark",
+        "umbrella-stand-candidate-body",
+        "umbrella-stand-candidate-accent",
+        "umbrella-stand-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "wall-coat-hooks": {
+      "size": [
+        0.6,
+        0.084,
+        0.09989
+      ],
+      "triangles": 1144,
+      "materials": [
+        "wall-coat-hooks-candidate-body",
+        "wall-coat-hooks-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "air-hockey-table": {
+      "size": [
+        1,
+        0.93,
+        1.75
+      ],
+      "triangles": 2212,
+      "materials": [
+        "air-hockey-table-candidate-body",
+        "air-hockey-table-candidate-light",
+        "air-hockey-table-candidate-accent",
+        "air-hockey-table-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "barbell-rack": {
+      "size": [
+        1.45,
+        1.62,
+        0.64
+      ],
+      "triangles": 1064,
+      "materials": [
+        "barbell-rack-candidate-body",
+        "barbell-rack-candidate-dark",
+        "barbell-rack-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "dartboard": {
+      "size": [
+        0.47,
+        0.47,
+        0.2
+      ],
+      "triangles": 11476,
+      "materials": [
+        "dartboard-dark",
+        "dartboard-frame",
+        "dartboard-accent",
+        "dartboard-light",
+        "dartboard-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "dumbbell-rack": {
+      "size": [
+        1.05,
+        0.85,
+        0.6
+      ],
+      "triangles": 8032,
+      "materials": [
+        "dumbbell-rack-dark",
+        "dumbbell-rack-frame",
+        "dumbbell-rack-accent",
+        "dumbbell-rack-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "foosball-table": {
+      "size": [
+        1.2,
+        0.99,
+        1.25
+      ],
+      "triangles": 11844,
+      "materials": [
+        "foosball-table-candidate-body",
+        "foosball-table-candidate-soft",
+        "foosball-table-candidate-accent",
+        "foosball-table-candidate-dark",
+        "foosball-table-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "mahjong-table": {
+      "size": [
+        0.94,
+        0.75,
+        0.94
+      ],
+      "triangles": 3568,
+      "materials": [
+        "mahjong-table-accent",
+        "mahjong-table-soft",
+        "mahjong-table-frame",
+        "mahjong-table-dark",
+        "mahjong-table-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "pilates-reformer": {
+      "size": [
+        0.66,
+        0.77939,
+        2
+      ],
+      "triangles": 1324,
+      "materials": [
+        "pilates-reformer-candidate-body",
+        "pilates-reformer-candidate-dark",
+        "pilates-reformer-candidate-soft",
+        "pilates-reformer-candidate-light",
+        "pilates-reformer-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "ping-pong-table": {
+      "size": [
+        1.6848,
+        0.92103,
+        2.74
+      ],
+      "triangles": 2412,
+      "materials": [
+        "ping-pong-table-soft",
+        "ping-pong-table-frame",
+        "ping-pong-table-light",
+        "ping-pong-table-dark",
+        "ping-pong-table-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "pool-table": {
+      "size": [
+        2.54,
+        0.823,
+        1.42
+      ],
+      "triangles": 6714,
+      "materials": [
+        "pool-table-furniture-frame",
+        "pool-table-furniture-fabric",
+        "pool-table-furniture-shadow",
+        "pool-table-furniture-surface",
+        "pool-table-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "punching-bag": {
+      "size": [
+        0.7,
+        1.54,
+        0.7
+      ],
+      "triangles": 1500,
+      "materials": [
+        "punching-bag-candidate-dark",
+        "punching-bag-candidate-body",
+        "punching-bag-candidate-accent",
+        "punching-bag-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "racing-cockpit": {
+      "size": [
+        0.595,
+        0.96227,
+        1.5
+      ],
+      "triangles": 1364,
+      "materials": [
+        "racing-cockpit-candidate-body",
+        "racing-cockpit-candidate-soft",
+        "racing-cockpit-candidate-dark",
+        "racing-cockpit-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "rowing-machine": {
+      "size": [
+        0.48,
+        0.71378,
+        1.83
+      ],
+      "triangles": 1072,
+      "materials": [
+        "rowing-machine-candidate-body",
+        "rowing-machine-candidate-dark",
+        "rowing-machine-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "spin-bike": {
+      "size": [
+        0.55478,
+        1.13369,
+        0.85965
+      ],
+      "triangles": 860,
+      "materials": [
+        "spin-bike-candidate-dark",
+        "spin-bike-candidate-body",
+        "spin-bike-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "weight-bench": {
+      "size": [
+        0.52,
+        0.42173,
+        1.1
+      ],
+      "triangles": 324,
+      "materials": [
+        "weight-bench-candidate-dark",
+        "weight-bench-candidate-body"
+      ],
+      "topologyClass": "solid"
+    },
+    "yoga-set": {
+      "size": [
+        1.3626,
+        0.6505,
+        1.8
+      ],
+      "triangles": 5588,
+      "materials": [
+        "yoga-set-soft",
+        "yoga-set-accent",
+        "yoga-set-light",
+        "yoga-set-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "baby-crib": {
+      "size": [
+        0.83136,
+        1.0325,
+        1.434
+      ],
+      "triangles": 2872,
+      "materials": [
+        "baby-crib-frame",
+        "baby-crib-accent",
+        "baby-crib-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "ball-pit": {
+      "size": [
+        1.5,
+        0.28,
+        1.5
+      ],
+      "triangles": 11744,
+      "materials": [
+        "ball-pit-candidate-soft",
+        "ball-pit-candidate-light",
+        "ball-pit-candidate-body",
+        "ball-pit-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "building-block-table": {
+      "size": [
+        0.7,
+        0.5695,
+        0.52
+      ],
+      "triangles": 1552,
+      "materials": [
+        "building-block-table-candidate-body",
+        "building-block-table-candidate-soft",
+        "building-block-table-candidate-light",
+        "building-block-table-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "child-highchair": {
+      "size": [
+        0.59,
+        0.95,
+        0.7
+      ],
+      "triangles": 1380,
+      "materials": [
+        "child-highchair-frame",
+        "child-highchair-dark",
+        "child-highchair-soft",
+        "child-highchair-light",
+        "child-highchair-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "doll-shelf": {
+      "size": [
+        0.665,
+        1.05,
+        0.2505
+      ],
+      "triangles": 10452,
+      "materials": [
+        "doll-shelf-candidate-body",
+        "doll-shelf-candidate-soft",
+        "doll-shelf-candidate-accent",
+        "doll-shelf-candidate-light",
+        "doll-shelf-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "kids-slide": {
+      "size": [
+        0.48755,
+        1.11994,
+        1.85204
+      ],
+      "triangles": 1564,
+      "materials": [
+        "kids-slide-candidate-body",
+        "kids-slide-candidate-accent",
+        "kids-slide-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "kids-swing": {
+      "size": [
+        1.48,
+        1.65726,
+        0.9681
+      ],
+      "triangles": 564,
+      "materials": [
+        "kids-swing-candidate-body",
+        "kids-swing-candidate-dark",
+        "kids-swing-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "kids-tent": {
+      "size": [
+        1.06379,
+        1.43494,
+        1.06454
+      ],
+      "triangles": 1074,
+      "materials": [
+        "kids-tent-candidate-body",
+        "kids-tent-candidate-soft",
+        "kids-tent-candidate-light",
+        "kids-tent-candidate-accent",
+        "kids-tent-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "play-kitchen": {
+      "size": [
+        0.89,
+        0.9,
+        0.366
+      ],
+      "triangles": 1824,
+      "materials": [
+        "play-kitchen-candidate-body",
+        "play-kitchen-candidate-accent",
+        "play-kitchen-candidate-dark",
+        "play-kitchen-candidate-glass",
+        "play-kitchen-candidate-soft",
+        "play-kitchen-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "rocking-horse": {
+      "size": [
+        0.564,
+        0.86818,
+        1.08
+      ],
+      "triangles": 1940,
+      "materials": [
+        "rocking-horse-frame",
+        "rocking-horse-soft",
+        "rocking-horse-accent",
+        "rocking-horse-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "bar": {
+      "size": [
+        2.2,
+        1.04946,
+        0.75399
+      ],
+      "triangles": 876,
+      "materials": [
+        "bar-material-0",
+        "bar-material-1",
+        "bar-material-2",
+        "bar-material-3",
+        "bar-material-4",
+        "bar-material-5"
+      ],
+      "topologyClass": "solid"
+    },
+    "bar-stool": {
+      "size": [
+        0.45823,
+        0.97,
+        0.4724
+      ],
+      "triangles": 1796,
+      "materials": [
+        "bar-stool-frame",
+        "bar-stool-detail",
+        "bar-stool-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "chair": {
+      "size": [
+        0.5,
+        0.86,
+        0.5
+      ],
+      "triangles": 760,
+      "materials": [
+        "chair-furniture-frame",
+        "chair-furniture-fabric",
+        "chair-furniture-shadow",
+        "chair-furniture-surface",
+        "chair-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "kitchen-island": {
+      "size": [
+        2.143,
+        1.19467,
+        0.78
+      ],
+      "triangles": 4794,
+      "materials": [
+        "kitchen-island-front",
+        "kitchen-island-case",
+        "kitchen-island-stone",
+        "kitchen-island-top",
+        "kitchen-island-vein",
+        "kitchen-island-detail",
+        "kitchen-island-foliage"
+      ],
+      "topologyClass": "solid"
+    },
+    "kitchenbase": {
+      "size": [
+        2.4,
+        0.85,
+        0.6
+      ],
+      "triangles": 132,
+      "materials": [
+        "kitchenbase-material-0",
+        "kitchenbase-material-1",
+        "kitchenbase-material-2",
+        "kitchenbase-material-3",
+        "kitchenbase-material-4"
+      ],
+      "topologyClass": "solid"
+    },
+    "kitchencooktop": {
+      "size": [
+        1.2,
+        0.85,
+        0.6
+      ],
+      "triangles": 928,
+      "materials": [
+        "kitchencooktop-material-0",
+        "kitchencooktop-material-1",
+        "kitchencooktop-material-2",
+        "kitchencooktop-material-3",
+        "kitchencooktop-material-4",
+        "kitchencooktop-material-5",
+        "kitchencooktop-material-6",
+        "kitchencooktop-material-7"
+      ],
+      "topologyClass": "solid"
+    },
+    "kitchenisland": {
+      "size": [
+        2.4,
+        0.9,
+        0.8
+      ],
+      "triangles": 108,
+      "materials": [
+        "material-0-body",
+        "material-1-top",
+        "material-2-door",
+        "material-3-metal",
+        "material-4-base",
+        "material-5-leg"
+      ],
+      "topologyClass": "solid"
+    },
+    "kitchensink": {
+      "size": [
+        1.224,
+        1.03749,
+        0.648
+      ],
+      "triangles": 200,
+      "materials": [
+        "kitchensink-material-0",
+        "kitchensink-material-1",
+        "kitchensink-material-2",
+        "kitchensink-material-3",
+        "kitchensink-material-4",
+        "kitchensink-material-5",
+        "kitchensink-material-7",
+        "kitchensink-material-8"
+      ],
+      "topologyClass": "solid"
+    },
+    "rounddiningtable": {
+      "size": [
+        2.2,
+        0.78,
+        2.2
+      ],
+      "triangles": 3904,
+      "materials": [
+        "rounddiningtable-furniture-frame",
+        "rounddiningtable-furniture-fabric",
+        "rounddiningtable-furniture-shadow",
+        "rounddiningtable-furniture-surface",
+        "rounddiningtable-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "table": {
+      "size": [
+        2.4,
+        0.82,
+        1.8
+      ],
+      "triangles": 3676,
+      "materials": [
+        "table-furniture-frame",
+        "table-furniture-fabric",
+        "table-furniture-shadow",
+        "table-furniture-surface",
+        "table-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "capsule-rack": {
+      "size": [
+        0.202,
+        0.3,
+        0.1
+      ],
+      "triangles": 4204,
+      "materials": [
+        "capsule-rack-candidate-body",
+        "capsule-rack-candidate-dark",
+        "capsule-rack-candidate-soft",
+        "capsule-rack-candidate-light",
+        "capsule-rack-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "cookware-set": {
+      "size": [
+        0.501,
+        0.138,
+        0.396
+      ],
+      "triangles": 3088,
+      "materials": [
+        "cookware-set-candidate-body",
+        "cookware-set-candidate-light",
+        "cookware-set-candidate-dark",
+        "cookware-set-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "cutting-board-rack": {
+      "size": [
+        0.25,
+        0.32,
+        0.15637
+      ],
+      "triangles": 1180,
+      "materials": [
+        "cutting-board-rack-candidate-dark",
+        "cutting-board-rack-candidate-body"
+      ],
+      "topologyClass": "solid"
+    },
+    "dish-rack": {
+      "size": [
+        0.44,
+        0.19581,
+        0.28
+      ],
+      "triangles": 2184,
+      "materials": [
+        "dish-rack-candidate-body",
+        "dish-rack-candidate-dark",
+        "dish-rack-candidate-light",
+        "dish-rack-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "fruit-basket": {
+      "size": [
+        0.31,
+        0.12345,
+        0.31
+      ],
+      "triangles": 2888,
+      "materials": [
+        "fruit-basket-candidate-body",
+        "fruit-basket-candidate-accent",
+        "fruit-basket-candidate-dark",
+        "fruit-basket-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "knife-block": {
+      "size": [
+        0.13,
+        0.285,
+        0.13
+      ],
+      "triangles": 964,
+      "materials": [
+        "knife-block-candidate-body",
+        "knife-block-candidate-light",
+        "knife-block-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "mug-tree": {
+      "size": [
+        0.2262,
+        0.34,
+        0.214
+      ],
+      "triangles": 2024,
+      "materials": [
+        "mug-tree-candidate-body",
+        "mug-tree-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "rice-bin": {
+      "size": [
+        0.285,
+        0.4235,
+        0.29
+      ],
+      "triangles": 580,
+      "materials": [
+        "rice-bin-candidate-body",
+        "rice-bin-candidate-soft",
+        "rice-bin-candidate-dark",
+        "rice-bin-candidate-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "spice-set": {
+      "size": [
+        0.3,
+        0.1355,
+        0.19
+      ],
+      "triangles": 1156,
+      "materials": [
+        "spice-set-candidate-body",
+        "spice-set-candidate-soft",
+        "spice-set-candidate-dark",
+        "spice-set-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "drying-rack": {
+      "size": [
+        1.65331,
+        1.037,
+        0.563
+      ],
+      "triangles": 2496,
+      "materials": [
+        "drying-rack-frame",
+        "drying-rack-rail",
+        "drying-rack-plastic"
+      ],
+      "topologyClass": "solid"
+    },
+    "laundry-basket": {
+      "size": [
+        0.344,
+        0.4345,
+        0.267
+      ],
+      "triangles": 1088,
+      "materials": [
+        "laundry-basket-body",
+        "laundry-basket-trim"
+      ],
+      "topologyClass": "solid"
+    },
+    "single-rail-rack": {
+      "size": [
+        1.232,
+        1.54999,
+        0.596
+      ],
+      "triangles": 1260,
+      "materials": [
+        "single-rail-rack-frame",
+        "single-rail-rack-plastic",
+        "single-rail-rack-rail"
+      ],
+      "topologyClass": "solid"
+    },
+    "bicycle-rack": {
+      "size": [
+        0.63847,
+        1.058,
+        1.77
+      ],
+      "triangles": 10188,
+      "materials": [
+        "bicycle-rack-dark",
+        "bicycle-rack-accent",
+        "bicycle-rack-light",
+        "bicycle-rack-frame"
+      ],
+      "topologyClass": "solid"
+    },
+    "coffeetable": {
+      "size": [
+        1.9,
+        0.5,
+        1.05
+      ],
+      "triangles": 1176,
+      "materials": [
+        "coffeetable-furniture-surface",
+        "coffeetable-furniture-frame"
+      ],
+      "topologyClass": "solid"
+    },
+    "rocking-chair": {
+      "size": [
+        0.62,
+        1.05,
+        1.15
+      ],
+      "triangles": 2520,
+      "materials": [
+        "rocking-chair-frame",
+        "rocking-chair-soft",
+        "rocking-chair-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "side-table": {
+      "size": [
+        0.45,
+        0.55,
+        0.45
+      ],
+      "triangles": 1284,
+      "materials": [
+        "side-table-top",
+        "side-table-frame",
+        "side-table-foot"
+      ],
+      "topologyClass": "solid"
+    },
+    "sofa-l-left": {
+      "size": [
+        2.8,
+        0.82,
+        1.6
+      ],
+      "triangles": 4228,
+      "materials": [
+        "sofa-l-left-furniture-frame",
+        "sofa-l-left-furniture-fabric",
+        "sofa-l-left-furniture-shadow",
+        "sofa-l-left-furniture-surface",
+        "sofa-l-left-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "sofa-l": {
+      "size": [
+        2.8,
+        0.82,
+        1.6
+      ],
+      "triangles": 4228,
+      "materials": [
+        "sofa-l-furniture-frame",
+        "sofa-l-furniture-fabric",
+        "sofa-l-furniture-shadow",
+        "sofa-l-furniture-surface",
+        "sofa-l-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "sofa": {
+      "size": [
+        2.2,
+        0.82,
+        0.9
+      ],
+      "triangles": 3804,
+      "materials": [
+        "sofa-furniture-frame",
+        "sofa-furniture-fabric",
+        "sofa-furniture-shadow",
+        "sofa-furniture-surface",
+        "sofa-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "sofa-single": {
+      "size": [
+        1.05,
+        0.82,
+        0.9
+      ],
+      "triangles": 2304,
+      "materials": [
+        "sofa-single-furniture-frame",
+        "sofa-single-furniture-fabric",
+        "sofa-single-furniture-shadow",
+        "sofa-single-furniture-surface",
+        "sofa-single-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "squarecoffeetable": {
+      "size": [
+        1.4,
+        0.46,
+        0.7
+      ],
+      "triangles": 900,
+      "materials": [
+        "squarecoffeetable-furniture-frame",
+        "squarecoffeetable-furniture-fabric",
+        "squarecoffeetable-furniture-shadow",
+        "squarecoffeetable-furniture-surface",
+        "squarecoffeetable-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "tea-table-set": {
+      "size": [
+        1.61,
+        0.94,
+        1.4
+      ],
+      "triangles": 5968,
+      "materials": [
+        "tea-table-set-tea-frame",
+        "tea-table-set-tea-panel",
+        "tea-table-set-tea-recess",
+        "tea-table-set-tea-ceramic",
+        "tea-table-set-tea-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "tvstand": {
+      "size": [
+        1.8,
+        0.48,
+        0.42
+      ],
+      "triangles": 732,
+      "materials": [
+        "tvstand-furniture-frame",
+        "tvstand-furniture-fabric",
+        "tvstand-furniture-shadow",
+        "tvstand-furniture-surface",
+        "tvstand-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "cello-stand": {
+      "size": [
+        0.546,
+        1.52904,
+        0.554
+      ],
+      "triangles": 7600,
+      "materials": [
+        "cello-stand-frame",
+        "cello-stand-dark",
+        "cello-stand-accent",
+        "cello-stand-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "drum-kit": {
+      "size": [
+        1.83,
+        1.2,
+        1.44
+      ],
+      "triangles": 10520,
+      "materials": [
+        "drum-kit-frame",
+        "drum-kit-light",
+        "drum-kit-dark",
+        "drum-kit-accent",
+        "drum-kit-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "guitar-stand": {
+      "size": [
+        0.46,
+        1.05,
+        0.48
+      ],
+      "triangles": 5460,
+      "materials": [
+        "guitar-stand-frame",
+        "guitar-stand-accent",
+        "guitar-stand-dark",
+        "guitar-stand-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "keyboard-stand": {
+      "size": [
+        1.03,
+        0.9,
+        0.36
+      ],
+      "triangles": 1648,
+      "materials": [
+        "keyboard-stand-frame",
+        "keyboard-stand-light",
+        "keyboard-stand-dark",
+        "keyboard-stand-soft",
+        "keyboard-stand-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "piano": {
+      "size": [
+        1.8,
+        1.35,
+        1.8
+      ],
+      "triangles": 8234,
+      "materials": [
+        "*2",
+        "[Color_009]1",
+        "*1"
+      ],
+      "topologyClass": "solid"
+    },
+    "bookcase": {
+      "size": [
+        1.2,
+        1.9,
+        0.32
+      ],
+      "triangles": 752,
+      "materials": [
+        "bookcase-material-0",
+        "bookcase-material-1",
+        "bookcase-material-2",
+        "bookcase-material-3",
+        "bookcase-material-4",
+        "bookcase-material-5",
+        "bookcase-material-6",
+        "bookcase-material-7",
+        "bookcase-material-8",
+        "bookcase-material-9",
+        "bookcase-material-10",
+        "bookcase-material-11",
+        "bookcase-material-12",
+        "bookcase-material-13",
+        "bookcase-material-14",
+        "bookcase-material-15",
+        "bookcase-material-16"
+      ],
+      "topologyClass": "solid"
+    },
+    "desk": {
+      "size": [
+        1.4,
+        0.74481,
+        0.64997
+      ],
+      "triangles": 1500,
+      "materials": [
+        "desk-material-0",
+        "desk-material-1",
+        "desk-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "easel-board": {
+      "size": [
+        0.749,
+        1.69376,
+        0.827
+      ],
+      "triangles": 1093,
+      "materials": [
+        "easel-board-frame",
+        "easel-board-dark",
+        "easel-board-accent",
+        "easel-board-light",
+        "easel-board-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "office-chair": {
+      "size": [
+        0.64,
+        1.18,
+        0.66
+      ],
+      "triangles": 2452,
+      "materials": [
+        "office-chair-furniture-frame",
+        "office-chair-furniture-fabric",
+        "office-chair-furniture-shadow",
+        "office-chair-furniture-surface",
+        "office-chair-furniture-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "cat-scratcher": {
+      "size": [
+        0.68,
+        0.195,
+        0.253
+      ],
+      "triangles": 472,
+      "materials": [
+        "cat-scratcher-candidate-body",
+        "cat-scratcher-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "cat-tree": {
+      "size": [
+        0.73,
+        1.301,
+        0.5
+      ],
+      "triangles": 5720,
+      "materials": [
+        "cat-tree-frame",
+        "cat-tree-soft",
+        "cat-tree-rope",
+        "cat-tree-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "dog-crate": {
+      "size": [
+        0.86522,
+        0.678,
+        0.639
+      ],
+      "triangles": 2820,
+      "materials": [
+        "dog-crate-candidate-body",
+        "dog-crate-candidate-dark",
+        "dog-crate-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "litter-tray": {
+      "size": [
+        0.5,
+        0.13019,
+        0.38
+      ],
+      "triangles": 760,
+      "materials": [
+        "litter-tray-candidate-body",
+        "litter-tray-candidate-soft",
+        "litter-tray-candidate-accent"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-bed-bowls": {
+      "size": [
+        0.92,
+        0.156,
+        0.48005
+      ],
+      "triangles": 5126,
+      "materials": [
+        "pet-bed-bowls-frame",
+        "pet-bed-bowls-soft",
+        "pet-bed-bowls-light",
+        "pet-bed-bowls-bowl",
+        "pet-bed-bowls-water",
+        "pet-bed-bowls-food"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-feeder": {
+      "size": [
+        0.22,
+        0.33,
+        0.3415
+      ],
+      "triangles": 976,
+      "materials": [
+        "pet-feeder-candidate-body",
+        "pet-feeder-candidate-dark",
+        "pet-feeder-candidate-soft",
+        "pet-feeder-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-fountain": {
+      "size": [
+        0.224,
+        0.20082,
+        0.226
+      ],
+      "triangles": 888,
+      "materials": [
+        "pet-fountain-candidate-body",
+        "pet-fountain-candidate-light",
+        "pet-fountain-candidate-glass",
+        "pet-fountain-candidate-soft",
+        "pet-fountain-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-pen": {
+      "size": [
+        1.27,
+        0.658,
+        1.22
+      ],
+      "triangles": 3100,
+      "materials": [
+        "pet-pen-candidate-body",
+        "pet-pen-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-steps": {
+      "size": [
+        0.4,
+        0.372,
+        0.64
+      ],
+      "triangles": 744,
+      "materials": [
+        "pet-steps-candidate-body",
+        "pet-steps-candidate-soft"
+      ],
+      "topologyClass": "solid"
+    },
+    "pet-stroller": {
+      "size": [
+        0.48,
+        1.09522,
+        0.691
+      ],
+      "triangles": 2044,
+      "materials": [
+        "pet-stroller-candidate-dark",
+        "pet-stroller-candidate-body",
+        "pet-stroller-candidate-soft",
+        "pet-stroller-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "smart-litter-box": {
+      "size": [
+        0.48,
+        0.55,
+        0.52
+      ],
+      "triangles": 1176,
+      "materials": [
+        "smart-litter-box-candidate-dark",
+        "smart-litter-box-candidate-body",
+        "smart-litter-box-candidate-soft",
+        "smart-litter-box-candidate-light"
+      ],
+      "topologyClass": "solid"
+    },
+    "wall-cat-shelves": {
+      "size": [
+        1.12,
+        0.77876,
+        0.265
+      ],
+      "triangles": 900,
+      "materials": [
+        "wall-cat-shelves-candidate-body",
+        "wall-cat-shelves-candidate-soft",
+        "wall-cat-shelves-candidate-dark"
+      ],
+      "topologyClass": "solid"
+    },
+    "decor-small-plant": {
+      "size": [
+        0.24,
+        0.32,
+        0.22
+      ],
+      "triangles": 512,
+      "materials": [
+        "decor-small-plant-decor-0",
+        "decor-small-plant-decor-1",
+        "decor-small-plant-decor-2"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "flower-anthurium": {
+      "size": [
+        0.29219,
+        0.66,
+        0.45249
+      ],
+      "triangles": 4288,
+      "materials": [
+        "flower-anthurium-foliage-body",
+        "flower-anthurium-foliage-glass",
+        "flower-anthurium-foliage-light",
+        "flower-anthurium-foliage-soft",
+        "flower-anthurium-foliage-dark",
+        "flower-anthurium-foliage-accent",
+        "flower-anthurium-foliage-flowercenter"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "flower-hydrangea": {
+      "size": [
+        0.38991,
+        0.64,
+        0.53079
+      ],
+      "triangles": 13968,
+      "materials": [
+        "flower-hydrangea-foliage-body",
+        "flower-hydrangea-foliage-glass",
+        "flower-hydrangea-foliage-light",
+        "flower-hydrangea-foliage-soft",
+        "flower-hydrangea-foliage-dark",
+        "flower-hydrangea-foliage-flowercenter",
+        "flower-hydrangea-foliage-accent"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "flower-orchid": {
+      "size": [
+        0.67907,
+        0.76,
+        0.41579
+      ],
+      "triangles": 6544,
+      "materials": [
+        "flower-orchid-foliage-body",
+        "flower-orchid-foliage-glass",
+        "flower-orchid-foliage-light",
+        "flower-orchid-foliage-soft",
+        "flower-orchid-foliage-dark",
+        "flower-orchid-foliage-accent",
+        "flower-orchid-foliage-flowercenter"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "flower-peace-lily": {
+      "size": [
+        0.34974,
+        0.79,
+        0.54162
+      ],
+      "triangles": 4288,
+      "materials": [
+        "flower-peace-lily-foliage-body",
+        "flower-peace-lily-foliage-glass",
+        "flower-peace-lily-foliage-light",
+        "flower-peace-lily-foliage-soft",
+        "flower-peace-lily-foliage-dark",
+        "flower-peace-lily-foliage-accent",
+        "flower-peace-lily-foliage-flowercenter"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "plant": {
+      "size": [
+        0.75,
+        1.6,
+        0.75
+      ],
+      "triangles": 3080,
+      "materials": [
+        "plant-candidate-body",
+        "plant-candidate-glass",
+        "plant-candidate-dark",
+        "plant-candidate-soft",
+        "plant-candidate-light"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "plant-monstera": {
+      "size": [
+        0.56251,
+        1.12,
+        0.71115
+      ],
+      "triangles": 6532,
+      "materials": [
+        "plant-monstera-foliage-body",
+        "plant-monstera-foliage-glass",
+        "plant-monstera-foliage-dark",
+        "plant-monstera-foliage-soft",
+        "plant-monstera-foliage-light"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "plant-palm": {
+      "size": [
+        1.08345,
+        1.55,
+        1.10744
+      ],
+      "triangles": 9408,
+      "materials": [
+        "plant-palm-foliage-body",
+        "plant-palm-foliage-glass",
+        "plant-palm-foliage-dark",
+        "plant-palm-foliage-light",
+        "plant-palm-foliage-soft"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "plant-pothos": {
+      "size": [
+        0.65306,
+        0.55,
+        0.69515
+      ],
+      "triangles": 6976,
+      "materials": [
+        "plant-pothos-foliage-body",
+        "plant-pothos-foliage-glass",
+        "plant-pothos-foliage-dark",
+        "plant-pothos-foliage-soft",
+        "plant-pothos-foliage-light"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "plant-rubber": {
+      "size": [
+        0.34209,
+        1.45,
+        0.41707
+      ],
+      "triangles": 4960,
+      "materials": [
+        "plant-rubber-foliage-body",
+        "plant-rubber-foliage-glass",
+        "plant-rubber-foliage-dark",
+        "plant-rubber-foliage-light",
+        "plant-rubber-foliage-soft"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "plant-snake": {
+      "size": [
+        0.27666,
+        0.82,
+        0.27666
+      ],
+      "triangles": 3744,
+      "materials": [
+        "plant-snake-foliage-body",
+        "plant-snake-foliage-glass",
+        "plant-snake-foliage-light",
+        "plant-snake-foliage-soft"
+      ],
+      "topologyClass": "open-sheet"
+    },
+    "cabinet": {
+      "size": [
+        1.6,
+        1.9,
+        0.45
+      ],
+      "triangles": 48,
+      "materials": [
+        "cabinet-material-0",
+        "cabinet-material-1",
+        "cabinet-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "cabinet-two-section": {
+      "size": [
+        1.6,
+        1.9,
+        0.45
+      ],
+      "triangles": 144,
+      "materials": [
+        "cabinet-two-section-furniture-frame",
+        "cabinet-two-section-furniture-shadow"
+      ],
+      "topologyClass": "solid"
+    },
+    "drawer-chest": {
+      "size": [
+        1.05,
+        0.94,
+        0.45
+      ],
+      "triangles": 836,
+      "materials": [
+        "drawer-chest-furniture-frame",
+        "drawer-chest-furniture-panel",
+        "drawer-chest-furniture-shadow",
+        "drawer-chest-furniture-handle"
+      ],
+      "topologyClass": "solid"
+    },
+    "glasscabinet": {
+      "size": [
+        1.2,
+        1.9,
+        0.4
+      ],
+      "triangles": 828,
+      "materials": [
+        "glasscabinet-material-0",
+        "glasscabinet-material-1",
+        "glasscabinet-material-2",
+        "glasscabinet-material-3",
+        "glasscabinet-material-4",
+        "glasscabinet-material-5",
+        "glasscabinet-material-6",
+        "glasscabinet-material-7",
+        "glasscabinet-material-8",
+        "glasscabinet-material-9",
+        "glasscabinet-material-10",
+        "glasscabinet-material-11",
+        "glasscabinet-material-12",
+        "glasscabinet-material-13",
+        "glasscabinet-material-14",
+        "glasscabinet-material-15",
+        "glasscabinet-material-16",
+        "glasscabinet-material-17"
+      ],
+      "topologyClass": "solid"
+    },
+    "shelf": {
+      "size": [
+        1.2,
+        1.8,
+        0.45091
+      ],
+      "triangles": 192,
+      "materials": [
+        "shelf-material-0",
+        "shelf-material-1",
+        "shelf-material-2"
+      ],
+      "topologyClass": "solid"
+    },
+    "sideboard": {
+      "size": [
+        1.6,
+        2.2,
+        0.45
+      ],
+      "triangles": 120,
+      "materials": [
+        "sideboard-material-0",
+        "sideboard-material-1",
+        "sideboard-material-2",
+        "sideboard-material-3"
+      ],
+      "topologyClass": "solid"
+    },
+    "single-glass-cabinet": {
+      "size": [
+        0.48,
+        1.7,
+        0.427
+      ],
+      "triangles": 1860,
+      "materials": [
+        "single-glass-cabinet-candidate-body",
+        "single-glass-cabinet-candidate-soft",
+        "single-glass-cabinet-candidate-dark",
+        "single-glass-cabinet-candidate-glass"
+      ],
+      "topologyClass": "solid"
+    },
+    "slim-recessed-cabinet": {
+      "size": [
+        0.66,
+        2.6,
+        0.4
+      ],
+      "triangles": 144,
+      "materials": [
+        "slim-recessed-cabinet-furniture-body",
+        "slim-recessed-cabinet-furniture-recess",
+        "slim-recessed-cabinet-furniture-door"
+      ],
+      "topologyClass": "solid"
+    },
+    "storage-box": {
+      "size": [
+        0.577,
+        0.3465,
+        0.383
+      ],
+      "triangles": 2028,
+      "materials": [
+        "storage-box-body",
+        "storage-box-detail",
+        "storage-box-lid"
+      ],
+      "topologyClass": "solid"
+    },
+    "storage-cart": {
+      "size": [
+        0.466,
+        0.792,
+        0.3255
+      ],
+      "triangles": 3692,
+      "materials": [
+        "storage-cart-tray",
+        "storage-cart-frame",
+        "storage-cart-wheel"
+      ],
+      "topologyClass": "solid"
+    },
+    "wallcabinet": {
+      "size": [
+        1.5,
+        0.82,
+        0.35
+      ],
+      "triangles": 108,
+      "materials": [
+        "wallcabinet-material-0",
+        "wallcabinet-material-1",
+        "wallcabinet-material-2",
+        "wallcabinet-material-3"
+      ],
+      "topologyClass": "solid"
+    },
+    "wardrobe": {
+      "size": [
+        1.8,
+        2.2,
+        0.637
+      ],
+      "triangles": 824,
+      "materials": [
+        "wardrobe-furniture-frame",
+        "wardrobe-furniture-panel",
+        "wardrobe-furniture-shadow",
+        "wardrobe-furniture-handle"
+      ],
+      "topologyClass": "solid"
+    },
+    "wardrobe-two-section": {
+      "size": [
+        1.8,
+        2.2,
+        0.637
+      ],
+      "triangles": 168,
+      "materials": [
+        "wardrobe-two-section-furniture-frame",
+        "wardrobe-two-section-furniture-shadow",
+        "wardrobe-two-section-furniture-panel"
+      ],
+      "topologyClass": "solid"
+    }
+  }
+}

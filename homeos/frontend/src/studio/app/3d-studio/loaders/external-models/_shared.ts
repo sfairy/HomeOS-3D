@@ -48,6 +48,14 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
   slimCabinet: "20261022-slim-cabinet-v1",
   /** 0.8.0 排气扇批（建模 + 吸墙开洞 + 气幕同批）。 */
   exhaust: "20261022-exhaust-v4",
+  /**
+   * 2026-10-23 全库回滚与精选修复批：`basin` 恢复原厂件、`freezer-lite` 重出、
+   * `floorlamp-lite` 重出。
+   *
+   * 这一批的文件路径没变、字节变了 —— 不换 URL 的话浏览器会继续命中旧字节，
+   * 表现就是「改了模型但画面还是旧的那版」（`basin` 就踩过：回滚后仍看到重做版）。
+   */
+  modelRestore: "20261023-model-restore-v1",
 });
 
 /** 给模型资源 URL 挂上缓存键；`cacheKey` 为空时原样返回。 */

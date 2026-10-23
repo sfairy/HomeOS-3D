@@ -18,6 +18,9 @@ import { defaultViewSettings } from "../../../scene/studio-view-settings";
 import { patchStudioFacadeState } from "../../../../../../engine";
 import type { StudioControlElement } from "../../../types/studio-app-types";
 import { generateId } from "../../../ui/studio-app-helpers";
+import { previewIssues } from "../../../../loaders/preview-diagnostics";
+
+const previewIssueCount = () => previewIssues().length;
 import { minTextureSize, normalizeMaterialSurfaceOverrides } from "../../../scene/studio-scene-payload";
 
 /** 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。 */
@@ -1012,7 +1015,12 @@ export function requestStudioRender(runtime: StudioAppRuntime, ) {
     at6 = runtime.isEmbeddedStage && runtime.appCtx.prewarmState && !runtime.appCtx.isCapturingLights;
   (runtime.appCtx.lightPrecompileController?.setEnabled(runtime.isEmbeddedStage || !ht2 || !!at6),
     (runtime.appCtx.orbitControls.enableRotate = runtime.getCameraView() !== "top"),
+    /**
+     * 预览状态徽标：只有**没有加载异常**时才隐藏。旧实现在每次重绘时无条件清空，
+     * 于是刚写进去的「lite 解析失败」下一帧就被抹掉，等于没有诊断。
+     */
     runtime.previewQualityStatusElement &&
+      previewIssueCount() === 0 &&
       ((runtime.previewQualityStatusElement.hidden = true),
       (runtime.previewQualityStatusElement.title = ""),
       (runtime.previewQualityStatusElement.textContent = "")),
