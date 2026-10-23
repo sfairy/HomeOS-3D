@@ -1,11 +1,12 @@
 {
+  "_note": "2026-10-24 校准：runtime 由 7ea04c6a（车模贴图 / SUV 玻璃 / 材质槽修复）从 270 chunk / 1,481,602B 涨到 274 / 1,497,010B，5a7dba83 再 +449B；原 272 / 1,495,000 已低于实测，按本轮实测值重设并留 ~2.5KB 余量。改动预算需在提交说明里写明原因。",
   "indexHtmlBytes": 7000,
   "preloadRawBytes": 760000,
   "preloadGzipBytes": 255000,
   "entryJsBytes": 60000,
   "appCssRawBytes": 340000,
   "appCssGzipBytes": 80000,
-  "runtimeChunkCount": 272,
-  "runtimeRawBytes": 1495000,
+  "runtimeChunkCount": 274,
+  "runtimeRawBytes": 1500000,
   "hlsScriptCount": 0
 }
