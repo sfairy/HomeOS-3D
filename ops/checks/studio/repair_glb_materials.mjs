@@ -120,11 +120,15 @@ const want = (rule) => !onlyRules.size || onlyRules.has(rule);
 const loadModule = async (relativePath) =>
   import(pathToFileURL(path.join(frontendDir, relativePath)).href);
 
-const [allItemModelsModule, sharedModule, rolesModule] = await Promise.all([
-  loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts'),
-  loadModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts'),
-  loadModule('src/studio/app/3d-studio/materials/studio-model-material-roles.ts'),
-]);
+const [allItemModelsModule, sharedModule, rolesModule, modelAssetFoldersModule] =
+  await Promise.all([
+    loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts'),
+    loadModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts'),
+    loadModule('src/studio/app/3d-studio/materials/studio-model-material-roles.ts'),
+    loadModule('src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts'),
+  ]);
+
+const { modelAssetFolderFromPath, modelAssetIdForStem } = modelAssetFoldersModule;
 
 const { resolveModelMaterialRole, materialRoleRecipeForRole } = rolesModule;
 const { hasSemanticSlotRoles } = await loadModule(
@@ -139,13 +143,34 @@ const { materialPbrIsReplaced } = await loadModule(
   'src/studio/app/3d-studio/materials/material-pipeline.ts',
 );
 
-const urlStem = (url) =>
-  String(url || '')
-    .split('?')[0]
-    .split('/')
-    .pop()
-    .replace(/-lite\.glb$/i, '')
-    .replace(/\.glb$/i, '');
+/**
+ * 模型 URL / 磁盘路径 → 英文模型 id。
+ *
+ * 磁盘上是中文（`家居/厨房家具/岛台.glb`），注册表里是英文 id（`kitchen-island`），
+ * 翻译只走 `model-asset-folders.ts` 这一层，不在脚本里猜。
+ */
+const modelIdFromUrl = (url) => {
+  const raw = String(url || '').split('?')[0];
+  if (!raw) return '';
+  const segments = decodeURIComponent(raw).split('/').filter(Boolean);
+  const fileName = segments.pop() ?? '';
+  if (!/\.glb$/i.test(fileName)) return '';
+  const folder = segments.length
+    ? modelAssetFolderFromPath(segments.slice(-2).join('/'))
+    : undefined;
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '');
+  return modelAssetIdForStem(stem, folder) ?? stem;
+};
+
+/** 磁盘相对路径 → 英文模型 id。 */
+const modelIdFromRelativePath = (relativePath) => {
+  const slash = relativePath.lastIndexOf('/');
+  const folderPath = slash >= 0 ? relativePath.slice(0, slash) : '';
+  const fileName = relativePath.slice(slash + 1);
+  const folder = folderPath ? modelAssetFolderFromPath(folderPath) : undefined;
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '');
+  return modelAssetIdForStem(stem, folder) ?? stem;
+};
 
 /** 文件 stem → itemType[]（与审计脚本同一套反查，不做文件名猜测）。 */
 const stemToItemTypes = new Map();
@@ -158,7 +183,7 @@ for (const source of [sharedModule.EXTERNAL_ITEM_MODELS, allItemModelsModule.ALL
 }
 for (const [itemType, definition] of itemDefinitions) {
   for (const url of [definition.url, definition.fallbackUrl]) {
-    const stem = urlStem(url);
+    const stem = modelIdFromUrl(url);
     if (!stem) continue;
     if (!stemToItemTypes.has(stem)) stemToItemTypes.set(stem, new Set());
     stemToItemTypes.get(stem).add(itemType);
@@ -182,7 +207,7 @@ for (const itemType of itemDefinitions.keys()) {
  */
 function resolveItemType(modelStem) {
   const own = itemDefinitions.get(modelStem);
-  if (own && urlStem(own.url) === modelStem) return { itemType: modelStem, via: 'registry' };
+  if (own && modelIdFromUrl(own.url) === modelStem) return { itemType: modelStem, via: 'registry' };
   const mapped = stemToItemTypes.get(modelStem);
   if (mapped?.size) return { itemType: [...mapped].sort()[0], via: 'registry-url' };
   // 孤儿文件本身已经登记了槽位表（`kitchen-island` / `floor-lamp`）时，按文件 stem 解析：
@@ -534,7 +559,7 @@ const failures = [];
 for (const relativePath of files) {
   const fileName = path.basename(relativePath);
   const fullPath = path.join(modelsDir, relativePath);
-  const modelStem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '');
+  const modelStem = modelIdFromRelativePath(relativePath);
   const resolved = resolveItemType(modelStem);
   const itemType = resolved.itemType;
 

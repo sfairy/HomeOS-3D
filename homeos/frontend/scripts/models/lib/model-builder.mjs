@@ -10,7 +10,7 @@ import path from 'node:path'
 import { Document, Material, PropertyType } from '@gltf-transform/core'
 import { KHRDracoMeshCompression } from '@gltf-transform/extensions'
 import { draco, prune } from '@gltf-transform/functions'
-import { parseGlb } from './glb-io.mjs'
+import { parseGlb, modelsDir, parseModelPath } from './glb-io.mjs'
 import { LITE_GUARD, assertPreserved } from './asset-guard.mjs'
 import { writeDocument } from './model-document.mjs'
 
@@ -65,10 +65,15 @@ export async function writeFullModel({ filePath, materials, groups, extras, root
    * 两条都是空）。这一条曾经漏过：30 款精修件重建后全库「看起来是空的」。
    */
   /**
-   * 根节点 / scene 名沿用**目标文件**的模型 id。重建时先写 `*.rebuild.tmp.glb` 过闸门，
-   * 若按临时文件名取名，闸门会把「根节点名变化」当成退化而拒绝落盘（`basin` 就撞过）。
+   * 根节点 / scene 名沿用**英文模型 id**（不是磁盘上的中文文件名）。重建时先写
+   * `*.rebuild.tmp.glb` 过闸门，若按临时文件名取名，闸门会把「根节点名变化」当成退化
+   * 而拒绝落盘（`basin` 就撞过）；文件名的中文主干也会让内部标识跟着 UI 文案漂移。
    */
-  const modelId = rootName ?? path.basename(filePath).replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
+  const modelId =
+    rootName ??
+    parseModelPath(
+      path.relative(modelsDir, filePath).replace(/\.rebuild\.tmp\.glb$/i, '.glb'),
+    ).id
   const rootNode = document.createNode(modelId)
 
   for (const group of groups) {

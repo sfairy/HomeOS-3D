@@ -20,8 +20,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { execFileSync } from 'node:child_process'
-import { collectModelVariants, listModelFiles } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import { collectModelVariants, listModelFiles, readModelAtRevision } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(hereDir, '../../..')
@@ -70,11 +69,11 @@ function headMaterialNames(id, fullPath) {
   if (!fullPath) return null
   if (headNamesCache.has(fullPath)) return headNamesCache.get(fullPath)
   try {
-    const buffer = execFileSync(
-      'git',
-      ['show', `HEAD:homeos/frontend/public/static/3d-studio/models/${fullPath}`],
-      { maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] },
-    )
+    const buffer = readModelAtRevision(fullPath)
+    if (!buffer) {
+      headNamesCache.set(fullPath, null)
+      return null
+    }
     const jsonLength = buffer.readUInt32LE(12)
     const json = JSON.parse(buffer.subarray(20, 20 + jsonLength).toString('utf8'))
     const names = (json.materials ?? []).map((material, index) => material.name ?? `material-${index}`)

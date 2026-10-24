@@ -57,8 +57,9 @@ const reportDir = path.join(repoRoot, 'docs/architecture/2026-10-22');
 /**
  * 递归列出 `models/` 下的 GLB 相对路径。
  *
- * 模型按模型库类目分两级子目录（`model-asset-folders.ts`），不再平铺在 `models/` 根下，
- * 因此所有扫描都必须递归；报告与角色基线仍以**文件名**为键，与目录无关。
+ * 模型按模型库类目分两级中文子目录（`家居/客厅家具/沙发-lite.glb`），因此所有扫描
+ * 都必须递归；报告用磁盘中文文件名，注册表 / 基线仍用英文 id，两者由
+ * `model-asset-folders.ts` 的映射表翻译。
  */
 function listModelFiles(dir = modelsDir, relativePrefix = '') {
   const files = [];
@@ -69,16 +70,6 @@ function listModelFiles(dir = modelsDir, relativePrefix = '') {
   }
   return files.sort();
 }
-
-/** 文件名 → 实际绝对路径（分类后同一文件名只可能出现在一个目录）。 */
-const modelFilePaths = new Map(
-  listModelFiles().map((relativePath) => [
-    path.basename(relativePath),
-    path.join(modelsDir, relativePath),
-  ]),
-);
-/** 解析 GLB 的实际路径；查不到时退回根目录拼接，让调用方拿到「文件不存在」而不是静默跳过。 */
-const modelFilePath = (fileName) => modelFilePaths.get(fileName) ?? path.join(modelsDir, fileName);
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -233,14 +224,55 @@ const SYSTEMIC_RULES = new Set(['M3']);
 const loadModule = async (relativePath) =>
   import(pathToFileURL(path.join(frontendDir, relativePath)).href);
 
-const [allItemModelsModule, sharedModule, rolesModule, slotRolesModule, collectionModule] =
+const [allItemModelsModule, sharedModule, rolesModule, slotRolesModule, collectionModule, modelAssetFoldersModule] =
   await Promise.all([
     loadModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts'),
     loadModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts'),
     loadModule('src/studio/app/3d-studio/materials/studio-model-material-roles.ts'),
     loadModule('src/studio/app/3d-studio/materials/model-slot-roles.ts'),
     loadModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts'),
+    loadModule('src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts'),
   ]);
+
+const { modelAssetFolderFromPath, modelAssetIdForStem } = modelAssetFoldersModule;
+
+/**
+ * 磁盘文件 → 英文模型 id。
+ *
+ * 目录与文件名都是中文，靠映射表反查；`folder` 也参与反查（跨分区同名不串）。
+ */
+function parseAssetPath(relativePath) {
+  const slash = relativePath.lastIndexOf('/');
+  const folderPath = slash >= 0 ? relativePath.slice(0, slash) : '';
+  const fileName = relativePath.slice(slash + 1);
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '');
+  const folder = folderPath ? modelAssetFolderFromPath(folderPath) : undefined;
+  return {
+    fileName,
+    stem,
+    folder,
+    id: modelAssetIdForStem(stem, folder) ?? stem,
+    kind: /-lite\.glb$/i.test(fileName) ? 'lite' : 'full',
+    filePath: path.join(modelsDir, relativePath),
+    relativePath,
+  };
+}
+
+/** 英文 id → { lite, full } 的磁盘信息。 */
+const modelAssetsById = new Map();
+/** `sofa-lite.glb`（英文名）→ 磁盘信息；角色基线按英文名存键，改名不影响基线。 */
+const assetByEnglishFileName = new Map();
+for (const relativePath of listModelFiles()) {
+  const asset = parseAssetPath(relativePath);
+  const entry = modelAssetsById.get(asset.id) ?? {};
+  entry[asset.kind] = asset;
+  modelAssetsById.set(asset.id, entry);
+  assetByEnglishFileName.set(
+    asset.id + (asset.kind === 'lite' ? '-lite.glb' : '.glb'),
+    asset,
+  );
+}
+
 
 /**
  * 与运行时同一份判定：`true` 表示该槽位会被 `applyItemDetailMaterial` 整块重建，
@@ -257,13 +289,17 @@ const {
 } = rolesModule;
 const { resolveSemanticSlotRole } = slotRolesModule;
 
-const urlStem = (url) =>
-  String(url || '')
-    .split('?')[0]
-    .split('/')
-    .pop()
-    .replace(/-lite\.glb$/i, '')
-    .replace(/\.glb$/i, '');
+/** 模型 URL → 英文模型 id（中文文件名经映射表反查）。 */
+const urlAssetId = (url) => {
+  const raw = String(url || '').split('?')[0];
+  if (!raw) return '';
+  const segments = decodeURIComponent(raw).split('/').filter(Boolean);
+  const fileName = segments.pop() ?? '';
+  if (!/\.glb$/i.test(fileName)) return '';
+  const folder = segments.length ? modelAssetFolderFromPath(segments.slice(-2).join('/')) : undefined;
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '');
+  return modelAssetIdForStem(stem, folder) ?? stem;
+};
 
 /** itemType → { url, fallbackUrl }。ALL_ITEM_MODELS 已含收藏 / approved 批。 */
 const itemDefinitions = new Map();
@@ -274,11 +310,11 @@ for (const source of [sharedModule.EXTERNAL_ITEM_MODELS, allItemModelsModule.ALL
   }
 }
 
-/** 文件 stem → itemType[]（一个文件可能被多个 itemType 复用）。 */
+/** 文件 id → itemType[]（一个文件可能被多个 itemType 复用）。 */
 const stemToItemTypes = new Map();
 for (const [itemType, definition] of itemDefinitions) {
   for (const url of [definition.url, definition.fallbackUrl]) {
-    const stem = urlStem(url);
+    const stem = urlAssetId(url);
     if (!stem) continue;
     if (!stemToItemTypes.has(stem)) stemToItemTypes.set(stem, new Set());
     stemToItemTypes.get(stem).add(itemType);
@@ -295,7 +331,7 @@ const collectionGroups = collectionModule.COLLECTION_MODELS || {};
  */
 function resolveItemTypes(modelId) {
   const own = itemDefinitions.get(modelId);
-  if (own && urlStem(own.url) === modelId) return [modelId];
+  if (own && urlAssetId(own.url) === modelId) return [modelId];
   const mapped = stemToItemTypes.get(modelId);
   if (mapped?.size) return [...mapped].sort();
   return [];
@@ -309,8 +345,7 @@ function resolveItemTypes(modelId) {
  * 审计单个 GLB 文件。
  * @returns 结构化结果，供逐模型聚合与报告渲染共用。
  */
-function auditFile(fileName) {
-  const filePath = modelFilePath(fileName);
+function auditFile({ fileName, filePath }) {
   const result = {
     fileName,
     bytes: 0,
@@ -1027,12 +1062,11 @@ function auditMaterial({ material, itemType, variant, family, modelId, isOrphan 
 /** 审计一个模型（lite + 完整件两份变体）。 */
 function auditModel(modelId) {
   const variants = [];
-  for (const [kind, fileName] of [
-    ['lite', `${modelId}-lite.glb`],
-    ['full', `${modelId}.glb`],
-  ]) {
-    if (!modelFilePaths.has(fileName)) continue;
-    variants.push({ kind, fileName, audit: auditFile(fileName) });
+  const assets = modelAssetsById.get(modelId) ?? {};
+  for (const kind of ['lite', 'full']) {
+    const asset = assets[kind];
+    if (!asset) continue;
+    variants.push({ kind, fileName: asset.fileName, audit: auditFile(asset) });
   }
   const itemTypes = resolveItemTypes(modelId);
   const itemType = itemTypes[0] ?? modelId;
@@ -1365,7 +1399,7 @@ function auditModel(modelId) {
  * ------------------------------------------------------------------ */
 
 const allFiles = listModelFiles().map((relativePath) => path.basename(relativePath));
-const modelIds = [...new Set(allFiles.map((name) => name.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')))].sort();
+const modelIds = [...modelAssetsById.keys()].sort();
 
 const models = modelIds.map(auditModel);
 
@@ -1379,12 +1413,15 @@ const models = modelIds.map(auditModel);
  * ------------------------------------------------------------------ */
 const ROLE_BASELINE_PATH = path.join(hereDir, 'material-role-baseline.json');
 
-/** 当前解析结果：`{ "<file>.glb": ["body", "panel", ...] }`，数组下标 = 材质下标。 */
+/** 当前解析结果：`{ "<英文 id>.glb": ["body", "panel", ...] }`，数组下标 = 材质下标。 */
 const roleSnapshot = {};
 for (const model of models) {
-  for (const variant of Object.values(model.variants || {})) {
+  for (const [kind, variant] of Object.entries(model.variants || {})) {
     if (!variant?.materials?.length) continue;
-    roleSnapshot[variant.fileName] = variant.materials.map((entry) => entry.role ?? null);
+    // 键沿用**英文 id**（与基线一致）：中文文件名只是磁盘表现，不该让基线整份重写。
+    roleSnapshot[`${model.id}${kind === 'lite' ? '-lite' : ''}.glb`] = variant.materials.map(
+      (entry) => entry.role ?? null,
+    );
   }
 }
 
@@ -1397,7 +1434,8 @@ function diffRoleSnapshot(baselineFiles, currentFiles) {
       drift.push({ fileName, index: null, before: `${before.length} 条角色`, after: '文件缺失 / 不可解析' });
       continue;
     }
-    const file = modelFilePath(fileName);
+    const file =
+      assetByEnglishFileName.get(fileName)?.filePath ?? path.join(modelsDir, fileName);
     const names = (() => {
       try {
         return parseGlb(file).gltf.materials?.map((entry) => entry.name ?? '') ?? [];

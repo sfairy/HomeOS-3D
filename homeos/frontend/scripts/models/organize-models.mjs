@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
 /**
- * 模型目录分类校验 / 迁移。
+ * 模型目录中文布局校验 / 迁移。
  *
- * 3D Studio 的模型按模型库类目分两级目录（`<大类>/<分区>/`），映射的唯一真值是
- * `src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts`。本脚本用同一张表
- * 校验磁盘布局，并（`--write`）把文件搬进对应目录，避免手工 `mv` 出现「文件搬了、URL 没改」
- * 或「注册表登记了、文件还在根目录」这类半迁移状态。
+ * 3D Studio 的模型按模型库类目分两级中文目录（`家居/客厅家具/沙发-lite.glb`），
+ * 映射的唯一真值是 `src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts`：
+ * 英文分区 id → 中文目录（`MODEL_FOLDER_PATHS`）、英文模型 id → 中文文件名主干
+ * （`model-file-names.generated.ts`）。本脚本用同一张表校验磁盘布局，并（`--write`）
+ * 把文件搬进对应目录，避免手工 `mv` 出现「文件搬了、URL 没改」或
+ * 「注册表登记了、文件还在旧目录」这类半迁移状态。
  *
  * 用法（仓库根目录）：
  * ```bash
@@ -17,11 +19,11 @@
  *
  * 校验项：
  * 1. 映射表里没有重复 id、没有指向不存在文件的 id；
- * 2. 磁盘上每个 GLB 都在映射表里（新增模型忘了登记会在这里失败）；
- * 3. 每个文件都在映射指定的目录（根目录遗留同样算未分类）；
+ * 2. 磁盘上每个 GLB 都能解析回已登记的 id（新增模型忘了登记会在这里失败）；
+ * 3. 每个文件都在映射指定的中文目录、且用的是中文文件名；
  * 4. `-lite` / 完整件的成对与否只作提示（有些款天生单件）；
  * 5. 注册表（`ALL_ITEM_MODELS` / `EXTERNAL_ITEM_MODELS` / `COLLECTION_MODELS`）引用的每个
- *    GLB 文件名主干都能解析到目录 —— 这一条防的是「URL 拼错但文件存在」。
+ *    GLB 文件名主干都能解析回 id —— 这一条防的是「URL 拼错但文件存在」。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -41,7 +43,14 @@ const asJson = args.includes('--json')
 const loadModule = (relativePath) =>
   import(pathToFileURL(path.join(frontendDir, relativePath)).href)
 
-const { MODEL_ASSETS_BY_FOLDER, modelAssetFolder } = await loadModule(
+const {
+  MODEL_ASSETS_BY_FOLDER,
+  modelAssetFolder,
+  modelAssetFolderFromPath,
+  modelAssetFolderPath,
+  modelAssetFileStem,
+  modelAssetIdForStem,
+} = await loadModule(
   'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
 )
 const { ALL_ITEM_MODELS } = await loadModule(
@@ -65,24 +74,35 @@ function listGlbFiles(dir, relativePrefix = '') {
   return files.sort()
 }
 
-/** `home/living/sofa-lite.glb` → `{ id: 'sofa', variant: 'lite', folder: 'home/living' }`。 */
+/**
+ * `家居/客厅家具/沙发-lite.glb` → `{ id: 'sofa', variant: 'lite', folder: 'home/living' }`。
+ *
+ * `folder` / `id` 是代码里的英文键；`folderPath` / `stem` 是磁盘上的中文。
+ * 迁移中途可能同时存在旧英文目录/文件名，`modelAssetIdForStem` 两种都认。
+ */
 function parseModelPath(relativePath) {
   const slash = relativePath.lastIndexOf('/')
-  const folder = slash >= 0 ? relativePath.slice(0, slash) : ''
+  const folderPath = slash >= 0 ? relativePath.slice(0, slash) : ''
   const fileName = relativePath.slice(slash + 1)
   const isLite = fileName.toLowerCase().endsWith('-lite.glb')
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
+  const folder = folderPath ? modelAssetFolderFromPath(folderPath) : undefined
   return {
+    folderPath,
     folder,
-    id: fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, ''),
+    stem,
+    id: modelAssetIdForStem(stem, folder),
     variant: isLite ? 'lite' : 'full',
   }
 }
 
-/** 期望的相对路径：`<folder>/<id><-lite>.glb`。 */
+/** 期望的相对路径：`<中文目录>/<中文文件名><-lite>.glb`。 */
 function expectedPath(assetId, variant) {
   const folder = modelAssetFolder(assetId)
   if (!folder) return null
-  return `${folder}/${assetId}${variant === 'lite' ? '-lite' : ''}.glb`
+  return `${modelAssetFolderPath(folder)}/${modelAssetFileStem(assetId)}${
+    variant === 'lite' ? '-lite' : ''
+  }.glb`
 }
 
 /** 自底向上删除空目录，返回是否已删除。 */
@@ -123,13 +143,20 @@ const files = listGlbFiles(modelsDir)
 const filesById = new Map()
 for (const relativePath of files) {
   const parsed = parseModelPath(relativePath)
+  if (!parsed.id) {
+    errors.push(
+      `磁盘上的 \`${relativePath}\` 解析不出模型 id（新增模型请补 model-asset-folders.ts 与中文名）`,
+    )
+    continue
+  }
   const entry = filesById.get(parsed.id) ?? { variants: new Map() }
   entry.variants.set(parsed.variant, relativePath)
   filesById.set(parsed.id, entry)
 }
 
 for (const assetId of folderByMappedId.keys()) {
-  if (!filesById.has(assetId)) errors.push(`映射表登记了 \`${assetId}\`，但磁盘上没有对应 GLB`)
+  if (!filesById.has(assetId))
+    errors.push(`映射表登记了 \`${assetId}\`（${modelAssetFileStem(assetId)}），但磁盘上没有对应 GLB`)
 }
 
 for (const [assetId, entry] of filesById) {
@@ -153,10 +180,20 @@ for (const [assetId, entry] of filesById) {
 /** 从描述符里取出 GLB 文件名主干（去掉目录、`-lite` 后缀与 `?v=` 查询串）。 */
 function urlStem(url) {
   if (typeof url !== 'string' || !url) return null
-  const pathname = url.split('?')[0]
+  const pathname = decodeURIComponent(url.split('?')[0])
   const fileName = pathname.slice(pathname.lastIndexOf('/') + 1)
   if (!fileName.toLowerCase().endsWith('.glb')) return null
   return fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
+}
+
+/** 描述符 URL 里的中文分区目录（含斜杠），解析不出来返回 `undefined`。 */
+function urlFolder(url) {
+  if (typeof url !== 'string' || !url) return undefined
+  const pathname = decodeURIComponent(url.split('?')[0])
+  const segments = pathname.split('/').filter(Boolean)
+  // `/static/3d-studio/models/家居/客厅家具/沙发.glb` → `家居/客厅家具`
+  if (segments.length < 3) return undefined
+  return modelAssetFolderFromPath(segments.slice(-3, -1).join('/'))
 }
 
 for (const [registryName, registry] of [
@@ -170,8 +207,10 @@ for (const [registryName, registry] of [
     ]) {
       const stem = urlStem(url)
       if (!stem) continue
-      if (!modelAssetFolder(stem)) {
-        errors.push(`${registryName}.${itemType}.${kind} 指向 \`${stem}\`，该文件没有登记到映射表`)
+      if (!modelAssetIdForStem(stem, urlFolder(url))) {
+        errors.push(
+          `${registryName}.${itemType}.${kind} 指向 \`${stem}\`，该文件没有登记到映射表`,
+        )
       }
     }
   }
@@ -198,6 +237,14 @@ if (writeMode) {
     console.error('目录布局仍有错误，先修正再迁移：')
     for (const message of errors) console.error(`  - ${message}`)
     process.exit(1)
+  }
+  const targets = new Set()
+  for (const move of moves) {
+    if (targets.has(move.to)) {
+      console.error(`两个文件要搬到同一个位置：${move.to}`)
+      process.exit(1)
+    }
+    targets.add(move.to)
   }
   for (const move of moves) {
     const source = path.join(modelsDir, move.from)

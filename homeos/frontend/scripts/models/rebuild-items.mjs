@@ -120,7 +120,9 @@ async function rebuild(id) {
     filePath: stagingPath,
     materials,
     groups,
-    rootName: path.basename(fullPath).replace(/\.glb$/i, ''),
+    // 根节点名沿用**英文 id**：它是模型内部标识，模板 codec 与材质角色都按它对齐，
+    // 不跟着磁盘中文文件名走。
+    rootName: id,
     extras: { mount: spec.mount, dimensions: Object.fromEntries(['width', 'height', 'depth'].map((key, axis) => [key, spec.size[axis]])) },
   })
   let drift = []

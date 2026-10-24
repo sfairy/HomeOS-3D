@@ -19,7 +19,6 @@
  * bun ops/checks/studio/compare_model_quality.mjs --check         # CI：有 restore/rework 即失败
  * ```
  */
-import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -28,6 +27,7 @@ import {
   modelsDir,
   parseModelPath,
   parseGlb,
+  readModelAtRevision,
   repoRoot,
   round,
   specsDir,
@@ -169,14 +169,7 @@ function measure(parsed, byteLength) {
 
 /** HEAD 里的原始字节；未跟踪的新文件返回 null。 */
 function readHeadBytes(relativePath) {
-  try {
-    return execFileSync('git', ['show', `HEAD:homeos/frontend/public/static/3d-studio/models/${relativePath}`], {
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-  } catch {
-    return null
-  }
+  return readModelAtRevision(relativePath)
 }
 
 /* ------------------------------------------------------------------ *

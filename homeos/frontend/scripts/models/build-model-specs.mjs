@@ -20,6 +20,7 @@ import path from 'node:path'
 import {
   collectModelVariants,
   listModelFiles,
+  modelIdFromUrl,
   parseModelPath,
   repoRoot,
   specsDir,
@@ -37,14 +38,9 @@ import {
 
 const specsFile = path.join(specsDir, 'model-specs.json')
 const exceptionsFile = path.join(specsDir, 'spec-exceptions.json')
-const MODELS_URL_PREFIX = '/static/3d-studio/models/'
-
-/** `.../models/home/living/sofa-lite.glb?v=1` → `sofa`（只取文件名主干，目录部分丢掉）。 */
+/** `.../models/家居/客厅家具/沙发-lite.glb?v=1` → `sofa`（中文名经映射表反查英文 id）。 */
 export function assetIdFromUrl(url) {
-  if (typeof url !== 'string' || !url.includes(MODELS_URL_PREFIX)) return null
-  const tail = url.slice(url.indexOf(MODELS_URL_PREFIX) + MODELS_URL_PREFIX.length).split('?')[0]
-  const fileName = tail.split('/').pop()
-  return fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
+  return modelIdFromUrl(url)
 }
 
 async function loadRegistries() {

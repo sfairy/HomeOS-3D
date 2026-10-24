@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T09:52:43.215Z",
+  "generatedAt": "2026-10-24T00:28:42.730Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -8,7 +8,7 @@
   },
   "rebuilt": [],
   "files": {
-    "appliance/office-devices/3d-printer-lite.glb": {
+    "电器/办公数码/3D打印机-lite.glb": {
       "bytes": 32252,
       "triangles": 6232,
       "extensionsUsed": [
@@ -34,7 +34,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/3d-printer.glb": {
+    "电器/办公数码/3D打印机.glb": {
       "bytes": 152856,
       "triangles": 6232,
       "extensionsUsed": [],
@@ -58,7 +58,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/air-fryer-lite.glb": {
+    "电器/厨房电器/空气炸锅-lite.glb": {
       "bytes": 9848,
       "triangles": 884,
       "extensionsUsed": [
@@ -82,7 +82,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/air-fryer.glb": {
+    "电器/厨房电器/空气炸锅.glb": {
       "bytes": 50976,
       "triangles": 884,
       "extensionsUsed": [],
@@ -104,7 +104,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/air-hockey-table-lite.glb": {
+    "家居/健身娱乐/桌上冰球-lite.glb": {
       "bytes": 15192,
       "triangles": 2212,
       "extensionsUsed": [
@@ -128,7 +128,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/air-hockey-table.glb": {
+    "家居/健身娱乐/桌上冰球.glb": {
       "bytes": 73280,
       "triangles": 2212,
       "extensionsUsed": [],
@@ -150,7 +150,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/air-outlet-lite.glb": {
+    "电器/环境设备/出风口-lite.glb": {
       "bytes": 2540,
       "triangles": 26,
       "extensionsUsed": [
@@ -170,7 +170,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/air-outlet.glb": {
+    "电器/环境设备/出风口.glb": {
       "bytes": 4024,
       "triangles": 26,
       "extensionsUsed": [
@@ -190,7 +190,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/airpurifier-lite.glb": {
+    "电器/环境设备/空气净化器-lite.glb": {
       "bytes": 153780,
       "triangles": 3886,
       "extensionsUsed": [],
@@ -209,7 +209,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/airpurifier.glb": {
+    "电器/环境设备/空气净化器.glb": {
       "bytes": 153780,
       "triangles": 3886,
       "extensionsUsed": [],
@@ -228,7 +228,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/aquarium-lite.glb": {
+    "家居/生活装饰/鱼缸-lite.glb": {
       "bytes": 26124,
       "triangles": 3402,
       "extensionsUsed": [
@@ -252,7 +252,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/aquarium.glb": {
+    "家居/生活装饰/鱼缸.glb": {
       "bytes": 84400,
       "triangles": 3452,
       "extensionsUsed": [],
@@ -274,7 +274,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/fitness/arcade-machine-lite.glb": {
+    "电器/健身娱乐/游戏街机-lite.glb": {
       "bytes": 21508,
       "triangles": 3316,
       "extensionsUsed": [
@@ -300,7 +300,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/fitness/arcade-machine.glb": {
+    "电器/健身娱乐/游戏街机.glb": {
       "bytes": 138880,
       "triangles": 3316,
       "extensionsUsed": [],
@@ -324,7 +324,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/arched-glass-console-lite.glb": {
+    "家居/玄关用品/拱形玻璃玄关台-lite.glb": {
       "bytes": 18068,
       "triangles": 2548,
       "extensionsUsed": [
@@ -344,7 +344,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/arched-glass-console.glb": {
+    "家居/玄关用品/拱形玻璃玄关台.glb": {
       "bytes": 94736,
       "triangles": 2588,
       "extensionsUsed": [],
@@ -362,7 +362,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/aroma-diffuser-lite.glb": {
+    "电器/环境设备/香氛机-lite.glb": {
       "bytes": 22100,
       "triangles": 3222,
       "extensionsUsed": [
@@ -390,7 +390,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/aroma-diffuser.glb": {
+    "电器/环境设备/香氛机.glb": {
       "bytes": 68532,
       "triangles": 3222,
       "extensionsUsed": [],
@@ -416,7 +416,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/baby-crib-lite.glb": {
+    "家居/儿童用品/婴儿床-lite.glb": {
       "bytes": 15788,
       "triangles": 2872,
       "extensionsUsed": [
@@ -438,7 +438,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/baby-crib.glb": {
+    "家居/儿童用品/婴儿床.glb": {
       "bytes": 87016,
       "triangles": 2872,
       "extensionsUsed": [],
@@ -458,7 +458,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/ball-pit-lite.glb": {
+    "家居/儿童用品/小型球池-lite.glb": {
       "bytes": 53832,
       "triangles": 11744,
       "extensionsUsed": [
@@ -482,7 +482,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/ball-pit.glb": {
+    "家居/儿童用品/小型球池.glb": {
       "bytes": 221512,
       "triangles": 11744,
       "extensionsUsed": [],
@@ -504,7 +504,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/bar-lite.glb": {
+    "家居/厨房家具/吧台-lite.glb": {
       "bytes": 7628,
       "triangles": 728,
       "extensionsUsed": [
@@ -526,7 +526,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/bar.glb": {
+    "家居/厨房家具/吧台.glb": {
       "bytes": 8124,
       "triangles": 876,
       "extensionsUsed": [
@@ -548,7 +548,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/bar-stool-lite.glb": {
+    "家居/厨房家具/吧台椅-lite.glb": {
       "bytes": 13372,
       "triangles": 1796,
       "extensionsUsed": [
@@ -570,7 +570,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/bar-stool.glb": {
+    "家居/厨房家具/吧台椅.glb": {
       "bytes": 79948,
       "triangles": 1796,
       "extensionsUsed": [],
@@ -590,7 +590,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/barbell-rack-lite.glb": {
+    "家居/健身娱乐/杠铃架-lite.glb": {
       "bytes": 8960,
       "triangles": 1064,
       "extensionsUsed": [
@@ -612,7 +612,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/barbell-rack.glb": {
+    "家居/健身娱乐/杠铃架.glb": {
       "bytes": 36768,
       "triangles": 1064,
       "extensionsUsed": [],
@@ -632,7 +632,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/basin-lite.glb": {
+    "家居/卫浴用品/台盆-lite.glb": {
       "bytes": 22116,
       "triangles": 2764,
       "extensionsUsed": [
@@ -660,7 +660,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/basin.glb": {
+    "家居/卫浴用品/台盆.glb": {
       "bytes": 129996,
       "triangles": 2764,
       "extensionsUsed": [],
@@ -686,7 +686,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/bathtub-lite.glb": {
+    "家居/卫浴用品/浴缸-lite.glb": {
       "bytes": 12856,
       "triangles": 1792,
       "extensionsUsed": [
@@ -708,7 +708,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/bathtub.glb": {
+    "家居/卫浴用品/浴缸.glb": {
       "bytes": 39304,
       "triangles": 1792,
       "extensionsUsed": [],
@@ -728,7 +728,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/bed-lite.glb": {
+    "家居/卧室家具/双人床-lite.glb": {
       "bytes": 15404,
       "triangles": 2298,
       "extensionsUsed": [
@@ -749,7 +749,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/bed.glb": {
+    "家居/卧室家具/双人床.glb": {
       "bytes": 56472,
       "triangles": 2298,
       "extensionsUsed": [],
@@ -768,7 +768,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/bed-end-bench-lite.glb": {
+    "家居/卧室家具/床尾凳-lite.glb": {
       "bytes": 6296,
       "triangles": 668,
       "extensionsUsed": [
@@ -788,7 +788,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/bed-end-bench.glb": {
+    "家居/卧室家具/床尾凳.glb": {
       "bytes": 42108,
       "triangles": 668,
       "extensionsUsed": [],
@@ -806,7 +806,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/bed-storage-chest-lite.glb": {
+    "家居/卧室家具/床尾储物箱-lite.glb": {
       "bytes": 8116,
       "triangles": 612,
       "extensionsUsed": [
@@ -830,7 +830,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/bed-storage-chest.glb": {
+    "家居/卧室家具/床尾储物箱.glb": {
       "bytes": 34972,
       "triangles": 612,
       "extensionsUsed": [],
@@ -852,7 +852,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/bed-tray-lite.glb": {
+    "家居/卧室家具/床上托盘-lite.glb": {
       "bytes": 7764,
       "triangles": 968,
       "extensionsUsed": [
@@ -872,7 +872,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/bed-tray.glb": {
+    "家居/卧室家具/床上托盘.glb": {
       "bytes": 35012,
       "triangles": 968,
       "extensionsUsed": [],
@@ -890,7 +890,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/bicycle-rack-lite.glb": {
+    "家居/客厅家具/自行车＋停放架-lite.glb": {
       "bytes": 49392,
       "triangles": 10188,
       "extensionsUsed": [
@@ -914,7 +914,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/bicycle-rack.glb": {
+    "家居/客厅家具/自行车＋停放架.glb": {
       "bytes": 233292,
       "triangles": 10188,
       "extensionsUsed": [],
@@ -936,7 +936,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/office/bookcase-lite.glb": {
+    "家居/书房家具/书架-lite.glb": {
       "bytes": 17700,
       "triangles": 748,
       "extensionsUsed": [
@@ -969,7 +969,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/office/bookcase.glb": {
+    "家居/书房家具/书架.glb": {
       "bytes": 17900,
       "triangles": 752,
       "extensionsUsed": [
@@ -1002,7 +1002,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/bread-maker-lite.glb": {
+    "电器/厨房电器/面包机-lite.glb": {
       "bytes": 10532,
       "triangles": 820,
       "extensionsUsed": [
@@ -1028,7 +1028,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/bread-maker.glb": {
+    "电器/厨房电器/面包机.glb": {
       "bytes": 45548,
       "triangles": 820,
       "extensionsUsed": [],
@@ -1052,7 +1052,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/building-block-table-lite.glb": {
+    "家居/儿童用品/积木桌-lite.glb": {
       "bytes": 12692,
       "triangles": 1552,
       "extensionsUsed": [
@@ -1076,7 +1076,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/building-block-table.glb": {
+    "家居/儿童用品/积木桌.glb": {
       "bytes": 73088,
       "triangles": 1552,
       "extensionsUsed": [],
@@ -1098,7 +1098,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/bunk-bed-lite.glb": {
+    "家居/卧室家具/上下铺-lite.glb": {
       "bytes": 26516,
       "triangles": 5380,
       "extensionsUsed": [
@@ -1119,7 +1119,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/bunk-bed.glb": {
+    "家居/卧室家具/上下铺.glb": {
       "bytes": 103488,
       "triangles": 5380,
       "extensionsUsed": [],
@@ -1138,7 +1138,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/cabinet-lite.glb": {
+    "家居/柜架收纳/储物柜-lite.glb": {
       "bytes": 3156,
       "triangles": 48,
       "extensionsUsed": [
@@ -1157,7 +1157,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/cabinet.glb": {
+    "家居/柜架收纳/储物柜.glb": {
       "bytes": 3180,
       "triangles": 48,
       "extensionsUsed": [
@@ -1176,7 +1176,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/cabinet-two-section-lite.glb": {
+    "家居/柜架收纳/双段储物柜-lite.glb": {
       "bytes": 3392,
       "triangles": 144,
       "extensionsUsed": [
@@ -1194,7 +1194,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/cabinet-two-section.glb": {
+    "家居/柜架收纳/双段储物柜.glb": {
       "bytes": 9672,
       "triangles": 144,
       "extensionsUsed": [],
@@ -1210,7 +1210,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/candlestick-lite.glb": {
+    "家居/生活装饰/烛台-lite.glb": {
       "bytes": 7704,
       "triangles": 568,
       "extensionsUsed": [
@@ -1234,7 +1234,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/candlestick.glb": {
+    "家居/生活装饰/烛台.glb": {
       "bytes": 17936,
       "triangles": 568,
       "extensionsUsed": [],
@@ -1256,7 +1256,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-tools/capsule-rack-lite.glb": {
+    "家居/厨房用品/咖啡胶囊架-lite.glb": {
       "bytes": 23892,
       "triangles": 4204,
       "extensionsUsed": [
@@ -1282,7 +1282,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/capsule-rack.glb": {
+    "家居/厨房用品/咖啡胶囊架.glb": {
       "bytes": 101840,
       "triangles": 4204,
       "extensionsUsed": [],
@@ -1306,7 +1306,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/car-lite.glb": {
+    "家居/建筑与交通/小汽车-lite.glb": {
       "bytes": 528792,
       "triangles": 2700,
       "extensionsUsed": [
@@ -1328,7 +1328,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/car.glb": {
+    "家居/建筑与交通/小汽车.glb": {
       "bytes": 804720,
       "triangles": 2700,
       "extensionsUsed": [
@@ -1349,7 +1349,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/cat-scratcher-lite.glb": {
+    "家居/宠物用品/猫抓板-lite.glb": {
       "bytes": 5260,
       "triangles": 472,
       "extensionsUsed": [
@@ -1369,7 +1369,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/cat-scratcher.glb": {
+    "家居/宠物用品/猫抓板.glb": {
       "bytes": 24588,
       "triangles": 472,
       "extensionsUsed": [],
@@ -1387,7 +1387,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/cat-tree-lite.glb": {
+    "家居/宠物用品/猫爬架-lite.glb": {
       "bytes": 29168,
       "triangles": 5720,
       "extensionsUsed": [
@@ -1411,7 +1411,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/cat-tree.glb": {
+    "家居/宠物用品/猫爬架.glb": {
       "bytes": 123296,
       "triangles": 5720,
       "extensionsUsed": [],
@@ -1433,7 +1433,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/ceiling-fan-lite.glb": {
+    "电器/环境设备/吊扇-lite.glb": {
       "bytes": 20512,
       "triangles": 3156,
       "extensionsUsed": [
@@ -1457,7 +1457,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/ceiling-fan.glb": {
+    "电器/环境设备/吊扇.glb": {
       "bytes": 116312,
       "triangles": 3156,
       "extensionsUsed": [],
@@ -1479,7 +1479,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/media/cello-stand-lite.glb": {
+    "家居/影音设备/大提琴＋支架-lite.glb": {
       "bytes": 41512,
       "triangles": 7600,
       "extensionsUsed": [
@@ -1503,7 +1503,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/media/cello-stand.glb": {
+    "家居/影音设备/大提琴＋支架.glb": {
       "bytes": 222044,
       "triangles": 7600,
       "extensionsUsed": [],
@@ -1525,7 +1525,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/ceramic-hob-lite.glb": {
+    "电器/厨房电器/电陶炉-lite.glb": {
       "bytes": 11052,
       "triangles": 1200,
       "extensionsUsed": [
@@ -1549,7 +1549,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/ceramic-hob.glb": {
+    "电器/厨房电器/电陶炉.glb": {
       "bytes": 43944,
       "triangles": 1200,
       "extensionsUsed": [],
@@ -1571,7 +1571,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/chair-lite.glb": {
+    "家居/厨房家具/椅子-lite.glb": {
       "bytes": 5808,
       "triangles": 760,
       "extensionsUsed": [
@@ -1589,7 +1589,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/chair.glb": {
+    "家居/厨房家具/椅子.glb": {
       "bytes": 18236,
       "triangles": 760,
       "extensionsUsed": [],
@@ -1608,7 +1608,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/child-highchair-lite.glb": {
+    "家居/儿童用品/儿童餐椅-lite.glb": {
       "bytes": 12364,
       "triangles": 1380,
       "extensionsUsed": [
@@ -1634,7 +1634,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/child-highchair.glb": {
+    "家居/儿童用品/儿童餐椅.glb": {
       "bytes": 57036,
       "triangles": 1380,
       "extensionsUsed": [],
@@ -1658,7 +1658,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/coat-rack-lite.glb": {
+    "家居/玄关用品/衣帽架-lite.glb": {
       "bytes": 16552,
       "triangles": 2976,
       "extensionsUsed": [
@@ -1680,7 +1680,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/coat-rack.glb": {
+    "家居/玄关用品/衣帽架.glb": {
       "bytes": 63124,
       "triangles": 2976,
       "extensionsUsed": [],
@@ -1700,7 +1700,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/coffee-grinder-lite.glb": {
+    "电器/厨房电器/咖啡磨豆机-lite.glb": {
       "bytes": 12208,
       "triangles": 1124,
       "extensionsUsed": [
@@ -1726,7 +1726,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/coffee-grinder.glb": {
+    "电器/厨房电器/咖啡磨豆机.glb": {
       "bytes": 44716,
       "triangles": 1124,
       "extensionsUsed": [],
@@ -1750,7 +1750,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/coffee-machine-lite.glb": {
+    "电器/厨房电器/咖啡机-lite.glb": {
       "bytes": 23508,
       "triangles": 3332,
       "extensionsUsed": [
@@ -1776,7 +1776,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/coffee-machine.glb": {
+    "电器/厨房电器/咖啡机.glb": {
       "bytes": 128084,
       "triangles": 3332,
       "extensionsUsed": [],
@@ -1800,7 +1800,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/coffeetable-lite.glb": {
+    "家居/客厅家具/组合茶几-lite.glb": {
       "bytes": 19640,
       "triangles": 600,
       "extensionsUsed": [],
@@ -1817,7 +1817,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/coffeetable.glb": {
+    "家居/客厅家具/组合茶几.glb": {
       "bytes": 33852,
       "triangles": 1176,
       "extensionsUsed": [],
@@ -1834,7 +1834,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-tools/cookware-set-lite.glb": {
+    "家居/厨房用品/锅具组合-lite.glb": {
       "bytes": 20056,
       "triangles": 3088,
       "extensionsUsed": [
@@ -1858,7 +1858,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/cookware-set.glb": {
+    "家居/厨房用品/锅具组合.glb": {
       "bytes": 94640,
       "triangles": 3088,
       "extensionsUsed": [],
@@ -1880,7 +1880,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/countertop-lite.glb": {
+    "家居/卫浴用品/台面-lite.glb": {
       "bytes": 1992,
       "triangles": 12,
       "extensionsUsed": [],
@@ -1896,7 +1896,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/countertop.glb": {
+    "家居/卫浴用品/台面.glb": {
       "bytes": 1992,
       "triangles": 12,
       "extensionsUsed": [],
@@ -1912,7 +1912,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/curtain_left-lite.glb": {
+    "家居/生活装饰/窗帘（左片）-lite.glb": {
       "bytes": 10764,
       "triangles": 2384,
       "extensionsUsed": [
@@ -1934,7 +1934,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/curtain_left.glb": {
+    "家居/生活装饰/窗帘（左片）.glb": {
       "bytes": 12296,
       "triangles": 2916,
       "extensionsUsed": [
@@ -1956,7 +1956,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/curtain_right-lite.glb": {
+    "家居/生活装饰/窗帘（右片）-lite.glb": {
       "bytes": 10776,
       "triangles": 2404,
       "extensionsUsed": [
@@ -1978,7 +1978,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/curtain_right.glb": {
+    "家居/生活装饰/窗帘（右片）.glb": {
       "bytes": 12312,
       "triangles": 2916,
       "extensionsUsed": [
@@ -2000,7 +2000,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/curtain_split-lite.glb": {
+    "家居/生活装饰/窗帘（对开）-lite.glb": {
       "bytes": 12528,
       "triangles": 3086,
       "extensionsUsed": [
@@ -2022,7 +2022,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/curtain_split.glb": {
+    "家居/生活装饰/窗帘（对开）.glb": {
       "bytes": 17228,
       "triangles": 5616,
       "extensionsUsed": [
@@ -2044,7 +2044,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/cutting-board-rack-lite.glb": {
+    "家居/厨房用品/砧板架-lite.glb": {
       "bytes": 8948,
       "triangles": 1180,
       "extensionsUsed": [
@@ -2064,7 +2064,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/cutting-board-rack.glb": {
+    "家居/厨房用品/砧板架.glb": {
       "bytes": 39928,
       "triangles": 1180,
       "extensionsUsed": [],
@@ -2082,7 +2082,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/dartboard-lite.glb": {
+    "家居/健身娱乐/飞镖靶-lite.glb": {
       "bytes": 56208,
       "triangles": 11476,
       "extensionsUsed": [
@@ -2108,7 +2108,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/dartboard.glb": {
+    "家居/健身娱乐/飞镖靶.glb": {
       "bytes": 386800,
       "triangles": 11476,
       "extensionsUsed": [],
@@ -2132,7 +2132,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-books-lite.glb": {
+    "家居/生活装饰/书本组合-lite.glb": {
       "bytes": 13984,
       "triangles": 552,
       "extensionsUsed": [],
@@ -2149,7 +2149,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-books.glb": {
+    "家居/生活装饰/书本组合.glb": {
       "bytes": 13984,
       "triangles": 552,
       "extensionsUsed": [],
@@ -2166,7 +2166,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/decor-small-plant-lite.glb": {
+    "家居/室内植物/小盆栽-lite.glb": {
       "bytes": 19976,
       "triangles": 544,
       "extensionsUsed": [],
@@ -2183,7 +2183,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/decor-small-plant.glb": {
+    "家居/室内植物/小盆栽.glb": {
       "bytes": 19976,
       "triangles": 544,
       "extensionsUsed": [],
@@ -2200,7 +2200,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-tea-tray-lite.glb": {
+    "家居/生活装饰/托盘杯子-lite.glb": {
       "bytes": 22676,
       "triangles": 876,
       "extensionsUsed": [],
@@ -2217,7 +2217,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-tea-tray.glb": {
+    "家居/生活装饰/托盘杯子.glb": {
       "bytes": 22676,
       "triangles": 876,
       "extensionsUsed": [],
@@ -2234,7 +2234,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-tissue-box-lite.glb": {
+    "家居/生活装饰/纸巾盒-lite.glb": {
       "bytes": 11760,
       "triangles": 226,
       "extensionsUsed": [],
@@ -2251,7 +2251,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-tissue-box.glb": {
+    "家居/生活装饰/纸巾盒.glb": {
       "bytes": 11760,
       "triangles": 226,
       "extensionsUsed": [],
@@ -2268,7 +2268,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-vase-lite.glb": {
+    "家居/生活装饰/陶瓷花瓶-lite.glb": {
       "bytes": 34296,
       "triangles": 1408,
       "extensionsUsed": [],
@@ -2285,7 +2285,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decor-vase.glb": {
+    "家居/生活装饰/陶瓷花瓶.glb": {
       "bytes": 34296,
       "triangles": 1408,
       "extensionsUsed": [],
@@ -2302,7 +2302,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decorative-lantern-lite.glb": {
+    "家居/生活装饰/装饰灯笼-lite.glb": {
       "bytes": 9060,
       "triangles": 820,
       "extensionsUsed": [
@@ -2326,7 +2326,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/decorative-lantern.glb": {
+    "家居/生活装饰/装饰灯笼.glb": {
       "bytes": 29892,
       "triangles": 820,
       "extensionsUsed": [],
@@ -2348,7 +2348,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/decorative-plate-lite.glb": {
+    "家居/生活装饰/装饰盘-lite.glb": {
       "bytes": 18128,
       "triangles": 3128,
       "extensionsUsed": [
@@ -2372,7 +2372,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/decorative-plate.glb": {
+    "家居/生活装饰/装饰盘.glb": {
       "bytes": 62868,
       "triangles": 3128,
       "extensionsUsed": [],
@@ -2394,7 +2394,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/dehumidifier-lite.glb": {
+    "电器/环境设备/除湿机-lite.glb": {
       "bytes": 17820,
       "triangles": 2964,
       "extensionsUsed": [
@@ -2414,7 +2414,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/dehumidifier.glb": {
+    "电器/环境设备/除湿机.glb": {
       "bytes": 65988,
       "triangles": 2964,
       "extensionsUsed": [],
@@ -2432,7 +2432,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/office/desk-lite.glb": {
+    "家居/书房家具/桌子-lite.glb": {
       "bytes": 5648,
       "triangles": 1192,
       "extensionsUsed": [
@@ -2451,7 +2451,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/office/desk.glb": {
+    "家居/书房家具/桌子.glb": {
       "bytes": 6860,
       "triangles": 1500,
       "extensionsUsed": [
@@ -2470,7 +2470,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/desktop-lite.glb": {
+    "电器/办公数码/台式电脑-lite.glb": {
       "bytes": 44764,
       "triangles": 1326,
       "extensionsUsed": [],
@@ -2489,7 +2489,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/desktop.glb": {
+    "电器/办公数码/台式电脑.glb": {
       "bytes": 44764,
       "triangles": 1326,
       "extensionsUsed": [],
@@ -2508,7 +2508,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/desktop-frame-lite.glb": {
+    "家居/生活装饰/桌面相框-lite.glb": {
       "bytes": 6132,
       "triangles": 189,
       "extensionsUsed": [
@@ -2534,7 +2534,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/desktop-frame.glb": {
+    "家居/生活装饰/桌面相框.glb": {
       "bytes": 12192,
       "triangles": 189,
       "extensionsUsed": [],
@@ -2558,7 +2558,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-tools/dish-rack-lite.glb": {
+    "家居/厨房用品/碗碟沥水架-lite.glb": {
       "bytes": 15884,
       "triangles": 2184,
       "extensionsUsed": [
@@ -2582,7 +2582,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/dish-rack.glb": {
+    "家居/厨房用品/碗碟沥水架.glb": {
       "bytes": 62448,
       "triangles": 2184,
       "extensionsUsed": [],
@@ -2604,7 +2604,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/dishwasher-lite.glb": {
+    "电器/厨房电器/洗碗机-lite.glb": {
       "bytes": 12472,
       "triangles": 1408,
       "extensionsUsed": [
@@ -2628,7 +2628,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/dishwasher.glb": {
+    "电器/厨房电器/洗碗机.glb": {
       "bytes": 75984,
       "triangles": 1408,
       "extensionsUsed": [],
@@ -2650,7 +2650,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/disinfection-cabinet-lite.glb": {
+    "电器/厨房电器/消毒柜-lite.glb": {
       "bytes": 31628,
       "triangles": 5536,
       "extensionsUsed": [
@@ -2676,7 +2676,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/disinfection-cabinet.glb": {
+    "电器/厨房电器/消毒柜.glb": {
       "bytes": 122900,
       "triangles": 5536,
       "extensionsUsed": [],
@@ -2700,7 +2700,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/dog-crate-lite.glb": {
+    "家居/宠物用品/狗笼-lite.glb": {
       "bytes": 15548,
       "triangles": 2980,
       "extensionsUsed": [
@@ -2722,7 +2722,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/dog-crate.glb": {
+    "家居/宠物用品/狗笼.glb": {
       "bytes": 99648,
       "triangles": 2980,
       "extensionsUsed": [],
@@ -2742,7 +2742,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/doll-shelf-lite.glb": {
+    "家居/儿童用品/玩偶收纳架-lite.glb": {
       "bytes": 45256,
       "triangles": 10452,
       "extensionsUsed": [
@@ -2768,7 +2768,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/doll-shelf.glb": {
+    "家居/儿童用品/玩偶收纳架.glb": {
       "bytes": 198524,
       "triangles": 10452,
       "extensionsUsed": [],
@@ -2792,7 +2792,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/double-open-wardrobe-lite.glb": {
+    "家居/卧室家具/双列开放衣柜-lite.glb": {
       "bytes": 7752,
       "triangles": 596,
       "extensionsUsed": [
@@ -2812,7 +2812,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/double-open-wardrobe.glb": {
+    "家居/卧室家具/双列开放衣柜.glb": {
       "bytes": 32720,
       "triangles": 596,
       "extensionsUsed": [],
@@ -2830,7 +2830,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/drawer-chest-lite.glb": {
+    "家居/柜架收纳/斗柜-lite.glb": {
       "bytes": 7004,
       "triangles": 836,
       "extensionsUsed": [
@@ -2850,7 +2850,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/drawer-chest.glb": {
+    "家居/柜架收纳/斗柜.glb": {
       "bytes": 19384,
       "triangles": 836,
       "extensionsUsed": [],
@@ -2868,7 +2868,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/drawing-tablet-lite.glb": {
+    "电器/办公数码/绘图板-lite.glb": {
       "bytes": 6452,
       "triangles": 524,
       "extensionsUsed": [
@@ -2890,7 +2890,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/drawing-tablet.glb": {
+    "电器/办公数码/绘图板.glb": {
       "bytes": 21204,
       "triangles": 524,
       "extensionsUsed": [],
@@ -2910,7 +2910,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/dried-flowers-lite.glb": {
+    "家居/生活装饰/干花花束-lite.glb": {
       "bytes": 46712,
       "triangles": 11160,
       "extensionsUsed": [
@@ -2932,7 +2932,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/dried-flowers.glb": {
+    "家居/生活装饰/干花花束.glb": {
       "bytes": 209212,
       "triangles": 11160,
       "extensionsUsed": [],
@@ -2952,7 +2952,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/media/drum-kit-lite.glb": {
+    "家居/影音设备/架子鼓-lite.glb": {
       "bytes": 52080,
       "triangles": 10520,
       "extensionsUsed": [
@@ -2978,7 +2978,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/media/drum-kit.glb": {
+    "家居/影音设备/架子鼓.glb": {
       "bytes": 259388,
       "triangles": 10520,
       "extensionsUsed": [],
@@ -3002,7 +3002,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/laundry/dryer-lite.glb": {
+    "电器/洗衣烘干/烘干机-lite.glb": {
       "bytes": 26716,
       "triangles": 4004,
       "extensionsUsed": [
@@ -3028,7 +3028,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/laundry/dryer.glb": {
+    "电器/洗衣烘干/烘干机.glb": {
       "bytes": 161660,
       "triangles": 4004,
       "extensionsUsed": [],
@@ -3052,7 +3052,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/laundry/drying-rack-lite.glb": {
+    "家居/洗衣烘干/落地晾衣架-lite.glb": {
       "bytes": 15440,
       "triangles": 2496,
       "extensionsUsed": [
@@ -3074,7 +3074,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/laundry/drying-rack.glb": {
+    "家居/洗衣烘干/落地晾衣架.glb": {
       "bytes": 76184,
       "triangles": 2496,
       "extensionsUsed": [],
@@ -3094,7 +3094,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/dual-monitors-lite.glb": {
+    "电器/办公数码/双屏显示器-lite.glb": {
       "bytes": 13052,
       "triangles": 1844,
       "extensionsUsed": [
@@ -3116,7 +3116,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/dual-monitors.glb": {
+    "电器/办公数码/双屏显示器.glb": {
       "bytes": 93080,
       "triangles": 1844,
       "extensionsUsed": [],
@@ -3136,7 +3136,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/dumbbell-rack-lite.glb": {
+    "家居/健身娱乐/哑铃架＋哑铃-lite.glb": {
       "bytes": 32640,
       "triangles": 8032,
       "extensionsUsed": [
@@ -3160,7 +3160,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/dumbbell-rack.glb": {
+    "家居/健身娱乐/哑铃架＋哑铃.glb": {
       "bytes": 180404,
       "triangles": 8032,
       "extensionsUsed": [],
@@ -3182,7 +3182,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/office/easel-board-lite.glb": {
+    "家居/书房家具/画架＋画板-lite.glb": {
       "bytes": 10680,
       "triangles": 1093,
       "extensionsUsed": [
@@ -3208,7 +3208,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/office/easel-board.glb": {
+    "家居/书房家具/画架＋画板.glb": {
       "bytes": 37100,
       "triangles": 1093,
       "extensionsUsed": [],
@@ -3232,7 +3232,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/electric-fireplace-lite.glb": {
+    "电器/影音设备/电壁炉-lite.glb": {
       "bytes": 16716,
       "triangles": 2024,
       "extensionsUsed": [
@@ -3258,7 +3258,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/electric-fireplace.glb": {
+    "电器/影音设备/电壁炉.glb": {
       "bytes": 105044,
       "triangles": 2024,
       "extensionsUsed": [],
@@ -3282,7 +3282,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/electric-kettle-lite.glb": {
+    "电器/厨房电器/电热水壶-lite.glb": {
       "bytes": 8564,
       "triangles": 880,
       "extensionsUsed": [
@@ -3304,7 +3304,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/electric-kettle.glb": {
+    "电器/厨房电器/电热水壶.glb": {
       "bytes": 24196,
       "triangles": 880,
       "extensionsUsed": [],
@@ -3324,7 +3324,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/electric-valve-lite.glb": {
+    "电器/环境设备/电动阀门-lite.glb": {
       "bytes": 24564,
       "triangles": 3812,
       "extensionsUsed": [
@@ -3348,7 +3348,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/electric-valve.glb": {
+    "电器/环境设备/电动阀门.glb": {
       "bytes": 84492,
       "triangles": 3812,
       "extensionsUsed": [],
@@ -3370,7 +3370,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/elevator-lite.glb": {
+    "家居/建筑与交通/电梯-lite.glb": {
       "bytes": 8200,
       "triangles": 326,
       "extensionsUsed": [
@@ -3400,7 +3400,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/elevator.glb": {
+    "家居/建筑与交通/电梯.glb": {
       "bytes": 23036,
       "triangles": 326,
       "extensionsUsed": [
@@ -3429,7 +3429,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/fitness/elliptical-lite.glb": {
+    "电器/健身娱乐/椭圆机-lite.glb": {
       "bytes": 26928,
       "triangles": 4204,
       "extensionsUsed": [
@@ -3455,7 +3455,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/fitness/elliptical.glb": {
+    "电器/健身娱乐/椭圆机.glb": {
       "bytes": 119688,
       "triangles": 4204,
       "extensionsUsed": [],
@@ -3479,7 +3479,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/entryway-niche-cabinet-lite.glb": {
+    "家居/玄关用品/玄关到顶柜-lite.glb": {
       "bytes": 5924,
       "triangles": 252,
       "extensionsUsed": [
@@ -3499,7 +3499,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/entryway-niche-cabinet.glb": {
+    "家居/玄关用品/玄关到顶柜.glb": {
       "bytes": 17300,
       "triangles": 252,
       "extensionsUsed": [],
@@ -3517,7 +3517,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/exhaust-fan-lite.glb": {
+    "电器/环境设备/排气扇-lite.glb": {
       "bytes": 46568,
       "triangles": 7980,
       "extensionsUsed": [
@@ -3546,7 +3546,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/exhaust-fan.glb": {
+    "电器/环境设备/排气扇.glb": {
       "bytes": 456900,
       "triangles": 7980,
       "extensionsUsed": [],
@@ -3573,7 +3573,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/figurine-set-lite.glb": {
+    "家居/生活装饰/手办组合-lite.glb": {
       "bytes": 27624,
       "triangles": 4596,
       "extensionsUsed": [
@@ -3599,7 +3599,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/figurine-set.glb": {
+    "家居/生活装饰/手办组合.glb": {
       "bytes": 114592,
       "triangles": 4596,
       "extensionsUsed": [],
@@ -3623,7 +3623,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/floating-stairs-lite.glb": {
+    "家居/建筑与交通/悬空楼梯-lite.glb": {
       "bytes": 6632,
       "triangles": 282,
       "extensionsUsed": [
@@ -3650,7 +3650,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/floating-stairs.glb": {
+    "家居/建筑与交通/悬空楼梯.glb": {
       "bytes": 19336,
       "triangles": 282,
       "extensionsUsed": [
@@ -3676,7 +3676,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/lighting-decor/floor-lamp-lite.glb": {
+    "电器/装饰灯具/落地灯（旧版）-lite.glb": {
       "bytes": 50360,
       "triangles": 7420,
       "extensionsUsed": [
@@ -3729,7 +3729,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/lighting-decor/floor-lamp.glb": {
+    "电器/装饰灯具/落地灯（旧版）.glb": {
       "bytes": 493532,
       "triangles": 7420,
       "extensionsUsed": [
@@ -3781,7 +3781,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/floor-sculpture-lite.glb": {
+    "家居/生活装饰/落地雕塑-lite.glb": {
       "bytes": 9572,
       "triangles": 1084,
       "extensionsUsed": [
@@ -3803,7 +3803,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/floor-sculpture.glb": {
+    "家居/生活装饰/落地雕塑.glb": {
       "bytes": 29432,
       "triangles": 1084,
       "extensionsUsed": [],
@@ -3823,7 +3823,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/cleaning/floor-washer-lite.glb": {
+    "电器/清洁设备/洗地机-lite.glb": {
       "bytes": 18720,
       "triangles": 2396,
       "extensionsUsed": [
@@ -3849,7 +3849,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/cleaning/floor-washer.glb": {
+    "电器/清洁设备/洗地机.glb": {
       "bytes": 108752,
       "triangles": 2396,
       "extensionsUsed": [],
@@ -3873,7 +3873,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/floorac-lite.glb": {
+    "电器/环境设备/柜机空调-lite.glb": {
       "bytes": 63908,
       "triangles": 1954,
       "extensionsUsed": [],
@@ -3892,7 +3892,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/floorac.glb": {
+    "电器/环境设备/柜机空调.glb": {
       "bytes": 63908,
       "triangles": 1954,
       "extensionsUsed": [],
@@ -3911,7 +3911,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/lighting-decor/floorlamp-lite.glb": {
+    "电器/装饰灯具/落地灯-lite.glb": {
       "bytes": 9244,
       "triangles": 1644,
       "extensionsUsed": [
@@ -3932,7 +3932,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/lighting-decor/floorlamp.glb": {
+    "电器/装饰灯具/落地灯.glb": {
       "bytes": 11720,
       "triangles": 2096,
       "extensionsUsed": [
@@ -3953,7 +3953,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/flower-anthurium-lite.glb": {
+    "家居/室内植物/红掌-lite.glb": {
       "bytes": 34576,
       "triangles": 4296,
       "extensionsUsed": [
@@ -3983,7 +3983,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/flower-anthurium.glb": {
+    "家居/室内植物/红掌.glb": {
       "bytes": 97360,
       "triangles": 4296,
       "extensionsUsed": [],
@@ -4011,7 +4011,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/flower-hydrangea-lite.glb": {
+    "家居/室内植物/绣球花-lite.glb": {
       "bytes": 87036,
       "triangles": 13968,
       "extensionsUsed": [
@@ -4041,7 +4041,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/flower-hydrangea.glb": {
+    "家居/室内植物/绣球花.glb": {
       "bytes": 281316,
       "triangles": 13968,
       "extensionsUsed": [],
@@ -4069,7 +4069,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/flower-orchid-lite.glb": {
+    "家居/室内植物/蝴蝶兰-lite.glb": {
       "bytes": 41960,
       "triangles": 6544,
       "extensionsUsed": [
@@ -4099,7 +4099,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/flower-orchid.glb": {
+    "家居/室内植物/蝴蝶兰.glb": {
       "bytes": 132796,
       "triangles": 6544,
       "extensionsUsed": [],
@@ -4127,7 +4127,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/flower-peace-lily-lite.glb": {
+    "家居/室内植物/白掌-lite.glb": {
       "bytes": 34556,
       "triangles": 4288,
       "extensionsUsed": [
@@ -4157,7 +4157,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/flower-peace-lily.glb": {
+    "家居/室内植物/白掌.glb": {
       "bytes": 97324,
       "triangles": 4288,
       "extensionsUsed": [],
@@ -4185,7 +4185,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/folding-screen-lite.glb": {
+    "家居/玄关用品/屏风-lite.glb": {
       "bytes": 5880,
       "triangles": 396,
       "extensionsUsed": [
@@ -4207,7 +4207,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/folding-screen.glb": {
+    "家居/玄关用品/屏风.glb": {
       "bytes": 24920,
       "triangles": 396,
       "extensionsUsed": [],
@@ -4227,7 +4227,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/food-steamer-lite.glb": {
+    "电器/厨房电器/电蒸锅-lite.glb": {
       "bytes": 12448,
       "triangles": 1132,
       "extensionsUsed": [
@@ -4253,7 +4253,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/food-steamer.glb": {
+    "电器/厨房电器/电蒸锅.glb": {
       "bytes": 68800,
       "triangles": 1132,
       "extensionsUsed": [],
@@ -4277,7 +4277,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/foosball-table-lite.glb": {
+    "家居/健身娱乐/桌上足球-lite.glb": {
       "bytes": 52232,
       "triangles": 11844,
       "extensionsUsed": [
@@ -4303,7 +4303,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/foosball-table.glb": {
+    "家居/健身娱乐/桌上足球.glb": {
       "bytes": 373128,
       "triangles": 11844,
       "extensionsUsed": [],
@@ -4327,7 +4327,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/foot-spa-lite.glb": {
+    "家居/卫浴用品/足浴盆-lite.glb": {
       "bytes": 10832,
       "triangles": 1148,
       "extensionsUsed": [
@@ -4351,7 +4351,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/foot-spa.glb": {
+    "家居/卫浴用品/足浴盆.glb": {
       "bytes": 42768,
       "triangles": 1148,
       "extensionsUsed": [],
@@ -4373,7 +4373,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/freezer-lite.glb": {
+    "电器/厨房电器/冰柜-lite.glb": {
       "bytes": 13532,
       "triangles": 1296,
       "extensionsUsed": [
@@ -4406,7 +4406,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/freezer.glb": {
+    "电器/厨房电器/冰柜.glb": {
       "bytes": 49912,
       "triangles": 1296,
       "extensionsUsed": [],
@@ -4437,7 +4437,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/fridge-lite.glb": {
+    "电器/厨房电器/冰箱-lite.glb": {
       "bytes": 4692,
       "triangles": 732,
       "extensionsUsed": [
@@ -4456,7 +4456,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/fridge.glb": {
+    "电器/厨房电器/冰箱.glb": {
       "bytes": 5380,
       "triangles": 900,
       "extensionsUsed": [
@@ -4475,7 +4475,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/fruit-basket-lite.glb": {
+    "家居/厨房用品/水果篮-lite.glb": {
       "bytes": 19316,
       "triangles": 2888,
       "extensionsUsed": [
@@ -4499,7 +4499,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/fruit-basket.glb": {
+    "家居/厨房用品/水果篮.glb": {
       "bytes": 59304,
       "triangles": 2888,
       "extensionsUsed": [],
@@ -4521,7 +4521,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/full-length-mirror-lite.glb": {
+    "家居/玄关用品/穿衣镜-lite.glb": {
       "bytes": 12008,
       "triangles": 1540,
       "extensionsUsed": [
@@ -4545,7 +4545,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/full-length-mirror.glb": {
+    "家居/玄关用品/穿衣镜.glb": {
       "bytes": 80864,
       "triangles": 1540,
       "extensionsUsed": [],
@@ -4567,7 +4567,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-arch-lite.glb": {
+    "庭院/构筑物/花园拱门-lite.glb": {
       "bytes": 32508,
       "triangles": 1264,
       "extensionsUsed": [],
@@ -4587,7 +4587,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-arch.glb": {
+    "庭院/构筑物/花园拱门.glb": {
       "bytes": 32508,
       "triangles": 1264,
       "extensionsUsed": [],
@@ -4607,7 +4607,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-bamboo-lite.glb": {
+    "庭院/植物/竹丛-lite.glb": {
       "bytes": 78676,
       "triangles": 2736,
       "extensionsUsed": [],
@@ -4627,7 +4627,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-bamboo.glb": {
+    "庭院/植物/竹丛.glb": {
       "bytes": 78676,
       "triangles": 2736,
       "extensionsUsed": [],
@@ -4647,7 +4647,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-bamboo-dense-lite.glb": {
+    "庭院/植物/浓密竹丛-lite.glb": {
       "bytes": 88628,
       "triangles": 2952,
       "extensionsUsed": [],
@@ -4667,7 +4667,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-bamboo-dense.glb": {
+    "庭院/植物/浓密竹丛.glb": {
       "bytes": 88628,
       "triangles": 2952,
       "extensionsUsed": [],
@@ -4687,7 +4687,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-barbecue-lite.glb": {
+    "庭院/设施/户外烧烤台-lite.glb": {
       "bytes": 24476,
       "triangles": 1024,
       "extensionsUsed": [],
@@ -4707,7 +4707,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-barbecue.glb": {
+    "庭院/设施/户外烧烤台.glb": {
       "bytes": 24476,
       "triangles": 1024,
       "extensionsUsed": [],
@@ -4727,7 +4727,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-barbecue-kettle-lite.glb": {
+    "庭院/设施/球形烧烤炉-lite.glb": {
       "bytes": 13472,
       "triangles": 516,
       "extensionsUsed": [],
@@ -4747,7 +4747,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-barbecue-kettle.glb": {
+    "庭院/设施/球形烧烤炉.glb": {
       "bytes": 13472,
       "triangles": 516,
       "extensionsUsed": [],
@@ -4767,7 +4767,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-bench-lite.glb": {
+    "庭院/家具与铺装/户外长椅-lite.glb": {
       "bytes": 17744,
       "triangles": 792,
       "extensionsUsed": [],
@@ -4787,7 +4787,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-bench.glb": {
+    "庭院/家具与铺装/户外长椅.glb": {
       "bytes": 17744,
       "triangles": 792,
       "extensionsUsed": [],
@@ -4807,7 +4807,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-bench-backless-lite.glb": {
+    "庭院/家具与铺装/无靠背长凳-lite.glb": {
       "bytes": 9380,
       "triangles": 352,
       "extensionsUsed": [],
@@ -4827,7 +4827,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-bench-backless.glb": {
+    "庭院/家具与铺装/无靠背长凳.glb": {
       "bytes": 9380,
       "triangles": 352,
       "extensionsUsed": [],
@@ -4847,7 +4847,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-bench-curved-lite.glb": {
+    "庭院/家具与铺装/弧形景观长凳-lite.glb": {
       "bytes": 22840,
       "triangles": 1056,
       "extensionsUsed": [],
@@ -4867,7 +4867,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-bench-curved.glb": {
+    "庭院/家具与铺装/弧形景观长凳.glb": {
       "bytes": 22840,
       "triangles": 1056,
       "extensionsUsed": [],
@@ -4887,7 +4887,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-bollard-lite.glb": {
+    "庭院/设施/草坪灯-lite.glb": {
       "bytes": 5988,
       "triangles": 176,
       "extensionsUsed": [],
@@ -4907,7 +4907,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-bollard.glb": {
+    "庭院/设施/草坪灯.glb": {
       "bytes": 5988,
       "triangles": 176,
       "extensionsUsed": [],
@@ -4927,7 +4927,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-carport-lite.glb": {
+    "庭院/构筑物/庭院车棚-lite.glb": {
       "bytes": 20864,
       "triangles": 924,
       "extensionsUsed": [],
@@ -4947,7 +4947,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-carport.glb": {
+    "庭院/构筑物/庭院车棚.glb": {
       "bytes": 20864,
       "triangles": 924,
       "extensionsUsed": [],
@@ -4967,7 +4967,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-chair-lite.glb": {
+    "庭院/家具与铺装/户外扶手椅-lite.glb": {
       "bytes": 18340,
       "triangles": 792,
       "extensionsUsed": [],
@@ -4987,7 +4987,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-chair.glb": {
+    "庭院/家具与铺装/户外扶手椅.glb": {
       "bytes": 18340,
       "triangles": 792,
       "extensionsUsed": [],
@@ -5007,7 +5007,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-chair-bistro-lite.glb": {
+    "庭院/家具与铺装/圆背庭院椅-lite.glb": {
       "bytes": 15684,
       "triangles": 540,
       "extensionsUsed": [],
@@ -5027,7 +5027,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-chair-bistro.glb": {
+    "庭院/家具与铺装/圆背庭院椅.glb": {
       "bytes": 15684,
       "triangles": 540,
       "extensionsUsed": [],
@@ -5047,7 +5047,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-conifer-lite.glb": {
+    "庭院/植物/景观松树-lite.glb": {
       "bytes": 6636,
       "triangles": 108,
       "extensionsUsed": [],
@@ -5067,7 +5067,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-conifer.glb": {
+    "庭院/植物/景观松树.glb": {
       "bytes": 6636,
       "triangles": 108,
       "extensionsUsed": [],
@@ -5087,7 +5087,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-conifer-layered-lite.glb": {
+    "庭院/植物/层叠景松-lite.glb": {
       "bytes": 13656,
       "triangles": 480,
       "extensionsUsed": [],
@@ -5107,7 +5107,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-conifer-layered.glb": {
+    "庭院/植物/层叠景松.glb": {
       "bytes": 13656,
       "triangles": 480,
       "extensionsUsed": [],
@@ -5127,7 +5127,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-deck-lite.glb": {
+    "庭院/家具与铺装/木平台-lite.glb": {
       "bytes": 17636,
       "triangles": 792,
       "extensionsUsed": [],
@@ -5147,7 +5147,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-deck.glb": {
+    "庭院/家具与铺装/木平台.glb": {
       "bytes": 17636,
       "triangles": 792,
       "extensionsUsed": [],
@@ -5167,7 +5167,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-lite.glb": {
+    "庭院/设施/围栏-lite.glb": {
       "bytes": 19964,
       "triangles": 880,
       "extensionsUsed": [],
@@ -5187,7 +5187,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence.glb": {
+    "庭院/设施/围栏.glb": {
       "bytes": 19964,
       "triangles": 880,
       "extensionsUsed": [],
@@ -5207,7 +5207,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-horizontal-lite.glb": {
+    "庭院/设施/横条围栏-lite.glb": {
       "bytes": 12484,
       "triangles": 484,
       "extensionsUsed": [],
@@ -5227,7 +5227,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-horizontal.glb": {
+    "庭院/设施/横条围栏.glb": {
       "bytes": 12484,
       "triangles": 484,
       "extensionsUsed": [],
@@ -5247,7 +5247,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-lattice-lite.glb": {
+    "庭院/设施/格栅围栏-lite.glb": {
       "bytes": 23564,
       "triangles": 752,
       "extensionsUsed": [],
@@ -5267,7 +5267,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-lattice.glb": {
+    "庭院/设施/格栅围栏.glb": {
       "bytes": 23564,
       "triangles": 752,
       "extensionsUsed": [],
@@ -5287,7 +5287,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-metal-lite.glb": {
+    "庭院/设施/金属围栏-lite.glb": {
       "bytes": 18004,
       "triangles": 836,
       "extensionsUsed": [],
@@ -5307,7 +5307,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-fence-metal.glb": {
+    "庭院/设施/金属围栏.glb": {
       "bytes": 18004,
       "triangles": 836,
       "extensionsUsed": [],
@@ -5327,7 +5327,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-firepit-lite.glb": {
+    "庭院/设施/庭院火盆-lite.glb": {
       "bytes": 13484,
       "triangles": 432,
       "extensionsUsed": [],
@@ -5347,7 +5347,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-firepit.glb": {
+    "庭院/设施/庭院火盆.glb": {
       "bytes": 13484,
       "triangles": 432,
       "extensionsUsed": [],
@@ -5367,7 +5367,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-flowerbed-lite.glb": {
+    "庭院/花箱与花坛/花坛-lite.glb": {
       "bytes": 112036,
       "triangles": 2176,
       "extensionsUsed": [],
@@ -5387,7 +5387,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-flowerbed.glb": {
+    "庭院/花箱与花坛/花坛.glb": {
       "bytes": 112036,
       "triangles": 2176,
       "extensionsUsed": [],
@@ -5407,7 +5407,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-flowers-lite.glb": {
+    "庭院/花箱与花坛/花朵组团-lite.glb": {
       "bytes": 109956,
       "triangles": 2088,
       "extensionsUsed": [],
@@ -5427,7 +5427,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-flowers.glb": {
+    "庭院/花箱与花坛/花朵组团.glb": {
       "bytes": 109956,
       "triangles": 2088,
       "extensionsUsed": [],
@@ -5447,7 +5447,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-flowers-wild-lite.glb": {
+    "庭院/花箱与花坛/野花组团-lite.glb": {
       "bytes": 56008,
       "triangles": 1716,
       "extensionsUsed": [],
@@ -5467,7 +5467,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-flowers-wild.glb": {
+    "庭院/花箱与花坛/野花组团.glb": {
       "bytes": 56008,
       "triangles": 1716,
       "extensionsUsed": [],
@@ -5487,7 +5487,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-fountain-lite.glb": {
+    "庭院/水景/庭院喷泉-lite.glb": {
       "bytes": 25452,
       "triangles": 644,
       "extensionsUsed": [],
@@ -5507,7 +5507,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-fountain.glb": {
+    "庭院/水景/庭院喷泉.glb": {
       "bytes": 25452,
       "triangles": 644,
       "extensionsUsed": [],
@@ -5527,7 +5527,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-fountain-wall-lite.glb": {
+    "庭院/水景/壁泉水景-lite.glb": {
       "bytes": 10816,
       "triangles": 396,
       "extensionsUsed": [],
@@ -5547,7 +5547,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-fountain-wall.glb": {
+    "庭院/水景/壁泉水景.glb": {
       "bytes": 10816,
       "triangles": 396,
       "extensionsUsed": [],
@@ -5567,7 +5567,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-lite.glb": {
+    "庭院/设施/庭院门-lite.glb": {
       "bytes": 18292,
       "triangles": 792,
       "extensionsUsed": [],
@@ -5587,7 +5587,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate.glb": {
+    "庭院/设施/庭院门.glb": {
       "bytes": 18292,
       "triangles": 792,
       "extensionsUsed": [],
@@ -5607,7 +5607,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-arch-lite.glb": {
+    "庭院/设施/拱形铁艺院门-lite.glb": {
       "bytes": 17576,
       "triangles": 764,
       "extensionsUsed": [],
@@ -5627,7 +5627,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-arch.glb": {
+    "庭院/设施/拱形铁艺院门.glb": {
       "bytes": 17576,
       "triangles": 764,
       "extensionsUsed": [],
@@ -5647,7 +5647,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-post-lite.glb": {
+    "庭院/设施/独立门柱-lite.glb": {
       "bytes": 7432,
       "triangles": 220,
       "extensionsUsed": [],
@@ -5667,7 +5667,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-post.glb": {
+    "庭院/设施/独立门柱.glb": {
       "bytes": 7432,
       "triangles": 220,
       "extensionsUsed": [],
@@ -5687,7 +5687,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-solid-lite.glb": {
+    "庭院/设施/双扇实木院门-lite.glb": {
       "bytes": 20028,
       "triangles": 880,
       "extensionsUsed": [],
@@ -5707,7 +5707,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-gate-solid.glb": {
+    "庭院/设施/双扇实木院门.glb": {
       "bytes": 20028,
       "triangles": 880,
       "extensionsUsed": [],
@@ -5727,7 +5727,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-gazebo-lite.glb": {
+    "庭院/构筑物/四角凉亭-lite.glb": {
       "bytes": 28768,
       "triangles": 1328,
       "extensionsUsed": [],
@@ -5747,7 +5747,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-gazebo.glb": {
+    "庭院/构筑物/四角凉亭.glb": {
       "bytes": 28768,
       "triangles": 1328,
       "extensionsUsed": [],
@@ -5767,7 +5767,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-gazebo-hex-lite.glb": {
+    "庭院/构筑物/六角凉亭-lite.glb": {
       "bytes": 14588,
       "triangles": 460,
       "extensionsUsed": [],
@@ -5787,7 +5787,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-gazebo-hex.glb": {
+    "庭院/构筑物/六角凉亭.glb": {
       "bytes": 14588,
       "triangles": 460,
       "extensionsUsed": [],
@@ -5807,7 +5807,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-grass-clump-lite.glb": {
+    "庭院/植物/丛生草-lite.glb": {
       "bytes": 42848,
       "triangles": 1060,
       "extensionsUsed": [],
@@ -5827,7 +5827,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-grass-clump.glb": {
+    "庭院/植物/丛生草.glb": {
       "bytes": 42848,
       "triangles": 1060,
       "extensionsUsed": [],
@@ -5847,7 +5847,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-grass-low-lite.glb": {
+    "庭院/植物/低矮草-lite.glb": {
       "bytes": 18188,
       "triangles": 768,
       "extensionsUsed": [],
@@ -5867,7 +5867,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-grass-low.glb": {
+    "庭院/植物/低矮草.glb": {
       "bytes": 18188,
       "triangles": 768,
       "extensionsUsed": [],
@@ -5887,7 +5887,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-hammock-lite.glb": {
+    "庭院/家具与铺装/支架吊床-lite.glb": {
       "bytes": 29752,
       "triangles": 1120,
       "extensionsUsed": [],
@@ -5907,7 +5907,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-hammock.glb": {
+    "庭院/家具与铺装/支架吊床.glb": {
       "bytes": 29752,
       "triangles": 1120,
       "extensionsUsed": [],
@@ -5927,7 +5927,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-hanging-chair-lite.glb": {
+    "庭院/家具与铺装/鸟巢吊椅-lite.glb": {
       "bytes": 35364,
       "triangles": 1672,
       "extensionsUsed": [],
@@ -5947,7 +5947,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-hanging-chair.glb": {
+    "庭院/家具与铺装/鸟巢吊椅.glb": {
       "bytes": 35364,
       "triangles": 1672,
       "extensionsUsed": [],
@@ -5967,7 +5967,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-hedge-lite.glb": {
+    "庭院/植物/绿篱-lite.glb": {
       "bytes": 10876,
       "triangles": 444,
       "extensionsUsed": [],
@@ -5987,7 +5987,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-hedge.glb": {
+    "庭院/植物/绿篱.glb": {
       "bytes": 10876,
       "triangles": 444,
       "extensionsUsed": [],
@@ -6007,7 +6007,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-hedge-round-lite.glb": {
+    "庭院/植物/圆形绿篱-lite.glb": {
       "bytes": 20528,
       "triangles": 768,
       "extensionsUsed": [],
@@ -6027,7 +6027,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-hedge-round.glb": {
+    "庭院/植物/圆形绿篱.glb": {
       "bytes": 20528,
       "triangles": 768,
       "extensionsUsed": [],
@@ -6047,7 +6047,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-lantern-lite.glb": {
+    "庭院/设施/庭院灯柱-lite.glb": {
       "bytes": 11008,
       "triangles": 368,
       "extensionsUsed": [],
@@ -6067,7 +6067,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-lantern.glb": {
+    "庭院/设施/庭院灯柱.glb": {
       "bytes": 11008,
       "triangles": 368,
       "extensionsUsed": [],
@@ -6087,7 +6087,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-large-planter-lite.glb": {
+    "庭院/花箱与花坛/高盆观叶植物-lite.glb": {
       "bytes": 22372,
       "triangles": 720,
       "extensionsUsed": [],
@@ -6107,7 +6107,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-large-planter.glb": {
+    "庭院/花箱与花坛/高盆观叶植物.glb": {
       "bytes": 22372,
       "triangles": 720,
       "extensionsUsed": [],
@@ -6127,7 +6127,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-lawn-lite.glb": {
+    "庭院/家具与铺装/草坪-lite.glb": {
       "bytes": 2776,
       "triangles": 44,
       "extensionsUsed": [],
@@ -6147,7 +6147,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-lawn.glb": {
+    "庭院/家具与铺装/草坪.glb": {
       "bytes": 2776,
       "triangles": 44,
       "extensionsUsed": [],
@@ -6167,7 +6167,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-lounger-lite.glb": {
+    "庭院/家具与铺装/日光躺椅-lite.glb": {
       "bytes": 6564,
       "triangles": 750,
       "extensionsUsed": [
@@ -6186,7 +6186,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "courtyard/furniture/garden-lounger.glb": {
+    "庭院/家具与铺装/日光躺椅.glb": {
       "bytes": 18188,
       "triangles": 750,
       "extensionsUsed": [],
@@ -6203,7 +6203,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-low-wall-lite.glb": {
+    "庭院/设施/矮墙-lite.glb": {
       "bytes": 5120,
       "triangles": 132,
       "extensionsUsed": [],
@@ -6223,7 +6223,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-low-wall.glb": {
+    "庭院/设施/矮墙.glb": {
       "bytes": 5120,
       "triangles": 132,
       "extensionsUsed": [],
@@ -6243,7 +6243,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-low-wall-brick-lite.glb": {
+    "庭院/设施/砖砌矮墙-lite.glb": {
       "bytes": 26176,
       "triangles": 1232,
       "extensionsUsed": [],
@@ -6263,7 +6263,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-low-wall-brick.glb": {
+    "庭院/设施/砖砌矮墙.glb": {
       "bytes": 26176,
       "triangles": 1232,
       "extensionsUsed": [],
@@ -6283,7 +6283,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-low-wall-slat-lite.glb": {
+    "庭院/设施/板条矮墙-lite.glb": {
       "bytes": 16396,
       "triangles": 660,
       "extensionsUsed": [],
@@ -6303,7 +6303,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-low-wall-slat.glb": {
+    "庭院/设施/板条矮墙.glb": {
       "bytes": 16396,
       "triangles": 660,
       "extensionsUsed": [],
@@ -6323,7 +6323,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-outdoor-coffee-table-lite.glb": {
+    "庭院/家具与铺装/户外茶几-lite.glb": {
       "bytes": 11980,
       "triangles": 484,
       "extensionsUsed": [],
@@ -6343,7 +6343,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-outdoor-coffee-table.glb": {
+    "庭院/家具与铺装/户外茶几.glb": {
       "bytes": 11980,
       "triangles": 484,
       "extensionsUsed": [],
@@ -6363,7 +6363,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-outdoor-sink-lite.glb": {
+    "庭院/设施/户外水槽台-lite.glb": {
       "bytes": 20356,
       "triangles": 856,
       "extensionsUsed": [],
@@ -6383,7 +6383,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-outdoor-sink.glb": {
+    "庭院/设施/户外水槽台.glb": {
       "bytes": 20356,
       "triangles": 856,
       "extensionsUsed": [],
@@ -6403,7 +6403,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-outdoor-sofa-lite.glb": {
+    "庭院/家具与铺装/户外双人沙发-lite.glb": {
       "bytes": 24032,
       "triangles": 1056,
       "extensionsUsed": [],
@@ -6423,7 +6423,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-outdoor-sofa.glb": {
+    "庭院/家具与铺装/户外双人沙发.glb": {
       "bytes": 24032,
       "triangles": 1056,
       "extensionsUsed": [],
@@ -6443,7 +6443,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-paving-lite.glb": {
+    "庭院/家具与铺装/地面铺装-lite.glb": {
       "bytes": 15408,
       "triangles": 704,
       "extensionsUsed": [],
@@ -6463,7 +6463,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-paving.glb": {
+    "庭院/家具与铺装/地面铺装.glb": {
       "bytes": 15408,
       "triangles": 704,
       "extensionsUsed": [],
@@ -6483,7 +6483,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-pergola-lite.glb": {
+    "庭院/构筑物/庭院廊架-lite.glb": {
       "bytes": 20268,
       "triangles": 924,
       "extensionsUsed": [],
@@ -6503,7 +6503,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-pergola.glb": {
+    "庭院/构筑物/庭院廊架.glb": {
       "bytes": 20268,
       "triangles": 924,
       "extensionsUsed": [],
@@ -6523,7 +6523,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-pergola-shade-lite.glb": {
+    "庭院/构筑物/遮阳布廊架-lite.glb": {
       "bytes": 18640,
       "triangles": 836,
       "extensionsUsed": [],
@@ -6543,7 +6543,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-pergola-shade.glb": {
+    "庭院/构筑物/遮阳布廊架.glb": {
       "bytes": 18640,
       "triangles": 836,
       "extensionsUsed": [],
@@ -6563,7 +6563,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-planter-lite.glb": {
+    "庭院/花箱与花坛/长条花箱-lite.glb": {
       "bytes": 23992,
       "triangles": 764,
       "extensionsUsed": [],
@@ -6583,7 +6583,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-planter.glb": {
+    "庭院/花箱与花坛/长条花箱.glb": {
       "bytes": 23992,
       "triangles": 764,
       "extensionsUsed": [],
@@ -6603,7 +6603,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-planter-square-lite.glb": {
+    "庭院/花箱与花坛/方形花盆-lite.glb": {
       "bytes": 9808,
       "triangles": 344,
       "extensionsUsed": [],
@@ -6623,7 +6623,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-planter-square.glb": {
+    "庭院/花箱与花坛/方形花盆.glb": {
       "bytes": 9808,
       "triangles": 344,
       "extensionsUsed": [],
@@ -6643,7 +6643,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-planter-trough-lite.glb": {
+    "庭院/花箱与花坛/石质长花槽-lite.glb": {
       "bytes": 17228,
       "triangles": 744,
       "extensionsUsed": [],
@@ -6663,7 +6663,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-planter-trough.glb": {
+    "庭院/花箱与花坛/石质长花槽.glb": {
       "bytes": 17228,
       "triangles": 744,
       "extensionsUsed": [],
@@ -6683,7 +6683,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-pond-lite.glb": {
+    "庭院/水景/景观水池-lite.glb": {
       "bytes": 11324,
       "triangles": 344,
       "extensionsUsed": [],
@@ -6703,7 +6703,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-pond.glb": {
+    "庭院/水景/景观水池.glb": {
       "bytes": 11324,
       "triangles": 344,
       "extensionsUsed": [],
@@ -6723,7 +6723,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-pond-round-lite.glb": {
+    "庭院/水景/圆形景观池-lite.glb": {
       "bytes": 16152,
       "triangles": 384,
       "extensionsUsed": [],
@@ -6743,7 +6743,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-pond-round.glb": {
+    "庭院/水景/圆形景观池.glb": {
       "bytes": 16152,
       "triangles": 384,
       "extensionsUsed": [],
@@ -6763,7 +6763,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-pool-lite.glb": {
+    "庭院/水景/庭院泳池-lite.glb": {
       "bytes": 14580,
       "triangles": 524,
       "extensionsUsed": [],
@@ -6783,7 +6783,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-pool.glb": {
+    "庭院/水景/庭院泳池.glb": {
       "bytes": 14580,
       "triangles": 524,
       "extensionsUsed": [],
@@ -6803,7 +6803,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-raised-bed-lite.glb": {
+    "庭院/花箱与花坛/高架花床-lite.glb": {
       "bytes": 23008,
       "triangles": 852,
       "extensionsUsed": [],
@@ -6823,7 +6823,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-raised-bed.glb": {
+    "庭院/花箱与花坛/高架花床.glb": {
       "bytes": 23008,
       "triangles": 852,
       "extensionsUsed": [],
@@ -6843,7 +6843,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-retaining-wall-lite.glb": {
+    "庭院/设施/挡土墙-lite.glb": {
       "bytes": 14400,
       "triangles": 616,
       "extensionsUsed": [],
@@ -6863,7 +6863,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-retaining-wall.glb": {
+    "庭院/设施/挡土墙.glb": {
       "bytes": 14400,
       "triangles": 616,
       "extensionsUsed": [],
@@ -6883,7 +6883,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-rock-water-lite.glb": {
+    "庭院/水景/假山水景-lite.glb": {
       "bytes": 14932,
       "triangles": 388,
       "extensionsUsed": [],
@@ -6903,7 +6903,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-rock-water.glb": {
+    "庭院/水景/假山水景.glb": {
       "bytes": 14932,
       "triangles": 388,
       "extensionsUsed": [],
@@ -6923,7 +6923,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-rocks-lite.glb": {
+    "庭院/水景/景石组合-lite.glb": {
       "bytes": 7760,
       "triangles": 108,
       "extensionsUsed": [],
@@ -6943,7 +6943,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/water/garden-rocks.glb": {
+    "庭院/水景/景石组合.glb": {
       "bytes": 7760,
       "triangles": 108,
       "extensionsUsed": [],
@@ -6963,7 +6963,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-round-planter-lite.glb": {
+    "庭院/花箱与花坛/圆形灌木花盆-lite.glb": {
       "bytes": 14332,
       "triangles": 432,
       "extensionsUsed": [],
@@ -6983,7 +6983,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-round-planter.glb": {
+    "庭院/花箱与花坛/圆形灌木花盆.glb": {
       "bytes": 14332,
       "triangles": 432,
       "extensionsUsed": [],
@@ -7003,7 +7003,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-shrub-lite.glb": {
+    "庭院/植物/灌木丛-lite.glb": {
       "bytes": 15104,
       "triangles": 560,
       "extensionsUsed": [],
@@ -7023,7 +7023,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-shrub.glb": {
+    "庭院/植物/灌木丛.glb": {
       "bytes": 15104,
       "triangles": 560,
       "extensionsUsed": [],
@@ -7043,7 +7043,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-shrub-flowering-lite.glb": {
+    "庭院/植物/开花灌木-lite.glb": {
       "bytes": 93500,
       "triangles": 1400,
       "extensionsUsed": [],
@@ -7063,7 +7063,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-shrub-flowering.glb": {
+    "庭院/植物/开花灌木.glb": {
       "bytes": 93500,
       "triangles": 1400,
       "extensionsUsed": [],
@@ -7083,7 +7083,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-shrub-low-lite.glb": {
+    "庭院/植物/低矮圆灌木-lite.glb": {
       "bytes": 6520,
       "triangles": 240,
       "extensionsUsed": [],
@@ -7103,7 +7103,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-shrub-low.glb": {
+    "庭院/植物/低矮圆灌木.glb": {
       "bytes": 6520,
       "triangles": 240,
       "extensionsUsed": [],
@@ -7123,7 +7123,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-slide-lite.glb": {
+    "庭院/家具与铺装/户外滑梯-lite.glb": {
       "bytes": 19828,
       "triangles": 720,
       "extensionsUsed": [],
@@ -7143,7 +7143,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-slide.glb": {
+    "庭院/家具与铺装/户外滑梯.glb": {
       "bytes": 19828,
       "triangles": 720,
       "extensionsUsed": [],
@@ -7163,7 +7163,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-stepping-lite.glb": {
+    "庭院/家具与铺装/汀步-lite.glb": {
       "bytes": 2932,
       "triangles": 28,
       "extensionsUsed": [],
@@ -7183,7 +7183,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-stepping.glb": {
+    "庭院/家具与铺装/汀步.glb": {
       "bytes": 2932,
       "triangles": 28,
       "extensionsUsed": [],
@@ -7203,7 +7203,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-steps-lite.glb": {
+    "庭院/家具与铺装/台阶-lite.glb": {
       "bytes": 7648,
       "triangles": 264,
       "extensionsUsed": [],
@@ -7223,7 +7223,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-steps.glb": {
+    "庭院/家具与铺装/台阶.glb": {
       "bytes": 7648,
       "triangles": 264,
       "extensionsUsed": [],
@@ -7243,7 +7243,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-storage-shed-lite.glb": {
+    "庭院/设施/户外储物屋-lite.glb": {
       "bytes": 17776,
       "triangles": 792,
       "extensionsUsed": [],
@@ -7263,7 +7263,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/facilities/garden-storage-shed.glb": {
+    "庭院/设施/户外储物屋.glb": {
       "bytes": 17776,
       "triangles": 792,
       "extensionsUsed": [],
@@ -7283,7 +7283,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-swing-lite.glb": {
+    "庭院/家具与铺装/庭院秋千-lite.glb": {
       "bytes": 23320,
       "triangles": 836,
       "extensionsUsed": [],
@@ -7303,7 +7303,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-swing.glb": {
+    "庭院/家具与铺装/庭院秋千.glb": {
       "bytes": 23320,
       "triangles": 836,
       "extensionsUsed": [],
@@ -7323,7 +7323,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-table-lite.glb": {
+    "庭院/家具与铺装/户外餐桌-lite.glb": {
       "bytes": 13536,
       "triangles": 572,
       "extensionsUsed": [],
@@ -7343,7 +7343,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-table.glb": {
+    "庭院/家具与铺装/户外餐桌.glb": {
       "bytes": 13536,
       "triangles": 572,
       "extensionsUsed": [],
@@ -7363,7 +7363,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-table-picnic-lite.glb": {
+    "庭院/家具与铺装/连体野餐桌-lite.glb": {
       "bytes": 15440,
       "triangles": 544,
       "extensionsUsed": [],
@@ -7383,7 +7383,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-table-picnic.glb": {
+    "庭院/家具与铺装/连体野餐桌.glb": {
       "bytes": 15440,
       "triangles": 544,
       "extensionsUsed": [],
@@ -7403,7 +7403,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-table-round-lite.glb": {
+    "庭院/家具与铺装/圆形庭院桌-lite.glb": {
       "bytes": 10996,
       "triangles": 272,
       "extensionsUsed": [],
@@ -7423,7 +7423,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/furniture/garden-table-round.glb": {
+    "庭院/家具与铺装/圆形庭院桌.glb": {
       "bytes": 10996,
       "triangles": 272,
       "extensionsUsed": [],
@@ -7443,7 +7443,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-lite.glb": {
+    "庭院/植物/庭院乔木-lite.glb": {
       "bytes": 12588,
       "triangles": 448,
       "extensionsUsed": [],
@@ -7463,7 +7463,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree.glb": {
+    "庭院/植物/庭院乔木.glb": {
       "bytes": 12588,
       "triangles": 448,
       "extensionsUsed": [],
@@ -7483,7 +7483,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-columnar-lite.glb": {
+    "庭院/植物/柱形乔木-lite.glb": {
       "bytes": 10052,
       "triangles": 368,
       "extensionsUsed": [],
@@ -7503,7 +7503,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-columnar.glb": {
+    "庭院/植物/柱形乔木.glb": {
       "bytes": 10052,
       "triangles": 368,
       "extensionsUsed": [],
@@ -7523,7 +7523,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-multistem-lite.glb": {
+    "庭院/植物/多干小乔木-lite.glb": {
       "bytes": 10176,
       "triangles": 336,
       "extensionsUsed": [],
@@ -7543,7 +7543,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-multistem.glb": {
+    "庭院/植物/多干小乔木.glb": {
       "bytes": 10176,
       "triangles": 336,
       "extensionsUsed": [],
@@ -7563,7 +7563,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-rounded-lite.glb": {
+    "庭院/植物/圆冠乔木-lite.glb": {
       "bytes": 9444,
       "triangles": 292,
       "extensionsUsed": [],
@@ -7583,7 +7583,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/plants/garden-tree-rounded.glb": {
+    "庭院/植物/圆冠乔木.glb": {
       "bytes": 9444,
       "triangles": 292,
       "extensionsUsed": [],
@@ -7603,7 +7603,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-trellis-lite.glb": {
+    "庭院/构筑物/格栅廊架-lite.glb": {
       "bytes": 35304,
       "triangles": 1076,
       "extensionsUsed": [],
@@ -7623,7 +7623,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-trellis.glb": {
+    "庭院/构筑物/格栅廊架.glb": {
       "bytes": 35304,
       "triangles": 1076,
       "extensionsUsed": [],
@@ -7643,7 +7643,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-umbrella-lite.glb": {
+    "庭院/构筑物/遮阳伞-lite.glb": {
       "bytes": 20732,
       "triangles": 552,
       "extensionsUsed": [],
@@ -7663,7 +7663,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-umbrella.glb": {
+    "庭院/构筑物/遮阳伞.glb": {
       "bytes": 20732,
       "triangles": 552,
       "extensionsUsed": [],
@@ -7683,7 +7683,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-umbrella-square-lite.glb": {
+    "庭院/构筑物/方形遮阳伞-lite.glb": {
       "bytes": 9896,
       "triangles": 228,
       "extensionsUsed": [],
@@ -7703,7 +7703,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/structures/garden-umbrella-square.glb": {
+    "庭院/构筑物/方形遮阳伞.glb": {
       "bytes": 9896,
       "triangles": 228,
       "extensionsUsed": [],
@@ -7723,7 +7723,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-vegetable-bed-lite.glb": {
+    "庭院/花箱与花坛/菜圃模块-lite.glb": {
       "bytes": 82300,
       "triangles": 1180,
       "extensionsUsed": [],
@@ -7743,7 +7743,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "courtyard/planters/garden-vegetable-bed.glb": {
+    "庭院/花箱与花坛/菜圃模块.glb": {
       "bytes": 82300,
       "triangles": 1180,
       "extensionsUsed": [],
@@ -7763,7 +7763,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/gaswaterheater-lite.glb": {
+    "电器/环境设备/燃气热水器-lite.glb": {
       "bytes": 39156,
       "triangles": 1468,
       "extensionsUsed": [],
@@ -7782,7 +7782,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/gaswaterheater.glb": {
+    "电器/环境设备/燃气热水器.glb": {
       "bytes": 39156,
       "triangles": 1468,
       "extensionsUsed": [],
@@ -7801,7 +7801,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/glass-stairs-lite.glb": {
+    "家居/建筑与交通/玻璃楼梯-lite.glb": {
       "bytes": 11708,
       "triangles": 716,
       "extensionsUsed": [
@@ -7838,7 +7838,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/glass-stairs.glb": {
+    "家居/建筑与交通/玻璃楼梯.glb": {
       "bytes": 69916,
       "triangles": 716,
       "extensionsUsed": [
@@ -7874,7 +7874,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/glasscabinet-lite.glb": {
+    "家居/柜架收纳/玻璃柜-lite.glb": {
       "bytes": 18708,
       "triangles": 726,
       "extensionsUsed": [
@@ -7908,7 +7908,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/glasscabinet.glb": {
+    "家居/柜架收纳/玻璃柜.glb": {
       "bytes": 19312,
       "triangles": 828,
       "extensionsUsed": [
@@ -7942,7 +7942,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/glasspartition-lite.glb": {
+    "家居/卫浴用品/玻璃隔断-lite.glb": {
       "bytes": 3380,
       "triangles": 84,
       "extensionsUsed": [
@@ -7961,7 +7961,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/glasspartition.glb": {
+    "家居/卫浴用品/玻璃隔断.glb": {
       "bytes": 3436,
       "triangles": 84,
       "extensionsUsed": [
@@ -7980,7 +7980,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/media/guitar-stand-lite.glb": {
+    "家居/影音设备/吉他＋支架-lite.glb": {
       "bytes": 31640,
       "triangles": 5460,
       "extensionsUsed": [
@@ -8004,7 +8004,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/media/guitar-stand.glb": {
+    "家居/影音设备/吉他＋支架.glb": {
       "bytes": 170184,
       "triangles": 5460,
       "extensionsUsed": [],
@@ -8026,7 +8026,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/hairdryer-holder-lite.glb": {
+    "家居/卫浴用品/吹风机支架-lite.glb": {
       "bytes": 10000,
       "triangles": 1128,
       "extensionsUsed": [
@@ -8048,7 +8048,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/hairdryer-holder.glb": {
+    "家居/卫浴用品/吹风机支架.glb": {
       "bytes": 39360,
       "triangles": 1128,
       "extensionsUsed": [],
@@ -8068,7 +8068,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/health-kettle-lite.glb": {
+    "电器/厨房电器/养生壶-lite.glb": {
       "bytes": 13640,
       "triangles": 1424,
       "extensionsUsed": [
@@ -8094,7 +8094,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/health-kettle.glb": {
+    "电器/厨房电器/养生壶.glb": {
       "bytes": 42480,
       "triangles": 1424,
       "extensionsUsed": [],
@@ -8118,7 +8118,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/heated-towel-rail-lite.glb": {
+    "家居/卫浴用品/电热毛巾架-lite.glb": {
       "bytes": 9984,
       "triangles": 1008,
       "extensionsUsed": [
@@ -8142,7 +8142,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/heated-towel-rail.glb": {
+    "家居/卫浴用品/电热毛巾架.glb": {
       "bytes": 47112,
       "triangles": 1008,
       "extensionsUsed": [],
@@ -8164,7 +8164,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/heater-lite.glb": {
+    "电器/环境设备/取暖器-lite.glb": {
       "bytes": 22952,
       "triangles": 4292,
       "extensionsUsed": [
@@ -8184,7 +8184,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/heater.glb": {
+    "电器/环境设备/取暖器.glb": {
       "bytes": 90492,
       "triangles": 4292,
       "extensionsUsed": [],
@@ -8202,7 +8202,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/home-network-cabinet-lite.glb": {
+    "电器/办公数码/家用网络机柜-lite.glb": {
       "bytes": 13492,
       "triangles": 1726,
       "extensionsUsed": [
@@ -8223,7 +8223,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/home-network-cabinet.glb": {
+    "电器/办公数码/家用网络机柜.glb": {
       "bytes": 46092,
       "triangles": 1726,
       "extensionsUsed": [],
@@ -8242,7 +8242,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/humidifier-lite.glb": {
+    "电器/环境设备/加湿器-lite.glb": {
       "bytes": 16524,
       "triangles": 2464,
       "extensionsUsed": [
@@ -8262,7 +8262,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/humidifier.glb": {
+    "电器/环境设备/加湿器.glb": {
       "bytes": 60392,
       "triangles": 2560,
       "extensionsUsed": [],
@@ -8280,7 +8280,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/induction-hob-lite.glb": {
+    "电器/厨房电器/电磁炉-lite.glb": {
       "bytes": 9988,
       "triangles": 1200,
       "extensionsUsed": [
@@ -8302,7 +8302,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/induction-hob.glb": {
+    "电器/厨房电器/电磁炉.glb": {
       "bytes": 42888,
       "triangles": 1200,
       "extensionsUsed": [],
@@ -8322,7 +8322,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/jewelry-box-lite.glb": {
+    "家居/卧室家具/首饰收纳盒-lite.glb": {
       "bytes": 12456,
       "triangles": 1212,
       "extensionsUsed": [
@@ -8348,7 +8348,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/jewelry-box.glb": {
+    "家居/卧室家具/首饰收纳盒.glb": {
       "bytes": 46876,
       "triangles": 1212,
       "extensionsUsed": [],
@@ -8372,7 +8372,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/juicer-lite.glb": {
+    "电器/厨房电器/榨汁机-lite.glb": {
       "bytes": 13520,
       "triangles": 1212,
       "extensionsUsed": [
@@ -8400,7 +8400,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/juicer.glb": {
+    "电器/厨房电器/榨汁机.glb": {
       "bytes": 55188,
       "triangles": 1212,
       "extensionsUsed": [],
@@ -8426,7 +8426,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/media/keyboard-stand-lite.glb": {
+    "家居/影音设备/电子琴＋支架-lite.glb": {
       "bytes": 13980,
       "triangles": 1648,
       "extensionsUsed": [
@@ -8452,7 +8452,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/media/keyboard-stand.glb": {
+    "家居/影音设备/电子琴＋支架.glb": {
       "bytes": 78256,
       "triangles": 1648,
       "extensionsUsed": [],
@@ -8476,7 +8476,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/kids-slide-lite.glb": {
+    "家居/儿童用品/滑梯-lite.glb": {
       "bytes": 12272,
       "triangles": 1564,
       "extensionsUsed": [
@@ -8498,7 +8498,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/kids-slide.glb": {
+    "家居/儿童用品/滑梯.glb": {
       "bytes": 62044,
       "triangles": 1564,
       "extensionsUsed": [],
@@ -8518,7 +8518,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/kids-swing-lite.glb": {
+    "家居/儿童用品/秋千-lite.glb": {
       "bytes": 6440,
       "triangles": 564,
       "extensionsUsed": [
@@ -8540,7 +8540,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/kids-swing.glb": {
+    "家居/儿童用品/秋千.glb": {
       "bytes": 24588,
       "triangles": 564,
       "extensionsUsed": [],
@@ -8560,7 +8560,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/kids-tent-lite.glb": {
+    "家居/儿童用品/儿童帐篷-lite.glb": {
       "bytes": 11564,
       "triangles": 1062,
       "extensionsUsed": [
@@ -8586,7 +8586,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/kids-tent.glb": {
+    "家居/儿童用品/儿童帐篷.glb": {
       "bytes": 32832,
       "triangles": 1062,
       "extensionsUsed": [],
@@ -8610,7 +8610,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/kitchen-island-lite.glb": {
+    "家居/厨房家具/岛台-lite.glb": {
       "bytes": 29452,
       "triangles": 4794,
       "extensionsUsed": [
@@ -8640,7 +8640,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/kitchen-island.glb": {
+    "家居/厨房家具/岛台.glb": {
       "bytes": 99296,
       "triangles": 4794,
       "extensionsUsed": [],
@@ -8668,7 +8668,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/kitchenbase-lite.glb": {
+    "家居/厨房家具/厨房地柜-lite.glb": {
       "bytes": 5212,
       "triangles": 132,
       "extensionsUsed": [
@@ -8689,7 +8689,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/kitchenbase.glb": {
+    "家居/厨房家具/厨房地柜.glb": {
       "bytes": 5284,
       "triangles": 132,
       "extensionsUsed": [
@@ -8710,7 +8710,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/kitchencooktop-lite.glb": {
+    "家居/厨房家具/地柜带燃气灶-lite.glb": {
       "bytes": 9404,
       "triangles": 680,
       "extensionsUsed": [
@@ -8734,7 +8734,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/kitchencooktop.glb": {
+    "家居/厨房家具/地柜带燃气灶.glb": {
       "bytes": 9720,
       "triangles": 928,
       "extensionsUsed": [
@@ -8758,7 +8758,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/kitchenisland-lite.glb": {
+    "家居/厨房家具/岛台（旧版）-lite.glb": {
       "bytes": 14240,
       "triangles": 108,
       "extensionsUsed": [],
@@ -8783,7 +8783,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/kitchenisland.glb": {
+    "家居/厨房家具/岛台（旧版）.glb": {
       "bytes": 14240,
       "triangles": 108,
       "extensionsUsed": [],
@@ -8808,7 +8808,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/kitchensink-lite.glb": {
+    "家居/厨房家具/地柜带水盆-lite.glb": {
       "bytes": 8636,
       "triangles": 160,
       "extensionsUsed": [
@@ -8832,7 +8832,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/kitchensink.glb": {
+    "家居/厨房家具/地柜带水盆.glb": {
       "bytes": 8824,
       "triangles": 200,
       "extensionsUsed": [
@@ -8856,7 +8856,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/knife-block-lite.glb": {
+    "家居/厨房用品/刀具架-lite.glb": {
       "bytes": 9164,
       "triangles": 964,
       "extensionsUsed": [
@@ -8878,7 +8878,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/knife-block.glb": {
+    "家居/厨房用品/刀具架.glb": {
       "bytes": 56596,
       "triangles": 964,
       "extensionsUsed": [],
@@ -8898,7 +8898,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/laptop-lite.glb": {
+    "电器/办公数码/笔记本电脑-lite.glb": {
       "bytes": 39116,
       "triangles": 870,
       "extensionsUsed": [],
@@ -8917,7 +8917,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/laptop.glb": {
+    "电器/办公数码/笔记本电脑.glb": {
       "bytes": 39116,
       "triangles": 870,
       "extensionsUsed": [],
@@ -8936,7 +8936,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/laundry/laundry-basket-lite.glb": {
+    "家居/洗衣烘干/洗衣篮-lite.glb": {
       "bytes": 7996,
       "triangles": 1088,
       "extensionsUsed": [
@@ -8956,7 +8956,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/laundry/laundry-basket.glb": {
+    "家居/洗衣烘干/洗衣篮.glb": {
       "bytes": 25644,
       "triangles": 1088,
       "extensionsUsed": [],
@@ -8974,7 +8974,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/litter-tray-lite.glb": {
+    "家居/宠物用品/普通猫砂盆-lite.glb": {
       "bytes": 7932,
       "triangles": 760,
       "extensionsUsed": [
@@ -8996,7 +8996,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/litter-tray.glb": {
+    "家居/宠物用品/普通猫砂盆.glb": {
       "bytes": 39932,
       "triangles": 760,
       "extensionsUsed": [],
@@ -9016,7 +9016,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/loft-bed-circle-lite.glb": {
+    "家居/卧室家具/圆孔高架床-lite.glb": {
       "bytes": 22636,
       "triangles": 3688,
       "extensionsUsed": [
@@ -9037,7 +9037,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/loft-bed-circle.glb": {
+    "家居/卧室家具/圆孔高架床.glb": {
       "bytes": 154640,
       "triangles": 3688,
       "extensionsUsed": [],
@@ -9056,7 +9056,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/magazine-rack-lite.glb": {
+    "电器/影音设备/杂志架-lite.glb": {
       "bytes": 11624,
       "triangles": 1032,
       "extensionsUsed": [
@@ -9082,7 +9082,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/magazine-rack.glb": {
+    "电器/影音设备/杂志架.glb": {
       "bytes": 58584,
       "triangles": 1032,
       "extensionsUsed": [],
@@ -9106,7 +9106,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/mahjong-table-lite.glb": {
+    "家居/健身娱乐/麻将桌-lite.glb": {
       "bytes": 21924,
       "triangles": 3568,
       "extensionsUsed": [
@@ -9132,7 +9132,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/mahjong-table.glb": {
+    "家居/健身娱乐/麻将桌.glb": {
       "bytes": 178772,
       "triangles": 3568,
       "extensionsUsed": [],
@@ -9156,7 +9156,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/microwave-lite.glb": {
+    "电器/厨房电器/微波炉-lite.glb": {
       "bytes": 20972,
       "triangles": 4748,
       "extensionsUsed": [
@@ -9180,7 +9180,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/microwave.glb": {
+    "电器/厨房电器/微波炉.glb": {
       "bytes": 188556,
       "triangles": 4748,
       "extensionsUsed": [],
@@ -9202,7 +9202,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/mop-sink-lite.glb": {
+    "家居/卫浴用品/拖把池-lite.glb": {
       "bytes": 6824,
       "triangles": 568,
       "extensionsUsed": [
@@ -9224,7 +9224,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/mop-sink.glb": {
+    "家居/卫浴用品/拖把池.glb": {
       "bytes": 23776,
       "triangles": 568,
       "extensionsUsed": [],
@@ -9244,7 +9244,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-tools/mug-tree-lite.glb": {
+    "家居/厨房用品/杯架-lite.glb": {
       "bytes": 12220,
       "triangles": 2024,
       "extensionsUsed": [
@@ -9264,7 +9264,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/mug-tree.glb": {
+    "家居/厨房用品/杯架.glb": {
       "bytes": 42904,
       "triangles": 2024,
       "extensionsUsed": [],
@@ -9282,7 +9282,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/multi-cooker-lite.glb": {
+    "电器/厨房电器/多功能料理锅-lite.glb": {
       "bytes": 11116,
       "triangles": 1120,
       "extensionsUsed": [
@@ -9306,7 +9306,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/multi-cooker.glb": {
+    "电器/厨房电器/多功能料理锅.glb": {
       "bytes": 65276,
       "triangles": 1120,
       "extensionsUsed": [],
@@ -9328,7 +9328,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/nas-lite.glb": {
+    "电器/办公数码/网络存储-lite.glb": {
       "bytes": 43472,
       "triangles": 1644,
       "extensionsUsed": [],
@@ -9347,7 +9347,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/nas.glb": {
+    "电器/办公数码/网络存储.glb": {
       "bytes": 43472,
       "triangles": 1644,
       "extensionsUsed": [],
@@ -9366,7 +9366,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/nightstand-lite.glb": {
+    "家居/卧室家具/床头柜-lite.glb": {
       "bytes": 5088,
       "triangles": 108,
       "extensionsUsed": [
@@ -9387,7 +9387,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/nightstand.glb": {
+    "家居/卧室家具/床头柜.glb": {
       "bytes": 5180,
       "triangles": 108,
       "extensionsUsed": [
@@ -9408,7 +9408,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/office/office-chair-lite.glb": {
+    "家居/书房家具/办公椅-lite.glb": {
       "bytes": 15828,
       "triangles": 2452,
       "extensionsUsed": [
@@ -9428,7 +9428,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/office/office-chair.glb": {
+    "家居/书房家具/办公椅.glb": {
       "bytes": 67300,
       "triangles": 2452,
       "extensionsUsed": [],
@@ -9447,7 +9447,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/paper-shredder-lite.glb": {
+    "电器/办公数码/碎纸机-lite.glb": {
       "bytes": 13304,
       "triangles": 1696,
       "extensionsUsed": [
@@ -9471,7 +9471,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/paper-shredder.glb": {
+    "电器/办公数码/碎纸机.glb": {
       "bytes": 57224,
       "triangles": 1696,
       "extensionsUsed": [],
@@ -9493,7 +9493,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/pet-bed-bowls-lite.glb": {
+    "家居/宠物用品/宠物窝＋食盆-lite.glb": {
       "bytes": 33832,
       "triangles": 5126,
       "extensionsUsed": [
@@ -9521,7 +9521,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/pet-bed-bowls.glb": {
+    "家居/宠物用品/宠物窝＋食盆.glb": {
       "bytes": 103716,
       "triangles": 5126,
       "extensionsUsed": [],
@@ -9547,7 +9547,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/pets/pet-dryer-lite.glb": {
+    "电器/宠物用品/宠物烘干机-lite.glb": {
       "bytes": 28032,
       "triangles": 4680,
       "extensionsUsed": [
@@ -9573,7 +9573,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/pets/pet-dryer.glb": {
+    "电器/宠物用品/宠物烘干机.glb": {
       "bytes": 136124,
       "triangles": 4680,
       "extensionsUsed": [],
@@ -9597,7 +9597,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/pet-feeder-lite.glb": {
+    "家居/宠物用品/自动喂食器-lite.glb": {
       "bytes": 10384,
       "triangles": 976,
       "extensionsUsed": [
@@ -9621,7 +9621,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/pet-feeder.glb": {
+    "家居/宠物用品/自动喂食器.glb": {
       "bytes": 48200,
       "triangles": 976,
       "extensionsUsed": [],
@@ -9643,7 +9643,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/pet-fountain-lite.glb": {
+    "家居/宠物用品/宠物饮水机-lite.glb": {
       "bytes": 10604,
       "triangles": 876,
       "extensionsUsed": [
@@ -9669,7 +9669,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/pet-fountain.glb": {
+    "家居/宠物用品/宠物饮水机.glb": {
       "bytes": 23280,
       "triangles": 876,
       "extensionsUsed": [],
@@ -9693,7 +9693,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/pet-pen-lite.glb": {
+    "家居/宠物用品/宠物围栏-lite.glb": {
       "bytes": 14768,
       "triangles": 3260,
       "extensionsUsed": [
@@ -9713,7 +9713,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/pet-pen.glb": {
+    "家居/宠物用品/宠物围栏.glb": {
       "bytes": 101500,
       "triangles": 3260,
       "extensionsUsed": [],
@@ -9731,7 +9731,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/pet-steps-lite.glb": {
+    "家居/宠物用品/宠物台阶-lite.glb": {
       "bytes": 7020,
       "triangles": 744,
       "extensionsUsed": [
@@ -9751,7 +9751,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/pet-steps.glb": {
+    "家居/宠物用品/宠物台阶.glb": {
       "bytes": 45340,
       "triangles": 744,
       "extensionsUsed": [],
@@ -9769,7 +9769,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/pet-stroller-lite.glb": {
+    "家居/宠物用品/宠物推车-lite.glb": {
       "bytes": 15768,
       "triangles": 2020,
       "extensionsUsed": [
@@ -9793,7 +9793,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/pet-stroller.glb": {
+    "家居/宠物用品/宠物推车.glb": {
       "bytes": 63756,
       "triangles": 2020,
       "extensionsUsed": [],
@@ -9815,7 +9815,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/media/piano-lite.glb": {
+    "家居/影音设备/钢琴-lite.glb": {
       "bytes": 45328,
       "triangles": 8236,
       "extensionsUsed": [
@@ -9839,7 +9839,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/media/piano.glb": {
+    "家居/影音设备/钢琴.glb": {
       "bytes": 287196,
       "triangles": 8236,
       "extensionsUsed": [
@@ -9862,7 +9862,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/pilates-reformer-lite.glb": {
+    "家居/健身娱乐/普拉提床-lite.glb": {
       "bytes": 12744,
       "triangles": 1324,
       "extensionsUsed": [
@@ -9888,7 +9888,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/pilates-reformer.glb": {
+    "家居/健身娱乐/普拉提床.glb": {
       "bytes": 52232,
       "triangles": 1324,
       "extensionsUsed": [],
@@ -9912,7 +9912,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-lite.glb": {
+    "家居/建筑与交通/柱子-lite.glb": {
       "bytes": 1372,
       "triangles": 12,
       "extensionsUsed": [
@@ -9929,7 +9929,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/pillar.glb": {
+    "家居/建筑与交通/柱子.glb": {
       "bytes": 1396,
       "triangles": 12,
       "extensionsUsed": [
@@ -9946,7 +9946,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/pillar-quarter-lite.glb": {
+    "家居/建筑与交通/四分之一圆柱-lite.glb": {
       "bytes": 11472,
       "triangles": 132,
       "extensionsUsed": [],
@@ -9965,7 +9965,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-quarter.glb": {
+    "家居/建筑与交通/四分之一圆柱.glb": {
       "bytes": 15384,
       "triangles": 204,
       "extensionsUsed": [],
@@ -9984,7 +9984,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-quarterinner-lite.glb": {
+    "家居/建筑与交通/四分之一圆柱（内弧）-lite.glb": {
       "bytes": 11472,
       "triangles": 132,
       "extensionsUsed": [],
@@ -10003,7 +10003,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-quarterinner.glb": {
+    "家居/建筑与交通/四分之一圆柱（内弧）.glb": {
       "bytes": 15384,
       "triangles": 204,
       "extensionsUsed": [],
@@ -10022,7 +10022,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-round-lite.glb": {
+    "家居/建筑与交通/圆柱-lite.glb": {
       "bytes": 13012,
       "triangles": 240,
       "extensionsUsed": [],
@@ -10041,7 +10041,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-round.glb": {
+    "家居/建筑与交通/圆柱.glb": {
       "bytes": 22152,
       "triangles": 480,
       "extensionsUsed": [],
@@ -10060,7 +10060,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-semicircle-lite.glb": {
+    "家居/建筑与交通/半圆柱-lite.glb": {
       "bytes": 17384,
       "triangles": 240,
       "extensionsUsed": [],
@@ -10079,7 +10079,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/pillar-semicircle.glb": {
+    "家居/建筑与交通/半圆柱.glb": {
       "bytes": 25160,
       "triangles": 384,
       "extensionsUsed": [],
@@ -10098,7 +10098,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/pillow-set-lite.glb": {
+    "家居/生活装饰/独立抱枕组合-lite.glb": {
       "bytes": 13800,
       "triangles": 1584,
       "extensionsUsed": [
@@ -10120,7 +10120,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/pillow-set.glb": {
+    "家居/生活装饰/独立抱枕组合.glb": {
       "bytes": 36300,
       "triangles": 1584,
       "extensionsUsed": [],
@@ -10140,7 +10140,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/ping-pong-table-lite.glb": {
+    "家居/健身娱乐/乒乓球桌-lite.glb": {
       "bytes": 15540,
       "triangles": 2412,
       "extensionsUsed": [
@@ -10166,7 +10166,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/ping-pong-table.glb": {
+    "家居/健身娱乐/乒乓球桌.glb": {
       "bytes": 88120,
       "triangles": 2412,
       "extensionsUsed": [],
@@ -10190,7 +10190,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/pipeline-water-purifier-lite.glb": {
+    "电器/环境设备/管线机-lite.glb": {
       "bytes": 30752,
       "triangles": 6261,
       "extensionsUsed": [
@@ -10211,7 +10211,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/pipeline-water-purifier.glb": {
+    "电器/环境设备/管线机.glb": {
       "bytes": 121192,
       "triangles": 6261,
       "extensionsUsed": [
@@ -10231,7 +10231,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/plant-lite.glb": {
+    "家居/室内植物/绿植-lite.glb": {
       "bytes": 25596,
       "triangles": 3080,
       "extensionsUsed": [
@@ -10257,7 +10257,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/plant.glb": {
+    "家居/室内植物/绿植.glb": {
       "bytes": 81292,
       "triangles": 3080,
       "extensionsUsed": [],
@@ -10281,7 +10281,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/plant-monstera-lite.glb": {
+    "家居/室内植物/龟背竹-lite.glb": {
       "bytes": 52512,
       "triangles": 6532,
       "extensionsUsed": [
@@ -10307,7 +10307,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/plant-monstera.glb": {
+    "家居/室内植物/龟背竹.glb": {
       "bytes": 339760,
       "triangles": 6532,
       "extensionsUsed": [],
@@ -10331,7 +10331,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/plant-palm-lite.glb": {
+    "家居/室内植物/散尾葵-lite.glb": {
       "bytes": 72072,
       "triangles": 9408,
       "extensionsUsed": [
@@ -10357,7 +10357,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/plant-palm.glb": {
+    "家居/室内植物/散尾葵.glb": {
       "bytes": 208912,
       "triangles": 9408,
       "extensionsUsed": [],
@@ -10381,7 +10381,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/plant-pothos-lite.glb": {
+    "家居/室内植物/绿萝-lite.glb": {
       "bytes": 48380,
       "triangles": 6978,
       "extensionsUsed": [
@@ -10407,7 +10407,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/plant-pothos.glb": {
+    "家居/室内植物/绿萝.glb": {
       "bytes": 146836,
       "triangles": 6978,
       "extensionsUsed": [],
@@ -10431,7 +10431,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/plant-rubber-lite.glb": {
+    "家居/室内植物/橡皮树-lite.glb": {
       "bytes": 35064,
       "triangles": 4960,
       "extensionsUsed": [
@@ -10457,7 +10457,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/plant-rubber.glb": {
+    "家居/室内植物/橡皮树.glb": {
       "bytes": 110084,
       "triangles": 4960,
       "extensionsUsed": [],
@@ -10481,7 +10481,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/plants/plant-snake-lite.glb": {
+    "家居/室内植物/虎皮兰-lite.glb": {
       "bytes": 27216,
       "triangles": 3744,
       "extensionsUsed": [
@@ -10505,7 +10505,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/plants/plant-snake.glb": {
+    "家居/室内植物/虎皮兰.glb": {
       "bytes": 79588,
       "triangles": 3744,
       "extensionsUsed": [],
@@ -10527,7 +10527,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/play-kitchen-lite.glb": {
+    "家居/儿童用品/玩具厨房-lite.glb": {
       "bytes": 17020,
       "triangles": 1824,
       "extensionsUsed": [
@@ -10555,7 +10555,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/play-kitchen.glb": {
+    "家居/儿童用品/玩具厨房.glb": {
       "bytes": 82088,
       "triangles": 1824,
       "extensionsUsed": [],
@@ -10581,7 +10581,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/pool-table-lite.glb": {
+    "家居/健身娱乐/台球桌-lite.glb": {
       "bytes": 35008,
       "triangles": 6714,
       "extensionsUsed": [
@@ -10602,7 +10602,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/pool-table.glb": {
+    "家居/健身娱乐/台球桌.glb": {
       "bytes": 133216,
       "triangles": 6858,
       "extensionsUsed": [],
@@ -10621,7 +10621,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/power-blender-lite.glb": {
+    "电器/厨房电器/破壁机-lite.glb": {
       "bytes": 13092,
       "triangles": 1324,
       "extensionsUsed": [
@@ -10647,7 +10647,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/power-blender.glb": {
+    "电器/厨房电器/破壁机.glb": {
       "bytes": 47172,
       "triangles": 1324,
       "extensionsUsed": [],
@@ -10671,7 +10671,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/pressure-cooker-lite.glb": {
+    "电器/厨房电器/电压力锅-lite.glb": {
       "bytes": 26184,
       "triangles": 4004,
       "extensionsUsed": [
@@ -10697,7 +10697,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/pressure-cooker.glb": {
+    "电器/厨房电器/电压力锅.glb": {
       "bytes": 145704,
       "triangles": 4004,
       "extensionsUsed": [],
@@ -10721,7 +10721,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/printer-lite.glb": {
+    "电器/办公数码/打印机-lite.glb": {
       "bytes": 33660,
       "triangles": 1236,
       "extensionsUsed": [],
@@ -10739,7 +10739,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/printer.glb": {
+    "电器/办公数码/打印机.glb": {
       "bytes": 33660,
       "triangles": 1236,
       "extensionsUsed": [],
@@ -10757,7 +10757,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/projection-screen-lite.glb": {
+    "电器/影音设备/投影幕布-lite.glb": {
       "bytes": 7604,
       "triangles": 788,
       "extensionsUsed": [
@@ -10779,7 +10779,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/projection-screen.glb": {
+    "电器/影音设备/投影幕布.glb": {
       "bytes": 31352,
       "triangles": 788,
       "extensionsUsed": [],
@@ -10799,7 +10799,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/projector-lite.glb": {
+    "电器/影音设备/投影仪-lite.glb": {
       "bytes": 12724,
       "triangles": 1496,
       "extensionsUsed": [
@@ -10823,7 +10823,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/projector.glb": {
+    "电器/影音设备/投影仪.glb": {
       "bytes": 60072,
       "triangles": 1496,
       "extensionsUsed": [],
@@ -10845,7 +10845,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/ps5-lite.glb": {
+    "电器/影音设备/PS5游戏机-lite.glb": {
       "bytes": 17556,
       "triangles": 2152,
       "extensionsUsed": [
@@ -10871,7 +10871,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/ps5.glb": {
+    "电器/影音设备/PS5游戏机.glb": {
       "bytes": 53840,
       "triangles": 2152,
       "extensionsUsed": [],
@@ -10895,7 +10895,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/punching-bag-lite.glb": {
+    "家居/健身娱乐/拳击沙袋-lite.glb": {
       "bytes": 12044,
       "triangles": 1500,
       "extensionsUsed": [
@@ -10919,7 +10919,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/punching-bag.glb": {
+    "家居/健身娱乐/拳击沙袋.glb": {
       "bytes": 37844,
       "triangles": 1500,
       "extensionsUsed": [],
@@ -10941,7 +10941,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/racing-cockpit-lite.glb": {
+    "家居/健身娱乐/赛车模拟座舱-lite.glb": {
       "bytes": 12116,
       "triangles": 1364,
       "extensionsUsed": [
@@ -10965,7 +10965,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/racing-cockpit.glb": {
+    "家居/健身娱乐/赛车模拟座舱.glb": {
       "bytes": 62976,
       "triangles": 1364,
       "extensionsUsed": [],
@@ -10987,7 +10987,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/rangehood-lite.glb": {
+    "电器/厨房电器/油烟机-lite.glb": {
       "bytes": 13576,
       "triangles": 1616,
       "extensionsUsed": [
@@ -11011,7 +11011,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/rangehood.glb": {
+    "电器/厨房电器/油烟机.glb": {
       "bytes": 77920,
       "triangles": 1616,
       "extensionsUsed": [],
@@ -11033,7 +11033,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/rectangular-pipeline-dispenser-lite.glb": {
+    "电器/环境设备/方形管线饮水机-lite.glb": {
       "bytes": 15572,
       "triangles": 2220,
       "extensionsUsed": [
@@ -11053,7 +11053,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/rectangular-pipeline-dispenser.glb": {
+    "电器/环境设备/方形管线饮水机.glb": {
       "bytes": 79656,
       "triangles": 2220,
       "extensionsUsed": [],
@@ -11071,7 +11071,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-tools/rice-bin-lite.glb": {
+    "家居/厨房用品/米桶-lite.glb": {
       "bytes": 8256,
       "triangles": 580,
       "extensionsUsed": [
@@ -11095,7 +11095,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/rice-bin.glb": {
+    "家居/厨房用品/米桶.glb": {
       "bytes": 38564,
       "triangles": 580,
       "extensionsUsed": [],
@@ -11117,7 +11117,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/ricecooker-lite.glb": {
+    "电器/厨房电器/电饭煲-lite.glb": {
       "bytes": 15280,
       "triangles": 1824,
       "extensionsUsed": [
@@ -11141,7 +11141,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/ricecooker.glb": {
+    "电器/厨房电器/电饭煲.glb": {
       "bytes": 66420,
       "triangles": 1824,
       "extensionsUsed": [],
@@ -11163,7 +11163,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/cleaning/robotvacuum-lite.glb": {
+    "电器/清洁设备/扫地机器人-lite.glb": {
       "bytes": 97284,
       "triangles": 3522,
       "extensionsUsed": [],
@@ -11184,7 +11184,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/cleaning/robotvacuum.glb": {
+    "电器/清洁设备/扫地机器人.glb": {
       "bytes": 97284,
       "triangles": 3522,
       "extensionsUsed": [],
@@ -11205,7 +11205,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/rocking-chair-lite.glb": {
+    "家居/客厅家具/摇椅-lite.glb": {
       "bytes": 16364,
       "triangles": 2520,
       "extensionsUsed": [
@@ -11227,7 +11227,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/rocking-chair.glb": {
+    "家居/客厅家具/摇椅.glb": {
       "bytes": 83624,
       "triangles": 2520,
       "extensionsUsed": [],
@@ -11247,7 +11247,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kids/rocking-horse-lite.glb": {
+    "家居/儿童用品/玩具木马-lite.glb": {
       "bytes": 14336,
       "triangles": 1940,
       "extensionsUsed": [
@@ -11271,7 +11271,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kids/rocking-horse.glb": {
+    "家居/儿童用品/玩具木马.glb": {
       "bytes": 73988,
       "triangles": 1940,
       "extensionsUsed": [],
@@ -11293,7 +11293,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/round-double-bed-lite.glb": {
+    "家居/卧室家具/圆形双人床-lite.glb": {
       "bytes": 57820,
       "triangles": 11452,
       "extensionsUsed": [
@@ -11319,7 +11319,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/round-double-bed.glb": {
+    "家居/卧室家具/圆形双人床.glb": {
       "bytes": 715824,
       "triangles": 11452,
       "extensionsUsed": [],
@@ -11343,7 +11343,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/round-rug-lite.glb": {
+    "家居/生活装饰/圆形地毯-lite.glb": {
       "bytes": 6504,
       "triangles": 864,
       "extensionsUsed": [
@@ -11363,7 +11363,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/round-rug.glb": {
+    "家居/生活装饰/圆形地毯.glb": {
       "bytes": 19228,
       "triangles": 864,
       "extensionsUsed": [],
@@ -11381,7 +11381,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/rounddiningtable-lite.glb": {
+    "家居/厨房家具/圆形餐桌-lite.glb": {
       "bytes": 21252,
       "triangles": 3904,
       "extensionsUsed": [
@@ -11400,7 +11400,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/rounddiningtable.glb": {
+    "家居/厨房家具/圆形餐桌.glb": {
       "bytes": 83312,
       "triangles": 4080,
       "extensionsUsed": [],
@@ -11419,7 +11419,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/rounddiningtable_turntable-lite.glb": {
+    "家居/卧室家具/圆形餐桌（转盘）-lite.glb": {
       "bytes": 25240,
       "triangles": 4384,
       "extensionsUsed": [
@@ -11440,7 +11440,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bedroom/rounddiningtable_turntable.glb": {
+    "家居/卧室家具/圆形餐桌（转盘）.glb": {
       "bytes": 95048,
       "triangles": 4656,
       "extensionsUsed": [],
@@ -11459,7 +11459,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/router-lite.glb": {
+    "电器/办公数码/路由器-lite.glb": {
       "bytes": 12712,
       "triangles": 1616,
       "extensionsUsed": [
@@ -11479,7 +11479,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/router.glb": {
+    "电器/办公数码/路由器.glb": {
       "bytes": 40404,
       "triangles": 1616,
       "extensionsUsed": [],
@@ -11497,7 +11497,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/rowing-machine-lite.glb": {
+    "家居/健身娱乐/划船机-lite.glb": {
       "bytes": 9440,
       "triangles": 1072,
       "extensionsUsed": [
@@ -11519,7 +11519,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/rowing-machine.glb": {
+    "家居/健身娱乐/划船机.glb": {
       "bytes": 52284,
       "triangles": 1072,
       "extensionsUsed": [],
@@ -11539,7 +11539,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/rug-lite.glb": {
+    "家居/生活装饰/地毯-lite.glb": {
       "bytes": 2608,
       "triangles": 248,
       "extensionsUsed": [
@@ -11557,7 +11557,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/rug.glb": {
+    "家居/生活装饰/地毯.glb": {
       "bytes": 2804,
       "triangles": 302,
       "extensionsUsed": [
@@ -11575,7 +11575,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/scanner-lite.glb": {
+    "电器/办公数码/扫描仪-lite.glb": {
       "bytes": 9500,
       "triangles": 696,
       "extensionsUsed": [
@@ -11601,7 +11601,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/scanner.glb": {
+    "电器/办公数码/扫描仪.glb": {
       "bytes": 37860,
       "triangles": 696,
       "extensionsUsed": [],
@@ -11625,7 +11625,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/scooter-lite.glb": {
+    "家居/建筑与交通/踏板车-lite.glb": {
       "bytes": 77856,
       "triangles": 11861,
       "extensionsUsed": [
@@ -11659,7 +11659,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/scooter.glb": {
+    "家居/建筑与交通/踏板车.glb": {
       "bytes": 277624,
       "triangles": 11926,
       "extensionsUsed": [],
@@ -11691,7 +11691,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/shelf-lite.glb": {
+    "家居/柜架收纳/货架-lite.glb": {
       "bytes": 3520,
       "triangles": 192,
       "extensionsUsed": [
@@ -11710,7 +11710,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/shelf.glb": {
+    "家居/柜架收纳/货架.glb": {
       "bytes": 3644,
       "triangles": 192,
       "extensionsUsed": [
@@ -11729,7 +11729,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/shoe-bench-lite.glb": {
+    "家居/玄关用品/换鞋凳-lite.glb": {
       "bytes": 11520,
       "triangles": 1188,
       "extensionsUsed": [
@@ -11753,7 +11753,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/shoe-bench.glb": {
+    "家居/玄关用品/换鞋凳.glb": {
       "bytes": 74684,
       "triangles": 1188,
       "extensionsUsed": [],
@@ -11775,7 +11775,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/shoecabinet-lite.glb": {
+    "家居/玄关用品/鞋柜-lite.glb": {
       "bytes": 5244,
       "triangles": 144,
       "extensionsUsed": [
@@ -11796,7 +11796,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/shoecabinet.glb": {
+    "家居/玄关用品/鞋柜.glb": {
       "bytes": 5344,
       "triangles": 144,
       "extensionsUsed": [
@@ -11817,7 +11817,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/shower-lite.glb": {
+    "家居/卫浴用品/花洒-lite.glb": {
       "bytes": 4072,
       "triangles": 368,
       "extensionsUsed": [
@@ -11836,7 +11836,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/shower.glb": {
+    "家居/卫浴用品/花洒.glb": {
       "bytes": 4464,
       "triangles": 592,
       "extensionsUsed": [
@@ -11855,7 +11855,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/shower-stool-lite.glb": {
+    "家居/卫浴用品/淋浴凳-lite.glb": {
       "bytes": 6752,
       "triangles": 588,
       "extensionsUsed": [
@@ -11877,7 +11877,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/shower-stool.glb": {
+    "家居/卫浴用品/淋浴凳.glb": {
       "bytes": 26796,
       "triangles": 588,
       "extensionsUsed": [],
@@ -11897,7 +11897,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/side-table-lite.glb": {
+    "家居/客厅家具/边几-lite.glb": {
       "bytes": 10172,
       "triangles": 1284,
       "extensionsUsed": [
@@ -11919,7 +11919,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/side-table.glb": {
+    "家居/客厅家具/边几.glb": {
       "bytes": 31860,
       "triangles": 1284,
       "extensionsUsed": [],
@@ -11939,7 +11939,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/sideboard-lite.glb": {
+    "家居/柜架收纳/餐边柜-lite.glb": {
       "bytes": 4252,
       "triangles": 120,
       "extensionsUsed": [
@@ -11959,7 +11959,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/sideboard.glb": {
+    "家居/柜架收纳/餐边柜.glb": {
       "bytes": 4336,
       "triangles": 120,
       "extensionsUsed": [
@@ -11979,7 +11979,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/single-glass-cabinet-lite.glb": {
+    "家居/柜架收纳/单列玻璃展示柜-lite.glb": {
       "bytes": 13368,
       "triangles": 1860,
       "extensionsUsed": [
@@ -12003,7 +12003,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/single-glass-cabinet.glb": {
+    "家居/柜架收纳/单列玻璃展示柜.glb": {
       "bytes": 114232,
       "triangles": 1860,
       "extensionsUsed": [],
@@ -12025,7 +12025,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/laundry/single-rail-rack-lite.glb": {
+    "家居/洗衣烘干/单杆晾衣架-lite.glb": {
       "bytes": 10104,
       "triangles": 1260,
       "extensionsUsed": [
@@ -12047,7 +12047,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/laundry/single-rail-rack.glb": {
+    "家居/洗衣烘干/单杆晾衣架.glb": {
       "bytes": 33324,
       "triangles": 1260,
       "extensionsUsed": [],
@@ -12067,7 +12067,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/slim-recessed-cabinet-lite.glb": {
+    "家居/柜架收纳/窄高置物柜-lite.glb": {
       "bytes": 4456,
       "triangles": 144,
       "extensionsUsed": [
@@ -12086,7 +12086,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/slim-recessed-cabinet.glb": {
+    "家居/柜架收纳/窄高置物柜.glb": {
       "bytes": 10660,
       "triangles": 144,
       "extensionsUsed": [],
@@ -12103,7 +12103,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/smart-display-lite.glb": {
+    "电器/办公数码/智慧屏-lite.glb": {
       "bytes": 20268,
       "triangles": 2472,
       "extensionsUsed": [
@@ -12129,7 +12129,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/smart-display.glb": {
+    "电器/办公数码/智慧屏.glb": {
       "bytes": 78700,
       "triangles": 2472,
       "extensionsUsed": [],
@@ -12153,7 +12153,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/smart-display-wall-lite.glb": {
+    "电器/影音设备/智慧屏上墙-lite.glb": {
       "bytes": 13384,
       "triangles": 1332,
       "extensionsUsed": [
@@ -12179,7 +12179,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/smart-display-wall.glb": {
+    "电器/影音设备/智慧屏上墙.glb": {
       "bytes": 47192,
       "triangles": 1332,
       "extensionsUsed": [],
@@ -12203,7 +12203,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/smart-litter-box-lite.glb": {
+    "家居/宠物用品/智能猫砂盆-lite.glb": {
       "bytes": 11288,
       "triangles": 1176,
       "extensionsUsed": [
@@ -12227,7 +12227,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/smart-litter-box.glb": {
+    "家居/宠物用品/智能猫砂盆.glb": {
       "bytes": 50112,
       "triangles": 1176,
       "extensionsUsed": [],
@@ -12249,7 +12249,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/office-devices/smart-socket-86-lite.glb": {
+    "电器/办公数码/86型智能插座-lite.glb": {
       "bytes": 7840,
       "triangles": 698,
       "extensionsUsed": [
@@ -12269,7 +12269,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/office-devices/smart-socket-86.glb": {
+    "电器/办公数码/86型智能插座.glb": {
       "bytes": 36548,
       "triangles": 698,
       "extensionsUsed": [],
@@ -12287,7 +12287,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-lite.glb": {
+    "家居/客厅家具/沙发-lite.glb": {
       "bytes": 22160,
       "triangles": 3804,
       "extensionsUsed": [
@@ -12307,7 +12307,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/sofa.glb": {
+    "家居/客厅家具/沙发.glb": {
       "bytes": 74784,
       "triangles": 3804,
       "extensionsUsed": [],
@@ -12326,7 +12326,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-l-lite.glb": {
+    "家居/客厅家具/L型沙发-lite.glb": {
       "bytes": 83576,
       "triangles": 4228,
       "extensionsUsed": [],
@@ -12345,7 +12345,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-l.glb": {
+    "家居/客厅家具/L型沙发.glb": {
       "bytes": 83576,
       "triangles": 4228,
       "extensionsUsed": [],
@@ -12364,7 +12364,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-l-left-lite.glb": {
+    "家居/客厅家具/L型沙发（左）-lite.glb": {
       "bytes": 83608,
       "triangles": 4228,
       "extensionsUsed": [],
@@ -12383,7 +12383,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-l-left.glb": {
+    "家居/客厅家具/L型沙发（左）.glb": {
       "bytes": 83608,
       "triangles": 4228,
       "extensionsUsed": [],
@@ -12402,7 +12402,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-single-lite.glb": {
+    "家居/客厅家具/单人沙发-lite.glb": {
       "bytes": 47592,
       "triangles": 2304,
       "extensionsUsed": [],
@@ -12421,7 +12421,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/sofa-single.glb": {
+    "家居/客厅家具/单人沙发.glb": {
       "bytes": 47592,
       "triangles": 2304,
       "extensionsUsed": [],
@@ -12440,7 +12440,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/sofa-throw-lite.glb": {
+    "家居/生活装饰/沙发毯-lite.glb": {
       "bytes": 12620,
       "triangles": 2448,
       "extensionsUsed": [
@@ -12460,7 +12460,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/sofa-throw.glb": {
+    "家居/生活装饰/沙发毯.glb": {
       "bytes": 64572,
       "triangles": 2448,
       "extensionsUsed": [],
@@ -12478,7 +12478,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/soundbar-lite.glb": {
+    "电器/影音设备/长条音响-lite.glb": {
       "bytes": 13204,
       "triangles": 1600,
       "extensionsUsed": [
@@ -12502,7 +12502,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/soundbar.glb": {
+    "电器/影音设备/长条音响.glb": {
       "bytes": 90620,
       "triangles": 1600,
       "extensionsUsed": [],
@@ -12524,7 +12524,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-tools/spice-set-lite.glb": {
+    "家居/厨房用品/调味瓶组合-lite.glb": {
       "bytes": 10796,
       "triangles": 1156,
       "extensionsUsed": [
@@ -12548,7 +12548,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-tools/spice-set.glb": {
+    "家居/厨房用品/调味瓶组合.glb": {
       "bytes": 45200,
       "triangles": 1156,
       "extensionsUsed": [],
@@ -12570,7 +12570,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/spin-bike-lite.glb": {
+    "家居/健身娱乐/动感单车-lite.glb": {
       "bytes": 8316,
       "triangles": 860,
       "extensionsUsed": [
@@ -12592,7 +12592,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/spin-bike.glb": {
+    "家居/健身娱乐/动感单车.glb": {
       "bytes": 31624,
       "triangles": 860,
       "extensionsUsed": [],
@@ -12612,7 +12612,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/squarecoffeetable-lite.glb": {
+    "家居/客厅家具/方茶几-lite.glb": {
       "bytes": 6936,
       "triangles": 900,
       "extensionsUsed": [
@@ -12631,7 +12631,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/squarecoffeetable.glb": {
+    "家居/客厅家具/方茶几.glb": {
       "bytes": 21884,
       "triangles": 900,
       "extensionsUsed": [],
@@ -12650,7 +12650,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/squattoilet-lite.glb": {
+    "家居/卫浴用品/蹲便-lite.glb": {
       "bytes": 11416,
       "triangles": 1472,
       "extensionsUsed": [
@@ -12669,7 +12669,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/squattoilet.glb": {
+    "家居/卫浴用品/蹲便.glb": {
       "bytes": 54500,
       "triangles": 1472,
       "extensionsUsed": [],
@@ -12686,7 +12686,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/stairs-lite.glb": {
+    "家居/建筑与交通/楼梯-lite.glb": {
       "bytes": 3636,
       "triangles": 240,
       "extensionsUsed": [
@@ -12705,7 +12705,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/stairs.glb": {
+    "家居/建筑与交通/楼梯.glb": {
       "bytes": 3776,
       "triangles": 240,
       "extensionsUsed": [
@@ -12724,7 +12724,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/stand-mixer-lite.glb": {
+    "电器/厨房电器/厨师机-lite.glb": {
       "bytes": 12500,
       "triangles": 1596,
       "extensionsUsed": [
@@ -12746,7 +12746,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/stand-mixer.glb": {
+    "电器/厨房电器/厨师机.glb": {
       "bytes": 49456,
       "triangles": 1596,
       "extensionsUsed": [],
@@ -12766,7 +12766,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/steamoven-lite.glb": {
+    "电器/厨房电器/蒸烤箱-lite.glb": {
       "bytes": 13512,
       "triangles": 1568,
       "extensionsUsed": [
@@ -12790,7 +12790,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/steamoven.glb": {
+    "电器/厨房电器/蒸烤箱.glb": {
       "bytes": 85132,
       "triangles": 1568,
       "extensionsUsed": [],
@@ -12812,7 +12812,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/steel-stairs-lite.glb": {
+    "家居/建筑与交通/钢楼梯-lite.glb": {
       "bytes": 43832,
       "triangles": 5789,
       "extensionsUsed": [
@@ -12834,7 +12834,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/steel-stairs.glb": {
+    "家居/建筑与交通/钢楼梯.glb": {
       "bytes": 219204,
       "triangles": 5789,
       "extensionsUsed": [
@@ -12855,7 +12855,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/storage-box-lite.glb": {
+    "家居/柜架收纳/收纳箱-lite.glb": {
       "bytes": 13944,
       "triangles": 2028,
       "extensionsUsed": [
@@ -12877,7 +12877,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/storage-box.glb": {
+    "家居/柜架收纳/收纳箱.glb": {
       "bytes": 56924,
       "triangles": 2028,
       "extensionsUsed": [],
@@ -12897,7 +12897,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/storage-cart-lite.glb": {
+    "家居/柜架收纳/三层收纳推车-lite.glb": {
       "bytes": 20488,
       "triangles": 3692,
       "extensionsUsed": [
@@ -12919,7 +12919,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/storage-cart.glb": {
+    "家居/柜架收纳/三层收纳推车.glb": {
       "bytes": 104904,
       "triangles": 3692,
       "extensionsUsed": [],
@@ -12939,7 +12939,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/storagewaterheater-lite.glb": {
+    "电器/环境设备/储水式热水器-lite.glb": {
       "bytes": 57012,
       "triangles": 2312,
       "extensionsUsed": [],
@@ -12958,7 +12958,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/storagewaterheater.glb": {
+    "电器/环境设备/储水式热水器.glb": {
       "bytes": 57012,
       "triangles": 2312,
       "extensionsUsed": [],
@@ -12977,7 +12977,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/suitcase-lite.glb": {
+    "家居/玄关用品/行李箱-lite.glb": {
       "bytes": 16472,
       "triangles": 2372,
       "extensionsUsed": [
@@ -13001,7 +13001,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/suitcase.glb": {
+    "家居/玄关用品/行李箱.glb": {
       "bytes": 95344,
       "triangles": 2372,
       "extensionsUsed": [],
@@ -13023,7 +13023,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/architecture/suv-lite.glb": {
+    "家居/建筑与交通/越野车-lite.glb": {
       "bytes": 126432,
       "triangles": 40430,
       "extensionsUsed": [
@@ -13072,7 +13072,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/architecture/suv.glb": {
+    "家居/建筑与交通/越野车.glb": {
       "bytes": 707308,
       "triangles": 41122,
       "extensionsUsed": [],
@@ -13119,7 +13119,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/switch-console-lite.glb": {
+    "电器/影音设备/Switch游戏机-lite.glb": {
       "bytes": 22296,
       "triangles": 3336,
       "extensionsUsed": [
@@ -13145,7 +13145,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/switch-console.glb": {
+    "电器/影音设备/Switch游戏机.glb": {
       "bytes": 85992,
       "triangles": 3336,
       "extensionsUsed": [],
@@ -13169,7 +13169,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/kitchen-furniture/table-lite.glb": {
+    "家居/厨房家具/餐桌组合-lite.glb": {
       "bytes": 20048,
       "triangles": 3676,
       "extensionsUsed": [
@@ -13188,7 +13188,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/kitchen-furniture/table.glb": {
+    "家居/厨房家具/餐桌组合.glb": {
       "bytes": 80340,
       "triangles": 3676,
       "extensionsUsed": [],
@@ -13207,7 +13207,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/lighting-decor/table-lamp-lite.glb": {
+    "电器/装饰灯具/台灯-lite.glb": {
       "bytes": 16728,
       "triangles": 2744,
       "extensionsUsed": [
@@ -13229,7 +13229,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/lighting-decor/table-lamp.glb": {
+    "电器/装饰灯具/台灯.glb": {
       "bytes": 56180,
       "triangles": 2744,
       "extensionsUsed": [],
@@ -13249,7 +13249,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/tea-bar-machine-lite.glb": {
+    "电器/环境设备/茶吧机-lite.glb": {
       "bytes": 47980,
       "triangles": 6086,
       "extensionsUsed": [
@@ -13270,7 +13270,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/tea-bar-machine.glb": {
+    "电器/环境设备/茶吧机.glb": {
       "bytes": 209820,
       "triangles": 6086,
       "extensionsUsed": [
@@ -13290,7 +13290,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/living/tea-table-set-lite.glb": {
+    "家居/客厅家具/组合茶桌-lite.glb": {
       "bytes": 30504,
       "triangles": 5968,
       "extensionsUsed": [
@@ -13311,7 +13311,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/tea-table-set.glb": {
+    "家居/客厅家具/组合茶桌.glb": {
       "bytes": 130316,
       "triangles": 6272,
       "extensionsUsed": [],
@@ -13330,7 +13330,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/toaster-lite.glb": {
+    "电器/厨房电器/吐司机-lite.glb": {
       "bytes": 9124,
       "triangles": 712,
       "extensionsUsed": [
@@ -13354,7 +13354,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/toaster.glb": {
+    "电器/厨房电器/吐司机.glb": {
       "bytes": 41672,
       "triangles": 712,
       "extensionsUsed": [],
@@ -13376,7 +13376,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/toilet-lite.glb": {
+    "家居/卫浴用品/马桶-lite.glb": {
       "bytes": 12132,
       "triangles": 1724,
       "extensionsUsed": [
@@ -13395,7 +13395,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/toilet.glb": {
+    "家居/卫浴用品/马桶.glb": {
       "bytes": 44020,
       "triangles": 1724,
       "extensionsUsed": [],
@@ -13412,7 +13412,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/toiletry-set-lite.glb": {
+    "家居/卫浴用品/洗漱用品组合-lite.glb": {
       "bytes": 13396,
       "triangles": 1596,
       "extensionsUsed": [
@@ -13436,7 +13436,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/toiletry-set.glb": {
+    "家居/卫浴用品/洗漱用品组合.glb": {
       "bytes": 65812,
       "triangles": 1596,
       "extensionsUsed": [],
@@ -13458,7 +13458,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/toothbrush-holder-lite.glb": {
+    "家居/卫浴用品/壁挂牙刷架-lite.glb": {
       "bytes": 9836,
       "triangles": 916,
       "extensionsUsed": [
@@ -13482,7 +13482,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/toothbrush-holder.glb": {
+    "家居/卫浴用品/壁挂牙刷架.glb": {
       "bytes": 47064,
       "triangles": 916,
       "extensionsUsed": [],
@@ -13504,7 +13504,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/tower-speaker-lite.glb": {
+    "电器/影音设备/立式音响-lite.glb": {
       "bytes": 29120,
       "triangles": 5144,
       "extensionsUsed": [
@@ -13530,7 +13530,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/tower-speaker.glb": {
+    "电器/影音设备/立式音响.glb": {
       "bytes": 130988,
       "triangles": 5144,
       "extensionsUsed": [],
@@ -13554,7 +13554,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/cleaning/trash-bin-lite.glb": {
+    "家居/清洁设备/垃圾桶-lite.glb": {
       "bytes": 9320,
       "triangles": 996,
       "extensionsUsed": [
@@ -13578,7 +13578,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/cleaning/trash-bin.glb": {
+    "家居/清洁设备/垃圾桶.glb": {
       "bytes": 26756,
       "triangles": 996,
       "extensionsUsed": [],
@@ -13600,7 +13600,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/fitness/treadmill-lite.glb": {
+    "电器/健身娱乐/跑步机-lite.glb": {
       "bytes": 15100,
       "triangles": 1988,
       "extensionsUsed": [
@@ -13626,7 +13626,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/fitness/treadmill.glb": {
+    "电器/健身娱乐/跑步机.glb": {
       "bytes": 73676,
       "triangles": 1988,
       "extensionsUsed": [],
@@ -13650,7 +13650,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/trophy-lite.glb": {
+    "家居/生活装饰/奖杯-lite.glb": {
       "bytes": 9644,
       "triangles": 1128,
       "extensionsUsed": [
@@ -13672,7 +13672,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/trophy.glb": {
+    "家居/生活装饰/奖杯.glb": {
       "bytes": 30132,
       "triangles": 1128,
       "extensionsUsed": [],
@@ -13692,7 +13692,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/turntable-lite.glb": {
+    "电器/影音设备/唱片机-lite.glb": {
       "bytes": 21224,
       "triangles": 3796,
       "extensionsUsed": [
@@ -13716,7 +13716,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/turntable.glb": {
+    "电器/影音设备/唱片机.glb": {
       "bytes": 96636,
       "triangles": 3796,
       "extensionsUsed": [],
@@ -13738,7 +13738,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/tv_mobile-lite.glb": {
+    "电器/影音设备/移动电视-lite.glb": {
       "bytes": 8300,
       "triangles": 1144,
       "extensionsUsed": [
@@ -13760,7 +13760,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/tv_mobile.glb": {
+    "电器/影音设备/移动电视.glb": {
       "bytes": 8864,
       "triangles": 1244,
       "extensionsUsed": [
@@ -13782,7 +13782,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/tv_standard-lite.glb": {
+    "电器/影音设备/标准电视-lite.glb": {
       "bytes": 1876,
       "triangles": 266,
       "extensionsUsed": [
@@ -13799,7 +13799,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/tv_standard.glb": {
+    "电器/影音设备/标准电视.glb": {
       "bytes": 2092,
       "triangles": 300,
       "extensionsUsed": [
@@ -13816,7 +13816,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/tv_tabletop-lite.glb": {
+    "电器/影音设备/桌面电视-lite.glb": {
       "bytes": 5908,
       "triangles": 828,
       "extensionsUsed": [
@@ -13836,7 +13836,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/tv_tabletop.glb": {
+    "电器/影音设备/桌面电视.glb": {
       "bytes": 6468,
       "triangles": 912,
       "extensionsUsed": [
@@ -13856,7 +13856,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/tvstand-lite.glb": {
+    "家居/客厅家具/电视柜-lite.glb": {
       "bytes": 6000,
       "triangles": 732,
       "extensionsUsed": [
@@ -13875,7 +13875,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/living/tvstand.glb": {
+    "家居/客厅家具/电视柜.glb": {
       "bytes": 18908,
       "triangles": 732,
       "extensionsUsed": [],
@@ -13894,7 +13894,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/umbrella-stand-lite.glb": {
+    "家居/玄关用品/雨伞架-lite.glb": {
       "bytes": 13752,
       "triangles": 1704,
       "extensionsUsed": [
@@ -13918,7 +13918,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/umbrella-stand.glb": {
+    "家居/玄关用品/雨伞架.glb": {
       "bytes": 54844,
       "triangles": 1704,
       "extensionsUsed": [],
@@ -13940,7 +13940,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/lighting-decor/up-down-wall-lamp-lite.glb": {
+    "电器/装饰灯具/上下出光壁灯-lite.glb": {
       "bytes": 3264,
       "triangles": 76,
       "extensionsUsed": [
@@ -13960,7 +13960,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/lighting-decor/up-down-wall-lamp.glb": {
+    "电器/装饰灯具/上下出光壁灯.glb": {
       "bytes": 6308,
       "triangles": 76,
       "extensionsUsed": [],
@@ -13978,7 +13978,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bathroom/urinal-lite.glb": {
+    "家居/卫浴用品/小便斗-lite.glb": {
       "bytes": 13192,
       "triangles": 1536,
       "extensionsUsed": [
@@ -14002,7 +14002,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/bathroom/urinal.glb": {
+    "家居/卫浴用品/小便斗.glb": {
       "bytes": 54720,
       "triangles": 1536,
       "extensionsUsed": [],
@@ -14024,7 +14024,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/vanity-lite.glb": {
+    "家居/卧室家具/梳妆台-lite.glb": {
       "bytes": 51780,
       "triangles": 1808,
       "extensionsUsed": [],
@@ -14043,7 +14043,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/bedroom/vanity.glb": {
+    "家居/卧室家具/梳妆台.glb": {
       "bytes": 51780,
       "triangles": 1808,
       "extensionsUsed": [],
@@ -14062,7 +14062,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/wall-art-lite.glb": {
+    "家居/生活装饰/挂画-lite.glb": {
       "bytes": 5620,
       "triangles": 105,
       "extensionsUsed": [
@@ -14088,7 +14088,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/wall-art.glb": {
+    "家居/生活装饰/挂画.glb": {
       "bytes": 8924,
       "triangles": 105,
       "extensionsUsed": [],
@@ -14112,7 +14112,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/pets/wall-cat-shelves-lite.glb": {
+    "家居/宠物用品/壁挂猫跳台-lite.glb": {
       "bytes": 8656,
       "triangles": 900,
       "extensionsUsed": [
@@ -14134,7 +14134,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/pets/wall-cat-shelves.glb": {
+    "家居/宠物用品/壁挂猫跳台.glb": {
       "bytes": 53160,
       "triangles": 900,
       "extensionsUsed": [],
@@ -14154,7 +14154,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/decor/wall-clock-lite.glb": {
+    "家居/生活装饰/挂钟-lite.glb": {
       "bytes": 16108,
       "triangles": 2344,
       "extensionsUsed": [
@@ -14178,7 +14178,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/decor/wall-clock.glb": {
+    "家居/生活装饰/挂钟.glb": {
       "bytes": 80032,
       "triangles": 2344,
       "extensionsUsed": [],
@@ -14200,7 +14200,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/entry/wall-coat-hooks-lite.glb": {
+    "家居/玄关用品/壁挂衣钩-lite.glb": {
       "bytes": 8504,
       "triangles": 1084,
       "extensionsUsed": [
@@ -14220,7 +14220,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/entry/wall-coat-hooks.glb": {
+    "家居/玄关用品/壁挂衣钩.glb": {
       "bytes": 27860,
       "triangles": 1084,
       "extensionsUsed": [],
@@ -14238,7 +14238,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/environment/wallac-lite.glb": {
+    "电器/环境设备/挂机空调-lite.glb": {
       "bytes": 3860,
       "triangles": 324,
       "extensionsUsed": [
@@ -14257,7 +14257,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/environment/wallac.glb": {
+    "电器/环境设备/挂机空调.glb": {
       "bytes": 4080,
       "triangles": 324,
       "extensionsUsed": [
@@ -14276,7 +14276,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/wallcabinet-lite.glb": {
+    "家居/柜架收纳/吊柜-lite.glb": {
       "bytes": 4244,
       "triangles": 108,
       "extensionsUsed": [
@@ -14296,7 +14296,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/wallcabinet.glb": {
+    "家居/柜架收纳/吊柜.glb": {
       "bytes": 4308,
       "triangles": 108,
       "extensionsUsed": [
@@ -14316,7 +14316,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/lighting-decor/walllamp-lite.glb": {
+    "电器/装饰灯具/壁灯-lite.glb": {
       "bytes": 11880,
       "triangles": 1244,
       "extensionsUsed": [
@@ -14340,7 +14340,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/lighting-decor/walllamp.glb": {
+    "电器/装饰灯具/壁灯.glb": {
       "bytes": 34396,
       "triangles": 1244,
       "extensionsUsed": [],
@@ -14362,7 +14362,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/wardrobe-lite.glb": {
+    "家居/柜架收纳/衣柜-lite.glb": {
       "bytes": 7208,
       "triangles": 824,
       "extensionsUsed": [
@@ -14382,7 +14382,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/wardrobe.glb": {
+    "家居/柜架收纳/衣柜.glb": {
       "bytes": 21064,
       "triangles": 824,
       "extensionsUsed": [],
@@ -14400,7 +14400,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/storage/wardrobe-two-section-lite.glb": {
+    "家居/柜架收纳/双段衣柜-lite.glb": {
       "bytes": 4628,
       "triangles": 168,
       "extensionsUsed": [
@@ -14419,7 +14419,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/storage/wardrobe-two-section.glb": {
+    "家居/柜架收纳/双段衣柜.glb": {
       "bytes": 11948,
       "triangles": 168,
       "extensionsUsed": [],
@@ -14436,7 +14436,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/laundry/washer-lite.glb": {
+    "电器/洗衣烘干/洗衣机-lite.glb": {
       "bytes": 26464,
       "triangles": 3920,
       "extensionsUsed": [
@@ -14462,7 +14462,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/laundry/washer.glb": {
+    "电器/洗衣烘干/洗衣机.glb": {
       "bytes": 156844,
       "triangles": 3920,
       "extensionsUsed": [],
@@ -14486,7 +14486,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/kitchen-devices/water-purifier-lite.glb": {
+    "电器/厨房电器/净水器主机-lite.glb": {
       "bytes": 19320,
       "triangles": 3104,
       "extensionsUsed": [
@@ -14510,7 +14510,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/kitchen-devices/water-purifier.glb": {
+    "电器/厨房电器/净水器主机.glb": {
       "bytes": 84616,
       "triangles": 3104,
       "extensionsUsed": [],
@@ -14532,7 +14532,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/weight-bench-lite.glb": {
+    "家居/健身娱乐/健身长凳-lite.glb": {
       "bytes": 4320,
       "triangles": 324,
       "extensionsUsed": [
@@ -14552,7 +14552,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/weight-bench.glb": {
+    "家居/健身娱乐/健身长凳.glb": {
       "bytes": 16088,
       "triangles": 324,
       "extensionsUsed": [],
@@ -14570,7 +14570,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "appliance/media/xbox-series-x-lite.glb": {
+    "电器/影音设备/Xbox游戏机-lite.glb": {
       "bytes": 17296,
       "triangles": 2624,
       "extensionsUsed": [
@@ -14596,7 +14596,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "appliance/media/xbox-series-x.glb": {
+    "电器/影音设备/Xbox游戏机.glb": {
       "bytes": 97040,
       "triangles": 2624,
       "extensionsUsed": [],
@@ -14620,7 +14620,7 @@
       "brokenImages": [],
       "draco": false
     },
-    "home/fitness/yoga-set-lite.glb": {
+    "家居/健身娱乐/瑜伽垫＋健身球-lite.glb": {
       "bytes": 27268,
       "triangles": 5588,
       "extensionsUsed": [
@@ -14644,7 +14644,7 @@
       "brokenImages": [],
       "draco": true
     },
-    "home/fitness/yoga-set.glb": {
+    "家居/健身娱乐/瑜伽垫＋健身球.glb": {
       "bytes": 109524,
       "triangles": 5588,
       "extensionsUsed": [],

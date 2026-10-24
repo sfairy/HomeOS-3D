@@ -12,7 +12,8 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 /** `homeos/frontend`：本文件位于 `<frontend>/scripts/models/lib/`。 */
@@ -22,6 +23,19 @@ export const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models'
 /** `homeos/frontend/scripts/models`。 */
 export const scriptsDir = path.resolve(hereDir, '..')
 export const specsDir = path.join(scriptsDir, 'specs')
+
+/**
+ * 磁盘上是中文目录 / 中文文件名，代码里是英文 id。翻译表只有一份
+ * （`model-asset-folders.ts`），这里按需加载，避免各脚本各写一套正则。
+ */
+const { modelAssetFolder, modelAssetFolderFromPath, modelAssetIdForStem } = await import(
+  pathToFileURL(
+    path.join(
+      frontendDir,
+      'src/studio/app/3d-studio/loaders/external-models/model-asset-folders.ts',
+    ),
+  ).href
+)
 
 const GLB_MAGIC = 0x46546c67 // "glTF"
 const GLB_VERSION = 2
@@ -39,17 +53,78 @@ export function listModelFiles(dir = modelsDir, relativePrefix = '') {
   return files.sort()
 }
 
-/** `home/living/sofa-lite.glb` → `{ id: 'sofa', variant: 'lite', folder: 'home/living' }`。 */
+/**
+ * `家居/客厅家具/沙发-lite.glb` → `{ id: 'sofa', variant: 'lite', folder: 'home/living' }`。
+ *
+ * 磁盘上是中文路径，`folder` / `id` 一律是代码里的英文键（存档、规格与基线都用它）；
+ * `folderPath` / `stem` 保留磁盘原名，用于日志和 `git show`。
+ * 迁移中途可能还有旧英文目录 / 文件名，`modelAssetIdForStem` 两种都认。
+ */
 export function parseModelPath(relativePath) {
   const slash = relativePath.lastIndexOf('/')
-  const folder = slash >= 0 ? relativePath.slice(0, slash) : ''
+  const folderPath = slash >= 0 ? relativePath.slice(0, slash) : ''
   const fileName = relativePath.slice(slash + 1)
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
+  const folder = folderPath ? modelAssetFolderFromPath(folderPath) : undefined
   return {
-    folder,
+    folder: folder ?? folderPath,
+    folderPath,
     fileName,
-    id: fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, ''),
+    stem,
+    id: modelAssetIdForStem(stem, folder) ?? stem,
     variant: /-lite\.glb$/i.test(fileName) ? 'lite' : 'full',
   }
+}
+
+/** 模型静态资源的公共前缀。 */
+export const MODELS_URL_PREFIX = '/static/3d-studio/models/'
+
+/**
+ * 模型 URL → 英文 id。
+ *
+ * `.../models/家居/客厅家具/沙发-lite.glb?v=1` → `sofa`；迁移前的
+ * `.../models/home/living/sofa-lite.glb` 同样认。不是模型 URL 时返回 `null`。
+ */
+export function modelIdFromUrl(url) {
+  if (typeof url !== 'string' || !url.includes(MODELS_URL_PREFIX)) return null
+  const tail = decodeURIComponent(
+    url.slice(url.indexOf(MODELS_URL_PREFIX) + MODELS_URL_PREFIX.length).split('?')[0],
+  )
+  const segments = tail.split('/').filter(Boolean)
+  const fileName = segments.pop() ?? ''
+  if (!/\.glb$/i.test(fileName)) return null
+  const folder = segments.length ? modelAssetFolderFromPath(segments.slice(-2).join('/')) : undefined
+  const stem = fileName.replace(/-lite\.glb$/i, '').replace(/\.glb$/i, '')
+  return modelAssetIdForStem(stem, folder) ?? stem
+}
+
+/**
+ * 读模型在某个 git 版本里的字节。
+ *
+ * 改名迁移期间 HEAD 里还是英文路径，提交之后又只剩中文路径 —— 两条都试一次，
+ * 让「当前 vs HEAD」这类比较门禁在迁移前后都能工作。
+ */
+export function readModelAtRevision(relativePath, revision = 'HEAD') {
+  const parsed = parseModelPath(relativePath)
+  const folder = modelAssetFolder(parsed.id)
+  const legacyPath = folder
+    ? `${folder}/${parsed.id}${parsed.variant === 'lite' ? '-lite' : ''}.glb`
+    : null
+  for (const candidate of [relativePath, legacyPath].filter(Boolean)) {
+    try {
+      return execFileSync(
+        'git',
+        [
+          'show',
+          `${revision}:homeos/frontend/public/static/3d-studio/models/${candidate}`,
+        ],
+        { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] },
+      )
+    } catch {
+      // 换下一个候选
+    }
+  }
+  return null
 }
 
 /** 模型 id → { lite, full } 相对路径（缺的变体不出现）。 */

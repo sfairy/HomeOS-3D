@@ -45,8 +45,8 @@ const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const frontendDir = path.resolve(hereDir, '..', '..')
 const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models')
 
-/** 模型分类映射（唯一真值），决定新板的落盘目录。 */
-const { modelAssetFolder } = await import(
+/** 模型分类映射（唯一真值）：英文 id → 中文目录，决定新板的落盘目录。 */
+const { modelAssetFolder, modelAssetFolderPath, modelAssetFileStem } = await import(
   pathToFileURL(
     path.join(
       frontendDir,
@@ -442,15 +442,19 @@ if (!outId || !(width > 0) || !(depth > 0) || !(thickness > 0))
   )
 
 /**
- * 落盘目录：`--group <大类/分区>` 优先，其次按 `model-asset-folders.ts` 的分类。
- * 还没登记的新素材先留在 `models/` 根目录（与迁移前的行为一致），并提示先登记再归位。
+ * 落盘目录：`--group <大类/分区>` 优先，其次按 `model-asset-folders.ts` 的分类
+ * （英文分区 id → 中文目录）。还没登记的新素材先留在 `models/` 根目录
+ * （与迁移前的行为一致），并提示先登记再归位。
  */
-const outFolder = typeof args.group === 'string' ? args.group : modelAssetFolder(outId)
-if (!outFolder)
+const groupFolder = typeof args.group === 'string' ? args.group : modelAssetFolder(outId)
+if (!groupFolder)
   console.warn(
     `⚑ ${outId} 还没登记到 model-asset-folders.ts，暂时写到 models 根目录；登记后运行 organize-models.mjs --write 归位。`,
   )
-const outDir = outFolder ? path.join(modelsDir, outFolder) : modelsDir
+const outFolderPath = groupFolder ? modelAssetFolderPath(groupFolder) : ''
+const outDir = groupFolder ? path.join(modelsDir, outFolderPath) : modelsDir
+/** 磁盘文件名用中文主干；没登记中文名时退回 id。 */
+const outStem = modelAssetFileStem(outId)
 
 const dimensions = { width, depth, thickness }
 const geometry = buildSlabGeometry(dimensions)
@@ -501,7 +505,7 @@ if (check.problems.length || registrationErrors.length) process.exit(1)
 if (!dryRun) {
   // `-lite` 与完整件写同一份字节：这块板只有 36 个三角面（BIN 不到 1KB），Draco 省不出东西，
   // 而运行时取的是 `-lite.glb`、`fallbackUrl` 才是完整件（见 `all-item-models.ts`），两份都得有。
-  for (const fileName of [`${outId}.glb`, `${outId}-lite.glb`]) {
+  for (const fileName of [`${outStem}.glb`, `${outStem}-lite.glb`]) {
     const outPath = path.join(outDir, fileName)
     fs.mkdirSync(outDir, { recursive: true })
     writeGlb(outPath, json, bin)

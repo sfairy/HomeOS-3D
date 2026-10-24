@@ -27,12 +27,37 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 MODELS_DIR = REPO_ROOT / "homeos/frontend/public/static/3d-studio/models"
+STEMS_JSON = REPO_ROOT / "homeos/frontend/scripts/models/specs/model-file-names.json"
+
+
+def load_stem_maps() -> tuple[dict[str, str], dict[str, str]]:
+    """读「英文 id ↔ 磁盘中文主干」映射（由 build-model-name-index.mjs 生成）。
+
+    磁盘上模型文件名全是中文，报告里仍用英文 id（与 `geometry-baseline.json` 对齐），
+    `--model` 也就能照旧传 `sofa` 这种 id。
+    """
+    if not STEMS_JSON.exists():
+        return {}, {}
+    stems = json.loads(STEMS_JSON.read_text(encoding="utf-8")).get("stems", {})
+    return stems, {stem: model_id for model_id, stem in stems.items()}
+
+
+ID_BY_STEM, STEM_BY_ID = load_stem_maps()
+
+
+def model_id_of(path: Path) -> str:
+    stem = path.stem.removesuffix("-lite")
+    return ID_BY_STEM.get(stem, stem)
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="GLB 拓扑探针（Blender BMesh）")
     parser.add_argument("--json", action="store_true", help="写 geometry-probe.json")
-    parser.add_argument("--model", default="", help="逗号分隔的模型 id，只跑这些")
+    parser.add_argument(
+        "--model",
+        default="",
+        help="逗号分隔的模型 id（英文，如 sofa；也接受磁盘中文主干），只跑这些",
+    )
     parser.add_argument("--check", action="store_true", help="只做环境自检")
     return parser.parse_args(argv)
 
@@ -41,7 +66,8 @@ def collect_files(only: set[str]) -> list[Path]:
     files = sorted(MODELS_DIR.rglob("*.glb"))
     if not only:
         return files
-    return [path for path in files if path.stem.removesuffix("-lite") in only]
+    stems = {STEM_BY_ID.get(name, name) for name in only}
+    return [path for path in files if path.stem.removesuffix("-lite") in stems]
 
 
 def analyse_object(obj) -> dict:
@@ -131,7 +157,7 @@ def main() -> int:
         except Exception as error:  # 单个文件失败不影响全量
             print(f"探针失败 {relative}: {error}", file=sys.stderr)
             continue
-        models.append({"file": relative, "id": path.stem.removesuffix("-lite"), "producer": "blender-bmesh", **stats})
+        models.append({"file": relative, "id": model_id_of(path), "producer": "blender-bmesh", **stats})
 
     payload = {
         "generatedAt": __import__("datetime").datetime.now().isoformat(),

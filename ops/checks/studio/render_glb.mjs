@@ -17,10 +17,9 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
-import { collectModelVariants, listModelFiles, modelsDir } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import { collectModelVariants, listModelFiles, modelsDir, readModelAtRevision } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import { loadDocument } from '../../../homeos/frontend/scripts/models/lib/model-document.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
@@ -240,18 +239,12 @@ function writePng(filePath, data) {
 /** HEAD 版本的临时文件：`git show` 出来的 GLB 直接落盘给 loadDocument 读。 */
 function baselineFile(fullPath) {
   const relative = path.relative(modelsDir, fullPath).split(path.sep).join('/')
-  try {
-    const buffer = execFileSync('git', ['show', `HEAD:homeos/frontend/public/static/3d-studio/models/${relative}`], {
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-    const target = path.join('/tmp/glb-render-baseline', relative)
-    fs.mkdirSync(path.dirname(target), { recursive: true })
-    fs.writeFileSync(target, buffer)
-    return target
-  } catch {
-    return null
-  }
+  const buffer = readModelAtRevision(relative)
+  if (!buffer) return null
+  const target = path.join('/tmp/glb-render-baseline', relative)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, buffer)
+  return target
 }
 
 const variants = collectModelVariants(listModelFiles())
