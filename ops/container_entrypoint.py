@@ -175,6 +175,28 @@ def chown_tree_if_needed(root: Path, uid: int, gid: int) -> None:
             os.chown(current_path / name, uid, gid, follow_symlinks=False)
 
 
+def is_read_only(path: Path) -> bool:
+    """``path`` 所在的挂载是否只读；目录尚不存在时上溯到最近的已存在祖先再判断。
+
+    只读挂载上 ``chown`` / ``chmod`` / ``mkdir`` 一律 ``EROFS``，属主由**写入方**（同机
+    部署里是商店容器）维护，本进程既改不了也不必改。启动期的属主校正只对可写目录有意义，
+    所以先判定再跳过，而不是撞出 ``EROFS`` 再吞掉 —— 后者在日志里看起来像一次故障。
+    """
+    probe = path
+    while True:
+        try:
+            return bool(os.statvfs(probe).f_flag & os.ST_RDONLY)
+        except FileNotFoundError:
+            parent = probe.parent
+            if parent == probe:
+                return False
+            probe = parent
+        except OSError:
+            # statvfs 失败（如 EACCES）时退回 access(2)：只读挂载上 root 也会拿到 EROFS，
+            # 因此 W_OK 为假同样能识别出来。
+            return not os.access(probe, os.W_OK)
+
+
 def initialize_permissions(
     environment: MutableMapping[str, str],
     user_name: str = RUN_AS_USER,
@@ -189,12 +211,21 @@ def initialize_permissions(
     backups = (environment.get("HOMEOS_BACKUPS_DIR") or "").strip()
     backups_path = Path(backups).resolve() if backups else None
     for directory in storage_directories(environment):
+        if is_read_only(directory):
+            # 同机部署把商店写出的公钥卷按 ``:ro`` 挂成 ``/shared-keys``（见
+            # docker-compose.yml）：属主与权限由写入方维护，这里只读跳过。真读不到时
+            # start_app 的 wait_for_client_keys 会报出「存在但读不了 / 等待超时」，比在
+            # 这里预判准确得多。
+            continue
         try:
             chown_tree_if_needed(directory, account.pw_uid, account.pw_gid)
             if directory != backups_path:
                 os.chmod(directory, 0o700)
         except OSError as error:
-            if error.errno in {errno.EROFS, errno.EACCES, errno.EPERM}:
+            if error.errno == errno.EROFS:
+                # 判定与操作之间挂载被改成只读（或子挂载只读）：同上，静默跳过。
+                continue
+            if error.errno in {errno.EACCES, errno.EPERM}:
                 print(
                     f'警告：无法校正 {directory} 的属主（{error.strerror}）。'
                     f'该目录若是跨机器拷入的，请确认 uid {account.pw_uid} 可读'
