@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T10:51:00.464Z",
+  "generatedAt": "2026-10-24T11:55:42.087Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -165,7 +165,7 @@
         "Geom3D"
       ],
       "materialNames": [
-        "M03_Pewter_Shine"
+        "airoutlet-grille"
       ],
       "brokenImages": [],
       "draco": true
@@ -185,7 +185,7 @@
         "Geom3D"
       ],
       "materialNames": [
-        "M03_Pewter_Shine"
+        "airoutlet-grille"
       ],
       "brokenImages": [],
       "draco": false
@@ -505,7 +505,7 @@
       "draco": false
     },
     "家居/厨房家具/吧台-lite.glb": {
-      "bytes": 7628,
+      "bytes": 7592,
       "triangles": 728,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -516,18 +516,18 @@
         "bar"
       ],
       "materialNames": [
-        "bar-material-0",
-        "bar-material-1",
-        "bar-material-2",
-        "bar-material-3",
-        "bar-material-4",
-        "bar-material-5"
+        "bar-base",
+        "bar-body",
+        "bar-leg",
+        "bar-metal",
+        "bar-top",
+        "bar-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/厨房家具/吧台.glb": {
-      "bytes": 8124,
+      "bytes": 8088,
       "triangles": 876,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -538,12 +538,12 @@
         "bar"
       ],
       "materialNames": [
-        "bar-material-0",
-        "bar-material-1",
-        "bar-material-2",
-        "bar-material-3",
-        "bar-material-4",
-        "bar-material-5"
+        "bar-base",
+        "bar-body",
+        "bar-leg",
+        "bar-metal",
+        "bar-top",
+        "bar-trim"
       ],
       "brokenImages": [],
       "draco": true
@@ -937,7 +937,7 @@
       "draco": false
     },
     "家居/书房家具/书架-lite.glb": {
-      "bytes": 17700,
+      "bytes": 17632,
       "triangles": 748,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -948,29 +948,29 @@
         "bookcase"
       ],
       "materialNames": [
-        "bookcase-material-0",
-        "bookcase-material-1",
-        "bookcase-material-10",
-        "bookcase-material-11",
-        "bookcase-material-12",
-        "bookcase-material-13",
-        "bookcase-material-14",
-        "bookcase-material-15",
-        "bookcase-material-16",
-        "bookcase-material-2",
-        "bookcase-material-3",
-        "bookcase-material-4",
-        "bookcase-material-5",
-        "bookcase-material-6",
-        "bookcase-material-7",
-        "bookcase-material-8",
-        "bookcase-material-9"
+        "bookcase-accent",
+        "bookcase-accent-2",
+        "bookcase-accent-3",
+        "bookcase-accent-4",
+        "bookcase-accent-5",
+        "bookcase-base",
+        "bookcase-body",
+        "bookcase-book",
+        "bookcase-book-2",
+        "bookcase-book-3",
+        "bookcase-book-4",
+        "bookcase-book-5",
+        "bookcase-book-6",
+        "bookcase-interior",
+        "bookcase-shelf",
+        "bookcase-shelf-2",
+        "bookcase-shelf-3"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/书房家具/书架.glb": {
-      "bytes": 17900,
+      "bytes": 17828,
       "triangles": 752,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -981,23 +981,23 @@
         "bookcase"
       ],
       "materialNames": [
-        "bookcase-material-0",
-        "bookcase-material-1",
-        "bookcase-material-10",
-        "bookcase-material-11",
-        "bookcase-material-12",
-        "bookcase-material-13",
-        "bookcase-material-14",
-        "bookcase-material-15",
-        "bookcase-material-16",
-        "bookcase-material-2",
-        "bookcase-material-3",
-        "bookcase-material-4",
-        "bookcase-material-5",
-        "bookcase-material-6",
-        "bookcase-material-7",
-        "bookcase-material-8",
-        "bookcase-material-9"
+        "bookcase-accent",
+        "bookcase-accent-2",
+        "bookcase-accent-3",
+        "bookcase-accent-4",
+        "bookcase-accent-5",
+        "bookcase-base",
+        "bookcase-body",
+        "bookcase-book",
+        "bookcase-book-2",
+        "bookcase-book-3",
+        "bookcase-book-4",
+        "bookcase-book-5",
+        "bookcase-book-6",
+        "bookcase-interior",
+        "bookcase-shelf",
+        "bookcase-shelf-2",
+        "bookcase-shelf-3"
       ],
       "brokenImages": [],
       "draco": true
@@ -1139,7 +1139,7 @@
       "draco": false
     },
     "家居/柜架收纳/储物柜-lite.glb": {
-      "bytes": 3156,
+      "bytes": 3140,
       "triangles": 48,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1150,15 +1150,15 @@
         "cabinet"
       ],
       "materialNames": [
-        "cabinet-material-0",
-        "cabinet-material-1",
-        "cabinet-material-2"
+        "cabinet-door",
+        "cabinet-door-2",
+        "cabinet-metal"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/柜架收纳/储物柜.glb": {
-      "bytes": 3180,
+      "bytes": 3164,
       "triangles": 48,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1169,9 +1169,9 @@
         "cabinet"
       ],
       "materialNames": [
-        "cabinet-material-0",
-        "cabinet-material-1",
-        "cabinet-material-2"
+        "cabinet-door",
+        "cabinet-door-2",
+        "cabinet-metal"
       ],
       "brokenImages": [],
       "draco": true
@@ -1307,7 +1307,7 @@
       "draco": false
     },
     "家居/建筑与交通/小汽车-lite.glb": {
-      "bytes": 528792,
+      "bytes": 528800,
       "triangles": 2700,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -1323,13 +1323,13 @@
         "Geom3D"
       ],
       "materialNames": [
-        "car_tms"
+        "smallcar-bodywork"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/小汽车.glb": {
-      "bytes": 804720,
+      "bytes": 804732,
       "triangles": 2700,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -1344,7 +1344,7 @@
         "Geom3D"
       ],
       "materialNames": [
-        "car_tms"
+        "smallcar-bodywork"
       ],
       "brokenImages": [],
       "draco": false
@@ -1916,7 +1916,7 @@
       "draco": false
     },
     "家居/生活装饰/窗帘（左片）-lite.glb": {
-      "bytes": 10764,
+      "bytes": 10744,
       "triangles": 2384,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1927,18 +1927,18 @@
         "curtain_left"
       ],
       "materialNames": [
-        "curtain_left-material-0",
-        "curtain_left-material-1",
-        "curtain_left-material-2",
-        "curtain_left-material-3",
-        "curtain_left-material-4",
-        "curtain_left-material-5"
+        "curtain_left-fabric",
+        "curtain_left-fabric-2",
+        "curtain_left-fabric-3",
+        "curtain_left-fabric-4",
+        "curtain_left-metal",
+        "curtain_left-metal-2"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/生活装饰/窗帘（左片）.glb": {
-      "bytes": 12296,
+      "bytes": 12280,
       "triangles": 2916,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1949,18 +1949,18 @@
         "curtain_left"
       ],
       "materialNames": [
-        "curtain_left-material-0",
-        "curtain_left-material-1",
-        "curtain_left-material-2",
-        "curtain_left-material-3",
-        "curtain_left-material-4",
-        "curtain_left-material-5"
+        "curtain_left-fabric",
+        "curtain_left-fabric-2",
+        "curtain_left-fabric-3",
+        "curtain_left-fabric-4",
+        "curtain_left-metal",
+        "curtain_left-metal-2"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/生活装饰/窗帘（右片）-lite.glb": {
-      "bytes": 10776,
+      "bytes": 10760,
       "triangles": 2404,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1971,18 +1971,18 @@
         "curtain_right"
       ],
       "materialNames": [
-        "curtain_right-material-0",
-        "curtain_right-material-1",
-        "curtain_right-material-2",
-        "curtain_right-material-3",
-        "curtain_right-material-4",
-        "curtain_right-material-5"
+        "curtain_right-fabric",
+        "curtain_right-fabric-2",
+        "curtain_right-fabric-3",
+        "curtain_right-fabric-4",
+        "curtain_right-metal",
+        "curtain_right-metal-2"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/生活装饰/窗帘（右片）.glb": {
-      "bytes": 12312,
+      "bytes": 12292,
       "triangles": 2916,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1993,18 +1993,18 @@
         "curtain_right"
       ],
       "materialNames": [
-        "curtain_right-material-0",
-        "curtain_right-material-1",
-        "curtain_right-material-2",
-        "curtain_right-material-3",
-        "curtain_right-material-4",
-        "curtain_right-material-5"
+        "curtain_right-fabric",
+        "curtain_right-fabric-2",
+        "curtain_right-fabric-3",
+        "curtain_right-fabric-4",
+        "curtain_right-metal",
+        "curtain_right-metal-2"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/生活装饰/窗帘（对开）-lite.glb": {
-      "bytes": 12528,
+      "bytes": 12512,
       "triangles": 3086,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -2015,18 +2015,18 @@
         "curtain_split"
       ],
       "materialNames": [
-        "curtain_split-material-0",
-        "curtain_split-material-1",
-        "curtain_split-material-2",
-        "curtain_split-material-3",
-        "curtain_split-material-4",
-        "curtain_split-material-5"
+        "curtain_split-fabric",
+        "curtain_split-fabric-2",
+        "curtain_split-fabric-3",
+        "curtain_split-fabric-4",
+        "curtain_split-metal",
+        "curtain_split-metal-2"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/生活装饰/窗帘（对开）.glb": {
-      "bytes": 17228,
+      "bytes": 17212,
       "triangles": 5616,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -2037,12 +2037,12 @@
         "curtain_split"
       ],
       "materialNames": [
-        "curtain_split-material-0",
-        "curtain_split-material-1",
-        "curtain_split-material-2",
-        "curtain_split-material-3",
-        "curtain_split-material-4",
-        "curtain_split-material-5"
+        "curtain_split-fabric",
+        "curtain_split-fabric-2",
+        "curtain_split-fabric-3",
+        "curtain_split-fabric-4",
+        "curtain_split-metal",
+        "curtain_split-metal-2"
       ],
       "brokenImages": [],
       "draco": true
@@ -2436,7 +2436,7 @@
       "draco": false
     },
     "家居/书房家具/桌子-lite.glb": {
-      "bytes": 5648,
+      "bytes": 5628,
       "triangles": 1192,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -2447,15 +2447,15 @@
         "desk"
       ],
       "materialNames": [
-        "desk-material-0",
-        "desk-material-1",
-        "desk-material-2"
+        "desk-frame",
+        "desk-metal",
+        "desk-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/书房家具/桌子.glb": {
-      "bytes": 6860,
+      "bytes": 6844,
       "triangles": 1500,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -2466,9 +2466,9 @@
         "desk"
       ],
       "materialNames": [
-        "desk-material-0",
-        "desk-material-1",
-        "desk-material-2"
+        "desk-frame",
+        "desk-metal",
+        "desk-top"
       ],
       "brokenImages": [],
       "draco": true
@@ -3328,7 +3328,7 @@
       "draco": false
     },
     "电器/环境设备/电动阀门-lite.glb": {
-      "bytes": 24564,
+      "bytes": 24592,
       "triangles": 3812,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -3343,16 +3343,16 @@
         "valve-metal"
       ],
       "materialNames": [
-        "valve-casing",
-        "valve-coupling",
-        "valve-detail",
-        "valve-metal"
+        "electric-valve-base",
+        "electric-valve-metal",
+        "electric-valve-shell",
+        "electric-valve-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/环境设备/电动阀门.glb": {
-      "bytes": 84492,
+      "bytes": 84520,
       "triangles": 3812,
       "extensionsUsed": [],
       "images": 0,
@@ -3365,16 +3365,16 @@
         "valve-metal"
       ],
       "materialNames": [
-        "valve-casing",
-        "valve-coupling",
-        "valve-detail",
-        "valve-metal"
+        "electric-valve-base",
+        "electric-valve-metal",
+        "electric-valve-shell",
+        "electric-valve-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/电梯-lite.glb": {
-      "bytes": 8200,
+      "bytes": 8220,
       "triangles": 326,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -3393,18 +3393,18 @@
         "Geom3D_"
       ],
       "materialNames": [
-        "[Color_001]",
-        "[Color_002]",
-        "[Color_003]",
-        "[Color_004]",
-        "[Color_007]",
-        "[Color_A01]"
+        "elevator-body",
+        "elevator-body-2",
+        "elevator-panel",
+        "elevator-panel-2",
+        "elevator-panel-3",
+        "elevator-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/电梯.glb": {
-      "bytes": 23036,
+      "bytes": 23056,
       "triangles": 326,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -3422,12 +3422,12 @@
         "Geom3D_"
       ],
       "materialNames": [
-        "[Color_001]",
-        "[Color_002]",
-        "[Color_003]",
-        "[Color_004]",
-        "[Color_007]",
-        "[Color_A01]"
+        "elevator-body",
+        "elevator-body-2",
+        "elevator-panel",
+        "elevator-panel-2",
+        "elevator-panel-3",
+        "elevator-trim"
       ],
       "brokenImages": [],
       "draco": false
@@ -3627,7 +3627,7 @@
       "draco": false
     },
     "家居/建筑与交通/悬空楼梯-lite.glb": {
-      "bytes": 6632,
+      "bytes": 6684,
       "triangles": 282,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -3644,17 +3644,17 @@
         "Original outer handrail"
       ],
       "materialNames": [
-        "B-1",
-        "sacfdsa001_1",
-        "sacfdsa001_2",
-        "sacfdsa004",
-        "sacfdsa010"
+        "floatingstairs-body",
+        "floatingstairs-glass",
+        "floatingstairs-glass-2",
+        "floatingstairs-tread",
+        "floatingstairs-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/悬空楼梯.glb": {
-      "bytes": 19336,
+      "bytes": 19388,
       "triangles": 282,
       "extensionsUsed": [
         "KHR_materials_ior",
@@ -3670,17 +3670,17 @@
         "Original outer handrail"
       ],
       "materialNames": [
-        "B-1",
-        "sacfdsa001_1",
-        "sacfdsa001_2",
-        "sacfdsa004",
-        "sacfdsa010"
+        "floatingstairs-body",
+        "floatingstairs-glass",
+        "floatingstairs-glass-2",
+        "floatingstairs-tread",
+        "floatingstairs-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "电器/装饰灯具/落地灯（旧版）-lite.glb": {
-      "bytes": 50360,
+      "bytes": 50372,
       "triangles": 7420,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -3722,18 +3722,18 @@
         "wire_1"
       ],
       "materialNames": [
-        "*5",
-        "Metal_Corrogated_Shiny",
-        "[<0011_Seashell>]",
-        "[Color_008]1",
-        "frosted-white",
-        "white_ppc1"
+        "floor-lamp-base",
+        "floor-lamp-body",
+        "floor-lamp-lit",
+        "floor-lamp-lit-2",
+        "floor-lamp-metal",
+        "floor-lamp-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/装饰灯具/落地灯（旧版）.glb": {
-      "bytes": 493532,
+      "bytes": 493544,
       "triangles": 7420,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -3774,12 +3774,12 @@
         "wire_1"
       ],
       "materialNames": [
-        "*5",
-        "Metal_Corrogated_Shiny",
-        "[<0011_Seashell>]",
-        "[Color_008]1",
-        "frosted-white",
-        "white_ppc1"
+        "floor-lamp-base",
+        "floor-lamp-body",
+        "floor-lamp-lit",
+        "floor-lamp-lit-2",
+        "floor-lamp-metal",
+        "floor-lamp-trim"
       ],
       "brokenImages": [],
       "draco": false
@@ -3915,7 +3915,7 @@
       "draco": false
     },
     "电器/装饰灯具/落地灯-lite.glb": {
-      "bytes": 9244,
+      "bytes": 9212,
       "triangles": 1644,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -3926,17 +3926,17 @@
         "floorlamp"
       ],
       "materialNames": [
-        "floorlamp-material-0",
-        "floorlamp-material-1",
-        "floorlamp-material-2",
-        "floorlamp-material-3",
-        "floorlamp-material-4"
+        "floorlamp-base",
+        "floorlamp-body",
+        "floorlamp-lit",
+        "floorlamp-metal",
+        "floorlamp-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/装饰灯具/落地灯.glb": {
-      "bytes": 11720,
+      "bytes": 11692,
       "triangles": 2096,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -3947,11 +3947,11 @@
         "floorlamp"
       ],
       "materialNames": [
-        "floorlamp-material-0",
-        "floorlamp-material-1",
-        "floorlamp-material-2",
-        "floorlamp-material-3",
-        "floorlamp-material-4"
+        "floorlamp-base",
+        "floorlamp-body",
+        "floorlamp-lit",
+        "floorlamp-metal",
+        "floorlamp-trim"
       ],
       "brokenImages": [],
       "draco": true
@@ -4377,7 +4377,7 @@
       "draco": false
     },
     "电器/厨房电器/冰柜-lite.glb": {
-      "bytes": 13532,
+      "bytes": 13504,
       "triangles": 1296,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -4396,21 +4396,21 @@
         "material-8-lit"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-door",
-        "material-2-base",
-        "material-3-handle",
-        "material-4-panel",
-        "material-5-screen",
-        "material-6-metal",
-        "material-7-grating",
-        "material-8-lit"
+        "freezer-base",
+        "freezer-body",
+        "freezer-door",
+        "freezer-grating",
+        "freezer-handle",
+        "freezer-lit",
+        "freezer-metal",
+        "freezer-panel",
+        "freezer-screen"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/厨房电器/冰柜.glb": {
-      "bytes": 49912,
+      "bytes": 49888,
       "triangles": 1296,
       "extensionsUsed": [],
       "images": 0,
@@ -4427,21 +4427,21 @@
         "material-8-lit"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-door",
-        "material-2-base",
-        "material-3-handle",
-        "material-4-panel",
-        "material-5-screen",
-        "material-6-metal",
-        "material-7-grating",
-        "material-8-lit"
+        "freezer-base",
+        "freezer-body",
+        "freezer-door",
+        "freezer-grating",
+        "freezer-handle",
+        "freezer-lit",
+        "freezer-metal",
+        "freezer-panel",
+        "freezer-screen"
       ],
       "brokenImages": [],
       "draco": false
     },
     "电器/厨房电器/冰箱-lite.glb": {
-      "bytes": 4692,
+      "bytes": 4680,
       "triangles": 732,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -4452,15 +4452,15 @@
         "fridge"
       ],
       "materialNames": [
-        "fridge-material-0",
-        "fridge-material-1",
-        "fridge-material-2"
+        "fridge-body",
+        "fridge-handle",
+        "fridge-panel"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/厨房电器/冰箱.glb": {
-      "bytes": 5380,
+      "bytes": 5364,
       "triangles": 900,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -4471,9 +4471,9 @@
         "fridge"
       ],
       "materialNames": [
-        "fridge-material-0",
-        "fridge-material-1",
-        "fridge-material-2"
+        "fridge-body",
+        "fridge-handle",
+        "fridge-panel"
       ],
       "brokenImages": [],
       "draco": true
@@ -7805,7 +7805,7 @@
       "draco": false
     },
     "家居/建筑与交通/玻璃楼梯-lite.glb": {
-      "bytes": 11708,
+      "bytes": 11744,
       "triangles": 716,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -7832,17 +7832,17 @@
         "Geom3D"
       ],
       "materialNames": [
-        "B-1",
-        "sacfdsa001_1",
-        "sacfdsa001_2",
-        "sacfdsa004",
-        "sacfdsa010"
+        "glassstairs-body",
+        "glassstairs-glass",
+        "glassstairs-glass-2",
+        "glassstairs-tread",
+        "glassstairs-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/玻璃楼梯.glb": {
-      "bytes": 69916,
+      "bytes": 69956,
       "triangles": 716,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -7868,17 +7868,17 @@
         "Geom3D"
       ],
       "materialNames": [
-        "B-1",
-        "sacfdsa001_1",
-        "sacfdsa001_2",
-        "sacfdsa004",
-        "sacfdsa010"
+        "glassstairs-body",
+        "glassstairs-glass",
+        "glassstairs-glass-2",
+        "glassstairs-tread",
+        "glassstairs-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/柜架收纳/玻璃柜-lite.glb": {
-      "bytes": 18708,
+      "bytes": 18636,
       "triangles": 726,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -7889,30 +7889,30 @@
         "glasscabinet"
       ],
       "materialNames": [
-        "glasscabinet-material-0",
-        "glasscabinet-material-1",
-        "glasscabinet-material-10",
-        "glasscabinet-material-11",
-        "glasscabinet-material-12",
-        "glasscabinet-material-13",
-        "glasscabinet-material-14",
-        "glasscabinet-material-15",
-        "glasscabinet-material-16",
-        "glasscabinet-material-17",
-        "glasscabinet-material-2",
-        "glasscabinet-material-3",
-        "glasscabinet-material-4",
-        "glasscabinet-material-5",
-        "glasscabinet-material-6",
-        "glasscabinet-material-7",
-        "glasscabinet-material-8",
-        "glasscabinet-material-9"
+        "glasscabinet-accent",
+        "glasscabinet-accent-2",
+        "glasscabinet-accent-3",
+        "glasscabinet-accent-4",
+        "glasscabinet-body",
+        "glasscabinet-door",
+        "glasscabinet-door-2",
+        "glasscabinet-glass",
+        "glasscabinet-glass-2",
+        "glasscabinet-glass-3",
+        "glasscabinet-interior",
+        "glasscabinet-interior-2",
+        "glasscabinet-stash",
+        "glasscabinet-stash-2",
+        "glasscabinet-stash-3",
+        "glasscabinet-stash-4",
+        "glasscabinet-stash-5",
+        "glasscabinet-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/柜架收纳/玻璃柜.glb": {
-      "bytes": 19312,
+      "bytes": 19244,
       "triangles": 828,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -7923,30 +7923,30 @@
         "glasscabinet"
       ],
       "materialNames": [
-        "glasscabinet-material-0",
-        "glasscabinet-material-1",
-        "glasscabinet-material-10",
-        "glasscabinet-material-11",
-        "glasscabinet-material-12",
-        "glasscabinet-material-13",
-        "glasscabinet-material-14",
-        "glasscabinet-material-15",
-        "glasscabinet-material-16",
-        "glasscabinet-material-17",
-        "glasscabinet-material-2",
-        "glasscabinet-material-3",
-        "glasscabinet-material-4",
-        "glasscabinet-material-5",
-        "glasscabinet-material-6",
-        "glasscabinet-material-7",
-        "glasscabinet-material-8",
-        "glasscabinet-material-9"
+        "glasscabinet-accent",
+        "glasscabinet-accent-2",
+        "glasscabinet-accent-3",
+        "glasscabinet-accent-4",
+        "glasscabinet-body",
+        "glasscabinet-door",
+        "glasscabinet-door-2",
+        "glasscabinet-glass",
+        "glasscabinet-glass-2",
+        "glasscabinet-glass-3",
+        "glasscabinet-interior",
+        "glasscabinet-interior-2",
+        "glasscabinet-stash",
+        "glasscabinet-stash-2",
+        "glasscabinet-stash-3",
+        "glasscabinet-stash-4",
+        "glasscabinet-stash-5",
+        "glasscabinet-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/卫浴用品/玻璃隔断-lite.glb": {
-      "bytes": 3380,
+      "bytes": 3368,
       "triangles": 84,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -7957,15 +7957,15 @@
         "glasspartition"
       ],
       "materialNames": [
-        "glasspartition-material-0",
-        "glasspartition-material-1",
-        "glasspartition-material-2"
+        "glasspartition-glass",
+        "glasspartition-handle",
+        "glasspartition-metal"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/卫浴用品/玻璃隔断.glb": {
-      "bytes": 3436,
+      "bytes": 3420,
       "triangles": 84,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -7976,9 +7976,9 @@
         "glasspartition"
       ],
       "materialNames": [
-        "glasspartition-material-0",
-        "glasspartition-material-1",
-        "glasspartition-material-2"
+        "glasspartition-glass",
+        "glasspartition-handle",
+        "glasspartition-metal"
       ],
       "brokenImages": [],
       "draco": true
@@ -8672,7 +8672,7 @@
       "draco": false
     },
     "家居/厨房家具/厨房地柜-lite.glb": {
-      "bytes": 5212,
+      "bytes": 5180,
       "triangles": 132,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -8683,17 +8683,17 @@
         "kitchenbase"
       ],
       "materialNames": [
-        "kitchenbase-material-0",
-        "kitchenbase-material-1",
-        "kitchenbase-material-2",
-        "kitchenbase-material-3",
-        "kitchenbase-material-4"
+        "kitchenbase-base",
+        "kitchenbase-body",
+        "kitchenbase-door",
+        "kitchenbase-metal",
+        "kitchenbase-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/厨房家具/厨房地柜.glb": {
-      "bytes": 5284,
+      "bytes": 5252,
       "triangles": 132,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -8704,17 +8704,17 @@
         "kitchenbase"
       ],
       "materialNames": [
-        "kitchenbase-material-0",
-        "kitchenbase-material-1",
-        "kitchenbase-material-2",
-        "kitchenbase-material-3",
-        "kitchenbase-material-4"
+        "kitchenbase-base",
+        "kitchenbase-body",
+        "kitchenbase-door",
+        "kitchenbase-metal",
+        "kitchenbase-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/厨房家具/地柜带燃气灶-lite.glb": {
-      "bytes": 9404,
+      "bytes": 9368,
       "triangles": 680,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -8725,20 +8725,20 @@
         "kitchencooktop"
       ],
       "materialNames": [
-        "kitchencooktop-material-0",
-        "kitchencooktop-material-1",
-        "kitchencooktop-material-2",
-        "kitchencooktop-material-3",
-        "kitchencooktop-material-4",
-        "kitchencooktop-material-5",
-        "kitchencooktop-material-6",
-        "kitchencooktop-material-7"
+        "kitchencooktop-base",
+        "kitchencooktop-body",
+        "kitchencooktop-cooktop",
+        "kitchencooktop-door",
+        "kitchencooktop-metal",
+        "kitchencooktop-metal-2",
+        "kitchencooktop-metal-3",
+        "kitchencooktop-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/厨房家具/地柜带燃气灶.glb": {
-      "bytes": 9720,
+      "bytes": 9680,
       "triangles": 928,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -8749,20 +8749,20 @@
         "kitchencooktop"
       ],
       "materialNames": [
-        "kitchencooktop-material-0",
-        "kitchencooktop-material-1",
-        "kitchencooktop-material-2",
-        "kitchencooktop-material-3",
-        "kitchencooktop-material-4",
-        "kitchencooktop-material-5",
-        "kitchencooktop-material-6",
-        "kitchencooktop-material-7"
+        "kitchencooktop-base",
+        "kitchencooktop-body",
+        "kitchencooktop-cooktop",
+        "kitchencooktop-door",
+        "kitchencooktop-metal",
+        "kitchencooktop-metal-2",
+        "kitchencooktop-metal-3",
+        "kitchencooktop-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/厨房家具/岛台（旧版）-lite.glb": {
-      "bytes": 14240,
+      "bytes": 14260,
       "triangles": 108,
       "extensionsUsed": [],
       "images": 0,
@@ -8776,18 +8776,18 @@
         "material-5-leg"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-top",
-        "material-2-door",
-        "material-3-metal",
-        "material-4-base",
-        "material-5-leg"
+        "kitchenisland-base",
+        "kitchenisland-body",
+        "kitchenisland-door",
+        "kitchenisland-leg",
+        "kitchenisland-metal",
+        "kitchenisland-top"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/厨房家具/岛台（旧版）.glb": {
-      "bytes": 14240,
+      "bytes": 14260,
       "triangles": 108,
       "extensionsUsed": [],
       "images": 0,
@@ -8801,18 +8801,18 @@
         "material-5-leg"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-top",
-        "material-2-door",
-        "material-3-metal",
-        "material-4-base",
-        "material-5-leg"
+        "kitchenisland-base",
+        "kitchenisland-body",
+        "kitchenisland-door",
+        "kitchenisland-leg",
+        "kitchenisland-metal",
+        "kitchenisland-top"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/厨房家具/地柜带水盆-lite.glb": {
-      "bytes": 8636,
+      "bytes": 8592,
       "triangles": 160,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -8823,20 +8823,20 @@
         "kitchensink"
       ],
       "materialNames": [
-        "kitchensink-material-0",
-        "kitchensink-material-1",
-        "kitchensink-material-2",
-        "kitchensink-material-3",
-        "kitchensink-material-4",
-        "kitchensink-material-5",
-        "kitchensink-material-7",
-        "kitchensink-material-8"
+        "kitchensink-base",
+        "kitchensink-body",
+        "kitchensink-door",
+        "kitchensink-metal",
+        "kitchensink-metal-2",
+        "kitchensink-sink",
+        "kitchensink-sink-2",
+        "kitchensink-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/厨房家具/地柜带水盆.glb": {
-      "bytes": 8824,
+      "bytes": 8784,
       "triangles": 200,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -8847,14 +8847,14 @@
         "kitchensink"
       ],
       "materialNames": [
-        "kitchensink-material-0",
-        "kitchensink-material-1",
-        "kitchensink-material-2",
-        "kitchensink-material-3",
-        "kitchensink-material-4",
-        "kitchensink-material-5",
-        "kitchensink-material-7",
-        "kitchensink-material-8"
+        "kitchensink-base",
+        "kitchensink-body",
+        "kitchensink-door",
+        "kitchensink-metal",
+        "kitchensink-metal-2",
+        "kitchensink-sink",
+        "kitchensink-sink-2",
+        "kitchensink-top"
       ],
       "brokenImages": [],
       "draco": true
@@ -9332,7 +9332,7 @@
       "draco": false
     },
     "电器/办公数码/网络存储-lite.glb": {
-      "bytes": 43472,
+      "bytes": 43444,
       "triangles": 1644,
       "extensionsUsed": [],
       "images": 0,
@@ -9341,17 +9341,17 @@
         "nas"
       ],
       "materialNames": [
-        "nas-material-0",
-        "nas-material-1",
-        "nas-material-2",
-        "nas-material-3",
-        "nas-material-4"
+        "nas-base",
+        "nas-body",
+        "nas-lit",
+        "nas-panel",
+        "nas-recess"
       ],
       "brokenImages": [],
       "draco": false
     },
     "电器/办公数码/网络存储.glb": {
-      "bytes": 43472,
+      "bytes": 43444,
       "triangles": 1644,
       "extensionsUsed": [],
       "images": 0,
@@ -9360,17 +9360,17 @@
         "nas"
       ],
       "materialNames": [
-        "nas-material-0",
-        "nas-material-1",
-        "nas-material-2",
-        "nas-material-3",
-        "nas-material-4"
+        "nas-base",
+        "nas-body",
+        "nas-lit",
+        "nas-panel",
+        "nas-recess"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/卧室家具/床头柜-lite.glb": {
-      "bytes": 5088,
+      "bytes": 5060,
       "triangles": 108,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -9381,17 +9381,17 @@
         "nightstand"
       ],
       "materialNames": [
-        "nightstand-material-0",
-        "nightstand-material-1",
-        "nightstand-material-2",
-        "nightstand-material-3",
-        "nightstand-material-4"
+        "nightstand-base",
+        "nightstand-body",
+        "nightstand-drawer",
+        "nightstand-metal",
+        "nightstand-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/卧室家具/床头柜.glb": {
-      "bytes": 5180,
+      "bytes": 5152,
       "triangles": 108,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -9402,11 +9402,11 @@
         "nightstand"
       ],
       "materialNames": [
-        "nightstand-material-0",
-        "nightstand-material-1",
-        "nightstand-material-2",
-        "nightstand-material-3",
-        "nightstand-material-4"
+        "nightstand-base",
+        "nightstand-body",
+        "nightstand-drawer",
+        "nightstand-metal",
+        "nightstand-top"
       ],
       "brokenImages": [],
       "draco": true
@@ -9820,7 +9820,7 @@
       "draco": false
     },
     "家居/影音设备/钢琴-lite.glb": {
-      "bytes": 45328,
+      "bytes": 45344,
       "triangles": 8236,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -9836,15 +9836,15 @@
         "review-piano-keys"
       ],
       "materialNames": [
-        "*1",
-        "*2",
-        "[Color_009]1"
+        "piano-body",
+        "piano-dark",
+        "piano-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/影音设备/钢琴.glb": {
-      "bytes": 287196,
+      "bytes": 287208,
       "triangles": 8236,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -9859,9 +9859,9 @@
         "review-piano-keys"
       ],
       "materialNames": [
-        "*1",
-        "*2",
-        "[Color_009]1"
+        "piano-body",
+        "piano-dark",
+        "piano-trim"
       ],
       "brokenImages": [],
       "draco": false
@@ -9917,7 +9917,7 @@
       "draco": false
     },
     "家居/建筑与交通/柱子-lite.glb": {
-      "bytes": 1372,
+      "bytes": 1364,
       "triangles": 12,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -9928,13 +9928,13 @@
         "pillar"
       ],
       "materialNames": [
-        "pillar-material-0"
+        "pillar-body"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/柱子.glb": {
-      "bytes": 1396,
+      "bytes": 1392,
       "triangles": 12,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -9945,13 +9945,13 @@
         "pillar"
       ],
       "materialNames": [
-        "pillar-material-0"
+        "pillar-body"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/四分之一圆柱-lite.glb": {
-      "bytes": 11472,
+      "bytes": 11484,
       "triangles": 132,
       "extensionsUsed": [],
       "images": 0,
@@ -9962,15 +9962,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_quarter-base",
+        "pillar_quarter-body",
+        "pillar_quarter-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/四分之一圆柱.glb": {
-      "bytes": 15384,
+      "bytes": 15396,
       "triangles": 204,
       "extensionsUsed": [],
       "images": 0,
@@ -9981,15 +9981,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_quarter-base",
+        "pillar_quarter-body",
+        "pillar_quarter-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/四分之一圆柱（内弧）-lite.glb": {
-      "bytes": 11472,
+      "bytes": 11500,
       "triangles": 132,
       "extensionsUsed": [],
       "images": 0,
@@ -10000,15 +10000,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_quarterinner-base",
+        "pillar_quarterinner-body",
+        "pillar_quarterinner-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/四分之一圆柱（内弧）.glb": {
-      "bytes": 15384,
+      "bytes": 15408,
       "triangles": 204,
       "extensionsUsed": [],
       "images": 0,
@@ -10019,15 +10019,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_quarterinner-base",
+        "pillar_quarterinner-body",
+        "pillar_quarterinner-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/圆柱-lite.glb": {
-      "bytes": 13012,
+      "bytes": 13016,
       "triangles": 240,
       "extensionsUsed": [],
       "images": 0,
@@ -10038,15 +10038,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_round-base",
+        "pillar_round-body",
+        "pillar_round-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/圆柱.glb": {
-      "bytes": 22152,
+      "bytes": 22160,
       "triangles": 480,
       "extensionsUsed": [],
       "images": 0,
@@ -10057,15 +10057,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_round-base",
+        "pillar_round-body",
+        "pillar_round-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/半圆柱-lite.glb": {
-      "bytes": 17384,
+      "bytes": 17404,
       "triangles": 240,
       "extensionsUsed": [],
       "images": 0,
@@ -10076,15 +10076,15 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_semicircle-base",
+        "pillar_semicircle-body",
+        "pillar_semicircle-trim"
       ],
       "brokenImages": [],
       "draco": false
     },
     "家居/建筑与交通/半圆柱.glb": {
-      "bytes": 25160,
+      "bytes": 25184,
       "triangles": 384,
       "extensionsUsed": [],
       "images": 0,
@@ -10095,9 +10095,9 @@
         "material-2-trim"
       ],
       "materialNames": [
-        "material-0-body",
-        "material-1-base",
-        "material-2-trim"
+        "pillar_semicircle-base",
+        "pillar_semicircle-body",
+        "pillar_semicircle-trim"
       ],
       "brokenImages": [],
       "draco": false
@@ -10195,7 +10195,7 @@
       "draco": false
     },
     "电器/环境设备/管线机-lite.glb": {
-      "bytes": 30752,
+      "bytes": 30780,
       "triangles": 6261,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -10209,14 +10209,14 @@
         "review-pipeline-water-purifier-soft"
       ],
       "materialNames": [
-        "Material #1",
-        "Material #2"
+        "pipelinewaterpurifier-body",
+        "pipelinewaterpurifier-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/环境设备/管线机.glb": {
-      "bytes": 121192,
+      "bytes": 121220,
       "triangles": 6261,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -10229,8 +10229,8 @@
         "review-pipeline-water-purifier-soft"
       ],
       "materialNames": [
-        "Material #1",
-        "Material #2"
+        "pipelinewaterpurifier-body",
+        "pipelinewaterpurifier-trim"
       ],
       "brokenImages": [],
       "draco": false
@@ -11546,7 +11546,7 @@
       "draco": false
     },
     "家居/生活装饰/地毯-lite.glb": {
-      "bytes": 2608,
+      "bytes": 2600,
       "triangles": 248,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11557,14 +11557,14 @@
         "rug"
       ],
       "materialNames": [
-        "ha-rug-furniture",
-        "ha-rug-soft"
+        "rug-fabric",
+        "rug-frame"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/生活装饰/地毯.glb": {
-      "bytes": 2804,
+      "bytes": 2796,
       "triangles": 302,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11575,8 +11575,8 @@
         "rug"
       ],
       "materialNames": [
-        "ha-rug-furniture",
-        "ha-rug-soft"
+        "rug-fabric",
+        "rug-frame"
       ],
       "brokenImages": [],
       "draco": true
@@ -11698,7 +11698,7 @@
       "draco": false
     },
     "家居/柜架收纳/货架-lite.glb": {
-      "bytes": 3520,
+      "bytes": 3500,
       "triangles": 192,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11709,15 +11709,15 @@
         "shelf"
       ],
       "materialNames": [
-        "shelf-material-0",
-        "shelf-material-1",
-        "shelf-material-2"
+        "shelf-metal",
+        "shelf-shelf",
+        "shelf-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/柜架收纳/货架.glb": {
-      "bytes": 3644,
+      "bytes": 3628,
       "triangles": 192,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11728,9 +11728,9 @@
         "shelf"
       ],
       "materialNames": [
-        "shelf-material-0",
-        "shelf-material-1",
-        "shelf-material-2"
+        "shelf-metal",
+        "shelf-shelf",
+        "shelf-top"
       ],
       "brokenImages": [],
       "draco": true
@@ -11782,7 +11782,7 @@
       "draco": false
     },
     "家居/玄关用品/鞋柜-lite.glb": {
-      "bytes": 5244,
+      "bytes": 5216,
       "triangles": 144,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11793,17 +11793,17 @@
         "shoecabinet"
       ],
       "materialNames": [
-        "shoecabinet-material-0",
-        "shoecabinet-material-1",
-        "shoecabinet-material-2",
-        "shoecabinet-material-3",
-        "shoecabinet-material-4"
+        "shoecabinet-base",
+        "shoecabinet-body",
+        "shoecabinet-door",
+        "shoecabinet-interior",
+        "shoecabinet-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/玄关用品/鞋柜.glb": {
-      "bytes": 5344,
+      "bytes": 5316,
       "triangles": 144,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11814,17 +11814,17 @@
         "shoecabinet"
       ],
       "materialNames": [
-        "shoecabinet-material-0",
-        "shoecabinet-material-1",
-        "shoecabinet-material-2",
-        "shoecabinet-material-3",
-        "shoecabinet-material-4"
+        "shoecabinet-base",
+        "shoecabinet-body",
+        "shoecabinet-door",
+        "shoecabinet-interior",
+        "shoecabinet-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/卫浴用品/花洒-lite.glb": {
-      "bytes": 4072,
+      "bytes": 4060,
       "triangles": 368,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11835,15 +11835,15 @@
         "shower"
       ],
       "materialNames": [
-        "shower-material-0",
-        "shower-material-1",
-        "shower-material-2"
+        "shower-body",
+        "shower-interior",
+        "shower-metal"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/卫浴用品/花洒.glb": {
-      "bytes": 4464,
+      "bytes": 4448,
       "triangles": 592,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11854,9 +11854,9 @@
         "shower"
       ],
       "materialNames": [
-        "shower-material-0",
-        "shower-material-1",
-        "shower-material-2"
+        "shower-body",
+        "shower-interior",
+        "shower-metal"
       ],
       "brokenImages": [],
       "draco": true
@@ -11946,7 +11946,7 @@
       "draco": false
     },
     "家居/柜架收纳/餐边柜-lite.glb": {
-      "bytes": 4252,
+      "bytes": 4228,
       "triangles": 120,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11957,16 +11957,16 @@
         "sideboard"
       ],
       "materialNames": [
-        "sideboard-material-0",
-        "sideboard-material-1",
-        "sideboard-material-2",
-        "sideboard-material-3"
+        "sideboard-body",
+        "sideboard-door",
+        "sideboard-interior",
+        "sideboard-top"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/柜架收纳/餐边柜.glb": {
-      "bytes": 4336,
+      "bytes": 4316,
       "triangles": 120,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11977,10 +11977,10 @@
         "sideboard"
       ],
       "materialNames": [
-        "sideboard-material-0",
-        "sideboard-material-1",
-        "sideboard-material-2",
-        "sideboard-material-3"
+        "sideboard-body",
+        "sideboard-door",
+        "sideboard-interior",
+        "sideboard-top"
       ],
       "brokenImages": [],
       "draco": true
@@ -12160,7 +12160,7 @@
       "draco": false
     },
     "电器/影音设备/智慧屏上墙-lite.glb": {
-      "bytes": 13384,
+      "bytes": 13416,
       "triangles": 1332,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -12176,17 +12176,17 @@
         "smart-display-ui"
       ],
       "materialNames": [
-        "smart-display-body",
-        "smart-display-icon",
-        "smart-display-screen",
-        "smart-display-speaker",
-        "smart-display-ui"
+        "smart-display-wall-grille",
+        "smart-display-wall-indicator",
+        "smart-display-wall-lit",
+        "smart-display-wall-screen",
+        "smart-display-wall-shell"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/影音设备/智慧屏上墙.glb": {
-      "bytes": 47192,
+      "bytes": 47224,
       "triangles": 1332,
       "extensionsUsed": [],
       "images": 0,
@@ -12200,11 +12200,11 @@
         "smart-display-ui"
       ],
       "materialNames": [
-        "smart-display-body",
-        "smart-display-icon",
-        "smart-display-screen",
-        "smart-display-speaker",
-        "smart-display-ui"
+        "smart-display-wall-grille",
+        "smart-display-wall-indicator",
+        "smart-display-wall-lit",
+        "smart-display-wall-screen",
+        "smart-display-wall-shell"
       ],
       "brokenImages": [],
       "draco": false
@@ -12696,7 +12696,7 @@
       "draco": false
     },
     "家居/建筑与交通/楼梯-lite.glb": {
-      "bytes": 3636,
+      "bytes": 3616,
       "triangles": 240,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -12707,15 +12707,15 @@
         "stairs"
       ],
       "materialNames": [
-        "stairs-material-0",
-        "stairs-material-1",
-        "stairs-material-2"
+        "stairs-body",
+        "stairs-top",
+        "stairs-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/楼梯.glb": {
-      "bytes": 3776,
+      "bytes": 3756,
       "triangles": 240,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -12726,9 +12726,9 @@
         "stairs"
       ],
       "materialNames": [
-        "stairs-material-0",
-        "stairs-material-1",
-        "stairs-material-2"
+        "stairs-body",
+        "stairs-top",
+        "stairs-trim"
       ],
       "brokenImages": [],
       "draco": true
@@ -12822,7 +12822,7 @@
       "draco": false
     },
     "家居/建筑与交通/钢楼梯-lite.glb": {
-      "bytes": 43832,
+      "bytes": 43860,
       "triangles": 5789,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -12837,14 +12837,14 @@
         "steel-stairs"
       ],
       "materialNames": [
-        "0005",
-        "004"
+        "steelstairs-frame",
+        "steelstairs-tread"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/钢楼梯.glb": {
-      "bytes": 219204,
+      "bytes": 219232,
       "triangles": 5789,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -12858,8 +12858,8 @@
         "steel-stairs"
       ],
       "materialNames": [
-        "0005",
-        "004"
+        "steelstairs-frame",
+        "steelstairs-tread"
       ],
       "brokenImages": [],
       "draco": false
@@ -13033,7 +13033,7 @@
       "draco": false
     },
     "家居/建筑与交通/越野车-lite.glb": {
-      "bytes": 126432,
+      "bytes": 126468,
       "triangles": 40430,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13066,23 +13066,23 @@
         "Geom3D"
       ],
       "materialNames": [
-        "base",
-        "body",
-        "glass",
-        "glass_01",
-        "glass_02",
-        "glass_back",
-        "gray",
-        "headlight",
-        "headlight_01",
-        "headlight_02",
-        "salon"
+        "suv-base",
+        "suv-body",
+        "suv-emissive",
+        "suv-emissive-2",
+        "suv-emissive-3",
+        "suv-glass",
+        "suv-glass-2",
+        "suv-glass-3",
+        "suv-glass-4",
+        "suv-seat",
+        "suv-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/建筑与交通/越野车.glb": {
-      "bytes": 707308,
+      "bytes": 707340,
       "triangles": 41122,
       "extensionsUsed": [],
       "images": 0,
@@ -13113,17 +13113,17 @@
         "Geom3D"
       ],
       "materialNames": [
-        "base",
-        "body",
-        "glass",
-        "glass_01",
-        "glass_02",
-        "glass_back",
-        "gray",
-        "headlight",
-        "headlight_01",
-        "headlight_02",
-        "salon"
+        "suv-base",
+        "suv-body",
+        "suv-emissive",
+        "suv-emissive-2",
+        "suv-emissive-3",
+        "suv-glass",
+        "suv-glass-2",
+        "suv-glass-3",
+        "suv-glass-4",
+        "suv-seat",
+        "suv-trim"
       ],
       "brokenImages": [],
       "draco": false
@@ -13261,7 +13261,7 @@
       "draco": false
     },
     "电器/环境设备/茶吧机-lite.glb": {
-      "bytes": 47980,
+      "bytes": 48000,
       "triangles": 6086,
       "extensionsUsed": [
         "KHR_draco_mesh_compression",
@@ -13275,14 +13275,14 @@
         "tea-bar-machine"
       ],
       "materialNames": [
-        "om.cn_1336",
-        "om.cn_1342"
+        "tea_bar_machine-body",
+        "tea_bar_machine-panel"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/环境设备/茶吧机.glb": {
-      "bytes": 209820,
+      "bytes": 209840,
       "triangles": 6086,
       "extensionsUsed": [
         "KHR_materials_pbrSpecularGlossiness"
@@ -13295,8 +13295,8 @@
         "tea-bar-machine"
       ],
       "materialNames": [
-        "om.cn_1336",
-        "om.cn_1342"
+        "tea_bar_machine-body",
+        "tea_bar_machine-panel"
       ],
       "brokenImages": [],
       "draco": false
@@ -13750,7 +13750,7 @@
       "draco": false
     },
     "电器/影音设备/移动电视-lite.glb": {
-      "bytes": 8300,
+      "bytes": 8268,
       "triangles": 1144,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13761,18 +13761,18 @@
         "tv_mobile"
       ],
       "materialNames": [
-        "tv_mobile-material-0",
-        "tv_mobile-material-1",
-        "tv_mobile-material-2",
-        "tv_mobile-material-3",
-        "tv_mobile-material-4",
-        "tv_mobile-material-5"
+        "tv_mobile-base",
+        "tv_mobile-body",
+        "tv_mobile-leg",
+        "tv_mobile-metal",
+        "tv_mobile-screen",
+        "tv_mobile-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/影音设备/移动电视.glb": {
-      "bytes": 8864,
+      "bytes": 8832,
       "triangles": 1244,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13783,18 +13783,18 @@
         "tv_mobile"
       ],
       "materialNames": [
-        "tv_mobile-material-0",
-        "tv_mobile-material-1",
-        "tv_mobile-material-2",
-        "tv_mobile-material-3",
-        "tv_mobile-material-4",
-        "tv_mobile-material-5"
+        "tv_mobile-base",
+        "tv_mobile-body",
+        "tv_mobile-leg",
+        "tv_mobile-metal",
+        "tv_mobile-screen",
+        "tv_mobile-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/影音设备/标准电视-lite.glb": {
-      "bytes": 1876,
+      "bytes": 1872,
       "triangles": 266,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13805,13 +13805,13 @@
         "tv_standard"
       ],
       "materialNames": [
-        "tv_standard-material-0"
+        "tv_standard-screen"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/影音设备/标准电视.glb": {
-      "bytes": 2092,
+      "bytes": 2088,
       "triangles": 300,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13822,13 +13822,13 @@
         "tv_standard"
       ],
       "materialNames": [
-        "tv_standard-material-0"
+        "tv_standard-screen"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/影音设备/桌面电视-lite.glb": {
-      "bytes": 5908,
+      "bytes": 5884,
       "triangles": 828,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13839,16 +13839,16 @@
         "tv_tabletop"
       ],
       "materialNames": [
-        "tv_tabletop-material-0",
-        "tv_tabletop-material-1",
-        "tv_tabletop-material-2",
-        "tv_tabletop-material-3"
+        "tv_tabletop-base",
+        "tv_tabletop-body",
+        "tv_tabletop-metal",
+        "tv_tabletop-trim"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/影音设备/桌面电视.glb": {
-      "bytes": 6468,
+      "bytes": 6444,
       "triangles": 912,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13859,10 +13859,10 @@
         "tv_tabletop"
       ],
       "materialNames": [
-        "tv_tabletop-material-0",
-        "tv_tabletop-material-1",
-        "tv_tabletop-material-2",
-        "tv_tabletop-material-3"
+        "tv_tabletop-base",
+        "tv_tabletop-body",
+        "tv_tabletop-metal",
+        "tv_tabletop-trim"
       ],
       "brokenImages": [],
       "draco": true
@@ -14252,7 +14252,7 @@
       "draco": false
     },
     "电器/环境设备/挂机空调-lite.glb": {
-      "bytes": 3860,
+      "bytes": 3844,
       "triangles": 324,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14263,15 +14263,15 @@
         "wallac"
       ],
       "materialNames": [
-        "wallac-material-0",
-        "wallac-material-1",
-        "wallac-material-2"
+        "wallac-body",
+        "wallac-grating",
+        "wallac-lit"
       ],
       "brokenImages": [],
       "draco": true
     },
     "电器/环境设备/挂机空调.glb": {
-      "bytes": 4080,
+      "bytes": 4064,
       "triangles": 324,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14282,15 +14282,15 @@
         "wallac"
       ],
       "materialNames": [
-        "wallac-material-0",
-        "wallac-material-1",
-        "wallac-material-2"
+        "wallac-body",
+        "wallac-grating",
+        "wallac-lit"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/柜架收纳/吊柜-lite.glb": {
-      "bytes": 4244,
+      "bytes": 4224,
       "triangles": 108,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14301,16 +14301,16 @@
         "wallcabinet"
       ],
       "materialNames": [
-        "wallcabinet-material-0",
-        "wallcabinet-material-1",
-        "wallcabinet-material-2",
-        "wallcabinet-material-3"
+        "wallcabinet-base",
+        "wallcabinet-body",
+        "wallcabinet-door",
+        "wallcabinet-shelf"
       ],
       "brokenImages": [],
       "draco": true
     },
     "家居/柜架收纳/吊柜.glb": {
-      "bytes": 4308,
+      "bytes": 4284,
       "triangles": 108,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14321,10 +14321,10 @@
         "wallcabinet"
       ],
       "materialNames": [
-        "wallcabinet-material-0",
-        "wallcabinet-material-1",
-        "wallcabinet-material-2",
-        "wallcabinet-material-3"
+        "wallcabinet-base",
+        "wallcabinet-body",
+        "wallcabinet-door",
+        "wallcabinet-shelf"
       ],
       "brokenImages": [],
       "draco": true

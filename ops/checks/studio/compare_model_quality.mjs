@@ -21,6 +21,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   composeMatrix,
   listModelFiles,
@@ -197,6 +198,39 @@ function readHeadBytes(relativePath) {
 
 const differs = (before, after) => (Array.isArray(before) ? JSON.stringify(before) !== JSON.stringify(after) : before !== after)
 
+/**
+ * 已声明的槽位改名（新名 → 旧名），由 `repair_glb_material_slots.mjs --emit-generated` 生成。
+ *
+ * 用途：区分「契约驱动的改名」与「材质被写坏」。前者每个新名都能反查到旧名，
+ * 运行期仍按旧名取色；后者查不到，历史分支会静默失效，必须回滚。
+ */
+const { LEGACY_MATERIAL_ALIASES } = await import(
+  pathToFileURL(
+    path.join(
+      repoRoot,
+      'homeos/frontend/src/studio/app/3d-studio/materials/legacy-material-aliases.generated.ts',
+    ),
+  ).href
+)
+const declaredRenameTo = new Map(
+  Object.entries(LEGACY_MATERIAL_ALIASES).map(([next, legacy]) => [
+    String(next).toLowerCase(),
+    String(legacy).toLowerCase(),
+  ]),
+)
+
+/** 改名是否全部在别名表里登记过（数量也要对得上，避免「改名 + 顺手删材质」蒙混过关）。 */
+function renameIsDeclared(beforeNames, afterNames) {
+  const before = new Set(beforeNames.map((name) => name.toLowerCase()))
+  const after = new Set(afterNames.map((name) => name.toLowerCase()))
+  const removed = [...before].filter((name) => !after.has(name))
+  if (!removed.length) return false
+  const added = [...after].filter((name) => !before.has(name))
+  if (added.length !== removed.length) return false
+  const removedSet = new Set(removed)
+  return added.every((name) => removedSet.has(declaredRenameTo.get(name) ?? ''))
+}
+
 function compareFile(relativePath) {
   const parsedPath = parseModelPath(relativePath)
   const headBytes = readHeadBytes(relativePath)
@@ -216,6 +250,8 @@ function compareFile(relativePath) {
   const droppedExtensions = before.extensions.filter((extension) => !after.extensions.includes(extension))
   const addedExtensions = after.extensions.filter((extension) => !before.extensions.includes(extension))
   const renamedMaterials = differs(before.materialNames, after.materialNames)
+  const renameResultIsDeclared =
+    renamedMaterials && renameIsDeclared(before.materialNames, after.materialNames)
   const renamedNodes = differs(before.nodeNames, after.nodeNames)
   const reparentedNodes = differs(before.nodeEdges, after.nodeEdges)
   const triangleRatio = before.triangles > 0 ? after.triangles / before.triangles : 1
@@ -229,7 +265,8 @@ function compareFile(relativePath) {
   if (lostTextureSlots > 0) flags.push('材质槽减少')
   if (triangleRatio < DECIMATION_RATIO) flags.push('面数腰斩')
   if (before.triangles > 0 && triangleRatio > 1.4) flags.push('面数暴涨')
-  if (renamedMaterials) flags.push('材质改名')
+  if (renameResultIsDeclared) flags.push('槽位改名（已声明）')
+  else if (renamedMaterials) flags.push('材质改名')
   if (renamedNodes) flags.push('节点改名')
   if (reparentedNodes && !renamedNodes) flags.push('层级变化')
   if (differs(before.rootTransforms, after.rootTransforms)) flags.push('根变换变化')

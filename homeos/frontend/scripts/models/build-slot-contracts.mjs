@@ -9,7 +9,12 @@
  *    由 `lib/material-slots.mjs` 实测；
  * 3. `specs/model-specs.json`：模型族与拓扑类别，用来解释「为什么这个槽位允许是薄片」。
  *
- * 契约只登记、不改名：GLB 里的材质名保持原样，角色由运行期解析器按名字/几何推断。
+ * 契约登记「槽位 → 构件 → 角色 → 外观」，并在**改名管线就绪**时给出目标名：
+ * `action=rename` + `targetName`，旧名留在 `legacyName`（持久记录，下次重建继续沿用）。
+ *
+ * 改名不是这一层直接落盘的：真值由 `ops/checks/studio/repair_glb_material_slots.mjs`
+ * 执行（先写别名表，再改 GLB 的 JSON chunk）。运行期按旧名取色的 30 处历史分支靠
+ * `legacy-material-aliases.generated.ts` 保持原样，见 `materials/legacy-material-aliases.ts`。
  *
  * 用法：
  * ```bash
@@ -209,9 +214,88 @@ const EXPLICIT_ROLE_OVERRIDES = Object.freeze({
  * `airpurifier-material-2` 这类语义名，结果打穿了运行期 30 处按原名/下标取色的分支，
  * 同时让 `legacy-material-aliases.generated.ts` 变成改名与运行期的耦合点。
  *
- * 现在改成「只登记、不改名」：契约只记录每个槽位的**原名 + 角色 + 几何证据**，
- * 语义由 `resolveModelMaterialRole` 在运行期解析，GLB 字节保持原样。
+ * 2026-10-24 重开的顺序反过来：**先把取色分支单点归一**（加载器把材质名过一遍别名表），
+ * 再由本文件给出目标名、`repair_glb_material_slots.mjs --write` 落盘。目标名规则见
+ * `needsSlotRename()` / `planSlotRenames()`。
  */
+
+/** 槽位名规范：小写 kebab，允许下划线分段。 */
+const CANONICAL_SLOT = /^[a-z0-9][a-z0-9_]*(?:[-][a-z0-9][a-z0-9_]*)*$/
+
+/** 角色 → 槽位名尾段：`playBall` → `play-ball`、`rugPile` → `rug-pile`。 */
+function roleSlug(role) {
+  return String(role)
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * 这个槽位该不该改名（与审计规则一一对应）。
+ *
+ * - 非规范字符（空格 / 大写 / 方括号 / `*` / `#` / `.`）→ N4；
+ * - 名字只有材质序号（`bar-material-0`）→ N1；
+ * - 前缀不是 itemType（`valve-metal`、`gray`、`sacfdsa004`）→ N3；
+ * - 尾段不是语义词（纯数字 / 单字母，去掉 `-2` 这类序号后仍如此）→ N1。
+ *
+ * 角色解析不出来（`role` 为空）的槽位一律不动 —— 没有语义词就不该硬编一个。
+ */
+function needsSlotRename(name, itemType, role) {
+  if (!role) return false
+  const raw = String(name || '')
+  if (!raw) return true
+  const lower = raw.toLowerCase()
+  if (!CANONICAL_SLOT.test(raw)) return true
+  if (/(?:^|-)material-\d+$/.test(lower)) return true
+  if (!lower.startsWith(itemType.toLowerCase() + '-')) return true
+  const tail = lower
+    .split('-')
+    .filter(Boolean)
+    .filter((segment) => !/^\d+$/.test(segment))
+    .pop() ?? ''
+  return !/[a-z]{2,}/.test(tail)
+}
+
+/**
+ * 给一个模型的槽位排改名计划（就地写 `action` / `targetName` / `legacyName`）。
+ *
+ * 目标名 = `<itemType>-<角色 kebab>`，同角色重复时按 `-2`、`-3` 递增；已被别的槽位
+ * 占用的名字（包括不改名的槽位）不会被抢。
+ */
+function planSlotRenames(itemType, slots, previousLegacyFor) {
+  const kept = new Set(
+    slots
+      .filter((slot) => !needsSlotRename(slot.name, itemType, slot.role))
+      .map((slot) => slot.name.toLowerCase()),
+  )
+  const used = new Set(kept)
+  let renamed = 0
+  for (const slot of slots) {
+    const prior = previousLegacyFor(slot.name)
+    if (!needsSlotRename(slot.name, itemType, slot.role)) {
+      slot.action = 'keep'
+      slot.targetName = slot.name
+      slot.legacyName = prior
+      used.add(slot.name.toLowerCase())
+      continue
+    }
+    const base = `${itemType}-${roleSlug(slot.role)}`
+    let target = base
+    let suffix = 1
+    while (used.has(target.toLowerCase())) {
+      suffix += 1
+      target = `${base}-${suffix}`
+    }
+    used.add(target.toLowerCase())
+    slot.action = 'rename'
+    slot.targetName = target
+    // 旧名只在第一次改名时记录；之后再重建（GLB 已是新名）继续沿用同一条。
+    slot.legacyName = prior ?? slot.name
+    renamed += 1
+  }
+  return renamed
+}
 
 const round = (value, digits = 3) => (typeof value === 'number' ? Number(value.toFixed(digits)) : value)
 
@@ -269,6 +353,26 @@ function main() {
   const specById = new Map(specs.models.map((spec) => [spec.id, spec]))
   const variants = collectModelVariants(listModelFiles())
 
+  /**
+   * 上一版契约里的 `legacyName` 是改名的**持久记录**：GLB 落盘改名后重建契约时，
+   * `slot.name` 已经是新名；不沿用记录的话，下一次 `--emit-generated` 会把旧名从
+   * 别名表里丢掉，30 处历史取色分支随即静默失效。
+   */
+  const previousLegacy = new Map()
+  if (fs.existsSync(outputPath)) {
+    const previous = JSON.parse(fs.readFileSync(outputPath, 'utf8'))
+    for (const model of previous.models ?? []) {
+      const itemType = model.itemType ?? model.id
+      for (const slot of model.slots ?? []) {
+        if (!slot.legacyName) continue
+        previousLegacy.set(`${itemType}|${String(slot.name).toLowerCase()}`, slot.legacyName)
+        if (slot.targetName) {
+          previousLegacy.set(`${itemType}|${String(slot.targetName).toLowerCase()}`, slot.legacyName)
+        }
+      }
+    }
+  }
+
   const contracts = []
   const stats = { models: 0, slots: 0, noGeometry: 0, dead: [], rename: 0, sameRole: [] }
 
@@ -308,8 +412,11 @@ function main() {
       return {
         index: material.index,
         name: material.name,
-        // 改名前的名字：仅在真的改过名时才有值（当前口径下恒为 null）。
+        // 改名前的名字：`planSlotRenames` 写入；GLB 已经是新名时从上一版契约沿用。
         legacyName: null,
+        /** `rename` = 本次待改名；`keep` = 名字已规范。 */
+        action: 'keep',
+        targetName: null,
         component: describeComponent(role, fingerprint, material.surface ?? '未分类构件'),
         role,
         roleSource: material.roleSource ?? null,
@@ -364,6 +471,10 @@ function main() {
     const roles = slots.map((slot) => slot.role).filter(Boolean)
     const uniqueRoles = [...new Set(roles)]
     if (uniqueRoles.length === 1 && slots.length > 1) stats.sameRole.push(model.id)
+    // 改名计划：名字不规范 / 只有序号 / 前缀不是 itemType 的槽位，给出 `<itemType>-<角色>`。
+    stats.rename += planSlotRenames(model.itemType, slots, (name) =>
+      previousLegacy.get(`${model.itemType}|${String(name).toLowerCase()}`) ?? null,
+    )
     const topologyClass = spec.topologyClass ?? 'solid'
     contracts.push({
       id: model.id,

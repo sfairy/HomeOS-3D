@@ -41,7 +41,7 @@ import {
 } from "../materials/studio-model-material-roles";
 import { groupVehicleMaterialSlots } from "../materials/studio-material-slot-groups";
 import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
-import { canonicalExternalMaterialName } from "../materials/legacy-material-aliases";
+import { canonicalExternalMaterialName, legacyExternalMaterialName } from "../materials/legacy-material-aliases";
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from "../materials/material-pipeline";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
 import {
@@ -443,6 +443,16 @@ export function createExternalModelManager({
       );
     const templateScene = loadResult.scene || loadResult.scenes?.[0];
     if (!templateScene) throw new Error("模型 " + loadedItemType + " 没有可显示的场景");
+
+    /**
+     * 槽位名归一：**改名后 GLB 里是新名，而本文件下游 30 处历史分支仍按旧名取色**
+     * （`material-<n>` 下标、`M03_Pewter_Shine`、`B-1`、`cabinet-material-0`…）。
+     * 在模板入库前把名字换回旧名，所有读取点——本文件的、车辆的、检查面板的——
+     * 看到的一直是旧名，逻辑与视觉都不变；别名表为空时这一步不会改动任何名字。
+     *
+     * 新代码不要依赖这里的旧名，按角色判定（`resolveModelMaterialRole`）。
+     */
+    normalizeTemplateSlotNames(templateScene, loadedItemType);
 
 
     applyStoneSlabPlanarUv(threeNamespace, templateScene, loadedItemType);
@@ -1891,7 +1901,29 @@ export function createExternalModelManager({
       "wireframeLinejoin",
       "wireframeLinewidth",
     ]);
-  /** 普通字面量对象（调色板 / 覆盖表这类）：交给签名函数逐键展开。 */
+/**
+ * 把模板里的材质名换回**旧名**（只在别名表命中时）。
+ *
+ * 背景：GLB 槽位按契约改名后，本文件下游 30 处历史分支仍按旧名/下标取色
+ * （`material-<n>`、`M03_Pewter_Shine`、`B-1`、`cabinet-material-0`…），
+ * 别名表 `legacy-material-aliases.generated.ts` 与改名同源生成。这里在模板入库前
+ * 单点归一，所有读取点（取色分支 / 车辆收尾 / 检查面板）看到的都是旧名，
+ * 行为与改名前一模一样；别名表为空时这是 no-op。
+ *
+ * 注意：这里**只**处理有别名（真正改过名）的材质，未改名模型连大小写都不动。
+ */
+function normalizeTemplateSlotNames(templateScene: any, itemType: string): void {
+  templateScene?.traverse?.((node: any) => {
+    if (!node?.material) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      const legacy = legacyExternalMaterialName(material?.name, itemType);
+      if (legacy && legacy !== material.name) material.name = legacy;
+    }
+  });
+}
+
+/** 普通字面量对象（调色板 / 覆盖表这类）：交给签名函数逐键展开。 */
 function isPlainRecord(recordValue: any): boolean {
   if (!recordValue || typeof recordValue != "object" || Array.isArray(recordValue)) return false;
   const recordPrototype = Object.getPrototypeOf(recordValue);

@@ -35,6 +35,23 @@ export function canonicalExternalMaterialName(
   return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? lower;
 }
 
+/**
+ * 取色分支用的**旧**材质名（只在真的有别名时才返回，未改名的模型完全不受影响）。
+ *
+ * 与 `canonicalExternalMaterialName` 的区别：那个函数对未登记的名字会小写归一，
+ * 用于「匹配」；这个函数用于**改写**材质名，所以没有别名时必须返回 `null`，
+ * 否则整个模型库的材质名都会被悄悄小写。
+ */
+export function legacyExternalMaterialName(
+  name: string | null | undefined,
+  itemType?: string | null,
+): string | null {
+  const lower = (name || "").toLowerCase();
+  if (!lower) return null;
+  const scoped = itemType ? LEGACY_MATERIAL_ALIASES_BY_ITEM[itemType]?.[lower] : undefined;
+  return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? null;
+}
+
 /** 别名表规模，供门禁断言「改名后别名必须齐」。 */
 export function legacyMaterialAliasCount(): number {
   return Object.keys(LEGACY_MATERIAL_ALIASES).length;

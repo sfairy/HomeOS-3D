@@ -20,6 +20,7 @@
  * bun ops/checks/studio/repair_glb_material_slots.mjs --emit-generated    # 只写两个 generated TS
  * bun ops/checks/studio/repair_glb_material_slots.mjs --write             # 落盘 GLB + 生成文件
  * bun ops/checks/studio/repair_glb_material_slots.mjs --model sofa --json # 单模型机读
+ * bun ops/checks/studio/repair_glb_material_slots.mjs --write --prune-dead # 额外删死材质（会重排下标）
  * ```
  */
 import fs from 'node:fs'
@@ -41,6 +42,7 @@ const valueOf = (flag) => {
   return index >= 0 ? args[index + 1] : null
 }
 const write = hasFlag('write')
+const pruneDead = hasFlag('prune-dead')
 const emitOnly = hasFlag('emit-generated')
 const forceRename = hasFlag('force-rename')
 const only = valueOf('model')
@@ -76,6 +78,12 @@ const roleToken = (name) => {
   return /^[a-z][a-z0-9]*$/.test(token) ? token : ''
 }
 
+/**
+ * 完整名覆盖的键必须小写：`resolveSemanticSlotRole` 先 `toLowerCase()` 再查表。
+ * 少数槽位沿用 SimLab 原始名（`[Color_002]`、`M03_Pewter_Shine`），原样落键会永远查不到。
+ */
+const overrideName = (name) => String(name || '').toLowerCase()
+
 /** 改名计划 → token 角色表（同一 token 在同一模型里必须只有一个角色）。 */
 function buildGeneratedTables(contracts) {
   const aliases = {}
@@ -86,17 +94,36 @@ function buildGeneratedTables(contracts) {
   const conflictedTokens = []
   for (const model of contracts.models) {
     const roleByToken = new Map()
+    /**
+     * 该模型是否有槽位改过名（`legacyName` 是持久记录，改完名重建契约后依然在）。
+     * 有改名就必须给**每个**槽位写完整名覆盖：改名后解析器走语义路径
+     * （`hasSemanticSlotRoles` 因生成表变真），没写覆盖的槽位会落到家族 token，
+     * 角色可能和改名前的下标表不一致 —— 那正是「改名后错色」的来源。
+     */
+    const renamedModel = model.slots.some((slot) => slot.legacyName && slot.legacyName !== slot.name)
     for (const slot of model.slots) {
+      const canonicalName = slot.action === 'rename' && slot.targetName ? slot.targetName : slot.name
+      if (renamedModel && slot.required && slot.role) {
+        nameOverrides[model.itemType] = nameOverrides[model.itemType] ?? {}
+        nameOverrides[model.itemType][overrideName(canonicalName)] = slot.role
+        // 旧名也要锁同一个角色。生成表一旦存在，`hasSemanticSlotRoles` 就变真，
+        // 解析器改走语义路径：没有完整名覆盖的旧名会落到家族 token，角色可能和
+        // 改名前的下标表不一致（`rug` 的 `ha-rug-soft` 被判成 `rugPile`）。
+        // 运行期加载器还会把材质名归一成旧名，所以旧名必须同样在表里。
+        const legacyName = slot.legacyName ?? (slot.name !== canonicalName ? slot.name : null)
+        if (legacyName && legacyName !== canonicalName) {
+          nameOverrides[model.itemType][overrideName(legacyName)] = slot.role
+        }
+      }
       // 人工裁定的角色必须进运行期完整名覆盖：契约与运行时同源，否则配色按运行期走。
       // （典型：`ball-pit` 池体与球堆同名同族，只有完整名能区分。）
       if (slot.roleExplicit && slot.role) {
         nameOverrides[model.itemType] = nameOverrides[model.itemType] ?? {}
-        nameOverrides[model.itemType][slot.name] = slot.role
+        nameOverrides[model.itemType][overrideName(slot.name)] = slot.role
       }
       // 改名过的槽位（含历史改名）都要进表：`legacyName` 是持久记录，
       // 只按「本次待改名」生成，会让上一批改名从别名表里消失，历史取色分支随即失效。
       if (!slot.required) continue
-      const canonicalName = slot.action === 'rename' && slot.targetName ? slot.targetName : slot.name
       const legacyName = slot.legacyName ?? slot.name
       if (canonicalName === legacyName) continue
       const token = roleToken(canonicalName)
@@ -118,7 +145,7 @@ function buildGeneratedTables(contracts) {
       // 完整名覆盖优先于 token 推断：`shower-body` 的 token `body` 在 ceramic 家族里
       // 会被解释成「陶瓷本体」，而契约要求它保持 `body`（金属淋浴房本体）。
       nameOverrides[model.itemType] = nameOverrides[model.itemType] ?? {}
-      nameOverrides[model.itemType][canonicalName] = slot.role
+      nameOverrides[model.itemType][overrideName(canonicalName)] = slot.role
     }
     if (roleByToken.size) slotRoles[model.itemType] = Object.fromEntries([...roleByToken.entries()].sort())
   }
@@ -193,7 +220,7 @@ function renderRoleFile(tables) {
  *    `DOUBLE_SIDED_OK_*` 等上下文判断），这里再写一遍会变成两套互相打架的真值。
  *    需要时可用 `--backfill-pbr` 强制按契约回填 roughness / metalness。
  */
-function planFilePatch(json, model, { backfillPbr = false } = {}) {
+function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } = {}) {
   const log = []
   const materials = json.materials ?? []
   const referenced = new Set()
@@ -203,8 +230,15 @@ function planFilePatch(json, model, { backfillPbr = false } = {}) {
     }
   }
 
-  // 1) 死材质清理：从后往前删，同步重排 primitive 下标，并断言幸存指向没变。
-  const pruneIndices = materials.map((_, index) => index).filter((index) => !referenced.has(index)).sort((a, b) => b - a)
+  // 1) 死材质清理（`--prune-dead`，默认关闭）：从后往前删，同步重排 primitive 下标。
+  //
+  // 默认关闭是刻意的：GLB 的 `material` 是数组下标，删掉任意一条都会让后面所有材质的
+  // 下标前移，而运行期还有按下标取色的历史分支（`MODEL_SLOT_ROLES[itemType][index]`、
+  // 角色基线也按文件 + 下标存）。死材质只是没有被 primitive 引用，占几百字节，
+  // 留着比承担「下标错位」的风险划算 —— 审计里按 notice 记录（S4）。
+  const pruneIndices = pruneDead
+    ? materials.map((_, index) => index).filter((index) => !referenced.has(index)).sort((a, b) => b - a)
+    : []
   if (pruneIndices.length) {
     const nameBefore = new Map(materials.map((material, index) => [index, material.name ?? `material-${index}`]))
     const remap = new Map()
@@ -307,7 +341,9 @@ function main() {
       sum + model.slots.filter((slot) => slot.action === 'rename' && slot.required && slot.targetName !== slot.name).length,
     0,
   )
-  const pruneCount = models.reduce((sum, model) => sum + model.slots.filter((slot) => !slot.required).length, 0)
+  const pruneCount = pruneDead
+    ? models.reduce((sum, model) => sum + model.slots.filter((slot) => !slot.required).length, 0)
+    : 0
 
   if (!emitOnly && renameCount > 0 && !fs.existsSync(aliasFile) && !forceRename) {
     console.error(
@@ -337,7 +373,10 @@ function main() {
         const outcome = patchGlbJson(
           filePath,
           (json) => {
-            const plan = planFilePatch(json, model, { backfillPbr: hasFlag('backfill-pbr') })
+            const plan = planFilePatch(json, model, {
+              backfillPbr: hasFlag('backfill-pbr'),
+              pruneDead: hasFlag('prune-dead'),
+            })
             log = plan.log
             return plan.changed
           },
@@ -351,7 +390,7 @@ function main() {
     results.push({
       id: model.id,
       renames: model.slots.filter((slot) => slot.action === 'rename' && slot.required && slot.targetName !== slot.name).length,
-      prunes: model.slots.filter((slot) => !slot.required).length,
+      prunes: pruneDead ? model.slots.filter((slot) => !slot.required).length : 0,
       files,
     })
   }

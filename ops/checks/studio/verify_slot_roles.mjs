@@ -98,7 +98,12 @@ for (const [id, paths] of variants) {
   // （`garden-bollard` 的两条材质顺序恰好相反，就是这个坑）。
   names.forEach((name, index) => {
     const role = resolveModelMaterialRole(itemType, name, index)?.role ?? null
-    legacyRoleByName.set(`${id}|${name.toLowerCase()}`, role)
+    /**
+     * 键要用**改名前的名字**：本脚本提交前后都能跑 —— 提交前 HEAD 还是旧名，
+     * 提交后 HEAD 已经变成新名。别名表（新 → 旧）两边都能还原到同一个键，
+     * 否则改完名再跑覆盖率会掉到 0，证明就失效了。
+     */
+    legacyRoleByName.set(`${id}|${String(alias(name)).toLowerCase()}`, role)
   })
 }
 
