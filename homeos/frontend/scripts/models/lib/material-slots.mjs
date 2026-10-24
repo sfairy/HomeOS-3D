@@ -343,19 +343,32 @@ export function slotGeometry(json, bin, { weldTolerance = 1e-4 } = {}) {
 /**
  * 枚举一个 GLB 的槽位（材质下标 → 名称 / 是否被引用 / 几何指纹）。
  *
- * 若文件被 Draco 压缩且给了 `fullPath`，自动改读完整件，这样 lite 与完整件共用一份指纹，
- * 不会因为压缩方式不同而误判成漂移。
+ * 材质**永远来自被枚举的那个文件**：lite 就是运行时真正加载的件，它的槽位集合才是
+ * 契约 / 门禁要比对的真值。
+ *
+ * 几何指纹是唯一允许借用完整件的东西：lite 用 Draco 压缩，纯 JS 解不出顶点，于是
+ * 指纹退回完整件计算。借用时按**材质名**对齐（不按下标），lite 缺的槽位没有指纹，
+ * 避免「lite 少几个槽位」被完整件的下标掩盖成「两者一致」—— 那正是 2026-10-24 之前
+ * `check:slots` 报 0 处漂移、审计却报 9 处 C4 的原因。
  */
 export function enumerateSlots(filePath, { fullPath = null } = {}) {
-  let parsed = readGlbFile(filePath)
-  let source = filePath
-  if (isDracoCompressed(parsed.json) && fullPath) {
-    parsed = readGlbFile(fullPath)
-    source = fullPath
-  }
+  const parsed = readGlbFile(filePath)
+  const source = filePath
   const { json, bin } = parsed
   const materials = json.materials ?? []
-  const geometry = isDracoCompressed(json) ? null : slotGeometry(json, bin)
+  let geometry = isDracoCompressed(json) ? null : slotGeometry(json, bin)
+  let geometrySource = geometry ? 'self' : null
+  if (!geometry && fullPath && fullPath !== filePath) {
+    try {
+      const full = readGlbFile(fullPath)
+      if (!isDracoCompressed(full.json)) {
+        geometry = slotGeometry(full.json, full.bin)
+        geometrySource = 'full'
+      }
+    } catch {
+      geometry = null
+    }
+  }
   const used = new Set()
   const primitiveMaterialCount = new Map()
   let missingMaterial = 0
@@ -369,8 +382,24 @@ export function enumerateSlots(filePath, { fullPath = null } = {}) {
       primitiveMaterialCount.set(primitive.material, (primitiveMaterialCount.get(primitive.material) ?? 0) + 1)
     }
   }
+  /**
+   * 借用完整件指纹时按材质名对齐：lite 与完整件的下标顺序在导出漂移后并不可靠
+   * （lite 会整段丢掉槽位），名字才是两件之间唯一稳定的键。
+   */
+  const fingerprintByName =
+    geometrySource === 'full'
+      ? new Map(
+          (readGlbFile(fullPath).json.materials ?? []).map((material, index) => [
+            String(material.name ?? '').toLowerCase(),
+            geometry?.fingerprints.get(index) ?? null,
+          ]),
+        )
+      : null
   const slots = materials.map((material, index) => {
-    const fingerprint = geometry?.fingerprints.get(index) ?? null
+    const fingerprint =
+      (fingerprintByName
+        ? fingerprintByName.get(String(material.name ?? '').toLowerCase())
+        : geometry?.fingerprints.get(index)) ?? null
     const pbr = material.pbrMetallicRoughness ?? {}
     return {
       index,
@@ -394,6 +423,8 @@ export function enumerateSlots(filePath, { fullPath = null } = {}) {
     missingMaterialPrimitives: missingMaterial,
     geometryAvailable: Boolean(geometry),
     geometrySkipped: geometry?.skipped ?? false,
+    /** 指纹来自哪个文件：`self` 本文件、`full` 借完整件（lite 是 Draco）。 */
+    geometrySource,
     modelSize: geometry?.modelSize ?? null,
     modelArea: geometry?.modelArea ?? null,
   }

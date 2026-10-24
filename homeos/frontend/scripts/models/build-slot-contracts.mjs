@@ -279,14 +279,20 @@ function main() {
     let enumeration = null
     if (fullPath || litePath) {
       try {
-        enumeration = enumerateSlots(fullPath ?? litePath, { fullPath })
+        // 枚举 **lite**（运行时真正加载的件），`fullPath` 只用于借几何指纹：
+        // lite 是 Draco，纯 JS 解不出顶点。指纹在 `enumerateSlots` 里按材质名对齐，
+        // 不能按完整件的下标取 —— 两件的槽位集合会漂移（`sofa` 的 lite 少一个槽），
+        // 按下标会把 A 构件的面积记到 B 构件上，门禁随即报一片假 S8。
+        enumeration = enumerateSlots(litePath ?? fullPath, { fullPath })
       } catch {
         enumeration = null
       }
     }
     const spec = specById.get(model.id) ?? {}
     const slots = model.materials.map((material) => {
-      const fingerprint = enumeration?.slots.find((slot) => slot.index === material.index)?.fingerprint ?? null
+      // 指纹按**材质名**对齐：lite 与完整件的下标在导出漂移后不可靠（lite 会整段丢槽位）。
+      const fingerprint =
+        enumeration?.slots.find((slot) => slot.name === material.name)?.fingerprint ?? null
       if (!fingerprint) stats.noGeometry += 1
       const explicitRole = EXPLICIT_ROLE_OVERRIDES[model.id]?.[material.index]
       const role = explicitRole ?? material.role ?? null

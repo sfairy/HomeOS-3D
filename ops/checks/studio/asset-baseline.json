@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T10:39:43.870Z",
+  "generatedAt": "2026-10-24T10:46:07.558Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -11626,7 +11626,7 @@
       "draco": false
     },
     "家居/建筑与交通/踏板车-lite.glb": {
-      "bytes": 77856,
+      "bytes": 77892,
       "triangles": 11861,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11646,15 +11646,15 @@
         "scooter"
       ],
       "materialNames": [
-        "Black",
-        "Gray",
-        "Green_Light",
-        "Metal",
-        "Red_Light",
-        "White_Light",
-        "Yellow_Light",
-        "gogoro_color",
-        "scooter-seat"
+        "scooter-body",
+        "scooter-dark",
+        "scooter-lamp",
+        "scooter-lamp-2",
+        "scooter-lamp-3",
+        "scooter-lamp-4",
+        "scooter-metal",
+        "scooter-seat",
+        "scooter-trim"
       ],
       "brokenImages": [],
       "draco": true

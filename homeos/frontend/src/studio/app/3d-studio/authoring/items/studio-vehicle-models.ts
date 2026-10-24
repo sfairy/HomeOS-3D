@@ -33,7 +33,12 @@ export function applyVehicleFinish(
   sourceMaterial: any,
   options: VehicleFinishOptions = {},
 ) {
-  const isBodyColor = ["body", "gogoro_color"].includes(sourceMaterial.name),
+  /**
+   * 车漆本体槽位。完整件导出名是 `scooter-body` / `body`，lite 旧名是 `gogoro_color`；
+   * 只认裸 `"body"` 会让完整件（以及对齐命名后的 lite）走不到车漆分支，暖木主题下
+   * 车身不会换成米白高光。这里按「尾段是 body」判定，两种命名都命中。
+   */
+  const isBodyColor = /(?:^|-)body$/.test(sourceMaterial.name || "") || sourceMaterial.name === "gogoro_color",
     isDarkColor = sourceMaterial.color.r + sourceMaterial.color.g + sourceMaterial.color.b < 0.08,
     /**
      * 车辆玻璃槽位：GLB 里是一族 `glass` / `glass_01` / `glass_02` / `glass_back`

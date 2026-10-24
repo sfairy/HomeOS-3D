@@ -90,17 +90,25 @@ function auditModel(contract, paths) {
     })
   }
 
-  // 6) lite / 完整件一致
+  /**
+   * 6) lite / 完整件一致。
+   *
+   * `notice` 而不是 `error`：这两件由同一次导出产出，槽位集合漂移只能靠**重出**解决
+   * （代码侧删槽位会打穿按下标取色的历史分支）。审计的 C4 逐条登记这些漂移，门禁这里
+   * 只保证「不会再被 Draco 回退掩盖」——2026-10-24 之前 lite 是 Draco 时整份换读完整件，
+   * 于是这部分永远报 0 处，审计却报 9 处，两边长期对不上。
+   */
   if (variants.lite && variants.full) {
     const liteCount = variants.lite.materialCount
     const fullCount = variants.full.materialCount
-    if (liteCount !== fullCount) findings.push({ rule: 'S6', detail: `lite ${liteCount} 槽 vs 完整件 ${fullCount} 槽` })
+    const drift = []
+    if (liteCount !== fullCount) drift.push(`lite ${liteCount} 槽 vs 完整件 ${fullCount} 槽`)
     const limit = Math.max(liteCount, fullCount)
     for (let index = 0; index < limit; index += 1) {
       const liteSlot = variants.lite.slots[index]
       const fullSlot = variants.full.slots[index]
       if (!liteSlot || !fullSlot) {
-        findings.push({ rule: 'S6', detail: `#${index} 只在一个变体里存在` })
+        drift.push(`#${index} 只在一个变体里存在`)
         continue
       }
       const diffs = []
@@ -109,8 +117,9 @@ function auditModel(contract, paths) {
       if (Boolean(liteSlot.doubleSided) !== Boolean(fullSlot.doubleSided)) diffs.push('doubleSided')
       if (Math.abs((liteSlot.roughnessFactor ?? -1) - (fullSlot.roughnessFactor ?? -1)) > PBR_TOLERANCE) diffs.push('roughness')
       if (Math.abs((liteSlot.metallicFactor ?? -1) - (fullSlot.metallicFactor ?? -1)) > PBR_TOLERANCE) diffs.push('metalness')
-      if (diffs.length) findings.push({ rule: 'S6', detail: `#${index} ${diffs.join(' / ')}` })
+      if (diffs.length) drift.push(`#${index} ${diffs.join(' / ')}`)
     }
+    for (const detail of drift) findings.push({ rule: 'S6', detail, severity: 'notice' })
   }
 
   // 逐槽位

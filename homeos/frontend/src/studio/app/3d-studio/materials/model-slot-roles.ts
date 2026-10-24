@@ -710,13 +710,13 @@ const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
   airoutlet: { m03_pewter_shine: "grille" },
   smallcar: { car_tms: "bodywork" },
   /**
-   * 滑板车灯带（lite 件仍是 SimLab 旧名）。`Yellow_Light` 这类名字的尾词 `light` 在车辆
-   * 家族 token 表里是**明度**语义（= 灰件 trim），灯带因此被当成饰条：审计把内嵌自发光
-   * 判成 A3（非发光角色带自发光），把 `metallic 0.06` 判成 C7（≠ trim 配方 0.72）。
-   * 完整件已经按目标名导出成 `scooter-lamp*`，用 `lamp` token 命中 emissive；这里把
-   * lite 件的旧名按完整名补齐，两个变体的角色、契约与审计口径就一致了。
-   * 车辆家族不重建材质（见 `material-pipeline.ts`），这一条只影响角色标签 / 检查面板 /
-   * 审计，不会改动渲染取值。
+   * 滑板车灯带旧名兜底。`yellow_light` 的尾词 `light` 在车辆家族 token 表里是**明度**
+   * 语义（= 灰件 trim），灯带会被当成饰条：审计判 A3（非发光角色带自发光）、
+   * C7（metallic 0.06 ≠ trim 配方 0.72）。
+   *
+   * 2026-10-24 起 `踏板车-lite.glb` 的 8 个槽位已对齐完整件命名（`scooter-lamp*` 等），
+   * 正常导出不会再走到这里；保留旧名映射是因为 lite 件仍可能由 SimLab 旧工作流重出，
+   * 届时角色解析不能又退化回 `trim`。
    */
   scooter: {
     yellow_light: "emissive",
