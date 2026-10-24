@@ -1,10 +1,10 @@
 {
   "format": 1,
   "note": "GLB 材质「槽位下标 → 语义角色」快照：故意不含槽位名，改名不影响指纹；角色本身变化（重导出位移 / token 表误改）会让 check:materials 失败。",
-  "generatedAt": "2026-10-22T18:28:14.527Z",
+  "generatedAt": "2026-10-24T10:29:48.964Z",
   "modelCount": 336,
   "fileCount": 672,
-  "materialCount": 2538,
+  "materialCount": 3123,
   "files": {
     "3d-printer-lite.glb": [
       "bezel",
@@ -452,7 +452,10 @@
     ],
     "chair.glb": [
       "frame",
-      "fabric"
+      "fabric",
+      "shadow",
+      "surface",
+      "accent"
     ],
     "child-highchair-lite.glb": [
       "frame",
@@ -1274,351 +1277,643 @@
     ],
     "garden-arch-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-arch.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bamboo-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bamboo.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bamboo-dense-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bamboo-dense.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-barbecue-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-barbecue.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-barbecue-kettle-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-barbecue-kettle.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bench-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bench.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bench-backless-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bench-backless.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bench-curved-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bench-curved.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bollard-lite.glb": [
+      "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-bollard.glb": [
+      "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-carport-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-carport.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-chair-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-chair.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-chair-bistro-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-chair-bistro.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-conifer-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-conifer.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-conifer-layered-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-conifer-layered.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-deck-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-deck.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-horizontal-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-horizontal.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-lattice-lite.glb": [
-      "base"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-lattice.glb": [
-      "base"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-metal-lite.glb": [
-      "dark"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fence-metal.glb": [
-      "dark"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-firepit-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-firepit.glb": [
       "base",
-      "dark"
-    ],
-    "garden-flowerbed-lite.glb": [
       "light",
       "dark",
       "leaf",
+      "water",
+      "accent"
+    ],
+    "garden-flowerbed-lite.glb": [
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
       "accent"
     ],
     "garden-flowerbed.glb": [
+      "base",
       "light",
       "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-flowers-lite.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-flowers.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-flowers-wild-lite.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-flowers-wild.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-fountain-lite.glb": [
+      "base",
       "light",
-      "water"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fountain.glb": [
+      "base",
       "light",
-      "water"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fountain-wall-lite.glb": [
+      "base",
       "light",
       "dark",
-      "water"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-fountain-wall.glb": [
+      "base",
       "light",
       "dark",
-      "water"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-arch-lite.glb": [
+      "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-arch.glb": [
+      "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-post-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-post.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-solid-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gate-solid.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gazebo-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gazebo.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gazebo-hex-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-gazebo-hex.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-grass-clump-lite.glb": [
+      "base",
+      "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-grass-clump.glb": [
+      "base",
+      "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-grass-low-lite.glb": [
-      "leaf"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-grass-low.glb": [
-      "leaf"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hammock-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hammock.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hanging-chair-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hanging-chair.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hedge-lite.glb": [
+      "base",
+      "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hedge.glb": [
+      "base",
+      "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hedge-round-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-hedge-round.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-lantern-lite.glb": [
+      "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-lantern.glb": [
+      "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-large-planter-lite.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-large-planter.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-lawn-lite.glb": [
-      "leaf"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-lawn.glb": [
-      "leaf"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-lounger-lite.glb": [
       "base",
@@ -1632,353 +1927,627 @@
     ],
     "garden-low-wall-lite.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-low-wall.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-low-wall-brick-lite.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-low-wall-brick.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-low-wall-slat-lite.glb": [
       "base",
       "light",
       "dark",
+      "leaf",
+      "water",
       "accent"
     ],
     "garden-low-wall-slat.glb": [
       "base",
       "light",
       "dark",
+      "leaf",
+      "water",
       "accent"
     ],
     "garden-outdoor-coffee-table-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-outdoor-coffee-table.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-outdoor-sink-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-outdoor-sink.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-outdoor-sofa-lite.glb": [
       "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-outdoor-sofa.glb": [
       "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-paving-lite.glb": [
-      "light"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-paving.glb": [
-      "light"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-pergola-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-pergola.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-pergola-shade-lite.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-pergola-shade.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-planter-lite.glb": [
       "base",
+      "light",
       "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-planter.glb": [
       "base",
+      "light",
       "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-planter-square-lite.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-planter-square.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-planter-trough-lite.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-planter-trough.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-pond-lite.glb": [
+      "base",
       "light",
       "dark",
       "leaf",
-      "water"
+      "water",
+      "accent"
     ],
     "garden-pond.glb": [
+      "base",
       "light",
       "dark",
       "leaf",
-      "water"
+      "water",
+      "accent"
     ],
     "garden-pond-round-lite.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
-      "water"
+      "water",
+      "accent"
     ],
     "garden-pond-round.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
-      "water"
+      "water",
+      "accent"
     ],
     "garden-pool-lite.glb": [
+      "base",
       "light",
       "dark",
-      "water"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-pool.glb": [
+      "base",
       "light",
       "dark",
-      "water"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-raised-bed-lite.glb": [
       "base",
+      "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-raised-bed.glb": [
       "base",
+      "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-retaining-wall-lite.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-retaining-wall.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-rock-water-lite.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
-      "water"
+      "water",
+      "accent"
     ],
     "garden-rock-water.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
-      "water"
+      "water",
+      "accent"
     ],
     "garden-rocks-lite.glb": [
-      "light"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-rocks.glb": [
-      "light"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-round-planter-lite.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-round-planter.glb": [
+      "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-shrub-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-shrub.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-shrub-flowering-lite.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-shrub-flowering.glb": [
+      "base",
       "light",
+      "dark",
       "leaf",
+      "water",
       "accent"
     ],
     "garden-shrub-low-lite.glb": [
-      "leaf"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-shrub-low.glb": [
-      "leaf"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-slide-lite.glb": [
       "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-slide.glb": [
       "base",
       "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-stepping-lite.glb": [
-      "light"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-stepping.glb": [
-      "light"
+      "base",
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-steps-lite.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-steps.glb": [
       "base",
-      "light"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-storage-shed-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-storage-shed.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-swing-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-swing.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-table-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-table.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-table-picnic-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-table-picnic.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-table-round-lite.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-table-round.glb": [
       "base",
-      "dark"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-columnar-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-columnar.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-multistem-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-multistem.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-rounded-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-tree-rounded.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-trellis-lite.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-trellis.glb": [
       "base",
-      "leaf"
+      "light",
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-umbrella-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-umbrella.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-umbrella-square-lite.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-umbrella-square.glb": [
       "base",
       "light",
-      "dark"
+      "dark",
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-vegetable-bed-lite.glb": [
       "base",
+      "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "garden-vegetable-bed.glb": [
       "base",
+      "light",
       "dark",
-      "leaf"
+      "leaf",
+      "water",
+      "accent"
     ],
     "gaswaterheater-lite.glb": [
       "body",
@@ -2482,6 +3051,7 @@
       "frame",
       "fabric",
       "shadow",
+      "surface",
       "accent"
     ],
     "paper-shredder-lite.glb": [
@@ -3008,6 +3578,8 @@
     "rounddiningtable.glb": [
       "frame",
       "fabric",
+      "shadow",
+      "surface",
       "accent"
     ],
     "rounddiningtable_turntable-lite.glb": [
@@ -3070,13 +3642,13 @@
     ],
     "scooter-lite.glb": [
       "metal",
-      "emissive",
-      "emissive",
+      "trim",
+      "trim",
       "dark",
       "trim",
       "body",
-      "emissive",
-      "emissive",
+      "trim",
+      "trim",
       "seat"
     ],
     "scooter.glb": [
@@ -3259,42 +3831,49 @@
       "accent"
     ],
     "sofa.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
       "accent"
     ],
     "sofa-l-lite.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
       "accent"
     ],
     "sofa-l.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
       "accent"
     ],
     "sofa-l-left-lite.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
       "accent"
     ],
     "sofa-l-left.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
       "accent"
     ],
     "sofa-single-lite.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
       "accent"
     ],
     "sofa-single.glb": [
+      "frame",
       "fabric",
       "shadow",
       "surface",
@@ -3349,8 +3928,10 @@
     ],
     "squarecoffeetable.glb": [
       "frame",
+      "fabric",
       "shadow",
-      "surface"
+      "surface",
+      "accent"
     ],
     "squattoilet-lite.glb": [
       "ceramic",
@@ -3496,6 +4077,8 @@
     "table.glb": [
       "frame",
       "fabric",
+      "shadow",
+      "surface",
       "accent"
     ],
     "table-lamp-lite.glb": [
@@ -3679,8 +4262,10 @@
     ],
     "tvstand.glb": [
       "frame",
+      "fabric",
       "shadow",
-      "surface"
+      "surface",
+      "accent"
     ],
     "umbrella-stand-lite.glb": [
       "base",
