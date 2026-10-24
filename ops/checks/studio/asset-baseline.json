@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T10:46:07.558Z",
+  "generatedAt": "2026-10-24T10:51:00.464Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -1572,7 +1572,7 @@
       "draco": false
     },
     "家居/厨房家具/椅子-lite.glb": {
-      "bytes": 5808,
+      "bytes": 5064,
       "triangles": 760,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1583,8 +1583,11 @@
         "chair"
       ],
       "materialNames": [
+        "chair-furniture-accent",
         "chair-furniture-fabric",
-        "chair-furniture-frame"
+        "chair-furniture-frame",
+        "chair-furniture-shadow",
+        "chair-furniture-surface"
       ],
       "brokenImages": [],
       "draco": true
@@ -9409,7 +9412,7 @@
       "draco": true
     },
     "家居/书房家具/办公椅-lite.glb": {
-      "bytes": 15828,
+      "bytes": 11952,
       "triangles": 2452,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -9423,7 +9426,8 @@
         "office-chair-furniture-accent",
         "office-chair-furniture-fabric",
         "office-chair-furniture-frame",
-        "office-chair-furniture-shadow"
+        "office-chair-furniture-shadow",
+        "office-chair-furniture-surface"
       ],
       "brokenImages": [],
       "draco": true
@@ -11382,7 +11386,7 @@
       "draco": false
     },
     "家居/厨房家具/圆形餐桌-lite.glb": {
-      "bytes": 21252,
+      "bytes": 14272,
       "triangles": 3904,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -11395,7 +11399,9 @@
       "materialNames": [
         "rounddiningtable-furniture-accent",
         "rounddiningtable-furniture-fabric",
-        "rounddiningtable-furniture-frame"
+        "rounddiningtable-furniture-frame",
+        "rounddiningtable-furniture-shadow",
+        "rounddiningtable-furniture-surface"
       ],
       "brokenImages": [],
       "draco": true
@@ -12288,7 +12294,7 @@
       "draco": false
     },
     "家居/客厅家具/沙发-lite.glb": {
-      "bytes": 22160,
+      "bytes": 14828,
       "triangles": 3804,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -12301,6 +12307,7 @@
       "materialNames": [
         "sofa-furniture-accent",
         "sofa-furniture-fabric",
+        "sofa-furniture-frame",
         "sofa-furniture-shadow",
         "sofa-furniture-surface"
       ],
@@ -12613,7 +12620,7 @@
       "draco": false
     },
     "家居/客厅家具/方茶几-lite.glb": {
-      "bytes": 6936,
+      "bytes": 5700,
       "triangles": 900,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -12624,6 +12631,8 @@
         "squarecoffeetable"
       ],
       "materialNames": [
+        "squarecoffeetable-furniture-accent",
+        "squarecoffeetable-furniture-fabric",
         "squarecoffeetable-furniture-frame",
         "squarecoffeetable-furniture-shadow",
         "squarecoffeetable-furniture-surface"
@@ -13170,7 +13179,7 @@
       "draco": false
     },
     "家居/厨房家具/餐桌组合-lite.glb": {
-      "bytes": 20048,
+      "bytes": 13664,
       "triangles": 3676,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13183,7 +13192,9 @@
       "materialNames": [
         "table-furniture-accent",
         "table-furniture-fabric",
-        "table-furniture-frame"
+        "table-furniture-frame",
+        "table-furniture-shadow",
+        "table-furniture-surface"
       ],
       "brokenImages": [],
       "draco": true
@@ -13857,7 +13868,7 @@
       "draco": true
     },
     "家居/客厅家具/电视柜-lite.glb": {
-      "bytes": 6000,
+      "bytes": 4972,
       "triangles": 732,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -13868,6 +13879,8 @@
         "tvstand"
       ],
       "materialNames": [
+        "tvstand-furniture-accent",
+        "tvstand-furniture-fabric",
         "tvstand-furniture-frame",
         "tvstand-furniture-shadow",
         "tvstand-furniture-surface"

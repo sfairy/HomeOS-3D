@@ -1248,17 +1248,23 @@ function auditModel(modelId) {
   const lite = variants.find(({ kind }) => kind === 'lite');
   const full = variants.find(({ kind }) => kind === 'full');
   if (lite?.audit.ok && full?.audit.ok) {
+    /**
+     * glTF 的缺省值必须显式归一，否则「lite 被导出器删掉默认值」会被误判成参数漂移：
+     * `baseColorFactor` 缺省 `[1,1,1,1]`、`metallicFactor` / `roughnessFactor` 缺省 `1`、
+     * `alphaMode` 缺省 `OPAQUE`、`doubleSided` 缺省 `false`。
+     * `落地灯（旧版）` 的 `Metal_Corrogated_Shiny` 就是这样一直被报 C4 —— 两边其实一模一样。
+     */
     const signature = (audit) =>
       new Map(
         audit.materials.map((material) => [
           material.name,
           JSON.stringify([
-            material.baseColorFactor,
-            material.roughnessFactor,
-            material.metallicFactor,
-            material.alphaMode,
-            material.doubleSided,
-            material.emissiveFactor,
+            material.baseColorFactor ?? [1, 1, 1, 1],
+            material.roughnessFactor ?? 1,
+            material.metallicFactor ?? 1,
+            material.alphaMode ?? 'OPAQUE',
+            material.doubleSided === true,
+            material.emissiveFactor ?? [0, 0, 0],
           ]),
         ]),
       );

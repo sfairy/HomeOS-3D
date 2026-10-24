@@ -69,6 +69,25 @@ const INTENTIONAL_DELTA = new Map([
   ['freezer', 'lite 由完整件重出：HEAD 的 lite 只有 6 个材质槽（完整件 9 槽），角色表按完整件生成会导致 lite 槽位错配'],
 ])
 
+/**
+ * 已确认的 **lite 重出**：lite 与完整件的材质集（或同名参数）不一致时，由完整件重出 lite
+ * （`ensure_variants.mjs --sync-materials`）。运行时优先加载 lite，lite 少一个槽位，
+ * 那个构件在场景里就真的没有材质可换（调色板给了颜色也无处落地）。
+ *
+ * 登记后**只豁免「材质改名」这一条**：lite 从完整件继承全部材质名，名字集合必然与 HEAD
+ * 不同。其余硬损伤（贴图丢失、面数腰斩、节点改名、primitive 拆分…）照旧判回滚 ——
+ * 这个豁免不能变成「整件放行」。
+ */
+const DECLARED_LITE_REBUILD = new Map([
+  ['chair', 'lite 缺 shadow / surface / accent 三个槽位，由完整件重出对齐（审计 C4）'],
+  ['sofa', 'lite 缺 frame 槽位，由完整件重出对齐（审计 C4）'],
+  ['table', 'lite 缺 shadow / surface 槽位，由完整件重出对齐（审计 C4）'],
+  ['tvstand', 'lite 缺 fabric / accent 槽位，由完整件重出对齐（审计 C4）'],
+  ['office-chair', 'lite 缺 surface 槽位，由完整件重出对齐（审计 C4）'],
+  ['rounddiningtable', 'lite 缺 shadow / surface 槽位，由完整件重出对齐（审计 C4）'],
+  ['squarecoffeetable', 'lite 缺 fabric / accent 槽位，由完整件重出对齐（审计 C4）'],
+])
+
 /** 判定阈值。 */
 const DECIMATION_RATIO = 0.9
 const LITE_GROWTH_RATIO = 1.2
@@ -283,14 +302,19 @@ function verdictOf(id, files) {
   if (INTENTIONAL_DELTA.has(id)) return { verdict: 'keep', reasons: [INTENTIONAL_DELTA.get(id)] }
   const reasons = new Set()
   let restore = false
+  const declaredLite = DECLARED_LITE_REBUILD.get(id)
   for (const file of real) {
+    // lite 重出会从完整件继承材质名，只放过这一条 flag；其余硬损伤照旧。
+    const declared = Boolean(declaredLite) && file.variant === 'lite'
     for (const flag of file.flags ?? []) {
+      if (declared && flag === '材质改名') continue
       if (!HARD_DAMAGE.has(flag)) continue
       restore = true
       reasons.add(`${file.variant}：${flag}`)
     }
   }
   if (restore) return { verdict: 'restore', reasons: [...reasons] }
+  if (declaredLite) return { verdict: 'keep', reasons: [declaredLite, ...(reasons.size ? [...reasons] : [])] }
   const soft = real.flatMap((file) => file.flags ?? [])
   if (!soft.length) return { verdict: 'keep', reasons: ['与原始件结构一致'] }
   return { verdict: 'keep', reasons: [`仅无害变化：${[...new Set(soft)].join('、')}`] }

@@ -11,14 +11,54 @@
  * ```bash
  * bun ops/checks/studio/ensure_variants.mjs            # dry-run
  * bun ops/checks/studio/ensure_variants.mjs --write    # 落盘
+ * bun ops/checks/studio/ensure_variants.mjs --sync-materials --write
+ *   # 额外把「lite 与完整件材质集 / 参数不一致」的件从完整件重出 lite
  * ```
  */
+import fs from 'node:fs'
 import path from 'node:path'
-import { collectModelVariants, listModelFiles, modelsDir, relativeDeviation, round } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import { collectModelVariants, listModelFiles, modelsDir, readGlbFile, relativeDeviation, round } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import { writeLiteFrom } from '../../../homeos/frontend/scripts/models/lib/model-builder.mjs'
 import { loadDocument, modelStatistics, worldBounds, writeDocument } from '../../../homeos/frontend/scripts/models/lib/model-document.mjs'
 
 const write = process.argv.includes('--write')
+const syncMaterials = process.argv.includes('--sync-materials')
+
+/**
+ * lite 与完整件的材质集 / 参数差异（审计 C4 的同一口径）。
+ *
+ * 运行时优先加载 lite，lite 缺的槽位在场景里**直接不存在**：调色板给了颜色也没处落。
+ * 只能由完整件重出 lite（`writeLiteFrom` 断言材质名 / 节点 / 面数不变、包围盒误差 ≤1%），
+ * 不能靠改名字或补参数糊过去。
+ */
+function materialDrift(fullPath, litePath) {
+  const signature = (filePath) => {
+    const { json } = readGlbFile(filePath)
+    return new Map(
+      (json.materials ?? []).map((material, index) => {
+        const pbr = material.pbrMetallicRoughness ?? {}
+        return [
+          material.name ?? `material-${index}`,
+          // glTF 缺省值归一：导出器删掉默认值不等于参数漂移。
+          JSON.stringify([
+            pbr.baseColorFactor ?? [1, 1, 1, 1],
+            pbr.metallicFactor ?? 1,
+            pbr.roughnessFactor ?? 1,
+            material.alphaMode ?? 'OPAQUE',
+            material.doubleSided === true,
+            material.emissiveFactor ?? [0, 0, 0],
+          ]),
+        ]
+      }),
+    )
+  }
+  const full = signature(fullPath)
+  const lite = signature(litePath)
+  const missingInLite = [...full.keys()].filter((name) => !lite.has(name))
+  const missingInFull = [...lite.keys()].filter((name) => !full.has(name))
+  const valueDiff = [...full.keys()].filter((name) => lite.has(name) && lite.get(name) !== full.get(name))
+  return { missingInLite, missingInFull, valueDiff }
+}
 
 const variants = collectModelVariants(listModelFiles())
 const results = []
@@ -61,6 +101,50 @@ for (const [id, entry] of variants) {
         ),
         materials: fullStats.materials === liteStats.materials,
       }
+    }
+  } catch (error) {
+    result.error = error.message
+  }
+  results.push(result)
+}
+
+/**
+ * 第二趟：材质集 / 参数漂移的件，由完整件重出 lite。
+ *
+ * 只在显式 `--sync-materials` 时动作（默认 dry-run 只报告），因为它会重编码几何 ——
+ * 虽然 `writeLiteFrom` 有保真断言，批量重编码仍需人工确认一次。
+ */
+for (const [id, entry] of variants) {
+  if (!entry.full || !entry.lite) continue
+  const fullPath = path.join(modelsDir, entry.full)
+  const litePath = path.join(modelsDir, entry.lite)
+  let drift
+  try {
+    drift = materialDrift(fullPath, litePath)
+  } catch (error) {
+    results.push({ id, full: entry.full, lite: entry.lite, actions: [], error: error.message })
+    continue
+  }
+  if (!drift.missingInLite.length && !drift.missingInFull.length && !drift.valueDiff.length) continue
+  const result = {
+    id,
+    full: entry.full,
+    lite: entry.lite,
+    actions: [syncMaterials ? 'write-lite-from-full' : 'write-lite-from-full (需 --sync-materials)'],
+    drift,
+  }
+  try {
+    if (write && syncMaterials) {
+      const before = fs.statSync(litePath).size
+      await writeLiteFrom(fullPath, litePath)
+      const after = fs.statSync(litePath).size
+      result.liteBytes = [before, after]
+      const parity = materialDrift(fullPath, litePath)
+      result.parity = {
+        materials: !parity.missingInLite.length && !parity.missingInFull.length,
+        values: parity.valueDiff.length === 0,
+      }
+      if (!result.parity.materials || !result.parity.values) result.error = '重出后材质仍不一致'
     }
   } catch (error) {
     result.error = error.message
