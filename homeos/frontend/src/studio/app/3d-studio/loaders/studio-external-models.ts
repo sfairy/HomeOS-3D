@@ -33,6 +33,7 @@ import {
   isStoneSlabFlavor,
   isStructuralModelFamily,
   materialRoleRecipeFor,
+  materialRoleRecipeForRole,
   resolveModelFamily,
   resolveModelMaterialRole,
   stoneSlabFlavorForMaterial,
@@ -44,6 +45,15 @@ import { hasSemanticSlotRoles } from "../materials/model-slot-roles";
 import { canonicalExternalMaterialName, legacyExternalMaterialName } from "../materials/legacy-material-aliases";
 import { usesDetailMaterialPipeline as sharedUsesDetailMaterialPipeline } from "../materials/material-pipeline";
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
+import { ensureSceneBoxUvs } from "../materials/studio-box-uv";
+import {
+  SURFACE_DETAIL_ANISOTROPY,
+  SURFACE_DETAIL_BUMP_UNIT,
+  SURFACE_DETAIL_SCALE,
+  createSurfaceDetailTexture,
+} from "../materials/studio-surface-normal-maps";
+import { applyMetalEnvironmentFinish } from "../materials/studio-metal-environment";
+import { resolvePillarMaterialSpec } from "../materials/studio-pillar-material";
 import {
   materialStyleRecipeFor,
   materialStyleRoleColorFor,
@@ -93,6 +103,17 @@ type PaletteMaterialOptions = {
   polygonOffset?: boolean;
   polygonOffsetFactor?: number;
   polygonOffsetUnits?: number;
+  /** 自发光色（跟随墙体的构件要与墙体一样靠自发光提亮）。 */
+  emissive?: number;
+  emissiveIntensity?: number;
+  /**
+   * 清漆层。给了就换成 `MeshPhysicalMaterial` —— 墙体的 `clearcoat 0.05` 只能挂在
+   * physical 材质上，跟随件要逐项照搬墙的表面参数，否则高光形状对不上。
+   */
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+  /** 该材质「跟随墙体」：标记进 userData，后续统一发光 / 档位逻辑据此豁免。 */
+  wallFollow?: boolean;
 };
 
 /** 外模型附加样式选项。 */
@@ -453,6 +474,11 @@ export function createExternalModelManager({
      * 新代码不要依赖这里的旧名，按角色判定（`resolveModelMaterialRole`）。
      */
     normalizeTemplateSlotNames(templateScene, loadedItemType);
+    /**
+     * 补盒式 UV：模型库 645/660 个 GLB 没有 `TEXCOORD_0`，而表面法线图必须采样 UV。
+     * 必须在模板入库前做完 —— 之后几何体会被克隆 / 合批，补 UV 的时机就晚了。
+     */
+    ensureSceneBoxUvs(threeNamespace, templateScene);
 
 
     applyStoneSlabPlanarUv(threeNamespace, templateScene, loadedItemType);
@@ -699,13 +725,25 @@ export function createExternalModelManager({
     // 图集材质不能被「一个角色一个颜色」覆盖，否则贴图连同 UV 细节一起消失。
     if (materialHasAtlas(templateMaterial))
       return keepAtlasMaterial(templateMaterial, " · HomeOS atlas");
-    const derivedMaterial = new threeNamespace.MeshStandardMaterial({
+    // 只有需要清漆层（跟随墙体的构件）才建 physical 材质：多一套 clearcoat 参数，
+    // 对普通家具没有收益，还会让材质键 / 合批多一维。
+    const PaletteMaterialConstructor =
+      materialOptions.clearcoat === undefined
+        ? threeNamespace.MeshStandardMaterial
+        : threeNamespace.MeshPhysicalMaterial;
+    const derivedMaterial = new PaletteMaterialConstructor({
       color: materialColor,
       roughness: materialOptions.roughness ?? 0.58,
       metalness: materialOptions.metalness ?? 0.04,
       flatShading: materialOptions.flatShading ?? false,
-      emissive: 0,
-      emissiveIntensity: 0,
+      emissive: materialOptions.emissive ?? 0,
+      emissiveIntensity: materialOptions.emissiveIntensity ?? 0,
+      ...(materialOptions.clearcoat === undefined
+        ? {}
+        : {
+            clearcoat: materialOptions.clearcoat,
+            clearcoatRoughness: materialOptions.clearcoatRoughness ?? 0,
+          }),
       side: templateMaterial.side ?? threeNamespace.FrontSide,
       transparent: materialOptions.transparent ?? false,
       opacity: materialOptions.opacity ?? 1,
@@ -719,6 +757,8 @@ export function createExternalModelManager({
       (derivedMaterial.polygonOffset = materialOptions.polygonOffset === true),
       (derivedMaterial.polygonOffsetFactor = materialOptions.polygonOffsetFactor ?? 0),
       (derivedMaterial.polygonOffsetUnits = materialOptions.polygonOffsetUnits ?? 0),
+      materialOptions.wallFollow === true &&
+        (derivedMaterial.userData = { ...(derivedMaterial.userData || {}), homeosWallFollow: true }),
       derivedMaterial
     );
   }
@@ -769,32 +809,31 @@ export function createExternalModelManager({
         metalness: 0.3,
       });
     if (PILLAR_MODEL_ITEM_TYPES.has(furnitureItemType)) {
-
-
-      const pillarRole = materialName.match(/material-\d+-([a-z][a-z0-9]*)$/)?.[1],
-        // 「材质风格」档位优先：柱体档位（木柜白门 / 浅橡木 / 胡桃木 / 深色烤漆）登记了
-        // `body`/`base`/`trim` 三件的取色，选档位时柱体要真的换料；只有 `auto`（跟随墙体）
-        // 档才回落到墙体色 —— 否则这 4 个档位会空转。
-        pillarStyleColor = materialStyleRoleColorFor(
-          furnitureItemType,
-          pillarRole ?? "body",
-          warmPalette,
-        ),
-        pillarWallColor = new threeNamespace.Color(
-          warmPalette.wall ?? warmPalette.furniture ?? 16777215,
-        ),
-        pillarColor =
-          typeof pillarStyleColor === "number"
-            ? new threeNamespace.Color(pillarStyleColor)
-            : pillarRole === "base"
-              ? pillarWallColor.clone().multiplyScalar(0.92)
-              : pillarRole === "trim"
-                ? pillarWallColor.clone().lerp(new threeNamespace.Color(16777215), 0.35)
-                : pillarWallColor;
-      return createPaletteMaterial(meshMaterial, pillarColor, {
-        roughness: pillarRole === "base" ? 0.74 : 0.66,
-        metalness: 0.02,
+      /**
+       * 柱体三条槽位：`body` / `base`（柱础）/ `trim`（柱帽、收边）。
+       * 角色一律走角色表（`pillar-body` / `pillar_quarter-trim` 这类名字旧正则匹配不到），
+       * 配方里的「配墙」与「配柜档位」两条分支见 `materials/studio-pillar-material.ts`。
+       */
+      const pillarRole =
+        resolveModelMaterialRole(furnitureItemType, materialName)?.role ?? "body";
+      const pillarSpec = resolvePillarMaterialSpec(furnitureItemType, pillarRole, warmPalette);
+      const pillarMaterial = createPaletteMaterial(meshMaterial, pillarSpec.color, {
+        roughness: pillarSpec.roughness,
+        metalness: pillarSpec.metalness,
+        clearcoat: pillarSpec.clearcoat,
+        clearcoatRoughness: pillarSpec.clearcoatRoughness,
+        emissive: pillarSpec.emissive,
+        emissiveIntensity: pillarSpec.emissiveIntensity,
+        transparent: pillarSpec.transparent,
+        opacity: pillarSpec.opacity,
+        /**
+         * 配墙档要跟墙一样「让后面透出来」：墙把 `depthWrite` 关掉
+         * （`createSceneWallSideMaterial`），柱体若写深度，就会在墙膜后面挖一个洞。
+         */
+        ...(pillarSpec.wallFollow && pillarSpec.transparent ? { depthWrite: false } : {}),
+        wallFollow: pillarSpec.wallFollow,
       });
+      return pillarMaterial;
     }
     const diningMaterialRole = warmPalette.warmWood
       ? (diningMaterialRolesByItemType as any)[furnitureItemType]?.[
@@ -1894,6 +1933,11 @@ export function createExternalModelManager({
       "thickness",
       "toneMapped",
       "transmission",
+      /**
+       * 半透明开关本身：配墙的柱体是 `transparent + opacity` 一起改的，
+       * 只签 `opacity` 会让「透明 0.59」与「不透明 0.59」共用同一份材质。
+       */
+      "transparent",
       "vertexColors",
       "visible",
       "wireframe",
@@ -2076,6 +2120,68 @@ function normalizeMaterialValue(materialValue: any): any {
     surfaceOverride.metalness !== null && (resolvedMaterial.metalness = surfaceOverride.metalness);
     return resolvedMaterial;
   }
+  /**
+   * 共享程序化**细节（bump）图**（审计 M3 的 S1 策略，见
+   * `materials/studio-surface-normal-maps.ts`）。
+   *
+   * 表面族来自角色配方（`surface`），细节强度按族取 `SURFACE_DETAIL_SCALE` ——
+   * 与审计报告同一张表，所以「审计说缺细节」和「运行时挂没挂」不会各说各话。
+   * 只在最后一手挂：颜色 / 粗糙度 / 档位配方都算完了，细节不参与取色，
+   * 不会影响 30 处历史分支。
+   *
+   * 2026-10-24：从 `normalMap` 换成 `bumpMap` —— three 的 `normalMap` 没有屏幕
+   * 导数滤波，按米平铺的高频假细节在大平板上会缩成一层层波浪条带（电梯门 / 衣柜门 /
+   * 餐边柜侧板 / 2m 出风口）；`bumpMap` 走 `dFdx`/`dFdy`，扰动幅度跟着 mip 一起
+   * 收敛，条带消失。旧的 `normalMap` 必须**显式清空**，防止模板 / 缓存里残留双份扰动。
+   */
+  function applySurfaceDetailFinish(
+    targetMaterial: any,
+    materialName: any,
+    itemType: any,
+    palette: any,
+  ) {
+    if (!targetMaterial?.isMeshStandardMaterial) return targetMaterial;
+    // 图集 / 石材板自带整块贴图与专属 UV 布局：再叠一张按米平铺的细节图会错位。
+    if (targetMaterial.map?.isTexture) return targetMaterial;
+    // 半透明件（玻璃 / 纱帘）先不挂：细节在透射里收益很低，还会干扰 reflection pass。
+    if (targetMaterial.transparent || targetMaterial.opacity < 1) return targetMaterial;
+    const materialRole = resolveModelMaterialRole(itemType, materialName)?.role;
+    if (!materialRole) return targetMaterial;
+    const roleRecipe = materialRoleRecipeForRole(itemType, materialRole, palette);
+    const surface = roleRecipe?.surface;
+    /**
+     * 各向异性必须跟着渲染器的上限走（与石材板 / 图集贴图一致，见 `createStoneSlabTexture`）。
+     *
+     * 默认值 1 会让 `metal` 那种「10 条纹 / 0.4m」的细节图在掠射角度直接欠采样：
+     * 风口、油烟机这类大平板本来就是斜着看的，细节会拍成一条条来回摆的波纹
+     * （2026-10-24 的「出风口显示怪纹」就是这个），而不是细腻的金属表面。
+     */
+    const detailTexture = createSurfaceDetailTexture(
+      threeNamespace,
+      surface,
+      SURFACE_DETAIL_ANISOTROPY,
+    );
+    /** 槽位可以按倍数收口（0 = 不挂）：大平板钣金件不参与「按米平铺」的程序化细节。 */
+    const detailScaleMultiplier =
+      roleRecipe?.surfaceDetailScale ?? roleRecipe?.surfaceNormalScale ?? 1;
+    const detailStrength = surface ? SURFACE_DETAIL_SCALE[surface] * detailScaleMultiplier : 0;
+    // 无论挂不挂，都先清掉可能残留的旧法线（模板复用 / 旧缓存 / 旧草稿）。
+    targetMaterial.normalMap = null;
+    targetMaterial.normalScale?.set?.(0, 0);
+    if (!detailTexture || !detailStrength) {
+      targetMaterial.bumpMap = null;
+      targetMaterial.needsUpdate = true;
+      return targetMaterial;
+    }
+    targetMaterial.bumpMap = detailTexture;
+    targetMaterial.bumpScale = detailStrength * SURFACE_DETAIL_BUMP_UNIT;
+    targetMaterial.userData = {
+      ...(targetMaterial.userData || {}),
+      homeosSurfaceDetail: surface,
+    };
+    targetMaterial.needsUpdate = true;
+    return targetMaterial;
+  }
   /** 石材板贴图：整块石材按**一张整图**贴到板面上（配合装载期补的平面 UV，见`applyStoneSlabPlanarUv`）。 */
   const stoneSlabTextureByFlavor = new Map();
   function stoneSlabTextureFor(flavor: any) {
@@ -2193,6 +2299,11 @@ function normalizeMaterialValue(materialValue: any): any {
         !(DECOR_MODELS as any)[itemType] &&
         resolvedMaterial.color &&
         !resolvedMaterial.transparent &&
+        /**
+         * 「跟随墙体」的构件（柱体的配墙档）已经按墙体自身的 0.30/0.32 自发光标定过，
+         * 这里再统一压到 0.065 会把它重新变成「比墙暗一档」—— 正好抵消配墙的效果。
+         */
+        !resolvedMaterial.userData?.homeosWallFollow &&
         !(itemType === "nas" && /^nas-material-4(?:$|\s)/.test(sourceMaterial.name || "")) &&
 
 
@@ -2400,6 +2511,10 @@ function normalizeMaterialValue(materialValue: any): any {
     applyMaterialOverride(resolvedMaterial, sourceMaterial.name, palette);
 
     applyMaterialSurfaceOverride(resolvedMaterial, sourceMaterial.name, palette);
+
+    applySurfaceDetailFinish(resolvedMaterial, sourceMaterial.name, itemType, palette);
+    // 最后一道：所有颜色 / 粗糙度 / 档位都算完之后，只按最终 metalness 决定要不要补 IBL 替身。
+    applyMetalEnvironmentFinish(resolvedMaterial, threeNamespace, itemType);
     const resolvedSignature = materialSignature(resolvedMaterial);
     if (materialCacheBySignature.has(resolvedSignature)) {
       ((materialReuseCount += 1),

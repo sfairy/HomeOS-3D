@@ -881,6 +881,328 @@ export const specOverrides = {
     ],
     notes: 'Tier A 重建：16:9 面板 + 中置底座 + 背板接口区，面数预算 450。',
   },
+  // ── 庭院植物 15 款（2026-10-24 形态重建）───────────────────────────
+  // 参照全部是**品类常识**而不是厂商页：植物的「规格」没有国标可引，能查的是物种的
+  // 成株比例区间（净干高占全高比例、冠幅:树高、秆径、叶片长度）。尺寸仍按注册表，
+  // 这里登记的是「这个尺寸下哪些比例是真实的」，重建时照它建模，不再靠目测。
+  'garden-tree': {
+    triangleBudget: 3190,
+    reference: {
+      type: 'category',
+      title: '落叶阔叶庭院树（朴树 / 榉树 / 樱花）成株比例：净干高占全高 40%–47%、冠幅 2–3m、基部直径 0.12–0.20m',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '3.4m 高按「已定植 5–8 年的庭院乔木」建模：净干高 1.4m、基部直径 0.18m、冠层厚 1.5m',
+        basis: '注册表 2.2 × 3.4 × 2.1 不变；旧件树干直径 0.48m（3.4m 高的树根部 0.48m 是树桩，不是树）',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '冠层用 14 个大叶簇 + 7 个次级叶簇铺外缘，冠心留空让内膛枝可见',
+        basis: '冠幅 2.1m 的阔叶树，单簇叶团 0.3–0.4m，铺满外缘需要 12–18 簇（旧件只有 4 簇）',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+    notes: '槽位：0 base=树干(trunk)、1 light=受光叶、2 dark=分枝(branch)、3 leaf=主叶。',
+  },
+  'garden-tree-rounded': {
+    triangleBudget: 3128,
+    reference: {
+      type: 'category',
+      title: '球形冠景观阔叶树（椴树 / 枫杨 / 球状修剪榆）：冠高:冠宽 ≈ 0.8–0.9、净干高 1.2–1.4m',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '3.0m 高、2.1m 冠幅、净干高 1.4m，冠形接近正球（冠高 1.6m : 冠宽 2.0m）',
+        basis: '注册表 2.1 × 3.0 × 2.1；旧件树冠是单个 180 面球，没有「干 + 冠」的分层',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '树干笔直不分叉（冠内只留 3 根短枝），基部直径 0.15m',
+        basis: '球形冠多用单干苗定植，主干在冠下通直；0.15m 对应 3m 高的园林苗口径',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-tree-columnar': {
+    triangleBudget: 2460,
+    reference: {
+      type: 'category',
+      title: '柱形乔木（塔杨 / 意大利柏 / 柱形鹅耳枥）：冠幅:树高 ≈ 1:4–1:5、冠层 8–12 段收尖',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '3.2m 高对应 0.72m 冠幅（1:4.4），旧件 1.0m 冠幅是「胖柱子」',
+        basis: '意大利柏成株冠幅:树高约 1:5，柱形鹅耳枥约 1:4；注册表已按 0.72m 改写',
+        confidence: 0.6,
+        risk: '尺寸不确定',
+      },
+      {
+        claim: '冠层从 0.45m 起、纵向 10 段扁椭球 + 每段一枚偏移叶团，顶端收尖到 0.06m',
+        basis: '柱形树的辨识点是「竖直连续冠面 + 尖锐顶端」，不是两枚椭球叠加',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+    notes: '尺寸由 1.00 × 3.20 × 1.00 改为 0.72 × 3.20 × 0.72（计划 §1 两处尺寸调整之一）。',
+  },
+  'garden-tree-multistem': {
+    triangleBudget: 2992,
+    reference: {
+      type: 'category',
+      title: '多干小乔木（丛生茶条槭 / 紫薇 / 丛生柿）：3–5 根自基部分叉、冠层拆成多个小冠',
+      confidence: 0.55,
+    },
+    assumptions: [
+      {
+        claim: '4 根干自基部 0.06–0.10m 处分叉，向外张开到 0.40–0.50m，干径 5–8cm',
+        basis: '注册表 2.1 × 2.6 × 1.8；旧件只有 1 个主干壳体，与「多干」的品类特征矛盾',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '冠层拆成 4 个独立小冠（每干一个）而不是一整球，冠与冠之间留缝',
+        basis: '多干型的观赏点就是「几根干各自顶一个冠」；单一球冠会读成普通乔木',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-conifer': {
+    triangleBudget: 2702,
+    reference: {
+      type: 'category',
+      title: '自然型景观松（黑松 / 油松）：主干微倾、下段裸干、6–9 片水平云片、片间留空',
+      confidence: 0.65,
+    },
+    assumptions: [
+      {
+        claim: '3.0m 高、1.5m 冠幅、7 片云片（半径 0.58→0.16m，厚 0.10–0.15m），0.9m 以下裸干',
+        basis: '黑松成株的枝盘就是逐层外伸、层间透空；旧件用 3 个圆锥（叶部仅 60 面）读成圣诞树',
+        confidence: 0.65,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '主干 3m 高处偏移 0.10m（约 2°），基部直径 0.19m',
+        basis: '自然型松树少见笔直主干；0.19m 对应 3m 高的黑松口径',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+    notes: '旧件「3 个圆锥当松树」是本批里最不像的一款，重建后由云片 + 可见枝识别。',
+  },
+  'garden-conifer-layered': {
+    triangleBudget: 2966,
+    reference: {
+      type: 'category',
+      title: '造型黑松 / 云片式盆景放大：7–8 层左右交错云片、片间高差 0.25–0.35m',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '2.9m 高、2.0m 冠幅，8 片云片沿主干左右交错（x 偏移 ±0.5m），不是同心圆',
+        basis: '注册表 2.0 × 2.9 × 1.65；云片式造型的「层叠」靠偏心错位，同心层会读成塔',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '片厚 0.11–0.17m、片间高差 0.22–0.28m，1.2m 以下可见主干',
+        basis: '造型松的观感是「薄片 + 空隙」，片太厚或层距太密会糊成一团',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-shrub': {
+    triangleBudget: 2336,
+    reference: {
+      type: 'category',
+      title: '无主干丛生花灌木（绣线菊 / 棣棠 / 六道木）：高 0.6–0.9m、枝径 1–1.5cm、无粗桩',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '0.72m 高、0.95m 宽的半球冠，6 根 1.4cm 细枝自基部放射，枝尖止于冠面下 5–10cm',
+        basis: '注册表 0.95 × 0.72 × 0.85；旧件内部「树干」高 0.53m（占整株 74%），花灌木没有这种主干',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '冠层 14 个大叶簇 + 6 个次级叶簇，中心也有叶（不能从底下看见空腔）',
+        basis: '丛生灌木的叶片从基部就开始分叉，冠心是实的；只有乔木才需要冠心留空',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+    notes: '槽位 0（base）刻意留空：花灌木无主干，树干材质不参与。',
+  },
+  'garden-shrub-low': {
+    triangleBudget: 1796,
+    reference: {
+      type: 'category',
+      title: '修剪成球的黄杨 / 小叶女贞（Buxus 球）：高:宽 ≈ 0.65–0.75、顶部有起伏不平顶',
+      confidence: 0.65,
+    },
+    assumptions: [
+      {
+        claim: '0.65m 高 / 0.95m 宽（高:宽 0.68），旧件 0.48m 高是压扁的饼',
+        basis: '黄杨球苗圃规格多为「宽:高 ≈ 1.2–1.4」；注册表已按 0.95 × 0.65 × 0.85 改写',
+        confidence: 0.6,
+        risk: '尺寸不确定',
+      },
+      {
+        claim: '半球冠（非整球）+ 顶部 3–4cm 起伏，冠底 6cm 内收露出土面',
+        basis: '落地修剪球的下缘会收进去，整球会显得悬空；全平顶是「几何体」不是修剪球',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+    notes: '尺寸由 1.10 × 0.48 × 0.90 改为 0.95 × 0.65 × 0.85（计划 §1 两处尺寸调整之一）。',
+  },
+  'garden-shrub-flowering': {
+    triangleBudget: 2176,
+    reference: {
+      type: 'category',
+      title: '开花灌木（绣球 / 月季 / 锦带）：花簇集中在冠面外层、单花簇 5–10cm',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '0.80m 高、1.05m 宽，26 个花簇沿冠面分布（每簇 6–9cm），花与叶分两个槽位',
+        basis: '注册表 1.05 × 0.80 × 0.90；旧件「花」是顶部一枚共面圆盘，侧视是一条线',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '花簇只铺外层 15% 深度，内层仍是叶（不出现「整球都是花」）',
+        basis: '绣球/月季的花都开在受光的新梢上，冠内是叶与枝',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-hedge': {
+    triangleBudget: 2432,
+    reference: {
+      type: 'category',
+      title: '黄杨 / 大叶黄杨修剪绿篱：高 0.8–1.2m、厚 0.4–0.6m、顶面与侧面有叶簇起伏',
+      confidence: 0.65,
+    },
+    assumptions: [
+      {
+        claim: '1.6 × 0.94 × 0.55 主体 + 顶/侧 14 处叶簇起伏（3–5cm）+ 底部 8cm 土带',
+        basis: '注册表 1.6 × 1.0 × 0.55；旧件是一个光盒子，没有任何叶片起伏',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '顶面起伏只在外缘，中心留可站水线的平面',
+        basis: '修剪绿篱的顶面是平的，起伏来自未剪净的新梢；中心起拱会读成「圆顶篱」',
+        confidence: 0.55,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-hedge-round': {
+    triangleBudget: 1692,
+    reference: {
+      type: 'category',
+      title: '圆顶长条绿篱 / 迷迭香矮篱：连续圆顶、端面收圆、无平顶段',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '1.8m 长向连续圆顶（长椭球核 1.72:1:0.6）+ 16 个外缘叶簇 + 底部 7cm 土带',
+        basis: '注册表 1.8 × 0.85 × 0.65；圆顶篱的端头是圆角，不是圆柱切面',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-bamboo': {
+    triangleBudget: 3340,
+    reference: {
+      type: 'category',
+      title: '丛生竹（孝顺竹 / 凤尾竹）：秆径 1.5–3cm、高 2–4m、3–5 个可见竹节、上部 2/3 才有叶',
+      confidence: 0.65,
+    },
+    assumptions: [
+      {
+        claim: '2.7m 高、15 根秆（秆径 0.015–0.03m 渐细、每根 4 节）、高度 0.55–1.0H 错落',
+        basis: '注册表 1.05 × 2.7 × 0.85；旧件是 0.96m 直径的等径圆柱阵，没有节也没有梢',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '叶片集中在秆上部 60–100 簇，下部只露秆',
+        basis: '竹类下部老秆落叶，叶集中在冠层；满秆是叶会丢掉「竹」的识别点',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+    ],
+    notes: '槽位：0 base=竹秆(branch)、1 light=嫩叶、2 dark=老秆/枝(branch)、3 leaf=叶。',
+  },
+  'garden-bamboo-dense': {
+    triangleBudget: 4256,
+    reference: {
+      type: 'category',
+      title: '密植竹丛（凤尾竹 / 箬竹）：秆数 18–25 根、比单丛更矮更密',
+      confidence: 0.6,
+    },
+    assumptions: [
+      {
+        claim: '2.4m 高、22 根秆、96 个叶簇，密度比竹丛高约 45%',
+        basis: '注册表 1.2 × 2.4 × 1.0；密植丛的观感是「秆看不太清、叶连成一片」',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+    ],
+  },
+  'garden-grass-clump': {
+    triangleBudget: 1952,
+    reference: {
+      type: 'category',
+      title: '观赏草丛（狼尾草 / 芒草）：叶长 0.6–0.9m、弧形外弯、抽穗高 0.7–0.9m',
+      confidence: 0.65,
+    },
+    assumptions: [
+      {
+        claim: '0.8m 高、56 片弯曲叶（每片 4 段）+ 8 个穗',
+        basis: '注册表 0.75 × 0.8 × 0.65；旧件是单个锥体，没有一片叶',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+      {
+        claim: '叶片截面用 4 边细棱柱（厚度 6mm）而不是单面四边形',
+        basis: '运行时材质是单面（doubleSided=false），单面片从背面看会整片消失',
+        confidence: 0.85,
+        risk: '材质运行时覆盖',
+      },
+    ],
+  },
+  'garden-grass-low': {
+    triangleBudget: 1644,
+    reference: {
+      type: 'category',
+      title: '低矮观赏草 / 地被草：高 0.3–0.45m、叶匍匐斜出、无明显穗',
+      confidence: 0.65,
+    },
+    assumptions: [
+      {
+        claim: '0.42m 高、0.8m 宽，66 片匍匐/斜出叶（外圈更平、内圈更立）',
+        basis: '注册表 0.8 × 0.45 × 0.8（按 0.42m 高重建）；旧件是单个扁球',
+        confidence: 0.6,
+        risk: '形态风格差异',
+      },
+    ],
+  },
 }
 
 /**

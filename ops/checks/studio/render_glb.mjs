@@ -85,6 +85,9 @@ function hslToRgb(h, s, l) {
 function viewMatrix(view) {
   if (view === 'front') return (p) => [p[0], p[1], p[2]]
   if (view === 'side') return (p) => [p[2], p[1], p[0]]
+  // 俯视：沿 -Y 往下看（x 向右、z 向上），深度轴取 +y（该光栅器是「z 越大越靠前」）。
+  // 用来看台面开孔、盆胆内壁、灶眼与炉架的相互关系，是「台下盆到底有没有盆」最直接的一张图。
+  if (view === 'top') return (p) => [p[0], -p[2], p[1]]
   if (view === 'iso') {
     const yaw = -Math.PI / 4
     const pitch = -0.42

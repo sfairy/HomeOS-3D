@@ -12,6 +12,7 @@ import { SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2, ca
 import type { WallBandOptions, WallSurfaceMaterialOptions, WallTopSurfaceOptions } from "../types/studio-app-types";
 import { buildWallSpanFootprint } from "../../plan/studio-wall-spans";
 import { createWallSideMaterial as createWallSideMaterial2, setWallCornerDistances as setWallCornerDistances2, setWallGradientHeight as setWallGradientHeight2 } from "../../materials/studio-wall-materials";
+import { WALL_SURFACE_FINISH as WALL_SURFACE_FINISH2, wallEmissiveIntensity as wallEmissiveIntensity2 } from "../../materials/studio-wall-finish";
 import { doorMaterialPartRoleFor } from "../../materials/studio-model-material-roles";
 import { finite as finite2 } from "../../loaders/studio-normalization";
 import { mergeGeometries as mergeGeometries2 } from "/static/vendor/three/0.186.1/BufferGeometryUtils.js";
@@ -108,10 +109,10 @@ export function createSceneWallSideMaterial(deps: StudioWallsDeps,
       ns2,
       {
         color: wallSideColor,
-        roughness: 0.72,
-        metalness: 0,
-        clearcoat: 0.05,
-        clearcoatRoughness: 0.82,
+        roughness: WALL_SURFACE_FINISH2.roughness,
+        metalness: WALL_SURFACE_FINISH2.metalness,
+        clearcoat: WALL_SURFACE_FINISH2.clearcoat,
+        clearcoatRoughness: WALL_SURFACE_FINISH2.clearcoatRoughness,
         transmission: isWallSideOpaque || We2 ? 0 : 0.012,
         thickness: 0.1,
         ior: 1.22,
@@ -127,7 +128,7 @@ export function createSceneWallSideMaterial(deps: StudioWallsDeps,
         emissive: wallSideOptions.emissive ?? wallSideColor,
 
 
-        emissiveIntensity: wallSideOptions.emissiveIntensity ?? (warmWood ? 0.32 : 0.30),
+        emissiveIntensity: wallSideOptions.emissiveIntensity ?? wallEmissiveIntensity2(warmWood),
       },
       wallSideOptions.polygonOffset !== true,
       deps.isEmbedStageMode && typeof window < "u"

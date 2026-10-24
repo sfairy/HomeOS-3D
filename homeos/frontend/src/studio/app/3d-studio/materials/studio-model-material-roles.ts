@@ -65,6 +65,19 @@ export interface RoleRecipe {
   multiply?: number;
   /** 石材板色号（参考实现 STONE_SLAB_FLAVOR_BY_MODEL_SLOT 的等价物）：声明了它，这一槽就按「整块石材」出图 —— 贴一张自带纹路的大理石整图。 */
   slab?: StoneSlabFlavor;
+  /**
+   * 该槽位程序化**细节强度**的倍数（对 `SURFACE_DETAIL_SCALE[surface]` 生效，0 = 不挂细节）。
+   *
+   * 表面族给的是「按米平铺」的通用纹理，适合有机形状；但**大平板钣金件**（出风口格栅、
+   * 油烟机外壳）本身 20 来个三角形就是一大片平面，同一张 0.6m 一格的橘皮细节铺上去，
+   * 掠射角下会显得脏。这类件在这里显式关掉。
+   *
+   * 2026-10-24 改名：`surfaceNormalScale` → `surfaceDetailScale`（细节从 `normalMap`
+   * 换成了 `bumpMap`）。旧键仍然读，避免已落盘的草稿 / 外部脚本失效。
+   */
+  surfaceDetailScale?: number;
+  /** 旧键，等价于 `surfaceDetailScale`（一期兼容）。 */
+  surfaceNormalScale?: number;
   /** 布艺标记：接入方据此设置 userData.warmDiningFabric。 */
   fabricLike?: boolean;
 }
@@ -1110,7 +1123,53 @@ const MODEL_ROLE_BY_MATERIAL_NAME: Readonly<
 
 
 const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
-  airoutlet: { body: { color: 0x9aa5b7, surface: "paint" } },
+  /**
+   * 中央空调风口 / 出风口（`出风口.glb`，2026-10-24 槽位改名后唯一的材质是
+   * `airoutlet-grille`）：**喷涂铝格栅**，不是抛光金属。
+   *
+   * 旧名 `M03_Pewter_Shine` 走 `MODEL_ROLE_BY_MATERIAL_NAME` 解析成 `body`，这个
+   * `body` 配方就是它当时的样子（浅蓝灰 0x9aa5b7 / 非金属）。改名后角色变成语义
+   * `grille`（`studio-semantic-roles.ts` 给的是 0x55595e + `metal`），于是 2m 长的
+   * 风口被刷成深灰金属：场景里没有环境贴图，metalness 0.72 的漫反射几乎全黑，
+   * 只剩方向光在拉丝法线上打出的条纹 —— 远看就是「一条黑色板子 + 怪波纹」。
+   * 这里按真实的风口格栅收口：浅灰喷涂、粗糙度略高、**不挂程序化细节**。
+   *
+   * `surfaceDetailScale: 0` 是 2026-10-24 第二轮的收口：换成 `paint` 之后颜色不黑了，
+   * 但模型本体只有 20 来个三角形、2m 长的一整片平板，`paint` 那套「0.6m 一格」的
+   * 橘皮细节铺上去只有 3.3 格，掠射角度下仍会显得脏。钣金格栅本来也没有橘皮，直接不挂。
+   */
+  airoutlet: {
+    body: {
+      color: 0x9aa5b7,
+      surface: "paint",
+      roughness: 0.52,
+      metalness: 0.04,
+      surfaceDetailScale: 0,
+    },
+    grille: {
+      color: 0x9aa5b7,
+      surface: "paint",
+      roughness: 0.52,
+      metalness: 0.04,
+      surfaceDetailScale: 0,
+    },
+  },
+  "air-outlet": {
+    body: {
+      color: 0x9aa5b7,
+      surface: "paint",
+      roughness: 0.52,
+      metalness: 0.04,
+      surfaceDetailScale: 0,
+    },
+    grille: {
+      color: 0x9aa5b7,
+      surface: "paint",
+      roughness: 0.52,
+      metalness: 0.04,
+      surfaceDetailScale: 0,
+    },
+  },
   /** 以下五件「木顶柜」的 `top`（电视柜是 `surface`）是**木板**，几何上都是 0.02~0.06m 的薄板：joinery 家族给 `top` 的默认是「石材台面 + 大理石整图」（那是厨房橱柜的台面语义），照搬到这五件上会得到「书架 / 床头柜 / 电视柜顶着一块大理石」——自动档就已经贴了整图。 */
   shelf: { top: { color: "furniture", surface: "wood" } },
   nightstand: { top: { color: "furniture", surface: "wood" } },

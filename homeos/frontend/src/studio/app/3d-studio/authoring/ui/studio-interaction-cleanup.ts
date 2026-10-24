@@ -142,7 +142,7 @@ export function resolveInteractionCleanup(
 
     const cleanupConfirmButton = document.createElement("button");
     cleanupConfirmButton.type = "button";
-    cleanupConfirmButton.className = "primary";
+    cleanupConfirmButton.className = "primary-action";
     cleanupConfirmButton.textContent = "确认删除并保存";
     cleanupConfirmButton.onclick = () => finishCleanup(true);
 

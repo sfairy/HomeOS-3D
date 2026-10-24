@@ -1,7 +1,7 @@
 {
   "format": 1,
   "note": "GLB 材质「槽位下标 → 语义角色」快照：故意不含槽位名，改名不影响指纹；角色本身变化（重导出位移 / token 表误改）会让 check:materials 失败。",
-  "generatedAt": "2026-10-24T10:51:26.595Z",
+  "generatedAt": "2026-10-24T13:38:08.376Z",
   "modelCount": 336,
   "fileCount": 672,
   "materialCount": 3136,
@@ -1295,36 +1295,36 @@
       "accent"
     ],
     "garden-bamboo-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "branch",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-bamboo.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "branch",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-bamboo-dense-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "branch",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-bamboo-dense.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "branch",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-barbecue-lite.glb": [
       "base",
@@ -1471,36 +1471,36 @@
       "accent"
     ],
     "garden-conifer-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-conifer.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-conifer-layered-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-conifer-layered.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-deck-lite.glb": [
       "base",
@@ -1775,36 +1775,36 @@
       "accent"
     ],
     "garden-grass-clump-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "driedBouquet"
     ],
     "garden-grass-clump.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "driedBouquet"
     ],
     "garden-grass-low-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-grass-low.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-hammock-lite.glb": [
       "base",
@@ -1839,36 +1839,36 @@
       "accent"
     ],
     "garden-hedge-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-hedge.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-hedge-round-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-hedge-round.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "soil",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-lantern-lite.glb": [
       "base",
@@ -2249,52 +2249,52 @@
       "accent"
     ],
     "garden-shrub-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-shrub.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-shrub-flowering-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-shrub-flowering.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-shrub-low-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-shrub-low.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "planter",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-slide-lite.glb": [
       "base",
@@ -2425,68 +2425,68 @@
       "accent"
     ],
     "garden-tree-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree-columnar-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree-columnar.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree-multistem-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree-multistem.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree-rounded-lite.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-tree-rounded.glb": [
-      "base",
-      "light",
-      "dark",
-      "leaf",
+      "trunk",
+      "foliageLight",
+      "branch",
+      "foliage",
       "water",
-      "accent"
+      "flower"
     ],
     "garden-trellis-lite.glb": [
       "base",

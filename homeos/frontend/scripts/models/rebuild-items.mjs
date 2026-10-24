@@ -21,6 +21,16 @@ const valueOf = (name) => {
   return index >= 0 ? args[index + 1] : undefined
 }
 const write = hasFlag('write')
+/**
+ * 结构性重建的两个显式口子（都只允许配合**显式 id**，禁止 `--all`）：
+ * - `--allow-renames`：重建后每个材质槽各占一个子节点（`<id>-<role>`），节点名必然变；
+ *   材质名与顺序仍然原样保留，运行期按名取色的分支不受影响。
+ * - `--allow-growth`：精修件从占位级几何（几 KB）换成真实结构（几十 KB），体积必然上涨；
+ *   总预算仍由 `audit_glb_assets.mjs`（全库 30MB / lite 8MB）兜底。
+ */
+const allowStructural = !hasFlag('all')
+const allowRenames = hasFlag('allow-renames') && allowStructural
+const allowGrowth = hasFlag('allow-growth') && allowStructural
 
 /** 逐组几何的世界包围盒（配方里都是绝对坐标，没有节点变换）。 */
 function boundsOf(groups) {
@@ -127,10 +137,19 @@ async function rebuild(id) {
   })
   let drift = []
   try {
-    assertPreserved(`重建 ${id}`, sourceBytes, stagingPath, { minTriangleRatio: 0.9 })
+    // 体积口径：结构性重建允许从「占位级几 KB」涨到真实结构，但单件完整件封顶 1.2MB；
+    // 全库总量仍由 `audit_glb_assets.mjs`（30MB / lite 8MB）兜底。
+    const maxGrowth = allowGrowth
+      ? Math.max(1.5, 1_200_000 / Math.max(1, sourceBytes.length))
+      : 1.5
+    assertPreserved(`重建 ${id}`, sourceBytes, stagingPath, {
+      minTriangleRatio: 0.9,
+      allowRenames,
+      maxGrowth,
+    })
   } catch (error) {
     drift = error.drift ?? [error.message]
-    if (!hasFlag('allow-regression') || hasFlag('all')) {
+    if ((!hasFlag('allow-regression') && !allowRenames && !allowGrowth) || hasFlag('all')) {
       fs.rmSync(stagingPath, { force: true })
       return { ...summary, error: `重建会退化，已放弃：${drift.join('；')}` }
     }

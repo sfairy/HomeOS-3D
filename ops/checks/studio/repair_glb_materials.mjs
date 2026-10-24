@@ -18,10 +18,11 @@
  * - `C7` `metallicFactor` / `roughnessFactor` 与配方不一致 → 回填配方值（`--no-pbr` 可关）。
  *
  * 不改的（需要重出 / 产品决策，见审计报告附录）：
- * - `M3` 法线 / 遮蔽 / 金属粗糙度贴图全库缺失：**未实现**运行时共享法线图，
- *   且 `createPaletteMaterial` / `applyDefaultPaletteMaterial` 新建材质时不会带任何贴图，
- *   所以「只往 GLB 里写贴图」也不会生效 —— 要先补贴图烘焙 + 让调色板材质转发
- *   `normalMap` / `normalScale` / `aoMap`，属于渲染外观决策，不在本脚本机械修复范围；
+ * - `M3` 法线 / 遮蔽 / 金属粗糙度贴图：**已改由运行时接管**（S1 策略）。GLB 故意不内嵌
+ *   贴图，加载期由 `materials/studio-surface-normal-maps.ts` 按表面族挂共享程序化法线图，
+ *   无 UV 的几何体由 `materials/studio-box-uv.ts` 补盒式 UV（表面族清单与 `normalScale`
+ *   由审计脚本每次核验）。因此本脚本不往 GLB 写任何贴图；若审计报 M3，说明运行时链路断了，
+ *   应修加载器而不是回填贴图。
  * - `C3` 死材质、`C4` lite / 完整件漂移、`C5` 文件名错位、`C6` 孤儿文件；
  * - `N1`/`N3` 槽位改名：**当前被 21 处遗留取色分支阻塞**（见下），需要先迁移那些分支。
  *

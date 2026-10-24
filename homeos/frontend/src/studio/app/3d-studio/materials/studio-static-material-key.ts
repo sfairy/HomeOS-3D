@@ -5,6 +5,16 @@
  */
 import * as threeModuleMin from "/static/vendor/three/0.186.1/three.module.min.js";
 
+/**
+ * 允许出现在合批键里的**程序化共享贴图**通道：加载期统一挂、全场景共享、
+ * 且它们的强度参数（`bumpScale` / `normalScale` / `envMapIntensity`）都在材质键里。
+ */
+const BATCHABLE_PROGRAMMATIC_TEXTURE_KEYS: ReadonlySet<string> = new Set([
+  "bumpMap",
+  "normalMap",
+  "envMap",
+]);
+
 export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, isColorOnly = false) {
   const meshMaterial = sourceMesh.material;
   if (
@@ -23,8 +33,24 @@ export function buildStaticMaterialKey(sourceMesh: any, isTextureAware = false, 
     meshMaterial.customProgramCacheKey !== threeModuleMin.Material.prototype.customProgramCacheKey ||
     sourceMesh.onBeforeRender !== threeModuleMin.Object3D.prototype.onBeforeRender ||
     meshMaterial.clippingPlanes?.length ||
+    /**
+     * 贴图会让「合并几何体」的合批失效（UV 布局可能对不上），所以默认不允许有贴图。
+     * **例外是加载期统一挂的三张程序化贴图**：
+     * - `bumpMap`：按表面族共享的细节高度图（M3 / S1），加载期已给所有无 UV 的几何体
+     *   补了盒式 UV（`materials/studio-box-uv.ts`）；
+     * - `normalMap`：2026-10-24 之后不再新挂，但旧模板 / 旧缓存可能还留着，不能因此掉批；
+     * - `envMap`：只有金属材质挂，且全场景共享同一张程序化环境图
+     *   （`materials/studio-metal-environment.ts`）。
+     *
+     * 三者的 uuid 都进材质键（`bumpScale` / `envMapIntensity` / `normalScale` 也在），
+     * 不同表面族 / 不同强度不会被并进同一批。其余贴图（图集 / 石材板 / 自发光图）
+     * 保持原来的「不合批」行为。
+     */
     (!isTextureAware &&
-      Object.values(meshMaterial).some((materialTextureValue: any) => materialTextureValue?.isTexture))
+      Object.entries(meshMaterial).some(
+        ([materialPropKey, materialTextureValue]: any) =>
+          materialTextureValue?.isTexture && !BATCHABLE_PROGRAMMATIC_TEXTURE_KEYS.has(materialPropKey),
+      ))
   )
     return "";
   const materialKeyParts: any[] = [];

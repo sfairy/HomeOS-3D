@@ -52,9 +52,4 @@ export function legacyExternalMaterialName(
   return scoped ?? LEGACY_MATERIAL_ALIASES[lower] ?? null;
 }
 
-/** 别名表规模，供门禁断言「改名后别名必须齐」。 */
-export function legacyMaterialAliasCount(): number {
-  return Object.keys(LEGACY_MATERIAL_ALIASES).length;
-}
-
 export { LEGACY_MATERIAL_ALIASES, LEGACY_MATERIAL_ALIASES_BY_ITEM };

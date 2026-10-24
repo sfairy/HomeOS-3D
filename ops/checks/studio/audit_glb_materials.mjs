@@ -29,6 +29,24 @@
  *   **不参与**单模型 status 判定，否则 332 个模型会全红、失去区分度；
  * - `model` 单模型问题，参与 status。
  *
+ * 两类「不是问题」的口径（都要留痕，不能静默放过）：
+ * - **契约登记的缺席槽位**：`specs/model-slot-contracts.json` 里 `required: false` 的槽位，
+ *   是已审过「本模型没有这个构件」的槽位。重建器刻意沿用源材质数组（运行期还有按旧名 /
+ *   `material-<n>` 下标取色的分支），所以它们必然没有 primitive 引用 —— C3 不再报，
+ *   改在报告「契约登记的缺席槽位」一行汇总。
+ * - **已审资源例外**：`DECLARED_ASSET_EXCEPTIONS`（C5 命名错位 / C6 孤儿件），逐条带
+ *   id 与保留原因，命中时只进报告注记与附录 B，不参与 status。新出现的孤儿件仍会被报。
+ *
+ * 两类「已落实的策略」也单独成文（`note` 级别，不进任何计数）：
+ * - **M3 / S1 细节图（bumpMap）**：GLB **故意不内嵌**贴图，细节高度图由运行时按表面族挂共享程序化纹理
+ *   （`materials/studio-surface-normal-maps.ts` + `studio-box-uv.ts`）。所以「GLB 里没有
+ *   `normalTexture`」是策略而非缺陷。本脚本每次仍会**验证这条链路**：两边的表面族清单与
+ *   `SURFACE_DETAIL_SCALE` 是否一致、加载器有没有真的调用补 UV 与挂 `bumpMap`；任一处断链就退回按模型报
+ *   M3（`missing`），并把断点写进报告。
+ * - **命名等价别名**：文件名与 itemType 只差 `-` / `_` 风格（`air-outlet` ↔ `airoutlet`），
+ *   是机械等价的，注册表 url 与磁盘反查都能对上。单独列出、不计入不一致；真正不同名的错位
+ *   （`car` ↔ `smallcar`）仍然报 C5。
+ *
  * 用法（仓库根目录）：
  * ```bash
  * bun ops/checks/studio/audit_glb_materials.mjs              # 写报告（md + json）
@@ -156,8 +174,8 @@ function colorToFactor(colorValue, alpha = 1) {
   ];
 }
 
-/** 表面族 → 建议 normalScale（法线强度：布艺最弱、枝叶最强，金属居中）。 */
-const NORMAL_SCALE_BY_SURFACE = Object.freeze({
+/** 表面族 → 建议细节强度（`SURFACE_DETAIL_SCALE` 的运行时副本；布艺最弱、枝叶最强，金属居中）。 */
+const DETAIL_SCALE_BY_SURFACE = Object.freeze({
   fabric: 0.35,
   leather: 0.45,
   wood: 0.5,
@@ -190,8 +208,11 @@ const DOUBLE_SIDED_OK_ROLE = /(leaf|foliage|fabric|linen|curtain|drape|rug|throw
 const RULE_CATALOG = Object.freeze({
   M1: { kind: 'missing', title: '基础色缺失', fix: '补 `pbrMetallicRoughness.baseColorFactor`（取角色配方色）或挂 baseColorTexture' },
   M2: { kind: 'missing', title: '粗糙度缺失', fix: '补 `roughnessFactor`（取表面族配方）或挂 metallicRoughnessTexture' },
-  M3: { kind: 'missing', title: '法线 / 遮蔽 / 金属粗糙度贴图缺失', fix: '按表面族挂共享程序化法线图（S1 策略），并按族设 normalScale' },
+  M3: { kind: 'missing', title: '法线 / 遮蔽 / 金属粗糙度贴图缺失', fix: '按表面族挂共享程序化高度图（S1 策略），并按族设 bumpScale' },
   M4: { kind: 'missing', title: '透明角色没有 alpha 通道', fix: '设 alphaMode=BLEND 且 baseColorFactor[3]=opacity' },
+  M5: { kind: 'missing', title: '高金属度材质没有环境贴图（金属发黑）', fix: '由 `studio-metal-environment.ts` 给 metalness ≥ 0.5 的材质挂共享程序化 `envMap`（IBL 替身）' },
+  M6: { kind: 'inconsistent', title: '档位把结构 / 软装角色刷成金属', fix: '`definePreset` 的 `sanitizeStructuralMetalRoles` 收口：结构件走 `lacquer` / 软装走 `fabric`，只保留 `metal / handle / grating / grille / leg / trim / frame` 为金属' },
+  M7: { kind: 'anomaly', title: '细节贴图周期密度过密', fix: '降低 `MAX_DETAIL_CYCLES` 或提高纹理边长，保证一个细节周期 ≥ 16 纹素' },
   A1: { kind: 'anomaly', title: '属性值越界或类型不符', fix: '钳制到合法区间（颜色 / 透明度 0–1，金属度 / 粗糙度 0–1）' },
   A2: { kind: 'anomaly', title: 'alphaMode=MASK 但没有 alphaCutoff', fix: '补 `alphaCutoff`（默认 0.5）或改回 OPAQUE' },
   A3: { kind: 'anomaly', title: '非发光角色带自发光', fix: '清空 `emissiveFactor` 为 [0,0,0]，自发光只留给 glow/lit/indicator' },
@@ -202,7 +223,7 @@ const RULE_CATALOG = Object.freeze({
   A8: { kind: 'anomaly', title: 'alpha 值 <1 但 alphaMode=OPAQUE', fix: '要么把 alpha 置 1，要么改成 BLEND（alpha 在 OPAQUE 下不生效）' },
   C1: { kind: 'inconsistent', title: '角色解析穿透到家族兜底', fix: '在 `model-slot-roles.ts` 登记该材质名 → 语义角色（见建议角色）' },
   C2: { kind: 'inconsistent', title: '一个模型所有槽位同角色', fix: '拆开语义角色，避免整件一个颜色 / 一个表面' },
-  C3: { kind: 'inconsistent', title: '声明了但没有任何 primitive 引用的材质', fix: '删除死材质，或把对应构件指回该材质' },
+  C3: { kind: 'inconsistent', title: '声明了但没有任何 primitive 引用的材质', fix: '删除死材质，或把对应构件指回该材质；契约里 `required: false` 的缺席槽位不计入（见附录 B）' },
   C4: { kind: 'inconsistent', title: 'lite 与完整件材质集漂移', fix: '用同一份导出配置重出 lite / 完整件，保证材质名与参数一致' },
   C5: { kind: 'inconsistent', title: 'GLB 文件名与 itemType 不一致', fix: '统一命名（改名或加别名映射），避免靠猜路径' },
   C6: { kind: 'inconsistent', title: 'GLB 未被任何注册表引用', fix: '要么登记进注册表，要么删除（二选一，见附录 B）' },
@@ -214,8 +235,85 @@ const RULE_CATALOG = Object.freeze({
   N4: { kind: 'inconsistent', title: '槽位名含非规范字符', fix: '统一小写字母 / 数字 / 连字符（去空格、方括号、星号、点）' },
 });
 
-/** 全局项（不参与单模型 status）。 */
-const SYSTEMIC_RULES = new Set(['M3']);
+/**
+ * 全局项（不参与单模型 status）。
+ *
+ * M3 / M5 只有**退化路径**：运行时链路核验通过时根本不会产生这两项；
+ * 只有对应 strategy 发现断链，才退回按模型报，并因此进入全局计数。
+ */
+const SYSTEMIC_RULES = new Set(['M3', 'M5']);
+
+/* ------------------------------------------------------------------ *
+ * 槽位契约：`required: false` 的槽位是「已审过的缺席构件」
+ * ------------------------------------------------------------------ */
+
+/**
+ * 契约（`specs/model-slot-contracts.json`）是槽位身份的单一真值，由 `build-slot-contracts.mjs`
+ * 从本脚本的报告 + GLB 几何指纹生成。这里读它只为一件事：**区分「漏绑」与「登记过的缺席」**。
+ *
+ * 重建器（`model-builder.mjs`）刻意原样保留源文件的 `materials` 数组 —— 运行期还有按
+ * `material-<n>` 下标取色的遗留分支，删材质会让这些分支静默串色。于是新配方只绑 3–5 个
+ * group 时，剩下的槽位天然没有 primitive 引用。契约把这类槽位标成 `required: false`
+ * （槽位审计据此放行），C3 必须用同一口径，否则两份审计互相打架。
+ */
+const SLOT_CONTRACTS_PATH = path.join(
+  frontendDir,
+  'scripts/models/specs/model-slot-contracts.json',
+);
+
+/** modelId → Set<小写槽位名>，只收 `required === false` 的槽位。 */
+const declaredAbsentSlots = new Map();
+if (fs.existsSync(SLOT_CONTRACTS_PATH)) {
+  try {
+    const contracts = JSON.parse(fs.readFileSync(SLOT_CONTRACTS_PATH, 'utf8'));
+    for (const contract of contracts.models ?? []) {
+      declaredAbsentSlots.set(
+        contract.id,
+        new Set(
+          (contract.slots ?? [])
+            .filter((slot) => slot.required === false)
+            .map((slot) => String(slot.name ?? '').toLowerCase()),
+        ),
+      );
+    }
+  } catch (error) {
+    console.error(`✗ 槽位契约解析失败（C3 将按「全部死材质都算问题」处理）：${error.message}`);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 已审过的资源命名例外
+ * ------------------------------------------------------------------ */
+
+/**
+ * 资源层（不是材质层）的例外：文件名与 itemType 对不上、或文件没有注册表引用，
+ * 但**已经审过并决定保留**。命中即降级为报告注记，不参与单模型 status。
+ *
+ * 为什么需要这张表而不是直接放行：`C5` / `C6` 本来是用来发现「孤儿件 / 错位命名」的，
+ * 一旦静默放过，真正新出现的孤儿件也会被吞掉。所以例外必须逐条带 id + 原因，
+ * 新增条目要在 code review 里过一遍。
+ */
+const DECLARED_ASSET_EXCEPTIONS = Object.freeze({
+  car: {
+    kind: 'naming',
+    itemType: 'smallcar',
+    reason:
+      '注册表 `smallcar` 的 url 指向 `car.glb`（SimLab 导出的原始名）；改名要同时动 registry url、' +
+      '`model-file-names.generated.ts` 与质量基线，收益只是好看，故保持现状',
+  },
+  'floor-lamp': {
+    kind: 'orphan',
+    reason:
+      '`落地灯（旧版）.glb` 是 SimLab 原模型，保留作 `compare_model_quality.mjs` / `render_glb.mjs` ' +
+      '的质量基线；不进设计目录（设计用的是 `floorlamp`），也不参与运行时加载',
+  },
+});
+
+/** 取该 modelId 的已审例外（按 kind 过滤）。 */
+const declaredAssetException = (modelId, kind) => {
+  const entry = DECLARED_ASSET_EXCEPTIONS[modelId];
+  return entry?.kind === kind ? entry : null;
+};
 
 /* ------------------------------------------------------------------ *
  * 注册表：GLB 文件 stem → itemType
@@ -235,6 +333,216 @@ const [allItemModelsModule, sharedModule, rolesModule, slotRolesModule, collecti
   ]);
 
 const { modelAssetFolderFromPath, modelAssetIdForStem } = modelAssetFoldersModule;
+
+/* ------------------------------------------------------------------ *
+ * M3 / S1：GLB 不内嵌细节图，运行时按表面族补（bumpMap）
+ * ------------------------------------------------------------------ */
+
+/**
+ * 验证「细节图由运行时补齐」这条链路**当前确实成立**，而不是一句注释。
+ *
+ * 断点（任一断掉就退回按模型报 M3，并把断点原样写进报告）：
+ * 1. 运行时表面族清单覆盖审计清单（少一族 = 有模型挂不上细节）；
+ * 2. 两边的 `SURFACE_DETAIL_SCALE` 逐族相等（不一致 = 报告失真）；
+ * 3. 加载器真的调用了 `ensureSceneBoxUvs`（没有 UV 的几何体没补 UV，`bumpMap` 会采样到 (0,0)）；
+ * 4. 加载器真的调用了 `createSurfaceDetailTexture` / `applySurfaceDetailFinish`；
+ * 5. `applySurfaceDetailFinish` **显式清空**了 `normalMap`（否则旧法线 + 新 bump 双份扰动，
+ *    波浪纹会以另一条路径回来）；
+ * 6. 细节走的是 `bumpMap` 而不是 `normalMap`（W 键值直接决定有没有屏幕导数滤波）。
+ */
+async function auditSurfaceDetailStrategy() {
+  const [detailMaps, boxUv] = await Promise.all([
+    loadModule('src/studio/app/3d-studio/materials/studio-surface-normal-maps.ts'),
+    loadModule('src/studio/app/3d-studio/materials/studio-box-uv.ts'),
+  ]);
+  const runtimeScales = detailMaps.SURFACE_DETAIL_SCALE ?? {};
+  const runtimeSurfaces = Object.keys(runtimeScales).sort();
+  const auditSurfaces = Object.keys(DETAIL_SCALE_BY_SURFACE).sort();
+  const missingInRuntime = auditSurfaces.filter((surface) => !(surface in runtimeScales));
+  const extraInRuntime = runtimeSurfaces.filter((surface) => !(surface in DETAIL_SCALE_BY_SURFACE));
+  const scaleDrift = auditSurfaces
+    .filter((surface) => surface in runtimeScales && runtimeScales[surface] !== DETAIL_SCALE_BY_SURFACE[surface])
+    .map((surface) => ({ surface, audit: DETAIL_SCALE_BY_SURFACE[surface], runtime: runtimeScales[surface] }));
+  const loaderSource = fs.readFileSync(
+    path.join(frontendDir, 'src/studio/app/3d-studio/loaders/studio-external-models.ts'),
+    'utf8',
+  );
+  const wired = {
+    boxUv: /(^|[^\w.])ensureSceneBoxUvs\s*\(/m.test(loaderSource),
+    detailFinish: /(^|[^\w.])applySurfaceDetailFinish\s*\(/m.test(loaderSource),
+    factory: typeof detailMaps.createSurfaceDetailTexture === 'function',
+    legacyFactory: typeof detailMaps.createSurfaceNormalTexture === 'function',
+    boxUvFactory: typeof boxUv.ensureSceneBoxUvs === 'function',
+    bumpMap: /\.bumpMap\s*=/.test(loaderSource),
+    bumpScale: /\.bumpScale\s*=/.test(loaderSource),
+    normalMapCleared: /\.normalMap\s*=\s*null/.test(loaderSource),
+  };
+  const breaks = [
+    ...missingInRuntime.map((surface) => `运行时缺少表面族 ${surface}`),
+    ...scaleDrift.map(
+      (drift) =>
+        `表面族 ${drift.surface} 的 SURFACE_DETAIL_SCALE 不一致（审计 ${drift.audit} / 运行时 ${drift.runtime}）`,
+    ),
+    ...(wired.boxUv ? [] : ['加载器没有调用 ensureSceneBoxUvs（无 UV 模型补不了 UV）']),
+    ...(wired.detailFinish ? [] : ['加载器没有调用 applySurfaceDetailFinish（细节图挂不上去）']),
+    ...(wired.factory ? [] : ['studio-surface-normal-maps.ts 没有导出 createSurfaceDetailTexture']),
+    ...(wired.boxUvFactory ? [] : ['studio-box-uv.ts 没有导出 ensureSceneBoxUvs']),
+    ...(wired.bumpMap ? [] : ['applySurfaceDetailFinish 没有写 material.bumpMap（细节退化为无）']),
+    ...(wired.bumpScale ? [] : ['applySurfaceDetailFinish 没有写 material.bumpScale（细节深度为 0）']),
+    ...(wired.normalMapCleared
+      ? []
+      : ['applySurfaceDetailFinish 没有清空 material.normalMap（旧法线 + 新 bump 双份扰动）']),
+  ];
+  return {
+    ready: breaks.length === 0,
+    surfaces: runtimeSurfaces,
+    extraInRuntime,
+    scaleDrift,
+    wired,
+    tileMeters: detailMaps.SURFACE_TILE_METERS ?? {},
+    bumpUnit: detailMaps.SURFACE_DETAIL_BUMP_UNIT ?? null,
+    textureSize: detailMaps.SURFACE_DETAIL_TEXTURE_SIZE ?? null,
+    maxDetailCycles: detailMaps.SURFACE_DETAIL_MAX_CYCLES ?? null,
+    breaks,
+  };
+}
+
+const surfaceDetailStrategy = await auditSurfaceDetailStrategy();
+
+/**
+ * M5 / S3：金属环境贴图链路核验。
+ *
+ * 「金属发黑」的根因是**场景没有 IBL**（没有 `scene.environment` / PMREM），
+ * 而 `SURFACE_FINISH.metal` 是 `metalness 0.72`。修法是给高金属度材质挂共享程序化
+ * `envMap`（`studio-metal-environment.ts`）。这里核验：
+ * 1. 模块导出 `createMetalEnvironmentTexture` / `applyMetalEnvironmentFinish`；
+ * 2. 加载器在材质链尾部真的调用了它；
+ * 3. 贴图真的设了 `envMap` + `envMapIntensity`，且带 `homeosMetalEnvironment` 标记；
+ * 4. 强度常量在 0.3–1.5（过暗等于没修，过亮金属发白）。
+ */
+async function auditMetalEnvironmentStrategy() {
+  const metalEnvironment = await loadModule(
+    'src/studio/app/3d-studio/materials/studio-metal-environment.ts',
+  );
+  const loaderSource = fs.readFileSync(
+    path.join(frontendDir, 'src/studio/app/3d-studio/loaders/studio-external-models.ts'),
+    'utf8',
+  );
+  const moduleSource = fs.readFileSync(
+    path.join(frontendDir, 'src/studio/app/3d-studio/materials/studio-metal-environment.ts'),
+    'utf8',
+  );
+  const intensity = metalEnvironment.METAL_ENVIRONMENT_INTENSITY;
+  const minMetalness = metalEnvironment.METAL_ENVIRONMENT_MIN_METALNESS;
+  const wired = {
+    finish: /(^|[^\w.])applyMetalEnvironmentFinish\s*\(/m.test(loaderSource),
+    factory: typeof metalEnvironment.createMetalEnvironmentTexture === 'function',
+    painter: typeof metalEnvironment.paintMetalEnvironmentPixels === 'function',
+    envMap: /\.envMap\s*=/.test(moduleSource),
+    envMapIntensity: /\.envMapIntensity\s*=/.test(moduleSource),
+    equirect: /EquirectangularReflectionMapping/.test(moduleSource),
+    marker: /homeosMetalEnvironment/.test(moduleSource),
+  };
+  const breaks = [
+    ...(wired.finish ? [] : ['加载器没有调用 applyMetalEnvironmentFinish（金属仍然没有 IBL）']),
+    ...(wired.factory ? [] : ['studio-metal-environment.ts 没有导出 createMetalEnvironmentTexture']),
+    ...(wired.painter ? [] : ['studio-metal-environment.ts 没有可测试的 paintMetalEnvironmentPixels']),
+    ...(wired.envMap ? [] : ['applyMetalEnvironmentFinish 没有写 material.envMap']),
+    ...(wired.envMapIntensity ? [] : ['applyMetalEnvironmentFinish 没有写 material.envMapIntensity']),
+    ...(wired.equirect ? [] : ['环境贴图没有设 EquirectangularReflectionMapping（three 不会转 PMREM）']),
+    ...(wired.marker ? [] : ['材质缺少 homeosMetalEnvironment 标记（无法审计追溯）']),
+    ...(isFiniteNumber(intensity) && intensity >= 0.3 && intensity <= 1.5
+      ? []
+      : [`METAL_ENVIRONMENT_INTENSITY=${intensity} 不在 0.3–1.5（过暗等于没修，过亮金属发白）`]),
+    ...(isFiniteNumber(minMetalness) && minMetalness === 0.5
+      ? []
+      : [`METAL_ENVIRONMENT_MIN_METALNESS=${minMetalness} 应为 0.5（与本规则同一口径）`]),
+  ];
+  return {
+    ready: breaks.length === 0,
+    intensity: isFiniteNumber(intensity) ? intensity : null,
+    minMetalness: isFiniteNumber(minMetalness) ? minMetalness : null,
+    exemptItemTypes: [...(metalEnvironment.METAL_ENVIRONMENT_EXEMPT_ITEM_TYPES ?? [])],
+    wired,
+    breaks,
+  };
+}
+
+const metalEnvironmentStrategy = await auditMetalEnvironmentStrategy();
+
+/**
+ * M6：档位表是否把**结构 / 软装角色**刷成 `surface: "metal"`。
+ *
+ * `definePreset` 里已经在定义期做了一次收口（`sanitizeStructuralMetalRoles`），
+ * 正常情况下本规则应为 0 命中；这里遍历同一份档位表逐条复核，任何绕过收口的写法
+ * （例如直接 new 一个 preset、或改了收口词表却漏了档位）都会被抓到。
+ */
+async function auditPresetStructuralMetal() {
+  const presetsModule = await loadModule('src/studio/app/3d-studio/materials/studio-material-presets.ts');
+  const groups = presetsModule.MATERIAL_STYLE_PRESET_GROUPS ?? {};
+  const structuralRoles = presetsModule.STRUCTURAL_OR_SOFT_ROLES ?? new Set();
+  const presetCount = Object.values(groups).reduce((sum, presets) => sum + presets.length, 0);
+  const hits = [];
+  for (const [group, presets] of Object.entries(groups)) {
+    for (const preset of presets) {
+      for (const [role, recipe] of Object.entries(preset.roles ?? {})) {
+        if (recipe?.surface !== 'metal') continue;
+        if (!structuralRoles.has(role)) continue;
+        hits.push({ group, preset: preset.id, role });
+      }
+    }
+  }
+  return {
+    ready: hits.length === 0,
+    groups: Object.keys(groups).length,
+    presets: presetCount,
+    structuralRoles: [...structuralRoles],
+    hits,
+    breaks: hits
+      .slice(0, 40)
+      .map((hit) => `档位 \`${hit.preset}\`（${hit.group}）把结构角色 \`${hit.role}\` 刷成了 metal`),
+  };
+}
+
+const presetStructuralMetalStrategy = await auditPresetStructuralMetal();
+
+/**
+ * M7：细节贴图的**周期密度**。
+ *
+ * `normalMap` 时代没有屏幕导数滤波，只能靠限频压莫尔带；换成 `bumpMap` 之后
+ * 条带风险大幅下降，但「一个周期只占几个纹素」仍会在缩小时丢细节、在放大时出锯齿。
+ * 判据：`纹素/周期 = 纹理边长 / 每单元最高周期数`，低于 16 视为过密。
+ */
+function auditDetailCycleDensity() {
+  const textureSize = surfaceDetailStrategy.textureSize;
+  const maxCycles = surfaceDetailStrategy.maxDetailCycles;
+  const tileMeters = surfaceDetailStrategy.tileMeters ?? {};
+  if (!isFiniteNumber(textureSize) || !isFiniteNumber(maxCycles) || maxCycles <= 0) {
+    return {
+      ready: false,
+      textureSize,
+      maxCycles,
+      texelsPerCycle: null,
+      densities: [],
+      breaks: ['运行时没有导出 SURFACE_DETAIL_TEXTURE_SIZE / SURFACE_DETAIL_MAX_CYCLES（无法换算周期密度）'],
+    };
+  }
+  const texelsPerCycle = textureSize / maxCycles;
+  const densities = Object.entries(tileMeters).map(([surface, tile]) => ({
+    surface,
+    tileMeters: tile,
+    cyclesPerMeter: isFiniteNumber(tile) && tile > 0 ? round(maxCycles / tile, 2) : null,
+  }));
+  const breaks = [];
+  if (texelsPerCycle < 16) {
+    breaks.push(
+      `一个细节周期只占 ${round(texelsPerCycle, 1)} 个纹素（< 16），缩小时会丢细节 / 出锯齿；降低 MAX_DETAIL_CYCLES 或提高纹理边长`,
+    );
+  }
+  return { ready: breaks.length === 0, textureSize, maxCycles, texelsPerCycle: round(texelsPerCycle, 1), densities, breaks };
+}
+
+const detailCycleStrategy = auditDetailCycleDensity();
 
 /**
  * 磁盘文件 → 英文模型 id。
@@ -794,7 +1102,7 @@ function targetOf(recipe, role) {
     emissiveFactor: emissiveColor !== null ? colorToFactor(emissiveColor, 1).slice(0, 3) : [0, 0, 0],
     emissiveHex: hexOf(emissiveColor),
     emissiveIntensity: isFiniteNumber(recipe.emissiveIntensity) ? recipe.emissiveIntensity : null,
-    normalScale: recipe.surface ? (NORMAL_SCALE_BY_SURFACE[recipe.surface] ?? 0.3) : 0.3,
+    detailScale: recipe.surface ? (DETAIL_SCALE_BY_SURFACE[recipe.surface] ?? 0.3) : 0.3,
     doubleSided: Boolean(recipe.surface && DOUBLE_SIDED_OK_SURFACES.has(recipe.surface)),
   };
 }
@@ -1101,6 +1409,10 @@ function auditModel(modelId) {
     variants: {},
     naming: { systems: {}, semantics: {}, actions: {}, renameTargets: [] },
     counts: { missing: 0, anomaly: 0, inconsistent: 0, systemic: 0 },
+    /** 契约 `required: false` 且确实没有被引用的槽位数（不计入 C3）。 */
+    declaredDeadMaterials: 0,
+    /** 命中 `DECLARED_ASSET_EXCEPTIONS` 时的注记（`{ kind, reason }`），不参与 status。 */
+    assetException: null,
     unreadableReason: null,
   };
 
@@ -1167,11 +1479,21 @@ function auditModel(modelId) {
 
   const primaryMaterials = primary.audit.materials;
 
-  // 全局项 M3：法线 / 遮蔽 / 金属粗糙度贴图（全库结构性缺失，按模型汇总一行）
+  // 全局项 M3：GLB **故意不内嵌**贴图，法线图由运行时按表面族补（见 `auditSurfaceDetailStrategy`）。
+  // 链路成立时只记录每个模型的贴图来源，不产生问题项；链路断掉才退回按模型报 M3（回归保护）。
   const missingNormal = primaryMaterials.filter((material) => !material.normalTexturePresent).length;
   const missingOcclusion = primaryMaterials.filter((material) => !material.occlusionTexturePresent).length;
   const missingMr = primaryMaterials.filter((material) => !material.metallicRoughnessTexturePresent).length;
-  if (missingNormal || missingOcclusion || missingMr || !primary.audit.hasTangent) {
+  model.normalMap = {
+    materials: primaryMaterials.length,
+    missingNormal,
+    missingOcclusion,
+    missingMr,
+    hasTangent: primary.audit.hasTangent,
+    hasUv: primary.audit.hasUv,
+    source: missingNormal === 0 ? 'embedded' : surfaceDetailStrategy.ready ? 'runtime' : 'none',
+  };
+  if (!surfaceDetailStrategy.ready) {
     model.issues.push(
       issue('M3', {
         severity: 'systemic',
@@ -1179,7 +1501,44 @@ function auditModel(modelId) {
         detail:
           `法线贴图缺失 ${missingNormal}/${primaryMaterials.length}、遮蔽贴图缺失 ${missingOcclusion}/${primaryMaterials.length}、` +
           `金属粗糙度贴图缺失 ${missingMr}/${primaryMaterials.length}；` +
-          `TANGENT ${primary.audit.hasTangent ? '有' : '无'}、TEXCOORD_0 ${primary.audit.hasUv ? '有' : '无'}`,
+          `TANGENT ${primary.audit.hasTangent ? '有' : '无'}、TEXCOORD_0 ${primary.audit.hasUv ? '有' : '无'}；` +
+          `运行时法线链路断点：${surfaceDetailStrategy.breaks.join('；')}`,
+      }),
+    );
+    model.counts.missing += 1;
+    model.counts.systemic += 1;
+  }
+
+  /**
+   * 全局项 M5：**高金属度材质必须有环境贴图**（否则只反射不发光 = 黑板子）。
+   *
+   * 链路核验通过时不产生问题项（`source: 'runtime'`）；断链时按模型报，
+   * 并把「有多少个金属材质」写进 detail，方便一屏看出回归范围。
+   */
+  const metalMinimum = metalEnvironmentStrategy.minMetalness ?? 0.5;
+  const metallicMaterials = model.materials.filter((row) => {
+    const metallic = row.target?.metallicFactor ?? row.material?.metallicFactor ?? 0;
+    return isFiniteNumber(metallic) && metallic >= metalMinimum;
+  });
+  model.metalEnvironment = {
+    materials: primaryMaterials.length,
+    metallicMaterials: metallicMaterials.length,
+    source:
+      metallicMaterials.length === 0 ? 'none' : metalEnvironmentStrategy.ready ? 'runtime' : 'missing',
+  };
+  if (!metalEnvironmentStrategy.ready && metallicMaterials.length) {
+    model.issues.push(
+      issue('M5', {
+        severity: 'systemic',
+        location: `${primary.kind}:${primary.audit.fileName}`,
+        detail:
+          `模型有 ${metallicMaterials.length}/${primaryMaterials.length} 个材质 metalness ≥ ${metalMinimum}` +
+          `（${metallicMaterials
+            .slice(0, 6)
+            .map((row) => `\`${row.name}\` ${num(row.target?.metallicFactor ?? row.material?.metallicFactor)}`)
+            .join('、')}${metallicMaterials.length > 6 ? '…' : ''}）；` +
+          `场景没有 IBL，高金属度 = 只反射不发光，屏幕上是黑板子；` +
+          `金属环境链路断点：${metalEnvironmentStrategy.breaks.join('；')}`,
       }),
     );
     model.counts.missing += 1;
@@ -1232,12 +1591,24 @@ function auditModel(modelId) {
   }
 
   // C3 声明未引用的材质
-  const unused = primaryMaterials.filter((material) => !material.used).map((material) => material.name);
+  // 契约里 `required: false` 的槽位 = 已审过「本模型没有这个构件」，且重建器刻意保留
+  // 材质数组，所以它们必然没有 primitive 引用 —— 这不算漏绑，只有契约没登记的死材质才报。
+  const absentSlots = declaredAbsentSlots.get(modelId) ?? new Set();
+  const unusedMaterials = primaryMaterials.filter((material) => !material.used);
+  const unused = unusedMaterials
+    .filter((material) => !absentSlots.has(String(material.name).toLowerCase()))
+    .map((material) => material.name);
+  const declaredDeadCount = unusedMaterials.length - unused.length;
+  model.declaredDeadMaterials = declaredDeadCount;
   if (unused.length) {
     model.issues.push(
       issue('C3', {
         location: `${primary.kind}:${primary.audit.fileName}`,
-        detail: `${unused.length} 条材质没有任何 primitive 引用：${unused.map((name) => `\`${name}\``).join('、')}`,
+        detail:
+          `${unused.length} 条材质没有任何 primitive 引用：${unused.map((name) => `\`${name}\``).join('、')}` +
+          (declaredDeadCount
+            ? `（另 ${declaredDeadCount} 条契约已登记为缺席槽位，不计入）`
+            : ''),
         fix: '删除死材质；若构件漏绑材质，把对应 primitive 的 material 指回来',
       }),
     );
@@ -1291,31 +1662,45 @@ function auditModel(modelId) {
     }
   }
 
-  // C5 文件名与 itemType 不一致
+  // C5 文件名与 itemType 不一致 / C6 孤儿件
+  // 已审过的资源例外（`DECLARED_ASSET_EXCEPTIONS`）不参与 status，只进报告注记。
+  const orphanException = declaredAssetException(modelId, 'orphan');
+  const namingException = declaredAssetException(modelId, 'naming');
   if (!itemTypes.length) {
-    model.issues.push(
-      issue('C6', {
-        location: model.files.map(({ fileName }) => fileName).join('、'),
-        detail: '没有任何注册表（ALL_ITEM_MODELS / EXTERNAL_ITEM_MODELS）的 url 指向该文件',
-        fix: '二选一：① 登记进注册表并接上目录；② 确认是历史遗留件后删除（见附录 B 的最小修复步骤）',
-      }),
-    );
-    model.counts.inconsistent += 1;
+    if (orphanException) {
+      model.assetException = { kind: 'orphan', reason: orphanException.reason };
+    } else {
+      model.issues.push(
+        issue('C6', {
+          location: model.files.map(({ fileName }) => fileName).join('、'),
+          detail: '没有任何注册表（ALL_ITEM_MODELS / EXTERNAL_ITEM_MODELS）的 url 指向该文件',
+          fix: '二选一：① 登记进注册表并接上目录；② 确认是历史遗留件后删除（见附录 B 的最小修复步骤）',
+        }),
+      );
+      model.counts.inconsistent += 1;
+    }
   } else if (itemType !== modelId) {
+    /**
+     * 只差 `-` / `_` 风格（`air-outlet` ↔ `airoutlet`）：机械等价，注册表 url 与磁盘反查
+     * 都能对上，属于**命名等价别名**，不进不一致，但逐个列进报告（附录 B）留痕。
+     * 真正不同名的错位（`car` ↔ `smallcar`）仍按模型级 C5 报。
+     */
     const normalizedEqual = itemType.replace(/[-_]/g, '') === modelId.replace(/[-_]/g, '');
-    model.issues.push(
-      issue('C5', {
-        severity: normalizedEqual ? 'systemic' : 'model',
-        location: `${modelId}.glb → itemType \`${itemType}\``,
-        detail: normalizedEqual
-          ? '仅连字符 / 下划线风格不同（历史命名），靠注册表 url 才对得上'
-          : '文件名与 itemType 不是同一套命名（靠注册表 url 才指对，改文件名会连带断链）',
-        fix: normalizedEqual
-          ? '保持现状即可；若要统一，先给注册表加别名再改名（不要在材质表里按文件名猜 itemType）'
-          : '在注册表里显式登记别名，或统一命名后再改 url',
-      }),
-    );
-    model.counts.inconsistent += 1;
+    if (namingException && namingException.itemType === itemType) {
+      model.assetException = { kind: 'naming', reason: namingException.reason };
+    } else if (normalizedEqual) {
+      model.namingAlias = { itemType, file: `${modelId}.glb`, reason: '连字符 / 下划线风格不同，规范化后同名' };
+    } else {
+      model.issues.push(
+        issue('C5', {
+          severity: 'model',
+          location: `${modelId}.glb → itemType \`${itemType}\``,
+          detail: '文件名与 itemType 不是同一套命名（靠注册表 url 才指对，改文件名会连带断链）',
+          fix: '在注册表里显式登记别名（DECLARED_ASSET_EXCEPTIONS），或统一命名后再改 url',
+        }),
+      );
+      model.counts.inconsistent += 1;
+    }
   }
 
   // 模型级贴图问题（image chunk 损坏 / 外部文件丢失）
@@ -1533,20 +1918,49 @@ for (const model of models) {
     else summary.fileStatus.unreadable += 1;
   }
 }
+/** 契约登记为缺席（`required: false`）且确实没被引用的槽位数：解释 C3 为何是 0。 */
+summary.declaredDeadMaterials = models.reduce((sum, model) => sum + (model.declaredDeadMaterials ?? 0), 0);
+/** 命中已审资源例外的模型（C5 / C6 不计入 status，但必须在报告里留痕）。 */
+summary.assetExceptions = models
+  .filter((model) => model.assetException)
+  .map((model) => ({ id: model.id, itemType: model.itemType, ...model.assetException }));
 
-/** 高频全局项：用于报告「系统性问题」段落。 */
-const systemicIndex = new Map();
-for (const model of models) {
-  for (const entry of model.issues.filter((item) => item.severity === 'systemic')) {
-    const key = `${entry.rule}|${entry.rule === 'M3' ? 'all' : entry.detail}`;
-    if (!systemicIndex.has(key)) {
-      systemicIndex.set(key, { rule: entry.rule, detail: entry.detail, models: [], materials: 0 });
-    }
-    const record = systemicIndex.get(key);
-    record.models.push(model.id);
-    record.materials += model.variants.lite?.materialCount ?? model.variants.full?.materialCount ?? 0;
-  }
-}
+/** 命名等价别名（只差 `-` / `_`）：机械等价，不进不一致，逐个列进附录 B。 */
+summary.namingAliases = models
+  .filter((model) => model.namingAlias)
+  .map((model) => ({ id: model.id, itemType: model.itemType, ...model.namingAlias }));
+
+/**
+ * M3 / S1：细节（bump）链路核验结果 + 贴图来源分布。
+ *
+ * `note` 是给报告用的「已落实策略」段：链路成立时全库都走运行时细节，
+ * 只有 `embedded > 0` 的模型才真的自带贴图。
+ */
+summary.surfaceDetailStrategy = {
+  ...surfaceDetailStrategy,
+  embedded: models.filter((model) => model.normalMap?.source === 'embedded').length,
+  runtime: models.filter((model) => model.normalMap?.source === 'runtime').length,
+  none: models.filter((model) => model.normalMap?.source === 'none').length,
+  withoutUv: models.filter((model) => model.normalMap && !model.normalMap.hasUv).length,
+};
+
+/** M5 / S3：金属环境贴图链路 + 运行覆盖面（有多少模型真的有金属件）。 */
+summary.metalEnvironmentStrategy = {
+  ...metalEnvironmentStrategy,
+  runtime: models.filter((model) => model.metalEnvironment?.source === 'runtime').length,
+  missing: models.filter((model) => model.metalEnvironment?.source === 'missing').length,
+  withoutMetal: models.filter((model) => model.metalEnvironment?.source === 'none').length,
+  metallicMaterialCount: models.reduce(
+    (sum, model) => sum + (model.metalEnvironment?.metallicMaterials ?? 0),
+    0,
+  ),
+};
+
+/** M6：档位把结构 / 软装角色刷成金属的复核结果（正常应为 0 命中）。 */
+summary.presetStructuralMetalStrategy = presetStructuralMetalStrategy;
+
+/** M7：细节贴图的周期密度（纹素 / 周期）。 */
+summary.detailCycleStrategy = detailCycleStrategy;
 
 /* ------------------------------------------------------------------ *
  * 报告渲染
@@ -1635,10 +2049,10 @@ function renderTargetTable(model) {
         : '—';
     return `| ${code(material.name)} | ${code(target.role)} | ${target.baseColorHex} ${factor} | ${num(
       target.metallicFactor,
-    )} | ${num(target.roughnessFactor)} | ${alpha} | ${emissive} | ${num(target.normalScale, 2)} |`;
+    )} | ${num(target.roughnessFactor)} | ${alpha} | ${emissive} | ${num(target.detailScale, 2)} |`;
   });
   return [
-    '| 材质 | 角色 | baseColorFactor（hex + 0–1） | metallicFactor | roughnessFactor | alphaMode / opacity | emissive | normalScale |',
+    '| 材质 | 角色 | baseColorFactor（hex + 0–1） | metallicFactor | roughnessFactor | alphaMode / opacity | emissive | 细节强度 |',
     '| --- | --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
   ].join('\n');
@@ -1693,13 +2107,29 @@ function renderModelSection(model) {
       if (entry.suggestion) lines.push(`     - 推断：建议角色 ${code(entry.suggestion)}`);
     }
   }
+  if (model.assetException) {
+    lines.push(
+      `   - **[已审例外] ${model.assetException.kind === 'orphan' ? 'C6 孤儿件' : 'C5 命名错位'}** — ${code(model.id)}`,
+    );
+    lines.push(`     - 保留原因：${model.assetException.reason}`);
+  }
+  if (model.declaredDeadMaterials) {
+    lines.push(
+      `   - **[契约登记] ${model.declaredDeadMaterials} 条槽位标记为缺席（\`required: false\`）**，未绑 primitive 属预期，不计入 C3。`,
+    );
+  }
   lines.push('');
 
   // 3. 修复建议
   lines.push('3. **修复建议**：');
   lines.push('');
   if (!model.issues.length) {
-    lines.push('   - 无需修复；仅受全局项 S1（法线通道）影响，按附录 A 的图集策略统一补齐。');
+    lines.push(
+      '   - 无需修复。细节通道由运行时按表面族补齐（S1，见附录 A，`bumpMap`）：' +
+        (model.normalMap?.source === 'embedded'
+          ? '本模型自带 `normalTexture`，运行时不再覆盖。'
+          : `本模型 GLB 不内嵌细节图，加载期挂共享高度图（bumpMap，${model.normalMap?.hasUv ? '自带 UV' : '盒式补 UV'}）。`),
+    );
   } else {
     const seen = new Set();
     for (const entry of model.issues) {
@@ -1862,6 +2292,27 @@ function renderReport() {
   lines.push(`| 材质（按运行时优先变体计） | ${s.materialCount} |`);
   lines.push(`| 材质（全部文件累加） | ${s.materialCountAllFiles} |`);
   lines.push(
+    `| 契约登记的缺席槽位（\`required: false\`，未绑 primitive 属预期） | ${s.declaredDeadMaterials ?? 0} |`,
+  );
+  lines.push(`| 已审资源例外（C5 / C6 不计入 status） | ${s.assetExceptions?.length ?? 0} |`);
+  lines.push(
+    `| 法线图来源（M3 / S1） | 运行时 ${s.surfaceDetailStrategy.runtime} / 内嵌 ${s.surfaceDetailStrategy.embedded} / 无 ` +
+      `${s.surfaceDetailStrategy.none}（链路 ${s.surfaceDetailStrategy.ready ? '✓ 已核验' : '✗ 断链'}） |`,
+  );
+  lines.push(
+    `| 金属环境贴图（M5 / S5） | 运行时 ${s.metalEnvironmentStrategy.runtime} / 无金属件 ${s.metalEnvironmentStrategy.withoutMetal} / 断链 ${s.metalEnvironmentStrategy.missing}` +
+      `（金属材质 ${s.metalEnvironmentStrategy.metallicMaterialCount} 条，链路 ${s.metalEnvironmentStrategy.ready ? '✓ 已核验' : '✗ 断链'}） |`,
+  );
+  lines.push(
+    `| 档位结构件金属化（M6 / S6） | ${s.presetStructuralMetalStrategy.hits.length} 处命中` +
+      `（遍历 ${s.presetStructuralMetalStrategy.presets} 个档位 / 守卫 ${s.presetStructuralMetalStrategy.structuralRoles.length} 个角色） |`,
+  );
+  lines.push(
+    `| 细节周期密度（M7 / S7） | ${s.detailCycleStrategy.texelsPerCycle ?? '—'} 纹素 / 周期` +
+      `（${s.detailCycleStrategy.ready ? '✓ ≥ 16' : '✗ 过密'}） |`,
+  );
+  lines.push(`| 命名等价别名（C5，不计入不一致） | ${s.namingAliases?.length ?? 0} |`);
+  lines.push(
     `| 槽位名语义化 | 构件语义 ${s.naming.semantics.semantic ?? 0}、明度候选已还原 ${
       s.naming.semantics['lightness-remapped'] ?? 0
     }、构件词未登记 ${s.naming.semantics['unresolved-token'] ?? 0}、仅序号 ${
@@ -1896,7 +2347,7 @@ function renderReport() {
   lines.push('');
   lines.push('表面族 → 粗糙度 / 金属度真值：');
   lines.push('');
-  lines.push('| 表面族 | roughness | metalness | normalScale |');
+  lines.push('| 表面族 | roughness | metalness | 细节强度 |');
   lines.push('| --- | --- | --- | --- |');
   for (const [surface, finish] of [
     ['fabric', { roughness: 0.94, metalness: 0 }],
@@ -1911,7 +2362,7 @@ function renderReport() {
     ['foliage', { roughness: 0.9, metalness: 0 }],
     ['paint', { roughness: 0.55, metalness: 0.02 }],
   ]) {
-    lines.push(`| ${surface} | ${finish.roughness} | ${finish.metalness} | ${NORMAL_SCALE_BY_SURFACE[surface]} |`);
+    lines.push(`| ${surface} | ${finish.roughness} | ${finish.metalness} | ${DETAIL_SCALE_BY_SURFACE[surface]} |`);
   }
   lines.push('');
   lines.push('## 2. 汇总');
@@ -1922,48 +2373,118 @@ function renderReport() {
   lines.push(`| 异常 | ${s.kindCounts.anomaly} | ${s.systemicCounts.anomaly} |`);
   lines.push(`| 不一致 | ${s.kindCounts.inconsistent} | ${s.systemicCounts.inconsistent} |`);
   lines.push('');
+  lines.push('已落实 / 已登记、**不计入上表**的项（逐条可核对）：');
+  lines.push('');
+  lines.push('| 项 | 数量 | 当前口径 |');
+  lines.push('| --- | --- | --- |');
+  lines.push(
+    `| 法线图（M3 / S1） | ${s.surfaceDetailStrategy.runtime} 个模型走运行时 | ` +
+      (s.surfaceDetailStrategy.ready
+        ? `不把贴图写进 GLB，由 \`studio-surface-normal-maps.ts\` 按 ${s.surfaceDetailStrategy.surfaces.length} 个表面族挂共享程序化**高度图**（\`bumpMap\`），无 UV 的模型由 \`studio-box-uv.ts\` 在加载期补盒式 UV；链路核验通过`
+        : `**链路断点**：${s.surfaceDetailStrategy.breaks.join('；')}`) +
+      ' |',
+  );
+  lines.push(
+    `| 金属环境贴图（M5 / S5） | ${s.metalEnvironmentStrategy.runtime} 个模型走运行时 | ` +
+      (s.metalEnvironmentStrategy.ready
+        ? `metalness ≥ ${s.metalEnvironmentStrategy.minMetalness} 的材质统一挂共享程序化 \`envMap\`（强度 ${s.metalEnvironmentStrategy.intensity}），不设 \`scene.environment\`，非金属件明暗完全不变`
+        : `**链路断点**：${s.metalEnvironmentStrategy.breaks.join('；')}`) +
+      ' |',
+  );
+  lines.push(
+    `| 档位结构件金属化（M6 / S6） | ${s.presetStructuralMetalStrategy.hits.length} 处 | 结构 / 软装角色由 \`sanitizeStructuralMetalRoles\` 收口成 \`lacquer\` / \`fabric\` / \`ceramic\` / \`wood\`，只保留真五金为金属 |`,
+  );
+  lines.push(
+    `| 细节周期密度（M7 / S7） | ${s.detailCycleStrategy.texelsPerCycle ?? '—'} 纹素 / 周期 | 一个细节周期 ≥ 16 纹素，缩小时不会塌成条带；逐族每米周期数见 S7 |`,
+  );
+  lines.push(
+    `| 命名等价别名（C5） | ${s.namingAliases.length} 个模型 | 文件名与 itemType 只差 \`-\` / \`_\`，规范化后同名，注册表 url 已对上；逐个列在附录 B |`,
+  );
+  lines.push(`| 契约登记的缺席槽位（C3） | ${s.declaredDeadMaterials} 个槽位 | \`required: false\`，契约已审过“本模型没有这个构件”，重建时沿用以保住旧下标取色 |`);
+  lines.push(`| 已审资源例外（C5 / C6） | ${s.assetExceptions.length} 条 | 逐条带保留原因，列在附录 B |`);
+  lines.push('');
   lines.push('覆盖口径：材质总数按「每个文件的材质」累加为 ' + s.materialCountAllFiles +
     ' 条；下表与逐模型第 4 项按「运行时优先取 lite」口径统计为 ' + s.materialCount + ' 条（两者差额是完整件里未被 lite 复用的槽位）。');
   lines.push('');
-  lines.push('| 规则 | 命中次数 | 含义 |');
-  lines.push('| --- | --- | --- |');
-  for (const [rule, count] of Object.entries(s.ruleCounts).sort((a, b) => b[1] - a[1])) {
-    lines.push(`| ${rule} | ${count} | ${RULE_CATALOG[rule]?.title ?? ''} |`);
+  const ruleEntries = Object.entries(s.ruleCounts).sort((a, b) => b[1] - a[1]);
+  if (ruleEntries.length) {
+    lines.push('| 规则 | 命中次数 | 含义 |');
+    lines.push('| --- | --- | --- |');
+    for (const [rule, count] of ruleEntries) {
+      lines.push(`| ${rule} | ${count} | ${RULE_CATALOG[rule]?.title ?? ''} |`);
+    }
+  } else {
+    lines.push('**本轮没有任何命中规则**：单模型级与全局级均已归零（M3 由运行时法线链路接管，C5 只剩命名等价别名）。');
   }
   lines.push('');
 
   // 系统性问题
   lines.push('## 3. 系统性问题（全局，不参与单模型状态）');
   lines.push('');
-  const normalModels = systemicIndex.get('M3|all');
-  lines.push('### S1 法线 / 遮蔽 / 金属粗糙度贴图全库缺失');
+  const strategy = s.surfaceDetailStrategy;
+  lines.push('### S1 法线 / 遮蔽 / 金属粗糙度贴图：**已由运行时接管**（GLB 故意不内嵌）');
   lines.push('');
-  lines.push(
-    `- 命中：${normalModels ? normalModels.models.length : 0} 个模型、${s.materialCount} 条材质；660 个 GLB 中没有任何 \`normalTexture\`，也没有 \`TANGENT\`，645/660 个文件连 \`TEXCOORD_0\` 都没有。`,
-  );
-  lines.push('- 影响：PBR 的微观起伏全靠几何，石材台面、木纹、布艺、皮革四类表面看起来是“同一块塑料”；提高粗糙度对比也救不回来。');
-  lines.push('- 修复策略（不要逐模型产贴图）：按表面族各做 1 张可平铺的程序化法线图，共 11 张，复用 `texture-cache.ts` 缓存，按 `normalScale` 分族强度；无 UV 的模型在加载期按盒式（box）投影补平面 UV，不进入 GLB。');
-  lines.push('- 验收：桌面端在 1.5m 视距下石材台面有可见纹理起伏，且 draw call 不增加（同族共享一张贴图）。');
-  lines.push('');
+  if (strategy.ready) {
+    lines.push(
+      `- 现状：${s.modelCount} 个模型里 ${strategy.embedded} 个自带 \`normalTexture\`，其余 ${strategy.runtime} 个由运行时挂共享程序化**高度图**（\`bumpMap\`）；` +
+        `${strategy.withoutUv} 个模型原本连 \`TEXCOORD_0\` 都没有，靠加载期的盒式 UV 补上。`,
+    );
+    lines.push(
+      `- 为什么不写进 GLB：11 张可平铺程序化贴图全局共享（\`studio-surface-normal-maps.ts\`，` +
+        `\`CanvasTexture\` + 进程内缓存，显存常数），GLB 体积 / 导出流程 / 审计基线都不受影响；而逐模型烘焙会造成几十种建模来源的贴图体积与维护成本失控。`,
+    );
+    lines.push(
+      `- 表面族与强度：${strategy.surfaces.map((surface) => `${surface} ${DETAIL_SCALE_BY_SURFACE[surface]}`).join('、')}（与本报告第 1 项同一张表，逐族核验一致）。`,
+    );
+    lines.push(
+      `- 链路核验（每次审计都跑）：补 UV \`ensureSceneBoxUvs\` ${strategy.wired.boxUv ? '✓ 已接线' : '✗ 未接线'}、` +
+        `挂细节 \`applySurfaceDetailFinish\` ${strategy.wired.detailFinish ? '✓ 已接线' : '✗ 未接线'}、` +
+        `写 \`bumpMap\`/\`bumpScale\` ${strategy.wired.bumpMap && strategy.wired.bumpScale ? '✓' : '✗'}、` +
+        `清空旧 \`normalMap\` ${strategy.wired.normalMapCleared ? '✓' : '✗'}、` +
+        `表面族清单 ${strategy.scaleDrift.length ? `✗ ${strategy.scaleDrift.length} 族强度漂移` : '✓ 11 族全覆盖且强度一致'}。`,
+    );
+    lines.push('- 这一项**不再是缺陷**：只有上面任一处断链，才会退回按模型报 M3，并把断点写进 detail。');
+    lines.push('');
+  } else {
+    lines.push(`- **运行时链路断链**，M3 仍按模型报缺失：${strategy.breaks.join('；')}`);
+    lines.push('- 修复：先恢复 `studio-surface-normal-maps.ts` / `studio-box-uv.ts` 的导出与加载器调用，再重跑本审计。');
+    lines.push('');
+  }
   const placeholders = models.filter((model) =>
     model.issues.some((entry) => entry.rule === 'C7' && entry.severity === 'systemic'),
   );
   lines.push('### S2 内嵌占位值与运行时配方冲突');
   lines.push('');
-  lines.push(
-    `- 命中：${placeholders.length} 个模型（材质内嵌 \`metallicFactor=0\` + \`roughnessFactor=0.82\`，而配方要求 metal 最高 0.72）。`,
-  );
-  lines.push('- 影响：任何绕过角色覆盖的路径（离线导出、第三方预览器、GLTFLoader 直读）都会看到“全哑光无金属”的模型。');
-  lines.push('- 修复策略：以本报告第 4 项的目标值回填 GLB；回填脚本只改 `materials[i].pbrMetallicRoughness`，不动几何与节点。');
+  if (placeholders.length) {
+    lines.push(
+      `- 命中：${placeholders.length} 个模型（材质内嵌 \`metallicFactor=0\` + \`roughnessFactor=0.82\`，而配方要求 metal 最高 0.72）。`,
+    );
+    lines.push('- 影响：任何绕过角色覆盖的路径（离线导出、第三方预览器、GLTFLoader 直读）都会看到“全哑光无金属”的模型。');
+    lines.push('- 修复策略：以本报告第 4 项的目标值回填 GLB；回填脚本只改 `materials[i].pbrMetallicRoughness`，不动几何与节点。');
+  } else {
+    lines.push('- 现状：0 个模型。GLB 内嵌的 `metallicFactor` / `roughnessFactor` 已与运行时配方一致，`C7` 不再命中。');
+    lines.push('- 回归保护：任何重导出把占位值（metal 0 / rough 0.82）带回来，`C7` 会立刻按模型报，不需要额外人工核对。');
+  }
   lines.push('');
   lines.push('### S3 命名体系三套并存');
   lines.push('');
   lines.push(
-    `- 命中：${models.filter((model) => model.issues.some((entry) => entry.rule === 'C5')).length} 个模型的 GLB 文件名与 itemType 不一致（` +
-      '`air-outlet` vs `airoutlet`、`floor-lamp` vs `floorlamp`、`pillar-quarter` vs `pillar_quarter`、`car` vs `smallcar`）。',
+    `- 现状：${s.namingAliases.length} 个模型的 GLB 文件名与 itemType 只差 \`-\` / \`_\`（` +
+      s.namingAliases.map((alias) => `\`${alias.id}\` ↔ \`${alias.itemType}\``).join('、') +
+      '），规范化后同名，注册表 url 已对上——属于**命名等价别名**，不计入不一致，逐个列在附录 B。',
   );
-  lines.push('- 影响：材质角色只能靠注册表 url 反查，任何“按文件名推断 itemType”的新代码都会静默失配。');
-  lines.push('- 修复策略：短期在注册表集中维护别名（本脚本的 `resolveItemTypes` 即是参照实现）；中期统一为 itemType 名，改文件名与 url 同批提交。');
+  lines.push(
+    `- 真正不同名的错位：${s.ruleCounts.C5 ?? 0} 个模型（` +
+      (s.assetExceptions.length
+        ? s.assetExceptions
+            .filter((entry) => entry.kind === 'naming')
+            .map((entry) => `\`${entry.id}\` ↔ \`${entry.itemType}\``)
+            .join('、') || '无'
+        : '无') +
+      '），已逐条登记进 `DECLARED_ASSET_EXCEPTIONS`（附录 B）。',
+  );
+  lines.push('- 影响：材质角色只能靠注册表 url 反查，任何“按文件名推断 itemType”的新代码都会静默失配；新代码必须走 `resolveItemTypes` / `modelAssetIdForStem`。');
+  lines.push('- 处理：短期在注册表集中维护别名（本脚本的 `resolveItemTypes` 即是参照实现）；中期统一为 itemType 名，改文件名与 url 同批提交。');
   lines.push('');
   lines.push('### S4 槽位名语义化程度不均');
   lines.push('');
@@ -2012,6 +2533,73 @@ function renderReport() {
   lines.push('');
   lines.push('约束（改名时必须同步）：`resolveSemanticSlotRole` 读的是中缀后的尾词，尾词必须落在 token 表里；`resolveModelMaterialRole` 的 suffix 通道只认 `MODEL_SUFFIX_ROLE_VOCABULARY` 里的 19 个词，`carcass` / `countertop` / `grille` 这类角色名不在词表内，直接改名叫 `<模型>-carcass` 是**解析不到**的 —— 要么用家族 token，要么同时在 `model-slot-roles.ts` 登记。');
   lines.push('');
+  lines.push('### S5 金属发黑：**高金属度 + 没有 IBL**（已由共享环境贴图接管）');
+  lines.push('');
+  const metalStrategy = s.metalEnvironmentStrategy;
+  if (metalStrategy.ready) {
+    lines.push(
+      `- 根因：\`SURFACE_FINISH.metal\` 是 \`metalness 0.72 / roughness 0.32\`，而全前端没有任何 \`scene.environment\` / PMREM。` +
+        `金属度越高漫反射越接近 0，没有环境可反射时屏幕上只剩方向光的高光条 —— 就是「冰箱 / 油烟机 / 衣柜 / 电梯发黑」。`,
+    );
+    lines.push(
+      `- 现状：${metalStrategy.metallicMaterialCount} 个材质（分布在 ${metalStrategy.runtime} 个模型）由 \`studio-metal-environment.ts\` 挂**同一张**程序化等距柱状环境图，` +
+        `\`envMapIntensity = ${metalStrategy.intensity}\`；${metalStrategy.withoutMetal} 个模型没有金属件，完全不挂（墙面 / 地面 / 布艺明暗不变）。`,
+    );
+    lines.push(
+      `- 豁免：${metalStrategy.exemptItemTypes.map((itemType) => `\`${itemType}\``).join('、')}（车漆自带假环境、金属楼梯显式不要 IBL、透明玻璃件）。`,
+    );
+    lines.push(
+      `- 链路核验（每次审计都跑）：\`applyMetalEnvironmentFinish\` ${metalStrategy.wired.finish ? '✓ 已接线' : '✗ 未接线'}、` +
+        `\`envMap\` ${metalStrategy.wired.envMap ? '✓' : '✗'}、\`envMapIntensity\` ${metalStrategy.wired.envMapIntensity ? '✓' : '✗'}、` +
+        `\`EquirectangularReflectionMapping\` ${metalStrategy.wired.equirect ? '✓' : '✗'}、标记 \`homeosMetalEnvironment\` ${metalStrategy.wired.marker ? '✓' : '✗'}。`,
+    );
+    lines.push('- 判定：链路成立时 M5 不产生问题项；任一处断链才退回按模型报，并把断点写进 detail。');
+  } else {
+    lines.push(`- **链路断链**，M5 按模型报「金属没有环境贴图」：${metalStrategy.breaks.join('；')}`);
+  }
+  lines.push('');
+  lines.push('### S6 档位把结构 / 软装角色刷成金属（已由定义期收口）');
+  lines.push('');
+  const presetStrategy = s.presetStructuralMetalStrategy;
+  lines.push(
+    `- 遍历 ${presetStrategy.presets} 个内置档位（${presetStrategy.groups} 个组），用守卫词表（${presetStrategy.structuralRoles.length} 个结构 / 软装角色）复核：` +
+      `**${presetStrategy.hits.length} 处命中**。`,
+  );
+  lines.push(
+    '- 收口规则：结构件（`body` / `door` / `panel` / `top` / `drawer` / `interior` / `carcass` / `back` / `side` / `dark` …）' +
+      '一律不再拿 `surface: "metal"`，改走 `lacquer`（钢色漆面，**颜色不变**）；软装回 `fabric`、陶件回 `ceramic`、木作回 `wood`。',
+  );
+  lines.push('- 仍然允许金属的角色：`metal` / `handle` / `grating` / `grille` / `burner` / `faucet` / `leg` / `trim` / `base` / `frame` / `sink` / `cooktop` 等真正的五金件。');
+  if (presetStrategy.hits.length) {
+    for (const breakLine of presetStrategy.breaks) lines.push(`- **命中**：${breakLine}`);
+  } else {
+    lines.push('- 回归保护：任何新增档位绕过 `definePreset` 的收口，M6 会立刻按「档位 id + 角色名」报出来。');
+  }
+  lines.push('');
+  lines.push('### S7 波浪状细纹：**程序化细节从 normalMap 换成 bumpMap**');
+  lines.push('');
+  const cycleStrategy = s.detailCycleStrategy;
+  if (cycleStrategy.ready) {
+    lines.push(
+      `- 根因：three 的 \`normalMap\` 没有屏幕导数滤波，按米平铺的高频假细节在大平板上缩小时按像素选 mip，` +
+        `相邻像素落在不同 mip 而幅度不衰减 → 一层层跟随透视的波浪条带（电梯门 38 道、衣柜门 25 道、2m 出风口最明显）。`,
+    );
+    lines.push(
+      `- 修法：同一批高度场改出**灰度高度图**喂 \`bumpMap\`（\`perturbNormalArb\` 用 \`dFdx\`/\`dFdy\` 取屏幕空间差分，mip 变粗时扰动同步收敛），` +
+        `并显式清空旧的 \`normalMap\`，杜绝双份扰动。`,
+    );
+    lines.push(
+      `- 密度：纹理边长 ${cycleStrategy.textureSize}px、每单元最高 ${cycleStrategy.maxCycles} 个周期 → **${cycleStrategy.texelsPerCycle} 纹素 / 周期**（阈值 ≥ 16）。` +
+        `逐族每米周期数：${cycleStrategy.densities
+          .filter((density) => density.cyclesPerMeter !== null)
+          .map((density) => `${density.surface} ${density.cyclesPerMeter}`)
+          .join('、')}。`,
+    );
+    lines.push('- 可逐槽位收口：`RoleRecipe.surfaceDetailScale = 0`（出风口等大平板钣金件），旧键 `surfaceNormalScale` 仍然读。');
+  } else {
+    lines.push(`- **密度核验不通过**：${cycleStrategy.breaks.join('；')}`);
+  }
+  lines.push('');
 
   // 逐模型
   lines.push('## 4. 逐模型审计');
@@ -2036,9 +2624,15 @@ function renderReport() {
   }
 
   // 附录
-  lines.push('## 附录 A 法线图集落地清单');
+  lines.push('## 附录 A 细节图集落地清单（bumpMap）');
   lines.push('');
-  lines.push('| 表面族 | 贴图 | normalScale | 适用角色示例 |');
+  lines.push(
+    '贴图由 `materials/studio-surface-normal-maps.ts` 在**加载期按表面族生成一次并缓存**（128²、可平铺、`NoColorSpace`、' +
+      '`repeat = 1 / SURFACE_TILE_METERS`），磁盘上**没有** PNG 文件，也不写进 GLB —— 这是 M3 的既定策略，' +
+      '所以本表只有族 / 强度 / 覆盖米数，没有“待产出的贴图”一列。',
+  );
+  lines.push('');
+  lines.push('| 表面族 | 一个纹理单元覆盖 | normalScale | 适用角色示例 |');
   lines.push('| --- | --- | --- | --- |');
   const examples = {
     fabric: 'cushion / upholstery / linen',
@@ -2053,20 +2647,56 @@ function renderReport() {
     foliage: 'foliage / leaf / grassTuft',
     paint: 'wall / playBody / bodywork',
   };
-  for (const surface of Object.keys(NORMAL_SCALE_BY_SURFACE)) {
-    lines.push(`| ${surface} | \`normal-${surface}.png\` | ${NORMAL_SCALE_BY_SURFACE[surface]} | ${examples[surface] ?? '—'} |`);
+  for (const surface of Object.keys(DETAIL_SCALE_BY_SURFACE)) {
+    const tile = summary.surfaceDetailStrategy.tileMeters?.[surface];
+    lines.push(
+      `| ${surface} | ${tile ? `${tile} m` : '—'} | ${DETAIL_SCALE_BY_SURFACE[surface]} | ${examples[surface] ?? '—'} |`,
+    );
   }
   lines.push('');
   lines.push('## 附录 B 无法读取 / 孤儿模型的统一修复模板');
   lines.push('');
   lines.push('本次审计中：');
-  lines.push('');
   const unreadableModels = models.filter((model) => model.status === 'unreadable' || model.status === 'no-material');
   lines.push(
     `- 无法读取 / 无材质：${unreadableModels.length} 个${unreadableModels.length ? `（${unreadableModels.map((model) => model.id).join('、')}）` : '（无）'}。`,
   );
   const orphans = models.filter((model) => model.issues.some((entry) => entry.rule === 'C6'));
-  lines.push(`- 孤儿 GLB（无注册表引用）：${orphans.length} 个 — ${orphans.map((model) => `\`${model.id}\``).join('、') || '（无）'}。`);
+  lines.push(
+    orphans.length
+      ? `- 孤儿 GLB（无注册表引用）：${orphans.length} 个 — ${orphans.map((model) => `\`${model.id}\``).join('、')}。`
+      : '- 孤儿 GLB（无注册表引用）：0 个。',
+  );
+  lines.push(
+    `- 契约登记的缺席槽位（\`required: false\`、未绑 primitive 属预期）：${summary.declaredDeadMaterials} 条，` +
+      '**不计入 C3**。重建器刻意沿用源材质数组（运行期有 30 处按旧名 / `material-<n>` 下标取色的分支），' +
+      '新配方只绑实际存在的构件，因此每次重建都会留下这批槽位；它们的角色由 `model-slot-roles.ts` 接管，不参与渲染。',
+  );
+  if (summary.namingAliases.length) {
+    lines.push('');
+    lines.push(
+      `**命名等价别名**（文件名与 itemType 只差 \`-\` / \`_\`，规范化后同名；注册表 url 已对上，` +
+        `不计入不一致）：${summary.namingAliases.length} 个`,
+    );
+    lines.push('');
+    lines.push('| 模型 | GLB 文件 | itemType | 判据 |');
+    lines.push('| --- | --- | --- | --- |');
+    for (const entry of summary.namingAliases) {
+      lines.push(`| ${code(entry.id)} | \`${entry.file}\` | ${code(entry.itemType)} | ${entry.reason} |`);
+    }
+  }
+  if (summary.assetExceptions.length) {
+    lines.push('');
+    lines.push('**已登记的保留例外**（`audit_glb_materials.mjs → DECLARED_ASSET_EXCEPTIONS`，不计入 status）：');
+    lines.push('');
+    lines.push('| 模型 | 例外 | 保留原因 |');
+    lines.push('| --- | --- | --- |');
+    for (const entry of summary.assetExceptions) {
+      lines.push(
+        `| ${code(entry.id)} | ${entry.kind === 'orphan' ? 'C6 无注册表引用' : `C5 文件名 → itemType ${code(entry.itemType)}`} | ${entry.reason} |`,
+      );
+    }
+  }
   lines.push('');
   lines.push('**缺失原因**（按模型二选一）：');
   lines.push('');
@@ -2088,7 +2718,7 @@ function renderReport() {
   lines.push('| `metallicFactor` | `0` | 未知构件按非金属处理，避免无环境贴图时发黑 |');
   lines.push('| `roughnessFactor` | `0.55` | `paint` 族真值 |');
   lines.push('| `alphaMode` | `OPAQUE` | 未知构件默认不透明，避免排序问题 |');
-  lines.push('| `normalTexture` | `normal-paint.png`，`scale=0.3` | 附录 A |');
+  lines.push(`| \`normalTexture\` | 不需要写进 GLB | 表面法线由运行时按表面族共享（S1，见附录 A）；这里补贴图反而会和运行时那张打架 |`);
   lines.push('');
   lines.push('> 说明：`floor-lamp.glb` 的 6 条历史材质名（`frosted-white`、`Metal_Corrogated_Shiny`、`*5` …）在 `MODEL_ROLE_BY_MATERIAL_NAME.floorlamp` 里已有映射，可直接照抄到别名表，属于“能推断但当前文件名对不上”的情形。');
   lines.push('');
@@ -2156,6 +2786,10 @@ const jsonPayload = {
     files: model.files,
     counts: model.counts,
     naming: model.naming,
+    declaredDeadMaterials: model.declaredDeadMaterials,
+    assetException: model.assetException,
+    namingAlias: model.namingAlias,
+    normalMap: model.normalMap,
     unreadableReason: model.unreadableReason,
     issues: model.issues,
     materials: model.materials,
@@ -2177,6 +2811,25 @@ if (asJson) {
   console.log(
     `全局级：缺失 ${summary.systemicCounts.missing}、异常 ${summary.systemicCounts.anomaly}、不一致 ${summary.systemicCounts.inconsistent}`,
   );
+  const normalStrategy = summary.surfaceDetailStrategy;
+  console.log(
+    `· 细节图（M3 / S1，bumpMap）：运行时补齐 ${normalStrategy.ready ? '✓' : '✗'}（内嵌 ${normalStrategy.embedded} / 运行时 ${normalStrategy.runtime} / 无 ${normalStrategy.none}，表面族 ${normalStrategy.surfaces.length}，无 UV ${normalStrategy.withoutUv}）` +
+      (normalStrategy.ready ? '' : `；断点：${normalStrategy.breaks.join('；')}`),
+  );
+  const metalStrategy = summary.metalEnvironmentStrategy;
+  console.log(
+    `· 金属环境贴图（M5 / S5）：${metalStrategy.ready ? '✓' : '✗'}（金属材质 ${metalStrategy.metallicMaterialCount} 条 / 运行时 ${metalStrategy.runtime} 个模型 / 无金属件 ${metalStrategy.withoutMetal}，强度 ${metalStrategy.intensity}）` +
+      (metalStrategy.ready ? '' : `；断点：${metalStrategy.breaks.join('；')}`),
+  );
+  const presetStrategy = summary.presetStructuralMetalStrategy;
+  console.log(
+    `· 档位结构件金属化（M6 / S6）：${presetStrategy.hits.length === 0 ? '✓ 0 命中' : `✗ ${presetStrategy.hits.length} 处`}（遍历 ${presetStrategy.presets} 个档位）`,
+  );
+  const cycleStrategy = summary.detailCycleStrategy;
+  console.log(
+    `· 细节周期密度（M7 / S7）：${cycleStrategy.ready ? '✓' : '✗'} ${cycleStrategy.texelsPerCycle ?? '—'} 纹素 / 周期（阈值 ≥ 16）`,
+  );
+  console.log(`· 命名等价别名（C5，只差 -/_，不计入不一致）：${summary.namingAliases.length} 个`);
   if (!stdoutOnly) {
     fs.mkdirSync(outDir, { recursive: true });
     const mdPath = reportPath;
@@ -2271,6 +2924,21 @@ if (checkMode) {
     if (roleDrift.length > 12) problems.push(`…另有 ${roleDrift.length - 12} 处角色漂移`);
     problems.push('如为刻意调整，跑 `bun run audit:materials:roles` 重写基线并 review diff');
   }
+  if (!summary.surfaceDetailStrategy.ready) {
+    problems.push(`细节图运行时链路断链：${summary.surfaceDetailStrategy.breaks.join('；')}`);
+  }
+  if (!summary.metalEnvironmentStrategy.ready) {
+    problems.push(`金属环境贴图链路断链：${summary.metalEnvironmentStrategy.breaks.join('；')}`);
+  }
+  if (summary.presetStructuralMetalStrategy.hits.length) {
+    for (const hit of summary.presetStructuralMetalStrategy.hits.slice(0, 12)) {
+      problems.push(`档位 \`${hit.preset}\`（${hit.group}）把结构角色 \`${hit.role}\` 刷成了金属`);
+    }
+    problems.push('结构 / 软装角色只允许走 lacquer / fabric / ceramic / wood（见 STRUCTURAL_OR_SOFT_ROLES）');
+  }
+  if (!summary.detailCycleStrategy.ready) {
+    problems.push(`细节周期密度过密：${summary.detailCycleStrategy.breaks.join('；')}`);
+  }
   if (problems.length) {
     for (const problem of problems) console.error(`✗ ${problem}`);
     process.exit(1);
@@ -2283,6 +2951,11 @@ if (checkMode) {
   );
   console.log(
     `· 存量待修：缺失 ${summary.kindCounts.missing}、异常 ${summary.kindCounts.anomaly}、不一致 ${summary.kindCounts.inconsistent}（不计入退出码）`,
+  );
+  console.log(
+    `· 已落实策略：细节图运行时补齐 ${summary.surfaceDetailStrategy.ready ? '✓' : '✗'}、金属环境贴图 ${summary.metalEnvironmentStrategy.ready ? '✓' : '✗'}、` +
+      `档位结构件金属化 ${summary.presetStructuralMetalStrategy.hits.length === 0 ? '✓ 0 命中' : `✗ ${summary.presetStructuralMetalStrategy.hits.length} 处`}、` +
+      `命名等价别名 ${summary.namingAliases.length} 个（均不计入不一致）`,
   );
   console.log(
     `· 槽位名：语义 ${summary.naming.semantics.semantic ?? 0}、明度候选 ${

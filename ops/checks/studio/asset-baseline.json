@@ -1,12 +1,28 @@
 {
-  "generatedAt": "2026-10-24T11:55:42.087Z",
+  "generatedAt": "2026-10-24T13:38:00.069Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
     "perFileRatio": 1.2,
     "triangleRatio": 0.9
   },
-  "rebuilt": [],
+  "rebuilt": [
+    "garden-tree",
+    "garden-tree-rounded",
+    "garden-tree-columnar",
+    "garden-tree-multistem",
+    "garden-conifer",
+    "garden-conifer-layered",
+    "garden-shrub",
+    "garden-shrub-low",
+    "garden-shrub-flowering",
+    "garden-hedge",
+    "garden-hedge-round",
+    "garden-bamboo",
+    "garden-bamboo-dense",
+    "garden-grass-clump",
+    "garden-grass-low"
+  ],
   "files": {
     "电器/办公数码/3D打印机-lite.glb": {
       "bytes": 32252,
@@ -4611,13 +4627,19 @@
       "draco": false
     },
     "庭院/植物/竹丛-lite.glb": {
-      "bytes": 78676,
-      "triangles": 2736,
-      "extensionsUsed": [],
+      "bytes": 24220,
+      "triangles": 3340,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-bamboo"
+        "garden-bamboo",
+        "garden-bamboo-leaf",
+        "garden-bamboo-light",
+        "garden-bamboo-old",
+        "garden-bamboo-soil"
       ],
       "materialNames": [
         "garden-bamboo-garden-accent",
@@ -4628,16 +4650,20 @@
         "garden-bamboo-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/竹丛.glb": {
-      "bytes": 78676,
-      "triangles": 2736,
+      "bytes": 85180,
+      "triangles": 3340,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-bamboo"
+        "garden-bamboo",
+        "garden-bamboo-leaf",
+        "garden-bamboo-light",
+        "garden-bamboo-old",
+        "garden-bamboo-soil"
       ],
       "materialNames": [
         "garden-bamboo-garden-accent",
@@ -4651,13 +4677,19 @@
       "draco": false
     },
     "庭院/植物/浓密竹丛-lite.glb": {
-      "bytes": 88628,
-      "triangles": 2952,
-      "extensionsUsed": [],
+      "bytes": 29664,
+      "triangles": 4256,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-bamboo-dense"
+        "garden-bamboo-dense",
+        "garden-bamboo-dense-leaf",
+        "garden-bamboo-dense-light",
+        "garden-bamboo-dense-old",
+        "garden-bamboo-dense-soil"
       ],
       "materialNames": [
         "garden-bamboo-dense-garden-accent",
@@ -4668,16 +4700,20 @@
         "garden-bamboo-dense-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/浓密竹丛.glb": {
-      "bytes": 88628,
-      "triangles": 2952,
+      "bytes": 107404,
+      "triangles": 4256,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-bamboo-dense"
+        "garden-bamboo-dense",
+        "garden-bamboo-dense-leaf",
+        "garden-bamboo-dense-light",
+        "garden-bamboo-dense-old",
+        "garden-bamboo-dense-soil"
       ],
       "materialNames": [
         "garden-bamboo-dense-garden-accent",
@@ -5051,13 +5087,19 @@
       "draco": false
     },
     "庭院/植物/景观松树-lite.glb": {
-      "bytes": 6636,
-      "triangles": 108,
-      "extensionsUsed": [],
+      "bytes": 17240,
+      "triangles": 2702,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-conifer"
+        "garden-conifer",
+        "garden-conifer-branch",
+        "garden-conifer-leaf",
+        "garden-conifer-light",
+        "garden-conifer-trunk"
       ],
       "materialNames": [
         "garden-conifer-garden-accent",
@@ -5068,16 +5110,20 @@
         "garden-conifer-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/景观松树.glb": {
-      "bytes": 6636,
-      "triangles": 108,
+      "bytes": 66820,
+      "triangles": 2702,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-conifer"
+        "garden-conifer",
+        "garden-conifer-branch",
+        "garden-conifer-leaf",
+        "garden-conifer-light",
+        "garden-conifer-trunk"
       ],
       "materialNames": [
         "garden-conifer-garden-accent",
@@ -5091,13 +5137,19 @@
       "draco": false
     },
     "庭院/植物/层叠景松-lite.glb": {
-      "bytes": 13656,
-      "triangles": 480,
-      "extensionsUsed": [],
+      "bytes": 18680,
+      "triangles": 2966,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-conifer-layered"
+        "garden-conifer-layered",
+        "garden-conifer-layered-branch",
+        "garden-conifer-layered-leaf",
+        "garden-conifer-layered-light",
+        "garden-conifer-layered-trunk"
       ],
       "materialNames": [
         "garden-conifer-layered-garden-accent",
@@ -5108,16 +5160,20 @@
         "garden-conifer-layered-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/层叠景松.glb": {
-      "bytes": 13656,
-      "triangles": 480,
+      "bytes": 73180,
+      "triangles": 2966,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-conifer-layered"
+        "garden-conifer-layered",
+        "garden-conifer-layered-branch",
+        "garden-conifer-layered-leaf",
+        "garden-conifer-layered-light",
+        "garden-conifer-layered-trunk"
       ],
       "materialNames": [
         "garden-conifer-layered-garden-accent",
@@ -5811,13 +5867,18 @@
       "draco": false
     },
     "庭院/植物/丛生草-lite.glb": {
-      "bytes": 42848,
-      "triangles": 1060,
-      "extensionsUsed": [],
+      "bytes": 16300,
+      "triangles": 1952,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-grass-clump"
+        "garden-grass-clump",
+        "garden-grass-clump-accent",
+        "garden-grass-clump-leaf",
+        "garden-grass-clump-light"
       ],
       "materialNames": [
         "garden-grass-clump-garden-accent",
@@ -5828,16 +5889,19 @@
         "garden-grass-clump-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/丛生草.glb": {
-      "bytes": 42848,
-      "triangles": 1060,
+      "bytes": 52824,
+      "triangles": 1952,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-grass-clump"
+        "garden-grass-clump",
+        "garden-grass-clump-accent",
+        "garden-grass-clump-leaf",
+        "garden-grass-clump-light"
       ],
       "materialNames": [
         "garden-grass-clump-garden-accent",
@@ -5851,13 +5915,18 @@
       "draco": false
     },
     "庭院/植物/低矮草-lite.glb": {
-      "bytes": 18188,
-      "triangles": 768,
-      "extensionsUsed": [],
+      "bytes": 15176,
+      "triangles": 1644,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-grass-low"
+        "garden-grass-low",
+        "garden-grass-low-leaf",
+        "garden-grass-low-light",
+        "garden-grass-low-soil"
       ],
       "materialNames": [
         "garden-grass-low-garden-accent",
@@ -5868,16 +5937,19 @@
         "garden-grass-low-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/低矮草.glb": {
-      "bytes": 18188,
-      "triangles": 768,
+      "bytes": 44656,
+      "triangles": 1644,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-grass-low"
+        "garden-grass-low",
+        "garden-grass-low-leaf",
+        "garden-grass-low-light",
+        "garden-grass-low-soil"
       ],
       "materialNames": [
         "garden-grass-low-garden-accent",
@@ -5971,13 +6043,18 @@
       "draco": false
     },
     "庭院/植物/绿篱-lite.glb": {
-      "bytes": 10876,
-      "triangles": 444,
-      "extensionsUsed": [],
+      "bytes": 14356,
+      "triangles": 2432,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-hedge"
+        "garden-hedge",
+        "garden-hedge-leaf",
+        "garden-hedge-light",
+        "garden-hedge-soil"
       ],
       "materialNames": [
         "garden-hedge-garden-accent",
@@ -5988,16 +6065,19 @@
         "garden-hedge-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/绿篱.glb": {
-      "bytes": 10876,
-      "triangles": 444,
+      "bytes": 60520,
+      "triangles": 2432,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-hedge"
+        "garden-hedge",
+        "garden-hedge-leaf",
+        "garden-hedge-light",
+        "garden-hedge-soil"
       ],
       "materialNames": [
         "garden-hedge-garden-accent",
@@ -6011,13 +6091,18 @@
       "draco": false
     },
     "庭院/植物/圆形绿篱-lite.glb": {
-      "bytes": 20528,
-      "triangles": 768,
-      "extensionsUsed": [],
+      "bytes": 11668,
+      "triangles": 1692,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-hedge-round"
+        "garden-hedge-round",
+        "garden-hedge-round-leaf",
+        "garden-hedge-round-light",
+        "garden-hedge-round-soil"
       ],
       "materialNames": [
         "garden-hedge-round-garden-accent",
@@ -6028,16 +6113,19 @@
         "garden-hedge-round-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/圆形绿篱.glb": {
-      "bytes": 20528,
-      "triangles": 768,
+      "bytes": 43520,
+      "triangles": 1692,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-hedge-round"
+        "garden-hedge-round",
+        "garden-hedge-round-leaf",
+        "garden-hedge-round-light",
+        "garden-hedge-round-soil"
       ],
       "materialNames": [
         "garden-hedge-round-garden-accent",
@@ -7007,13 +7095,18 @@
       "draco": false
     },
     "庭院/植物/灌木丛-lite.glb": {
-      "bytes": 15104,
-      "triangles": 560,
-      "extensionsUsed": [],
+      "bytes": 15028,
+      "triangles": 2336,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-shrub"
+        "garden-shrub",
+        "garden-shrub-branch",
+        "garden-shrub-leaf",
+        "garden-shrub-light"
       ],
       "materialNames": [
         "garden-shrub-garden-accent",
@@ -7024,16 +7117,19 @@
         "garden-shrub-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/灌木丛.glb": {
-      "bytes": 15104,
-      "triangles": 560,
+      "bytes": 57484,
+      "triangles": 2336,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-shrub"
+        "garden-shrub",
+        "garden-shrub-branch",
+        "garden-shrub-leaf",
+        "garden-shrub-light"
       ],
       "materialNames": [
         "garden-shrub-garden-accent",
@@ -7047,13 +7143,19 @@
       "draco": false
     },
     "庭院/植物/开花灌木-lite.glb": {
-      "bytes": 93500,
-      "triangles": 1400,
-      "extensionsUsed": [],
+      "bytes": 15832,
+      "triangles": 2176,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-shrub-flowering"
+        "garden-shrub-flowering",
+        "garden-shrub-flowering-accent",
+        "garden-shrub-flowering-branch",
+        "garden-shrub-flowering-leaf",
+        "garden-shrub-flowering-light"
       ],
       "materialNames": [
         "garden-shrub-flowering-garden-accent",
@@ -7064,16 +7166,20 @@
         "garden-shrub-flowering-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/开花灌木.glb": {
-      "bytes": 93500,
-      "triangles": 1400,
+      "bytes": 56616,
+      "triangles": 2176,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-shrub-flowering"
+        "garden-shrub-flowering",
+        "garden-shrub-flowering-accent",
+        "garden-shrub-flowering-branch",
+        "garden-shrub-flowering-leaf",
+        "garden-shrub-flowering-light"
       ],
       "materialNames": [
         "garden-shrub-flowering-garden-accent",
@@ -7087,13 +7193,18 @@
       "draco": false
     },
     "庭院/植物/低矮圆灌木-lite.glb": {
-      "bytes": 6520,
-      "triangles": 240,
-      "extensionsUsed": [],
+      "bytes": 12816,
+      "triangles": 1796,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-shrub-low"
+        "garden-shrub-low",
+        "garden-shrub-low-branch",
+        "garden-shrub-low-leaf",
+        "garden-shrub-low-light"
       ],
       "materialNames": [
         "garden-shrub-low-garden-accent",
@@ -7104,16 +7215,19 @@
         "garden-shrub-low-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/低矮圆灌木.glb": {
-      "bytes": 6520,
-      "triangles": 240,
+      "bytes": 45328,
+      "triangles": 1796,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-shrub-low"
+        "garden-shrub-low",
+        "garden-shrub-low-branch",
+        "garden-shrub-low-leaf",
+        "garden-shrub-low-light"
       ],
       "materialNames": [
         "garden-shrub-low-garden-accent",
@@ -7447,13 +7561,19 @@
       "draco": false
     },
     "庭院/植物/庭院乔木-lite.glb": {
-      "bytes": 12588,
-      "triangles": 448,
-      "extensionsUsed": [],
+      "bytes": 19700,
+      "triangles": 3190,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree"
+        "garden-tree",
+        "garden-tree-branch",
+        "garden-tree-leaf",
+        "garden-tree-light",
+        "garden-tree-trunk"
       ],
       "materialNames": [
         "garden-tree-garden-accent",
@@ -7464,16 +7584,20 @@
         "garden-tree-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/庭院乔木.glb": {
-      "bytes": 12588,
-      "triangles": 448,
+      "bytes": 77532,
+      "triangles": 3190,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree"
+        "garden-tree",
+        "garden-tree-branch",
+        "garden-tree-leaf",
+        "garden-tree-light",
+        "garden-tree-trunk"
       ],
       "materialNames": [
         "garden-tree-garden-accent",
@@ -7487,13 +7611,19 @@
       "draco": false
     },
     "庭院/植物/柱形乔木-lite.glb": {
-      "bytes": 10052,
-      "triangles": 368,
-      "extensionsUsed": [],
+      "bytes": 15940,
+      "triangles": 2460,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree-columnar"
+        "garden-tree-columnar",
+        "garden-tree-columnar-branch",
+        "garden-tree-columnar-leaf",
+        "garden-tree-columnar-light",
+        "garden-tree-columnar-trunk"
       ],
       "materialNames": [
         "garden-tree-columnar-garden-accent",
@@ -7504,16 +7634,20 @@
         "garden-tree-columnar-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/柱形乔木.glb": {
-      "bytes": 10052,
-      "triangles": 368,
+      "bytes": 61324,
+      "triangles": 2460,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree-columnar"
+        "garden-tree-columnar",
+        "garden-tree-columnar-branch",
+        "garden-tree-columnar-leaf",
+        "garden-tree-columnar-light",
+        "garden-tree-columnar-trunk"
       ],
       "materialNames": [
         "garden-tree-columnar-garden-accent",
@@ -7527,13 +7661,19 @@
       "draco": false
     },
     "庭院/植物/多干小乔木-lite.glb": {
-      "bytes": 10176,
-      "triangles": 336,
-      "extensionsUsed": [],
+      "bytes": 19356,
+      "triangles": 2992,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree-multistem"
+        "garden-tree-multistem",
+        "garden-tree-multistem-branch",
+        "garden-tree-multistem-leaf",
+        "garden-tree-multistem-light",
+        "garden-tree-multistem-trunk"
       ],
       "materialNames": [
         "garden-tree-multistem-garden-accent",
@@ -7544,16 +7684,20 @@
         "garden-tree-multistem-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/多干小乔木.glb": {
-      "bytes": 10176,
-      "triangles": 336,
+      "bytes": 73620,
+      "triangles": 2992,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree-multistem"
+        "garden-tree-multistem",
+        "garden-tree-multistem-branch",
+        "garden-tree-multistem-leaf",
+        "garden-tree-multistem-light",
+        "garden-tree-multistem-trunk"
       ],
       "materialNames": [
         "garden-tree-multistem-garden-accent",
@@ -7567,13 +7711,19 @@
       "draco": false
     },
     "庭院/植物/圆冠乔木-lite.glb": {
-      "bytes": 9444,
-      "triangles": 292,
-      "extensionsUsed": [],
+      "bytes": 19188,
+      "triangles": 3128,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree-rounded"
+        "garden-tree-rounded",
+        "garden-tree-rounded-branch",
+        "garden-tree-rounded-leaf",
+        "garden-tree-rounded-light",
+        "garden-tree-rounded-trunk"
       ],
       "materialNames": [
         "garden-tree-rounded-garden-accent",
@@ -7584,16 +7734,20 @@
         "garden-tree-rounded-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/植物/圆冠乔木.glb": {
-      "bytes": 9444,
-      "triangles": 292,
+      "bytes": 76020,
+      "triangles": 3128,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "garden-tree-rounded"
+        "garden-tree-rounded",
+        "garden-tree-rounded-branch",
+        "garden-tree-rounded-leaf",
+        "garden-tree-rounded-light",
+        "garden-tree-rounded-trunk"
       ],
       "materialNames": [
         "garden-tree-rounded-garden-accent",
@@ -8714,15 +8868,23 @@
       "draco": true
     },
     "家居/厨房家具/地柜带燃气灶-lite.glb": {
-      "bytes": 9368,
-      "triangles": 680,
+      "bytes": 16332,
+      "triangles": 1200,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "kitchencooktop"
+        "kitchencooktop",
+        "kitchencooktop-base",
+        "kitchencooktop-body",
+        "kitchencooktop-cooktop",
+        "kitchencooktop-door",
+        "kitchencooktop-metal",
+        "kitchencooktop-metal-2",
+        "kitchencooktop-metal-3",
+        "kitchencooktop-top"
       ],
       "materialNames": [
         "kitchencooktop-base",
@@ -8738,15 +8900,21 @@
       "draco": true
     },
     "家居/厨房家具/地柜带燃气灶.glb": {
-      "bytes": 9680,
-      "triangles": 928,
-      "extensionsUsed": [
-        "KHR_draco_mesh_compression"
-      ],
+      "bytes": 81516,
+      "triangles": 1200,
+      "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "kitchencooktop"
+        "kitchencooktop",
+        "kitchencooktop-base",
+        "kitchencooktop-body",
+        "kitchencooktop-cooktop",
+        "kitchencooktop-door",
+        "kitchencooktop-metal",
+        "kitchencooktop-metal-2",
+        "kitchencooktop-metal-3",
+        "kitchencooktop-top"
       ],
       "materialNames": [
         "kitchencooktop-base",
@@ -8759,7 +8927,7 @@
         "kitchencooktop-top"
       ],
       "brokenImages": [],
-      "draco": true
+      "draco": false
     },
     "家居/厨房家具/岛台（旧版）-lite.glb": {
       "bytes": 14260,
@@ -8812,15 +8980,23 @@
       "draco": false
     },
     "家居/厨房家具/地柜带水盆-lite.glb": {
-      "bytes": 8592,
-      "triangles": 160,
+      "bytes": 18320,
+      "triangles": 1476,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "kitchensink"
+        "kitchensink",
+        "kitchensink-base",
+        "kitchensink-body",
+        "kitchensink-door",
+        "kitchensink-metal",
+        "kitchensink-metal-2",
+        "kitchensink-sink",
+        "kitchensink-sink-2",
+        "kitchensink-top"
       ],
       "materialNames": [
         "kitchensink-base",
@@ -8836,15 +9012,21 @@
       "draco": true
     },
     "家居/厨房家具/地柜带水盆.glb": {
-      "bytes": 8784,
-      "triangles": 200,
-      "extensionsUsed": [
-        "KHR_draco_mesh_compression"
-      ],
+      "bytes": 94236,
+      "triangles": 1476,
+      "extensionsUsed": [],
       "images": 0,
       "textures": 0,
       "nodeNames": [
-        "kitchensink"
+        "kitchensink",
+        "kitchensink-base",
+        "kitchensink-body",
+        "kitchensink-door",
+        "kitchensink-metal",
+        "kitchensink-metal-2",
+        "kitchensink-sink",
+        "kitchensink-sink-2",
+        "kitchensink-top"
       ],
       "materialNames": [
         "kitchensink-base",
@@ -8857,7 +9039,7 @@
         "kitchensink-top"
       ],
       "brokenImages": [],
-      "draco": true
+      "draco": false
     },
     "家居/厨房用品/刀具架-lite.glb": {
       "bytes": 9164,

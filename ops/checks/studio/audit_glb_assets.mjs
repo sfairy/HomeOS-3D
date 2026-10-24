@@ -54,7 +54,25 @@ export const BUDGETS = Object.freeze({
  * 当前为空：`basin` 已按用户要求恢复原厂件（原厂本来就是椭圆盆，重做反而丢了原柜体的
  * 比例与细节），不再有「被重做但保留登记」的模型。
  */
-export const REBUILT = new Set()
+export const REBUILT = new Set([
+  // 庭院植物 15 款：2026-10-24 按真实形态参数化重建（树干 / 分枝 / 叶簇分层）。
+  // 面数全部上涨、节点名从「单节点」拆成「每材质一个子节点」，两者都是重建本身的产物。
+  'garden-tree',
+  'garden-tree-rounded',
+  'garden-tree-columnar',
+  'garden-tree-multistem',
+  'garden-conifer',
+  'garden-conifer-layered',
+  'garden-shrub',
+  'garden-shrub-low',
+  'garden-shrub-flowering',
+  'garden-hedge',
+  'garden-hedge-round',
+  'garden-bamboo',
+  'garden-bamboo-dense',
+  'garden-grass-clump',
+  'garden-grass-low',
+])
 
 /**
  * 允许节点名/材质名与基线不同的模型（仍受体积、扩展、贴图、面数约束）。
@@ -62,6 +80,21 @@ export const REBUILT = new Set()
  * （完整件 9 槽），重新从完整件生成 lite 必然会多出 `material-5-screen` 等槽位。
  */
 export const ALLOW_NAME_CHANGES = new Set(['freezer'])
+
+/**
+ * 允许「磁盘上有、注册表里没有」的 GLB。
+ *
+ * 判据是**可达性**（`url` 或 `fallbackUrl` 命中），不是「有没有人叫这个 id」：
+ * 缺少 fallback 的完整件 / 缺少首选档的 lite 在磁盘上看着正常，运行时却永远取不到，
+ * 下一轮清理还会把它们当孤儿删掉。真孤儿必须逐条带原因登记在这里。
+ */
+export const DECLARED_ORPHAN_FILES = Object.freeze({
+  '电器/装饰灯具/落地灯（旧版）.glb':
+    '`floor-lamp` 的 SimLab 原模型，保留作 compare_model_quality / render_glb 的质量基线；' +
+    '设计目录用的是 `floorlamp`，这份不参与运行时加载',
+  '电器/装饰灯具/落地灯（旧版）-lite.glb':
+    '同上的 lite 档：`compare_model_quality` 按「完整件 ↔ lite」成对比较，缺一份就没法对拍',
+})
 
 /**
  * 压缩形态按**基线**守，不按理想值守：原始供应商 lite 里大量文件只带 Draco（没有
@@ -137,6 +170,39 @@ const variants = collectModelVariants(listModelFiles())
 const onlyIds = (valueOf('model')?.split(',') ?? []).map((id) => id.trim()).filter(Boolean)
 const ids = [...variants.keys()].filter((id) => !onlyIds.length || onlyIds.includes(id)).sort()
 
+/**
+ * 注册表可达性：把 `url` / `fallbackUrl` 还原成 models 目录下的相对路径。
+ *
+ * 只比文件本身、不比 id：`suv` 的完整件与 `floating-stairs` 的 lite 都有正确 id，
+ * 却可能没有任何入口能取到 —— 那种「半边死文件」正是这条规则要抓的。
+ */
+const loadFrontendModule = async (relativePath) =>
+  import(new URL(relativePath, `file://${path.join(repoRoot, 'homeos/frontend/')}`).href)
+
+const reachableModelFiles = new Set()
+if (!onlyIds.length) {
+  const [sharedModule, allItemModelsModule, collectionModule] = await Promise.all([
+    loadFrontendModule('src/studio/app/3d-studio/loaders/external-models/_shared.ts'),
+    loadFrontendModule('src/studio/app/3d-studio/loaders/external-models/all-item-models.ts'),
+    loadFrontendModule('src/studio/app/3d-studio/loaders/external-models/collection-models.ts'),
+  ])
+  const modelsRootMarker = '/static/3d-studio/models/'
+  for (const source of [
+    sharedModule.EXTERNAL_ITEM_MODELS,
+    allItemModelsModule.ALL_ITEM_MODELS,
+    collectionModule.COLLECTION_MODELS,
+  ]) {
+    for (const definition of Object.values(source ?? {})) {
+      for (const url of [definition?.url, definition?.fallbackUrl]) {
+        if (!url) continue
+        const clean = decodeURIComponent(String(url).split('?')[0])
+        const index = clean.indexOf(modelsRootMarker)
+        if (index >= 0) reachableModelFiles.add(clean.slice(index + modelsRootMarker.length))
+      }
+    }
+  }
+}
+
 if (hasFlag('write-baseline')) {
   const files = {}
   for (const id of ids) {
@@ -204,6 +270,23 @@ for (const id of ids) {
       if (before?.draco && !current.draco) add('error', id, relativePath, 'lite 丢失 Draco 压缩（体积会回到未压缩状态）')
     } else if (!before?.draco && current.draco) {
       add('error', id, relativePath, '完整件被 Draco 压缩（导出/再编辑会拿到量化网格）')
+    }
+    /**
+     * S8 可达性：磁盘上的两份变体都要有入口。
+     *
+     * 只登记 `url` 不登记 `fallbackUrl`（或反过来）时，另一半文件永远没人加载：
+     * 它既不会被材质 / 几何门禁审到，又会在下一轮「清孤儿」里被当成垃圾删掉。
+     * 要么接线，要么进 `DECLARED_ORPHAN_FILES` 写清保留原因。
+     */
+    if (!onlyIds.length) {
+      if (reachableModelFiles.has(relativePath)) continue
+      if (DECLARED_ORPHAN_FILES[relativePath]) continue
+      add(
+        'error',
+        id,
+        relativePath,
+        `注册表没有 url / fallbackUrl 指向该${variant === 'lite' ? ' lite 档' : '完整件'}（运行时取不到；接线或登记已审孤儿）`,
+      )
     }
   }
 }

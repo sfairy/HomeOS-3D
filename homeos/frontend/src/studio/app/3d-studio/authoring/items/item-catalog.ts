@@ -544,9 +544,9 @@ export const itemTypeCatalog = {
   "garden-tree-columnar": {
     name: "柱形乔木",
     glyph: "♠",
-    width: 1,
+    width: 0.72,
     height: 3.2,
-    depth: 1,
+    depth: 0.72,
     color: "#7d8799",
   },
   "garden-tree-multistem": {
@@ -568,9 +568,9 @@ export const itemTypeCatalog = {
   "garden-shrub-low": {
     name: "低矮圆灌木",
     glyph: "♣",
-    width: 1.1,
-    height: 0.48,
-    depth: 0.9,
+    width: 0.95,
+    height: 0.65,
+    depth: 0.85,
     color: "#7d8799",
   },
   "garden-shrub-flowering": {

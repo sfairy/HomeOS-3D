@@ -82,3 +82,6 @@ graphflow-out/
 
 # 槽位修复 dry-run 产物（每次 --check 重写，不作为基线入库）
 ops/checks/studio/material-slot-repair-plan.json
+
+# 材质探针的 PNG / JSON 产物（`probe:materials` / `probe:pillar` 每次重跑即覆盖）
+.tmp-viewer/

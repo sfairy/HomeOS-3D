@@ -291,7 +291,15 @@ const FAMILY_TOKEN_ROLES: Readonly<Record<string, Readonly<Record<string, string
       dark: "soil",
       light: "grassTuft",
       accent: "flower",
-      water: "glass",
+      /**
+       * `water` token 是水体，不是玻璃。庭院配方只在 `role === "water"` 时给透明
+       * （`materialRoleRecipeForRole` 的 garden 分支：rough 0.3 / opacity 0.42），
+       * 写成 `glass` 会让 `garden-*-garden-water` 解析出不透明角色，
+       * 与 GLB 内嵌的 `alphaMode=BLEND` / `alpha=0.42` 冲突（审计报 A7）。
+       * 同一 token 在无语义表时走 `MATERIAL_ROLE_PATTERNS` 拿到 `water`
+       * （`garden-pond` 就是这样），两条路径必须一致。
+       */
+      water: "water",
       body: "planter",
       soft: "foliage",
       glass: "glass",
@@ -656,6 +664,22 @@ export const MODEL_SLOT_ROLES_SEMANTIC: Readonly<
     detail: "trim",
     foliage: "foliage",
   },
+  /**
+   * 水盆柜 / 燃气灶柜（2026-10-24 形态重建）：
+   * - 水盆柜的 `metal` 是**龙头**、`metal-2` 是门拉手 —— 家族 token 表没有这两个词，
+   *   不登记就整件落到通用 `metal`（灰银色），龙头与拉手分不出材质；
+   * - 燃气灶柜的 `metal` 是灶体 / 炉头底座（`burner`），`metal-2` 是火盖与铸铁炉架
+   *   （`grating`，深色）。原件这两槽位是「两层银色圆环」，登记后炉架才是铸铁的黑灰色。
+   * `metal-3`（旋钮）继续走通用 `metal`，不登记。
+   */
+  kitchensink: {
+    "kitchensink-metal": "faucet",
+    "kitchensink-metal-2": "handle",
+  },
+  kitchencooktop: {
+    "kitchencooktop-metal": "burner",
+    "kitchencooktop-metal-2": "grating",
+  },
   ps5: { detail: "base" },
   "side-table": { foot: "leg" },
   "single-rail-rack": { plastic: "panel", rail: "metal" },
@@ -744,7 +768,76 @@ const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
     "*5": "lit",
     "[color_008]1": "base",
   },
-
+  /**
+   * 庭院植物（2026-10-24 形态重建）：15 款共用 `garden-<id>-garden-*` 六个槽位名。
+   *
+   * 家族 token 表把 `base` 读成 **花箱 / 基座**（`planter`，米色陶瓷），所以旧版乔木的
+   * 树干、竹丛的竹秆在运行时都是陶瓷色；`light` 读到 `grassTuft`（草簇），用在树冠上
+   * 语义也不对（`foliageLight` 才是受光叶）。重建后按真实构件逐条覆盖：
+   * - 乔木 / 竹：`base` = 树干(`trunk`) / 老秆(`branch`)；
+   * - `light` = 受光叶(`foliageLight`)；乔木 / 灌木的 `dark` = 枝(`branch`)；
+   * - 绿篱与地被的 `dark` 仍是土带(`soil`)，`accent` 只给花 / 干花穗用。
+   * 只覆盖角色，不改材质名 —— 名下有 30 处按名取色的运行期分支，改名会静默掉色。
+   */
+  "garden-tree": {
+    "garden-tree-garden-base": "trunk",
+    "garden-tree-garden-light": "foliageLight",
+    "garden-tree-garden-dark": "branch",
+  },
+  "garden-tree-rounded": {
+    "garden-tree-rounded-garden-base": "trunk",
+    "garden-tree-rounded-garden-light": "foliageLight",
+    "garden-tree-rounded-garden-dark": "branch",
+  },
+  "garden-tree-columnar": {
+    "garden-tree-columnar-garden-base": "trunk",
+    "garden-tree-columnar-garden-light": "foliageLight",
+    "garden-tree-columnar-garden-dark": "branch",
+  },
+  "garden-tree-multistem": {
+    "garden-tree-multistem-garden-base": "trunk",
+    "garden-tree-multistem-garden-light": "foliageLight",
+    "garden-tree-multistem-garden-dark": "branch",
+  },
+  "garden-conifer": {
+    "garden-conifer-garden-base": "trunk",
+    "garden-conifer-garden-light": "foliageLight",
+    "garden-conifer-garden-dark": "branch",
+  },
+  "garden-conifer-layered": {
+    "garden-conifer-layered-garden-base": "trunk",
+    "garden-conifer-layered-garden-light": "foliageLight",
+    "garden-conifer-layered-garden-dark": "branch",
+  },
+  "garden-shrub": {
+    "garden-shrub-garden-light": "foliageLight",
+    "garden-shrub-garden-dark": "branch",
+  },
+  "garden-shrub-low": {
+    "garden-shrub-low-garden-light": "foliageLight",
+    "garden-shrub-low-garden-dark": "branch",
+  },
+  "garden-shrub-flowering": {
+    "garden-shrub-flowering-garden-light": "foliageLight",
+    "garden-shrub-flowering-garden-dark": "branch",
+    "garden-shrub-flowering-garden-accent": "flower",
+  },
+  "garden-hedge": { "garden-hedge-garden-light": "foliageLight" },
+  "garden-hedge-round": { "garden-hedge-round-garden-light": "foliageLight" },
+  "garden-bamboo": {
+    "garden-bamboo-garden-base": "branch",
+    "garden-bamboo-garden-light": "foliageLight",
+  },
+  "garden-bamboo-dense": {
+    "garden-bamboo-dense-garden-base": "branch",
+    "garden-bamboo-dense-garden-light": "foliageLight",
+  },
+  "garden-grass-clump": {
+    "garden-grass-clump-garden-light": "foliageLight",
+    // 草穗是干花穗（浅褐），不是花：用 `flower` 会出成粉红花球。
+    "garden-grass-clump-garden-accent": "driedBouquet",
+  },
+  "garden-grass-low": { "garden-grass-low-garden-light": "foliageLight" },
 });
 
 /* ------------------------------------------------------------------ *

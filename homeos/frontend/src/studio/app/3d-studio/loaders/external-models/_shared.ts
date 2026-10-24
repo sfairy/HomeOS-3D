@@ -319,12 +319,23 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       scaleBasis: [1.2, 1.9, 0.32],
       preserveOrigin: true,
     }),
+    /**
+     * 越野车 / 踏板车 / 悬空楼梯：`ensure_variants.mjs` 已经补出两档精度，之前注册表只登记
+     * 了一档，另一半就成了「磁盘上有、运行时永远取不到」的孤儿文件（踏板车与越野车缺完整件
+     * 兜底，悬空楼梯缺 lite 首选档）。这里一律按「lite 首选 + 完整件兜底」接线，和其余
+     * 家具件同一口径：lite 走 Draco，加载快；lite 坏了自动回退，不会整件不出来。
+     */
     suv: {
       url: modelAssetUrl("suv", "lite"),
+      fallbackUrl: modelAssetUrl("suv", "full"),
     },
     scooter: {
       url: withModelAssetCacheKey(
         modelAssetUrl("scooter", "lite"),
+        MODEL_ASSET_CACHE_KEYS.modelOptimization,
+      ),
+      fallbackUrl: withModelAssetCacheKey(
+        modelAssetUrl("scooter", "full"),
         MODEL_ASSET_CACHE_KEYS.modelOptimization,
       ),
       optimized: true,
@@ -379,7 +390,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       fallbackUrl: modelAssetUrl("glass-stairs", "full"),
     },
     floatingstairs: {
-      url: modelAssetUrl("floating-stairs", "full"),
+      url: modelAssetUrl("floating-stairs", "lite"),
+      fallbackUrl: modelAssetUrl("floating-stairs", "full"),
       scaleBasis: [0.97254264, 2.59010673, 2.2483418],
       preserveOrigin: true,
     },

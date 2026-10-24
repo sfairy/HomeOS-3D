@@ -174,6 +174,7 @@ import {
   handlePointerRelease as handlePointerReleaseImpl, refreshPreviewScene as refreshPreviewSceneImpl, resetCameraView as resetCameraViewImpl, applyWallHeightInput as applyWallHeightInputImpl,
   applyWallThicknessInput as applyWallThicknessInputImpl, applyWallOpacityInput as applyWallOpacityInputImpl, scheduleWallApply as scheduleWallApplyImpl, commitWallHeight as commitWallHeightImpl,
   commitWallThickness as commitWallThicknessImpl, commitWallOpacity as commitWallOpacityImpl, filterAssetList as filterAssetListImpl, setAssetCategory as setAssetCategoryImpl,
+  toggleAssetGroup as toggleAssetGroupImpl,
   closeOpenPopovers as closeOpenPopoversImpl, applyLightGroupRename as applyLightGroupRenameImpl, createLightGroup as createLightGroupImpl, collectLightTargetInputs as collectLightTargetInputsImpl,
   syncLightTargetGroups as syncLightTargetGroupsImpl, buildLightGroupList as buildLightGroupListImpl, postBridgeState as postBridgeStateImpl, postBridgeFloors as postBridgeFloorsImpl,
   waitForStageReady as waitForStageReadyImpl, jumpWorkflowStep as jumpWorkflowStepImpl,
@@ -1370,6 +1371,7 @@ export function bootStudio(): void {
   const commitWallThickness = (...args: any[]): any => (commitWallThicknessImpl as any)(studioRuntime, ...args);
   const commitWallOpacity = (...args: any[]): any => (commitWallOpacityImpl as any)(studioRuntime, ...args);
   const filterAssetList = (...args: any[]): any => (filterAssetListImpl as any)(studioRuntime, ...args);
+  const toggleAssetGroup = (...args: any[]): any => (toggleAssetGroupImpl as any)(studioRuntime, ...args);
   const setAssetCategory = (...args: any[]): any => (setAssetCategoryImpl as any)(studioRuntime, ...args);
   const closeOpenPopovers = (...args: any[]): any => (closeOpenPopoversImpl as any)(studioRuntime, ...args);
   const applyLightGroupRename = (...args: any[]): any => (applyLightGroupRenameImpl as any)(studioRuntime, ...args);
@@ -2847,6 +2849,18 @@ toggleFloorEdgeButton.addEventListener("click", () => {
     refreshScopeItems(),
     markDocumentDirty());
 });
+// 分组标题在标记里是普通 div：这里补上按钮语义，点标题或按 Enter / 空格都能展开整组。
+// 展开态默认全收起（`data-asset-expanded="false"`），且一次只展开一个分组。
+for (const assetGroupHeadingControl of assetHeadingCategoryControls)
+  (assetGroupHeadingControl.setAttribute("role", "button"),
+    (assetGroupHeadingControl.tabIndex = 0),
+    (assetGroupHeadingControl.dataset.assetExpanded = "false"),
+    assetGroupHeadingControl.setAttribute("aria-expanded", "false"),
+    assetGroupHeadingControl.addEventListener("click", () => toggleAssetGroup(assetGroupHeadingControl)),
+    assetGroupHeadingControl.addEventListener("keydown", (event) => {
+      (event.key !== "Enter" && event.key !== " ") ||
+        (event.preventDefault(), toggleAssetGroup(assetGroupHeadingControl));
+    }));
 for (const assetCategoryClickButton of assetCategoryButtons)
   assetCategoryClickButton.addEventListener("click", () =>
     setAssetCategory(assetCategoryClickButton.dataset.assetCategory),

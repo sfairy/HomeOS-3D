@@ -58,6 +58,11 @@ const { MODEL_FILE_STEMS } = await loadModule(
   'src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts',
 )
 
+/**
+ * Windows / macOS 文件名禁用字符。`\u0000-\u001f` 是**故意**匹配控制字符：
+ * 这个常量就是给命名门禁用的，命中即代表文件系统层面非法，改成可见字符范围就失去意义。
+ */
+// eslint-disable-next-line no-control-regex
 const FORBIDDEN_STEM_CHARS = /[\\/:*?"<>|\u0000-\u001f]/
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i
 

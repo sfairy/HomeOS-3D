@@ -606,10 +606,16 @@ export function buildStorageUpper(scope: ItemModelScope): boolean {
     }
     return true;
   } else if (modelItem.type === "pillar") {
-    const pillarWallOpacity = Math.min(
-        yt4.wallOpacity * 1.75,
-        0.55,
-      ),
+    /**
+     * 方柱是**闭合盒子**、`createWallSideMaterial` 又是 `DoubleSide` + `depthWrite: false`：
+     * 同一个像素会先后叠到近面与远面两层，所以每层直接用 `wallOpacity`，
+     * 叠出来的浓度正好等于墙面的膜厚（`1 - (1 - wallOpacity)²`，与 `wallFilmOpacity` 同值）。
+     *
+     * 旧值 `min(wallOpacity * 1.75, 0.55)` 是「把盒子当成单层面片」估出来的：两层叠完是
+     * 0.80，比墙（0.59）浓一大截，配墙后柱体成了画面里最实的一块。
+     * 异形柱（GLB）是单面实体，那一侧取 `wallFilmOpacity`，两条路径因此落到同一个浓度。
+     */
+    const pillarWallOpacity = yt4.wallOpacity,
       hg2 = createWallSideMaterial(
         yt4.wall,
         pillarWallOpacity,

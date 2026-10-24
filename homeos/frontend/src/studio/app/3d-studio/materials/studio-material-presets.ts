@@ -80,8 +80,104 @@ function definePreset(
     surface,
     ...(slab ? { slab } : {}),
     colors: Object.freeze(completeFurnitureRamp(colors)),
-    roles: Object.freeze(deriveStyleRoles(roles)),
+    roles: Object.freeze(sanitizeStructuralMetalRoles(deriveStyleRoles(roles))),
   });
+}
+
+/**
+ * 结构件 / 软装角色的守卫词表。
+ *
+ * 档位表是**按组**下料的（一台冰箱和一个电视柜共用一套配方），于是 `appliance-steel-*`
+ * 这种「整机不锈钢」档位会把 `body / door / panel / top / drawer / interior` 全部写成
+ * `surface: "metal"`（`metalness 0.72`，见 `SURFACE_FINISH.metal`）。场景**没有环境贴图**
+ * 时，高金属度 = 只反射不发光 = 屏幕上一块黑板子：这正是「冰箱 / 衣柜 / 餐边柜 / 电梯发黑」
+ * 的档位来源（默认材质本身是 paint / wood，只有被档位刷过才会黑）。
+ *
+ * 真实家电只是「钢色漆面 + 拉丝」，不是整块实心钢，所以结构件不该拿 `metal` 配方。
+ * 本表只用来做一次定义期收口（`sanitizeStructuralMetalRoles`），**不阻止**档位作者把
+ * `metal / handle / grating / grille / burner / faucet / leg / trim / base / frame` 写成金属。
+ *
+ * 导出给审计 M6 用：审计必须和运行时读**同一份**词表，否则「审计说 0 命中」不可信。
+ */
+export const STRUCTURAL_OR_SOFT_ROLES: ReadonlySet<string> = new Set([
+  // 柜 / 家电的结构大面
+  "body",
+  "door",
+  "panel",
+  "top",
+  "drawer",
+  "shelf",
+  "interior",
+  "carcass",
+  "cabinetBody",
+  "cabinetDoor",
+  "shell",
+  "lid",
+  "petBase",
+  "petFrame",
+  // 由上面这些派生出来的面（`deriveStyleRoles` 会连 `surface` 一起继承，不拦就会继续黑）
+  "back",
+  "side",
+  "dark",
+  "recess",
+  "control",
+  /**
+   * `shadow` 是模型自带的「假阴影面片」（床底、柜脚那片压暗的薄板），
+   * 不是实心件：给它 `metalness 0.72` 会变成一块**吸光的黑板**盖在地面上，
+   * 比柜体本身还显眼。这类贴地面片永远走无金属度的深色漆面。
+   */
+  "shadow",
+  "backing",
+  "plane",
+  // 软装 / 陶土：本来就不该是金属
+  "seat",
+  "fabric",
+  "upholstery",
+  "cushion",
+  "mattress",
+  "ceramic",
+  "pot",
+  "wood",
+  "slab",
+]);
+
+/** 结构角色被迫放弃 `metal` 之后该走哪种表面：软装回布艺、陶件回陶瓷、木作回木，其余走金属漆面。 */
+const STRUCTURAL_METAL_FALLBACK_SURFACE: Readonly<Record<string, MaterialSurface>> = Object.freeze({
+  seat: "fabric",
+  fabric: "fabric",
+  upholstery: "fabric",
+  cushion: "fabric",
+  mattress: "fabric",
+  ceramic: "ceramic",
+  pot: "ceramic",
+  wood: "wood",
+  slab: "wood",
+});
+
+/**
+ * 把「结构 / 软装角色 + `surface: "metal"`」收回低金属度表面（**保留档位颜色**）。
+ *
+ * - 颜色一律不动：银灰档仍是银灰、银黑档仍是曜黑，只是从「实心钢」变成「钢色漆面」；
+ * - 配方里显式写的 `metalness ≥ 0.5` 一并删掉（否则表面换了、金属度还留在 0.72）；
+ * - 只在 `definePreset` 里跑一次，所有档位（含动态生成的）都自动受保护。
+ */
+function sanitizeStructuralMetalRoles(
+  roles: Record<string, RoleRecipe>,
+): Record<string, RoleRecipe> {
+  let sanitizedRoles: Record<string, RoleRecipe> | null = null;
+  for (const [role, recipe] of Object.entries(roles)) {
+    if (recipe?.surface !== "metal" || !STRUCTURAL_OR_SOFT_ROLES.has(role)) continue;
+    const fallbackSurface = STRUCTURAL_METAL_FALLBACK_SURFACE[role] ?? "lacquer";
+    const { metalness, ...recipeWithoutMetalness } = recipe;
+    const sanitizedRecipe: RoleRecipe = {
+      ...recipeWithoutMetalness,
+      surface: fallbackSurface,
+      ...(metalness !== undefined && metalness < 0.5 ? { metalness } : {}),
+    };
+    sanitizedRoles ||= { ...roles };
+    sanitizedRoles[role] = sanitizedRecipe;
+  }
+  return sanitizedRoles ?? roles;
 }
 
 
@@ -254,6 +350,20 @@ const MODEL_STYLE_ROLE_OVERRIDES: Readonly<
    */
   "kitchen-island": {
     foliage: { surface: "foliage", color: "leafColor" },
+  },
+  /**
+   * 中央空调风口：档位表把 `grille` 写成**金属**（`device-steel` 直接给 `metal` 表面，
+   * 金属度 0.72）。风口这件模型只有 20 来个三角形、2m 长一整片平板，场景又没有环境
+   * 贴图 —— 高金属度等于「只反射不发光」，屏幕上就是一条黑板子。真实风口是喷涂铝
+   * 格栅：这里只把**表面参数**收回喷涂（颜色仍跟档位走 `appliance` 键）。
+   */
+  airoutlet: {
+    body: { surface: "paint", color: "appliance", roughness: 0.5, metalness: 0.05 },
+    grille: { surface: "paint", color: "appliance", roughness: 0.5, metalness: 0.05 },
+  },
+  "air-outlet": {
+    body: { surface: "paint", color: "appliance", roughness: 0.5, metalness: 0.05 },
+    grille: { surface: "paint", color: "appliance", roughness: 0.5, metalness: 0.05 },
   },
   /** 边几：`top` 槽位按 `woodwork` 家族 token 表映射成 `countertop`，而 `woodwork` 组的 `countertop` 是**石材**配方；边几是木质小几，台面跟着木色走。 */
   "side-table": {
@@ -3141,6 +3251,14 @@ const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = 
   garden: GARDEN_STYLES,
 });
 
+/**
+ * 全部内置档位（组名 → 档位数组）。
+ *
+ * 导出给审计 **M6「档位把结构 / 软装角色刷成金属」**：审计遍历同一份表，
+ * 用同一份 `STRUCTURAL_OR_SOFT_ROLES` 词表判定，保证「运行时收口」与「审计口径」一致。
+ */
+export const MATERIAL_STYLE_PRESET_GROUPS = PRESET_GROUPS;
+
 /** 逐模型的档位组：参考实现里按类型单独指定过的那些，这里逐一登记（空串 = 明确不给档位：结构件 / 车辆 / 壁画 / 饰面墙等由专用收尾接管颜色）。 */
 const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.freeze({
   coffeetable: "marbleTable",
@@ -3683,6 +3801,28 @@ export function materialStyleRoleColorFor(
       : undefined;
   }
   return materialRoleRecipeForRole(modelType, role, palette)?.colorValue;
+}
+
+/**
+ * 取某档位下**指定角色**的配方色；**没选档位（auto）时返回 `undefined`**。
+ *
+ * 与 `materialStyleRoleColorFor` 的差别只在兜底：后者会回落到角色配方色，适合
+ * 「面板上要显示一个颜色」；而「配墙」这类**跟随**逻辑必须知道「用户到底选没选档位」，
+ * 否则每一档都会被角色配方的微调色（柱础 ×0.92、柱帽 ×1.18）顶掉 ——
+ * 柱帽会变成近纯白的 `#FFFFF4`，和墙不是一个颜色。
+ */
+export function materialStylePresetRoleColorFor(
+  modelType: string,
+  role: string,
+  palette: Record<string, unknown> | null | undefined,
+): number | undefined {
+  const preset = materialStylePresetFor(modelType, palette?.materialStyle);
+  const roleRecipe = preset ? styleRoleRecipeFor(modelType, role, preset) : undefined;
+  if (!roleRecipe) return undefined;
+  const colorValue = resolveMaterialPaletteColor(palette, roleRecipe.color);
+  return Number.isFinite(colorValue)
+    ? scaleMaterialColorChannels(colorValue, roleRecipe.multiply ?? 1)
+    : undefined;
 }
 
 /** 该模型的档位组里，**哪些角色**会拿到石材板贴图（跨全部档位的并集）。 */

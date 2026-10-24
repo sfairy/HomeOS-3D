@@ -2262,7 +2262,7 @@ export function mountInteraction3d(
     /**
      * 关闭配置窗口时的收尾：不销毁运行时，只把这次编辑留下的临时状态全部撤销。
      *
-     * 配置入口每次进出都复用同一个运行时（见 `editor-preview.ts`），所以「退出」必须自己
+     * 配置入口每次进出都复用同一个运行时，所以「退出」必须自己
      * 把界面恢复干净：隐藏页面、关掉照射范围编辑、拒掉在途编辑请求、松开按住的输入、退出
      * 视角编辑。最后置 `pendingResetPreviewSession` 并清掉 `lastConfigJson` —— 前者让下一次
      * `config` 带上 `resetPreviewSession`，舞台侧据此把取景与选中态整屏重置一次；后者保证

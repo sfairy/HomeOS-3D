@@ -380,6 +380,12 @@ export function materialLoadOptionsForItem(runtime: StudioAppRuntime, itemRecord
   const itemLoadOptions = {
     ...runtime.backgroundSettings(),
     ...materialStylePaletteColors(itemModelType, itemMaterialStyle),
+    /**
+     * 墙体**实际**的透过率（用户可能拖过滑条 / 单面墙有自定义 opacity）。
+     * `backgroundSettings().wallOpacity` 只是主题默认值，配墙的柱体只能读这里的实时值，
+     * 否则调完墙体透明度，柱子还停在 0.36。
+     */
+    wallOpacity: runtime.appCtx.wallOpacityValue ?? runtime.appCtx.studioState.settings.wallOpacity,
   };
   itemMaterialStyle !== MATERIAL_STYLE_AUTO && (itemLoadOptions.materialStyle = itemMaterialStyle);
   materialOverrideEntries.length && (itemLoadOptions.materialOverrides = itemMaterialOverrides);

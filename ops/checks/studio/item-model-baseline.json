@@ -133,7 +133,7 @@
     {
       "index": 22,
       "conditionSha256": "4c63105320e728b35ba6c930c8a17749af0d061bdd39eec83eeecbf43583a93e",
-      "bodySha256": "bc00a3e32508bf10f007172ae4c1112838ce32082cc13a8547fb83be1c91ccaf"
+      "bodySha256": "447ebd438428e8a72eae8182949f10b9b11bb135ecbfd228b25291d51f8333d2"
     },
     {
       "index": 23,
@@ -338,6 +338,14 @@
       "was": "11 pre-dispatch statements",
       "now": "12（多出 exhaust-fan 贴墙安装的预分派 if）",
       "reason": "0.8.0 排气扇：洞口命中时先按墙厚改写 modelItem.depth，必须在族分派前完成；59 个分派分支的条件与分支体均未改。"
+    },
+    {
+      "branch": 22,
+      "group": "storage-upper",
+      "field": "bodySha256",
+      "was": "min(wallOpacity * 1.75, 0.55)",
+      "now": "wallOpacity（闭合盒子叠两层，等价于墙的膜厚 1-(1-a)²）",
+      "reason": "柱体配墙对色：方柱是 DoubleSide 闭合盒、异形柱（GLB）是单面实体，两者要落到同一浓度才能和墙同色；旧公式两层叠成 0.80，比墙（0.59）浓一截。分派条件未改。"
     }
   ]
 }
