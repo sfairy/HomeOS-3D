@@ -1,7 +1,7 @@
 {
   "format": 1,
   "note": "GLB 材质「槽位下标 → 语义角色」快照：故意不含槽位名，改名不影响指纹；角色本身变化（重导出位移 / token 表误改）会让 check:materials 失败。",
-  "generatedAt": "2026-10-24T10:29:48.964Z",
+  "generatedAt": "2026-10-24T10:38:15.163Z",
   "modelCount": 336,
   "fileCount": 672,
   "materialCount": 3123,
@@ -3642,13 +3642,13 @@
     ],
     "scooter-lite.glb": [
       "metal",
-      "trim",
-      "trim",
+      "emissive",
+      "emissive",
       "dark",
       "trim",
       "body",
-      "trim",
-      "trim",
+      "emissive",
+      "emissive",
       "seat"
     ],
     "scooter.glb": [

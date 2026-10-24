@@ -709,6 +709,21 @@ const MODEL_MATERIAL_ROLE_SEMANTIC: Readonly<
   },
   airoutlet: { m03_pewter_shine: "grille" },
   smallcar: { car_tms: "bodywork" },
+  /**
+   * 滑板车灯带（lite 件仍是 SimLab 旧名）。`Yellow_Light` 这类名字的尾词 `light` 在车辆
+   * 家族 token 表里是**明度**语义（= 灰件 trim），灯带因此被当成饰条：审计把内嵌自发光
+   * 判成 A3（非发光角色带自发光），把 `metallic 0.06` 判成 C7（≠ trim 配方 0.72）。
+   * 完整件已经按目标名导出成 `scooter-lamp*`，用 `lamp` token 命中 emissive；这里把
+   * lite 件的旧名按完整名补齐，两个变体的角色、契约与审计口径就一致了。
+   * 车辆家族不重建材质（见 `material-pipeline.ts`），这一条只影响角色标签 / 检查面板 /
+   * 审计，不会改动渲染取值。
+   */
+  scooter: {
+    yellow_light: "emissive",
+    green_light: "emissive",
+    white_light: "emissive",
+    red_light: "emissive",
+  },
   /** 猫爬架：`cat-tree-rope` 是缠柱的**剑麻绳**，家族 token 只认 `body`（会落到灰）。 */
   "cat-tree": { "cat-tree-rope": "rope" },
   tv_standard: {

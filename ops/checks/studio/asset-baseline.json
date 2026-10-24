@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T00:28:42.730Z",
+  "generatedAt": "2026-10-24T10:39:43.870Z",
   "budgets": {
     "fullTotalBytes": 31457280,
     "liteTotalBytes": 8388608,
@@ -1177,7 +1177,7 @@
       "draco": true
     },
     "家居/柜架收纳/双段储物柜-lite.glb": {
-      "bytes": 3392,
+      "bytes": 3232,
       "triangles": 144,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -1195,7 +1195,7 @@
       "draco": true
     },
     "家居/柜架收纳/双段储物柜.glb": {
-      "bytes": 9672,
+      "bytes": 9512,
       "triangles": 144,
       "extensionsUsed": [],
       "images": 0,
@@ -12068,7 +12068,7 @@
       "draco": false
     },
     "家居/柜架收纳/窄高置物柜-lite.glb": {
-      "bytes": 4456,
+      "bytes": 4212,
       "triangles": 144,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -12087,7 +12087,7 @@
       "draco": true
     },
     "家居/柜架收纳/窄高置物柜.glb": {
-      "bytes": 10660,
+      "bytes": 10420,
       "triangles": 144,
       "extensionsUsed": [],
       "images": 0,
@@ -14401,7 +14401,7 @@
       "draco": false
     },
     "家居/柜架收纳/双段衣柜-lite.glb": {
-      "bytes": 4628,
+      "bytes": 4384,
       "triangles": 168,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
@@ -14420,7 +14420,7 @@
       "draco": true
     },
     "家居/柜架收纳/双段衣柜.glb": {
-      "bytes": 11948,
+      "bytes": 11708,
       "triangles": 168,
       "extensionsUsed": [],
       "images": 0,
