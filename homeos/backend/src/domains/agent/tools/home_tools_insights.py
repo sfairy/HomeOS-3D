@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import inspect
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,6 +19,7 @@ from .home_tools_base import HomeToolsHost
 from .home_tools_primitives import _error_message, _s, logger
 from ..agent_actor import AgentActor
 from ...client_power.energy_meter import business_day_key, business_month_key
+from ....platform.core.db_exec import run_db
 from ....platform.core.models import EnergyUsageDaily, EventLog, Notification
 
 #: 能耗查询最大回溯天数
@@ -80,6 +82,67 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         name = (attributes or {}).get("friendly_name") if isinstance(attributes, dict) else None
         return _s(name) or entity_id
 
+    # 同步取数（一律经 run_db 放进线程池，避免只读查询阻塞事件循环）
+    def _load_energy_rows(
+        self, since_key: str, month_key: str
+    ) -> tuple[list[EnergyUsageDaily], list[EnergyUsageDaily]]:
+        with self._session_scope() as session:
+            daily_rows = list(
+                session.execute(
+                    select(EnergyUsageDaily).where(EnergyUsageDaily.day >= since_key)
+                ).scalars()
+            )
+            month_rows = list(
+                session.execute(
+                    select(EnergyUsageDaily).where(
+                        EnergyUsageDaily.day >= f"{month_key}-01"
+                    )
+                ).scalars()
+            )
+        return daily_rows, month_rows
+
+    def _load_today_energy_rows(self, today_key: str) -> list[EnergyUsageDaily]:
+        with self._session_scope() as session:
+            return list(
+                session.execute(
+                    select(EnergyUsageDaily).where(EnergyUsageDaily.day == today_key)
+                ).scalars()
+            )
+
+    def _load_event_rows(
+        self, since: datetime, entity_id: str, domain: str, fetch_size: int
+    ) -> list[EventLog]:
+        with self._session_scope() as session:
+            query = select(EventLog).where(EventLog.created_at >= since)
+            if entity_id:
+                query = query.where(EventLog.entity_id == entity_id)
+            if domain:
+                query = query.where(EventLog.domain == domain)
+            return list(
+                session.execute(
+                    query.order_by(EventLog.created_at.desc()).limit(fetch_size)
+                ).scalars()
+            )
+
+    def _load_notification_rows(
+        self, unread_only: bool, fetch_size: int
+    ) -> tuple[list[Notification], list[Notification]]:
+        with self._session_scope() as session:
+            query = select(Notification)
+            if unread_only:
+                query = query.where(Notification.read.is_(False))
+            rows = list(
+                session.execute(
+                    query.order_by(Notification.created_at.desc()).limit(fetch_size)
+                ).scalars()
+            )
+            unread_rows = list(
+                session.execute(
+                    select(Notification).where(Notification.read.is_(False))
+                ).scalars()
+            )
+        return rows, unread_rows
+
     # 能耗
     async def _get_energy_usage(
         self, args: dict[str, Any], actor: AgentActor | None = None
@@ -95,17 +158,7 @@ class HomeToolsInsightsMixin(HomeToolsHost):
             datetime.strptime(today_key, "%Y-%m-%d").date() - timedelta(days=days - 1)
         ).isoformat()
         try:
-            with self._session_scope() as session:
-                daily_rows = list(
-                    session.execute(
-                        select(EnergyUsageDaily).where(EnergyUsageDaily.day >= since_key)
-                    ).scalars()
-                )
-                month_rows = list(
-                    session.execute(
-                        select(EnergyUsageDaily).where(EnergyUsageDaily.day >= f"{month_key}-01")
-                    ).scalars()
-                )
+            daily_rows, month_rows = await run_db(self._load_energy_rows, since_key, month_key)
         except Exception as exc:
             logger.warning("能耗查询失败: %s", _error_message(exc))
             return {"error": f"能耗数据暂不可用: {_error_message(exc)}"}
@@ -155,12 +208,7 @@ class HomeToolsInsightsMixin(HomeToolsHost):
             return None
         today_key = business_day_key(datetime.now(UTC))
         try:
-            with self._session_scope() as session:
-                rows = list(
-                    session.execute(
-                        select(EnergyUsageDaily).where(EnergyUsageDaily.day == today_key)
-                    ).scalars()
-                )
+            rows = await run_db(self._load_today_energy_rows, today_key)
         except Exception:
             return None
         total = sum(
@@ -183,20 +231,10 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         entity_id = _s(args.get("entity_id")).strip()
         domain = _s(args.get("domain")).strip()
         since = (datetime.now(UTC) - timedelta(hours=hours)).replace(tzinfo=None)
+        # 受限账号先取更多再过滤：否则 limit 会把可见记录挤掉
+        fetch_size = MAX_EVENT_ROWS * 4 if self._read_restrictions(actor) else limit
         try:
-            with self._session_scope() as session:
-                query = select(EventLog).where(EventLog.created_at >= since)
-                if entity_id:
-                    query = query.where(EventLog.entity_id == entity_id)
-                if domain:
-                    query = query.where(EventLog.domain == domain)
-                # 受限账号先取更多再过滤：否则 limit 会把可见记录挤掉
-                fetch_size = MAX_EVENT_ROWS * 4 if self._read_restrictions(actor) else limit
-                rows = list(
-                    session.execute(
-                        query.order_by(EventLog.created_at.desc()).limit(fetch_size)
-                    ).scalars()
-                )
+            rows = await run_db(self._load_event_rows, since, entity_id, domain, fetch_size)
         except Exception as exc:
             logger.warning("历史事件查询失败: %s", _error_message(exc))
             return {"error": f"历史数据暂不可用: {_error_message(exc)}"}
@@ -232,22 +270,11 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         limit = _clamped_int(args.get("limit"), 10, 1, MAX_NOTIFICATION_ROWS)
         unread_only = args.get("unread_only") is True
         restrictions = self._read_restrictions(actor)
+        fetch_size = MAX_NOTIFICATION_ROWS * 4 if restrictions else limit
         try:
-            with self._session_scope() as session:
-                query = select(Notification)
-                if unread_only:
-                    query = query.where(Notification.read.is_(False))
-                fetch_size = MAX_NOTIFICATION_ROWS * 4 if restrictions else limit
-                rows = list(
-                    session.execute(
-                        query.order_by(Notification.created_at.desc()).limit(fetch_size)
-                    ).scalars()
-                )
-                unread_rows = list(
-                    session.execute(
-                        select(Notification).where(Notification.read.is_(False))
-                    ).scalars()
-                )
+            rows, unread_rows = await run_db(
+                self._load_notification_rows, unread_only, fetch_size
+            )
         except Exception as exc:
             logger.warning("通知查询失败: %s", _error_message(exc))
             return {"error": f"通知暂不可用: {_error_message(exc)}"}
@@ -287,7 +314,10 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         if not callable(fetch):
             return {"items": [], "message": "当前环境未配置天气预报服务"}
         try:
-            raw = await fetch(items_limit)
+            # ``fetch_forecast`` 在真实实现里是协程，但配置层允许注入同步桩；
+            # 统一用 ``isawaitable`` 兜住两种形态（直接 ``await`` 会让同步桩报错）。
+            pending = fetch(items_limit)
+            raw = await pending if inspect.isawaitable(pending) else pending
         except Exception as exc:
             logger.warning("天气预报获取失败: %s", _error_message(exc))
             return {"error": f"天气预报暂不可用: {_error_message(exc)}"}
@@ -296,9 +326,12 @@ class HomeToolsInsightsMixin(HomeToolsHost):
         for entry in (raw_list or [])[:items_limit]:
             if not isinstance(entry, dict):
                 continue
-            main = entry.get("main") if isinstance(entry.get("main"), dict) else {}
-            weather_list = entry.get("weather") if isinstance(entry.get("weather"), list) else []
-            first = weather_list[0] if weather_list and isinstance(weather_list[0], dict) else {}
+            main_raw = entry.get("main")
+            main: dict[str, Any] = main_raw if isinstance(main_raw, dict) else {}
+            weather_raw = entry.get("weather")
+            weather_list: list[Any] = weather_raw if isinstance(weather_raw, list) else []
+            first_raw = weather_list[0] if weather_list else None
+            first: dict[str, Any] = first_raw if isinstance(first_raw, dict) else {}
             stamp = entry.get("dt")
             when = (
                 datetime.fromtimestamp(float(stamp), tz=UTC).isoformat(timespec="minutes")

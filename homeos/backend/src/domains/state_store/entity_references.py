@@ -3,19 +3,45 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import inspect
 import json
 import logging
 import re
 import time
 from collections import OrderedDict
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from contextlib import AbstractContextManager
 from functools import lru_cache
-from typing import Any, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict
 
 from ...platform.core.json_field import object_field
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from ..ha.config.ha_filters import AlertRuleWatchIndex
+
 logger = logging.getLogger("homeos.state_store.entity_references")
+
+#: 打开一次数据库会话的工厂（``Database.session_factory`` 的形状）。
+#: 用具体类型而不是 ``Any``：解绑/扫描全部走同步 Session，跨层传 ``Any`` 时
+#: 「把 async 工厂传进来」这种错误在运行期才炸，类型收窄后由 pyright 直接拦下。
+SessionFactory = Callable[[], AbstractContextManager['Session']]
+
+
+class AppConfigPort(Protocol):
+    """``AppConfigService`` 中本模块用到的两件事（读整份配置 / 打补丁保存）。"""
+
+    def get_all_raw(self) -> dict[str, Any]: ...
+
+    def update(self, partial: dict[str, Any]) -> None: ...
+
+
+class UiConfigPort(Protocol):
+    """``UiConfigService`` 中本模块用到的一件事（保存布局）。"""
+
+    def save_config(self, project_id: str, layout: Any) -> dict[str, Any]: ...
 
 
 class EntityReference(TypedDict):
@@ -48,12 +74,16 @@ class EntityReferencesDeps(TypedDict):
     调用方通过 ``deps.get(...)`` 探测。
     """
 
-    session_factory: Any
-    app_config: Any
-    ui_config: Any
-    alert_rule_watch_index: NotRequired[Any]
-    update_home_mode: NotRequired[Callable[[str, dict[str, Any]], Any] | None]
-    delete_alert_rule: NotRequired[Callable[[str], Any] | None]
+    session_factory: SessionFactory
+    app_config: AppConfigPort
+    ui_config: UiConfigPort
+    alert_rule_watch_index: NotRequired[AlertRuleWatchIndex | None]
+    #: 同步写库回调（``HomeModeService.update_sync``）。**故意不是 Awaitable**：
+    #: 解绑跑在 executor 线程里，若这里传进来 async 版本，调用只会得到一条没人 await
+    #: 的协程 —— 模式看着「更新成功」，库里其实一个字没写。构造点用
+    #: ``inspect.iscoroutinefunction`` 显式拒绝协程函数，调用点再兜一次 awaitable。
+    update_home_mode: NotRequired[Callable[[str, dict[str, Any]], object] | None]
+    delete_alert_rule: NotRequired[Callable[[str], dict[str, Any] | None] | None]
     load_layout: Callable[[], dict[str, Any]]
     save_layout: Callable[[dict[str, Any]], None]
 
@@ -183,6 +213,13 @@ def path_looks_like_action(path: str) -> bool:
 #: 实体承载字段名集合：对象中出现这些 key 且值匹配 entityId 时，视为以实体为主键。
 _ENTITY_FIELD_KEYS = ("entity_id", "entityId", "entityIds", "entity_ids", "id", "target")
 
+#: 摘引用时整条删除的「主键字段」。**绝不写空串**：空串在下游会被当成通配符，
+#: 曾经让「删掉前门锁之后，任意一把锁解锁都激活回家模式」。
+_ENTITY_PRIMARY_KEY_FIELDS = ("entity_id", "entityId", "id")
+
+#: 没有实体就无从求值的触发器类型（写回前必须丢掉，否则 normalize 会整批拒绝）。
+_TRIGGER_TYPES_REQUIRING_ENTITY = ("lock_unlock", "state")
+
 
 def _is_entity_bearing_object(node: JsonValue, entity_id: str) -> bool:
     if not isinstance(node, dict):
@@ -229,8 +266,12 @@ def remove_entity_from_json_value(node: JsonValue, entity_id: str) -> tuple[Json
         cleaned_object: dict[str, Any] = {}
         changed = False
         for field_key, child_node in node.items():
-            if field_key in ("entity_id", "entityId", "id") and isinstance(child_node, str) and child_node == entity_id:
-                cleaned_object[field_key] = ""
+            if (
+                field_key in _ENTITY_PRIMARY_KEY_FIELDS
+                and isinstance(child_node, str)
+                and child_node == entity_id
+            ):
+                # 删 key 而不是写 ""：空串会被下游当成「任意实体」。
                 changed = True
                 continue
             if field_key in ("entityIds", "entity_ids") and isinstance(child_node, list):
@@ -248,7 +289,70 @@ def remove_entity_from_json_value(node: JsonValue, entity_id: str) -> tuple[Json
     return node, False
 
 
+def _as_json_list(value: Any) -> list[Any]:
+    """把 JSON 列解析结果收敛成列表（脏数据 / 非数组一律当空列表）。"""
+    return value if isinstance(value, list) else []
+
+
+def _primary_entity_of(entry: dict[str, Any]) -> str:
+    """取条目上的主键实体（``entity_id`` / ``entityId``），没有则返回空串。"""
+    for field_key in ("entity_id", "entityId"):
+        value = entry.get(field_key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _prune_home_mode_entries(
+    entries: list[Any], entity_id: str, *, kind: str
+) -> tuple[list[Any], bool]:
+    """从家庭模式 ``config`` / ``triggers`` 里摘掉实体：**整条删除**，而不是把 entityId 置空。
+
+    - 条目以该实体为主键（``entity_id`` / ``entityId``）→ 整条删除：动作没有实体无从执行，
+      触发器没有实体会退化成通配符。
+    - 实体只出现在 ``entityIds`` / ``entity_ids`` 列表里 → 过滤该 id，保留条目。
+    - 其它嵌套引用（``data`` 里的模板等）→ 交给 :func:`remove_entity_from_json_value`。
+
+    另外顺手清掉历史遗留的「空主键」条目（旧版本解绑把 ``entityId`` 写成 ``""``）：
+    这类条目写回时会被 ``normalize_home_mode_json_array`` 整批拒绝，留着只会让下一次
+    保存失败。返回 ``(清理后的条目, 是否变更)``。
+    """
+    kept: list[Any] = []
+    changed = False
+    for entry in entries:
+        if not isinstance(entry, dict):
+            kept.append(entry)
+            continue
+        primary_entity = _primary_entity_of(entry)
+        if primary_entity and primary_entity == entity_id:
+            changed = True
+            continue
+        if not primary_entity and kind == "config":
+            # 动作条目必须有 entity_id（normalize 要求），空主键是解绑残留。
+            continue
+        if not primary_entity and kind == "triggers" and entry.get("type") in _TRIGGER_TYPES_REQUIRING_ENTITY:
+            continue
+        cleaned, entry_changed = remove_entity_from_json_value(entry, entity_id)
+        if not entry_changed:
+            kept.append(entry)
+            continue
+        changed = True
+        kept.append(cleaned if isinstance(cleaned, dict) else {})
+    return kept, changed
+
+
+def prune_home_mode_config(entries: list[Any], entity_id: str) -> tuple[list[Any], bool]:
+    """家庭模式动作列表的实体摘除。"""
+    return _prune_home_mode_entries(entries, entity_id, kind="config")
+
+
+def prune_home_mode_triggers(entries: list[Any], entity_id: str) -> tuple[list[Any], bool]:
+    """家庭模式触发器列表的实体摘除。"""
+    return _prune_home_mode_entries(entries, entity_id, kind="triggers")
+
+
 # 倒排索引（对齐 entity-references-index.ts）
+
 
 def _reference_key(reference: EntityReference) -> str:
     """引用去重键：同 ``kind:id:role:detail`` 视为同一条引用。
@@ -882,23 +986,37 @@ def _unlink_home_mode(deps: EntityReferencesDeps, mode_id: str, entity_id: str) 
         stored_mode = session.get(HomeMode, mode_id)
         if stored_mode is None:
             return _fail("家庭模式不存在")
-        config_parsed = safe_parse_json(stored_mode.config) or []
-        triggers_parsed = safe_parse_json(stored_mode.triggers) or []
-    config_next, config_changed = remove_entity_from_json_value(config_parsed, entity_id)
-    triggers_next, triggers_changed = remove_entity_from_json_value(triggers_parsed, entity_id)
+        config_parsed = _as_json_list(safe_parse_json(stored_mode.config))
+        triggers_parsed = _as_json_list(safe_parse_json(stored_mode.triggers))
+    config_next, config_changed = prune_home_mode_config(config_parsed, entity_id)
+    triggers_next, triggers_changed = prune_home_mode_triggers(triggers_parsed, entity_id)
     if not config_changed and not triggers_changed:
         return _fail("家庭模式中未找到该实体")
 
+    # 走服务层写库：那边会跑 normalize 校验并刷新触发器绑定。这里处于 executor 线程，
+    # 所以注入的是**同步**版本（`update_sync`）；刷新绑定由调用方在事件循环里补。
     update_home_mode = deps.get("update_home_mode")
     if update_home_mode is not None:
-        update_home_mode(mode_id, {"config": config_next, "triggers": triggers_next})
-    else:
-        with deps["session_factory"]() as session:
-            stored_mode = session.get(HomeMode, mode_id)
-            if stored_mode is not None:
-                stored_mode.config = json.dumps(config_next, ensure_ascii=False)
-                stored_mode.triggers = json.dumps(triggers_next, ensure_ascii=False)
-                session.commit()
+        try:
+            outcome = update_home_mode(mode_id, {"config": config_next, "triggers": triggers_next})
+            if inspect.isawaitable(outcome):
+                # 兜底：即便构造点没拦住（比如传了 functools.partial(update)），
+                # 也不能让协程无声消失 —— 关掉它并明确报错。
+                close = getattr(outcome, "close", None)
+                if callable(close):
+                    close()
+                raise TypeError('update_home_mode 返回了 awaitable，解绑要求同步写库回调')
+        except Exception as exc:
+            logger.warning("家庭模式解绑写库失败 mode=%s entity=%s: %s", mode_id, entity_id, exc)
+            return _fail("更新家庭模式失败")
+        return _ok("filtered", "已从家庭模式动作/触发中移除")
+
+    with deps["session_factory"]() as session:
+        stored_mode = session.get(HomeMode, mode_id)
+        if stored_mode is not None:
+            stored_mode.config = json.dumps(config_next, ensure_ascii=False)
+            stored_mode.triggers = json.dumps(triggers_next, ensure_ascii=False)
+            session.commit()
     return _ok("filtered", "已从家庭模式动作/触发中移除")
 
 
@@ -1349,20 +1467,29 @@ class EntityReferencesService:
 
     def __init__(
         self,
-        session_factory: Any,
-        app_config: Any,
-        ui_config: Any,
-        alert_rule_watch_index: Any = None,
+        session_factory: SessionFactory,
+        app_config: AppConfigPort,
+        ui_config: UiConfigPort,
+        alert_rule_watch_index: AlertRuleWatchIndex | None = None,
         *,
-        update_home_mode: Callable[[str, dict[str, Any]], Any] | None = None,
-        delete_alert_rule: Callable[[str], Any] | None = None,
+        update_home_mode: Callable[[str, dict[str, Any]], object] | None = None,
+        delete_alert_rule: Callable[[str], dict[str, Any] | None] | None = None,
+        reload_home_mode_triggers: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
+        if update_home_mode is not None and inspect.iscoroutinefunction(update_home_mode):
+            # 提前炸掉，而不是让每条解绑都静默丢掉一次写库（协程没人 await）。
+            raise TypeError(
+                'update_home_mode 必须是同步回调（EntityReferencesService 在 executor 线程调用），'
+                '请注入 HomeModeService.update_sync'
+            )
         self._session_factory = session_factory
         self._app_config = app_config
         self._ui_config = ui_config
         self._watch_index = alert_rule_watch_index
         self._update_home_mode = update_home_mode
         self._delete_alert_rule = delete_alert_rule
+        # 解绑在 executor 线程里写库，触发器绑定必须在事件循环里刷新。
+        self._reload_home_mode_triggers = reload_home_mode_triggers
         self._ref_cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._inverted_index: dict[str, list[EntityReference]] | None = None
         self._inverted_index_at = 0.0
@@ -1457,6 +1584,11 @@ class EntityReferencesService:
             None, unlink_entity_reference, self._deps(), ident, req
         )
         self._invalidate_reference_index()
+        if outcome.get("action") == "filtered" and req.get("kind") == "home_mode":
+            # 解绑只改了 config/triggers，触发器绑定缓存必须重建，否则旧绑定继续生效。
+            if self._reload_home_mode_triggers is not None:
+                with contextlib.suppress(Exception):
+                    await self._reload_home_mode_triggers()
         remaining = await self.find_references(ident)
         return {
             "entityId": ident,

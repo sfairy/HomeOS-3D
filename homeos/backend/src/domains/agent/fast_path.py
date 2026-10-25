@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from typing import Any
 
 from .area_service import AgentAreaService
@@ -36,7 +37,13 @@ _AREA_CACHE_INVALIDATION_EVENTS = (
     "SYSTEM_CONFIG_UPDATED",
     "area.updated",
     "ha.entity_registry_updated",
+    "ha.device_registry_updated",
+    "ha.area_registry_updated",
 )
+
+#: 房间 / 实体缓存 TTL（秒）：事件丢失时（老版本后端不发事件、事件总线异常）
+#: 也必须保证新增房间 / 实体在 60s 内对语音快路径可见。
+_AREA_CACHE_TTL_SECONDS = 60.0
 
 #: 设温度分支内显式中止（如多空调消歧），与「未命中、继续开 / 关」区分。
 _FAST_PATH_ABORT = object()
@@ -131,12 +138,27 @@ class FastPathService:
         self._area_cache: list[dict[str, str]] = []
         #: 带实体的房间缓存，避免 find_device_globally / get_room_devices 逐房 find_one
         self._area_entities_cache: list[Any] | None = None
+        #: 缓存代际号：失效时 +1，避免失效前发出的查询在返回时把旧结果写回缓存
+        self._area_cache_generation = 0
+        #: 缓存写入时刻（monotonic），超过 TTL 视为过期
+        self._area_cache_loaded_at = 0.0
+        self._area_entities_cache_loaded_at = 0.0
+
+    def invalidate_area_cache(self) -> None:
+        """房间 / 实体缓存失效：清空两份缓存并推进代际号。"""
+        self._area_cache_generation += 1
+        self._area_cache = []
+        self._area_entities_cache = None
+        self._area_cache_loaded_at = 0.0
+        self._area_entities_cache_loaded_at = 0.0
 
     def bind_events(self) -> None:
         """模块初始化：订阅配置 / 实体注册表更新事件，清空房间缓存。"""
 
         def clear_area_cache(_payload: Any = None) -> None:
-            self._area_cache = []
+            # 修复：此前只清 ``_area_cache``，带实体的 ``_area_entities_cache``
+            # 一直留着旧房间，新增「书房灯」后语音指令始终找不到设备。
+            self.invalidate_area_cache()
 
         if self._event_bus is None:
             return
@@ -921,20 +943,36 @@ class FastPathService:
 
     # 房间 / 设备
     async def _get_areas(self) -> list[dict[str, str]]:
-        """获取房间列表（带缓存）。"""
-        if len(self._area_cache) == 0:
+        """获取房间列表（带缓存 + TTL）。"""
+        if len(self._area_cache) == 0 or self._area_cache_expired(self._area_cache_loaded_at):
+            generation = self._area_cache_generation
             areas = (await self._get_areas_with_entities()) or []
-            self._area_cache = [{"id": a.id, "name": str(a.name or "")} for a in areas]
+            # 失效发生在查询途中时不写回，避免旧结果覆盖新缓存
+            if generation == self._area_cache_generation:
+                self._area_cache = [{"id": a.id, "name": str(a.name or "")} for a in areas]
+                self._area_cache_loaded_at = time.monotonic()
         return self._area_cache
 
     async def _get_areas_with_entities(self) -> list[Any]:
-        """带实体的房间缓存（对齐 Nest：仅在为空时拉取）。"""
-        if self._area_entities_cache is None:
+        """带实体的房间缓存（事件失效 + 60s TTL 双保险）。"""
+        if self._area_entities_cache is None or self._area_cache_expired(
+            self._area_entities_cache_loaded_at
+        ):
+            generation = self._area_cache_generation
             try:
-                self._area_entities_cache = await self._area_service.find_all()
+                loaded = await self._area_service.find_all()
             except Exception:
-                self._area_entities_cache = []
+                loaded = []
+            if generation != self._area_cache_generation:
+                # 期间收到注册表变更事件：本次结果可能已过期，只返回不写缓存
+                return loaded
+            self._area_entities_cache = loaded
+            self._area_entities_cache_loaded_at = time.monotonic()
         return self._area_entities_cache
+
+    @staticmethod
+    def _area_cache_expired(loaded_at: float) -> bool:
+        return loaded_at <= 0.0 or (time.monotonic() - loaded_at) >= _AREA_CACHE_TTL_SECONDS
 
     @staticmethod
     def _resolve_room(target: str, areas: list[dict[str, str]]) -> dict[str, str] | None:

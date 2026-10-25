@@ -49,6 +49,8 @@ RATE_INPUT_HIT_CNY = 0.5
 RATE_OUTPUT_CNY = 3.0
 #: 单条工具结果回填 LLM 上下文的最大字符数（防止大实体状态 / 日志撑爆上下文）
 MAX_TOOL_RESULT_CHARS = 4000
+#: 工具轨迹 / 进度回调里展示的结果预览长度（前端 chip 与日志都按这个粒度看）。
+TOOL_RESULT_PREVIEW_CHARS = 200
 #: 单条历史消息进入上下文的字符上限
 MAX_HISTORY_MESSAGE_CHARS = 2000
 #: 历史上下文（不含 system prompt 与工具 schema）的字符预算。
@@ -456,9 +458,23 @@ def _emit_tool_progress(
             "type": "tool",
             "name": call.name,
             "arguments": call.arguments,
-            "resultPreview": serialized[:200],
+            "resultPreview": serialized[:TOOL_RESULT_PREVIEW_CHARS],
         }
     )
+
+
+@dataclass(slots=True)
+class _ToolOutcome:
+    """一次工具调用的统一记账结果（轨迹里的一行 + 三个判定）。"""
+
+    #: 序列化后的结果（LLM 链路会先按 ``MAX_TOOL_RESULT_CHARS`` 截断）
+    serialized: str
+    #: 动作是否真的生效（设备 / 场景看 success，房间 / 批量看 total==affected）
+    applied: bool
+    #: 控制类工具的「成功」判定（含 blocked 之外的失败语义）
+    control_ok: bool
+    #: 是否被权限 / 确认拦截
+    blocked: bool
 
 
 class AgentService:
@@ -562,7 +578,10 @@ class AgentService:
         if not callable(getter):
             return actor
         try:
-            allowlist = await getter()
+            # 配置端口允许返回同步值（内存桩）或协程（读库实现），统一兜住两种形态。
+            pending = getter()
+            raw_allowlist = await pending if inspect.isawaitable(pending) else pending
+            allowlist = raw_allowlist if isinstance(raw_allowlist, list) else None
         except Exception as exc:  # 配置读取失败不应阻断对话，按“不额外限制”处理
             logger.warning("读取 Agent 设备白名单失败,按不限制处理: %s", exc)
             return actor
@@ -668,7 +687,8 @@ class AgentService:
             return res.reply.strip()[:500]
         if res.tool_calls:
             summary = "；".join(
-                f"{c['name']}({_js_stringify(c.get('arguments') or {})[:200]})" for c in res.tool_calls
+                f"{c['name']}({_js_stringify(c.get('arguments') or {})[:TOOL_RESULT_PREVIEW_CHARS]})"
+                for c in res.tool_calls
             )
             return f"（已执行）{summary}" if summary else None
         return None
@@ -836,21 +856,10 @@ class AgentService:
             tool_result = await self._call_tool(ctx, tool_name, tool_args)
             if isinstance(tool_result, dict):
                 snapshot.extend(tool_result.get("snapshot") or [])
-            serialized = _js_stringify(tool_result)
-            ctx.tool_trace.append(
-                {
-                    "name": tool_name,
-                    "arguments": tool_args,
-                    "resultPreview": serialized[:200],
-                }
-            )
-            applied = _is_applied_result(
-                tool_result if isinstance(tool_result, dict) else {},
-                by_success_flag=_result_uses_success_flag(tool_name),
-            )
-            all_ok = all_ok and applied
-            any_blocked = any_blocked or self._is_blocked(tool_result)
-            if applied:
+            outcome = self._record_tool_result(ctx, tool_name, tool_args, tool_result)
+            all_ok = all_ok and outcome.applied
+            any_blocked = any_blocked or outcome.blocked
+            if outcome.applied:
                 self._remember_targets(ctx, tool_name, tool_args, tool_result)
         ctx.tool_ms += _now_ms() - s0
         # 去重：同一实体只保留第一次（最早）的执行前状态
@@ -901,18 +910,7 @@ class AgentService:
         ok_count = 0
         for tool_name, tool_args in calls:
             tool_result = await self._call_tool(ctx, tool_name, tool_args)
-            serialized = _js_stringify(tool_result)
-            ctx.tool_trace.append(
-                {
-                    "name": tool_name,
-                    "arguments": tool_args,
-                    "resultPreview": serialized[:200],
-                }
-            )
-            if _is_applied_result(
-                tool_result if isinstance(tool_result, dict) else {},
-                by_success_flag=_result_uses_success_flag(tool_name),
-            ):
+            if self._record_tool_result(ctx, tool_name, tool_args, tool_result).applied:
                 ok_count += 1
         ctx.tool_ms += _now_ms() - s0
         total_ms = _now_ms() - ctx.start_ms
@@ -941,6 +939,39 @@ class AgentService:
             tool_calls=ctx.tool_trace,
             timing={"llmMs": 0, "toolMs": ctx.tool_ms, "totalMs": total_ms},
             usage=_empty_usage(),
+        )
+
+    def _record_tool_result(
+        self,
+        ctx: _ChatRunContext,
+        name: str,
+        args: dict[str, Any] | None,
+        result: Any,
+        *,
+        truncate: bool = False,
+    ) -> _ToolOutcome:
+        """把一次工具调用记进 ``ctx.tool_trace``，并统一算出三个判定。
+
+        原先 5 个调用点各自手写 ``serialized[:200]`` + 各自的成功 / 拦截判定，
+        预览长度与判定口径容易走偏（LLM 链路要截断后再回填、控制链路看 total/affected）。
+        收敛到这里后，轨迹格式与判定口径只有一份定义。
+        """
+        serialized = _js_stringify(result)
+        if truncate:
+            serialized = truncate_tool_result(serialized)
+        payload = result if isinstance(result, dict) else {}
+        ctx.tool_trace.append(
+            {
+                "name": name,
+                "arguments": args,
+                "resultPreview": serialized[:TOOL_RESULT_PREVIEW_CHARS],
+            }
+        )
+        return _ToolOutcome(
+            serialized=serialized,
+            applied=_is_applied_result(payload, by_success_flag=_result_uses_success_flag(name)),
+            control_ok=self._is_control_success(name, payload),
+            blocked=self._is_blocked(payload),
         )
 
     def _remember_targets(
@@ -1192,25 +1223,16 @@ class AgentService:
         s0 = _now_ms()
         tool_result = await self._call_tool(ctx, cached.tool_name, cached.tool_args)
         ctx.tool_ms = _now_ms() - s0
-        ok = _is_applied_result(
-            tool_result if isinstance(tool_result, dict) else {},
-            by_success_flag=_result_uses_success_flag(cached.tool_name),
-        )
-        if not ok:
+        outcome = self._record_tool_result(ctx, cached.tool_name, cached.tool_args, tool_result)
+        if not outcome.applied:
             # 缓存执行失败：设备可能已变更，删除过期缓存后降级到快路径 / LLM
             logger.warning(
                 '缓存失败(设备可能已变更),删除过期缓存,降级→快路径/LLM: "%s"', ctx.user_message
             )
             self._cmd_cache.delete(ctx.user_message, ctx.actor.user_id if ctx.actor else None)
+            # 轨迹里已经写进了这次失败调用：回滚掉，避免响应里出现「没执行却报成功」的 chip。
+            ctx.tool_trace.pop()
             return None
-        serialized = _js_stringify(tool_result)
-        ctx.tool_trace.append(
-            {
-                "name": cached.tool_name,
-                "arguments": cached.tool_args,
-                "resultPreview": serialized[:200],
-            }
-        )
         total_ms = _now_ms() - ctx.start_ms
         logger.info(
             "缓存命中: %s total=%sms hitCount=%s",
@@ -1308,19 +1330,9 @@ class AgentService:
             return self._stage_batch(ctx, [(tool_name, tool_args)], summary)
         tool_result = await self._call_tool(ctx, tool_name, tool_args)
         ctx.tool_ms = _now_ms() - s0
-        serialized = _js_stringify(tool_result)
-        ctx.tool_trace.append(
-            {
-                "name": tool_name,
-                "arguments": tool_args,
-                "resultPreview": serialized[:200],
-            }
-        )
-        ok = _is_applied_result(
-            tool_result if isinstance(tool_result, dict) else {},
-            by_success_flag=_result_uses_success_flag(tool_name),
-        )
-        blocked = self._is_blocked(tool_result)
+        outcome = self._record_tool_result(ctx, tool_name, tool_args, tool_result)
+        ok = outcome.applied
+        blocked = outcome.blocked
         total_ms = _now_ms() - ctx.start_ms
         logger.info("快路径: %s total=%sms ok=%s blocked=%s", tool_name, total_ms, ok, blocked)
         # 控制成功则回写缓存（快路径默认 confirmed）
@@ -1498,37 +1510,31 @@ class AgentService:
         for call in calls:
             is_control = call.name in ("control_device", "control_room", "activate_scene")
             s0 = _now_ms()
-            try:
-                tool_result = await self._call_tool(ctx, call.name, call.arguments or {})
-            except Exception as exc:
-                tool_result = {"error": str(exc) or "工具执行异常"}
+            # ``_call_tool`` 内部已把超时 / 异常收敛成 ``{"error": ...}``，这里不需要再包 try：
+            # 旧实现的 ``except Exception`` 永远不会触发（一旦触发就说明工具层契约破了）。
+            tool_result = await self._call_tool(ctx, call.name, call.arguments or {})
             ctx.tool_ms += _now_ms() - s0
             # 截断大工具结果后再回填 LLM 上下文，防止实体状态 / 日志撑爆 prompt
-            serialized = truncate_tool_result(_js_stringify(tool_result))
-            ctx.tool_trace.append(
-                {
-                    "name": call.name,
-                    "arguments": call.arguments,
-                    "resultPreview": serialized[:200],
-                }
+            outcome = self._record_tool_result(
+                ctx, call.name, call.arguments, tool_result, truncate=True
             )
-            _emit_tool_progress(on_progress, call, serialized)
+            _emit_tool_progress(on_progress, call, outcome.serialized)
             messages.append(
                 LlmMessage(
                     role="tool",
                     tool_call_id=call.id,
                     name=call.name,
-                    content=self._wrap_untrusted_tool_result(serialized),
+                    content=self._wrap_untrusted_tool_result(outcome.serialized),
                 )
             )
             # 跟踪本批控制类调用的成功 / 拦截状态
             if is_control:
                 batch.has_control = True
-                if not self._is_control_success(call.name, tool_result):
+                if not outcome.control_ok:
                     batch.all_ok = False
                 else:
                     self._remember_targets(ctx, call.name, call.arguments or {}, tool_result)
-                if self._is_blocked(tool_result):
+                if outcome.blocked:
                     batch.any_blocked = True
         return batch
 

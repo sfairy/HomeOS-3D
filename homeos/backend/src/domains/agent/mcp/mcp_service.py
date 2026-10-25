@@ -16,6 +16,7 @@ from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_jso
 from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
 from ..tool_i18n import localize_tool_schemas
 from ....config import environment_is_production_from
+from ....platform.core.db_exec import run_db
 from ....platform.core.json_field import read_json_object
 from ....platform.core.models import User
 from ....platform.security.auth_context import resolve_restrictions
@@ -195,10 +196,18 @@ class McpGatewayService:
         if not user_id:
             return None
         try:
-            with self._session_factory() as session:
-                user = session.get(User, user_id)
-            if user is None:
+            actor = await run_db(self._load_mcp_actor, user_id)
+            if actor is None:
                 logger.warning("MCP 绑定用户不存在: %s", user_id)
+            return actor
+        except Exception as exc:
+            logger.warning("解析 MCP 执行身份失败: %s", exc)
+            return None
+
+    def _load_mcp_actor(self, user_id: Any) -> AgentActor | None:
+        with self._session_factory() as session:
+            user = session.get(User, user_id)
+            if user is None:
                 return None
             prefs = read_json_object(user.preferences)
             return AgentActor(
@@ -206,9 +215,6 @@ class McpGatewayService:
                 username=user.username,
                 restrictions=resolve_restrictions(prefs),
             )
-        except Exception as exc:
-            logger.warning("解析 MCP 执行身份失败: %s", exc)
-            return None
 
     # JSON-RPC 入口
     def _resolve_client_id(

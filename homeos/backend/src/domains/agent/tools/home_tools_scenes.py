@@ -17,6 +17,7 @@ from .home_tools_primitives import (
     logger,
 )
 from ..agent_actor import AgentActor
+from ....platform.core.db_exec import run_db
 from ....platform.core.entity_domain import get_entity_domain
 from ....platform.core.json_field import object_field
 from ....platform.core.models import HomeMode
@@ -66,7 +67,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
     ) -> dict[str, str] | None:
         """按名称（精确 / 包含）或 ID 解析家庭模式。"""
         try:
-            direct = self._home_mode.find_one(name_or_id)
+            direct = await run_db(self._home_mode.find_one, name_or_id)
         except Exception:
             direct = None
         if direct:
@@ -75,7 +76,7 @@ class HomeToolsScenesMixin(HomeToolsHost):
                 "name": _s(direct.get("name")) or name_or_id,
             }
         lower = name_or_id.lower()
-        rows = self._query_modes_by_name(name_or_id)
+        rows = await run_db(self._query_modes_by_name, name_or_id)
         hit = next((r for r in rows if r["name"].lower() == lower), None)
         if hit is None:
             hit = next((r for r in rows if lower in r["name"].lower()), None)
@@ -97,18 +98,21 @@ class HomeToolsScenesMixin(HomeToolsHost):
 
     async def _list_mode_names(self) -> list[str]:
         try:
-            with self._session_factory() as session:
-                names = (
-                    session.execute(
-                        select(HomeMode.name).order_by(HomeMode.sort_order.asc()).limit(20)
-                    )
-                    .scalars()
-                    .all()
-                )
-            return [str(name) for name in names]
+            return await run_db(self._query_mode_names)
         except Exception as exc:
             logger.warning("读取家庭模式列表失败: %s", exc)
             return []
+
+    def _query_mode_names(self) -> list[str]:
+        with self._session_factory() as session:
+            names = (
+                session.execute(
+                    select(HomeMode.name).order_by(HomeMode.sort_order.asc()).limit(20)
+                )
+                .scalars()
+                .all()
+            )
+        return [str(name) for name in names]
 
     # 场景 / 脚本
 
