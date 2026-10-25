@@ -21,6 +21,7 @@ import {
   refreshEventLogFromSocket,
 } from '@/shared/utils/bridge/store-bridge'
 import { getFrontendConfig } from '@/shared/utils/config/frontend-config'
+import { onPageCacheResume, onPageCacheSuspend } from '@/shared/utils/page-cache-lifecycle'
 import { WS_PUSH_CRITICAL_DOMAINS } from '@homeos/shared'
 import { createEntityInitHelpers } from '@/stores/entities/entity-store-init.util'
 import { createEntityRestFallbackHelpers } from '@/stores/entities/entity-store-rest-fallback.util'
@@ -571,6 +572,15 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   }
   // 回填 WS 连接确保桥接
   wsConnectBridge.ensure = ensureWsConnected
+
+  // bfcache（前进 / 后退缓存）交接：冻结前主动断开、恢复后立刻重连。
+  //
+  // 不接管的话浏览器会在冻结瞬间硬断 Socket.IO 的 WebSocket，控制台留一条
+  // `WebSocket connection to … failed: Page entered Back-Forward Cache`；更要命的是冻结期间
+  // 定时器全部停摆，socket.io 的 ping 与 reconnection 退避都不推进，恢复后只能等下一轮超时
+  // 才可能重连。两次注册都属于页面生命周期单例（与 wsState 同寿命），无需解绑。
+  onPageCacheSuspend(() => disconnect())
+  onPageCacheResume(() => ensureWsConnected())
 
   /**
    * 认证变化后重连：清空缓存状态、清空实体、断开并重新连接

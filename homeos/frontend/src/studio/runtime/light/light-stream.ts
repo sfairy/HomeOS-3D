@@ -33,7 +33,10 @@ export function createLightStream({
     connectionGeneration = 0,
     reconnectAttempt = 0,
     reconnectTimerId: any = null,
-    heartbeatTimerId: any = null;
+    heartbeatTimerId: any = null,
+    // 冻结前是否处于激活态：bfcache 期间 visibilitychange 可能先把流 setActive(false)，
+    // 回来时得按冻结前的状态恢复，而不是只看那一刻的 isStreamActive。
+    wasActiveBeforePageCache = false;
   const unavailableState = (unavailableEntityId: any) => ({
       entityId: unavailableEntityId,
       state: "unavailable",
@@ -230,10 +233,44 @@ export function createLightStream({
         (reconnectAttempt = 0),
         isStreamActive ? openSocket() : (closeActiveSocket(), resetStates()));
     },
+    /**
+     * 进入 bfcache 前主动断开。
+     *
+     * 与 `setActive(false)` 的差别是**保留**订阅列表与已收到的状态：页面只是被冻结，
+     * 既没有换页也没有改订阅，回来时应当先按旧值渲染再被新快照覆盖 —— 清空状态会让墙屏
+     * 在「后退回来」的瞬间闪一遍空数据。
+     *
+     * 必须主动关：浏览器冻结文档时会自己切断 WebSocket，但那时 `close` 回调与心跳定时器
+     * 都已停摆，`scheduleReconnect` 一次都不会跑，只能等恢复后的心跳超时（65s）。
+     */
+    suspend() {
+      if (isDisposed) return;
+      wasActiveBeforePageCache = wasActiveBeforePageCache || isStreamActive;
+      closeActiveSocket();
+    },
+    /**
+     * 从 bfcache 恢复后立刻重连。
+     *
+     * 不能只依赖心跳超时：那意味着最长 65s 的旧值。这里先把退避计数清零再开连，
+     * 避免沿用冻结前攒下的失败次数而多等几轮。
+     *
+     * 冻结期间 `visibilitychange` 可能已经把流 `setActive(false)` 掉，所以按
+     * `wasActiveBeforePageCache` 恢复激活态，而不是只看此刻的 `isStreamActive` ——
+     * 否则「后台进 bfcache → 后退回来」会得到一个再也不重连的舞台。
+     */
+    resume() {
+      if (isDisposed) return;
+      const shouldRestore = wasActiveBeforePageCache;
+      wasActiveBeforePageCache = false;
+      if (!shouldRestore || !subscribedEntityIds.length) return;
+      isStreamActive = true;
+      activeSocket || ((reconnectAttempt = 0), openSocket());
+    },
     dispose() {
       isDisposed ||
         ((isDisposed = true),
         (isStreamActive = false),
+        (wasActiveBeforePageCache = false),
         closeActiveSocket(),
         (subscribedEntityIds = []),
         subscribedEntityIdSet.clear(),

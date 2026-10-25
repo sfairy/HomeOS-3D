@@ -8,6 +8,7 @@ import {
   setBuiltinAssetVersions as setBuiltinAssetVersions2,
   staticAssetImageSource as staticAssetImageSource2,
 } from "./registry";
+import { onPageCacheResume, onPageCacheSuspend } from "../../../shared/utils/page-cache-lifecycle";
 import { randomUuid as randomUuid2 } from "../shared/util/random-id";
 
 
@@ -130,7 +131,7 @@ import { createClimateDetailsControls } from "./panel-seams/climate-controls";
 import { createCoverDetailsControls } from "./panel-seams/cover-controls";
 import { createLightDetailsControls } from "./panel-seams/light-controls";
 import { createWaterHeaterExtensionControls } from "./panel-seams/water-heater-controls";
-import { connectRuntime } from "./panel-seams/runtime-connect";
+import { connectRuntime, resumeRuntime, suspendRuntime } from "./panel-seams/runtime-connect";
 import { renderComponent } from "./panel-seams/render-component";
 import { showAirPurifierDetails } from "./panel-seams/air-purifier-details";
 import { showCustomPopup } from "./panel-seams/custom-popup";
@@ -245,6 +246,8 @@ export interface PanelRenderer {
     componentIdToEffectHostMap?: any,
   ): any;
   connectRuntime(options?: { force?: boolean }): any;
+  suspendRuntime(): void;
+  resumeRuntime(): void;
   showCustomPopup(customPopupModule: any, options?: any): any;
   showEntityDetails(entityDetailsComponent: any, options?: any): any;
   showVacuumDetails(vacuumComponent: any, options?: any): any;
@@ -334,6 +337,11 @@ export class PanelRenderer {
   declare boundResize: () => void;
   declare boundReconnect: () => void;
   declare boundVisibilityChange: () => void;
+  declare boundPageCacheSuspend: () => void;
+  declare boundPageCacheResume: () => void;
+  declare unbindPageCacheSuspend: () => void;
+  declare unbindPageCacheResume: () => void;
+  declare runtimeSuspended: boolean;
   declare appliedScaleX: number;
   declare appliedScaleY: number;
   declare stagePrewarmTimer: ReturnType<typeof setTimeout> | null;
@@ -433,6 +441,7 @@ export class PanelRenderer {
       (this.socketGeneration = 0),
       (this.reconnectTimer = null),
       (this.reconnectAttempt = 0),
+      (this.runtimeSuspended = false),
       (this.runtimeHaConnected = false),
       (this.runtimeHydrationRetryTimer = null),
       (this.runtimeHydrationRetryAttempt = 0),
@@ -471,6 +480,10 @@ export class PanelRenderer {
             this.refreshHistorySeries());
         }
       }),
+      (this.boundPageCacheSuspend = () => this.suspendRuntime()),
+      (this.boundPageCacheResume = () => this.resumeRuntime()),
+      (this.unbindPageCacheSuspend = onPageCacheSuspend(this.boundPageCacheSuspend)),
+      (this.unbindPageCacheResume = onPageCacheResume(this.boundPageCacheResume)),
       (this.historyPollTimer = window.setInterval(() => this.refreshHistorySeries(), 30000)),
       window.visualViewport?.addEventListener("resize", this.boundResize),
       window.addEventListener("orientationchange", this.boundResize),
@@ -1887,6 +1900,8 @@ export class PanelRenderer {
       window.removeEventListener("orientationchange", this.boundResize),
       window.removeEventListener("online", this.boundReconnect),
       document.removeEventListener("visibilitychange", this.boundVisibilityChange),
+      this.unbindPageCacheSuspend?.(),
+      this.unbindPageCacheResume?.(),
       this.container.removeEventListener("click", this.boundRuntimeButtonSound, true),
       this.container.replaceChildren());
   }
@@ -1896,6 +1911,8 @@ Object.assign(PanelRenderer.prototype, geometryMethods as any);
 Object.assign(PanelRenderer.prototype, {
   renderComponent,
   connectRuntime,
+  suspendRuntime,
+  resumeRuntime,
   showCustomPopup,
   showEntityDetails,
   showPresenceDetails,

@@ -643,6 +643,9 @@ export function mountInteraction3d(
       closePopupLayoutPreview(),
       isVacuumPopupOpen && dismissFocus(true),
       (isPageFrozen = true),
+      // 进 bfcache 前主动断开实时通道：浏览器会冻结文档并自己切断 WebSocket，那时既没有
+      // close 回调也没有定时器，退避重连一次都不会跑（见 light/light-stream.ts 的 suspend）。
+      lightStream?.suspend(),
       refreshActivityState());
   }
   function handlePageShow(pageShowEvent: any) {
@@ -651,8 +654,8 @@ export function mountInteraction3d(
     }),
       (isPageFrozen = false),
       pageShowEvent?.persisted && !isDisposed
-        ? reloadStageFrame("load-bfcache")
-        : refreshActivityState());
+        ? (reloadStageFrame("load-bfcache"), lightStream?.resume())
+        : (refreshActivityState(), lightStream?.resume()));
   }
   function handleVisibilityChange() {
     (document.hidden && closePopupLayoutPreview(), refreshActivityState());

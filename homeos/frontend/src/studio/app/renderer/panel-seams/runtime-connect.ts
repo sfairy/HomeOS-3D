@@ -501,6 +501,46 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
   }
 
 /**
+ * 页面进入 bfcache 前主动断开实时通道（**保留**订阅参数）。
+ *
+ * 为什么不能交给浏览器：文档被冻结时浏览器会自己切断 WebSocket，但冻结期间既没有
+ * `close` 回调也没有定时器，`connectRuntime` 里那套指数退避一次都不会跑 —— 回到页面后
+ * 只能等 `visibilitychange` 碰巧触发，期间界面停在旧值。主动关还能省掉控制台那条
+ * `Page entered Back-Forward Cache` 的误导性报错。
+ *
+ * 保留 `runtimeSubscription` 是关键：回来时按原实体集合直接重订阅，不需要重新等文档 /
+ * 实体元数据就绪。
+ */
+export function suspendRuntime(this: PanelRenderer) {
+  if (this.destroyed) return;
+  (window.clearTimeout(this.reconnectTimer!), (this.reconnectTimer = null));
+  this.runtimeSuspended = true;
+  // 增代让这次主动关闭触发的 close 回调直接失效，否则它会再排一轮退避重连，
+  // 与我们回来时的手动重连撞在一起。
+  this.socketGeneration += 1;
+  const socket = this.socket;
+  this.socket = null;
+  socket && socket.readyState < WebSocket.CLOSING && socket.close();
+}
+
+/**
+ * 从 bfcache 恢复：按原订阅立刻重连，并把退避计数清零（不沿用冻结前攒下的失败次数）。
+ */
+export function resumeRuntime(this: PanelRenderer) {
+  if (this.destroyed || !this.runtimeSuspended) return;
+  this.runtimeSuspended = false;
+  if (!this.runtimeSubscription) return;
+  const now = Date.now();
+  // bfcache 恢复同时会触发 visibilitychange，那条路已经强制重连过一次。
+  // 1.5s 内不重复建连：否则两个新 socket 会把对方关掉，而 CONNECTING 状态的关闭
+  // 要拖到 open 才真正生效，服务端会看到一条刚建就连断的抖动。
+  if (now - this.lastRuntimeResumeAt < 1500 && this.socket) return;
+  ((this.reconnectAttempt = 0),
+    (this.lastRuntimeResumeAt = now),
+    this.connectRuntime({ force: true }));
+}
+
+/**
  * 套用一条 `state_changed`（单条帧与批量帧共用）。
  *
  * 抽出来的目的是让服务端可以把一次场景切换的 N 条状态合并成一帧下发，而落点逻辑
