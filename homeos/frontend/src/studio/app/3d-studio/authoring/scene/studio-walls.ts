@@ -393,7 +393,7 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
       window.location.pathname ===
         "/api/v1/modules/interaction3d/stage.html",
     resolveDoorMaterialType = (rawDoorType: any) =>
-      rawDoorType === "entry"
+      rawDoorType === "entry" || rawDoorType === "entry-child-mother"
         ? "entry"
         : rawDoorType === "solid"
           ? "wood"
@@ -1047,6 +1047,176 @@ export function buildInteriorScene(deps: StudioWallsDeps, {
             type: "door-entry",
             before: 7,
             after: 4,
+          }),
+          deps.sceneRootNode.add(doorGroup));
+        continue;
+      }
+      if (doorType === "entry-child-mother") {
+        /** 入户子母门：宽扇（母门）带铰链可开，窄扇（子门）常闭，两扇不等宽。 */
+        const childMotherHingeSign = currentDoor.hinge === "right" ? 1 : -1,
+          childMotherSwingSign = currentDoor.swing === -1 ? -1 : 1,
+          childMotherLeafHeight = Math.max(
+            buildInteriorSceneDoorHeight - doorLeafThickness * 0.85,
+            0.8,
+          ),
+          childMotherUsableWidth = Math.max(
+            buildInteriorSceneDoorWidth - doorLeafThickness * 1.5,
+            0.34,
+          ),
+          childMotherChildWidth = Math.min(
+            Math.max(childMotherUsableWidth * 0.3, 0.22),
+            Math.max(childMotherUsableWidth * 0.45, childMotherUsableWidth - 0.4),
+          ),
+          childMotherMotherWidth = Math.max(childMotherUsableWidth - childMotherChildWidth, 0.2),
+          /** 母门扇在铰链枢轴内的局部偏移；子门中心恰好与它同号同值。 */
+          childMotherLeafOffsetX = -childMotherHingeSign * (childMotherMotherWidth / 2),
+          childMotherFaceZ =
+            childMotherSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
+          childMotherTrimZ = childMotherFaceZ + childMotherSwingSign * 0.012,
+          childMotherHandleZ = childMotherFaceZ + childMotherSwingSign * 0.055,
+          childMotherMotherGroup = new ns2.Group();
+        childMotherMotherGroup.position.x = (childMotherHingeSign * childMotherUsableWidth) / 2;
+        deps.addArchitectureMesh(
+          childMotherMotherGroup,
+          [
+            [
+              childMotherMotherWidth,
+              childMotherLeafHeight,
+              doorLeafThickness,
+              childMotherLeafOffsetX,
+              childMotherLeafHeight / 2,
+              childMotherFaceZ,
+            ],
+          ],
+          doorPartColor("door"),
+          doorPartOptions("door", {
+            ...doorLeafMaterialOptions,
+            rounded: false,
+            roughness: 0.58,
+            metalness: 0.1,
+            castShadow: false,
+            receiveShadow: false,
+          }),
+        );
+        deps.addArchitectureMesh(
+          childMotherMotherGroup,
+          [
+            [
+              childMotherMotherWidth * 0.76,
+              0.022,
+              0.078,
+              childMotherLeafOffsetX,
+              buildInteriorSceneDoorHeight * 0.68,
+              childMotherTrimZ,
+            ],
+            [
+              childMotherMotherWidth * 0.76,
+              0.022,
+              0.078,
+              childMotherLeafOffsetX,
+              buildInteriorSceneDoorHeight * 0.34,
+              childMotherTrimZ,
+            ],
+          ],
+          doorPartColor("trim"),
+          doorPartOptions("trim", {
+            rounded: false,
+            roughness: 0.5,
+            castShadow: false,
+            receiveShadow: false,
+          }),
+        );
+        deps.addArchitectureMesh(
+          childMotherMotherGroup,
+          [
+            [
+              0.035,
+              0.18,
+              0.085,
+              -childMotherHingeSign * childMotherMotherWidth * 0.4,
+              buildInteriorSceneDoorHeight * 0.5,
+              childMotherHandleZ,
+            ],
+          ],
+          doorPartColor("metal"),
+          doorPartOptions("metal", {
+            rounded: false,
+            metalness: 0.58,
+            roughness: 0.24,
+            castShadow: false,
+            receiveShadow: false,
+          }),
+        );
+        /** 子门：常闭窄扇，带上下两道插销。 */
+        deps.addArchitectureMesh(
+          doorGroup,
+          [
+            [
+              childMotherChildWidth,
+              childMotherLeafHeight,
+              doorLeafThickness,
+              childMotherLeafOffsetX,
+              childMotherLeafHeight / 2,
+              childMotherFaceZ,
+            ],
+          ],
+          doorPartColor("door"),
+          doorPartOptions("door", {
+            ...doorLeafMaterialOptions,
+            rounded: false,
+            roughness: 0.58,
+            metalness: 0.1,
+            castShadow: false,
+            receiveShadow: false,
+          }),
+        );
+        deps.addArchitectureMesh(
+          doorGroup,
+          [
+            [
+              0.045,
+              0.028,
+              0.06,
+              childMotherLeafOffsetX + childMotherHingeSign * childMotherChildWidth * 0.35,
+              buildInteriorSceneDoorHeight * 0.62,
+              childMotherHandleZ,
+            ],
+            [
+              0.045,
+              0.028,
+              0.06,
+              childMotherLeafOffsetX + childMotherHingeSign * childMotherChildWidth * 0.35,
+              buildInteriorSceneDoorHeight * 0.36,
+              childMotherHandleZ,
+            ],
+          ],
+          doorPartColor("metal"),
+          doorPartOptions("metal", {
+            rounded: false,
+            metalness: 0.52,
+            roughness: 0.3,
+            castShadow: false,
+            receiveShadow: false,
+          }),
+        );
+        (doorGroup.add(childMotherMotherGroup),
+          buildInteriorSceneIsEmbeddedStage &&
+            (Object.assign(childMotherMotherGroup.userData, {
+              entryDoorPivot: true,
+              doorHingePivot: true,
+              doorFixedHinge: true,
+              doorRestRotation: 0,
+              doorClosedRotation: 0,
+              doorOpenRotation: childMotherHingeSign * Math.PI * 0.42,
+            }),
+            (doorGroup.userData.entryDoorSign = childMotherHingeSign * childMotherSwingSign),
+            (doorGroup.userData.entryDoorLeafWidth = childMotherMotherWidth),
+            (doorGroup.userData.doorLeafWidth = childMotherMotherWidth),
+            (doorGroup.userData.doorClosedRotation = 0)),
+          (doorGroup.userData.optimizationStats = {
+            type: "door-entry-child-mother",
+            before: 9,
+            after: 6,
           }),
           deps.sceneRootNode.add(doorGroup));
         continue;

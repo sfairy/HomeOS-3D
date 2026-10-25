@@ -1406,6 +1406,7 @@ onBeforeUnmount(() => {
                                 <option value="solid">普通平开门</option>
                                 <option value="double">双开门</option>
                                 <option value="entry">入户门（常闭）</option>
+                                <option value="entry-child-mother">入户子母门</option>
                                 <option value="glass">玻璃平开门</option>
                                 <option value="sliding-glass">玻璃推拉门（常开）</option>
                                 <option value="roller-shutter">卷帘门</option>

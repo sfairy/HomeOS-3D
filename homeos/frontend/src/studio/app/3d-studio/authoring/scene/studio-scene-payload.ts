@@ -43,6 +43,10 @@ export const maxTextureUnitLimit = 8,
       width: 1.05,
       height: 2.2,
     },
+    "entry-child-mother": {
+      width: 1.2,
+      height: 2.2,
+    },
     glass: {
       width: 0.9,
       height: 2.1,

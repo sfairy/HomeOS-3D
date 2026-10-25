@@ -366,6 +366,7 @@ export function lockState(lockItem: any, states: Record<string, any> = {}) {
 }
 const DOOR_TYPE_LABELS = {
   entry: "入户门",
+  "entry-child-mother": "入户子母门",
   solid: "木门",
   double: "双开门",
   glass: "玻璃门",

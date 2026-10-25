@@ -407,17 +407,24 @@ export function drawDoor(
         drawLabelText(xo3.center, "双开门 · " + doorRecord.width.toFixed(2) + " m", "#ffaf46"));
     return;
   }
-  const isHingeRight = doorRecord.hinge === "right",
+  const isChildMotherDoor = doorTypeName === "entry-child-mother",
+    isHingeRight = doorRecord.hinge === "right",
     end = isHingeRight ? xo3.end : xo3.start,
     start2 = isHingeRight ? xo3.start : xo3.end,
     hingeAxisVector = {
       x: start2.x - end.x,
       y: start2.y - end.y,
     },
+    /** 子母门的母门约占 70% 洞口，子门常闭画成一条短直线。 */
+    motherLeafFraction = isChildMotherDoor ? 0.7 : 1,
+    hingeLeafVector = {
+      x: hingeAxisVector.x * motherLeafFraction,
+      y: hingeAxisVector.y * motherLeafFraction,
+    },
     swingSign = doorRecord.swing === -1 ? -1 : 1,
     arcStartPoint = {
-      x: end.x - hingeAxisVector.y * swingSign,
-      y: end.y + hingeAxisVector.x * swingSign,
+      x: end.x - hingeLeafVector.y * swingSign,
+      y: end.y + hingeLeafVector.x * swingSign,
     };
   if (
     (drawGuideSegment(end, arcStartPoint, {
@@ -449,9 +456,36 @@ export function drawDoor(
     );
   }
   const zr2 = planToScreen(end),
-    arcScreenRadius = distance2(end, start2) * planView.zoom,
+    arcScreenRadius = distance2(end, start2) * motherLeafFraction * planView.zoom,
     arcStartAngle = Math.atan2(hingeAxisVector.y, hingeAxisVector.x),
     arcEndAngle = arcStartAngle + (swingSign * Math.PI) / 2;
+  if (isChildMotherDoor) {
+    /** 子门常闭：从母门自由边到另一侧门框画一条轻微外移的细线。 */
+    const childSplitPoint = {
+        x: end.x + hingeLeafVector.x,
+        y: end.y + hingeLeafVector.y,
+      },
+      childLeafOffsetVector = {
+        x: (-xo3.unit.y * 2.5) / planView.zoom,
+        y: (xo3.unit.x * 2.5) / planView.zoom,
+      };
+    drawGuideSegment(
+      {
+        x: childSplitPoint.x + childLeafOffsetVector.x,
+        y: childSplitPoint.y + childLeafOffsetVector.y,
+      },
+      {
+        x: start2.x + childLeafOffsetVector.x,
+        y: start2.y + childLeafOffsetVector.y,
+      },
+      {
+        color: doorColor,
+        width: doorView.preview ? 1.5 : ne2 ? 3 : 2,
+        cap: "butt",
+      },
+    );
+    drawPointMarker(childSplitPoint, doorColor, ne2 ? 3 : 2);
+  }
   (planCanvasRenderer.save(),
     (planCanvasRenderer.strokeStyle = doorColor),
     (planCanvasRenderer.lineWidth = doorView.preview ? 1 : ne2 ? 2 : 1.25),
@@ -471,7 +505,14 @@ export function drawDoor(
     ne2 &&
       drawLabelText(
         xo3.center,
-        "" + (doorTypeName === "glass" ? "玻璃门 · " : "") + doorRecord.width.toFixed(2) + " m",
+        "" +
+          (isChildMotherDoor
+            ? "入户子母门 · "
+            : doorTypeName === "glass"
+              ? "玻璃门 · "
+              : "") +
+          doorRecord.width.toFixed(2) +
+          " m",
         "#ffaf46",
       ));
 }

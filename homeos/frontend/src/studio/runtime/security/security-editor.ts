@@ -581,7 +581,9 @@ export async function openSecurityEditor({
           optional: true,
         }));
       const sourceDoorType = doorTypeOf(sourceItem),
-        isHingeDoorType = ["solid", "entry", "glass"].includes(sourceDoorType);
+        isHingeDoorType = ["solid", "entry", "entry-child-mother", "glass"].includes(
+          sourceDoorType,
+        );
       ((isHingeDoorType || sourceDoorType === "double") &&
         batchFields.push({
           key: "openAngle",
@@ -1430,7 +1432,7 @@ export async function openSecurityEditor({
             (markPropertiesDirty(),
               editorRuntime?.previewLockMotion?.(toItemKey(selectedItem), true));
           },
-          isHingeDoor = ["solid", "entry", "glass"].includes(doorType),
+          isHingeDoor = ["solid", "entry", "entry-child-mother", "glass"].includes(doorType),
           isDoubleDoor = doorType === "double",
           isSlidingDoor = doorType === "sliding-glass";
         (isHingeDoor &&

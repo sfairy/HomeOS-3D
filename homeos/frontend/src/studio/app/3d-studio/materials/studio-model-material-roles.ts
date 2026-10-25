@@ -957,6 +957,7 @@ const DOOR_MATERIAL_PART_ROLES_BY_TYPE: Readonly<Record<string, readonly string[
     "sliding-glass": ["frame", "glass", "metal"],
     double: ["frame", "door", "metal"],
     entry: ["frame", "door", "trim", "metal"],
+    "entry-child-mother": ["frame", "door", "trim", "metal"],
     "roller-shutter": ["frame", "shutter", "slat"],
   });
 
@@ -973,6 +974,7 @@ const DOOR_PLAN_MATERIAL_ROLE_BY_TYPE: Readonly<Record<string, string>> = Object
   "sliding-glass": "frame",
   double: "door",
   entry: "door",
+  "entry-child-mother": "door",
   "roller-shutter": "shutter",
 });
 

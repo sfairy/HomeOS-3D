@@ -192,6 +192,7 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
               solid: "普通平开门",
               double: "双开门",
               entry: "入户门（常闭）",
+              "entry-child-mother": "入户子母门",
               glass: "玻璃平开门",
               "sliding-glass": "玻璃推拉门（常开）",
               "roller-shutter": "卷帘门",
@@ -216,9 +217,11 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
             (selectElement("#door-swing").textContent =
               at4.doorType === "double"
                 ? "双扇内外开"
-                : at4.doorType === "roller-shutter"
-                  ? "内外侧"
-                  : "内外翻转"));
+                : at4.doorType === "entry-child-mother"
+                  ? "子母内外开"
+                  : at4.doorType === "roller-shutter"
+                    ? "内外侧"
+                    : "内外翻转"));
         else {
           if (appCtx.selectedItem.kind === "railing")
             ((selectElement("#selection-title").textContent = "玻璃栏杆"),
