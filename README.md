@@ -395,6 +395,24 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 只想重启容器不会换镜像；**永远不要执行 `docker compose down -v`** —— 那会连数据一起删。
 回滚＝把 tag 换成上一个版本重跑。
 
+### 授权公钥目录（三种部署下是同一个路径）
+
+私钥只在商店；主应用只读公钥。容器内路径统一为 **`/data/client-keys`**，三种部署的差别
+只在「这份文件从哪来」，不在路径名 —— 排查「为什么读的是旧公钥」时只需看一个地方。
+
+| 部署 | 商店私钥 | 主应用读的公钥 | 来源 |
+| --- | --- | --- | --- |
+| 本地开发 | `homeos-store/keys/local` | 仓库根 `keys/` | `ops/dev.mjs` 启动时镜像 |
+| 同机 docker | `/data/license-keys` | `/data/client-keys` | 商店写同一卷，主应用只读挂载 |
+| 客户机 | （在厂商那台） | `/data/client-keys` | 首次启动向商店取回，之后离线可用 |
+
+同机部署里公钥卷挂在数据卷内部（`/data/client-keys` 覆盖 `homeos-data` 的那一角），所以
+两份 compose 的 `APP_CLIENT_KEYS_DIR` 完全相同。客户机上 `/data/client-keys` 位于
+`homeos_homeos-data` 卷内：**删掉它重启即会重新取回**（换机后签名对不上时用这招）。
+
+历史上主应用曾单独读 `/shared-keys`，已废弃 —— 路径一多，「到底哪个目录」就成了每次排查的
+第一道坎。要确认现场实际用的是哪个，跑 `bash ops/deploy/preflight.sh`（2e 段会打印）。
+
 ### 备份数据卷
 
 卷名带 compose 项目名前缀 `homeos_`（两份文件的项目名都是 `homeos`，所以卷名一致；客户机上

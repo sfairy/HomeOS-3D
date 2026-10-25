@@ -2,8 +2,8 @@
 """主应用容器启动器：准备授权公钥后启动 uvicorn。
 
 授权公钥不用人工投放（见 ``ops/docker/bootstrap_keys.py``）：本地没有时向授权服务器
-``GET /v2/keys`` 取回并落到数据卷，之后离线也能启动；同机部署改挂商店写出的共享卷，
-那条路径由 ``wait_for_client_keys`` 等商店写完即可。
+``GET /v2/keys`` 取回并落到数据卷，之后离线也能启动；同机部署把商店写出的公钥卷**只读挂到
+同一路径** ``/data/client-keys``，那条路径由 ``wait_for_client_keys`` 等商店写完即可。
 """
 from __future__ import annotations
 

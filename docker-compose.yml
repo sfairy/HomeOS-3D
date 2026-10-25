@@ -3,7 +3,8 @@
 #   docker compose up -d
 #
 # 不变式：用这份文件，商店与主应用永远在同一台机器、同一个网络。主应用出站固定走服务名
-# http://homeos-store:8802，授权公钥走共享卷（启动时不联网）。客户机那份是
+# http://homeos-store:8802，授权公钥走共享卷（启动时不联网，且与商店侧同一路径
+# /data/client-keys）。客户机那份是
 # docker-compose.app.yml（只有主应用，商店地址写死公网域名）。
 #
 # 四条地址链路，别混：
@@ -122,8 +123,13 @@ services:
       # 局域网用户被送去公网域名（穿透一抖就 404，而旁边的 :8802 明明是通的）。
       # 推导逻辑见 domains/store/discovery.py（同机 + IP 访问时不联网）。
       APP_STORE_URL: ${APP_STORE_URL:-}
-      # 公钥来自共享卷（只读），这条路径不联网。
-      APP_CLIENT_KEYS_DIR: /shared-keys
+      # 授权公钥目录：**全部分部署形态都是 /data/client-keys**（镜像默认、客户机 compose、
+      # 这里的同机部署）。差别只在「这份文件从哪来」，不在路径名：
+      #   · 同机 → 商店写出的 homeos-client-keys 卷按只读挂到同一路径（下面 volumes）；
+      #   · 客户机 → 数据卷内缓存，首次联网向商店取回。
+      # 不要再引入第二个路径（历史上的 /shared-keys 已废弃）：路径一多，排查「为什么读的
+      # 是旧公钥」就变成比对三份配置。
+      APP_CLIENT_KEYS_DIR: /data/client-keys
       # 会话 / CSRF Cookie：auto = 按本次请求实际协议判定（双入口部署必须用它）。
       COOKIE_SECURE: "auto"
       # 可信代理：回环 = 容器内 Caddy；docker 网段 = 宿主机上的隧道客户端 / 反代。
@@ -138,7 +144,12 @@ services:
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
-      - homeos-client-keys:/shared-keys:ro
+      # 公钥卷挂在数据卷**里面**（/data/client-keys），与 APP_CLIENT_KEYS_DIR 同名。
+      # 为什么值得这么嵌套：主应用在所有部署里只认这一个路径，商店侧写的也是同一路径 ——
+      # 换机器时「公钥在哪」只有一个答案。Docker 支持父/子路径同时挂载，子挂载覆盖父挂载的
+      # 那一角；叠加处的属主校正会因 EROFS 被跳过（见 ops/container_entrypoint.py 的
+      # chown_tree_if_needed，它会把只读子树剪掉而不是整棵树放弃）。
+      - homeos-client-keys:/data/client-keys:ro
       # 备份包（服务器全量 / 自动备份 / 业务导出 .habackup）落到**本文件同目录**的
       # ./backups，宿主机直接可见、可拷走，不必 docker cp。
       # 容器内路径不变（仍是 /data/backups），所以「备份不能把自己装进包里」的排除逻辑

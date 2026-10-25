@@ -132,6 +132,30 @@ else
   bad "容器内缺 /app/assets/logo/logo.svg：默认素材没铺进去，/logo /icons /backgrounds 会 404，sw.js 预缓存也会失败（见 ops/container_entrypoint.py）"
 fi
 
+head_ "2e. 授权公钥目录（主应用读哪一份）"
+# 容器内路径在全部分部署形态下统一为 /data/client-keys：同机部署把商店写出的公钥卷只读
+# 挂到同一路径，客户机则在数据卷里缓存（首次联网取回，之后可离线）。
+KEYS_DIR="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$APP_CT" 2>/dev/null \
+  | awk -F= '/^APP_CLIENT_KEYS_DIR=/{sub(/^APP_CLIENT_KEYS_DIR=/,""); print; exit}')"
+KEYS_DIR="${KEYS_DIR:-/data/client-keys}"
+if [ "$KEYS_DIR" = "/data/client-keys" ]; then
+  ok "APP_CLIENT_KEYS_DIR=$KEYS_DIR（与商店侧、客户机一致）"
+else
+  warn "APP_CLIENT_KEYS_DIR=$KEYS_DIR：不是统一的 /data/client-keys，排查公钥问题时要多看一处（见 README 的「授权公钥目录」）"
+fi
+KEYS_MOUNT="$(docker inspect -f '{{range .Mounts}}{{.Destination}}|{{.Type}}|{{.Source}}|{{.RW}}{{println}}{{end}}' "$APP_CT" 2>/dev/null \
+  | awk -F'|' -v dir="$KEYS_DIR" '$1 == dir {print $2" "$3" rw="$4; exit}')"
+if [ -z "$KEYS_MOUNT" ]; then
+  warn "$KEYS_DIR 没有独立挂载：公钥在数据卷里，靠首次启动联网取回（离线机器会卡在等待公钥）"
+else
+  ok "$KEYS_DIR 挂载：$KEYS_MOUNT"
+fi
+if docker exec -u homeos "$APP_CT" sh -c "test -r '$KEYS_DIR/license-public.pem'" 2>/dev/null; then
+  ok "容器内 $KEYS_DIR/license-public.pem 可读（uid 1000）"
+else
+  bad "容器内读不到 $KEYS_DIR/license-public.pem：同机部署看商店是否已写出公钥卷，客户机看 APP_LICENSE_SERVER_URL 是否可达（启动日志会打「等待授权公钥超时」）"
+fi
+
 head_ "3. 容器出站：主应用 → 商店（APP_LICENSE_SERVER_URL）"
 LICENSE_URL="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$APP_CT" 2>/dev/null \
   | awk -F= '/^APP_LICENSE_SERVER_URL=/{sub(/^APP_LICENSE_SERVER_URL=/,""); print; exit}')"

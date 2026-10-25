@@ -188,8 +188,20 @@ def chown_tree_if_needed(root: Path, uid: int, gid: int) -> None:
     for current, directory_names, file_names in os.walk(root, followlinks=False):
         current_path = Path(current)
         os.chown(current_path, uid, gid)
+        read_only_children: list[str] = []
         for name in (*directory_names, *file_names):
-            os.chown(current_path / name, uid, gid, follow_symlinks=False)
+            try:
+                os.chown(current_path / name, uid, gid, follow_symlinks=False)
+            except OSError as error:
+                if error.errno != errno.EROFS:
+                    raise
+                # 嵌在可写目录里的只读挂载（同机部署把公钥卷挂到 /data/client-keys:ro）。
+                # 这里改不了它的属主，也不该改 —— 由写入方维护。**剪掉这棵子树继续走**，
+                # 而不是把 EROFS 抛给调用方：那会让整棵树半途而废，后面本该校正的文件保持
+                # 旧属主，症状（备份写不进去）离这里十万八千里。
+                read_only_children.append(name)
+        if read_only_children:
+            directory_names[:] = [name for name in directory_names if name not in read_only_children]
 
 
 def is_read_only(path: Path) -> bool:
@@ -229,7 +241,7 @@ def initialize_permissions(
     backups_path = Path(backups).resolve() if backups else None
     for directory in storage_directories(environment):
         if is_read_only(directory):
-            # 同机部署把商店写出的公钥卷按 ``:ro`` 挂成 ``/shared-keys``（见
+            # 同机部署把商店写出的公钥卷按 ``:ro`` 挂到 /data/client-keys（见
             # docker-compose.yml）：属主与权限由写入方维护，这里只读跳过。真读不到时
             # start_app 的 wait_for_client_keys 会报出「存在但读不了 / 等待超时」，比在
             # 这里预判准确得多。
