@@ -158,6 +158,9 @@ export function createEntityActions(deps: EntityActionsDeps) {
       throw new Error('当前账户无权操作该设备')
     }
     const dedupKey = `${domain}.${service}.${entityId}.${JSON.stringify(serviceData || {})}`
+    // 幂等键按「一次手势」生成一次：去重窗口外的同一次重试必须复用同一个键，
+    // 否则服务端会把它当成新命令再执行一遍。
+    const idempotencyKey = randomUUID()
     const existing = shouldDedupeServiceCall(service) ? pendingCalls.get(dedupKey) : undefined
     if (existing && Date.now() - existing.time < deps.callDedupWindowMs()) {
       return existing.promise
@@ -195,17 +198,30 @@ export function createEntityActions(deps: EntityActionsDeps) {
           return_response: returnResponse || false,
           // 同一手势的幂等键：网络层重发同一请求时服务端只执行一次；
           // 用户再按一次是新的手势（新键），不会被误吞。
-          idempotency_key: randomUUID(),
+          // 键在重试链路上复用（同一 promise / 同一次手势重发），服务端据此复用真实结果。
+          idempotency_key: idempotencyKey,
         })
         const payload = res.data as {
           skipped?: boolean
+          pending?: boolean
+          replayed?: boolean
           queued?: boolean
+          verified?: boolean | null
+          verification?: { reason?: string; observedState?: string | null }
           data?: { skipped?: boolean }
         } | null
         const skipped = !!(payload?.skipped || payload?.data?.skipped)
         if (skipped && didOptimistic) deps.rollbackOptimistic(entityId)
+        const verifyFailed = payload?.verified === false
+        if (verifyFailed && didOptimistic) deps.rollbackOptimistic(entityId)
         if (!quiet && payload) {
-          if (skipped) {
+          if (payload.pending) {
+            // 首次请求仍在下发中：结果未知，不能报「已生效」。
+            useChromeStore().notify('相同指令正在下发中，请稍后确认设备状态', 'info')
+          } else if (verifyFailed) {
+            // verified:false 只代表「响应明确显示状态不符」；null（未知）不提示，避免噪声。
+            useChromeStore().notify('指令已下发，但设备状态与预期不符', 'warning')
+          } else if (skipped) {
             useChromeStore().notify('重复命令已跳过', 'info')
           } else if (payload.queued) {
             useChromeStore().notify('命令已通过重连队列送达', 'info')
