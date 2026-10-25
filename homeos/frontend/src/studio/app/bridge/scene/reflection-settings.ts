@@ -33,7 +33,9 @@ const GROUND_REFLECTION_QUALITY: Record<
   GroundReflectionResolution,
   GroundReflectionQualityPreset
 > = {
-  256: { blur: true, detailMaxResolution: 256 },
+  // 256 是最省的档位（低性能设备 / 平板）：双高斯模糊每条记录要多两次全屏 pass，
+  // 而 256 贴图本身的模糊效果肉眼几乎不可见 —— 这一档直接不做 blur。
+  256: { blur: false, detailMaxResolution: 256 },
   512: { blur: false, detailMaxResolution: 0 },
   768: { blur: false, detailMaxResolution: 0 },
 };
