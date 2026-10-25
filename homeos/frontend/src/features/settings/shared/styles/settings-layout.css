@@ -182,6 +182,40 @@
   color: var(--set-text-secondary);
 }
 
+/* 侧栏收起时的等价账号动作：复用「复制链接」那颗按钮的尺寸 / 底色（含各档媒体查询里的
+   28 / 32 / 36px），推到行尾成为独立一组。放在面包屑里是因为侧栏一旦压到 0 宽，
+   页面里就再没有别的位置能常驻这两个入口。 */
+.settings-breadcrumb__account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* 组内靠 gap 分隔，不需要 copy 那颗自带的 margin-left。 */
+.settings-breadcrumb__account .settings-breadcrumb__copy {
+  margin-left: 0;
+}
+
+/* 退出用危险色标记：它不可撤销（要重新输密码），不能和「改密码」长成一个样子。 */
+.settings-breadcrumb__copy--danger {
+  color: var(--premium-accent-red);
+}
+
+.settings-breadcrumb__copy--danger:hover {
+  background: rgba(255, 59, 48, 0.14);
+  color: #fca5a5;
+}
+
+.settings-breadcrumb__copy:focus-visible {
+  outline: 1px solid rgba(10, 132, 255, 0.7);
+  outline-offset: 1px;
+}
+
+.settings-breadcrumb__copy--danger:focus-visible {
+  outline-color: rgba(255, 59, 48, 0.7);
+}
+
 .settings-breadcrumb__copy-icon {
   width: 14px;
   height: 14px;
@@ -1030,6 +1064,88 @@
   transform: scale(0.98);
 }
 
+/* 账号条：侧栏底部的常驻会话入口（修改密码 / 退出登录）。
+   它把 footer 分成两段 —— 上段是「待保存 / 保存全部」，下段是版权签名；
+   分隔线只画在这一条上，版权块因此不带 border。
+   只保留动作、不显示账号名：单账号模型下这个身份是唯一的，头像 + 名字在这里只是
+   多占一行高度，按钮文案本身已经把事说清楚了。 */
+.sidebar-account {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: var(--hos-hairline) solid var(--set-border-subtle);
+}
+
+/* 分段控件：一个外框 + 一条内分隔线，视觉上是一个对象而不是两颗按钮。
+   与上面的「保存所有配置」靠「填充 vs 描边」区分主次 —— 那颗是实心主操作，这条是描边工具。 */
+.sidebar-account__actions {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: var(--hos-hairline) solid var(--set-border-strong);
+  /* 与上面的主按钮同一个圆角 token：两个控件上下相邻，圆角不一致会一眼看出来。 */
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar-account__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1 1 0;
+  min-width: 0;
+  /* 高度跟着字号走：--set-fs-caption 在 1920 / 3200 档会放大到 15 / 18px，
+     写死 32px 会让这一条在大屏上明显比旁边的保存按钮矮。 */
+  min-height: max(32px, calc(var(--set-fs-caption, 12px) * 2.4));
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.62));
+  font-size: var(--set-fs-caption, 12px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.sidebar-account__btn + .sidebar-account__btn {
+  border-left: var(--hos-hairline) solid var(--set-border-subtle);
+}
+
+.sidebar-account__btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+/* 键盘焦点画在内侧：外框 overflow:hidden 会把外侧光晕裁掉。 */
+.sidebar-account__btn:focus-visible {
+  outline: 1px solid rgba(10, 132, 255, 0.7);
+  outline-offset: -2px;
+}
+
+/* 危险态只用文字色标记：常驻的红色描边框会让整个侧栏看起来一直在报警。 */
+.sidebar-account__btn--danger {
+  color: var(--premium-accent-red);
+}
+
+.sidebar-account__btn--danger:hover {
+  background: rgba(255, 59, 48, 0.14);
+  color: #fca5a5;
+}
+
+.sidebar-account__btn--danger:focus-visible {
+  outline-color: rgba(255, 59, 48, 0.7);
+}
+
+/* 壁挂大屏是触摸面：整个分段控件抬到 44px 命中区，与触摸端其它按钮同档。 */
+@media (pointer: coarse), (hover: none) {
+  .sidebar-account__btn {
+    min-height: var(--hos-touch-min, 44px);
+  }
+}
+
+/* 版权块不带分隔线：它上面那一条（账号条）已经画了，两条叠在一起会显得 footer 被切了三段。 */
 .sidebar-footer__copy {
   display: flex;
   flex-direction: column;
@@ -1037,12 +1153,6 @@
   gap: 2px;
   padding-top: 10px;
   text-align: center;
-}
-
-.sidebar-footer__inner + .sidebar-footer__copy {
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: var(--hos-hairline) solid var(--set-border-subtle);
 }
 
 .sidebar-footer__copy p {

@@ -740,7 +740,7 @@ async function main() {
       console.log(`前端 HMR  主应用   http://${HOST}:${VITE_3D_PORT}/`);
       console.log(`          授权商店 http://${HOST}:${VITE_STORE_PORT}/`);
     }
-    console.log(`后端 API  主应用   http://${HOST}:${APP_PORT}/register`);
+    console.log(`后端 API  主应用   http://${HOST}:${APP_PORT}/login`);
     console.log(`          授权商店 http://${HOST}:${STORE_PORT}/`);
     if (options.debug) {
       console.log(`调试器    主应用   ${DEBUG_APP_PORT}（IDE attach，热重载保留）`);

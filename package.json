@@ -60,6 +60,7 @@
     "naming:apply": "node ops/checks/naming/rename.mjs",
     "check:naming": "node ops/checks/naming/check_naming.mjs --check",
     "test:naming": "node --test ops/checks/naming/tests/",
+    "test:auth-nav": "node --test ops/checks/auth/tests/",
     "verify:item-model": "node ops/checks/studio/verify_item_model.mjs",
     "audit:geometry": "bun ops/checks/studio/audit_glb_geometry.mjs",
     "check:geometry": "bun ops/checks/studio/audit_glb_geometry.mjs --check",

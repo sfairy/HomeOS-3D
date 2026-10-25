@@ -1,7 +1,8 @@
 <!--
   通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
   底部信息栏、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
-  性能调试（高/中/低三档：界面动效、毛玻璃与图表动画）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
+  性能调试（高/中/低三档：界面动效、毛玻璃与图表动画）、全屋关闭。中控风格固定石板深蓝。
+  退出登录不在本页：它是会话动作，常驻在设置侧栏底部的账号条（SettingsSidebar）。
 -->
 <template>
   <SettingsPageShell
@@ -13,15 +14,6 @@
     page-class="general-hub"
     body-class="general-hub__body"
   >
-    <template #actions>
-      <button class="settings-btn-ghost settings-btn-ghost--purple" type="button" @click="changePasswordDialog?.open()">
-        {{ '修改密码' }}
-      </button>
-      <button class="settings-btn-ghost settings-btn-ghost--danger" @click="onLogout">
-        {{ '退出大屏终端' }}
-      </button>
-    </template>
-
     <template #subnav>
       <SettingsHubSubnav v-model="generalSection" :sections="generalSubnavSections" />
     </template>
@@ -223,9 +215,6 @@
     <div v-show="generalSection === 'whole-home-off'" class="settings-hub-section">
       <SettingsWholeHomeOffSection />
     </div>
-
-    <!-- 修改本机密码：成功后服务端轮换会话 Cookie，这里只负责提示与关闭。 -->
-    <ChangePasswordDialog ref="changePasswordDialog" />
   </SettingsPageShell>
 </template>
 
@@ -253,7 +242,6 @@ import SettingsWholeHomeOffSection from '@/features/settings/display/SettingsWho
 import SettingsScreensaverSection from '@/features/settings/display/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/features/settings/display/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/features/settings/display/layout/SettingsLayoutFooterSection.vue'
-import ChangePasswordDialog from '@/features/settings/display/ChangePasswordDialog.vue'
 import { useDashboardFooterEditor } from '@/features/settings/composables/display/layout-dashboard.internals'
 import { useScaling } from '@/composables/ui/useScaling'
 import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
@@ -261,7 +249,6 @@ import {
   handleSystemConfigPatchError,
   useSystemConfig,
 } from '@/composables/config/system-config-core.internals'
-import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import SettingsCard from '@/components/common/settings-page-shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
@@ -274,11 +261,8 @@ import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending
 const props = defineProps({ activeTab: { type: String, default: 'general' } })
 
 const router = useRouter()
-const authStore = useAuthStore()
 const chrome = useChromeStore()
-// 「修改密码」弹窗：模板里 `ref="changePasswordDialog"` 需要同名变量才拿得到实例。
-// 本文件是 `<script setup>`（非 TS），不能写泛型；实例只用到 `open()`。
-const changePasswordDialog = ref(null)
+// 「修改密码」弹窗已提升到设置页外壳（SettingsPage）：它是账号动作，不与某个 Tab 绑定。
 const { layoutStore, layoutConfig } = useLayoutConfigRef()
 // 当前激活的子导航区段
 const generalSection = ref('brand')
@@ -515,15 +499,6 @@ function goParamsTab(section) {
     path: '/settings',
     query: section ? { tab: 'params', section } : { tab: 'params' },
   })
-}
-
-// 安全登出：确认后登出并跳转登录页
-async function onLogout() {
-  const confirmed = await chrome.confirm('确定要安全登出退出当前智控终端吗？', '安全登出')
-  if (confirmed) {
-    await authStore.logout()
-    router.push('/login')
-  }
 }
 </script>
 

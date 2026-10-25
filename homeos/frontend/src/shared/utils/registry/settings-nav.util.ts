@@ -72,7 +72,7 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   agent: '自然语言家居控制与多轮对话',
   widgets: '右侧面板微件的添加、排序与配置',
   family: '家庭模式、勿扰、通知与儿童模式',
-  license: '本机授权状态、租约与权益清单，含重连 / 重激活 / 退出',
+  license: '本机授权状态、租约与权益清单，含重连 / 重激活 / 诊断',
   access: '大屏入口设置锁：启用开关与 4–6 位访问 PIN',
 }
 

@@ -15,14 +15,29 @@
 # 内网直连用这两个端口；要让外网访问，由隧道 / 反代把 443 回灌到 127.0.0.1:8801，
 # 并把本机的公网地址填进 APP_BASE_URL（见下方 environment 与 ops/deploy/TUNNEL-ACCESS.md）。
 #
-# 首次启动：
+# 首次启动（Linux 客户机）：
 #   sudo mkdir -p /host/etc /host/sys/class/dmi
 #   sudo ln -sfn /etc/machine-id   /host/etc/machine-id
 #   sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id     # 必须在首次 up 之前建好
 #   curl -fsS https://homelifepay.iepose.cn/v2/keys | head -c 120   # 先在客户机验证可达
 #   docker compose -f docker-compose.app.yml up -d
-# 然后打开 http://<本机地址>:8801/ ：未注册时会被直接送到 /register（注册后自动进 /activate
-# 填厂商给的激活码）。手动直达 /register 也行。
+#
+# macOS（Docker Desktop）本地验证不需要上面三步，也不用第二份 compose 文件：
+# macOS 既没有 /etc/machine-id、/sys/class/dmi，Docker Desktop 也只共享 /Users、/Volumes、
+# /private、/tmp，直接 up 会报 `mounts denied: The path /host/etc/machine-id is not
+# shared from the host`。改在仓库根 .env（已被 git 忽略）里给三条变量即可：
+#   HOMEOS_MACHINE_ID_PATH=.        # 两条 /host 挂载改指向可共享路径（内容不参与指纹）
+#   HOMEOS_DMI_PATH=.
+#   HOMEOS_FINGERPRINT_MACHINE_ID=  # ioreg -rd1 -c IOPlatformExpertDevice 的 IOPlatformUUID
+#   HOMEOS_FINGERPRINT_BOARD_ID=    # 同上文件的 IOPlatformSerialNumber
+# 指纹值一旦钉住就别再改（改 = 换设备，需先在商店解绑）。
+# 然后打开 http://<本机地址>:8801/ ：
+#   · 已有账号 → 登录页填账号（或注册邮箱）+ 密码直接进入；
+#   · 首次部署（本机零用户）→ 登录页会多出「创建本机唯一账号」，注册成功后**自动打开商店
+#     购买授权**，当前页进 /activate 填激活码（邮箱一般已预填）；
+#   · 还没有激活码 → 激活页上有「去商店购买授权 / 商店账号中心」两个入口，随时能回去买。
+# 商店账号与本机账号是两套：激活码按**下单邮箱**归属，激活页的「授权邮箱」必须与它一致。
+# 手动直达 /register 也行（零用户时守卫会放行）。
 #
 # 卡在某个页面时先跑本机自检（四条地址链路 + 授权状态一次看完）：
 #   bash ops/deploy/preflight.sh
@@ -67,6 +82,13 @@ services:
       APP_BASE_URL: ${HOMEOS_PUBLIC_URL:-}
       # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
+      # 授权实例指纹：留空 = 由下面两条 /host 挂载派生（Linux 客户机默认，别填）。
+      # 没有 /host 的宿主（macOS / Docker Desktop）用 HOMEOS_FINGERPRINT_* 钉住，
+      # hardware.py 见到 override 就直接返回，不再去读那两个路径。
+      # 为什么在这里改一次名：仓库根 .env 会被 ops/dev.mjs 一并加载，直接叫 APP_HARDWARE_*
+      # 会把本机开发环境的实例身份也一起改掉（本地开发时指纹由 hardware.py 现算）。
+      APP_HARDWARE_MACHINE_ID: ${HOMEOS_FINGERPRINT_MACHINE_ID:-}
+      APP_HARDWARE_BOARD_ID: ${HOMEOS_FINGERPRINT_BOARD_ID:-}
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
@@ -80,9 +102,12 @@ services:
       # 想让某个子目录恢复出厂默认：清空它（如 rm -rf ./assets/logo）再 restart homeos。
       # Docker 会在首次 up 时自动建目录；宿主目录属主最好保持当前用户（容器只读它）。
       - ./assets:/app/assets
-      # 授权实例指纹来源，必须先建好符号链接（见文件头）。
-      - /host/etc/machine-id:/host/etc/machine-id:ro
-      - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
+      # 授权实例指纹来源：默认是 Linux 客户机的 /host 符号链接（见文件头）。
+      # 两个源路径可用 HOMEOS_MACHINE_ID_PATH / HOMEOS_DMI_PATH 覆盖，只给没有 /host 的
+      # 宿主（macOS）用：指向任意**可共享**路径即可（挂成目录 / 读不到都无妨，指纹由上面
+      # 的 APP_HARDWARE_* 钉住）。保持默认值 = 与原来完全一致。
+      - ${HOMEOS_MACHINE_ID_PATH:-/host/etc/machine-id}:/host/etc/machine-id:ro
+      - ${HOMEOS_DMI_PATH:-/host/sys/class/dmi/id}:/host/sys/class/dmi/id:ro
     healthcheck:
       # 应用与内置反代都要活着才算健康。
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]

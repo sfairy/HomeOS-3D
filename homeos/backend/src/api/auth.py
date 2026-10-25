@@ -144,8 +144,8 @@ def setup_status(request: Request, response: Response) -> SetupStatusResponse:
 
     ``initialized`` 的语义 = 本机是否已有**可用**账号（单用户模型下即为「是否已注册」）。
     拿哨兵口令的无凭据老行不算：它既登不进来、又能被注册接管，报 ``False`` 才能让前端
-    把用户送到注册页（``router/auth.util.ts``：未初始化 → ``/register``），而不是送到一个
-    他永远登不进去的登录页。
+    把「创建本机唯一账号」的入口显出来（``router/auth.util.ts``：未初始化 → 登录页放行并
+    给出注册入口），而不是让人对着一个永远登不进去的登录表单猜。
     """
     settings = request.app.state.settings
     ensure_csrf_cookie(response, request, settings.csrf_cookie_name, CSRF_MAX_AGE_MS)

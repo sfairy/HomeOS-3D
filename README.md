@@ -3,6 +3,20 @@
 面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控：3D 户型展示与编辑、
 设备触控、安防、能源管理与语音交互。版本号见仓库根 `package.json` 的 `version`。
 
+用户实际看到的入口（同一个 SPA 的不同路由）：
+
+| 能力 | 入口 | 说明 |
+| --- | --- | --- |
+| 3D 仪表盘 | `/`、`/display/:projectId`、`/homeos/:name` | 只读展示：户型、家具、灯光与设备状态都在 3D 场景里 |
+| 户型绘制 | `/3d-studio` | 墙 / 门窗 / 房间 / 家具摆放，草稿存后端，带撤销重做 |
+| 面板编辑器 | `/studio/editor` | 2D 仪表盘排版与控件绑定（只从「设置 → 布局」进入，不占导航） |
+| 设备与安防 | `/devices`、`/device`、`/security`、`/notifications` | 设备卡片 / 弹窗、布防、事件流与通知中心 |
+| 其它页面 | `/events`、`/earthquake-history`、`/mode-logs`、`/settings` | 事件、地震记录、模式触发日志、设置（HA 接入 / 房间 / 外观 / 自动化） |
+| 3D 舞台 | `/api/v1/modules/interaction3d/stage.html` | 以 public 模块 URL 投放的实时舞台（设备动效） |
+
+3D 创作是仓库里体量最大的一块：模型库 **336 个 id / 672 个 GLB**（`-lite` 降面件 + 完整件）、
+材质槽位 **3136 条**，另有资产 / 几何 / 材质 / 槽位门禁与修复脚本，见下文「3D Studio 与模型库」。
+
 仓库里是两个**相互独立**的项目：
 
 | 项目 | 是什么 | 部署在哪里 |
@@ -32,7 +46,7 @@
 
 | 服务 | 容器名 | 内网 HTTP | 内网 HTTPS | 入口 |
 | --- | --- | --- | --- | --- |
-| 主应用 | `homeos` | 8801 | 8803（自签，可选） | `/register` 注册本机账号（首装零用户，任意地址都会跳这里） |
+| 主应用 | `homeos` | 8801 | 8803（自签，可选） | `/login` 登录（首装零用户时同一页给「创建本机唯一账号」） |
 | 授权商店 | `homeos-store` | 8802 | ——（没有） | `/setup` 建运营管理员，`/admin` 运营后台 |
 
 > **商店没有任何 HTTPS 入口**：内网 `http://<IP>:8802`，公网 `https://homelifepay.iepose.cn`
@@ -63,17 +77,33 @@
 
 ```text
 HomeOS/
-├── homeos/                    # 主应用：backend/（FastAPI，包名 src）+ frontend/（含 studio 3D 编辑器）
-├── homeos-store/              # 授权商店：backend/ + frontend/
-├── packages/shared/           # @homeos/shared 前端共享契约包（两个前端共用源码）
-├── packages/shared-py/        # homeos_shared Python 共享包（两个后端共用，构建期各自内联进 .so）
-├── ops/                       # dev.mjs 本地联调、build.py 构建、BUILD.md、deploy/（公网接入文档）、docker/ 容器构建辅助
-├── dist/                      # 构建产物（不入库；镜像只消费它）
-├── docker-compose.yml         # 管理员这台：商店 + 主应用（NAS / 单机一键）
-├── docker-compose.app.yml     # 客户机：只有主应用（商店地址已填好）
-├── Dockerfile                 # 双目标运行镜像：--target app / --target store
-└── package.json / bun.lock    # 版本号唯一来源 + 全仓唯一的依赖锁
+├── homeos/                        # 主应用：backend/（FastAPI，包名 src）+ frontend/（Vue + studio）
+│   ├── backend/src/               # api / domains（ha、license、security、studio3d…）/ platform / realtime
+│   └── frontend/
+│       ├── src/                   # views / features / components / composables / stores / shared / studio
+│       ├── src/studio/            # 3D 创作、面板编辑器 / 渲染器、实时舞台（runtime/）
+│       └── public/static/3d-studio/models/   # 模型库：336 个 id / 672 个 GLB（31 MB）
+├── homeos-store/                  # 授权商店：backend/（commerce / licensing / payments）+ frontend/
+├── packages/shared/               # @homeos/shared 前端共享契约包（含 scene/ 入户场景静态资源）
+├── packages/shared-py/            # homeos_shared Python 共享包（构建期各自内联进 .so）
+├── ops/
+│   ├── dev.mjs / build.py / ports.mjs        # 本地联调、构建、端口唯一真源
+│   ├── deploy/                    # PUBLIC-ACCESS、TUNNEL-ACCESS、preflight.sh、入口配置示例
+│   ├── checks/                    # 架构、命名、3D 模型（资产 / 几何 / 材质 / 槽位）、体积预算
+│   ├── perf/                      # 性能基线与预算（含 3D bench）
+│   └── docker/ caddy/ vite/ ci/ lib/         # 容器入口、Caddyfile、Vite 辅助、CI 脚本
+├── design/scene/                  # 入口页场景标记 / 样式 / 字体的 canonical 源（两侧静态副本按它同步）
+├── assets/                        # 运行期可替换 UI 素材（compose bind mount 到 /app/assets）
+├── backups/                       # 备份包落点（compose bind mount 到 /data/backups）
+├── keys/                          # 授权公钥（本地开发由 ops/dev.mjs 镜像；私钥只在商店侧）
+├── dist/                          # 构建产物（不入库；镜像只消费它）
+├── docker-compose.yml             # 管理员这台：商店 + 主应用（NAS / 单机一键）
+├── docker-compose.app.yml         # 客户机：只有主应用（商店地址已填好）
+├── Dockerfile                     # 双目标运行镜像：--target app / --target store
+└── package.json / bun.lock        # 版本号唯一来源 + 全仓唯一的依赖锁
 ```
+
+`homeos/data/` 与 `homeos-store/data/` 是源码态运行时数据（不入库），容器里对应 `/data`。
 
 ---
 
@@ -91,7 +121,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | --- | --- |
 | http://127.0.0.1:8805/ | 主应用前端 HMR（改页面走这里） |
 | http://127.0.0.1:8806/ | 商店前端 HMR |
-| http://127.0.0.1:8801/register | 主应用 API / 首次注册本机唯一账号 |
+| http://127.0.0.1:8801/login | 主应用 API / 登录（零用户时同页给「创建本机唯一账号」） |
 | http://127.0.0.1:8802/setup | 商店 API / 首次建运营管理员 |
 
 `bun run dev` 只绑 `127.0.0.1`，缺前端产物时会自动跑一次 Vite 构建，本地验证码默认
@@ -102,20 +132,107 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | 脚本 | 作用 |
 | --- | --- |
 | `bun run dev:backend` | 只起两个后端的热重载（不起前端） |
-| `bun run dev:app` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端，各开一个终端） |
+| `bun run dev:app` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端，各开一个终端；`dev:frontend` 是 `dev:app` 的别名） |
 | `bun run dev:prepare` | 只装 Python 环境（仓库根共享 venv `.venv-store`），不起服务 |
 | `bun run dev:runtime` | watch 3D runtime 模块 → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run build` | 完整构建：前端（Vite 压缩产物）+ 后端（Cython `.so`）→ 根 `dist/` |
+| `bun run build:shared` | 只构建 `@homeos/shared`；它的 `dist/` 被 gitignore，干净检出上必须先建 |
 | `bun run build:app` / `build:store` | 只构建一侧前端 |
 | `bun run image:app` / `image:store` | 从根 `dist/` 组装运行镜像 |
 | `bun run typecheck` | 两个前端的 `vue-tsc`。Python 侧**没有**类型检查命令（历史入口已拆），CI 只跑 `ruff`；Pylance / 手动 `basedpyright` 读仓库根 `pyrightconfig.json` |
+| `bun run check:frontend-deps` / `check:routes` / `test:architecture` | 前端依赖 DAG、路由清单、后端架构测试 |
+| `bun run check:naming` / `naming:report` | 标识符命名门禁（N1–N4，baseline 只降不升） |
+| `bun run check:bundle-budget` / `check:code-quality` | 前端产物体积预算、代码质量检查 |
+| `bun run perf:baseline` / `perf:after` / `perf:compare` | 性能基线与前后对比（详见 `ops/perf/README.md`） |
+| `bun run check:assets` / `check:geometry` / `check:slots` / `check:materials` … | 3D 模型门禁与修复，见下文「3D Studio 与模型库」 |
 
 改完后端的断点调试：`bun run dev -- --debug` 后在编辑器 attach（主应用 `8811`、商店 `8812`）；
 热重载不会被关掉，重载出的新进程照样命中。端口占用时脚本直接退出，`pkill -f ops/dev.mjs` 后重试。
 
-首次联调：主应用 `/register` 注册本机账号（验证码由商店代发代验）→ 商店 `/setup` 建管理员并在
-`/admin` 配好 SMTP 与支付 → 主应用登录后未激活会跳 `/activate`，用商店激活码绑定 → 编辑器配 HA，
-3D 先在 `/3d-studio` 保存户型。
+首次联调：打开主应用 `/login`（零用户时页面给「创建本机唯一账号」）注册本机账号（验证码由商店
+代发代验），注册成功会自动打开商店购买授权、当前页进 `/activate` → 商店 `/setup` 建管理员并在
+`/admin` 配好 SMTP 与支付 → 在商店下单拿到激活码后回 `/activate`，用**下单邮箱 + 激活码**绑定 →
+编辑器配 HA，3D 先在 `/3d-studio` 保存户型，保存后总览首页（`/`）就会渲染它。
+
+> 商店账号与本机账号是两套体系：激活码按**商店下单邮箱**归属。两处用同一个邮箱最省事。
+
+---
+
+## 3D Studio 与模型库
+
+### 页面与入口，共用同一份场景构建
+
+| 页面 | 路由 | 入口组件 | 说明 |
+| --- | --- | --- | --- |
+| 3D 仪表盘（只读） | `/`、`/display/:projectId`、`/homeos/:name` | `entries/DisplayView.vue` | 总览首页就是它；`/homeos/<project>` 由后端按路径下发，`display.ts` 取整段项目名 |
+| 户型绘制 | `/3d-studio` | `entries/StudioView.vue` | 墙 / 门窗 / 房间 / 家具 / 灯光，草稿走 `GET /api/v1/studio3d` 与 `PUT /api/v1/studio3d` |
+| 面板编辑器 | `/studio/editor` | `entries/EditorView.vue` | 2D 仪表盘排版与控件绑定，只从「设置 → 布局」进入 |
+| 实时舞台 | `/api/v1/modules/interaction3d/stage.html` | `StudioView` 的 `interaction3d-stage` 模式 | `body` 加 class 裁成只剩 `#preview-3d` 的只读 3D |
+
+创作页与展示页共用同一份场景构建（`buildStudioScene`），区别只在外壳与可编辑性。根应用**只能**
+`import '@/studio'`（barrel 里的懒加载器），不得直达 `@app/*` / `@runtime/*`；`studio/runtime/**`
+每个 `.ts` 都是 Vite 入口，按 `/api/v1/modules/interaction3d/<rel>.js` 投放 —— **URL 即公网路径**，
+改名要同步后端 manifest 与白名单。分层、启动顺序与设备运行时约定见
+[`homeos/frontend/src/studio/README.md`](homeos/frontend/src/studio/README.md)。
+
+### 模型库
+
+磁盘位置 `homeos/frontend/public/static/3d-studio/models/`，三个分区、32 个二级目录：
+
+| 分区 | 二级目录（节选） |
+| --- | --- |
+| `家居/` | 客厅家具、卧室家具、厨房家具、柜架收纳、卫浴用品、室内植物、影音设备、建筑与交通… |
+| `庭院/` | 家具与铺装、构筑物、植物、水景、花箱与花坛、设施 |
+| `电器/` | 厨房电器、洗衣烘干、清洁设备、环境设备、影音设备、办公数码、装饰灯具… |
+
+- **336 个模型 id，672 个 GLB（31 MB）**：每个 id 两个文件 —— `<中文名>-lite.glb`（降面，运行时首选）
+  与 `<中文名>.glb`（完整件，lite 加载失败时兜底）。
+- 磁盘上目录 / 文件名是**中文**，代码里仍是**英文 id**；映射由
+  `loaders/external-models/model-asset-folders.ts` 与 `model-file-names.generated.ts` 维护。
+  场景存档、撤销历史与导出包都按英文 id 引用，改中文名不影响存量数据。
+- 中文名索引 [`MODEL-NAMES.md`](homeos/frontend/public/static/3d-studio/models/MODEL-NAMES.md)
+  由 `bun run index:model-names` 生成，**不要手改**。
+
+新增一个模型：登记 id 到 `model-asset-folders.ts` → 放进对应分区的两个 GLB → 在模型库加一张带
+`data-library-name` 的卡片（`src/studio/entries/StudioView.vue`）→ `bun run index:model-names` →
+跑一遍下面的门禁。
+
+### 材质槽位契约
+
+模型按 `itemType + 槽位` 解析材质角色，契约与基线都是生成物：
+
+| 文件 | 作用 |
+| --- | --- |
+| `materials/model-slot-roles.generated.ts` | 新 token → 语义角色（`repair:slots --emit-generated` 生成） |
+| `materials/legacy-material-aliases.generated.ts` | 旧材质名 → 新名的单点归一 |
+| `ops/checks/studio/material-role-baseline.json` | 672 个文件的「槽位下标 → 角色」快照（3136 条材质） |
+| `ops/checks/studio/asset-baseline.json`、`geometry-baseline.json` | 资产与几何基线 |
+
+角色变化（重导出位移、token 表误改）会让 `check:materials` 直接失败 —— 基线的意义是「改模型必须
+留下可解释的 diff」，不是自动放行。
+
+### 模型门禁与修复
+
+| 命令 | 作用 |
+| --- | --- |
+| `bun run check:assets` / `audit:assets` | GLB 结构（扩展、贴图、节点、buffer）体检 |
+| `bun run check:geometry` / `audit:geometry` / `repair:geometry[:write]` | 包围盒 / 拓扑 / 面数，坏了才修 |
+| `bun run check:slots` / `audit:slots` / `repair:slots[:write]` / `build:slot-contracts` | 槽位命名与契约，旧名别名单点归一 |
+| `bun run check:materials` / `audit:materials` / `audit:materials:roles` / `repair:materials[:write]` | 材质角色指纹与基线 |
+| `bun run check:slot-roles` / `check:variants` / `check:models-layout` / `check:model-names` | 槽位角色表、lite 变体、目录布局、中文名索引 |
+| `bun run render:models` / `render:slots` / `preview:smoke` | 多视角渲染图 / 槽位色块图 / 预览冒烟 |
+| `bun run check:studio-split` / `verify:item-model` | 拆分结构与物品模型门禁（改 `item-model/` 后必跑） |
+| `bun run check:bundle-budget` | 前端产物体积（chunk 数 / 体积）预算 |
+
+修复脚本默认 dry-run，只有 `*:write` 才落盘；每次审计 / 修复的台账写在 `docs/architecture/<日期>/`
+（本地生成，不入库）。物品模型按 14 个族、59 个类型分支分派，规则见
+[`item-model/README.md`](homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/README.md)。
+
+### 运行时模块
+
+`homeos/frontend/src/studio/runtime/` 是**实时 3D 舞台**的设备模块（灯 / 空调 / 窗帘 / 摄像头 /
+扫地机 / 车辆 / 电视 / 空气净化器…），另有 `core/`、`panels/`、`config-ui/` 与 `editor/`。改完用
+`bun run dev:runtime` watch 到 `dist/homeos/frontend/modules/runtime`；生产构建直接投放。
 
 ---
 
@@ -238,6 +355,25 @@ docker compose -f docker-compose.app.yml up -d
 也不该改：客户机不在厂商局域网里，改成私网 IP 只会让这台机器变成一个连不上商店的孤儿。
 `/host` 符号链接同样必须先建好。
 
+> **macOS（Docker Desktop）本地验证**：`/host` 那套只对 Linux 客户机成立 —— macOS 没有
+> `/etc/machine-id`，Docker Desktop 也不共享 `/etc`、`/sys`，`up` 会直接报
+> `mounts denied: The path /host/etc/machine-id is not shared from the host`。
+> 不用另加 compose 文件：在仓库根 `.env`（已被 git 忽略）里给三条变量即可，
+> `docker compose -f docker-compose.app.yml up -d` 的命令一个字都不用改。
+>
+> ```bash
+> # 两条 /host 挂载改指向可共享路径（挂成目录、读不到都无妨，内容不参与指纹）
+> HOMEOS_MACHINE_ID_PATH=.
+> HOMEOS_DMI_PATH=.
+> # 用本机 IOPlatformUUID + 硬件序列号钉住实例指纹（换机改这两行、先去商店解绑）
+> HOMEOS_FINGERPRINT_MACHINE_ID=4d2ccbf2-8251-5b3a-a296-838df2570a99
+> HOMEOS_FINGERPRINT_BOARD_ID=mwf064134j
+> ```
+>
+> 这两个值怎么来的：
+> `ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID|IOPlatformSerialNumber/{print $4}'`。
+> 在 Linux 客户机上这四条保持不设，行为与原来完全一致（指纹由 `/host` 派生）。
+
 起容器前先在这台机器上确认商店可达（证书也要过系统 CA 校验）：
 
 ```bash
@@ -245,12 +381,22 @@ curl -fsS https://homelifepay.iepose.cn/healthz
 curl -fsS https://homelifepay.iepose.cn/v2/keys | head -c 120
 ```
 
-跑完浏览器打开 `http://<客户机IP>:8801/` ：未注册时会被直接送到 `/register`（手动直达也行），
-注册本机唯一账号（验证码由商店代发，所以这台必须能出站访问商店的 HTTPS 443；内网部署则是
-对应 IP 的 8802），登录后未激活会跳 `/activate`，填第 1 步发出去的激活码即完成绑定。
+跑完浏览器打开 `http://<客户机IP>:8801/` ：
+
+- **已有账号** → 停在 `/login`，填账号（或注册邮箱）+ 密码即可进入（已激活过就直接进系统）。
+- **首次部署（本机零用户）** → 同一个登录页会多出「创建本机唯一账号」，点进去注册（验证码由商店
+  代发，所以这台必须能出站访问商店的 HTTPS 443；内网部署则是对应 IP 的 8802）。注册成功会
+  **自动打开商店购买页**（新标签页，被浏览器拦截时激活页上仍有按钮），当前页进 `/activate`，
+  授权邮箱已按注册邮箱预填。
+- **还没有激活码** → `/activate` 上有「去商店购买授权」与「商店账号中心」两个入口；下单后激活码
+  发到下单邮箱，也在商店账号中心可见。回来填**下单邮箱 + 激活码**即完成绑定。
+
+> 商店账号与本机账号是两套：本机账号只在这台机器上（注册后入口即关闭），商店账号是买东西用的。
+> 激活码按**商店下单邮箱**归属 —— 两个邮箱不一致时激活会报「激活码或邮箱不正确」。
 
 > 未激活**不会**停在「授权恢复」页：那张页只服务「授权仍在、只是暂时连不上」。未激活走的是
-> 注册 → 登录 → 激活这条漏斗；如果你的旧镜像停在恢复页，直接访问 `/register` 即可绕过。
+> 登录 / 注册 → 商店购买 → 激活这条漏斗；如果你的旧镜像停在恢复页，直接访问 `/register`
+> 或 `/login` 即可绕过。
 
 > 跨公网接入时用**真实证书域名**。商店**没有** `https://<厂商机IP>:8804` 这种入口（该端口已
 > 随商店内置反代一起移除），别把它写进 `APP_LICENSE_SERVER_URL`，见
@@ -423,14 +569,21 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 | `homeos_homeos-license-keys` | **商店授权私钥，最关键，单独备份**（丢了所有已激活客户机失效） |
 | `homeos_homeos-store-data` | 商店库、订单、审计、商品资源 |
 | `homeos_homeos-client-keys` | 公钥镜像（商店写；丢了主应用会重新取回） |
-| `homeos_homeos-data` | 主应用数据（含自动取回的公钥缓存与 backups） |
+| `homeos_homeos-data` | 主应用数据（含自动取回的公钥缓存；备份包**不在这里**，见下） |
 | `homeos_homeos-secrets` | 主应用 HA / 授权凭据签名密钥 |
 | `homeos_caddy-public-data` | 公网接入的 TLS 证书与 ACME 账号（仅启用公网段时存在） |
+| `homeos_caddy-public-config` | 内置 Caddy 入口的配置与 ACME 中间态（同上） |
+
+备份包**不在数据卷里**：两份 compose 都把 compose 文件同目录的 `./backups` bind mount 到容器的
+`/data/backups`（服务器全量 / 自动备份 / 网页导出的 `.habackup` 都在那儿），宿主机直接可见，
+换机时整个目录拷走即可。容器内路径没变，所以「备份不能把自己装进包里」的排除逻辑与镜像默认
+完全一致。
 
 ```bash
 mkdir -p backup
 docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
   tar -C /data -czf /backup/homeos-data.tgz .
+tar -czf backup/backups.tgz backups      # 备份包本身就在宿主目录，直接打包
 ```
 
 授权私钥卷丢了等于所有已激活客户端失效；公钥丢了不用慌，主应用下次启动会自己取回。
@@ -470,7 +623,7 @@ cp my-logo.svg assets/logo/logo.svg   # 直接覆盖同名文件
 | `https://<局域网IP>:8803` 打不开 / 报「证书与地址不匹配」 | 浏览器用 IP 访问不发 SNI，证书只能签给容器 IP：设 `APP_HTTPS_DEFAULT_SNI=<该IP>`，或改用主机名访问。商店侧没有 HTTPS 入口，内网请用 `http://<IP>:8802`。页面白屏且控制台报 `MIME type ('application/json')` 是另一回事（静态资源被授权门禁挡成 401），见下面的 401 一条 |
 | 未激活时页面白屏、资源全 401 | 生产默认开启授权门禁：确认 `/static/assets/**`、`/static/**` 等前端产物未被门禁拦下（`docker logs homeos \| grep 授权门禁`），升级到修掉该问题的镜像 |
 | 激活报「租约使用了不受信任的授权公钥」 | 数据卷是别台机器搬来的：删掉主应用数据卷里的 `client-keys` 后重启即会重新取回 |
-| 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：商店后台解绑后重新激活，或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
+| 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：商店后台解绑后重新激活，或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID`（macOS 跑 compose 时用 `.env` 里的 `HOMEOS_FINGERPRINT_MACHINE_ID` / `HOMEOS_FINGERPRINT_BOARD_ID`） |
 | 商店注册 / 登录 / 下单一律 403 | 反代没透传 `Host` 与 `X-Forwarded-Proto`（公网接入时必配，见 PUBLIC-ACCESS.md） |
 | 商店能登录但一刷新又变未登录 | 会话 Cookie 带 `Secure` 却走了 `http://`：默认 `auto` 已按协议判定，出现这条多半是把 `STORE_COOKIE_SECURE` 写成了 `true`（恒带 Secure）—— 改回 `auto`（主应用同理，`COOKIE_SECURE=auto`） |
 | 内网 `https://<IP>:8803` 打不开或证书不匹配 | 没设 SNI 兜底名：`APP_HTTPS_DEFAULT_SNI` 填你实际输入的地址，`docker compose up -d` 重建容器。商店侧没有内网 HTTPS，用 `http://<IP>:8802` |
@@ -509,11 +662,21 @@ python3 ops/build.py image --project store --tag homeos-store:local
 | [docker-compose.yml](docker-compose.yml) | 管理员这台：商店 + 主应用（同一份编排，公网接入也在这里配） |
 | [docker-compose.app.yml](docker-compose.app.yml) | 客户机：只有主应用，商店地址已填好（内网直连时才需改） |
 | [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) | 商店公网接入（域名 + 真实证书 HTTPS、支付回调） |
+| [ops/deploy/TUNNEL-ACCESS.md](ops/deploy/TUNNEL-ACCESS.md) | 没有公网 IP 时的内网穿透（frp / cloudflared / 节点小宝） |
 | [ops/BUILD.md](ops/BUILD.md) | 镜像构建细节（Cython 产物、基础镜像钉版、镜像站） |
+| [homeos/frontend/src/README.md](homeos/frontend/src/README.md) | 主应用前端分层 DAG、域边界、桶命名与 studio 的关系 |
+| [homeos/frontend/src/studio/README.md](homeos/frontend/src/studio/README.md) | Studio 子系统分层、启动入口、面板渲染器与设备运行时 |
+| [item-model/README.md](homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/README.md) | 物品模型 14 族 / 59 分支的拆分规则 |
+| [homeos/backend/src/README.md](homeos/backend/src/README.md) | 主应用后端目录、业务域与关键契约 |
 | [homeos-store/backend/src/README.md](homeos-store/backend/src/README.md) | 商店 / 授权服务器细节 |
+| [homeos-store/frontend/src/README.md](homeos-store/frontend/src/README.md) | 商店前端（前台 + 运营后台）目录 |
+| [MODEL-NAMES.md](homeos/frontend/public/static/3d-studio/models/MODEL-NAMES.md) | 模型库中文名索引（生成，勿手改） |
+| [ops/perf/README.md](ops/perf/README.md) | 性能基线与预算（前端体积、3D bench、前后对比） |
+| [ops/checks/naming/README.md](ops/checks/naming/README.md) | 命名门禁 N1–N4、baseline 与批量改名工具 |
+| [packages/shared/scene/README.md](packages/shared/scene/README.md) | 入户场景静态资源（两个前端共用） |
 | `.env.example` | 全部环境变量（按 A–G 分区注释；compose 文件已写死常用值） |
 
-CI：三个工作流**全部手动触发**（Actions 页面 Run workflow），推送不会自动构建。
-`.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint）既可以在
-Actions 页面单独跑，也由 `.github/workflows/docker.yml` 通过 `uses:` 复用于发版前检查；
-镜像构建与推送（`docker.yml`）保持手动 `workflow_dispatch`。
+CI：三个工作流**全部手动触发**（Actions 页面 Run workflow），推送不会自动构建：
+`.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint；也被 `docker.yml`
+通过 `uses:` 复用于发版前）、`.github/workflows/docker.yml`（amd64 + arm64 构建并推 GHCR）、
+`.github/workflows/build-check.yml`（只验证前端构建、不推镜像 —— 用来复现「本机绿、干净检出红」）。

@@ -7,7 +7,7 @@ import { logger } from '@/shared/utils/core/logger'
 import { getBackendUnreachableHint, isBackendUnreachableError } from '@/shared/utils/core/error-message'
 import { withBackendBootRetry } from '@/shared/utils/core/api-boot-retry.util'
 import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/shared/utils/core/lazy-component'
-import { resolveNavigationTarget } from './auth.util'
+import { resolveNavigationTarget, resolveZeroUserTarget } from './auth.util'
 import { loadDisplayView, loadEditorView, loadStudioView, registerShellNavigation } from '@/studio'
 import {
   getLicenseActivated,
@@ -358,7 +358,7 @@ router.beforeEach(async (to, from) => {
           chrome.notify(getBackendUnreachableHint(), 'error')
         }
       } else {
-        // 其他错误按未初始化处理：本机零用户 → 注册页
+        // 其他错误按未初始化处理：本机零用户 → 登录页（页内给注册入口）
         systemInitialized = false
       }
     }
@@ -367,11 +367,20 @@ router.beforeEach(async (to, from) => {
   // 初始化状态仍未确定时暂不放行（等待下次探测完成）
   if (systemInitialized === null) return
 
-  // ── 2. 注册 → 登录（授权检测之前）──
-  // 未初始化：本机零用户，只能去注册页。
+  // ── 2. 登录 → 注册（授权检测之前）──
+  // 未初始化：本机零用户。登录页与注册页都放行，其余地址一律先去登录页。
+  //
+  // 为什么不直接送 `/register`：零用户时确实只能注册，但「先把人扔到注册表单」等于替他决定
+  // 了「你没有账号」，而真实场景里用户常常是先打开 8801 想登录（甚至误入），看到登录框才
+  // 知道自己该先建号。登录页会按 `/setup/status` 显示「创建本机唯一账号」主入口，
+  // 两条路都在同一屏上。
+  //
+  // 放行哪两页由 `resolveZeroUserTarget` 单点决定：这里和 `resolveNavigationTarget` 必须
+  // 同口径，手抄条件迟早会漂。
   if (systemInitialized === false) {
-    if (to.name === 'register') return
-    return '/register'
+    const blocked = resolveZeroUserTarget(typeof to.name === 'string' ? to.name : undefined)
+    if (blocked) return blocked
+    return
   }
 
   // 后端不可达：放行入户页，其余阻断（不假装已授权）

@@ -13,6 +13,7 @@
  * （加载 / 错误 / 离线三态各有结构，不再把三种处境都写成一行小字）。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 import {
   LICENSE_INSTANCE_MISMATCH_HINT,
@@ -31,16 +32,34 @@ import SceneStage from '@/components/common/SceneStage.vue'
 import AuthShell from '@/shared/components/auth/AuthShell.vue'
 import StatePanel from '@/shared/components/feedback/StatePanel.vue'
 import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
+import {
+  forgetActivationEmail,
+  readActivationEmail,
+} from '@/shared/utils/auth/activation-email.util'
+import { useStoreLinks } from '@/composables/auth/useStoreLinks'
 
 /** 状态轮询周期：与后端租约心跳同量级，够快但不至于把授权后台打满。 */
 const STATUS_POLL_INTERVAL_MS = 5000
 
+/** 商店里「购买授权」与「账号中心」两个入口的路径（与商店路由表一致）。 */
+const STORE_PRODUCTS_PATH = '/products'
+const STORE_ACCOUNT_PATH = '/user/dashboard/index'
+
 const authStore = useAuthStore()
+const route = useRoute()
+/** 商店地址用响应式值绑定 `:href`：购买区块会被 `v-if` 重建，DOM 补丁不会跟着重跑。 */
+const { storeLinks } = useStoreLinks()
 /** 激活 / 重连都要本机会话；未登录时表单可填，但提交会 401。 */
 const needsLocalLogin = computed(() => !authStore.isAuthenticated)
 const loginHref = '/login?next=/activate'
 
-const email = ref('')
+/**
+ * 授权邮箱：默认带上注册页刚填过的那个（`sessionStorage` 交接）。
+ *
+ * 这一格要的是**商店下单邮箱**，和本机登录账号是两个体系；预填只是省一次手打，
+ * 用户可以改 —— 所以是小字说明里的「不是本机登录账号」而不是锁定只读。
+ */
+const email = ref(readActivationEmail())
 const activationCode = ref('')
 const emailInput = ref<HTMLInputElement | null>(null)
 
@@ -67,6 +86,70 @@ const diagnosticsOpen = ref(false)
 
 /** 步骤轨道：首次开通（初始化 → 注册 → 激活），本页是激活这一步。 */
 const steps = renderAuthSteps(AUTH_FLOW_SETUP, 'activate')
+
+/** 最近一次读到的授权状态码；购买区块据此决定「购买 / 续费 / 不显示」。 */
+const licenseStatus = ref('')
+
+/** 是否从注册页过来（注册页会把它写进地址，并已尝试打开商店页）。 */
+const cameFromRegister = computed(() => route.query.from === 'register')
+/**
+ * 注册页的商店弹窗被浏览器拦掉了。
+ *
+ * 只会由注册页在「**地址已知、弹窗没开成**」时写入：地址都不知道的那种失败不写这个参数，
+ * 因为那时页面上的兜底话（「商店地址当前不可用…」）才是唯一出路，重试弹窗也没用。
+ */
+const storeBlocked = computed(() => route.query.store === 'blocked')
+
+/**
+ * 购买区块要显示哪种货架。
+ *
+ * - `purchase`：`UNACTIVATED` —— 本机从没激活过，第一件事是买激活码；
+ * - `renew`：`ACCESS_EXPIRED` —— 授权到期，文案原本就说「请到商店续费」，这里补上入口；
+ * - `inspect`：`DEACTIVATED` —— 授权被停用（退款 / 换机 / 运营处置），**不推销**：
+ *   再下一单既不解决根因，也可能造成重复付费；这里只给「去账号中心核对」的路。
+ * - 其余一律不显示：`REVOKED` / `INVALID` 该找客服，`INSTANCE_MISMATCH` 该去解绑，
+ *   联网告警该等重连 —— 在这些状态下推销只会和页面上的处理步骤打架。
+ */
+const buyMode = computed<'purchase' | 'renew' | 'inspect' | ''>(() => {
+  const status = licenseStatus.value
+  if (status === 'UNACTIVATED') return 'purchase'
+  if (status === 'ACCESS_EXPIRED') return 'renew'
+  if (status === 'DEACTIVATED') return 'inspect'
+  return ''
+})
+
+/** 购买区块可见：只看状态 —— 不再叠加表单可见性（续费场景表单本来就藏着）。 */
+const buyVisible = computed(() => Boolean(buyMode.value))
+
+/** 商店地址解析完成才算「可买」：首帧不能给一个空 href 的按钮。 */
+const storeUrl = computed(() => storeLinks.value.storeUrl)
+const storeProductsUrl = computed(() => storeLinks.value.pathUrl(STORE_PRODUCTS_PATH))
+const storeAccountUrl = computed(() => storeLinks.value.pathUrl(STORE_ACCOUNT_PATH))
+
+/**
+ * 主按钮：首次购买去商品列表；续费 / 停用核对都去账号中心 —— 那里能看到自己那张授权，
+ * 也是唯一能解除设备绑定、查看停用原因的地方。
+ */
+const buyPrimaryUrl = computed(() =>
+  buyMode.value === 'purchase' ? storeProductsUrl.value : storeAccountUrl.value,
+)
+const buyPrimaryLabel = computed(() => {
+  if (buyMode.value === 'purchase') return '去商店购买授权'
+  if (buyMode.value === 'renew') return '去商店续费'
+  return '去商店账号中心'
+})
+const buyTitle = computed(() => {
+  if (buyMode.value === 'renew') return '授权已到期，续费即恢复'
+  if (buyMode.value === 'inspect') return '授权已停用，先核对这张授权'
+  return cameFromRegister.value ? '账号已创建，还差一个激活码' : '还没有激活码？'
+})
+/** 商店地址取不到时的兜底话：三种货架要办的事不同，不能共用一句「联系厂商拿激活码」。 */
+const buyFallbackText = computed(() => {
+  if (buyMode.value === 'purchase') {
+    return '商店地址当前不可用，请联系厂商获取激活码；若商店暂无在售版本，同样请联系厂商。'
+  }
+  return '商店地址当前不可用，请联系厂商处理这张授权的续费 / 停用。'
+})
 
 /** 用户点过「重新激活」后，表单必须一直留着，即使状态码不是终态。 */
 let reactivateRequested = false
@@ -109,6 +192,8 @@ function enterEditor(): void {
   if (navigating) return
   navigating = true
   clearTimeout(statusTimer)
+  // 邮箱交接值只服务「刚注册完那一次」：已经激活就没必要在下次激活时冒出来。
+  forgetActivationEmail()
   window.location.replace('/')
 }
 
@@ -123,6 +208,8 @@ function setRecoveryHint(statusCode: string): void {
 function applyStatus(payload: LicenseMessageState & { allowed?: boolean; editorAllowed?: boolean; canRetry?: boolean }): void {
   statusFailed.value = false
   statusErrorCode.value = ''
+  // 购买区块的货架由状态码决定，先记下来（下面是各种文案分支，都会提前 return 一部分）。
+  licenseStatus.value = String(payload.status || '')
   if (payload.status === 'ACTIVE' && payload.editorAllowed) {
     enterEditor()
     return
@@ -332,6 +419,12 @@ onBeforeUnmount(() => {
              与上面的状态句是同一件事的两句，隔开会被读成两件事。 -->
         <p id="license-recovery-hint" class="hos-notice" :class="'hos-tone--' + statusTone" role="note"
           v-show="recoveryHint">{{ recoveryHint }}</p>
+        <!-- 「已绑定其他设备」的处置步骤原文是「打开商店账号中心 → 解除设备绑定」，
+             但那一页此前没有任何链接指过去 —— 指路却不给路。这里把入口补上。 -->
+        <a v-if="licenseStatus === 'INSTANCE_MISMATCH' && storeAccountUrl" id="license-unbind"
+          class="hos-text-button" :href="storeAccountUrl" target="_blank" rel="noopener noreferrer">
+          打开商店账号中心（解除设备绑定）
+        </a>
       </template>
 
       <div v-if="diagnosticsOpen" class="license-diagnostics" role="region" aria-label="连接诊断">
@@ -347,6 +440,43 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </template>
+
+    <!-- 购买闭环。放在状态句与激活表单之间是刻意的：首次开通的人正是盯着下面两个输入框
+         在问「码从哪来」，答案必须就在他眼前，而不是坞脚一行小字里。
+         链接一律绑定 `storeLinks`（响应式）而不是走挂载后改写 href：这一段会被 v-if
+         重建，写死的 href 重建出来就是死链。 -->
+    <section v-if="buyVisible" class="license-buy" aria-labelledby="license-buy-title">
+      <p id="license-buy-title" class="license-buy__title">{{ buyTitle }}</p>
+      <!-- 停用不是「没买过」：这时给「怎么买」等于鼓励重复下单，只给核对与申诉路径。 -->
+      <p v-if="buyMode === 'inspect'" class="license-buy__note" role="note">
+        停用一般由退款、换机或运营处置触发，<strong>再买一单不会解除当前这张授权</strong>。
+        先去商店账号中心核对这张授权的状态与绑定设备；仍然无法恢复请联系厂商。
+      </p>
+      <template v-else>
+        <ol class="license-buy__steps">
+          <li>在商店注册 / 登录<strong>商店账号</strong>（建议与本机账号用同一个邮箱）</li>
+          <li>选购版本、下单付款</li>
+          <li>激活码发到下单邮箱，也能在商店账号中心随时查看</li>
+        </ol>
+        <p class="license-buy__warn" role="note">
+          激活码按下单邮箱归属：下面「授权邮箱」必须与下单邮箱一致，填本机登录账号是通不过的。
+        </p>
+      </template>
+      <div v-if="storeUrl" class="license-buy__actions">
+        <a class="hos-btn-primary" :href="buyPrimaryUrl" target="_blank" rel="noopener noreferrer">
+          {{ buyPrimaryLabel }}
+        </a>
+        <!-- 停用态的主按钮已经是账号中心，不再重复给第二个同样的入口。 -->
+        <a v-if="buyMode === 'purchase'" class="hos-btn-ghost" :href="storeAccountUrl"
+          target="_blank" rel="noopener noreferrer">商店账号中心</a>
+      </div>
+      <!-- 地址取不到（APP_STORE_URL 留空且商店不可达）时不给按钮，只给一句能照做的话。 -->
+      <p v-else class="license-buy__fallback" role="note">{{ buyFallbackText }}</p>
+      <!-- 只在按钮真的存在时解释「被拦截」：地址都取不到时上面那句兜底话才是唯一出路。 -->
+      <p v-if="storeBlocked && storeUrl" class="hos-notice hos-tone--eco" role="note">
+        商店购买页被浏览器拦截了，请点上面的「{{ buyPrimaryLabel }}」手动打开。
+      </p>
+    </section>
 
     <form id="license-form" class="hos-form" v-show="formVisible" @submit.prevent="onSubmit">
       <div class="hos-field">
@@ -407,6 +537,87 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* 购买区块：与诊断块同一套描边 / 圆角 / 底色，但语气是「待办」而不是「诊断」。
+   `flex: 0 0 auto` 必须写：`.hos-panel` 是弹性列，它的「不收缩」白名单里没有新块，
+   不加这一句，抬头一长就会把这块压成两行标题。 */
+.license-buy {
+  flex: 0 0 auto;
+  margin-bottom: 16px;
+  padding: var(--hos-space-3) var(--hos-space-4);
+  border: var(--hos-line-width) solid var(--hos-line-2);
+  border-radius: var(--hos-r-2);
+  background: var(--hos-bg-tint-1);
+  text-align: left;
+}
+
+.license-buy__title {
+  margin: 0 0 var(--hos-space-2);
+  color: var(--hos-fg-1, var(--hos-ink));
+  font-size: var(--hos-fs-3);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.license-buy__steps {
+  margin: 0 0 var(--hos-space-2);
+  padding-left: 1.15em;
+  display: grid;
+  gap: 4px;
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-3);
+  line-height: 1.55;
+}
+
+.license-buy__steps strong {
+  color: var(--hb-eco);
+  font-weight: 600;
+}
+
+/* 停用态的说明：与步骤列表同字号，但用中性色而不是暖光强调 —— 这里要说的是
+   「别再买一单」，不是「注意这个字段」。 */
+.license-buy__note {
+  margin: 0 0 var(--hos-space-3);
+  color: var(--hos-fg-2);
+  font-size: var(--hos-fs-3);
+  line-height: 1.6;
+}
+
+.license-buy__note strong {
+  color: var(--hos-fg-1, var(--hos-ink));
+  font-weight: 700;
+}
+
+/* 「邮箱必须一致」是这一页最容易踩的一脚：用提示条的暖光底色单独强调，
+   不要混进上面的步骤里被读成第四步。 */
+.license-buy__warn {
+  margin: 0 0 var(--hos-space-3);
+  padding: 8px 10px;
+  border-radius: var(--hos-r-1);
+  background: rgba(var(--hb-lumen-rgb), 0.08);
+  color: var(--hb-lumen);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.license-buy__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.license-buy__actions .hos-btn-primary,
+.license-buy__actions .hos-btn-ghost {
+  flex: 1 1 auto;
+  text-decoration: none;
+}
+
+.license-buy__fallback {
+  margin: 0;
+  color: rgba(var(--hos-muted-rgb), 0.85);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
 /* 诊断块：只在用户主动展开时出现，尺寸与正文一致，不改面板主节奏 */
 .license-diagnostics {
   margin-top: var(--hos-space-3);

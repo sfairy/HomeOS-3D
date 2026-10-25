@@ -102,16 +102,17 @@ export type LicenseMessageState = {
 
 /** 授权状态码 → 面向用户的中文说明。 */
 const LICENSE_STATUS_MESSAGES: Record<string, string> = {
-  UNACTIVATED: '当前服务尚未激活，请管理员激活 HomeOS。',
-  DEACTIVATED: '当前授权已停用，请管理员检查。',
+  UNACTIVATED: '当前安装尚未激活，填写激活码后即可使用。',
+  // 停用不是「没买过」：先说清「再买一单没用」，再给唯一有效的处置路径。
+  DEACTIVATED: '当前授权已停用；重新购买不会解除它，请先在商店账号中心核对这张授权。',
   RECOVERY_RETRY: '授权后台拒绝了当前会话，正在再次验证；验证成功前暂不可使用。',
-  RECOVERY_REQUIRED: '授权会话恢复失败，请管理员重新激活。已有项目和配对信息已保留。',
-  REMOTE_REJECTED: '授权后台明确拒绝了当前请求，请管理员检查授权。',
-  REVOKED: '授权已被停用或撤销，请联系管理员；重试网络不能解除此限制。',
+  RECOVERY_REQUIRED: '授权会话恢复失败，请在激活页重新填一次激活码。已有项目和配对信息已保留。',
+  REMOTE_REJECTED: '授权后台明确拒绝了当前请求，请核对这台机器的授权状态或联系厂商。',
+  REVOKED: '授权已被吊销，请联系厂商；重试网络不能解除此限制。',
   INSTANCE_CHANGED: '本机安装标识已变化，请重新激活授权。',
   INSTANCE_MISMATCH: '该授权已绑定其他设备，请先到商店账号中心解除绑定后重新激活。',
   CLOCK_ROLLBACK: '系统时间异常，请先校准服务器时间，再点击重新验证。',
-  INVALID: '授权签名、密钥或本地凭证校验失败，请管理员检查；不会自动清除数据。',
+  INVALID: '授权签名、密钥或本地凭证校验失败，请联系厂商；不会自动清除数据。',
   LEASE_EXPIRED: '本地授权租约已到期，暂不可使用；联网恢复成功后会自动打开。',
   ACCESS_EXPIRED: '授权已到期，请到商店续费；续费成功后会自动恢复，无需重新激活。',
   STARTUP_VALIDATION_REQUIRED: '服务已启动，正在后台验证授权。本地有效授权可继续使用。',

@@ -11,6 +11,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import SceneStage from '@/components/common/SceneStage.vue'
 import AuthShell from '@/shared/components/auth/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
+import { getLicenseAvailability } from '@/services/api/license'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
@@ -19,6 +20,8 @@ import {
   isPasswordPolicyCompliant,
 } from '@/shared/utils/core/password.util'
 import { AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
+import { rememberActivationEmail } from '@/shared/utils/auth/activation-email.util'
+import { resolveStoreLinks } from '@/shared/utils/store-links.util'
 
 const authStore = useAuthStore()
 const chrome = useChromeStore()
@@ -35,6 +38,44 @@ const mismatch = computed(() => Boolean(passwordConfirmation.value) && password.
 
 /** 步骤轨道：首次开通（初始化 → 注册 → 激活），本页是注册这一步。 */
 const steps = renderAuthSteps(AUTH_FLOW_SETUP, 'register')
+
+/** 商店里的购买入口：首次开通要买的是授权（基础版本），不是某个增量包。 */
+const STORE_PRODUCTS_PATH = '/products'
+
+/**
+ * 商店地址：setup 期就开始解析，注册成功那一刻要**同步**拿到它。
+ *
+ * 为什么不能等提交后再请求：`window.open` 必须发生在用户手势的同一个任务里（第一个 `await`
+ * 之前），否则浏览器按「非用户触发」拦掉弹窗。用户填这段表单（含邮箱验证码）通常要几十秒，
+ * 足够 `/public/config` 回来；万一还没回来，就退化成「激活页上的购买按钮」（见下面
+ * `store=blocked` 参数）。
+ */
+let storeProductsUrl = ''
+
+/**
+ * 本机是否还缺一份授权（要先去买激活码）。
+ *
+ * 读公开的 `/license/availability`：`required && !allowed` 就是「有授权门禁但当前没放行」。
+ * 读失败按 `false` 处理 —— 那种情况下仍跳 `/`，由路由守卫做权威判定，不能凭一次失败的
+ * 探测决定去开商店页。
+ */
+const needsPurchase = ref(false)
+
+void resolveStoreLinks()
+  .then((links) => {
+    storeProductsUrl = links.pathUrl(STORE_PRODUCTS_PATH)
+  })
+  .catch(() => {
+    storeProductsUrl = ''
+  })
+
+void getLicenseAvailability()
+  .then(({ data }) => {
+    needsPurchase.value = Boolean(data.required) && !data.allowed
+  })
+  .catch(() => {
+    needsPurchase.value = false
+  })
 
 /** 发码倒计时（秒）；商店会返回 resendAfter，缺省取商店默认冷却 60 秒。 */
 const cooldown = ref(0)
@@ -83,16 +124,56 @@ async function onSubmit(): Promise<void> {
     return
   }
   submitting.value = true
+
+  // ── 同步段：必须发生在第一个 `await` 之前 ──
+  //
+  // 弹窗只能在「用户手势的同一个任务」里打开。放到 `await register()` 之后，浏览器会认为
+  // 不是用户触发的而拦掉，于是首次开通的用户拿不到任何购买入口。
+  //
+  // 不用 `window.open(url, '_blank', 'noopener')`：带 noopener 时返回值恒为 null，
+  // 注册失败就关不掉这个标签页，用户会被丢在一个「其实没注册成功」的商店页上。
+  const storeTab = needsPurchase.value && storeProductsUrl
+    ? window.open(storeProductsUrl, '_blank')
+    : null
+  if (storeTab) {
+    // 等价于 noopener，但保留句柄（可以关）：防反向劫持。
+    try {
+      storeTab.opener = null
+    } catch {
+      // 跨源后赋值可能被拒：拦不住劫持也不该打断注册
+    }
+  }
+
+  const registeredEmail = email.value.trim()
   try {
     await authStore.register({
       username: username.value.trim(),
-      email: email.value.trim(),
+      email: registeredEmail,
       code: code.value.trim(),
       password: password.value,
       passwordConfirmation: passwordConfirmation.value,
     })
+    rememberActivationEmail(registeredEmail)
+    // 整页跳转而不是 router.push：`systemInitialized` 是 router 模块级变量，注册时仍是
+    // false，SPA 跳转会立刻被守卫弹回 /login。整页重载才能让它重新探测「已有账号」。
+    if (needsPurchase.value) {
+      // 只有「地址已知、弹窗确实没开成」才带 store=blocked：这时激活页必须明说被拦截，
+      // 用户再点一次按钮就能买到。地址压根没解析出来是另一种失败，激活页的兜底话
+      // （「商店地址当前不可用，请联系厂商」）才是对的，重试弹窗没有意义。
+      const blocked = !storeTab && Boolean(storeProductsUrl)
+      window.location.assign(
+        blocked ? '/activate?from=register&store=blocked' : '/activate?from=register',
+      )
+      return
+    }
     window.location.assign('/')
   } catch (caughtError) {
+    // 注册没成：把刚打开的那个商店页关掉，别让人以为已经买成了。
+    try {
+      storeTab?.close()
+    } catch {
+      // 已经跨源 / 已被用户接管：关不掉就算了
+    }
     errorMessage.value = getApiErrorMessage(caughtError, '注册失败。')
   } finally {
     submitting.value = false
@@ -104,7 +185,7 @@ async function onSubmit(): Promise<void> {
   <AuthShell
     eyebrow="注册"
     title="创建这台机器的唯一账号"
-    description="账号用于登录，邮箱收验证码；之后填「账号或邮箱」任一个都能进。注册完成后本入口即关闭。"
+    description="账号用于登录，邮箱收验证码；之后填「账号或邮箱」任一个都能进。注册完成后本入口即关闭，并自动打开商店购买授权。"
     secure="账号 + 邮箱验证"
     :steps="steps"
     steps-label="首次开通进度"
@@ -174,7 +255,7 @@ async function onSubmit(): Promise<void> {
         <i class="hos-panel__meta-sep" aria-hidden="true"></i>
         <span>密码至少 8 位，含字母与数字</span>
         <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-        <span>注册后进入授权检测</span>
+        <span>注册后打开商店购买授权</span>
       </div>
       <p>忘记口令不必删账号：登录页「忘记本机密码」用注册邮箱验证码即可重置。</p>
     </template>

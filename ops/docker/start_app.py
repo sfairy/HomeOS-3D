@@ -139,16 +139,16 @@ def main() -> None:
     if default_sni.warning:
         print(f'警告：{default_sni.warning}', file=sys.stderr, flush=True)
 
-    print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/register", flush=True)
+    print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/login", flush=True)
     if default_sni.configured:
         print(
-            f"主应用 HTTPS    https://{default_sni.value}:8803/register"
+            f"主应用 HTTPS    https://{default_sni.value}:8803/login"
             "（镜像内置反代，自签证书首次需放行）",
             flush=True,
         )
     else:
         print(
-            "主应用 HTTPS    https://<本机局域网IP>:8803/register"
+            "主应用 HTTPS    https://<本机局域网IP>:8803/login"
             "（镜像内置反代，自签证书首次需放行）",
             flush=True,
         )
@@ -157,7 +157,12 @@ def main() -> None:
             "「证书与地址不匹配」。要避免就设 APP_HTTPS_DEFAULT_SNI=<你输入的那个IP>。",
             flush=True,
         )
-    print("首次部署此处为“注册本机唯一账号”（账号 / 密码 / 邮箱 / 邮箱验证码）", flush=True)
+    print(
+        "首次部署：打开上面的地址会落到登录页，点「创建本机唯一账号」注册（账号 / 密码 / 邮箱 /"
+        " 验证码）；注册成功会自动打开商店购买授权，再回激活页填激活码。",
+        flush=True,
+    )
+    print("已有账号：直接在那张登录页登录。", flush=True)
     print(f"授权服务器      {environment['APP_LICENSE_SERVER_URL']}", flush=True)
 
     os.environ.clear()

@@ -141,6 +141,11 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-https://homelife.iepose.cn}
       # 内网 HTTPS(8803) 的证书签给谁：用 IP 访问时填那个 IP（用主机名访问可不改）。
       APP_HTTPS_DEFAULT_SNI: ${APP_HTTPS_DEFAULT_SNI:-homeos.local}
+      # 授权实例指纹：留空 = 由上面的 /host 挂载派生（Linux 默认）。
+      # 没有 /host 的宿主（macOS）用 HOMEOS_FINGERPRINT_* 钉住；改名是为了不和
+      # ops/dev.mjs 共用的 .env 键冲突（理由见 docker-compose.app.yml 的同一段注释）。
+      APP_HARDWARE_MACHINE_ID: ${HOMEOS_FINGERPRINT_MACHINE_ID:-}
+      APP_HARDWARE_BOARD_ID: ${HOMEOS_FINGERPRINT_BOARD_ID:-}
     volumes:
       - homeos-data:/data
       - homeos-secrets:/run/secrets
@@ -163,9 +168,11 @@ services:
       # 已有内容的子目录原样保留：替换过的文件不会被覆盖，删掉的单个文件也不会复活。
       # 想让某个子目录恢复出厂默认：清空它（如 rm -rf ./assets/logo）再 restart homeos。
       - ./assets:/app/assets
-      # 授权实例指纹来源，必须先建好符号链接（见文件头）。
-      - /host/etc/machine-id:/host/etc/machine-id:ro
-      - /host/sys/class/dmi/id:/host/sys/class/dmi/id:ro
+      # 授权实例指纹来源，默认是 /host 符号链接（见文件头）。两个源路径可用
+      # HOMEOS_MACHINE_ID_PATH / HOMEOS_DMI_PATH 覆盖：只给没有 /host 的宿主（macOS /
+      # Docker Desktop）用，指纹本身则由 APP_HARDWARE_* 钉住（下面 environment 里映射）。
+      - ${HOMEOS_MACHINE_ID_PATH:-/host/etc/machine-id}:/host/etc/machine-id:ro
+      - ${HOMEOS_DMI_PATH:-/host/sys/class/dmi/id}:/host/sys/class/dmi/id:ro
     networks:
       - homeos-net
     healthcheck:

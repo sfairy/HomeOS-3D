@@ -1,6 +1,8 @@
 <!--
   授权状态面板（参考原 homeos-3d 授权页）。集中展示本机商业授权的状态、租约、权益与账号信息，
-  并提供「重新连接授权后台」「重新激活」「退出本机登录」「复制诊断信息」四类操作。
+  并提供「重新连接授权后台」「重新激活」「复制诊断信息」三类操作。
+  「退出本机登录」不在这里：它是会话动作，常驻在设置侧栏底部的账号条（SettingsSidebar），
+  在每一个设置 Tab 上都能看到，也才有统一的确认与未保存提示。
 -->
 <template>
   <SettingsPageShell
@@ -248,19 +250,15 @@
               {{ copied ? '已复制' : '复制诊断信息' }}
             </button>
           </div>
-          <button
-            type="button"
-            class="settings-btn-ghost settings-btn-ghost--danger license-actions__logout"
-            :disabled="busy"
-            @click="onLogout"
-          >
-            <LogOut class="w-4 h-4" />
-            {{ '退出本机登录' }}
-          </button>
         </div>
 
         <p class="license-note">
           {{ '「重新激活」不要求重新填激活码：本机保存了可用于自动重激活的凭证；凭证缺失时会引导到激活页重新填码。' }}
+        </p>
+        <!-- 退出登录只留一个入口：侧栏账号条。这张卡里再来一颗会绕过它的确认框与未保存提示，
+             同一个动作两套行为，最容易在「有未保存设置」时静默丢掉改动。 -->
+        <p class="license-note">
+          {{ '退出本机登录在左侧栏底部（任何设置页都能看到）；退出只吊销本机会话，不动商店授权。' }}
         </p>
       </SettingsCard>
     </template>
@@ -275,7 +273,6 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  LogOut,
   PlugZap,
   RefreshCw,
 } from '@lucide/vue'
@@ -692,12 +689,6 @@ async function copyDiagnostics() {
   } catch {
     chrome.notify('复制失败，请手动截图或导出诊断。', 'warning')
   }
-}
-
-/** 退出本机登录会话（不解绑商店授权）。 */
-async function onLogout() {
-  await auth.logout()
-  window.location.replace('/login')
 }
 
 onMounted(() => {

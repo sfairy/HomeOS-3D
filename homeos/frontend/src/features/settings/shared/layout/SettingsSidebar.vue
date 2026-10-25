@@ -218,6 +218,38 @@
           </button>
         </div>
       </div>
+      <!-- 账号条：会话级操作（修改密码 / 退出登录）常驻在这里，而不是藏在「基础设置」的
+           操作栏里。放在侧栏底部是因为它要在**每一个**设置 Tab 上都能看到：这两件事属于
+           「这台终端上的账号」，不属于任何一页的配置。又因为它在设置锁（PIN）之后的界面
+           里，壁挂场景下不会被总览面板上的误触点到。
+           只有动作、不显示账号名：单账号模型下这个身份是唯一的，头像 + 名字在这里只是
+           多占一行高度，按钮文案本身已经把事说清楚了。 -->
+      <div class="sidebar-account">
+        <!-- 一个分段控件而不是两颗独立按钮：两颗同尺寸的框挨在一起会被读成「两个主操作」，
+             和上面的「保存所有配置」抢注意力；合成一个控件后它只占一条，语义也清楚
+             —— 左半是账号维护，右半是离开这台终端。 -->
+        <div class="sidebar-account__actions" role="group" aria-label="账号操作">
+          <button
+            type="button"
+            class="sidebar-account__btn"
+            :title="'修改本机密码'"
+            @click="emit('change-password')"
+          >
+            <KeyRound class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span>{{ '修改密码' }}</span>
+          </button>
+          <button
+            type="button"
+            class="sidebar-account__btn sidebar-account__btn--danger"
+            :title="'退出登录'"
+            @click="emit('logout')"
+          >
+            <LogOut class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            <span>{{ '退出' }}</span>
+          </button>
+        </div>
+      </div>
+
       <footer class="sidebar-footer__copy">
         <p>版权所有：一埖一丗堺</p>
         <p>程序开发：方长鑫</p>
@@ -229,7 +261,7 @@
 
 <script setup>
 import { computed, toRef } from 'vue'
-import { Loader2, Save, ChevronDown, PanelLeftClose, Search, X } from '@lucide/vue'
+import { Loader2, Save, ChevronDown, PanelLeftClose, Search, X, LogOut, KeyRound } from '@lucide/vue'
 import { useSettingsSidebar } from '@/features/settings/shared/layout/useSettingsSidebar'
 
 const props = defineProps({
@@ -243,7 +275,15 @@ const props = defineProps({
   appVersion: { type: String, default: '' },
 })
 
-const emit = defineEmits(['navigate', 'save', 'cancel', 'toggle-collapse', 'update:searchQuery'])
+const emit = defineEmits([
+  'navigate',
+  'save',
+  'cancel',
+  'toggle-collapse',
+  'update:searchQuery',
+  'logout',
+  'change-password',
+])
 
 const searchQuery = computed({
   get: () => props.searchQuery,

@@ -21,6 +21,8 @@
       @save="handleSave"
       @cancel="handleCancel"
       @toggle-collapse="toggleSidebar"
+      @logout="handleLogout"
+      @change-password="changePasswordDialog?.open()"
     />
 
     <main class="settings-main">
@@ -56,6 +58,34 @@
         >
           <Link2 class="settings-breadcrumb__copy-icon" aria-hidden="true" />
         </button>
+        <!-- 侧栏收起时账号动作不能跟着消失：侧栏是靠 CSS 压到 0 宽 + pointer-events:none
+             藏起来的，组件还在，按钮却点不到 —— 那会让「改密码 / 退出」在设置里彻底没有入口。
+             这里补一组等价图标按钮（同一套 handler），推到行尾，与复制链接分开。 -->
+        <div
+          v-if="sidebarCollapsed"
+          class="settings-breadcrumb__account"
+          role="group"
+          aria-label="账号"
+        >
+          <button
+            type="button"
+            class="settings-breadcrumb__copy"
+            title="修改本机密码"
+            aria-label="修改本机密码"
+            @click="changePasswordDialog?.open()"
+          >
+            <KeyRound class="settings-breadcrumb__copy-icon" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="settings-breadcrumb__copy settings-breadcrumb__copy--danger"
+            title="退出登录"
+            aria-label="退出登录"
+            @click="handleLogout"
+          >
+            <LogOut class="settings-breadcrumb__copy-icon" aria-hidden="true" />
+          </button>
+        </div>
       </header>
       <div class="settings-main__stage">
         <SettingsOverviewStrip
@@ -76,6 +106,9 @@
 
     <!-- 仪表板编辑模式退出确认（非设置表单离开守卫；设置离开见 confirmLeaveIfDirty） -->
     <ExitEditConfirmDialog />
+    <!-- 修改本机密码：与退出登录同属「账号」动作，挂在这里而不是某个面板里，
+         这样侧栏账号条在任何 Tab 上都能叫出它（面板会被 keep-alive / 懒加载替换）。 -->
+    <ChangePasswordDialog ref="changePasswordDialog" />
     <!-- 确认 / 输入对话框已提升到 App.vue 根，避免设置页与主壳双重挂载 -->
   </div>
 </template>
@@ -87,9 +120,10 @@ import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/loc
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css
  */
 import { computed, ref, watch, defineAsyncComponent, onMounted, onBeforeUnmount } from 'vue'
-import { PanelLeft, ChevronRight, Link2 } from '@lucide/vue'
+import { PanelLeft, ChevronRight, Link2, KeyRound, LogOut } from '@lucide/vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
+import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
@@ -133,10 +167,18 @@ const ExitEditConfirmDialog = defineAsyncComponent(
   () => import('@/components/common/ExitEditConfirmDialog.vue'),
 )
 
+// 同步引入而不是 defineAsyncComponent：侧栏账号条是一进来就可见的，
+// 异步组件的模板 ref 要等解析完成才拿得到 open()，会让第一次点击落空。
+import ChangePasswordDialog from './display/ChangePasswordDialog.vue'
+
+/** 修改密码弹窗句柄：`ref="changePasswordDialog"` 需要同名变量才拿得到实例。 */
+const changePasswordDialog = ref(null)
+
 const router = useRouter()
 const route = useRoute()
 const entitiesStore = useEntitiesStore()
 const layoutStore = useLayoutStore()
+const authStore = useAuthStore()
 const chrome = useChromeStore()
 const { saving, onSave } = useSettingsSave()
 
@@ -243,6 +285,25 @@ function hasUnsavedSettingsChanges() {
   return pendingChanges.value > 0
 }
 
+/**
+ * 「即将离开」场景的未保存摘要（退出登录用）。
+ *
+ * 不能复用 `describeUnsavedChanges()`：那句带着「**请到对应页点击保存后再离开**」的行动指令，
+ * 而调用方要在后面接「退出后这些修改将丢失」—— 两句连起来是自相矛盾的
+ * （一边让人先去保存，一边宣告已经保不住了）。这里只陈述事实，处置由调用方说。
+ */
+function summarizeUnsavedChanges() {
+  const independent = getIndependentPendingTabIds()
+  if (independent.length) {
+    const labels = independent.map((id) => tabLabel(id)).join('、')
+    return `「${labels}」还有未保存的更改。`
+  }
+  if (pendingChanges.value > 0) {
+    return `全局布局还有 ${pendingChanges.value} 项未保存的更改。`
+  }
+  return '当前还有未保存的更改。'
+}
+
 /** 设置页内切换 tab：只检查当前 tab，避免 keep-alive 中其它面板误报 pending */
 function hasUnsavedForCurrentTab() {
   const tab = resolvedTab.value
@@ -272,6 +333,29 @@ async function confirmLeaveCurrentTabIfDirty() {
 
 function isOnSettingsRoute() {
   return route.name === 'settings' || route.path === '/settings'
+}
+
+/**
+ * 侧栏账号条的「退出」。
+ *
+ * 只吊销本机会话，不动商店授权（解绑是另一件事，见授权状态页）。两步确认合并成一步：
+ * 有未保存改动时把这句话并进同一条确认框，避免「要不要离开」+「真的退出吗」连弹两次。
+ *
+ * 用 `router.replace` 而不是 `push`：退出后不该留一条能按回退键回到设置页的历史，
+ * 那条记录会在守卫里再被弹一次，看起来像闪屏。
+ */
+async function handleLogout() {
+  const message = hasUnsavedSettingsChanges()
+    ? `${summarizeUnsavedChanges()}退出后这些更改会丢失，并且需要重新输入密码才能进入这台终端。`
+    : '退出后需要重新输入密码才能进入这台终端；家中自动化、场景与授权都不受影响。'
+  const confirmed = await chrome.confirm(message, '退出登录', {
+    type: 'danger',
+    confirmText: '退出登录',
+    cancelText: '留在设置',
+  })
+  if (!confirmed) return
+  await authStore.logout()
+  await router.replace('/login')
 }
 
 async function navigateTab(tabId) {

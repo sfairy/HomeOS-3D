@@ -10,13 +10,30 @@ const GUEST_ROUTES = new Set([
   'reset-password',
 ])
 
+/** 零用户（本机还没有任何账号）时允许停留的两页：登录页会给出注册入口，注册页是表单本体。 */
+const ZERO_USER_ENTRY_ROUTES = new Set(['login', 'register'])
+
+/**
+ * 零用户（本机还没有任何账号）时的落点。
+ *
+ * 单独抽出来是为了让 `router/index.ts` 的守卫与 `resolveNavigationTarget` 用**同一个函数**
+ * 而不是两处手抄同一句条件：这条规则改动频率高（从 `/register` 改成 `/login` 就是一次），
+ * 而两处不同步的后果是「守卫放行、纯函数又把人弹走」这类只在某个入口复现的鬼打墙。
+ *
+ * @param routeName 目标路由名（非命名路由传 undefined）
+ * @returns 需要跳转时返回目标地址；本页可停留时返回 null
+ */
+export function resolveZeroUserTarget(routeName?: string): '/login' | null {
+  return routeName && ZERO_USER_ENTRY_ROUTES.has(routeName) ? null : '/login'
+}
+
 /**
  * 根据导航上下文决策目标路由的走向。
  *
  * 决策优先级（从上到下短路返回）：
  * 1. 系统初始化状态未确定 → 中止
  * 2. 后端离线 → 放行入户页，其余阻断
- * 3. 未初始化 → 注册页
+ * 3. 未初始化 → `resolveZeroUserTarget`（登录页 / 注册页，其余去登录页）
  * 4. 已初始化但仍在注册页 → 已登录回首页，未登录去登录页
  * 5. 需认证但未登录 → 登录页
  * 6. 授权状态未确定 → 中止
@@ -51,9 +68,10 @@ export function resolveNavigationTarget(
     return isEntryRoute ? null : false
   }
 
-  // 3. 未初始化：本机零用户，只能去注册页
+  // 3. 未初始化：本机零用户。登录页与注册页都放行（登录页会显示「创建本机唯一账号」入口），
+  // 其余地址先去登录页 —— 规则集中在 resolveZeroUserTarget，守卫也用同一个函数。
   if (!systemInitialized) {
-    return routeName === 'register' ? null : '/register'
+    return resolveZeroUserTarget(routeName)
   }
 
   // 4. 已初始化仍在注册页：注册入口已关闭

@@ -596,13 +596,12 @@
   color: var(--text-tertiary, #8b98aa);
 }
 
-/* ── 操作区：主操作靠左，退出登录单独靠右 ── */
+/* ── 操作区：三颗授权动作并排（退出登录不在这里，见侧栏账号条） ── */
 .license-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  justify-content: space-between;
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -613,10 +612,6 @@
   flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
-}
-
-.license-actions__logout {
-  margin-left: auto;
 }
 
 .license-note {

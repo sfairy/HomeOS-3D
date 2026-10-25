@@ -193,8 +193,8 @@ const LICENSE_CREDENTIAL_STATUSES = new Set([
  *
  * 只有「授权仍在、只是暂时连不上 / 租约待重续」交给这张页 —— 它每 5 秒自动重连。
  * 其余（尤其全新部署的 `UNACTIVATED`）放行 `router-view`，由 `router/index.ts` 的守卫
- * 分流到 `/register`、`/login` 或 `/activate`：那张恢复页上的「本机授权仍在」对未激活
- * 机器是假话，而且未激活时 `canRetry` 恒为 false，页面上根本没有可点的出路。
+ * 分流到 `/login`（零用户时同一页给注册入口）或 `/activate`：那张恢复页上的「本机授权仍在」
+ * 对未激活机器是假话，而且未激活时 `canRetry` 恒为 false，页面上根本没有可点的出路。
  */
 const licenseRecoveryVisible = computed(
   () => licenseBlocked.value && !LICENSE_CREDENTIAL_STATUSES.has(licenseBlockedStatus),
