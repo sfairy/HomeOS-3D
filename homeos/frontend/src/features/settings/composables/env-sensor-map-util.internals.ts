@@ -34,7 +34,21 @@ const DEVICE_CLASS_MAP: Record<string, string[]> = {
 
 const MOTION_DEVICE_CLASSES = new Set(['motion', 'occupancy', 'moving'])
 
-const ROOM_KEYWORDS = buildRoomInferKeywordsMap()
+/**
+ * 房间关键词表按需构建（首次匹配时才调用 `buildRoomInferKeywordsMap`）。
+ *
+ * 不能在模块顶层直接调用：本模块与 `@homeos/shared` 的房间目录可能被 rolldown 分到
+ * 互相 import 的 shared-* chunk 里（跨 chunk 环）。环内被 import 的模块若尚未求值，
+ * 其 `var` 绑定仍是 undefined，而目录函数的默认参数正是该绑定，
+ * 于是 `for (const room of catalog)` 抛 `TypeError: e is not iterable`，
+ * 整个懒加载 chunk 求值失败（表现为 Uncaught (in promise)）。
+ * 延迟到运行时调用可彻底摆脱 chunk 求值顺序依赖。
+ */
+let roomKeywordsCache: Record<string, string[]> | null = null
+function getRoomKeywords(): Record<string, string[]> {
+  roomKeywordsCache ??= buildRoomInferKeywordsMap()
+  return roomKeywordsCache
+}
 
 function matchRoomId(
   eid: string,
@@ -52,7 +66,7 @@ function matchRoomId(
     }
   }
 
-  for (const [roomId, keywords] of Object.entries(ROOM_KEYWORDS)) {
+  for (const [roomId, keywords] of Object.entries(getRoomKeywords())) {
     if (keywords.some((k) => hay.includes(k))) return roomId
   }
 

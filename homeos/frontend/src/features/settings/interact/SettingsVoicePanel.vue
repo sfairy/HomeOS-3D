@@ -140,7 +140,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDisplayName, domainIndexToArray } from '@/shared/entity/utils/derived.util'
 import { useChromeStore } from '@/stores/chrome.store'
 import { fetchVoiceMeta } from '@/services/api/system'
-import { VOICE_ROOM_LABELS } from '@/shared/constants/voice-command-presets'
+import { getVoiceRoomLabels } from '@/shared/constants/voice-command-presets'
 import { parseWakeWordsText } from '@/shared/constants/voice-alert-catalog'
 import { DOMAIN_SERVICES } from '@/shared/utils/registry/widget-catalog'
 import { useVoiceConfig } from '@/features/settings/composables/interact/voice.internals'
@@ -279,7 +279,7 @@ const wakeWordsText = computed({
 })
 
 const voiceRooms = computed(() =>
-  voiceMeta.value.rooms?.length ? voiceMeta.value.rooms : VOICE_ROOM_LABELS,
+  voiceMeta.value.rooms?.length ? voiceMeta.value.rooms : getVoiceRoomLabels(),
 )
 const voiceMeta = ref({ rooms: [] })
 
