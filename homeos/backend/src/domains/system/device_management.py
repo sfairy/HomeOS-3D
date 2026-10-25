@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import select
 
 from .zombie_scan import build_alive_entity_id_set, should_skip_zombie_scan
+from ...platform.core.db_exec import run_db
 from ...platform.core.json_field import object_field
 from ...platform.core.models import AlertRule, ProjectConfig
 
@@ -244,10 +245,7 @@ class DeviceManagementService:
         if not items:
             return []
         try:
-            with self._session_factory() as session:
-                row = session.execute(
-                    select(ProjectConfig.layout).where(ProjectConfig.project_id == "default")
-                ).scalar_one_or_none()
+            row = await run_db(self._load_project_layout_row)
             layout = self.parse_layout(row)
             changed = False
 
@@ -414,6 +412,13 @@ class DeviceManagementService:
         return self.usable_friendly_name(entity_id, hint) or names.get(entity_id, "") or ""
 
     # 工具
+    def _load_project_layout_row(self) -> Any:
+        """读取 default 项目的 layout 列（同步；由调用方放进线程池）。"""
+        with self._session_factory() as session:
+            return session.execute(
+                select(ProjectConfig.layout).where(ProjectConfig.project_id == "default")
+            ).scalar_one_or_none()
+
     @staticmethod
     def parse_layout(layout: Any) -> dict[str, Any]:
         """解析 layout 字段为对象（JSON TEXT 列读出值可能为字符串）。"""

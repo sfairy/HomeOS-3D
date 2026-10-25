@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -85,9 +86,29 @@ def matches_runtime_log_filter(entry: dict[str, Any], opts: dict[str, Any] | Non
     return True
 
 
+#: 订阅者回调失败的 stderr 提示节流窗口（秒）：日志管线自身出错时不能再写日志，
+#: 否则 handler → buffer.push → 失败 → 再写日志，无限递归。
+_LISTENER_FAILURE_NOTICE_SECONDS = 60.0
+_listener_failure_lock = threading.Lock()
+_listener_failure_state: dict[int, float] = {}
+
+
+def _note_listener_failure(listener: Callable[[dict[str, Any]], None]) -> None:
+    """订阅者回调抛错时按监听器 60s 节流写一条 stderr 提示（不进入 logging 管线）。"""
+    import sys
+
+    now = time.monotonic()
+    key = id(listener)
+    with _listener_failure_lock:
+        last = _listener_failure_state.get(key, 0.0)
+        if now - last < _LISTENER_FAILURE_NOTICE_SECONDS:
+            return
+        _listener_failure_state[key] = now
+    sys.stderr.write(f"[runtime_logs] 日志订阅者回调失败（已节流）: {listener!r}\n")
+
+
 class RuntimeLogBuffer:
     """进程内环形缓冲（线程安全：ASGI 线程池与事件循环均可能写入）。"""
-
     def __init__(self, capacity: int = DEFAULT_CAPACITY) -> None:
         self.capacity = capacity
         self._seq = 0
@@ -127,7 +148,7 @@ class RuntimeLogBuffer:
             try:
                 listener(entry)
             except Exception:  # SSE 订阅者回调失败不能带塌日志写入主流程
-                pass
+                _note_listener_failure(listener)
         return entry
 
     def subscribe(self, listener: Callable[[dict[str, Any]], None]) -> Callable[[], None]:
@@ -214,7 +235,8 @@ class RuntimeLogHandler(logging.Handler):
                 ts=_now_iso(),
             )
         except Exception:  # 日志格式化/入缓冲失败不能带塌被观测方的业务日志调用
-            pass
+            # 这条路径已经在 logging 内部：再走 logging 会递归，只能落 stderr。
+            self.handleError(record)
 
 
 def install_runtime_log_handler(buffer: RuntimeLogBuffer) -> RuntimeLogHandler:

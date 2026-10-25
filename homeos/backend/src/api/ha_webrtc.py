@@ -94,6 +94,10 @@ def _load_custom_ice_servers(database_manager) -> list[dict[str, Any]]:
 
     ``iceUrls`` 支持逗号或换行分隔的多个 URL；``iceUsername`` / ``iceCredential``
     非空时作为该条服务器的 TURN 长凭证一并下发。未配置时返回空列表。
+
+    读库失败**不再静默吞掉**：区分「没配置过」（返回空列表，正常）与「读库出错」
+    （降级到默认 STUN，但打 warn + exc_info）—— 后者曾表现为「TURN 配了却总连不上」，
+    日志里一个字都没有，只能靠猜。
     """
     try:
         from ..platform.core.app_config import load_raw_config
@@ -101,6 +105,10 @@ def _load_custom_ice_servers(database_manager) -> list[dict[str, Any]]:
         with database_manager.session_factory() as database:
             raw = load_raw_config(database)
     except Exception:
+        logger.warning(
+            '读取 WebRTC ICE 配置失败，本次降级为默认 STUN 服务器（TURN 可能不可用）',
+            exc_info=True,
+        )
         return []
     raw_section = raw.get('webrtc')
     section: dict[str, Any] = raw_section if isinstance(raw_section, dict) else {}

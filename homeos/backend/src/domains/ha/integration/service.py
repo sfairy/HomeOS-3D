@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import random
 import time
 from collections import (
@@ -284,7 +285,7 @@ class HAConnectorService(
             return
         try:
             result = listener(kind, state_update)
-            if hasattr(result, '__await__'):
+            if inspect.isawaitable(result):
                 await result
         except Exception:
             LOGGER.debug('HA 状态外发失败: %s', kind, exc_info = True)
@@ -314,7 +315,7 @@ class HAConnectorService(
         self._last_connection_status = status
         try:
             result = listener(status, extra)
-            if hasattr(result, '__await__'):
+            if inspect.isawaitable(result):
                 await result
         except Exception:
             LOGGER.debug('HA 连接状态外发失败: %s', status, exc_info = True)

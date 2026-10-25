@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy import func, select
 
 from .bindings_gaps import collect_binding_gaps
+from ...platform.core.db_exec import run_db
 from ...platform.core.errors import api_error, bad_request
 from ...platform.core.json_field import object_field, read_json_object
 from ...platform.core.models import Project, ProjectConfig, SecurityEvent
@@ -254,19 +255,22 @@ class SetupWizardService:
             source = options.get("source") or "unknown"
             detail = f"用户误报反馈，冷却延长至 {next_value}s（来源: {source}）"
             try:
-                with self._session_factory() as session, session.begin():
-                    session.add(
-                        SecurityEvent(
-                            type="false_alarm_feedback",
-                            mode="disarmed",
-                            detail=detail,
-                            zones="[]",
-                        )
-                    )
+                await run_db(self._record_false_alarm_feedback, detail)
             except Exception as err:
                 logger.warning("写入误报反馈事件失败: %s", err)
 
         return {"sensorAlertCooldownSec": next_value}
+
+    def _record_false_alarm_feedback(self, detail: str) -> None:
+        with self._session_factory() as session, session.begin():
+            session.add(
+                SecurityEvent(
+                    type="false_alarm_feedback",
+                    mode="disarmed",
+                    detail=detail,
+                    zones="[]",
+                )
+            )
 
     # 首装后引导清单
     async def get_post_setup_checklist(self) -> dict[str, Any]:

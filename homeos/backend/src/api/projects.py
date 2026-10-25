@@ -271,8 +271,8 @@ def delete_project(project_id: str, body: ProjectDeleteRequest, request: Request
     background_tasks.add_task(request.app.state.studio_ha.refresh_persistent_entity_ids, ensure_states=False)
 
 
-@router.get('/{project_id}/draft')
-async def get_project_draft(project_id: str, request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict:
+@router.get('/{project_id}/draft', response_model=None)
+async def get_project_draft(project_id: str, request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict | Response:
     await request.app.state.license_service.confirm_binding()
     require_viewer_project(viewer, project_id)
     def _load_draft_payload() -> tuple[ProjectDraft | None, dict | None, int, str]:

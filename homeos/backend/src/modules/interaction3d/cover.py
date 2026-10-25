@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from .capabilities import attribute_number, attributes_of, feature_flags
+from ...platform.core import ha_errors
 
 COVER_SERVICES = {
     'open_cover': 1,
@@ -85,13 +86,13 @@ def validate_cover_command(
         '',
         'unavailable',
     ):
-        raise HTTPException(409, detail='窗帘状态暂不可用，请等待设备重新连接。')
+        raise HTTPException(409, detail=ha_errors.screen_state_unavailable('窗帘'))
     if state.get('state') == 'unknown' and not unknown_airer:
         if airer:
             raise HTTPException(
                 409, detail='晾衣架升降状态未知，暂时只能上升、下降或暂停。'
             )
-        raise HTTPException(409, detail='窗帘状态暂不可用，请等待设备重新连接。')
+        raise HTTPException(409, detail=ha_errors.screen_state_unavailable('窗帘'))
     attributes = attributes_of(state)
     features = feature_flags(attributes)
     # 原始能力位：用于区分「真的还没载入」与「属性结构本身不对」（负数 / 非整数）。

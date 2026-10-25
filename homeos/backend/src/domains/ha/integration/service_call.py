@@ -25,6 +25,7 @@ from typing import Any, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from .client import HAClientError
 from .connection_query import active_connection
@@ -74,10 +75,44 @@ class ServiceCallRejected(Exception):
         self.detail = detail
 
 
+def ha_entity_conditions(
+    connection_id: str,
+    entity_id: str,
+    *,
+    domain: str | None = None,
+    enabled_only: bool = True,
+) -> list[ColumnElement[bool]]:
+    """HA 实体「本连接下存在且可用」的**唯一判定口径**。
+
+    三处旧实现（本模块的 ``load_ha_entity_context``、``api/ha.py`` 的
+    ``load_authorized_entity_context``、``modules/interaction3d/api.py`` 的
+    ``_read_connection_and_entity``）条件一致但各写一遍：漏一个条件就是
+    「已禁用 / 已失联的实体仍被当成可用」，线上排查时极难发现。
+    这里只留一份，参数化差异点：
+
+    - ``domain``：3D 控制路径按域校验（``light.living_room`` 不能冒充 ``cover``）。
+    - ``enabled_only``：配置校验（保存模式 / 绑定面板）必须允许**已禁用**实体——否则
+      用户连「把这台设备删掉」都做不到；运行时控制路径才要求未禁用。
+    """
+    conditions: list[ColumnElement[bool]] = [
+        HAEntity.connection_id == connection_id,
+        HAEntity.entity_id == entity_id,
+        HAEntity.sync_status == 'active',
+    ]
+    if domain is not None:
+        conditions.append(HAEntity.domain == domain)
+    if enabled_only:
+        conditions.append(HAEntity.disabled_by.is_(None))
+    return conditions
+
+
 def load_ha_entity_context(
     database_manager: Database,
     entity_id: str,
     access_check: Callable[[Session, str], None] | None = None,
+    *,
+    enabled_only: bool = True,
+    domain: str | None = None,
 ) -> tuple[HAConnection | None, bool]:
     """连接 + 「实体是否可用」一次读完（同会话，避免两次开库）。
 
@@ -93,10 +128,9 @@ def load_ha_entity_context(
         entity_exists = (
             database.scalar(
                 select(HAEntity.id).where(
-                    HAEntity.connection_id == connection.id,
-                    HAEntity.entity_id == entity_id,
-                    HAEntity.sync_status == 'active',
-                    HAEntity.disabled_by.is_(None),
+                    *ha_entity_conditions(
+                        connection.id, entity_id, domain=domain, enabled_only=enabled_only
+                    )
                 )
             )
             is not None

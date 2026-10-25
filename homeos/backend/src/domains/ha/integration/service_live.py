@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import time
 import traceback
@@ -31,6 +32,13 @@ from .service_support import (
 )
 from ...logs.global_log import _safe_text
 from ....platform.core.observability import record_ha_counter, record_ha_sync_latency
+
+#: HA 注册表事件 → 进程内事件名（区域索引与语音快路径缓存据此失效）。
+_REGISTRY_EVENT_NAMES = {
+    'entity_registry_updated': 'ha.entity_registry_updated',
+    'device_registry_updated': 'ha.device_registry_updated',
+    'area_registry_updated': 'ha.area_registry_updated',
+}
 
 
 def _event_lag_ms(time_fired: Any) -> float | None:
@@ -366,7 +374,7 @@ class HALiveMixin(HAConnectorHost):
             and 'event_type' not in event
             and any(key in event for key in ('a', 'c', 'r'))
         )
-        if compressed:
+        if compressed and decoder is not None:
             for decoded in decoder.feed(message):
                 await self._dispatch_live_event(events, connection_id, decoded)
             return
@@ -414,7 +422,7 @@ class HALiveMixin(HAConnectorHost):
             if not callable(emit):
                 return
             result = emit('ha.queue_dropped', payload)
-            if hasattr(result, '__await__'):
+            if inspect.isawaitable(result):
                 await result
         except Exception:
             LOGGER.debug('HA 实时状态丢弃事件外发失败', exc_info = True)
@@ -509,3 +517,33 @@ class HALiveMixin(HAConnectorHost):
                     'operation': operation,
                     'counts': await self._run_database(self.catalog_counts, connection_id) })
                 self._schedule_registry_refresh(connection_id)
+            # 无论增量落库是否成功都要广播：注册表变了，房间索引 / 语音快路径的房间缓存
+            # 就必须失效，否则新增「书房灯」后语音指令会一直命中旧缓存。
+            await self._emit_registry_event(event_type, event_data)
+
+    async def _emit_registry_event(self, event_type: str, event_data: dict[str, Any]) -> None:
+        """把 HA 注册表变更转成进程内事件（``ha.<kind>_registry_updated``）。
+
+        此前只有订阅方（区域索引、语音快路径）而没有发布方，缓存永不失效。
+        """
+        event_name = _REGISTRY_EVENT_NAMES.get(event_type)
+        bus = getattr(self, '_event_bus', None)
+        if event_name is None or bus is None:
+            return
+        payload = {
+            'type': event_type,
+            'action': str(event_data.get('action') or 'update'),
+            'entity_id': event_data.get('entity_id'),
+            'area_id': event_data.get('area_id'),
+            'device_id': event_data.get('device_id'),
+        }
+        try:
+            emit = getattr(bus, 'emit', None) or getattr(bus, 'publish', None)
+            if not callable(emit):
+                return
+            result: Any = emit(event_name, payload)
+            if inspect.isawaitable(result):
+                await result
+        except Exception:
+            # 广播失败不影响同步主流程，但必须留痕（缓存另有 TTL 兜底）。
+            LOGGER.warning('注册表变更事件广播失败：%s', event_name, exc_info=True)

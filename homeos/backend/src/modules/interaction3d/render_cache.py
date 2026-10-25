@@ -10,9 +10,10 @@ import re
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from uuid import uuid4
 
 from fastapi import HTTPException
+
+from ...platform.core.atomic_write import atomic_write_bytes
 
 MAX_ENTRY_BYTES = 10485760
 MAX_PIXELS = 2097152
@@ -73,15 +74,8 @@ def write_cache(path: Path, content: bytes) -> None:
         raise HTTPException(422, detail='缓存图层无效。') from error
     root = path.parent.parent
     with cache_lock(root):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(f'.{uuid4().hex}.tmp')
-        try:
-            with temporary.open('xb') as output:
-                output.write(content)
-            temporary.chmod(384)
-            os.replace(temporary, path)
-        finally:
-            temporary.unlink(missing_ok=True)
+        # 临时文件 + fsync + 0600 + 原子 replace，统一由 atomic_write 负责。
+        atomic_write_bytes(path, content)
         now = time.time()
         for candidate in root.glob('*/*.tmp'):
             if now - candidate.stat().st_mtime > 3600:

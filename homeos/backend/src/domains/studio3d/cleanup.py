@@ -1,6 +1,7 @@
 """Studio 3D 删除级联清理：把 3D 场景里被删掉的物件/灯组/门从项目交互配置中摘除。
 
-从 modules/interaction3d/studio_cleanup.py 迁入（C1）。这里只保留业务规则：
+原 ``modules/interaction3d/studio_cleanup.py`` 已并入本模块（C1），那里只保留了
+一段时间的 re-export 垫片，随零引用清理一并删除。这里只保留业务规则：
 
 - identities 决定「哪些绑定目标被删了」；
 - plan_cleanup 产出新文档、可回滚归档与影响清单；

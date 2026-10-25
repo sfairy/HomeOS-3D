@@ -240,6 +240,9 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
             "count": entity_count,
             "stale": stale_info.get("stale"),
             "syncedAt": stale_info.get("syncedAt"),
+            # 连接级 stale 之外再给逐实体派生口径：HA 连着但个别实体早已停更时，
+            # 只看 ``stale`` 会把它们当成在线。
+            "availability": state_store.get_availability_summary(),
         },
         "websocket": {"clients": gateway.client_count()},
         "haSyncLatency": [

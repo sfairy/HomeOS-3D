@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import math
 import re
 import time
@@ -18,6 +19,8 @@ from xml.etree import ElementTree
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+
+logger = logging.getLogger("homeos.api.assets")
 
 
 # Pillow 只在「真正处理图片」的请求里需要，但它是模块级 import 里最贵的一条
@@ -34,7 +37,8 @@ def _load_pillow():
 
         register_heif_opener()
     except Exception:  # HEIF 解码器是可选依赖：装不上只失去 HEIC 支持，其余图片照常
-        pass
+        # 装不上不影响启动，但「iPhone 拍的 HEIC 上传后打不开」需要一条可查的线索。
+        logger.info('pillow-heif 不可用，HEIC/HEIF 图片将无法解码', exc_info=True)
     return Image, UnidentifiedImageError
 
 from ..dependencies import (
@@ -54,6 +58,12 @@ from ..platform.core.asset_paths import (
     UPLOAD_CONTENT_TYPES,
     UPLOAD_IMAGE_SUFFIXES,
     user_asset_file,
+)
+from ..platform.core.atomic_write import (
+    PRIVATE_DIR_MODE,
+    atomic_write_text,
+    ensure_private_dir,
+    restrict_private_file,
 )
 from ..platform.core.models import Project, ProjectDraft
 from ..platform.http_cache import make_etag, not_modified, request_etag_matches, set_private_revalidate
@@ -188,11 +198,11 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     if crop_width * crop_height >= original_width * original_height * EFFECT_VARIANT_MAX_AREA_RATIO:
         return None
     if not variant_path.is_file():
-        cache_root.mkdir(parents = True, exist_ok = True, mode = 448)
+        cache_root.mkdir(parents = True, exist_ok = True, mode = PRIVATE_DIR_MODE)
         temporary_path = cache_root / f'.{cache_key}.{uuid4().hex}.tmp'
         try:
             rgba.crop((left, top, right, bottom)).save(temporary_path, format = 'PNG', optimize = True)
-            temporary_path.chmod(384)
+            restrict_private_file(temporary_path)
             temporary_path.replace(variant_path)
         finally:
             if temporary_path.exists():
@@ -204,15 +214,11 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
         'cropY': top,
         'width': crop_width,
         'height': crop_height }
-    cache_root.mkdir(parents = True, exist_ok = True, mode = 448)
-    temporary_metadata_path = cache_root / f'.{cache_key}.{uuid4().hex}.json.tmp'
-    try:
-        temporary_metadata_path.write_text(json.dumps(metadata, ensure_ascii = False, separators = (',', ':')), encoding = 'utf-8')
-        temporary_metadata_path.chmod(384)
-        temporary_metadata_path.replace(metadata_path)
-    finally:
-        if temporary_metadata_path.exists():
-            temporary_metadata_path.unlink()
+    cache_root.mkdir(parents = True, exist_ok = True, mode = PRIVATE_DIR_MODE)
+    atomic_write_text(
+        metadata_path,
+        json.dumps(metadata, ensure_ascii = False, separators = (',', ':')),
+    )
     body = {
         'url': f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}',
         **metadata }
@@ -705,8 +711,8 @@ def document_uses_asset(value, asset_id: str) -> bool:
         return any(document_uses_asset(item, asset_id) for item in value)
     return value in (asset_id, bare)
 
-@router.get('/builtin')
-def list_builtin_assets(request: Request, response: Response, _viewer: LicensedViewer) -> dict:
+@router.get('/builtin', response_model=None)
+def list_builtin_assets(request: Request, response: Response, _viewer: LicensedViewer) -> dict | Response:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
     versions = request.app.state.asset_catalog.versions()
     etag = make_etag('assets-builtin', versions['builtin'])
@@ -719,8 +725,8 @@ def list_builtin_assets(request: Request, response: Response, _viewer: LicensedV
         'total': len(items),
         'catalogVersion': versions['builtin'] }
 
-@router.get('/user')
-def list_user_assets(request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict:
+@router.get('/user', response_model=None)
+def list_user_assets(request: Request, response: Response, database: DatabaseSession, viewer: LicensedViewer) -> dict | Response:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
     versions = request.app.state.asset_catalog.versions()
     allowed_asset_ids = viewer_user_asset_ids(database, viewer)
@@ -740,8 +746,8 @@ def list_user_assets(request: Request, response: Response, database: DatabaseSes
         'maxUploadPixels': MAX_UPLOAD_PIXELS,
         'catalogVersion': versions['user'] }
 
-@router.get('/version')
-def asset_catalog_version(request: Request, response: Response, _viewer: LicensedViewer) -> dict:
+@router.get('/version', response_model=None)
+def asset_catalog_version(request: Request, response: Response, _viewer: LicensedViewer) -> dict | Response:
     require_license_feature(request, feature_codes.FEATURE_ASSETS)
     versions = request.app.state.asset_catalog.versions()
     etag = make_etag('assets-version', versions['builtin'], versions['user'])
@@ -769,7 +775,7 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     root = request.app.state.settings.user_assets_dir.resolve()
     asset_id = uuid4().hex
     directory = root / asset_id
-    directory.mkdir(mode = 448)
+    ensure_private_dir(directory)
     path = directory / filename
     try:
         has_content = False
@@ -792,7 +798,7 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         except ValueError as error:
             raise HTTPException(status_code = 422, detail = str(error)) from error
         path = _finalize_normalized_upload(path, suffix)
-        path.chmod(384)
+        restrict_private_file(path)
     except Exception:
         if path.exists():
             path.unlink()

@@ -31,8 +31,13 @@ from ...dependencies import (
     require_viewer_project,
 )
 from ...domains.ha.integration.connection_query import active_connection
-from ...domains.ha.integration.service_call import ServiceCallRejected, execute_service_call
+from ...domains.ha.integration.service_call import (
+    ServiceCallRejected,
+    execute_service_call,
+    ha_entity_conditions,
+)
 from ...platform.core.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
+from ...platform.core.atomic_write import restrict_private_file
 from ...platform.core.frontend_static import strip_auth_scene_stylesheets
 from ...platform.core.models import HAEntity, ProjectDraft
 from ...platform.security.request_origin import require_same_origin_write
@@ -156,11 +161,7 @@ def _read_entity_device_id(request: Request, connection_id: str, entity_id: str,
     with request.app.state.database.session_factory() as database:
         entity = database.scalar(
             select(HAEntity).where(
-                HAEntity.connection_id == connection_id,
-                HAEntity.entity_id == entity_id,
-                HAEntity.domain == domain,
-                HAEntity.sync_status == 'active',
-                HAEntity.disabled_by.is_(None),
+                *ha_entity_conditions(connection_id, entity_id, domain=domain)
             )
         )
         return entity.device_id if entity is not None else None
@@ -174,11 +175,7 @@ def _read_connection_and_entity(request: Request, entity_id: str, domain: str):
         if connection is not None:
             entity = database.scalar(
                 select(HAEntity).where(
-                    HAEntity.connection_id == connection.id,
-                    HAEntity.entity_id == entity_id,
-                    HAEntity.domain == domain,
-                    HAEntity.sync_status == 'active',
-                    HAEntity.disabled_by.is_(None),
+                    *ha_entity_conditions(connection.id, entity_id, domain=domain)
                 )
             )
             if entity is not None:
@@ -299,7 +296,7 @@ def snapshot_scene(request: Request, database: DatabaseSession, _user: LicensedU
     path = folder / f'{scene_id}.json'
     with path.open('x', encoding='utf-8') as output:
         json.dump(command, output, ensure_ascii=False)
-    path.chmod(384)
+    restrict_private_file(path)
     scene = command['scene']
     for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}

@@ -207,6 +207,7 @@ async def inspect_backup(
         return JSONResponse(status_code=400, content={"detail": str(error)})
     except Exception:
         # 断开 / 磁盘写失败：清掉半截归档，别把 workspace 留成垃圾
+        logger.warning("备份文件上传中断（已清理半截归档）written=%d", written, exc_info=True)
         await gate.cleanup_job_async(directory)
         return JSONResponse(status_code=400, content={"detail": "备份文件上传中断，请重试。"})
     if written == 0:
@@ -307,7 +308,7 @@ async def restore_backup(
                 "全量业务数据（含账号、授权、素材与数据库）已恢复；中控设备需重新配对",
             )
         except Exception:  # 恢复结果已落定，这条只是全局日志提示，不得因写日志失败把成功变成 5xx
-            pass
+            logger.warning("恢复成功后写全局日志提示失败（不影响恢复结果）", exc_info=True)
         return {"ok": True, "restored": True, "rePairDisplays": True}
     except BackupError as error:
         return JSONResponse(
@@ -315,6 +316,9 @@ async def restore_backup(
             content={"detail": str(error) or "恢复失败，已保留原业务数据，请重新检查备份文件。"},
         )
     except Exception:
+        # 客户端只拿到「恢复失败」这一句通用文案；真实原因（磁盘满 / 权限 /
+        # 解密失败 / 迁移中断）必须留在服务端日志里，否则现场无从排查。
+        logger.warning("全量业务数据恢复失败（已保留原业务数据）", exc_info=True)
         return JSONResponse(
             status_code=400,
             content={"detail": "恢复失败，已保留原业务数据，请重新检查备份文件。"},

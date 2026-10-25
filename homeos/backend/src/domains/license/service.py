@@ -366,7 +366,12 @@ class LicenseService:
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         try:
             saved = path.read_text(encoding='utf-8').strip()
+        except FileNotFoundError:
+            # 首次启动：实例标识文件还不存在，属正常分支。
+            saved = ''
         except OSError:
+            # 权限 / 磁盘问题会让「实例标识」被当成首次绑定重算，进而绑定到新实例。
+            logger.warning('读取实例标识文件失败，本次按首次绑定处理: %s', path, exc_info=True)
             saved = ''
         value = hardware_instance_id(
             machine_override=self.settings.hardware_machine_id_override,
@@ -841,7 +846,8 @@ class LicenseService:
             try:
                 await self._recover_unlocked()
             except LicenseClientError:
-                pass
+                # 手动「重试恢复」后仍连不上授权服务器：把原因留下来（status 里也会体现）。
+                logger.info('手动重试恢复授权失败，保持当前状态', exc_info=True)
             finally:
                 self._manual_retry_after = time.monotonic() + 2
             return self.status()

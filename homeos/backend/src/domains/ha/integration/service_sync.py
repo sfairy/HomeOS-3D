@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import (
     func,
     select,
+    update,
 )
 
 from .client import (
@@ -39,6 +40,16 @@ from ....platform.core.models import (
     utc_now,
 )
 from ....platform.core.observability import record_ha_counter, record_ha_sync_latency
+
+#: 单次 ``IN (...)`` 参数上限：SQLite 旧版本变量上限 999，取 400 留出其余条件的位置。
+_SQL_IN_CHUNK = 400
+
+
+def _chunked(items: list[str], size: int = _SQL_IN_CHUNK) -> list[list[str]]:
+    """把实体 id 列表切成若干块，供 ``IN (...)`` 使用。"""
+    if len(items) <= size:
+        return [items] if items else []
+    return [items[index : index + size] for index in range(0, len(items), size)]
 
 
 class HASyncMixin(HAConnectorHost):
@@ -543,16 +554,31 @@ class HASyncMixin(HAConnectorHost):
             return False
         catalog_changed = False
         added_count = 0
+        now = utc_now()
         with self.database.session_factory() as database:
+            # 一次取回本批所有仍需落库的实体行：此前循环里逐条 ``select(HAEntity)``，
+            # 全屋场景变化（几十上百条）在刷盘窗口就是 N 次查询。
+            existing: dict[str, HAEntity] = {}
+            for chunk in _chunked([entity_id for entity_id, _ in targets]):
+                for record in database.scalars(
+                    select(HAEntity).where(
+                        HAEntity.connection_id == connection_id,
+                        HAEntity.entity_id.in_(chunk),
+                    )
+                ):
+                    existing[record.entity_id] = record
+            touched_known_ids: list[str] = []
+            new_records: list[HAEntity] = []
             for entity_id, raw_state in targets:
                 if (connection_id, entity_id) in self._known_entity_ids:
                     # 已登记且到了刷盘窗口：只更新同步时间，不动实体行（与逐条实现一致）。
+                    touched_known_ids.append(entity_id)
                     continue
                 attributes = raw_state.get('attributes') or { }
-                record = database.scalar(select(HAEntity).where(HAEntity.connection_id == connection_id, HAEntity.entity_id == entity_id))
+                record = existing.get(entity_id)
                 if record is None:
                     record = HAEntity(connection_id = connection_id, entity_id = entity_id, domain = entity_id.partition('.')[0], name = attributes.get('friendly_name'), icon = attributes.get('icon'))
-                    database.add(record)
+                    new_records.append(record)
                     catalog_changed = True
                     added_count += 1
                 elif record.sync_status == 'missing':
@@ -560,9 +586,23 @@ class HASyncMixin(HAConnectorHost):
                 record.sync_status = 'active'
                 record.name = attributes.get('friendly_name') or record.name
                 record.icon = attributes.get('icon') or record.icon
-                record.last_seen_at = utc_now()
+                record.last_seen_at = now
                 record.missing_since = None
                 self._known_entity_ids.add((connection_id, entity_id))
+            if new_records:
+                database.add_all(new_records)
+            # 已登记实体只改时间戳：合并成按批的 UPDATE，而不是逐行 ORM 刷新。
+            if touched_known_ids:
+                for chunk in _chunked(touched_known_ids):
+                    database.execute(
+                        update(HAEntity)
+                        .where(
+                            HAEntity.connection_id == connection_id,
+                            HAEntity.entity_id.in_(chunk),
+                        )
+                        .values(last_seen_at = now)
+                        .execution_options(synchronize_session = False)
+                    )
             if flush_incremental or catalog_changed:
                 state = database.get(HASyncState, connection_id) or HASyncState(connection_id = connection_id, status = 'connected')
                 if flush_incremental:

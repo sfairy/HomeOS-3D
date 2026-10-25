@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import time
 from typing import Any
 
@@ -187,7 +188,7 @@ class LiveStateEventQueue:
         self._reported_dropped = self._dropped
         try:
             result = self._on_drop(delta, self._dropped)
-            if hasattr(result, '__await__'):
+            if inspect.isawaitable(result):
                 await result
         except Exception:
             # 丢弃通知是旁路：失败不能杀死落地 worker。
@@ -253,5 +254,5 @@ class LiveStateEventQueue:
         if not changes:
             return
         result = self._flush(changes)
-        if hasattr(result, '__await__'):
+        if inspect.isawaitable(result):
             await result

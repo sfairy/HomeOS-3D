@@ -11,6 +11,7 @@ import math
 from fastapi import HTTPException
 
 from .capabilities import attribute_number, feature_flags, string_options
+from ...platform.core import ha_errors
 
 # 允许透传的服务 → 该服务唯一允许出现的参数名。
 # 表里没有的服务，以及夹带其它参数（如同时给 temperature 与 hvac_mode）的请求一律拒绝。
@@ -81,7 +82,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     ):
         raise HTTPException(422, detail='3D 空调控制不支持此服务或参数。')
     if not state or state.get('available') is False or state.get('state') in { None, '', 'unknown', 'unavailable' }:
-        raise HTTPException(409, detail='空调状态暂不可用，请等待设备重新连接。')
+        raise HTTPException(409, detail=ha_errors.screen_state_unavailable('空调'))
     attributes = state.get('attributes')
     if not isinstance(attributes, dict):
         raise HTTPException(409, detail='空调能力尚未载入，请稍后重试。')

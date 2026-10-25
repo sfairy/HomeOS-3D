@@ -34,7 +34,11 @@ from ..domains.ha.integration.endpoints import HAEndpoint, endpoint_candidates
 from ..domains.ha.integration.errors import connection_error_message
 from ..domains.ha.integration.numeric_sources import numeric_sources
 from ..domains.ha.integration.percentage_sources import percentage_sources
-from ..domains.ha.integration.service_call import ServiceCallRejected, execute_service_call
+from ..domains.ha.integration.service_call import (
+    ServiceCallRejected,
+    execute_service_call,
+    load_ha_entity_context,
+)
 from ..domains.license import features as feature_codes
 from ..domains.logs.global_log import event_context
 from ..platform.core.database import Database
@@ -101,28 +105,22 @@ def load_authorized_entity_context(
     entity_id: str,
     enabled_only: bool = False,
 ) -> tuple[HAConnection | None, bool]:
-    """连接 + 实体是否可用。
+    """连接 + 实体是否可用（带查看者 ACL）。
 
     默认**不**排除已禁用实体（0.7.8 的 `enabled_only=False`）：配置校验时，
     绑定了稍后被禁用的实体不应该让保存失败（否则用户连"把这台设备删掉"都做不到），
     只要实体在库里存在且未被删除即可。
     需要严格"实体存在、已启用且未失联"的运行时控制路径，显式传 `enabled_only=True`。
+
+    判定条件本身在 ``service_call.ha_entity_conditions`` —— 本函数只做「把查看者
+    ACL 注入进去」，不再自带一份 SQL 条件（旧实现三处各写一遍，容易漂移）。
     """
-    with database_manager.session_factory() as database:
-        require_viewer_entity(database, viewer, entity_id)
-        connection = active_connection(database)
-        if connection is None:
-            return None, False
-        conditions = [
-            HAEntity.connection_id == connection.id,
-            HAEntity.entity_id == entity_id,
-            HAEntity.sync_status == 'active',
-        ]
-        if enabled_only:
-            conditions.append(HAEntity.disabled_by.is_(None))
-        entity_exists = database.scalar(select(HAEntity.id).where(*conditions)) is not None
-        database.expunge(connection)
-        return connection, entity_exists
+    return load_ha_entity_context(
+        database_manager,
+        entity_id,
+        access_check=lambda database, target: require_viewer_entity(database, viewer, target),
+        enabled_only=enabled_only,
+    )
 
 
 def connection_payload(connection: HAConnection | None, request: Request) -> dict[str, Any]:
@@ -211,16 +209,9 @@ async def test_connection(
         )
         if not token:
             raise HAClientError('首次连接必须输入 Home Assistant 访问令牌。')
-        verify_tls = (
-            connection.verify_tls
-            if connection and 'verify_tls' not in command.model_fields_set
-            else command.verify_tls
-        )
-        external_verify_tls = (
-            connection.external_verify_tls
-            if connection and 'external_verify_tls' not in command.model_fields_set
-            else command.external_verify_tls
-        )
+        # 与「保存连接」走同一个开关推导：未显式提交就沿用已保存值，
+        # 避免测试连接和保存后的实际连接用两套 TLS 口径。
+        verify_tls, external_verify_tls = _connection_verify_flags(command, connection)
         endpoints = endpoint_candidates(command.base_url, verify_tls, command.external_base_url, external_verify_tls)
         results = await probe_endpoints(
             endpoints, token, request.app.state.settings.ha_request_timeout_seconds

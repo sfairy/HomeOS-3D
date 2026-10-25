@@ -20,6 +20,7 @@ import httpx
 from .control_pool import HAControlConfiguration, HAControlPool
 from .errors import endpoint_failure_reason
 from .http_pool import HAHttpClientPool, HAHttpConfiguration
+from ....platform.core import ha_errors
 
 
 def _websockets():
@@ -80,11 +81,11 @@ def normalize_base_url(value: str) -> str:
         or '\\' in candidate
         or (port is not None and not 1 <= port <= 65535)
     ):
-        raise HAClientError('请填写有效地址，端口应在 1 到 65535 之间。')
+        raise HAClientError(ha_errors.address_invalid_port())
     if parsed.scheme not in {'http', 'https'} or not parsed.hostname:
-        raise HAClientError('Home Assistant 地址必须是完整的 http 或 https URL。')
+        raise HAClientError(ha_errors.address_not_url())
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise HAClientError('Home Assistant 地址不能包含账号、密码、查询参数或锚点。')
+        raise HAClientError(ha_errors.address_has_credentials())
     path = parsed.path.rstrip('/')
     return urlunparse((parsed.scheme, parsed.netloc, path, '', '', ''))
 
@@ -363,13 +364,13 @@ class HAClient:
                         '该地址返回了网页或无效数据，请填写 Home Assistant 服务地址，并检查反向代理登录限制。'
                     ) from error
                 if not isinstance(config, dict) or not config.get('version'):
-                    raise HAClientError('该地址未返回有效的 Home Assistant 配置，请检查服务地址及反向代理。')
+                    raise HAClientError(ha_errors.address_not_home_assistant())
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
-                raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
-            raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
+                raise HAAuthError(ha_errors.token_invalid()) from error
+            raise HAClientError(ha_errors.http_status(error.response.status_code)) from error
         except (httpx.HTTPError, ValueError) as error:
-            raise HAClientError(f'无法连接 Home Assistant：{error}') from error
+            raise HAClientError(ha_errors.unreachable(error)) from error
         return {
             'version': str(config.get('version', '')),
             'locationName': str(config.get('location_name', 'Home Assistant')),
@@ -412,7 +413,7 @@ class HAClient:
                         timeout=self.timeout,
                     )
                     if response.status_code in {401, 403}:
-                        raise HAAuthError('Home Assistant Token 无效或权限不足。')
+                        raise HAAuthError(ha_errors.token_invalid())
                     response.raise_for_status()
                     payload = response.json()
                 if isinstance(payload, list):
@@ -445,10 +446,10 @@ class HAClient:
                         payload = response.json()
                     except httpx.HTTPStatusError as error:
                         if error.response.status_code in {401, 403}:
-                            raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
-                        raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
+                            raise HAAuthError(ha_errors.token_invalid()) from error
+                        raise HAClientError(ha_errors.http_status(error.response.status_code)) from error
                     except (httpx.HTTPError, ValueError) as error:
-                        raise HAClientError(f'无法获取 Home Assistant 实体 {entity_id}：{error}') from error
+                        raise HAClientError(ha_errors.entity_fetch_failed(entity_id, error)) from error
                     return payload if isinstance(payload, dict) else None
 
             results = await asyncio.gather(
@@ -497,7 +498,7 @@ class HAClient:
         except (json.JSONDecodeError, _websockets().WebSocketException) as error:
             raise HAClientError(f'Home Assistant WebSocket 鉴权失败：{error}') from error
         if not isinstance(result, dict) or result.get('type') != 'auth_ok':
-            raise HAAuthError('Home Assistant WebSocket Token 无效或鉴权失败。')
+            raise HAAuthError(ha_errors.websocket_token_invalid())
 
     async def connect_websocket(self):
         try:
@@ -803,6 +804,10 @@ class HAClient:
             timeout = max(self.timeout, SLOW_SERVICE_TIMEOUT)
         if (domain, service) == ('remote', 'learn_command'):
             timeout = max(self.timeout, _remote_learning_timeout(data))
+        # 重试循环里 ``result`` 只在成功分支赋值；用显式标记让「循环结束但没赋值」
+        # 成为可判定的失败路径（静态检查也能看到），而不是疑似未绑定变量。
+        result: Any = None
+        assigned = False
         try:
             # 安全重试一次：连接池复用到「对端已关闭」的 keep-alive 时，httpcore 会在
             # 读响应阶段抛 RemoteProtocolError —— 用户看到的就是「闲置一段时间后
@@ -816,6 +821,7 @@ class HAClient:
                         result = response.json()
                         if (domain, service) == ('ai_task', 'generate_image'):
                             result = await self._inline_generated_image(client, result)
+                        assigned = True
                     break
                 except (httpx.ConnectError, httpx.RemoteProtocolError) as transport_error:
                     if attempt == 0 and _service_call_retry_safe(domain, service):
@@ -828,19 +834,21 @@ class HAClient:
                     ) from transport_error
         except httpx.HTTPStatusError as error:
             if error.response.status_code in {401, 403}:
-                raise HAAuthError('Home Assistant Token 无效或权限不足。') from error
+                raise HAAuthError(ha_errors.token_invalid()) from error
             raise HAClientError(
                 f'Home Assistant 服务调用返回 HTTP {error.response.status_code}。'
             ) from error
         except TimeoutError as error:
-            raise HAClientError('Home Assistant 操作超时。') from error
+            raise HAClientError(ha_errors.operation_timeout()) from error
         except (httpx.HTTPError, ValueError) as error:
-            raise HAClientError(f'Home Assistant 服务调用失败：{error}') from error
+            raise HAClientError(ha_errors.service_call_failed(error)) from error
         # HA 对不可用实体同样返回 HTTP 200（只是把该实体跳过），仅看状态码会把
         # 「设备离线、指令根本没执行」误判为成功；这里按响应中的实体状态复核，
         # 命中 unavailable 直接判失败，交由上层重试/回滚/提示。
+        if not assigned:
+            raise HAClientError(ha_errors.service_call_not_answered(domain, service))
         if _response_reports_unavailable(result, entity_id):
-            raise HAClientError(f'实体 {entity_id} 当前不可用（unavailable），服务 {domain}.{service} 未生效。')
+            raise HAClientError(ha_errors.entity_unavailable(entity_id, domain, service))
         return result
 
     async def _call_websocket_operation(
@@ -879,7 +887,7 @@ class HAClient:
                     **data,
                 )
         except TimeoutError as error:
-            raise HAClientError('Home Assistant 操作超时。') from error
+            raise HAClientError(ha_errors.operation_timeout()) from error
         finally:
             await websocket.close()
         if scoped:
@@ -983,7 +991,7 @@ class HAClient:
                 f'Home Assistant 历史数据返回 HTTP {error.response.status_code}。'
             ) from error
         except (httpx.HTTPError, ValueError) as error:
-            raise HAClientError(f'无法读取 Home Assistant 历史数据：{error}') from error
+            raise HAClientError(ha_errors.history_fetch_failed(error)) from error
         if not isinstance(payload, list) or not payload or not isinstance(payload[0], list):
             return []
         return [item for item in payload[0] if isinstance(item, dict)]
