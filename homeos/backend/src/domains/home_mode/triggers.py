@@ -102,6 +102,17 @@ def parse_home_mode_trigger_bindings(
                 continue
             if trigger.get("enabled") is False:
                 continue
+            if trigger["type"] in ("lock_unlock", "state") and not str(
+                trigger.get("entityId") or ""
+            ).strip():
+                # 历史配置里可能有解绑后残留的空 entityId：留着会被状态事件当成通配符，
+                # 在加载绑定这一步就丢掉，比在每次事件里判空更稳。
+                logger.warning(
+                    "忽略缺少 entityId 的家庭模式触发器 mode=%s type=%s",
+                    mode.get("id"),
+                    trigger["type"],
+                )
+                continue
             bindings.append(
                 HomeModeTriggerBinding(
                     mode_id=mode["id"], mode_name=mode["name"], trigger=trigger
@@ -206,14 +217,26 @@ async def handle_home_mode_state_trigger(
 
     for binding in state.trigger_bindings:
         trigger = binding.trigger
-        if (
-            trigger.get("type") == "lock_unlock"
-            and str(entity_id or "").startswith("lock.")
-            and new_state == "unlocked"
-        ):
-            if not trigger.get("entityId") or trigger.get("entityId") == entity_id:
+        trigger_type = trigger.get("type")
+        if trigger_type == "lock_unlock":
+            bound_lock = str(trigger.get("entityId") or "").strip()
+            if not bound_lock:
+                # 空 entityId 绝不能当通配符：历史配置（旧版解绑写空串）留着这种触发器时，
+                # 「删掉前门锁 → 任意一把锁解锁都激活回家模式」。这里跳过并留日志。
+                logger.warning(
+                    "跳过缺少 entityId 的 lock_unlock 触发器 mode=%s trigger=%s",
+                    binding.mode_id,
+                    trigger,
+                )
+                continue
+            if (
+                bound_lock == entity_id
+                and str(entity_id or "").startswith("lock.")
+                and new_state == "unlocked"
+            ):
                 await _fire_triggered_home_mode(state, deps, binding, f"lock_unlock:{entity_id}")
-        if trigger.get("type") == "state" and trigger.get("entityId") == entity_id:
+            continue
+        if trigger_type == "state" and trigger.get("entityId") == entity_id:
             if trigger.get("to") and new_state != trigger["to"]:
                 continue
             if trigger.get("from") and old_state != trigger["from"]:

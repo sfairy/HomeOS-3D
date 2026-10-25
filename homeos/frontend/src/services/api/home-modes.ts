@@ -54,9 +54,12 @@ export function activateHomeMode(id: string, config?: AxiosRequestConfig) {
   return apiPost(`/modes/${id}/activate`, undefined, config)
 }
 
-/** 停用当前家居模式。 */
-export function deactivateHomeMode(config?: AxiosRequestConfig) {
-  return apiPost('/modes/deactivate', undefined, config)
+/** 停用家居模式；传入 id 时只停用该模式（多互斥组场景）。 */
+export function deactivateHomeMode(modeId?: string, config?: AxiosRequestConfig) {
+  return apiPost('/modes/deactivate', undefined, {
+    ...config,
+    params: { ...config?.params, ...(modeId ? { modeId } : {}) },
+  })
 }
 
 /** 播种默认家居模式。 */

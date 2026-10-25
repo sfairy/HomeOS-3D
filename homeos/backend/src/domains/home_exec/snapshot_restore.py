@@ -12,6 +12,9 @@ from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.json_field import object_field
 
 #: 支持 turn_on / turn_off 的域（默认分支可用）；其余域无此服务，跳过恢复。
+#:
+#: **刻意不含** ``scene`` / ``script`` / ``automation``：它们的 turn_on 是「重新执行」而不是
+#: 「恢复到某个状态」，恢复快照时会把场景/脚本再跑一遍（重复执行开门、发通知等副作用）。
 SWITCHABLE_DOMAINS = frozenset(
     {
         "switch",
@@ -23,12 +26,13 @@ SWITCHABLE_DOMAINS = frozenset(
         "water_heater",
         "vacuum",
         "remote",
-        "script",
-        "scene",
-        "automation",
         "input_boolean",
     }
 )
+
+#: 明确不支持状态恢复的域 —— 恢复器会跳过并把它计入 ``skippedDomains``。
+#: ``button`` / ``input_button`` 只有 ``press``，没有可回退的状态。
+UNSUPPORTED_RESTORE_DOMAINS = frozenset({"button", "input_button", "scene", "script", "automation"})
 
 
 def _call(domain: str, service: str, entity_id: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -89,7 +93,33 @@ def build_snapshot_restore_calls(entity_id: str, snap: dict[str, Any] | None) ->
             )
         return calls
 
+    if domain == "lock":
+        # 锁此前完全不在恢复表里：离家模式锁门后停用模式，门会一直保持上锁。
+        if state == "locked":
+            return [_call("lock", "lock", entity_id)]
+        if state == "unlocked":
+            return [_call("lock", "unlock", entity_id)]
+        return []
+
+    if domain in UNSUPPORTED_RESTORE_DOMAINS:
+        return []
+
     if domain not in SWITCHABLE_DOMAINS:
         return []
     service = "turn_off" if state in ("off", "closed") else "turn_on"
     return [_call(domain, service, entity_id)]
+
+
+def describe_restore_support(entity_id: str, snap: dict[str, Any] | None) -> str:
+    """判定一条快照能否恢复：``restorable`` / ``skipped``。
+
+    ``_restore_mode_snapshot`` 用它统计 ``skippedDomains`` —— 「已恢复 N 个设备」必须
+    只数真正恢复的，不能把 scene / button 这类根本恢复不了的也算进去。
+    """
+    snapshot = snap if isinstance(snap, dict) else {}
+    state = snapshot.get("state")
+    if not state or state in ("unavailable", "unknown"):
+        return "skipped"
+    if get_entity_domain(entity_id) in UNSUPPORTED_RESTORE_DOMAINS:
+        return "skipped"
+    return "restorable" if build_snapshot_restore_calls(entity_id, snapshot) else "skipped"

@@ -36,6 +36,7 @@ from .triggers import (
     prune_home_mode_trigger_cooldown,
 )
 from ...platform.core.app_config import load_raw_config
+from ...platform.core.db_exec import run_db
 from ...platform.core.errors import api_error, bad_request, not_found
 from ...platform.core.models import HomeMode
 
@@ -189,17 +190,22 @@ class HomeModeService:
         self._active_mode_id = mode_id
 
     async def start(self) -> None:
-        self._load_config()
+        await run_db(self._load_config)
+        active = await run_db(self._load_active_mode_row)
+        self._active_mode_id = active["id"] if active is not None else None
+        if active is not None:
+            logger.info("已恢复激活家庭模式: %s", active["name"])
+        await self.reload_trigger_bindings()
+        await self._runtime_logs.load()
+        self._timer = asyncio.create_task(self._time_trigger_loop(), name="home-mode-time-triggers")
+
+    def _load_active_mode_row(self) -> dict[str, Any] | None:
+        """读取当前激活模式（同步；由 :meth:`start` 放进线程池）。"""
         with self._session_factory() as session:
             active = session.execute(
                 select(HomeMode).where(HomeMode.is_active.is_(True)).limit(1)
             ).scalar_one_or_none()
-            self._active_mode_id = active.id if active is not None else None
-            if active is not None:
-                logger.info("已恢复激活家庭模式: %s", active.name)
-        await self.reload_trigger_bindings()
-        await self._runtime_logs.load()
-        self._timer = asyncio.create_task(self._time_trigger_loop(), name="home-mode-time-triggers")
+        return mode_to_dict(active) if active is not None else None
 
     async def stop(self) -> None:
         if self._timer is not None:
@@ -258,17 +264,23 @@ class HomeModeService:
         }
 
     async def reload_trigger_bindings(self) -> None:
-        with self._session_factory() as session:
-            modes = (
-                session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(200))
-                .scalars()
-                .all()
-            )
-        modes = [mode_to_dict(mode) for mode in modes]
+        modes = await run_db(self._load_mode_dicts, self.TRIGGER_BINDING_MODE_LIMIT)
         self._trigger_state.cached_modes = modes
         self._trigger_state.trigger_bindings = parse_home_mode_trigger_bindings(modes)
         prune_home_mode_trigger_cooldown(self._trigger_state.trigger_cooldown)
         logger.debug("全屋模式触发器已加载: %s 条", len(self._trigger_state.trigger_bindings))
+
+    #: 触发器绑定只加载前 N 个模式（与列表接口一致）。
+    TRIGGER_BINDING_MODE_LIMIT = 200
+
+    def _load_mode_dicts(self, limit: int) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            modes = (
+                session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(limit))
+                .scalars()
+                .all()
+            )
+        return [mode_to_dict(mode) for mode in modes]
 
     # CRUD
     def find_all(self) -> list[dict[str, Any]]:
@@ -309,12 +321,52 @@ class HomeModeService:
             mode = session.get(HomeMode, mode_id)
         return mode_to_dict(mode) if mode is not None else None
 
-    def get_active(self) -> dict[str, Any] | None:
+    def _find_mode_by_name(self, name: str) -> dict[str, Any] | None:
         with self._session_factory() as session:
             mode = session.execute(
-                select(HomeMode).where(HomeMode.is_active.is_(True)).limit(1)
+                select(HomeMode).where(HomeMode.name == name).limit(1)
             ).scalar_one_or_none()
         return mode_to_dict(mode) if mode is not None else None
+
+    def _count_modes(self) -> int:
+        with self._session_factory() as session:
+            return int(session.execute(select(func.count()).select_from(HomeMode)).scalar() or 0)
+
+    def _max_sort_order(self) -> int:
+        with self._session_factory() as session:
+            return int(session.execute(select(func.max(HomeMode.sort_order))).scalar() or 0)
+
+    def get_active(self) -> dict[str, Any] | None:
+        """兼容旧契约：返回 priority 最高的 active 模式。"""
+        active = self.get_active_modes()
+        return active[0] if active else None
+
+    def get_active_modes(self) -> list[dict[str, Any]]:
+        """所有激活中的模式（不同互斥组可以同时激活），按 priority 降序 / sort_order 升序。
+
+        此前 ``get_active`` 只 ``limit(1)`` 取 SQLite 的第一行：多互斥组同时激活时，
+        返回哪个模式取决于行序，前端 header 也只显示一个，另一个「隐形激活」。
+        """
+        with self._session_factory() as session:
+            modes = (
+                session.execute(
+                    select(HomeMode)
+                    .where(HomeMode.is_active.is_(True))
+                    .order_by(HomeMode.priority.desc(), HomeMode.sort_order.asc())
+                    .limit(50)
+                )
+                .scalars()
+                .all()
+            )
+        return [mode_to_dict(mode) for mode in modes]
+
+    def get_active_response(self) -> dict[str, Any] | None:
+        """``GET /active`` 的响应：保留旧字段（顶层 spread + ``activeMode``）并新增 ``activeModes``。"""
+        active_modes = self.get_active_modes()
+        if not active_modes:
+            return None
+        primary = active_modes[0]
+        return {**primary, "activeMode": primary, "activeModes": active_modes}
 
     async def create(self, data: dict[str, Any]) -> dict[str, Any]:
         fields = dict(data)
@@ -322,6 +374,11 @@ class HomeModeService:
             fields["config"] = normalize_home_mode_json_array(fields["config"], "config", True)
         if "triggers" in fields:
             fields["triggers"] = normalize_home_mode_json_array(fields["triggers"], "triggers", False)
+        mode_snapshot = await run_db(self._insert_mode_row, fields)
+        await self.reload_trigger_bindings()
+        return mode_snapshot
+
+    def _insert_mode_row(self, fields: dict[str, Any]) -> dict[str, Any]:
         mode = HomeMode(
             name=str(fields.get("name") or ""),
             icon=fields.get("icon") or "home",
@@ -339,11 +396,19 @@ class HomeModeService:
             session.add(mode)
             session.commit()
             session.refresh(mode)
-            mode_snapshot = mode_to_dict(mode)
+            return mode_to_dict(mode)
+
+    async def update(self, mode_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        mode_snapshot = self.update_sync(mode_id, data)
         await self.reload_trigger_bindings()
         return mode_snapshot
 
-    async def update(self, mode_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    def update_sync(self, mode_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """``update`` 的同步写库部分（供 executor 线程里的实体解绑调用）。
+
+        实体解绑跑在线程池里，无法 ``await``；调用方负责随后的
+        :meth:`reload_trigger_bindings`（那一步要用事件循环）。
+        """
         fields = dict(data)
         if "config" in fields:
             fields["config"] = normalize_home_mode_json_array(fields["config"], "config", True)
@@ -373,17 +438,19 @@ class HomeModeService:
                 mode.priority = _coerce_int_field(fields, "priority", 50)
             session.commit()
             session.refresh(mode)
-            mode_snapshot = mode_to_dict(mode)
+            return mode_to_dict(mode)
+
+    async def remove(self, mode_id: str) -> dict[str, Any]:
+        mode = await run_db(self.find_one, mode_id)
+        if mode is None:
+            not_found(api_error("HOME_MODE_NOT_FOUND"))
+        if mode.get("isActive") or self._active_mode_id == mode_id:
+            await self.deactivate(mode_id)
+        mode_snapshot = await run_db(self._delete_mode_row, mode_id)
         await self.reload_trigger_bindings()
         return mode_snapshot
 
-    async def remove(self, mode_id: str) -> dict[str, Any]:
-        with self._session_factory() as session:
-            mode = session.get(HomeMode, mode_id)
-        if mode is None:
-            not_found(api_error("HOME_MODE_NOT_FOUND"))
-        if mode.is_active or self._active_mode_id == mode_id:
-            await self.deactivate(mode_id)
+    def _delete_mode_row(self, mode_id: str) -> dict[str, Any]:
         with self._session_factory() as session:
             mode = session.get(HomeMode, mode_id)
             if mode is None:
@@ -391,11 +458,10 @@ class HomeModeService:
             mode_snapshot = mode_to_dict(mode)
             session.delete(mode)
             session.commit()
-        await self.reload_trigger_bindings()
-        return mode_snapshot
+            return mode_snapshot
 
     async def duplicate(self, mode_id: str) -> dict[str, Any]:
-        source = self.find_one(mode_id)
+        source = await run_db(self.find_one, mode_id)
         if source is None:
             not_found(api_error("HOME_MODE_NOT_FOUND"))
         return await self.create(
@@ -411,27 +477,31 @@ class HomeModeService:
         )
 
     async def reorder(self, order_entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        # 一次性 IN 查询取回全部目标模式：逐条 `session.get` 会让拖拽排序 N 个模式
-        # 产生 N 次往返（N+1）。
         order_by_id = {
             str(entry.get('id')): _coerce_int_field(entry, "sortOrder", 0)
             for entry in order_entries
             if isinstance(entry, dict) and entry.get('id')
         }
         if order_by_id:
-            with self._session_factory() as session:
-                modes = session.execute(select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))).scalars()
-                for mode in modes:
-                    target = order_by_id.get(str(mode.id))
-                    if target is not None:
-                        mode.sort_order = target
-                session.commit()
+            # 一次性 IN 查询取回全部目标模式：逐条 `session.get` 会让拖拽排序 N 个模式
+            # 产生 N 次往返（N+1）。
+            await run_db(self._apply_reorder, order_by_id)
         await self.reload_trigger_bindings()
-        return self.find_all()
+        return await run_db(self.find_all)
+
+    def _apply_reorder(self, order_by_id: dict[str, int]) -> None:
+        with self._session_factory() as session:
+            modes = session.execute(
+                select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))
+            ).scalars()
+            for mode in modes:
+                target = order_by_id.get(str(mode.id))
+                if target is not None:
+                    mode.sort_order = target
+            session.commit()
 
     async def seed_defaults(self) -> dict[str, Any]:
-        with self._session_factory() as session:
-            count = int(session.execute(select(func.count()).select_from(HomeMode)).scalar() or 0)
+        count = await run_db(self._count_modes)
         if count > 0:
             return {"created": 0}
         for mode in presets_module.HOME_MODE_DEFAULT_MODES:
@@ -470,11 +540,7 @@ class HomeModeService:
             preset_id, entity_ids, entity_overrides or {}
         )
         preset = plan["preset"]
-        with self._session_factory() as session:
-            existing = session.execute(
-                select(HomeMode).where(HomeMode.name == preset["name"]).limit(1)
-            ).scalar_one_or_none()
-            existing_dict = mode_to_dict(existing) if existing is not None else None
+        existing_dict = await run_db(self._find_mode_by_name, str(preset["name"]))
 
         if existing_dict is not None and merge:
             mode_snapshot = await self.update(
@@ -497,8 +563,7 @@ class HomeModeService:
             )
             return {**mode_snapshot, "unresolvedActions": plan["unresolvedActions"]}
 
-        with self._session_factory() as session:
-            max_order = session.execute(select(func.max(HomeMode.sort_order))).scalar()
+        max_order = await run_db(self._max_sort_order)
         mode_snapshot = await self.create(
             {
                 "name": preset["name"],
@@ -591,13 +656,7 @@ class HomeModeService:
         return self.find_one(mode_id)
 
     def _list_active_modes(self) -> list[dict[str, Any]]:
-        with self._session_factory() as session:
-            modes = (
-                session.execute(select(HomeMode).where(HomeMode.is_active.is_(True)).limit(50))
-                .scalars()
-                .all()
-            )
-        return [mode_to_dict(mode) for mode in modes]
+        return self.get_active_modes()
 
     def _find_first_active(self) -> dict[str, Any] | None:
         with self._session_factory() as session:
@@ -717,13 +776,13 @@ class _HomeModeDeps:
 
     # 数据访问
     async def find_mode(self, mode_id: str) -> dict[str, Any] | None:
-        return self._service._find_mode_row(mode_id)
+        return await run_db(self._service._find_mode_row, mode_id)
 
     async def list_active_modes(self) -> list[dict[str, Any]]:
-        return self._service._list_active_modes()
+        return await run_db(self._service._list_active_modes)
 
     async def find_first_active(self) -> dict[str, Any] | None:
-        return self._service._find_first_active()
+        return await run_db(self._service._find_first_active)
 
     async def switch_active_group(
         self,
@@ -732,16 +791,22 @@ class _HomeModeDeps:
         mode_id: str,
         snapshot: dict[str, Any],
     ) -> None:
-        self._service._switch_active_group(conflicting_modes, conflict_restore, mode_id, snapshot)
+        await run_db(
+            self._service._switch_active_group,
+            conflicting_modes,
+            conflict_restore,
+            mode_id,
+            snapshot,
+        )
 
     async def deactivate_in_db(self, mode_id: str, *, keep_snapshot: bool = False) -> None:
-        self._service._deactivate_in_db(mode_id, keep_snapshot=keep_snapshot)
+        await run_db(self._service._deactivate_in_db, mode_id, keep_snapshot=keep_snapshot)
 
     async def clear_group_active(self, group_ids: list[str], incomplete: bool) -> None:
-        self._service._clear_group_active(group_ids, incomplete)
+        await run_db(self._service._clear_group_active, group_ids, incomplete)
 
     async def get_active_mode(self) -> dict[str, Any] | None:
-        return self._service.get_active()
+        return await run_db(self._service.get_active)
 
     def get_active_mode_id(self) -> str | None:
         return self._service.get_active_mode_id()

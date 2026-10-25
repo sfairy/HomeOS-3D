@@ -14,6 +14,7 @@ from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
 from ..domains.license import features as feature_codes
+from ..platform.core.db_exec import run_db
 from ..platform.core.pagination import parse_crud_pagination
 from ..platform.security.auth_context import require_user
 
@@ -77,7 +78,8 @@ async def list_modes(
 
 @router.get("/active")
 async def get_active(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return _service(request).get_active()
+    service = _service(request)
+    return await run_db(service.get_active_response)
 
 @router.get("/context")
 async def get_context(request: Request, user: dict[str, Any] = Depends(require_user)):
@@ -138,9 +140,12 @@ async def reorder_modes(
 
 @router.post("/deactivate")
 async def deactivate(
-    request: Request, user: dict[str, Any] = Depends(require_user)
+    request: Request,
+    modeId: str | None = Query(default=None),
+    user: dict[str, Any] = Depends(require_user),
 ):
-    return await _service(request).deactivate()
+    # 多互斥组可同时激活：不带 modeId 时停用「当前主模式」，带则只停用该组的那一个。
+    return await _service(request).deactivate(modeId or None)
 
 @router.post("/seed")
 async def seed(request: Request, user: dict[str, Any] = Depends(require_user)):

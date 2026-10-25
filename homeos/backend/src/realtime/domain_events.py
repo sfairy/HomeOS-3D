@@ -38,6 +38,7 @@ class DomainEventBridge:
             "notification.created": self._handle_notification,
             "homeMode.activated": self._handle_home_mode_activated,
             "homeMode.deactivated": self._handle_home_mode_deactivated,
+            "homeMode.restoreIncomplete": self._handle_home_mode_restore_incomplete,
             "automation.executed": self._handle_automation_executed,
             "security.modeChanged": self._handle_security_mode_changed,
             "security.zonesConfigured": self._handle_security_zones_changed,
@@ -80,6 +81,11 @@ class DomainEventBridge:
 
     async def _handle_home_mode_deactivated(self, event: Any) -> None:
         await self._safe("家庭模式停用", self._gateway.broadcast_home_mode_deactivated, event)
+
+    async def _handle_home_mode_restore_incomplete(self, event: Any) -> None:
+        await self._safe(
+            "家庭模式恢复不完整", self._gateway.broadcast_home_mode_restore_incomplete, event
+        )
 
     async def _handle_automation_executed(self, event: Any) -> None:
         await self._safe("自动化执行", self._gateway.broadcast_automation_executed, event)

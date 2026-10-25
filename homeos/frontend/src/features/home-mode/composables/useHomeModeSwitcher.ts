@@ -62,6 +62,7 @@ export function useHomeModeSwitcher() {
   const {
     modes,
     activeMode,
+    activeModes,
     loading,
     acting,
     activate,
@@ -70,7 +71,13 @@ export function useHomeModeSwitcher() {
     fetchActive,
   } = useHomeModes()
 
-  const label = computed(() => activeMode.value?.name || '日常')
+  // 多个互斥组可以同时激活：header 显示全部激活模式名，而不是被最后一个覆盖。
+  const activeLabels = computed(() =>
+    activeModes.value.map((m) => m.name).filter((name): name is string => !!name),
+  )
+  const label = computed(() =>
+    activeLabels.value.length > 0 ? activeLabels.value.join(' · ') : '日常',
+  )
   const modeIcon = computed(() => resolveHomeModeIcon(activeMode.value?.icon, Home))
   const presenceHome = ref<Record<string, unknown> | null>(null)
   const modeContext = ref<{ calendarAway: boolean; triggerLogs: unknown[] }>({
@@ -134,7 +141,7 @@ export function useHomeModeSwitcher() {
 
   async function selectMode(mode: { id: string | number; name?: string }) {
     open.value = false
-    if (activeMode.value?.id === mode.id) {
+    if (activeModes.value.some((m) => m.id === String(mode.id))) {
       useChromeStore().notify('已是当前模式', 'info')
       return
     }
@@ -161,7 +168,8 @@ export function useHomeModeSwitcher() {
       { type: 'danger', confirmText: '确认退出' },
     )
     if (!ok) return
-    const result = await deactivate()
+    // 只退出当前主模式（多互斥组时其余组继续保持激活）
+    const result = await deactivate(activeMode.value.id)
     // 高危操作触感反馈：退出模式成功时触发
     if (result) hapticAlert()
     loadModeContext()
@@ -219,6 +227,8 @@ export function useHomeModeSwitcher() {
     menuTeleportDisabled,
     modes,
     activeMode,
+    activeModes,
+    activeLabels,
     loading,
     acting,
     label,

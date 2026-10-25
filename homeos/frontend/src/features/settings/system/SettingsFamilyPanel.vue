@@ -263,7 +263,7 @@ async function load(options = {}) {
       fetchActiveHomeMode(),
       fetchNotificationSettings(),
     ])
-    activeMode.value = modeRes.data
+    activeMode.value = modeRes.data?.activeMode ?? modeRes.data ?? null
     notifySettings.value = notifyRes.data
     familyLoaded = true
     loadError.value = ''
