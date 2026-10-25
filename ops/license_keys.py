@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 SIGNING_PUBLIC_KEY_FILENAME = 'license-public.pem'
@@ -150,19 +151,38 @@ def ensure_store_keys(keys_dir: Path) -> None:
         print(f'已生成授权传输密钥：sha256={transport.sha256}', flush=True)
 
 
-def store_keys_dir(explicit: str | Path | None = None) -> Path:
+def _configured_value(environment: Mapping[str, str] | None, key: str) -> str:
+    """读配置：给了 ``environment`` 就用它，否则读进程环境。
+
+    ``sync_store_keys`` 接受 ``environment`` 是为了让调用方（容器入口）能对一份**副本**
+    应用覆盖项而不污染 ``os.environ``。若路径解析只认 ``os.getenv``，那同一个函数里就会出现
+    「来源目录按传入的 dict、目标目录按进程环境」的两套真源 —— 两者不一致时会静默写到
+    意料之外的目录。所以路径解析也走同一个 dict。
+    """
+    if environment is not None:
+        return str(environment.get(key) or '').strip()
+    return os.getenv(key, '').strip()
+
+
+def store_keys_dir(
+    explicit: str | Path | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> Path:
     """商店公钥来源目录：显式参数 > STORE_LICENSE_KEYS_DIR > 同机默认位置。"""
     if explicit:
         return Path(explicit).expanduser()
-    configured = os.getenv('STORE_LICENSE_KEYS_DIR', '').strip()
+    configured = _configured_value(environment, 'STORE_LICENSE_KEYS_DIR')
     return Path(configured).expanduser() if configured else DEFAULT_STORE_KEYS_DIR
 
 
-def client_keys_dir(explicit: str | Path | None = None) -> Path:
+def client_keys_dir(
+    explicit: str | Path | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> Path:
     """主应用读取公钥的目录：显式参数 > APP_CLIENT_KEYS_DIR > 项目内 keys/。"""
     if explicit:
         return Path(explicit).expanduser()
-    configured = os.getenv('APP_CLIENT_KEYS_DIR', '').strip()
+    configured = _configured_value(environment, 'APP_CLIENT_KEYS_DIR')
     return Path(configured).expanduser() if configured else DEFAULT_CLIENT_KEYS_DIR
 
 
@@ -172,15 +192,29 @@ def sync_store_keys(
     target_dir: str | Path | None = None,
     environment: dict | None = None,
     log=None,
+    announce: bool = True,
 ) -> dict[str, str]:
     """同机部署：把商店公钥同步到主应用目录，并把指纹写进环境变量。
 
     返回写入的覆盖项；空字典表示商店公钥还没就位——此时什么都不做，让主应用的信任锚
     自检给出精确报错，而不是在这里猜。读不到来源目录也不抛异常，避免把同一件事说两遍。
+
+    ``announce=False`` 用于「启动前尽力而为」的那一层（容器入口，见
+    ``ops/container_entrypoint.py``）：那里既不知道本机该不该有商店，也不知道密钥是不是
+    正要被生成，播报只会与**角色启动器的权威播报**重复或互相矛盾（二者都带
+    ``授权公钥：`` 前缀）。诊断信息由 ``start_app``（keyId / 等待超时）与
+    ``start_store``（生成 / 同步结果）负责，它们才知道自己是什么角色。
     """
-    _log = log or (lambda message: print(f'授权公钥：{message}', flush=True))
-    source_dir = store_keys_dir(store_dir)
-    target = client_keys_dir(target_dir)
+    def _log(message: str) -> None:
+        if not announce:
+            return
+        if log is not None:
+            log(message)
+        else:
+            print(f'授权公钥：{message}', flush=True)
+
+    source_dir = store_keys_dir(store_dir, environment)
+    target = client_keys_dir(target_dir, environment)
 
     signing = source_dir / SIGNING_PUBLIC_KEY_FILENAME
     transport = source_dir / TRANSPORT_PUBLIC_KEY_FILENAME

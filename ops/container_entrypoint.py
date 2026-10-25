@@ -24,13 +24,30 @@ def _path_from(environment: Mapping[str, str], key: str, fallback: str) -> Path:
 
 
 def sync_license_keys(environment: MutableMapping[str, str]) -> None:
+    """容器入口的**尽力而为**前置步骤：在降权前把商店公钥镜像到主应用目录。
+
+    只有显式配置了 ``STORE_LICENSE_KEYS_DIR`` 才动手。理由有两条，都指向同一个结论 ——
+    这里没有「猜」的资格：
+
+    1. 没有它就等于「本机没有商店」（客户机 / 分拆部署，公钥走共享卷或由 ``start_app``
+       向授权服务器取回）。此时若按 ``license_keys.DEFAULT_STORE_KEYS_DIR`` 这个**源码布局
+       猜出来的路径**去探测，镜像里必然不存在 ``/app/homeos-store/keys/local``，于是每次
+       正常启动都会打印「未找到商店公钥（…），沿用已有目录 …」—— 把一件本该如此的事说成
+       缺东西。该默认值只服务仓库内的工具（``python -m ops.license_keys dev-env``）。
+    2. 播报一律关掉（``announce=False``）：这一层不知道密钥是不是正要被生成（商店首启时
+       ``start_store`` 才 ``ensure_store_keys``），也不知道主应用该走共享卷还是联网取回。
+       真正权威的播报在 ``start_app``（keyId / 等待超时）与 ``start_store``（生成 / 同步）。
+    """
+    configured = (environment.get("STORE_LICENSE_KEYS_DIR") or "").strip()
+    if not configured:
+        return
     try:
         from ops.license_keys import sync_store_keys
     except Exception as error:
         print(f"授权公钥：未加载同步模块（{error}），跳过。", file=sys.stderr, flush=True)
         return
     try:
-        sync_store_keys(environment=dict(environment))
+        sync_store_keys(store_dir=configured, environment=dict(environment), announce=False)
     except Exception as error:
         print(f"授权公钥：同步失败（{error}），交由主应用启动自检处理。", file=sys.stderr, flush=True)
 
