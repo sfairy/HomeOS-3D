@@ -121,6 +121,35 @@ function placeShellPlugin(): Plugin {
   };
 }
 
+/** 场景 CSS 的四个入口（`index.html` 逐张引用，缺一张就是整页样式走样）。 */
+const SCENE_STYLES = ["fonts.css", "page.css", "scene.css", "panel.css"];
+
+/**
+ * 入户场景 CSS / 字体是 `packages/shared/scene/static/` 的**生成物**：`public/scene/` 不入库，
+ * 由 `bun run --cwd packages/shared sync:scene` 铺出来（`build` / `dev` 脚本已代为执行）。
+ *
+ * 为什么必须断言：sync 没跑过时 Vite 不会报错 —— 它只是「没有文件可拷」，构建照样成功，
+ * 线上则 4 个样式表全 404（页面能打开、样式全丢，只能在 network 面板里看出来）。主应用有
+ * 一层匿名白名单硬门禁兜住同样的缺口（`homeos/frontend/vite.config.ts` 的
+ * `finalizeBuildPlugin`），商店没有，所以这里补一条。
+ */
+function assertSceneStaticPlugin(): Plugin {
+  return {
+    name: "homeos-store-assert-scene-static",
+    closeBundle() {
+      const missing = SCENE_STYLES.filter(
+        (file) => !fs.existsSync(path.join(buildOutDir, "scene", file)),
+      );
+      if (missing.length === 0) return;
+      throw new Error(
+        `场景静态资源缺失：产物里没有 ${missing.map((f) => `scene/${f}`).join("、")}。\n` +
+          "它们是 packages/shared/scene/static/ 的生成物（public/scene 不入库）：" +
+          "先跑 bun run --cwd ../packages/shared sync:scene（build / dev 脚本已代为执行）。",
+      );
+    },
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * 开发代理：后端启动竞态降噪
  * ------------------------------------------------------------------ */
@@ -268,6 +297,11 @@ export default defineConfig(({ command }) => {
       },
     },
     // 模板里的资源一律写运行时绝对路径（/store-static/...），不参与打包解析。
-    plugins: [vue({ template: { transformAssetUrls: false } }), placeShellPlugin(), classicIifePlugin()],
+    plugins: [
+      vue({ template: { transformAssetUrls: false } }),
+      placeShellPlugin(),
+      classicIifePlugin(),
+      assertSceneStaticPlugin(),
+    ],
   };
 });

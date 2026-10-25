@@ -8,8 +8,8 @@
     "bun": ">=1.4.3"
   },
   "scripts": {
-    "dev": "vite --config frontend/vite.config.ts",
-    "build": "vite build --config frontend/vite.config.ts",
+    "dev": "bun run --cwd ../packages/shared sync:scene && vite --config frontend/vite.config.ts",
+    "build": "bun run --cwd ../packages/shared sync:scene && vite build --config frontend/vite.config.ts",
     "typecheck": "node ../ops/lib/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
     "lint": "eslint . --fix",
     "lint:ci": "eslint . --max-warnings 0 && node ../ops/lib/check-css-syntax.mjs frontend/src",

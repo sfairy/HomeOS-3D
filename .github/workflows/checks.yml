@@ -57,6 +57,13 @@ jobs:
           bun run lint:ops
           bun run typecheck:node
 
+      # 入户场景 CSS / 字体是 `packages/shared/scene/static` 的生成物，两个前端 public 下的
+      # 副本不入库（.gitignore）。`typecheck` 会先跑 `build:shared` 把它们铺出来，这一步再
+      # 反向确认没人把副本 git add -f 塞回仓库 —— 一旦入库，`sync:scene` 每次都会把它们改成
+      # 「未提交的修改」，而真源删文件后旧副本还会继续以旧内容留在历史里。
+      - name: Scene static drift
+        run: bun run check:scene
+
   # GLB 几何 / 材质槽位门禁：纯只读审计，不依赖前端构建。
   #
   # 守的是「模型本体」这条容易悄悄退化的链路：

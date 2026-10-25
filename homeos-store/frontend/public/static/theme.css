@@ -4,8 +4,8 @@
   color-scheme: dark;
   accent-color: var(--hb-accent);
 
-  /* 夜空族：与场景（design/scene/page.css 的 --hos-sky-*）同值。首页夜空与入口页山景
-     所以下面用 var() 别名而不是抄一遍十六进制：抄一遍就迟早只改一侧。 */
+  /* 夜空族：与场景（packages/shared/scene/static/page.css 的 --hos-sky-*）同值。
+     首页夜空与入口页山景所以下面用 var() 别名而不是抄一遍十六进制：抄一遍就迟早只改一侧。 */
   --hb-sky-deep: #050912;
   --hb-sky-low: #081020;
   --hb-sky-mid: #0d1728;
@@ -15,7 +15,7 @@
   --hb-sky-low-rgb: 8, 16, 32;
   --hb-sky-high-rgb: 22, 38, 60;
 
-  /* 星空与浮尘的「一点光」。与 design/scene/page.css 的 --hos-star-* 逐字相等。
+  /* 星空与浮尘的「一点光」。与 packages/shared/scene/static/page.css 的 --hos-star-* 逐字相等。
      于是「从入口页点进商城天亮了一次」的老毛病原样复现在星空上。 */
   --hb-star-rgb: 220, 240, 255;
   --hb-star-cool-rgb: 168, 226, 255;
@@ -31,19 +31,19 @@
   --hb-line-soft: #142137;
   --hb-line-strong: #2b4a6e;
 
-  /* 文字。与 design/scene/page.css 逐 token 相等 —— 包括 --hb-muted 那个 α。
+  /* 文字。与 packages/shared/scene/static/page.css 逐 token 相等 —— 包括 --hb-muted 那个 α。
      需要比 PWA 面板更暗一档的脚注），不是漂移，别把它也「对齐」掉。 */
   --hb-ink: #f1f7fb;
   --hb-ink-soft: #c8dbe8;
   --hb-muted-rgb: 186, 214, 232;
-  /* 这一档与 design/scene/page.css 的 --hos-muted **必须逐个相等**，两侧一起改。
-     但它是**两侧共同**的下限 —— 只改一侧就是把刚对齐的东西又拆开。 */
+  /* 这一档与 packages/shared/scene/static/page.css 的 --hos-muted **必须逐个相等**，
+     两侧一起改。但它是**两侧共同**的下限 —— 只改一侧就是把刚对齐的东西又拆开。 */
   --hb-muted: rgba(var(--hb-muted-rgb), 0.64);
   /* 商店自有最暗一档。**它有使用上限**：只允许压到 surface-soft 一级为止。
      场景都在上限之内，照旧可用。 */
   --hb-muted-dim: #77919f;
 
-  /* 强调色：与场景同一枚暖金（design/scene/page.css 的 --hos-accent） */
+  /* 强调色：与场景同一枚暖金（packages/shared/scene/static/page.css 的 --hos-accent） */
   --hb-accent-rgb: 255, 196, 106;
   --hb-accent: #ffc46a;
   --hb-accent-bright: #ffd9a0;
@@ -129,7 +129,7 @@
   --hb-alert-rgb: 240, 122, 126;
   --hb-alert: #f07a7e;
   --hb-alert-bright: #f5a3a6;
-  /* 与 design/scene/page.css 的 --hos-alert-deep 逐字相等。 */
+  /* 与 packages/shared/scene/static/page.css 的 --hos-alert-deep 逐字相等。 */
   --hb-alert-deep: #c85a5e;
   --hb-alert-soft: rgba(var(--hb-alert-rgb), 0.13);
   /* 0.34 → 0.32：这一枚是审计查出的一处真漂移。四束光的 soft/line 契约是

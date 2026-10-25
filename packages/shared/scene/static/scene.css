@@ -1,5 +1,6 @@
-/* HomeOS 场景层（canonical 源：design/scene/scene.css）
-   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
+/* HomeOS 场景层
+   真源：packages/shared/scene/static/scene.css —— 只改这里，
+   两个前端的 public 副本由 `bun run --cwd packages/shared sync:scene` 生成，且不入库。 */
 
 ﻿.hos-scene {
   position: relative;

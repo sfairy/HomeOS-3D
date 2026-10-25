@@ -2,7 +2,7 @@
 /**
  * 入户页场景壳：主应用（注册 / 登录 / 激活 / 恢复）与授权商店（store / setup / admin）共用。
  *
- * 场景 SVG 与动效样式来自 `design/scene/*`（两侧各自挂载的 `static/auth/scene/*.css`），
+ * 场景 SVG 与动效样式来自 `packages/shared/scene/static/*`（两侧各自挂载的 `static/auth/scene/*.css`），
  * 本组件只负责 **DOM 结构**。取数（页面字典 + 版本号来源）两侧不同，由各前端的薄适配层
  * 传进来：主应用 `components/common/SceneStage.vue`、商店 `components/SceneStage.vue`。
  *

@@ -26,6 +26,31 @@ const STORE_BACKEND = path.join(HOMEOS_STORE, "backend");
 const DIST_ROOT = path.join(ROOT, "dist");
 const APP_FRONTEND = path.join(DIST_ROOT, "homeos", "frontend");
 const STORE_FRONTEND = path.join(DIST_ROOT, "homeos-store", "frontend");
+//: 入户场景静态资源真源（两个前端 public 下的副本由 `sync:scene` 生成、不入库）。
+const SCENE_STATIC_SRC = path.join(ROOT, "packages", "shared", "scene", "static");
+
+/**
+ * `sync:scene` 写进各自 `frontend/public` 的产物路径（相对该 public 根）。
+ *
+ * 为什么监听时要排除：真源（`SCENE_STATIC_SRC`）已在监听，改一处就触发一次重建；而那次
+ * 重建里的 `sync:scene` 又把这些文件写进 `public/` —— `public/` 同样在监听，于是同一笔改动
+ * 会触发**第二轮**完整重建（主应用一次约 8–10s，实测日志里两轮连发）。
+ *
+ * 排除的只是**生成物**：`scene-depth.js` 是手写件，仍然监听。
+ * `fonts` 这条前缀同时覆盖 `fonts/` 目录与 `fonts.css`（匹配按 startsWith）。
+ */
+const APP_SCENE_GENERATED = [
+  "static/auth/scene/fonts",
+  "static/auth/scene/page.css",
+  "static/auth/scene/panel.css",
+  "static/auth/scene/scene.css",
+];
+const STORE_SCENE_GENERATED = [
+  "static/scene/fonts",
+  "static/scene/page.css",
+  "static/scene/panel.css",
+  "static/scene/scene.css",
+];
 
 const IS_WINDOWS = process.platform === "win32";
 
@@ -325,6 +350,20 @@ function appFrontendBuildCurrent() {
 }
 
 /**
+ * 入户场景静态资源（两个前端 `public/**` 下的 scene CSS / 字体）是**生成物**、不入库：
+ * 真源在 `packages/shared/scene/static/`，用 `sync:scene` 按各自部署路径铺过去。
+ *
+ * 为什么 dev 启动就要补：`git clean -xdf` / 新克隆之后这些文件不存在，而 8801、8802 的
+ * `/static/**`、`/store-static/**` 都是后端从 dist 下发 —— 少了这 4 个 CSS，页面照样
+ * 打开、只是样式全丢（浏览器只在 network 里报 404），排查方向与「忘了重建 dist」完全不同。
+ *
+ * 纯本地文件比对的毫秒级操作，所以每次启动都跑，不判断新鲜度。
+ */
+function ensureSceneStatic() {
+  runSync(BUN_BIN, ["run", "--cwd", path.join(ROOT, "packages/shared"), "sync:scene"]);
+}
+
+/**
  * 前端构建产物缺失、或落后于 `frontend/{index.html,src,public}` 时，跑一次
  * `bun run build:vite`（开发用，与发布构建同一份 Vite 配置）。
  */
@@ -363,9 +402,18 @@ function startFrontendWatchBuild() {
       sources: [
         path.join(HOMEOS_APP, "frontend", "src"),
         path.join(HOMEOS_APP, "frontend", "public"),
+        // 场景 CSS / 字体是生成物：真源在 packages/shared/scene/static，改真源时必须连带
+        // 重建，否则「改了 CSS 没效果」——public 里的那份只是上一次 sync 的产物。
+        SCENE_STATIC_SRC,
       ],
       // studio/runtime 由下方独立组走原子替换的 build:runtime，避免 emptyOutDir 闪断。
-      ignoreRelativePrefixes: ["studio/runtime" + path.sep, "studio/runtime/"],
+      // 场景 CSS 是 sync 的产物：真源改动已由 SCENE_STATIC_SRC 触发，不再让它的写入
+      // 回头触发第二轮重建（见 APP_SCENE_GENERATED 的说明）。
+      ignoreRelativePrefixes: [
+        "studio/runtime" + path.sep,
+        "studio/runtime/",
+        ...APP_SCENE_GENERATED,
+      ],
       buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build:app"],
       refreshPort: APP_PORT,
     },
@@ -383,9 +431,12 @@ function startFrontendWatchBuild() {
         // 商店的 /store-static/** 在 dev 下也由后端从 dist 下发，所以 public 里的场景 CSS
         // 改了同样必须重建 —— 漏掉这一条就表现为「改了 CSS 没效果」。
         path.join(HOMEOS_STORE, "frontend", "public"),
+        SCENE_STATIC_SRC,
       ],
       buildArgs: ["run", "--cwd", HOMEOS_STORE, "build"],
       refreshPort: STORE_PORT,
+      // 同主应用：`/store-static/scene/**` 由 sync 生成，真源改动不再回头触发第二轮。
+      ignoreRelativePrefixes: [...STORE_SCENE_GENERATED],
     },
   ];
 
@@ -654,6 +705,9 @@ async function main() {
   await ensurePortsAvailable({ frontend: !options.backendOnly, debug: options.debug });
   const python = ensureVenv();
   if (options.debug) ensureDebugpy(python);
+  // 场景 CSS / 字体是生成物（真源在 packages/shared/scene/static，不入库），
+  // 必须先铺出来再判断前端产物是否落后 —— 否则 public 目录本身可能是空的。
+  ensureSceneStatic();
   ensureFrontendBuild();
   // 8801 发的是 dist 构建产物（8805 才是 HMR），所以启动后持续把源码改动重建进去。
   if (!options.backendOnly && !arguments_.includes(NO_WATCH_FLAG)) startFrontendWatchBuild();

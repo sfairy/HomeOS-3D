@@ -15,7 +15,7 @@
  * 必须在覆盖主色的同一作用域重新声明（见 app-premium-tokens.css 的 :where 块）。
  *
  * 配色口径：深墨底 + 暖铜。暖铜取商店/场景既有那枚暖金（#ffc46a），
- * 这样主应用与商店、与 design/scene 的 --hos-accent 是同一枚金色，不会同屏双金。
+ * 这样主应用与商店、与 packages/shared/scene/static 的 --hos-accent 是同一枚金色，不会同屏双金。
  *
  * 命名约定：
  *   --hos-bg-*      背景面（画布 / 抬升 / 内凹 / 玻璃）

@@ -1,5 +1,6 @@
-/* HomeOS 玻璃表单坞（canonical 源：design/scene/panel.css）
-   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
+/* HomeOS 玻璃表单坞
+   真源：packages/shared/scene/static/panel.css —— 只改这里，
+   两个前端的 public 副本由 `bun run --cwd packages/shared sync:scene` 生成，且不入库。 */
 
 /* ── 坞体 ───────────────────────────────────────────────────── */
 
@@ -8,7 +9,7 @@
 .hos-page .hos-panel {
   width: 100%;
   max-height: 100%;
-  /* 坞体贴内容，不用固定下限撑到 640px。固定下限是为了让五页等高，但内容收敛后
+  /* 坞体贴内容，不再用固定下限撑到 640px。旧下限是为了让五页等高，但内容收敛后
      五页的自然高度相差很大（/license-recovery 约 278、/pair 约 363、/setup 约 549），
      被强撑到 640 就会在坞底留一段空玻璃 —— 而块流是顶对齐的，多出来的高度
      只能全堆在最后一块下面（这正是「底部信息太空」的来源）。

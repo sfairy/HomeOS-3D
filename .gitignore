@@ -42,6 +42,15 @@ dist/
 .ruff_cache/
 .pnpm-store/
 
+# 入户场景静态资源（CSS + 字体）是**生成物**：真源在 packages/shared/scene/static/，
+# 由 `bun run --cwd packages/shared sync:scene` 按两个前端各自的部署路径生成。
+# 不入库的理由：同一批文件曾以四份副本存在（design/ + 两个 public/），漂移无人发现；
+# 现在副本只由脚本产出，`check:scene` 在 CI 里拦「有人 git add -f 塞回来」。
+# 主应用的 scene-depth.js 是 public/ 下的手抄兜底件（阻塞脚本，不能 import），例外保留。
+homeos/frontend/public/static/auth/scene/*
+!homeos/frontend/public/static/auth/scene/scene-depth.js
+homeos-store/frontend/public/static/scene/
+
 # 系统导出包（hub 备份，含真实用户与布局数据）
 homeos-bundle-*.json
 

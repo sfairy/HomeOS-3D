@@ -20,8 +20,9 @@
   },
   "scripts": {
     "sync:scene": "bun scripts/sync-scene-static.mjs",
+    "check:scene": "bun scripts/sync-scene-static.mjs --check",
     "build": "bun run sync:scene && tsc -p tsconfig.esm.json && bun scripts/build-cjs.mjs",
-    "lint": "eslint \"**/*.{ts,vue}\" --max-warnings 0",
+    "lint": "eslint \"**/*.{ts,vue}\" --max-warnings 0 && node ../../ops/lib/check-css-syntax.mjs scene/static",
     "typecheck": "tsc -p tsconfig.esm.json --noEmit"
   },
   "dependencies": {

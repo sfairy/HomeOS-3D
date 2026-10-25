@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# 提交前唯一要拦的东西：入户场景静态资源的**生成物**被 git add 进来。
+#
+# 真源是 packages/shared/scene/static/，两个前端 public/ 下的 4 个 CSS + fonts/ 只是
+# `sync:scene` 的产物（.gitignore 已忽略）。它们一旦入库：
+#   - 每次 `sync:scene` 都会把它们改成「未提交的修改」，提交历史里反复出现纯生成物 diff；
+#   - 真源删掉某个文件后，旧副本会以旧内容永久留在历史里，线上继续按 URL 出货。
+#
+# 为什么放在客户端：本仓三个工作流全部手动触发，push / PR 不跑任何检查，误入库只能等到
+# 下一次有人点 Run workflow（或发版被 docker.yml 调起）才暴露。
+#
+# 只跑 `--tracked-only`（「被 git 跟踪」这一条断言），不做全量漂移比对：干净检出上副本
+# 本来就不存在，全量比对会把「还没跑过 sync」误判成错误，把与场景无关的提交也拦下。
+#
+# 启用（每人一次）：bun run setup:hooks
+# 绕过（确有需要时）：git commit --no-verify
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+if command -v bun >/dev/null 2>&1; then
+  runner=bun
+elif command -v node >/dev/null 2>&1; then
+  runner=node
+else
+  echo "[pre-commit] 未找到 bun / node，跳过场景静态资源检查（CI 的 check:scene 仍会拦）。" >&2
+  exit 0
+fi
+
+exec "$runner" packages/shared/scripts/sync-scene-static.mjs --tracked-only

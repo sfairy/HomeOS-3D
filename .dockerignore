@@ -62,7 +62,11 @@ release-manifest.json
 **/release-manifest.json
 
 # 仓库工程脚本与设计源件（镜像内只跑 package.json 的 build，不读这里）。
-/design
+#
+# 入户场景的 CSS / 字体也不该进上下文：真源在 packages/shared/scene/static，两个前端
+# public/ 下的那两棵只是 `sync:scene` 的生成物，而镜像只 COPY 根 dist/（不构建前端）。
+**/public/static/auth/scene
+**/public/static/scene
 
 # 本地编排文件：镜像构建不需要，compose 从宿主机直接读。
 docker-compose*.yml

@@ -58,7 +58,7 @@ const ROOT_FILES = new Set([
   'homeos-store/frontend/vite.config.ts',
   'eslint.config.mjs',
 ]);
-const SKIP_DIR = /(^|\/)(node_modules|dist|build|\.venv-store|vendor|__pycache__|\.pnpm-store|\.ruff_cache|\.graphflow|public|assets|design|backups|keys)(\/|$)/;
+const SKIP_DIR = /(^|\/)(node_modules|dist|build|\.venv-store|vendor|__pycache__|\.pnpm-store|\.ruff_cache|\.graphflow|public|assets|backups|keys)(\/|$)/;
 const INCLUDE_EXT = /\.(ts|tsx|mjs|js|vue|py|sh|css|scss|html|sql)$/;
 
 const EXCLUSIONS = [
@@ -67,7 +67,7 @@ const EXCLUSIONS = [
   ['依赖目录', 'node_modules/**、.pnpm-store/**', '依赖包，非仓库源码'],
   ['Python 运行环境', '.venv-store/**、**/__pycache__/**、**/.pytest_cache/**', '虚拟环境与字节码缓存'],
   ['配置/文档', 'package.json、tsconfig*.json、eslint/ruff 配置、Dockerfile、compose、.env*、docs/**、README.md', '配置与文档，不承载业务逻辑'],
-  ['设计/素材', 'assets/**、design/**、backups/**、keys/**', '二进制素材/生成数据'],
+  ['设计/素材', 'assets/**、backups/**、keys/**', '二进制素材/生成数据'],
   ['静态种子清单', 'homeos/frontend/public-static.seed.json', '构建期清单数据，由脚本生成'],
 ];
 

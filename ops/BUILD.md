@@ -22,6 +22,17 @@ python3 ops/build.py image --project app   --tag homeos:local
 python3 ops/build.py image --project store --tag homeos-store:local
 ```
 
+## 场景静态资源是生成物
+
+两个前端 `public/` 下的 `scene/{fonts,page,panel,scene}.css` 与 `scene/fonts/` **不在仓库里**：
+真源是 `packages/shared/scene/static/`，`build:shared`（以及两个前端的 `dev` / `build` 脚本）
+会先跑 `sync:scene` 把它们按各自的部署路径铺出来。因此：
+
+- 分发源码时不需要、也不该带上这些副本（`.gitignore` 已排除）；
+- 干净检出上必须先有这一次 sync，否则前端产物里会缺 4 个样式表（商店侧由 Vite 插件硬断言，
+  主应用侧由匿名白名单门禁报错）；
+- `bun run check:scene` 同时拦「没 sync」与「有人把副本 `git add -f` 塞回仓库」。
+
 ## 前端为什么不做混淆
 
 Vite 的 `build` 已经产出压缩产物：删注释、删类型、局部变量压到 1–2 字符、不生成 sourcemap。

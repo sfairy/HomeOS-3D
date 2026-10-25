@@ -84,7 +84,7 @@ HomeOS/
 │       ├── src/studio/            # 3D 创作、面板编辑器 / 渲染器、实时舞台（runtime/）
 │       └── public/static/3d-studio/models/   # 模型库：336 个 id / 672 个 GLB（31 MB）
 ├── homeos-store/                  # 授权商店：backend/（commerce / licensing / payments）+ frontend/
-├── packages/shared/               # @homeos/shared 前端共享契约包（含 scene/ 入户场景静态资源）
+├── packages/shared/               # @homeos/shared 前端共享契约包；scene/static 是场景 CSS / 字体的唯一真源
 ├── packages/shared-py/            # homeos_shared Python 共享包（构建期各自内联进 .so）
 ├── ops/
 │   ├── dev.mjs / build.py / ports.mjs        # 本地联调、构建、端口唯一真源
@@ -92,7 +92,6 @@ HomeOS/
 │   ├── checks/                    # 架构、命名、3D 模型（资产 / 几何 / 材质 / 槽位）、体积预算
 │   ├── perf/                      # 性能基线与预算（含 3D bench）
 │   └── docker/ caddy/ vite/ ci/ lib/         # 容器入口、Caddyfile、Vite 辅助、CI 脚本
-├── design/scene/                  # 入口页场景标记 / 样式 / 字体的 canonical 源（两侧静态副本按它同步）
 ├── assets/                        # 运行期可替换 UI 素材（compose bind mount 到 /app/assets）
 ├── backups/                       # 备份包落点（compose bind mount 到 /data/backups）
 ├── keys/                          # 授权公钥（本地开发由 ops/dev.mjs 镜像；私钥只在商店侧）
@@ -113,6 +112,7 @@ HomeOS/
 
 ```bash
 bun install
+bun run setup:hooks    # 装 git pre-commit（取一次即可）：拦「场景静态资源生成物被误提交」
 bun run dev            # 后端热重载 + Vite HMR
 bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终端会打印局域网地址）
 ```
@@ -134,6 +134,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run dev:backend` | 只起两个后端的热重载（不起前端） |
 | `bun run dev:app` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端，各开一个终端；`dev:frontend` 是 `dev:app` 的别名） |
 | `bun run dev:prepare` | 只装 Python 环境（仓库根共享 venv `.venv-store`），不起服务 |
+| `bun run setup:hooks` | 装客户端 git 钩子（`core.hooksPath=.githooks`）：pre-commit 只跑 `check:scene --tracked-only`，拦场景静态资源生成物入库 |
 | `bun run dev:runtime` | watch 3D runtime 模块 → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run build` | 完整构建：前端（Vite 压缩产物）+ 后端（Cython `.so`）→ 根 `dist/` |
 | `bun run build:shared` | 只构建 `@homeos/shared`；它的 `dist/` 被 gitignore，干净检出上必须先建 |

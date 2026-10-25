@@ -1,1 +1,0 @@
-GENERATED: CSS/fonts synced from packages/shared/scene/static — edit the shared tree, then bun run --cwd packages/shared sync:scene
