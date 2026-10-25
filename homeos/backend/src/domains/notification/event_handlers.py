@@ -17,6 +17,31 @@ from ..ha.config.ha_filters import HaStateChangeRouter
 
 logger = logging.getLogger("homeos.notification.events")
 
+#: ``unknown`` 是这些域的正常态（没有动作可执行 / 尚未触发过），
+#: 把它们当「离线」会产生永久性误报。
+_UNKNOWN_IS_NORMAL_DOMAINS = frozenset(
+    {
+        "button",
+        "input_button",
+        "script",
+        "scene",
+        "automation",
+        "event",
+        "todo",
+        "counter",
+        "select",
+        "input_select",
+        "tts",
+        "stt",
+    }
+)
+
+
+def _unknown_reports_offline(entity_id: str) -> bool:
+    """``state → unknown`` 是否应当按「设备已离线」处理。"""
+    domain = entity_id.partition(".")[0]
+    return domain not in _UNKNOWN_IS_NORMAL_DOMAINS
+
 
 class NotificationEventHandlersHelper:
     def __init__(
@@ -370,6 +395,10 @@ class NotificationEventHandlersHelper:
         state = new_state.get("state")
         battery_level = attributes.get("battery_level")
         if state == "unavailable":
+            _fire_and_forget(self._check_device_offline(entity_id, name))
+        elif state == "unknown" and _unknown_reports_offline(entity_id):
+            # 有些设备掉线时不再上报，HA 把 state 从「on」改成「unknown」而非
+            # 「unavailable」：只认 unavailable 会让它们永远不告警。
             _fire_and_forget(self._check_device_offline(entity_id, name))
         if battery_level is not None and battery_level < 20:
             _fire_and_forget(self._check_low_battery(entity_id, name, battery_level))

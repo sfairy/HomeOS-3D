@@ -327,44 +327,74 @@ class EventLogService(EventLogReportMixin):
             return
         try:
             with self._database.session_factory() as session:
-                for entity_id in energy_ids:
-                    existing = session.get(EnergyCandidateEntity, entity_id)
-                    if existing is None:
-                        session.add(EnergyCandidateEntity(entity_id=entity_id))
-                for (entity_id, day), value in day_totals.items():
-                    row = session.execute(
-                        select(EnergyUsageDaily).where(
-                            EnergyUsageDaily.entity_id == entity_id, EnergyUsageDaily.day == day
-                        )
-                    ).scalar_one_or_none()
-                    if row is None:
-                        session.add(
-                            EnergyUsageDaily(
-                                entity_id=entity_id,
-                                day=day,
-                                kwh=value["kwh"],
-                                sample_count=int(value["count"]),
+                if energy_ids:
+                    known_ids = set(
+                        session.scalars(
+                            select(EnergyCandidateEntity.entity_id).where(
+                                EnergyCandidateEntity.entity_id.in_(list(energy_ids))
                             )
                         )
+                    )
+                    session.add_all(
+                        EnergyCandidateEntity(entity_id=entity_id)
+                        for entity_id in energy_ids
+                        if entity_id not in known_ids
+                    )
+                # 一次取回本批涉及的日/月聚合行：旧实现对每个 (实体, 日) 各查一次，
+                # 一次同步几十个实体 × 多个自然日就是几十次数据库往返。
+                daily_rows: dict[tuple[Any, Any], EnergyUsageDaily] = {}
+                if day_totals:
+                    daily_rows = {
+                        (row.entity_id, row.day): row
+                        for row in session.scalars(
+                            select(EnergyUsageDaily).where(
+                                EnergyUsageDaily.entity_id.in_(
+                                    {entity_id for entity_id, _ in day_totals}
+                                ),
+                                EnergyUsageDaily.day.in_({day for _, day in day_totals}),
+                            )
+                        )
+                    }
+                monthly_rows: dict[tuple[Any, Any], EnergyUsageMonthly] = {}
+                if month_totals:
+                    monthly_rows = {
+                        (row.entity_id, row.month): row
+                        for row in session.scalars(
+                            select(EnergyUsageMonthly).where(
+                                EnergyUsageMonthly.entity_id.in_(
+                                    {entity_id for entity_id, _ in month_totals}
+                                ),
+                                EnergyUsageMonthly.month.in_(
+                                    {month for _, month in month_totals}
+                                ),
+                            )
+                        )
+                    }
+                for (entity_id, day), value in day_totals.items():
+                    row = daily_rows.get((entity_id, day))
+                    if row is None:
+                        row = EnergyUsageDaily(
+                            entity_id=entity_id,
+                            day=day,
+                            kwh=value["kwh"],
+                            sample_count=int(value["count"]),
+                        )
+                        daily_rows[(entity_id, day)] = row
+                        session.add(row)
                     else:
                         row.kwh += value["kwh"]
                         row.sample_count += int(value["count"])
                 for (entity_id, month), value in month_totals.items():
-                    row = session.execute(
-                        select(EnergyUsageMonthly).where(
-                            EnergyUsageMonthly.entity_id == entity_id,
-                            EnergyUsageMonthly.month == month,
-                        )
-                    ).scalar_one_or_none()
+                    row = monthly_rows.get((entity_id, month))
                     if row is None:
-                        session.add(
-                            EnergyUsageMonthly(
-                                entity_id=entity_id,
-                                month=month,
-                                kwh=value["kwh"],
-                                sample_count=int(value["count"]),
-                            )
+                        row = EnergyUsageMonthly(
+                            entity_id=entity_id,
+                            month=month,
+                            kwh=value["kwh"],
+                            sample_count=int(value["count"]),
                         )
+                        monthly_rows[(entity_id, month)] = row
+                        session.add(row)
                     else:
                         row.kwh += value["kwh"]
                         row.sample_count += int(value["count"])

@@ -25,6 +25,7 @@ from ..app_config.room_meta import (
 from ..app_config.rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
 from ..security.config import load_home_timezone
 from ...platform.core.background import spawn_background
+from ...platform.core.db_exec import run_db
 from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.models import DeviceUsageStat
 from ...platform.core.zoned_time import zoned_date_parts
@@ -109,6 +110,9 @@ class SmartAdvisorUsageHelper:
             with session_factory() as session:
                 self._tz_cache_value = load_home_timezone(session)
         except Exception:
+            # 读不到家庭时区就退回 UTC：跨天/跨小时的统计会整体偏移，
+            # 这是「日报时间对不上」的根因之一，必须留一条可查的日志。
+            logger.warning("读取家庭时区失败，本次退回 UTC 口径（日报/小时统计可能偏移）", exc_info=True)
             self._tz_cache_value = None
         self._tz_cache_at = now
         return self._tz_cache_value
@@ -130,6 +134,7 @@ class SmartAdvisorUsageHelper:
         try:
             return getter() or []
         except Exception:
+            logger.warning("读取 HA 区域列表失败，本次按空区域处理", exc_info=True)
             return []
 
     async def build_room_device_map_from_config(self) -> bool:
@@ -469,33 +474,42 @@ class SmartAdvisorUsageHelper:
         def _write() -> None:
             try:
                 with session_factory() as session:
-                    for (entity_id, day), patch in batch.items():
-                        row = session.execute(
-                            select(DeviceUsageStat).where(
-                                DeviceUsageStat.entity_id == entity_id,
-                                DeviceUsageStat.day == day,
-                            )
-                        ).scalar_one_or_none()
-                        if row is None:
-                            session.add(
-                                DeviceUsageStat(
-                                    entity_id=entity_id,
-                                    day=day,
-                                    on_count=int(patch.get("onCount") or 0),
-                                    total_runtime_ms=int(patch.get("totalRuntimeMs") or 0),
-                                    last_on=patch.get("lastOn"),
+                    # 一次取回本批所有 (实体, 日) 行：旧实现逐条 SELECT，一批几十个实体
+                    # 就是几十次查询 + 一次 commit。
+                    rows: dict[tuple[str, str], DeviceUsageStat] = {}
+                    if batch:
+                        rows = {
+                            (row.entity_id, row.day): row
+                            for row in session.scalars(
+                                select(DeviceUsageStat).where(
+                                    DeviceUsageStat.entity_id.in_(
+                                        {entity_id for entity_id, _ in batch}
+                                    ),
+                                    DeviceUsageStat.day.in_({day for _, day in batch}),
                                 )
                             )
-                        else:
-                            row.on_count = int(row.on_count or 0) + int(
-                                patch.get("onCount") or 0
+                        }
+                    for (entity_id, day), patch in batch.items():
+                        row = rows.get((entity_id, day))
+                        if row is None:
+                            row = DeviceUsageStat(
+                                entity_id=entity_id,
+                                day=day,
+                                on_count=int(patch.get("onCount") or 0),
+                                total_runtime_ms=int(patch.get("totalRuntimeMs") or 0),
+                                last_on=patch.get("lastOn"),
                             )
-                            row.total_runtime_ms = int(row.total_runtime_ms or 0) + int(
-                                patch.get("totalRuntimeMs") or 0
-                            )
-                            if "lastOn" in patch:
-                                row.last_on = patch["lastOn"]
+                            rows[(entity_id, day)] = row
                             session.add(row)
+                            continue
+                        row.on_count = int(row.on_count or 0) + int(
+                            patch.get("onCount") or 0
+                        )
+                        row.total_runtime_ms = int(row.total_runtime_ms or 0) + int(
+                            patch.get("totalRuntimeMs") or 0
+                        )
+                        if "lastOn" in patch:
+                            row.last_on = patch["lastOn"]
                     session.commit()
             except Exception as exc:
                 logger.debug("DeviceUsageStat 批量写入失败: %s", exc)
@@ -527,21 +541,7 @@ class SmartAdvisorUsageHelper:
         safe_days = min(max(int(days), 1), 90)
         since = self._local_day(safe_days)
         await self.flush_usage_stats()
-        session_factory = self._deps["session_factory"]
-        with session_factory() as session:
-            rows = (
-                session.execute(
-                    select(DeviceUsageStat)
-                    .where(
-                        DeviceUsageStat.entity_id == entity_id,
-                        DeviceUsageStat.day >= since,
-                    )
-                    .order_by(DeviceUsageStat.day.asc())
-                    .limit(200)
-                )
-                .scalars()
-                .all()
-            )
+        rows = await run_db(self._load_entity_usage_rows, entity_id, since)
         daily = [
             {
                 "day": row.day,
@@ -567,28 +567,8 @@ class SmartAdvisorUsageHelper:
         safe_days = min(max(int(days), 1), 90)
         since = self._local_day(safe_days)
         await self.flush_usage_stats()
-        session_factory = self._deps["session_factory"]
 
-        with session_factory() as session:
-            entity_rows = session.execute(
-                select(
-                    DeviceUsageStat.entity_id,
-                    func.sum(DeviceUsageStat.on_count),
-                    func.sum(DeviceUsageStat.total_runtime_ms),
-                )
-                .where(DeviceUsageStat.day >= since)
-                .group_by(DeviceUsageStat.entity_id)
-            ).all()
-            daily_rows = session.execute(
-                select(
-                    DeviceUsageStat.day,
-                    func.sum(DeviceUsageStat.on_count),
-                    func.sum(DeviceUsageStat.total_runtime_ms),
-                )
-                .where(DeviceUsageStat.day >= since)
-                .group_by(DeviceUsageStat.day)
-                .order_by(DeviceUsageStat.day.asc())
-            ).all()
+        entity_rows, daily_rows = await run_db(self._load_usage_totals, since)
 
         top_devices: list[dict[str, Any]] = sorted(
             (
@@ -625,20 +605,7 @@ class SmartAdvisorUsageHelper:
         top_ids = [d["entityId"] for d in top_devices[:6]]
         top_daily_map: dict[str, list[dict[str, Any]]] = {}
         if top_ids:
-            with session_factory() as session:
-                top_daily_rows = session.execute(
-                    select(
-                        DeviceUsageStat.entity_id,
-                        DeviceUsageStat.day,
-                        DeviceUsageStat.on_count,
-                    )
-                    .where(
-                        DeviceUsageStat.entity_id.in_(top_ids),
-                        DeviceUsageStat.day >= since,
-                    )
-                    .order_by(DeviceUsageStat.entity_id.asc(), DeviceUsageStat.day.asc())
-                    .limit(600)
-                ).all()
+            top_daily_rows = await run_db(self._load_top_daily_rows, top_ids, since)
             for row in top_daily_rows:
                 top_daily_map.setdefault(str(row[0]), []).append(
                     {"day": str(row[1]), "onCount": int(row[2] or 0)}
@@ -662,6 +629,62 @@ class SmartAdvisorUsageHelper:
             "anomalyHints": anomaly_hints,
             "topDeviceDaily": top_device_daily,
         }
+
+    # 同步取数（经 run_db 放进线程池）
+    def _load_entity_usage_rows(self, entity_id: str, since: str) -> list[DeviceUsageStat]:
+        with self._deps["session_factory"]() as session:
+            return list(
+                session.execute(
+                    select(DeviceUsageStat)
+                    .where(
+                        DeviceUsageStat.entity_id == entity_id,
+                        DeviceUsageStat.day >= since,
+                    )
+                    .order_by(DeviceUsageStat.day.asc())
+                    .limit(200)
+                )
+                .scalars()
+                .all()
+            )
+
+    def _load_usage_totals(self, since: str) -> tuple[Any, Any]:
+        with self._deps["session_factory"]() as session:
+            entity_rows = session.execute(
+                select(
+                    DeviceUsageStat.entity_id,
+                    func.sum(DeviceUsageStat.on_count),
+                    func.sum(DeviceUsageStat.total_runtime_ms),
+                )
+                .where(DeviceUsageStat.day >= since)
+                .group_by(DeviceUsageStat.entity_id)
+            ).all()
+            daily_rows = session.execute(
+                select(
+                    DeviceUsageStat.day,
+                    func.sum(DeviceUsageStat.on_count),
+                    func.sum(DeviceUsageStat.total_runtime_ms),
+                )
+                .where(DeviceUsageStat.day >= since)
+                .group_by(DeviceUsageStat.day)
+                .order_by(DeviceUsageStat.day.asc())
+            ).all()
+        return entity_rows, daily_rows
+
+    def _load_top_daily_rows(self, top_ids: list[str], since: str) -> Any:
+        with self._deps["session_factory"]() as session:
+            return session.execute(
+                select(
+                    DeviceUsageStat.entity_id,
+                    DeviceUsageStat.day,
+                    DeviceUsageStat.on_count,
+                )
+                .where(
+                    DeviceUsageStat.entity_id.in_(top_ids),
+                    DeviceUsageStat.day >= since,
+                )
+                .order_by(DeviceUsageStat.entity_id.asc(), DeviceUsageStat.day.asc())
+                .limit(600)
+            ).all()
 
     async def build_anomaly_hints(
         self, top_devices: list[dict[str, Any]], days: int
@@ -699,7 +722,7 @@ class SmartAdvisorUsageHelper:
                     }
                 )
         except Exception:  # 遗忘提醒推送属旁路观测，失败不影响用量统计结果
-            pass
+            logger.warning("生成遗忘设备提醒失败（旁路观测，不影响用量统计）", exc_info=True)
         return hints[:15]
 
     async def clear_usage_stats(self) -> dict[str, int]:
@@ -877,6 +900,7 @@ class AdvisorUsageService:
         try:
             return self._entity_area.get_cached_ha_areas() or []
         except Exception:
+            logger.warning("读取缓存 HA 区域失败，本次按空处理", exc_info=True)
             return []
 
     def _room_label(self, room: str) -> str:

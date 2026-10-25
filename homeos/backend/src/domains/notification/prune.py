@@ -85,42 +85,47 @@ class NotificationPruneHelper:
         batch = PRUNE_BATCH_SIZE
         total_deleted = 0
         with self._session_factory() as session:
-            while True:
-                count = int(session.execute(select(func.count()).select_from(Notification)).scalar() or 0)
-                if count <= maximum:
+            # 只在轮次开始时 count 一次：旧实现每删一批就重新 COUNT 全表，
+            # 而且每批单独 commit（N 次 fsync）。整轮删完最后统一提交即可。
+            count = int(session.execute(select(func.count()).select_from(Notification)).scalar() or 0)
+            excess = count - maximum
+            if excess <= 0:
+                return
+            # 优先清理已读，不够再从最旧的未读补；每批一条 DELETE ... WHERE id IN (SELECT ...)。
+            pending = excess
+            while pending > 0:
+                removed = self._delete_oldest(session, read_only=True, limit=min(pending, batch))
+                if removed <= 0:
                     break
-                to_delete = min(count - maximum, batch)
-                oldest = list(
-                    session.execute(
-                        select(Notification.id)
-                        .where(Notification.read.is_(True))
-                        .order_by(Notification.created_at.asc())
-                        .limit(to_delete)
-                    ).scalars()
-                )
-                if len(oldest) < to_delete:
-                    need = to_delete - len(oldest)
-                    oldest.extend(
-                        session.execute(
-                            select(Notification.id)
-                            .where(Notification.read.is_(False))
-                            .order_by(Notification.created_at.asc())
-                            .limit(need)
-                        ).scalars()
-                    )
-                if not oldest:
+                total_deleted += removed
+                pending -= removed
+            remaining = max(0, excess - total_deleted)
+            while remaining > 0:
+                removed = self._delete_oldest(session, read_only=False, limit=min(remaining, batch))
+                if removed <= 0:
                     break
-                session.execute(
-                    delete(Notification).where(Notification.id.in_(oldest))
-                )
+                total_deleted += removed
+                remaining -= removed
+            if total_deleted > 0:
                 session.commit()
-                total_deleted += len(oldest)
-                if len(oldest) < to_delete:
-                    break
         if total_deleted > 0:
             logger.info(
                 "通知数量超过保留上限，已自动清理 %s 条（优先清理已读）", total_deleted
             )
+
+    @staticmethod
+    def _delete_oldest(session: Any, *, read_only: bool, limit: int) -> int:
+        """删除最旧的 ``limit`` 条（``read_only`` 决定只删已读/只删未读）。"""
+        if limit <= 0:
+            return 0
+        oldest_ids = (
+            select(Notification.id)
+            .where(Notification.read.is_(read_only))
+            .order_by(Notification.created_at.asc())
+            .limit(limit)
+        )
+        result = session.execute(delete(Notification).where(Notification.id.in_(oldest_ids)))
+        return max(0, int(result.rowcount or 0))
 
 
 __all__ = ["PRUNE_BATCH_SIZE", "PRUNE_DEBOUNCE_MS", "NotificationPruneHelper"]
