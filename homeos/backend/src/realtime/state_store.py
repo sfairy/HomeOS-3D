@@ -203,6 +203,68 @@ class StateStore:
             return {"stale": True, "syncedAt": self._last_synced_at}
         return {"stale": False, "syncedAt": self._last_synced_at}
 
+    def get_entity_freshness(self, entity_id: str) -> dict[str, Any]:
+        """逐实体新鲜度与可用性派生。
+
+        ``get_stale_info`` 只有连接级口径：HA 连接正常、但单个实体长时间没有上报时，
+        界面上仍会显示为「在线」。这里按实体给出 ``lastUpdated`` / ``ageMs`` /
+        ``available``，供设备详情与命令后置校验使用。
+        """
+        state = self._states.get(entity_id)
+        if not isinstance(state, dict):
+            return {
+                "entityId": entity_id,
+                "present": False,
+                "lastUpdated": None,
+                "ageMs": None,
+                "available": False,
+                "reason": "missing",
+            }
+        raw_updated = state.get("last_updated") or state.get("lastUpdated") or state.get("updatedAt")
+        updated_ms = _parse_iso_ms(str(raw_updated or ""))
+        age_ms = round(time.time() * 1000 - updated_ms) if updated_ms else None
+        state_value = str(state.get("state") or "").lower()
+        if state_value in ("unavailable", "unknown"):
+            available, reason = False, state_value
+        elif age_ms is not None and age_ms >= self._stale_threshold_ms:
+            available, reason = False, "stale"
+        else:
+            available, reason = True, "ok"
+        return {
+            "entityId": entity_id,
+            "present": True,
+            "lastUpdated": raw_updated,
+            "ageMs": age_ms,
+            "available": available,
+            "reason": reason,
+        }
+
+    def get_availability_summary(self, limit: int = 20) -> dict[str, Any]:
+        """全量可用性派生摘要：不可用 / 陈旧实体计数与样例（运维诊断用）。"""
+        unavailable: list[str] = []
+        stale: list[str] = []
+        now = time.time() * 1000
+        for entity_id, state in self._states.items():
+            if not isinstance(state, dict):
+                continue
+            state_value = str(state.get("state") or "").lower()
+            if state_value in ("unavailable", "unknown"):
+                unavailable.append(entity_id)
+                continue
+            raw_updated = (
+                state.get("last_updated") or state.get("lastUpdated") or state.get("updatedAt")
+            )
+            updated_ms = _parse_iso_ms(str(raw_updated or ""))
+            if updated_ms and now - updated_ms >= self._stale_threshold_ms:
+                stale.append(entity_id)
+        return {
+            "entityCount": len(self._states),
+            "unavailableCount": len(unavailable),
+            "staleCount": len(stale),
+            "unavailableSample": sorted(unavailable)[:limit],
+            "staleSample": sorted(stale)[:limit],
+        }
+
     def get_memory_diagnostics(self) -> dict[str, Any]:
         """估算 StateStore 内存占用构成（抽样 150 条实体序列化长度外推）。"""
         entity_count = len(self._states)

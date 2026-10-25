@@ -70,7 +70,13 @@ export function createEntityTransport(deps: EntityTransportDeps) {
       })
     }
 
-    const socketAuth = buildEntitySocketAuth(deps.track.lastSocketEventAt, deps.track.lastEventId)
+    // 只有「本会话已经收到过事件」才声明基线：仅靠缓存 hydrate 不足以证明本地是最新的
+    // （缓存可能是几小时前的，而 since 只回放最近 60s）。此时服务端可只发增量回放。
+    const socketAuth = buildEntitySocketAuth(
+      deps.track.lastSocketEventAt,
+      deps.track.lastEventId,
+      deps.track.lastSocketEventAt > 0,
+    )
     socket = io(buildEntitySocketUrl(), buildEntitySocketOptions(socketAuth))
 
     const sync = createEntitySocketSyncState() as EntitySocketSyncState

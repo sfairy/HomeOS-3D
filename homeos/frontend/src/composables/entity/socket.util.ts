@@ -22,15 +22,20 @@ export function buildEntitySocketUrl(): string | undefined {
  *
  * @param lastSocketEventAt - 上次收到事件的时间戳；缺失时回退当前时间减 60s。
  * @param lastEventId - 上次收到的事件序号；缺失时回退 0。
+ * @param hasBaseline - 本地是否已有完整基线（发生过一次成功同步）。
+ *   服务端据此决定「只发增量回放」还是「必须发全量快照」：首次打开页面时为 false，
+ *   否则服务端会以为我们已经持有全部实体，只补 60s 的增量。
  * @returns Socket.IO auth 对象；Pinia 未就绪时跳过 pinned（后续 update_subscription 补发）。
  */
 export function buildEntitySocketAuth(
   lastSocketEventAt: number | null | undefined,
   lastEventId: number | null | undefined,
+  hasBaseline = false,
 ): Record<string, unknown> {
   const auth: Record<string, unknown> = {
     since: lastSocketEventAt || Date.now() - 60_000,
     lastEventId: lastEventId || 0,
+    hasBaseline: Boolean(hasBaseline),
   }
   const domains = getActiveSubscribeDomains()
   if (domains?.length) {
@@ -56,7 +61,9 @@ export function refreshEntitySocketAuth(
   lastEventId: number | null | undefined,
 ): void {
   if (!socket) return
-  socket.auth = buildEntitySocketAuth(lastSocketEventAt, lastEventId)
+  // 能走到重连说明此前至少同步过一次；时间为 0（从未收到事件）时仍按「无基线」处理。
+  const hasBaseline = Boolean(lastSocketEventAt && lastSocketEventAt > 0)
+  socket.auth = buildEntitySocketAuth(lastSocketEventAt, lastEventId, hasBaseline)
 }
 
 /** 构建 Socket.IO 连接 options：withCredentials + msgpack + polling 优先 + 无限重连 */

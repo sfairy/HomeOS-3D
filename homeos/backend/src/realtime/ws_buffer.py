@@ -15,11 +15,13 @@ WS_BUFFER_ENV = "WS_PUSH_MAX_BUFFER_MB"
 
 
 def compute_ws_max_buffer_bytes(entity_count: int = 0) -> int:
-    """按实体数量分档：500 / 2000 / 5000 三段阈值，超出取最大值。"""
-    if entity_count <= 500:
-        return WS_BUFFER_MIN_BYTES
+    """按实体数量分档：500 / 2000 / 5000 三段阈值，超出取最大值。
+
+    重连改为「优先只发增量回放」后，全量 ``initial_states`` 不再每次都推送，
+    2000 档从 16MB 收紧到 8MB（705 实体实例约 1MB 全量，仍有 8 倍余量）。
+    """
     if entity_count <= 2000:
-        return 16 * 1024 * 1024
+        return WS_BUFFER_MIN_BYTES
     if entity_count <= 5000:
         return 32 * 1024 * 1024
     return WS_BUFFER_MAX_BYTES

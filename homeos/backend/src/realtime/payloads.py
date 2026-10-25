@@ -190,12 +190,18 @@ def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[f
     since_ms = 0.0
     last_event_id = 0
     if since_raw:
-        try:
-            from email.utils import parsedate_to_datetime
+        text = str(since_raw).strip()
+        # 前端 WS 握手送的是 epoch 毫秒（数字），REST 增量接口同样口径；
+        # 早期实现只认 RFC 2822 日期串，数字会解析失败 → since=0 → 每次重连都走全量快照。
+        if text.isdigit():
+            since_ms = float(int(text))
+        elif text:
+            try:
+                from email.utils import parsedate_to_datetime
 
-            since_ms = parsedate_to_datetime(str(since_raw)).timestamp() * 1000
-        except Exception:
-            since_ms = 0.0
+                since_ms = parsedate_to_datetime(text).timestamp() * 1000
+            except Exception:
+                since_ms = 0.0
     if last_event_id_raw:
         try:
             last_event_id = int(str(last_event_id_raw), 10)
