@@ -271,7 +271,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
 }
 
 /** 工作状态实体 → 卡片右上角徽标（binary / 小米 enum） */
-export function securityAlarmWorkState(
+function securityAlarmWorkState(
   kind: any,
   entityState: any = null,
   entityId = "",

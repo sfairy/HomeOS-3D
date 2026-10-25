@@ -8,7 +8,7 @@ import { attributesOf, extraContextChanged, haNumber } from "../device/entity-ca
 import { attachFeedback } from "./panel-utils";
 import type { ExtraPanelViewModel, FeedbackSlot } from "./panel-utils";
 
-export const inputDomains = new Set(["text", "date", "time", "datetime"]);
+const inputDomains = new Set(["text", "date", "time", "datetime"]);
 
 const pad2 = (value: any) => String(value).padStart(2, "0");
 
@@ -29,7 +29,7 @@ const SERVICE_DATA_KEYS: Record<string, string> = {
   datetime: "datetime",
 };
 
-export function inputCommand(entityId: string, state: any, rawValue: any) {
+function inputCommand(entityId: string, state: any, rawValue: any) {
   const domain = String(entityId).split(".")[0];
   const attributes = attributesOf(state);
   if (

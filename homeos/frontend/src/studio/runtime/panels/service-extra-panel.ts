@@ -89,7 +89,7 @@ const SERVICE_STATE_LABELS: Record<string, string> = {
   responding: "正在回复",
 };
 
-export function serviceExtraSpec(domain: string, state: any, states: any = {}) {
+function serviceExtraSpec(domain: string, state: any, states: any = {}) {
   const attributes = attributesOf(state);
   const flags = featureFlags(attributes);
   const forms: ServiceForm[] = [];

@@ -9,7 +9,7 @@ import { createAnimationCadence } from "../core/animation-work";
 import { rangehoodState } from "./rangehood-state";
 
 /** 单台油烟机的吸风飘带。 */
-export function createRangehoodSuction(THREE: any) {
+function createRangehoodSuction(THREE: any) {
   const positionValues: number[] = [],
     uvValues: number[] = [],
     sideValues: number[] = [],

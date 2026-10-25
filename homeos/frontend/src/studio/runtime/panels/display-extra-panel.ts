@@ -70,7 +70,7 @@ function sanitizeAttributeValue(value: any, depth = 0): any {
   return value;
 }
 
-export function displayExtraRows(entityId: string, state: any): [string, string][] {
+function displayExtraRows(entityId: string, state: any): [string, string][] {
   const domain = String(entityId).split(".")[0];
   const attributes = attributesOf(state);
   const keys =

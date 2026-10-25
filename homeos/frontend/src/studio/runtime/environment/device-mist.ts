@@ -45,7 +45,7 @@ export function deviceMistState(device: any = {}, states: any = {}): DeviceMistS
 }
 
 /** 单条喷雾飘带：7 层、每层 41 个采样点，双面三角带。 */
-export function createMistPlume(THREE: any) {
+function createMistPlume(THREE: any) {
   const positionValues: number[] = [],
     uvValues: number[] = [],
     sideValues: number[] = [],

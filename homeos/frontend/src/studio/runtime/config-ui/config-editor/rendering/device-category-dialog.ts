@@ -75,7 +75,7 @@ const DEVICE_CATEGORY_GROUPS: ReadonlyArray<readonly [string, readonly string[]]
 
 const MDI_SVG_ROOT = "/static/vendor/mdi/7.4.47/svg/";
 
-export function resolveDeviceCategoryProfile(deviceKind: any): CategoryProfile {
+function resolveDeviceCategoryProfile(deviceKind: any): CategoryProfile {
   const fixedProfile = FIXED_DEVICE_CATEGORIES[deviceKind];
   if (fixedProfile) return fixedProfile;
   const genericProfile = genericDeviceProfile(deviceKind);
@@ -85,7 +85,7 @@ export function resolveDeviceCategoryProfile(deviceKind: any): CategoryProfile {
 }
 
 /** 返回 `[分组名, 型号列表]`；过滤掉不存在的型号，未分组型号补进「其他设备」。 */
-export function deviceCategoryGroups(): Array<[string, string[]]> {
+function deviceCategoryGroups(): Array<[string, string[]]> {
   const groupedKinds = new Set<string>(),
     groups = DEVICE_CATEGORY_GROUPS.map(
       ([groupLabel, groupKinds]) =>
@@ -123,7 +123,7 @@ function closeDeviceCategoryDialog(editor: any) {
 }
 
 /** 打开设备类别弹窗；`onPick` 在选中后回调（不含「取消」）。 */
-export function openDeviceCategoryDialog(editor: any, currentKind: any, onPick?: (kind: any) => void) {
+function openDeviceCategoryDialog(editor: any, currentKind: any, onPick?: (kind: any) => void) {
   if (categoryDialogByEditor.get(editor)) return;
   const categoryDialogElement = editor.createElement(
     "dialog",

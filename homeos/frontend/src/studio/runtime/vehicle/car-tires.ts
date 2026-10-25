@@ -23,7 +23,7 @@ export const CAR_TIRE_WHEELS = Object.freeze([
 export type CarTireWheel = (typeof CAR_TIRE_WHEELS)[number];
 
 /** 只有这两种车型支持四轮胎压。 */
-export function supportsCarTires(modelType: any): boolean {
+function supportsCarTires(modelType: any): boolean {
   return modelType === "smallcar" || modelType === "suv";
 }
 
@@ -51,7 +51,7 @@ export function carTireEntities(item: any, modelType?: any): string[] {
 }
 
 /** 只接受非负数值（不含负号），否则显示 `—`；单位沿用实体自带值，不做换算。 */
-export function carTireReading(entityId: any, states: any, formats: any = {}) {
+function carTireReading(entityId: any, states: any, formats: any = {}) {
   const entityRecord = states?.get?.(entityId) ?? states?.[entityId],
     entityState = entityRecord?.newState || entityRecord,
     rawState = entityState?.state,
@@ -72,7 +72,7 @@ export function carTireReading(entityId: any, states: any, formats: any = {}) {
 }
 
 /** 轮位锚点（模型局部坐标）：车身外侧再偏移一点，给引线留出起点。 */
-export function carTireWheelPoints(THREE: any, bounds: any, wheel: CarTireWheel) {
+function carTireWheelPoints(THREE: any, bounds: any, wheel: CarTireWheel) {
   const size = bounds.getSize(new THREE.Vector3()),
     center = bounds.getCenter(new THREE.Vector3()),
     anchor = new THREE.Vector3(

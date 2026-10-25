@@ -29,7 +29,7 @@ const LIGHT_TRANSITION = 0x20;
 
 const CHANNEL_LABELS = ["红", "绿", "蓝", "白", "暖白"];
 
-export function lightExtraCapabilities(state: any) {
+function lightExtraCapabilities(state: any) {
   const attributes = attributesOf(state);
   const modes = stringOptions(attributes.supported_color_modes);
   const flags = featureFlags(attributes);

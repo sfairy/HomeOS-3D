@@ -43,7 +43,7 @@ export function attachFeedback(
 }
 
 /** 读取实体实时状态（兼容 `state.newState` 包装）。 */
-export function liveStateOf(viewModel: ExtraPanelViewModel | null | undefined) {
+function liveStateOf(viewModel: ExtraPanelViewModel | null | undefined) {
   return viewModel?.state?.newState || viewModel?.state;
 }
 
@@ -52,7 +52,7 @@ export function liveAttributesOf(viewModel: ExtraPanelViewModel | null | undefin
   return attributesOf(liveStateOf(viewModel));
 }
 
-export function modelEntityId(viewModel: ExtraPanelViewModel | null | undefined) {
+function modelEntityId(viewModel: ExtraPanelViewModel | null | undefined) {
   return String(viewModel?.item?.entityId || "");
 }
 

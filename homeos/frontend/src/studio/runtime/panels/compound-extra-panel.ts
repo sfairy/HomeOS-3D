@@ -74,7 +74,7 @@ const VACUUM_SEND_COMMAND = 0x100;
 const VACUUM_START = 0x2000;
 const VACUUM_CLEAN_AREA = 0x4000;
 
-export function compoundExtraSpec(domain: string, state: any): CompoundSpec {
+function compoundExtraSpec(domain: string, state: any): CompoundSpec {
   const attributes = attributesOf(state);
   const flags = featureFlags(attributes);
   const actions: CompoundAction[] = [];

@@ -2,7 +2,7 @@ const readEntityState = (stateSource: any, entityId: any) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
 
 /** ``screenImage.assetId`` 形如 ``user:<32hex>``。 */
-export function televisionScreenAssetId(televisionConfig: any = {}) {
+function televisionScreenAssetId(televisionConfig: any = {}) {
   const assetId = televisionConfig?.screenImage?.assetId;
   if (typeof assetId == "string" && /^user:[0-9a-f]{32}$/i.test(assetId.trim()))
     return assetId.trim().toLowerCase();

@@ -106,7 +106,7 @@ export interface EditorContext {
   editorCanvasZoom: number;
   editorSpacePanning: boolean;
   openCustomSelect: any;
-  activeColorInputElement: any;
+  activeColorInputElement: HTMLInputElement | null;
   activeColorHex: string;
   colorPickerHue: number;
   colorPickerSaturation: number;
@@ -115,7 +115,7 @@ export interface EditorContext {
   colorPickerCopyResetTimer: any;
   lastLicenseFeatureSignature: any;
   marqueeState: any;
-  iconTooltipElement: any;
+  iconTooltipElement: HTMLElement | null;
   popupBeingRenamedValue: any;
 }
 
