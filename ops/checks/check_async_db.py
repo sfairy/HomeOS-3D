@@ -20,6 +20,10 @@ SCAN_ROOTS = [
     ROOT / "homeos/backend/src/api",
     ROOT / "homeos/backend/src/realtime",
     ROOT / "homeos/backend/src/bootstrap",
+    # 域服务此前不在扫描范围：`check_async_db` 一直 PASS，但 domains/ 里有几十处
+    # async 函数内直接跑同步 SQLAlchemy，会把事件循环整段阻塞。
+    ROOT / "homeos/backend/src/domains",
+    ROOT / "homeos/backend/src/modules",
 ]
 EXTRA_FILES = [ROOT / "homeos/backend/src/app.py"]
 ORM_METHODS = {

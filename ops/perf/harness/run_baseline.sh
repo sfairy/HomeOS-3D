@@ -27,6 +27,9 @@ trap cleanup EXIT
 echo "==> 启动隔离实例"
 "${PY}" "${HARNESS}/bench_backend.py" --label "${LABEL}" --serve-only
 
+echo "==> 行为基线（模式/安防/WS，供手工清单对照）"
+"${PY}" "${HARNESS}/capture_behavior.py" --label "${LABEL}"
+
 echo "==> 后端测量"
 "${PY}" "${HARNESS}/bench_backend.py" --label "${LABEL}" --no-start
 

@@ -136,12 +136,15 @@ if (/lampItemTypeSet/.test(entrySrc)) problems.push('lamp branch still present i
 
 // 清单里可以登记「有意偏离」的条目（如 0.7.9 新增模型变体改变了分派条件）：
 // 偏离项的哈希已按新代码更新，这里只把原因打出来，避免后来者误以为是漏改。
-if (Array.isArray(manifest.deviations) && manifest.deviations.length)
-  console.log(
-    `accepted deviations: ${manifest.deviations
-      .map(deviationEntry => `#${deviationEntry.branch} ${deviationEntry.group} ${deviationEntry.field} — ${deviationEntry.reason}`)
-      .join('; ')}`,
-  );
+if (Array.isArray(manifest.deviations) && manifest.deviations.length) {
+  const deviationLine = `accepted deviations: ${manifest.deviations
+    .map(deviationEntry => `#${deviationEntry.branch} ${deviationEntry.group} ${deviationEntry.field} — ${deviationEntry.reason}`)
+    .join('; ')}`;
+  // `--json` 的 stdout 必须是纯 JSON（`ops/checks/studio/tests/test_extraction.py`
+  // 直接 json.loads 整段 stdout）；说明性文字走 stderr，两种模式都不丢信息。
+  if (asJson) console.error(deviationLine);
+  else console.log(deviationLine);
+}
 
 const result = { manifest: path.relative(root, manifestFile), groupOrder: GROUP_ORDER.length, branches: after.length, pre: main.pre.length, post: main.post.length, problems: problems.length };
 if (asJson) console.log(JSON.stringify({ ...result, details: problems }, null, 2));

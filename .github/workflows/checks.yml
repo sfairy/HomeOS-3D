@@ -341,6 +341,12 @@ jobs:
       - name: Check async DB calls
         run: python3 ops/checks/check_async_db.py
 
+      # 静默 except 递减棘轮：`except Exception: pass` 会把 HA 下发失败 / 快照恢复失败 /
+      # 写库失败变成「什么都没发生」。这类分支无法一次清完，因此只设「不许变多」的棘轮，
+      # 基线在 ops/checks/silent_except_baseline.json，减少后需 --update 压低基线。
+      - name: Check silent except ratchet
+        run: python3 ops/checks/check_silent_except.py
+
       # 镜像编译的 Cython 兼容性：Cython 自身也会崩（3.3.0 对「带 dict[...] | None 注解
       # 的参数 + or {} 兜底 + 直接 .items()」抛 TypeError），而源码本身合法 —— ruff /
       # pyright / 本地 dev 全绿也看不出来。同上面两条的理由：真正的编译只在 docker.yml

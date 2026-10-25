@@ -63,6 +63,23 @@ bun ops/checks/check_bundle_budget.mjs --json
 偏差；预算只看同口径趋势，不把它当网络实测。Phase 1 之前记录的首屏入口 CSS 为
 192.3 KB、总首屏 915.5 KB（旧构建），当前已显著下降，但真机 LCP/TBT 仍需补测。
 
+## 1.5 行为基线（Phase 0.5，模式/解绑/安防/实时链路）
+
+性能预算之外，`Phase 0.5` 还要一份「行为基线」：模式两阶段提交、实体解绑、安防布防补偿、
+WS 全量基线与回放。可自动观测的部分由
+`ops/perf/harness/capture_behavior.py` 落盘，人工要点的部分在
+[`manual-baseline.md`](./manual-baseline.md) 的表格里填。
+
+```bash
+# 只读采集（默认读隔离 harness 环境；也可 --base-url 打本机 dev）
+bun run perf:behavior --label before
+.venv-store/bin/python ops/perf/harness/capture_behavior.py --label after
+```
+
+产物在 `$TMPDIR/homeos-perf/results/<label>/behavior/`：`modes*.json`、`db-modes.json`、
+`security-*.json`、`ws-baseline.json`、`summary.json`。`bash ops/perf/harness/run_baseline.sh`
+已把这一步串进去了（`==> 行为基线`）。
+
 ## 2. 真机基线（待补，不阻塞 Phase 2）
 
 在小米平板 8 上、与生产相同的 Wi-Fi / 后端版本下采集：
