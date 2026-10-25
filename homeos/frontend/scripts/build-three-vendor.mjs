@@ -42,6 +42,12 @@
  * 没有 LICENSE（上游仓库里才有）。为了避免构建期联网取许可证，这里把它作为第三方许可
  * 文本随仓库保存（`scripts/three-vendor/draco-LICENSE.txt`），版本升级时不需要变动。
  *
+ * 两份 LICENSE 不是重复文件，**别删任何一份**：
+ *   - `scripts/three-vendor/draco-LICENSE.txt` 是**源**（唯一手写来源，版本升级时不动）；
+ *   - `public/static/vendor/three/<ver>/draco/LICENSE` 是**产物**（本脚本从源拷贝），
+ *     必须随 `.js`/`.wasm` 一起分发 —— Apache-2.0 要求分发二进制时附带许可证。
+ * 两者字节相同是设计结果，`--check` 会校验这份拷贝没有被改坏。
+ *
  * 用法：
  *   bun run --cwd homeos/frontend sync:three            # 按 node_modules 的版本重新生成
  *   bun run --cwd homeos/frontend sync:three --check    # 只校验，不写盘（CI 用）

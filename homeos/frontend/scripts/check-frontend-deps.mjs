@@ -4,7 +4,10 @@
  *
  * 规则（详见 homeos/frontend/src/README.md）：
  * 1. views/** 只能经 `@/features/<域>` 或 `@/features/<域>/entry` 使用 feature；
- * 2. feature A 引用 feature B 只能走 B 的域根 barrel；A 不得引用自身 barrel；
+ * 2. feature A 引用 feature B 只能走 B 的域根 barrel；A 不得引用自身 barrel。
+ *    域根 barrel 是「有跨域消费者才建」的按需文件：没有 `index.ts` 的域（如只被
+ *    `views/` 经 `entry` 装配的叶子域）不接受任何跨域引用 —— 此时引用 `@/features/<域>`
+ *    会被判 `feature-barrel-missing`，而不是静默放行一个解析不到的路径；
  * 3. shared/** 不得引用 stores / composables / components / views / features / layouts；
  * 4. components|stores|composables 不得引用 views / features；
  * 5. 叶子消费者（services、stores、shared/utils、shared/<域>/{utils,constants,types}）
@@ -150,8 +153,24 @@ function normalizeTarget(target) {
   return value
 }
 
+function featureHasBarrel(domain) {
+  // barrel 只在「确有跨域消费者」时才存在。检查文件真实存在，否则 `@/features/x`
+  // 这种解析不到裸路径会被当成合法跨域引用（构建期才炸，且报错指向无关的 chunk）。
+  return (
+    fs.existsSync(path.join(ROOT, 'features', domain, 'index.ts')) ||
+    fs.existsSync(path.join(ROOT, 'features', domain, 'index.tsx'))
+  )
+}
+
 function isFeatureBarrel(target) {
-  return /^features\/[^/]+$/.test(target)
+  const match = /^features\/([^/]+)$/.exec(target)
+  return Boolean(match) && featureHasBarrel(match[1])
+}
+
+/** 引用的是「域根」但这个域没有 barrel —— 与深引用区分开，报错更准确。 */
+function isFeatureRootWithoutBarrel(target) {
+  const match = /^features\/([^/]+)$/.exec(target)
+  return Boolean(match) && !featureHasBarrel(match[1])
 }
 
 function isFeatureEntry(target) {
@@ -187,14 +206,22 @@ function checkFile(filePath) {
 
     if (rel.startsWith('views/') && targetDomain) {
       if (!(isFeatureBarrel(target) || isFeatureEntry(target))) {
-        errors.push({ line: item.line, rule: 'views→feature-deep', specifier: item.specifier })
+        errors.push({
+          line: item.line,
+          rule: isFeatureRootWithoutBarrel(target) ? 'feature-barrel-missing' : 'views→feature-deep',
+          specifier: item.specifier,
+        })
       }
     }
 
     if (importerFeature && targetDomain) {
       if (targetDomain !== importerFeature) {
         if (!isFeatureBarrel(target)) {
-          errors.push({ line: item.line, rule: 'feature-cross-deep', specifier: item.specifier })
+          errors.push({
+            line: item.line,
+            rule: isFeatureRootWithoutBarrel(target) ? 'feature-barrel-missing' : 'feature-cross-deep',
+            specifier: item.specifier,
+          })
         }
       } else if (isFeatureBarrel(target)) {
         errors.push({ line: item.line, rule: 'feature-self-barrel', specifier: item.specifier })

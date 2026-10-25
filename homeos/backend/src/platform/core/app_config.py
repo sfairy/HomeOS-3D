@@ -1,8 +1,8 @@
 """AppConfig 只读访问器（SystemConfig 单例）。
 
 **通用原语**：读整表（``load_raw_config``）与写/合并分区（``write_raw_config_section`` /
-``merge_raw_config_section``）。分区**语义**不在这里 —— 例如 ``auth`` 分区的缺省值与
-强类型读法在 ``platform/security/auth_config.py``，否则每个分区都要往这个底层文件里长。
+``merge_raw_config_section``）。分区**语义**不在这里 —— 各分区的缺省值与强类型读法属于
+对应的 ``domains/*`` 模块，否则每个分区都要往这个底层文件里长。
 
 完整的分区校验/写入属 ``domains/app_config``；本模块刻意保持「不认识任何业务字段」。
 """

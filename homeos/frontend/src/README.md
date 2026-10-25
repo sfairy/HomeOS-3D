@@ -68,6 +68,11 @@ import { useNav } from './composables/nav'
 import Overview from '@/features/security/Overview.vue'
 ```
 
+**域根 barrel 是按需文件，不是每个域都必须有。** 只有「确有跨域消费者」的域才建 `index.ts`；
+只被 `views/` 经 `entry` 装配的叶子域（`events`、`notifications`）没有 barrel，也**不允许**
+被跨域引用 —— 门禁会把它报成 `feature-barrel-missing`（比笼统的深引用错误更容易定位）。
+要恢复跨域消费，先补 `features/<域>/index.ts` 把公开面写出来。
+
 跨域规则由 ESLint `no-restricted-imports` 在编辑器里即时反馈（按域自动生成，新增域无需改配置）；
 `bun run check:frontend-deps`（`homeos/frontend/scripts/check-frontend-deps.mjs`）在 CI/`lint:ci` 里兜底。
 
@@ -92,7 +97,8 @@ barrel，会连带进入无关 chunk。`views/` 只允许 `@/features/<域>`（�
 迁移顺序见根仓库重构计划：`security` 试点 → 其余域分批 → `views/` 收敛为薄壳。2026-10-20 已完成
 `settings` / `earthquake` / `security` / `events` / `notifications` 五页；剩余 `DevicesView`、
 `DeviceDetailView`、`ModeTriggerLogsView`、`ModeLogsAnalyticsRail`、`EmbedView` 按同一模式迁移。
-新增域时**先建 `features/<域>/index.ts`**，否则跨域引用无从落地。
+新增域时**先定公开面**：要跨域被消费就建 `features/<域>/index.ts`（只导出实际被取用的符号），
+只给 `views/` 装配就只建 `entry.ts`；两者的区别见上一条。
 
 ## 共享域（`shared/`）—— 域该进 `features/` 还是 `shared/`
 
