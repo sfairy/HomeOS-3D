@@ -1,7 +1,7 @@
 # HomeOS 主应用 —— 镜像内置的内网 HTTPS 反代（Caddy 内置 CA，按需自签证书）
 #
 # 由 ops/docker/start_app.py 在容器内与 uvicorn 同容器拉起：监听 :8803，
-# 反代到同容器的 127.0.0.1:8801。因为反代就在应用旁边：
+# 反代到同容器的 127.0.0.1:${APP_PORT:-8801}。因为反代就在应用旁边：
 #   - 不要求把 8801 先发布到宿主机；
 #   - 这条内置反代的对端永远是回环，uvicorn 信任 127.0.0.1,::1 就够。compose 里之所以还写了
 #     docker 网段（APP_TRUSTED_PROXIES / UVICORN_FORWARDED_ALLOW_IPS 含 172.16.0.0/12），
@@ -85,7 +85,11 @@
 		}
 	}
 
-	reverse_proxy 127.0.0.1:8801 {
+	reverse_proxy 127.0.0.1:{$APP_PORT:8801} {
+		# 上游端口来自 APP_PORT（与 ops/docker/start_app.py 给 uvicorn 的 --port 同源）。
+		# 不能写死 8801：APP_PORT 是可配的（.env.example 就写着「镜像入口读 APP_PORT」），
+		# 改了端口而这里不变，反代就永久盯着一个没人监听的端口 —— 全站 502，而症状
+		# （connection refused）和「应用还没起来」一模一样，很难查到根因。
 		# 必须用 hostport，不能写 {host}：{host} 等价于 {http.request.host}，Caddy 会做
 		# net.SplitHostPort 把端口摘掉。于是上游收到的 Host 是「192.168.1.20」，而浏览器
 		# 发来的 Origin 是「https://192.168.1.20:8803」—— 应用的来源校验按 netloc 逐字比对

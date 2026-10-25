@@ -1,8 +1,8 @@
 """容器内 Caddy 反代与应用进程的守护（反代已内置进镜像，见 Dockerfile）。
 
-**只有主应用**用这套：Caddy 监听 :8803 → 反代同容器 127.0.0.1:8801（uvicorn）。商店没有任何
-HTTPS 入口（内网 http://<局域网IP>:8802，公网由隧道 / 跳板机在 80·443 用真实证书终止 TLS），
-所以它由 ``start_store.py`` 直接 exec 起来，不经过本模块。
+**只有主应用**用这套：Caddy 监听 :8803 → 反代同容器 127.0.0.1:${APP_PORT:-8801}（uvicorn）。
+商店没有任何 HTTPS 入口（内网 http://<局域网IP>:8802，公网由隧道 / 跳板机在 80·443 用真实
+证书终止 TLS），所以它由 ``start_store.py`` 直接 exec 起来，不经过本模块。
 
 反代与应用同容器、同镜像 tag、同生命周期，因此：
 
@@ -21,6 +21,7 @@ import ipaddress
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -35,6 +36,11 @@ RESTART_DELAY_SECONDS = 1.0
 MAX_CADDY_RESTARTS = 5
 TERMINATE_GRACE_SECONDS = 10.0
 POLL_INTERVAL_SECONDS = 0.5
+
+#: 等上游开始监听的上限。最慢的一段是 ``start_app`` 里的 ``wait_for_client_keys``（120s 上限），
+#: 之后还要导入模块、跑迁移，所以留到 180s。超时也不阻止反代启动（见 ``_wait_for_upstream``）。
+UPSTREAM_READY_TIMEOUT_SECONDS = 180.0
+UPSTREAM_PROBE_INTERVAL_SECONDS = 0.25
 
 #: Caddyfile 里 ``default_sni`` 的取值变量名 → 默认名。默认名必须与
 #: ``ops/caddy/app.Caddyfile`` 的 ``{$VAR:默认名}`` 逐字一致，否则这里打印的提示就是错的。
@@ -155,13 +161,71 @@ def _exit_code(returncode: int | None) -> int:
     return returncode if returncode >= 0 else 128 - returncode
 
 
+def _upstream_address(upstream: tuple[str, int]) -> str:
+    host, port = upstream
+    return f'[{host}]:{port}' if ':' in host else f'{host}:{port}'
+
+
+def _upstream_accepts(upstream: tuple[str, int]) -> bool:
+    """上游是否已在 accept 连接（只探 TCP 握手，不发报文）。"""
+    try:
+        with socket.create_connection(upstream, timeout=UPSTREAM_PROBE_INTERVAL_SECONDS):
+            return True
+    except OSError:
+        return False
+
+
+def _wait_for_upstream(
+    upstream: tuple[str, int],
+    *,
+    process: subprocess.Popen,
+    stopping: Mapping[str, int],
+) -> bool:
+    """等上游开始监听；返回是否真的就绪。
+
+    为什么必须先等：Caddy 与 uvicorn 同容器，而 8803 从容器一起来就对**公网隧道**可见
+    （compose 把 8803 发布出去，穿透回灌的正是这个端口）。反代若比 uvicorn 先起，那段时间
+    每个进来的请求都是 ``dial tcp 127.0.0.1:8801: connect: connection refused`` → 502，
+    在日志里表现为一串 ERROR（WebSocket / socket.io 轮询尤其密），而应用只是还在启动。
+
+    只读 TCP、不发 HTTP 请求：这样既不需要应用先能应答（它可能正卡在启动期），也不会在
+    日志里留下一批假的 401/403。
+    """
+    deadline = time.monotonic() + UPSTREAM_READY_TIMEOUT_SECONDS
+    announced_at: float | None = None
+    while not _upstream_accepts(upstream):
+        if 'signal' in stopping or process.poll() is not None:
+            # 主进程已退出 / 正在退出：不再拉起反代，交给主循环收尾（容器会一起退出）。
+            return False
+        now = time.monotonic()
+        if now >= deadline:
+            _warn(
+                f'上游 {_upstream_address(upstream)} 在 {UPSTREAM_READY_TIMEOUT_SECONDS:g}s 内没有开始监听；'
+                '仍启动内置反代，此时 8803 的请求会返回 502（排查应用本身为何没起来）'
+            )
+            return False
+        if announced_at is None:
+            announced_at = now
+            _note(f'上游 {_upstream_address(upstream)} 尚未监听，先不启动内置反代（就绪后自动拉起）')
+        time.sleep(UPSTREAM_PROBE_INTERVAL_SECONDS)
+    if announced_at is not None:
+        waited = time.monotonic() - announced_at
+        _note(f'上游 {_upstream_address(upstream)} 已就绪（等待 {waited:.1f}s），启动内置反代')
+    return True
+
+
 def run_with_proxy(
     main_command: Sequence[str],
     *,
     data_dir: Path,
     service_label: str,
+    upstream: tuple[str, int] | None = None,
 ) -> int:
     """常驻运行 ``main_command``，同时守护同容器的 Caddy 反代。
+
+    ``upstream`` 是 ``main_command`` 将要监听的地址：给了就先等它 accept 再拉起 Caddy，
+    避免反代先于应用就绪的那段时间对外返回 502（见 ``_wait_for_upstream``）。None 表示
+    「不等」——只用于本来就没有上游要等的情形。
 
     返回主进程的退出码（收到终止信号时返回 128+signum）。
     """
@@ -190,14 +254,23 @@ def run_with_proxy(
         if number is not None:
             installed[number] = signal.signal(number, _handle_signal)
 
+    # 顺序很关键：**先起应用，再等上游开始监听，最后才起反代**。
+    # 历史顺序是先起反代，于是在应用还没 bind 时就把 8803 暴露给公网，产生成串的 502。
+    process = _spawn(main_command, environment)
+    exit_code = 0
     caddy: subprocess.Popen | None = None
     restarts = 0
-    if proxy_enabled:
+    upstream_ready = (
+        not proxy_enabled  # 没有反代要起，就不必等上游（别让缺 caddy 白白拖慢启动）
+        or upstream is None
+        or _wait_for_upstream(upstream, process=process, stopping=stopping)
+    )
+    # 超时（应用还活着但没监听）也照样起反代：那时 502 是**症状**，比「8803 端口根本不存在」
+    # 更容易定位。只有主进程已退出 / 收到信号才不起 —— 那种情况下循环马上就会收尾。
+    if proxy_enabled and 'signal' not in stopping and (upstream_ready or process.poll() is None):
         caddy = _spawn(_caddy_command(), caddy_env)
         _note(f'{service_label}内置反代已启动（{CADDY_CONFIG} → 同容器上游）')
 
-    process = _spawn(main_command, environment)
-    exit_code = 0
     try:
         while True:
             if 'signal' in stopping:

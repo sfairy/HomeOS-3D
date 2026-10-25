@@ -180,6 +180,9 @@ def main() -> None:
             ],
             data_dir=Path(environment["HOMEOS_DATA_DIR"]),
             service_label="主应用",
+            # 与 Caddyfile 的 ``reverse_proxy 127.0.0.1:{$APP_PORT:8801}`` 同一个来源：
+            # 改 APP_PORT 时两边一起变，不会出现「反代盯着一个没人监听的端口」。
+            upstream=("127.0.0.1", int(app_port)),
         )
     )
 
