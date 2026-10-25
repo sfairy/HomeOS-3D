@@ -120,8 +120,10 @@ class SecurityLinkageService:
             return
         # 单条 GPS/追踪器「在家」可能是定位漂移或短暂经过，无驻留确认就撤销
         # armed_away / armed_night 会让家人在真正离家的情形下被误降级为居家布防。
+        # 取 max（最近一次到家）而不是 min：已有成员在家时又有人「到家」（常见于 GPS
+        # 漂移），min 会直接越过驻留期立刻撤防；max 要求这次新信号也自己待满。
         dwell_ms = self._home_confirm_ms()
-        elapsed = now - min(self._home_since.values())
+        elapsed = now - max(self._home_since.values())
         if elapsed < dwell_ms:
             self._schedule_home_dwell_check(dwell_ms - elapsed)
             return
@@ -138,7 +140,11 @@ class SecurityLinkageService:
         await asyncio.sleep(max(0.0, delay_ms) / 1000)
         if not self._config().get("autoDisarmOnFirstHome") or not self._home_since:
             return
-        remaining = self._home_confirm_ms() - (time.time() * 1000 - min(self._home_since.values()))
+        # 睡眠期间可能有人离家（``_home_since`` 已被 pop）：按当前在场成员重新取
+        # 「最近一次到家」，不能沿用调度时的快照。
+        remaining = self._home_confirm_ms() - (
+            time.time() * 1000 - max(self._home_since.values())
+        )
         if remaining > 0:
             self._schedule_home_dwell_check(remaining)
             return

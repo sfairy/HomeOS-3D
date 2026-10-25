@@ -19,6 +19,7 @@ from sqlalchemy import select
 from .bus import LocalEventBus
 from .config import load_home_timezone
 from .layout import schedule_security_event
+from ...platform.core.db_exec import run_db
 from ...platform.core.models import AwayPatternBucket
 from ...platform.core.zoned_time import zoned_date_parts
 
@@ -126,16 +127,7 @@ class AwaySimulationService:
         }
 
     async def get_learned_pattern(self) -> dict[str, Any]:
-        with self._session_factory() as session:
-            rows = (
-                session.execute(
-                    select(AwayPatternBucket)
-                    .order_by(AwayPatternBucket.dow.asc(), AwayPatternBucket.hour.asc())
-                    .limit(500)
-                )
-                .scalars()
-                .all()
-            )
+        rows = await run_db(self._load_learned_pattern_rows)
         return {
             "bucketCount": len(rows),
             "loadedInMemory": len(self._pattern_buckets),
@@ -153,10 +145,7 @@ class AwaySimulationService:
 
     async def _load_pattern_buckets(self) -> None:
         try:
-            with self._session_factory() as session:
-                rows = (
-                    session.execute(select(AwayPatternBucket).limit(500)).scalars().all()
-                )
+            rows = await run_db(self._load_pattern_bucket_rows)
             self._pattern_buckets = {}
             for row in rows:
                 self._pattern_buckets[f"{row.dow}|{row.hour}"] = {
@@ -167,6 +156,22 @@ class AwaySimulationService:
             logger.debug("离家模拟已加载 %s 个时段模式", len(rows))
         except Exception as exc:
             logger.warning("加载 AwayPatternBucket 失败: %s", exc)
+
+    def _load_learned_pattern_rows(self) -> list[AwayPatternBucket]:
+        with self._session_factory() as session:
+            return list(
+                session.execute(
+                    select(AwayPatternBucket)
+                    .order_by(AwayPatternBucket.dow.asc(), AwayPatternBucket.hour.asc())
+                    .limit(500)
+                )
+                .scalars()
+                .all()
+            )
+
+    def _load_pattern_bucket_rows(self) -> list[AwayPatternBucket]:
+        with self._session_factory() as session:
+            return list(session.execute(select(AwayPatternBucket).limit(500)).scalars().all())
 
     def _timezone(self) -> str | None:
         """家庭时区（``ops.homeTimezone``），带 60s 缓存。"""

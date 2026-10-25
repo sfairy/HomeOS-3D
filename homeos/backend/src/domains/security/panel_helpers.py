@@ -33,6 +33,37 @@ logger = logging.getLogger("homeos.security.panel")
 
 PANEL_RUNTIME_KEY = "security-panel"
 
+#: 联动动作的幂等逆操作。只收「不需要知道原状态就能安全撤销」的成对服务：
+#: 布防时关了水阀就开回来、开了摄像头就关掉、锁了门就解锁。
+_INVERSE_SERVICES: dict[str, str] = {
+    "turn_on": "turn_off",
+    "turn_off": "turn_on",
+    "open_cover": "close_cover",
+    "close_cover": "open_cover",
+    "open_valve": "close_valve",
+    "close_valve": "open_valve",
+    "lock": "unlock",
+    "unlock": "lock",
+}
+
+#: 没有逆操作的域：scene/script/automation 的 turn_on 是「执行」而不是「打开状态」，
+#: button/notify/tts 更没有反方向。它们一旦执行就无法撤销，只能如实列进 irreversibleItems。
+_IRREVERSIBLE_DOMAINS = frozenset(
+    {"scene", "script", "automation", "button", "input_button", "notify", "tts", "shell_command"}
+)
+
+
+def build_inverse_action(
+    domain: str, service: str, entity_id: str
+) -> dict[str, Any] | None:
+    """构造一条联动动作的逆操作；不可逆时返回 ``None``。"""
+    if domain in _IRREVERSIBLE_DOMAINS:
+        return None
+    inverse = _INVERSE_SERVICES.get(service)
+    if inverse is None:
+        return None
+    return {"domain": domain, "service": inverse, "entity_id": entity_id, "data": {}}
+
 
 # ── 危险探测识别 ────────────────────────────────────────────────────────
 
@@ -268,7 +299,13 @@ class SecurityLinkageHelper:
         self, actions: list[dict[str, Any]], label: str, failure_event_type: str
     ) -> dict[str, Any]:
         if not actions:
-            return {"executed": 0, "failed": 0, "failedItems": []}
+            return {
+                "executed": 0,
+                "failed": 0,
+                "failedItems": [],
+                "appliedItems": [],
+                "irreversibleItems": [],
+            }
 
         status = await self._ha.get_status()
         if not status.get("connected"):
@@ -280,11 +317,15 @@ class SecurityLinkageHelper:
                     {"entity_id": a.get("entity_id"), "message": "HA 未连接，联动动作未执行"}
                     for a in actions
                 ],
+                "appliedItems": [],
+                "irreversibleItems": [],
             }
 
         executed = 0
         failed = 0
         failed_items: list[dict[str, Any]] = []
+        applied_items: list[dict[str, Any]] = []
+        irreversible_items: list[dict[str, Any]] = []
         for act in actions:
             entity_id = str(act.get("entity_id") or "").strip()
             service = str(act.get("service") or "").strip()
@@ -296,6 +337,13 @@ class SecurityLinkageHelper:
                     domain, service, entity_id, act.get("service_data") or {}
                 )
                 executed += 1
+                inverse = build_inverse_action(str(domain), service, entity_id)
+                if inverse is None:
+                    irreversible_items.append(
+                        {"entity_id": entity_id, "domain": domain, "service": service}
+                    )
+                else:
+                    applied_items.append(inverse)
             except Exception as exc:
                 failed += 1
                 message = str(exc)
@@ -309,7 +357,45 @@ class SecurityLinkageHelper:
                 )
         if executed or failed:
             logger.info("%s 联动: %s 成功, %s 失败", label, executed, failed)
-        return {"executed": executed, "failed": failed, "failedItems": failed_items}
+        return {
+            "executed": executed,
+            "failed": failed,
+            "failedItems": failed_items,
+            "appliedItems": applied_items,
+            "irreversibleItems": irreversible_items,
+        }
+
+    async def compensate_applied_actions(
+        self, applied_items: list[dict[str, Any]], label: str
+    ) -> dict[str, Any]:
+        """逆序回滚已执行的联动动作（只回滚幂等可逆的那些）。
+
+        补偿本身失败必须留痕（事件 + 日志）：一次「布防失败但水阀已经关了」如果连补偿
+        也失败，房子就停在第三种状态，用户只能被告知而不是被静默。
+        """
+        restored = 0
+        failed = 0
+        failed_items: list[dict[str, Any]] = []
+        for item in reversed(applied_items):
+            try:
+                await self._ha.call_service(
+                    item["domain"], item["service"], item["entity_id"], item.get("data") or {}
+                )
+                restored += 1
+            except Exception as exc:
+                failed += 1
+                message = str(exc)
+                failed_items.append({"entity_id": item["entity_id"], "message": message})
+                logger.error("%s 补偿失败 [%s]: %s", label, item["entity_id"], message)
+                schedule_security_event(
+                    self._session_factory,
+                    "linkage_compensation_failed",
+                    f"{label} 补偿失败 [{item['entity_id']}]: {message}",
+                    entity_id=item["entity_id"],
+                )
+        if restored or failed:
+            logger.warning("%s 补偿: %s 已回滚, %s 失败", label, restored, failed)
+        return {"restored": restored, "failed": failed, "failedItems": failed_items}
 
     async def execute_security_mode_actions(self, mode: str) -> dict[str, Any]:
         try:
@@ -321,9 +407,10 @@ class SecurityLinkageHelper:
                 "executed": 0,
                 "failed": 1,
                 "failedItems": [{"entity_id": "", "message": f"联动配置读取失败: {message}"}],
+                "appliedItems": [],
+                "irreversibleItems": [],
             }
         return await self.execute_ha_actions(actions, f"安防模式 {mode}", "linkage_action_failed")
-
     async def call_service_batch(
         self,
         items: list[dict[str, Any]],

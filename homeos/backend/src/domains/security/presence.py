@@ -273,8 +273,17 @@ class PresenceService:
             "unlocked",
             "on",
         ):
+            pending = len(self._away_confirmations)
             self.confirm_home()
-            logger.debug("门锁事件:%s → %s", entity_id, new_state)
+            # 该行为是刻意设计（开锁/开门是「有人到家」的强证据，用于快速取消离家倒计时，
+            # 见上方注释），但它会改变安防自动化结果，必须留下带 entityId 的 info 级证据，
+            # 否则「为什么没进入离家」只能靠猜。
+            logger.info(
+                "门锁/门磁事件取消离家确认: entity=%s state=%s cancelled=%d",
+                entity_id,
+                new_state,
+                pending,
+            )
 
         if not self.should_track_entity(entity_id):
             return

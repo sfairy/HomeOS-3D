@@ -225,21 +225,42 @@ class SecurityPanelService:
             bad_request(api_error("SECURITY_ZONE_NOT_FOUND"))
 
         if opts.get("skipActions"):
-            action_result = {"executed": 0, "failed": 0, "failedItems": []}
+            action_result: dict[str, Any] = {
+                "executed": 0,
+                "failed": 0,
+                "failedItems": [],
+                "appliedItems": [],
+                "irreversibleItems": [],
+            }
         else:
             action_result = await self.linkage_helper.execute_security_mode_actions(mode)
 
         degraded = action_result["failed"] > 0
         if degraded:
+            # 布防失败必须补偿已执行的联动：否则「关水阀成功、锁门失败」会把房子留在
+            # 半布防状态 —— 面板显示撤防，水阀却是关的，谁也不知道该怎么收拾。
+            compensation = await self.linkage_helper.compensate_applied_actions(
+                action_result.get("appliedItems") or [], f"安防布防补偿 {mode}"
+            )
             logger.warning(
-                "安防布防失败(联动未完成): %s,失败 %s 条,保持模式=%s",
+                "安防布防失败(联动未完成): %s,失败 %s 条,已补偿 %s 条,保持模式=%s",
                 mode,
                 action_result["failed"],
+                compensation["restored"],
                 self._mode,
             )
             self.state_helper.schedule_security_event(
-                "arm_failed", f"布防失败: {mode}", mode=self._mode
+                "arm_failed",
+                f"布防失败: {mode}（已补偿 {compensation['restored']} 条）",
+                mode=self._mode,
             )
+            if compensation["failed"]:
+                # 补偿也失败：二次告警，绝不吞掉。
+                self.state_helper.schedule_security_event(
+                    "arm_compensation_failed",
+                    f"布防失败后补偿未完成: {mode}",
+                    mode=self._mode,
+                )
             return {
                 "success": False,
                 "degraded": True,
@@ -247,7 +268,11 @@ class SecurityPanelService:
                 "requestedMode": mode,
                 "zoneCount": sum(1 for z in self._zones if z.get("armed")),
                 "actions": action_result,
+                "appliedCount": action_result["executed"],
                 "failedItems": action_result["failedItems"],
+                "compensated": compensation["restored"],
+                "compensationFailures": compensation["failedItems"],
+                "irreversibleItems": action_result.get("irreversibleItems") or [],
             }
 
         for zone in self._zones:
@@ -285,7 +310,9 @@ class SecurityPanelService:
             "mode": mode,
             "zoneCount": len(target_zones),
             "actions": action_result,
+            "appliedCount": action_result["executed"],
             "failedItems": action_result["failedItems"],
+            "irreversibleItems": action_result.get("irreversibleItems") or [],
         }
 
     async def disarm(self, opts: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -305,7 +332,7 @@ class SecurityPanelService:
             }
 
         if opts.get("skipActions"):
-            action_result = {"executed": 0, "failed": 0, "failedItems": []}
+            action_result = {"executed": 0, "failed": 0, "failedItems": [], "appliedItems": []}
         else:
             action_result = await self.linkage_helper.execute_security_mode_actions("disarmed")
 
@@ -331,13 +358,15 @@ class SecurityPanelService:
         logger.info("安防已撤防%s", " [联动降级]" if degraded else "")
         persisted = self.state_helper.persist_panel_state()
         self.state_helper.schedule_security_event("disarm", "撤防")
-        # success=模式已提交（撤防 fail-open）；联动失败只反映在 degraded，避免 FE/家庭模式当作未撤防。
+        # 面板状态已经撤防（fail-open：求助/告警不能被联动卡住），但联动失败必须如实报
+        # success=false + degraded=true —— 之前无条件返回成功，等于把「水阀没关」瞒掉。
         return {
-            "success": True,
+            "success": not degraded,
             "degraded": degraded,
             "persisted": persisted,
             "mode": "disarmed",
             "actions": action_result,
+            "appliedCount": action_result["executed"],
             "failedItems": action_result["failedItems"],
         }
 

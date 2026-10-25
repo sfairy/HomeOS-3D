@@ -15,6 +15,43 @@ export interface SecurityArmResult {
   /** 模式是否已落库；`false` 表示只改了内存，重启会回退到上一次成功落库的模式 */
   persisted?: boolean
   actions?: { executed?: number; failed?: number }
+  /** 实际执行成功的联动条数 */
+  appliedCount?: number
+  /** 布防失败后被回滚的联动条数 */
+  compensated?: number
+  failedItems?: Array<{ entity_id?: string; message?: string }>
+  /** 补偿动作自身失败的条目（二次告警，不能吞） */
+  compensationFailures?: Array<{ entity_id?: string; message?: string }>
+  /** 已经执行且无法撤销的联动（scene / script / button 等） */
+  irreversibleItems?: Array<{ entity_id?: string; service?: string }>
+}
+
+/**
+ * 把「已执行 / 未执行 / 已补偿」压成一行给安防页显示。
+ *
+ * 布防失败时用户最需要的不是「失败」两个字，而是「哪些设备被改过、有没有改回来」。
+ */
+export function describeSecurityArmItems(data?: SecurityArmResult): string {
+  if (!data) return ''
+  const parts: string[] = []
+  const applied = Number(data.appliedCount ?? data.actions?.executed ?? 0)
+  const failed = Number(data.actions?.failed ?? 0)
+  if (applied > 0) parts.push(`已执行 ${applied} 条`)
+  if (failed > 0) parts.push(`未执行 ${failed} 条`)
+  const compensated = Number(data.compensated ?? 0)
+  if (compensated > 0) parts.push(`已补偿 ${compensated} 条`)
+  const failedNames = (data.failedItems || [])
+    .map((item) => item.entity_id || item.message || '')
+    .filter(Boolean)
+    .slice(0, 3)
+  if (failedNames.length) parts.push(`失败设备：${failedNames.join('、')}`)
+  const irreversible = (data.irreversibleItems || [])
+    .map((item) => item.entity_id || '')
+    .filter(Boolean)
+    .slice(0, 3)
+  if (irreversible.length) parts.push(`不可撤销：${irreversible.join('、')}`)
+  if ((data.compensationFailures || []).length) parts.push('补偿未完成，请检查 HA')
+  return parts.join('｜')
 }
 
 /** 给 UI 层的布防/撤防结果解读 */
@@ -42,18 +79,22 @@ export function interpretSecurityArmResult(
   const persistWarning = '（未能写入本机存储，重启后可能回退）'
 
   if (data?.success === false) {
+    const detail = describeSecurityArmItems(data)
     return {
       kind: 'failed',
       message:
-        failed > 0
-          ? `${modeLabel}未生效：${failed} 条联动失败，布防已取消`
-          : `${modeLabel}未生效`,
+        (failed > 0
+          ? requestedMode === 'disarmed'
+            ? `撤防未完成：${failed} 条联动失败`
+            : `${modeLabel}未生效：${failed} 条联动失败，布防已取消`
+          : `${modeLabel}未生效`) + (detail ? `（${detail}）` : ''),
     }
   }
 
   if (data?.skipped) return { kind: 'skipped' }
 
   if (data?.degraded || (committedDisarm && failed > 0)) {
+    const detail = describeSecurityArmItems(data)
     return {
       kind: 'partial',
       message:
@@ -64,6 +105,7 @@ export function interpretSecurityArmResult(
           : failed > 0
             ? `${modeLabel}已生效，但 ${failed} 条联动失败`
             : `${modeLabel}已生效，但部分联动未完成`) +
+        (detail ? `（${detail}）` : '') +
         (data?.persisted === false ? persistWarning : ''),
     }
   }
