@@ -411,51 +411,8 @@
   color: var(--hos-text-secondary);
 }
 
-.list-page__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  box-sizing: border-box;
-  /* 上略多于下：中文字形在 em-box 内偏上，光学居中 */
-  padding: 10px 14px 8px;
-  min-height: 44px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  font-size: var(--premium-fs-caption);
-  font-weight: 600;
-  line-height: 1;
-  color: rgba(255, 255, 255, 0.88);
-  text-decoration: none;
-  text-shadow: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s var(--ease-spring), box-shadow 0.2s;
-}
-
-.list-page__btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.list-page__btn--primary {
-  border-color: color-mix(in srgb, var(--premium-accent-blue, #0a84ff) 45%, rgba(0, 0, 0, 0));
-  background: linear-gradient(135deg, rgba(10, 132, 255, 0.35), rgba(94, 92, 230, 0.28));
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.2);
-}
-
-.list-page__btn--primary:hover:not(:disabled) {
-  box-shadow: 0 6px 24px rgba(10, 132, 255, 0.35);
-}
-
-.list-page__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-}
+/* `.list-page__btn*` 与 `.list-page__muted` 已上移到首屏子集 list-page-eager.css
+   （通知抽屉 / 全局空态在首屏就要用到），此文件只保留列表页专属规则。 */
 
 .list-page__pager {
   display: flex;
@@ -668,17 +625,6 @@
   height: 12px;
   flex-shrink: 0;
 }
-
-.list-page__btn--ghost {
-  padding: 6px 12px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
-  background: transparent;
-  border-color: var(--premium-border-strong);
-}
-
-.list-page__muted { font-size: var(--premium-fs-caption); color: var(--hos-text-secondary); font-variant-numeric: tabular-nums; }
 
 .list-page__input {
   padding: 10px 12px;

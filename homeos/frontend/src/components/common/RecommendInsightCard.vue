@@ -12,6 +12,9 @@ import { Sparkles, Loader2, RefreshCw, ArrowRight, Info } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { isDeepLinkCurrent } from '@/shared/utils/registry/settings-route.util'
+// 本组件用 `.list-page__domain`：设置页 / 模式编辑器不一定有 ListPageHero，
+// 所以这里也做一次副作用导入（同一模块，Vite 会把 CSS 归并到按需 chunk）。
+import '@/assets/styles/lazy/list-page-shell'
 
 const entitiesStore = useEntitiesStore()
 const route = useRoute()

@@ -1,11 +1,11 @@
 {
-  "_note": "2026-10-24 校准：runtime 由 7ea04c6a（车模贴图 / SUV 玻璃 / 材质槽修复）从 270 chunk / 1,481,602B 涨到 274 / 1,497,010B，5a7dba83 再 +449B；原 272 / 1,495,000 已低于实测，按本轮实测值重设并留 ~2.5KB 余量。改动预算需在提交说明里写明原因。",
+  "_note": "2026-10-26 校准（P1-P4 首屏 CSS 拆分）：list-page / list-page-views / premium-head / premium-accordion 四张表改为随懒路由注入（见 assets/styles/lazy/list-page-shell.ts），首屏 CSS 由 338,443B 降到 303,106B（-10.4%），按实测重设 310,000 / 76,000，留 ~7KB 余量。runtime 由 7ea04c6a（车模贴图 / SUV 玻璃 / 材质槽修复）从 270 chunk / 1,481,602B 涨到 274 / 1,497,010B，5a7dba83 再 +449B；原 272 / 1,495,000 已低于实测，按本轮实测值重设并留 ~2.5KB 余量。改动预算需在提交说明里写明原因。",
   "indexHtmlBytes": 7000,
   "preloadRawBytes": 760000,
   "preloadGzipBytes": 255000,
   "entryJsBytes": 60000,
-  "appCssRawBytes": 340000,
-  "appCssGzipBytes": 80000,
+  "appCssRawBytes": 310000,
+  "appCssGzipBytes": 76000,
   "runtimeChunkCount": 274,
   "runtimeRawBytes": 1500000,
   "hlsScriptCount": 0

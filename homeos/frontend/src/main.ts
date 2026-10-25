@@ -40,15 +40,15 @@ import './assets/styles/app-premium-tokens.css'
 import './assets/styles/hos-design-system.css'
 import './assets/styles/hos-panel.css'
 import './assets/styles/app-typography.css'
-import './assets/styles/premium-head.css'
-import './assets/styles/premium-accordion.css'
 import './assets/styles/scaled-viewport.css'
 import './assets/styles/modal-theme.css'
 import './assets/styles/widget-glass.css'
 import './assets/styles/widget-hub-theme.css'
 import './assets/styles/motion.css'
-import './assets/styles/list-page.css'
-import './assets/styles/list-page-views.css'
+// 列表页样式（list-page / list-page-views ~39 KB）改为随路由懒加载：
+// 见 assets/styles/lazy/list-page-shell.ts。入口只保留首屏消费者（通知抽屉 / 全局空态）
+// 真正用到的那几条 `.list-page__btn*` / `.list-page__muted`。
+import './assets/styles/list-page-eager.css'
 import './assets/styles/degrade-banner.css'
 import './assets/styles/multi-color.css'
 // 旧令牌 → canonical 兼容层：必须排在所有既有样式之后，才能覆盖它们冻结的别名值
