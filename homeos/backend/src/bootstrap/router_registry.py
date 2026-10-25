@@ -8,7 +8,6 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from ..api.advisor_usage import router as advisor_usage_router
-from ..api.agent import router as agent_router
 from ..api.assets import router as assets_router
 from ..api.auth import router as auth_router
 from ..api.backups import router as backups_router
@@ -53,6 +52,10 @@ API_PREFIX = "/api/v1"
 
 def register_homeos_routers(app: FastAPI) -> None:
     """homeos ``/api/v1`` 业务路由（原 ``create_app`` 顺序）。"""
+    # 智能管家路由是路由表里最重的一个（连带 domains.agent 的 LLM 工具链），
+    # 在注册点导入以把这份开销留在启动期而不是 `import src.app`。
+    from ..api.agent import router as agent_router
+
     app.include_router(auth_router, prefix=API_PREFIX)
     app.include_router(agent_router, prefix=API_PREFIX)
     app.include_router(embed_proxy_router, prefix=API_PREFIX)

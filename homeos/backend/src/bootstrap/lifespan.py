@@ -8,26 +8,19 @@ import os
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 
 from . import studio3d_plane
 from ..config import Settings
-from ..domains.agent.area_service import AgentAreaService
-from ..domains.agent.budget import AgentBudgetService
-from ..domains.agent.command_cache import CommandCacheService
-from ..domains.agent.config_service import AgentConfigService
-from ..domains.agent.fast_path import FastPathService
-from ..domains.agent.lang_template_service import LangTemplateService
-from ..domains.agent.mcp.mcp_service import McpGatewayService
-from ..domains.agent.memory_store import AgentMemoryService
-from ..domains.agent.proactive import AgentProactiveService
-from ..domains.agent.providers.resolving_llm_provider import ResolvingLlmProvider
-from ..domains.agent.service import AgentService
-from ..domains.agent.session_store import AgentSessionStoreService
-from ..domains.agent.short_term_memory import AgentShortTermMemoryService
-from ..domains.agent.tools.home_tools_service import HomeToolsService
+
+if TYPE_CHECKING:
+    # 仅用于 `_StartupContext.agent_service` 的注解：智能管家域的 14 个服务模块
+    # 是 import diet 里最重的一串（`src.api.agent` 累计约 40 ms），改为在
+    # `_build_agent_domain` 内部导入，让 `import src.app` 不再替启动期付这份钱。
+    from ..domains.agent.service import AgentService
+
 from ..domains.app_config import AppConfigBackupService, AppConfigService
 from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
 from ..domains.backup import AutoBackupService, ServerBackupService
@@ -396,13 +389,27 @@ def _make_voice_rest_config(app: FastAPI) -> Callable[[], Awaitable[dict[str, An
     return _voice_rest_config
 
 
-async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
-    """启动第一阶段：数据目录 / 建库 / 数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
+async def _prepare_database_schema(app: FastAPI, startup: _StartupContext) -> None:
+    """启动第零阶段：数据目录 / 中断还原回滚 / 建库与迁移。
+
+    单独成 phase 有两个目的：``startup_phases`` 里能把「建库 + 迁移」的耗时与
+    后面的服务装配分开看；并让这段纯同步 IO 走线程池，不再阻塞事件循环。
+    """
     app_settings = startup.app_settings
     app_settings.data_dir.mkdir(parents=True, exist_ok=True)
     # 必须早于建库：先回滚中断的还原，避免在半还原的结构上继续建表。
-    startup.recovery_required = recover_interrupted_restore(app_settings)
-    schema.prepare_schema(app_settings)
+    startup.recovery_required = await asyncio.to_thread(
+        recover_interrupted_restore, app_settings
+    )
+    # 建库 + 迁移是纯同步 IO（SQLite 建表、执行迁移脚本、完整性校验），旧实现直接在
+    # 事件循环里跑：迁移条数多的版本会把整个 loop 卡住，此时连 /health 都读不到，
+    # 前端看到的「后端未就绪」窗口被无谓拉长。下放线程池后 loop 仍可响应。
+    await asyncio.to_thread(schema.prepare_schema, app_settings)
+
+
+async def _init_core_services(app: FastAPI, startup: _StartupContext) -> None:
+    """启动第一阶段：数据库 / 日志 / 作业 / 授权 / 保留 / 事件日志。"""
+    app_settings = startup.app_settings
     app.state.database = Database(app_settings.database_url)
     app.state.settings = app_settings
     app.state.version = startup.version
@@ -799,6 +806,22 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
 
 async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
     """构造智能管家域：LLM 工具调用 / 快路径 / 命令缓存 / 会话记忆 + MCP 网关。"""
+    # 智能管家域的服务模块在此按需导入：它们是启动期最重的一串 import，
+    # 放在阶段内导入可让 `import src.app` 只付「应用骨架」的钱。
+    from ..domains.agent.area_service import AgentAreaService
+    from ..domains.agent.budget import AgentBudgetService
+    from ..domains.agent.command_cache import CommandCacheService
+    from ..domains.agent.config_service import AgentConfigService
+    from ..domains.agent.fast_path import FastPathService
+    from ..domains.agent.lang_template_service import LangTemplateService
+    from ..domains.agent.mcp.mcp_service import McpGatewayService
+    from ..domains.agent.memory_store import AgentMemoryService
+    from ..domains.agent.providers.resolving_llm_provider import ResolvingLlmProvider
+    from ..domains.agent.service import AgentService
+    from ..domains.agent.session_store import AgentSessionStoreService
+    from ..domains.agent.short_term_memory import AgentShortTermMemoryService
+    from ..domains.agent.tools.home_tools_service import HomeToolsService
+
     app_config = startup.app_config
 
     # 智能管家域：LLM 工具调用 / 快路径 / 命令缓存 / 会话记忆 + MCP 网关
@@ -888,6 +911,9 @@ async def _build_agent_domain(app: FastAPI, startup: _StartupContext) -> None:
 
 async def _build_channels_and_notification(app: FastAPI, startup: _StartupContext) -> None:
     """构造消息通道域、客户端电量联动、通知域与实体反向引用。"""
+    # 主动管家依赖智能管家域的 home_tools / agent_config，故在本阶段内导入。
+    from ..domains.agent.proactive import AgentProactiveService
+
     app_config = startup.app_config
 
     # 消息通道：Email / WebPush / 企业微信（Phase 6）
@@ -971,6 +997,8 @@ async def _build_channels_and_notification(app: FastAPI, startup: _StartupContex
         app_config,
         startup.ui_config,
         alert_rule_watch_index,
+        update_home_mode=startup.home_mode.update_sync,
+        reload_home_mode_triggers=startup.home_mode.reload_trigger_bindings,
     )
 
 
@@ -1208,6 +1236,8 @@ def create_lifespan(app_settings: Settings, version: str):
         startup_started = time.perf_counter()
         app.state.startup_phases = []
         startup = _StartupContext(app_settings=app_settings, version=version)
+        async with _startup_phase(app, "schema"):
+            await _prepare_database_schema(app, startup)
         async with _startup_phase(app, "core_services"):
             await _init_core_services(app, startup)
         loop_lag = EventLoopLagMonitor()
