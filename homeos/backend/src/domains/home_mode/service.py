@@ -766,6 +766,9 @@ class HomeModeService:
         try:
             return bool(self._away_sim_entity_matcher(entity_id))
         except Exception:
+            # 这里是旁路判断（抑制离家模拟自造的状态），失败时按「不是模拟」继续，
+            # 但要留痕：抑制逻辑整体失效时不能毫无线索。
+            logger.debug("离家模拟实体匹配失败: %s", entity_id, exc_info=True)
             return False
 
     async def _emit_home_mode_event(self, name: str, payload: dict[str, Any]) -> None:

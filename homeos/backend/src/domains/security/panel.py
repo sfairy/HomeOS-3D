@@ -204,7 +204,9 @@ class SecurityPanelService:
             return
         try:
             lock_sec = float(self._config.get().get("manualArmLockSec") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            # 配置写错只会少一层保护：明确告警，避免以为人工锁已生效。
+            logger.warning("manualArmLockSec 非法，按 0 处理（人工锁未启用）: %s", exc)
             lock_sec = 0.0
         self._manual_lock_until = (
             int(time.time() * 1000) + int(lock_sec * 1000) if lock_sec > 0 else 0

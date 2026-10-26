@@ -115,7 +115,9 @@ def _parse_hazard_numeric_thresholds(hazard_area: dict[str, Any]) -> dict[str, f
             continue
         try:
             threshold = float(value)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            # 阈值写错会让该表计永不触发（危险传感器静默失效），必须留痕而不是丢掉。
+            logger.warning("危险阈值非法，已忽略 [%s]: %r (%s)", entity_id, value, exc)
             continue
         # NaN / ±inf 不能作为阈值；NaN 的比较永远为 False，会让实体静默失效。
         if not math.isfinite(threshold):
@@ -297,7 +299,8 @@ def _schedule_persist(
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        # 无事件循环（脚本/测试直调）：退化为同步写，保证不丢审计。
+        # 无事件循环（脚本/测试直调）是预期分支而非失败：退化为同步写，保证不丢审计。
+        logger.debug("无事件循环，审计事件 %s 改为同步写入", event_type)
         persist_security_event(session_factory, event_type, detail, **kwargs)
         return
     from ...platform.core.background import spawn_awaitable

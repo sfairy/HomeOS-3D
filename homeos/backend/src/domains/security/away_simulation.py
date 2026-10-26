@@ -103,7 +103,9 @@ class AwaySimulationService:
         try:
             self._active_start_hour = int(payload.get("activeStartHour") or 18)
             self._active_end_hour = int(payload.get("activeEndHour") or 23)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            # 运行态是外部可写的 KV：脏数据不能让「度假防盗」静默按错误时段运行。
+            logger.warning("离家模拟活跃时段非法，回退 18-23 点: %s", exc)
             self._active_start_hour = 18
             self._active_end_hour = 23
         self._light_pool = _filter_sim_targets(payload.get("lightPool") or [])
