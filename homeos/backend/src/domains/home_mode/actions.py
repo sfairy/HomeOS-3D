@@ -22,6 +22,7 @@ from typing import Any, TypedDict
 from .presets import collect_home_mode_target_actions, resolve_action_kind
 from ..home_exec.execute_action_sequence import execute_action_sequence
 from ..home_exec.snapshot_restore import build_snapshot_restore_calls, describe_restore_support
+from ..proxy.verification import describe_service_verification
 from ..security.entity_execute_acl import assert_entity_targets_execute_authorized
 from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.errors import api_error, bad_request, not_found
@@ -29,6 +30,13 @@ from ...platform.core.errors import api_error, bad_request, not_found
 logger = logging.getLogger("homeos.home_mode")
 
 HA_ENTITY_FETCH_CONCURRENCY = 8
+
+#: 服务调用响应里没有目标实体时（HA 对离线 / 跳过同样返回 200）回读状态的等待时间。
+#: WS 状态回推通常 <100ms，留一点余量后仍读不到就按「未确认」处理，而不是伪造成功。
+HA_VERIFY_RETRY_DELAY_SECONDS = 0.25
+
+#: 快照里记录「采集失败实体」的保留键：恢复时据此如实报告「这些设备无法恢复」。
+SNAPSHOT_MISSING_KEY = "_missing"
 
 #: 激活失败阈值：失败动作占比达到这个比例就整体回滚（此前是「全部失败才回滚」，
 #: 于是 1/9 成功也会显示为「已激活」，房子停在没人预期的状态）。
@@ -94,6 +102,57 @@ def filter_home_mode_actions_for_linkage_dedupe(
     return entity_configs
 
 
+async def _verify_action_outcome(
+    deps: Any,
+    domain: str,
+    service: str,
+    entity_id: str,
+    service_data: dict[str, Any],
+    response: Any,
+) -> dict[str, Any]:
+    """判决一次服务调用是否真的落到设备上（三态：True / False / None）。
+
+    HA 对「实体离线 / 被跳过」同样返回 200：只看「没抛异常」会把离线设备记成成功。
+    先按响应体校验；响应里没有目标实体时回读一次状态再判定（WS 回推通常 <100ms）。
+    """
+    verification = describe_service_verification(domain, service, entity_id, service_data, response)
+    if verification["verified"] is not None or not verification.get("supported"):
+        return verification
+    await asyncio.sleep(HA_VERIFY_RETRY_DELAY_SECONDS)
+    state = await deps.fetch_entity_state(entity_id)
+    if not state:
+        # 连状态都读不到：不能断定成功，也不能断定失败，如实标「未确认」。
+        return verification
+    return describe_service_verification(
+        domain,
+        service,
+        entity_id,
+        service_data,
+        [
+            {
+                "entity_id": entity_id,
+                "state": state.get("state"),
+                "attributes": state.get("attributes") or {},
+            }
+        ],
+    )
+
+
+def count_verified(results: list[dict[str, Any]], expected: bool | None) -> int:
+    """统计「成功且校验结论为 expected」的条数。
+
+    没有 ``verified`` 键的动作（notify / security）不参与三态统计，否则它们会被
+    永远算进「未确认」，让「未确认数」失去意义。
+    """
+    count = 0
+    for result in results:
+        if not result.get("success") or "verified" not in result:
+            continue
+        if result.get("verified") is expected:
+            count += 1
+    return count
+
+
 async def _execute_home_mode_action(
     deps: Any, action: dict[str, Any]
 ) -> dict[str, Any]:
@@ -121,8 +180,24 @@ async def _execute_home_mode_action(
 
         domain = action.get("domain") or action.get("entity_id", "").split(".")[0]
         service = action.get("service") or "turn_on"
-        await deps.call_service(domain, service, ref, action.get("service_data") or {})
-        return {"entity_id": ref, "service": f"{domain}.{service}", "success": True}
+        service_data = action.get("service_data") or {}
+        response = await deps.call_service(domain, service, ref, service_data)
+        verification = await _verify_action_outcome(
+            deps, domain, service, ref, service_data, response
+        )
+        result: dict[str, Any] = {
+            "entity_id": ref,
+            "service": f"{domain}.{service}",
+            # 只有「确认不一致」的设备才算失败；「未确认」保持 success=True 并单独计数，
+            # 否则 transition / 状态回推延迟会把正常动作误判成失败并触发整组回滚。
+            "success": verification["verified"] is not False,
+            "verified": verification["verified"],
+        }
+        if verification["verified"] is False:
+            result["error"] = f"设备状态未按预期变化（{verification.get('reason') or 'unknown'}）"
+        elif verification["verified"] is None and verification.get("supported"):
+            result["unverified"] = True
+        return result
     except Exception as exc:
         return {
             "entity_id": ref,
@@ -178,6 +253,8 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
 
     ``restored + unchanged == attempted``；``skippedDomains`` 记录恢复表覆盖不到的域
     （scene / script / button 等），调用方据此判断「已恢复 N 个设备」是否名副其实。
+    ``failedEntities`` / ``missingEntities`` 指名道姓列出没恢复成功的设备：
+    只给一个 ``failed`` 计数时，用户无法知道该去检查哪台设备。
     """
     outcome: HomeModeSnapshotOutcome = {
         "restored": 0,
@@ -186,8 +263,17 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
         "incomplete": False,
         "attempted": 0,
         "skippedDomains": [],
+        "failedEntities": [],
+        "missingEntities": [],
     }
-    snapshot = _read_snapshot(mode.get("deviceSnapshot"))
+    # 拷贝一份：``_read_snapshot`` 对 dict 直接返回原对象，pop 保留键会污染调用方的快照。
+    snapshot = dict(_read_snapshot(mode.get("deviceSnapshot")))
+    missing = snapshot.pop(SNAPSHOT_MISSING_KEY, [])
+    outcome["missingEntities"] = (
+        [str(entity_id) for entity_id in missing if isinstance(entity_id, str) and entity_id]
+        if isinstance(missing, list)
+        else []
+    )
     if not snapshot:
         return outcome
     try:
@@ -214,6 +300,7 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
 
         semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
         results: list[str] = []
+        failed_entities: list[str] = []
 
         async def _run(entity_id: str, snap: dict[str, Any]) -> None:
             async with semaphore:
@@ -225,11 +312,13 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> HomeModeSna
                     # 恢复失败必须与「本就一致」区分开，否则会误判回滚完整而丢弃快照。
                     deps.warn(f"恢复设备 {entity_id} 到快照失败: {exc}")
                     results.append("failed")
+                    failed_entities.append(entity_id)
 
         await asyncio.gather(*(_run(entity_id, snap) for entity_id, snap in restorable))
         outcome["restored"] = sum(1 for result in results if result == "restored")
         outcome["unchanged"] = sum(1 for result in results if result == "unchanged")
         outcome["failed"] = sum(1 for result in results if result == "failed")
+        outcome["failedEntities"] = failed_entities
         outcome["incomplete"] = outcome["failed"] > 0
     except Exception as exc:
         outcome["incomplete"] = True
@@ -297,6 +386,8 @@ class _ActivationContext:
     snapshot: dict[str, Any]
     results: list[dict[str, Any]]
     retry_results: list[dict[str, Any]]
+    #: 激活时没采集到快照的实体（无法在失败 / 停用时恢复）。
+    snapshot_missing: list[str] = field(default_factory=list)
     #: 执行本次激活的 security 动作之前的安防模式；中止时用它回滚。
     previous_security_mode: str | None = None
     #: 本次实际执行过的 security 动作条数（0 表示无需回滚）。
@@ -353,6 +444,11 @@ class HomeModeActivateResult(TypedDict, total=False):
     failedItems: list[Any]
     appliedCount: int
     failedCount: int
+    verifiedCount: int
+    unverifiedCount: int
+    snapshotIncomplete: bool
+    snapshotMissing: list[str]
+    failedRestoreEntities: list[str]
     message: str
     error: str
 
@@ -370,6 +466,8 @@ class HomeModeDeactivateResult(TypedDict, total=False):
     incomplete: bool
     restoreIncomplete: bool
     skippedDomains: list[str]
+    failedEntities: list[str]
+    missingEntities: list[str]
     exclusiveGroup: str
     message: str
 
@@ -383,6 +481,8 @@ class HomeModeSnapshotOutcome(TypedDict):
     - ``attempted``：真正尝试恢复的实体数（restored + unchanged + failed）
     - ``skippedDomains``：恢复表覆盖不到的域（scene / script / button …），
       它们不会进入 ``restored``，避免「已恢复 N 个设备」虚高。
+    - ``failedEntities``：恢复失败的实体 id（用于前端点名提示）。
+    - ``missingEntities``：激活时就没采集到快照的实体 id —— 它们无法恢复。
     """
 
     restored: int
@@ -391,6 +491,8 @@ class HomeModeSnapshotOutcome(TypedDict):
     incomplete: bool
     attempted: int
     skippedDomains: list[str]
+    failedEntities: list[str]
+    missingEntities: list[str]
 
 
 def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> HomeModeActivateResult:
@@ -410,9 +512,14 @@ def _already_active_home_mode_result(mode: dict[str, Any], mode_id: str) -> Home
 
 async def _collect_device_snapshot(
     deps: Any, entity_configs: list[dict[str, Any]]
-) -> dict[str, Any]:
-    """并发采集动作目标实体的当前状态，作为回滚快照。"""
+) -> tuple[dict[str, Any], list[str]]:
+    """并发采集动作目标实体的当前状态，作为回滚快照。
+
+    返回 ``(snapshot, missing)``：``missing`` 是没采集到状态的实体 —— 它们一旦被本次激活
+    改过就再也恢复不回去，必须如实上报，不能悄悄从快照里消失。
+    """
     snapshot: dict[str, Any] = {}
+    missing: list[str] = []
     try:
         entity_ids = [
             entity_id
@@ -426,6 +533,8 @@ async def _collect_device_snapshot(
             async with semaphore:
                 state_row = await _fetch_entity_state(deps, entity_id)
                 fetched.append((entity_id, state_row) if state_row else None)
+                if not state_row:
+                    missing.append(entity_id)
 
         await asyncio.gather(*(_fetch(entity_id) for entity_id in entity_ids))
         for row in fetched:
@@ -433,7 +542,7 @@ async def _collect_device_snapshot(
                 snapshot[row[0]] = row[1]
     except Exception as exc:
         deps.warn(f"采集设备快照失败: {exc}")
-    return snapshot
+    return snapshot, sorted(set(missing))
 
 
 async def _retry_failed_home_mode_actions(
@@ -600,6 +709,11 @@ async def _abort_failed_activation(
         "total": len(results),
         "retried": len(activation.retry_results),
         "results": results,
+        "verifiedCount": count_verified(results, True),
+        "unverifiedCount": count_verified(results, None),
+        "snapshotIncomplete": bool(activation.snapshot_missing),
+        "snapshotMissing": list(activation.snapshot_missing),
+        "failedRestoreEntities": rollback.get("failedEntities", []),
         "error": "关键设备动作失败，已恢复快照并取消激活",
     }
 
@@ -612,6 +726,9 @@ async def _finalize_home_mode_activation(
     trigger = activation.trigger
     results = activation.results
     retry_results = activation.retry_results
+    executed = count_verified(results, True)
+    unverified = count_verified(results, None)
+    snapshot_missing = list(activation.snapshot_missing)
     await deps.emit_home_mode_event(
         "homeMode.activated",
         {
@@ -620,11 +737,22 @@ async def _finalize_home_mode_activation(
             "results": results,
             "successCount": final_success,
             "totalCount": len(results),
+            "verifiedCount": executed,
+            "unverifiedCount": unverified,
+            "snapshotIncomplete": bool(snapshot_missing),
             "retried": len(retry_results) > 0,
         },
     )
 
     deps.log(f"模式 {mode['name']} 激活完成: {final_success}/{len(results)} 成功")
+    if unverified:
+        deps.warn(f"模式 {mode['name']} 有 {unverified} 个设备已下发但状态未确认")
+    if snapshot_missing:
+        await deps.notify(
+            "warning",
+            f"模式 {mode['name']} 有 {len(snapshot_missing)} 个设备未采集到快照，停用后无法恢复这些设备",
+            "home-mode",
+        )
     if retry_results:
         deps.log(f"  其中 {len(retry_results)} 个设备通过重试恢复")
 
@@ -659,6 +787,10 @@ async def _finalize_home_mode_activation(
         "total": len(results),
         "retried": len(retry_results),
         "results": results,
+        "verifiedCount": executed,
+        "unverifiedCount": unverified,
+        "snapshotIncomplete": bool(snapshot_missing),
+        "snapshotMissing": snapshot_missing,
     }
 
 
@@ -717,7 +849,14 @@ async def activate_home_mode(
     for active in conflicting_modes:
         conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
 
-    snapshot = await _collect_device_snapshot(deps, entity_configs)
+    snapshot, snapshot_missing = await _collect_device_snapshot(deps, entity_configs)
+    if snapshot_missing:
+        # 采集不到 = 这些设备一旦被本次激活改过就恢复不回去，必须留痕并带给前端。
+        deps.warn(
+            f"模式 {mode['name']} 有 {len(snapshot_missing)} 个设备未采集到快照，"
+            f"停用后将无法恢复: {', '.join(snapshot_missing[:5])}"
+        )
+        snapshot[SNAPSHOT_MISSING_KEY] = snapshot_missing
 
     deps.log(f"正在激活模式: {mode['name']}")
 
@@ -767,6 +906,7 @@ async def activate_home_mode(
         security_action_count=len(security_configs),
         displaced_modes=list(conflicting_modes),
         conflict_restore=conflict_restore,
+        snapshot_missing=snapshot_missing,
     )
 
     failed_count = len(results) - final_success
@@ -811,6 +951,8 @@ async def deactivate_home_mode(
     attempted = restore_outcome["attempted"]
     failed = restore_outcome["failed"]
     skipped_domains = restore_outcome["skippedDomains"]
+    failed_entities = restore_outcome["failedEntities"]
+    missing_entities = restore_outcome["missingEntities"]
     restore_incomplete = bool(restore_outcome["incomplete"])
 
     active_modes = await deps.list_active_modes()
@@ -857,6 +999,8 @@ async def deactivate_home_mode(
             "incomplete": True,
             "restoreIncomplete": True,
             "skippedDomains": skipped_domains,
+            "failedEntities": failed_entities,
+            "missingEntities": missing_entities,
             "exclusiveGroup": group,
             "message": f"已恢复 {restored} 个设备，{failed} 个失败（快照已保留，可重试恢复）",
         }
@@ -882,6 +1026,15 @@ async def deactivate_home_mode(
     restored_message = f"已恢复 {restored} 个设备"
     if skipped_domains:
         restored_message += f"，{len(skipped_domains)} 类域不支持恢复（{'/'.join(skipped_domains)}）"
+    if missing_entities:
+        # 激活时就没采集到快照的设备：它们的状态永远不会被恢复，必须点名而不是沉默。
+        restored_message += f"，{len(missing_entities)} 个设备激活时未采集快照（无法恢复）"
+        await deps.notify(
+            "warning",
+            f"模式 {mode['name']} 有 {len(missing_entities)} 个设备未采集过快照，已跳过恢复："
+            + "、".join(missing_entities[:5]),
+            "home-mode",
+        )
     deps.push_trigger_log(
         {
             "modeId": prev_mode_id,
@@ -904,6 +1057,8 @@ async def deactivate_home_mode(
         "incomplete": False,
         "restoreIncomplete": False,
         "skippedDomains": skipped_domains,
+        "failedEntities": failed_entities,
+        "missingEntities": missing_entities,
         "exclusiveGroup": group,
         "message": restored_message,
     }

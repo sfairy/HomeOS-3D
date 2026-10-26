@@ -86,6 +86,7 @@ import { floorplanAutoDiagramExportResolution as floorplanAutoDiagramExportResol
 
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
 import { navigateInShell } from '@/studio/platform/shell-navigation';
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler';
 import {
   patchEditorFacadeState,
   registerEditorCommandHandler,
@@ -130,6 +131,7 @@ import { attachNavigationInspectorInput } from "./bindings/navigation-inspector-
 import { attachFloorplanDiagramInspectorInput } from "./bindings/floorplan-diagram-inspector-input";
 import { attachPageshowDiagramPreviewRestore } from "./bindings/pageshow-diagram-preview-restore";
 import { createEditorContext } from "./home/editor-context";
+import { bindDeps } from "./home/functions/bind-deps";
 
 import { queryEditorElements } from "./home/elements/editor-elements";
 import { refreshEditorViewportFit as refreshEditorViewportFitImpl, refreshComponentDialogScale as refreshComponentDialogScaleImpl, refreshSoundToggle as refreshSoundToggleImpl, syncIconButtonInspector as syncIconButtonInspectorImpl, syncNavigationInspector as syncNavigationInspectorImpl, syncLineChartInspector as syncLineChartInspectorImpl, syncAirConditionerInspector as syncAirConditionerInspectorImpl, requestJson as requestJsonImpl, formatLastSeen as formatLastSeenImpl, setSettingsMessage as setSettingsMessageImpl, handleOperationError as handleOperationErrorImpl, errorPhase as errorPhaseImpl, value as valueImpl, hidePopupActionsMenu as hidePopupActionsMenuImpl, closeCustomSelect as closeCustomSelectImpl, positionCustomSelectMenu as positionCustomSelectMenuImpl, selectableEntities as selectableEntitiesImpl, openEntityPicker as openEntityPickerImpl, closeAllDropdownMenus as closeAllDropdownMenusImpl, closeDropdownMenu as closeDropdownMenuImpl, openColorPickerForInput as openColorPickerForInputImpl, setWorkspaceHasProject as setWorkspaceHasProjectImpl, hasActiveProject as hasActiveProjectImpl, destroyDashboardPreview as destroyDashboardPreviewImpl, syncWorkspaceEmptyState as syncWorkspaceEmptyStateImpl, type ShellControlsDeps } from "./home/functions/shell-controls";
@@ -163,6 +165,23 @@ export function bootEditor(): void {
   const innerCleanup = scope.executeInLegacyScope(() => {
   const editorCtx = createEditorContext();
 
+// ── 依赖域绑定（原 355 条手写转发包装）：deps 容器构造一次，对外函数同形 ──
+const { refreshEditorViewportFit, refreshComponentDialogScale, refreshSoundToggle, syncIconButtonInspector, syncNavigationInspector, syncLineChartInspector, syncAirConditionerInspector, requestJson, formatLastSeen, setSettingsMessage, handleOperationError, errorPhase, value, hidePopupActionsMenu, closeCustomSelect, positionCustomSelectMenu, selectableEntities, openEntityPicker, closeAllDropdownMenus, closeDropdownMenu, openColorPickerForInput, setWorkspaceHasProject, hasActiveProject, destroyDashboardPreview, syncWorkspaceEmptyState } = bindDeps(shellControlsDeps)({ refreshEditorViewportFit: refreshEditorViewportFitImpl, refreshComponentDialogScale: refreshComponentDialogScaleImpl, refreshSoundToggle: refreshSoundToggleImpl, syncIconButtonInspector: syncIconButtonInspectorImpl, syncNavigationInspector: syncNavigationInspectorImpl, syncLineChartInspector: syncLineChartInspectorImpl, syncAirConditionerInspector: syncAirConditionerInspectorImpl, requestJson: requestJsonImpl, formatLastSeen: formatLastSeenImpl, setSettingsMessage: setSettingsMessageImpl, handleOperationError: handleOperationErrorImpl, errorPhase: errorPhaseImpl, value: valueImpl, hidePopupActionsMenu: hidePopupActionsMenuImpl, closeCustomSelect: closeCustomSelectImpl, positionCustomSelectMenu: positionCustomSelectMenuImpl, selectableEntities: selectableEntitiesImpl, openEntityPicker: openEntityPickerImpl, closeAllDropdownMenus: closeAllDropdownMenusImpl, closeDropdownMenu: closeDropdownMenuImpl, openColorPickerForInput: openColorPickerForInputImpl, setWorkspaceHasProject: setWorkspaceHasProjectImpl, hasActiveProject: hasActiveProjectImpl, destroyDashboardPreview: destroyDashboardPreviewImpl, syncWorkspaceEmptyState: syncWorkspaceEmptyStateImpl })
+const { destroyDashboardPreviewRenderer, renderDashboardPreview, unbindDisplayDeviceError, renderWorkspaceResolution, setEditorMode, syncDefaultPageAction, setPageControlsEnabled, resizeWorkspaceCanvas, ensureMarqueeOverlay, currentPage, groupSelectedComponents, ungroupComponent, openGroupRenameDialog, normalizeHexColor, removedComponent, removalPageEntry, componentListForScope, collectComponentsByType, findPageComponentsByType, findReplaceableComponents, syncRendererSelection, clearComponentSelection, resetPreviewStates, selectComponent, mutateDocument } = bindDeps(workspaceDocumentDeps)({ destroyDashboardPreviewRenderer: destroyDashboardPreviewRendererImpl, renderDashboardPreview: renderDashboardPreviewImpl, unbindDisplayDeviceError: unbindDisplayDeviceErrorImpl, renderWorkspaceResolution: renderWorkspaceResolutionImpl, setEditorMode: setEditorModeImpl, syncDefaultPageAction: syncDefaultPageActionImpl, setPageControlsEnabled: setPageControlsEnabledImpl, resizeWorkspaceCanvas: resizeWorkspaceCanvasImpl, ensureMarqueeOverlay: ensureMarqueeOverlayImpl, currentPage: currentPageImpl, groupSelectedComponents: groupSelectedComponentsImpl, ungroupComponent: ungroupComponentImpl, openGroupRenameDialog: openGroupRenameDialogImpl, normalizeHexColor: normalizeHexColorImpl, removedComponent: removedComponentImpl, removalPageEntry: removalPageEntryImpl, componentListForScope: componentListForScopeImpl, collectComponentsByType: collectComponentsByTypeImpl, findPageComponentsByType: findPageComponentsByTypeImpl, findReplaceableComponents: findReplaceableComponentsImpl, syncRendererSelection: syncRendererSelectionImpl, clearComponentSelection: clearComponentSelectionImpl, resetPreviewStates: resetPreviewStatesImpl, selectComponent: selectComponentImpl, mutateDocument: mutateDocumentImpl })
+const { scaledSelectionPlacements, selectedComponentIdsFromDom, setComponentsRotation, setComponentsVisibility, closeComponentMenu, openComponentMenu, findCommonCopyTargets, showCopySuccessDialog, handleCopySuccessConfirm, duplicateComponents, copyTargetsForDocument, renderCopyTargetOptions, getDocumentCanvasSize, renderCopyScaleOptions, renderCopyComponentDialog, openCopyComponentDialog, deleteComponentIds, setComponentsLabelColor, renderComponentList, prependGroupBackButton, renderComponentLists, setComponentScope, syncAddComponentButton, renderComponentTemplates, renderNavigationIconPreview } = bindDeps(componentEditingDeps)({ scaledSelectionPlacements: scaledSelectionPlacementsImpl, selectedComponentIdsFromDom: selectedComponentIdsFromDomImpl, setComponentsRotation: setComponentsRotationImpl, setComponentsVisibility: setComponentsVisibilityImpl, closeComponentMenu: closeComponentMenuImpl, openComponentMenu: openComponentMenuImpl, findCommonCopyTargets: findCommonCopyTargetsImpl, showCopySuccessDialog: showCopySuccessDialogImpl, handleCopySuccessConfirm: handleCopySuccessConfirmImpl, duplicateComponents: duplicateComponentsImpl, copyTargetsForDocument: copyTargetsForDocumentImpl, renderCopyTargetOptions: renderCopyTargetOptionsImpl, getDocumentCanvasSize: getDocumentCanvasSizeImpl, renderCopyScaleOptions: renderCopyScaleOptionsImpl, renderCopyComponentDialog: renderCopyComponentDialogImpl, openCopyComponentDialog: openCopyComponentDialogImpl, deleteComponentIds: deleteComponentIdsImpl, setComponentsLabelColor: setComponentsLabelColorImpl, renderComponentList: renderComponentListImpl, prependGroupBackButton: prependGroupBackButtonImpl, renderComponentLists: renderComponentListsImpl, setComponentScope: setComponentScopeImpl, syncAddComponentButton: syncAddComponentButtonImpl, renderComponentTemplates: renderComponentTemplatesImpl, renderNavigationIconPreview: renderNavigationIconPreviewImpl })
+const { describeEntityDomain, normalizeWhitespace, navigationIconValue, resolveEntityDisplayName, formatEntityLabel, formatEntitySummary, collectEntityIds, describeEntityState, showLightStatisticsMessage, clearLightStatisticsSelection, renderLightStatisticsEntityOptions, addLightStatisticsEntity, effectIconName, removeLightStatisticsEntityAt, renderLightStatisticsEntityList, flattenComponentTree, collectPageComponents, findIconVisibilityVirtualEntity, resolveEntityCatalog, registerOverflowScrollPreviewRow, resolveOverflowScrollPreviewContainer, findEnclosingScrollPreviewRow, stopOverflowScrollAnimation, ensureInspectorPickerValueSpan, setPickerButtonLabel } = bindDeps(entityLabelsDeps)({ describeEntityDomain: describeEntityDomainImpl, normalizeWhitespace: normalizeWhitespaceImpl, navigationIconValue: navigationIconValueImpl, resolveEntityDisplayName: resolveEntityDisplayNameImpl, formatEntityLabel: formatEntityLabelImpl, formatEntitySummary: formatEntitySummaryImpl, collectEntityIds: collectEntityIdsImpl, describeEntityState: describeEntityStateImpl, showLightStatisticsMessage: showLightStatisticsMessageImpl, clearLightStatisticsSelection: clearLightStatisticsSelectionImpl, renderLightStatisticsEntityOptions: renderLightStatisticsEntityOptionsImpl, addLightStatisticsEntity: addLightStatisticsEntityImpl, effectIconName: effectIconNameImpl, removeLightStatisticsEntityAt: removeLightStatisticsEntityAtImpl, renderLightStatisticsEntityList: renderLightStatisticsEntityListImpl, flattenComponentTree: flattenComponentTreeImpl, collectPageComponents: collectPageComponentsImpl, findIconVisibilityVirtualEntity: findIconVisibilityVirtualEntityImpl, resolveEntityCatalog: resolveEntityCatalogImpl, registerOverflowScrollPreviewRow: registerOverflowScrollPreviewRowImpl, resolveOverflowScrollPreviewContainer: resolveOverflowScrollPreviewContainerImpl, findEnclosingScrollPreviewRow: findEnclosingScrollPreviewRowImpl, stopOverflowScrollAnimation: stopOverflowScrollAnimationImpl, ensureInspectorPickerValueSpan: ensureInspectorPickerValueSpanImpl, setPickerButtonLabel: setPickerButtonLabelImpl })
+const { closePickerMenu, closeOtherPickerMenus, resolveMdiIconUrl, renderNavigationIconButton, renderTitleButtonIconPreview, renderEntityIconButtonPreview, renderLightStatisticsIconPreview, renderLightStatisticsButtonIcon, copyTextToClipboard, enhanceEntityCopyButton, enhanceEntityCopyButtons, ensureIconListPaginationState, hideIconNameTooltip, showIconNameTooltip, bindIconNameTooltipEvents, bindIconListInfiniteScroll, iconTooltipElementCount, iconTooltipElementFlag, iconTooltipElementStep, iconTooltipElementStore, iconTooltipElementBuffer, positionNavigationIconMenu, positionIbeIconMenu, positionIconButtonIconMenu, layoutTitleButtonIconMenu } = bindDeps(iconPickersDeps)({ closePickerMenu: closePickerMenuImpl, closeOtherPickerMenus: closeOtherPickerMenusImpl, resolveMdiIconUrl: resolveMdiIconUrlImpl, renderNavigationIconButton: renderNavigationIconButtonImpl, renderTitleButtonIconPreview: renderTitleButtonIconPreviewImpl, renderEntityIconButtonPreview: renderEntityIconButtonPreviewImpl, renderLightStatisticsIconPreview: renderLightStatisticsIconPreviewImpl, renderLightStatisticsButtonIcon: renderLightStatisticsButtonIconImpl, copyTextToClipboard: copyTextToClipboardImpl, enhanceEntityCopyButton: enhanceEntityCopyButtonImpl, enhanceEntityCopyButtons: enhanceEntityCopyButtonsImpl, ensureIconListPaginationState: ensureIconListPaginationStateImpl, hideIconNameTooltip: hideIconNameTooltipImpl, showIconNameTooltip: showIconNameTooltipImpl, bindIconNameTooltipEvents: bindIconNameTooltipEventsImpl, bindIconListInfiniteScroll: bindIconListInfiniteScrollImpl, iconTooltipElementCount: iconTooltipElementCountImpl, iconTooltipElementFlag: iconTooltipElementFlagImpl, iconTooltipElementStep: iconTooltipElementStepImpl, iconTooltipElementStore: iconTooltipElementStoreImpl, iconTooltipElementBuffer: iconTooltipElementBufferImpl, positionNavigationIconMenu: positionNavigationIconMenuImpl, positionIbeIconMenu: positionIbeIconMenuImpl, positionIconButtonIconMenu: positionIconButtonIconMenuImpl, layoutTitleButtonIconMenu: layoutTitleButtonIconMenuImpl })
+const { positionLightStatisticsIconMenu, positionLightStatisticsEntityMenu, resolveEntityPickerConfig, renderRelatedPopupEntityOptions, syncPopupEntityPickerButton, resolveAssetPreviewUrl, refreshImageAssetPickerPreview, resolveAssetFileUrl, resolveEffectAssetUrl, assetMatchesId, allAssets, findAssetById, assetDisplayName, exportedAssetsInFolder, canDeleteAssetFolder, syncAssetFolderOptions, leftFolderName, measureAssetImageSize, applyAssetNaturalSize, readEffectNaturalSize, probeAssetNaturalSize, positionImageAssetMenu, positionAssetLargePreview, scheduleAssetPreview, hideAssetLargePreview } = bindDeps(assetPickerDeps)({ positionLightStatisticsIconMenu: positionLightStatisticsIconMenuImpl, positionLightStatisticsEntityMenu: positionLightStatisticsEntityMenuImpl, resolveEntityPickerConfig: resolveEntityPickerConfigImpl, renderRelatedPopupEntityOptions: renderRelatedPopupEntityOptionsImpl, syncPopupEntityPickerButton: syncPopupEntityPickerButtonImpl, resolveAssetPreviewUrl: resolveAssetPreviewUrlImpl, refreshImageAssetPickerPreview: refreshImageAssetPickerPreviewImpl, resolveAssetFileUrl: resolveAssetFileUrlImpl, resolveEffectAssetUrl: resolveEffectAssetUrlImpl, assetMatchesId: assetMatchesIdImpl, allAssets: allAssetsImpl, findAssetById: findAssetByIdImpl, assetDisplayName: assetDisplayNameImpl, exportedAssetsInFolder: exportedAssetsInFolderImpl, canDeleteAssetFolder: canDeleteAssetFolderImpl, syncAssetFolderOptions: syncAssetFolderOptionsImpl, leftFolderName: leftFolderNameImpl, measureAssetImageSize: measureAssetImageSizeImpl, applyAssetNaturalSize: applyAssetNaturalSizeImpl, readEffectNaturalSize: readEffectNaturalSizeImpl, probeAssetNaturalSize: probeAssetNaturalSizeImpl, positionImageAssetMenu: positionImageAssetMenuImpl, positionAssetLargePreview: positionAssetLargePreviewImpl, scheduleAssetPreview: scheduleAssetPreviewImpl, hideAssetLargePreview: hideAssetLargePreviewImpl })
+const { createAssetOptionButton, renderImageAssetOptions, syncImageAssetSelection, positionEffectAssetMenu, renderEffectAssetOptions, syncEffectAssetSelection, assignActionControlIds, initActionPopupConfig, closePopupEntityMenus, syncPopupEntityButton, renderPopupEntityOptions, positionPopupEntityMenu, timeFitComponent, renderTimeInspector, weatherProperties, fitWeatherComponentToDimensions, entitiesByEntityId, devicesByDeviceId, buildCustomPopupEditorContext, renderCustomPopupEditor, syncCustomPopupStage, buildTimeInspectorContext, syncTimeInspector, buildWeatherInspectorContext, syncWeatherInspector } = bindDeps(popupInspectorsDeps)({ createAssetOptionButton: createAssetOptionButtonImpl, renderImageAssetOptions: renderImageAssetOptionsImpl, syncImageAssetSelection: syncImageAssetSelectionImpl, positionEffectAssetMenu: positionEffectAssetMenuImpl, renderEffectAssetOptions: renderEffectAssetOptionsImpl, syncEffectAssetSelection: syncEffectAssetSelectionImpl, assignActionControlIds: assignActionControlIdsImpl, initActionPopupConfig: initActionPopupConfigImpl, closePopupEntityMenus: closePopupEntityMenusImpl, syncPopupEntityButton: syncPopupEntityButtonImpl, renderPopupEntityOptions: renderPopupEntityOptionsImpl, positionPopupEntityMenu: positionPopupEntityMenuImpl, timeFitComponent: timeFitComponentImpl, renderTimeInspector: renderTimeInspectorImpl, weatherProperties: weatherPropertiesImpl, fitWeatherComponentToDimensions: fitWeatherComponentToDimensionsImpl, entitiesByEntityId: entitiesByEntityIdImpl, devicesByDeviceId: devicesByDeviceIdImpl, buildCustomPopupEditorContext: buildCustomPopupEditorContextImpl, renderCustomPopupEditor: renderCustomPopupEditorImpl, syncCustomPopupStage: syncCustomPopupStageImpl, buildTimeInspectorContext: buildTimeInspectorContextImpl, syncTimeInspector: syncTimeInspectorImpl, buildWeatherInspectorContext: buildWeatherInspectorContextImpl, syncWeatherInspector: syncWeatherInspectorImpl })
+const { buildTitleButtonInspectorContext, syncTitleButtonInspector, buildLightStatisticsInspectorContext, syncLightStatisticsInspector, buildCameraInspectorContext, syncCameraInspector, buildVacuumMapInspectorContext, syncVacuumMapInspector, buildCoverMotorInspectorContext, coverMotorButtonElement, computeCoverMotorStyleChanges, reloadAssetCatalog, pollAssetCatalogVersion, ensureEntitiesLoaded, renderCustomPopupSelector, syncPopupEntityInputs, syncPopupModuleClimateDeviceType, deviceNameValue, initialPopupId, renderPopupModuleEntityOptions, closePopupModuleEntityMenu, openPopupModuleDialog, renderPageSelect, retainExistingSelection, collectChangedComponents } = bindDeps(inspectorContextsDeps)({ buildTitleButtonInspectorContext: buildTitleButtonInspectorContextImpl, syncTitleButtonInspector: syncTitleButtonInspectorImpl, buildLightStatisticsInspectorContext: buildLightStatisticsInspectorContextImpl, syncLightStatisticsInspector: syncLightStatisticsInspectorImpl, buildCameraInspectorContext: buildCameraInspectorContextImpl, syncCameraInspector: syncCameraInspectorImpl, buildVacuumMapInspectorContext: buildVacuumMapInspectorContextImpl, syncVacuumMapInspector: syncVacuumMapInspectorImpl, buildCoverMotorInspectorContext: buildCoverMotorInspectorContextImpl, coverMotorButtonElement: coverMotorButtonElementImpl, computeCoverMotorStyleChanges: computeCoverMotorStyleChangesImpl, reloadAssetCatalog: reloadAssetCatalogImpl, pollAssetCatalogVersion: pollAssetCatalogVersionImpl, ensureEntitiesLoaded: ensureEntitiesLoadedImpl, renderCustomPopupSelector: renderCustomPopupSelectorImpl, syncPopupEntityInputs: syncPopupEntityInputsImpl, syncPopupModuleClimateDeviceType: syncPopupModuleClimateDeviceTypeImpl, deviceNameValue: deviceNameValueImpl, initialPopupId: initialPopupIdImpl, renderPopupModuleEntityOptions: renderPopupModuleEntityOptionsImpl, closePopupModuleEntityMenu: closePopupModuleEntityMenuImpl, openPopupModuleDialog: openPopupModuleDialogImpl, renderPageSelect: renderPageSelectImpl, retainExistingSelection: retainExistingSelectionImpl, collectChangedComponents: collectChangedComponentsImpl })
+const { collectPageComponentBounds, alignSelectedComponents, ensureEditorRenderer, renderEditorWorkspace, syncHistoryButtons, applyEditorCanvasZoom, selectAllPageComponents, discardRecoverySnapshot, readRecoverySnapshot, scheduleRecoverySnapshot, persistRecoverySnapshot, writeError, resetHistoryState, refreshDirtyState, historyEntries, historyEntry, initialPagePath, projectSummary, recoverDraftConflict, saveDraft, interaction3dEntryActive, loadHaConnection, entityLoadError, reuseTokenForNewUrl, syncAspectLockButton } = bindDeps(workspaceHistoryDeps)({ collectPageComponentBounds: collectPageComponentBoundsImpl, alignSelectedComponents: alignSelectedComponentsImpl, ensureEditorRenderer: ensureEditorRendererImpl, renderEditorWorkspace: renderEditorWorkspaceImpl, syncHistoryButtons: syncHistoryButtonsImpl, applyEditorCanvasZoom: applyEditorCanvasZoomImpl, selectAllPageComponents: selectAllPageComponentsImpl, discardRecoverySnapshot: discardRecoverySnapshotImpl, readRecoverySnapshot: readRecoverySnapshotImpl, scheduleRecoverySnapshot: scheduleRecoverySnapshotImpl, persistRecoverySnapshot: persistRecoverySnapshotImpl, writeError: writeErrorImpl, resetHistoryState: resetHistoryStateImpl, refreshDirtyState: refreshDirtyStateImpl, historyEntries: historyEntriesImpl, historyEntry: historyEntryImpl, initialPagePath: initialPagePathImpl, projectSummary: projectSummaryImpl, recoverDraftConflict: recoverDraftConflictImpl, saveDraft: saveDraftImpl, interaction3dEntryActive: interaction3dEntryActiveImpl, loadHaConnection: loadHaConnectionImpl, entityLoadError: entityLoadErrorImpl, reuseTokenForNewUrl: reuseTokenForNewUrlImpl, syncAspectLockButton: syncAspectLockButtonImpl })
+const { actionDraftDocument, targetPageCandidate, buttonVisibilityDraftDocument, titleButtonIconOptionClickEvent, titleButtonIconDraftDocument, lightStatisticsIconCopyError, lightStatisticsEntityListClickEvent, imageEntityDraftDocument, openAssetPicker, assetIdToDelete, folderDocumentNode, closeDeletePopupDialog, documentSource, popupId, triggerKey, findDiagramPreviewFrame, lightInputElement, cancelRemovesComponent, lightingPayload, lightFieldElement, openLightingPanel, lightInputNode, onFloorplanAutoLightingResetButtonClick, onFloorplanAutoLightingCloseButtonClick, applyLightingPanelDragMove } = bindDeps(lightingPanelDeps)({ actionDraftDocument: actionDraftDocumentImpl, targetPageCandidate: targetPageCandidateImpl, buttonVisibilityDraftDocument: buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent: titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument: titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError: lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent: lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument: imageEntityDraftDocumentImpl, openAssetPicker: openAssetPickerImpl, assetIdToDelete: assetIdToDeleteImpl, folderDocumentNode: folderDocumentNodeImpl, closeDeletePopupDialog: closeDeletePopupDialogImpl, documentSource: documentSourceImpl, popupId: popupIdImpl, triggerKey: triggerKeyImpl, findDiagramPreviewFrame: findDiagramPreviewFrameImpl, lightInputElement: lightInputElementImpl, cancelRemovesComponent: cancelRemovesComponentImpl, lightingPayload: lightingPayloadImpl, lightFieldElement: lightFieldElementImpl, openLightingPanel: openLightingPanelImpl, lightInputNode: lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick: onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick: onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove: applyLightingPanelDragMoveImpl })
+const { closeAutoDiagramDialog, settleAutoDiagramDialog, cancelRemoveDraftDocument, bindMessageSection, onWindowMessage, exportSpliceError, collectPageImages, createImageAlignOption, openImageAlignDialog, applyAirConditionerPreviewState, airflowSectionEvent, previewSyncEventName, onCoverSettingsKindClick, coverKindDraftDocument, navigationSavedPropertyKey, previewDateResize, previewWeatherComponentResize, setNavigationPreviewState, applyNavigationPreviewState, syncNavigationPreviewFromElement, navigationPropertyNameFromElement, resolveComponentStyleValue, collectChangedLineChartStyleKeys, formatLineChartStyleValue, resolveNavigationStyleValue } = bindDeps(navigationPreviewDeps)({ closeAutoDiagramDialog: closeAutoDiagramDialogImpl, settleAutoDiagramDialog: settleAutoDiagramDialogImpl, cancelRemoveDraftDocument: cancelRemoveDraftDocumentImpl, bindMessageSection: bindMessageSectionImpl, onWindowMessage: onWindowMessageImpl, exportSpliceError: exportSpliceErrorImpl, collectPageImages: collectPageImagesImpl, createImageAlignOption: createImageAlignOptionImpl, openImageAlignDialog: openImageAlignDialogImpl, applyAirConditionerPreviewState: applyAirConditionerPreviewStateImpl, airflowSectionEvent: airflowSectionEventImpl, previewSyncEventName: previewSyncEventNameImpl, onCoverSettingsKindClick: onCoverSettingsKindClickImpl, coverKindDraftDocument: coverKindDraftDocumentImpl, navigationSavedPropertyKey: navigationSavedPropertyKeyImpl, previewDateResize: previewDateResizeImpl, previewWeatherComponentResize: previewWeatherComponentResizeImpl, setNavigationPreviewState: setNavigationPreviewStateImpl, applyNavigationPreviewState: applyNavigationPreviewStateImpl, syncNavigationPreviewFromElement: syncNavigationPreviewFromElementImpl, navigationPropertyNameFromElement: navigationPropertyNameFromElementImpl, resolveComponentStyleValue: resolveComponentStyleValueImpl, collectChangedLineChartStyleKeys: collectChangedLineChartStyleKeysImpl, formatLineChartStyleValue: formatLineChartStyleValueImpl, resolveNavigationStyleValue: resolveNavigationStyleValueImpl })
+const { collectChangedTitleButtonStyleKeys, onNavigationStyleApplyCancelButtonClick, onNavigationStyleApplyConfirmButtonClick, collectChangedAirConditionerStyleKeys, formatAirConditionerStyleValue, resolveAirConditionerStyleValue, collectChangedIconButtonEffectStyleKeys, formatIconButtonEffectStyleValue, normalizeSensorKind, formatSensorKindLabel, resolvePresenceSensorStyleKeys, styleTargetCheckbox, appliedStylePropertyKey, onNavigationIconCopyButtonClick, navigationIconCopyError, resolveCameraStyleValue, collectChangedCameraStyleKeys, formatCameraStyleValue, resolvePanelFrameStyleValue, collectChangedPanelFrameStyleKeys, formatPanelFrameStyleValue, entryStateRecord, areStyleValuesEqual, onImageAssetUploadButtonClick, onAssetOptionsClick } = bindDeps(styleApplyDeps)({ collectChangedTitleButtonStyleKeys: collectChangedTitleButtonStyleKeysImpl, onNavigationStyleApplyCancelButtonClick: onNavigationStyleApplyCancelButtonClickImpl, onNavigationStyleApplyConfirmButtonClick: onNavigationStyleApplyConfirmButtonClickImpl, collectChangedAirConditionerStyleKeys: collectChangedAirConditionerStyleKeysImpl, formatAirConditionerStyleValue: formatAirConditionerStyleValueImpl, resolveAirConditionerStyleValue: resolveAirConditionerStyleValueImpl, collectChangedIconButtonEffectStyleKeys: collectChangedIconButtonEffectStyleKeysImpl, formatIconButtonEffectStyleValue: formatIconButtonEffectStyleValueImpl, normalizeSensorKind: normalizeSensorKindImpl, formatSensorKindLabel: formatSensorKindLabelImpl, resolvePresenceSensorStyleKeys: resolvePresenceSensorStyleKeysImpl, styleTargetCheckbox: styleTargetCheckboxImpl, appliedStylePropertyKey: appliedStylePropertyKeyImpl, onNavigationIconCopyButtonClick: onNavigationIconCopyButtonClickImpl, navigationIconCopyError: navigationIconCopyErrorImpl, resolveCameraStyleValue: resolveCameraStyleValueImpl, collectChangedCameraStyleKeys: collectChangedCameraStyleKeysImpl, formatCameraStyleValue: formatCameraStyleValueImpl, resolvePanelFrameStyleValue: resolvePanelFrameStyleValueImpl, collectChangedPanelFrameStyleKeys: collectChangedPanelFrameStyleKeysImpl, formatPanelFrameStyleValue: formatPanelFrameStyleValueImpl, entryStateRecord: entryStateRecordImpl, areStyleValuesEqual: areStyleValuesEqualImpl, onImageAssetUploadButtonClick: onImageAssetUploadButtonClickImpl, onAssetOptionsClick: onAssetOptionsClickImpl })
+const { collectPendingNavigationStyleKeys, onDeleteAssetCancelButtonClick, applyNavigationStyleToTargets, openNavigationStyleApplyDialog, onImageAssetFolderSelectChange, imageAssetPointerOverEvent, imageAssetClickEvent, openCameraStyleApplyDialog, openTitleButtonStyleApplyDialog, openIconButtonEffectStyleApplyDialog, openAirConditionerStyleApplyDialog, openIconButtonStyleApplyDialog, imageAssetMeasureError, applyInspectorDimensionChange, onIconButtonEffectAssetFolderSelectChange, applyEffectAssetDimensionChange, applyCameraDimensionChange, applyLineChartDimensionChange, recoveredComponentId, onErrorDialogCloseButtonClick, onShowSharedComponentsButtonClick, onComponentTemplateDialogClick, closePopupRenameDialog, createCopyBackupDeps, renderCopyBackupDialog } = bindDeps(styleDialogsDeps)({ collectPendingNavigationStyleKeys: collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick: onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets: applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog: openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange: onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent: imageAssetPointerOverEventImpl, imageAssetClickEvent: imageAssetClickEventImpl, openCameraStyleApplyDialog: openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog: openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog: openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog: openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog: openIconButtonStyleApplyDialogImpl, imageAssetMeasureError: imageAssetMeasureErrorImpl, applyInspectorDimensionChange: applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange: onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange: applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange: applyCameraDimensionChangeImpl, applyLineChartDimensionChange: applyLineChartDimensionChangeImpl, recoveredComponentId: recoveredComponentIdImpl, onErrorDialogCloseButtonClick: onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick: onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick: onComponentTemplateDialogClickImpl, closePopupRenameDialog: closePopupRenameDialogImpl, createCopyBackupDeps: createCopyBackupDepsImpl, renderCopyBackupDialog: renderCopyBackupDialogImpl })
+const { titleButtonMenuDeps, loadNavigationIconOptions, positionTitleButtonIconMenu, stopHoverScroll, iconTooltipElementValue, inspectorSyncDeps, syncComponentActionControls, applyTransformToInspector, previewModeForIcon, sharedReferenceId, nudgeDeps, nudgeDeltaX, clickPopupListOption, onPopupListContextmenu, openEntityCopyBackupPicker, openLightStatisticsCopyBackupPicker, openPopupEntityCopyBackupPicker, onPopupModuleCancelButtonClick } = bindDeps(copyBackupPickersDeps)({ titleButtonMenuDeps: titleButtonMenuDepsImpl, loadNavigationIconOptions: loadNavigationIconOptionsImpl, positionTitleButtonIconMenu: positionTitleButtonIconMenuImpl, stopHoverScroll: stopHoverScrollImpl, iconTooltipElementValue: iconTooltipElementValueImpl, inspectorSyncDeps: inspectorSyncDepsImpl, syncComponentActionControls: syncComponentActionControlsImpl, applyTransformToInspector: applyTransformToInspectorImpl, previewModeForIcon: previewModeForIconImpl, sharedReferenceId: sharedReferenceIdImpl, nudgeDeps: nudgeDepsImpl, nudgeDeltaX: nudgeDeltaXImpl, clickPopupListOption: clickPopupListOptionImpl, onPopupListContextmenu: onPopupListContextmenuImpl, openEntityCopyBackupPicker: openEntityCopyBackupPickerImpl, openLightStatisticsCopyBackupPicker: openLightStatisticsCopyBackupPickerImpl, openPopupEntityCopyBackupPicker: openPopupEntityCopyBackupPickerImpl, onPopupModuleCancelButtonClick: onPopupModuleCancelButtonClickImpl })
+const { onPopupModuleClimateDeviceTypeClick, selectAssetFolder, popupModuleTypeValue, requestDeleteUserAsset, requestDeleteAssetFolder, refreshAssetPickers, scaleDraftDocument, cancelDeletePopupDialog, onSessionsRevokeOthersConfirmButtonClick, onGlobalColorPickerHexTextInputInput, saturationPointerMoveEventState, mutationRecord } = bindDeps(assetManagementDeps)({ onPopupModuleClimateDeviceTypeClick: onPopupModuleClimateDeviceTypeClickImpl, selectAssetFolder: selectAssetFolderImpl, popupModuleTypeValue: popupModuleTypeValueImpl, requestDeleteUserAsset: requestDeleteUserAssetImpl, requestDeleteAssetFolder: requestDeleteAssetFolderImpl, refreshAssetPickers: refreshAssetPickersImpl, scaleDraftDocument: scaleDraftDocumentImpl, cancelDeletePopupDialog: cancelDeletePopupDialogImpl, onSessionsRevokeOthersConfirmButtonClick: onSessionsRevokeOthersConfirmButtonClickImpl, onGlobalColorPickerHexTextInputInput: onGlobalColorPickerHexTextInputInputImpl, saturationPointerMoveEventState: saturationPointerMoveEventStateImpl, mutationRecord: mutationRecordImpl })
+
 // 路由 fade 过渡期间户型页与编辑器会短暂共存；限定在本页根节点内查询，避免撞 id。
   const editorRootElement =
     document.querySelector(".editor-chrome-root") || document;
@@ -170,6 +189,10 @@ export function bootEditor(): void {
     editorRootElement.querySelector(selectorState);
 // 拆分后 deps 工厂会用 ...homeElements 展开；先放稳定空对象，查询完成后原地填充。
 const homeElements: any = {};
+// 引导期注册的全局副作用句柄：卸载时必须显式释放（此前两个定时器与 body 级
+// MutationObserver 都是「一次性注册、永不解绑」，切走编辑器后仍在后台唤醒主线程）。
+let editorBodyObserver: MutationObserver | null = null;
+const editorPollCleanups: Array<() => void> = [];
 installSettingsDialogBackdropGuard2();
 // 组件族是全量的按需 chunk：编辑器里用户随时能插入任意类型，所以这里**在引导阶段就预取全量**，
 // 不跟着某份草稿裁剪。预取与随后的取数/建 DOM 并行，正常情况下第一次 setDocument 时已就绪；
@@ -216,8 +239,6 @@ function shellControlsDeps(): ShellControlsDeps {
     get value() { return value; },
   };
 }
-function refreshEditorViewportFit(...args: any[]): ReturnType<typeof refreshEditorViewportFitImpl> { return (refreshEditorViewportFitImpl as any)(shellControlsDeps(), ...args); }
-function refreshComponentDialogScale(...args: any[]): ReturnType<typeof refreshComponentDialogScaleImpl> { return (refreshComponentDialogScaleImpl as any)(shellControlsDeps(), ...args); }
 (refreshEditorViewportFit(), refreshComponentDialogScale());
 Object.assign(homeElements, queryEditorElements(findElement));
 const {
@@ -345,7 +366,6 @@ const showEditorPreviewButtonElement = findElement("#show-editor-preview"),
   dashboardPreviewElement = findElement("#dashboard-preview"),
   customPopupEditorElement = findElement("#custom-popup-editor"),
   buttonSoundController = createButtonSound2();
-function refreshSoundToggle(...args: any[]): ReturnType<typeof refreshSoundToggleImpl> { return (refreshSoundToggleImpl as any)(shellControlsDeps(), ...args); }
 
 editorCtx.baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2);
 
@@ -549,7 +569,6 @@ const iconButtonInspectorContext: IconButtonInspectorContext = {
   iconButtonApplyCountElement,
   iconButtonActionControlsElement,
 };
-function syncIconButtonInspector(...args: any[]): ReturnType<typeof syncIconButtonInspectorImpl> { return (syncIconButtonInspectorImpl as any)(shellControlsDeps(), ...args); }
 const navigationInspectorContext: NavigationInspectorContext = {
   get activeProject() {
     return editorCtx.activeProject;
@@ -619,7 +638,6 @@ const navigationInspectorContext: NavigationInspectorContext = {
   },
   syncComponentActionControls,
 };
-function syncNavigationInspector(...args: any[]): ReturnType<typeof syncNavigationInspectorImpl> { return (syncNavigationInspectorImpl as any)(shellControlsDeps(), ...args); }
 const lineChartInspectorContext: LineChartInspectorContext = {
   get activeProject() {
     return editorCtx.activeProject;
@@ -654,7 +672,6 @@ const lineChartInspectorContext: LineChartInspectorContext = {
   },
   syncComponentActionControls,
 };
-function syncLineChartInspector(...args: any[]): ReturnType<typeof syncLineChartInspectorImpl> { return (syncLineChartInspectorImpl as any)(shellControlsDeps(), ...args); }
 const airConditionerInspectorContext: AirConditionerInspectorContext = {
   get activeProject() {
     return editorCtx.activeProject;
@@ -737,7 +754,6 @@ const airConditionerInspectorContext: AirConditionerInspectorContext = {
   },
   syncComponentActionControls,
 };
-function syncAirConditionerInspector(...args: any[]): ReturnType<typeof syncAirConditionerInspectorImpl> { return (syncAirConditionerInspectorImpl as any)(shellControlsDeps(), ...args); }
 
 
 /** 认证跳转闩（原 `let authRedirectStarted`）：每实例一份，交给 `net/request-json` 读写。 */
@@ -747,7 +763,6 @@ const requestJsonDeps = () => ({ authRedirectState });
  * 请求封装（P4 搬进 `net/request-json`）：超时 / 中止 / CSRF / 401-403 跳转。
  * 本身是 `async`，薄绑定只返回 Promise（不写 `async`，免得撞 `require-await`）。
  */
-function requestJson(...args: any[]): ReturnType<typeof requestJsonImpl> { return (requestJsonImpl as any)(shellControlsDeps(), ...args); }
 
 /** 数字步进器去重集合（P4 搬进 `controls/number-stepper`，按引用注入）。 */
 const numberStepperDeps = () => ({ enhancedNumberInputsSet });
@@ -755,23 +770,6 @@ const numberStepperDeps = () => ({ enhancedNumberInputsSet });
  * 检查器数字输入增强（P4 搬进 `controls/number-stepper`）：**保留原签名** —— 本函数在 6xxx 行
  * 被当作裸函数值交给外部 ctx（`formatLastSeen,`），多一个 `deps` 首参会把调用方的实参顶掉。
  */
-function formatLastSeen(...args: any[]): ReturnType<typeof formatLastSeenImpl> { return (formatLastSeenImpl as any)(shellControlsDeps(), ...args); }
-function setSettingsMessage(...args: any[]): ReturnType<typeof setSettingsMessageImpl> { return (setSettingsMessageImpl as any)(shellControlsDeps(), ...args); }
-function handleOperationError(...args: any[]): ReturnType<typeof handleOperationErrorImpl> { return (handleOperationErrorImpl as any)(shellControlsDeps(), ...args); }
-function errorPhase(...args: any[]): ReturnType<typeof errorPhaseImpl> { return (errorPhaseImpl as any)(shellControlsDeps(), ...args); }
-function value(...args: any[]): ReturnType<typeof valueImpl> { return (valueImpl as any)(shellControlsDeps(), ...args); }
-function hidePopupActionsMenu(...args: any[]): ReturnType<typeof hidePopupActionsMenuImpl> { return (hidePopupActionsMenuImpl as any)(shellControlsDeps(), ...args); }
-function closeCustomSelect(...args: any[]): ReturnType<typeof closeCustomSelectImpl> { return (closeCustomSelectImpl as any)(shellControlsDeps(), ...args); }
-function positionCustomSelectMenu(...args: any[]): ReturnType<typeof positionCustomSelectMenuImpl> { return (positionCustomSelectMenuImpl as any)(shellControlsDeps(), ...args); }
-function selectableEntities(...args: any[]): ReturnType<typeof selectableEntitiesImpl> { return (selectableEntitiesImpl as any)(shellControlsDeps(), ...args); }
-function openEntityPicker(...args: any[]): ReturnType<typeof openEntityPickerImpl> { return (openEntityPickerImpl as any)(shellControlsDeps(), ...args); }
-function closeAllDropdownMenus(...args: any[]): ReturnType<typeof closeAllDropdownMenusImpl> { return (closeAllDropdownMenusImpl as any)(shellControlsDeps(), ...args); }
-function closeDropdownMenu(...args: any[]): ReturnType<typeof closeDropdownMenuImpl> { return (closeDropdownMenuImpl as any)(shellControlsDeps(), ...args); }
-function openColorPickerForInput(...args: any[]): ReturnType<typeof openColorPickerForInputImpl> { return (openColorPickerForInputImpl as any)(shellControlsDeps(), ...args); }
-function setWorkspaceHasProject(...args: any[]): ReturnType<typeof setWorkspaceHasProjectImpl> { return (setWorkspaceHasProjectImpl as any)(shellControlsDeps(), ...args); }
-function hasActiveProject(...args: any[]): ReturnType<typeof hasActiveProjectImpl> { return (hasActiveProjectImpl as any)(shellControlsDeps(), ...args); }
-function destroyDashboardPreview(...args: any[]): ReturnType<typeof destroyDashboardPreviewImpl> { return (destroyDashboardPreviewImpl as any)(shellControlsDeps(), ...args); }
-function syncWorkspaceEmptyState(...args: any[]): ReturnType<typeof syncWorkspaceEmptyStateImpl> { return (syncWorkspaceEmptyStateImpl as any)(shellControlsDeps(), ...args); }
 function workspaceDocumentDeps(): WorkspaceDocumentDeps {
   return {
     ...homeElements,
@@ -819,21 +817,12 @@ function workspaceDocumentDeps(): WorkspaceDocumentDeps {
     get virtualEntityStateCacheById() { return virtualEntityStateCacheById; },
   };
 }
-function destroyDashboardPreviewRenderer(...args: any[]): ReturnType<typeof destroyDashboardPreviewRendererImpl> { return (destroyDashboardPreviewRendererImpl as any)(workspaceDocumentDeps(), ...args); }
-function renderDashboardPreview(...args: any[]): ReturnType<typeof renderDashboardPreviewImpl> { return (renderDashboardPreviewImpl as any)(workspaceDocumentDeps(), ...args); }
-function unbindDisplayDeviceError(...args: any[]): ReturnType<typeof unbindDisplayDeviceErrorImpl> { return (unbindDisplayDeviceErrorImpl as any)(workspaceDocumentDeps(), ...args); }
-function renderWorkspaceResolution(...args: any[]): ReturnType<typeof renderWorkspaceResolutionImpl> { return (renderWorkspaceResolutionImpl as any)(workspaceDocumentDeps(), ...args); }
-function setEditorMode(...args: any[]): ReturnType<typeof setEditorModeImpl> { return (setEditorModeImpl as any)(workspaceDocumentDeps(), ...args); }
-function syncDefaultPageAction(...args: any[]): ReturnType<typeof syncDefaultPageActionImpl> { return (syncDefaultPageActionImpl as any)(workspaceDocumentDeps(), ...args); }
-function setPageControlsEnabled(...args: any[]): ReturnType<typeof setPageControlsEnabledImpl> { return (setPageControlsEnabledImpl as any)(workspaceDocumentDeps(), ...args); }
-function resizeWorkspaceCanvas(...args: any[]): ReturnType<typeof resizeWorkspaceCanvasImpl> { return (resizeWorkspaceCanvasImpl as any)(workspaceDocumentDeps(), ...args); }
 const workspaceResizeObserver = new ResizeObserver(() => {
   (resizeWorkspaceCanvas(), syncCustomPopupStage(), editorCtx.dashboardPreviewRenderer?.resize());
 });
 workspaceResizeObserver.observe(displayDeviceCountElement);
 
 /** 空白画布框选 */
-function ensureMarqueeOverlay(...args: any[]): ReturnType<typeof ensureMarqueeOverlayImpl> { return (ensureMarqueeOverlayImpl as any)(workspaceDocumentDeps(), ...args); }
 editorCanvasElement.addEventListener("pointerdown", (marqueeDownEvent: PointerEvent) => {
   if (
     editorCtx.editorMode !== "edit" ||
@@ -923,22 +912,6 @@ editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent)
   coverMotorButtonElement();
   syncHistoryButtons();
 });
-function currentPage(...args: any[]): ReturnType<typeof currentPageImpl> { return (currentPageImpl as any)(workspaceDocumentDeps(), ...args); }
-function groupSelectedComponents(...args: any[]): ReturnType<typeof groupSelectedComponentsImpl> { return (groupSelectedComponentsImpl as any)(workspaceDocumentDeps(), ...args); }
-function ungroupComponent(...args: any[]): ReturnType<typeof ungroupComponentImpl> { return (ungroupComponentImpl as any)(workspaceDocumentDeps(), ...args); }
-function openGroupRenameDialog(...args: any[]): ReturnType<typeof openGroupRenameDialogImpl> { return (openGroupRenameDialogImpl as any)(workspaceDocumentDeps(), ...args); }
-function normalizeHexColor(...args: any[]): ReturnType<typeof normalizeHexColorImpl> { return (normalizeHexColorImpl as any)(workspaceDocumentDeps(), ...args); }
-function removedComponent(...args: any[]): ReturnType<typeof removedComponentImpl> { return (removedComponentImpl as any)(workspaceDocumentDeps(), ...args); }
-function removalPageEntry(...args: any[]): ReturnType<typeof removalPageEntryImpl> { return (removalPageEntryImpl as any)(workspaceDocumentDeps(), ...args); }
-function componentListForScope(...args: any[]): ReturnType<typeof componentListForScopeImpl> { return (componentListForScopeImpl as any)(workspaceDocumentDeps(), ...args); }
-function collectComponentsByType(...args: any[]): ReturnType<typeof collectComponentsByTypeImpl> { return (collectComponentsByTypeImpl as any)(workspaceDocumentDeps(), ...args); }
-function findPageComponentsByType(...args: any[]): ReturnType<typeof findPageComponentsByTypeImpl> { return (findPageComponentsByTypeImpl as any)(workspaceDocumentDeps(), ...args); }
-function findReplaceableComponents(...args: any[]): ReturnType<typeof findReplaceableComponentsImpl> { return (findReplaceableComponentsImpl as any)(workspaceDocumentDeps(), ...args); }
-function syncRendererSelection(...args: any[]): ReturnType<typeof syncRendererSelectionImpl> { return (syncRendererSelectionImpl as any)(workspaceDocumentDeps(), ...args); }
-function clearComponentSelection(...args: any[]): ReturnType<typeof clearComponentSelectionImpl> { return (clearComponentSelectionImpl as any)(workspaceDocumentDeps(), ...args); }
-function resetPreviewStates(...args: any[]): ReturnType<typeof resetPreviewStatesImpl> { return (resetPreviewStatesImpl as any)(workspaceDocumentDeps(), ...args); }
-function selectComponent(...args: any[]): ReturnType<typeof selectComponentImpl> { return (selectComponentImpl as any)(workspaceDocumentDeps(), ...args); }
-function mutateDocument(...args: any[]): ReturnType<typeof mutateDocumentImpl> { return (mutateDocumentImpl as any)(workspaceDocumentDeps(), ...args); }
 setupRelatedPopup({
   get entities() {
     return editorCtx.entities;
@@ -984,30 +957,6 @@ function componentEditingDeps(): ComponentEditingDeps {
     get syncRendererSelection() { return syncRendererSelection; },
   };
 }
-function scaledSelectionPlacements(...args: any[]): ReturnType<typeof scaledSelectionPlacementsImpl> { return (scaledSelectionPlacementsImpl as any)(componentEditingDeps(), ...args); }
-function selectedComponentIdsFromDom(...args: any[]): ReturnType<typeof selectedComponentIdsFromDomImpl> { return (selectedComponentIdsFromDomImpl as any)(componentEditingDeps(), ...args); }
-function setComponentsRotation(...args: any[]): ReturnType<typeof setComponentsRotationImpl> { return (setComponentsRotationImpl as any)(componentEditingDeps(), ...args); }
-function setComponentsVisibility(...args: any[]): ReturnType<typeof setComponentsVisibilityImpl> { return (setComponentsVisibilityImpl as any)(componentEditingDeps(), ...args); }
-function closeComponentMenu(...args: any[]): ReturnType<typeof closeComponentMenuImpl> { return (closeComponentMenuImpl as any)(componentEditingDeps(), ...args); }
-function openComponentMenu(...args: any[]): ReturnType<typeof openComponentMenuImpl> { return (openComponentMenuImpl as any)(componentEditingDeps(), ...args); }
-function findCommonCopyTargets(...args: any[]): ReturnType<typeof findCommonCopyTargetsImpl> { return (findCommonCopyTargetsImpl as any)(componentEditingDeps(), ...args); }
-function showCopySuccessDialog(...args: any[]): ReturnType<typeof showCopySuccessDialogImpl> { return (showCopySuccessDialogImpl as any)(componentEditingDeps(), ...args); }
-function handleCopySuccessConfirm(...args: any[]): ReturnType<typeof handleCopySuccessConfirmImpl> { return (handleCopySuccessConfirmImpl as any)(componentEditingDeps(), ...args); }
-function duplicateComponents(...args: any[]): ReturnType<typeof duplicateComponentsImpl> { return (duplicateComponentsImpl as any)(componentEditingDeps(), ...args); }
-function copyTargetsForDocument(...args: any[]): ReturnType<typeof copyTargetsForDocumentImpl> { return (copyTargetsForDocumentImpl as any)(componentEditingDeps(), ...args); }
-function renderCopyTargetOptions(...args: any[]): ReturnType<typeof renderCopyTargetOptionsImpl> { return (renderCopyTargetOptionsImpl as any)(componentEditingDeps(), ...args); }
-function getDocumentCanvasSize(...args: any[]): ReturnType<typeof getDocumentCanvasSizeImpl> { return (getDocumentCanvasSizeImpl as any)(componentEditingDeps(), ...args); }
-function renderCopyScaleOptions(...args: any[]): ReturnType<typeof renderCopyScaleOptionsImpl> { return (renderCopyScaleOptionsImpl as any)(componentEditingDeps(), ...args); }
-function renderCopyComponentDialog(...args: any[]): ReturnType<typeof renderCopyComponentDialogImpl> { return (renderCopyComponentDialogImpl as any)(componentEditingDeps(), ...args); }
-function openCopyComponentDialog(...args: any[]): ReturnType<typeof openCopyComponentDialogImpl> { return (openCopyComponentDialogImpl as any)(componentEditingDeps(), ...args); }
-function deleteComponentIds(...args: any[]): ReturnType<typeof deleteComponentIdsImpl> { return (deleteComponentIdsImpl as any)(componentEditingDeps(), ...args); }
-function setComponentsLabelColor(...args: any[]): ReturnType<typeof setComponentsLabelColorImpl> { return (setComponentsLabelColorImpl as any)(componentEditingDeps(), ...args); }
-function renderComponentList(...args: any[]): ReturnType<typeof renderComponentListImpl> { return (renderComponentListImpl as any)(componentEditingDeps(), ...args); }
-function prependGroupBackButton(...args: any[]): ReturnType<typeof prependGroupBackButtonImpl> { return (prependGroupBackButtonImpl as any)(componentEditingDeps(), ...args); }
-function renderComponentLists(...args: any[]): ReturnType<typeof renderComponentListsImpl> { return (renderComponentListsImpl as any)(componentEditingDeps(), ...args); }
-function setComponentScope(...args: any[]): ReturnType<typeof setComponentScopeImpl> { return (setComponentScopeImpl as any)(componentEditingDeps(), ...args); }
-function syncAddComponentButton(...args: any[]): ReturnType<typeof syncAddComponentButtonImpl> { return (syncAddComponentButtonImpl as any)(componentEditingDeps(), ...args); }
-function renderComponentTemplates(...args: any[]): ReturnType<typeof renderComponentTemplatesImpl> { return (renderComponentTemplatesImpl as any)(componentEditingDeps(), ...args); }
 const hELPER_ENTITY_DOMAINSSet = new Set([
     "input_boolean",
     "input_button",
@@ -1050,7 +999,6 @@ const hELPER_ENTITY_DOMAINSSet = new Set([
     weather: "天气",
     zone: "区域",
   };
-function renderNavigationIconPreview(...args: any[]): ReturnType<typeof renderNavigationIconPreviewImpl> { return (renderNavigationIconPreviewImpl as any)(componentEditingDeps(), ...args); }
 function entityLabelsDeps(): EntityLabelsDeps {
   return {
     ...homeElements,
@@ -1085,36 +1033,11 @@ function entityLabelsDeps(): EntityLabelsDeps {
     get runSource() { return resolveEntityDisplayName; },
   };
 }
-function describeEntityDomain(...args: any[]): ReturnType<typeof describeEntityDomainImpl> { return (describeEntityDomainImpl as any)(entityLabelsDeps(), ...args); }
-function normalizeWhitespace(...args: any[]): ReturnType<typeof normalizeWhitespaceImpl> { return (normalizeWhitespaceImpl as any)(entityLabelsDeps(), ...args); }
-function navigationIconValue(...args: any[]): ReturnType<typeof navigationIconValueImpl> { return (navigationIconValueImpl as any)(entityLabelsDeps(), ...args); }
-function resolveEntityDisplayName(...args: any[]): ReturnType<typeof resolveEntityDisplayNameImpl> { return (resolveEntityDisplayNameImpl as any)(entityLabelsDeps(), ...args); }
-function formatEntityLabel(...args: any[]): ReturnType<typeof formatEntityLabelImpl> { return (formatEntityLabelImpl as any)(entityLabelsDeps(), ...args); }
-function formatEntitySummary(...args: any[]): ReturnType<typeof formatEntitySummaryImpl> { return (formatEntitySummaryImpl as any)(entityLabelsDeps(), ...args); }
-function collectEntityIds(...args: any[]): ReturnType<typeof collectEntityIdsImpl> { return (collectEntityIdsImpl as any)(entityLabelsDeps(), ...args); }
-function describeEntityState(...args: any[]): ReturnType<typeof describeEntityStateImpl> { return (describeEntityStateImpl as any)(entityLabelsDeps(), ...args); }
-function showLightStatisticsMessage(...args: any[]): ReturnType<typeof showLightStatisticsMessageImpl> { return (showLightStatisticsMessageImpl as any)(entityLabelsDeps(), ...args); }
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
-function clearLightStatisticsSelection(...args: any[]): ReturnType<typeof clearLightStatisticsSelectionImpl> { return (clearLightStatisticsSelectionImpl as any)(entityLabelsDeps(), ...args); }
-function renderLightStatisticsEntityOptions(...args: any[]): ReturnType<typeof renderLightStatisticsEntityOptionsImpl> { return (renderLightStatisticsEntityOptionsImpl as any)(entityLabelsDeps(), ...args); }
-function addLightStatisticsEntity(...args: any[]): ReturnType<typeof addLightStatisticsEntityImpl> { return (addLightStatisticsEntityImpl as any)(entityLabelsDeps(), ...args); }
-function effectIconName(...args: any[]): ReturnType<typeof effectIconNameImpl> { return (effectIconNameImpl as any)(entityLabelsDeps(), ...args); }
-function removeLightStatisticsEntityAt(...args: any[]): ReturnType<typeof removeLightStatisticsEntityAtImpl> { return (removeLightStatisticsEntityAtImpl as any)(entityLabelsDeps(), ...args); }
-function renderLightStatisticsEntityList(...args: any[]): ReturnType<typeof renderLightStatisticsEntityListImpl> { return (renderLightStatisticsEntityListImpl as any)(entityLabelsDeps(), ...args); }
-function flattenComponentTree(...args: any[]): ReturnType<typeof flattenComponentTreeImpl> { return (flattenComponentTreeImpl as any)(entityLabelsDeps(), ...args); }
-function collectPageComponents(...args: any[]): ReturnType<typeof collectPageComponentsImpl> { return (collectPageComponentsImpl as any)(entityLabelsDeps(), ...args); }
-function findIconVisibilityVirtualEntity(...args: any[]): ReturnType<typeof findIconVisibilityVirtualEntityImpl> { return (findIconVisibilityVirtualEntityImpl as any)(entityLabelsDeps(), ...args); }
-function resolveEntityCatalog(...args: any[]): ReturnType<typeof resolveEntityCatalogImpl> { return (resolveEntityCatalogImpl as any)(entityLabelsDeps(), ...args); }
 const effectIconLabelElementById = new WeakMap(),
   effectIconLabelElementByIdById = new WeakMap(),
   effectIconLabelSelector =
     "[data-overflow-scroll-preview], .inspector-picker-value, .inspector-entity-name-line";
-function registerOverflowScrollPreviewRow(...args: any[]): ReturnType<typeof registerOverflowScrollPreviewRowImpl> { return (registerOverflowScrollPreviewRowImpl as any)(entityLabelsDeps(), ...args); }
-function resolveOverflowScrollPreviewContainer(...args: any[]): ReturnType<typeof resolveOverflowScrollPreviewContainerImpl> { return (resolveOverflowScrollPreviewContainerImpl as any)(entityLabelsDeps(), ...args); }
-function findEnclosingScrollPreviewRow(...args: any[]): ReturnType<typeof findEnclosingScrollPreviewRowImpl> { return (findEnclosingScrollPreviewRowImpl as any)(entityLabelsDeps(), ...args); }
-function stopOverflowScrollAnimation(...args: any[]): ReturnType<typeof stopOverflowScrollAnimationImpl> { return (stopOverflowScrollAnimationImpl as any)(entityLabelsDeps(), ...args); }
-function ensureInspectorPickerValueSpan(...args: any[]): ReturnType<typeof ensureInspectorPickerValueSpanImpl> { return (ensureInspectorPickerValueSpanImpl as any)(entityLabelsDeps(), ...args); }
-function setPickerButtonLabel(...args: any[]): ReturnType<typeof setPickerButtonLabelImpl> { return (setPickerButtonLabelImpl as any)(entityLabelsDeps(), ...args); }
 (document.addEventListener("pointerover", (iconButtonIconName) => {
   const sw2 = resolveOverflowScrollPreviewContainer(iconButtonIconName.target),
     cw2 = findEnclosingScrollPreviewRow(sw2),
@@ -1176,30 +1099,9 @@ function iconPickersDeps(): IconPickersDeps {
     get runState() { return closeCustomSelect; },
   };
 }
-function closePickerMenu(...args: any[]): ReturnType<typeof closePickerMenuImpl> { return (closePickerMenuImpl as any)(iconPickersDeps(), ...args); }
-function closeOtherPickerMenus(...args: any[]): ReturnType<typeof closeOtherPickerMenusImpl> { return (closeOtherPickerMenusImpl as any)(iconPickersDeps(), ...args); }
-function resolveMdiIconUrl(...args: any[]): ReturnType<typeof resolveMdiIconUrlImpl> { return (resolveMdiIconUrlImpl as any)(iconPickersDeps(), ...args); }
-function renderNavigationIconButton(...args: any[]): ReturnType<typeof renderNavigationIconButtonImpl> { return (renderNavigationIconButtonImpl as any)(iconPickersDeps(), ...args); }
-function renderTitleButtonIconPreview(...args: any[]): ReturnType<typeof renderTitleButtonIconPreviewImpl> { return (renderTitleButtonIconPreviewImpl as any)(iconPickersDeps(), ...args); }
-function renderEntityIconButtonPreview(...args: any[]): ReturnType<typeof renderEntityIconButtonPreviewImpl> { return (renderEntityIconButtonPreviewImpl as any)(iconPickersDeps(), ...args); }
-function renderLightStatisticsIconPreview(...args: any[]): ReturnType<typeof renderLightStatisticsIconPreviewImpl> { return (renderLightStatisticsIconPreviewImpl as any)(iconPickersDeps(), ...args); }
-function renderLightStatisticsButtonIcon(...args: any[]): ReturnType<typeof renderLightStatisticsButtonIconImpl> { return (renderLightStatisticsButtonIconImpl as any)(iconPickersDeps(), ...args); }
-function copyTextToClipboard(...args: any[]): ReturnType<typeof copyTextToClipboardImpl> { return (copyTextToClipboardImpl as any)(iconPickersDeps(), ...args); }
-function enhanceEntityCopyButton(...args: any[]): ReturnType<typeof enhanceEntityCopyButtonImpl> { return (enhanceEntityCopyButtonImpl as any)(iconPickersDeps(), ...args); }
-function enhanceEntityCopyButtons(...args: any[]): ReturnType<typeof enhanceEntityCopyButtonsImpl> { return (enhanceEntityCopyButtonsImpl as any)(iconPickersDeps(), ...args); }
 enhanceEntityCopyButtons();
 const ICON_PAGE_SIZE = 160,
   iconListStateByElement = new WeakMap();
-function ensureIconListPaginationState(...args: any[]): ReturnType<typeof ensureIconListPaginationStateImpl> { return (ensureIconListPaginationStateImpl as any)(iconPickersDeps(), ...args); }
-function hideIconNameTooltip(...args: any[]): ReturnType<typeof hideIconNameTooltipImpl> { return (hideIconNameTooltipImpl as any)(iconPickersDeps(), ...args); }
-function showIconNameTooltip(...args: any[]): ReturnType<typeof showIconNameTooltipImpl> { return (showIconNameTooltipImpl as any)(iconPickersDeps(), ...args); }
-function bindIconNameTooltipEvents(...args: any[]): ReturnType<typeof bindIconNameTooltipEventsImpl> { return (bindIconNameTooltipEventsImpl as any)(iconPickersDeps(), ...args); }
-function bindIconListInfiniteScroll(...args: any[]): ReturnType<typeof bindIconListInfiniteScrollImpl> { return (bindIconListInfiniteScrollImpl as any)(iconPickersDeps(), ...args); }
-function iconTooltipElementCount(...args: any[]): ReturnType<typeof iconTooltipElementCountImpl> { return (iconTooltipElementCountImpl as any)(iconPickersDeps(), ...args); }
-function iconTooltipElementFlag(...args: any[]): ReturnType<typeof iconTooltipElementFlagImpl> { return (iconTooltipElementFlagImpl as any)(iconPickersDeps(), ...args); }
-function iconTooltipElementStep(...args: any[]): ReturnType<typeof iconTooltipElementStepImpl> { return (iconTooltipElementStepImpl as any)(iconPickersDeps(), ...args); }
-function iconTooltipElementStore(...args: any[]): ReturnType<typeof iconTooltipElementStoreImpl> { return (iconTooltipElementStoreImpl as any)(iconPickersDeps(), ...args); }
-function iconTooltipElementBuffer(...args: any[]): ReturnType<typeof iconTooltipElementBufferImpl> { return (iconTooltipElementBufferImpl as any)(iconPickersDeps(), ...args); }
 (bindIconListInfiniteScroll(navigationIconOptionsElement, () =>
   iconTooltipElementCount(navigationIconSearchElement.value, {
     append: true,
@@ -1225,10 +1127,6 @@ function iconTooltipElementBuffer(...args: any[]): ReturnType<typeof iconTooltip
       append: true,
     }),
   ));
-function positionNavigationIconMenu(...args: any[]): ReturnType<typeof positionNavigationIconMenuImpl> { return (positionNavigationIconMenuImpl as any)(iconPickersDeps(), ...args); }
-function positionIbeIconMenu(...args: any[]): ReturnType<typeof positionIbeIconMenuImpl> { return (positionIbeIconMenuImpl as any)(iconPickersDeps(), ...args); }
-function positionIconButtonIconMenu(...args: any[]): ReturnType<typeof positionIconButtonIconMenuImpl> { return (positionIconButtonIconMenuImpl as any)(iconPickersDeps(), ...args); }
-function layoutTitleButtonIconMenu(...args: any[]): ReturnType<typeof layoutTitleButtonIconMenuImpl> { return (layoutTitleButtonIconMenuImpl as any)(iconPickersDeps(), ...args); }
 function assetPickerDeps(): AssetPickerDeps {
   return {
     ...homeElements,
@@ -1259,15 +1157,6 @@ function assetPickerDeps(): AssetPickerDeps {
     get syncAssetFolderOptions() { return syncAssetFolderOptions; },
   };
 }
-function positionLightStatisticsIconMenu(...args: any[]): ReturnType<typeof positionLightStatisticsIconMenuImpl> { return (positionLightStatisticsIconMenuImpl as any)(assetPickerDeps(), ...args); }
-function positionLightStatisticsEntityMenu(...args: any[]): ReturnType<typeof positionLightStatisticsEntityMenuImpl> { return (positionLightStatisticsEntityMenuImpl as any)(assetPickerDeps(), ...args); }
-function resolveEntityPickerConfig(...args: any[]): ReturnType<typeof resolveEntityPickerConfigImpl> { return (resolveEntityPickerConfigImpl as any)(assetPickerDeps(), ...args); }
-function renderRelatedPopupEntityOptions(...args: any[]): ReturnType<typeof renderRelatedPopupEntityOptionsImpl> { return (renderRelatedPopupEntityOptionsImpl as any)(assetPickerDeps(), ...args); }
-function syncPopupEntityPickerButton(...args: any[]): ReturnType<typeof syncPopupEntityPickerButtonImpl> { return (syncPopupEntityPickerButtonImpl as any)(assetPickerDeps(), ...args); }
-function resolveAssetPreviewUrl(...args: any[]): ReturnType<typeof resolveAssetPreviewUrlImpl> { return (resolveAssetPreviewUrlImpl as any)(assetPickerDeps(), ...args); }
-function refreshImageAssetPickerPreview(...args: any[]): ReturnType<typeof refreshImageAssetPickerPreviewImpl> { return (refreshImageAssetPickerPreviewImpl as any)(assetPickerDeps(), ...args); }
-function resolveAssetFileUrl(...args: any[]): ReturnType<typeof resolveAssetFileUrlImpl> { return (resolveAssetFileUrlImpl as any)(assetPickerDeps(), ...args); }
-function resolveEffectAssetUrl(...args: any[]): ReturnType<typeof resolveEffectAssetUrlImpl> { return (resolveEffectAssetUrlImpl as any)(assetPickerDeps(), ...args); }
 const {
     createIconPickerClearOption: effectVariantUrlState,
     createIconPickerOption: createIconPickerClearOptionState,
@@ -1351,22 +1240,6 @@ const {
     onDeleteFolder: (removedSourceKey: any, removedFolderName: any) =>
       requestDeleteAssetFolder(removedSourceKey, removedFolderName),
   });
-function assetMatchesId(...args: any[]): ReturnType<typeof assetMatchesIdImpl> { return (assetMatchesIdImpl as any)(assetPickerDeps(), ...args); }
-function allAssets(...args: any[]): ReturnType<typeof allAssetsImpl> { return (allAssetsImpl as any)(assetPickerDeps(), ...args); }
-function findAssetById(...args: any[]): ReturnType<typeof findAssetByIdImpl> { return (findAssetByIdImpl as any)(assetPickerDeps(), ...args); }
-function assetDisplayName(...args: any[]): ReturnType<typeof assetDisplayNameImpl> { return (assetDisplayNameImpl as any)(assetPickerDeps(), ...args); }
-function exportedAssetsInFolder(...args: any[]): ReturnType<typeof exportedAssetsInFolderImpl> { return (exportedAssetsInFolderImpl as any)(assetPickerDeps(), ...args); }
-function canDeleteAssetFolder(...args: any[]): ReturnType<typeof canDeleteAssetFolderImpl> { return (canDeleteAssetFolderImpl as any)(assetPickerDeps(), ...args); }
-function syncAssetFolderOptions(...args: any[]): ReturnType<typeof syncAssetFolderOptionsImpl> { return (syncAssetFolderOptionsImpl as any)(assetPickerDeps(), ...args); }
-function leftFolderName(...args: any[]): ReturnType<typeof leftFolderNameImpl> { return (leftFolderNameImpl as any)(assetPickerDeps(), ...args); }
-function measureAssetImageSize(...args: any[]): ReturnType<typeof measureAssetImageSizeImpl> { return (measureAssetImageSizeImpl as any)(assetPickerDeps(), ...args); }
-function applyAssetNaturalSize(...args: any[]): ReturnType<typeof applyAssetNaturalSizeImpl> { return (applyAssetNaturalSizeImpl as any)(assetPickerDeps(), ...args); }
-function readEffectNaturalSize(...args: any[]): ReturnType<typeof readEffectNaturalSizeImpl> { return (readEffectNaturalSizeImpl as any)(assetPickerDeps(), ...args); }
-function probeAssetNaturalSize(...args: any[]): ReturnType<typeof probeAssetNaturalSizeImpl> { return (probeAssetNaturalSizeImpl as any)(assetPickerDeps(), ...args); }
-function positionImageAssetMenu(...args: any[]): ReturnType<typeof positionImageAssetMenuImpl> { return (positionImageAssetMenuImpl as any)(assetPickerDeps(), ...args); }
-function positionAssetLargePreview(...args: any[]): ReturnType<typeof positionAssetLargePreviewImpl> { return (positionAssetLargePreviewImpl as any)(assetPickerDeps(), ...args); }
-function scheduleAssetPreview(...args: any[]): ReturnType<typeof scheduleAssetPreviewImpl> { return (scheduleAssetPreviewImpl as any)(assetPickerDeps(), ...args); }
-function hideAssetLargePreview(...args: any[]): ReturnType<typeof hideAssetLargePreviewImpl> { return (hideAssetLargePreviewImpl as any)(assetPickerDeps(), ...args); }
 function popupInspectorsDeps(): PopupInspectorsDeps {
   return {
     ...homeElements,
@@ -1400,31 +1273,6 @@ function popupInspectorsDeps(): PopupInspectorsDeps {
     get syncAssetFolderOptions() { return syncAssetFolderOptions; },
   };
 }
-function createAssetOptionButton(...args: any[]): ReturnType<typeof createAssetOptionButtonImpl> { return (createAssetOptionButtonImpl as any)(popupInspectorsDeps(), ...args); }
-function renderImageAssetOptions(...args: any[]): ReturnType<typeof renderImageAssetOptionsImpl> { return (renderImageAssetOptionsImpl as any)(popupInspectorsDeps(), ...args); }
-function syncImageAssetSelection(...args: any[]): ReturnType<typeof syncImageAssetSelectionImpl> { return (syncImageAssetSelectionImpl as any)(popupInspectorsDeps(), ...args); }
-function positionEffectAssetMenu(...args: any[]): ReturnType<typeof positionEffectAssetMenuImpl> { return (positionEffectAssetMenuImpl as any)(popupInspectorsDeps(), ...args); }
-function renderEffectAssetOptions(...args: any[]): ReturnType<typeof renderEffectAssetOptionsImpl> { return (renderEffectAssetOptionsImpl as any)(popupInspectorsDeps(), ...args); }
-function syncEffectAssetSelection(...args: any[]): ReturnType<typeof syncEffectAssetSelectionImpl> { return (syncEffectAssetSelectionImpl as any)(popupInspectorsDeps(), ...args); }
-function assignActionControlIds(...args: any[]): ReturnType<typeof assignActionControlIdsImpl> { return (assignActionControlIdsImpl as any)(popupInspectorsDeps(), ...args); }
-function initActionPopupConfig(...args: any[]): ReturnType<typeof initActionPopupConfigImpl> { return (initActionPopupConfigImpl as any)(popupInspectorsDeps(), ...args); }
-function closePopupEntityMenus(...args: any[]): ReturnType<typeof closePopupEntityMenusImpl> { return (closePopupEntityMenusImpl as any)(popupInspectorsDeps(), ...args); }
-function syncPopupEntityButton(...args: any[]): ReturnType<typeof syncPopupEntityButtonImpl> { return (syncPopupEntityButtonImpl as any)(popupInspectorsDeps(), ...args); }
-function renderPopupEntityOptions(...args: any[]): ReturnType<typeof renderPopupEntityOptionsImpl> { return (renderPopupEntityOptionsImpl as any)(popupInspectorsDeps(), ...args); }
-function positionPopupEntityMenu(...args: any[]): ReturnType<typeof positionPopupEntityMenuImpl> { return (positionPopupEntityMenuImpl as any)(popupInspectorsDeps(), ...args); }
-function timeFitComponent(...args: any[]): ReturnType<typeof timeFitComponentImpl> { return (timeFitComponentImpl as any)(popupInspectorsDeps(), ...args); }
-function renderTimeInspector(...args: any[]): ReturnType<typeof renderTimeInspectorImpl> { return (renderTimeInspectorImpl as any)(popupInspectorsDeps(), ...args); }
-function weatherProperties(...args: any[]): ReturnType<typeof weatherPropertiesImpl> { return (weatherPropertiesImpl as any)(popupInspectorsDeps(), ...args); }
-function fitWeatherComponentToDimensions(...args: any[]): ReturnType<typeof fitWeatherComponentToDimensionsImpl> { return (fitWeatherComponentToDimensionsImpl as any)(popupInspectorsDeps(), ...args); }
-function entitiesByEntityId(...args: any[]): ReturnType<typeof entitiesByEntityIdImpl> { return (entitiesByEntityIdImpl as any)(popupInspectorsDeps(), ...args); }
-function devicesByDeviceId(...args: any[]): ReturnType<typeof devicesByDeviceIdImpl> { return (devicesByDeviceIdImpl as any)(popupInspectorsDeps(), ...args); }
-function buildCustomPopupEditorContext(...args: any[]): ReturnType<typeof buildCustomPopupEditorContextImpl> { return (buildCustomPopupEditorContextImpl as any)(popupInspectorsDeps(), ...args); }
-function renderCustomPopupEditor(...args: any[]): ReturnType<typeof renderCustomPopupEditorImpl> { return (renderCustomPopupEditorImpl as any)(popupInspectorsDeps(), ...args); }
-function syncCustomPopupStage(...args: any[]): ReturnType<typeof syncCustomPopupStageImpl> { return (syncCustomPopupStageImpl as any)(popupInspectorsDeps(), ...args); }
-function buildTimeInspectorContext(...args: any[]): ReturnType<typeof buildTimeInspectorContextImpl> { return (buildTimeInspectorContextImpl as any)(popupInspectorsDeps(), ...args); }
-function syncTimeInspector(...args: any[]): ReturnType<typeof syncTimeInspectorImpl> { return (syncTimeInspectorImpl as any)(popupInspectorsDeps(), ...args); }
-function buildWeatherInspectorContext(...args: any[]): ReturnType<typeof buildWeatherInspectorContextImpl> { return (buildWeatherInspectorContextImpl as any)(popupInspectorsDeps(), ...args); }
-function syncWeatherInspector(...args: any[]): ReturnType<typeof syncWeatherInspectorImpl> { return (syncWeatherInspectorImpl as any)(popupInspectorsDeps(), ...args); }
 function inspectorContextsDeps(): InspectorContextsDeps {
   return {
     ...homeElements,
@@ -1510,32 +1358,7 @@ function inspectorContextsDeps(): InspectorContextsDeps {
     get writeError() { return writeError; },
   };
 }
-function buildTitleButtonInspectorContext(...args: any[]): ReturnType<typeof buildTitleButtonInspectorContextImpl> { return (buildTitleButtonInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
-function syncTitleButtonInspector(...args: any[]): ReturnType<typeof syncTitleButtonInspectorImpl> { return (syncTitleButtonInspectorImpl as any)(inspectorContextsDeps(), ...args); }
-function buildLightStatisticsInspectorContext(...args: any[]): ReturnType<typeof buildLightStatisticsInspectorContextImpl> { return (buildLightStatisticsInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
-function syncLightStatisticsInspector(...args: any[]): ReturnType<typeof syncLightStatisticsInspectorImpl> { return (syncLightStatisticsInspectorImpl as any)(inspectorContextsDeps(), ...args); }
-function buildCameraInspectorContext(...args: any[]): ReturnType<typeof buildCameraInspectorContextImpl> { return (buildCameraInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
-function syncCameraInspector(...args: any[]): ReturnType<typeof syncCameraInspectorImpl> { return (syncCameraInspectorImpl as any)(inspectorContextsDeps(), ...args); }
-function buildVacuumMapInspectorContext(...args: any[]): ReturnType<typeof buildVacuumMapInspectorContextImpl> { return (buildVacuumMapInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
-function syncVacuumMapInspector(...args: any[]): ReturnType<typeof syncVacuumMapInspectorImpl> { return (syncVacuumMapInspectorImpl as any)(inspectorContextsDeps(), ...args); }
-function buildCoverMotorInspectorContext(...args: any[]): ReturnType<typeof buildCoverMotorInspectorContextImpl> { return (buildCoverMotorInspectorContextImpl as any)(inspectorContextsDeps(), ...args); }
-function coverMotorButtonElement(...args: any[]): ReturnType<typeof coverMotorButtonElementImpl> { return (coverMotorButtonElementImpl as any)(inspectorContextsDeps(), ...args); }
-function computeCoverMotorStyleChanges(...args: any[]): ReturnType<typeof computeCoverMotorStyleChangesImpl> { return (computeCoverMotorStyleChangesImpl as any)(inspectorContextsDeps(), ...args); }
-function reloadAssetCatalog(...args: any[]): ReturnType<typeof reloadAssetCatalogImpl> { return (reloadAssetCatalogImpl as any)(inspectorContextsDeps(), ...args); }
-function pollAssetCatalogVersion(...args: any[]): ReturnType<typeof pollAssetCatalogVersionImpl> { return (pollAssetCatalogVersionImpl as any)(inspectorContextsDeps(), ...args); }
-function ensureEntitiesLoaded(...args: any[]): ReturnType<typeof ensureEntitiesLoadedImpl> { return (ensureEntitiesLoadedImpl as any)(inspectorContextsDeps(), ...args); }
-function renderCustomPopupSelector(...args: any[]): ReturnType<typeof renderCustomPopupSelectorImpl> { return (renderCustomPopupSelectorImpl as any)(inspectorContextsDeps(), ...args); }
-function syncPopupEntityInputs(...args: any[]): ReturnType<typeof syncPopupEntityInputsImpl> { return (syncPopupEntityInputsImpl as any)(inspectorContextsDeps(), ...args); }
-function syncPopupModuleClimateDeviceType(...args: any[]): ReturnType<typeof syncPopupModuleClimateDeviceTypeImpl> { return (syncPopupModuleClimateDeviceTypeImpl as any)(inspectorContextsDeps(), ...args); }
-function deviceNameValue(...args: any[]): ReturnType<typeof deviceNameValueImpl> { return (deviceNameValueImpl as any)(inspectorContextsDeps(), ...args); }
-function initialPopupId(...args: any[]): ReturnType<typeof initialPopupIdImpl> { return (initialPopupIdImpl as any)(inspectorContextsDeps(), ...args); }
-function renderPopupModuleEntityOptions(...args: any[]): ReturnType<typeof renderPopupModuleEntityOptionsImpl> { return (renderPopupModuleEntityOptionsImpl as any)(inspectorContextsDeps(), ...args); }
-function closePopupModuleEntityMenu(...args: any[]): ReturnType<typeof closePopupModuleEntityMenuImpl> { return (closePopupModuleEntityMenuImpl as any)(inspectorContextsDeps(), ...args); }
-function openPopupModuleDialog(...args: any[]): ReturnType<typeof openPopupModuleDialogImpl> { return (openPopupModuleDialogImpl as any)(inspectorContextsDeps(), ...args); }
-function renderPageSelect(...args: any[]): ReturnType<typeof renderPageSelectImpl> { return (renderPageSelectImpl as any)(inspectorContextsDeps(), ...args); }
-function retainExistingSelection(...args: any[]): ReturnType<typeof retainExistingSelectionImpl> { return (retainExistingSelectionImpl as any)(inspectorContextsDeps(), ...args); }
 const structureVolatileTypesSet = new Set();
-function collectChangedComponents(...args: any[]): ReturnType<typeof collectChangedComponentsImpl> { return (collectChangedComponentsImpl as any)(inspectorContextsDeps(), ...args); }
 function workspaceHistoryDeps(): WorkspaceHistoryDeps {
   return {
     ...homeElements,
@@ -1600,47 +1423,22 @@ function workspaceHistoryDeps(): WorkspaceHistoryDeps {
     get writeError() { return writeError; },
   };
 }
-function collectPageComponentBounds(...args: any[]): ReturnType<typeof collectPageComponentBoundsImpl> { return (collectPageComponentBoundsImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function alignSelectedComponents(...args: any[]): ReturnType<typeof alignSelectedComponentsImpl> { return (alignSelectedComponentsImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function ensureEditorRenderer(...args: any[]): ReturnType<typeof ensureEditorRendererImpl> { return (ensureEditorRendererImpl as any)(workspaceHistoryDeps(), ...args); }
-function renderEditorWorkspace(...args: any[]): ReturnType<typeof renderEditorWorkspaceImpl> { return (renderEditorWorkspaceImpl as any)(workspaceHistoryDeps(), ...args); }
-function syncHistoryButtons(...args: any[]): ReturnType<typeof syncHistoryButtonsImpl> { return (syncHistoryButtonsImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function applyEditorCanvasZoom(...args: any[]): ReturnType<typeof applyEditorCanvasZoomImpl> { return (applyEditorCanvasZoomImpl as any)(workspaceHistoryDeps(), ...args); }
 
-function selectAllPageComponents(...args: any[]): ReturnType<typeof selectAllPageComponentsImpl> { return (selectAllPageComponentsImpl as any)(workspaceHistoryDeps(), ...args); }
-function discardRecoverySnapshot(...args: any[]): ReturnType<typeof discardRecoverySnapshotImpl> { return (discardRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
-function readRecoverySnapshot(...args: any[]): ReturnType<typeof readRecoverySnapshotImpl> { return (readRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
 const recoveryWriter = createRecoveryWriter2(persistRecoverySnapshot);
 (window.addEventListener("pagehide", recoveryWriter.flush),
   window.addEventListener("beforeunload", recoveryWriter.flush),
   document.addEventListener("visibilitychange", () => {
     document.hidden && recoveryWriter.flush();
   }));
-function scheduleRecoverySnapshot(...args: any[]): ReturnType<typeof scheduleRecoverySnapshotImpl> { return (scheduleRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
-function persistRecoverySnapshot(...args: any[]): ReturnType<typeof persistRecoverySnapshotImpl> { return (persistRecoverySnapshotImpl as any)(workspaceHistoryDeps(), ...args); }
-function writeError(...args: any[]): ReturnType<typeof writeErrorImpl> { return (writeErrorImpl as any)(workspaceHistoryDeps(), ...args); }
-function resetHistoryState(...args: any[]): ReturnType<typeof resetHistoryStateImpl> { return (resetHistoryStateImpl as any)(workspaceHistoryDeps(), ...args); }
-function refreshDirtyState(...args: any[]): ReturnType<typeof refreshDirtyStateImpl> { return (refreshDirtyStateImpl as any)(workspaceHistoryDeps(), ...args); }
-function historyEntries(...args: any[]): ReturnType<typeof historyEntriesImpl> { return (historyEntriesImpl as any)(workspaceHistoryDeps(), ...args); }
-function historyEntry(...args: any[]): ReturnType<typeof historyEntryImpl> { return (historyEntryImpl as any)(workspaceHistoryDeps(), ...args); }
-function initialPagePath(...args: any[]): ReturnType<typeof initialPagePathImpl> { return (initialPagePathImpl as any)(workspaceHistoryDeps(), ...args); }
-function projectSummary(...args: any[]): ReturnType<typeof projectSummaryImpl> { return (projectSummaryImpl as any)(workspaceHistoryDeps(), ...args); }
-function recoverDraftConflict(...args: any[]): ReturnType<typeof recoverDraftConflictImpl> { return (recoverDraftConflictImpl as any)(workspaceHistoryDeps(), ...args); }
-function saveDraft(...args: any[]): ReturnType<typeof saveDraftImpl> { return (saveDraftImpl as any)(workspaceHistoryDeps(), ...args); }
 /**
  * 3D 配置入口 / 弹窗是否正开着。
  *
  * 自动重载（HA 目录变化、撤销重做）时不要重置 2D 画布：否则会把正在编辑的
  * 3D 入口、楼层弹窗或借用中的预览一起关掉。
  */
-function interaction3dEntryActive(...args: any[]): ReturnType<typeof interaction3dEntryActiveImpl> { return (interaction3dEntryActiveImpl as any)(workspaceHistoryDeps(), ...args); }
-function loadHaConnection(...args: any[]): ReturnType<typeof loadHaConnectionImpl> { return (loadHaConnectionImpl as any)(workspaceHistoryDeps(), ...args); }
-function entityLoadError(...args: any[]): ReturnType<typeof entityLoadErrorImpl> { return (entityLoadErrorImpl as any)(workspaceHistoryDeps(), ...args); }
-function reuseTokenForNewUrl(...args: any[]): ReturnType<typeof reuseTokenForNewUrlImpl> { return (reuseTokenForNewUrlImpl as any)(workspaceHistoryDeps(), ...args); }
-function syncAspectLockButton(...args: any[]): ReturnType<typeof syncAspectLockButtonImpl> { return (syncAspectLockButtonImpl as any)(workspaceHistoryDeps(), ...args); }
 function lightingPanelDeps(): LightingPanelDeps {
   return {
     ...homeElements,
@@ -1663,22 +1461,7 @@ function lightingPanelDeps(): LightingPanelDeps {
     get titleButtonIconOptionClickEvent() { return titleButtonIconOptionClickEvent; },
   };
 }
-function actionDraftDocument(...args: any[]): ReturnType<typeof actionDraftDocumentImpl> { return (actionDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
-function targetPageCandidate(...args: any[]): ReturnType<typeof targetPageCandidateImpl> { return (targetPageCandidateImpl as any)(lightingPanelDeps(), ...args); }
-function buttonVisibilityDraftDocument(...args: any[]): ReturnType<typeof buttonVisibilityDraftDocumentImpl> { return (buttonVisibilityDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
-function titleButtonIconOptionClickEvent(...args: any[]): ReturnType<typeof titleButtonIconOptionClickEventImpl> { return (titleButtonIconOptionClickEventImpl as any)(lightingPanelDeps(), ...args); }
-function titleButtonIconDraftDocument(...args: any[]): ReturnType<typeof titleButtonIconDraftDocumentImpl> { return (titleButtonIconDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
-function lightStatisticsIconCopyError(...args: any[]): ReturnType<typeof lightStatisticsIconCopyErrorImpl> { return (lightStatisticsIconCopyErrorImpl as any)(lightingPanelDeps(), ...args); }
-function lightStatisticsEntityListClickEvent(...args: any[]): ReturnType<typeof lightStatisticsEntityListClickEventImpl> { return (lightStatisticsEntityListClickEventImpl as any)(lightingPanelDeps(), ...args); }
-function imageEntityDraftDocument(...args: any[]): ReturnType<typeof imageEntityDraftDocumentImpl> { return (imageEntityDraftDocumentImpl as any)(lightingPanelDeps(), ...args); }
-function openAssetPicker(...args: any[]): ReturnType<typeof openAssetPickerImpl> { return (openAssetPickerImpl as any)(lightingPanelDeps(), ...args); }
-function assetIdToDelete(...args: any[]): ReturnType<typeof assetIdToDeleteImpl> { return (assetIdToDeleteImpl as any)(lightingPanelDeps(), ...args); }
-function folderDocumentNode(...args: any[]): ReturnType<typeof folderDocumentNodeImpl> { return (folderDocumentNodeImpl as any)(lightingPanelDeps(), ...args); }
-function closeDeletePopupDialog(...args: any[]): ReturnType<typeof closeDeletePopupDialogImpl> { return (closeDeletePopupDialogImpl as any)(lightingPanelDeps(), ...args); }
-function documentSource(...args: any[]): ReturnType<typeof documentSourceImpl> { return (documentSourceImpl as any)(lightingPanelDeps(), ...args); }
 // 保留空实现以维持上方授权门禁函数的调用契约（门禁逻辑本身不在此处）。
-function popupId(...args: any[]): ReturnType<typeof popupIdImpl> { return (popupIdImpl as any)(lightingPanelDeps(), ...args); }
-function triggerKey(...args: any[]): ReturnType<typeof triggerKeyImpl> { return (triggerKeyImpl as any)(lightingPanelDeps(), ...args); }
   projectNewElement.addEventListener("click", async () => {
     if (!documentSource())
       try {
@@ -2693,9 +2476,6 @@ attachFloorplanDiagramInspectorInput({
   get floorplanAutoDiagramLayoutElement() { return floorplanAutoDiagramLayoutElement; },
 });
 
-function findDiagramPreviewFrame(...args: any[]): ReturnType<typeof findDiagramPreviewFrameImpl> { return (findDiagramPreviewFrameImpl as any)(lightingPanelDeps(), ...args); }
-function lightInputElement(...args: any[]): ReturnType<typeof lightInputElementImpl> { return (lightInputElementImpl as any)(lightingPanelDeps(), ...args); }
-function cancelRemovesComponent(...args: any[]): ReturnType<typeof cancelRemovesComponentImpl> { return (cancelRemovesComponentImpl as any)(lightingPanelDeps(), ...args); }
 attachPageshowDiagramPreviewRestore({
   get cancelRemovesComponent() { return cancelRemovesComponent; },
   get floorplanAutoDiagramCameraViewElement() { return floorplanAutoDiagramCameraViewElement; },
@@ -2711,12 +2491,6 @@ attachPageshowDiagramPreviewRestore({
   get floorplanAutoDiagramRotateTopButtonElement() { return floorplanAutoDiagramRotateTopButtonElement; },
 });
 
-function lightingPayload(...args: any[]): ReturnType<typeof lightingPayloadImpl> { return (lightingPayloadImpl as any)(lightingPanelDeps(), ...args); }
-function lightFieldElement(...args: any[]): ReturnType<typeof lightFieldElementImpl> { return (lightFieldElementImpl as any)(lightingPanelDeps(), ...args); }
-function openLightingPanel(...args: any[]): ReturnType<typeof openLightingPanelImpl> { return (openLightingPanelImpl as any)(lightingPanelDeps(), ...args); }
-function lightInputNode(...args: any[]): ReturnType<typeof lightInputNodeImpl> { return (lightInputNodeImpl as any)(lightingPanelDeps(), ...args); }
-function onFloorplanAutoLightingResetButtonClick(...args: any[]): ReturnType<typeof onFloorplanAutoLightingResetButtonClickImpl> { return (onFloorplanAutoLightingResetButtonClickImpl as any)(lightingPanelDeps(), ...args); }
-function onFloorplanAutoLightingCloseButtonClick(...args: any[]): ReturnType<typeof onFloorplanAutoLightingCloseButtonClickImpl> { return (onFloorplanAutoLightingCloseButtonClickImpl as any)(lightingPanelDeps(), ...args); }
 floorplanAutoDiagramOpenBaseLightingButtonElement.addEventListener("click", () => {
   onFloorplanAutoLightingCloseButtonClick(editorCtx.selectedComponentId);
 });
@@ -2798,7 +2572,6 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
       applyLightingPanelDragMove();
     });
   }));
-function applyLightingPanelDragMove(...args: any[]): ReturnType<typeof applyLightingPanelDragMoveImpl> { return (applyLightingPanelDragMoveImpl as any)(lightingPanelDeps(), ...args); }
 const endLightingPanelDrag = (dragEndEvent: any) => {
   if (
     !editorCtx.lightingPanelDragStateState ||
@@ -2846,9 +2619,6 @@ function navigationPreviewDeps(): NavigationPreviewDeps {
     get setNavigationPreviewState() { return setNavigationPreviewState; },
   };
 }
-function closeAutoDiagramDialog(...args: any[]): ReturnType<typeof closeAutoDiagramDialogImpl> { return (closeAutoDiagramDialogImpl as any)(navigationPreviewDeps(), ...args); }
-function settleAutoDiagramDialog(...args: any[]): ReturnType<typeof settleAutoDiagramDialogImpl> { return (settleAutoDiagramDialogImpl as any)(navigationPreviewDeps(), ...args); }
-function cancelRemoveDraftDocument(...args: any[]): ReturnType<typeof cancelRemoveDraftDocumentImpl> { return (cancelRemoveDraftDocumentImpl as any)(navigationPreviewDeps(), ...args); }
 bindFloorplanAutoDiagramControls({
   openStudioButton: floorplanAutoDiagramOpenStudioButtonElement,
   viewToggleButton: floorplanAutoDiagramViewToggleButtonElement,
@@ -2870,8 +2640,6 @@ bindFloorplanAutoDiagramControls({
   cancelRemoveDraftDocument,
   exportResolution: floorplanAutoDiagramExportResolution2,
 });
-function bindMessageSection(...args: any[]): ReturnType<typeof bindMessageSectionImpl> { return (bindMessageSectionImpl as any)(navigationPreviewDeps(), ...args); }
-function onWindowMessage(...args: any[]): ReturnType<typeof onWindowMessageImpl> { return (onWindowMessageImpl as any)(navigationPreviewDeps(), ...args); }
 window.addEventListener("message", (lightingStateFrameState) => {
   if (lightingStateFrameState.origin !== window.location.origin) return;
   const data = lightingStateFrameState.data;
@@ -3566,7 +3334,6 @@ const {
     ibeTopElement,
     ibeWidthElement,
   });
-function exportSpliceError(...args: any[]): ReturnType<typeof exportSpliceErrorImpl> { return (exportSpliceErrorImpl as any)(navigationPreviewDeps(), ...args); }
 for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown"])
   iconButtonEffectInspectorElement.addEventListener(
     onIconButtonEffectInspectorFormInputState,
@@ -3725,9 +3492,6 @@ for (const onIconButtonEffectInspectorFormInputState of ["focusin", "pointerdown
           });
       });
   }));
-function collectPageImages(...args: any[]): ReturnType<typeof collectPageImagesImpl> { return (collectPageImagesImpl as any)(navigationPreviewDeps(), ...args); }
-function createImageAlignOption(...args: any[]): ReturnType<typeof createImageAlignOptionImpl> { return (createImageAlignOptionImpl as any)(navigationPreviewDeps(), ...args); }
-function openImageAlignDialog(...args: any[]): ReturnType<typeof openImageAlignDialogImpl> { return (openImageAlignDialogImpl as any)(navigationPreviewDeps(), ...args); }
 (ibeEffectAlignImageElement.addEventListener("click", openImageAlignDialog),
   effectImageAlignCloseElement.addEventListener("click", () =>
     effectImageAlignDialogElement.close(),
@@ -4171,7 +3935,6 @@ const {
           });
       });
   }));
-function applyAirConditionerPreviewState(...args: any[]): ReturnType<typeof applyAirConditionerPreviewStateImpl> { return (applyAirConditionerPreviewStateImpl as any)(navigationPreviewDeps(), ...args); }
 (airConditionerPreviewStateElement.addEventListener("click", (acPreviewStateClickEvent: any) => {
   const acPreviewStateOptionElement = acPreviewStateClickEvent.target.closest(
     "[data-air-conditioner-preview]",
@@ -4305,10 +4068,6 @@ const airflowSectionEventById = new Map([
   [iconButtonFrameOnOpacityElement, "on"],
   [deviceButtonIconOnColorElement, "on"],
 ]);
-function airflowSectionEvent(...args: any[]): ReturnType<typeof airflowSectionEventImpl> { return (airflowSectionEventImpl as any)(navigationPreviewDeps(), ...args); }
-function previewSyncEventName(...args: any[]): ReturnType<typeof previewSyncEventNameImpl> { return (previewSyncEventNameImpl as any)(navigationPreviewDeps(), ...args); }
-function onCoverSettingsKindClick(...args: any[]): ReturnType<typeof onCoverSettingsKindClickImpl> { return (onCoverSettingsKindClickImpl as any)(navigationPreviewDeps(), ...args); }
-function coverKindDraftDocument(...args: any[]): ReturnType<typeof coverKindDraftDocumentImpl> { return (coverKindDraftDocumentImpl as any)(navigationPreviewDeps(), ...args); }
 for (const previewSyncEventState of ["focusin", "pointerdown", "input"])
   iconButtonInspectorElement.addEventListener(
     previewSyncEventState,
@@ -4553,7 +4312,6 @@ const navigationSavedSettingById = new Map([[timeColorElement, "color"]]),
     timeScaleElement,
     timeRotationElement,
   ]);
-function navigationSavedPropertyKey(...args: any[]): ReturnType<typeof navigationSavedPropertyKeyImpl> { return (navigationSavedPropertyKeyImpl as any)(navigationPreviewDeps(), ...args); }
 (timeInspectorElement.addEventListener("input", (timeInputEvent: any) => {
   const timeInspectorComponent = removedComponent();
   if (!timeInspectorComponent || timeInspectorComponent.type !== "time") return;
@@ -4771,7 +4529,6 @@ const {
     weatherTemperatureWeightElement,
     weatherTopElement,
   });
-function previewDateResize(...args: any[]): ReturnType<typeof previewDateResizeImpl> { return (previewDateResizeImpl as any)(navigationPreviewDeps(), ...args); }
 (dateInspectorElement.addEventListener("input", (dateInputEvent: any) => {
   const dateInspectorComponent = removedComponent();
   if (!dateInspectorComponent || dateInspectorComponent.type !== "date") return;
@@ -4936,7 +4693,6 @@ for (const onDateVisibilityClick of [dateWeekdayElement, dateLunarElement])
           weatherProperties(dateVisibilityComponent, dateVisibilityComponent.properties));
       });
   });
-function previewWeatherComponentResize(...args: any[]): ReturnType<typeof previewWeatherComponentResizeImpl> { return (previewWeatherComponentResizeImpl as any)(navigationPreviewDeps(), ...args); }
 (weatherInspectorElement.addEventListener("input", (weatherInputEvent: any) => {
   const weatherInputComponent = removedComponent();
   if (!weatherInputComponent || weatherInputComponent.type !== "weather") return;
@@ -5198,9 +4954,6 @@ const {
     navigationTextActiveOpacityElement,
     navigationTextIdleOpacityElement,
   });
-function setNavigationPreviewState(...args: any[]): ReturnType<typeof setNavigationPreviewStateImpl> { return (setNavigationPreviewStateImpl as any)(navigationPreviewDeps(), ...args); }
-function applyNavigationPreviewState(...args: any[]): ReturnType<typeof applyNavigationPreviewStateImpl> { return (applyNavigationPreviewStateImpl as any)(navigationPreviewDeps(), ...args); }
-function syncNavigationPreviewFromElement(...args: any[]): ReturnType<typeof syncNavigationPreviewFromElementImpl> { return (syncNavigationPreviewFromElementImpl as any)(navigationPreviewDeps(), ...args); }
 const navigationTransformInputSet = new Set([
   navigationLeftElement,
   navigationTopElement,
@@ -5209,7 +4962,6 @@ const navigationTransformInputSet = new Set([
   navigationScaleElement,
   navigationRotationElement,
 ]);
-function navigationPropertyNameFromElement(...args: any[]): ReturnType<typeof navigationPropertyNameFromElementImpl> { return (navigationPropertyNameFromElementImpl as any)(navigationPreviewDeps(), ...args); }
 attachNavigationInspectorInput({
   get navigationInspectorFormElement() { return navigationInspectorFormElement; },
   get removedComponent() { return removedComponent; },
@@ -5282,10 +5034,6 @@ navigationPreviewStateElement.addEventListener("click", (navigationVisibilityDra
     : "auto";
   applyNavigationPreviewState(navigationVisibilityComponent, navigationPreview);
 });
-function resolveComponentStyleValue(...args: any[]): ReturnType<typeof resolveComponentStyleValueImpl> { return (resolveComponentStyleValueImpl as any)(navigationPreviewDeps(), ...args); }
-function collectChangedLineChartStyleKeys(...args: any[]): ReturnType<typeof collectChangedLineChartStyleKeysImpl> { return (collectChangedLineChartStyleKeysImpl as any)(navigationPreviewDeps(), ...args); }
-function formatLineChartStyleValue(...args: any[]): ReturnType<typeof formatLineChartStyleValueImpl> { return (formatLineChartStyleValueImpl as any)(navigationPreviewDeps(), ...args); }
-function resolveNavigationStyleValue(...args: any[]): ReturnType<typeof resolveNavigationStyleValueImpl> { return (resolveNavigationStyleValueImpl as any)(navigationPreviewDeps(), ...args); }
 function styleApplyDeps(): StyleApplyDeps {
   return {
     get airConditionerBaselineByComponentId() { return airConditionerBaselineByComponentId; },
@@ -5305,31 +5053,6 @@ function styleApplyDeps(): StyleApplyDeps {
     get styleTargetCheckbox() { return styleTargetCheckbox; },
   };
 }
-function collectChangedTitleButtonStyleKeys(...args: any[]): ReturnType<typeof collectChangedTitleButtonStyleKeysImpl> { return (collectChangedTitleButtonStyleKeysImpl as any)(styleApplyDeps(), ...args); }
-function onNavigationStyleApplyCancelButtonClick(...args: any[]): ReturnType<typeof onNavigationStyleApplyCancelButtonClickImpl> { return (onNavigationStyleApplyCancelButtonClickImpl as any)(styleApplyDeps(), ...args); }
-function onNavigationStyleApplyConfirmButtonClick(...args: any[]): ReturnType<typeof onNavigationStyleApplyConfirmButtonClickImpl> { return (onNavigationStyleApplyConfirmButtonClickImpl as any)(styleApplyDeps(), ...args); }
-function collectChangedAirConditionerStyleKeys(...args: any[]): ReturnType<typeof collectChangedAirConditionerStyleKeysImpl> { return (collectChangedAirConditionerStyleKeysImpl as any)(styleApplyDeps(), ...args); }
-function formatAirConditionerStyleValue(...args: any[]): ReturnType<typeof formatAirConditionerStyleValueImpl> { return (formatAirConditionerStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function resolveAirConditionerStyleValue(...args: any[]): ReturnType<typeof resolveAirConditionerStyleValueImpl> { return (resolveAirConditionerStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function collectChangedIconButtonEffectStyleKeys(...args: any[]): ReturnType<typeof collectChangedIconButtonEffectStyleKeysImpl> { return (collectChangedIconButtonEffectStyleKeysImpl as any)(styleApplyDeps(), ...args); }
-function formatIconButtonEffectStyleValue(...args: any[]): ReturnType<typeof formatIconButtonEffectStyleValueImpl> { return (formatIconButtonEffectStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function normalizeSensorKind(...args: any[]): ReturnType<typeof normalizeSensorKindImpl> { return (normalizeSensorKindImpl as any)(styleApplyDeps(), ...args); }
-function formatSensorKindLabel(...args: any[]): ReturnType<typeof formatSensorKindLabelImpl> { return (formatSensorKindLabelImpl as any)(styleApplyDeps(), ...args); }
-function resolvePresenceSensorStyleKeys(...args: any[]): ReturnType<typeof resolvePresenceSensorStyleKeysImpl> { return (resolvePresenceSensorStyleKeysImpl as any)(styleApplyDeps(), ...args); }
-function styleTargetCheckbox(...args: any[]): ReturnType<typeof styleTargetCheckboxImpl> { return (styleTargetCheckboxImpl as any)(styleApplyDeps(), ...args); }
-function appliedStylePropertyKey(...args: any[]): ReturnType<typeof appliedStylePropertyKeyImpl> { return (appliedStylePropertyKeyImpl as any)(styleApplyDeps(), ...args); }
-function onNavigationIconCopyButtonClick(...args: any[]): ReturnType<typeof onNavigationIconCopyButtonClickImpl> { return (onNavigationIconCopyButtonClickImpl as any)(styleApplyDeps(), ...args); }
-function navigationIconCopyError(...args: any[]): ReturnType<typeof navigationIconCopyErrorImpl> { return (navigationIconCopyErrorImpl as any)(styleApplyDeps(), ...args); }
-function resolveCameraStyleValue(...args: any[]): ReturnType<typeof resolveCameraStyleValueImpl> { return (resolveCameraStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function collectChangedCameraStyleKeys(...args: any[]): ReturnType<typeof collectChangedCameraStyleKeysImpl> { return (collectChangedCameraStyleKeysImpl as any)(styleApplyDeps(), ...args); }
-function formatCameraStyleValue(...args: any[]): ReturnType<typeof formatCameraStyleValueImpl> { return (formatCameraStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function resolvePanelFrameStyleValue(...args: any[]): ReturnType<typeof resolvePanelFrameStyleValueImpl> { return (resolvePanelFrameStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function collectChangedPanelFrameStyleKeys(...args: any[]): ReturnType<typeof collectChangedPanelFrameStyleKeysImpl> { return (collectChangedPanelFrameStyleKeysImpl as any)(styleApplyDeps(), ...args); }
-function formatPanelFrameStyleValue(...args: any[]): ReturnType<typeof formatPanelFrameStyleValueImpl> { return (formatPanelFrameStyleValueImpl as any)(styleApplyDeps(), ...args); }
-function entryStateRecord(...args: any[]): ReturnType<typeof entryStateRecordImpl> { return (entryStateRecordImpl as any)(styleApplyDeps(), ...args); }
-function areStyleValuesEqual(...args: any[]): ReturnType<typeof areStyleValuesEqualImpl> { return (areStyleValuesEqualImpl as any)(styleApplyDeps(), ...args); }
-function onImageAssetUploadButtonClick(...args: any[]): ReturnType<typeof onImageAssetUploadButtonClickImpl> { return (onImageAssetUploadButtonClickImpl as any)(styleApplyDeps(), ...args); }
-function onAssetOptionsClick(...args: any[]): ReturnType<typeof onAssetOptionsClickImpl> { return (onAssetOptionsClickImpl as any)(styleApplyDeps(), ...args); }
 function styleDialogsDeps(): StyleDialogsDeps {
   return {
     ...homeElements,
@@ -5377,30 +5100,8 @@ function styleDialogsDeps(): StyleDialogsDeps {
     get styleTargetCheckbox() { return styleTargetCheckbox; },
   };
 }
-function collectPendingNavigationStyleKeys(...args: any[]): ReturnType<typeof collectPendingNavigationStyleKeysImpl> { return (collectPendingNavigationStyleKeysImpl as any)(styleDialogsDeps(), ...args); }
-function onDeleteAssetCancelButtonClick(...args: any[]): ReturnType<typeof onDeleteAssetCancelButtonClickImpl> { return (onDeleteAssetCancelButtonClickImpl as any)(styleDialogsDeps(), ...args); }
 /** 导航「套用到其它控件」目标列表（P4 搬进 `navigation-style-apply/target-options`，此处只转发句柄）。 */
 const navigationStyleApplyTargetDeps = () => ({ navigationStyleApplyTargetsElement });
-function applyNavigationStyleToTargets(...args: any[]): ReturnType<typeof applyNavigationStyleToTargetsImpl> { return (applyNavigationStyleToTargetsImpl as any)(styleDialogsDeps(), ...args); }
-function openNavigationStyleApplyDialog(...args: any[]): ReturnType<typeof openNavigationStyleApplyDialogImpl> { return (openNavigationStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
-function onImageAssetFolderSelectChange(...args: any[]): ReturnType<typeof onImageAssetFolderSelectChangeImpl> { return (onImageAssetFolderSelectChangeImpl as any)(styleDialogsDeps(), ...args); }
-function imageAssetPointerOverEvent(...args: any[]): ReturnType<typeof imageAssetPointerOverEventImpl> { return (imageAssetPointerOverEventImpl as any)(styleDialogsDeps(), ...args); }
-function imageAssetClickEvent(...args: any[]): ReturnType<typeof imageAssetClickEventImpl> { return (imageAssetClickEventImpl as any)(styleDialogsDeps(), ...args); }
-function openCameraStyleApplyDialog(...args: any[]): ReturnType<typeof openCameraStyleApplyDialogImpl> { return (openCameraStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
-function openTitleButtonStyleApplyDialog(...args: any[]): ReturnType<typeof openTitleButtonStyleApplyDialogImpl> { return (openTitleButtonStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
-function openIconButtonEffectStyleApplyDialog(...args: any[]): ReturnType<typeof openIconButtonEffectStyleApplyDialogImpl> { return (openIconButtonEffectStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
-function openAirConditionerStyleApplyDialog(...args: any[]): ReturnType<typeof openAirConditionerStyleApplyDialogImpl> { return (openAirConditionerStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
-function openIconButtonStyleApplyDialog(...args: any[]): ReturnType<typeof openIconButtonStyleApplyDialogImpl> { return (openIconButtonStyleApplyDialogImpl as any)(styleDialogsDeps(), ...args); }
-function imageAssetMeasureError(...args: any[]): ReturnType<typeof imageAssetMeasureErrorImpl> { return (imageAssetMeasureErrorImpl as any)(styleDialogsDeps(), ...args); }
-function applyInspectorDimensionChange(...args: any[]): ReturnType<typeof applyInspectorDimensionChangeImpl> { return (applyInspectorDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
-function onIconButtonEffectAssetFolderSelectChange(...args: any[]): ReturnType<typeof onIconButtonEffectAssetFolderSelectChangeImpl> { return (onIconButtonEffectAssetFolderSelectChangeImpl as any)(styleDialogsDeps(), ...args); }
-function applyEffectAssetDimensionChange(...args: any[]): ReturnType<typeof applyEffectAssetDimensionChangeImpl> { return (applyEffectAssetDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
-function applyCameraDimensionChange(...args: any[]): ReturnType<typeof applyCameraDimensionChangeImpl> { return (applyCameraDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
-function applyLineChartDimensionChange(...args: any[]): ReturnType<typeof applyLineChartDimensionChangeImpl> { return (applyLineChartDimensionChangeImpl as any)(styleDialogsDeps(), ...args); }
-function recoveredComponentId(...args: any[]): ReturnType<typeof recoveredComponentIdImpl> { return (recoveredComponentIdImpl as any)(styleDialogsDeps(), ...args); }
-function onErrorDialogCloseButtonClick(...args: any[]): ReturnType<typeof onErrorDialogCloseButtonClickImpl> { return (onErrorDialogCloseButtonClickImpl as any)(styleDialogsDeps(), ...args); }
-function onShowSharedComponentsButtonClick(...args: any[]): ReturnType<typeof onShowSharedComponentsButtonClickImpl> { return (onShowSharedComponentsButtonClickImpl as any)(styleDialogsDeps(), ...args); }
-function onComponentTemplateDialogClick(...args: any[]): ReturnType<typeof onComponentTemplateDialogClickImpl> { return (onComponentTemplateDialogClickImpl as any)(styleDialogsDeps(), ...args); }
 (navigationApplyStyleElement.addEventListener("click", openNavigationStyleApplyDialog),
   panelFrameApplyStyleButtonElement.addEventListener("click", imageAssetClickEvent),
   cameraApplyStyleElement.addEventListener("click", openCameraStyleApplyDialog),
@@ -6119,11 +5820,8 @@ const { deferUntilEntitiesLoaded: popupBeingRenamed }: any = createEditorPickerL
   loadEntities: ensureEntitiesLoaded,
   reportError: handleOperationError,
 });
-function closePopupRenameDialog(...args: any[]): ReturnType<typeof closePopupRenameDialogImpl> { return (closePopupRenameDialogImpl as any)(styleDialogsDeps(), ...args); }
 // ── P4 切片转发器（声明级切片：宿主侧薄转发器 + 依赖袋，都是函数声明 → 提升，位置无关）──
-function createCopyBackupDeps(...args: any[]): ReturnType<typeof createCopyBackupDepsImpl> { return (createCopyBackupDepsImpl as any)(styleDialogsDeps(), ...args); }
 
-function renderCopyBackupDialog(...args: any[]): ReturnType<typeof renderCopyBackupDialogImpl> { return (renderCopyBackupDialogImpl as any)(styleDialogsDeps(), ...args); }
 
 function copyBackupPickersDeps(): CopyBackupPickersDeps {
   return {
@@ -6178,32 +5876,18 @@ function copyBackupPickersDeps(): CopyBackupPickersDeps {
     get value() { return value; },
   };
 }
-function titleButtonMenuDeps(...args: any[]): ReturnType<typeof titleButtonMenuDepsImpl> { return (titleButtonMenuDepsImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function loadNavigationIconOptions(...args: any[]): ReturnType<typeof loadNavigationIconOptionsImpl> { return (loadNavigationIconOptionsImpl as any)(copyBackupPickersDeps(), ...args); }
-function positionTitleButtonIconMenu(...args: any[]): ReturnType<typeof positionTitleButtonIconMenuImpl> { return (positionTitleButtonIconMenuImpl as any)(copyBackupPickersDeps(), ...args); }
-function stopHoverScroll(...args: any[]): ReturnType<typeof stopHoverScrollImpl> { return (stopHoverScrollImpl as any)(copyBackupPickersDeps(), ...args); }
-function iconTooltipElementValue(...args: any[]): ReturnType<typeof iconTooltipElementValueImpl> { return (iconTooltipElementValueImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function inspectorSyncDeps(...args: any[]): ReturnType<typeof inspectorSyncDepsImpl> { return (inspectorSyncDepsImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function syncComponentActionControls(...args: any[]): ReturnType<typeof syncComponentActionControlsImpl> { return (syncComponentActionControlsImpl as any)(copyBackupPickersDeps(), ...args); }
-function applyTransformToInspector(...args: any[]): ReturnType<typeof applyTransformToInspectorImpl> { return (applyTransformToInspectorImpl as any)(copyBackupPickersDeps(), ...args); }
-function previewModeForIcon(...args: any[]): ReturnType<typeof previewModeForIconImpl> { return (previewModeForIconImpl as any)(copyBackupPickersDeps(), ...args); }
-function sharedReferenceId(...args: any[]): ReturnType<typeof sharedReferenceIdImpl> { return (sharedReferenceIdImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function nudgeDeps(...args: any[]): ReturnType<typeof nudgeDepsImpl> { return (nudgeDepsImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function nudgeDeltaX(...args: any[]): ReturnType<typeof nudgeDeltaXImpl> { return (nudgeDeltaXImpl as any)(copyBackupPickersDeps(), ...args); }
 
-function clickPopupListOption(...args: any[]): ReturnType<typeof clickPopupListOptionImpl> { return (clickPopupListOptionImpl as any)(copyBackupPickersDeps(), ...args); }
-function onPopupListContextmenu(...args: any[]): ReturnType<typeof onPopupListContextmenuImpl> { return (onPopupListContextmenuImpl as any)(copyBackupPickersDeps(), ...args); }
-function openEntityCopyBackupPicker(...args: any[]): ReturnType<typeof openEntityCopyBackupPickerImpl> { return (openEntityCopyBackupPickerImpl as any)(copyBackupPickersDeps(), ...args); }
-function openLightStatisticsCopyBackupPicker(...args: any[]): ReturnType<typeof openLightStatisticsCopyBackupPickerImpl> { return (openLightStatisticsCopyBackupPickerImpl as any)(copyBackupPickersDeps(), ...args); }
-function openPopupEntityCopyBackupPicker(...args: any[]): ReturnType<typeof openPopupEntityCopyBackupPickerImpl> { return (openPopupEntityCopyBackupPickerImpl as any)(copyBackupPickersDeps(), ...args); }
-function onPopupModuleCancelButtonClick(...args: any[]): ReturnType<typeof onPopupModuleCancelButtonClickImpl> { return (onPopupModuleCancelButtonClickImpl as any)(copyBackupPickersDeps(), ...args); }
+let assetManagementDepsCache: AssetManagementDeps | null = null;
 function assetManagementDeps(): AssetManagementDeps {
-  return {
+  // 每次 pointermove / 滑块拖动都重新构造会新建对象并定义 300+ 个 getter 闭包，
+  // 是拖动取色器时最明显的分配热点。getter 读的都是活绑定，缓存一次即可。
+  if (assetManagementDepsCache) return assetManagementDepsCache;
+  const assetManagementDepsValue: AssetManagementDeps = {
     ...homeElements,
     get assetMatchesId() { return assetMatchesId; },
     get canDeleteAssetFolder() { return canDeleteAssetFolder; },
@@ -6246,13 +5930,9 @@ function assetManagementDeps(): AssetManagementDeps {
     get setComponentsRotation() { return setComponentsRotation; },
     get syncAssetFolderOptions() { return syncAssetFolderOptions; },
   };
+  assetManagementDepsCache = assetManagementDepsValue;
+  return assetManagementDepsValue;
 }
-function onPopupModuleClimateDeviceTypeClick(...args: any[]): ReturnType<typeof onPopupModuleClimateDeviceTypeClickImpl> { return (onPopupModuleClimateDeviceTypeClickImpl as any)(assetManagementDeps(), ...args); }
-function selectAssetFolder(...args: any[]): ReturnType<typeof selectAssetFolderImpl> { return (selectAssetFolderImpl as any)(assetManagementDeps(), ...args); }
-function popupModuleTypeValue(...args: any[]): ReturnType<typeof popupModuleTypeValueImpl> { return (popupModuleTypeValueImpl as any)(assetManagementDeps(), ...args); }
-function requestDeleteUserAsset(...args: any[]): ReturnType<typeof requestDeleteUserAssetImpl> { return (requestDeleteUserAssetImpl as any)(assetManagementDeps(), ...args); }
-function requestDeleteAssetFolder(...args: any[]): ReturnType<typeof requestDeleteAssetFolderImpl> { return (requestDeleteAssetFolderImpl as any)(assetManagementDeps(), ...args); }
-function refreshAssetPickers(...args: any[]): ReturnType<typeof refreshAssetPickersImpl> { return (refreshAssetPickersImpl as any)(assetManagementDeps(), ...args); }
 (imageAssetMenuElement.addEventListener("click", (popupModuleTitleState: any) => {
   const popupModuleTitle = popupModuleTitleState.target.closest("[data-image-asset-source]");
   popupModuleTitle && selectAssetFolder("image", popupModuleTitle.dataset.imageAssetSource);
@@ -6777,7 +6457,6 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
       renderComponentLists(),
       coverMotorButtonElement());
   }));
-function scaleDraftDocument(...args: any[]): ReturnType<typeof scaleDraftDocumentImpl> { return (scaleDraftDocumentImpl as any)(assetManagementDeps(), ...args); }
 (popupNewElement.addEventListener("click", () => scaleDraftDocument("create")),
   popupNameCloseElement.addEventListener("click", () => popupNameDialogElement.close()),
   popupNameCancelElement.addEventListener("click", () => popupNameDialogElement.close()),
@@ -6900,7 +6579,6 @@ function scaleDraftDocument(...args: any[]): ReturnType<typeof scaleDraftDocumen
       }
     }
   }));
-function cancelDeletePopupDialog(...args: any[]): ReturnType<typeof cancelDeletePopupDialogImpl> { return (cancelDeletePopupDialogImpl as any)(assetManagementDeps(), ...args); }
 (deletePopupCloseElement.addEventListener("click", cancelDeletePopupDialog),
   deletePopupCancelElement.addEventListener("click", cancelDeletePopupDialog),
   deletePopupDialogElement.addEventListener("close", () => {
@@ -7518,32 +7196,43 @@ for (const onInspectorScroll of [
       onDisplayDevicesCloseButtonClick.target === editorCtx.activeColorInputElement ||
       setWorkspaceHasProject();
   }),
-  new MutationObserver((onSessionsCloseButtonClick) => {
-    for (const onSessionsRevokeOthersCloseButtonClick of onSessionsCloseButtonClick)
-      for (const onSessionsRevokeOthersCancelButtonClick of onSessionsRevokeOthersCloseButtonClick.addedNodes)
-        onSessionsRevokeOthersCancelButtonClick instanceof HTMLElement &&
-          (selectableEntities(onSessionsRevokeOthersCancelButtonClick),
-          destroyDashboardPreview(onSessionsRevokeOthersCancelButtonClick),
-          formatLastSeen(onSessionsRevokeOthersCancelButtonClick));
-  }).observe(document.body, {
-    childList: true,
-    subtree: true,
-  }),
+  (editorBodyObserver = new MutationObserver((records) => {
+    for (const record of records)
+      for (const node of record.addedNodes)
+        node instanceof HTMLElement &&
+          (selectableEntities(node),
+          destroyDashboardPreview(node),
+          formatLastSeen(node));
+  })).observe(
+    // 观察范围收敛到编辑器根节点：原来监听整个 document.body 的 subtree 插入，
+    // 任何全局浮层 / toast / 图表插入都会触发这轮 DOM 处理。
+    editorRootElement instanceof HTMLElement ? editorRootElement : document.body,
+    {
+      childList: true,
+      subtree: true,
+    },
+  ),
   deferHiddenEditorDialogs2(),
   setEditorMode("edit"),
-  window.setInterval(() => {
-    document.visibilityState === "visible" &&
-      (actionDraftDocument().catch(() => {}), triggerKey().catch(() => {}));
-  }, 15000),
-  window.setInterval(() => {
-    document.visibilityState === "visible" && pollAssetCatalogVersion().catch(() => {});
-  }, 30000),
+  // 统一走 poll-scheduler：页面隐藏时暂停、可见时立刻补跑一次，且与全站共享同一个刻度
+  // 定时器（原来两个 setInterval 在后台标签页里也照常唤醒主线程并各发一次请求）。
+  editorPollCleanups.push(
+    schedulePoll("studio-editor-refresh", () => {
+      actionDraftDocument().catch(() => {});
+      triggerKey().catch(() => {});
+    }, 15000),
+    schedulePoll("studio-asset-catalog", () => {
+      pollAssetCatalogVersion().catch(() => {});
+    }, 30000),
+  ),
   document.addEventListener("visibilitychange", () => {
     document.visibilityState === "visible" &&
       (actionDraftDocument().catch(() => {}),
       pollAssetCatalogVersion().catch(() => {}),
       triggerKey().catch(() => {}));
-  }),
+  }  ),
+  // 页面恢复可见时的补跑已由 poll-scheduler 统一处理（可见即刻执行一次），
+  // 这里不再重复注册，避免同一次切回标签页发两遍请求。
   Promise.all([
     reuseTokenForNewUrl(),
     triggerKey(),
@@ -7554,10 +7243,6 @@ for (const onInspectorScroll of [
   ])
     .then(() => renderComponentLists())
     .catch(handleOperationError));
-function onSessionsRevokeOthersConfirmButtonClick(...args: any[]): ReturnType<typeof onSessionsRevokeOthersConfirmButtonClickImpl> { return (onSessionsRevokeOthersConfirmButtonClickImpl as any)(assetManagementDeps(), ...args); }
-function onGlobalColorPickerHexTextInputInput(...args: any[]): ReturnType<typeof onGlobalColorPickerHexTextInputInputImpl> { return (onGlobalColorPickerHexTextInputInputImpl as any)(assetManagementDeps(), ...args); }
-function saturationPointerMoveEventState(...args: any[]): ReturnType<typeof saturationPointerMoveEventStateImpl> { return (saturationPointerMoveEventStateImpl as any)(assetManagementDeps(), ...args); }
-function mutationRecord(...args: any[]): ReturnType<typeof mutationRecordImpl> { return (mutationRecordImpl as any)(assetManagementDeps(), ...args); }
 
 
   registerEditorCommandHandler((command) => {
@@ -7624,6 +7309,16 @@ function mutationRecord(...args: any[]): ReturnType<typeof mutationRecordImpl> {
   // ── 显式回收：需要访问引导体内作用域的资源 ──────────────────────────────
   return () => {
     registerEditorCommandHandler(null);
+    // 引导期注册的轮询与 DOM 观察者：不释放会在切走后继续唤醒主线程。
+    for (const disposePoll of editorPollCleanups.splice(0)) {
+      try {
+        disposePoll()
+      } catch { /* 清理期失败无需处理：调度器可能已重置，继续走后续清理 */ }
+    }
+    try {
+      editorBodyObserver?.disconnect?.()
+    } catch { /* 清理期失败无需处理：观察者可能已断开，继续走后续清理 */ }
+    editorBodyObserver = null
     // 3D 渲染器：负责释放 WebGL 上下文、渲染循环、WebSocket 与所有运行时监听
     try {
       editorCtx.editorRenderer?.destroy?.()

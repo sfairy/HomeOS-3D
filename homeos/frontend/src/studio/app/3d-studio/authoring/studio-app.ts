@@ -15,7 +15,7 @@ import { createCourtyardDrawingEditor as createCourtyardDrawingEditor2 } from ".
 
 
 import { resolveDoorPartMaterials } from "./studio-app/materials/door-materials";
-import { runStudioRenderLoop as runStudioRenderLoopImpl, type RunStudioRenderLoopDeps } from "./studio-app/render/studio-render-loop";
+import { runStudioRenderLoop as runStudioRenderLoopImpl, type StudioRenderDeps } from "./studio-app/render/studio-render-loop";
 import { handlePointerUp as handlePointerUpImpl, type HandlePointerUpDeps } from "./studio-app/functions/handlePointerUp";
 import { refreshStudioUiInner as refreshStudioUiInnerImpl, type RefreshStudioUiInnerDeps } from "./studio-app/functions/refreshStudioUiInner";
 import { handlePointerDown as handlePointerDownImpl, type HandlePointerDownDeps } from "./studio-app/functions/handlePointerDown";
@@ -69,6 +69,7 @@ import {
   notifyStudioDraftLoadFailure as notifyStudioDraftLoadFailureImpl, retryStudioDraftLoad as retryStudioDraftLoadImpl, flushStudioSaveBeforeTeardown as flushStudioSaveBeforeTeardownImpl, sceneSyncFlushIsDirty as sceneSyncFlushIsDirtyImpl,
   flushSceneSyncRuntime as flushSceneSyncRuntimeImpl, currentSceneSyncSinceKey as currentSceneSyncSinceKeyImpl, rememberSceneSyncKey as rememberSceneSyncKeyImpl, refreshAfterSceneSyncOutcome as refreshAfterSceneSyncOutcomeImpl,
   fetchStudioApi as fetchStudioApiImpl, showToast as showToastImpl, showSaveState as showSaveStateImpl, syncStudioHistoryFacade as syncStudioHistoryFacadeImpl,
+  syncStudioClipboardFacade as syncStudioClipboardFacadeImpl,
   historyFailureMessage as historyFailureMessageImpl, undoStudioHistory as undoStudioHistoryImpl, redoStudioHistory as redoStudioHistoryImpl, applyStudioHistoryDirection as applyStudioHistoryDirectionImpl,
   collectPatchFloorIds as collectPatchFloorIdsImpl, canApplyHistoryPatch as canApplyHistoryPatchImpl, refreshAfterHistoryChange as refreshAfterHistoryChangeImpl, validateSelectionChange as validateSelectionChangeImpl,
   primeHistorySnapshot as primeHistorySnapshotImpl, deselectAll as deselectAllImpl, applyPlacementChange as applyPlacementChangeImpl, flushPendingHistory as flushPendingHistoryImpl,
@@ -866,6 +867,7 @@ export function bootStudio(): void {
     get syncMaterialStyleStrip() { return syncMaterialStyleStrip; },
     get syncScreenLayers() { return syncScreenLayers; },
     get syncSnapControls() { return syncSnapControls; },
+    get syncStudioClipboardFacade() { return syncStudioClipboardFacade; },
     get syncStudioHistoryFacade() { return syncStudioHistoryFacade; },
     get toggleAreaExpanded() { return toggleAreaExpanded; },
     get toggleBackgroundButton() { return toggleBackgroundButton; },
@@ -1026,6 +1028,8 @@ export function bootStudio(): void {
   const showToast = (...args: any[]): any => (showToastImpl as any)(studioRuntime, ...args);
   const showSaveState = (...args: any[]): any => (showSaveStateImpl as any)(studioRuntime, ...args);
   const syncStudioHistoryFacade = (...args: any[]): any => (syncStudioHistoryFacadeImpl as any)(studioRuntime, ...args);
+  /* 剪贴板可用性没有参数，直接收敛成无参方法，不给类型豁免棘轮添新条目。 */
+  const syncStudioClipboardFacade = (): void => { syncStudioClipboardFacadeImpl(studioRuntime); };
   const historyFailureMessage = (...args: any[]): any => (historyFailureMessageImpl as any)(studioRuntime, ...args);
   const undoStudioHistory = (...args: any[]): any => (undoStudioHistoryImpl as any)(studioRuntime, ...args);
   const redoStudioHistory = (...args: any[]): any => (redoStudioHistoryImpl as any)(studioRuntime, ...args);
@@ -1917,9 +1921,8 @@ const studioSceneSyncController = new StudioSceneSyncController({
   getRuntimeScene: () => appCtx.studioProject,
   isDirty: sceneSyncFlushIsDirty,
   flush: flushSceneSyncRuntime,
-  // 全量重建由 stage adopt 流程负责（见 readSceneUpdate 注释），这里不应被调用；
-  // 保持空实现，避免绕过保存基线 / 相机恢复逻辑。
-  replaceScene: () => {},
+  // 全量重建由 stage adopt 流程负责（见 readSceneUpdate 注释），编辑器侧不重复实现：
+  // 因此**不注入** `replaceScene`（缺省时控制器返回 reload-unavailable，而不是假装重建完成）。
   isEmbedded: () => isEmbeddedStage,
   isPageSuspended: () => !!appCtx.isPageSuspended,
 });
@@ -4461,7 +4464,7 @@ if (instanceTestType) {
 function runStudioRenderLoop(): any {
   return runStudioRenderLoopImpl(renderLoopDeps());
 }
-function renderLoopDeps(): RunStudioRenderLoopDeps {
+function renderLoopDeps(): StudioRenderDeps {
   return {
     appCtx,
     get interactionBatches() { return interactionBatches; },

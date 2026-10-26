@@ -129,12 +129,17 @@ async def get_all_entities(
             or lowered in str((e.get("attributes") or {}).get("friendly_name") or "").lower()
         ]
 
-    entities = await _entity_area(request).enrich_entities(entities)
+    area_filter_value = str(area or "").strip()
+    enrich_service = _entity_area(request)
+    if area_filter_value:
+        # 区域过滤依赖注册表补全（area_id / area_name 来自注册表索引）；
+        # 其它查询把补全推迟到分页之后，只对当前页做，避免为被丢弃的实体白建一份 attributes。
+        entities = await enrich_service.enrich_entities(entities)
 
     entities = filter_entities_by_query(
         entities,
         status=normalize_entity_status_filter(status),
-        area=str(area or "").strip(),
+        area=area_filter_value,
         sort=normalize_entity_sort_filter(sort) or "name_asc",
         controllable=parse_boolean_query(controllable),
     )
@@ -144,15 +149,20 @@ async def get_all_entities(
     page_size = paging["pageSize"]
     use_cursor = page_size > 0 and (cursor is not None or page_num <= 0)
 
+    async def page_of(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """补全区域信息：带区域过滤时整表已补全过，这里只对当前页补。"""
+        return items if area_filter_value else await enrich_service.enrich_entities(items)
+
     if use_cursor:
         sliced = slice_entities_by_cursor(entities, cursor or None, page_size)
+        page_items = await page_of(sliced["entities"])
         result: dict[str, Any] = {
-            "count": len(sliced["entities"]),
+            "count": len(page_items),
             "total": sliced["total"],
             "cursor": cursor or None,
             "nextCursor": sliced["nextCursor"],
             "pageSize": page_size,
-            "entities": sliced["entities"],
+            "entities": page_items,
             "haSynced": store.is_ha_synced(),
             "storeTotal": store.get_count(),
         }
@@ -161,7 +171,7 @@ async def get_all_entities(
         effective_page = max(1, page_num)
         if page_size > 0 and effective_page > 0:
             skip = (effective_page - 1) * page_size
-            slice_ = entities[skip : skip + page_size]
+            slice_ = await page_of(entities[skip : skip + page_size])
             result = {
                 "count": len(slice_),
                 "total": total,
@@ -175,7 +185,7 @@ async def get_all_entities(
         else:
             result = {
                 "count": total,
-                "entities": entities,
+                "entities": await page_of(entities),
                 "haSynced": store.is_ha_synced(),
                 "storeTotal": store.get_count(),
             }

@@ -5,19 +5,19 @@ name: Checks
 # 自定义门禁与冒烟体系已拆除；仅保留语言级与基建检查。
 # 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
 #
-# 触发（2026-10-17 起只有手动，**push / PR 不再自动跑**）：
+# 触发（2026-10-26 起恢复自动）：
+# - push: main / pull_request：类型检查、`any` 棘轮、静默异常棘轮、单测与性能预算。
 # - workflow_dispatch：Actions 页面 Run workflow。
 # - workflow_call：docker.yml 发版前复用同一份检查，并取用 build job 的前端制品。
 #
-# 代价必须写清楚：`8d3be3e7` / `2026-10-10` 那类「本机绿、干净检出红」的问题不会在推送时亮
-# 红灯，只会等到下一次有人点 Run workflow（或发版被 docker.yml 调起时）才暴露。
-#   2026-10-15 曾整体改成「只手动」，随后 222b29c0 因为上面这条理由恢复自动触发；现在再次
-#   改成只手动是明确取舍：推送不想被排队跑一遍前端构建。若哪天觉得红灯发现得太晚，把
-#   `push: branches: [main]` 与 `pull_request:` 两段加回 `on:` 即可 —— 下面的 job 与制品上传
-#   都不依赖触发方式，加回来即自动生效。
-#   真要保持门禁不退化，就靠本地等价命令：`bun run typecheck`、各 `lint:*`/`lint:ci`、
-#   `bash ops/ci/build_frontend_verify.sh`、`ruff check .`。
+# 历史：2026-10-17 一度改成「只手动」，理由是推送不想被排队跑一遍前端构建；但代价是
+# `8d3be3e7` 那类「本机绿、干净检出红」的问题要等到发版才暴露。现在把**轻检查**（不构建
+# 镜像、不推 GHCR）放回 push / PR：`gates` job 只做 lint / 单测 / 棘轮，几十秒即可给出红灯；
+# 前端产物构建与制品上传仍只在 workflow_call / dispatch 时需要（见 build job 的说明）。
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_call:
   workflow_dispatch:
 
@@ -63,6 +63,62 @@ jobs:
       # 「未提交的修改」，而真源删文件后旧副本还会继续以旧内容留在历史里。
       - name: Scene static drift
         run: bun run check:scene
+
+  # 轻门禁（不构建镜像 / 不产出制品）：棘轮 + 单测 + 性能预算。
+  #
+  # 为什么单独一个 job：这些检查几十秒内就能给出「语义回退」的红灯（静默 except、any 变多、
+  # 通知投递 / 时间触发器 / 场景同步的契约被改坏），而且都不需要前端产物；放在 push / PR
+  # 上跑才有意义。构建与制品上传仍归 build job（见那里的说明）。
+  gates:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.15'
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install JS deps
+        run: bun install --frozen-lockfile
+
+      # 后端单测直接 import `src.*`（fastapi / sqlalchemy 等都在导入链上），所以要有运行期
+      # 依赖。装的是开区间的 requirements.txt，不碰 requirements.lock —— 镜像用的才是那份锁。
+      - name: Install backend deps for unit tests
+        run: pip install -r homeos/backend/requirements.txt
+
+      # `except Exception: pass` 会把 HA 下发失败 / 快照恢复失败变成「什么都没发生」。
+      - name: Silent except ratchet
+        run: python3 ops/checks/check_silent_except.py
+
+      # studio 的 `any` 计数只降不升（基线 ops/checks/any-baseline.json）。
+      - name: any ratchet
+        run: node ops/checks/check_any_baseline.mjs
+
+      # 纯函数 / 单例单测：轮询调度器、场景下拉派生、场景同步控制器。
+      - name: Frontend unit tests
+        run: node --test ops/checks/frontend/tests/
+
+      - name: Studio store unit tests
+        run: bun test ops/checks/studio/tests/
+
+      # Home Mode 三态校验、快照缺失、时间触发器补偿、通知投递失败保持 pending。
+      - name: Home mode unit tests
+        run: python3 -m unittest discover -s ops/checks/home_mode/tests -v
+
+      # 有 perf 结果目录时比对阈值；没有时脚本按 SKIP 处理（不算失败）。
+      - name: Perf budget
+        run: node ops/checks/check_perf_budget.mjs
 
   # GLB 几何 / 材质槽位门禁：纯只读审计，不依赖前端构建。
   #

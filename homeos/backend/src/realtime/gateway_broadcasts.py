@@ -79,9 +79,16 @@ class BroadcastMixin:
         message = ws_event("notification", event)
         entity_id = event.get("entityId")
         delivered = 0
+        failed = 0
         if not entity_id:
-            await self.sio.emit("notification", message)
-            delivered = len(self.connected)
+            # 全员广播：必须以 ``emit`` 的真实结果为准，不能把「在线会话数」直接当作送达数。
+            try:
+                await self.sio.emit("notification", message)
+            except Exception as exc:  # noqa: BLE001 - 单个通知失败不能打断广播循环
+                failed = max(1, len(self.connected))
+                logger.warning("站内通知全员推送失败（保持待投递）：%s", exc)
+            else:
+                delivered = len(self.connected)
         else:
             from .subscription import resolve_user_room_key
 
@@ -100,10 +107,14 @@ class BroadcastMixin:
                 )
                 for result in results:
                     if isinstance(result, Exception):
+                        failed += 1
                         logger.warning("站内通知推送失败: %s", result)
-            delivered = len(rooms)
+                    else:
+                        delivered += 1
         notification_id = event.get("id")
-        if delivered > 0 and notification_id:
+        # 只有「全部目标都推送成功」才回写 deliveredAt；任何失败都保持 pending，
+        # 交由重投任务再次尝试（前端按 notification id 去重，重复投递无副作用）。
+        if delivered > 0 and failed == 0 and notification_id:
             await self._mark_notification_delivered(str(notification_id), ["socket"])
 
     async def _mark_notification_delivered(self, notification_id: str, channels: list[str]) -> None:

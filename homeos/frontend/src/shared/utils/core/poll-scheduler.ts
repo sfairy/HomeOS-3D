@@ -104,18 +104,27 @@ export function schedulePoll(
   const runImmediately = opts?.runImmediately !== false
   // 错峰：按序号取模 8 槽，每槽错开 350ms，避免集中触发
   const stagger = (jobSeq++ % 8) * 350
-  // 跳过首跑时把 lastRun 设为「刚跑过」，等满一个 interval 再触发
+  // 跳过首跑时把 lastRun 设为「刚跑过」，等满一个 interval 再触发；
+  // 需要首跑时把 lastRun 设为「在错峰点刚跑过」——不能设成 `now + stagger - ms`
+  // （那等于宣布任务「现在就到期」），否则错峰点晚于 1s 的任务会先被刻度跑一次、
+  // 再被错峰回调跑一次：每个任务在启动阶段多发一次请求。
+  const startedAt = Date.now()
   jobs.set(key, {
     fn,
     intervalMs: ms,
-    lastRun: runImmediately ? Date.now() + stagger - ms : Date.now(),
+    lastRun: runImmediately ? startedAt + stagger : startedAt,
     visibilityAware,
   })
   ensureTick()
   // 首次触发：可见时（或后台常驻任务不受隐藏限制）按错峰时间立即执行一次
   if (runImmediately && (!pageHidden() || !visibilityAware)) {
     setTimeout(() => {
-      if (jobs.has(key) && (!pageHidden() || !visibilityAware)) fn()
+      // 必须比对回调身份：同 key 在这段错峰窗口内被重新注册时，`jobs.has(key)` 仍为 true，
+      // 只查 has 会把**旧**任务的 fn 再跑一遍（旧任务已经被覆盖，等于双发 + 重复请求）。
+      const job = jobs.get(key)
+      if (job?.fn !== fn || (pageHidden() && visibilityAware)) return
+      job.lastRun = Date.now()
+      fn()
     }, stagger)
   }
   return () => {

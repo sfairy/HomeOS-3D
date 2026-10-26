@@ -35,6 +35,8 @@ export const useStudioFloorplanStore = defineStore('studioFloorplan', () => {
   const saveState = computed(() => facade.value.saveState)
   const canUndo = computed(() => facade.value.history.canUndo)
   const canRedo = computed(() => facade.value.history.canRedo)
+  const canCopy = computed(() => facade.value.clipboard.canCopy)
+  const canPaste = computed(() => facade.value.clipboard.canPaste)
   const activeTool = computed(() => facade.value.activeTool)
   const workflowStep = computed(() => facade.value.workflowStep)
 
@@ -91,6 +93,8 @@ export const useStudioFloorplanStore = defineStore('studioFloorplan', () => {
     saveState,
     canUndo,
     canRedo,
+    canCopy,
+    canPaste,
     activeTool,
     workflowStep,
     bindFacade,

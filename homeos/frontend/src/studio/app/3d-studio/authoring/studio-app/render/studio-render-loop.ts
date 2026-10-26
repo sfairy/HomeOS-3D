@@ -64,11 +64,18 @@ import { createStudioRenderContext } from "../../studio-app/studio-render-contex
 
 import { computeDownlightRange } from "../../studio-app/scene/downlight-range";
 
-export interface RunStudioRenderLoopDeps {
+/**
+ * 渲染循环的依赖边界。
+ *
+ * 60+ 个成员全是 `any` 是历史债（WebGL / three.js 对象与运行期注册的钩子混在一起）：
+ * 逐字段类型化按 `ops/checks/check_any_baseline.mjs` 的棘轮推进，基线只降不升。
+ * 名字固定为 `StudioRenderDeps`，便于在「谁需要渲染循环能力」时被检索到。
+ */
+export interface StudioRenderDeps {
   interactionBatches: any; shouldForceEffectFrame: any; studioReflectionDetailMode: any; effectCache: any; stageLoadTiming: any; appCtx: any; applyBaseLighting: any; applyCameraFocalLength: any; applyLoadedDraft: any; applyOrthoFrame: any; areLightsEnabled: any; assetLoaderState: any; buildLightCacheMap: any; cameraSettings: any; canBuildScene: any; collectLampEntries: any; composeLightGroupKey: any; computeCourtyardBounds: any; computeRenderPixelRatio: any; computeSceneBounds: any; computeSceneExtent: any; computeVisibleHeight: any; createOrbitControls: any; currentSceneSyncSinceKey: any; diagnosticsState: any; disposeObjectTree: any; emitRuntimeDiagnostic: any; ensureLightCache: any; finishModelLoad: any; flushSceneSyncRuntime: any; geometryCacheHandle: any; getActiveFloor: any; getCameraFocalLength: any; getCameraMode: any; getCameraTopRotation: any; getCameraView: any; getPreviewFloorMode: any; handleOrbitChange: any; handleOrbitEnd: any; handleOrbitStart: any; isEmbedStageMode: any; isEmbeddedStage: any; isPerformanceDiagnostics: any; isRenderStatsTest: any; measureFloorSwitchPhase: any; modelPresentationState: any; planToWorldPoint: any; preloadDefaultModels: any; previewLightCacheCanvasElement: any; rebuildFloorLayers: any; recordFloorSwitchTick: any; refreshAfterSceneSyncOutcome: any; refreshFloorControls: any; refreshSceneRender: any; refreshSceneSyncLightingDerived: any; rememberSceneSyncKey: any; renderStudioFrame: any; requestSceneRebuild: any; requestSceneRender: any; requestStudioRender: any; resetFrameSamples: any; resizeStudioRenderer: any; resolveFrameSize: any; restoreLightVisibility: any; restorePreviewAfterFade: any; scheduleLightPrecompile: any; scheduleStudioRender: any; selectElement: any; setCameraMode: any; setCameraView: any; setFadeOverlay: any; setPreviewFloor: any; setupSceneShadows: any; studioDocumentDeps: any; studioSceneSyncController: any; syncFloorGroups: any; updateCameraPlanes: any; updateCameraView: any; updateFloorPreviewButtons: any; updateShadowState: any; waitForSceneReady: any; waitForSceneRevision: any; waitForStageReady: any;
 }
 
-export function runStudioRenderLoop(deps: RunStudioRenderLoopDeps): any {
+export function runStudioRenderLoop(deps: StudioRenderDeps): any {
   const {
     appCtx,
     effectCache,
@@ -1979,9 +1986,12 @@ export function runStudioRenderLoop(deps: RunStudioRenderLoopDeps): any {
       if (!appCtx.sceneRootNode || !pickFloorEntries.length) return null;
       const canvasClientRect = appCtx.threeRenderer.domElement.getBoundingClientRect();
       if (!canvasClientRect.width || !canvasClientRect.height) return null;
+      // 模型键用拼接而不是每次 JSON.stringify([...])：命中路径上每 mesh 会算 3~4 次，
+      // 3000+ draw call 的场景里这是纯字符串分配开销。
+      const environmentModelKey = (floorId: any, modelId: any) => `${floorId}\u0000${modelId}`;
       const usedModelKeySet = new Set(
           pickFloorEntries.map((usedModelEntry) =>
-            JSON.stringify([usedModelEntry.floorId, usedModelEntry.modelId]),
+            environmentModelKey(usedModelEntry.floorId, usedModelEntry.modelId),
           ),
         ),
         entriesByMesh = new Map(),
@@ -2007,7 +2017,7 @@ export function runStudioRenderLoop(deps: RunStudioRenderLoopDeps): any {
           }
           !currentPickEntry ||
             !usedModelKeySet.has(
-              JSON.stringify([currentPickEntry.floorId, currentPickEntry.modelId]),
+              environmentModelKey(currentPickEntry.floorId, currentPickEntry.modelId),
             ) ||
             !(Array.isArray(pickMesh.material) ? pickMesh.material : [pickMesh.material]).some(
               (renderableNode: any) =>
@@ -2017,14 +2027,15 @@ export function runStudioRenderLoop(deps: RunStudioRenderLoopDeps): any {
             pickableMeshes.push(pickMesh),
             pickMesh.userData?.curtainMotionPanel &&
               visitedModelKeySet.add(
-                JSON.stringify([currentPickEntry.floorId, currentPickEntry.modelId]),
+                environmentModelKey(currentPickEntry.floorId, currentPickEntry.modelId),
               ));
         }));
       const renderedMeshes = pickableMeshes.filter((filterMesh: any) => {
           const meshEntry = entriesByMesh.get(filterMesh);
           return (
-            !visitedModelKeySet.has(JSON.stringify([meshEntry.floorId, meshEntry.modelId])) ||
-            filterMesh.userData?.curtainMotionPanel
+            !visitedModelKeySet.has(
+              environmentModelKey(meshEntry.floorId, meshEntry.modelId),
+            ) || filterMesh.userData?.curtainMotionPanel
           );
         }),
         pickRaycaster = new ns2.Raycaster(),
@@ -2184,7 +2195,13 @@ export function runStudioRenderLoop(deps: RunStudioRenderLoopDeps): any {
       // 非全量：只就地更新运行时楼层 / 灯光 / 楼层名，不碰 loadedDraft、dirty 与 revision。
       const sceneSyncOutcome = await studioSceneSyncController.handleRemoteScene(remoteSceneDocument);
       refreshAfterSceneSyncOutcome(sceneSyncOutcome);
-      if (sceneSyncOutcome.kind === "merge-floors" || sceneSyncOutcome.kind === "lighting-only")
+      // 任何「已应用」的结果都要推进同步游标，包括只改了楼层名的 metadata-only：
+      // 漏记会让同一份远端数据每一轮轮询都被判成新数据，反复 merge 并多打一次 getSceneBundle。
+      if (
+        sceneSyncOutcome.kind === "merge-floors" ||
+        sceneSyncOutcome.kind === "lighting-only" ||
+        sceneSyncOutcome.kind === "metadata-only"
+      )
         rememberSceneSyncKey(sceneUpdateResponse);
       return null;
     },

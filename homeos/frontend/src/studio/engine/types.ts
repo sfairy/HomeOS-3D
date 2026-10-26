@@ -27,10 +27,23 @@ export interface EditorFacadeState {
   rightCollapsed: boolean
 }
 
+/**
+ * 复制 / 粘贴可用性。
+ *
+ * `canCopy` 跟随当前选择（单选或框选都算），`canPaste` 跟随内部剪贴板是否为空。
+ * 放在 facade 里而不是由壳层自己算：选择状态与剪贴板都只存在于引擎闭包内，
+ * 壳层拿不到，只能靠引擎在变化时 patch 一次。
+ */
+export interface ClipboardStateSnapshot {
+  canCopy: boolean
+  canPaste: boolean
+}
+
 export interface StudioFacadeState {
   dirty: boolean
   saveState: SaveStateKind
   history: HistoryStateSnapshot
+  clipboard: ClipboardStateSnapshot
   workflowStep: string | null
   activeTool: string | null
   planFocus: boolean

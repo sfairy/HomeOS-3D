@@ -23,6 +23,7 @@ import {
   renderAirPurifierBindingSection as renderAirPurifierBindingSectionCore,
   renderVacuumShortcutPanel as renderVacuumShortcutPanelCore,
 } from "./rendering/panel-sections";
+import { ensureInteraction3dSelectControls } from "../select-controls";
 import { renderPanelImpl as renderPanelCore } from "./rendering/panel-assembly";
 import {
   openAddDialog as openAddDialogCore,
@@ -39,6 +40,16 @@ import {
 } from "./rendering/panel-session";
 
 export function attachEditorPanelRendering(editorHost: any) {
+  /**
+   * 配置弹窗里的原生 `<select>` 统一换自绘下拉（见 `../select-controls`）。
+   *
+   * 用全应用共享的那一份（`ensureInteraction3dSelectControls`）：观察根在 `document.body`，
+   * 面板在 `dialog.i3d-editor` 里，而「添加按钮 / 窗帘组合 / 设备分类 / 一键应用」等子弹窗
+   * 直接挂在 body 上，只看宿主 dialog 会漏掉它们。共享实例不在这里 `dispose` —— 安防 /
+   * 存在感应等编辑入口用的是同一份。`renderPanel` 结束时再对齐一次，避免首帧读到还没落定的
+   * `select.value`。
+   */
+  const selectControls = ensureInteraction3dSelectControls();
   /**
    * 「一键应用」按钮重建器的**可变单元**（代理宿主的 `let refreshBatchButtons`）。
    *
@@ -224,7 +235,10 @@ export function attachEditorPanelRendering(editorHost: any) {
     get saveButtonElement() { return saveButtonElement },});
   /** 面板总装（P4 搬进 `rendering/panel-assembly`，此处只转发句柄）。 */
   function renderPanel() {
-    return renderPanelCore(panelAssemblyDeps());
+    const renderResult = renderPanelCore(panelAssemblyDeps());
+    // 面板刚重绘完：新 select 先套壳再回灌状态（首帧的系统菜单不闪一下）。
+    selectControls.refresh();
+    return renderResult;
   }
     function buildCurtainGroupOptions() {
       editorHost.structuredClone2.environment?.curtainGroups &&
@@ -321,6 +335,7 @@ export function attachEditorPanelRendering(editorHost: any) {
           resizeObserver.disconnect(),
           editorHost.pickerGeneration++,
           editorHost.pickerHandle?.close(),
+          // 共享装饰器不在这里回收：安防 / 存在感应等入口用的是同一份，关掉本弹窗不该让它失效。
           editorHost.editorRuntime?.(),
           editorHost.accessUnsubscribe?.(),
           editorHost.editorDialogElement.remove(),

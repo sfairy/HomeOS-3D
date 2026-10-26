@@ -346,9 +346,163 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
 .i3d-editor .inspector-number-stepper:first-child {
   border-bottom: 1px solid #343e46;
 }
-.i3d-editor .custom-select-button {
+/* 自绘下拉（`config-ui/select-controls.ts`）：原生 <select> 仍是值真源，这里只管外观。
+   原生 select 展开的是系统菜单（macOS 深色圆角 + 系统蓝高亮），既不跟主题色、
+   长灯组列表也没法筛选；这一套与光照范围编辑器（`.plan2-range-editor`）同一视觉语言。
+   作用域有两套：
+   · `.i3d-editor …`：主配置弹窗与光照范围弹窗（后者把菜单挂在 dialog 根节点上）。
+   · `.i3d-select …`：外壳自己的标记类，管得到挂在 `document.body` 上的子弹窗
+     （`dialog.i3d-add-dialog` 等不在 `.i3d-editor` 里）。
+   主应用 app.css 里也有同名 `.custom-select*`，两套作用域同时把尺寸互相隔开。 */
+.i3d-editor .custom-select,
+.i3d-select {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+/* 被外壳接管的原生控件：仍是值真源与无障碍回退，但不参与点击 / 焦点 / 布局。 */
+.i3d-editor .native-select-control,
+.i3d-select .native-select-control {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.i3d-editor .custom-select-button,
+.i3d-select .custom-select-button {
+  position: relative;
+  width: 100%;
   min-height: 32px;
+  padding: 0 26px 0 8px;
+  overflow: hidden;
+  color: var(--text, #e8ecef);
+  background: var(--field, #171d22);
+  border: 1px solid #37414a;
+  border-radius: 4px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
   font-size: 11px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.i3d-editor .custom-select-button::after,
+.i3d-select .custom-select-button::after {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  margin-top: -5px;
+  border-right: 1.5px solid #aeb6bc;
+  border-bottom: 1.5px solid #aeb6bc;
+  transform: rotate(45deg);
+  content: "";
+}
+.i3d-editor .custom-select-button:hover:not(:disabled),
+.i3d-select .custom-select-button:hover:not(:disabled) {
+  border-color: #46515b;
+  background: #1b2228;
+}
+.i3d-editor .custom-select-button[aria-expanded="true"],
+.i3d-select .custom-select-button[aria-expanded="true"] {
+  border-color: var(--hos-color-accent);
+  box-shadow: 0 0 0 2px #f2a20d1f;
+}
+.i3d-editor .custom-select-button[aria-expanded="true"]::after,
+.i3d-select .custom-select-button[aria-expanded="true"]::after {
+  margin-top: -1px;
+  transform: rotate(225deg);
+}
+.i3d-editor .custom-select-button:disabled,
+.i3d-select .custom-select-button:disabled {
+  color: #727e86;
+  cursor: default;
+}
+.i3d-editor .custom-select-button:disabled::after,
+.i3d-select .custom-select-button:disabled::after {
+  border-color: #59646c;
+}
+.i3d-editor .custom-select-value,
+.i3d-select .custom-select-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 浮层：位置由 select-controls 按触发按钮的 rect 算（fixed → 不受 aside 滚动裁剪）。 */
+.i3d-editor .custom-select-menu,
+.i3d-select .custom-select-menu {
+  position: fixed;
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid #505a63;
+  border-radius: 6px;
+  background: #22292f;
+  box-shadow: 0 18px 42px #000000ad;
+}
+.i3d-editor .custom-select-menu[hidden],
+.i3d-select .custom-select-menu[hidden] {
+  display: none !important;
+}
+.i3d-editor .custom-select-search,
+.i3d-select .custom-select-search {
+  width: 100%;
+  height: 28px;
+  margin: 0 0 4px;
+  padding: 0 8px;
+  border-color: #3d474f;
+  font-size: 11px;
+}
+.i3d-editor .custom-select-option,
+.i3d-select .custom-select-option {
+  min-height: 29px;
+  padding: 5px 8px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #d7dde1;
+  background: transparent;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 400;
+}
+/* 筛选后隐藏的行：grid 布局下 `hidden` 属性不够硬，用 !important 兜住。 */
+.i3d-editor .custom-select-option[hidden],
+.i3d-select .custom-select-option[hidden] {
+  display: none !important;
+}
+.i3d-editor .custom-select-option.active,
+.i3d-select .custom-select-option.active {
+  color: #f3f5f6;
+  border-color: var(--hos-color-accent);
+  background: #252c32;
+  box-shadow: inset 0 0 0 1px #f2a20d2e;
+  font-weight: 620;
+}
+.i3d-editor .custom-select-option:hover:not(:disabled),
+.i3d-select .custom-select-option:hover:not(:disabled) {
+  color: #f1f4f6;
+  border-color: #4a5660;
+  background: #ffffff11;
+  box-shadow: none;
+}
+.i3d-editor .custom-select-option:disabled,
+.i3d-select .custom-select-option:disabled {
+  color: #66727a;
+  cursor: default;
 }
 .i3d-editor input[type="checkbox"] {
   width: 15px;

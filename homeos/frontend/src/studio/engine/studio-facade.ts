@@ -3,7 +3,7 @@
  */
 import { createFacadeRuntime } from './facade-runtime'
 import type { EventBus } from './event-bus'
-import type { HistoryStateSnapshot, StudioCommand, StudioFacadeState } from './types'
+import type { ClipboardStateSnapshot, HistoryStateSnapshot, StudioCommand, StudioFacadeState } from './types'
 
 type StudioCommandHandler = (command: StudioCommand) => void | Promise<void>
 
@@ -14,11 +14,17 @@ const DEFAULT_HISTORY: HistoryStateSnapshot = {
   redoDepth: 0,
 }
 
+const DEFAULT_CLIPBOARD: ClipboardStateSnapshot = {
+  canCopy: false,
+  canPaste: false,
+}
+
 function defaultState(): StudioFacadeState {
   return {
     dirty: false,
     saveState: 'idle',
     history: { ...DEFAULT_HISTORY },
+    clipboard: { ...DEFAULT_CLIPBOARD },
     workflowStep: null,
     activeTool: null,
     planFocus: false,
@@ -47,6 +53,7 @@ export function dispatchStudioCommand(command: StudioCommand): void {
 export function patchStudioFacadeState(partial: Partial<StudioFacadeState>): void {
   runtime.patch(partial, (next, patch) => {
     if (patch.history) next.history = { ...patch.history }
+    if (patch.clipboard) next.clipboard = { ...patch.clipboard }
     return next
   })
 }

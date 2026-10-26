@@ -113,12 +113,33 @@ async function ensureModules(): Promise<DisplayModules> {
   return modules;
 }
 
+/**
+ * 让出一次「到绘制完成」的机会：先等一帧（浏览器完成 layout / paint），再用 setTimeout(0)
+ * 把控制权交回事件循环。
+ *
+ * 展示引导整条链是同步命令式的，`bootDisplay()` 一次性做「建 renderer → 建模 → 首帧」，
+ * 在 `/` 上这条链会吃掉数秒主线程（perf 报告里单条 longtask 最高 5,032 ms），把 splash
+ * 与外壳的首次绘制一起压住。中间让出一帧后 splash 先上屏，LCP / 首屏可交互都不再等 3D。
+ */
+function yieldToPaint(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame !== "function") {
+      setTimeout(resolve, 0);
+      return;
+    }
+    requestAnimationFrame(() => setTimeout(resolve, 0));
+  });
+}
+
 /** 引导顺序即依赖顺序：splash 契约 → 预取 → 展示页 → 安装引导（读 `display-booting` 类）。 */
 async function startDisplay(): Promise<void> {
   const loaded = await ensureModules();
   if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
   loaded.bootDisplayBoot();
   loaded.bootDisplayStartup();
+  // splash / 外壳先上屏，再开始重量级的 3D 引导：把一条数秒的长任务拆成两段。
+  await yieldToPaint();
+  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
   loaded.bootDisplay();
   loaded.bootAppleInstallGuide();
 }

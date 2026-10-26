@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -42,7 +43,16 @@ from ...platform.core.models import HomeMode
 
 logger = logging.getLogger("homeos.home_mode")
 
-TIME_CHECK_INTERVAL_SECONDS = 30
+#: 时间触发器按「分钟边界」唤醒（而不是固定 30s 轮询）：HOME_MODE 的 at=HH:MM 语义
+#: 与分钟对齐，落在边界上才能保证 60s 内必然求值一次，且不会一小时多跑 60 次。
+MAX_TIME_TRIGGER_SLEEP_SECONDS = 60.0
+
+
+def seconds_until_next_minute(now: datetime | None = None) -> float:
+    """到下一个整分钟的秒数（至少 0.5s，避免恰好卡在边界上与上一轮同分钟）。"""
+    current = now or datetime.now()
+    remaining = 60.0 - current.second - current.microsecond / 1_000_000
+    return max(0.5, remaining)
 
 HOME_MODE_DEFAULT_CONFIG: dict[str, Any] = {
     "triggerCooldownMs": 60_000,
@@ -221,14 +231,18 @@ class HomeModeService:
 
     async def _time_trigger_loop(self) -> None:
         while True:
-            await asyncio.sleep(TIME_CHECK_INTERVAL_SECONDS)
+            delay = seconds_until_next_minute()
+            await asyncio.sleep(delay)
             try:
                 if self._jobs is None:
                     await check_home_mode_time_triggers(self._trigger_state, self._deps)
                 else:
                     await self._jobs.run(
                         "home-mode-time-triggers",
-                        {"description": "家庭模式定时触发检查", "intervalMs": 30_000},
+                        {
+                            "description": "家庭模式定时触发检查",
+                            "intervalMs": int(round(delay * 1000)),
+                        },
                         lambda: check_home_mode_time_triggers(self._trigger_state, self._deps),
                     )
             except Exception as exc:
@@ -268,19 +282,18 @@ class HomeModeService:
         }
 
     async def reload_trigger_bindings(self) -> None:
-        modes = await run_db(self._load_mode_dicts, self.TRIGGER_BINDING_MODE_LIMIT)
+        # 不再限制前 N 个模式：达到上限后第 N+1 个模式的定时 / 状态触发器会静默失效，
+        # 这类「看起来配好了但永远不触发」的问题没有日志可查。
+        modes = await run_db(self._load_mode_dicts)
         self._trigger_state.cached_modes = modes
         self._trigger_state.trigger_bindings = parse_home_mode_trigger_bindings(modes)
         prune_home_mode_trigger_cooldown(self._trigger_state.trigger_cooldown)
         logger.debug("全屋模式触发器已加载: %s 条", len(self._trigger_state.trigger_bindings))
 
-    #: 触发器绑定只加载前 N 个模式（与列表接口一致）。
-    TRIGGER_BINDING_MODE_LIMIT = 200
-
-    def _load_mode_dicts(self, limit: int) -> list[dict[str, Any]]:
+    def _load_mode_dicts(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
             modes = (
-                session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()).limit(limit))
+                session.execute(select(HomeMode).order_by(HomeMode.sort_order.asc()))
                 .scalars()
                 .all()
             )

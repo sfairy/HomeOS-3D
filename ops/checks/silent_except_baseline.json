@@ -4,7 +4,7 @@
     "homeos/backend/src",
     "homeos-store/backend/src"
   ],
-  "total": 557,
+  "total": 555,
   "files": {
     "homeos-store/backend/src/__init__.py": 2,
     "homeos-store/backend/src/api/license.py": 3,
@@ -70,7 +70,7 @@
     "homeos/backend/src/domains/agent/service.py": 2,
     "homeos/backend/src/domains/agent/tool_i18n.py": 1,
     "homeos/backend/src/domains/agent/tools/high_risk_denylist.py": 1,
-    "homeos/backend/src/domains/agent/tools/home_tools_areas.py": 8,
+    "homeos/backend/src/domains/agent/tools/home_tools_areas.py": 6,
     "homeos/backend/src/domains/agent/tools/home_tools_entities.py": 10,
     "homeos/backend/src/domains/agent/tools/home_tools_insights.py": 3,
     "homeos/backend/src/domains/agent/tools/home_tools_primitives.py": 1,
@@ -219,6 +219,5 @@
     "homeos/backend/src/realtime/ws_buffer.py": 1,
     "homeos/backend/src/run.py": 1,
     "homeos/backend/src/version.py": 3
-  },
-  "note": "基线按当前树录制（557 处），棘轮按最紧口径生效；整改前 0fa7dc0f 用同一扫描器实测 574 处，即本轮净减 17 处（新增文件 0 个、无任何文件反弹）。新增静默分支必须补日志或显式调高对应文件基线，并在提交说明里写明原因。"
+  }
 }

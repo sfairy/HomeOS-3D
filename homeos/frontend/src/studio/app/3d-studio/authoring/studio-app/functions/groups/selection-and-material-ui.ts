@@ -400,6 +400,8 @@ export function refreshBackground(runtime: StudioAppRuntime, ) {
 export function refreshStudioUi(runtime: StudioAppRuntime, shouldClearActiveElement = false) {
   runtime.refreshStudioUiInner(shouldClearActiveElement);
   runtime.syncInspectorGroups();
+  // 复制按钮跟随选择：属性和选择都在这里刷新，剪贴板可用性也搭同一趟车。
+  runtime.syncStudioClipboardFacade();
 }
 
 export function readInspectorGroupCollapseState(runtime: StudioAppRuntime, ) {

@@ -394,6 +394,7 @@ export function duplicateSelection(runtime: StudioAppRuntime, ) {
         ),
       ),
       runtime.markDocumentDirty(),
+      runtime.syncStudioClipboardFacade(),
       runtime.showToast("已复制 " + duplicateClones.length + " 个物件。")));
 }
 
@@ -430,6 +431,7 @@ export function mirrorSelection(runtime: StudioAppRuntime, ) {
     },
   }),
     (runtime.appCtx.pasteOffsetFactor = 0),
+    runtime.syncStudioClipboardFacade(),
     runtime.showToast("已复制 " + runtime.appCtx.clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。"));
 }
 
@@ -506,6 +508,7 @@ export function rotateSelection(runtime: StudioAppRuntime, ) {
         ),
       ),
       runtime.markDocumentDirty(),
+      runtime.syncStudioClipboardFacade(),
       runtime.showToast("已粘贴 " + movedClones.length + " 个物件。")));
 }
 

@@ -1501,7 +1501,7 @@ function mountRangeFormControls(editorRootElement: any) {
       syncCustomSelect(targetSelectEntry));
   }
   for (const nativeSelect of editorRootElement.querySelectorAll("select")) {
-    const selectWrapper = createStyledElement("span", "custom-select"),
+    const selectWrapper = createStyledElement("span", "custom-select i3d-select"),
       customSelectButton = createStyledElement("button", "custom-select-button"),
       customSelectMenu = createStyledElement("div", "custom-select-menu");
     (nativeSelect.before(selectWrapper),

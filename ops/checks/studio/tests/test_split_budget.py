@@ -73,9 +73,9 @@ class SplitBudgetTest(unittest.TestCase):
         if NODE is None:
             raise unittest.SkipTest("node not available")
 
-    def run_gate(self, root: Path) -> subprocess.CompletedProcess[str]:
+    def run_gate(self, root: Path, phase: int = 1) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [NODE_BIN, str(SCRIPT), "--root", str(root), "--phase", "1"],
+            [NODE_BIN, str(SCRIPT), "--root", str(root), "--phase", str(phase)],
             capture_output=True, text=True, check=False,
         )
 
@@ -98,6 +98,22 @@ class SplitBudgetTest(unittest.TestCase):
             self.assertIn("模块级 let/var", out)
             self.assertIn("族顺序第 1 项", out)
             self.assertIn("不得 import 入口", out)
+
+
+    def test_phase3_forwarder_ratchet_blocks_handwritten_wrappers(self) -> None:
+        """`editor/home.ts` 手写转发包装的计数棘轮：0 是基线，加回来即红。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_fixture(Path(tmp))
+            home = root / "homeos/frontend/src/studio/app/editor/home.ts"
+            home.parent.mkdir(parents=True, exist_ok=True)
+            home.write_text(
+                "function requestJson(...args: any[]): ReturnType<typeof requestJsonImpl> "
+                "{ return (requestJsonImpl as any)(shellControlsDeps(), ...args); }\n",
+                encoding="utf-8",
+            )
+            result = self.run_gate(root, phase=3)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("editor-home-forwarders", result.stdout)
 
 
 if __name__ == "__main__":

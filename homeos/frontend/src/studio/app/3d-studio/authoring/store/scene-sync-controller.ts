@@ -51,7 +51,14 @@ type SceneSyncDecision =
 
 export type SceneSyncOutcome =
   | { kind: "ignored"; reason: "embedded" | "no-visual-change" }
-  | { kind: "deferred"; reason: "page-suspended" }
+  /**
+   * `reload-unavailable`：需要全量重建但没人实现 `replaceScene`。
+   *
+   * 以前 studio-app 注入的是空实现 `replaceScene: () => {}`，全量变更会被吞掉却仍上报
+   * `full-reload` —— 调用方按「已重建」继续走，界面停在旧场景上且没有任何线索。现在把这条
+   * 分支显式化，让「没实现」可被观测。
+   */
+  | { kind: "deferred"; reason: "page-suspended" | "reload-unavailable" }
   | { kind: "metadata-only"; floorNameChanges: FloorNameChange[] }
   | { kind: "lighting-only"; lighting: boolean; floorNameChanges: FloorNameChange[] }
   | { kind: "merge-floors"; floorIds: string[]; lighting: boolean; floorNameChanges: FloorNameChange[] }
@@ -167,8 +174,14 @@ interface SceneSyncDeps {
   isDirty: () => boolean;
   /** 脏时先推送保存；返回 saved / conflict / failed。 */
   flush: () => Promise<"saved" | "conflict" | "failed">;
-  /** 全量重建场景（由 studio-app 注入）。 */
-  replaceScene: (remoteScene: any) => void;
+  /**
+   * 全量重建场景。
+   *
+   * **可选**：3D 舞台有自己的 adopt 流程（`readSceneUpdate` → `adoptSceneUpdate`），
+   * 编辑器侧通常不需要再重建一次。未注入时控制器会返回
+   * `{ kind: "deferred", reason: "reload-unavailable" }`，而不是假装重建完成。
+   */
+  replaceScene?: (remoteScene: any) => void;
   isEmbedded?: () => boolean;
   isPageSuspended?: () => boolean;
   onOutcome?: (outcome: SceneSyncOutcome) => void;
@@ -241,6 +254,11 @@ export class StudioSceneSyncController {
    * 全量重建；并发轮询复用同一个在途重建（首个请求的远端载荷胜出，后续轮询会再决策）。
    */
   private reloadOnce(remoteScene: any, afterFlush: boolean): Promise<SceneSyncOutcome> {
+    // 没有重建实现就别先 flush：保存一次却仍然停在旧场景，等于白推一次版本。
+    const replaceScene = this.deps.replaceScene;
+    if (!replaceScene) {
+      return Promise.resolve<SceneSyncOutcome>({ kind: "deferred", reason: "reload-unavailable" });
+    }
     if (this.pendingReload) return this.pendingReload;
     const pending = (async (): Promise<SceneSyncOutcome> => {
       if (afterFlush) {
@@ -248,7 +266,7 @@ export class StudioSceneSyncController {
         if (flushResult === "conflict") return { kind: "conflict", reason: "local-dirty" };
         if (flushResult === "failed") return { kind: "stalled", reason: "flush-failed" };
       }
-      this.deps.replaceScene(remoteScene);
+      replaceScene(remoteScene);
       return { kind: "full-reload", afterFlush };
     })().finally(() => {
       this.pendingReload = null;

@@ -532,6 +532,7 @@ export interface StudioAppRuntime {
   readonly syncMaterialStyleStrip: any;
   readonly syncScreenLayers: any;
   readonly syncSnapControls: any;
+  readonly syncStudioClipboardFacade: () => void;
   readonly syncStudioHistoryFacade: any;
   readonly toggleAreaExpanded: any;
   readonly toggleBackgroundButton: any;

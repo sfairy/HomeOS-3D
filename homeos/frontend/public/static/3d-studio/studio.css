@@ -1519,6 +1519,116 @@ html.list-drag-active * {
   padding: 0;
   font-size: 18px;
 }
+/* 撤销 / 重做：禁用态必须能看出「历史栈为空」，所以不用 opacity 而是压暗图标色。 */
+.plan-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 7px;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+}
+/* 复制 / 粘贴：与撤销重做同款按钮，单独一段分组并在其后留同一条分隔线。 */
+.plan-clipboard-actions,
+/* 删除 / 旋转画布：同样收成图标，跟在同一行图标序列里。 */
+.plan-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 7px;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+}
+.toolbar-actions .plan-history-button {
+  width: 32px;
+  min-width: 32px;
+  height: 34px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border-color: transparent;
+  color: #9aa6b0;
+  background: transparent;
+}
+.toolbar-actions .plan-history-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.toolbar-actions .plan-history-button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: #f4f6f8;
+  background: #ffffff0f;
+}
+.toolbar-actions .plan-history-button:disabled {
+  border-color: transparent;
+  color: #505b63;
+  background: transparent;
+  cursor: default;
+}
+/* 删除是危险动作：可用时保持红色，hover 不许被上面的白色 hover 规则吃掉。 */
+.toolbar-actions .plan-history-button.danger-action:not(:disabled) {
+  color: #ff8e93;
+}
+.toolbar-actions .plan-history-button.danger-action:hover:not(:disabled) {
+  border-color: #ff8e9352;
+  color: #ffb3b7;
+  background: #ff8e931a;
+}
+/*
+ * 图标按钮的鼠标移入提示。
+ *
+ * 不用原生 title：它有约 1s 延迟、样式不可控，也不跟 dark token。这里自绘一层，
+ * 文案直接取 `aria-label` —— 提示与无障碍名称共用同一个字符串，改一处两边同步，
+ * 不会再出现「提示说 A、读屏说 B」的漂移。`:hover` / `:focus-visible` 时淡入，
+ * 键盘用户同样能看到。
+ * 提示框向下展开：`.plan-panel` 是 `overflow: hidden`，向上会整条被裁掉；
+ * 向下落在 `.plan-stage` 上，靠 z-index 盖住画布 HUD。
+ */
+.toolbar-actions .plan-history-button[aria-label] {
+  position: relative;
+}
+.toolbar-actions .plan-history-button[aria-label]::after {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 7px);
+  left: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #131b23f2;
+  box-shadow: 0 12px 28px #00000073;
+  color: #e6ebef;
+  content: attr(aria-label);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+/* 最右一个图标贴着面板右缘，提示框改成右对齐，否则会被 panel 的 overflow 裁掉。 */
+.toolbar-actions .plan-edit-actions .plan-history-button:last-child[aria-label]::after {
+  left: auto;
+  right: 0;
+}
+.toolbar-actions .plan-history-button[aria-label]:hover::after,
+.toolbar-actions .plan-history-button[aria-label]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* 触摸设备没有 hover：避免长按后提示框一直挂着。 */
+@media (hover: none), (pointer: coarse) {
+  .toolbar-actions .plan-history-button[aria-label]::after {
+    display: none;
+  }
+}
 .snap-control {
   position: relative;
   display: inline-flex;
@@ -1680,6 +1790,12 @@ html.list-drag-active * {
   .toolbar-actions .icon-action {
     width: 32px;
     min-width: 32px;
+  }
+  .toolbar-actions .plan-history-button {
+    width: 30px;
+    min-width: 30px;
+    height: 32px;
+    padding: 0;
   }
 }
 .plan-stage {

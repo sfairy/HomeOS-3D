@@ -7,7 +7,15 @@
  * 零 Vue 指令，故无需 props / emits；用多根模板渲染，DOM 结构与切片前一致（不新增包裹元素）。
  *
  * 改动约束：元素 id 属于对外契约，重命名/删除必须同步 `app/editor/**` 里的取值方。
+ *
+ * 例外：工具栏「撤销 / 重做」不走引擎直接操作 DOM —— 它读的是 facade 里的
+ * `history.canUndo / canRedo`（引擎每次落历史都会 patch），所以这里保留 Vue 绑定：
+ * 按钮禁用态必须跟历史栈同步，命令式改 `disabled` 会在 facade patch 与 DOM 之间留一份影子状态。
+ * 命令仍走 `floorplanStore.command({ type: "undo" | "redo" })`，与顶栏按钮同一条链路。
  */
+import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
+
+const floorplanStore = useStudioFloorplanStore();
 </script>
 
 <template>
@@ -72,6 +80,70 @@
                     </div>
                 </div>
                 <div class="toolbar-actions">
+                    <div class="plan-history-actions" role="group" aria-label="编辑历史">
+                        <button id="plan-undo" class="plan-history-button" type="button"
+                            aria-label="撤销" :disabled="!floorplanStore.canUndo"
+                            @click="floorplanStore.command({ type: 'undo' })">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M10 5 4 10l6 5" />
+                                <path d="M4 10h10a5 5 0 0 1 0 10H9" />
+                            </svg>
+                        </button>
+                        <button id="plan-redo" class="plan-history-button" type="button"
+                            aria-label="重做" :disabled="!floorplanStore.canRedo"
+                            @click="floorplanStore.command({ type: 'redo' })">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m14 5 6 5-6 5" />
+                                <path d="M20 10H10a5 5 0 0 0 0 10h5" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="plan-clipboard-actions" role="group" aria-label="复制粘贴">
+                        <button id="plan-copy" class="plan-history-button" type="button"
+                            aria-label="复制" :disabled="!floorplanStore.canCopy"
+                            @click="floorplanStore.command({ type: 'copy' })">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="9" y="9" width="11" height="11" rx="2" />
+                                <path d="M15 5.5A2.5 2.5 0 0 0 12.5 3H6a2 2 0 0 0-2 2v7.5A2.5 2.5 0 0 0 6.5 15" />
+                            </svg>
+                        </button>
+                        <button id="plan-paste" class="plan-history-button" type="button"
+                            aria-label="粘贴" :disabled="!floorplanStore.canPaste"
+                            @click="floorplanStore.command({ type: 'paste' })">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z" />
+                                <path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                                <path d="M9 12h6" />
+                                <path d="M9 16h4" />
+                            </svg>
+                        </button>
+                    </div>
+                    <!--
+                      删除 / 旋转画布的 **id 与 class 是对外契约**：`studio-app.ts` 用
+                      `#delete-selection` 挂 clearSelection、用 `#rotate-plan-view` 挂 rotatePlanView，
+                      `refreshStudioUiInner` 还会直接写 `#delete-selection.disabled`。
+                      所以这里保留 id、禁用态交给引擎（不加 :disabled 绑定，避免两处抢着写）。
+                    -->
+                    <div class="plan-edit-actions" role="group" aria-label="删除与画布旋转">
+                        <button id="delete-selection" class="plan-history-button danger-action" type="button"
+                            aria-label="删除" disabled>
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                            </svg>
+                        </button>
+                        <button id="rotate-plan-view" class="plan-history-button" type="button"
+                            aria-label="旋转">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 5H6a2 2 0 0 0-2 2v3" />
+                                <path d="m9 8 3-3-3-3" />
+                                <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                            </svg>
+                        </button>
+                    </div>
                     <div class="snap-control"> <button id="snap-toggle" class="snap-toggle active" type="button"
                             aria-pressed="true" title="开启或关闭绘图吸附"><span>吸附</span><small
                                 id="snap-toggle-state">开</small></button> <button id="snap-settings-toggle"
@@ -99,10 +171,8 @@
                                     id="snap-tolerance-value">13
                                     px</output></label>
                         </div>
-                    </div> <button id="finish-wall" type="button" title="未闭合的墙线不会生成地面" hidden>结束绘制</button> <button
-                        id="delete-selection" class="danger-action" type="button" disabled>删除</button>
-                    <button id="rotate-plan-view" type="button" title="顺时针旋转画布 90°"
-                        aria-label="顺时针旋转画布 90 度">旋转</button> <button id="fit-view" type="button">适应画布</button>
+                    </div> <button id="finish-wall" type="button" title="未闭合的墙线不会生成地面" hidden>结束绘制</button>
+                    <button id="fit-view" type="button">适应画布</button>
                 </div>
             </div>
             <div id="plan-stage" class="plan-stage"> <canvas id="plan-canvas" tabindex="0" aria-label="户型描摹画布"></canvas>

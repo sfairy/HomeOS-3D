@@ -54,7 +54,12 @@ class HomeToolsAreasMixin(HomeToolsHost):
         """按 id / 名称解析房间；加载失败返回错误载荷，未命中返回 ``(None, None)``。"""
         try:
             area = await self._area_service.find_one(area_id_or_name)
-        except Exception:
+        except Exception as exc:
+            # 不能把「读取失败」当成「房间不存在」：否则磁盘 / 锁错误会被 Agent 讲成
+            # 「你房间名写错了」，并给出一份误导性的可用房间列表。
+            logger.warning(
+                "按 id 解析房间失败，回退名称匹配: %s (%s)", area_id_or_name, _error_message(exc)
+            )
             area = None
         # 精确 / 模糊名称匹配兜底
         if area is None:
@@ -74,8 +79,8 @@ class HomeToolsAreasMixin(HomeToolsHost):
             if area is not None:
                 try:
                     area = await self._area_service.find_one(area.id)
-                except Exception:  # 区域详情取不到就退回已缓存字段，工具不因单点失败中断
-                    pass
+                except Exception as exc:  # 区域详情取不到就退回已缓存字段，工具不因单点失败中断
+                    logger.debug("房间详情加载失败，退回列表字段: %s (%s)", area.id, _error_message(exc))
         return area, None
 
     def _collect_area_devices(

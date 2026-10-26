@@ -13,6 +13,7 @@ import {
 import { cameraSourceConfigured } from "../camera/camera-status";
 import { carTireEntities } from "../vehicle/car-tires";
 import { createWeatherEffects } from "../environment/weather-effects";
+import { ensureInteraction3dSelectControls } from "../config-ui/select-controls";
 
 type HostLogger = HomeOSLog & {
   report?: (
@@ -313,6 +314,9 @@ export function mountInteraction3d(
   }: any,
 ) {
   hostElement.className = "hb-interaction3d-runtime";
+  // 3D 配置类弹窗里的原生 <select> 统一换自绘下拉：各编辑入口（配置 / 安防 / 存在感应 / 音箱）
+  // 都从这里挂载运行时，所以在这挂一次就够；装饰器本身幂等，只接管 3D 弹窗内的 select。
+  ensureInteraction3dSelectControls();
   let componentProperties = structuredClone(componentDescriptor.properties || {}),
     isDisposed = false,
     isAuthorized = true,

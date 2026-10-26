@@ -307,6 +307,9 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
           curtainGroupOptions = editorHost.selectedCurtainGroupId
             ? curtainGroupEntryId2(editorHost.findCurtainGroupOf(editorHost.selectedCurtainGroupId))
             : editorHost.describeGroupFieldValue();
+        // 「当前按钮」的初值必须和 `editorHost.text` 一起定：上面这一兜底会改写 text
+        // （换楼层 / 条目被删 / 预览里选中的是别层设备），而下拉拿不到匹配项时会静默退回
+        // 第一项 —— 看着就是「选中的灯被默认值顶掉了」。所以值在兜底之后再取一次。
         (!floorItems.some((itemProbe: any) => itemProbe.id === curtainGroupOptions) &&
           !editorHost.selectedCurtainGroupId &&
           (editorHost.text = floorItems[0]?.id || ""),
@@ -315,7 +318,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               lightHeadingElement,
               editorHost.isDeviceKind ? "当前设备" : "当前按钮",
               floorItems.map((itemOptionEntry: any) => [itemOptionEntry.id, itemOptionEntry.label]),
-              curtainGroupOptions,
+              editorHost.describeGroupFieldValue(),
               (pickedItemId: any) => {
                 (editorHost.pickerGeneration++,
                   editorHost.pickerHandle?.close(),

@@ -9,13 +9,22 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .presets import resolve_action_kind  # noqa: F401  (保持模块语义对齐，供调用方复用)  # pyright: ignore[reportUnusedImport]
-from ...platform.core.zoned_time import home_mode_minute_key, normalize_home_mode_time_at, zoned_date_parts
+from ...platform.core.zoned_time import (
+    date_from_zoned_wall_clock,
+    home_mode_minute_key,
+    normalize_home_mode_time_at,
+    zoned_date_parts,
+)
 
 logger = logging.getLogger("homeos.home_mode")
+
+#: 时间触发器的补偿窗口：定时检查若被阻塞 / 服务重启跨过了 HH:MM，
+#: 在这个窗口内仍会补触发一次；超过窗口视为「已经错过」，不再回放几小时前的模式。
+TIME_TRIGGER_GRACE_MINUTES = 10
 
 _AWAY_NAME_RE = __import__("re").compile(r"离家|away|外出|vacation", __import__("re").IGNORECASE)
 
@@ -33,6 +42,11 @@ class HomeModeTriggersState:
     cached_modes: list[dict[str, Any]] = field(default_factory=list)
     trigger_cooldown: dict[str, int] = field(default_factory=dict)
     last_time_trigger_minute: str = ""
+    #: 已触发过的时间触发器 occurrence：``mode_id@HH:MM@YYYY-MM-DD``。
+    #: 用它替代「当前分钟相等」判定，错过一整分钟也能在宽限期内补触发。
+    fired_time_occurrences: dict[str, int] = field(default_factory=dict)
+    #: occurrence 集合所属的自然日（跨天时清空，避免无界增长）。
+    time_occurrence_day: str = ""
     calendar_away: bool = False
     pre_away_mode_id: str | None = None
 
@@ -186,7 +200,12 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
     minute_key = home_mode_minute_key(now, timezone_name)
     if minute_key == state.last_time_trigger_minute:
         return
-    weekday = zoned_date_parts(now, timezone_name)["weekday"]
+    parts = zoned_date_parts(now, timezone_name)
+    weekday = parts["weekday"]
+    day_key = f"{parts['year']:04d}-{parts['month']:02d}-{parts['day']:02d}"
+    if state.time_occurrence_day != day_key:
+        state.fired_time_occurrences.clear()
+        state.time_occurrence_day = day_key
 
     for binding in state.trigger_bindings:
         trigger = binding.trigger
@@ -198,8 +217,23 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
         if isinstance(days, list) and days and weekday not in days:
             continue
         at = normalize_home_mode_time_at(trigger["at"].strip())
-        if at and at == minute_key:
-            await _fire_triggered_home_mode(state, deps, binding, f"time@{at}")
+        if not at:
+            continue
+        occurrence_key = f"{binding.mode_id}@{at}@{day_key}"
+        if occurrence_key in state.fired_time_occurrences:
+            continue
+        hour, minute = (int(item) for item in at.split(":", 1))
+        # 用「现在是否已过 occurrence」而不是「分钟是否恰好相等」：后者在事件循环被阻塞
+        # 或服务重启跨过该分钟时会永久漏触发（当天再也不会补）。
+        due_at = date_from_zoned_wall_clock(
+            timezone_name, parts["year"], parts["month"], parts["day"], hour, minute
+        )
+        delay = now - due_at
+        if delay < timedelta(0) or delay > timedelta(minutes=TIME_TRIGGER_GRACE_MINUTES):
+            continue
+        await _fire_triggered_home_mode(state, deps, binding, f"time@{at}")
+        # 只有整轮动作成功（activate 未抛错）才记 occurrence，失败可在宽限期内重试。
+        state.fired_time_occurrences[occurrence_key] = 1
     # 只有整轮求值完成后才标记该分钟已处理：中途异常不会吞掉本分钟的触发机会。
     state.last_time_trigger_minute = minute_key
 

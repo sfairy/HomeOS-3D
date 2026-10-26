@@ -47,7 +47,18 @@ const targets = [
   { id: 'item-model-entry', phase: 1, max: 600, kind: 'file', rel: ITEM_MODEL_ENTRY },
   { id: 'item-model-family', phase: 1, max: 1000, kind: 'dir', rel: ITEM_MODEL_DIR },
   { id: 'studio-app', phase: 2, max: 8000, kind: 'file', rel: '3d-studio/authoring/studio-app.ts' },
-  { id: 'editor-home', phase: 3, max: 8500, kind: 'file', rel: 'editor/home.ts' },
+  { id: 'editor-home', phase: 3, max: 7400, kind: 'file', rel: 'editor/home.ts' },
+  // 手写转发包装（`function x(...args: any[]) { return (xImpl as any)(deps(), ...args) }`）
+  // 已改成 `bindDeps(deps)({ x: xImpl })` 表。它们不是行数问题，而是把 deps 首参错位 /
+  // 参数个数写错全用 `as any` 盖住 —— 所以单独按「命中数」守，不许再加回来。
+  {
+    id: 'editor-home-forwarders',
+    phase: 3,
+    max: 0,
+    kind: 'pattern',
+    rel: 'editor/home.ts',
+    pattern: 'function \\w+\\(\\.\\.\\.args: any\\[\\]\\): ReturnType<typeof \\w+Impl>',
+  },
 ];
 
 const problems = [];
@@ -61,6 +72,23 @@ const read = rel => fs.readFileSync(path.join(APP, rel), 'utf8');
 for (const target of targets) {
   if (target.phase > phase) {
     notes.push(`[deferred] ${target.id}: phase ${target.phase} 预算 ${target.max} 行（当前 --phase ${phase} 不检查）`);
+    continue;
+  }
+  if (target.kind !== 'dir' && !fs.existsSync(path.join(APP, target.rel))) {
+    // 夹具仓库里往往只造被测的那几个文件：缺文件要报成问题，而不是让 read() 抛 ENOENT
+    // （那样整个门禁变成「脚本崩了」，看不出是哪条预算没满足）。
+    problems.push({ file: target.rel, line: 0, message: `${target.id} 文件不存在` });
+    continue;
+  }
+  if (target.kind === 'pattern') {
+    const text = read(target.rel);
+    const hits = text.match(new RegExp(target.pattern, 'g')) || [];
+    check(
+      hits.length <= target.max,
+      target.rel,
+      0,
+      `${target.id} 命中 ${hits.length} 处，超过预算 ${target.max}（转发包装请用 bindDeps 表）`,
+    );
     continue;
   }
   if (target.kind === 'file') {

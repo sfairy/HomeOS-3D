@@ -5,7 +5,7 @@ import { clamp as clamp2, clampWindowT as clampWindowT2, closedWallFloorPolygons
 import { itemPlanFootprint as itemPlanFootprint2 } from "../../../items/studio-item-posture";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { shellNotify } from "@/studio/platform/shell-chrome";
-import { patchStudioFacadeState } from "../../../../../../engine";
+import { getStudioFacadeState, patchStudioFacadeState } from "../../../../../../engine";
 import { buildStudioHistoryPatch } from "../../../ui/studio-history";
 import type { PlanEditPreviewFlags, StudioApiRequestOptions } from "../../../types/studio-app-types";
 import { resolveInteractionCleanup } from "../../../ui/studio-interaction-cleanup";
@@ -417,6 +417,21 @@ export function syncStudioHistoryFacade(runtime: StudioAppRuntime, ) {
     history: buildStudioHistoryPatch(runtime.historyUndoDepth(), runtime.historyRedoDepth()),
     activeTool: runtime.appCtx.activeToolName,
   });
+}
+
+/**
+ * 复制 / 粘贴按钮的可用性。
+ *
+ * 选择或剪贴板一变就 patch —— 但**先比对**当前 facade 值，相同则不派发：
+ * `refreshStudioUi` 在一次点击里会被调多次，无脑 patch 会让壳层每个事件都整体换一份
+ * state 对象，按钮的 `:disabled` 也跟着抖。剪贴板内容不参与比较（不可枚举）。
+ */
+export function syncStudioClipboardFacade(runtime: StudioAppRuntime) {
+  const canCopy = runtime.collectSelectedPlanItems().length > 0;
+  const canPaste = runtime.appCtx.clipboardItems.length > 0;
+  const currentClipboard = getStudioFacadeState().clipboard;
+  if (currentClipboard?.canCopy === canCopy && currentClipboard?.canPaste === canPaste) return;
+  patchStudioFacadeState({ clipboard: { canCopy, canPaste } });
 }
 
 /** 撤销 / 重做：先 canApply 再出栈；失败不出栈，应用失败由历史 store 压回并回调提示。 */
