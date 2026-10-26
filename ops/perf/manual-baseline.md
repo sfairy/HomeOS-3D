@@ -222,6 +222,7 @@ bash ops/perf/harness/run_baseline.sh after  # 复测
 bun run typecheck
 bun run --cwd homeos/frontend lint:ci
 .venv-store/bin/python -m ruff check ops homeos/backend/src
+.venv-store/bin/basedpyright            # 类型门禁（见下方说明）
 .venv-store/bin/python ops/checks/check_async_db.py
 .venv-store/bin/python ops/checks/check_silent_except.py
 bun run check:bundle-budget
@@ -232,15 +233,38 @@ bun run --cwd homeos/frontend check:deps
 `check_silent_except.py` 带棘轮：基线只能降不能升（当前 557 处），新增静默 `except`
 会让它直接失败。
 
+`basedpyright` 用仓库 `.venv-store` 里的那份（`pip install basedpyright`，当前 1.40.2）。
+注意两点，否则会得到**假红**（实测 31,617 条，全是 `str 未定义` 之类的噪音）：
+
+1. Python 3.15 的新建 venv 里，第一次安装可能只落了半份 typeshed（`stdlib` 266 条、
+   没有 `stubs/`），必须确认 `.../basedpyright/dist/typeshed-fallback/stdlib` 有 282 条以上；
+   不完整时用 `pip install --ignore-installed --no-deps --force-reinstall basedpyright` 重装。
+2. 若 `basedpyright/dist/pyright.js` 被仓库根的 `"type": "module"` 当成 ESM 读取
+   （报 `require is not defined`），在 `dist/` 下放一个 `{"type":"commonjs"}` 的
+   `package.json` 即可；这个文件在 `.venv-store`（gitignored）里，不进版本库。
+
+当前基线：**0 errors / 0 warnings**（`ops/checks/studio/glb_geometry_probe.py` 的
+`bpy`/`bmesh` 是 Blender-only 导入，文件头已用 `# pyright: reportMissingImports=false,
+reportUnusedImport=false` 说明原因）。
+
+> `bun run check:code-quality` 在本仓**不出报告**：它要求
+> `docs/code-quality/<date>/quality/data/{baseline,current}-{ts,python}.json` 这几份分析器
+> 快照，仓库里没有 `docs/code-quality/`，CI 也没接这个门禁。2026-10-26 起缺输入会打印
+> 「SKIP + 需要补哪些文件」并 exit 0（`--strict` 才失败），不会再 ENOENT 崩溃。
+> 日常等价集合用：`typecheck + lint:ci + ruff + basedpyright + check:scene`。
+
 **填表**
 
 | 门禁 | 基线 | 复测 |
 | --- | --- | --- |
-| `bun run typecheck` |  |  |
-| `lint:ci` |  |  |
-| `ruff check` |  |  |
-| `check_async_db` |  |  |
-| `check_silent_except`（计数 ≤ 557） |  |  |
-| `check:bundle-budget` |  |  |
-| `check:scene` |  |  |
-| `check:deps` |  |  |
+| `bun run typecheck` | 通过 |  |
+| `lint:ci` | 通过（0 violation） |  |
+| `ruff check` | 通过 |  |
+| `basedpyright` | 0 errors / 0 warnings |  |
+| `check_async_db` | 通过（已扫 domains/modules） |  |
+| `check_silent_except`（计数 ≤ 557） | 557（整改前 574，净减 17） |  |
+| `check:bundle-budget` | 通过（CSS 303,106 / 310,000；runtime 280 / 282 chunk） |  |
+| `check:perf-budget` | 通过（presentedCalls 3,084 / renderCalls 625 / stageMounted 584） |  |
+| `check:scene` | 通过 |  |
+| `check:frontend-deps`（不是 `check:deps`） | 通过（0 violation） |  |
+| `check:code-quality --date <d>` | SKIP（缺输入，非失败） |  |

@@ -1,0 +1,19 @@
+{
+  "_note": "3D/首屏性能预算（首帧口径）。校准于 2026-10-26 审计跑 audit-2026-10-26：presentedCalls 3,084 / renderCalls 625 / stageMountedMs 687 / iframeReadyMs 2,702 / averageFps 58.4 / cpuRenderP95Ms 9.5；对照 2026-10-21 报告（3,068 / 622 / 651 / ~2,275）可知阶段耗时本身有 ±7% 机器漂移，所以阈值留了一个漂移带，用来拦『数量级回退』而不是 ±5% 抖动。注意 presentedCalls 是首帧口径（含阴影图与首次反射捕获），P1-P5 的每帧预算只影响交互期的重捕获，不会降低这个数；稳态看 renderCalls。改预算必须在提交说明里写明原因。",
+  "threeD": {
+    "max": {
+      "presentedCalls": 3400,
+      "renderCalls": 900,
+      "stageMountedMs": 900,
+      "iframeReadyMs": 3200,
+      "cpuRenderP95Ms": 18
+    },
+    "min": {
+      "averageFps": 50
+    }
+  },
+  "contracts": {
+    "maxFailed": 0,
+    "maxSkipped": 0
+  }
+}

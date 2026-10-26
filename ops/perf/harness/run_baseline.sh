@@ -42,6 +42,9 @@ echo "==> 3D 测量"
 echo "==> 契约检查"
 "${PY}" "${HARNESS}/check_contracts.py" --label "${LABEL}"
 
+echo "==> 性能预算（3D 首帧 / 稳态 / 契约）"
+(cd "${ROOT}" && node ops/checks/check_perf_budget.mjs --dir "${RESULT_DIR}") || PERF_BUDGET_EXIT=$?
+
 cleanup
 trap - EXIT
 
@@ -55,3 +58,7 @@ fi
 
 echo "完成：${RESULT_DIR}"
 ls -1 "${RESULT_DIR}"
+
+if [ -n "${PERF_BUDGET_EXIT:-}" ] && [ "${PERF_BUDGET_EXIT}" -ne 0 ]; then
+  exit "${PERF_BUDGET_EXIT}"
+fi
