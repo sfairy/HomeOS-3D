@@ -17,6 +17,11 @@
 - 一个文件里多个对象会逐个统计后求和；壳数用 BMesh 的连通分量。
 """
 
+# ``bpy`` / ``bmesh`` 只存在于 Blender 自带的 Python 里（``blender --background --python``），
+# 仓库 venv 永远没有这两个包；本文件是「第三方复核」脚本，不在应用运行时被 import。
+# 因此这里整体压掉这两条诊断，否则 basedpyright 会在一个刻意的 Blender-only 脚本上报红。
+# pyright: reportMissingImports=false, reportUnusedImport=false
+
 from __future__ import annotations
 
 import argparse
