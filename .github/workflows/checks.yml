@@ -5,19 +5,21 @@ name: Checks
 # 自定义门禁与冒烟体系已拆除；仅保留语言级与基建检查。
 # 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
 #
-# 触发（2026-10-26 起恢复自动）：
-# - push: main / pull_request：类型检查、`any` 棘轮、静默异常棘轮、单测与性能预算。
+# 触发（2026-10-26 起再次改为**只手动**）：
 # - workflow_dispatch：Actions 页面 Run workflow。
 # - workflow_call：docker.yml 发版前复用同一份检查，并取用 build job 的前端制品。
 #
-# 历史：2026-10-17 一度改成「只手动」，理由是推送不想被排队跑一遍前端构建；但代价是
-# `8d3be3e7` 那类「本机绿、干净检出红」的问题要等到发版才暴露。现在把**轻检查**（不构建
-# 镜像、不推 GHCR）放回 push / PR：`gates` job 只做 lint / 单测 / 棘轮，几十秒即可给出红灯；
-# 前端产物构建与制品上传仍只在 workflow_call / dispatch 时需要（见 build job 的说明）。
+# 代价必须写清楚：`8d3be3e7` / `2026-10-10` 那类「本机绿、干净检出红」的问题不会在推送时
+# 亮红灯，只会等到下一次有人点 Run workflow（或发版被 docker.yml 调起时）才暴露。
+# 这个取舍在 2026-10-15 / 2026-10-17 / 2026-10-26 之间反复过一次：恢复自动的理由是红灯
+# 发现得太晚，改回手动的理由是推送不想被排队跑一遍前端构建。若哪天又觉得太晚，把
+# `push: branches: [main]` 与 `pull_request:` 两段加回 `on:` 即可 —— 下面的 job（含轻量
+# 的 `gates`）都不依赖触发方式，加回来即自动生效。
+# 保持门禁不退化就靠本地等价命令：`bun run typecheck`、各 `lint:*` / `lint:ci`、
+# `bun run check:any`、`node --test ops/checks/frontend/tests/`、
+# `bun test ops/checks/studio/tests/`、`bun run test:home-mode`、
+# `bash ops/ci/build_frontend_verify.sh`、`ruff check .`。
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_call:
   workflow_dispatch:
 
@@ -67,8 +69,9 @@ jobs:
   # 轻门禁（不构建镜像 / 不产出制品）：棘轮 + 单测 + 性能预算。
   #
   # 为什么单独一个 job：这些检查几十秒内就能给出「语义回退」的红灯（静默 except、any 变多、
-  # 通知投递 / 时间触发器 / 场景同步的契约被改坏），而且都不需要前端产物；放在 push / PR
-  # 上跑才有意义。构建与制品上传仍归 build job（见那里的说明）。
+  # 通知投递 / 时间触发器 / 场景同步的契约被改坏），而且都不需要前端产物 —— 手动 dispatch
+  # 时能先于昂贵的 build job 给出结论，docker.yml 调起时也能独立成一段。构建与制品上传仍
+  # 归 build job（见那里的说明）。
   gates:
     runs-on: ubuntu-24.04
     steps:
