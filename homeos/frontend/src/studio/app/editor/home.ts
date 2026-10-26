@@ -141,6 +141,7 @@ import { createAssetOptionButton as createAssetOptionButtonImpl, renderImageAsse
 import { buildTitleButtonInspectorContext as buildTitleButtonInspectorContextImpl, syncTitleButtonInspector as syncTitleButtonInspectorImpl, buildLightStatisticsInspectorContext as buildLightStatisticsInspectorContextImpl, syncLightStatisticsInspector as syncLightStatisticsInspectorImpl, buildCameraInspectorContext as buildCameraInspectorContextImpl, syncCameraInspector as syncCameraInspectorImpl, buildVacuumMapInspectorContext as buildVacuumMapInspectorContextImpl, syncVacuumMapInspector as syncVacuumMapInspectorImpl, buildCoverMotorInspectorContext as buildCoverMotorInspectorContextImpl, coverMotorButtonElement as coverMotorButtonElementImpl, computeCoverMotorStyleChanges as computeCoverMotorStyleChangesImpl, reloadAssetCatalog as reloadAssetCatalogImpl, pollAssetCatalogVersion as pollAssetCatalogVersionImpl, ensureEntitiesLoaded as ensureEntitiesLoadedImpl, renderCustomPopupSelector as renderCustomPopupSelectorImpl, syncPopupEntityInputs as syncPopupEntityInputsImpl, syncPopupModuleClimateDeviceType as syncPopupModuleClimateDeviceTypeImpl, deviceNameValue as deviceNameValueImpl, initialPopupId as initialPopupIdImpl, renderPopupModuleEntityOptions as renderPopupModuleEntityOptionsImpl, closePopupModuleEntityMenu as closePopupModuleEntityMenuImpl, openPopupModuleDialog as openPopupModuleDialogImpl, renderPageSelect as renderPageSelectImpl, retainExistingSelection as retainExistingSelectionImpl, collectChangedComponents as collectChangedComponentsImpl, type InspectorContextsDeps } from "./home/functions/inspector-contexts";
 import { collectPageComponentBounds as collectPageComponentBoundsImpl, alignSelectedComponents as alignSelectedComponentsImpl, ensureEditorRenderer as ensureEditorRendererImpl, renderEditorWorkspace as renderEditorWorkspaceImpl, syncHistoryButtons as syncHistoryButtonsImpl, applyEditorCanvasZoom as applyEditorCanvasZoomImpl, selectAllPageComponents as selectAllPageComponentsImpl, discardRecoverySnapshot as discardRecoverySnapshotImpl, readRecoverySnapshot as readRecoverySnapshotImpl, scheduleRecoverySnapshot as scheduleRecoverySnapshotImpl, persistRecoverySnapshot as persistRecoverySnapshotImpl, writeError as writeErrorImpl, resetHistoryState as resetHistoryStateImpl, refreshDirtyState as refreshDirtyStateImpl, historyEntries as historyEntriesImpl, historyEntry as historyEntryImpl, initialPagePath as initialPagePathImpl, projectSummary as projectSummaryImpl, recoverDraftConflict as recoverDraftConflictImpl, saveDraft as saveDraftImpl, interaction3dEntryActive as interaction3dEntryActiveImpl, loadHaConnection as loadHaConnectionImpl, entityLoadError as entityLoadErrorImpl, reuseTokenForNewUrl as reuseTokenForNewUrlImpl, syncAspectLockButton as syncAspectLockButtonImpl, type WorkspaceHistoryDeps } from "./home/functions/workspace-history";
 import { actionDraftDocument as actionDraftDocumentImpl, targetPageCandidate as targetPageCandidateImpl, buttonVisibilityDraftDocument as buttonVisibilityDraftDocumentImpl, titleButtonIconOptionClickEvent as titleButtonIconOptionClickEventImpl, titleButtonIconDraftDocument as titleButtonIconDraftDocumentImpl, lightStatisticsIconCopyError as lightStatisticsIconCopyErrorImpl, lightStatisticsEntityListClickEvent as lightStatisticsEntityListClickEventImpl, imageEntityDraftDocument as imageEntityDraftDocumentImpl, openAssetPicker as openAssetPickerImpl, assetIdToDelete as assetIdToDeleteImpl, folderDocumentNode as folderDocumentNodeImpl, closeDeletePopupDialog as closeDeletePopupDialogImpl, documentSource as documentSourceImpl, popupId as popupIdImpl, triggerKey as triggerKeyImpl, findDiagramPreviewFrame as findDiagramPreviewFrameImpl, lightInputElement as lightInputElementImpl, cancelRemovesComponent as cancelRemovesComponentImpl, lightingPayload as lightingPayloadImpl, lightFieldElement as lightFieldElementImpl, openLightingPanel as openLightingPanelImpl, lightInputNode as lightInputNodeImpl, onFloorplanAutoLightingResetButtonClick as onFloorplanAutoLightingResetButtonClickImpl, onFloorplanAutoLightingCloseButtonClick as onFloorplanAutoLightingCloseButtonClickImpl, applyLightingPanelDragMove as applyLightingPanelDragMoveImpl, type LightingPanelDeps } from "./home/functions/lighting-panel";
+import { bindFloorplanAutoDiagramControls } from "./home/functions/floorplan-auto-diagram-wiring";
 import { closeAutoDiagramDialog as closeAutoDiagramDialogImpl, settleAutoDiagramDialog as settleAutoDiagramDialogImpl, cancelRemoveDraftDocument as cancelRemoveDraftDocumentImpl, bindMessageSection as bindMessageSectionImpl, onWindowMessage as onWindowMessageImpl, exportSpliceError as exportSpliceErrorImpl, collectPageImages as collectPageImagesImpl, createImageAlignOption as createImageAlignOptionImpl, openImageAlignDialog as openImageAlignDialogImpl, applyAirConditionerPreviewState as applyAirConditionerPreviewStateImpl, airflowSectionEvent as airflowSectionEventImpl, previewSyncEventName as previewSyncEventNameImpl, onCoverSettingsKindClick as onCoverSettingsKindClickImpl, coverKindDraftDocument as coverKindDraftDocumentImpl, navigationSavedPropertyKey as navigationSavedPropertyKeyImpl, previewDateResize as previewDateResizeImpl, previewWeatherComponentResize as previewWeatherComponentResizeImpl, setNavigationPreviewState as setNavigationPreviewStateImpl, applyNavigationPreviewState as applyNavigationPreviewStateImpl, syncNavigationPreviewFromElement as syncNavigationPreviewFromElementImpl, navigationPropertyNameFromElement as navigationPropertyNameFromElementImpl, resolveComponentStyleValue as resolveComponentStyleValueImpl, collectChangedLineChartStyleKeys as collectChangedLineChartStyleKeysImpl, formatLineChartStyleValue as formatLineChartStyleValueImpl, resolveNavigationStyleValue as resolveNavigationStyleValueImpl, type NavigationPreviewDeps } from "./home/functions/navigation-preview";
 import { collectChangedTitleButtonStyleKeys as collectChangedTitleButtonStyleKeysImpl, onNavigationStyleApplyCancelButtonClick as onNavigationStyleApplyCancelButtonClickImpl, onNavigationStyleApplyConfirmButtonClick as onNavigationStyleApplyConfirmButtonClickImpl, collectChangedAirConditionerStyleKeys as collectChangedAirConditionerStyleKeysImpl, formatAirConditionerStyleValue as formatAirConditionerStyleValueImpl, resolveAirConditionerStyleValue as resolveAirConditionerStyleValueImpl, collectChangedIconButtonEffectStyleKeys as collectChangedIconButtonEffectStyleKeysImpl, formatIconButtonEffectStyleValue as formatIconButtonEffectStyleValueImpl, normalizeSensorKind as normalizeSensorKindImpl, formatSensorKindLabel as formatSensorKindLabelImpl, resolvePresenceSensorStyleKeys as resolvePresenceSensorStyleKeysImpl, styleTargetCheckbox as styleTargetCheckboxImpl, appliedStylePropertyKey as appliedStylePropertyKeyImpl, onNavigationIconCopyButtonClick as onNavigationIconCopyButtonClickImpl, navigationIconCopyError as navigationIconCopyErrorImpl, resolveCameraStyleValue as resolveCameraStyleValueImpl, collectChangedCameraStyleKeys as collectChangedCameraStyleKeysImpl, formatCameraStyleValue as formatCameraStyleValueImpl, resolvePanelFrameStyleValue as resolvePanelFrameStyleValueImpl, collectChangedPanelFrameStyleKeys as collectChangedPanelFrameStyleKeysImpl, formatPanelFrameStyleValue as formatPanelFrameStyleValueImpl, entryStateRecord as entryStateRecordImpl, areStyleValuesEqual as areStyleValuesEqualImpl, onImageAssetUploadButtonClick as onImageAssetUploadButtonClickImpl, onAssetOptionsClick as onAssetOptionsClickImpl, type StyleApplyDeps } from "./home/functions/style-apply";
 import { collectPendingNavigationStyleKeys as collectPendingNavigationStyleKeysImpl, onDeleteAssetCancelButtonClick as onDeleteAssetCancelButtonClickImpl, applyNavigationStyleToTargets as applyNavigationStyleToTargetsImpl, openNavigationStyleApplyDialog as openNavigationStyleApplyDialogImpl, onImageAssetFolderSelectChange as onImageAssetFolderSelectChangeImpl, imageAssetPointerOverEvent as imageAssetPointerOverEventImpl, imageAssetClickEvent as imageAssetClickEventImpl, openCameraStyleApplyDialog as openCameraStyleApplyDialogImpl, openTitleButtonStyleApplyDialog as openTitleButtonStyleApplyDialogImpl, openIconButtonEffectStyleApplyDialog as openIconButtonEffectStyleApplyDialogImpl, openAirConditionerStyleApplyDialog as openAirConditionerStyleApplyDialogImpl, openIconButtonStyleApplyDialog as openIconButtonStyleApplyDialogImpl, imageAssetMeasureError as imageAssetMeasureErrorImpl, applyInspectorDimensionChange as applyInspectorDimensionChangeImpl, onIconButtonEffectAssetFolderSelectChange as onIconButtonEffectAssetFolderSelectChangeImpl, applyEffectAssetDimensionChange as applyEffectAssetDimensionChangeImpl, applyCameraDimensionChange as applyCameraDimensionChangeImpl, applyLineChartDimensionChange as applyLineChartDimensionChangeImpl, recoveredComponentId as recoveredComponentIdImpl, onErrorDialogCloseButtonClick as onErrorDialogCloseButtonClickImpl, onShowSharedComponentsButtonClick as onShowSharedComponentsButtonClickImpl, onComponentTemplateDialogClick as onComponentTemplateDialogClickImpl, closePopupRenameDialog as closePopupRenameDialogImpl, createCopyBackupDeps as createCopyBackupDepsImpl, renderCopyBackupDialog as renderCopyBackupDialogImpl, type StyleDialogsDeps } from "./home/functions/style-dialogs";
@@ -2841,129 +2842,27 @@ function navigationPreviewDeps(): NavigationPreviewDeps {
 function closeAutoDiagramDialog(...args: any[]): ReturnType<typeof closeAutoDiagramDialogImpl> { return (closeAutoDiagramDialogImpl as any)(navigationPreviewDeps(), ...args); }
 function settleAutoDiagramDialog(...args: any[]): ReturnType<typeof settleAutoDiagramDialogImpl> { return (settleAutoDiagramDialogImpl as any)(navigationPreviewDeps(), ...args); }
 function cancelRemoveDraftDocument(...args: any[]): ReturnType<typeof cancelRemoveDraftDocumentImpl> { return (cancelRemoveDraftDocumentImpl as any)(navigationPreviewDeps(), ...args); }
-(floorplanAutoDiagramOpenStudioButtonElement.addEventListener("click", () => {
-  const diagramStudioComponent = removedComponent();
-  if (diagramStudioComponent?.type !== "floorplan-auto-diagram") return;
-  if (
-    diagramStudioComponent.properties?.generated === true &&
-    diagramStudioComponent.properties?.previewing !== true
-  ) {
-    mutateDocument((previewingDraftDocument: any) => {
-      const previewingComponent = findComponent2(
-        previewingDraftDocument,
-        diagramStudioComponent.id,
-      )?.component;
-      previewingComponent?.type === "floorplan-auto-diagram" &&
-        (previewingComponent.properties = {
-          ...(previewingComponent.properties || {}),
-          previewReady: true,
-          previewing: true,
-          interactionMode: "position",
-        });
-    });
-    return;
-  }
-  const studioDialogFrame = document.querySelector<HTMLIFrameElement>(
-    '.hb-component[data-component-id="' +
-      CSS.escape(diagramStudioComponent.id) +
-      '"] .hb-floorplan-auto-diagram-preview',
-  );
-  if (!studioDialogFrame?.contentWindow) {
-    settleAutoDiagramDialog(diagramStudioComponent.id);
-    return;
-  }
-  const exportFolderName = String(diagramStudioComponent.properties?.exportFolder || "").trim();
-  if (
-    !exportFolderName ||
-    /[<>:"/\\|?*\x00-\x1f\x7f]/.test(exportFolderName) ||
-    exportFolderName.startsWith(".") ||
-    /[. ]$/.test(exportFolderName)
-  ) {
-    ((floorplanAutoDiagramStatusElement.textContent = "请先填写有效的导图文件夹名称。"),
-      floorplanAutoDiagramFolderTextInputElement.focus());
-    return;
-  }
-  const sourceComponentPosition = diagramStudioComponent.position || {},
-    projectCanvas = editorCtx.activeProject.document.canvas || {},
-    exportResolution = floorplanAutoDiagramExportResolution2(
-      sourceComponentPosition,
-      projectCanvas,
-    );
-  ((floorplanAutoDiagramStatusElement.textContent = "正在后台生成底图和灯组效果，请稍候…"),
-    (floorplanAutoDiagramOpenStudioButtonElement.disabled = true),
-    (floorplanAutoDiagramFloorSelectElement.disabled = true),
-    (floorplanAutoDiagramOpenStudioButtonElement.textContent = "正在后台生成…"),
-    studioDialogFrame.contentWindow.postMessage(
-      {
-        type: "homeos-floorplan-auto-diagram-generate",
-        componentId: diagramStudioComponent.id,
-        width: exportResolution.width,
-        height: exportResolution.height,
-        folderName: exportFolderName,
-      },
-      window.location.origin,
-    ));
-}),
-  floorplanAutoDiagramViewToggleButtonElement.addEventListener("click", () => {
-    const interactionModeComponentId = editorCtx.selectedComponentId;
-    interactionModeComponentId &&
-      mutateDocument((toggleModeDraftDocument: any) => {
-        const toggleModeComponent = findComponent2(
-          toggleModeDraftDocument,
-          interactionModeComponentId,
-        )?.component;
-        toggleModeComponent?.type === "floorplan-auto-diagram" &&
-          (toggleModeComponent.properties = {
-            ...(toggleModeComponent.properties || {}),
-            interactionMode:
-              toggleModeComponent.properties?.interactionMode === "view" ? "position" : "view",
-          });
-      });
-  }),
-  floorplanAutoDiagramCloseButtonElement.addEventListener("click", cancelRemoveDraftDocument),
-  floorplanAutoDiagramLaterButtonElement.addEventListener("click", cancelRemoveDraftDocument),
-  floorplanAutoDiagramDialogElement.addEventListener(
-    "cancel",
-    (onFloorplanAutoDiagramContinueButtonClick: any) => {
-      (onFloorplanAutoDiagramContinueButtonClick.preventDefault(), cancelRemoveDraftDocument());
-    },
-  ),
-  floorplanAutoDiagramContinueElement.addEventListener("click", () => {
-    const componentId2 = floorplanAutoDiagramDialogElement.dataset.componentId;
-    componentId2 &&
-      (mutateDocument((continueDraftDocument: any) => {
-        const continueComponent = findComponent2(continueDraftDocument, componentId2)?.component;
-        continueComponent?.type === "floorplan-auto-diagram" &&
-          (continueComponent.properties = {
-            ...(continueComponent.properties || {}),
-            previewReady: true,
-            previewing: true,
-            interactionMode: "position",
-          });
-      }),
-      closeAutoDiagramDialog());
-  }),
-  floorplanAutoDiagramBindingListElement.addEventListener("change", (lightGroupChangeEvent: any) => {
-    const lightGroupSelect = lightGroupChangeEvent.target.closest(
-        "[data-floorplan-light-group-id]",
-      ),
-      lightGroupId = editorCtx.selectedComponentId;
-    if (!lightGroupSelect || !lightGroupId) return;
-    const floorplanLightGroupId = lightGroupSelect.dataset.floorplanLightGroupId;
-    mutateDocument((lightGroupDraftDocument: any) => {
-      const lightGroupComponent = findComponent2(lightGroupDraftDocument, lightGroupId)?.component;
-      if (!lightGroupComponent || lightGroupComponent.type !== "floorplan-auto-diagram") return;
-      lightGroupComponent.bindings = {
-        ...(lightGroupComponent.bindings || {}),
-      };
-      const lightGroupBindingKey = "lightGroup:" + floorplanLightGroupId;
-      lightGroupSelect.value
-        ? (lightGroupComponent.bindings[lightGroupBindingKey] = {
-            entityId: lightGroupSelect.value,
-          })
-        : delete lightGroupComponent.bindings[lightGroupBindingKey];
-    });
-  }));
+bindFloorplanAutoDiagramControls({
+  openStudioButton: floorplanAutoDiagramOpenStudioButtonElement,
+  viewToggleButton: floorplanAutoDiagramViewToggleButtonElement,
+  closeButton: floorplanAutoDiagramCloseButtonElement,
+  laterButton: floorplanAutoDiagramLaterButtonElement,
+  dialog: floorplanAutoDiagramDialogElement,
+  continueButton: floorplanAutoDiagramContinueElement,
+  bindingList: floorplanAutoDiagramBindingListElement,
+  status: floorplanAutoDiagramStatusElement,
+  folderInput: floorplanAutoDiagramFolderTextInputElement,
+  floorSelect: floorplanAutoDiagramFloorSelectElement,
+  // 选中组件 / 画布必须惰性读取：事件触发时以「当前」选中项为准。
+  selectedComponent: removedComponent,
+  projectCanvas: () => editorCtx.activeProject?.document?.canvas || {},
+  mutateDocument,
+  findComponent: findComponent2,
+  settleDialog: settleAutoDiagramDialog,
+  closeDialog: closeAutoDiagramDialog,
+  cancelRemoveDraftDocument,
+  exportResolution: floorplanAutoDiagramExportResolution2,
+});
 function bindMessageSection(...args: any[]): ReturnType<typeof bindMessageSectionImpl> { return (bindMessageSectionImpl as any)(navigationPreviewDeps(), ...args); }
 function onWindowMessage(...args: any[]): ReturnType<typeof onWindowMessageImpl> { return (onWindowMessageImpl as any)(navigationPreviewDeps(), ...args); }
 window.addEventListener("message", (lightingStateFrameState) => {
