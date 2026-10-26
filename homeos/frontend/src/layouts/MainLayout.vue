@@ -706,7 +706,6 @@ watch(
       <!-- teleport-target：所有需要脱离正常文档流的全屏浮层/弹窗挂载容器 -->
       <div class="teleport-target">
         <!-- 确认 / 输入 / 媒体全屏已提升到 App.vue 根（编辑器 / 展示页 / more-info 也要用） -->
-        <!-- 门铃提醒弹窗 -->
         <DoorbellAlertModal
           :is-open="chrome.isDoorbellModalOpen"
           :camera-id="doorbellCameraId"
@@ -715,12 +714,10 @@ watch(
           :label="doorbellLabel"
           @close="chrome.closeDoorbellModal()"
         />
-        <!-- 地震实时预警覆盖层 -->
         <EarthquakeAlertOverlay />
         <CencBulletinCard />
         <!-- 地震功能配置向导（首次启用引导） -->
         <EarthquakeSetupWizard v-model="showSetupWizard" />
-        <!-- 设置锁弹窗 -->
         <SettingsLockModal
           :is-open="isSettingsLockOpen"
           @close="isSettingsLockOpen = false"
@@ -732,7 +729,6 @@ watch(
           :open="chrome.isEntityControlOpen"
           @close="chrome.closeEntityControl()"
         />
-        <!-- 屏保 -->
         <Screensaver />
         <!-- 智能管家对话面板（认证 + module.agent） -->
         <AgentChatPalette

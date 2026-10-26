@@ -215,7 +215,6 @@ function openMenu(e: MouseEvent) {
   menuVisible.value = true
 }
 
-// 关闭菜单。
 function closeMenu() {
   menuVisible.value = false
 }

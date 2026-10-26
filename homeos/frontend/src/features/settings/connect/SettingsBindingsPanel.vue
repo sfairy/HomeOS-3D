@@ -84,13 +84,11 @@
       @chip-click="applyChip"
     />
 
-    <!-- 天气 -->
     <SettingsBindingsWeatherSection
       v-show="bindingsSection === 'weather'"
       v-model:weather-entity-id="layoutStore.layoutConfig.haConfig.weatherEntityId"
     />
 
-    <!-- 监控 -->
     <SettingsBindingsCamerasSection
       v-show="bindingsSection === 'cameras'"
       v-model:security-cameras="securityCameras"
@@ -101,7 +99,6 @@
       @remove-camera="removeCamera"
     />
 
-    <!-- 安防传感器与门铃 -->
     <SettingsBindingsSecuritySection
       v-show="bindingsSection === 'security'"
       v-model:bindings-security-tab="bindingsSecurityTab"

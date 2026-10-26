@@ -499,7 +499,6 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
     return pendingLiveRow(pendingClient) || pendingClient
   }
 
-  // 生成待配对终端卡片标题
   function pendingCardTitle(pendingClient: { clientId?: string; systemInfo?: unknown }) {
     return buildPendingCardTitle(pendingClient)
   }
@@ -586,7 +585,6 @@ function useClientPowerDisplay(deps: ClientPowerDisplayDeps) {
     )
   }
 
-  // 停止状态轮询
   function stopStatusPoll() {
     if (statusPollCancel) {
       statusPollCancel()

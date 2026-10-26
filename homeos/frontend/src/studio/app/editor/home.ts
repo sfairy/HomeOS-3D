@@ -4312,76 +4312,99 @@ const navigationSavedSettingById = new Map([[timeColorElement, "color"]]),
     timeScaleElement,
     timeRotationElement,
   ]);
-(timeInspectorElement.addEventListener("input", (timeInputEvent: any) => {
-  const timeInspectorComponent = removedComponent();
-  if (!timeInspectorComponent || timeInspectorComponent.type !== "time") return;
-  const timeInputElement = timeInputEvent.target,
-    colorPropertyKey = navigationSavedSettingById.get(timeInputElement);
-  if (colorPropertyKey) {
-    editorCtx.editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
-      [colorPropertyKey]: timeInputElement.value,
-    });
-    return;
-  }
-  const timeConfig = navigationSavedPropertyKeyById.get(timeInputElement);
-  if (timeConfig) {
+const bindTransformInspectorInput = (
+  inspectorElement: HTMLElement,
+  componentType: string,
+  colorPropertyByElement: typeof navigationSavedSettingById,
+  propertyConfigByElement: typeof navigationSavedPropertyKeyById,
+  transformInputSet: typeof navigationSavedPropertyKeySet,
+  transformTargets: Record<"left" | "top" | "scale" | "rotation", typeof timeLeftElement>,
+  resizePreview: typeof navigationSavedPropertyKey,
+) =>
+  inspectorElement.addEventListener("input", (inputEvent) => {
+    const inspectorComponent = removedComponent();
+    if (!inspectorComponent || inspectorComponent.type !== componentType) return;
+    const inputElement = inputEvent.target as HTMLInputElement,
+      colorPropertyKey = colorPropertyByElement.get(inputElement);
+    if (colorPropertyKey) {
+      editorCtx.editorRenderer?.previewComponentProperties(inspectorComponent.id, {
+        [colorPropertyKey]: inputElement.value,
+      });
+      return;
+    }
+    const propertyConfig = propertyConfigByElement.get(inputElement);
+    if (propertyConfig) {
+      if (String(inputElement.value).trim() === "" || !Number.isFinite(Number(inputElement.value)))
+        return;
+      const propertyValue =
+          clampNumber2(Number(inputElement.value), propertyConfig.minimum, propertyConfig.maximum) /
+          propertyConfig.divisor,
+        nextProperties = {
+          ...(inspectorComponent.properties || {}),
+          [propertyConfig.property]: propertyValue,
+        };
+      (editorCtx.editorRenderer?.previewComponentProperties(inspectorComponent.id, {
+        [propertyConfig.property]: propertyValue,
+      }),
+        propertyConfig.resizes && resizePreview(inspectorComponent, nextProperties));
+      return;
+    }
     if (
-      String(timeInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(timeInputElement.value))
+      !transformInputSet.has(inputElement) ||
+      String(inputElement.value).trim() === "" ||
+      !Number.isFinite(Number(inputElement.value))
     )
       return;
-    const timePropertyValue =
-        clampNumber2(Number(timeInputElement.value), timeConfig.minimum, timeConfig.maximum) /
-        timeConfig.divisor,
-      nextTimeProperties = {
-        ...(timeInspectorComponent.properties || {}),
-        [timeConfig.property]: timePropertyValue,
-      };
-    (editorCtx.editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
-      [timeConfig.property]: timePropertyValue,
-    }),
-      timeConfig.resizes && navigationSavedPropertyKey(timeInspectorComponent, nextTimeProperties));
-    return;
-  }
-  if (
-    !navigationSavedPropertyKeySet.has(timeInputElement) ||
-    String(timeInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(timeInputElement.value))
-  )
-    return;
-  const timeNumericValue = Number(timeInputElement.value),
-    timeCanvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
-    timeCanvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
-    timePositionWidth = Number(timeInspectorComponent.position?.width || 100),
-    timePositionHeight = Number(timeInspectorComponent.position?.height || 100);
-  if (timeInputElement === timeLeftElement) {
-    const clampedTimeLeft = clampNumber2(timeNumericValue, 0, 100);
-    editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-      x: (timeCanvasWidth * clampedTimeLeft) / 100 - timePositionWidth / 2,
-    });
-  } else {
-    if (timeInputElement === timeTopElement) {
-      const clampedTimeTop = clampNumber2(timeNumericValue, 0, 100);
-      editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-        y: (timeCanvasHeight * clampedTimeTop) / 100 - timePositionHeight / 2,
+    const numericValue = Number(inputElement.value),
+      canvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
+      canvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
+      positionWidth = Number(inspectorComponent.position?.width || 100),
+      positionHeight = Number(inspectorComponent.position?.height || 100);
+    if (inputElement === transformTargets.left) {
+      const clampedLeft = clampNumber2(numericValue, 0, 100);
+      editorCtx.editorRenderer?.previewComponentTransform(inspectorComponent.id, {
+        x: (canvasWidth * clampedLeft) / 100 - positionWidth / 2,
       });
     } else {
-      if (timeInputElement === timeScaleElement) {
-        const clampedTimeScale = clampNumber2(timeNumericValue, 1, 500);
-        editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-          scale: clampedTimeScale / 100,
+      if (inputElement === transformTargets.top) {
+        const clampedTop = clampNumber2(numericValue, 0, 100);
+        editorCtx.editorRenderer?.previewComponentTransform(inspectorComponent.id, {
+          y: (canvasHeight * clampedTop) / 100 - positionHeight / 2,
         });
       } else {
-        if (timeInputElement === timeRotationElement) {
-          const clampedTimeRotation = clampNumber2(timeNumericValue, -360, 360);
-          editorCtx.editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-            rotation: clampedTimeRotation,
+        if (inputElement === transformTargets.scale) {
+          const clampedScale = clampNumber2(numericValue, 1, 500);
+          editorCtx.editorRenderer?.previewComponentTransform(inspectorComponent.id, {
+            scale: clampedScale / 100,
           });
+        } else {
+          if (inputElement === transformTargets.rotation) {
+            const clampedRotation = clampNumber2(numericValue, -360, 360);
+            editorCtx.editorRenderer?.previewComponentTransform(inspectorComponent.id, {
+              rotation: clampedRotation,
+            });
+          }
         }
       }
     }
-  }
-}),
+  });
+
+
+
+(bindTransformInspectorInput(
+  timeInspectorElement,
+  "time",
+  navigationSavedSettingById,
+  navigationSavedPropertyKeyById,
+  navigationSavedPropertyKeySet,
+  {
+    left: timeLeftElement,
+    top: timeTopElement,
+    scale: timeScaleElement,
+    rotation: timeRotationElement,
+  },
+  navigationSavedPropertyKey,
+),
   timeInspectorElement.addEventListener("change", (timeChangeEvent: any) => {
     const changedTimeInput = timeChangeEvent.target,
       timeChangeComponentId = editorCtx.selectedComponentId;
@@ -4529,76 +4552,20 @@ const {
     weatherTemperatureWeightElement,
     weatherTopElement,
   });
-(dateInspectorElement.addEventListener("input", (dateInputEvent: any) => {
-  const dateInspectorComponent = removedComponent();
-  if (!dateInspectorComponent || dateInspectorComponent.type !== "date") return;
-  const dateInputElement = dateInputEvent.target,
-    dateColorKey = dateColorPropertyByElement.get(dateInputElement);
-  if (dateColorKey) {
-    editorCtx.editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
-      [dateColorKey]: dateInputElement.value,
-    });
-    return;
-  }
-  const dateConfig = datePropertyConfigsByElement.get(dateInputElement);
-  if (dateConfig) {
-    if (
-      String(dateInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(dateInputElement.value))
-    )
-      return;
-    const dateColorClampedValue =
-        clampNumber2(Number(dateInputElement.value), dateConfig.minimum, dateConfig.maximum) /
-        dateConfig.divisor,
-      dateColorPropertyPatch = {
-        ...(dateInspectorComponent.properties || {}),
-        [dateConfig.property]: dateColorClampedValue,
-      };
-    (editorCtx.editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
-      [dateConfig.property]: dateColorClampedValue,
-    }),
-      dateConfig.resizes && previewDateResize(dateInspectorComponent, dateColorPropertyPatch));
-    return;
-  }
-  if (
-    !dateTransformInputSet.has(dateInputElement) ||
-    String(dateInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(dateInputElement.value))
-  )
-    return;
-  const dateTransformInputNumber = Number(dateInputElement.value),
-    dateTransformCanvasWidth = Number(editorCtx.activeProject.document.canvas.width || 2778),
-    dateTransformCanvasHeight = Number(editorCtx.activeProject.document.canvas.height || 1940),
-    dateTransformComponentWidth = Number(dateInspectorComponent.position?.width || 100),
-    dateTransformComponentHeight = Number(dateInspectorComponent.position?.height || 100);
-  if (dateInputElement === dateLeftElement) {
-    const dateLeftPercent = clampNumber2(dateTransformInputNumber, 0, 100);
-    editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-      x: (dateTransformCanvasWidth * dateLeftPercent) / 100 - dateTransformComponentWidth / 2,
-    });
-  } else {
-    if (dateInputElement === dateTopElement) {
-      const dateTopPercent = clampNumber2(dateTransformInputNumber, 0, 100);
-      editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-        y: (dateTransformCanvasHeight * dateTopPercent) / 100 - dateTransformComponentHeight / 2,
-      });
-    } else {
-      if (dateInputElement === dateScaleElement) {
-        const dateScalePercent = clampNumber2(dateTransformInputNumber, 1, 500);
-        editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-          scale: dateScalePercent / 100,
-        });
-      } else {
-        if (dateInputElement === dateRotationElement) {
-          const dateRotationDegrees = clampNumber2(dateTransformInputNumber, -360, 360);
-          editorCtx.editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-            rotation: dateRotationDegrees,
-          });
-        }
-      }
-    }
-  }
-}),
+(bindTransformInspectorInput(
+  dateInspectorElement,
+  "date",
+  dateColorPropertyByElement,
+  datePropertyConfigsByElement,
+  dateTransformInputSet,
+  {
+    left: dateLeftElement,
+    top: dateTopElement,
+    scale: dateScaleElement,
+    rotation: dateRotationElement,
+  },
+  previewDateResize,
+),
   dateInspectorElement.addEventListener("change", (dateChangeEvent: any) => {
     const dateChangeInputElement = dateChangeEvent.target,
       dateChangeComponentId = editorCtx.selectedComponentId;

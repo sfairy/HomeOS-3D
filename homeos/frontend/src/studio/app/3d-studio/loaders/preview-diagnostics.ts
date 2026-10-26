@@ -12,7 +12,7 @@
  * 直接读这份数据做逐卡巡检。
  */
 
-export interface PreviewIssue {
+interface PreviewIssue {
   /** 失败发生在哪一步：请求 / 解析 / 回退 / 渲染空白。 */
   stage: 'load' | 'parse' | 'fallback' | 'render'
   itemType: string

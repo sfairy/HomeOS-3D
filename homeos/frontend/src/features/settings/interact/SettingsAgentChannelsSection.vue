@@ -53,7 +53,6 @@
         </button>
       </div>
 
-      <!-- Email -->
       <div v-show="channelTab === 'email'" class="agent-channel-panel mt-2.5 space-y-4">
         <SettingsFeatureMaster
           :icon="Mail"
@@ -159,7 +158,6 @@
         </div>
       </div>
 
-      <!-- WebPush -->
       <div v-show="channelTab === 'webpush'" class="agent-channel-panel mt-2.5 space-y-4">
         <SettingsFeatureMaster
           :icon="Smartphone"
@@ -316,7 +314,6 @@
         </div>
       </div>
 
-      <!-- WeCom -->
       <div v-show="channelTab === 'wecom'" class="agent-channel-panel mt-2.5 space-y-4">
         <SettingsFeatureMaster
           :icon="MessagesSquare"
@@ -476,7 +473,6 @@
         </div>
       </div>
 
-      <!-- MCP -->
       <div v-show="channelTab === 'mcp'" class="agent-channel-panel mt-2.5 space-y-4">
         <SettingsSectionHead
           title="MCP 开放网关"

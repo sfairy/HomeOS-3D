@@ -33,7 +33,6 @@
       </div>
     </div>
 
-    <!-- 根据部件类型分发到具体渲染器 -->
     <FloatingHubEntityWidget v-if="widget.type === 'entity'" :widget="widget" />
     <FloatingHubClockWidget v-else-if="widget.type === 'clock'" />
     <FloatingHubMetricWidget v-else-if="isMetricType(widget.type)" :widget="widget" />

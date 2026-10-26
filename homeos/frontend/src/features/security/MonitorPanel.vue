@@ -364,7 +364,6 @@ function startCarousel() {
   }, carouselSec.value * 1000)
 }
 
-// 停止轮巡并释放调度器任务
 function stopCarousel() {
   if (carouselCancel) {
     carouselCancel()

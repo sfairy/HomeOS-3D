@@ -55,11 +55,6 @@ def operation_timeout() -> str:
     return f'{URL_PREFIX} 操作超时。'
 
 
-def dial_timeout() -> str:
-    """连不上（DNS / 端口 / 网络）。"""
-    return '连接 Home Assistant 超时，请检查地址、端口及 HomeOS 所在设备的网络。'
-
-
 def unreachable(detail: object) -> str:
     """其它传输层错误。"""
     return f'无法连接 Home Assistant：{detail}'

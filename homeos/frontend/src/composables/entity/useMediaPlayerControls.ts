@@ -210,7 +210,6 @@ export function useMediaPlayerControls(
     },
     { immediate: true },
   )
-  // 切换实体时重置 seek 状态并重启循环
   watch(entityId, () => {
     isSeeking.value = false
     seekPreviewPct.value = null

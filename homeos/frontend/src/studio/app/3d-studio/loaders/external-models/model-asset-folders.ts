@@ -19,7 +19,7 @@
 import { MODEL_FILE_STEMS } from "./model-file-names.generated";
 
 /** 模型静态资源根路径（后端 `StaticFiles` 挂在 `/static`）。 */
-export const MODELS_ROOT = "/static/3d-studio/models";
+const MODELS_ROOT = "/static/3d-studio/models";
 
 /**
  * 分区目录 → 该目录下的模型 id 列表。
@@ -417,7 +417,7 @@ export const MODEL_ASSETS_BY_FOLDER = Object.freeze({
 });
 
 /** 分区目录 id（含斜杠，如 `home/living`）。 */
-export type ModelAssetFolder = keyof typeof MODEL_ASSETS_BY_FOLDER;
+type ModelAssetFolder = keyof typeof MODEL_ASSETS_BY_FOLDER;
 
 /**
  * 分区 id → 磁盘目录（中文）。
@@ -462,7 +462,7 @@ export const MODEL_FOLDER_PATHS: Readonly<Record<ModelAssetFolder, string>> = Ob
 });
 
 /** GLB 变体：`lite` 是降面版（首选），`full` 是完整件（兜底）。 */
-export type ModelAssetVariant = "lite" | "full";
+type ModelAssetVariant = "lite" | "full";
 
 const folderByAssetId = new Map<string, ModelAssetFolder>();
 for (const [folder, assetIds] of Object.entries(MODEL_ASSETS_BY_FOLDER) as [

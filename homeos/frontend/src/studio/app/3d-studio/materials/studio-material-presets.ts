@@ -3384,17 +3384,6 @@ export function isMaterialStyleCapable(modelType: string): boolean {
 }
 
 /**
- * 该模型是否**显式声明**「不提供材质风格档位」（`PRESET_GROUP_BY_MODEL_TYPE` 里登记为 `""`）。
- * 这类模型（楼梯 / 车辆 / 电梯 / 饰面墙）的颜色由各自的专用收尾接管，没有档位是设计决定，
- * 不是「档位覆盖不全」。
- *
- * 公开导出：供材质风格档位判定（历史审计脚本曾动态 import 本符号）。
- */
-function isMaterialStyleOptOut(modelType: string): boolean {
-  return modelType in PRESET_GROUP_BY_MODEL_TYPE && !PRESET_GROUP_BY_MODEL_TYPE[modelType];
-}
-
-/**
  * 逐模型的**档位剔除**：组里有一档对这件素材毫无意义的构件（没有腿 / 没有金属 / 没有可换的面），
  * 选出来和另一档出图**完全一样** —— 留在下拉里只是让人以为「设置没生效」。
  *

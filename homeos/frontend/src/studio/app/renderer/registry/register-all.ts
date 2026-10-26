@@ -21,13 +21,13 @@ import type { RenderPropertyBag, ComponentControllerHooks } from "./components/t
 export type { RenderPropertyBag, ComponentControllerHooks };
 
 /** 一族的注册入口：拿到 `registerComponent` 后把该族所有类型注册进去。 */
-export type ComponentFamilyRegister = (registerComponent: (type: any, def: any) => void) => void;
+type ComponentFamilyRegister = (registerComponent: (type: any, def: any) => void) => void;
 
 /**
  * 组件族 → 动态加载器。键是「族」，值是 `import()`，模块默认导出一个注册函数。
  * 每个族一个 chunk：不用的族不会下载、不会执行。
  */
-export const componentFamilyLoaders: Record<string, () => Promise<{ default: ComponentFamilyRegister }>> = {
+const componentFamilyLoaders: Record<string, () => Promise<{ default: ComponentFamilyRegister }>> = {
   "presence-sensor": () => import("./components/presence-sensor"),
   climate: () => import("./components/climate"),
   camera: () => import("./components/camera"),

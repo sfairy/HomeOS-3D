@@ -38,7 +38,6 @@
     </div>
 
     <template v-else>
-      <!-- 清理概览 -->
       <SettingsCard full static extra-class="retention-card">
         <div class="retention-card__head">
           <div class="retention-card__title">
@@ -80,7 +79,6 @@
         </div>
       </SettingsCard>
 
-      <!-- 保留策略 -->
       <SettingsCard full static extra-class="retention-card">
         <div class="retention-card__head">
           <div class="retention-card__title">

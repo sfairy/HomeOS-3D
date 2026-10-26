@@ -21,7 +21,7 @@
  * 在这里一并处理反而会和「页面真的关掉了」抢时序。
  */
 
-export type PageCacheListener = () => void
+type PageCacheListener = () => void
 
 const suspendListeners = new Set<PageCacheListener>()
 const resumeListeners = new Set<PageCacheListener>()

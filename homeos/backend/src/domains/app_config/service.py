@@ -138,7 +138,6 @@ class AppConfigService:
         except RuntimeError:
             self._loop = None
 
-    # 启动加载
     def start(self) -> None:
         self._load_with_retry()
 
@@ -298,7 +297,6 @@ class AppConfigService:
         self._generation += 1
         self._section_cache.clear()
 
-    # 合并
     def _merge_section(
         self, target_section: dict[str, Any], patch_section: dict[str, Any], nested_replace_keys: tuple[str, ...]
     ) -> None:
@@ -324,7 +322,6 @@ class AppConfigService:
             else:
                 cfg[section_key] = section_patch
 
-    # 读取
     def get_all(self) -> dict[str, Any]:
         raw = copy.deepcopy(self._config)
         mask_sensitive_fields_by_key(raw)
@@ -453,7 +450,6 @@ class AppConfigService:
         self._audit_log = [*entries, *self._audit_log][: self._get_max_audit()]
         self._persist_audit_log()
 
-    # 写入
     def update(self, partial: dict[str, Any], expected_updated_at: str | None = None) -> None:
         before = copy.deepcopy(self._config)
         stripped = strip_masked_placeholders(partial)

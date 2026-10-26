@@ -282,7 +282,6 @@ export async function clearEntityCache(cacheKey?: string): Promise<boolean> {
   try {
     await withStore('readwrite', async (store) => {
       if (cacheKey) {
-        // 删除该缓存键下的全部分片
         const allKeys = (await idbRequest(store.getAllKeys())) as IDBValidKey[]
         for (let i = 0; i < allKeys.length; i++) {
           const k = allKeys[i]

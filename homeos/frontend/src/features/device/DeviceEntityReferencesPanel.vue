@@ -200,7 +200,6 @@ const props = withDefaults(
 
 // 计算属性：entityId 响应式引用，变化时组合式函数自动重新扫描。
 const entityIdRef = computed(() => props.entityId)
-// 计算属性：visible 默认 true。
 const visibleRef = computed(() => props.visible !== false)
 // 当前激活的类型筛选，空字符串表示全部。
 const kindFilter = ref<EntityReferenceKind | ''>('')

@@ -339,7 +339,6 @@ def _resolve_color() -> bool:
     return not (force and force.lower() in ("0", "false"))
 
 
-# 格式化器
 class NestStyleFormatter(logging.Formatter):
     """Nest ``ConsoleLogger`` 风格格式化器（可选 JSON 行）。"""
 

@@ -74,7 +74,6 @@ export function useDeviceGroupOffline(
         const level = resolveBatteryLevel(eid, entity ?? undefined, entitiesStore)
         return { id: eid, entity, level }
       })
-      // 过滤掉无实体或电量非数字的项
       .filter((x) => x.entity && !isNaN(x.level))
       // 按电量升序：最低的排最前
       .sort((a, b) => a.level - b.level)

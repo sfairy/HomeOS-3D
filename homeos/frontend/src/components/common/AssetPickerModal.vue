@@ -10,7 +10,6 @@
           aria-modal="true"
           aria-labelledby="asset-picker-title"
         >
-          <!-- 头部 -->
           <div class="hos-modal-head">
             <div class="hos-modal-head-left">
               <div
@@ -38,7 +37,6 @@
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <!-- 已选数量徽标 -->
               <span v-if="selectedCount > 0" class="selected-badge">
                 {{ `已选 ${selectedCount} 项` }}
               </span>
@@ -53,7 +51,6 @@
             </div>
           </div>
 
-          <!-- 主体 -->
           <div class="hos-modal-body hos-modal-body--flush hos-modal-body--no-scroll picker-body">
             <AssetManager
               v-if="isOpen"
@@ -64,7 +61,6 @@
             />
           </div>
 
-          <!-- 底部提示 -->
           <div class="hos-modal-footer picker-footer">
             <div class="picker-footer-hint">
               <MousePointer2 class="w-4 h-4" />

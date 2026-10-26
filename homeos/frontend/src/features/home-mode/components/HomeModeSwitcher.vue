@@ -74,7 +74,6 @@ function registerMenuRef(el) {
     >
       {{ '外出' }}
     </span>
-    <!-- 在场人员徽标 -->
     <HomeModePresenceBadge
       v-if="showAwayButton"
       :show-presence-badge="showPresenceBadge"
@@ -87,7 +86,6 @@ function registerMenuRef(el) {
       :mode-menu-open="open"
       @toggle="togglePresenceTip"
     />
-    <!-- 模式切换触发器 -->
     <HomeModeSwitcherTrigger
       v-if="showHomeMode"
       :active-mode="activeMode"
@@ -97,7 +95,6 @@ function registerMenuRef(el) {
       :mode-icon="modeIcon"
       @toggle="toggleMenuOpen"
     />
-    <!-- 模式选择下拉菜单 -->
     <HomeModeSwitcherMenu
       v-if="showHomeMode"
       :open="open"

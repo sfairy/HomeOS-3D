@@ -126,7 +126,6 @@
       </template>
     </template>
 
-    <!-- 播放列表 Tab -->
     <MediaPlaylistWidget
       v-else
       class="mm-hub-panel"

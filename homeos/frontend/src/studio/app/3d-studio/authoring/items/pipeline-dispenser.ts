@@ -9,7 +9,7 @@
  * 存档只存 `pipelineDispenserStyle`（`"original"` / `"rectangular"`），
  * 读到非法值时一律回落 `original`，模型与尺寸由此推导。
  */
-export type PipelineDispenserStyle = "original" | "rectangular";
+type PipelineDispenserStyle = "original" | "rectangular";
 
 /** 原款 `pipelinewaterpurifier` 的包围盒（[宽, 高, 深]）。 */
 const ORIGINAL_PIPELINE_DISPENSER_SIZE: readonly [number, number, number] = Object.freeze([

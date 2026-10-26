@@ -9,7 +9,7 @@
  * 朝向没对齐时不会吸过去 —— 这是 0.8.0 的实际行为，不要合并成一种模式。
  */
 
-export type ExhaustFanWall = {
+type ExhaustFanWall = {
   id: string;
   start: { x: number; y: number };
   end: { x: number; y: number };
@@ -17,7 +17,7 @@ export type ExhaustFanWall = {
   height?: number;
 };
 
-export type ExhaustFanOpening = {
+type ExhaustFanOpening = {
   id: string;
   wallId: string;
   t: number;
@@ -26,13 +26,13 @@ export type ExhaustFanOpening = {
   sill: number;
 };
 
-export type ExhaustFanInstallation = {
+type ExhaustFanInstallation = {
   wall: ExhaustFanWall;
   distance: number;
   opening: ExhaustFanOpening;
 };
 
-export type ExhaustFanSnap = {
+type ExhaustFanSnap = {
   wall: ExhaustFanWall;
   x: number;
   y: number;

@@ -10,11 +10,8 @@
                 device-chart-copy.util/device-chart-theme（图表文案与主题）。
 -->
 <template>
-  <!-- 设备使用统计标签页组件 -->
   <div class="device-detail-tab device-usage-tab">
-    <!-- 设备使用统计指标网格 -->
     <div class="dev-metric-grid device-detail-tab__metrics">
-      <!-- 切换次数指标 -->
       <div class="dev-metric">
         <div class="dev-metric__icon"><Zap class="w-4 h-4" /></div>
         <div>
@@ -22,7 +19,6 @@
           <div class="dev-metric__label">{{ '切换次数' }}</div>
         </div>
       </div>
-      <!-- 累计开启时长指标 -->
       <div class="dev-metric">
         <div class="dev-metric__icon dev-metric__icon--green"><Clock class="w-4 h-4" /></div>
         <div>
@@ -30,7 +26,6 @@
           <div class="dev-metric__label">{{ '累计开启' }}</div>
         </div>
       </div>
-      <!-- 日均使用次数指标 -->
       <div class="dev-metric">
         <div class="dev-metric__icon"><TrendingUp class="w-4 h-4" /></div>
         <div>
@@ -38,7 +33,6 @@
           <div class="dev-metric__label">{{ '日均使用' }}</div>
         </div>
       </div>
-      <!-- 上次使用时间指标 -->
       <div class="dev-metric">
         <div class="dev-metric__icon dev-metric__icon--amber"><Calendar class="w-4 h-4" /></div>
         <div>
@@ -48,11 +42,9 @@
       </div>
     </div>
 
-    <!-- 使用统计卡片 -->
     <div
       class="dev-card premium-glass-surface premium-glass-surface--elevated premium-backdrop device-detail-tab__card"
     >
-      <!-- 卡片头部 -->
       <div class="dev-card__header">
         <div class="dev-card__title-row">
           <BarChart3 class="w-4 h-4 dus-icon-violet" />
@@ -83,13 +75,11 @@
         </div>
       </div>
 
-      <!-- 加载中状态 -->
       <div v-if="loading && !usageData.length" class="dev-state-block device-detail-tab__fallback">
         <RefreshCw class="w-4 h-4 animate-spin" />
         <span>{{ '加载统计…' }}</span>
       </div>
 
-      <!-- 错误状态 -->
       <div
         v-else-if="error"
         class="dev-state-block dev-state-block--error device-detail-tab__fallback"
@@ -99,13 +89,11 @@
         <button type="button" class="dev-range__btn" @click="refresh">{{ '重试' }}</button>
       </div>
 
-      <!-- 无数据状态 -->
       <div v-else-if="!usageData.length" class="dev-state-block device-detail-tab__fallback">
         <BarChart3 class="w-4 h-4" />
         <span>{{ '暂无使用数据，系统正在收集设备切换记录' }}</span>
       </div>
 
-      <!-- 图表和表格内容区 -->
       <div v-else class="device-detail-tab__panel device-detail-tab__panel--split">
         <!-- 左侧：使用趋势图表 -->
         <div class="dev-chart-wrap device-detail-tab__chart-wrap">
@@ -320,7 +308,6 @@ async function renderChart() {
   if (!props.visible || !chartRef.value || !usageData.value.length) return
   if (!chartDomReady()) return
 
-  // 初始化 ECharts 实例
   if (!chartInstance) {
     const echarts = (await import('@/shared/utils/chart/echarts')).default
     // 导入是异步的：期间组件可能隐藏/卸载或容器变化，重新校验避免僵尸实例
@@ -334,7 +321,6 @@ async function renderChart() {
   const counts = usageData.value.map((d) => d.onCount)
   const durations = usageData.value.map((d) => Math.round(d.totalRuntimeMs / 60000))
 
-  // 构建 ECharts 配置选项
   const option: EChartsCoreOption = {
     ...deviceChartBase(),
     tooltip: {
@@ -371,7 +357,6 @@ async function renderChart() {
     ],
   }
 
-  // 设置图表选项并调整尺寸
   chartInstance.setOption(option, true)
   chartInstance.resize()
 }
@@ -394,7 +379,6 @@ watch(days, () => nextTick(renderChart))
  * 组件挂载时初始化
  */
 onMounted(() => {
-  // 设置尺寸变化监听
   if (chartRef.value) {
     resizeObserver = new ResizeObserver(() => chartInstance?.resize())
     resizeObserver.observe(chartRef.value)

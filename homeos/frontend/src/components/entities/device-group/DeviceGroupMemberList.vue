@@ -1,7 +1,5 @@
 <template>
-  <!-- 仅在 entityIds 非空时渲染整个列表区域 -->
   <template v-if="entityIds.length > 0">
-    <!-- 批量操作工具条 + 执行结果展示 -->
     <DeviceGroupBatchBar
       :show="showBatchBar"
       :executing="batchExecuting"

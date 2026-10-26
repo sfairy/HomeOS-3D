@@ -26,7 +26,6 @@
     </div>
     <!-- Tab 子导航：仅当 tabs 非空时渲染，遵循 ARIA tablist 语义 -->
     <nav v-if="tabs.length" class="widget-hub-subnav" role="tablist">
-      <!-- 遍历 tabs 渲染每个 Tab 按钮 -->
       <button
         v-for="tab in tabs"
         :key="tabId(tab)"

@@ -779,7 +779,7 @@ export function isStructuralModelFamily(family: string): boolean {
  * 再并成一个色块（变体）；颜色不同的（车窗 / 清漆层 / 前灯罩 / 尾灯罩）各自保留一格，
  * 改色只写到同一格内的材质，不会把尾灯罩刷成车窗色。
  */
-export type VehicleMaterialSlot = {
+type VehicleMaterialSlot = {
   id: string;
   label: string;
   role: string;

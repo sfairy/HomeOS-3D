@@ -1,11 +1,11 @@
-"""商店统一时间工具：时区换算、展示格式化与自然日边界。
+"""商店统一时间工具：时区换算与展示格式化。
 
 约定（与 core.models.utcnow / security.security.utcnow 一致）：
 - 库里存的一律是 naive UTC，比较与排序都按 UTC 做；
 - 对外序列化用带 Z 后缀的 ISO-8601（见 security.security.iso_z），让浏览器按 UTC 解析，避免 8 小时偏移；
 - 只给「人看」的地方（邮件正文、后台文案、订单号时间戳）才换算到商店本地时区；
 - 业务代码不要自己写 datetime.now() / date.today()，也不要各处手算 +timedelta(hours=8)，
-  统一走本模块，才能保证「今天」的边界只有一处定义。
+  统一走本模块，才能保证时区口径只有一处定义。
 """
 
 from __future__ import annotations
@@ -34,13 +34,6 @@ def as_local(moment: datetime, tz: tzinfo = STORE_TIMEZONE) -> datetime:
     return moment.astimezone(tz)
 
 
-def to_naive_utc(moment: datetime) -> datetime:
-    """把任意时刻归一成 naive UTC，便于与库里的列直接比较。"""
-    if moment.tzinfo is None:
-        return moment
-    return moment.astimezone(UTC).replace(tzinfo=None)
-
-
 def aware_now(tz: tzinfo = STORE_TIMEZONE) -> datetime:
     """当前时刻的本地 aware 版本：只用于展示/编号，不要写库。"""
     return datetime.now(UTC).astimezone(tz)
@@ -51,17 +44,3 @@ def format_local(moment: datetime | None, fmt: str = "%Y-%m-%d %H:%M", tz: tzinf
     if moment is None:
         return "—"
     return as_local(moment, tz).strftime(fmt)
-
-
-def local_day_bounds(moment: datetime, tz: tzinfo = STORE_TIMEZONE) -> tuple[datetime, datetime]:
-    """返回 moment 所在本地自然日的 [起, 止) 区间，两端都是 naive UTC，可直接查库。"""
-    start_local = as_local(moment, tz).replace(hour=0, minute=0, second=0, microsecond=0)
-    return to_naive_utc(start_local), to_naive_utc(start_local + timedelta(days=1))
-
-
-def local_day_key(moment: datetime | None, tz: tzinfo = STORE_TIMEZONE) -> str:
-    """本地自然日标识 YYYY-MM-DD；与 local_day_bounds 共用同一套边界定义。"""
-    if moment is None:
-        return ""
-    start, _ = local_day_bounds(moment, tz)
-    return as_local(start, tz).date().isoformat()

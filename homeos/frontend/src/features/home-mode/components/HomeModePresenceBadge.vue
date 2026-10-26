@@ -45,7 +45,6 @@ const emit = defineEmits(['toggle'])
 </script>
 
 <template>
-  <!-- 仅在需要展示徽标或空态时渲染外层容器 -->
   <div v-if="showPresenceBadge || showPresenceEmpty" class="home-mode-switcher__presence-wrap">
     <!-- 有人员配置：展示在家/离家状态徽标，支持键盘 enter/space 触发以保证可访问性 -->
     <span

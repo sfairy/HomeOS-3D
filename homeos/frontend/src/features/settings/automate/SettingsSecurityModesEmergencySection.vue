@@ -340,7 +340,6 @@ const emBatchDomain = defineModel('emBatchDomain', { type: String, default: '' }
 const emBatchService = defineModel('emBatchService', { type: String, default: '' })
 const emBatchChecked = defineModel('emBatchChecked', { type: Array, default: () => [] })
 
-// 切换批量添加面板展开态
 function toggleEmShowBatch() {
   emShowBatch.value = !emShowBatch.value
 }

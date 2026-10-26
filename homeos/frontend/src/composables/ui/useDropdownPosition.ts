@@ -219,7 +219,6 @@ export function useDropdownPosition(
       }
       return
     }
-    // 关闭时解绑所有监听
     unbindScrollParents()
     resizeObserver?.disconnect()
     resizeObserver = null

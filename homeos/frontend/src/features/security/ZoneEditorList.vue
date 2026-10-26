@@ -298,7 +298,6 @@ function addZone() {
   ]
 }
 
-// 删除指定索引的区域
 function removeZone(idx) {
   zones.value = zones.value.filter((_, i) => i !== idx)
 }

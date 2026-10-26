@@ -4,7 +4,6 @@
   注意事项：App.vue 不包含任何业务布局，只负责错误兜底 + 路由切换过渡 + 顶层容器样式。
 -->
 <template>
-  <!-- 应用根容器 -->
   <div class="app-container">
     <div class="homeos-theme-atmosphere" aria-hidden="true" />
     <!--

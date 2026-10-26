@@ -150,7 +150,6 @@ const modeRef = toRef(props, 'secCurrentMode')
 // 复用 composable 派生区域增强信息与汇总统计
 const { enrichedZones, summary } = useSecurityZoneMonitor(liveRef, layoutRef, modeRef)
 
-// 判断指定区域是否在布防选择中
 function isSelected(id) {
   return armSelection.value.includes(id)
 }
@@ -168,7 +167,6 @@ function selectAll() {
   armSelection.value = props.liveZones.map((z) => z.id)
 }
 
-// 清空布防区域选择
 function clearSelection() {
   armSelection.value = []
 }

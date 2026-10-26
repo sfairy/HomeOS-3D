@@ -79,7 +79,6 @@ class NotificationPruneHelper:
             self._debounce_handle.cancel()
             self._debounce_handle = None
 
-    # 执行
     def _prune_old_notifications_sync(self) -> None:
         maximum = int(self._get_cfg().get("maxNotifications") or 500)
         batch = PRUNE_BATCH_SIZE

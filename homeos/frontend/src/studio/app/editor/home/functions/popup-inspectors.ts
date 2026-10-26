@@ -6,6 +6,7 @@ import { timeComponentDimensions as timeComponentDimensions2, dateComponentDimen
 import { type CustomPopupEditorContext, renderCustomPopupEditor as renderCustomPopupEditorExternal, syncCustomPopupStage as syncCustomPopupStageExternal } from "../../home-custom-popup-editor";
 import { syncTimeInspector as syncTimeInspectorExternal } from "../../home-time-inspector";
 import { syncWeatherInspector as syncWeatherInspectorExternal } from "../../home-weather-inspector";
+import { renderEntityOptionButtons } from "./entity-option-list";
 
 export interface PopupInspectorsDeps {
   editorCtx: EditorContext;
@@ -369,37 +370,11 @@ export function renderPopupEntityOptions(deps: PopupInspectorsDeps, popupConfigE
           .includes(normalizedPopupQuery),
     );
   if (
-    (optionsElement.replaceChildren(
-      ...filteredEntities.map((optionEntity: any) => {
-        const popupOptionButton = document.createElement("button");
-        ((popupOptionButton.type = "button"),
-          (popupOptionButton.className =
-            "inspector-entity-option" +
-            (optionEntity.entityId === popupSelectedEntityId ? " selected" : "")),
-          (popupOptionButton.dataset.popupActionEntityId = optionEntity.entityId),
-          popupOptionButton.setAttribute("role", "option"),
-          popupOptionButton.setAttribute(
-            "aria-selected",
-            String(optionEntity.entityId === popupSelectedEntityId),
-          ));
-        const popupOptionContentElement = document.createElement("span");
-        popupOptionContentElement.className = "inspector-entity-option-content";
-        const popupNameLineElement = document.createElement("span");
-        ((popupNameLineElement.className =
-          "inspector-entity-option-line inspector-entity-name-line"),
-          (popupNameLineElement.textContent =
-            "[" + deps.runQueue(optionEntity) + "] " + deps.runSnapshot(optionEntity)));
-        const popupIdElement = document.createElement("span");
-        return (
-          (popupIdElement.className = "inspector-entity-option-line inspector-entity-id"),
-          (popupIdElement.textContent = optionEntity.entityId),
-          popupOptionContentElement.append(popupNameLineElement, popupIdElement),
-          deps.runAlt(popupOptionButton, popupNameLineElement),
-          popupOptionButton.append(popupOptionContentElement),
-          popupOptionButton
-        );
-      }),
-    ),
+    (renderEntityOptionButtons(optionsElement, filteredEntities, {
+      selectedId: popupSelectedEntityId,
+      datasetKey: "popupActionEntityId",
+      deps,
+    }),
     !filteredEntities.length)
   ) {
     const popupNoMatchElement = document.createElement("div");

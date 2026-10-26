@@ -252,7 +252,6 @@ class EntityAreaEnrichmentService:
             if str(info.get("area_id") or "") == ident
         ]
 
-    # 加载
     async def _load_index(self) -> dict[str, dict[str, str]]:
         gen = self._load_gen
         try:
@@ -323,7 +322,6 @@ class EntityAreaEnrichmentService:
             return []
         return rows if isinstance(rows, list) else []
 
-    # 同步增强
     def enrich_entity_sync(self, entity: dict[str, Any]) -> dict[str, Any]:
         if not self._index:
             return entity

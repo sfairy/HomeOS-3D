@@ -207,13 +207,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- 启动中 -->
   <div v-if="admin.phase === 'boot'" class="admin-boot">
     <div class="admin-boot__spinner"></div>
     <div class="admin-boot__text">正在加载…</div>
   </div>
 
-  <!-- 登录 -->
   <div v-else-if="admin.phase === 'login'" id="admin-login" class="hb-page-shell hos-page hos-tone--accent">
     <SceneStage page="admin" />
     <main class="hos-dock">
@@ -284,7 +282,6 @@ onBeforeUnmount(() => {
     </main>
   </div>
 
-  <!-- 工作台 -->
   <div v-else class="admin-shell">
     <aside class="admin-side">
       <div class="brand">

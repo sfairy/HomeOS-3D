@@ -1,19 +1,16 @@
 /** 渲染资源条目，并处理条目的点击、复制、删除等交互事件。 */
 <template>
   <div class="asset-body">
-    <!-- 加载中且尚无数据时显示加载指示器 -->
     <div v-if="loading && items.length === 0" class="asset-body__state">
       <Loader2 class="w-8 h-8 amb-icon-info animate-spin" />
       <p class="text-xs amb-text-muted mt-3">{{ '加载中…' }}</p>
     </div>
 
-    <!-- 非加载状态但无匹配项时显示空态 -->
     <div v-else-if="filteredItems.length === 0" class="asset-body__state">
       <div class="asset-body__empty-icon">
         <FolderOpen class="w-12 h-12" />
       </div>
       <p class="text-sm amb-text-muted mt-2">{{ '空空如也，或者没有匹配的项目' }}</p>
-      <!-- 存在搜索关键词时给出进一步提示 -->
       <p v-if="searchQuery" class="text-xs amb-text-muted mt-1">{{ '试试其他关键词' }}</p>
     </div>
 

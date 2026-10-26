@@ -106,7 +106,6 @@ export function useDeviceHealthTrend() {
   function sampleToday() {
     const day = todayKey()
     const snap = current.value
-    // 过滤掉当天已有记录，再追加新快照
     const rows = readTrend().filter((r) => r.day !== day)
     rows.push({ day, ...snap })
     writeTrend(rows)

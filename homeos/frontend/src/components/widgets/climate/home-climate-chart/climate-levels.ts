@@ -10,7 +10,7 @@
  */
 
 /** 分级 key，同时作为 CSS 类名后缀（`is-temp-comfortable` 等）。 */
-export type ClimateLevelKey = 'cold' | 'cool' | 'comfortable' | 'warm' | 'hot'
+type ClimateLevelKey = 'cold' | 'cool' | 'comfortable' | 'warm' | 'hot'
 
 /** 湿度分级 key（与温度分开，避免「冷/热」用在湿度上语义错位）。 */
 export type HumidityLevelKey = 'dry' | 'slightly-dry' | 'comfortable' | 'slightly-humid' | 'humid'

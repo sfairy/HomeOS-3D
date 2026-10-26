@@ -23,7 +23,6 @@ export function refreshStepChecklist(appCtx: StudioAppContext) {
     (stepElement.classList.toggle("complete", (stepCompletionFlags as any)[stepElement.dataset.step!]),
       stepElement.classList.toggle("active", stepElement.dataset.step === activeStepName));
   patchStudioFacadeState({ workflowStep: activeStepName });
-  // 同步 Vue 工作流按钮完成态
   for (const stepButton of document.querySelectorAll<HTMLElement>(".sc-workflow__step[data-step]")) {
     const stepId = stepButton.getAttribute("data-step") || "";
     stepButton.classList.toggle("is-complete", !!(stepCompletionFlags as any)[stepId]);

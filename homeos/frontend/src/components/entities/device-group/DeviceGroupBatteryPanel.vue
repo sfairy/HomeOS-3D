@@ -11,7 +11,6 @@
         <div v-for="item in stats.critical" :key="item.id" class="dgm-battery-card is-critical">
           <h3 class="dgm-battery-name">{{ getEntityDisplayName(item.id, item.entity) }}</h3>
           <div class="dgm-battery-main">
-            <!-- 电量百分比与可视化电池条 -->
             <span class="dgm-battery-pct is-critical">{{ item.level }}<small>%</small></span>
             <div class="battery-body">
               <div class="battery-body-fill is-critical" :style="{ width: item.level + '%' }" />

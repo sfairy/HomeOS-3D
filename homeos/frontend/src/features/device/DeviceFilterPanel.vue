@@ -191,7 +191,6 @@ function onRoomChange(value: string) {
   patchFilter({ room: value })
 }
 
-// 排序下拉变更回调。
 function onSortChange(value: DeviceFilterState['sort']) {
   patchFilter({ sort: value })
 }

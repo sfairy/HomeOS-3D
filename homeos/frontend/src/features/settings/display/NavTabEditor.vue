@@ -378,7 +378,6 @@ function setPlacement(id, placement) {
   highlightedTabId.value = id
 }
 
-// 切换 Tab 可见性
 function toggleNavTab(id) {
   layoutStore.layoutConfig.navTabVisibility = toggleNavTabVisibility(
     layoutStore.layoutConfig.navTabVisibility,

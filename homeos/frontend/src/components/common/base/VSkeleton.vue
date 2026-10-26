@@ -30,7 +30,6 @@ const props = defineProps({
   ariaLabel: { type: String, default: '' },
 })
 
-// 将宽高 prop 转换为内联样式对象
 const sizeStyle = computed(() => {
   const s = {}
   if (props.width != null)

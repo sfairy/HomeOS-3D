@@ -82,7 +82,6 @@
           @back="secTab = 'overview'"
         />
 
-        <!-- ====== 门禁事件 ====== -->
         <div
           v-if="secTab === 'events'"
           class="security-events-layout flex-1 flex flex-row overflow-hidden animate-fade-in--fast min-h-0"

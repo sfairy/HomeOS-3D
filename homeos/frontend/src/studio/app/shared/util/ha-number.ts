@@ -12,8 +12,8 @@
  */
 
 /** 精度合法区间；超出即视为脏数据（与 HA 前端的约束一致）。 */
-export const MIN_DISPLAY_PRECISION = 0;
-export const MAX_DISPLAY_PRECISION = 100;
+const MIN_DISPLAY_PRECISION = 0;
+const MAX_DISPLAY_PRECISION = 100;
 
 /** 只有这些域会走「按精度格式化」的路径。 */
 const NUMERIC_ENTITY_DOMAIN_PATTERN = /^(sensor|number|input_number)\./;
@@ -34,7 +34,7 @@ type PrecisionSource = {
 };
 
 /** 精度是否可用：必须是整数且在 0–100 之间（``bool`` / 小数 / 字符串一律不认）。 */
-export function isDisplayPrecision(value: unknown): value is number {
+function isDisplayPrecision(value: unknown): value is number {
   return (
     typeof value === "number" &&
     Number.isInteger(value) &&
@@ -48,7 +48,7 @@ export function isDisplayPrecision(value: unknown): value is number {
  *
  * 回落这一步不能省：HA 里绝大多数传感器只带 suggested 值，用户没手动改过。
  */
-export function numberDisplayPrecision(entity: PrecisionSource | null | undefined): number | null {
+function numberDisplayPrecision(entity: PrecisionSource | null | undefined): number | null {
   if (!entity) return null;
   if (isDisplayPrecision(entity.displayPrecision)) return entity.displayPrecision;
   if (isDisplayPrecision(entity.suggestedDisplayPrecision)) return entity.suggestedDisplayPrecision;

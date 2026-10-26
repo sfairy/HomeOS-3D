@@ -149,7 +149,6 @@ const props = defineProps<{
   selectedIds: string[]
 }>()
 
-// 清除选择按钮触发的事件。
 defineEmits(['clear'])
 
 const { teleportTarget: modalTeleportTo, shellTeleportPending, refreshShellTeleport } =

@@ -54,7 +54,6 @@
       </div>
     </div>
 
-    <!-- 模型配置 -->
     <section v-show="section === 'model'" class="settings-hub-section">
       <SettingsCard static extra-class="agent-workspace">
         <div class="agent-model-head">
@@ -253,7 +252,6 @@
       </SettingsCard>
     </section>
 
-    <!-- 场景语音控制 -->
     <section v-show="section === 'scene-voice'" class="settings-hub-section">
       <SettingsCard static extra-class="agent-scene-voice-workspace">
         <SettingsCardIntro
@@ -304,7 +302,6 @@
       </SettingsCard>
     </section>
 
-    <!-- Agent 设备范围 -->
     <section v-show="section === 'device-scope'" class="settings-hub-section">
       <SettingsCard static extra-class="agent-scene-voice-workspace">
         <SettingsCardIntro
@@ -346,7 +343,6 @@
       </SettingsCard>
     </section>
 
-    <!-- 主动管家 -->
     <section v-show="section === 'proactive'" class="settings-hub-section">
       <SettingsCard static extra-class="agent-scene-voice-workspace">
         <SettingsCardIntro
@@ -465,7 +461,6 @@
       @refresh-status="refreshChannelStatus"
     />
 
-    <!-- 管家对话 -->
     <section v-show="section === 'chat'" class="settings-hub-section">
       <SettingsCard static extra-class="agent-chat-workspace">
         <div class="agent-chat-head">

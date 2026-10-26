@@ -109,7 +109,6 @@ class UiConfigService:
         profiles = self._app_config.get("profiles")
         return profiles if isinstance(profiles, dict) else {}
 
-    # 读取
     def get_config(self, project_id: str = "default") -> dict[str, Any]:
         """获取项目配置（不存在时返回 ``{projectId, layout: {}}``）。"""
         with self._session_factory() as session:

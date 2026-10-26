@@ -134,7 +134,6 @@ class EventLogService(EventLogReportMixin):
     def _clamp_query_hours(self, hours: Any, fallback: int) -> int:
         return clamp_event_log_query_hours(hours, self.get_retention_days(), fallback)
 
-    # 写入流水线
     def handle_state_change_batch(self, batch: Any) -> None:
         changes = self._extract_changes(batch)
         if not changes:

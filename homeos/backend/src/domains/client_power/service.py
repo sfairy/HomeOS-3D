@@ -308,7 +308,6 @@ class ClientPowerService:
         ):
             await self._emit(CLIENT_POWER_CHARGED, {"clientId": client_id, "level": level})
 
-    # 上报处理
     async def report(self, dto: dict[str, Any]) -> dict[str, Any]:
         """处理客户端系统信息上报。"""
         client_id = str((dto or {}).get("clientId") or "").strip()

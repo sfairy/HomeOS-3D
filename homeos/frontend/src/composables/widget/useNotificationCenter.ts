@@ -196,12 +196,10 @@ export function useNotificationCenter() {
     }
   })
 
-  // 切换来源时重置聚焦
   watch(activeSource, () => {
     focusedIndex.value = displayNotifications.value.length ? 0 : -1
   })
 
-  // 切换级别时重置聚焦
   watch(activeLevel, () => {
     focusedIndex.value = displayNotifications.value.length ? 0 : -1
   })

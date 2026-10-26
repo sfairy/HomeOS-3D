@@ -940,10 +940,6 @@ def _parse_positive_float(value: Any) -> float | None:
     return parsed
 
 
-def _positive_float(value: Any) -> bool:
-    return _parse_positive_float(value) is not None
-
-
 def _iso_now() -> str:
     from datetime import UTC, datetime
 

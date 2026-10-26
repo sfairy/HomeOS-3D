@@ -548,7 +548,6 @@ const ALERT_COOLDOWN_HINT = '冷却期内同规则不重复推送；填 0 表示
 const ALERT_DOORBELL_LINK_HINT =
   '门铃模板触发后可联动摄像头查看实时画面；配置了门锁实体时，弹窗内支持一键开门。'
 
-// 切换编辑规则中的推送渠道勾选状态
 function toggleAlertChannel(id) {
   if (!editing.value) return
   const list = Array.isArray(editing.value.channels) ? [...editing.value.channels] : []

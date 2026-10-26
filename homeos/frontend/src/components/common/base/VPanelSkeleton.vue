@@ -1,12 +1,9 @@
 /** 由多个 VSkeleton 组合而成，提供与最终布局一致的加载态视觉。 */
 <template>
   <div class="v-panel-skeleton" role="status" :aria-label="ariaLabel || '加载中…'">
-    <!-- 标题占位 -->
     <VSkeleton variant="title" width="42%" />
-    <!-- 文本行占位 -->
     <VSkeleton variant="text" />
     <VSkeleton variant="text" width="72%" />
-    <!-- 主体卡片占位 -->
     <VSkeleton variant="card" :height="bodyHeight" />
   </div>
 </template>

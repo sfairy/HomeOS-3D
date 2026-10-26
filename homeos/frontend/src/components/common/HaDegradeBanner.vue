@@ -6,7 +6,6 @@
       class="hos-degrade-banner__icon"
       aria-hidden="true"
     />
-    <!-- 重连中 -->
     <Loader2
       v-else-if="entitiesStore.reconnecting"
       class="hos-degrade-banner__icon hos-degrade-banner__icon--spin"

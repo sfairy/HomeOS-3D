@@ -71,7 +71,6 @@
         <EewSlideUnlock :progress="slideProgress" :dragging="slideDragging" @start="onSlideStart" />
       </div>
 
-      <!-- 竖屏紧凑布局 -->
       <div v-else class="eew-portrait">
         <div
           class="eew-countdown-glow text-[7rem] font-black tabular-nums leading-none tracking-tighter text-white"

@@ -386,7 +386,6 @@ async function copyCommand(command: string) {
         </aside>
 
         <div class="hb-account-content">
-          <!-- 我的授权 -->
           <div v-show="activeTab === 'licenses'" class="hb-account-panel">
             <div class="hb-account-list">
               <article v-for="(item, index) in licenses" :key="item.activationCodeId" class="hb-account-item hb-account-item--stacked">
@@ -448,7 +447,6 @@ async function copyCommand(command: string) {
             </div>
           </div>
 
-          <!-- 增量包 -->
           <div v-show="activeTab === 'addons'" class="hb-account-panel">
             <section v-if="activeEntitlements.length" class="hb-account-section">
               <div class="hb-section-heading hb-section-heading--compact">
@@ -495,7 +493,6 @@ async function copyCommand(command: string) {
             <div v-if="!activeEntitlements.length && !addonOffers.length" class="hb-account-empty">暂无可展示的增量包。</div>
           </div>
 
-          <!-- 我的订单 -->
           <div v-show="activeTab === 'orders'" class="hb-account-panel">
             <div class="hb-account-list">
               <article v-for="item in orders" :key="item.orderNo" class="hb-account-item hb-account-item--row">
@@ -529,7 +526,6 @@ async function copyCommand(command: string) {
       </div>
     </div>
 
-    <!-- 解除设备绑定 -->
     <dialog ref="releaseDialog" class="hb-dialog hb-release-dialog" @cancel.prevent="releaseDialog?.close()">
       <form @submit.prevent="submitRelease">
         <div class="hb-dialog__head">
@@ -559,7 +555,6 @@ async function copyCommand(command: string) {
       </form>
     </dialog>
 
-    <!-- 修改授权备注 -->
     <dialog ref="labelDialog" class="hb-dialog hb-release-dialog" @cancel.prevent="labelDialog?.close()">
       <form @submit.prevent="saveLabel">
         <div class="hb-dialog__head">

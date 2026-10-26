@@ -186,7 +186,6 @@ class McpGatewayService:
                     "建议优先使用环境变量并定期轮换密钥"
                 )
 
-    # 执行身份
     async def resolve_mcp_actor(self) -> AgentActor | None:
         """绑定 agentConfig.mcpActorUserId 对应的真实用户；未绑定则返回 ``None``。
 

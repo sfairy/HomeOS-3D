@@ -135,7 +135,6 @@ class DatabaseRetentionService:
     def cooldown(self, value: Any) -> None:
         self._cooldown = value
 
-    # 启动
     def start(self) -> None:
         self._retention_days = self.resolve_retention_days()
         try:

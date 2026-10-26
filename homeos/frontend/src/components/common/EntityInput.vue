@@ -15,7 +15,6 @@
         :placeholder="placeholder || '选择或输入 entity_id'"
         :class="inputClass"
       />
-      <!-- 清除按钮 -->
       <button
         v-if="showClearBtn"
         type="button"

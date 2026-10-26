@@ -99,7 +99,6 @@ const app = createApp(App)
 app.component('VSkeleton', VSkeleton)
 app.component('VEmptyState', VEmptyState)
 app.component('VPanelSkeleton', VPanelSkeleton)
-// 注册全局指令 v-swipe-close
 app.directive('swipe-close', swipeClose)
 app.use(createPinia())
 app.use(router)

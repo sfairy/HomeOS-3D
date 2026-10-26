@@ -486,6 +486,22 @@ body.interaction3d-stage.is-background-hidden,
   position: relative;
   z-index: 3;
 }
+/* 灯光模式下拉菜单（彩光 / 色温 / 白光）挂在 header 里，而 header 的 z-index:1 和
+   .i3d-light-heading-text 的 z-index:2 各自建立了层叠上下文，菜单自身再高的 z-index 也被
+   锁在控制区 .i3d-light-controls(z-index:3) 之下——展开就被取色板连命中区域一起盖住。
+   展开期间让这两层不再自建层叠上下文，菜单按自己的 z-index:5 直接参与面板层叠：
+   菜单压过控制区，灯罩按钮(z-index:1)仍留在控制区之下，关闭时恢复原层叠顺序。 */
+.interaction3d-stage
+  .i3d-light-panel:has(.i3d-light-mode-trigger[aria-expanded="true"])
+  :is(header, .i3d-light-heading-text) {
+  z-index: auto;
+}
+/* 只有色温/白光的灯没有取色板，面板是 160px 的收起高度，菜单会被 overflow:hidden 截断；
+   展开期间放开裁剪，让菜单正常垂到面板外。 */
+.interaction3d-stage
+  .i3d-light-panel.is-open:has(.i3d-light-mode-trigger[aria-expanded="true"]) {
+  overflow: visible;
+}
 .interaction3d-stage .i3d-light-panel header strong {
   display: -webkit-box;
   -webkit-line-clamp: 2;

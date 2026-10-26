@@ -54,7 +54,6 @@ class JobRegistryService:
                 "lastError": existing["lastError"] if existing else None,
             }
 
-    # 执行
     async def run(
         self,
         name: str,

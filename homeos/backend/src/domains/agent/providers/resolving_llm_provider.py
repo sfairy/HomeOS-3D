@@ -69,7 +69,6 @@ class ResolvingLlmProvider:
             await self.refresh()
         return await self._inner.chat(messages, tools, opts)
 
-    # 刷新
     async def refresh(self) -> None:
         """重新读取配置并切换内部提供商。
 

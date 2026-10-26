@@ -10,7 +10,6 @@
         <span class="sun-duration">{{ daylightDuration }}</span>
       </div>
     </div>
-    <!-- 日出日落进度条区域 -->
     <div class="sun-bar-wrap">
       <!-- Hub 嵌入：相位 + 白昼时长 -->
       <div v-if="embedded" class="sun-embedded-meta">

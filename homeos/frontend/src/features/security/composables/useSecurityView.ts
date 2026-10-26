@@ -281,7 +281,6 @@ export function useSecurityView() {
   const eventsPath = computed(() => layoutStore.layoutConfig.haConfig.eventsPath || '')
   const eventsCalendar = useSecurityEventsCalendar(eventsPath)
 
-  // 刷新进行中标记
   const refreshing = ref(false)
 
   /**

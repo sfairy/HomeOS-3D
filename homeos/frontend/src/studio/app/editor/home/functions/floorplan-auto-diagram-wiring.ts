@@ -11,7 +11,7 @@
  */
 
 /** 导图控件接线所需的最小依赖集合（元素 + 回调）。 */
-export interface FloorplanAutoDiagramWiringDeps {
+interface FloorplanAutoDiagramWiringDeps {
   /** 「在 3D 场景中生成」按钮。 */
   openStudioButton: HTMLButtonElement
   /** 视图 / 定位模式切换按钮。 */

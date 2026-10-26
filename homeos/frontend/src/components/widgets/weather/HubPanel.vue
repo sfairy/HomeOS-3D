@@ -7,7 +7,6 @@
 -->
 <template>
   <div class="widget-hub-root weather-hub-root">
-    <!-- Hub 顶部 Tab 切换头 -->
     <WidgetHubHeader
       v-if="hubTabs.length"
       v-model="activeTab"
@@ -21,7 +20,6 @@
         'weather-hub-body--sun': activeTab === 'sun',
       }"
     >
-      <!-- 实时天气 -->
       <WeatherWidget
         v-if="activeTab === 'current'"
         class="widget-hub-panel weather-hub-panel"
@@ -29,7 +27,6 @@
         :panel-visible="panelVisible"
         compact
       />
-      <!-- 气象预报 -->
       <WeatherForecast
         v-if="activeTab === 'forecast'"
         embedded
@@ -45,7 +42,6 @@
         :config="config"
         :panel-visible="panelVisible"
       />
-      <!-- 日出日落 -->
       <SunInfo
         v-if="activeTab === 'sun'"
         embedded

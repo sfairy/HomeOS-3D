@@ -17,7 +17,6 @@
   >
     <PopupHead :title="entityName" :icon="Sun" :eyebrow="isOn ? '运行中' : '已关闭'" />
 
-    <!-- 电源控制区域 -->
     <div class="popup-section flex justify-between items-center" style="margin-bottom: 14px">
       <span class="text-xs lcp-section-label font-bold uppercase tracking-wider">{{
         '电源状态'

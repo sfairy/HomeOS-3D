@@ -59,7 +59,6 @@ export function useSecurityZoneMonitor(
       const roomId = layout?.roomId || zone.roomId || ''
       const roomLabel = roomOptions.value.find((r) => r.id === roomId)?.label || ''
       const zoneType = zone.zoneType || layout?.zoneType || 'all'
-      // 构建传感器行
       const sensors = buildSensorRows(zone.sensors || [])
       const alertCount = sensors.filter((s) => s.alert).length
       const offlineCount = sensors.filter((s) => s.offline).length

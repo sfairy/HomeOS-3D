@@ -25,7 +25,6 @@
       </button>
     </div>
 
-    <!-- 播放器选择字段 -->
     <label class="media-playlist__field">
       <span class="media-playlist__field-label">{{ '播放器' }}</span>
       <HosSelect v-model="selectedPlayer" @change="loadPlaylist">

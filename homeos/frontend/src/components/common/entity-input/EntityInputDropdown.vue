@@ -90,7 +90,6 @@
             </div>
           </div>
         </div>
-        <!-- 无匹配实体时的空状态提示 -->
         <div v-else class="ei-empty-hint">{{ '未找到匹配的实体' }}</div>
       </div>
     </Transition>

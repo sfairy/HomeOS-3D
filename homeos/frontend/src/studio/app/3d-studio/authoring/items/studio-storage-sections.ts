@@ -10,9 +10,9 @@
 export const STORAGE_SECTION_TYPES: ReadonlySet<string> = new Set(["wardrobe", "cabinet"]);
 
 /** 下拉可选值（顺序即界面顺序）。 */
-export const STORAGE_SECTION_VALUES = Object.freeze(["full", "two-section"] as const);
+const STORAGE_SECTION_VALUES = Object.freeze(["full", "two-section"] as const);
 
-export type StorageSectionStyle = (typeof STORAGE_SECTION_VALUES)[number];
+type StorageSectionStyle = (typeof STORAGE_SECTION_VALUES)[number];
 
 /** 该条目当前的柜门结构；不支持的家族 / 非法值一律回落到 `full`。 */
 export function storageSectionStyle(item: any): StorageSectionStyle {

@@ -1029,7 +1029,7 @@ export function commitItemMaterialEdit(runtime: StudioAppRuntime, mutationFuncti
  * 材质并成了一个色块（见 `VEHICLE_MATERIAL_SLOTS`）。写回时按色块展开成真实材质名列表，
  * 否则改色只会命中分格里的第一个材质。
  */
-export function materialSlotWriteTargets(slotEntries: any, materialName: any) {
+function materialSlotWriteTargets(slotEntries: any, materialName: any) {
   const slotEntry = Array.isArray(slotEntries)
     ? slotEntries.find(
         (candidate: any) =>

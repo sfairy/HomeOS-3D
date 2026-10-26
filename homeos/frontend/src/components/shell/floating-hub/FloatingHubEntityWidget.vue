@@ -14,7 +14,6 @@
     @click.stop="clickable && hub.onWidgetClick(widget)"
   >
     <div class="flex items-center gap-3">
-      <!-- 根据实体类别展示对应图标 emoji -->
       <div v-if="widget.config.showIcon" class="afh-icon-box">
         <span v-if="hub.isGasEntity(String(widget.config.entityId || ''))" class="afh-emoji"
           >🔥</span
@@ -33,7 +32,6 @@
           {{ entityLabel }}
         </span>
         <div class="flex items-baseline gap-1">
-          <!-- 实体当前状态值与单位 -->
           <span class="afh-value">{{ hub.entityState(String(widget.config.entityId || '')) }}</span>
           <span class="afh-unit">{{ hub.unitLabel(String(widget.config.entityId || '')) }}</span>
         </div>

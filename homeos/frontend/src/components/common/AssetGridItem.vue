@@ -17,10 +17,8 @@
       :aria-label="mainLabel"
       @click="$emit('click')"
     >
-      <!-- 文件夹图标 -->
       <FolderOpen v-if="item.type === 'dir'" class="agi-icon agi-icon--dir" />
 
-      <!-- 图片文件预览 -->
       <div v-else class="agi-preview">
         <div class="agi-preview__inner">
           <img
@@ -36,7 +34,6 @@
         </div>
       </div>
 
-      <!-- 文件名 -->
       <span class="agi-name">{{ item.name }}</span>
     </button>
 
@@ -61,7 +58,6 @@
       </button>
     </div>
 
-    <!-- Picker模式选中光晕 -->
     <div v-if="isPicker && item.type === 'file'" class="agi-pick-hint" />
   </div>
 </template>

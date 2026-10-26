@@ -638,7 +638,6 @@ class HomeModeService:
             "lastActivation": last or self._runtime_logs.get_latest_execution(),
         }
 
-    # 触发器事件入口
     async def handle_state_trigger(self, event: dict[str, Any]) -> None:
         await handle_home_mode_state_trigger(self._trigger_state, self._deps, event)
 

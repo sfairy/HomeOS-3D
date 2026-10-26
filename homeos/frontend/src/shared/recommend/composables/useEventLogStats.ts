@@ -22,7 +22,6 @@ import type { EventLogStatsSnapshot } from '@/shared/recommend/types/recommend.t
  *   - loadStats: 加载方法
  */
 export function useEventLogStats() {
-  // 加载中标记
   const statsLoading = ref(false)
   // 当前查询窗口（小时数），默认 24
   const statsHours = ref(24)

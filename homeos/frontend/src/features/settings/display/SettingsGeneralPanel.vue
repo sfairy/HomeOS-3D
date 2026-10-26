@@ -408,7 +408,6 @@ function perfBtnClass(mode) {
   return ['settings-choice-btn', active && 'settings-choice-btn--active']
 }
 
-// 设置性能模式并标记用户已手动设置
 function setPerformanceMode(mode) {
   layoutConfig.value.performanceMode = mode
   markPerformanceModeUserSet()
@@ -473,7 +472,6 @@ function onAddPreset() {
   })
 }
 
-// 添加自定义实体项并选中
 function onAddCustomEntity() {
   const before = footerCfg.value.items.length
   addCustomEntity()

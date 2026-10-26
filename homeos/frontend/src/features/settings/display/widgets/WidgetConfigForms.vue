@@ -73,7 +73,6 @@ const playerEntitiesList = computed({
     </template>
   </WidgetConfigShell>
 
-  <!-- Media mini -->
   <WidgetConfigShell
     v-else-if="variant === 'mediaMini'"
     :icon="Music2"
@@ -96,7 +95,6 @@ const playerEntitiesList = computed({
     </template>
   </WidgetConfigShell>
 
-  <!-- Height -->
   <WidgetConfigShell
     v-else-if="variant === 'height'"
     :icon="Ruler"

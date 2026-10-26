@@ -185,7 +185,6 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresFeature: 'module.security' },
       },
       {
-        // 设置页
         path: 'settings',
         name: 'settings',
         component: lazyView(() => import('@/views/SettingsView.vue')),

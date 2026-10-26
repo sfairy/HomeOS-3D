@@ -43,7 +43,6 @@
     </div>
 
     <template v-else>
-      <!-- ── 状态总览 ── -->
       <SettingsCard v-show="section === 'overview'" full static extra-class="license-card">
         <div class="license-hero">
           <div class="license-hero__main">
@@ -81,7 +80,6 @@
         </dl>
       </SettingsCard>
 
-      <!-- ── 租约信息 ── -->
       <SettingsCard v-show="section === 'lease'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '签名租约' }}</h3>
@@ -101,7 +99,6 @@
         </dl>
       </SettingsCard>
 
-      <!-- ── 权益清单 ── -->
       <SettingsCard v-show="section === 'features'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '功能码与权益' }}</h3>
@@ -191,7 +188,6 @@
         </p>
       </SettingsCard>
 
-      <!-- ── 账号与操作 ── -->
       <SettingsCard v-show="section === 'account'" full static extra-class="license-card">
         <div class="license-card__head">
           <h3 class="license-card__name">{{ '账号与操作' }}</h3>

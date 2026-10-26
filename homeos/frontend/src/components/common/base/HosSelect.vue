@@ -12,9 +12,7 @@
       aria-haspopup="listbox"
       @click.stop="toggle"
     >
-      <!-- 显示当前选中值或占位符 -->
       <span class="hos-select__value">{{ selectedLabel || placeholderText }}</span>
-      <!-- 下拉箭头图标 -->
       <ChevronDown class="hos-select__chev" :class="{ 'hos-select__chev--open': open }" />
     </button>
 
@@ -55,7 +53,6 @@
               >
                 {{ opt.group }}
               </div>
-              <!-- 单个选项按钮 -->
               <button
                 type="button"
                 role="option"
@@ -70,17 +67,14 @@
                 @mouseenter="activeIdx = idx"
               >
                 <div class="hos-select__item-main">
-                  <!-- 选项主标签 -->
                   <span class="hos-select__item-label">{{ opt.label }}</span>
                   <!-- 选项提示信息（如实体 domain） -->
                   <span v-if="opt.hint" class="hos-select__item-hint">{{ opt.hint }}</span>
                 </div>
-                <!-- 选中状态的勾选图标 -->
                 <Check v-if="isSelected(opt)" class="hos-select__item-check" aria-hidden="true" />
               </button>
             </template>
           </div>
-          <!-- 无匹配项时的空状态 -->
           <div v-else class="hos-select__empty">{{ emptyLabel }}</div>
         </div>
       </Transition>

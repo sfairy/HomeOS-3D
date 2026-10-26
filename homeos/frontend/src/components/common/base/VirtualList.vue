@@ -34,7 +34,6 @@
         <slot :item="data" :index="index" />
       </div>
     </template>
-    <!-- 空数据时展示 empty 插槽 -->
     <slot v-if="!items.length" name="empty" />
   </div>
 </template>

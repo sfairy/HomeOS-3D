@@ -56,7 +56,6 @@ export function useMainLayoutChrome() {
   const siteTitle = computed(() => layoutStore.layoutConfig.siteTitle || 'HomeOS')
   /** 品牌Logo URL（默认值） */
   const brandLogoUrl = DEFAULT_BRAND_LOGO_URL
-  // 同步站点标题到 document.title
   watch(
     siteTitle,
     (title) => {

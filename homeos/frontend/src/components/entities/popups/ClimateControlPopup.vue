@@ -45,7 +45,6 @@
     <!-- 有目标温度场景：± 调节 + 滑动条 + 关闭按钮 -->
     <div v-else class="flex flex-col items-center gap-4 mb-5">
       <div class="flex items-center justify-between w-full px-1">
-        <!-- 降低设定温度 -->
         <button
           type="button"
           class="temp-adjust-btn"
@@ -61,7 +60,6 @@
           >
           <span class="text-xs font-bold ccp-lbl leading-normal pb-px">{{ '设定温度 °C' }}</span>
         </div>
-        <!-- 提高设定温度 -->
         <button
           type="button"
           class="temp-adjust-btn"
@@ -175,7 +173,6 @@
         }}</span>
       </div>
       <div class="flex items-center justify-between gap-3 px-1">
-        <!-- 低温区 -->
         <div class="flex flex-col items-center gap-1 flex-1">
           <span class="text-xs ccp-lbl uppercase">{{ '低温' }}</span>
           <div class="flex items-center gap-2">
@@ -198,7 +195,6 @@
             </button>
           </div>
         </div>
-        <!-- 高温区 -->
         <div class="flex flex-col items-center gap-1 flex-1">
           <span class="text-xs ccp-lbl uppercase">{{ '高温' }}</span>
           <div class="flex items-center gap-2">

@@ -328,7 +328,6 @@ function onAdvancedToggle(e) {
   if (e.target?.open) void loadHomeModes()
 }
 
-// 设置当前模式联动的家庭模式 ID
 function setHomeModeLink(value) {
   securityModeLinks.value[props.modeKey] = String(value || '')
 }
@@ -351,7 +350,6 @@ function onBatchDomainChange() {
   batchService.value = ''
 }
 
-// 切换某个实体的勾选态
 function toggleBatchCheck(eid) {
   const idx = batchChecked.value.indexOf(eid)
   if (idx >= 0) batchChecked.value.splice(idx, 1)

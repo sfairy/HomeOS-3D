@@ -56,10 +56,8 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
         ]"
         :style="menuStyle"
       >
-        <!-- 加载状态 -->
         <div v-if="loading" class="home-mode-switcher__empty">{{ '加载中…' }}</div>
         <template v-else>
-          <!-- 模式切换区域标题 -->
           <div v-if="modes.length" class="home-mode-switcher__section-label">{{ '切换模式' }}</div>
           <button
             v-for="m in modes"
@@ -89,7 +87,6 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
             <Power class="w-3.5 h-3.5" />
             <span>{{ '退出当前模式' }}</span>
           </button>
-          <!-- 最近触发日志区域 -->
           <div v-if="modeContext.triggerLogs?.length" class="home-mode-switcher__logs">
             <div class="home-mode-switcher__logs-title">{{ '最近触发' }}</div>
             <div

@@ -23,7 +23,7 @@
  */
 
 /** 把 M 里每个「deps 首参实现」映射成「去掉 deps 的同形函数」。 */
-export type BoundDeps<M> = {
+type BoundDeps<M> = {
   [K in keyof M]: M[K] extends (deps: never, ...args: infer A) => infer R
     ? (...args: A) => R
     : never

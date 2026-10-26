@@ -16,7 +16,7 @@ import {
 } from '@/shared/utils/store-links.util'
 
 /** `useStoreLinks` 的返回值：页面按需取用，不用也不影响副作用。 */
-export interface StoreLinksBinding {
+interface StoreLinksBinding {
   /** 商店地址（响应式）。解析完成前是空地址，页面据此不渲染任何链接。 */
   storeLinks: ShallowRef<StoreLinks>
 }

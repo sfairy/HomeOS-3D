@@ -31,7 +31,6 @@
     </div>
 
     <template v-else>
-      <!-- 僵尸绑定清理向导 -->
       <SettingsCard full static extra-class="devices-mgmt-card">
         <div class="devices-mgmt-card__head">
           <div class="devices-mgmt-card__title">

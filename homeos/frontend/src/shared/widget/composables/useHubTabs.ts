@@ -35,7 +35,6 @@ export function useHubTabs(options: {
   // 归一化配置：把可见 Tab、默认 Tab 等字段统一成结构化对象
   const tabConfig = computed(() => normalizeHubTabConfig(toValue(options.config), options.hubType))
 
-  // 根据配置过滤全量 Tab，得到实际可展示的 Tab 列表
   const hubTabs = computed(() =>
     filterTabsByVisible(toValue(options.allTabs), toValue(options.config), options.hubType),
   )

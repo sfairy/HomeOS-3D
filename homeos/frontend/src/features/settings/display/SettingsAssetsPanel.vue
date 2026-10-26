@@ -255,7 +255,6 @@ watch(
   },
 )
 
-// 打开对应素材库弹窗
 function openLibrary(id) {
   if (id === 'background') backgroundModalOpen.value = true
   else if (id === 'icon') iconModalOpen.value = true

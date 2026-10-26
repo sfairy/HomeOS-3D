@@ -47,7 +47,6 @@
 
       <div class="asset-header__divider" />
 
-      <!-- 新建文件夹按钮 -->
       <button
         type="button"
         class="asset-header__btn"

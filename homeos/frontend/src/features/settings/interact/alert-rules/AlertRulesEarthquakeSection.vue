@@ -42,7 +42,6 @@
       @refresh="refreshStatus"
     />
 
-    <!-- 家庭坐标 -->
     <SettingsCard static extra-class="alert-eew-card">
       <SettingsSectionHead
         icon-key="map-pin"
@@ -117,7 +116,6 @@
       </div>
     </SettingsCard>
 
-    <!-- 预警阈值 -->
     <SettingsCard static extra-class="alert-eew-card">
       <SettingsSectionHead
         :icon="SlidersHorizontal"
@@ -186,7 +184,6 @@
       </p>
     </SettingsCard>
 
-    <!-- TTS -->
     <SettingsCard static extra-class="alert-eew-card">
       <SettingsSectionHead
         :icon="Volume2"
@@ -214,7 +211,6 @@
       </div>
     </SettingsCard>
 
-    <!-- 模拟演练 -->
     <SettingsCard static extra-class="alert-eew-card alert-eew-drill-shell">
       <SettingsSectionHead
         :icon="Zap"

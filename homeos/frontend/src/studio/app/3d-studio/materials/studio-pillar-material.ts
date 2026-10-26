@@ -22,7 +22,7 @@ import { materialStylePresetRoleColorFor } from "./studio-material-presets";
 import { defaultViewSettings } from "../authoring/scene/studio-view-settings";
 import { WALL_SURFACE_FINISH, wallEmissiveIntensity, wallFilmOpacity } from "./studio-wall-finish";
 
-export interface PillarMaterialSpec {
+interface PillarMaterialSpec {
   /** 最终基色（十六进制，sRGB）。 */
   color: number;
   roughness: number;

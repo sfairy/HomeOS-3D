@@ -7,7 +7,6 @@
         class="hos-modal-root"
         @click.self="layoutStore.cancelExitEditMode()"
       >
-        <!-- 背景遮罩 -->
         <div class="hos-modal-backdrop" />
 
         <!-- alertdialog 而不是 dialog：这是「继续就会丢数据」的确认框，读屏应立刻打断当前播报。 -->

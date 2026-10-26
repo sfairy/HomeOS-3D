@@ -137,7 +137,6 @@ class StateIngressCoalesceService:
             }
         self._schedule()
 
-    # 刷新
     def _schedule(self) -> None:
         if self._timer is not None:
             return

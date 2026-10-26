@@ -477,11 +477,9 @@ export function useDeviceAnalyticsCharts(options: {
         String(Math.round(device.totalRuntimeMs / 60000)),
       ])
     })
-    // 生成 CSV 内容
     const csv = rows
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n')
-    // 创建 Blob 并下载
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')

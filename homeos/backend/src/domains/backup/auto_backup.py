@@ -79,7 +79,6 @@ class AutoBackupService:
             "nextRunAt": self.compute_next_run_at(),
         }
 
-    # 执行
     async def run_auto_backup(self) -> None:
         ops = self._app_config.get("ops") or {}
         if not ops.get("autoBackupEnabled"):

@@ -167,7 +167,6 @@ function deleteDigit() {
   isError.value = false
 }
 function clearPin() {
-  // 清空 PIN 并复位状态
   pin.value = ''
   isError.value = false
   isSuccess.value = false

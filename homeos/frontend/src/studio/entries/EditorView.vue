@@ -67,7 +67,6 @@ onMounted(async () => {
   if (disposed) return;
   editor.bootEditor();
   teardownEditor = editor.teardownEditor;
-  // 同步初始折叠态到引擎
   editorStore.command({ type: "setLeftCollapsed", collapsed: editorStore.leftCollapsed });
   editorStore.command({ type: "setRightCollapsed", collapsed: editorStore.rightCollapsed });
   editorStore.command({ type: "setZoom", zoom: editorStore.canvasZoom });

@@ -58,7 +58,6 @@
         </SettingsCard>
 
         <div class="fam-page__stack">
-          <!-- 状态详情 -->
           <SettingsCard static extra-class="fam-status-workspace">
             <header class="acc-section-head">
               <div class="acc-section-head__orb acc-section-head__orb--secure">

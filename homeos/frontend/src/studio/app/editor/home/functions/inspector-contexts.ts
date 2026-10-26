@@ -10,6 +10,7 @@ import { setBuiltinAssetVersions as setBuiltinAssetVersions2 } from "../../../re
 import { nasProfiles as nasProfiles2, reconcileNasDocument as reconcileNasDocument2 } from "../../../bridge/catalog/nas-catalog";
 import { documentSignature as documentSignature2, editorDocumentFrameSignature as editorDocumentFrameSignature2, editorComponentEntries as editorComponentEntries2, editorComponentStructure as editorComponentStructure2 } from "../../editor-history";
 import { normalizedPopupClimateDeviceType as normalizedPopupClimateDeviceType2, popupModuleEntityRecommended as popupModuleEntityRecommended2, findCustomPopup as findCustomPopup2 } from "../../editor-document-management";
+import { renderEntityOptionButtons } from "./entity-option-list";
 
 export interface InspectorContextsDeps {
   editorCtx: EditorContext;
@@ -951,36 +952,11 @@ export function renderPopupModuleEntityOptions(deps: InspectorContextsDeps, quer
       )
       .map(({ entity: candidatePopup }: any) => candidatePopup);
   if (
-    (deps.popupModuleEntityOptionsElement.replaceChildren(
-      ...mappedItemsBuffer.map((popupItem: any) => {
-        const popupItemElementElement = document.createElement("button");
-        ((popupItemElementElement.type = "button"),
-          (popupItemElementElement.className =
-            "inspector-entity-option" +
-            (popupItem.entityId === customPopupListConfig ? " selected" : "")),
-          (popupItemElementElement.dataset.popupModuleEntityId = popupItem.entityId),
-          popupItemElementElement.setAttribute("role", "option"),
-          popupItemElementElement.setAttribute(
-            "aria-selected",
-            String(popupItem.entityId === customPopupListConfig),
-          ));
-        const popupItemButtonPanel = document.createElement("span");
-        popupItemButtonPanel.className = "inspector-entity-option-content";
-        const popupItemButton = document.createElement("span");
-        ((popupItemButton.className = "inspector-entity-option-line inspector-entity-name-line"),
-          (popupItemButton.textContent =
-            "[" + deps.runQueue(popupItem) + "] " + deps.runSnapshot(popupItem)));
-        const popupItemNameElement = document.createElement("span");
-        return (
-          (popupItemNameElement.className = "inspector-entity-option-line inspector-entity-id"),
-          (popupItemNameElement.textContent = popupItem.entityId),
-          popupItemButtonPanel.append(popupItemButton, popupItemNameElement),
-          deps.runAlt(popupItemElementElement, popupItemButton),
-          popupItemElementElement.append(popupItemButtonPanel),
-          popupItemElementElement
-        );
-      }),
-    ),
+    (renderEntityOptionButtons(deps.popupModuleEntityOptionsElement, mappedItemsBuffer, {
+      selectedId: customPopupListConfig,
+      datasetKey: "popupModuleEntityId",
+      deps,
+    }),
     !mappedItemsBuffer.length)
   ) {
     const popupItemMetaElement = document.createElement("div");
