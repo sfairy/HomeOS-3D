@@ -115,7 +115,6 @@ class FrigateService:
         last = self._dedup_timestamps.get(dedup_key)
         if last is not None and now - last < self._dedup_ms:
             return
-        self._dedup_timestamps[dedup_key] = now
 
         snapshot = {
             "id": f"{camera}:{label}:{now}",
@@ -141,7 +140,10 @@ class FrigateService:
             current_mode = self._panel.get_mode()
             allowed = parse_frigate_alarm_modes(self._config().get("frigatePersonAlarmModes"))
             if not allowed or current_mode not in allowed:
+                # 未布防时不要消费去重窗口：否则撤防期间的检测会把刚布防后的
+                # 第一帧人员告警吞掉（时间戳只在真正产出告警后写入）。
                 return
+            self._dedup_timestamps[dedup_key] = now
             await self._bus.emit(
                 "security.alarm",
                 {
@@ -151,9 +153,24 @@ class FrigateService:
                     "zones": ["frigate"],
                     "zoneNames": f"{camera}",
                     "mode": current_mode,
+                    "source": "frigate",
                     "timestamp": snapshot["timestamp"],
                 },
             )
+            from .layout import schedule_security_event_silent
+
+            schedule_security_event_silent(
+                self._session_factory,
+                "frigate_person",
+                f"{camera} 检测到人员（{label} {score:.0f}%）",
+                mode=current_mode,
+                entity_id=entity_id,
+                zones=["frigate"],
+                source="frigate",
+            )
+            return
+
+        self._dedup_timestamps[dedup_key] = now
 
     def _process_score_update(
         self, entity_id: str, state: Any, _attrs: dict[str, Any]

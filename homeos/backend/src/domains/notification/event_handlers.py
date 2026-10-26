@@ -95,12 +95,16 @@ class NotificationEventHandlersHelper:
 
     async def handle_security_alarm(self, event: dict[str, Any] | None) -> None:
         event = event or {}
+        drill = bool(event.get("drillMode"))
         desc = format_security_alarm_message(event)
         cooldown_key = f"security_alarm:{event.get('entityId') or event.get('type') or 'global'}"
         if self._is_in_cooldown(cooldown_key):
             return
-        forced = self._resolve_security_alert_channels()
-        if forced is not None:
+        forced = None if drill else self._resolve_security_alert_channels()
+        if drill:
+            # 演习只在应用内留一条可见记录：绝不能按真实火警外呼、也不绕过免打扰。
+            channels = ["in_app", "socket"]
+        elif forced is not None:
             channels = forced
         elif event.get("type") in ("smoke", "gas_leak", "water_leak"):
             channels = ["in_app", "socket"]
@@ -115,7 +119,7 @@ class NotificationEventHandlersHelper:
             alert_level = "info"
         else:
             alert_level = "danger"
-        opts: dict[str, Any] = {"bypassDnd": True}
+        opts: dict[str, Any] = {"bypassDnd": not drill}
         if channels is not None:
             opts["channels"] = channels
         sent = await self._notify(alert_level, desc, "security", event.get("entityId"), opts)

@@ -131,11 +131,9 @@ export function useSecurityModesEmergency() {
     const preset = getEmergencyPresets().find((p) => p.id === presetId)
     if (!preset) return
     const cfg = ensureSecurityEmergency()
+    // 切换档位只改执行策略，**不清空**自定义动作：notify_only 下动作不执行，
+    // 用户切回 custom / full_home 时原配置仍在（此前会被永久删除）。
     Object.assign(cfg, preset.apply, { mode: presetId })
-    if (presetId === 'notify_only') {
-      cfg.actions = []
-      cfg.appendBuiltin = false
-    }
     chrome.notify(`已切换为「${preset.name}」`, 'success')
   }
 

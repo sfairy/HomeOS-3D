@@ -113,7 +113,6 @@
           v-model:hazard-gas-valve-entity-id="hazardGasValveEntityId"
           v-model:hazard-water-valve-entity-id="hazardWaterValveEntityId"
           v-model:hazard-exhaust-fan-entity-ids="hazardExhaustFanEntityIds"
-          v-model:hazard-drill-mode="hazardDrillMode"
           :hazard-testing="hazardTesting"
           :hazard-drill-busy="hazardDrillBusy"
           :hazard-drill-tip="hazardDrillTip"
@@ -283,7 +282,6 @@ const hazardExhaustFanEntityIds = defineModel('hazardExhaustFanEntityIds', {
   type: String,
   default: '',
 })
-const hazardDrillMode = defineModel('hazardDrillMode', { type: Boolean, default: false })
 
 // 流程概览折叠态摘要文案：门铃路数 · 事件路径状态
 const securityFlowSummary = computed(() => {

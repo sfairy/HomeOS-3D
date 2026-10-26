@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
 import time
@@ -20,12 +19,18 @@ from .layout import (
     load_active_project_layout,
     parse_hazard_layout_bindings,
     resolve_bound_hazard_kind,
+    resolve_numeric_hazard_threshold,
     run_hazard_auto_actions,
     schedule_security_event,
     schedule_security_event_silent,
     summarize_hazard_action_failures,
 )
-from .zones import normalize_zone_type, security_mode_label, should_zone_alarm_in_mode
+from .zones import (
+    SECURITY_ARMING_MODES,
+    normalize_zone_type,
+    security_mode_label,
+    should_zone_alarm_in_mode,
+)
 from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
@@ -141,9 +146,19 @@ def is_transient_state(state: Any) -> bool:
 # ── 紧急求助配置 ────────────────────────────────────────────────────────
 
 
+_EMERGENCY_MODES = ("full_home", "key_areas", "custom", "notify_only")
+_EMERGENCY_APPEND_MODES = ("full_home", "key_areas")
+
+
 def normalize_security_emergency(raw: dict[str, Any] | None) -> dict[str, Any]:
     data = raw if isinstance(raw, dict) else {}
     cfg = {**DEFAULT_SECURITY_EMERGENCY, **data}
+    mode = str(cfg.get("mode") or "").strip()
+    cfg["mode"] = mode if mode in _EMERGENCY_MODES else DEFAULT_SECURITY_EMERGENCY["mode"]
+    append_mode = str(cfg.get("appendMode") or "").strip()
+    cfg["appendMode"] = (
+        append_mode if append_mode in _EMERGENCY_APPEND_MODES else cfg["mode"]
+    )
     cfg["lightPool"] = [item for item in data.get("lightPool", []) if item] if isinstance(
         data.get("lightPool"), list
     ) else []
@@ -207,24 +222,33 @@ class SecurityPanelStateHelper:
         if not isinstance(data, dict):
             return
         mode = data.get("mode")
-        if mode:
-            self._state["setMode"](mode)
+        if isinstance(mode, str) and mode.strip():
+            normalized = mode.strip()
+            if normalized in SECURITY_ARMING_MODES:
+                self._state["setMode"](normalized)
+            else:
+                # 非法模式会让 /status、徽标、家庭模式联动全部显示乱值，且会一直落库。
+                logger.error("安防持久化模式非法，已回退为 disarmed: %r", mode)
+                self._state["setMode"]("disarmed")
         zones = data.get("zones")
         if isinstance(zones, list):
-            self._state["setZones"](
-                [
-                    {
-                        "id": z.get("id"),
-                        "name": z.get("name"),
-                        "sensors": list(z.get("sensors") or []),
-                        "armed": bool(z.get("armed")),
-                        "zoneType": normalize_zone_type(z.get("zoneType")),
-                        "roomId": (str(z.get("roomId")).strip() if z.get("roomId") else None),
-                    }
-                    for z in zones
-                    if isinstance(z, dict)
-                ]
-            )
+            persisted_zones = [
+                {
+                    "id": z.get("id"),
+                    "name": z.get("name"),
+                    "sensors": list(z.get("sensors") or []),
+                    "armed": bool(z.get("armed")),
+                    "zoneType": normalize_zone_type(z.get("zoneType")),
+                    "roomId": (str(z.get("roomId")).strip() if z.get("roomId") else None),
+                }
+                for z in zones
+                if isinstance(z, dict)
+            ]
+            if self._state["getMode"]() == "disarmed":
+                # 撤防态不允许存在 armed 区域：否则 /status 自相矛盾，且告警判定会打架。
+                for zone in persisted_zones:
+                    zone["armed"] = False
+            self._state["setZones"](persisted_zones)
         armed_at = data.get("armedAt")
         if isinstance(armed_at, (int, float)):
             self._state["setArmedAt"](int(armed_at))
@@ -264,6 +288,8 @@ class SecurityPanelStateHelper:
         mode: str | None = None,
         entity_id: str | None = None,
         zones: list[str] | None = None,
+        source: str | None = None,
+        actor: str | None = None,
     ) -> None:
         schedule_security_event_silent(
             self._session_factory,
@@ -273,6 +299,8 @@ class SecurityPanelStateHelper:
             entity_id=entity_id,
             zones=zones,
             default_mode=self._state["getMode"](),
+            source=source,
+            actor=actor,
         )
 
 
@@ -397,7 +425,9 @@ class SecurityLinkageHelper:
             logger.warning("%s 补偿: %s 已回滚, %s 失败", label, restored, failed)
         return {"restored": restored, "failed": failed, "failedItems": failed_items}
 
-    async def execute_security_mode_actions(self, mode: str) -> dict[str, Any]:
+    async def execute_security_mode_actions(
+        self, mode: str, skip_domains: set[str] | None = None
+    ) -> dict[str, Any]:
         try:
             actions = await self.load_security_mode_actions(mode)
         except Exception as exc:
@@ -410,6 +440,16 @@ class SecurityLinkageHelper:
                 "appliedItems": [],
                 "irreversibleItems": [],
             }
+        if skip_domains:
+            # 紧急求助自动布防等场景只跳过冲突域（声/光），门锁、阀门照常执行。
+            actions = [
+                act
+                for act in actions
+                if str(
+                    act.get("domain") or get_entity_domain(str(act.get("entity_id") or ""))
+                ).strip().lower()
+                not in skip_domains
+            ]
         return await self.execute_ha_actions(actions, f"安防模式 {mode}", "linkage_action_failed")
     async def call_service_batch(
         self,
@@ -533,9 +573,8 @@ class SecurityAlarmHelper:
             if now - last_at >= cooldown_ms:
                 self._safety_last_alarm.pop(entity_id, None)
 
-    def _is_lock_unlock_in_arm_exit_grace(self, entity_id: str, new_state: str) -> bool:
-        if not entity_id.startswith("lock.") or new_state != "unlocked":
-            return False
+    def _is_in_arm_exit_grace(self) -> bool:
+        """布防后出口宽限窗口内：本次布防的物理离开动作不应立刻算入侵。"""
         grace_sec = int(self._config_reader().get("armExitGraceSeconds") or 0)
         if grace_sec <= 0:
             return False
@@ -543,6 +582,11 @@ class SecurityAlarmHelper:
         if armed_at is None:
             return False
         return time.time() * 1000 - armed_at < grace_sec * 1000
+
+    def _is_lock_unlock_in_arm_exit_grace(self, entity_id: str, new_state: str) -> bool:
+        if not entity_id.startswith("lock.") or new_state != "unlocked":
+            return False
+        return self._is_in_arm_exit_grace()
 
     async def handle_sensor_trigger(self, event: dict[str, Any]) -> None:
         if self._get_current_mode() == "disarmed":
@@ -563,6 +607,16 @@ class SecurityAlarmHelper:
             and should_zone_alarm_in_mode(self._get_current_mode(), zone.get("zoneType"))
         ]
         if not triggered:
+            return
+        if self._is_in_arm_exit_grace():
+            # 出口宽限（armExitGraceSeconds）必须覆盖门磁/人体等所有传感器：
+            # 只对 lock.unlocked 生效会让「布防后开门离开」立刻变成真实告警。
+            logger.debug(
+                "安防出口宽限：%s → %s 在布防后 %.0f 秒内，不视为入侵",
+                entity_id,
+                new_state,
+                float(self._config_reader().get("armExitGraceSeconds") or 0),
+            )
             return
         if not is_security_alarm_trigger(
             entity_id,
@@ -608,6 +662,7 @@ class SecurityAlarmHelper:
             f"{friendly_name} 触发告警 ({zone_names})",
             entity_id=entity_id,
             zones=zone_ids,
+            source="sensor",
         )
 
     async def handle_safety_sensor(self, event: dict[str, Any]) -> None:
@@ -617,7 +672,9 @@ class SecurityAlarmHelper:
         old_state = (event.get("old_state") or {}).get("state")
         if not new_state or new_state == old_state:
             return
-        if new_state not in ("on", "wet") and not _positive_float(new_state):
+        is_binary_on = new_state in ("on", "wet")
+        numeric_value = None if is_binary_on else _parse_positive_float(new_state)
+        if not is_binary_on and numeric_value is None:
             return
 
         _, layout = await asyncio.to_thread(load_active_project_layout, self._session_factory)
@@ -626,8 +683,24 @@ class SecurityAlarmHelper:
         hazard = classify_hazard_sensor(
             entity_id, new_state_obj.get("attributes") or {}, new_state
         )
+        numeric_threshold: float | None = None
         if not hazard:
             hazard = resolve_bound_hazard_kind(entity_id, bindings)
+        if hazard and not is_binary_on:
+            # 数值型实体必须有显式阈值：燃气表累计用量（0.02 m³）、水流量这类
+            # 表计任意 >0 的读数都不是泄漏，按「>0 即危险」会误关阀并触发紧急场景。
+            numeric_threshold = resolve_numeric_hazard_threshold(entity_id, bindings)
+            if numeric_threshold is None:
+                logger.debug(
+                    "危险判定跳过：%s 为数值型实体但未配置 hazardNumericThresholds", entity_id
+                )
+                return
+            if numeric_value is None or numeric_value < numeric_threshold:
+                return
+            old_numeric = _parse_positive_float(old_state)
+            # 已经高于阈值说明是持续读数（表计周期性上报），不是新的泄漏边沿。
+            if old_numeric is not None and old_numeric >= numeric_threshold:
+                return
         if not hazard:
             return
         # 与入侵告警同一套基线规则：重连补发的「恢复为 on」不触发危险联动。
@@ -648,29 +721,32 @@ class SecurityAlarmHelper:
         label = "烟雾" if is_smoke else ("燃气泄漏" if is_gas else "漏水")
         logger.warning("🔴 安全告警：%s 检测到%s", friendly_name, label)
 
-        drill_mode = bindings.hazard_drill_mode
-        action_results: list[dict[str, Any]] = []
-        if not drill_mode:
-            action_results = await run_hazard_auto_actions(
-                bindings,
-                hazard,
-                self._ha.call_service_via_rest,
+        if bindings.hazard_drill_mode:
+            # 旧布局里的持久「演习模式」不再有拦截权：真实危险告警必须照常关阀 / 排风。
+            logger.warning(
+                "检测到已废弃的持久演习开关（hazardDrillMode），真实告警仍执行关阀/排风；"
+                "请改用一次性演习入口"
             )
-            failures = summarize_hazard_action_failures(action_results)
-            if failures:
-                logger.warning("危险传感器联动部分失败：%s", "、".join(failures))
-        else:
-            logger.warning("演习模式：已跳过关阀 / 排风自动动作")
 
+        action_results = await run_hazard_auto_actions(
+            bindings,
+            hazard,
+            self._ha.call_service_via_rest,
+        )
         action_failures = summarize_hazard_action_failures(action_results)
+        if action_failures:
+            logger.warning("危险传感器联动部分失败：%s", "、".join(action_failures))
+
         await self._bus.emit(
             "security.alarm",
             {
                 "entityId": entity_id,
                 "friendlyName": friendly_name,
                 "type": "smoke" if is_smoke else ("gas_leak" if is_gas else "water_leak"),
-                "autoActions": not drill_mode,
-                "drillMode": drill_mode,
+                "autoActions": True,
+                "drillMode": False,
+                "numericThreshold": numeric_threshold,
+                "triggerValue": numeric_value,
                 "actionResults": action_results,
                 "actionFailures": action_failures,
                 "zones": [],
@@ -682,7 +758,11 @@ class SecurityAlarmHelper:
 
         suffix = f"（联动失败：{'、'.join(action_failures)}）" if action_failures else ""
         self._state_helper.schedule_security_event(
-            "hazard", f"{friendly_name} {label}告警{suffix}", entity_id=entity_id, mode="safety"
+            "hazard",
+            f"{friendly_name} {label}告警{suffix}",
+            entity_id=entity_id,
+            mode="safety",
+            source="sensor",
         )
 
         for scene_id in bindings.emergency_scene_ids:
@@ -711,18 +791,9 @@ class SecurityEmergencyRunnerHelper:
 
     def _load_emergency_layout_blocking(self) -> tuple[dict[str, Any], list[str]]:
         try:
-            from sqlalchemy import select
-
-            from ...platform.core.models import ProjectConfig
-
-            with self._session_factory() as session:
-                row = session.execute(
-                    select(ProjectConfig).where(ProjectConfig.project_id == "default")
-                ).scalar_one_or_none()
-            if row is None or not row.layout:
-                return normalize_security_emergency(None), []
-            layout = row.layout if isinstance(row.layout, dict) else json.loads(row.layout)
-            if not isinstance(layout, dict):
+            # 读当前激活项目：原先写死 "default"，多项目切换后求助联动会读错布局。
+            _project_id, layout = load_active_project_layout(self._session_factory)
+            if not isinstance(layout, dict) or not layout:
                 return normalize_security_emergency(None), []
             light_pool = layout.get("awaySimulationLightPool")
             return (
@@ -829,11 +900,12 @@ class SecurityEmergencyRunnerHelper:
                     None,
                     {
                         "source": "emergency",
-                        "skipActions": True,
+                        # 只跳过声光域：门锁/阀门等安全动作仍要执行，不能整体跳过。
+                        "skipActionDomains": ["siren", "light"],
                         "force": True,
                     },
                 )
-                logger.warning("紧急求助:已自动离家布防(跳过布防联动,避免与求救声光冲突)")
+                logger.warning("紧急求助:已自动离家布防(跳过声光联动,避免与求救声光冲突)")
             except Exception as exc:
                 schedule_security_event(
                     self._session_factory,
@@ -855,11 +927,21 @@ class SecurityEmergencyRunnerHelper:
         return results
 
 
-def _positive_float(value: Any) -> bool:
+def _parse_positive_float(value: Any) -> float | None:
+    """解析为有限正数；``on``/``off``/空值/NaN/inf 一律返回 ``None``。"""
+    import math
+
     try:
-        return float(value) > 0
+        parsed = float(value)
     except (TypeError, ValueError):
-        return False
+        return None
+    if not math.isfinite(parsed) or parsed <= 0:
+        return None
+    return parsed
+
+
+def _positive_float(value: Any) -> bool:
+    return _parse_positive_float(value) is not None
 
 
 def _iso_now() -> str:

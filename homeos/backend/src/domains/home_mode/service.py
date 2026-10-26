@@ -156,6 +156,8 @@ class HomeModeService:
         *,
         notification=None,
         set_security_mode=None,
+        get_security_mode=None,
+        is_away_simulated_entity=None,
         emit_event=None,
         is_leader=None,
         jobs=None,
@@ -165,6 +167,8 @@ class HomeModeService:
         self._state_store = state_store
         self._notification = notification
         self._security_mode_setter = set_security_mode
+        self._security_mode_getter = get_security_mode
+        self._away_sim_entity_matcher = is_away_simulated_entity
         self._emit_event = emit_event
         self._is_leader = is_leader or (lambda: True)
         self._jobs = jobs
@@ -746,6 +750,24 @@ class HomeModeService:
             return bool(result.get("success", True))
         return bool(result)
 
+    async def _read_security_mode(self) -> str | None:
+        """读取当前安防模式，用于家庭模式激活失败时回滚安防动作。"""
+        if self._security_mode_getter is None:
+            return None
+        result = self._security_mode_getter()
+        if asyncio.iscoroutine(result):
+            result = await result
+        return str(result) if result else None
+
+    def is_away_simulated_entity(self, entity_id: str) -> bool:
+        """该实体的状态变化是否由离家模拟自己制造（家庭模式触发器据此抑制）。"""
+        if self._away_sim_entity_matcher is None:
+            return False
+        try:
+            return bool(self._away_sim_entity_matcher(entity_id))
+        except Exception:
+            return False
+
     async def _emit_home_mode_event(self, name: str, payload: dict[str, Any]) -> None:
         if self._emit_event is None:
             return
@@ -828,6 +850,12 @@ class _HomeModeDeps:
 
     async def set_security_mode(self, mode: str, source: str) -> bool:
         return await self._service._apply_security_mode(mode, source)
+
+    async def get_security_mode(self) -> str | None:
+        return await self._service._read_security_mode()
+
+    def is_away_simulated_entity(self, entity_id: str) -> bool:
+        return self._service.is_away_simulated_entity(entity_id)
 
     async def emit_home_mode_event(self, name: str, payload: dict[str, Any]) -> None:
         await self._service._emit_home_mode_event(name, payload)

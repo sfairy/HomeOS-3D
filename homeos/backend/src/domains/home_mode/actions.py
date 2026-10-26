@@ -297,6 +297,10 @@ class _ActivationContext:
     snapshot: dict[str, Any]
     results: list[dict[str, Any]]
     retry_results: list[dict[str, Any]]
+    #: 执行本次激活的 security 动作之前的安防模式；中止时用它回滚。
+    previous_security_mode: str | None = None
+    #: 本次实际执行过的 security 动作条数（0 表示无需回滚）。
+    security_action_count: int = 0
     #: 被本次激活顶掉的同组旧模式（DB 里尚未停用，只有提交成功后才停用）。
     displaced_modes: list[dict[str, Any]] = field(default_factory=list)
     #: 旧模式设备快照的恢复结果（中止时要用它判断能否回放旧模式）。
@@ -545,6 +549,24 @@ async def _abort_failed_activation(
             "home-mode",
         )
 
+    # 安防动作也在快照之外：它改的是面板状态机，不会随设备快照回滚。
+    # 不回滚就会出现「家庭模式激活失败、灯已还原，但房子已经撤防」。
+    if activation.security_action_count and activation.previous_security_mode:
+        try:
+            restored_security = await deps.set_security_mode(
+                activation.previous_security_mode, "home-mode-rollback"
+            )
+        except Exception as exc:
+            restored_security = False
+            deps.warn(f"回滚安防模式失败: {exc}")
+        if not restored_security:
+            await deps.notify(
+                "warning",
+                f"模式 {mode['name']} 激活失败，但安防模式未能回滚到 "
+                f"{activation.previous_security_mode}，请手动检查安防面板",
+                "home-mode",
+            )
+
     if state.get_active_mode_id() == trigger.mode_id:
         state.set_active_mode_id(None)
     deps.linkage_arbiter.release()
@@ -702,14 +724,35 @@ async def activate_home_mode(
     sec_cfg = deps.get_security_config()
     configs_to_run = filter_home_mode_actions_for_linkage_dedupe(entity_configs, meta, sec_cfg)
 
-    results = await execute_action_sequence(
-        configs_to_run, lambda config: _execute_home_mode_action(deps, config), "milliseconds"
+    # 安防切换必须串行且先行：并发/夹在设备动作里时，最终模式取决于最后一次 set_mode，
+    # 而且一旦后续设备动作触发整体回滚，房子会停在「模式已切、设备已回滚」的错位状态。
+    security_configs = [c for c in configs_to_run if resolve_action_kind(c) == "security"]
+    device_configs = [c for c in configs_to_run if resolve_action_kind(c) != "security"]
+    previous_security_mode = (
+        await deps.get_security_mode() if security_configs else None
     )
+    security_results: list[dict[str, Any]] = []
+    for config in security_configs:
+        security_results.append(await _execute_home_mode_action(deps, config))
+
+    device_results = await execute_action_sequence(
+        device_configs,
+        lambda config: _execute_home_mode_action(deps, config),
+        "milliseconds",
+    )
+    results = [*security_results, *device_results]
+    ordered_configs = [*security_configs, *device_configs]
 
     failed_indices = [idx for idx, result in enumerate(results) if not result.get("success")]
     run = _ActionRunState(
-        configs=configs_to_run, results=results, failed_indices=failed_indices
+        configs=ordered_configs, results=results, failed_indices=failed_indices
     )
+    # 安防动作不进入并发重试：多条 security 动作并发重试会让最终模式无法预测。
+    run.failed_indices = [
+        idx
+        for idx in run.failed_indices
+        if resolve_action_kind(ordered_configs[idx]) != "security"
+    ]
     retry_results = await _retry_failed_home_mode_actions(deps, mode["name"], run)
 
     final_success = sum(1 for result in results if result.get("success"))
@@ -720,6 +763,8 @@ async def activate_home_mode(
         snapshot=snapshot,
         results=results,
         retry_results=retry_results,
+        previous_security_mode=previous_security_mode,
+        security_action_count=len(security_configs),
         displaced_modes=list(conflicting_modes),
         conflict_restore=conflict_restore,
     )

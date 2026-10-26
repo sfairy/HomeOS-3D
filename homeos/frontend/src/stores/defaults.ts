@@ -87,7 +87,6 @@ function createDefaultLayout(): UILayoutConfig {
       hazardGasValveEntityId: '',
       hazardWaterValveEntityId: '',
       hazardExhaustFanEntityIds: '',
-      hazardDrillMode: false,
     },
     // 统计传感器：灯/空调/电量/离线计数实体 ID
     statsSensors: {

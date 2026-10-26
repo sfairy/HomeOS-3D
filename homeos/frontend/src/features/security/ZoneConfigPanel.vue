@@ -75,6 +75,9 @@ import { useSecurityZoneRooms } from '@/features/security/composables/useSecurit
 
 const props = defineProps({
   backendZones: { type: Array, default: () => [] },
+  //: 后端 /status 是否已完成首次加载：加载完成后后端区域是唯一数据源，
+  //: 不能再回退布局，否则删除最后一组区域后会被布局重新“复活”。
+  backendReady: { type: Boolean, default: false },
   focusZoneId: { type: String, default: '' },
 })
 
@@ -121,8 +124,11 @@ function mergeBackendRoomIds(zones) {
   })
 }
 
-// 优先从布局配置派生区域；布局缺失时回退到后端区域
+// 优先取后端区域（权威）；后端尚未加载完成时回退布局，仅用于首次 bootstrap。
 function zonesFromLayout() {
+  if (props.backendReady) {
+    return mergeBackendRoomIds(props.backendZones || [])
+  }
   const layoutZones = getSecurityPanelZonesFromLayout(layoutStore.layoutConfig)
   if (layoutZones.length) {
     return mergeBackendRoomIds(layoutZones)
@@ -172,6 +178,15 @@ async function saveZones() {
 onMounted(() => {
   localZones.value = zonesFromLayout()
 })
+
+// 后端首次加载完成时以后端为准重载：加载前用布局做 bootstrap，加载后
+// 布局可能已过期（例如用户刚删掉最后一组区域）。
+watch(
+  () => props.backendReady,
+  (isReady) => {
+    if (isReady) localZones.value = zonesFromLayout()
+  },
+)
 
 // 后端区域变化时同步 roomId：本地为空时整体重载，否则仅补齐缺失的 roomId
 watch(

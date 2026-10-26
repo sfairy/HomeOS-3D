@@ -20,7 +20,15 @@ logger = logging.getLogger("homeos.state_ingress_coalesce")
 _CONFIG_TTL_MS = 5_000
 
 #: 默认合并域（配置缺失时回退，与 Nest 一致）。
-DEFAULT_COALESCE_DOMAINS: tuple[str, ...] = ("sensor", "binary_sensor")
+#:
+#: **不含 ``binary_sensor``**：门磁/烟感/水浸在窗口内可能「on → off」快速回弹，
+#: 覆盖式合并只保留末态，真实告警边沿会被抹掉。安防边沿域一律绕过合并。
+DEFAULT_COALESCE_DOMAINS: tuple[str, ...] = ("sensor",)
+
+#: 必须保留瞬时边沿的域：即使配置显式把它们写进合并域，也不参与微窗口合并。
+EDGE_SENSITIVE_DOMAINS: frozenset[str] = frozenset(
+    {"binary_sensor", "lock", "alarm_control_panel", "valve", "siren"}
+)
 
 
 class StateIngressCoalesceService:
@@ -88,13 +96,8 @@ class StateIngressCoalesceService:
         entity_id = str(event.get("entity_id") or "")
         if not entity_id:
             return
-        new_state = event.get("new_state")
-        if (
-            new_state is not None
-            and self._sync_filter is not None
-            and not self._sync_filter.is_entity_syncable(entity_id)
-        ):
-            return
+        # 同步过滤只影响「是否推给客户端」，不能在这里丢事件：隐藏/禁用的烟感
+        # 依然必须触发告警。过滤放在广播层（bootstrap._run_state_change_effects）。
 
         cfg = self._cfg()
         ha_cfg = cfg["ha"]
@@ -110,7 +113,11 @@ class StateIngressCoalesceService:
         if not ha_cfg.get("ingressCoalesceEnabled", True):
             self._emit_now([event])
             return
-        if domain not in coalesce_domains or domain in critical_domains:
+        if (
+            domain in EDGE_SENSITIVE_DOMAINS
+            or domain not in coalesce_domains
+            or domain in critical_domains
+        ):
             self._emit_now([event])
             return
 

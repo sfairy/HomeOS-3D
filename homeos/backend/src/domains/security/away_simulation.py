@@ -20,12 +20,40 @@ from .bus import LocalEventBus
 from .config import load_home_timezone
 from .layout import schedule_security_event
 from ...platform.core.db_exec import run_db
+from ...platform.core.entity_domain import get_entity_domain
 from ...platform.core.models import AwayPatternBucket
 from ...platform.core.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.security.away_sim")
 
 AWAY_SIM_SYNC_EVENT = "security.awaySimulation"
+#: 离家模拟运行态持久化键：进程重启后恢复（否则「度假防盗」静默停机，
+#: 但用户界面仍以为它在跑）。
+AWAY_SIM_RUNTIME_KEY = "security-away-sim"
+
+#: 离家模拟绝不允许碰的域：安防/人身安全相关实体一旦被「模拟」，
+#: 会变成真实的解锁、撤防或关阀动作。
+_FORBIDDEN_SIM_DOMAINS = frozenset(
+    {
+        "lock",
+        "alarm_control_panel",
+        "valve",
+        "binary_sensor",
+        "sensor",
+        "camera",
+        "siren",
+        "button",
+    }
+)
+
+
+def _filter_sim_targets(entities: list[str]) -> list[str]:
+    return [
+        str(entity).strip()
+        for entity in entities
+        if str(entity or "").strip()
+        and get_entity_domain(str(entity)) not in _FORBIDDEN_SIM_DOMAINS
+    ]
 
 
 class AwaySimulationService:
@@ -60,8 +88,63 @@ class AwaySimulationService:
 
     # 生命周期
     async def start(self) -> None:
-        # 运行态保存在进程内，进程重启后离家模拟默认停用（与「度假防盗」语义一致）。
-        return
+        # 运行态落 RuntimeKv：重启后恢复「度假防盗」与灯池，避免界面显示运行、
+        # 实际已停机（这正是离家期间最危险的假安全）。
+        try:
+            payload = await run_db(self._load_persisted_state)
+        except Exception as exc:
+            logger.warning("恢复离家模拟运行态失败: %s", exc)
+            return
+        if not isinstance(payload, dict) or not payload.get("enabled"):
+            return
+        await self._load_pattern_buckets()
+        self._enabled = True
+        self._started_at = str(payload.get("startedAt") or _iso_now())
+        try:
+            self._active_start_hour = int(payload.get("activeStartHour") or 18)
+            self._active_end_hour = int(payload.get("activeEndHour") or 23)
+        except (TypeError, ValueError):
+            self._active_start_hour = 18
+            self._active_end_hour = 23
+        self._light_pool = _filter_sim_targets(payload.get("lightPool") or [])
+        self._cover_pool = _filter_sim_targets(payload.get("coverPool") or [])
+        self._last_toggled = payload.get("lastToggled") or None
+        self._last_cover_toggled = payload.get("lastCoverToggled") or None
+        self._last_cover_action = payload.get("lastCoverAction") or None
+        logger.info(
+            "离家模拟已恢复:灯具池 %s 个,窗帘池 %s 个",
+            len(self._light_pool),
+            len(self._cover_pool),
+        )
+        self._schedule_next()
+        await self._bus.emit(AWAY_SIM_SYNC_EVENT, {"enabled": True, **self._state_payload()})
+
+    def _load_persisted_state(self) -> Any:
+        from ...platform.core.runtime_kv import load_runtime_kv
+
+        with self._session_factory() as session:
+            return load_runtime_kv(session, AWAY_SIM_RUNTIME_KEY)
+
+    def _state_payload(self) -> dict[str, Any]:
+        return {
+            "startedAt": self._started_at,
+            "activeStartHour": self._active_start_hour,
+            "activeEndHour": self._active_end_hour,
+            "lightPool": self._light_pool,
+            "coverPool": self._cover_pool,
+            "lastToggled": self._last_toggled,
+            "lastCoverToggled": self._last_cover_toggled,
+            "lastCoverAction": self._last_cover_action,
+        }
+
+    async def _persist_state(self) -> None:
+        from ...platform.core.runtime_kv import persist_runtime_kv
+
+        payload = {"enabled": self._enabled, **self._state_payload()}
+        try:
+            await run_db(persist_runtime_kv, self._session_factory, AWAY_SIM_RUNTIME_KEY, payload)
+        except Exception as exc:
+            logger.warning("离家模拟运行态持久化失败（重启后可能无法恢复）: %s", exc)
 
     async def stop(self) -> None:
         if self._timer is not None:
@@ -83,9 +166,9 @@ class AwaySimulationService:
             if isinstance(payload.get("activeEndHour"), (int, float)):
                 self._active_end_hour = int(payload["activeEndHour"])
             if isinstance(payload.get("lightPool"), list):
-                self._light_pool = list(payload["lightPool"])
+                self._light_pool = _filter_sim_targets(payload["lightPool"])
             if isinstance(payload.get("coverPool"), list):
-                self._cover_pool = list(payload["coverPool"])
+                self._cover_pool = _filter_sim_targets(payload["coverPool"])
             if "lastToggled" in payload:
                 self._last_toggled = payload["lastToggled"]
             if "lastCoverToggled" in payload:
@@ -101,8 +184,20 @@ class AwaySimulationService:
             self._last_toggled = None
             self._last_cover_toggled = None
             self._last_cover_action = None
+        await self._persist_state()
 
     # 状态查询
+    def contains_entity(self, entity_id: str) -> bool:
+        """该实体是否属于当前离家模拟的灯/窗帘池（且模拟正在运行）。
+
+        家庭模式的 state 触发器据此抑制：离家模拟自己点亮/关闭的灯不是「有人到家」，
+        否则度假期间每一轮模拟都会把安防撤防、把家切回居家模式。
+        """
+        if not self._enabled:
+            return False
+        value = str(entity_id or "").strip()
+        return bool(value) and (value in self._light_pool or value in self._cover_pool)
+
     def _interval_range_ms(self) -> tuple[float, float]:
         sec = self._config()
         window = sec.get("awaySimIntervalMinMax")
@@ -209,11 +304,11 @@ class AwaySimulationService:
 
         lights = opts.get("lights")
         if isinstance(lights, list) and lights:
-            self._light_pool = list(lights)
+            self._light_pool = _filter_sim_targets(lights)
         else:
             try:
                 entities = await self._ha.fetch_entities_by_domain("light")
-                self._light_pool = [e["entity_id"] for e in entities]
+                self._light_pool = _filter_sim_targets([e["entity_id"] for e in entities])
             except Exception as exc:
                 message = str(exc)
                 logger.warning("获取灯具列表失败: %s", message)
@@ -226,11 +321,11 @@ class AwaySimulationService:
 
         covers = opts.get("covers")
         if isinstance(covers, list) and covers:
-            self._cover_pool = list(covers)
+            self._cover_pool = _filter_sim_targets(covers)
         else:
             try:
                 entities = await self._ha.fetch_entities_by_domain("cover")
-                self._cover_pool = [e["entity_id"] for e in entities]
+                self._cover_pool = _filter_sim_targets([e["entity_id"] for e in entities])
             except Exception as exc:
                 logger.warning("获取窗帘列表失败: %s", exc)
                 schedule_security_event(
@@ -411,6 +506,7 @@ class AwaySimulationService:
                         f"离家模拟窗帘操作失败 [{cover}]: {exc}",
                         entity_id=cover,
                     )
+            await self._persist_state()
         finally:
             if self._enabled:
                 self._schedule_next()

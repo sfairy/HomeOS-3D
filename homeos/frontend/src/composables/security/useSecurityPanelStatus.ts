@@ -17,7 +17,7 @@ import {
   registerSecurityPanelModeHandler,
   type SecurityModeSocketPayload,
 } from '@/shared/utils/bridge/store-bridge'
-import { sharedFetch, schedulePoll } from '@/shared/utils/core/poll-scheduler'
+import { sharedFetch, schedulePoll, invalidateSharedFetch } from '@/shared/utils/core/poll-scheduler'
 
 /** 安防面板区域结构 */
 type SecurityPanelZone = {
@@ -71,6 +71,11 @@ async function refresh(force = false) {
     return
   }
   if (!force && !shouldPoll()) return
+  if (force) {
+    // force 的语义是「务必读到最新状态」：不清共享缓存会拿到 10s 内的旧快照，
+    // 布防/撤防后手动刷新仍显示旧模式。
+    invalidateSharedFetch('security:panel-status')
+  }
   try {
     // sharedFetch 在 POLL_MS 窗口内合并重复请求
     await sharedFetch(

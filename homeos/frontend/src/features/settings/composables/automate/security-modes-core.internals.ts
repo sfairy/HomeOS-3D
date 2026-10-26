@@ -14,7 +14,7 @@ import { downloadBlob } from '@/shared/utils/core/misc.util'
 import { securityModeTabEmoji } from '@/shared/utils/settings/tab-emoji.util'
 import { servicesForDomain } from '@/shared/utils/registry/widget-catalog'
 import { Home, Moon, Shield, ShieldOff } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useSecurityModesEmergency } from '@/features/settings/composables/automate/security-modes-emergency.internals'
 
 
@@ -74,12 +74,24 @@ export function useSecurityModes() {
     ensureSecurityEmergency,
   } = emergency
 
-  function applySecurityModePreset(modeKey: string) {
+  async function applySecurityModePreset(modeKey: string) {
     const preset = getSecurityModePresets()[modeKey]
     if (!preset) return
     const midx = securityModesList.value.findIndex((modeEntry) => modeEntry.key === modeKey)
     if (midx < 0) return
     const mode = layoutStore.layoutConfig.securityModes[midx]
+    const existing = mode.actions?.length || 0
+    // 预设当前刻意是空的（设备情景交给家庭模式）：直接应用会把用户已配的动作清空。
+    if (existing > 0) {
+      const ok = await chrome.confirm(
+        preset.actions.length
+          ? `应用「${preset.name}」会覆盖当前 ${existing} 条动作，继续？`
+          : `「${preset.name}」预设不包含动作，应用后会清空当前 ${existing} 条动作，继续？`,
+        '应用预设',
+        { type: 'danger', confirmText: '覆盖并应用' },
+      )
+      if (!ok) return
+    }
     mode.actions = preset.actions.map((action: { entity_id?: string; domain?: string; service?: string; service_data?: Record<string, unknown> }) => ({
       ...action,
       service_data: action.service_data ? { ...action.service_data } : undefined,
@@ -171,6 +183,7 @@ export function useSecurityModes() {
           entity_id: action.entity_id || '',
           domain: action.domain || '',
           service: action.service || '',
+          service_data: action.service_data || undefined,
         })),
       })),
       emergency: {
@@ -266,6 +279,46 @@ export function useSecurityModes() {
     })
   }
 
+  /**
+   * 保存前清洗动作：统计缺实体/缺服务的条目并合并完全重复的动作。
+   * 返回 invalid>0 时调用方必须中止保存（后端会静默跳过这些动作）。
+   */
+  function sanitizeActionsForSave(): { invalid: number; duplicates: number } {
+    let invalid = 0
+    let duplicates = 0
+    const sanitize = <T extends { entity_id?: string; domain?: string; service?: string }>(
+      actions: T[] | undefined,
+    ): T[] => {
+      const seen = new Set<string>()
+      const kept: T[] = []
+      for (const action of actions || []) {
+        const entityId = String(action?.entity_id || '').trim()
+        const service = String(action?.service || '').trim()
+        const domain = String(action?.domain || '').trim()
+        if (!entityId || !service) {
+          invalid++
+          kept.push(action)
+          continue
+        }
+        const key = `${domain}|${service}|${entityId}`
+        if (seen.has(key)) {
+          duplicates++
+          continue
+        }
+        seen.add(key)
+        kept.push({ ...action, entity_id: entityId, service, domain })
+      }
+      return kept
+    }
+    for (const mode of securityModesList.value) {
+      mode.actions = sanitize(mode.actions)
+    }
+    if (emergencyConfig.value.actions) {
+      emergencyConfig.value.actions = sanitize(emergencyConfig.value.actions)
+    }
+    return { invalid, duplicates }
+  }
+
   async function cancelSecurityChanges() {
     await confirmAndRevert(
       chrome,
@@ -280,6 +333,15 @@ export function useSecurityModes() {
   }
 
   async function saveSecurityLayout() {
+    const { invalid, duplicates } = sanitizeActionsForSave()
+    if (invalid > 0) {
+      // 空实体/空服务的动作在后端会被静默跳过：保存了等于「看起来配了、实际不会执行」。
+      chrome.notify(`有 ${invalid} 条动作缺少实体或服务，已阻止保存，请补全后再试`, 'error')
+      return
+    }
+    if (duplicates > 0) {
+      chrome.notify(`已自动合并 ${duplicates} 条重复动作`, 'info')
+    }
     const ok = await layoutStore.saveLayout()
     if (!ok) return // saveConfig 已弹出失败提示
     snapshotSecurityConfig()
@@ -298,6 +360,17 @@ export function useSecurityModes() {
     snapshotSecurityConfig()
     resumeGlobalPendingChanges()
   })
+
+  // 配置未加载完成时拍的基线可能是空结构：加载完成后重拍一次，
+  // 否则整页会被误判为「已修改」，保存按钮常亮且取消会写回空配置。
+  watch(
+    () => layoutStore.isConfigLoaded,
+    (loaded) => {
+      if (!loaded) return
+      syncGlobalLayoutPendingSnapshot(layoutStore.layoutConfig)
+      snapshotSecurityConfig()
+    },
+  )
 
   return {
     activeSmTab,

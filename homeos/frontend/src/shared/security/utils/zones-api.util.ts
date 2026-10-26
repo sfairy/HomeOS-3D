@@ -59,7 +59,8 @@ export function normalizeZonesForApi(zones: SecurityZonePayload[]) {
  */
 export async function postSecurityZones(zones: SecurityZonePayload[]) {
   const payload = normalizeZonesForApi(zones)
-  await updateSecurityPanelZones(payload)
+  // 空列表会清空全部防区：这是玩家在 UI 里显式保存的结果，需要带 confirmClear 才被后端接受。
+  await updateSecurityPanelZones(payload, payload.length === 0)
   return payload
 }
 

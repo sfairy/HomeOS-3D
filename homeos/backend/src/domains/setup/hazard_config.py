@@ -85,6 +85,8 @@ def format_security_alarm_message(data: dict[str, Any] | None) -> str:
     failures = payload.get("actionFailures")
     if isinstance(failures, list) and failures:
         base += f"（联动失败：{'、'.join(str(f) for f in failures)}）"
+    if payload.get("drillMode"):
+        return f"【演习】{base}"
     return base
 
 

@@ -9,7 +9,7 @@
  * @dependencies @homeos/shared, vue, @lucide/vue, @/stores/entities.store, @/stores/layout.store, @/shared/entity/utils/derived.util, @/features/security/utils/sensor-filter.util, @/features/security/utils/zone-mode.util
  */
 import { getEntityDomain, buildHazardBindingMap, type HazardSensorKind, getEntityLeaf } from '@homeos/shared'
-import { ref, computed, toRaw } from 'vue'
+import { ref, computed, toRaw, watch } from 'vue'
 import { Activity, Flame, Droplets, Wind, DoorOpen } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
@@ -387,6 +387,22 @@ export function useSecuritySensors() {
     const ids = allSensors.value.filter((sensor) => sensor.alert).map((sensor) => sensor.entity_id)
     acknowledgedSensorIds.value = new Set([...acknowledgedSensorIds.value, ...ids])
   }
+
+  // 告警恢复（非告警边沿）后清掉确认标记：否则同一传感器下一次真实告警会被永久静音。
+  watch(
+    () =>
+      allSensors.value
+        .filter((sensor) => sensor.alert)
+        .map((sensor) => sensor.entity_id),
+    (alertIds) => {
+      if (acknowledgedSensorIds.value.size === 0) return
+      const stillAlerting = new Set(alertIds)
+      const pruned = [...acknowledgedSensorIds.value].filter((id) => stillAlerting.has(id))
+      if (pruned.length !== acknowledgedSensorIds.value.size) {
+        acknowledgedSensorIds.value = new Set(pruned)
+      }
+    },
+  )
 
   return {
     allSensors,

@@ -26,6 +26,9 @@ def format_security_alarm_message(data: dict[str, Any] | None) -> str:
     failures = data.get("actionFailures")
     if isinstance(failures, list) and failures:
         base += f"（联动失败：{'、'.join(str(item) for item in failures)}）"
+    if data.get("drillMode"):
+        # 演习必须与真实告警在通知层可区分：否则用户会按真实火警处置。
+        return f"【演习】{base}"
     return base
 
 

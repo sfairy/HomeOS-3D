@@ -37,16 +37,27 @@ class ArmSecurityPanelDto(BaseModel):
 
     mode: str
     zoneIds: list[str] | None = None
+    #: 同模式重复布防时强制重跑联动（如手动开锁后希望重新上锁）。
+    force: bool = False
 
 class ConfigureSecurityZonesDto(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     zones: list[SecurityZoneDto]
+    #: 空数组会清空全部防区；必须显式确认，避免一次误传把全屋防区删光。
+    confirmClear: bool = False
 
 class SecurityEmergencyDto(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     action: str | None = None
+
+
+class AckSecurityEventsDto(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    #: 事件 id（UUID 字符串）；只对未确认事件生效。
+    eventIds: list[str] = Field(min_length=1)
 
 class AwaySimEnableDto(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -57,6 +68,12 @@ class AwaySimEnableDto(BaseModel):
 
 def _panel(request: Request):
     return request.app.state.security_panel
+
+
+def _actor(user: dict[str, Any]) -> str | None:
+    value = user.get("username") or user.get("email") or user.get("id")
+    text = str(value or "").strip()
+    return text or None
 
 def _away_sim(request: Request):
     return request.app.state.away_sim
@@ -76,13 +93,20 @@ async def arm(
 ):
     if payload.mode not in _ARMING_MODES:
         bad_request(_MODE_MESSAGE)
-    if payload.zoneIds is not None and any(not isinstance(item, str) for item in payload.zoneIds):
-        bad_request("zoneIds 元素须为字符串")
-    return await _panel(request).arm(payload.mode, payload.zoneIds)
+    if payload.zoneIds is not None and any(
+        not isinstance(item, str) or not item.strip() for item in payload.zoneIds
+    ):
+        bad_request("zoneIds 元素须为非空字符串")
+    return await _panel(request).arm(
+        payload.mode,
+        payload.zoneIds,
+        {"force": payload.force, "source": "manual", "actor": _actor(user)},
+    )
+
 
 @router.post("/disarm")
 async def disarm(request: Request, user: dict[str, Any] = Depends(require_user)):
-    return await _panel(request).disarm()
+    return await _panel(request).disarm({"source": "manual", "actor": _actor(user)})
 
 @router.post("/zones")
 async def configure_zones(
@@ -90,7 +114,10 @@ async def configure_zones(
     request: Request,
     user: dict[str, Any] = Depends(require_user),
 ):
-    _panel(request).configure_zones([zone.model_dump() for zone in payload.zones])
+    await _panel(request).configure_zones(
+        [zone.model_dump() for zone in payload.zones],
+        confirm_clear=payload.confirmClear,
+    )
     return {"success": True}
 
 @router.post("/emergency")
@@ -99,7 +126,9 @@ async def emergency(
     request: Request,
     user: dict[str, Any] = Depends(require_user),
 ):
-    return await _panel(request).trigger_emergency(payload.action or "panic")
+    return await _panel(request).trigger_emergency(
+        payload.action or "panic", source="manual", actor=_actor(user)
+    )
 
 @router.get("/events")
 async def get_events(
@@ -109,6 +138,17 @@ async def get_events(
     user: dict[str, Any] = Depends(require_user),
 ):
     return await _panel(request).get_events(type, limit)
+
+
+@router.post("/events/ack")
+async def ack_events(
+    payload: AckSecurityEventsDto,
+    request: Request,
+    user: dict[str, Any] = Depends(require_user),
+):
+    actor = _actor(user)
+    updated = await _panel(request).ack_events(payload.eventIds, actor)
+    return {"success": True, "acknowledged": updated}
 
 @router.get("/away-sim/status")
 async def away_sim_status(

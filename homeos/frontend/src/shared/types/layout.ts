@@ -88,7 +88,7 @@ export interface HaConfig {
   hazardWaterValveEntityId?: string
   /** 烟/燃气排风实体，逗号分隔 */
   hazardExhaustFanEntityIds?: string
-  /** 演习模式：传感器触发时不自动关阀/开排风，仅通知与场景 */
+  /** 已废弃：持久演习开关（会在真实告警时跳过关阀/排风）。演习改为一次性触发，此字段不再读取。 */
   hazardDrillMode?: boolean
 }
 

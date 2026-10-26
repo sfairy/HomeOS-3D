@@ -55,6 +55,16 @@ export const DOMAIN_SERVICES: Record<string, string[]> = {
   timer: ['start', 'pause', 'cancel', 'finish'],
   counter: ['increment', 'decrement', 'reset'],
   valve: ['turn_on', 'turn_off', 'toggle'],
+  siren: ['turn_on', 'turn_off', 'toggle'],
+  camera: [
+    'turn_on',
+    'turn_off',
+    'snapshot',
+    'record',
+    'enable_motion_detection',
+    'disable_motion_detection',
+  ],
+  button: ['press'],
   humidifier: ['turn_on', 'turn_off', 'set_humidity', 'set_mode'],
   water_heater: ['turn_on', 'turn_off', 'set_temperature'],
 }

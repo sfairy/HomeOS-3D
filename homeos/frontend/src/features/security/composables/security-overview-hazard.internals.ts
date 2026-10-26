@@ -36,7 +36,6 @@ export function createSecurityOverviewHazard(opts: {
     const parts: string[] = []
     if (bindingText) parts.push(`已绑定 ${bindingText}`)
     if (hc.hazardEmergencySceneId?.trim()) parts.push('紧急场景')
-    if (hc.hazardDrillMode) parts.push('演习模式')
     return parts.length ? parts.join(' · ') : '可在集成绑定中配置烟/燃气/水浸传感器与紧急场景'
   })
 

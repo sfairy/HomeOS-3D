@@ -401,16 +401,6 @@
   cursor: not-allowed;
 }
 
-.hazard-bind__drill-mode-badge {
-  padding: 2px 8px;
-  border-radius: var(--hos-r-pill);
-  font-size: var(--hos-fs-2);
-  font-weight: 700;
-  color: var(--hos-color-accent-strong);
-  background: rgba(var(--hos-color-accent-strong-rgb), 0.12);
-  border: var(--hos-hairline) solid rgba(var(--hos-color-accent-strong-rgb), 0.25);
-}
-
 .hazard-bind__footer {
   display: flex;
   flex-direction: column;
@@ -485,10 +475,8 @@
   gap: 8px;
 }
 
-.hazard-bind__drill {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+.hazard-bind__drill-note {
+  margin: 0;
   padding: 10px 12px;
   border-radius: var(--hos-r-2);
   font-size: var(--hos-fs-3);
@@ -496,12 +484,6 @@
   color: rgba(255, 255, 255, 0.58);
   background: rgba(255, 255, 255, 0.03);
   border: var(--hos-hairline) solid var(--hos-line-2);
-  cursor: pointer;
-}
-
-.hazard-bind__drill-input {
-  margin-top: 2px;
-  flex-shrink: 0;
 }
 
 .hazard-bind__action-btn {

@@ -382,6 +382,22 @@ def _normalize_project_draft_3d_config(
         context.logger.warning('已清理 %s 份项目草稿中的 3D 历史配置结构', migrated)
 
 
+def _add_security_event_audit_columns(
+    connection: sqlite3.Connection, _context: MigrationContext
+) -> None:
+    """SecurityEvent 增加 source/actor/ackAt：审计需要知道「谁、从哪条链路」触发。"""
+    if not _table_exists(connection, 'security_events'):
+        return
+    columns = _columns(connection, 'security_events')
+    for name, ddl in (
+        ('source', 'ALTER TABLE security_events ADD COLUMN source VARCHAR(32)'),
+        ('actor', 'ALTER TABLE security_events ADD COLUMN actor VARCHAR(255)'),
+        ('ackAt', 'ALTER TABLE security_events ADD COLUMN "ackAt" DATETIME'),
+    ):
+        if name not in columns:
+            connection.execute(ddl)
+
+
 MIGRATIONS = (
     Migration(1, "users-email-normalize-unique", "h0002-v1", _normalize_users_email),
     Migration(2, "sessions-user-expires-index", "h0003-v1", _index_sessions_user_expires),
@@ -394,4 +410,5 @@ MIGRATIONS = (
     Migration(9, "project-draft-3d-strict-config", "h0009-v1", _normalize_project_draft_3d_config),
     Migration(10, "drop-studio-sync-pending", "h0010-v1", _drop_legacy_sync_pending),
     Migration(11, "ha-entities-display-precision", "h0011-v1", _add_ha_entity_display_precision),
+    Migration(12, "security-event-audit-fields", "h0012-v1", _add_security_event_audit_columns),
 )

@@ -32,7 +32,20 @@ SWITCHABLE_DOMAINS = frozenset(
 
 #: 明确不支持状态恢复的域 —— 恢复器会跳过并把它计入 ``skippedDomains``。
 #: ``button`` / ``input_button`` 只有 ``press``，没有可回退的状态。
-UNSUPPORTED_RESTORE_DOMAINS = frozenset({"button", "input_button", "scene", "script", "automation"})
+#: ``lock`` / ``alarm_control_panel`` / ``valve`` 属于安全敏感域：快照恢复**绝不能**
+#: 自动解锁、撤防或重开燃气/水阀 —— 那等于把一次失败的模式激活变成安全事件。
+UNSUPPORTED_RESTORE_DOMAINS = frozenset(
+    {
+        "button",
+        "input_button",
+        "scene",
+        "script",
+        "automation",
+        "lock",
+        "alarm_control_panel",
+        "valve",
+    }
+)
 
 
 def _call(domain: str, service: str, entity_id: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -94,11 +107,8 @@ def build_snapshot_restore_calls(entity_id: str, snap: dict[str, Any] | None) ->
         return calls
 
     if domain == "lock":
-        # 锁此前完全不在恢复表里：离家模式锁门后停用模式，门会一直保持上锁。
-        if state == "locked":
-            return [_call("lock", "lock", entity_id)]
-        if state == "unlocked":
-            return [_call("lock", "unlock", entity_id)]
+        # 安全敏感：快照恢复不自动上锁/解锁。锁的状态由安防模式与人工操作决定，
+        # 之前这里会把 ``unlocked`` 快照回写成 ``lock.unlock``，等于替用户开门。
         return []
 
     if domain in UNSUPPORTED_RESTORE_DOMAINS:

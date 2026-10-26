@@ -326,6 +326,18 @@ function clearZoneSelection() {
   armZoneSelection.value = []
 }
 
+// 区域列表变化后收敛选择集：已删除的区域不能继续留在“已选”里，
+// 否则下一次布防会被后端以 SECURITY_ZONE_NOT_FOUND 拒绝。
+watch(
+  () => panelZones.value.map((z) => z.id),
+  (ids) => {
+    if (!armZoneSelection.value.length) return
+    const valid = new Set(ids)
+    const next = armZoneSelection.value.filter((id) => valid.has(id))
+    if (next.length !== armZoneSelection.value.length) armZoneSelection.value = next
+  },
+)
+
 const zonesBootstrapDone = ref(false)
 
 watch(

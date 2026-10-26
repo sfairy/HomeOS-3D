@@ -1,10 +1,10 @@
 <!--
   联动绑定大类下的 Hazards（火灾/燃气/水漏）危险传感器绑定面板。左栏绑定
   烟感/燃气/水漏三类 binary_sensor，右栏绑定紧急场景、燃气阀、水阀、排风扇动作实体。
-  底部提供测试紧急场景联动与多种演习模式（烟雾/燃气/水漏）触发按钮，以及绑定状态
+  底部提供测试紧急场景联动与多种一次性演习（烟雾/燃气/水漏）触发按钮，以及绑定状态
   汇总表格。顶部高亮显示绑定冲突（如烟感与紧急场景互不关联）。
-  注意事项：测试与演习均会真实调用联动引擎（演习模式不通知用户、只跑内部流），
-  建议非家庭时间使用；绑定冲突检测为前端启发式，仅作提醒。
+  注意事项：测试与演习均会真实调用联动引擎；演习是一次性的（不写持久开关、不关阀/排风），
+  通知层会标注「【演习】」。绑定冲突检测为前端启发式，仅作提醒。
 -->
 <template>
   <div class="hazard-bind">
@@ -67,9 +67,6 @@
           <div class="hazard-bind__drill-dock">
             <header class="hazard-bind__drill-dock-head">
               <span class="hazard-bind__drill-eyebrow">{{ '测试与演习' }}</span>
-              <span v-if="hazardDrillMode" class="hazard-bind__drill-mode-badge">{{
-                '演习模式'
-              }}</span>
             </header>
             <div class="hazard-bind__drill-matrix">
               <button
@@ -173,10 +170,11 @@
       </div>
 
       <div class="hazard-bind__actions">
-        <label class="hazard-bind__drill">
-          <input v-model="hazardDrillMode" type="checkbox" class="hazard-bind__drill-input" />
-          <span>{{ '演习模式（真实触发不自动关阀/开排风，仍会通知与执行紧急场景）' }}</span>
-        </label>
+        <p class="hazard-bind__drill-note">
+          {{
+            '演习为一次性操作：只发通知与紧急场景，不关阀/排风，也不会改变真实告警的处理方式。'
+          }}
+        </p>
         <div class="hazard-bind__actions-secondary">
           <RouterLink
             :to="SETTINGS_ROUTES.params('security')"
@@ -215,7 +213,6 @@ const hazardEmergencySceneId = defineModel<string>('hazardEmergencySceneId', { d
 const hazardGasValveEntityId = defineModel<string>('hazardGasValveEntityId', { default: '' })
 const hazardWaterValveEntityId = defineModel<string>('hazardWaterValveEntityId', { default: '' })
 const hazardExhaustFanEntityIds = defineModel<string>('hazardExhaustFanEntityIds', { default: '' })
-const hazardDrillMode = defineModel<boolean>('hazardDrillMode', { default: false })
 
 // 派生绑定冲突、传感器/动作字段、演习按钮与状态行
 const {

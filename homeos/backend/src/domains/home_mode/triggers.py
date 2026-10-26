@@ -214,6 +214,10 @@ async def handle_home_mode_state_trigger(
     old_state = (event.get("old_state") or {}).get("state")
     if not new_state or new_state == old_state:
         return
+    if deps.is_away_simulated_entity(str(entity_id or "")):
+        # 离家模拟自己开关的灯不是「有人到家」：否则度假期间每轮模拟都会撤防/切居家。
+        logger.info("跳过离家模拟实体触发的家庭模式状态触发器: %s → %s", entity_id, new_state)
+        return
 
     for binding in state.trigger_bindings:
         trigger = binding.trigger

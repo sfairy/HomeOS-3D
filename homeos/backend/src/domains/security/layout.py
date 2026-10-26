@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -79,6 +80,13 @@ class HazardLayoutBindings:
     gas_valve_entity_id: str = ""
     water_valve_entity_id: str = ""
     exhaust_fan_entity_ids: list[str] = field(default_factory=list)
+    #: 数值型危险实体的显式触发阈值（``entity_id → 阈值``）。
+    #: 未列入的数值实体一律不参与危险判定：燃气表累计用量、水流量这类表计
+    #: 任意 >0 的读数都不是泄漏，误判会直接关阀并触发紧急场景。
+    numeric_thresholds: dict[str, float] = field(default_factory=dict)
+    #: 已废弃：演习曾是一个随布局持久化的开关，打开后会永久跳过真实告警的
+    #: 关阀 / 排风。现在演习由 ``HazardDrillService.run_drill`` 一次性触发，
+    #: 此字段只用于识别旧布局并留痕，不再影响真实触发。
     hazard_drill_mode: bool = False
 
 
@@ -93,6 +101,27 @@ def _parse_hazard_entity_id_list(hazard_area: dict[str, Any], key: str) -> list[
     if not isinstance(value, list):
         return []
     return [str(item).strip() for item in value if str(item or "").strip()]
+
+
+def _parse_hazard_numeric_thresholds(hazard_area: dict[str, Any]) -> dict[str, float]:
+    """解析数值型危险实体的显式阈值；非法值整条丢弃（宁可不触发，也不误关阀）。"""
+    raw = hazard_area.get("hazardNumericThresholds")
+    if not isinstance(raw, dict):
+        return {}
+    thresholds: dict[str, float] = {}
+    for key, value in raw.items():
+        entity_id = str(key or "").strip()
+        if not entity_id:
+            continue
+        try:
+            threshold = float(value)
+        except (TypeError, ValueError):
+            continue
+        # NaN / ±inf 不能作为阈值；NaN 的比较永远为 False，会让实体静默失效。
+        if not math.isfinite(threshold):
+            continue
+        thresholds[entity_id] = threshold
+    return thresholds
 
 
 def parse_hazard_layout_bindings(layout: dict[str, Any] | None) -> HazardLayoutBindings:
@@ -110,6 +139,7 @@ def parse_hazard_layout_bindings(layout: dict[str, Any] | None) -> HazardLayoutB
         gas_valve_entity_id=pick("hazardGasValveEntityId"),
         water_valve_entity_id=pick("hazardWaterValveEntityId"),
         exhaust_fan_entity_ids=parse_comma_ids(pick("hazardExhaustFanEntityIds")),
+        numeric_thresholds=_parse_hazard_numeric_thresholds(ha),
         hazard_drill_mode=bool(ha.get("hazardDrillMode")),
     )
 
@@ -127,6 +157,13 @@ def resolve_bound_hazard_kind(
     if value in bindings.leak_entity_ids:
         return "leak"
     return None
+
+
+def resolve_numeric_hazard_threshold(
+    entity_id: str, bindings: HazardLayoutBindings
+) -> float | None:
+    """数值型实体的显式阈值；没有配置就返回 ``None``（不参与危险判定）。"""
+    return bindings.numeric_thresholds.get(str(entity_id or "").strip())
 
 
 # ── 危险自动动作（关阀 / 排风） ─────────────────────────────────────────
@@ -210,6 +247,8 @@ def persist_security_event(
     entity_id: str | None = None,
     zones: list[str] | None = None,
     default_mode: str = "disarmed",
+    source: str | None = None,
+    actor: str | None = None,
 ) -> None:
     """写入 SecurityEvent；失败仅记录日志，不影响主流程。"""
     import json
@@ -223,11 +262,49 @@ def persist_security_event(
                     entity_id=entity_id,
                     detail=detail,
                     zones=json.dumps(zones or [], ensure_ascii=False),
+                    source=source,
+                    actor=actor,
                 )
             )
             session.commit()
     except Exception as exc:
         logger.debug("SecurityEvent 写入失败: %s", exc)
+
+
+def _schedule_persist(
+    session_factory,
+    event_type: str,
+    detail: str,
+    *,
+    mode: str | None,
+    entity_id: str | None,
+    zones: list[str] | None,
+    default_mode: str,
+    source: str | None,
+    actor: str | None,
+) -> None:
+    """审计写入改走后台线程：同步 commit 会卡住状态变更/告警链路。"""
+    import asyncio
+
+    kwargs = {
+        "mode": mode,
+        "entity_id": entity_id,
+        "zones": zones,
+        "default_mode": default_mode,
+        "source": source,
+        "actor": actor,
+    }
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        # 无事件循环（脚本/测试直调）：退化为同步写，保证不丢审计。
+        persist_security_event(session_factory, event_type, detail, **kwargs)
+        return
+    from ...platform.core.background import spawn_awaitable
+
+    spawn_awaitable(
+        asyncio.to_thread(persist_security_event, session_factory, event_type, detail, **kwargs)
+    )
 
 
 def schedule_security_event(
@@ -239,9 +316,11 @@ def schedule_security_event(
     entity_id: str | None = None,
     zones: list[str] | None = None,
     default_mode: str = "disarmed",
+    source: str | None = None,
+    actor: str | None = None,
 ) -> None:
     logger.warning(detail)
-    persist_security_event(
+    _schedule_persist(
         session_factory,
         event_type,
         detail,
@@ -249,6 +328,8 @@ def schedule_security_event(
         entity_id=entity_id,
         zones=zones,
         default_mode=default_mode,
+        source=source,
+        actor=actor,
     )
 
 
@@ -261,8 +342,10 @@ def schedule_security_event_silent(
     entity_id: str | None = None,
     zones: list[str] | None = None,
     default_mode: str = "disarmed",
+    source: str | None = None,
+    actor: str | None = None,
 ) -> None:
-    persist_security_event(
+    _schedule_persist(
         session_factory,
         event_type,
         detail,
@@ -270,4 +353,6 @@ def schedule_security_event_silent(
         entity_id=entity_id,
         zones=zones,
         default_mode=default_mode,
+        source=source,
+        actor=actor,
     )

@@ -38,8 +38,13 @@ export function fetchSecurityPanelStatus(config?: AxiosRequestConfig) {
 }
 
 /** 布防安防面板。 */
-export function armSecurityPanel(mode: string, zoneIds?: string[], config?: AxiosRequestConfig) {
-  return apiPost('/security-panel/arm', { mode, zoneIds }, config)
+export function armSecurityPanel(
+  mode: string,
+  zoneIds?: string[],
+  force = false,
+  config?: AxiosRequestConfig,
+) {
+  return apiPost('/security-panel/arm', { mode, zoneIds, force }, config)
 }
 
 /** 撤防安防面板。 */
@@ -52,9 +57,13 @@ export function triggerSecurityEmergency(config?: AxiosRequestConfig) {
   return apiPost('/security-panel/emergency', {}, config)
 }
 
-/** 更新安防面板防区配置。 */
-export function updateSecurityPanelZones(zones: unknown[], config?: AxiosRequestConfig) {
-  return apiPost('/security-panel/zones', { zones }, config)
+/** 更新安防面板防区配置。confirmClear=true 才允许清空全部防区。 */
+export function updateSecurityPanelZones(
+  zones: unknown[],
+  confirmClear = false,
+  config?: AxiosRequestConfig,
+) {
+  return apiPost('/security-panel/zones', { zones, confirmClear }, config)
 }
 
 /** 获取安防面板事件。 */

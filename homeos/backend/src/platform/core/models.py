@@ -157,6 +157,12 @@ class SecurityEvent(Base):
     entity_id: Mapped[str | None] = mapped_column("entityId", String(255), nullable=True)
     detail: Mapped[str] = mapped_column(Text, nullable=False)
     zones: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    #: 事件来源：manual / home-mode / presence / calendar / sensor / frigate / drill / linkage
+    source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    #: 操作者标识（手动操作时为 username，自动化为 NULL）
+    actor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    #: 确认时间：NULL 表示未确认。确认是审计语义，不代表告警已解除。
+    ack_at: Mapped[datetime | None] = mapped_column("ackAt", DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         "createdAt", DateTime, nullable=False, default=utc_now
     )

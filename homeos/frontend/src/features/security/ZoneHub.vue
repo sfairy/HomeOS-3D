@@ -59,6 +59,7 @@
       v-else
       ref="configPanelRef"
       :backend-zones="backendZones"
+      :backend-ready="secPanelReady"
       :focus-zone-id="configFocusZoneId"
       @saved="onConfigSaved"
     />

@@ -42,6 +42,8 @@ DEFAULT_SECURITY_CONFIG: dict[str, Any] = {
     "alertChannels": ["in_app"],
     "alertBypassDnd": True,
     "armExitGraceSeconds": 30,
+    #: 手动布防/撤防后的人为锁定时长：期间 presence / 日历自动联动不覆盖人工决定。
+    "manualArmLockSec": 300,
 }
 
 DEFAULT_FRONTEND_CONFIG: dict[str, Any] = {

@@ -116,7 +116,6 @@
       v-model:hazard-exhaust-fan-entity-ids="
         layoutStore.layoutConfig.haConfig.hazardExhaustFanEntityIds
       "
-      v-model:hazard-drill-mode="layoutStore.layoutConfig.haConfig.hazardDrillMode"
       :hazard-testing="hazardTesting"
       :hazard-drill-busy="hazardDrillBusy"
       :hazard-drill-tip="hazardDrillTip"

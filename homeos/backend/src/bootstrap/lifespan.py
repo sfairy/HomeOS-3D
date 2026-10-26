@@ -138,9 +138,6 @@ async def _run_state_change_effects(
     entity_id = change.get("entity_id")
     if not entity_id:
         return None
-    sync_filter = getattr(app.state, "entity_sync_filter", None)
-    if sync_filter is not None and not sync_filter.is_entity_syncable(str(entity_id)):
-        return None
     _apply_state_change(app, gateway, store, change)
     home_mode = getattr(app.state, "home_mode", None)
     if home_mode is not None:
@@ -182,7 +179,9 @@ async def _run_state_change_effects(
         except Exception:  # 用量统计属旁路观测，失败不得阻断状态广播
             logger.debug("顾问用量统计失败: entity=%s", entity_id, exc_info=True)
     if broadcast:
-        await gateway.broadcast_state_changed_batch([change])
+        sync_filter = getattr(app.state, "entity_sync_filter", None)
+        if sync_filter is None or sync_filter.is_entity_syncable(str(entity_id)):
+            await gateway.broadcast_state_changed_batch([change])
     return change
 
 
@@ -200,10 +199,12 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
             entities = [
                 entity for entity in (payload or []) if isinstance(entity, dict) and entity.get("entity_id")
             ]
+            broadcast_entities = entities
             if sync_filter is not None:
-                entities = sync_filter.filter_syncable_states(entities)
+                broadcast_entities = sync_filter.filter_syncable_states(entities)
+            # L1 必须收全量：隐藏/禁用只是展示策略，安全实体仍需要基线来做边沿判定。
             store.set_all(entities)
-            app.state.ha_entity_count = len(entities)
+            app.state.ha_entity_count = len(broadcast_entities)
             presence = getattr(app.state, "presence", None)
             if presence is not None:
                 try:
@@ -212,7 +213,7 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
                     logger.warning("在场推断初始播种失败", exc_info=True)
             if bus is not None:
                 # 广播全量事件
-                await bus.emit("ha.initial_states", {"entities": entities})
+                await bus.emit("ha.initial_states", {"entities": broadcast_entities})
             return
         event = payload if isinstance(payload, dict) else {}
         raw_data = event.get("data")
@@ -246,13 +247,20 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         changes = payload.get("changes") if isinstance(payload, dict) else None
         if not isinstance(changes, list):
             return
+        sync_filter = getattr(app.state, "entity_sync_filter", None)
         applied: list[dict[str, Any]] = []
         for change in changes:
             if not isinstance(change, dict) or not change.get("entity_id"):
                 continue
             result = await _run_state_change_effects(app, gateway, store, change, broadcast=False)
-            if result is not None:
-                applied.append(result)
+            if result is None:
+                continue
+            if sync_filter is not None and not sync_filter.is_entity_syncable(
+                str(change.get("entity_id"))
+            ):
+                # 隐藏实体照样走安防/自动化副作用，只是不推给客户端。
+                continue
+            applied.append(result)
         if applied:
             await gateway.broadcast_state_changed_batch(applied)
 
@@ -266,10 +274,12 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
         if not isinstance(entities, list):
             return
         sync_filter = getattr(app.state, "entity_sync_filter", None)
+        broadcast_entities = entities
         if sync_filter is not None:
-            entities = sync_filter.filter_syncable_states(entities)
+            broadcast_entities = sync_filter.filter_syncable_states(entities)
+        # 同 _listener：L1 收全量，仅广播按展示过滤。
         store.set_all(entities)
-        app.state.ha_entity_count = len(entities)
+        app.state.ha_entity_count = len(broadcast_entities)
 
     return {
         "ha.state_changed": _handle_state_changed,
@@ -779,11 +789,19 @@ async def _build_home_mode(app: FastAPI, startup: _StartupContext) -> None:
             return mode == "disarmed" and result.get("mode") == "disarmed"
         return bool(result)
 
+    def _get_security_mode() -> str | None:
+        panel = getattr(app.state, "security_panel", None)
+        if panel is None:
+            return None
+        return panel.get_mode()
+
     home_mode = HomeModeService(
         app.state.database.session_factory,
         startup.ha_connector,
         startup.state_store,
         set_security_mode=_set_security_mode,
+        get_security_mode=_get_security_mode,
+        is_away_simulated_entity=startup.away_sim.contains_entity,
         emit_event=_emit_home_mode_event,
         is_leader=lambda: True,
         jobs=app.state.jobs,
