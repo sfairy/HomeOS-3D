@@ -134,14 +134,24 @@ export const ALL_ITEM_MODELS = Object.freeze({
       scaleBasis: [2.4, 0.85, 0.6],
       preserveOrigin: true,
     }),
-    kitchensink: createHomeAssetDescriptor("kitchensink", {
-      scaleBasis: [1.2, 0.85, 0.6],
-      preserveOrigin: true,
-    }),
-    kitchencooktop: createHomeAssetDescriptor("kitchencooktop", {
-      scaleBasis: [1.2, 0.85, 0.6],
-      preserveOrigin: true,
-    }),
+    // 2026-10-24 形态重建（板件柜体 + 台下盆 / 嵌入式灶）：路径没变、字节变了，
+    // 必须换 URL 键，否则模板缓存会一直还原重建前的旧件。
+    kitchensink: createHomeAssetDescriptor(
+      "kitchensink",
+      {
+        scaleBasis: [1.2, 0.85, 0.6],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.kitchenRebuild,
+    ),
+    kitchencooktop: createHomeAssetDescriptor(
+      "kitchencooktop",
+      {
+        scaleBasis: [1.2, 0.85, 0.6],
+        preserveOrigin: true,
+      },
+      MODEL_ASSET_CACHE_KEYS.kitchenRebuild,
+    ),
     // 台面高 0.85、整件含顶部挂件 1.14（见 model-specs.json 的 assumptions）；
     // 原来的 0.88 是「台面高」被当成总高，会把整件压扁 23%。
     // 2026-10-23：盆胆按椭圆盆重做（同 HEAD 形状），字节变了，必须换 URL 才能拿到新模型。

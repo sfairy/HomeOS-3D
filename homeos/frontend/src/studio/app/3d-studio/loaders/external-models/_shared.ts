@@ -34,8 +34,11 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
   sanitary: "20261013-sanitary-v1",
   /** 家用收藏批：98 款新增 + 12 款重绘（`collection-models.ts` 的 `assetVersion`）。 */
   household: "20261013-household-v2",
-  /** 庭院植被/家具批：字节未变，沿用既有键。 */
-  garden: "20260927-garden-v5",
+  /**
+   * 庭院植被/家具批：2026-10-24 那 15 款乔木 / 松 / 灌木 / 绿篱 / 竹 / 草全部重建，
+   * 路径没变、字节变了 —— 不换键浏览器与模板缓存都会继续给旧件。
+   */
+  garden: "20261025-garden-v6",
   /** 茶台套装批：字节未变，沿用既有键。 */
   teaTable: "20260927-tea-table-v1",
   /** approved 外购模型批：字节未变，沿用既有键。 */
@@ -56,6 +59,15 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
    * 表现就是「改了模型但画面还是旧的那版」（`basin` 就踩过：回滚后仍看到重做版）。
    */
   modelRestore: "20261023-model-restore-v1",
+  /**
+   * 2026-10-24 厨柜重建批：`kitchensink`（1200 台下盆水盆柜）与 `kitchencooktop`
+   * （600 双眼燃气灶柜）由 `kitchen-parts.mjs` 重出，**1 个根网格 → 8 个槽位子节点**。
+   *
+   * 这两个描述符此前压根没挂缓存键，重建后路径不变 → 模板缓存键（`modelTemplateKey`
+   * 只含 revision + 描述符）也没变，画面继续是「三块实心箱子」的旧件。
+   * 同类踩坑记录见上面 `modelRestore` 与 `basin`。
+   */
+  kitchenRebuild: "20261025-kitchen-rebuild-v1",
 });
 
 /** 给模型资源 URL 挂上缓存键；`cacheKey` 为空时原样返回。 */

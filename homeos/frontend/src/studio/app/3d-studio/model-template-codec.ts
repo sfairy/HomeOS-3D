@@ -12,8 +12,13 @@ import { packModelTextures, restoreModelTextures } from "./model-texture-cache";
  * `textureImages` 为空、材质缺 `map` 的记录 —— 其中就包括 `smallcar`。它们能通过 v4 的
  * 全部校验，每次都是「缓存命中」，所以光修 CSP 不会让车恢复贴图。跳到 `v5` 让这批
  * 坏模板整体作废，重新从 GLB 打包。
+ *
+ * `v7`：2026-10-24 那批重建（`kitchensink` / `kitchencooktop` 从 1 个网格拆成 8 个槽位、
+ * 15 款庭院植物重出）改了 GLB 字节与产物结构，而模板存的是**几何 + UV + 材质**，
+ * 光换 URL 键只能让新请求拿到新字节，本地 IndexedDB 里旧模板仍按旧描述符命中 ——
+ * 画面依旧是「三块实心箱子」的水盆柜 / 燃气灶柜。跳版本号让全库模板重新打包。
  */
-const MODEL_TEMPLATE_REVISION = "20261023-car-atlas-v6";
+const MODEL_TEMPLATE_REVISION = "20261025-kitchen-garden-v7";
 
 /** 模板里一个打包属性的最小结构。 */
 type PackedAttribute = {
