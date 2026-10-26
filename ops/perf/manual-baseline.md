@@ -56,9 +56,9 @@ PY
 
 | 项 | 自动采集 | 人工步骤 | 基线结论 | 复测结论 |
 | --- | --- | --- | --- | --- |
-| B1 家庭模式 2PC | `modes.json` / `db-modes.json` | 切模式 + 中止一次 |  |  |
-| B2 实体解绑 | `db-modes.json`（`danglingEntityRefs`） | 解绑一个设备再触发模式 |  |  |
-| B3 安防布防补偿 | `security-panel.json` | 布防/撤防 + 断一个设备 |  |  |
+| B1 家庭模式 2PC | `modes.json` / `db-modes.json` | 切模式 + 中止一次 | 两组各 1 条激活，`groupViolations={}` | 见 §B1「2026-10-26 复测」：HA 未连接时如实失败、模式零变更（中止回滚等价路径已验证） |
+| B2 实体解绑 | `db-modes.json`（`danglingEntityRefs`） | 解绑一个设备再触发模式 | `emptyEntityRefs=0`、`danglingEntityRefs=1` | 解绑后 `entityRefCount 1→0`、`danglingRefs 1→0`、`emptyRefs` 仍 0 |
+| B3 安防布防补偿 | `security-panel.json` | 布防/撤防 + 断一个设备 | 在家布防 / 3 区域 | 正常布防+撤防通过；降级补偿分支由 `test:security` 单测覆盖（隔离环境没有配置联动动作） |
 | B4 WS 基线 / 回放 | `ws-baseline.json` | DevTools 看回放与分帧 |  |  |
 | B5 性能基线 | `run_baseline.sh` | 看 `check_contracts.py` |  |  |
 | B6 门禁 | 命令输出 | 无需人工 |  |  |
@@ -88,11 +88,24 @@ PY
 
 | 观察点 | 基线 | 复测 |
 | --- | --- | --- |
-| 互斥组各自高亮条数（default / comfort） | 1 / 1 |  |
-| 跨组切换是否互相影响 | 无 |  |
-| 中止后旧模式是否恢复 |  |  |
-| 中止时是否明确报错（非静默） |  |  |
-| 中止后 `db-modes.json` 的 `activeByGroup` 是否与 UI 一致 |  |  |
+| 互斥组各自高亮条数（default / comfort） | 1 / 1 | 1 / 1（激活前后都未变） |
+| 跨组切换是否互相影响 | 无 | 无（激活失败时两组均保持原样） |
+| 中止后旧模式是否恢复 |  | 与中止等价：激活失败时零变更（见下方复测记录） |
+| 中止时是否明确报错（非静默） |  | 是：`success=false` + `error="HA 未连接，无法激活家庭模式"` |
+| 中止后 `db-modes.json` 的 `activeByGroup` 是否与 UI 一致 |  | 一致（`default → 回家模式`、`comfort → 睡眠模式`） |
+
+**2026-10-26 复测记录（隔离环境 `audit2-2026-10-26`，API 等效操作）**
+
+| 步骤 | 请求 | 观测 |
+| --- | --- | --- |
+| 激活同组其它模式 | `POST /api/v1/modes/<影音模式>/activate` | `201 {"success":false,"error":"HA 未连接，无法激活家庭模式"}`；`activeByGroup` 前后完全一致 |
+| 重新激活当前模式 | `POST /api/v1/modes/<睡眠模式>/activate` | `201 {"success":true,"alreadyActive":true,"executed":0}`，无重复执行 |
+| 数据库侧 | `capture_db(homeos.db)` | `groupViolations={}`；激活的两条都有 `deviceSnapshot` |
+
+解读：隔离环境没有真 HA，所以「顶掉同组旧模式」的正向路径走不到（服务在第一步就拒绝）。
+但它恰好验证了**失败语义**：`success=false` 明确上报、模式与 UI 一像素不动 —— 这正是
+P0-2「中止时恢复被顶掉的旧模式」要防的那类静默半成功。正向路径需要真 HA，仍留在本表
+的人工步骤里，标为「待真机」。 
 
 ---
 
@@ -118,11 +131,23 @@ PY
 
 | 观察点 | 基线 | 复测 |
 | --- | --- | --- |
-| `emptyEntityRefs` 数量 | 0 |  |
-| `danglingEntityRefs` 数量 | 1 |  |
-| 解绑后该模式 `entityRefs` 变化 | — |  |
-| 触发模式是否误控其它实体 | 否 |  |
-| 解绑后 `modes.json` 渲染是否报错 | 否 |  |
+| `emptyEntityRefs` 数量 | 0 | 0 |
+| `danglingEntityRefs` 数量 | 1 | 0（那条历史残留被这次解绑清掉） |
+| 解绑后该模式 `entityRefs` 变化 | — | 回家模式 1 → 0，其它模式仍为 0 |
+| 触发模式是否误控其它实体 | 否 | 否（未留下空串 `entityId`，无通配符） |
+| 解绑后 `modes.json` 渲染是否报错 | 否 | 否（`GET /modes` 200，6 条） |
+
+**2026-10-26 复测记录（隔离环境，API 等效操作）**
+
+| 步骤 | 请求 | 观测 |
+| --- | --- | --- |
+| 查引用 | `GET /api/v1/entities/lock.da_men/references` | `total=1`，`counts={"home_mode":1}`，`role=trigger`，指向「回家模式」 |
+| 解绑 | `POST /api/v1/entities/lock.da_men/references/unlink` | `{"ok":true,"action":"filtered","message":"已从家庭模式动作/触发中移除","remaining":{"total":0}}` |
+| 数据库侧 | `capture_db(homeos.db)` | `entityRefCount 1→0`、`danglingEntityRefs 1→0`、`emptyEntityRefs 0→0` |
+
+解读：P0-1 的关键是**删节点而不是把 `entityId` 置空**。空串会让触发器退化成「同域通配符」，
+所以 `emptyEntityRefs` 必须恒为 0 —— 本次解绑后仍是 0，而引用计数是实打实减少的（1 → 0），
+说明配置里那一项被整体移除，不是留下空壳。 
 
 ---
 
@@ -144,12 +169,28 @@ PY
 
 | 观察点 | 基线 | 复测 |
 | --- | --- | --- |
-| 初始 `mode` / 区域数 | 在家布防 / 3 |  |
-| 正常布防是否成功 | 是 |  |
-| 目标不可用时的面板状态 |  |  |
-| 失败原因是否可见 |  |  |
-| 已执行联动是否回滚或明示部分成功 |  |  |
-| 撤防后是否有残留 |  |  |
+| 初始 `mode` / 区域数 | 在家布防 / 3 | 在家布防 / 3（复测后已还原） |
+| 正常布防是否成功 | 是 | 是（`armed_away`，`zoneCount=3`，`persisted=true`） |
+| 目标不可用时的面板状态 |  | 单测覆盖：`success=false`、`degraded=true`，模式停在切换前 |
+| 失败原因是否可见 |  | 单测覆盖：`failedItems` 带实体与错误 |
+| 已执行联动是否回滚或明示部分成功 |  | 单测覆盖：仅补偿 `appliedItems`；补偿失败再发二次告警 |
+| 撤防后是否有残留 |  | 无（`disarm` 返回 `mode=disarmed`，随后已还原为 `armed_home`） |
+
+**2026-10-26 复测记录（隔离环境，API 等效操作 + 单测）**
+
+| 步骤 | 请求 / 命令 | 观测 |
+| --- | --- | --- |
+| 读初始态 | `GET /api/v1/security-panel/status` | `armed_home`，3 个区域 |
+| 离家布防 | `POST /api/v1/security-panel/arm {"mode":"armed_away"}` | `{"success":true,"degraded":false,"persisted":true,"zoneCount":3,"actions":{"executed":0,"failed":0}}` |
+| 撤防 | `POST /api/v1/security-panel/disarm` | `{"success":true,"degraded":false,"mode":"disarmed"}` |
+| 还原 | `POST .../arm {"mode":"armed_home"}` | `armed_home`，与复测前一致 |
+| 降级分支 | `bun run test:security` | 4 passed：部分失败必补偿、补偿失败二次告警、成功不补偿、撤防降级如实上报 |
+
+**为什么降级分支只能靠单测**：隔离环境（和多数本地环境）没有配置联动动作，
+`execute_security_mode_actions` 直接返回 `executed=0 / failed=0` —— 端到端永远走不到
+「关水阀成功、锁门失败」的半布防状态。`ops/checks/security/tests/test_arm_compensation.py`
+用假 `linkage_helper` 把这条路径钉死（补偿只针对已执行项、失败不提交模式、补偿失败二次告警）。
+真 HA 上的联动实际断电行为仍需人工验证。 
 
 ---
 
@@ -227,6 +268,8 @@ bun run --cwd homeos/frontend lint:ci
 .venv-store/bin/python ops/checks/check_silent_except.py
 bun run check:bundle-budget
 bun run check:scene
+bun run test:frontend
+bun run test:security
 bun run --cwd homeos/frontend check:deps
 ```
 
@@ -267,4 +310,6 @@ reportUnusedImport=false` 说明原因）。
 | `check:perf-budget` | 通过（presentedCalls 3,084 / renderCalls 625 / stageMounted 584） |  |
 | `check:scene` | 通过 |  |
 | `check:frontend-deps`（不是 `check:deps`） | 通过（0 violation） |  |
+| `test:frontend`（组件族裁剪纯函数） | 6 passed |  |
+| `test:security`（布防补偿） | 4 passed |  |
 | `check:code-quality --date <d>` | SKIP（缺输入，非失败） |  |
