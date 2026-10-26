@@ -344,4 +344,19 @@ export async function callEntityService(self: PanelRenderer, serviceDomain: any,
         );
       throw window.HomeOSLog?.linkError!(error, serviceResponse)! || error;
     }
+    // 后置校验三态：服务端把 `verified:false` 明确回传时，面板不能把它当成功 ——
+    // 只记一条 warning（不打断用户操作），和实体卡的提示口径一致。
+    const serviceBody = (await serviceResponse.json().catch(() => null)) as {
+      verified?: boolean | null;
+      verification?: { reason?: string; observedState?: string | null };
+    } | null;
+    if (serviceBody?.verified === false) {
+      window.HomeOSLog?.warn?.(
+        `[设备操作] 已下发但状态未确认: ${serviceDomain}.${serviceName} → ${serviceEntityId}`,
+        {
+          reason: serviceBody.verification?.reason,
+          observedState: serviceBody.verification?.observedState,
+        },
+      );
+    }
   }
