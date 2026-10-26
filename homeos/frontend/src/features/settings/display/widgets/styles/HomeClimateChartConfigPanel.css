@@ -100,3 +100,38 @@
   font-size: var(--set-fs-micro, 12px);
   color: rgba(148, 163, 184, 0.55);
 }
+
+/* ── 房间显示名称 ──
+   左列是传感器自带的自动名（作为「原名」参考），右列是输入框。
+   自动名压暗一档，让用户一眼分清「谁是我的输入、谁是系统给的」。 */
+.hcc-config__names {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hcc-config__name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.hcc-config__name-source {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--set-fs-micro, 12px);
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.hcc-config__name-input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* 有自定义名时输入框描边点亮，扫一眼就知道哪些房间改过 */
+.hcc-config__name-input:not(:placeholder-shown) {
+  border-color: rgba(52, 211, 153, 0.36);
+}

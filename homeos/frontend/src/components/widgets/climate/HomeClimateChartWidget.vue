@@ -1,12 +1,13 @@
 /**
  * @file HomeClimateChartWidget.vue
  * @module widgets/climate
- * @description 全屋气候图表 Widget：整合头部、加载/空态与图表主体，
+ * @description 全屋气候图表 Widget：整合头部、加载/空态、图表主体与房间读数摘要，
  *              通过 useHomeClimateChart 驱动多视图温湿度趋势展示。
  * @dependencies
  *  - vue: 提供 ref / computed 响应式 API
  *  - ./home-climate-chart/HomeClimateChartChrome.vue: 图表头部（视图切换 / 状态提示）
  *  - ./home-climate-chart/HomeClimateChartBody.vue: 图表主体容器
+ *  - ./home-climate-chart/HomeClimateChartSummary.vue: 底部逐房间读数摘要
  *  - ./home-climate-chart/useHomeClimateChart: 图表数据与视图状态驱动 composable
  */
 <template>
@@ -25,6 +26,9 @@
       :active-view="activeView"
       :set-chart-ref="setChartRef"
     />
+
+    <!-- 房间读数摘要：行数由绑定的温湿度实体决定，空态时也保留（数值不依赖历史曲线） -->
+    <HomeClimateChartSummary v-if="summaryRows.length" :rows="summaryRows" />
   </div>
 </template>
 
@@ -32,6 +36,7 @@
 import { ref, computed } from 'vue'
 import HomeClimateChartChrome from './home-climate-chart/HomeClimateChartChrome.vue'
 import HomeClimateChartBody from './home-climate-chart/HomeClimateChartBody.vue'
+import HomeClimateChartSummary from './home-climate-chart/HomeClimateChartSummary.vue'
 import { useHomeClimateChart } from './home-climate-chart/useHomeClimateChart'
 import './home-climate-chart/styles/home-climate-chart.css'
 
@@ -58,6 +63,7 @@ const {
   hasSeries,
   hasViewSeries,
   viewEmptyTitle,
+  summaryRows,
 } = useHomeClimateChart({
   config: computed(() => props.config),
   panelVisible: computed(() => props.panelVisible),

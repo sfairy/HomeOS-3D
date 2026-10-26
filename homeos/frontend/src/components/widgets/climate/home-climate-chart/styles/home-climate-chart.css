@@ -220,6 +220,184 @@
   color: rgba(255, 255, 255, 0.82);
 }
 
+/* ── 底部逐房间摘要（`客厅 25.8° 35%`）──
+   恢复胶囊形态：每个房间是一枚独立圆角块，边界清楚，一眼能分清「这一组数是这个房间的」。
+   窄卡片（侧栏实测约 146px）下自动退化为单列纵向堆叠；卡片变宽时自动并成两列。
+   房间里只有「房间名 + 温度读数 + 湿度读数」三块，读数各自带图标与分级色，
+   胶囊底色只做极轻的分组暗示，不再叠一层彩色底，避免八种颜色互相打架。 */
+.hcc-card__summary {
+  /* 不参与压缩：图表容器是 flex:1，摘要被压扁会让胶囊只剩半行高。
+     房间多到放不下时由 max-height + 自身滚动消化，不再抢图表的高度。 */
+  flex: none;
+  /* 用 flex 换行而不是 grid auto-fit：auto-fit 的 minmax 下限一旦大于容器宽度，
+     轨道会按 210px 强行排成两列并溢出，每枚胶囊被压到 128px、房间名截成「室…」。
+     换行 + `min(Xpx, 100%)` 才能保证「容器窄 → 每行一枚满宽胶囊」。 */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 2px;
+  padding-top: 4px;
+  max-height: 34%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: var(--hos-hairline) solid var(--premium-border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--premium-border-strong) transparent;
+}
+
+.hcc-card__summary-row {
+  /* 拿满可用宽度；宽卡片（够放两枚 200px 胶囊）时自动并成两列 */
+  flex: 1 1 200px;
+  min-width: min(200px, 100%);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: inset 0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.045);
+  font-size: var(--premium-fs-micro);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.18s;
+}
+
+.hcc-card__summary-row:hover {
+  background: rgba(255, 255, 255, 0.085);
+}
+
+.hcc-card__summary-name {
+  /* 名字不参与收缩：宁可让读数列靠右，也不能把「室内」截成「室…」 */
+  flex: 0 0 auto;
+  max-width: 5.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(226, 232, 240, 0.82);
+  font-weight: 500;
+}
+
+/* 名字与读数之间的弹性空隙：读数成组推到胶囊右侧，
+   名字短（室外）和名字长（老人房）都以同样的右边界结束，读数列因此对齐。
+   注意：app-shell 整体缩放约 0.53，这里的 px 会被折半显示，
+   因此间距按「视觉值的两倍」给 —— 5px 在屏幕上只有 2.6px，等于没有。 */
+.hcc-card__summary-values {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  margin-left: auto;
+  flex: none;
+}
+
+/* 温度与湿度之间：留白 + 竖线。
+   两个带图标的读数直接相邻时会被读成一串（`1.1°58%`），
+   竖线明确切开两组语义，比单纯加间距更稳，也不会被缩放吃掉。
+   间距按视觉值的两倍给（app-shell 缩放 0.53），16px ≈ 屏幕上的 8.5px；
+   竖线用 2px，缩放后正好落回 1px，写 1px 则会变成看不见的亚像素。 */
+.hcc-card__summary-cell + .hcc-card__summary-cell {
+  margin-left: 16px;
+  padding-left: 14px;
+  border-left: 2px solid rgba(255, 255, 255, 0.13);
+}
+
+/* 数值单元：图标 + 数字 + 单位，右对齐成组。
+   图标与数字同吃分级色（图标 0.72 透明度当标识、数字满色当读数），
+   单位只降亮度不染色 —— 8 个单位一起上色会把胶囊糊成一片。 */
+.hcc-card__summary-cell {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 1px;
+  white-space: nowrap;
+  color: var(--hcc-level-color, var(--hos-text-secondary));
+}
+
+/* 该房间没有绑定这项指标时留空占位，保证温 / 湿两列仍与上下行对齐 */
+.hcc-card__summary-cell.is-placeholder:empty {
+  display: block;
+  min-width: 2.6em;
+}
+
+.hcc-card__summary-icon {
+  flex: none;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 1px;
+  /* 图标按基线对齐会整体偏低，这里上抬一点点，和数字的视觉中线对齐 */
+  transform: translateY(-0.06em);
+  color: var(--hcc-level-color, rgba(148, 163, 184, 0.5));
+  opacity: 0.72;
+}
+
+.hcc-card__summary-value {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  /* 继承单元格的等级色，图标与数字同源 */
+  color: inherit;
+}
+
+/* 单位跟在读数后面同字号：12px 下缩小 `°` 只会变成一个脏点。
+   改用降亮度区分主次，`25.6°` 整体仍是一个可读的读数。 */
+.hcc-card__summary-unit {
+  font-size: 1em;
+  font-style: normal;
+  font-weight: 500;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+/* ── 舒适度分级配色 ──
+   色相承载语义：偏冷 → 蓝青，舒适 → 绿，偏热 → 珊瑚，偏干 → 琥珀，潮湿 → 靛蓝。
+   整体比常见状态色降一档饱和度（暗底上过饱和的颜色互相抢），舒适是常态所以给最柔的绿，
+   偏冷 / 偏热 / 干燥这些异常等级再稍微提饱和，让问题房间自己跳出来。 */
+.hcc-card__summary-cell.is-temp-cold {
+  --hcc-level-color: #8bb8f2;
+}
+
+.hcc-card__summary-cell.is-temp-cool {
+  --hcc-level-color: #7ec8d2;
+}
+
+.hcc-card__summary-cell.is-temp-comfortable {
+  --hcc-level-color: #7fcca7;
+}
+
+.hcc-card__summary-cell.is-temp-warm {
+  --hcc-level-color: #e8c07a;
+}
+
+.hcc-card__summary-cell.is-temp-hot {
+  --hcc-level-color: #f08e8e;
+}
+
+.hcc-card__summary-cell.is-hum-dry {
+  --hcc-level-color: #e8a978;
+}
+
+.hcc-card__summary-cell.is-hum-slightly-dry {
+  --hcc-level-color: #dcc68a;
+}
+
+.hcc-card__summary-cell.is-hum-comfortable {
+  --hcc-level-color: #7fcca7;
+}
+
+.hcc-card__summary-cell.is-hum-slightly-humid {
+  --hcc-level-color: #8bb8ea;
+}
+
+.hcc-card__summary-cell.is-hum-humid {
+  --hcc-level-color: #9aa4e2;
+}
+
+/* 无读数 / 无法分级时退回中性灰，不假装「舒适」 */
+.hcc-card__summary-cell.is-temp-unknown,
+.hcc-card__summary-cell.is-hum-unknown {
+  --hcc-level-color: rgba(148, 163, 184, 0.52);
+}
+
 
 
 /* ── 空态 ── */

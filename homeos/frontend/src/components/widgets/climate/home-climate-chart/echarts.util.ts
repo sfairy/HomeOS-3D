@@ -60,22 +60,43 @@ export function formatLegendValue(value: number | null, kind: 'temp' | 'hum') {
   return kind === 'hum' ? String(Math.round(value)) : Number(value).toFixed(1)
 }
 
+/**
+ * 格式化卡片底部摘要数值：温度保留一位小数并去掉多余的 `.0`（`25` / `25.8`），
+ * 湿度取整；缺读数时统一为 `—`，与图例口径保持一致。
+ */
+export function formatSummaryValue(value: number | null, kind: 'temp' | 'hum') {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return kind === 'hum' ? String(Math.round(value)) : String(Math.round(value * 10) / 10)
+}
+
 function parseHistory(points: ClimateHistoryPoint[]) {
   return points
     .map((point) => ({ x: new Date(point.timestamp).getTime(), y: parseFloat(String(point.value)) }))
     .filter((point) => !Number.isNaN(point.y))
 }
 
-function friendlyBaseName(
+/**
+ * 从实体显示名推导「房间名」：去掉温湿度计量词与 温度 / 湿度 字样。
+ *
+ * 例：`客厅温度` / `客厅湿度` / `客厅温湿度计` 都折叠成 `客厅`，这样图表图例、
+ * 卡片底部摘要和其它温湿度卡片对同一房间用同一个名字。
+ *
+ * `overrides` 是用户在后台配置里手填的房间名（实体 ID → 名称）。命中时**原样返回**，
+ * 不再做后缀剥离：用户既然显式命名，`客厅温度` 就该显示成 `客厅温度`，不替他改写。
+ */
+export function climateEntityBaseName(
   entityId: string,
   entities: Record<string, { state?: string; attributes?: Record<string, unknown> } | undefined>,
+  overrides?: Record<string, string> | null,
 ) {
-  const raw = getEntityDisplayName(entityId, entities[entityId])
-  return (
-    String(raw)
-      .replace(/温度|湿度|temp|humidity/gi, '')
-      .trim() || entityId
-  )
+  const custom = String(overrides?.[entityId] ?? '').trim()
+  if (custom) return custom
+  const raw = String(getEntityDisplayName(entityId, entities[entityId]) ?? '')
+  const stripped = raw
+    .replace(/温湿度(?:计|传感器)?/g, '')
+    .replace(/温度|湿度|temp(?:erature)?|humidity/gi, '')
+    .trim()
+  return stripped || raw.trim() || entityId
 }
 
 /** 将历史数据映射为图表系列格式（``pointsByEntity`` 由调用方按实体 key 组装） */
@@ -83,6 +104,7 @@ export function mapHistorySeries(
   ids: string[],
   pointsByEntity: Map<string, ClimateHistoryPoint[]>,
   entities: Record<string, { state?: string; attributes?: Record<string, unknown> } | undefined>,
+  overrides?: Record<string, string> | null,
 ) {
   const rows = ids
     .filter((id) => {
@@ -91,7 +113,7 @@ export function mapHistorySeries(
     })
     .map((id) => ({
       entityId: id,
-      baseName: friendlyBaseName(id, entities),
+      baseName: climateEntityBaseName(id, entities, overrides),
       data: parseHistory(pointsByEntity.get(id)!),
     }))
     .filter((seriesItem) => seriesItem.data.length > 0)

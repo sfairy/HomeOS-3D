@@ -35,8 +35,16 @@ import {
 } from '@/shared/utils/registry/home-climate-chart-options'
 import { TEMP_COLORS, HUM_COLORS, MAX_CHART_RETRIES } from './constants'
 import {
+  humidityLevel,
+  temperatureLevel,
+  toCelsius,
+  type ClimateLevel,
+  type HumidityLevelKey,
+} from './climate-levels'
+import {
   buildClimateChartOption,
   chartSeriesName,
+  climateEntityBaseName,
   formatLegendValue,
   isChartContainerReady,
   mapHistorySeries,
@@ -52,6 +60,41 @@ interface UseHomeClimateChartOptions {
   config: ComputedRef<Record<string, unknown>>
   panelVisible: ComputedRef<boolean>
   chartRef: Ref<HTMLElement | null>
+}
+
+/** 卡片底部文字摘要的一行：同一房间的温度与湿度并排显示 */
+export interface ClimateSummaryRow {
+  key: string
+  name: string
+  temperature: number | null
+  humidity: number | null
+  /** 温度舒适度分级（按摄氏阈值算，显示值仍是原始单位）；无读数时为 null */
+  temperatureLevel: ClimateLevel | null
+  /** 湿度舒适度分级；无读数时为 null */
+  humidityLevel: ClimateLevel<HumidityLevelKey> | null
+}
+
+/**
+ * 读取实体当前读数。
+ * `unknown` / `unavailable` / 空串都不算读数（`Number('')` 会得到 0，必须显式挡掉）。
+ */
+function readEntityNumber(
+  entityId: string,
+  entities: Record<string, { state?: string } | undefined>,
+): number | null {
+  const raw = entityId ? entities[entityId]?.state : undefined
+  if (raw == null || String(raw).trim() === '') return null
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : null
+}
+
+/** 读取实体单位（`°C` / `%` / `°F`…），缺失时为空串。 */
+function readEntityUnit(
+  entityId: string,
+  entities: Record<string, { attributes?: Record<string, unknown> } | undefined>,
+): string {
+  const unit = entityId ? entities[entityId]?.attributes?.unit_of_measurement : undefined
+  return unit == null ? '' : String(unit)
 }
 
 export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
@@ -141,6 +184,61 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
       })
     }
     return items
+  })
+
+  /**
+   * 底部文字摘要：按房间聚合当前读数，行数由已绑定的温湿度实体决定。
+   *
+   * 房间名取自实体显示名去掉「温湿度(计)」「温度 / 湿度」等字样，因此同一房间的
+   * 温度实体与湿度实体折叠成同一行（`客厅 25° 38%`）；湿度实体单独存在时另起一行。
+   */
+  const summaryRows = computed<ClimateSummaryRow[]>(() => {
+    const rows: ClimateSummaryRow[] = []
+    const rowByKey = new Map<string, ClimateSummaryRow>()
+    const occupied = { temp: new Set<string>(), hum: new Set<string>() }
+
+    const attach = (entityId: string, kind: 'temp' | 'hum') => {
+      if (!entityId) return
+      const name = climateEntityBaseName(
+        entityId,
+        entitiesStore.entities,
+        hubConfig.value.entityNames,
+      )
+      // 同名不同实体（例如两个房间都只叫「环境」）时用实体 id 兜底，避免读数互相覆盖。
+      const key = occupied[kind].has(name) ? `${name}#${entityId}` : name
+      occupied[kind].add(key)
+      let row = rowByKey.get(key)
+      if (!row) {
+        row = {
+          key,
+          name,
+          temperature: null,
+          humidity: null,
+          temperatureLevel: null,
+          humidityLevel: null,
+        }
+        rowByKey.set(key, row)
+        rows.push(row)
+      }
+      const value = readEntityNumber(entityId, entitiesStore.entities)
+      if (kind === 'temp') {
+        row.temperature = value
+        // 分级按摄氏阈值算：传感器报 °F 时先折算，显示的仍是原始读数。
+        row.temperatureLevel =
+          value == null
+            ? null
+            : temperatureLevel(
+                toCelsius(value, readEntityUnit(entityId, entitiesStore.entities)),
+              )
+      } else {
+        row.humidity = value
+        row.humidityLevel = humidityLevel(value)
+      }
+    }
+
+    hubConfig.value.temperatureEntities.forEach((entityId) => attach(entityId, 'temp'))
+    hubConfig.value.humidityEntities.forEach((entityId) => attach(entityId, 'hum'))
+    return rows
   })
 
   /** 切换图例显示/隐藏：同步本地状态并派发 ECharts legend 事件 */
@@ -270,8 +368,18 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
         }
       }
       if (byId.size === 0 && firstError !== undefined) throw firstError
-      temperatureSeries.value = mapHistorySeries(tempIds, byId, entitiesStore.entities)
-      humiditySeries.value = mapHistorySeries(humIds, byId, entitiesStore.entities)
+      temperatureSeries.value = mapHistorySeries(
+        tempIds,
+        byId,
+        entitiesStore.entities,
+        hubConfig.value.entityNames,
+      )
+      humiditySeries.value = mapHistorySeries(
+        humIds,
+        byId,
+        entitiesStore.entities,
+        hubConfig.value.entityNames,
+      )
       legendHidden.value = legendItems.value.map(() => false)
     } catch (e) {
       notifyError(e, '获取温湿度历史')
@@ -385,5 +493,6 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
     legendItems,
     legendHidden,
     toggleLegend,
+    summaryRows,
   }
 }
