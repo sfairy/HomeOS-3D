@@ -917,9 +917,31 @@ export default defineConfig(async (): Promise<UserConfig> => {
                 priority: 2,
               },
               {
+                // entriesAware 兜底组：把「被多个入口共享」的模块合进 shared-* chunk。
+                // 这个阈值是**首屏 preload 与懒加载边界的悬崖开关**，不是体积微调。
+                //
+                // 背景：视图归位后，`features/device/*.vue` 的页面直接 import 子件
+                // （不再经过域 barrel），跨入口共享集合的粒度随之变细。48_000 时这些
+                // 模块被合进 46 个 shared-* chunk，且全部落进首屏预载闭包 —— 实测
+                // 首屏 preload 717,912B → 1,983,179B、首屏 CSS 303,106B → 1,119,243B
+                // （静态分析显示这些 chunk 里含 settings/security/earthquake 的页面
+                // 模块，即首屏把半个应用拉了下来）；CI 的 bundle budget 因此变红。
+                //
+                // 实测（同一份源码只改本值）：
+                // | 阈值 | 首屏 preload | 首屏 CSS | JS chunk | /devices 是否连带下载详情页 |
+                // | 48k  | 1,983,179    | 1,119,243| 69       | 否 |
+                // | 30k  |   720,454    |   303,106| 92       | 是（详情 chunk 82,092B） |
+                // | 28k  |   720,832    |   303,106| 96       | 否 |
+                // | 20k  |   721,057    |   303,106| 140      | 否 |
+                // 28_000 是「预算通过 + 两页懒加载边界不被 shared 合并打穿」同时成立的最大
+                // 阈值（30_000 起边界失效），JS chunk 数比 48_000 多 27 个、仍为两位数。
+                //
+                // 改这个值必须重跑：`bun ops/checks/check_bundle_budget.mjs` 与
+                // `bun ops/checks/check_chunk_init_order.mjs --strict`，并抽查
+                // devices 路由的 chunk 是否又 import 了 DeviceDetailPage 所在的 chunk。
                 name: 'shared',
                 entriesAware: true,
-                entriesAwareMergeThreshold: 48_000,
+                entriesAwareMergeThreshold: 28_000,
                 priority: 1,
               },
             ],
