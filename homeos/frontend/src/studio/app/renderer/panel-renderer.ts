@@ -1,6 +1,8 @@
 
 import {
   cameraRecordNeedsHlsPrewarm as cameraRecordNeedsHlsPrewarm2,
+  componentFamiliesForDocument as componentFamiliesForDocument2,
+  ensureRegistryComponents as ensureRegistryComponents2,
   iconButtonEffectLightVisualAwaiting as iconButtonEffectLightVisualAwaiting2,
   iconButtonEffectLightVisualState as iconButtonEffectLightVisualState2,
   prewarmCameraMedia as prewarmCameraMedia2,
@@ -570,6 +572,26 @@ export class PanelRenderer {
         prewarmCameraMedia2(filter);
       }
       (this.connectRuntime(), this.refreshHistorySeries());
+      // 组件族按草稿裁剪懒加载：编辑器要全量（随时可插入新类型），展示端只要文档里出现的族。
+      // 少数后到的类型（运行期新增/切页露出新族）靠这一次补渲染兜住，不让面板停在占位框。
+      const loadedDocument = this.document,
+        pendingComponentFamilies =
+          this.options.editable === true
+            ? ensureRegistryComponents2()
+            : ensureRegistryComponents2(componentFamiliesForDocument2(loadedDocument));
+      pendingComponentFamilies.then(
+        (newlyLoadedFamilies: string[]) => {
+          // 只有「这次真的补到了新族」才重渲染：首帧已经画成占位框的控件需要被替换，
+          // 已经就绪时重复重渲染只是白白多一次布局。
+          this.destroyed ||
+            this.document !== loadedDocument ||
+            !newlyLoadedFamilies.length ||
+            this.renderComponents(true);
+        },
+        (error: unknown) => {
+          console.error("[panel-renderer] 组件族 chunk 加载失败", error);
+        },
+      );
     } finally {
       this.replacingDocument = replacingDocument;
     }

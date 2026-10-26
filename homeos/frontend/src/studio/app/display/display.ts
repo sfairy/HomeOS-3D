@@ -10,6 +10,7 @@
  * （否则 `removeEventListener` 无法命中）。
  */
 import { PanelRenderer } from "../renderer/panel-renderer";
+import { componentFamiliesForDocument, ensureRegistryComponents } from "../renderer/registry";
 import { createButtonSound } from "../shared/sound-effects";
 import type { DomControl } from "@app/shared/util/dom-control";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
@@ -494,6 +495,8 @@ async function refreshDisplay() {
         )
           return;
         const currentPagePath = panelRenderer.page?.path || null;
+        // 只下载这份草稿真正用到的组件族：全量的 8 个族里有 7 个在多数项目上都是白下载。
+        await ensureRegistryComponents(componentFamiliesForDocument(displayDocument));
         (panelRenderer.setDocument(displayDocument, currentPagePath),
           window.HomeOSDisplayBoot?.ready!(displayRootElement!)!,
           (lastRevision = draftResponse.revision),

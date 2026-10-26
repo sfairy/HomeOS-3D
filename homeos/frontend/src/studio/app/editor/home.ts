@@ -37,6 +37,7 @@ import {
   relatedPopupContext as relatedPopupContext2,
 } from "../shared/related-entities";
 import { createButtonSound as createButtonSound2 } from "../shared/sound-effects";
+import { ensureRegistryComponents as ensureRegistryComponents2 } from "../renderer/registry";
 import {
   deferHiddenEditorDialogs as deferHiddenEditorDialogs2,
   installSettingsDialogBackdropGuard as installSettingsDialogBackdropGuard2,
@@ -170,6 +171,12 @@ export function bootEditor(): void {
 // 拆分后 deps 工厂会用 ...homeElements 展开；先放稳定空对象，查询完成后原地填充。
 const homeElements: any = {};
 installSettingsDialogBackdropGuard2();
+// 组件族是全量的按需 chunk：编辑器里用户随时能插入任意类型，所以这里**在引导阶段就预取全量**，
+// 不跟着某份草稿裁剪。预取与随后的取数/建 DOM 并行，正常情况下第一次 setDocument 时已就绪；
+// 万一没赶上，`PanelRenderer.setDocument` 末尾还有一次「补到新族就重渲染」的兜底。
+ensureRegistryComponents2().catch((registryError: unknown) => {
+  console.error("[editor] 组件族 chunk 预取失败", registryError);
+});
 const EDITOR_DESIGN_WIDTH = 1020,
   AUTO_DIAGRAM_LAYOUT_VERSION = 2,
   COMPONENT_DIALOG_DESIGN_WIDTH = 1920,

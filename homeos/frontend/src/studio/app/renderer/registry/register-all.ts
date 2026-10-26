@@ -64,12 +64,16 @@ const loadedFamilies = new Set<string>();
  * - 不传 `families` 时加载全部（编辑器可以插入任意类型，必须全量）；
  * - 传了就只加载这些族（展示端可以按草稿里实际出现的类型裁剪）；
  * - 同一个族只会加载/注册一次。
+ *
+ * 返回**本次真正新加载**的族：调用方据此判断「要不要补一次渲染」，
+ * 已经就绪的重复调用不会带来额外重排。
  */
 export async function loadComponentFamilies(
   registerComponent: (type: any, def: any) => void,
   families?: Iterable<string>,
-): Promise<void> {
+): Promise<string[]> {
   const requested = families ? [...new Set(families)] : Object.keys(componentFamilyLoaders);
+  const loadedNow: string[] = [];
   await Promise.all(
     requested.map(async (family) => {
       const loader = componentFamilyLoaders[family];
@@ -77,6 +81,21 @@ export async function loadComponentFamilies(
       const registerFamily = (await loader()).default;
       registerFamily(registerComponent);
       loadedFamilies.add(family);
+      loadedNow.push(family);
     }),
   );
+  // 诊断用：族是按需 chunk，光看 network 看不出「下载的是哪一族」（文件名是 shared-*），
+  // 所以把实际加载的族打点到 performance 时间线，`bench_3d.mjs` 直接读 mark 断言。
+  for (const family of loadedNow) markComponentFamily(family);
+  return loadedNow;
 }
+
+function markComponentFamily(family: string) {
+  typeof performance === "undefined" || performance.mark?.(`homeos:component-family:${family}`);
+}
+
+export {
+  componentFamilyByType,
+  componentFamiliesForDocument,
+  componentFamiliesForTypes,
+} from "./component-families";
