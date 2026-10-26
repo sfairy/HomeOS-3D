@@ -27,14 +27,33 @@ const argOf = (name, fallback) => {
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
 };
 
-const OUT = argOf('--out', 'docs/code-quality/2026-10-21/quality');
 const DATE = argOf('--date', '');
 if (!DATE) {
   console.error('必须显式传入 --date YYYY-MM-DD（避免输出含运行时刻，保证可重跑一致）');
   process.exit(2);
 }
+const OUT = argOf('--out', `docs/code-quality/${DATE}/quality`);
 const DATA = join(OUT, 'data');
 const READ_SIDE = argOf('--snapshot', 'current');
+
+// 输入是「分析器快照 + 处置登记」，属于要人跑分析器才有的人工产物（历史上从未入库）。
+// 缺输入时不能报 ENOENT 崩溃：那会把门禁变成「谁机器上碰巧有旧目录谁才绿」。显式 SKIP 并
+// 说明要补什么，`--strict` 下才当失败（用于「本轮必须出报告」的场景）。
+if (!existsSync(DATA)) {
+  const message = [
+    `code-quality：跳过（缺少输入目录 ${DATA}）`,
+    '  这个脚本是报告生成器，输入需要在目标提交上跑分析器并登记处置：',
+    '    node ops/checks/code_quality/analyze_ts.mjs --out <dir>/data/current-ts.json',
+    '    python ops/checks/code_quality/analyze_py.py --out <dir>/data/current-python.json',
+    '    再把 baseline-*.json / fixes.json / plans.json / gates.json / verification.json 放进同一目录。',
+  ].join('\n');
+  if (args.includes('--strict')) {
+    console.error(message);
+    process.exit(1);
+  }
+  console.log(`${message}\n  未加 --strict，按 SKIP 处理。`);
+  process.exit(0);
+}
 
 // ---------------------------------------------------------------------------
 // 纳入/排除范围（与 analyze_ts.mjs / analyze_py.py 保持一致）
