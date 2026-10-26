@@ -54,15 +54,6 @@ export function createGroundReflections({
    * 超出预算的记录沿用上一帧纹理，后续帧按 round-robin 轮转补齐。
    */
   maxCapturesPerFrame: maxCapturesPerFrame = null,
-  /**
-   * 首帧呈现前先不捕获反射，等 `allowPersistence()`（presented 相位）再按每帧预算逐帧补齐。
-   *
-   * 默认关。开启后 `presented` 相位不再包含「首次一次性绘满所有记录」，代价是入场期间地面
-   * 没有倒影（呈现后一帧帧补出来）。因为它是可感知的画面取舍，只做 A/B 开关
-   * （`?defer-reflections=1`），要用实测数据决定是否改默认值，见
-   * `ops/perf/reports/2026-10-26-after.md` §5。
-   */
-  deferStartupCaptures: deferStartupCaptures = false,
   requestFrame: requestFrame = () => {},
   inactiveBudget: inactiveBudget = 32 * 1024 * 1024,
   maxInactiveRecords: maxInactiveRecords = 4,
@@ -272,8 +263,6 @@ export function createGroundReflections({
   const recordsBySource = new Map(),
     floorChangeCountByFloorId = new Map(),
     persistenceByteBudget = 24 * 1024 * 1024;
-  /** 首帧呈现前是否已允许捕获反射（`deferStartupCaptures` 关闭时一开始就是 true）。 */
-  let startupCapturesArmed = !deferStartupCaptures;
   let insideExpiryTimer: any = null,
     isPersistenceSettled = false,
     propagationCount = 0,
@@ -1130,13 +1119,6 @@ export function createGroundReflections({
         (captureRotation = (rotationStart + currentCaptureBudget) % dirtyRecords.length),
         (dirtyRecords = budgetedRecords);
     }
-    if (!startupCapturesArmed) {
-      // 呈现前不建反射：`presented` 的 draw call 峰值里有「首次把每条记录各绘一遍」，
-      // 这段与入场动画、灯光缓存烘焙抢 GPU。overlay 先隐藏，arming 后由正常路径重建。
-      for (const pendingOverlayRecord of activeRecords)
-        pendingOverlayRecord.overlay && (pendingOverlayRecord.overlay.visible = false);
-      return;
-    }
     if (
       !shouldRefresh &&
       !hasCameraChanged &&
@@ -1486,10 +1468,6 @@ export function createGroundReflections({
     render: render,
     configure: configure,
     allowPersistence() {
-      if (!startupCapturesArmed) {
-        // presented 相位：先解除「呈现前不捕获」的闸门，再让持久化缓存收口。
-        (startupCapturesArmed = true), (shouldRefresh = true), requestFrame();
-      }
       isDisposed ||
         isPersistenceSettled ||
         shouldRefresh ||

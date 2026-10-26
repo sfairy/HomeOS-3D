@@ -1340,7 +1340,6 @@ export function runStudioRenderLoop(deps: RunStudioRenderLoopDeps): any {
         appCtx.overviewStackController?.reflectionCamera(floorCamera, cameraFloorId) || floorCamera,
       cull: !isReflectionDiagnosticsMode,
       maxResumeCapturesPerFrame: 1,
-      deferStartupCaptures: new URLSearchParams(window.location.search).has("defer-reflections"),
       syncLighting: (lightingCamera: any) =>
         isReflectionDiagnosticsMode
           ? appCtx.regionLightController?.sync(lightingCamera, true)

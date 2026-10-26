@@ -80,9 +80,18 @@ if (!three) {
 
 const summary = three.summary || {};
 const failures = [];
+const skipped = [];
 const rows = [];
 
 function check(metric, actual, limit, mode) {
+  // 旧版 harness 的结果目录里没有新指标（例如后加的 componentFamilyCount）：
+  // 按「数据不完整」显式 SKIP，而不是判 FAIL —— 否则重跑前的历史目录会全部变红。
+  // SKIP 会打出来，指标名写错也会暴露成一片 SKIP。
+  if (actual === undefined || actual === null) {
+    skipped.push({ metric, limit, mode });
+    rows.push({ metric, actual: null, limit, mode, ok: true, skipped: true });
+    return;
+  }
   const ok = typeof actual === 'number' && Number.isFinite(actual)
     && (mode === 'min' ? actual >= limit : actual <= limit);
   rows.push({ metric, actual, limit, mode, ok });
@@ -106,10 +115,16 @@ if (contracts) {
 const label = three.label || dir;
 console.log(`perf-budget：${label}（${dir}）`);
 for (const row of rows) {
-  const symbol = row.ok ? 'PASS' : 'FAIL';
   const comparator = row.mode === 'min' ? '≥' : '≤';
   const value = typeof row.actual === 'number' ? row.actual : '—';
+  const symbol = row.skipped ? 'SKIP' : row.ok ? 'PASS' : 'FAIL';
   console.log(`  ${symbol}  ${row.metric}: ${value} ${comparator} 预算 ${row.limit}`);
+}
+if (skipped.length) {
+  console.log(
+    `  （${skipped.length} 项指标在该结果目录里缺失，按 SKIP 处理：`
+    + `${skipped.map((item) => item.metric).join(', ')}；重跑 perf:3d 可补齐）`,
+  );
 }
 
 if (failures.length) {

@@ -19,6 +19,12 @@ const labelIndex = args.indexOf("--label");
 const label = labelIndex >= 0 ? args[labelIndex + 1] : "before";
 const tagIndex = args.indexOf("--tag");
 const tag = tagIndex >= 0 ? args[tagIndex + 1] : "";
+/**
+ * 追加到 display URL 的查询参数（可重复），用来对同一构建做行为 A/B，例如
+ * `--query defer-reflections=1`。参数会被 runtime 按白名单透传到 stage iframe。
+ */
+const extraQueries = args
+  .reduce((acc, arg, index) => (arg === "--query" && args[index + 1] ? [...acc, args[index + 1]] : acc), []);
 const env = JSON.parse(readFileSync(join(PERF_ROOT, "env", label, "env.json"), "utf8"));
 const homeosBase = `http://127.0.0.1:${env.homeos.port}`;
 const outDir = join(PERF_ROOT, "results", label);
@@ -110,9 +116,20 @@ async function readDataset(frame) {
     const raw = document.documentElement.dataset.performanceDiagnostics || "";
     let parsed = null;
     try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = null; }
+    // 地面反射的捕获统计（captures / totalMs）挂在渲染器自己的 canvas.dataset 上：它是判断
+    // 「首帧有多少张反射是在 presented 之前赶出来的」的直接证据。文档里可能有多个
+    // canvas（HUD / 覆盖层），所以扫全部再取第一个带统计的。
+    let reflectionStats = null;
+    for (const canvasNode of document.querySelectorAll("canvas")) {
+      const reflectionRaw = canvasNode.dataset.reflectionStats;
+      if (!reflectionRaw) continue;
+      try { reflectionStats = JSON.parse(reflectionRaw); } catch { reflectionStats = null; }
+      if (reflectionStats) break;
+    }
     return {
       rawLength: raw.length,
       parsed,
+      reflectionStats,
       canvasCount: document.querySelectorAll("canvas").length,
       diagnosticsHud: !!document.querySelector("#performance-diagnostics"),
       state: window.__homeos3dFrame || null,
@@ -197,8 +214,26 @@ async function readStageChunkStats(frame) {
   });
 }
 
-/** iframe 内 INP：按 interactionId 分组后取 p75（与 Web 平台口径一致的高分位）。 */
-function summarizeFrameInp(frameState) {
+/**
+ * 宿主页加载了哪些组件族。
+ *
+ * chunk 文件名是 `shared-<hash>.js`，从 network 上分不出族；注册表在族加载完成时打一条
+ * `homeos:component-family:<族>` 的 performance mark，这里按前缀读回来。展示端如果按草稿
+ * 裁剪生效，就只会看到文档里出现过的族（示例项目只有 3D 户型 + 日志墙 → 空数组）。
+ */
+async function readComponentFamilies(page) {
+  return page.evaluate(() => {
+    const marks = performance
+      .getEntriesByType("mark")
+      .filter((entry) => entry.name.startsWith("homeos:component-family:"));
+    return {
+      count: marks.length,
+      families: marks.map((entry) => entry.name.replace("homeos:component-family:", "")),
+    };
+  });
+}
+
+/** iframe 内 INP：按 interactionId 分组后取 p75（与 Web 平台口径一致的高分位）。 */function summarizeFrameInp(frameState) {
   const events = frameState?.events || [];
   const perInteraction = new Map();
   for (const entry of events) {
@@ -317,12 +352,18 @@ await cdp.send("Network.enable");
 await cdp.send("Performance.enable");
 const net = makeNetworkTracker(cdp);
 
-const displayUrl = `${homeosBase}/display/${encodeURIComponent(env.homeos.projectId)}?performance-diagnostics=1`;
+const displayQuery = new URLSearchParams({ "performance-diagnostics": "1" });
+for (const extra of extraQueries) {
+  const [key, ...rest] = extra.split("=");
+  if (key) displayQuery.set(key, rest.join("="));
+}
+const displayUrl = `${homeosBase}/display/${encodeURIComponent(env.homeos.projectId)}?${displayQuery.toString()}`;
 const result = {
   label,
   generatedAt: new Date().toISOString(),
   browser: { version: browserVersion, viewport: "1440x900", reducedMotion: "no-preference" },
   url: displayUrl,
+  extraQueries,
   sceneId: env.homeos.sceneId,
   projectId: env.homeos.projectId,
   componentId: env.homeos.componentId || "",
@@ -362,6 +403,7 @@ try {
     result.renderWaitWarning = "20s 内未看到 presented 相位（也未达到 calls>100 兜底判据）";
   }
   result.stageChunks = await readStageChunkStats(frame);
+  result.componentFamilies = await readComponentFamilies(page);
   result.beforeInteraction = await readDataset(frame);
   result.dragApplied = await dragCanvas(frame);
   await page.waitForTimeout(2200);
@@ -438,6 +480,14 @@ try {
     presentedPrograms: presented?.memory?.programs ?? null,
     stageModuleJsCount: result.stageChunks?.moduleJsCount ?? null,
     stageModuleJsEncodedBytes: result.stageChunks?.encodedBodyBytes ?? null,
+    componentFamilyCount: result.componentFamilies?.count ?? null,
+    // 首帧（presented）时已经付出的反射捕获成本：A/B 判断「推迟反射」是否真的省了工作。
+    presentedReflectionCaptures: result.presentedSnapshot?.reflectionStats?.captures ?? null,
+    presentedReflectionMs: result.presentedSnapshot?.reflectionStats?.totalMs ?? null,
+    // 稳态反射捕获次数/耗时：这一次 A/B 就是靠它发现「推迟捕获」的开关会让反射永远不建
+    // （deferred 分支 captures 恒为 0）。放进 summary 是为了能进门禁，不再靠人肉翻 JSON。
+    steadyReflectionCaptures: result.afterInteraction?.reflectionStats?.captures ?? null,
+    steadyReflectionMs: result.afterInteraction?.reflectionStats?.totalMs ?? null,
     iframeInpP75: result.frameInp?.p75 ?? null,
     iframeInpMax: result.frameInp?.max ?? null,
     contextlost: result.frameState?.contextlost ?? 0,
