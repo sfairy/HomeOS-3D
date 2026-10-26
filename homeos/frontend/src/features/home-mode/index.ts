@@ -13,7 +13,7 @@
  * |----------|------|------|
  * | 壳层切换器 | `HomeModeSwitcher` | `layouts/MainLayout.vue` |
  * | 模式切换数据 | `useHomeModes` / `useHomeModeSwitcher` | 本域 |
- * | 触发日志分析 | `useModeLogsAnalytics` | `views/ModeTriggerLogsView.vue` |
+ * | 触发日志分析 | `useModeLogsAnalytics` | `features/home-mode/ModeTriggerLogsPage.vue` |
  * | 模式编辑器（设置页内嵌） | `HomeModePanel` | `features/settings/automate/SettingsHomeModePanel.vue` |
  * | 安防区域编辑器复用展开逻辑 | `useHomeModeItemExpansion` | `features/security/composables/` |
  *

@@ -18,7 +18,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
-from zoneinfo import ZoneInfo
 
 BACKEND_ROOT = Path(__file__).resolve().parents[4] / "homeos" / "backend"
 sys.path.insert(0, str(BACKEND_ROOT))

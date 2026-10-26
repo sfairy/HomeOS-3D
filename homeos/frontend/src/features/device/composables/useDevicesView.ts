@@ -1,6 +1,6 @@
 /**
  * @file useDevicesView.ts
- * @module frontend/src/composables
+ * @module frontend/src/features/device/composables
  */
 import type { HaEntityState, HaEntityView } from '@/shared/types/entity-store'
 import type { DeviceListItem, DeviceFilterState } from '@/shared/types/device'

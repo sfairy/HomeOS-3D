@@ -141,9 +141,9 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run build:app` / `build:store` | 只构建一侧前端 |
 | `bun run image:app` / `image:store` | 从根 `dist/` 组装运行镜像 |
 | `bun run typecheck` | 两个前端的 `vue-tsc`。Python 侧**没有**类型检查命令（历史入口已拆），CI 只跑 `ruff`；Pylance / 手动 `basedpyright` 读仓库根 `pyrightconfig.json` |
-| `bun run check:frontend-deps` / `check:routes` / `test:architecture` | 前端依赖 DAG、路由清单、后端架构测试 |
+| `bun run check:frontend-deps` / `check:backend-deps` / `check:routes` / `test:architecture` | 前端依赖 DAG（含 `homeos-store`）、后端分层方向 B1–B3 + 包级/文件级环 B4/B5（两个后端）、路由清单、架构门禁用例 |
 | `bun run check:naming` / `naming:report` | 标识符命名门禁（N1–N4，baseline 只降不升） |
-| `bun run check:bundle-budget` / `check:code-quality` | 前端产物体积预算、代码质量检查 |
+| `bun run check:bundle-budget` / `check:code-quality` / `check:chunk-init` | 前端产物体积预算、代码质量检查、构建产物跨 chunk 初始化顺序（顶层读跨 chunk 常量的门禁） |
 | `bun run perf:baseline` / `perf:after` / `perf:compare` | 性能基线与前后对比（详见 `ops/perf/README.md`） |
 | `bun run check:assets` / `check:geometry` / `check:slots` / `check:materials` … | 3D 模型门禁与修复，见下文「3D Studio 与模型库」 |
 
@@ -224,6 +224,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run render:models` / `render:slots` / `preview:smoke` | 多视角渲染图 / 槽位色块图 / 预览冒烟 |
 | `bun run check:studio-split` / `verify:item-model` | 拆分结构与物品模型门禁（改 `item-model/` 后必跑） |
 | `bun run check:bundle-budget` | 前端产物体积（chunk 数 / 体积）预算 |
+| `bun run check:chunk-init` | 构建产物里「顶层读跨 chunk 常量 + 来源 chunk 反向可达」的门禁（环内 const 为 `undefined` 时抛错或静默丢表） |
 
 修复脚本默认 dry-run，只有 `*:write` 才落盘；每次审计 / 修复的台账写在 `docs/architecture/<日期>/`
 （本地生成，不入库）。物品模型按 14 个族、59 个类型分支分派，规则见

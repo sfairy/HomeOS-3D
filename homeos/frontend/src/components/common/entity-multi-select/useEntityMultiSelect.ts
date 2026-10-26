@@ -28,6 +28,20 @@ interface EntityMultiSelectStaticOption {
   hint?: string
 }
 
+/** 分组列表里的单个实体条目（虚拟滚动的消费单位）。 */
+interface GroupedEntityItem {
+  entity_id: string
+  name: string
+  domain: string
+  isSuggested?: boolean
+}
+
+/** 按 domain 分组后的一节。 */
+interface GroupedEntitySection {
+  domain: string
+  items: GroupedEntityItem[]
+}
+
 /** 实体多选组件 Props 接口 */
 interface EntityMultiSelectProps {
   modelValue: string[]
@@ -73,8 +87,8 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
 
   /** 已选实体 ID 数组（清洗和格式化） */
   const selectedIds = computed(() => {
-    const arr = Array.isArray(props.modelValue) ? props.modelValue : []
-    return arr.map((id) => String(id).trim()).filter(Boolean)
+    const rawIds = Array.isArray(props.modelValue) ? props.modelValue : []
+    return rawIds.map((id) => String(id).trim()).filter(Boolean)
   })
 
   /** 允许的域名集合（用于快速查找） */
@@ -174,63 +188,74 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     return ''
   })
 
-  /** 从实体条目构建分组列表，支持推荐排序 */
-  function buildGroupedFromEntries(entries: Array<{ key: string; e: unknown }>, q: string) {
-    const groups = new Map<
-      string,
-      Array<{ entity_id: string; name: string; domain: string; isSuggested?: boolean }>
-    >()
-    const activeSuggest = activeSuggestDeviceClass.value
-    for (const { key, e } of entries) {
-      if (!e || !isDomainAllowed(key)) continue
-      const dom = getEntityDomain(key)
-      if (selectedDomain.value && dom !== selectedDomain.value) continue
-      const name = getEntityDisplayName(key, e).toLowerCase()
-      const eid = key.toLowerCase()
-      const attrs = (e as { attributes?: Record<string, unknown> })?.attributes
+  /**
+   * 把实体条目构造为「按 domain 分组 + 推荐项前置」的列表。
+   *
+   * 过滤顺序与界面行为绑定：先按域允许 → 再按筛选域 → 最后按搜索词，
+   * 任一步提前 `continue` 都会让「域计数」与列表不一致，改动时保序。
+   *
+   * @param entries 候选实体（`key` 为 entity_id）
+   * @param searchQuery 已小写、已 trim 的搜索词；空串表示不过滤
+   */
+  function buildGroupedFromEntries(
+    entries: Array<{ key: string; entity: unknown }>,
+    searchQuery: string,
+  ) {
+    const groups = new Map<string, GroupedEntityItem[]>()
+    const suggestDeviceClass = activeSuggestDeviceClass.value
+    for (const { key, entity } of entries) {
+      if (!entity || !isDomainAllowed(key)) continue
+      const entityDomain = getEntityDomain(key)
+      if (selectedDomain.value && entityDomain !== selectedDomain.value) continue
+      const displayLabel = getEntityDisplayName(key, entity).toLowerCase()
+      const entityIdLower = key.toLowerCase()
+      const attrs = (entity as { attributes?: Record<string, unknown> })?.attributes
       const deviceClass = String(attrs?.device_class || '').toLowerCase()
-      const isSuggested = !!(activeSuggest && deviceClass === activeSuggest)
-      if (!q || eid.includes(q) || name.includes(q)) {
-        if (!groups.has(dom)) groups.set(dom, [])
-        groups.get(dom)!.push({
-          entity_id: key,
-          name: getEntityDisplayName(key, e),
-          domain: dom,
-          isSuggested,
-        })
-      }
-    }
-    const result: Array<{
-      domain: string
-      items: Array<{ entity_id: string; name: string; domain: string; isSuggested?: boolean }>
-    }> = []
-    for (const [domain, items] of groups) {
-      items.sort((a, b) => {
-        if (a.isSuggested && !b.isSuggested) return -1
-        if (!a.isSuggested && b.isSuggested) return 1
-        return a.name.localeCompare(b.name, 'zh-CN')
+      const isSuggested = Boolean(suggestDeviceClass && deviceClass === suggestDeviceClass)
+      const matches =
+        !searchQuery || entityIdLower.includes(searchQuery) || displayLabel.includes(searchQuery)
+      if (!matches) continue
+      if (!groups.has(entityDomain)) groups.set(entityDomain, [])
+      groups.get(entityDomain)!.push({
+        entity_id: key,
+        name: getEntityDisplayName(key, entity),
+        domain: entityDomain,
+        isSuggested,
       })
-      result.push({ domain, items })
     }
-    result.sort((a, b) => a.domain.localeCompare(b.domain))
-    return result
+
+    const sections: GroupedEntitySection[] = []
+    for (const [domain, items] of groups) {
+      items.sort((left, right) => {
+        if (left.isSuggested && !right.isSuggested) return -1
+        if (!left.isSuggested && right.isSuggested) return 1
+        return left.name.localeCompare(right.name, 'zh-CN')
+      })
+      sections.push({ domain, items })
+    }
+    sections.sort((left, right) => left.domain.localeCompare(right.domain))
+    return sections
   }
 
   /** 分组后的实体列表（按 domain 分组，推荐项前置） */
   const groupedItems = computed(() => {
-    const q = query.value.toLowerCase().trim()
+    const searchQuery = query.value.toLowerCase().trim()
     if (props.staticOptions?.length) {
-      const items = props.staticOptions
-        .filter((o) => {
-          if (!q) return true
-          const label = String(o.label || '').toLowerCase()
-          const id = String(o.id || '').toLowerCase()
-          const hint = String(o.hint || '').toLowerCase()
-          return label.includes(q) || id.includes(q) || hint.includes(q)
+      const items: GroupedEntityItem[] = props.staticOptions
+        .filter((option) => {
+          if (!searchQuery) return true
+          const label = String(option.label || '').toLowerCase()
+          const id = String(option.id || '').toLowerCase()
+          const hint = String(option.hint || '').toLowerCase()
+          return (
+            label.includes(searchQuery) ||
+            id.includes(searchQuery) ||
+            hint.includes(searchQuery)
+          )
         })
-        .map((o) => ({
-          entity_id: o.id,
-          name: o.label,
+        .map((option) => ({
+          entity_id: option.id,
+          name: option.label,
           domain: 'scene',
         }))
       return items.length ? [{ domain: 'HomeOS 场景', items }] : []
@@ -240,20 +265,20 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     void entitiesStore.derivedEpoch
 
     if (useRestSearch.value && showDropdown.value) {
-      const entries = restItems.value.map((e) => ({
-        key: e.entity_id,
-        e: entitiesStore.entities[e.entity_id] || e,
+      const entries = restItems.value.map((entity) => ({
+        key: entity.entity_id,
+        entity: entitiesStore.entities[entity.entity_id] || entity,
       }))
-      return buildGroupedFromEntries(entries, q)
+      return buildGroupedFromEntries(entries, searchQuery)
     }
     const entities = entitiesStore.entities
-    const ids = getIndexedCandidateIds()
-    const entries = ids.map((key) => ({ key, e: entities[key] }))
-    return buildGroupedFromEntries(entries, q)
+    const candidateIds = getIndexedCandidateIds()
+    const entries = candidateIds.map((key) => ({ key, entity: entities[key] }))
+    return buildGroupedFromEntries(entries, searchQuery)
   })
 
   /** 扁平化的实体列表（用于虚拟滚动） */
-  const flatItems = computed(() => groupedItems.value.flatMap((g) => g.items))
+  const flatItems = computed(() => groupedItems.value.flatMap((section) => section.items))
 
   /** 是否显示域名筛选器 */
   const showDomainFilter = computed(
@@ -278,10 +303,10 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
 
   /** 获取实体显示名称 */
   function displayName(entityId: string) {
-    const stat = props.staticOptions?.find((o) => o.id === entityId)
-    if (stat) return stat.label
-    const ent = entitiesStore.getEntity(entityId)
-    return getEntityDisplayName(entityId, ent)
+    const staticOption = props.staticOptions?.find((option) => option.id === entityId)
+    if (staticOption) return staticOption.label
+    const entity = entitiesStore.getEntity(entityId)
+    return getEntityDisplayName(entityId, entity)
   }
 
   /** 判断实体是否已被选中 */
@@ -377,23 +402,23 @@ export function useEntityMultiSelect(props: EntityMultiSelectProps, emit: Entity
     onClickOutside,
   )
 
-  const bindWrapRef = (el: HTMLElement | null) => {
-    wrapRef.value = el
+  const bindWrapRef = (element: HTMLElement | null) => {
+    wrapRef.value = element
   }
-  const bindTriggerRef = (el: HTMLElement | null) => {
-    triggerRef.value = el
+  const bindTriggerRef = (element: HTMLElement | null) => {
+    triggerRef.value = element
   }
-  const bindDropdownRef = (el: HTMLElement | null) => {
-    dropdownRef.value = el
+  const bindDropdownRef = (element: HTMLElement | null) => {
+    dropdownRef.value = element
   }
-  const bindDomainMenuAnchor = (el: HTMLElement | null) => {
-    domainMenuAnchor.value = el
+  const bindDomainMenuAnchor = (element: HTMLElement | null) => {
+    domainMenuAnchor.value = element
   }
-  const bindDomainMenuPanelRef = (el: HTMLElement | null) => {
-    domainMenuPanelRef.value = el
+  const bindDomainMenuPanelRef = (element: HTMLElement | null) => {
+    domainMenuPanelRef.value = element
   }
-  const bindSearchRef = (el: HTMLInputElement | null) => {
-    searchRef.value = el
+  const bindSearchRef = (element: HTMLInputElement | null) => {
+    searchRef.value = element
   }
 
   return {

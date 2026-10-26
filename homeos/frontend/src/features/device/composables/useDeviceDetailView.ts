@@ -1,4 +1,4 @@
-/** 设备详情页视图模型 —— `views/DeviceDetailView.vue` 的薄壳后端。 */
+/** 设备详情页视图模型 —— `features/device/DeviceDetailPage.vue` 的领域逻辑层。 */
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { computed, ref, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

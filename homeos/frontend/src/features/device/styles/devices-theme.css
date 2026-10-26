@@ -2,10 +2,10 @@
  * 设备页共享主题 — 对齐 premium / list-page 设计体系
  * 列表、详情、分析面板共用
  *
- * --page-accent / --page-accent-rgb 由 DevicesView.vue / DeviceDetailView.vue
+ * --page-accent / --page-accent-rgb 由 DevicesPage.vue / DeviceDetailPage.vue
  * 通过 :style 注入（var(--module-accent-devices)），--page-accent-secondary
  * 由 scoped CSS 设为 var(--module-accent-devices-sub)（cyan）。
- * --set-* 语义色与 --set-transition-* 过渡 token 同样在 View scoped CSS 派生。
+ * --set-* 语义色与 --set-transition-* 过渡 token 同样在 page 的 scoped CSS 派生。
  */
 .devices-view,
 .device-detail-view,

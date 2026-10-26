@@ -74,6 +74,27 @@ bootstrap  →  全部（仅装配，不含业务逻辑）
   曾 eager 导入 `NotificationService`，现已改为不在包 `__init__` 里 re-export —— **新增包时请勿在
   `__init__.py` 里 eager 导入会反噬的模块**）。
 
+上面三条（含「禁止绝对 `from src.`」）由 `ops/checks/architecture/check_backend_deps.py` 机器校验，
+对应规则 `B1 platform→upper` / `B2 lower→api` / `B3 absolute-src`，
+外加两条与具体约定无关的结构不变量 `B4 package-cycle` / `B5 file-cycle`：
+
+```bash
+bun run check:backend-deps     # CI 门禁（同时覆盖 homeos 与 homeos-store），有违规退出码 1
+.venv-store/bin/python ops/checks/architecture/check_backend_deps.py              # 仅报告（两个项目）
+.venv-store/bin/python ops/checks/architecture/check_backend_deps.py --project store
+.venv-store/bin/python ops/checks/architecture/check_backend_deps.py --json
+```
+
+**B4「包级环」为什么是白名单而不是「一律禁止」**：包与包之间互相引用，只要两个方向落在
+不同文件上，文件级依然无环、运行时也安全（`a/x.py → b/y.py`、`b/z.py → a/w.py`）。
+但这种互相依赖会让「谁该依赖谁」失去答案，所以现状被显式冻结成白名单（
+`HOMEOS_PACKAGE_WHITELIST`，当前 5 个分量 / 13 个包），**新增一处就必须改这个常量**。注意其中
+`domains.{client_power,ha,logs,proxy,security}` 是 5 元环 —— 没有任何两条互反边，
+只按「互相 import」逐对检查是看不出来的。
+
+**B5「文件级环」必须为空**：这才是真正的 import 环，环内两个模块都无法先完成初始化。
+
+
 ## 关键契约（改动前必读）
 
 - **POST 默认状态码 201**：全站用 `api/router.py` 的 `NestRouter` 对齐 NestJS，前端依赖该契约做「零改动透明替换」。

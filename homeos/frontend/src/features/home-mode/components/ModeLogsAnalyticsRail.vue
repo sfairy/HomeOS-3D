@@ -1,8 +1,9 @@
 <!--
-  ModeLogsAnalyticsRail.vue / views
-  模式日志分析轨道：ModeTriggerLogsView 的内嵌分析区（非独立路由页面），
+  ModeLogsAnalyticsRail.vue / features/home-mode/components
+  模式日志分析轨道：ModeTriggerLogsPage 的内嵌分析区（非独立路由页面），
   横向 3 联 ECharts 图表：触发源分布饼图 + 按日柱状时间线 + 触发时段 24h 热力柱状，
   下方触发模式 Top 列表与平均耗时卡片。
+  归属：日志页的私有子件，随页面走本域相对导入，不进域根 barrel。
 -->
 <template>
   <section v-if="analytics.total" class="mode-logs-analytics" aria-label="触发日志分析">
@@ -32,13 +33,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useHubChart } from '@/composables/life/useLifeChartHost'
+// 域内相对导入：引用自己的域根 barrel 会被 feature-self-barrel 门禁判违规。
 import {
   buildModeResultBarOption,
   buildModeSourcePieOption,
   buildModeTimelineOption,
   EMPTY_MODE_LOG_ANALYTICS,
   type ModeLogAnalytics,
-} from '@/features/home-mode'
+} from '../composables/useModeLogsAnalytics'
 
 const props = defineProps<{
   analytics?: ModeLogAnalytics | null

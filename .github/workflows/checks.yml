@@ -119,6 +119,21 @@ jobs:
       - name: Home mode unit tests
         run: python3 -m unittest discover -s ops/checks/home_mode/tests -v
 
+      # 结构门禁：规则写在 README 里不算数，只有 CI 跑才拦得住。
+      #
+      # - `check:frontend-deps`：homeos 与 homeos-store 两棵树各跑一遍（store 的路径别名是
+      #   `@store/*`，靠 `--alias` 注入；不注入的话所有 import 都会被当成外部包静默放行，
+      #   打印「0 violation」但其实什么都没检查）。
+      # - `check_backend_deps`：B1/B2 分层方向 + B3 绝对 `src.` 导入 + B4 包级环白名单
+      #   + B5 文件级环必须为空，同样覆盖两个后端（homeos / store）。
+      # - `test:architecture`：门禁用例自身（前端 DAG / 后端分层 / 路由基线 / inventory）。
+      #   这个套件此前只在开发机跑，routes-baseline 漂移了一个路由也没人发现。
+      - name: Architecture deps gates
+        run: |
+          bun run check:frontend-deps
+          python3 ops/checks/architecture/check_backend_deps.py --check
+          python3 -m unittest discover -s ops/checks/architecture/tests -v
+
       # 有 perf 结果目录时比对阈值；没有时脚本按 SKIP 处理（不算失败）。
       - name: Perf budget
         run: node ops/checks/check_perf_budget.mjs
@@ -202,6 +217,12 @@ jobs:
 
       - name: Bundle budget
         run: bun ops/checks/check_bundle_budget.mjs
+
+      # chunk 初始化顺序：产物里若出现「顶层读跨 chunk 常量 + 来源 chunk 反向可达」，
+      # 环内被 import 的 const 在来源 chunk 体执行前是 undefined —— 抛错（reading '0'）
+      # 或静默丢表（域标签/默认规则变空）。必须在有 dist 的这一步跑，--strict 保证真的检查过。
+      - name: Chunk init order
+        run: bun ops/checks/check_chunk_init_order.mjs --strict
 
       # 这两个制品总是上传：本工作流现在只有 workflow_call（docker.yml 发版取用）与手动
       # dispatch 两个入口，两者都需要这份产物。此前用 `github.event_name == 'workflow_dispatch'`

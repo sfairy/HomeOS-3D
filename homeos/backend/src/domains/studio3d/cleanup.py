@@ -47,6 +47,11 @@ COLLECTIONS = (
 
 
 def identities(scene):
+    """场景中所有「可被交互配置绑定」的目标身份：`(floorId, kind, id)`。
+
+    kind 取 `model` / `light` / `door`；门用 `door:<id>` 前缀，避免与同层模型 id 撞车。
+    缺 id 的条目直接丢弃 —— 没有身份就无法判断它是否被删。
+    """
     result = set()
     for floor in (scene or {}).get('floors', []):
         for kind, field in (('model', 'items'), ('light', 'lightGroups')):
@@ -64,6 +69,11 @@ def identities(scene):
 
 
 def collection(properties, path):
+    """按 `path` 取 `(父容器, 列表)`，供调用方原地改写 `父容器[path[-1]]`。
+
+    注意：中间层级缺失时返回的是一个**游离**的空 dict，对其写回不会影响 `properties`。
+    这是刻意的 —— 项目里没有该集合时本来就不该凭空造出一层。
+    """
     parent = properties
     for key in path[:-1]:
         parent = parent.get(key, {})
@@ -71,6 +81,10 @@ def collection(properties, path):
 
 
 def binding_key(item, path):
+    """交互项 → 它绑定的目标身份（与 `identities()` 的三元组同构）。
+
+    锁绑门、灯绑灯组、其余绑模型；绑定键缺失时返回含 `None` 的元组，天然匹配不上任何目标。
+    """
     if path == ('security', 'locks'):
         return (item.get('floorId'), 'door', item.get('modelId'))
     return (
@@ -107,7 +121,16 @@ def _binding_present(items, item, path, key):
 
 
 def plan_cleanup(documents, old_scene, new_scene, archives, settings):
-    """返回新文档和细粒度撤销记录，且不修改入参。"""
+    """计算删除级联清理计划，返回 `(新文档, 新归档, 影响清单)`，且不修改任何入参。
+
+    三步：
+    1. 用 `identities()` 对比新旧场景，得到被删/新增的绑定目标；
+    2. 逐项目逐组件，把绑定了「被删目标」的交互项摘出来，写进归档；
+    3. 反方向处理「新增目标」—— 从归档里捞回此前被摘掉、如今又能绑上的条目（幂等：
+       已消费的归档条目按 `id()` 去重，末尾按原顺序过滤，等价于逐条 `saved.remove`）。
+
+    `documents` 只返回**真的变了**的项目（`updated != document`），避免无谓写库。
+    """
     before = identities(old_scene)
     after = identities(new_scene)
     removed = before - after
@@ -228,6 +251,11 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
 
 
 def confirmation_token(revision, scene, documents, impacts):
+    """「一次删除影响多个项目」的一次性确认凭据。
+
+    对 `[revision, scene, documents, impacts]` 的规范化 JSON（键排序、无空格）取 SHA-256，
+    因此入参任一字节变化都会让旧 token 失效 —— 前端必须带着与服务端一致的影响面回传。
+    """
     return hashlib.sha256(
         json.dumps([revision, scene, documents, impacts], sort_keys=True, separators=(',', ':')).encode()
     ).hexdigest()

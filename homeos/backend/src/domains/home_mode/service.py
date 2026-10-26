@@ -241,7 +241,7 @@ class HomeModeService:
                         "home-mode-time-triggers",
                         {
                             "description": "家庭模式定时触发检查",
-                            "intervalMs": int(round(delay * 1000)),
+                            "intervalMs": round(delay * 1000),
                         },
                         lambda: check_home_mode_time_triggers(self._trigger_state, self._deps),
                     )

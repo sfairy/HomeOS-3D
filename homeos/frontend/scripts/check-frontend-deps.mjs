@@ -15,7 +15,11 @@
  * 6. 根入口不得深引 `@/studio/**`；
  * 7. 禁止 `import Foo from '@/features/<域>'` 默认导入。
  *
- * 用法：node scripts/check-frontend-deps.mjs [--root <src目录>]
+ * 用法：node scripts/check-frontend-deps.mjs [--root <src目录>] [--alias <前缀>=<替换>]...
+ *
+ * `--root` / `--alias` 用于把同一套规则套到另一个前端（当前是 `homeos-store`）。
+ * 后者的路径别名是 `@store/*`，与 `@/` 不同 —— 不显式声明别名的话，门禁会把所有
+ * `@store/...` 一律解析成 null 并**静默放行**，跑出「0 violation」的假绿。
  */
 
 import fs from 'node:fs'
@@ -28,6 +32,32 @@ const ROOT_INDEX = process.argv.indexOf('--root')
 const ROOT = ROOT_INDEX > -1 ? path.resolve(process.argv[ROOT_INDEX + 1]) : DEFAULT_ROOT
 const SOURCE_EXTS = new Set(['.ts', '.tsx', '.mts', '.vue', '.js', '.mjs'])
 const UPPER_LAYERS = ['stores', 'composables', 'components', 'views', 'features', 'layouts']
+
+/**
+ * 路径别名表：前缀 → 源码根下的相对目录。改这个表等于改「什么样的说明符算内部引用」，
+ * 漏一条的后果不是报错，而是把该前缀下的全部 import 当成外部包**静默放行**。
+ * `homeos-store` 用 `@store/*`，靠 `--alias @store/=` 注入（右侧为空 = 直接落在 src 根）。
+ */
+const ALIASES = new Map([
+  ['@/', ''],
+  ['@app/', 'studio/app/'],
+  ['@runtime/', 'studio/runtime/'],
+])
+
+for (let i = 0; i < process.argv.length; i += 1) {
+  if (process.argv[i] !== '--alias') continue
+  const spec = process.argv[i + 1] ?? ''
+  const eq = spec.indexOf('=')
+  if (eq < 1) {
+    console.error(`check-frontend-deps: --alias 需要 <前缀>=<替换> 形式，收到 "${spec}"`)
+    process.exit(2)
+  }
+  ALIASES.set(spec.slice(0, eq), spec.slice(eq + 1))
+}
+
+/** 长前缀优先：`@app/` 必须排在 `@/` 之前，否则永远命中后者。 */
+const ALIAS_ENTRIES = [...ALIASES.entries()].sort((a, b) => b[0].length - a[0].length)
+
 
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -135,9 +165,9 @@ function collectImports(text) {
 function resolveSpecifier(importerRel, specifier) {
   const clean = specifier.split('?')[0].trim()
   if (!clean) return null
-  if (clean.startsWith('@/')) return clean.slice(2)
-  if (clean.startsWith('@app/')) return `studio/app/${clean.slice('@app/'.length)}`
-  if (clean.startsWith('@runtime/')) return `studio/runtime/${clean.slice('@runtime/'.length)}`
+  for (const [prefix, replacement] of ALIAS_ENTRIES) {
+    if (clean.startsWith(prefix)) return `${replacement}${clean.slice(prefix.length)}`
+  }
   if (clean.startsWith('.')) {
     const joined = path.posix.normalize(path.posix.join(path.posix.dirname(importerRel), clean))
     if (joined.startsWith('../')) return null
@@ -173,8 +203,17 @@ function isFeatureRootWithoutBarrel(target) {
   return Boolean(match) && !featureHasBarrel(match[1])
 }
 
+/**
+ * `views/` 允许引用的域入口。
+ *
+ * - `features/<域>/entry`：单页域（绝大多数）。
+ * - `features/<域>/entry-<page>`：**多页域按页分流**。两条路由若共用一个 entry 模块，
+ *   Rollup 会把这个模块（连同两个页面）合并进同一个 shared chunk —— `/devices` 就会
+ *   把详情页一起下载下来，懒加载失效。按页拆 entry 能保住动态导入边界。
+ *   例：`features/device/entry-devices` 与 `features/device/entry-device-detail`。
+ */
 function isFeatureEntry(target) {
-  return /^features\/[^/]+\/entry$/.test(target)
+  return /^features\/[^/]+\/entry(-[a-z0-9]+)*$/.test(target)
 }
 
 function isDefaultImport(clause) {

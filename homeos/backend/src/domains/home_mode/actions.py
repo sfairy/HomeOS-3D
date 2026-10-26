@@ -797,6 +797,24 @@ async def _finalize_home_mode_activation(
 async def activate_home_mode(
     state: HomeModeActivateState, deps: Any, mode_id: str, meta: dict[str, Any] | None = None
 ) -> HomeModeActivateResult:
+    """激活家庭模式。四阶段顺序本身就是行为契约，不可重排：
+
+    ① **准入** —— 模式存在 → 未被激活 → 目标实体执行授权 → 联动仲裁 → HA 在线。
+       任一步失败都要先 push 一条失败触发日志再抛错，前端靠它解释「为什么没生效」。
+    ② **预快照** —— 先把同互斥组里已激活模式的设备恢复到「进入旧模式之前」，再采集
+       本轮目标设备快照。旧模式此时**不**在 DB 停用、快照也不清，那是第 ④ 阶段的事。
+    ③ **执行** —— 安防动作串行且先行（并发会让最终模式取决于最后一次 set_mode，且整体
+       回滚后会停在「模式已切、设备已回滚」的错位态）；其余设备动作走
+       `execute_action_sequence` 的开环序列，失败项再重试一次（安防不参与重试）。
+    ④ **提交** —— 失败数达阈值就整体回滚并回放旧模式；否则才落库切换激活组。
+
+    Args:
+        state: 进程内「当前激活模式 id」指针（多互斥组同时激活时只指向其中之一）。
+        deps: 领域依赖注入对象（DB、HA、联动仲裁器、日志、通知）。
+        mode_id: 目标模式 id。
+        meta: 触发元信息（`source` / `reason` / `actor`），用于触发日志与授权校验。
+    """
+    # ① 准入
     mode = await deps.find_mode(mode_id)
     if mode is None:
         not_found(api_error("HOME_MODE_NOT_FOUND"))
@@ -843,8 +861,9 @@ async def activate_home_mode(
         for active in active_modes
         if active["id"] != mode_id and (active.get("exclusiveGroup") or "default") == incoming_group
     ]
+    # ② 预快照：恢复同组旧模式的设备，再采集本轮目标快照
     # 先把旧模式的设备恢复到「进入该模式之前」的状态，让新动作从干净状态开始。
-    # 但**不**在 DB 里停用旧模式、也不清它们的快照 —— 那是第二阶段（提交）才做的事。
+    # 但**不**在 DB 里停用旧模式、也不清它们的快照 —— 那是 ④ 提交才做的事。
     conflict_restore: dict[str, HomeModeSnapshotOutcome] = {}
     for active in conflicting_modes:
         conflict_restore[active["id"]] = await _restore_mode_snapshot(deps, active)
@@ -858,6 +877,7 @@ async def activate_home_mode(
         )
         snapshot[SNAPSHOT_MISSING_KEY] = snapshot_missing
 
+    # ③ 执行：安防先行且串行，其余设备走开环序列 + 一次失败重试
     deps.log(f"正在激活模式: {mode['name']}")
 
     sec_cfg = deps.get_security_config()
@@ -914,7 +934,7 @@ async def activate_home_mode(
     if results and (final_success == 0 or failed_ratio >= MODE_ACTIVATION_FAILURE_RATIO):
         return await _abort_failed_activation(deps, state, activation)
 
-    # 第二阶段：动作达到阈值才算「激活」。提交失败同样要回滚设备并回放旧模式。
+    # ④ 提交：动作达到阈值才算「激活」。提交失败同样要回滚设备并回放旧模式。
     try:
         await deps.switch_active_group(conflicting_modes, conflict_restore, mode_id, snapshot)
     except Exception as exc:
@@ -928,6 +948,20 @@ async def activate_home_mode(
 async def deactivate_home_mode(
     state: HomeModeActivateState, deps: Any, mode_id: str | None = None
 ) -> HomeModeDeactivateResult:
+    """停用家庭模式（或指定的某一个互斥组）。
+
+    顺序：解析目标（缺省用内存指针，为空时退化为「优先级最高的激活模式」，因为多互斥组
+    同时激活时指针只记得一个）→ 回放快照恢复设备 → 清组内激活标记 → 重算内存指针，
+    无任何激活模式时释放联动仲裁。
+
+    「恢复不完整」是唯一允许的中间态：服务端保持模式激活、保留快照，返回
+    `restoreIncomplete=True` 与失败明细，前端据此给出重试入口 —— 不能假装已经退出。
+
+    Args:
+        state: 进程内「当前激活模式 id」指针。
+        deps: 领域依赖注入对象。
+        mode_id: 目标模式 id；`None` 表示停用当前指针指向的模式。
+    """
     target_id = mode_id or state.get_active_mode_id()
     if not target_id:
         # 多互斥组场景下内存指针可能只指向其中一个；为空时退化为「优先级最高的激活模式」。

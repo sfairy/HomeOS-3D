@@ -65,25 +65,35 @@ function normalizeTtsOutputMode(raw: unknown): 'local' | 'ha' | 'auto' {
   return 'ha'
 }
 
-const DEFAULT_VOICE: VoiceConfigState = {
-  ttsEnabled: true,
-  ttsOutputMode: 'ha',
-  sttMode: 'browser',
-  language: 'zh-CN',
-  sttEntityId: '',
-  useHaConversation: false,
-  dailyAdvisorSpeak: false,
-  dailyAdvisorSpeakHour: 20,
-  dailyAdvisorTtsDaytime: '',
-  dailyAdvisorTtsEvening: '',
-  interactionMode: 'push',
-  wakeWordEnabled: false,
-  continuousConversation: false,
-  wakeWords: ['小智'],
-  ttsAlerts: { ...DEFAULT_VOICE_ALERT_RULES },
-  ttsAlertTemplates: {},
-  customTtsAlerts: [],
-  entityTtsAlerts: [],
+/**
+ * 语音配置默认值。
+ *
+ * `ttsAlerts` 用**工厂**展开 `DEFAULT_VOICE_ALERT_RULES`，不在模块顶层直接 `{...}`：
+ * 构建产物里本模块与 voice-alert-catalog 可能落进互相 import 的 chunk 环，环内被 import 的
+ * const 在执行前是 `undefined`，对象展开**不报错**、只会让默认告警规则静默变空
+ * （症状：设置页语音告警全部默认项消失，无法从报错链定位）。工厂把求值推迟到调用时。
+ */
+function defaultVoiceConfig(): VoiceConfigState {
+  return {
+    ttsEnabled: true,
+    ttsOutputMode: 'ha',
+    sttMode: 'browser',
+    language: 'zh-CN',
+    sttEntityId: '',
+    useHaConversation: false,
+    dailyAdvisorSpeak: false,
+    dailyAdvisorSpeakHour: 20,
+    dailyAdvisorTtsDaytime: '',
+    dailyAdvisorTtsEvening: '',
+    interactionMode: 'push',
+    wakeWordEnabled: false,
+    continuousConversation: false,
+    wakeWords: ['小智'],
+    ttsAlerts: { ...DEFAULT_VOICE_ALERT_RULES },
+    ttsAlertTemplates: {},
+    customTtsAlerts: [],
+    entityTtsAlerts: [],
+  }
 }
 
 function domainEntityPrefix(domain: unknown) {
@@ -116,7 +126,7 @@ export function useVoiceConfig() {
   const loading = ref(false)
   const loadError = ref('')
   const { saving, runSave } = useSettingsSave()
-  const voice = ref({ ...DEFAULT_VOICE })
+  const voice = ref({ ...defaultVoiceConfig() })
   const ttsMediaPlayerId = ref<string>('')
   const ttsMediaPlayerIds = ref<string[]>([])
   const speakCooldownMin = ref(10)

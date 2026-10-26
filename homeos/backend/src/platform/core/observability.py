@@ -337,6 +337,253 @@ def get_ha_sync_latency_snapshots() -> list[LatencySnapshot]:
 
 
 # Prometheus 文本指标（指标名与 Nest 版逐字对齐）
+def _process_metric_lines(
+    *,
+    ha_connected: bool,
+    entity_count: int,
+    socket_clients: int,
+    uptime_seconds: int,
+) -> list[str]:
+    """进程态指标块：up / HA 连接 / 缓存实体量 / Socket 客户端 / 运行时长。"""
+    ha = 1 if ha_connected else 0
+    return [
+        "# HELP homeos_up HomeOS process is up",
+        "# TYPE homeos_up gauge",
+        "homeos_up 1",
+        "# HELP homeos_ha_connected Home Assistant WebSocket connected (1/0)",
+        "# TYPE homeos_ha_connected gauge",
+        f"homeos_ha_connected {ha}",
+        "# HELP homeos_entity_count Cached HA entity count",
+        "# TYPE homeos_entity_count gauge",
+        f"homeos_entity_count {entity_count}",
+        "# HELP homeos_socket_clients Connected Socket.IO clients",
+        "# TYPE homeos_socket_clients gauge",
+        f"homeos_socket_clients {socket_clients}",
+        "# HELP homeos_uptime_seconds Process uptime in seconds",
+        "# TYPE homeos_uptime_seconds gauge",
+        f"homeos_uptime_seconds {uptime_seconds}",
+    ]
+
+
+def _startup_metric_lines(
+    *,
+    startup_duration_ms: float | None,
+    boot_import_ms: float | None,
+    startup_phases: list[tuple[str, float]],
+) -> list[str]:
+    """启动耗时指标块：总耗时 / 应用模块导入耗时 / 各顶层阶段耗时。"""
+    return [
+        "# HELP homeos_startup_duration_ms Time spent in application startup",
+        "# TYPE homeos_startup_duration_ms gauge",
+        f"homeos_startup_duration_ms {_metric_number(startup_duration_ms or 0.0)}",
+        "# HELP homeos_boot_import_ms Time spent importing the ASGI application module",
+        "# TYPE homeos_boot_import_ms gauge",
+        f"homeos_boot_import_ms {_metric_number(boot_import_ms or 0.0)}",
+        "# HELP homeos_startup_phase_duration_ms Time spent in each top-level startup phase",
+        "# TYPE homeos_startup_phase_duration_ms gauge",
+        *[
+            f'homeos_startup_phase_duration_ms{{phase="{name}"}} {_metric_number(value)}'
+            for name, value in startup_phases
+        ],
+    ]
+
+
+def _runtime_metric_lines(
+    *,
+    deferred_dropped: int,
+    lag: LoopLagSnapshot,
+    queries: dict[str, int],
+) -> list[str]:
+    """运行期指标块：WS 过载丢弃 / 事件环延迟分位 / DB 语句计数。"""
+    return [
+        "# HELP homeos_ha_ws_deferred_dropped_total HA WS deferred ingress events dropped under overload",
+        "# TYPE homeos_ha_ws_deferred_dropped_total counter",
+        f"homeos_ha_ws_deferred_dropped_total {deferred_dropped}",
+        "# HELP homeos_event_loop_lag_ms Event loop scheduling lag milliseconds",
+        "# TYPE homeos_event_loop_lag_ms gauge",
+        f'homeos_event_loop_lag_ms{{quantile="p50"}} {_metric_number(lag.p50)}',
+        f'homeos_event_loop_lag_ms{{quantile="p99"}} {_metric_number(lag.p99)}',
+        f'homeos_event_loop_lag_ms{{quantile="max"}} {_metric_number(lag.max)}',
+        "# HELP homeos_event_loop_lag_samples Event loop lag sample count",
+        "# TYPE homeos_event_loop_lag_samples gauge",
+        f"homeos_event_loop_lag_samples {lag.count}",
+        "# HELP homeos_db_queries_total Database statements executed since process start",
+        "# TYPE homeos_db_queries_total counter",
+        f'homeos_db_queries_total{{kind="select"}} {queries.get("select", 0)}',
+        f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
+        f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
+    ]
+
+
+def _base_metric_lines(
+    *,
+    ha_connected: bool,
+    entity_count: int,
+    socket_clients: int,
+    uptime_seconds: int,
+    startup_duration_ms: float | None,
+    boot_import_ms: float | None,
+    startup_phases: list[tuple[str, float]],
+    deferred_dropped: int,
+    lag: LoopLagSnapshot,
+    queries: dict[str, int],
+) -> list[str]:
+    """进程级基础指标块（up / HA 连接 / 缓存量 / 启动耗时 / 环延迟 / DB 计数）。
+
+    这些指标**没有**标签维度，顺序即输出顺序；`help`/`type` 行与 Nest 版逐字对齐，
+    改动会破坏抓取端的同名 series，需同步改 `ops` 侧面板。
+    三个子块的首尾相接就是最终顺序，因此拆分不改任何一行的相对位置。
+    """
+    return [
+        *_process_metric_lines(
+            ha_connected=ha_connected,
+            entity_count=entity_count,
+            socket_clients=socket_clients,
+            uptime_seconds=uptime_seconds,
+        ),
+        *_startup_metric_lines(
+            startup_duration_ms=startup_duration_ms,
+            boot_import_ms=boot_import_ms,
+            startup_phases=startup_phases,
+        ),
+        *_runtime_metric_lines(
+            deferred_dropped=deferred_dropped,
+            lag=lag,
+            queries=queries,
+        ),
+    ]
+
+
+def _ha_counter_metric_lines(counters: dict[str, int]) -> list[str]:
+    """HA 实时管道计数器（事件名固定取自 `HA_COUNTER_NAMES`）。"""
+    lines = [
+        "# HELP homeos_ha_events_total HA realtime pipeline counters",
+        "# TYPE homeos_ha_events_total counter",
+    ]
+    for name in HA_COUNTER_NAMES:
+        lines.append(f'homeos_ha_events_total{{event="{name}"}} {int(counters.get(name, 0))}')
+    return lines
+
+
+def _ha_sync_latency_metric_lines(snapshots: list[LatencySnapshot]) -> list[str]:
+    """HA 同步管道各阶段的分位延迟与样本数。"""
+    lines = [
+        "# HELP homeos_ha_sync_latency_ms HA sync pipeline stage latency milliseconds",
+        "# TYPE homeos_ha_sync_latency_ms gauge",
+        "# HELP homeos_ha_sync_latency_samples HA sync latency sample count",
+        "# TYPE homeos_ha_sync_latency_samples gauge",
+    ]
+    for snap in snapshots:
+        p50, p99, peak = _metric_number(snap.p50), _metric_number(snap.p99), _metric_number(snap.max)
+        lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="p50"}} {p50}')
+        lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="p99"}} {p99}')
+        lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="max"}} {peak}')
+        lines.append(f'homeos_ha_sync_latency_samples{{stage="{snap.stage}"}} {snap.count}')
+    return lines
+
+
+def _http_histogram_metric_lines(http: dict[tuple[str, str, str], list[float]]) -> list[str]:
+    """HTTP 请求时长直方图（桶边界取自 `HTTP_DURATION_BUCKETS`，`+Inf` 桶单独补）。"""
+    lines = [
+        "# HELP homeos_http_request_duration_seconds HTTP request duration seconds",
+        "# TYPE homeos_http_request_duration_seconds histogram",
+    ]
+    for (route, method, status), series in sorted(http.items()):
+        count, total = series[0], series[1]
+        for index, boundary in enumerate(HTTP_DURATION_BUCKETS):
+            lines.append(
+                f'homeos_http_request_duration_seconds_bucket{{route="{route}",method="{method}",status="{status}",le="{boundary:g}"}} {int(series[index + 2])}'
+            )
+        lines.append(
+            f'homeos_http_request_duration_seconds_bucket{{route="{route}",method="{method}",status="{status}",le="+Inf"}} {int(count)}'
+        )
+        lines.append(
+            f'homeos_http_request_duration_seconds_sum{{route="{route}",method="{method}",status="{status}"}} {_metric_number(total)}'
+        )
+        lines.append(
+            f'homeos_http_request_duration_seconds_count{{route="{route}",method="{method}",status="{status}"}} {int(count)}'
+        )
+    return lines
+
+
+@dataclass(frozen=True, slots=True)
+class _MetricInputs:
+    """一次渲染所需的运行期快照（可选入参为 `None` 时回落到进程全局值）。"""
+
+    deferred: int
+    lag: LoopLagSnapshot
+    queries: dict[str, int]
+    phases: list[tuple[str, float]]
+    http: dict[tuple[str, str, str], list[float]]
+
+
+def _resolve_metric_inputs(
+    *,
+    ha_ws_deferred_dropped_total: int | None,
+    loop_lag: LoopLagSnapshot | None,
+    db_query_counts: dict[str, int] | None,
+    startup_phases: list[tuple[str, float]] | None,
+    http_metrics: dict[tuple[str, str, str], list[float]] | None,
+) -> _MetricInputs:
+    """把「可选入参」解析成具体快照：显式传参优先，否则取进程全局值。
+
+    显式传参只在测试与离线渲染时使用，线上请求一律走全局快照；`startup_phases`
+    例外——它没有全局来源，缺省即空列表。
+    """
+    return _MetricInputs(
+        deferred=(
+            ha_ws_deferred_dropped_total
+            if ha_ws_deferred_dropped_total is not None
+            else get_ha_ws_deferred_dropped_total()
+        ),
+        lag=loop_lag or LoopLagSnapshot(p50=0.0, p99=0.0, max=0.0, count=0),
+        queries=db_query_counts if db_query_counts is not None else get_db_query_counts(),
+        phases=startup_phases if startup_phases is not None else [],
+        http=http_metrics if http_metrics is not None else get_http_metrics(),
+    )
+
+
+def _render_metric_lines(
+    *,
+    inputs: _MetricInputs,
+    ha_connected: bool,
+    entity_count: int,
+    socket_clients: int,
+    uptime_seconds: int,
+    startup_duration_ms: float | None,
+    boot_import_ms: float | None,
+    latency: list[LatencySnapshot] | None,
+    ha_counters: dict[str, int] | None,
+) -> list[str]:
+    """按固定顺序拼出四块指标行：基础 → HA 计数 → HA 同步延迟 → HTTP 直方图。
+
+    顺序不能调整：抓取端按 series 名比对，重排会让 diff 变成「全量抖动」。
+    其中 HTTP 直方图是唯一可整块省略的一段（没有 HTTP 采样时不输出 HELP/TYPE）。
+    """
+    lines = _base_metric_lines(
+        ha_connected=ha_connected,
+        entity_count=entity_count,
+        socket_clients=socket_clients,
+        uptime_seconds=uptime_seconds,
+        startup_duration_ms=startup_duration_ms,
+        boot_import_ms=boot_import_ms,
+        startup_phases=inputs.phases,
+        deferred_dropped=inputs.deferred,
+        lag=inputs.lag,
+        queries=inputs.queries,
+    )
+
+    counters = ha_counters if ha_counters is not None else get_ha_counters()
+    lines.extend(_ha_counter_metric_lines(counters))
+
+    snapshots = latency if latency is not None else get_ha_sync_latency_snapshots()
+    lines.extend(_ha_sync_latency_metric_lines(snapshots))
+
+    if inputs.http:
+        lines.extend(_http_histogram_metric_lines(inputs.http))
+    return lines
+
+
 def format_homeos_prometheus_metrics(
     *,
     ha_connected: bool,
@@ -353,103 +600,29 @@ def format_homeos_prometheus_metrics(
     http_metrics: dict[tuple[str, str, str], list[float]] | None = None,
     ha_counters: dict[str, int] | None = None,
 ) -> str:
-    ha = 1 if ha_connected else 0
-    deferred = (
-        ha_ws_deferred_dropped_total
-        if ha_ws_deferred_dropped_total is not None
-        else get_ha_ws_deferred_dropped_total()
+    """渲染 `/metrics` 的 Prometheus 文本。
+
+    所有可选入参为 `None` 时取进程全局快照（`get_*` 系列）；显式传参只在测试与
+    离线渲染时使用。输出末尾固定多一个换行（`""` + `join`），抓取端依赖该结尾。
+    """
+    inputs = _resolve_metric_inputs(
+        ha_ws_deferred_dropped_total=ha_ws_deferred_dropped_total,
+        loop_lag=loop_lag,
+        db_query_counts=db_query_counts,
+        startup_phases=startup_phases,
+        http_metrics=http_metrics,
     )
-    lag = loop_lag or LoopLagSnapshot(p50=0.0, p99=0.0, max=0.0, count=0)
-    queries = db_query_counts if db_query_counts is not None else get_db_query_counts()
-    phases = startup_phases if startup_phases is not None else []
-    http = http_metrics if http_metrics is not None else get_http_metrics()
-    lines = [
-        "# HELP homeos_up HomeOS process is up",
-        "# TYPE homeos_up gauge",
-        "homeos_up 1",
-        "# HELP homeos_ha_connected Home Assistant WebSocket connected (1/0)",
-        "# TYPE homeos_ha_connected gauge",
-        f"homeos_ha_connected {ha}",
-        "# HELP homeos_entity_count Cached HA entity count",
-        "# TYPE homeos_entity_count gauge",
-        f"homeos_entity_count {entity_count}",
-        "# HELP homeos_socket_clients Connected Socket.IO clients",
-        "# TYPE homeos_socket_clients gauge",
-        f"homeos_socket_clients {socket_clients}",
-        "# HELP homeos_uptime_seconds Process uptime in seconds",
-        "# TYPE homeos_uptime_seconds gauge",
-        f"homeos_uptime_seconds {uptime_seconds}",
-        "# HELP homeos_startup_duration_ms Time spent in application startup",
-        "# TYPE homeos_startup_duration_ms gauge",
-        f"homeos_startup_duration_ms {_metric_number(startup_duration_ms or 0.0)}",
-        "# HELP homeos_boot_import_ms Time spent importing the ASGI application module",
-        "# TYPE homeos_boot_import_ms gauge",
-        f"homeos_boot_import_ms {_metric_number(boot_import_ms or 0.0)}",
-        "# HELP homeos_startup_phase_duration_ms Time spent in each top-level startup phase",
-        "# TYPE homeos_startup_phase_duration_ms gauge",
-        *[
-            f'homeos_startup_phase_duration_ms{{phase="{name}"}} {_metric_number(value)}'
-            for name, value in phases
-        ],
-        "# HELP homeos_ha_ws_deferred_dropped_total HA WS deferred ingress events dropped under overload",
-        "# TYPE homeos_ha_ws_deferred_dropped_total counter",
-        f"homeos_ha_ws_deferred_dropped_total {deferred}",
-        "# HELP homeos_event_loop_lag_ms Event loop scheduling lag milliseconds",
-        "# TYPE homeos_event_loop_lag_ms gauge",
-        f'homeos_event_loop_lag_ms{{quantile="p50"}} {_metric_number(lag.p50)}',
-        f'homeos_event_loop_lag_ms{{quantile="p99"}} {_metric_number(lag.p99)}',
-        f'homeos_event_loop_lag_ms{{quantile="max"}} {_metric_number(lag.max)}',
-        "# HELP homeos_event_loop_lag_samples Event loop lag sample count",
-        "# TYPE homeos_event_loop_lag_samples gauge",
-        f"homeos_event_loop_lag_samples {lag.count}",
-        "# HELP homeos_db_queries_total Database statements executed since process start",
-        "# TYPE homeos_db_queries_total counter",
-        f'homeos_db_queries_total{{kind="select"}} {queries.get("select", 0)}',
-        f'homeos_db_queries_total{{kind="write"}} {queries.get("write", 0)}',
-        f'homeos_db_queries_total{{kind="other"}} {queries.get("other", 0)}',
-    ]
-
-    counters = ha_counters if ha_counters is not None else get_ha_counters()
-    lines.append("# HELP homeos_ha_events_total HA realtime pipeline counters")
-    lines.append("# TYPE homeos_ha_events_total counter")
-    for name in HA_COUNTER_NAMES:
-        lines.append(f'homeos_ha_events_total{{event="{name}"}} {int(counters.get(name, 0))}')
-
-    snapshots = latency if latency is not None else get_ha_sync_latency_snapshots()
-    lines.extend(
-        [
-            "# HELP homeos_ha_sync_latency_ms HA sync pipeline stage latency milliseconds",
-            "# TYPE homeos_ha_sync_latency_ms gauge",
-            "# HELP homeos_ha_sync_latency_samples HA sync latency sample count",
-            "# TYPE homeos_ha_sync_latency_samples gauge",
-        ]
+    lines = _render_metric_lines(
+        inputs=inputs,
+        ha_connected=ha_connected,
+        entity_count=entity_count,
+        socket_clients=socket_clients,
+        uptime_seconds=uptime_seconds,
+        startup_duration_ms=startup_duration_ms,
+        boot_import_ms=boot_import_ms,
+        latency=latency,
+        ha_counters=ha_counters,
     )
-    for snap in snapshots:
-        p50, p99, peak = _metric_number(snap.p50), _metric_number(snap.p99), _metric_number(snap.max)
-        lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="p50"}} {p50}')
-        lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="p99"}} {p99}')
-        lines.append(f'homeos_ha_sync_latency_ms{{stage="{snap.stage}",quantile="max"}} {peak}')
-        lines.append(f'homeos_ha_sync_latency_samples{{stage="{snap.stage}"}} {snap.count}')
-
-    if http:
-        lines.append("# HELP homeos_http_request_duration_seconds HTTP request duration seconds")
-        lines.append("# TYPE homeos_http_request_duration_seconds histogram")
-        for (route, method, status), series in sorted(http.items()):
-            count, total = series[0], series[1]
-            for index, boundary in enumerate(HTTP_DURATION_BUCKETS):
-                lines.append(
-                    f'homeos_http_request_duration_seconds_bucket{{route="{route}",method="{method}",status="{status}",le="{boundary:g}"}} {int(series[index + 2])}'
-                )
-            lines.append(
-                f'homeos_http_request_duration_seconds_bucket{{route="{route}",method="{method}",status="{status}",le="+Inf"}} {int(count)}'
-            )
-            lines.append(
-                f'homeos_http_request_duration_seconds_sum{{route="{route}",method="{method}",status="{status}"}} {_metric_number(total)}'
-            )
-            lines.append(
-                f'homeos_http_request_duration_seconds_count{{route="{route}",method="{method}",status="{status}"}} {int(count)}'
-            )
-
     lines.append("")
     return "\n".join(lines)
 

@@ -28,7 +28,9 @@ views (router)  -.->  studio  (只经 `@/studio` barrel 的懒加载器；不直
 分层约定由评审与 ESLint `no-restricted-imports` 维护。
 
 `utils` → composables/stores/components 的白名单**为空**。  
-`composables` → components 仍放行 `composables/shell/useFloatingHub.ts`（异步弹层挂载点），直到这些件搬进 components。  
+`composables` → components 白名单**已清零**：最后一处 `composables/shell/useFloatingHub.ts` 已归位到
+`components/shell/floating-hub/useFloatingHub.ts`（它按定义就是组件层装配——用 `defineAsyncComponent`
+懒加载 `components/entities/popups/*`，放进 `composables/` 才是错的），`composables/shell/` 目录随之删除。
 层违规白名单（`LAYER_WHITELIST`）为**空**。弹窗注册按「纯元数据 / 组件映射」两层拆分：
 纯判定「entity_id → 弹窗种类」在 `@/shared/entity/utils/popup-registry.util`（可被
 utils/composables/stores 安全引用），「种类 → 懒加载组件」映射在
@@ -76,6 +78,13 @@ import Overview from '@/features/security/Overview.vue'
 跨域规则由 ESLint `no-restricted-imports` 在编辑器里即时反馈（按域自动生成，新增域无需改配置）；
 `bun run check:frontend-deps`（`homeos/frontend/scripts/check-frontend-deps.mjs`）在 CI/`lint:ci` 里兜底。
 
+同一套脚本也用 `--root` / `--alias` 覆盖 `homeos-store` 前端（根命令 `check:frontend-deps` 会连跑
+两棵树）。**别名必须显式传**：store 的路径别名是 `@store/*`，而脚本里的默认别名表是
+`@/`（主应用）；解析不了的说明符会被当成外部包跳过，于是门禁照样打印「0 violation」——
+绿色但一条都没检查。对照用例见 `ops/checks/architecture/tests/test_frontend_deps.py`
+的 `test_custom_alias_is_resolved_not_silently_skipped`。
+
+
 ### 页面入口（`entry.ts`）
 
 整页装配走独立的 `features/<域>/entry.ts`，不要塞进域根 barrel：
@@ -94,9 +103,22 @@ import { SecurityPage } from '@/features/security/entry'
 barrel，会连带进入无关 chunk。`views/` 只允许 `@/features/<域>`（跨域公开面）或
 `@/features/<域>/entry`（整页入口），其它 feature 子路径禁止。
 
-迁移顺序见根仓库重构计划：`security` 试点 → 其余域分批 → `views/` 收敛为薄壳。2026-10-20 已完成
-`settings` / `earthquake` / `security` / `events` / `notifications` 五页；剩余 `DevicesView`、
-`DeviceDetailView`、`ModeTriggerLogsView`、`ModeLogsAnalyticsRail`、`EmbedView` 按同一模式迁移。
+**多页域按页拆 entry（`entry-<page>`）**：一个域有多条路由页时，**不能**让两个页面共用一个 `entry.ts` ——
+两条 `import()` 指向同一个模块，Rollup 会把该模块连同两个页面合并进同一个 shared chunk，
+懒加载边界失效。实测：`features/device` 最初用一个 `entry.ts` 导出两页，构建后 `/devices`
+的 chunk 变成 140KB（含详情页），拆成 `entry-devices.ts` / `entry-device-detail.ts` 后
+是 71KB / 91KB 两个互不包含的 chunk。门禁的 `isFeatureEntry` 接受
+`entry` 与 `entry-<page>` 两种形态，用例见 `ops/checks/architecture/tests/test_frontend_deps.py`。
+
+迁移顺序见根仓库重构计划：`security` 试点 → 其余域分批 → `views/` 收敛为薄壳。2026-10-20 完成
+`settings` / `earthquake` / `security` / `events` / `notifications` 五页；2026-10-26 补齐剩余五页：
+`features/device/{DevicesPage,DeviceDetailPage}.vue`（两页各有独立 entry：`entry-devices.ts` /
+`entry-device-detail.ts`，原因见上一条）、`features/home-mode/ModeTriggerLogsPage.vue`
+（含私有子件 `components/ModeLogsAnalyticsRail.vue`）、`features/embed/EmbedPage.vue`。
+`views/styles/` 随之清空删除 —— 设备域主题表（2,205 行）原本寄存在视图层，现在归位
+`features/device/styles/devices-theme.css`，列表页与详情页各自引入，不再依赖「先访问过列表页」。
+仍未迁的是 `views/auth/*`（5 页 / 1,477 行）：它们是**登录前流程**，未在本次迁移清单内，
+要动需先决策是否单开 `features/auth` 域。
 新增域时**先定公开面**：要跨域被消费就建 `features/<域>/index.ts`（只导出实际被取用的符号），
 只给 `views/` 装配就只建 `entry.ts`；两者的区别见上一条。
 
@@ -199,7 +221,10 @@ barrel，会连带进入无关 chunk。`views/` 只允许 `@/features/<域>`（�
 |------|----------|
 | 设置面板 / 导航 | `features/settings/` |
 | 设置路由外壳 | `views/SettingsView.vue`（7 行适配器）→ `features/settings/entry.ts` → `SettingsPage.vue` |
-| 设备 UI（域） | `features/device/`（`DeviceRow` 等 13 组件 + `analytics/` + 两个视图模型）；视图经域 barrel 取件 |
+| 设备 UI（域） | `features/device/`（`DeviceRow` 等 13 组件 + `analytics/` + `styles/`（含 2,205 行域主题表 `devices-theme.css`）+ 2 个页面 + 2 个视图模型）；跨域经域根 barrel，页面经 `entry.ts` |
+| 设备页外壳 | `views/{DevicesView,DeviceDetailView}.vue`（各 7 行适配器）→ `features/device/entry-devices.ts` / `entry-device-detail.ts` → `DevicesPage.vue` / `DeviceDetailPage.vue`（按页拆 entry 保懒加载边界） |
+| 家庭模式触发日志页 | 外壳 `views/ModeTriggerLogsView.vue`（7 行）→ `features/home-mode/entry.ts` → `ModeTriggerLogsPage.vue`；分析轨道在 `features/home-mode/components/ModeLogsAnalyticsRail.vue`（域内私有子件，不进 barrel） |
+| 内嵌网页页 | 外壳 `views/EmbedView.vue`（7 行）→ `features/embed/entry.ts` → `EmbedPage.vue`；两条路由 `/embed/movie-pilot` 与 `/embed/:id` 共用同一页 |
 | 设备 hooks | `composables/device/` |
 | 设备纯函数助手 | `shared/device/utils/`（`attr-format`、`domain-labels`、`devices-route`、`entity-attr-labels`、`group-battery`、`group-offline`） |
 | 安防页面外壳 | `views/SecurityView.vue`（7 行适配器）→ `features/security/entry.ts` → `SecurityPage.vue` |

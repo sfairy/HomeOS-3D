@@ -136,6 +136,26 @@ homeos-store/
 └── dist/                   # index.html + static
 ```
 
+### 结构门禁
+
+本包没有像主应用那样在 README 里声明依赖方向，因此门禁**不臆造** B1/B2 分层规则，
+只跑与约定无关的两条结构不变量 + 绝对导入检查：
+
+```bash
+bun run check:backend-deps     # 同时覆盖 homeos 与 homeos-store
+.venv-store/bin/python ops/checks/architecture/check_backend_deps.py --project store
+```
+
+- `B3 absolute-src`：禁止 `from src.…` —— 镜像构建期 Cython 烤成 `.so` 后该写法会炸。
+- `B4 package-cycle`：`commerce / core / ops / payments / security` 目前是一个 5 元强连通分量
+  （**文件级无环**，运行时安全），已冻结进白名单；新增第六个包级环会让门禁变红。
+- `B5 file-cycle`：文件级 import 环必须为空。
+
+前端的同一套边界规则（`views` 只能经 `features/<域>/entry`、`shared` 不得反向依赖上层等）
+也覆盖本包，由主应用脚本带 `--alias '@store/='` 执行 —— 注意本包别名是 `@store/*` 而非 `@/`，
+不传 `--alias` 的话所有 import 都会被当成外部包**静默放行**，跑出假的「0 violation」。
+
+
 > 与主应用共用的叶子模块（`logging_noise` 开发期重载提示降噪、`file_lock` 跨进程文件锁、
 > `schema_core` 按 ORM 元数据建库与库完整性校验、
 > `client_ip` 可信代理链 → 真实客户端地址、`rate_limit` 有界滑动窗口限流、

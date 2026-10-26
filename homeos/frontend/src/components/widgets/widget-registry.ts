@@ -32,7 +32,7 @@ const WIDGET_REGISTRY: Record<string, { component?: Component; [key: string]: un
   )
 
 // 曾在此再导出 `FLOATING_HUB_WIDTH_MAP` / `getSidebarWidgetClass` / `isFloatingPanelType`：
-// 三者的消费者（`composables/shell/useFloatingHub`、`components/dashboard/RightSidebar.vue`、
+// 三者的消费者（`components/shell/floating-hub/useFloatingHub`、`components/dashboard/RightSidebar.vue`、
 // `shared/floorplan/utils/floating-hub-layout.util` …）**本来就直连**元数据模块
 // `@/shared/utils/registry/widget-registry-meta`，这里只是多一条没人走的转发。
 // 本文件按自己的职责只出「组件解析」入口。

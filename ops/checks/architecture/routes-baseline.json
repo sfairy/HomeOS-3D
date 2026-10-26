@@ -234,6 +234,7 @@
     "POST /api/v1/security-panel/away-sim/enable",
     "POST /api/v1/security-panel/disarm",
     "POST /api/v1/security-panel/emergency",
+    "POST /api/v1/security-panel/events/ack",
     "POST /api/v1/security-panel/zones",
     "POST /api/v1/security/frigate/ack",
     "POST /api/v1/security/hazard/drill",

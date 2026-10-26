@@ -903,9 +903,17 @@ export default defineConfig(async (): Promise<UserConfig> => {
                 // import 的 const 在初始化前是 undefined，读取 `.voice` 会抛
                 // TypeError: Cannot read properties of undefined (reading 'voice')，
                 // 导致 stage/设置页整体黑屏。隔离成叶子 chunk 后环不再包含它。
+                //
+                // 内嵌页的图标/主题色注册表同理，而且它们的**消费方写在模块顶层**：
+                // shared/utils/ui/main-layout-nav.util.ts 的 TAB_ACCENTS.media 直接取
+                // EMBED_TAB_ACCENTS[0]、mainLayoutIconMap 直接展开 embedIconMap。这两个
+                // 常量若和消费方一起落进 entriesAware 的 shared 环，初始化前读到的是
+                // undefined：下标访问抛 `TypeError: Cannot read properties of undefined
+                // (reading '0')`（顶栏/侧边整块不渲染），对象展开则**静默**丢掉全部内嵌
+                // 图标别名。它们自身只依赖 @lucide/vue，放进本叶子 chunk 即可彻底断开。
                 // 改此组后请核对构建产物：index.html preload 应出现 shared-registry-*.js。
                 name: 'shared-registry',
-                test: /src[\\/]shared[\\/]utils[\\/]registry[\\/]/,
+                test: /src[\\/]shared[\\/]utils[\\/](?:registry[\\/]|layout[\\/]embed-(?:icons|nav-theme)\.util\.ts)/,
                 priority: 2,
               },
               {

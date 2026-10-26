@@ -84,7 +84,7 @@ class BroadcastMixin:
             # 全员广播：必须以 ``emit`` 的真实结果为准，不能把「在线会话数」直接当作送达数。
             try:
                 await self.sio.emit("notification", message)
-            except Exception as exc:  # noqa: BLE001 - 单个通知失败不能打断广播循环
+            except Exception as exc:
                 failed = max(1, len(self.connected))
                 logger.warning("站内通知全员推送失败（保持待投递）：%s", exc)
             else:
