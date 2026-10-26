@@ -7,6 +7,7 @@
  * 只有一个调用点（宿主闭包末尾的 `startupStudio();`），所以不需要源侧薄绑定。
  */
 
+import { registryReady } from "../../../renderer/registry";
 import { prepareSceneDocument as prepareSceneDocument2 } from "../../scene-persistent-cache";
 import { stageStartup as stageStartup2 } from "../../stage-startup";
 
@@ -35,7 +36,10 @@ export async function startupStudio(deps: StudioBootDeps) {
     return;
   }
   try {
+    // 组件族是动态 chunk：先等注册表就绪，否则面板会先画成「控件尚未实现」再被替换。
+    // 与建渲染器并行等待，避免串行化这两段互不依赖的启动工作。
     (deps.createStudioRenderer(), deps.stageLoadTiming("renderer-created"), deps.resizePlanStage());
+    await registryReady;
     const xa3 = await deps.fetchStudioApi(
       stageStartup2?.path || "/studio3d",
       {},

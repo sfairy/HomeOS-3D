@@ -42,7 +42,7 @@ export {
 export { renderAirConditionerAirflowLayer } from "./airflow";
 export { renderIconButtonEffectLayer } from "./icon-button-effect-layer";
 
-import { installRegistryComponents } from "./register-all";
+import { installRegistryComponents, loadComponentFamilies } from "./register-all";
 
 const rendererByComponentType = new Map<string, any>();
 
@@ -58,6 +58,14 @@ registerComponent("flow-line", {
 });
 
 installRegistryComponents(registerComponent);
+
+/**
+ * 组件族按 chunk 并发加载，渲染前由 `startupStudio` 等待就绪。
+ *
+ * 这里**不能**用顶层 await：entry 变成 async 后 Vite 的 build-html 插件推算不出静态
+ * import 图，会把所有 chunk 的 CSS 都塞进 index.html（实测首屏 CSS 303 KB → 1.69 MB）。
+ */
+export const registryReady: Promise<void> = loadComponentFamilies(registerComponent);
 
 export function renderRegisteredComponent(componentProps: any, renderEnvironment: any) {
   const registeredRenderer = rendererByComponentType.get(componentProps.type);
