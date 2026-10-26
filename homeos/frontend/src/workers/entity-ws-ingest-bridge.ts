@@ -36,6 +36,32 @@ let lastTimeoutDebugAt = 0
 let workerRetryAt = 0
 
 /**
+ * 当前 Worker 实例的脚本级故障原因（脚本 404 / 模块求值失败 / 消息反序列化失败）。
+ *
+ * 这类故障不会从 ``new Worker`` 抛出，只会异步触发 ``error`` / ``messageerror`` 事件；
+ * 不监听就只能等超时，日志里还会误报成「Ingest Worker 超时」——真实原因是脚本压根没跑起来
+ * （dev 下 dist 重建会删掉旧 hash 的 worker chunk，已打开的页面必然 404）。
+ */
+let workerFaultReason: string | null = null
+/** 当前 Worker 实例的故障信号：脚本级故障时立刻 reject，让在途批次不必等满超时 */
+let workerFaultSignal: Promise<never> | null = null
+let rejectWorkerFault: ((err: Error) => void) | null = null
+
+/** 立刻把当前 Worker 判为不可用：终止实例并按重试窗口降级，本批交给主线程 */
+function markWorkerUnusable(): void {
+  workerFailed = true
+  workerRetryAt = Date.now() + WORKER_RETRY_INTERVAL_MS
+  try {
+    worker?.terminate()
+  } catch {
+    /* ignore */
+  }
+  worker = null
+  workerApi = null
+  workerWarmed = false
+}
+
+/**
  * 懒加载并复用 entity-ws-ingest.worker。
  * 降级状态下按 WORKER_RETRY_INTERVAL_MS 周期重试重建，避免一次失败后永久停用；
  * 环境不支持 Worker 或初始化异常时回退主线程并安排下次重试。
@@ -55,10 +81,32 @@ async function ensureIngestWorker(): Promise<typeof workerApi> {
   }
   try {
     const { wrap } = await import('comlink')
-    worker = new Worker(new URL('./entity-ws-ingest.worker', import.meta.url), {
+    // 新实例先用一次全新信号：上一次的故障 reject 已被上一批消费，不能复用
+    workerFaultReason = null
+    workerFaultSignal = new Promise<never>((_, reject) => {
+      rejectWorkerFault = reject
+    })
+    // 无人等待时 fault 也会 reject（例如故障发生在两批之间），这里先兜住避免 unhandled rejection
+    workerFaultSignal.catch(() => undefined)
+    const created = new Worker(new URL('./entity-ws-ingest.worker', import.meta.url), {
       type: 'module',
     })
-    workerApi = wrap(worker)
+    // 先登记实例再挂监听：脚本 404 时 error 事件可能在下一 tick 就到达，
+    // markWorkerUnusable 需要能 terminate 到这个实例
+    worker = created
+    created.addEventListener('error', (event) => {
+      workerFaultReason =
+        event.message ||
+        'Ingest Worker 脚本加载失败（多为 dist 重建后旧 hash 被删除，刷新页面即可）'
+      rejectWorkerFault?.(new Error(workerFaultReason))
+      markWorkerUnusable()
+    })
+    created.addEventListener('messageerror', () => {
+      workerFaultReason = 'Ingest Worker 消息无法反序列化（回传值含不可克隆结构）'
+      rejectWorkerFault?.(new Error(workerFaultReason))
+      markWorkerUnusable()
+    })
+    workerApi = wrap(created)
     return workerApi
   } catch (err) {
     workerFailed = true
@@ -92,17 +140,23 @@ function resolveWorkerTimeoutMs(batchSize: number): number {
   return Math.min(WORKER_TIMEOUT_MAX_MS, base + Math.max(0, batchSize) * WORKER_TIMEOUT_PER_ITEM_MS)
 }
 
-/** Promise 与超时计时器竞速：超时则 reject，promise 先 settle 时清理计时器。 */
-function raceWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+/** Promise 与超时计时器 / Worker 故障信号竞速：任一先结束即清理计时器。 */
+function raceWithTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fault?: Promise<never> | null,
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
-  return Promise.race([
-    promise.finally(() => {
-      if (timer) clearTimeout(timer)
-    }),
+  const contenders: Promise<T>[] = [
+    promise,
     new Promise<T>((_, reject) => {
       timer = setTimeout(() => reject(new Error('Ingest Worker 超时')), ms)
     }),
-  ])
+  ]
+  if (fault) contenders.push(fault)
+  return Promise.race(contenders).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
 }
 
 /**
@@ -137,26 +191,27 @@ export async function normalizeWsBatchChanges(
   const snapshots = collectSnapshots(changes, entities)
   const timeoutMs = resolveWorkerTimeoutMs(changes.length)
   try {
-    const result = await raceWithTimeout(api.normalizeBatch(changes, snapshots), timeoutMs)
+    const result = await raceWithTimeout(
+      api.normalizeBatch(changes, snapshots),
+      timeoutMs,
+      workerFaultSignal,
+    )
     if (Array.isArray(result)) {
       workerWarmed = true
       failStreak = 0
       return result
     }
   } catch (err) {
+    // 脚本级故障已由 markWorkerUnusable 立即降级，不计入超时次数（否则会误报「连续超时 3 次」）
+    if (workerFaultReason) {
+      logger.warn('[实体 WS 摄入] worker 不可用,本批回退主线程', workerFaultReason)
+      workerFaultReason = null
+      return normalizeWsBatchChangesSync(changes, entities)
+    }
     failStreak += 1
     noteWorkerFallback(err, failStreak)
     if (failStreak >= WORKER_FAIL_STREAK_LIMIT) {
-      workerFailed = true
-      workerRetryAt = Date.now() + WORKER_RETRY_INTERVAL_MS
-      try {
-        worker?.terminate()
-      } catch {
-        /* ignore */
-      }
-      worker = null
-      workerApi = null
-      workerWarmed = false
+      markWorkerUnusable()
       logger.warn(
         `[实体 WS 摄入] worker 连续超时 ${failStreak} 次,本批回退主线程,` +
           `${WORKER_RETRY_INTERVAL_MS / 1000}s 后自动重试 worker`,
