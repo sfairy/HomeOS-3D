@@ -20,11 +20,10 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = resolve(HERE, '..', '..');
 const BUDGET_PATH = join(HERE, 'perf-budget.json');
 
 const args = process.argv.slice(2);
@@ -58,7 +57,7 @@ function latestResultsDir() {
 const dir = argOf('--dir', latestResultsDir());
 if (!dir || !existsSync(dir)) {
   console.log(
-    `perf-budget：跳过（找不到结果目录 ${dir || join(RESULTS, '<label>')}；先跑 npm run perf:baseline）`,
+    `perf-budget：跳过（找不到结果目录 ${dir || join(ROOTS[0], 'results', '<label>')}；先跑 npm run perf:baseline）`,
   );
   process.exit(0);
 }
@@ -107,9 +106,9 @@ for (const [metric, limit] of Object.entries(budget.threeD.min || {})) {
 
 if (contracts) {
   const failed = Number(contracts.failed ?? 0);
-  const skipped = Number(contracts.skipped ?? 0);
+  const contractSkipped = Number(contracts.skipped ?? 0);
   check('contracts.failed', failed, budget.contracts.maxFailed, 'max');
-  check('contracts.skipped', skipped, budget.contracts.maxSkipped, 'max');
+  check('contracts.skipped', contractSkipped, budget.contracts.maxSkipped, 'max');
 }
 
 const label = three.label || dir;
