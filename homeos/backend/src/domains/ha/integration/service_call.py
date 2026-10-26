@@ -262,6 +262,14 @@ async def execute_service_call(
             ),
         )
         result = envelope.get('data') if isinstance(envelope, dict) else envelope
+        # 后置校验结果必须跟着响应回前端：此前这里只取 ``data`` 就返回，把
+        # ``verified`` / ``verification`` / ``skipped`` / ``pending`` 全部丢掉了 ——
+        # 于是 3D 面板走的本接口永远「看起来成功」，和 `/services/call` 的行为不一致。
+        verification_fields = {
+            key: envelope[key]
+            for key in ('verified', 'verification', 'skipped', 'pending', 'replayed')
+            if isinstance(envelope, dict) and key in envelope
+        }
     except (BusinessException, HAClientError, CredentialCipherError) as error:
         request.state.diagnostic_error_logged = True
         request.app.state.global_log.append(
@@ -278,16 +286,22 @@ async def execute_service_call(
         )
         raise ServiceCallRejected(_BAD_GATEWAY, str(error)) from error
     request.app.state.global_log.append(
-        'success',
+        'success' if verification_fields.get('verified') is not False else 'warning',
         '仪表盘编辑器',
         '设备操作',
-        f'操作成功：{payload.entity_id} · {payload.domain}.{payload.service}',
+        f'操作成功：{payload.entity_id} · {payload.domain}.{payload.service}'
+        + ('（已下发，状态未确认）' if verification_fields.get('verified') is False else ''),
         context={
             'entityId': payload.entity_id,
             'service': f'{payload.domain}.{payload.service}',
+            **(
+                {'verified': False}
+                if verification_fields.get('verified') is False
+                else {}
+            ),
         },
     )
-    return {'ok': True, 'result': result}
+    return {'ok': True, 'result': result, **verification_fields}
 
 
 __all__ = ["ServiceCallPayload", "ServiceCallRejected", "execute_service_call", "load_ha_entity_context"]
