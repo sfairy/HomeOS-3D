@@ -16,7 +16,7 @@ name: Checks
 # `push: branches: [main]` 与 `pull_request:` 两段加回 `on:` 即可 —— 下面的 job（含轻量
 # 的 `gates`）都不依赖触发方式，加回来即自动生效。
 # 保持门禁不退化就靠本地等价命令：`bun run typecheck`、各 `lint:*` / `lint:ci`、
-# `bun run check:any`、`node --test ops/checks/frontend/tests/`、
+# `bun run check:any`、`bun run test:frontend`、
 # `bun test ops/checks/studio/tests/`、`bun run test:home-mode`、
 # `bash ops/ci/build_frontend_verify.sh`、`ruff check .`。
 on:
@@ -109,8 +109,13 @@ jobs:
         run: node ops/checks/check_any_baseline.mjs
 
       # 纯函数 / 单例单测：轮询调度器、场景下拉派生、场景同步控制器。
+      #
+      # 命令走 package.json，且传**带引号的 glob**而不是目录：Node 22（ubuntu runner 自带的
+      # 版本）把 `--test <目录>` 当成单个测试模块去跑，直接 MODULE_NOT_FOUND —— 目录扫描在
+      # 22 上不生效，而开发机的 Node 26 是好的，于是「本机绿、CI 红」。glob 由 Node 自己展开
+      # （v21+），目录参数这条路则要赌 runner 镜像里的 Node 版本。
       - name: Frontend unit tests
-        run: node --test ops/checks/frontend/tests/
+        run: bun run test:frontend
 
       - name: Studio store unit tests
         run: bun test ops/checks/studio/tests/
