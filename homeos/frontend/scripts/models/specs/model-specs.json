@@ -6845,19 +6845,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 192,
-            "shells": 24
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
