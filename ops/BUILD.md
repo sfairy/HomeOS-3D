@@ -1,7 +1,7 @@
 # 镜像构建细节
 
 README 的「从源码构建镜像」只给命令；这份文档解释那条命令**为什么长这样**，以及出问题时的处置。
-只想把镜像跑起来的话看 [README](../README.md) 就够了。
+只想把镜像跑起来的话看 [部署手册](./deploy/README.md) 就够了。
 
 ## 两阶段：先产出 dist/，再组装镜像
 
@@ -14,13 +14,17 @@ README 的「从源码构建镜像」只给命令；这份文档解释那条命�
 
 ```bash
 bun install
-# ① + ② → 工作区根 dist/
+# ① + ② → 工作区根 dist/（② 默认跟随宿主 Docker 架构）
 bun run build:frontend
-python3 ops/build.py backend              # 默认跟随宿主 Docker 架构
+bun run build:backend                     # = node ops/lib/py.mjs ops/build.py backend
 # ③ 从根 dist/ 组装（等价于 bun run image，走 Dockerfile 的 app / store 目标）
-python3 ops/build.py image --project app   --tag homeos:local
-python3 ops/build.py image --project store --tag homeos-store:local
+bun run image:app   -- --tag homeos:local        # 等价于 ops/build.py image --project app
+bun run image:store -- --tag homeos-store:local
 ```
+
+`ops/build.py` 本身是 Python 脚本，**不要直接 `python3 ops/build.py`**：解释器只有一条选择路径
+（`node ops/lib/py.mjs`，按锁文件解析出的项目 venv）。要绕过 bun 手跑时用：
+`node ops/lib/py.mjs ops/build.py backend`。
 
 ## 场景静态资源是生成物
 
@@ -67,8 +71,8 @@ Vite 的 `build` 已经产出压缩产物：删注释、删类型、局部变量
   都是 `/app/app`，区别只在装什么、以什么入口启动。
 - **没有任何明文 `.py`**：后端包之外，`dist/` 里也不含构建期脚本
   （Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。
-  全新库由后端按 ORM 元数据直接建（见主应用 `backend/src/platform/core/schema.py` 与商店
-  `backend/src/core/schema.py` 的 `prepare_schema`）。
+  全新库由后端按 ORM 元数据建：启动期先跑迁移注册表（空库上是 no-op），再由 `prepare_schema`
+  （主应用 `backend/src/platform/core/schema.py`、商店 `backend/src/core/schema.py`）补建结构并校验。
 
 ### strip 掉调试信息，但保留异常行号
 
@@ -105,7 +109,7 @@ Vite 的 `build` 已经产出压缩产物：删注释、删类型、局部变量
 
 ```bash
 # 方式一：命令行
-python3 ops/build.py backend --base-mirror docker.m.daocloud.io
+node ops/lib/py.mjs ops/build.py backend --base-mirror docker.m.daocloud.io
 
 # 方式二：写进 .env（真实环境变量优先；ops/build.py 会读），之后 bun run build 直接可用
 echo 'HOMEOS_BASE_MIRROR=docker.m.daocloud.io' >> .env

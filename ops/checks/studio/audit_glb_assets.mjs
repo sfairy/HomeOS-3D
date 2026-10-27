@@ -47,8 +47,8 @@ export const BUDGETS = Object.freeze({
 })
 
 /**
- * 允许偏离基线的重建件：每个都必须在 `docs/architecture/2026-10-23/model-restore-report.md`
- * 里有 before/after 证据。往这里加名字等于声明「我人工看过这件的几何」。
+ * 允许偏离基线的重建件：每个都必须在提交说明里附 before/after 证据（面数 / 体积 / 节点名）。
+ * 往这里加名字等于声明「我人工看过这件的几何」。
  */
 /**
  * 当前为空：`basin` 已按用户要求恢复原厂件（原厂本来就是椭圆盆，重做反而丢了原柜体的

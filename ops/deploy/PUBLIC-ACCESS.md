@@ -4,36 +4,32 @@
 微信的异步回调必须公网可达）。本项目的客户机按「随时可能在任意网络」发货，商店地址固定为
 公网域名，所以这份文件是**部署前置条件**而不是可选优化：没有这一层，客户机装好也连不上商店。
 
+本文只讲「80/443 那一层怎么放、证书怎么来、回调怎么验」。
+两种拓扑的差别（谁在哪、四个地址各填什么）以
+[部署手册 §1.2](./README.md#12-地址怎么分别混) 为准，本文不重复那张表。
+
+> **命名约定**：本文的配置片段一律用 `store.example.com` / `app.example.com` 占位；
+> 本项目的实际值是商店 `homelifepay.iepose.cn`、主应用 `homelife.iepose.cn`，
+> 换域名时按 §3.1 的三处环境变量逐项替换。
+
 ---
 
-## 1. 先分清两种部署形态
+## 1. 三条地址的分工（只记结论）
 
-同一个产品只有两种拓扑，配置项一样但**取值不同**，混了就会「看似健康、其实连不上」：
-
-| | 同机部署 | 分机部署 |
+| 地址 | 谁在用 | 铁律 |
 | --- | --- | --- |
-| 谁在哪 | 商店 + 主应用都在**厂商这台** | 厂商那台只跑商店，每台客户机跑主应用 |
-| compose 文件 | `docker-compose.yml` | 客户机用 `docker-compose.app.yml` |
-| 主应用容器**出站**找商店<br>（`APP_LICENSE_SERVER_URL`） | `http://homeos-store:8802`<br>同一个 compose 项目里用服务名，**永远不变** | 商店的**公网域名**<br>（已写死，客户机不假设与厂商内网互通） |
-| **浏览器**打开商店<br>（`APP_STORE_URL`） | **留空**：跟着访问入口走<br>（内网 IP → `http://<同一IP>:8802`，域名 → 商店域名） | 商店域名（写死；客户机没有本机商店） |
-| 商店自己的对外身份<br>（`STORE_BASE_URL`） | 商店域名，**不能**是 8802 | 同左 |
+| `APP_LICENSE_SERVER_URL` | 主应用**容器出站** | 同机部署用 compose 服务名 `http://homeos-store:8802`（永远不变）；分机部署用商店公网域名 |
+| `APP_STORE_URL` | **浏览器**里的商店链接 | 同机部署**留空**（跟着访问入口推导）；分机部署写死公网域名 |
+| `STORE_BASE_URL` | 商店自己的**对外身份** | 必须是公网域名，**不能**带 8802；支付回调与同源判定都按它 |
 
-三个地址的分工是刚性的：容器出站走「容器网络内能解析的名字」，浏览器走「公网能打通的
-地址」，商店自己的身份走「支付平台也能回调到的地址」。同机部署里出站与另外两者**必然不同**
-（一个服务名、一个公网域名），所以别把它们填成同一个值。
+出站走「容器网络内能解析的名字」、浏览器走「公网能打通的地址」、商店身份走「支付平台也能回
+调到的地址」—— 同机部署里这三者**必然不同**，别填成同一个值。完整矩阵见
+[部署手册 §1.2](./README.md#12-地址怎么分别混)。
 
-登录页的商店入口地址 `APP_STORE_URL` 取值的规则变了（不再需要「两份都写死」）：
-
-- **同机部署**（`docker-compose.yml`）**留空**。同一台机器会被内网 IP 与公网域名两种地址
-  访问，商店入口必须跟着访问者走，写死任一个都会让另一条入口点不过去。推导在
-  `domains/store/discovery.py`：判据是**容器出站主机名**，所以它不受 `STORE_BASE_URL` 里
-  那串公网域名影响；同机 + IP 访问时连商店都不问，直接拼 `<同一 IP>:8802`（穿透抖了也成立）。
-- **分机部署**（`docker-compose.app.yml`）**写死公网域名**。客户机上没有商店容器，商店只能
-  走公网；写死还省掉一次网络往返，商店临时不可达时入口也不会消失。
-
-两者在取不到地址时都会**隐藏入口**，而不是兜底成 `http://127.0.0.1:8802` —— 那是访问者
-自己的电脑，只会在生产暴露。运维口径仍然清楚：出站看 `APP_LICENSE_SERVER_URL`，浏览器
-链接看 `APP_STORE_URL`（留空则由访问入口推导）。
+`APP_STORE_URL` 留空时的推导在 `domains/store/discovery.py`：判据是**容器出站主机名**
+（同机用服务名 `homeos-store`，浏览器解析不了），所以不受 `STORE_BASE_URL` 影响；同机 + IP 访问
+时连商店都不问，直接拼 `<同一 IP>:8802`。两种部署在取不到地址时都**隐藏入口**，而不是兜底成
+`http://127.0.0.1:8802` —— 那是访问者自己的电脑，只会在生产暴露。
 
 ---
 
@@ -55,15 +51,15 @@
 > 镜像启动器仍会在日志里主动警告你把 `APP_LICENSE_SERVER_URL` 写成了 `https://…:8804` ——
 > 那个地址现在是**连接被拒**，不是证书问题。
 
-所以跨公网只有两个选择。**本项目的两份 compose 已经按方案 B 写死**（商店地址是
-`https://homelifepay.iepose.cn`），方案 A 只作为「实在拿不到域名」时的退路，选它就要同时改
+所以跨公网只有两个选择。**本项目的两份 compose 已经按方案 B 写死**（商店地址写死为公网域名，
+实际值见文首），方案 A 只作为「实在拿不到域名」时的退路，选它就要同时改
 三处：商店的 `STORE_BASE_URL` / `STORE_COOKIE_SECURE`（改 `false`），以及客户机那份的两行
 商店地址。
 
 | 方案 | 客户机里的 `APP_LICENSE_SERVER_URL` | 说明 |
 | --- | --- | --- |
 | **A. 明文 HTTP（退路）** | `http://<商店公网IP>:8802` | 靠 IP 白名单 / 防火墙收敛来源；传输不加密（租约由 Ed25519 签名保证真伪，但请求体明文）；**不能收款**（支付平台要求回调是可信 HTTPS） |
-| **B. 真实证书 HTTPS（本项目的默认）** | `https://homelifepay.iepose.cn` | 公共 CA 证书，客户机与支付平台都信任；文件里已配好 |
+| **B. 真实证书 HTTPS（本项目的默认）** | `https://store.example.com` | 公共 CA 证书，客户机与支付平台都信任；两份 compose 里已配好 |
 
 ---
 
@@ -120,9 +116,9 @@ upstream homeos_store_upstream { server 127.0.0.1:8802; keepalive 16; }
 server {
     listen 443 ssl;
     http2 on;
-    server_name homelifepay.iepose.cn;
-    ssl_certificate     /etc/nginx/ssl/homelifepay.iepose.cn.fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/homelifepay.iepose.cn.key;
+    server_name store.example.com;
+    ssl_certificate     /etc/nginx/ssl/store.example.com.fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/store.example.com.key;
 
     client_max_body_size 16m;              # 必须：商品图上传是 multipart
 
@@ -165,7 +161,7 @@ server {
 **选择三：机器没有公网 IP** —— 用内网穿透（frp + 跳板机 / Cloudflare Tunnel / ngrok）让隧道
 客户端从本机**出站**，公网流量回灌到 `127.0.0.1:8802`。对外仍是这个域名，商店侧的三行配置
 （`STORE_BASE_URL` / `STORE_COOKIE_SECURE` / `STORE_TRUSTED_PROXIES`）都不用改；主应用的公网域名
-（`docker-compose.yml` 里的 `APP_BASE_URL`，当前是 `https://homelife.iepose.cn`）必须填对，
+（`docker-compose.yml` 里的 `APP_BASE_URL`，填主应用的对外域名）必须填对，
 否则 socket.io 会把公网 `Origin` 判成非法来源，实时面板一直重连。
 隧道入口同样要满足上面四条，另外**必须允许 WebSocket 升级**。详见
 [`TUNNEL-ACCESS.md`](TUNNEL-ACCESS.md)。
@@ -214,8 +210,8 @@ curl -m 5 -k https://<公网IP>:8804/healthz  # 连接被拒：商店没有 8804
 客户机那份里的商店地址**永远是公网域名**，出厂已填好，不需要改：
 
 ```yaml
-      APP_LICENSE_SERVER_URL: https://homelifepay.iepose.cn   # 容器出站
-      APP_STORE_URL:          https://homelifepay.iepose.cn   # 浏览器里的商店链接
+      APP_LICENSE_SERVER_URL: https://store.example.com   # 容器出站
+      APP_STORE_URL:          https://store.example.com   # 浏览器里的商店链接
 ```
 
 **不要**因为「厂商那台就在同一个办公室」就换成 `http://192.168.x.x:8802`：
@@ -251,10 +247,7 @@ curl -fsS https://store.example.com/v2/keys | head -c 120
 - 支付宝：`https://store.example.com/store/v1/payments/alipay/notify`
 - 微信：`https://store.example.com/store/v1/payments/wechat/notify`
 
-本项目的实际域名对应：
-
-- 支付宝：`https://homelifepay.iepose.cn/store/v1/payments/alipay/notify`
-- 微信：`https://homelifepay.iepose.cn/store/v1/payments/wechat/notify`
+本项目实际值只把 `store.example.com` 换成文首的商店域名即可。
 
 入口对这两条路径必须**原样转发**：POST 方法、原始 body（渠道的签名是对 body 字节算的）、
 `Content-Type`，都不能改写、不能加 Basic Auth / IP 白名单、不能套 WAF 的请求体解码。
@@ -268,8 +261,8 @@ curl -fsS https://store.example.com/v2/keys | head -c 120
 
 ## 4. 方案 A：明文 HTTP + 防火墙收敛
 
-**退路，本项目默认不走这条路。** 它没有域名、也不能收款，且两份 compose 出厂都写死了
-`https://homelifepay.iepose.cn`，所以选方案 A 意味着要**同时改三处**（下面是完整清单，
+**退路，本项目默认不走这条路。** 它没有域名、也不能收款，且两份 compose 出厂都写死了方案 B 的
+商店公网域名，所以选方案 A 意味着要**同时改三处**（下面是完整清单，
 少改一处就是「看似健康、其实连不上」）：
 
 1. `docker-compose.yml` 保持默认端口，公网只放行 **8802**，并用云安全组 / 实例防火墙把来源
@@ -299,7 +292,8 @@ curl -fsS https://store.example.com/v2/keys | head -c 120
 - 内置 Caddy 入口的证书与 ACME 账号落在卷 `homeos_caddy-public-data`（带 compose 项目名
   `homeos` 前缀）。容器重建不丢；删了这个卷会重新申请证书，频繁删除可能触发 CA 的签发
   限流，别当日常操作。用外部入口（§3.2 选择一）时，证书由那一层自己管。
-- 商店授权私钥在 `homeos_homeos-license-keys`，**单独备份**，公网化不改变这条。
+- 数据卷清单与备份做法见 [部署手册 §8.2](./README.md#82-数据卷)。公网接入只多一条铁律：
+  `homeos_homeos-license-keys`（商店授权私钥）**单独备份**，丢了所有已激活客户机失效。
 
 ---
 

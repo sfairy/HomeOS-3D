@@ -39,23 +39,23 @@ FastAPI 单体，端口 **8801**，与 `homeos-store`（8802）**独立部署、
 
 顶层模块：`app.py`（ASGI 装配）、`run.py`（启动/热重载）、`config.py`（配置与布局探测）、`env.py`、`dependencies.py`、`schemas.py`。
 
-> 与商店共用的叶子模块 —— `logging_noise`（开发期重载提示降噪）、`file_lock`（跨进程文件锁）、
-> `schema_core`（按 ORM 元数据建库与库完整性校验）、
-> `client_ip`（可信代理链 → 真实客户端地址）、`rate_limit`（有界滑动窗口限流）、
-> `license_transport`（授权传输的协议参数：`PROTOCOL` / HKDF info / AAD / base64url / 规范化 JSON）——
-> **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包的
-> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README）。
-> `platform/core/database.py` 与 `run.py` 判定「不共享」，理由见该 README 的「分诊台账」。
+> 与商店共用的叶子模块（日志降噪三件套、文件锁、schema 建库 / 迁移内核、email 归一化、ETag 协商、
+> 可信代理、限流、授权传输参数、能力码目录）**不在本包内**：真源是
+> `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包，模块清单见该目录 README）。
+> 源码态由本包 `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译。
+> `platform/core/database.py`、`run.py` 与 `migrations.py` 的**注册表部分**刻意不共享。
 
 ## `domains/` 下的业务域
 
 `agent` `alerts` `app_config` `awareness` `backup` `channels` `client_power` `earthquake` `home_exec`
 `home_mode` `license` `lifestyle` `logs` `notification` `proxy` `retention` `security` `setup`
-`state_store` `store` `system` `ui_config` `weather`，外加两段式的 `ha/{integration,config}`。
+`state_store` `store` `studio3d` `system` `ui_config` `weather`，外加两段式的 `ha/{integration,config}`。
 
 > **命名约定**：平台能力收在 `platform/`、业务域收在 `domains/`，同名双义已消除：
 > `platform/security` = 传输层，`domains/security` = 家庭安防业务域；`domains/ha/integration`（集成）与
 > `domains/ha/config`（配置）分列两个子包。商店后端保持自己的 `core/` `security/` 顶层域形态。
+>
+> 目录清单以 `ls homeos/backend/src/domains/` 为准，新增域请同步本表与根 README 的目录树。
 
 ## 依赖方向（约定）
 
@@ -99,7 +99,11 @@ node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --json
 
 - **POST 默认状态码 201**：全站用 `api/router.py` 的 `NestRouter` 对齐 NestJS，前端依赖该契约做「零改动透明替换」。
 - **路由注册顺序不可改**：业务路由必须在 SPA catch-all 之前，3D 数据面紧随 `/api/v1` 之后（见 `bootstrap/router_registry.py` 顶部说明）。
-- **建库**：启动时由 `platform/core/schema.py` 的 `prepare_schema` 按 ORM 元数据 `create_all` 建库并校验必需表，不使用迁移脚本。
+- **建库与迁移**：启动时 `platform/core/schema.py` 的 `prepare_schema` 按「① 迁移注册表带到当前版本 →
+  ② ORM 元数据补建新增表/索引 → ③ 结构缺口核对 + 完整性 / 外键校验」三步执行。迁移内核在共享包
+  `homeos_shared.schema_migrate`，注册表在本包 `platform/core/migrations.py`（每条迁移必须幂等：
+  空库先由 ORM 建出最新结构，再执行全部迁移，因此迁移在空库上要能安全 no-op）。**迁移失败必须让
+  启动失败**，绝不空库重建或跳过版本；也没有 down migration，回滚 = 恢复迁移前快照 + 旧镜像。
 - **能力码**：真源为 `ops/check/feature_codes.json`；与 `homeos-store` 对齐靠评审，新增能力先改主应用再补商店。
 
 ## 本地启动
@@ -114,9 +118,17 @@ bun run dev:backend
 ## 相关检查
 
 | 命令 | 作用 |
-|------|------|
-| `bun run typecheck` | 前端类型检查 |
-| `ruff check .` | Python lint（CI 硬拦） |
+| --- | --- |
+| `bun run gate:static` | typecheck / lint / `ruff` / 场景静态资源 / `any` 棘轮 / 静默 except / async DB / 依赖锁 / 镜像导入 |
+| `bun run gate:test` | 前端 / studio / 架构 / 安防 / 首页模式 / 鉴权导航用例 + 前后端依赖 DAG |
+| `bun run check:backend-deps` | 后端依赖方向与环（同时覆盖两个项目，违规 exit 1） |
+| `bun run lint:py` | 只跑 `ruff`（`node ops/lib/py.mjs -m ruff check .`） |
+| `bun run test:architecture` | 架构门禁自测 |
+
+门禁清单的唯一来源是 [`ops/gates.mjs`](../../../ops/gates.mjs)（`node ops/gates.mjs --list`）。
 
 Python 类型检查只在本机 / 编辑器侧：仓库根 `pyrightconfig.json` 同时被 Pylance 与手动
-`basedpyright` 读取，CI 不跑，也没有对应的 `typecheck:py` 命令。
+`basedpyright` 读取，CI 不跑，也没有对应的 `typecheck:py` 命令。手动跑要用仓库统一解释器入口：
+`node ops/lib/py.mjs -m basedpyright`。
+
+> 最后核对：2026-10-28（命令、路径与域清单已逐条验证）

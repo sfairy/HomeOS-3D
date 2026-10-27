@@ -14,6 +14,13 @@
 > 按 [`PUBLIC-ACCESS.md`](PUBLIC-ACCESS.md) §3.2 配普通反代即可。两者可以并存：
 > 跳板机上的 OpenResty 只改上游端口，商店侧配置一个字都不用动。
 
+> **命名约定**：本文是本项目的穿透运维手册，配置片段一律写**本项目的实际域名** ——
+> 商店 `homelifepay.iepose.cn`、主应用 `homelife.iepose.cn`。换域名时要改的是四处：
+> 商店的 `STORE_BASE_URL`、主应用的 `APP_BASE_URL`、客户机那份的 `APP_LICENSE_SERVER_URL`、
+> 以及跳板机 OpenResty 的 `server_name` 与证书路径（见 §4.3）。
+> 通用的「任意域名」写法见 [`PUBLIC-ACCESS.md`](PUBLIC-ACCESS.md)（那边统一用 `store.example.com`）。
+> 四个地址的分工不在这里重述，见 [部署手册 §1.2](./README.md#12-地址怎么分别混)。
+
 ---
 
 ## 1. 拓扑：两条隧道，两个域名
@@ -101,21 +108,13 @@ CA 校验）和支付平台都会拒绝。商店连这样的端口都没有（�
 
 ### 商店入口（登录页「商店 / 重置密码」）不需要配
 
-`docker-compose.yml` 里 `APP_STORE_URL` 是**留空**的，由主应用按访问者当前入口推导：
+`docker-compose.yml` 里 `APP_STORE_URL` 是**留空**的，由主应用按访问者当前入口推导；判据是
+**容器出站主机名**，所以写死的公网域名不会把「同机、只差端口」这件事掩盖掉。推导规则与三种
+部署形态下的取值见 [部署手册 §1.2](./README.md#12-地址怎么分别混)，本文不重复。
 
-| 浏览器打开的地址 | 商店链接 |
-| --- | --- |
-| `http://<局域网IP>:8801` | `http://<同一 IP>:8802`（不联网、不依赖穿透） |
-| `https://<局域网IP>:8803` | `http://<同一 IP>:8802` |
-| `https://homelife.iepose.cn` | `STORE_BASE_URL` 声明的 `https://homelifepay.iepose.cn` |
-
-判据是**容器出站主机名**（同机 compose 用服务名 `homeos-store`，浏览器解析不了），
-所以写死的公网域名不会把「同机、只差端口」这件事掩盖掉。客户机那份
-（`docker-compose.app.yml`）没有本机商店，`APP_STORE_URL` 直接写死公网域名。
-
-**前提：商店自己的公网域名也必须能打开。** 主应用只给一个跳转链接，打不开是商店那条
-入口的问题（映射没建 / 上游端口错），不是链接错了 —— 用 `preflight.sh` 的第 8 节验。
-一句话检查：
+穿透场景只需要记一条：**商店自己的公网域名也必须能打开**。主应用只给一个跳转链接，打不开是
+商店那条入口的问题（映射没建 / 上游端口错），不是链接错了 —— 用 `preflight.sh` 的第 8 节验
+（`--app-domain` / `--store-domain` 必须都传，否则该段跳过）。一句话检查：
 
 ```bash
 curl -fsS https://homelife.iepose.cn/api/v1/public/config; echo

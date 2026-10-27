@@ -262,21 +262,26 @@ node ops/lib/py.mjs ops/perf/harness/compare_metrics.py --before before --after 
 ```bash
 bun run typecheck
 bun run --cwd homeos/frontend lint:ci
-   node ops/lib/py.mjs -m ruff check ops homeos/backend/src
-.venv-store/bin/basedpyright            # 类型门禁（见下方说明）
+bun run lint:py                          # ruff（node ops/lib/py.mjs -m ruff check .）
+node ops/lib/py.mjs -m basedpyright      # 类型门禁（不进 CI，人工复核；见下方说明）
 node ops/lib/py.mjs ops/checks/check_async_db.py
 node ops/lib/py.mjs ops/checks/check_silent_except.py
 bun run check:bundle-budget
 bun run check:scene
 bun run test:frontend
 bun run test:security
-bun run --cwd homeos/frontend check:deps
+bun run check:frontend-deps              # 同时覆盖两棵树（商店那棵要 --alias '@store/=')
 ```
 
-`check_silent_except.py` 带棘轮：基线只能降不能升（当前 557 处），新增静默 `except`
-会让它直接失败。
+`node ops/lib/py.mjs` 是**唯一**的解释器入口（按锁文件解析出的项目 venv）。不要写
+`.venv-store/bin/basedpyright` 这类硬编码路径：干净检出上没有那个 venv，报错还会长得像
+「类型检查坏了」。
 
-`basedpyright` 用仓库 `.venv-store` 里的那份（`pip install basedpyright`，当前 1.40.2）。
+`check_silent_except.py` 带棘轮：基线只能降不能升，当前值在
+[`ops/checks/silent_except_baseline.json`](../checks/silent_except_baseline.json) 的 `total` 字段
+（重设要跑脚本的 `--write` 并在提交说明里写原因），新增静默 `except` 会让它直接失败。
+
+`basedpyright` 用的就是项目 venv 里的那份（`1.40.2`）。
 注意两点，否则会得到**假红**（实测 31,617 条，全是 `str 未定义` 之类的噪音）：
 
 1. Python 3.15 的新建 venv 里，第一次安装可能只落了半份 typeshed（`stdlib` 266 条、
@@ -284,7 +289,7 @@ bun run --cwd homeos/frontend check:deps
    不完整时用 `pip install --ignore-installed --no-deps --force-reinstall basedpyright` 重装。
 2. 若 `basedpyright/dist/pyright.js` 被仓库根的 `"type": "module"` 当成 ESM 读取
    （报 `require is not defined`），在 `dist/` 下放一个 `{"type":"commonjs"}` 的
-   `package.json` 即可；这个文件在 `.venv-store`（gitignored）里，不进版本库。
+   `package.json` 即可；该文件在 gitignored 的 venv 里，不进版本库。
 
 当前基线：**0 errors / 0 warnings**。（Blender 探针脚本已随手动 3D 工具链清理移除；
 Python 侧现在只剩 `ruff`，`basedpyright` 是人工复核。）
@@ -297,6 +302,9 @@ Python 侧现在只剩 `ruff`，`basedpyright` 是人工复核。）
 
 **填表**
 
+阈值**不抄进表里**：真源是 [`ops/checks/bundle-budget.json`](../checks/bundle-budget.json) 与
+[`ops/checks/perf-budget.json`](../checks/perf-budget.json)，重测时把命令输出原样贴进「复测」列。
+
 | 门禁 | 基线 | 复测 |
 | --- | --- | --- |
 | `bun run typecheck` | 通过 |  |
@@ -304,11 +312,11 @@ Python 侧现在只剩 `ruff`，`basedpyright` 是人工复核。）
 | `ruff check` | 通过 |  |
 | `basedpyright` | 0 errors / 0 warnings |  |
 | `check_async_db` | 通过（已扫 domains/modules） |  |
-| `check_silent_except`（计数 ≤ 557） | 557（整改前 574，净减 17） |  |
-| `check:bundle-budget` | 通过（CSS 303,106 / 310,000；runtime 280 / 282 chunk） |  |
-| `audit:perf-budget` | 通过（presentedCalls 3,084 / renderCalls 625 / stageMounted 584；手动工具，不进 CI） |  |
+| `check_silent_except` | 等于 `silent_except_baseline.json` 的 `total` |  |
+| `check:bundle-budget` | 通过（阈值见 `bundle-budget.json`） |  |
+| `audit:perf-budget` | 通过（阈值见 `perf-budget.json`；手动工具，不进 CI） |  |
 | `check:scene` | 通过 |  |
-| `check:frontend-deps`（不是 `check:deps`） | 通过（0 violation） |  |
+| `check:frontend-deps` | 通过（两棵树各 0 violation） |  |
 | `test:frontend`（组件族裁剪纯函数） | 6 passed |  |
 | `test:security`（布防补偿） | 4 passed |  |
 | `test:auth-nav` | 通过（路由守卫决策） |  |

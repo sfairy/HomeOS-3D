@@ -156,24 +156,25 @@ node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --project stor
 不传 `--alias` 的话所有 import 都会被当成外部包**静默放行**，跑出假的「0 violation」。
 
 
-> 与主应用共用的叶子模块（`logging_noise` 开发期重载提示降噪、`file_lock` 跨进程文件锁、
-> `schema_core` 按 ORM 元数据建库与库完整性校验、
-> `client_ip` 可信代理链 → 真实客户端地址、`rate_limit` 有界滑动窗口限流、
-> `license_transport` 授权传输的协议参数（`PROTOCOL` / HKDF info / AAD / base64url / 规范化 JSON））
-> **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包
-> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README）。
-> 原先两端「各存一份 + 孪生清单比对」的形态已收拢为唯一真源。
-> `core/migrations.py` 的**编排**（备份标签文案、脚本目录布局、迁移编排）与本包 `database.py` / `run.py`
-> 经复核判定**不共享**，理由见该 README 的「分诊台账」。
+> 与主应用共用的叶子模块（日志降噪三件套、文件锁、schema 建库 / 迁移内核、email 归一化、ETag 协商、
+> 可信代理、限流、授权传输参数、能力码目录）**不在本包内**：真源是
+> `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包，模块清单见该目录 README）。
+> 源码态由本包 `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译。
+> `core/migrations.py` 是**迁移注册表**（版本号 + 每条迁移的表名 / 补列 SQL / 文案前缀），留在本包；
+> `database.py` / `run.py` 刻意不共享（判据见该 README）。
 
-## 前端约定
+## 前端
 
-- 样式源：`frontend/public/static/` 的顺序是 `store-critical.css`（首屏关键样式）→ `theme.css` → `scene/*.css` → `store-shell.css` → `store.css` → `store-home.css`（仅首页），以 `frontend/index.html` 为准；`admin.css` 由 `App.vue` 在后台路由下动态注入，须晚于 `theme.css`。**顺序是硬约束**：同优先级选择器后加载者赢，插错位置不会报错，只会静默套错样式；`ops/ci/build_frontend_verify.sh` 会断言产物里 `store.css` 早于 `store-home.css`。
-- 设计系统：颜色令牌（`--hb-*`）不重命名、不删除，后台配色覆盖依赖这些名字；尺度令牌（`--hb-space-*` / `--hb-text-*` / `--hb-dur-*`）与共享原语（`.hb-panel` / `.hb-chip` / `.hb-stat` / `.hb-grid` / `.hb-divider` / `.hb-badge`）在 `theme.css` 统一维护。首页文案在 `frontend/src/features/storefront/content/home.ts`，首页数据聚合在 `composables/useHomeView.ts`；商品名称 / 价格 / 包含模块一律取接口，文案只做兜底。
-- 构建：`bun run --cwd homeos-store build` → 工作区根 `dist/homeos-store/frontend/`；`auth-bootstrap` 仍为首屏前 IIFE。
-- 配色注入点：构建后的 `dist/homeos-store/frontend/index.html` 外壳里的 appearance 占位；漏一处会 500（刻意）。
-- 配色令牌名：本目录 `ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 须与前端
-  `frontend/src/scene/appearance.ts` 生成的名字对齐 —— 前端生成得出来、后端校验器不认，管理员保存配色就会被 422 挡掉。
+商店前端的目录、样式加载顺序、`--hb-*` 令牌规则与依赖边界**统一写在**
+[`../../frontend/src/README.md`](../../frontend/src/README.md)，本文件不重复，避免两处漂移。
+
+与后端直接相关的两条：
+
+- **配色令牌名双向契约**：`ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 必须与前端
+  `frontend/src/scene/appearance.ts` 生成的名字对齐 —— 前端生成得出来、后端校验器不认，管理员
+  保存配色就会被 422 挡掉。
+- **外观注入点**：后端把 `/store-appearance.css` 的 `<link>` 填进 SPA 模板的
+  `<!--{{APPEARANCE}}-->`（`api/page_shell.py`）；模板缺占位符时后端会显式报错，不会静默丢配色。
 
 ## 支付后发码
 
