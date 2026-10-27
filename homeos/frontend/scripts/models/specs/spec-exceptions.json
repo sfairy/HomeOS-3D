@@ -161,19 +161,6 @@
         "confidence": 0.7
       }
     ],
-    "candlestick": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 32,
-          "shells": 4
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "car": [
       {
         "type": "topology",
@@ -291,19 +278,6 @@
         "confidence": 0.7
       }
     ],
-    "decor-vase": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 42,
-          "boundaryEdges": 40,
-          "shells": 26
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "dehumidifier": [
       {
         "type": "topology",
@@ -351,19 +325,6 @@
           "nonManifoldEdges": 0,
           "boundaryEdges": 84,
           "shells": 15
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "dog-crate": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 240,
-          "boundaryEdges": 0,
-          "shells": 54
         },
         "risk": "形态风格差异",
         "confidence": 0.7
@@ -486,19 +447,6 @@
         "confidence": 0.7
       }
     ],
-    "floor-sculpture": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 12,
-          "shells": 4
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "floor-washer": [
       {
         "type": "topology",
@@ -572,19 +520,6 @@
           "nonManifoldEdges": 4,
           "boundaryEdges": 0,
           "shells": 74
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "full-length-mirror": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 8,
-          "shells": 14
         },
         "risk": "形态风格差异",
         "confidence": 0.7
@@ -1006,19 +941,6 @@
         "confidence": 0.7
       }
     ],
-    "mop-sink": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 12,
-          "shells": 6
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "mug-tree": [
       {
         "type": "topology",
@@ -1066,32 +988,6 @@
           "nonManifoldEdges": 0,
           "boundaryEdges": 32,
           "shells": 88
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "pet-fountain": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 12,
-          "shells": 5
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "pet-pen": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 240,
-          "boundaryEdges": 0,
-          "shells": 70
         },
         "risk": "形态风格差异",
         "confidence": 0.7
@@ -1370,32 +1266,6 @@
         "confidence": 0.9
       }
     ],
-    "rounddiningtable": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 180,
-          "boundaryEdges": 0,
-          "shells": 26
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "rounddiningtable_turntable": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 278,
-          "boundaryEdges": 0,
-          "shells": 28
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "router": [
       {
         "type": "topology",
@@ -1565,19 +1435,6 @@
         "confidence": 0.7
       }
     ],
-    "squattoilet": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 64,
-          "shells": 28
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "stand-mixer": [
       {
         "type": "topology",
@@ -1682,32 +1539,6 @@
         "confidence": 0.7
       }
     ],
-    "turntable": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 12,
-          "shells": 18
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "umbrella-stand": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 24,
-          "shells": 20
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
     "up-down-wall-lamp": [
       {
         "type": "topology",
@@ -1732,32 +1563,6 @@
         },
         "risk": "薄片例外",
         "confidence": 0.9
-      }
-    ],
-    "wall-coat-hooks": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 60,
-          "shells": 6
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
-      }
-    ],
-    "walllamp": [
-      {
-        "type": "topology",
-        "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-        "evidence": {
-          "nonManifoldEdges": 0,
-          "boundaryEdges": 52,
-          "shells": 5
-        },
-        "risk": "形态风格差异",
-        "confidence": 0.7
       }
     ],
     "wardrobe-two-section": [

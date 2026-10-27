@@ -7441,7 +7441,7 @@
           },
           "geometryEvidence": {
             "triangles": 96,
-            "areaShare": 0.371,
+            "areaShare": 0.34,
             "thinness": 0.113,
             "shells": 50,
             "yBand": 0.02,
@@ -7499,10 +7499,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 352,
-            "areaShare": 0.378,
+            "triangles": 384,
+            "areaShare": 0.43,
             "thinness": 0.52,
-            "shells": 193,
+            "shells": 194,
             "yBand": 0.31,
             "offset": [
               0,
@@ -7559,7 +7559,7 @@
           },
           "geometryEvidence": {
             "triangles": 96,
-            "areaShare": 0.25,
+            "areaShare": 0.229,
             "thinness": 0.312,
             "shells": 50,
             "yBand": 0.78,
@@ -13098,7 +13098,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "decor-vase-decor-0",
-          "component": "paint（面积占比 70%（主体），中部(y=0.48)）",
+          "component": "paint（面积占比 68%（主体），中部(y=0.48)）",
           "role": "vase",
           "roleSource": "name",
           "roleExplicit": false,
@@ -13131,8 +13131,8 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 660,
-            "areaShare": 0.696,
+            "triangles": 620,
+            "areaShare": 0.684,
             "thinness": 0.366,
             "shells": 318,
             "yBand": 0.48,
@@ -13190,10 +13190,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 560,
-            "areaShare": 0.232,
+            "triangles": 600,
+            "areaShare": 0.246,
             "thinness": 0.465,
-            "shells": 330,
+            "shells": 331,
             "yBand": 0.76,
             "offset": [
               0,
@@ -13250,7 +13250,7 @@
           },
           "geometryEvidence": {
             "triangles": 188,
-            "areaShare": 0.071,
+            "areaShare": 0.07,
             "thinness": 0.214,
             "shells": 106,
             "yBand": 0.48,
@@ -15707,8 +15707,8 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 2640,
-            "areaShare": 0.408,
+            "triangles": 2480,
+            "areaShare": 0.395,
             "thinness": 0.712,
             "shells": 1344,
             "yBand": 0.52,
@@ -15767,7 +15767,7 @@
           },
           "geometryEvidence": {
             "triangles": 216,
-            "areaShare": 0.388,
+            "areaShare": 0.396,
             "thinness": 0.742,
             "shells": 116,
             "yBand": 0.49,
@@ -15826,7 +15826,7 @@
           },
           "geometryEvidence": {
             "triangles": 124,
-            "areaShare": 0.205,
+            "areaShare": 0.209,
             "thinness": 0.039,
             "shells": 64,
             "yBand": 0.05,
@@ -21766,7 +21766,7 @@
           },
           "geometryEvidence": {
             "triangles": 124,
-            "areaShare": 0.27,
+            "areaShare": 0.266,
             "thinness": 0.204,
             "shells": 64,
             "yBand": 0.03,
@@ -21824,10 +21824,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 576,
-            "areaShare": 0.496,
+            "triangles": 588,
+            "areaShare": 0.504,
             "thinness": 0.1,
-            "shells": 296,
+            "shells": 298,
             "yBand": 0.52,
             "offset": [
               0.009,
@@ -21884,7 +21884,7 @@
           },
           "geometryEvidence": {
             "triangles": 384,
-            "areaShare": 0.234,
+            "areaShare": 0.23,
             "thinness": 0.425,
             "shells": 192,
             "yBand": 0.66,
@@ -26620,7 +26620,7 @@
           },
           "geometryEvidence": {
             "triangles": 984,
-            "areaShare": 0.188,
+            "areaShare": 0.187,
             "thinness": 0.21,
             "shells": 502,
             "yBand": 0.5,
@@ -26679,7 +26679,7 @@
           },
           "geometryEvidence": {
             "triangles": 200,
-            "areaShare": 0.397,
+            "areaShare": 0.395,
             "thinness": 0.004,
             "shells": 102,
             "yBand": 0.51,
@@ -26738,7 +26738,7 @@
           },
           "geometryEvidence": {
             "triangles": 352,
-            "areaShare": 0.41,
+            "areaShare": 0.407,
             "thinness": 0.194,
             "shells": 186,
             "yBand": 0.49,
@@ -26763,7 +26763,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "full-length-mirror-light",
-          "component": "台面 / 桌面（面积占比 0.6%（小件），薄板，中部(y=0.45)，靠前）",
+          "component": "台面 / 桌面（面积占比 1.2%（小件），薄板，中部(y=0.45)，靠前）",
           "role": "surface",
           "roleSource": "name",
           "roleExplicit": false,
@@ -26796,10 +26796,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 4,
-            "areaShare": 0.006,
+            "triangles": 12,
+            "areaShare": 0.012,
             "thinness": 0,
-            "shells": 8,
+            "shells": 10,
             "yBand": 0.45,
             "offset": [
               0,
@@ -61946,10 +61946,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 192,
+            "triangles": 204,
             "areaShare": 0.009,
             "thinness": 0.109,
-            "shells": 102,
+            "shells": 104,
             "yBand": 0.85,
             "offset": [
               0,
@@ -64480,7 +64480,7 @@
           },
           "geometryEvidence": {
             "triangles": 256,
-            "areaShare": 0.57,
+            "areaShare": 0.569,
             "thinness": 0.603,
             "shells": 130,
             "yBand": 0.34,
@@ -64598,7 +64598,7 @@
           },
           "geometryEvidence": {
             "triangles": 96,
-            "areaShare": 0.187,
+            "areaShare": 0.186,
             "thinness": 0.011,
             "shells": 50,
             "yBand": 0.67,
@@ -64623,7 +64623,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "pet-fountain-candidate-soft",
-          "component": "ceramic（面积占比 1.8%（小件），上部(y=0.84)）",
+          "component": "ceramic（面积占比 1.9%（小件），上部(y=0.84)）",
           "role": "petBowl",
           "roleSource": "name",
           "roleExplicit": false,
@@ -64656,10 +64656,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 192,
-            "areaShare": 0.018,
+            "triangles": 204,
+            "areaShare": 0.019,
             "thinness": 0.213,
-            "shells": 102,
+            "shells": 104,
             "yBand": 0.84,
             "offset": [
               0.019,
@@ -64762,7 +64762,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "pet-pen-candidate-body",
-          "component": "metal（面积占比 88%（主体），中部(y=0.52)）",
+          "component": "metal（面积占比 87%（主体），中部(y=0.52)）",
           "role": "rack",
           "roleSource": "name",
           "roleExplicit": false,
@@ -64795,8 +64795,8 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 3120,
-            "areaShare": 0.878,
+            "triangles": 2960,
+            "areaShare": 0.874,
             "thinness": 0.546,
             "shells": 1612,
             "yBand": 0.52,
@@ -64855,7 +64855,7 @@
           },
           "geometryEvidence": {
             "triangles": 140,
-            "areaShare": 0.122,
+            "areaShare": 0.126,
             "thinness": 0.512,
             "shells": 84,
             "yBand": 0.49,
@@ -74296,7 +74296,7 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 1200,
+            "triangles": 1120,
             "areaShare": 0.284,
             "thinness": 0.299,
             "shells": 594,
@@ -74498,7 +74498,7 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 480,
+            "triangles": 384,
             "areaShare": 0.39,
             "thinness": 0.032,
             "shells": 194,
@@ -74579,7 +74579,7 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 1200,
+            "triangles": 1120,
             "areaShare": 0.246,
             "thinness": 0.299,
             "shells": 594,
@@ -74756,7 +74756,7 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 480,
+            "triangles": 384,
             "areaShare": 0.11,
             "thinness": 0.03,
             "shells": 194,
@@ -74815,7 +74815,7 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 480,
+            "triangles": 384,
             "areaShare": 0.338,
             "thinness": 0.032,
             "shells": 194,
@@ -81791,7 +81791,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "squattoilet-sanitary-ceramic",
-          "component": "陶瓷面（面积占比 82%（主体），中部(y=0.5)）",
+          "component": "陶瓷面（面积占比 83%（主体），中部(y=0.5)）",
           "role": "ceramic",
           "roleSource": "name",
           "roleExplicit": false,
@@ -81824,10 +81824,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 1064,
-            "areaShare": 0.822,
+            "triangles": 1128,
+            "areaShare": 0.834,
             "thinness": 0.277,
-            "shells": 602,
+            "shells": 604,
             "yBand": 0.5,
             "offset": [
               0,
@@ -81884,7 +81884,7 @@
           },
           "geometryEvidence": {
             "triangles": 280,
-            "areaShare": 0.17,
+            "areaShare": 0.159,
             "thinness": 0.199,
             "shells": 146,
             "yBand": 0.31,
@@ -87885,10 +87885,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 288,
+            "triangles": 300,
             "areaShare": 0.014,
             "thinness": 0.11,
-            "shells": 152,
+            "shells": 154,
             "yBand": 0.91,
             "offset": [
               0.052,
@@ -88773,7 +88773,7 @@
           },
           "geometryEvidence": {
             "triangles": 208,
-            "areaShare": 0.319,
+            "areaShare": 0.318,
             "thinness": 0.336,
             "shells": 110,
             "yBand": 0.44,
@@ -88832,7 +88832,7 @@
           },
           "geometryEvidence": {
             "triangles": 864,
-            "areaShare": 0.43,
+            "areaShare": 0.429,
             "thinness": 0.68,
             "shells": 456,
             "yBand": 0.28,
@@ -88857,7 +88857,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "umbrella-stand-candidate-accent",
-          "component": "收边饰条（面积占比 4.5%（小件），顶部(y=0.93)）",
+          "component": "收边饰条（面积占比 4.7%（小件），顶部(y=0.93)）",
           "role": "trim",
           "roleSource": "name",
           "roleExplicit": false,
@@ -88890,10 +88890,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 384,
-            "areaShare": 0.045,
+            "triangles": 408,
+            "areaShare": 0.047,
             "thinness": 0.111,
-            "shells": 204,
+            "shells": 208,
             "yBand": 0.93,
             "offset": [
               0.041,
@@ -88950,7 +88950,7 @@
           },
           "geometryEvidence": {
             "triangles": 248,
-            "areaShare": 0.206,
+            "areaShare": 0.205,
             "thinness": 0.08,
             "shells": 128,
             "yBand": 0.34,
@@ -90477,7 +90477,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "wall-coat-hooks-candidate-body",
-          "component": "wood（面积占比 81%（主体），薄板，中部(y=0.5)）",
+          "component": "wood（面积占比 80%（主体），薄板，中部(y=0.5)）",
           "role": "rackWood",
           "roleSource": "name",
           "roleExplicit": false,
@@ -90511,7 +90511,7 @@
           },
           "geometryEvidence": {
             "triangles": 124,
-            "areaShare": 0.813,
+            "areaShare": 0.804,
             "thinness": 0.042,
             "shells": 64,
             "yBand": 0.5,
@@ -90569,10 +90569,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 960,
-            "areaShare": 0.187,
+            "triangles": 1020,
+            "areaShare": 0.196,
             "thinness": 0.15,
-            "shells": 510,
+            "shells": 520,
             "yBand": 0.44,
             "offset": [
               0,
@@ -90987,7 +90987,7 @@
           },
           "geometryEvidence": {
             "triangles": 124,
-            "areaShare": 0.164,
+            "areaShare": 0.153,
             "thinness": 0.088,
             "shells": 64,
             "yBand": 0.31,
@@ -91012,7 +91012,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "walllamp-candidate-accent",
-          "component": "metal（面积占比 3.1%（小件），下部(y=0.4)）",
+          "component": "metal（面积占比 3.0%（小件），下部(y=0.4)）",
           "role": "lampAccent",
           "roleSource": "name",
           "roleExplicit": false,
@@ -91045,10 +91045,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 192,
-            "areaShare": 0.031,
+            "triangles": 204,
+            "areaShare": 0.03,
             "thinness": 0.144,
-            "shells": 102,
+            "shells": 104,
             "yBand": 0.4,
             "offset": [
               0,
@@ -91071,7 +91071,7 @@
           "legacyName": null,
           "action": "keep",
           "targetName": "walllamp-candidate-soft",
-          "component": "fabric（面积占比 65%（主体），上部(y=0.7)）",
+          "component": "fabric（面积占比 67%（主体），上部(y=0.7)）",
           "role": "lampShade",
           "roleSource": "name",
           "roleExplicit": false,
@@ -91104,10 +91104,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 440,
-            "areaShare": 0.645,
+            "triangles": 480,
+            "areaShare": 0.667,
             "thinness": 0.677,
-            "shells": 241,
+            "shells": 242,
             "yBand": 0.7,
             "offset": [
               0,
@@ -91164,7 +91164,7 @@
           },
           "geometryEvidence": {
             "triangles": 488,
-            "areaShare": 0.16,
+            "areaShare": 0.15,
             "thinness": 0.148,
             "shells": 248,
             "yBand": 0.4,
