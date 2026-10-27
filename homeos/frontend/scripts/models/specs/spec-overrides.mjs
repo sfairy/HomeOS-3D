@@ -153,72 +153,48 @@ const TABLETOP = new Set([
   'suitcase',
 ])
 
-/** 整件就是薄片的模型：叶片 / 布片 / 玻璃 / 地毯 / 挂画。 */
+/**
+ * 整件就是薄片的模型：叶片 / 布片 / 玻璃 / 地毯 / 挂画。
+ *
+ * 判据是**实测仍有开口**（边界边或非流形边 > 0），不是「看起来薄」。薄片类的门禁只要求
+ * 非流形边为 0，对边界边默认放行；一件水密的模型留在这里，等于给它永久豁免闭合检查，
+ * 所以重建后闭合了就该挪去 `solid` —— 那边的门禁更严，正好挡住下一次重导出漏面。
+ *
+ * 2026-10-28 清理：菜谱重建的庭院植物用 `box()` / 球体叶簇，几何本来就是闭合体，
+ * 32 款已在两个变体上都无开口，已从本表与 `FOLIAGE_IDS` 移出（自动降为 `solid`）。
+ */
 const OPEN_SHEET = new Set([
   'rug',
   'round-rug',
   'sofa-throw',
-  'pillow-set',
-  'curtain_left',
-  'curtain_right',
-  'curtain_split',
   'wall-art',
-  'projection-screen',
-  'folding-screen',
   'garden-pond',
-  'garden-pond-round',
   'garden-pool',
-  'garden-lawn',
-  'garden-paving',
-  'garden-stepping',
-  'garden-deck',
-  'garden-grass-clump',
-  'garden-grass-low',
   'plant',
   'plant-monstera',
   'plant-palm',
   'plant-pothos',
   'plant-rubber',
-  'plant-snake',
   'decor-small-plant',
-  'dried-flowers',
   'flower-anthurium',
-  'flower-hydrangea',
   'flower-orchid',
-  'flower-peace-lily',
 ])
 
-/** 叶片族：整件按「盆/干/叶簇」建模，叶片必然是双面开口薄片，登记为合法例外。 */
+/**
+ * 叶片族里**仍然开口**的那几款：整件按「盆 / 干 / 叶簇」建模，叶片是双面开口薄片。
+ *
+ * 只是 `OPEN_SHEET` 的子集，用来给 `shading` 标 `double-sided`；重建后闭合的庭院植物
+ * 不再列在这里——闭合体单面渲染就够，没有理由继续双面付片元开销。
+ */
 export const FOLIAGE_IDS = Object.freeze([
   'plant',
   'plant-monstera',
   'plant-palm',
   'plant-pothos',
   'plant-rubber',
-  'plant-snake',
   'decor-small-plant',
-  'dried-flowers',
   'flower-anthurium',
-  'flower-hydrangea',
   'flower-orchid',
-  'flower-peace-lily',
-  'garden-bamboo',
-  'garden-bamboo-dense',
-  'garden-conifer',
-  'garden-conifer-layered',
-  'garden-grass-clump',
-  'garden-grass-low',
-  'garden-hedge',
-  'garden-hedge-round',
-  'garden-shrub',
-  'garden-shrub-flowering',
-  'garden-shrub-low',
-  'garden-tree',
-  'garden-tree-columnar',
-  'garden-tree-multistem',
-  'garden-tree-rounded',
-  'garden-flowers',
-  'garden-flowers-wild',
 ])
 
 /** 注册表与目录都没收录名字的 23 款（补齐后才能生成可读报告）。 */

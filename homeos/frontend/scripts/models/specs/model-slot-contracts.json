@@ -859,15 +859,15 @@
           "role": "grille",
           "roleSource": "name",
           "roleExplicit": false,
-          "surface": "metal",
+          "surface": "paint",
           "required": true,
           "alphaMode": "MASK",
           "emissive": false,
           "doubleSided": true,
           "target": {
-            "baseColorHex": "#55595E",
-            "roughness": 0.32,
-            "metalness": 0.72,
+            "baseColorHex": "#9AA5B7",
+            "roughness": 0.52,
+            "metalness": 0.04,
             "alphaMode": "OPAQUE",
             "opacity": 1,
             "emissiveHex": "—",
@@ -11034,7 +11034,7 @@
       "id": "curtain_left",
       "itemType": "curtain_left",
       "family": "curtain",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -11305,7 +11305,7 @@
       "id": "curtain_right",
       "itemType": "curtain_right",
       "family": "curtain",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -11576,7 +11576,7 @@
       "id": "curtain_split",
       "itemType": "curtain_split",
       "family": "curtain",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -16887,7 +16887,7 @@
       "id": "dried-flowers",
       "itemType": "dried-flowers",
       "family": "decor",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 3,
       "slots": [
         {
@@ -23222,7 +23222,7 @@
       "id": "flower-hydrangea",
       "itemType": "flower-hydrangea",
       "family": "plant",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 7,
       "slots": [
         {
@@ -24096,7 +24096,7 @@
       "id": "flower-peace-lily",
       "itemType": "flower-peace-lily",
       "family": "plant",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 7,
       "slots": [
         {
@@ -24533,7 +24533,7 @@
       "id": "folding-screen",
       "itemType": "folding-screen",
       "family": "furniture",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 3,
       "slots": [
         {
@@ -27143,7 +27143,7 @@
       "id": "garden-bamboo",
       "itemType": "garden-bamboo",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -27486,7 +27486,7 @@
       "id": "garden-bamboo-dense",
       "itemType": "garden-bamboo-dense",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -30661,7 +30661,7 @@
       "id": "garden-conifer",
       "itemType": "garden-conifer",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -31004,7 +31004,7 @@
       "id": "garden-conifer-layered",
       "itemType": "garden-conifer-layered",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -31347,7 +31347,7 @@
       "id": "garden-deck",
       "itemType": "garden-deck",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -33544,7 +33544,7 @@
       "id": "garden-flowers",
       "itemType": "garden-flowers",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -33870,7 +33870,7 @@
       "id": "garden-flowers-wild",
       "itemType": "garden-flowers-wild",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -36770,7 +36770,7 @@
       "id": "garden-grass-clump",
       "itemType": "garden-grass-clump",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -37096,7 +37096,7 @@
       "id": "garden-grass-low",
       "itemType": "garden-grass-low",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -38074,7 +38074,7 @@
       "id": "garden-hedge",
       "itemType": "garden-hedge",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -38400,7 +38400,7 @@
       "id": "garden-hedge-round",
       "itemType": "garden-hedge-round",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -39361,7 +39361,7 @@
       "id": "garden-lawn",
       "itemType": "garden-lawn",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -41789,7 +41789,7 @@
       "id": "garden-paving",
       "itemType": "garden-paving",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -44037,7 +44037,7 @@
       "id": "garden-pond-round",
       "itemType": "garden-pond-round",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -46268,7 +46268,7 @@
       "id": "garden-shrub",
       "itemType": "garden-shrub",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -46594,7 +46594,7 @@
       "id": "garden-shrub-flowering",
       "itemType": "garden-shrub-flowering",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -46937,7 +46937,7 @@
       "id": "garden-shrub-low",
       "itemType": "garden-shrub-low",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -47606,7 +47606,7 @@
       "id": "garden-stepping",
       "itemType": "garden-stepping",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -49769,7 +49769,7 @@
       "id": "garden-tree",
       "itemType": "garden-tree",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -50112,7 +50112,7 @@
       "id": "garden-tree-columnar",
       "itemType": "garden-tree-columnar",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -50455,7 +50455,7 @@
       "id": "garden-tree-multistem",
       "itemType": "garden-tree-multistem",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -50798,7 +50798,7 @@
       "id": "garden-tree-rounded",
       "itemType": "garden-tree-rounded",
       "family": "garden",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 6,
       "slots": [
         {
@@ -66646,7 +66646,7 @@
       "id": "pillow-set",
       "itemType": "pillow-set",
       "family": "decor",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 3,
       "slots": [
         {
@@ -68881,7 +68881,7 @@
       "id": "plant-snake",
       "itemType": "plant-snake",
       "family": "plant",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 4,
       "slots": [
         {
@@ -70719,7 +70719,7 @@
       "id": "projection-screen",
       "itemType": "projection-screen",
       "family": "media",
-      "topologyClass": "open-sheet",
+      "topologyClass": "solid",
       "expectedSlotCount": 3,
       "slots": [
         {

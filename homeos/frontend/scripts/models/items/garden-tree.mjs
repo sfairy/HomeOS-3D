@@ -17,7 +17,7 @@ const SIZE = [2.2, 3.4, 2.1]
 export const spec = {
   size: SIZE,
   mount: 'floor',
-  topologyClass: 'open-sheet',
+  topologyClass: 'solid',
 }
 
 export function build() {
