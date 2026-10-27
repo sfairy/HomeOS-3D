@@ -269,6 +269,11 @@
   position: relative;
   height: 100%;
   min-height: 100%;
+  /* 兜底：本页是整屏入户壳，父级（`#app`）未必有确定高度。若应用侧样式表
+     （商店 `.hb-auth-stage` 的 `position: fixed; inset: 0`）比场景样式晚到，
+     `height: 100%` 会解析成 0 —— 于是先画一帧「0 高页面」，样式到齐再撑开，
+     用户在慢网上看到的就是整页跳一下。给一个视口高度下限，任何时序下都不塌。 */
+  min-height: 100vh;
   overflow: hidden;
   background: var(--hos-sky-deep);
   font-family: var(--hos-font-ui);
@@ -346,52 +351,107 @@
 }
 
 @media (max-width: 900px) {
+  /* ── 窄屏（手机 / 平板竖屏）：场景是整屏背景层，坞是唯一滚动容器 ──
+   *
+   * 上一版把 .hos-page 改成纵向 flex（dock `order:-1; flex:1 1 auto`、scene `order:1` 带
+   * `min-height:0; max-height:42vh`），而 scene.css 里 `.hos-scene` 还写着 `min-height:260px`。
+   * 两边的特异性不同：`.hos-page > .hos-scene` 赢，于是场景拿到 **0 高度**；可它内部仍按
+   * 260px 排版，滚到底部时把自己撑开、又立刻被 `max-height` 剪掉 —— 滚动条反复进出、
+   * 页面上下跳动。这就是「手机上一滚动就闪」的本体。
+   *
+   * 现在拆成两层，布局里不再有任何「谁高谁矮」的竞争：
+   *   · 场景固定铺满整屏做背景，不参与高度计算；
+   *   · 坞铺满整屏做唯一滚动容器，滚动条只由坞的内容决定。 */
   .hos-page {
+    display: block;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* 背景层：inset:0，不产生也不消费高度。
+     `contain` 把重排 / 重绘关在这一层里 —— 它内部有几十组关键帧和几层模糊，
+     不强隔离的话坞体任何一次尺寸变化都会把它一起卷进重排。 */
+  .hos-page > .hos-scene {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout paint style;
+  }
+
+  /* 滚动容器：整屏。flex column + 子项 `margin-block: auto` ——
+     内容比视口矮时面板垂直居中；比视口高时 auto 退化成 0，面板顶对齐、由本层滚动。
+     不再需要 `scrollbar-gutter: stable`：这里已经没有「滚动条出现 → 宽度变化 → 高度变化」
+     的反馈环，预留 gutter 反而会在右侧留一条死边。 */
+  .hos-page > .hos-dock {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    overflow: auto;
-    /* 窄屏把滚动交给 .hos-page（坞体改成 overflow: visible，不再自己滚）。两件必做的事：
-       - scrollbar-gutter: stable —— 内容高度刚好卡在「要不要滚动条」的临界点上时，滚动条
-         出现 → 可用宽度少约 15px → 布局重排 → 高度变化 → 滚动条又消失，如此来回。预留
-         gutter 把这条振荡一次性掐掉（移动端的 overlay 滚动条本来就不占宽度，无副作用）。
-       - overscroll-behavior: contain —— 阻止滚动链传到 body：iOS 上继续下拉会把整页当橡皮筋
-         拉走，视觉上就是「页面在抖」。 */
-    scrollbar-gutter: stable;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    /* 安全区内边距吃进 padding：刘海屏竖屏时面板不能被挖孔压住。 */
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 12px)
+      calc(env(safe-area-inset-right, 0px) + 18px)
+      calc(env(safe-area-inset-bottom, 0px) + 20px)
+      calc(env(safe-area-inset-left, 0px) + 18px);
+    box-sizing: border-box;
   }
 
-  /* 窄屏：表单坞置顶。原先场景在上且很高，首屏只见山景/文案、表单在折叠线下，
-     看起来像「闪一下残缺入户页」。 */
-  .hos-page > .hos-dock {
-    position: relative;
-    inset: auto;
-    order: -1;
-    width: 100%;
-    flex: 1 1 auto;
-    align-items: flex-start;
-    padding: 12px 18px 20px;
-  }
-
-  .hos-page > .hos-scene {
-    position: relative;
-    inset: auto;
-    order: 1;
+  .hos-page > .hos-dock > * {
     flex: 0 0 auto;
-    min-height: 0;
-    max-height: 42vh;
-    overflow: hidden;
+    /* 中间一列：超宽平板（iPad Pro 横屏 1024）上也不让表单拉成一条。 */
+    width: 100%;
+    max-width: 620px;
+    margin-inline: auto;
+    margin-block: auto;
+  }
+
+  /* 面板在自己的滚动容器里**不再自带滚动条**：两层嵌套滚动是「滚到底部抖一下」的另一半来源。 */
+  .hos-page > .hos-dock > .hos-panel {
+    max-height: none;
+    overflow: visible;
   }
 }
 
 /*
- * 入户面板入场：禁止 opacity:0。
- * fill-mode:both + from{opacity:0} 会让场景先可见、面板整段隐形，
- * 所有入户页（登录/注册/激活/商店认证）都会闪成「只有山景」——正是用户截到的中间态。
+ * 入户面板入场：**一次性** 180ms 淡入上移，起始值交给 `@starting-style`，不用关键帧。
+ *
+ * 两段历史教训叠在这里，改之前先读完：
+ *   1. 最早用的是 `animation: … both` + `from { opacity: 0 }`。`both` 把起始帧延续到动画
+ *      开始之前，于是「场景先可见、面板整段隐形」，所有入户页都闪一下「只有山景」。
+ *   2. 改成彻底禁用入场（`animation: none`）之后不闪了，但面板出现得很硬。
+ *
+ * 现在用 `@starting-style`：它只在元素**首次参与样式计算**时提供一组起始值，随后由普通
+ * transition 过渡到最终值 —— 没有 fill-mode，不会出现「面板隐形一整段」；而且只动
+ * `opacity` / `translate`，不改任何尺寸与间距，因此不产生布局位移（CLS 为 0）。
+ * 不支持 `@starting-style` 的浏览器会整段忽略该 at-rule，面板直接出现（与上一版一致）。
+ *
+ * 特异性说明：panel.css 里 `.hos-page .hos-panel` 带 `transition: none`（不让配色切换
+ * 变成动画），所以这里必须写到 `.hos-page .hos-panel.hos-rise` 才压得住它。
  */
-.hos-rise {
-  opacity: 1;
-  transform: none;
-  animation: none;
+.hos-page .hos-panel.hos-rise {
+  transition:
+    opacity 180ms var(--hos-ease),
+    translate 180ms var(--hos-ease);
+}
+
+@starting-style {
+  .hos-page .hos-panel.hos-rise {
+    opacity: 0;
+    translate: 0 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

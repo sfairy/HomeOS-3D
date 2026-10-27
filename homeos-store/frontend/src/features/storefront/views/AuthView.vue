@@ -3,6 +3,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import SceneStage from "@store/shared/components/SceneStage.vue";
 import DeckTiles from "@store/shared/components/DeckTiles.vue";
+import EntryShell from "@homeos/shared/components/EntryShell.vue";
+import type { EntryStep } from "@homeos/shared/components/entry-step";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { api } from "@store/shared/api/http";
 import { retryAfterSeconds } from "@store/shared/api/error";
@@ -53,7 +55,7 @@ const AUTH_FLOW_STEPS = [
   { key: "forget", label: "找回密码" },
 ] as const;
 
-const stepList = computed(() => {
+const stepList = computed<EntryStep[]>(() => {
   const activeIndex = AUTH_FLOW_STEPS.findIndex((step) => step.key === mode.value);
   return AUTH_FLOW_STEPS.map((step, index) => ({
     key: step.key,
@@ -73,18 +75,24 @@ const PANEL_COPY = {
     secure: "账号或邮箱登录",
     title: "登录后取回你的授权",
     desc: "用账号或邮箱登录均可。订单、激活码与设备绑定仍挂在注册邮箱下；换设备登录，购买记录跟人走。",
+    meta: ["登录态失效可重登", "已授权设备不因重登解绑"],
+    note: "换浏览器只是重新登录一次，激活码与已绑定的设备仍挂在账号上。",
   },
   register: {
     eyebrow: "注册",
     secure: "账号 + 邮箱验证",
     title: "开一个订单跟着你的账号",
     desc: "账号用于登录，邮箱用于购买与发码；验证通过后即可下单。",
+    meta: ["账号用于登录", "邮箱用于购买与发码", "邀请码选填"],
+    note: "账号创建后即可下单，激活码会进入账号中心。",
   },
   forget: {
     eyebrow: "找回密码",
     secure: "验证码发到邮箱",
     title: "换一个能记住的密码",
     desc: "验证码只会发送到已注册的邮箱，重置成功后请用新密码重新登录。",
+    meta: ["验证码有时效", "新密码至少 8 位，含字母与数字", "不影响已授权设备"],
+    note: "已登录客户端的授权不受密码重置影响。",
   },
 } as const;
 
@@ -247,221 +255,181 @@ async function submitForget() {
 </script>
 
 <template>
-  <div class="hb-auth-stage hos-page hos-tone--accent">
-    <SceneStage page="store" />
+  <!-- 外壳：`.hos-page / 背景 / .hos-dock / .hos-panel / 边缘光 / 四角 / 入轨信号` 全部来自
+       @homeos/shared 的 EntryShell（主应用五个入户页同一份）。本页只声明内容。
+       `:panel-key="mode"` 让切换模式时只重建坞体、重放 hos-rise 入场；场景（SceneStage）
+       留在外壳里不重建，避免切页时背景闪一下。 -->
+  <EntryShell
+    class="hb-auth-stage"
+    tone="accent"
+    :eyebrow="panelCopy.eyebrow"
+    :secure="panelCopy.secure"
+    :title="panelCopy.title"
+    :description="panelCopy.desc"
+    :steps="stepList"
+    steps-label="账号访问进度"
+    :panel-key="mode"
+    :panel-attrs="{ 'data-store-page': mode }"
+  >
+    <template #scene><SceneStage page="store" /></template>
 
-    <main class="hos-dock">
-      <!-- 单一坞体：描边 / 四角 / 开通轨 / 抬头只写一次，表单按 mode 切换（改造前是三个
-           section 块各写一遍同样的外壳）。:key="mode" 让切换重建元素，hos-rise 入场动画
-           才会重放；:data-store-page 仍随页写出（页面样式与文档约定依赖它）。 -->
-      <section :key="mode" class="hos-panel hos-rise" :data-store-page="mode">
-        <span class="hos-panel__edge" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+    <DeckTiles page="store" />
 
-        <!-- 开通轨放在抬头之上（.hos-panel > .hos-steps 自带一条分隔底边）。
-             读屏听到的是「第 N 步」，而不是「账号 · 02/03」这种裸数字。 -->
-        <ol class="hos-steps" aria-label="账号访问进度">
-          <li
-            v-for="step in stepList"
-            :key="step.key"
-            class="hos-steps__item"
-            :class="`is-${step.state}`"
-            :aria-current="step.state === 'current' ? 'step' : undefined"
-          >
-            <i class="hos-steps__dot" aria-hidden="true"></i>
-            <span>{{ step.ordinal }} {{ step.label }}</span>
-          </li>
-        </ol>
-
-        <div class="hos-panel__head">
-          <div class="hos-eyebrow-row">
-            <p class="hos-eyebrow">{{ panelCopy.eyebrow }}</p>
-            <span class="hos-secure">
-              <i class="hos-secure-dot" aria-hidden="true"></i>{{ panelCopy.secure }}
-            </span>
+    <template v-if="mode === 'login'">
+      <form class="hos-form" @submit.prevent="submitLogin">
+        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="store-login-account">账号或邮箱</label></div>
+          <div class="hos-control">
+            <input
+              id="store-login-account"
+              v-model="login.account"
+              inputmode="email"
+              autocomplete="username"
+              placeholder="账号或邮箱"
+              required
+            />
           </div>
-          <h1>{{ panelCopy.title }}</h1>
-          <p class="hos-panel__desc">{{ panelCopy.desc }}</p>
         </div>
-
-        <DeckTiles page="store" />
-
-        <template v-if="mode === 'login'">
-          <form class="hos-form" @submit.prevent="submitLogin">
-            <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="store-login-account">账号或邮箱</label></div>
-              <div class="hos-control">
-                <input
-                  id="store-login-account"
-                  v-model="login.account"
-                  inputmode="email"
-                  autocomplete="username"
-                  placeholder="账号或邮箱"
-                  required
-                />
-              </div>
-            </div>
-            <div class="hos-field">
-              <div class="hos-label-row">
-                <label for="store-login-password">密码</label>
-                <RouterLink class="hos-hint" to="/user/authentication/forget">忘记密码？</RouterLink>
-              </div>
-              <PasswordField id="store-login-password" v-model="login.password" />
-            </div>
-            <div class="hos-actions">
-              <button class="hos-btn-primary" type="submit" :disabled="submitting">
-                {{ submitting ? "登录中…" : "登录" }}
-              </button>
-            </div>
-          </form>
-          <p class="hos-switch">还没有账号？<RouterLink to="/user/authentication/register">立即注册</RouterLink></p>
-          <div class="hos-panel__copy">
-            <div class="hos-panel__meta">
-              <span>登录态失效可重登</span>
-              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>已授权设备不因重登解绑</span>
-            </div>
-            <p>换浏览器只是重新登录一次，激活码与已绑定的设备仍挂在账号上。</p>
+        <div class="hos-field">
+          <div class="hos-label-row">
+            <label for="store-login-password">密码</label>
+            <RouterLink class="hos-hint" to="/user/authentication/forget">忘记密码？</RouterLink>
           </div>
-        </template>
+          <PasswordField id="store-login-password" v-model="login.password" />
+        </div>
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit" :disabled="submitting">
+            {{ submitting ? "登录中…" : "登录" }}
+          </button>
+        </div>
+      </form>
+      <p class="hos-switch">还没有账号？<RouterLink to="/user/authentication/register">立即注册</RouterLink></p>
+    </template>
 
-        <template v-else-if="mode === 'forget'">
-          <form class="hos-form" @submit.prevent="submitForget">
-            <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
-            <div class="hos-field">
-              <div class="hos-label-row"><label for="store-forget-email">注册邮箱</label></div>
-              <div class="hos-control">
-                <input id="store-forget-email" v-model="forget.email" type="email" autocomplete="email" placeholder="name@example.com" required />
-              </div>
-            </div>
-            <div class="hos-row-2">
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-forget-code">邮箱验证码</label></div>
-                <div class="hos-control">
-                  <input id="store-forget-code" v-model="forget.code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required />
-                </div>
-              </div>
-              <div class="hos-field hos-field--action">
-                <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
-                <button type="button" class="hos-btn-ghost" :disabled="forgetCooldown.seconds.value > 0" @click="sendCode('reset')">
-                  {{ forgetCooldown.seconds.value > 0 ? `${forgetCooldown.seconds.value} 秒后重发` : "获取验证码" }}
-                </button>
-              </div>
-            </div>
-            <div class="hos-row-2">
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
-                <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
-              </div>
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
-                <PasswordField id="store-forget-confirm" v-model="forget.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
-              </div>
-            </div>
-            <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
-            <div class="hos-actions">
-              <button class="hos-btn-primary" type="submit" :disabled="submitting">
-                {{ submitting ? "重置中…" : "重置密码" }}
-              </button>
-            </div>
-          </form>
-          <p class="hos-switch"><RouterLink to="/user/authentication/login">返回登录</RouterLink></p>
-          <div class="hos-panel__copy">
-            <div class="hos-panel__meta">
-              <span>验证码有时效</span>
-              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>新密码至少 8 位，含字母与数字</span>
-              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>不影响已授权设备</span>
-            </div>
-            <p>已登录客户端的授权不受密码重置影响。</p>
+    <template v-else-if="mode === 'forget'">
+      <form class="hos-form" @submit.prevent="submitForget">
+        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="store-forget-email">注册邮箱</label></div>
+          <div class="hos-control">
+            <input id="store-forget-email" v-model="forget.email" type="email" autocomplete="email" placeholder="name@example.com" required />
           </div>
-        </template>
+        </div>
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-code">邮箱验证码</label></div>
+            <div class="hos-control">
+              <input id="store-forget-code" v-model="forget.code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required />
+            </div>
+          </div>
+          <div class="hos-field hos-field--action">
+            <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
+            <button type="button" class="hos-btn-ghost" :disabled="forgetCooldown.seconds.value > 0" @click="sendCode('reset')">
+              {{ forgetCooldown.seconds.value > 0 ? `${forgetCooldown.seconds.value} 秒后重发` : "获取验证码" }}
+            </button>
+          </div>
+        </div>
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
+            <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
+          </div>
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
+            <PasswordField id="store-forget-confirm" v-model="forget.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
+          </div>
+        </div>
+        <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit" :disabled="submitting">
+            {{ submitting ? "重置中…" : "重置密码" }}
+          </button>
+        </div>
+      </form>
+      <p class="hos-switch"><RouterLink to="/user/authentication/login">返回登录</RouterLink></p>
+    </template>
 
-        <template v-else>
-          <form class="hos-form" @submit.prevent="submitRegister">
-            <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
-            <div class="hos-row-id">
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-register-username">账号</label></div>
-                <div class="hos-control">
-                  <input
-                    id="store-register-username"
-                    v-model="register.username"
-                    autocomplete="username"
-                    placeholder="登录用账号"
-                    minlength="3"
-                    maxlength="64"
-                    pattern="[^@\s]{3,64}"
-                    title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）"
-                    required
-                  />
-                </div>
-              </div>
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-register-email">邮箱</label></div>
-                <div class="hos-control">
-                  <input id="store-register-email" v-model="register.email" type="email" autocomplete="email" placeholder="name@example.com" required />
-                </div>
-              </div>
-              <div class="hos-field hos-field--action">
-                <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
-                <button type="button" class="hos-btn-ghost" :disabled="registerCooldown.seconds.value > 0" @click="sendCode('register')">
-                  {{ registerCooldown.seconds.value > 0 ? `${registerCooldown.seconds.value} 秒后重发` : "获取验证码" }}
-                </button>
-              </div>
+    <template v-else>
+      <form class="hos-form" @submit.prevent="submitRegister">
+        <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
+        <div class="hos-row-id">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-username">账号</label></div>
+            <div class="hos-control">
+              <input
+                id="store-register-username"
+                v-model="register.username"
+                autocomplete="username"
+                placeholder="登录用账号"
+                minlength="3"
+                maxlength="64"
+                pattern="[^@\s]{3,64}"
+                title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）"
+                required
+              />
             </div>
-            <div class="hos-row-2">
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-register-code">邮箱验证码</label></div>
-                <div class="hos-control">
-                  <input id="store-register-code" v-model="register.code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required />
-                </div>
-              </div>
-              <div class="hos-field">
-                <div class="hos-label-row">
-                  <label for="store-register-referral">邀请码（选填）</label>
-                  <span class="hos-hint">仅邀请绑定 · 无折扣</span>
-                </div>
-                <div class="hos-control">
-                  <input id="store-register-referral" v-model="register.referralCode" type="text" maxlength="8" pattern="[0-9]{6}|[0-9A-Za-z]{8}" placeholder="6 位数字 / 8 位邀请码" />
-                </div>
-              </div>
-            </div>
-            <div class="hos-row-2">
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-register-password">密码</label></div>
-                <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
-              </div>
-              <div class="hos-field">
-                <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
-                <PasswordField id="store-register-confirm" v-model="register.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
-              </div>
-            </div>
-            <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
-            <div class="hos-actions">
-              <button class="hos-btn-primary" type="submit" :disabled="submitting">
-                {{ submitting ? "注册中…" : "注册" }}
-              </button>
-            </div>
-          </form>
-          <p class="hos-switch">已有账号？<RouterLink to="/user/authentication/login">立即登录</RouterLink></p>
-          <div class="hos-panel__copy">
-            <div class="hos-panel__meta">
-              <span>账号用于登录</span>
-              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>邮箱用于购买与发码</span>
-              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>邀请码选填</span>
-            </div>
-            <p>账号创建后即可下单，激活码会进入账号中心。</p>
           </div>
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-email">邮箱</label></div>
+            <div class="hos-control">
+              <input id="store-register-email" v-model="register.email" type="email" autocomplete="email" placeholder="name@example.com" required />
+            </div>
+          </div>
+          <div class="hos-field hos-field--action">
+            <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
+            <button type="button" class="hos-btn-ghost" :disabled="registerCooldown.seconds.value > 0" @click="sendCode('register')">
+              {{ registerCooldown.seconds.value > 0 ? `${registerCooldown.seconds.value} 秒后重发` : "获取验证码" }}
+            </button>
+          </div>
+        </div>
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-code">邮箱验证码</label></div>
+            <div class="hos-control">
+              <input id="store-register-code" v-model="register.code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required />
+            </div>
+          </div>
+          <div class="hos-field">
+            <div class="hos-label-row">
+              <label for="store-register-referral">邀请码（选填）</label>
+              <span class="hos-hint">仅邀请绑定 · 无折扣</span>
+            </div>
+            <div class="hos-control">
+              <input id="store-register-referral" v-model="register.referralCode" type="text" maxlength="8" pattern="[0-9]{6}|[0-9A-Za-z]{8}" placeholder="6 位数字 / 8 位邀请码" />
+            </div>
+          </div>
+        </div>
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-password">密码</label></div>
+            <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位，含字母与数字" :minlength="8" />
+          </div>
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
+            <PasswordField id="store-register-confirm" v-model="register.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
+          </div>
+        </div>
+        <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit" :disabled="submitting">
+            {{ submitting ? "注册中…" : "注册" }}
+          </button>
+        </div>
+      </form>
+      <p class="hos-switch">已有账号？<RouterLink to="/user/authentication/login">立即登录</RouterLink></p>
+    </template>
+
+    <!-- 坞脚：三种模式共用一块结构，只有条目与那句说明随模式变。
+         改造前三个分支各写一份 .hos-panel__copy，分隔条的判定也要各写一遍。 -->
+    <template #copy>
+      <div class="hos-panel__meta">
+        <template v-for="(item, index) in panelCopy.meta" :key="item">
+          <i v-if="index > 0" class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>{{ item }}</span>
         </template>
-      </section>
-    </main>
-  </div>
+      </div>
+      <p>{{ panelCopy.note }}</p>
+    </template>
+  </EntryShell>
 </template>

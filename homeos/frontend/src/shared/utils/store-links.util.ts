@@ -83,8 +83,10 @@ function normalizeStorePath(path: string): string {
 /**
  * 解析商店链接。
  *
- * 不做进程内缓存：`/public/config` 自己带缓存，多一层模块级缓存只会在换域名后失效不了
- * （这个模块是单例，页面不刷新就一直读旧值）。
+ * 不做进程内**失效**缓存（带 TTL 的那种）：`/public/config` 自己带缓存，多一层会过期策略
+ * 只会在换域名后失效不了（这个模块是单例，页面不刷新就一直读旧值）。
+ *
+ * 但**会话内**的一次预取是必要的：坞脚那两三个入口要在**首帧**就在位（见 `prefetchStoreLinks`）。
  */
 export async function resolveStoreLinks(): Promise<StoreLinks> {
   const config = await loadStoreConfig()
@@ -97,4 +99,45 @@ export async function resolveStoreLinks(): Promise<StoreLinks> {
       : '',
     pathUrl: (path) => (storeUrl ? `${storeUrl}${normalizeStorePath(path)}` : ''),
   }
+}
+
+/** 已解析好的链接。`null` = 还没解析完（或解析失败）。 */
+let resolved: StoreLinks | null = null
+/** 正在进行的解析（复用同一个请求：多个页面 / 多次调用不重复打接口）。 */
+let inflight: Promise<StoreLinks> | null = null
+
+/**
+ * 预取商店链接，供入户页在**挂载之前**把坞脚入口准备好。
+ *
+ * 为什么必须在挂载前：`useStoreLinks` 的初始值是 `EMPTY_STORE_LINKS`，配置回来才填 `href`，
+ * 于是登录页 / 找回页的坞脚从「0 个链接」变成「3 个链接」，坞体高度 +34px；
+ * 桌面端坞体垂直居中，整块面板因此**上移一次**。手机上是高度跳一次。
+ * 预取之后 `useStoreLinks` 在 setup 里就能同步拿到真地址 —— 首帧即最终布局。
+ *
+ * 失败也算「有结果」：`resolveStoreLinks` 内部已经把错误折成空地址兜底，
+ * 所以这里不会 reject，调用方不需要 catch。
+ */
+export function prefetchStoreLinks(): Promise<StoreLinks> {
+  if (!inflight) {
+    inflight = resolveStoreLinks().then((links) => {
+      resolved = links
+      return links
+    })
+  }
+  return inflight
+}
+
+/**
+ * 同步读已解析的链接；还没解析完返回 `null`。
+ *
+ * 与 `prefetchStoreLinks` 配套：`useStoreLinks` 用它做初始值。
+ */
+export function peekStoreLinks(): StoreLinks | null {
+  return resolved
+}
+
+/** 清掉模块级缓存（登出 / 换站点后调用；正常情况下不需要）。 */
+export function forgetStoreLinks(): void {
+  resolved = null
+  inflight = null
 }

@@ -17,17 +17,17 @@ import {
   setLicenseFeatureAccess,
   shouldRefreshLicenseStatus,
 } from './license-gate'
-import type { SystemInitState } from '@/shared/types/router'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
-import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio'
+import { ensurePageAssets, PAGE_ASSETS as STUDIO_ASSETS, type PageAssets } from '@/studio'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
 import ResetPasswordView from '@/views/auth/ResetPasswordView.vue'
 import LicenseView from '@/views/auth/LicenseView.vue'
 import LicenseRecoveryView from '@/views/auth/LicenseRecoveryView.vue'
+import { prefetchStoreLinks } from '@/shared/utils/store-links.util'
+import { rememberLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
+import { getSystemInitialized, setSystemInitialized } from './system-init.state'
 
-/** 系统初始化状态缓存：null=未检查、true=已初始化、false=未初始化、'offline'=后端不可达 */
-let systemInitialized: SystemInitState = null
 /** 离线通知去重标记，避免每次导航都弹 toast */
 let offlineNotified = false
 
@@ -314,6 +314,22 @@ router.afterEach(() => {
   restoreScrollPositions(record)
 })
 /**
+ * 哪些路由算「入户页」：坞脚有商店入口、并且首帧就该把链接画出来。
+ *
+ * 只用于「要不要提前预取 `/public/config`」这一件事，不参与任何门禁判定 ——
+ * 多预取一次没有副作用，漏掉也只是回到「先空后满」的旧行为。
+ */
+function isEntryRouteName(name: string | undefined): boolean {
+  return (
+    name === 'login' ||
+    name === 'register' ||
+    name === 'activation' ||
+    name === 'reset-password' ||
+    name === 'license-recovery'
+  )
+}
+
+/**
  * 全局前置守卫：
  * 1. 首次导航时检查系统初始化状态（带后端启动重试）
  * 2. 后端不可达时进入 offline 模式并提示用户
@@ -329,18 +345,47 @@ router.beforeEach(async (to, from) => {
   const layout = useLayoutStore()
   const chrome = useChromeStore()
 
+  // 入户页的商店入口（坞脚那两三格）在这里就开始预取：链接是 `/public/config` 的派生值，
+  // 视图首帧读缓存即可拿到真地址。不 await —— 拿不到就按「没有入口」渲染（旧行为），
+  // 但不该为了它把首屏导航卡住。
+  if (isEntryRouteName(typeof to.name === 'string' ? to.name : undefined)) {
+    void prefetchStoreLinks()
+  }
+
+  /**
+   * 冷开入户页：**先把样式表安顿好再放行**。
+   *
+   * `App.vue` 的 route watcher 才是样式表的常规安装点，但它必须等首个路由落地才拿到
+   * `meta.assets`（此前是 START_LOCATION，一律不动）——于是入户页存在一个窗口：
+   * RouterView 已经在画表单，而 `<link>` 尚在解析中。真机上看到的就是「先裸样式、
+   * 再整页重排一次」。
+   *
+   * 只在**首次导航**（`from` 还没有 name）里做这件事：之后的入户页之间切换，样式四片
+   * 完全一致，由 watcher 幂等处理即可；而在跨壳过渡（display → login 的 route-fade）里
+   * 抢先换表，会把正在淡出的旧页面变成无样式 DOM。
+   */
+  if (!from.name) {
+    const entryAssets = to.meta?.assets as PageAssets | undefined
+    if (entryAssets && isEntryRouteName(typeof to.name === 'string' ? to.name : undefined)) {
+      await ensurePageAssets(entryAssets)
+    }
+  }
+
   // ── 1. 系统初始化 + 登录会话探测（首装流程的第一、二段）──
   //
   // 必须先于授权探测：全新部署时本机零用户、也没有授权，若先跑授权门禁会把用户直接
   // 送进激活页，永远到不了注册页。`GET /setup/status` 兼任 CSRF 引导，故无需再叠一次
   // refreshCsrfToken；首屏后端可能仍在启动，用 withBackendBootRetry 轮询重试。
-  if (systemInitialized === null || systemInitialized === 'offline') {
+  //
+  // 结论写进 `system-init.state` 而不是本模块的局部变量：登录页要**同步**读它
+  // （零用户首装时换一套抬头与步轨），见那个模块的注释。
+  if (getSystemInitialized() === null || getSystemInitialized() === 'offline') {
     try {
       const initialized =
-        systemInitialized === 'offline'
+        getSystemInitialized() === 'offline'
           ? await auth.getSetupStatus()
           : await fetchSetupStatusWithBootRetry(auth)
-      systemInitialized = initialized ?? false
+      setSystemInitialized(initialized ?? false)
       offlineNotified = false
       if (auth.isAuthenticated) {
         // getSetupStatus 内已探测过一次 /auth/me（即续期端点），不必再补一发 refreshSession；
@@ -351,20 +396,20 @@ router.beforeEach(async (to, from) => {
       logger.error('系统初始化状态检查失败:', setupError)
       if (isBackendUnreachableError(setupError)) {
         // 后端不可达：进入 offline 模式，允许重试但不阻塞入户页
-        systemInitialized = 'offline'
+        setSystemInitialized('offline')
         if (!offlineNotified) {
           offlineNotified = true
           chrome.notify(getBackendUnreachableHint(), 'error')
         }
       } else {
         // 其他错误按未初始化处理：本机零用户 → 登录页（页内给注册入口）
-        systemInitialized = false
+        setSystemInitialized(false)
       }
     }
   }
 
   // 初始化状态仍未确定时暂不放行（等待下次探测完成）
-  if (systemInitialized === null) return
+  if (getSystemInitialized() === null) return
 
   // ── 2. 登录 → 注册（授权检测之前）──
   // 未初始化：本机零用户。登录页与注册页都放行，其余地址一律先去登录页。
@@ -376,14 +421,14 @@ router.beforeEach(async (to, from) => {
   //
   // 放行哪两页由 `resolveZeroUserTarget` 单点决定：这里和 `resolveNavigationTarget` 必须
   // 同口径，手抄条件迟早会漂。
-  if (systemInitialized === false) {
+  if (getSystemInitialized() === false) {
     const blocked = resolveZeroUserTarget(typeof to.name === 'string' ? to.name : undefined)
     if (blocked) return blocked
     return
   }
 
   // 后端不可达：放行入户页，其余阻断（不假装已授权）
-  if (systemInitialized === 'offline') {
+  if (getSystemInitialized() === 'offline') {
     if (
       to.name === 'register' ||
       to.name === 'login' ||
@@ -412,6 +457,9 @@ router.beforeEach(async (to, from) => {
           ? await withBackendBootRetry(() => getLicenseAvailability())
           : await getLicenseAvailability()
       setLicenseActivated(!status.data.required || status.data.allowed)
+      // 同一份可用性快照留给激活页：它首帧就用这份数据画状态句 / 表单可见性，
+      // 不再「先骨架、再面板」。守卫本来就要拉这一次，不额外多发请求。
+      rememberLicenseAvailability(status.data)
     } catch (licenseError) {
       logger.error('商业授权状态检查失败:', licenseError)
       if (getLicenseActivated() === null) {
@@ -454,8 +502,8 @@ router.beforeEach(async (to, from) => {
 
   // 授权状态仍未知（多半后端不可达）：跳过登录探测副作用，交给 offline 分支
   if (getLicenseActivated() === null) {
-    if (systemInitialized === null) {
-      systemInitialized = 'offline'
+    if (getSystemInitialized() === null) {
+      setSystemInitialized('offline')
       if (!offlineNotified) {
         offlineNotified = true
         chrome.notify(getBackendUnreachableHint(), 'error')
@@ -467,7 +515,7 @@ router.beforeEach(async (to, from) => {
 
   // 委托纯函数决策导航目标
   const target = resolveNavigationTarget(to, {
-    systemInitialized,
+    systemInitialized: getSystemInitialized(),
     isAuthenticated: auth.isAuthenticated,
     licenseActivated: getLicenseActivated(),
     settingsLockEnabled: layout.layoutConfig.settingsLock?.enabled,

@@ -1,6 +1,7 @@
 /**
- * 入口场景的「手持档」判据：触摸设备（粗指针 / 无 hover / iPadOS 伪装成 Mac）要给
- * `<html>` 挂 `.hos-touch` —— 场景样式里整组 `html.hos-touch …` 规则只有挂上 class 才生效。
+ * 入口场景的「动效档位」判据：给 `<html>` 挂 `.hos-touch`（手持档标记）与
+ * `data-hos-motion`（动效档位）。场景 / 面板样式里整组 `html[data-hos-motion=…] …`
+ * 规则只有挂上属性才生效。
  *
  * 必须在**首帧之前**跑完：两个前端各有一支阻塞入口（主应用 `/static/auth/scene/scene-depth.js`
  * 由 `studio/platform/scene-depth.ts` 产出，商店由 `src/scene/scene-depth.ts` 在 `main.ts` 里
@@ -9,52 +10,94 @@
  *
  * 注：主应用还有一份**未打包的兜底副本** `public/static/auth/scene/scene-depth.js`（开发态与
  * 构建缺口时防 404），它无法 import TS，改动判据时须人肉同步那一个 IIFE（含下面的
- * `watchTouchProfile` 监听逻辑）。
+ * `watchTouchMotion` 监听逻辑）。
  */
 
 /**
  * 判据用到的媒体查询串。真源只此一处 —— 手抄兜底件 `scene-depth.js` 里也必须逐条一致。
  *
- * 之所以要把它们列出来而不是散在函数体里：`watchTouchProfile` 要拿同一批查询去订阅 change，
+ * 之所以要把它们列出来而不是散在函数体里：`watchTouchMotion` 要拿同一批查询去订阅 change，
  * 两处各写一遍就会漂。
  */
 const TOUCH_MEDIA_QUERIES = ['(pointer: coarse)', '(hover: none)'] as const
 
+/** 平板的下限宽度：触摸设备只有到这一档才值得给「环境动效」。 */
+const TABLET_MIN_WIDTH = 768
+
+/**
+ * 动效档位。
+ *
+ * - `full`：桌面（有精确指针 + 有 hover）。全特效，与改造前逐帧一致。
+ * - `ambient`：平板（触摸且宽 ≥ 768px）。只放行**纯 transform / opacity** 的低频环境动效。
+ * - `frozen`：手机（触摸且更窄）或 `prefers-reduced-motion: reduce`。完全静止。
+ *
+ * CSS 侧的对应关系见 `scene/static/scene.css` 与 `panel.css` 的「动效档位」段：
+ * `ambient` 的做法是**先全冻、再逐条解冻白名单**，这样以后新增的动画默认不会跑在平板上。
+ */
+export type MotionTier = 'frozen' | 'ambient' | 'full'
+
+/** 档位高低。会话内**只降不升**，比较用。 */
+const TIER_RANK: Record<MotionTier, number> = { frozen: 0, ambient: 1, full: 2 }
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 /** 该设备是否按「手持档」处理。 */
 function isTouchProfile(): boolean {
+  if (typeof window === 'undefined') return false
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches
   const noHover = window.matchMedia('(hover: none)').matches
   // iPadOS 装在 Mac 上：platform 报 Mac，但触点数 > 1，按手持档处理。
-  const iPadInDisguise = navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '')
+  const iPadInDisguise =
+    navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '')
   return coarsePointer || noHover || iPadInDisguise
 }
 
-/** 按判据给 `<html>`（或指定根元素）挂/摘 `.hos-touch`，返回是否手持档。 */
+/** 按判据算出「这一刻」应当用的档位（不含只降不升的约束）。 */
+function resolveMotionTier(touch: boolean): MotionTier {
+  if (prefersReducedMotion()) return 'frozen'
+  if (!touch) return 'full'
+  return window.matchMedia(`(min-width: ${TABLET_MIN_WIDTH}px)`).matches ? 'ambient' : 'frozen'
+}
+
+/**
+ * 按判据给 `<html>`（或指定根元素）挂/摘 `.hos-touch`、写 `data-hos-motion`，返回是否手持档。
+ *
+ * **单调降级**：档位只会往更省的方向走（`full → ambient → frozen`），绝不会退回上一档。
+ *
+ * 为什么必须单调：判据是媒体查询的**一次性读数**，而这些查询会在页面存活期间改口 ——
+ * iPad 插拔妙控键盘 / 触控板、PC 浏览器 DevTools 的设备工具栏开关、外接触控屏都会触发。
+ * 双向切换时同一批场景动画会「半路开 → 半路关」，冻结帧读数与动画规则互相覆盖，画面
+ * 反复重绘 —— 那本身就是入户页闪烁的一大来源。宁可这次会话少一点动效，也不要忽明忽暗。
+ */
 export function applyTouchProfile(root: HTMLElement = document.documentElement): boolean {
+  if (typeof window === 'undefined') return false
   const touch = isTouchProfile()
-  root.classList.toggle('hos-touch', touch)
+  // 同理单调：`.hos-touch` 一旦挂上就不再摘（旧实现是 toggle，会在媒体查询改口时来回摘挂）。
+  if (touch) root.classList.add('hos-touch')
+
+  const next = resolveMotionTier(touch)
+  const prev = root.dataset['hosMotion'] as MotionTier | undefined
+  const keepPrev = prev != null && prev in TIER_RANK && TIER_RANK[prev] < TIER_RANK[next]
+  root.dataset['hosMotion'] = keepPrev ? (prev as MotionTier) : next
   return touch
 }
 
 /**
- * 让 `.hos-touch` 跟着判据走：**页面存活期间**媒体查询改口时重算一次。
- *
- * 为什么必须订阅：判据是**一次性快照**，而 `(pointer: coarse)` / `(hover: none)` 会在页面
- * 存活期间改口 —— PC 浏览器 DevTools 的设备工具栏（移动模拟）开关、iPad 插拔妙控键盘 /
- * 触控板、外接触控屏都会触发。快照与 class 脱节时，`html.hos-touch …` 那一整组「手持档
- * 关掉重动效 + 关掉坞体实时模糊」的规则全部失效：坞体在大面积场景之上保留
- * `backdrop-filter: blur(22px)`，DPR 3 的移动模拟下每帧重新模糊，表现为**反复闪**。
+ * 让档位跟着判据走：**页面存活期间**媒体查询改口时重算一次（只会往下降）。
  *
  * 幂等：重复调用只是多挂几个监听，重算本身无副作用。
  *
- * @param root - 要挂 / 摘 class 的根元素，默认 `<html>`。
+ * @param root - 要挂 / 摘 class、写属性的根元素，默认 `<html>`。
  */
-export function watchTouchProfile(root: HTMLElement = document.documentElement): void {
+export function watchTouchMotion(root: HTMLElement = document.documentElement): void {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
   const replan = () => {
     applyTouchProfile(root)
   }
-  for (const query of TOUCH_MEDIA_QUERIES) {
+  for (const query of [...TOUCH_MEDIA_QUERIES, '(prefers-reduced-motion: reduce)']) {
     try {
       const mql = window.matchMedia(query)
       // 老 Safari 只有 addListener；两种都试，缺一个也不至于整段监听装不上。

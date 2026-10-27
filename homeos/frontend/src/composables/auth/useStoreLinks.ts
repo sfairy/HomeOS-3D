@@ -11,7 +11,8 @@ import { onMounted, shallowRef, type ShallowRef } from 'vue'
 
 import {
   EMPTY_STORE_LINKS,
-  resolveStoreLinks,
+  peekStoreLinks,
+  prefetchStoreLinks,
   type StoreLinks,
 } from '@/shared/utils/store-links.util'
 
@@ -22,15 +23,22 @@ interface StoreLinksBinding {
 }
 
 /**
- * 在挂载后解析商店地址。
+ * 取商店地址。
  *
- * 放在 `onMounted` 而不是 setup 顶层：`/public/config` 是网络请求，不该在 SSR / 首帧前
- * 阻塞渲染；解析完成前 `storeLinks` 保持 `EMPTY_STORE_LINKS`，页面渲染出来的就是「没有入口」。
+ * **初始值优先读预取结果**：路由守卫在放行入户页之前已经 `prefetchStoreLinks()`（不 await），
+ * 正常情况下 setup 执行到这里缓存已经有了 —— 于是坞脚在第一帧就是最终的三格，面板高度不变。
+ * 缓存没命中（冷开竞态 / 首次直达）就退回 `EMPTY_STORE_LINKS`，并在挂载后补上，
+ * 与改造前行为一致，只是那条路径已经不是常态。
+ *
+ * 仍然放在 `onMounted` 里补取（而不是 setup 顶层 await 阻塞首帧）：`/public/config` 是网络请求，
+ * 不该为了三个脚注链接把人挡在首屏外面。
  */
 export function useStoreLinks(): StoreLinksBinding {
-  const storeLinks = shallowRef<StoreLinks>(EMPTY_STORE_LINKS)
+  const storeLinks = shallowRef<StoreLinks>(peekStoreLinks() ?? EMPTY_STORE_LINKS)
   onMounted(async () => {
-    storeLinks.value = await resolveStoreLinks()
+    const links = await prefetchStoreLinks()
+    // 只在确实变了的时候赋值：同一个对象反复写入会触发一次无意义的渲染。
+    if (links !== storeLinks.value) storeLinks.value = links
   })
   return { storeLinks }
 }

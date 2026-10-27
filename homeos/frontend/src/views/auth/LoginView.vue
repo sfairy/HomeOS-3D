@@ -5,16 +5,15 @@
  * 版式由 AuthShell 统一（场景壳 + 面板 + 步骤轨道），这里只管表单与提交；
  * 提交走 Pinia 的 auth store。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useStoreLinks } from '@/composables/auth/useStoreLinks'
 import SceneStage from '@/components/common/SceneStage.vue'
 import AuthShell from '@/shared/components/auth/AuthShell.vue'
 import PasswordField from '@homeos/shared/components/PasswordField.vue'
-import { getSetupStatus } from '@/services/api/auth'
 import { useAuthStore } from '@/stores/auth.store'
+import { getSystemInitialized } from '@/router/system-init.state'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
-import { logger } from '@/shared/utils/core/logger'
 import { AUTH_FLOW_ACCESS, AUTH_FLOW_SETUP, renderAuthSteps } from '@/shared/utils/auth/auth-flow.util'
 
 const authStore = useAuthStore()
@@ -24,23 +23,20 @@ const { storeLinks } = useStoreLinks()
 /**
  * 本机是否还没有任何账号（零用户首装）。
  *
- * 直接读 `/setup/status` 而不走 auth store：store 版在「已初始化」时会顺带 `probeSession()`
- * 打一次多余的 `/auth/me`，而这里只想知道「要不要给注册入口」。
+ * **同步读路由守卫的结论**，不再自己发一次 `GET /setup/status`。
  *
- * 初始 `false`（不显示注册入口）：读失败或读得慢时宁可保持今天的登录页 —— 注册入口
- * 在已初始化的机器上是个死链（守卫会把人弹回 `/login`），不能因为一次网络抖动冒出来。
+ * 改前：初始 `false`，挂载后再探测，探测回来把 `needsSetup` 翻成 `true` —— 于是同一块面板
+ * 先渲染成「登录」（轨道 01 登录 / 02 找回密码），再整体换成「首次开通」（轨道 01 初始化 /
+ * 02 注册 / 03 激活），提示条与多出来的一排按钮又把面板撑高一截。这是登录页最明显的一次跳动。
+ *
+ * 现在守卫在**放行首个路由之前**就探完了（见 `router/system-init.state.ts`），本页读到的就是
+ * 最终结论：首帧即最终形态，之后只允许文本变化。
+ *
+ * 只在 `=== false`（明确「本机零用户」）时成立：`null`（还没探测）与 `'offline'`（后端不可达）
+ * 都按「已初始化」渲染 —— 那时宁可显示普通登录页，也不要在网络抖动时冒出一个「创建本机唯一
+ * 账号」的主入口（在已初始化的机器上那是个死链，守卫会把人弹回 `/login`）。
  */
-const needsSetup = ref(false)
-
-onMounted(async () => {
-  try {
-    const { data } = await getSetupStatus()
-    needsSetup.value = data.initialized === false
-  } catch (setupError) {
-    // 读不到就当已初始化：登录本身会给出更准确的错误（后端不可达时提示网络）
-    logger.debug('初始化状态读取失败，登录页按已初始化渲染', setupError)
-  }
-})
+const needsSetup = getSystemInitialized() === false
 
 /** 账号：可填用户名或注册邮箱，服务端按二者其一匹配。 */
 const account = ref('')
@@ -56,11 +52,11 @@ const errorMessage = ref('')
  * 轨道切到首次开通的三步，并把当前步标在「注册」上。
  */
 const steps = computed(() =>
-  needsSetup.value
+  needsSetup
     ? renderAuthSteps(AUTH_FLOW_SETUP, 'register')
     : renderAuthSteps(AUTH_FLOW_ACCESS, 'login'),
 )
-const stepsLabel = computed(() => (needsSetup.value ? '首次开通进度' : '账号访问进度'))
+const stepsLabel = computed(() => (needsSetup ? '首次开通进度' : '账号访问进度'))
 
 /** 坞脚里有没有商店入口：两格都取不到地址时整行不渲染（避免留下空行或孤立分隔条）。 */
 const hasStoreLinks = computed(

@@ -36,6 +36,11 @@
          带 data-spa-managed，离开认证路由时由 page-assets 幂等卸载。清单与顺序必须与
          src/studio/page-assets.ts 的 AUTH_STYLESHEETS 逐条一致，否则运行时会把表摘下来重挂
          （摘掉的那一帧场景整片掉色 = 闪）。 -->
+    <!-- 品牌字 Orbitron：场景里的 HomeOS 标记用它。`swap` + preload 保证首帧就是最终字形；
+         正文/UI 字体（Exo 2 等）在 fonts.css 里改成了 `optional`（慢网下用系统字，
+         宁可降级也不要在表单上闪一次字宽）。见 packages/shared/scene/static/fonts.css。 -->
+    <link rel="preload" href="/static/auth/scene/fonts/orbitron-700-latin.woff2" as="font"
+        type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/static/auth/scene/fonts.css" data-spa-managed="css">
     <link rel="stylesheet" href="/static/auth/scene/page.css" data-spa-managed="css">
     <link rel="stylesheet" href="/static/auth/scene/scene.css" data-spa-managed="css">

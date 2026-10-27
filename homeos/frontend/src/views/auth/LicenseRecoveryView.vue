@@ -4,6 +4,10 @@
  *
  * 每 5 秒自检一次授权可用性；用户点「重新连接」时先走一次 `/license/retry` 再读可用性。
  * 该页也被 `/pair`、`/display/*`、`/3d-studio` 的授权门禁就地复用，因此不假设自身地址。
+ *
+ * 版式走统一外壳 `AuthShell` → `@homeos/shared/components/EntryShell.vue`
+ * （改造前这一页自己抄了一遍 `.hos-page / .hos-dock / .hos-panel / 四角`）。
+ * 它没有步骤轨道：恢复不是开通流程的一步，硬编一个「03/05」只会和激活页的编号打架。
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
@@ -15,6 +19,7 @@ import {
   retryLicense,
 } from '@/services/api/license'
 import SceneStage from '@/components/common/SceneStage.vue'
+import AuthShell from '@/shared/components/auth/AuthShell.vue'
 
 /** 与页脚「每 5 秒自检」对齐；改动这里要同步改文案。 */
 const RECHECK_INTERVAL_MS = 5000
@@ -113,52 +118,43 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-<div class="hos-page hos-tone--alert">
-    <SceneStage page="recovery" />
+  <!-- `id` 落在**根**上（单根 fallthrough）：`#license-recovery` 是外部脚本 / 冒烟用的锚点。 -->
+  <AuthShell
+    id="license-recovery"
+    tone="alert"
+    eyebrow="授权受阻"
+    title="正在连接你的家"
+    secure="每 5 秒自检"
+  >
+    <template #scene><SceneStage page="recovery" /></template>
 
-        <main class="hos-dock">
-            <section class="hos-panel hos-rise" id="license-recovery">
-                <span class="hos-panel__edge" aria-hidden="true"></span>
-                <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
-                <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
-                <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
-                <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+    <template #head-extra>
+      <!-- 状态句占住抬头的位置：它说的就是「现在是什么状态」，不该另起一块。
+           恒绿的那颗点写在外壳的 secure 里 —— 它表示「机制在跑」，不跟页面色调走：
+           在珊瑚色的恢复页上跟着变红，会被读成「连自动重连都坏了」。 -->
+      <p id="recovery-message" class="hos-status" :class="'hos-tone--' + tone" role="status"
+        aria-live="polite">{{ statusText }}</p>
+      <!-- 错误单独一行、单独 role=alert：与「现在处于什么状态」分开报。合成一行时，
+           一次网络抖动会把状态句覆盖掉，用户就看不到后端其实说了什么。 -->
+      <p v-if="errorMessage" id="recovery-error" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
+    </template>
 
-                <div class="hos-panel__head">
-                    <div class="hos-eyebrow-row">
-                        <p class="hos-eyebrow">授权受阻 · 03/05</p>
-                        <!-- 这颗点是恒绿的「机制在跑」，不跟页面色调走：在珊瑚色的恢复页上，
-                             「自动重连中」会被读成「一切正常」，而这页恰恰是「进不去」。 -->
-                        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>每 5 秒自检</span>
-                    </div>
-                    <h1>正在连接你的家</h1>
-                    <p id="recovery-message" class="hos-status" :class="'hos-tone--' + tone" role="status"
-                        aria-live="polite">{{ statusText }}</p>
-                    <!-- 错误单独一行、单独 role=alert：与「现在处于什么状态」分开报。合成一行时，
-                         一次网络抖动会把状态句覆盖掉，用户就看不到后端其实说了什么。 -->
-                    <p v-if="errorMessage" id="recovery-error" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
-                </div>
-
-                <div class="hos-actions">
-                    <button id="recovery-retry" class="hos-btn-primary" type="button" v-show="retryVisible"
-                        :disabled="retryDisabled" @click="check(true)">重新连接授权后台</button>
-                    <!-- 重试按钮被后端判定为「无意义」时也必须留一条出路：本页永远不能只有倒计时。 -->
-                    <button id="recovery-activate" class="hos-btn-primary" type="button" v-show="!retryVisible"
-                        @click="goActivate">去激活这台机器</button>
-                </div>
-
-                <div class="hos-panel__copy">
-                    <div class="hos-panel__meta">
-                        <span>项目与连接信息不清除</span>
-                        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-                        <span>租约内照常可用</span>
-                    </div>
-                    <p>已有项目和连接信息不会被清除。</p>
-                    <a class="hos-text-button" href="/activate">本机重新激活</a>
-                </div>
-            </section>
-        </main>
+    <div class="hos-actions">
+      <button id="recovery-retry" class="hos-btn-primary" type="button" v-show="retryVisible"
+        :disabled="retryDisabled" @click="check(true)">重新连接授权后台</button>
+      <!-- 重试按钮被后端判定为「无意义」时也必须留一条出路：本页永远不能只有倒计时。 -->
+      <button id="recovery-activate" class="hos-btn-primary" type="button" v-show="!retryVisible"
+        @click="goActivate">去激活这台机器</button>
     </div>
 
-    <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。 -->
+    <template #copy>
+      <div class="hos-panel__meta">
+        <span>项目与连接信息不清除</span>
+        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+        <span>租约内照常可用</span>
+      </div>
+      <p>已有项目和连接信息不会被清除。</p>
+      <a class="hos-text-button" href="/activate">本机重新激活</a>
+    </template>
+  </AuthShell>
 </template>

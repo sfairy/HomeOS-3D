@@ -28,6 +28,7 @@ import {
 } from '@/services/api/license'
 import { useAuthStore } from '@/stores/auth.store'
 import { isUnauthorizedError } from '@/shared/utils/core/error-message'
+import { peekLicenseAvailability } from '@/shared/utils/auth/license-probe.util'
 import SceneStage from '@/components/common/SceneStage.vue'
 import AuthShell from '@/shared/components/auth/AuthShell.vue'
 import StatePanel from '@/shared/components/feedback/StatePanel.vue'
@@ -205,13 +206,18 @@ function setRecoveryHint(statusCode: string): void {
 }
 
 /** 把一次状态响应渲染成界面：文案、语气、表单/按钮可见性。 */
-function applyStatus(payload: LicenseMessageState & { allowed?: boolean; editorAllowed?: boolean; canRetry?: boolean }): void {
+function applyStatus(
+  payload: LicenseMessageState & { allowed?: boolean; editorAllowed?: boolean; canRetry?: boolean },
+  options?: { navigate?: boolean },
+): void {
   statusFailed.value = false
   statusErrorCode.value = ''
   // 购买区块的货架由状态码决定，先记下来（下面是各种文案分支，都会提前 return 一部分）。
   licenseStatus.value = String(payload.status || '')
   if (payload.status === 'ACTIVE' && payload.editorAllowed) {
-    enterEditor()
+    // 用守卫缓存做首帧水合时**不跳转**：那时还在 setup 阶段，整页跳转会让「本来就能进编辑器」
+    // 的机器在激活页闪一下就消失。真正的跳转交给挂载后的那次 refreshStatus。
+    if (options?.navigate !== false) enterEditor()
     return
   }
   if (payload.editorAllowed) {
@@ -362,6 +368,25 @@ function onPageHide(): void {
 function onPageShow(): void {
   pageHidden = false
   void refreshStatus()
+}
+
+/**
+ * 首帧水合：把守卫**刚刚**拉过的那份可用性直接画出来。
+ *
+ * 守卫为了做门禁判定本来就要拉一次 `/license/availability`（见 `router/index.ts` 的
+ * `rememberLicenseAvailability`），而激活页此前不知道这件事，只能先画骨架、等自己那一发
+ * 回来再换成状态句 + 表单 / 购买区块 —— 整块面板重排一次，是这一页最明显的跳变。
+ *
+ * 放在 setup 末尾而不是 `onMounted`：必须在**首帧之前**就改掉 `statusSettled`，
+ * 否则第一次渲染仍会走进骨架分支。
+ *
+ * 挂载后的 `refreshStatus()` 照常执行（缓存不当数据源，只负责让第一帧不空着）；
+ * 轮询拿到的结果会覆盖这里的值。
+ */
+const cachedAvailability = peekLicenseAvailability()
+if (cachedAvailability) {
+  applyStatus(cachedAvailability, { navigate: false })
+  statusSettled.value = true
 }
 
 onMounted(() => {
@@ -532,8 +557,6 @@ onBeforeUnmount(() => {
       </button>
     </template>
   </AuthShell>
-
-  <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。 -->
 </template>
 
 <style scoped>

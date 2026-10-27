@@ -1787,127 +1787,29 @@
 }
 
 @media (max-width: 900px) {
-  .hos-scene {
-    min-height: 260px;
-  }
+  /* 窄屏（手机 / 平板竖屏）的场景是**整屏固定背景层**（定位由 page.css 的
+     `.hos-page > .hos-scene` 给出），不再是 dock 里的一个矮条。
 
-  .hos-scene__head {
-    min-height: 56px;
-    padding: 10px 18px 8px;
-    gap: 12px;
-  }
-
-  .hos-scene__head::after {
-    left: 18px;
-    right: 18px;
-  }
-
-  .hos-scene__ver {
-    display: none;
-  }
-
-  .hos-scene__live {
-    padding: 4px 10px 4px 8px;
-  }
-
-  .hos-scene__live-label {
-    font-size: 10px;
-    letter-spacing: 0.08em;
-  }
-
-  .hos-scene__head .hos-scene__mark-wrap {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-  }
-
-  .hos-scene__head .hos-scene__name {
-    font-size: 17px;
-    letter-spacing: 0.12em;
-  }
-
-  /* 窄屏字标行：间距与字距各收一档。中文那四个字在 11px + 0.3em 下要占 60px 左右，
-     而这一档的右端已经只剩一枚在线药丸 —— 不收的话顶栏在 360px 宽的机器上会折行。 */
-  .hos-scene__head .hos-scene__wordmark {
-    gap: 8px;
-  }
-
-  .hos-scene__head .hos-scene__label {
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    margin-right: -0.2em;
-  }
-
-  .hos-scene__head .hos-scene__accent {
-    margin-top: 4px;
-    width: 40px;
-  }
-
-  .hos-scene__brand {
-    left: 18px;
-    right: 18px;
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-54%);
-    max-width: none;
-  }
-
-  .hos-scene__title {
-    font-size: clamp(22px, 6.4cqw, 30px);
-    letter-spacing: 0.03em;
-    max-width: none;
-  }
-
-  .hos-scene__title::before {
-    width: 40px;
-    height: 2px;
-    margin-bottom: 10px;
-  }
-
-  .hos-scene__tag {
-    display: none;
-  }
-
-  /* 窄屏场景只有 260px 高，四行档案挤不下：留下前两行（「要什么」「会发生什么」），
-     后两行是补充。这里不做成横向换行 —— 键值对横过来就不再是表，读不出对齐。 */
-  .hos-scene__dossier {
-    margin-top: 12px;
-    width: 100%;
-  }
-
-  .hos-scene__dossier-head {
-    padding-top: 8px;
-    font-size: 9px;
-    letter-spacing: 0.16em;
-  }
-
-  .hos-scene__dossier-row {
-    grid-template-columns: 4.6em minmax(0, 1fr);
-    gap: 10px;
-    padding: 5px 0;
-  }
-
-  .hos-scene__dossier-row:first-child {
-    padding-top: 7px;
-  }
-
-  .hos-scene__dossier-row dt {
-    font-size: 9px;
-    letter-spacing: 0.1em;
-  }
-
-  .hos-scene__dossier-row dd {
-    font-size: 10.5px;
-    line-height: 1.35;
-  }
-
-  .hos-scene__dossier-row:nth-child(n + 3) {
-    display: none;
-  }
-
-  /* 光点层在 260px 的窄条里会落到山脊与屋上，读成噪点。 */
+     所以这一档只保留「画面」：顶栏、标题、档案表这些文字性覆盖层一律不画 —— 面板自带
+     标题与说明，两套文案叠在一起既读不清，也会从半透明坞体后面透出来变成噪点。
+     上一版为「260px 窄条」写的一整套缩小 / 隐藏 / 停动画规则也随矮条一起退休：
+     矮条消失后它们只是在描述一个不存在的盒子，留着只会和动效档位（见文件末尾）抢着改同一批属性。 */
+  .hos-scene__head,
+  .hos-scene__brand,
   .hos-scene__nodes {
     display: none;
+  }
+
+  /* 背景铺满整屏后，压暗方向从「右侧竖条」换成「整体自上而下」：
+     面板浮在场景之上，暗角只负责让四角不刺眼、让坞体边缘与画面接得住。 */
+  .hos-scene__shade {
+    width: 100%;
+    background: linear-gradient(
+      180deg,
+      rgba(var(--hos-sky-deep-rgb), 0.5) 0%,
+      rgba(var(--hos-sky-deep-rgb), 0.12) 42%,
+      rgba(var(--hos-sky-deep-rgb), 0.72) 100%
+    );
   }
 
   /* 窄屏的中环只有 32.2cqw ≈ 116px（容器宽 360px），96 枚刻度分下来每枚 1.9px ——
@@ -1919,280 +1821,164 @@
       rgba(var(--hos-tone-rgb), 0) 3.75deg 7.5deg
     );
   }
-
-  .hos-scene__aurora,
-  .hos-scene__motes,
-  .hos-scene__hex--fine,
-  .hos-scene__horizon {
-    display: none;
-  }
-
-  .hos-scene__mark-wrap {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-  }
-
-  .hos-scene__mark-wrap::before,
-  .hos-scene__mark-wrap::after {
-    width: 9px;
-    height: 9px;
-  }
-
-  .hos-scene__mark-wrap::before {
-    top: 5px;
-    left: 5px;
-  }
-
-  .hos-scene__mark-wrap::after {
-    right: 5px;
-    bottom: 5px;
-  }
-
-  .hos-scene__accent {
-    margin-top: 8px;
-    width: 72px;
-  }
-
-  .hos-scene__shade {
-    width: 100%;
-    background: linear-gradient(180deg, transparent 30%, rgba(var(--hos-sky-deep-rgb), 0.75) 100%);
-  }
-
-  .hos-scene__orbit,
-  .hos-scene__orbit--outer,
-  .hos-scene__orbit--mid,
-  .hos-scene__orbit--inner,
-  .hos-scene__orbit-core,
-  .hos-scene__orbit-node,
-  .hos-scene__orbit-tick,
-  .hos-scene__orbit-arc,
-  .hos-scene__radar,
-  .hos-scene__scan,
-  .hos-scene__ridge--far,
-  .hos-scene__ridge--mid,
-  .hos-scene__ridge--near,
-  .hos-scene__home-pad,
-  .hos-scene__home-spill,
-  .hos-scene__home-beam,
-  .hos-scene__home-aura,
-  .hos-scene__win-bloom,
-  .hos-scene__win,
-  .hos-scene__uplink,
-  .hos-scene__uplink-packet,
-  .hos-scene__uplink-node,
-  .hos-scene__beacon-ring,
-  /* 光点层在窄屏本来就被 display:none 关掉了，这里再关一次动画是为了那一条
-     「用户中途从宽屏缩到窄屏」的路径：display 切回来时动画会重新计时。 */
-  .hos-scene__nodes i {
-    animation: none;
-  }
-
-  .hos-scene__home {
-    opacity: 1;
-    animation: none;
-    transform: none;
-  }
-
-  .hos-scene__home-pad,
-  .hos-scene__home-spill,
-  .hos-scene__home-beam,
-  .hos-scene__home-aura,
-  .hos-scene__win-bloom,
-  .hos-scene__win {
-    opacity: 0.9;
-  }
-
-  .hos-scene__uplink,
-  .hos-scene__uplink-node {
-    opacity: 0.85;
-  }
-
-  .hos-scene__uplink-packet,
-  .hos-scene__beacon-ring {
-    opacity: 0;
-  }
 }
 
-/* ===== 静止档（触摸设备） =====
-   （.hos-btn-primary.is-loading::after）这类功能性动效。 */
+/* ===== 动效档位：冻结（手机 / 减少动效）+ 底座（平板） =====
+ *
+ * 档位由 `<html data-hos-motion>` 给出，真源是 `packages/shared/src/scene/touch-profile.ts`：
+ *   · `frozen` —— 手机（触摸且宽 < 768px）或 `prefers-reduced-motion: reduce`：全冻；
+ *   · `ambient` —— 平板：**先全冻**，再逐条解冻「纯 transform / opacity」的白名单（见文件末尾）；
+ *   · `full` —— 桌面：本节不生效，特效与改造前逐帧一致。
+ *
+ * 「先全冻、再解冻」而不是「逐条点名要关的」是刻意的：以后新加的动画默认不会跑在平板上，
+ * 想放行必须显式写进白名单 —— 反过来写的话，每加一个特效都是一次性能回归。
+ *
+ * 为什么不再用 `(pointer: coarse)` 媒体查询 + `.hos-touch` 两份逐字重复的规则：那份重复
+ * 是「iPad 接了妙控键盘后媒体查询改口」的补丁，而补丁本身会让同一批动画在页面存活期间
+ * 半路开又关 —— 那正是入户页闪烁的一大来源。档位现在由 JS 首帧前算定、会话内只降不升。
+ */
 
 /* 冻结帧读数。有些层的可见性完全来自动画，停掉动画就得把读数补回来 ——
    关键帧的中点：冻的是「动画里的一帧」，不是一个比动画更亮的新配色。 */
-@media (pointer: coarse), (hover: none) {
-  .hos-scene__stage,
-  .hos-scene__stage * {
-    animation: none !important;
-  }
-
-  /* `*` 不匹配伪元素：hex 的漂移已经搬到 ::before 上，这里必须单独点名，
-     否则手持档下唯独这一层还在动。 */
-  .hos-scene__hex::before {
-    animation: none !important;
-  }
-
-  /* stage 之外的装饰要逐个点名：它们与标题、徽标、档案表同处一层，吃不到上面那条兜底。 */
-  .hos-scene__brand,
-  .hos-scene__dossier,
-  .hos-scene__dossier-dot,
-  .hos-scene__live-dot,
-  .hos-scene__mark-wrap,
-  .hos-scene__mark-sheen,
-  .hos-scene__accent::after,
-  .hos-scene__nodes i {
-    animation: none !important;
-  }
-
-  .hos-scene__home {
-    opacity: 1 !important;
-  }
-
-  .hos-scene__motes i {
-    opacity: 0.5 !important;
-  }
-
-  .hos-scene__home-pad,
-  .hos-scene__home-spill,
-  .hos-scene__home-beam,
-  .hos-scene__home-aura,
-  .hos-scene__win-bloom,
-  .hos-scene__win {
-    opacity: 0.9 !important;
-  }
-
-  .hos-scene__uplink,
-  .hos-scene__uplink-node {
-    opacity: 0.85 !important;
-  }
-
-  .hos-scene__uplink-packet,
-  .hos-scene__beacon-ring {
-    opacity: 0 !important;
-  }
-
-  .hos-scene__dawn {
-    opacity: 0.85 !important;
-  }
-
-  .hos-scene__ambient {
-    opacity: 0.7 !important;
-  }
-
-  .hos-scene__mist--a {
-    opacity: 0.65 !important;
-  }
-
-  .hos-scene__horizon {
-    opacity: 0.75 !important;
-  }
-
-  .hos-scene__stars--near {
-    opacity: 0.85 !important;
-  }
-
-  .hos-scene__orbit--outer,
-  .hos-scene__orbit--mid,
-  .hos-scene__orbit--inner {
-    opacity: 0.9 !important;
-  }
-
-  .hos-scene__orbit-core {
-    opacity: 0.7 !important;
-  }
-
-  .hos-scene__orbit-node {
-    opacity: 0.85 !important;
-  }
-
-  .hos-scene__orbit-tick {
-    opacity: 0.7 !important;
-  }
-}
-
-/* 上面那一组的第二份，供 iPad 这类「接了妙控键盘 / 触控板之后媒体查询改口」的设备：
-   这里用**同一套声明**兜住那条路径。两组必须逐字一致 —— 改一组就改另一组。 */
-html.hos-touch .hos-scene__stage,
-html.hos-touch .hos-scene__stage * {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__stage,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__stage * {
   animation: none !important;
 }
 
-/* 与上面 (pointer: coarse) 那一份逐字对应：伪元素吃不到 `*`，必须点名。 */
-html.hos-touch .hos-scene__hex::before {
+/* `*` 不匹配伪元素：hex 的漂移已经搬到 ::before 上，这里必须单独点名，
+   否则手持档下唯独这一层还在动（而它恰恰是白名单里唯一允许在平板继续漂的一层，
+   见文件末尾 —— 这里冻的是 `frozen`，`ambient` 会在末尾解冻回来）。 */
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__hex::before {
   animation: none !important;
 }
 
-html.hos-touch .hos-scene__brand,
-html.hos-touch .hos-scene__dossier,
-html.hos-touch .hos-scene__dossier-dot,
-html.hos-touch .hos-scene__live-dot,
-html.hos-touch .hos-scene__mark-wrap,
-html.hos-touch .hos-scene__mark-sheen,
-html.hos-touch .hos-scene__accent::after,
-html.hos-touch .hos-scene__nodes i {
+/* stage 之外的装饰要逐个点名：它们与标题、徽标、档案表同处一层，吃不到上面那条兜底。 */
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__brand,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__dossier,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__dossier-dot,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__live-dot,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__mark-wrap,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__mark-sheen,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__accent::after,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__nodes i {
   animation: none !important;
 }
 
-html.hos-touch .hos-scene__home {
+/* 冻结帧读数（续）。注意 `--stars--near` / `--mist--a` 不在这里、只在 `frozen` 档里补：
+   它们的动画在 `ambient` 档被解冻，而一条 `!important` 的 opacity 会连动画一起压住
+   （`!important` 声明优先于动画），补了就等于没解冻。 */
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__home {
   opacity: 1 !important;
 }
 
-html.hos-touch .hos-scene__motes i {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__motes i {
   opacity: 0.5 !important;
 }
 
-html.hos-touch .hos-scene__home-pad,
-html.hos-touch .hos-scene__home-spill,
-html.hos-touch .hos-scene__home-beam,
-html.hos-touch .hos-scene__home-aura,
-html.hos-touch .hos-scene__win-bloom,
-html.hos-touch .hos-scene__win {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
+    .hos-scene__home-pad,
+    .hos-scene__home-spill,
+    .hos-scene__home-beam,
+    .hos-scene__home-aura,
+    .hos-scene__win-bloom,
+    .hos-scene__win
+  ) {
   opacity: 0.9 !important;
 }
 
-html.hos-touch .hos-scene__uplink,
-html.hos-touch .hos-scene__uplink-node {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
+    .hos-scene__uplink,
+    .hos-scene__uplink-node
+  ) {
   opacity: 0.85 !important;
 }
 
-html.hos-touch .hos-scene__uplink-packet,
-html.hos-touch .hos-scene__beacon-ring {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
+    .hos-scene__uplink-packet,
+    .hos-scene__beacon-ring
+  ) {
   opacity: 0 !important;
 }
 
-html.hos-touch .hos-scene__dawn {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__dawn {
   opacity: 0.85 !important;
 }
 
-html.hos-touch .hos-scene__ambient {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__ambient {
   opacity: 0.7 !important;
 }
 
-html.hos-touch .hos-scene__mist--a {
-  opacity: 0.65 !important;
-}
-
-html.hos-touch .hos-scene__horizon {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__horizon {
   opacity: 0.75 !important;
 }
 
-html.hos-touch .hos-scene__stars--near {
-  opacity: 0.85 !important;
-}
-
-html.hos-touch .hos-scene__orbit--outer,
-html.hos-touch .hos-scene__orbit--mid,
-html.hos-touch .hos-scene__orbit--inner {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) :is(
+    .hos-scene__orbit--outer,
+    .hos-scene__orbit--mid,
+    .hos-scene__orbit--inner
+  ) {
   opacity: 0.9 !important;
 }
 
-html.hos-touch .hos-scene__orbit-core {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__orbit-core {
   opacity: 0.7 !important;
 }
 
-html.hos-touch .hos-scene__orbit-node {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__orbit-node {
   opacity: 0.85 !important;
 }
 
-html.hos-touch .hos-scene__orbit-tick {
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-scene__orbit-tick {
   opacity: 0.7 !important;
+}
+
+/* 只属于 `frozen` 的两条补读数（`ambient` 要靠动画自己给出亮度，见本节开头的说明）。 */
+html[data-hos-motion='frozen'] .hos-scene__mist--a {
+  opacity: 0.65 !important;
+}
+
+html[data-hos-motion='frozen'] .hos-scene__stars--near {
+  opacity: 0.85 !important;
+}
+
+/* ===== ambient 解冻白名单（平板） =====
+ *
+ * 只有「纯 transform / opacity」且实测廉价的三层能进这份名单：
+ *   · `.hos-scene__hex::before` / `.hos-scene__hex--fine::before` —— 平移只走合成层
+ *     （`will-change: transform` 就写在它们的规则里，注释还记着实测数据：停掉背景位移改走
+ *     transform 之后 p95 帧间隔 17.5ms → 9.5ms、>12ms 的异常帧 50 → 0）；
+ *   · 两层星野 —— 关键帧只改 opacity。
+ *
+ * 被**刻意排除**的层，以及排除的理由（它们正好是最像「该有的那种动效」的几层）：
+ *   · 极光（`.hos-scene__aurora`）：`filter: blur(28px)` + `mix-blend-mode: screen`。
+ *     让它漂 = 每帧重新模糊一整块全屏图层再混色，DPR 2/3 的平板上就是「每帧重模糊」，
+ *     和当年坞体实时毛玻璃一样，是帧率杀手而不是氛围。
+ *   · 雾（`.hos-scene__mist`）：`filter: blur(18px)`，同上。
+ *   · 雷达 / 轨道弧（`.hos-scene__radar` / `.hos-scene__orbit-arc`）：都带 `filter: blur()`，
+ *     旋转时必须重新栅格化。
+ *   · 三条山脊（`.hos-scene__ridge-*`）：它们是 SVG `<g>`，transform 无法交给合成器，
+ *     每帧都要重绘整张全屏山景。
+ *   · 屋 / 灯 / 信标 / 徽标 / 扫光（`hosHome*` / `hosWin*` / `hosUplink*` / `hosBeaconRing` /
+ *     `hosMark*` / `hosSheen` / `hos*Scan` / `hosStepBreathe` / `hosLivePulse`）：关键帧里有
+ *     `box-shadow` / `stroke-opacity`，每帧都要重绘，而且它们的「正在发生」语义在静止帧里
+ *     已经由补读数表达出来了。
+ *
+ * 选择器都写成 `html[data-hos-motion='ambient'] .hos-scene__stage …`：比冻结那条
+ * （`html:is(…) .hos-scene__stage *`，特异性 (0,2,1)）高一级，靠特异性赢而不是靠书写顺序赢。
+ */
+html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__hex::before {
+  animation: hosHexDrift 36s linear infinite !important;
+}
+
+html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__hex--fine::before {
+  animation: hosHexDrift 48s linear infinite reverse !important;
+}
+
+html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__stars--far {
+  animation: hosStarField 14s ease-in-out infinite !important;
+}
+
+html[data-hos-motion='ambient'] .hos-scene__stage .hos-scene__stars--near {
+  animation: hosStarField 8s ease-in-out infinite !important;
+  animation-delay: -2s;
 }

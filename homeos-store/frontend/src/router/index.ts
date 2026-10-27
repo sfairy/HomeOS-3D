@@ -7,6 +7,7 @@ import { hashScrollOffset } from "@store/shared/utils/hash-scroll";
 import { useAdminStore } from "@store/features/admin";
 import { StoreLayout, HomeView, AuthView } from "@store/features/storefront";
 import { resolveAdminGate } from "./admin-guard";
+import { probeSetupStatus, setupTokenFromHash } from "@store/shared/utils/setup-status";
 
 const ProductsView = () => import("@store/features/storefront/views/ProductsView.vue");
 const ItemView = () => import("@store/features/storefront/views/ItemView.vue");
@@ -103,7 +104,14 @@ const router = createRouter({
  * 2. `useAdminStore()` 在这里调用是安全的：`main.ts` 先 `use(pinia)` 再 `use(router)`，
  *    而守卫只在导航时执行，那时 pinia 一定已经装好（前一条注释同款约束见 `main.ts`）。
  */
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  // 初始化页的状态必须在**第一帧之前**就是确定的：否则首屏先画「正在检查…」，
+  // 几百毫秒后整体换成创建表单（抬头、说明、表单全换）—— 这就是典型的骨架跳变。
+  // 守卫里问一次（结果进模块级快照），视图在 setup() 里同步取用。
+  // 只对 `/setup` 做：其余页面不为此多发一次请求。
+  if (to.name === "setup") {
+    await probeSetupStatus(setupTokenFromHash(to.hash));
+  }
   const admin = useAdminStore();
   return resolveAdminGate(to, {
     serverAuthState,

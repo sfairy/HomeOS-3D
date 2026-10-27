@@ -23,8 +23,6 @@
   position: relative;
   background: linear-gradient(165deg, rgba(var(--hos-sky-mid-rgb), 0.82) 0%, rgba(var(--hos-sky-low-rgb), 0.92) 100%);
   border: 1px solid rgba(var(--hos-tone-rgb), 0.26);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03) inset,
     0 0 48px rgba(var(--hos-tone-rgb), 0.1),
@@ -34,6 +32,26 @@
   box-sizing: border-box;
   /* 禁止 design-system 的 background transition 把换肤过程放大成闪烁 */
   transition: none;
+}
+
+/* 实时毛玻璃**只给桌面**。
+ *
+ * 以前是「无条件写 blur(22px)，再由 `html.hos-touch` / `(pointer: coarse)` 事后改回 none」。
+ * 那条「事后」在任何一种首帧顺序里都可能来不及：
+ *   · 商店的样式表是 media=print 延迟揭幕的，揭幕时机由 CSS 的 load 事件决定，
+ *     而 `.hos-touch` 由 JS 模块写入 —— 两者没有先后保证；
+ *   · 主应用的 scene-depth.js 虽然是阻塞脚本，但它一被禁（CSP / 缓存 / 构建缺口）就全丢。
+ * 任一种情况下首帧都会先按 native 渲染一帧 realtime blur，再翻成 static —— 面板整体
+ * 变一次模糊、变一次色，正是入户页最刺眼的那一下。
+ *
+ * 改成让**媒体查询本身**决定：触摸设备从第 0 帧起就没有 blur，不依赖任何 JS 时序。
+ * 判定条件用 `(hover: hover) and (pointer: fine)`：桌面是真有精度指针且能 hover 的设备；
+ * 触屏笔记本的触摸态、iPad、手机都落不进这一档。 */
+@media (hover: hover) and (pointer: fine) {
+  .hos-page .hos-panel {
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+  }
 }
 
 /* 弹性列下直接子块不收缩：坞体触到 max-height 时应当是滚动，而不是先把抬头 / 表单的
@@ -410,6 +428,14 @@
     transform: translateX(520%);
     opacity: 0;
   }
+}
+
+/* 甲板的数据是异步的（`/store/v1/shell/deck`）：数据回来之前先用**同构占位**把高度占住，
+   数据到了只换文本、不换布局。占位用 `visibility: hidden` —— 空间在、内容不显，
+   于是「先没有 → 突然多出一条 → 下面整体下移」的三段跳变被压成 0。
+   （占位格子本身由 DeckTiles.vue 渲染，结构与真数据逐节点相同。） */
+.hos-deck.is-pending {
+  visibility: hidden;
 }
 
 .hos-deck__tile {
@@ -1673,6 +1699,10 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--hos-muted);
+  /* 坞脚首行的高度下限：这些条目有的来自异步配置（商店入口地址取不到时整行只剩
+     「忘记密码」一两格），首帧与下一拍的行数可能不同。预留一行，让两种形态都落在这行里，
+     坞体高度就不动 —— 桌面端 dock 垂直居中时尤其明显（整块面板会上下挪 34px）。 */
+  min-height: 16px;
 }
 
 .hos-panel__meta-sep {
@@ -1881,28 +1911,18 @@
   }
 }
 
-/* ===== 静止档（触摸设备）：坞体玻璃降级为实底 =====
+/* ===== 触摸档（frozen / ambient）：坞体玻璃降级为实底 =====
    只作用于触摸设备：桌面浏览器实测不闪，玻璃是这套页面的质感，不该白扣。
 
-   选择器必须写成 `.hos-page .hos-panel`（而不是裸 `.hos-panel`）：坞体基础样式用的是
-   `.hos-page .hos-panel`（见文件开头的说明，那里用 .hos-page 压过 design-system 的裸规则），
-   特异性 (0,2,0)。裸 `.hos-panel` 只有 (0,1,0)，**即使排在后面也赢不了** —— 实测触摸档下
-   backdrop-filter 仍是 blur(22px)，坞体在大面积场景之上保留实时模糊，DPR 3 的移动模拟里
-   每帧重模糊，这正是入户页反复闪的来源之一。 */
-@media (pointer: coarse), (hover: none) {
-  .hos-page .hos-panel {
-    background: linear-gradient(165deg, var(--hos-sky-mid) 0%, var(--hos-sky-low) 100%);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
+   这里只换**底色**（半透明玻璃 → 实底），不再写 `backdrop-filter: none` ——
+   实时模糊已经由文件开头那条 `@media (hover: hover) and (pointer: fine)` 从第 0 帧起就
+   不落在触摸设备上，事后补一条 none 只会增加一条要维持同步的重复规则。
 
-/* 第二份，供 iPad 这类「接了妙控键盘 / 触控板之后媒体查询改口」的设备（与 scene.css 的
-   html.hos-touch 那一组同源）。两份必须逐字一致 —— 改一组就改另一组。 */
-html.hos-touch .hos-panel {
+   档位来源见 `scene.css` 的「动效档位」段：`<html data-hos-motion>` 由 JS 首帧前算定、
+   会话内只降不升。以前这里有两份（媒体查询一份 + `html.hos-touch` 一份，因为 iPad 接了
+   妙控键盘会让媒体查询改口），那份重复正是「同一块坞体在两套档位之间来回切」的来源之一。 */
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-page .hos-panel {
   background: linear-gradient(165deg, var(--hos-sky-mid) 0%, var(--hos-sky-low) 100%);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1926,22 +1946,14 @@ html.hos-touch .hos-panel {
   }
 }
 
-/* ===== 静止档（触摸设备）：坞体自己身上那几件持续动效 =====
-   特异性赢」来保住它的，这份沿用同一手法。 */
-@media (pointer: coarse), (hover: none) {
-  .hos-btn-primary::after,
-  .hos-hub__scan,
-  .hos-deck__scan,
-  .hos-steps__item.is-current .hos-steps__dot {
-    animation: none;
-  }
-}
-
-/* 第二份，供 iPad 这类「接了妙控键盘 / 触控板之后媒体查询改口」的设备（与 scene.css 的
-   html.hos-touch 那一组同源）。两份必须逐字一致 —— 改一组就改另一组。 */
-html.hos-touch .hos-btn-primary::after,
-html.hos-touch .hos-hub__scan,
-html.hos-touch .hos-deck__scan,
-html.hos-touch .hos-steps__item.is-current .hos-steps__dot {
+/* ===== 触摸档（frozen / ambient）：坞体自己身上那几件持续动效 =====
+   它们的关键帧里有 `box-shadow` / 遮罩扫掠，每帧都要重绘；静止帧的「正在处理 / 正在读取」
+   已经由状态点与读数表达，不需要靠扫光再来一遍。`ambient` 也不放行这几件（白名单在 scene.css）。 */
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-btn-primary::after,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-hub__scan,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient']) .hos-deck__scan,
+html:is([data-hos-motion='frozen'], [data-hos-motion='ambient'])
+  .hos-steps__item.is-current
+  .hos-steps__dot {
   animation: none;
 }

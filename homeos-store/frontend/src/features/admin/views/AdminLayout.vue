@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, r
 import { useRoute, useRouter } from "vue-router";
 import SceneStage from "@store/shared/components/SceneStage.vue";
 import DeckTiles from "@store/shared/components/DeckTiles.vue";
+import EntryShell from "@homeos/shared/components/EntryShell.vue";
 import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import AdjustDialog from "@store/features/admin/components/AdjustDialog.vue";
 import PurgeDialog from "@store/features/admin/components/PurgeDialog.vue";
@@ -207,80 +208,81 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="admin.phase === 'boot'" class="admin-boot">
-    <div class="admin-boot__spinner"></div>
-    <div class="admin-boot__text">正在加载…</div>
-  </div>
+  <!-- 引导期：admin.css 由 App.vue 动态注入，可能还没到 —— 这里**不能**依赖它。
+       改造前是 `.admin-boot`（转圈由 admin.css 上色），慢机型上会先闪一瞬裸 DOM。
+       现在直接用共享入户壳画同款坞体，样式全部来自 scene/panel.css（首帧前已就位）。 -->
+  <EntryShell
+    v-if="admin.phase === 'boot'"
+    class="hb-page-shell"
+    tone="accent"
+    eyebrow="Admin Console"
+    secure="只读校验"
+    title="正在确认管理员会话…"
+    description="确认之后才进入后台工作台。这一步不写任何数据。"
+  >
+    <template #scene><SceneStage page="admin" /></template>
+    <DeckTiles page="admin" />
+  </EntryShell>
 
-  <div v-else-if="admin.phase === 'login'" id="admin-login" class="hb-page-shell hos-page hos-tone--accent">
-    <SceneStage page="admin" />
-    <main class="hos-dock">
-      <section class="hos-panel hos-rise">
-        <span class="hos-panel__edge" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
-        <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
-        <div class="hos-panel__head">
-          <div class="hos-eyebrow-row">
-            <p class="hos-eyebrow">Admin Console</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>管理员专用</span>
-          </div>
-          <h1>进后台，处理今天的事</h1>
-          <p class="hos-panel__desc">
-            商品上架、订单履约、激活码签发与设备解绑都在后台完成，请用具有管理员权限的账号登录。
-          </p>
+  <EntryShell
+    v-else-if="admin.phase === 'login'"
+    id="admin-login"
+    class="hb-page-shell"
+    tone="accent"
+    eyebrow="Admin Console"
+    secure="管理员专用"
+    title="进后台，处理今天的事"
+    description="商品上架、订单履约、激活码签发与设备解绑都在后台完成，请用具有管理员权限的账号登录。"
+  >
+    <template #scene><SceneStage page="admin" /></template>
+    <DeckTiles page="admin" />
+    <form class="hos-form" autocomplete="off" @submit.prevent="submitLogin">
+      <div class="hos-field">
+        <div class="hos-label-row"><label for="admin-login-email">管理员邮箱</label></div>
+        <div class="hos-control">
+          <input
+            id="admin-login-email"
+            v-model="loginEmail"
+            type="email"
+            name="email"
+            placeholder="admin@example.com"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            data-lpignore="true"
+            data-1p-ignore
+            data-bwignore
+            required
+          />
         </div>
-        <DeckTiles page="admin" />
-        <form class="hos-form" autocomplete="off" @submit.prevent="submitLogin">
-          <div class="hos-field">
-            <div class="hos-label-row"><label for="admin-login-email">管理员邮箱</label></div>
-            <div class="hos-control">
-              <input
-                id="admin-login-email"
-                v-model="loginEmail"
-                type="email"
-                name="email"
-                placeholder="admin@example.com"
-                autocomplete="off"
-                autocapitalize="off"
-                autocorrect="off"
-                spellcheck="false"
-                data-lpignore="true"
-                data-1p-ignore
-                data-bwignore
-                required
-              />
-            </div>
-          </div>
-          <div class="hos-field">
-            <div class="hos-label-row"><label for="admin-login-password">密码</label></div>
-            <PasswordField
-              id="admin-login-password"
-              v-model="loginPassword"
-              placeholder="请输入密码"
-              required
-            />
-          </div>
-          <p v-if="admin.loginError" class="hos-msg is-err" role="alert">{{ admin.loginError }}</p>
-          <div class="hos-actions">
-            <button class="hos-btn-primary" type="submit">登录后台</button>
-          </div>
-        </form>
-        <p class="hos-switch"><RouterLink to="/">返回商店前台</RouterLink></p>
-        <div class="hos-panel__copy">
-          <div class="hos-panel__meta">
-            <span>订单与退款</span>
-            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>激活码与绑定</span>
-            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>站点配置与审计</span>
-          </div>
-          <p>运营后台的每一步操作都会留下审计记录。</p>
-        </div>
-      </section>
-    </main>
-  </div>
+      </div>
+      <div class="hos-field">
+        <div class="hos-label-row"><label for="admin-login-password">密码</label></div>
+        <PasswordField
+          id="admin-login-password"
+          v-model="loginPassword"
+          placeholder="请输入密码"
+          required
+        />
+      </div>
+      <p v-if="admin.loginError" class="hos-msg is-err" role="alert">{{ admin.loginError }}</p>
+      <div class="hos-actions">
+        <button class="hos-btn-primary" type="submit">登录后台</button>
+      </div>
+    </form>
+    <p class="hos-switch"><RouterLink to="/">返回商店前台</RouterLink></p>
+    <template #copy>
+      <div class="hos-panel__meta">
+        <span>订单与退款</span>
+        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+        <span>激活码与绑定</span>
+        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+        <span>站点配置与审计</span>
+      </div>
+      <p>运营后台的每一步操作都会留下审计记录。</p>
+    </template>
+  </EntryShell>
 
   <div v-else class="admin-shell">
     <aside class="admin-side">

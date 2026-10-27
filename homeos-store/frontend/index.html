@@ -28,6 +28,10 @@
   <!-- 首帧视觉基线：theme.css 是 --hb-* 令牌的唯一定义处，必须阻塞（后台 admin.css 由 App.vue
        动态注入，也依赖它先到位）；其余业务样式改为 media=print 先下载、加载完成后切回 all。 -->
   <link rel="stylesheet" href="/store-static/theme.css">
+  <!-- 品牌字 Orbitron 提前拉：场景里的 HomeOS 标记用它，`swap` + preload 保证首帧即最终字形。
+       正文/UI 字体在 scene/fonts.css 里是 `optional`（慢网用系统字，不闪字宽）。 -->
+  <link rel="preload" href="/store-static/scene/fonts/orbitron-700-latin.woff2" as="font"
+    type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/store-static/font.min.css" media="print" data-defer-style>
   <link rel="stylesheet" href="/store-static/scene/fonts.css" media="print" data-defer-style>
   <link rel="stylesheet" href="/store-static/scene/page.css" media="print" data-defer-style>
@@ -50,18 +54,43 @@
     <link rel="stylesheet" href="/store-static/store.css">
     <link rel="stylesheet" href="/store-static/store-home.css">
   </noscript>
-  <!-- CSP 的 script-src 只按 nonce 放行、没有 script-src-attr，所以不能用 onload= 内联事件；
-       这里用带 nonce 的内联脚本监听每张样式表的 load，加载完成再切回 all。
-       media=print 期间这些样式表不参与首帧渲染，骨架先画出来。 -->
+  <!-- CSP 的 script-src 只按 nonce 放行、没有 script-src-attr，所以不能用 onload= 内联事件。
+       揭幕策略：**等全部到位、一帧内一次切完**。
+       改造前是「每张表 load 就单独 media=all」—— 8 张表各触发一次样式重算 + 重画，
+       慢机型上就是肉眼可见的「先只有 theme.css 的排版，再一步步变成完整样式」。
+       现在：所有表 load/error（或 8s 硬上限）→ 同一个任务里全部切 all →
+       置 `html[data-styles-ready]`，供 main.ts 判断「可以揭掉占位壳了」。 -->
   <script nonce="{{NONCE}}">
     (function () {
-      function reveal(link) { link.media = "all"; }
       var links = document.querySelectorAll("link[data-defer-style]");
-      for (var i = 0; i < links.length; i += 1) {
-        var link = links[i];
-        if (link.sheet) reveal(link);
-        else link.addEventListener("load", function () { reveal(this); });
+      var revealed = false;
+      function revealAll() {
+        if (revealed) return;
+        revealed = true;
+        // 一个任务里切完 8 张（一次样式重算 + 一次重画），再置位就绪标记。
+        for (var i = 0; i < links.length; i += 1) links[i].media = "all";
+        document.documentElement.setAttribute("data-styles-ready", "1");
+        document.dispatchEvent(new Event("hos:styles-ready"));
       }
+      var pending = 0;
+      var settled = 0;
+      for (var i = 0; i < links.length; i += 1) {
+        if (links[i].sheet) continue;
+        pending += 1;
+        var onSettled = function () {
+          settled += 1;
+          if (settled >= pending) revealAll();
+        };
+        links[i].addEventListener("load", onSettled);
+        links[i].addEventListener("error", onSettled);
+      }
+      if (pending === 0) revealAll();
+      // 硬上限：某张表 404 或被网关拦掉时不能把首屏永久锁死。
+      //
+      // 8s 而不是 3s：慢网（Slow 3G + 4x CPU）下 8 张表要 4~5s 才齐，3s 就揭幕等于把
+      // 「半套样式」画给用户看，随后 store.css 到达再整页重排 —— 实测一次 0.54 的位移。
+      // 宁可让不透明的占位壳多转几秒，也不要让用户看见两次布局。
+      setTimeout(revealAll, 8000);
     })();
   </script>
   <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css` 的 <link>。

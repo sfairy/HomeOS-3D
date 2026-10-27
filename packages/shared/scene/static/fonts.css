@@ -1,6 +1,17 @@
 /* HomeOS 入口页显示字体：本地自托管
    真源：packages/shared/scene/static/fonts.css —— 只改这里，
-   两个前端的 public 副本由 `bun run --cwd packages/shared sync:scene` 生成，且不入库。 */
+   两个前端的 public 副本由 `bun run --cwd packages/shared sync:scene` 生成，且不入库。
+
+   `font-display` 的两档策略（与 index.html 的 preload 配合，见计划 E）：
+
+   · 品牌字 Orbitron → `swap`。它只用在场景的品牌标记上（`--hos-font-brand`），字重固定、
+     字号大，换字时位移极小；而且它是入户页的「第一印象」，宁可晚一拍换上也别降级成系统字。
+     两端 HTML 用 `<link rel="preload" as="font" crossorigin>` 提前拉，通常首帧就已就位。
+
+   · 正文 / UI 字（Exo 2、Share Tech Mono、JetBrains Mono）→ `optional`。这几个字族用在
+     表单标签、输入框文字与小号等宽标签上 —— 一旦后到，字宽变化会让**整块面板**重排一次
+     （输入框里的光标、占位文字、标签的 letter-spacing 全跟着跳）。`optional` 的语义是
+     「100ms 内没到就用系统字，本次页面加载不再换」：慢网下宁可用系统字，也不要闪一次字宽。 */
 
 @font-face {
   font-family: 'Orbitron';
@@ -17,7 +28,7 @@
   font-family: 'Exo 2';
   font-style: normal;
   font-weight: 400 700;
-  font-display: swap;
+  font-display: optional;
   src: url('./fonts/exo-2-400-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
     U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
@@ -27,7 +38,7 @@
   font-family: 'JetBrains Mono';
   font-style: normal;
   font-weight: 400 500;
-  font-display: swap;
+  font-display: optional;
   src: url('./fonts/jetbrains-mono-400-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
     U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
@@ -37,7 +48,7 @@
   font-family: 'Share Tech Mono';
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  font-display: optional;
   src: url('./fonts/share-tech-mono-400-latin.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
     U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;

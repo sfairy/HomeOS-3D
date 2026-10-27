@@ -14,6 +14,8 @@
     },
     "./components/PasswordField.vue": "./src/components/PasswordField.vue",
     "./components/SceneStage.vue": "./src/components/SceneStage.vue",
+    "./components/EntryShell.vue": "./src/components/EntryShell.vue",
+    "./components/entry-step": "./src/components/entry-step.ts",
     "./scene/scene-values": "./src/scene/scene-values.ts",
     "./scene/touch-profile": "./src/scene/touch-profile.ts",
     "./utils/clipboard": "./src/utils/clipboard.ts"

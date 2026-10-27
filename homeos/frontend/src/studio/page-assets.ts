@@ -262,3 +262,75 @@ export function applyPageAssets(
       : assets.stylesheets,
   );
 }
+
+/**
+ * 等这些样式表「已应用」的硬上限。
+ *
+ * 入户页的四片是 `<link>` 预装的，正常情况**同步就已就绪**（`el.sheet` 非空）。
+ * 需要等的只有一种情况：冷启动时 style 尚未解析完 —— 那时等一两帧就够了，所以上限压到
+ * 一个渲染帧量级（400ms）。宁可带着未就绪的样式渲染，也不能让入户页白屏等 CSS：
+ * 本函数存在的意义是「尽量别在缺样式时画第一帧」，不是「必须等样式」。
+ */
+const STYLES_READY_TIMEOUT_MS = 400;
+
+/** 一张样式表是否已经可用（`sheet` 非空 = 已下载并解析完）。 */
+function isStylesheetReady(el: HTMLLinkElement): boolean {
+  // 跨源样式表的 `sheet` 会受 CORS 限制读不到，但同源站点（/static/…）能读到；
+  // 读不到也当作「浏览器已经处理过这张表」，避免在 CORS 场景下白等 400ms。
+  try {
+    return el.sheet !== null;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * 应用一组页面资产，并返回「样式已就位（或 400ms 超时）」的 promise。
+ *
+ * 给**入户路由的守卫**用：那些页面的第一帧会被用户当作「页面长这样」，一旦在样式缺位时
+ * 画出来，随后样式落地就是整页重排 —— 也就是这次要修的那种闪烁。守卫多等这一下（通常 0ms）
+ * 比让用户看见两次布局划算。
+ *
+ * @param assets 目标资产的样式表清单
+ * @param options 与 `applyPageAssets` 一致
+ * @returns 已就位或超时后 resolve（**永不 reject**）
+ */
+export function ensurePageAssets(
+  assets: PageAssets | undefined,
+  options?: ApplyPageAssetsOptions,
+): Promise<void> {
+  applyPageAssets(assets, options);
+  if (typeof document === "undefined" || !assets) return Promise.resolve();
+
+  const pending = assets.stylesheets
+    .map((url) =>
+      document.head.querySelector<HTMLLinkElement>(
+        `link[${MANAGED_ATTR}][href="${url}"]`,
+      ),
+    )
+    .filter((el): el is HTMLLinkElement => Boolean(el) && !isStylesheetReady(el!));
+
+  if (pending.length === 0) return Promise.resolve();
+
+  return new Promise<void>((resolve) => {
+    let remaining = pending.length;
+    let done = false;
+    const settle = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(settle, STYLES_READY_TIMEOUT_MS);
+    for (const el of pending) {
+      const onSettled = () => {
+        el.removeEventListener("load", onSettled);
+        el.removeEventListener("error", onSettled);
+        remaining -= 1;
+        if (remaining <= 0) settle();
+      };
+      el.addEventListener("load", onSettled);
+      el.addEventListener("error", onSettled);
+    }
+  });
+}

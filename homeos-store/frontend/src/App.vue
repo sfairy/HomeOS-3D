@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import AdminToastHost from "@store/shared/components/AdminToastHost.vue";
 import ConfirmDialog from "@store/shared/components/ConfirmDialog.vue";
 import { useStoreToast } from "@store/shared/stores/toast";
+import { ensureAdminStylesheet, releaseAdminStylesheet } from "@store/shared/utils/styles-ready";
 
 const route = useRoute();
 const storeToast = useStoreToast();
@@ -15,20 +16,19 @@ const isStore = computed(
     route.path !== "/setup",
 );
 
-let adminStylesheet: HTMLLinkElement | null = null;
-
+/**
+ * 后台样式表的挂/摘。
+ *
+ * 挂载点与等待逻辑都搬到了 `shared/utils/styles-ready.ts`：
+ * `main.ts` 在首屏是后台路由时**先 await 它再 mount**（否则后台登录屏会先画一帧裸 DOM），
+ * 这里只负责按路由增删。两处共用同一个 `link[data-admin-stylesheet]`，不会挂出第二份。
+ *
+ * 注入是异步的，但这里不需要等：首屏那一份由 main.ts 提前保证；后续从后台切走/切回
+ * 都是同一张已缓存的表，浏览器不会重排一次「无样式」的中间态。
+ */
 function setAdminStylesheet(enabled: boolean) {
-  if (enabled && !adminStylesheet) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "/store-static/admin.css";
-    link.dataset.adminStylesheet = "1";
-    document.head.appendChild(link);
-    adminStylesheet = link;
-  } else if (!enabled && adminStylesheet) {
-    adminStylesheet.remove();
-    adminStylesheet = null;
-  }
+  if (enabled) void ensureAdminStylesheet();
+  else releaseAdminStylesheet();
 }
 
 function applyBodyClasses() {

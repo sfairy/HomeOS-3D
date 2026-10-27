@@ -59,7 +59,10 @@ import {
   loadFrontendConfig,
   setupFrontendConfigVisibilitySync,
 } from '@/shared/utils/config/frontend-config'
-import { setupGlassEffectSync } from '@/shared/utils/ui/glass-effect.util'
+import {
+  primeGlassEffectDocument,
+  setupGlassEffectSync,
+} from '@/shared/utils/ui/glass-effect.util'
 import { applyHomeOsTheme } from '@/shared/utils/ui/theme.util'
 import { setupSmartPerformanceMode } from '@/shared/utils/perf/smart-performance.util'
 import {
@@ -199,6 +202,9 @@ if (typeof document !== 'undefined') {
 
 // 尽早应用主题 token（html[data-theme]），避免首屏闪色
 applyHomeOsTheme()
+// 毛玻璃档位同样在首帧前定档：入户页配置在挂载后才到，若等它来写，触摸设备会先用
+// native 渲染一次再翻成 static（表单整体变一次色/变一次模糊）。见 glass-effect.util。
+primeGlassEffectDocument()
 
 /** 入户认证页不依赖完整 public config；等配置再 mount 会空等一整段，放大首屏闪烁。 */
 const isEntryAuthRoute = /^\/(login|register|setup|activate|license|reset-password)(\/|$)/.test(
