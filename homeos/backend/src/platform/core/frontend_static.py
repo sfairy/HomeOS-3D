@@ -117,6 +117,17 @@ _AUTH_STYLESHEET_LINK_RE = re.compile(
     + r")\")[^>]*>"
 )
 
+#: 品牌字 Orbitron 的 preload（`<link rel="preload" as="font">`，见 frontend/index.html）。
+#: **它只服务认证场景四片里的 `scene.css`**（`--hos-font-brand` 唯一使用点）。
+#: 四片被剥离后，预载下来的字体在整个文档里没有任何消费者，浏览器在 load 后几秒必定报
+#: 「preloaded but not used within a few seconds」—— 预载白下载 15KB，还带一条控制台噪音。
+AUTH_SCENE_FONT_PRELOAD_PREFIX = "/static/auth/scene/fonts/"
+
+_AUTH_FONT_PRELOAD_LINK_RE = re.compile(
+    r"\s*<link\b(?=[^>]*\brel=\"preload\")(?=[^>]*\bas=\"font\")"
+    r"(?=[^>]*\bhref=\"" + re.escape(AUTH_SCENE_FONT_PRELOAD_PREFIX) + r"[^\"]*\")[^>]*>"
+)
+
 
 def is_auth_page_path(path: str) -> bool:
     """页面是否属于需要认证场景样式的入户路由（精确匹配，避免 `/` 误伤）。"""
@@ -124,14 +135,20 @@ def is_auth_page_path(path: str) -> bool:
     return normalized in _AUTH_PAGE_PATHS or normalized.startswith("/setup/")
 
 
-def strip_auth_scene_stylesheets(html: str) -> str:
-    """从 SPA 外壳里移除认证场景四片（保留 spa-shell/appearance/其它样式）。
+def strip_auth_scene_assets(html: str) -> str:
+    """从 SPA 外壳里移除认证场景的资产（四片样式表 + 品牌字 preload）。
 
-    只匹配 `<link rel="stylesheet" href="...">` 这一种节点；调用方负责判断当前页面
-    是否真的不需要它们（已登录的非入户页面）。运行时若导航到登录页，`applyStylesheets`
-    会按 `AUTH_STYLESHEETS` 重新创建这些节点。
+    只做两件事：
+    · 摘掉 `<link rel="stylesheet" href="{四片}">`；
+    · 摘掉 `<link rel="preload" as="font" href="/static/auth/scene/fonts/…">` —— 它唯一的
+      消费者就是被摘掉的 `scene.css`（见 `AUTH_SCENE_FONT_PRELOAD_PREFIX` 处的说明），
+      留下会触发浏览器的「preloaded but not used」告警。
+
+    保留 spa-shell / appearance / 其它样式。调用方负责判断当前页面是否真的不需要它们
+    （已登录的非入户页面、3D 舞台）。运行时若导航到登录页，`applyStylesheets` 会按
+    `AUTH_STYLESHEETS` 重新创建这些样式表节点（字体此时由 CSS 自身拉取，只是少了预载）。
     """
-    return _AUTH_STYLESHEET_LINK_RE.sub("", html)
+    return _AUTH_FONT_PRELOAD_LINK_RE.sub("", _AUTH_STYLESHEET_LINK_RE.sub("", html))
 
 
 def is_frontend_static_path(path: str) -> bool:
@@ -170,6 +187,7 @@ def is_spa_document_path(path: str) -> bool:
 __all__ = [
     "APPLE_TOUCH_ICON_PATHS",
     "ASSETS_MOUNT_PREFIX",
+    "AUTH_SCENE_FONT_PRELOAD_PREFIX",
     "AUTH_SCENE_STYLESHEET_PATHS",
     "BACKGROUNDS_MOUNT_PREFIX",
     "FAVICON_PATH",
@@ -186,5 +204,5 @@ __all__ = [
     "is_auth_page_path",
     "is_frontend_static_path",
     "is_spa_document_path",
-    "strip_auth_scene_stylesheets",
+    "strip_auth_scene_assets",
 ]

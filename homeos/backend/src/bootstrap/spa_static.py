@@ -29,7 +29,7 @@ from ..platform.core.frontend_static import (
     STATIC_MOUNT_PREFIX,
     is_auth_page_path,
     is_frontend_static_path,
-    strip_auth_scene_stylesheets,
+    strip_auth_scene_assets,
 )
 from ..platform.security.session_store import resolve_login_session
 
@@ -432,7 +432,7 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
             # render-blocking，先下载再被 page-assets 卸掉纯属浪费。这里按页面路径剥离，
             # 认证入户页（/login 等）与授权拦截页保持原样；运行时跳转回登录页会重新挂载。
             if not is_auth_page_path(request.url.path):
-                html = strip_auth_scene_stylesheets(html)
+                html = strip_auth_scene_assets(html)
             html = _inject_preload_stylesheets(
                 html, page_preload_stylesheets(request.url.path)
             )

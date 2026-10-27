@@ -38,7 +38,7 @@ from ...domains.ha.integration.service_call import (
 )
 from ...platform.core.asset_paths import UPLOAD_CONTENT_TYPES, user_asset_file
 from ...platform.core.atomic_write import restrict_private_file
-from ...platform.core.frontend_static import strip_auth_scene_stylesheets
+from ...platform.core.frontend_static import strip_auth_scene_assets
 from ...platform.core.models import HAEntity, ProjectDraft
 from ...platform.security.request_origin import require_same_origin_write
 from ...schemas import HAServiceCallRequest
@@ -1149,7 +1149,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     if html is None:
         raise HTTPException(503, detail='前端产物尚未就绪，请稍后重试。')
     # 舞台必然已登录：认证场景四片在这里没有消费者，先剥掉再注入舞台样式。
-    html = strip_auth_scene_stylesheets(html)
+    html = strip_auth_scene_assets(html)
     html = html.replace(
         '</head>',
         '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css">'
