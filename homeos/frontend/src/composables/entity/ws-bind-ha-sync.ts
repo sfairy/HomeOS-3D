@@ -13,25 +13,45 @@ import {
 import { WS_CLIENT_EVENTS } from '@homeos/shared'
 import type { Socket } from 'socket.io-client'
 
+/**
+ * 全量同步完成前的增量过滤。
+ *
+ * 只丢弃「本地完全没有该实体」的 delta：这种情况下合并结果只能是
+ * ``{state}`` + 少量属性，属于残缺实体，等全量快照更安全。
+ * 本地已有该实体（重连前的基线 / IndexedDB 缓存 hydrate）时必须照常应用 ——
+ * 服务端在断线重连时只做 ``state_replay`` 增量回放，不会再发 ``initial_states``，
+ * 若一律丢弃，实体状态会永久冻结在断线前的快照里（只有整包推送才偶尔落地），
+ * 表现为「页面数据不再实时刷新，手动刷新才恢复正常」。
+ */
 function filterDeltaBeforeFullSync(
   changes: Record<string, unknown>[],
   sync: EntitySocketSyncState,
+  entities: Record<string, unknown>,
   logger: EntitySocketHandlerContext['logger'],
 ): Record<string, unknown>[] {
   if (sync.initialStatesReceived || !changes.length) return changes
-  const full: Record<string, unknown>[] = []
+  const applicable: Record<string, unknown>[] = []
   let dropped = 0
   for (const change of changes) {
-    if ((change as { _delta?: boolean })?._delta) dropped++
-    else full.push(change)
+    const item = change as { _delta?: boolean; entity_id?: string }
+    if (!item?._delta) {
+      applicable.push(change)
+      continue
+    }
+    const entityId = String(item.entity_id || '')
+    // 本地已有基线：delta 可安全合并（服务端保证 delta 与 baseline 顺序一致）
+    if (entityId && entities[entityId]) {
+      applicable.push(change)
+      continue
+    }
+    dropped++
   }
   if (dropped > 0) {
-    // 设计内的自愈：这些 delta 的变更时刻不晚于随后到达的全量快照，快照会覆盖其效果，
-    // 丢弃是安全的。后端侧已避免向未就绪客户端广播增量（见 gateway._baseline_ready），
-    // 此处仅作兜底，降级 debug 以免产生误导性告警。
-    logger.debug?.(`全量同步完成前丢弃 ${dropped} 条 delta 增量(本地缺少实体基线)`)
+    // 后端侧已避免向未就绪客户端广播增量（见 gateway._baseline_ready），此处仅作兜底，
+    // 降级 debug 以免产生误导性告警。
+    logger.debug?.(`全量同步完成前丢弃 ${dropped} 条 delta 增量(本地缺少该实体基线)`)
   }
-  return full
+  return applicable
 }
 
 export function bindEntitySocketHaSync(
@@ -268,16 +288,29 @@ export function bindEntitySocketHaSync(
       changes?: Record<string, unknown>[]
       entities?: HaEntityState[]
       lastEventId?: number
+      count?: number
     }) => {
+      // state_replay 是服务端对「本地已有基线」的权威补齐：只要回放返回 replayed，
+      // 服务端就不会再发 initial_states。因此收到回放（哪怕 0 条变更）即视为同步完成，
+      // 否则 initialStatesReceived 永远为 false、entitiesCacheHydrated 永远为 true，
+      // 连带的后果是：实体缓存不再持久化、增量被基线门禁拦掉、
+      // 重连横幅卡在「正在重新连接」，只有手动刷新页面才恢复。
+      sync.initialStatesReceived = true
+      refs.entitiesCacheHydrated.value = false
+      refs.entitiesStale.value = false
+      clearSyncTimers()
+      if (refs.totalCount.value > 0) refs.loading.value = false
+      // 回放游标即使本轮 0 条变更也要推进：否则下次重连仍从旧游标回放，
+      // 环形缓冲淘汰后会退化成「建议重同步」的整包 REST 拉取。
+      if (data?.lastEventId) track.lastEventId = data.lastEventId
+      track.lastSocketEventAt = Date.now()
       const changes = data?.changes
       if (Array.isArray(changes) && changes.length) {
-        // baseline 保护：与 state_changed_batch 一致，全量同步完成前丢弃 delta 条目
-        const applicable = filterDeltaBeforeFullSync(changes, sync, logger)
+        // baseline 保护：与 state_changed_batch 一致，仅丢弃本地缺实体的 delta 条目
+        const applicable = filterDeltaBeforeFullSync(changes, sync, entities, logger)
         if (applicable.length) {
           actions.updateStatesBatch(applicable)
         }
-        if (data?.lastEventId) track.lastEventId = data.lastEventId
-        track.lastSocketEventAt = Date.now()
         logger.info(`WS 断线补发 ${applicable.length} 条增量状态(delta)`)
         return
       }
@@ -297,8 +330,6 @@ export function bindEntitySocketHaSync(
         if (changes.length) {
           void actions.updateStatesBatch(changes)
         }
-        if (data?.lastEventId) track.lastEventId = data.lastEventId
-        track.lastSocketEventAt = Date.now()
         logger.info(`WS 断线补发 ${changes.length} 条实体状态`)
       }
     },
@@ -311,8 +342,8 @@ export function bindEntitySocketHaSync(
       if (data?.lastEventId) track.lastEventId = data.lastEventId
       const changes = data?.changes || []
       if (changes.length) {
-        // baseline 保护：全量同步完成前丢弃 delta，避免 merge 到残缺基线上产生残缺实体
-        const applicable = filterDeltaBeforeFullSync(changes, sync, logger)
+        // baseline 保护：全量同步完成前只丢弃缺实体的 delta，避免 merge 到残缺基线上产生残缺实体
+        const applicable = filterDeltaBeforeFullSync(changes, sync, entities, logger)
         if (!applicable.length) return
         refs.entitiesStale.value = false
         actions.updateStatesBatch(applicable)

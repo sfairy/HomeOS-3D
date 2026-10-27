@@ -24,9 +24,20 @@ export function bindEntitySocketLifecycle(
 
   const clearSyncTimers = () => clearEntitySocketSyncTimers(sync)
 
+  /**
+   * 本页是否已有一份可信基线：已完成过一次 WS 全量同步（而不是只靠 IndexedDB 缓存 hydrate）。
+   * 缓存可能是几小时前的（服务端 since 只回放最近 60s），因此不能凭缓存宣称「已同步」。
+   */
+  const hasTrustedBaseline = () =>
+    refs.totalCount.value > 0 && !refs.entitiesCacheHydrated.value
+
   socket.on('connect', () => {
     logger.info('WebSocket 已连接到 HomeOS 后端')
-    sync.initialStatesReceived = false
+    // 断线重连时服务端只做 state_replay 增量回放，不会再发 initial_states。
+    // 这里若把「已收到全量」无条件重置为 false，之后所有 delta 增量都会被
+    // filterDeltaBeforeFullSync 丢掉，实体状态永久冻结在断线前的快照，
+    // 只有手动刷新页面才恢复。已有可信基线时保留该标记。
+    sync.initialStatesReceived = hasTrustedBaseline()
     if (refs.totalCount.value > 0) {
       // 已有缓存：短暂标记重连中；收到 initial_states / REST 回退成功后清除
       refs.reconnecting.value = true

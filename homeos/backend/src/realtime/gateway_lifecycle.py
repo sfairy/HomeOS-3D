@@ -115,28 +115,29 @@ class ConnectionLifecycleMixin:
                 "resync_suggested", resync_suggested_payload("replay_too_large"), to=sid
             )
             return "resync"
-        if replay:
-            await self.sio.emit(
-                "state_replay",
-                {
-                    "type": "state_replay",
-                    "changes": [
-                        to_ws_state_change_payload(
-                            {
-                                "entity_id": record["entity_id"],
-                                "old_state": None,
-                                "new_state": record["new_state"],
-                                "changed_at": ms_to_iso(record["at"]),
-                            }
-                        )
-                        for record in replay
-                    ],
-                    "count": len(replay),
-                    "lastEventId": self.state_store.get_latest_change_id(),
-                    "timestamp": iso_now(),
-                },
-                to=sid,
-            )
+        # 即使回放为空也要下发：客户端靠这条消息判定「基线已补齐」（服务端返回
+        # replayed 后不会再发 initial_states），漏发会让前端一直停在未同步状态。
+        await self.sio.emit(
+            "state_replay",
+            {
+                "type": "state_replay",
+                "changes": [
+                    to_ws_state_change_payload(
+                        {
+                            "entity_id": record["entity_id"],
+                            "old_state": None,
+                            "new_state": record["new_state"],
+                            "changed_at": ms_to_iso(record["at"]),
+                        }
+                    )
+                    for record in replay
+                ],
+                "count": len(replay),
+                "lastEventId": self.state_store.get_latest_change_id(),
+                "timestamp": iso_now(),
+            },
+            to=sid,
+        )
         return "replayed"
 
     async def _finish_connect_sync(

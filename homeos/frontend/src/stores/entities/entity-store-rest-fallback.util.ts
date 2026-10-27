@@ -17,7 +17,10 @@ export function createEntityRestFallbackHelpers(deps: EntityRestFallbackDeps) {
   /**
    * 通过 REST 分页拉取全量实体。
    * - 在途期间复用同一 Promise，避免重复请求
-   * - cursor 翻页，最多 50 轮保护（防止 nextCursor 异常导致死循环）
+   * - 优先 cursor 翻页；服务端在「未传 page 的页模式」响应里不含 nextCursor，
+   *   此时按 total/totalPages 续翻，否则 706 个实体只会拿回第一页（400 条）导致
+   *   REST 回退把实体表截断（灯光/离线计数错乱，直到 WS 全量快照或手动刷新才恢复）
+   * - 最多 50 轮保护（防止 nextCursor / totalPages 异常导致死循环）
    * @returns 合并后的全量实体列表
    */
   async function fetchAllEntitiesViaRest(): Promise<HaEntityState[]> {
@@ -30,12 +33,20 @@ export function createEntityRestFallbackHelpers(deps: EntityRestFallbackDeps) {
       for (let guard = 0; guard < 50; guard++) {
         const params: Record<string, unknown> = { limit: batchSize }
         if (cursor) params.cursor = cursor
+        else if (guard > 0) params.page = guard + 1
         const { data } = await deps.apiClient.get('/entities', { params, timeout: 60000 })
         const batch = data?.entities as HaEntityState[] | undefined
         if (!batch?.length) break
         for (let i = 0; i < batch.length; i++) merged.push(batch[i])
-        if (!data?.nextCursor) break
-        cursor = String(data.nextCursor)
+        if (data?.nextCursor) {
+          cursor = String(data.nextCursor)
+          continue
+        }
+        // 页模式（无 nextCursor）：按 total 续翻，避免只取到第一页
+        const total = Number(data?.total ?? 0)
+        const totalPages = Number(data?.totalPages ?? 1)
+        if (total > 0 && merged.length < total && guard + 1 < totalPages) continue
+        break
       }
       return merged
     })().finally(() => {
