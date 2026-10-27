@@ -14,8 +14,7 @@
  * - lite/full：包围盒 ≤0.5%、三角面数一致、材质名与顺序一致。
  *
  * 「非流形边」按**位置焊接**统计：导出器沿硬边复制顶点是标准做法，按索引统计会把 298 个
- * 模型判成坏的，其中绝大多数只是没焊接。Blender 探针（`glb_geometry_probe.py`）用 BMesh
- * 独立复核同一口径，两边数字对不上就是有一方错了。
+ * 模型判成坏的，其中绝大多数只是没焊接。
  *
  * 用法（仓库根目录）：
  * ```bash
@@ -253,28 +252,11 @@ function verdictFor(spec, measurement, deviation) {
   return { status, reasons, topology: topology.level };
 }
 
-/**
- * Blender 探针（可选）：`glb_geometry_probe.py --json` 的输出读回来做交叉校验。
- * 没有 Blender 时不影响主流程，报告里标注「未复核」。
- */
-function loadBlenderProbe() {
-  const probeFile = path.join(hereDir, 'geometry-probe.json');
-  if (!fs.existsSync(probeFile)) return null;
-  try {
-    const payload = JSON.parse(fs.readFileSync(probeFile, 'utf8'));
-    return new Map((payload.models ?? []).map((entry) => [entry.file, entry]));
-  } catch (error) {
-    console.warn('Blender 探针结果不可读，忽略：' + error.message);
-    return null;
-  }
-}
-
 async function main() {
   const specs = loadSpecs();
   const variants = collectModelVariants(listModelFiles());
   const only = valueOf('model')?.split(',').map((id) => id.trim()).filter(Boolean);
   const topology = !hasFlag('no-topology');
-  const probe = loadBlenderProbe();
   const results = [];
   const started = Date.now();
   const ids = [...variants.keys()].filter((id) => !only || only.includes(id));
@@ -316,7 +298,6 @@ async function main() {
       entry.deviation = deviation;
       entry.parity = parityOf(full, lite);
       entry.topology = topologyVerdict(spec, primary);
-      entry.probe = probe?.get(variantMap.full ?? variantMap.lite) ?? null;
       entry.status = verdict.status;
       entry.reasons = verdict.reasons;
       if (entry.parity.comparable && !entry.parity.pass) {
@@ -511,7 +492,7 @@ function formatMarkdown(payload) {
   lines.push('');
   lines.push('- **非流形边**按位置焊接（1e-5 m）后统计：导出器沿硬边复制顶点属正常，未焊接不等于拓扑坏。');
   lines.push('- **边界边**是只被 1 个面使用的边：实体件为 0 才算闭合；薄片（叶片 / 地毯 / 玻璃）允许有开口，需在 specs 的 `exceptions` 登记。');
-  lines.push('- **lite 漂移**指包围盒 >0.5%、三角面数不同或材质名/顺序不同——由 `repair_glb_geometry.mjs` 从完整件重出 lite 归零。');
+  lines.push('- **lite 漂移**指包围盒 >0.5%、三角面数不同或材质名/顺序不同——只能从完整件重出 lite 才能归零。');
   return lines.join('\n') + '\n';
 }
 

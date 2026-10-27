@@ -53,7 +53,6 @@
  * bun ops/checks/studio/audit_glb_materials.mjs --stdout     # 只打摘要，不写文件
  * bun ops/checks/studio/audit_glb_materials.mjs --json       # 机读 JSON 到 stdout
  * bun ops/checks/studio/audit_glb_materials.mjs --check      # 覆盖度 + 角色基线门禁，漂移则退出码 1
- * bun ops/checks/studio/audit_glb_materials.mjs --check-roles # 只跑「槽位下标 → 角色」基线比对
  * bun ops/checks/studio/audit_glb_materials.mjs --write-role-baseline  # 刻意调整角色后重写基线
  * ```
  *
@@ -97,9 +96,8 @@ const option = (name, fallback) => {
 };
 const asJson = flag('json');
 const checkMode = flag('check');
-const checkRolesMode = flag('check-roles');
 const writeRoleBaseline = flag('write-role-baseline');
-const stdoutOnly = flag('stdout') || checkMode || checkRolesMode || writeRoleBaseline;
+const stdoutOnly = flag('stdout') || checkMode || writeRoleBaseline;
 const outDir = path.resolve(repoRoot, option('out-dir', reportDir));
 const reportPath = path.join(outDir, 'glb-material-audit.md');
 const jsonPath = path.join(outDir, 'glb-material-audit.json');
@@ -304,7 +302,7 @@ const DECLARED_ASSET_EXCEPTIONS = Object.freeze({
   'floor-lamp': {
     kind: 'orphan',
     reason:
-      '`落地灯（旧版）.glb` 是 SimLab 原模型，保留作 `compare_model_quality.mjs` / `render_glb.mjs` ' +
+      '`落地灯（旧版）.glb` 是 SimLab 原模型，保留作 `compare_model_quality.mjs` ' +
       '的质量基线；不进设计目录（设计用的是 `floorlamp`），也不参与运行时加载',
   },
 });
@@ -1795,12 +1793,16 @@ const modelIds = [...modelAssetsById.keys()].sort();
 const models = modelIds.map(auditModel);
 
 /* ------------------------------------------------------------------ *
- * 角色快照门禁（`--check-roles` / `--write-role-baseline`）
+ * 角色快照（`--write-role-baseline` 写、`--check` 比）
  *
  * 只比「(文件, 槽位下标) → 解析出的角色」，不比对槽位名：
  * - 目的是守住「重导出 GLB 导致 primitive 下标位移」和「误改 token 表导致角色漂移」；
  * - 故意把名字移出指纹，改名（N1）只要解析结果不变就能通过；
  * - 任何刻意的角色调整，都要重跑 `--write-role-baseline` 并 review diff。
+ *
+ * 比对**只在 `--check` 里做**：此前还有一个独立的 `--check-roles` 模式，与 `--check` 的
+ * 角色段完全重复（同样的 roleDrift / roleBaselineMissing，只是错误条数上限不同）。`--check`
+ * 已经覆盖它，多一个模式只意味着多一条没人调用的分支，故删除。
  * ------------------------------------------------------------------ */
 const ROLE_BASELINE_PATH = path.join(hereDir, 'material-role-baseline.json');
 
@@ -1866,7 +1868,7 @@ if (fs.existsSync(ROLE_BASELINE_PATH)) {
     roleDrift = diffRoleSnapshot(baseline.files || {}, roleSnapshot);
   } catch (error) {
     console.error(`✗ 角色基线 ${path.relative(repoRoot, ROLE_BASELINE_PATH)} 解析失败：${error.message}`);
-    if (flag('check-roles') || checkMode) process.exit(1);
+    if (checkMode) process.exit(1);
   }
 } else {
   roleBaselineMissing = true;
@@ -2859,33 +2861,6 @@ if (writeRoleBaseline) {
   roleDrift = [];
 }
 
-if (checkRolesMode && !checkMode) {
-  if (roleBaselineMissing) {
-    console.error(
-      `✗ 缺少角色基线 ${path.relative(repoRoot, ROLE_BASELINE_PATH)}（先跑 \`bun run audit:materials:roles\`）`,
-    );
-    process.exit(1);
-  }
-  if (roleDrift?.length) {
-    for (const entry of roleDrift.slice(0, 20)) {
-      const where =
-        entry.index === null
-          ? entry.fileName
-          : `${entry.fileName} #${entry.index}${entry.name ? ` (${entry.name})` : ''}`;
-      console.error(`✗ ${where}：${entry.before} → ${entry.after}`);
-    }
-    if (roleDrift.length > 20) console.error(`✗ …另有 ${roleDrift.length - 20} 处`);
-    console.error('如为刻意调整，跑 `bun run audit:materials:roles` 重写基线并 review diff');
-    process.exit(1);
-  }
-  console.log(
-    `✓ 角色基线一致：${Object.keys(roleSnapshot).length} 个文件 / ${Object.values(roleSnapshot).reduce(
-      (sum, roles) => sum + roles.length,
-      0,
-    )} 条「槽位下标 → 角色」`,
-  );
-}
-
 if (checkMode) {
   // `--check` 是**覆盖度回归门**，不是「缺陷归零门」：
   // 现阶段缺失 / 异常 / 命名不一致本来就有存量，把它们当失败只会让门禁永远红。
@@ -2911,7 +2886,8 @@ if (checkMode) {
   }
   if (roleBaselineMissing) {
     problems.push(
-      `缺少角色基线 ${path.relative(repoRoot, ROLE_BASELINE_PATH)}（先跑 \`bun run audit:materials:roles\`）`,
+      `缺少角色基线 ${path.relative(repoRoot, ROLE_BASELINE_PATH)}` +
+        '（刻意调整角色后跑 `bun ops/checks/studio/audit_glb_materials.mjs --write-role-baseline` 重写）',
     );
   } else if (roleDrift && roleDrift.length) {
     for (const entry of roleDrift.slice(0, 12)) {
@@ -2922,7 +2898,9 @@ if (checkMode) {
       problems.push(`角色漂移：${where} ${entry.before} → ${entry.after}`);
     }
     if (roleDrift.length > 12) problems.push(`…另有 ${roleDrift.length - 12} 处角色漂移`);
-    problems.push('如为刻意调整，跑 `bun run audit:materials:roles` 重写基线并 review diff');
+    problems.push(
+      '如为刻意调整，跑 `bun ops/checks/studio/audit_glb_materials.mjs --write-role-baseline` 重写基线并 review diff',
+    );
   }
   if (!summary.surfaceDetailStrategy.ready) {
     problems.push(`细节图运行时链路断链：${summary.surfaceDetailStrategy.breaks.join('；')}`);

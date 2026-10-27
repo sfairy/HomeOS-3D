@@ -57,7 +57,7 @@ function latestResultsDir() {
 const dir = argOf('--dir', latestResultsDir());
 if (!dir || !existsSync(dir)) {
   console.log(
-    `perf-budget：跳过（找不到结果目录 ${dir || join(ROOTS[0], 'results', '<label>')}；先跑 npm run perf:baseline）`,
+    `perf-budget：跳过（找不到结果目录 ${dir || join(ROOTS[0], 'results', '<label>')}；先跑 bun run perf:baseline）`,
   );
   process.exit(0);
 }

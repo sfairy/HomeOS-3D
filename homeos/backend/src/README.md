@@ -80,9 +80,9 @@ bootstrap  →  全部（仅装配，不含业务逻辑）
 
 ```bash
 bun run check:backend-deps     # CI 门禁（同时覆盖 homeos 与 homeos-store），有违规退出码 1
-.venv-store/bin/python ops/checks/architecture/check_backend_deps.py              # 仅报告（两个项目）
-.venv-store/bin/python ops/checks/architecture/check_backend_deps.py --project store
-.venv-store/bin/python ops/checks/architecture/check_backend_deps.py --json
+node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py              # 仅报告（两个项目）
+node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --project store
+node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --json
 ```
 
 **B4「包级环」为什么是白名单而不是「一律禁止」**：包与包之间互相引用，只要两个方向落在

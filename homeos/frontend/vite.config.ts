@@ -192,7 +192,6 @@ function mirrorPublicDirIntoStaging(): void {
 
 /** SPA 唯一入口（`SPA_ENTRY` 与商店共用，见 ops/vite/build-helpers.ts）。 */
 const isProduction = process.env.NODE_ENV === 'production'
-const analyzeBundle = process.env.ANALYZE === '1'
 /** 开发代理目标：127.0.0.1 避免 Windows 下 localhost → IPv6 导致 ECONNREFUSED */
 const backendDevTarget = 'http://127.0.0.1:8801'
 
@@ -605,7 +604,12 @@ function updatePublicStaticManifest(): void {
   fs.writeFileSync(manifestPath, JSON.stringify(payload, null, 2) + '\n', 'utf8')
 }
 
-export default defineConfig(async (): Promise<UserConfig> => {
+export default defineConfig(async ({ mode }): Promise<UserConfig> => {
+  // 体积分析开关：`ANALYZE=1`（POSIX 风格 env）或 `--mode analyze`（跨平台，脚本用这个）。
+  // 原先只有 env 一条路，而脚本写成 `set ANALYZE=1&& vite build`（Windows 语法）：
+  // 在 macOS / Linux 上 `set` 只是打印变量，**分析插件根本没启用**，产物里没有
+  // bundle-stats.html，却也不报错 —— 一条静默空转的入口，故补上 --mode 这条。
+  const analyzeBundle = process.env.ANALYZE === '1' || mode === 'analyze'
   const plugins: UserConfig['plugins'] = [
     embedProxyFallbackPlugin(),
     rootAssetsPlugin(),

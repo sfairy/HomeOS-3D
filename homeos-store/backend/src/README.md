@@ -26,7 +26,7 @@ bun run dev
 # 在仓库根执行；PYTHONPATH 指向本项目 backend/
 python -m venv .venv-store
 .venv-store/bin/pip install -r homeos-store/backend/requirements.txt
-PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
+PYTHONPATH=homeos-store/backend node ops/lib/py.mjs -m src.run
 ```
 
 > 包名与主应用同一套约定：**源码态是 `src`，镜像里是 `app`**（镜像用
@@ -143,7 +143,7 @@ homeos-store/
 
 ```bash
 bun run check:backend-deps     # 同时覆盖 homeos 与 homeos-store
-.venv-store/bin/python ops/checks/architecture/check_backend_deps.py --project store
+node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --project store
 ```
 
 - `B3 absolute-src`：禁止 `from src.…` —— 镜像构建期 Cython 烤成 `.so` 后该写法会炸。

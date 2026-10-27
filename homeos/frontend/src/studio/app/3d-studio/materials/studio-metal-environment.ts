@@ -20,7 +20,7 @@
  * 1. 只处理 `metalness ≥ 0.5`、无图集贴图、不透明的标准材质；
  * 2. 车 / 楼梯 / 镜子等**自带假环境**的模型显式豁免（见 `METAL_ENVIRONMENT_EXEMPT_ITEM_TYPES`），
  *    否则会和它们自己的 shader 叠成两层反射；
- * 3. 强度是常量（`METAL_ENVIRONMENT_INTENSITY`），探针 `material_render_probe.mjs` 用它标定，
+ * 3. 强度是常量（`METAL_ENVIRONMENT_INTENSITY`），由一次离线渲染探针标定，
  *    改这一个数就能整体调亮 / 调暗金属，不需要动配色。
  */
 
@@ -28,7 +28,7 @@
 const ENVIRONMENT_WIDTH = 512;
 const ENVIRONMENT_HEIGHT = 256;
 
-/** `envMapIntensity` 初值：由 `material_render_probe.mjs` 的 darkRatio / mean 标定。 */
+/** `envMapIntensity` 初值：由离线渲染探针的 darkRatio / mean 标定。 */
 export const METAL_ENVIRONMENT_INTENSITY = 0.85;
 
 /** 低于这个金属度就不算「金属」：`0.5` 与审计 M4 规则同口径。 */

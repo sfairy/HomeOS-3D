@@ -8,8 +8,7 @@
  * 3. 贴图 404 被 `LoadingManager` 吞掉，材质退化成纯色壳。
  *
  * 这里统一收口：失败写进 `#preview-quality-status`（用户可见）、`window.__studioPreviewIssues`
- * （自动化可读），并带上 modelType / URL / HTTP 状态 / 解析错误。`preview_smoke.mjs`
- * 直接读这份数据做逐卡巡检。
+ * （自动化可读），并带上 modelType / URL / HTTP 状态 / 解析错误。
  */
 
 interface PreviewIssue {

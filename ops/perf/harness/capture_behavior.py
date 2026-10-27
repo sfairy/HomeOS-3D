@@ -24,10 +24,10 @@
 用法：
 
     # 用隔离 harness 的环境（recommended：不碰生产 8801）
-    .venv-store/bin/python ops/perf/harness/capture_behavior.py --label before
+    node ops/lib/py.mjs ops/perf/harness/capture_behavior.py --label before
 
     # 或者直接打本机 dev server
-    .venv-store/bin/python ops/perf/harness/capture_behavior.py \\
+    node ops/lib/py.mjs ops/perf/harness/capture_behavior.py \\
         --base-url http://127.0.0.1:8801 --cookie <auth_token> --label dev
 
     # 不给 --cookie 时只采集匿名可见的部分（其余端点会 401，脚本如实记录）

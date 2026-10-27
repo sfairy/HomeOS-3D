@@ -1,24 +1,29 @@
 name: Checks
 
-# 轻检查（不构建镜像、不推 GHCR）：类型检查、前端产物构建、ruff，以及 shell /
-# workflow / compose / Caddyfile 的静态校验。
-# 自定义门禁与冒烟体系已拆除；仅保留语言级与基建检查。
-# 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
+# 门禁入口（不构建镜像、不推 GHCR）。五个 job 与 `ops/gates.mjs` 的五个组一一对应：
 #
-# 触发（2026-10-26 起再次改为**只手动**）：
+#   static  → bun run gate:static   类型 / lint / ruff / 结构规则 / 棘轮
+#   test    → bun run gate:test     单测 + 架构门禁用例（依赖 DAG、路由基线）
+#   model   → bun run gate:model    3D 模型库只读审计（几何 / 槽位 / 材质 / 资产 / 布局）
+#   build   → bun run gate:build    前端产物构建 + 结构断言 + 体积预算 + chunk 初始化
+#   infra   → bun run gate:infra    shell / workflow / compose / Caddyfile / Cython
+#
+# 单一来源：**清单在 ops/gates.mjs**，这里只负责「装环境 + 按组调用」。改检查只改那一处，
+# 本地 `bun run gate` 与 CI 跑的是同一批命令、同一个顺序 —— 这正是此前缺失的东西：
+# CI 直写 `python3 ops/...`、`package.json` 写 `.venv-store/bin/python ...`，两套解释器与
+# 依赖集，于是「本机绿、干净检出红」只能靠下一次 dispatch 才发现。
+#
+# 触发（2026-10-26 起**只手动**）：
 # - workflow_dispatch：Actions 页面 Run workflow。
 # - workflow_call：docker.yml 发版前复用同一份检查，并取用 build job 的前端制品。
 #
-# 代价必须写清楚：`8d3be3e7` / `2026-10-10` 那类「本机绿、干净检出红」的问题不会在推送时
-# 亮红灯，只会等到下一次有人点 Run workflow（或发版被 docker.yml 调起时）才暴露。
-# 这个取舍在 2026-10-15 / 2026-10-17 / 2026-10-26 之间反复过一次：恢复自动的理由是红灯
-# 发现得太晚，改回手动的理由是推送不想被排队跑一遍前端构建。若哪天又觉得太晚，把
-# `push: branches: [main]` 与 `pull_request:` 两段加回 `on:` 即可 —— 下面的 job（含轻量
-# 的 `gates`）都不依赖触发方式，加回来即自动生效。
-# 保持门禁不退化就靠本地等价命令：`bun run typecheck`、各 `lint:*` / `lint:ci`、
-# `bun run check:any`、`bun run test:frontend`、
-# `bun test ops/checks/studio/tests/`、`bun run test:home-mode`、
-# `bash ops/ci/build_frontend_verify.sh`、`ruff check .`。
+# 代价必须写清楚：push / PR 不跑任何检查，`8d3be3e7` / 2026-10-10 那类「本机绿、干净检出红」
+# 的问题不会在推送时亮红灯，只会等到下一次有人点 Run workflow（或发版被 docker.yml 调起）
+# 才暴露。若哪天觉得太晚，把 `push: branches: [main]` 与 `pull_request:` 两段加回 `on:`
+# 即可 —— 下面五个 job 都不依赖触发方式，加回来即自动生效。
+#
+# 本地等价入口：`bun run gate`（默认 static + test + model）、`bun run gate:build`、
+# `bun run gate:infra`；`node ops/gates.mjs --list` 打印完整清单。
 on:
   workflow_call:
   workflow_dispatch:
@@ -32,48 +37,16 @@ permissions:
   contents: read
 
 jobs:
-  # TS 类型 + ESLint：必须先 build:shared（dist/ 被 gitignore，干净检出上不先建就是一片 TS2307）。
-  typecheck:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.3
-
-      - name: Cache bun install cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - name: Install, typecheck and lint
-        run: |
-          bun install --frozen-lockfile
-          bun run typecheck
-          bun run --cwd homeos/frontend lint:ci
-          bun run --cwd homeos-store lint:ci
-          bun run lint:shared
-          bun run lint:ops
-          bun run typecheck:node
-
-      # 入户场景 CSS / 字体是 `packages/shared/scene/static` 的生成物，两个前端 public 下的
-      # 副本不入库（.gitignore）。`typecheck` 会先跑 `build:shared` 把它们铺出来，这一步再
-      # 反向确认没人把副本 git add -f 塞回仓库 —— 一旦入库，`sync:scene` 每次都会把它们改成
-      # 「未提交的修改」，而真源删文件后旧副本还会继续以旧内容留在历史里。
-      - name: Scene static drift
-        run: bun run check:scene
-
-  # 轻门禁（不构建镜像 / 不产出制品）：棘轮 + 单测 + 性能预算。
+  # 静态检查：不需要构建产物，几十秒内就能给出「语义回退」的红灯。
   #
-  # 为什么单独一个 job：这些检查几十秒内就能给出「语义回退」的红灯（静默 except、any 变多、
-  # 通知投递 / 时间触发器 / 场景同步的契约被改坏），而且都不需要前端产物 —— 手动 dispatch
-  # 时能先于昂贵的 build job 给出结论，docker.yml 调起时也能独立成一段。构建与制品上传仍
-  # 归 build job（见那里的说明）。
-  gates:
+  # `check:image-imports` 与 `check:python-lock` 也在这里：两者都是纯静态、不联网、不编译，
+  # 却各自守着一个「本地看不出来、发版才炸」的失败面（镜像里的包名改写、依赖锁与
+  # requirements.txt 指纹漂移）。
+  static:
     runs-on: ubuntu-24.04
+    env:
+      # 让 ops/gates.mjs 走 CI 口径：ciOnly 步骤参与、缺工具即失败。
+      HOMEOS_GATE_CONTEXT: ci
     steps:
       - uses: actions/checkout@v7
 
@@ -95,63 +68,62 @@ jobs:
       - name: Install JS deps
         run: bun install --frozen-lockfile
 
-      # 后端单测直接 import `src.*`（fastapi / sqlalchemy 等都在导入链上），所以要有运行期
-      # 依赖。装的是开区间的 requirements.txt，不碰 requirements.lock —— 镜像用的才是那份锁。
+      # 版本与开发机 `.venv-store` 对齐；`lint:py` 走 `python -m ruff`，所以装进解释器而不是
+      # 只放二进制（node ops/lib/py.mjs -m ruff check .）。
+      - name: Install ruff
+        run: pip install "ruff==0.17.1"
+
+      - name: Static gates
+        run: bun run gate:static
+
+  # 单测 + 架构门禁。后端单测直接 import `src.*`（fastapi / sqlalchemy 都在导入链上），
+  # 所以要有运行期依赖；装的是开区间的 requirements.txt，不碰 requirements.lock
+  # （镜像用的才是那份锁）。
+  #
+  # Node 侧测试命令走 package.json，且传**带引号的 glob**而不是目录：Node 22（ubuntu runner
+  # 自带版本）把 `--test <目录>` 当成单个测试模块，直接 MODULE_NOT_FOUND —— 开发机的
+  # Node 26 是好的，于是「本机绿、CI 红」。
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      HOMEOS_GATE_CONTEXT: ci
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.15'
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install JS deps
+        run: bun install --frozen-lockfile
+
       - name: Install backend deps for unit tests
         run: pip install -r homeos/backend/requirements.txt
 
-      # `except Exception: pass` 会把 HA 下发失败 / 快照恢复失败变成「什么都没发生」。
-      - name: Silent except ratchet
-        run: python3 ops/checks/check_silent_except.py
+      - name: Test gates
+        run: bun run gate:test
 
-      # studio 的 `any` 计数只降不升（基线 ops/checks/any-baseline.json）。
-      - name: any ratchet
-        run: node ops/checks/check_any_baseline.mjs
-
-      # 纯函数 / 单例单测：轮询调度器、场景下拉派生、场景同步控制器。
-      #
-      # 命令走 package.json，且传**带引号的 glob**而不是目录：Node 22（ubuntu runner 自带的
-      # 版本）把 `--test <目录>` 当成单个测试模块去跑，直接 MODULE_NOT_FOUND —— 目录扫描在
-      # 22 上不生效，而开发机的 Node 26 是好的，于是「本机绿、CI 红」。glob 由 Node 自己展开
-      # （v21+），目录参数这条路则要赌 runner 镜像里的 Node 版本。
-      - name: Frontend unit tests
-        run: bun run test:frontend
-
-      - name: Studio store unit tests
-        run: bun test ops/checks/studio/tests/
-
-      # Home Mode 三态校验、快照缺失、时间触发器补偿、通知投递失败保持 pending。
-      - name: Home mode unit tests
-        run: python3 -m unittest discover -s ops/checks/home_mode/tests -v
-
-      # 结构门禁：规则写在 README 里不算数，只有 CI 跑才拦得住。
-      #
-      # - `check:frontend-deps`：homeos 与 homeos-store 两棵树各跑一遍（store 的路径别名是
-      #   `@store/*`，靠 `--alias` 注入；不注入的话所有 import 都会被当成外部包静默放行，
-      #   打印「0 violation」但其实什么都没检查）。
-      # - `check_backend_deps`：B1/B2 分层方向 + B3 绝对 `src.` 导入 + B4 包级环白名单
-      #   + B5 文件级环必须为空，同样覆盖两个后端（homeos / store）。
-      # - `test:architecture`：门禁用例自身（前端 DAG / 后端分层 / 路由基线 / inventory）。
-      #   这个套件此前只在开发机跑，routes-baseline 漂移了一个路由也没人发现。
-      - name: Architecture deps gates
-        run: |
-          bun run check:frontend-deps
-          python3 ops/checks/architecture/check_backend_deps.py --check
-          python3 -m unittest discover -s ops/checks/architecture/tests -v
-
-      # 有 perf 结果目录时比对阈值；没有时脚本按 SKIP 处理（不算失败）。
-      - name: Perf budget
-        run: node ops/checks/check_perf_budget.mjs
-
-  # GLB 几何 / 材质槽位门禁：纯只读审计，不依赖前端构建。
+  # 模型库只读审计：不依赖前端构建，也不写盘。
   #
-  # 守的是「模型本体」这条容易悄悄退化的链路：
-  # - `check:geometry`：336 条 specs 齐全、尺寸 ≤5%、面数与拓扑例外必须逐件登记、lite 一致；
-  # - `check:slots`：336 条槽位契约、无死材质、无整件同角色、内嵌 PBR 与配方偏差 ≤0.05；
-  # - `check:slot-roles`：改名前后角色解析逐槽位一致，未声明的 baseline 漂移即红；
-  # - `check:variants`：完整件 / lite 成对存在，缺一档就报（当前 0 款）。
-  geometry:
+  # 入口是 `gate:model`，包含此前从未接线、却各自守着一类真实退化的检查：
+  # - `check:materials`：材质角色指纹与基线（改模型必须留下可解释的 diff）；
+  # - `check:models-layout` / `check:model-names`：目录分区与中文名索引是否最新；
+  # - 以及几何 / 槽位 / 角色 / 资产预算（后者守「文件里还剩什么」，前几条只看新文件自身一致）。
+  model:
     runs-on: ubuntu-24.04
+    env:
+      HOMEOS_GATE_CONTEXT: ci
     steps:
       - uses: actions/checkout@v7
 
@@ -169,38 +141,19 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
-      - name: Geometry gate
-        run: bun run check:geometry
+      - name: Model gates
+        run: bun run gate:model
 
-      - name: Slot contract gate
-        run: bun run check:slots
-
-      - name: Slot role baseline
-        run: bun run check:slot-roles
-
-      - name: Variant parity
-        run: bun run check:variants
-
-      # 资产门禁：体积预算 / 扩展与贴图保留 / 节点与材质名稳定 / 面数下限 / lite 压缩形态。
-      # 2026-10-22 的批量重写把全库 27.8MB 写成 95.1MB 并丢掉 5 个文件的扩展与贴图，
-      # 上面几条几何/槽位门禁全绿 —— 它们只看新文件自身一致性，不看「文件里还剩什么」。
-      - name: Asset budget and fidelity gate
-        run: bun run check:assets
-
-      # 与 `git show HEAD:` 的原始件逐文件比对：还有 `restore` 就说明回滚没做完。
-      # `rework` 是已登记的局部修复（附 before/after 证据），不算回归。
-      - name: Model quality triage gate
-        run: bun run check:quality
-
-  # 前端产物构建 + 结构断言。
+  # 前端产物构建 + 结构断言。这是整条流水线里**唯一**构建前端的 job：docker.yml 通过
+  # workflow_call 复用它，产物以制品形式交给镜像矩阵。
   #
-  # 这是整条流水线里**唯一**构建前端的 job：docker.yml 通过 workflow_call 复用它，构建出的
-  # 产物以制品形式交给镜像矩阵（见下面的 upload 步骤）。
   # 此前是 docker.yml 的 4 个矩阵项各跑一遍同样的构建：既浪费 4 次 bun install + vite，
-  # 又让 amd64 / arm64 两个镜像**各自**产出一份前端 —— 前端产物与 CPU 架构无关，
-  # 却因为「各建各的」而多出一条「两个架构发布的不是同一个前端」的可能。
+  # 又让 amd64 / arm64 各自产出一份前端 —— 前端产物与 CPU 架构无关，却因为「各建各的」
+  # 多出一条「两个架构发布的不是同一个前端」的可能。
   build:
     runs-on: ubuntu-24.04
+    env:
+      HOMEOS_GATE_CONTEXT: ci
     steps:
       - uses: actions/checkout@v7
 
@@ -215,29 +168,17 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
 
-      - name: Build frontend and assert artifacts
-        run: |
-          rm -rf dist
-          bash ops/ci/build_frontend_verify.sh
+      # gate:build 自己会先清空 dist/：干净检出（没有 dist）才是当年构建锁 ENOENT 的现场。
+      - name: Build gates
+        run: bun run gate:build
 
-      - name: Bundle budget
-        run: bun ops/checks/check_bundle_budget.mjs
-
-      # chunk 初始化顺序：产物里若出现「顶层读跨 chunk 常量 + 来源 chunk 反向可达」，
-      # 环内被 import 的 const 在来源 chunk 体执行前是 undefined —— 抛错（reading '0'）
-      # 或静默丢表（域标签/默认规则变空）。必须在有 dist 的这一步跑，--strict 保证真的检查过。
-      - name: Chunk init order
-        run: bun ops/checks/check_chunk_init_order.mjs --strict
-
-      # 这两个制品总是上传：本工作流现在只有 workflow_call（docker.yml 发版取用）与手动
-      # dispatch 两个入口，两者都需要这份产物。此前用 `github.event_name == 'workflow_dispatch'`
-      # 做开关，是为了让 push / PR 那次纯检查不上传 100MB+ 的 dist；push / PR 触发已移除，
-      # 那个判定成了恒真，故直接去掉，少一层会误导人的条件。
-      # 拆成 app / store 两个制品而不是一个：矩阵里 app 项只要 homeos/frontend、store 项只要
+      # 两个制品总是上传：本工作流只有 workflow_call（docker.yml 发版取用）与手动 dispatch
+      # 两个入口，两者都需要这份产物。
+      # 拆成 app / store 两个而不是一个：矩阵里 app 项只要 homeos/frontend、store 项只要
       # homeos-store/frontend，合成一个会让每项都拖上自己用不到的那一半。
-      # 上传的是**目录内容**（上传 path 指向的目录，其内容成为制品根），下载时指到同一个
-      # 相对路径即可原样还原：dist/homeos/frontend 与 dist/homeos-store/frontend 正是
-      # Dockerfile 在运行阶段 COPY 的位置（见 Dockerfile 的 `COPY dist/homeos/frontend`）。
+      # 上传的是**目录内容**（path 指向的目录，其内容成为制品根），下载时指到同一个相对路径
+      # 即可原样还原：dist/homeos/frontend 与 dist/homeos-store/frontend 正是 Dockerfile
+      # 在运行阶段 COPY 的位置。
       - name: Upload app frontend dist
         uses: actions/upload-artifact@v7
         with:
@@ -254,14 +195,43 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # 基础设施配置的静态校验：shell / workflow / compose / Caddyfile。
+  # 基础设施配置的静态校验：shell / workflow / compose / Caddyfile / Cython。
+  #
+  # 判定与清单在 `ops/gates.mjs` 的 infra 组与 `ops/ci/`：
+  # - `ops/ci/caddy_validate.sh`：本机有 caddy 就直接用，CI 里按 Dockerfile 的 CADDY_IMAGE
+  #   版本下载（版本单一来源）；
+  # - `ops/ci/compose_public.py`：把注释态的「可选：内置 Caddy 入口」段取消注释 —— 缩进只有
+  #   取消注释后才会被 YAML 解析，写错了平时看不出来；
+  # - Cython 兼容性：Cython 自身也会崩（3.3.0 对「带 dict[...] | None 注解的参数 + or {}
+  #   兜底 + 直接 .items()」抛 TypeError），而源码本身合法。真正的编译只在 docker.yml
+  #   （手动 dispatch）里跑，2026-10-17 的 app 镜像正是本机与当时的门禁全绿、发版才红在
+  #   编译阶段 —— 所以这里只 cythonize、不编译 C，几秒钟。
   lint-infra:
     runs-on: ubuntu-24.04
     env:
+      HOMEOS_GATE_CONTEXT: ci
       SHELLCHECK_VERSION: v0.11.0
       ACTIONLINT_VERSION: 1.7.12
     steps:
       - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.15'
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install JS deps
+        run: bun install --frozen-lockfile
 
       - name: Install shellcheck and actionlint
         run: |
@@ -277,167 +247,8 @@ jobs:
           sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
           actionlint --version
 
-      - name: Shell check
-        run: |
-          shellcheck \
-            homeos/deploy/run-backend.sh \
-            ops/ci/build_frontend_verify.sh
-
-      - name: Actionlint
-        run: actionlint -color
-
-      - name: Compose config
-        run: |
-          # 两份交付编排各自能解析：docker-compose.yml（开发者 / 管理员这台，含商店）、
-          # docker-compose.app.yml（客户机，只有主应用）。
-          docker compose -f docker-compose.yml config -q
-          docker compose -f docker-compose.app.yml config -q
-
-      - name: Compose config（内置 Caddy 入口段取消注释后）
-        env:
-          # 该段里的 ACME_EMAIL 是 `${ACME_EMAIL:?…}` 必填占位符（邮箱不能给默认值）：
-          # 不注入的话 `compose config` 会在插值阶段先失败，掩盖掉真正要验的缩进问题。
-          ACME_EMAIL: ops@example.com
-        run: |
-          # 公网接入不是独立文件，而是 docker-compose.yml 里的注释段（「可选：内置 Caddy
-          # 入口」）：**启用时才取消注释**，而注释里的缩进只有取消注释后才会被 YAML 解析，
-          # 写错了平时看不出来。所以这里模拟启用一次（取消注释 + 补上 volumes 两行），
-          # 让它立刻报错。
-          #
-          # 段的边界按**内容**定位（注释态的 `caddy-public:` 行），不按装饰性分隔线：
-          # 那种 `# ───…` 围栏在这个文件改版时被删过一次，硬编码长度会让本步骤直接
-          # ValueError 挂掉，且报错与真正的问题（缩进）毫无关系。
-          python3 - <<'PY'
-          import pathlib, re, sys
-
-          src = pathlib.Path("docker-compose.yml").read_text(encoding="utf-8")
-          lines = src.splitlines(keepends=True)
-
-          start = next(
-              (i for i, l in enumerate(lines) if re.match(r"^\s*#\s*caddy-public:\s*$", l)),
-              None,
-          )
-          if start is None:
-              sys.exit(
-                  "::error::docker-compose.yml 里找不到注释态的 `caddy-public:` 服务块 —— "
-                  "「可选：内置 Caddy 入口」段被改了写法，请同步修改本步骤"
-              )
-
-          # 往前吞掉紧邻的纯注释行（说明文字与 `#` 分隔行），启用后块前后都是干净的空行。
-          begin = start
-          while begin > 0 and re.match(r"^\s*#", lines[begin - 1]):
-              begin -= 1
-          end = start
-          while end < len(lines) and re.match(r"^\s*#", lines[end]):
-              end += 1
-
-          block = []
-          for line in lines[begin:end]:
-              # 只去掉注释标记，**保留缩进**：这段是 services: 下的一个兄弟服务，缩进掉了
-              # 就变成顶层键，compose 会以「additional properties 'caddy-public' not
-              # allowed」拒绝 —— 正是本步骤要抓的那类错。
-              body = re.sub(r"^(\s*)#\s?", r"\1", line)
-              # 保留服务块本身的键与列表项，丢掉面向人的说明文字（注释行）。
-              if re.match(r"^\s*(caddy-public:|[A-Za-z][A-Za-z_-]*:|- )", body):
-                  block.append(body.rstrip() + "\n")
-
-          if not block or not block[0].strip().startswith("caddy-public:") or len(block) < 10:
-              sys.exit(
-                  "::error::「可选：内置 Caddy 入口」段解析失败 —— 注释块结构与提取逻辑不符，请同步修改"
-              )
-
-          out = "".join(lines[:begin]) + "".join(block) + "".join(lines[end:])
-
-          # 文件末尾两个卷默认也是注释态，启用 Caddy 时必须一起放开，否则挂载点没有对应卷。
-          old_volumes = "  # caddy-public-data:\n  # caddy-public-config:\n"
-          if old_volumes not in out:
-              sys.exit(
-                  "::error::文件末尾的 caddy-public-data / caddy-public-config 卷不是预期的注释态，请同步修改"
-              )
-          out = out.replace(old_volumes, "  caddy-public-data:\n  caddy-public-config:\n")
-
-          pathlib.Path("/tmp/compose-public.yml").write_text(out, encoding="utf-8")
-          print("已生成 /tmp/compose-public.yml（服务块 %d 行）" % len(block))
-          PY
-          docker compose -f /tmp/compose-public.yml config -q
-          # 光「能解析」不够：还要确认 caddy-public 真的落在 services 下（没被顶成顶层键）。
-          docker compose -f /tmp/compose-public.yml config --services | grep -qx 'caddy-public'
-
-      - name: Caddy validate
-        run: |
-          caddy_image="$(sed -n 's/^ARG CADDY_IMAGE=//p' Dockerfile | head -n1)"
-          if [ -z "$caddy_image" ]; then
-            echo "::error::Dockerfile 里读不到 CADDY_IMAGE —— 版本单一来源断了，请修复本步骤的取值方式"
-            exit 1
-          fi
-          caddy_version="${caddy_image#caddy:}"
-          caddy_version="${caddy_version%%-*}"
-          echo "caddy 版本（取自 Dockerfile）：${caddy_version}"
-
-          curl -sSL -o /tmp/caddy.tar.gz \
-            "https://github.com/caddyserver/caddy/releases/download/v${caddy_version}/caddy_${caddy_version}_linux_amd64.tar.gz"
-          tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
-          /tmp/caddy version
-
-          /tmp/caddy validate --config ops/caddy/app.Caddyfile --adapter caddyfile
-          ACME_EMAIL=ops@example.com STORE_DOMAIN=store.example.com \
-            /tmp/caddy validate --config ops/deploy/Caddyfile.public.example --adapter caddyfile
-
-  # 说明：原先的 frontend-tests / python-tests 两个 job 已移除，测试不在 CI 里跑。
-
-  # Python 静态检查（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
-  ruff:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.15'
-
-      - name: Install ruff
-        run: pip install "ruff==0.17.1"
-
-      - name: Ruff check
-        run: ruff check .
-
-      # 运行期依赖锁与两个 requirements.txt 的一致性。放在这个 job 里是因为它已经有
-      # python3 且这一步不联网（纯静态比对）。
-      # 镜像里装的是 requirements.lock，两个 requirements.txt 不会进镜像 —— 改了 .txt
-      # 却忘了重新生成锁，只会在下一次发布时以「镜像里装的还是旧依赖」的形式暴露，
-      # 而那正是这个锁要解决的问题。这里靠 sha256 指纹把它挡在发版之前（本工作流不再随
-      # push 自动跑，所以是「发版前手动 dispatch / docker.yml 调起时」拦住，而不是合并前）。
-      - name: Check requirements lock
-        run: python3 ops/ci/python_lock.py verify
-
-      # 镜像包的导入门禁：镜像里源码目录被 `COPY <项目>/backend/src ./app` 改名成 app 包，
-      # 绝对 `src.` 导入在产物里根本没有这个包（构建期的 import 门禁会拦、漏过去运行期是
-      # ModuleNotFoundError）。判定不在这里重写 —— 脚本直接调构建期那份 `_precheck`。
-      # 放在这个 job 与上面同一条理由：已经有 python3，且纯静态、不联网、不编译。
-      # 不靠构建期门禁兜底是因为 `ops/build.py backend` 只在 docker.yml（**手动 dispatch**
-      # 的发版工作流）里跑：2026-10-17 的商店镜像正是本机与当时的 push 门禁全绿、发版才红
-      # （store 两个架构双双失败），排查时还被构建脚本那条会误报的断言带偏过一次。
-      - name: Check image import gate
-        run: python3 ops/ci/image_imports.py
-
-      # 异步路由里的同步数据库调用：SQLAlchemy 同步引擎会阻塞事件循环，最坏情况下被
-      # 自己的文件锁/写锁卡住整个进程（注册端点曾用 flock 跨 await 持有）。判定全部由
-      # ops/checks/check_async_db.py 完成，这里是唯一的强制入口。
-      - name: Check async DB calls
-        run: python3 ops/checks/check_async_db.py
-
-      # 静默 except 递减棘轮：`except Exception: pass` 会把 HA 下发失败 / 快照恢复失败 /
-      # 写库失败变成「什么都没发生」。这类分支无法一次清完，因此只设「不许变多」的棘轮，
-      # 基线在 ops/checks/silent_except_baseline.json，减少后需 --update 压低基线。
-      - name: Check silent except ratchet
-        run: python3 ops/checks/check_silent_except.py
-
-      # 镜像编译的 Cython 兼容性：Cython 自身也会崩（3.3.0 对「带 dict[...] | None 注解
-      # 的参数 + or {} 兜底 + 直接 .items()」抛 TypeError），而源码本身合法 —— ruff /
-      # pyright / 本地 dev 全绿也看不出来。同上面两条的理由：真正的编译只在 docker.yml
-      # （手动 dispatch）里跑，2026-10-17 的 app 镜像正是本机与当时的 push 门禁全绿、发版才红
-      # 在编译阶段。
-      # 只 cythonize、不编译 C，几秒钟；版本与扫描范围都取自构建期同一份真源。
+      # Cython 版本取自 Dockerfile 的 ARG（与镜像同一份真源）；读不到就是版本单一来源断了，
+      # 必须当场失败 —— 否则 `check:cython` 会拿错版本跑出一片假绿。
       - name: Install Cython（版本取自 Dockerfile）
         run: |
           cython_version="$(sed -n 's/^ARG CYTHON_VERSION=//p' Dockerfile | head -n1)"
@@ -448,5 +259,5 @@ jobs:
           fi
           pip install "cython==${cython_version}" "setuptools==${setuptools_version}"
 
-      - name: Check Cython compatibility
-        run: python3 ops/ci/cython_check.py
+      - name: Infra gates
+        run: bun run gate:infra

@@ -22,7 +22,6 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[3]
 # 默认落在系统临时目录下（S108 要求不得写死 `/tmp`）；CI 可用 HOMEOS_PERF_ROOT 覆盖。
 PERF_ROOT = Path(os.environ.get("HOMEOS_PERF_ROOT") or Path(tempfile.gettempdir()) / "homeos-perf")
-PYTHON = ROOT / ".venv-store" / "bin" / "python"
 # `ps` 按 PATH 解析成绝对路径后再调用（S607）；macOS 上还有 libproc 兜底。
 PS_EXECUTABLE = shutil.which("ps")
 

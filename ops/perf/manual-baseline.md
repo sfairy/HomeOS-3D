@@ -8,15 +8,15 @@
 
 ```bash
 # 1) 自动快照（只读；默认打 harness 隔离环境，也可 --base-url 打本机 dev）
-.venv-store/bin/python ops/perf/harness/capture_behavior.py --label before
+node ops/lib/py.mjs ops/perf/harness/capture_behavior.py --label before
 
 # 2) 按下面 B1–B6 手工点一遍，边点边填表
 
 # 3) 改完代码 / 复测时再采一份
-.venv-store/bin/python ops/perf/harness/capture_behavior.py --label after
+node ops/lib/py.mjs ops/perf/harness/capture_behavior.py --label after
 
 # 4) 对比两份快照（JSON 直接 diff 关键字段即可）
-.venv-store/bin/python - <<'PY'
+node ops/lib/py.mjs - <<'PY'
 import json, pathlib, os, tempfile
 root = pathlib.Path(os.environ.get("HOMEOS_PERF_ROOT") or pathlib.Path(tempfile.gettempdir()) / "homeos-perf")
 for name in ("summary.json", "db-modes.json", "ws-baseline.json"):
@@ -29,7 +29,7 @@ PY
 打本机 dev（不启隔离实例）时给 cookie：
 
 ```bash
-.venv-store/bin/python ops/perf/harness/capture_behavior.py \
+node ops/lib/py.mjs ops/perf/harness/capture_behavior.py \
   --label dev --base-url http://127.0.0.1:8801 --cookie "<auth_token>"
 ```
 
@@ -237,7 +237,7 @@ P0-2「中止时恢复被顶掉的旧模式」要防的那类静默半成功。�
 bun run build:frontend                       # dist 必须是本次要测的构建
 bash ops/perf/harness/run_baseline.sh before # 隔离实例，不碰生产 8801/8802
 bash ops/perf/harness/run_baseline.sh after  # 复测
-.venv-store/bin/python ops/perf/harness/compare_metrics.py --before before --after after
+node ops/lib/py.mjs ops/perf/harness/compare_metrics.py --before before --after after
 ```
 
 前置：`dist/homeos/frontend` **和** `dist/homeos-store/frontend` 都要存在（`setup_env.py`
@@ -262,10 +262,10 @@ bash ops/perf/harness/run_baseline.sh after  # 复测
 ```bash
 bun run typecheck
 bun run --cwd homeos/frontend lint:ci
-.venv-store/bin/python -m ruff check ops homeos/backend/src
+   node ops/lib/py.mjs -m ruff check ops homeos/backend/src
 .venv-store/bin/basedpyright            # 类型门禁（见下方说明）
-.venv-store/bin/python ops/checks/check_async_db.py
-.venv-store/bin/python ops/checks/check_silent_except.py
+node ops/lib/py.mjs ops/checks/check_async_db.py
+node ops/lib/py.mjs ops/checks/check_silent_except.py
 bun run check:bundle-budget
 bun run check:scene
 bun run test:frontend
@@ -286,15 +286,14 @@ bun run --cwd homeos/frontend check:deps
    （报 `require is not defined`），在 `dist/` 下放一个 `{"type":"commonjs"}` 的
    `package.json` 即可；这个文件在 `.venv-store`（gitignored）里，不进版本库。
 
-当前基线：**0 errors / 0 warnings**（`ops/checks/studio/glb_geometry_probe.py` 的
-`bpy`/`bmesh` 是 Blender-only 导入，文件头已用 `# pyright: reportMissingImports=false,
-reportUnusedImport=false` 说明原因）。
+当前基线：**0 errors / 0 warnings**。（Blender 探针脚本已随手动 3D 工具链清理移除；
+Python 侧现在只剩 `ruff`，`basedpyright` 是人工复核。）
 
-> `bun run check:code-quality` 在本仓**不出报告**：它要求
+> `check:code-quality` 已随门禁体系重分层移除：它是报告生成器，要求
 > `docs/code-quality/<date>/quality/data/{baseline,current}-{ts,python}.json` 这几份分析器
-> 快照，仓库里没有 `docs/code-quality/`，CI 也没接这个门禁。2026-10-26 起缺输入会打印
-> 「SKIP + 需要补哪些文件」并 exit 0（`--strict` 才失败），不会再 ENOENT 崩溃。
-> 日常等价集合用：`typecheck + lint:ci + ruff + basedpyright + check:scene`。
+> 快照，而 `docs/` 被 gitignore、仓库里从来没有这些输入 —— 也就是说这条「门禁」在本仓
+> 永远只会 SKIP。日常等价集合用：`bun run gate:static`（typecheck + lint + ruff +
+> silent-except / async-db / 依赖锁 / 镜像导入 + scene）+ 手动 `basedpyright`。
 
 **填表**
 
@@ -307,9 +306,9 @@ reportUnusedImport=false` 说明原因）。
 | `check_async_db` | 通过（已扫 domains/modules） |  |
 | `check_silent_except`（计数 ≤ 557） | 557（整改前 574，净减 17） |  |
 | `check:bundle-budget` | 通过（CSS 303,106 / 310,000；runtime 280 / 282 chunk） |  |
-| `check:perf-budget` | 通过（presentedCalls 3,084 / renderCalls 625 / stageMounted 584） |  |
+| `audit:perf-budget` | 通过（presentedCalls 3,084 / renderCalls 625 / stageMounted 584；手动工具，不进 CI） |  |
 | `check:scene` | 通过 |  |
 | `check:frontend-deps`（不是 `check:deps`） | 通过（0 violation） |  |
 | `test:frontend`（组件族裁剪纯函数） | 6 passed |  |
 | `test:security`（布防补偿） | 4 passed |  |
-| `check:code-quality --date <d>` | SKIP（缺输入，非失败） |  |
+| `test:auth-nav` | 通过（路由守卫决策） |  |

@@ -125,8 +125,8 @@ bun run build
 `linux/arm64` 双架构镜像到 GHCR，tag 取仓库根 `package.json` 的 `version`（外加 `latest`）。
 默认分支 push **不会**自动触发镜像构建，避免每次提交都推 GHCR。
 
-轻检查（`.github/workflows/checks.yml`：typecheck / eslint / ruff / 前端构建 / 基建 lint）
-**同样只手动触发**（`workflow_dispatch`，或由 `docker.yml` 通过 `uses:` 调起），push / PR
-不再自动跑。`docker.yml` 复用它 `build` job 构建好的前端制品 —— 前端与 CPU 架构无关，
-全流水线只构建一次。`.github/workflows/build-check.yml`（只构建、不推镜像）是只手动触发的
-补充入口。三个工作流都手动，意味着推送本身不会触发任何构建或检查。
+门禁（`.github/workflows/checks.yml`：五个 job = `ops/gates.mjs` 的 static / test / model /
+build / infra 五个组）**同样只手动触发**（`workflow_dispatch`，或由 `docker.yml` 通过
+`uses:` 调起），push / PR 不再自动跑。`docker.yml` 复用它 `build` job 构建好的前端制品 ——
+前端与 CPU 架构无关，全流水线只构建一次。两个工作流都手动，意味着推送本身不会触发任何
+构建或检查；本地等价入口是 `bun run gate`。

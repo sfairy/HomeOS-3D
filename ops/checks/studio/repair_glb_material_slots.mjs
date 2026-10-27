@@ -216,9 +216,9 @@ function renderRoleFile(tables) {
  * 1. **按名字对齐，不按下标**：lite 与完整件的 materials 数组本来就不一致（8 款漂移），
  *    按下标删会把不同变体的不同材质删掉。
  * 2. **只处理「改名 / 清死材质 / 清误用自发光」**：roughness / metallic / alphaMode /
- *    doubleSided 的规则已由 `repair_glb_materials.mjs` 拥有（带 `materialPbrIsReplaced`、
- *    `DOUBLE_SIDED_OK_*` 等上下文判断），这里再写一遍会变成两套互相打架的真值。
- *    需要时可用 `--backfill-pbr` 强制按契约回填 roughness / metalness。
+ *    doubleSided 这类 PBR 规则曾由 `repair_glb_materials.mjs` 拥有（该脚本已随手动 3D
+ *    工具链清理移除），这里再写一遍会变成两套互相打架的真值；需要时用
+ *    `--backfill-pbr` 强制按契约回填 roughness / metalness。
  */
 function planFilePatch(json, model, { backfillPbr = false, pruneDead = false } = {}) {
   const log = []

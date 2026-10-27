@@ -276,8 +276,13 @@ check_public "主应用" "$APP_DOMAIN" "/health/ready"
 check_public "商店"   "$STORE_DOMAIN" "/healthz"
 if [ -n "$STORE_DOMAIN" ]; then
   keys_code="$(curl -sS -m 10 -o /dev/null -w '%{http_code}' "$STORE_DOMAIN/v2/keys" 2>/dev/null || echo 000)"
-  [ "$keys_code" = "200" ] && ok "商店公钥 $STORE_DOMAIN/v2/keys" \
-    || bad "客户机取公钥会失败：$STORE_DOMAIN/v2/keys → $keys_code"
+  # 不用 `A && ok || bad`：`ok` 只是 printf，stdout 被关掉（如 `| head`）时会返回非零，
+  # 于是同一项既打 ✓ 又打 ✗，把成功算成失败（SC2015 的正是这个坑）。
+  if [ "$keys_code" = "200" ]; then
+    ok "商店公钥 $STORE_DOMAIN/v2/keys"
+  else
+    bad "客户机取公钥会失败：$STORE_DOMAIN/v2/keys → $keys_code"
+  fi
 fi
 
 if [ -n "$APP_DOMAIN" ]; then
@@ -300,8 +305,11 @@ if [ -n "$APP_DOMAIN" ]; then
   else
     ok "公网入口下的商店链接：$pub_store"
     pc="$(curl -sS -m 10 -o /dev/null -w '%{http_code}' "$pub_store/healthz" 2>/dev/null || echo 000)"
-    [ "$pc" = "200" ] && ok "  从公网可达" \
-      || bad "  公网打不开（$pc）：商店域名没映射到上游，或该域名只能从内网访问"
+    if [ "$pc" = "200" ]; then
+      ok "  从公网可达"
+    else
+      bad "  公网打不开（$pc）：商店域名没映射到上游，或该域名只能从内网访问"
+    fi
   fi
 fi
 

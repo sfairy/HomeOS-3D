@@ -2,14 +2,16 @@
 #
 # 前端产物构建 + 结构断言：装依赖 → 校验 three 运行时副本 → `bun run build:frontend` → 校验 dist/ 的关键产物。
 #
-# 为什么抽成脚本：这段逻辑有两个调用方 ——
-#   1. `.github/workflows/docker.yml` 的 frontend job（构建出的 dist/ 作为制品交给镜像矩阵）；
-#   2. `.github/workflows/build-check.yml`（只构建、不推镜像的手动验证入口）。
-# 复制两份必然漂移：一处改了另一处没改，红灯只会在下一次手动 dispatch 才暴露。
+# 为什么抽成脚本：它是「构建能不能过」这件事的**唯一**实现，调用方有两个 ——
+#   1. `.github/workflows/checks.yml` 的 build job（= `bun run gate:build`，构建出的 dist/
+#      作为制品交给镜像矩阵）；
+#   2. 本地 `bun run gate:build`（同一份清单，先把 dist/ 清空）。
+# 此前还有第三个调用方 `.github/workflows/build-check.yml`（只构建、不推镜像），它与
+# checks.yml 的 build job 跑的是同一段逻辑却各写一份 workflow —— 已删除，见 ops/gates.mjs。
 #
 # 在本地跑得通不等于在 CI 上跑得通：`dist/` 被 gitignore，本地可能有旧产物兜着。
 # 2026-10-10 的构建锁 ENOENT 就是「本地绿、CI 红」—— 锁文件父目录 `dist/homeos/` 在
-# 干净检出里不存在。所以**本地验证本脚本时必须先 `rm -rf dist`**，否则等于没测。
+# 干净检出里不存在。`gate:build` 会先 `rm -rf dist`，所以要复现就整个走它，别手工跑本脚本。
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."

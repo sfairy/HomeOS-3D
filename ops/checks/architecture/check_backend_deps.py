@@ -24,15 +24,15 @@
 
 用法：
     # 只报告（默认，退出码 0）
-    .venv-store/bin/python ops/checks/architecture/check_backend_deps.py
+    node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py
 
     # CI 门禁（有违规时退出码 1）
-    .venv-store/bin/python ops/checks/architecture/check_backend_deps.py --check
+    node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --check
 
     # 指定项目 / 目录 / 机器可读
-    .venv-store/bin/python ops/checks/architecture/check_backend_deps.py --project store
-    .venv-store/bin/python ops/checks/architecture/check_backend_deps.py --root /tmp/fixture
-    .venv-store/bin/python ops/checks/architecture/check_backend_deps.py --json
+    node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --project store
+    node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --root /tmp/fixture
+    node ops/lib/py.mjs ops/checks/architecture/check_backend_deps.py --json
 
 纯标准库 + `ast` 解析，不导入被分析的代码，因此不影响运行时。
 """

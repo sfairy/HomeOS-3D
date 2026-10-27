@@ -5,8 +5,8 @@
 只导入 ``bootstrap.router_registry`` 并注册路由，不启动 lifespan、不连数据库。
 
 用法：
-    .venv-store/bin/python ops/checks/architecture/route_inventory.py --write
-    .venv-store/bin/python ops/checks/architecture/route_inventory.py --check
+    node ops/lib/py.mjs ops/checks/architecture/route_inventory.py --write
+    node ops/lib/py.mjs ops/checks/architecture/route_inventory.py --check
 """
 
 from __future__ import annotations

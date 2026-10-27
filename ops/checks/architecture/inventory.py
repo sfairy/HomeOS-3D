@@ -5,7 +5,7 @@
 供 docs/architecture 报告引用。纯标准库实现，不导入被分析代码。
 
 用法：
-    .venv-store/bin/python ops/checks/architecture/inventory.py --out-dir docs/architecture/2026-10-20/data/before
+    node ops/lib/py.mjs ops/checks/architecture/inventory.py --out-dir docs/architecture/2026-10-20/data/before
 """
 
 from __future__ import annotations

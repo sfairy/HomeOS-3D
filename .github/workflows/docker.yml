@@ -83,8 +83,8 @@ jobs:
             echo "release=${release}"
           } >> "$GITHUB_OUTPUT"
 
-  # 轻检查（typecheck / lint / ruff / 前端构建 / 基建 lint）统一定义在 checks.yml。
-  # 自定义门禁与冒烟已拆除；这里调用而不是内联复制，避免两处漂移。
+  # 全部门禁统一定义在 checks.yml（五个 job = ops/gates.mjs 的五个组：static / test /
+  # model / build / infra）。这里调用而不是内联复制，避免两处漂移。
   # 调用时 checks 的 build job 会把前端产物传成 frontend-app / frontend-store 制品 ——
   # 前端与 CPU 架构无关，全流水线只该构建一次，再由下面的矩阵按项目取用。
   # checks.yml 自己只挂在手动 dispatch 上（push / PR 不再触发），但 `uses:` 调用一定会跑，
@@ -155,9 +155,10 @@ jobs:
 
       # 后端 Cython 编译成 .so 并导出到根 dist/；运行镜像直接 COPY，不编译后端。
       # 与下面的 build-push-action 共用 gha 缓存 scope，避免后端被编译两遍。
+      # 解释器走 `ops/lib/py.mjs`（与本地同一条入口；runner 没有 .venv-store 时回落 python3）。
       - name: Export protected backend to workspace dist
         run: |
-          python3 ops/build.py backend \
+          node ops/lib/py.mjs ops/build.py backend \
             --project ${{ matrix.project }} \
             --arch ${{ matrix.arch }} \
             --cache-from type=gha,scope=${{ matrix.target }}-${{ matrix.arch }} \

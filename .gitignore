@@ -77,7 +77,8 @@ assets/*
 # 本地清理扫描报告（knip / eslint / ruff 基线输出）
 ops/cleanup-reports/
 
-# UI 审计分册（历史产物，已废弃）
+# 本地审计产物（不入库）。注意 docs/architecture/2026-10-22/*.json 是
+# build:slot-contracts / build-spec-exceptions 的构建输入，不要整目录删除
 docs/
 
 # 逆向恢复出来的历史源码快照

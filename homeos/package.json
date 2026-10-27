@@ -16,8 +16,6 @@
     "build": "bun scripts/run.mjs build",
     "build:frontend": "bun scripts/run.mjs build:frontend",
     "start:prod": "bash deploy/run-backend.sh",
-    "lint": "bun scripts/run.mjs lint",
-    "typecheck": "bun scripts/run.mjs typecheck",
-    "check": "bun scripts/run.mjs check"
+    "typecheck": "bun scripts/run.mjs typecheck"
   }
 }

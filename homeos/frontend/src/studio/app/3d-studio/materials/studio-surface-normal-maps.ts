@@ -77,8 +77,8 @@ export const SURFACE_DETAIL_SCALE: Readonly<Record<MaterialSurface, number>> = O
  * `SURFACE_DETAIL_SCALE`（0..0.7）→ `material.bumpScale` 的换算单位。
  *
  * `bumpMap` 的深度是「高度图的梯度」而不是法线倾角，量纲与 `normalScale` 不同，
- * 所以必须有一个乘积系数。初值 0.12 由 `material_render_probe.mjs` 的 before/after
- * 标定：再大布艺会读成「搓衣板」，再小则细节在 1080p 下不可见。
+ * 所以必须有一个乘积系数。初值 0.12 由一次离线渲染探针的 before/after 标定：
+ * 再大布艺会读成「搓衣板」，再小则细节在 1080p 下不可见。
  */
 export const SURFACE_DETAIL_BUMP_UNIT = 0.12;
 

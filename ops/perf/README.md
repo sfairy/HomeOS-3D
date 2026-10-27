@@ -73,7 +73,7 @@ WS 全量基线与回放。可自动观测的部分由
 ```bash
 # 只读采集（默认读隔离 harness 环境；也可 --base-url 打本机 dev）
 bun run perf:behavior --label before
-.venv-store/bin/python ops/perf/harness/capture_behavior.py --label after
+node ops/lib/py.mjs ops/perf/harness/capture_behavior.py --label after
 ```
 
 产物在 `$TMPDIR/homeos-perf/results/<label>/behavior/`：`modes*.json`、`db-modes.json`、

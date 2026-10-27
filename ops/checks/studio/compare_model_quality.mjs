@@ -13,11 +13,15 @@
  *
  * 用法（仓库根目录）：
  * ```bash
- * bun ops/checks/studio/compare_model_quality.mjs                 # 打印汇总 + 写 md/json
+ * bun run audit:quality                                          # 打印汇总 + 写 md/json（手动审计层）
  * bun ops/checks/studio/compare_model_quality.mjs --model sofa,basin
  * bun ops/checks/studio/compare_model_quality.mjs --json          # 只输出机读结果
- * bun ops/checks/studio/compare_model_quality.mjs --check         # CI：有 restore/rework 即失败
+ * bun ops/checks/studio/compare_model_quality.mjs --check         # 有 restore/rework 即退出码 1
  * ```
+ *
+ * 注意：这条**不在门禁里**（`audit:quality`，不阻断）。原先它挂在 CI 的 `check:quality`，
+ * 效果是把每次合法的模型改动都变成「必须在脚本里登记 INTENTIONAL_DELTA」的负担 ——
+ * 台账本身有价值，强制阻断没有，故降级为手动审计。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -94,7 +98,7 @@ const INTENTIONAL_DELTA = new Map([
 
 /**
  * 已确认的 **lite 重出**：lite 与完整件的材质集（或同名参数）不一致时，由完整件重出 lite
- * （`ensure_variants.mjs --sync-materials`）。运行时优先加载 lite，lite 少一个槽位，
+ * （`model-builder.mjs` 的 `writeLiteFrom`）。运行时优先加载 lite，lite 少一个槽位，
  * 那个构件在场景里就真的没有材质可换（调色板给了颜色也无处落地）。
  *
  * 登记后**只豁免「材质改名」这一条**：lite 从完整件继承全部材质名，名字集合必然与 HEAD

@@ -134,18 +134,34 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 | `bun run dev:backend` | 只起两个后端的热重载（不起前端） |
 | `bun run dev:app` / `dev:store` | 只起主应用 / 商店前端的 Vite HMR（不动后端，各开一个终端；`dev:frontend` 是 `dev:app` 的别名） |
 | `bun run dev:prepare` | 只装 Python 环境（仓库根共享 venv `.venv-store`），不起服务 |
-| `bun run setup:hooks` | 装客户端 git 钩子（`core.hooksPath=.githooks`）：pre-commit 只跑 `check:scene --tracked-only`，拦场景静态资源生成物入库 |
+| `bun run setup:hooks` | 装客户端 git 钩子（`core.hooksPath=.githooks`）：pre-commit 只跑 `packages/shared/scripts/sync-scene-static.mjs --tracked-only`，拦场景静态资源生成物入库 |
 | `bun run dev:runtime` | watch 3D runtime 模块 → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run build` | 完整构建：前端（Vite 压缩产物）+ 后端（Cython `.so`）→ 根 `dist/` |
 | `bun run build:shared` | 只构建 `@homeos/shared`；它的 `dist/` 被 gitignore，干净检出上必须先建 |
 | `bun run build:app` / `build:store` | 只构建一侧前端 |
 | `bun run image:app` / `image:store` | 从根 `dist/` 组装运行镜像 |
 | `bun run typecheck` | 两个前端的 `vue-tsc`。Python 侧**没有**类型检查命令（历史入口已拆），CI 只跑 `ruff`；Pylance / 手动 `basedpyright` 读仓库根 `pyrightconfig.json` |
-| `bun run check:frontend-deps` / `check:backend-deps` / `check:routes` / `test:architecture` | 前端依赖 DAG（含 `homeos-store`）、后端分层方向 B1–B3 + 包级/文件级环 B4/B5（两个后端）、路由清单、架构门禁用例 |
-| `bun run check:naming` / `naming:report` | 标识符命名门禁（N1–N4，baseline 只降不升） |
-| `bun run check:bundle-budget` / `check:code-quality` / `check:chunk-init` | 前端产物体积预算、代码质量检查、构建产物跨 chunk 初始化顺序（顶层读跨 chunk 常量的门禁） |
-| `bun run perf:baseline` / `perf:after` / `perf:compare` | 性能基线与前后对比（详见 `ops/perf/README.md`） |
+| `bun run gate` / `gate:static` / `gate:test` / `gate:model` / `gate:build` / `gate:infra` | 门禁编排入口，见下方「门禁分层」 |
+| `bun run check:frontend-deps` / `check:backend-deps` / `test:architecture` / `audit:architecture` | 前端依赖 DAG（含 `homeos-store`）、后端分层方向 B1–B3 + 包级/文件级环 B4/B5（两个后端）、架构门禁用例（含路由基线）、模块规模盘点（只报告，写 `docs/architecture/inventory/`） |
+| `bun run check:bundle-budget` / `check:chunk-init` | 前端产物体积预算、构建产物跨 chunk 初始化顺序（顶层读跨 chunk 常量的门禁） |
+| `bun run perf:baseline` / `perf:after` / `perf:compare` / `perf:contracts` / `perf:behavior` / `audit:perf-budget` | 性能基线与前后对比（详见 `ops/perf/README.md`） |
+| `bun run update:any-baseline` | 压低 `any` 棘轮基线（只在确实减少时用；`check:any` 会拦「变多」） |
 | `bun run check:assets` / `check:geometry` / `check:slots` / `check:materials` … | 3D 模型门禁与修复，见下文「3D Studio 与模型库」 |
+
+### 门禁分层
+
+命令前缀就是层级，只有三层：
+
+| 层 | 命令 | 谁跑 | 说明 |
+| --- | --- | --- | --- |
+| 阻断 | `gate` / `gate:static` / `gate:test` / `gate:model` / `gate:build` / `gate:infra` | 本地手动 + CI 五个 job | 清单唯一来源是 `ops/gates.mjs`；CI 每个 job 就是「装环境 + `bun run gate:<组>`」，本地与 CI 跑同一批命令 |
+| 手动审计 | `audit:*`、`check:*`（不带 `--check`）、`perf:*` | 人 | 只报告不阻断；例如 `audit:perf-budget` 需要本机 perf 结果目录，`audit:quality` 是模型损伤台账，`audit:architecture` 盘点模块规模 |
+| 生成 | `generate:*`、`organize:*`、`index:*`、`rebuild:*` | 人 | 生成/重排资产与派生表；会写盘的命令都在脚本文档里注明 |
+
+`bun run gate` 默认跑 static + test + model；`node ops/gates.mjs --all` 含 build + infra，
+`--list` 打印清单。缺工具（shellcheck / actionlint / docker）时本机显式 SKIP 并给安装提示，
+CI 里同一缺失直接失败；`ciOnly` 步骤（Cython 兼容性）本机 SKIP，CI 由 `lint-infra` 装好
+Dockerfile 里钉的版本后再跑。pre-commit 只是客户端兜底（直接跑 `sync-scene-static.mjs --tracked-only`），不是门禁层。
 
 改完后端的断点调试：`bun run dev -- --debug` 后在编辑器 attach（主应用 `8811`、商店 `8812`）；
 热重载不会被关掉，重载出的新进程照样命中。端口占用时脚本直接退出，`pkill -f ops/dev.mjs` 后重试。
@@ -204,7 +220,7 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 
 | 文件 | 作用 |
 | --- | --- |
-| `materials/model-slot-roles.generated.ts` | 新 token → 语义角色（`repair:slots --emit-generated` 生成） |
+| `materials/model-slot-roles.generated.ts` | 新 token → 语义角色（`generate:slot-tables` 生成） |
 | `materials/legacy-material-aliases.generated.ts` | 旧材质名 → 新名的单点归一 |
 | `ops/checks/studio/material-role-baseline.json` | 672 个文件的「槽位下标 → 角色」快照（3136 条材质） |
 | `ops/checks/studio/asset-baseline.json`、`geometry-baseline.json` | 资产与几何基线 |
@@ -212,19 +228,24 @@ bun run dev -- --lan   # 同网段平板 / 墙面板访问（绑 0.0.0.0，终�
 角色变化（重导出位移、token 表误改）会让 `check:materials` 直接失败 —— 基线的意义是「改模型必须
 留下可解释的 diff」，不是自动放行。
 
-### 模型门禁与修复
+### 模型门禁
 
 | 命令 | 作用 |
 | --- | --- |
-| `bun run check:assets` / `audit:assets` | GLB 结构（扩展、贴图、节点、buffer）体检 |
-| `bun run check:geometry` / `audit:geometry` / `repair:geometry[:write]` | 包围盒 / 拓扑 / 面数，坏了才修 |
-| `bun run check:slots` / `audit:slots` / `repair:slots[:write]` / `build:slot-contracts` | 槽位命名与契约，旧名别名单点归一 |
-| `bun run check:materials` / `audit:materials` / `audit:materials:roles` / `repair:materials[:write]` | 材质角色指纹与基线 |
-| `bun run check:slot-roles` / `check:variants` / `check:models-layout` / `check:model-names` | 槽位角色表、lite 变体、目录布局、中文名索引 |
-| `bun run render:models` / `render:slots` / `preview:smoke` | 多视角渲染图 / 槽位色块图 / 预览冒烟 |
-| `bun run check:studio-split` / `verify:item-model` | 拆分结构与物品模型门禁（改 `item-model/` 后必跑） |
+| `bun run check:assets` | GLB 结构（扩展、贴图、节点、buffer）体检；不带 `--check` 时只出报告 |
+| `bun run check:geometry` | 包围盒 / 拓扑 / 面数；不带 `--check` 时只出报告 |
+| `bun run check:slots` / `build:slot-contracts` | 槽位命名与契约，旧名别名单点归一 |
+| `bun run check:materials` / `audit:materials` | 材质角色指纹与基线（`audit:materials` 写报告；刻意改角色后跑 `audit_glb_materials.mjs --write-role-baseline` 重写基线） |
+| `bun run check:slot-roles` / `check:models-layout` / `check:model-names` | 槽位角色表、目录布局、中文名索引 |
+| `bun run generate:slot-tables` | 重写两个 `.generated.ts`（槽位角色表 / 旧名别名表）；GLB 改名走同一脚本的 `--write`，属人工高危操作 |
+| `bun run organize:models` / `rebuild:items` / `index:model-names` | 目录归位、精修件按配方重建、中文名索引重建 |
+| `bun run check:studio-split` | 拆分结构 + 物品模型等价性门禁（改 `item-model/` 后必跑；已含 `verify_item_model`） |
+| `bun run audit:quality` | 模型损伤台账（HEAD 原始件 vs 当前工作区，只报告不阻断） |
 | `bun run check:bundle-budget` | 前端产物体积（chunk 数 / 体积）预算 |
 | `bun run check:chunk-init` | 构建产物里「顶层读跨 chunk 常量 + 来源 chunk 反向可达」的门禁（环内 const 为 `undefined` 时抛错或静默丢表） |
+
+`check:geometry` / `check:slots` / `check:slot-roles` / `check:materials` / `check:assets` /
+`check:models-layout` / `check:model-names` 都在阻断层（`bun run gate:model`，CI 的 `model` job）。
 
 修复脚本默认 dry-run，只有 `*:write` 才落盘；每次审计 / 修复的台账写在 `docs/architecture/<日期>/`
 （本地生成，不入库）。物品模型按 14 个族、59 个类型分支分派，规则见
@@ -674,11 +695,12 @@ python3 ops/build.py image --project store --tag homeos-store:local
 | [homeos-store/frontend/src/README.md](homeos-store/frontend/src/README.md) | 商店前端（前台 + 运营后台）目录 |
 | [MODEL-NAMES.md](homeos/frontend/public/static/3d-studio/models/MODEL-NAMES.md) | 模型库中文名索引（生成，勿手改） |
 | [ops/perf/README.md](ops/perf/README.md) | 性能基线与预算（前端体积、3D bench、前后对比） |
-| [ops/checks/naming/README.md](ops/checks/naming/README.md) | 命名门禁 N1–N4、baseline 与批量改名工具 |
+| [ops/gates.mjs](ops/gates.mjs) | 门禁清单与分组（CI 五个 job 与本地 `bun run gate` 的唯一来源） |
 | [packages/shared/scene/README.md](packages/shared/scene/README.md) | 入户场景静态资源（两个前端共用） |
 | `.env.example` | 全部环境变量（按 A–G 分区注释；compose 文件已写死常用值） |
 
-CI：三个工作流**全部手动触发**（Actions 页面 Run workflow），推送不会自动构建：
-`.github/workflows/checks.yml`（typecheck / eslint / ruff / 前端构建 / 基建 lint；也被 `docker.yml`
-通过 `uses:` 复用于发版前）、`.github/workflows/docker.yml`（amd64 + arm64 构建并推 GHCR）、
-`.github/workflows/build-check.yml`（只验证前端构建、不推镜像 —— 用来复现「本机绿、干净检出红」）。
+CI：工作流**全部手动触发**（Actions 页面 Run workflow），推送不会自动构建：
+
+- `.github/workflows/checks.yml`：五个 job 对应 `ops/gates.mjs` 的五个组
+  （static / test / model / build / infra），也被 `docker.yml` 通过 `uses:` 复用于发版前；
+- `.github/workflows/docker.yml`：amd64 + arm64 构建并推 GHCR。

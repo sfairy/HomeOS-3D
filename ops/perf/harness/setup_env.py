@@ -11,6 +11,7 @@ import hashlib
 import json
 import shutil
 import sqlite3
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -163,7 +164,7 @@ def main() -> None:
         "createdAt": datetime.now().isoformat(timespec="seconds"),
         "root": str(ROOT),
         "perfRoot": str(PERF_ROOT),
-        "python": str(ROOT / ".venv-store" / "bin" / "python"),
+        "python": sys.executable,
         "sourceDist": str(dist_root),
         "homeos": {
             "host": "127.0.0.1",

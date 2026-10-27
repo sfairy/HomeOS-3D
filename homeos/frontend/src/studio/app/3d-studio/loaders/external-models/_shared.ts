@@ -332,7 +332,7 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       preserveOrigin: true,
     }),
     /**
-     * 越野车 / 踏板车 / 悬空楼梯：`ensure_variants.mjs` 已经补出两档精度，之前注册表只登记
+     * 越野车 / 踏板车 / 悬空楼梯：两档精度已经在磁盘上，之前注册表只登记
      * 了一档，另一半就成了「磁盘上有、运行时永远取不到」的孤儿文件（踏板车与越野车缺完整件
      * 兜底，悬空楼梯缺 lite 首选档）。这里一律按「lite 首选 + 完整件兜底」接线，和其余
      * 家具件同一口径：lite 走 Draco，加载快；lite 坏了自动回退，不会整件不出来。

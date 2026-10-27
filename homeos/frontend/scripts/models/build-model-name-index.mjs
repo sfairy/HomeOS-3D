@@ -4,7 +4,7 @@
  * 1. `src/studio/app/3d-studio/loaders/external-models/model-file-names.generated.ts`
  *    —— 模型 id → 磁盘文件名主干（中文），运行时 `modelAssetUrl()` 用它拼 URL；
  * 2. `scripts/models/specs/model-file-names.json` —— 同一张表的机读版，给 Python / 其它
- *    非 TS 工具（`glb_geometry_probe.py`）用；
+ *    非 TS 工具用；
  * 3. `models/MODEL-NAMES.md` —— 给人看的对照表（英文 id / 中文文件名 / 显示名）。
  *
  * 中文名来源按优先级：
