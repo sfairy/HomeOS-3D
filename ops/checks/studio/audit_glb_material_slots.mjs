@@ -30,8 +30,8 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { collectModelVariants, listModelFiles, modelsDir, repoRoot, specsDir } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
 import { enumerateSlots } from '../../../homeos/frontend/scripts/models/lib/material-slots.mjs'
+import { modelAuditDir as docsDir } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs'
 
-const docsDir = path.join(repoRoot, 'docs/architecture/2026-10-22')
 const contractsPath = path.join(specsDir, 'model-slot-contracts.json')
 const frontendDir = path.join(repoRoot, 'homeos/frontend')
 

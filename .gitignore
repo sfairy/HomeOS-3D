@@ -77,8 +77,9 @@ assets/*
 # 本地清理扫描报告（knip / eslint / ruff 基线输出）
 ops/cleanup-reports/
 
-# 本地审计产物（不入库）。注意 docs/architecture/2026-10-22/*.json 是
-# build:slot-contracts / build-spec-exceptions 的构建输入，不要整目录删除
+# 本地审计产物（不入库）。docs/ 里只允许放**可重跑的派生物**，不许放唯一输入：
+# 需要快照的生成命令走 `homeos/frontend/scripts/models/lib/model-audit-paths.mjs`
+# 里的统一定义（默认 docs/model-audit/），目录名不要带日期。
 docs/
 
 # 逆向恢复出来的历史源码快照

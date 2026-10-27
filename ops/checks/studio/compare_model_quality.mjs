@@ -37,6 +37,7 @@ import {
   round,
   specsDir,
 } from '../../../homeos/frontend/scripts/models/lib/glb-io.mjs'
+import { qualityDir } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs'
 
 const args = process.argv.slice(2)
 const hasFlag = (name) => args.includes(`--${name}`)
@@ -48,7 +49,8 @@ const valueOf = (name) => {
 const only = (valueOf('model')?.split(',') ?? []).map((id) => id.trim()).filter(Boolean)
 const asJson = hasFlag('json')
 const checkMode = hasFlag('check')
-const outDir = path.join(repoRoot, valueOf('out') ?? 'docs/architecture/2026-10-23')
+const outArg = valueOf('out')
+const outDir = outArg ? path.resolve(repoRoot, outArg) : qualityDir
 
 /**
  * 已经动过刀的配方件：这些模型的原始件本身有真实缺陷（平板盆、实心柜体…），

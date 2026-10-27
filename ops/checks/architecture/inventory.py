@@ -2,10 +2,10 @@
 """主项目模块化分析盘点（只读）。
 
 扫描 homeos 后端/前端源码，输出模块规模、职责输入与模块间依赖边，
-供 docs/architecture 报告引用。纯标准库实现，不导入被分析代码。
+供结构盘查报告引用。纯标准库实现，不导入被分析代码。
 
-用法：
-    node ops/lib/py.mjs ops/checks/architecture/inventory.py --out-dir docs/architecture/2026-10-20/data/before
+用法（输出目录必须自己传，默认值不设——产物随时可删，别把日期写进路径）：
+    node ops/lib/py.mjs ops/checks/architecture/inventory.py --out-dir docs/architecture/inventory
 """
 
 from __future__ import annotations

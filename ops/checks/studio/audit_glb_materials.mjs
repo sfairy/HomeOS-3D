@@ -64,12 +64,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { materialAuditFile } from '../../../homeos/frontend/scripts/models/lib/model-audit-paths.mjs';
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(hereDir, '../../..');
 const frontendDir = path.join(repoRoot, 'homeos/frontend');
 const modelsDir = path.join(frontendDir, 'public/static/3d-studio/models');
-const reportDir = path.join(repoRoot, 'docs/architecture/2026-10-22');
+const reportDir = path.dirname(materialAuditFile);
 
 /**
  * 递归列出 `models/` 下的 GLB 相对路径。

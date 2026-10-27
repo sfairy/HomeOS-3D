@@ -29,7 +29,6 @@ import { loadDocument, modelStatistics, worldBounds } from './lib/model-document
 
 const specsFile = path.join(specsDir, 'model-specs.json')
 const exceptionsFile = path.join(specsDir, 'spec-exceptions.json')
-const repairReport = path.join(repoRoot, 'docs/architecture/2026-10-22/glb-geometry-repair.json')
 
 /** 与 `audit_glb_geometry.mjs` 同口径：超过 5% 才算尺寸例外。 */
 const MAX_DEVIATION = 0.05
@@ -44,16 +43,6 @@ function loadSpecs() {
   return new Map(payload.models.map((spec) => [spec.id, spec]))
 }
 
-function loadRepairWaivers() {
-  if (!fs.existsSync(repairReport)) return new Map()
-  const payload = JSON.parse(fs.readFileSync(repairReport, 'utf8'))
-  return new Map(
-    (payload.models ?? [])
-      .filter((model) => model.decision === 'waiver')
-      .map((model) => [model.id, model.reason]),
-  )
-}
-
 async function measure(relativePath) {
   const doc = await loadDocument(path.join(modelsDir, relativePath))
   const statistics = modelStatistics(doc)
@@ -61,13 +50,13 @@ async function measure(relativePath) {
   return { statistics, size: bounds.size }
 }
 
-function dimensionException({ spec, size, deviation, waiverReason }) {
+function dimensionException({ spec, size, deviation }) {
   const axis = deviation.indexOf(Math.max(...deviation))
   const labels = ['宽', '高', '深']
   return {
     type: 'dimension',
     reason:
-      `${waiverReason ?? '原生比例与规格冲突'}；实测 ${size.map((value) => value.toFixed(3)).join('×')} m ` +
+      `原生比例与规格冲突；实测 ${size.map((value) => value.toFixed(3)).join('×')} m ` +
       `对规格 ${spec.size.join('×')} m，${labels[axis]}轴偏差 ${(deviation[axis] * 100).toFixed(1)}%；` +
       '按主基准轴缩放会把其余轴压扁，因此保留原生比例并登记例外',
     evidence: {
@@ -98,7 +87,6 @@ function topologyException({ spec, statistics }) {
 async function main() {
   const write = process.argv.includes('--write')
   const specs = loadSpecs()
-  const waivers = loadRepairWaivers()
   const variants = collectModelVariants(listModelFiles())
   const models = {}
   const stats = { models: 0, dimension: 0, topology: 0 }
@@ -110,7 +98,7 @@ async function main() {
     const deviation = spec.size.map((value, axis) => Math.abs(relativeDeviation(size[axis], value) ?? 0))
     const exceptions = []
     if (Math.max(...deviation) > MAX_DEVIATION) {
-      exceptions.push(dimensionException({ spec, size, deviation, waiverReason: waivers.get(id) }))
+      exceptions.push(dimensionException({ spec, size, deviation }))
     }
     if (statistics.nonManifoldEdges > 0 || statistics.boundaryEdges > 0) {
       exceptions.push(topologyException({ spec, statistics }))

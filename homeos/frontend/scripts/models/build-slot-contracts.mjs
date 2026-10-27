@@ -3,7 +3,7 @@
  * 生成 `specs/model-slot-contracts.json`：336 个模型的「槽位 → 构件 → 角色 → 外观」契约。
  *
  * 三个输入，缺一不可：
- * 1. `docs/architecture/2026-10-22/glb-material-audit.json`：角色、解析来源、目标配方
+ * 1. `docs/model-audit/glb-material-audit.json`：角色、解析来源、目标配方
  *    （由 `audit_glb_materials.mjs` 用**运行时解析器**算出，这里不重新实现角色判定）；
  * 2. GLB 本体：逐槽位的几何指纹（面积占比 / 薄厚比 / 竖向位置带 / 壳数 / 前偏），
  *    由 `lib/material-slots.mjs` 实测；
@@ -26,8 +26,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { collectModelVariants, listModelFiles, modelsDir, repoRoot, specsDir } from './lib/glb-io.mjs'
 import { enumerateSlots } from './lib/material-slots.mjs'
+import { materialAuditFile, repoRelative } from './lib/model-audit-paths.mjs'
 
-const auditPath = path.join(repoRoot, 'docs/architecture/2026-10-22/glb-material-audit.json')
+const auditPath = materialAuditFile
 const specsPath = path.join(specsDir, 'model-specs.json')
 const outputPath = path.join(specsDir, 'model-slot-contracts.json')
 
@@ -486,7 +487,7 @@ function main() {
       expectedRoles: uniqueRoles,
       exceptions: [],
       source: {
-        audit: 'docs/architecture/2026-10-22/glb-material-audit.json',
+        audit: repoRelative(auditPath),
         generatedAt: new Date().toISOString(),
         geometry: fullPath ? path.relative(repoRoot, fullPath) : litePath ? path.relative(repoRoot, litePath) : null,
       },
