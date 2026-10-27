@@ -143,6 +143,35 @@ def _inject_preload_stylesheets(html: str, urls: tuple[str, ...]) -> str:
     return f"{tags}{html}"
 
 
+#: 外壳上写登录态提示用的属性。前端读它决定「首屏要不要打一发 /auth/me」
+#: （见 `frontend/src/shared/utils/auth/session-probe.util.ts`）。
+AUTH_HINT_ATTR = "data-auth"
+
+#: 游戏规则与构建产物一致：Vite 打出来的外壳是 ``<html lang="zh-Hans" class="hos-shell">``。
+#: 只用 ``<html`` 前缀匹配，兼容属性顺序变化；找不到时原样返回，前端按 ``unknown`` 处理。
+_HTML_OPEN_TAG = "<html"
+
+
+def inject_auth_hint(html: str, *, has_session_cookie: bool) -> str:
+    """把「这一页有没有会话 Cookie」写进 ``<html data-auth="guest|user">``。
+
+    服务端渲染外壳时能看到请求头里的 Cookie，但**看不到它是否仍然有效**（那要查 DB 会话），
+    所以这里只区分两档：
+
+    - ``guest``：请求里根本没有会话 Cookie —— ``/auth/me`` 必然 401，前端直接跳过这次探测。
+      匿名访客冷开入户页是最常见的一次首屏，跳过后控制台不再出现一条误导性的
+      ``Failed to load resource: 401``。
+    - ``user``：带了 Cookie，可能已登录也可能过期 —— 前端照常探测一次拿真实结论。
+
+    只做**存在性**判断是刻意的：这里每渲染一页都跑一次，若在此查 DB 会话，等于给每个静态
+    页面请求加一次数据库往返；而 `signed_in()` 那条完整校验只为静态资源门禁服务。
+    """
+    if _HTML_OPEN_TAG not in html:
+        return html
+    state = "user" if has_session_cookie else "guest"
+    return html.replace(_HTML_OPEN_TAG, f'{_HTML_OPEN_TAG} {AUTH_HINT_ATTR}="{state}"', 1)
+
+
 def register_page_asset_routes(app: FastAPI, settings: Settings) -> None:
     """页面级图标与内置素材（公开 / 受保护资源路由）。"""
 
@@ -385,6 +414,9 @@ def _register_spa_fallback(app: FastAPI, settings: Settings, version: str) -> No
         html = _read_index_template()
         if html is None:
             raise HTTPException(status_code=404)
+        # 登录态提示必须在任何别的 `<html>` 改写**之前**注入：下面授权拦截那条分支也做
+        # `<html>` 前缀替换，两者叠在同一处，属性顺序不影响解析。
+        html = inject_auth_hint(html, has_session_cookie=_has_login_cookie(request))
         blocked = await _page_license_status(request)
         if blocked is not None:
             html = html.replace(

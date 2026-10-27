@@ -51,6 +51,18 @@ export function bumpAuthGeneration(): void {
   authGeneration += 1
 }
 
+/**
+ * 当前认证世代。
+ *
+ * 给「发起时记一次、回来时再比一次」的调用方用（例如 `auth.store` 的登录态探针）：
+ * 世代变了就说明这期间发生过登录 / 登出 / 会话失效，那个迟到的结论必须丢弃。
+ * 拦截器内部对 401 也有同样的判断（`_authGeneration`），但它只决定「要不要踢回登录页」，
+ * 管不到调用方自己的状态。
+ */
+export function getAuthGeneration(): number {
+  return authGeneration
+}
+
 /** 对外暴露的请求配置类型：在标准 AxiosRequestConfig 之上允许跳过 401 重定向、声明幂等、关闭 GET 去重。 */
 export type ApiRequestConfig = AxiosRequestConfig &
   Pick<RetryableAxiosRequestConfig, 'skipAuthRedirect' | '_idempotent'> & {

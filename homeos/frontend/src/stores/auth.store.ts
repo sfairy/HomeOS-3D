@@ -22,7 +22,8 @@ import type {
 import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
 import { isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
 import { notifyAuthChanged } from '@/shared/utils/bridge/store-bridge'
-import { bumpAuthGeneration } from '@/services/api/client'
+import { bumpAuthGeneration, getAuthGeneration } from '@/services/api/client'
+import { readServerAuthHint, shouldProbeSession } from '@/shared/utils/auth/session-probe.util'
 import { setLicenseFeatureAccess } from '@/router/license-gate'
 import { logger } from '@/shared/utils/core/logger'
 import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
@@ -174,15 +175,24 @@ export const useAuthStore = defineStore('auth', () => {
    * 探测当前登录态
    *
    * 未登录时的 401 属正常分支：只落 ``isAuthenticated=false``，不触发全局登出流程。
+   *
+   * **世代校验**：探针与登录 / 登出可能在同一瞬间交错。请求发出时记下 ``authGeneration``，
+   * 回来时若世代已变（期间登录成功 / 登出 / 会话被清），这次结论就是过期的，一律丢弃 ——
+   * 否则迟到的 401 会把刚建立的会话按回未登录（用户刚输完密码又被踢回登录页），
+   * 迟到的 200 又会把刚登出的用户复活。拦截器对 401 有同样的判断，
+   * 但它只负责「别跳转」，管不到本 store 的 ``isAuthenticated``。
    */
   async function probeSession(): Promise<void> {
     if (!probePromise) {
+      const generation = getAuthGeneration()
       probePromise = getMe({ skipAuthRedirect: true })
         .then((me) => {
+          if (generation !== getAuthGeneration()) return
           isAuthenticated.value = true
           syncAuthFromResponse(me.data)
         })
         .catch(() => {
+          if (generation !== getAuthGeneration()) return
           isAuthenticated.value = false
           setUser(null)
         })
@@ -201,12 +211,21 @@ export const useAuthStore = defineStore('auth', () => {
    * 未初始化时**不探测**：这台机器上还没有任何账号，任何会话都不可能成立，
    * ``GET /auth/me`` 必然 401，只会凭空在控制台留一条误导性的 Unauthorized。
    *
+   * 已初始化但外壳上写着 ``data-auth="guest"``（服务端渲染这一页时请求里根本没有会话
+   * Cookie）时同样不探测 —— 同上，那一发 401 没有任何信息量，见
+   * `session-probe.util` 的注释。开发态（Vite 索引没有该属性）照旧探测。
+   *
    * @returns 系统是否已初始化
    */
   async function getSetupStatus(): Promise<boolean | undefined> {
     const res = await apiGetSetupStatus()
     if (res.data.initialized) {
-      await probeSession()
+      if (shouldProbeSession(readServerAuthHint())) {
+        await probeSession()
+      } else {
+        isAuthenticated.value = false
+        setUser(null)
+      }
     } else {
       isAuthenticated.value = false
       setUser(null)
