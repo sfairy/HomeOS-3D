@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-27T23:33:15.851Z",
+  "generatedAt": "2026-10-27T23:40:26.169Z",
   "unit": "m",
   "note": "槽位契约：逐槽位锁定「原名 → 构件 → 角色 → 表面 → 外观目标」。角色来自运行时解析器，几何证据来自 GLB 实测；审计脚本只比对契约，不改名、不回写 GLB。",
   "totals": {
@@ -324,7 +324,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.499Z",
+        "generatedAt": "2026-10-27T23:40:25.855Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/3D打印机.glb"
       }
     },
@@ -581,7 +581,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.499Z",
+        "generatedAt": "2026-10-27T23:40:25.855Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/空气炸锅.glb"
       }
     },
@@ -838,7 +838,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.501Z",
+        "generatedAt": "2026-10-27T23:40:25.856Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/桌上冰球.glb"
       }
     },
@@ -915,7 +915,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.501Z",
+        "generatedAt": "2026-10-27T23:40:25.857Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/出风口.glb"
       }
     },
@@ -1232,7 +1232,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.503Z",
+        "generatedAt": "2026-10-27T23:40:25.859Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/空气净化器.glb"
       }
     },
@@ -1729,7 +1729,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.505Z",
+        "generatedAt": "2026-10-27T23:40:25.860Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/鱼缸.glb"
       }
     },
@@ -2046,7 +2046,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.507Z",
+        "generatedAt": "2026-10-27T23:40:25.862Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/健身娱乐/游戏街机.glb"
       }
     },
@@ -2303,7 +2303,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.508Z",
+        "generatedAt": "2026-10-27T23:40:25.864Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/拱形玻璃玄关台.glb"
       }
     },
@@ -2680,7 +2680,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.510Z",
+        "generatedAt": "2026-10-27T23:40:25.865Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/香氛机.glb"
       }
     },
@@ -2877,7 +2877,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.512Z",
+        "generatedAt": "2026-10-27T23:40:25.866Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/婴儿床.glb"
       }
     },
@@ -3133,7 +3133,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.517Z",
+        "generatedAt": "2026-10-27T23:40:25.870Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/小型球池.glb"
       }
     },
@@ -3408,7 +3408,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.517Z",
+        "generatedAt": "2026-10-27T23:40:25.870Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/吧台.glb"
       }
     },
@@ -3605,7 +3605,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.517Z",
+        "generatedAt": "2026-10-27T23:40:25.871Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/吧台椅.glb"
       }
     },
@@ -3802,7 +3802,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.518Z",
+        "generatedAt": "2026-10-27T23:40:25.871Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/杠铃架.glb"
       }
     },
@@ -4179,7 +4179,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.520Z",
+        "generatedAt": "2026-10-27T23:40:25.872Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/台盆.glb"
       }
     },
@@ -4376,7 +4376,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.521Z",
+        "generatedAt": "2026-10-27T23:40:25.873Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/浴缸.glb"
       }
     },
@@ -4693,7 +4693,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.522Z",
+        "generatedAt": "2026-10-27T23:40:25.874Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/双人床.glb"
       }
     },
@@ -4830,7 +4830,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.522Z",
+        "generatedAt": "2026-10-27T23:40:25.874Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床尾凳.glb"
       }
     },
@@ -5087,7 +5087,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.523Z",
+        "generatedAt": "2026-10-27T23:40:25.875Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床尾储物箱.glb"
       }
     },
@@ -5224,7 +5224,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.523Z",
+        "generatedAt": "2026-10-27T23:40:25.875Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床上托盘.glb"
       }
     },
@@ -5481,7 +5481,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.526Z",
+        "generatedAt": "2026-10-27T23:40:25.878Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/自行车＋停放架.glb"
       }
     },
@@ -6218,7 +6218,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.526Z",
+        "generatedAt": "2026-10-27T23:40:25.878Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/书架.glb"
       }
     },
@@ -6535,7 +6535,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.527Z",
+        "generatedAt": "2026-10-27T23:40:25.879Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/面包机.glb"
       }
     },
@@ -6791,7 +6791,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.528Z",
+        "generatedAt": "2026-10-27T23:40:25.880Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/积木桌.glb"
       }
     },
@@ -7108,7 +7108,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.530Z",
+        "generatedAt": "2026-10-27T23:40:25.882Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/上下铺.glb"
       }
     },
@@ -7253,7 +7253,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.530Z",
+        "generatedAt": "2026-10-27T23:40:25.882Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/储物柜.glb"
       }
     },
@@ -7390,7 +7390,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.531Z",
+        "generatedAt": "2026-10-27T23:40:25.882Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/双段储物柜.glb"
       }
     },
@@ -7646,7 +7646,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.531Z",
+        "generatedAt": "2026-10-27T23:40:25.883Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/烛台.glb"
       }
     },
@@ -7962,7 +7962,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.532Z",
+        "generatedAt": "2026-10-27T23:40:25.884Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/咖啡胶囊架.glb"
       }
     },
@@ -8039,7 +8039,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.535Z",
+        "generatedAt": "2026-10-27T23:40:25.887Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/小汽车.glb"
       }
     },
@@ -8176,7 +8176,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.535Z",
+        "generatedAt": "2026-10-27T23:40:25.887Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/猫抓板.glb"
       }
     },
@@ -8433,7 +8433,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.537Z",
+        "generatedAt": "2026-10-27T23:40:25.888Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/猫爬架.glb"
       }
     },
@@ -8630,7 +8630,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.539Z",
+        "generatedAt": "2026-10-27T23:40:25.890Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/吊扇.glb"
       }
     },
@@ -8887,7 +8887,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.541Z",
+        "generatedAt": "2026-10-27T23:40:25.893Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/大提琴＋支架.glb"
       }
     },
@@ -9143,7 +9143,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.542Z",
+        "generatedAt": "2026-10-27T23:40:25.894Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电陶炉.glb"
       }
     },
@@ -9409,7 +9409,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.542Z",
+        "generatedAt": "2026-10-27T23:40:25.894Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/椅子.glb"
       }
     },
@@ -9725,7 +9725,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.543Z",
+        "generatedAt": "2026-10-27T23:40:25.895Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/儿童餐椅.glb"
       }
     },
@@ -9922,7 +9922,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.544Z",
+        "generatedAt": "2026-10-27T23:40:25.896Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/衣帽架.glb"
       }
     },
@@ -10239,7 +10239,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.545Z",
+        "generatedAt": "2026-10-27T23:40:25.896Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/咖啡磨豆机.glb"
       }
     },
@@ -10556,7 +10556,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.547Z",
+        "generatedAt": "2026-10-27T23:40:25.898Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/咖啡机.glb"
       }
     },
@@ -10693,7 +10693,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.547Z",
+        "generatedAt": "2026-10-27T23:40:25.898Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/组合茶几.glb"
       }
     },
@@ -10949,7 +10949,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.548Z",
+        "generatedAt": "2026-10-27T23:40:25.899Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/锅具组合.glb"
       }
     },
@@ -11026,7 +11026,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.548Z",
+        "generatedAt": "2026-10-27T23:40:25.900Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/台面.glb"
       }
     },
@@ -11297,7 +11297,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.548Z",
+        "generatedAt": "2026-10-27T23:40:25.900Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/窗帘（左片）.glb"
       }
     },
@@ -11568,7 +11568,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.548Z",
+        "generatedAt": "2026-10-27T23:40:25.900Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/窗帘（右片）.glb"
       }
     },
@@ -11839,7 +11839,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.548Z",
+        "generatedAt": "2026-10-27T23:40:25.900Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/窗帘（对开）.glb"
       }
     },
@@ -11976,7 +11976,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.549Z",
+        "generatedAt": "2026-10-27T23:40:25.901Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/砧板架.glb"
       }
     },
@@ -12293,7 +12293,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.552Z",
+        "generatedAt": "2026-10-27T23:40:25.904Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/飞镖靶.glb"
       }
     },
@@ -12490,7 +12490,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.554Z",
+        "generatedAt": "2026-10-27T23:40:25.904Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/书本组合.glb"
       }
     },
@@ -12687,7 +12687,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.554Z",
+        "generatedAt": "2026-10-27T23:40:25.905Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/小盆栽.glb"
       }
     },
@@ -12884,7 +12884,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.555Z",
+        "generatedAt": "2026-10-27T23:40:25.905Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/托盘杯子.glb"
       }
     },
@@ -13081,7 +13081,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.555Z",
+        "generatedAt": "2026-10-27T23:40:25.905Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/纸巾盒.glb"
       }
     },
@@ -13278,7 +13278,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.555Z",
+        "generatedAt": "2026-10-27T23:40:25.906Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/陶瓷花瓶.glb"
       }
     },
@@ -13533,7 +13533,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.556Z",
+        "generatedAt": "2026-10-27T23:40:25.906Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/装饰灯笼.glb"
       }
     },
@@ -13790,7 +13790,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.556Z",
+        "generatedAt": "2026-10-27T23:40:25.907Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/装饰盘.glb"
       }
     },
@@ -14047,7 +14047,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.557Z",
+        "generatedAt": "2026-10-27T23:40:25.908Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/除湿机.glb"
       }
     },
@@ -14193,7 +14193,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.557Z",
+        "generatedAt": "2026-10-27T23:40:25.908Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/桌子.glb"
       }
     },
@@ -14510,7 +14510,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.558Z",
+        "generatedAt": "2026-10-27T23:40:25.909Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/台式电脑.glb"
       }
     },
@@ -14827,7 +14827,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.558Z",
+        "generatedAt": "2026-10-27T23:40:25.909Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/桌面相框.glb"
       }
     },
@@ -15084,7 +15084,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.559Z",
+        "generatedAt": "2026-10-27T23:40:25.910Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/碗碟沥水架.glb"
       }
     },
@@ -15341,7 +15341,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.560Z",
+        "generatedAt": "2026-10-27T23:40:25.910Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/洗碗机.glb"
       }
     },
@@ -15657,7 +15657,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.561Z",
+        "generatedAt": "2026-10-27T23:40:25.912Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/消毒柜.glb"
       }
     },
@@ -15854,7 +15854,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.563Z",
+        "generatedAt": "2026-10-27T23:40:25.913Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/狗笼.glb"
       }
     },
@@ -16170,7 +16170,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.565Z",
+        "generatedAt": "2026-10-27T23:40:25.915Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/玩偶收纳架.glb"
       }
     },
@@ -16426,7 +16426,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.565Z",
+        "generatedAt": "2026-10-27T23:40:25.915Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/双列开放衣柜.glb"
       }
     },
@@ -16683,7 +16683,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.566Z",
+        "generatedAt": "2026-10-27T23:40:25.916Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/斗柜.glb"
       }
     },
@@ -16879,7 +16879,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.566Z",
+        "generatedAt": "2026-10-27T23:40:25.916Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/绘图板.glb"
       }
     },
@@ -17076,7 +17076,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.568Z",
+        "generatedAt": "2026-10-27T23:40:25.918Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/干花花束.glb"
       }
     },
@@ -17393,7 +17393,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.572Z",
+        "generatedAt": "2026-10-27T23:40:25.921Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/架子鼓.glb"
       }
     },
@@ -17710,7 +17710,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.573Z",
+        "generatedAt": "2026-10-27T23:40:25.923Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/洗衣烘干/烘干机.glb"
       }
     },
@@ -17907,7 +17907,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.574Z",
+        "generatedAt": "2026-10-27T23:40:25.924Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/洗衣烘干/落地晾衣架.glb"
       }
     },
@@ -18104,7 +18104,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.575Z",
+        "generatedAt": "2026-10-27T23:40:25.925Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/双屏显示器.glb"
       }
     },
@@ -18361,7 +18361,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.578Z",
+        "generatedAt": "2026-10-27T23:40:25.928Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/哑铃架＋哑铃.glb"
       }
     },
@@ -18677,7 +18677,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.578Z",
+        "generatedAt": "2026-10-27T23:40:25.929Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/画架＋画板.glb"
       }
     },
@@ -18991,7 +18991,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.579Z",
+        "generatedAt": "2026-10-27T23:40:25.930Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/电壁炉.glb"
       }
     },
@@ -19188,7 +19188,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.580Z",
+        "generatedAt": "2026-10-27T23:40:25.930Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电热水壶.glb"
       }
     },
@@ -19445,7 +19445,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.581Z",
+        "generatedAt": "2026-10-27T23:40:25.931Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/电动阀门.glb"
       }
     },
@@ -19819,7 +19819,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.581Z",
+        "generatedAt": "2026-10-27T23:40:25.931Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/电梯.glb"
       }
     },
@@ -20136,7 +20136,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.582Z",
+        "generatedAt": "2026-10-27T23:40:25.933Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/健身娱乐/椭圆机.glb"
       }
     },
@@ -20397,7 +20397,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.583Z",
+        "generatedAt": "2026-10-27T23:40:25.933Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/玄关到顶柜.glb"
       }
     },
@@ -20714,7 +20714,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.587Z",
+        "generatedAt": "2026-10-27T23:40:25.937Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/排气扇.glb"
       }
     },
@@ -21028,7 +21028,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.588Z",
+        "generatedAt": "2026-10-27T23:40:25.938Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/手办组合.glb"
       }
     },
@@ -21344,7 +21344,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.589Z",
+        "generatedAt": "2026-10-27T23:40:25.939Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/悬空楼梯.glb"
       }
     },
@@ -21715,7 +21715,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.593Z",
+        "generatedAt": "2026-10-27T23:40:25.944Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/落地灯（旧版）.glb"
       }
     },
@@ -21911,7 +21911,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.594Z",
+        "generatedAt": "2026-10-27T23:40:25.944Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/落地雕塑.glb"
       }
     },
@@ -22228,7 +22228,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.595Z",
+        "generatedAt": "2026-10-27T23:40:25.945Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/清洁设备/洗地机.glb"
       }
     },
@@ -22545,7 +22545,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.596Z",
+        "generatedAt": "2026-10-27T23:40:25.946Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/柜机空调.glb"
       }
     },
@@ -22777,7 +22777,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.596Z",
+        "generatedAt": "2026-10-27T23:40:25.946Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/落地灯.glb"
       }
     },
@@ -23214,7 +23214,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.598Z",
+        "generatedAt": "2026-10-27T23:40:25.948Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/红掌.glb"
       }
     },
@@ -23651,7 +23651,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.602Z",
+        "generatedAt": "2026-10-27T23:40:25.952Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/绣球花.glb"
       }
     },
@@ -24088,7 +24088,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.604Z",
+        "generatedAt": "2026-10-27T23:40:25.954Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/蝴蝶兰.glb"
       }
     },
@@ -24525,7 +24525,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.606Z",
+        "generatedAt": "2026-10-27T23:40:25.955Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/白掌.glb"
       }
     },
@@ -24721,7 +24721,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.607Z",
+        "generatedAt": "2026-10-27T23:40:25.955Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/屏风.glb"
       }
     },
@@ -25038,7 +25038,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.608Z",
+        "generatedAt": "2026-10-27T23:40:25.956Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电蒸锅.glb"
       }
     },
@@ -25354,7 +25354,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.613Z",
+        "generatedAt": "2026-10-27T23:40:25.960Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/桌上足球.glb"
       }
     },
@@ -25611,7 +25611,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.614Z",
+        "generatedAt": "2026-10-27T23:40:25.960Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/足浴盆.glb"
       }
     },
@@ -26168,7 +26168,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.614Z",
+        "generatedAt": "2026-10-27T23:40:25.961Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/冰柜.glb"
       }
     },
@@ -26314,7 +26314,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.614Z",
+        "generatedAt": "2026-10-27T23:40:25.961Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/冰箱.glb"
       }
     },
@@ -26569,7 +26569,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.615Z",
+        "generatedAt": "2026-10-27T23:40:25.962Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/水果篮.glb"
       }
     },
@@ -26826,7 +26826,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.617Z",
+        "generatedAt": "2026-10-27T23:40:25.963Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/穿衣镜.glb"
       }
     },
@@ -27135,7 +27135,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.617Z",
+        "generatedAt": "2026-10-27T23:40:25.964Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/花园拱门.glb"
       }
     },
@@ -27478,7 +27478,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.619Z",
+        "generatedAt": "2026-10-27T23:40:25.965Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/竹丛.glb"
       }
     },
@@ -27821,7 +27821,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.621Z",
+        "generatedAt": "2026-10-27T23:40:25.966Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/浓密竹丛.glb"
       }
     },
@@ -28147,7 +28147,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.621Z",
+        "generatedAt": "2026-10-27T23:40:25.967Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/户外烧烤台.glb"
       }
     },
@@ -28456,7 +28456,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.622Z",
+        "generatedAt": "2026-10-27T23:40:25.967Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/球形烧烤炉.glb"
       }
     },
@@ -28765,7 +28765,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.622Z",
+        "generatedAt": "2026-10-27T23:40:25.967Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外长椅.glb"
       }
     },
@@ -29074,7 +29074,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.622Z",
+        "generatedAt": "2026-10-27T23:40:25.968Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/无靠背长凳.glb"
       }
     },
@@ -29383,7 +29383,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.623Z",
+        "generatedAt": "2026-10-27T23:40:25.968Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/弧形景观长凳.glb"
       }
     },
@@ -29692,7 +29692,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.623Z",
+        "generatedAt": "2026-10-27T23:40:25.968Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/草坪灯.glb"
       }
     },
@@ -30018,7 +30018,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.623Z",
+        "generatedAt": "2026-10-27T23:40:25.968Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/庭院车棚.glb"
       }
     },
@@ -30344,7 +30344,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.623Z",
+        "generatedAt": "2026-10-27T23:40:25.969Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外扶手椅.glb"
       }
     },
@@ -30653,7 +30653,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.624Z",
+        "generatedAt": "2026-10-27T23:40:25.969Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/圆背庭院椅.glb"
       }
     },
@@ -30996,7 +30996,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.625Z",
+        "generatedAt": "2026-10-27T23:40:25.970Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/景观松树.glb"
       }
     },
@@ -31339,7 +31339,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.626Z",
+        "generatedAt": "2026-10-27T23:40:25.971Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/层叠景松.glb"
       }
     },
@@ -31648,7 +31648,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.627Z",
+        "generatedAt": "2026-10-27T23:40:25.971Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/木平台.glb"
       }
     },
@@ -31974,7 +31974,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.628Z",
+        "generatedAt": "2026-10-27T23:40:25.971Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/围栏.glb"
       }
     },
@@ -32300,7 +32300,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.629Z",
+        "generatedAt": "2026-10-27T23:40:25.972Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/横条围栏.glb"
       }
     },
@@ -32592,7 +32592,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.629Z",
+        "generatedAt": "2026-10-27T23:40:25.972Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/格栅围栏.glb"
       }
     },
@@ -32884,7 +32884,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.631Z",
+        "generatedAt": "2026-10-27T23:40:25.972Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/金属围栏.glb"
       }
     },
@@ -33193,7 +33193,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.632Z",
+        "generatedAt": "2026-10-27T23:40:25.973Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/庭院火盆.glb"
       }
     },
@@ -33536,7 +33536,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.634Z",
+        "generatedAt": "2026-10-27T23:40:25.974Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/花坛.glb"
       }
     },
@@ -33862,7 +33862,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.637Z",
+        "generatedAt": "2026-10-27T23:40:25.975Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/花朵组团.glb"
       }
     },
@@ -34188,7 +34188,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.639Z",
+        "generatedAt": "2026-10-27T23:40:25.976Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/野花组团.glb"
       }
     },
@@ -34497,7 +34497,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.640Z",
+        "generatedAt": "2026-10-27T23:40:25.977Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/庭院喷泉.glb"
       }
     },
@@ -34823,7 +34823,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.641Z",
+        "generatedAt": "2026-10-27T23:40:25.977Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/壁泉水景.glb"
       }
     },
@@ -35149,7 +35149,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.641Z",
+        "generatedAt": "2026-10-27T23:40:25.977Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/庭院门.glb"
       }
     },
@@ -35458,7 +35458,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.642Z",
+        "generatedAt": "2026-10-27T23:40:25.978Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/拱形铁艺院门.glb"
       }
     },
@@ -35784,7 +35784,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.642Z",
+        "generatedAt": "2026-10-27T23:40:25.978Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/独立门柱.glb"
       }
     },
@@ -36110,7 +36110,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.643Z",
+        "generatedAt": "2026-10-27T23:40:25.978Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/双扇实木院门.glb"
       }
     },
@@ -36436,7 +36436,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.644Z",
+        "generatedAt": "2026-10-27T23:40:25.978Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/四角凉亭.glb"
       }
     },
@@ -36762,7 +36762,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.644Z",
+        "generatedAt": "2026-10-27T23:40:25.979Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/六角凉亭.glb"
       }
     },
@@ -37088,7 +37088,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.646Z",
+        "generatedAt": "2026-10-27T23:40:25.979Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/丛生草.glb"
       }
     },
@@ -37414,7 +37414,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.647Z",
+        "generatedAt": "2026-10-27T23:40:25.980Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/低矮草.glb"
       }
     },
@@ -37740,7 +37740,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.648Z",
+        "generatedAt": "2026-10-27T23:40:25.980Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/支架吊床.glb"
       }
     },
@@ -37791,13 +37791,13 @@
           },
           "geometryEvidence": {
             "triangles": 1050,
-            "areaShare": 0.35,
+            "areaShare": 0.344,
             "thinness": 0.685,
             "shells": 535,
             "yBand": 0.52,
             "offset": [
               0.001,
-              0.036,
+              0.039,
               0
             ],
             "size": [
@@ -37850,13 +37850,13 @@
           },
           "geometryEvidence": {
             "triangles": 88,
-            "areaShare": 0.352,
+            "areaShare": 0.346,
             "thinness": 0.55,
             "shells": 48,
             "yBand": 0.33,
             "offset": [
               0,
-              -0.385,
+              -0.382,
               0.011
             ],
             "size": [
@@ -37908,10 +37908,10 @@
             "emissiveFactor": null
           },
           "geometryEvidence": {
-            "triangles": 476,
-            "areaShare": 0.297,
-            "thinness": 0.5,
-            "shells": 242,
+            "triangles": 536,
+            "areaShare": 0.31,
+            "thinness": 0.501,
+            "shells": 272,
             "yBand": 0.5,
             "offset": [
               0,
@@ -37920,7 +37920,7 @@
             ],
             "size": [
               1.1,
-              2.2,
+              2.194,
               1.15
             ],
             "inverted": false
@@ -38066,7 +38066,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.648Z",
+        "generatedAt": "2026-10-27T23:40:25.981Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/鸟巢吊椅.glb"
       }
     },
@@ -38392,7 +38392,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.649Z",
+        "generatedAt": "2026-10-27T23:40:25.982Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/绿篱.glb"
       }
     },
@@ -38718,7 +38718,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.650Z",
+        "generatedAt": "2026-10-27T23:40:25.982Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/圆形绿篱.glb"
       }
     },
@@ -39027,7 +39027,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.650Z",
+        "generatedAt": "2026-10-27T23:40:25.983Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/庭院灯柱.glb"
       }
     },
@@ -39353,7 +39353,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.651Z",
+        "generatedAt": "2026-10-27T23:40:25.983Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/高盆观叶植物.glb"
       }
     },
@@ -39645,7 +39645,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.651Z",
+        "generatedAt": "2026-10-27T23:40:25.983Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/草坪.glb"
       }
     },
@@ -39842,7 +39842,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.652Z",
+        "generatedAt": "2026-10-27T23:40:25.984Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/日光躺椅.glb"
       }
     },
@@ -40151,7 +40151,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.652Z",
+        "generatedAt": "2026-10-27T23:40:25.984Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/矮墙.glb"
       }
     },
@@ -40460,7 +40460,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.653Z",
+        "generatedAt": "2026-10-27T23:40:25.984Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/砖砌矮墙.glb"
       }
     },
@@ -40803,7 +40803,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.653Z",
+        "generatedAt": "2026-10-27T23:40:25.984Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/板条矮墙.glb"
       }
     },
@@ -41112,7 +41112,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.654Z",
+        "generatedAt": "2026-10-27T23:40:25.985Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外茶几.glb"
       }
     },
@@ -41438,7 +41438,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.654Z",
+        "generatedAt": "2026-10-27T23:40:25.985Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/户外水槽台.glb"
       }
     },
@@ -41781,7 +41781,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.655Z",
+        "generatedAt": "2026-10-27T23:40:25.985Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外双人沙发.glb"
       }
     },
@@ -42073,7 +42073,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.655Z",
+        "generatedAt": "2026-10-27T23:40:25.986Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/地面铺装.glb"
       }
     },
@@ -42382,7 +42382,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.656Z",
+        "generatedAt": "2026-10-27T23:40:25.986Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/庭院廊架.glb"
       }
     },
@@ -42691,7 +42691,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.656Z",
+        "generatedAt": "2026-10-27T23:40:25.986Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/遮阳布廊架.glb"
       }
     },
@@ -43034,7 +43034,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.657Z",
+        "generatedAt": "2026-10-27T23:40:25.987Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/长条花箱.glb"
       }
     },
@@ -43360,7 +43360,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.657Z",
+        "generatedAt": "2026-10-27T23:40:25.987Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/方形花盆.glb"
       }
     },
@@ -43686,7 +43686,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.657Z",
+        "generatedAt": "2026-10-27T23:40:25.987Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/石质长花槽.glb"
       }
     },
@@ -44029,7 +44029,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.658Z",
+        "generatedAt": "2026-10-27T23:40:25.987Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/景观水池.glb"
       }
     },
@@ -44355,7 +44355,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.658Z",
+        "generatedAt": "2026-10-27T23:40:25.988Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/圆形景观池.glb"
       }
     },
@@ -44681,7 +44681,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.658Z",
+        "generatedAt": "2026-10-27T23:40:25.988Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/庭院泳池.glb"
       }
     },
@@ -45007,7 +45007,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.659Z",
+        "generatedAt": "2026-10-27T23:40:25.988Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/高架花床.glb"
       }
     },
@@ -45316,7 +45316,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.659Z",
+        "generatedAt": "2026-10-27T23:40:25.988Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/挡土墙.glb"
       }
     },
@@ -45642,7 +45642,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.659Z",
+        "generatedAt": "2026-10-27T23:40:25.989Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/假山水景.glb"
       }
     },
@@ -45934,7 +45934,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.660Z",
+        "generatedAt": "2026-10-27T23:40:25.989Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/水景/景石组合.glb"
       }
     },
@@ -46260,7 +46260,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.660Z",
+        "generatedAt": "2026-10-27T23:40:25.989Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/圆形灌木花盆.glb"
       }
     },
@@ -46586,7 +46586,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.662Z",
+        "generatedAt": "2026-10-27T23:40:25.990Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/灌木丛.glb"
       }
     },
@@ -46929,7 +46929,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.663Z",
+        "generatedAt": "2026-10-27T23:40:25.992Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/开花灌木.glb"
       }
     },
@@ -47255,7 +47255,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.664Z",
+        "generatedAt": "2026-10-27T23:40:25.992Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/低矮圆灌木.glb"
       }
     },
@@ -47598,7 +47598,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.665Z",
+        "generatedAt": "2026-10-27T23:40:25.993Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外滑梯.glb"
       }
     },
@@ -47890,7 +47890,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.665Z",
+        "generatedAt": "2026-10-27T23:40:25.993Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/汀步.glb"
       }
     },
@@ -48199,7 +48199,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.665Z",
+        "generatedAt": "2026-10-27T23:40:25.993Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/台阶.glb"
       }
     },
@@ -48508,7 +48508,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.665Z",
+        "generatedAt": "2026-10-27T23:40:25.993Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/设施/户外储物屋.glb"
       }
     },
@@ -48834,7 +48834,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.666Z",
+        "generatedAt": "2026-10-27T23:40:25.993Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/庭院秋千.glb"
       }
     },
@@ -49143,7 +49143,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.666Z",
+        "generatedAt": "2026-10-27T23:40:25.994Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/户外餐桌.glb"
       }
     },
@@ -49452,7 +49452,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.667Z",
+        "generatedAt": "2026-10-27T23:40:25.994Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/连体野餐桌.glb"
       }
     },
@@ -49761,7 +49761,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.667Z",
+        "generatedAt": "2026-10-27T23:40:25.994Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/家具与铺装/圆形庭院桌.glb"
       }
     },
@@ -50104,7 +50104,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.668Z",
+        "generatedAt": "2026-10-27T23:40:25.995Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/庭院乔木.glb"
       }
     },
@@ -50447,7 +50447,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.669Z",
+        "generatedAt": "2026-10-27T23:40:25.996Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/柱形乔木.glb"
       }
     },
@@ -50790,7 +50790,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.670Z",
+        "generatedAt": "2026-10-27T23:40:25.997Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/多干小乔木.glb"
       }
     },
@@ -51133,7 +51133,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.672Z",
+        "generatedAt": "2026-10-27T23:40:25.998Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/植物/圆冠乔木.glb"
       }
     },
@@ -51442,7 +51442,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.672Z",
+        "generatedAt": "2026-10-27T23:40:25.998Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/格栅廊架.glb"
       }
     },
@@ -51768,7 +51768,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.673Z",
+        "generatedAt": "2026-10-27T23:40:25.999Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/遮阳伞.glb"
       }
     },
@@ -52094,7 +52094,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.673Z",
+        "generatedAt": "2026-10-27T23:40:25.999Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/构筑物/方形遮阳伞.glb"
       }
     },
@@ -52420,7 +52420,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.674Z",
+        "generatedAt": "2026-10-27T23:40:26.000Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/庭院/花箱与花坛/菜圃模块.glb"
       }
     },
@@ -52737,7 +52737,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.675Z",
+        "generatedAt": "2026-10-27T23:40:26.001Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/燃气热水器.glb"
       }
     },
@@ -53053,7 +53053,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.675Z",
+        "generatedAt": "2026-10-27T23:40:26.001Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/玻璃楼梯.glb"
       }
     },
@@ -53833,7 +53833,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.676Z",
+        "generatedAt": "2026-10-27T23:40:26.002Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/玻璃柜.glb"
       }
     },
@@ -53979,7 +53979,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.676Z",
+        "generatedAt": "2026-10-27T23:40:26.002Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/玻璃隔断.glb"
       }
     },
@@ -54236,7 +54236,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.679Z",
+        "generatedAt": "2026-10-27T23:40:26.005Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/吉他＋支架.glb"
       }
     },
@@ -54433,7 +54433,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.679Z",
+        "generatedAt": "2026-10-27T23:40:26.006Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/吹风机支架.glb"
       }
     },
@@ -54750,7 +54750,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.680Z",
+        "generatedAt": "2026-10-27T23:40:26.007Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/养生壶.glb"
       }
     },
@@ -55007,7 +55007,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.681Z",
+        "generatedAt": "2026-10-27T23:40:26.008Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/电热毛巾架.glb"
       }
     },
@@ -55264,7 +55264,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.682Z",
+        "generatedAt": "2026-10-27T23:40:26.009Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/取暖器.glb"
       }
     },
@@ -55581,7 +55581,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.683Z",
+        "generatedAt": "2026-10-27T23:40:26.010Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/家用网络机柜.glb"
       }
     },
@@ -55838,7 +55838,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.684Z",
+        "generatedAt": "2026-10-27T23:40:26.012Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/加湿器.glb"
       }
     },
@@ -56035,7 +56035,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.684Z",
+        "generatedAt": "2026-10-27T23:40:26.012Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电磁炉.glb"
       }
     },
@@ -56351,7 +56351,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.685Z",
+        "generatedAt": "2026-10-27T23:40:26.013Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/首饰收纳盒.glb"
       }
     },
@@ -56728,7 +56728,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.686Z",
+        "generatedAt": "2026-10-27T23:40:26.014Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/榨汁机.glb"
       }
     },
@@ -57045,7 +57045,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.687Z",
+        "generatedAt": "2026-10-27T23:40:26.016Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/电子琴＋支架.glb"
       }
     },
@@ -57241,7 +57241,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.688Z",
+        "generatedAt": "2026-10-27T23:40:26.017Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/滑梯.glb"
       }
     },
@@ -57438,7 +57438,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.689Z",
+        "generatedAt": "2026-10-27T23:40:26.017Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/秋千.glb"
       }
     },
@@ -57753,7 +57753,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.689Z",
+        "generatedAt": "2026-10-27T23:40:26.018Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/儿童帐篷.glb"
       }
     },
@@ -58187,7 +58187,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.691Z",
+        "generatedAt": "2026-10-27T23:40:26.020Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/岛台.glb"
       }
     },
@@ -58419,7 +58419,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.691Z",
+        "generatedAt": "2026-10-27T23:40:26.020Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/厨房地柜.glb"
       }
     },
@@ -58914,7 +58914,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.692Z",
+        "generatedAt": "2026-10-27T23:40:26.021Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/地柜带燃气灶.glb"
       }
     },
@@ -59291,7 +59291,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.692Z",
+        "generatedAt": "2026-10-27T23:40:26.022Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/岛台（旧版）.glb"
       }
     },
@@ -59786,7 +59786,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.694Z",
+        "generatedAt": "2026-10-27T23:40:26.023Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/地柜带水盆.glb"
       }
     },
@@ -59983,7 +59983,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.694Z",
+        "generatedAt": "2026-10-27T23:40:26.024Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/刀具架.glb"
       }
     },
@@ -60300,7 +60300,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.695Z",
+        "generatedAt": "2026-10-27T23:40:26.025Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/笔记本电脑.glb"
       }
     },
@@ -60437,7 +60437,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.695Z",
+        "generatedAt": "2026-10-27T23:40:26.026Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/洗衣烘干/洗衣篮.glb"
       }
     },
@@ -60633,7 +60633,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.696Z",
+        "generatedAt": "2026-10-27T23:40:26.026Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/普通猫砂盆.glb"
       }
     },
@@ -60890,7 +60890,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.697Z",
+        "generatedAt": "2026-10-27T23:40:26.028Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/圆孔高架床.glb"
       }
     },
@@ -61205,7 +61205,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.698Z",
+        "generatedAt": "2026-10-27T23:40:26.029Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/杂志架.glb"
       }
     },
@@ -61521,7 +61521,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.700Z",
+        "generatedAt": "2026-10-27T23:40:26.030Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/麻将桌.glb"
       }
     },
@@ -61778,7 +61778,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.701Z",
+        "generatedAt": "2026-10-27T23:40:26.032Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/微波炉.glb"
       }
     },
@@ -61975,7 +61975,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.702Z",
+        "generatedAt": "2026-10-27T23:40:26.033Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/拖把池.glb"
       }
     },
@@ -62112,7 +62112,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.703Z",
+        "generatedAt": "2026-10-27T23:40:26.034Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/杯架.glb"
       }
     },
@@ -62369,7 +62369,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.703Z",
+        "generatedAt": "2026-10-27T23:40:26.035Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/多功能料理锅.glb"
       }
     },
@@ -62690,7 +62690,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.704Z",
+        "generatedAt": "2026-10-27T23:40:26.035Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/网络存储.glb"
       }
     },
@@ -62922,7 +62922,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.704Z",
+        "generatedAt": "2026-10-27T23:40:26.035Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/床头柜.glb"
       }
     },
@@ -63222,7 +63222,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.705Z",
+        "generatedAt": "2026-10-27T23:40:26.036Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/书房家具/办公椅.glb"
       }
     },
@@ -63479,7 +63479,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.707Z",
+        "generatedAt": "2026-10-27T23:40:26.038Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/碎纸机.glb"
       }
     },
@@ -63855,7 +63855,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.708Z",
+        "generatedAt": "2026-10-27T23:40:26.040Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物窝＋食盆.glb"
       }
     },
@@ -64172,7 +64172,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.710Z",
+        "generatedAt": "2026-10-27T23:40:26.042Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/宠物用品/宠物烘干机.glb"
       }
     },
@@ -64429,7 +64429,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.710Z",
+        "generatedAt": "2026-10-27T23:40:26.042Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/自动喂食器.glb"
       }
     },
@@ -64745,7 +64745,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.711Z",
+        "generatedAt": "2026-10-27T23:40:26.043Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物饮水机.glb"
       }
     },
@@ -64882,7 +64882,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.712Z",
+        "generatedAt": "2026-10-27T23:40:26.044Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物围栏.glb"
       }
     },
@@ -65019,7 +65019,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.712Z",
+        "generatedAt": "2026-10-27T23:40:26.044Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物台阶.glb"
       }
     },
@@ -65276,7 +65276,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.713Z",
+        "generatedAt": "2026-10-27T23:40:26.045Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/宠物推车.glb"
       }
     },
@@ -65473,7 +65473,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.717Z",
+        "generatedAt": "2026-10-27T23:40:26.049Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/影音设备/钢琴.glb"
       }
     },
@@ -65790,7 +65790,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.718Z",
+        "generatedAt": "2026-10-27T23:40:26.050Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/普拉提床.glb"
       }
     },
@@ -65850,7 +65850,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.718Z",
+        "generatedAt": "2026-10-27T23:40:26.050Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/柱子.glb"
       }
     },
@@ -66047,7 +66047,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.718Z",
+        "generatedAt": "2026-10-27T23:40:26.050Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/四分之一圆柱.glb"
       }
     },
@@ -66244,7 +66244,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.718Z",
+        "generatedAt": "2026-10-27T23:40:26.051Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/四分之一圆柱（内弧）.glb"
       }
     },
@@ -66441,7 +66441,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.718Z",
+        "generatedAt": "2026-10-27T23:40:26.051Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/圆柱.glb"
       }
     },
@@ -66638,7 +66638,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.718Z",
+        "generatedAt": "2026-10-27T23:40:26.052Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/半圆柱.glb"
       }
     },
@@ -66834,7 +66834,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.720Z",
+        "generatedAt": "2026-10-27T23:40:26.053Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/独立抱枕组合.glb"
       }
     },
@@ -67151,7 +67151,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.721Z",
+        "generatedAt": "2026-10-27T23:40:26.054Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/乒乓球桌.glb"
       }
     },
@@ -67288,7 +67288,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.723Z",
+        "generatedAt": "2026-10-27T23:40:26.056Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/管线机.glb"
       }
     },
@@ -67605,7 +67605,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.724Z",
+        "generatedAt": "2026-10-27T23:40:26.057Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/绿植.glb"
       }
     },
@@ -67922,7 +67922,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.728Z",
+        "generatedAt": "2026-10-27T23:40:26.061Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/龟背竹.glb"
       }
     },
@@ -68239,7 +68239,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.732Z",
+        "generatedAt": "2026-10-27T23:40:26.064Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/散尾葵.glb"
       }
     },
@@ -68556,7 +68556,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.734Z",
+        "generatedAt": "2026-10-27T23:40:26.066Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/绿萝.glb"
       }
     },
@@ -68873,7 +68873,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.736Z",
+        "generatedAt": "2026-10-27T23:40:26.068Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/橡皮树.glb"
       }
     },
@@ -69130,7 +69130,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.738Z",
+        "generatedAt": "2026-10-27T23:40:26.069Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/室内植物/虎皮兰.glb"
       }
     },
@@ -69504,7 +69504,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.739Z",
+        "generatedAt": "2026-10-27T23:40:26.070Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/玩具厨房.glb"
       }
     },
@@ -69821,7 +69821,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.741Z",
+        "generatedAt": "2026-10-27T23:40:26.072Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/台球桌.glb"
       }
     },
@@ -70138,7 +70138,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.742Z",
+        "generatedAt": "2026-10-27T23:40:26.073Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/破壁机.glb"
       }
     },
@@ -70454,7 +70454,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.744Z",
+        "generatedAt": "2026-10-27T23:40:26.075Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电压力锅.glb"
       }
     },
@@ -70711,7 +70711,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.744Z",
+        "generatedAt": "2026-10-27T23:40:26.075Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/打印机.glb"
       }
     },
@@ -70908,7 +70908,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.745Z",
+        "generatedAt": "2026-10-27T23:40:26.076Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/投影幕布.glb"
       }
     },
@@ -71165,7 +71165,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.746Z",
+        "generatedAt": "2026-10-27T23:40:26.077Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/投影仪.glb"
       }
     },
@@ -71482,7 +71482,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.747Z",
+        "generatedAt": "2026-10-27T23:40:26.078Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/PS5游戏机.glb"
       }
     },
@@ -71738,7 +71738,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.747Z",
+        "generatedAt": "2026-10-27T23:40:26.078Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/拳击沙袋.glb"
       }
     },
@@ -71995,7 +71995,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.748Z",
+        "generatedAt": "2026-10-27T23:40:26.079Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/赛车模拟座舱.glb"
       }
     },
@@ -72251,7 +72251,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.749Z",
+        "generatedAt": "2026-10-27T23:40:26.080Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/油烟机.glb"
       }
     },
@@ -72508,7 +72508,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.750Z",
+        "generatedAt": "2026-10-27T23:40:26.081Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/方形管线饮水机.glb"
       }
     },
@@ -72765,7 +72765,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.751Z",
+        "generatedAt": "2026-10-27T23:40:26.082Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/米桶.glb"
       }
     },
@@ -73022,7 +73022,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.752Z",
+        "generatedAt": "2026-10-27T23:40:26.082Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/电饭煲.glb"
       }
     },
@@ -73339,7 +73339,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.753Z",
+        "generatedAt": "2026-10-27T23:40:26.084Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/清洁设备/扫地机器人.glb"
       }
     },
@@ -73536,7 +73536,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.754Z",
+        "generatedAt": "2026-10-27T23:40:26.085Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/摇椅.glb"
       }
     },
@@ -73792,7 +73792,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.755Z",
+        "generatedAt": "2026-10-27T23:40:26.086Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/儿童用品/玩具木马.glb"
       }
     },
@@ -74109,7 +74109,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.761Z",
+        "generatedAt": "2026-10-27T23:40:26.092Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/圆形双人床.glb"
       }
     },
@@ -74246,7 +74246,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.762Z",
+        "generatedAt": "2026-10-27T23:40:26.092Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/圆形地毯.glb"
       }
     },
@@ -74529,7 +74529,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.763Z",
+        "generatedAt": "2026-10-27T23:40:26.093Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/圆形餐桌.glb"
       }
     },
@@ -74846,7 +74846,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.764Z",
+        "generatedAt": "2026-10-27T23:40:26.094Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/圆形餐桌（转盘）.glb"
       }
     },
@@ -75103,7 +75103,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.765Z",
+        "generatedAt": "2026-10-27T23:40:26.095Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/路由器.glb"
       }
     },
@@ -75299,7 +75299,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.765Z",
+        "generatedAt": "2026-10-27T23:40:26.096Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/划船机.glb"
       }
     },
@@ -75402,7 +75402,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.765Z",
+        "generatedAt": "2026-10-27T23:40:26.096Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/地毯.glb"
       }
     },
@@ -75719,7 +75719,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.766Z",
+        "generatedAt": "2026-10-27T23:40:26.096Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/扫描仪.glb"
       }
     },
@@ -76281,7 +76281,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.770Z",
+        "generatedAt": "2026-10-27T23:40:26.100Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/踏板车.glb"
       }
     },
@@ -76427,7 +76427,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.770Z",
+        "generatedAt": "2026-10-27T23:40:26.100Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/货架.glb"
       }
     },
@@ -76684,7 +76684,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.771Z",
+        "generatedAt": "2026-10-27T23:40:26.101Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/换鞋凳.glb"
       }
     },
@@ -76916,7 +76916,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.771Z",
+        "generatedAt": "2026-10-27T23:40:26.101Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/鞋柜.glb"
       }
     },
@@ -77062,7 +77062,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.771Z",
+        "generatedAt": "2026-10-27T23:40:26.101Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/花洒.glb"
       }
     },
@@ -77259,7 +77259,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.771Z",
+        "generatedAt": "2026-10-27T23:40:26.101Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/淋浴凳.glb"
       }
     },
@@ -77456,7 +77456,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.771Z",
+        "generatedAt": "2026-10-27T23:40:26.102Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/边几.glb"
       }
     },
@@ -77645,7 +77645,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.772Z",
+        "generatedAt": "2026-10-27T23:40:26.102Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/餐边柜.glb"
       }
     },
@@ -77902,7 +77902,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.773Z",
+        "generatedAt": "2026-10-27T23:40:26.104Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/单列玻璃展示柜.glb"
       }
     },
@@ -78099,7 +78099,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.773Z",
+        "generatedAt": "2026-10-27T23:40:26.104Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/洗衣烘干/单杆晾衣架.glb"
       }
     },
@@ -78296,7 +78296,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.774Z",
+        "generatedAt": "2026-10-27T23:40:26.105Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/窄高置物柜.glb"
       }
     },
@@ -78613,7 +78613,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.774Z",
+        "generatedAt": "2026-10-27T23:40:26.106Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/智慧屏.glb"
       }
     },
@@ -78930,7 +78930,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.775Z",
+        "generatedAt": "2026-10-27T23:40:26.106Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/智慧屏上墙.glb"
       }
     },
@@ -79187,7 +79187,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.776Z",
+        "generatedAt": "2026-10-27T23:40:26.107Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/智能猫砂盆.glb"
       }
     },
@@ -79444,7 +79444,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.776Z",
+        "generatedAt": "2026-10-27T23:40:26.107Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/办公数码/86型智能插座.glb"
       }
     },
@@ -79744,7 +79744,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.777Z",
+        "generatedAt": "2026-10-27T23:40:26.108Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/沙发.glb"
       }
     },
@@ -80044,7 +80044,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.778Z",
+        "generatedAt": "2026-10-27T23:40:26.110Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/L型沙发.glb"
       }
     },
@@ -80344,7 +80344,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.780Z",
+        "generatedAt": "2026-10-27T23:40:26.111Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/L型沙发（左）.glb"
       }
     },
@@ -80644,7 +80644,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.780Z",
+        "generatedAt": "2026-10-27T23:40:26.111Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/单人沙发.glb"
       }
     },
@@ -80781,7 +80781,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.781Z",
+        "generatedAt": "2026-10-27T23:40:26.112Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/沙发毯.glb"
       }
     },
@@ -81038,7 +81038,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.782Z",
+        "generatedAt": "2026-10-27T23:40:26.113Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/长条音响.glb"
       }
     },
@@ -81294,7 +81294,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.783Z",
+        "generatedAt": "2026-10-27T23:40:26.114Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房用品/调味瓶组合.glb"
       }
     },
@@ -81491,7 +81491,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.783Z",
+        "generatedAt": "2026-10-27T23:40:26.114Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/动感单车.glb"
       }
     },
@@ -81774,7 +81774,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.783Z",
+        "generatedAt": "2026-10-27T23:40:26.114Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/方茶几.glb"
       }
     },
@@ -81971,7 +81971,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.784Z",
+        "generatedAt": "2026-10-27T23:40:26.115Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/蹲便.glb"
       }
     },
@@ -82117,7 +82117,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.784Z",
+        "generatedAt": "2026-10-27T23:40:26.115Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/楼梯.glb"
       }
     },
@@ -82314,7 +82314,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.785Z",
+        "generatedAt": "2026-10-27T23:40:26.116Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/厨师机.glb"
       }
     },
@@ -82571,7 +82571,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.786Z",
+        "generatedAt": "2026-10-27T23:40:26.117Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/蒸烤箱.glb"
       }
     },
@@ -82708,7 +82708,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.788Z",
+        "generatedAt": "2026-10-27T23:40:26.119Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/钢楼梯.glb"
       }
     },
@@ -82905,7 +82905,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.789Z",
+        "generatedAt": "2026-10-27T23:40:26.120Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/收纳箱.glb"
       }
     },
@@ -83102,7 +83102,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.790Z",
+        "generatedAt": "2026-10-27T23:40:26.121Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/三层收纳推车.glb"
       }
     },
@@ -83419,7 +83419,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.791Z",
+        "generatedAt": "2026-10-27T23:40:26.122Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/储水式热水器.glb"
       }
     },
@@ -83676,7 +83676,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.792Z",
+        "generatedAt": "2026-10-27T23:40:26.123Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/行李箱.glb"
       }
     },
@@ -84356,7 +84356,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.808Z",
+        "generatedAt": "2026-10-27T23:40:26.141Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/建筑与交通/越野车.glb"
       }
     },
@@ -84673,7 +84673,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.809Z",
+        "generatedAt": "2026-10-27T23:40:26.142Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/Switch游戏机.glb"
       }
     },
@@ -84956,7 +84956,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.811Z",
+        "generatedAt": "2026-10-27T23:40:26.143Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/厨房家具/餐桌组合.glb"
       }
     },
@@ -85152,7 +85152,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.812Z",
+        "generatedAt": "2026-10-27T23:40:26.144Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/台灯.glb"
       }
     },
@@ -85289,7 +85289,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.816Z",
+        "generatedAt": "2026-10-27T23:40:26.147Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/茶吧机.glb"
       }
     },
@@ -85606,7 +85606,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.818Z",
+        "generatedAt": "2026-10-27T23:40:26.148Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/组合茶桌.glb"
       }
     },
@@ -85863,7 +85863,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.818Z",
+        "generatedAt": "2026-10-27T23:40:26.149Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/吐司机.glb"
       }
     },
@@ -86060,7 +86060,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.819Z",
+        "generatedAt": "2026-10-27T23:40:26.150Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/马桶.glb"
       }
     },
@@ -86317,7 +86317,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.820Z",
+        "generatedAt": "2026-10-27T23:40:26.151Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/洗漱用品组合.glb"
       }
     },
@@ -86573,7 +86573,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.820Z",
+        "generatedAt": "2026-10-27T23:40:26.151Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/壁挂牙刷架.glb"
       }
     },
@@ -86888,7 +86888,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.822Z",
+        "generatedAt": "2026-10-27T23:40:26.153Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/立式音响.glb"
       }
     },
@@ -87145,7 +87145,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.822Z",
+        "generatedAt": "2026-10-27T23:40:26.153Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/清洁设备/垃圾桶.glb"
       }
     },
@@ -87462,7 +87462,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.824Z",
+        "generatedAt": "2026-10-27T23:40:26.154Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/健身娱乐/跑步机.glb"
       }
     },
@@ -87658,7 +87658,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.825Z",
+        "generatedAt": "2026-10-27T23:40:26.154Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/奖杯.glb"
       }
     },
@@ -87915,7 +87915,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.827Z",
+        "generatedAt": "2026-10-27T23:40:26.156Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/唱片机.glb"
       }
     },
@@ -88190,7 +88190,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.828Z",
+        "generatedAt": "2026-10-27T23:40:26.156Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/移动电视.glb"
       }
     },
@@ -88250,7 +88250,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.828Z",
+        "generatedAt": "2026-10-27T23:40:26.156Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/标准电视.glb"
       }
     },
@@ -88439,7 +88439,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.828Z",
+        "generatedAt": "2026-10-27T23:40:26.156Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/桌面电视.glb"
       }
     },
@@ -88722,7 +88722,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.829Z",
+        "generatedAt": "2026-10-27T23:40:26.156Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/客厅家具/电视柜.glb"
       }
     },
@@ -88979,7 +88979,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.830Z",
+        "generatedAt": "2026-10-27T23:40:26.157Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/雨伞架.glb"
       }
     },
@@ -89116,7 +89116,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.831Z",
+        "generatedAt": "2026-10-27T23:40:26.157Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/上下出光壁灯.glb"
       }
     },
@@ -89372,7 +89372,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.832Z",
+        "generatedAt": "2026-10-27T23:40:26.159Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卫浴用品/小便斗.glb"
       }
     },
@@ -89689,7 +89689,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.833Z",
+        "generatedAt": "2026-10-27T23:40:26.159Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/卧室家具/梳妆台.glb"
       }
     },
@@ -90006,7 +90006,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.834Z",
+        "generatedAt": "2026-10-27T23:40:26.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/挂画.glb"
       }
     },
@@ -90203,7 +90203,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.836Z",
+        "generatedAt": "2026-10-27T23:40:26.160Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/宠物用品/壁挂猫跳台.glb"
       }
     },
@@ -90460,7 +90460,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.840Z",
+        "generatedAt": "2026-10-27T23:40:26.161Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/生活装饰/挂钟.glb"
       }
     },
@@ -90597,7 +90597,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.841Z",
+        "generatedAt": "2026-10-27T23:40:26.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/玄关用品/壁挂衣钩.glb"
       }
     },
@@ -90747,7 +90747,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.842Z",
+        "generatedAt": "2026-10-27T23:40:26.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/环境设备/挂机空调.glb"
       }
     },
@@ -90936,7 +90936,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.842Z",
+        "generatedAt": "2026-10-27T23:40:26.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/吊柜.glb"
       }
     },
@@ -91193,7 +91193,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.843Z",
+        "generatedAt": "2026-10-27T23:40:26.162Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/装饰灯具/壁灯.glb"
       }
     },
@@ -91450,7 +91450,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.843Z",
+        "generatedAt": "2026-10-27T23:40:26.163Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/衣柜.glb"
       }
     },
@@ -91647,7 +91647,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.844Z",
+        "generatedAt": "2026-10-27T23:40:26.163Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/柜架收纳/双段衣柜.glb"
       }
     },
@@ -91964,7 +91964,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.847Z",
+        "generatedAt": "2026-10-27T23:40:26.165Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/洗衣烘干/洗衣机.glb"
       }
     },
@@ -92221,7 +92221,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.848Z",
+        "generatedAt": "2026-10-27T23:40:26.166Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/厨房电器/净水器主机.glb"
       }
     },
@@ -92358,7 +92358,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.849Z",
+        "generatedAt": "2026-10-27T23:40:26.166Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/健身长凳.glb"
       }
     },
@@ -92675,7 +92675,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.850Z",
+        "generatedAt": "2026-10-27T23:40:26.168Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/电器/影音设备/Xbox游戏机.glb"
       }
     },
@@ -92930,7 +92930,7 @@
       "exceptions": [],
       "source": {
         "audit": "docs/model-audit/glb-material-audit.json",
-        "generatedAt": "2026-10-27T23:33:15.851Z",
+        "generatedAt": "2026-10-27T23:40:26.169Z",
         "geometry": "homeos/frontend/public/static/3d-studio/models/家居/健身娱乐/瑜伽垫＋健身球.glb"
       }
     }
