@@ -107,6 +107,31 @@ export function ensureHls(): Promise<HlsCtor | null> {
   return loadPromise
 }
 
+/** hls.js 致命错误负载里判定「地址是否失效」需要的那几个字段（外部脚本给的是 any）。 */
+export type HlsErrorPayload = {
+  type?: string
+  details?: string
+  response?: { code?: number }
+}
+
+/** 这些 details 说明请求打在「某个 HLS 地址」上，而不是解码 / 媒体管线。 */
+const STREAM_ADDRESS_DETAILS = ['manifestLoad', 'manifestParsing', 'levelLoad', 'levelParsing']
+
+/**
+ * 致命错误是否属于「播放地址已失效」——调用方据此重新换票再试，而不是直接降级。
+ *
+ * HA 的一路摄像流只对应一个 hls token：流 worker 重建（时间戳不连续、空闲回收）后旧 token
+ * 立刻 404，而重新 `camera/stream` 换票通常就能拿到新 token。这里的 `status === 0` 覆盖
+ * 「请求没拿到响应」（后端 / 反代抖动），同样值得换一次票再试。
+ */
+export function isExpiredStreamAddressError(payload: HlsErrorPayload | null | undefined): boolean {
+  if (!payload || payload.type !== 'networkError') return false
+  const details = String(payload.details || '')
+  if (!STREAM_ADDRESS_DETAILS.some((prefix) => details.startsWith(prefix))) return false
+  const status = Number(payload.response?.code || 0)
+  return status === 0 || status === 404 || status === 410
+}
+
 /**
  * 空闲预取 hls.js：仅在页面确实含 HLS 摄像头组件时调用（见 camera-media 的 prewarm 路径）。
  *

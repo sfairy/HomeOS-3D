@@ -1,16 +1,26 @@
 /**
  * 与 3D / 0.7.2 mountCameraMedia 对齐：HLS → 12s/致命错误切 MJPEG（无 query）→ 7s 再快照。
  * 不因 hvc1 提前弃 HLS（本机可播 HEVC；HA MJPEG 常为空体）。
+ *
+ * 唯一例外是「播放地址失效」：HA 一路流只有一个 hls token，流 worker 重建后旧地址 404，
+ * 此时必须先重新向 `/api/camera_hls` 换票再试（见 `isExpiredStreamAddressError`），
+ * 因为后面两条降级路对通用摄像头都是死的（MJPEG 空体、快照 500）。
  */
 import { resolveCameraHlsPlayUrl } from '@/shared/utils/ha/camera-stream.util'
 import { logger } from '@/shared/utils/core/logger'
-import { ensureHls, type HlsCtor } from '@/shared/camera/hls-loader'
+import {
+  ensureHls,
+  isExpiredStreamAddressError,
+  type HlsCtor,
+} from '@/shared/camera/hls-loader'
 
 type HlsInstance = InstanceType<HlsCtor>
 type TransportMode = 'idle' | 'hls' | 'legacy' | 'snapshot'
 
 const HLS_FALLBACK_MS = 12000
 const MJPEG_PROBE_MS = 7000
+/** 一轮播放里最多换票重试几次；超过就按原策略降级。 */
+const HLS_ADDRESS_RETRY_LIMIT = 2
 
 type CameraMediaStopFn = () => void
 
@@ -35,6 +45,7 @@ export async function startCameraMediaTransport(
   let triedSnapshot = false
   let snapshotFailures = 0
   let hasStarted = false
+  let hlsAddressRetries = 0
 
   const clearTimers = () => {
     window.clearTimeout(hlsTimer)
@@ -169,11 +180,6 @@ export async function startCameraMediaTransport(
   videoEl.addEventListener('playing', onVideoProgress)
   videoEl.addEventListener('error', onVideoError)
 
-  const gen = generation
-  mode = 'hls'
-  showVideo()
-  hlsTimer = window.setTimeout(() => startMjpeg(gen), HLS_FALLBACK_MS)
-
   const cleanupListeners = () => {
     imageEl.removeEventListener('load', onImageLoad)
     imageEl.removeEventListener('error', onImageError)
@@ -182,20 +188,24 @@ export async function startCameraMediaTransport(
     videoEl.removeEventListener('error', onVideoError)
   }
 
-  try {
-    const playUrl = await resolveCameraHlsPlayUrl(eid)
-    if (stopped || gen !== generation || mode !== 'hls') {
-      return () => {
-        cleanupListeners()
-        stop()
+  /**
+   * 起一路 HLS（`generation` 变了即作废）。
+   *
+   * 换票 → 换地址重试 → 降级三步都在这里：重试会自增 `generation` 并递归一次，
+   * 旧 player 的后续回调因 `isCurrent()` 不成立而全部失效。
+   */
+  const startHls = async (expectedGen: number): Promise<void> => {
+    window.clearTimeout(hlsTimer)
+    hlsTimer = window.setTimeout(() => startMjpeg(expectedGen), HLS_FALLBACK_MS)
+    try {
+      const playUrl = await resolveCameraHlsPlayUrl(eid)
+      if (stopped || expectedGen !== generation || mode !== 'hls') return
+      const Hls = await ensureHls()
+      if (stopped || expectedGen !== generation || mode !== 'hls') return
+      if (!Hls) {
+        startMjpeg(expectedGen)
+        return
       }
-    }
-    const Hls = await ensureHls()
-    if (stopped || gen !== generation || mode !== 'hls') {
-      /* 已降级 */
-    } else if (!Hls) {
-      startMjpeg(gen)
-    } else {
       const player = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -214,22 +224,42 @@ export async function startCameraMediaTransport(
       })
       hls = player
       const isCurrent = () =>
-        !stopped && gen === generation && mode === 'hls' && hls === player
+        !stopped && expectedGen === generation && mode === 'hls' && hls === player
+      player.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (!isCurrent()) return
+        hlsAddressRetries = 0
+        void videoEl.play().catch(() => {})
+      })
       player.on(Hls.Events.ERROR, (_ev, data) => {
         if (!isCurrent() || !data?.fatal) return
+        if (isExpiredStreamAddressError(data) && hlsAddressRetries < HLS_ADDRESS_RETRY_LIMIT) {
+          hlsAddressRetries += 1
+          logger.warn(
+            '[camera-media] HLS 播放地址已失效，重新换票',
+            data.details,
+            data.response?.code,
+          )
+          hls = null
+          player.destroy()
+          void startHls(++generation)
+          return
+        }
         logger.warn('[camera-media] HLS 致命错误，降级 MJPEG', data.type, data.details)
-        startMjpeg(gen)
-      })
-      player.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (isCurrent()) void videoEl.play().catch(() => {})
+        startMjpeg(expectedGen)
       })
       player.attachMedia(videoEl)
       player.loadSource(playUrl)
+    } catch (error) {
+      if (stopped || expectedGen !== generation || mode !== 'hls') return
+      logger.warn('[camera-media] HLS 换票失败，降级 MJPEG', error)
+      startMjpeg(expectedGen)
     }
-  } catch (error) {
-    logger.warn('[camera-media] HLS 换票失败，降级 MJPEG', error)
-    startMjpeg(gen)
   }
+
+  const gen = ++generation
+  mode = 'hls'
+  showVideo()
+  await startHls(gen)
 
   return () => {
     cleanupListeners()

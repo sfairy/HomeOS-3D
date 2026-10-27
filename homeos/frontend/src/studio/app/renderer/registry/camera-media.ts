@@ -6,7 +6,7 @@ import {
   GO2RTC_TRANSPORT_NAME,
   type Go2RtcMseTransportHandle,
 } from "@/shared/camera/composables/useGo2RtcMseTransport";
-import { ensureHls, prefetchHlsOnIdle } from "@/shared/camera/hls-loader";
+import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle } from "@/shared/camera/hls-loader";
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from "./_shared";
 
 /**
@@ -128,6 +128,10 @@ export function appendCameraFrame(
 }
 const CAMERA_SOURCE_CACHE_TTL_MS = 30000,
   CAMERA_MAX_SOURCES = 4,
+  /** 一轮播放里最多换票重试几次「地址已失效」的 HLS；超过才降级。 */
+  HLS_ADDRESS_RETRY_LIMIT = 2,
+  /** HLS 起播兜底：这么久还没画面就降级 MJPEG（换票重试同样受它约束）。 */
+  HLS_START_TIMEOUT_MS = 12000,
   cameraSourceByEntityId = new Map(),
   pendingSourceRequestByEntityId = new Map();
 async function resolveCameraStreamSource(sourceEntityId: any, options: { signal?: AbortSignal } = {}) {
@@ -431,6 +435,7 @@ export function mountCameraMedia({
   let hlsPlayer: any = null;
   let hasVideoStarted = false;
   let transportGeneration = 0;
+  let hlsAddressRetries = 0;
   let transportMode: TransportMode = "idle";
   let isPageHidden = document.visibilityState === "hidden";
   // go2rtc MSE：传输本体与视觉状态机都由共享实现负责，这里只持有句柄以便释放。
@@ -641,6 +646,7 @@ export function mountCameraMedia({
         });
         player.on(hlsRuntime.Events.MANIFEST_PARSED, () => {
           if (!isCurrent()) return;
+          hlsAddressRetries = 0;
           legacyContainerElement.dataset.cameraState = "manifest-parsed";
           cameraVideoElement.play().catch(() => {});
         });
@@ -677,6 +683,30 @@ export function mountCameraMedia({
             status: hlsErrorPayload.response?.code || 0,
             reason: hlsErrorPayload.reason || hlsErrorPayload.error?.message || "",
           });
+          if (
+            isExpiredStreamAddressError(hlsErrorPayload) &&
+            hlsAddressRetries < HLS_ADDRESS_RETRY_LIMIT
+          ) {
+            // HA 一路流只有一个 hls token：流 worker 重建（时间戳不连续 / 空闲回收）后旧地址
+            // 立刻 404，重新 `camera/stream` 换票通常就能恢复。这里不能降级——通用摄像头的
+            // MJPEG 常为空体、快照常 500，两条降级路都是死的。
+            hlsAddressRetries += 1;
+            player.destroy();
+            if (hlsPlayer === player) hlsPlayer = null;
+            cameraVideoElement.pause();
+            cameraVideoElement.removeAttribute("src");
+            cameraVideoElement.load();
+            window.clearTimeout(hlsStartTimerId);
+            const retryGeneration = ++transportGeneration;
+            transportMode = "hls";
+            legacyContainerElement.dataset.cameraState = "retrying";
+            hlsStartTimerId = window.setTimeout(
+              () => switchToLegacyTransport(retryGeneration),
+              HLS_START_TIMEOUT_MS,
+            );
+            void startHlsPlayback(retryGeneration);
+            return;
+          }
           switchToLegacyTransport(playbackGeneration);
         });
         player.attachMedia(cameraVideoElement);
@@ -752,6 +782,7 @@ export function mountCameraMedia({
     isLegacyTransport = false;
     hasRequestedFallbackImage = false;
     snapshotFailures = 0;
+    hlsAddressRetries = 0;
     legacyPlaceholderElement.hidden = false;
     legacyPlaceholderElement.textContent = "摄像头正在连接";
     const generation = transportGeneration;
@@ -764,7 +795,10 @@ export function mountCameraMedia({
     transportMode = "hls";
     legacyContainerElement.dataset.cameraState = "starting";
     void startHlsPlayback(generation);
-    hlsStartTimerId = window.setTimeout(() => switchToLegacyTransport(generation), 12000);
+    hlsStartTimerId = window.setTimeout(
+      () => switchToLegacyTransport(generation),
+      HLS_START_TIMEOUT_MS,
+    );
   };
 
   const handlePageHidden = () => {
