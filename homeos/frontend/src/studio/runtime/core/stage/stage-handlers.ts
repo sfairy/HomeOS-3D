@@ -1338,9 +1338,23 @@ export function createSyncMarkers(host: StageHandlersHost) {
       (!markerChange || markerChange.environment) && host.refreshStageUi());
     const isPanelAffected =
       !markerChange || !!(host.focusedItemId && markerChange.affects(host.getFocusedEntry()));
-    (isPanelAffected && host.updateDevicePanel(),
+    // 相机在动（自动旋转 / 拖拽 / 楼层过渡 / 跟随扫地机）时，帧循环每帧自己会重算一遍标记
+    // 位置；这里再同步强制算一次，等于在消息任务里多做一遍投影 + 样式写入 + 强制布局，
+    // 正好插在旋转的两帧之间，表现就是「状态一变卡一下」。作废视口签名后交给下一帧即可，
+    // 视觉延迟不到一帧。布局尺寸变化另有 ResizeObserver 兜底，不再逐条消息重排。
+    const isCameraMotionActive =
+      !!host.cameraMotionSnapshot ||
+      host.isIdleRotationRunning === true ||
+      host.isCameraMoving === true ||
+      host.set?.size > 0 ||
+      host.isPointerHeld === true ||
+      !!host.followVacuumId;
+    (isPanelAffected && (host.updateDevicePanel(), host.syncLayoutMetrics()),
       (!markerChange || hasMarkerChange || isPanelAffected) &&
-        (host.syncLayoutMetrics(), host.syncStageVisibility(), host.renderMarkerPositions(true)));
+        (host.syncStageVisibility(),
+        isCameraMotionActive
+          ? ((host.lastRenderSignature = ""), host.wakeSceneBackground())
+          : host.renderMarkerPositions(true)));
   }
 }
 

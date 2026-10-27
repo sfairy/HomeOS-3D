@@ -395,12 +395,95 @@ export function mountInteraction3d(
     hasLoadFailed = false,
     reloadGeneration = 0,
     isNavigationEditing = false,
-    isRangeEditing = false;
+    isRangeEditing = false,
+    /** 当前装载的舞台地址：503 自动重试沿用它，只追加重试序号。 */
+    stageFrameUrl = "",
+    /** 503 自动重试预算：已用次数与待触发的定时器。 */
+    stageFrameRetryAttempt = 0,
+    stageFrameRetryTimeoutId: any = null;
   const pendingEditsByRequestId = new Map(),
     pendingRangeRequestsByRequestId = new Map(),
     editSubscribersSet = new Set<(editState: unknown) => void>(),
     normalizeLightingMode = (lightingMode: any) =>
       lightingMode === "region" ? "region" : "standard";
+  /**
+   * 舞台 iframe 自动重试的退避间隔；合计约 18s。
+   *
+   * 这个窗口是照着真实故障时长定的：`watch-build` 重建主应用实测 6–6.5s（期间 dist
+   * 的 index.html 不在），后端 watchfiles 重载数秒，两者叠加正好落在 10s 量级。
+   * 早先的 5s 预算会在产物还没落地时就用尽，等于白重试。
+   */
+  const STAGE_FRAME_RETRY_DELAYS_MS = [500, 1500, 3000, 5000, 8000];
+  /**
+   * 判断 iframe 里真正落地的是什么文档。
+   *
+   * 后端热重载（watchfiles）或前端产物重建窗口里，`stage.html` 会回 503 JSON；浏览器把那段
+   * JSON 当成页面渲染，用户看到的就是一块白底文本，而且它自己永远不会恢复。舞台外壳必然带
+   * `data-homeos-stage="1"`（见 interaction3d/api.py 的 get_stage），因此这个标记即判据：
+   * 缺失就是「没拿到舞台」。跨域 / 导航未完成时读取会抛 SecurityError，按「未知」处理不重试。
+   */
+  function readStageFrameOutcome(frameElement: HTMLIFrameElement): {
+    kind: "ok" | "failed" | "unknown";
+    detail: string;
+  } {
+    try {
+      const contentDocument = frameElement.contentDocument;
+      if (!contentDocument) return { kind: "unknown", detail: "" };
+      if (contentDocument.documentElement?.dataset?.homeosStage === "1")
+        return { kind: "ok", detail: "" };
+      return {
+        kind: "failed",
+        detail: (contentDocument.body?.textContent || "").trim().slice(0, 200),
+      };
+    } catch {
+      return { kind: "unknown", detail: "" };
+    }
+  }
+  /**
+   * 是否为「等一会儿就好」的瞬时失败。
+   *
+   * 503 的两个来源都在正文里留了标记：Vite 代理「后端暂未就绪」（vite.config.ts 的
+   * respondBackendUnavailable）、后端「前端产物尚未就绪」（interaction3d/api.py 的 get_stage），
+   * 以及 SW 离线兜底的「HomeOS offline」。空正文通常是连接被拒（后端进程正在重启），同样重试。
+   * 401/403 这类确定性失败不重试 —— 重试只会把同一个拒绝再打两遍，白等 5s。
+   */
+  function isTransientStageFailure(detail: string) {
+    return !detail || /尚未就绪|暂未就绪|Service Unavailable|HomeOS offline|\b503\b/i.test(detail);
+  }
+  /** 收掉重试预算与待触发的定时器（重载换舞台 / 正常落地时调用）。 */
+  function resetStageFrameRetry() {
+    stageFrameRetryTimeoutId != null &&
+      (clearTimeout(stageFrameRetryTimeoutId), (stageFrameRetryTimeoutId = null));
+    stageFrameRetryAttempt = 0;
+  }
+  /** 瞬时失败：退避重载同一个舞台地址；预算用尽才走原有失败提示。 */
+  function retryStageFrameLoad(reason: string) {
+    if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return;
+    if (stageFrameRetryAttempt >= STAGE_FRAME_RETRY_DELAYS_MS.length) {
+      failSceneLoad("3D 画面暂时不可用（后端可能正在重启或更新），请稍后重新载入户型。");
+      return;
+    }
+    if (stageFrameRetryTimeoutId != null) return;
+    const retryDelay = STAGE_FRAME_RETRY_DELAYS_MS[stageFrameRetryAttempt++];
+    reportRuntimeLifecycle("stage-frame-retry", {
+      loadSequence: reloadGeneration,
+      attempt: stageFrameRetryAttempt,
+      reason,
+    });
+    ((loadingElement.hidden = false), (loadingElement.textContent = "3D 画面正在重新连接…"));
+    stageFrameRetryTimeoutId = setTimeout(() => {
+      stageFrameRetryTimeoutId = null;
+      if (isDisposed || hasLoadFailed || isStageReady || !stageFrameUrl) return;
+      // 重试是「一次全新的装载」：45s 的加载超时要从这一发重新起算，否则前面耗掉的
+      // 退避时间会算进这一发的预算里，刚恢复的舞台又会被「加载较慢」判失败。
+      clearTimeout(loadingTimeoutId);
+      isPreviewSuspended || scheduleLoadTimeout();
+      // 追加重试序号：既是这一发的区分键，也方便在 Network 面板里认出这几发重试。
+      const retryUrl = new URL(stageFrameUrl, location.href);
+      retryUrl.searchParams.set("frame-retry", String(stageFrameRetryAttempt));
+      stageFrameElement.src = retryUrl.pathname + retryUrl.search;
+    }, retryDelay);
+  }
   function createStageFrameElement() {
     const frameElement = document.createElement("iframe");
     let frameLoadCount = 0,
@@ -419,6 +502,16 @@ export function mountInteraction3d(
               frameLoads: frameLoadCount,
               loadSequence: reloadGeneration,
             });
+          // 舞台地址本身可能 503（后端热重载 / 产物重建）：此时文档是那段 JSON 而不是舞台外壳，
+          // 不做处理就会一直停在白底文本上，直到用户手动刷新。
+          const stageFrameOutcome = readStageFrameOutcome(frameElement);
+          stageFrameOutcome.kind === "ok"
+            ? // 舞台外壳已落地：立刻收掉重试预算，并清掉「正在重新连接…」的文案，
+              // 否则 .is-ready 之后这句已经过时的话仍留在 DOM 里（CSS 隐形但不该留）。
+              (resetStageFrameRetry(), (loadingElement.textContent = ""))
+            : stageFrameOutcome.kind === "failed" &&
+              isTransientStageFailure(stageFrameOutcome.detail) &&
+              retryStageFrameLoad(stageFrameOutcome.detail || "empty-document");
         }
       }),
       (frameElement.title = "3D 交互户型"),
@@ -1196,14 +1289,15 @@ export function mountInteraction3d(
         : {}),
     });
   };
-  const publishStates = (incomingPatch: any = null) => {
+  /** 立即下发 `states`；返回是否已送达（或因「状态没变」无需再发）。 */
+  const publishStatesNow = (incomingPatch: any = null) => {
     const currentStates = getCurrentStates();
     syncSecurityAlarmOverlay(currentStates);
     syncWeatherEffects(currentStates);
     // 与 0.7.9 一致：预览挂起时 `states` 直接停发（历史通道由 onStates/onPatch 自己兜底）。
-    if (isPreviewSuspended) return;
-    if (isPageHidden) return;
-    if (lightStream && currentStates === lastPublishedStates) return;
+    if (isPreviewSuspended) return false;
+    if (isPageHidden) return false;
+    if (lightStream && currentStates === lastPublishedStates) return true;
     const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
     (postToStageFrame({
       type: "states",
@@ -1216,6 +1310,61 @@ export function mountInteraction3d(
     }),
       (lastPublishedStates = currentStates),
       lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates)));
+    return true;
+  };
+  /**
+   * 同一帧内的 `states` patch 合并成一条再下发（`publishStates` 的入口）。
+   *
+   * HA 的场景联动（回家模式、安防布防、NAS 传感器批量上报）一次会改十几个实体，实时通道按
+   * 实体逐条推送；以前每条都单独 postMessage 一次，舞台侧每条都要跑一遍「标记同步 + 环境层
+   * 同步」（整场重算，见 `refreshStageUi`）。自动旋转 / 相机运动时这些重算直接挤进渲染帧，
+   * 表现就是「一有实体状态变化卡一下」。合并到一帧一次视觉上没有差别：同一帧本来也只画得出
+   * 最后一次结果。
+   */
+  let pendingStatePatch: any = null,
+    isStateFlushQueued = false;
+  /** patch 的键必须都是实体 id，否则不是「实体→状态」映射（见 `publishStates`）。 */
+  const isEntityStateMap = (statePatch: any) =>
+    !!statePatch &&
+    typeof statePatch == "object" &&
+    Object.keys(statePatch).every((patchedEntityId) =>
+      /^[a-z_]+\.[a-z0-9_]+$/.test(patchedEntityId),
+    );
+  const flushPendingStates = () => {
+    isStateFlushQueued = false;
+    const queuedStatePatch = pendingStatePatch;
+    pendingStatePatch = null;
+    if (isDisposed || !queuedStatePatch) return;
+    // 挂起 / 不可见时没有真正下发：patch 留着，等恢复后随整份状态一起补发。
+    publishStatesNow(queuedStatePatch) ||
+      (pendingStatePatch = pendingStatePatch
+        ? { ...queuedStatePatch, ...pendingStatePatch }
+        : queuedStatePatch);
+  };
+  const queueStateFlush = () => {
+    isStateFlushQueued ||
+      ((isStateFlushQueued = true),
+      typeof requestAnimationFrame == "function"
+        ? requestAnimationFrame(flushPendingStates)
+        : setTimeout(flushPendingStates, 16));
+  };
+  const publishStates = (incomingPatch: any = null) => {
+    // 只有「实体 id → 状态」的 patch 才谈得上合并；`registerRuntimeStateHandler` 那条通道传
+    // 下来的是单个实体的状态快照（含 entityId / state / attributes），形状不同，直接照原样下发。
+    if (incomingPatch !== null && isEntityStateMap(incomingPatch)) {
+      pendingStatePatch = pendingStatePatch
+        ? { ...pendingStatePatch, ...incomingPatch }
+        : { ...incomingPatch };
+      queueStateFlush();
+      return;
+    }
+    if (incomingPatch !== null) {
+      publishStatesNow(incomingPatch);
+      return;
+    }
+    // 整份状态覆盖掉还没发出的 patch，避免同一批变化下发两遍。
+    pendingStatePatch = null;
+    publishStatesNow(null);
   };
   const registeredStateEntityIdsSet = new Set();
   function configureStateSubscriptions() {
@@ -1430,6 +1579,7 @@ export function mountInteraction3d(
   }
   function reloadStageFrame(reloadReason = "") {
     if (
+      resetStageFrameRetry(),
       (reloadGeneration &&
         reportRuntimeLifecycle(reloadReason, {
           loadSequence: reloadGeneration + 1,
@@ -1482,7 +1632,7 @@ export function mountInteraction3d(
         .split(",")
         .filter((wallTrialMode) => ["shader", "single", "depth", "merge"].includes(wallTrialMode))
         .join(","),
-      stageFrameUrl =
+      nextStageFrameUrl =
         INTERACTION3D_API_BASE +
         "/stage.html?" +
         new URLSearchParams({
@@ -1517,6 +1667,7 @@ export function mountInteraction3d(
               }
             : {}),
         });
+    stageFrameUrl = nextStageFrameUrl;
     ((stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout());
   }
   function scheduleLoadTimeout() {

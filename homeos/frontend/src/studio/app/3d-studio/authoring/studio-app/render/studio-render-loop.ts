@@ -741,7 +741,12 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       return;
     let lightsByKey = buildLightCacheMap();
     const previousLightsByKey = lightsByKey;
-    ht4
+    // 静止画面缓存（`preview-light-cache`）只在画面完全静止时显示；相机在动（自动旋转、
+    // 拖拽、楼层过渡）时舞台走实时渲染，这时没有任何缓存需要作废重拍。旧实现在这种状态下
+    // 依然整场重置（`resetLightEffectStates`：模型版本 +1 / 进预编译态 / 重建光照缓存 +
+    // 额外整帧渲染），于是旋转过程中每次实体状态变化都会掉帧。实时渲染时只做增量过渡。
+    const isSettledSurfaceShown = previewLightCacheCanvasElement.hidden !== true;
+    ht4 && isSettledSurfaceShown
       ? (lightsByKey = resetLightEffectStates())
       : [...pendingEffectsByKey.keys()].some(
           (pendingLightKey) => !lightsByKey.has(pendingLightKey),
