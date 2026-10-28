@@ -6003,8 +6003,8 @@
       "draco": false
     },
     "庭院/家具与铺装/鸟巢吊椅-lite.glb": {
-      "bytes": 8520,
-      "triangles": 1432,
+      "bytes": 8768,
+      "triangles": 1524,
       "extensionsUsed": [
         "KHR_draco_mesh_compression"
       ],
@@ -6025,8 +6025,8 @@
       "draco": true
     },
     "庭院/家具与铺装/鸟巢吊椅.glb": {
-      "bytes": 30548,
-      "triangles": 1432,
+      "bytes": 33740,
+      "triangles": 1524,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
