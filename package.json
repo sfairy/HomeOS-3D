@@ -1,7 +1,7 @@
 {
   "name": "homeos-monorepo",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "packageManager": "bun@1.4.3",
   "scripts": {
@@ -65,6 +65,10 @@
     "audit:materials": "bun ops/checks/studio/audit_glb_materials.mjs",
     "check:materials": "bun ops/checks/studio/audit_glb_materials.mjs --check",
     "check:models-layout": "bun homeos/frontend/scripts/models/organize-models.mjs --check",
+    "port:deobf": "node ops/port/deobf.mjs",
+    "port:inventory": "node ops/port/inventory.mjs",
+    "port:glb": "node ops/port/glb-report.mjs",
+    "port:map": "node ops/port/asset-report.mjs",
     "organize:models": "bun homeos/frontend/scripts/models/organize-models.mjs --write",
     "index:model-names": "bun homeos/frontend/scripts/models/build-model-name-index.mjs",
     "check:model-names": "bun homeos/frontend/scripts/models/build-model-name-index.mjs --check",
