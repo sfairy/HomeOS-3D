@@ -1,5 +1,5 @@
 {
-  "total": 17396,
+  "total": 17362,
   "files": {
     "homeos/frontend/src/studio/app/3d-studio/authoring/boot/studio-boot.ts": 13,
     "homeos/frontend/src/studio/app/3d-studio/authoring/items/item-model/living.ts": 1,
@@ -96,7 +96,6 @@
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/slot-group-view.ts": 5,
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-app/ui/step-checklist.ts": 3,
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-effect-cache.ts": 22,
-    "homeos/frontend/src/studio/app/3d-studio/authoring/studio-interaction-batches.ts": 34,
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-preview-resources.ts": 3,
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-shadow-receiver-trial.ts": 6,
     "homeos/frontend/src/studio/app/3d-studio/authoring/studio-shared-geometry-cache.ts": 13,

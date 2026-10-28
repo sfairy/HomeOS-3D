@@ -1706,6 +1706,21 @@ export function runStudioRenderLoop(deps: StudioRenderDeps): any {
       ) || floorCamera,
     materialState: (material: any) =>
       ctx.floorRetentionService?.persistentMaterialKey?.(material) ?? null,
+    /**
+     * 静态版本号必须与 `prepare()` 收到的 token 完全一致（同一次场景重建 / 同一段幕布动画）：
+     * 令牌变了 `prepare` 已经清空并重扫，令牌没变说明场景静态没动，`begin` 就可以跳过逐网格校验。
+     * 位移、材质、可见性变化都会推高 `sceneRevisionCount` 或换掉 `curtainFrameKey`。
+     */
+    getStaticRevision: () => appCtx.sceneRevisionCount + ":" + appCtx.curtainFrameKey,
+    /** 分片烘焙只在页面可见、没有预置运行时设置时推进（后台标签页不烧 CPU）。 */
+    available: () =>
+      !document.hidden && !appCtx.isPrewarming && !appCtx.isRenderSuppressed,
+    idleAvailable: () =>
+      !document.hidden &&
+      !appCtx.pendingRuntimeSettings &&
+      !appCtx.isPrewarming &&
+      !appCtx.isRenderSuppressed,
+    requestFrame: () => requestStudioRender(),
   });
   window.addEventListener("pagehide", () => deps.interactionBatches?.dispose(), {
     once: true,
