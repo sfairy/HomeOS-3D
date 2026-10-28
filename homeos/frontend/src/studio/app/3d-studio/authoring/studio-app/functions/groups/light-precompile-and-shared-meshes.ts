@@ -360,8 +360,20 @@ export function setupSceneShadows(runtime: StudioAppRuntime,
       rectAreaLightObject.isRectAreaLight &&
       (hasRectAreaLight = true);
   });
-  const Gw2 = hasRectAreaLight ? shadowTextureUnits : 0,
-    availableShadowUnits = xv2 - qv2 - nonSpotShadowUnitCount - Gw2 - reservedTextureUnits,
+  const rectAreaShadowUnits = hasRectAreaLight ? shadowTextureUnits : 0,
+    // 分层灯光接管后，面光与方向光阴影都不再走 three 的「每盏灯一个纹理单元」，
+    // 而是固定的「面光 2 个 LTC + 方向光 1 层数组纹理」。两者取大值，不能相加：
+    // 图集路径与分层路径是互斥的，相加会把预算算得比实际紧张，提前把分层路径关掉。
+    controllerAreaUnits = runtime.appCtx.lightPrecompileController?.areaTextureUnits?.() || 0,
+    controllerDirectionalUnits =
+      runtime.appCtx.lightPrecompileController?.directionalTextureUnits?.() || 0,
+    Gw2 = Math.max(rectAreaShadowUnits, controllerAreaUnits),
+    availableShadowUnits =
+      xv2 -
+      qv2 -
+      Math.max(nonSpotShadowUnitCount, controllerDirectionalUnits) -
+      Gw2 -
+      reservedTextureUnits,
     shadowAtlasUnits =
       runtime.appCtx.lightPrecompileController?.textureUnitsFor?.(
         runtime.collectShadowCandidates(shadowSetupRoot).filter(
@@ -370,8 +382,14 @@ export function setupSceneShadows(runtime: StudioAppRuntime,
       ) || 1,
     shadowBudgetChanged = runtime.appCtx.lightPrecompileController?.setBudgetAvailable?.(
       availableShadowUnits >= shadowAtlasUnits,
-    );
-  if (!runtime.appCtx.pendingRuntimeSettings && runtime.appCtx.lightPrecompileController && availableShadowUnits >= shadowAtlasUnits) {
+    ),
+    isAtlasFallback = runtime.appCtx.lightPrecompileController?.isFallback?.() === true;
+  if (
+    !isAtlasFallback &&
+    !runtime.appCtx.pendingRuntimeSettings &&
+    runtime.appCtx.lightPrecompileController &&
+    availableShadowUnits >= shadowAtlasUnits
+  ) {
     const schedule = shouldRebuildAtlas || shadowBudgetChanged
         ? runtime.appCtx.lightPrecompileController.schedule(shadowSetupRoot)
         : runtime.collectShadowCandidates(shadowSetupRoot).length,

@@ -68,6 +68,20 @@ export const MODEL_ASSET_CACHE_KEYS = Object.freeze({
    * 同类踩坑记录见上面 `modelRestore` 与 `basin`。
    */
   kitchenRebuild: "20261025-kitchen-rebuild-v1",
+  /**
+   * 2026-10-28 半圆柱截面矫正：`pillar-semicircle` 由半椭圆（深 = 直径）改成真半圆
+   * （深 = 半径，0.45 → 0.225）。路径没变、字节变了 —— 不换 URL 键的话浏览器与模板缓存
+   * 都会继续给旧的「压扁桶」，改了模型但画面不动。
+   *
+   * v2 是同日的原点归心（原点由包围盒中心挪到圆弧圆心，见
+   * `scripts/models/recenter-pillar-arc.mjs`）：再换一次键，旧字节不会再被命中。
+   */
+  pillarSemicircle: "20261028-pillar-semicircle-v2",
+  /**
+   * 2026-10-28 四分之一圆柱原点归心：原点由包围盒中心挪到圆弧圆心（转角点），
+   * 路径没变、字节变了。此前这个描述符没挂缓存键，必须补一个，否则模板缓存会还原旧件。
+   */
+  pillarQuarter: "20261028-pillar-quarter-v1",
 });
 
 /** 给模型资源 URL 挂上缓存键；`cacheKey` 为空时原样返回。 */
@@ -199,11 +213,34 @@ export function createIndoorAssetDescriptor(indoorAssetId: any, indoorAssetScale
     preserveOrigin: true,
   });
 }
-export function createPillarAssetDescriptor(pillarAssetId: any, modelAssetCacheKey: string = "") {
+/** 立柱的原生占位：方柱 / 圆 / 1/4 圆都是 0.45 见方，半圆柱只有半深（见下）。 */
+export const PILLAR_SCALE_BASIS = Object.freeze([0.45, 2.8, 0.45]);
+/**
+ * 半圆柱的原生占位：真半圆的深度只能是半宽，`0.45 × 0.225 × 2.8`。
+ *
+ * 以前它和别的柱形共用 `0.45 × 0.45 × 2.8`，于是「填满占位框」的约定把半径 0.225 的
+ * 圆弧沿 Z 拉成半椭圆（深 = 直径），看起来像被压扁的桶。资产改成真半圆之后，这里的
+ * 基准必须跟着改：运行期按 `targetSize / scaleBasis` 逐轴缩放，基准填 0.45 又会把它拉回去。
+ * 存量场景不受影响——它们记的是 `depth = 0.45`，除以 0.225 得到 2×，视觉与改前一致。
+ */
+export const PILLAR_SEMICIRCLE_SCALE_BASIS = Object.freeze([0.45, 2.8, 0.225]);
+/**
+ * 异形柱的锚点：**圆弧圆心**，不是平面占位中心。
+ *
+ * `preserveOrigin` 让 GLB 的原点直接当摆放锚点、也是绕 Y 的旋转轴。半圆柱的圆心落在
+ * 直径面（墙线）上、四分之一圆柱的圆心落在两片平背面相交的转角上（见
+ * `scripts/models/recenter-pillar-arc.mjs`）：贴墙件绕墙线转、转角件绕墙角转，
+ * 平背面才不会一转就扎进墙里。方柱 / 圆柱没有弧心，仍是占位中心。
+ */
+export function createPillarAssetDescriptor(
+  pillarAssetId: any,
+  modelAssetCacheKey: string = "",
+  pillarScaleBasis: readonly number[] = PILLAR_SCALE_BASIS,
+) {
   return Object.freeze({
     url: withModelAssetCacheKey(modelAssetUrl(pillarAssetId, "lite"), modelAssetCacheKey),
     fallbackUrl: withModelAssetCacheKey(modelAssetUrl(pillarAssetId, "full"), modelAssetCacheKey),
-    scaleBasis: [0.45, 2.8, 0.45],
+    scaleBasis: pillarScaleBasis,
     preserveOrigin: true,
   });
 }

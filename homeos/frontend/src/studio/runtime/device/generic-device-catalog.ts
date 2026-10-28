@@ -1,4 +1,5 @@
 import { DEVICE_PROFILE_TABLE } from "./device-profiles";
+import { normalizeModelRemark } from "@app/shared/model-remarks";
 
 /**
  * 设备档案统一由 `device-profiles` 提供；这里只保留 3D 场景需要的
@@ -34,6 +35,7 @@ export function genericDeviceMetadata(placements: any[] = []) {
           .map((entry, entryIndex) => ({
             id: entry.id,
             type: entry.type,
+            remark: normalizeModelRemark(entry.remark),
             name:
               entry.name ||
               (deviceProfile.modelLabels?.[entry.type] || deviceProfile.label) +

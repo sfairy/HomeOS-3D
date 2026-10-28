@@ -1367,6 +1367,12 @@ onBeforeUnmount(() => {
                             class="light-source-visibility-control" title="按最终出光方向显示，导图不会显示" hidden><input
                                 id="item-light-source-visible" type="checkbox"
                                 checked><span>显示光效范围</span></label></div>
+                    <!-- 模型备注：只对「物件 / 门」显示（灯具与庭院绘制不参与模型选择，见 studio-app 的 syncInspector）。 -->
+                    <div id="model-remark-field" class="field-section model-remark-field" hidden>
+                        <label for="model-remark"><span>备注 <small>选填 · <span id="model-remark-hint">方便后续3D交互时选择设备</span></small></span><input
+                                id="model-remark" maxlength="60" autocomplete="off" placeholder="例如：主卧窗边"
+                                aria-describedby="model-remark-hint"></label>
+                    </div>
                     <!-- 属性检查器按语义分组：组标题粘性吸顶、可折叠、组内无可见字段时整组自动隐藏
                          （见 studio-app 的 syncInspectorGroups），所以每组都能安全地常驻在标记里。 -->
                     <section class="inspector-group" data-inspector-group="geometry">

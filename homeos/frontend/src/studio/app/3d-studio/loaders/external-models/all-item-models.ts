@@ -9,6 +9,7 @@ import {
   createFurnitureAssetDescriptor,
   createApplianceAssetDescriptor,
   createPillarAssetDescriptor,
+  PILLAR_SEMICIRCLE_SCALE_BASIS,
   withModelAssetCacheKey,
 } from "./_shared";
 
@@ -201,8 +202,15 @@ export const ALL_ITEM_MODELS = Object.freeze({
     }),
     pillar: createPillarAssetDescriptor("pillar", MODEL_ASSET_CACHE_KEYS.reference),
     pillar_round: createPillarAssetDescriptor("pillar-round"),
-    pillar_semicircle: createPillarAssetDescriptor("pillar-semicircle"),
-    pillar_quarter: createPillarAssetDescriptor("pillar-quarter"),
+    pillar_semicircle: createPillarAssetDescriptor(
+      "pillar-semicircle",
+      MODEL_ASSET_CACHE_KEYS.pillarSemicircle,
+      PILLAR_SEMICIRCLE_SCALE_BASIS,
+    ),
+    pillar_quarter: createPillarAssetDescriptor(
+      "pillar-quarter",
+      MODEL_ASSET_CACHE_KEYS.pillarQuarter,
+    ),
     pillar_quarterinner: createPillarAssetDescriptor("pillar-quarterinner"),
     curtain_left: createHomeAssetDescriptor("curtain_left", {
       scaleBasis: [1.8, 2.4, 0.18],
@@ -220,17 +228,22 @@ export const ALL_ITEM_MODELS = Object.freeze({
       "rounddiningtable_turntable",
       [2.2, 0.78, 2.2],
     ),
+    // 三款电视原生尺寸不同（裸屏 0.844 / 台面 0.874 / 落地 1.55），scaleBasis 各按实测包围盒写；
+    // preserveAspect 保证改宽高时等比缩放，不会把 16:9 面板逐轴拉成细条。
     tv_standard: createApplianceAssetDescriptor("tv_standard", {
-      scaleBasis: [1.5, 0.92, 0.18],
+      scaleBasis: [1.5, 0.844, 0.0504],
       preserveOrigin: true,
+      preserveAspect: true,
     }),
     tv_tabletop: createApplianceAssetDescriptor("tv_tabletop", {
-      scaleBasis: [1.5, 0.92, 0.18],
+      scaleBasis: [1.5, 0.874, 0.16],
       preserveOrigin: true,
+      preserveAspect: true,
     }),
     tv_mobile: createApplianceAssetDescriptor("tv_mobile", {
-      scaleBasis: [1.5, 0.92, 0.18],
+      scaleBasis: [1.5, 1.55, 0.55],
       preserveOrigin: true,
+      preserveAspect: true,
     }),
     wallac: createApplianceAssetDescriptor("wallac", {
       scaleBasis: [0.9, 0.28, 0.22],

@@ -1,4 +1,19 @@
-export function addSecurityModel(three: any, modelGroup: any, modelSpec: any, colorPalette: any) {
+import { applyReviewedShells } from "../authoring/scene/studio-reviewed-shells";
+
+export function addSecurityModel(
+  three: any,
+  modelGroup: any,
+  modelSpec: any,
+  colorPalette: any,
+  /**
+   * 复核外壳剔除。上游默认开，本项目**默认关**，理由是实测的：
+   * `studio-reviewed-shell-data.ts` 的掩码是按上游几何的指纹人工复核的，本仓机型几何
+   * 是 0.8.0 期移植版，指纹对不上（fan / airer / camera / presence 实测命中 0 条），
+   * 开着只会为每个模型多付一遍全量顶点+索引哈希（实测风扇 +8.5ms/个），一个三角形都剔不掉。
+   * 重新按本仓几何复核掩码后，把这里的默认值改回 true 即可。
+   */
+  { pruneShell = false }: { pruneShell?: boolean } = {},
+) {
   const { width: modelWidth, depth: modelDepth, height: modelHeight } = modelSpec,
     materialsByRole = {
       shell: new three.MeshStandardMaterial({
@@ -180,5 +195,6 @@ export function addSecurityModel(three: any, modelGroup: any, modelSpec: any, co
   const usedMaterialSet = new Set(modelGroup.children.map((childMesh: any) => childMesh.material));
   for (const paletteMaterial of Object.values(materialsByRole))
     usedMaterialSet.has(paletteMaterial) || paletteMaterial.dispose();
-  return modelGroup;
+  // 掩码按机型（camera / presence）分开复核，未收录的机型在这里就是零改动。
+  return (pruneShell && applyReviewedShells(three, modelGroup, modelSpec.type), modelGroup);
 }

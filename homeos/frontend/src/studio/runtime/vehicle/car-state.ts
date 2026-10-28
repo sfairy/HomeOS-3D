@@ -133,3 +133,15 @@ export function standardCarBindings(entities: any[] = []) {
     chargingEntityId: findEntityId("binary_sensor", "battery_charging"),
   };
 }
+
+/** 车辆点击行为（0.8.1）：车辆标签与车模共用同一设置，默认不响应点击。
+ *  `interactionEnabled` 是开关本身，`clickAction` 只在开关打开且值合法时生效。 */
+export function carClickAction(
+  carEntry: { interactionEnabled?: boolean; clickAction?: string } | null | undefined,
+): string {
+  if (carEntry?.interactionEnabled !== true) return "none";
+  const clickAction = carEntry.clickAction;
+  return clickAction && ["focus", "focus-panel", "panel"].includes(clickAction)
+    ? clickAction
+    : "none";
+}

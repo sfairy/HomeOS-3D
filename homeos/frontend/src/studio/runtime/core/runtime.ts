@@ -1,6 +1,7 @@
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup,
+  popupHeightDraft,
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
 import { interaction3dControlTimeout } from "@app/shared/util/control-timeout";
@@ -11,9 +12,10 @@ import {
   securityAlarmReadings,
 } from "../security/security-alarm";
 import { cameraSourceConfigured } from "../camera/camera-status";
-import { carTireEntities } from "../vehicle/car-tires";
+import { carTireEntities, carTireModelType } from "../vehicle/car-tires";
 import { createWeatherEffects } from "../environment/weather-effects";
 import { ensureInteraction3dSelectControls } from "../config-ui/select-controls";
+import { createLabelConfigPatch } from "./state-update-plan";
 
 type HostLogger = HomeOSLog & {
   report?: (
@@ -384,6 +386,9 @@ export function mountInteraction3d(
       componentProperties.floorCameras?.[componentProperties.floorSelection] ||
       componentProperties.camera,
     lastConfigJson = "",
+    // 上一次成功下发的完整 `config` 主体：标签补丁要拿它做差分基准。
+    // 补丁失败（结构变了 / 不在白名单）时退回整份下发，两者不会打架。
+    lastSentConfigPayload: any = null,
     lastNumberFormatsJson = "",
     // 下一次 `config` 下发要带 `resetPreviewSession`，让舞台侧当成「换了入口」整屏重置一次。
     pendingResetPreviewSession = false,
@@ -1000,8 +1005,10 @@ export function mountInteraction3d(
             .map((relatedEntityId) => ({
               entityId: relatedEntityId,
             })),
-          // 四轮胎压：绑定不带宽，订阅侧只按 `enabled` + `sensor.*` 收（与电量/充电同组）。
-          ...carTireEntities(deviceEntry).map((tireEntityId) => ({ entityId: tireEntityId })),
+          // 轮位胎压：订阅侧拿不到绑定带宽的车型，按场景元数据解析（四轮 / 双轮轮位表不同）。
+          ...carTireEntities(deviceEntry, carTireModelType(deviceEntry, componentMetadata)).map(
+            (tireEntityId) => ({ entityId: tireEntityId }),
+          ),
           genericStatusRules.power,
           ...genericHealthRules,
         ].filter(Boolean);
@@ -1457,6 +1464,26 @@ export function mountInteraction3d(
       (updatePresentationLayout(), refreshActivityState(), publishStates(), publishNumberFormats());
       return;
     }
+    // 标签类字段（名称/尺寸/位置/显隐…）单独走补丁通道：舞台只需重排受影响的标签，
+    // 不必走整份 config 分支。结构变了补丁函数会返回 null，自动退回整份下发。
+    const labelConfigPatches =
+      lastSentConfigPayload && !pendingResetPreviewSession
+        ? createLabelConfigPatch(lastSentConfigPayload, configPayload)
+        : null;
+    if (labelConfigPatches) {
+      ((lastConfigJson = configJson),
+        (lastSentConfigPayload = structuredClone(configPayload)),
+        postToStageFrame({
+          type: "label-config",
+          configId: configIdCounter,
+          patches: labelConfigPatches,
+        }),
+        updatePresentationLayout(),
+        refreshActivityState(),
+        publishNumberFormats());
+      return;
+    }
+    lastSentConfigPayload = structuredClone(configPayload);
     ((lastConfigJson = configJson),
       (hasPresentedStage = false),
       (isReloadPending = true),
@@ -1590,6 +1617,7 @@ export function mountInteraction3d(
       closeCameraPreview(),
       closeVacuumPopup(),
       (lastConfigJson = ""),
+      (lastSentConfigPayload = null),
       (lastLayoutJson = ""),
       (presentationLayout = null),
       reloadGeneration++ &&
@@ -1882,6 +1910,7 @@ export function mountInteraction3d(
         (supportsStatePatches = stageMessage.statePatches === true),
         (lastPublishedStates = null),
         (lastConfigJson = ""),
+        (lastSentConfigPayload = null),
         (hasLoadFailed = false),
         (isStageReady = true),
         (componentMetadata = stageMessage.metadata),
@@ -2436,6 +2465,7 @@ export function mountInteraction3d(
         (isViewEditing = false),
         hostElement.classList.remove("is-view-editing"),
         (lastConfigJson = ""),
+        (lastSentConfigPayload = null),
         (pendingResetPreviewSession = true));
     }),
     /**
@@ -2488,6 +2518,7 @@ export function mountInteraction3d(
         configureStateSubscriptions(),
         syncBackgroundHidden(),
         (lastConfigJson = ""),
+        (lastSentConfigPayload = null),
         (pendingResetPreviewSession = true),
         sendConfigUpdate());
       return () => {
@@ -2513,6 +2544,7 @@ export function mountInteraction3d(
           configureStateSubscriptions(),
           syncBackgroundHidden(),
           (lastConfigJson = ""),
+          (lastSentConfigPayload = null),
           (pendingResetPreviewSession = true),
           sendConfigUpdate());
       };
@@ -2536,7 +2568,11 @@ export function mountInteraction3d(
           (weatherPreviewTimeoutId = setTimeout(closeWeatherPreview, WEATHER_PREVIEW_TIMEOUT_MS)),
           syncWeatherEffects(),
           true)),
-    (runtimeHandle.previewPopupLayout = (layoutKind: any, layoutOptions: Record<string, any> = {}) =>
+    (runtimeHandle.previewPopupLayout = (
+      layoutKind: string,
+      layoutOptions: Record<string, unknown> = {},
+      layoutPreviewOptions: { showHeightLimit?: boolean } = {},
+    ) =>
       isDisposed ||
       !isAuthorized ||
       !runtimeContext.editable ||
@@ -2554,8 +2590,23 @@ export function mountInteraction3d(
               () => presentationLayout,
               closePopupLayoutPreview,
             ))),
-          popupLayoutPreview.update(layoutKind, layoutOptions),
+          popupLayoutPreview.update(layoutKind, layoutOptions, layoutPreviewOptions),
           true)),
+    /* 「最大高度」滑条拖动时的高度草稿：保持面板中心不动，换算成 y 百分比。 */
+    (runtimeHandle.previewPopupHeightDraft = (
+      layoutKind: string,
+      layoutOptions: Record<string, unknown> = {},
+      maxHeight: unknown,
+    ) =>
+      ["general", "camera"].includes(layoutKind) && presentationLayout
+        ? popupHeightDraft(
+            layoutKind,
+            presentationLayout.width,
+            presentationLayout.height,
+            layoutOptions,
+            maxHeight,
+          )
+        : null),
     /* 布局预览的不透明度：滑条在拖动途中调它，就地刷新已开着的预览（没开预览时是空操作，
        也不需要调用方知道当前预览的是「通用」还是「摄像头」）。 */
     (runtimeHandle.previewPopupOpacity = (opacity: any) => popupLayoutPreview?.setOpacity(opacity)),

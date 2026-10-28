@@ -1,3 +1,57 @@
+/**
+ * 灯光/实体状态的运行时长连接（上游 `light-stream.js`，0.8.1 重写为「两槽交接」）。
+ *
+ * ## 为什么是两槽
+ *
+ * 0.8.0 的实现只有一个 socket：订阅列表一变、收到 `resync_required`、或者连接抖动一次，
+ * 都会「先清空状态再重连」。舞台侧看到的是同一帧里所有实体先变成 unavailable，几百毫秒后
+ * 才恢复 —— 大户型上表现为墙屏整片闪白。
+ *
+ * 0.8.1 改成两个槽位：
+ *
+ * - `active`：正在供数的连接，订阅的是**旧**实体集合；
+ * - `pending`：按**新**实体集合刚建起来的连接。
+ *
+ * 新连接收到 `snapshot` 之后才晋升为 active、旧连接随即退役。切换过程中旧值一直在
+ * `active` 里，所以订阅变更 / 重同步都不会出现空窗。
+ *
+ * ## 失败语义（与上游逐条对齐）
+ *
+ * - `4400 / 4401 / 4403`：鉴权类关闭码，不重试，直接整体失效并通知 `onInvalidate`；
+ * - 其它关闭 / 心跳超时：失效**该槽服务过的那批实体**（让历史缓存跟着失效），然后按指数退避重连；
+ * - `resync_required`：走一次普通失败（会失效），随后立刻新建 pending，不等待退避。
+ */
+
+/** 单条连接的槽位。`stateById` 在 socket 关闭后仍然保留，用于交接期继续供数。 */
+interface StreamSlot {
+  /** 建槽时冻结的订阅集合；活跃槽不会跟着订阅变更重新订阅。 */
+  ids: string[];
+  stateById: Map<string, any>;
+  /** 收到过完整 snapshot 才为 true；未 ready 的槽不参与供数。 */
+  ready: boolean;
+  /** socket 已关闭 / 已被退役。 */
+  closed: boolean;
+  closeSocket: () => void;
+}
+
+export interface LightStreamOptions {
+  onStates?: (states: Record<string, any>) => void;
+  onPatch?: ((patch: Record<string, any>) => void) | null;
+  /** 订阅态被重置（鉴权失败 / 连接失败 / 重同步）时回调：舞台据此让历史失效。 */
+  onInvalidate?: (entityIds: string[]) => void;
+  createSocket?: (socketUrl: string) => WebSocket;
+  socketURL?: string | (() => string);
+  setTimer?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
+  clearTimer?: (timerId: ReturnType<typeof setTimeout>) => void;
+}
+
+/** 鉴权类关闭码：重连没有意义，直接整体失效。 */
+const TERMINAL_CLOSE_CODES = [4400, 4401, 4403];
+/** 首帧超时：这么久还没收到 snapshot 就换一条连接。 */
+const FIRST_RESPONSE_TIMEOUT_MS = 12000;
+/** 稳态心跳超时：服务端每 15s 左右会推 ping，65s 没有任何消息即视为断链。 */
+const HEARTBEAT_TIMEOUT_MS = 65000;
+
 export function createLightStream({
   onStates: onStates = () => {},
   onPatch: onPatch = null,
@@ -12,189 +66,240 @@ export function createLightStream({
   },
   setTimer: setTimer = (timerCallback, timerDelayMs) => setTimeout(timerCallback, timerDelayMs),
   clearTimer: clearTimer = (pendingTimerId) => clearTimeout(pendingTimerId),
-}: {
-  onStates?: (states: Record<string, any>) => void;
-  onPatch?: ((patch: Record<string, any>) => void) | null;
-  /** 订阅态被重置（重连 / 订阅变更 / 停用 / 失败）时回调当前实体列表：舞台据此让历史失效。 */
-  onInvalidate?: (entityIds: string[]) => void;
-  createSocket?: (socketUrl: string) => WebSocket;
-  socketURL?: string | (() => string);
-  setTimer?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
-  clearTimer?: (timerId: ReturnType<typeof setTimeout>) => void;
-} = {}) {
-  let subscribedEntityIds: any = [],
-    subscribedEntityIdSet = new Set(),
-    statesByEntityId = new Map(),
+}: LightStreamOptions = {}) {
+  let wantedEntityIds: string[] = [],
+    wantedEntityIdSet = new Set<string>(),
+    activeSlot: StreamSlot | null = null,
+    pendingSlot: StreamSlot | null = null,
     isStreamActive = false,
     isDisposed = false,
-    hasSnapshot = false,
-    activeSocket: any = null,
-    removeSocketListeners: any = null,
-    connectionGeneration = 0,
     reconnectAttempt = 0,
     reconnectTimerId: any = null,
-    heartbeatTimerId: any = null,
     // 冻结前是否处于激活态：bfcache 期间 visibilitychange 可能先把流 setActive(false)，
     // 回来时得按冻结前的状态恢复，而不是只看那一刻的 isStreamActive。
     wasActiveBeforePageCache = false;
-  const unavailableState = (unavailableEntityId: any) => ({
-      entityId: unavailableEntityId,
-      state: "unavailable",
-      available: false,
-      attributes: {} as Record<string, any>,
-    }),
-    emitStates = () =>
-      onStates(
-        hasSnapshot
-          ? Object.fromEntries(
-              subscribedEntityIds.map((clonedEntityId: any) => [
-                clonedEntityId,
-                structuredClone(
-                  statesByEntityId.get(clonedEntityId) || unavailableState(clonedEntityId),
-                ),
-              ]),
-            )
-          : {},
+
+  const unavailableState = (unavailableEntityId: string) => ({
+    entityId: unavailableEntityId,
+    state: "unavailable",
+    available: false,
+    attributes: {} as Record<string, any>,
+  });
+
+  /** 当前可用的槽（active 优先）。两个槽不会同时 ready；active 是权威。 */
+  const readySlot = () => (activeSlot?.ready ? activeSlot : pendingSlot?.ready ? pendingSlot : null);
+
+  /** 读某个实体的最新值：active 优先，交接期回落到 pending。 */
+  function stateFor(entityId: string) {
+    return activeSlot?.stateById.get(entityId) ?? pendingSlot?.stateById.get(entityId);
+  }
+
+  function emitStates() {
+    // 一个槽都没 ready 之前不下发任何值：舞台侧据此继续显示占位，而不是一片 unavailable。
+    if (!readySlot()) {
+      onStates({});
+      return;
+    }
+    onStates(
+      Object.fromEntries(
+        wantedEntityIds.map((wantedEntityId) => [
+          wantedEntityId,
+          structuredClone(stateFor(wantedEntityId) || unavailableState(wantedEntityId)),
+        ]),
       ),
-    emitPatch = (patchedEntityId: any) =>
-      typeof onPatch == "function"
-        ? onPatch({
-            [patchedEntityId]: structuredClone(
-              statesByEntityId.get(patchedEntityId) || unavailableState(patchedEntityId),
-            ),
-          })
-        : emitStates();
-  function resetStates() {
-    // 订阅态清零 = 之前累积的历史不再可信（重连 / 订阅变更 / 停用 / 失败）。
-    // 先把手上的实体列表交出去，再由舞台侧联动删除历史缓存与 reader 记忆。
-    const invalidatedEntityIds = [...subscribedEntityIds];
-    ((statesByEntityId = new Map()), (hasSnapshot = false), emitStates());
-    invalidatedEntityIds.length && onInvalidate(invalidatedEntityIds);
+    );
   }
-  function clearTimers() {
-    (reconnectTimerId !== null && clearTimer(reconnectTimerId),
-      heartbeatTimerId !== null && clearTimer(heartbeatTimerId),
-      (reconnectTimerId = heartbeatTimerId = null));
+
+  function emitPatch(patchedEntityId: string) {
+    if (typeof onPatch == "function") {
+      onPatch({
+        [patchedEntityId]: structuredClone(
+          stateFor(patchedEntityId) || unavailableState(patchedEntityId),
+        ),
+      });
+      return;
+    }
+    emitStates();
   }
-  function closeActiveSocket() {
-    ((connectionGeneration += 1), clearTimers());
-    const socketToClose = activeSocket;
-    ((activeSocket = null), removeSocketListeners?.(), (removeSocketListeners = null));
-    try {
-      socketToClose?.close();
-    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+
+  function cancelReconnect() {
+    (reconnectTimerId !== null && clearTimer(reconnectTimerId), (reconnectTimerId = null));
   }
+
   function scheduleReconnect() {
-    if (isDisposed || !isStreamActive || !subscribedEntityIds.length || reconnectTimerId !== null)
+    if (isDisposed || !isStreamActive || !wantedEntityIds.length || reconnectTimerId !== null)
       return;
     const reconnectDelayMs = Math.min(15000, 500 * 2 ** Math.min(reconnectAttempt++, 5));
     reconnectTimerId = setTimer(() => {
-      ((reconnectTimerId = null), openSocket());
+      ((reconnectTimerId = null), openPendingSlot());
     }, reconnectDelayMs);
   }
-  function openSocket() {
-    if (isDisposed || !isStreamActive || !subscribedEntityIds.length || activeSocket) return;
-    const socketGeneration = ++connectionGeneration;
-    let nextSocketHandle;
+
+  /** 退役一个槽：关掉 socket，丢掉状态，不留任何定时器。 */
+  function retireSlot(retiredSlot: StreamSlot | null) {
+    if (!retiredSlot || retiredSlot.closed && !retiredSlot.stateById.size) return;
+    retiredSlot.closeSocket();
+    retiredSlot.closed = true;
+    retiredSlot.stateById.clear();
+  }
+
+  /** 只关 socket、保留状态：bfcache 冻结 / 交接期需要「旧值继续供数」。 */
+  function parkSlot(parkedSlot: StreamSlot | null) {
+    if (!parkedSlot) return;
+    parkedSlot.closeSocket();
+    parkedSlot.closed = true;
+  }
+
+  function disposeAllSlots({ notify }: { notify: boolean } = { notify: true }) {
+    const invalidatedEntityIds = [...wantedEntityIds];
+    (cancelReconnect(),
+      (pendingSlot !== null && (retireSlot(pendingSlot), (pendingSlot = null))),
+      (activeSlot !== null && (retireSlot(activeSlot), (activeSlot = null))));
+    notify && invalidatedEntityIds.length && onInvalidate(invalidatedEntityIds);
+  }
+
+  /** 按当前 `wantedEntityIds` 新建一条 pending 连接。 */
+  function openPendingSlot() {
+    if (isDisposed || !isStreamActive || !wantedEntityIds.length || pendingSlot) return;
+    let nextSocket: WebSocket;
     try {
-      nextSocketHandle = createSocket(
+      nextSocket = createSocket(
         typeof resolveSocketUrl == "function" ? resolveSocketUrl() : resolveSocketUrl,
       );
     } catch {
-      (resetStates(), scheduleReconnect());
+      scheduleReconnect();
       return;
     }
-    activeSocket = nextSocketHandle;
-    const isCurrentSocket = () =>
-        !isDisposed &&
-        isStreamActive &&
-        socketGeneration === connectionGeneration &&
-        activeSocket === nextSocketHandle,
-      handleSocketFailure = (closeCode = 0) => {
-        isCurrentSocket() &&
-          (closeActiveSocket(),
-          resetStates(),
-          [4400, 4401, 4403].includes(closeCode) || scheduleReconnect());
-      };
-    function scheduleHeartbeatTimeout(heartbeatTimeoutMs: any) {
-      (heartbeatTimerId !== null && clearTimer(heartbeatTimerId),
-        (heartbeatTimerId = setTimer(() => handleSocketFailure(), heartbeatTimeoutMs)));
+    const slot: StreamSlot = {
+      ids: [...wantedEntityIds],
+      stateById: new Map(),
+      ready: false,
+      closed: false,
+      closeSocket: () => {},
+    };
+    pendingSlot = slot;
+    // 每个槽只管自己的心跳；重连退避是全流共享的（`reconnectTimerId`），
+    // 否则两个槽各退避一份，交接期会出现两倍频率的重连。
+    let slotHeartbeatTimerId: any = null;
+    const clearSlotTimers = () => {
+      (slotHeartbeatTimerId !== null && clearTimer(slotHeartbeatTimerId),
+        (slotHeartbeatTimerId = null));
+    };
+    const slotIsAlive = () => !isDisposed && isStreamActive && !slot.closed;
+    slot.closeSocket = () => {
+      (clearSlotTimers(), removeSocketListeners());
+      try {
+        nextSocket.close();
+      } catch {
+        // 清理期关闭失败无需处理：socket 可能已经没有底层连接。
+      }
+    };
+
+    function slotFailed(closeCode = 0) {
+      if (!slotIsAlive()) return;
+      // 鉴权类关闭码：整体失效，不再重试（重试只会拿到同样的 4401）。
+      if (TERMINAL_CLOSE_CODES.includes(closeCode)) {
+        disposeAllSlots();
+        emitStates();
+        return;
+      }
+      // 只失效「这个槽确实在供数」的那批实体：pending 从未 ready，不牵连任何历史。
+      const invalidatedEntityIds =
+          activeSlot === slot ? wantedEntityIds.filter((wantedId) => slot.ids.includes(wantedId)) : [],
+        wasActive = activeSlot === slot;
+      (activeSlot === slot && (activeSlot = null), pendingSlot === slot && (pendingSlot = null));
+      ((slot.closed = true), slot.closeSocket(), slot.stateById.clear());
+      (wasActive &&
+        invalidatedEntityIds.length &&
+        (onInvalidate(invalidatedEntityIds), emitStates()),
+        reconnectTimerId === null && scheduleReconnect());
     }
-    const socketHandlers = {
+
+    function scheduleHeartbeatTimeout(heartbeatTimeoutMs: number) {
+      (slotHeartbeatTimerId !== null && clearTimer(slotHeartbeatTimerId),
+        (slotHeartbeatTimerId = setTimer(() => slotFailed(), heartbeatTimeoutMs)));
+    }
+
+    const socketHandlers: Record<string, (event: any) => void> = {
       open() {
-        if (isCurrentSocket())
-          try {
-            nextSocketHandle.send(
-              JSON.stringify({
-                type: "subscribe",
-                entityIds: subscribedEntityIds,
-              }),
-            );
-          } catch {
-            handleSocketFailure();
-          }
+        if (!slotIsAlive()) return;
+        try {
+          nextSocket.send(JSON.stringify({ type: "subscribe", entityIds: slot.ids }));
+        } catch {
+          slotFailed();
+        }
       },
       message(messageEvent: any) {
-        if (!isCurrentSocket()) return;
+        if (!slotIsAlive()) return;
         let messagePayload;
         try {
           messagePayload = JSON.parse(messageEvent.data);
         } catch {
           return;
         }
-        if (!(!messagePayload || typeof messagePayload != "object")) {
-          if (messagePayload.type === "resync_required") {
-            (closeActiveSocket(), resetStates(), openSocket());
-            return;
-          }
-          if (messagePayload.type === "snapshot" && Array.isArray(messagePayload.states)) {
-            const snapshotStatesByEntityId = new Map();
-            for (const snapshotState of messagePayload.states)
-              subscribedEntityIdSet.has(snapshotState?.entityId) &&
-                typeof snapshotState.state == "string" &&
-                snapshotStatesByEntityId.set(
-                  snapshotState.entityId,
-                  structuredClone(snapshotState),
-                );
-            ((statesByEntityId = snapshotStatesByEntityId),
-              (hasSnapshot = true),
-              (reconnectAttempt = 0),
-              scheduleHeartbeatTimeout(65000),
-              emitStates());
-          } else
-            hasSnapshot &&
-            messagePayload.type === "state_changed" &&
-            subscribedEntityIdSet.has(messagePayload.entityId) &&
-            typeof messagePayload.state == "string"
-              ? (statesByEntityId.set(messagePayload.entityId, structuredClone(messagePayload)),
-                scheduleHeartbeatTimeout(65000),
-                emitPatch(messagePayload.entityId))
-              : hasSnapshot &&
-                  messagePayload.type === "state_removed" &&
-                  subscribedEntityIdSet.has(messagePayload.entityId)
-                ? (statesByEntityId.delete(messagePayload.entityId),
-                  scheduleHeartbeatTimeout(65000),
-                  emitPatch(messagePayload.entityId))
-                : hasSnapshot && messagePayload.type === "ping" && scheduleHeartbeatTimeout(65000);
+        if (!messagePayload || typeof messagePayload != "object") return;
+        if (messagePayload.type === "resync_required") {
+          // 与上游一致：重同步会失效一次，但立刻新建连接，不等退避。
+          (slotFailed(), cancelReconnect(), openPendingSlot());
+          return;
         }
+        if (messagePayload.type === "snapshot" && Array.isArray(messagePayload.states)) {
+          const snapshotStatesByEntityId = new Map<string, any>();
+          for (const snapshotState of messagePayload.states)
+            slot.ids.includes(snapshotState?.entityId) &&
+              typeof snapshotState.state == "string" &&
+              snapshotStatesByEntityId.set(snapshotState.entityId, structuredClone(snapshotState));
+          (slot.stateById = snapshotStatesByEntityId),
+            (slot.ready = true),
+            (reconnectAttempt = 0),
+            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
+          // 晋升：旧 active 交完班才退役，交接期两边都在，但 active 的值优先。
+          if (pendingSlot === slot) {
+            const previousActiveSlot = activeSlot;
+            ((activeSlot = slot), (pendingSlot = null));
+            retireSlot(previousActiveSlot);
+          }
+          emitStates();
+          return;
+        }
+        if (!slot.ready) return;
+        if (messagePayload.type === "state_removed" && slot.ids.includes(messagePayload.entityId)) {
+          (slot.stateById.delete(messagePayload.entityId),
+            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
+            emitPatch(messagePayload.entityId));
+          return;
+        }
+        if (messagePayload.type === "state_changed" && slot.ids.includes(messagePayload.entityId)) {
+          if (typeof messagePayload.state != "string") return;
+          (slot.stateById.set(messagePayload.entityId, structuredClone(messagePayload)),
+            scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS),
+            emitPatch(messagePayload.entityId));
+          return;
+        }
+        messagePayload.type === "ping" && scheduleHeartbeatTimeout(HEARTBEAT_TIMEOUT_MS);
       },
       close(closeEvent: any) {
-        handleSocketFailure(closeEvent.code);
+        slotFailed(closeEvent?.code ?? 0);
       },
       error() {
-        handleSocketFailure();
+        slotFailed();
       },
     };
-    for (const [addedHandlerName, addedHandler] of Object.entries(socketHandlers))
-      nextSocketHandle.addEventListener(addedHandlerName, addedHandler);
-    ((removeSocketListeners = () => {
-      for (const [removedHandlerName, removedHandler] of Object.entries(socketHandlers))
-        nextSocketHandle.removeEventListener(removedHandlerName, removedHandler);
-    }),
-      scheduleHeartbeatTimeout(12000));
+    function removeSocketListeners() {
+      for (const [handlerName, handler] of Object.entries(socketHandlers))
+        nextSocket.removeEventListener(handlerName, handler);
+    }
+
+    for (const [handlerName, handler] of Object.entries(socketHandlers))
+      nextSocket.addEventListener(handlerName, handler);
+    scheduleHeartbeatTimeout(FIRST_RESPONSE_TIMEOUT_MS);
   }
+
   return {
-    configure(entityIds: any[] = [], { additionalEntityIds: additionalEntityIds = [] }: { additionalEntityIds?: any[] } = {}) {
+    configure(
+      entityIds: string[] = [],
+      { additionalEntityIds = [] }: { additionalEntityIds?: string[] } = {},
+    ) {
       if (isDisposed) return;
       const additionalEntityIdSet = new Set(
           additionalEntityIds.filter(
@@ -215,38 +320,47 @@ export function createLightStream({
             ),
           ),
         ].sort();
-      (nextSubscribedEntityIds.length === subscribedEntityIds.length &&
+      if (
+        nextSubscribedEntityIds.length === wantedEntityIds.length &&
         nextSubscribedEntityIds.every(
-          (sortedEntityId, entityIdIndex) => sortedEntityId === subscribedEntityIds[entityIdIndex],
-        )) ||
-        (closeActiveSocket(),
-        (subscribedEntityIds = nextSubscribedEntityIds),
-        (subscribedEntityIdSet = new Set(subscribedEntityIds)),
-        (reconnectAttempt = 0),
-        resetStates(),
-        openSocket());
+          (sortedEntityId, entityIdIndex) => sortedEntityId === wantedEntityIds[entityIdIndex],
+        )
+      )
+        return;
+      (cancelReconnect(),
+        // pending 是按旧集合建的，订阅变了就没用了；active **保留**，
+        // 它继续供交集部分的值，直到新连接拿到 snapshot。
+        (pendingSlot !== null && (retireSlot(pendingSlot), (pendingSlot = null))),
+        (wantedEntityIds = nextSubscribedEntityIds),
+        (wantedEntityIdSet = new Set(wantedEntityIds)),
+        (reconnectAttempt = 0));
+      if (activeSlot && !activeSlot.ids.some((activeSlotId) => wantedEntityIdSet.has(activeSlotId))) {
+        (retireSlot(activeSlot), (activeSlot = null));
+      }
+      (emitStates(), openPendingSlot());
     },
-    setActive(isActiveNext: any) {
+    setActive(isActiveNext: boolean) {
       isDisposed ||
         isStreamActive === (isActiveNext === true) ||
         ((isStreamActive = isActiveNext === true),
         (reconnectAttempt = 0),
-        isStreamActive ? openSocket() : (closeActiveSocket(), resetStates()));
+        isStreamActive
+          ? openPendingSlot()
+          : (disposeAllSlots(), emitStates()));
     },
     /**
      * 进入 bfcache 前主动断开。
      *
      * 与 `setActive(false)` 的差别是**保留**订阅列表与已收到的状态：页面只是被冻结，
-     * 既没有换页也没有改订阅，回来时应当先按旧值渲染再被新快照覆盖 —— 清空状态会让墙屏
-     * 在「后退回来」的瞬间闪一遍空数据。
+     * 既没有换页也没有改订阅，回来时应当先按旧值渲染再被新快照覆盖。
      *
-     * 必须主动关：浏览器冻结文档时会自己切断 WebSocket，但那时 `close` 回调与心跳定时器
-     * 都已停摆，`scheduleReconnect` 一次都不会跑，只能等恢复后的心跳超时（65s）。
+     * 这里用 `parkSlot`（只关 socket、留状态）而不是退役：`activeSlot.ready` 仍是 true，
+     * `emitStates()` 继续吐出冻结前的最后一批值，所以后退回来不会闪一遍空数据。
      */
     suspend() {
       if (isDisposed) return;
       wasActiveBeforePageCache = wasActiveBeforePageCache || isStreamActive;
-      closeActiveSocket();
+      (cancelReconnect(), parkSlot(pendingSlot), (pendingSlot = null), parkSlot(activeSlot));
     },
     /**
      * 从 bfcache 恢复后立刻重连。
@@ -255,26 +369,26 @@ export function createLightStream({
      * 避免沿用冻结前攒下的失败次数而多等几轮。
      *
      * 冻结期间 `visibilitychange` 可能已经把流 `setActive(false)` 掉，所以按
-     * `wasActiveBeforePageCache` 恢复激活态，而不是只看此刻的 `isStreamActive` ——
-     * 否则「后台进 bfcache → 后退回来」会得到一个再也不重连的舞台。
+     * `wasActiveBeforePageCache` 恢复激活态，而不是只看此刻的 `isStreamActive`。
      */
     resume() {
       if (isDisposed) return;
       const shouldRestore = wasActiveBeforePageCache;
-      wasActiveBeforePageCache = false;
-      if (!shouldRestore || !subscribedEntityIds.length) return;
+      if (((wasActiveBeforePageCache = false), !shouldRestore || !wantedEntityIds.length)) return;
       isStreamActive = true;
-      activeSocket || ((reconnectAttempt = 0), openSocket());
+      // 冻结期间 park 掉的槽已经关了 socket：退役它（状态已被新连接接管），再开新的。
+      ((activeSlot !== null && !activeSlot.stateById.size && (retireSlot(activeSlot), (activeSlot = null))),
+        (reconnectAttempt = 0),
+        pendingSlot || openPendingSlot());
     },
     dispose() {
       isDisposed ||
         ((isDisposed = true),
         (isStreamActive = false),
         (wasActiveBeforePageCache = false),
-        closeActiveSocket(),
-        (subscribedEntityIds = []),
-        subscribedEntityIdSet.clear(),
-        statesByEntityId.clear());
+        disposeAllSlots({ notify: false }),
+        (wantedEntityIds = []),
+        wantedEntityIdSet.clear());
     },
   };
 }

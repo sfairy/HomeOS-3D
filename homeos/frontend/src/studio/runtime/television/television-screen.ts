@@ -1,21 +1,37 @@
 const { drawTelevisionGlass: drawGlass } = await (import("@app/3d-studio/materials/studio-television-glass"));
+const { drawTelevisionPoster: drawPosterArt } = await (import("@app/3d-studio/materials/studio-television-poster"));
 import { televisionState } from "./television-state";
 function drawPoster(posterCanvas: any, canvasPainter: any, posterState: any) {
-  (canvasPainter.save(),
-    (canvasPainter.fillStyle = "#07111d"),
-    canvasPainter.fillRect(0, 0, posterCanvas.width, posterCanvas.height),
-    (canvasPainter.fillStyle = "#f4f8fb"),
-    (canvasPainter.font = "500 26px sans-serif"),
-    (canvasPainter.textAlign = "center"),
-    (canvasPainter.textBaseline = "middle"));
+  // 待机画面直接复用编辑态那张满幅宣传画（960×540 坐标系，512×288 画布同样等比），
+  // 再在底部状态条右侧盖一枚播放状态胶囊——旧版只画一行居中文字，电视看上去就是一块黑屏。
+  drawPosterArt(posterCanvas, canvasPainter);
   const statusText = posterState.playing
-    ? "正在播放中"
-    : !posterState.idle && posterState.state === "paused"
-      ? "已暂停"
-      : !posterState.idle && posterState.state === "buffering"
-        ? "正在缓冲"
-        : "暂未播放";
-  (canvasPainter.fillText(statusText, posterCanvas.width / 2, posterCanvas.height / 2),
+      ? "正在播放中"
+      : !posterState.idle && posterState.state === "paused"
+        ? "已暂停"
+        : !posterState.idle && posterState.state === "buffering"
+          ? "正在缓冲"
+          : "暂未播放",
+    statusColor = posterState.playing
+      ? "#32c59b"
+      : !posterState.idle && posterState.state === "paused"
+        ? "#ff9f36"
+        : "#6d8398",
+    artScale = posterCanvas.width / 960;
+  (canvasPainter.save(),
+    canvasPainter.scale(artScale, artScale),
+    (canvasPainter.fillStyle = "rgba(7,17,29,0.86)"),
+    canvasPainter.beginPath(),
+    canvasPainter.roundRect(602, 492, 300, 40, 20),
+    canvasPainter.fill(),
+    (canvasPainter.fillStyle = statusColor),
+    canvasPainter.beginPath(),
+    canvasPainter.arc(624, 512, 5, 0, Math.PI * 2),
+    canvasPainter.fill(),
+    (canvasPainter.fillStyle = "#f4f8fb"),
+    (canvasPainter.font = "600 16px Arial, sans-serif"),
+    (canvasPainter.textAlign = "center"),
+    canvasPainter.fillText(statusText, 760, 518),
     canvasPainter.restore());
 }
 export function createTelevisionScreens({
@@ -53,7 +69,9 @@ export function createTelevisionScreens({
         : drawGlass(canvas, screenPainter, entry.screen.userData?.sceneStyle === "warm-wood"),
       state.on && image)
     ) {
-      const fitScale = Math.min(
+      // 铺满（cover）而不是等比内嵌（contain）：电视上留黑边就是「画面没有全屏」。
+      // 内容超出画布的部分交给画布裁剪，宁可裁掉一点也不能露边。
+      const fitScale = Math.max(
           canvas.width / image.naturalWidth,
           canvas.height / image.naturalHeight,
         ),

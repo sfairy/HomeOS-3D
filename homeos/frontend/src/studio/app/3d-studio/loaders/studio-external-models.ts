@@ -2561,6 +2561,19 @@ function normalizeMaterialValue(materialValue: any): any {
     addOptions: ExternalModelStyleOptions = {},
     { selected: isSelected = false, staticMaterialKey = null, staticVertexTint = true }: any = {},
   ) {
+    /**
+     * 电视不走外部模型：机身/边框/发光线/挂装底座与屏幕贴图全部由 `addTelevisionModel`
+     * 程序化生成，屏幕贴图挂在那块 `televisionScreen` 网格上。
+     *
+     * `tv_standard` GLB 只是同一块 16:9 面板的替身（单一 `screen` 槽，材质恒为近黑
+     * #0A0C0F，运行时不会往上贴画面）。`preserveOrigin + preserveAspect` 让它按 1.8 的
+     * 宽度等比放大到 1.8 × 1.013 并坐落在底面 y=0，比程序化面板（1.737 × 0.977，16:9）
+     * 更高，于是画面下方露出一整块纯黑面板——即「电视画面显示异常」。
+     *
+     * 返回 `false`（「没加外部模型」）：`buildItemModel` 只在返回 `true` 时清掉程序化
+     * 子网格，返回 `true` 会把边框 / 挂装底座一起删掉、只留一块空面板。
+     */
+    if (targetSize?.type === "tv") return false;
     const modelType = resolveModelTypeForItem(targetSize),
       loadedModel = preparedTemplatesByItemType.get(modelType);
     if (!loadedModel) return (loadExternalItemModel(modelType), false);

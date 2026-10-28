@@ -7,47 +7,114 @@
  *
  * 三条容易翻车的约束：
  * - 包围盒必须跳过 `userData.environmentEffect` 网格：气幕/光环会把盒撑大，轮位会飘；
- * - 标签只随 `tirePressure.enabled === true` 且车型为 `smallcar`/`suv` 生成；
+ * - 标签只随 `tirePressure.enabled === true` 且车型受支持（四轮车 / 电瓶车）生成；
  * - `pending` 用来告诉调用方“模型或包围盒还没算出来”，下一帧需要重算。
  */
 
 import { formatEntityNumber } from "@app/shared/util/ha-number";
 
-export const CAR_TIRE_WHEELS = Object.freeze([
-  { key: "fl", label: "左前", side: 1, front: 1 },
-  { key: "fr", label: "右前", side: -1, front: 1 },
-  { key: "rl", label: "左后", side: 1, front: -1 },
-  { key: "rr", label: "右后", side: -1, front: -1 },
+/** 轮位轴：`side` 为车宽方向（左右轮），`front` 为车长方向（前后轮），
+ *  `labelSide` 仅双轮车型使用 —— 前后轮都在中线上，靠这一侧把标签推到车身外侧。 */
+export type CarTireWheel = {
+  key: string;
+  label: string;
+  side: number;
+  front: number;
+  labelSide: number;
+};
+
+export const CAR_TIRE_WHEELS: readonly CarTireWheel[] = Object.freeze([
+  { key: "fl", label: "左前", side: 1, front: 1, labelSide: 1 },
+  { key: "fr", label: "右前", side: -1, front: 1, labelSide: -1 },
+  { key: "rl", label: "左后", side: 1, front: -1, labelSide: 1 },
+  { key: "rr", label: "右后", side: -1, front: -1, labelSide: -1 },
 ]);
 
-export type CarTireWheel = (typeof CAR_TIRE_WHEELS)[number];
+/** 电瓶车（0.8.1）：只有前后两只轮，且都落在车身中线上。 */
+export const SCOOTER_TIRE_WHEELS: readonly CarTireWheel[] = Object.freeze([
+  { key: "front", label: "前轮", side: 0, front: 1, labelSide: 1 },
+  { key: "rear", label: "后轮", side: 0, front: -1, labelSide: -1 },
+]);
 
-/** 只有这两种车型支持四轮胎压。 */
-function supportsCarTires(modelType: any): boolean {
-  return modelType === "smallcar" || modelType === "suv";
+/** 四轮车与电瓶车都支持胎压。 */
+export function supportsCarTires(modelType: string | undefined | null): boolean {
+  return modelType === "smallcar" || modelType === "suv" || modelType === "scooter";
 }
 
-/** 默认（关闭）胎压配置；样式字段保留，便于开关时沿用。 */
-export function defaultCarTires() {
-  return { enabled: false, mode: "compact", fontSize: 14, opacity: 0.8, wheels: {} } as {
-    enabled: boolean;
-    mode: "compact" | "named";
-    fontSize: number;
-    opacity: number;
-    wheels: Record<string, string>;
+/** 车型对应的轮位表；未知车型返回空表（调用方据此跳过整段胎压）。 */
+export function carTireWheels(modelType: string | undefined | null): readonly CarTireWheel[] {
+  if (modelType === "scooter") return SCOOTER_TIRE_WHEELS;
+  return modelType === "smallcar" || modelType === "suv" ? CAR_TIRE_WHEELS : [];
+}
+
+/** 车型切换（四轮 ↔ 双轮）后清掉不属于新轮位表的键，避免旧绑定跟着车型漂移。
+ *  上游返回值整块换掉 `tirePressure`：开关只在还有轮位绑定时保持打开，样式字段沿用。 */
+export function retargetCarTires(
+  tires: CarTireConfig,
+  modelType: string | undefined | null,
+): CarTireConfig {
+  if (!supportsCarTires(modelType)) return tires;
+  const nextWheels: Record<string, string> = {},
+    allowedKeys = new Set(carTireWheels(modelType).map((wheelEntry) => wheelEntry.key));
+  for (const [wheelKey, wheelEntityId] of Object.entries(tires.wheels ?? {}))
+    allowedKeys.has(wheelKey) && (nextWheels[wheelKey] = wheelEntityId);
+  return {
+    ...tires,
+    enabled: tires.enabled === true && Object.keys(nextWheels).length > 0,
+    wheels: nextWheels,
   };
+}
+
+/** 从场景元数据里取车辆型号：订阅侧拿不到绑定带宽的车型，只能查元数据。 */
+export function carTireModelType(
+  carItem: { floorId?: string; modelId?: string } | null | undefined,
+  sceneMetadata: CarSceneMetadata | null | undefined,
+): string | undefined {
+  return sceneMetadata?.floors
+    ?.find((metadataFloor) => metadataFloor.id === carItem?.floorId)
+    ?.cars?.find((metadataCar) => metadataCar.id === carItem?.modelId)?.type;
+}
+
+/** 场景元数据里只关心「楼层 → 车辆 → 型号」这一条链。 */
+export type CarSceneMetadata = {
+  floors?: readonly {
+    id?: string;
+    cars?: readonly { id?: string; type?: string }[];
+  }[];
+};
+
+/** 胎压配置（写进 `cars[]` 条目）：样式字段与四轮/双轮无关，轮位键由车型决定。 */
+export type CarTireConfig = {
+  enabled: boolean;
+  mode: "compact" | "named";
+  fontSize: number;
+  opacity: number;
+  wheels: Record<string, string>;
+};
+
+/** 默认（关闭）胎压配置；样式字段保留，便于开关时沿用。 */
+export function defaultCarTires(): CarTireConfig {
+  return { enabled: false, mode: "compact", fontSize: 14, opacity: 0.8, wheels: {} };
 }
 
 /** 当前条目实际要订阅的轮位实体；未启用 / 车型不支持 / 非 `sensor.*` 一律忽略。
  *  `modelType` 省略时只查 `enabled` 与 `sensor.*` —— 订阅侧拿不到车型（绑定不带宽），
  *  车型门禁交给编辑器与舞台。 */
-export function carTireEntities(item: any, modelType?: any): string[] {
+export function carTireEntities(
+  item: { tirePressure?: CarTireConfig } | null | undefined,
+  modelType?: string | null,
+): string[] {
   if (item?.tirePressure?.enabled !== true) return [];
   if (modelType != null && !supportsCarTires(modelType)) return [];
-  return CAR_TIRE_WHEELS.map((wheelEntry) => item.tirePressure.wheels?.[wheelEntry.key]).filter(
-    (wheelEntityId: any) =>
-      typeof wheelEntityId === "string" && wheelEntityId.startsWith("sensor."),
-  );
+  /** 拿到车型就按车型取轮位；拿不到（订阅侧尚未收到元数据）就把两套轮位都算上，宁多订不漏订。 */
+  const wheelCatalog =
+    modelType != null ? carTireWheels(modelType) : [...CAR_TIRE_WHEELS, ...SCOOTER_TIRE_WHEELS];
+  return wheelCatalog
+    .map((wheelEntry) => item.tirePressure?.wheels?.[wheelEntry.key])
+    .filter(
+      (wheelEntityId): wheelEntityId is string =>
+        typeof wheelEntityId === "string" && wheelEntityId.startsWith("sensor."),
+    );
 }
 
 /** 只接受非负数值（不含负号），否则显示 `—`；单位沿用实体自带值，不做换算。 */
@@ -71,17 +138,20 @@ function carTireReading(entityId: any, states: any, formats: any = {}) {
   };
 }
 
-/** 轮位锚点（模型局部坐标）：车身外侧再偏移一点，给引线留出起点。 */
+/** 轮位锚点（模型局部坐标）：车身外侧再偏移一点，给引线留出起点。
+ *  双轮车型 `side === 0`，轮子在车身中线上，横向偏移改由 `labelSide` 决定。 */
 function carTireWheelPoints(THREE: any, bounds: any, wheel: CarTireWheel) {
   const size = bounds.getSize(new THREE.Vector3()),
     center = bounds.getCenter(new THREE.Vector3()),
+    isTwoWheeler = wheel.side === 0,
+    localWheelSide = isTwoWheeler ? wheel.labelSide * 0.46 : wheel.side * 0.46,
     anchor = new THREE.Vector3(
-      center.x + wheel.side * size.x * 0.46,
-      bounds.min.y + size.y * 0.2,
-      center.z + wheel.front * size.z * 0.32,
+      center.x + localWheelSide * size.x,
+      bounds.min.y + size.y * (isTwoWheeler ? 0.16 : 0.2),
+      center.z + wheel.front * size.z * (isTwoWheeler ? 0.36 : 0.32),
     ),
     outside = anchor.clone();
-  outside.x += wheel.side * size.x * 0.12;
+  outside.x += (isTwoWheeler ? wheel.labelSide * 0.5 : wheel.side * 0.12) * size.x;
   outside.y += size.y * 0.08;
   return { anchor, outside };
 }
@@ -245,7 +315,7 @@ export function createCarTires({ THREE, container }: { THREE: any; container: an
       const wantedKeySet = new Set<string>();
       for (const tireBinding of bindings) {
         if (!carTireEntities(tireBinding, tireBinding.modelType).length) continue;
-        for (const wheelEntry of CAR_TIRE_WHEELS) {
+        for (const wheelEntry of carTireWheels(tireBinding.modelType)) {
           const wheelEntityId = tireBinding.tirePressure.wheels?.[wheelEntry.key];
           if (!wheelEntityId) continue;
           const tireKey = recordKey(tireBinding) + ":" + wheelEntry.key;

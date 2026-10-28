@@ -2064,6 +2064,10 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-light-panel {
   top: var(--i3d-control-top, 24px);
   transform: translate(12px) scale(var(--i3d-control-scale, 2));
+  /* 0.8.1：弹窗高度封顶按画布最大高度（配置项 maxHeight，默认 75%），超出在面板内滚动。 */
+  max-height: calc(var(--i3d-control-max-height, 75vh) / var(--i3d-control-scale, 2));
+  overflow: auto;
+  overscroll-behavior: contain;
   opacity: 0;
   pointer-events: none;
   transition:

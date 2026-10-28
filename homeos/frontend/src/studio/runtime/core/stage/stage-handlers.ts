@@ -54,6 +54,7 @@ import {
   layoutEnvironmentReadings,
 } from "@app/bridge/temperature-humidity";
 import { DEFAULT_BUTTON_SIZE as defaultButtonSize } from "@app/bridge/presets/button-icon-size";
+import { applyLabelConfigPatch, labelPatchAffects } from "../state-update-plan";
 
 export interface StageHandlersHost {
   [key: string]: any;
@@ -487,6 +488,12 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
               ? {
                   ...layoutMarkerItem,
                   ...host.activePointerDrag.point,
+                  ...(layoutMarkerItem.securityAlarm === true && layoutMarkerItem.positionMode === "fixed"
+                    ? {
+                        fixedX: host.activePointerDrag.point.x,
+                        fixedY: host.activePointerDrag.point.y,
+                      }
+                    : {}),
                 }
               : layoutMarkerItem,
           layoutMarkerId = layoutMarkerSnapshot.id,
@@ -509,6 +516,19 @@ export function createRenderMarkerPositions(host: StageHandlersHost) {
           (host.isEditing || layoutMarkerSnapshot.buttonHidden !== true) &&
           layoutMarkerSnapshot.modelAvailable !== false &&
           (host.selectedFloorId === "all" || layoutMarkerSnapshot.floorId === host.selectedFloorId);
+        // 0.8.1 固定位置告警标签：不跟随户型，直接按画面百分比（fixedX/fixedY 0–100）落点。
+        if (layoutMarkerSnapshot.securityAlarm === true && layoutMarkerSnapshot.positionMode === "fixed") {
+          layoutMarkerElement.hidden = !isMarkerVisible;
+          if (isMarkerVisible) {
+            const fixedPercentX = Number(layoutMarkerSnapshot.fixedX),
+              fixedPercentY = Number(layoutMarkerSnapshot.fixedY),
+              clampPercent = (percentValue: number) =>
+                Number.isFinite(percentValue) ? Math.max(0, Math.min(100, percentValue)) : 50;
+            ((layoutMarkerElement.style.left = (clampPercent(fixedPercentX) / 100) * width4 + "px"),
+              (layoutMarkerElement.style.top = (clampPercent(fixedPercentY) / 100) * height3 + "px"));
+          }
+          continue;
+        }
         let cachedWorldPoint = host.sceneCacheByKey.get(layoutMarkerId);
         isMarkerVisible &&
           (!cachedWorldPoint ||
@@ -1000,20 +1020,23 @@ export function createSyncMarkers(host: StageHandlersHost) {
             ? syncMarkerElement.setAttribute("tabindex", "0")
             : syncMarkerElement.removeAttribute("tabindex"));
       }
-      if (
-        (syncMarkerElement.classList.toggle(
-          "is-car-status",
-          syncMarkerItem.deviceKind === "smallcar",
-        ),
-        syncMarkerItem.deviceKind === "smallcar" &&
-          (updateCarCard2(syncMarkerElement, syncMarkerItem, host.deviceStates),
-          (syncMarkerElement.style.pointerEvents = host.isEditing ? "" : "none"),
-          syncMarkerElement.setAttribute("role", host.isEditing ? "button" : "group"),
-          host.isEditing
+      syncMarkerElement.classList.toggle(
+        "is-car-status",
+        syncMarkerItem.deviceKind === "smallcar",
+      );
+      /** 车辆（0.8.1）：标签与车模共用 `clickAction`；未开启交互时保持穿透，别抢 3D 拾取。 */
+      if (syncMarkerItem.deviceKind === "smallcar") {
+        updateCarCard2(syncMarkerElement, syncMarkerItem, host.deviceStates);
+        const isCarInteractive =
+          host.isEditing || (host.isControlReady && syncMarkerItem.clickAction !== "none");
+        ((syncMarkerElement.style.pointerEvents = isCarInteractive ? "" : "none"),
+          (syncMarkerElement.style.cursor = isCarInteractive ? "pointer" : ""),
+          syncMarkerElement.setAttribute("role", isCarInteractive ? "button" : "group"),
+          isCarInteractive
             ? syncMarkerElement.setAttribute("tabindex", "0")
-            : syncMarkerElement.removeAttribute("tabindex")),
-        isVacuumDevice)
-      ) {
+            : syncMarkerElement.removeAttribute("tabindex"));
+      }
+      if (isVacuumDevice) {
         syncMarkerElement.style.setProperty(
           "--label-background-opacity",
           String(labelBackgroundOpacity(syncMarkerItem.backgroundOpacity)),
@@ -1378,11 +1401,36 @@ export function createHandleHostMessage(host: StageHandlersHost) {
         }),
         host.syncLayoutMetrics());
     else {
+      if (data.type === "label-config") {
+        // 只改了标签类字段：把补丁应用回两份配置，然后只重排受影响的标签，
+        // 避免整份 config 分支走一遍（那是整屏重建，编辑一次标签会明显掉帧）。
+        if (
+          host.isCameraMoving ||
+          data.configId !== host.lastAppliedConfigId ||
+          !Array.isArray(data.patches) ||
+          !data.patches.length
+        )
+          return;
+        const nextBaseStageConfig = applyLabelConfigPatch(host.baseStageConfig, data.patches),
+          nextOptions = applyLabelConfigPatch(host.options, data.patches);
+        if (!nextBaseStageConfig || !nextOptions) return;
+        const patchedEntries = data.patches as Array<{ id?: string; floorId?: string }>;
+        ((host.baseStageConfig = nextBaseStageConfig as typeof host.baseStageConfig),
+          (host.options = nextOptions as typeof host.options),
+          host.syncMarkers({
+            // `syncMarkers` 的回调入参就是当前的标签条目，形状与补丁条目一致。
+            affects: (markerItem: { id?: string; floorId?: string }) =>
+              labelPatchAffects(patchedEntries, markerItem),
+          }),
+          host.mountOptions.requestRender?.());
+        return;
+      }
       if (data.type === "config") {
         if (host.isCameraMoving) {
           host.pendingEditorAction = hostMessageEvent;
           return;
         }
+        host.lastAppliedConfigId = data.configId;
         ((host.isRangeEditorOnly = data.rangeEditorOnly === true),
           (host.canEditLightRange = data.allowRangeEditing === true || data.editing === true),
           host.isRangeEditorOpen &&

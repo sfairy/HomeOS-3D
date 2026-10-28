@@ -8,6 +8,7 @@ import {
 } from "@/shared/camera/composables/useGo2RtcMseTransport";
 import { ensureHls, isExpiredStreamAddressError, prefetchHlsOnIdle } from "@/shared/camera/hls-loader";
 import { clampNumberWithFallback, normalizeCssColor, appendSvgElement, createCameraVisualState } from "./_shared";
+import { withCameraHttpSlot } from "@runtime/camera/camera-budget";
 
 /**
  * Studio 侧复用共享的 go2rtc MSE 实现（`shared/camera/composables/useGo2RtcMseTransport`），
@@ -147,11 +148,13 @@ async function resolveCameraStreamSource(sourceEntityId: any, options: { signal?
   const pendingSourceRequest = pendingSourceRequestByEntityId.get(normalizedCameraEntityId);
   if (pendingSourceRequest) return pendingSourceRequest;
   const sourceRequestPromise = (async () => {
-    const cameraHlsResponse = await fetch(
-      "/api/camera_hls/" + encodeURIComponent(normalizedCameraEntityId),
-      {
-        signal: options.signal,
-      },
+    // 换票也要排队：大户型一轮预热最多 4 路，加上快照轮询会顶满同源连接池。
+    const cameraHlsResponse = await withCameraHttpSlot(
+      () =>
+        fetch("/api/camera_hls/" + encodeURIComponent(normalizedCameraEntityId), {
+          signal: options.signal,
+        }),
+      options.signal,
     );
     if (!cameraHlsResponse.ok)
       throw new Error("Camera HLS request failed: " + cameraHlsResponse.status);
@@ -257,12 +260,16 @@ export function mountCameraSnapshot({
       const abortTimeoutHandle = window.setTimeout(() => snapshotAbortController.abort(), 12000);
       try {
         cameraContainerElement.dataset.cameraState = "snapshot-loading";
-        const snapshotResponse = await fetch(
-          "/api/camera_proxy/" + encodeURIComponent(snapshotEntityId) + "?hb=" + Date.now(),
-          {
-            credentials: "same-origin",
-            signal: snapshotAbortController.signal,
-          },
+        const snapshotResponse = await withCameraHttpSlot(
+          () =>
+            fetch(
+              "/api/camera_proxy/" + encodeURIComponent(snapshotEntityId) + "?hb=" + Date.now(),
+              {
+                credentials: "same-origin",
+                signal: snapshotAbortController.signal,
+              },
+            ),
+          snapshotAbortController.signal,
         );
         if (
           isSnapshotLoading ||

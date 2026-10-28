@@ -433,3 +433,65 @@ export function automaticAirConditionerCamera(
     topRotation: 0,
   };
 }
+
+/**
+ * 车辆聚焦相机（0.8.1）：车模比室内机小得多，先按空调相机的算法收紧取景，
+ * 再在「竖屏 + 打开弹窗」时沿竖直方向把画面下移，让车落在弹窗上方的可视区。
+ * `portraitPanel` 由调用方判定（车辆、非仅聚焦、弹窗无自定义锚点、画布竖屏）。
+ */
+export function automaticVehicleCamera(
+  threeVehicle: unknown,
+  vehicleConfig: { aspect?: unknown; viewportAspect?: unknown } | null | undefined,
+  vehicleTarget: unknown,
+  vehicleDirection: unknown,
+  vehicleFrameWeight: unknown,
+  { portraitPanel: portraitPanel = false }: { portraitPanel?: boolean } = {},
+) {
+  const vehicleCamera = automaticAirConditionerCamera(
+    threeVehicle,
+    vehicleConfig,
+    vehicleTarget,
+    vehicleDirection,
+    vehicleFrameWeight,
+    { minimumFrameSize: 0.7, minimumDistance: 0.6 },
+  );
+  if (!portraitPanel) return vehicleCamera;
+  const cameraPosition = readVector(threeVehicle, vehicleCamera.position, [0, 3, 6]),
+    cameraTargetPoint = readVector(threeVehicle, vehicleCamera.target, [0, 0, 0]),
+    viewDirection = cameraPosition.clone().sub(cameraTargetPoint).normalize(),
+    cameraUpVector = readVector(threeVehicle, vehicleCamera.up, [0, 1, 0]);
+  // 相机 up 未必与视线正交：先投影掉视线分量，否则偏移会把画面带歪。
+  cameraUpVector.addScaledVector(viewDirection, -cameraUpVector.dot(viewDirection)).normalize();
+  const viewportAspect = clampNumber(
+      finiteNumberOr(
+        vehicleConfig?.aspect,
+        finiteNumberOr(vehicleConfig?.viewportAspect, 1.6),
+      ),
+      0.25,
+      4,
+    ),
+    shiftLength =
+      vehicleCamera.mode === "perspective"
+        ? (cameraPosition.distanceTo(cameraTargetPoint) * 35) /
+          (Math.max(viewportAspect, 1) * (vehicleCamera.focalLength || 35))
+        : vehicleCamera.frameSize,
+    verticalShift = cameraUpVector.multiplyScalar(-shiftLength * 0.22);
+  // 偏移量要夹在场景 ±10000 的世界边界内（按分量比例缩放，方向不变）。
+  let shiftRatio = 1;
+  for (const shiftPoint of [cameraPosition, cameraTargetPoint])
+    for (const shiftAxis of ["x", "y", "z"])
+      Math.abs(verticalShift[shiftAxis]) > 1e-8 &&
+        (shiftRatio = Math.min(
+          shiftRatio,
+          Math.max(
+            0,
+            (Math.sign(verticalShift[shiftAxis]) * 10000 - shiftPoint[shiftAxis]) /
+              verticalShift[shiftAxis],
+          ),
+        ));
+  return {
+    ...vehicleCamera,
+    position: cameraPosition.addScaledVector(verticalShift, shiftRatio).toArray(),
+    target: cameraTargetPoint.addScaledVector(verticalShift, shiftRatio).toArray(),
+  };
+}

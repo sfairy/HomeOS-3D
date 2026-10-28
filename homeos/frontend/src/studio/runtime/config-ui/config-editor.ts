@@ -6,6 +6,7 @@ import { mountInteraction3d as mountInteraction3d2 } from "../core/runtime";
 import {
   extraTypes as extraTypes2,
 } from "../climate/purifier-extras";
+import { applyNasLayout as applyNasLayout2 } from "../nas/nas-panel";
 import {
   curtainGroupEntryId as curtainGroupEntryId2,
 } from "../cover/cover-groups";
@@ -28,6 +29,7 @@ import {
   isGenericDeviceKind as isGenericDeviceKind2,
 } from "../device/generic-device-catalog";
 import { domElement } from "@app/shared/util/dom-factory";
+import { modelChoiceLabel } from "@app/shared/model-remarks";
 export async function openInteraction3dEditor({
   component: component,
   document: documentApi,
@@ -193,8 +195,7 @@ export async function openInteraction3dEditor({
       (modelIdKey = usesModelBinding ? "modelId" : "groupId"));
   }
   applyKindFlags(deviceKind);
-  const describeItem = (describableItem: any) =>
-      describableItem.name || describableItem.label || kindLabel,
+  const describeItem = (describableItem: any) => modelChoiceLabel(describableItem, kindLabel),
     normalizeClickAction = (rawClickAction: any) =>
       isTelevisionMode
         ? ["focus", "focus-panel", "panel", "turn-on-focus", "turn-on", "turn-on-panel"].includes(
@@ -271,6 +272,10 @@ export async function openInteraction3dEditor({
     pickerGeneration = 0,
     isSaving = false,
     isDirty = 0,
+    configurationFeedback: {
+      changed(): void;
+      refresh(): void;
+    } | null = null,
     latestStates: any = null,
     refreshEffectSettings = () => {},
     bathEffectEditorHandle = () => {},
@@ -406,7 +411,6 @@ export async function openInteraction3dEditor({
   __linkEditorHost();
   attachEditorPanelRendering(__editorHost);
   const saveButtonElement = __editorHost.saveButtonElement;
-  const saveStatusElement = __editorHost.saveStatusElement;
   let accessUnsubscribe = () => {};
   __editorHost.accessUnsubscribe = () => accessUnsubscribe();
   const {
@@ -557,6 +561,17 @@ export async function openInteraction3dEditor({
             selectPreviewReferenceItem(editEvent);
             return;
           }
+          if (editEvent.action === "nas-layout" && isNasMode) {
+            // 0.8.1：NAS 预览里拖动排序 / 缩放后的布局回写到当前 NAS 配置。
+            const nasMatchedItem = getItemList().find(
+              (nasMatchedProbe: { id?: string }) => nasMatchedProbe.id === editEvent.id,
+            );
+            nasMatchedItem &&
+              nasMatchedItem.id === component.id &&
+              applyNasLayout2(nasMatchedItem.statusSource, editEvent.group, editEvent.layout) &&
+              refreshEditorPreview();
+            return;
+          }
           if (
             ["purifier-layout", "device-layout"].includes(editEvent.action) &&
             (["climate", "airer", "fan", "purifier", "water-heater"].includes(deviceKind) ||
@@ -598,7 +613,7 @@ export async function openInteraction3dEditor({
             (editEvent.action === "light-region-overrides" &&
               ((structuredClone2.lightRegionOverrides = structuredClone(editEvent.overrides || {})),
               isDirty++,
-              isSaving || (saveStatusElement.textContent = "")),
+              __editorHost.configurationFeedback?.changed()),
             isVacuumShortcutMode)
           ) {
             const roomShortcut = getItemList().find(

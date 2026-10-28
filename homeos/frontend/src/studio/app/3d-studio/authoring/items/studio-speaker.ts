@@ -1,3 +1,5 @@
+import { applyReviewedShells } from "../scene/studio-reviewed-shells";
+
 const canvasCacheByDocument = new WeakMap();
 function getCanvasCache(contentDocument: any) {
   let cacheEntry = canvasCacheByDocument.get(contentDocument);
@@ -105,7 +107,19 @@ function releaseSharedTexture(contentDocument: any, cacheKey: string) {
   (documentTextureCache.delete(cacheKey), textureCacheEntry.texture.dispose());
 }
 
-export function createSpeakerModel(three: any, dimensions: any, options: any) {
+export function createSpeakerModel(
+  three: any,
+  dimensions: any,
+  options: any,
+  /**
+   * 复核外壳剔除。上游默认开，本项目**默认关**，理由是实测的：
+   * `studio-reviewed-shell-data.ts` 的掩码是按上游几何的指纹人工复核的，本仓机型几何
+   * 是 0.8.0 期移植版，指纹对不上（fan / airer / camera / presence 实测命中 0 条），
+   * 开着只会为每个模型多付一遍全量顶点+索引哈希（实测风扇 +8.5ms/个），一个三角形都剔不掉。
+   * 重新按本仓几何复核掩码后，把这里的默认值改回 true 即可。
+   */
+  { pruneShell = false }: { pruneShell?: boolean } = {},
+) {
   const isWarmWood = !!options.warmWood,
     speakerWeaveCanvas = createWeaveCanvas(document),
     speakerWeaveEntry = sharedTextureEntry(document, "weave", () => {
@@ -339,6 +353,8 @@ export function createSpeakerModel(three: any, dimensions: any, options: any) {
       dimensions.height / 0.2336,
       dimensions.depth / 0.17,
     ),
+    // 先缩放再剔除：掩码是按「未缩放几何」复核出来的，指纹只读几何与节点矩阵，缩放不影响它。
+    pruneShell && applyReviewedShells(three, speakerGroup, "speaker"),
     speakerGroup
   );
 }

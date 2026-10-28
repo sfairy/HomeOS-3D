@@ -11193,7 +11193,7 @@
       "folder": "home/architecture",
       "category": "home/architecture",
       "mount": "floor",
-      "origin": "floor-center",
+      "origin": "floor-arc-center",
       "size": [
         0.45,
         2.8,
@@ -11331,17 +11331,17 @@
       "folder": "home/architecture",
       "category": "home/architecture",
       "mount": "floor",
-      "origin": "floor-center",
+      "origin": "floor-arc-center",
       "size": [
         0.45,
         2.8,
-        0.45
+        0.225
       ],
       "sizeSource": "registry:scaleBasis",
       "registrySize": [
         0.45,
         2.8,
-        0.45
+        0.225
       ],
       "topologyClass": "solid",
       "materialFamily": "furniture",
@@ -15408,14 +15408,14 @@
       "origin": "floor-center",
       "size": [
         1.5,
-        0.897,
-        0.3
+        1.55,
+        0.55
       ],
       "sizeSource": "override",
       "registrySize": [
         1.5,
-        0.897,
-        0.3
+        1.55,
+        0.55
       ],
       "topologyClass": "solid",
       "materialFamily": "device",
@@ -15433,7 +15433,7 @@
       },
       "assumptions": [
         {
-          "claim": "有效外廓 1.500 × 0.897 × 0.300 m",
+          "claim": "有效外廓 1.500 × 1.550 × 0.550 m",
           "basis": "原始 GLB 的世界 AABB；摆放与碰撞按真实外廓，注册表数值保留在 registrySize 做对照。本款偏差来自外凸细节（把手 / 踢脚 / 台面外沿 / 支架横杆 / 波形叶片），不是单位或比例错误",
           "confidence": 0.9,
           "risk": "尺寸不确定"
@@ -15450,18 +15450,18 @@
       "name": "标准电视",
       "folder": "appliance/media",
       "category": "appliance/media",
-      "mount": "tabletop",
+      "mount": "wall",
       "origin": "base-center",
       "size": [
         1.5,
-        0.57,
-        0.05
+        0.844,
+        0.0504
       ],
       "sizeSource": "override",
       "registrySize": [
         1.5,
-        0.57,
-        0.05
+        0.844,
+        0.0504
       ],
       "topologyClass": "solid",
       "materialFamily": "device",
@@ -15479,19 +15479,19 @@
       },
       "assumptions": [
         {
-          "claim": "尺寸为 65 英寸整机含底座（宽 1.449 / 高 0.907 / 深 0.282 m）",
-          "basis": "三星 AU7700 官方规格页；原模型 1.5 × 0.57 × 0.05 只有面板，缺底座",
+          "claim": "面板 1.500 × 0.844 m（16:9），厚 0.0504 m，底面 y=0",
+          "basis": "16:9 换算：1.5 ÷ 16 × 9 = 0.844；三星 AU7700 65\" 规格页的整机宽高 1449.4 × 906.6 mm 与本尺寸同档",
           "confidence": 0.9,
           "risk": "形态风格差异"
         },
         {
-          "claim": "以「台面摆放含底座」为默认形态，壁挂形态由场景 elevation 决定",
-          "basis": "注册表 scaleBasis 高度 0.92 与含底座规格一致；材质预设注释称其为壁挂电视",
-          "confidence": 0.75,
-          "risk": "轴向/单位歧义"
+          "claim": "裸屏形态：不含底座与立柱；台面摆放由 tv_tabletop 承担",
+          "basis": "运行时按 tvMountStyle 在 tv_standard / tv_tabletop / tv_mobile 三份资产间切换",
+          "confidence": 0.8,
+          "risk": "形态风格差异"
         },
         {
-          "claim": "有效外廓 1.500 × 0.570 × 0.050 m",
+          "claim": "有效外廓 1.500 × 0.844 × 0.050 m",
           "basis": "原始 GLB 的世界 AABB；摆放与碰撞按真实外廓，注册表数值保留在 registrySize 做对照。本款偏差来自外凸细节（把手 / 踢脚 / 台面外沿 / 支架横杆 / 波形叶片），不是单位或比例错误",
           "confidence": 0.9,
           "risk": "尺寸不确定"
@@ -15499,7 +15499,7 @@
       ],
       "exceptions": [],
       "flagship": true,
-      "notes": "Tier A 重建：16:9 面板 + 中置底座 + 背板接口区，面数预算 450。"
+      "notes": "2026-10-28 比例修正：16:9 面板 1.500 × 0.844 × 0.050，底面落到 y=0；原资产 2.63:1 且悬空 0.285 m。"
     },
     {
       "id": "tv_tabletop",

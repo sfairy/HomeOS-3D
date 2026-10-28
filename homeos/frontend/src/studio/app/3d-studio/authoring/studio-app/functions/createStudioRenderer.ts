@@ -8,6 +8,7 @@
 
 import { createEffectCache as createEffectCache2 } from "../../studio-effect-cache";
 import { createPreviewResourceHandoff as createPreviewResourceHandoff2 } from "../../studio-preview-resources";
+import { createContextResourceTracker } from "../../studio-context-resources";
 
 
 
@@ -79,10 +80,10 @@ import {
 
 
 import type { StudioAppContext } from "../studio-app-context";
-export interface CreateStudioRendererDeps { appCtx: StudioAppContext; beginMotionMeasurement: any; bindFrameDriver: any; canBuildScene: any; computeRenderPixelRatio: any; createOrbitControls: any; disposeShadowAtlas: any; effectCache: any; endMotionMeasurement: any; ensureDiagnosticsHud: any; getPreviewFloorMode: any; hasPendingSceneWork: any; isEmbedStageMode: any; isEmbeddedStage: any; isPerformanceDiagnostics: any; isRenderStatsTest: any; lampsLayerIndex: any; needsMotionPresentation: any; planToWorldPoint: any; previewResources: any; publishModelLoadState: any; publishRenderStats: any; recordFrameTime: any; recordRenderTiming: any; refreshBaseLighting: any; renderStudioFrame: any; resizeStudioRenderer: any; scheduleLightPrecompile: any; scheduleStudioRender: any; selectElement: any; setShadowFreeze: any; syncCameraModeControls: any; syncCameraViewControls: any; updateCameraView: any; updateMotionStats: any; updateRenderStatsHud: any; }
+export interface CreateStudioRendererDeps { appCtx: StudioAppContext; beginMotionMeasurement: any; bindFrameDriver: any; canBuildScene: any; computeRenderPixelRatio: any; createOrbitControls: any; disposeShadowAtlas: any; effectCache: any; endMotionMeasurement: any; ensureDiagnosticsHud: any; getPreviewFloorMode: any; hasPendingSceneWork: any; isEmbedStageMode: any; isEmbeddedStage: any; isPerformanceDiagnostics: any; isRenderStatsTest: any; lampsLayerIndex: any; needsMotionPresentation: any; planToWorldPoint: any; previewResources: any; publishModelLoadState: any; publishRenderStats: any; recordFrameTime: any; recordRenderTiming: any; refreshBaseLighting: any; renderStudioFrame: any; resizeStudioRenderer: any; scheduleLightPrecompile: any; scheduleStudioRender: any; selectElement: any; setShadowFreeze: any; setupSceneShadows: (root: unknown, options?: { rebuildAtlas?: boolean }) => number; syncCameraModeControls: any; syncCameraViewControls: any; updateCameraView: any; updateMotionStats: any; updateRenderStatsHud: any; }
 
 export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
-  const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
+  const { appCtx, beginMotionMeasurement, bindFrameDriver, canBuildScene, computeRenderPixelRatio, createOrbitControls, disposeShadowAtlas, endMotionMeasurement, ensureDiagnosticsHud, getPreviewFloorMode, hasPendingSceneWork, isEmbedStageMode, isEmbeddedStage, isPerformanceDiagnostics, isRenderStatsTest, lampsLayerIndex, needsMotionPresentation, planToWorldPoint, publishModelLoadState, publishRenderStats, recordFrameTime, recordRenderTiming, refreshBaseLighting, renderStudioFrame, resizeStudioRenderer, scheduleLightPrecompile, scheduleStudioRender, selectElement, setShadowFreeze, setupSceneShadows, syncCameraModeControls, syncCameraViewControls, updateCameraView, updateMotionStats, updateRenderStatsHud } = deps;
 
   const previewViewportElement = selectElement("#preview-3d");
   try {
@@ -94,6 +95,9 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
         alpha: true,
         powerPreference: "high-performance",
       })),
+      // 0.8.1：非嵌入舞台（= 编辑态）才追踪上下文资源；嵌入舞台用的是宿主页面共享的渲染上下文。
+      isEmbedStageMode ||
+        (appCtx.contextResources = createContextResourceTracker(appCtx.threeRenderer)),
       isEmbeddedStage && appCtx.threeRenderer.debug && (appCtx.threeRenderer.debug.checkShaderErrors = false),
       appCtx.threeRenderer.setPixelRatio(computeRenderPixelRatio()),
       (appCtx.threeRenderer.outputColorSpace = ns2.SRGBColorSpace),
@@ -260,6 +264,14 @@ export function createStudioRenderer(deps: CreateStudioRendererDeps, ) {
             scene: appCtx.threeScene,
             camera: appCtx.threeCamera,
             syncBeforeRender: isEmbeddedStage,
+            // 嵌入舞台切层时旧楼层还在淡出，保留它的阴影层，避免切层那几帧阴影闪一下。
+            retainDetachedFloors: isEmbeddedStage,
+            // 图集彻底失败时把原生逐灯阴影重排一遍；否则这些灯会一直停在
+            // `castShadow = false`，用户看到的是一整片没有阴影的场景。
+            onFallback: (failedRoot: unknown) =>
+              setupSceneShadows(failedRoot, {
+                rebuildAtlas: false,
+              }),
             requestFrame: renderStudioFrame,
             canBuild: () =>
               !document.hidden &&

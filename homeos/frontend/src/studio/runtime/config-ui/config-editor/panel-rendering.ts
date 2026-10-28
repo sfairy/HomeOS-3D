@@ -15,6 +15,7 @@ import {
 import {
   carChargingMappingError as carChargingMappingError2,
 } from "../../vehicle/car-state";
+import { createConfigurationFeedback } from "../configuration-feedback";
 import {
   ensureItemCollections as ensureItemCollectionsCore,
   renderStatusRuleSection as renderStatusRuleSectionCore,
@@ -338,47 +339,54 @@ export function attachEditorPanelRendering(editorHost: any) {
           // 共享装饰器不在这里回收：安防 / 存在感应等入口用的是同一份，关掉本弹窗不该让它失效。
           editorHost.editorRuntime?.(),
           editorHost.accessUnsubscribe?.(),
+          configurationFeedback.dispose(),
           editorHost.editorDialogElement.remove(),
           editorHost.element.remove(),
           document.dispatchEvent(new Event("hb-i3d-preview-scope")));
       },
       saveStatusElement = editorHost.createElement("span", "i3d-save-status");
     saveStatusElement.setAttribute("role", "status");
-    const saveButtonElement = editorHost.createButton("保存配置", async () => {
+    // 保存反馈统一走状态机：脏状态按「属性快照 JSON」比较，退出前能拦住未保存的修改。
+    const configurationFeedback = createConfigurationFeedback({
+      read: () => editorHost.structuredClone2,
+      status: saveStatusElement,
+      document,
+    });
+    editorHost.configurationFeedback = configurationFeedback;
+    const saveEditorConfiguration = async () => {
       if (editorHost.isSaving || editorHost.isDisposed || !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending)
         return;
       for (const carRecord of editorHost.structuredClone2.devices?.cars || []) {
         if (!carRecord.chargingStates) continue;
         const chargingMappingError = carChargingMappingError2(carRecord.chargingStates);
         if (chargingMappingError) {
-          editorHost.errorMessageElement.textContent =
+          const chargingErrorMessage =
             (carRecord.label || carRecord.deviceName || "汽车") + "：" + chargingMappingError;
+          editorHost.errorMessageElement.textContent = chargingErrorMessage;
+          configurationFeedback.failed(new Error(chargingErrorMessage));
           return;
         }
       }
-      const structuredClone3 = structuredClone(editorHost.structuredClone2);
-      const runtimeCamera = editorHost.isDirty;
+      const savedSnapshot = configurationFeedback.capture();
       ((editorHost.isSaving = true),
-        (saveStatusElement.textContent = "保存中…"),
         (saveButtonElement.disabled = true),
         (editorHost.errorMessageElement.textContent = ""));
       try {
         if ((await requestInteraction3dAccess2(), editorHost.isDisposed)) return;
-        (await editorHost.onSaveConfig(structuredClone3),
-          editorHost.isDisposed ||
-            (saveStatusElement.textContent =
-              runtimeCamera === editorHost.isDirty ? "已保存" : "已保存，另有新修改"));
+        (await editorHost.onSaveConfig(savedSnapshot),
+          editorHost.isDisposed || configurationFeedback.saved(savedSnapshot));
       } catch (saveError: any) {
         editorHost.isDisposed ||
           ((editorHost.errorMessageElement.textContent = saveError.message),
-          (saveStatusElement.textContent = ""));
+          configurationFeedback.failed(saveError));
       } finally {
         ((editorHost.isSaving = false),
           editorHost.isDisposed ||
             (saveButtonElement.disabled =
               !editorHost.isAccessAllowed || editorHost.isCameraEditing || editorHost.isCameraCommandPending));
       }
-    });
+    };
+    const saveButtonElement = editorHost.createButton("保存配置", saveEditorConfiguration);
     ((saveButtonElement.className = "primary"),
       editorHost.headerElement.append(editorHost.createElement("strong", "", "3D " + editorHost.editorKindTitle + "配置")));
     if (
@@ -422,13 +430,16 @@ export function attachEditorPanelRendering(editorHost: any) {
     (editorHost.headerElement.append(
       saveStatusElement,
       saveButtonElement,
-      editorHost.createButton("退出", disposeEditor),
+      editorHost.createButton("退出", () =>
+        configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration),
+      ),
     ),
       editorHost.bodyElement.append(editorHost.viewElement, editorHost.panelElement),
       editorHost.editorDialogElement.append(editorHost.headerElement, editorHost.bodyElement),
       document.body.append(editorHost.editorDialogElement),
       editorHost.editorDialogElement.addEventListener("cancel", (editorCancelEvent: any) => {
-        (editorCancelEvent.preventDefault(), disposeEditor());
+        (editorCancelEvent.preventDefault(),
+          configurationFeedback.requestClose(disposeEditor, saveEditorConfiguration));
       }));
     const buildRuntimeProperties = () => {
       const floorId =
@@ -445,10 +456,9 @@ export function attachEditorPanelRendering(editorHost: any) {
             }),
       };
     };
-    function refreshEditorPreview() {
+    function refreshEditorPreview(markChanged = true) {
       (buildCurtainGroupOptions(),
-        editorHost.isDirty++,
-        editorHost.isSaving || (saveStatusElement.textContent = ""),
+        markChanged ? configurationFeedback.changed() : configurationFeedback.refresh(),
         editorHost.editorRuntime?.update(
           buildRuntimeProperties(),
           editorHost.isVacuumShortcutMode && editorHost.text

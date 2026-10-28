@@ -14,6 +14,7 @@
  */
 
 import { sceneUpdatePlan } from "../../../bridge/scene/scene-update";
+import { syncModelRemarks } from "../../../shared/model-remarks";
 
 /** 与 scene-update.ts 保持一致：这些键属于「视图/会话」状态，不参与同步比较。 */
 const VIEW_SETTING_KEYS = [
@@ -95,6 +96,49 @@ function diffFloorNames(runtimeScene: any, remoteScene: any): FloorNameChange[] 
   return changes;
 }
 
+/** 场景楼层数组（保持对象引用，供就地回填）。 */
+function sceneFloorRecords(scene: unknown): Record<string, unknown>[] {
+  const floors = (scene as { floors?: unknown } | null | undefined)?.floors;
+  if (!Array.isArray(floors)) return [];
+  return floors.filter(
+    (floor): floor is Record<string, unknown> => !!floor && typeof floor === "object",
+  );
+}
+
+/** 模型备注指纹：`集合/id → remark`，只用于判断「备注是不是别人改过」。 */
+function floorRemarkFingerprint(scene: unknown): string {
+  const floorScene = (scene ?? {}) as Record<string, unknown>,
+    entries: Array<[string, string, string]> = [];
+  for (const collectionKey of ["items", "doors"]) {
+    const collection = floorScene[collectionKey];
+    if (!Array.isArray(collection)) continue;
+    for (const entry of collection)
+      entries.push([
+        collectionKey,
+        String((entry as Record<string, unknown> | null)?.id ?? ""),
+        String((entry as Record<string, unknown> | null)?.remark ?? ""),
+      ]);
+  }
+  return JSON.stringify(entries);
+}
+
+/**
+ * 备注变化**不会**进 `sceneUpdatePlan`（`withoutModelRemarks` 把它们剔掉了），
+ * 否则改个备注就要重建整个楼层。但「只改备注」的远端变更仍然要落到本地，
+ * 否则配置弹窗里看到的是旧备注 —— 这里单独认出来，走 metadata-only。
+ */
+function hasFloorRemarkChanges(runtimeScene: unknown, remoteScene: unknown): boolean {
+  const localById = new Map<string, Record<string, unknown>>();
+  for (const floor of sceneFloorRecords(runtimeScene)) localById.set(String(floor.id ?? ""), floor);
+  for (const remoteFloor of sceneFloorRecords(remoteScene)) {
+    const localFloor = localById.get(String(remoteFloor.id ?? ""));
+    if (!localFloor) continue;
+    if (floorRemarkFingerprint(localFloor.scene) !== floorRemarkFingerprint(remoteFloor.scene))
+      return true;
+  }
+  return false;
+}
+
 /**
  * 纯决策：给定输入返回本轮同步动作。
  * 顺序敏感：embedded → 挂起 → 无视觉变化 → 全量 → 楼层合并 → 仅灯光 → 仅楼层名。
@@ -104,7 +148,8 @@ function decideSceneSync(input: SceneSyncInput): SceneSyncDecision {
   if (input.isPageSuspended) return { kind: "deferred", reason: "page-suspended" };
   const plan = sceneUpdatePlan(input.runtimeScene, input.remoteScene);
   const floorNameChanges = diffFloorNames(input.runtimeScene, input.remoteScene);
-  const hasChanges = plan.visual || floorNameChanges.length > 0;
+  const hasChanges =
+    plan.visual || floorNameChanges.length > 0 || hasFloorRemarkChanges(input.runtimeScene, input.remoteScene);
   if (!hasChanges) return { kind: "ignored", reason: "no-visual-change" };
   if (plan.full) return input.isDirty ? { kind: "flush-then-reload" } : { kind: "full-reload" };
   if (plan.floors.length > 0) {
@@ -222,11 +267,13 @@ export class StudioSceneSyncController {
         return decision;
       case "metadata-only":
         this.applyNames(decision.floorNameChanges);
+        this.applyRemarks(remoteScene);
         return decision;
       case "lighting-only": {
         const runtimeScene = this.deps.getRuntimeScene();
         const lighting = applyBaseLighting(runtimeScene, remoteScene);
         this.applyNames(decision.floorNameChanges);
+        this.applyRemarks(remoteScene);
         return { kind: "lighting-only", lighting, floorNameChanges: decision.floorNameChanges };
       }
       case "merge-floors": {
@@ -278,6 +325,19 @@ export class StudioSceneSyncController {
   private applyNames(changes: FloorNameChange[]): void {
     if (changes.length === 0) return;
     applyFloorNames(this.deps.getRuntimeScene(), changes);
+  }
+
+  /** 备注只在对齐 id 后回填：远端删掉备注要跟着删，不能留着旧的。 */
+  private applyRemarks(remoteScene: unknown): void {
+    const runtimeScene = this.deps.getRuntimeScene(),
+      remoteById = new Map<string, Record<string, unknown>>();
+    for (const remoteFloor of sceneFloorRecords(remoteScene))
+      remoteById.set(String(remoteFloor.id ?? ""), remoteFloor);
+    for (const localFloor of sceneFloorRecords(runtimeScene)) {
+      const remoteFloor = remoteById.get(String(localFloor.id ?? ""));
+      if (!remoteFloor) continue;
+      syncModelRemarks(localFloor.scene, remoteFloor.scene);
+    }
   }
 
   private flushOnce(): Promise<"saved" | "conflict" | "failed"> {

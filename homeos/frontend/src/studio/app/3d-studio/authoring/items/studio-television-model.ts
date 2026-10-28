@@ -10,7 +10,11 @@
 import { addBoxMesh } from "./studio-mesh-primitives";
 import { createWarmTelevisionGlass as createWarmTelevisionGlass2 } from "../../materials/studio-television-glass";
 import { drawTelevisionPoster as drawTelevisionPoster2 } from "../../materials/studio-television-poster";
+import { computeTelevisionProportions } from "./studio-television-proportions";
 import * as ns2 from "/static/vendor/three/0.186.1/three.module.min.js";
+
+// 比例换算已切到 `studio-television-proportions.ts`（纯函数），这里只做转出以保持旧引用可用。
+export { computeTelevisionProportions };
 
 /** 电视模型构件需要的外部状态（均为只读）。 */
 interface StudioTelevisionDeps {
@@ -37,15 +41,13 @@ function createTelevisionPoster(deps: StudioTelevisionDeps) {
   );
 }
 
-export function computeTelevisionProportions(televisionItem: any, televisionHeight: any) {
-  const isMobileMount = televisionItem.tvMountStyle === "mobile",
-    isTabletopMount = televisionItem.tvMountStyle === "tabletop";
-  return {
-    bodyHeight: televisionHeight * (isMobileMount ? 0.43 : isTabletopMount ? 0.56 : 0.62),
-    centerY: televisionHeight * (isMobileMount ? 0.76 : isTabletopMount ? 0.67 : 0.62),
-  };
-}
-
+/**
+ * 机身 / 屏幕的竖向布局见 `studio-television-proportions.ts`（纯函数、带契约测试）。
+ *
+ * `centerY` 沿用各档原来的比例（挂装 0.62 / 台面 0.67 / 移动 0.76）：16:9 面板只比原面板
+ * 高一点，电视在墙上的位置基本不动；物件框高 1.2、宽 1.8 时面板 1.737 × 0.977 也只比框高
+ * 出 5%（老版是 2.48:1、与框同高）。
+ */
 export function addTelevisionModel(
   deps: StudioTelevisionDeps,
   televisionParent: any,
@@ -54,15 +56,20 @@ export function addTelevisionModel(
   televisionDepth: any,
   televisionModelHeight: any,
 ) {
-  const { bodyHeight: ag2, centerY: ag3 } = computeTelevisionProportions(
+  const {
+      bodyHeight: ag2,
+      centerY: ag3,
+      screenWidth,
+      screenHeight,
+    } = computeTelevisionProportions(
       televisionScreenItem,
+      televisionWidth,
       televisionModelHeight,
     ),
-    screenWidth = televisionWidth * 0.965,
-    screenHeight = ag2 * 0.94,
     screenThickness = 0.012,
     screenFrontDepth = Math.max(televisionDepth * 0.28, 0.05) * 0.5 + 0.006,
-    screenBodyZ = screenFrontDepth - screenThickness * 0.5;
+    screenBodyZ = screenFrontDepth - screenThickness * 0.5,
+    screenFaceZ = screenBodyZ + screenThickness * 0.5;
   if (deps.isEmbeddedStage || televisionScreenItem.screenEnabled === false) {
     const screenBodyMesh = addBoxMesh(
       televisionParent,
@@ -95,7 +102,9 @@ export function addTelevisionModel(
     return;
   }
   const screenGlowMesh = new ns2.Mesh(
-    new ns2.PlaneGeometry(screenWidth * 1.035, screenHeight * 1.08),
+    // 发光层贴在屏幕正前方（原先把 z 算成「屏幕面 − 0.014」，结果整块埋进机身里看不见，
+    // 尺寸还比机身高出 1.6 cm）。现在与屏幕面保持 4 mm 间距、只比画面大 1%。
+    new ns2.PlaneGeometry(screenWidth * 1.01, screenHeight * 1.01),
     new ns2.MeshBasicMaterial({
       color: 7253215,
       transparent: true,
@@ -109,8 +118,8 @@ export function addTelevisionModel(
   );
   ((screenGlowMesh.userData.televisionGlow = true),
     deps.isEmbeddedStage && (screenGlowMesh.userData.environmentEffect = true),
-    screenGlowMesh.position.set(0, ag3, screenFrontDepth - 0.014),
-    (screenGlowMesh.renderOrder = 6),
+    screenGlowMesh.position.set(0, ag3, screenFaceZ + 0.004),
+    (screenGlowMesh.renderOrder = 8),
     (screenGlowMesh.castShadow = false),
     (screenGlowMesh.receiveShadow = false),
     televisionParent.add(screenGlowMesh));

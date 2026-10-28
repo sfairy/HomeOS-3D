@@ -122,7 +122,12 @@ function seedSpec({ id, folder, variants, itemTypes, descriptor, collectionModel
     folder,
     category: override.category ?? folder,
     mount: override.mount ?? mountOf({ id, primaryType, folder, collectionEntry, catalogEntry }),
-    origin: override.origin ?? originOf({ mount: override.mount ?? mountOf({ id, primaryType, folder, collectionEntry, catalogEntry }) }),
+    origin:
+      override.origin ??
+      originOf({
+        id,
+        mount: override.mount ?? mountOf({ id, primaryType, folder, collectionEntry, catalogEntry }),
+      }),
     size: registrySize,
     sizeSource,
     registrySize,

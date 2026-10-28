@@ -14,7 +14,11 @@ export function cameraPopupLayout(
   const maxPanelWidth = Math.max(1, (boardHeight - 24) / 2 - 26 - chromeHeight),
     panelWidth = Math.max(
       27,
-      Math.min(boardWidth * 0.3, (boardWidth - 32) / 2, maxPanelWidth * previewRatio + 26),
+      Math.min(
+        Math.max(300, boardWidth * 0.3),
+        (boardWidth - 32) / 2,
+        maxPanelWidth * previewRatio + 26,
+      ),
     ),
     mediaHeight = (panelWidth - 26) / previewRatio,
     panelHeight = 26 + chromeHeight + mediaHeight,

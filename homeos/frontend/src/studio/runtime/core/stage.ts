@@ -124,6 +124,7 @@ import {
 import {
   createDampedCameraMotion as createDampedCameraMotion2,
 } from "../camera/camera-motion";
+import { carClickAction as carClickAction2 } from "../vehicle/car-state";
 import {
   resolvePageBehavior as resolvePageBehavior2,
   createIdleRotation as createIdleRotation2,
@@ -1006,7 +1007,19 @@ export function mountStage(mountOptions: any) {
     speakerPanel = createSpeakerPanel2({
       onControl: controlMediaDevice,
     }),
-    nasPanel = createNasPanel2(),
+    nasPanel = createNasPanel2({
+      // 0.8.1：预览里拖动排序/缩放卡片后回传布局，仅在编辑态且正在编辑 NAS 时提交。
+      onLayout: (nasLayout: { id?: string; group: string; layout: unknown }) => {
+        ctx.isEditing &&
+          ctx.activeModule === "nas" &&
+          getFocusedEntry()?.id === nasLayout.id &&
+          postHostMessage({
+            type: "edit",
+            action: "nas-layout",
+            ...nasLayout,
+          });
+      },
+    }),
     televisionPanel = createTelevisionPanel2({
       onControl: controlMediaDevice,
     }),
@@ -1597,6 +1610,9 @@ export function mountStage(mountOptions: any) {
       requestFrame: () => {
         (mountOptions.requestRender?.(), wakeBackgroundAnimation());
       },
+      requestAnimation,
+      setRenderObjects: (airerRenderObjects: unknown[]) =>
+        mountOptions.setDynamicRenderObjects?.("airer", airerRenderObjects),
     }),
     fanMotion = createFanMotion2({
       THREE: three,
@@ -1896,7 +1912,11 @@ export function mountStage(mountOptions: any) {
           );
           return {
             ...profileDeviceEntry,
-            clickAction: profileDeviceEntry.clickAction || "focus-panel",
+            // 车辆（0.8.1）：标签与车模共用 `interactionEnabled` + `clickAction`，默认不响应点击。
+            clickAction:
+              collectDeviceKind === "smallcar"
+                ? carClickAction2(profileDeviceEntry)
+                : profileDeviceEntry.clickAction || "focus-panel",
             deviceKind: collectDeviceKind,
             deviceLabel: deviceProfile.label,
             x:
@@ -3974,9 +3994,27 @@ export function mountStage(mountOptions: any) {
         (controlErrorElement.textContent = available ? "" : errorMessage),
       syncMarkers());
   }
+  /** 固定位置告警标签：`positionMode: "fixed"` 时不跟随户型，按画面百分比定位。 */
+  function isFixedPositionAlarm(
+    markerItem: { securityAlarm?: boolean; positionMode?: string } | null | undefined,
+  ) {
+    return markerItem?.securityAlarm === true && markerItem.positionMode === "fixed";
+  }
+  function clampScreenPercent(value: unknown) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? Math.max(0, Math.min(100, numericValue)) : 50;
+  }
+  function screenPointToFixedPercent(pointerEvent: { clientX: number; clientY: number }) {
+    const stageRect = element.getBoundingClientRect();
+    return stageRect.width > 0 && stageRect.height > 0
+      ? {
+          x: ((pointerEvent.clientX - stageRect.left) / stageRect.width) * 100,
+          y: ((pointerEvent.clientY - stageRect.top) / stageRect.height) * 100,
+        }
+      : null;
+  }
   function screenPointToFloor(floorPointerEvent: any, floorMarkerItem: any) {
-    const worldPoint = mountOptions.worldPoint(
-      floorMarkerItem.floorId,
+    const worldPoint = mountOptions.worldPoint(      floorMarkerItem.floorId,
       0,
       0,
       floorMarkerItem.height,
@@ -4019,6 +4057,18 @@ export function mountStage(mountOptions: any) {
         !ctx.activePointerDrag.moved)
     )
       return;
+    const dragMarkerBinding = findBindingById(ctx.activePointerDrag.id);
+    if (isFixedPositionAlarm(dragMarkerBinding)) {
+      const fixedPercentPoint = screenPointToFixedPercent(dragMovePointerEvent);
+      fixedPercentPoint &&
+        ((ctx.activePointerDrag.moved = true),
+        (ctx.activePointerDrag.point = {
+          x: Math.round(clampScreenPercent(fixedPercentPoint.x + ctx.activePointerDrag.offset.x) * 100) / 100,
+          y: Math.round(clampScreenPercent(fixedPercentPoint.y + ctx.activePointerDrag.offset.y) * 100) / 100,
+        }),
+        renderMarkerPositions(true));
+      return;
+    }
     const dragCurrentFloorPoint = screenPointToFloor(
       dragMovePointerEvent,
       findBindingById(ctx.activePointerDrag.id),

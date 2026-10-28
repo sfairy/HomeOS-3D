@@ -62,8 +62,8 @@ import {
   normalizeFullRotation as normalizeFullRotation2,
   normalizeLabelText as normalizeLabelText2,
 } from "../../../loaders/studio-normalization";
-import {
-  normalizePillarAxis as normalizePillarAxis2,
+import { normalizeModelRemark as normalizeModelRemark2 } from "../../../../shared/model-remarks";
+import { normalizePillarAxis as normalizePillarAxis2,
   normalizePillarShape as normalizePillarShape2,
   normalizeStripAxis as normalizeStripAxis2,
 } from "../../items/studio-item-posture";
@@ -110,6 +110,22 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
           ? "architecture"
           : "all",
     ft9 = captureUndoSnapshot();
+  /** 立柱切到半圆时进深被咬合过，末尾要回刷检查器里的进深输入。 */
+  let pillarDepthSnapped = false;
+  // 模型备注是编辑期元数据：与几何字段同源提交，但空串要**删键**而不是留空串，
+  // 否则 `withoutModelRemarks` 之外的比较（保存载荷 / 场景同步）会把「从没写过备注」
+  // 和「清空过备注」当成两种不同状态。
+  if (selectedToolName === "item" || selectedToolName === "door") {
+    const modelRemarkInput = selectElement("#model-remark");
+    if (modelRemarkInput && !modelRemarkInput.closest("[hidden]")) {
+      const nextModelRemark = normalizeModelRemark2(modelRemarkInput.value);
+      modelRemarkInput.value = nextModelRemark;
+      if (nextModelRemark !== (toolPlacedElement.remark || "")) {
+        if (nextModelRemark) toolPlacedElement.remark = nextModelRemark;
+        else delete toolPlacedElement.remark;
+      }
+    }
+  }
   if (selectedToolName === "wall")
     ((toolPlacedElement.height = clamp2(
       finite2(selectElement("#wall-height").value, toolPlacedElement.height),
@@ -341,12 +357,31 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
                 ? selectElement("#stair-direction").value
                 : "right"),
             toolPlacedElement.type === "pillar" &&
-              ((toolPlacedElement.pillarShape = normalizePillarShape2(
-                selectElement("#pillar-shape").value,
-              )),
-              (toolPlacedElement.pillarAxis = normalizePillarAxis2(
-                selectElement("#pillar-axis").value,
-              ))),
+              (() => {
+                const nextPillarShape = normalizePillarShape2(
+                    selectElement("#pillar-shape").value,
+                  ),
+                  previousPillarShape = normalizePillarShape2(toolPlacedElement.pillarShape);
+                ((toolPlacedElement.pillarShape = nextPillarShape),
+                  (toolPlacedElement.pillarAxis = normalizePillarAxis2(
+                    selectElement("#pillar-axis").value,
+                  )));
+                /**
+                 * 刚切到「半圆」时把进深咬到半宽：真半圆的深度只能是半径，
+                 * 而占位框是 width × depth 的矩形 —— 进深留在 0.45 会把半径 0.225 的
+                 * 圆弧沿 Z 拉成半椭圆（深 = 直径），看上去像被压扁的桶。
+                 * 只在**切入**那一下就咬合；之后手动改进深仍是半椭圆（平面轮廓与 3D 同源）。
+                 */
+                if (nextPillarShape !== "semicircle" || previousPillarShape === "semicircle") return;
+                const snappedDepth = clamp2(
+                  toolPlacedElement.width / 2,
+                  itemMinimumFootprint2(toolPlacedElement.type),
+                  8,
+                );
+                if (Math.abs(snappedDepth - toolPlacedElement.depth) < 0.001) return;
+                toolPlacedElement.depth = snappedDepth;
+                pillarDepthSnapped = true;
+              })(),
             toolPlacedElement.type === "pipelinewaterpurifier" &&
               setPipelineDispenserStyle(
                 toolPlacedElement,
@@ -469,6 +504,9 @@ export function applyToolSetting(deps: ApplyToolSettingDeps, selectedToolName: a
     (refreshStudioUi(true), refreshScopeItems(yr2));
     return;
   }
-  (applyPlacementChange(ft9), refreshScopeItems(yr2), markDocumentDirty());
+  (applyPlacementChange(ft9),
+    pillarDepthSnapped && refreshStudioUi(false),
+    refreshScopeItems(yr2),
+    markDocumentDirty());
 
 }

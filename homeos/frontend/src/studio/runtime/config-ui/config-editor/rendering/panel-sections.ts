@@ -42,7 +42,7 @@ export interface PanelSectionsDeps {
   /** 关闭「新增」确认弹窗。 */
   closeAddDialog: () => any;
   /** 局部重绘编辑器预览。 */
-  refreshEditorPreview: () => any;
+  refreshEditorPreview: (markChanged?: boolean) => any;
   /** 行控件工厂（标签 + 控件 → 一行元素）。 */
   createSettingRow: (rowContainer: any, rowLabel: any, rowControl: any) => any;
   /** 整面板重绘。 */

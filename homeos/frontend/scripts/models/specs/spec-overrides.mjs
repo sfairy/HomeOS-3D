@@ -247,7 +247,17 @@ export function mountOf({ id, primaryType, folder, collectionEntry }) {
   return 'floor'
 }
 
-export function originOf({ mount }) {
+/**
+ * 异形柱：原点在**圆弧圆心**而不是平面占位中心。
+ *
+ * 半圆柱的圆心在直径面（墙线）上、四分之一圆柱的圆心在两片平背面相交的转角上，
+ * 资产已按这个口径归心（`scripts/models/recenter-pillar-arc.mjs`），运行期
+ * `preserveOrigin: true` 直接拿原点当摆放锚点与旋转轴。
+ */
+const ARC_CENTER_ORIGIN_IDS = new Set(['pillar-semicircle', 'pillar-quarter'])
+
+export function originOf({ id, mount }) {
+  if (ARC_CENTER_ORIGIN_IDS.has(id)) return 'floor-arc-center'
   if (mount === 'wall') return 'wall-back-center'
   if (mount === 'ceiling') return 'ceiling-center'
   if (mount === 'tabletop') return 'base-center'
@@ -835,27 +845,30 @@ export const specOverrides = {
     notes: 'Tier B：保留弧形比例，重做底座/杆/灯罩的槽位契约；决定是否登记进注册表。',
   },
   tv_standard: {
-    // 实测 1.5 × 0.57 × 0.05 只有面板，没有底座；注册表 1.5 × 0.92 × 0.18 是「含底座」口径。
-    // 按厂商规格改写为 65 英寸整机（含底座），Tier A 重建时补底座与 16:9 面板。
-    size: [1.449, 0.907, 0.282],
-    mount: 'tabletop',
+    // 「标准」档是壁挂裸屏：1.500 × 0.844 × 0.050，16:9、底面 y=0。
+    // 带底座的是 tv_tabletop（0.874 高），带落地支架的是 tv_mobile（1.55 高）。
+    // 2026-10-28：原资产面板只有 0.570 高（2.63:1）且整体浮在原点上方 0.285，已按 16:9 修正。
+    size: [1.5, 0.844, 0.0504],
+    mount: 'wall',
+    origin: 'base-center',
     reference: TV_REFERENCE,
     animated: false,
     assumptions: [
       {
-        claim: '尺寸为 65 英寸整机含底座（宽 1.449 / 高 0.907 / 深 0.282 m）',
-        basis: '三星 AU7700 官方规格页；原模型 1.5 × 0.57 × 0.05 只有面板，缺底座',
+        claim: '面板 1.500 × 0.844 m（16:9），厚 0.0504 m，底面 y=0',
+        basis:
+          '16:9 换算：1.5 ÷ 16 × 9 = 0.844；三星 AU7700 65" 规格页的整机宽高 1449.4 × 906.6 mm 与本尺寸同档',
         confidence: 0.9,
         risk: '形态风格差异',
       },
       {
-        claim: '以「台面摆放含底座」为默认形态，壁挂形态由场景 elevation 决定',
-        basis: '注册表 scaleBasis 高度 0.92 与含底座规格一致；材质预设注释称其为壁挂电视',
-        confidence: 0.75,
-        risk: '轴向/单位歧义',
+        claim: '裸屏形态：不含底座与立柱；台面摆放由 tv_tabletop 承担',
+        basis: '运行时按 tvMountStyle 在 tv_standard / tv_tabletop / tv_mobile 三份资产间切换',
+        confidence: 0.8,
+        risk: '形态风格差异',
       },
     ],
-    notes: 'Tier A 重建：16:9 面板 + 中置底座 + 背板接口区，面数预算 450。',
+    notes: '2026-10-28 比例修正：16:9 面板 1.500 × 0.844 × 0.050，底面落到 y=0；原资产 2.63:1 且悬空 0.285 m。',
   },
   // ── 庭院植物 15 款（2026-10-24 形态重建）───────────────────────────
   // 参照全部是**品类常识**而不是厂商页：植物的「规格」没有国标可引，能查的是物种的
@@ -1253,12 +1266,12 @@ const MEASURED_AABB = {
   'storage-cart': [0.466, 0.792, 0.326],
   'switch-console': [0.241, 0.128, 0.096],
   'tea-bar-machine': [0.402, 1.162, 0.402],
-  tv_mobile: [1.5, 0.897, 0.3],
+  tv_mobile: [1.5, 1.55, 0.55],
   tv_tabletop: [1.5, 0.874, 0.16],
   'up-down-wall-lamp': [0.06, 0.3, 0.06],
   'water-purifier': [0.18, 0.415, 0.365],
   'yoga-set': [1.363, 0.65, 1.8],
-  tv_standard: [1.5, 0.57, 0.05],
+  tv_standard: [1.5, 0.844, 0.0504],
   wallac: [0.9, 0.28, 0.231],
 }
 

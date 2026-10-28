@@ -4,6 +4,7 @@ import {
 } from "./vacuum-map";
 import { domElement } from "@app/shared/util/dom-factory";
 import { createSvgElement as createSvgElementFromFactory } from "@app/shared/util/svg-factory";
+import { createConfigurationFeedback } from "../config-ui/configuration-feedback";
 function planFurniture(
   plan: {
     pixelsPerMeter?: number | string;
@@ -98,11 +99,19 @@ export function openVacuumMapEditor({
     titleElement = createHtmlElement("strong", (floor?.name || "当前楼层") + " · 底图对齐"),
     statusElement = createHtmlElement("span");
   statusElement.setAttribute("role", "status");
+  // 底图对齐的保存反馈：拖拽 / 缩放 / 改数值都算脏，关闭前拦住未保存的调整。
+  const configurationFeedback = createConfigurationFeedback({
+    read: () => draftState,
+    status: statusElement,
+    document: documentRef,
+    savedMessage: "已应用，最后保存扫地机配置",
+  });
   let isClosed = false,
     dragState: any = null;
   const closeEditor = () => {
       isClosed ||
         ((isClosed = true),
+        configurationFeedback.dispose(),
         mapImageLoader.dispose(),
         document.removeEventListener("visibilitychange", syncMapImage),
         resizeObserver.disconnect(),
@@ -117,12 +126,16 @@ export function openVacuumMapEditor({
         createdButtonElement
       );
     },
-    saveButtonElement = createButton("保存", () => {
-      (saveHandler(structuredClone(draftState)),
-        (statusElement.textContent = "已应用，最后保存扫地机配置"));
-    });
+    saveButtonElement = createButton("保存", () => void acceptMap());
+  function acceptMap() {
+    const savedSnapshot = configurationFeedback.capture();
+    saveHandler(structuredClone(savedSnapshot));
+    configurationFeedback.saved(savedSnapshot);
+  }
   saveButtonElement.className = "primary";
-  const closeButtonElement = createButton("×", closeEditor);
+  const closeButtonElement = createButton("×", () =>
+    configurationFeedback.requestClose(closeEditor, async () => acceptMap()),
+  );
   (closeButtonElement.setAttribute("aria-label", "关闭底图对齐"),
     headerElement.append(titleElement, statusElement, saveButtonElement, closeButtonElement));
   const bodyElement = createHtmlElement("div");
@@ -394,6 +407,7 @@ export function openVacuumMapEditor({
           }
           ((boundObject[boundKey] = Math.max(minValue, Math.min(maxValue, inputValue))),
             (inputElement.value = boundObject[boundKey]),
+            configurationFeedback.changed(),
             renderEditor());
         }),
         fieldLabelElement.append(labelTextElement, inputElement),
@@ -428,7 +442,9 @@ export function openVacuumMapEditor({
     (visibilityToggleElement.checked = draftState.map.visible),
     visibilityToggleElement.setAttribute("aria-label", "显示地图"),
     visibilityToggleElement.addEventListener("change", () => {
-      ((draftState.map.visible = visibilityToggleElement.checked), renderEditor());
+      ((draftState.map.visible = visibilityToggleElement.checked),
+        configurationFeedback.changed(),
+        renderEditor());
     }),
     visibilityToggleLabelElement.append(
       createHtmlElement("span", "显示地图"),
@@ -453,6 +469,7 @@ export function openVacuumMapEditor({
       createButton("重置地图位置", () => {
         (Object.assign(draftState.map, defaultMapConfig),
           (visibilityToggleElement.checked = true),
+          configurationFeedback.changed(),
           renderEditor());
       }),
     ));
@@ -575,6 +592,7 @@ export function openVacuumMapEditor({
         depth: draftState.map.depth,
       }),
         (dragState = null),
+        configurationFeedback.changed(),
         svgElement.setPointerCapture(downEvent.pointerId));
       return;
     }
@@ -593,6 +611,7 @@ export function openVacuumMapEditor({
           ...draftState.map,
         },
       }),
+      (dragKind || "pan") !== "pan" && configurationFeedback.changed(),
       svgElement.setPointerCapture(downEvent.pointerId));
   }),
     svgElement.addEventListener("pointermove", (moveEvent: any) => {
@@ -698,7 +717,8 @@ export function openVacuumMapEditor({
     dialogElement.append(headerElement, bodyElement),
     documentRef.body.append(dialogElement),
     dialogElement.addEventListener("cancel", (cancelEvent: any) => {
-      (cancelEvent.preventDefault(), closeEditor());
+      (cancelEvent.preventDefault(),
+        configurationFeedback.requestClose(closeEditor, async () => acceptMap()));
     }),
     dialogElement.showModal(),
     viewToolsElement.lastElementChild.click(),

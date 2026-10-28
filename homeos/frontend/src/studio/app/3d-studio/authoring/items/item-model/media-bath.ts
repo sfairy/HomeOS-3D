@@ -60,6 +60,7 @@ export function buildMediaBath(scope: ItemModelScope): boolean {
       } =
         computeTelevisionProportions(
           modelItem,
+          width6,
           height6,
         ),
       tvStandTopY =

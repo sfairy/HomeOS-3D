@@ -35,7 +35,7 @@ export interface PanelSessionDeps {
   /** 整面板重绘。 */
   renderPanel: () => any;
   /** 局部重绘编辑器预览。 */
-  refreshEditorPreview: () => any;
+  refreshEditorPreview: (markChanged?: boolean) => any;
   /** 新增条目弹窗。 */
   openAddDialog: (addDialogTriggerEvent?: any) => any;
 }
@@ -175,7 +175,7 @@ export async function switchEditorKind(
           )),
         (editorHost.errorMessageElement.textContent = ""),
         renderPanel(),
-        refreshEditorPreview(),
+        refreshEditorPreview(false),
         (editorHost.panelElement.scrollTop = savedKindSession?.scrollTop || 0),
         shouldOpenAddDialog && openAddDialog());
     }

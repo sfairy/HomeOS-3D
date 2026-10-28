@@ -2524,6 +2524,70 @@ dialog.hb-interaction3d-runtime:not(.is-borrowed-editor) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * 配置进度与统一选择器（0.8.1）：
+ * 选项上排是图标 + 名称（`.i3d-device-category-option-top`），第二行是
+ * 「模型 12 · 已配置 8 · 未配置 4」计数，第三行是明细。计数用等宽数字，
+ * 零值压暗，其余按状态配色（已配置 = 强调色，缺失 = 告警色）。
+ * ------------------------------------------------------------------ */
+.i3d-configuration-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  color: var(--muted, #89949d);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.i3d-configuration-number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--text, #e8ecef);
+}
+.i3d-configuration-number.is-zero {
+  color: var(--muted, #89949d);
+}
+.i3d-configuration-number.is-configured {
+  color: var(--hos-color-accent);
+}
+.i3d-configuration-number.is-missing {
+  color: #e2725b;
+}
+.i3d-device-category-option-top {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+.i3d-device-category-option {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.i3d-device-category-option-label.is-wrapped {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+.i3d-configuration-detail {
+  flex-basis: 100%;
+  min-width: 0;
+  color: var(--muted, #89949d);
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.i3d-configuration-detail.is-configured {
+  color: var(--hos-color-accent);
+}
+.i3d-configuration-detail.is-missing {
+  color: #e2725b;
+}
+.i3d-configuration-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 /* 配置入口的楼层选择：单层直接进入，多层弹这一张列表。 */
 .i3d-floor-entry-dialog {
   width: min(400px, calc(100vw - 40px));

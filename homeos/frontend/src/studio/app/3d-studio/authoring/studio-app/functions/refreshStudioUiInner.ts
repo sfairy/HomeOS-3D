@@ -8,6 +8,7 @@ import {
 import {
   isCourtyardGate as isCourtyardGate2,
 } from "../../../plan/courtyard-drawing";
+import { normalizeModelRemark as normalizeModelRemark2 } from "../../../../shared/model-remarks";
 
 
 import {
@@ -132,6 +133,18 @@ export function refreshStudioUiInner(deps: RefreshStudioUiInnerDeps, shouldClear
       syncStudioSelect2(selectElement("#courtyard-gate-style"))),
     !(!at4 || !appCtx.selectedItem))
   ) {
+    // 备注只对「门 / 物件」开放：灯具有灯组与批量入口、平面标签与庭院绘制走各自的命名，
+    // 都不参与 3D 交互里的模型选择，给了输入框反而会让人以为能按备注选中。
+    const isRemarkableModel =
+      at4 &&
+      (appCtx.selectedItem.kind === "door" ||
+        (appCtx.selectedItem.kind === "item" &&
+          at4.type !== "planlabel" &&
+          !lampItemTypeSet.has(at4.type) &&
+          !isCourtyardDrawing2(at4)));
+    ((selectElement("#model-remark-field").hidden = !isRemarkableModel),
+      isRemarkableModel &&
+        setControlValue(selectElement("#model-remark"), normalizeModelRemark2(at4.remark)));
     if (
       ((lightPreviewNoteElement.hidden = true),
       selectionHeadingElement.classList.remove("light-selected"),

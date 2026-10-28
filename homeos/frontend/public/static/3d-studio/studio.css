@@ -2810,6 +2810,21 @@ html.list-drag-active * {
   color: #919da7;
   font-size: 10px;
 }
+/* 模型备注：只对「物件 / 门」显示，按备注在 3D 交互里认出同名模型。 */
+.model-remark-field {
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.model-remark-field label,
+.model-remark-field input {
+  min-width: 0;
+}
+.model-remark-field label small {
+  margin-left: 4px;
+  color: #6f7d88;
+  font-size: inherit;
+}
 .field-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));

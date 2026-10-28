@@ -153,6 +153,8 @@ export interface StudioAppContext {
   isLightCacheReady: boolean;
   isLightCacheDeferred: boolean;
   compiledShaderCache: any;
+  /** 0.8.1 上下文资源追踪（非嵌入舞台才有）。 */
+  contextResources: { releaseLostContext(): void; dispose(): void } | null;
   backgroundController: any;
   isLightCachePending: boolean;
   lightingScheduler: any;
@@ -353,6 +355,7 @@ export function createStudioAppContext(): StudioAppContext {
     isLightCacheReady: true,
     isLightCacheDeferred: false,
     compiledShaderCache: null,
+    contextResources: null,
     backgroundController: null,
     isLightCachePending: false,
     lightingScheduler: null,

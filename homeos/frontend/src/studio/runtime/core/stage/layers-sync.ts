@@ -367,6 +367,10 @@ export function syncLayoutMetricsCore(deps: StageLayersSyncDeps) {
     });
     (deps.lightPanelSection.style.setProperty("--i3d-control-top", us2.top + "px"),
       deps.lightPanelSection.style.setProperty("--i3d-control-scale", String(us2.scale)),
+      deps.lightPanelSection.style.setProperty(
+        "--i3d-control-max-height",
+        us2.maxHeight + "px",
+      ),
       (deps.lightPanelSection.style.right = us2.right + "px"),
       Object.assign(deps.presentationLayerElement.style, {
         width: width3 + "px",

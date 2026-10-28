@@ -1,4 +1,5 @@
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.1/RoundedBoxGeometry.js";
+import { applyReviewedShells } from "../scene/studio-reviewed-shells";
 
 type AirerDimensionOptions = {
   elevation?: unknown;
@@ -105,7 +106,19 @@ function createSingleAirerModel(three: any, airerConfig: any, palette: any) {
   );
 }
 
-export function createAirerModel(three: any, airerConfig: any, palette: any) {
+export function createAirerModel(
+  three: any,
+  airerConfig: any,
+  palette: any,
+  /**
+   * 复核外壳剔除。上游默认开，本项目**默认关**，理由是实测的：
+   * `studio-reviewed-shell-data.ts` 的掩码是按上游几何的指纹人工复核的，本仓机型几何
+   * 是 0.8.0 期移植版，指纹对不上（fan / airer / camera / presence 实测命中 0 条），
+   * 开着只会为每个模型多付一遍全量顶点+索引哈希（实测风扇 +8.5ms/个），一个三角形都剔不掉。
+   * 重新按本仓几何复核掩码后，把这里的默认值改回 true 即可。
+   */
+  { pruneShell = false }: { pruneShell?: boolean } = {},
+) {
   if (airerDimensions(airerConfig).airerStyle === "single")
     return createSingleAirerModel(three, airerConfig, palette);
   const dimensions = airerDimensions(airerConfig),
@@ -289,12 +302,18 @@ export function createAirerModel(three: any, airerConfig: any, palette: any) {
   ])
     (restShadowNode.updateMatrix(),
       (restShadowNode.userData.contactShadowRestMatrix = restShadowNode.matrix.toArray()));
+  /**
+   * 复核外壳剔除放在最后一步：它会重建索引、压紧顶点并重算 groups，
+   * 必须等 `airerRig` 与 `contactShadowRestMatrix` 都按原始几何写完之后再进行，
+   * 免得后续还要按顶点表定位的代码读到压紧过的数据。
+   */
   return (
     (airerGroup.userData.airerRig = {
       preview: dimensions.airerPreview,
       pose: updateRackPose,
       setLight: () => {},
     }),
+    pruneShell && applyReviewedShells(three, airerGroup, "airer"),
     airerGroup
   );
 }

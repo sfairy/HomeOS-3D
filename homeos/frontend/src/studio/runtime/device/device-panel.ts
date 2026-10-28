@@ -170,21 +170,16 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
           ? "var(--i3d-device-status-" + status.status + "," + status.color + ")"
           : ""),
         (badgeElement.textContent = ""),
+        // 0.8.1：车辆配置了附加功能（extraControls）时不再清空，与其它设备一样在弹窗里渲染功能卡片。
         (hintElement.hidden = !!incomingState.item.extraControls?.length),
         incomingState.item.deviceKind === "smallcar")
       ) {
         const carStatus = carState(incomingState.item, incomingState.states);
         ((statusElement.hidden = false),
           (statusElement.textContent = "电量 " + carStatus.batteryText + " · " + carStatus.status),
-          (hintElement.hidden = true),
-          purifierExtras.update({
-            ...incomingState,
-            item: {
-              ...incomingState.item,
-              extraControls: [] as any[],
-            },
-          }));
-      } else purifierExtras.update(incomingState);
+          (hintElement.hidden = true));
+      }
+      purifierExtras.update(incomingState);
       // 冰箱用专属图形（对开门 + 两层抽屉），开口开合由门磁实时驱动；其余通用设备仍是通用图形。
       const isFridge = incomingState.item.deviceKind === "fridge";
       deviceVisual.sync({

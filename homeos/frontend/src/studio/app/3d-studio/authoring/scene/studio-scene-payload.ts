@@ -20,6 +20,7 @@ import { normalizePipelineDispenserStyle } from "../items/pipeline-dispenser";
 import { STORAGE_SECTION_TYPES } from "../items/studio-storage-sections";
 import { lightAngleLimitForType, lightPresetCatalog } from "../lights/studio-app-light-data";
 import { normalizeFeatureWallStyle, normalizeMuralArtStyle } from "../../materials/studio-surface-textures";
+import { normalizeModelRemark as normalizeModelRemark2 } from "../../../shared/model-remarks";
 import { normalizePillarAxis as normalizePillarAxis2, normalizePillarShape as normalizePillarShape2, normalizeStripAxis as normalizeStripAxis2 } from "../items/studio-item-posture";
 import { remapOpeningsToWalls } from "../../plan/studio-wall-openings";
 
@@ -263,6 +264,7 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
       ? rawScene.doors
           .map((rawDoor: any) => ({
             id: String(rawDoor?.id || generateId("door")),
+            remark: normalizeModelRemark2(rawDoor?.remark),
             wallId: String(rawDoor?.wallId || ""),
             t: clamp2(finite2(rawDoor?.t, 0.5), 0, 1),
             width: clamp2(finite2(rawDoor?.width, 0.9), 0.55, 20),
@@ -425,6 +427,7 @@ export function normalizeScenePayload(rawScene: any, externalModelRegistry: any)
                   }
                 : {}),
               id: String(rawItemRecord?.id || generateId("item")),
+              remark: normalizeModelRemark2(rawItemRecord?.remark),
               type:
                 rawItemRecord?.type === "rounddiningtableturntable"
                   ? "rounddiningtable"

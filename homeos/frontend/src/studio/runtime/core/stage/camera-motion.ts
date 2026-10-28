@@ -4,7 +4,7 @@
  * 从 `runtime/core/stage.ts` 的 `mountStage()` 闭包切出，依赖袋 `StageCameraMotionDeps`。
  */
 
-import { automaticAirConditionerCamera as automaticAirConditionerCamera2, automaticLightCamera as automaticLightCamera2 } from "../../camera/camera-motion";
+import { automaticAirConditionerCamera as automaticAirConditionerCamera2, automaticLightCamera as automaticLightCamera2, automaticVehicleCamera as automaticVehicleCamera2 } from "../../camera/camera-motion";
 import { climateState as climateState2 } from "../../climate/climate-state";
 import { coverControl as coverControl2 } from "../../cover/cover-state";
 import { curtainGroupEntryId as curtainGroupEntryId2 } from "../../cover/cover-groups";
@@ -256,6 +256,26 @@ export function exitFocusModeCore(deps: StageCameraMotionDeps, exitOptions: { im
       syncCameraInteractionCore(deps));
   }
 
+/**
+ * 车辆聚焦时是否需要为竖屏弹窗让位：车辆、非「仅聚焦」、弹窗无自定义锚点、画布竖屏。
+ * 与上游 `_0x…` 的三段判断一致，缺一段都会让车被弹窗压住或让偏移白做。
+ */
+function carPortraitPanelOpen(
+  deps: StageCameraMotionDeps,
+  carMarkerItem: { deviceKind?: string; clickAction?: string } | null | undefined,
+) {
+  if (carMarkerItem?.deviceKind !== "smallcar") return false;
+  if ((carMarkerItem.clickAction || "none") === "focus") return false;
+  const generalPlacement = deps.options?.popupLayout?.general;
+  if (
+    generalPlacement?.custom !== false &&
+    (Number.isFinite(generalPlacement?.x) || Number.isFinite(generalPlacement?.y))
+  )
+    return false;
+  const canvasWidth = deps.canvasElement?.clientWidth || 0;
+  return canvasWidth > 0 && canvasWidth < (deps.canvasElement?.clientHeight || 0);
+}
+
 export function focusMarkerByIdCore(deps: StageCameraMotionDeps, targetMarkerId: any, focusMode = "runtime", isImmediate = false) {
     const targetMarkerItem = deps.findBindingById(targetMarkerId);
     // 门锁与其它 panel 设备一致：直播允许 focus / panel（lock-panel 负责控制）
@@ -360,7 +380,9 @@ export function focusMarkerByIdCore(deps: StageCameraMotionDeps, targetMarkerId:
       focusCamera =
         targetMarkerItem.focusCamera ||
         (targetMarkerItem.modelId
-          ? automaticAirConditionerCamera2(
+          ? (targetMarkerItem.deviceKind === "smallcar"
+              ? automaticVehicleCamera2
+              : automaticAirConditionerCamera2)(
               deps.three,
               {
                 ...camera,
@@ -369,12 +391,14 @@ export function focusMarkerByIdCore(deps: StageCameraMotionDeps, targetMarkerId:
               focusWorldPoint,
               anchor2?.forward,
               anchor2?.size,
-              targetMarkerItem.deviceKind === "nas"
-                ? {
-                    minimumFrameSize: 0.7,
-                    minimumDistance: 0.6,
-                  }
-                : {},
+              targetMarkerItem.deviceKind === "smallcar"
+                ? { portraitPanel: carPortraitPanelOpen(deps, targetMarkerItem) }
+                : targetMarkerItem.deviceKind === "nas"
+                  ? {
+                      minimumFrameSize: 0.7,
+                      minimumDistance: 0.6,
+                    }
+                  : {},
             )
           : automaticLightCamera2(deps.three, camera, focusWorldPoint));
     (deps.isEditing ||
@@ -397,11 +421,12 @@ export function activateMarkerCore(deps: StageCameraMotionDeps, activatedMarkerI
       (!deps.isEditing && activatedMarkerItem.modelAvailable === false) ||
       (!deps.isEditing && (activatedMarkerItem.overviewQuip || activatedMarkerItem.passiveSensor)) ||
       (deps.followVacuumId && !deps.isEditing) ||
-      (!deps.isEditing &&
-        ["temperature-humidity", "smallcar"].includes(activatedMarkerItem.deviceKind))
+      // 0.8.1：车辆标签与车模共用点击行为，不再整体屏蔽；是否响应由 `clickAction` 决定。
+      (!deps.isEditing && activatedMarkerItem.deviceKind === "temperature-humidity")
     )
       return;
     const markerClickAction = activatedMarkerItem.clickAction || "focus";
+    if (!deps.isEditing && markerClickAction === "none") return;
     if (deps.isEditing) {
       ((deps.text = activatedMarkerId),
         postHostMessage({
@@ -631,22 +656,36 @@ export function beginMarkerDragCore(deps: StageCameraMotionDeps, dragStartEvent:
         action: "select",
         id: dragMarkerId,
       }));
-    const dragStartFloorPoint = deps.screenPointToFloor(dragStartEvent, dragMarkerItem);
+    const isFixedAlarmDrag =
+        dragMarkerItem.securityAlarm === true && dragMarkerItem.positionMode === "fixed",
+      clampFixedPercent = (fixedValue: unknown) => {
+        const numericValue = Number(fixedValue);
+        return Number.isFinite(numericValue) ? Math.max(0, Math.min(100, numericValue)) : 50;
+      },
+      dragStartFixedPoint = isFixedAlarmDrag
+        ? { x: clampFixedPercent(dragMarkerItem.fixedX), y: clampFixedPercent(dragMarkerItem.fixedY) }
+        : null,
+      dragStartFloorPoint = deps.screenPointToFloor(dragStartEvent, dragMarkerItem);
     ((deps.activePointerDrag = {
       id: dragMarkerId,
       pointerId: dragStartEvent.pointerId,
       clientX: dragStartEvent.clientX,
       clientY: dragStartEvent.clientY,
       original: {
-        x: dragMarkerItem.x,
-        y: dragMarkerItem.y,
+        x: dragStartFixedPoint ? dragStartFixedPoint.x : dragMarkerItem.x,
+        y: dragStartFixedPoint ? dragStartFixedPoint.y : dragMarkerItem.y,
       },
       point: {
-        x: dragMarkerItem.x,
-        y: dragMarkerItem.y,
+        x: dragStartFixedPoint ? dragStartFixedPoint.x : dragMarkerItem.x,
+        y: dragStartFixedPoint ? dragStartFixedPoint.y : dragMarkerItem.y,
       },
       height: dragMarkerItem.height,
-      offset: dragStartFloorPoint
+      offset: dragStartFixedPoint
+        ? {
+            x: 0,
+            y: 0,
+          }
+        : dragStartFloorPoint
         ? {
             x: dragMarkerItem.x - dragStartFloorPoint.x,
             y: dragMarkerItem.y - dragStartFloorPoint.y,
@@ -730,9 +769,15 @@ export function endMarkerDragCore(deps: StageCameraMotionDeps, dragEndEvent: any
                           (deviceCollectionItem: any) =>
                             deviceCollectionItem.id === deps.activePointerDrag.id,
                         ),
-          nextMarkerPosition = {
-            ...deps.activePointerDrag.point,
-          };
+          nextMarkerPosition =
+            draggedMarkerItem.securityAlarm === true && draggedMarkerItem.positionMode === "fixed"
+              ? {
+                  fixedX: deps.activePointerDrag.point.x,
+                  fixedY: deps.activePointerDrag.point.y,
+                }
+              : {
+                  ...deps.activePointerDrag.point,
+                };
         if (draggedMarkerItem.deviceKind === "smallcar") {
           const smallcarSceneItem = deps.stageModelIndex.item(
             draggedMarkerItem.floorId,

@@ -13,6 +13,7 @@ import {
   lockEntityRole,
 } from "@app/bridge/lock-state-runtime";
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
+import { modelChoiceLabel } from "@app/shared/model-remarks";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { temperatureHumidityFloorCenter } from "@app/bridge/temperature-humidity";
 import { validateGo2rtcUrl } from "../camera/go2rtc-url";
@@ -37,6 +38,7 @@ import {
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
 import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/presets/preview-layout";
+import { createConfigurationFeedback } from "../config-ui/configuration-feedback";
 import { domElement } from "@app/shared/util/dom-factory";
 export async function openSecurityEditor({
   component: component,
@@ -90,6 +92,12 @@ export async function openSecurityEditor({
       (errorMessageElement.hidden = !errorMessageElement.textContent));
   };
   setSaveResultMessage("");
+  // 保存反馈状态机：脏状态按属性快照比较，退出前拦住未保存的修改。
+  const configurationFeedback = createConfigurationFeedback({
+    read: () => draftProperties,
+    status: errorMessageElement,
+    document: documentApi,
+  });
   let sceneMetadata: any = initialEditorView?.metadata || null,
     selectedFloorId =
       editingFloorId ||
@@ -221,7 +229,7 @@ export async function openSecurityEditor({
       );
   }
   function markPropertiesDirty() {
-    (setSaveResultMessage("配置已修改，请保存配置。"), syncEditorRuntime());
+    (configurationFeedback.changed(), syncEditorRuntime());
   }
   function closeActivePicker() {
     (pickerGeneration++, activePickerHandle?.close(), (activePickerHandle = null));
@@ -329,7 +337,7 @@ export async function openSecurityEditor({
     (fieldLabelElement.append(createElement("span", "", fieldLabel), inputElement),
       currentContainerElement.append(fieldLabelElement));
   }
-  const saveButtonElement = createButton("保存配置", async () => {
+  async function saveConfiguration() {
     if (!(isSaving || !isAccessAllowed || isCameraEditing || isPresenceEditorOpen)) {
       ((isSaving = true), renderPanel());
       try {
@@ -338,21 +346,24 @@ export async function openSecurityEditor({
         for (const cameraItem of draftProperties.security?.cameras || [])
           cameraItem?.cameraSource === "go2rtc" && validateGo2rtcUrl(cameraItem?.go2rtcUrl);
         if ((await requestInteraction3dAccess(), isDisposed || !isAccessAllowed)) return;
-        (await onSaveConfig(structuredClone(draftProperties)),
-          isDisposed || setSaveResultMessage("已应用到编辑器，请保存仪表盘。"));
+        const savedSnapshot = configurationFeedback.capture();
+        (await onSaveConfig(structuredClone(savedSnapshot)),
+          isDisposed || configurationFeedback.saved(savedSnapshot));
       } catch (saveError: any) {
-        showError(saveError);
+        (showError(saveError), isDisposed || configurationFeedback.failed(saveError));
       } finally {
         ((isSaving = false), isDisposed || renderPanel());
       }
     }
-  });
+  }
+  const saveButtonElement = createButton("保存配置", () => void saveConfiguration());
   saveButtonElement.className = "primary";
   function closeEditor() {
     isDisposed ||
       ((isDisposed = true),
       closeActivePicker(),
       stopAlarmPreview(),
+      configurationFeedback.dispose(),
       presenceEditorHandle?.close(),
       editorRuntime?.(),
       previewResizeObserver.disconnect(),
@@ -384,11 +395,14 @@ export async function openSecurityEditor({
     createElement("strong", "", "3D 安防配置"),
     showAllLabelsToggle,
     saveButtonElement,
-    createButton("退出", closeEditor),
+    createButton("退出", () =>
+      configurationFeedback.requestClose(closeEditor, saveConfiguration),
+    ),
   ),
     editorDialogElement.append(headerElement, bodyElement),
     editorDialogElement.addEventListener("cancel", (cancelEvent: any) => {
-      (cancelEvent.preventDefault(), closeEditor());
+      (cancelEvent.preventDefault(),
+        configurationFeedback.requestClose(closeEditor, saveConfiguration));
     }));
   function updatePreviewSize() {
     const previewSize = interaction3dPreviewSize(
@@ -1129,17 +1143,40 @@ export async function openSecurityEditor({
             );
           })(),
         ));
-      const appearanceSection = createSectionHeading("位置与外观"),
-        coordinateGrid = createElement("div", "i3d-coordinate-grid");
+      const appearanceSection = createSectionHeading("位置与外观");
+      // 0.8.1 安防标签可固定在仪表盘画面中：`follow` 跟随户型，`fixed` 用画面百分比定位。
+      createSegmentedField(
+        "位置模式",
+        [
+          ["follow", "跟随户型"],
+          ["fixed", "固定位置"],
+        ],
+        selectedItem.positionMode === "fixed" ? "fixed" : "follow",
+        (pickedPositionMode: string) => {
+          ((selectedItem.positionMode = pickedPositionMode),
+            pickedPositionMode === "fixed" &&
+              ((selectedItem.fixedX ??= 50), (selectedItem.fixedY ??= 50)),
+            markPropertiesDirty(),
+            renderPanel());
+        },
+      );
+      const coordinateGrid = createElement("div", "i3d-coordinate-grid");
       (appearanceSection.append(coordinateGrid), (currentContainerElement = coordinateGrid));
-      for (const [fieldKey, fieldLabel, minValue, maxValue, stepSize, defaultValue] of [
-        ["x", "位置 X", -1000000, 1000000, 1, 0],
-        ["y", "位置 Y", -1000000, 1000000, 1, 0],
-        ["height", "离地高度（米）", 0, 20, 0.1, 1.8],
-        ["size", "卡片宽度（px）", 100, 600, 1, 340],
-        // 与后端 validate_config 一致：fontSize 上限 24
-        ["fontSize", "文字大小（px）", 9, 24, 1, 21],
-      ] as const) {
+      const positionFieldDefs =
+        selectedItem.positionMode === "fixed"
+          ? ([
+              ["fixedX", "水平位置（%）", 0, 100, 0.1, 50],
+              ["fixedY", "垂直位置（%）", 0, 100, 0.1, 50],
+            ] as const)
+          : ([
+              ["x", "位置 X", -1000000, 1000000, 1, 0],
+              ["y", "位置 Y", -1000000, 1000000, 1, 0],
+              ["height", "离地高度（米）", 0, 20, 0.1, 1.8],
+              ["size", "卡片宽度（px）", 100, 600, 1, 340],
+              // 与后端 validate_config 一致：fontSize 上限 24
+              ["fontSize", "文字大小（px）", 9, 24, 1, 21],
+            ] as const);
+      for (const [fieldKey, fieldLabel, minValue, maxValue, stepSize, defaultValue] of positionFieldDefs) {
         createNumberField(
           fieldLabel,
           selectedItem[fieldKey] ?? defaultValue,
@@ -1153,6 +1190,18 @@ export async function openSecurityEditor({
         );
       }
       ((currentContainerElement = appearanceSection),
+        selectedItem.positionMode === "fixed" &&
+          appearanceSection.append(
+            createElement(
+              "p",
+              "i3d-note",
+              "固定在画面位置，可拖动标签调整；转动、缩放户型时保持不动。",
+            ),
+          ),
+        selectedItem.positionMode !== "fixed" &&
+          appearanceSection.append(
+            createElement("p", "i3d-note", "标签跟随户型位置，转动、缩放户型时一起移动。"),
+          ),
         appendBackgroundOpacityControl(
           appearanceSection,
           selectedItem,
@@ -1283,7 +1332,7 @@ export async function openSecurityEditor({
         ),
         modelOptionList = modelChoices.map((availableModel: any) => [
           getCandidateModelId(availableModel),
-          availableModel.name,
+          modelChoiceLabel(availableModel),
         ]);
       if (
         (modelChoices.some(
@@ -2350,11 +2399,19 @@ export async function openSecurityEditor({
                   (positionMatch: any) => positionMatch.id === positionTargetMatch![2],
                 );
               editedPositionItem &&
-                Number.isFinite(editEvent.x) &&
-                Number.isFinite(editEvent.y) &&
-                ((editedPositionItem.x = editEvent.x),
-                (editedPositionItem.y = editEvent.y),
-                markPropertiesDirty());
+                positionTargetList === "alarms" &&
+                editedPositionItem.positionMode === "fixed"
+                ? Number.isFinite(editEvent.fixedX) &&
+                  Number.isFinite(editEvent.fixedY) &&
+                  ((editedPositionItem.fixedX = Math.max(0, Math.min(100, editEvent.fixedX))),
+                  (editedPositionItem.fixedY = Math.max(0, Math.min(100, editEvent.fixedY))),
+                  markPropertiesDirty())
+                : editedPositionItem &&
+                  Number.isFinite(editEvent.x) &&
+                  Number.isFinite(editEvent.y) &&
+                  ((editedPositionItem.x = editEvent.x),
+                  (editedPositionItem.y = editEvent.y),
+                  markPropertiesDirty());
             }
             if (
               (editEvent.action === "focus-exited" && ((isCameraEditing = false), renderPanel()),

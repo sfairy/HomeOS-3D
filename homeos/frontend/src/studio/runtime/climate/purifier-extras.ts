@@ -252,6 +252,8 @@ type PurifierCard = {
   rangeTimer?: any;
   native?: any;
   nativeRoot?: any;
+  /** 0.8.1：状态类卡片（NAS 指标）的百分比条。 */
+  presentationBar?: HTMLElement | null;
 };
 function numberConstraints(state: any) {
   const attributes = attributesOf(state);
@@ -358,6 +360,16 @@ export function createPurifierExtras({
   onControl: onControl,
   feedbackSlot = undefined,
   onLayout = (..._args: any[]) => {},
+  // 0.8.1：NAS 等「状态类」卡片由调用方决定状态文案与进度条（`nasMetricValue`）。
+  statePresentation = null as
+    | null
+    | ((
+        item: unknown,
+        state: unknown,
+        numberFormat: number | null,
+      ) => { text: string; available?: boolean; warning?: boolean; percent?: number | null }),
+  // 0.8.1：拖拽时的自动滚动容器；缺省回落到弹窗体/灯光面板。
+  scrollContainer = null as HTMLElement | null,
 }: any) {
   const doc = hostElement.ownerDocument || globalThis.document;
   // 拖拽缩放的边界播报（0.7.9 `purifier-extras.js` 的隐藏 live region）：
@@ -365,6 +377,8 @@ export function createPurifierExtras({
   const resizeLiveElement = purifierResizeLiveRegion(doc);
   let viewModel: PurifierExtrasViewModel = {},
     layoutSignature = "",
+    // 0.8.1：面板可见性；隐藏期间跳过重排，重新可见时按最新 viewModel 重算。
+    isVisible = true,
     cards: any = [],
     generation = 0,
     dragState: any = null,
@@ -739,12 +753,15 @@ export function createPurifierExtras({
         (moveEvent.preventDefault(),
           (gesture.active = true),
           section.classList.toggle("is-dragging", true));
-        const scrollContainer = hostElement.closest?.(".i3d-light-panel");
-        if (scrollContainer) {
-          const scrollBounds = scrollContainer.getBoundingClientRect();
+        const dragScrollContainer =
+          scrollContainer ||
+          hostElement.closest?.(".i3d-popup-body") ||
+          hostElement.closest?.(".i3d-light-panel");
+        if (dragScrollContainer) {
+          const scrollBounds = dragScrollContainer.getBoundingClientRect();
           moveEvent.clientY > scrollBounds.bottom - 32
-            ? (scrollContainer.scrollTop += 12)
-            : moveEvent.clientY < scrollBounds.top + 32 && (scrollContainer.scrollTop -= 12);
+            ? (dragScrollContainer.scrollTop += 12)
+            : moveEvent.clientY < scrollBounds.top + 32 && (dragScrollContainer.scrollTop -= 12);
         }
         gesture.ghost ||
           ((gesture.ghost = createEl("div")),
@@ -889,15 +906,29 @@ export function createPurifierExtras({
         (row.title.textContent =
           row.item.label || stateAttributes.friendly_name || row.item.entityId),
         (row.title.title = row.title.textContent),
-        (row.status.textContent = available
-          ? "" +
-            extraStateLabel(
-              row.item.entityId,
-              entityState,
-              (viewModel.numberFormats || {})[row.item.entityId],
-            ) +
-            (stateAttributes.unit_of_measurement ? " " + stateAttributes.unit_of_measurement : "")
-          : "不可用"),
+        row.presentationBar
+          ? // 0.8.1：状态类卡片（NAS 指标）由调用方给出文案、告警与百分比条。
+            (() => {
+              const presentation = statePresentation(
+                row.item,
+                entityState,
+                (viewModel.numberFormats || {})[row.item.entityId] ?? null,
+              );
+              ((row.status.textContent = presentation.text),
+                row.section.classList.toggle("is-warning", !!presentation.warning),
+                row.section.classList.toggle("is-unavailable", presentation.available === false),
+                (row.presentationBar.hidden = presentation.percent == null),
+                (row.presentationBar.style.width = (presentation.percent ?? 0) + "%"));
+            })()
+          : (row.status.textContent = available
+              ? "" +
+                extraStateLabel(
+                  row.item.entityId,
+                  entityState,
+                  (viewModel.numberFormats || {})[row.item.entityId],
+                ) +
+                (stateAttributes.unit_of_measurement ? " " + stateAttributes.unit_of_measurement : "")
+              : "不可用"),
         (row.status.hidden =
           !!available &&
           (row.item.type === "select" ||
@@ -1022,6 +1053,8 @@ export function createPurifierExtras({
   }
   function update(nextViewModel: any) {
     viewModel = nextViewModel;
+    // 0.8.1：面板不可见（弹窗未展示）时不重排卡片，避免隐藏状态下的无谓布局与测量。
+    if (!isVisible) return;
     const layout = extraLayout(nextViewModel.item?.extraControls || []),
       signature = JSON.stringify([
         nextViewModel.item?.id,
@@ -1206,6 +1239,13 @@ export function createPurifierExtras({
           (descriptionElement.className = "i3d-extra-description"),
           descriptionElement.append(titleElement, statusElement),
           cardSection.append(descriptionElement));
+        // 0.8.1：状态类卡片追加百分比条（NAS 用量/温度等），由 `statePresentation` 提供。
+        if (statePresentation && controlType === "state") {
+          const presentationBarElement = createEl("i");
+          ((cardState.presentationBar = presentationBarElement),
+            (presentationBarElement.className = "i3d-extra-state-bar"),
+            cardSection.append(presentationBarElement));
+        }
         if (nativeKind) {
           cardSection.classList.add("i3d-extra-native");
           const headerControlsElement = createEl("div");
@@ -1438,8 +1478,14 @@ export function createPurifierExtras({
   }
   return {
     update: update,
+    /** 0.8.1：弹窗隐藏时暂停卡片重排；重新可见时立即按最新状态重算。 */
+    setVisible(nextVisible: boolean) {
+      isVisible !== nextVisible &&
+        ((isVisible = nextVisible), isVisible ? update(viewModel) : closeSelect());
+    },
     dispose() {
       (defaultView?.removeEventListener?.("resize", positionSelectMenu),
+        (isVisible = false),
         closeSelect(),
         finishDrag(true),
         resizeObserver?.disconnect(),

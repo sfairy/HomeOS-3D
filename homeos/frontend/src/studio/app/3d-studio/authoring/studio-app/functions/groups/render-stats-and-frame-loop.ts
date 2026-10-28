@@ -355,6 +355,9 @@ export function bindFrameDriver(runtime: StudioAppRuntime, frameCallback: any) {
         !runtime.appCtx.isDisposed &&
           ((runtime.appCtx.isDisposed = true),
           runtime.emitRuntimeDiagnostic("gpu-lost"),
+          // 0.8.1：先把渲染期登记过的 GPU 资源就地 dispose，再清各类缓存，
+          // 否则上下文丢失后这些对象会悬空占显存（大户型再进时整批重建）。
+          runtime.appCtx.contextResources?.releaseLostContext(),
           runtime.appCtx.lightingScheduler?.setAvailable(false),
           (runtime.appCtx.modelRevisionCounter += 1),
           (runtime.appCtx.isFrameDirty = true),

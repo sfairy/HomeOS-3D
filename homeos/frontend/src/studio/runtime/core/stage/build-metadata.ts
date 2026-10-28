@@ -1,6 +1,7 @@
 import { floorNavigationChoices } from "../floor-navigation";
 import { doorModels } from "../../security/lock-state";
 import { genericDeviceMetadata } from "../../device/generic-device-catalog";
+import { normalizeModelRemark } from "@app/shared/model-remarks";
 
 export function buildMetadata(
   mountOptions: any,
@@ -49,6 +50,8 @@ export function buildMetadata(
           doorModelEntries = doorModels(metadataFloorItem).map((doorModel: any) => ({
             id: doorModel.modelId,
             name: doorModel.name,
+            // 备注是配置期识别模型的依据：舞台元数据里必须带上，否则 3D 交互选不到「哪一个门」。
+            remark: normalizeModelRemark(doorModel.remark),
             doorType: doorModel.doorType,
             doorLabel: doorModel.doorLabel,
           }));
@@ -95,6 +98,7 @@ export function buildMetadata(
             .filter((cameraSceneItem: any) => cameraSceneItem.type === "camera")
             .map((cameraMetadataItem: any, cameraMetadataIndex: any) => ({
               id: cameraMetadataItem.id,
+              remark: normalizeModelRemark(cameraMetadataItem.remark),
               name: cameraMetadataItem.name || "摄像头 " + (cameraMetadataIndex + 1),
               x: cameraMetadataItem.x,
               y: cameraMetadataItem.y,
@@ -106,6 +110,7 @@ export function buildMetadata(
             .filter((sensorSceneItem: any) => sensorSceneItem.type === "presence")
             .map((sensorMetadataItem: any, sensorMetadataIndex: any) => ({
               id: sensorMetadataItem.id,
+              remark: normalizeModelRemark(sensorMetadataItem.remark),
               name: sensorMetadataItem.name || "人体传感器 " + (sensorMetadataIndex + 1),
             })),
           vacuums: metadataFloorItem.scene.items
@@ -115,6 +120,7 @@ export function buildMetadata(
             )
             .map((vacuumMetadataItem: any, vacuumMetadataIndex: any) => ({
               id: vacuumMetadataItem.id,
+              remark: normalizeModelRemark(vacuumMetadataItem.remark),
               name: vacuumMetadataItem.name || "扫地机 " + (vacuumMetadataIndex + 1),
               x: vacuumMetadataItem.x,
               y: vacuumMetadataItem.y,
@@ -128,6 +134,7 @@ export function buildMetadata(
             )
             .map((speakerMetadataItem: any, speakerMetadataIndex: any) => ({
               id: speakerMetadataItem.id,
+              remark: normalizeModelRemark(speakerMetadataItem.remark),
               name: speakerMetadataItem.name || "智能音响 " + (speakerMetadataIndex + 1),
               type: speakerMetadataItem.type,
               x: speakerMetadataItem.x,
@@ -143,6 +150,7 @@ export function buildMetadata(
             )
             .map((televisionMetadataItem: any, televisionMetadataIndex: any) => ({
               id: televisionMetadataItem.id,
+              remark: normalizeModelRemark(televisionMetadataItem.remark),
               name: televisionMetadataItem.name || "电视 " + (televisionMetadataIndex + 1),
               type: televisionMetadataItem.type,
               x: televisionMetadataItem.x,
@@ -156,6 +164,7 @@ export function buildMetadata(
             .filter((buildMetadataNasSceneItem: any) => buildMetadataNasSceneItem.type === "nas")
             .map((nasMetadataItem: any, nasMetadataIndex: any) => ({
               id: nasMetadataItem.id,
+              remark: normalizeModelRemark(nasMetadataItem.remark),
               name: nasMetadataItem.name || "NAS " + (nasMetadataIndex + 1),
               type: nasMetadataItem.type,
               x: nasMetadataItem.x,
@@ -168,6 +177,7 @@ export function buildMetadata(
             .filter((curtainSceneItem: any) => curtainSceneItem.type === "curtain")
             .map((curtainMetadataItem: any, curtainMetadataIndex: any) => ({
               id: curtainMetadataItem.id,
+              remark: normalizeModelRemark(curtainMetadataItem.remark),
               name: curtainMetadataItem.name || "窗帘 " + (curtainMetadataIndex + 1),
               type: curtainMetadataItem.type,
               x: curtainMetadataItem.x,
@@ -242,6 +252,7 @@ export function buildMetadata(
             )
             .map((airConditionerMetadataItem: any, airConditionerMetadataIndex: any) => ({
               id: airConditionerMetadataItem.id,
+              remark: normalizeModelRemark(airConditionerMetadataItem.remark),
               name:
                 airConditionerMetadataItem.name ||
                 (airConditionerMetadataItem.type === "airpurifier"

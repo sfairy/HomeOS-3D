@@ -119,7 +119,17 @@ function appendPillarOutlineArc(
   }
 }
 
-/** 立柱截面轮廓（three 的 Shape，单位米，中心在原点）。 */
+/**
+ * 立柱截面轮廓（three 的 Shape，单位米）。
+ *
+ * 原点口径与资产一致（见 `scripts/models/recenter-pillar-arc.mjs`）：
+ * - `semicircle` / `quarter` 以**圆弧圆心**为原点 —— 半圆柱的圆心在直径面（墙线）上，
+ *   四分之一圆柱的圆心在两片平背面相交的转角上；
+ * - `round` / `square` / `quarterinner` 仍以包围盒中心为原点。
+ *
+ * Shape 的 y 经 `buildPillarSolidGeometry` 的 `rotateX(-π/2)` 映射到世界 -z，
+ * 所以「弧朝 +z 鼓」在这里写成「弧朝 -y 鼓」。
+ */
 function buildPillarOutline(shape: any, width: number, depth: number) {
   const path = new threeModuleMin.Shape();
   const halfWidth = width / 2;
@@ -130,15 +140,15 @@ function buildPillarOutline(shape: any, width: number, depth: number) {
     return path;
   }
   if (shape === "semicircle") {
-    path.moveTo(-halfWidth, halfDepth);
-    path.lineTo(halfWidth, halfDepth);
-    appendPillarOutlineArc(path, 0, halfDepth, halfWidth, depth, 0, -Math.PI, 32);
+    path.moveTo(-halfWidth, 0);
+    path.lineTo(halfWidth, 0);
+    appendPillarOutlineArc(path, 0, 0, halfWidth, depth, 0, -Math.PI, 32);
     return path;
   }
   if (shape === "quarter") {
-    path.moveTo(-halfWidth, halfDepth);
-    path.lineTo(halfWidth, halfDepth);
-    appendPillarOutlineArc(path, -halfWidth, halfDepth, width, depth, 0, -Math.PI / 2, 32);
+    path.moveTo(0, 0);
+    path.lineTo(width, 0);
+    appendPillarOutlineArc(path, 0, 0, width, depth, 0, -Math.PI / 2, 32);
     return path;
   }
   if (shape === "quarterinner") {
@@ -207,6 +217,12 @@ export function applyItemPosture(group: any, item: any) {
 }
 
 /** 平面画布版的 buildPillarOutline：平面 +y 对应世界 +z，因此平直面始终留在背面。 */
+/**
+ * 平面符号的立柱轮廓：原点与 3D 资产同口径 —— 半圆柱 / 四分之一圆柱以**圆弧圆心**为
+ * 落笔原点（`scripts/models/recenter-pillar-arc.mjs`），其余造型仍以包围盒中心为原点。
+ *
+ * 画布 y 与 3D 世界的 +z 同向（既有符号把平背面画在 -y、弧朝 +y 鼓）。
+ */
 export function tracePillarPlanPath(
   plan2dContext: any,
   shape: any,
@@ -221,16 +237,17 @@ export function tracePillarPlanPath(
     return;
   }
   if (shape === "semicircle") {
-
-    plan2dContext.moveTo(-halfWidth, -halfDepth);
-    plan2dContext.lineTo(halfWidth, -halfDepth);
-    plan2dContext.ellipse(0, -halfDepth, halfWidth, depthPx, 0, 0, Math.PI, false);
+    // 圆心即原点、平背面是过圆心的直径面（墙线），弧朝 +y（世界 +z）鼓。
+    plan2dContext.moveTo(-halfWidth, 0);
+    plan2dContext.lineTo(halfWidth, 0);
+    plan2dContext.ellipse(0, 0, halfWidth, depthPx, 0, 0, Math.PI, false);
     return;
   }
   if (shape === "quarter") {
-    plan2dContext.moveTo(-halfWidth, -halfDepth);
-    plan2dContext.lineTo(halfWidth, -halfDepth);
-    plan2dContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, 0, Math.PI / 2, false);
+    // 圆心即原点、两块平背面分别贴 x=0 / y=0，占位落在 +x/+y 象限。
+    plan2dContext.moveTo(0, 0);
+    plan2dContext.lineTo(widthPx, 0);
+    plan2dContext.ellipse(0, 0, widthPx, depthPx, 0, 0, Math.PI / 2, false);
     plan2dContext.closePath();
     return;
   }

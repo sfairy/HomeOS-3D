@@ -2389,6 +2389,7 @@ function createStudioRendererDeps(): CreateStudioRendererDeps {
     scheduleStudioRender,
     selectElement,
     setShadowFreeze,
+    setupSceneShadows,
     syncCameraModeControls,
     syncCameraViewControls,
     updateCameraView,
@@ -3781,6 +3782,10 @@ for (const doorTypeOptionInput of [
   selectElement("#door-height"),
 ])
   doorTypeOptionInput.addEventListener("change", () => applyToolSetting("door"));
+// 备注同时服务「物件」和「门」：按当前选中项种类提交，不能固定成某一种。
+selectElement("#model-remark").addEventListener("change", () =>
+  applyToolSetting(appCtx.selectedItem?.kind === "door" ? "door" : "item"),
+);
 for (const railingOptionInput of [
   selectElement("#railing-width"),
   selectElement("#railing-height"),
@@ -4668,6 +4673,11 @@ startupStudio(studioBootDeps());
     try {
       appCtx.orbitControls?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    try {
+      // 0.8.1：还原 EventDispatcher 补丁并清空登记表，必须早于 renderer.dispose()。
+      appCtx.contextResources?.dispose?.()
+    } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }
+    appCtx.contextResources = null
     try {
       appCtx.threeRenderer?.dispose?.()
     } catch { /* 清理期失败无需处理：资源可能已释放 / 上下文已丢失，继续走后续清理 */ }

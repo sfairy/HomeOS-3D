@@ -13,8 +13,8 @@ import { genericDeviceProfile as genericDeviceProfile2 } from "../../../device/g
 import { createDeviceCategoryRow } from "./device-category-dialog";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { bathEffectEditor as bathEffectEditor2 } from "../../../bath-heater/bath-heater-editor";
-import { carChargingMappingError as carChargingMappingError2, carState as carState2, standardCarBindings as standardCarBindings2 } from "../../../vehicle/car-state";
-import { CAR_TIRE_WHEELS as carTireWheels, defaultCarTires } from "../../../vehicle/car-tires";
+import { carChargingMappingError as carChargingMappingError2, carClickAction as carClickAction2, carState as carState2, standardCarBindings as standardCarBindings2 } from "../../../vehicle/car-state";
+import { carTireWheels as carTireWheelsFor, defaultCarTires, retargetCarTires as retargetCarTires2, supportsCarTires as supportsCarTires2 } from "../../../vehicle/car-tires";
 import { curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { deviceEntityCatalog as deviceEntityCatalog2 } from "../../device-entity-config";
 import { extraLabels as extraLabels2, extraTypes as extraTypes2, purifierDeviceChanged as purifierDeviceChanged2, purifierRelatedEntities as purifierRelatedEntities2 } from "../../../climate/purifier-extras";
@@ -23,6 +23,7 @@ import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMod
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from "../../range-dialog";
 import { openVacuumMapEditor as openVacuumMapEditor2 } from "../../../vacuum/vacuum-map-editor";
 import { purifierState as purifierState2 } from "../../../purifier/purifier-state";
+import { nasGroups as nasGroups2 } from "../../../nas/nas-panel";
 import { lightState as lightState2 } from "../../../light/light-state";
 import { deviceMistState as deviceMistState2, isDeviceMistSource as isDeviceMistSource2 } from "../../../environment/device-mist";
 import { rangehoodState as rangehoodState2 } from "../../../environment/rangehood-state";
@@ -38,13 +39,22 @@ import { vacuumMapIdentity as vacuumMapIdentity2 } from "../../../vacuum/vacuum-
  * 解构注入（快照会把赋值留在局部、宿主看不到），改按**可变单元** `refreshBatchButtonsCell`
  * 注入 —— 宿主那侧用访问器代理到同一个 `let`，读写始终落在宿主变量上。
  */
+/** NAS 配置里的单个指标条目（`statusSource.metrics[]`）。 */
+interface NasMetricEntry {
+  entityId: string;
+  label: string;
+  group: string;
+  columns?: number;
+  rows?: number;
+}
+
 export interface PanelAssemblyDeps {
   /** 配置编辑器上下文对象（`editorHost.panelElement` / `editorHost.createElement` / `editorHost.structuredClone2` 等）。 */
   editorHost: any;
   /** 批处理按钮重建器的可变单元（代理到宿主 `let refreshBatchButtons`）。 */
   refreshBatchButtonsCell: { current: () => any };
   /** 局部重绘编辑器预览。 */
-  refreshEditorPreview: () => any;
+  refreshEditorPreview: (markChanged?: boolean) => any;
   /** 建一个分区容器（标题 + section）。 */
   createConfigSection: (sectionTitle: any) => any;
   /** 下拉行。参数较多（容器 / 标签 / 选项 / 回调），按不透明回调注入。 */
@@ -82,7 +92,7 @@ export interface PanelAssemblyDeps {
   openAddDialog: (addDialogTriggerEvent?: any) => any;
   /** 幕布分组分区。 */
   renderCurtainGroupSection: (curtainGroup: any) => any;
-  /** 打开指标弹窗。 */
+  /** 打开指标弹窗（0.8.1 起仅保留兼容句柄，NAS 指标选择已改为内联折叠面板）。 */
   openMetricsDialog: (metricsTargetEntry: any) => any;
   /** 空气净化器绑定分区。 */
   renderAirPurifierBindingSection: (
@@ -128,7 +138,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
     listAddableModels,
     openAddDialog,
     renderCurtainGroupSection,
-    openMetricsDialog,
+    // 0.8.1：NAS 指标选择改用内联折叠面板，弹窗句柄保留但此处不再使用。
+    openMetricsDialog: _openMetricsDialog,
     renderAirPurifierBindingSection,
     openCurtainGroupDialog,
     syncLinkedIconSize,
@@ -1018,6 +1029,163 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               currentContainer.append(posterAssetSection));
           };
           if (editorHost.isNasMode) {
+            // 0.8.1：NAS 指标选择改为内联折叠面板（原「选择显示内容」弹窗已移除）。
+            // 组顺序用 ↑↓ 调整；组内顺序与卡片尺寸在实时预览里拖动/拖右下角调整。
+            function appendNasMetricChooser(container: HTMLElement) {
+              const nasStatusSource = vector.statusSource as {
+                  groupOrder?: string[];
+                  visibleMetrics?: string[];
+                  metrics: NasMetricEntry[];
+                },
+                nasPreviewButton = editorHost.createButton("实时预览弹窗", async () => {
+                  try {
+                    await editorHost.editorRuntime?.focusCommand(
+                      "preview-device-panel",
+                      vector.id,
+                    );
+                  } catch (nasPreviewError) {
+                    editorHost.isDisposed ||
+                      (editorHost.errorMessageElement.textContent = (nasPreviewError as Error)?.message);
+                  }
+                });
+              container.append(
+                nasPreviewButton,
+                editorHost.createElement(
+                  "p",
+                  "i3d-note",
+                  "勾选显示内容；在预览中拖动卡片调整组内顺序、拖动右下角调整大小。修改实时预览，保存配置后生效。",
+                ),
+              );
+              const nasChooserDetails = editorHost.createElement("details", "i3d-extra-chooser"),
+                nasChooserSummary = editorHost.createElement("summary"),
+                nasSearchInput = editorHost.createElement("input"),
+                nasChooserActions = editorHost.createElement("div", "dialog-actions"),
+                nasEntityList = editorHost.createElement("div", "i3d-extra-entity-list");
+              ((nasSearchInput.placeholder = "搜索 NAS 指标名称或 ID"),
+                nasSearchInput.setAttribute("aria-label", "搜索 NAS 指标"));
+              const selectedMetricIds = () =>
+                  new Set<string>(
+                    nasStatusSource.visibleMetrics ||
+                      nasStatusSource.metrics.map((metricProbe: NasMetricEntry) => metricProbe.entityId),
+                  ),
+                isChooserAlive = () =>
+                  !editorHost.isDisposed &&
+                  editorHost.isAccessAllowed &&
+                  vector.statusSource === nasStatusSource,
+                syncChooserSummary = () =>
+                  (nasChooserSummary.textContent =
+                    "选择显示内容（已选 " + selectedMetricIds().size + " 项）"),
+                toggleAllMetrics = (selectAll: boolean) => {
+                  isChooserAlive() &&
+                    ((nasStatusSource.visibleMetrics = selectAll
+                      ? nasStatusSource.metrics.map((metricProbe: NasMetricEntry) => metricProbe.entityId)
+                      : []),
+                    renderNasMetricList(),
+                    refreshEditorPreview());
+                };
+              nasChooserActions.append(
+                editorHost.createButton("全选", () => toggleAllMetrics(true)),
+                editorHost.createButton("全不选", () => toggleAllMetrics(false)),
+              );
+              function renderNasMetricList() {
+                (nasEntityList.replaceChildren(), syncChooserSummary());
+                const selectedIds = selectedMetricIds(),
+                  searchQuery = String(nasSearchInput.value).trim().toLowerCase(),
+                  orderedGroups = nasGroups2(nasStatusSource).filter(([nasGroupProbe]) =>
+                    nasStatusSource.metrics.some(
+                      (groupMetricProbe: NasMetricEntry) => groupMetricProbe.group === nasGroupProbe,
+                    ),
+                  );
+                for (const [groupIndex, groupEntry] of orderedGroups.entries()) {
+                  const [metricGroupKey, metricGroupLabel] = groupEntry as [string, string],
+                    groupMetrics = nasStatusSource.metrics.filter(
+                      (groupMetricProbe: NasMetricEntry) =>
+                        groupMetricProbe.group === metricGroupKey &&
+                        (groupMetricProbe.label + " " + groupMetricProbe.entityId)
+                          .toLowerCase()
+                          .includes(searchQuery),
+                    );
+                  if (!groupMetrics.length) continue;
+                  const groupSectionElement = editorHost.createElement("section"),
+                    groupHeadingElement = editorHost.createElement(
+                      "div",
+                      "i3d-nas-fields-heading",
+                    ),
+                    moveMetricGroup = (groupOffset: number) => {
+                      if (!isChooserAlive()) return;
+                      const groupTargetIndex = groupIndex + groupOffset;
+                      groupTargetIndex < 0 ||
+                        groupTargetIndex >= orderedGroups.length ||
+                        (([orderedGroups[groupIndex], orderedGroups[groupTargetIndex]] = [
+                          orderedGroups[groupTargetIndex],
+                          orderedGroups[groupIndex],
+                        ]),
+                        (nasStatusSource.groupOrder = orderedGroups.map(
+                          (orderedGroupProbe) => orderedGroupProbe[0],
+                        )),
+                        renderNasMetricList(),
+                        refreshEditorPreview());
+                    },
+                    groupUpButton = editorHost.createButton("↑", () => moveMetricGroup(-1)),
+                    groupDownButton = editorHost.createButton("↓", () => moveMetricGroup(1));
+                  ((groupUpButton.disabled = groupIndex === 0),
+                    (groupDownButton.disabled = groupIndex === orderedGroups.length - 1),
+                    groupUpButton.setAttribute("aria-label", "上移" + metricGroupLabel + "分组"),
+                    groupDownButton.setAttribute("aria-label", "下移" + metricGroupLabel + "分组"),
+                    groupHeadingElement.append(
+                      editorHost.createElement("h4", "", metricGroupLabel),
+                      groupUpButton,
+                      groupDownButton,
+                    ),
+                    groupSectionElement.append(groupHeadingElement));
+                  for (const nasMetricEntry of groupMetrics) {
+                    const metricRowElement = editorHost.createElement(
+                        "label",
+                        "i3d-extra-entity-row",
+                      ),
+                      metricCheckboxElement = editorHost.createElement("input");
+                    ((metricCheckboxElement.type = "checkbox"),
+                      (metricCheckboxElement.checked = selectedIds.has(nasMetricEntry.entityId)),
+                      metricCheckboxElement.setAttribute("aria-label", nasMetricEntry.label),
+                      (metricRowElement.title = nasMetricEntry.entityId),
+                      metricCheckboxElement.addEventListener("change", () => {
+                        if (!isChooserAlive()) return;
+                        const nextSelectedIds = selectedMetricIds();
+                        (metricCheckboxElement.checked
+                          ? nextSelectedIds.add(nasMetricEntry.entityId)
+                          : nextSelectedIds.delete(nasMetricEntry.entityId),
+                          // 保持 metrics 原顺序，只过滤可见项，避免预览里卡片顺序被打乱。
+                          (nasStatusSource.visibleMetrics = nasStatusSource.metrics
+                            .filter((visibleMetricProbe: NasMetricEntry) =>
+                              nextSelectedIds.has(visibleMetricProbe.entityId),
+                            )
+                            .map((visibleMetricProbe: NasMetricEntry) => visibleMetricProbe.entityId)),
+                          syncChooserSummary(),
+                          refreshEditorPreview());
+                      }));
+                    const metricDetailElement = editorHost.createElement("span");
+                    (metricDetailElement.append(
+                      editorHost.createElement("strong", "", nasMetricEntry.label),
+                      editorHost.createElement("small", "", nasMetricEntry.entityId),
+                    ),
+                      metricRowElement.append(metricCheckboxElement, metricDetailElement),
+                      groupSectionElement.append(metricRowElement));
+                  }
+                  nasEntityList.append(groupSectionElement);
+                }
+                nasEntityList.children.length ||
+                  nasEntityList.append(editorHost.createElement("p", "i3d-note", "没有匹配的指标。"));
+              }
+              (nasSearchInput.addEventListener("input", renderNasMetricList),
+                nasChooserDetails.append(
+                  nasChooserSummary,
+                  nasSearchInput,
+                  nasChooserActions,
+                  nasEntityList,
+                ),
+                container.append(nasChooserDetails),
+                renderNasMetricList());
+            }
             const nasSourceButton = editorHost.createButton(
               vector.statusSource?.name || "选择飞牛、群晖或绿联",
               () => void openItemPicker("nas", nasSourceButton),
@@ -1027,14 +1195,7 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               createSettingRow(currentContainer, "NAS 数据来源", nasSourceButton),
               vector.statusSource)
             ) {
-              const visibleMetricCount =
-                  vector.statusSource.visibleMetrics?.length ?? vector.statusSource.metrics.length,
-                openMetricsButton = editorHost.createButton(
-                  "选择显示内容（" + visibleMetricCount + " 项）",
-                  () => openMetricsDialog(vector),
-                );
-              ((openMetricsButton.className = "i3d-picker-button"),
-                vector.statusSource.metrics.length && currentContainer.append(openMetricsButton));
+              appendNasMetricChooser(currentContainer);
             }
             currentContainer.append(
               editorHost.createElement(
@@ -1390,15 +1551,17 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
               font: "cardFontSize",
               opacity: "cardOpacity",
             });
-            // 四轮胎压（0.8.0）：车型取景元数据里现成的 `type`，只有 smallcar/suv 显示。
+            // 轮胎压（0.8.1）：车型取景元数据里现成的 `type`，四轮车与电瓶车显示（轮位表不同）。
             const carModelEntry = editorHost.sceneMetadata?.floors
                 ?.find((carFloorProbe: any) => carFloorProbe.id === vector.floorId)
                 ?.cars?.find((carModelProbe: any) => carModelProbe.id === vector.modelId),
-              carSupportsTires = ["smallcar", "suv"].includes(carModelEntry?.type);
+              carModelType = carModelEntry?.type,
+              carSupportsTires = supportsCarTires2(carModelType);
             if (!carSupportsTires) delete vector.tirePressure;
             else {
-              const tireSectionElement = createConfigSection("四轮胎压"),
-                tireConfig = vector.tirePressure || (vector.tirePressure = defaultCarTires()),
+              const tireSectionElement = createConfigSection(
+                  carModelType === "scooter" ? "前后轮胎压" : "四轮胎压",
+                ),
                 tireWheelCatalog = deviceEntityCatalog2(
                   editorHost.entities,
                   vector.deviceId,
@@ -1416,6 +1579,14 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     tireEntityOptionEntry.entityId,
                 ]),
                 tireShowInput = editorHost.createElement("input");
+              // 0.8.1：车型切换（四轮 ↔ 双轮）时先按新轮位表收口 —— 上游是整块替换
+              // `tirePressure`（开关随之关闭），所以这里的后续读写都要用收口后的对象。
+              const retargetedTires = retargetCarTires2(
+                vector.tirePressure || defaultCarTires(),
+                carModelType,
+              );
+              vector.tirePressure = retargetedTires;
+              const tireConfig = retargetedTires;
               ((tireShowInput.type = "checkbox"),
                 (tireShowInput.checked = tireConfig.enabled === true),
                 tireShowInput.addEventListener("change", () => {
@@ -1429,9 +1600,8 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     renderPanel());
                 }),
                 createSettingRow(tireSectionElement, "显示胎压", tireShowInput));
-              // 0.8.0 行顺序：显示胎压 → 四轮胎压实体 → 胎压显示方式 → 胎压字号（px） → 背景不透明度。
-              tireConfig.wheels ||= {};
-              for (const tireWheel of carTireWheels) {
+              // 0.8.0 行顺序：显示胎压 → 轮位胎压实体 → 胎压显示方式 → 胎压字号（px） → 背景不透明度。
+              for (const tireWheel of carTireWheelsFor(carModelType)) {
                 const tireWheelValue = tireConfig.wheels[tireWheel.key] || "",
                   tireWheelRowOptions = [...tireWheelOptions];
                 // 失效实体插在「未绑定」之后（0.8.0 用 splice(1, 0, …)），不顶到列表首位。
@@ -2517,13 +2687,23 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                     : "请先选择 NAS 数据来源，缺少 CPU 等个别指标也可绑定。",
                 ),
               ),
-            !matchedCurtainGroup && editorHost.deviceKind !== "smallcar"
+            !matchedCurtainGroup
           ) {
             ((currentContainer = createConfigSection("交互行为")),
               createSelectRow(
                 currentContainer,
-                "点击" + editorHost.kindLabel,
-                bindingContainer && !vector.entityId
+                editorHost.deviceKind === "smallcar"
+                  ? "点击标签或模型"
+                  : "点击" + editorHost.kindLabel,
+                // 车辆（0.8.1）：标签与车模共用同一设置，多一个「不响应点击」的空档。
+                editorHost.deviceKind === "smallcar"
+                  ? [
+                      ["none", "不响应点击"],
+                      ["focus", "仅聚焦"],
+                      ["panel", "仅显示弹窗"],
+                      ["focus-panel", "聚焦并显示弹窗"],
+                    ]
+                  : bindingContainer && !vector.entityId
                   ? [["focus", "聚焦并显示控制"]]
                   : editorHost.isAirerMode
                     ? [
@@ -2575,13 +2755,25 @@ export function renderPanelImpl(deps: PanelAssemblyDeps) {
                                   ["turn-on", "仅开关灯"],
                                   ["turn-on-panel", "开关灯（开灯时显示控制）"],
                                 ],
-                vector.clickAction,
+                editorHost.deviceKind === "smallcar" ? carClickAction2(vector) : vector.clickAction,
                 (pickedCoverClickAction: any) => {
-                  ((vector.clickAction = editorHost.normalizeClickAction(pickedCoverClickAction)),
+                  (editorHost.deviceKind === "smallcar"
+                    ? // 车辆：`interactionEnabled` 是开关本身，`clickAction` 只在打开时生效。
+                      ((vector.interactionEnabled = pickedCoverClickAction !== "none"),
+                      (vector.clickAction = pickedCoverClickAction))
+                    : (vector.clickAction = editorHost.normalizeClickAction(pickedCoverClickAction)),
                     refreshEditorPreview());
                 },
               ),
-              editorHost.isCoverMode
+              editorHost.deviceKind === "smallcar"
+                ? currentContainer.append(
+                    editorHost.createElement(
+                      "p",
+                      "i3d-note",
+                      "顶部状态标签和车辆模型共用此设置。聚焦时隐藏所有车辆的状态及胎压标签，退出后恢复。",
+                    ),
+                  )
+                : editorHost.isCoverMode
                 ? currentContainer.append(
                     editorHost.createElement(
                       "p",

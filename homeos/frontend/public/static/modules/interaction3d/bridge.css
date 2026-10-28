@@ -504,6 +504,20 @@
 #interaction3d-inspector .i3d-popup-position[hidden] {
   display: none;
 }
+/* 0.8.1：未勾「自定义大小与位置」时整组滑条收起来（只留提示语）。 */
+#interaction3d-inspector .i3d-popup-custom-controls {
+  display: grid;
+  gap: 10px;
+}
+#interaction3d-inspector .i3d-popup-custom-controls[hidden] {
+  display: none;
+}
+#interaction3d-inspector .i3d-popup-layout-hint {
+  margin: 0 0 2px;
+  color: var(--muted, #9ba8b3);
+  font-size: 11px;
+  line-height: 1.5;
+}
 #interaction3d-inspector .i3d-popup-preview-close {
   width: auto;
   align-self: flex-end;

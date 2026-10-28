@@ -14,6 +14,8 @@
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { createDeviceCategoryRow } from "./device-category-dialog";
+import { configurationSummary } from "../../configuration-picker";
+import { configurationProgress } from "../../configuration-progress";
 import { createCurtainGroup as createCurtainGroup2, curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { randomUuid as randomUuid2 } from "@app/shared/util/random-id";
 import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/presets/light-effect-policy";
@@ -36,7 +38,7 @@ export interface PanelDialogsDeps {
   /** 下拉行（参数较多，按不透明回调注入）。 */
   createSelectRow: (...args: any[]) => any;
   /** 局部重绘编辑器预览。 */
-  refreshEditorPreview: () => any;
+  refreshEditorPreview: (markChanged?: boolean) => any;
   /** 整面板重绘。 */
   renderPanel: () => any;
   /** 可新增的模型清单。 */
@@ -66,8 +68,43 @@ export interface PanelDialogsDeps {
   listChangedFields: (changedItem: any) => any[][];
 }
 
-export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {
-  // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
+interface AddDialogProgressHost {
+  sceneMetadata?: { floors?: ReadonlyArray<Record<string, unknown>> } | null;
+  floorSelection?: string;
+  collectionKey: string;
+  modelIdKey: string;
+  usesModelBinding?: boolean;
+  getItemList: () => ReadonlyArray<Record<string, unknown>>;
+}
+
+/**
+ * 当前分类 / 当前楼层的配置进度（0.8.1）。
+ * 模型库取自场景元数据（按当前楼层收口），已配置取自编辑中的条目列表；
+ * 灯组等场景项不需要选模型，只统计「已配置」。
+ */
+function currentConfigurationProgress(editorHost: AddDialogProgressHost) {
+  const floorRecords = editorHost.sceneMetadata?.floors ?? [],
+    floorSelection = editorHost.floorSelection,
+    scopedFloors =
+      floorSelection && floorSelection !== "all"
+        ? floorRecords.filter((floorRecord) => floorRecord.id === floorSelection)
+        : floorRecords,
+    models = scopedFloors.flatMap((floorRecord) => {
+      const modelList = editorHost.usesModelBinding
+        ? floorRecord[editorHost.collectionKey]
+        : floorRecord["groups"];
+      return Array.isArray(modelList) ? (modelList as Array<{ id?: unknown }>) : [];
+    });
+  return configurationProgress({
+    models,
+    bindings: editorHost.getItemList(),
+    modelKey: (model) => model?.id as string | number | null | undefined,
+    bindingKey: (binding) => binding[editorHost.modelIdKey] as string | number | null | undefined,
+    requiresModel: Boolean(editorHost.usesModelBinding),
+  });
+}
+
+export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any = undefined) {  // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
   const { editorHost, closeAddDialog, createSelectRow, createSettingRow, refreshEditorPreview, renderPanel, listAddableModels, switchEditorKind } = deps;
       if (
         editorHost.isDisposed ||
@@ -104,6 +141,13 @@ export function openAddDialog(deps: PanelDialogsDeps, addDialogTriggerEvent: any
       const addDialogBodyElement = editorHost.createElement("div", "i3d-add-dialog-body"),
         addDialogErrorElement = editorHost.createElement("p", "i3d-error");
       (addDialogErrorElement.setAttribute("role", "status"),
+        // 当前楼层的配置进度：模型库（可配置总量）对比已添加条目，少了模型记「缺失」。
+        addDialogBodyElement.append(
+          configurationSummary(currentConfigurationProgress(editorHost), {
+            document: editorHost.editorDialogElement.ownerDocument,
+            unit: editorHost.kindLabel,
+          }),
+        ),
         editorHost.isDeviceKind &&
           createDeviceCategoryRow(
             editorHost,
@@ -407,7 +451,7 @@ export function openCurtainGroupDialog(deps: PanelDialogsDeps, onCancel: any) {
 
 export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { editorHost, closeAuxDialog, refreshEditorPreview, renderPanel, saveStatusElement } = deps;
+  const { editorHost, closeAuxDialog, refreshEditorPreview, renderPanel } = deps;
       const statusSource = metricsTargetEntry.statusSource;
       if (
         !statusSource ||
@@ -585,7 +629,7 @@ export function openMetricsDialog(deps: PanelDialogsDeps, metricsTargetEntry: an
             closeAuxDialog(),
             refreshEditorPreview(),
             renderPanel(),
-            (saveStatusElement.textContent = "显示内容已调整，待保存配置"));
+            editorHost.configurationFeedback?.changed());
         });
       ((confirmMetricsButton.className = "primary"),
         metricsDialogActionsElement.append(
@@ -613,7 +657,7 @@ export function openCurtainGroupBatchApplyDialog(
   linkedFieldProbe = false,
 ) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { editorHost, editorSession, refreshEditorPreview, renderPanel, saveStatusElement, buildEditableFieldList, buildItemPayload, listChangedFields } = deps;
+  const { editorHost, editorSession, refreshEditorPreview, renderPanel, buildEditableFieldList, buildItemPayload, listChangedFields } = deps;
       if (
         editorHost.isDisposed ||
         !editorHost.isAccessAllowed ||
@@ -799,15 +843,14 @@ export function openCurtainGroupBatchApplyDialog(
             copyBatchFields2(batchTargetItem, options, createGroupError);
           (refreshEditorPreview(),
             renderPanel(),
-            (saveStatusElement.textContent =
-              "已应用到 " + nextMemberId.length + " 个目标，待保存配置"));
+            editorHost.configurationFeedback?.changed());
         },
       });
     }
 
 export function openLabelBatchApplyDialog(deps: PanelDialogsDeps, sourceLabelItem: any) {
   // 只解构本函数用到的子集（解构全集会被 no-unused-vars 判红）。
-  const { editorHost, refreshEditorPreview, renderPanel, saveStatusElement } = deps;
+  const { editorHost, refreshEditorPreview, renderPanel } = deps;
       editorHost.isDisposed ||
         !editorHost.isAccessAllowed ||
         editorHost.auxDialogElement ||
@@ -870,8 +913,7 @@ export function openLabelBatchApplyDialog(deps: PanelDialogsDeps, sourceLabelIte
               copyBatchFields2(_args, sourceLabelItem, appliedValues);
             (refreshEditorPreview(),
               renderPanel(),
-              (saveStatusElement.textContent =
-                "已应用到 " + appliedTargets.length + " 个环境标签，待保存配置"));
+              editorHost.configurationFeedback?.changed());
           },
         }));
     }

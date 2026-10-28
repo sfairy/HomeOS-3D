@@ -238,6 +238,10 @@ type PopupPresetConfig = {
   scale?: number;
   x?: number;
   y?: number;
+  /** 面板最大高度（占画面百分比，30–95），超出后内容在面板内部滚动。 */
+  maxHeight?: number;
+  /** 显式标记「自定义大小与位置」；未设置时按 scale / maxHeight / x / y 推断。 */
+  custom?: boolean;
   [layoutKey: string]: any;
 };
 
@@ -2216,11 +2220,16 @@ type PopupPresetConfig = {
       },
       previewPopupLayout = (
         previewLayout: Record<string, any> = { ...popupPresetConfig, opacity: popupOpacityPercent },
+        previewOptions: { showHeightLimit?: boolean } = {},
       ) => {
         isViewEditing ||
-          getInteraction3dEditorView(targetComponent.id)?.previewPopupLayout?.(popupPresetKey, {
-            ...previewLayout,
-          });
+          getInteraction3dEditorView(targetComponent.id)?.previewPopupLayout?.(
+            popupPresetKey,
+            {
+              ...previewLayout,
+            },
+            previewOptions,
+          );
       },
       previewPopupButton = createElement("button", "secondary-button", "预览");
     ((previewPopupButton.type = "button"),
@@ -2228,6 +2237,14 @@ type PopupPresetConfig = {
       previewPopupButton.setAttribute("aria-label", "预览" + popupPresetLabel),
       previewPopupButton.addEventListener("click", () => previewPopupLayout()),
       popupHeadingElement.append(previewPopupButton));
+    // 0.8.1：未勾「自定义大小与位置」时自动适配画布并封顶 75%，勾上才显示滑条。
+    const popupLayoutHintElement = createElement(
+        "p",
+        "i3d-popup-layout-hint",
+        "自动适配画布，最大高度为画布的 75%，长内容内部滚动。",
+      ),
+      popupCustomControlsElement = createElement("div", "i3d-popup-custom-controls");
+    popupGroupSection.append(popupLayoutHintElement, popupCustomControlsElement);
     const popupScaleInput = createElement("input"),
       popupScaleOutputElement = createElement("output"),
       popupScaleSettingElement = createElement("div", "i3d-vignette-setting");
@@ -2244,22 +2261,45 @@ type PopupPresetConfig = {
       (popupScaleOutputElement.textContent = popupScaleInput.value + "%"),
       syncHtmlRangeProgress(popupScaleInput),
       popupScaleSettingElement.append(popupScaleInput, popupScaleOutputElement),
-      createLabeledField(popupGroupSection, "等比例大小", popupScaleSettingElement));
+      createLabeledField(popupCustomControlsElement, "等比例大小", popupScaleSettingElement));
+    const popupMaxHeightInput = createElement("input"),
+      popupMaxHeightOutputElement = createElement("output"),
+      popupMaxHeightSettingElement = createElement("div", "i3d-vignette-setting");
+    (Object.assign(popupMaxHeightInput, {
+      name: "i3d-popup-" + popupPresetKey + "-max-height",
+      type: "range",
+      min: "30",
+      max: "95",
+      step: "5",
+      value: String(popupPresetConfig.maxHeight ?? 75),
+      disabled: isViewEditing,
+    }),
+      popupMaxHeightInput.setAttribute("aria-label", popupPresetLabel + "最大高度"),
+      (popupMaxHeightOutputElement.textContent = popupMaxHeightInput.value + "%"),
+      syncHtmlRangeProgress(popupMaxHeightInput),
+      popupMaxHeightSettingElement.append(popupMaxHeightInput, popupMaxHeightOutputElement),
+      createLabeledField(popupCustomControlsElement, "最大高度（占画布）", popupMaxHeightSettingElement));
     const popupCustomPositionInput = createElement("input");
     (Object.assign(popupCustomPositionInput, {
       name: "i3d-popup-" + popupPresetKey + "-custom",
       type: "checkbox",
-      checked: Number.isFinite(popupPresetConfig.x) || Number.isFinite(popupPresetConfig.y),
+      checked:
+        typeof popupPresetConfig.custom === "boolean"
+          ? popupPresetConfig.custom
+          : Number(popupPresetConfig.scale) !== 1 ||
+            Number.isFinite(popupPresetConfig.maxHeight) ||
+            Number.isFinite(popupPresetConfig.x) ||
+            Number.isFinite(popupPresetConfig.y),
       disabled: isViewEditing,
     }),
-      popupCustomPositionInput.setAttribute("aria-label", popupPresetLabel + "自定义位置"),
-      createLabeledField(popupGroupSection, "自定义位置", popupCustomPositionInput),
+      popupCustomPositionInput.setAttribute("aria-label", popupPresetLabel + "自定义大小与位置"),
+      createLabeledField(popupGroupSection, "自定义大小与位置", popupCustomPositionInput),
       (popupCustomPositionInput.parentElement.className = "i3d-setting-toggle i3d-view-toggle"));
     const popupPositionElement = createElement("div", "i3d-popup-position");
-    popupGroupSection.append(popupPositionElement);
+    popupCustomControlsElement.append(popupPositionElement);
     const popupPositionInputsByAxis: Record<string, DomControl> = {},
       commitPopupLayout = () => {
-        (previewPopupLayout(),
+        (previewPopupLayout({ ...popupPresetConfig, opacity: popupOpacityPercent }),
           (popupLayout[popupPresetKey] = {
             ...popupPresetConfig,
           }),
@@ -2270,9 +2310,15 @@ type PopupPresetConfig = {
           }));
       },
       syncPopupPositionControls = () => {
-        popupPositionElement.hidden = !popupCustomPositionInput.checked;
+        const customEnabled = popupCustomPositionInput.checked;
+        (popupCustomControlsElement.hidden = !customEnabled),
+          (popupLayoutHintElement.textContent = customEnabled
+            ? "大小和位置实时预览；内容超过最大高度时内部滚动。"
+            : "自动适配画布，最大高度为画布的 75%，长内容内部滚动。"),
+          (popupScaleInput.disabled = isViewEditing || !customEnabled),
+          (popupMaxHeightInput.disabled = isViewEditing || !customEnabled);
         for (const popupPositionInput of Object.values(popupPositionInputsByAxis))
-          popupPositionInput.disabled = isViewEditing || !popupCustomPositionInput.checked;
+          popupPositionInput.disabled = isViewEditing || !customEnabled;
       };
     for (const [popupAxisKey, popupAxisLabel, popupAxisDefault] of [
       ["x", "横向", 100],
@@ -2324,13 +2370,60 @@ type PopupPresetConfig = {
     }
     (popupCustomPositionInput.addEventListener("change", () => {
       popupCustomPositionInput.disabled ||
-        (popupCustomPositionInput.checked
+        ((popupPresetConfig.custom = popupCustomPositionInput.checked),
+        popupCustomPositionInput.checked
           ? ((popupPresetConfig.x = Number(popupPositionInputsByAxis.x.value)),
             (popupPresetConfig.y = Number(popupPositionInputsByAxis.y.value)))
           : (delete popupPresetConfig.x, delete popupPresetConfig.y),
         syncPopupPositionControls(),
         commitPopupLayout());
     }),
+      popupMaxHeightInput.addEventListener("pointerdown", () => {
+        popupMaxHeightInput.disabled ||
+          previewPopupLayout({ ...popupPresetConfig, opacity: popupOpacityPercent }, {
+            showHeightLimit: true,
+          });
+      }),
+      popupMaxHeightInput.addEventListener("input", () => {
+        if (popupMaxHeightInput.disabled) return;
+        (syncHtmlRangeProgress(popupMaxHeightInput),
+          (popupMaxHeightOutputElement.textContent = popupMaxHeightInput.value + "%"));
+        const draftedPopupLayout =
+          getInteraction3dEditorView(targetComponent.id)?.previewPopupHeightDraft?.(
+            popupPresetKey,
+            { ...popupPresetConfig, opacity: popupOpacityPercent },
+            Number(popupMaxHeightInput.value),
+          ) || {
+            ...popupPresetConfig,
+            maxHeight: Number(popupMaxHeightInput.value),
+          };
+        previewPopupLayout(
+          { ...popupPresetConfig, ...draftedPopupLayout },
+          { showHeightLimit: true },
+        );
+      }),
+      popupMaxHeightInput.addEventListener("change", () => {
+        if (popupMaxHeightInput.disabled) return;
+        const typedPopupMaxHeight = Number(popupMaxHeightInput.value);
+        if (!Number.isFinite(typedPopupMaxHeight)) {
+          popupMaxHeightInput.value = String(popupPresetConfig.maxHeight ?? 75);
+          return;
+        }
+        const draftedPopupLayout =
+          getInteraction3dEditorView(targetComponent.id)?.previewPopupHeightDraft?.(
+            popupPresetKey,
+            { ...popupPresetConfig, opacity: popupOpacityPercent },
+            Math.max(30, Math.min(95, typedPopupMaxHeight)),
+          ) || {
+            ...popupPresetConfig,
+            maxHeight: Math.max(30, Math.min(95, typedPopupMaxHeight)),
+          };
+        (Object.assign(popupPresetConfig, draftedPopupLayout),
+          (popupMaxHeightInput.value = String(popupPresetConfig.maxHeight)),
+          syncHtmlRangeProgress(popupMaxHeightInput),
+          (popupMaxHeightOutputElement.textContent = popupMaxHeightInput.value + "%"),
+          commitPopupLayout());
+      }),
       popupScaleInput.addEventListener("input", () => {
         (syncHtmlRangeProgress(popupScaleInput),
           (popupScaleOutputElement.textContent = popupScaleInput.value + "%"),
@@ -2360,9 +2453,14 @@ type PopupPresetConfig = {
             (popupPresetConfig.scale = 1),
             delete popupPresetConfig.x,
             delete popupPresetConfig.y,
+            delete popupPresetConfig.maxHeight,
+            delete popupPresetConfig.custom,
             (popupScaleInput.value = "100"),
             syncHtmlRangeProgress(popupScaleInput),
             (popupScaleOutputElement.textContent = "100%"),
+            (popupMaxHeightInput.value = "75"),
+            syncHtmlRangeProgress(popupMaxHeightInput),
+            (popupMaxHeightOutputElement.textContent = "75%"),
             (popupCustomPositionInput.checked = false),
             (popupPositionInputsByAxis.x.value = "100"),
             (popupPositionInputsByAxis.y.value = "0"),

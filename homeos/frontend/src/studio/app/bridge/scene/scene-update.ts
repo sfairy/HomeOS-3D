@@ -1,3 +1,7 @@
+import { withoutModelRemarks } from "../../shared/model-remarks";
+
+export { canonicalizeContent, sceneContentKey } from "./scene-content-key";
+
 const VIEW_SETTING_KEYS = [
     "planViewRotation",
     "cameraView",
@@ -70,11 +74,12 @@ function stableEquals(left: any, right: any): boolean {
   return Number.isNaN(left) && Number.isNaN(right);
 }
 const floorComparisonShape = (floor: any) => ({
-    ...floor.scene,
+    ...withoutModelRemarks(floor.scene),
     settings: omitKeys(floor.scene?.settings, VIEW_SETTING_KEYS),
   }),
   floorIdentityShape = (sourceFloor: any) =>
     omitKeys(sourceFloor, ["scene", "name", "aligned", "alignmentPending"]);
+
 export function sceneUpdatePlan(previousScene: any, nextScene: any) {
   const previousFloorsById = new Map(
       previousScene.floors.map((listedFloor: any) => [listedFloor.id, listedFloor]),

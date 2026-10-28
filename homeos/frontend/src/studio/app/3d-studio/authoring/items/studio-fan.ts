@@ -1,4 +1,6 @@
 
+import { applyReviewedShells } from "../scene/studio-reviewed-shells";
+
 type FanDimensionConfig = {
   fanScale?: unknown;
   fanHeight?: unknown;
@@ -27,7 +29,20 @@ export function fanDimensions(config: FanDimensionConfig = {}) {
     height: fanHeight * fanScale,
   };
 }
-export function createFanModel(three: any, mergeGeometries: any, options: any, theme: any) {
+export function createFanModel(
+  three: any,
+  mergeGeometries: any,
+  options: any,
+  theme: any,
+  /**
+   * 复核外壳剔除。上游默认开，本项目**默认关**，理由是实测的：
+   * `studio-reviewed-shell-data.ts` 的掩码是按上游几何的指纹人工复核的，本仓机型几何
+   * 是 0.8.0 期移植版，指纹对不上（fan / airer / camera / presence 实测命中 0 条），
+   * 开着只会为每个模型多付一遍全量顶点+索引哈希（实测风扇 +8.5ms/个），一个三角形都剔不掉。
+   * 重新按本仓几何复核掩码后，把这里的默认值改回 true 即可。
+   */
+  { pruneShell = false }: { pruneShell?: boolean } = {},
+) {
   const palette = {
     body: theme.appliance,
     soft: theme.applianceSoft,
@@ -433,5 +448,6 @@ export function createFanModel(three: any, mergeGeometries: any, options: any, t
   for (const restShadowNode of [fan.yaw, fan.rotor])
     (restShadowNode.updateMatrix(),
       (restShadowNode.userData.contactShadowRestMatrix = restShadowNode.matrix.toArray()));
-  return fan.root;
+  // 扇叶与摇头臂是独立作用域（`fanPart`），掩码按作用域分别核对指纹，剔除后再返回。
+  return (pruneShell && applyReviewedShells(three, fan.root, "fan"), fan.root);
 }
