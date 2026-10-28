@@ -202,19 +202,7 @@
           "risk": "轴向/单位歧义"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 28,
-            "shells": 6
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -430,19 +418,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 42,
-            "boundaryEdges": 190,
-            "shells": 25
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -488,19 +464,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 44,
-            "shells": 8
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -1562,19 +1526,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 8,
-            "shells": 7
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": true
     },
     {
@@ -2534,19 +2486,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 34,
-            "boundaryEdges": 0,
-            "shells": 10
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -2592,19 +2532,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 68,
-            "boundaryEdges": 0,
-            "shells": 8
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -2650,19 +2578,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 20,
-            "shells": 5
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -3008,19 +2924,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 31,
-            "shells": 9
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -3738,19 +3642,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 55,
-            "shells": 19
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -4194,19 +4086,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 16,
-            "shells": 15
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -4465,19 +4345,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 48,
-            "shells": 5
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -4523,19 +4391,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 10,
-            "boundaryEdges": 0,
-            "shells": 21
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -4627,19 +4483,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 24,
-            "shells": 58
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -6991,19 +6835,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 84,
-            "shells": 19
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -9783,19 +9615,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 74,
-            "shells": 14
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -9953,19 +9773,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 132,
-            "shells": 39
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": true
     },
     {
@@ -10981,19 +10789,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 32,
-            "shells": 88
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -11765,19 +11561,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 684,
-            "shells": 59
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -11831,19 +11615,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 84,
-            "shells": 16
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": true
     },
     {
@@ -11897,19 +11669,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 96,
-            "shells": 74
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": true
     },
     {
@@ -11955,19 +11715,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 2,
-            "boundaryEdges": 50,
-            "shells": 30
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -12151,19 +11899,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 150,
-            "boundaryEdges": 0,
-            "shells": 63
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -12995,19 +12731,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 96,
-            "shells": 2
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -13895,19 +13619,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 816,
-            "shells": 116
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -13953,19 +13665,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 96,
-            "shells": 53
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -14057,19 +13757,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 90,
-            "shells": 16
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -14313,19 +14001,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 100,
-            "shells": 51
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -15295,19 +14971,7 @@
           "risk": "形态风格差异"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "导出器把薄片与装饰件拆成独立壳，逐壳闭合但整件不是单一闭合体；本轮只做焊接 / 退化面清理 / 平面补洞，不强行重拓扑",
-          "evidence": {
-            "nonManifoldEdges": 320,
-            "boundaryEdges": 32,
-            "shells": 92
-          },
-          "risk": "形态风格差异",
-          "confidence": 0.7
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
@@ -16176,19 +15840,7 @@
           "risk": "尺寸不确定"
         }
       ],
-      "exceptions": [
-        {
-          "type": "topology",
-          "reason": "薄片类（叶片 / 布片 / 玻璃 / 地毯 / 挂画）按单层双面建模，开口是设计意图，不是破面",
-          "evidence": {
-            "nonManifoldEdges": 0,
-            "boundaryEdges": 53,
-            "shells": 6
-          },
-          "risk": "薄片例外",
-          "confidence": 0.9
-        }
-      ],
+      "exceptions": [],
       "flagship": false
     },
     {
