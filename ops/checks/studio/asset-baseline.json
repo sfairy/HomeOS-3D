@@ -6003,9 +6003,11 @@
       "draco": false
     },
     "庭院/家具与铺装/鸟巢吊椅-lite.glb": {
-      "bytes": 35364,
-      "triangles": 1672,
-      "extensionsUsed": [],
+      "bytes": 8520,
+      "triangles": 1432,
+      "extensionsUsed": [
+        "KHR_draco_mesh_compression"
+      ],
       "images": 0,
       "textures": 0,
       "nodeNames": [
@@ -6020,11 +6022,11 @@
         "garden-hanging-chair-garden-water"
       ],
       "brokenImages": [],
-      "draco": false
+      "draco": true
     },
     "庭院/家具与铺装/鸟巢吊椅.glb": {
-      "bytes": 35364,
-      "triangles": 1672,
+      "bytes": 30548,
+      "triangles": 1432,
       "extensionsUsed": [],
       "images": 0,
       "textures": 0,
