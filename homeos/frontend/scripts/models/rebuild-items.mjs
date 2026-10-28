@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { collectModelVariants, listModelFiles, modelsDir, relativeDeviation, round } from './lib/glb-io.mjs'
 import { assertPreserved } from './lib/asset-guard.mjs'
 import { readSourceMaterials, writeFullModel, writeLiteFrom } from './lib/model-builder.mjs'
+import { sealModelFile } from './lib/watertight.mjs'
 
 const hereDir = path.dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
@@ -155,7 +156,28 @@ async function rebuild(id) {
     }
   }
   fs.renameSync(stagingPath, fullPath)
-  if (litePath) await writeLiteFrom(fullPath, litePath)
+  /**
+   * 配方产物统一过一遍水密加厚。
+   *
+   * 为什么放在闸门**之后**：闸门比的是「配方输出 vs 原件」的面数/材质，加厚会凭空多出
+   * 一倍上下的面，混进闸门会把正常重建判成退化。放在这里，闸门只审配方本身，
+   * 加厚只负责把薄壳封起来 —— 而且「只在 GLB 上修好、下次重建又开口」这条回退路被堵死。
+   * 修不好（仍有边界边 / 非流形边）就保持配方原样，`sealModelFile` 不落盘。
+   */
+  const watertight = await sealModelFile({ fullPath, litePath, write: true })
+  summary.watertight = {
+    closed: watertight.closed,
+    thickenedPatches: watertight.geometry?.thickenedPatches ?? 0,
+    rejectedPatches: watertight.geometry?.rejectedPatches ?? 0,
+    addedTriangles: watertight.geometry?.addedTriangles ?? 0,
+  }
+  if (!watertight.closed) {
+    summary.watertight.boundaryEdges = watertight.after.boundaryEdges
+    summary.watertight.nonManifoldEdges = watertight.after.nonManifoldEdges
+  } else if (!watertight.wrote && litePath) {
+    // 本来就闭合：lite 仍需按刚落盘的完整体重出。
+    await writeLiteFrom(fullPath, litePath)
+  }
   return { ...summary, wrote: true, lite: Boolean(litePath), acceptedDrift: drift }
 }
 
